@@ -1,0 +1,10 @@
+id,title,entry,action,feedback,recovery,status,path
+S5-I01,首页,启动进入首页；只有当前 server + user 的权威续播项才能成为主焦点。,点击“继续阅读”；按下后立即保留主卡与返回路径。,展示“正在恢复进度 62%”；内容可渲染后进入来源页，底部导航状态不丢。,不可续 / 离线 / 区块失败分别说明；保留最近内容与三域入口，提供重试或返回。,STATIC_DECISION_INPUT,assets/interactions/S5-I01-HOME.svg
+S5-I02,媒体库 / 视频详情,从媒体库来源分组进入详情；海报、标题与动作排先于网络补齐。,点击主播放键；动作保持可见，显示“正在准备播放”且只接受一次提交。,PlaybackInfo 等待时保留壳层；403 / 404 / 415 区分权限、缺失与格式不支持。,可归因错误给“重试 / 返回”之一；失败不得把详情伪装成空内容。,STATIC_DECISION_INPUT,assets/interactions/S5-I02-MEDIA-VIDEO-DETAIL.svg
+S5-I03,音乐 / 队列,从曲目行打开短操作；播放下一首、追加队尾、清空与移除均使用明确文本。,点“播放下一首”立即高亮当前队列位置；重复点按不重复插入。,Snackbar 与队列同时显示“已插入到下一首”；来源标签保持同曲目身份。,本地文件丢失不重试，保留不可用身份；全部失败时停止并提供重试 / 返回。,STATIC_DECISION_INPUT,assets/interactions/S5-I03-MUSIC-QUEUE.svg
+S5-I04,书架 / 阅读器,从书架或本地库打开书；书籍来源与传输状态独立显示。,点“继续阅读”；远端不能流式时明确显示“准备整本文件”，不无限旋转。,阅读正文主题只覆盖正文；顶栏、按钮与弹层继续服从 App 主题。,远端流失败回退整本下载；本地文件不可用保留书目身份并提供重选或移除。,STATIC_DECISION_INPUT,assets/interactions/S5-I04-BOOKSHELF-READER.svg
+S5-I05,下载,从内容详情或下载中心开始单项任务；先检查网络、空间、卷与来源。,确认后立即出现 accepted / pending；重复点击聚焦既有任务。,任务、进度、通知和下载页使用同一状态真源；完成与失败必须带文字。,空间不足让用户选择可容纳范围；401 / 403 / 404 / 415 不自动重试，保留暂停 / 删除路径。,STATIC_DECISION_INPUT,assets/interactions/S5-I05-DOWNLOADS.svg
+S5-I06,搜索,顶栏进入并带 initialScope；查询、scope 与返回来源同时可见。,提交查询只接受最新 generation；旧结果保留但不冒充新 scope。,pending、未输入、无结果、失败四种状态分开；失败保留查询与 scope。,失败给重试；不支持的 scope 显式禁用并解释，空查询不提交请求。,STATIC_DECISION_INPUT,assets/interactions/S5-I06-SEARCH.svg
+S5-I07,设置 / 主题,设置中分开“主题”与“外观模式”；大尺寸内置预览即时可见。,点选 Lumen；主题和焦点在 200ms 可关闭过渡内切换，不重置滚动或数据。,当前值使用勾选 + 文本 + 描边；设备本地保存成功不回写服务器。,持久化失败回退旧主题并提示；Android 12 以下动态色入口禁用并解释。,STATIC_DECISION_INPUT,assets/interactions/S5-I07-SETTINGS-THEME.svg
+S5-I08,播放控制,从详情或 Mini Player 进入；当前域、标题、进度和传输状态保持同一表达。,播放 / 暂停只改变一个有名称的按钮；seek、字幕、音轨与锁定键按能力启用。,开关态同时使用图标、状态文字和 TalkBack 可读状态；控制层 4 秒隐藏后仍可召回。,单条失败按规则跳项；全部失败停止，给非模态重试 / 返回；Reduce Motion 下直接切换。,STATIC_DECISION_INPUT,assets/interactions/S5-I08-PLAYBACK-CONTROLS.svg
+S5-I09,SyncPlay 候选,仅在未来能力门通过时出现入口；当前不承诺产品可用。,候选流程为创建 / 加入会话；必须先通过在线、权限与协议受理反馈。,展示 joining、accepted、revision 与成员状态；不得把本地成功当服务器成功。,离线 / 403 / 不支持 / 会话过期均退出到普通播放；真实双端与时钟证据留 G2。,STATIC_DECISION_INPUT,assets/interactions/S5-I09-SYNCPLAY-CANDIDATE.svg

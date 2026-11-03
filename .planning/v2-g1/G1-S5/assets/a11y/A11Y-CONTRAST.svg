@@ -1,0 +1,233 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100" role="img" aria-labelledby="title desc" lang="zh-CN">
+<title id="title">无障碍对比度复算</title>
+<desc id="desc">五主题明暗变体的正文、弱文字、内容域、焦点与边界对比度。</desc>
+<rect width="1600" height="1100" fill="#090C11"/>
+<text x="48.00" y="42.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.1">G1-S5 · 无障碍 1/3 · 对比度</text>
+<text x="48.00" y="78.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="34" font-weight="700" text-anchor="start" letter-spacing="0">WCAG 对比度复算</text>
+<text x="48.00" y="106.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">颜色由脚本按 WCAG 相对亮度计算；目标为正文 4.5:1、非文字 3:1。</text>
+<text x="1552.00" y="46.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="end" letter-spacing="0">130 项 · 全部重新计算</text>
+<rect x="40.00" y="142.00" width="190.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">主题</text>
+<rect x="230.00" y="142.00" width="90.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">外观</text>
+<rect x="320.00" y="142.00" width="130.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">正文</text>
+<rect x="450.00" y="142.00" width="130.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">弱文字</text>
+<rect x="580.00" y="142.00" width="130.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">影视</text>
+<rect x="710.00" y="142.00" width="130.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">音乐</text>
+<rect x="840.00" y="142.00" width="130.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">书籍</text>
+<rect x="970.00" y="142.00" width="130.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">焦点</text>
+<rect x="1100.00" y="142.00" width="130.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">边界</text>
+<rect x="1230.00" y="142.00" width="190.00" height="42.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="169.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">结论</text>
+<rect x="40.00" y="184.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="228.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">Prism</text>
+<rect x="230.00" y="184.00" width="90.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="228.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">深色</text>
+<rect x="320.00" y="184.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="228.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">14.33:1</text>
+<rect x="450.00" y="184.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="228.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.38:1</text>
+<rect x="580.00" y="184.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="228.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.45:1</text>
+<rect x="710.00" y="184.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="228.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.75:1</text>
+<rect x="840.00" y="184.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="228.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.71:1</text>
+<rect x="970.00" y="184.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="228.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">15.49:1</text>
+<rect x="1100.00" y="184.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="228.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">3.34:1</text>
+<rect x="1230.00" y="184.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="228.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="256.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="300.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">Prism</text>
+<rect x="230.00" y="256.00" width="90.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="300.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">浅色</text>
+<rect x="320.00" y="256.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="300.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">16.17:1</text>
+<rect x="450.00" y="256.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="300.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.25:1</text>
+<rect x="580.00" y="256.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="300.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.61:1</text>
+<rect x="710.00" y="256.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="300.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.79:1</text>
+<rect x="840.00" y="256.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="300.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.94:1</text>
+<rect x="970.00" y="256.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="300.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">5.39:1</text>
+<rect x="1100.00" y="256.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="300.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">3.92:1</text>
+<rect x="1230.00" y="256.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="300.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="328.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="372.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">Lumen</text>
+<rect x="230.00" y="328.00" width="90.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="372.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">深色</text>
+<rect x="320.00" y="328.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="372.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">14.58:1</text>
+<rect x="450.00" y="328.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="372.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">9.19:1</text>
+<rect x="580.00" y="328.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="372.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">10.03:1</text>
+<rect x="710.00" y="328.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="372.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">9.00:1</text>
+<rect x="840.00" y="328.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="372.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">9.46:1</text>
+<rect x="970.00" y="328.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="372.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">13.00:1</text>
+<rect x="1100.00" y="328.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="372.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">3.64:1</text>
+<rect x="1230.00" y="328.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="372.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="400.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="444.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">Lumen</text>
+<rect x="230.00" y="400.00" width="90.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="444.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">浅色</text>
+<rect x="320.00" y="400.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="444.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">15.71:1</text>
+<rect x="450.00" y="400.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="444.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.46:1</text>
+<rect x="580.00" y="400.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="444.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.85:1</text>
+<rect x="710.00" y="400.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="444.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.87:1</text>
+<rect x="840.00" y="400.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="444.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.29:1</text>
+<rect x="970.00" y="400.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="444.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">5.83:1</text>
+<rect x="1100.00" y="400.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="444.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">3.08:1</text>
+<rect x="1230.00" y="400.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="444.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="472.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="516.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">Nocturne</text>
+<rect x="230.00" y="472.00" width="90.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="516.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">深色</text>
+<rect x="320.00" y="472.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="516.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">14.23:1</text>
+<rect x="450.00" y="472.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="516.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">8.53:1</text>
+<rect x="580.00" y="472.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="516.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">8.72:1</text>
+<rect x="710.00" y="472.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="516.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.85:1</text>
+<rect x="840.00" y="472.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="516.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">9.20:1</text>
+<rect x="970.00" y="472.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="516.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">14.84:1</text>
+<rect x="1100.00" y="472.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="516.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">3.04:1</text>
+<rect x="1230.00" y="472.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="516.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="544.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="588.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">Nocturne</text>
+<rect x="230.00" y="544.00" width="90.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="588.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">浅色</text>
+<rect x="320.00" y="544.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="588.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">15.14:1</text>
+<rect x="450.00" y="544.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="588.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.65:1</text>
+<rect x="580.00" y="544.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="588.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.49:1</text>
+<rect x="710.00" y="544.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="588.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.38:1</text>
+<rect x="840.00" y="544.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="588.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.62:1</text>
+<rect x="970.00" y="544.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="588.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">5.86:1</text>
+<rect x="1100.00" y="544.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="588.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">3.67:1</text>
+<rect x="1230.00" y="544.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="588.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="616.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="660.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">Monolith</text>
+<rect x="230.00" y="616.00" width="90.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="660.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">深色</text>
+<rect x="320.00" y="616.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="660.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">14.46:1</text>
+<rect x="450.00" y="616.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="660.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">8.50:1</text>
+<rect x="580.00" y="616.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="660.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.25:1</text>
+<rect x="710.00" y="616.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="660.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.55:1</text>
+<rect x="840.00" y="616.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="660.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.35:1</text>
+<rect x="970.00" y="616.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="660.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">15.40:1</text>
+<rect x="1100.00" y="616.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="660.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">3.18:1</text>
+<rect x="1230.00" y="616.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="660.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="688.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="732.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">Monolith</text>
+<rect x="230.00" y="688.00" width="90.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="732.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">浅色</text>
+<rect x="320.00" y="688.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="732.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">18.03:1</text>
+<rect x="450.00" y="688.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="732.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.40:1</text>
+<rect x="580.00" y="688.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="732.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.64:1</text>
+<rect x="710.00" y="688.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="732.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.14:1</text>
+<rect x="840.00" y="688.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="732.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.68:1</text>
+<rect x="970.00" y="688.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="732.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.45:1</text>
+<rect x="1100.00" y="688.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="732.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">4.20:1</text>
+<rect x="1230.00" y="688.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="732.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="760.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="804.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">系统动态色</text>
+<rect x="230.00" y="760.00" width="90.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="804.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">深色</text>
+<rect x="320.00" y="760.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="804.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">13.54:1</text>
+<rect x="450.00" y="760.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="804.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">8.38:1</text>
+<rect x="580.00" y="760.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="804.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">9.42:1</text>
+<rect x="710.00" y="760.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="804.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">8.95:1</text>
+<rect x="840.00" y="760.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="804.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">8.69:1</text>
+<rect x="970.00" y="760.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="804.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">15.49:1</text>
+<rect x="1100.00" y="760.00" width="130.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="804.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">3.42:1</text>
+<rect x="1230.00" y="760.00" width="190.00" height="72.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="804.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="832.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="135.00" y="876.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">系统动态色</text>
+<rect x="230.00" y="832.00" width="90.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="275.00" y="876.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">浅色</text>
+<rect x="320.00" y="832.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="385.00" y="876.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">15.77:1</text>
+<rect x="450.00" y="832.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="515.00" y="876.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.60:1</text>
+<rect x="580.00" y="832.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="645.00" y="876.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.49:1</text>
+<rect x="710.00" y="832.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="775.00" y="876.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">7.04:1</text>
+<rect x="840.00" y="832.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="905.00" y="876.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.95:1</text>
+<rect x="970.00" y="832.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1035.00" y="876.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">6.01:1</text>
+<rect x="1100.00" y="832.00" width="130.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1165.00" y="876.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="middle" letter-spacing="0">3.17:1</text>
+<rect x="1230.00" y="832.00" width="190.00" height="72.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="876.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">PASS</text>
+<rect x="40.00" y="936.00" width="1520.00" height="72.00" rx="14.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="62.00" y="965.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">静态结论</text>
+<text x="62.00" y="992.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">130/130 PASS；真实渲染与动态色重算仍为 UNVERIFIED。</text>
+<text x="40.00" y="1062.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">未执行：Compose 实渲染、WallpaperColors 动态重算、设备对比度设置、视觉终判。</text>
+</svg>

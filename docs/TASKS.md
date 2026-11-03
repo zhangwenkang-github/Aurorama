@@ -6,7 +6,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 停止条件 |
 |---|---|---|---|---|
-| `V2-SOLUTION-BASELINE` | G1 方案门 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | G0、G1/0、S1–S3、Q01/Q02、S4-A/B 已完成；S4-C 静态证据已冻结于 `a84ce4f1` 并可作为 Q03 非媒体输入；下一棒 `G1-S5`，S6 待排 | G1 未通过；S4-C 静态冻结不等于 runtime / 完整 Q03 / G1 PASS，TTS 纯离线与 voice license、PDFium 16 KB / native notice、PDF Range 大文件及 SBOM 仍为硬门；S5 未完成、Q04 未拍板，禁止进入实现、S6 验收冒充或 G2 |
+| `V2-SOLUTION-BASELINE` | G1 方案门 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | G0、G1/0、S1–S3、Q01/Q02、S4-A/B 已完成；S4-C 静态证据已冻结并按 Q03 非媒体输入保留；S5 证据及 `eol=lf` / verifier 白名单门完成，当前等待 `V2-Q-G1-04` 用户视觉方向决策，S6 待排 | G1 未通过；`V2-Q-G1-04` 仍 Open（未拍板），Q03 的 TTS 纯离线与 voice license、PDFium 16 KB / native notice、PDF Range 大文件及 SBOM 仍为硬门；`UI_DESIGN_SYSTEM` 仍为 v1.0，禁止进入实现、S6 验收冒充或 G2 |
 
 ## Review
 

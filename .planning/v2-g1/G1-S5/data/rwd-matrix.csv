@@ -1,0 +1,7 @@
+id,class,width,height,navigation,railWidth,pagePadding,gutter,minimumCardWidth,contentWidth,columns,cardWidth,status,path
+RWD-COMPACT,Compact,360,780,bottom,0,16,12,140,328,2,158.0,STATIC_LAYOUT_PASS,assets/rwd/RWD-COMPACT.svg
+RWD-MEDIUM,Medium,600,900,rail,72,24,16,140,480,3,149.33,STATIC_LAYOUT_PASS,assets/rwd/RWD-MEDIUM.svg
+RWD-EXPANDED,Expanded,840,700,rail,72,32,16,140,704,4,164.0,STATIC_LAYOUT_PASS,assets/rwd/RWD-EXPANDED.svg
+RWD-LARGE,Large,1200,800,expanded-rail,216,48,24,140,888,5,158.4,STATIC_LAYOUT_PASS,assets/rwd/RWD-LARGE.svg
+RWD-EXTRA,ExtraLarge,1600,900,expanded-rail,216,48,24,140,1280,7,162.29,STATIC_LAYOUT_PASS,assets/rwd/RWD-EXTRA.svg
+RWD-FOLD,Foldable,700,900,rail,72,24,,,,,,STATIC_LAYOUT_PASS,assets/rwd/RWD-FOLD.svg

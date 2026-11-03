@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc" lang="zh-CN">
+<title id="title">权限与不可用状态</title>
+<desc id="desc">下载 403、管理员门控、动态色平台限制和 SyncPlay 候选的状态区分。</desc>
+<rect width="1600" height="900" fill="#090C11"/>
+<text x="48.00" y="42.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.1">G1-S5 · 状态 3/3 · 权限</text>
+<text x="48.00" y="78.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="34" font-weight="700" text-anchor="start" letter-spacing="0">权限 / 不可用边界</text>
+<text x="48.00" y="106.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">权限拒绝不自动重试；不可用、离线、空与错误必须分开。</text>
+<text x="1552.00" y="46.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="end" letter-spacing="0">STATIC · RUNTIME UNVERIFIED</text>
+<rect x="48.00" y="154.00" width="362.00" height="620.00" rx="18.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<circle cx="82.00" cy="196.00" r="14.00" fill="#E87C6E" fill-opacity="0.22" stroke="#E87C6E" stroke-width="2"/>
+<text x="110.00" y="202.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">下载 403</text>
+<text x="74.00" y="250.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">对象：潮汐档案</text>
+<rect x="74.00" y="274.00" width="310.00" height="130.00" rx="14.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="94.00" y="310.00" fill="#E87C6E" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">状态</text>
+<text x="94.00" y="342.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="17" font-weight="500" text-anchor="start" letter-spacing="0">来源拒绝访问；无自动重试。</text>
+<text x="74.00" y="454.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">恢复路径</text>
+<text x="74.00" y="484.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">返回详情；权限变化后由用户重新发起。</text>
+<rect x="74.00" y="640.00" width="310.00" height="48.00" rx="10.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="84.00" y="670.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">文字 + 图标 + 形状，缺一不可</text>
+<rect x="430.00" y="154.00" width="362.00" height="620.00" rx="18.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<circle cx="464.00" cy="196.00" r="14.00" fill="#6FA8FF" fill-opacity="0.22" stroke="#6FA8FF" stroke-width="2"/>
+<text x="492.00" y="202.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">管理员门控</text>
+<text x="456.00" y="250.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">对象：媒体库管理</text>
+<rect x="456.00" y="274.00" width="310.00" height="130.00" rx="14.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="476.00" y="310.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">状态</text>
+<text x="476.00" y="342.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="17" font-weight="500" text-anchor="start" letter-spacing="0">当前账户无管理能力。</text>
+<text x="456.00" y="454.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">恢复路径</text>
+<text x="456.00" y="484.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">显示可见原因；普通浏览入口仍可用。</text>
+<rect x="456.00" y="640.00" width="310.00" height="48.00" rx="10.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="466.00" y="670.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">文字 + 图标 + 形状，缺一不可</text>
+<rect x="812.00" y="154.00" width="362.00" height="620.00" rx="18.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<circle cx="846.00" cy="196.00" r="14.00" fill="#E4B962" fill-opacity="0.22" stroke="#E4B962" stroke-width="2"/>
+<text x="874.00" y="202.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">动态色版本门</text>
+<text x="838.00" y="250.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">Android 12 以下</text>
+<rect x="838.00" y="274.00" width="310.00" height="130.00" rx="14.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="858.00" y="310.00" fill="#E4B962" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">状态</text>
+<text x="858.00" y="342.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="17" font-weight="500" text-anchor="start" letter-spacing="0">主题入口禁用，不伪装成可点预览。</text>
+<text x="838.00" y="454.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">恢复路径</text>
+<text x="838.00" y="484.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">显示系统版本要求；当前主题保持可用。</text>
+<rect x="838.00" y="640.00" width="310.00" height="48.00" rx="10.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="848.00" y="670.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">文字 + 图标 + 形状，缺一不可</text>
+<rect x="1194.00" y="154.00" width="362.00" height="620.00" rx="18.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<circle cx="1228.00" cy="196.00" r="14.00" fill="#72AEF5" fill-opacity="0.22" stroke="#72AEF5" stroke-width="2"/>
+<text x="1256.00" y="202.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">SyncPlay 候选</text>
+<text x="1220.00" y="250.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">能力未通过 G1/G2</text>
+<rect x="1220.00" y="274.00" width="310.00" height="130.00" rx="14.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1240.00" y="310.00" fill="#72AEF5" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">状态</text>
+<text x="1240.00" y="342.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="17" font-weight="500" text-anchor="start" letter-spacing="0">当前不展示已可用承诺。</text>
+<text x="1220.00" y="454.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">恢复路径</text>
+<text x="1220.00" y="484.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">协议 / 双端 / 时钟证据就绪后再评</text>
+<text x="1220.00" y="510.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="400" text-anchor="start" letter-spacing="0">审。</text>
+<rect x="1220.00" y="640.00" width="310.00" height="48.00" rx="10.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1230.00" y="670.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">文字 + 图标 + 形状，缺一不可</text>
+</svg>

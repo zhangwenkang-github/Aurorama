@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>G1-S5 视觉方向证据</title>
+  <style>
+    :root { color-scheme: dark; --bg:#090c11; --surface:#111720; --text:#f3f5f7; --muted:#aab4c0; --line:#303b48; --accent:#9fcdbb; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:400 16px/1.55 "Microsoft YaHei UI",sans-serif; }
+    header, main { width:min(1600px,calc(100% - 40px)); margin:auto; }
+    header { padding:48px 0 28px; border-bottom:1px solid var(--line); }
+    h1 { margin:0 0 8px; font-size:34px; }
+    h2 { margin:0; font-size:24px; }
+    p { color:var(--muted); max-width:80ch; }
+    section { padding:34px 0; border-bottom:1px solid var(--line); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:20px; margin-top:20px; }
+    figure { margin:0; background:var(--surface); border:1px solid var(--line); padding:12px; border-radius:14px; }
+    img { display:block; width:100%; height:auto; background:var(--bg); }
+    figcaption { padding:10px 4px 2px; color:var(--muted); }
+    a { color:var(--accent); }
+  </style>
+</head>
+<body>
+<header>
+  <h1>G1-S5 视觉方向证据</h1>
+  <p>供 V2-Q-G1-04 用户决策。状态：Q04 OPEN / G1 NOT PASSED / RUNTIME UNVERIFIED。</p>
+  <p><a href="decision-brief.md">决策简报</a> · <a href="manifest.json">manifest.json</a> · <a href="data/contrast-matrix.csv">对比度 CSV</a> · <a href="data/state-matrix.csv">状态 CSV</a></p>
+</header>
+<main>
+  <section><h2>五主题风格帧</h2><p>每帧同时展示深色主预览、明暗对照、色板、材质和静态无障碍结果。</p><div class="grid"><figure><img src="assets/themes/THEME-PRISM.svg" alt="Prism 视觉方向帧"><figcaption>Prism / 精密折射</figcaption></figure>
+<figure><img src="assets/themes/THEME-LUMEN.svg" alt="Lumen 视觉方向帧"><figcaption>Lumen / 冷青流光</figcaption></figure>
+<figure><img src="assets/themes/THEME-NOCTURNE.svg" alt="Nocturne 视觉方向帧"><figcaption>Nocturne / 夜读金线</figcaption></figure>
+<figure><img src="assets/themes/THEME-MONOLITH.svg" alt="Monolith 视觉方向帧"><figcaption>Monolith / 硬质层次</figcaption></figure>
+<figure><img src="assets/themes/THEME-DYNAMIC.svg" alt="系统动态色 视觉方向帧"><figcaption>系统动态色 / 壁纸语义映射</figcaption></figure></div></section>
+  <section><h2>九条低保真交互</h2><p>入口、主要动作、反馈 / 状态、失败 / 恢复逐条独立审阅。</p><div class="grid"><figure><img src="assets/interactions/S5-I01-HOME.svg" alt="首页 低保真交互复核"><figcaption>S5-I01 · 首页</figcaption></figure>
+<figure><img src="assets/interactions/S5-I02-MEDIA-VIDEO-DETAIL.svg" alt="媒体库 / 视频详情 低保真交互复核"><figcaption>S5-I02 · 媒体库 / 视频详情</figcaption></figure>
+<figure><img src="assets/interactions/S5-I03-MUSIC-QUEUE.svg" alt="音乐 / 队列 低保真交互复核"><figcaption>S5-I03 · 音乐 / 队列</figcaption></figure>
+<figure><img src="assets/interactions/S5-I04-BOOKSHELF-READER.svg" alt="书架 / 阅读器 低保真交互复核"><figcaption>S5-I04 · 书架 / 阅读器</figcaption></figure>
+<figure><img src="assets/interactions/S5-I05-DOWNLOADS.svg" alt="下载 低保真交互复核"><figcaption>S5-I05 · 下载</figcaption></figure>
+<figure><img src="assets/interactions/S5-I06-SEARCH.svg" alt="搜索 低保真交互复核"><figcaption>S5-I06 · 搜索</figcaption></figure>
+<figure><img src="assets/interactions/S5-I07-SETTINGS-THEME.svg" alt="设置 / 主题 低保真交互复核"><figcaption>S5-I07 · 设置 / 主题</figcaption></figure>
+<figure><img src="assets/interactions/S5-I08-PLAYBACK-CONTROLS.svg" alt="播放控制 低保真交互复核"><figcaption>S5-I08 · 播放控制</figcaption></figure>
+<figure><img src="assets/interactions/S5-I09-SYNCPLAY-CANDIDATE.svg" alt="SyncPlay 候选 低保真交互复核"><figcaption>S5-I09 · SyncPlay 候选</figcaption></figure></div></section>
+  <section><h2>RWD 代表帧</h2><p>五档宽度与一条折痕 / 窗口变化帧。</p><div class="grid"><figure><img src="assets/rwd/RWD-COMPACT.svg" alt="RWD-COMPACT RWD 帧"><figcaption>RWD-COMPACT</figcaption></figure>
+<figure><img src="assets/rwd/RWD-MEDIUM.svg" alt="RWD-MEDIUM RWD 帧"><figcaption>RWD-MEDIUM</figcaption></figure>
+<figure><img src="assets/rwd/RWD-EXPANDED.svg" alt="RWD-EXPANDED RWD 帧"><figcaption>RWD-EXPANDED</figcaption></figure>
+<figure><img src="assets/rwd/RWD-LARGE.svg" alt="RWD-LARGE RWD 帧"><figcaption>RWD-LARGE</figcaption></figure>
+<figure><img src="assets/rwd/RWD-EXTRA.svg" alt="RWD-EXTRA RWD 帧"><figcaption>RWD-EXTRA</figcaption></figure>
+<figure><img src="assets/rwd/RWD-FOLD.svg" alt="RWD-FOLD RWD 帧"><figcaption>RWD-FOLD</figcaption></figure></div></section>
+  <section><h2>状态</h2><div class="grid">
+    <figure><img src="assets/states/STATE-COMPONENTS.svg" alt="组件状态板"><figcaption>组件状态</figcaption></figure>
+    <figure><img src="assets/states/STATE-PAGE-MATRIX.svg" alt="页面状态矩阵"><figcaption>页面状态矩阵</figcaption></figure>
+    <figure><img src="assets/states/STATE-PERMISSION.svg" alt="权限状态板"><figcaption>权限 / 不可用边界</figcaption></figure>
+  </div></section>
+  <section><h2>无障碍</h2><div class="grid">
+    <figure><img src="assets/a11y/A11Y-CONTRAST.svg" alt="对比度表"><figcaption>对比度复算</figcaption></figure>
+    <figure><img src="assets/a11y/A11Y-INTERACTION.svg" alt="触控焦点字号动效证据"><figcaption>触控 / 焦点 / 字号 / 动效</figcaption></figure>
+    <figure><img src="assets/a11y/A11Y-NAMES.svg" alt="可访问名称映射"><figcaption>可访问名称</figcaption></figure>
+  </div></section>
+</main>
+</body>
+</html>

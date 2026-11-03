@@ -1,0 +1,35 @@
+{
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "65136840f510ff0718c0667a87c7e26f17aee4072e0a4eb52421a11218458e21"
+    },
+    {
+      "path": "docs/PROJECT_RULES.md",
+      "sha256": "b1707d0cb16a2e9b9140d1141baeba10eb10a6a6a26f173c3e3779ebc6569459"
+    },
+    {
+      "path": "docs/V2_PLAN.md",
+      "sha256": "459fe34b6a7436c7871796b15955d6b20d8471ff1e05d7a160c698da83e4ec71"
+    },
+    {
+      "path": "docs/UI_DESIGN_SYSTEM.md",
+      "sha256": "4393bdea44285fd0d1ee972cf7c0d6e987f9464bf79a31a6d3020eccb2ed27cd"
+    },
+    {
+      "path": "docs/DECISIONS.md",
+      "sha256": "797d21740c07444c3fe0bac0ea5781756955e1adcd636572f561591c7618fc3e"
+    },
+    {
+      "path": "docs/adr/0007-v2-app-wide-theme-model.md",
+      "sha256": "533976117f9c04d639da6f1ca3d5eb72a74fc13ac0403c4e152f39a29da30c77"
+    }
+  ],
+  "sectionsRead": [
+    "PROJECT_RULES R020/R025/R027/R028",
+    "V2_PLAN §5.3.16, §5.11.6, §5.11.7, §5.11.12, §12 ACTIVE",
+    "UI_DESIGN_SYSTEM §2, §4, §6, §8.14",
+    "ADR-0007",
+    "DECISIONS V2-Q-G1-04"
+  ]
+}

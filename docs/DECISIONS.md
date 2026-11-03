@@ -212,14 +212,16 @@
 当前 G0 无开放产品问题。`V2-Q-G1-01/02` 已分别由 `V2-D198/D199` 关闭；
 `V2-Q-G1-03` 的 S4-B 媒体输入与 S4-C TTS / PDF 非媒体输入均已冻结，但完整 Q03 仍
 Open，G1 未通过，runtime、SBOM / native notice、16 KB 与 Range 大文件仍待证据；
-`V2-Q-G1-04` 等待 S5。`V2-D200` 只固定体验优先与包体非要求。代理建议不得代替用户拍板。
+`V2-Q-G1-04` 的 S5 五主题、九交互、RWD、状态与无障碍静态证据已完成，推荐 R1，A2 / A3
+待用户比较；Q04 仍等待用户主观视觉确认。`docs/UI_DESIGN_SYSTEM.md` 仍为 v1.0，G1 未通过。
+`V2-D200` 只固定体验优先与包体非要求。代理建议不得代替用户拍板。
 
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
 |---|---|---|---|---|
 | `V2-Q-G1-03` | `G1-S4-A/B/C` 已冻结 runtime graph、许可证输入、Media3 / decoder / libmpv 静态事实及 TTS / PDF 非媒体矩阵；S4-C 证据提交 `a84ce4f1…` 的 `s4cNonMediaInputReadyForQ03=true`，但 `fullQ03UserDecisionReady=false`、`g1Passed=false`。TTS runtime / voice license、PDFium 16 KB / native notice、PDF Range 大文件、SBOM 与真实链路仍开放 | Media3 主路径；Sherpa-ONNX 作为带门 G2 TTS Spike 主候选，system TTS 仅条件备选，Piper direct 延后；PDF 保留 PdfRenderer 回滚，stable PDFium 2.0.3 过硬门后再比较 | 双内核和 PDFium 提高覆盖；取舍看 runtime、许可与质量，不因包体单独删除能力 | **Open / S4-C non-media input ready；full Q03 Open；G1 not passed** |
-| `V2-Q-G1-04` | V2 已有主题轴约束，但非 Prism 色板 / 材质、基础圆角、AmbientColors 去留、RWD 细节和九条低保真尚未确认 | 按 §5.11.6 候选先出五主题风格帧和低保真复核，再由用户整包确认 | 直接实现会固化第二主题、错误对比度和不一致 RWD | **Open / 待 `G1-S5`** |
+| `V2-Q-G1-04` | `G1-S5` 已完成静态决策输入：`.planning/v2-g1/G1-S5/decision-brief.md`、`manifest.json`；47 文件 / 777,375 字节，manifest SHA-256 `2A61136BD64A11C1842F28648BCAD675F4DB9E4003380CC830C706DCC4B41AAD`，46 条目 = 45 原证据 + 1 EOL 控制条目；`.gitattributes` 固定 `* text eol=lf`，47/47 LF、CRLF 0，保证 hashtree / checkout 复现；主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130。verifier 的预期 docs dirty 白名单当前 exit 0、实际越界负测 exit 1；独立 scoped evidence review PASS。静态覆盖不等于设备 / TalkBack / 真字体 / 动态色 runtime PASS | 推荐整包 R1“DNA 保留 + 共享骨架”：保留五主题材料语法，共享 IA、状态、48dp、可访问名称与反馈职责；`AmbientColors` 不作页面主题，只保留受控局部强调；五档 RWD 与 72 / 216dp 轨道、16 / 24 / 32 / 48dp 页面边距 | A2 强化玻璃、内高光与编辑材质表现，辨识度更强但增加可读性、性能和主题漂移风险；A3 强化结构统一，主题主要只换颜色 / 圆角，更稳但削弱 Lumen / Nocturne / Monolith 辨识度；也可逐项修订 | **Open / 等待用户视觉方向决策；G1 not passed；UI_DESIGN_SYSTEM 仍为 v1.0** |
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）
 

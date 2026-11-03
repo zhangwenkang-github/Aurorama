@@ -1,0 +1,842 @@
+[
+  {
+    "id": "S5-STATE-01-DEFAULT",
+    "pageGroup": "首页",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "唯一续播主卡 + 紧凑最近内容 + 三域入口",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-01-LOADING",
+    "pageGroup": "首页",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "有缓存静默刷新；完全无内容才骨架",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-01-EMPTY",
+    "pageGroup": "首页",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "无续播时主卡空态，最近内容与入口保留",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-01-OFFLINE",
+    "pageGroup": "首页",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "缓存内容可用并标注离线；不伪造刷新",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-01-ERROR",
+    "pageGroup": "首页",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "区块级失败与重试，保留成功区块",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-01-PERMISSION",
+    "pageGroup": "首页",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "不可访问库或续播项不进入主卡，说明身份 / 权限",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-02-DEFAULT",
+    "pageGroup": "视频 / 音乐 / 书架",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "当前库、tab、选中项与列表内容",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-02-LOADING",
+    "pageGroup": "视频 / 音乐 / 书架",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "首载骨架；刷新保留旧列表",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-02-EMPTY",
+    "pageGroup": "视频 / 音乐 / 书架",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "无库、库为空、筛选无结果分别说明",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-02-OFFLINE",
+    "pageGroup": "视频 / 音乐 / 书架",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "已缓存列表继续显示；不可播项显式标注",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-02-ERROR",
+    "pageGroup": "视频 / 音乐 / 书架",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "保留壳层与缓存，给重试",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-02-PERMISSION",
+    "pageGroup": "视频 / 音乐 / 书架",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "下载、播放、阅读或批量动作按能力 / 权限解释",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-03-DEFAULT",
+    "pageGroup": "媒体库 / 收藏",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "来源分组、库卡与收藏项",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-03-LOADING",
+    "pageGroup": "媒体库 / 收藏",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "本地与服务器分区加载，本地可先显示",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-03-EMPTY",
+    "pageGroup": "媒体库 / 收藏",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "无媒体库或无收藏，告诉用户下一步",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-03-OFFLINE",
+    "pageGroup": "媒体库 / 收藏",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "本地来源可用；服务器来源标注离线",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-03-ERROR",
+    "pageGroup": "媒体库 / 收藏",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "单来源失败不清空另一来源",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-03-PERMISSION",
+    "pageGroup": "媒体库 / 收藏",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "管理员门控与管理入口分开显示",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-04-DEFAULT",
+    "pageGroup": "搜索",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "查询框、当前 scope、初始或最近状态",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-04-LOADING",
+    "pageGroup": "搜索",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "保留查询并显示明确 pending",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-04-EMPTY",
+    "pageGroup": "搜索",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "未输入与无结果严格分开",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-04-OFFLINE",
+    "pageGroup": "搜索",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "本地 / 缓存 scope 可用，远端 scope 解释离线",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-04-ERROR",
+    "pageGroup": "搜索",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "保留查询与 scope，给重试",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-04-PERMISSION",
+    "pageGroup": "搜索",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "不支持或无权限 scope 禁用并说明原因",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-05-DEFAULT",
+    "pageGroup": "详情",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "标题、媒体图、元信息与动作排",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-05-LOADING",
+    "pageGroup": "详情",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "骨架优先保留已知字段",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-05-EMPTY",
+    "pageGroup": "详情",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "不适用；不存在归错误，能力缺失归不可用",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-05-OFFLINE",
+    "pageGroup": "详情",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "缓存详情可读，播放 / 下载按可用性禁用",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-05-ERROR",
+    "pageGroup": "详情",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "具体失败 + 重试 / 返回",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-05-PERMISSION",
+    "pageGroup": "详情",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "播放、下载、收藏、已看逐动作解释",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-06-DEFAULT",
+    "pageGroup": "下载",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "队列 / 离线库、聚合状态与叶子任务",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-06-LOADING",
+    "pageGroup": "下载",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "本地任务先上屏，元数据静默补齐",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-06-EMPTY",
+    "pageGroup": "下载",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "当前页签无任务，不混同另一页签",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-06-OFFLINE",
+    "pageGroup": "下载",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "离线库与暂停 / 失败任务仍可管理",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-06-ERROR",
+    "pageGroup": "下载",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "失败原因与重试；页面错误不覆盖任务真源",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-06-PERMISSION",
+    "pageGroup": "下载",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "401 / 403 无自动重试，给返回或权限说明",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-07-DEFAULT",
+    "pageGroup": "设置",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "当前值、依赖说明与即时保存结果",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-07-LOADING",
+    "pageGroup": "设置",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "动态选项加载但保留当前值",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-07-EMPTY",
+    "pageGroup": "设置",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "无动态选项时说明与替代入口",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-07-OFFLINE",
+    "pageGroup": "设置",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "设备本地设置可改；服务器依赖项解释离线",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-07-ERROR",
+    "pageGroup": "设置",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "读取 / 保存失败保留现场并重试",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-07-PERMISSION",
+    "pageGroup": "设置",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "管理员或平台依赖未满足时禁用并解释",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-08-DEFAULT",
+    "pageGroup": "启动 / 登录",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "可输入表单、焦点与系统返回",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-08-LOADING",
+    "pageGroup": "启动 / 登录",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "发现 / 登录 / 验证中防重复提交",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-08-EMPTY",
+    "pageGroup": "启动 / 登录",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "无服务器列表时提供添加入口",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-08-OFFLINE",
+    "pageGroup": "启动 / 登录",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "进入既有离线账户选择，显示始终可见的切换在线入口",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-08-ERROR",
+    "pageGroup": "启动 / 登录",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "网络、认证、证书、版本分别解释",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-08-PERMISSION",
+    "pageGroup": "启动 / 登录",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "账户被拒或证书不信任给退出 / 换账户",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-09-DEFAULT",
+    "pageGroup": "播放器 / 阅读器",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "内容、传输控制、进度与当前能力",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-09-LOADING",
+    "pageGroup": "播放器 / 阅读器",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "buffering / 首页加载有可理解状态",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-09-EMPTY",
+    "pageGroup": "播放器 / 阅读器",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "无字幕、无音轨等能力空态要说明",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-09-OFFLINE",
+    "pageGroup": "播放器 / 阅读器",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "本地内容继续；远端来源不可用时保留退出路径",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-09-ERROR",
+    "pageGroup": "播放器 / 阅读器",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "失败给退出或重试；不得黑卡",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-09-PERMISSION",
+    "pageGroup": "播放器 / 阅读器",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "文件 / 媒体访问不可用时说明，不只变灰",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-10-DEFAULT",
+    "pageGroup": "主题设置",
+    "state": "default",
+    "stateLabel": "正常",
+    "mapping": "五主题预览、当前选择与外观模式",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-10-LOADING",
+    "pageGroup": "主题设置",
+    "state": "loading",
+    "stateLabel": "加载",
+    "mapping": "预览即时；不阻塞当前可用主题",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-10-EMPTY",
+    "pageGroup": "主题设置",
+    "state": "empty",
+    "stateLabel": "空",
+    "mapping": "无空页；动态色在旧系统显示可用性空态",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-10-OFFLINE",
+    "pageGroup": "主题设置",
+    "state": "offline",
+    "stateLabel": "离线",
+    "mapping": "纯本地主题可切换，不依赖服务器",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-10-ERROR",
+    "pageGroup": "主题设置",
+    "state": "error",
+    "stateLabel": "错误",
+    "mapping": "持久化失败回退并提示",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  },
+  {
+    "id": "S5-STATE-10-PERMISSION",
+    "pageGroup": "主题设置",
+    "state": "permission",
+    "stateLabel": "权限",
+    "mapping": "Android 12 以下动态色入口禁用并解释版本要求",
+    "sources": [
+      "V2_PLAN §5.3.16.4",
+      "V2-REQ-UX-014",
+      "V2-D025",
+      "V2-D032"
+    ],
+    "status": "STATIC_DECISION_INPUT"
+  }
+]

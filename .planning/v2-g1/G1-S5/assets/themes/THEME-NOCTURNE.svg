@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" lang="zh-CN">
+<title id="title">Nocturne 视觉方向帧</title>
+<desc id="desc">Nocturne 的深色主预览、明暗对照、色板、材质、圆角与无障碍自检。</desc>
+<rect width="1600" height="1000" fill="#090C11"/>
+<text x="48.00" y="42.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.1">G1-S5 · 主题 3/5 · 待用户确认</text>
+<text x="48.00" y="78.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="34" font-weight="700" text-anchor="start" letter-spacing="0">Nocturne / 夜读金线</text>
+<text x="48.00" y="106.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">高对比编辑排版，暖金与靛影作角色差</text>
+<text x="1552.00" y="46.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="end" letter-spacing="0">V2-Q-G1-04 · Q04 OPEN · G1 NOT PASSED</text>
+<rect x="48.00" y="132.00" width="930.00" height="794.00" rx="16.00" fill="#161210" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<rect x="48.00" y="132.00" width="86.00" height="794.00" rx="16.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1.5"/>
+<text x="70.00" y="182.00" fill="#B1C58C" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="26" font-weight="700" text-anchor="start" letter-spacing="0">A</text>
+<rect x="60.00" y="222.00" width="62.00" height="54.00" rx="10.00" fill="#2B231E" fill-opacity="1" stroke="#B1C58C" stroke-width="1"/>
+<path d="M 78 247 L 87 239 L 96 247 M 80 246 V 255 H 94 V 246" fill="none" fill-opacity="1" stroke="#B1C58C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="91.00" y="279.00" fill="#B1C58C" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="middle" letter-spacing="0">首页</text>
+<rect x="79.00" y="326.00" width="16.00" height="14.00" rx="2.00" fill="none" fill-opacity="1" stroke="#C8B3A2" stroke-width="1.75"/>
+<path d="M 85 330 L 91 333 L 85 336 Z" fill="none" fill-opacity="1" stroke="#C8B3A2" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="91.00" y="365.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="middle" letter-spacing="0">视频</text>
+<path d="M 85 424 V 413 L 94 411 V 422" fill="none" fill-opacity="1" stroke="#C8B3A2" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="82.00" cy="425.00" r="3.00" fill="#C8B3A2" fill-opacity="1" stroke="none" stroke-width="0"/>
+<circle cx="91.00" cy="423.00" r="3.00" fill="#C8B3A2" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="91.00" y="451.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="middle" letter-spacing="0">音乐</text>
+<path d="M 80 499 H 86 Q 87 499 87 501 V 512 H 82 Q 80 512 80 510 Z" fill="none" fill-opacity="1" stroke="#C8B3A2" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 94 499 H 88 Q 87 499 87 501 V 512 H 92 Q 94 512 94 510 Z" fill="none" fill-opacity="1" stroke="#C8B3A2" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="91.00" y="537.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="middle" letter-spacing="0">书架</text>
+<text x="162.00" y="186.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="28" font-weight="700" text-anchor="start" letter-spacing="0">今晚继续</text>
+<text x="896.00" y="180.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="30" font-weight="400" text-anchor="middle" letter-spacing="0">⌕</text>
+<circle cx="896.00" cy="171.00" r="22.00" fill="none" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<rect x="162.00" y="218.00" width="510.00" height="306.00" rx="8.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1.5"/>
+<defs><linearGradient id="poster-nocturne-hero" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B231E"/><stop offset=".58" stop-color="#161210"/><stop offset="1" stop-color="#E2B06A" stop-opacity=".46"/></linearGradient></defs>
+<rect x="484.00" y="240.00" width="164.00" height="262.00" rx="10.00" fill="url(#poster-nocturne-hero)" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<circle cx="602.08" cy="318.60" r="47.16" fill="#E2B06A" fill-opacity="0.23" stroke="none" stroke-width="0"/>
+<path d="M 503.7 423.4 C 529.9 334.3, 559.4 475.8, 628.3 350.0" fill="none" fill-opacity="0.9" stroke="#B1C58C" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 520.1 452.2 C 546.3 394.6, 574.2 428.6, 611.9 384.1" fill="none" fill-opacity="0.62" stroke="#F4E8D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 513.5 297.6 L 539.8 350.0 L 529.9 384.1" fill="none" fill-opacity="0.75" stroke="#FFE2AE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="188.00" y="264.00" fill="#B1C58C" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="0">继续阅读</text>
+<text x="188.00" y="310.00" fill="#F4E8D8" fill-opacity="1" font-family="'Literata','Noto Serif SC',serif" font-size="34" font-weight="700" text-anchor="start" letter-spacing="0">潮汐档案</text>
+<text x="188.00" y="342.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="500" text-anchor="start" letter-spacing="0">第 12 章 · 62%</text>
+<rect x="188.00" y="440.00" width="250.00" height="6.00" rx="3.00" fill="#786355" fill-opacity="1" stroke="none" stroke-width="0"/>
+<rect x="188.00" y="440.00" width="155.00" height="6.00" rx="3.00" fill="#B1C58C" fill-opacity="1" stroke="none" stroke-width="0"/>
+<rect x="188.00" y="470.00" width="132.00" height="42.00" rx="6.00" fill="#B1C58C" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="254.00" y="497.00" fill="#171009" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="middle" letter-spacing="0">继续阅读</text>
+<text x="338.00" y="497.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="500" text-anchor="middle" letter-spacing="0">大纲</text>
+<text x="692.00" y="222.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">最近内容</text>
+<rect x="692.00" y="244.00" width="246.00" height="72.00" rx="6.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<rect x="704.00" y="256.00" width="52.00" height="48.00" rx="8.00" fill="#2B231E" fill-opacity="1" stroke="none" stroke-width="0"/>
+<circle cx="730.00" cy="280.00" r="12.00" fill="#E2B06A" fill-opacity="0.28" stroke="none" stroke-width="0"/>
+<text x="770.00" y="275.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">雨停之后</text>
+<text x="770.00" y="297.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">视频</text>
+<path d="M 915 272 L 921 279 L 915 286" fill="none" fill-opacity="1" stroke="#C8B3A2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="692.00" y="332.00" width="246.00" height="72.00" rx="6.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<rect x="704.00" y="344.00" width="52.00" height="48.00" rx="8.00" fill="#2B231E" fill-opacity="1" stroke="none" stroke-width="0"/>
+<circle cx="730.00" cy="368.00" r="12.00" fill="#D89378" fill-opacity="0.28" stroke="none" stroke-width="0"/>
+<text x="770.00" y="363.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">远岸电台</text>
+<text x="770.00" y="385.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">音乐</text>
+<path d="M 915 360 L 921 367 L 915 374" fill="none" fill-opacity="1" stroke="#C8B3A2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="692.00" y="420.00" width="246.00" height="72.00" rx="6.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<rect x="704.00" y="432.00" width="52.00" height="48.00" rx="8.00" fill="#2B231E" fill-opacity="1" stroke="none" stroke-width="0"/>
+<circle cx="730.00" cy="456.00" r="12.00" fill="#B1C58C" fill-opacity="0.28" stroke="none" stroke-width="0"/>
+<text x="770.00" y="451.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">海边札记</text>
+<text x="770.00" y="473.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">书籍</text>
+<path d="M 915 448 L 921 455 L 915 462" fill="none" fill-opacity="1" stroke="#C8B3A2" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="162.00" y="570.00" width="246.67" height="82.00" rx="6.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<circle cx="192.00" cy="611.00" r="18.00" fill="#E2B06A" fill-opacity="0.18" stroke="#E2B06A" stroke-width="1"/>
+<text x="192.00" y="618.00" fill="#E2B06A" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="20" font-weight="700" text-anchor="middle" letter-spacing="0">▷</text>
+<text x="222.00" y="608.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">视频</text>
+<text x="222.00" y="628.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">打开</text>
+<rect x="416.67" y="570.00" width="246.67" height="82.00" rx="6.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<circle cx="446.67" cy="611.00" r="18.00" fill="#D89378" fill-opacity="0.18" stroke="#D89378" stroke-width="1"/>
+<text x="446.67" y="618.00" fill="#D89378" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="20" font-weight="700" text-anchor="middle" letter-spacing="0">♪</text>
+<text x="476.67" y="608.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">音乐</text>
+<text x="476.67" y="628.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">打开</text>
+<rect x="671.33" y="570.00" width="246.67" height="82.00" rx="6.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<circle cx="701.33" cy="611.00" r="18.00" fill="#B1C58C" fill-opacity="0.18" stroke="#B1C58C" stroke-width="1"/>
+<text x="701.33" y="618.00" fill="#B1C58C" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="20" font-weight="700" text-anchor="middle" letter-spacing="0">▤</text>
+<text x="731.33" y="608.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">书籍</text>
+<text x="731.33" y="628.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">打开</text>
+<rect x="162.00" y="690.00" width="788.00" height="178.00" rx="8.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1.5"/>
+<text x="184.00" y="722.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">阅读正文局部主题</text>
+<rect x="184.00" y="742.00" width="744.00" height="104.00" rx="8.00" fill="#FBF6EC" fill-opacity="1" stroke="#C9B99F" stroke-width="1"/>
+<text x="206.00" y="778.00" fill="#241D17" fill-opacity="1" font-family="'Noto Serif SC','SimSun',serif" font-size="19" font-weight="400" text-anchor="start" letter-spacing="0">海面在午夜以后变得安静。</text>
+<text x="206.00" y="810.00" fill="#241D17" fill-opacity="1" font-family="'Noto Serif SC','SimSun',serif" font-size="19" font-weight="400" text-anchor="start" letter-spacing="0">只有灯塔的节奏仍在提醒方向。</text>
+<rect x="832.00" y="764.00" width="76.00" height="34.00" rx="17.00" fill="#E9DDC8" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="870.00" y="786.00" fill="#604B2C" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">纸色</text>
+<text x="184.00" y="859.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">外框、按钮与弹层仍服从 App 主题</text>
+<text x="1010.00" y="140.00" fill="#B1C58C" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">方向语法</text>
+<text x="1010.00" y="180.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="19" font-weight="500" text-anchor="start" letter-spacing="0">暖金发丝线 · 靛影中性层 · 中文始终保持正常字面</text>
+<text x="1010.00" y="209.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">Literata + MiSans；展示标题偏编辑衬线，正文仍清晰</text>
+<rect x="1010.00" y="236.00" width="252.00" height="146.00" rx="8.00" fill="#161210" fill-opacity="1" stroke="#786355" stroke-width="1.5"/>
+<text x="1026.00" y="262.00" fill="#C8B3A2" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">深色</text>
+<text x="1026.00" y="296.00" fill="#F4E8D8" fill-opacity="1" font-family="'Literata','Noto Serif SC',serif" font-size="22" font-weight="700" text-anchor="start" letter-spacing="0">继续阅读</text>
+<rect x="1026.00" y="322.00" width="156.00" height="34.00" rx="8.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<rect x="1026.00" y="322.00" width="106.00" height="34.00" rx="8.00" fill="#B1C58C" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="1079.00" y="344.00" fill="#171009" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">62%</text>
+<rect x="1280.00" y="236.00" width="252.00" height="146.00" rx="8.00" fill="#F5EDE4" fill-opacity="1" stroke="#917F6E" stroke-width="1.5"/>
+<text x="1296.00" y="262.00" fill="#67564E" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">浅色</text>
+<text x="1296.00" y="296.00" fill="#2B201C" fill-opacity="1" font-family="'Literata','Noto Serif SC',serif" font-size="22" font-weight="700" text-anchor="start" letter-spacing="0">继续阅读</text>
+<rect x="1296.00" y="322.00" width="156.00" height="34.00" rx="8.00" fill="#FFF9F1" fill-opacity="1" stroke="#917F6E" stroke-width="1"/>
+<rect x="1296.00" y="322.00" width="106.00" height="34.00" rx="8.00" fill="#4E602C" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="1349.00" y="344.00" fill="#FFFFFF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="0">62%</text>
+<text x="1010.00" y="424.00" fill="#B1C58C" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">色板与角色</text>
+<rect x="1010.00" y="448.00" width="154.00" height="56.00" rx="8.00" fill="#F4E8D8" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<text x="1020.00" y="469.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">主文字</text>
+<text x="1020.00" y="490.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">#F4E8D8</text>
+<rect x="1184.00" y="448.00" width="154.00" height="56.00" rx="8.00" fill="#C8B3A2" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<text x="1194.00" y="469.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">弱文字</text>
+<text x="1194.00" y="490.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">#C8B3A2</text>
+<rect x="1358.00" y="448.00" width="154.00" height="56.00" rx="8.00" fill="#E2B06A" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<text x="1368.00" y="469.00" fill="#171009" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">影视</text>
+<text x="1368.00" y="490.00" fill="#171009" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">#E2B06A</text>
+<rect x="1010.00" y="520.00" width="154.00" height="56.00" rx="8.00" fill="#D89378" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<text x="1020.00" y="541.00" fill="#171009" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">音乐</text>
+<text x="1020.00" y="562.00" fill="#171009" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">#D89378</text>
+<rect x="1184.00" y="520.00" width="154.00" height="56.00" rx="8.00" fill="#B1C58C" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<text x="1194.00" y="541.00" fill="#171009" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">书籍</text>
+<text x="1194.00" y="562.00" fill="#171009" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">#B1C58C</text>
+<rect x="1358.00" y="520.00" width="154.00" height="56.00" rx="8.00" fill="#786355" fill-opacity="1" stroke="#786355" stroke-width="1"/>
+<text x="1368.00" y="541.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">描边</text>
+<text x="1368.00" y="562.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">#786355</text>
+<text x="1010.00" y="634.00" fill="#B1C58C" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">材质、形状与无障碍</text>
+<text x="1010.00" y="668.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">基础圆角 8dp · 图标轮廓 1.50dp</text>
+<text x="1010.00" y="699.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">主题状态过渡 220ms；减少动画直接切换</text>
+<text x="1010.00" y="730.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">静态最低关键对比：深色 3.04:1 · 浅色 3.67:1</text>
+<text x="1010.00" y="761.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">触控目标 48×48dp；焦点环 2dp；名称与角色必须保留</text>
+<rect x="1010.00" y="806.00" width="118.00" height="34.00" rx="17.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1.5"/>
+<text x="1069.00" y="829.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">48dp</text>
+<rect x="1140.00" y="806.00" width="118.00" height="34.00" rx="17.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1.5"/>
+<text x="1199.00" y="829.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">2dp focus</text>
+<rect x="1270.00" y="806.00" width="118.00" height="34.00" rx="17.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1.5"/>
+<text x="1329.00" y="829.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">200% text</text>
+<rect x="1400.00" y="806.00" width="118.00" height="34.00" rx="17.00" fill="#201A17" fill-opacity="1" stroke="#786355" stroke-width="1.5"/>
+<text x="1459.00" y="829.00" fill="#F4E8D8" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="middle" letter-spacing="0">Reduce Motion</text>
+<rect x="48.00" y="852.00" width="1504.00" height="102.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="70.00" y="883.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="700" text-anchor="start" letter-spacing="0">跨主题不变量</text>
+<text x="70.00" y="914.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="17" font-weight="500" text-anchor="start" letter-spacing="0">IA / 入口顺序 / 状态语义 / 可访问名称 / 48dp / 错误与权限文案含义不随主题变化。</text>
+<text x="70.00" y="936.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">主题只改变颜色、材质、字阶表现、受控形状、图标完成度与动效强度；不改变动作含义。</text>
+</svg>

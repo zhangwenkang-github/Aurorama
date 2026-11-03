@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" lang="zh-CN">
+<title id="title">共享组件状态板</title>
+<desc id="desc">默认、按下、聚焦、禁用、加载、空、错误、选中、Hover 与离线的静态状态证据。</desc>
+<rect width="1600" height="1000" fill="#090C11"/>
+<text x="48.00" y="42.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.1">G1-S5 · 状态 1/3 · 共享组件</text>
+<text x="48.00" y="78.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="34" font-weight="700" text-anchor="start" letter-spacing="0">组件状态板</text>
+<text x="48.00" y="106.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">同一动作跨主题保持语义；颜色不是唯一通道。</text>
+<text x="1552.00" y="46.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="end" letter-spacing="0">STATIC · RUNTIME UNVERIFIED</text>
+<rect x="48.00" y="148.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="66.00" y="179.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">默认</text>
+<text x="66.00" y="203.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-01</text>
+<rect x="82.00" y="236.00" width="218.00" height="66.00" rx="12.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="156.00" y="275.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">继续</text>
+<text x="68.00" y="338.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">名称 + 角色 + 清晰边界</text>
+<rect x="66.00" y="433.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="78.00" y="460.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+<rect x="354.00" y="148.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="372.00" y="179.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">按下</text>
+<text x="372.00" y="203.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-02</text>
+<rect x="388.00" y="236.00" width="218.00" height="66.00" rx="12.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="462.00" y="275.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">继续</text>
+<text x="374.00" y="338.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">输入后立即变化；请求可防重</text>
+<rect x="372.00" y="433.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="384.00" y="460.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+<rect x="660.00" y="148.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="678.00" y="179.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">聚焦</text>
+<text x="678.00" y="203.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-03</text>
+<rect x="694.00" y="236.00" width="218.00" height="66.00" rx="12.00" fill="#1B212B" fill-opacity="1" stroke="#F4F1EA" stroke-width="2"/>
+<text x="768.00" y="275.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">继续</text>
+<text x="680.00" y="338.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">2dp 外环；顺序按视觉流</text>
+<rect x="678.00" y="433.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="690.00" y="460.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+<rect x="966.00" y="148.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="984.00" y="179.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">禁用</text>
+<text x="984.00" y="203.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-04</text>
+<rect x="1000.00" y="236.00" width="218.00" height="66.00" rx="12.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1074.00" y="275.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">继续</text>
+<text x="986.00" y="338.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">不可触发并给原因</text>
+<rect x="984.00" y="433.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="996.00" y="460.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+<rect x="1272.00" y="148.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="1290.00" y="179.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">加载</text>
+<text x="1290.00" y="203.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-05</text>
+<rect x="1306.00" y="236.00" width="218.00" height="66.00" rx="12.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="1380.00" cy="269.00" r="12.00" fill="none" fill-opacity="1" stroke="#6FA8FF" stroke-width="3"/>
+<path d="M 1380 257 A 12 12 0 0 1 1392 269" fill="none" fill-opacity="1" stroke="#6FA8FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1408.00" y="275.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">处理中</text>
+<text x="1292.00" y="338.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">保留名称 + busy + </text>
+<text x="1292.00" y="360.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">单提交</text>
+<rect x="1290.00" y="433.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1302.00" y="460.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+<rect x="48.00" y="536.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="66.00" y="567.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">空</text>
+<text x="66.00" y="591.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-06</text>
+<rect x="82.00" y="624.00" width="218.00" height="66.00" rx="12.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="156.00" y="663.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">继续</text>
+<text x="68.00" y="726.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">确认无数据；说明下一步</text>
+<rect x="66.00" y="821.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="78.00" y="848.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+<rect x="354.00" y="536.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="372.00" y="567.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">错误</text>
+<text x="372.00" y="591.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-07</text>
+<rect x="388.00" y="624.00" width="218.00" height="66.00" rx="12.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="409.00" y="667.00" fill="#E87C6E" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="24" font-weight="700" text-anchor="middle" letter-spacing="0">!</text>
+<text x="440.00" y="663.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">下载失败</text>
+<text x="374.00" y="726.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">原因 + 唯一重试 / 返回</text>
+<rect x="372.00" y="821.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="384.00" y="848.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+<rect x="660.00" y="536.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="678.00" y="567.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">选中 / 当前</text>
+<text x="678.00" y="591.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-08</text>
+<rect x="694.00" y="624.00" width="218.00" height="66.00" rx="12.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="715.00" y="665.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="22" font-weight="700" text-anchor="middle" letter-spacing="0">✓</text>
+<text x="746.00" y="663.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">当前主题</text>
+<text x="680.00" y="726.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">填充 / 勾选 / 文本至少</text>
+<text x="680.00" y="748.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">两项</text>
+<rect x="678.00" y="821.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="690.00" y="848.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+<rect x="966.00" y="536.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="984.00" y="567.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">Hover</text>
+<text x="984.00" y="591.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-09</text>
+<rect x="1000.00" y="624.00" width="218.00" height="66.00" rx="12.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1074.00" y="663.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="0">继续</text>
+<text x="986.00" y="726.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">仅指针环境；不改位移 / 缩</text>
+<text x="986.00" y="748.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">放</text>
+<rect x="984.00" y="821.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="996.00" y="848.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+<rect x="1272.00" y="536.00" width="286.00" height="354.00" rx="16.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="1290.00" y="567.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="18" font-weight="700" text-anchor="start" letter-spacing="0">离线 / 部分</text>
+<text x="1290.00" y="591.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">S5-ST-10</text>
+<rect x="1306.00" y="624.00" width="218.00" height="66.00" rx="12.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1325.00" y="664.00" fill="#E4B962" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="23" font-weight="700" text-anchor="middle" letter-spacing="0">↯</text>
+<text x="1354.00" y="663.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">离线内容</text>
+<text x="1292.00" y="726.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="400" text-anchor="start" letter-spacing="0">缓存可用；成功区块保留</text>
+<rect x="1290.00" y="821.00" width="250.00" height="44.00" rx="9.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1302.00" y="848.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称 / 角色 / 状态不丢失</text>
+</svg>

@@ -1,0 +1,329 @@
+[
+  {
+    "id": "S5-I01",
+    "slug": "home",
+    "title": "首页",
+    "entry": "启动进入首页；只有当前 server + user 的权威续播项才能成为主焦点。",
+    "action": "点击“继续阅读”；按下后立即保留主卡与返回路径。",
+    "feedback": "展示“正在恢复进度 62%”；内容可渲染后进入来源页，底部导航状态不丢。",
+    "recovery": "不可续 / 离线 / 区块失败分别说明；保留最近内容与三域入口，提供重试或返回。",
+    "sources": [
+      "HOME-01",
+      "HOME-02",
+      "HOME-03",
+      "HOME-08",
+      "UX-012",
+      "UX-014"
+    ],
+    "evidencePath": "assets/interactions/S5-I01-HOME.svg",
+    "panels": [
+      {
+        "stage": "entry",
+        "text": "启动进入首页；只有当前 server + user 的权威续播项才能成为主焦点。"
+      },
+      {
+        "stage": "primaryAction",
+        "text": "点击“继续阅读”；按下后立即保留主卡与返回路径。"
+      },
+      {
+        "stage": "feedbackState",
+        "text": "展示“正在恢复进度 62%”；内容可渲染后进入来源页，底部导航状态不丢。"
+      },
+      {
+        "stage": "failureRecovery",
+        "text": "不可续 / 离线 / 区块失败分别说明；保留最近内容与三域入口，提供重试或返回。"
+      }
+    ],
+    "status": "STATIC_DECISION_INPUT",
+    "runtimeStatus": "UNVERIFIED"
+  },
+  {
+    "id": "S5-I02",
+    "slug": "media-video-detail",
+    "title": "媒体库 / 视频详情",
+    "entry": "从媒体库来源分组进入详情；海报、标题与动作排先于网络补齐。",
+    "action": "点击主播放键；动作保持可见，显示“正在准备播放”且只接受一次提交。",
+    "feedback": "PlaybackInfo 等待时保留壳层；403 / 404 / 415 区分权限、缺失与格式不支持。",
+    "recovery": "可归因错误给“重试 / 返回”之一；失败不得把详情伪装成空内容。",
+    "sources": [
+      "NAV-02",
+      "UX-014",
+      "V2-Q-G1-03"
+    ],
+    "evidencePath": "assets/interactions/S5-I02-MEDIA-VIDEO-DETAIL.svg",
+    "panels": [
+      {
+        "stage": "entry",
+        "text": "从媒体库来源分组进入详情；海报、标题与动作排先于网络补齐。"
+      },
+      {
+        "stage": "primaryAction",
+        "text": "点击主播放键；动作保持可见，显示“正在准备播放”且只接受一次提交。"
+      },
+      {
+        "stage": "feedbackState",
+        "text": "PlaybackInfo 等待时保留壳层；403 / 404 / 415 区分权限、缺失与格式不支持。"
+      },
+      {
+        "stage": "failureRecovery",
+        "text": "可归因错误给“重试 / 返回”之一；失败不得把详情伪装成空内容。"
+      }
+    ],
+    "status": "STATIC_DECISION_INPUT",
+    "runtimeStatus": "UNVERIFIED"
+  },
+  {
+    "id": "S5-I03",
+    "slug": "music-queue",
+    "title": "音乐 / 队列",
+    "entry": "从曲目行打开短操作；播放下一首、追加队尾、清空与移除均使用明确文本。",
+    "action": "点“播放下一首”立即高亮当前队列位置；重复点按不重复插入。",
+    "feedback": "Snackbar 与队列同时显示“已插入到下一首”；来源标签保持同曲目身份。",
+    "recovery": "本地文件丢失不重试，保留不可用身份；全部失败时停止并提供重试 / 返回。",
+    "sources": [
+      "MUSIC-014",
+      "MUSIC-016",
+      "MUSIC-020",
+      "MUSIC-022",
+      "UX-014"
+    ],
+    "evidencePath": "assets/interactions/S5-I03-MUSIC-QUEUE.svg",
+    "panels": [
+      {
+        "stage": "entry",
+        "text": "从曲目行打开短操作；播放下一首、追加队尾、清空与移除均使用明确文本。"
+      },
+      {
+        "stage": "primaryAction",
+        "text": "点“播放下一首”立即高亮当前队列位置；重复点按不重复插入。"
+      },
+      {
+        "stage": "feedbackState",
+        "text": "Snackbar 与队列同时显示“已插入到下一首”；来源标签保持同曲目身份。"
+      },
+      {
+        "stage": "failureRecovery",
+        "text": "本地文件丢失不重试，保留不可用身份；全部失败时停止并提供重试 / 返回。"
+      }
+    ],
+    "status": "STATIC_DECISION_INPUT",
+    "runtimeStatus": "UNVERIFIED"
+  },
+  {
+    "id": "S5-I04",
+    "slug": "bookshelf-reader",
+    "title": "书架 / 阅读器",
+    "entry": "从书架或本地库打开书；书籍来源与传输状态独立显示。",
+    "action": "点“继续阅读”；远端不能流式时明确显示“准备整本文件”，不无限旋转。",
+    "feedback": "阅读正文主题只覆盖正文；顶栏、按钮与弹层继续服从 App 主题。",
+    "recovery": "远端流失败回退整本下载；本地文件不可用保留书目身份并提供重选或移除。",
+    "sources": [
+      "READER-010",
+      "READER-018",
+      "READER-038",
+      "UX-014"
+    ],
+    "evidencePath": "assets/interactions/S5-I04-BOOKSHELF-READER.svg",
+    "panels": [
+      {
+        "stage": "entry",
+        "text": "从书架或本地库打开书；书籍来源与传输状态独立显示。"
+      },
+      {
+        "stage": "primaryAction",
+        "text": "点“继续阅读”；远端不能流式时明确显示“准备整本文件”，不无限旋转。"
+      },
+      {
+        "stage": "feedbackState",
+        "text": "阅读正文主题只覆盖正文；顶栏、按钮与弹层继续服从 App 主题。"
+      },
+      {
+        "stage": "failureRecovery",
+        "text": "远端流失败回退整本下载；本地文件不可用保留书目身份并提供重选或移除。"
+      }
+    ],
+    "status": "STATIC_DECISION_INPUT",
+    "runtimeStatus": "UNVERIFIED"
+  },
+  {
+    "id": "S5-I05",
+    "slug": "downloads",
+    "title": "下载",
+    "entry": "从内容详情或下载中心开始单项任务；先检查网络、空间、卷与来源。",
+    "action": "确认后立即出现 accepted / pending；重复点击聚焦既有任务。",
+    "feedback": "任务、进度、通知和下载页使用同一状态真源；完成与失败必须带文字。",
+    "recovery": "空间不足让用户选择可容纳范围；401 / 403 / 404 / 415 不自动重试，保留暂停 / 删除路径。",
+    "sources": [
+      "V2-REQ-DOWNLOAD-068",
+      "DL-FEEDBACK",
+      "DL-PROMPT",
+      "UX-014"
+    ],
+    "evidencePath": "assets/interactions/S5-I05-DOWNLOADS.svg",
+    "panels": [
+      {
+        "stage": "entry",
+        "text": "从内容详情或下载中心开始单项任务；先检查网络、空间、卷与来源。"
+      },
+      {
+        "stage": "primaryAction",
+        "text": "确认后立即出现 accepted / pending；重复点击聚焦既有任务。"
+      },
+      {
+        "stage": "feedbackState",
+        "text": "任务、进度、通知和下载页使用同一状态真源；完成与失败必须带文字。"
+      },
+      {
+        "stage": "failureRecovery",
+        "text": "空间不足让用户选择可容纳范围；401 / 403 / 404 / 415 不自动重试，保留暂停 / 删除路径。"
+      }
+    ],
+    "status": "STATIC_DECISION_INPUT",
+    "runtimeStatus": "UNVERIFIED"
+  },
+  {
+    "id": "S5-I06",
+    "slug": "search",
+    "title": "搜索",
+    "entry": "顶栏进入并带 initialScope；查询、scope 与返回来源同时可见。",
+    "action": "提交查询只接受最新 generation；旧结果保留但不冒充新 scope。",
+    "feedback": "pending、未输入、无结果、失败四种状态分开；失败保留查询与 scope。",
+    "recovery": "失败给重试；不支持的 scope 显式禁用并解释，空查询不提交请求。",
+    "sources": [
+      "NAV-010",
+      "UX-014",
+      "V2-REQ-UX-014"
+    ],
+    "evidencePath": "assets/interactions/S5-I06-SEARCH.svg",
+    "panels": [
+      {
+        "stage": "entry",
+        "text": "顶栏进入并带 initialScope；查询、scope 与返回来源同时可见。"
+      },
+      {
+        "stage": "primaryAction",
+        "text": "提交查询只接受最新 generation；旧结果保留但不冒充新 scope。"
+      },
+      {
+        "stage": "feedbackState",
+        "text": "pending、未输入、无结果、失败四种状态分开；失败保留查询与 scope。"
+      },
+      {
+        "stage": "failureRecovery",
+        "text": "失败给重试；不支持的 scope 显式禁用并解释，空查询不提交请求。"
+      }
+    ],
+    "status": "STATIC_DECISION_INPUT",
+    "runtimeStatus": "UNVERIFIED"
+  },
+  {
+    "id": "S5-I07",
+    "slug": "settings-theme",
+    "title": "设置 / 主题",
+    "entry": "设置中分开“主题”与“外观模式”；大尺寸内置预览即时可见。",
+    "action": "点选 Lumen；主题和焦点在 200ms 可关闭过渡内切换，不重置滚动或数据。",
+    "feedback": "当前值使用勾选 + 文本 + 描边；设备本地保存成功不回写服务器。",
+    "recovery": "持久化失败回退旧主题并提示；Android 12 以下动态色入口禁用并解释。",
+    "sources": [
+      "UX-037",
+      "V2-D035",
+      "V2-D036",
+      "V2-D039",
+      "V2-D041",
+      "UX-014"
+    ],
+    "evidencePath": "assets/interactions/S5-I07-SETTINGS-THEME.svg",
+    "panels": [
+      {
+        "stage": "entry",
+        "text": "设置中分开“主题”与“外观模式”；大尺寸内置预览即时可见。"
+      },
+      {
+        "stage": "primaryAction",
+        "text": "点选 Lumen；主题和焦点在 200ms 可关闭过渡内切换，不重置滚动或数据。"
+      },
+      {
+        "stage": "feedbackState",
+        "text": "当前值使用勾选 + 文本 + 描边；设备本地保存成功不回写服务器。"
+      },
+      {
+        "stage": "failureRecovery",
+        "text": "持久化失败回退旧主题并提示；Android 12 以下动态色入口禁用并解释。"
+      }
+    ],
+    "status": "STATIC_DECISION_INPUT",
+    "runtimeStatus": "UNVERIFIED"
+  },
+  {
+    "id": "S5-I08",
+    "slug": "playback-controls",
+    "title": "播放控制",
+    "entry": "从详情或 Mini Player 进入；当前域、标题、进度和传输状态保持同一表达。",
+    "action": "播放 / 暂停只改变一个有名称的按钮；seek、字幕、音轨与锁定键按能力启用。",
+    "feedback": "开关态同时使用图标、状态文字和 TalkBack 可读状态；控制层 4 秒隐藏后仍可召回。",
+    "recovery": "单条失败按规则跳项；全部失败停止，给非模态重试 / 返回；Reduce Motion 下直接切换。",
+    "sources": [
+      "MUSIC-022",
+      "MUSIC-052",
+      "MUSIC-059",
+      "VIDEO-064",
+      "UX-011"
+    ],
+    "evidencePath": "assets/interactions/S5-I08-PLAYBACK-CONTROLS.svg",
+    "panels": [
+      {
+        "stage": "entry",
+        "text": "从详情或 Mini Player 进入；当前域、标题、进度和传输状态保持同一表达。"
+      },
+      {
+        "stage": "primaryAction",
+        "text": "播放 / 暂停只改变一个有名称的按钮；seek、字幕、音轨与锁定键按能力启用。"
+      },
+      {
+        "stage": "feedbackState",
+        "text": "开关态同时使用图标、状态文字和 TalkBack 可读状态；控制层 4 秒隐藏后仍可召回。"
+      },
+      {
+        "stage": "failureRecovery",
+        "text": "单条失败按规则跳项；全部失败停止，给非模态重试 / 返回；Reduce Motion 下直接切换。"
+      }
+    ],
+    "status": "STATIC_DECISION_INPUT",
+    "runtimeStatus": "UNVERIFIED"
+  },
+  {
+    "id": "S5-I09",
+    "slug": "syncplay-candidate",
+    "title": "SyncPlay 候选",
+    "entry": "仅在未来能力门通过时出现入口；当前不承诺产品可用。",
+    "action": "候选流程为创建 / 加入会话；必须先通过在线、权限与协议受理反馈。",
+    "feedback": "展示 joining、accepted、revision 与成员状态；不得把本地成功当服务器成功。",
+    "recovery": "离线 / 403 / 不支持 / 会话过期均退出到普通播放；真实双端与时钟证据留 G2。",
+    "sources": [
+      "V2_PLAN §5.11.6",
+      "V2_PLAN §5.11.8",
+      "V2-Q-G1-03"
+    ],
+    "evidencePath": "assets/interactions/S5-I09-SYNCPLAY-CANDIDATE.svg",
+    "panels": [
+      {
+        "stage": "entry",
+        "text": "仅在未来能力门通过时出现入口；当前不承诺产品可用。"
+      },
+      {
+        "stage": "primaryAction",
+        "text": "候选流程为创建 / 加入会话；必须先通过在线、权限与协议受理反馈。"
+      },
+      {
+        "stage": "feedbackState",
+        "text": "展示 joining、accepted、revision 与成员状态；不得把本地成功当服务器成功。"
+      },
+      {
+        "stage": "failureRecovery",
+        "text": "离线 / 403 / 不支持 / 会话过期均退出到普通播放；真实双端与时钟证据留 G2。"
+      }
+    ],
+    "status": "STATIC_DECISION_INPUT",
+    "runtimeStatus": "UNVERIFIED"
+  }
+]

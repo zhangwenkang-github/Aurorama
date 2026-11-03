@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="900" viewBox="0 0 700 900" role="img" aria-labelledby="title desc" lang="zh-CN">
+<title id="title">RWD-FOLD-700 折痕与窗口变化</title>
+<desc id="desc">700dp 窗口、72dp 收轨、24dp 铰链安全带和左右两栏内容。</desc>
+<rect width="700" height="900" fill="#151A21"/>
+<rect x="0.00" y="0.00" width="72.00" height="900.00" rx="0.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<path d="M 25 106 L 34 98 L 43 106 M 27 105 V 114 H 41 V 105" fill="none" fill-opacity="1" stroke="#6FA8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="26.00" y="167.00" width="16.00" height="14.00" rx="2.00" fill="none" fill-opacity="1" stroke="#A7B0BD" stroke-width="1.75"/>
+<path d="M 32 171 L 38 174 L 32 177 Z" fill="none" fill-opacity="1" stroke="#A7B0BD" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 32 247 V 236 L 41 234 V 245" fill="none" fill-opacity="1" stroke="#A7B0BD" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="29.00" cy="248.00" r="3.00" fill="#A7B0BD" fill-opacity="1" stroke="none" stroke-width="0"/>
+<circle cx="38.00" cy="246.00" r="3.00" fill="#A7B0BD" fill-opacity="1" stroke="none" stroke-width="0"/>
+<path d="M 27 304 H 33 Q 34 304 34 306 V 317 H 29 Q 27 317 27 315 Z" fill="none" fill-opacity="1" stroke="#A7B0BD" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 41 304 H 35 Q 34 304 34 306 V 317 H 39 Q 41 317 41 315 Z" fill="none" fill-opacity="1" stroke="#A7B0BD" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="338.00" y="0.00" width="24.00" height="900.00" rx="0.00" fill="#0A0D12" fill-opacity="1" stroke="none" stroke-width="0"/>
+<line x1="340.00" y1="16.00" x2="360.00" y2="28.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="44.00" x2="360.00" y2="56.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="72.00" x2="360.00" y2="84.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="100.00" x2="360.00" y2="112.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="128.00" x2="360.00" y2="140.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="156.00" x2="360.00" y2="168.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="184.00" x2="360.00" y2="196.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="212.00" x2="360.00" y2="224.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="240.00" x2="360.00" y2="252.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="268.00" x2="360.00" y2="280.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="296.00" x2="360.00" y2="308.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="324.00" x2="360.00" y2="336.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="352.00" x2="360.00" y2="364.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="380.00" x2="360.00" y2="392.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="408.00" x2="360.00" y2="420.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="436.00" x2="360.00" y2="448.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="464.00" x2="360.00" y2="476.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="492.00" x2="360.00" y2="504.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="520.00" x2="360.00" y2="532.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="548.00" x2="360.00" y2="560.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="576.00" x2="360.00" y2="588.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="604.00" x2="360.00" y2="616.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="632.00" x2="360.00" y2="644.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="660.00" x2="360.00" y2="672.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="688.00" x2="360.00" y2="700.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="716.00" x2="360.00" y2="728.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="744.00" x2="360.00" y2="756.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="772.00" x2="360.00" y2="784.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="800.00" x2="360.00" y2="812.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="828.00" x2="360.00" y2="840.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="856.00" x2="360.00" y2="868.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<line x1="340.00" y1="884.00" x2="360.00" y2="896.00" stroke="#667383" stroke-width="1" stroke-opacity="0.55"/>
+<text x="350.00" y="42.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="10" font-weight="700" text-anchor="middle" letter-spacing="0">铰链</text>
+<text x="96.00" y="54.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="24" font-weight="700" text-anchor="start" letter-spacing="0">潮汐档案</text>
+<rect x="96.00" y="82.00" width="218.00" height="330.00" rx="12.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<defs><linearGradient id="poster-fold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#222A36"/><stop offset=".58" stop-color="#151A21"/><stop offset="1" stop-color="#E8A15C" stop-opacity=".46"/></linearGradient></defs>
+<rect x="124.00" y="110.00" width="162.00" height="210.00" rx="10.00" fill="url(#poster-fold)" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="240.64" cy="173.00" r="37.80" fill="#E8A15C" fill-opacity="0.23" stroke="none" stroke-width="0"/>
+<path d="M 143.4 257.0 C 169.4 185.6, 198.5 299.0, 266.6 198.2" fill="none" fill-opacity="0.9" stroke="#6FA8FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 159.6 280.1 C 185.6 233.9, 213.1 261.2, 250.4 225.5" fill="none" fill-opacity="0.62" stroke="#F4F1EA" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M 153.2 156.2 L 179.1 198.2 L 169.4 225.5" fill="none" fill-opacity="0.75" stroke="#F4F1EA" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="116.00" y="352.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">继续阅读</text>
+<rect x="116.00" y="368.00" width="132.00" height="32.00" rx="8.00" fill="#6FA8FF" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="182.00" y="389.00" fill="#141009" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="middle" letter-spacing="0">62%</text>
+<text x="378.00" y="54.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="20" font-weight="700" text-anchor="start" letter-spacing="0">选集</text>
+<rect x="378.00" y="82.00" width="286.00" height="46.00" rx="8.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="390.00" y="110.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">第 8 集</text>
+<rect x="378.00" y="140.00" width="286.00" height="46.00" rx="8.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="390.00" y="168.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">第 9 集</text>
+<rect x="378.00" y="198.00" width="286.00" height="46.00" rx="8.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="390.00" y="226.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">第 10 集</text>
+<rect x="378.00" y="256.00" width="286.00" height="46.00" rx="8.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="390.00" y="284.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">第 11 集</text>
+<rect x="378.00" y="314.00" width="286.00" height="46.00" rx="8.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="390.00" y="342.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">第 12 集</text>
+<rect x="378.00" y="388.00" width="286.00" height="86.00" rx="10.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="392.00" y="418.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">窗口变化保留状态</text>
+<text x="392.00" y="442.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">滚动 · 选择 · 进行中操作</text>
+<text x="96.00" y="878.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="start" letter-spacing="0">RWD-06 · 内容不跨铰链 · 主按钮不进入遮挡区</text>
+</svg>

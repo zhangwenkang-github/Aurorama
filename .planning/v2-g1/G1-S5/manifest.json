@@ -1,0 +1,1273 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "G1-S5",
+  "role": "资深 UI / 视觉设计证据负责人",
+  "decisionInput": "V2-Q-G1-04",
+  "status": "READY_FOR_USER_DECISION",
+  "selfVerification": "PASS",
+  "q04": "OPEN",
+  "g1": "NOT_PASSED",
+  "lineEndingPolicy": {
+    "scope": ".planning/v2-g1/G1-S5/",
+    "attributesFile": ".gitattributes",
+    "rule": "* text eol=lf",
+    "text": "set",
+    "eol": "lf"
+  },
+  "gitBaseline": {
+    "branch": "codex/v2-integration",
+    "head": "397ff4f0a3d8378c91ee283da317c5263cc80285",
+    "worktreeOutsideEvidenceRoot": "clean",
+    "evidenceRoot": ".planning/v2-g1/G1-S5/"
+  },
+  "sourceSnapshot": {
+    "files": [
+      {
+        "path": "AGENTS.md",
+        "sha256": "65136840f510ff0718c0667a87c7e26f17aee4072e0a4eb52421a11218458e21"
+      },
+      {
+        "path": "docs/PROJECT_RULES.md",
+        "sha256": "b1707d0cb16a2e9b9140d1141baeba10eb10a6a6a26f173c3e3779ebc6569459"
+      },
+      {
+        "path": "docs/V2_PLAN.md",
+        "sha256": "459fe34b6a7436c7871796b15955d6b20d8471ff1e05d7a160c698da83e4ec71"
+      },
+      {
+        "path": "docs/UI_DESIGN_SYSTEM.md",
+        "sha256": "4393bdea44285fd0d1ee972cf7c0d6e987f9464bf79a31a6d3020eccb2ed27cd"
+      },
+      {
+        "path": "docs/DECISIONS.md",
+        "sha256": "797d21740c07444c3fe0bac0ea5781756955e1adcd636572f561591c7618fc3e"
+      },
+      {
+        "path": "docs/adr/0007-v2-app-wide-theme-model.md",
+        "sha256": "533976117f9c04d639da6f1ca3d5eb72a74fc13ac0403c4e152f39a29da30c77"
+      }
+    ],
+    "sectionsRead": [
+      "PROJECT_RULES R020/R025/R027/R028",
+      "V2_PLAN §5.3.16, §5.11.6, §5.11.7, §5.11.12, §12 ACTIVE",
+      "UI_DESIGN_SYSTEM §2, §4, §6, §8.14",
+      "ADR-0007",
+      "DECISIONS V2-Q-G1-04"
+    ]
+  },
+  "coverage": {
+    "themes": {
+      "required": 5,
+      "covered": 5,
+      "ids": [
+        "THEME-PRISM",
+        "THEME-LUMEN",
+        "THEME-NOCTURNE",
+        "THEME-MONOLITH",
+        "THEME-DYNAMIC"
+      ]
+    },
+    "interactions": {
+      "required": 9,
+      "covered": 9,
+      "ids": [
+        "S5-I01",
+        "S5-I02",
+        "S5-I03",
+        "S5-I04",
+        "S5-I05",
+        "S5-I06",
+        "S5-I07",
+        "S5-I08",
+        "S5-I09"
+      ]
+    },
+    "rwd": {
+      "widthClasses": 5,
+      "frames": 6,
+      "ids": [
+        "RWD-COMPACT",
+        "RWD-MEDIUM",
+        "RWD-EXPANDED",
+        "RWD-LARGE",
+        "RWD-EXTRA",
+        "RWD-FOLD"
+      ]
+    },
+    "states": {
+      "pageGroups": 10,
+      "stateTypes": 6,
+      "mappings": 60,
+      "componentStates": [
+        "default",
+        "pressed",
+        "focused",
+        "disabled",
+        "loading",
+        "empty",
+        "error",
+        "selected",
+        "hover",
+        "offline-partial"
+      ]
+    },
+    "a11y": {
+      "applicableChecks": 12,
+      "contrastPairs": 130,
+      "contrastPass": 130,
+      "accessibleNames": 18,
+      "runtime": "UNVERIFIED"
+    }
+  },
+  "decisionBrief": "decision-brief.md",
+  "reviewIndex": "index.html",
+  "verificationCommand": "pwsh -NoProfile -Command \"python .planning/v2-g1/G1-S5/scripts/verify_evidence.py --expected-dirty docs/DECISIONS.md --expected-dirty docs/TASKS.md --expected-dirty docs/V2_PLAN.md\"",
+  "entries": [
+    {
+      "id": "CONTROL-GITATTRIBUTES",
+      "kind": "line-ending-policy",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "Git attribute: text eol=lf"
+      ],
+      "path": ".gitattributes",
+      "mime": "text/plain",
+      "pixelSize": null,
+      "bytes": 14,
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DOC-README",
+      "kind": "decision-document",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "README.md",
+      "mime": "text/markdown",
+      "pixelSize": null,
+      "bytes": 2212,
+      "sha256": "5c038a63c763d901522e22b3b114960247759ace5000aa4c774e14a286adf86d",
+      "status": "READY_FOR_USER_DECISION",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "A11Y-CONTRAST",
+      "kind": "a11y-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [
+        "contrast",
+        "dynamic-type",
+        "focus",
+        "motion",
+        "names",
+        "touch"
+      ],
+      "sources": [
+        "V2_PLAN §5.3.16.5",
+        "RWD-08",
+        "RWD-09",
+        "V2-D069",
+        "V2-D073"
+      ],
+      "path": "assets/a11y/A11Y-CONTRAST.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1100
+      },
+      "bytes": 39437,
+      "sha256": "953c91338e8547448da9ea4a3d71c1f77e277a34c573543d6f2c9639bb03795f",
+      "status": "STATIC_VERIFIED_RUNTIME_UNVERIFIED",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "A11Y-INTERACTION",
+      "kind": "a11y-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [
+        "contrast",
+        "dynamic-type",
+        "focus",
+        "motion",
+        "names",
+        "touch"
+      ],
+      "sources": [
+        "V2_PLAN §5.3.16.5",
+        "RWD-08",
+        "RWD-09",
+        "V2-D069",
+        "V2-D073"
+      ],
+      "path": "assets/a11y/A11Y-INTERACTION.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1000
+      },
+      "bytes": 16578,
+      "sha256": "6209dd49196a51993b4400af7cbbb354dad233e152b757a52c70bc5490cf84b6",
+      "status": "STATIC_VERIFIED_RUNTIME_UNVERIFIED",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "A11Y-NAMES",
+      "kind": "a11y-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [
+        "contrast",
+        "dynamic-type",
+        "focus",
+        "motion",
+        "names",
+        "touch"
+      ],
+      "sources": [
+        "V2_PLAN §5.3.16.5",
+        "RWD-08",
+        "RWD-09",
+        "V2-D069",
+        "V2-D073"
+      ],
+      "path": "assets/a11y/A11Y-NAMES.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1000
+      },
+      "bytes": 28586,
+      "sha256": "78eaf7b9afbc618c4af0bd202655a9e2709cb884b992b954cf7dd3dee1e06d9c",
+      "status": "STATIC_VERIFIED_RUNTIME_UNVERIFIED",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "S5-I01",
+      "kind": "interaction-low-fi",
+      "theme": null,
+      "interaction": "S5-I01",
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "HOME-01",
+        "HOME-02",
+        "HOME-03",
+        "HOME-08",
+        "UX-012",
+        "UX-014"
+      ],
+      "path": "assets/interactions/S5-I01-HOME.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 16626,
+      "sha256": "13871a2ac60db5cf38d80b9677e86eae637702818de5d0dc94db719606957d76",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "S5-I02",
+      "kind": "interaction-low-fi",
+      "theme": null,
+      "interaction": "S5-I02",
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "NAV-02",
+        "UX-014",
+        "V2-Q-G1-03"
+      ],
+      "path": "assets/interactions/S5-I02-MEDIA-VIDEO-DETAIL.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 16969,
+      "sha256": "668f549c817422ba02f028ddc3dc3d1c0cc7d6a1c6ef3097129a1055e94d6b9e",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "S5-I03",
+      "kind": "interaction-low-fi",
+      "theme": null,
+      "interaction": "S5-I03",
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "MUSIC-014",
+        "MUSIC-016",
+        "MUSIC-020",
+        "MUSIC-022",
+        "UX-014"
+      ],
+      "path": "assets/interactions/S5-I03-MUSIC-QUEUE.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 19508,
+      "sha256": "076ddba47bf4de5150bb91ef29827f300e858a3f5a9034815c0d684c7933967e",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "S5-I04",
+      "kind": "interaction-low-fi",
+      "theme": null,
+      "interaction": "S5-I04",
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "READER-010",
+        "READER-018",
+        "READER-038",
+        "UX-014"
+      ],
+      "path": "assets/interactions/S5-I04-BOOKSHELF-READER.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 14422,
+      "sha256": "86b3f97a06b6a5e5e2bf253404d84f4a561876e108b573fb9ce86578f12ecfc7",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "S5-I05",
+      "kind": "interaction-low-fi",
+      "theme": null,
+      "interaction": "S5-I05",
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2-REQ-DOWNLOAD-068",
+        "DL-FEEDBACK",
+        "DL-PROMPT",
+        "UX-014"
+      ],
+      "path": "assets/interactions/S5-I05-DOWNLOADS.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 19613,
+      "sha256": "329a6316e0fe2d467736f3277a8090be4e427f5928c7627c7e65738d9d60d1bf",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "S5-I06",
+      "kind": "interaction-low-fi",
+      "theme": null,
+      "interaction": "S5-I06",
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "NAV-010",
+        "UX-014",
+        "V2-REQ-UX-014"
+      ],
+      "path": "assets/interactions/S5-I06-SEARCH.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 14900,
+      "sha256": "629b4a30120bda9e77532fefd63835b3c11dfab0733cf9275ed76bd3fa928b40",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "S5-I07",
+      "kind": "interaction-low-fi",
+      "theme": null,
+      "interaction": "S5-I07",
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "UX-037",
+        "V2-D035",
+        "V2-D036",
+        "V2-D039",
+        "V2-D041",
+        "UX-014"
+      ],
+      "path": "assets/interactions/S5-I07-SETTINGS-THEME.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 19261,
+      "sha256": "dfee46bcf968e09795e5c645803a38e321443d9c8d8d44df5a0879e41c272aca",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "S5-I08",
+      "kind": "interaction-low-fi",
+      "theme": null,
+      "interaction": "S5-I08",
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "MUSIC-022",
+        "MUSIC-052",
+        "MUSIC-059",
+        "VIDEO-064",
+        "UX-011"
+      ],
+      "path": "assets/interactions/S5-I08-PLAYBACK-CONTROLS.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 17142,
+      "sha256": "c0e4ea66bf72bf558a1beaa73db29a5a0065af4a02893c52fe4e716c3380c972",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "S5-I09",
+      "kind": "interaction-low-fi",
+      "theme": null,
+      "interaction": "S5-I09",
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.11.6",
+        "V2_PLAN §5.11.8",
+        "V2-Q-G1-03"
+      ],
+      "path": "assets/interactions/S5-I09-SYNCPLAY-CANDIDATE.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 14037,
+      "sha256": "7bb971600113b048bcbc4271aefe9a2d3e66865b143a81735be267343751e50a",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "RWD-COMPACT",
+      "kind": "rwd-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [
+        "RWD-COMPACT"
+      ],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.3",
+        "RWD-01",
+        "RWD-09",
+        "V2-D080"
+      ],
+      "path": "assets/rwd/RWD-COMPACT.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 360,
+        "height": 780
+      },
+      "bytes": 8447,
+      "sha256": "fbdc6fb640c65cb0ecf9fdb3c20f73d3e188f63710ed40aaae3da92917aa8e09",
+      "status": "STATIC_LAYOUT_PASS",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "RWD-EXPANDED",
+      "kind": "rwd-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [
+        "RWD-EXPANDED"
+      ],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.3",
+        "RWD-01",
+        "RWD-09",
+        "V2-D080"
+      ],
+      "path": "assets/rwd/RWD-EXPANDED.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 840,
+        "height": 700
+      },
+      "bytes": 9703,
+      "sha256": "4adca3a6a8e2b10be23192d84ace335dc3711ef04829d3393e00cb74b83fa128",
+      "status": "STATIC_LAYOUT_PASS",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "RWD-EXTRA",
+      "kind": "rwd-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [
+        "RWD-EXTRA"
+      ],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.3",
+        "RWD-01",
+        "RWD-09",
+        "V2-D080"
+      ],
+      "path": "assets/rwd/RWD-EXTRA.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 12911,
+      "sha256": "fd1a637a0ae06a51660c16bbd0dd0b730889eaa8d104cc57edba076c6f6e05ac",
+      "status": "STATIC_LAYOUT_PASS",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "RWD-FOLD",
+      "kind": "rwd-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [
+        "RWD-FOLD"
+      ],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.3",
+        "RWD-01",
+        "RWD-09",
+        "V2-D080"
+      ],
+      "path": "assets/rwd/RWD-FOLD.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 700,
+        "height": 900
+      },
+      "bytes": 10225,
+      "sha256": "a6246aaa1526aa7a10cc94a3a8106d9d39e270d0d1050f3d14f7b1419adaa67d",
+      "status": "STATIC_LAYOUT_PASS",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "RWD-LARGE",
+      "kind": "rwd-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [
+        "RWD-LARGE"
+      ],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.3",
+        "RWD-01",
+        "RWD-09",
+        "V2-D080"
+      ],
+      "path": "assets/rwd/RWD-LARGE.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1200,
+        "height": 800
+      },
+      "bytes": 11302,
+      "sha256": "68aca018ff9c15ff98cbbe0cab0b65fc0e1aa5c739d944bfa1ecf25aae4f34ea",
+      "status": "STATIC_LAYOUT_PASS",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "RWD-MEDIUM",
+      "kind": "rwd-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [
+        "RWD-MEDIUM"
+      ],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.3",
+        "RWD-01",
+        "RWD-09",
+        "V2-D080"
+      ],
+      "path": "assets/rwd/RWD-MEDIUM.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 600,
+        "height": 900
+      },
+      "bytes": 8897,
+      "sha256": "859b47311c2d6415002823150e1f6f6b49e1b8a2cd03a9ceba273de6c79218a4",
+      "status": "STATIC_LAYOUT_PASS",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "STATE-COMPONENTS",
+      "kind": "state-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [
+        "default",
+        "loading",
+        "empty",
+        "offline",
+        "error",
+        "permission"
+      ],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.4",
+        "V2-REQ-UX-014"
+      ],
+      "path": "assets/states/STATE-COMPONENTS.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1000
+      },
+      "bytes": 17506,
+      "sha256": "425bc5924cdfbee229839060cc1cea6312bf815d4143cdc54b327b1887ac9b41",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "STATE-PAGE-MATRIX",
+      "kind": "state-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [
+        "default",
+        "loading",
+        "empty",
+        "offline",
+        "error",
+        "permission"
+      ],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.4",
+        "V2-REQ-UX-014"
+      ],
+      "path": "assets/states/STATE-PAGE-MATRIX.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1180
+      },
+      "bytes": 39786,
+      "sha256": "0771e23e435010a3af8518d2d6e7fe37ced138957c266962da87e1810ccd29cc",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "STATE-PERMISSION",
+      "kind": "state-frame",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [
+        "default",
+        "loading",
+        "empty",
+        "offline",
+        "error",
+        "permission"
+      ],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.4",
+        "V2-REQ-UX-014"
+      ],
+      "path": "assets/states/STATE-PERMISSION.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 900
+      },
+      "bytes": 9786,
+      "sha256": "d0085cf73df999db4a5e72dd7d38268b8aa2c358a35f1b2a7529b9fb6eb70131",
+      "status": "STATIC_DECISION_INPUT",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "THEME-DYNAMIC",
+      "kind": "theme-frame",
+      "theme": "系统动态色",
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.6",
+        "V2-D026",
+        "V2-D057",
+        "V2-D074"
+      ],
+      "path": "assets/themes/THEME-DYNAMIC.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1000
+      },
+      "bytes": 23965,
+      "sha256": "d31e61d866d68af316b82894fcabf99ecedd84a1c5b45de478c9063404a06af5",
+      "status": "READY_FOR_USER_DECISION",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "THEME-LUMEN",
+      "kind": "theme-frame",
+      "theme": "Lumen",
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.6",
+        "V2-D026",
+        "V2-D057",
+        "V2-D074"
+      ],
+      "path": "assets/themes/THEME-LUMEN.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1000
+      },
+      "bytes": 23908,
+      "sha256": "8215a520a3ab20222ab5dd6694e8fc3115309924ed08630d8b5dfd5efb5f5f20",
+      "status": "READY_FOR_USER_DECISION",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "THEME-MONOLITH",
+      "kind": "theme-frame",
+      "theme": "Monolith",
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.6",
+        "V2-D026",
+        "V2-D057",
+        "V2-D074"
+      ],
+      "path": "assets/themes/THEME-MONOLITH.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1000
+      },
+      "bytes": 23881,
+      "sha256": "66bcdc2499fe3f5b99230d4d3ece54559edb474c6501af69bc12a03667ba9fb6",
+      "status": "READY_FOR_USER_DECISION",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "THEME-NOCTURNE",
+      "kind": "theme-frame",
+      "theme": "Nocturne",
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.6",
+        "V2-D026",
+        "V2-D057",
+        "V2-D074"
+      ],
+      "path": "assets/themes/THEME-NOCTURNE.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1000
+      },
+      "bytes": 23900,
+      "sha256": "140650865765046f4f4f8e27ccbfed606eefcc51ff5eb5915bbc896c8a247034",
+      "status": "READY_FOR_USER_DECISION",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "THEME-PRISM",
+      "kind": "theme-frame",
+      "theme": "Prism",
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §5.3.16.6",
+        "V2-D026",
+        "V2-D057",
+        "V2-D074"
+      ],
+      "path": "assets/themes/THEME-PRISM.svg",
+      "mime": "image/svg+xml",
+      "pixelSize": {
+        "width": 1600,
+        "height": 1000
+      },
+      "bytes": 23885,
+      "sha256": "20112edef940e2062b4945a84c616e246d15bfd3f4aed190e8eb3ec4c84883fc",
+      "status": "READY_FOR_USER_DECISION",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "DATA-ACCESSIBILITY-JSON",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [
+        "all-applicable-items"
+      ],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/accessibility.json",
+      "mime": "application/json",
+      "pixelSize": null,
+      "bytes": 9110,
+      "sha256": "bec577a38622a61bb6a1e7cecdbe8ada8ff53b3cb7676f60583e254f01a0a71c",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-ACCESSIBLE-NAMES-CSV",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/accessible-names.csv",
+      "mime": "text/csv",
+      "pixelSize": null,
+      "bytes": 1924,
+      "sha256": "738a70c75e32eeced40444cf19986c7d26f1125b144e159950e220537f929a28",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-ASSESSMENT-JSON",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/assessment.json",
+      "mime": "application/json",
+      "pixelSize": null,
+      "bytes": 1815,
+      "sha256": "09d8e71e52113400bb2189fbd76ae37401da75a7767c6699cd0a87db0d9e6502",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-CONTRAST-MATRIX-CSV",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/contrast-matrix.csv",
+      "mime": "text/csv",
+      "pixelSize": null,
+      "bytes": 13029,
+      "sha256": "a51f61d719562f063c28dbc45d131470b1e839a7a51fe419681e77595b9a4e85",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-CONTRAST-MATRIX-JSON",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [
+        "contrast"
+      ],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/contrast-matrix.json",
+      "mime": "application/json",
+      "pixelSize": null,
+      "bytes": 37402,
+      "sha256": "e4d56943b834fe371243131d8bc8e6e59e42e42ba613819c8fa7dbc554a9b2f7",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-INTERACTIONS-CSV",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/interactions.csv",
+      "mime": "text/csv",
+      "pixelSize": null,
+      "bytes": 4236,
+      "sha256": "6e5bc3498cd31464eaf8be8e387a1efeb98e42f198da5b92d7bac338b3504c14",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-INTERACTIONS-JSON",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/interactions.json",
+      "mime": "application/json",
+      "pixelSize": null,
+      "bytes": 13047,
+      "sha256": "4cb1b7ac3e576817213b66c0eb17ff74cab9348fdbab9cc7fe09c05d84bbf323",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-RWD-MATRIX-CSV",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/rwd-matrix.csv",
+      "mime": "text/csv",
+      "pixelSize": null,
+      "bytes": 746,
+      "sha256": "9b1e310825b034343fd47da620664e20cb3449a7298e4556960bfce56074aba2",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-RWD-MATRIX-JSON",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/rwd-matrix.json",
+      "mime": "application/json",
+      "pixelSize": null,
+      "bytes": 3197,
+      "sha256": "2cd7749b040ad6152b5e4c4d5dff33e1b434b44ed7487e93b3f100286fade46f",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-SOURCE-SNAPSHOT-JSON",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/source-snapshot.json",
+      "mime": "application/json",
+      "pixelSize": null,
+      "bytes": 1053,
+      "sha256": "8f7184f2cff0d098d484b4d01613f8e7dbf5bafd0b06d5ba2011cf656ffe9c21",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-STATE-MATRIX-CSV",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/state-matrix.csv",
+      "mime": "text/csv",
+      "pixelSize": null,
+      "bytes": 10159,
+      "sha256": "8bdb041aabb4025d9ff440929f66370f9b0359a910e8af80d2db08d5a0cc3b80",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-STATE-MATRIX-JSON",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/state-matrix.json",
+      "mime": "application/json",
+      "pixelSize": null,
+      "bytes": 20253,
+      "sha256": "23188dc96be1f79b95239d35b355ab7077e454dda5992994249c1ef58be3a3d3",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-THEME-TOKENS-CSV",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/theme-tokens.csv",
+      "mime": "text/csv",
+      "pixelSize": null,
+      "bytes": 5516,
+      "sha256": "6cf3cb335715123ff66f2e9f3539a71527ad869b82b6000d69b62b7ae7e2f132",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DATA-THEMES-JSON",
+      "kind": "machine-readable-evidence",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "data/themes.json",
+      "mime": "application/json",
+      "pixelSize": null,
+      "bytes": 8253,
+      "sha256": "65eb17ddc2002bcc0fce8e899fe1168877cb80754a7145f4110669135b4790e4",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "DOC-DECISION-BRIEF",
+      "kind": "decision-document",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "decision-brief.md",
+      "mime": "text/markdown",
+      "pixelSize": null,
+      "bytes": 3781,
+      "sha256": "d6eb436dd9d79222886c022fa8e445fddbec7a8b84b67c7e1950b9f6e628140d",
+      "status": "READY_FOR_USER_DECISION",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "INDEX-REVIEW",
+      "kind": "review-index",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "index.html",
+      "mime": "text/html",
+      "pixelSize": null,
+      "bytes": 5886,
+      "sha256": "b0dbd6a6c2b656f704a86c001abb44a1c283471f14d8c7e4538c31bfff7e78bd",
+      "status": "READY_FOR_USER_DECISION",
+      "limits": [
+        "Static evidence only; runtime and user visual judgement remain outside this artifact."
+      ]
+    },
+    {
+      "id": "SCRIPT-BUILD_EVIDENCE",
+      "kind": "reproduction-script",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "scripts/build_evidence.py",
+      "mime": "text/x-python",
+      "pixelSize": null,
+      "bytes": 104453,
+      "sha256": "252d778558bd7e9fa301f8e60cc870619967884a854a3398d30ef6e948c3972c",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    },
+    {
+      "id": "SCRIPT-VERIFY_EVIDENCE",
+      "kind": "reproduction-script",
+      "theme": null,
+      "interaction": null,
+      "rwd": [],
+      "state": [],
+      "a11y": [],
+      "sources": [
+        "V2_PLAN §12 ACTIVE"
+      ],
+      "path": "scripts/verify_evidence.py",
+      "mime": "text/x-python",
+      "pixelSize": null,
+      "bytes": 12947,
+      "sha256": "eb0ae7d08f3eb4898072ad20e880cf2b76cb3003fa182dd8347c42cc287a3f2c",
+      "status": "FROZEN_STATIC",
+      "limits": []
+    }
+  ]
+}

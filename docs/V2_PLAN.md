@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / Q03_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / S4-A、S4-B、S4-C 静态证据完成；S4-C 带硬门冻结，下一入口为 S5
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / S4-A、S4-B、S4-C 与 S5 静态证据完成；Q04 待用户视觉方向决策
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-03
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2877,7 +2877,7 @@ Book direct Download 已可实现 200/206，但完整远程 range 仍需真实�
 | `V2-Q-G1-01` ✅ | 已由 `V2-D198` 接受 | 先逻辑 seam + FQCN/模块 owner allowlist + debt ratchet；暂不全量物理拆 Gradle 模块，只有单 seam build pilot 证明收益后才重新提报 |
 | `V2-Q-G1-02` ✅ | 已由 `V2-D199` 接受 | 保留全部已承诺资产；首次升级执行有进度、可恢复、FAIL_CLOSED 的一次性 forward migration；禁清库、禁真实 down migration、未知 provenance 不猜来源 |
 | `V2-Q-G1-03` | 未就绪 | 等 `G1-S4` 的依赖闭包、Media3/FFmpeg、TTS/PDF、ABI / 包体 / 性能证据 |
-| `V2-Q-G1-04` | 未就绪 | 等 `G1-S5` 的五主题风格帧与九条低保真复核 |
+| `V2-Q-G1-04` | 可决策 | `G1-S5` 五主题风格帧与九条低保真复核已完成；推荐 R1，等待用户整包确认或选择 A2/A3 / 逐项修订 |
 
 **G1/1 首波结论**：S1–S3 已形成可冻结的证据与决策输入，但没有任何真实服务器、设备、迁移、
 协议或候选包 PASS；`V2-Q-G1-01/02` 已由 `V2-D198/D199` 关闭，`V2-Q-G1-03/04` 继续等待
@@ -3025,12 +3025,42 @@ PDF 必须保留 PdfRenderer feature flag 与同数据模型切换；新引擎�
 `.planning/v2-g1/G1-S4-C/option-matrix.json`、
 `.planning/v2-g1/G1-S4-C/commands.log`。
 
+#### 5.11.13 G1-S5 视觉方向证据（2026-11-03；Completed / HISTORY）
+
+**状态**：`S5_EVIDENCE_COMPLETED / READY_FOR_V2_Q_G1_04_USER_DECISION / Q04_OPEN /
+G1_NOT_PASSED / RUNTIME_UNVERIFIED`。S5 证据制作已完成；verifier 支持精确显式预期 docs
+dirty 白名单，当前预期工作树 exit 0、实际越界负测 exit 1；该 verifier 与独立 scoped
+evidence review 均 PASS，但这些结果只证明静态证据包完整、可复算且可供决策，不构成用户视觉
+接受、Q04 关闭、G1 PASS、设计系统升级或实现授权。
+
+**证据入口**：`.planning/v2-g1/G1-S5/README.md`、
+`.planning/v2-g1/G1-S5/decision-brief.md`、`.planning/v2-g1/G1-S5/manifest.json`。证据根当前
+为未跟踪文件组，共 47 个文件 / 777,375 字节；`manifest.json` SHA-256 为
+`2A61136BD64A11C1842F28648BCAD675F4DB9E4003380CC830C706DCC4B41AAD`，46 个条目对应
+45 个原证据加 1 个 EOL 控制条目。`.gitattributes` 版本化 `* text eol=lf`，47/47 LF、
+CRLF 0；LF / `eol=lf` 保证 hashtree / checkout 复现。禁止把未提交证据误写成已在集成分支提交。
+
+**覆盖计数**：主题 5/5；交互 9/9；RWD 6/6；状态映射 60/60；无障碍适用检查 12/12；
+对比度 130/130。另含 18 个无障碍动作名称映射。上述均为静态生成 / 机械复核，不包含
+Compose、设备、TalkBack、键盘、权限弹窗、动态色或字体真渲染。
+
+**决策输入**：推荐整包 R1“DNA 保留 + 共享骨架”，即保留五主题材料语法与辨识度，同时共享
+IA、入口顺序、状态含义、48dp 触控、可访问名称和反馈职责；`AmbientColors` 不再作为页面主题
+来源，只允许受控、可关闭的局部内容强调；RWD 采用五档与 72 / 216dp 轨道、16 / 24 / 32 / 48dp
+页面边距。A2 强化玻璃、内高光与编辑材质表现，但增加可读性、性能与“第二主题”漂移风险；
+A3 强化结构统一，主题基本只替换颜色与圆角，但会削弱 Lumen / Nocturne / Monolith 辨识度。
+A2 / A3 与逐项修订均为用户可选项，最终必须由用户拍板。
+
+**边界**：`V2-Q-G1-04` 保持 Open，G1 未通过；`docs/UI_DESIGN_SYSTEM.md` 仍是 v1.0，
+不因 S5 成为 V2 权威。S5 不得关闭 Q03 的 TTS / PDF / SBOM / runtime 硬门，也不得用于
+S6 验收、实现、G2、独立 QA、设备或服务器写。
+
 ## 6. 三层前置门
 
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A 与 S4-B 静态证据已完成；S4-C、S5、S6、runtime 与真实证据仍未收口 |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C 与 S5 静态证据已完成；Q03/Q04、S6、runtime 与真实证据仍未收口 |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3168,7 +3198,57 @@ PDF 必须保留 PdfRenderer feature flag 与同数据模型切换；新引擎�
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-S5 视觉方向证据交接（2026-11-03）
+### ACTIVE：G1-Q04 视觉方向用户决策交接（2026-11-03）
+
+**接手身份**：用户是 `V2-Q-G1-04` 视觉 / UX 方向的最终决策者。交付负责人只整理候选、
+证据边界与写回记录，不得代替用户做审美判断、把推荐写成已接受事实或据此进入 S6。
+
+**一句话现状**：S5 证据制作、verifier 与独立 scoped evidence review 已完成；推荐整包为
+R1“DNA 保留 + 共享骨架”，A2“更强材料表现”与 A3“更强结构统一”保留为备选；当前等待用户
+主观视觉确认，`V2-Q-G1-04` 仍 Open，G1 未通过。
+
+**状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S5_COMPLETE /
+Q03_Q04_OPEN / READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED /
+RUNTIME_UNVERIFIED / NO_IMPLEMENTATION`。
+
+**工作对象 / 当前事实**：事实 worktree 为
+`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`；分支
+`codex/v2-integration`，交接基线 HEAD `397ff4f0a3d8378c91ee283da317c5263cc80285`。
+截至本交接，S5 证据根与本次三份文档写回均未提交；使用分支 / HEAD / 工作树实况复核，
+不得把“证据完成”误写成已提交。无设备、服务器或 Release 锁。
+
+**证据入口 / 机械事实**：`.planning/v2-g1/G1-S5/README.md`、
+`.planning/v2-g1/G1-S5/decision-brief.md`、`.planning/v2-g1/G1-S5/manifest.json`。
+证据目录 47 个文件 / 777,375 字节；manifest SHA-256
+`2A61136BD64A11C1842F28648BCAD675F4DB9E4003380CC830C706DCC4B41AAD`，46 个条目 =
+45 个原证据 + 1 个 EOL 控制条目。`.gitattributes` 明确 `* text eol=lf`，47/47 LF、
+CRLF 0；LF / `eol=lf` 保证 hashtree / checkout 复现。覆盖：主题 5/5、交互 9/9、
+RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130。
+
+**推荐与备选**：R1 保留五主题 DNA，并统一共享骨架、状态语义、响应式与无障碍不变量；
+A2 在更多功能层强化材质和光感，辨识度更强但增加可读性、性能和主题漂移风险；A3 让主题
+主要只替换颜色与圆角，结构最稳但削弱 Lumen / Nocturne / Monolith 的差异。推荐 R1，不是
+用户已拍板结果。
+
+**边界**：`docs/UI_DESIGN_SYSTEM.md` 仍为 v1.0；S5 只作为 Q04 决策输入，不关闭 Q04、
+不关闭 Q03、不构成 G1 PASS、S6 验收、实现、G2、独立 QA、设备或服务器证据。删除 / 修改
+S5 证据、升级设计系统或进入实现均超出本交接。
+
+**下一步入口**：用户先打开 `decision-brief.md`，按需查看证据包，然后明确选择 R1、A2、A3
+或逐项修订；交付负责人只据此更新 Q04 / TASKS / V2_PLAN 并记录用户原话，不补写审美结论。
+停止条件：用户尚未明确选择时保持 Q04 Open 与 G1 NOT_PASSED；若用户选择逐项修订，先登记
+差异项与影响再继续，不直接进入 S6 或实现。
+
+**实际上下文水位**：本次交接收口实测 `95,800 / 1,048,576`（9.1%），缓存命中 99.8%，
+会话请求数 170；最终以当前线程的 `deepseek-status` 实况为准。
+
+### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-Q04 ACTIVE 取代）
+
+**历史收口**：S5 五主题、九交互、RWD、状态与无障碍静态证据已制作完成并通过 verifier 与
+独立 scoped evidence review；证据根为 47 个文件 / 777,375 字节，manifest SHA-256
+`2A61136BD64A11C1842F28648BCAD675F4DB9E4003380CC830C706DCC4B41AAD`；EOL 确定性门
+为 47/47 LF、CRLF 0。Q04 未关闭、G1 未通过。以下保留交接时快照，所有“下一棒进入 S5”
+和 S5 待执行语句均已被 Completed 取代。
 
 **接手身份**：**交付负责人 / 技术集成编排者**。负责人只承担范围、风险、角色拆单、只读
 白名单、压缩报告 / 关键 diff 审查、证据门、集成决策、文档与交接；不得亲自承担 UI / 视觉
@@ -3179,8 +3259,8 @@ PDF 必须保留 PdfRenderer feature flag 与同数据模型切换；新引擎�
 仍 Open，G1 未通过。下一棒只进入 `G1-S5` 视觉方向证据，不进入 S6、实现、G2、QA、设备、
 服务器写或 Release。
 
-**状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / Q03_OPEN /
-G1_S5_PENDING / G1_NOT_PASSED / NO_IMPLEMENTATION`。
+**状态（历史快照）**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE /
+Q03_OPEN / G1_S5_PENDING_AT_SNAPSHOT / G1_NOT_PASSED / NO_IMPLEMENTATION`。
 
 **工作对象 / 硬门**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
 分支 `codex/v2-integration`。下一负责人必须核验本次 S4-C 证据提交
@@ -3813,3 +3893,12 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `report.json`、`option-matrix.json`、`commands.log`；S4-C non-media input ready for Q03，
   但完整 Q03 Open、G1 未通过，runtime TTS / SBOM / native notice / PDFium 16 KB / Range
   大文件仍未覆盖，下一棒为 S5 视觉方向证据。
+- **2026-11-03 — G1-S5 视觉方向证据完成，切换 Q04 用户决策交接**：S5 证据根
+  `.planning/v2-g1/G1-S5/` 完成 47 个文件 / 777,375 字节，manifest SHA-256
+  `2A61136BD64A11C1842F28648BCAD675F4DB9E4003380CC830C706DCC4B41AAD`；46 个条目 =
+  45 个原证据 + 1 个 EOL 控制条目，`.gitattributes` 固定 `* text eol=lf` 且 47/47 LF、
+  CRLF 0，保证 hashtree / checkout 复现。当前预期工作树 verifier exit 0、越界负测 exit 1；
+  独立 scoped evidence review PASS，覆盖主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍
+  12/12、对比度 130/130。推荐整包 R1，A2 / A3 待用户比较；`V2-Q-G1-04` 保持 Open，
+  G1 未通过，`UI_DESIGN_SYSTEM` 仍为 v1.0。仅更新三份权威文档，未修改生产代码 / 资源 /
+  S4 证据 / Q03，未构建、未触设备 / 服务器、未 QA、未 commit / push / tag。

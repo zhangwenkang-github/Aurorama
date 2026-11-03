@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" lang="zh-CN">
+<title id="title">可访问名称与语义合同</title>
+<desc id="desc">18 个高频动作的可见标签、可访问名称、角色和状态。</desc>
+<rect width="1600" height="1000" fill="#090C11"/>
+<text x="48.00" y="42.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.1">G1-S5 · 无障碍 3/3 · 名称 / 角色</text>
+<text x="48.00" y="78.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="34" font-weight="700" text-anchor="start" letter-spacing="0">可访问名称映射</text>
+<text x="48.00" y="106.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">视觉可以无文字，TalkBack / 语音控制不能失去名称、角色与状态。</text>
+<text x="1552.00" y="46.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="end" letter-spacing="0">18/18 名称映射 · TalkBack UNVERIFIED</text>
+<rect x="40.00" y="144.00" width="200.00" height="40.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="170.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">动作</text>
+<rect x="240.00" y="144.00" width="170.00" height="40.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="170.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">角色</text>
+<rect x="410.00" y="144.00" width="560.00" height="40.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="170.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">可访问名称 / 状态</text>
+<rect x="970.00" y="144.00" width="590.00" height="40.00" rx="0.00" fill="#222A36" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="170.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">可见策略</text>
+<rect x="40.00" y="184.00" width="200.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="210.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">01  搜索</text>
+<rect x="240.00" y="184.00" width="170.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="210.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="184.00" width="560.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="210.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">搜索 · 无状态</text>
+<rect x="970.00" y="184.00" width="590.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="210.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">纯图标允许；24dp 图形 / 48dp 热区</text>
+<rect x="40.00" y="225.00" width="200.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="251.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">02  返回</text>
+<rect x="240.00" y="225.00" width="170.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="251.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="225.00" width="560.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="251.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">返回 · 无状态</text>
+<rect x="970.00" y="225.00" width="590.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="251.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">纯图标允许；按 RTL 镜像</text>
+<rect x="40.00" y="266.00" width="200.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="292.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">03  关闭</text>
+<rect x="240.00" y="266.00" width="170.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="292.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="266.00" width="560.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="292.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">关闭 · 无状态</text>
+<rect x="970.00" y="266.00" width="590.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="292.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">纯图标允许；危险关闭仍看上下文</text>
+<rect x="40.00" y="307.00" width="200.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="333.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">04  侧栏</text>
+<rect x="240.00" y="307.00" width="170.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="333.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="307.00" width="560.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="333.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">打开侧栏 · collapsed / expanded</text>
+<rect x="970.00" y="307.00" width="590.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="333.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">纯图标允许；与“更多”分开</text>
+<rect x="40.00" y="348.00" width="200.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="374.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">05  播放 / 暂停</text>
+<rect x="240.00" y="348.00" width="170.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="374.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="348.00" width="560.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="374.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">播放 · 切换后名称改为“暂停”</text>
+<rect x="970.00" y="348.00" width="590.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="374.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">纯图标允许；状态文字同步</text>
+<rect x="40.00" y="389.00" width="200.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="415.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">06  上一 / 下一</text>
+<rect x="240.00" y="389.00" width="170.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="415.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="389.00" width="560.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="415.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">上一首 / 下一首 · disabled 时同步</text>
+<rect x="970.00" y="389.00" width="590.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="415.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">纯图标允许；面板可附短标签</text>
+<rect x="40.00" y="430.00" width="200.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="456.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">07  快退 / 快进</text>
+<rect x="240.00" y="430.00" width="170.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="456.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="430.00" width="560.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="456.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">快退 / 快进 · 无状态</text>
+<rect x="970.00" y="430.00" width="590.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="456.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">面板显示短标签</text>
+<rect x="40.00" y="471.00" width="200.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="497.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">08  全屏</text>
+<rect x="240.00" y="471.00" width="170.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="497.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">ToggleButton</text>
+<rect x="410.00" y="471.00" width="560.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="497.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">进入全屏 · checked=全屏</text>
+<rect x="970.00" y="471.00" width="590.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="497.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">纯图标允许；状态可读</text>
+<rect x="40.00" y="512.00" width="200.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="538.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">09  收藏</text>
+<rect x="240.00" y="512.00" width="170.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="538.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">ToggleButton</text>
+<rect x="410.00" y="512.00" width="560.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="538.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">收藏 · checked / unchecked</text>
+<rect x="970.00" y="512.00" width="590.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="538.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">图标 + 短标签；不以颜色唯一表达</text>
+<rect x="40.00" y="553.00" width="200.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="579.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">10  下载</text>
+<rect x="240.00" y="553.00" width="170.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="579.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="553.00" width="560.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="579.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">下载 · busy / accepted / failed</text>
+<rect x="970.00" y="553.00" width="590.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="579.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">图标 + 短标签；完成后文字更新</text>
+<rect x="40.00" y="594.00" width="200.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="620.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">11  字幕</text>
+<rect x="240.00" y="594.00" width="170.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="620.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="594.00" width="560.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="620.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">字幕 · off / on / unavailable</text>
+<rect x="970.00" y="594.00" width="590.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="620.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">面板图标 + 短标签</text>
+<rect x="40.00" y="635.00" width="200.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="661.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">12  音轨</text>
+<rect x="240.00" y="635.00" width="170.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="661.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="635.00" width="560.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="661.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">音轨 · current track name</text>
+<rect x="970.00" y="635.00" width="590.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="661.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">面板图标 + 短标签</text>
+<rect x="40.00" y="676.00" width="200.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="702.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">13  筛选</text>
+<rect x="240.00" y="676.00" width="170.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="702.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="676.00" width="560.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="702.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">筛选 · active count</text>
+<rect x="970.00" y="676.00" width="590.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="702.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">compact 可 icon-only；平板附短标签</text>
+<rect x="40.00" y="717.00" width="200.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="743.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">14  排序</text>
+<rect x="240.00" y="717.00" width="170.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="743.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="717.00" width="560.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="743.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">排序 · current order</text>
+<rect x="970.00" y="717.00" width="590.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="743.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">icon + 可见当前顺序</text>
+<rect x="40.00" y="758.00" width="200.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="784.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">15  主题选择</text>
+<rect x="240.00" y="758.00" width="170.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="784.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">RadioButton</text>
+<rect x="410.00" y="758.00" width="560.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="784.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">主题：Lumen · selected / checked</text>
+<rect x="970.00" y="758.00" width="590.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="784.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">名称与可见文本一致</text>
+<rect x="40.00" y="799.00" width="200.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="825.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">16  动态色</text>
+<rect x="240.00" y="799.00" width="170.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="825.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="799.00" width="560.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="825.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">系统动态色，需要 Android 12 或更高版本 · disabled + reason</text>
+<rect x="970.00" y="799.00" width="590.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="825.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">禁用原因可见且可读</text>
+<rect x="40.00" y="840.00" width="200.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="866.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">17  删除下载</text>
+<rect x="240.00" y="840.00" width="170.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="866.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="840.00" width="560.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="866.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">删除下载：潮汐档案 · confirm required</text>
+<rect x="970.00" y="840.00" width="590.00" height="41.00" rx="0.00" fill="#111720" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="866.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">危险动作用文字确认</text>
+<rect x="40.00" y="881.00" width="200.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="54.00" y="907.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">18  重试</text>
+<rect x="240.00" y="881.00" width="170.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="254.00" y="907.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">Button</text>
+<rect x="410.00" y="881.00" width="560.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="424.00" y="907.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">重试下载 · idle / busy</text>
+<rect x="970.00" y="881.00" width="590.00" height="41.00" rx="0.00" fill="#0E141B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="984.00" y="907.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">busy 保留名称和状态</text>
+<text x="40.00" y="946.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">运行时未验证：Compose semantics、TalkBack 朗读、Switch Access、Voice Access、焦点裁切与 disabled 可读性。</text>
+<text x="40.00" y="973.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="500" text-anchor="start" letter-spacing="0">来源：V2_PLAN §5.3.16.5、RWD-09、V2-D069、V2-D073。</text>
+</svg>

@@ -1,0 +1,290 @@
+{
+  "checks": [
+    {
+      "id": "A11Y-01",
+      "title": "正文与小字号对比度",
+      "source": "WCAG 1.4.3 / UX-015",
+      "valueType": "计算值",
+      "required": "所有主题明暗正文与弱文字 pair ≥ 4.5:1",
+      "actual": "110/110 pairs ≥4.5:1; min 5.64:1",
+      "status": "PASS_STATIC",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-02",
+      "title": "焦点与非文字对比度",
+      "source": "WCAG 1.4.11 / D073",
+      "valueType": "计算值",
+      "required": "焦点环和必要控件边界 ≥ 3:1",
+      "actual": "20/20 pairs ≥3:1; min 3.04:1",
+      "status": "PASS_STATIC",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-03",
+      "title": "触控尺寸",
+      "source": "UX-009 / RWD-09",
+      "valueType": "布局值",
+      "required": "图中交互目标 48×48dp，图形 24–32dp",
+      "actual": "图中交互目标 48×48dp，图形 24–32dp",
+      "status": "PASS_STATIC_LAYOUT",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-04",
+      "title": "可访问名称",
+      "source": "D069 / 5.3.16.5",
+      "valueType": "名称表",
+      "required": "18/18 示例动作有名称、角色与状态策略",
+      "actual": "18/18 示例动作有名称与状态策略",
+      "status": "PASS_STATIC_CONTRACT",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-05",
+      "title": "TalkBack 角色与状态",
+      "source": "WCAG 4.1.2 / UX-014",
+      "valueType": "语义合同",
+      "required": "Button / ToggleButton / RadioButton 与 checked / selected / busy 策略",
+      "actual": "Button / ToggleButton / RadioButton 与 checked / selected / busy 策略",
+      "status": "UNVERIFIED_RUNTIME",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-06",
+      "title": "键盘焦点顺序",
+      "source": "RWD-09",
+      "valueType": "静态顺序",
+      "required": "搜索 → 主行动 → 更多 → 导航，2dp 外环不被裁切",
+      "actual": "搜索 → 主行动 → 更多 → 导航，2dp 外环不被裁切",
+      "status": "UNVERIFIED_RUNTIME",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-07",
+      "title": "键盘 / 指针操作",
+      "source": "RWD-09",
+      "valueType": "静态合同",
+      "required": "Hover 只用于指针环境，键盘可完成同组动作",
+      "actual": "Hover 只用于指针环境，键盘可完成同组动作",
+      "status": "UNVERIFIED_RUNTIME",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-08",
+      "title": "200% 动态字号",
+      "source": "RWD-08",
+      "valueType": "静态重排帧",
+      "required": "标题换行、元信息重排、主要求不缩字不截断",
+      "actual": "标题换行、元信息重排、主要求不缩字不截断",
+      "status": "UNVERIFIED_RUNTIME",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-09",
+      "title": "减弱动效",
+      "source": "UX-011 / D072",
+      "valueType": "静态矩阵",
+      "required": "主题状态过渡 150–300ms；减少动画为 0ms / 直接切换",
+      "actual": "主题状态过渡 150–300ms；使用 Reduce Motion 时 0ms / 直接切换",
+      "status": "UNVERIFIED_RUNTIME",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-10",
+      "title": "不只依赖颜色",
+      "source": "WCAG 1.4.1",
+      "valueType": "状态板",
+      "required": "选中、错误、离线、权限同时使用文字 / 图标 / 形状",
+      "actual": "选中、错误、离线、权限同时使用文字 / 图标 / 形状",
+      "status": "PASS_STATIC_CONTRACT",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-11",
+      "title": "错误与权限可读",
+      "source": "UX-014",
+      "valueType": "状态矩阵",
+      "required": "指出对象、原因、下一步与恢复入口",
+      "actual": "指出对象、原因、下一步与恢复入口",
+      "status": "PASS_STATIC_CONTRACT",
+      "runtimeExecuted": false
+    },
+    {
+      "id": "A11Y-12",
+      "title": "字体与行高渲染",
+      "source": "UX-007",
+      "valueType": "设计意图",
+      "required": "MiSans / Literata / 阅读正文局部覆盖",
+      "actual": "MiSans / Literata / 阅读正文局部覆盖",
+      "status": "UNVERIFIED_RUNTIME",
+      "runtimeExecuted": false
+    }
+  ],
+  "accessibleNames": [
+    {
+      "id": "A11Y-NAME-01",
+      "action": "搜索",
+      "role": "Button",
+      "accessibleName": "搜索",
+      "state": "无状态",
+      "visibleStrategy": "纯图标允许；24dp 图形 / 48dp 热区",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-02",
+      "action": "返回",
+      "role": "Button",
+      "accessibleName": "返回",
+      "state": "无状态",
+      "visibleStrategy": "纯图标允许；按 RTL 镜像",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-03",
+      "action": "关闭",
+      "role": "Button",
+      "accessibleName": "关闭",
+      "state": "无状态",
+      "visibleStrategy": "纯图标允许；危险关闭仍看上下文",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-04",
+      "action": "侧栏",
+      "role": "Button",
+      "accessibleName": "打开侧栏",
+      "state": "collapsed / expanded",
+      "visibleStrategy": "纯图标允许；与“更多”分开",
+      "source": "RWD-02"
+    },
+    {
+      "id": "A11Y-NAME-05",
+      "action": "播放 / 暂停",
+      "role": "Button",
+      "accessibleName": "播放",
+      "state": "切换后名称改为“暂停”",
+      "visibleStrategy": "纯图标允许；状态文字同步",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-06",
+      "action": "上一 / 下一",
+      "role": "Button",
+      "accessibleName": "上一首 / 下一首",
+      "state": "disabled 时同步",
+      "visibleStrategy": "纯图标允许；面板可附短标签",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-07",
+      "action": "快退 / 快进",
+      "role": "Button",
+      "accessibleName": "快退 / 快进",
+      "state": "无状态",
+      "visibleStrategy": "面板显示短标签",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-08",
+      "action": "全屏",
+      "role": "ToggleButton",
+      "accessibleName": "进入全屏",
+      "state": "checked=全屏",
+      "visibleStrategy": "纯图标允许；状态可读",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-09",
+      "action": "收藏",
+      "role": "ToggleButton",
+      "accessibleName": "收藏",
+      "state": "checked / unchecked",
+      "visibleStrategy": "图标 + 短标签；不以颜色唯一表达",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-10",
+      "action": "下载",
+      "role": "Button",
+      "accessibleName": "下载",
+      "state": "busy / accepted / failed",
+      "visibleStrategy": "图标 + 短标签；完成后文字更新",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-11",
+      "action": "字幕",
+      "role": "Button",
+      "accessibleName": "字幕",
+      "state": "off / on / unavailable",
+      "visibleStrategy": "面板图标 + 短标签",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-12",
+      "action": "音轨",
+      "role": "Button",
+      "accessibleName": "音轨",
+      "state": "current track name",
+      "visibleStrategy": "面板图标 + 短标签",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-13",
+      "action": "筛选",
+      "role": "Button",
+      "accessibleName": "筛选",
+      "state": "active count",
+      "visibleStrategy": "compact 可 icon-only；平板附短标签",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-14",
+      "action": "排序",
+      "role": "Button",
+      "accessibleName": "排序",
+      "state": "current order",
+      "visibleStrategy": "icon + 可见当前顺序",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-15",
+      "action": "主题选择",
+      "role": "RadioButton",
+      "accessibleName": "主题：Lumen",
+      "state": "selected / checked",
+      "visibleStrategy": "名称与可见文本一致",
+      "source": "UX-037"
+    },
+    {
+      "id": "A11Y-NAME-16",
+      "action": "动态色",
+      "role": "Button",
+      "accessibleName": "系统动态色，需要 Android 12 或更高版本",
+      "state": "disabled + reason",
+      "visibleStrategy": "禁用原因可见且可读",
+      "source": "V2-D041"
+    },
+    {
+      "id": "A11Y-NAME-17",
+      "action": "删除下载",
+      "role": "Button",
+      "accessibleName": "删除下载：潮汐档案",
+      "state": "confirm required",
+      "visibleStrategy": "危险动作用文字确认",
+      "source": "5.3.16.5"
+    },
+    {
+      "id": "A11Y-NAME-18",
+      "action": "重试",
+      "role": "Button",
+      "accessibleName": "重试下载",
+      "state": "idle / busy",
+      "visibleStrategy": "busy 保留名称和状态",
+      "source": "UX-014"
+    }
+  ],
+  "staticContrastAllPass": true,
+  "runtimeEvidence": "UNVERIFIED_NO_DEVICE_OR_TALKBACK"
+}

@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc" lang="zh-CN">
+<title id="title">S5-I03 音乐 / 队列交互复核</title>
+<desc id="desc">音乐 / 队列的入口、主要动作、反馈和失败恢复四段低保真复核。</desc>
+<rect width="1600" height="900" fill="#090C11"/>
+<text x="48.00" y="42.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="700" text-anchor="start" letter-spacing="1.1">G1-S5 · 交互 03/09 · 文字低保真</text>
+<text x="48.00" y="78.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="34" font-weight="700" text-anchor="start" letter-spacing="0">音乐 / 队列</text>
+<text x="48.00" y="106.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="16" font-weight="400" text-anchor="start" letter-spacing="0">从曲目行打开短操作；播放下一首、追加队尾、清空与移除均使用明确文本。</text>
+<text x="1552.00" y="46.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="500" text-anchor="end" letter-spacing="0">STATIC · RUNTIME UNVERIFIED</text>
+<rect x="48.00" y="134.00" width="364.00" height="650.00" rx="18.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="68.00" y="166.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="17" font-weight="700" text-anchor="start" letter-spacing="0">1 入口</text>
+<rect x="68.00" y="188.00" width="324.00" height="516.00" rx="18.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<rect x="82.00" y="202.00" width="296.00" height="28.00" rx="10.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="96.00" y="221.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">音乐 / 队列</text>
+<circle cx="360.00" cy="216.00" r="8.00" fill="#6FA8FF" fill-opacity="0.3" stroke="none" stroke-width="0"/>
+<rect x="86.00" y="246.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="110.00" cy="270.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="132.00" y="269.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">远岸电台</text>
+<text x="362.00" y="269.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">下一首</text>
+<rect x="86.00" y="304.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="110.00" cy="328.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="132.00" y="327.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">潮汐档案</text>
+<text x="362.00" y="327.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">42%</text>
+<rect x="86.00" y="362.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="110.00" cy="386.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="132.00" y="385.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">夜行时刻</text>
+<text x="362.00" y="385.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">暂停</text>
+<rect x="86.00" y="420.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="110.00" cy="444.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="132.00" y="443.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">海风来信</text>
+<text x="362.00" y="443.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">失败</text>
+<text x="92.00" y="648.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">入口</text>
+<rect x="92.00" y="662.00" width="276.00" height="1.00" rx="0.00" fill="#667383" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="68.00" y="742.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">从曲目行打开短操作；播放下一首、追加队尾、</text>
+<text x="68.00" y="761.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">清空与移除均使用明确文本。</text>
+<rect x="428.00" y="134.00" width="364.00" height="650.00" rx="18.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="448.00" y="166.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="17" font-weight="700" text-anchor="start" letter-spacing="0">2 主要动作</text>
+<rect x="448.00" y="188.00" width="324.00" height="516.00" rx="18.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<rect x="462.00" y="202.00" width="296.00" height="28.00" rx="10.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="476.00" y="221.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">音乐 / 队列</text>
+<circle cx="740.00" cy="216.00" r="8.00" fill="#6FA8FF" fill-opacity="0.3" stroke="none" stroke-width="0"/>
+<rect x="466.00" y="246.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="490.00" cy="270.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="512.00" y="269.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">远岸电台</text>
+<text x="742.00" y="269.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">下一首</text>
+<rect x="466.00" y="304.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="490.00" cy="328.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="512.00" y="327.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">潮汐档案</text>
+<text x="742.00" y="327.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">42%</text>
+<rect x="466.00" y="362.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="490.00" cy="386.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="512.00" y="385.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">夜行时刻</text>
+<text x="742.00" y="385.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">暂停</text>
+<rect x="466.00" y="420.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="490.00" cy="444.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="512.00" y="443.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">海风来信</text>
+<text x="742.00" y="443.00" fill="#A7B0BD" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">失败</text>
+<text x="472.00" y="648.00" fill="#6FA8FF" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">主要动作</text>
+<rect x="472.00" y="662.00" width="276.00" height="1.00" rx="0.00" fill="#667383" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="448.00" y="742.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">点“播放下一首”立即高亮当前队列位置；重复</text>
+<text x="448.00" y="761.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">点按不重复插入。</text>
+<rect x="808.00" y="134.00" width="364.00" height="650.00" rx="18.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="828.00" y="166.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="17" font-weight="700" text-anchor="start" letter-spacing="0">3 反馈 / 状态</text>
+<rect x="828.00" y="188.00" width="324.00" height="516.00" rx="18.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<rect x="842.00" y="202.00" width="296.00" height="28.00" rx="10.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="856.00" y="221.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">音乐 / 队列</text>
+<circle cx="1120.00" cy="216.00" r="8.00" fill="#6FA8FF" fill-opacity="0.3" stroke="none" stroke-width="0"/>
+<rect x="846.00" y="246.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="870.00" cy="270.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="892.00" y="269.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">远岸电台</text>
+<text x="1122.00" y="269.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">下一首</text>
+<rect x="846.00" y="304.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="870.00" cy="328.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="892.00" y="327.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">潮汐档案</text>
+<text x="1122.00" y="327.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">42%</text>
+<rect x="846.00" y="362.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="870.00" cy="386.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="892.00" y="385.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">夜行时刻</text>
+<text x="1122.00" y="385.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">暂停</text>
+<rect x="846.00" y="420.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="870.00" cy="444.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="892.00" y="443.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">海风来信</text>
+<text x="1122.00" y="443.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">失败</text>
+<text x="852.00" y="648.00" fill="#77C99D" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">反馈 / 状态</text>
+<rect x="852.00" y="662.00" width="276.00" height="1.00" rx="0.00" fill="#667383" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="828.00" y="742.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">Snackbar 与队列同时显示“已插入到</text>
+<text x="828.00" y="761.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">下一首”；来源标签保持同曲目身份。</text>
+<rect x="1188.00" y="134.00" width="364.00" height="650.00" rx="18.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="1208.00" y="166.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="17" font-weight="700" text-anchor="start" letter-spacing="0">4 失败 / 恢复</text>
+<rect x="1208.00" y="188.00" width="324.00" height="516.00" rx="18.00" fill="#151A21" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<rect x="1222.00" y="202.00" width="296.00" height="28.00" rx="10.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<text x="1236.00" y="221.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="700" text-anchor="start" letter-spacing="0">音乐 / 队列</text>
+<circle cx="1500.00" cy="216.00" r="8.00" fill="#6FA8FF" fill-opacity="0.3" stroke="none" stroke-width="0"/>
+<rect x="1226.00" y="246.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="1250.00" cy="270.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="1272.00" y="269.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">远岸电台</text>
+<text x="1502.00" y="269.00" fill="#E4B962" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">下一首</text>
+<rect x="1226.00" y="304.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="1250.00" cy="328.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="1272.00" y="327.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">潮汐档案</text>
+<text x="1502.00" y="327.00" fill="#E4B962" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">42%</text>
+<rect x="1226.00" y="362.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="1250.00" cy="386.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="1272.00" y="385.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">夜行时刻</text>
+<text x="1502.00" y="385.00" fill="#E4B962" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">暂停</text>
+<rect x="1226.00" y="420.00" width="288.00" height="48.00" rx="9.00" fill="#1B212B" fill-opacity="1" stroke="#667383" stroke-width="1"/>
+<circle cx="1250.00" cy="444.00" r="12.00" fill="#3FC9A0" fill-opacity="0.25" stroke="none" stroke-width="0"/>
+<text x="1272.00" y="443.00" fill="#F4F1EA" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="500" text-anchor="start" letter-spacing="0">海风来信</text>
+<text x="1502.00" y="443.00" fill="#E4B962" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="11" font-weight="500" text-anchor="end" letter-spacing="0">失败</text>
+<text x="1232.00" y="648.00" fill="#E4B962" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="12" font-weight="700" text-anchor="start" letter-spacing="0">失败 / 恢复</text>
+<rect x="1232.00" y="662.00" width="276.00" height="1.00" rx="0.00" fill="#667383" fill-opacity="1" stroke="none" stroke-width="0"/>
+<text x="1208.00" y="742.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">本地文件丢失不重试，保留不可用身份；全部失</text>
+<text x="1208.00" y="761.00" fill="#AAB4C0" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="13" font-weight="400" text-anchor="start" letter-spacing="0">败时停止并提供重试 / 返回。</text>
+<rect x="48.00" y="808.00" width="1504.00" height="62.00" rx="14.00" fill="#111720" fill-opacity="1" stroke="#303B48" stroke-width="1"/>
+<text x="68.00" y="833.00" fill="#9FCDBB" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="14" font-weight="700" text-anchor="start" letter-spacing="0">证据边界</text>
+<text x="68.00" y="856.00" fill="#F3F5F7" fill-opacity="1" font-family="'MiSans','Microsoft YaHei UI',sans-serif" font-size="15" font-weight="500" text-anchor="start" letter-spacing="0">本帧仅证明方向与状态分支可审阅；入口可达、TalkBack、焦点、真实失败和后端一致性均未执行。</text>
+</svg>

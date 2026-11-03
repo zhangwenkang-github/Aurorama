@@ -1,0 +1,19 @@
+id,action,role,accessible_name,state,visible_strategy,source
+A11Y-NAME-01,搜索,Button,搜索,无状态,纯图标允许；24dp 图形 / 48dp 热区,5.3.16.5
+A11Y-NAME-02,返回,Button,返回,无状态,纯图标允许；按 RTL 镜像,5.3.16.5
+A11Y-NAME-03,关闭,Button,关闭,无状态,纯图标允许；危险关闭仍看上下文,5.3.16.5
+A11Y-NAME-04,侧栏,Button,打开侧栏,collapsed / expanded,纯图标允许；与“更多”分开,RWD-02
+A11Y-NAME-05,播放 / 暂停,Button,播放,切换后名称改为“暂停”,纯图标允许；状态文字同步,5.3.16.5
+A11Y-NAME-06,上一 / 下一,Button,上一首 / 下一首,disabled 时同步,纯图标允许；面板可附短标签,5.3.16.5
+A11Y-NAME-07,快退 / 快进,Button,快退 / 快进,无状态,面板显示短标签,5.3.16.5
+A11Y-NAME-08,全屏,ToggleButton,进入全屏,checked=全屏,纯图标允许；状态可读,5.3.16.5
+A11Y-NAME-09,收藏,ToggleButton,收藏,checked / unchecked,图标 + 短标签；不以颜色唯一表达,5.3.16.5
+A11Y-NAME-10,下载,Button,下载,busy / accepted / failed,图标 + 短标签；完成后文字更新,5.3.16.5
+A11Y-NAME-11,字幕,Button,字幕,off / on / unavailable,面板图标 + 短标签,5.3.16.5
+A11Y-NAME-12,音轨,Button,音轨,current track name,面板图标 + 短标签,5.3.16.5
+A11Y-NAME-13,筛选,Button,筛选,active count,compact 可 icon-only；平板附短标签,5.3.16.5
+A11Y-NAME-14,排序,Button,排序,current order,icon + 可见当前顺序,5.3.16.5
+A11Y-NAME-15,主题选择,RadioButton,主题：Lumen,selected / checked,名称与可见文本一致,UX-037
+A11Y-NAME-16,动态色,Button,系统动态色，需要 Android 12 或更高版本,disabled + reason,禁用原因可见且可读,V2-D041
+A11Y-NAME-17,删除下载,Button,删除下载：潮汐档案,confirm required,危险动作用文字确认,5.3.16.5
+A11Y-NAME-18,重试,Button,重试下载,idle / busy,busy 保留名称和状态,UX-014
