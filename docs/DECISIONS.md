@@ -216,7 +216,11 @@ integration 为 `287c37e1…`，仅新增 NOTICE / TTS-PDF 两组并更新 docs�
 `.planning/v2-g1/.gitattributes` 与 G1 证据公共 LF 规则由 `c01e7361…` 新增。提交后
 `core.autocrlf=true` clean-clone 五组 S5 / SBOM / NATIVE / NOTICE / TTS-PDF 为
 47/11/5/7/5，合计 75/75 LF、CRLF 0，S5 verifier / SBOM validator PASS，五 manifest
-hash 与下表一致。新增
+hash 与下表一致。BASE 最终合同批次
+`9171494122a05dbade4e22f438489903ca0a55bd`（BASE-001/003/004 + m3u8 LF）与
+BASE-004 确定性修复 `5b7841d1b84fd91d60966851f5ba6da45005a4f6` 已提交；clean clone
+`HEAD=5b7841d1…` 上 BASE-001 verify、BASE-003 fixture、BASE-004 双跑均 exit 0，
+测试后 worktree 仍 clean。新增
 `G1-S4-A-Q03-NOTICE` 7 文件 / 80,035 B，manifest
 `89306984…`，provenance 24=`13/4/7`、notice/source 10=`5/2/3`，仅 `M3-05` / `MPV-05`
 从 BLOCKED 收窄为 PARTIAL；新增 `G1-S4-A-Q03-TTS-PDF` 5 文件 / 55,691 B，manifest
@@ -228,6 +232,14 @@ revision / 16 KB / Range 及 runtime / device 仍待证据；
 待用户比较；Q04 仍等待用户主观视觉确认或后续明确授权。`docs/UI_DESIGN_SYSTEM.md` 仍为
 v1.0，G1 未通过。唯一 ACTIVE 保持 Q04；新增静态工作须前沿审计与明确授权。
 `V2-D200` 只固定体验优先与包体非要求。代理建议不得代替用户拍板。
+
+**G1 最终候选边界（2026-11-04，非新决策）**：最终 BASE 提交指针只证明合同批次与确定性
+修复已完成，clean-clone 的契约 / verifier exit 0 只证明静态证据可复算，不表示 Q03 / Q04
+关闭或 G1 PASS。前沿定格 `NOW_SAFE=0`；剩余 `B=用户视觉 Q04 / 引擎 voice / 排序 TTL
+合并策略`、`C=runtime/device`、`D=production implementation`、
+`E=S6/G2/QA/Release 未授权`。唯一下一步为用户选择 R1/A2/A3，或明确授权对应 B/C/D；
+无用户选择不得进入 S6/G2/实现/QA/设备/Release。最终文档提交 SHA 由 Git 实读，不在文档中
+自引用当前提交。
 
 **G1-A1/A2 与 BASE-001/003/004 静态合同输入（2026-11-04，非新决策）**：
 `G1-A1-DOWNLOAD-STATE-CONTRACT` 为 11 文件 / 103,924 B，manifest
@@ -264,9 +276,10 @@ roundtrip=`48/2/2/17`、12 scenarios / 99 checks；只有完整 SOURCE identity 
 重复保留，identity conflict 零写入，generic M3U8 的损失显式。B 重复 / 部分导入选择、C SAF /
 设备 / 重启证据与 D 生产 parser / 持久化迁移 / 服务器实现仍 Open。三包均独立 reviewer PASS
 且仅登记静态输入；前沿审计
-`NOW_SAFE`，没有未阻塞静态增量，下一步只等待用户 Q04 / B/C 决策、明确授权或 D runtime /
-device / implementation 证据。Q03 / Q04 仍 Open，G1 NOT_PASSED，`UI_DESIGN_SYSTEM` 仍为
-v1.0；不新增用户决策，不把 B/C/D、runtime、device、implementation 或 QA 标成 Done。
+`NOW_SAFE=0`，即没有未阻塞静态增量，下一步只等待用户选择 R1/A2/A3，或明确授权对应
+B/C/D 及其精确证据边界。Q03 / Q04 仍 Open，G1 NOT_PASSED，`UI_DESIGN_SYSTEM` 仍为
+v1.0；E 类 S6/G2/独立 QA/Release 未授权；不新增用户决策，不把 B/C/D、runtime、device、
+implementation 或 QA 标成 Done，也不把静态合同或 clean-clone 通过写成 G1 PASS。
 
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 

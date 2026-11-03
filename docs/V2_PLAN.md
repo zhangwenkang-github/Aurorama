@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / Q03 五组静态证据、A1/A2 与 BASE-001/003/004 静态合同已完成；BASE B/C/D 门、runtime / implementation 缺口、Q03 packaged closure 与 Q04 用户决策仍开放
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / NOW_SAFE_0 / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门最终交接 / Q03 五组静态证据、A1/A2 与 BASE-001/003/004 静态合同及 clean-clone 复现已完成，静态前沿 `NOW_SAFE=0`；BASE B/C/D、runtime / implementation、Q03 packaged closure 与 Q04 用户决策仍开放，S6/G2/QA/Release 未授权
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3330,20 +3330,25 @@ S6 验收、实现、G2、独立 QA、设备或服务器写。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-Q04 视觉方向用户决策交接（2026-11-04；Q03 静态缺口已最大收敛）
+### ACTIVE：G1-Q04 视觉方向最终交接（2026-11-04；静态合同已定格，NOW_SAFE=0）
 
 **接手身份**：用户是 `V2-Q-G1-04` 视觉 / UX 方向的最终决策者。交付负责人只整理候选、
 证据边界与写回记录，不得代替用户做审美判断、把推荐写成已接受事实或据此进入 S6。
 
 **一句话现状**：S5 证据制作、verifier 与独立 scoped evidence review 已完成；G1-A1 下载状态、
-G1-A2 更新信任与 BASE-001/003/004 三组静态合同亦已完成，runtime / decision /
+G1-A2 更新信任与 BASE-001/003/004 三组静态合同亦已完成，最终 BASE 合同批次
+`9171494122a05dbade4e22f438489903ca0a55bd` 与 BASE-004 确定性修复
+`5b7841d1b84fd91d60966851f5ba6da45005a4f6` 已提交。clean clone 在
+`HEAD=5b7841d1…` 上复跑 BASE-001 verify、BASE-003 fixture、BASE-004 双跑及 S5 verifier /
+SBOM validator 均 exit 0，测试后 worktree 仍 clean；runtime / decision /
 implementation gaps 原样保留。推荐整包为 R1“DNA 保留 + 共享骨架”，视觉 A2“更强材料表现”
 与 A3“更强结构统一”保留为备选；本段是唯一 ACTIVE，等待用户主观视觉选择或后续明确授权，
-`V2-Q-G1-04` 仍 Open，G1 未通过。
+`V2-Q-G1-03` / `V2-Q-G1-04` 仍 Open，G1 未通过。
 
 **状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE /
 G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE /
-G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN /
+G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE /
+CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / Q03_Q04_OPEN / NOW_SAFE_0 /
 READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED / RUNTIME_UNVERIFIED / NO_IMPLEMENTATION`。
 
 **并行 Q03 增量**：S4-A 的 SBOM runtime inventory、native provenance、媒体
@@ -3385,8 +3390,12 @@ PASS，详细合同见 §5.7.3 与 §5.10.5。A1 保留 6 个 P2 capability / ru
   D 生产 parser / 迁移 / 服务器实现仍 Open。
 
 公共 `.planning/v2-g1/.gitattributes` 已新增 `*.m3u8 text eol=lf`；BASE-004 24/24 LF，目录
-manifest / hash 可复现。当前前沿审计已收口为 `NOW_SAFE`：没有未阻塞的静态增量，后续只等待
-用户 Q04 / B/C 选择、明确授权或 D 类 runtime / device / implementation 证据。
+manifest / hash 可复现。前沿审计定格为 `NOW_SAFE=0`，即 0 个未阻塞静态增量；剩余门明确为：
+
+- `B`：用户视觉 Q04（R1 / A2 / A3）、TTS / PDF 引擎与 voice、BASE 排序 / TTL / 合并策略决策；
+- `C`：runtime / device 证据；
+- `D`：production implementation；
+- `E`：S6 / G2 / 独立 QA / Release，当前均未授权。
 
 **Q03 静态收敛边界**：安全的 Q03 静态增量已最大化；NOTICE 的 `M3-05` / `MPV-05` 只收窄到
 `PARTIAL`，静态 NOTICE 与 TTS / PDF evidence 仍为 `PARTIAL`，PDFium issue #56 仍 OPEN。
@@ -3395,8 +3404,11 @@ manifest / hash 可复现。当前前沿审计已收口为 `NOW_SAFE`：没有�
 
 **已完成提交指针**：Q03 static integration = `d234b40c958288cd5277072452212fe578bb5495`；
 Q03 gaps integration = `287c37e1d1287e2a90c047e628f7272a13cc5970`；公共 LF 规则 =
-`c01e7361b2e86d4773aa4823429f324f9ed7d3df`。三个指针只标识已完成提交，不表示 Q03
-关闭，也不是 HEAD 自引用。
+`c01e7361b2e86d4773aa4823429f324f9ed7d3df`；BASE 最终合同批次 =
+`9171494122a05dbade4e22f438489903ca0a55bd`；BASE-004 确定性修复 =
+`5b7841d1b84fd91d60966851f5ba6da45005a4f6`。这些只标识已完成提交，不表示 Q03 / Q04
+关闭，也不把静态合同写成 G1 PASS。最终文档提交 SHA 不在文档中预写或自引用；该文档提交
+完成后由 Git 实读 `git rev-parse HEAD` 回报。
 
 **工作对象 / 当前事实**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`；分支
@@ -3408,8 +3420,12 @@ HEAD 可从该 source 到达（即为其后裔）。verifier / builder 的 sourc
 `SOURCE_HASH_MISMATCH`。分支、HEAD 与工作树状态均以 Git 实况复核，不把工作树内容误写成
 已提交；该原则与 R028 合法后继核验一致。无设备、服务器或 Release 锁。
 
-**证据入口 / 机械事实**：`.planning/v2-g1/G1-S5/README.md`、
+**证据入口**：S5 为 `.planning/v2-g1/G1-S5/README.md`、
 `.planning/v2-g1/G1-S5/decision-brief.md`、`.planning/v2-g1/G1-S5/manifest.json`。
+`G1-A1-DOWNLOAD-STATE-CONTRACT`、`G1-A2-UPDATE-TRUST-CONTRACT`、
+`G1-BASE-001-SEARCH-ROUTE-CONTRACT`、`G1-BASE-003-PERSISTENT-SWR` 与
+`G1-BASE-004-PLAYLIST-EXCHANGE` 的入口均为各自目录下 `README.md` + `manifest.json`。
+**S5 机械事实**：
 证据目录 47 个文件 / 780,415 字节；manifest SHA-256
 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`，46 个条目 =
 45 个原证据 + 1 个 EOL 控制条目。`.gitattributes` 明确 `* text eol=lf`，47/47 LF、
@@ -3418,10 +3434,11 @@ CRLF 0；LF / `eol=lf` 保证 hashtree / checkout 复现。Verifier 保留 manif
 `outside dirty` 均 exit 1。覆盖：主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、
 对比度 130/130。
 
-**clean clone 门（2026-11-04，提交后复现）**：在 Q03 gaps integration 固定内容的 clean
-clone（`core.autocrlf=true`）上实跑，S5 verifier 与 SBOM validator PASS；S5 / SBOM /
-NATIVE / NOTICE / TTS-PDF 为 47/11/5/7/5，合计 75/75 LF、CRLF 0。五份 manifest SHA-256
-依次保持为
+**clean clone 门（2026-11-04，最终 BASE 候选复现）**：在 clean clone
+`HEAD=5b7841d1b84fd91d60966851f5ba6da45005a4f6`（`core.autocrlf=true`）上实跑，
+BASE-001 verify、BASE-003 fixture 与 BASE-004 合同双跑均 exit 0，测试后 worktree 仍
+clean；S5 verifier 与 SBOM validator 亦 exit 0。S5 / SBOM / NATIVE / NOTICE / TTS-PDF
+为 47/11/5/7/5，合计 75/75 LF、CRLF 0。五份 manifest SHA-256 依次保持为
 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`、
 `220BB878A975B133178ADBCA80CEE919F829474727268D2DF8C14D13982F1019`、
 `40E667F8A7650AF06BC145D85720CF5349BBC057E71BD0372E6D2213FEDA81DE`、
@@ -3436,17 +3453,18 @@ A2 在更多功能层强化材质和光感，辨识度更强但增加可读性�
 
 **边界**：`docs/UI_DESIGN_SYSTEM.md` 仍为 v1.0；S5 只作为 Q04 决策输入，BASE 三合同也只作为
 静态合同输入。它们均不关闭 Q04 / Q03、不构成 G1 PASS、S6 验收、实现、G2、独立 QA、设备或
-服务器证据，也不把 BASE B/C/D 或 runtime 项标成 Done。删除 / 修改既有证据、升级设计系统或
-进入实现均超出本交接。
+服务器证据，也不把 B/C/D 或 runtime 项标成 Done。`E` 类 S6 / G2 / 独立 QA / Release 未获
+授权。删除 / 修改既有证据、升级设计系统或进入实现均超出本交接。
 
-**下一步入口**：用户先打开 `decision-brief.md`，按需查看证据包，然后明确选择 R1、A2、A3
-或逐项修订；交付负责人只据此更新 Q04 / TASKS / V2_PLAN 并记录用户原话，不补写审美结论。
-若用户不立即选择而要求继续，新增工作必须先做前沿审计并获得明确授权，不得把本 ACTIVE
-解释为 Q03 扩项或实现许可。停止条件：用户尚未明确选择时保持 Q04 Open、G1 NOT_PASSED 与
-`UI_DESIGN_SYSTEM` v1.0；若用户选择逐项修订，先登记差异项与影响再继续，不直接进入 S6 或实现。
+**下一步唯一允许入口**：用户先打开 `decision-brief.md`，明确选择 R1、A2、A3 或逐项修订；
+或者明确授权对应 `B/C/D` 中的一项及其精确范围 / 证据边界。交付负责人只据此更新
+Q04 / TASKS / V2_PLAN 并记录用户原话，不补写审美结论。没有用户选择或明确授权时，不得进入
+S6 / G2、生产实现、独立 QA、设备或 Release，也不得把本 ACTIVE 解释为 Q03 扩项许可。
+停止条件：保持 Q03 / Q04 Open、G1 NOT_PASSED 与 `UI_DESIGN_SYSTEM` v1.0；若用户选择逐项
+修订，先登记差异项与影响再继续。
 
-**实际上下文水位**：本次收口实测 `207,317 / 1,048,576`（19.8%），缓存命中 99.6%，
-会话请求数 1665；低于 30 万交接准备线，后续扩项仍先复核水位。最终以当前线程的
+**实际上下文水位**：本次收口实测 `147,529 / 1,048,576`（14.1%），缓存命中 99.9%，
+会话请求数 1793；低于 30 万交接准备线，后续扩项仍先复核水位。最终以当前线程的
 `deepseek-status` 实况为准。
 
 ### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-Q04 ACTIVE 取代）
@@ -4156,3 +4174,12 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   LF 属性与 24/24 LF 复现保留。前沿审计为 `NOW_SAFE`，下一步只等待用户 Q04 / B/C 决策、
   明确授权或 D 类 runtime / device / implementation 证据。Q03 / Q04 仍 Open，G1
   NOT_PASSED，UI v1.0；未新增用户决策、未改证据 / 生产、未 commit / push。
+- **2026-11-04 — G1 最终交接文档定格 / BASE clean-clone 门**：BASE 最终合同批次
+  `9171494122a05dbade4e22f438489903ca0a55bd`（BASE-001/003/004 + m3u8 LF）及
+  BASE-004 确定性修复 `5b7841d1b84fd91d60966851f5ba6da45005a4f6` 已提交。clean clone
+  `HEAD=5b7841d1…` 实跑 BASE-001 verify、BASE-003 fixture、BASE-004 双跑、S5 verifier
+  与 SBOM validator 全部 exit 0，测试后 worktree clean。前沿定格 `NOW_SAFE=0`；剩余
+  `B=用户视觉 Q04 / 引擎 voice / 排序 TTL 合并策略`、`C=runtime/device`、
+  `D=production implementation`、`E=S6/G2/QA/Release 未授权`。Q03 / Q04 Open，
+  G1 NOT_PASSED，UI v1.0，唯一 ACTIVE 为 Q04 视觉方向交接。本轮仅写三份权威文档，
+  不实现、不 QA、不改证据、不 commit / push；最终文档提交 SHA 由 Git 实读，不自引用。
