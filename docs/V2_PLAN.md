@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_STATIC_INCREMENT_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / S4-A 的 Q03 静态增量、S4-B/C 与 S5 证据完成；Q03 runtime / packaged closure 与 Q04 用户决策仍开放
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / S4-A Q03 五组静态证据已在提交后 clean-clone 复现 75/75 LF；Q03 packaged / runtime closure 与 Q04 用户决策仍开放
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2876,13 +2876,12 @@ Book direct Download 已可实现 200/206，但完整远程 range 仍需真实�
 |---|---|---|
 | `V2-Q-G1-01` ✅ | 已由 `V2-D198` 接受 | 先逻辑 seam + FQCN/模块 owner allowlist + debt ratchet；暂不全量物理拆 Gradle 模块，只有单 seam build pilot 证明收益后才重新提报 |
 | `V2-Q-G1-02` ✅ | 已由 `V2-D199` 接受 | 保留全部已承诺资产；首次升级执行有进度、可恢复、FAIL_CLOSED 的一次性 forward migration；禁清库、禁真实 down migration、未知 provenance 不猜来源 |
-| `V2-Q-G1-03` | 静态增量可决策，完整 Q03 未就绪 | S4-A Q03 的 runtime inventory / native provenance 已冻结；仍等 packaged SBOM、native notice/source 与 runtime / device 证据 |
+| `V2-Q-G1-03` | 静态安全增量可决策，完整 Q03 未就绪 | Q03 runtime inventory / native provenance、NOTICE、TTS / PDF 静态增量已集成；NOTICE 与 TTS / PDF evidence 仍 PARTIAL；仍等 packaged notice / SBOM / source bundle、attestation / relink 与 runtime / device 证据 |
 | `V2-Q-G1-04` | 可决策 | `G1-S5` 五主题风格帧与九条低保真复核已完成；推荐 R1，等待用户整包确认或选择 A2/A3 / 逐项修订 |
 
-**G1/1 首波结论**：S1–S3 已形成可冻结的证据与决策输入，但没有任何真实服务器、设备、迁移、
-协议或候选包 PASS；`V2-Q-G1-01/02` 已由 `V2-D198/D199` 关闭，`V2-Q-G1-03/04` 继续等待
-S4/S5。下一入口为 S4 的依赖闭包 / Media3-FFmpeg / TTS-PDF 三分轨；停止于任何服务器写、
-真实用户数据迁移、G2、实现、独立 QA、push、tag 或 Release。
+**G1/1 首波结论（历史快照）**：S1–S3 已形成可冻结的证据与决策输入，但没有任何真实服务器、
+设备、迁移、协议或候选包 PASS；首波结束时 `V2-Q-G1-03/04` 尚等待 S4/S5。后续 S4/S5
+章节与 §12 ACTIVE 已取代该下一步入口；当前唯一入口仍是 §12 Q04，禁止从本快照恢复旧计划。
 
 #### 5.11.10 G1-S4-A runtime closure / 许可证据（2026-11-03）
 
@@ -2924,14 +2923,14 @@ Gradle 仲裁到 1.11.1 不能证明 JNI / API / native ABI 兼容。
 `BLOCKED-MAINTENANCE-NETWORK-CHECK`。这些阻塞禁止形成 2.0 发布许可 PASS，但不阻止把
 runtime closure 作为 Q03 输入。
 
-**Q03 准备度**：仍为 Open。当前事实支持“Media3 主路径先保留、mpv 仅在格式矩阵证明必需时
-保留”的方向，同时确认双内核 native / package 成本真实存在。最终选择必须等待 `S4-B`
-（Media3 / FFmpeg / libmpv native、符号、ABI、隔离 build）和 `S4-C`
-（完全离线 TTS、PdfRenderer / PDFium 能力与成本）收口。
+**Q03 准备度（S4-A 原始快照）**：仍为 Open。当前事实支持“Media3 主路径先保留、mpv 仅在
+格式矩阵证明必需时保留”的方向，同时确认双内核 native / package 成本真实存在。后续 `S4-B`
+与 `S4-C` 静态输入已按下文完成并集成，但它们不等于 packaged / runtime / 分发法务闭环；
+Q03 仍须等待这些剩余硬门。
 
 #### 5.11.10.1 G1-S4-A Q03 静态增量：runtime inventory / native provenance（2026-11-04）
 
-**状态**：`G1_S4A_Q03_STATIC_INCREMENT_COMPLETE / Q03_OPEN / G1_NOT_PASSED /
+**状态**：`G1_S4A_Q03_STATIC_INCREMENT_INTEGRATED / Q03_OPEN / G1_NOT_PASSED /
 RUNTIME_UNVERIFIED`。两条增量均由独立 scoped reviewer PASS；静态证据完成不等于完整 Q03
 关闭，也不选择最终媒体 / TTS / PDF 引擎。
 
@@ -2954,17 +2953,27 @@ decoder 1.9.0+1 的静态 ABI / FFmpeg pin / 16 KB 对齐已证明，runtime 未
 runtime 未证明；PDFium 2.0.3 与 3.0.4-alpha01 native blob 相同，revision / notice / 16 KB /
 Range runtime 仍 BLOCKED / PARTIAL。
 
-**提交边界**：SBOM / NATIVE 增量已由 Q03 static integration `d234b40c…` 集成，LF policy
-由 `c01e7361…` 固定；本波新增的 NOTICE / TTS-PDF 两目录仍处于工作树，且 `commands.log`
-命中 `*.log` ignore，后续提交阶段必须由负责人显式 `git add -f`，不得以工作树文件存在冒充
-已入库证据。完整 Q03 仍等 packaged SBOM、native notice/source、runtime / device 与真实链路
-证据。
+**提交边界**：SBOM / NATIVE 增量由 Q03 static integration `d234b40c…` 集成；父级
+`.planning/v2-g1/.gitattributes` 与 G1 证据公共 LF 规则由
+`c01e7361b2e86d4773aa4823429f324f9ed7d3df` 新增，文本扩展名固定 `eol=lf`。Q03 gaps
+integration `287c37e1d1287e2a90c047e628f7272a13cc5970` 仅新增 NOTICE / TTS-PDF 两组并更新
+docs，对父级属性文件无改动。在两目录入库后的 clean clone（`core.autocrlf=true`）复现中，
+S5 / SBOM / NATIVE / NOTICE / TTS-PDF 为 47/11/5/7/5，合计 75/75 LF、CRLF 0；S5 verifier
+与 SBOM validator 均 PASS。该结论是固定提交后的复现，不把 HEAD 写成 docs 自引用。完整
+Q03 仍等 packaged SBOM / notice / source bundle、written offer / corresponding source、
+exact attestation / relink、runtime / device 与真实链路证据。
 
 #### 5.11.10.2 G1-S4-A Q03 静态缺口补证：notice/source-offer 与 TTS/PDF（2026-11-04）
 
-**状态**：`G1_S4A_Q03_GAP_STATIC_EVIDENCE_FROZEN / Q03_OPEN / G1_NOT_PASSED /
+**状态**：`G1_S4A_Q03_GAPS_STATIC_COMPLETE / Q03_OPEN / G1_NOT_PASSED /
 RUNTIME_UNVERIFIED / NO_IMPLEMENTATION`。两目录均由独立 reviewer PASS；下列增量只收窄静态
 证据缺口，不关闭 Q03、不选择引擎 / voice、不构成 G1 PASS。
+
+**集成与提交后复现**：`Q03 gaps integration = 287c37e1d1287e2a90c047e628f7272a13cc5970`；
+公共 LF 规则仍为 `c01e7361b2e86d4773aa4823429f324f9ed7d3df`。在该提交的 clean clone
+（`core.autocrlf=true`）上，五组证据 75/75 文件均为 LF、CRLF 0，S5 verifier 与 SBOM
+validator PASS；五份 manifest SHA-256 与 §12 既有完整值一致。静态 NOTICE 与 TTS / PDF
+evidence 仍为 `PARTIAL`。
 
 **Media notice / source-offer 增量**：`.planning/v2-g1/G1-S4-A-Q03-NOTICE/` 共 7 文件 /
 80,035 B，manifest SHA-256
@@ -2981,9 +2990,10 @@ SHA-256 `43C51B06AD830FB055C97DAD069C4B1C516D51CBDB4E7AC226E87ED16A16E41B`。21 
 路径、PDFium exact revision / DEPS / GN args / third-party notice / source、16 KB RELRO、
 runtime / device 仍 Open。PDFium issue #56 仍 OPEN，不能把 alpha 版本写成改善或 PASS。
 
-**边界**：Q03 静态证据已最大化收敛，剩余主体是 candidate packaged / notice / source / SBOM、
-精确构建 attestation、分发法务路径与 runtime / device 硬门；任一项未完成都不得把 PARTIAL
-升级为 PASS。
+**边界**：安全的 Q03 静态增量已最大化；剩余主体是 candidate packaged notice / SBOM /
+source bundle、written offer / corresponding source、精确构建 attestation / relink、分发
+法务路径与 runtime / device 硬门。新增工作须先做前沿审计并由用户 / 负责人明确授权；任一
+未完成项都不得把 PARTIAL 升级为 PASS，也不得宣称全部静态缺口已关闭。
 
 #### 5.11.11 G1-S4-B 媒体 / Native ABI 静态证据（2026-11-03）
 
@@ -3010,7 +3020,8 @@ reasoning_effort=max / fork_turns=none`；证据提交
 
 **证据指针**：`.planning/v2-g1/G1-S4-B/report.json`、`native-matrix.json`、
 `abi-decision.json`、`commands.log`。Q03 的媒体引擎子输入已具备带门禁的提报条件；完整
-Q03 仍等待 S4-C 和 runtime / SBOM / native notice 证据。
+Q03 当时仍等待 S4-C 和 runtime / SBOM / native notice 证据；S4-C 与后续 Q03 静态增量现已
+在下方集成，但 full Q03 仍未关闭。
 
 #### 5.11.12 G1-S4-C 离线 TTS / PDF 静态证据（2026-11-03）
 
@@ -3265,27 +3276,31 @@ S6 验收、实现、G2、独立 QA、设备或服务器写。
 证据边界与写回记录，不得代替用户做审美判断、把推荐写成已接受事实或据此进入 S6。
 
 **一句话现状**：S5 证据制作、verifier 与独立 scoped evidence review 已完成；推荐整包为
-R1“DNA 保留 + 共享骨架”，A2“更强材料表现”与 A3“更强结构统一”保留为备选；当前等待用户
-主观视觉确认，`V2-Q-G1-04` 仍 Open，G1 未通过。
+R1“DNA 保留 + 共享骨架”，A2“更强材料表现”与 A3“更强结构统一”保留为备选；本段是唯一
+ACTIVE，等待用户主观视觉选择或后续明确授权，`V2-Q-G1-04` 仍 Open，G1 未通过。
 
 **状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE /
-G1_S4A_Q03_STATIC_INCREMENT_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN /
+G1_S4A_Q03_GAPS_INTEGRATED / G1_S5_COMPLETE / Q03_Q04_OPEN /
 READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED / RUNTIME_UNVERIFIED /
 NO_IMPLEMENTATION`。
 
 **并行 Q03 增量**：S4-A 的 SBOM runtime inventory、native provenance、媒体
-notice / source-offer 与 TTS / PDF provenance 静态增量均已完成并通过独立 reviewer PASS；
-详见 §5.11.10.1～§5.11.10.2。`Q03-SBOM-RUNTIME-INVENTORY` 仅按 snapshot 可关闭。完整 Q03
-仍等 candidate packaged SBOM / notice / source、精确 build attestation、relink 与
+notice / source-offer 与 TTS / PDF provenance 静态增量均已完成并通过独立 reviewer PASS。
+`Q03 gaps integration = 287c37e1d1287e2a90c047e628f7272a13cc5970` 将 NOTICE / TTS-PDF
+两目录入库；G1 证据公共 LF 规则为 `c01e7361b2e86d4773aa4823429f324f9ed7d3df`。详见
+§5.11.10.1～§5.11.10.2。`Q03-SBOM-RUNTIME-INVENTORY` 仅按 snapshot 可关闭。完整 Q03
+仍等 candidate packaged SBOM / notice / source bundle、精确 build attestation / relink 与
 runtime / device 证据，保持 Open。
 
-**Q03 静态收敛边界**：Q03 静态缺口已最大化收敛；NOTICE 的 `M3-05` / `MPV-05` 只收窄到
-`PARTIAL`，TTS / PDF 仍为 `PARTIAL` 且 PDFium issue #56 仍 OPEN。任何 PARTIAL 都不得升为
-PASS，剩余分发与 runtime / device 门必须由后续独立任务关闭。
+**Q03 静态收敛边界**：安全的 Q03 静态增量已最大化；NOTICE 的 `M3-05` / `MPV-05` 只收窄到
+`PARTIAL`，静态 NOTICE 与 TTS / PDF evidence 仍为 `PARTIAL`，PDFium issue #56 仍 OPEN。
+任何 PARTIAL 都不得升为 PASS；新增静态工作须先做前沿审计并由用户 / 负责人明确授权，
+剩余分发与 runtime / device 门必须由后续独立任务关闭。
 
 **已完成提交指针**：Q03 static integration = `d234b40c958288cd5277072452212fe578bb5495`；
-LF policy = `c01e7361b2e86d4773aa4823429f324f9ed7d3df`。两个指针只标识已完成提交，
-不表示 Q03 关闭，也不是 HEAD 自引用。
+Q03 gaps integration = `287c37e1d1287e2a90c047e628f7272a13cc5970`；公共 LF 规则 =
+`c01e7361b2e86d4773aa4823429f324f9ed7d3df`。三个指针只标识已完成提交，不表示 Q03
+关闭，也不是 HEAD 自引用。
 
 **工作对象 / 当前事实**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`；分支
@@ -3307,12 +3322,15 @@ CRLF 0；LF / `eol=lf` 保证 hashtree / checkout 复现。Verifier 保留 manif
 `outside dirty` 均 exit 1。覆盖：主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、
 对比度 130/130。
 
-**clean clone 门（2026-11-04）**：在 LF policy 提交后的 clean clone 实跑，S5 verifier
-PASS、SBOM validator PASS；S5 47/47、Q03-SBOM 11/11、Q03-NATIVE 5/5 文件均为 LF，
-CRLF 0。三份 manifest SHA-256 分别为
+**clean clone 门（2026-11-04，提交后复现）**：在 Q03 gaps integration 固定内容的 clean
+clone（`core.autocrlf=true`）上实跑，S5 verifier 与 SBOM validator PASS；S5 / SBOM /
+NATIVE / NOTICE / TTS-PDF 为 47/11/5/7/5，合计 75/75 LF、CRLF 0。五份 manifest SHA-256
+依次保持为
 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`、
 `220BB878A975B133178ADBCA80CEE919F829474727268D2DF8C14D13982F1019`、
-`40E667F8A7650AF06BC145D85720CF5349BBC057E71BD0372E6D2213FEDA81DE`。该门只证明静态
+`40E667F8A7650AF06BC145D85720CF5349BBC057E71BD0372E6D2213FEDA81DE`、
+`89306984825B400136FFF2BA5DAF98F06C3A1E2F89DA0F18F725BBCCA0EA63FE`、
+`43C51B06AD830FB055C97DAD069C4B1C516D51CBDB4E7AC226E87ED16A16E41B`。该门只证明静态
 证据包完整、可复算与 LF 基线成立，不关闭 Q03 / Q04，也不证明 runtime / device。
 
 **推荐与备选**：R1 保留五主题 DNA，并统一共享骨架、状态语义、响应式与无障碍不变量；
@@ -3326,11 +3344,12 @@ S5 证据、升级设计系统或进入实现均超出本交接。
 
 **下一步入口**：用户先打开 `decision-brief.md`，按需查看证据包，然后明确选择 R1、A2、A3
 或逐项修订；交付负责人只据此更新 Q04 / TASKS / V2_PLAN 并记录用户原话，不补写审美结论。
-停止条件：用户尚未明确选择时保持 Q04 Open 与 G1 NOT_PASSED；若用户选择逐项修订，先登记
-差异项与影响再继续，不直接进入 S6 或实现。
+若用户不立即选择而要求继续，新增工作必须先做前沿审计并获得明确授权，不得把本 ACTIVE
+解释为 Q03 扩项或实现许可。停止条件：用户尚未明确选择时保持 Q04 Open、G1 NOT_PASSED 与
+`UI_DESIGN_SYSTEM` v1.0；若用户选择逐项修订，先登记差异项与影响再继续，不直接进入 S6 或实现。
 
-**实际上下文水位**：本次交接收口实测 `209,460 / 1,048,576`（20%），缓存命中 99.5%，
-会话请求数 1089；最终以当前线程的 `deepseek-status` 实况为准。
+**实际上下文水位**：本次收口实测 `180,364 / 1,048,576`（17.2%），缓存命中 99.9%，
+会话请求数 1174；最终以当前线程的 `deepseek-status` 实况为准。
 
 ### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-Q04 ACTIVE 取代）
 
@@ -3457,7 +3476,8 @@ ADR-0003～0007 标题与结论 → 现有 TTS / PDF 相关代码只按窄白名
 本次读序白名单，只回压缩 `PASS / BLOCKED`；主负责人只消费压缩结论，不亲自加载全量文档。
 如果无法创建该开工检查子代理，停止，不得由主负责人替代通读。
 
-**下一步与停止**：开工检查 PASS 后，S4-C owner 再按自身窄白名单计划并同回合执行静态证据。
+**HISTORY 操作边界（当时计划，已作废）**：按当时记录，开工检查 PASS 后由 S4-C owner 按自身
+窄白名单计划执行静态证据；该入口已由后续完成记录与上方 Q04 ACTIVE 取代。
 对象漂移、需要修改生产代码、需要下载模型 / 依赖、需要设备 / 认证 / 服务器、许可证不可接受
 或证据无法在 25 万 token 前收口时，写检查点并停止。25 万收缩、30 万交接准备、35 万停止并
 创建后继。
@@ -4010,3 +4030,12 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   55,691 B，21=`9/2/10`，URL 41=`38 HTTP200/1 Git/2 timeout`，聚合 PARTIAL，PDFium
   issue #56 仍 OPEN。两目录独立 reviewer PASS；Q03 / Q04 仍 Open，G1 NOT_PASSED，
   `UI_DESIGN_SYSTEM` 仍为 v1.0。本轮仅写回三份权威文档，未 commit / push。
+- **2026-11-04 — Q03 gaps evidence 集成后 clean-clone 75/75 LF 复现**：Q03 gaps
+  integration = `287c37e1d1287e2a90c047e628f7272a13cc5970`；G1 证据公共 LF 规则 =
+  `c01e7361b2e86d4773aa4823429f324f9ed7d3df`。提交后 clean clone
+  （`core.autocrlf=true`）实跑五组
+  S5 / SBOM / NATIVE / NOTICE / TTS-PDF 为 47/11/5/7/5，合计 75/75 LF、CRLF 0；
+  S5 verifier 与 SBOM validator PASS，五份 manifest 与 §12 一致。NOTICE 与 TTS / PDF
+  evidence 仍 PARTIAL；packaged notice / SBOM / source bundle、attestation / relink、
+  runtime / device 等仍 Open。Q03 / Q04 Open，G1 NOT_PASSED，UI v1.0；唯一 ACTIVE 仍为
+  Q04，新增工作须前沿审计与明确授权。本轮仅写回三份权威文档，未 commit / push。

@@ -6,7 +6,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 停止条件 |
 |---|---|---|---|---|
-| `V2-SOLUTION-BASELINE` | G1 方案门 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | G0、G1/0、S1–S3、Q01/Q02、S4-A/B 已完成；S4-A Q03 snapshot inventory / static SBOM-native evidence、媒体 notice/source-offer、TTS/PDF provenance、S4-C 非媒体输入、S5 证据与 verifier policy 已完成并冻结；Q03 static integration `d234b40c`，LF policy `c01e7361`；clean clone 的 S5 verifier / SBOM validator PASS，47/47、11/11、5/5 LF；等待 `V2-Q-G1-04` 用户视觉方向决策，S6 待排 | G1 NOT_PASSED；`V2-Q-G1-03` 与 `V2-Q-G1-04` 均 Open；完整 Q03 仍等 candidate packaged SBOM / notice / source、written offer / corresponding source、exact build attestation / relink、TTS voice/model 与零网络、PDFium revision / 16 KB / Range 及全链路 runtime / device；`UI_DESIGN_SYSTEM` 仍为 v1.0，禁止进入 S6 验收冒充、G2 或实现 |
+| `V2-SOLUTION-BASELINE` | G1 方案门 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | G0、G1/0、S1–S3、Q01/Q02、S4-A/B 已完成；Q03 static integration `d234b40c`；父级 `.planning/v2-g1/.gitattributes` 与 G1 证据公共 LF 规则由 `c01e7361` 新增；Q03 gaps integration `287c37e1` 仅新增 NOTICE / TTS-PDF 两组并更新 docs，对父级属性文件无改动；提交后 `core.autocrlf=true` clean-clone 五组 S5 / SBOM / NATIVE / NOTICE / TTS-PDF 为 47/11/5/7/5，合计 75/75 LF、CRLF 0，S5 verifier / SBOM validator PASS；安全静态增量已最大化，等待 `V2-Q-G1-04` 用户视觉方向决策或后续明确授权，S6 待排 | G1 NOT_PASSED；`V2-Q-G1-03` 与 `V2-Q-G1-04` 均 Open；静态 NOTICE 与 TTS / PDF evidence 仍 PARTIAL；完整 Q03 仍等 candidate packaged notice / SBOM / source bundle、written offer / corresponding source、exact build attestation / relink、TTS voice/model 与零网络、PDFium revision / 16 KB / Range 及全链路 runtime / device；新增静态工作须前沿审计与明确授权；`UI_DESIGN_SYSTEM` 仍为 v1.0，禁止进入 S6 验收冒充、G2 或实现 |
 
 ## Review
 
