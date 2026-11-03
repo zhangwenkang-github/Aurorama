@@ -3098,7 +3098,7 @@ Release。发现新产品 / UX 范围、数据破坏、许可不可接受、对�
 
 **当前负责人线程**：`01a1a178-a8ea-7ce1-bf18-f9ead6037071`（2026-11-03 创建并接管）。
 三轨证据收口于 `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc`；本检查点仅提交文档与 JSON，
-不改变生产代码。本次文档收口前实测上下文 `164,255 / 1,048,576`（15.7%），未到 25 万
+不改变生产代码。本次文档收口前实测上下文约 `18.5 万 / 1,048,576`（17.7%），未到 25 万
 收缩线。`git diff --check`、四份 JSON 解析、Engramory checker 与 doctor 均通过；doctor
 仅提示既有 `leader-delegation-by-role.md` 为 12.1 KB。提交后的 clean / HEAD 由 Git 实况复核。
 
