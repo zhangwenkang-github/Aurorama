@@ -2318,7 +2318,7 @@ MVP 核心边界：
 | 5 | `V2-REQ-MUSIC` | 558–746 第一个“第五章” | ✅ 62 节点最终矩阵、49 个 MUST 子项 MVP、`M-D`～`M-T` 证据与冲突处置由 `V2-D127` 整包接受；需求域已收口 |
 | 6 | `V2-REQ-DOWNLOAD` | 747–930 第二个“第五章” | ✅ 68 节点最终矩阵、64 个 MUST 子项 MVP、`D-D`～`D-T` 证据与冲突处置由 `V2-D146` 整包接受；需求域已收口 |
 | 7 | `V2-REQ-VIDEO` | 931–1047 第六章 | ✅ 97 节点最终矩阵、88 个 MUST 子项 MVP、`V-*` 证据与全部冲突 / 旧文档处置由 `V2-D180` 整包接受；需求域已收口 |
-| 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ⚪ Todo |
+| 8 | `V2-REQ-NAV` | 1048–1156 第七章 | 🟡 新负责人已创建；子代理正在执行 Git / 哈希门、第七章文档盘点与首次问题前沿检查 |
 | 9 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ⚪ Todo |
 
 每个需求域的退出条件：
@@ -2363,7 +2363,34 @@ MVP 核心边界：
 
 ## 12. 下一需求域交接
 
-### ACTIVE：`V2-REQ-VIDEO` 已收口 / `V2-REQ-NAV` 待交接（2026-11-03）
+### ACTIVE：`V2-REQ-NAV` 导航需求前沿梳理中（2026-11-03）
+
+**状态**：`NAV_REQUIREMENTS_SCAN_IN_PROGRESS / VIDEO_DOMAIN_CLOSED / FIRST_QUESTION_FRONTIER_NOT_READY`。
+视频域已由 `V2-D180` 收口，NAV 新负责人已经启动；当前尚未形成候选等级、MVP 或用户问题。
+
+**工作对象 / 事实**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
+分支 `codex/v2-integration`。视频收口提交为
+`bd5e3aa59c2e5671ada9354f230da4519589272b`；本次 NAV 启动提交以 Git 实况为准。基线祖先
+`4fbe5e12d182fc1d9bdf2790c7a725bec0074d37` 必须保持可达；外部整文件 SHA-256
+`E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229` 必须继续匹配。
+
+**当前执行**：
+
+- NAV 负责人线程：`01a19fcd-e7e2-7461-bd21-c7dd6c3cf936`。
+- 首轮检查由全新只读子代理执行，固定 `deepseek-flash / reasoning_effort=max / fork_turns=none`。
+- 子代理仅读外部 1048–1156，输出 Git / 哈希门、标题地图、导航与响应式现状、跨域依赖 / 冲突、
+  候选主题与首次用户决策前沿；主负责人只接压缩报告并定点复核。
+- 当前没有 NAV 需求 Open；首次 `V2-Q-NAV-*` 尚未提交。
+
+**下一步**：NAV 负责人复核子代理报告后，用 `grilling` 提交首轮前沿并等待用户回答。硬门漂移、
+需要白名单外材料、新增未授权产品决策或进入 G1 / 实现 / QA / 设备 / 服务器写 / 发布时停止。
+
+**上下文水位**：视频收口父线程交接时实测 `218,524 / 1,048,576`（20.8%，缓存命中 99.9%，
+请求 31）；NAV 新线程开工后需按自身实况重新测量并更新本段。
+
+### HISTORY：`V2-REQ-VIDEO` 已收口 / `V2-REQ-NAV` 待交接（2026-11-03）
+
+该状态已由上方 `NAV_REQUIREMENTS_SCAN_IN_PROGRESS` 取代；以下内容保留视频收口时的记录。
 
 **状态**：`VIDEO_REQUIREMENTS_FINAL_MATRIX_ACCEPTED / DOMAIN_CLOSED / NEXT_NAV_HANDOFF_READY`。
 视频前三轮 `V2-Q-VIDEO-01`～`33` 由 `V2-D147`～`D179` 关闭，最终整包问题
@@ -2518,3 +2545,4 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
 - **2026-11-03 — `V2-REQ-VIDEO` 最终候选矩阵提交**：Git / 哈希硬门通过（HEAD `76c09036`、branch、clean、双祖先与外部 SHA-256 一致）。只读审计 `PLAYER_PLAN` D1–D67 与当前播放器源码后，把外部 931–1047 + `V2-D147`～`D179` 归一为 97 个连续节点：`86 MUST / 2 SHOULD / 5 LATER / 1 OUT / 2 复合 / 1 流程`，MVP 为 88 个 MUST 子项。补充 12 类 `V-*` 证据、当前实现索引、67 条旧决策逐项处置与系统不变量；`V2-Q-VIDEO-FINAL` 开放等待整包确认。未改业务代码、未跑 Gradle、未触设备 / 服务器写、未进入 G1 / QA / push / tag / Release。
 - **2026-11-03 — 视频最终矩阵确认已交接**：本线程上下文实测 `400,490 / 1,048,576`（38.2%），超过 35 万硬线后创建新线程 `01a19fc5-3699-7d21-bfe6-73471ef19e6b`。新负责人只承接 `V2-Q-VIDEO-FINAL` 整包确认与后续 D180 收口，不重做矩阵；当前工作树提交与外部哈希继续以 Git / 文件实况为准。
 - **2026-11-03 — `V2-REQ-VIDEO` 整包接受并收口需求域**：用户原话“整包接受”；`V2-D180` 关闭 `V2-Q-VIDEO-FINAL`，接受 97 节点最终矩阵、`86 MUST / 2 SHOULD / 5 LATER / 1 OUT / 2 复合 / 1 流程`计数、88 个 MUST 子项 MVP、12 类 `V-*` 证据、当前实现只读索引、系统不变量及 D1–D67 全部冲突 / 旧文档处置。`TASKS` 将视频域移入 Done，`DECISIONS` 更新 Open 清零口径，`PROJECT_PLAN` 将下一域切到 `V2-REQ-NAV` 待交接。用户同时要求以后调用子代理统一 `reasoning_effort=max`，已更新 Engramory；该协作偏好不改变视频产品矩阵。未改业务代码、未跑 Gradle、未进入 G1 / QA / 设备 / 服务器写 / push / tag / Release。
+- **2026-11-03 — `V2-REQ-NAV` 负责人会话已创建**：新线程 `01a19fcd-e7e2-7461-bd21-c7dd6c3cf936` 从视频收口提交 `bd5e3aa59c2e5671ada9354f230da4519589272b` 承接 NAV 需求域。首条 prompt 已包含专业身份、唯一 worktree、分支 / HEAD / 双祖先 / 外部 SHA-256、精确读序、1048–1156 白名单、子代理固定 `deepseek-flash / reasoning_effort=max / fork_turns=none`、非目标、第一步与停止条件。新负责人已开始派发只读检查；尚未形成 NAV 候选等级或用户问题。
