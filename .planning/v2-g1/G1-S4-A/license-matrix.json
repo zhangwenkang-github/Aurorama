@@ -1,0 +1,328 @@
+{
+  "identity": {
+    "task": "G1-S4-A",
+    "baseHead": "cecc7d1013efd04a1ad25905b9f1832d2c5ccac9",
+    "branch": "codex/v2-integration",
+    "model": "codex-runtime-unexposed"
+  },
+  "status": "PARTIAL_BLOCKED_FOR_RELEASE_APPROVAL",
+  "projectLicense": {
+    "expression": "GPL-3.0-only",
+    "evidence": "LICENSE 为 GNU GPL v3 文本；NOTICE 声明工程按 GPL v3.0 发布",
+    "distributionObligation": "发布对应源码、构建脚本、许可证与必要 notices；本报告不执行 Release"
+  },
+  "coverage": {
+    "directExternalPomWithLicenseText": 35,
+    "directExternalTotal": 35,
+    "criticalAndExceptionPomsChecked": 18,
+    "externalGraphCoordinatesClassifiedByFamilyOrExactMetadata": 296,
+    "fullPerArtifactTransitiveLicenseExtraction": "NOT_EXECUTED",
+    "canonicalReleaseSbom": "NOT_EXECUTED_BLOCKED"
+  },
+  "directByLicense": {
+    "Apache-2.0": {
+      "count": 33,
+      "evidence": "Gradle cache 中 33/33 direct POM 均返回 Apache 文本或等价 Apache-2.0 名称",
+      "coordinates": [
+        "org.jetbrains.kotlin:kotlin-stdlib:2.4.20",
+        "androidx.databinding:viewbinding:9.4.1",
+        "com.mikepenz:aboutlibraries-core:15.2.0",
+        "com.mikepenz:aboutlibraries-compose-m3:15.2.0",
+        "androidx.activity:activity:1.13.0",
+        "androidx.activity:activity-compose:1.13.0",
+        "androidx.appcompat:appcompat:1.8.0",
+        "androidx.compose.foundation:foundation:1.12.1",
+        "androidx.compose.runtime:runtime:1.12.1",
+        "androidx.compose.ui:ui:1.12.1",
+        "androidx.compose.ui:ui-tooling-preview:1.12.1",
+        "androidx.compose.material3:material3:1.4.0",
+        "androidx.compose.material3:material3-adaptive-navigation-suite:1.4.0",
+        "androidx.hilt:hilt-lifecycle-viewmodel-compose:1.4.0",
+        "androidx.core:core:1.19.0",
+        "androidx.hilt:hilt-work:1.4.0",
+        "androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0",
+        "androidx.media3:media3-ui:1.11.1",
+        "androidx.media3:media3-session:1.11.1",
+        "androidx.paging:paging-runtime:3.5.1",
+        "androidx.paging:paging-compose:3.5.1",
+        "androidx.window:window:1.5.1",
+        "androidx.work:work-runtime:2.11.2",
+        "io.coil-kt.coil3:coil-compose:3.6.3",
+        "io.coil-kt.coil3:coil-network-okhttp:3.6.3",
+        "io.coil-kt.coil3:coil-network-cache-control:3.6.3",
+        "io.coil-kt.coil3:coil-svg:3.6.3",
+        "com.google.dagger:hilt-android:2.60.1",
+        "com.google.android.material:material:1.14.0",
+        "com.jakewharton.timber:timber:5.0.1",
+        "org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0",
+        "androidx.navigation:navigation-compose:2.10.1",
+        "org.jetbrains.kotlin:kotlin-parcelize-runtime:2.4.20"
+      ]
+    },
+    "LGPL-3.0-only": {
+      "count": 1,
+      "coordinates": [
+        "org.jellyfin.sdk:jellyfin-core:1.8.12"
+      ],
+      "pomName": "GNU Lesser General Public License v3.0",
+      "compatibility": "与 GPLv3-only 工程兼容；仍需动态库/源码提供、修改声明和 relinking 义务证据"
+    },
+    "GPL-3.0-only": {
+      "count": 1,
+      "coordinates": [
+        "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1"
+      ],
+      "pomName": "GNU General Public License v3.0",
+      "compatibility": "与工程 GPLv3 相容；发布必须提供对应源码、构建/修改信息和完整 notices"
+    }
+  },
+  "transitiveFamilyMatrix": [
+    {
+      "license": "Apache-2.0",
+      "spdxConfidence": "HIGH_FAMILY_MAPPING",
+      "coordinatePatterns": [
+        "androidx.*:*",
+        "org.jetbrains.compose.*",
+        "org.jetbrains.androidx.*",
+        "org.jetbrains.kotlin:*",
+        "org.jetbrains.kotlinx:*",
+        "com.mikepenz:*",
+        "com.google.android.material:*",
+        "com.google.dagger:*",
+        "com.google.guava:*",
+        "com.google.code.findbugs:jsr305",
+        "com.google.errorprone:error_prone_annotations",
+        "com.squareup.okhttp3:*",
+        "com.squareup.okio:*",
+        "com.tom-roush:pdfbox-android",
+        "io.coil-kt.coil3:*",
+        "io.github.oshai:*",
+        "com.google.accompanist:*",
+        "com.caverock:androidsvg-aar",
+        "com.mcxiaoke.koi:core",
+        "com.jakewharton.timber:*",
+        "jakarta.inject:*",
+        "javax.inject:*",
+        "org.jetbrains:annotations"
+      ],
+      "exceptions": [
+        "com.google.guava:guava:33.3.1-android 的缓存 POM 无 <licenses>；Apache-2.0 为上游家族分类，未作为逐项 POM PASS",
+        "BOM 与 empty-placeholder 坐标不是普通代码 artifact"
+      ]
+    },
+    {
+      "license": "BSD-3-Clause",
+      "spdxConfidence": "EXACT_POM_CHECKED",
+      "coordinatePatterns": [
+        "org.readium.kotlin-toolkit:*"
+      ],
+      "verifiedCoordinates": [
+        "org.readium.kotlin-toolkit:readium-navigator:3.4.0",
+        "org.readium.kotlin-toolkit:readium-shared:3.4.0",
+        "org.readium.kotlin-toolkit:readium-streamer:3.4.0"
+      ]
+    },
+    {
+      "license": "MIT",
+      "spdxConfidence": "MIXED_EXACT_AND_FAMILY",
+      "coordinatePatterns": [
+        "org.jsoup:jsoup",
+        "org.slf4j:slf4j-api",
+        "uk.uuid.slf4j:slf4j-android",
+        "org.bouncycastle:*",
+        "dev.jdtech.mpv:libmpv",
+        "io.github.peerless2012:ass-kt"
+      ],
+      "verifiedCoordinates": [
+        "dev.jdtech.mpv:libmpv:1.0.0 -> MIT wrapper POM",
+        "io.github.peerless2012:ass-kt:0.5.1 -> MIT wrapper POM",
+        "org.jsoup:jsoup:1.23.2 -> MIT POM",
+        "uk.uuid.slf4j:slf4j-android:2.0.19-0 -> MIT POM"
+      ],
+      "exceptions": [
+        "org.slf4j:slf4j-api:2.0.19 的缓存 POM 无 <licenses>；NOTICE 记录 MIT，但未取得逐项 POM PASS",
+        "org.bouncycastle:* POM 名为 Bouncy Castle Licence，属 MIT 风格许可证，不能只写 MIT 而省略原文本"
+      ]
+    },
+    {
+      "license": "LGPL-3.0-only",
+      "spdxConfidence": "EXACT_POM_CHECKED",
+      "coordinatePatterns": [
+        "org.jellyfin.sdk:*"
+      ],
+      "note": "SDK 的 API/core/model 变体共享同一上游条款"
+    },
+    {
+      "license": "GPL-3.0-only",
+      "spdxConfidence": "EXACT_POM_CHECKED",
+      "coordinatePatterns": [
+        "org.jellyfin.media3:media3-ffmpeg-decoder"
+      ],
+      "note": "AAR 还含 libffmpegJNI.so；原生源码与构建参数证据仍须随发布固化"
+    }
+  ],
+  "criticalArtifactEvidence": {
+    "androidx.media3:media3-*": {
+      "license": "Apache-2.0",
+      "version": "1.11.1",
+      "status": "COMPATIBLE_WITH_PROJECT_LICENSE",
+      "nativeRisk": "与 FFmpeg decoder 1.9.0+1 的 requested Media3 1.9.0 不一致；许可不是兼容证明"
+    },
+    "org.jellyfin.media3:media3-ffmpeg-decoder": {
+      "version": "1.9.0+1",
+      "license": "GPL-3.0-only",
+      "pomUrl": "https://github.com/jellyfin/jellyfin-androidx-media",
+      "nativeFiles": [
+        "libffmpegJNI.so"
+      ],
+      "status": "LICENSE_KNOWN_SOURCE_NOTICE_INCOMPLETE"
+    },
+    "dev.jdtech.mpv:libmpv": {
+      "version": "1.0.0",
+      "wrapperLicense": "MIT",
+      "pomUrl": "https://github.com/jarnedemeulemeester/libmpv-android",
+      "bundledNativeFamilies": [
+        "libmpv.so",
+        "libplayer.so",
+        "libavcodec.so",
+        "libavdevice.so",
+        "libavfilter.so",
+        "libavformat.so",
+        "libavutil.so",
+        "libswresample.so",
+        "libswscale.so",
+        "libc++_shared.so"
+      ],
+      "nativeLicenseStatus": "UNRESOLVED",
+      "note": "POM 只声明 wrapper MIT；NOTICE 另称 libmpv 本体 LGPL-2.1+，但没有映射 AAR 内 FFmpeg/libc++ 的精确 build flags、源码 commit、licenses 与 notices"
+    },
+    "io.github.peerless2012:ass-kt": {
+      "version": "0.5.1",
+      "wrapperLicense": "MIT",
+      "bundledNativeFamilies": [
+        "libass.so",
+        "libasskt.so",
+        "libc++_shared.so"
+      ],
+      "nativeLicenseStatus": "PARTIAL",
+      "noticeEvidence": "根 NOTICE 记录 libass 为 ISC；AAR 内未发现可直接作为完整 release notice 的映射",
+      "libcxxFinalSelection": "APK libc++ 与 libmpv AAR 的 SHA-256 匹配"
+    },
+    "org.jellyfin.sdk:jellyfin-core": {
+      "version": "1.8.12",
+      "license": "LGPL-3.0-only",
+      "pomUrl": "https://github.com/jellyfin/jellyfin-sdk-kotlin",
+      "status": "LICENSE_KNOWN_RELEASE_OBLIGATIONS_PENDING"
+    },
+    "org.readium.kotlin-toolkit:*": {
+      "version": "3.4.0",
+      "license": "BSD-3-Clause",
+      "status": "KNOWN"
+    },
+    "com.tom-roush:pdfbox-android": {
+      "version": "2.0.27.0",
+      "license": "Apache-2.0",
+      "status": "KNOWN_CURRENT_RUNTIME_ONLY",
+      "nonDecision": "本证据不选择 V2 PDF 引擎"
+    }
+  },
+  "nativeAndPackageCost": {
+    "arm64ApkBytes": 79729350,
+    "arm64NativeZipEntryBytes": 29482904,
+    "universalApkBytes": 173311328,
+    "universalNativeZipEntryBytes": 122708028,
+    "abiCount": 4,
+    "installBytes": "NOT_MEASURED",
+    "updateDeltaBytes": "NOT_MEASURED",
+    "nativeLicenseGap": [
+      "libmpv AAR 绑定 FFmpeg 动态库，wrapper MIT POM 不能覆盖原生内容",
+      "ass-kt wrapper MIT POM 不能覆盖 libass/libc++ 原生产物",
+      "libc++_shared 的 NDK notice/exception 文本未进入已核对的 release notice 清单",
+      "Media3 FFmpeg AAR 与 libmpv AAR 各带 FFmpeg 供应链，需分别保存 source/notice"
+    ]
+  },
+  "unknownsAndPotentialConflicts": [
+    {
+      "id": "LIC-UNKNOWN-01",
+      "object": "libmpv AAR bundled libav*",
+      "state": "UNRESOLVED",
+      "why": "POM 仅 MIT wrapper；AAR 无完整 license/notice 映射；任务禁止联网查上游"
+    },
+    {
+      "id": "LIC-UNKNOWN-02",
+      "object": "libmpv AAR bundled libc++_shared",
+      "state": "UNRESOLVED_NOTICE",
+      "why": "哈希与 APK 匹配，但对应 NDK/LLVM terms 未固化"
+    },
+    {
+      "id": "LIC-UNKNOWN-03",
+      "object": "ass-kt bundled libass / libasskt / libc++",
+      "state": "PARTIAL",
+      "why": "NOTICE 提供 wrapper 与 libass 概述，不是逐文件 release notice 清单"
+    },
+    {
+      "id": "LIC-META-01",
+      "object": "com.google.guava:guava:33.3.1-android",
+      "state": "POM_LICENSE_MISSING",
+      "why": "缓存 POM 无 <licenses>；家族通常为 Apache-2.0，但需正式 SBOM/上游文本"
+    },
+    {
+      "id": "LIC-META-02",
+      "object": "org.slf4j:slf4j-api:2.0.19",
+      "state": "POM_LICENSE_MISSING",
+      "why": "缓存 POM 无 <licenses>；根 NOTICE 记录 MIT，需正式 SBOM/上游文本"
+    },
+    {
+      "id": "LIC-CONFLICT-01",
+      "object": "project / GPL + dependency copyleft",
+      "state": "NO_BLOCKING_COPYLEFT_CONFLICT_FOUND",
+      "why": "GPL-3.0-only 工程与 GPL-3.0-only、LGPL-3.0-only 条款方向相容；尚不能据此判定发布合规"
+    },
+    {
+      "id": "LIC-CONFLICT-02",
+      "object": "AGPL / SSPL direct dependency",
+      "state": "NONE_FOUND_IN_AUDITED_SET",
+      "why": "NOTICE、35 个 direct POM 与关键例外未发现 AGPL/SSPL；未对全部 296 节点逐项联网复核"
+    }
+  ],
+  "maintenanceStatus": {
+    "status": "NOT_EXECUTED_NETWORK_FORBIDDEN",
+    "localEvidenceOnly": "POM name/version/url、AAR 内容和 catalog 坐标",
+    "criticalVersionsObserved": {
+      "Media3": "1.11.1",
+      "Jellyfin FFmpeg decoder": "1.9.0+1",
+      "Jellyfin Kotlin SDK": "1.8.12",
+      "libmpv-android wrapper": "1.0.0",
+      "ass-kt": "0.5.1",
+      "Readium Kotlin Toolkit": "3.4.0",
+      "PdfBox-Android": "2.0.27.0",
+      "OkHttp": "5.5.0",
+      "Kotlin": "2.4.20"
+    },
+    "restriction": "不得把版本号较新、坐标可解析或本地缓存存在写成维护 ACTIVE / 安全 PASS"
+  },
+  "releaseGate": {
+    "closureAvailable": true,
+    "licenseInputAvailableForQ03": true,
+    "releaseLicenseApproval": false,
+    "requiredBeforeRelease": [
+      "生成候选 APK/AAB 的权威 SBOM 与依赖文件清单",
+      "逐项固化 SPDX、copyright、license text、source URL、native 文件映射",
+      "解析 libmpv/ass-kt 内所有 native 组件及精确源码 commit、build flags、notice",
+      "补齐 Guava、SLF4J 与 POM 缺失项",
+      "执行 LGPL/GPL source offer 与 relinking/source-modification 合规审查",
+      "联网核验维护活跃度和已知安全问题",
+      "以完整 NOTICE 替换仍标 1.0.0 的当前文件"
+    ]
+  },
+  "evidence": {
+    "gradleCacheRoot": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1",
+    "projectNotice": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/NOTICE",
+    "projectLicense": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/LICENSE",
+    "libmpvPom": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1/dev.jdtech.mpv/libmpv/1.0.0/e6c11745dd7a7b752d9638bc186c970990b67362/libmpv-1.0.0.pom",
+    "assKtPom": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1/io.github.peerless2012/ass-kt/0.5.1/585e4a27734490ca23f5e76468821c5b2930e7e3/ass-kt-0.5.1.pom",
+    "ffmpegDecoderPom": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1/org.jellyfin.media3/media3-ffmpeg-decoder/1.9.0+1/1b659d4cfc6dd30617fbdbfd6e10b9d6fb8cf928/media3-ffmpeg-decoder-1.9.0+1.pom",
+    "jellyfinSdkPom": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1/org.jellyfin.sdk/jellyfin-core/1.8.12/fb4f31833b87f2468e769408820fbd7402d2f7cd/jellyfin-core-1.8.12.pom",
+    "readiumPom": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1/org.readium.kotlin-toolkit/readium-navigator/3.4.0/f184b64edc39a58f227a7cce43461b5d1c3f9e31/readium-navigator-3.4.0.pom"
+  }
+}

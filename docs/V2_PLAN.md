@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_ACTIVE / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / G1-S4 依赖、引擎与许可证据波
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_COMPLETE / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / S4-A 依赖与许可证据完成，S4-B/C 待后续会话
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-03
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2884,12 +2884,57 @@ Book direct Download 已可实现 200/206，但完整远程 range 仍需真实�
 S4/S5。下一入口为 S4 的依赖闭包 / Media3-FFmpeg / TTS-PDF 三分轨；停止于任何服务器写、
 真实用户数据迁移、G2、实现、独立 QA、push、tag 或 Release。
 
+#### 5.11.10 G1-S4-A runtime closure / 许可证据（2026-11-03）
+
+**状态**：`COMPLETE_WITH_BLOCKED_LICENSE_CLOSURE / G1_S4_A_COMPLETE / Q03_OPEN /
+G1_NOT_PASSED`。由全新只读“资深 Android 开源依赖 / 许可审查专家”执行，固定
+`deepseek-flash / reasoning_effort=max / fork_turns=none`；证据基线 HEAD
+`cecc7d1013efd04a1ad25905b9f1832d2c5ccac9`，未修改生产文件。
+
+**实际执行**：Gradle 9.7.1 / JDK 17.0.20.1+1 对
+`libreReleaseRuntimeClasspath` 执行 `--offline` dependency report，exit 0。结果冻结为：
+
+- 9 个 direct project module；
+- 35 个 direct external module；
+- 296 个最终 external graph node，其中 261 个为派生 transitive；
+- 0 个 `(n)` 未解析项；
+- 35/35 direct POM 取得许可证文本；33 个 Apache 家族、Jellyfin SDK
+  `LGPL-3.0-only`、Media3 FFmpeg decoder `GPL-3.0-only`；
+- APK `dependenciesInfo` 关闭，依赖图不是最终 packaged-file SBOM。
+
+**制品与 native 观察**：1.4.0(5) arm64 APK 为 79,729,350 B，native ZIP entries
+29,482,904 B；universal APK 为 173,311,328 B，四 ABI native entries 122,708,028 B。
+APK 同时包含 Media3 与 libmpv 两条播放栈；arm64 libmpv AAR 还捆绑
+`libavcodec/libavformat/libavutil/libswscale/libswresample` 等 FFmpeg 动态库，另有
+`libffmpegJNI.so`。APK 的 `libc++_shared.so` 与 libmpv AAR 哈希一致，但这只证明去重结果，
+不证明许可证和 ABI 兼容。Media3 为 1.11.1，FFmpeg decoder POM 仍请求 Media3 1.9.0，
+Gradle 仲裁到 1.11.1 不能证明 JNI / API / native ABI 兼容。
+
+**风险**：
+
+- P0：无新增。
+- P1：缺少候选 release SBOM；Media3 / FFmpeg decoder 版本错位未证明兼容；libmpv AAR
+  捆绑 FFmpeg 的精确许可证、源码 / notice 未证明；维护与安全状态未联网核验；无依赖锁 /
+  verification metadata。
+- P2：Gradle 图不等于最终 APK 文件；Guava / SLF4J POM 许可字段缺失；native notice
+  不完整；安装后体积与升级增量未测。
+- P3：`modes/film` 重复声明 Jellyfin SDK，与 S1 的重复依赖 ID 一致。
+
+**BLOCKED**：`BLOCKED-CANONICAL-SBOM`、`BLOCKED-NATIVE-LICENSE-PROVENANCE`、
+`BLOCKED-MAINTENANCE-NETWORK-CHECK`。这些阻塞禁止形成 2.0 发布许可 PASS，但不阻止把
+runtime closure 作为 Q03 输入。
+
+**Q03 准备度**：仍为 Open。当前事实支持“Media3 主路径先保留、mpv 仅在格式矩阵证明必需时
+保留”的方向，同时确认双内核 native / package 成本真实存在。最终选择必须等待 `S4-B`
+（Media3 / FFmpeg / libmpv native、符号、ABI、隔离 build）和 `S4-C`
+（完全离线 TTS、PdfRenderer / PDFium 能力与成本）收口。
+
 ## 6. 三层前置门
 
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3 与 Q01/Q02 已完成；S4 依赖 / 引擎 / 许可、S5 UX、S6 验收矩阵及真实证据仍未收口 |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02 与 S4-A runtime / 许可证据已完成；S4-B/C、S5、S6 与真实证据仍未收口 |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3027,19 +3072,19 @@ S4/S5。下一入口为 S4 的依赖闭包 / Media3-FFmpeg / TTS-PDF 三分轨�
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-S4 依赖、引擎与许可证据波（2026-11-03）
+### ACTIVE：G1-S4-A 完成 / S4-B–C 与 S5–S6 后续排队（2026-11-03）
 
 **当前负责人身份**：**G1/1 证据编排负责人 / 技术集成编排者**。只负责 G1/1 范围、风险、角色拆单、
 只读白名单、压缩报告与关键 diff 审查、证据门、文档和交接；不承担实现工程师、独立 QA、
 Release 架构师或 merge-prep owner。
 
-**一句话现状**：G1/0、S1–S3 已完成；`V2-Q-G1-01/02` 已按用户“全部按推荐”关闭。
-当前实测约 24.5 万 token，已触发 25 万收缩门，S4 只启动最高优先级的 `S4-A`
-依赖闭包 / 许可单轨；`S4-B` Media3-FFmpeg-libmpv native / ABI 与 `S4-C` TTS/PDF
-明确排队到后续会话。G1 仍未通过，不进入实现、G2、QA、设备或服务器写。
+**一句话现状**：G1/0、S1–S3 与 S4-A 已完成；`V2-Q-G1-01/02` 已由用户接受。
+S4-A 冻结 296 个 runtime external graph node、35/35 direct POM 许可和 native / package
+事实，但权威 SBOM、native 许可来源、维护检查仍 BLOCKED。`S4-B/C` 与 S5/S6 排队；
+G1 仍未通过，不进入实现、G2、QA、设备或服务器写。
 
 **状态**：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE /
-G1_1_S1_S3_STATIC_COMPLETE / Q01_Q02_ACCEPTED / G1_S4_ACTIVE /
+G1_1_S1_S3_STATIC_COMPLETE / Q01_Q02_ACCEPTED / G1_S4_A_COMPLETE /
 G1_NOT_PASSED / NO_IMPLEMENTATION`。
 
 **交接顺序（用户 2026-11-03 再次强调，强制）**：先完成本 ACTIVE、任务看板、必要项目文档、
@@ -3064,6 +3109,8 @@ G1_NOT_PASSED / NO_IMPLEMENTATION`。
   S2 的 1.4 APK / schema 17 / schema 3 / 两个 identityHash / 10 条 fixture 合同；
   S3 的八能力 E0 契约、版本台账和真实证据缺口。证据位于
   `.planning/v2-g1/G1-S1`、`G1-S2`、`G1-S3`。
+- §5.11.10 已冻结 S4-A：离线 runtime closure、direct license 覆盖、APK ABI / native /
+  包体事实与 Q03 输入；发布许可仍未通过。证据位于 `.planning/v2-g1/G1-S4-A`。
 - `DECISIONS.Open` 的 `V2-Q-G1-01～04` 是 evidence-gated 问题；对应 Spike 未收口前不得
   把代理推荐写成已接受决策。`V2-Q-G1-01/02` 已由 `V2-D198/D199` 关闭；`03` 等 S4，
   `04` 等 S5。
@@ -3075,14 +3122,14 @@ G1_NOT_PASSED / NO_IMPLEMENTATION`。
 | `G1-S1` ✅ | 资深移动端架构师 | 19 边 / 0 环 / 11 个稳定违规 ID；allowlist 与 seam / 物理拆分成本比较已冻结 | 仅静态，未构建；详见 `.planning/v2-g1/G1-S1/report.json` |
 | `G1-S2` ✅ | 资深 Android 数据 / 持久化架构师 | 1.4 两份 APK、schema 17 / 3、两个 identityHash、10 条 fixture 合同已冻结 | 未开真实用户 DB、未跑迁移 / instrumentation |
 | `G1-S3` ✅ | 资深 Jellyfin 协议集成工程师 | 八能力 E0 契约、版本台账、P0–P3 与 BLOCKED 缺口已冻结 | 零服务器调用；所有真实协议 / 写服证据仍未执行 |
-| `G1-S4-A` 🔄 | 资深 Android 开源依赖 / 许可审查专家 | runtime closure、直接 / 传递依赖、许可证、native 组成与 Q03 输入 | 不下载/安装新依赖，不改 Gradle，不生成/安装 APK，不触设备 / 服务器 |
+| `G1-S4-A` ✅ | 资深 Android 开源依赖 / 许可审查专家 | 296 节点 runtime 图、35/35 direct POM 许可、ABI / native / 包体与 Q03 输入已冻结 | 未生成 release SBOM；许可 / 维护仍 BLOCKED |
 | `G1-S4-B` | 资深 Android 媒体引擎 / Native ABI 架构师 | Media3-FFmpeg-libmpv 版本、符号、ABI、包体与隔离 build pilot | 后续会话；不下载新依赖，不在主线改代码 |
 | `G1-S4-C` | 资深离线语音 / 文档渲染架构师 | Sherpa/Piper 与 PdfRenderer/PDFium 的离线、许可、ABI、性能选项 | 后续会话；不安装模型 / 依赖，不触设备 |
 | `G1-S5` | 资深 Android UX / 信息架构师 | 五主题风格帧、九条低保真复核、RWD / 状态 / 无障碍证据 | 未确认前不改 `UI_DESIGN_SYSTEM` 为 V2 权威 |
 | `G1-S6` | 资深移动端测试架构师 | E0–E7 证据矩阵、阈值、G2 任务卡输入和未覆盖门 | 不执行独立 QA、设备写或真实写服 |
 
-首波已按三个全新只读子代理执行；Q01/Q02 已关闭。S4 因 25 万水位只启动 `S4-A` 单轨，
-固定 `deepseek-flash`、`reasoning_effort="max"`、`fork_turns="none"`；负责人只保留一个
+首波已按三个全新只读子代理执行；Q01/Q02 已关闭。S4-A 已完成，固定
+`deepseek-flash`、`reasoning_effort="max"`、`fork_turns="none"`；负责人只保留一个
 文档集成车道。`S4-B/S4-C` 与 S5/S6 尚未启动。
 
 **第一读序**：
@@ -3101,10 +3148,11 @@ Release。发现新产品 / UX 范围、数据破坏、许可不可接受、对�
 本代理窗口收口时，先写检查点并停止扩张。25 万收缩、30 万写交接准备、35 万必须换负责人。
 
 **当前负责人线程**：`01a1a178-a8ea-7ce1-bf18-f9ead6037071`（2026-11-03 创建并接管）。
-三轨证据收口于 `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc`；本检查点仅提交文档与 JSON，
-不改变生产代码。本次文档收口前实测上下文约 `18.5 万 / 1,048,576`（17.7%），未到 25 万
-收缩线。`git diff --check`、四份 JSON 解析、Engramory checker 与 doctor 均通过；doctor
-仅提示既有 `leader-delegation-by-role.md` 为 12.1 KB。提交后的 clean / HEAD 由 Git 实况复核。
+S1–S3 证据收口于 `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc`；S4-A 证据基线为
+`cecc7d1013efd04a1ad25905b9f1832d2c5ccac9`。本次收口前实测约 `27.8 万 / 1,048,576`
+（26.5%），已过 25 万收缩门、未到 30 万交接准备门；本波完成后不再扩项。
+`git diff --check`、S4-A 三份 JSON 解析、敏感扫描、Engramory checker 与 doctor 均通过；
+doctor 仅提示两个既有 / 当前项目 note 超过 12 KB。提交后的 clean / HEAD 由 Git 实况复核。
 
 **新负责人收口报告格式**：结论；cwd / branch / HEAD / clean；双祖先与外部 SHA；S1～S3
 各身份 / 模型 / executed / 产物；G1/1 证据与 P0–P3；用户决策是否已具备提报条件；未覆盖 /
@@ -3512,3 +3560,9 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   物理拆 Gradle 模块；`V2-D199` 接受保留 1.4 全部已承诺资产，并以有进度、可恢复、
   FAIL_CLOSED 的一次性 forward migration 完成升级。`V2-Q-G1-01/02` 关闭；随后进入
   `G1-S4` 依赖 / 许可与引擎选项证据波，仍未授权实现、真实迁移、G2、QA、设备或服务器写。
+- **2026-11-03 — G1-S4-A runtime closure / 许可证据完成**：离线
+  `libreReleaseRuntimeClasspath` 解析 exit 0，冻结 9 个 direct project、35 个 direct
+  external、296 个最终 external graph node 与 0 未解析项；35/35 direct POM 已取许可证，
+  1.4 APK 的四 ABI、native 组成、包体与 libc++ 哈希已核对。release SBOM、Media3 1.11.1 /
+  FFmpeg decoder 1.9.0 绑定、libmpv native 许可来源和维护状态仍未闭合，故 Q03 保持 Open，
+  不报许可 PASS。未生成 / 安装 APK，未触设备 / 服务器、QA、G2 或实现。

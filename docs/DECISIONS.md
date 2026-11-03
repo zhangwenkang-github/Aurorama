@@ -209,13 +209,13 @@
 ## Open
 
 当前 G0 无开放产品问题。`V2-Q-G1-01/02` 已分别由 `V2-D198/D199` 关闭；
-`V2-Q-G1-03/04` 仍分别等待 S4/S5。代理建议不得代替用户拍板。
+`V2-Q-G1-03` 等待 S4-B/C，`V2-Q-G1-04` 等待 S5。代理建议不得代替用户拍板。
 
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
 |---|---|---|---|---|
-| `V2-Q-G1-03` | `G1-S3` 已完成播放事件 / MediaSource 最小协议可表达性；Media3 1.11.1、FFmpeg 1.9.0 绑定，libmpv native 与 libc++、TTS / PDF 选型仍未完成 | Media3 主路径；mpv 只在格式矩阵证明必需时保留；Sherpa/Piper、PdfRenderer/PDFium 由隔离 Spike 比较 | 双内核和 PDFium 提高覆盖但增加包体、许可证、维护与 native 风险 | **Open / 待 `G1-S4`** |
+| `V2-Q-G1-03` | `G1-S4-A` 已冻结 9 direct project / 35 direct external / 296 final external graph nodes、35/35 direct POM 许可与 1.4 APK native / ABI / 包体；但 release SBOM、Media3 1.11.1 ↔ FFmpeg decoder 1.9.0 绑定、libmpv bundled FFmpeg 许可来源、维护状态仍 BLOCKED；TTS / PDF 尚未选型 | Media3 主路径；mpv 只在格式矩阵证明必需时保留；Sherpa/Piper、PdfRenderer/PDFium 由隔离 Spike 比较 | 双内核和 PDFium 提高覆盖但增加包体、许可证、维护与 native 风险 | **Open / `G1-S4-A` 输入已冻结，待 `G1-S4-B/C`** |
 | `V2-Q-G1-04` | V2 已有主题轴约束，但非 Prism 色板 / 材质、基础圆角、AmbientColors 去留、RWD 细节和九条低保真尚未确认 | 按 §5.11.6 候选先出五主题风格帧和低保真复核，再由用户整包确认 | 直接实现会固化第二主题、错误对比度和不一致 RWD | **Open / 待 `G1-S5`** |
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）

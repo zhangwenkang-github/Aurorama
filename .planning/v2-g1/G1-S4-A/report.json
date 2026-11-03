@@ -1,0 +1,250 @@
+{
+  "identity": {
+    "task": "G1-S4-A",
+    "role": "资深 Android 开源依赖 / 许可审查专家（只读证据负责人）",
+    "model": "codex-runtime-unexposed",
+    "baseHead": "cecc7d1013efd04a1ad25905b9f1832d2c5ccac9",
+    "branch": "codex/v2-integration",
+    "worktree": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama",
+    "identityGate": "PASS",
+    "initialStatusPorcelain": ""
+  },
+  "status": "COMPLETE_WITH_BLOCKED_LICENSE_CLOSURE",
+  "conclusion": "libreReleaseRuntimeClasspath 已在现有 Gradle 缓存与 --offline 条件下成功解析；模块图闭包已冻结为 9 个 direct 项目、35 个 direct 外部模块和 296 个最终外部图节点。1.4.0(5) 候选 APK 的 ABI、native 组成、体积与关键哈希已核对。完整发布许可证明仍受阻：没有候选 APK 的权威 SBOM，已冻结 APK 内关闭了 dependenciesInfo，libmpv AAR 捆绑的 FFmpeg 原生库精确条款未由本地元数据证明，且维护状态未联网核验。",
+  "executed": [
+    {
+      "id": "A01",
+      "action": "Git 身份与 clean 门",
+      "result": "PASS：branch/HEAD 精确匹配，开工 status 为空；双祖先 exit 0"
+    },
+    {
+      "id": "A02",
+      "action": "指定限读文档、ADR-0003～0007、版本目录与白名单构建文件",
+      "result": "已执行；未读取 app/tv、测试、资源、外部需求全文或其他生产源码"
+    },
+    {
+      "id": "A03",
+      "action": "Gradle 9.7.1 离线依赖解析",
+      "commandId": "CMD-04,CMD-06",
+      "result": "exit 0；0 个未解析 (n)；最终图节点解析完成"
+    },
+    {
+      "id": "A04",
+      "action": "1.4.0(5) APK 身份、哈希、ABI 与 lib/* 审计",
+      "commandId": "CMD-07,CMD-08,CMD-09,CMD-10",
+      "result": "arm64-v8a 与 4-ABI universal 均确认；libc++ SHA-256 与 libmpv AAR 完全相同"
+    },
+    {
+      "id": "A05",
+      "action": "Gradle cache POM / AAR 许可证与 native 元数据核验",
+      "commandId": "CMD-11,CMD-12,CMD-13,CMD-14,CMD-15",
+      "result": "35/35 direct POM 取得许可证文本；关键 native AAR 组成已枚举；POM 缺口已登记"
+    }
+  ],
+  "notExecuted": [
+    "未联网核验上游维护活跃度、安全问题、最新版本或 release 日期",
+    "未生成或安装 release APK，未生成正式 SBOM / AboutLibraries 发布清单",
+    "未对全部 296 个图节点逐一提取 POM/AAR license；仅 direct 35/35 与高风险例外逐项核验",
+    "未证明 BOM、约束节点和 Android 多平台变体最终对应哪些 APK 文件",
+    "未进行 source / tests / app/tv / resources 全仓阅读",
+    "未测 dexdump、R8 后方法数、安装后磁盘占用、冷启动、解码性能或格式矩阵",
+    "未访问 Jellyfin、设备、ADB、服务器、QA、G2、实现或发布流程",
+    "未替用户决定 Media3/mpv/TTS/PDF；Q03 仍为 Open"
+  ],
+  "gradle": {
+    "wrapper": "9.7.1",
+    "distributionCached": true,
+    "jdk": "17.0.20.1+1",
+    "androidPlugin": "9.4.1",
+    "kotlin": "2.4.20",
+    "kspCatalogVersion": "2.3.12",
+    "compileSdkObservedFromApk": 37,
+    "targetSdkObservedFromApk": 36,
+    "minSdk": "NOT_OBSERVED_IN_THIS_AUDIT",
+    "configuration": "libreReleaseRuntimeClasspath",
+    "offline": true,
+    "configurationCache": false,
+    "exitCode": 0,
+    "dependencyLockfile": "ABSENT",
+    "verificationMetadata": "ABSENT",
+    "dependenciesInfoInApk": false,
+    "repositories": [
+      "google()",
+      "mavenCentral()",
+      "https://jitpack.io"
+    ]
+  },
+  "closure": {
+    "status": "GRAPH_RESOLVED_AND_FROZEN",
+    "directProjectCount": 9,
+    "directExternalCount": 35,
+    "projectClosureCount": 9,
+    "externalResolvedCount": 296,
+    "transitiveExternalDerivedCount": 261,
+    "unresolvedMarkerCount": 0,
+    "parsedReportNodeRows": 351,
+    "scope": "Gradle 模块图与版本仲裁；不等于最终打包文件 SBOM",
+    "details": "runtime-closure.json",
+    "derivation": "transitive = externalResolvedClosure - directExternal；重复 (*) 折叠，constraint (c) 不作为运行时 artifact",
+    "metadataOnlyCandidates": [
+      "org.jetbrains.kotlin:kotlin-bom:1.8.22",
+      "org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.11.0",
+      "org.jetbrains.kotlinx:kotlinx-serialization-bom:1.11.0",
+      "com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava"
+    ],
+    "criticalVersionMismatch": {
+      "appMedia3": "1.11.1",
+      "ffmpegDecoderArtifact": "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1",
+      "ffmpegPomMedia3Requests": "1.9.0",
+      "gradleResolution": "1.11.1",
+      "meaning": "classpath 仲裁成功不证明 JNI/API/native ABI 兼容"
+    }
+  },
+  "apkArtifact": {
+    "source": "w90a2-release-candidate-20261102",
+    "package": "io.github.zhangwenkang.aurorama",
+    "versionName": "1.4.0",
+    "versionCode": 5,
+    "arm64": {
+      "path": "F:/Develop/code_data/work_tree/Aurorama/w90a2-release-candidate-20261102/Aurorama/app/phone/build/outputs/apk/libre/release/phone-libre-arm64-v8a-release.apk",
+      "bytes": 79729350,
+      "sha256": "ACB1648D9E9C5265BC54DD13B24EEA7ADA3D16E397D3E10C6A72E23D2D2FF5BB",
+      "nativeCode": [
+        "arm64-v8a"
+      ]
+    },
+    "universal": {
+      "path": "F:/Develop/code_data/work_tree/Aurorama/w90a2-release-candidate-20261102/Aurorama/app/phone/build/outputs/apk/libre/release/phone-libre-universal-release.apk",
+      "bytes": 173311328,
+      "sha256": "19B9FD8A8EBB7A8652468B594944545E14489D80AA99EF1AB28E1B54CBAC18A2",
+      "nativeCode": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ]
+    },
+    "otherSplitBytes": {
+      "armeabi-v7a": 76377930,
+      "x86": 82760738,
+      "x86_64": 84818292
+    }
+  },
+  "nativeObservation": {
+    "arm64NativeBytesInApk": 29482904,
+    "universalNativeBytesInApk": 122708028,
+    "nativeEntriesAreStored": true,
+    "arm64Libraries": [
+      "libandroidx.graphics.path.so",
+      "libass.so",
+      "libasskt.so",
+      "libavcodec.so",
+      "libavdevice.so",
+      "libavfilter.so",
+      "libavformat.so",
+      "libavutil.so",
+      "libc++_shared.so",
+      "libffmpegJNI.so",
+      "libmpv.so",
+      "libplayer.so",
+      "libswresample.so",
+      "libswscale.so"
+    ],
+    "libcxxApkSha256": "C4C2FE5CBCB1FBA0003A31FC7AB29A9BB12DF6CC187EC45A806462540E83D93B",
+    "libcxxLibmpvAarSha256": "C4C2FE5CBCB1FBA0003A31FC7AB29A9BB12DF6CC187EC45A806462540E83D93B",
+    "libcxxMatch": true,
+    "libassSha256": "F13E8A925DDAA73074105F9AF89123B2206EDBE4B502D748A6217A261DC62DF4",
+    "libmpvSha256": "0184EFEBA540FCB8EBFAA759462204D940C7CF7F8A589774389E4005BFA0A951",
+    "ffmpegJniSha256": "358545F4C9AA9E2EB5FDF7694D089D2E1E61364096BDC52FF99CD1BC303A4632",
+    "observations": [
+      "dev.jdtech.mpv:libmpv:1.0.0 AAR 不只含 libmpv/libplayer/libc++，还捆绑 libavcodec/libavformat/libavutil/libswscale/libswresample 等 FFmpeg 动态库",
+      "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1 AAR 另含 libffmpegJNI.so",
+      "ass-kt 0.5.1 AAR 含 libass.so、libasskt.so 和旧 libc++_shared.so；候选 APK 最终保留了 libmpv AAR 的 libc++ 并在 arm64 哈希匹配",
+      "AndroidX graphics-path 另含 libandroidx.graphics.path.so",
+      "当前 runtime 同时存在 Media3 FFmpeg JNI 与 libmpv 自带 FFmpeg 原生库；本轮不判断两者是否均应保留"
+    ]
+  },
+  "downloadAndInstallCost": {
+    "downloadBytesKnown": true,
+    "installedBytes": "NOT_MEASURED",
+    "updateDeltaBytes": "NOT_MEASURED",
+    "notes": [
+      "arm64 split 下载包 79,729,350 B；其中 native ZIP entries 29,482,904 B",
+      "universal 下载包 173,311,328 B；4 ABI native ZIP entries 122,708,028 B",
+      "native entries 为 stored，压缩后大小等于原始 ZIP entry 大小",
+      "安装后大小还受 DEX 优化、资源、外部数据、系统版本与 ABI 影响，不能等同 APK 字节数"
+    ]
+  },
+  "q03Input": {
+    "status": "READY_WITH_GAPS_NOT_DECIDED",
+    "supportedFacts": [
+      "当前 1.4 runtime 已同时包含 Media3 与 libmpv 两条播放栈",
+      "Media3 为 1.11.1；Jellyfin FFmpeg decoder 为 1.9.0+1 且 POM 仍请求 Media3 1.9.0",
+      "libmpv AAR 内含独立 FFmpeg 动态库，双内核包体与 native 供应链成本真实存在",
+      "PDF 当前为 PdfBox-Android 2.0.27.0，未发现 PDFium；TTS/PDFium 未在本次 runtime closure 引入",
+      "选择 mpv 仅以格式矩阵证明必需，或选择 PDFium/离线 TTS，都必须继续走 S4-B/S4-C 的许可、ABI、性能与包体证据门"
+    ],
+    "notDecided": [
+      "Media3 主路径是否保留",
+      "libmpv 是否作为生产后备内核",
+      "TTS 实现",
+      "PDF 引擎"
+    ]
+  },
+  "priorities": {
+    "P0": [],
+    "P1": [
+      "候选发布缺少可审计 release SBOM；APK 关闭 dependenciesInfo，NOTICE 明示仍按 1.0.0 整理",
+      "Media3 1.11.1 与 media3-ffmpeg-decoder 1.9.0+1 的 runtime 绑定未证明 JNI/API/native ABI 兼容",
+      "libmpv AAR 捆绑 libav* 动态库，但 AAR POM 仅声明 wrapper MIT；FFmpeg 精确编译参数、许可证、source offer 与 notices 未证明",
+      "维护状态、安全公告和上游活跃度未联网核验，不能把版本较新写成维护 PASS",
+      "无 dependency lockfile / verification metadata，未来同一 catalog 解析可能漂移"
+    ],
+    "P2": [
+      "296 个 Gradle 图节点不等于最终打包文件清单；BOM、constraint 和 -android/-jvm 变体需由正式 SBOM 固化",
+      "Guava POM 与 SLF4J POM 在当前缓存中没有 <licenses>；需以正式 SBOM/上游许可证文本补齐",
+      "libc++_shared 与 ass-kt/libmpv 去重由自定义覆盖任务完成，许可证和 NDK notices 尚未进入 release 清单",
+      "安装后体积、DEX 优化体积和更新增量未测"
+    ],
+    "P3": [
+      "modes/film 重复声明 libs.jellyfin.core；不改变 runtime 版本，但与 S1 已冻结的重复依赖 ID 一致",
+      "依赖图报告存在大量 (*) 重复展开；本报告按最终坐标折叠并在 runtime-closure.json 保留外部闭包"
+    ]
+  },
+  "blocked": [
+    {
+      "id": "BLOCKED-CANONICAL-SBOM",
+      "reason": "用户禁止生成 release APK，当前 1.4 APK 又关闭 dependenciesInfo；无法在不执行后续受控 release SBOM 流程的前提下证明最终 packaged artifact 清单",
+      "impact": "许可证矩阵可作 Q03 输入，不能作为 2.0 发布许可批准"
+    },
+    {
+      "id": "BLOCKED-NATIVE-LICENSE-PROVENANCE",
+      "reason": "本地缓存只给出 libmpv wrapper POM 与 libass wrapper POM，未给出其捆绑 libav* / libass / libc++ 的完整许可证与源码/notice 映射",
+      "impact": "发布前必须解析 native source、build config、notice 与 LGPL/GPL 分发义务"
+    },
+    {
+      "id": "BLOCKED-MAINTENANCE-NETWORK-CHECK",
+      "reason": "本任务禁止联网；POM 只能证明坐标与许可证 URL，不能证明维护活跃度",
+      "impact": "维护状态标 NOT_EXECUTED，不得写成 PASS"
+    }
+  ],
+  "evidencePaths": {
+    "report": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-A/report.json",
+    "runtimeClosure": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-A/runtime-closure.json",
+    "licenseMatrix": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-A/license-matrix.json",
+    "commands": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-A/commands.log",
+    "gradleCache": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1",
+    "projectNotice": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/NOTICE",
+    "projectLicense": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/LICENSE"
+  },
+  "contextWatermark": {
+    "ownerReported": "主线程已处于 25 万收缩区",
+    "action": "收到消息后停止扩项，只保留 closure 修正、native/license 关键证据与四文件收口",
+    "precision": "QUALITATIVE_OWNER_SIGNAL"
+  },
+  "next": {
+    "consumer": "G1/1 证据编排负责人",
+    "firstRead": "report.json → runtime-closure.json → license-matrix.json → commands.log",
+    "stopCondition": "不得把本报告写成 Q03 已接受、许可 PASS、Media3/libmpv 兼容 PASS 或 2.0 可发布；S4-B/S4-C 仍由后续独立角色处理"
+  }
+}
