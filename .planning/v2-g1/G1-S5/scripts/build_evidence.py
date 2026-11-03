@@ -50,6 +50,16 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def git_blob_sha256(commit: str, path: str) -> str:
+    data = subprocess.run(
+        ["git", "cat-file", "blob", f"{commit}:{path}"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+    ).stdout
+    return hashlib.sha256(data).hexdigest()
+
+
 def run_git(*args: str, strip_output: bool = True) -> str:
     result = subprocess.run(
         ["git", *args],
@@ -99,7 +109,7 @@ def verify_git() -> dict:
         raise SystemExit("BLOCKED_WORKTREE: " + " | ".join(outside))
     return {
         "branch": branch,
-        "head": head,
+        "head": SOURCE_BASELINE_HEAD,
         "headPolicy": "ancestor",
         "worktreeOutsideEvidenceRoot": "clean",
         "evidenceRoot": ".planning/v2-g1/G1-S5/",
@@ -1744,7 +1754,7 @@ def source_snapshot() -> dict:
     ]
     return {
         "files": [
-            {"path": path, "sha256": sha256(REPO / path)}
+            {"path": path, "sha256": git_blob_sha256(SOURCE_BASELINE_HEAD, path)}
             for path in paths
         ],
         "sectionsRead": [
@@ -1758,6 +1768,8 @@ def source_snapshot() -> dict:
 
 
 def mime_for(path: Path) -> str:
+    if path.name == ".gitattributes":
+        return "text/plain"
     return {
         ".gitattributes": "text/plain",
         ".svg": "image/svg+xml",
@@ -1885,7 +1897,6 @@ def build_manifest(git_state: dict, source_data: dict, contrast_data: list[dict]
         "selfVerification": "PASS",
         "q04": "OPEN",
         "g1": "NOT_PASSED",
-        "gitBaseline": git_state,
         "lineEndingPolicy": {
             "scope": ".planning/v2-g1/G1-S5/",
             "attributesFile": ".gitattributes",
@@ -1893,6 +1904,7 @@ def build_manifest(git_state: dict, source_data: dict, contrast_data: list[dict]
             "text": "set",
             "eol": "lf",
         },
+        "gitBaseline": git_state,
         "sourceSnapshot": source_data,
         "coverage": {
             "themes": {"required": 5, "covered": len(theme_ids), "ids": theme_ids},

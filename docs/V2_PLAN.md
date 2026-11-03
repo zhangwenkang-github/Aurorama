@@ -3030,17 +3030,18 @@ PDF 必须保留 PdfRenderer feature flag 与同数据模型切换；新引擎�
 **状态**：`S5_EVIDENCE_COMPLETED / READY_FOR_V2_Q_G1_04_USER_DECISION / Q04_OPEN /
 G1_NOT_PASSED / RUNTIME_UNVERIFIED`。S5 证据制作已完成；verifier 支持精确显式预期 docs
 dirty 白名单、manifest hash 校验与 LF 门，Git policy 要求当前 HEAD 必须是 source
-`397ff4f0a3d8378c91ee283da317c5263cc80285` 的后裔；`f910c7f` 不再触发
-`GIT_BASELINE_DRIFT`。负测 `outside dirty -> WORKTREE_OUTSIDE_SCOPE exit 1`、
-`manifest hash tamper -> SHA_MISMATCH exit 1`。该 verifier 与独立 scoped evidence review
-均 PASS，但这些结果只证明静态证据包完整、可复算且可供决策，不构成用户视觉接受、Q04 关闭、
-G1 PASS、设计系统升级或实现授权。
+`397ff4f0a3d8378c91ee283da317c5263cc80285` 的后裔。verifier / builder 的 source hash
+来自固定 `397ff4f…` 的 `git cat-file blob`，不读取当前 worktree；因此 docs 合法更新不再
+误报 `SOURCE_HASH_MISMATCH`。负测 `source hash mismatch`、`evidence SHA mismatch` 与
+`outside dirty` 均 exit 1。该 verifier 与独立 scoped evidence review 均 PASS，但这些结果
+只证明静态证据包完整、可复算且可供决策，不构成用户视觉接受、Q04 关闭、G1 PASS、设计系统
+升级或实现授权。
 
 **证据入口**：`.planning/v2-g1/G1-S5/README.md`、
 `.planning/v2-g1/G1-S5/decision-brief.md`、`.planning/v2-g1/G1-S5/manifest.json`。证据根当前
 为 `f910c7f56ec38b097dcc2a3739d94b68228fd328` 的 S5 证据提交，当前稳定性修复仍有未提交
-修改；共 47 个文件 / 779,834 字节，`manifest.json` SHA-256 为
-`2CDF71ECC2FC23A94E97203477C538F360D12F08DC04BBE0B2ABC35A52CE7817`，46 个条目对应
+修改；共 47 个文件 / 780,415 字节，`manifest.json` SHA-256 为
+`BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`，46 个条目对应
 45 个原证据加 1 个 EOL 控制条目。`.gitattributes` 版本化 `* text eol=lf`，47/47 LF、
 CRLF 0；LF / `eol=lf` 保证 hashtree / checkout 复现。禁止把未提交证据误写成已在集成分支提交。
 
@@ -3217,21 +3218,23 @@ RUNTIME_UNVERIFIED / NO_IMPLEMENTATION`。
 
 **工作对象 / 当前事实**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`；分支
-`codex/v2-integration`，当前 HEAD `f910c7f56ec38b097dcc2a3739d94b68228fd328`。S5 source
+`codex/v2-integration`，当前 HEAD `9aa76f577b107bf9b8c75070690560a12f91e213`。S5 source
 基线为 `397ff4f0a3d8378c91ee283da317c5263cc80285`，Verifier 的 Git policy 要求当前 HEAD
-可从该 source 到达（即为其后裔）；`f910c7f` 为合法证据提交。截至本交接，
+可从该 source 到达（即为其后裔）。verifier / builder 的 source hash 从固定
+`397ff4f…` 的 `git cat-file blob` 读取，不是当前 worktree；因此 docs 合法更新不会误报
+`SOURCE_HASH_MISMATCH`。截至本交接，
 S5 稳定性修复与本次三份文档写回仍未提交；使用分支 / HEAD / 工作树实况复核，不得把全部
 工作树内容误写成已提交。无设备、服务器或 Release 锁。
 
 **证据入口 / 机械事实**：`.planning/v2-g1/G1-S5/README.md`、
 `.planning/v2-g1/G1-S5/decision-brief.md`、`.planning/v2-g1/G1-S5/manifest.json`。
-证据目录 47 个文件 / 779,834 字节；manifest SHA-256
-`2CDF71ECC2FC23A94E97203477C538F360D12F08DC04BBE0B2ABC35A52CE7817`，46 个条目 =
+证据目录 47 个文件 / 780,415 字节；manifest SHA-256
+`BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`，46 个条目 =
 45 个原证据 + 1 个 EOL 控制条目。`.gitattributes` 明确 `* text eol=lf`，47/47 LF、
 CRLF 0；LF / `eol=lf` 保证 hashtree / checkout 复现。Verifier 保留 manifest hash 校验、
-预期 docs dirty 白名单与白名单外失败；`outside dirty -> WORKTREE_OUTSIDE_SCOPE exit 1`、
-`manifest hash tamper -> SHA_MISMATCH exit 1`。覆盖：主题 5/5、交互 9/9、RWD 6/6、
-状态 60/60、无障碍 12/12、对比度 130/130。
+预期 docs dirty 白名单与白名单外失败；`source hash mismatch`、`evidence SHA mismatch` 与
+`outside dirty` 均 exit 1。覆盖：主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、
+对比度 130/130。
 
 **推荐与备选**：R1 保留五主题 DNA，并统一共享骨架、状态语义、响应式与无障碍不变量；
 A2 在更多功能层强化材质和光感，辨识度更强但增加可读性、性能和主题漂移风险；A3 让主题
@@ -3253,8 +3256,8 @@ S5 证据、升级设计系统或进入实现均超出本交接。
 ### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-Q04 ACTIVE 取代）
 
 **历史收口**：S5 五主题、九交互、RWD、状态与无障碍静态证据已制作完成并通过 verifier 与
-独立 scoped evidence review；证据根为 47 个文件 / 779,834 字节，manifest SHA-256
-`2CDF71ECC2FC23A94E97203477C538F360D12F08DC04BBE0B2ABC35A52CE7817`；EOL 确定性门
+独立 scoped evidence review；证据根为 47 个文件 / 780,415 字节，manifest SHA-256
+`BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`；EOL 确定性门
 为 47/47 LF、CRLF 0。Q04 未关闭、G1 未通过。以下保留交接时快照，所有“下一棒进入 S5”
 和 S5 待执行语句均已被 Completed 取代。
 
@@ -3902,15 +3905,17 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   但完整 Q03 Open、G1 未通过，runtime TTS / SBOM / native notice / PDFium 16 KB / Range
   大文件仍未覆盖，下一棒为 S5 视觉方向证据。
 - **2026-11-03 — G1-S5 视觉方向证据完成，切换 Q04 用户决策交接**：S5 证据根
-  `.planning/v2-g1/G1-S5/` 完成 47 个文件 / 779,834 字节，manifest SHA-256
-  `2CDF71ECC2FC23A94E97203477C538F360D12F08DC04BBE0B2ABC35A52CE7817`；46 个条目 =
+  `.planning/v2-g1/G1-S5/` 完成 47 个文件 / 780,415 字节，manifest SHA-256
+  `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`；46 个条目 =
   45 个原证据 + 1 个 EOL 控制条目，`.gitattributes` 固定 `* text eol=lf` 且 47/47 LF、
-  CRLF 0，保证 hashtree / checkout 复现。Verifier Git policy 使用“当前 HEAD 必须是
-  source `397ff4f0…` 的后裔”关系校验，`f910c7f56ec38b097dcc2a3739d94b68228fd328`
-  clean / evidence commit 不再触发 `GIT_BASELINE_DRIFT`；manifest hash、预期 docs dirty
-  白名单与 LF 门保留，`outside dirty -> WORKTREE_OUTSIDE_SCOPE exit 1`、
-  `manifest hash tamper -> SHA_MISMATCH exit 1`。独立 scoped evidence review PASS，覆盖
-  主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130。推荐整包 R1，
-  A2 / A3 待用户比较；`V2-Q-G1-04` 保持 Open，G1 未通过，`UI_DESIGN_SYSTEM` 仍为 v1.0。
-  仅更新三份权威文档，未修改生产代码 / 资源 / S4 证据 / Q03，未构建、未触设备 / 服务器、
-  未 QA、未 commit / push / tag。
+  CRLF 0，保证 hashtree / checkout 复现。Verifier / builder 的 source hash 来自固定
+  `397ff4f0…` 的 `git cat-file blob`，不是当前 worktree；当前 HEAD
+  `9aa76f577b107bf9b8c75070690560a12f91e213` 只要求是 source baseline 后裔，docs 合法更新
+  不再误报 `SOURCE_HASH_MISMATCH`。manifest / 证据 hash、预期 docs dirty 白名单、白名单外
+  dirty 拒绝、LF / `eol=lf` 与内容 counts 保留；`source hash mismatch`、
+  `evidence SHA mismatch`、`outside dirty` 均 exit 1。独立 scoped evidence review PASS，
+  覆盖主题 5/5、
+  交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130。推荐整包 R1，A2 / A3 待
+  用户比较；`V2-Q-G1-04` 保持 Open，G1 未通过，`UI_DESIGN_SYSTEM` 仍为 v1.0。仅更新三份
+  权威文档，未修改生产代码 / 资源 / S4 证据 / Q03，未构建、未触设备 / 服务器、未 QA、
+  未 commit / push / tag。

@@ -25,23 +25,23 @@
     "files": [
       {
         "path": "AGENTS.md",
-        "sha256": "65136840f510ff0718c0667a87c7e26f17aee4072e0a4eb52421a11218458e21"
+        "sha256": "0643b269ac324b33eb35a5170620fab4d2551f14177e135fe8a916cbcc2950cf"
       },
       {
         "path": "docs/PROJECT_RULES.md",
-        "sha256": "b1707d0cb16a2e9b9140d1141baeba10eb10a6a6a26f173c3e3779ebc6569459"
+        "sha256": "b3e8496921de98f9ce37c0f2defb50b51ff0a03cf4ba578b172eb7d940abed2c"
       },
       {
         "path": "docs/V2_PLAN.md",
-        "sha256": "afde83b3214fa5e53c369afe2ce203291f7805a7d678614181c2055f99f07f25"
+        "sha256": "355c8a4d6ae67e74cc6cf4103948bc25447a807368c81d6e50786460ff18cbb0"
       },
       {
         "path": "docs/UI_DESIGN_SYSTEM.md",
-        "sha256": "4393bdea44285fd0d1ee972cf7c0d6e987f9464bf79a31a6d3020eccb2ed27cd"
+        "sha256": "ea6510dfb40c9d98921945f66e813627e8e28c73c17e7f74145cea6401eec7ef"
       },
       {
         "path": "docs/DECISIONS.md",
-        "sha256": "7b9577f3e2b294576842e6707b4fdba214102966026eea6cea702124f5535003"
+        "sha256": "d0b1426c384677a6c29a002bedd5e32fbc764dfcee5761c177e59cd455bc9b39"
       },
       {
         "path": "docs/adr/0007-v2-app-wide-theme-model.md",
@@ -974,8 +974,8 @@
       "path": "data/assessment.json",
       "mime": "application/json",
       "pixelSize": null,
-      "bytes": 1815,
-      "sha256": "09d8e71e52113400bb2189fbd76ae37401da75a7767c6699cd0a87db0d9e6502",
+      "bytes": 1845,
+      "sha256": "7726ae030c0d21139df98897693cea41adae12bd815f7a782d1c262fb65ae882",
       "status": "FROZEN_STATIC",
       "limits": []
     },
@@ -1110,7 +1110,7 @@
       "mime": "application/json",
       "pixelSize": null,
       "bytes": 1053,
-      "sha256": "8f7184f2cff0d098d484b4d01613f8e7dbf5bafd0b06d5ba2011cf656ffe9c21",
+      "sha256": "ddaaee33792001c912c1160cca6d9fecd735e5774116b817fc03349072d209ed",
       "status": "FROZEN_STATIC",
       "limits": []
     },
@@ -1246,8 +1246,8 @@
       "path": "scripts/build_evidence.py",
       "mime": "text/x-python",
       "pixelSize": null,
-      "bytes": 105416,
-      "sha256": "6fbc99cbf146f8ab9ac1092c40c61d5e8ee9da899cd96c0b780ed3edeea2bea7",
+      "bytes": 105784,
+      "sha256": "5f32ead5bd949ea9bd98b6568af26443be4b1e694ecc49765b8518141de481bb",
       "status": "FROZEN_STATIC",
       "limits": []
     },
@@ -1265,8 +1265,8 @@
       "path": "scripts/verify_evidence.py",
       "mime": "text/x-python",
       "pixelSize": null,
-      "bytes": 14294,
-      "sha256": "1aa945552e85e27d737d52d68272544d2f9a3331a22cc09544a8d7624a9232f6",
+      "bytes": 14477,
+      "sha256": "30770bfd5750e716809c4d066188a607bf1411e38e6910ac86e9b26074435127",
       "status": "FROZEN_STATIC",
       "limits": []
     }

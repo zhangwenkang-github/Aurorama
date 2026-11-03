@@ -19,6 +19,7 @@
   "git": {
     "branch": "codex/v2-integration",
     "head": "397ff4f0a3d8378c91ee283da317c5263cc80285",
+    "headPolicy": "ancestor",
     "worktreeOutsideEvidenceRoot": "clean",
     "evidenceRoot": ".planning/v2-g1/G1-S5/"
   },
@@ -26,23 +27,23 @@
     "files": [
       {
         "path": "AGENTS.md",
-        "sha256": "65136840f510ff0718c0667a87c7e26f17aee4072e0a4eb52421a11218458e21"
+        "sha256": "0643b269ac324b33eb35a5170620fab4d2551f14177e135fe8a916cbcc2950cf"
       },
       {
         "path": "docs/PROJECT_RULES.md",
-        "sha256": "b1707d0cb16a2e9b9140d1141baeba10eb10a6a6a26f173c3e3779ebc6569459"
+        "sha256": "b3e8496921de98f9ce37c0f2defb50b51ff0a03cf4ba578b172eb7d940abed2c"
       },
       {
         "path": "docs/V2_PLAN.md",
-        "sha256": "459fe34b6a7436c7871796b15955d6b20d8471ff1e05d7a160c698da83e4ec71"
+        "sha256": "355c8a4d6ae67e74cc6cf4103948bc25447a807368c81d6e50786460ff18cbb0"
       },
       {
         "path": "docs/UI_DESIGN_SYSTEM.md",
-        "sha256": "4393bdea44285fd0d1ee972cf7c0d6e987f9464bf79a31a6d3020eccb2ed27cd"
+        "sha256": "ea6510dfb40c9d98921945f66e813627e8e28c73c17e7f74145cea6401eec7ef"
       },
       {
         "path": "docs/DECISIONS.md",
-        "sha256": "797d21740c07444c3fe0bac0ea5781756955e1adcd636572f561591c7618fc3e"
+        "sha256": "d0b1426c384677a6c29a002bedd5e32fbc764dfcee5761c177e59cd455bc9b39"
       },
       {
         "path": "docs/adr/0007-v2-app-wide-theme-model.md",

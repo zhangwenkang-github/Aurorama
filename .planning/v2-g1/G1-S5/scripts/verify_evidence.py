@@ -39,6 +39,16 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def git_blob_sha256(commit: str, path: str) -> str:
+    data = subprocess.run(
+        ["git", "cat-file", "blob", f"{commit}:{path}"],
+        cwd=REPO,
+        check=True,
+        capture_output=True,
+    ).stdout
+    return hashlib.sha256(data).hexdigest()
+
+
 def git(*args: str, strip_output: bool = True) -> str:
     output = subprocess.run(
         ["git", *args], cwd=REPO, check=True, capture_output=True,
@@ -305,10 +315,7 @@ def main(argv: list[str] | None = None) -> int:
         fail("SOURCE_SNAPSHOT", "missing source hashes")
     for source in snapshot:
         rel = source["path"].replace("\\", "/")
-        if rel in allowed_dirty:
-            continue
-        path = REPO / rel
-        if not path.is_file() or sha256(path) != source["sha256"]:
+        if git_blob_sha256(baseline_head, rel) != source["sha256"]:
             fail("SOURCE_HASH_MISMATCH", rel)
 
     manifest_bytes = MANIFEST.stat().st_size
