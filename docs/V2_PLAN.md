@@ -2937,7 +2937,79 @@ Spike 与用户决策包，不是实现或 G2。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1/0 只读检查点完成 / G1 候选基线待证据收敛（2026-11-03）
+### ACTIVE：G1/1 证据收敛交接 / 新负责人待创建（2026-11-03）
+
+**下一任身份**：**G1/1 证据编排负责人 / 技术集成编排者**。只负责 G1/1 范围、风险、角色拆单、
+只读白名单、压缩报告与关键 diff 审查、证据门、文档和交接；不承担实现工程师、独立 QA、
+Release 架构师或 merge-prep owner。
+
+**一句话现状**：G1/0 只读问题树与候选基线已完成，但 G1 未通过；原负责人实测上下文
+`311,719 / 1,048,576`（29.7%），已到 30 万交接准备线。新负责人从本 ACTIVE 与
+`V2_PLAN` §5.11 接续 `G1-S1～S3` 首波证据，不重开 G0，也不直接写方案结论。
+
+**状态**：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE / G1_1_HANDOFF_READY /
+G1_NOT_PASSED / NO_IMPLEMENTATION`。
+
+**交接顺序（用户 2026-11-03 再次强调，强制）**：先完成本 ACTIVE、任务看板、必要项目文档、
+提交与 clean 审计，再完成 Engramory 同步和 validator，最后才创建新会话；新会话首条 prompt
+必须指向已提交的完整交接，不得让继任者接手半成品文档或聊天中的未落档决定。
+
+**工作对象 / 硬门事实**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
+分支 `codex/v2-integration`。G1/0 收口提交为
+`9b6cdb94f474db1393d3cdae29b65b4501c60985`，交接文档写入前 clean；新负责人必须重新核验
+该提交或其后的纯文档后继、`git status --porcelain=v1 --untracked-files=all`、双祖先与外部
+原文 SHA-256。硬门值仍为：
+
+- 基线 `4fbe5e12d182fc1d9bdf2790c7a725bec0074d37`
+- 视频收口 `bd5e3aa59c2e5671ada9354f230da4519589272b`
+- 外部原文 `E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229`
+
+**已完成（稳定指针）**：
+
+- §5.11 已落七支问题树、六条只读轨道、候选 seam / identity / 协议 / 依赖 / UX / E0–E7
+  和 `G1-S1～S6`；不得让新负责人重新做整轮 G1/0。
+- `DECISIONS.Open` 的 `V2-Q-G1-01～04` 是 evidence-gated 问题；对应 Spike 未收口前不得
+  要求用户做最终技术取舍，也不得把代理推荐写成已接受决策。
+- `G1-S1` 要同时比较逻辑 seam 与物理拆模块成本；`G1-S2` 要把 1.4 schema、identity、
+  provenance、DB+sidecar 和失败关闭放在同一证据链；`G1-S3` 要产出协议静态契约与能力可表达性，
+  不得把 fake 或文档映射冒充真实服务器链路。
+
+**首波在跑 / 排队**：
+
+| 顺序 | 子代理专业身份 | 独立验收物 | 硬边界 |
+|---|---|---|---|
+| `G1-S1` | 资深移动端架构师 | 当前依赖 / 违规稳定 ID、allowlist 原型、目标 seam、物理拆分成本与回归面 | 临时 worktree 或纯静态；不改生产模块，不构建 APK |
+| `G1-S2` | 资深 Android 数据 / 持久化架构师 | 1.4 正式包 schema / identityHash 映射、identity / provenance 不变量、迁移失败关闭 fixture 设计 | 不打开真实用户 DB，不做 down migration，不复制含 token 数据库 |
+| `G1-S3` | 资深 Jellyfin 协议集成工程师 | PlaybackInfo、Range、写回读 / 403、Book direct source、Search、SWR、SyncPlay 静态契约语料与能力结论 | 零服务器调用；生产下载 GET 不当零副作用探针 |
+| `G1-S4` | 开源依赖 / 许可审查专家 | 完整 runtime closure、Media3/FFmpeg、ABI、包体、性能、TTS/PDF 选项成本 | 不下载/安装新依赖，不生成发布 APK |
+| `G1-S5` | 资深 Android UX / 信息架构师 | 五主题风格帧、九条低保真复核、RWD / 状态 / 无障碍证据 | 未确认前不改 `UI_DESIGN_SYSTEM` 为 V2 权威 |
+| `G1-S6` | 资深移动端测试架构师 | E0–E7 证据矩阵、阈值、G2 任务卡输入和未覆盖门 | 不执行独立 QA、设备写或真实写服 |
+
+首波最多并行 `G1-S1～S3` 三个全新只读子代理，统一 `deepseek-flash`、
+`reasoning_effort="max"`、`fork_turns="none"`。每个 brief 第一句写专业身份，给绝对 worktree、
+互斥白名单、证据路径、非目标、停止条件、预期上下文和“计划后同回合继续”。负责人只创建一个
+文档集成车道；S1～S3 报告收口后再决定是否进入 S4～S6。
+
+**第一读序**：
+
+1. 读 `docs/V2_PLAN.md` 顶部、§5.11、§12 本 ACTIVE；
+2. 读 `docs/TASKS.md` In Progress、`docs/DECISIONS.md` Open、`docs/PROJECT_PLAN.md` 2.0 行；
+3. 读 `docs/PROJECT_RULES.md` 中 R004/R007/R008/R009/R011/R012/R014/R015/R016/R017/R020/R025；
+4. 读 ADR-0003～0007；
+5. 之后再按 S1～S3 的窄白名单读代码 / schema / 官方协议。
+
+禁止开工前通读 `V2_PLAN` 全文、外部需求 `1–1156`、全仓源码或历史任务线。
+
+**停止边界**：不得修改生产 Kotlin / Compose / Gradle / Manifest / 资源 / schema，不得把 Spike
+合入 `codex/v2-integration`，不得进入 G2、实现、独立 QA、设备写、服务器写、push、tag 或
+Release。发现新产品 / UX 范围、数据破坏、许可不可接受、对象漂移、需要独立写服或证据无法在
+本代理窗口收口时，先写检查点并停止扩张。25 万收缩、30 万写交接准备、35 万必须换负责人。
+
+**新负责人收口报告格式**：结论；cwd / branch / HEAD / clean；双祖先与外部 SHA；S1～S3
+各身份 / 模型 / executed / 产物；G1/1 证据与 P0–P3；用户决策是否已具备提报条件；未覆盖 /
+BLOCKED；实际上下文水位；记忆同步；下一步。不得把 Spike 草案、文档更新或硬门通过写成 G1 PASS。
+
+### HISTORY：G1/0 只读检查点完成 / G1 候选基线待证据收敛（2026-11-03）
 
 **负责人身份**：**G1 交付负责人 / 技术集成编排者**。只负责 G1 范围、风险、角色拆单、
 只读白名单、压缩报告 / 关键 diff 审查、集成决策、文档与交接；不得把负责人身份写成实现工程师、
@@ -3321,3 +3393,8 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   Server schema 17 破坏性 fallback、写回读 / PlaybackInfo / SyncPlay 缺口、Media3/FFmpeg
   版本错位及 V2 主题漂移。当前无用户 G1 决策、无代码 / 构建 / 设备 / 服务器执行；
   `DECISIONS.Open` 新增四个证据门问题，下一步为隔离 Spike 与用户决策包。
+- **2026-11-03 — G1/1 交接准备**：原负责人实测 `311,719 / 1,048,576`（29.7%），到 30 万
+  交接准备线。用户再次强调凡交接必须先把本会话工作文档、提交、clean 审计和记忆同步全部完成，
+  再创建新会话。§12 ACTIVE 已切换为 G1/1 证据编排负责人入口，首波固定
+  `G1-S1` 架构边界 / 拆模块成本、`G1-S2` 1.4 schema / identity / provenance / 迁移失败关闭、
+  `G1-S3` 静态协议契约与能力可表达性；G1 仍未通过，未进入实现、G2、QA、设备 / 服务器写或发布。
