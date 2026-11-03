@@ -2508,10 +2508,10 @@ NAV 增量产品 / 身份契约；`NAV-008～009` 是交付与证据流程节点
 
 ## 12. 下一需求域交接
 
-### ACTIVE：`V2-REQ-NAV` 已收口 / `V2-FINAL-CHECK` 待交接（2026-11-03）
+### ACTIVE：`V2-REQ-NAV` 已收口 / `V2-FINAL-CHECK` 新会话已创建（2026-11-03）
 
 **状态**：`NAV_REQUIREMENTS_FINAL_MATRIX_ACCEPTED / DOMAIN_CLOSED /
-NEXT_FINAL_CHECK_HANDOFF_READY`。`V2-Q-NAV-01`～`13` 全部关闭，NAV 无剩余 Open；G0 仍需
+FINAL_CHECK_ACTIVE`。`V2-Q-NAV-01`～`13` 全部关闭，NAV 无剩余 Open；G0 仍需
 `V2-FINAL-CHECK` 全量交叉检查和用户总确认。
 
 **工作对象 / 事实**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
@@ -2523,7 +2523,9 @@ NEXT_FINAL_CHECK_HANDOFF_READY`。`V2-Q-NAV-01`～`13` 全部关闭，NAV 无剩
 
 **本轮 executed**：
 
-- NAV 负责人线程：`01a19fcd-e7e2-7461-bd21-c7dd6c3cf936`。
+- NAV 负责人线程：`01a19fcd-e7e2-7461-bd21-c7dd6c3cf936`，收口后停止扩项。
+- `V2-FINAL-CHECK` 新线程：`01a1a106-5b14-7ae3-be96-32d85932da1f`；首条 prompt 已包含八域
+  收口事实、硬门、精确读序、互斥外部行段遗漏审计、子代理模型 / 推理要求和非目标。
 - 三个全新只读子代理均固定 `deepseek-flash / reasoning_effort=max / fork_turns=none`，仅读外部
   1048–1156；分别完成首轮地图 / 现状 / 前沿，以及旧缺陷映射、账号缓存失效、离线身份、音乐队列
   边界核验，最终去重 / 证据 / 矩阵审计；最后一次先遇上游 503，按同一 owner 受控重试一次成功。
@@ -2545,7 +2547,7 @@ NEXT_FINAL_CHECK_HANDOFF_READY`。`V2-Q-NAV-01`～`13` 全部关闭，NAV 无剩
 **未覆盖 / 锁**：全部 NAV 条目尚无实现、候选包、G1、QA、真实设备、真实旅程或发布证据；
 未占用设备，无 server / push / tag 动作。
 
-**下一步**：新角色为 `V2-FINAL-CHECK` 全量交叉检查负责人。第一条只读动作是核验本收口提交、
+**下一步**：`V2-FINAL-CHECK` 全量交叉检查负责人已在上述新线程启动。第一条只读动作是核验本收口提交、
 分支、clean、双祖先、外部 SHA-256，并确认八个需求域均已在 `TASKS` / `DECISIONS` / `V2_PLAN`
 收口；随后建立 G0 去重、冲突、依赖、范围分类、旧债矩阵与总体验收材料。该角色不得改动产品范围，
 不得进入 G1、实现、构建、设备、QA、服务器写或发布。停止在用户 G0 总确认门。
