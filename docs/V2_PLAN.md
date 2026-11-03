@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / S4-A Q03 五组静态证据已在提交后 clean-clone 复现 75/75 LF；Q03 packaged / runtime closure 与 Q04 用户决策仍开放
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / Q03 五组静态证据与 A1/A2 静态合同已完成；runtime / implementation 缺口、Q03 packaged closure 与 Q04 用户决策仍开放
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -1780,6 +1780,17 @@ MVP 固定为 `50`。音乐需求域无剩余 Open。上述接受不批准 G1、
 | `allowOffline` | 视频 / 音乐写 `sources.allowOffline`，书籍写偏好；旧离线书架对书籍还有不按开关过滤的特殊口径 | 开关本身可复用，但“关闭只影响无账号离线入口、下载中心仍展示”的统一语义尚未成立 |
 | playlist / special / MediaSource | 定点搜索未发现播放列表下载入口或特别篇独立下载组；已有 source 元数据选择，但未证明多版本确认 UI | 只能作为待实现 / 待验证项；不得把元数据默认选源当作 D140 用户选择与恢复契约 |
 
+**G1-A1 下载状态静态合同（2026-11-04，独立 reviewer PASS）**：
+`.planning/v2-g1/G1-A1-DOWNLOAD-STATE-CONTRACT/` 共 11 文件 / 103,924 B，manifest SHA-256
+`B45CF884E8950B7E02F851D07E32465FF6F4FB7097A8454407C709B3BEFE5AE2`。合同冻结 12 状态 /
+24 allowed / 16 forbidden examples / 144 transition pairs / 55 fixtures / 10 equations。
+`COMPLETED` 必须同时具备同代、同源、accepted / done / deadline、媒体、必需清单、持久状态、
+文件可读与字节一致；Worker `SUCCESS`、通知出现、路径存在或 rename 均不能生成 `doneAt` 或
+单独发布完成。删除只有在文件、sidecar、持久状态、离线投影和终态通知五个 child receipt
+全部为字面 `CONFIRMED` 时才进入 `DELETED`；`PENDING` / 未知 receipt 保持 `DELETING`。
+现有实现仍有 6 个 P2 capability gaps，且 runtime 未验证。该合同是静态输入，不是实现完成、
+candidate 旅程或发布证据。
+
 #### 5.7.4 最终需求矩阵（已确认）
 
 **矩阵规则**：来源行均位于外部 747–930；D128–D145 是产品裁决。`MVP` 只包含 `MUST` 或
@@ -2584,6 +2595,19 @@ NAV 增量产品 / 身份契约；`NAV-008～009` 是交付与证据流程节点
 | `V2-REQ-BASE-004` 本地歌单完整管理 | `L14-18`；`FIX_PLAN` W87-A/B；部分 `MUSIC-001/014/016/051` | `MUST` | 本地歌单支持创建、重命名、排序、删除、增删曲目与持久恢复；支持版本化 JSON / M3U8 导入导出；重复、缺曲、损坏文件和不支持项显式处理；本地歌单与服务器歌单身份分离 | 重启后歌单顺序与成员保持；重排 / 删除可逆确认符合规则；JSON / M3U8 往返保留可表达字段；缺曲不静默删除；跨账号 / 跨来源不误合并 | `MUSIC-001`、`MUSIC-014/016/051`、写域歌单契约、下载来源身份、文件选择器 / 存储 | 不自动把本地歌单转成服务器歌单、不无确认覆盖或破坏性合并；不新增第二套媒体身份 | 无剩余产品未决；G1 固定文件版本 / 编码、冲突策略、缺曲映射和写回边界 |
 | `V2-REQ-BASE-005` 音乐懒补队列 / 写放大 | `L14-33`；旧 `MUSIC_PLAN` D72；W87 | `MUST` | 大歌单 / 队列使用可恢复快照加有界懒补：先保证当前与近端曲目可用，接近末端再补；PlaybackInfo 协商和队列快照写入合并 / 节流；保留当前项、实际随机序、Next Up 与失败项身份 | 349–1000 首级队列打开时不同步逐首协商全部曲目；播放与 Next Up 可达；续补失败可解释；冷启动恢复不丢已确认顺序；写放大有上限证据 | `MUSIC-014/016`、`M-C`、`M-R`、后台任务 / 持久化、Jellyfin PlaybackInfo 契约 | 不把旧 1000 上限直接当作新产品硬上限；不无限预取、自动下载或让后台写入阻塞播放；不伪造未协商曲目已可用 | 无剩余产品未决；G1 量化首批 N、并发、写合并、deadline 与恢复上限 |
 
+**G1-A2 应用内更新信任静态合同（2026-11-04，独立 reviewer PASS）**：
+`.planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/` 共 10 文件 / 88,530 B；manifest 覆盖 9 文件 /
+86,351 B，SHA-256
+`763820A9EF670EB58F7FD0B1D7880C961A8C4F850873BC09565318933EF08837`。合同冻结 10 状态 /
+17 transitions / 23 ordered checks / 46 fixtures / 348 property checks / 10 promise rows。
+下载完成固定为 `DOWNLOADED_UNVERIFIED`，系统安装器启动固定为 `INSTALLER_HANDOFF`；只有
+PackageManager 对外部 package / versionCode / versionName / signer 的精确目标回读可进入
+`INSTALL_CONFIRMED`，证据不足只能 `INSTALL_UNKNOWN`，不得由下载、通知、安装器启动或泛化
+版本上升推断安装成功。当前仍有 2 个 P1 实现 gap：`GAP-INSTALL-CONFIRM` 只用 versionCode
+大于基线判安装成功；`GAP-ABI-PAYLOAD` 缺少 APK native ABI payload 清单，文件名选择不足以
+证明兼容。两缺口保留到 G2，本轮不实现。`commands.log` 命中 `*.log` ignore，后续提交须显式
+`git add -f`。此处 G1-A2 指更新信任合同，不是 S5 的视觉备选 A2。
+
 #### 5.10.6 G1 待核验与明确非目标
 
 G1 至少须关闭：`UI_DESIGN_SYSTEM` V2 token / fixture、TTS 完全离线引擎、PDFium Range、
@@ -3275,12 +3299,13 @@ S6 验收、实现、G2、独立 QA、设备或服务器写。
 **接手身份**：用户是 `V2-Q-G1-04` 视觉 / UX 方向的最终决策者。交付负责人只整理候选、
 证据边界与写回记录，不得代替用户做审美判断、把推荐写成已接受事实或据此进入 S6。
 
-**一句话现状**：S5 证据制作、verifier 与独立 scoped evidence review 已完成；推荐整包为
-R1“DNA 保留 + 共享骨架”，A2“更强材料表现”与 A3“更强结构统一”保留为备选；本段是唯一
-ACTIVE，等待用户主观视觉选择或后续明确授权，`V2-Q-G1-04` 仍 Open，G1 未通过。
+**一句话现状**：S5 证据制作、verifier 与独立 scoped evidence review 已完成；G1-A1 下载状态
+与 G1-A2 更新信任静态合同亦已完成，runtime / implementation gaps 原样保留。推荐整包为
+R1“DNA 保留 + 共享骨架”，视觉 A2“更强材料表现”与 A3“更强结构统一”保留为备选；本段是
+唯一 ACTIVE，等待用户主观视觉选择或后续明确授权，`V2-Q-G1-04` 仍 Open，G1 未通过。
 
 **状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE /
-G1_S4A_Q03_GAPS_INTEGRATED / G1_S5_COMPLETE / Q03_Q04_OPEN /
+G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN /
 READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED / RUNTIME_UNVERIFIED /
 NO_IMPLEMENTATION`。
 
@@ -3291,6 +3316,14 @@ notice / source-offer 与 TTS / PDF provenance 静态增量均已完成并通过
 §5.11.10.1～§5.11.10.2。`Q03-SBOM-RUNTIME-INVENTORY` 仅按 snapshot 可关闭。完整 Q03
 仍等 candidate packaged SBOM / notice / source bundle、精确 build attestation / relink 与
 runtime / device 证据，保持 Open。
+
+**并行 G1 静态合同**：G1-A1 下载状态合同为 11 文件 / 103,924 B、manifest
+`B45CF884E8950B7E02F851D07E32465FF6F4FB7097A8454407C709B3BEFE5AE2`；G1-A2 更新信任合同
+为 10 文件 / 88,530 B、manifest
+`763820A9EF670EB58F7FD0B1D7880C961A8C4F850873BC09565318933EF08837`。两份均独立 reviewer
+PASS，详细合同见 §5.7.3 与 §5.10.5。A1 保留 6 个 P2 capability / runtime gaps；A2 保留
+`GAP-INSTALL-CONFIRM` 与 `GAP-ABI-PAYLOAD` 两个 P1 实现 gap。它们不新增用户决策，不把静态
+合同写成实现、runtime / device 或 G1 PASS。
 
 **Q03 静态收敛边界**：安全的 Q03 静态增量已最大化；NOTICE 的 `M3-05` / `MPV-05` 只收窄到
 `PARTIAL`，静态 NOTICE 与 TTS / PDF evidence 仍为 `PARTIAL`，PDFium issue #56 仍 OPEN。
@@ -3348,8 +3381,9 @@ S5 证据、升级设计系统或进入实现均超出本交接。
 解释为 Q03 扩项或实现许可。停止条件：用户尚未明确选择时保持 Q04 Open、G1 NOT_PASSED 与
 `UI_DESIGN_SYSTEM` v1.0；若用户选择逐项修订，先登记差异项与影响再继续，不直接进入 S6 或实现。
 
-**实际上下文水位**：本次收口实测 `180,364 / 1,048,576`（17.2%），缓存命中 99.9%，
-会话请求数 1174；最终以当前线程的 `deepseek-status` 实况为准。
+**实际上下文水位**：本次收口实测 `299,581 / 1,048,576`（28.6%），缓存命中 98.4%，
+会话请求数 1385；已接近 30 万交接准备线，后续扩项前应先交接。最终以当前线程的
+`deepseek-status` 实况为准。
 
 ### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-Q04 ACTIVE 取代）
 
@@ -4039,3 +4073,14 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   evidence 仍 PARTIAL；packaged notice / SBOM / source bundle、attestation / relink、
   runtime / device 等仍 Open。Q03 / Q04 Open，G1 NOT_PASSED，UI v1.0；唯一 ACTIVE 仍为
   Q04，新增工作须前沿审计与明确授权。本轮仅写回三份权威文档，未 commit / push。
+- **2026-11-04 — G1-A1/A2 静态合同写入权威文档**：A1
+  `.planning/v2-g1/G1-A1-DOWNLOAD-STATE-CONTRACT/` 为 11 文件 / 103,924 B，manifest
+  `B45CF884E8950B7E02F851D07E32465FF6F4FB7097A8454407C709B3BEFE5AE2`；12 状态 / 24
+  allowed / 16 forbidden / 144 pairs / 55 fixtures / 10 equations，6 个 P2 gaps 与 runtime
+  未验证保留。A2 `.planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/` 为 10 文件 / 88,530 B，
+  manifest 覆盖 9 文件 / 86,351 B，
+  `763820A9EF670EB58F7FD0B1D7880C961A8C4F850873BC09565318933EF08837`；10 状态 / 17
+  transitions / 23 checks / 46 fixtures / 348 properties / 10 promise rows，严格分离
+  download / handoff / unknown / confirmed，并保留 `GAP-INSTALL-CONFIRM` /
+  `GAP-ABI-PAYLOAD` 两个 P1 G2 gaps。两份均独立 reviewer PASS，但 Q03 / Q04 仍 Open，
+  G1 NOT_PASSED，UI v1.0；未新增用户决策、未改证据 / 生产、未 commit。

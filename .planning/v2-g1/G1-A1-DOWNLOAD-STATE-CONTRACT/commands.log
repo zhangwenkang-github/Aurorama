@@ -1,0 +1,72 @@
+2026-11-04 G1-A1 static contract commands
+workdir=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+shell=pwsh
+
+1. Get-Location; git rev-parse HEAD; git branch --show-current; git status --porcelain=v1
+   exit=0
+   head=287c37e1d1287e2a90c047e628f7272a13cc5970
+   branch=codex/v2-integration
+   observed_dirty=docs/DECISIONS.md,docs/TASKS.md,docs/V2_PLAN.md
+
+2. graphify query "download status notification finalize delete" --budget 2200
+   exit=1
+   result=graph file not found in this worktree; scoped rg fallback used
+
+3. rg -n ... docs/V2_PLAN.md docs/TASKS.md docs/DECISIONS.md docs/PROJECT_RULES.md
+   exit=0
+   result=D129/D130/D133/D134/D136, DOWNLOAD-031/032/037/038/061/065, L14-04/05/19/27/28 and R020/R025/R027/R028 located
+
+4. Read-Only local source scan
+   files=core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadTask.kt
+         core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadLifecycle.kt
+         core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadNotifications.kt
+   exit=0
+   result=status/generation/delete/finalizer/notification local model identified
+
+5. pwsh -NoProfile -File <relative-script-path> -AllowMissingManifest
+   exit=64
+   result=launcher path resolution failed; script did not execute
+
+6. & '<absolute-contract-dir>\test_contract.ps1' -AllowMissingManifest
+   exit=0
+   output=PASS static download-state contract: states=12; transitions=24 allowed/16 forbidden-examples/144 full-pairs; cases=50; equations=10
+          PASS identity/completion/notification/count/deletion/restart invariants
+
+7. & '<absolute-contract-dir>\test_contract.ps1' -Mutation broken-invariant -AllowMissingManifest
+   exit=1 expected
+   output=FAIL static download-state contract: 1 failure(s)
+          MUTATION: Worker SUCCESS was promoted to COMPLETED without done/media/manifest/DB facts
+
+Note: commands 6-7 were run after report.json creation, so count drift was also checked.
+
+8. git rev-parse HEAD; git branch --show-current; scoped git status/diff and source hashes
+   exit=0
+   start_head=287c37e1d1287e2a90c047e628f7272a13cc5970
+   observed_head_at_evidence_close=6f0f2f1a42cdb6092c4ed5cc1e3163d97880c55b
+   branch=codex/v2-integration
+   result=concurrent docs commit advanced HEAD; all seven referenced source hashes unchanged; G1-A2 untracked directory belongs to another task and was not touched
+
+9. RED before predicate fix: test_contract.ps1 -AllowMissingManifest
+   exit=1 expected
+   output=Deletion case DEL-PENDING-FILES state mismatch: expected DELETING, actual DELETED
+
+10. Post-fix diagnostic before manifest refresh
+    exit=1 because manifest was intentionally stale
+    deletion_or_count_failures=0
+
+11. test_contract.ps1 -Mutation broken-delete-predicate -AllowMissingManifest
+    exit=1 expected
+    pending_failures=10 (commit+state for 5 child classes)
+    result=files/sidecar/persistentState/offlineProjection/terminalNotification all incorrectly returned DELETED under mutation
+
+12. Final test_contract.ps1
+    exit=0
+    output=PASS static download-state contract: states=12; transitions=24 allowed/16 forbidden-examples/144 full-pairs; cases=55; equations=10
+
+13. Final test_contract.ps1 -Mutation broken-invariant
+    exit=1 expected
+    output=MUTATION: Worker SUCCESS was promoted to COMPLETED without done/media/manifest/DB facts
+
+14. Final test_contract.ps1 -Mutation broken-delete-predicate
+    exit=1 expected
+    output=10 failures across the five PENDING_CHILD cases; all actual states=DELETED

@@ -1,0 +1,1562 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "v2-download-state-contract/v1",
+  "baseline": {
+    "head": "287c37e1d1287e2a90c047e628f7272a13cc5970",
+    "headMeaning": "observed-at-task-start",
+    "observedHeadAtEvidenceClose": "6f0f2f1a42cdb6092c4ed5cc1e3163d97880c55b",
+    "branch": "codex/v2-integration",
+    "expectedClean": true,
+    "observedClean": false,
+    "preexistingDirty": [
+      "docs/DECISIONS.md",
+      "docs/TASKS.md",
+      "docs/V2_PLAN.md"
+    ]
+  },
+  "identity": {
+    "versionTag": "download:v1",
+    "components": [
+      "serverId",
+      "userId",
+      "itemId",
+      "mediaSourceId"
+    ],
+    "encoding": "utf8-base64url-per-component",
+    "unknownPolicy": "NO_MERGE",
+    "cases": [
+      {
+        "id": "ID-IDENTICAL",
+        "left": {
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemId": "item-42",
+          "mediaSourceId": "source-7"
+        },
+        "right": {
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemId": "item-42",
+          "mediaSourceId": "source-7"
+        },
+        "expected": "SAME_KEY"
+      },
+      {
+        "id": "ID-OTHER-SOURCE",
+        "left": {
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemId": "item-42",
+          "mediaSourceId": "source-7"
+        },
+        "right": {
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemId": "item-42",
+          "mediaSourceId": "source-8"
+        },
+        "expected": "DIFFERENT_KEY"
+      },
+      {
+        "id": "ID-OTHER-USER",
+        "left": {
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemId": "item-42",
+          "mediaSourceId": "source-7"
+        },
+        "right": {
+          "serverId": "server-a",
+          "userId": "user-b",
+          "itemId": "item-42",
+          "mediaSourceId": "source-7"
+        },
+        "expected": "DIFFERENT_KEY"
+      },
+      {
+        "id": "ID-MISSING-SOURCE",
+        "left": {
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemId": "item-42",
+          "mediaSourceId": null
+        },
+        "right": {
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemId": "item-42",
+          "mediaSourceId": null
+        },
+        "expected": "UNKNOWN_NO_MERGE"
+      },
+      {
+        "id": "ID-EMPTY-SERVER",
+        "left": {
+          "serverId": "",
+          "userId": "user-a",
+          "itemId": "item-42",
+          "mediaSourceId": "source-7"
+        },
+        "right": {
+          "serverId": "",
+          "userId": "user-a",
+          "itemId": "item-42",
+          "mediaSourceId": "source-7"
+        },
+        "expected": "UNKNOWN_NO_MERGE"
+      },
+      {
+        "id": "ID-UNICODE-ROUNDTRIP",
+        "left": {
+          "serverId": "服务器-甲",
+          "userId": "用户-乙",
+          "itemId": "条目/42|alpha",
+          "mediaSourceId": "源|7"
+        },
+        "right": {
+          "serverId": "服务器-甲",
+          "userId": "用户-乙",
+          "itemId": "条目/42|alpha",
+          "mediaSourceId": "源|7"
+        },
+        "expected": "SAME_KEY"
+      }
+    ]
+  },
+  "attemptFields": [
+    {
+      "name": "downloadKey",
+      "required": true,
+      "meaning": "D129 的四段 canonical identity，跨 DB、sidecar、通知、UI 与回执共用。"
+    },
+    {
+      "name": "generation",
+      "required": true,
+      "meaning": "每次重试、暂停后恢复、取消、删除、重新下载与新 claim 推进；旧代次一律失败关闭。"
+    },
+    {
+      "name": "sourceEpoch",
+      "required": true,
+      "meaning": "本次解析得到的 source/range validator 版本；source 改变不得沿用旧 done 证据。"
+    },
+    {
+      "name": "acceptedAt",
+      "required": true,
+      "meaning": "Worker claim 或持久队列受理时刻；没有受理锚点不得开始运行。"
+    },
+    {
+      "name": "doneAt",
+      "required": true,
+      "meaning": "传输完成事实的观测时刻；Worker SUCCESS 不等于 doneAt。"
+    },
+    {
+      "name": "deadlineAt",
+      "required": true,
+      "meaning": "当前阶段最长等待边界；超时只能失败关闭或新 generation，不能补写成功。"
+    },
+    {
+      "name": "leaseRevision",
+      "required": true,
+      "meaning": "运行租约版本；重启或 UI 重建只观察，不自行续租。"
+    },
+    {
+      "name": "deleteReceiptId",
+      "requiredWhen": "deleteRequested",
+      "meaning": "确定性删除回执键，携带 generation 与逐子项确认。"
+    },
+    {
+      "name": "notificationTag",
+      "required": true,
+      "meaning": "稳定通知 tag，建议使用 downloadKey；系统通知 ID 不再是业务身份。"
+    },
+    {
+      "name": "projectionEpoch",
+      "required": true,
+      "meaning": "页面、角标、离线库和通知共同读取的单调投影版本。"
+    }
+  ],
+  "states": [
+    {
+      "id": "RESOLVING",
+      "visible": "PENDING",
+      "terminal": false,
+      "activeCount": true
+    },
+    {
+      "id": "SOURCE_PENDING",
+      "visible": "PENDING",
+      "terminal": false,
+      "activeCount": true
+    },
+    {
+      "id": "PENDING",
+      "visible": "PENDING",
+      "terminal": false,
+      "activeCount": true
+    },
+    {
+      "id": "RUNNING",
+      "visible": "RUNNING",
+      "terminal": false,
+      "activeCount": true
+    },
+    {
+      "id": "PAUSED",
+      "visible": "PAUSED",
+      "terminal": false,
+      "activeCount": true
+    },
+    {
+      "id": "FINALIZING",
+      "visible": "RUNNING",
+      "terminal": false,
+      "activeCount": true
+    },
+    {
+      "id": "COMPLETED",
+      "visible": "COMPLETED",
+      "terminal": true,
+      "activeCount": false
+    },
+    {
+      "id": "FAILED",
+      "visible": "FAILED",
+      "terminal": true,
+      "activeCount": false
+    },
+    {
+      "id": "CANCELLED",
+      "visible": "HIDDEN",
+      "terminal": true,
+      "activeCount": false
+    },
+    {
+      "id": "DELETING",
+      "visible": "DELETING",
+      "terminal": false,
+      "activeCount": true
+    },
+    {
+      "id": "DELETING_FAILED",
+      "visible": "DELETING",
+      "terminal": false,
+      "activeCount": true
+    },
+    {
+      "id": "DELETED",
+      "visible": "HIDDEN",
+      "terminal": true,
+      "activeCount": false
+    }
+  ],
+  "equations": [
+    {
+      "id": "EQ-IDENTITY",
+      "expression": "same(downloadKey) iff version==v1 and serverId==userId==itemId==mediaSourceId are all non-empty and pairwise equal",
+      "unknownResult": "UNKNOWN_NO_MERGE"
+    },
+    {
+      "id": "EQ-ACCEPT",
+      "expression": "accepted iff persistent(row) and generationMatches and sourceMatches and acceptedAt>0",
+      "unknownResult": "NOT_ACCEPTED"
+    },
+    {
+      "id": "EQ-COMPLETE",
+      "expression": "COMPLETED iff accepted and doneEvidence(doneAt<=deadlineAt) and generationMatches and sourceMatches and mediaCommitted and manifestCommitted and persistentStateCommitted and fileReadable and observedBytesMatch",
+      "unknownResult": "NOT_COMPLETED"
+    },
+    {
+      "id": "EQ-FINALIZE",
+      "expression": "FINALIZING exposes RUNNING and may enter COMPLETED only after all mandatory artifacts and the persistent terminal state commit",
+      "unknownResult": "RUNNING"
+    },
+    {
+      "id": "EQ-TERMINAL-NOTICE",
+      "expression": "emit at most once per (downloadKey,generation,terminalKind) when current and not deleteRequested",
+      "unknownResult": "NO_NOTIFICATION"
+    },
+    {
+      "id": "EQ-ACTIVE-COUNT",
+      "expression": "pageQueueCount == drawerBadgeCount == activeNotificationCount == count(activeCount states in the same projectionEpoch)",
+      "unknownResult": "DIAGNOSTIC_ONLY"
+    },
+    {
+      "id": "EQ-OFFLINE-COUNT",
+      "expression": "offlineCount == count(COMPLETED and availability==AVAILABLE and deleteRequested==false)",
+      "unknownResult": "NO_OFFLINE_ITEM"
+    },
+    {
+      "id": "EQ-DELETE-COMMIT",
+      "expression": "deleteCommitted iff all {files,sidecar,persistentState,offlineProjection,terminalNotification} are CONFIRMED for the same deleteReceiptId",
+      "unknownResult": "DELETING_FAILED"
+    },
+    {
+      "id": "EQ-DELETE-PROJECTION",
+      "expression": "deleteRequested immediately removes COMPLETED visibility and terminal notification; DELETING remains in activeCount until all child receipts commit",
+      "unknownResult": "DELETING"
+    },
+    {
+      "id": "EQ-RESTART",
+      "expression": "restart maps RUNNING->PENDING only with stale lease, preserves FINALIZING/DELETING, and never invents COMPLETED from paths or Worker state",
+      "unknownResult": "RECONCILE_PENDING"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "TR-001",
+      "from": "RESOLVING",
+      "to": "SOURCE_PENDING",
+      "allowed": true,
+      "requires": [],
+      "negativeCase": "stale-generation",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-002",
+      "from": "RESOLVING",
+      "to": "PENDING",
+      "allowed": true,
+      "requires": [],
+      "negativeCase": "source-mismatch",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-003",
+      "from": "SOURCE_PENDING",
+      "to": "PENDING",
+      "allowed": true,
+      "requires": [],
+      "negativeCase": "stale-generation",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-004",
+      "from": "SOURCE_PENDING",
+      "to": "FAILED",
+      "allowed": true,
+      "requires": [
+        "requiredFailure"
+      ],
+      "negativeCase": "unclassified-failure",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-005",
+      "from": "PENDING",
+      "to": "RUNNING",
+      "allowed": true,
+      "requires": [
+        "accepted"
+      ],
+      "negativeCase": "missing-acceptance",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-006",
+      "from": "PENDING",
+      "to": "PAUSED",
+      "allowed": true,
+      "requires": [],
+      "negativeCase": "stale-generation",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-007",
+      "from": "PENDING",
+      "to": "CANCELLED",
+      "allowed": true,
+      "requires": [
+        "cancelIntent"
+      ],
+      "negativeCase": "missing-cancel-intent",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-008",
+      "from": "RUNNING",
+      "to": "PAUSED",
+      "allowed": true,
+      "requires": [],
+      "negativeCase": "stale-generation",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-009",
+      "from": "RUNNING",
+      "to": "FINALIZING",
+      "allowed": true,
+      "requires": [
+        "doneEvidence"
+      ],
+      "negativeCase": "worker-success-without-done",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-010",
+      "from": "RUNNING",
+      "to": "FAILED",
+      "allowed": true,
+      "requires": [
+        "requiredFailure"
+      ],
+      "negativeCase": "unclassified-failure",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-011",
+      "from": "RUNNING",
+      "to": "CANCELLED",
+      "allowed": true,
+      "requires": [
+        "cancelIntent"
+      ],
+      "negativeCase": "missing-cancel-intent",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-012",
+      "from": "PAUSED",
+      "to": "PENDING",
+      "allowed": true,
+      "requires": [],
+      "negativeCase": "stale-generation",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-013",
+      "from": "FAILED",
+      "to": "PENDING",
+      "allowed": true,
+      "requires": [
+        "explicitRetry"
+      ],
+      "negativeCase": "missing-retry-intent",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-014",
+      "from": "FINALIZING",
+      "to": "COMPLETED",
+      "allowed": true,
+      "requires": [
+        "completionFacts"
+      ],
+      "negativeCase": "missing-manifest",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-015",
+      "from": "FINALIZING",
+      "to": "FAILED",
+      "allowed": true,
+      "requires": [
+        "requiredFailure"
+      ],
+      "negativeCase": "optional-only-failure",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-016",
+      "from": "COMPLETED",
+      "to": "DELETING",
+      "allowed": true,
+      "requires": [
+        "explicitDelete"
+      ],
+      "negativeCase": "missing-delete-intent",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-017",
+      "from": "FAILED",
+      "to": "DELETING",
+      "allowed": true,
+      "requires": [
+        "explicitDelete"
+      ],
+      "negativeCase": "missing-delete-intent",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-018",
+      "from": "PENDING",
+      "to": "DELETING",
+      "allowed": true,
+      "requires": [
+        "explicitDelete"
+      ],
+      "negativeCase": "missing-delete-intent",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-019",
+      "from": "RUNNING",
+      "to": "DELETING",
+      "allowed": true,
+      "requires": [
+        "explicitDelete"
+      ],
+      "negativeCase": "missing-delete-intent",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-020",
+      "from": "PAUSED",
+      "to": "DELETING",
+      "allowed": true,
+      "requires": [
+        "explicitDelete"
+      ],
+      "negativeCase": "missing-delete-intent",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-021",
+      "from": "DELETING",
+      "to": "DELETED",
+      "allowed": true,
+      "requires": [
+        "receiptComplete"
+      ],
+      "negativeCase": "one-child-pending",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-022",
+      "from": "DELETING",
+      "to": "DELETING_FAILED",
+      "allowed": true,
+      "requires": [
+        "childFailed"
+      ],
+      "negativeCase": "all-children-confirmed",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-023",
+      "from": "DELETING_FAILED",
+      "to": "DELETING",
+      "allowed": true,
+      "requires": [
+        "explicitDeleteRetry"
+      ],
+      "negativeCase": "automatic-retry-without-intent",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-024",
+      "from": "DELETED",
+      "to": "PENDING",
+      "allowed": true,
+      "requires": [
+        "explicitRedownload",
+        "generationAdvanced"
+      ],
+      "negativeCase": "late-old-generation-event",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N01",
+      "from": "RUNNING",
+      "to": "COMPLETED",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "direct-running-to-completed",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N02",
+      "from": "PENDING",
+      "to": "FINALIZING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "no-transfer-done",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N03",
+      "from": "FINALIZING",
+      "to": "PENDING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "finalizer-backward",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N04",
+      "from": "COMPLETED",
+      "to": "RUNNING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "terminal-resurrection",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N05",
+      "from": "CANCELLED",
+      "to": "RUNNING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "cancelled-resurrection",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N06",
+      "from": "DELETING",
+      "to": "COMPLETED",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "late-completion-during-delete",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N07",
+      "from": "DELETING",
+      "to": "RUNNING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "delete-to-transfer",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N08",
+      "from": "DELETING",
+      "to": "PENDING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "delete-to-queue",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N09",
+      "from": "FAILED",
+      "to": "COMPLETED",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "failure-to-success",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N10",
+      "from": "PAUSED",
+      "to": "RUNNING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "resume-without-new-pending-generation",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N11",
+      "from": "SOURCE_PENDING",
+      "to": "RUNNING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "run-before-source-ready",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N12",
+      "from": "DELETED",
+      "to": "COMPLETED",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "deleted-resurrection",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N13",
+      "from": "RESOLVING",
+      "to": "COMPLETED",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "resolve-direct-success",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N14",
+      "from": "FINALIZING",
+      "to": "CANCELLED",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "cancel-after-transfer-done",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N15",
+      "from": "COMPLETED",
+      "to": "PENDING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "complete-to-queue",
+      "negativeExpected": "REJECT"
+    },
+    {
+      "id": "TR-N16",
+      "from": "DELETED",
+      "to": "RUNNING",
+      "allowed": false,
+      "requires": [],
+      "negativeCase": "old-worker-after-delete",
+      "negativeExpected": "REJECT"
+    }
+  ],
+  "completionCases": [
+    {
+      "id": "CMP-VALID",
+      "acceptedPersisted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "doneEvidence": true,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": true,
+      "manifestCommitted": true,
+      "persistentStateCommitted": true,
+      "fileReadable": true,
+      "observedBytesMatch": true,
+      "workerSuccess": true,
+      "optionalAssetsComplete": true,
+      "expectedComplete": true,
+      "expectedVisible": "COMPLETED",
+      "expectedOffline": true
+    },
+    {
+      "id": "CMP-WORKER-ONLY",
+      "acceptedPersisted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "doneEvidence": false,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": false,
+      "manifestCommitted": false,
+      "persistentStateCommitted": false,
+      "fileReadable": false,
+      "observedBytesMatch": false,
+      "workerSuccess": true,
+      "optionalAssetsComplete": false,
+      "expectedComplete": false,
+      "expectedVisible": "RUNNING",
+      "expectedOffline": false
+    },
+    {
+      "id": "CMP-MISSING-MANIFEST",
+      "acceptedPersisted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "doneEvidence": true,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": true,
+      "manifestCommitted": false,
+      "persistentStateCommitted": true,
+      "fileReadable": true,
+      "observedBytesMatch": true,
+      "workerSuccess": true,
+      "optionalAssetsComplete": true,
+      "expectedComplete": false,
+      "expectedVisible": "RUNNING",
+      "expectedOffline": false
+    },
+    {
+      "id": "CMP-MISSING-DB-COMMIT",
+      "acceptedPersisted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "doneEvidence": true,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": true,
+      "manifestCommitted": true,
+      "persistentStateCommitted": false,
+      "fileReadable": true,
+      "observedBytesMatch": true,
+      "workerSuccess": true,
+      "optionalAssetsComplete": true,
+      "expectedComplete": false,
+      "expectedVisible": "RUNNING",
+      "expectedOffline": false
+    },
+    {
+      "id": "CMP-OPTIONAL-GAP",
+      "acceptedPersisted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "doneEvidence": true,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": true,
+      "manifestCommitted": true,
+      "persistentStateCommitted": true,
+      "fileReadable": true,
+      "observedBytesMatch": true,
+      "workerSuccess": true,
+      "optionalAssetsComplete": false,
+      "expectedComplete": true,
+      "expectedVisible": "COMPLETED",
+      "expectedOffline": true
+    },
+    {
+      "id": "CMP-LENGTH-MISMATCH",
+      "acceptedPersisted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "doneEvidence": true,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": true,
+      "manifestCommitted": true,
+      "persistentStateCommitted": true,
+      "fileReadable": true,
+      "observedBytesMatch": false,
+      "workerSuccess": true,
+      "optionalAssetsComplete": true,
+      "expectedComplete": false,
+      "expectedVisible": "RUNNING",
+      "expectedOffline": false
+    },
+    {
+      "id": "CMP-STALE-GENERATION",
+      "acceptedPersisted": true,
+      "generationMatches": false,
+      "sourceMatches": true,
+      "doneEvidence": true,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": true,
+      "manifestCommitted": true,
+      "persistentStateCommitted": true,
+      "fileReadable": true,
+      "observedBytesMatch": true,
+      "workerSuccess": true,
+      "optionalAssetsComplete": true,
+      "expectedComplete": false,
+      "expectedVisible": "RUNNING",
+      "expectedOffline": false
+    },
+    {
+      "id": "CMP-SOURCE-MISMATCH",
+      "acceptedPersisted": true,
+      "generationMatches": true,
+      "sourceMatches": false,
+      "doneEvidence": true,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": true,
+      "manifestCommitted": true,
+      "persistentStateCommitted": true,
+      "fileReadable": true,
+      "observedBytesMatch": true,
+      "workerSuccess": true,
+      "optionalAssetsComplete": true,
+      "expectedComplete": false,
+      "expectedVisible": "RUNNING",
+      "expectedOffline": false
+    },
+    {
+      "id": "CMP-DEADLINE-MISSED",
+      "acceptedPersisted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "doneEvidence": true,
+      "doneBeforeDeadline": false,
+      "mediaCommitted": true,
+      "manifestCommitted": true,
+      "persistentStateCommitted": true,
+      "fileReadable": true,
+      "observedBytesMatch": true,
+      "workerSuccess": true,
+      "optionalAssetsComplete": true,
+      "expectedComplete": false,
+      "expectedVisible": "RUNNING",
+      "expectedOffline": false
+    },
+    {
+      "id": "CMP-UNREADABLE-FILE",
+      "acceptedPersisted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "doneEvidence": true,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": true,
+      "manifestCommitted": true,
+      "persistentStateCommitted": true,
+      "fileReadable": false,
+      "observedBytesMatch": true,
+      "workerSuccess": true,
+      "optionalAssetsComplete": true,
+      "expectedComplete": false,
+      "expectedVisible": "RUNNING",
+      "expectedOffline": false
+    },
+    {
+      "id": "CMP-NOT-ACCEPTED",
+      "acceptedPersisted": false,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "doneEvidence": true,
+      "doneBeforeDeadline": true,
+      "mediaCommitted": true,
+      "manifestCommitted": true,
+      "persistentStateCommitted": true,
+      "fileReadable": true,
+      "observedBytesMatch": true,
+      "workerSuccess": true,
+      "optionalAssetsComplete": true,
+      "expectedComplete": false,
+      "expectedVisible": "RUNNING",
+      "expectedOffline": false
+    }
+  ],
+  "notificationCases": [
+    {
+      "id": "NTF-COMPLETE-FIRST",
+      "terminalKind": "COMPLETED",
+      "alreadyEmitted": false,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "deleteRequested": false,
+      "expectedEmit": true,
+      "expectedPurge": false
+    },
+    {
+      "id": "NTF-COMPLETE-DUPLICATE",
+      "terminalKind": "COMPLETED",
+      "alreadyEmitted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "deleteRequested": false,
+      "expectedEmit": false,
+      "expectedPurge": false
+    },
+    {
+      "id": "NTF-COMPLETE-STALE",
+      "terminalKind": "COMPLETED",
+      "alreadyEmitted": false,
+      "generationMatches": false,
+      "sourceMatches": true,
+      "deleteRequested": false,
+      "expectedEmit": false,
+      "expectedPurge": false
+    },
+    {
+      "id": "NTF-FAILED-FIRST",
+      "terminalKind": "FAILED",
+      "alreadyEmitted": false,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "deleteRequested": false,
+      "expectedEmit": true,
+      "expectedPurge": false
+    },
+    {
+      "id": "NTF-DELETE-PURGES",
+      "terminalKind": "COMPLETED",
+      "alreadyEmitted": true,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "deleteRequested": true,
+      "expectedEmit": false,
+      "expectedPurge": true
+    },
+    {
+      "id": "NTF-CANCEL-NO-FAILURE",
+      "terminalKind": "NONE",
+      "alreadyEmitted": false,
+      "generationMatches": true,
+      "sourceMatches": true,
+      "deleteRequested": false,
+      "expectedEmit": false,
+      "expectedPurge": false
+    }
+  ],
+  "countCases": [
+    {
+      "id": "CNT-MIXED-PROJECTION",
+      "tasks": [
+        {
+          "key": "k1",
+          "state": "RESOLVING"
+        },
+        {
+          "key": "k2",
+          "state": "SOURCE_PENDING"
+        },
+        {
+          "key": "k3",
+          "state": "PENDING"
+        },
+        {
+          "key": "k4",
+          "state": "RUNNING"
+        },
+        {
+          "key": "k5",
+          "state": "PAUSED"
+        },
+        {
+          "key": "k6",
+          "state": "FINALIZING"
+        },
+        {
+          "key": "k7",
+          "state": "DELETING"
+        },
+        {
+          "key": "k8",
+          "state": "DELETING_FAILED"
+        },
+        {
+          "key": "k9",
+          "state": "COMPLETED",
+          "availability": "AVAILABLE",
+          "deleteRequested": false
+        },
+        {
+          "key": "k10",
+          "state": "FAILED"
+        },
+        {
+          "key": "k11",
+          "state": "CANCELLED"
+        },
+        {
+          "key": "k12",
+          "state": "DELETED"
+        }
+      ],
+      "expectedPageQueueCount": 8,
+      "expectedBadgeCount": 8,
+      "expectedActiveNotificationCount": 8,
+      "expectedOfflineCount": 1
+    }
+  ],
+  "deletionCases": [
+    {
+      "id": "DEL-ALL-CONFIRMED",
+      "children": {
+        "files": "CONFIRMED",
+        "sidecar": "CONFIRMED",
+        "persistentState": "CONFIRMED",
+        "offlineProjection": "CONFIRMED",
+        "terminalNotification": "CONFIRMED"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": true
+        },
+        {
+          "id": "child-b",
+          "committed": true
+        }
+      ],
+      "expectedCommitted": true,
+      "expectedState": "DELETED"
+    },
+    {
+      "id": "DEL-FILES-FAILED",
+      "children": {
+        "files": "FAILED",
+        "sidecar": "CONFIRMED",
+        "persistentState": "CONFIRMED",
+        "offlineProjection": "CONFIRMED",
+        "terminalNotification": "CONFIRMED"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": false
+        }
+      ],
+      "expectedCommitted": false,
+      "expectedState": "DELETING_FAILED"
+    },
+    {
+      "id": "DEL-NOTIFICATION-FAILED",
+      "children": {
+        "files": "CONFIRMED",
+        "sidecar": "CONFIRMED",
+        "persistentState": "CONFIRMED",
+        "offlineProjection": "CONFIRMED",
+        "terminalNotification": "FAILED"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": true
+        }
+      ],
+      "expectedCommitted": false,
+      "expectedState": "DELETING_FAILED"
+    },
+    {
+      "id": "DEL-MISSING-CHILD",
+      "children": {
+        "files": "CONFIRMED",
+        "sidecar": "CONFIRMED",
+        "persistentState": "CONFIRMED",
+        "offlineProjection": "CONFIRMED"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": false
+        }
+      ],
+      "expectedCommitted": false,
+      "expectedState": "DELETING_FAILED"
+    },
+    {
+      "id": "DEL-BATCH-PARTIAL",
+      "children": {
+        "files": "CONFIRMED",
+        "sidecar": "CONFIRMED",
+        "persistentState": "CONFIRMED",
+        "offlineProjection": "CONFIRMED",
+        "terminalNotification": "CONFIRMED"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": true
+        },
+        {
+          "id": "child-b",
+          "committed": false
+        }
+      ],
+      "expectedCommitted": false,
+      "expectedState": "DELETING"
+    },
+    {
+      "id": "DEL-PENDING-FILES",
+      "children": {
+        "files": "PENDING",
+        "sidecar": "CONFIRMED",
+        "persistentState": "CONFIRMED",
+        "offlineProjection": "CONFIRMED",
+        "terminalNotification": "CONFIRMED"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": true
+        }
+      ],
+      "expectedCommitted": false,
+      "expectedState": "DELETING"
+    },
+    {
+      "id": "DEL-PENDING-SIDECAR",
+      "children": {
+        "files": "CONFIRMED",
+        "sidecar": "PENDING",
+        "persistentState": "CONFIRMED",
+        "offlineProjection": "CONFIRMED",
+        "terminalNotification": "CONFIRMED"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": true
+        }
+      ],
+      "expectedCommitted": false,
+      "expectedState": "DELETING"
+    },
+    {
+      "id": "DEL-PENDING-PERSISTENT-STATE",
+      "children": {
+        "files": "CONFIRMED",
+        "sidecar": "CONFIRMED",
+        "persistentState": "PENDING",
+        "offlineProjection": "CONFIRMED",
+        "terminalNotification": "CONFIRMED"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": true
+        }
+      ],
+      "expectedCommitted": false,
+      "expectedState": "DELETING"
+    },
+    {
+      "id": "DEL-PENDING-OFFLINE-PROJECTION",
+      "children": {
+        "files": "CONFIRMED",
+        "sidecar": "CONFIRMED",
+        "persistentState": "CONFIRMED",
+        "offlineProjection": "PENDING",
+        "terminalNotification": "CONFIRMED"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": true
+        }
+      ],
+      "expectedCommitted": false,
+      "expectedState": "DELETING"
+    },
+    {
+      "id": "DEL-PENDING-TERMINAL-NOTIFICATION",
+      "children": {
+        "files": "CONFIRMED",
+        "sidecar": "CONFIRMED",
+        "persistentState": "CONFIRMED",
+        "offlineProjection": "CONFIRMED",
+        "terminalNotification": "PENDING"
+      },
+      "batchChildren": [
+        {
+          "id": "child-a",
+          "committed": true
+        }
+      ],
+      "expectedCommitted": false,
+      "expectedState": "DELETING"
+    }
+  ],
+  "restartCases": [
+    {
+      "id": "RST-RUNNING-STALE",
+      "persistedState": "RUNNING",
+      "leaseCurrent": false,
+      "completionFacts": false,
+      "expectedState": "PENDING"
+    },
+    {
+      "id": "RST-PENDING",
+      "persistedState": "PENDING",
+      "leaseCurrent": false,
+      "completionFacts": false,
+      "expectedState": "PENDING"
+    },
+    {
+      "id": "RST-FINALIZING",
+      "persistedState": "FINALIZING",
+      "leaseCurrent": false,
+      "completionFacts": false,
+      "expectedState": "FINALIZING"
+    },
+    {
+      "id": "RST-DELETING",
+      "persistedState": "DELETING",
+      "leaseCurrent": false,
+      "completionFacts": false,
+      "expectedState": "DELETING"
+    },
+    {
+      "id": "RST-DELETING-FAILED",
+      "persistedState": "DELETING_FAILED",
+      "leaseCurrent": false,
+      "completionFacts": false,
+      "expectedState": "DELETING_FAILED"
+    },
+    {
+      "id": "RST-COMPLETED-VERIFIED",
+      "persistedState": "COMPLETED",
+      "leaseCurrent": false,
+      "completionFacts": true,
+      "expectedState": "COMPLETED"
+    },
+    {
+      "id": "RST-COMPLETED-UNVERIFIED",
+      "persistedState": "COMPLETED",
+      "leaseCurrent": false,
+      "completionFacts": false,
+      "expectedState": "FAILED"
+    },
+    {
+      "id": "RST-CANCELLED",
+      "persistedState": "CANCELLED",
+      "leaseCurrent": false,
+      "completionFacts": false,
+      "expectedState": "CANCELLED"
+    }
+  ],
+  "commitments": [
+    {
+      "id": "UC-01",
+      "promise": "确认后创建可重启恢复的持久下载叶子任务",
+      "entry": "详情 / 层级页下载入口",
+      "action": "前置检查后确认下载",
+      "observable": "进程重建后仍能看到同一任务与当前来源",
+      "evidence": [
+        "ID-IDENTICAL",
+        "TR-002",
+        "TR-005",
+        "RST-PENDING"
+      ],
+      "runtimeUncovered": "真实 Room + Worker 事务、进程被杀后扫描",
+      "requirements": [
+        "DOWNLOAD-012",
+        "DOWNLOAD-013",
+        "DOWNLOAD-021"
+      ]
+    },
+    {
+      "id": "UC-02",
+      "promise": "运行中只显示真实写入字节与同源进度",
+      "entry": "下载页 / 抽屉角标 / 活动通知",
+      "action": "下载运行",
+      "observable": "页面、角标、通知读取同一 projectionEpoch 与 activeCount",
+      "evidence": [
+        "CMP-STALE-GENERATION",
+        "CMP-SOURCE-MISMATCH",
+        "CNT-MIXED-PROJECTION"
+      ],
+      "runtimeUncovered": "真实 500ms UI 刷新、系统通知渲染与多个 UI 消费者",
+      "requirements": [
+        "DOWNLOAD-003",
+        "DOWNLOAD-021",
+        "DOWNLOAD-034",
+        "DOWNLOAD-037"
+      ]
+    },
+    {
+      "id": "UC-03",
+      "promise": "暂停保留残片，恢复必须使用新代次",
+      "entry": "条目 / 下载中心 / 通知动作",
+      "action": "暂停后恢复",
+      "observable": "残片与偏移保留；旧代次 callback 不能覆盖恢复后的状态",
+      "evidence": [
+        "TR-006",
+        "TR-008",
+        "TR-012",
+        "TR-N10"
+      ],
+      "runtimeUncovered": "真实 Range、存储卷离线、Service 重调度",
+      "requirements": [
+        "DOWNLOAD-024",
+        "DOWNLOAD-025",
+        "DOWNLOAD-027",
+        "DOWNLOAD-043"
+      ]
+    },
+    {
+      "id": "UC-04",
+      "promise": "Worker SUCCESS 不发布假 COMPLETED",
+      "entry": "Worker 调度与传输 finalizer",
+      "action": "Worker 返回 success",
+      "observable": "没有 doneAt 与全部持久完成事实时保持 RUNNING；离线库与成功通知不出现",
+      "evidence": [
+        "CMP-WORKER-ONLY",
+        "CMP-MISSING-DB-COMMIT",
+        "TR-N01"
+      ],
+      "runtimeUncovered": "真实 WorkManager Result、进程在 rename/DB 之间死亡",
+      "requirements": [
+        "DOWNLOAD-030",
+        "DOWNLOAD-031",
+        "DOWNLOAD-065"
+      ]
+    },
+    {
+      "id": "UC-05",
+      "promise": "Trickplay 等可选增强失败不阻塞主媒体完成",
+      "entry": "finalizer / 附属内容状态",
+      "action": "主媒体必需项成功，Trickplay 失败",
+      "observable": "主媒体 COMPLETED，同时显示“附属内容不完整”与单项重试",
+      "evidence": [
+        "CMP-OPTIONAL-GAP",
+        "TR-015"
+      ],
+      "runtimeUncovered": "真实 Trickplay/字幕/图片端点与独立重试",
+      "requirements": [
+        "DOWNLOAD-011",
+        "DOWNLOAD-032"
+      ]
+    },
+    {
+      "id": "UC-06",
+      "promise": "只有文件、必需清单、原子提交和持久状态全部成立才进入离线库",
+      "entry": "下载中心 / 离线库 / 在线媒体库角标",
+      "action": "完成任务",
+      "observable": "COMPLETED、离线库与本地可用角标同步出现",
+      "evidence": [
+        "CMP-VALID",
+        "CMP-MISSING-MANIFEST",
+        "CMP-LENGTH-MISMATCH",
+        "CMP-UNREADABLE-FILE"
+      ],
+      "runtimeUncovered": "真实 sidecar、Room+WAL、文件可读性与本地打开",
+      "requirements": [
+        "DOWNLOAD-031",
+        "DOWNLOAD-033",
+        "DOWNLOAD-040",
+        "DOWNLOAD-058"
+      ]
+    },
+    {
+      "id": "UC-07",
+      "promise": "失败有明确终态、重试新代次且旧回调不能复活",
+      "entry": "条目 / 下载中心",
+      "action": "可重试错误耗尽或用户重试",
+      "observable": "先显示 FAILED，再以新 generation 进入 PENDING；旧代次事件拒绝",
+      "evidence": [
+        "TR-010",
+        "TR-013",
+        "TR-N09",
+        "CMP-STALE-GENERATION"
+      ],
+      "runtimeUncovered": "真实网络错误、退避、WorkInfo 与系统调度",
+      "requirements": [
+        "DOWNLOAD-026",
+        "DOWNLOAD-027",
+        "DOWNLOAD-041"
+      ]
+    },
+    {
+      "id": "UC-08",
+      "promise": "取消不归入失败，并清理残片与迟到回调",
+      "entry": "条目 / 下载中心 / 通知动作",
+      "action": "取消下载",
+      "observable": "任务离开活动列表，仅保留内部 CANCELLED receipt，不出现失败通知",
+      "evidence": [
+        "TR-007",
+        "TR-011",
+        "TR-N14",
+        "NTF-CANCEL-NO-FAILURE"
+      ],
+      "runtimeUncovered": "真实停止 I/O、残片删除、系统通知取消",
+      "requirements": [
+        "DOWNLOAD-023",
+        "DOWNLOAD-060"
+      ]
+    },
+    {
+      "id": "UC-09",
+      "promise": "删除过程可见且任一清理子项失败都能重试",
+      "entry": "完成项 / 下载中心删除动作",
+      "action": "确认删除",
+      "observable": "删除意图立即隐藏完成投影；任一派生状态失败显示 DELETING/FAILED 并保留重试",
+      "evidence": [
+        "DEL-FILES-FAILED",
+        "DEL-NOTIFICATION-FAILED",
+        "DEL-MISSING-CHILD",
+        "TR-022",
+        "TR-023"
+      ],
+      "runtimeUncovered": "真实文件删除失败、sidecar/Room 故障注入与通知 purge",
+      "requirements": [
+        "DOWNLOAD-061",
+        "DOWNLOAD-065"
+      ]
+    },
+    {
+      "id": "UC-10",
+      "promise": "删除提交必须证明文件、清单、持久状态、离线投影和通知均已清理",
+      "entry": "删除 finalizer / 重启恢复",
+      "action": "进程在删除中途死亡后恢复",
+      "observable": "仅所有 child receipt 为 CONFIRMED 才进入 DELETED；否则保持可重试删除态",
+      "evidence": [
+        "DEL-ALL-CONFIRMED",
+        "DEL-BATCH-PARTIAL",
+        "TR-021",
+        "RST-DELETING"
+      ],
+      "runtimeUncovered": "真实主库+WAL、sidecar、文件系统、NotificationManager 跨存储重放",
+      "requirements": [
+        "DOWNLOAD-061",
+        "DOWNLOAD-065"
+      ]
+    },
+    {
+      "id": "UC-11",
+      "promise": "完成/失败通知按稳定任务键精确一次，点击回到正确目标",
+      "entry": "系统通知",
+      "action": "同一终态重复回调或旧代次迟到",
+      "observable": "仅当前代次首次投递；重复与旧代次不增加通知",
+      "evidence": [
+        "NTF-COMPLETE-FIRST",
+        "NTF-COMPLETE-DUPLICATE",
+        "NTF-COMPLETE-STALE",
+        "NTF-FAILED-FIRST"
+      ],
+      "runtimeUncovered": "真实 NotificationManager、PendingIntent 路由与权限状态",
+      "requirements": [
+        "DOWNLOAD-037",
+        "DOWNLOAD-038"
+      ]
+    },
+    {
+      "id": "UC-12",
+      "promise": "页面、角标、活动通知共享同一活动计数",
+      "entry": "下载页 / 侧栏 / 通知",
+      "action": "混合存在等待、运行、暂停、收尾和删除任务",
+      "observable": "三处 activeCount 相等；删除完成通知不计入活动数",
+      "evidence": [
+        "CNT-MIXED-PROJECTION",
+        "EQ-ACTIVE-COUNT"
+      ],
+      "runtimeUncovered": "真实 UI 同时订阅、通知聚合和系统角标渲染",
+      "requirements": [
+        "DOWNLOAD-037",
+        "DOWNLOAD-058"
+      ]
+    },
+    {
+      "id": "UC-13",
+      "promise": "删除后完成通知、离线库与完成角标同步清除",
+      "entry": "完成项删除 / 系统通知",
+      "action": "确认删除已完成项",
+      "observable": "删除意图即 purge 旧完成通知并移出离线投影；最终提交后没有任何旧状态残留",
+      "evidence": [
+        "NTF-DELETE-PURGES",
+        "DEL-ALL-CONFIRMED",
+        "DEL-NOTIFICATION-FAILED",
+        "TR-016",
+        "TR-N06"
+      ],
+      "runtimeUncovered": "真实系统通知残留、force-stop、主库+WAL 与离线角标",
+      "requirements": [
+        "DOWNLOAD-038",
+        "DOWNLOAD-058",
+        "DOWNLOAD-061",
+        "DOWNLOAD-065"
+      ]
+    }
+  ],
+  "capabilityGaps": [
+    {
+      "id": "GAP-IDENTITY",
+      "current": "DownloadTask 仅保留部分 serverId/userId；书籍 sidecar 仍允许 mediaSourceId 缺失",
+      "required": "四段 versioned canonical identity 全量非空；缺段为 UNKNOWN_NO_MERGE",
+      "impact": "P2"
+    },
+    {
+      "id": "GAP-CAUSAL-FIELDS",
+      "current": "现有模型有 taskGeneration/updatedAt/nextRetryAt，但无通用 acceptedAt/doneAt/finalizeDeadlineAt",
+      "required": "持久化 attempt 因果字段并参与 CAS",
+      "impact": "P2"
+    },
+    {
+      "id": "GAP-CANCEL",
+      "current": "DownloadLifecycle.beginCancellation 将状态写成 FAILED",
+      "required": "内部 CANCELLED receipt，不得归入 FAILED 或发失败通知",
+      "impact": "P2"
+    },
+    {
+      "id": "GAP-NOTIFICATION",
+      "current": "通知以 sourceId hash 和固定前台 ID 标识，完成点击回 HOME，无 canonical purge API",
+      "required": "notificationTag=downloadKey，携带 generation，精确一次投递与可证明 purge",
+      "impact": "P2"
+    },
+    {
+      "id": "GAP-FINALIZER-SEVERITY",
+      "current": "DownloadPostCommitEffect 下所有后置子项失败被同一 Incomplete 集合表达",
+      "required": "必需与可选增强分级；可选失败不阻塞 COMPLETED",
+      "impact": "P2"
+    },
+    {
+      "id": "GAP-PROJECTION",
+      "current": "页面、角标、通知与离线项的计数由不同调用点组合，缺少同一 projectionEpoch 的静态证明",
+      "required": "所有消费者读取同一活动键集合与离线键集合",
+      "impact": "P2"
+    }
+  ],
+  "fakeBoundaries": [
+    "静态 fixture 不能证明 Android NotificationManager 实际投递、权限或 PendingIntent 路由。",
+    "Worker SUCCESS 或 fake Worker 结果不能证明媒体字节、文件可读性或持久状态完成。",
+    "内存 transition fixture 不能证明 Room、sidecar、文件系统与主库 WAL 的真实事务映射。",
+    "模拟删除 ledger 不能证明文件系统删除、系统通知 purge 或 force-stop 后不复活。",
+    "路径存在或目录扫描不能替身媒体打开 / 播放 / 阅读。",
+    "静态计数测试不能证明 Compose 页面、抽屉角标和系统通知在同一真实时刻渲染相同值。"
+  ]
+}

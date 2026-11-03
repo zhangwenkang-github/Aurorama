@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "1.0.0",
+  "claimId": "V2-REQ-BASE-002",
+  "evidenceClass": "STATIC_CONTRACT_ONLY",
+  "rows": [
+    {
+      "id": "UPD-01",
+      "userPromise": "Check discovers a new stable version without false positives and clearly reports up to date.",
+      "entry": "Settings > Update and About",
+      "action": "Check for updates",
+      "observableResult": "A newer stable version is offered; equal or older remote version shows up to date; draft/prerelease/unknown channel never offered.",
+      "authorityAndOrder": ["C01", "C02", "C03", "C04"],
+      "failureVisible": ["UNTRUSTED_SOURCE", "UNTRUSTED_REDIRECT", "UNSUPPORTED_CHANNEL"],
+      "fixtureEvidence": ["valid_arm64_update", "up_to_date", "prerelease_rejected", "untrusted_source", "untrusted_redirect"],
+      "propertyEvidence": ["PROP-SOURCE-FIRST", "PROP-PRERELEASE-REJECTED"],
+      "uncovered": ["Live GitHub response and real TLS/redirect chain"]
+    },
+    {
+      "id": "UPD-02",
+      "userPromise": "The update chooser selects an ABI-compatible APK for this device.",
+      "entry": "Settings > Update and About",
+      "action": "Available update is selected",
+      "observableResult": "arm64 device prefers arm64 and may fall back to universal; unsupported/mismatched native payload is rejected before installer handoff.",
+      "authorityAndOrder": ["C05", "C06", "C07", "C17"],
+      "failureVisible": ["ABI_ASSET_AMBIGUOUS", "NO_COMPATIBLE_ABI", "UNTRUSTED_ASSET_URL", "ABI_PAYLOAD_INCOMPATIBLE"],
+      "fixtureEvidence": ["valid_arm64_update", "valid_universal_fallback", "wrong_abi", "wrong_abi_payload"],
+      "propertyEvidence": ["PROP-ABI-SINGLETON"],
+      "uncovered": ["Real APK native inventory on production artifacts", "Real device install ABI acceptance"]
+    },
+    {
+      "id": "UPD-03",
+      "userPromise": "Downloads expose progress, cancellation, resume or a clear restart path without misreporting completion.",
+      "entry": "Settings > Update and About",
+      "action": "Download, cancel, resume or retry",
+      "observableResult": "In-progress and cancelled states are visible; interrupted transfers resume only with stable source validators or restart from zero; byte completion is labeled unverified.",
+      "authorityAndOrder": ["C08", "C10"],
+      "failureVisible": ["SIZE_UNKNOWN", "SIZE_MISMATCH", "SOURCE_CHANGED", "DOWNLOAD_FAILED", "USER_CANCELLED"],
+      "fixtureEvidence": ["download_completed", "truncated_download", "user_cancel_download", "range_source_changed", "network_failure"],
+      "propertyEvidence": ["PROP-DOWNLOAD-NOT-CONFIRMED"],
+      "uncovered": ["Process death, device reboot, DNS loss and storage-full runtime injection"]
+    },
+    {
+      "id": "UPD-04",
+      "userPromise": "Corrupt, truncated, wrong-source, wrong-package, downgrade or wrong-signer APKs are rejected.",
+      "entry": "Settings > Update and About",
+      "action": "Complete download and verification",
+      "observableResult": "Only a unique trusted asset with matching size, SHA-256, package, versionCode, versionName, minSdk and signer set reaches VERIFIED.",
+      "authorityAndOrder": ["C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14", "C15", "C16", "C17", "C18"],
+      "failureVisible": ["UNTRUSTED_ASSET_URL", "SIZE_MISMATCH", "DIGEST_MISSING_OR_MALFORMED", "HASH_MISMATCH", "APK_UNREADABLE", "PACKAGE_MISMATCH", "VERSION_CODE_NOT_INCREMENTED", "VERSION_TAG_MISMATCH", "MIN_SDK_UNSUPPORTED", "ABI_PAYLOAD_INCOMPATIBLE", "SIGNER_SET_MISMATCH_OR_MISSING"],
+      "fixtureEvidence": ["valid_arm64_update", "hash_mismatch", "digest_missing", "wrong_package", "downgrade", "version_tag_mismatch", "wrong_signer", "min_sdk_unsupported"],
+      "propertyEvidence": ["PROP-VERIFIED-ONLY-ALL-GATES", "PROP-EACH-GATE-BLOCKS"],
+      "uncovered": ["Real APK signer rotation", "Real certificate lineage"]
+    },
+    {
+      "id": "UPD-05",
+      "userPromise": "Download success is never shown as installation success.",
+      "entry": "Settings > Update and About",
+      "action": "Download finishes",
+      "observableResult": "UI says download complete, waiting for verification; it never says installed or opens installer automatically.",
+      "authorityAndOrder": ["C10", "C11", "C19"],
+      "failureVisible": ["INSTALL_AUTHORIZATION_REQUIRED"],
+      "fixtureEvidence": ["download_completed", "launch_without_authorization"],
+      "propertyEvidence": ["PROP-DOWNLOAD-NOT-CONFIRMED", "PROP-INSTALL-AUTH-REQUIRED"],
+      "uncovered": ["Compose runtime text rendering"]
+    },
+    {
+      "id": "UPD-06",
+      "userPromise": "The verified package is handed only to the Android system installer after explicit confirmation.",
+      "entry": "Settings > Update and About",
+      "action": "Open system installer",
+      "observableResult": "Exactly one trusted system installer receives the correctly scoped FileProvider URI; missing, ambiguous or permission-denied handlers fail visibly.",
+      "authorityAndOrder": ["C19", "C20", "C21"],
+      "failureVisible": ["INSTALLER_UNAVAILABLE_OR_UNTRUSTED", "INSTALLER_URI_INVALID"],
+      "fixtureEvidence": ["installer_absent", "installer_permission_denied", "installer_ambiguous", "installer_uri_invalid", "handoff_started"],
+      "propertyEvidence": ["PROP-INSTALLER-UNIQUE-TRUSTED"],
+      "uncovered": ["Real OEM Package Installer UI", "Unknown sources/system settings prompt"]
+    },
+    {
+      "id": "UPD-07",
+      "userPromise": "Installed success is shown only after external confirmation; otherwise the result is explicit UNKNOWN.",
+      "entry": "System installer return or app restart",
+      "action": "Read PackageManager state",
+      "observableResult": "Exact packageName, longVersionCode, versionName and signer set produce INSTALL_CONFIRMED; launch alone, generic version increase or missing readback produce INSTALL_UNKNOWN.",
+      "authorityAndOrder": ["C22", "C23"],
+      "failureVisible": ["INSTALL_CONFIRMATION_UNAVAILABLE_OR_MISMATCH", "INSTALL_RESULT_UNKNOWN"],
+      "fixtureEvidence": ["install_confirmed_exact", "installer_launched_without_result", "installer_return_mismatch", "restart_handoff_unknown"],
+      "propertyEvidence": ["PROP-HANDOFF-NOT-CONFIRMED", "PROP-CONFIRM-EXACT"],
+      "uncovered": ["Actual report-return behavior across OEM installers"]
+    },
+    {
+      "id": "UPD-08",
+      "userPromise": "Cancel and installer absence/permission denial have clear, non-success outcomes.",
+      "entry": "Download or system installer flow",
+      "action": "Cancel download/install or encounter unavailable installer",
+      "observableResult": "Cancel maps to CANCELLED only with explicit evidence; installer absence/permission denial maps to a user-visible FAILED reason.",
+      "authorityAndOrder": ["C19", "C20", "C23"],
+      "failureVisible": ["USER_CANCELLED", "INSTALLER_UNAVAILABLE_OR_UNTRUSTED"],
+      "fixtureEvidence": ["user_cancel_download", "user_cancel_install", "installer_absent", "installer_permission_denied"],
+      "propertyEvidence": ["PROP-CANCEL-EXPLICIT"],
+      "uncovered": ["OEM user-cancel status availability"]
+    },
+    {
+      "id": "UPD-09",
+      "userPromise": "Restart after an interrupted verifier/installer flow does not create a false success.",
+      "entry": "App relaunch after download or installer handoff",
+      "action": "Resume or reconcile persisted update state",
+      "observableResult": "Unverified files are rehashed; stale authorization is dropped; post-handoff process restart without exact readback becomes INSTALL_UNKNOWN.",
+      "authorityAndOrder": ["C10", "C11", "C18", "C19", "C22", "C23"],
+      "failureVisible": ["HASH_MISMATCH", "SOURCE_CHANGED", "INSTALL_AUTHORIZATION_REQUIRED", "INSTALL_UNKNOWN"],
+      "fixtureEvidence": ["restart_downloading_resume_valid", "restart_downloading_source_changed", "restart_unverified_corrupt", "restart_verified_file_changed", "restart_authorized_reauth_required", "restart_handoff_unknown"],
+      "propertyEvidence": ["PROP-RESTART-REVERIFY", "PROP-HANDOFF-NOT-CONFIRMED"],
+      "uncovered": ["Actual process-death and full-device reboot execution"]
+    },
+    {
+      "id": "UPD-10",
+      "userPromise": "An update failure does not damage or uninstall the existing app, and Jellyfin server updates are not used.",
+      "entry": "Any update failure path",
+      "action": "Reject candidate or exit installer flow",
+      "observableResult": "Pre-handoff failures leave the installed app intact; no Jellyfin update-write endpoint is called; retry/re-download entry remains visible.",
+      "authorityAndOrder": ["C01", "C18", "C19"],
+      "failureVisible": ["UNTRUSTED_SOURCE", "SIGNER_SET_MISMATCH_OR_MISSING", "INSTALLER_UNAVAILABLE_OR_UNTRUSTED"],
+      "fixtureEvidence": ["untrusted_source", "wrong_signer", "installer_absent"],
+      "propertyEvidence": ["PROP-NO-SERVER-UPDATE", "PROP-PRE-HANDOFF-NO-INSTALL"],
+      "uncovered": ["Installed app data integrity after successful Android update", "Real candidate upgrade"]
+    }
+  ]
+}

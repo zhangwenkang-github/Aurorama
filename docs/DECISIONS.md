@@ -229,6 +229,18 @@ revision / 16 KB / Range 及 runtime / device 仍待证据；
 v1.0，G1 未通过。唯一 ACTIVE 保持 Q04；新增静态工作须前沿审计与明确授权。
 `V2-D200` 只固定体验优先与包体非要求。代理建议不得代替用户拍板。
 
+**G1-A1/A2 静态合同输入（2026-11-04，非新决策）**：
+`G1-A1-DOWNLOAD-STATE-CONTRACT` 为 11 文件 / 103,924 B，manifest
+`B45CF884E8950B7E02F851D07E32465FF6F4FB7097A8454407C709B3BEFE5AE2`；冻结 12 状态 /
+24 allowed / 16 forbidden / 144 pairs / 55 fixtures / 10 equations，6 个 P2
+capability / runtime gaps 保持 Open。`G1-A2-UPDATE-TRUST-CONTRACT` 为 10 文件 / 88,530 B，
+manifest 覆盖 9 文件 / 86,351 B，
+`763820A9EF670EB58F7FD0B1D7880C961A8C4F850873BC09565318933EF08837`；冻结 10 状态 /
+17 transitions / 23 checks / 46 fixtures / 348 properties / 10 promise rows，严格分离
+download / installer handoff / unknown / confirmed，并保留 `GAP-INSTALL-CONFIRM`、
+`GAP-ABI-PAYLOAD` 两个 P1 G2 implementation gaps。两份均独立 reviewer PASS；只登记静态
+输入和缺口，不新增用户问题 / 决策，不把任一合同写成实现、runtime / device 或 G1 PASS。
+
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |

@@ -1,0 +1,196 @@
+{
+  "schemaVersion": "1.0.0",
+  "machineId": "G1-A2-UPDATE-STATE-MACHINE",
+  "initialState": "DISCOVERED",
+  "states": [
+    {
+      "id": "DISCOVERED",
+      "kind": "initial",
+      "meaning": "A trusted stable release candidate was discovered, but download has not started."
+    },
+    {
+      "id": "DOWNLOADING",
+      "kind": "active",
+      "meaning": "Bytes are being fetched; progress is not verification and not installation."
+    },
+    {
+      "id": "DOWNLOADED_UNVERIFIED",
+      "kind": "checkpoint",
+      "meaning": "The byte count matched the trusted expected size, but no APK trust claim is allowed yet."
+    },
+    {
+      "id": "VERIFIED",
+      "kind": "checkpoint",
+      "meaning": "All source, ABI, size, SHA-256, package, version, SDK and signer checks passed."
+    },
+    {
+      "id": "INSTALL_AUTHORIZED",
+      "kind": "transient",
+      "meaning": "The user explicitly authorized handoff for this exact verified candidate in this process."
+    },
+    {
+      "id": "INSTALLER_HANDOFF",
+      "kind": "awaiting_external",
+      "meaning": "The verified file was handed to the trusted system installer; installation is not confirmed."
+    },
+    {
+      "id": "INSTALL_CONFIRMED",
+      "kind": "terminal_success",
+      "meaning": "External PackageManager readback exactly matches target package, versionCode, versionName and signer set."
+    },
+    {
+      "id": "INSTALL_UNKNOWN",
+      "kind": "terminal_unknown",
+      "meaning": "Installer returned or process restarted without enough external evidence to confirm or classify the install."
+    },
+    {
+      "id": "FAILED",
+      "kind": "terminal_failure",
+      "meaning": "A specified trust, transfer or installer failure occurred with a user-visible reason."
+    },
+    {
+      "id": "CANCELLED",
+      "kind": "terminal_cancelled",
+      "meaning": "The user explicitly cancelled the download/install or the installer reported user cancellation."
+    }
+  ],
+  "transitions": [
+    {
+      "from": "DISCOVERED",
+      "event": "DOWNLOAD_STARTED",
+      "to": "DOWNLOADING",
+      "guard": "C01-C09 passed and a unique ABI-compatible asset was selected"
+    },
+    {
+      "from": "DISCOVERED",
+      "event": "NOT_NEWER",
+      "to": "DISCOVERED",
+      "guard": "Remote stable version is not newer; expose up-to-date state"
+    },
+    {
+      "from": "DOWNLOADING",
+      "event": "EXPECTED_BYTES_COMPLETE",
+      "to": "DOWNLOADED_UNVERIFIED",
+      "guard": "Transfer is complete and actual byte count equals trusted expected size"
+    },
+    {
+      "from": "DOWNLOADING",
+      "event": "USER_CANCEL",
+      "to": "CANCELLED",
+      "guard": "Explicit user cancellation"
+    },
+    {
+      "from": "DOWNLOADING",
+      "event": "TRANSFER_OR_SOURCE_FAILURE",
+      "to": "FAILED",
+      "guard": "Network, range, source identity, storage or completeness failure"
+    },
+    {
+      "from": "DOWNLOADED_UNVERIFIED",
+      "event": "ALL_TRUST_CHECKS_PASS",
+      "to": "VERIFIED",
+      "guard": "C02, C07, C09 and C11-C18 pass in order"
+    },
+    {
+      "from": "DOWNLOADED_UNVERIFIED",
+      "event": "TRUST_CHECK_FAILURE",
+      "to": "FAILED",
+      "guard": "Any integrity, package, version, ABI payload or signer check fails"
+    },
+    {
+      "from": "DOWNLOADED_UNVERIFIED",
+      "event": "USER_CANCEL",
+      "to": "CANCELLED",
+      "guard": "Explicit user cancellation"
+    },
+    {
+      "from": "VERIFIED",
+      "event": "USER_AUTHORIZED_INSTALL",
+      "to": "INSTALL_AUTHORIZED",
+      "guard": "Fresh explicit action for this exact verified candidate"
+    },
+    {
+      "from": "VERIFIED",
+      "event": "USER_CANCEL_OR_DISMISS",
+      "to": "CANCELLED",
+      "guard": "Explicit user cancel before handoff"
+    },
+    {
+      "from": "INSTALL_AUTHORIZED",
+      "event": "TRUSTED_INSTALLER_LAUNCHED",
+      "to": "INSTALLER_HANDOFF",
+      "guard": "Exactly one trusted system installer and valid provider URI"
+    },
+    {
+      "from": "INSTALL_AUTHORIZED",
+      "event": "INSTALLER_UNAVAILABLE_OR_URI_INVALID",
+      "to": "FAILED",
+      "guard": "C20 or C21 fails"
+    },
+    {
+      "from": "INSTALL_AUTHORIZED",
+      "event": "USER_CANCEL",
+      "to": "CANCELLED",
+      "guard": "Explicit cancellation before system handoff"
+    },
+    {
+      "from": "INSTALLER_HANDOFF",
+      "event": "EXACT_EXTERNAL_READBACK",
+      "to": "INSTALL_CONFIRMED",
+      "guard": "packageName, longVersionCode, versionName and signer set exactly match target"
+    },
+    {
+      "from": "INSTALLER_HANDOFF",
+      "event": "EXTERNAL_STATUS_USER_CANCELLED",
+      "to": "CANCELLED",
+      "guard": "System installer explicitly reports user cancellation"
+    },
+    {
+      "from": "INSTALLER_HANDOFF",
+      "event": "EXTERNAL_STATUS_FAILED",
+      "to": "FAILED",
+      "guard": "System installer explicitly reports failure"
+    },
+    {
+      "from": "INSTALLER_HANDOFF",
+      "event": "NO_READBACK_OR_STATUS",
+      "to": "INSTALL_UNKNOWN",
+      "guard": "Return/restart lacks exact external evidence"
+    }
+  ],
+  "restartPolicy": [
+    {
+      "atState": "DOWNLOADING",
+      "action": "Validate persisted source identity and range validators; resume only when still identical.",
+      "fallback": "Restart from zero or FAILED; never jump to VERIFIED."
+    },
+    {
+      "atState": "DOWNLOADED_UNVERIFIED",
+      "action": "Rerun C11-C18.",
+      "fallback": "FAILED and remove corrupted candidate; never trust persisted unverified state."
+    },
+    {
+      "atState": "VERIFIED",
+      "action": "Rehash and reread current installed baseline before another handoff.",
+      "fallback": "FAILED or return to DOWNLOADED_UNVERIFIED as applicable."
+    },
+    {
+      "atState": "INSTALL_AUTHORIZED",
+      "action": "Drop stale authorization and return to VERIFIED.",
+      "fallback": "Require fresh explicit user action."
+    },
+    {
+      "atState": "INSTALLER_HANDOFF",
+      "action": "Read installed package identity from PackageManager.",
+      "fallback": "Exact match becomes INSTALL_CONFIRMED; otherwise INSTALL_UNKNOWN unless explicit installer status says CANCELLED/FAILED."
+    }
+  ],
+  "invariants": [
+    "DOWNLOADED_UNVERIFIED never implies VERIFIED.",
+    "VERIFIED never implies user authorization or installer handoff.",
+    "INSTALLER_HANDOFF never implies INSTALL_CONFIRMED.",
+    "INSTALL_CONFIRMED requires external exact package/version/signer readback.",
+    "No installer launch, timeout, poll, generic version increase or optimistic UI can satisfy INSTALL_CONFIRMED.",
+    "Existing installation remains intact when any pre-handoff trust check fails."
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "v2-download-state-contract/v1",
+  "algorithm": "SHA-256",
+  "pathBase": ".",
+  "manifestSelfExcluded": true,
+  "artifactCount": 10,
+  "artifacts": [
+    {
+      "path": "commands.log",
+      "bytes": 3498,
+      "sha256": "BA43E0BD0C209F3B27E3DA4FDDFDEF32D87F25B598FE7814702719C72E1CA19E"
+    },
+    {
+      "path": "findings.md",
+      "bytes": 1920,
+      "sha256": "C4F3D916EE3F43E8FF93F0DFFB95EB77286CB52BD2DC592F1A21377BB585DD63"
+    },
+    {
+      "path": "fixture/contract-fixture.json",
+      "bytes": 43049,
+      "sha256": "FA52B7FE20859F17DA5EF791D4B0EA84EDB9B3BEBE25B0581F4DE306A74E8E7A"
+    },
+    {
+      "path": "progress.md",
+      "bytes": 1730,
+      "sha256": "B0684BC01365E13F33EDE3E57E265368C2C4D8E87E39224CE1D5A703B36E3F71"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2040,
+      "sha256": "D695FEDF11D8589C9E29ED6BA18B5B0768D85041C013503A3687D6089677C996"
+    },
+    {
+      "path": "report.json",
+      "bytes": 5065,
+      "sha256": "121F9717CB3698172EC39CA1714724427031849FA5555B6026AA317AA5B1C59E"
+    },
+    {
+      "path": "state-equality-matrix.md",
+      "bytes": 13829,
+      "sha256": "95909DDAD56234E07C5E6FDD00D96689169EF7AB3D5BE18961DF29FBA53F69EA"
+    },
+    {
+      "path": "task_plan.md",
+      "bytes": 1532,
+      "sha256": "443E05F932CB54ABB17ABB25C44D2FAB60BD17CC94B993D52B87E2D22248DE13"
+    },
+    {
+      "path": "test_contract.ps1",
+      "bytes": 23446,
+      "sha256": "9006C2E8EE9065139A67F6BCB3F33D033EA91F68E79C541DF93E17D945071221"
+    },
+    {
+      "path": "user-commitment-matrix.md",
+      "bytes": 6101,
+      "sha256": "FDFCE9FE12D0E5B36D88EDCFD5FC225B099F4C5B26AE8C336C8B30C54ACAB9E1"
+    }
+  ]
+}

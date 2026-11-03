@@ -1,0 +1,229 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "G1-A2-UPDATE-TRUST-CONTRACT-REPORT",
+  "date": "2026-11-04",
+  "status": "STATIC_CONTRACT_COMPLETE_WITH_IMPLEMENTATION_GAPS",
+  "claimId": "V2-REQ-BASE-002",
+  "legacyId": "L14-16",
+  "evidenceClass": "STATIC_CONTRACT_AND_SYNTHETIC_FIXTURES_ONLY",
+  "syntheticEvidenceOnly": true,
+  "repository": {
+    "cwd": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "initialHead": "287c37e1d1287e2a90c047e628f7272a13cc5970",
+    "initialWorktree": "docs/DECISIONS.md, docs/TASKS.md and docs/V2_PLAN.md already modified",
+    "observedFinalHead": "6f0f2f1a42cdb6092c4ed5cc1e3163d97880c55b",
+    "concurrentCommit": {
+      "sha": "6f0f2f1a42cdb6092c4ed5cc1e3163d97880c55b",
+      "parent": "287c37e1d1287e2a90c047e628f7272a13cc5970",
+      "subject": "docs(v2): close out G1 static evidence frontier",
+      "files": [
+        "docs/DECISIONS.md",
+        "docs/TASKS.md",
+        "docs/V2_PLAN.md"
+      ],
+      "updateSourceChanged": false,
+      "ownedByThisTask": false
+    },
+    "committedByThisTask": false,
+    "pushedByThisTask": false,
+    "concurrentSiblingUntracked": {
+      "path": ".planning/v2-g1/G1-A1-DOWNLOAD-STATE-CONTRACT/",
+      "entryCountAtObservation": 9,
+      "entryCountIsDynamic": true,
+      "ownedByThisTask": false,
+      "action": "preserved untouched"
+    },
+    "commandsLog": {
+      "path": ".planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/commands.log",
+      "gitIgnored": true,
+      "ignoreRule": ".gitignore:13:*.log",
+      "integrationAction": "A later integrator must use explicit git add -f for commands.log."
+    }
+  },
+  "counts": {
+    "states": 10,
+    "transitions": 17,
+    "orderedChecks": 23,
+    "criticalVerificationGates": 19,
+    "userPromiseRows": 10,
+    "fixtureCases": 46,
+    "propertyChecks": 348,
+    "contractAssertions": 11
+  },
+  "contractOutcome": {
+    "trustedChannel": "Fixed Aurorama GitHub stable release only",
+    "versionAuthority": "Strict release tag equals candidate versionName; candidate longVersionCode strictly exceeds installed",
+    "abiAuthority": "Runtime supportedAbis plus selected asset mapping plus native-library inventory from hash-verified APK bytes",
+    "sizeAuthority": "Trusted release asset size; HTTP length/range only corroborates",
+    "integrityAuthority": "Trusted release asset sha256 digest plus local rehash",
+    "signerAuthority": "Exact non-empty equality between installed and candidate signer certificate digest sets",
+    "installAuthority": "Explicit user action, exactly one trusted system installer, then exact external PackageManager readback",
+    "downloadSuccessState": "DOWNLOADED_UNVERIFIED",
+    "verifiedState": "VERIFIED",
+    "handoffState": "INSTALLER_HANDOFF",
+    "confirmedState": "INSTALL_CONFIRMED",
+    "unknownState": "INSTALL_UNKNOWN",
+    "failClosedLocations": [
+      "final redirect URL not observable",
+      "digest missing or malformed",
+      "ABI native inventory unknown",
+      "signer set missing or mismatched",
+      "installer status or exact post-install readback unavailable"
+    ]
+  },
+  "tests": {
+    "jsonParse": {
+      "result": "PASS",
+      "files": 4
+    },
+    "positive": {
+      "command": "pwsh -NoProfile -File .planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/tests/run-contract-tests.ps1 -Mode positive",
+      "exitCode": 0,
+      "result": "PASS",
+      "output": "PASS mode=positive contractAssertions=11 fixtures=46 properties=348 states=10 checks=23 matrixRows=10"
+    },
+    "negativeHashInvariant": {
+      "command": "pwsh -NoProfile -File .planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/tests/run-contract-tests.ps1 -Mode break-hash",
+      "exitCode": 1,
+      "result": "EXPECTED_FAILURE_DETECTED",
+      "output": "NEGATIVE_CONTROL_DETECTED mode=break-hash expected=VERIFIED/ actual=FAILED/HASH_MISMATCH"
+    },
+    "negativeInstallConfirmationInvariant": {
+      "command": "pwsh -NoProfile -File .planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/tests/run-contract-tests.ps1 -Mode break-install-confirmation",
+      "exitCode": 1,
+      "result": "EXPECTED_FAILURE_DETECTED",
+      "output": "NEGATIVE_CONTROL_DETECTED mode=break-install-confirmation expected=INSTALL_CONFIRMED/ actual=INSTALL_UNKNOWN/INSTALL_RESULT_UNKNOWN"
+    },
+    "sensitiveScan": "PASS",
+    "lineEndings": "PASS; final manifest gate requires CR=0 and no UTF-8 BOM for every listed entry",
+    "encoding": "UTF-8 without BOM"
+  },
+  "implementationEvidence": {
+    "primaryFullReads": [
+      {
+        "path": "data/src/main/java/com/zhangwenkang/cinefin/update/StableReleasePolicy.kt",
+        "lines": 106,
+        "sha256": "0E8B40B498E0C330B6AD07B59CF6036A926CCAE22A9A2410AD1502958E9ECD9E",
+        "observed": "draft/prerelease rejection, strict tag, newer-version gate and ABI asset selection entry"
+      },
+      {
+        "path": "data/src/main/java/com/zhangwenkang/cinefin/update/UpdatePackageVerifier.kt",
+        "lines": 167,
+        "sha256": "A5E37ACAA65F0DBCB2DE182CED03A8F3B0B4E9369110F0202D12C67469B98981",
+        "observed": "digest format, file size, SHA-256, package, versionCode, versionName, minSdk and signer checks"
+      },
+      {
+        "path": "data/src/main/java/com/zhangwenkang/cinefin/update/UpdateInstallCoordinator.kt",
+        "lines": 192,
+        "sha256": "1980836BB7B86CE44E0035E3D95FE5B4DCD3A1617F06FCFC835E06A28C125629",
+        "observed": "reverification before launch, provider URI validation and installer-return classification"
+      }
+    ],
+    "targetedSnippetReads": [
+      {
+        "path": "data/src/main/java/com/zhangwenkang/cinefin/update/AbiAssetSelector.kt",
+        "sha256": "A2040D1FD9F86A4F7F049484706C4E0EAA23265F488EE5DA5F80ECA09C19F505",
+        "observed": "arm64 preference, universal fallback, unique expected name and exact release URL"
+      },
+      {
+        "path": "data/src/main/java/com/zhangwenkang/cinefin/update/AndroidUpdatePackageInspector.kt",
+        "sha256": "3E52DC7BED88F86BBB1D8B02AD15C00FE7A0BA79264C84C32C4207719847A7BF",
+        "observed": "candidate metadata lacks native ABI inventory; installed return path exposes versionCode only"
+      },
+      {
+        "path": "data/src/main/java/com/zhangwenkang/cinefin/update/UpdateHttpDownloader.kt",
+        "sha256": "B757758F967C7F5906083CAF67CC41896116D6BE06DD6F6EE7AD7B83E88EC817",
+        "observed": "size/range/content validation; final response URL is not surfaced by transport response"
+      },
+      {
+        "path": "data/src/main/java/com/zhangwenkang/cinefin/update/GitHubReleaseClient.kt",
+        "sha256": "AB8CD47111A6D40EC0FC9AC1A62DB004218342304AF1DC0D284B555C6B9431FA",
+        "observed": "fixed request URL from compile-time GitHub release model"
+      },
+      {
+        "path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/update/UpdateViewModel.kt",
+        "sha256": "974BB3BB55DD8D2F923F0C96939ADD76178F1D0B2497099773495499231FDDF2",
+        "observed": "install return classification receives only installedVersionCode"
+      },
+      {
+        "path": "app/phone/src/main/res/values/strings.xml",
+        "sha256": "9385D76E817EA5C4B095C6A4848578A761F45D0E4642E27F3CCE031547308F98",
+        "observed": "existing update copy separates waiting for verification and installer opened from installed"
+      }
+    ]
+  },
+  "implementationFindings": [
+    {
+      "id": "GAP-INSTALL-CONFIRM",
+      "severity": "P1",
+      "status": "OPEN_FOR_G2",
+      "finding": "Current classifyInstallReturn maps any current versionCode greater than baseline to Installed; it does not require exact target packageName, versionCode, versionName and signer readback.",
+      "contractMitigation": "Only exact external C22/C23 evidence may reach INSTALL_CONFIRMED; otherwise INSTALL_UNKNOWN."
+    },
+    {
+      "id": "GAP-ABI-PAYLOAD",
+      "severity": "P1",
+      "status": "OPEN_FOR_G2",
+      "finding": "Current CandidateApkMetadata has no native ABI inventory; asset filename selection alone cannot prove APK payload compatibility.",
+      "contractMitigation": "C17 requires native-library inventory from hash-verified APK bytes and fails closed when unknown."
+    },
+    {
+      "id": "GAP-FINAL-REDIRECT",
+      "severity": "P2",
+      "status": "OPEN_FOR_G2",
+      "finding": "The current transport response abstraction does not expose/validate the final redirect URL.",
+      "contractMitigation": "C02 requires final URL observation and an exact HTTPS host allowlist before trusting bytes."
+    },
+    {
+      "id": "GAP-VERSION-NAME-BINDING",
+      "severity": "P2",
+      "status": "OPEN_FOR_G2",
+      "finding": "The current verifier checks versionName is parseable and not a downgrade, but does not bind it exactly to the selected release tag.",
+      "contractMitigation": "C15 requires exact candidate versionName equals release version."
+    },
+    {
+      "id": "GAP-INSTALLER-TAXONOMY",
+      "severity": "P2",
+      "status": "OPEN_FOR_G2",
+      "finding": "Installer absence, untrusted handler, multiple handlers and provider URI failures collapse into generic state failure text.",
+      "contractMitigation": "C20/C21 require distinct visible failure reasons."
+    },
+    {
+      "id": "GAP-CANCEL-UNKNOWN",
+      "severity": "P3",
+      "status": "OPEN_FOR_G2",
+      "finding": "Current return classification combines cancelled or unchanged and cannot distinguish CANCELLED from INSTALL_UNKNOWN.",
+      "contractMitigation": "C22 uses explicit installer status; absent status is INSTALL_UNKNOWN."
+    }
+  ],
+  "severitySummary": {
+    "P0": 0,
+    "P1": 2,
+    "P2": 3,
+    "P3": 1
+  },
+  "uncovered": [
+    "Live GitHub API response, TLS redirect chain and real release asset digests",
+    "Real APK native-library inventory, package parser behavior and signing certificate lineage",
+    "Real Android system installer availability, permission UI, return result and OEM cancellation behavior",
+    "Process death, device reboot, storage-full, network loss and corruption injection on a device",
+    "Actual 1.4.x to 2.0 update preserving installed data"
+  ],
+  "blocked": [],
+  "boundaries": {
+    "productionCodeChanged": false,
+    "productionResourcesChanged": false,
+    "schemaChanged": false,
+    "buildExecuted": false,
+    "deviceUsed": false,
+    "serverTouched": false,
+    "installExecuted": false,
+    "commitCreated": false,
+    "pushExecuted": false,
+    "q03": "OPEN_UNCHANGED",
+    "q04": "OPEN_UNCHANGED",
+    "g1": "NOT_PASSED_UNCHANGED",
+    "uiDesignSystem": "V1_UNCHANGED"
+  }
+}

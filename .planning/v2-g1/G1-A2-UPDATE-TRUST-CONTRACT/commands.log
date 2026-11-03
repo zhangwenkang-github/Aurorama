@@ -1,0 +1,84 @@
+2026-11-04 G1-A2 update trust contract command log
+cwd=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+shell=pwsh
+
+START
+command: git rev-parse HEAD; git branch --show-current; git status --short --branch
+result: HEAD=287c37e1d1287e2a90c047e628f7272a13cc5970 branch=codex/v2-integration
+note: worktree had pre-existing docs/DECISIONS.md, docs/TASKS.md and docs/V2_PLAN.md modifications
+
+GRAPHIFY
+command: graphify query "app update abi verification installer" --budget 1600
+result: exit 1, graphify-out/graph.json not found in this worktree; task brief allowed rg fallback
+command: rg -n ... update/APK/ABI/install paths
+result: located StableReleasePolicy.kt, AbiAssetSelector.kt, UpdatePackageVerifier.kt, UpdateInstallCoordinator.kt, AndroidUpdateInstallerGateway.kt and related tests
+
+REQUIRED READING
+sources: AGENTS.md; docs/PROJECT_PLAN.md; docs/V2_PLAN.md sections 5.10.5, 5.11.5, 9 and 12;
+         docs/TASKS.md; docs/DECISIONS.md D196/D197/D199/D200 and G1 rows;
+         docs/PROJECT_RULES.md R020/R025/R027/R028
+result: V2-REQ-BASE-002 / L14-16 and Q03/Q04/G1 boundaries confirmed
+
+IMPLEMENTATION READ-ONLY EVIDENCE
+full local reads (bounded primary set):
+- data/src/main/java/com/zhangwenkang/cinefin/update/StableReleasePolicy.kt lines=106 SHA256=0E8B40B498E0C330B6AD07B59CF6036A926CCAE22A9A2410AD1502958E9ECD9E
+- data/src/main/java/com/zhangwenkang/cinefin/update/UpdatePackageVerifier.kt lines=167 SHA256=A5E37ACAA65F0DBCB2DE182CED03A8F3B0B4E9369110F0202D12C67469B98981
+- data/src/main/java/com/zhangwenkang/cinefin/update/UpdateInstallCoordinator.kt lines=192 SHA256=1980836BB7B86CE44E0035E3D95FE5B4DCD3A1617F06FCFC835E06A28C125629
+targeted snippets:
+- AbiAssetSelector.kt SHA256=A2040D1FD9F86A4F7F049484706C4E0EAA23265F488EE5DA5F80ECA09C19F505
+- AndroidUpdatePackageInspector.kt SHA256=3E52DC7BED88F86BBB1D8B02AD15C00FE7A0BA79264C84C32C4207719847A7BF
+- UpdateHttpDownloader.kt SHA256=B757758F967C7F5906083CAF67CC41896116D6BE06DD6F6EE7AD7B83E88EC817
+- GitHubReleaseClient.kt SHA256=AB8CD47111A6D40EC0FC9AC1A62DB004218342304AF1DC0D284B555C6B9431FA
+- UpdateViewModel.kt SHA256=974BB3BB55DD8D2F923F0C96939ADD76178F1D0B2497099773495499231FDDF2
+- app/phone/src/main/res/values/strings.xml SHA256=9385D76E817EA5C4B095C6A4848578A761F45D0E4642E27F3CCE031547308F98
+
+JSON PARSE
+command: pwsh UTF-8 strict ConvertFrom-Json on every *.json under evidence directory
+result: JSON_OK state-machine.json; JSON_OK trust-contract.json; JSON_OK trust-matrix.json; JSON_OK contract-cases.json
+
+POSITIVE TEST
+command: pwsh -NoProfile -File .planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/tests/run-contract-tests.ps1 -Mode positive
+result: exit 0
+output: PASS mode=positive contractAssertions=11 fixtures=46 properties=348 states=10 checks=23 matrixRows=10
+
+NEGATIVE CONTROL 1
+command: pwsh -NoProfile -File .planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/tests/run-contract-tests.ps1 -Mode break-hash
+result: child exit 1
+output: NEGATIVE_CONTROL_DETECTED mode=break-hash expected=VERIFIED/ actual=FAILED/HASH_MISMATCH
+
+NEGATIVE CONTROL 2
+command: pwsh -NoProfile -File .planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/tests/run-contract-tests.ps1 -Mode break-install-confirmation
+result: child exit 1
+output: NEGATIVE_CONTROL_DETECTED mode=break-install-confirmation expected=INSTALL_CONFIRMED/ actual=INSTALL_UNKNOWN/INSTALL_RESULT_UNKNOWN
+
+SENSITIVE VALUE SCAN
+command: Select-String over evidence for GitHub/OpenAI-like tokens, bearer values, passwords, access_token values and private-key headers
+result: SENSITIVE_SCAN_PASS
+
+SHARED WORKTREE OBSERVATION
+command: git rev-parse HEAD; git merge-base --is-ancestor 287c37e1d1287e2a90c047e628f7272a13cc5970 HEAD; git diff --name-status 287c37e1..HEAD
+result: concurrent commit 6f0f2f1a42cdb6092c4ed5cc1e3163d97880c55b
+parent: 287c37e1d1287e2a90c047e628f7272a13cc5970
+files: docs/DECISIONS.md, docs/TASKS.md, docs/V2_PLAN.md
+update-source-changed: false
+action: preserved concurrent commit; no reset, checkout, merge, commit or push
+
+WRITE SCOPE OBSERVATION
+command: git status --porcelain=v1 --untracked-files=all, filtered to A2 plus known concurrent sibling
+result: A2_ENTRIES=9 A1_CONCURRENT_ENTRIES=9 UNEXPECTED=0; A2_WRITE_SCOPE_PASS
+note: concurrent .planning/v2-g1/G1-A1-DOWNLOAD-STATE-CONTRACT/ is not owned or modified by this task
+
+COMMAND LOG INTEGRATION NOTE
+command: git check-ignore -v .planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/commands.log
+result: .gitignore:13:*.log
+action required by later integrator: if this evidence is committed, use explicit git add -f for commands.log
+
+EVIDENCE METRICS
+result: states=10 transitions=17 checks=23 fixtures=46 critical-gates=19 matrix-rows=10
+authored-file-check: current authored evidence files are no-BOM UTF-8 and CR=0
+
+MANIFEST
+command: PowerShell SHA-256/bytes/LF manifest generation under evidence directory
+result: PASS; every listed entry SHA-256, bytes, LF and CR count matched after regeneration
+scope: manifest excludes only manifest.json because a file cannot contain its own SHA-256
+self-hash: reported in final task response, not embedded to avoid a circular hash

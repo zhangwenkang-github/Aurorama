@@ -1,0 +1,358 @@
+{
+  "schemaVersion": "1.0.0",
+  "fixtureId": "G1-A2-SYNTHETIC-CONTRACT-CASES",
+  "syntheticOnly": true,
+  "notEvidenceFor": [
+    "real APK bytes",
+    "real signing certificate",
+    "real Android installer result",
+    "real device ABI acceptance"
+  ],
+  "criticalVerificationGates": [
+    "sourceTrusted",
+    "finalUrlTrusted",
+    "channelStable",
+    "versionGreater",
+    "assetUnique",
+    "abiSelected",
+    "assetUrlExact",
+    "sizeKnown",
+    "digestPresent",
+    "sizeMatched",
+    "hashMatched",
+    "apkReadable",
+    "packageMatched",
+    "versionCodeIncremented",
+    "versionNameExact",
+    "minSdkSupported",
+    "abiPayloadCompatible",
+    "signerSetPresent",
+    "signerSetMatched"
+  ],
+  "base": {
+    "checks": {
+      "upToDate": false,
+      "sourceTrusted": true,
+      "finalUrlTrusted": true,
+      "channelStable": true,
+      "versionGreater": true,
+      "assetUnique": true,
+      "abiSelected": true,
+      "assetUrlExact": true,
+      "sizeKnown": true,
+      "digestPresent": true,
+      "sizeMatched": true,
+      "hashMatched": true,
+      "apkReadable": true,
+      "packageMatched": true,
+      "versionCodeIncremented": true,
+      "versionNameExact": true,
+      "minSdkSupported": true,
+      "abiPayloadCompatible": true,
+      "signerSetPresent": true,
+      "signerSetMatched": true,
+      "userAuthorized": true
+    },
+    "download": {
+      "cancelRequested": false,
+      "sourceIdentityStable": true,
+      "rangeConsistent": true,
+      "networkReached": true,
+      "downloadComplete": true,
+      "bytesMatched": true
+    },
+    "installer": {
+      "resolvedCount": 1,
+      "trustedSystemHandler": true,
+      "installPackagesPermission": true,
+      "uriValidated": true,
+      "launched": true
+    },
+    "external": {
+      "status": "success",
+      "readbackAvailable": true,
+      "packageMatched": true,
+      "versionCodeMatched": true,
+      "versionNameMatched": true,
+      "signerMatched": true
+    }
+  },
+  "cases": [
+    {
+      "id": "valid_arm64_update",
+      "stage": "verify",
+      "overrides": {},
+      "expected": {"state": "VERIFIED", "failure": null}
+    },
+    {
+      "id": "valid_universal_fallback",
+      "stage": "verify",
+      "overrides": {"checks": {"abiSelected": true, "abiPayloadCompatible": true}},
+      "expected": {"state": "VERIFIED", "failure": null}
+    },
+    {
+      "id": "up_to_date",
+      "stage": "verify",
+      "overrides": {"checks": {"upToDate": true}},
+      "expected": {"state": "UP_TO_DATE", "failure": null}
+    },
+    {
+      "id": "untrusted_source",
+      "stage": "verify",
+      "overrides": {"checks": {"sourceTrusted": false}},
+      "expected": {"state": "FAILED", "failure": "UNTRUSTED_SOURCE"}
+    },
+    {
+      "id": "untrusted_redirect",
+      "stage": "verify",
+      "overrides": {"checks": {"finalUrlTrusted": false}},
+      "expected": {"state": "FAILED", "failure": "UNTRUSTED_REDIRECT"}
+    },
+    {
+      "id": "prerelease_rejected",
+      "stage": "verify",
+      "overrides": {"checks": {"channelStable": false}},
+      "expected": {"state": "FAILED", "failure": "UNSUPPORTED_CHANNEL"}
+    },
+    {
+      "id": "wrong_abi",
+      "stage": "verify",
+      "overrides": {"checks": {"abiSelected": false}},
+      "expected": {"state": "FAILED", "failure": "NO_COMPATIBLE_ABI"}
+    },
+    {
+      "id": "wrong_abi_payload",
+      "stage": "verify",
+      "overrides": {"checks": {"abiPayloadCompatible": false}},
+      "expected": {"state": "FAILED", "failure": "ABI_PAYLOAD_INCOMPATIBLE"}
+    },
+    {
+      "id": "asset_ambiguous",
+      "stage": "verify",
+      "overrides": {"checks": {"assetUnique": false}},
+      "expected": {"state": "FAILED", "failure": "ABI_ASSET_AMBIGUOUS"}
+    },
+    {
+      "id": "asset_url_mismatch",
+      "stage": "verify",
+      "overrides": {"checks": {"assetUrlExact": false}},
+      "expected": {"state": "FAILED", "failure": "UNTRUSTED_ASSET_URL"}
+    },
+    {
+      "id": "size_unknown",
+      "stage": "verify",
+      "overrides": {"checks": {"sizeKnown": false}},
+      "expected": {"state": "FAILED", "failure": "SIZE_UNKNOWN"}
+    },
+    {
+      "id": "digest_missing",
+      "stage": "verify",
+      "overrides": {"checks": {"digestPresent": false}},
+      "expected": {"state": "FAILED", "failure": "DIGEST_MISSING_OR_MALFORMED"}
+    },
+    {
+      "id": "truncated_download",
+      "stage": "download",
+      "overrides": {"download": {"bytesMatched": false}},
+      "expected": {"state": "FAILED", "failure": "SIZE_MISMATCH"}
+    },
+    {
+      "id": "hash_mismatch",
+      "stage": "verify",
+      "overrides": {"checks": {"hashMatched": false}},
+      "expected": {"state": "FAILED", "failure": "HASH_MISMATCH"}
+    },
+    {
+      "id": "apk_unreadable",
+      "stage": "verify",
+      "overrides": {"checks": {"apkReadable": false}},
+      "expected": {"state": "FAILED", "failure": "APK_UNREADABLE"}
+    },
+    {
+      "id": "wrong_package",
+      "stage": "verify",
+      "overrides": {"checks": {"packageMatched": false}},
+      "expected": {"state": "FAILED", "failure": "PACKAGE_MISMATCH"}
+    },
+    {
+      "id": "downgrade",
+      "stage": "verify",
+      "overrides": {"checks": {"versionCodeIncremented": false}},
+      "expected": {"state": "FAILED", "failure": "VERSION_CODE_NOT_INCREMENTED"}
+    },
+    {
+      "id": "version_tag_mismatch",
+      "stage": "verify",
+      "overrides": {"checks": {"versionNameExact": false}},
+      "expected": {"state": "FAILED", "failure": "VERSION_TAG_MISMATCH"}
+    },
+    {
+      "id": "min_sdk_unsupported",
+      "stage": "verify",
+      "overrides": {"checks": {"minSdkSupported": false}},
+      "expected": {"state": "FAILED", "failure": "MIN_SDK_UNSUPPORTED"}
+    },
+    {
+      "id": "signer_missing",
+      "stage": "verify",
+      "overrides": {"checks": {"signerSetPresent": false}},
+      "expected": {"state": "FAILED", "failure": "SIGNER_MISSING"}
+    },
+    {
+      "id": "wrong_signer",
+      "stage": "verify",
+      "overrides": {"checks": {"signerSetMatched": false}},
+      "expected": {"state": "FAILED", "failure": "SIGNER_MISMATCH"}
+    },
+    {
+      "id": "download_completed",
+      "stage": "download",
+      "overrides": {},
+      "expected": {"state": "DOWNLOADED_UNVERIFIED", "failure": null}
+    },
+    {
+      "id": "user_cancel_download",
+      "stage": "download",
+      "overrides": {"download": {"cancelRequested": true, "downloadComplete": false}},
+      "expected": {"state": "CANCELLED", "failure": "USER_CANCELLED"}
+    },
+    {
+      "id": "range_source_changed",
+      "stage": "download",
+      "overrides": {"download": {"sourceIdentityStable": false}},
+      "expected": {"state": "FAILED", "failure": "SOURCE_CHANGED"}
+    },
+    {
+      "id": "range_inconsistent",
+      "stage": "download",
+      "overrides": {"download": {"rangeConsistent": false}},
+      "expected": {"state": "FAILED", "failure": "RANGE_INVALID"}
+    },
+    {
+      "id": "network_failure",
+      "stage": "download",
+      "overrides": {"download": {"networkReached": false, "downloadComplete": false}},
+      "expected": {"state": "FAILED", "failure": "DOWNLOAD_FAILED"}
+    },
+    {
+      "id": "launch_without_authorization",
+      "stage": "install_launch",
+      "overrides": {"checks": {"userAuthorized": false}},
+      "expected": {"state": "VERIFIED", "failure": "INSTALL_AUTHORIZATION_REQUIRED"}
+    },
+    {
+      "id": "installer_absent",
+      "stage": "install_launch",
+      "overrides": {"installer": {"resolvedCount": 0}},
+      "expected": {"state": "FAILED", "failure": "INSTALLER_UNAVAILABLE"}
+    },
+    {
+      "id": "installer_permission_denied",
+      "stage": "install_launch",
+      "overrides": {"installer": {"installPackagesPermission": false}},
+      "expected": {"state": "FAILED", "failure": "INSTALLER_PERMISSION_DENIED"}
+    },
+    {
+      "id": "installer_ambiguous",
+      "stage": "install_launch",
+      "overrides": {"installer": {"resolvedCount": 2}},
+      "expected": {"state": "FAILED", "failure": "INSTALLER_AMBIGUOUS"}
+    },
+    {
+      "id": "installer_untrusted",
+      "stage": "install_launch",
+      "overrides": {"installer": {"trustedSystemHandler": false}},
+      "expected": {"state": "FAILED", "failure": "INSTALLER_UNTRUSTED"}
+    },
+    {
+      "id": "installer_uri_invalid",
+      "stage": "install_launch",
+      "overrides": {"installer": {"uriValidated": false}},
+      "expected": {"state": "FAILED", "failure": "INSTALLER_URI_INVALID"}
+    },
+    {
+      "id": "handoff_started",
+      "stage": "install_launch",
+      "overrides": {},
+      "expected": {"state": "INSTALLER_HANDOFF", "failure": null}
+    },
+    {
+      "id": "install_confirmed_exact",
+      "stage": "install_return",
+      "overrides": {},
+      "expected": {"state": "INSTALL_CONFIRMED", "failure": null}
+    },
+    {
+      "id": "installer_launched_without_result",
+      "stage": "install_return",
+      "overrides": {"external": {"status": "pending", "readbackAvailable": false}},
+      "expected": {"state": "INSTALL_UNKNOWN", "failure": "INSTALL_RESULT_UNKNOWN"}
+    },
+    {
+      "id": "user_cancel_install",
+      "stage": "install_return",
+      "overrides": {"external": {"status": "cancelled"}},
+      "expected": {"state": "CANCELLED", "failure": "USER_CANCELLED"}
+    },
+    {
+      "id": "installer_failed",
+      "stage": "install_return",
+      "overrides": {"external": {"status": "failed"}},
+      "expected": {"state": "FAILED", "failure": "INSTALL_FAILED"}
+    },
+    {
+      "id": "installer_return_mismatch",
+      "stage": "install_return",
+      "overrides": {"external": {"signerMatched": false}},
+      "expected": {"state": "INSTALL_UNKNOWN", "failure": "INSTALL_CONFIRMATION_MISMATCH"}
+    },
+    {
+      "id": "restart_downloading_resume_valid",
+      "stage": "restart",
+      "overrides": {"atState": "DOWNLOADING"},
+      "expected": {"state": "DOWNLOADING", "failure": null}
+    },
+    {
+      "id": "restart_downloading_source_changed",
+      "stage": "restart",
+      "overrides": {"atState": "DOWNLOADING", "download": {"sourceIdentityStable": false}},
+      "expected": {"state": "FAILED", "failure": "SOURCE_CHANGED"}
+    },
+    {
+      "id": "restart_unverified_reverify_ok",
+      "stage": "restart",
+      "overrides": {"atState": "DOWNLOADED_UNVERIFIED"},
+      "expected": {"state": "VERIFIED", "failure": null}
+    },
+    {
+      "id": "restart_unverified_corrupt",
+      "stage": "restart",
+      "overrides": {"atState": "DOWNLOADED_UNVERIFIED", "checks": {"hashMatched": false}},
+      "expected": {"state": "FAILED", "failure": "HASH_MISMATCH"}
+    },
+    {
+      "id": "restart_verified_file_changed",
+      "stage": "restart",
+      "overrides": {"atState": "VERIFIED", "checks": {"hashMatched": false}},
+      "expected": {"state": "FAILED", "failure": "HASH_MISMATCH"}
+    },
+    {
+      "id": "restart_authorized_reauth_required",
+      "stage": "restart",
+      "overrides": {"atState": "INSTALL_AUTHORIZED"},
+      "expected": {"state": "VERIFIED", "failure": "INSTALL_AUTHORIZATION_REQUIRED"}
+    },
+    {
+      "id": "restart_handoff_unknown",
+      "stage": "restart",
+      "overrides": {"atState": "INSTALLER_HANDOFF", "external": {"status": "pending", "readbackAvailable": false}},
+      "expected": {"state": "INSTALL_UNKNOWN", "failure": "INSTALL_RESULT_UNKNOWN"}
+    },
+    {
+      "id": "restart_handoff_confirmed",
+      "stage": "restart",
+      "overrides": {"atState": "INSTALLER_HANDOFF"},
+      "expected": {"state": "INSTALL_CONFIRMED", "failure": null}
+    }
+  ]
+}

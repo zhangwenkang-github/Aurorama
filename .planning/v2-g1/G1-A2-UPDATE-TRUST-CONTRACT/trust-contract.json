@@ -1,0 +1,385 @@
+{
+  "schemaVersion": "1.0.0",
+  "contractId": "G1-A2-UPDATE-TRUST-CONTRACT",
+  "claimId": "V2-REQ-BASE-002",
+  "legacyId": "L14-16",
+  "status": "STATIC_CONTRACT_READY_FOR_G2_IMPLEMENTATION",
+  "evidenceClass": "STATIC_CONTRACT_AND_SYNTHETIC_FIXTURES_ONLY",
+  "syntheticEvidenceOnly": true,
+  "trustedSource": {
+    "repositoryOwner": "zhangwenkang-github",
+    "repositoryName": "Aurorama",
+    "releaseApiUrl": "https://api.github.com/repos/zhangwenkang-github/Aurorama/releases/latest",
+    "assetUrlTemplate": "https://github.com/zhangwenkang-github/Aurorama/releases/download/v{versionName}/{assetName}",
+    "initialAssetHost": "github.com",
+    "allowedRedirectHosts": [
+      "release-assets.githubusercontent.com"
+    ],
+    "scheme": "https",
+    "channel": "stable",
+    "acceptDraft": false,
+    "acceptPrerelease": false,
+    "serverUpdateEndpointAllowed": false,
+    "credentialsForwardedAcrossOrigin": false,
+    "onUnavailableFinalUrlEvidence": "FAIL_CLOSED"
+  },
+  "authorities": {
+    "releaseDiscovery": "Compile-time GitHub API URL plus TLS-validated response.",
+    "channel": "GitHub release latest endpoint with draft=false, prerelease=false and a valid vMAJOR.MINOR.PATCH tag.",
+    "versionName": "Release tag is the remote version authority; candidate APK versionName must equal it.",
+    "versionCode": "Installed PackageManager longVersionCode is the baseline; candidate APK must expose a strictly greater longVersionCode.",
+    "abiSelection": "Runtime supportedAbis choose arm64-v8a first, then universal fallback; no arbitrary asset selection.",
+    "abiPayload": "Native library inventory from the already SHA-256-verified APK bytes must intersect a supported device ABI. Asset filename or primaryCpuAbi alone is insufficient.",
+    "size": "The unique trusted release asset size is authoritative; HTTP Content-Length/Content-Range only corroborate transfer and never override it.",
+    "integrity": "The trusted release asset digest field in sha256:<64 hex> form is authoritative; transfer validators are resume hints only.",
+    "packageIdentity": "Candidate and installed PackageManager packageName, longVersionCode, versionName and signer certificate digest sets.",
+    "installation": "Only PackageManager readback of the installed application after system-installer return can confirm the exact target package.",
+    "installerStatus": "System installer status is the only possible user-cancel authority; if status is unavailable after handoff, the result is INSTALL_UNKNOWN."
+  },
+  "checks": [
+    {
+      "order": 1,
+      "id": "C01_SOURCE_ANCHOR",
+      "authority": "Compile-time repository constants and GitHub API HTTPS endpoint.",
+      "rule": "Use only the fixed Aurorama GitHub release endpoint; reject any configured/changed source.",
+      "onFailure": "FAILED",
+      "failureCode": "UNTRUSTED_SOURCE",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_source_untrusted",
+        "copy": "The update source could not be trusted."
+      }
+    },
+    {
+      "order": 2,
+      "id": "C02_REDIRECT_ORIGIN",
+      "authority": "HTTPS redirect allowlist derived from the fixed release URL.",
+      "rule": "The actual final download URL must be observed; initial github.com may redirect only to the allowed release-assets host, without credentials.",
+      "onFailure": "FAILED",
+      "failureCode": "UNTRUSTED_REDIRECT",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_redirect_untrusted",
+        "copy": "The update download left the trusted source."
+      }
+    },
+    {
+      "order": 3,
+      "id": "C03_STABLE_CHANNEL",
+      "authority": "GitHub release draft/prerelease flags and stable channel policy.",
+      "rule": "Accept only draft=false and prerelease=false; no beta, nightly or arbitrary channel fallback.",
+      "onFailure": "FAILED",
+      "failureCode": "UNSUPPORTED_CHANNEL",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_channel_unsupported",
+        "copy": "No stable update is available for this channel."
+      }
+    },
+    {
+      "order": 4,
+      "id": "C04_VERSION_ADVANCE",
+      "authority": "Strict vMAJOR.MINOR.PATCH release tag and installed version.",
+      "rule": "Return UP_TO_DATE when remote is not newer; reject malformed tags and never offer a downgrade.",
+      "onFailure": "UP_TO_DATE_OR_FAILED",
+      "failureCode": "VERSION_NOT_ADVANCING",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_not_newer",
+        "copy": "You are already using this version or a newer one."
+      }
+    },
+    {
+      "order": 5,
+      "id": "C05_ASSET_UNIQUENESS",
+      "authority": "Trusted release asset list.",
+      "rule": "Exactly one expected APK asset name must match; zero or multiple matches fail closed.",
+      "onFailure": "FAILED",
+      "failureCode": "ABI_ASSET_AMBIGUOUS",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_asset_ambiguous",
+        "copy": "A unique compatible update package could not be selected."
+      }
+    },
+    {
+      "order": 6,
+      "id": "C06_ABI_ASSET_MAPPING",
+      "authority": "Runtime supportedAbis plus documented asset-name mapping.",
+      "rule": "arm64-v8a devices choose the arm64 asset, fallback only to universal; other devices require universal. Empty/unknown ABI support fails closed.",
+      "onFailure": "FAILED",
+      "failureCode": "NO_COMPATIBLE_ABI",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_no_compatible_abi",
+        "copy": "This update has no package compatible with this device."
+      }
+    },
+    {
+      "order": 7,
+      "id": "C07_ASSET_URL_EXACT",
+      "authority": "Release tag, selected asset name and fixed GitHub release URL template.",
+      "rule": "browser_download_url must exactly equal the computed trusted URL.",
+      "onFailure": "FAILED",
+      "failureCode": "UNTRUSTED_ASSET_URL",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_asset_url_untrusted",
+        "copy": "The selected update package is outside the trusted release."
+      }
+    },
+    {
+      "order": 8,
+      "id": "C08_SIZE_AUTHORITY",
+      "authority": "Trusted release asset size.",
+      "rule": "Asset size must be present and greater than zero; unknown size cannot reach DOWNLOADED_UNVERIFIED.",
+      "onFailure": "FAILED",
+      "failureCode": "SIZE_UNKNOWN",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_size_unknown",
+        "copy": "The update size could not be verified safely."
+      }
+    },
+    {
+      "order": 9,
+      "id": "C09_DIGEST_AUTHORITY",
+      "authority": "Trusted release asset digest.",
+      "rule": "Accept only sha256:<64 hex>; missing or malformed digest fails closed.",
+      "onFailure": "FAILED",
+      "failureCode": "DIGEST_MISSING_OR_MALFORMED",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_digest_unavailable",
+        "copy": "The update integrity record is missing or invalid."
+      }
+    },
+    {
+      "order": 10,
+      "id": "C10_TRANSFER_COMPLETENESS",
+      "authority": "Trusted expected size plus HTTP 200/206/416 and Range/Content-Range.",
+      "rule": "A reported complete transfer must match expected bytes; inconsistent range evidence resets or fails without claiming verification.",
+      "onFailure": "FAILED_OR_RESTART_DOWNLOAD",
+      "failureCode": "SIZE_MISMATCH_OR_SOURCE_CHANGED",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_download_incomplete",
+        "copy": "The downloaded update is incomplete or changed during download."
+      }
+    },
+    {
+      "order": 11,
+      "id": "C11_SHA256_REHASH",
+      "authority": "SHA-256 over the final local APK bytes.",
+      "rule": "Rehash the complete persisted file and compare with the trusted digest before parsing or install preparation.",
+      "onFailure": "FAILED",
+      "failureCode": "HASH_MISMATCH",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_integrity_failed",
+        "copy": "The update package failed integrity verification."
+      }
+    },
+    {
+      "order": 12,
+      "id": "C12_APK_PARSE",
+      "authority": "Android package archive metadata reader.",
+      "rule": "The hashed file must parse as an APK; parse failure cannot be treated as a benign install failure.",
+      "onFailure": "FAILED",
+      "failureCode": "APK_UNREADABLE",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_apk_unreadable",
+        "copy": "The downloaded file is not a readable APK."
+      }
+    },
+    {
+      "order": 13,
+      "id": "C13_PACKAGE_IDENTITY",
+      "authority": "Installed and candidate PackageManager packageName.",
+      "rule": "Candidate packageName must exactly equal the installed application packageName.",
+      "onFailure": "FAILED",
+      "failureCode": "PACKAGE_MISMATCH",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_package_mismatch",
+        "copy": "The downloaded package is not Aurorama."
+      }
+    },
+    {
+      "order": 14,
+      "id": "C14_VERSION_CODE",
+      "authority": "Candidate and installed Android longVersionCode.",
+      "rule": "Candidate longVersionCode must be strictly greater than the installed baseline.",
+      "onFailure": "FAILED",
+      "failureCode": "VERSION_CODE_NOT_INCREMENTED",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_version_code_invalid",
+        "copy": "This package is not a newer installable version."
+      }
+    },
+    {
+      "order": 15,
+      "id": "C15_VERSION_NAME_TAG",
+      "authority": "Strict release tag and APK versionName.",
+      "rule": "Candidate versionName must exactly equal the selected release tag version and must not be lower than installed.",
+      "onFailure": "FAILED",
+      "failureCode": "VERSION_TAG_MISMATCH",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_version_mismatch",
+        "copy": "The package version does not match the trusted release."
+      }
+    },
+    {
+      "order": 16,
+      "id": "C16_MIN_SDK",
+      "authority": "Candidate APK minSdk and current device SDK.",
+      "rule": "minSdk must be positive and no greater than device SDK.",
+      "onFailure": "FAILED",
+      "failureCode": "MIN_SDK_UNSUPPORTED",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_device_unsupported",
+        "copy": "This update cannot run on this Android version."
+      }
+    },
+    {
+      "order": 17,
+      "id": "C17_ABI_PAYLOAD",
+      "authority": "Native library inventory inside the hash-verified APK.",
+      "rule": "The APK must contain at least one native ABI supported by the current device, or be a verified pure-Java APK. Unknown inventory fails closed.",
+      "onFailure": "FAILED",
+      "failureCode": "ABI_PAYLOAD_INCOMPATIBLE",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_abi_payload_incompatible",
+        "copy": "The update package contains no native code compatible with this device."
+      }
+    },
+    {
+      "order": 18,
+      "id": "C18_SIGNER_CONTINUITY",
+      "authority": "Installed and candidate APK signer certificate digest sets.",
+      "rule": "Both signer sets must be non-empty and exactly equal; signer rotation is unsupported unless separately proven, so mismatch fails closed.",
+      "onFailure": "FAILED",
+      "failureCode": "SIGNER_SET_MISMATCH_OR_MISSING",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_signer_mismatch",
+        "copy": "The update signature does not match the installed app."
+      }
+    },
+    {
+      "order": 19,
+      "id": "C19_USER_AUTHORIZATION",
+      "authority": "Current user action in the app for this exact verified update.",
+      "rule": "Verification never launches an installer; INSTALL_AUTHORIZED requires a fresh explicit action and cannot survive process restart.",
+      "onFailure": "NO_PROGRESS",
+      "failureCode": "INSTALL_AUTHORIZATION_REQUIRED",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_install_action_required",
+        "copy": "Confirm the installation in the system installer."
+      }
+    },
+    {
+      "order": 20,
+      "id": "C20_INSTALLER_TRUST",
+      "authority": "Resolved Android activities and PackageManager permissions.",
+      "rule": "Exactly one system application granting INSTALL_PACKAGES must resolve; absent, multiple, untrusted or permission-denied handlers fail closed.",
+      "onFailure": "FAILED",
+      "failureCode": "INSTALLER_UNAVAILABLE_OR_UNTRUSTED",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_installer_unavailable",
+        "copy": "A trusted system installer is unavailable or lacks install permission."
+      }
+    },
+    {
+      "order": 21,
+      "id": "C21_HANDOFF_URI",
+      "authority": "App FileProvider authority, validated updates directory and exact file name.",
+      "rule": "The handoff URI must target content://<applicationId>.updateinstall/validated_updates/<64hex>.apk and the canonical file inside the validated directory.",
+      "onFailure": "FAILED",
+      "failureCode": "INSTALLER_URI_INVALID",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_handoff_invalid",
+        "copy": "The verified package could not be handed to the system installer safely."
+      }
+    },
+    {
+      "order": 22,
+      "id": "C22_EXTERNAL_INSTALL_STATUS",
+      "authority": "System installer session/activity status.",
+      "rule": "CANCELLED requires explicit user-cancel status; FAILED requires explicit failure; missing status after handoff is INSTALL_UNKNOWN.",
+      "onFailure": "INSTALL_UNKNOWN",
+      "failureCode": "INSTALL_RESULT_UNKNOWN",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_install_unknown",
+        "copy": "The system did not provide enough evidence to confirm the installation."
+      }
+    },
+    {
+      "order": 23,
+      "id": "C23_EXTERNAL_INSTALL_CONFIRMATION",
+      "authority": "Post-return PackageManager readback of the installed application.",
+      "rule": "Confirm only when packageName, longVersionCode, versionName and signer set all exactly match the verified target; installer launch or generic version increase is insufficient.",
+      "onFailure": "INSTALL_UNKNOWN",
+      "failureCode": "INSTALL_CONFIRMATION_UNAVAILABLE_OR_MISMATCH",
+      "failureVisible": {
+        "userVisible": true,
+        "messageKey": "update_install_unknown",
+        "copy": "The system did not provide enough evidence to confirm the installation."
+      }
+    }
+  ],
+  "statePolicy": {
+    "downloadCompletionState": "DOWNLOADED_UNVERIFIED",
+    "verifiedState": "VERIFIED",
+    "installerLaunchState": "INSTALLER_HANDOFF",
+    "confirmedState": "INSTALL_CONFIRMED",
+    "unknownState": "INSTALL_UNKNOWN",
+    "prohibitedShortcuts": [
+      "DOWNLOADING or DOWNLOADED_UNVERIFIED to INSTALL_CONFIRMED",
+      "DOWNLOADING or DOWNLOADED_UNVERIFIED to INSTALLER_HANDOFF",
+      "INSTALLER_HANDOFF to INSTALL_CONFIRMED without exact external readback",
+      "installer activity launch to installed success",
+      "generic versionCode increase to installed success"
+    ]
+  },
+  "recovery": {
+    "DOWNLOADING": "Resume only when expected source identity, expected size, validators and Range evidence remain consistent; otherwise restart from zero or FAILED.",
+    "DOWNLOADED_UNVERIFIED": "Always rerun size, SHA-256, package, version, ABI payload and signer checks after process restart.",
+    "VERIFIED": "Reverify against current file and current installed baseline before any later handoff.",
+    "INSTALL_AUTHORIZED": "Do not persist authorization across restart; return to VERIFIED and require fresh explicit action.",
+    "INSTALLER_HANDOFF": "Query external package state. Exact target readback gives INSTALL_CONFIRMED; absent evidence gives INSTALL_UNKNOWN; explicit status may give CANCELLED or FAILED.",
+    "CANCELLED": "User may restart download or install from a verified file; old asynchronous callbacks must be ignored.",
+    "FAILED": "Keep existing app installation intact and expose retry, re-download or safe exit; stale/corrupt candidates are deleted."
+  },
+  "capabilityBoundaries": [
+    {
+      "capability": "Exact ABI inventory from getPackageArchiveInfo",
+      "status": "NOT_ASSUMED",
+      "requirement": "Inspect native-library entries in the hash-verified APK; if the inventory cannot be established, FAIL_CLOSED."
+    },
+    {
+      "capability": "Installer cancellation reason from ACTION_VIEW return",
+      "status": "UNKNOWN_IF_NOT_PROVIDED",
+      "requirement": "Without explicit installer status, map unchanged/returned state to INSTALL_UNKNOWN, not INSTALL_CONFIRMED."
+    },
+    {
+      "capability": "Signing-key rotation",
+      "status": "UNSUPPORTED_FAIL_CLOSED",
+      "requirement": "Exact installed signer-set equality is required; future rotation needs separate lineage evidence and decision."
+    },
+    {
+      "capability": "Final redirect URL in current transport abstraction",
+      "status": "IMPLEMENTATION_GAP_IF_ABSENT",
+      "requirement": "Observe and validate final response URL before reading bytes; if unavailable, do not mark the transfer trusted."
+    }
+  ]
+}

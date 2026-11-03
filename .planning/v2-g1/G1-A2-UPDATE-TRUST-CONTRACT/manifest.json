@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "1.0.0",
+  "manifestId": "G1-A2-UPDATE-TRUST-CONTRACT-MANIFEST",
+  "generatedDate": "2026-11-04",
+  "hashAlgorithm": "SHA-256",
+  "selfExcluded": "manifest.json",
+  "entries": [
+    {
+      "path": "commands.log",
+      "bytes": 5097,
+      "lf": 84,
+      "cr": 0,
+      "utf8Bom": false,
+      "sha256": "F65D7CAA8FB4BCBBDCDEEB189605515077304B66AEC6551E1A6CE262782D6391"
+    },
+    {
+      "path": "fixtures/contract-cases.json",
+      "bytes": 11526,
+      "lf": 358,
+      "cr": 0,
+      "utf8Bom": false,
+      "sha256": "2B81849A7B2723F105104FC662698B91ADAEAB8C9BC3F36F4FE1334CE401C1DC"
+    },
+    {
+      "path": "PLAN.md",
+      "bytes": 4191,
+      "lf": 49,
+      "cr": 0,
+      "utf8Bom": false,
+      "sha256": "CFB1AA69B4CC6089838748D3853D82A26F6014439315CB7110A4B4FB011778CA"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1586,
+      "lf": 22,
+      "cr": 0,
+      "utf8Bom": false,
+      "sha256": "6277D86A0BF7E54B7C0DE0062E017538318113F0AE32C8958088D6A121E78B2B"
+    },
+    {
+      "path": "report.json",
+      "bytes": 10557,
+      "lf": 229,
+      "cr": 0,
+      "utf8Bom": false,
+      "sha256": "12A0128DF7094357517FB2EBB9AD8F5F0DABA80D399C75E39A428D34C5D6E53C"
+    },
+    {
+      "path": "state-machine.json",
+      "bytes": 6601,
+      "lf": 196,
+      "cr": 0,
+      "utf8Bom": false,
+      "sha256": "A6BB0E9CCAF3CA64DA16D1DE5EAFAB16DE1D681DDC04EBDF84569F1FA64C70AB"
+    },
+    {
+      "path": "tests/run-contract-tests.ps1",
+      "bytes": 20288,
+      "lf": 462,
+      "cr": 0,
+      "utf8Bom": false,
+      "sha256": "6B62DFBB8F88B3CDD6CECB3D2415B5128F17CB8780552F61C12DAE60A602BA69"
+    },
+    {
+      "path": "trust-contract.json",
+      "bytes": 17521,
+      "lf": 385,
+      "cr": 0,
+      "utf8Bom": false,
+      "sha256": "D736AD79938219F2EABFE977D25D73331C4E420F952249451FD932BA60FDBF3C"
+    },
+    {
+      "path": "trust-matrix.json",
+      "bytes": 8984,
+      "lf": 127,
+      "cr": 0,
+      "utf8Bom": false,
+      "sha256": "AF44C568B480F5DF0E025B597BC166C842C07D3A66A5337433066AB87614F521"
+    }
+  ],
+  "totals": {
+    "files": 9,
+    "bytes": 86351,
+    "lf": 1912,
+    "cr": 0,
+    "utf8BomFiles": 0
+  }
+}

@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "v2-download-state-contract/v1",
+  "status": "STATIC_CONTRACT_COMPLETE_WITH_CAPABILITY_GAPS",
+  "runtimeStatus": "UNVERIFIED",
+  "implementationStatus": "NO_IMPLEMENTATION",
+  "baseline": {
+    "head": "287c37e1d1287e2a90c047e628f7272a13cc5970",
+    "headMeaning": "observed-at-task-start",
+    "observedHeadAtEvidenceClose": "6f0f2f1a42cdb6092c4ed5cc1e3163d97880c55b",
+    "branch": "codex/v2-integration",
+    "expectedClean": true,
+    "observedClean": false,
+    "preexistingDirty": [
+      "docs/DECISIONS.md",
+      "docs/TASKS.md",
+      "docs/V2_PLAN.md"
+    ],
+    "graphifyFallback": "graphify-out/graph.json absent in this worktree; scoped rg fallback used"
+  },
+  "sourceInputs": [
+    {
+      "path": "docs/V2_PLAN.md",
+      "state": "preexisting-working-tree-dirty",
+      "bytes": 557725,
+      "sha256": "3CF923CEEE8F9A24A18C641A893B510637956C1385C581D1B780EB3B9CED31F2"
+    },
+    {
+      "path": "docs/TASKS.md",
+      "state": "preexisting-working-tree-dirty",
+      "bytes": 7185,
+      "sha256": "47DB578469B0601B219575E72DB7C2EFB5A85986DFCA51749ECB10959B7C5858"
+    },
+    {
+      "path": "docs/DECISIONS.md",
+      "state": "preexisting-working-tree-dirty",
+      "bytes": 79355,
+      "sha256": "B29A8105C9ECE8DD9291ECA680DC535F5F515FA211542ABA49D6BEF6CB0037A4"
+    },
+    {
+      "path": "docs/PROJECT_RULES.md",
+      "state": "working-tree",
+      "bytes": 7984,
+      "sha256": "B1707D0CB16A2E9B9140D1141BAEBA10EB10A6A6A26F173C3E3779EBC6569459"
+    },
+    {
+      "path": "core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadTask.kt",
+      "state": "working-tree-read-only",
+      "bytes": 18818,
+      "sha256": "B9AAB995144673EF6A87A6703A6BF60EDC04364689BAEFCFE3B66AD4A0006CDA"
+    },
+    {
+      "path": "core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadLifecycle.kt",
+      "state": "working-tree-read-only",
+      "bytes": 16623,
+      "sha256": "42F6DCBE6E604460E8E838F421FF0F4FD32AC7E34F71129FC4F4D6DB24064E23"
+    },
+    {
+      "path": "core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadNotifications.kt",
+      "state": "working-tree-read-only",
+      "bytes": 13488,
+      "sha256": "650CBDD245EAD448071D6493A6C8A7178362130DF8D019590AEA726D2756A684"
+    }
+  ],
+  "counts": {
+    "states": 12,
+    "allowedTransitions": 24,
+    "forbiddenTransitionExamples": 16,
+    "fullTransitionPairs": 144,
+    "fullForbiddenPairs": 120,
+    "identityCases": 6,
+    "completionCases": 11,
+    "notificationCases": 6,
+    "countCases": 1,
+    "deletionCases": 10,
+    "restartCases": 8,
+    "commitments": 13,
+    "fixtureCases": 55,
+    "equations": 10,
+    "capabilityGaps": 6,
+    "fakeBoundaries": 6
+  },
+  "criticalRejections": [
+    "Worker SUCCESS without doneAt/media/manifest/persistent/file facts cannot enter COMPLETED",
+    "stale generation or source mismatch cannot update progress, terminal state, notification, or delete receipt",
+    "optional Trickplay/subtitle/lyrics/cover/chapter failure cannot fail a completed main media",
+    "pageQueueCount, drawerBadgeCount, and activeNotificationCount must read the same active-key projection",
+    "delete remains DELETING or DELETING_FAILED until files, sidecar, persistent state, offline projection, and terminal notification receipts all confirm",
+    "PENDING or unrecognized child receipts never count as CONFIRMED and cannot enter DELETED",
+    "delete intent purges stale terminal notification and completed projection before final delete commit",
+    "CANCELLED must not be projected or notified as FAILED",
+    "restart must not infer COMPLETED from file path, Worker history, or notification presence"
+  ],
+  "capabilityGapIds": [
+    "GAP-IDENTITY",
+    "GAP-CAUSAL-FIELDS",
+    "GAP-CANCEL",
+    "GAP-NOTIFICATION",
+    "GAP-FINALIZER-SEVERITY",
+    "GAP-PROJECTION"
+  ],
+  "runtimeNotCovered": [
+    "Room plus sidecar plus file-system plus WAL transaction mapping",
+    "WorkManager scheduling, force-stop, reboot, and process-death replay",
+    "Android NotificationManager delivery, permission, PendingIntent routing, and purge",
+    "real range resume, network failure injection, source disappearance, and storage removal",
+    "real Compose page, drawer badge, and notification simultaneous count projection",
+    "real final file open/play/read after completion or deletion",
+    "real Trickplay/subtitle/image optional-asset retries"
+  ],
+  "severity": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 6,
+    "P3": 0
+  },
+  "boundaries": {
+    "q03": "OPEN",
+    "q04": "OPEN",
+    "g1Passed": false,
+    "uiDesignSystem": "v1.0",
+    "productionCodeModified": false,
+    "schemaModified": false,
+    "deviceUsed": false,
+    "serverAccessed": false,
+    "playbackAccessed": false,
+    "commitCreated": false,
+    "pushPerformed": false
+  },
+  "fixtureBoundary": {
+    "staticOnly": true,
+    "productionProtocolSubstitutionAllowed": false,
+    "workerSuccessAsCompletionAllowed": false,
+    "notificationAppearanceAsCompletionAllowed": false,
+    "fakeStorageAsRuntimeEvidenceAllowed": false
+  }
+}
