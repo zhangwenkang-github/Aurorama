@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / G1_S6_COMPLETE_SCOPED_REVIEW_PASS_WITH_P2 / NOW_SAFE_0 / Q04_CLOSED_D201 / Q03_OPEN / UI_V2_R1_ACCEPTED / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门残余门与用户授权交接 / S6 验收矩阵与 G2 任务卡输入已完成并通过 fresh scoped review `PASS_WITH_P2`，唯一 P2 `G1-S6/__pycache__` 已排除；Q04 由 `V2-D201` 接受整包 R1，UI 为 V2 R1。Q03 packaged / runtime / device、B/C/D/E 门、引擎 voice 与排序 / TTL / 合并策略仍未收口或未授权；S6 完成不等于 G1 PASS
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / G1_S6_COMPLETE_SCOPED_REVIEW_PASS_WITH_P2 / D202_ACCEPTED_RECOMMENDATIONS / L1_ACTIVE / L2_L3_LOCKED / Q04_CLOSED_D201 / Q03_OPEN / UI_V2_R1_ACCEPTED / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 `L1` 静态 / 依赖 / packaged 证据准备 / `V2-D202` 已接受 `A1-B1-C1-D1-E1-F1-G1` 全部推荐语义并仅批准 `L1`。当前唯一可执行任务为 `V2-G1-L1-EVIDENCE`；Q03 仍 Open、Q04 仍 Closed/D201、runtime `UNVERIFIED`、G1 `NOT_PASSED`，S6 完成不等于 G1 PASS
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3194,7 +3194,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5 与 Q04 已完成；Q03、S6、runtime 与真实证据仍未收口 |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 与 S6 已完成；`V2-D202` 接受 A-G 推荐语义并仅授权 L1，`V2-G1-L1-EVIDENCE` ACTIVE；Q03、runtime、device 与真实证据仍未收口，L2/L3 locked |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3224,7 +3224,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ✅ 9 节点最终矩阵、计数、证据与跨域处置由 `V2-D193` 整包接受；需求域已收口 |
 | 9 | `V2-REQ-BASE` | 1.4 既有能力补充基线 | ✅ `V2-REQ-BASE-001～005` 五个 `MUST` 组由 `V2-D196` 保留，来源、验收、依赖、非目标与 G1 未决项已落 §5.10.5 |
 | 10 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ✅ `V2-D197` 完整 G0 PASS；`V2-Q-FINAL-01～03` 全部关闭；后续由 G1 接管 |
-| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 已完成并通过 scoped review `PASS_WITH_P2`，下一入口仅为残余门审计 / 用户授权准备；禁止自动进入实现或 G2 |
+| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 已完成并通过 scoped review `PASS_WITH_P2`；D202 接受 A-G 推荐语义并仅授权 L1，当前唯一可执行任务为 `V2-G1-L1-EVIDENCE`；L2/L3 locked，禁止启动 runtime、实现或 G2 |
 
 每个需求域的退出条件：
 
@@ -3332,29 +3332,57 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1 残余门 / 等待用户选择 A-G + L1 授权（2026-11-04；S6 已完成并通过 scoped review `PASS_WITH_P2`）
+### ACTIVE：G1-L1 静态 / 依赖 / packaged 证据准备（2026-11-04；D202 接受推荐并仅授权 L1）
 
-**一句话现状**：等待用户选择 A-G + L1 授权。S6 总验收矩阵与 G2 任务卡输入已完成，fresh scoped review 结论
-`PASS_WITH_P2`，唯一 P2 是 `G1-S6/__pycache__` 不得进入提交；Q03 仍 Open，B/C/D/E
-均未完成或未授权，runtime 仍 `UNVERIFIED`，G1 `NOT_PASSED`。S6 通过只接受其为规划包与
-docs integration/commit 候选，不等于 G1 PASS。
+**一句话现状**：用户于 2026-11-04 以原话“按推荐”接受推荐串
+`A1-B1-C1-D1-E1-F1-G1` 的全部推荐语义，并仅批准 `L1`；`V2-D202` 已落档。
+当前唯一可执行任务为 `V2-G1-L1-EVIDENCE`。Q03 仍 Open、Q04 仍 Closed/D201、runtime
+`UNVERIFIED`、G1 `NOT_PASSED`；S6 仍只是 `PASS_WITH_P2` 的规划包，不等于 S6 / G1 PASS。
 
 **已完成**：
 
-- S6 产物根 `.planning/v2-g1/G1-S6/`：445 source、456 条原子验收行、376 MVP、5 BASE、
-  30 R1、16 planning umbrella、45 delivery waves、491 memberships、554 edges。
-- S6 verifier 与 29/29 注入负例 GREEN；唯一 scoped-review P2 为 `__pycache__` 提交污染，
-  已从候选提交范围排除。
-- Q04 已由 `V2-D201` 关闭为 Closed / Accepted；UI 权威为 V2 R1，仅 D201 窄覆盖
+- D202 接受 A1/B1/C1/D1/E1/F1/G1 全部推荐语义；没有接受替代选项，也没有授权 L2/L3。
+- Q04 已由 `V2-D201` 关闭为 Closed / Accepted；UI 权威为 V2 R1，仅窄覆盖
   `V2-D057` Nocturne 基础圆角 12→8dp，其他主题圆角与 D057 其他内容不变。
+- S6 产物根 `.planning/v2-g1/G1-S6/` 已冻结 445 source、456 rows、376 MVP、5 BASE、
+  30 R1、16 planning umbrella、45 delivery waves、491 memberships、554 edges；
+  fresh scoped review 为 `PASS_WITH_P2`，唯一 P2 `__pycache__` 不进入提交。
 
-**未完成**：
+**L1 范围**：
 
-- Q03：TTS 引擎 / voice / 零网络 runtime、PDFium exact revision / 16 KB / Range、
-  packaged SBOM / notice / source bundle / attestation / relink、native load-order 等。
-- `B`：A-G 媒体 / TTS / voice / PDF / 搜索 / SWR / 歌单导入策略均待用户选择。
-- `C`：runtime / device / candidate package 真实执行；`D`：production implementation。
-- `E`：G2、独立 QA、Release 均未获授权；A1/A2 与 Q03 既有 gaps 原样保留。
+- 仅做本地、可逆的静态 / 依赖 / packaged 证据准备；允许在临时 worktree 内做隔离构建或
+  Spike 包，但本波先从证据盘点和任务卡开始，不自动执行 runtime。
+- 范围覆盖 packaged SBOM、notice、source-offer / corresponding source、依赖与构建输入、
+  B1 系统 TTS 的条件回退证明门、C1 exact voice/model 资产审计、D1 stable PDFium 2.0.3
+  隔离 Spike 与 PdfRenderer 回滚证据。
+- B1 的系统 TTS 回退仍须同时证明零网络与能力探测通过；未通过时不得作为离线主路径。
+  C1 的 exact voice/model 在 L1 资产审计完成前不冻结。
+- D1 只批准 stable PDFium 2.0.3 隔离 Spike；须过 16 KB / revision / notice / Range 门后
+  再比较，PdfRenderer 始终保留为生产回滚。
+
+**非目标与停止条件**：
+
+- L2/L3 均 `LOCKED`。未经另行授权，禁止联网、设备、账号、服务器、runtime、生产代码、
+  G2、独立 QA 与 Release；不得把静态、fixture、Spike、S6 或文档证据写成 G1 / runtime PASS。
+- 若依赖下载需要网络，须先单列域名与原因并停止等待明确授权；不得以缓存、代理或推荐语义
+  推定拥有网络权限。任何设备、账号、服务器或生产写需求同样停止。
+- 不关闭 Q03，不替用户冻结 exact voice/model，不自行选择替代 PDF 引擎，不扩大 A-G 或在
+  L1 未通过前申请 L2/L3。出现新 P0–P2、证据 / hash 不可复算或范围漂移时立即停止。
+
+**下一步入口**：`docs/TASKS.md` 的 `V2-G1-L1-EVIDENCE`，先建立 L1 白名单、证据目录与
+本地可复算任务卡，再按单点小步执行。第一条只读动作是实读 D202、本 ACTIVE、该任务卡与
+`.planning/v2-g1/G1-S6/CHECKPOINT.md` / `manifest.json`，并在现有 Gradle / dependency
+lockfile 与 `.planning/v2-g1/` 中只读枚举 packaged SBOM / notice / source-offer 证据及缺口。
+
+**环境 / 设备 / 权限**：事实 worktree 为
+`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
+`codex/v2-integration`；HEAD、dirty 与锁均由 Git / 设备现场读取。当前无设备、服务器写或
+Release 锁；生产服务器永久只读。
+
+### HISTORY：G1 残余门 / A-G 决策菜单（2026-11-04；Completed，D202 已接受推荐并由上方 L1 ACTIVE 取代）
+
+**历史快照**：下方保留用户回复前的待选菜单与授权阶梯。其中 `PENDING`、“等待用户”等
+措辞只描述当时状态，不是当前任务状态；当前入口以上方 D202 / L1 ACTIVE 为准。
 
 **用户决策菜单（PENDING）**
 
@@ -4306,3 +4334,13 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `L1`；推荐不等于接受。S6 仍为 `PASS_WITH_P2`，Q03 仍 Open、Q04 Closed/D201、
   G1 `NOT_PASSED`、runtime `UNVERIFIED`。未执行产品构建、联网、设备、服务器、runtime、
   生产实现、独立 QA 或 Release；下一步等待用户明确选择与 L1 授权。
+- **2026-11-04 — D202 接受 A-G 推荐串并启动 L1 证据准备**：用户以原话“按推荐”回答
+  “是否按推荐串 `A1-B1-C1-D1-E1-F1-G1` 并批准 L1”，`V2-D202` 因此接受全部推荐语义并仅
+  批准 `L1`。B1 的系统 TTS 回退仍须零网络与能力证明；C1 的 exact voice/model 仍须 L1
+  资产审计后冻结；D1 仅批准 stable PDFium 2.0.3 隔离 Spike，PdfRenderer 保留回滚。
+  `V2_PLAN` §12 ACTIVE 已切换为
+  “G1-L1 静态 / 依赖 / packaged 证据准备（2026-11-04；D202 接受推荐并仅授权 L1）”，
+  `TASKS` 新增唯一当前可执行任务 `V2-G1-L1-EVIDENCE`；L2/L3 locked。Q03 仍 Open、
+  Q04 Closed/D201、G1 `NOT_PASSED`、runtime `UNVERIFIED`，S6 仍为 `PASS_WITH_P2`，
+  不得写成 S6 / G1 PASS。除另行授权外禁止联网、设备、账号、服务器、生产代码、G2、
+  独立 QA 与 Release；下一步仅从 L1 的本地只读证据盘点开始。

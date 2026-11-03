@@ -4,9 +4,10 @@
 
 ## In Progress
 
-| ID | 需求域 | 目标 | 依赖 | 停止条件 |
-|---|---|---|---|---|
-| `V2-SOLUTION-BASELINE` | G1 方案门 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | G0、G1/0、S1–S3、Q01/Q02、S4-A/B、S5 与 S6 已完成；Q04 由 `V2-D201` 接受整包 R1 并关闭；S6 产物 445 source / 456 rows / 376 MVP / 5 BASE / 30 R1 / 16 cards / 45 waves / 491 memberships / 554 edges，verifier 与 29/29 self-test GREEN，fresh scoped review `PASS_WITH_P2`；唯一 P2 `G1-S6/__pycache__` 不进入提交。前沿定格 `NOW_SAFE=0`；只读残余门审计 / 决策包已完成，当前依赖 = 等待用户对 A-G 选择与 L1 授权明确回复，推荐串 `A1-B1-C1-D1-E1-F1-G1`，本轮仅建议申请 L1 | G1 NOT_PASSED；`V2-Q-G1-03` 仍 Open，`V2-Q-G1-04` 已 Closed/Accepted；剩余 `B=引擎 voice / 排序 TTL 合并策略`、`C=runtime/device`、`D=production implementation`、`E=G2/QA/Release 未授权`；A1/A2 gaps 与 Q03 packaged / runtime / device 未完成；S6 只接受为规划包与 docs integration/commit 候选，不等于 S6 / G1 runtime PASS 或独立 QA；`UI_DESIGN_SYSTEM` = V2 R1，runtime 仍 `UNVERIFIED`；最终文档提交 SHA 由 Git 实读，不自引用 |
+| ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
+|---|---|---|---|---|---|---|
+| `V2-SOLUTION-BASELINE` | G1 方案门；总括行，非执行卡 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | 不自行启动 runtime / 设备 / 网络 / 服务器 / 生产代码 / G2 / 独立 QA / Release；不把 S6 `PASS_WITH_P2` 或任一静态证据写成 G1 PASS | `V2-D202` 已接受全部推荐语义并仅授权 `L1`，当前 `L1 ACTIVE`；S6 已完成并通过 scoped review `PASS_WITH_P2`；Q03 仍 Open，Q04 仍 Closed/D201；L2/L3 locked | G1 总体只在后续独立证据、用户决策与完整闭包均通过后收口；当前总括行不得代签 | 任何越权联网 / 设备 / 账号 / 服务器 / 生产代码 / G2 / QA / Release、Q03 或 G1 状态漂移、证据不可复算时立即停止 |
+| `V2-G1-L1-EVIDENCE` | G1 `L1`；唯一当前可执行任务 | 完成本地、可逆的静态 / 依赖 / packaged 证据准备，覆盖 SBOM、notice、source-offer、隔离构建证据，并为 B1 零网络能力、C1 voice/model 资产审计与 D1 stable PDFium 2.0.3 / PdfRenderer 回滚准备可复现输入 | ①未经另行授权不得联网、接触设备 / 账号 / 服务器或修改生产代码；②不启动 runtime、独立 QA、G2 或 Release；③不在审计前冻结 exact voice/model，不关闭 Q03，不把静态 / Spike 结果写成 G1 PASS | `V2-D202`（A1/B1/C1/D1/E1/F1/G1 已接受，仅 `L1` 生效）；`L2/L3 LOCKED`；G1-S6 `PASS_WITH_P2`；Q03 Open；Q04 Closed/D201；UI V2 R1 | 证据可由本地命令复算；依赖清单与 packaged SBOM / notice / source-offer 覆盖、缺口和来源明确；隔离构建 / Spike 有输入、命令、输出与清理记录；B1 明列系统 TTS 能力探测与零网络证明门；C1 明列候选 voice/model 许可、体积与质量审计；D1 固定 stable PDFium 2.0.3 Spike 且保留 PdfRenderer 回滚；全部记录证明未经另行授权不得联网 / 设备 / 账号 / 服务器 / 生产代码 | 需要网络下载、设备 / 账号 / 服务器、生产代码或 runtime；需要关闭 Q03 或申请 L2/L3；出现 P0–P2、范围漂移、hash / manifest 不可复算时停止并请求明确授权 |
 
 ## Review
 
