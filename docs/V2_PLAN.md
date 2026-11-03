@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / G1/1 隔离 Spike 待执行
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S1_S3_STATIC_COMPLETE / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / G1/1 首波静态证据已完成，用户决策与 S4–S6 待续
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-03
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2794,12 +2794,102 @@ G1 后续只向用户提交经证据收敛的高杠杆决策，不逐条询问�
 接受，没有真实能力或发布门 PASS，没有修改生产代码或构建产物。下一入口为 `G1/1` 隔离
 Spike 与用户决策包，不是实现或 G2。
 
+#### 5.11.9 G1/1 首波 S1–S3 只读证据（2026-11-03）
+
+**状态**：`G1_1_S1_S3_STATIC_COMPLETE / EVIDENCE_FROZEN / G1_NOT_PASSED /
+NO_IMPLEMENTATION`。三项均由全新只读子代理执行，固定 `deepseek-flash /
+reasoning_effort=max / fork_turns=none`；负责人仅消费压缩报告并执行文档集成。
+
+**证据基线**：分支 `codex/v2-integration`。三轨实际收口 HEAD 为
+`00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc`，它是交接 HEAD
+`a74d76f72c9a4137764d81e2611075e4abd0842a` 的纯文档后继，仅回写 G1/1 负责人线程 ID。
+双祖先与外部原文 SHA-256 仍为：
+
+- 基线 `4fbe5e12d182fc1d9bdf2790c7a725bec0074d37`
+- 视频收口 `bd5e3aa59c2e5671ada9354f230da4519589272b`
+- 外部原文 `E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229`
+
+| 轨道 | 身份 / 实际执行 | 冻结结论 | 最多证明 / 未执行 |
+|---|---|---|---|
+| `G1-S1` | 资深移动端架构师；读取 11 个 settings/build、609 个 `src/main` 文件 / 132987 行静态索引，执行依赖边、拓扑与 owner 扫描 | 8 模块 19 条 Gradle direct edges、19 条可解析 import edges、0 模块环；11 个稳定违规 ID；package-only allowlist 产生 45 条歧义，必须用 Gradle 边 + source/FQCN owner + debt ratchet；首选逻辑 contracts seam，物理拆模块只先做单 seam pilot | 只证明静态依赖与成本估算；未 Gradle compile、未 KSP/Hilt 全类型解析、未物理拆模块、未测 APK/native/设备 |
+| `G1-S2` | 资深 Android 数据 / 持久化架构师；只读 1.4 正式 APK、schema、DAO/DTO、迁移测试与持久化代码，校验 APK SHA 并从 DEX 找到两个 Room `identityHash` | 1.4.0(5) 两份正式 APK 均绑定 `ServerDatabase` v17 / `MusicDatabase` v3；定义两级 request/source identity、未知 provenance 隔离、DB+sidecar+journal FAIL_CLOSED 和 10 条 fixture 合同 | 只冻结制品映射与合同；E4/E5 真实迁移、WAL/SHM、故障注入均 `OUT_OF_SCOPE_NOT_EXECUTED` |
+| `G1-S3` | 资深 Jellyfin 协议集成工程师；只读当前客户端接口与必要实现，并核对 OpenAPI 12.4.0、固定 server / SDK commit | 八能力均有脱敏 E0 静态契约；Book 走 direct Download；PlaybackInfo、写回读、Search、SWR、SyncPlay 的可表达性与客户端缺口已分类 | 零服务器 / 认证 / 播放调用；真实 206/416、403/409、PlaybackInfo 特殊分支、双端 SyncPlay、Update 安装均未执行 |
+
+**S1 稳定违规基线**：P1 为
+`G1-S1-V-f3f117c921f7`（models 共享包）、`1d0658ad88d4`（utils 三方共享）、
+`d0a87242164d`（app presentation→data）、`d8a9ce2529bf`（core 层塌缩）、
+`ba7ffc6c9bfe`（player/local presentation→data）、`17dbbcd423d6`（music→具体播放器）、
+`434beb5c4623`（app→具体播放器）；P2 为 `67c5e05b0c29`（update 共享包）、
+`d6b630851ba5`（film UI ownership 分裂）、`3a750bb14da2`（LanguageMatcher namespace
+shadowing）；P3 为 `56f941f5ffea`（film 重复声明 `libs.jellyfin.core`）。
+
+**S1 架构推荐候选**：逻辑 contracts seam 新增 0 Gradle module，初波估计改 40–80 个既有文件、
+100–250 个 import；物理拆模块估计新增 2–4 module、移动或重写 100–200 文件、300–700 import，
+并扩大 Gradle / R / Hilt-KSP / Room / instrumentation / native packaging 回归面。推荐顺序为
+`BASELINE_FREEZE → PURE_CONTRACTS → ADAPTERS → CONSUMER_MIGRATION → RATCHET →
+PHYSICAL_SPLIT_GATE`；不得把 module 回滚与数据库 down migration 混为一谈。
+
+**S2 正式制品与 schema 映射**：
+
+| 制品 / 数据库 | 冻结值 |
+|---|---|
+| universal APK | `19B9FD8A8EBB7A8652468B594944545E14489D80AA99EF1AB28E1B54CBAC18A2` |
+| arm64-v8a APK | `ACB1648D9E9C5265BC54DD13B24EEA7ADA3D16E397D3E10C6A72E23D2D2FF5BB` |
+| APK 构建源 | `005639a69679609661e3845344d3c6eec0e40f52` |
+| `ServerDatabase` v17 | `2bd5b912ac9960bad386f707a74589a4` |
+| `MusicDatabase` v3 | `313c71f04e6a4b8d26217649ed562ea0` |
+
+S2 确认 `DatabaseModule.kt:25` 仍调用
+`fallbackToDestructiveMigration(dropAllTables = true)`；任何候选发布保留此回退均为 P0 STOP。
+普通记录使用
+`RequestIdentityV2(keyVersion, mediaKind, serverId, userId, libraryId, itemId)`，source 再追加
+稳定 `sourceToken`；BOOK 使用非空 `NO_MEDIA_SOURCE` 哨兵。旧记录无法证明来源时保留独立
+`legacyRowKey` 并标 `PROVENANCE_UNKNOWN`，禁止按当前账号补填或 Map 折叠。迁移状态机为
+`PREFLIGHT → QUIESCE → DB_TRANSACTION → DB_VERIFY → SIDECAR_TEMP → ATOMIC_SWAP →
+CROSS_STORE_VERIFY → READY`，任一步不一致进入 FAIL_CLOSED，保留旧对象与恢复入口。
+
+**S3 版本台账与能力结论**：官方基线为 OpenAPI stable 12.4.0
+（`02A6064916B7E08F1F1D8D7FFC1FB1C7623DF0E378729FCD7FD353766868036E`）、
+server `83d0d0e7f76e23e2e085c8ff67d28b772d35967d`、Kotlin SDK 1.8.12
+`8729ab41951dc5e905271107bbc0031cd7680524`。当前客户端丢弃 PlaybackInfo 顶层
+`PlaySessionId` / `ErrorCode`；写路径先改本地且无强制 GET 回读，403 未记为 DENIED；
+Book direct Download 已可实现 200/206，但完整远程 range 仍需真实证据；Search 当前仅覆盖
+`userId/searchTerm/includeItemTypes/recursive` 四参数；SWR 内部有 stale / generation 能力，
+但 OpenAPI 12.4.0 无 304/ETag 契约；SyncPlay 有 REST + WebSocket 状态但客户端完全未接，
+协议无显式 revision，只能依赖时间字段并在重连后重取快照。
+
+**统一风险门**：
+
+- P0：候选包全局 Room 破坏性 fallback；生产 `GET /Items/{id}/Download` 会写 ActivityLog，
+  永久不能作为“零副作用探针”。本轮没有发生生产写或数据破坏。
+- P1：1.4→2.0 forward migration 未定义 / 未执行；request/source identity、BOOK 哨兵、
+  legacy 隔离和跨存储 journal 尚未落地；PlaybackInfo session/error、写回读 / 403、
+  SyncPlay 缺失；静态协议不能替代真实写服 / 设备证据。
+- P2：sidecar 同键压扁与 fsync / 跨进程边界、下载 401/403 与 404/409 合并、
+  Search query shape、SWR 外部 stale 标志、App 更新安装链路。
+- P3：OpenAPI 未声明 Download 206/416，但 server 代码表明 ASP.NET Core range 处理启用；
+  仍只能记为静态推断。
+
+**用户决策准备度**：
+
+| ID | 当前准备度 | 本轮可给用户的结论 |
+|---|---|---|
+| `V2-Q-G1-01` | 可用于方向决策；物理拆模块收益证据不足 | 推荐先逻辑 seam + FQCN/模块 owner allowlist + debt ratchet；只有用户希望进一步比较物理拆分时才执行单 seam build pilot |
+| `V2-Q-G1-02` | 1.4 制品与安全合同已冻结，可用于用户可见兼容范围决策 | 推荐保留全部已承诺资产；一次性迁移须有进度、可安全中断 / 恢复和 FAIL_CLOSED 提示；禁清库、禁 down migration、未知 provenance 不猜来源不列为选择项 |
+| `V2-Q-G1-03` | 未就绪 | 等 `G1-S4` 的依赖闭包、Media3/FFmpeg、TTS/PDF、ABI / 包体 / 性能证据 |
+| `V2-Q-G1-04` | 未就绪 | 等 `G1-S5` 的五主题风格帧与九条低保真复核 |
+
+**G1/1 首波结论**：S1–S3 已形成可冻结的证据与决策输入，但没有任何真实服务器、设备、迁移、
+协议或候选包 PASS；`V2-Q-G1-01/02` 可提交用户确认，`V2-Q-G1-03/04` 继续等待后续 Spike。
+下一角色为 G1/1 证据编排负责人；第一条动作是读取本检查点、三份 JSON 与用户决定，停止于任何
+服务器写、真实用户数据迁移、G2、实现、独立 QA、push、tag 或 Release。
+
 ## 6. 三层前置门
 
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0 只读检查点完成；候选方案见 §5.11，`G1-S1～S6` 与用户决策仍未收口 |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0 与 G1/1 S1–S3 静态证据完成；§5.11.9 已冻结架构 / 1.4 schema / 协议契约，S4–S6、真实证据和用户决策仍未收口 |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -2937,19 +3027,18 @@ Spike 与用户决策包，不是实现或 G2。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1/1 证据收敛已接管 / 新负责人原生会话（2026-11-03）
+### ACTIVE：G1/1 S1–S3 静态证据已冻结 / 后续决策与 S4–S6 待续（2026-11-03）
 
-**下一任身份**：**G1/1 证据编排负责人 / 技术集成编排者**。只负责 G1/1 范围、风险、角色拆单、
+**当前负责人身份**：**G1/1 证据编排负责人 / 技术集成编排者**。只负责 G1/1 范围、风险、角色拆单、
 只读白名单、压缩报告与关键 diff 审查、证据门、文档和交接；不承担实现工程师、独立 QA、
 Release 架构师或 merge-prep owner。
 
-**一句话现状**：G1/0 只读问题树与候选基线已完成，但 G1 未通过；原负责人实测上下文
-`311,719 / 1,048,576`（29.7%），已到 30 万交接准备线。G1/1 新负责人原生会话
-`01a1a178-a8ea-7ce1-bf18-f9ead6037071` 已创建并接管，从本 ACTIVE 与 `V2_PLAN` §5.11
-接续 `G1-S1～S3` 首波证据，不重开 G0，也不直接写方案结论。
+**一句话现状**：G1/0、G1/1 S1–S3 静态证据均已完成；1.4 schema / identityHash、19 边 /
+11 个稳定违规 ID、八能力 E0 契约与统一风险门已冻结。G1 仍未通过；下一步只提交
+`V2-Q-G1-01/02` 的用户决策包并排队 S4–S6，不进入实现、G2、QA、设备或服务器写。
 
-**状态**：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE / G1_1_ACTIVE /
-G1_NOT_PASSED / NO_IMPLEMENTATION`。
+**状态**：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE /
+G1_1_S1_S3_STATIC_COMPLETE / G1_NOT_PASSED / NO_IMPLEMENTATION`。
 
 **交接顺序（用户 2026-11-03 再次强调，强制）**：先完成本 ACTIVE、任务看板、必要项目文档、
 提交与 clean 审计，再完成 Engramory 同步和 validator，最后才创建新会话；新会话首条 prompt
@@ -2969,27 +3058,28 @@ G1_NOT_PASSED / NO_IMPLEMENTATION`。
 
 - §5.11 已落七支问题树、六条只读轨道、候选 seam / identity / 协议 / 依赖 / UX / E0–E7
   和 `G1-S1～S6`；不得让新负责人重新做整轮 G1/0。
+- §5.11.9 已冻结 S1–S3：S1 的 19 边 / 0 环 / 11 个违规 ID、逻辑 seam 与物理拆分比较；
+  S2 的 1.4 APK / schema 17 / schema 3 / 两个 identityHash / 10 条 fixture 合同；
+  S3 的八能力 E0 契约、版本台账和真实证据缺口。证据位于
+  `.planning/v2-g1/G1-S1`、`G1-S2`、`G1-S3`。
 - `DECISIONS.Open` 的 `V2-Q-G1-01～04` 是 evidence-gated 问题；对应 Spike 未收口前不得
-  要求用户做最终技术取舍，也不得把代理推荐写成已接受决策。
-- `G1-S1` 要同时比较逻辑 seam 与物理拆模块成本；`G1-S2` 要把 1.4 schema、identity、
-  provenance、DB+sidecar 和失败关闭放在同一证据链；`G1-S3` 要产出协议静态契约与能力可表达性，
-  不得把 fake 或文档映射冒充真实服务器链路。
+  要求用户做最终技术取舍，也不得把代理推荐写成已接受决策。当前 `V2-Q-G1-01/02`
+  已达到提报条件；`03` 等 S4，`04` 等 S5。
 
-**首波在跑 / 排队**：
+**首波完成 / 后续排队**：
 
 | 顺序 | 子代理专业身份 | 独立验收物 | 硬边界 |
 |---|---|---|---|
-| `G1-S1` | 资深移动端架构师 | 当前依赖 / 违规稳定 ID、allowlist 原型、目标 seam、物理拆分成本与回归面 | 临时 worktree 或纯静态；不改生产模块，不构建 APK |
-| `G1-S2` | 资深 Android 数据 / 持久化架构师 | 1.4 正式包 schema / identityHash 映射、identity / provenance 不变量、迁移失败关闭 fixture 设计 | 不打开真实用户 DB，不做 down migration，不复制含 token 数据库 |
-| `G1-S3` | 资深 Jellyfin 协议集成工程师 | PlaybackInfo、Range、写回读 / 403、Book direct source、Search、SWR、SyncPlay 静态契约语料与能力结论 | 零服务器调用；生产下载 GET 不当零副作用探针 |
+| `G1-S1` ✅ | 资深移动端架构师 | 19 边 / 0 环 / 11 个稳定违规 ID；allowlist 与 seam / 物理拆分成本比较已冻结 | 仅静态，未构建；详见 `.planning/v2-g1/G1-S1/report.json` |
+| `G1-S2` ✅ | 资深 Android 数据 / 持久化架构师 | 1.4 两份 APK、schema 17 / 3、两个 identityHash、10 条 fixture 合同已冻结 | 未开真实用户 DB、未跑迁移 / instrumentation |
+| `G1-S3` ✅ | 资深 Jellyfin 协议集成工程师 | 八能力 E0 契约、版本台账、P0–P3 与 BLOCKED 缺口已冻结 | 零服务器调用；所有真实协议 / 写服证据仍未执行 |
 | `G1-S4` | 开源依赖 / 许可审查专家 | 完整 runtime closure、Media3/FFmpeg、ABI、包体、性能、TTS/PDF 选项成本 | 不下载/安装新依赖，不生成发布 APK |
 | `G1-S5` | 资深 Android UX / 信息架构师 | 五主题风格帧、九条低保真复核、RWD / 状态 / 无障碍证据 | 未确认前不改 `UI_DESIGN_SYSTEM` 为 V2 权威 |
 | `G1-S6` | 资深移动端测试架构师 | E0–E7 证据矩阵、阈值、G2 任务卡输入和未覆盖门 | 不执行独立 QA、设备写或真实写服 |
 
-首波最多并行 `G1-S1～S3` 三个全新只读子代理，统一 `deepseek-flash`、
-`reasoning_effort="max"`、`fork_turns="none"`。每个 brief 第一句写专业身份，给绝对 worktree、
-互斥白名单、证据路径、非目标、停止条件、预期上下文和“计划后同回合继续”。负责人只创建一个
-文档集成车道；S1～S3 报告收口后再决定是否进入 S4～S6。
+首波已按三个全新只读子代理执行，统一 `deepseek-flash`、`reasoning_effort="max"`、
+`fork_turns="none"`；负责人只保留一个文档集成车道。S4–S6 尚未启动，必须先消费用户对
+`V2-Q-G1-01/02` 的决定，再决定后续角色与白名单。
 
 **第一读序**：
 
@@ -2997,7 +3087,7 @@ G1_NOT_PASSED / NO_IMPLEMENTATION`。
 2. 读 `docs/TASKS.md` In Progress、`docs/DECISIONS.md` Open、`docs/PROJECT_PLAN.md` 2.0 行；
 3. 读 `docs/PROJECT_RULES.md` 中 R004/R007/R008/R009/R011/R012/R014/R015/R016/R017/R020/R025；
 4. 读 ADR-0003～0007；
-5. 之后再按 S1～S3 的窄白名单读代码 / schema / 官方协议。
+5. 读 §5.11.9 与 `.planning/v2-g1/G1-S1～S3` 的压缩 JSON；后续角色再按 S4～S6 窄白名单取证。
 
 禁止开工前通读 `V2_PLAN` 全文、外部需求 `1–1156`、全仓源码或历史任务线。
 
@@ -3006,9 +3096,11 @@ G1_NOT_PASSED / NO_IMPLEMENTATION`。
 Release。发现新产品 / UX 范围、数据破坏、许可不可接受、对象漂移、需要独立写服或证据无法在
 本代理窗口收口时，先写检查点并停止扩张。25 万收缩、30 万写交接准备、35 万必须换负责人。
 
-**新负责人线程**：`01a1a178-a8ea-7ce1-bf18-f9ead6037071`（2026-11-03 创建并接管）。
-创建前本交接文档已在 `a74d76f72c9a4137764d81e2611075e4abd0842a` 提交，Git clean、双祖先 /
-外部 SHA 与 Engramory checker / doctor 均通过；本 ID 回写提交不改变 G1/1 工作范围。
+**当前负责人线程**：`01a1a178-a8ea-7ce1-bf18-f9ead6037071`（2026-11-03 创建并接管）。
+三轨证据收口于 `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc`；本检查点仅提交文档与 JSON，
+不改变生产代码。本次文档收口前实测上下文 `164,255 / 1,048,576`（15.7%），未到 25 万
+收缩线。`git diff --check`、四份 JSON 解析、Engramory checker 与 doctor 均通过；doctor
+仅提示既有 `leader-delegation-by-role.md` 为 12.1 KB。提交后的 clean / HEAD 由 Git 实况复核。
 
 **新负责人收口报告格式**：结论；cwd / branch / HEAD / clean；双祖先与外部 SHA；S1～S3
 各身份 / 模型 / executed / 产物；G1/1 证据与 P0–P3；用户决策是否已具备提报条件；未覆盖 /
@@ -3403,3 +3495,11 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   再创建新会话。§12 ACTIVE 已切换为 G1/1 证据编排负责人入口，首波固定
   `G1-S1` 架构边界 / 拆模块成本、`G1-S2` 1.4 schema / identity / provenance / 迁移失败关闭、
   `G1-S3` 静态协议契约与能力可表达性；G1 仍未通过，未进入实现、G2、QA、设备 / 服务器写或发布。
+- **2026-11-03 — G1/1 S1–S3 首波静态证据冻结**：三轨固定
+  `deepseek-flash / max / fork_turns=none`，分别由资深移动端架构师、Android 数据 /
+  持久化架构师、Jellyfin 协议集成工程师只读执行。S1 冻结 19 条 direct edges / 0 环 /
+  11 个稳定违规 ID 与逻辑 seam / 物理拆分比较；S2 冻结 1.4.0(5) 双 APK SHA、
+  Server v17 `2bd5b912…`、Music v3 `313c71f0…`、破坏性 fallback P0 与 10 条 fixture
+  合同；S3 冻结八能力 E0 契约、OpenAPI 12.4.0 / server / SDK 台账及真实运行缺口。
+  `V2-Q-G1-01/02` 已具备提报条件，`03/04` 仍等待 S4/S5。未构建、未迁移、未触设备 /
+  服务器、未 QA、未 push/tag/Release；G1 仍未通过。

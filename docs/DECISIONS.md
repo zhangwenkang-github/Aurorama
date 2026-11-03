@@ -206,16 +206,17 @@
 
 ## Open
 
-当前 G0 无开放产品问题。G1/0 已登记四个证据门问题，尚未到向用户提交最终选择的条件；
-这些问题不是已接受决策，代理建议不得代替用户拍板。
+当前 G0 无开放产品问题。G1/0 与 G1/1 S1–S3 已冻结四个证据门问题所需的首波材料；
+`V2-Q-G1-01/02` 已达到提报条件，`03/04` 仍分别等待 S4/S5。这些问题不是已接受决策，
+代理建议不得代替用户拍板。
 
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
 |---|---|---|---|---|
-| `V2-Q-G1-01` | 现有 app 同时直连 core/data/player/modes，`core→data` 和 UI/DAO/API/具体播放器直连形成 P1；物理拆模块成本高 | 先建立 contracts seam、包所有权与依赖 allowlist，再以 Spike 评估物理拆分 | 立即物理拆可更快收紧边界，但迁移面、构建变化和回归面显著更大 | **Open / 待 `G1-S1`** |
-| `V2-Q-G1-02` | Server schema 17 仍有全局破坏性 fallback；intent/book/sidecar/userdata/queue/playlist 身份不一致；1.4 正式 schema 映射未冻结。显式版本迁移、两级 identity、未知 provenance 隔离、FAIL_CLOSED 与真实数据禁止 down migration / 清库是强制安全不变量 | 用户只需确认 1.4→2.0 的用户可见兼容范围、可接受的一次性等待 / 中断，以及迁移失败后的恢复入口 | 静默迁移或跳过恢复入口可能让用户无法判断资产是否完整；安全性本身不列为可选取舍 | **Open / 待 `G1-S2`** |
-| `V2-Q-G1-03` | Media3 1.11.1 与 FFmpeg decoder 绑定 1.9.0；libmpv native 与 libc++ 覆盖复杂；TTS / PDF 未实际选型 | Media3 主路径；mpv 只在格式矩阵证明必需时保留；Sherpa/Piper、PdfRenderer/PDFium 由隔离 Spike 比较 | 双内核和 PDFium 提高覆盖但增加包体、许可证、维护与 native 风险 | **Open / 待 `G1-S3/S4`** |
+| `V2-Q-G1-01` | `G1-S1` 冻结 19 条 direct edges / 0 环 / 11 个稳定违规 ID；package-only allowlist 有 45 条 owner 歧义；逻辑 seam 的迁移 / 回滚面显著小于全量物理拆模块 | 先建立 contracts seam、FQCN/模块 owner allowlist 与 debt ratchet；物理拆分仅在需要时先做单 seam build pilot | 立即全量物理拆会扩大 Gradle/R/KSP/Hilt/native 回归；单 seam pilot 尚未执行 | **Open / `G1-S1` 证据已冻结，待用户方向决策** |
+| `V2-Q-G1-02` | 1.4.0(5) 双 APK 已绑定 Server v17 / Music v3 和两个 identityHash；Server 仍有全局破坏性 fallback P0。显式 forward migration、两级 identity、未知 provenance 隔离、DB+sidecar+journal FAIL_CLOSED 与禁清库是强制不变量 | 用户确认 1.4→2.0 的用户可见兼容范围、可接受的一次性等待 / 中断，以及迁移失败后的恢复入口；推荐保留全部已承诺资产 | E4/E5 真实迁移、WAL/SHM、故障注入仍未执行；“是否安全 / 是否允许清库”不列为可选取舍 | **Open / `G1-S2` 证据已冻结，待用户可见范围确认** |
+| `V2-Q-G1-03` | `G1-S3` 已完成播放事件 / MediaSource 最小协议可表达性；Media3 1.11.1、FFmpeg 1.9.0 绑定，libmpv native 与 libc++、TTS / PDF 选型仍未完成 | Media3 主路径；mpv 只在格式矩阵证明必需时保留；Sherpa/Piper、PdfRenderer/PDFium 由隔离 Spike 比较 | 双内核和 PDFium 提高覆盖但增加包体、许可证、维护与 native 风险 | **Open / 待 `G1-S4`** |
 | `V2-Q-G1-04` | V2 已有主题轴约束，但非 Prism 色板 / 材质、基础圆角、AmbientColors 去留、RWD 细节和九条低保真尚未确认 | 按 §5.11.6 候选先出五主题风格帧和低保真复核，再由用户整包确认 | 直接实现会固化第二主题、错误对比度和不一致 RWD | **Open / 待 `G1-S5`** |
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）

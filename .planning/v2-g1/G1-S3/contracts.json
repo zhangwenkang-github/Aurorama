@@ -1,0 +1,862 @@
+{
+  "schemaVersion": "g1-s3-contracts/v1",
+  "scope": "STATIC_CONTRACT_CORPUS_ONLY",
+  "sanitization": {
+    "containsCredentials": false,
+    "containsServerAddress": false,
+    "containsUserData": false,
+    "authShape": "Authorization: MediaBrowser Token=\"<REDACTED>\"",
+    "protocolPassClaimed": false
+  },
+  "commonErrorStatusMapping": {
+    "401": {
+      "semantic": "UNAUTHORIZED",
+      "clientAction": "AUTHENTICATE_OR_REFRESH_SESSION",
+      "autoRetryWithSameCredential": false,
+      "openApiEvidence": "declared on the reviewed Jellyfin API operations"
+    },
+    "403": {
+      "semantic": "FORBIDDEN_PERMISSION_DENIED",
+      "clientAction": "SURFACE_DENIED_NO_AUTOMATIC_RETRY",
+      "autoRetryWithSameCredential": false,
+      "openApiEvidence": "declared on the reviewed Jellyfin API operations"
+    },
+    "404": {
+      "semantic": "ITEM_OR_ENDPOINT_NOT_FOUND",
+      "clientAction": "FAIL_CLOSED_AND_REFRESH_REFERENCE",
+      "retryPolicy": "NO_AUTOMATIC_RETRY"
+    },
+    "409": {
+      "semantic": "CONFLICT",
+      "clientAction": "STOP_OPTIMISTIC_WRITE_RESNAPSHOT_THEN_DECIDE",
+      "openApiEvidence": "NOT_DECLARED on PlaybackInfo, Download, UserData, Items search or SyncPlay paths in OpenAPI 12.4.0",
+      "contractClosure": "UNCOVERED"
+    },
+    "416": {
+      "semantic": "RANGE_NOT_SATISFIABLE",
+      "clientAction": "IF_LOCAL_OFFSET_EQUALS_CONTENT_RANGE_TOTAL_THEN_COMPLETE_ELSE_RESET_ONCE_THEN_FAIL",
+      "requires": [
+        "Range: bytes=<offset>-",
+        "Content-Range: bytes */<total>"
+      ],
+      "openApiEvidence": "206 and 416 are not declared in the OpenAPI Download response map; static source enables ASP.NET Core range processing",
+      "contractClosure": "STATIC_INFERENCE_ONLY"
+    },
+    "503": {
+      "semantic": "TEMPORARILY_UNAVAILABLE",
+      "clientAction": "BACKOFF_AND_RETRY_WITHOUT_TREATING_AS_DATA_LOSS",
+      "headers": [
+        "Retry-After",
+        "Message"
+      ]
+    }
+  },
+  "contracts": {
+    "PLAYBACK_INFO": {
+      "request": {
+        "methods": [
+          "GET",
+          "POST"
+        ],
+        "path": "/Items/{itemId}/PlaybackInfo",
+        "pathParameters": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid",
+            "required": true
+          }
+        },
+        "getQuery": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "required": false
+          }
+        },
+        "postQueryCompatibility": [
+          "userId",
+          "maxStreamingBitrate",
+          "startTimeTicks",
+          "audioStreamIndex",
+          "subtitleStreamIndex",
+          "maxAudioChannels",
+          "mediaSourceId",
+          "liveStreamId",
+          "autoOpenLiveStream",
+          "enableDirectPlay",
+          "enableDirectStream",
+          "enableTranscoding",
+          "allowVideoStreamCopy",
+          "allowAudioStreamCopy"
+        ],
+        "postBody": {
+          "contentType": "application/json",
+          "schema": "PlaybackInfoDto",
+          "fields": {
+            "UserId": "uuid?",
+            "MaxStreamingBitrate": "int32?",
+            "StartTimeTicks": "int64?",
+            "AudioStreamIndex": "int32?",
+            "SubtitleStreamIndex": "int32?",
+            "MaxAudioChannels": "int32?",
+            "MediaSourceId": "string?",
+            "LiveStreamId": "string?",
+            "DeviceProfile": "DeviceProfile?",
+            "EnableDirectPlay": "boolean?",
+            "EnableDirectStream": "boolean?",
+            "EnableTranscoding": "boolean?",
+            "AllowVideoStreamCopy": "boolean?",
+            "AllowAudioStreamCopy": "boolean?",
+            "AutoOpenLiveStream": "boolean?",
+            "AlwaysBurnInSubtitleWhenTranscoding": "boolean?"
+          }
+        }
+      },
+      "response": {
+        "status": {
+          "200": "PlaybackInfoResponse",
+          "401": "unauthorized",
+          "403": "forbidden",
+          "404": "ProblemDetails",
+          "503": "temporarily unavailable"
+        },
+        "schema": "PlaybackInfoResponse",
+        "fields": {
+          "MediaSources": "MediaSourceInfo[]",
+          "PlaySessionId": "string?",
+          "ErrorCode": "PlaybackErrorCode?"
+        },
+        "playbackErrorCodes": [
+          "NotAllowed",
+          "NoCompatibleStream",
+          "RateLimitExceeded"
+        ],
+        "serverMappingsStaticallyProven": {
+          "NoCompatibleStream": "MediaSources is empty",
+          "PlaySessionId": "new identifier when MediaSources is non-empty"
+        },
+        "serverMappingsNotProvenForThisEndpoint": [
+          "NotAllowed",
+          "RateLimitExceeded"
+        ]
+      },
+      "stateRules": [
+        "Success requires HTTP 2xx plus MediaSources and a usable PlaySessionId.",
+        "ErrorCode must be inspected before choosing playback.",
+        "PlaySessionId must be propagated to stream/session reporting and must not be synthesized.",
+        "PlaybackInfo is not globally side-effect-free: .strm or missing main media streams can trigger a full metadata refresh.",
+        "AutoOpenLiveStream can open a live source and must remain outside zero-side-effect probes."
+      ],
+      "clientCurrentShape": {
+        "method": "POST",
+        "requestFieldsObserved": [
+          "UserId",
+          "DeviceProfile",
+          "MaxStreamingBitrate",
+          "StartTimeTicks",
+          "EnableTranscoding",
+          "EnableDirectPlay",
+          "EnableDirectStream",
+          "AllowVideoStreamCopy",
+          "AllowAudioStreamCopy"
+        ],
+        "responseUsesOnly": [
+          "MediaSources"
+        ],
+        "discardedResponseFields": [
+          "PlaySessionId",
+          "ErrorCode"
+        ],
+        "playbackReportingGap": "start/progress reports do not carry PlaySessionId/MediaSourceId and force DirectPlay"
+      },
+      "successAnchor": [
+        "HTTP 200",
+        "MediaSources non-empty",
+        "ErrorCode null",
+        "PlaySessionId captured",
+        "selected MediaSource and PlayMethod retained in session state"
+      ]
+    },
+    "DOWNLOAD_RANGE": {
+      "request": {
+        "method": "GET",
+        "path": "/Items/{itemId}/Download",
+        "pathParameters": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid",
+            "required": true
+          }
+        },
+        "rangeHeaders": {
+          "initial": [],
+          "resume": [
+            "Range: bytes=<localOffset>-",
+            "If-Range: <strong ETag or Last-Modified>"
+          ]
+        },
+        "redirectRule": "Strip Jellyfin authorization headers when scheme/host/port changes."
+      },
+      "response": {
+        "declaredStatus": {
+          "200": "binary media",
+          "401": "unauthorized",
+          "403": "forbidden",
+          "404": "ProblemDetails",
+          "503": "temporarily unavailable"
+        },
+        "rangeStatusInferredFromServerSource": {
+          "200": "full body; reset local partial file to zero",
+          "206": "partial body; Content-Range start MUST equal local offset",
+          "416": "Content-Range bytes */total; complete only when local offset is known to equal total"
+        },
+        "validators": [
+          "ETag",
+          "Last-Modified"
+        ],
+        "completionChecks": [
+          "body length equals declared range length",
+          "final file length equals expected total",
+          "fsync before terminal success",
+          "206 start equals requested offset"
+        ]
+      },
+      "stateRules": [
+        "401 and 403 are different user-visible permissions states.",
+        "A 200 to a Range request means the server ignored Range or validator changed; restart from byte zero.",
+        "416 is not automatically success.",
+        "GET /Items/{id}/Download writes an ActivityLog when a user is present and is not a zero-side-effect production probe."
+      ],
+      "clientCurrentShape": {
+        "pathKind": "OFFICIAL_DOWNLOAD",
+        "rangeSupported": true,
+        "ifRangeSupported": true,
+        "redirectCredentialStripping": true,
+        "current401403Mapping": "both become AUTHENTICATION",
+        "current404409Mapping": "generic SERVER_ERROR",
+        "current416Mapping": "complete if offset >= Content-Range total, else CANNOT_RESUME"
+      },
+      "successAnchor": [
+        "200 with complete body and expected total",
+        "206 with matching start and complete final byte count",
+        "416 only when Content-Range total proves local file already complete"
+      ]
+    },
+    "WRITE": {
+      "request": {
+        "method": "POST",
+        "path": "/UserItems/{itemId}/UserData",
+        "query": {
+          "userId": "uuid?"
+        },
+        "pathParameters": {
+          "itemId": "uuid"
+        },
+        "body": {
+          "contentType": "application/json",
+          "schema": "UpdateUserItemDataDto",
+          "fields": {
+            "Rating": "double?",
+            "PlayedPercentage": "double?",
+            "UnplayedItemCount": "int32?",
+            "PlaybackPositionTicks": "int64?",
+            "PlayCount": "int32?",
+            "IsFavorite": "boolean?",
+            "Likes": "boolean?",
+            "LastPlayedDate": "date-time?",
+            "Played": "boolean?",
+            "Key": "string?",
+            "ItemId": "string?"
+          }
+        }
+      },
+      "response": {
+        "status": {
+          "200": "UserItemDataDto",
+          "401": "unauthorized",
+          "403": "forbidden",
+          "404": "ProblemDetails",
+          "503": "temporarily unavailable"
+        },
+        "readBack": {
+          "method": "GET",
+          "path": "/UserItems/{itemId}/UserData",
+          "query": {
+            "userId": "uuid?"
+          },
+          "responseSchema": "UserItemDataDto",
+          "successFields": [
+            "PlaybackPositionTicks",
+            "PlayedPercentage",
+            "IsFavorite",
+            "Played",
+            "LastPlayedDate",
+            "ItemId"
+          ]
+        }
+      },
+      "stateRules": [
+        "Local intent is not server acceptance.",
+        "HTTP 2xx response is an acceptance anchor; requested fields still require DTO/read-back comparison.",
+        "403 maps to DENIED and MUST NOT be retried with the same credentials.",
+        "401 maps to AUTHENTICATION and pauses the origin-scoped queue.",
+        "404 fails the item closed.",
+        "409 has no declared UserData contract in OpenAPI 12.4.0; if observed it remains UNCOVERED and must not be silently retried as success."
+      ],
+      "clientCurrentShape": {
+        "requestFieldsUsed": [
+          "PlaybackPositionTicks",
+          "PlayedPercentage",
+          "Played",
+          "LastPlayedDate",
+          "IsFavorite"
+        ],
+        "responseInspection": "none",
+        "forcedReadBack": false,
+        "errorMapping": "generic Exception; 401/403/404/409 are not separated",
+        "successRule": "callback returns without throwing"
+      },
+      "successAnchor": [
+        "HTTP 200 UserItemDataDto accepted",
+        "follow-up GET returns requested fields or a server-documented equivalent",
+        "local intent and server snapshot become equal under the same serverId/userId/itemId origin"
+      ]
+    },
+    "READER": {
+      "bookSource": {
+        "method": "GET",
+        "path": "/Items/{itemId}/Download",
+        "requiresPlaybackInfo": false,
+        "responseStatus": {
+          "200": "full book body",
+          "206": "range body",
+          "401": "unauthorized",
+          "403": "forbidden",
+          "404": "not found",
+          "416": "range not satisfiable"
+        },
+        "serverItemRule": "Book.CanDownload() is true only for file-protocol books; user download permission is also required."
+      },
+      "progressWrite": {
+        "method": "POST",
+        "path": "/UserItems/{itemId}/UserData",
+        "bodyFields": [
+          "PlayedPercentage",
+          "PlaybackPositionTicks",
+          "Played",
+          "LastPlayedDate"
+        ]
+      },
+      "progressReadBack": {
+        "method": "GET",
+        "path": "/UserItems/{itemId}/UserData",
+        "responseFields": [
+          "PlayedPercentage",
+          "PlaybackPositionTicks",
+          "LastPlayedDate"
+        ]
+      },
+      "stateRules": [
+        "Book content source and reading UserData are separate capabilities.",
+        "Do not call PlaybackInfo merely to download or stream a file-protocol Book.",
+        "A completed local transfer requires 200/206 body completion; 416 alone is insufficient without total-size proof.",
+        "Progress write success requires DTO/read-back verification; local pendingSync must remain until then."
+      ],
+      "clientCurrentShape": {
+        "directDownloadImplemented": true,
+        "rangeResumeImplemented": true,
+        "remoteProgressReadImplemented": true,
+        "writeResponseInspected": false,
+        "immediateForcedReadBack": false,
+        "bookUserDataCanBeQueued": true
+      },
+      "successAnchor": [
+        "direct Download returns 200 or valid 206",
+        "local file committed atomically with complete byte count",
+        "UserData write accepted and subsequent read-back proves progress"
+      ]
+    },
+    "SEARCH": {
+      "request": {
+        "method": "GET",
+        "path": "/Items",
+        "operationId": "GetItems",
+        "appScopeMapping": {
+          "ALL": [
+            "Movie",
+            "Series",
+            "Episode",
+            "Video",
+            "Audio",
+            "Book"
+          ],
+          "VIDEO": [
+            "Movie",
+            "Series",
+            "Episode",
+            "Video"
+          ],
+          "MUSIC": [
+            "Audio"
+          ],
+          "BOOK": [
+            "Book"
+          ]
+        },
+        "queryParameterGroups": {
+          "identity": [
+            "userId",
+            "parentId",
+            "ids",
+            "excludeItemIds",
+            "adjacentTo"
+          ],
+          "textAndScope": [
+            "searchTerm",
+            "recursive",
+            "includeItemTypes",
+            "excludeItemTypes",
+            "mediaTypes",
+            "videoTypes",
+            "locationTypes",
+            "excludeLocationTypes"
+          ],
+          "paging": [
+            "startIndex",
+            "limit",
+            "enableTotalRecordCount"
+          ],
+          "sort": [
+            "sortBy",
+            "sortOrder"
+          ],
+          "fieldsAndUserData": [
+            "fields",
+            "enableUserData"
+          ],
+          "images": [
+            "imageTypes",
+            "imageTypeLimit",
+            "enableImageTypes",
+            "enableImages"
+          ],
+          "filters": [
+            "maxOfficialRating",
+            "hasThemeSong",
+            "hasThemeVideo",
+            "hasSubtitles",
+            "hasSpecialFeature",
+            "hasTrailer",
+            "indexNumber",
+            "parentIndexNumber",
+            "hasParentalRating",
+            "isHd",
+            "is4K",
+            "isMissing",
+            "isUnaired",
+            "minCommunityRating",
+            "minCriticRating",
+            "minPremiereDate",
+            "minDateLastSaved",
+            "minDateLastSavedForUser",
+            "maxPremiereDate",
+            "hasOverview",
+            "hasImdbId",
+            "hasTmdbId",
+            "hasTvdbId",
+            "isMovie",
+            "isSeries",
+            "isNews",
+            "isKids",
+            "isSports",
+            "filters",
+            "isFavorite",
+            "isPlayed",
+            "officialRatings",
+            "tags",
+            "years",
+            "minOfficialRating",
+            "isLocked",
+            "isPlaceHolder",
+            "hasOfficialRating",
+            "collapseBoxSetItems",
+            "minWidth",
+            "minHeight",
+            "maxWidth",
+            "maxHeight",
+            "is3D",
+            "seriesStatus",
+            "nameStartsWithOrGreater",
+            "nameStartsWith",
+            "nameLessThan"
+          ],
+          "catalogFacets": [
+            "genres",
+            "genreIds",
+            "studios",
+            "studioIds",
+            "person",
+            "personIds",
+            "personTypes",
+            "artists",
+            "artistIds",
+            "excludeArtistIds",
+            "albumArtistIds",
+            "contributingArtistIds",
+            "albums",
+            "albumIds",
+            "audioLanguages",
+            "subtitleLanguages"
+          ]
+        },
+        "queryShapeIdentityMustInclude": [
+          "all non-null behavioral query parameters",
+          "canonical parameter ordering",
+          "repeated-array encoding",
+          "case and percent encoding",
+          "scope-derived includeItemTypes"
+        ]
+      },
+      "response": {
+        "status": {
+          "200": "BaseItemDtoQueryResult",
+          "401": "unauthorized",
+          "403": "forbidden",
+          "503": "temporarily unavailable"
+        },
+        "fields": {
+          "Items": "BaseItemDto[]",
+          "TotalRecordCount": "integer",
+          "StartIndex": "integer?"
+        }
+      },
+      "clientCurrentShape": {
+        "queryParametersUsed": [
+          "userId",
+          "searchTerm",
+          "includeItemTypes",
+          "recursive"
+        ],
+        "scopeMappingImplemented": true,
+        "pagingImplemented": false,
+        "sortImplemented": false,
+        "fieldsImplemented": false,
+        "imageParametersImplemented": false,
+        "filterParametersImplemented": false,
+        "queryHashMustCoverScope": true
+      },
+      "successAnchor": [
+        "HTTP 200 BaseItemDtoQueryResult",
+        "scope-correct includeItemTypes",
+        "complete query-shape identity captured",
+        "paging metadata preserved when enabled"
+      ]
+    },
+    "UPDATE": {
+      "ownership": "APP_OWNED_NOT_JELLYFIN_PROTOCOL",
+      "transport": {
+        "latestRelease": {
+          "method": "GET",
+          "appOwnedPath": "/repos/{owner}/{repo}/releases/latest",
+          "accept": "application/vnd.github+json",
+          "requiredFields": [
+            "tag_name",
+            "draft",
+            "prerelease",
+            "assets[].name",
+            "assets[].size",
+            "assets[].browser_download_url",
+            "assets[].digest"
+          ]
+        },
+        "assetDownload": {
+          "method": "GET",
+          "rangeSupported": true,
+          "validators": [
+            "ETag",
+            "Last-Modified"
+          ],
+          "statusRules": {
+            "200": "full body",
+            "206": "validated range",
+            "416": "complete only when Content-Range total equals expected asset size",
+            "429": "RATE_LIMITED",
+            "5xx": "HTTP_SERVER_ERROR"
+          }
+        }
+      },
+      "verification": {
+        "releaseShape": [
+          "stable semantic tag",
+          "not draft",
+          "not prerelease",
+          "exact expected ABI asset name",
+          "verified release URL shape"
+        ],
+        "downloadVerification": [
+          "expected byte length",
+          "sha256:<64 hex> digest",
+          "SHA-256 of file",
+          "candidate APK package name",
+          "incremented versionCode",
+          "signer certificate digest equals installed signer",
+          "minimum SDK compatibility"
+        ],
+        "installerBoundary": "Android package installer after app-owned verification"
+      },
+      "prohibitedBoundary": [
+        "No Jellyfin server update write endpoint.",
+        "No Jellyfin plugin or server-package mutation.",
+        "No install/package-inspector execution in G1-S3."
+      ],
+      "clientCurrentShape": {
+        "appOwnedManifestImplemented": true,
+        "abiSelectionImplemented": true,
+        "digestVerificationImplemented": true,
+        "apkMetadataAndSignerVerificationImplemented": true,
+        "realDownloadOrInstallExecuted": false
+      },
+      "successAnchor": [
+        "stable release and exact ABI asset selected",
+        "download bytes and digest match release metadata",
+        "APK package/version/signature checks pass",
+        "installer handoff occurs only after all checks"
+      ]
+    },
+    "SWR": {
+      "clientCacheShape": {
+        "identity": [
+          "server/user namespace",
+          "generation fence",
+          "canonical cache key",
+          "source fetch shape"
+        ],
+        "ttlPolicy": {
+          "SEARCH": {
+            "softTtl": "MetadataCacheRules.SEARCH_TTL_MS",
+            "maxAge": "1 day"
+          },
+          "ITEMS": {
+            "softTtl": "MetadataCacheRules.PAGING_TTL_MS",
+            "maxAge": "7 days"
+          },
+          "OTHER": {
+            "softTtl": "MetadataCacheRules.DEFAULT_TTL_MS",
+            "maxAge": "7 days"
+          }
+        },
+        "snapshot": [
+          "value",
+          "savedAt/fetchedAt",
+          "namespace",
+          "key"
+        ],
+        "refresh": {
+          "staleReturn": true,
+          "backgroundRevalidate": true,
+          "singleFlight": true,
+          "generationCheckBeforeCommit": true,
+          "invalidateAllWritesRemoved": true
+        }
+      },
+      "httpConditionalShape": {
+        "openApi304Responses": 0,
+        "openApiETagResponseHeaders": 0,
+        "conclusion": "OpenAPI 12.4.0 does not contract ETag/304 for any path; 304 cannot be claimed as a Jellyfin data-API revalidation state from the reviewed public contract."
+      },
+      "expressibility": {
+        "internalStale": "EXPRESSIBLE",
+        "publicStaleObservable": "MISSING",
+        "304": "NOT_CONTRACTUALLY_EXPRESSIBLE",
+        "generation": "EXPRESSIBLE_AND_ENFORCED",
+        "crossProcessConsistency": "UNCOVERED"
+      },
+      "successAnchor": [
+        "stale snapshot returned with explicit stale marker",
+        "refresh accepted only under current generation",
+        "cache and disk snapshot updated atomically for the same key",
+        "namespace change cannot publish old result"
+      ]
+    },
+    "SYNCPLAY": {
+      "transport": {
+        "rest": {
+          "basePath": "/SyncPlay",
+          "operations": {
+            "GET /SyncPlay/{id}": "SyncPlayGetGroup -> GroupInfoDto",
+            "GET /SyncPlay/List": "SyncPlayGetGroups -> GroupInfoDto[]",
+            "POST /SyncPlay/New": "SyncPlayCreateGroup",
+            "POST /SyncPlay/Join": "SyncPlayJoinGroup",
+            "POST /SyncPlay/Leave": "SyncPlayLeaveGroup",
+            "POST /SyncPlay/SetNewQueue": "SyncPlaySetNewQueue",
+            "POST /SyncPlay/SetPlaylistItem": "SyncPlaySetPlaylistItem",
+            "POST /SyncPlay/Queue": "SyncPlayQueue",
+            "POST /SyncPlay/RemoveFromPlaylist": "SyncPlayRemoveFromPlaylist",
+            "POST /SyncPlay/MovePlaylistItem": "SyncPlayMovePlaylistItem",
+            "POST /SyncPlay/NextItem": "SyncPlayNextItem",
+            "POST /SyncPlay/PreviousItem": "SyncPlayPreviousItem",
+            "POST /SyncPlay/Pause": "SyncPlayPause",
+            "POST /SyncPlay/Unpause": "SyncPlayUnpause",
+            "POST /SyncPlay/Stop": "SyncPlayStop",
+            "POST /SyncPlay/Seek": "SyncPlaySeek",
+            "POST /SyncPlay/Buffering": "SyncPlayBuffering",
+            "POST /SyncPlay/Ready": "SyncPlayReady",
+            "POST /SyncPlay/SetIgnoreWait": "SyncPlaySetIgnoreWait",
+            "POST /SyncPlay/SetRepeatMode": "SyncPlaySetRepeatMode",
+            "POST /SyncPlay/SetShuffleMode": "SyncPlaySetShuffleMode",
+            "POST /SyncPlay/Ping": "SyncPlayPing"
+          },
+          "statusShape": {
+            "read": [
+              200,
+              401,
+              403,
+              404,
+              503
+            ],
+            "command": [
+              204,
+              401,
+              403,
+              503
+            ],
+            "create": [
+              200,
+              204,
+              401,
+              403,
+              503
+            ]
+          }
+        },
+        "webSocket": {
+          "path": "/socket",
+          "serverToClientMessages": [
+            "SyncPlayCommand",
+            "SyncPlayGroupUpdate"
+          ],
+          "keepAlive": [
+            "ForceKeepAlive",
+            "inbound KeepAlive"
+          ],
+          "authentication": "same API client credentials; no credentials documented in this corpus"
+        },
+        "clock": {
+          "method": "GET",
+          "path": "/GetUtcTime",
+          "response": "UtcTimeResponse",
+          "fields": [
+            "RequestReceptionTime",
+            "ResponseTransmissionTime"
+          ],
+          "use": "estimate server/client offset from request midpoint"
+        }
+      },
+      "webSocketPayloads": {
+        "SyncPlayCommandMessage": {
+          "Data": "SendCommand?",
+          "MessageId": "uuid",
+          "MessageType": "SyncPlayCommand"
+        },
+        "SendCommand": {
+          "GroupId": "uuid",
+          "PlaylistItemId": "uuid",
+          "When": "UTC date-time",
+          "PositionTicks": "int64?",
+          "Command": "SendCommandType",
+          "EmittedAt": "UTC date-time"
+        },
+        "SendCommandType": [
+          "Unpause",
+          "Pause",
+          "Stop",
+          "Seek"
+        ],
+        "SyncPlayGroupUpdateMessage": {
+          "Data": "GroupUpdate",
+          "MessageId": "uuid",
+          "MessageType": "SyncPlayGroupUpdate"
+        },
+        "GroupUpdateType": [
+          "UserJoined",
+          "UserLeft",
+          "GroupJoined",
+          "GroupLeft",
+          "StateUpdate",
+          "PlayQueue",
+          "NotInGroup",
+          "GroupDoesNotExist",
+          "LibraryAccessDenied"
+        ],
+        "GroupStateType": [
+          "Idle",
+          "Waiting",
+          "Paused",
+          "Playing"
+        ],
+        "PlaybackRequestType": [
+          "Play",
+          "SetPlaylistItem",
+          "RemoveFromPlaylist",
+          "MovePlaylistItem",
+          "Queue",
+          "Unpause",
+          "Pause",
+          "Stop",
+          "Seek",
+          "Buffer",
+          "Ready",
+          "NextItem",
+          "PreviousItem",
+          "SetRepeatMode",
+          "SetShuffleMode",
+          "Ping",
+          "IgnoreWait"
+        ],
+        "PlayQueueUpdate": {
+          "Reason": "PlayQueueUpdateReason",
+          "LastUpdate": "UTC date-time",
+          "Playlist": "SyncPlayQueueItem[]",
+          "PlayingItemIndex": "int32",
+          "StartPositionTicks": "int64",
+          "IsPlaying": "boolean",
+          "ShuffleMode": "GroupShuffleMode",
+          "RepeatMode": "GroupRepeatMode"
+        }
+      },
+      "orderingAndReconnect": {
+        "explicitRevisionField": false,
+        "orderingEvidence": [
+          "SendCommand.When",
+          "SendCommand.EmittedAt",
+          "PlayQueueUpdate.LastUpdate"
+        ],
+        "revisionConclusion": "No public revision counter is present in the reviewed REST/WS DTOs; revision-based stale-event rejection is NOT_CONTRACTUALLY_EXPRESSIBLE.",
+        "sdkReconnect": "active subscriptions enable automatic reconnect with selectable fixed or exponential delay",
+        "serverLostSocket": "loss of the session WebSocket closes the session and removes an empty SyncPlay group",
+        "reconnectStateRule": "after reconnect, resubscribe, GET/list group state, and rejoin when the prior group/session was removed"
+      },
+      "stateRules": [
+        "REST acceptance is not proof that peers executed playback.",
+        "WebSocket command/lastUpdate timestamps are the ordering and correction anchors.",
+        "Clock offset must be estimated before applying When; receipt time alone is insufficient.",
+        "Missing group, not-in-group and library-access-denied are explicit WebSocket transitions.",
+        "A reconnect can lose prior membership; do not assume session continuity."
+      ],
+      "clientCurrentShape": {
+        "syncPlayRestIntegrated": false,
+        "syncPlayWebSocketIntegrated": false,
+        "media3SessionActsAsJellyfinSyncPlayClient": false,
+        "clockOffsetIntegrated": false,
+        "reconnectAndRejoinIntegrated": false
+      },
+      "successAnchor": [
+        "REST command accepted",
+        "group snapshot obtained after reconnect or mutation",
+        "WebSocket command received with GroupId and PlaylistItemId",
+        "When/EmittedAt/LastUpdate reconciled with estimated server clock",
+        "peer-level execution remains outside static proof"
+      ]
+    }
+  }
+}

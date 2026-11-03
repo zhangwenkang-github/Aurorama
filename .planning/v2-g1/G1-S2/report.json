@@ -1,0 +1,452 @@
+{
+  "reportId": "G1-S2",
+  "identity": "资深 Android 数据 / 持久化架构师（G1-S2 只读证据负责人）",
+  "model": {
+    "observedRuntime": "deepseek-flash",
+    "reasoningPolicyDeclaredByActive": "max",
+    "runtimeReasoningEffortExposure": "只读代理状态接口未暴露 reasoning_effort"
+  },
+  "status": "EVIDENCE_FROZEN_FOR_INTEGRATION",
+  "scopeVerdict": "G1-S2 只读证据可交付；不是 G1 PASS，不是迁移 PASS，不是设备 PASS",
+  "cwd": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+  "branch": "codex/v2-integration",
+  "baseHead": "00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc",
+  "initialWorktreeStatus": "clean",
+  "executed": [
+    "git status --porcelain=v1 --untracked-files=all（起始为空）",
+    "git rev-parse HEAD / git branch --show-current",
+    "只读文档、白名单源码、Room schema、迁移测试与 1.4 发布记录",
+    "Get-FileHash 校验两份 1.4 APK 与 asset-manifest.json",
+    "只读扫描两份 APK 的 classes*.dex 字符串，确认两个 Room identityHash 存在",
+    "git rev-parse 与 git diff --exit-code 绑定 APK 构建源 005639a6 和当前 HEAD 的白名单 DB 文件",
+    "Engramory check/doctor 与 deepseek-status 只读查询"
+  ],
+  "notExecuted": [
+    "Gradle 构建、JVM 单测、instrumentation、connectedTest",
+    "真实 Room 打开、真实迁移、down migration、故障注入",
+    "用户数据库复制、WAL/SHM/hot journal 采集",
+    "设备、ADB、服务器、Release、push、tag",
+    "可执行 fixture；本次只交付 fixture 合同",
+    "G2、实现、独立 QA、merge-prep"
+  ],
+  "release14": {
+    "releaseStatus": "PUBLISHED_WITH_USER_ACCEPTED_GAPS",
+    "version": "1.4.0(5)",
+    "packageName": "io.github.zhangwenkang.aurorama",
+    "tag": "v1.4.0",
+    "tagObject": "491a535279eb46639b29b70b5f2be7ebcd534bb6",
+    "releaseCommit": "7b69e531fa0536379d66a5203736fd5ac43a5568",
+    "apkBuildSource": "005639a69679609661e3845344d3c6eec0e40f52",
+    "apkBuildTree": "19bcf30828969fcb5743f2f108c51ef8742ed146",
+    "apkBuildSourceIsAncestorOfBaseHead": true,
+    "manifest": {
+      "path": "F:\\Develop\\code_data\\qa\\w90a2-release-assets-user-acceptance-20261102\\asset-manifest.json",
+      "sha256Actual": "D1293B119DD1E92EF1EEED75AB34AEED60F175F2D1669CD31D81F4FE39D28305",
+      "sha256MatchesPublishedSums": true
+    },
+    "artifacts": [
+      {
+        "variant": "universal",
+        "path": "F:\\Develop\\code_data\\qa\\w90a2-release-assets-user-acceptance-20261102\\dist\\Aurorama-1.4.0-universal.apk",
+        "bytes": 173311328,
+        "sha256Actual": "19B9FD8A8EBB7A8652468B594944545E14489D80AA99EF1AB28E1B54CBAC18A2",
+        "sha256MatchesManifest": true,
+        "classesDexContainsServerIdentityHash": true,
+        "classesDexContainsMusicIdentityHash": true
+      },
+      {
+        "variant": "arm64-v8a",
+        "path": "F:\\Develop\\code_data\\qa\\w90a2-release-assets-user-acceptance-20261102\\dist\\Aurorama-1.4.0-arm64-v8a.apk",
+        "bytes": 79729350,
+        "sha256Actual": "ACB1648D9E9C5265BC54DD13B24EEA7ADA3D16E397D3E10C6A72E23D2D2FF5BB",
+        "sha256MatchesManifest": true,
+        "classesDexContainsServerIdentityHash": true,
+        "classesDexContainsMusicIdentityHash": true
+      }
+    ],
+    "evidence": [
+      {
+        "path": "F:\\Develop\\code_data\\qa\\w90a2-release-assets-user-acceptance-20261102\\asset-manifest.json",
+        "line": 6,
+        "fact": "versionName=1.4.0"
+      },
+      {
+        "path": "F:\\Develop\\code_data\\qa\\w90a2-release-assets-user-acceptance-20261102\\asset-manifest.json",
+        "lines": "33-34",
+        "fact": "APK 构建源 005639a6、tree 19bcf308"
+      },
+      {
+        "path": "F:\\Develop\\code_data\\qa\\w90a2-release-assets-user-acceptance-20261102\\asset-manifest.json",
+        "lines": "75-93",
+        "fact": "两份正式 APK 路径、大小与 SHA-256"
+      }
+    ]
+  },
+  "schemaIdentityMapping": [
+    {
+      "database": "com.zhangwenkang.cinefin.database.ServerDatabase",
+      "version": 17,
+      "identityHash": "2bd5b912ac9960bad386f707a74589a4",
+      "schemaPath": "data/schemas/com.zhangwenkang.cinefin.database.ServerDatabase/17.json",
+      "schemaLine": 5,
+      "sourceBlobSha1AtApkBuildAndBaseHead": "667cbffe51d11bbac54f7f0970ae64bd49aebafe",
+      "binding": "manifest apkBuildSource=005639a6；该提交到 baseHead 的白名单 DB 文件 diff 为空；两份 1.4 APK 的 classes.dex 均含此 identityHash"
+    },
+    {
+      "database": "com.zhangwenkang.cinefin.database.music.MusicDatabase",
+      "version": 3,
+      "identityHash": "313c71f04e6a4b8d26217649ed562ea0",
+      "schemaPath": "data/schemas/com.zhangwenkang.cinefin.database.music.MusicDatabase/3.json",
+      "schemaLine": 5,
+      "sourceBlobSha1AtApkBuildAndBaseHead": "51c27d307b6c8d55516041885a4443d8452f9959",
+      "binding": "manifest apkBuildSource=005639a6；该提交到 baseHead 的白名单 DB 文件 diff 为空；两份 1.4 APK 的 classes.dex 均含此 identityHash"
+    }
+  ],
+  "databaseVersionsAndFallback": {
+    "server": {
+      "declaredVersion": 17,
+      "declaration": "data/src/main/java/com/zhangwenkang/cinefin/database/ServerDatabase.kt:55",
+      "autoMigrations": "2→3 至 16→17，含 4→5 Trickplay、5→6 Intros；见 ServerDatabase.kt:56-71",
+      "explicitMigration": "6→7 重建 segments；ServerDatabase.kt:83-91",
+      "builderPath": "core/src/main/java/com/zhangwenkang/cinefin/di/DatabaseModule.kt",
+      "builderLines": "22-26",
+      "builderAdds": "MIGRATION_6_7",
+      "destructiveFallback": true,
+      "fallbackEvidence": "DatabaseModule.kt:25 调用 fallbackToDestructiveMigration(dropAllTables = true)",
+      "risk": "任一未覆盖升级 / 降级 / identityHash 不一致都可能清空 servers、users 与下载用户资产；真实数据路径不得接受"
+    },
+    "music": {
+      "declaredVersion": 3,
+      "declaration": "data/src/main/java/com/zhangwenkang/cinefin/database/music/MusicDatabase.kt:23",
+      "explicitMigrations": [
+        "1→2 新增本地歌单与索引；MusicDatabase.kt:35-73",
+        "2→3 仅给 music_queue_state 增加 shuffleOrder / shuffleSeed；MusicDatabase.kt:75-86"
+      ],
+      "builderPath": "core/src/main/java/com/zhangwenkang/cinefin/di/MusicDatabaseModule.kt",
+      "builderLines": "31-35",
+      "destructiveFallback": false,
+      "risk": "当前未发现破坏性 fallback；真实 1→3 恢复仍只属静态核验，未执行"
+    },
+    "existingTestEvidence": [
+      "data/src/test/java/com/zhangwenkang/cinefin/database/ServerDatabaseMigrationContractTest.kt:18-235 验证 13→17 schema 增量与保留旧列",
+      "data/src/test/java/com/zhangwenkang/cinefin/database/ServerDatabaseMigrationTest.kt:18-89 用临时 SQLite 验证 15→16、15→17、16→17",
+      "data/src/androidTest/java/com/zhangwenkang/cinefin/database/ServerDatabaseMigrationTest.kt:42-90 仅覆盖 13→14 MigrationTestHelper",
+      "data/src/androidTest/java/com/zhangwenkang/cinefin/database/music/MusicDatabaseMigrationTest.kt:43-204 覆盖 1→2、2→3"
+    ],
+    "testExecutionBoundary": "以上均为静态文件名 / 断言阅读；本报告未执行任何测试，不能写成当前分支迁移 PASS"
+  },
+  "currentIdentityModel": {
+    "canonicalCode": {
+      "path": "data/src/main/java/com/zhangwenkang/cinefin/utils/DownloadCanonicalIdentity.kt",
+      "lines": "8-55",
+      "fields": [
+        "mediaKind",
+        "itemId",
+        "serverId?",
+        "userId?",
+        "sourceId?"
+      ],
+      "observations": [
+        "canonicalKey 没有 keyVersion、libraryId 或 provenanceComplete 字段",
+        "hasCompleteNamespace 只要求 serverId 与 userId；sourceId 可空",
+        "matchesProvenance 把任一侧 sourceId=null 视为可兼容，只能作为 request→source 受控过渡语义，不能作为普通下载相等语义",
+        "BOOK 与来源未知记录都用 null 表示无 media source，尚未使用显式 NO_MEDIA_SOURCE 哨兵"
+      ]
+    },
+    "storage": [
+      {
+        "entity": "downloadIntents",
+        "primaryKey": ["itemId"],
+        "evidence": "data/src/main/java/com/zhangwenkang/cinefin/models/DownloadIntentDto.kt:20-38",
+        "problem": "同一裸 itemId 跨 server/user/library/source 不能共存；originServerId/originUserId 可空"
+      },
+      {
+        "entity": "sources",
+        "primaryKey": ["id"],
+        "identityFields": "itemId + nullable originServerId/originUserId；source 表主键为 source id",
+        "evidence": "data/src/main/java/com/zhangwenkang/cinefin/models/FindroidSourceDto.kt:8-57",
+        "problem": "缺少完整 request/source 唯一约束与 provenanceComplete；旧行来源可为空"
+      },
+      {
+        "entity": "bookDownloadTasks",
+        "primaryKey": ["canonicalKey"],
+        "evidence": "data/src/main/java/com/zhangwenkang/cinefin/models/BookDownloadTaskDto.kt:8-23",
+        "problem": "书籍 key 当前由 null source 生成，不是显式 NO_MEDIA_SOURCE 哨兵；见 BookDownloadRangeTransfer.kt:1310-1321"
+      },
+      {
+        "entity": "downloadDeleteReceipts",
+        "primaryKey": ["batchId", "canonicalKey"],
+        "evidence": "data/src/main/java/com/zhangwenkang/cinefin/models/DownloadDeleteBatchDto.kt:16-32",
+        "problem": "已有 server/user/source 快照和 verifiedGeneration，可作为 journal/receipt 基础，但沿用当前 canonicalKey"
+      }
+    ],
+    "sidecar": {
+      "path": "data/src/main/java/com/zhangwenkang/cinefin/utils/DownloadMediaSidecar.kt",
+      "format": "v3，13 列；含 media kind、item、server、user、source、placement",
+      "evidenceLines": "110-124, 332-482",
+      "strengths": [
+        "完整读取结果区分 Missing / Complete / Unreadable / Corrupt",
+        "损坏或不可读时拒绝覆盖，符合局部 fail-closed",
+        "v2 与旧五列可读但不会猜测 server/user/source",
+        "同 item 不同 server/user/source 可在 allRecords 中并存"
+      ],
+      "gaps": [
+        "无 identity keyVersion、libraryId、provenanceComplete、显式 legacyRowKey",
+        "records() 使用 canonicalKey associateBy，未知同键行可能被 Map 压扁；安全消费应使用 allRecords",
+        "临时文件 ATOMIC_MOVE 不支持时退化为 REPLACE_EXISTING，且没有显式 fsync / 跨进程锁"
+      ]
+    }
+  },
+  "identityContract": {
+    "requestIdentity": {
+      "shape": "RequestIdentityV2(keyVersion=2, mediaKind, serverId, userId, libraryId, itemId)",
+      "completeWhen": "全部字段非空且 identityVersion、provenanceClass 合法；任何关键段缺失均不得归为 COMPLETE",
+      "purpose": "表示用户请求的媒体条目 namespace；不允许事后用当前账号补齐"
+    },
+    "sourceIdentity": {
+      "shape": "SourceIdentityV2 = RequestIdentityV2 + sourceToken",
+      "sourceToken": "冻结所选 Jellyfin MediaSource 的稳定 source token；普通 VIDEO/MUSIC 必须非空",
+      "bookRule": "BOOK 使用非空 NO_MEDIA_SOURCE 哨兵，不能用 null 冒充完整来源",
+      "purpose": "表示具体可执行媒体版本；同条目不同 sourceToken 必须保持独立"
+    },
+    "serialization": [
+      "键段采用显式版本 + 长度前缀或规范编码，禁止未转义拼接造成歧义",
+      "canonical key 不包含 token、cookie、URL、路径或标题",
+      "稳定排序与纯函数哈希必须由 E1 fixture 固定"
+    ],
+    "matchingLayers": [
+      "REQUEST 层只用于未解析意图去重，不得证明下载完成或文件归属",
+      "SOURCE 层用于 source、sidecar、文件、通知、receipt、删除与恢复的精确归属",
+      "request→source 只允许一次受 generation / journal 围栏保护的显式收窄，不能把 null source 当作万能通配"
+    ]
+  },
+  "unknownProvenanceIsolation": {
+    "classes": ["COMPLETE", "UNKNOWN_LEGACY", "INVALID"],
+    "invariants": [
+      "UNKNOWN_LEGACY 使用稳定 legacyRowKey 独立保存；不得与另一个 unknown 或 complete 记录折叠",
+      "未知来源不得从 currentServer/currentUser、文件名、标题或相似 ID 猜测回填",
+      "INVALID 或 DB/sidecar/journal 任一不一致必须 FAIL_CLOSED：停止下载及写任务，保留旧文件、临时文件、witness 与 receipt",
+      "未知项可继续展示为“来源未知”，但不得进入跨来源折叠、自动续传、删除别的副本或完成通知去重"
+    ],
+    "requiredPersistenceFields": [
+      "identityKeyVersion",
+      "provenanceClass",
+      "requestKey",
+      "sourceKey?",
+      "legacyRowKey?",
+      "generation",
+      "sidecarFormatVersion"
+    ]
+  },
+  "crossStoreFailureClosure": {
+    "hardInvariants": [
+      "真实用户数据禁止 down migration；所谓回滚只能是可丢弃 profile 的备份恢复或经验证的 forward-fix",
+      "真实数据禁止通过 destructive fallback 或任何清库动作修复",
+      "未知 identity 不猜来源；缺失、冲突、损坏均为未知 / FAIL_CLOSED，不是当前账号",
+      "任何 DB、sidecar、文件、journal/receipt、generation 不一致必须 FAIL_CLOSED，不得报告 COMPLETED 或删除成功"
+    ],
+    "journalDefinition": "源码内没有名为 Journal 的类或文件；持久 journal 等价面是 downloadIntents 的 generation/CAS、downloadDeleteBatches + downloadDeleteReceipts、文件 witness。目标合同应把这三者统一为一个可由 opId/requestKey/sourceKey/generation 重放的持久操作日志。",
+    "states": [
+      "IDLE",
+      "PREFLIGHT",
+      "QUIESCE",
+      "JOURNAL_BEGIN",
+      "DB_TRANSACTION",
+      "DB_VERIFY",
+      "SIDECAR_TEMP",
+      "ATOMIC_SWAP",
+      "CROSS_STORE_VERIFY",
+      "READY",
+      "FAIL_CLOSED",
+      "RECOVERY_PENDING"
+    ],
+    "transitions": [
+      "IDLE→PREFLIGHT：需要创建、完成或删除一个下载操作",
+      "PREFLIGHT→QUIESCE：request/source identity 完整，schema/sidecar/journal 可写且无未决冲突",
+      "QUIESCE→JOURNAL_BEGIN：停止相关下载、进度、完成、删除与通知写回，冻结 generation",
+      "JOURNAL_BEGIN→DB_TRANSACTION：先持久 op/journal 意图及其期望键与 generation",
+      "DB_TRANSACTION→DB_VERIFY：仅数据库事务提交成功后读回验证 primary/unique key",
+      "DB_VERIFY→SIDECAR_TEMP：DB 读回与 journal 预期逐字段相同",
+      "SIDECAR_TEMP→ATOMIC_SWAP：完整新快照已写临时文件并成功读回",
+      "ATOMIC_SWAP→CROSS_STORE_VERIFY：sidecar 替换成功，旧快照保留至可恢复边界",
+      "CROSS_STORE_VERIFY→READY：DB、sidecar、journal、文件存在性、可读性、identity 与 generation 全部相同",
+      "任一非终态→FAIL_CLOSED：异常、超时、崩溃窗口、损坏、冲突或旧 generation",
+      "FAIL_CLOSED→RECOVERY_PENDING：只允许显式恢复 / forward-fix；不得自动清表、猜来源或降级",
+      "READY→COMPLETED：只有全部完成条件成立才可发布用户可见完成与终态通知"
+    ],
+    "deleteMachine": [
+      "DELETE_REQUESTED→RECEIPT_PENDING",
+      "RECEIPT_PENDING→GENERATION_FENCED",
+      "GENERATION_FENCED→EXACT_ARTIFACT_CLEANUP：只删可证明属于该 source/generation 的媒体、sidecar 临时项、witness",
+      "EXACT_ARTIFACT_CLEANUP→DB_SIDECAR_VERIFY",
+      "DB_SIDECAR_VERIFY→DELETE_SUCCEEDED：仅当 DB/sidecar/receipt 均无该来源且文件清理已确认",
+      "任一步失败→DELETING/FAILED 并保留可重试 receipt；不得把 UI 隐藏当成功"
+    ],
+    "currentImplementationEvidence": [
+      "现有 intent 保存先 sidecar.putAll，再 Room.saveDownloadIntents，失败时仅补偿删除 sidecar；见 DownloaderImpl.kt:441-525",
+      "现有 source 创建先写 sidecar，再 insertSource；Room 失败时 replaceResolvedWithPending；见 DownloaderImpl.kt:853-929",
+      "未读 / 损坏 sidecar 保留 pending 或标记来源不可证明，不猜来源；见 DownloaderImpl.kt:1095-1123, 1459-1482, 1696-1706",
+      "现有完成顺序是 witness→最终文件→DB COMPLETED；见 DownloadLifecycle.kt:159-164, 328-372",
+      "现有删除 journal 为 batch + 每项 receipt，启动只重跑 PENDING；见 DownloadDeleteBatch.kt:124-249, 251-352",
+      "因此当前已有 generation/补偿/重放基础，但不是目标级原子 DB+sidecar+journal 状态机"
+    ]
+  },
+  "fixtureContract": {
+    "allowedEvidence": ["E0", "E1"],
+    "executionStatus": "NOT_EXECUTED",
+    "cases": [
+      {
+        "id": "FX-01",
+        "input": "同 request、不同 sourceToken",
+        "expected": "两个独立 SOURCE identity；request 层可识别同请求，source 层不得折叠"
+      },
+      {
+        "id": "FX-02",
+        "input": "同 itemId、不同 server/user/library/source",
+        "expected": "所有记录保持独立，稳定排序且无覆盖"
+      },
+      {
+        "id": "FX-03",
+        "input": "VIDEO/MUSIC 缺 source；BOOK 缺显式 NO_MEDIA_SOURCE",
+        "expected": "INVALID/FAIL_CLOSED，不得进入 READY/COMPLETED"
+      },
+      {
+        "id": "FX-04",
+        "input": "两条相同 itemId 的 UNKNOWN_LEGACY，内容可能完全相同",
+        "expected": "由稳定 legacyRowKey 保持两行；不得 associateBy 压扁、猜当前用户或互相覆盖"
+      },
+      {
+        "id": "FX-05",
+        "input": "sidecar Missing/Unreadable/Corrupt；DB 有 source",
+        "expected": "FAIL_CLOSED / 来源未知；不做完成、删除、跨来源折叠或覆盖"
+      },
+      {
+        "id": "FX-06",
+        "input": "DB/sidecar/journal 的 requestKey、sourceKey、generation 任一项不一致",
+        "expected": "FAIL_CLOSED；保留旧与临时对象；只给显式恢复入口"
+      },
+      {
+        "id": "FX-07",
+        "input": "旧 generation 完成 / 失败 / 通知 / 删除回调到达",
+        "expected": "全部拒绝且幂等；不得覆盖新 generation 或产生第二终态通知"
+      },
+      {
+        "id": "FX-08",
+        "input": "在 DB commit、DB verify、sidecar temp、atomic swap、cross verify 各点注入崩溃",
+        "expected": "纯状态映射为确定 recovery 分支；不恢复成功则保持 FAIL_CLOSED，绝不默认清库"
+      },
+      {
+        "id": "FX-09",
+        "input": "媒体文件、DB、sidecar、journal 中任一缺失/不可读/长度不符",
+        "expected": "不发布 COMPLETED，不计完成通知，保留重试或恢复入口"
+      },
+      {
+        "id": "FX-10",
+        "input": "删除 receipt PENDING 后重启，部分 artifact 已删、部分仍在",
+        "expected": "按 batch/ordinal/generation 幂等续跑；只有全匹配才 SUCCEEDED，否则 FAILED/DELETING"
+      }
+    ],
+    "nonClaims": [
+      "fixture 不能证明真实 Room migration",
+      "fixture 不能证明 SQLite WAL/SHM/hot journal",
+      "fixture 不能证明 Android 文件系统、OEM 或进程被杀行为",
+      "fixture 不能替代 E4/E5 或候选包 E7"
+    ]
+  },
+  "risks": {
+    "P0": [
+      "Server DatabaseModule 仍启用全局 fallbackToDestructiveMigration(dropAllTables=true)；任何候选发布若保留此回退必须 STOP。证据：DatabaseModule.kt:25，V2_PLAN.md:2776。"
+    ],
+    "P1": [
+      "当前 canonicalKey 无 keyVersion/libraryId/provenanceClass，request 与 source 仍混在同一 data class；sourceId=null 的兼容匹配不能作为普通相等语义。",
+      "downloadIntents 仍以裸 itemId 为主键，跨 server/user 的同 ID 意图在 DB 不能并存；sources 的 origin anchor 可空，缺少完整唯一约束。",
+      "BOOK 使用 sourceId=null 而不是 NO_MEDIA_SOURCE 哨兵，UNKNOWN_LEGACY 未使用稳定 legacyRowKey。",
+      "DB+sidecar+journal 当前依靠顺序写入、CAS 与补偿，不是单事务；崩溃点、跨进程与恢复组合尚未形成 V2 合同证据。",
+      "1.4 schema/identityHash 已冻结，但 1.4→2.0 的显式 forward migration、资产保留和失败恢复尚未定义或执行。"
+    ],
+    "P2": [
+      "DownloadMediaSidecar.records() 按 canonicalKey associateBy，未知同键行有 Map 压扁风险；生产消费应优先 allRecords。",
+      "sidecar 仅同进程全局锁；ATOMIC_MOVE 不支持时使用普通 REPLACE_EXISTING，且未见显式 fsync/目录持久化证据。",
+      "现有迁移测试未在本报告执行；Server instrumentation 仅静态查看为 13→14，Music 为 1→3，不能替代 1.4→2.0 全组合故障注入。"
+    ],
+    "P3": []
+  },
+  "BLOCKED": [],
+  "blockedEdges": [
+    {
+      "edge": "E4 真实 Android Room migration / crash injection",
+      "status": "OUT_OF_SCOPE_NOT_EXECUTED",
+      "resumeRole": "G2 数据迁移实现负责人",
+      "firstReadOnlyAction": "在可丢弃 profile 上重核 1.4 APK + schema 17/3 与目标 forward migration"
+    },
+    {
+      "edge": "E5 可丢弃 profile 真机 WAL/SHM/hot journal",
+      "status": "OUT_OF_SCOPE_NOT_EXECUTED",
+      "resumeRole": "G2 独立迁移 QA（负责人后续显式启动）"
+    }
+  ],
+  "contextWatermark": {
+    "capturedAt": "2026-11-03T13:01:55+08:00",
+    "model": "deepseek-flash",
+    "inputTokens": 254556,
+    "windowTokens": 1048576,
+    "percent": 24.3,
+    "cacheHitPercent": 99.9,
+    "requestCount": 146,
+    "action": "已超过 25 万收缩线；立即停止扩项并压缩落报告"
+  },
+  "memorySync": {
+    "added": [],
+    "updated": [],
+    "archived": [],
+    "skipped": "本次为指定 G1-S2 只读证据交付；结论已落专门 report.json，其他长期规则已在仓库文档 / AGENTS / 既有记忆中，显式写入边界只允许本目录两份产物",
+    "indexLines": 121,
+    "indexBytes": 16024,
+    "check": "OK: 121 lines / 15.6 KB",
+    "doctor": "clean; 92 notes; no broken pointers/orphans/schema errors; 1 informational note over 12 KB"
+  },
+  "evidencePaths": [
+    "docs/V2_PLAN.md:2600-2695（G1 状态、identity、迁移状态机与证据边界）",
+    "docs/V2_PLAN.md:2740-2770（E0-E7、G1-S2 范围与禁止合入）",
+    "docs/V2_PLAN.md:2786（V2-Q-G1-02 与强制 safety invariant）",
+    "docs/V2_PLAN.md:1855,1868,1870（重放、receipt、WAL/SHM/hot journal）",
+    "docs/DECISIONS.md:217（V2-Q-G1-02 Open）",
+    "docs/DECISIONS.md:129,153（D129 canonical identity / D145 legacy migration）",
+    "core/src/main/java/com/zhangwenkang/cinefin/di/DatabaseModule.kt:22-26",
+    "core/src/main/java/com/zhangwenkang/cinefin/di/MusicDatabaseModule.kt:31-35",
+    "data/src/main/java/com/zhangwenkang/cinefin/database/ServerDatabase.kt:55-91",
+    "data/src/main/java/com/zhangwenkang/cinefin/database/music/MusicDatabase.kt:23-86",
+    "data/schemas/com.zhangwenkang.cinefin.database.ServerDatabase/17.json:4-5",
+    "data/schemas/com.zhangwenkang.cinefin.database.music.MusicDatabase/3.json:4-5",
+    "data/src/main/java/com/zhangwenkang/cinefin/utils/DownloadCanonicalIdentity.kt:8-55",
+    "data/src/main/java/com/zhangwenkang/cinefin/utils/DownloadMediaSidecar.kt:83-107,169-321,332-482",
+    "data/src/main/java/com/zhangwenkang/cinefin/database/ServerDatabaseDao.kt:100-186,233-312,594-613,945-1013",
+    "core/src/main/java/com/zhangwenkang/cinefin/utils/DownloaderImpl.kt:441-525,853-929,1095-1123,1295-1441,2287-2422,3043-3420",
+    "core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadDeleteBatch.kt:124-352",
+    "core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadLifecycle.kt:159-164,328-372",
+    "F:\\Develop\\code_data\\qa\\w90a2-release-assets-user-acceptance-20261102\\asset-manifest.json:33-34,75-93",
+    ".planning/v2-g1/G1-S2/commands.log"
+  ],
+  "commandsLog": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-S2\\commands.log",
+  "finalVerification": {
+    "head": "00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc",
+    "headMatchesBase": true,
+    "branch": "codex/v2-integration",
+    "jsonParse": "OK",
+    "reportFiles": [
+      ".planning/v2-g1/G1-S2/report.json",
+      ".planning/v2-g1/G1-S2/commands.log"
+    ],
+    "concurrentUntrackedObserved": [
+      ".planning/v2-g1/G1-S1/report.json"
+    ],
+    "concurrentObservationHandling": "保留且未触碰；HEAD 与 S2 对象未漂移",
+    "productionFilesModified": false
+  },
+  "nextStep": {
+    "role": "G1 交付负责人 / 技术集成编排者",
+    "action": "只消费本 report.json 的压缩结论，将 1.4 schema/identityHash 冻结、P0 destructive fallback、P1 identity/迁移合同转成 G1 决策包与 G2 任务卡输入",
+    "firstReadOnlyAction": "复核 report.json 有效性与 evidencePaths 行号",
+    "stopCondition": "出现 HEAD/对象漂移、P0 被保留到候选、真实数据迁移需求、未知来源被自动回填或 FAIL_CLOSED 无法证明"
+  }
+}

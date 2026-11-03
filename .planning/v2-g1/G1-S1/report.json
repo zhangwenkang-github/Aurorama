@@ -1,0 +1,865 @@
+{
+  "schemaVersion": 1,
+  "identity": {
+    "taskId": "G1-S1",
+    "role": "资深移动端架构师（只读证据负责人）",
+    "agent": "/root/g1_s1_mobile_architect",
+    "model": "deepseek-flash",
+    "reasoningEffort": "max（依据 V2_PLAN §12 ACTIVE 派单基线）",
+    "mode": "READ_ONLY_STATIC_EVIDENCE",
+    "generatedAt": "2026-11-03T21:02:00+08:00",
+    "language": "zh-CN"
+  },
+  "cwd": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+  "model": "deepseek-flash",
+  "baseHead": "00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc",
+  "repo": {
+    "branch": "codex/v2-integration",
+    "baseHead": "00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc",
+    "statusBeforeEvidence": "clean",
+    "statusAfterEvidenceBeforeReport": "clean",
+    "finalStatusObserved": [
+      "?? .planning/v2-g1/G1-S1/report.json（本任务）",
+      "?? .planning/v2-g1/G1-S2/report.json（并行任务产物，非本任务修改；未读取、未改动）"
+    ],
+    "concurrentUnrelatedStatusChange": true,
+    "headDrift": false,
+    "objectDrift": false,
+    "branchSwitchPerformed": false,
+    "productionFilesModified": false
+  },
+  "scope": {
+    "targetModules": [
+      "app/phone",
+      "core",
+      "data",
+      "player/core",
+      "player/local",
+      "modes/book",
+      "modes/film",
+      "modes/music"
+    ],
+    "excludedModules": [
+      "app/tv",
+      "setup",
+      "settings"
+    ],
+    "sourceSet": "src/main 下的 .kt/.java",
+    "sourceFilesScanned": 609,
+    "sourceLinesScanned": 132987,
+    "readOrderObserved": [
+      "AGENTS.md",
+      "docs/V2_PLAN.md §5.11",
+      "docs/V2_PLAN.md §12 ACTIVE G1/S1 段",
+      "docs/DECISIONS.md V2-Q-G1-01",
+      "settings.gradle.kts 与目标 build 文件",
+      "目标模块 package/import/class 声明及确认边界所需的局部实现"
+    ],
+    "readBoundaries": "未读 app/tv、测试、资源或外部需求全文；settings/setup 仅做了确认 LanguageMatcher 所有权所需的最小声明核对。"
+  },
+  "executed": [
+    {
+      "id": "EX-01",
+      "class": "ACTUAL_EXECUTED",
+      "action": "读取 Engramory 索引与 Aurorama 2.0 项目记忆",
+      "result": "确认 G1 只做候选证据、G1 未通过、V2-Q-G1-01 仍 Open"
+    },
+    {
+      "id": "EX-02",
+      "class": "ACTUAL_EXECUTED",
+      "action": "git status --porcelain=v1 --untracked-files=all、git rev-parse HEAD、git branch --show-current",
+      "result": "clean；HEAD=00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc；branch=codex/v2-integration"
+    },
+    {
+      "id": "EX-03",
+      "class": "ACTUAL_EXECUTED",
+      "action": "读取指定文档段与 11 个 settings/build 文件",
+      "result": "确认 8 个目标模块的 19 条 Gradle project 依赖边和 settings/setup 外部依赖"
+    },
+    {
+      "id": "EX-04",
+      "class": "ACTUAL_EXECUTED",
+      "action": "对 609 个目标 src/main Kotlin/Java 文件做 package、顶层符号与 import 静态索引",
+      "result": "解析出与 Gradle 声明完全一致的 19 条目标 import 边；识别 45 条包所有权歧义；目标源码共 132987 行"
+    },
+    {
+      "id": "EX-05",
+      "class": "ACTUAL_EXECUTED",
+      "action": "对 8 模块声明图执行拓扑遍历",
+      "result": "declaredEdges=19，nodes=8，topoVisited=8，cycleCount=0"
+    },
+    {
+      "id": "EX-06",
+      "class": "ACTUAL_EXECUTED",
+      "action": "统计共享包、UI 到 data 实现、app/music 到具体播放器、feature/UI 归属拆分等命中",
+      "result": "共享 package：models=49 文件、utils=39 文件、update=13 文件；app presentation→data 实现=20 imports/12 files；player/local presentation→data 实现=2/1；app→player/local=62/19；music→player/local 具体接口/实现常量=18 imports；app film UI→film.presentation=96/24"
+    },
+    {
+      "id": "EX-07",
+      "class": "ACTUAL_EXECUTED",
+      "action": "执行确定性违规签名截断 SHA-256 生成",
+      "result": "9 个主要违规 ID 已冻结；签名不受行号漂移影响"
+    },
+    {
+      "id": "EX-08",
+      "class": "ACTUAL_EXECUTED",
+      "action": "查询当前会话上下文水位",
+      "result": "deepseek-flash；输入 211745/1048576（20.2%）；缓存命中 99.9%；请求数 141；无压缩"
+    }
+  ],
+  "notExecuted": [
+    {
+      "id": "NX-01",
+      "action": "Gradle configure / compile / APK build",
+      "reason": "任务硬边界禁止构建 APK；仅做静态证据"
+    },
+    {
+      "id": "NX-02",
+      "action": "完整 Kotlin/KSP/Hilt 类型解析",
+      "reason": "需要 Gradle/编译器；本次仅做 package/import/顶层声明静态解析"
+    },
+    {
+      "id": "NX-03",
+      "action": "单元测试、instrumentation、设备、服务器与真实数据",
+      "reason": "G1-S1 非目标"
+    },
+    {
+      "id": "NX-04",
+      "action": "app/tv、setup、settings 全源码，测试与资源",
+      "reason": "明确排除；settings 仅核对 LanguageMatcher 最小声明"
+    },
+    {
+      "id": "NX-05",
+      "action": "graphify query/path/explain",
+      "reason": "该 worktree 中 graphify-out/graph.json 不存在"
+    },
+    {
+      "id": "NX-06",
+      "action": "物理拆 Gradle 模块原型",
+      "reason": "扩大为不可逆结构变更且需要真实构建；本任务只做成本与回归面比较"
+    }
+  ],
+  "graphify": {
+    "graphExists": false,
+    "wikiIndexExists": false,
+    "fallback": "白名单静态 package/import/顶层符号扫描",
+    "classification": "ACTUAL_EXECUTED_WITH_STATIC_FALLBACK"
+  },
+  "dependencyGraph": {
+    "nodes": 8,
+    "declaredProjectEdges": 19,
+    "resolvedImportEdges": 19,
+    "missingObservedEdges": 0,
+    "unexpectedTargetModuleEdges": 0,
+    "moduleCycleCount": 0,
+    "importCountUnit": "import declaration count（不是运行时调用次数）",
+    "edges": [
+      {
+        "id": "G1-S1-E-APP-CORE",
+        "from": "app/phone",
+        "to": "core",
+        "gradleEvidence": {"path": "app/phone/build.gradle.kts", "line": 164},
+        "importCount": 685,
+        "sampleImports": [
+          {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/MainActivity.kt", "line": 31, "symbol": "com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-APP-DATA",
+        "from": "app/phone",
+        "to": "data",
+        "gradleEvidence": {"path": "app/phone/build.gradle.kts", "line": 165},
+        "importCount": 234,
+        "sampleImports": [
+          {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/console/ConsoleViewModel.kt", "line": 5, "symbol": "com.zhangwenkang.cinefin.database.ServerDatabaseDao"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-APP-PLAYER-CORE",
+        "from": "app/phone",
+        "to": "player/core",
+        "gradleEvidence": {"path": "app/phone/build.gradle.kts", "line": 166},
+        "importCount": 18,
+        "sampleImports": [
+          {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/playback/CinefinMediaNotificationProvider.kt", "line": 23, "symbol": "com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-APP-PLAYER-LOCAL",
+        "from": "app/phone",
+        "to": "player/local",
+        "gradleEvidence": {"path": "app/phone/build.gradle.kts", "line": 167},
+        "importCount": 54,
+        "sampleImports": [
+          {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/BasePlayerActivity.kt", "line": 13, "symbol": "com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel"},
+          {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt", "line": 63, "symbol": "com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-APP-BOOK",
+        "from": "app/phone",
+        "to": "modes/book",
+        "gradleEvidence": {"path": "app/phone/build.gradle.kts", "line": 169},
+        "importCount": 2,
+        "sampleImports": [
+          {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/NavigationRoot.kt", "line": 77, "symbol": "com.zhangwenkang.cinefin.book.presentation.reader.ReaderActivity"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-APP-FILM",
+        "from": "app/phone",
+        "to": "modes/film",
+        "gradleEvidence": {"path": "app/phone/build.gradle.kts", "line": 170},
+        "importCount": 106,
+        "sampleImports": [
+          {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/CollectionScreen.kt", "line": 30, "symbol": "com.zhangwenkang.cinefin.film.presentation.collection.CollectionViewModel"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-APP-MUSIC",
+        "from": "app/phone",
+        "to": "modes/music",
+        "gradleEvidence": {"path": "app/phone/build.gradle.kts", "line": 171},
+        "importCount": 12,
+        "sampleImports": [
+          {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/NavigationRoot.kt", "line": 110, "symbol": "com.zhangwenkang.cinefin.music.presentation.MusicItemRoute"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-CORE-DATA",
+        "from": "core",
+        "to": "data",
+        "gradleEvidence": {"path": "core/build.gradle.kts", "line": 33},
+        "importCount": 130,
+        "sampleImports": [
+          {"path": "core/src/main/java/com/zhangwenkang/cinefin/core/presentation/downloader/DownloaderViewModel.kt", "line": 7, "symbol": "com.zhangwenkang.cinefin.models.FindroidItem"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-CORE-PLAYER-CORE",
+        "from": "core",
+        "to": "player/core",
+        "gradleEvidence": {"path": "core/build.gradle.kts", "line": 34},
+        "importCount": 1,
+        "sampleImports": [
+          {"path": "core/src/main/java/com/zhangwenkang/cinefin/core/presentation/components/CinefinSleepTimer.kt", "line": 23, "symbol": "com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-PLAYER-LOCAL-PLAYER-CORE",
+        "from": "player/local",
+        "to": "player/core",
+        "gradleEvidence": {"path": "player/local/build.gradle.kts", "line": 29},
+        "importCount": 56,
+        "sampleImports": [
+          {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/MusicPlaybackController.kt", "line": 3, "symbol": "com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-PLAYER-LOCAL-DATA",
+        "from": "player/local",
+        "to": "data",
+        "gradleEvidence": {"path": "player/local/build.gradle.kts", "line": 30},
+        "importCount": 20,
+        "sampleImports": [
+          {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/MusicPlaybackControllerImpl.kt", "line": 19, "symbol": "com.zhangwenkang.cinefin.repository.JellyfinRepository"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-BOOK-CORE",
+        "from": "modes/book",
+        "to": "core",
+        "gradleEvidence": {"path": "modes/book/build.gradle.kts", "line": 31},
+        "importCount": 43,
+        "sampleImports": [
+          {"path": "modes/book/src/main/java/com/zhangwenkang/cinefin/book/presentation/reader/ReaderAnnotationSheet.kt", "line": 26, "symbol": "com.zhangwenkang.cinefin.core.presentation.components.CinefinButton"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-BOOK-DATA",
+        "from": "modes/book",
+        "to": "data",
+        "gradleEvidence": {"path": "modes/book/build.gradle.kts", "line": 32},
+        "importCount": 12,
+        "sampleImports": [
+          {"path": "modes/book/src/main/java/com/zhangwenkang/cinefin/book/presentation/reader/PreciseHttpResource.kt", "line": 3, "symbol": "com.zhangwenkang.cinefin.network.JellyfinAuth"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-FILM-CORE",
+        "from": "modes/film",
+        "to": "core",
+        "gradleEvidence": {"path": "modes/film/build.gradle.kts", "line": 25},
+        "importCount": 43,
+        "sampleImports": [
+          {"path": "modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/collection/CollectionViewModel.kt", "line": 5, "symbol": "com.zhangwenkang.cinefin.core.Constants"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-FILM-DATA",
+        "from": "modes/film",
+        "to": "data",
+        "gradleEvidence": {"path": "modes/film/build.gradle.kts", "line": 26},
+        "importCount": 129,
+        "sampleImports": [
+          {"path": "modes/film/src/main/java/com/zhangwenkang/cinefin/film/domain/VideoMetadataParser.kt", "line": 3, "symbol": "com.zhangwenkang.cinefin.models.AudioChannel"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-MUSIC-CORE",
+        "from": "modes/music",
+        "to": "core",
+        "gradleEvidence": {"path": "modes/music/build.gradle.kts", "line": 31},
+        "importCount": 78,
+        "sampleImports": [
+          {"path": "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/LyricsEditorDialog.kt", "line": 39, "symbol": "com.zhangwenkang.cinefin.core.R"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-MUSIC-DATA",
+        "from": "modes/music",
+        "to": "data",
+        "gradleEvidence": {"path": "modes/music/build.gradle.kts", "line": 32},
+        "importCount": 36,
+        "sampleImports": [
+          {"path": "modes/music/src/main/java/com/zhangwenkang/cinefin/music/data/LocalPlaylistRepository.kt", "line": 3, "symbol": "com.zhangwenkang.cinefin.database.music.LocalPlaylistStorage"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-MUSIC-PLAYER-CORE",
+        "from": "modes/music",
+        "to": "player/core",
+        "gradleEvidence": {"path": "modes/music/build.gradle.kts", "line": 34},
+        "importCount": 27,
+        "sampleImports": [
+          {"path": "modes/music/src/main/java/com/zhangwenkang/cinefin/music/data/LocalMusicPlayer.kt", "line": 5, "symbol": "com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue"}
+        ]
+      },
+      {
+        "id": "G1-S1-E-MUSIC-PLAYER-LOCAL",
+        "from": "modes/music",
+        "to": "player/local",
+        "gradleEvidence": {"path": "modes/music/build.gradle.kts", "line": 35},
+        "importCount": 27,
+        "sampleImports": [
+          {"path": "modes/music/src/main/java/com/zhangwenkang/cinefin/music/data/LocalMusicPlayer.kt", "line": 7, "symbol": "com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController"}
+        ]
+      }
+    ],
+    "externalDeclaredEdges": [
+      {"from": "app/phone", "to": "setup", "evidence": {"path": "app/phone/build.gradle.kts", "line": 168}},
+      {"from": "app/phone", "to": "settings", "evidence": {"path": "app/phone/build.gradle.kts", "line": 172}},
+      {"from": "core", "to": "settings", "evidence": {"path": "core/build.gradle.kts", "line": 35}},
+      {"from": "data", "to": "settings", "evidence": {"path": "data/build.gradle.kts", "line": 40}},
+      {"from": "player/local", "to": "settings", "evidence": {"path": "player/local/build.gradle.kts", "line": 31}},
+      {"from": "modes/book", "to": "settings", "evidence": {"path": "modes/book/build.gradle.kts", "line": 33}},
+      {"from": "modes/film", "to": "settings", "evidence": {"path": "modes/film/build.gradle.kts", "line": 27}},
+      {"from": "modes/music", "to": "settings", "evidence": {"path": "modes/music/build.gradle.kts", "line": 33}}
+    ],
+    "externalImportDeclarationsObserved": 180,
+    "externalImportNote": "180 是目标模块 import settings/setup 的声明数；未把 setup/settings 源码纳入边界验收。"
+  },
+  "violations": [
+    {
+      "id": "G1-S1-V-f3f117c921f7",
+      "severity": "P1",
+      "kind": "SHARED_PACKAGE_OWNERSHIP",
+      "stableSignature": "owner=core,data;kind=shared-package;package=com.zhangwenkang.cinefin.models",
+      "summary": "com.zhangwenkang.cinefin.models 同时由 core 与 data 提供，package-only allowlist 无法判定 import 的物理所有者。",
+      "metrics": {"coreFiles": 7, "dataFiles": 42, "totalFiles": 49},
+      "evidence": [
+        {"path": "core/src/main/java/com/zhangwenkang/cinefin/models/CollectionSection.kt", "line": 1},
+        {"path": "data/src/main/java/com/zhangwenkang/cinefin/models/BookDownloadTaskDto.kt", "line": 1}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN"
+    },
+    {
+      "id": "G1-S1-V-1d0658ad88d4",
+      "severity": "P1",
+      "kind": "SHARED_PACKAGE_OWNERSHIP",
+      "stableSignature": "owner=app/phone,core,data;kind=shared-package;package=com.zhangwenkang.cinefin.utils",
+      "summary": "com.zhangwenkang.cinefin.utils 被 app/core/data 三方共享，且包含下载、缓存、UI helper 与数据库辅助，层责任混合。",
+      "metrics": {"appFiles": 4, "coreFiles": 32, "dataFiles": 3, "totalFiles": 39},
+      "evidence": [
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/utils/AmbientColors.kt", "line": 1},
+        {"path": "core/src/main/java/com/zhangwenkang/cinefin/utils/BookByteSource.kt", "line": 1},
+        {"path": "data/src/main/java/com/zhangwenkang/cinefin/utils/DownloadCanonicalIdentity.kt", "line": 1}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN"
+    },
+    {
+      "id": "G1-S1-V-67c5e05b0c29",
+      "severity": "P2",
+      "kind": "SHARED_PACKAGE_OWNERSHIP",
+      "stableSignature": "owner=core,data;kind=shared-package;package=com.zhangwenkang.cinefin.update",
+      "summary": "com.zhangwenkang.cinefin.update 同时由 core 与 data 提供，更新策略、下载执行与 UI/Worker 边界不清晰。",
+      "metrics": {"coreFiles": 1, "dataFiles": 12, "totalFiles": 13},
+      "evidence": [
+        {"path": "core/src/main/java/com/zhangwenkang/cinefin/update/UpdateWorkScheduler.kt", "line": 1},
+        {"path": "data/src/main/java/com/zhangwenkang/cinefin/update/AbiAssetSelector.kt", "line": 1}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN"
+    },
+    {
+      "id": "G1-S1-V-d0a87242164d",
+      "severity": "P1",
+      "kind": "PRESENTATION_TO_DATA_IMPLEMENTATION",
+      "stableSignature": "owner=app/phone;kind=presentation-dependency;target=data;prefixes=api,database,network,repository",
+      "summary": "app presentation 直接 import data 的 DAO、认证、仓库与缓存实现类型；UI/ViewModel 知道持久化与协议细节。",
+      "metrics": {"imports": 20, "files": 12},
+      "evidence": [
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/console/ConsoleViewModel.kt", "line": 5},
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/console/ConsoleViewModel.kt", "line": 6},
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/downloads/DownloadStatusMonitor.kt", "line": 9},
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/BookshelfViewModel.kt", "line": 10}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN"
+    },
+    {
+      "id": "G1-S1-V-d8a9ce2529bf",
+      "severity": "P1",
+      "kind": "LAYER_COLLAPSE",
+      "stableSignature": "owner=core;kind=layer-collapse;targets=data,player/core;contents=ui,di,data-access",
+      "summary": "core 同时承载 Compose UI、Room/DI、API/OkHttp/下载工具并直连 data；它不是纯 UI/contracts 层，物理边界无法靠重命名获得。",
+      "metrics": {"coreToDataImports": 130, "coreToPlayerCoreImports": 1, "coreSourceFiles": 106, "coreSourceLines": 18076},
+      "evidence": [
+        {"path": "core/build.gradle.kts", "line": 33, "fact": "implementation(projects.data)"},
+        {"path": "core/build.gradle.kts", "line": 34, "fact": "implementation(projects.player.core)"},
+        {"path": "core/build.gradle.kts", "line": 37, "fact": "Compose foundation"},
+        {"path": "core/build.gradle.kts", "line": 47, "fact": "Room runtime"},
+        {"path": "core/build.gradle.kts", "line": 53, "fact": "OkHttp"},
+        {"path": "core/src/main/java/com/zhangwenkang/cinefin/di/DatabaseModule.kt", "line": 18},
+        {"path": "core/src/main/java/com/zhangwenkang/cinefin/core/presentation/downloader/DownloaderViewModel.kt", "line": 33}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN_WITH_STATIC_INFERENCE"
+    },
+    {
+      "id": "G1-S1-V-ba7ffc6c9bfe",
+      "severity": "P1",
+      "kind": "PRESENTATION_TO_DATA_IMPLEMENTATION",
+      "stableSignature": "owner=player/local;kind=presentation-dependency;target=data;prefixes=api,repository",
+      "summary": "player/local 的 PlayerViewModel 直接依赖 JellyfinApi 与 JellyfinRepository；实现模块同时承担 Compose/ViewModel、Media3/mpv、数据协议与持久化协调。",
+      "metrics": {"imports": 2, "files": 1, "playerLocalSourceFiles": 61, "playerLocalSourceLines": 15512},
+      "evidence": [
+        {"path": "player/local/build.gradle.kts", "line": 30, "fact": "implementation(projects.data)"},
+        {"path": "player/local/build.gradle.kts", "line": 32, "fact": "Lifecycle runtime"},
+        {"path": "player/local/build.gradle.kts", "line": 34, "fact": "Media3 ExoPlayer"},
+        {"path": "player/local/build.gradle.kts", "line": 44, "fact": "libmpv"},
+        {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt", "line": 22},
+        {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt", "line": 80}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN_WITH_STATIC_INFERENCE"
+    },
+    {
+      "id": "G1-S1-V-17dbbcd423d6",
+      "severity": "P1",
+      "kind": "FEATURE_TO_CONCRETE_PLAYER_IMPLEMENTATION",
+      "stableSignature": "owner=modes/music;kind=concrete-player-dependency;target=player/local;symbols=MusicPlaybackController,audio.*",
+      "summary": "music 的 data 与 presentation 直接依赖 player/local 的具体控制接口与音频实现常量；虽然 MusicPlaybackController 是 interface，但其物理家仍在具体实现模块。",
+      "metrics": {"controllerImports": 6, "controllerFiles": 6, "audioImplementationImports": 12, "audioFiles": 2, "totalImports": 18},
+      "evidence": [
+        {"path": "modes/music/src/main/java/com/zhangwenkang/cinefin/music/data/LocalMusicPlayer.kt", "line": 7},
+        {"path": "modes/music/src/main/java/com/zhangwenkang/cinefin/music/data/MusicLyricsOverlayController.kt", "line": 11},
+        {"path": "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/MusicModeViewModel.kt", "line": 72},
+        {"path": "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/di/MusicModule.kt", "line": 12},
+        {"path": "modes/music/src/main/java/com/zhangwenkang/cinefin/music/presentation/MusicEffectsSheet.kt", "line": 28},
+        {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/MusicPlaybackController.kt", "line": 19}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN"
+    },
+    {
+      "id": "G1-S1-V-434beb5c4623",
+      "severity": "P1",
+      "kind": "APP_TO_CONCRETE_PLAYER_IMPLEMENTATION",
+      "stableSignature": "owner=app/phone;kind=concrete-player-dependency;target=player/local",
+      "summary": "app 播放 Activity/Service 直接依赖 player/local 的 PlayerViewModel、PlayerHolder、MediaSessionSeekPlayer、MPVPlayer 等具体类型。",
+      "metrics": {"imports": 62, "files": 19},
+      "evidence": [
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/BasePlayerActivity.kt", "line": 13},
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt", "line": 63},
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt", "line": 65},
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/playback/CinefinPlaybackService.kt", "line": 21},
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/playback/CinefinPlaybackService.kt", "line": 22}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN"
+    },
+    {
+      "id": "G1-S1-V-d6b630851ba5",
+      "severity": "P2",
+      "kind": "FEATURE_UI_OWNERSHIP_SPLIT",
+      "stableSignature": "owner=app/phone;kind=feature-ownership-split;target=modes/film;prefix=film.presentation",
+      "summary": "film 的 Screen/组件仍大量位于 app，而 Action/State/ViewModel 已在 modes/film；同一 feature 的 UI 与状态 ownership 分裂。",
+      "metrics": {"imports": 96, "appFiles": 24},
+      "evidence": [
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/CollectionScreen.kt", "line": 28},
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/CollectionScreen.kt", "line": 29},
+        {"path": "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/CollectionScreen.kt", "line": 30}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN_WITH_STATIC_INFERENCE"
+    },
+    {
+      "id": "G1-S1-V-3a750bb14da2",
+      "severity": "P2",
+      "kind": "PACKAGE_NAMESPACE_SHADOWING",
+      "stableSignature": "owner=player/local;target=settings;kind=namespace-shadowing;package=com.zhangwenkang.cinefin.language;symbol=LanguageMatcher",
+      "summary": "app 的 namespace 是根命名空间 com.zhangwenkang.cinefin；仅按 namespace 前缀会把实际属于 settings 的 LanguageMatcher 误判给 app。",
+      "metrics": {"imports": 7, "files": 7},
+      "evidence": [
+        {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/Extensions.kt", "line": 5},
+        {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt", "line": 23},
+        {"path": "settings/src/main/java/com/zhangwenkang/cinefin/language/LanguageMatcher.kt", "line": 13}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN"
+    },
+    {
+      "id": "G1-S1-V-56f941f5ffea",
+      "severity": "P3",
+      "kind": "DUPLICATE_BUILD_DEPENDENCY",
+      "stableSignature": "owner=modes/film;kind=duplicate-dependency;symbol=libs.jellyfin.core",
+      "summary": "modes/film build 文件重复声明 libs.jellyfin.core。",
+      "metrics": {"declarations": 2},
+      "evidence": [
+        {"path": "modes/film/build.gradle.kts", "line": 29},
+        {"path": "modes/film/build.gradle.kts", "line": 41}
+      ],
+      "evidenceClass": "ACTUAL_EXECUTED_STATIC_SCAN"
+    }
+  ],
+  "allowlistPrototype": {
+    "status": "EXECUTED_STATIC_INLINE_PWSH",
+    "productionFilesModified": false,
+    "temporaryFilesCreated": false,
+    "inputs": {
+      "baseHead": "00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc",
+      "sourceFiles": 609,
+      "declaredProjectEdges": 19,
+      "externalOwnerPrefixes": [
+        "com.zhangwenkang.cinefin.settings",
+        "com.zhangwenkang.cinefin.setup"
+      ]
+    },
+    "rules": [
+      {
+        "id": "G1-S1-AL-01",
+        "rule": "source-owner 必须由文件绝对路径映射到 settings 中声明的 Gradle module；禁止仅凭 package 判断 owner。"
+      },
+      {
+        "id": "G1-S1-AL-02",
+        "rule": "跨模块 import 必须解析到唯一 FQCN owner；owner 不唯一即 QUARANTINE，不允许按声明顺序或最长前缀猜测。"
+      },
+      {
+        "id": "G1-S1-AL-03",
+        "rule": "跨模块 import 仅允许指向 consumer 在 build.gradle.kts 中直接声明的 project dependency；transitive import 拒绝。"
+      },
+      {
+        "id": "G1-S1-AL-04",
+        "rule": "generated R/BuildConfig 必须按 Gradle namespace + source-owner 白名单归类，不得被根 app namespace 吞并。"
+      },
+      {
+        "id": "G1-S1-AL-05",
+        "rule": "settings/setup 纳入完整 owner registry；其 source 不在 S1 白名单时只能验证声明边，不能判其内部层次。"
+      },
+      {
+        "id": "G1-S1-AL-06",
+        "rule": "初始采用 ratchet：现存的 UI→data 实现、app/music→player/local 具体实现按 path+FQCN 冻结为 debt；新增或扩散立即失败。"
+      },
+      {
+        "id": "G1-S1-AL-07",
+        "rule": "contracts 目标态仅允许 consumers import 公开 contract 包；禁止 import repository impl、DAO、JellyfinApi、MPVPlayer、PlayerHolder、PlayerViewModel。"
+      },
+      {
+        "id": "G1-S1-AL-08",
+        "rule": "每次变更同时校验 module DAG（cycle=0）、unexpected direct edge=0、unresolved-owner=0、new-debt=0。"
+      }
+    ],
+    "initialAllowlist": {
+      "projectEdges": "dependencyGraph.edges 中 19 条 exact from→to 边",
+      "externalEdges": "dependencyGraph.externalDeclaredEdges 中 8 条 exact from→to 边",
+      "layerAllowNewCode": [
+        "app/phone → core.presentation / feature public entrypoint / player contract",
+        "modes/* → core.presentation + data public port + player contract",
+        "player/local → player/core contract + data port",
+        "data → data public port + settings",
+        "core → core.ui + contract packages"
+      ],
+      "denyNewCode": [
+        "presentation/ViewModel/Activity/Service → api | database | repository impl | network auth",
+        "app or modes/* → player.local.presentation | MPVPlayer | PlayerHolder | PlayerViewModel",
+        "modes/* → player.local.audio concrete helpers",
+        "any feature → another feature presentation implementation",
+        "any non-owner → generated namespace unless exact module namespace"
+      ],
+      "baselineDebtToFreeze": [
+        {"signature": "app presentation→data implementation", "imports": 20, "files": 12},
+        {"signature": "player/local presentation→data implementation", "imports": 2, "files": 1},
+        {"signature": "app→player/local concrete", "imports": 62, "files": 19},
+        {"signature": "music→player/local controller/audio concrete", "imports": 18, "files": 8},
+        {"signature": "app film UI→film presentation state", "imports": 96, "files": 24}
+      ]
+    },
+    "results": {
+      "declaredProjectEdges": 19,
+      "observedTargetImportEdges": 19,
+      "moduleCycleCount": 0,
+      "externalSettingsSetupImportDeclarations": 180,
+      "ambiguousPackageOrSymbolImportsQuarantined": 45,
+      "ownGeneratedRBuildConfigFalseOwnersObserved": 8,
+      "externalLanguageMatcherShadowingImports": 7,
+      "unexpectedTargetModuleEdges": 0,
+      "verdict": "BASELINE_MATCH_WITH_OWNER_AMBIGUITY"
+    },
+    "productionization": {
+      "recommendedForm": "Kotlin/Gradle 仓库内独立 verification task，或 CI 中的 PowerShell/Python 静态检查器；输入 snapshot 输出 SARIF/JSON。",
+      "mustNotUse": "不得把 Gradle namespace、最长 package 前缀或手工包清单当作唯一 owner 真源。",
+      "firstReadOnlyAction": "新增独立 Python/Kotlin 原型前先冻结本报告 19 边与 45 条隔离样本；原型仅读 src/main 与 build/settings 文件。"
+    }
+  },
+  "candidateSeams": [
+    {
+      "id": "G1-S1-SEAM-SCOPE",
+      "name": "Scope / Identity",
+      "hidden": "server、user、offline scope、source token、canonical request/source key",
+      "existingAnchor": "当前由 settings AppPreferences 与 data 多种身份类型分散表达",
+      "proposedContractHome": "data public port（逻辑 seam）；物理独立 contracts 仅作后续候选",
+      "consumers": ["catalog", "write", "download", "reader", "playback", "notification"],
+      "acceptanceInvariant": "切号、离线、缓存、下载、通知和队列不串身份"
+    },
+    {
+      "id": "G1-S1-SEAM-CATALOG",
+      "name": "Catalog read",
+      "hidden": "JellyfinApi、DAO、分页、SWR、TTL、304、失效",
+      "existingAnchor": {"path": "data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepository.kt", "line": 26},
+      "proposedContractHome": "data public port",
+      "consumers": ["app", "film", "book", "music"],
+      "acceptanceInvariant": "UI 只消费带 generation/stale 的快照，不区分 HTTP/DB 来源"
+    },
+    {
+      "id": "G1-S1-SEAM-WRITE",
+      "name": "User-state write",
+      "hidden": "本地 intent、服务器受理、回读、403/部分失败",
+      "existingAnchor": "JellyfinRepository 写方法散落于 data 公开接口",
+      "proposedContractHome": "data public port",
+      "consumers": ["app", "film", "book", "music"],
+      "acceptanceInvariant": "受理不等于成功；403=DENIED；成功须有回读/确认锚点"
+    },
+    {
+      "id": "G1-S1-SEAM-DOWNLOAD",
+      "name": "Download control",
+      "hidden": "submit/observe/pause/resume/retry/cancel/delete、WorkManager、DB、sidecar、通知",
+      "existingAnchor": {"path": "core/src/main/java/com/zhangwenkang/cinefin/utils/Downloader.kt", "line": 10},
+      "proposedContractHome": "core logical contracts package；当前物理仍是 core 内 interface",
+      "consumers": ["film", "book", "music", "app notification"],
+      "acceptanceInvariant": "页面、角标、通知、sidecar、DB 指向同一任务真源"
+    },
+    {
+      "id": "G1-S1-SEAM-PLAYBACK",
+      "name": "PlaybackSession",
+      "hidden": "ExoPlayer/mpv、PlayerHolder、MediaSession、命令/结果、owner generation",
+      "existingAnchors": [
+        {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlaybackCoordinator.kt", "line": 12},
+        {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerHolder.kt", "line": 39}
+      ],
+      "proposedContractHome": "player/core logical contract package",
+      "consumers": ["app", "film", "music", "notification"],
+      "acceptanceInvariant": "单播放会话、单 MediaSession、单队列真源；旧 owner 不可回写"
+    },
+    {
+      "id": "G1-S1-SEAM-READER",
+      "name": "Reader source / progress",
+      "hidden": "Readium、PDF、SAF、remote Range、bookmark/progress",
+      "existingAnchor": {"path": "data/src/main/java/com/zhangwenkang/cinefin/repository/ReaderRepository.kt", "line": 15},
+      "proposedContractHome": "data public port + reader-specific immutable DTO",
+      "consumers": ["book", "download", "app"],
+      "acceptanceInvariant": "source-scoped bookId、进度与内容指纹分离"
+    },
+    {
+      "id": "G1-S1-SEAM-MUSIC-QUEUE",
+      "name": "Music library / queue",
+      "hidden": "playlist、queue snapshot、懒补、随机序恢复、播放器具体实现",
+      "existingAnchor": {"path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/MusicPlaybackController.kt", "line": 19},
+      "proposedContractHome": "player/core logical contract package；实现保留在 player/local",
+      "consumers": ["music", "app service", "notification"],
+      "acceptanceInvariant": "当前/Next Up/失败项/恢复顺序使用稳定身份"
+    }
+  ],
+  "seamComparison": [
+    {
+      "option": "LOGICAL_CONTRACTS_SEAM",
+      "recommendation": "首选候选；需用户批准后才可进入实现",
+      "engineeringEffort": {
+        "estimateClass": "ESTIMATE",
+        "newFiles": "20–35",
+        "touchedExistingFilesInitialWave": "40–80",
+        "newGradleModules": 0,
+        "gradleFilesChangedInitialWave": 0,
+        "importRewriteRange": "100–250"
+      },
+      "regressionSurface": [
+        "Kotlin compile/type inference",
+        "Hilt binding 与 coroutine ownership",
+        "state/identity/semantics tests",
+        "feature wiring"
+      ],
+      "migrationOrder": [
+        "冻结本报告违规 ID 与 ratchet allowlist",
+        "在现有 data/player-core 公共包建立接口与 immutable DTO",
+        "实现 adapter，旧入口保留兼容",
+        "按 Scope→Catalog/Write→Download→Playback→Reader/Music 逐 seam 迁移",
+        "确认 0 new-debt 后再评估物理模块"
+      ],
+      "rollbackPath": "按 seam/commit 回退 adapter 与 consumer 切换；旧实现入口在过渡期保留，可做 forward-fix，不涉及数据库回滚。",
+      "benefits": [
+        "不改变 Gradle 模块图与 APK packaging，先行验证语义边界",
+        "可逐 seam 小步合并和回退",
+        "立即阻止 DAO/API/具体播放器继续向 UI 扩散"
+      ],
+      "risks": [
+        "若 rule engine 仅按 package，45 条 owner 歧义仍会漏检",
+        "interface 若泄漏 data/player.local 具体类型，会成为浅 seam",
+        "core 物理层崩溃与 feature UI 分裂不会自动消失"
+      ],
+      "confidence": "MEDIUM_HIGH_FOR_LOWER_RISK",
+      "evidenceBasis": [
+        "19 条现有 direct edges 已可保持",
+        "已存在 JellyfinRepository/ReaderRepository/Downloader/MusicPlaybackController/PlaybackCoordinator interfaces",
+        "package ownership 共享使物理 split 的 import churn 明显更大"
+      ]
+    },
+    {
+      "option": "PHYSICAL_GRADLE_MODULE_SPLIT",
+      "recommendation": "不进入首轮；仅在单个 seam 的逻辑契约与回归基线通过后再做 pilot",
+      "engineeringEffort": {
+        "estimateClass": "ESTIMATE",
+        "newGradleModules": "2–4",
+        "touchedBuildSettingsFiles": "4–10",
+        "sourceFilesMovedOrRewritten": "100–200",
+        "importRewriteRange": "300–700",
+        "fullAuditSurface": "609 files / 132987 lines"
+      },
+      "regressionSurface": [
+        "Gradle configuration graph 与 task wiring",
+        "Android resource namespace/R/BuildConfig",
+        "Hilt/KSP generated code",
+        "Room schema 与 KSP classpath",
+        "test source set 与 instrumentation",
+        "APK packaging、native libc++/libmpv/ABI"
+      ],
+      "migrationOrder": [
+        "先选一个 seam 做 pilot",
+        "新增 contracts module，但只搬纯 interface/DTO",
+        "data/player.local 增加 adapter 并禁止消费者 import impl",
+        "分批修 import 与 namespace/R",
+        "完成 Gradle/DI/Room/native 回归后才迁移下一 seam",
+        "最后移 core UI/data-access 混合职责"
+      ],
+      "rollbackPath": "在合并前可整体 revert；一旦跨多个 feature 迁移，Rollback 成本高，需要兼容 facade/forward-fix。Gradle module 改名不应视作数据库或发布回滚。",
+      "benefits": [
+        "编译器强制隔离，防回归强于文本 allowlist",
+        "contracts 可独立测试，未来可改善模块级增量构建"
+      ],
+      "risks": [
+        "共享 models/utils/update 包导致大面积 import 迁移",
+        "R/BuildConfig resource ownership 与 Hilt/KSP 变化",
+        "APK/native 回归在未构建前不可估清",
+        "多分支冲突与回退面显著扩大"
+      ],
+      "confidence": "LOW_UNTIL_BUILD_SPIKE",
+      "evidenceBasis": [
+        "models 49 files across core/data；utils 39 files across app/core/data；update 13 files across core/data",
+        "app→player/local 62 imports/19 files；music→player/local 18 concrete imports",
+        "core 与 player/local 均混合 UI、运行时和 data implementation"
+      ]
+    }
+  ],
+  "migrationAndRollback": {
+    "recommendedDecisionInput": "以 V2-Q-G1-01 的推荐方向为输入：先逻辑契约、包所有权与 allowlist；物理拆分仅做单 seam pilot，不直接全拆。最终仍须用户拍板。",
+    "logicalSequence": [
+      "BASELINE_FREEZE：记录 19 边、45 owner ambiguity 与 debt manifest",
+      "PURE_CONTRACTS：接口/immutable DTO 不依赖 Android/Compose/Room/Media3/mpv",
+      "ADAPTERS：data 与 player/local 实现 contract，不在 contract 暴露 impl 类型",
+      "CONSUMER_MIGRATION：一次只迁一个 seam；每步 new-debt=0",
+      "RATCHET：旧 debt 路径只减不增",
+      "PHYSICAL_SPLIT_GATE：只有 pilot 证明回滚/构建/回归收益后才提物理模块"
+    ],
+    "physicalSequenceAfterApproval": [
+      "单 seam pilot",
+      "contracts module + Gradle settings/build",
+      "纯类型搬迁",
+      "adapter/DI 接线",
+      "import/R/KSP/Hilt 修复",
+      "真实构建与回归（属于后续实现/G2，不在本任务）"
+    ],
+    "undo": {
+      "logical": "逐 seam revert；兼容入口保留到最后一波。",
+      "physical": "pilot 前可整体 revert；扩散后需 facade + forward-fix，禁止把数据库 down migration 当模块回滚。"
+    }
+  },
+  "priorities": {
+    "P0": [],
+    "P1": [
+      "G1-S1-V-f3f117c921f7",
+      "G1-S1-V-1d0658ad88d4",
+      "G1-S1-V-d0a87242164d",
+      "G1-S1-V-d8a9ce2529bf",
+      "G1-S1-V-ba7ffc6c9bfe",
+      "G1-S1-V-17dbbcd423d6",
+      "G1-S1-V-434beb5c4623"
+    ],
+    "P2": [
+      "G1-S1-V-67c5e05b0c29",
+      "G1-S1-V-d6b630851ba5",
+      "G1-S1-V-3a750bb14da2"
+    ],
+    "P3": [
+      "G1-S1-V-56f941f5ffea"
+    ]
+  },
+  "BLOCKED": [],
+  "uncovered": [
+    "未运行 Gradle compile/APK，因此不能证明所有 import 在当前 AGP/KSP/Hilt/Media3 组合下可编译。",
+    "未解析 methods/fields 的逐符号使用图；import count 只能作边界 churn proxy。",
+    "未读 setup/settings 全源码；180 条外部 import 与 LanguageMatcher 只完成最小 owner 核对。",
+    "未读测试与资源，无法量化现有测试对逻辑 seam 的覆盖。",
+    "未做物理拆模块 pilot，因此 effort 与 regression 是静态估算，不是实测。",
+    "未覆盖 TV、设备、服务器、发布包、native ABI 与真实 Protocol。"
+  ],
+  "contextWatermark": {
+    "model": "deepseek-flash",
+    "inputTokens": 211745,
+    "contextWindow": 1048576,
+    "percent": 20.2,
+    "cacheHitPercent": 99.9,
+    "requestCount": 141,
+    "compactions": 0,
+    "threshold": {
+      "shrinkAt": 250000,
+      "checkpointAt": 300000,
+      "stopAt": 350000
+    },
+    "source": "localDeepSeekProxyStatusScript"
+  },
+  "memorySync": {
+    "added": [],
+    "updated": [],
+    "archived": [],
+    "skipped": [
+      "G1-S1 静态证据是本轮可交付产物且已由报告承接；按任务“只写两个互斥证据文件”的边界，未写 Engramory。",
+      "未发现需要新增或替换的稳定用户偏好；既有 Aurorama 2.0 project note 已覆盖 G1 未通过与证据门语义。"
+    ],
+    "indexLines": 121,
+    "indexBytes": 16024,
+    "check": "OK: 121 lines / 15.6 KB（cap 200 lines / 25.0 KB）",
+    "doctor": "clean；index 121 lines / 15.6 KB，92 notes，无 broken pointer/orphan/schema error；info: leader-delegation-by-role.md 超过 12 KB"
+  },
+  "evidencePaths": [
+    "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-S1\\report.json",
+    "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-S1\\commands.log"
+  ],
+  "conclusion": {
+    "status": "COMPLETE_STATIC_EVIDENCE",
+    "summary": "当前 8 模块图有 19 条 direct edges、0 cycle；真实问题是包所有权混合和 UI/feature 直连 data/player-local 具体实现，而不是模块环。逻辑 contracts seam 的迁移与回滚面显著小于全量物理拆分；package-only allowlist 不可执行，必须使用 Gradle 声明边 + source/FQCN owner + ratchet debt。",
+    "userDecisionReady": "partially；V2-Q-G1-01 已具备成本与回归比较，但物理拆分最终收益仍需单 seam build pilot，不能把本报告写成已接受决策。",
+    "qaStarted": false,
+    "g1Passed": false
+  }
+}

@@ -1,0 +1,600 @@
+{
+  "schemaVersion": "g1-s3-report/v1",
+  "taskId": "G1-S3",
+  "identity": {
+    "role": "资深 Jellyfin 协议集成工程师",
+    "assignment": "G1-S3 只读证据负责人",
+    "responsibility": "静态契约语料、能力可表达性、版本台账与缺口报告",
+    "independentQaStarted": false,
+    "implementationStarted": false,
+    "mergePrepStarted": false
+  },
+  "model": {
+    "observed": "deepseek-flash",
+    "source": "local deepseek-status proxy",
+    "reasoningModeNote": "numeric reasoning effort is not exposed in proxy status output"
+  },
+  "cwd": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+  "branch": "codex/v2-integration",
+  "baseHead": "00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc",
+  "finalHead": "00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc",
+  "git": {
+    "statusAtStart": "clean",
+    "statusPorcelainAtStart": [],
+    "branchAsRequested": true,
+    "branchSwitched": false,
+    "productionFilesModified": false,
+    "g10Ancestor": true,
+    "baselineAncestor": true,
+    "videoCloseoutAncestor": true,
+    "g10Commit": "9b6cdb94f474db1393d3cdae29b65b4501c60985",
+    "baselineCommit": "4fbe5e12d182fc1d9bdf2790c7a725bec0074d37",
+    "videoCloseoutCommit": "bd5e3aa59c2e5671ada9354f230da4519589272b"
+  },
+  "executed": [
+    {
+      "id": "E-GIT",
+      "kind": "READ_ONLY_GIT",
+      "result": "clean worktree; expected branch; HEAD stable; required ancestors verified"
+    },
+    {
+      "id": "E-DOC",
+      "kind": "LIMITED_DOC_READ",
+      "result": "read root AGENTS.md, V2_PLAN section 5.11 and section 12 ACTIVE only"
+    },
+    {
+      "id": "E-CODE",
+      "kind": "SCOPED_STATIC_SOURCE",
+      "result": "read current Jellyfin API/repository/download/reader/search/update/playback/SWR interfaces and necessary local implementations"
+    },
+    {
+      "id": "E-OPENAPI",
+      "kind": "PUBLIC_OFFICIAL_DOCUMENT",
+      "result": "downloaded OpenAPI stable in memory, verified 1896214 bytes and exact SHA-256, parsed target paths and schemas"
+    },
+    {
+      "id": "E-SERVER",
+      "kind": "PUBLIC_OFFICIAL_SERVER_SOURCE",
+      "result": "read fixed commit files via GitHub REST; blob SHAs and source line anchors recorded"
+    },
+    {
+      "id": "E-SDK",
+      "kind": "PUBLIC_OFFICIAL_KOTLIN_SDK_SOURCE",
+      "result": "read fixed commit SyncPlay, PlaybackInfo and UserData generated models/API; blob SHAs recorded"
+    },
+    {
+      "id": "E-CORPUS",
+      "kind": "E0_STATIC_CONTRACT_CORPUS",
+      "result": "contracts.json contains sanitized request/response shapes and state/error mappings"
+    },
+    {
+      "id": "E-CONTEXT",
+      "kind": "LOCAL_STATUS_READ",
+      "result": "current context watermark measured from local proxy"
+    }
+  ],
+  "notExecuted": [
+    "No request to any Jellyfin instance",
+    "No authentication or credential value read",
+    "No GET /Items/{id}/Download",
+    "No POST/PUT/PATCH/DELETE against any Jellyfin endpoint",
+    "No playback or media stream request",
+    "No device or adb access",
+    "No production write, test-server write or server cleanup",
+    "No Gradle build, APK inspection, install, push, tag or release",
+    "No independent QA, implementation, G2, merge-prep or production file edit"
+  ],
+  "capabilities": {
+    "PLAYBACK_INFO": {
+      "verdict": "STATICALLY_EXPRESSIBLE_PARTIAL_CLIENT",
+      "reachableStates": [
+        "GET/POST request",
+        "HTTP 200 with PlaySessionId and MediaSources",
+        "HTTP 200 with ErrorCode and no compatible stream",
+        "HTTP 401/403/404/503",
+        "VOD direct-play/direct-stream/transcode choice",
+        "special metadata-refresh branch for .strm or missing main media stream",
+        "live-stream open branch when requested"
+      ],
+      "clientCurrentGap": [
+        "drops top-level PlaySessionId",
+        "drops top-level ErrorCode",
+        "reports playback with fixed PlayMethod.DIRECT_PLAY and no selected source/session",
+        "no explicit 401/403/404/PlaybackErrorCode state translation"
+      ],
+      "contractFields": [
+        "MediaSources",
+        "PlaySessionId",
+        "ErrorCode",
+        "DeviceProfile",
+        "StartTimeTicks",
+        "MediaSourceId",
+        "EnableDirectPlay",
+        "EnableDirectStream",
+        "EnableTranscoding",
+        "AllowVideoStreamCopy",
+        "AllowAudioStreamCopy"
+      ],
+      "successAnchor": "HTTP 200 + non-empty MediaSources + ErrorCode null + captured PlaySessionId + selected source retained",
+      "errorClosure": "401/403/404/503 are documented; NotAllowed and RateLimitExceeded are schema values but their PlaybackInfo trigger conditions were not proven from the reviewed helper; NoCompatibleStream is proven",
+      "provableLevel": "E0",
+      "sources": [
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt:1158-1200",
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt:1285-1366",
+        "OpenAPI sha256:02A6064916B7E08F1F1D8D7FFC1FB1C7623DF0E378729FCD7FD353766868036E JSON pointer /paths/~1Items~1{itemId}~1PlaybackInfo",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d Jellyfin.Api/Controllers/MediaInfoController.cs:72-249 blob aa942e76428c0711d2d0f24da5db339c1fa260c7",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d Jellyfin.Api/Helpers/MediaInfoHelper.cs:93-135,192-220 blob c27a18831c6513ff5337a3ff824269f8a22d058d",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d Emby.Server.Implementations/Library/MediaSourceManager.cs:177-198 blob e9bba05839211777bce344f8debe4b636f20fbcd"
+      ]
+    },
+    "DOWNLOAD_RANGE": {
+      "verdict": "STATICALLY_EXPRESSIBLE_PARTIAL_ERROR_TAXONOMY",
+      "reachableStates": [
+        "GET full response 200",
+        "resume request with Range and optional If-Range",
+        "206 with validated Content-Range start",
+        "200 after ignored Range or changed validator: restart from zero",
+        "416 complete only with total-size proof",
+        "416 invalid/out-of-range without proof",
+        "401 vs 403 permission states",
+        "404 item missing",
+        "redirect to different host with auth stripped"
+      ],
+      "clientCurrentGap": [
+        "401 and 403 collapse to one AUTHENTICATION reason",
+        "404 and 409 collapse to SERVER_ERROR",
+        "416 terminal evidence is inferential and not fixture-executed",
+        "activity-log side effect makes production GET unusable as a zero-side-effect probe"
+      ],
+      "contractFields": [
+        "Range",
+        "If-Range",
+        "Content-Range",
+        "ETag",
+        "Last-Modified",
+        "Content-Length"
+      ],
+      "successAnchor": "200 complete body or 206 matching requested offset and complete final size; 416 only when server total proves local completion",
+      "errorClosure": "401/403/404/503 documented by OpenAPI; 206/416 statically inferable from ASP.NET PhysicalFile range processing; 409 uncovered",
+      "provableLevel": "E0",
+      "sources": [
+        "core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadHttpEngine.kt:82-310",
+        "core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadHttpEngine.kt:156-194",
+        "OpenAPI sha256:02A6064916B7E08F1F1D8D7FFC1FB1C7623DF0E378729FCD7FD353766868036E JSON pointer /paths/~1Items~1{itemId}~1Download",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d Jellyfin.Api/Controllers/LibraryController.cs:669-720 blob 39a6fbace870783b22f41ed964e55620a96fe78b",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d Jellyfin.Api/Controllers/LibraryController.cs:997-1013 activity log"
+      ]
+    },
+    "WRITE": {
+      "verdict": "SERVER_CONTRACT_EXPRESSIBLE_CLIENT_SUCCESS_ANCHOR_MISSING",
+      "reachableStates": [
+        "local intent",
+        "write accepted with 200 UserItemDataDto",
+        "401 authentication",
+        "403 denied",
+        "404 item missing",
+        "409 conflict: not declared in reviewed OpenAPI",
+        "503 transient unavailable",
+        "read-back converged",
+        "read-back mismatch/deadline"
+      ],
+      "clientCurrentGap": [
+        "optimistic local state is written before server acceptance",
+        "all exceptions are collapsed and queued",
+        "403 is not classified as DENIED",
+        "DTO response is ignored",
+        "no forced GET read-back before clearing pending state",
+        "SyncWorker clears pending after callback without response/read-back validation"
+      ],
+      "contractFields": [
+        "PlaybackPositionTicks",
+        "PlayedPercentage",
+        "Played",
+        "IsFavorite",
+        "LastPlayedDate",
+        "UserItemDataDto.ItemId",
+        "UserItemDataDto.Key"
+      ],
+      "successAnchor": "200 UserItemDataDto accepted and same-origin GET returns requested fields/equivalent; pending intent remains until this equality is observed",
+      "errorClosure": "401/403/404/503 documented; 409 and real RMW conflict behavior UNCOVERED",
+      "provableLevel": "E0",
+      "sources": [
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt:1369-1418",
+        "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlaybackPositionWriter.kt:34-48",
+        "core/src/main/java/com/zhangwenkang/cinefin/work/SyncWorker.kt:68-90",
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/ReaderRepositoryImpl.kt:342-360",
+        "OpenAPI sha256:02A6064916B7E08F1F1D8D7FFC1FB1C7623DF0E378729FCD7FD353766868036E JSON pointer /paths/~1UserItems~1{itemId}~1UserData"
+      ]
+    },
+    "READER": {
+      "verdict": "DIRECT_BOOK_DOWNLOAD_EXPRESSIBLE_WRITE_CONFIRMATION_MISSING",
+      "reachableStates": [
+        "file-protocol Book direct GET Download",
+        "200 full book",
+        "206 valid range",
+        "416 with completion proof",
+        "401/403/404",
+        "progress GET",
+        "progress POST accepted",
+        "progress read-back convergence"
+      ],
+      "clientCurrentGap": [
+        "Book direct Download is implemented",
+        "write response ignored",
+        "no immediate GET equality gate after write",
+        "401/403/404/409 are not separately surfaced",
+        "full book streaming via remote Readium still depends on Book file/protocol and server range behavior"
+      ],
+      "contractFields": [
+        "ItemId",
+        "Range",
+        "Content-Range",
+        "ETag/Last-Modified",
+        "PlayedPercentage",
+        "PlaybackPositionTicks",
+        "Played",
+        "LastPlayedDate"
+      ],
+      "successAnchor": "direct Download 200/valid 206 + atomic complete file; UserData 200 plus GET read-back proves progress",
+      "errorClosure": "Download statuses as DOWNLOAD_RANGE; UserData statuses as WRITE; real Book-specific 409/416 not executed",
+      "provableLevel": "E0",
+      "sources": [
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/ReaderRepository.kt:1-112",
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/BookDownloadRangeTransfer.kt:90-227",
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/ReaderRepositoryImpl.kt:312-360",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d MediaBrowser.Controller/Entities/Book.cs:14-59 blob 8559681bdcef355088ea43c2074b66232eac360a",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d MediaBrowser.Controller/Entities/BaseItem.cs:923-936 blob a1e955f33f1c98709f3dce9a2b6f7cef2475f670"
+      ]
+    },
+    "SEARCH": {
+      "verdict": "FULL_QUERY_SHAPE_EXPRESSIBLE_CLIENT_COVERS_MINIMUM_SUBSET",
+      "reachableStates": [
+        "ALL/VIDEO/MUSIC/BOOK scope mapped to includeItemTypes",
+        "searchTerm",
+        "recursive",
+        "paging",
+        "sort",
+        "fields/userData/images",
+        "filters/facets",
+        "200 result/empty/error"
+      ],
+      "clientCurrentGap": [
+        "uses only userId, searchTerm, includeItemTypes, recursive",
+        "no startIndex/limit/Top-level paging",
+        "no sortBy/sortOrder",
+        "no fields",
+        "no image parameters",
+        "no filter/facet parameters",
+        "401/403/503 are not separately mapped",
+        "query-shape cache identity currently keyed from query + scope, but must remain complete if query expands"
+      ],
+      "contractFields": [
+        "userId",
+        "searchTerm",
+        "includeItemTypes",
+        "excludeItemTypes",
+        "recursive",
+        "startIndex",
+        "limit",
+        "sortBy",
+        "sortOrder",
+        "fields",
+        "enableUserData",
+        "filters",
+        "isFavorite",
+        "isPlayed",
+        "imageTypes",
+        "imageTypeLimit",
+        "enableImageTypes",
+        "enableImages",
+        "enableTotalRecordCount"
+      ],
+      "successAnchor": "HTTP 200 BaseItemDtoQueryResult with scope-correct types and complete query-shape identity",
+      "errorClosure": "401/403/503 documented; 404 is not part of normal search contract; provider failure handling remains generic",
+      "provableLevel": "E0",
+      "sources": [
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt:87-98",
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt:910-924",
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/SearchQueryRules.kt:1-38",
+        "OpenAPI sha256:02A6064916B7E08F1F1D8D7FFC1FB1C7623DF0E378729FCD7FD353766868036E JSON pointer /paths/~1Items/get"
+      ]
+    },
+    "UPDATE": {
+      "verdict": "APP_OWNED_UPDATE_BOUNDARY_EXPRESSIBLE_NOT_EXECUTED",
+      "reachableStates": [
+        "check app-owned release",
+        "up-to-date",
+        "unsupported/invalid release",
+        "download 200/206/416/429/5xx",
+        "size/digest verification",
+        "APK package/version/signature verification",
+        "installer handoff"
+      ],
+      "clientCurrentGap": [
+        "implementation is app-owned and already contains ABI, digest, package and signer checks",
+        "real download/install is outside G1-S3 and not executed",
+        "release response is not a Jellyfin server capability and must not be mixed into Jellyfin protocol PASS"
+      ],
+      "contractFields": [
+        "tag_name",
+        "draft",
+        "prerelease",
+        "assets[].name",
+        "assets[].size",
+        "assets[].browser_download_url",
+        "assets[].digest",
+        "packageName",
+        "versionCode",
+        "signer certificate digest",
+        "minSdk"
+      ],
+      "successAnchor": "stable release + exact ABI asset + byte digest + APK package/version/signature checks pass before installer handoff",
+      "errorClosure": "app-defined failure codes; no Jellyfin server update write allowed",
+      "provableLevel": "E0",
+      "sources": [
+        "data/src/main/java/com/zhangwenkang/cinefin/update/UpdateModels.kt:1-114",
+        "data/src/main/java/com/zhangwenkang/cinefin/update/GitHubReleaseClient.kt:1-57",
+        "data/src/main/java/com/zhangwenkang/cinefin/update/UpdatePackageVerifier.kt:49-160",
+        "data/src/main/java/com/zhangwenkang/cinefin/update/AndroidUpdatePackageInspector.kt:8-50",
+        "data/src/main/java/com/zhangwenkang/cinefin/update/AbiAssetSelector.kt:1-57"
+      ]
+    },
+    "SWR": {
+      "verdict": "STALE_AND_GENERATION_INTERNALLY_EXPRESSIBLE_304_NOT_CONTRACTED",
+      "reachableStates": [
+        "memory hit fresh",
+        "memory/disk hit stale with background revalidate",
+        "foreground miss single-flight",
+        "generation changed before commit",
+        "invalidate all namespace",
+        "disk corruption/migration"
+      ],
+      "clientCurrentGap": [
+        "public repository return type has no stale marker",
+        "TTL/304/capacity/multi-process observable state is not closed",
+        "OpenAPI 12.4.0 declares zero 304 responses and zero ETag response headers",
+        "cannot claim HTTP 304-based metadata revalidation"
+      ],
+      "contractFields": [
+        "namespace",
+        "generation/fence",
+        "canonical key",
+        "fetchedAt/savedAt",
+        "softTtl",
+        "maxAge",
+        "stale"
+      ],
+      "successAnchor": "stale value delivered with explicit stale state and refresh commits only under unchanged generation; 304 anchor unavailable",
+      "errorClosure": "fetch exceptions can discard background refresh; no contractual 304/ETag path; cross-process behavior uncovered",
+      "provableLevel": "E0",
+      "sources": [
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwr.kt:12-218",
+        "data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepository.kt:150-170",
+        "OpenAPI sha256:02A6064916B7E08F1F1D8D7FFC1FB1C7623DF0E378729FCD7FD353766868036E full-document scan: 304=0, ETag=0"
+      ]
+    },
+    "SYNCPLAY": {
+      "verdict": "OFFICIAL_REST_AND_WEBSOCKET_EXPRESSIBLE_CLIENT_MISSING_REVISION_UNEXPRESSIBLE",
+      "reachableStates": [
+        "create/list/get/join/leave group",
+        "queue/play/pause/unpause/stop/seek",
+        "buffering/ready/ignore-wait/ping",
+        "next/previous/repeat/shuffle",
+        "SyncPlayCommand WebSocket",
+        "SyncPlayGroupUpdate WebSocket",
+        "group joined/left/error transitions",
+        "clock offset via GetUtcTime",
+        "SDK reconnect and explicit rejoin"
+      ],
+      "clientCurrentGap": [
+        "no SyncPlay REST integration",
+        "no Jellyfin SyncPlay WebSocket subscription",
+        "Media3 MediaSession is local remote-control only and not a SyncPlay client",
+        "no server clock offset calibration",
+        "no reconnect/resnapshot/rejoin state machine"
+      ],
+      "contractFields": [
+        "GroupId",
+        "PlaylistItemId",
+        "When",
+        "EmittedAt",
+        "PositionTicks",
+        "Command",
+        "LastUpdate",
+        "RequestReceptionTime",
+        "ResponseTransmissionTime",
+        "State",
+        "Reason"
+      ],
+      "successAnchor": "REST command acceptance + WebSocket command/group update + clock-adjusted When/LastUpdate + post-reconnect group snapshot and rejoin; peer execution requires real two-client evidence",
+      "errorClosure": "REST 401/403/404/503 and explicit WebSocket NotInGroup/GroupDoesNotExist/LibraryAccessDenied are expressible; no explicit revision counter; real reconnect/timing unexecuted",
+      "provableLevel": "E0",
+      "sources": [
+        "OpenAPI sha256:02A6064916B7E08F1F1D8D7FFC1FB1C7623DF0E378729FCD7FD353766868036E JSON pointers /paths/~1SyncPlay* and /paths/~1GetUtcTime",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d MediaBrowser.Model/SyncPlay/SendCommand.cs:19-63 blob 73cb50876d33524a4cdf48eee959b59cd6db14b1",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d MediaBrowser.Model/SyncPlay/PlayQueueUpdate.cs:22-80 blob 376d926c9a1bbb220cb31783500de95f300869d4",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d MediaBrowser.Model/SyncPlay/UtcTimeResponse.cs:15-31 blob 219e7b1e0c16ee7646bb97e8412b64850a93e0cd",
+        "server 83d0d0e7f76e23e2e085c8ff67d28b772d35967d tests/Jellyfin.Server.Integration.Tests/SyncPlayLostWebSocketTests.cs:31-70 blob fa15b33af65c4d6a011a59ce4ce5aeac63130846",
+        "SDK 8729ab41951dc5e905271107bbc0031cd7680524 jellyfin-api/src/commonMain/kotlin/org/jellyfin/sdk/api/sockets/SocketReconnectPolicy.kt:8-72 blob 59a63e8b9d81a1b1b9fd8a7a7233b6ecf0620110",
+        "SDK 8729ab41951dc5e905271107bbc0031cd7680524 jellyfin-api/src/commonMain/kotlin/org/jellyfin/sdk/api/sockets/DefaultSocketApi.kt:58-60,149-169,268-298 blob 84ec7f8dc03490f963e380f89160ba2e8c11f052"
+      ]
+    }
+  },
+  "versionLedger": [
+    {
+      "component": "Jellyfin OpenAPI stable",
+      "version": "12.4.0",
+      "openApiVersion": "3.0.4",
+      "bytes": 1896214,
+      "sha256": "02A6064916B7E08F1F1D8D7FFC1FB1C7623DF0E378729FCD7FD353766868036E",
+      "source": "https://api.jellyfin.org/openapi/jellyfin-openapi-stable.json",
+      "status": "VERIFIED_EXACT_HASH"
+    },
+    {
+      "component": "Jellyfin server source",
+      "commit": "83d0d0e7f76e23e2e085c8ff67d28b772d35967d",
+      "status": "READ_ONLY_PUBLIC_SOURCE",
+      "evidencePaths": {
+        "Jellyfin.Api/Controllers/MediaInfoController.cs": "aa942e76428c0711d2d0f24da5db339c1fa260c7",
+        "Jellyfin.Api/Helpers/MediaInfoHelper.cs": "c27a18831c6513ff5337a3ff824269f8a22d058d",
+        "Emby.Server.Implementations/Library/MediaSourceManager.cs": "e9bba05839211777bce344f8debe4b636f20fbcd",
+        "Jellyfin.Api/Controllers/LibraryController.cs": "39a6fbace870783b22f41ed964e55620a96fe78b",
+        "MediaBrowser.Controller/Entities/Book.cs": "8559681bdcef355088ea43c2074b66232eac360a",
+        "MediaBrowser.Controller/Entities/BaseItem.cs": "a1e955f33f1c98709f3dce9a2b6f7cef2475f670",
+        "Jellyfin.Api/Controllers/SessionController.cs": "84c2d90fb1ae9817f5cb6f965e8d5a69332069ac",
+        "Emby.Server.Implementations/Session/WebSocketController.cs": "c45a4a60f5dd521643e74ce444c9a84d0e46cbf2",
+        "Emby.Server.Implementations/SyncPlay/Group.cs": "6fbe46ffd66bcf08c3628ca5cc0dfb05ffaa47e7",
+        "Emby.Server.Implementations/SyncPlay/SyncPlayManager.cs": "88dfb070b8b429951de53cfbdc867e3244620f8a",
+        "MediaBrowser.Model/SyncPlay/GroupUpdateType.cs": "e792229a4768fba324431642eef6b43810c3ab2b",
+        "MediaBrowser.Model/SyncPlay/PlaybackRequestType.cs": "ded66652ce2892cf0ebbf930ca23dec014ffe331",
+        "MediaBrowser.Model/SyncPlay/GroupStateType.cs": "96364cacc7e5c748e9ff266941eee15ccadee7c0",
+        "MediaBrowser.Model/SyncPlay/SendCommandType.cs": "e6b17c60ae94995af8ceaf947637fdeaf7461581",
+        "MediaBrowser.Model/SyncPlay/SendCommand.cs": "73cb50876d33524a4cdf48eee959b59cd6db14b1",
+        "MediaBrowser.Model/SyncPlay/PlayQueueUpdate.cs": "376d926c9a1bbb220cb31783500de95f300869d4",
+        "MediaBrowser.Model/SyncPlay/UtcTimeResponse.cs": "219e7b1e0c16ee7646bb97e8412b64850a93e0cd",
+        "tests/Jellyfin.Server.Integration.Tests/SyncPlayLostWebSocketTests.cs": "fa15b33af65c4d6a011a59ce4ce5aeac63130846"
+      }
+    },
+    {
+      "component": "Jellyfin Kotlin SDK",
+      "version": "1.8.12",
+      "commit": "8729ab41951dc5e905271107bbc0031cd7680524",
+      "status": "CLIENT_RESOLVED_VERSION_PLUS_OFFICIAL_SOURCE",
+      "evidencePaths": {
+        "jellyfin-api/src/commonMain/kotlin-generated/org/jellyfin/sdk/api/operations/SyncPlayApi.kt": "de2146e1cf2585283262c9f52e99cdf0bb5d7ad3",
+        "jellyfin-api/src/commonMain/kotlin/org/jellyfin/sdk/api/sockets/DefaultSocketApi.kt": "84ec7f8dc03490f963e380f89160ba2e8c11f052",
+        "jellyfin-api/src/commonMain/kotlin/org/jellyfin/sdk/api/sockets/SocketReconnectPolicy.kt": "59a63e8b9d81a1b1b9fd8a7a7233b6ecf0620110",
+        "jellyfin-model/src/commonMain/kotlin-generated/org/jellyfin/sdk/model/api/PlaybackInfoResponse.kt": "cc8b14bde2d10b2e5800fbd159f5d9c73eab6fb2",
+        "jellyfin-model/src/commonMain/kotlin-generated/org/jellyfin/sdk/model/api/PlaybackInfoDto.kt": "2650d78701d8708491f0889b6d48c8e71f1b409e",
+        "jellyfin-model/src/commonMain/kotlin-generated/org/jellyfin/sdk/model/api/UpdateUserItemDataDto.kt": "3f1c448ba617b6f8909c3205fc2aa2d20d158fec",
+        "jellyfin-model/src/commonMain/kotlin-generated/org/jellyfin/sdk/model/api/UserItemDataDto.kt": "e8d982adbcf5957833002e5b32575ec2a52204ab",
+        "jellyfin-model/src/commonMain/kotlin-generated/org/jellyfin/sdk/model/api/SendCommand.kt": "a08582c8c65ec835eb5b36eca68a2a6bbaee9eef",
+        "jellyfin-model/src/commonMain/kotlin-generated/org/jellyfin/sdk/model/api/PlayQueueUpdate.kt": "93f4576bb7e1f9ede69ed43215967ce9aeeec663",
+        "jellyfin-model/src/commonMain/kotlin-generated/org/jellyfin/sdk/model/api/SyncPlayCommandMessage.kt": "33000f7d0114853ff2056ef36cdd490a613bfc25",
+        "jellyfin-model/src/commonMain/kotlin-generated/org/jellyfin/sdk/model/api/SyncPlayGroupUpdateMessage.kt": "5fc86baae9cc1c92525ecfcae9d0840b35c9cc44",
+        "docs/guide/websockets.md": "bc0fcbf6a30561810cc836e976f4a7ce2e5afa8e"
+      }
+    },
+    {
+      "component": "Aurorama current client",
+      "branch": "codex/v2-integration",
+      "head": "00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc",
+      "jellyfinSdkVersion": "1.8.12",
+      "status": "STATIC_SOURCE_ONLY"
+    }
+  ],
+  "findingsBySeverity": {
+    "P0": [
+      {
+        "id": "G1-S3-P0-01",
+        "finding": "GET /Items/{itemId}/Download with a user creates an activity-log write before returning the file.",
+        "impact": "It cannot be used as a zero-side-effect production probe.",
+        "source": "server fixed commit LibraryController.cs:701-704,997-1013"
+      }
+    ],
+    "P1": [
+      {
+        "id": "G1-S3-P1-01",
+        "finding": "PlaybackInfo PlaySessionId and ErrorCode are discarded by the current client."
+      },
+      {
+        "id": "G1-S3-P1-02",
+        "finding": "PlaybackInfo is not globally side-effect-free because .strm or missing main streams can trigger FullRefresh metadata probing."
+      },
+      {
+        "id": "G1-S3-P1-03",
+        "finding": "UserData writes do not treat response/read-back equality as success and do not classify 403 as DENIED."
+      },
+      {
+        "id": "G1-S3-P1-04",
+        "finding": "SyncPlay is absent despite official REST plus WebSocket capability; no revision field exists, so ordering must use timestamps and resnapshot."
+      },
+      {
+        "id": "G1-S3-P1-05",
+        "finding": "Real write, range, PlaybackInfo and SyncPlay states remain unexecuted and cannot be closed in a zero-server-call task."
+      }
+    ],
+    "P2": [
+      {
+        "id": "G1-S3-P2-01",
+        "finding": "Download 401/403 are merged; 404/409 are merged into a generic server error."
+      },
+      {
+        "id": "G1-S3-P2-02",
+        "finding": "Search static contract is broad but current query covers only four parameters."
+      },
+      {
+        "id": "G1-S3-P2-03",
+        "finding": "SWR has internal TTL/generation support but no public stale marker and no contractual 304/ETag anchor."
+      }
+    ],
+    "P3": [
+      {
+        "id": "G1-S3-P3-01",
+        "finding": "OpenAPI omits 206/416 from Download response declarations even though ASP.NET Core range processing is enabled; status remains static inference until real fixture evidence."
+      }
+    ]
+  },
+  "BLOCKED": [
+    {
+      "id": "G1-S3-B01",
+      "status": "BLOCKED_BY_ZERO_SERVER_CALLS",
+      "scope": "real HTTP status bodies, redirects, 206/416 bytes, PlaybackInfo special branches"
+    },
+    {
+      "id": "G1-S3-B02",
+      "status": "BLOCKED_ENVIRONMENT",
+      "scope": "real UserData 403/409 behavior, write-read-back equality and independent writable server"
+    },
+    {
+      "id": "G1-S3-B03",
+      "status": "BLOCKED_ENVIRONMENT",
+      "scope": "two-client SyncPlay command execution, clock error and reconnect/rejoin behavior"
+    },
+    {
+      "id": "G1-S3-B04",
+      "status": "NOT_EXECUTED_G1_SCOPE",
+      "scope": "App update package download/install, APK runtime handoff and user-visible updater journey"
+    }
+  ],
+  "uncovered": [
+    "Actual deployed server version and reverse-proxy behavior",
+    "Precise triggers for PlaybackErrorCode.NotAllowed and RateLimitExceeded on PlaybackInfo",
+    "409 semantics for UserData and Book download",
+    "Cross-process SWR consistency and 304 behavior",
+    "SyncPlay ordering without an explicit revision counter",
+    "Real server/download/write/playback/SyncPlay/update evidence"
+  ],
+  "contextWatermark": {
+    "model": "deepseek-flash",
+    "inputTokens": 328748,
+    "windowTokens": 1048576,
+    "percent": 31.4,
+    "cacheHitPercent": 99.7,
+    "sessionRequestCount": 212,
+    "proxyReportedTimestamp": "2026/11/3 13:09:08",
+    "prepareHandoffThresholdTokens": 300000,
+    "stopThresholdTokens": 350000,
+    "status": "CHECKPOINT_REQUIRED_IMMEDIATE_CLOSE",
+    "measurementSource": "local 127.0.0.1 status proxy; no external Jellyfin call"
+  },
+  "evidencePaths": {
+    "report": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-S3\\report.json",
+    "contracts": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-S3\\contracts.json",
+    "commands": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-S3\\commands.log",
+    "planning": "docs/V2_PLAN.md:2600-2796,2940-3016",
+    "openApi": "https://api.jellyfin.org/openapi/jellyfin-openapi-stable.json",
+    "server": "https://github.com/jellyfin/jellyfin/tree/83d0d0e7f76e23e2e085c8ff67d28b772d35967d",
+    "sdk": "https://github.com/jellyfin/jellyfin-sdk-kotlin/tree/8729ab41951dc5e905271107bbc0031cd7680524"
+  },
+  "conclusion": {
+    "status": "G1_S3_STATIC_EVIDENCE_COMPLETE_WITH_BLOCKED_RUNTIME_GAPS",
+    "summary": "Eight capabilities are now represented as sanitized static contracts. Official Jellyfin REST/WS and client seams can express the minimum state model, but the client is missing PlaybackInfo session/error retention, write read-back/error separation, expanded search query shape, observable stale state, and all SyncPlay integration. No real protocol state is claimed PASS.",
+    "g1PassClaimed": false,
+    "productionChanged": false,
+    "serverTouched": false,
+    "nextRole": "G1/1 证据编排负责人",
+    "nextReadOnlyAction": "consume report.json and contracts.json, then decide whether G1-S6 can incorporate the static capability matrix without requesting real-server evidence",
+    "stopCondition": "stop before any Jellyfin/device request or G2/implementation/QA/merge-prep action"
+  }
+}
