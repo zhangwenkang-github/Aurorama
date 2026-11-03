@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "G1-S4-A-Q03-NOTICE",
+  "generatedAt": "2026-11-04T00:47:00+08:00",
+  "algorithm": "SHA-256",
+  "algorithmDefinition": "UTF-8-no-BOM concatenation of ordinal-sorted entries as path + NUL + lowercase-sha256 + NUL + decimal-bytes + LF",
+  "selfExcluded": true,
+  "entryCount": 6,
+  "packageFileCountIncludingManifest": 7,
+  "packageBytesExcludingManifest": 78403,
+  "contentDigest": "8C545333100DA8FFDDACFF0FACDC6500A5D4FC61F157B22CCBA40936305CE605",
+  "entries": [
+    {
+      "path": "README.md",
+      "bytes": 805,
+      "sha256": "AE091B2276AB3CBA979EB6EF650CF05C09BAC4B7EE8986ADC76B15440A3041D4"
+    },
+    {
+      "path": "bundle-file-list.json",
+      "bytes": 23368,
+      "sha256": "08316A5E98F79F50D5F566582345DE1C2E834C6C281F44A851B475368F71F77C"
+    },
+    {
+      "path": "commands.log",
+      "bytes": 5883,
+      "sha256": "6A5CD23D0F4C9B8DDF6B1AE1E50282518C468C9528B4F928B2A3C93706AB068F"
+    },
+    {
+      "path": "notice-source-offer-matrix.json",
+      "bytes": 14468,
+      "sha256": "5CA1E7207A9DEC0CE9C78906125DCF682B57013B846A98CD4E065EF4123567DA"
+    },
+    {
+      "path": "provenance-matrix.json",
+      "bytes": 21694,
+      "sha256": "2F2A5C312EF0808640343F748C206A33469229AF3172E8F645FA8B02AE0E1AC5"
+    },
+    {
+      "path": "report.json",
+      "bytes": 12185,
+      "sha256": "D3A4482FD66339976CF34E6532D98C9BEC4AC01395610D9231B971286A6DB067"
+    }
+  ],
+  "summary": {
+    "mediaNoticeStatus": "PARTIAL",
+    "provenanceCounts": "13/4/7",
+    "noticeSourceOfferCounts": "5/2/3",
+    "knownBundleFiles": 25,
+    "q03Closed": false,
+    "g1Passed": false
+  }
+}

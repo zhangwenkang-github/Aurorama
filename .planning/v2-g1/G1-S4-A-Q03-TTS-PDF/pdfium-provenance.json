@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "taskId": "G1-S4-A-Q03-TTS-PDF",
+  "generatedAt": "2026-11-04T00:47:56+08:00",
+  "scope": "static io.legere wrapper and PDFium native provenance only",
+  "engineSelected": false,
+  "migrationSelected": false,
+  "hashAlgorithms": {
+    "artifact": "SHA-256",
+    "gitObject": "SHA-1"
+  },
+  "summary": {
+    "wrapperVersionsFixed": 2,
+    "aarArtifactsFixed": 6,
+    "sourceJarsFixed": 6,
+    "nativeRevisionsFixed": 0,
+    "nativeThirdPartyInventoriesFixed": 0,
+    "static16kbGate": "FAIL_REPORTED_UPSTREAM",
+    "runtime16kbGate": "NOT_EXECUTED"
+  },
+  "localCache": {
+    "searchedRoot": "C:\\Users\\zhangwenkang\\.gradle\\caches\\modules-2\\files-2.1",
+    "worktreeGradleCacheSearched": true,
+    "relevantAarJarPomCount": 0,
+    "conclusion": "No allowed local cache artifact was available for AAR entry inspection or local readelf reproduction."
+  },
+  "versions": [
+    {
+      "version": "2.0.3",
+      "channel": "stable",
+      "wrapper": {
+        "tag": "2.0.3",
+        "commit": "92e6e42e2b886eb238a03b3574507b3d926e5cb5",
+        "tagCommitTime": "2026-07-25T20:56:24-04:00",
+        "tagUrl": "https://github.com/johngray1965/PdfiumAndroidKt/tree/2.0.3",
+        "releaseUrl": "https://github.com/johngray1965/PdfiumAndroidKt/releases/tag/2.0.3",
+        "mavenRoot": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid/2.0.3/"
+      },
+      "aarArtifacts": [
+        {
+          "module": "io.legere:pdfiumandroid:2.0.3",
+          "bytes": 377258,
+          "sha256": "1f07a9160c9a5975d6efff72404c5e49217d46f2651bfe02c67c8afb133e02d7",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid/2.0.3/pdfiumandroid-2.0.3.aar",
+          "nativePayload": "NONE_REPORTED_BY_ISSUE_56"
+        },
+        {
+          "module": "io.legere:pdfiumandroid-core:2.0.3",
+          "bytes": 9787161,
+          "sha256": "f80b8d2166f226e0ed0a50b7014cea91e297952c5e0ac158f10ff62c74d7e318",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid-core/2.0.3/pdfiumandroid-core-2.0.3.aar",
+          "nativePayload": "PDFIUM_AND_WRAPPER_JNI_EXPECTED"
+        },
+        {
+          "module": "io.legere:pdfiumandroid-api:2.0.3",
+          "bytes": 44512,
+          "sha256": "a47a0cc8210d3d435996ccb47a3c666361f8c7cb774efbe58ab02ac478731f3f",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid-api/2.0.3/pdfiumandroid-api-2.0.3.aar",
+          "nativePayload": "EXPECTED_NONE"
+        }
+      ],
+      "sourceJars": [
+        {
+          "module": "io.legere:pdfiumandroid:2.0.3",
+          "bytes": 32552,
+          "sha256": "909c450dcdca3eb73bd9877bfad599d65ec6d7b442b758bf8427d7ce3a6783f3",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid/2.0.3/pdfiumandroid-2.0.3-sources.jar"
+        },
+        {
+          "module": "io.legere:pdfiumandroid-core:2.0.3",
+          "bytes": 41348,
+          "sha256": "29b4722b7e1a4437f77227f033b9406ee66f5ad86641abd9c2eee2c7963d8199",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid-core/2.0.3/pdfiumandroid-core-2.0.3-sources.jar"
+        },
+        {
+          "module": "io.legere:pdfiumandroid-api:2.0.3",
+          "bytes": 15023,
+          "sha256": "4e1725ff58ad83eadb2c85cb65579cdf3b287b5051309e08f469c3475eaf97fc",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid-api/2.0.3/pdfiumandroid-api-2.0.3-sources.jar"
+        }
+      ],
+      "nativeGitBlobs": [
+        {
+          "abi": "arm64-v8a",
+          "path": "pdfiumandroid/core/src/main/jniLibs/arm64-v8a/libpdfium.so",
+          "gitBlobSha1": "64d61b70ed655adff69d747506460876c0fa7368"
+        },
+        {
+          "abi": "armeabi-v7a",
+          "path": "pdfiumandroid/core/src/main/jniLibs/armeabi-v7a/libpdfium.so",
+          "gitBlobSha1": "e5c9f5f1ef92cf45903621c0faaf8e38d8f1a3af"
+        },
+        {
+          "abi": "x86",
+          "path": "pdfiumandroid/core/src/main/jniLibs/x86/libpdfium.so",
+          "gitBlobSha1": "5769d16acbb837955e26f52465ce5812f7007bbe"
+        },
+        {
+          "abi": "x86_64",
+          "path": "pdfiumandroid/core/src/main/jniLibs/x86_64/libpdfium.so",
+          "gitBlobSha1": "2d879b21a22285a6dd44fd0a2a8a80758372190d"
+        }
+      ],
+      "nativeRevision": {
+        "status": "BLOCKED",
+        "value": null,
+        "gnArgs": null,
+        "buildTimestamp": null,
+        "upstreamSourceRevision": null,
+        "evidence": [
+          "native files are committed binary blobs in the wrapper repository",
+          "issue #54 remains Open",
+          "maintainer response says native libpdfium comes from periodic Google weekly builds",
+          "no exact revision, GN args, SBOM or third-party inventory is published in the response"
+        ]
+      },
+      "static16kb": {
+        "status": "FAIL_REPORTED_UPSTREAM",
+        "issue": "https://github.com/johngray1965/PdfiumAndroidKt/issues/56",
+        "issueStateObserved": "Open",
+        "observedAt": "2026-11-04",
+        "loaderSegmentsAligned": true,
+        "gnuRelroEndMod16384": {
+          "arm64-v8a/libpdfium.so": {
+            "virtAddr": "0x486000",
+            "remainder": "0x2000"
+          },
+          "arm64-v8a/libpdfiumandroid.so": {
+            "virtAddr": "0x6f000",
+            "remainder": "0x3000"
+          },
+          "x86_64/libpdfium.so": {
+            "virtAddr": "0x42d000",
+            "remainder": "0x1000"
+          },
+          "x86_64/libpdfiumandroid.so": {
+            "virtAddr": "0x6d000",
+            "remainder": "0x1000"
+          }
+        },
+        "localRecomputed": false,
+        "runtimeInferenceAllowed": false
+      }
+    },
+    {
+      "version": "3.0.4-alpha01",
+      "channel": "prerelease",
+      "wrapper": {
+        "tag": "3.0.4-alpha01",
+        "commit": "7331dc1a3cb4e88c24947d89d7cc124677aac108",
+        "tagCommitTime": "2026-07-26T09:01:35-04:00",
+        "tagUrl": "https://github.com/johngray1965/PdfiumAndroidKt/tree/3.0.4-alpha01",
+        "releaseUrl": "https://github.com/johngray1965/PdfiumAndroidKt/releases/tag/3.0.4-alpha01",
+        "mavenRoot": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid/3.0.4-alpha01/"
+      },
+      "aarArtifacts": [
+        {
+          "module": "io.legere:pdfiumandroid:3.0.4-alpha01",
+          "bytes": 407147,
+          "sha256": "c52e1b059a5fb83b2643d662f33edd795bdab92955b2a1bc19c96e1980b98463",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid/3.0.4-alpha01/pdfiumandroid-3.0.4-alpha01.aar",
+          "nativePayload": "NONE_REPORTED_FOR_AGGREGATE"
+        },
+        {
+          "module": "io.legere:pdfiumandroid-core:3.0.4-alpha01",
+          "bytes": 9788401,
+          "sha256": "00c5b696add8cadf15836c43318d2e481ff803b13e8694eefe1877741d0205bb",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid-core/3.0.4-alpha01/pdfiumandroid-core-3.0.4-alpha01.aar",
+          "nativePayload": "PDFIUM_AND_WRAPPER_JNI_EXPECTED"
+        },
+        {
+          "module": "io.legere:pdfiumandroid-api:3.0.4-alpha01",
+          "bytes": 45348,
+          "sha256": "90af5b69c61dd16634028f6301d55a5300173f56bd250f856823fe1a0f112f23",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid-api/3.0.4-alpha01/pdfiumandroid-api-3.0.4-alpha01.aar",
+          "nativePayload": "EXPECTED_NONE"
+        }
+      ],
+      "sourceJars": [
+        {
+          "module": "io.legere:pdfiumandroid:3.0.4-alpha01",
+          "bytes": 34071,
+          "sha256": "d8508b0de838a19e4cd54aa4832ae685c3c30f478c539c02bde20537a64e94d5",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid/3.0.4-alpha01/pdfiumandroid-3.0.4-alpha01-sources.jar"
+        },
+        {
+          "module": "io.legere:pdfiumandroid-core:3.0.4-alpha01",
+          "bytes": 41833,
+          "sha256": "f673ff8de8e062875c9153c6f5f1be771d69cfa2d81769509dfe3652efe275e3",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid-core/3.0.4-alpha01/pdfiumandroid-core-3.0.4-alpha01-sources.jar"
+        },
+        {
+          "module": "io.legere:pdfiumandroid-api:3.0.4-alpha01",
+          "bytes": 15469,
+          "sha256": "f9cc92e9e6552081edef1ae150896ef22e0d76d265773196c2fcd88edb9b971d",
+          "url": "https://repo1.maven.org/maven2/io/legere/pdfiumandroid-api/3.0.4-alpha01/pdfiumandroid-api-3.0.4-alpha01-sources.jar"
+        }
+      ],
+      "nativeGitBlobs": [
+        {
+          "abi": "arm64-v8a",
+          "path": "pdfiumandroid/core/src/main/jniLibs/arm64-v8a/libpdfium.so",
+          "gitBlobSha1": "64d61b70ed655adff69d747506460876c0fa7368"
+        },
+        {
+          "abi": "armeabi-v7a",
+          "path": "pdfiumandroid/core/src/main/jniLibs/armeabi-v7a/libpdfium.so",
+          "gitBlobSha1": "e5c9f5f1ef92cf45903621c0faaf8e38d8f1a3af"
+        },
+        {
+          "abi": "x86",
+          "path": "pdfiumandroid/core/src/main/jniLibs/x86/libpdfium.so",
+          "gitBlobSha1": "5769d16acbb837955e26f52465ce5812f7007bbe"
+        },
+        {
+          "abi": "x86_64",
+          "path": "pdfiumandroid/core/src/main/jniLibs/x86_64/libpdfium.so",
+          "gitBlobSha1": "2d879b21a22285a6dd44fd0a2a8a80758372190d"
+        }
+      ],
+      "nativeRevision": {
+        "status": "BLOCKED",
+        "value": null,
+        "gnArgs": null,
+        "buildTimestamp": null,
+        "upstreamSourceRevision": null,
+        "evidence": [
+          "the four raw libpdfium.so Git blobs are identical to 2.0.3",
+          "wrapper tag commit is not a PDFium source revision",
+          "no exact native revision or third-party inventory is published"
+        ]
+      },
+      "static16kb": {
+        "status": "FAIL_REPORTED_UPSTREAM",
+        "issue": "https://github.com/johngray1965/PdfiumAndroidKt/issues/56",
+        "issueStateObserved": "Open",
+        "observedAt": "2026-11-04",
+        "loaderSegmentsAligned": true,
+        "gnuRelroEndMod16384": "SAME_REPORTED_VALUES_AS_2.0.3",
+        "localRecomputed": false,
+        "runtimeInferenceAllowed": false
+      }
+    }
+  ],
+  "licenseLayers": {
+    "wrapper": {
+      "status": "PROVEN",
+      "expression": "Apache-2.0",
+      "licensePath": "LICENSE",
+      "licenseGitBlobSha1OnBothTags": "b413a3e5b8b0814a92f7395973a30f4f67b53c41",
+      "pomDeclares": "Apache License, Version 2.0",
+      "copyrightLinesObserved": [
+        "Original work Copyright 2015 Bekket McClane",
+        "Modified work Copyright 2016 Bartosz Schiller",
+        "Modified work Copyright 2023 John Gray"
+      ]
+    },
+    "nativePdfiumTopLevel": {
+      "status": "PROVEN_AS_TOP_LEVEL_NOTICE_ONLY",
+      "expression": "BSD-3-Clause",
+      "evidence": "The wrapper LICENSE embeds the PDFium Authors copyright and BSD redistribution text.",
+      "upstreamUrl": "https://pdfium.googlesource.com/pdfium/",
+      "pinnedRevision": null
+    },
+    "nativeThirdParty": {
+      "status": "BLOCKED",
+      "reason": "Exact PDFium revision, DEPS pins, GN args and the set of statically linked third-party components are absent.",
+      "requiredInputs": [
+        "exact PDFium git revision",
+        "matching DEPS and source bundle",
+        "GN args and build timestamp or reproducible build recipe",
+        "all PDFium and third-party license/NOTICE/copyright files",
+        "binary-to-component mapping for libpdfium.so and libpdfiumandroid.so"
+      ]
+    }
+  },
+  "mavenDependenciesObserved": {
+    "2.0.3": [
+      "io.legere:pdfiumandroid-api:2.0.3",
+      "io.legere:pdfiumandroid-core:2.0.3",
+      "org.jetbrains.kotlin:kotlin-stdlib:2.4.10",
+      "com.google.guava:guava:33.6.0-android"
+    ],
+    "3.0.4-alpha01": [
+      "io.legere:pdfiumandroid-api:3.0.4-alpha01",
+      "io.legere:pdfiumandroid-core:3.0.4-alpha01",
+      "io.legere:geokt:1.0.3",
+      "org.jetbrains.kotlin:kotlin-stdlib:2.4.10",
+      "com.google.guava:guava:33.6.0-android"
+    ],
+    "note": "These POM dependencies are candidate-graph facts, not the final packaged-file inventory."
+  },
+  "verification": {
+    "aarByteLengths": "all six matched expected sizes by HTTP HEAD",
+    "aarSha256": "all six matched official Maven .sha256 sidecars",
+    "sourceJarByteLengths": "all six matched HTTP HEAD",
+    "sourceJarSha256": "all six matched official Maven .sha256 sidecars",
+    "nativeBlobIdentityAcrossTags": "four of four Git blob IDs matched",
+    "localAarInspection": "NOT_EXECUTED",
+    "readelf": "NOT_EXECUTED",
+    "runtime": "NOT_EXECUTED"
+  },
+  "hardConclusions": [
+    "A wrapper tag commit is not a PDFium native revision.",
+    "The Apache-2.0 POM does not cover the native PDFium BSD notice or third-party native components.",
+    "The static GNU_RELRO failure is not a runtime result; runtime 16 KB compatibility remains untested.",
+    "Issue #56 remains Open and prevents the two audited versions from passing the static 16 KB gate."
+  ],
+  "officialSources": [
+    "https://github.com/johngray1965/PdfiumAndroidKt/tree/2.0.3",
+    "https://github.com/johngray1965/PdfiumAndroidKt/tree/3.0.4-alpha01",
+    "https://github.com/johngray1965/PdfiumAndroidKt/issues/54",
+    "https://github.com/johngray1965/PdfiumAndroidKt/issues/56",
+    "https://pdfium.googlesource.com/pdfium/",
+    "https://developer.android.com/guide/practices/page-sizes"
+  ]
+}

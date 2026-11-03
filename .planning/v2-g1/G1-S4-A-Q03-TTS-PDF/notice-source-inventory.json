@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "taskId": "G1-S4-A-Q03-TTS-PDF",
+  "generatedAt": "2026-11-04T00:47:56+08:00",
+  "bundleState": "SCHEMA_AND_CANDIDATE_INPUTS_FIXED / FINAL_BUNDLE_BLOCKED",
+  "finalCandidatePackageExists": false,
+  "licenseFullTextIncluded": false,
+  "policy": {
+    "unitOfTruth": "final packaged APK/AAB file inventory, not the Gradle graph alone",
+    "requiredJoinKeys": [
+      "packaged path",
+      "component identity",
+      "exact version or source revision",
+      "artifact SHA-256",
+      "license expression",
+      "license/notice source",
+      "copyright holders",
+      "source or written-offer location where applicable"
+    ],
+    "forbiddenInferences": [
+      "wrapper license implies native license",
+      "POM license implies complete native notice",
+      "AAR hash implies a native source revision",
+      "static 16 KB ELF alignment implies runtime support",
+      "engine license implies voice/model/data license",
+      "no OSV record implies native security clearance",
+      "release-order or availability implies selected engine or voice"
+    ]
+  },
+  "requiredBundleRecordSchema": {
+    "component": "string",
+    "ecosystem": "maven | github-release | source-build | model | data",
+    "selected": "boolean",
+    "versionOrCommit": "string",
+    "artifactId": "string",
+    "artifactSha256": "string",
+    "packagedPaths": "array<string>",
+    "linkage": "jar | aar | static-native | shared-native | data | source-only",
+    "licenseExpression": "SPDX expression or UNKNOWN",
+    "licenseTextSource": "immutable URL or bundled file",
+    "copyrightHolders": "array<string>",
+    "noticeFiles": "array<object>",
+    "thirdPartyNoticeSource": "immutable URL or UNKNOWN",
+    "sourceLocation": "immutable URL/archive/written-offer or NOT_REQUIRED",
+    "finalApkFileEvidence": "path plus SHA-256",
+    "approval": "PROVEN | PARTIAL | BLOCKED"
+  },
+  "candidateRecipes": [
+    {
+      "id": "BUNDLE-SHERPA",
+      "engine": "Sherpa-ONNX v2.0.1",
+      "status": "BLOCKED",
+      "fixedInputs": [
+        {
+          "component": "sherpa-onnx engine AAR",
+          "artifactId": "sherpa-onnx-2.0.1.aar",
+          "artifactSha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+          "licenseExpression": "Apache-2.0",
+          "licenseSource": "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/LICENSE"
+        },
+        {
+          "component": "onnxruntime for Sherpa",
+          "versionOrCommit": "1.28.2",
+          "commit": "33ca9628233dc8f002435e868d4c2e9f82766ca1",
+          "licenseExpression": "MIT",
+          "licenseSource": "https://github.com/microsoft/onnxruntime/blob/v1.28.2/LICENSE",
+          "thirdPartyNoticeSource": "https://github.com/microsoft/onnxruntime/blob/v1.28.2/ThirdPartyNotices.txt"
+        }
+      ],
+      "missingInputs": [
+        "selected voice/model",
+        "model card and model license",
+        "tokens/lexicon/dictionary/rule file inventory and hashes",
+        "any model-specific eSpeak data actually required",
+        "final packaged file paths inside APK/AAB",
+        "final third-party notice aggregation and source location"
+      ],
+      "conditionalInputs": [
+        "dynamic or static ONNX Runtime variant",
+        "actual selected model family and speaker/voice"
+      ]
+    },
+    {
+      "id": "BUNDLE-PIPER",
+      "engine": "Piper1-GPL v1.8.0",
+      "status": "BLOCKED",
+      "fixedInputs": [
+        {
+          "component": "Piper1-GPL source",
+          "versionOrCommit": "639388b6317fc4731e91d53da42aea68fd4166ff",
+          "artifactSha256": "830588aded347df579c91a32703e0fc2a3685d84f1e3533b14f2de69135d4904",
+          "artifactId": "piper_tts-1.8.0.tar.gz",
+          "licenseExpression": "GPL-3.0-or-later",
+          "licenseSource": "https://github.com/OHF-Voice/piper1-gpl/blob/v1.8.0/COPYING"
+        },
+        {
+          "component": "eSpeak NG data/license roots",
+          "licenseExpression": "GPL-3.0-or-later",
+          "licenseSource": "https://github.com/espeak-ng/espeak-ng/blob/724808c5a83f9ef95fdd0db886ba7ba537ff224a/README.md#license-information",
+          "noticeCandidates": [
+            "COPYING",
+            "COPYING.APACHE",
+            "COPYING.BSD2",
+            "COPYING.UCD"
+          ]
+        },
+        {
+          "component": "onnxruntime for Piper direct libpiper",
+          "versionOrCommit": "1.22.0",
+          "commit": "f217402897f40ebba457e2421bc0a4702771968e",
+          "licenseExpression": "MIT",
+          "licenseSource": "https://github.com/microsoft/onnxruntime/blob/v1.22.0/LICENSE",
+          "thirdPartyNoticeSource": "https://github.com/microsoft/onnxruntime/blob/v1.22.0/ThirdPartyNotices.txt"
+        },
+        {
+          "component": "g2pW Chinese phonemizer data",
+          "licenseExpression": "Apache-2.0 for traced license file",
+          "licenseSource": "https://github.com/OHF-Voice/piper1-gpl/blob/v1.8.0/licenses/LICENSE.g2pW-Apache-2.0",
+          "archiveSha256": null
+        }
+      ],
+      "missingInputs": [
+        "selected Android build path and NDK/JNI integration",
+        "one selected eSpeak NG commit from the two official pins",
+        "selected voice .onnx and .onnx.json plus MODEL_CARD",
+        "g2pW archive and extracted model/data hashes",
+        "libpiper/libonnxruntime/espeak-ng native library hashes",
+        "corresponding source/bundle for GPL-3.0-or-later obligations",
+        "final packaged file paths and notice aggregation"
+      ],
+      "conditionalInputs": [
+        "root CMake path pinning eSpeak 724808c5a83f9ef95fdd0db886ba7ba537ff224a",
+        "libpiper CMake path pinning eSpeak 212928b394a96e8fd2096616bfd54e17845c48f6"
+      ]
+    },
+    {
+      "id": "BUNDLE-PDFIUM-203",
+      "artifactSet": "io.legere:pdfiumandroid:2.0.3",
+      "status": "BLOCKED",
+      "fixedInputs": [
+        {
+          "component": "pdfiumandroid aggregate AAR",
+          "artifactSha256": "1f07a9160c9a5975d6efff72404c5e49217d46f2651bfe02c67c8afb133e02d7",
+          "licenseExpression": "Apache-2.0 wrapper; native license separate"
+        },
+        {
+          "component": "pdfiumandroid-core AAR",
+          "artifactSha256": "f80b8d2166f226e0ed0a50b7014cea91e297952c5e0ac158f10ff62c74d7e318",
+          "licenseExpression": "Apache-2.0 wrapper; PDFium BSD and third-party native notices separate"
+        },
+        {
+          "component": "pdfiumandroid-api AAR",
+          "artifactSha256": "a47a0cc8210d3d435996ccb47a3c666361f8c7cb774efbe58ab02ac478731f3f",
+          "licenseExpression": "Apache-2.0"
+        },
+        {
+          "component": "wrapper source",
+          "versionOrCommit": "92e6e42e2b886eb238a03b3574507b3d926e5cb5",
+          "licenseSource": "https://github.com/johngray1965/PdfiumAndroidKt/blob/2.0.3/LICENSE"
+        }
+      ],
+      "missingInputs": [
+        "exact PDFium native revision and matching source checkout",
+        "matching DEPS, GN args and build recipe",
+        "native binary SHA-256 mapping for all shipped ABIs",
+        "complete PDFium third-party copyright/license/NOTICE inventory",
+        "AAR entry-level notice inventory from an allowed local artifact",
+        "final APK packaged-file SBOM",
+        "resolution of open issue #56 before the static 16 KB gate can pass"
+      ],
+      "runtimeStatus": "16 KB and Range behavior NOT_EXECUTED"
+    },
+    {
+      "id": "BUNDLE-PDFIUM-304-ALPHA",
+      "artifactSet": "io.legere:pdfiumandroid:3.0.4-alpha01",
+      "status": "BLOCKED",
+      "fixedInputs": [
+        {
+          "component": "pdfiumandroid aggregate AAR",
+          "artifactSha256": "c52e1b059a5fb83b2643d662f33edd795bdab92955b2a1bc19c96e1980b98463",
+          "licenseExpression": "Apache-2.0 wrapper; native license separate"
+        },
+        {
+          "component": "pdfiumandroid-core AAR",
+          "artifactSha256": "00c5b696add8cadf15836c43318d2e481ff803b13e8694eefe1877741d0205bb",
+          "licenseExpression": "Apache-2.0 wrapper; PDFium BSD and third-party native notices separate"
+        },
+        {
+          "component": "pdfiumandroid-api AAR",
+          "artifactSha256": "90af5b69c61dd16634028f6301d55a5300173f56bd250f856823fe1a0f112f23",
+          "licenseExpression": "Apache-2.0"
+        },
+        {
+          "component": "wrapper source",
+          "versionOrCommit": "7331dc1a3cb4e88c24947d89d7cc124677aac108",
+          "licenseSource": "https://github.com/johngray1965/PdfiumAndroidKt/blob/3.0.4-alpha01/LICENSE"
+        }
+      ],
+      "missingInputs": [
+        "exact PDFium native revision and matching source checkout",
+        "matching DEPS, GN args and build recipe",
+        "native binary SHA-256 mapping for all shipped ABIs",
+        "complete PDFium third-party copyright/license/NOTICE inventory",
+        "AAR entry-level notice inventory from an allowed local artifact",
+        "final APK packaged-file SBOM",
+        "prerelease API/quality decision",
+        "resolution of open issue #56 before the static 16 KB gate can pass"
+      ],
+      "runtimeStatus": "16 KB and Range behavior NOT_EXECUTED"
+    }
+  ],
+  "deterministicAssemblyOrder": [
+    "Select the engine/model/voice and PDF candidate in a separate authorized decision.",
+    "Freeze every direct artifact/source revision and obtain missing third-party inventories.",
+    "Build or inspect the candidate package without treating the Gradle graph as the package manifest.",
+    "Enumerate actual packaged files and map every file to an inventory record with SHA-256.",
+    "Collect exact license texts, copyright notices, NOTICE files and source/written-offer locations.",
+    "Exclude unused optional artifacts only with a positive packaged-file absence check.",
+    "Generate candidate packaged SBOM and notice/source bundle.",
+    "Hash the final bundle, verify all required joins have no UNKNOWN values, and retain the packaged-file evidence.",
+    "Run independent static review; runtime and legal approval remain separate explicit gates."
+  ],
+  "completionCriteria": {
+    "bundleCanBeGenerated": false,
+    "reason": "No final engine/voice or packaged PDF candidate exists; PDFium native revision and third-party inventory remain unavailable.",
+    "q03Closed": false,
+    "g1Passed": false
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "taskId": "G1-S4-A-Q03-TTS-PDF",
+  "generatedAt": "2026-11-04T01:00:48+08:00",
+  "algorithm": "SHA-256",
+  "selfExcluded": true,
+  "entryCount": 4,
+  "sourceEvidenceBytes": 54500,
+  "entries": [
+    {
+      "path": "notice-source-inventory.json",
+      "bytes": 10254,
+      "sha256": "179b273b386c2429345fa2bbda4f5b536c1195b4cc27ba99113cf687c505d5ec"
+    },
+    {
+      "path": "pdfium-provenance.json",
+      "bytes": 13259,
+      "sha256": "48f54053d440412b0d6bae8eb8c8eb857d8f5fafac36aaedb389af464e5d336e"
+    },
+    {
+      "path": "report.json",
+      "bytes": 16002,
+      "sha256": "3912b4311cc807b4a7d0f6a0189ab89bd5ac6dfa4eacf4616df8edfebcddaf73"
+    },
+    {
+      "path": "tts-license-matrix.json",
+      "bytes": 14985,
+      "sha256": "80a5613a62ade2dffa4b5cdb78cac67fcd8800b7bcf8926c39f5eda585a192cd"
+    }
+  ],
+  "summary": {
+    "status": "TTS_PDF_PARTIAL",
+    "counts": {
+      "PROVEN": 9,
+      "PARTIAL": 2,
+      "BLOCKED": 10,
+      "total": 21
+    },
+    "q03Closed": false,
+    "g1Passed": false,
+    "engineSelected": false,
+    "voiceSelected": false,
+    "runtimeExecuted": false,
+    "temporaryResearchRepositoriesRemoved": true
+  }
+}

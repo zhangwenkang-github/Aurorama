@@ -2954,9 +2954,36 @@ decoder 1.9.0+1 的静态 ABI / FFmpeg pin / 16 KB 对齐已证明，runtime 未
 runtime 未证明；PDFium 2.0.3 与 3.0.4-alpha01 native blob 相同，revision / notice / 16 KB /
 Range runtime 仍 BLOCKED / PARTIAL。
 
-**提交边界**：两目录当前均未提交，且 `commands.log` 命中 `*.log` ignore；提交阶段必须由负责人
-显式 `git add -f`，不得以工作树文件存在冒充已入库证据。完整 Q03 仍等 packaged SBOM、
-native notice/source、runtime / device 与真实链路证据。
+**提交边界**：SBOM / NATIVE 增量已由 Q03 static integration `d234b40c…` 集成，LF policy
+由 `c01e7361…` 固定；本波新增的 NOTICE / TTS-PDF 两目录仍处于工作树，且 `commands.log`
+命中 `*.log` ignore，后续提交阶段必须由负责人显式 `git add -f`，不得以工作树文件存在冒充
+已入库证据。完整 Q03 仍等 packaged SBOM、native notice/source、runtime / device 与真实链路
+证据。
+
+#### 5.11.10.2 G1-S4-A Q03 静态缺口补证：notice/source-offer 与 TTS/PDF（2026-11-04）
+
+**状态**：`G1_S4A_Q03_GAP_STATIC_EVIDENCE_FROZEN / Q03_OPEN / G1_NOT_PASSED /
+RUNTIME_UNVERIFIED / NO_IMPLEMENTATION`。两目录均由独立 reviewer PASS；下列增量只收窄静态
+证据缺口，不关闭 Q03、不选择引擎 / voice、不构成 G1 PASS。
+
+**Media notice / source-offer 增量**：`.planning/v2-g1/G1-S4-A-Q03-NOTICE/` 共 7 文件 /
+80,035 B，manifest SHA-256
+`89306984825B400136FFF2BA5DAF98F06C3A1E2F89DA0F18F725BBCCA0EA63FE`。provenance 24 项为
+13 `PROVEN` / 4 `PARTIAL` / 7 `BLOCKED`；notice / source offer 10 项为 5 / 2 / 3。仅
+`M3-05`、`MPV-05` 从 `BLOCKED` 收窄为 `PARTIAL`；最终 candidate packaged / bundled
+notice 与 SBOM、NDK / libc++ notices、written offer / corresponding source、exact binary
+build attestation、relink、runtime / device 仍为 BLOCKED。
+
+**TTS / PDF 增量**：`.planning/v2-g1/G1-S4-A-Q03-TTS-PDF/` 共 5 文件 / 55,691 B，manifest
+SHA-256 `43C51B06AD830FB055C97DAD069C4B1C516D51CBDB4E7AC226E87ED16A16E41B`。21 项为
+9 `PROVEN` / 2 `PARTIAL` / 10 `BLOCKED`；41 个 URL 为 38 HTTP 200 / 1 Git 验证 / 2 timeout，
+聚合状态 `PARTIAL`。voice / model / lexicon / rule / g2pW、Piper Android / libespeak 构建
+路径、PDFium exact revision / DEPS / GN args / third-party notice / source、16 KB RELRO、
+runtime / device 仍 Open。PDFium issue #56 仍 OPEN，不能把 alpha 版本写成改善或 PASS。
+
+**边界**：Q03 静态证据已最大化收敛，剩余主体是 candidate packaged / notice / source / SBOM、
+精确构建 attestation、分发法务路径与 runtime / device 硬门；任一项未完成都不得把 PARTIAL
+升级为 PASS。
 
 #### 5.11.11 G1-S4-B 媒体 / Native ABI 静态证据（2026-11-03）
 
@@ -3232,7 +3259,7 @@ S6 验收、实现、G2、独立 QA、设备或服务器写。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-Q04 视觉方向用户决策交接（2026-11-04；Q03 静态证据已集成）
+### ACTIVE：G1-Q04 视觉方向用户决策交接（2026-11-04；Q03 静态缺口已最大收敛）
 
 **接手身份**：用户是 `V2-Q-G1-04` 视觉 / UX 方向的最终决策者。交付负责人只整理候选、
 证据边界与写回记录，不得代替用户做审美判断、把推荐写成已接受事实或据此进入 S6。
@@ -3246,10 +3273,15 @@ G1_S4A_Q03_STATIC_INCREMENT_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN /
 READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED / RUNTIME_UNVERIFIED /
 NO_IMPLEMENTATION`。
 
-**并行 Q03 增量**：S4-A 的 SBOM runtime inventory 与 native provenance 静态增量已完成并
-通过独立 scoped review；仅 S4-A snapshot inventory 与静态 SBOM / native evidence 增量完成，
-`Q03-SBOM-RUNTIME-INVENTORY` 仅按该 snapshot 可关闭。完整 Q03 仍等 candidate packaged
-SBOM、精确 native notice / source offer 与 runtime / device 证据，保持 Open。
+**并行 Q03 增量**：S4-A 的 SBOM runtime inventory、native provenance、媒体
+notice / source-offer 与 TTS / PDF provenance 静态增量均已完成并通过独立 reviewer PASS；
+详见 §5.11.10.1～§5.11.10.2。`Q03-SBOM-RUNTIME-INVENTORY` 仅按 snapshot 可关闭。完整 Q03
+仍等 candidate packaged SBOM / notice / source、精确 build attestation、relink 与
+runtime / device 证据，保持 Open。
+
+**Q03 静态收敛边界**：Q03 静态缺口已最大化收敛；NOTICE 的 `M3-05` / `MPV-05` 只收窄到
+`PARTIAL`，TTS / PDF 仍为 `PARTIAL` 且 PDFium issue #56 仍 OPEN。任何 PARTIAL 都不得升为
+PASS，剩余分发与 runtime / device 门必须由后续独立任务关闭。
 
 **已完成提交指针**：Q03 static integration = `d234b40c958288cd5277072452212fe578bb5495`；
 LF policy = `c01e7361b2e86d4773aa4823429f324f9ed7d3df`。两个指针只标识已完成提交，
@@ -3297,8 +3329,8 @@ S5 证据、升级设计系统或进入实现均超出本交接。
 停止条件：用户尚未明确选择时保持 Q04 Open 与 G1 NOT_PASSED；若用户选择逐项修订，先登记
 差异项与影响再继续，不直接进入 S6 或实现。
 
-**实际上下文水位**：本次交接收口实测 `126,462 / 1,048,576`（12.1%），缓存命中 99.3%，
-会话请求数 806；最终以当前线程的 `deepseek-status` 实况为准。
+**实际上下文水位**：本次交接收口实测 `209,460 / 1,048,576`（20%），缓存命中 99.5%，
+会话请求数 1089；最终以当前线程的 `deepseek-status` 实况为准。
 
 ### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-Q04 ACTIVE 取代）
 
@@ -3972,3 +4004,9 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   SBOM validator PASS，S5 / Q03-SBOM / Q03-NATIVE 为 47/47、11/11、5/5 LF，CRLF 0，
   三 manifest hash 与 §12 一致。Q03 / Q04 仍 Open，G1 NOT_PASSED，
   `UI_DESIGN_SYSTEM` 仍为 v1.0；本轮仅写回三份权威文档，未 commit / push。
+- **2026-11-04 — Q03 notice/source-offer 与 TTS/PDF 静态缺口补证**：`G1-S4-A-Q03-NOTICE`
+  为 7 文件 / 80,035 B，provenance 24=`13/4/7`、notice/source 10=`5/2/3`，仅
+  `M3-05` / `MPV-05` 从 BLOCKED 收窄为 PARTIAL；`G1-S4-A-Q03-TTS-PDF` 为 5 文件 /
+  55,691 B，21=`9/2/10`，URL 41=`38 HTTP200/1 Git/2 timeout`，聚合 PARTIAL，PDFium
+  issue #56 仍 OPEN。两目录独立 reviewer PASS；Q03 / Q04 仍 Open，G1 NOT_PASSED，
+  `UI_DESIGN_SYSTEM` 仍为 v1.0。本轮仅写回三份权威文档，未 commit / push。

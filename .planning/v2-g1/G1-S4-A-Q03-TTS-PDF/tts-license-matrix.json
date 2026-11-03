@@ -1,0 +1,323 @@
+{
+  "schemaVersion": 1,
+  "taskId": "G1-S4-A-Q03-TTS-PDF",
+  "generatedAt": "2026-11-04T00:47:56+08:00",
+  "scope": "static TTS license and packaged-asset layering only",
+  "isUserDecision": false,
+  "engineSelected": false,
+  "voiceSelected": false,
+  "selectionRule": "No final engine, model, speaker or voice may be inferred from examples, release order, availability or this matrix.",
+  "counts": {
+    "PROVEN": 3,
+    "PARTIAL": 2,
+    "BLOCKED": 6,
+    "total": 11
+  },
+  "rows": [
+    {
+      "id": "TTS-SHERPA-CODE-ARTIFACT",
+      "engine": "Sherpa-ONNX",
+      "assetLayer": "engine_code_and_android_binary",
+      "status": "PROVEN",
+      "claim": "The Sherpa-ONNX v2.0.1 code revision and both published Android AAR identities are fixed.",
+      "facts": {
+        "tag": "v2.0.1",
+        "commit": "af2d8d81dbfa61c4cea4c568da78f3982edca005",
+        "releaseUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.1",
+        "licenseExpression": "Apache-2.0",
+        "licensePath": "LICENSE",
+        "licenseGitBlobSha1": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+        "standardAar": {
+          "name": "sherpa-onnx-2.0.1.aar",
+          "bytes": 49441341,
+          "sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+          "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar"
+        },
+        "staticOnnxRuntimeAar": {
+          "name": "sherpa-onnx-static-link-onnxruntime-2.0.1.aar",
+          "bytes": 38577050,
+          "sha256": "07e042d97f3a6bd5b7fe74d4eef0513dc01a714b16c15a903250095aba43a575",
+          "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-static-link-onnxruntime-2.0.1.aar"
+        }
+      },
+      "proof": [
+        "git ls-remote resolved the annotated tag to the recorded commit",
+        "GitHub expanded-assets metadata supplied both SHA-256 digests",
+        "HTTP HEAD independently confirmed both exact byte lengths"
+      ],
+      "limitations": [
+        "No relevant AAR/JAR was present in the allowed local Gradle cache",
+        "AAR entry-level notices and embedded native versions were not re-inspected"
+      ]
+    },
+    {
+      "id": "TTS-SHERPA-ORT",
+      "engine": "Sherpa-ONNX",
+      "assetLayer": "onnx_runtime_binary",
+      "status": "PROVEN",
+      "claim": "The Sherpa-ONNX Android build pins ONNX Runtime 1.28.2 and the archive hashes for the shared Android zip and static ABI builds are recorded.",
+      "facts": {
+        "version": "1.28.2",
+        "commit": "33ca9628233dc8f002435e868d4c2e9f82766ca1",
+        "licenseExpression": "MIT",
+        "licensePath": "LICENSE",
+        "licenseGitBlobSha1": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
+        "requiredThirdPartyFile": "ThirdPartyNotices.txt",
+        "sourceUrl": "https://github.com/microsoft/onnxruntime/tree/v1.28.2",
+        "dynamicAndroidArchive": {
+          "name": "onnxruntime-android-1.28.2.zip",
+          "sha256": "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d",
+          "url": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-1.28.2.zip"
+        },
+        "staticAndroidArchives": [
+          {
+            "abi": "arm64-v8a",
+            "sha256": "bc68410f35f13df82c260830bf476ee5565f5efd0ec7622297829a929613c6c0"
+          },
+          {
+            "abi": "armeabi-v7a",
+            "sha256": "21f8aaab5d536f397a11deeedc09c2ceecc740b45332d8a946c358e7717b5f18"
+          },
+          {
+            "abi": "x86",
+            "sha256": "8228edb42e8f9949a61c78a5e8b9adba7f3f90517d79d687ac070b907ef0bf1c"
+          },
+          {
+            "abi": "x86_64",
+            "sha256": "f49dbf456ffe71dd417afb2123ef15202f8f57a4b2a05f12af1cf71f55448137"
+          }
+        ],
+        "pinFiles": [
+          "cmake/onnxruntime-android-aarch64.cmake",
+          "cmake/onnxruntime-android-aarch64-static.cmake",
+          "cmake/onnxruntime-android-arm.cmake",
+          "cmake/onnxruntime-android-arm-static.cmake",
+          "cmake/onnxruntime-android-i686.cmake",
+          "cmake/onnxruntime-android-i686-static.cmake",
+          "cmake/onnxruntime-android-x86_64-static.cmake"
+        ]
+      },
+      "packageAction": "Include the exact MIT license and ONNX Runtime ThirdPartyNotices.txt for the selected shared or static variant; do not infer the selected variant from the AAR name."
+    },
+    {
+      "id": "TTS-SHERPA-VOICE-MODEL",
+      "engine": "Sherpa-ONNX",
+      "assetLayer": "voice_model_and_model_card",
+      "status": "BLOCKED",
+      "claim": "No final Sherpa voice/model has been selected, so its license, model card, training-data restrictions, file hashes and speaker identity cannot be approved.",
+      "facts": {
+        "selectionState": "NO_VOICE_SELECTED",
+        "candidateModelSource": "https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models",
+        "examplesAreSelection": false
+      },
+      "requiredInputs": [
+        "exact model release or archive URL",
+        "archive and extracted file SHA-256",
+        "LICENSE/MODEL_CARD and copyright holder",
+        "training-data or usage restrictions",
+        "speaker/voice identifier when the model is multi-speaker",
+        "final packaged file paths"
+      ],
+      "gate": "GATE-TTS-VOICE-MODEL-LICENSE"
+    },
+    {
+      "id": "TTS-SHERPA-LEXICON-RULE",
+      "engine": "Sherpa-ONNX",
+      "assetLayer": "tokens_lexicon_dict_rule_data",
+      "status": "BLOCKED",
+      "claim": "The selected model determines whether tokens.txt, lexicon.txt, a jieba dictionary, rule FST/FAR files or other phonemization data are required; no final file set or per-file provenance is fixed.",
+      "facts": {
+        "vitsConfigPath": "sherpa-onnx/csrc/offline-tts-vits-model-config.h",
+        "vitsConfigGitBlobSha1": "61c16dac1100e1abacb57a0ad21de1ce89852b8c",
+        "matchaConfigPath": "sherpa-onnx/csrc/offline-tts-matcha-model-config.h",
+        "matchaConfigGitBlobSha1": "30e6e9269e80ef3ed7870f41afa871451cf17702",
+        "observedFields": [
+          "model/acoustic_model",
+          "tokens",
+          "lexicon",
+          "dict_dir",
+          "vocoder for Matcha where applicable"
+        ]
+      },
+      "requiredInputs": [
+        "selected model config and generated file manifest",
+        "every shipped tokens/lexicon/dictionary/rule file hash",
+        "license and copyright source for each independently authored data file",
+        "confirmation that no runtime phonemizer download is enabled"
+      ],
+      "gate": "GATE-TTS-LEXICON-RULE"
+    },
+    {
+      "id": "TTS-SHERPA-ESPEAK-BOUNDARY",
+      "engine": "Sherpa-ONNX",
+      "assetLayer": "espeak_ng_boundary",
+      "status": "PARTIAL",
+      "claim": "For Sherpa-ONNX v2.0.1 VITS and Matcha configs, data_dir is documented as deprecated and ignored because espeak-ng is no longer used; other model families remain unselected.",
+      "facts": {
+        "vitsDataDirComment": "Deprecated. Ignored since v2.0.0: espeak-ng is no longer used.",
+        "matchaDataDirComment": "Deprecated. Ignored since v2.0.0: espeak-ng is no longer used.",
+        "boundary": "Do not carry the old Sherpa eSpeak payload into a VITS or Matcha package without a selected model proving that it is used."
+      },
+      "remainingQuestion": "If a non-VITS/non-Matcha model is later selected, enumerate and license any external eSpeak-ng engine or data it actually packages.",
+      "gate": "GATE-TTS-ESPEAK-APPLICABILITY"
+    },
+    {
+      "id": "TTS-PIPER-CODE",
+      "engine": "Piper1-GPL",
+      "assetLayer": "engine_code",
+      "status": "PROVEN",
+      "claim": "Piper1-GPL v1.8.0 code is fixed at the official tag and declares GPL-3.0-or-later.",
+      "facts": {
+        "tag": "v1.8.0",
+        "commit": "639388b6317fc4731e91d53da42aea68fd4166ff",
+        "releaseUrl": "https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.8.0",
+        "licenseExpression": "GPL-3.0-or-later",
+        "licensePath": "COPYING",
+        "licenseGitBlobSha1": "10926e87f113fb026c366866d6fa466061562870",
+        "setupPyLicenseGitBlobSha1": "5998704f0e78eeef463efd7915198ded558f4c70",
+        "releaseBinaryAssetCount": 6,
+        "androidBinaryAssetCount": 0,
+        "releaseAssets": [
+          "piper_tts-1.8.0-cp39-abi3-macosx_10_9_x86_64.whl",
+          "piper_tts-1.8.0-cp39-abi3-macosx_11_0_arm64.whl",
+          "piper_tts-1.8.0-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.manylinux_2_28_aarch64.whl",
+          "piper_tts-1.8.0-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl",
+          "piper_tts-1.8.0-cp39-abi3-win_amd64.whl",
+          "piper_tts-1.8.0.tar.gz"
+        ],
+        "sourceArchive": {
+          "name": "piper_tts-1.8.0.tar.gz",
+          "sha256": "830588aded347df579c91a32703e0fc2a3685d84f1e3533b14f2de69135d4904"
+        }
+      },
+      "packageAction": "Use the full GPL-3.0-or-later text and corresponding source/build scripts; do not rely on a wheel or the word Piper alone as provenance."
+    },
+    {
+      "id": "TTS-PIPER-VOICE-MODEL",
+      "engine": "Piper1-GPL",
+      "assetLayer": "voice_model_and_model_card",
+      "status": "BLOCKED",
+      "claim": "Piper has no selected voice; the required .onnx and .onnx.json files plus their MODEL_CARD licensing terms are absent.",
+      "facts": {
+        "selectionState": "NO_VOICE_SELECTED",
+        "voiceDocsPath": "docs/VOICES.md",
+        "voiceDocsGitBlobSha1": "91267b225d3efe3e2d841813209bf5d52c0491a1",
+        "voiceDocsStatement": "Each MODEL_CARD contains important licensing information and some voices may have restrictive licenses.",
+        "examplesAreSelection": false
+      },
+      "requiredInputs": [
+        "exact voice .onnx and .onnx.json URLs and SHA-256 values",
+        "MODEL_CARD and its hash",
+        "speaker identification for multi-speaker models",
+        "training-data and usage restrictions",
+        "final packaged file paths"
+      ],
+      "gate": "GATE-TTS-VOICE-MODEL-LICENSE"
+    },
+    {
+      "id": "TTS-PIPER-ESPEAK",
+      "engine": "Piper1-GPL",
+      "assetLayer": "espeak_ng_engine_and_data",
+      "status": "PARTIAL",
+      "claim": "Piper builds and packages eSpeak NG code/data, but the repository exposes two official build-path pins and no Android build path has been selected.",
+      "facts": {
+        "licenseExpression": "GPL-3.0-or-later",
+        "licensePath": "COPYING",
+        "licenseGitBlobSha1": "94a9ed024d3859793618152ea559a168bbcbb5e2",
+        "licenseReadmeUrl": "https://github.com/espeak-ng/espeak-ng/blob/724808c5a83f9ef95fdd0db886ba7ba537ff224a/README.md#license-information",
+        "pins": [
+          {
+            "path": "CMakeLists.txt",
+            "gitBlobSha1": "fac0d4c97c3e8ed944980eb09be895f445c859f7",
+            "commitText": "724808c",
+            "resolvedCommit": "724808c5a83f9ef95fdd0db886ba7ba537ff224a",
+            "dateComment": "2026-Apr-06"
+          },
+          {
+            "path": "libpiper/CMakeLists.txt",
+            "gitBlobSha1": "d43e7144d3fa027b52238972ef829a3444cbc212",
+            "commit": "212928b394a96e8fd2096616bfd54e17845c48f6",
+            "dateComment": "2025-Mar-22"
+          }
+        ],
+        "distributedDataPaths": [
+          "libespeak-ng static library",
+          "espeak-ng-data"
+        ],
+        "upstreamLicenseFiles": [
+          "COPYING",
+          "COPYING.APACHE",
+          "COPYING.BSD2",
+          "COPYING.UCD"
+        ]
+      },
+      "remainingQuestion": "Choose the actual libpiper or Python-extension build path, then freeze one eSpeak NG commit, data tree hash, library hash and all notice files.",
+      "gate": "GATE-TTS-PIPER-BUILD-PATH"
+    },
+    {
+      "id": "TTS-PIPER-CHINESE-G2PW",
+      "engine": "Piper1-GPL",
+      "assetLayer": "chinese_phonemizer_model",
+      "status": "BLOCKED",
+      "claim": "Piper Chinese phonemization references a downloadable g2pW archive; the exact archive, extracted model/data hashes and complete redistribution terms are not fixed.",
+      "facts": {
+        "sourcePath": "src/piper/phonemize_chinese.py",
+        "sourceGitBlobSha1": "4169d66d7d3ea9a4b1b2b83b78e2ca151e9db6ed",
+        "downloadUrl": "https://huggingface.co/datasets/rhasspy/piper-checkpoints/resolve/main/zh/zh_CN/_resources/g2pw.tar.gz?download=true",
+        "runtimeBehavior": "download_model() calls urlopen when g2pw.onnx is absent",
+        "licensePath": "licenses/LICENSE.g2pW-Apache-2.0",
+        "licenseGitBlobSha1": "fd4ff66d103d2cf906bccfa05009e10c754c5428",
+        "licenseDirection": "Apache-2.0",
+        "archiveInspected": false
+      },
+      "requiredInputs": [
+        "archive SHA-256 and resolved immutable URL or commit",
+        "extracted g2pw.onnx and dictionary/data hashes",
+        "all bundled license and notice files",
+        "offline packaging that removes the runtime download fallback",
+        "zero-network runtime evidence in the later explicit runtime gate"
+      ],
+      "gate": "GATE-TTS-CHINESE-G2PW"
+    },
+    {
+      "id": "TTS-PIPER-ANDROID-ORT",
+      "engine": "Piper1-GPL",
+      "assetLayer": "android_native_packaging",
+      "status": "BLOCKED",
+      "claim": "Piper has no official Android artifact; direct libpiper defaults to ONNX Runtime 1.22.0 for desktop-oriented CI paths, and no Android ABI/library bundle is fixed.",
+      "facts": {
+        "defaultOnnxRuntimeVersion": "1.22.0",
+        "onnxRuntimeCommit": "f217402897f40ebba457e2421bc0a4702771968e",
+        "onnxRuntimeLicenseExpression": "MIT",
+        "onnxRuntimeLicenseGitBlobSha1": "48bc6bb4996ac924359e8e28b9ae88970e5ed3fc",
+        "onnxRuntimeSourceUrl": "https://github.com/microsoft/onnxruntime/tree/v1.22.0",
+        "requiredThirdPartyFile": "ThirdPartyNotices.txt",
+        "androidBinaryAssetCount": 0
+      },
+      "requiredInputs": [
+        "approved Android NDK/JNI build path",
+        "four ABI or explicit ABI policy",
+        "libpiper, libonnxruntime and dependent library hashes",
+        "exact build flags and source bundle",
+        "runtime/device gate in a later authorized task"
+      ],
+      "gate": "GATE-TTS-PIPER-ANDROID"
+    },
+    {
+      "id": "TTS-NOTICE-BUNDLE",
+      "engine": "Sherpa-ONNX | Piper1-GPL",
+      "assetLayer": "final_notice_and_source_bundle",
+      "status": "BLOCKED",
+      "claim": "A final TTS notice/source bundle cannot be generated before engine, model, voice, phonemization assets and Android build path are selected.",
+      "requiredInputs": [
+        "final engine/model/voice decision",
+        "final packaged TTS file list from APK/AAB rather than Gradle graph",
+        "per-file component mapping and SHA-256",
+        "license texts, copyright holders and NOTICE/third-party notices",
+        "corresponding source or written offer where the selected license requires it",
+        "final bundle SHA-256 and packaged SBOM"
+      ],
+      "gate": "GATE-TTS-PACKAGED-NOTICE"
+    }
+  ]
+}

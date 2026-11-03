@@ -1,0 +1,123 @@
+2026-11-04T00:43:38+08:00 G1-S4-A-Q03-NOTICE
+shell=pwsh
+cwd=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+
+001 identity
+  git rev-parse HEAD
+  result: c01e7361b2e86d4773aa4823429f324f9ed7d3df
+  git status --short --branch
+  result: ## codex/v2-integration; tracked clean
+
+002 allowlisted context
+  read AGENTS, MEMORY index and relevant Aurorama project note
+  read V2_PLAN 5.11.9/.10 short sections and TASKS/DECISIONS Q03 matches
+  read G1-S4-A-Q03-NATIVE report/manifest/matrices and G1-S4-B report/native matrix
+  no full-repository read
+
+003 local artifact hashes
+  media3-exoplayer-1.11.1.aar
+    bytes=1703377
+    sha256=588592BAEC110837C33CE0C82BB76464203E6B0621177BBE5D88779001A6F1ED
+  media3-exoplayer-1.11.1.pom
+    sha256=F540FD426F3ED2CF58792FAD094052876817D764F88B2A072E530105DFE9D797
+  media3-ffmpeg-decoder-1.9.0+1.aar
+    bytes=2913028
+    sha256=DFC726C8BC9D9DB02E15B160F886A03BDD6DD51E88BA2DE89AA74CAF5E8CD181
+  media3-ffmpeg-decoder-1.9.0+1.pom
+    sha256=B6E0DA47B95716E304F34ED72BE46068A3C6ADEF69A4E0901053045A682EEDFD
+  libmpv-1.0.0.aar
+    bytes=47574467
+    sha256=DF146592480FC8418415A06B1F1A1D6318B0088E21F52254B0E9A82B61CA8FA2
+  libmpv-1.0.0.pom
+    sha256=38F1ECF8ADE2D44FF8DD867B74DBEABC6CA6ECB8EF5803471F1E705D4975E6D5
+
+004 official Maven checksum endpoints
+  Media3 AAR .sha256 matches 588592...F1ED
+  Jellyfin decoder AAR .sha256 matches DFC726...D181
+  libmpv AAR .sha256 matches DF1465...FA2
+  Media3 POM .sha256 matches F540FD...D797
+  Jellyfin decoder POM .sha256 matches B6E0DA...EDFD
+  libmpv POM .sha256 matches 38F1EC...E6D5
+  all three artifact HEAD requests returned HTTP 200 and expected byte length
+
+005 AAR embedded inventory
+  media3-exoplayer-1.11.1.aar entries=173, license/notice matches=0
+  media3-ffmpeg-decoder-1.9.0+1.aar entries=14, license/notice matches=0
+  libmpv-1.0.0.aar entries=50, license/notice matches=0
+  result: negative inventory fact only; no completeness claim
+
+006 official tag resolution
+  git ls-remote for all primary repositories
+  Media3 1.11.1 tag=915b73c447aed6471aa33380a95126121a79375d peel=8c6678b657ede1e7883fc164ef73ed483c7796c3
+  Jellyfin v1.9.0+1=af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396
+  libmpv v1.0.0=fcf6745703dc1265bca88f12fee8fc355ddf251e
+  mpv v0.41.0 tag=2c219aa822df18a1b7fd9abe3e151cd93ad67307 peel=41f6a645068483470267271e1d09966ca3b9f413
+  FFmpeg n8.1 tag=a65b3bfe9dacc3b20597ef199d0afdd8bc8128e2 peel=9047fa1b084f76b1b4d065af2d743df1b40dfb56
+  libass 0.17.4 tag=e81dec4065332a907792af50e68b4a749e476718 peel=bbb3c7f1570a4a021e52683f3fbdf74fe492ae84
+
+007 official source access recovery
+  GitHub REST tree requests: rate-limited
+  raw.githubusercontent.com direct requests: repeated TLS reset
+  controlled fallback: official Git transport with --filter=blob:none --no-checkout --depth=1 --single-branch
+  six tagged repositories cloned under this evidence directory temporary cache
+  only commit/tree metadata and required small blobs requested
+  no large source archive or full working-tree checkout
+
+008 exact source observations
+  Media3 1.9.0 commit=7cc1056f840ce226598d3b990d4a6f7cd17e2831
+    build_ffmpeg.sh blob=e0a9aa4f8441fbaf67d7a0d7c20043ae96261c30; no gpl/version3
+  Jellyfin v1.9.0+1
+    media gitlink=7cc1056f840ce226598d3b990d4a6f7cd17e2831
+    ffmpeg gitlink=37c90f55d8b6c3948c79449b04755527b4ae1351
+    FFmpeg RELEASE=6.0.2
+    build.gradle.kts sourcesJar excludes **/ffmpeg/
+  libmpv v1.0.0
+    depinfo.sh blob=81076694c6ed50247bc030161e2f030e91849e70
+    download-deps.sh blob=282ab5707632974a3cdcb513a9f560c1455a45ca
+    ffmpeg.sh blob=acf4a81d69a86fe565cb3b961d036d2f4c9a3168; gpl+version3
+    libass.sh blob=87636304e454941785a7730e1acd8a9c9c95200a
+    mpv.sh blob=92f16a388b43d1a4a3d803b4b11a8b811579c5a1; no -Dgpl=false
+  mpv v0.41.0
+    meson.options gpl default=true
+    Copyright says default is GPLv2+; -Dgpl=false is required for LGPL mode
+    result: actual libmpv build intent is mpv GPL-2.0+, correcting old LGPL-only reading
+
+009 declared dependency tag resolution
+  mbedtls 3.6.6=0bebf8b8c7f07abe3571ded48a11aa907a1ffb20
+  dav1d 1.5.3=b546257f770768b2c88258c533da38b91a06f737
+  freetype 2.14.3=0a0221a1347e2f1e07c395263540026e9a0aa7c7
+  fribidi 1.0.16=68162babff4f39c4e2dc164a5e825af93bda9983
+  harfbuzz 14.1.0=cfb70b0b91af933a08339c7c8eef459df1098d7b
+  libunibreak 6.1=304585d8e2d63187507368d612c3d5fff1486368
+  libxml2 2.15.2=3d840e17858de03a09fba8b202e3a89267d5795a
+  fontconfig 2.17.1=6d0a98982ec351c165c9224c8b7dbdfca3010e47
+  libplacebo 7.360.1=cee9b076f2c63104ccfd497fa79c39a867293ec4
+  lua 5.2.4 official URL remains without verified archive digest
+
+010 artifact generation
+  wrote README.md, report.json, provenance-matrix.json,
+        notice-source-offer-matrix.json, bundle-file-list.json, commands.log
+  manifest generated only after JSON and content validation
+
+011 validation
+  JSON parse, schema key/type checks, status counts, URL hosts, UTF-8 no BOM,
+  LF, no obvious secret pattern, manifest entry hashes and re-hash
+  final results are recorded by the manifest and final response
+
+012 context watermark
+  deepseek status read through pwsh only
+  input=225430 / 1048576 (21.5%); cache hit=99.8%; session requests=904
+  local capture=2026-11-04 00:46:06 +08:00; below 250k checkpoint
+
+013 concurrent drift observed at close
+  start HEAD=c01e7361b2e86d4773aa4823429f324f9ed7d3df
+  close HEAD=22b40c446ee18a26955b0009fec706fd8b14439d
+  commit=docs(v2): record Q03 static evidence checkpoint
+  changed only docs/TASKS.md, docs/DECISIONS.md, docs/V2_PLAN.md
+  unrelated untracked .planning/v2-g1/G1-S4-A-Q03-TTS-PDF/.research/ preserved
+  no write outside .planning/v2-g1/G1-S4-A-Q03-NOTICE/
+
+014 boundary
+  no build, APK/AAB, media playback, device, Jellyfin or server access
+  no dependency install, large source download, project upload, commit or push
+  final packaged notice/source offer remains BLOCKED

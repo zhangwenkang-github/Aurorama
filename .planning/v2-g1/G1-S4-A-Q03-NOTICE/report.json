@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "G1-S4-A-Q03-NOTICE",
+  "role": "Aurorama 2.0 G1-Q03 媒体原生 notice / source-offer 静态证据架构师",
+  "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+  "generatedAt": "2026-11-04T00:43:38+08:00",
+  "identity": {
+    "branch": "codex/v2-integration",
+    "startHead": "c01e7361b2e86d4773aa4823429f324f9ed7d3df",
+    "observedHeadAtClose": "22b40c446ee18a26955b0009fec706fd8b14439d",
+    "initialStatusPorcelain": "",
+    "headExpectedPrefixMatch": true,
+    "trackedCleanAtStart": true,
+    "trackedCleanAtClose": true,
+    "headDriftDetected": true,
+    "headDriftCommit": "22b40c446ee18a26955b0009fec706fd8b14439d docs(v2): record Q03 static evidence checkpoint",
+    "headDriftScope": "Only docs/TASKS.md, docs/DECISIONS.md and docs/V2_PLAN.md changed; reviewed before close.",
+    "unrelatedUntrackedAtClose": [
+      ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/.research/"
+    ],
+    "concurrentWorkHandling": "Preserved unrelated files; all writes stayed in G1-S4-A-Q03-NOTICE."
+  },
+  "plan": {
+    "objective": "只补 G1-S4-A-Q03-NATIVE 的媒体 native notice/source-offer 静态缺口，并形成可执行的文件清单。",
+    "nonGoals": [
+      "不改生产代码、依赖、资源、Manifest、schema 或既有证据目录",
+      "不构建 APK/AAB、不运行播放、不触设备/Jellyfin/服务器",
+      "不 commit/push、不选择最终引擎、不关闭 Q03、不进入 G2 或独立 QA",
+      "不把找到 LICENSE 当作完整 notice bundle，不提供最终法律意见"
+    ],
+    "budget": {
+      "targetTokens": 80000,
+      "checkpointBeforeTokens": 250000
+    },
+    "writeBoundary": ".planning/v2-g1/G1-S4-A-Q03-NOTICE/",
+    "stopConditions": [
+      "基线或对象漂移",
+      "需要下载大源码包、安装依赖、构建候选包、设备或服务器访问",
+      "需要越权写入、发布、commit/push 或最终法律判断",
+      "只读通道重复失败且无法以官方 Git transport 固定对象"
+    ]
+  },
+  "status": "MEDIA_NOTICE_PARTIAL / Q03_OPEN / G1_NOT_PASSED / NO_IMPLEMENTATION / FINAL_BINARY_PROVENANCE_UNPROVEN",
+  "counts": {
+    "provenance": {
+      "PROVEN": 13,
+      "PARTIAL": 4,
+      "BLOCKED": 7,
+      "total": 24
+    },
+    "noticeSourceOffer": {
+      "PROVEN": 5,
+      "PARTIAL": 2,
+      "BLOCKED": 3,
+      "total": 10
+    }
+  },
+  "technicalConclusions": [
+    {
+      "id": "MEDIA3_JELLYFIN",
+      "status": "PARTIAL",
+      "summary": "Media3 1.11.1 是 Apache-2.0 wrapper，许可不再与 native 混写；Jellyfin decoder 1.9.0+1 wrapper 的 POM/LICENSE 是 GPLv3 文本族，但 reviewed metadata 未给 only/or-later 限定。",
+      "native": "Decoder 编译基座 1.9.0=7cc1056f840ce226598d3b990d4a6f7cd17e2831；FFmpeg release/6.0=37c90f55d8b6c3948c79449b04755527b4ae1351，RELEASE=6.0.2。exact build_ffmpeg.sh 未开 --enable-gpl/--enable-version3，source recipe 的 native 方向为 LGPL-2.1-or-later。",
+      "sourceNoticeGap": "Decoder sources JAR 明确排除 **/ffmpeg/，AAR notice matches=0；source/notice bundle 必须额外包含 FFmpeg 6.0.2、build scripts、configure/config 输出与 relink/组合依据。",
+      "exactBinaryWarning": "未发现 Maven AAR 对应的 build log、config.h 或 attestation，故不能把 source recipe 写成最终发布二进制 exact provenance。"
+    },
+    {
+      "id": "LIBMPV_CHAIN",
+      "status": "PARTIAL",
+      "summary": "libmpv 1.0.0 wrapper MIT 仅覆盖 wrapper；mpv 0.41.0、FFmpeg n8.1、libass 0.17.4 分别独立记账。",
+      "licenseCorrection": "旧证据把 libmpv.so 中的 LGPL-2.1-or-later 字符串当作 mpv 最终许可。实际 mpv Copyright 规定默认 GPLv2+、只有 -Dgpl=false 才进入 LGPL 模式；meson.options gpl default=true，libmpv mpv.sh 未关闭，故本构建的 mpv 组件为 GPL-2.0-or-later。",
+      "nativeLicense": "FFmpeg n8.1 由 ffmpeg.sh 显式 --enable-gpl --enable-version3，为 GPL-3.0-or-later；libass 0.17.4 为 ISC。",
+      "provenance": "depinfo/download/mpv/ffmpeg/libass/build scripts 均有 Git blob。AAR 哈希已固定，但依赖按 mutable tags 获取、CI/apt/pip 未全 digest pin，无独立同字节 rebuild。",
+      "sourceNoticeGap": "核心顶层许可与脚本文件可确定打包，但 10 个声明依赖的 notice/copyright、mbedtls/libplacebo 递归子模块、Lua digest、NDK/libc++ notice 和最终 source/offer 未完成。"
+    },
+    {
+      "id": "BUNDLE_MAP",
+      "status": "PARTIAL",
+      "summary": "bundle-file-list.json 已给出 25 个核心文件的逻辑目标路径、commit、Git blob、字节数与官方 URL，另列 3 个制品 pin、8 个 source root 与 10 个声明静态依赖。",
+      "notReady": "它不是可直接发布的完整包：8 类 missing group 明确存在，不能宣称 notice/source bundle complete。"
+    },
+    {
+      "id": "SOURCE_OFFER_BOUNDARY",
+      "status": "PARTIAL",
+      "summary": "Apache/MIT/ISC 不以 copyleft source offer 为核心义务；Jellyfin wrapper、mpv、FFmpeg n8.1 需对应源码；FFmpeg 6.0.2 与任何 LGPL 静态依赖还需 source/relink 边界。",
+      "caution": "最终 GPLv3 section 6 路线、written offer 有效期/渠道及 LGPL relink 实现未决策，本报告不作法律意见。"
+    }
+  ],
+  "upgradeDecisions": [
+    {
+      "sourceId": "M3-05",
+      "old": "BLOCKED",
+      "new": "PARTIAL",
+      "scope": "AAR 无 notice 的否证事实、核心源码/许可锚点与 source-bundle 组成已 PROVEN；最终 packaged notice/source offer 仍 BLOCKED。"
+    },
+    {
+      "sourceId": "MPV-05",
+      "old": "BLOCKED",
+      "new": "PARTIAL",
+      "scope": "核心三层许可、构建脚本 blob 与 25 文件候选清单已 PROVEN；完整静态依赖 notice、源码包与 written offer 仍 BLOCKED。"
+    },
+    {
+      "sourceId": "M3-04",
+      "old": "PARTIAL",
+      "new": "PARTIAL",
+      "scope": "source recipe 的 GPL/LGPL 边界已收窄；exact published binary invocation 未归档，不能升级 PROVEN。"
+    },
+    {
+      "sourceId": "MPV-03",
+      "old": "PROVEN",
+      "new": "PROVEN",
+      "scope": "状态不变但分类修正：wrapper MIT；actual mpv build GPL-2.0+；FFmpeg n8.1 GPL-3.0+；libass ISC。"
+    },
+    {
+      "sourceId": "X-02",
+      "old": "BLOCKED",
+      "new": "BLOCKED",
+      "scope": "最终候选 packaged SBOM、notice bundle、corresponding source 与 offer 仍不存在。"
+    }
+  ],
+  "executed": [
+    "核验指定 cwd、branch、HEAD 与初始 tracked-clean：PASS",
+    "读取 AGENTS 项目指令、Memory 索引及相关 Aurorama project note、V2 §5.11.9/.10 短段、TASKS/DECISIONS Q03 命中与既有 Q03-NATIVE/S4-B 证据",
+    "复算 Media3 exoplayer、Jellyfin decoder、libmpv 的本地 AAR/POM SHA-256，并与官方 Maven AAR .sha256 交叉核对：MATCH",
+    "检查三个 AAR 的 ZIP entries 与 license/notice/readme 命中：0",
+    "通过官方 git ls-remote 固定 6 个主 tag 与 8 个静态依赖 tag 的 peel commit",
+    "因 GitHub REST 限流和 raw TLS 重置，改用官方 Git partial clone --filter=blob:none --no-checkout --depth=1；只取固定 commit/tree 与所需小 blob",
+    "读取 exact Media3 1.9.0 build_ffmpeg.sh、Jellyfin build/POM 配置、libmpv depinfo/download/build scripts、mpv Copyright/meson.options、FFmpeg 6.0.2/n8.1 与 libass 许可文件",
+    "确认 FFmpeg 6.0.2 RELEASE、Media3 sourcesJar 排除 FFmpeg、mpv gpl default=true 且 libmpv 脚本无 -Dgpl=false",
+    "收口时发现并发 HEAD 从 c01e7361 前移到 22b40c44；该提交只改三份指定 docs，已读取 diff；未触碰并发产生的 G1-S4-A-Q03-TTS-PDF 未跟踪目录",
+    "生成 provenance、notice/source-offer 与 bundle file-list；执行 JSON/URL/UTF-8/LF/敏感值/manifest 校验"
+  ],
+  "notExecuted": [
+    "未构建任何 APK/AAB/SBOM，未修改生产代码或依赖",
+    "未执行 Media3 <-> libmpv load-order、codec、字幕或设备测试",
+    "未取得 NDK/libc++、10 个静态依赖的完整 notice/copyright 集，未展开递归子模块",
+    "未下载或归档源码包、未生成 written offer、未做法律审查",
+    "未访问设备、Jellyfin、生产服务器或任何账号",
+    "未 commit/push，未进入 G2、实现、独立 QA、Release 或 merge-prep"
+  ],
+  "priorities": {
+    "P0": [],
+    "P1": [
+      "最终 candidate packaged notice/source bundle 与 written offer 不存在",
+      "Media3/Jellyfin decoder 与 libmpv 两条 native 链均缺 exact published binary build log/attestation",
+      "FFmpeg 6.0.2 的 LGPL source/relink 路径尚未落实到可复查 artifact",
+      "NDK/libc++ 与 10 个声明静态依赖的完整 notice/copyright 未形成"
+    ],
+    "P2": [
+      "Jellyfin wrapper 的 exact GPL only/or-later qualifier 未明示",
+      "Lua 无可验证 digest；mbedtls/libplacebo 递归子模块未固定",
+      "构建脚本使用 mutable tags；CI/apt/pip 输入未全 digest pin"
+    ],
+    "P3": []
+  },
+  "blocked": [
+    {
+      "id": "BLOCKED-FINAL-PACKAGED-NOTICE",
+      "reason": "无最终候选 APK/AAB 与 packaged-file SBOM",
+      "releaseEffect": "阻止发布许可批准；不影响记录静态核心输入"
+    },
+    {
+      "id": "BLOCKED-FINAL-SOURCE-OFFER",
+      "reason": "源码包、build outputs、GPLv3 section 6 路线与 written offer 未生成",
+      "releaseEffect": "阻止把 source URL 当作分发闭环"
+    },
+    {
+      "id": "BLOCKED-EXACT-BINARY-PROVENANCE",
+      "reason": "AAR hash 固定，但 exact build invocation/attestation 与同字节 rebuild 未证明",
+      "releaseEffect": "不得伪造 final binary exact provenance"
+    },
+    {
+      "id": "BLOCKED-COMPLETE-STATIC-NOTICES",
+      "reason": "NDK/libc++ 与 secondary static dependencies 的 notice 文件和递归子模块未闭合",
+      "releaseEffect": "核心许可已定位不等于 notice bundle 完整"
+    },
+    {
+      "id": "BLOCKED-MEDIA-RUNTIME",
+      "reason": "Media3/Jellyfin 与 libmpv/ass-kt 的真实 load-order、JNI/API、符号解析和播放需 runtime/device",
+      "releaseEffect": "静态许可证据不能替代 runtime / Q03 全门"
+    }
+  ],
+  "uncovered": [
+    "Final APK/AAB exact file-to-notice map",
+    "Complete secondary dependency licenses/notices and recursive submodule identities",
+    "Exact NDK/libc++ notice set",
+    "GPLv3 source conveyance / written offer retention and LGPL relink implementation",
+    "Reproducible rebuild or signed build attestation",
+    "Runtime/device compatibility and format/subtitle behavior"
+  ],
+  "contextWatermark": {
+    "model": "deepseek-flash",
+    "inputTokens": 225430,
+    "windowTokens": 1048576,
+    "percent": 21.5,
+    "cacheHitPercent": 99.8,
+    "sessionRequests": 904,
+    "capturedAt": "2026-11-04 00:46:06 +08:00",
+    "checkpointState": "BELOW_250K_CHECKPOINT"
+  },
+  "evidencePaths": [
+    ".planning/v2-g1/G1-S4-A-Q03-NOTICE/report.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NOTICE/provenance-matrix.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NOTICE/notice-source-offer-matrix.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NOTICE/bundle-file-list.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NOTICE/manifest.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NOTICE/README.md",
+    ".planning/v2-g1/G1-S4-A-Q03-NOTICE/commands.log"
+  ],
+  "q03Boundary": {
+    "mediaNativeNoticeStaticCoreReady": true,
+    "mediaNativeNoticeComplete": false,
+    "completeQ03Ready": false,
+    "q03Closed": false,
+    "finalEngineSelected": false,
+    "g1Passed": false,
+    "g2Entered": false
+  },
+  "next": {
+    "owner": "交付负责人 / 技术集成编排者",
+    "action": "消费 PARTIAL 文件清单；只有候选包与 runtime 证据另行获准时，才由相应角色生成最终 packaged SBOM、完整 notice/source bundle 与发行路径。",
+    "firstReadOnlyAction": "核验 manifest 与目录哈希后，读取 report.json -> provenance-matrix.json -> notice-source-offer-matrix.json -> bundle-file-list.json",
+    "stopCondition": "需要最终二进制、设备、服务器、外部发布、法律结论或 Q03/G1 决策时停止并交回负责人"
+  }
+}

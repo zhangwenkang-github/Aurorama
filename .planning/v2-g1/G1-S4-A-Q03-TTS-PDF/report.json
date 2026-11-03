@@ -1,0 +1,368 @@
+{
+  "schemaVersion": 1,
+  "taskId": "G1-S4-A-Q03-TTS-PDF",
+  "role": "Aurorama 2.0 G1-Q03 TTS voice 许可 / PDFium provenance 静态证据架构师",
+  "generatedAt": "2026-11-04T00:47:56+08:00",
+  "status": "TTS_PDF_PARTIAL / STATIC_EVIDENCE_DELIVERED / Q03_OPEN / G1_NOT_PASSED / NO_IMPLEMENTATION / RUNTIME_UNVERIFIED",
+  "identity": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "initialHead": "c01e7361b2e86d4773aa4823429f324f9ed7d3df",
+    "expectedHeadPrefix": "c01e7361",
+    "initialHeadMatchedExpected": true,
+    "initialWorktreeClean": true,
+    "finalHeadObserved": "22b40c446ee18a26955b0009fec706fd8b14439d",
+    "finalHeadParent": "c01e7361b2e86d4773aa4823429f324f9ed7d3df",
+    "finalHeadSubject": "docs(v2): record Q03 static evidence checkpoint",
+    "objectDriftDuringTask": true,
+    "objectDriftCausedByThisTask": false,
+    "shell": "pwsh"
+  },
+  "plan": {
+    "objective": "补齐既有 G1-S4-A-Q03-NATIVE 中 Sherpa/Piper TTS 与 io.legere PDFium 的静态许可、artifact hash、source/notice 与 16 KB 证据边界。",
+    "nonGoals": [
+      "实现或修改生产代码、Gradle、Manifest、资源或 schema",
+      "安装、下载或运行 TTS 模型，选择最终 voice 或引擎",
+      "构建 APK/AAB，执行设备、播放、服务器或 runtime 测试",
+      "关闭 Q03、宣告 G1 PASS、进入 G2、独立 QA 或 Release",
+      "提供法律意见、最终发布 notice 或上传项目文件"
+    ],
+    "expectedContext": "50k-80k tokens",
+    "checkpointRule": "250k checkpoint; stop before 300k and require handoff by 350k",
+    "stopConditions": [
+      "required evidence cannot be traced to the whitelist, local cached artifacts or official sources",
+      "task would require model/AAR download, installation, execution, device or server access",
+      "task would require engine/voice selection, implementation, legal conclusion or Q03 closure"
+    ]
+  },
+  "inputWhitelistActuallyRead": [
+    "AGENTS.md",
+    "docs/PROJECT_RULES.md R020/R025/R027/R028",
+    "docs/V2_PLAN.md sections 5.11.9/5.11.10/5.11.12 and Q03 status lines",
+    "docs/TASKS.md Q03 rows",
+    "docs/DECISIONS.md Q03 rows",
+    ".planning/v2-g1/G1-S4-C/report.json",
+    ".planning/v2-g1/G1-S4-C/option-matrix.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NATIVE/report.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NATIVE/provenance-matrix.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NATIVE/option-matrix.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NATIVE/manifest.json",
+    "Engramory MEMORY.md and relevant Aurorama/PDF/worktree entries"
+  ],
+  "evidenceCounts": {
+    "PROVEN": 9,
+    "PARTIAL": 2,
+    "BLOCKED": 10,
+    "total": 21
+  },
+  "evidenceRows": [
+    {
+      "id": "TTS-SHERPA-CODE-ARTIFACT",
+      "status": "PROVEN"
+    },
+    {
+      "id": "TTS-SHERPA-ORT",
+      "status": "PROVEN"
+    },
+    {
+      "id": "TTS-SHERPA-VOICE-MODEL",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "TTS-SHERPA-LEXICON-RULE",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "TTS-SHERPA-ESPEAK-BOUNDARY",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "TTS-PIPER-CODE",
+      "status": "PROVEN"
+    },
+    {
+      "id": "TTS-PIPER-VOICE-MODEL",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "TTS-PIPER-ESPEAK",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "TTS-PIPER-CHINESE-G2PW",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "TTS-PIPER-ANDROID-ORT",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "TTS-NOTICE-BUNDLE",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "PDF-WRAPPER-STABLE",
+      "status": "PROVEN"
+    },
+    {
+      "id": "PDF-WRAPPER-ALPHA",
+      "status": "PROVEN"
+    },
+    {
+      "id": "PDF-WRAPPER-LICENSE",
+      "status": "PROVEN"
+    },
+    {
+      "id": "PDF-NATIVE-TOP-LEVEL-LICENSE",
+      "status": "PROVEN"
+    },
+    {
+      "id": "PDF-NATIVE-REVISION-SOURCE",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "PDF-NATIVE-THIRD-PARTY-NOTICE",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "PDF-STATIC-16KB-STABLE",
+      "status": "PROVEN",
+      "gateResult": "FAIL_STATIC_REPORTED"
+    },
+    {
+      "id": "PDF-STATIC-16KB-ALPHA",
+      "status": "PROVEN",
+      "gateResult": "FAIL_STATIC_REPORTED"
+    },
+    {
+      "id": "PDF-RUNTIME-16KB",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "PDF-FINAL-NOTICE-SOURCE-BUNDLE",
+      "status": "BLOCKED"
+    }
+  ],
+  "keyConclusions": [
+    {
+      "topic": "TTS selection",
+      "conclusion": "No engine or voice is selected. Sherpa and Piper engine-code licenses do not resolve selected model, speaker, voice, lexicon, rule or espeak data licenses.",
+      "status": "BLOCKED"
+    },
+    {
+      "topic": "Sherpa identity",
+      "conclusion": "v2.0.1 is fixed at af2d8d81dbfa61c4cea4c568da78f3982edca005. The official standard and static-ORT AARs have fixed sizes and SHA-256 values.",
+      "status": "PROVEN"
+    },
+    {
+      "topic": "Sherpa espeak statement",
+      "conclusion": "v2.0.1 VITS and Matcha config headers state that data_dir is deprecated and ignored because espeak-ng is no longer used; no general claim is made for unselected model families.",
+      "status": "PROVEN_WITH_CONDITIONAL_BOUNDARY"
+    },
+    {
+      "topic": "Piper identity",
+      "conclusion": "v1.8.0 is fixed at 639388b6317fc4731e91d53da42aea68fd4166ff and setup.py declares GPL-3.0-or-later. The official release has six Python artifacts and zero Android binary artifacts.",
+      "status": "PROVEN"
+    },
+    {
+      "topic": "Piper espeak",
+      "conclusion": "eSpeak NG code/data is GPL-3.0-or-later, but two official build files pin different commits: 724808c... in root CMake and 212928b... in libpiper CMake. No Android build path is selected.",
+      "status": "PARTIAL"
+    },
+    {
+      "topic": "Piper Chinese g2pW",
+      "conclusion": "Chinese phonemization contains a urlopen download fallback for g2pw.tar.gz; the archive/model hashes and complete redistribution set are not fixed. Offline packaging must remove this fallback and prove it later at runtime.",
+      "status": "BLOCKED"
+    },
+    {
+      "topic": "PDF wrapper identity",
+      "conclusion": "2.0.3 and 3.0.4-alpha01 wrapper tags/commits, all aggregate/core/api AAR SHA-256 values and source JAR SHA-256 values are fixed.",
+      "status": "PROVEN"
+    },
+    {
+      "topic": "PDF native revision",
+      "conclusion": "The four libpdfium.so Git blobs are identical across the two tags, but no exact PDFium revision, DEPS, GN args or third-party inventory exists in the published wrapper evidence.",
+      "status": "BLOCKED"
+    },
+    {
+      "topic": "PDF license boundary",
+      "conclusion": "Apache-2.0 describes the wrapper; native PDFium top-level BSD-3-Clause is a separate notice layer. Neither proves all statically linked third-party notices.",
+      "status": "PROVEN_FOR_SEPARATION / BLOCKED_FOR_COMPLETENESS"
+    },
+    {
+      "topic": "PDF 16 KB",
+      "conclusion": "Issue #56 remains Open and reports 64-bit GNU_RELRO end-boundary failures for both audited core AAR versions. This is a static failure report, not a runtime crash result and not runtime compatibility evidence.",
+      "status": "FAIL_STATIC_REPORTED / RUNTIME_BLOCKED"
+    },
+    {
+      "topic": "Final packaged notices",
+      "conclusion": "The deterministic bundle schema is fixed, but the final bundle cannot be generated without selected TTS assets/native PDFium source, packaged-file SBOM and notice/source joins.",
+      "status": "BLOCKED"
+    }
+  ],
+  "priorities": {
+    "P0": [],
+    "P1": [
+      "No selected Sherpa/Piper voice means model-card and asset licenses cannot be approved.",
+      "Sherpa lexicon/rule/dictionary and Piper g2pW/espeak data are not fixed as a packaged set.",
+      "PDFium native source revision and third-party notice inventory remain unavailable.",
+      "Issue #56 keeps both audited PDFium versions from passing the static 16 KB gate."
+    ],
+    "P2": [
+      "Piper has no official Android binary and exposes two different official eSpeak build pins.",
+      "No relevant AAR/JAR exists in the allowed local Gradle cache, preventing AAR-entry and local ELF re-inspection.",
+      "Sherpa and Piper licenses only cover code until a concrete model/voice decision is made."
+    ],
+    "P3": [
+      "PDFium 3.0.4-alpha01 is prerelease and carries the same libpdfium.so Git blobs as 2.0.3.",
+      "The wrapper POM license metadata is insufficient for a packaged native notice bundle."
+    ]
+  },
+  "blocked": [
+    {
+      "id": "BLOCKED-TTS-VOICE-MODEL-LICENSE",
+      "reason": "No Sherpa/Piper voice/model is selected; model card, file hashes and redistribution terms are absent."
+    },
+    {
+      "id": "BLOCKED-TTS-LEXICON-RULE",
+      "reason": "The final tokens/lexicon/dictionary/rule data set is model-dependent and not selected."
+    },
+    {
+      "id": "BLOCKED-TTS-PIPER-G2PW",
+      "reason": "The g2pW archive/model hashes and complete license bundle are not fixed; source has a runtime download fallback."
+    },
+    {
+      "id": "BLOCKED-TTS-PIPER-ANDROID",
+      "reason": "Piper v1.8.0 has no official Android artifact and no selected JNI/ONNX Runtime/eSpeak build path."
+    },
+    {
+      "id": "BLOCKED-PDFIUM-NATIVE-REVISION",
+      "reason": "Wrapper tags do not identify the exact PDFium native source revision or build configuration."
+    },
+    {
+      "id": "BLOCKED-PDFIUM-THIRD-PARTY-NOTICE",
+      "reason": "No exact PDFium revision means no complete DEPS/third-party notice/source inventory."
+    },
+    {
+      "id": "BLOCKED-PDFIUM-16KB",
+      "reason": "Open issue #56 reports both audited versions failing the 64-bit GNU_RELRO end-boundary check."
+    },
+    {
+      "id": "BLOCKED-PDFIUM-RUNTIME",
+      "reason": "No candidate package/device runtime; 16 KB behavior and Range behavior are outside this task."
+    },
+    {
+      "id": "BLOCKED-TTS-PDF-FINAL-NOTICE",
+      "reason": "Final engine/voice selection, packaged-file SBOM and complete native notice/source inputs do not exist."
+    },
+    {
+      "id": "BLOCKED-LOCAL-AAR-INSPECTION",
+      "reason": "Allowed local Gradle caches contained no relevant Sherpa/Piper/PDFium AAR or JAR, and downloading artifacts is outside this task."
+    }
+  ],
+  "uncovered": [
+    "Selected Chinese voice quality, first-audio latency, RTF, memory, battery, pause/resume and zero-network behavior",
+    "Piper Android JNI/ONNX Runtime/eSpeak build and runtime",
+    "PDFium Range/206, cancellation, weak network, large-file memory and 16 KB device behavior",
+    "Candidate APK/AAB packaged-file SBOM, final notice bundle, corresponding source bundle and legal approval",
+    "Any engine, model, voice or PDF migration selection",
+    "Any device, server, playback, installation, download or runtime action"
+  ],
+  "executed": [
+    "Verified worktree, branch, expected HEAD and initial clean state",
+    "Read only whitelisted rules, Q03 document segments and existing reports/matrices/manifests",
+    "Searched allowed local Gradle caches for relevant AAR/JAR/POM files; found zero relevant artifacts",
+    "Resolved official Sherpa/Piper/PDFium tags and commits with git ls-remote",
+    "Inspected official license/build/config files using blob-filtered no-checkout upstream metadata",
+    "Verified Sherpa release AAR sizes and SHA-256 values from GitHub release metadata and HTTP HEAD",
+    "Verified six PDFium AAR and six source-JAR sizes plus SHA-256 sidecars from Maven Central",
+    "Verified four PDFium raw libpdfium.so Git blob IDs are identical across both tags",
+    "Observed current Open state and reported 16 KB RELRO values on official PDFium wrapper issue #56",
+    "Observed current Open state and maintainer weekly-build/no-inventory response on official issue #54",
+    "Observed final HEAD drift from c01e7361 to 22b40c44; verified it is a direct documentation-only child commit and preserved it",
+    "Parsed the four source JSON evidence files with ConvertFrom-Json before manifest generation",
+    "Validated 41 unique HTTPS URLs by syntax; 38 returned HTTP 200, PDFium source was verified by git ls-remote, and two official hosts timed out from the local network",
+    "Scanned all JSON files for common credential and private-key patterns; zero hits",
+    "Removed only task-created temporary research repositories after evidence extraction"
+  ],
+  "notExecuted": [
+    "No model, AAR or large source download",
+    "No install, Gradle build, APK/AAB generation, model inference, audio playback or device access",
+    "No server or account access",
+    "No AAR entry inspection or local readelf reproduction",
+    "No engine/voice/model/PDF migration selection",
+    "No Q03 closure, G1 PASS, implementation, independent QA, Release, commit or push"
+  ],
+  "evidencePaths": [
+    ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/report.json",
+    ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/tts-license-matrix.json",
+    ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/pdfium-provenance.json",
+    ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/notice-source-inventory.json",
+    ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/manifest.json"
+  ],
+  "verification": {
+    "jsonParse": "ALL_JSON_PASS; MANIFEST_VALIDATED",
+    "manifestSelfExclusion": true,
+    "manifestEntries": 4,
+    "manifestSha256": "REPORTED_OUT_OF_BAND_TO_AVOID_SELF_REFERENCE",
+    "urls": {
+      "uniqueCount": 41,
+      "http200Count": 38,
+      "gitVerifiedCount": 1,
+      "networkTimeoutCount": 2,
+      "networkTimeoutUrls": [
+        "https://developer.android.com/guide/practices/page-sizes",
+        "https://huggingface.co/datasets/rhasspy/piper-checkpoints/resolve/main/zh/zh_CN/_resources/g2pw.tar.gz?download=true"
+      ],
+      "result": "PARTIAL"
+    },
+    "sensitiveValues": "PASS",
+    "licenseFullTextAbsent": "PASS",
+    "workingTreeScope": {
+      "result": "PASS_FOR_THIS_TASK",
+      "taskChangedPaths": [
+        ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/"
+      ],
+      "unrelatedConcurrentUntrackedPathsPreserved": [
+        ".planning/v2-g1/G1-S4-A-Q03-NOTICE/"
+      ],
+      "currentHeadObserved": "22b40c446ee18a26955b0009fec706fd8b14439d"
+    }
+  },
+  "q03Boundary": {
+    "q03Closed": false,
+    "g1Passed": false,
+    "engineSelected": false,
+    "voiceSelected": false,
+    "implementationStarted": false,
+    "runtimeProven": false,
+    "downstream": "Still requires user decisions, selected voice/model and PDFium source/16 KB inputs, candidate packaged SBOM/notice/source, then separately authorized runtime gates."
+  },
+  "contextWatermark": {
+    "model": "deepseek-flash",
+    "inputTokens": 321827,
+    "contextWindow": 1048576,
+    "percentUsed": 30.7,
+    "cacheHitPercent": 99.9,
+    "sessionRequests": 973,
+    "measuredAt": "2026-11-04T00:52:10+08:00",
+    "thresholdState": "ABOVE_300K_HANDOFF_PREP_REQUIRED; BELOW_350K_HARD_STOP",
+    "checkpointAt": 250000,
+    "handoffAt": 300000,
+    "hardStopAt": 350000
+  },
+  "memoryCheckpoint": {
+    "status": "SKIPPED_BY_EXPLICIT_WRITE_BOUNDARY",
+    "reason": "The task permits writes only inside the evidence directory, so the canonical Engramory store is left unchanged."
+  },
+  "next": {
+    "owner": "交付负责人 / 技术集成编排者",
+    "firstReadOnlyAction": "Verify manifest SHA-256 and file count/bytes, then read report.json -> tts-license-matrix.json -> pdfium-provenance.json -> notice-source-inventory.json.",
+    "nextActions": [
+      "Keep Q03 Open and use this package as static input only.",
+      "If continuing static closure, obtain an explicit voice/model choice and exact PDFium native revision/third-party inventory without selecting on the user's behalf.",
+      "If proceeding later to runtime, start a separately authorized fresh role after implementation/candidate eligibility."
+    ],
+    "stopCondition": "Stop on object drift, need to download models/AARs, install/run code, access devices/servers, make legal decisions, select engine/voice, close Q03 or enter G2/implementation."
+  }
+}

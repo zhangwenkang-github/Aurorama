@@ -1,0 +1,432 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "G1-S4-A-Q03-NOTICE",
+  "generatedAt": "2026-11-04T00:43:38+08:00",
+  "statusMeaning": {
+    "PROVEN": "固定版本、commit/blob、许可文件或否证事实已由官方源与本地制品交叉核对。",
+    "PARTIAL": "核心事实已固定，但 exact final binary、完整依赖闭包、重构建或可分发制品仍不完整。",
+    "BLOCKED": "需要最终候选包、完整源码/notice 包、法律判断或 runtime/device 证据，当前不得写成 PASS。"
+  },
+  "counts": {
+    "PROVEN": 13,
+    "PARTIAL": 4,
+    "BLOCKED": 7,
+    "total": 24
+  },
+  "rows": [
+    {
+      "id": "M3-01",
+      "group": "Media3/Jellyfin",
+      "claim": "Media3、Jellyfin decoder 与 Maven 制品可精确 pin 且本地/官方 SHA-256 一致。",
+      "status": "PROVEN",
+      "evidence": [
+        "Media3 1.11.1 annotated tag=915b73c447aed6471aa33380a95126121a79375d, peel=8c6678b657ede1e7883fc164ef73ed483c7796c3",
+        "Jellyfin v1.9.0+1=af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396",
+        "media3-exoplayer:1.11.1 AAR SHA-256=588592BAEC110837C33CE0C82BB76464203E6B0621177BBE5D88779001A6F1ED",
+        "media3-ffmpeg-decoder:1.9.0+1 AAR SHA-256=DFC726C8BC9D9DB02E15B160F886A03BDD6DD51E88BA2DE89AA74CAF5E8CD181",
+        "两边 AAR .sha256 与本地 Get-FileHash 一致"
+      ],
+      "sources": [
+        "https://github.com/androidx/media/tree/8c6678b657ede1e7883fc164ef73ed483c7796c3",
+        "https://github.com/jellyfin/jellyfin-androidx-media/tree/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396",
+        "https://dl.google.com/android/maven2/androidx/media3/media3-exoplayer/1.11.1/media3-exoplayer-1.11.1.aar.sha256",
+        "https://repo1.maven.org/maven2/org/jellyfin/media3/media3-ffmpeg-decoder/1.9.0%2B1/media3-ffmpeg-decoder-1.9.0%2B1.aar.sha256"
+      ],
+      "scope": "artifact pin only"
+    },
+    {
+      "id": "M3-02",
+      "group": "Media3 wrapper",
+      "claim": "Media3 1.11.1 wrapper 许可为 Apache-2.0，许可文件可固定到 blob。",
+      "status": "PROVEN",
+      "evidence": [
+        "POM license=The Apache Software License, Version 2.0",
+        "LICENSE blob=d645695673349e3947e8e5ae42332d0ac3164cd7, 11358 B at Media3 1.11.1",
+        "Media3 AAR entries=173, license/notice matches=0"
+      ],
+      "sources": [
+        "https://github.com/androidx/media/blob/8c6678b657ede1e7883fc164ef73ed483c7796c3/LICENSE",
+        "https://dl.google.com/android/maven2/androidx/media3/media3-exoplayer/1.11.1/media3-exoplayer-1.11.1.pom"
+      ],
+      "scope": "wrapper metadata and exact license source file; not full transitive notice set"
+    },
+    {
+      "id": "M3-03",
+      "group": "Jellyfin native",
+      "claim": "Jellyfin decoder 的 FFmpeg native recipe 精确指向 media 1.9.0 与 FFmpeg 6.0.2，且未启用 GPL/version3。",
+      "status": "PROVEN",
+      "evidence": [
+        "Jellyfin media gitlink=7cc1056f840ce226598d3b990d4a6f7cd17e2831",
+        "Jellyfin ffmpeg gitlink=37c90f55d8b6c3948c79449b04755527b4ae1351, RELEASE=6.0.2",
+        "build_ffmpeg.sh blob=e0a9aa4f8441fbaf67d7a0d7c20043ae96261c30, 4153 B",
+        "COMMON_OPTIONS contains --enable-static --disable-shared --disable-everything; no --enable-gpl or --enable-version3",
+        "enabled decoders=flac, alac, pcm_mulaw, pcm_alaw, mp3, aac, ac3, eac3, dca, mlp, truehd"
+      ],
+      "sources": [
+        "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/build.sh",
+        "https://github.com/androidx/media/blob/7cc1056f840ce226598d3b990d4a6f7cd17e2831/libraries/decoder_ffmpeg/src/main/jni/build_ffmpeg.sh",
+        "https://github.com/FFmpeg/FFmpeg/blob/37c90f55d8b6c3948c79449b04755527b4ae1351/RELEASE"
+      ],
+      "scope": "source-recipe direction; exact AAR build invocation is a separate row"
+    },
+    {
+      "id": "M3-04",
+      "group": "Media3/Jellyfin",
+      "claim": "三个受审 AAR 本身没有可复制的 license/notice inventory；这是否证事实，不是许可合规证明。",
+      "status": "PROVEN",
+      "evidence": [
+        "media3-exoplayer-1.11.1.aar entries=173, matches=0",
+        "media3-ffmpeg-decoder-1.9.0+1.aar entries=14, matches=0",
+        "libmpv-1.0.0.aar entries=50, matches=0"
+      ],
+      "sources": [
+        "https://dl.google.com/android/maven2/androidx/media3/media3-exoplayer/1.11.1/media3-exoplayer-1.11.1.aar",
+        "https://repo1.maven.org/maven2/org/jellyfin/media3/media3-ffmpeg-decoder/1.9.0%2B1/media3-ffmpeg-decoder-1.9.0%2B1.aar",
+        "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/1.0.0/libmpv-1.0.0.aar"
+      ],
+      "scope": "embedded AAR entry inventory only"
+    },
+    {
+      "id": "M3-05",
+      "group": "Jellyfin integration",
+      "claim": "Jellyfin sources JAR/recipe 不承担 FFmpeg native 源码，source bundle 必须显式加入 FFmpeg 6.0.2 与 build script。",
+      "status": "PROVEN",
+      "evidence": [
+        "media3-ffmpeg-decoder/build.gradle.kts blob=01ab39c38739d2ab24753b8aa121916be2e70e50",
+        "sourcesJar excludes **/ffmpeg/",
+        "root .gitmodules blob=4accf0520397061fb20a1efeab8cbb1327ecfe86",
+        "root build.sh blob=af0392d79952b5535e0c9c3ee333b8b97b1f5c96"
+      ],
+      "sources": [
+        "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/media3-ffmpeg-decoder/build.gradle.kts",
+        "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/.gitmodules"
+      ],
+      "scope": "source-bundle composition requirement"
+    },
+    {
+      "id": "MPV-01",
+      "group": "libmpv wrapper",
+      "claim": "libmpv 1.0.0 wrapper、POM 与 Maven AAR 可精确 pin，官方 SHA-256 与本地一致。",
+      "status": "PROVEN",
+      "evidence": [
+        "tag v1.0.0=fcf6745703dc1265bca88f12fee8fc355ddf251e",
+        "libmpv-1.0.0.aar SHA-256=DF146592480FC8418415A06B1F1A1D6318B0088E21F52254B0E9A82B61CA8FA2",
+        "POM SHA-256=38F1ECF8ADE2D44FF8DD867B74DBEABC6CA6ECB8EF5803471F1E705D4975E6D5"
+      ],
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/tree/fcf6745703dc1265bca88f12fee8fc355ddf251e",
+        "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/1.0.0/libmpv-1.0.0.aar.sha256"
+      ],
+      "scope": "artifact pin only"
+    },
+    {
+      "id": "MPV-02",
+      "group": "libmpv chain",
+      "claim": "mpv、FFmpeg、libass 的 tag annotated object 与 peel commit 均已固定。",
+      "status": "PROVEN",
+      "evidence": [
+        "mpv v0.41.0 tag=2c219aa822df18a1b7fd9abe3e151cd93ad67307, peel=41f6a645068483470267271e1d09966ca3b9f413",
+        "FFmpeg n8.1 tag=a65b3bfe9dacc3b20597ef199d0afdd8bc8128e2, peel=9047fa1b084f76b1b4d065af2d743df1b40dfb56",
+        "libass 0.17.4 tag=e81dec4065332a907792af50e68b4a749e476718, peel=bbb3c7f1570a4a021e52683f3fbdf74fe492ae84"
+      ],
+      "sources": [
+        "https://github.com/mpv-player/mpv/tree/41f6a645068483470267271e1d09966ca3b9f413",
+        "https://github.com/FFmpeg/FFmpeg/tree/9047fa1b084f76b1b4d065af2d743df1b40dfb56",
+        "https://github.com/libass/libass/tree/bbb3c7f1570a4a021e52683f3fbdf74fe492ae84"
+      ],
+      "scope": "source identity only"
+    },
+    {
+      "id": "MPV-03",
+      "group": "libmpv build",
+      "claim": "libmpv v1.0.0 的构建配方、声明依赖树和关键 flag 可固定到 blob。",
+      "status": "PROVEN",
+      "evidence": [
+        "depinfo.sh blob=81076694c6ed50247bc030161e2f030e91849e70, 764 B",
+        "download-deps.sh blob=282ab5707632974a3cdcb513a9f560c1455a45ca, 1885 B",
+        "mpv.sh blob=92f16a388b43d1a4a3d803b4b11a8b811579c5a1",
+        "ffmpeg.sh blob=acf4a81d69a86fe565cb3b961d036d2f4c9a3168",
+        "libass.sh blob=87636304e454941785a7730e1acd8a9c9c95200a",
+        "dep_mpv=(ffmpeg libass lua libplacebo); libass enables static and links into libmpv.so"
+      ],
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/depinfo.sh",
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/scripts/mpv.sh"
+      ],
+      "scope": "source recipe only"
+    },
+    {
+      "id": "MPV-04",
+      "group": "mpv license",
+      "claim": "实际 libmpv 构建没有关闭 GPL；按 mpv 0.41.0 源码默认，mpv 组件是 GPL-2.0-or-later，而不是仅凭二进制字符串写成 LGPL。",
+      "status": "PROVEN",
+      "evidence": [
+        "mpv Copyright states GPLv2+ is default and -Dgpl=false is required for LGPL mode",
+        "meson.options blob=52782f73d61c2b6a9d5fb5cd1e2ba2fd23bedf70 declares gpl default=true",
+        "libmpv mpv.sh meson setup has no -Dgpl=false; wrapper git grep finds no -Dgpl=false"
+      ],
+      "sources": [
+        "https://github.com/mpv-player/mpv/blob/41f6a645068483470267271e1d09966ca3b9f413/Copyright",
+        "https://github.com/mpv-player/mpv/blob/41f6a645068483470267271e1d09966ca3b9f413/meson.options",
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/scripts/mpv.sh"
+      ],
+      "scope": "build-intent license boundary; final binary attestation remains BLOCKED"
+    },
+    {
+      "id": "MPV-05",
+      "group": "FFmpeg license",
+      "claim": "libmpv 内嵌 FFmpeg n8.1 的 recipe 显式启用 GPL 与 version3，许可方向为 GPL-3.0-or-later。",
+      "status": "PROVEN",
+      "evidence": [
+        "ffmpeg.sh blob=acf4a81d69a86fe565cb3b961d036d2f4c9a3168 says --enable-{gpl,version3}",
+        "FFmpeg n8.1 LICENSE.md says --enable-gpl changes license to GPL v2+; --enable-version3 selects version 3",
+        "existing AAR embedded configuration includes --enable-gpl --enable-version3 and libavutil self-report GPL version 3 or later"
+      ],
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/scripts/ffmpeg.sh",
+        "https://github.com/FFmpeg/FFmpeg/blob/9047fa1b084f76b1b4d065af2d743df1b40dfb56/LICENSE.md"
+      ],
+      "scope": "build-intent license boundary"
+    },
+    {
+      "id": "MPV-06",
+      "group": "libmpv wrapper license",
+      "claim": "libmpv Android wrapper 自身许可为 MIT，不能覆盖 native 链。",
+      "status": "PROVEN",
+      "evidence": [
+        "wrapper LICENSE blob=81d2ff31ab3e434d6f67fa5ac1e15e345f175db6, 1099 B",
+        "Maven POM license name=MIT license"
+      ],
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/LICENSE",
+        "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/1.0.0/libmpv-1.0.0.pom"
+      ],
+      "scope": "wrapper only"
+    },
+    {
+      "id": "MPV-07",
+      "group": "libass license",
+      "claim": "libass 0.17.4 许可文件固定为 ISC 文本。",
+      "status": "PROVEN",
+      "evidence": [
+        "COPYING blob=3ff0e11457a6edccfab065cae0f905a6e1ed80ee, 755 B",
+        "commit=bbb3c7f1570a4a021e52683f3fbdf74fe492ae84"
+      ],
+      "sources": [
+        "https://github.com/libass/libass/blob/bbb3c7f1570a4a021e52683f3fbdf74fe492ae84/COPYING"
+      ],
+      "scope": "license classification only"
+    },
+    {
+      "id": "MPV-08",
+      "group": "libmpv notice anchors",
+      "claim": "核心 notice/source 锚点文件已形成可确定打包路径，且每个文件有 commit、blob 与字节数。",
+      "status": "PROVEN",
+      "evidence": [
+        "mpv Copyright=61d3a038e75a28fdf40ec229b2c38f98d8ee8c16",
+        "mpv LICENSE.GPL=9efa6fbc962836e243e20f7f23db062e2c077d28",
+        "FFmpeg n8.1 COPYING.GPLv3=94a9ed024d3859793618152ea559a168bbcbb5e2",
+        "libass COPYING=3ff0e11457a6edccfab065cae0f905a6e1ed80ee",
+        "完整机器可读清单见 bundle-file-list.json"
+      ],
+      "sources": [
+        "https://github.com/mpv-player/mpv/blob/41f6a645068483470267271e1d09966ca3b9f413/Copyright",
+        "https://github.com/FFmpeg/FFmpeg/blob/9047fa1b084f76b1b4d065af2d743df1b40dfb56/COPYING.GPLv3",
+        "https://github.com/libass/libass/blob/bbb3c7f1570a4a021e52683f3fbdf74fe492ae84/COPYING"
+      ],
+      "scope": "core top-level anchors only"
+    },
+    {
+      "id": "M3-06",
+      "group": "Jellyfin wrapper license",
+      "claim": "Jellyfin wrapper 的 POM/LICENSE 明确是 GPLv3 文本族，但仓库未给出可证明的 only 或 or-later 限定。",
+      "status": "PARTIAL",
+      "evidence": [
+        "POM name=GNU General Public License v3.0",
+        "LICENSE blob=f288702d2fa16d3cdf0035b15a9fcbc552cd88e7, 35149 B",
+        "git grep did not find an explicit SPDX qualifier for the wrapper product"
+      ],
+      "sources": [
+        "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/LICENSE",
+        "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/media3-ffmpeg-decoder/build.gradle.kts"
+      ],
+      "scope": "license family proven; exact SPDX only/or-later is unresolved"
+    },
+    {
+      "id": "M3-07",
+      "group": "Jellyfin native provenance",
+      "claim": "源码 recipe 指向 LGPL-2.1+ native 方向，但 Maven AAR 的实际 invocation、configure output 与 build attestation 未归档。",
+      "status": "PARTIAL",
+      "evidence": [
+        "FFmpeg 6.0.2 LICENSE.md states default combination is LGPL-2.1+ and GPL parts require --enable-gpl",
+        "exact Media3 1.9.0 build_ffmpeg.sh has neither --enable-gpl nor --enable-version3",
+        "no archived AAR-specific build log/config.h or CI artifact attestation"
+      ],
+      "sources": [
+        "https://github.com/FFmpeg/FFmpeg/blob/37c90f55d8b6c3948c79449b04755527b4ae1351/LICENSE.md",
+        "https://repo1.maven.org/maven2/org/jellyfin/media3/media3-ffmpeg-decoder/1.9.0%2B1/media3-ffmpeg-decoder-1.9.0%2B1.aar.sha256"
+      ],
+      "previous": "M3-04 PARTIAL",
+      "scope": "not proof of the exact published binary configuration"
+    },
+    {
+      "id": "MPV-09",
+      "group": "libmpv dependency closure",
+      "claim": "声明的 10 个静态/随包依赖版本可读，但 Lua 无不可变 digest，mbedtls/libplacebo 递归子模块与逐依赖 license/notice 文件尚未冻结。",
+      "status": "PARTIAL",
+      "evidence": [
+        "depinfo.sh fixes mbedtls 3.6.6, dav1d 1.5.3, freetype 2.14.3, fribidi 1.0.16, harfbuzz 14.1.0, libunibreak 6.1, libxml2 2.15.2, fontconfig 2.17.1, libplacebo 7.360.1, lua 5.2.4",
+        "8 git dependency tags were peeled to commits during this audit; libunibreak 6.1=304585d8e2d63187507368d612c3d5fff1486368",
+        "Lua remains an official URL without verified archive SHA-256",
+        "recursive submodules and per-dependency license/notice files not acquired"
+      ],
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/depinfo.sh",
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/download-deps.sh",
+        "https://www.lua.org/ftp/lua-5.2.4.tar.gz"
+      ],
+      "scope": "declared closure, not complete legal inventory"
+    },
+    {
+      "id": "X-01",
+      "group": "Cross-cutting",
+      "claim": "候选 notice/source 文件清单已机器可读，但仍是 PARTIAL，不包含最终候选包独有的 transitive 文件与生成物。",
+      "status": "PARTIAL",
+      "evidence": [
+        "bundle-file-list.json contains exact target paths, commits, Git blob IDs and bytes for core anchors",
+        "missingBeforeComplete explicitly lists NDK/libc++, secondary dependency notices, generated NOTICE, build logs, source archives and final packaged SBOM"
+      ],
+      "sources": [
+        "https://www.apache.org/licenses/LICENSE-2.0",
+        "https://www.gnu.org/licenses/gpl-3.0.html"
+      ],
+      "previous": "M3-05 / MPV-05 / X-02 BLOCKED",
+      "scope": "candidate file map only"
+    },
+    {
+      "id": "M3-08",
+      "group": "Media3 final package",
+      "claim": "Media3 + Jellyfin decoder 的最终 APK/AAB packaged notice 与对应源码包不存在。",
+      "status": "BLOCKED",
+      "evidence": [
+        "No candidate release APK/AAB generated by this task",
+        "AARs contain zero notice entries",
+        "Media3 1.11.1 and decoder 1.9.0+1 source roots differ; final source offer must include both plus FFmpeg 6.0.2"
+      ],
+      "sources": [
+        "https://github.com/androidx/media/tree/8c6678b657ede1e7883fc164ef73ed483c7796c3",
+        "https://github.com/jellyfin/jellyfin-androidx-media/tree/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396"
+      ],
+      "scope": "final distribution closure"
+    },
+    {
+      "id": "M3-09",
+      "group": "Media3 runtime",
+      "claim": "Media3 1.11.1 与 decoder 1.9.0+1 的真实 JNI/API/decode 兼容仍需 runtime/device。",
+      "status": "BLOCKED",
+      "evidence": [
+        "S4-B proves static references/JNI/ELF only",
+        "no device/playback execution is allowed by this task"
+      ],
+      "sources": [
+        "https://github.com/androidx/media/tree/8c6678b657ede1e7883fc164ef73ed483c7796c3",
+        "https://github.com/jellyfin/jellyfin-androidx-media/tree/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396"
+      ],
+      "gate": "GATE-MEDIA3-RUNTIME"
+    },
+    {
+      "id": "MPV-10",
+      "group": "libmpv complete notices",
+      "claim": "mpv/FFmpeg/libass 核心许可证可定位，但完整静态依赖、copyright 与 NOTICE 汇聚尚未完成。",
+      "status": "BLOCKED",
+      "evidence": [
+        "libmpv AAR notice matches=0",
+        "dependency closure includes mbedtls, dav1d, freetype, fontconfig, fribidi, harfbuzz, libunibreak, libxml2, lua and libplacebo",
+        "their exact distributable notice files and recursive submodule identities are not frozen"
+      ],
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/depinfo.sh",
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/download-deps.sh"
+      ],
+      "previous": "MPV-05 BLOCKED; core anchors upgraded, full set remains BLOCKED"
+    },
+    {
+      "id": "MPV-11",
+      "group": "libmpv source offer",
+      "claim": "实际 libmpv source bundle、configure outputs、copyright/notice generator 与 written offer 不存在。",
+      "status": "BLOCKED",
+      "evidence": [
+        "No source archive assembled",
+        "No generated component NOTICE",
+        "No distribution URL or written offer artifact",
+        "Build scripts use mutable tags and unpinned apt/pip/action inputs"
+      ],
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/.github/workflows/publish.yaml",
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/download-deps.sh"
+      ],
+      "gate": "GATE-NATIVE-SOURCE-OFFER"
+    },
+    {
+      "id": "MPV-12",
+      "group": "libmpv reproducibility",
+      "claim": "AAR 哈希已固定，但无法独立重建同字节 AAR 或证明 final binary exact provenance。",
+      "status": "BLOCKED",
+      "evidence": [
+        "download-deps.sh clones tag refs rather than commits",
+        "publish workflow uses mutable actions major tags and ubuntu-latest",
+        "apt/pip packages are not digest pinned",
+        "no build attestation or independent rebuild evidence"
+      ],
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/.github/workflows/publish.yaml",
+        "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/1.0.0/libmpv-1.0.0.aar.sha256"
+      ],
+      "gate": "GATE-REPRODUCIBLE-PROVENANCE"
+    },
+    {
+      "id": "MPV-13",
+      "group": "libmpv runtime",
+      "claim": "Media3、libmpv 与 ass-kt 的载入顺序、符号解析与真实解码仍需 runtime/device。",
+      "status": "BLOCKED",
+      "evidence": [
+        "S4-B finds 461 same-name FFmpeg exports and 217 libass exports",
+        "no load-order or playback execution by design"
+      ],
+      "sources": [
+        "https://github.com/mpv-player/mpv/tree/41f6a645068483470267271e1d09966ca3b9f413",
+        "https://github.com/FFmpeg/FFmpeg/tree/9047fa1b084f76b1b4d065af2d743df1b40dfb56"
+      ],
+      "gate": "GATE-MEDIA-RUNTIME"
+    },
+    {
+      "id": "X-02",
+      "group": "Cross-cutting",
+      "claim": "最终候选 packaged SBOM、notice bundle、对应源码包与 written offer 尚未形成。",
+      "status": "BLOCKED",
+      "evidence": [
+        "No final candidate APK/AAB built",
+        "No final packaged-file inventory",
+        "No final source bundle or offer URL",
+        "No legal review"
+      ],
+      "sources": [
+        "https://www.apache.org/licenses/LICENSE-2.0",
+        "https://www.gnu.org/licenses/gpl-3.0.html"
+      ],
+      "previous": "X-02 BLOCKED"
+    }
+  ],
+  "runtimeOnlyGates": [
+    "M3-09 Media3 1.11.1 ↔ Jellyfin decoder JNI/API/decode",
+    "MPV-13 Media3 ↔ libmpv ↔ ass-kt load order, symbol resolution and playback"
+  ],
+  "packageOnlyGates": [
+    "M3-08 Media3/Jellyfin final package notice/source",
+    "MPV-10 complete static dependency notices",
+    "MPV-11 source bundle and offer",
+    "MPV-12 reproducible exact binary provenance",
+    "X-01 final candidate inventory generation",
+    "X-02 final packaged SBOM / notice / corresponding source"
+  ]
+}

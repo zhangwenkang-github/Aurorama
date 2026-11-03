@@ -1,0 +1,504 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "G1-S4-A-Q03-NOTICE",
+  "generatedAt": "2026-11-04T00:43:38+08:00",
+  "status": "PARTIAL",
+  "purpose": "Deterministic candidate map for a future packaged notice/source bundle; not the bundle itself.",
+  "bundlePolicy": {
+    "encoding": "UTF-8 without BOM",
+    "lineEndings": "LF",
+    "paths": "Forward-slash logical paths; destination root is relative to the future distribution bundle.",
+    "licenseTextPolicy": "Copy exact upstream bytes after acquisition; this evidence file lists paths and hashes only.",
+    "sourcePolicy": "Pin all source roots to commits; never resolve a mutable tag at bundle creation time.",
+    "generatedNoticePolicy": "Generate from the candidate packaged-file SBOM, then attach copyright and special-attribution text required by each license."
+  },
+  "artifactPins": [
+    {
+      "component": "Media3 wrapper",
+      "coordinate": "androidx.media3:media3-exoplayer:1.11.1",
+      "aarBytes": 1703377,
+      "aarSha256": "588592BAEC110837C33CE0C82BB76464203E6B0621177BBE5D88779001A6F1ED",
+      "pomBytes": 2974,
+      "pomSha256": "F540FD426F3ED2CF58792FAD094052876817D764F88B2A072E530105DFE9D797",
+      "aarUrl": "https://dl.google.com/android/maven2/androidx/media3/media3-exoplayer/1.11.1/media3-exoplayer-1.11.1.aar",
+      "sha256Url": "https://dl.google.com/android/maven2/androidx/media3/media3-exoplayer/1.11.1/media3-exoplayer-1.11.1.aar.sha256",
+      "pomSha256Url": "https://dl.google.com/android/maven2/androidx/media3/media3-exoplayer/1.11.1/media3-exoplayer-1.11.1.pom.sha256"
+    },
+    {
+      "component": "Jellyfin FFmpeg decoder wrapper",
+      "coordinate": "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1",
+      "aarBytes": 2913028,
+      "aarSha256": "DFC726C8BC9D9DB02E15B160F886A03BDD6DD51E88BA2DE89AA74CAF5E8CD181",
+      "pomBytes": 2101,
+      "pomSha256": "B6E0DA47B95716E304F34ED72BE46068A3C6ADEF69A4E0901053045A682EEDFD",
+      "aarUrl": "https://repo1.maven.org/maven2/org/jellyfin/media3/media3-ffmpeg-decoder/1.9.0%2B1/media3-ffmpeg-decoder-1.9.0%2B1.aar",
+      "sha256Url": "https://repo1.maven.org/maven2/org/jellyfin/media3/media3-ffmpeg-decoder/1.9.0%2B1/media3-ffmpeg-decoder-1.9.0%2B1.aar.sha256",
+      "pomSha256Url": "https://repo1.maven.org/maven2/org/jellyfin/media3/media3-ffmpeg-decoder/1.9.0%2B1/media3-ffmpeg-decoder-1.9.0%2B1.pom.sha256"
+    },
+    {
+      "component": "libmpv Android wrapper",
+      "coordinate": "dev.jdtech.mpv:libmpv:1.0.0",
+      "aarBytes": 47574467,
+      "aarSha256": "DF146592480FC8418415A06B1F1A1D6318B0088E21F52254B0E9A82B61CA8FA2",
+      "pomBytes": 1978,
+      "pomSha256": "38F1ECF8ADE2D44FF8DD867B74DBEABC6CA6ECB8EF5803471F1E705D4975E6D5",
+      "aarUrl": "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/1.0.0/libmpv-1.0.0.aar",
+      "sha256Url": "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/1.0.0/libmpv-1.0.0.aar.sha256",
+      "pomSha256Url": "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/1.0.0/libmpv-1.0.0.pom.sha256"
+    }
+  ],
+  "knownFiles": [
+    {
+      "targetPath": "Licenses/Media3-1.11.1/LICENSE",
+      "role": "Media3 Apache-2.0 license",
+      "component": "Media3",
+      "version": "1.11.1",
+      "commit": "8c6678b657ede1e7883fc164ef73ed483c7796c3",
+      "upstreamPath": "LICENSE",
+      "gitBlob": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+      "bytes": 11358,
+      "sourceUrl": "https://github.com/androidx/media/blob/8c6678b657ede1e7883fc164ef73ed483c7796c3/LICENSE"
+    },
+    {
+      "targetPath": "BuildProvenance/Media3-Compiled-1.9.0/build_ffmpeg.sh",
+      "role": "Jellyfin decoder native build recipe",
+      "component": "Media3 compiled source",
+      "version": "1.9.0",
+      "commit": "7cc1056f840ce226598d3b990d4a6f7cd17e2831",
+      "upstreamPath": "libraries/decoder_ffmpeg/src/main/jni/build_ffmpeg.sh",
+      "gitBlob": "e0a9aa4f8441fbaf67d7a0d7c20043ae96261c30",
+      "bytes": 4153,
+      "sourceUrl": "https://github.com/androidx/media/blob/7cc1056f840ce226598d3b990d4a6f7cd17e2831/libraries/decoder_ffmpeg/src/main/jni/build_ffmpeg.sh"
+    },
+    {
+      "targetPath": "BuildProvenance/Media3-Compiled-1.9.0/decoder_ffmpeg_README.md",
+      "role": "Media3 license-boundary note for external native libraries",
+      "component": "Media3 compiled source",
+      "version": "1.9.0",
+      "commit": "7cc1056f840ce226598d3b990d4a6f7cd17e2831",
+      "upstreamPath": "libraries/decoder_ffmpeg/README.md",
+      "gitBlob": "4af789415f93aa0bc9a56ad9e2616716cec99851",
+      "bytes": 5424,
+      "sourceUrl": "https://github.com/androidx/media/blob/7cc1056f840ce226598d3b990d4a6f7cd17e2831/libraries/decoder_ffmpeg/README.md"
+    },
+    {
+      "targetPath": "Licenses/Jellyfin-FFmpeg-Decoder-1.9.0+1/LICENSE",
+      "role": "Jellyfin decoder wrapper GPLv3-family license text",
+      "component": "Jellyfin FFmpeg decoder wrapper",
+      "version": "1.9.0+1",
+      "commit": "af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396",
+      "upstreamPath": "LICENSE",
+      "gitBlob": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "bytes": 35149,
+      "sourceUrl": "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/LICENSE"
+    },
+    {
+      "targetPath": "BuildProvenance/Jellyfin-FFmpeg-Decoder-1.9.0+1/build.sh",
+      "role": "Jellyfin decoder build entrypoint",
+      "component": "Jellyfin FFmpeg decoder wrapper",
+      "version": "1.9.0+1",
+      "commit": "af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396",
+      "upstreamPath": "build.sh",
+      "gitBlob": "af0392d79952b5535e0c9c3ee333b8b97b1f5c96",
+      "bytes": 672,
+      "sourceUrl": "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/build.sh"
+    },
+    {
+      "targetPath": "BuildProvenance/Jellyfin-FFmpeg-Decoder-1.9.0+1/build.gradle.kts",
+      "role": "Jellyfin wrapper POM/source-JAR behavior; source JAR excludes FFmpeg",
+      "component": "Jellyfin FFmpeg decoder wrapper",
+      "version": "1.9.0+1",
+      "commit": "af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396",
+      "upstreamPath": "media3-ffmpeg-decoder/build.gradle.kts",
+      "gitBlob": "01ab39c38739d2ab24753b8aa121916be2e70e50",
+      "bytes": 4771,
+      "sourceUrl": "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/media3-ffmpeg-decoder/build.gradle.kts"
+    },
+    {
+      "targetPath": "BuildProvenance/FFmpeg-6.0.2/RELEASE",
+      "role": "Exact FFmpeg version marker",
+      "component": "FFmpeg",
+      "version": "6.0.2",
+      "commit": "37c90f55d8b6c3948c79449b04755527b4ae1351",
+      "upstreamPath": "RELEASE",
+      "gitBlob": "9b9a244206f6ab79c1155fa07c154d15d4ac54ab",
+      "bytes": 6,
+      "sourceUrl": "https://github.com/FFmpeg/FFmpeg/blob/37c90f55d8b6c3948c79449b04755527b4ae1351/RELEASE"
+    },
+    {
+      "targetPath": "Licenses/FFmpeg-6.0.2/LICENSE.md",
+      "role": "FFmpeg license/attribution notes and IJG special notice",
+      "component": "FFmpeg",
+      "version": "6.0.2",
+      "commit": "37c90f55d8b6c3948c79449b04755527b4ae1351",
+      "upstreamPath": "LICENSE.md",
+      "gitBlob": "613070e1b631a919a74c862f2a75a0f249a631ff",
+      "bytes": 4376,
+      "sourceUrl": "https://github.com/FFmpeg/FFmpeg/blob/37c90f55d8b6c3948c79449b04755527b4ae1351/LICENSE.md"
+    },
+    {
+      "targetPath": "Licenses/FFmpeg-6.0.2/COPYING.LGPLv2.1",
+      "role": "FFmpeg LGPL-2.1 license text",
+      "component": "FFmpeg",
+      "version": "6.0.2",
+      "commit": "37c90f55d8b6c3948c79449b04755527b4ae1351",
+      "upstreamPath": "COPYING.LGPLv2.1",
+      "gitBlob": "40924c2a6da76a2b0c639f6fe7ef0b2d095a6adb",
+      "bytes": 26517,
+      "sourceUrl": "https://github.com/FFmpeg/FFmpeg/blob/37c90f55d8b6c3948c79449b04755527b4ae1351/COPYING.LGPLv2.1"
+    },
+    {
+      "targetPath": "Licenses/libmpv-android-1.0.0/LICENSE",
+      "role": "libmpv Android wrapper MIT license",
+      "component": "libmpv Android wrapper",
+      "version": "1.0.0",
+      "commit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "upstreamPath": "LICENSE",
+      "gitBlob": "81d2ff31ab3e434d6f67fa5ac1e15e345f175db6",
+      "bytes": 1099,
+      "sourceUrl": "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/LICENSE"
+    },
+    {
+      "targetPath": "BuildProvenance/libmpv-android-1.0.0/depinfo.sh",
+      "role": "Declared versions and dependency graph",
+      "component": "libmpv Android wrapper",
+      "version": "1.0.0",
+      "commit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "upstreamPath": "buildscripts/include/depinfo.sh",
+      "gitBlob": "81076694c6ed50247bc030161e2f030e91849e70",
+      "bytes": 764,
+      "sourceUrl": "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/depinfo.sh"
+    },
+    {
+      "targetPath": "BuildProvenance/libmpv-android-1.0.0/download-deps.sh",
+      "role": "Mutable tag/source acquisition policy",
+      "component": "libmpv Android wrapper",
+      "version": "1.0.0",
+      "commit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "upstreamPath": "buildscripts/include/download-deps.sh",
+      "gitBlob": "282ab5707632974a3cdcb513a9f560c1455a45ca",
+      "bytes": 1885,
+      "sourceUrl": "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/download-deps.sh"
+    },
+    {
+      "targetPath": "BuildProvenance/libmpv-android-1.0.0/build.sh",
+      "role": "ABI/toolchain/link setup",
+      "component": "libmpv Android wrapper",
+      "version": "1.0.0",
+      "commit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "upstreamPath": "buildscripts/build.sh",
+      "gitBlob": "2659eeb42c2ba9d5a48651187dbd4e40e3f1983b",
+      "bytes": 3891,
+      "sourceUrl": "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/build.sh"
+    },
+    {
+      "targetPath": "BuildProvenance/libmpv-android-1.0.0/ffmpeg.sh",
+      "role": "FFmpeg n8.1 configure flags including gpl/version3",
+      "component": "libmpv Android wrapper",
+      "version": "1.0.0",
+      "commit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "upstreamPath": "buildscripts/scripts/ffmpeg.sh",
+      "gitBlob": "acf4a81d69a86fe565cb3b961d036d2f4c9a3168",
+      "bytes": 1476,
+      "sourceUrl": "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/scripts/ffmpeg.sh"
+    },
+    {
+      "targetPath": "BuildProvenance/libmpv-android-1.0.0/libass.sh",
+      "role": "Static libass build recipe",
+      "component": "libmpv Android wrapper",
+      "version": "1.0.0",
+      "commit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "upstreamPath": "buildscripts/scripts/libass.sh",
+      "gitBlob": "87636304e454941785a7730e1acd8a9c9c95200a",
+      "bytes": 446,
+      "sourceUrl": "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/scripts/libass.sh"
+    },
+    {
+      "targetPath": "BuildProvenance/libmpv-android-1.0.0/mpv.sh",
+      "role": "mpv meson setup with default gpl option true",
+      "component": "libmpv Android wrapper",
+      "version": "1.0.0",
+      "commit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "upstreamPath": "buildscripts/scripts/mpv.sh",
+      "gitBlob": "92f16a388b43d1a4a3d803b4b11a8b811579c5a1",
+      "bytes": 546,
+      "sourceUrl": "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/scripts/mpv.sh"
+    },
+    {
+      "targetPath": "BuildProvenance/libmpv-android-1.0.0/publish.yaml",
+      "role": "Publish pipeline provenance and pinnedness gap",
+      "component": "libmpv Android wrapper",
+      "version": "1.0.0",
+      "commit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "upstreamPath": ".github/workflows/publish.yaml",
+      "gitBlob": "1f83987cc18289aa0b6fca8217ce6fd28c3f04af",
+      "bytes": 1977,
+      "sourceUrl": "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/.github/workflows/publish.yaml"
+    },
+    {
+      "targetPath": "Licenses/mpv-0.41.0/Copyright",
+      "role": "mpv licensing preamble and per-file/category boundaries",
+      "component": "mpv",
+      "version": "0.41.0",
+      "commit": "41f6a645068483470267271e1d09966ca3b9f413",
+      "upstreamPath": "Copyright",
+      "gitBlob": "61d3a038e75a28fdf40ec229b2c38f98d8ee8c16",
+      "bytes": 4096,
+      "sourceUrl": "https://github.com/mpv-player/mpv/blob/41f6a645068483470267271e1d09966ca3b9f413/Copyright"
+    },
+    {
+      "targetPath": "Licenses/mpv-0.41.0/LICENSE.GPL",
+      "role": "mpv actual build GPLv2 license text",
+      "component": "mpv",
+      "version": "0.41.0",
+      "commit": "41f6a645068483470267271e1d09966ca3b9f413",
+      "upstreamPath": "LICENSE.GPL",
+      "gitBlob": "9efa6fbc962836e243e20f7f23db062e2c077d28",
+      "bytes": 17984,
+      "sourceUrl": "https://github.com/mpv-player/mpv/blob/41f6a645068483470267271e1d09966ca3b9f413/LICENSE.GPL"
+    },
+    {
+      "targetPath": "Licenses/mpv-0.41.0/LICENSE.LGPL",
+      "role": "Per-file/source LGPL reference retained for attribution",
+      "component": "mpv",
+      "version": "0.41.0",
+      "commit": "41f6a645068483470267271e1d09966ca3b9f413",
+      "upstreamPath": "LICENSE.LGPL",
+      "gitBlob": "d35234e4098a1401c1b730aeede8d091d458815e",
+      "bytes": 26410,
+      "sourceUrl": "https://github.com/mpv-player/mpv/blob/41f6a645068483470267271e1d09966ca3b9f413/LICENSE.LGPL"
+    },
+    {
+      "targetPath": "BuildProvenance/mpv-0.41.0/meson.options",
+      "role": "gpl option default=true",
+      "component": "mpv",
+      "version": "0.41.0",
+      "commit": "41f6a645068483470267271e1d09966ca3b9f413",
+      "upstreamPath": "meson.options",
+      "gitBlob": "52782f73d61c2b6a9d5fb5cd1e2ba2fd23bedf70",
+      "bytes": 9858,
+      "sourceUrl": "https://github.com/mpv-player/mpv/blob/41f6a645068483470267271e1d09966ca3b9f413/meson.options"
+    },
+    {
+      "targetPath": "Licenses/FFmpeg-n8.1/LICENSE.md",
+      "role": "FFmpeg GPL build license/attribution notes and IJG special notice",
+      "component": "FFmpeg",
+      "version": "n8.1",
+      "commit": "9047fa1b084f76b1b4d065af2d743df1b40dfb56",
+      "upstreamPath": "LICENSE.md",
+      "gitBlob": "371b0913ce7c199c4092d9344680c80f78ebeb2a",
+      "bytes": 4346,
+      "sourceUrl": "https://github.com/FFmpeg/FFmpeg/blob/9047fa1b084f76b1b4d065af2d743df1b40dfb56/LICENSE.md"
+    },
+    {
+      "targetPath": "Licenses/FFmpeg-n8.1/COPYING.GPLv3",
+      "role": "FFmpeg actual build GPLv3 license text",
+      "component": "FFmpeg",
+      "version": "n8.1",
+      "commit": "9047fa1b084f76b1b4d065af2d743df1b40dfb56",
+      "upstreamPath": "COPYING.GPLv3",
+      "gitBlob": "94a9ed024d3859793618152ea559a168bbcbb5e2",
+      "bytes": 35147,
+      "sourceUrl": "https://github.com/FFmpeg/FFmpeg/blob/9047fa1b084f76b1b4d065af2d743df1b40dfb56/COPYING.GPLv3"
+    },
+    {
+      "targetPath": "Licenses/FFmpeg-n8.1/COPYING.LGPLv2.1",
+      "role": "Per-file/source LGPL reference retained for attribution",
+      "component": "FFmpeg",
+      "version": "n8.1",
+      "commit": "9047fa1b084f76b1b4d065af2d743df1b40dfb56",
+      "upstreamPath": "COPYING.LGPLv2.1",
+      "gitBlob": "40924c2a6da76a2b0c639f6fe7ef0b2d095a6adb",
+      "bytes": 26517,
+      "sourceUrl": "https://github.com/FFmpeg/FFmpeg/blob/9047fa1b084f76b1b4d065af2d743df1b40dfb56/COPYING.LGPLv2.1"
+    },
+    {
+      "targetPath": "Licenses/libass-0.17.4/COPYING",
+      "role": "libass ISC license/copyright/disclaimer",
+      "component": "libass",
+      "version": "0.17.4",
+      "commit": "bbb3c7f1570a4a021e52683f3fbdf74fe492ae84",
+      "upstreamPath": "COPYING",
+      "gitBlob": "3ff0e11457a6edccfab065cae0f905a6e1ed80ee",
+      "bytes": 755,
+      "sourceUrl": "https://github.com/libass/libass/blob/bbb3c7f1570a4a021e52683f3fbdf74fe492ae84/COPYING"
+    }
+  ],
+  "coreSourceRoots": [
+    {
+      "component": "Media3 wrapper",
+      "version": "1.11.1",
+      "tagObject": "915b73c447aed6471aa33380a95126121a79375d",
+      "commit": "8c6678b657ede1e7883fc164ef73ed483c7796c3",
+      "officialUrl": "https://github.com/androidx/media/tree/8c6678b657ede1e7883fc164ef73ed483c7796c3"
+    },
+    {
+      "component": "Media3 compiled decoder base",
+      "version": "1.9.0",
+      "commit": "7cc1056f840ce226598d3b990d4a6f7cd17e2831",
+      "officialUrl": "https://github.com/androidx/media/tree/7cc1056f840ce226598d3b990d4a6f7cd17e2831"
+    },
+    {
+      "component": "Jellyfin FFmpeg decoder wrapper",
+      "version": "1.9.0+1",
+      "commit": "af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396",
+      "officialUrl": "https://github.com/jellyfin/jellyfin-androidx-media/tree/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396"
+    },
+    {
+      "component": "FFmpeg native in Jellyfin decoder",
+      "version": "6.0.2",
+      "commit": "37c90f55d8b6c3948c79449b04755527b4ae1351",
+      "officialUrl": "https://github.com/FFmpeg/FFmpeg/tree/37c90f55d8b6c3948c79449b04755527b4ae1351"
+    },
+    {
+      "component": "libmpv Android wrapper",
+      "version": "1.0.0",
+      "commit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "officialUrl": "https://github.com/jarnedemeulemeester/libmpv-android/tree/fcf6745703dc1265bca88f12fee8fc355ddf251e"
+    },
+    {
+      "component": "mpv",
+      "version": "0.41.0",
+      "tagObject": "2c219aa822df18a1b7fd9abe3e151cd93ad67307",
+      "commit": "41f6a645068483470267271e1d09966ca3b9f413",
+      "officialUrl": "https://github.com/mpv-player/mpv/tree/41f6a645068483470267271e1d09966ca3b9f413"
+    },
+    {
+      "component": "FFmpeg in libmpv",
+      "version": "n8.1",
+      "tagObject": "a65b3bfe9dacc3b20597ef199d0afdd8bc8128e2",
+      "commit": "9047fa1b084f76b1b4d065af2d743df1b40dfb56",
+      "officialUrl": "https://github.com/FFmpeg/FFmpeg/tree/9047fa1b084f76b1b4d065af2d743df1b40dfb56"
+    },
+    {
+      "component": "libass",
+      "version": "0.17.4",
+      "tagObject": "e81dec4065332a907792af50e68b4a749e476718",
+      "commit": "bbb3c7f1570a4a021e52683f3fbdf74fe492ae84",
+      "officialUrl": "https://github.com/libass/libass/tree/bbb3c7f1570a4a021e52683f3fbdf74fe492ae84"
+    }
+  ],
+  "declaredStaticDependenciesRequiringBundleMapping": [
+    {
+      "component": "Mbed TLS",
+      "version": "3.6.6",
+      "peeledTagCommit": "0bebf8b8c7f07abe3571ded48a11aa907a1ffb20",
+      "sourceUrl": "https://github.com/Mbed-TLS/mbedtls/tree/0bebf8b8c7f07abe3571ded48a11aa907a1ffb20",
+      "bundleStatus": "REQUIRED_NOT_MAPPED"
+    },
+    {
+      "component": "dav1d",
+      "version": "1.5.3",
+      "peeledTagCommit": "b546257f770768b2c88258c533da38b91a06f737",
+      "sourceUrl": "https://code.videolan.org/videolan/dav1d/-/tree/b546257f770768b2c88258c533da38b91a06f737",
+      "bundleStatus": "REQUIRED_NOT_MAPPED"
+    },
+    {
+      "component": "FreeType",
+      "version": "2.14.3",
+      "peeledTagCommit": "0a0221a1347e2f1e07c395263540026e9a0aa7c7",
+      "sourceUrl": "https://gitlab.freedesktop.org/freetype/freetype/-/tree/0a0221a1347e2f1e07c395263540026e9a0aa7c7",
+      "bundleStatus": "REQUIRED_NOT_MAPPED"
+    },
+    {
+      "component": "Fontconfig",
+      "version": "2.17.1",
+      "peeledTagCommit": "6d0a98982ec351c165c9224c8b7dbdfca3010e47",
+      "sourceUrl": "https://gitlab.freedesktop.org/fontconfig/fontconfig/-/tree/6d0a98982ec351c165c9224c8b7dbdfca3010e47",
+      "bundleStatus": "REQUIRED_NOT_MAPPED"
+    },
+    {
+      "component": "FriBidi",
+      "version": "1.0.16",
+      "peeledTagCommit": "68162babff4f39c4e2dc164a5e825af93bda9983",
+      "sourceUrl": "https://github.com/fribidi/fribidi/tree/68162babff4f39c4e2dc164a5e825af93bda9983",
+      "bundleStatus": "REQUIRED_NOT_MAPPED"
+    },
+    {
+      "component": "HarfBuzz",
+      "version": "14.1.0",
+      "peeledTagCommit": "cfb70b0b91af933a08339c7c8eef459df1098d7b",
+      "sourceUrl": "https://github.com/harfbuzz/harfbuzz/tree/cfb70b0b91af933a08339c7c8eef459df1098d7b",
+      "bundleStatus": "REQUIRED_NOT_MAPPED"
+    },
+    {
+      "component": "libunibreak",
+      "version": "6.1",
+      "peeledTagCommit": "304585d8e2d63187507368d612c3d5fff1486368",
+      "sourceUrl": "https://github.com/adah1972/libunibreak/tree/304585d8e2d63187507368d612c3d5fff1486368",
+      "bundleStatus": "REQUIRED_NOT_MAPPED"
+    },
+    {
+      "component": "libxml2",
+      "version": "2.15.2",
+      "peeledTagCommit": "3d840e17858de03a09fba8b202e3a89267d5795a",
+      "sourceUrl": "https://gitlab.gnome.org/GNOME/libxml2/-/tree/3d840e17858de03a09fba8b202e3a89267d5795a",
+      "bundleStatus": "REQUIRED_NOT_MAPPED"
+    },
+    {
+      "component": "Lua",
+      "version": "5.2.4",
+      "archiveUrl": "https://www.lua.org/ftp/lua-5.2.4.tar.gz",
+      "archiveSha256": null,
+      "bundleStatus": "REQUIRED_NOT_MAPPED_NO_VERIFIED_DIGEST"
+    },
+    {
+      "component": "libplacebo",
+      "version": "7.360.1",
+      "peeledTagCommit": "cee9b076f2c63104ccfd497fa79c39a867293ec4",
+      "sourceUrl": "https://code.videolan.org/videolan/libplacebo/-/tree/cee9b076f2c63104ccfd497fa79c39a867293ec4",
+      "bundleStatus": "REQUIRED_NOT_MAPPED_RECURSIVE_SUBMODULES_PRESENT"
+    }
+  ],
+  "absentOrUnmappedRequiredFiles": [
+    {
+      "id": "NDK-LIBCXX-NOTICE",
+      "requiredTarget": "Licenses/Android-NDK-29.0.14206865/",
+      "reason": "Exact NDK/libc++ NOTICE inventory not acquired under whitelist."
+    },
+    {
+      "id": "STATIC-DEP-LICENSES",
+      "requiredTarget": "Licenses/StaticDeps/",
+      "reason": "Per-dependency license/copyright/NOTICE files not acquired; recursive submodule pins for mbedtls and libplacebo not frozen."
+    },
+    {
+      "id": "GENERATED-NOTICE",
+      "requiredTarget": "NOTICE.txt",
+      "reason": "Must be generated from final packaged-file SBOM and include component copyright plus FFmpeg/IJG special attribution."
+    },
+    {
+      "id": "MEDIA3-FFMPEG-BUILD-LOG",
+      "requiredTarget": "BuildProvenance/Jellyfin-FFmpeg-Decoder-1.9.0+1/configure/",
+      "reason": "No AAR-specific configure line/config.h/build log/attestation is archived."
+    },
+    {
+      "id": "LIBMPV-BUILD-LOG",
+      "requiredTarget": "BuildProvenance/libmpv-android-1.0.0/config/",
+      "reason": "No exact mpv/FFmpeg meson/configure outputs or independent rebuild evidence."
+    },
+    {
+      "id": "CORRESPONDING-SOURCE-ARCHIVES",
+      "requiredTarget": "SourceMedia/",
+      "reason": "Exact source trees are identified but no acquired archives, SHA-256 digests or final offer URL exist."
+    },
+    {
+      "id": "WRITTEN-OFFER",
+      "requiredTarget": "SOURCE_OFFER.txt",
+      "reason": "No selected GPLv3 section 6 distribution route, validity fields or expiry/retention record."
+    },
+    {
+      "id": "FINAL-PACKAGED-SBOM",
+      "requiredTarget": "SBOM/",
+      "reason": "Candidate release APK/AAB is outside task boundary and not built."
+    }
+  ],
+  "completeness": {
+    "knownCoreFileCount": 25,
+    "artifactPinCount": 3,
+    "coreSourceRootCount": 8,
+    "declaredDependencyCount": 10,
+    "unmappedRequiredGroupCount": 8,
+    "bundleReady": false,
+    "reason": "Known top-level files are deterministic; NDK/libc++, secondary dependency notices, build outputs, source archives and final packaged SBOM remain missing."
+  }
+}

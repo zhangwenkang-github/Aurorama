@@ -1,0 +1,230 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "G1-S4-A-Q03-NOTICE",
+  "generatedAt": "2026-11-04T00:43:38+08:00",
+  "status": "OBLIGATION_MAP_PARTIAL / FINAL_COMPLIANCE_UNPROVEN",
+  "counts": {
+    "PROVEN": 5,
+    "PARTIAL": 2,
+    "BLOCKED": 3,
+    "total": 10
+  },
+  "rules": [
+    "Wrapper 许可与 native 许可分行记录；POM 或 wrapper LICENSE 不覆盖内嵌二进制。",
+    "SOURCE_AVAILABLE 不等于已生成 SOURCE_OFFER；COMPONENT_LICENSE_FOUND 不等于 NOTICE_COMPLETE。",
+    "本矩阵是工程义务映射，不是法律意见；最终分发路线须复核。"
+  ],
+  "rows": [
+    {
+      "id": "NSO-MEDIA3-WRAPPER",
+      "component": "androidx.media3 1.11.1",
+      "componentLayer": "JVM/AAR wrapper",
+      "versionPin": "tag 1.11.1 -> 8c6678b657ede1e7883fc164ef73ed483c7796c3",
+      "license": "Apache-2.0",
+      "exactLicenseEvidence": "LICENSE blob=d645695673349e3947e8e5ae42332d0ac3164cd7, 11358 B",
+      "noticeObligation": "Distribute the Apache-2.0 license text; if a NOTICE exists for the distributed component, reproduce applicable notices. No root NOTICE file was found at this tag.",
+      "sourceOfferObligation": "Apache-2.0 does not itself require a copyleft source offer; keep the pinned source URL for audit and reproducibility.",
+      "relinkBoundary": "No LGPL relink obligation from this component.",
+      "knownFiles": [
+        "Licenses/Media3-1.11.1/LICENSE"
+      ],
+      "status": "PROVEN",
+      "sources": [
+        "https://github.com/androidx/media/blob/8c6678b657ede1e7883fc164ef73ed483c7796c3/LICENSE",
+        "https://dl.google.com/android/maven2/androidx/media3/media3-exoplayer/1.11.1/media3-exoplayer-1.11.1.pom"
+      ]
+    },
+    {
+      "id": "NSO-JELLYFIN-WRAPPER",
+      "component": "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1",
+      "componentLayer": "JVM/AAR wrapper plus integration build",
+      "versionPin": "tag v1.9.0+1 -> af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396",
+      "license": "GPL-3.0 family by POM label; exact only/or-later qualifier not stated in reviewed tag metadata",
+      "exactLicenseEvidence": "LICENSE blob=f288702d2fa16d3cdf0035b15a9fcbc552cd88e7, 35149 B",
+      "noticeObligation": "Include the GPLv3 license text and applicable copyright attribution; AAR contains no notice file.",
+      "sourceOfferObligation": "Provide Corresponding Source for the GPL wrapper and its distribution build path through the GPLv3 section 6 route selected for the final distribution; source JAR alone excludes FFmpeg.",
+      "relinkBoundary": "GPL wrapper source must be complete; do not substitute Media3 Apache or libmpv MIT metadata for this wrapper.",
+      "knownFiles": [
+        "Licenses/Jellyfin-FFmpeg-Decoder-1.9.0+1/LICENSE",
+        "SourceMedia/Jellyfin-FFmpeg-Decoder-1.9.0+1/"
+      ],
+      "status": "PARTIAL",
+      "gap": "Exact SPDX qualifier and final corresponding-source/offer route are unresolved.",
+      "sources": [
+        "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/LICENSE",
+        "https://github.com/jellyfin/jellyfin-androidx-media/blob/af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396/media3-ffmpeg-decoder/build.gradle.kts"
+      ]
+    },
+    {
+      "id": "NSO-JELLYFIN-FFMPEG-6",
+      "component": "FFmpeg 6.0.2 native in libffmpegJNI.so",
+      "componentLayer": "native library",
+      "versionPin": "release/6.0 commit 37c90f55d8b6c3948c79449b04755527b4ae1351; RELEASE=6.0.2",
+      "license": "LGPL-2.1-or-later by source-recipe direction; no --enable-gpl and no --enable-version3 in exact build recipe",
+      "exactLicenseEvidence": "LICENSE.md blob=613070e1b631a919a74c862f2a75a0f249a631ff; COPYING.LGPLv2.1 blob=40924c2a6da76a2b0c639f6fe7ef0b2d095a6adb",
+      "noticeObligation": "Include LGPL-2.1 text, FFmpeg copyright/attribution, LICENSE.md notices and applicable external-component notices. FFmpeg LICENSE.md also requires IJG credit/change indication where the included IJG-derived files apply.",
+      "sourceOfferObligation": "Include exact FFmpeg source, configure args, config outputs and the JNI/wrapper build recipe. Preserve a user-relink route for the statically bundled LGPL library or record the chosen GPL-compatible distribution basis.",
+      "relinkBoundary": "Static inclusion in libffmpegJNI.so makes the LGPL source/relink path material; final binary invocation and relink artifact are not proven.",
+      "knownFiles": [
+        "Licenses/Jellyfin-FFmpeg-Decoder-1.9.0+1/FFmpeg/LICENSE.md",
+        "Licenses/Jellyfin-FFmpeg-Decoder-1.9.0+1/FFmpeg/COPYING.LGPLv2.1",
+        "SourceMedia/FFmpeg-6.0.2/",
+        "BuildProvenance/Jellyfin-FFmpeg-Decoder-1.9.0+1/"
+      ],
+      "status": "PARTIAL",
+      "gap": "No AAR-specific configure log/config.h or relink artifact; final binary exact provenance remains BLOCKED.",
+      "sources": [
+        "https://github.com/FFmpeg/FFmpeg/blob/37c90f55d8b6c3948c79449b04755527b4ae1351/LICENSE.md",
+        "https://github.com/FFmpeg/FFmpeg/blob/37c90f55d8b6c3948c79449b04755527b4ae1351/COPYING.LGPLv2.1",
+        "https://github.com/androidx/media/blob/7cc1056f840ce226598d3b990d4a6f7cd17e2831/libraries/decoder_ffmpeg/src/main/jni/build_ffmpeg.sh"
+      ]
+    },
+    {
+      "id": "NSO-LIBMPV-WRAPPER",
+      "component": "dev.jdtech.mpv:libmpv:1.0.0",
+      "componentLayer": "Android wrapper",
+      "versionPin": "tag v1.0.0 -> fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "license": "MIT",
+      "exactLicenseEvidence": "LICENSE blob=81d2ff31ab3e434d6f67fa5ac1e15e345f175db6, 1099 B",
+      "noticeObligation": "Include the MIT copyright and permission notice.",
+      "sourceOfferObligation": "MIT does not itself require a copyleft source offer; keep the pinned source URL.",
+      "relinkBoundary": "No LGPL relink obligation from this wrapper.",
+      "knownFiles": [
+        "Licenses/libmpv-android-1.0.0/LICENSE"
+      ],
+      "status": "PROVEN",
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/LICENSE",
+        "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/1.0.0/libmpv-1.0.0.pom"
+      ]
+    },
+    {
+      "id": "NSO-MPV",
+      "component": "mpv 0.41.0 in libmpv.so",
+      "componentLayer": "statically linked native",
+      "versionPin": "tag v0.41.0 -> 41f6a645068483470267271e1d09966ca3b9f413",
+      "license": "GPL-2.0-or-later for this build because gpl defaults true and mpv.sh does not pass -Dgpl=false",
+      "exactLicenseEvidence": "Copyright blob=61d3a038e75a28fdf40ec229b2c38f98d8ee8c16; LICENSE.GPL blob=9efa6fbc962836e243e20f7f23db062e2c077d28",
+      "noticeObligation": "Include mpv Copyright and GPLv2 license text; preserve per-file LGPL/other notices in source where applicable.",
+      "sourceOfferObligation": "Provide corresponding mpv source and exact libmpv build scripts. Treat mpv itself as the GPL build, not as the embedded binary's LGPL string alone.",
+      "relinkBoundary": "No mpv LGPL relink route can be claimed from this build; -Dgpl=false was not used. Individual LGPL files still remain represented in source notices.",
+      "knownFiles": [
+        "Licenses/mpv-0.41.0/Copyright",
+        "Licenses/mpv-0.41.0/LICENSE.GPL",
+        "Licenses/mpv-0.41.0/LICENSE.LGPL"
+      ],
+      "status": "PROVEN",
+      "qualification": "License boundary for build intent is proven; exact binary attestation remains in BLOCKED package rows.",
+      "sources": [
+        "https://github.com/mpv-player/mpv/blob/41f6a645068483470267271e1d09966ca3b9f413/Copyright",
+        "https://github.com/mpv-player/mpv/blob/41f6a645068483470267271e1d09966ca3b9f413/meson.options",
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/scripts/mpv.sh"
+      ]
+    },
+    {
+      "id": "NSO-FFMPEG-8",
+      "component": "FFmpeg n8.1 in libav* shared libraries",
+      "componentLayer": "dynamically packaged native",
+      "versionPin": "tag n8.1 -> 9047fa1b084f76b1b4d065af2d743df1b40dfb56",
+      "license": "GPL-3.0-or-later because ffmpeg.sh enables gpl and version3",
+      "exactLicenseEvidence": "LICENSE.md blob=371b0913ce7c199c4092d9344680c80f78ebeb2a; COPYING.GPLv3 blob=94a9ed024d3859793618152ea559a168bbcbb5e2",
+      "noticeObligation": "Include FFmpeg LICENSE.md, COPYING.GPLv3, copyright attribution and applicable third-party notices; observe IJG credit/change language where applicable.",
+      "sourceOfferObligation": "Provide corresponding FFmpeg source, exact configure line, config outputs, link/build scripts and enabled external dependency sources.",
+      "relinkBoundary": "GPLv3 corresponding-source obligation is primary; do not describe this native build as LGPL.",
+      "knownFiles": [
+        "Licenses/FFmpeg-n8.1/LICENSE.md",
+        "Licenses/FFmpeg-n8.1/COPYING.GPLv3",
+        "Licenses/FFmpeg-n8.1/COPYING.LGPLv2.1",
+        "SourceMedia/FFmpeg-n8.1/",
+        "BuildProvenance/libmpv-android-1.0.0/"
+      ],
+      "status": "PROVEN",
+      "qualification": "Build-intent license is proven; source archive and exact binary attestation are not.",
+      "sources": [
+        "https://github.com/FFmpeg/FFmpeg/blob/9047fa1b084f76b1b4d065af2d743df1b40dfb56/LICENSE.md",
+        "https://github.com/FFmpeg/FFmpeg/blob/9047fa1b084f76b1b4d065af2d743df1b40dfb56/COPYING.GPLv3",
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/scripts/ffmpeg.sh"
+      ]
+    },
+    {
+      "id": "NSO-LIBASS",
+      "component": "libass 0.17.4 in libmpv.so",
+      "componentLayer": "statically linked native",
+      "versionPin": "tag 0.17.4 -> bbb3c7f1570a4a021e52683f3fbdf74fe492ae84",
+      "license": "ISC",
+      "exactLicenseEvidence": "COPYING blob=3ff0e11457a6edccfab065cae0f905a6e1ed80ee, 755 B",
+      "noticeObligation": "Reproduce ISC copyright, permission notice and disclaimer.",
+      "sourceOfferObligation": "ISC does not require a copyleft source offer; include pinned source for audit/reproducibility.",
+      "relinkBoundary": "No LGPL relink obligation from libass.",
+      "knownFiles": [
+        "Licenses/libass-0.17.4/COPYING"
+      ],
+      "status": "PROVEN",
+      "sources": [
+        "https://github.com/libass/libass/blob/bbb3c7f1570a4a021e52683f3fbdf74fe492ae84/COPYING"
+      ]
+    },
+    {
+      "id": "NSO-LIBCXX-NDK",
+      "component": "libc++_shared.so from Android NDK 29.0.14206865",
+      "componentLayer": "packaged native runtime",
+      "versionPin": "NDK 29.0.14206865; final libmpv AAR copy per S4-B",
+      "license": "LLVM libc++ declarations point to Apache-2.0 WITH LLVM-exception plus Android NDK notices; exact packaged notice set not acquired",
+      "exactLicenseEvidence": "No exact NDK NOTICE blob/path was read under this task's whitelist",
+      "noticeObligation": "Must include exact NDK/libc++ license, NOTICE and third-party attributions for the emitted shared library.",
+      "sourceOfferObligation": "License requires applicable notices; do not infer completeness from libmpv wrapper MIT.",
+      "relinkBoundary": "No final relink conclusion without exact NDK license notice package.",
+      "knownFiles": [],
+      "status": "BLOCKED",
+      "gap": "Exact NDK 29.0.14206865 notice inventory and target path are missing.",
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/depinfo.sh"
+      ]
+    },
+    {
+      "id": "NSO-STATIC-CLOSURE",
+      "component": "Declared libmpv static dependency closure",
+      "componentLayer": "source and notice closure",
+      "versionPin": "mbedtls 3.6.6; dav1d 1.5.3; freetype 2.14.3; fribidi 1.0.16; harfbuzz 14.1.0; libunibreak 6.1; libxml2 2.15.2; fontconfig 2.17.1; libplacebo 7.360.1; lua 5.2.4",
+      "license": "Per-dependency license classification intentionally not guessed",
+      "exactLicenseEvidence": "Only declared versions and eight peeled tag commits are frozen; per-dependency license files are not yet acquired",
+      "noticeObligation": "Acquire and map each dependency's license, copyright/NOTICE and recursive submodule attribution, then emit only components actually present in the final package.",
+      "sourceOfferObligation": "Drive from the final packaged-file SBOM, not depinfo alone; include required source/relink material for any LGPL/GPL dependencies.",
+      "relinkBoundary": "Cannot decide until each dependency license and static/dynamic mode is mapped to the final binary.",
+      "knownFiles": [],
+      "status": "BLOCKED",
+      "gap": "Recursive submodule pins, Lua digest, per-dependency license files and final presence map are missing.",
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/depinfo.sh",
+        "https://github.com/jarnedemeulemeester/libmpv-android/blob/fcf6745703dc1265bca88f12fee8fc355ddf251e/buildscripts/include/download-deps.sh"
+      ]
+    },
+    {
+      "id": "NSO-FINAL-COMBINED",
+      "component": "Final Aurorama candidate package",
+      "componentLayer": "combined application",
+      "versionPin": "No final candidate commit/artifact is selected by this task",
+      "license": "Project GPL-3.0 plus all component-specific notices and source obligations",
+      "exactLicenseEvidence": "Candidate packaged-file SBOM absent",
+      "noticeObligation": "Generate final NOTICE from candidate files, include all applicable texts/attributions, and verify installed APK/AAB contents.",
+      "sourceOfferObligation": "Publish an exact corresponding-source bundle or approved written offer tied to the candidate, including app, wrappers, native sources and build recipes.",
+      "relinkBoundary": "Exercise/record any LGPL relink route selected for statically bundled LGPL components; do not claim source URL alone is compliance.",
+      "knownFiles": [],
+      "status": "BLOCKED",
+      "gap": "Requires final candidate build and release-owner integration.",
+      "sources": [
+        "https://www.gnu.org/licenses/gpl-3.0.html",
+        "https://www.apache.org/licenses/LICENSE-2.0"
+      ]
+    }
+  ],
+  "finalBoundary": {
+    "mediaNoticeStaticCoreReady": true,
+    "mediaNoticeBundleComplete": false,
+    "mediaSourceOfferComplete": false,
+    "q03Closed": false,
+    "finalEngineSelected": false,
+    "g1Passed": false,
+    "g2Entered": false
+  }
+}
