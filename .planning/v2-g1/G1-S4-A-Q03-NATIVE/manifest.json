@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "taskId": "G1-S4-A-Q03-NATIVE",
+  "generatedAt": "2026-11-04T00:17:00+08:00",
+  "algorithm": "SHA-256",
+  "selfExcluded": true,
+  "entryCount": 4,
+  "entries": [
+    {
+      "path": "commands.log",
+      "bytes": 11117,
+      "sha256": "0DABFDAF63F3E50E0DBE9B55B512B67F4AB2162AD837B97153319EDAB81A2E05"
+    },
+    {
+      "path": "option-matrix.json",
+      "bytes": 8353,
+      "sha256": "EF915E4E80A302E9EAEAEE158410136125630AEF9D14ED547FB89267C0A364DA"
+    },
+    {
+      "path": "provenance-matrix.json",
+      "bytes": 16094,
+      "sha256": "E4456126E11324D807893CED247E5EF9C221027CD35375B9EC8BE4CD785F3D0C"
+    },
+    {
+      "path": "report.json",
+      "bytes": 15906,
+      "sha256": "DB07F6D4B4F550D265094ABE66496CB483135968832D62A7B5D3A2E0117B601C"
+    }
+  ],
+  "summary": {
+    "q03Native": "PARTIAL",
+    "proven": 13,
+    "partial": 6,
+    "blocked": 12,
+    "total": 31,
+    "q03Closed": false,
+    "finalEngineSelected": false,
+    "g1Passed": false
+  }
+}

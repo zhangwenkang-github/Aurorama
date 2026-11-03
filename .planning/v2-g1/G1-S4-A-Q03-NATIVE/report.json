@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "taskId": "G1-S4-A-Q03-NATIVE",
+  "role": "Aurorama 2.0 G1-Q03 native 供应链 / 许可证与维护状态取证架构师",
+  "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+  "identity": {
+    "branch": "codex/v2-integration",
+    "head": "db6d176e55007a9d50c59cf53f84858ce7b9876f",
+    "initialStatusPorcelain": "",
+    "headMatched": true,
+    "branchMatched": true,
+    "cleanMatched": true
+  },
+  "plan": {
+    "objective": "补齐或精确阻塞 Q03 的 Media3/FFmpeg、libmpv、Sherpa/Piper、PDFium native 与许可证子输入。",
+    "nonGoals": [
+      "不修改生产 Kotlin、Gradle、resources、Manifest、schema 或现有 S4-A/B/C 证据",
+      "不 commit、push、选择最终播放/TTS/PDF 引擎或宣称 Q03/G1 关闭",
+      "不安装依赖、不下载或运行模型、不构建 APK、不启动媒体、不触设备/Jellyfin/生产服务器",
+      "不进入 G2 Spark、实现、独立 QA、Release 或人工视觉验收"
+    ],
+    "evidenceDecomposition": [
+      "复用并交叉核对已冻结的 S4-A/B/C runtime、native matrix、option matrix 与 hash",
+      "复核 Git tag/commit、官方 source/build/license/release 页面、Maven Central POM/checksum",
+      "只读本地 Gradle cache 中相关 POM/AAR，检查 artifact hash、native entries、license/notice entries 与嵌入版本",
+      "把技术事实、代码许可、模型许可、binary notice、source/relink 义务和 runtime/device 门分开记录"
+    ],
+    "budget": {
+      "targetMinutes": "45-75",
+      "maxContextTokens": 90000,
+      "singlePointFailureRule": "同一 owner 5-10 分钟内修复一次并受控重试；重复失败、对象漂移或需越权即收口"
+    },
+    "writeBoundary": ".planning/v2-g1/G1-S4-A-Q03-NATIVE/",
+    "stopConditions": [
+      "基线 drift 或出现白名单外 dirty",
+      "需要下载/安装 AAR/模型、运行媒体/设备或访问生产服务器",
+      "需要新的认证、写入、外部发布或超出 Q03 取证范围",
+      "同一只读通道受控重试后仍不可用；保留 BLOCKED/PARTIAL，不伪造 PASS"
+    ]
+  },
+  "status": "Q03_NATIVE_PARTIAL / Q03_NOT_CLOSED / G1_NOT_PASSED / NO_IMPLEMENTATION / RUNTIME_UNVERIFIED",
+  "q03": {
+    "nativeSubitemCounts": {
+      "PROVEN": 13,
+      "PARTIAL": 6,
+      "BLOCKED": 12,
+      "total": 31
+    },
+    "q03Closed": false,
+    "finalEngineSelected": false,
+    "g1Passed": false,
+    "g2Entered": false,
+    "summary": "版本、tag/commit、AAR hash、四项 ABI、关键嵌入版本与主要许可方向已冻结；binary notice、精确 native source provenance、TTS 声音模型许可、PDFium 16 KB、Range 与双内核 runtime 仍未闭合。"
+  },
+  "technicalConclusions": [
+    {
+      "id": "MEDIA3_FFMPEG",
+      "status": "PARTIAL",
+      "technical": "Media3 1.11.1 tag commit 8c6678b657ede1e7883fc164ef73ed483c7796c3；Jellyfin decoder 1.9.0+1 tag commit af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396；AAR SHA-256 DFC726C8BC9D9DB02E15B160F886A03BDD6DD51E88BA2DE89AA74CAF5E8CD181。四 ABI 的 Media3 JNI 9/9 可解析，静态 ELF load alignment 均为 0x4000。打包的 ExperimentalFfmpegVideoRenderer 是 stub，本 decoder 产物不能作为视频 FRenderer 能力证据。",
+      "provenance": "decoder 按 Media3 1.9.0 编译，FFmpeg source pin 37c90f55d8b6c3948c79449b04755527b4ae1351；app 仲裁到 Media3 1.11.1 只证明类引用/build 可解析，不证明运行时 JNI/API/native ABI 兼容。",
+      "licenseBoundary": "Jellyfin wrapper 的 tag LICENSE/POM 为 GPL-3.0；FFmpeg JNI 构建脚本未启用 --enable-gpl/version3，native 方向按 FFmpeg 默认 LGPL-2.1-or-later 记录，但精确 SPDX、configure/build log 与 binary notice 未入档。",
+      "notice": "AAR 共 14 entries，LICENSE/NOTICE/COPYING/THIRD_PARTY/README 命中 0；POM 中 GPLv3 文本不能替代最终 APK 的 FFmpeg、copyright 与 license notice inventory。",
+      "maintenance": "Media3 1.11.1 是检查时 latest stable（releaseDate 2026-09-11）；Jellyfin decoder latest checked 1.9.0+1（releaseDate 2025-12-29），存在版本滞后。开源源可见不等于 runtime 兼容或安全 PASS。",
+      "sourceObligation": "工程为 GPL-3.0-only，方向相容；但仍须在发布时给出对应源码/构建脚本/license/notices。当前没有候选 release source bundle 或 written offer。"
+    },
+    {
+      "id": "LIBMPV",
+      "status": "PARTIAL",
+      "technical": "libmpv wrapper 1.0.0 tag commit fcf6745703dc1265bca88f12fee8fc355ddf251e，AAR SHA-256 DF146592480FC8418415A06B1F1A1D6318B0088E21F52254B0E9A82B61CA8FA2。嵌入字符串确认 mpv v0.41.0、FFmpeg n8.1；四 ABI mpv JNI 16/16、custom NEEDED 缺失 0、load alignment 0x4000。libmpv.so 静态含 libass 0.17.4；ass-kt 另带动态 libass，arm64 同名 ass_* 交叉 217。",
+      "provenance": "官方 v1.0.0 build scripts 指向 mpv 0.41.0、FFmpeg 8.1、libass 0.17.4、NDK 29.0.14206865，并在链接参数使用 -z max-page-size=16384。AAR 内 libavutil/libavcodec 自述 GPL version 3 or later，libmpv 自述 LGPL-2.1-or-later；wrapper repo LICENSE 为 MIT。",
+      "licenseBoundary": "FFmpeg 构建显式 --enable-gpl --enable-version3，故 native FFmpeg 为 GPL-3.0-or-later；mpv 自身 LGPL-2.1-or-later；静态 libass 0.17.4 为 ISC；wrapper MIT。项目 GPL-3.0-only 与这些许可方向相容，但分发不能只写 wrapper 的 MIT POM。",
+      "notice": "AAR 共 50 entries，license/notice 命中 0。FFmpeg GPL、mpv LGPL、libass ISC、LLVM libc++ 与其他静态依赖 notices 尚未形成可分发清单；对应源码/构建脚本 offer 也未冻结。",
+      "maintenance": "v1.0.0 为检查时 latest release，releaseDate 2026-04-08；依赖 tag 可见，但 wrapper 近七个月无更新证据，不能写 ACTIVE/security PASS。",
+      "sourceObligation": "FFmpeg GPL-3+ 要求相应源码/构建脚本；mpv LGPL 与 libc++ 还保留替换/notice 义务。AAR 没有内嵌 notice，最终 APK/NOTICE 当前不可证明完整。"
+    },
+    {
+      "id": "TTS",
+      "status": "PARTIAL",
+      "technical": "Sherpa-ONNX v2.0.1 tag af2d8d81dbfa61c4cea4c568da78f3982edca005，标准 AAR 49,441,341 B、SHA-256 a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7，四 ABI；Piper1-GPL v1.8.0 tag 639388b6317fc4731e91d53da42aea68fd4166ff，release 仅六项 Python wheels/sdist，无官方 Android artifact。",
+      "provenance": "Sherpa inference 路径使用本地 ONNX、tokens/lexicon/rule data 与 JNI；Piper 路径使用本地 ONNX、libpiper、ONNX Runtime、espeak/中文音素数据。二者架构上都不要求远程 API，但本轮不下载模型、不安装 Android 包、不运行推断。",
+      "licenseBoundary": "Sherpa code Apache-2.0；Piper1 code GPL-3.0，且 README 明确寻找 maintainer。声音模型、lexicon、rule、espeak/phonemizer 数据均独立授权。Piper VOICES.md 明确每个 voice 的 MODEL_CARD 决定许可，并声明部分 voices 可有限制。",
+      "modelEvidence": "Sherpa 示例 vits-melo-tts-zh_en 的官方文档显示 archive 内有 LICENSE，但本轮未下载模型，无法读取其内容；Piper voices.json 固定 zh_CN-huayan-medium MODEL_CARD 路径与 MD5 b23255ace0cda4c2e02134d8a70c2e03，但 MODEL_CARD 文本未取得。未选最终 voice，故模型许可为精确 BLOCKED。",
+      "notice": "代码许可证不能覆盖声音模型、训练数据限制、lexicon/rule 数据和 ONNX Runtime。最终 notice 必须在选定 voice 后逐资产生成。",
+      "maintenance": "Sherpa v2.0.1 于 2026-10-26 发布，维护活跃；Piper v1.8.0 于 2026-09-04 发布但公开寻找维护者，旧 rhasspy/piper 已归档。"
+    },
+    {
+      "id": "PDFIUM",
+      "status": "BLOCKED",
+      "technical": "io.legere 2.0.3 tag commit 92e6e42e2b886eb238a03b3574507b3d926e5cb5；core AAR 9,787,161 B、SHA-256 F80B8D2166F226E0ED0A50B7014CEA91E297952C5E0AC158F10FF62C74D7E318。3.0.4-alpha01 tag commit 7331dc1a3cb4e88c24947d89d7cc124677aac108；core AAR 9,788,401 B、SHA-256 00C5B696ADD8CADF15836C43318D2E481FF803B13E8694EEFE1877741D0205BB。两个 tag 的四个 libpdfium.so Git blob 相同。",
+      "licenseBoundary": "wrapper 为 Apache-2.0；tag LICENSE 同时嵌入 PDFium BSD-3-Clause notice。POM 只声明 Apache-2.0，不能代表 native PDFium 或其 statically linked third-party 组件。",
+      "notice": "PDFium BSD 要求 binary distribution 再现 copyright/conditions/disclaimer；精确 PDFium revision、GN build config、third-party inventory 与最终 packaged notice 未提供。BSD 通常无 copyleft source offer，但精确 source availability 仍缺。",
+      "maintenance": "2.0.3 stable 与 3.0.4-alpha01 prerelease 同于 2026-07-26 发布；3.0.4 alpha 无 GitHub AAR assets，Maven Central 有 artifact。项目 active，但 open issue #56 阻断兼容性。",
+      "native16kb": "官方 issue #56 对 2.0.3 与 3.0.4-alpha01 给出同一组 64-bit GNU_RELRO 结束地址；arm64/x86_64 的 libpdfium.so 与 libpdfiumandroid.so 均未落在 0x4000 边界。该证据是上游复现的静态 ELF 失败，不是 runtime crash；本地 AAR 未缓存且禁止下载，故本轮未复算 AAR 内容。"
+    }
+  ],
+  "executed": [
+    "核验指定 worktree、branch、HEAD 与 clean：PASS",
+    "读取 ENG memory index、相关 Aurorama/PDF 项目记忆与白名单文档短段",
+    "读取 S4-A license/runtime closure、S4-B native matrix、S4-C TTS/PDF option matrix 的 Q03 字段",
+    "核对本地 POM/AAR SHA-256、ZIP native entries、license/notice entry count 与嵌入版本字符串",
+    "核对官方 tag/commit、Media3/Jellyfin FFmpeg build flags、libmpv dependency/build scripts、Sherpa/Piper release/model-license instructions",
+    "核对 PDFium GitHub release asset digest、Maven Central AAR/POM/checksum、issue #54/#56 与两个 tag 的 native blob identity",
+    "读取本会话 DeepSeek 代理状态并记录实际上下文水位"
+  ],
+  "notExecuted": [
+    "未 build、未生成候选 APK/AAB/SBOM，未运行 Gradle",
+    "未执行 Media3 <-> mpv load-order、codec format matrix、ASS 切换或 16 KB 页面设备测试",
+    "未下载或安装 Sherpa/Piper/PDFium AAR，未下载/运行 TTS 模型",
+    "未访问设备、Jellyfin、生产服务器或测试账号",
+    "未完成法律审查，未生成最终 source bundle/written offer 或发布 notice"
+  ],
+  "priorities": {
+    "P0": [],
+    "P1": [
+      "Media3 1.11.1 与 decoder 1.9.0+1 的运行时 JNI/API/FFmpeg 行为未证明",
+      "Media3 与 libmpv 的 FFmpeg/ass 同名符号要求真实 load-order 与格式矩阵",
+      "libmpv AAR 未含 notice；FFmpeg GPL-3+ 的对应源码/构建脚本/notice 未冻结",
+      "TTS voice/lexicon/rule/espeak/model 许可未按最终资产逐项冻结",
+      "TTS app 级零网络和性能未测",
+      "PDFium 2.0.3/3.0.4-alpha01 的 64-bit GNU_RELRO 16 KB 静态门失败",
+      "PDFium exact native revision、third-party notice/source availability 缺失",
+      "最终 APK packaged SBOM 与 source-offer artifact 不存在"
+    ],
+    "P2": [
+      "Media3 decoder 的 GPL wrapper 与 FFmpeg native LGPL 边界尚无 build-log/SPDX 固化",
+      "libmpv 依赖 tag 与 CI actions/package install 未全量 commit/digest pin，复现重建成效未证明",
+      "PDF Range、弱网、取消和 2.53 GB 大文件未执行",
+      "Piper 无官方 Android artifact且维护人风险"
+    ],
+    "P3": [
+      "Maven/POM 元数据粒度不足，不能替代 SBOM",
+      "PDFium 3.0.4-alpha01 为预发布且 native blobs 与 2.0.3 相同"
+    ]
+  },
+  "blocked": [
+    {
+      "id": "BLOCKED-MEDIA3-RUNTIME-BINDING",
+      "reason": "静态 JNI 符号与 build 可解析，但版本错位、同名 FFmpeg 符号和真实 play/decode 未执行",
+      "releaseEffect": "不得把 JNI 9/9 或 build PASS 写为 runtime compatibility"
+    },
+    {
+      "id": "BLOCKED-LIBMPV-RUNTIME-COEXISTENCE",
+      "reason": "Media3 与 mpv 的 FFmpeg/ass 同进程加载顺序与切换未执行",
+      "releaseEffect": "不得选双内核或删除 mpv；等待格式/runtime 证据"
+    },
+    {
+      "id": "BLOCKED-NATIVE-NOTICE-SOURCE",
+      "reason": "AAR 无 license/notice entries，最终 APK notice、GPL/LGPL source bundle 与 build provenance 未生成",
+      "releaseEffect": "阻止发布许可批准，但不阻止作为 Q03 输入"
+    },
+    {
+      "id": "BLOCKED-TTS-MODEL-LICENSE",
+      "reason": "未选 voice，未读取 Sherpa/Piper 具体 MODEL_CARD、lexicon/rule/espeak 数据许可",
+      "releaseEffect": "任一 voice 不可行不得随包；runtime spike 不能替代许可"
+    },
+    {
+      "id": "BLOCKED-TTS-OFFLINE-RUNTIME",
+      "reason": "需要在候选包、飞行模式、零 App 网络、实际中文 voice 与设备性能条件下验证",
+      "releaseEffect": "架构 local-only 不等于 app 零网络证明"
+    },
+    {
+      "id": "BLOCKED-PDFIUM-16KB",
+      "reason": "官方 issue #56 对两个版本 64-bit RELRO 给出失败复现；本轮不许下载 AAR 本地复算",
+      "releaseEffect": "修复版或可验证 artifact 出现前不得替换 PdfRenderer"
+    },
+    {
+      "id": "BLOCKED-PDFIUM-NATIVE-PROVENANCE",
+      "reason": "PDFium 周构建无固定 revision、GN flags、third-party SBOM/notice；wrapper tag 只证明二进制 blob",
+      "releaseEffect": "BSD notice 与更新追溯不能闭环"
+    },
+    {
+      "id": "BLOCKED-PDF-RUNTIME",
+      "reason": "Range/206、取消、弱网、大文件和内存上限需要候选包与测试设备",
+      "releaseEffect": "静态 PdfiumSource API 不等于大文件可交付"
+    },
+    {
+      "id": "BLOCKED-CANONICAL-SBOM",
+      "reason": "候选 release APK/AAB 未生成，dependenciesInfo 关闭；Gradle graph不是 packaged-file SBOM",
+      "releaseEffect": "Q03 可继续，Release 许可门保持关闭"
+    }
+  ],
+  "uncovered": [
+    "Media3/FFmpeg 与 libmpv/FFmpeg 同进程 load order、切换、字幕和音频/视频格式矩阵",
+    "16 KB page-size 设备的 dlopen/play 行为，以及最终 APK zipalign/ELF/run 组合",
+    "Sherpa/Piper 中文声音质量、首音、RTF、内存、耗电、暂停恢复与连续稳定性",
+    "Piper Android JNI/ONNX Runtime/espeak 数据打包可行性",
+    "PDFium Range/206、取消、弱网、大文件内存与页面窗口",
+    "最终 source bundle、written offer、copyright、license text、third-party notices 和 packaged SBOM"
+  ],
+  "contextWatermark": {
+    "model": "deepseek-flash",
+    "initialInputTokens": 71989,
+    "finalInputTokens": 278299,
+    "windowTokens": 1048576,
+    "finalPercent": 26.5,
+    "finalCacheHitPercent": 99.9,
+    "finalSessionRequests": 600,
+    "capturedAt": "2026-11-04 00:13:45 +08:00",
+    "note": "超过原计划 90k 估计但未到 30 万收口线；发现后立即停止扩项并冻结证据"
+  },
+  "evidencePaths": [
+    ".planning/v2-g1/G1-S4-A-Q03-NATIVE/report.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NATIVE/option-matrix.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NATIVE/provenance-matrix.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NATIVE/manifest.json",
+    ".planning/v2-g1/G1-S4-A-Q03-NATIVE/commands.log"
+  ],
+  "next": {
+    "owner": "交付负责人 / 技术集成编排者",
+    "action": "消费 PARTIAL 矩阵；不得据本包关闭 Q03、选择最终引擎或进入 G2。若继续技术门，由独立后续角色在明确授权下生成候选包并执行 media runtime、TTS voice 许可/离线、PDFium 修复版 16 KB/notice/Range 证据。",
+    "firstReadOnlyAction": "核验本目录 manifest 与 HEAD，然后读取 report.json -> provenance-matrix.json -> option-matrix.json",
+    "stopCondition": "出现对象漂移、需要越权下载/安装、设备/服务器写、最终许可法律结论或 Q03 用户拍板要求时停止"
+  }
+}

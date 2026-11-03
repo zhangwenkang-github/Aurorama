@@ -1,0 +1,439 @@
+{
+  "schemaVersion": 1,
+  "taskId": "G1-S4-A-Q03-NATIVE",
+  "statusMeaning": {
+    "PROVEN": "本任务未执行边界的范围内，有固定版本/路径/hash/官方源码或二进制事实闭合并点名。",
+    "PARTIAL": "关键事实已固定，但有一个会在后续 runtime、notice、reproducibility 或 maintenance 门中导致不能 PASS 的缺口。",
+    "BLOCKED": "缺必需 artifact/source/measurement，或已有明确不满足门禁的静态证据；不得用推断替代。"
+  },
+  "counts": {
+    "PROVEN": 13,
+    "PARTIAL": 6,
+    "BLOCKED": 12,
+    "total": 31
+  },
+  "rows": [
+    {
+      "id": "M3-01",
+      "group": "Media3/Jellyfin",
+      "claim": "两版本 tag/commit、decoder AAR hash 与四 ABI native 组成可固定",
+      "status": "PROVEN",
+      "evidence": [
+        "Media3 1.11.1 tag peel=8c6678b657ede1e7883fc164ef73ed483c7796c3",
+        "Jellyfin v1.9.0+1 tag=af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396",
+        "decoder AAR SHA256=DFC726C8BC9D9DB02E15B160F886A03BDD6DD51E88BA2DE89AA74CAF5E8CD181",
+        "S4-B: JNI 9/9 on each of four ABIs"
+      ],
+      "sources": [
+        "https://github.com/androidx/media/tree/1.11.1",
+        "https://github.com/jellyfin/jellyfin-androidx-media/tree/v1.9.0%2B1"
+      ]
+    },
+    {
+      "id": "M3-02",
+      "group": "Media3/Jellyfin",
+      "claim": "decoder 的 FFmpeg source pin 与 JNI build recipe 可追溯",
+      "status": "PROVEN",
+      "evidence": [
+        "ffmpeg gitlink=37c90f55d8b6c3948c79449b04755527b4ae1351",
+        "compiled Media3 submodule=7cc1056f840ce226598d3b990d4a6f7cd17e2831 (1.9.0)",
+        "build.sh enables 11 decoders; build_ffmpeg.sh uses NDK 23, static FFmpeg, swresample"
+      ],
+      "sources": [
+        "https://github.com/jellyfin/jellyfin-androidx-media/tree/v1.9.0%2B1",
+        "https://github.com/FFmpeg/FFmpeg/tree/37c90f55d8b6c3948c79449b04755527b4ae1351"
+      ]
+    },
+    {
+      "id": "M3-03",
+      "group": "Media3/Jellyfin",
+      "claim": "Media3 1.11.1 与 decoder 1.9.0+1 的运行时绑定",
+      "status": "PARTIAL",
+      "evidence": [
+        "classpath 仲裁到 1.11.1；offline debug build PASS",
+        "JNI symbols and four ABIs present",
+        "load/version/decode and error behavior not executed"
+      ],
+      "gate": "GATE-MEDIA3-RUNTIME"
+    },
+    {
+      "id": "M3-04",
+      "group": "Media3/Jellyfin",
+      "claim": "wrapper GPL-3 与 FFmpeg native 许可边界及精确 SPDX",
+      "status": "PARTIAL",
+      "evidence": [
+        "Jellyfin LICENSE/POM=GPL-3.0",
+        "Media3 build_ffmpeg.sh has no --enable-gpl/version3, so native FFmpeg direction is LGPL-2.1-or-later",
+        "no archived configure/build log or per-binary SPDX"
+      ],
+      "gate": "GATE-MEDIA3-LICENSE-MAP"
+    },
+    {
+      "id": "M3-05",
+      "group": "Media3/Jellyfin",
+      "claim": "decoder AAR 自带可分发 license/notice inventory",
+      "status": "BLOCKED",
+      "evidence": [
+        "AAR entries=14; LICENSE/NOTICE/COPYING/THIRD_PARTY/README matches=0",
+        "POM license does not enumerate FFmpeg copyright/notice",
+        "final APK notice not generated"
+      ],
+      "gate": "GATE-NATIVE-NOTICE"
+    },
+    {
+      "id": "M3-06",
+      "group": "Media3/Jellyfin",
+      "claim": "维护状态与所选组合兼容",
+      "status": "PARTIAL",
+      "evidence": [
+        "Media3 1.11.1 releaseDate=2026-09-11; latest stable checked",
+        "Jellyfin decoder latest checked 1.9.0+1 releaseDate=2025-12-29",
+        "decoder remains compiled against Media3 1.9.0"
+      ],
+      "gate": "GATE-MAINTENANCE-REVIEW"
+    },
+    {
+      "id": "M3-07",
+      "group": "Media3/Jellyfin",
+      "claim": "四 ABI 的静态 ELF 16 KB load alignment",
+      "status": "PROVEN",
+      "evidence": [
+        "S4-B: arm64/x86_64 all 0x4000; armv7/x86 mix 0x1000/0x4000",
+        "zipalign -P 16 PASS for debug splits and frozen 1.4 release APKs"
+      ],
+      "scope": "static ELF/ZIP only; not Android runtime compatibility",
+      "gate": "GATE-16KB-RUNTIME remains"
+    },
+    {
+      "id": "M3-08",
+      "group": "Media3/Jellyfin",
+      "claim": "真实 load order、同进程 FFmpeg interposition、格式与 16 KB 设备运行",
+      "status": "BLOCKED",
+      "evidence": [
+        "Media3 FFmpeg exports 994 av-family names",
+        "libmpv FFmpeg shares 461 same-name exports",
+        "no device/playback execution allowed by this task"
+      ],
+      "gate": "GATE-MEDIA-RUNTIME"
+    },
+    {
+      "id": "MPV-01",
+      "group": "libmpv",
+      "claim": "wrapper tag、AAR hash、四 ABI 与嵌入 mpv/FFmpeg 版本可固定",
+      "status": "PROVEN",
+      "evidence": [
+        "tag v1.0.0=fcf6745703dc1265bca88f12fee8fc355ddf251e",
+        "AAR SHA256=DF146592480FC8418415A06B1F1A1D6318B0088E21F52254B0E9A82B61CA8FA2",
+        "binary strings: mpv v0.41.0, FFmpeg n8.1",
+        "mpv JNI 16/16 on four ABIs"
+      ],
+      "sources": [
+        "https://github.com/jarnedemeulemeester/libmpv-android/tree/v1.0.0"
+      ]
+    },
+    {
+      "id": "MPV-02",
+      "group": "libmpv",
+      "claim": "FFmpeg/libass/mpv 内嵌关系及编译配置",
+      "status": "PROVEN",
+      "evidence": [
+        "build depinfo: ffmpeg=8.1, mpv=0.41.0, libass=0.17.4",
+        "ffmpeg.sh: --enable-gpl --enable-version3",
+        "libmpv.so contains ../libass/* sources and ass_* symbols",
+        "embedded configuration contains gpl + libass features"
+      ]
+    },
+    {
+      "id": "MPV-03",
+      "group": "libmpv",
+      "claim": "主要组件许可证边界",
+      "status": "PROVEN",
+      "evidence": [
+        "wrapper repo LICENSE=MIT",
+        "libavutil/libavcodec self-report GPL version 3 or later",
+        "libmpv self-report LGPL-2.1-or-later",
+        "libass 0.17.4 upstream=ISC"
+      ],
+      "scope": "classification only; no release notice approval"
+    },
+    {
+      "id": "MPV-04",
+      "group": "libmpv",
+      "claim": "完整依赖 commit pin 与可复现 rebuild",
+      "status": "PARTIAL",
+      "evidence": [
+        "download-deps.sh clones mutable version tags",
+        "GitHub Actions use major tags and ubuntu-latest",
+        "apt/pip packages are not digest pinned",
+        "current AAR hash is fixed, but no independent rebuild equivalence"
+      ],
+      "gate": "GATE-REPRODUCIBLE-PROVENANCE"
+    },
+    {
+      "id": "MPV-05",
+      "group": "libmpv",
+      "claim": "AAR/APK 可分发 notices 与 GPL/LGPL source obligation",
+      "status": "BLOCKED",
+      "evidence": [
+        "AAR entries=50; license/notice matches=0",
+        "POM only declares wrapper MIT",
+        "FFmpeg GPL-3+ source and other dependency notices absent",
+        "no final source bundle/written offer"
+      ],
+      "gate": "GATE-NATIVE-NOTICE-SOURCE"
+    },
+    {
+      "id": "MPV-06",
+      "group": "libmpv",
+      "claim": "当前 AAR 四 ABI 静态 ELF 16 KB load alignment",
+      "status": "PROVEN",
+      "evidence": [
+        "S4-B: arm64/x86_64 all 0x4000; armv7/x86 mix 0x1000/0x4000",
+        "official build uses -Wl,-z,max-page-size=16384",
+        "zipalign -P 16 PASS"
+      ],
+      "scope": "static ELF/ZIP only; runtime remains blocked"
+    },
+    {
+      "id": "MPV-07",
+      "group": "libmpv",
+      "claim": "维护和安全状态",
+      "status": "PARTIAL",
+      "evidence": [
+        "v1.0.0 latest checked; releaseDate=2026-04-08",
+        "dependency tag/build scripts remain inspectable",
+        "no maintenance SLA, security scan or vulnerability clearance"
+      ]
+    },
+    {
+      "id": "MPV-08",
+      "group": "libmpv",
+      "claim": "与 Media3/ass-kt 同进程 coexist 和真实播放",
+      "status": "BLOCKED",
+      "evidence": [
+        "FFmpeg same-name intersection arm64=461",
+        "libass/ass-kt same-name intersection arm64=217",
+        "DEFAULT visibility exposes unversioned symbols",
+        "load order tests and format matrix not executed"
+      ],
+      "gate": "GATE-MEDIA-RUNTIME"
+    },
+    {
+      "id": "TTS-01",
+      "group": "TTS",
+      "claim": "Sherpa-ONNX code artifact、tag 与四 ABI",
+      "status": "PROVEN",
+      "evidence": [
+        "v2.0.1=af2d8d81dbfa61c4cea4c568da78f3982edca005",
+        "standard AAR 49441341 B",
+        "SHA256=a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+        "source tree has four Android ABI directories"
+      ],
+      "sources": [
+        "https://github.com/k2-fsa/sherpa-onnx/tree/v2.0.1"
+      ]
+    },
+    {
+      "id": "TTS-02",
+      "group": "TTS",
+      "claim": "Sherpa 最终 voice、lexicon、rule 与 ONNX Runtime 可分发许可",
+      "status": "BLOCKED",
+      "evidence": [
+        "code Apache-2.0 only",
+        "vits-melo-tts-zh_en official listing shows archive LICENSE but content not fetched",
+        "HuggingFace/API TLS timed out; no model download allowed",
+        "no final voice selected"
+      ],
+      "gate": "GATE-TTS-MODEL-LICENSE"
+    },
+    {
+      "id": "TTS-03",
+      "group": "TTS",
+      "claim": "Sherpa pure-local architecture",
+      "status": "PROVEN",
+      "evidence": [
+        "local ONNX model and local tokens/lexicon/rule data",
+        "JNI inference path; no remote API required",
+        "official Android TTS engine sample exists"
+      ],
+      "scope": "architecture only"
+    },
+    {
+      "id": "TTS-04",
+      "group": "TTS",
+      "claim": "App 级零网络、中文质量与设备性能",
+      "status": "BLOCKED",
+      "evidence": [
+        "no model installed or run",
+        "no flight-mode/zero-traffic measurement",
+        "no first-audio/RTF/memory/battery/pause-resume evidence"
+      ],
+      "gate": "GATE-TTS-OFFLINE-RUNTIME"
+    },
+    {
+      "id": "TTS-05",
+      "group": "TTS",
+      "claim": "Piper1 code license、tag 与 Android artifact 缺失",
+      "status": "PROVEN",
+      "evidence": [
+        "v1.8.0=639388b6317fc4731e91d53da42aea68fd4166ff",
+        "repo COPYING=GPL-3.0",
+        "release assets are Python wheels/sdist",
+        "README seeks maintainers; old rhasspy/piper archived"
+      ],
+      "sources": [
+        "https://github.com/OHF-Voice/piper1-gpl/tree/v1.8.0"
+      ]
+    },
+    {
+      "id": "TTS-06",
+      "group": "TTS",
+      "claim": "Piper voice license、Android build 与 runtime",
+      "status": "BLOCKED",
+      "evidence": [
+        "VOICES.md says every voice MODEL_CARD controls license",
+        "voicedb records zh_CN-huayan-medium MODEL_CARD MD5=b23255ace0cda4c2e02134d8a70c2e03",
+        "MODEL_CARD content not obtained",
+        "no official Android artifact; no JNI/ONNX/espeak device build"
+      ],
+      "gate": "GATE-TTS-PIPER"
+    },
+    {
+      "id": "PDF-01",
+      "group": "PDFium",
+      "claim": "两个 io.legere 版本 tag、Maven/GitHub AAR hashes 与 native blob identity",
+      "status": "PROVEN",
+      "evidence": [
+        "2.0.3 tag=92e6e42e2b886eb238a03b3574507b3d926e5cb5",
+        "3.0.4-alpha01 tag=7331dc1a3cb4e88c24947d89d7cc124677aac108",
+        "core 2.0.3 SHA256=F80B8D2166F226E0ED0A50B7014CEA91E297952C5E0AC158F10FF62C74D7E318",
+        "core alpha SHA256=00C5B696ADD8CADF15836C43318D2E481FF803B13E8694EEFE1877741D0205BB",
+        "both tags have same four libpdfium.so Git blob IDs"
+      ],
+      "sources": [
+        "https://github.com/johngray1965/PdfiumAndroidKt/tree/2.0.3",
+        "https://github.com/johngray1965/PdfiumAndroidKt/tree/3.0.4-alpha01",
+        "https://repo1.maven.org/maven2/io/legere/pdfiumandroid-core/"
+      ]
+    },
+    {
+      "id": "PDF-02",
+      "group": "PDFium",
+      "claim": "wrapper 与 PDFium 顶层源代码许可",
+      "status": "PROVEN",
+      "evidence": [
+        "repo LICENSE: wrapper Apache-2.0 plus PDFium BSD-3-Clause text",
+        "POM: Apache-2.0 only",
+        "top-level PDFium source is public"
+      ],
+      "sources": [
+        "https://github.com/johngray1965/PdfiumAndroidKt/blob/2.0.3/LICENSE",
+        "https://pdfium.googlesource.com/pdfium/"
+      ]
+    },
+    {
+      "id": "PDF-03",
+      "group": "PDFium",
+      "claim": "精确 PDFium revision、GN config、third-party native notice/source map",
+      "status": "BLOCKED",
+      "evidence": [
+        "issue #54 maintainer: native libs come from Google weekly builds updated from time to time",
+        "no exact revision/build config/SBOM/third-party list in public response",
+        "binary blobs are committed in wrapper repo but lack upstream revision metadata"
+      ],
+      "sources": [
+        "https://github.com/johngray1965/PdfiumAndroidKt/issues/54"
+      ],
+      "gate": "GATE-PDF-NATIVE-PROVENANCE"
+    },
+    {
+      "id": "PDF-04",
+      "group": "PDFium",
+      "claim": "64-bit static ELF 16 KB GNU_RELRO compatibility",
+      "status": "BLOCKED",
+      "evidence": [
+        "issue #56 open; updated 2026-10-08",
+        "arm64 libpdfium RELRO end 0x486000 % 0x4000 = 0x2000",
+        "arm64 libpdfiumandroid end 0x6f000 % 0x4000 = 0x3000",
+        "x86_64 libpdfium end 0x42d000 % 0x4000 = 0x1000",
+        "x86_64 libpdfiumandroid end 0x6d000 % 0x4000 = 0x1000",
+        "same values reported for 3.0.4-alpha01"
+      ],
+      "sources": [
+        "https://github.com/johngray1965/PdfiumAndroidKt/issues/56",
+        "https://developer.android.com/guide/practices/page-sizes"
+      ],
+      "scope": "upstream reproducer only; no local AAR download/readelf and no runtime crash claim"
+    },
+    {
+      "id": "PDF-05",
+      "group": "PDFium",
+      "claim": "wrapper 维护活跃度与发布通道状态",
+      "status": "PARTIAL",
+      "evidence": [
+        "2.0.3 and 3.0.4-alpha01 published 2026-07-26",
+        "3.0.4 release marked prerelease and has zero GitHub AAR assets",
+        "Maven Central has alpha AARs",
+        "issue #56 open; issue #54 answered with week-build provenance"
+      ]
+    },
+    {
+      "id": "PDF-06",
+      "group": "PDFium",
+      "claim": "PdfiumSource Range/206、大文件、取消与设备内存",
+      "status": "BLOCKED",
+      "evidence": [
+        "PdfiumSource API exists statically",
+        "no runtime request/cancel/cache experiment",
+        "no 2.53 GB document or device evidence"
+      ],
+      "gate": "GATE-PDF-RANGE"
+    },
+    {
+      "id": "X-01",
+      "group": "Cross-cutting",
+      "claim": "工程 GPL-3.0-only 与主候选的许可方向无阻断冲突",
+      "status": "PROVEN",
+      "evidence": [
+        "project expression=GPL-3.0-only",
+        "Media3 wrapper GPL-3, libmpv FFmpeg GPL-3+, mpv LGPL, libass ISC, PDFium BSD, Sherpa Apache, Piper GPL-3",
+        "no AGPL/SSPL found in audited set"
+      ],
+      "scope": "directional compatibility only; not legal clearance or notice/source-offer proof"
+    },
+    {
+      "id": "X-02",
+      "group": "Cross-cutting",
+      "claim": "候选包 final SBOM、notice bundle 与 source offer/corresponding source",
+      "status": "BLOCKED",
+      "evidence": [
+        "no release APK/AAB generated",
+        "Gradle runtime graph is not packaged-file SBOM",
+        "AAR license/notice entries absent",
+        "no source bundle or written offer"
+      ],
+      "gate": "GATE-RELEASE-LICENSE"
+    },
+    {
+      "id": "X-03",
+      "group": "Cross-cutting",
+      "claim": "真实设备/候选包下的媒体、TTS 与 PDF runtime matrix",
+      "status": "BLOCKED",
+      "evidence": [
+        "task prohibits device/playback/model execution",
+        "requires later explicit G2/isolated spike approval",
+        "static ELF/API results are not runtime compatibility proof"
+      ],
+      "gate": "GATE-RUNTIME-DEVICE"
+    }
+  ],
+  "hardRuntimeGates": [
+    "Media3 FfmpegLibrary first, availability/version, then MPVLib and representative decode",
+    "MPVLib first, then Media3 FFmpeg, then repeated Media3->mpv->Media3 switches",
+    "libmpv and ass-kt in both load orders with ASS switching",
+    "approved audio/video format matrix; FFmpeg video stub must not be relied on",
+    "Sherpa/Piper flight-mode + zero App traffic + actual local model",
+    "PDF Range/206, cancel, weak network, large-file ceiling and memory",
+    "16 KB page-size device dlopen/play after static PDFium gate is fixed"
+  ]
+}

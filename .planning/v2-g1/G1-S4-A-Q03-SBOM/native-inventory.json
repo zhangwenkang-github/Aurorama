@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "task": "G1-S4-A-Q03-SBOM",
+  "artifact": {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\w90a2-release-candidate-20261102\\Aurorama\\app\\phone\\build\\outputs\\apk\\libre\\release\\phone-libre-arm64-v8a-release.apk",
+    "package": "io.github.zhangwenkang.aurorama",
+    "versionName": "1.4.0",
+    "versionCode": 5,
+    "abi": "arm64-v8a",
+    "bytes": 79729350,
+    "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb"
+  },
+  "summary": {
+    "nativeEntryCount": 14,
+    "nativeEntryBytes": 29482904,
+    "allEntriesStored": true,
+    "automaticallyExpressibleByGradleDependencyGraph": 0,
+    "provenanceBlockedCount": 8,
+    "provenancePartialCount": 6
+  },
+  "entries": [
+    {
+      "path": "lib/arm64-v8a/libandroidx.graphics.path.so",
+      "abi": "arm64-v8a",
+      "bytes": 10096,
+      "compressedBytes": 10096,
+      "stored": true,
+      "sha256": "41e9a793c43a0f4fddb19e33f346bace464f30f888ba7b9eaf96294ea115bfb6",
+      "mavenOriginCoordinates": [
+        "androidx.graphics:graphics-path:1.0.1"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "PARTIAL_PARENT_FAMILY_LICENSE_ONLY"
+    },
+    {
+      "path": "lib/arm64-v8a/libass.so",
+      "abi": "arm64-v8a",
+      "bytes": 3042280,
+      "compressedBytes": 3042280,
+      "stored": true,
+      "sha256": "f13e8a925ddaa73074105f9af89123b2206edbe4b502d748a6217a261dc62df4",
+      "mavenOriginCoordinates": [
+        "io.github.peerless2012:ass-kt:0.5.1"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "PARTIAL_NOTICE_ONLY_ISC"
+    },
+    {
+      "path": "lib/arm64-v8a/libasskt.so",
+      "abi": "arm64-v8a",
+      "bytes": 17016,
+      "compressedBytes": 17016,
+      "stored": true,
+      "sha256": "d7d221f40dbb94371f23b8a3c69995424bb6f505fe81bff6bf916289a1db487c",
+      "mavenOriginCoordinates": [
+        "io.github.peerless2012:ass-kt:0.5.1"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "PARTIAL_PARENT_MIT_NATIVE_NOTICE_INCOMPLETE"
+    },
+    {
+      "path": "lib/arm64-v8a/libavcodec.so",
+      "abi": "arm64-v8a",
+      "bytes": 11979536,
+      "compressedBytes": 11979536,
+      "stored": true,
+      "sha256": "2048ef964b3f7de520b0515db645923d9548fcd656b3d7b0732bbe5822ccb3a3",
+      "mavenOriginCoordinates": [
+        "dev.jdtech.mpv:libmpv:1.0.0"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "BLOCKED_FFMPEG_BUILD_LICENSE_UNRESOLVED"
+    },
+    {
+      "path": "lib/arm64-v8a/libavdevice.so",
+      "abi": "arm64-v8a",
+      "bytes": 9048,
+      "compressedBytes": 9048,
+      "stored": true,
+      "sha256": "20f8d19d422b43e0a91b1dbe8f7b46558277aaab08e2971cc2a19238d2fc9a3d",
+      "mavenOriginCoordinates": [
+        "dev.jdtech.mpv:libmpv:1.0.0"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "BLOCKED_FFMPEG_BUILD_LICENSE_UNRESOLVED"
+    },
+    {
+      "path": "lib/arm64-v8a/libavfilter.so",
+      "abi": "arm64-v8a",
+      "bytes": 141456,
+      "compressedBytes": 141456,
+      "stored": true,
+      "sha256": "1234199006dd10f73b92e7f7b10213530cf314dd3dd5bcdcf5f8527d4c27073a",
+      "mavenOriginCoordinates": [
+        "dev.jdtech.mpv:libmpv:1.0.0"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "BLOCKED_FFMPEG_BUILD_LICENSE_UNRESOLVED"
+    },
+    {
+      "path": "lib/arm64-v8a/libavformat.so",
+      "abi": "arm64-v8a",
+      "bytes": 2974464,
+      "compressedBytes": 2974464,
+      "stored": true,
+      "sha256": "4edf68d3a0008840e516992380466ff7ee2ec926a56aff07713fdea4025492a7",
+      "mavenOriginCoordinates": [
+        "dev.jdtech.mpv:libmpv:1.0.0"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "BLOCKED_FFMPEG_BUILD_LICENSE_UNRESOLVED"
+    },
+    {
+      "path": "lib/arm64-v8a/libavutil.so",
+      "abi": "arm64-v8a",
+      "bytes": 726808,
+      "compressedBytes": 726808,
+      "stored": true,
+      "sha256": "26a08d67f466edd3917280de7938fe373503ae94f59a86e377ce61de3ebb249b",
+      "mavenOriginCoordinates": [
+        "dev.jdtech.mpv:libmpv:1.0.0"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "BLOCKED_FFMPEG_BUILD_LICENSE_UNRESOLVED"
+    },
+    {
+      "path": "lib/arm64-v8a/libc++_shared.so",
+      "abi": "arm64-v8a",
+      "bytes": 1374336,
+      "compressedBytes": 1374336,
+      "stored": true,
+      "sha256": "c4c2fe5cbcb1fba0003a31fc7ab29a9bb12df6cc187ec45a806462540e83d93b",
+      "mavenOriginCoordinates": [
+        "dev.jdtech.mpv:libmpv:1.0.0",
+        "io.github.peerless2012:ass-kt:0.5.1"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "BLOCKED_NDK_RUNTIME_NOTICE_UNRESOLVED"
+    },
+    {
+      "path": "lib/arm64-v8a/libffmpegJNI.so",
+      "abi": "arm64-v8a",
+      "bytes": 1462200,
+      "compressedBytes": 1462200,
+      "stored": true,
+      "sha256": "358545f4c9aa9e2eb5fdf7694d089d2e1e61364096bdc52ff99cd1bc303a4632",
+      "mavenOriginCoordinates": [
+        "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "PARTIAL_PARENT_GPL_NATIVE_NOTICE_INCOMPLETE"
+    },
+    {
+      "path": "lib/arm64-v8a/libmpv.so",
+      "abi": "arm64-v8a",
+      "bytes": 6477048,
+      "compressedBytes": 6477048,
+      "stored": true,
+      "sha256": "0184efeba540fcb8ebfaa759462204d940c7cf7f8a589774389e4005bfa0a951",
+      "mavenOriginCoordinates": [
+        "dev.jdtech.mpv:libmpv:1.0.0"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "PARTIAL_WRAPPER_MIT_LIBMPV_BODY_NOTICE_ONLY"
+    },
+    {
+      "path": "lib/arm64-v8a/libplayer.so",
+      "abi": "arm64-v8a",
+      "bytes": 19456,
+      "compressedBytes": 19456,
+      "stored": true,
+      "sha256": "ce2fb6df55e6e995f446ac378ecbfa2aac2538b76bad67e19e789565cf96b3a3",
+      "mavenOriginCoordinates": [
+        "dev.jdtech.mpv:libmpv:1.0.0"
+      ],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "PARTIAL_PARENT_MIT_NATIVE_NOTICE_INCOMPLETE"
+    },
+    {
+      "path": "lib/arm64-v8a/libswresample.so",
+      "abi": "arm64-v8a",
+      "bytes": 96576,
+      "compressedBytes": 96576,
+      "stored": true,
+      "sha256": "a18b0a5a556f74ba2fa61ee60cecccfcbd6b746f9cb0088b05534f3feb17678d",
+      "mavenOriginCoordinates": [],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "BLOCKED_FFMPEG_BUILD_LICENSE_UNRESOLVED"
+    },
+    {
+      "path": "lib/arm64-v8a/libswscale.so",
+      "abi": "arm64-v8a",
+      "bytes": 1152584,
+      "compressedBytes": 1152584,
+      "stored": true,
+      "sha256": "6707ce92803d331ce811cb65f752bb7441ba4396dbc71ecd284792fe7ec9ffe6",
+      "mavenOriginCoordinates": [],
+      "automaticGradleSbomExpression": false,
+      "packagedFileEvidence": "PROVEN",
+      "nativeLicenseStatus": "BLOCKED_FFMPEG_BUILD_LICENSE_UNRESOLVED"
+    }
+  ],
+  "absentCandidates": [
+    {
+      "component": "PDFium",
+      "presentInFrozenRuntime": false,
+      "gradleExpression": "ABSENT_NOT_EXPRESSIBLE_UNTIL_SELECTED_AND_ADDED"
+    },
+    {
+      "component": "Sherpa-ONNX / Piper / TTS voice assets",
+      "presentInFrozenRuntime": false,
+      "gradleExpression": "ABSENT_OR_MIXED_MAVEN_AND_DATA_ASSETS"
+    }
+  ],
+  "limitations": [
+    "Gradle dependency graph lists Maven/AAR components, not nested native files.",
+    "This inventory is the frozen 1.4 arm64 APK snapshot, not a future 2.0 candidate APK.",
+    "Presence and SHA-256 do not prove native license text, build flags, source offer, ABI compatibility, or runtime behavior."
+  ]
+}

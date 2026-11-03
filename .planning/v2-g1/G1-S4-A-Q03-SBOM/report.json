@@ -1,0 +1,357 @@
+{
+  "identity": {
+    "task": "G1-S4-A-Q03-SBOM",
+    "role": "G1-Q03 release SBOM / dependency supply-chain evidence architect",
+    "branch": "codex/v2-integration",
+    "head": "db6d176e55007a9d50c59cf53f84858ce7b9876f",
+    "worktree": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama",
+    "initialStatusPorcelain": "",
+    "writeBoundary": ".planning/v2-g1/G1-S4-A-Q03-SBOM only",
+    "productionChange": false,
+    "commitOrPush": false
+  },
+  "status": "PARTIAL",
+  "conclusion": "A reproducible CycloneDX 1.6 component inventory now exists for the frozen S4-A snapshot, with 296 external Maven components, 9 project modules, PURLs, direct/transitive classification and a contract-derived license evidence classification. The mutually exclusive primary counts are 46 EXACT_POM, 246 FAMILY_ONLY, 4 MIXED_EXACT_FAMILY and 0 UNKNOWN_BLOCKED; raw state counts remain separately visible. A separate 14-entry arm64 APK native file inventory is proven by SHA-256. This advances Q03 SBOM evidence but does not create a canonical 2.0 release SBOM: no 2.0 candidate artifact exists, the frozen manifest lacks parent-child graph topology, native FFmpeg/libc++ provenance is unresolved, and Media3/decoder runtime compatibility remains unproven.",
+  "frozenInputs": [
+    {
+      "path": ".planning/v2-g1/G1-S4-A/runtime-closure.json",
+      "bytes": 20602,
+      "sha256": "4266cc5af2367444afd81a14a6d7663e9c0c4ecfef3d6095da1c5e89e406731e",
+      "status": "PROVEN"
+    },
+    {
+      "path": ".planning/v2-g1/G1-S4-A/license-matrix.json",
+      "bytes": 13551,
+      "sha256": "e9a2a1874a1f9076e7ac1de20715ac9a0cac96e492697ca11b335288a7b49773",
+      "status": "PROVEN"
+    },
+    {
+      "path": ".planning/v2-g1/G1-S4-A/report.json",
+      "bytes": 12487,
+      "sha256": "fa1e466351eb0f88d88f77c87b6ca4659c6380bdb18a335244666d69162de6ad",
+      "status": "PROVEN"
+    },
+    {
+      "path": "F:/Develop/code_data/work_tree/Aurorama/w90a2-release-candidate-20261102/Aurorama/app/phone/build/outputs/apk/libre/release/phone-libre-arm64-v8a-release.apk",
+      "bytes": 79729350,
+      "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+      "status": "PROVEN"
+    }
+  ],
+  "s4aReferenceDiscrepancy": {
+    "reportedByS4a": [
+      "commands.log",
+      "option matrix",
+      "manifest"
+    ],
+    "presentAtHead": [
+      "runtime-closure.json",
+      "license-matrix.json",
+      "report.json"
+    ],
+    "gitHistoryForDirectory": "5dd799060982ebafe237776ecf39f95995d5dbc6 docs(v2): freeze g1 s4a dependency evidence; only the three JSON files are tracked",
+    "impact": "The frozen direct/transitive coordinate lists and APK ledger were usable; exact Gradle command text and an S4-A option matrix / verifier manifest were not available for direct reuse."
+  },
+  "existingCapabilities": {
+    "summary": "No existing CycloneDX or SPDX artifact/generator was found. Gradle text dependency reporting, AboutLibraries and Android dependenciesInfo exist or are applied, but none is a canonical release SBOM.",
+    "items": [
+      {
+        "capability": "Gradle dependency report",
+        "evidence": "S4-A ran libreReleaseRuntimeClasspath --offline and froze resolved coordinates",
+        "status": "PROVEN_TEXT_GRAPH_ONLY"
+      },
+      {
+        "capability": "AboutLibraries 15.2.0",
+        "evidence": "app/phone/build.gradle.kts applies both AboutLibraries plugins and depends on core / Compose M3",
+        "status": "PARTIAL_LICENSE_METADATA_NOT_SBOM"
+      },
+      {
+        "capability": "dependenciesInfo",
+        "evidence": "app/phone/build.gradle.kts sets includeInApk=false and includeInBundle=false",
+        "status": "DISABLED_NOT_EQUIVALENT_TO_SBOM"
+      },
+      {
+        "capability": "dependency lockfile",
+        "evidence": "gradle.lockfile and app/phone/gradle.lockfile absent",
+        "status": "ABSENT"
+      },
+      {
+        "capability": "Gradle verification metadata",
+        "evidence": "gradle/verification-metadata.xml absent",
+        "status": "ABSENT"
+      },
+      {
+        "capability": "CycloneDX / SPDX generator",
+        "evidence": "No matching plugin, build configuration or artifact filename found in the permitted Gradle/build scope",
+        "status": "ABSENT"
+      }
+    ]
+  },
+  "artifacts": {
+    "sbom": {
+      "path": ".planning/v2-g1/G1-S4-A-Q03-SBOM/sbom.cdx.json",
+      "format": "CycloneDX",
+      "specVersion": "1.6",
+      "bytes": 392740,
+      "sha256": "85af8b2968d843e8c763d1d364ae59aa8e40e6d11f38437426d3bf0b7fd277e2",
+      "officialSchemaValidation": {
+        "url": "https://cyclonedx.org/schema/bom-1.6.schema.json",
+        "schemaBytes": 190498,
+        "valid": true
+      },
+      "status": "PROVEN_FOR_S4A_SNAPSHOT"
+    },
+    "nativeInventory": {
+      "path": ".planning/v2-g1/G1-S4-A-Q03-SBOM/native-inventory.json",
+      "bytes": 8228,
+      "sha256": "019a9d1ee375cbe47dd3f4d435b337be0a5f72dd78ee88b23ec264ec6a5f6da4",
+      "status": "PROVEN_FILE_INVENTORY_PARTIAL_LICENSE"
+    },
+    "commandEvidence": {
+      "raw": "commands.log",
+      "trackableCopy": "commands.txt",
+      "reason": ".gitignore:13 matches *.log; the copy is byte-identical and covered by manifest"
+    },
+    "reproducer": "build-sbom.ps1",
+    "validator": "validate-sbom.ps1",
+    "manifest": "manifest.json"
+  },
+  "coverage": {
+    "components": {
+      "applicationRoots": 1,
+      "projectModules": 9,
+      "externalMaven": 296,
+      "directExternal": 35,
+      "transitiveExternal": 261,
+      "unresolved": 0,
+      "metadataOnly": 4
+    },
+    "purl": {
+      "externalMapped": 296,
+      "externalTotal": 296,
+      "unique": 296,
+      "status": "PROVEN"
+    },
+    "graphTopology": {
+      "directTransitiveClassification": "PROVEN_FROM_S4A_LISTS",
+      "parentChildEdges": "BLOCKED_NOT_PRESENT_IN_FROZEN_MANIFEST",
+      "projectToProjectEdges": "PARTIAL_FREE_TEXT_MAP_ONLY",
+      "status": "PARTIAL"
+    },
+    "licenses": {
+      "externalWithIdentifierOrExplicitName": 296,
+      "externalTotal": 296,
+      "evidenceClassification": {
+        "contractId": "aurorama-license-evidence-v1",
+        "primaryRule": "Primary grade is a total function of each component raw state; direct/transitive relationship never decides license evidence grade.",
+        "primaryGradeCounts": {
+          "EXACT_POM": 46,
+          "FAMILY_ONLY": 246,
+          "MIXED_EXACT_FAMILY": 4,
+          "UNKNOWN_BLOCKED": 0
+        },
+        "rawStateCounts": {
+          "DIRECT_POM_EXACT": 35,
+          "LOCAL_POM_EXACT": 1,
+          "EXACT_POM_CHECKED": 10,
+          "HIGH_FAMILY_MAPPING": 241,
+          "FAMILY_EXCEPTION_POM_LICENSE_MISSING": 2,
+          "FAMILY_WITH_EXPLICIT_NAME_EXCEPTION": 3,
+          "MIXED_EXACT_AND_FAMILY": 4
+        },
+        "countSemantics": "This snapshot emits one raw state per component, so raw counts also sum to 296. Primary grades are the mutually exclusive component totals. If a future component exposes several atomic evidence facts, retain them as raw facts and derive one primary grade by the contract.",
+        "mixedPromotedToExact": false,
+        "familyPromotedToExact": false
+      },
+      "identifierCounts": {
+        "Apache-2.0": 276,
+        "LGPL-3.0-only": 8,
+        "MIT": 5,
+        "Bouncy Castle Licence": 3,
+        "BSD-3-Clause": 3,
+        "GPL-3.0-only": 1
+      },
+      "knownMetadataGaps": [
+        "com.google.guava:guava:33.3.1-android POM has no licenses element",
+        "org.slf4j:slf4j-api:2.0.19 POM has no licenses element",
+        "Bouncy Castle requires its explicit licence text rather than bare MIT family label"
+      ],
+      "status": "PARTIAL"
+    }
+  },
+  "nativeExpression": {
+    "arm64EntryCount": 14,
+    "arm64EntryBytes": 29482904,
+    "allEntriesStored": true,
+    "automaticallyExpressibleByGradleDependencyGraph": 0,
+    "partialProvenance": 6,
+    "blockedProvenance": 8,
+    "criticalFindings": [
+      "Media3 and Jellyfin decoder Maven components are expressible, but the decoder AAR nested libffmpegJNI.so is not a Gradle component.",
+      "Media3 1.11.1 versus decoder POM request 1.9.0 is visible in component inventory, but compatibility cannot be expressed as an SBOM validity claim.",
+      "libmpv wrapper 1.0.0 is expressible as MIT Maven metadata; its embedded libav* dynamic libraries are not Gradle components and their exact licenses remain unresolved.",
+      "ass-kt wrapper and bundled libass/libasskt/libc++ files have distinct licensing evidence; wrapper metadata does not replace native notices.",
+      "libc++_shared.so final selection matches the libmpv AAR hash in S4-A, but NDK runtime notice provenance remains unresolved.",
+      "PDFium and Sherpa/Piper/TTS assets are absent from the frozen runtime and require future component plus model/native asset handling."
+    ]
+  },
+  "q03SubItems": [
+    {
+      "id": "Q03-SBOM-RUNTIME-INVENTORY",
+      "status": "PROVEN_FOR_S4A_SNAPSHOT",
+      "canClose": true,
+      "scope": "Resolved external coordinates and direct/transitive classification in the frozen S4-A snapshot"
+    },
+    {
+      "id": "Q03-SBOM-PURL",
+      "status": "PROVEN",
+      "canClose": true,
+      "scope": "296/296 external Maven PURLs; project modules intentionally have no invented Maven PURL"
+    },
+    {
+      "id": "Q03-SBOM-LICENSE-MAP",
+      "status": "PARTIAL",
+      "canClose": false,
+      "scope": "296/296 identifiers/names present; primary evidence is 46 exact / 246 family-only / 4 mixed / 0 unknown"
+    },
+    {
+      "id": "Q03-SBOM-NATIVE-FILE-INVENTORY",
+      "status": "PROVEN_FOR_FROZEN_ARM64_APK",
+      "canClose": true,
+      "scope": "14 native ZIP entries, sizes and SHA-256"
+    },
+    {
+      "id": "Q03-SBOM-NATIVE-PROVENANCE",
+      "status": "BLOCKED",
+      "canClose": false,
+      "scope": "Exact FFmpeg/libc++/libmpv source, build flags, notices and source offers"
+    },
+    {
+      "id": "Q03-SBOM-CANONICAL-2.0",
+      "status": "BLOCKED",
+      "canClose": false,
+      "scope": "Candidate 2.0 APK/AAB plus complete Maven edge and packaged-file mapping"
+    },
+    {
+      "id": "Q03-SBOM-RUNTIME",
+      "status": "BLOCKED",
+      "canClose": false,
+      "scope": "Media3/decoder ABI, dual FFmpeg load behavior, TTS/PDF runtime and final user decision"
+    },
+    {
+      "id": "Q03-OVERALL",
+      "status": "OPEN",
+      "canClose": false,
+      "scope": "SBOM evidence is only one Q03 input"
+    }
+  ],
+  "scopedReviewCorrection": {
+    "reviewFindingReproduced": "The previous SBOM emitted 35 DIRECT_POM_EXACT + 1 LOCAL_POM_EXACT as its exact bucket, then classified all remaining 260 annotations as family even though raw annotations included 10 EXACT_POM_CHECKED and 4 MIXED_EXACT_AND_FAMILY.",
+    "rootCause": "Builder and validator treated resolved direct/transitive relationship as a proxy for license evidence precision and lacked a total raw-state-to-primary-grade contract. This was an aggregation / classification error, not a source-enum naming error.",
+    "failingTest": "Contract validator first exited 1 with missing primary license grade expected=0 actual=296.",
+    "oldReportedCounts": {
+      "exactPom": 36,
+      "family": 260,
+      "mixed": 0,
+      "unknownBlocked": 0
+    },
+    "newPrimaryCounts": {
+      "exactPom": 46,
+      "familyOnly": 246,
+      "mixedExactFamily": 4,
+      "unknownBlocked": 0
+    },
+    "fixes": [
+      "license-evidence-contract.json",
+      "build-sbom.ps1",
+      "validate-sbom.ps1",
+      "sbom.cdx.json annotations",
+      "report.json"
+    ]
+  },
+  "executed": [
+    "Git cwd / HEAD / branch / clean gate: PASS",
+    "Read permitted Q03/S4-A docs and Gradle build descriptors",
+    "Parsed all three S4-A JSON files and recomputed SHA-256",
+    "Verified 296 unique external coordinates, 35 direct, 261 transitive, 0 unresolved",
+    "Mapped 296/296 external components to license identifiers or explicit non-SPDX names",
+    "Inspected local JSpecify 1.0.0 POM license evidence",
+    "Generated CycloneDX 1.6 sbom.cdx.json and native-inventory.json",
+    "Reproduced the prior 36/260 aggregation against seven raw license annotations",
+    "Added a failing primary-grade validator, observed exit 1 with 296 missing primary grades",
+    "Derived 46 exact / 246 family-only / 4 mixed / 0 unknown from the contract and rebuilt annotations",
+    "Validated CycloneDX against the official 1.6 schema",
+    "Recomputed 14 frozen APK native entries, 29482904 bytes total",
+    "Deterministic builder and local validator created inside this evidence directory"
+  ],
+  "notExecuted": [
+    "No production Gradle modification, plugin installation, build, APK generation or dependency download",
+    "No 2.0 candidate package SBOM",
+    "No full parent-child topology reconstruction",
+    "No per-POM extraction for 246 family-only components and no promotion of 4 mixed components to exact",
+    "No native source checkout, build flag extraction, NOTICE assembly or source offer",
+    "No Device, ADB, runtime ABI, Media3/JNI compatibility, codec, TTS or PDF Range test",
+    "No external maintenance/security feed query",
+    "No commit or push"
+  ],
+  "blocked": [
+    {
+      "id": "BLOCKED-CANONICAL-2.0-SBOM",
+      "reason": "Candidate 2.0 artifact and approved G2 generation integration do not exist; S4-A graph predates that candidate."
+    },
+    {
+      "id": "BLOCKED-RUNTIME-EDGE-TOPOLOGY",
+      "reason": "Frozen S4-A files retain final nodes and direct classification but not complete parent-child edges; no fabricated edges were added."
+    },
+    {
+      "id": "BLOCKED-NATIVE-LICENSE-PROVENANCE",
+      "reason": "libmpv embedded libav*, libc++ and parts of libass do not have exact local license/build/source notices."
+    },
+    {
+      "id": "BLOCKED-RUNTIME-COMPATIBILITY",
+      "reason": "SBOM cannot prove Media3 1.11.1 with decoder 1.9.0+1 JNI/API/ABI compatibility or dual FFmpeg load safety."
+    }
+  ],
+  "priorities": {
+    "P0": [],
+    "P1": [
+      "No canonical 2.0 candidate release SBOM",
+      "Native FFmpeg/libc++ source, license, build and notice provenance unresolved",
+      "Media3 1.11.1 with Jellyfin decoder 1.9.0+1 compatibility unproven",
+      "No dependency lockfile or verification metadata",
+      "Full parent-child dependency edges unavailable from frozen S4-A artifact"
+    ],
+    "P2": [
+      "246/296 external licenses remain FAMILY_ONLY and 4/296 remain MIXED_EXACT_FAMILY; neither is promoted to exact",
+      "Guava and SLF4J POM license elements are missing",
+      "AboutLibraries is applied but not configured as a canonical export",
+      "PDFium and future offline TTS/model assets require native/model-aware SBOM handling",
+      "Final 2.0 R8/shrink and packaged-file mapping remain unproven"
+    ],
+    "P3": [
+      "Four metadata-only nodes remain explicitly marked rather than treated as executable artifacts",
+      "S4-A references commands.log / option matrix / manifest that were not frozen in its three-file commit"
+    ]
+  },
+  "g2Candidates": [
+    "Pin a candidate commit and dependency lock / verification metadata.",
+    "Add an isolated official CycloneDX Gradle generation task with a fixed plugin version and offline cache.",
+    "Add candidate APK/AAB post-processing for native files, hashes, mapping and notices.",
+    "Resolve every exact license/copyright/source URL and native build provenance.",
+    "Provide SPDX output only if a concrete consumer requires it."
+  ],
+  "next": {
+    "owner": "Q03 evidence integrator after explicit user / G2 authorization",
+    "firstRead": "report.json -> manifest.json -> sbom.cdx.json -> native-inventory.json",
+    "stopCondition": "Do not mark Q03 closed or release-license approved without candidate 2.0 SBOM, native provenance, runtime compatibility and user decision."
+  },
+  "contextWatermark": {
+    "measuredAt": "2026-11-04",
+    "inputTokens": 270141,
+    "contextWindow": 1048576,
+    "percent": 25.8,
+    "cacheHitPercent": 99.8,
+    "sessionRequests": 635,
+    "source": "deepseek-status via pwsh"
+  }
+}

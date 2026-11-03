@@ -1,0 +1,93 @@
+Q03 SBOM evidence command log
+shell: pwsh 7 (all terminal commands)
+workdir: F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+
+C01 command: git rev-parse HEAD; git branch --show-current; git status --porcelain=v1
+    exit=0 result=PASS head=db6d176e55007a9d50c59cf53f84858ce7b9876f branch=codex/v2-integration clean
+
+C02 command: Test-Path graphify-out/graph.json; Test-Path graphify-out/.graphify_python; Get-Command graphify
+    exit=0 result=graph_json=false graphify_python=false graphify_cmd=true; no graph rebuild or outside-boundary write
+
+C03 command: rg --files .planning/v2-g1/G1-S4-A
+    exit=0 result=report.json, runtime-closure.json, license-matrix.json; commands.log / option-matrix.json / manifest.json absent
+
+C04 command: git log --all --format='%H%x09%s' -- .planning/v2-g1/G1-S4-A
+    exit=0 result=5dd799060982ebafe237776ecf39f95995d5dbc6 docs(v2): freeze g1 s4a dependency evidence
+
+C05 command: rg -n -m 120 'V2-Q-G1-03|Q03|S4-A|SBOM|...' docs/V2_PLAN.md; similar TASKS / DECISIONS / PROJECT_RULES scans
+    exit=0 result=Q03 Open; SBOM / native notice / runtime remain hard gates
+
+C06 command: rg -n -i --glob build files 'cyclonedx|spdx|sbom|aboutlibraries|dependenciesInfo|dependencyLocking|verification-metadata'
+    exit=0 result=AboutLibraries plugins/dependencies and dependenciesInfo=false; no CycloneDX/SPDX generator
+
+C07 command: rg --files | rg -i SBOM/CycloneDX/SPDX/license dependency artifact patterns
+    exit=1 result=no matching existing SBOM/dependency artifact filename
+
+C08 command: initial inline PowerShell existence/hash block (foreach piped to ConvertTo-Json)
+    exit=1 result=local ParserError before evidence action
+C09 command: corrected existence/hash block
+    exit=0 result=settings.gradle.kts / libs.versions.toml hashed; gradle.lockfile and verification-metadata.xml absent
+
+C10 command: inspect org.jspecify:jspecify:1.0.0 cached POM (first inline attempt)
+    exit=1 result=local ParserError before POM read
+C11 command: corrected JSpecify POM inspection
+    exit=0 result=The Apache License, Version 2.0; POM sha256=cdab929a3b95211f43d2090c5e2d0dfe8465960e378bc32b35841dab324433a6
+
+C12 command: open frozen arm64 APK with System.IO.Compression.ZipFile; hash lib/arm64-v8a/*
+    exit=0 result=14 entries / 29482904 bytes; APK=79729350 bytes / acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb
+
+C13 command: pwsh -File .planning/v2-g1/G1-S4-A-Q03-SBOM/build-sbom.ps1 (attempts 1 and 2)
+    exit=1 result=local Measure-Object bytes binding error; no production change
+C14 command: pwsh -File .planning/v2-g1/G1-S4-A-Q03-SBOM/build-sbom.ps1 (explicit integer accumulation retry)
+    exit=0 result=296 external + 9 project components; 14 native entries; SBOM/native/manifest generated
+
+C15 command: Invoke-WebRequest https://cyclonedx.org/schema/bom-1.6.schema.json | Test-Json -Schema
+    exit=0 result=valid=true schema_bytes=190498
+
+C16 command: parse all JSON; UTF-8 BOM/CRLF/trailing-whitespace check; git status --untracked-files=all
+    exit=0 result=JSON_PARSE_PASS text_hygiene_pass; only G1-S4-A-Q03-SBOM untracked
+
+C17 command: pwsh -NoProfile -File C:\Users\zhangwenkang\.codex\deepseek-subagent-proxy\status.ps1
+    exit=0 result=input=173649/1048576 (16.6%) cache=99.4% requests=513
+
+C18 command: engramory_check.py MEMORY.md; engramory_doctor.py memory root; MEMORY.md line/byte measurement
+    exit=0 result=checker OK 121 lines / 15.6 KB; doctor clean (one non-blocking >12KB note); MEMORY.md=121 lines / 16016 bytes
+
+C19 command: pwsh -NoProfile -File .planning/v2-g1/G1-S4-A-Q03-SBOM/validate-sbom.ps1 (first corrected validator attempt)
+    exit=1 result=local StrictMode exception reading missing purl on project components; SBOM schema remained valid
+C20 command: validate-sbom.ps1 (second helper-based attempt)
+    exit=1 result=local StrictMode exception in nested properties pipeline
+C21 command: pwsh -NoProfile -File .planning/v2-g1/G1-S4-A-Q03-SBOM/build-sbom.ps1 (final deterministic rebuild)
+    exit=0 result=sbom/native hashes unchanged; manifest regenerated with 8 pre-manifest files
+C22 command: pwsh -NoProfile -File .planning/v2-g1/G1-S4-A-Q03-SBOM/validate-sbom.ps1 (final)
+    exit=0 result=PASS components=305 external=296 direct=35 transitive=261 exactPom=36 family=260 native=14 manifestFilesBeforeManifest=8
+
+C23 command: git check-ignore -v -- .planning/v2-g1/G1-S4-A-Q03-SBOM/commands.log
+    exit=0 result=ignored by .gitignore:13:*.log
+
+C24 command: Copy-Item -LiteralPath .planning/v2-g1/G1-S4-A-Q03-SBOM/commands.log -Destination .planning/v2-g1/G1-S4-A-Q03-SBOM/commands.txt
+    exit=0 result=byte-identical trackable command evidence; manifest / validator cover both files
+
+FIX01 command: parse current sbom.cdx.json aurorama:license.evidence annotations
+    exit=0 result=observed DIRECT=35 LOCAL=1 EXACT_POM_CHECKED=10 HIGH_FAMILY=241 EXCEPTION_MISSING_POM=2 EXPLICIT_NAME=3 MIXED=4; sums to 296
+
+FIX02 command: validator with raw-state-to-primary contract, before builder migration
+    exit=1 result=missing primary license grade expected=0 actual=296; reproduced classification contract failure
+
+FIX03 command: root-cause trace builder family counter + validator DIRECT/LOCAL whitelist
+    exit=0 result=single root cause: relationship used as license evidence proxy; no total raw-to-primary contract
+
+FIX04 command: pwsh -File build-sbom.ps1 after contract-driven annotation update
+    exit=0 result=raw=296 primary=296; primary EXACT_POM=46 FAMILY_ONLY=246 MIXED_EXACT_FAMILY=4 UNKNOWN_BLOCKED=0
+
+FIX05 command: pwsh -File validate-sbom.ps1 after contract-driven annotation update
+    exit=0 result=PASS; 296/35/261 and native 14 / 29482904 preserved
+
+FIX06 command: Invoke-WebRequest CycloneDX 1.6 official schema | Test-Json -Schema
+    exit=0 result=valid=true schema_bytes=190498
+
+FIX07 command: pwsh -File deepseek-subagent-proxy/status.ps1
+    exit=0 result=270141/1048576 (25.8%), cache=99.8%, requests=635
+
+FIX08 command: final deterministic rebuild + validator (after evidence/log writeback)
+    exit=0 result=expected PASS; manifest regenerated with 10 pre-manifest files

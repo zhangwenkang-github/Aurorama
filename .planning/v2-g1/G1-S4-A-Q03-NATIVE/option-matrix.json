@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "taskId": "G1-S4-A-Q03-NATIVE",
+  "scope": "Q03 native / license evidence only",
+  "isUserDecision": false,
+  "finalEngineSelected": false,
+  "q03Closed": false,
+  "g1Passed": false,
+  "evaluationPolicy": {
+    "technical": "只把实际源码/build/artifact、ABI、ELF、API 与 runtime 证据作为技术 PASS；静态映射不能外推为播放/设备 PASS。",
+    "license": "代码、声音模型、数据、native binary notice、source availability 和 source/relink 义务分列；看到 license 文本不等于 notice 已完整可分发。",
+    "release": "任何候选进入发布前必须有候选包 packaged-file SBOM、完整 notice 和 source offer/bundle。",
+    "packageSize": "V2-D200：包体不是删除能力的理由。"
+  },
+  "mediaCandidates": [
+    {
+      "id": "MEDIA3-FFMPEG-AUDIO",
+      "components": {
+        "media3": "1.11.1",
+        "decoder": "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1",
+        "ffmpegSourceCommit": "37c90f55d8b6c3948c79449b04755527b4ae1351"
+      },
+      "artifactEvidence": {
+        "decoderAarBytes": 2913028,
+        "decoderAarSha256": "DFC726C8BC9D9DB02E15B160F886A03BDD6DD51E88BA2DE89AA74CAF5E8CD181",
+        "abiCoverage": [
+          "armeabi-v7a",
+          "arm64-v8a",
+          "x86",
+          "x86_64"
+        ],
+        "jniSymbols": "9/9 per ABI",
+        "customNeededMissing": 0,
+        "loadAlignment16kb": "0x4000 for four ABIs",
+        "videoRenderer": "ExperimentalFfmpegVideoRenderer is a stub; audio extension only"
+      },
+      "license": {
+        "wrapper": "GPL-3.0 from Jellyfin tag LICENSE/POM",
+        "nativeFfmpeg": "build flags do not enable GPL/version3; LGPL-2.1-or-later direction, exact SPDX/build log pending",
+        "projectDirection": "GPL-3.0-only project is directionally compatible",
+        "notice": "BLOCKED; decoder AAR has 0 license/notice entries"
+      },
+      "maintenance": "1.11.1 stable checked; decoder remains compiled against Media3 1.9.0 and latest checked 1.9.0+1",
+      "technicalStatus": "PARTIAL",
+      "hardGates": [
+        "Runtime-classpath skew: load/version/decode with Media3 1.11.1",
+        "NoSuchFieldError/UnsatisfiedLinkError/SIGSEGV checks",
+        "Audio format matrix",
+        "FFmpeg license/build-log/notice/source bundle"
+      ],
+      "recommendationForEvidence": "保留为媒体主路径候选；不得把 build PASS 宣称为 runtime PASS"
+    },
+    {
+      "id": "LIBMPV-NATIVE",
+      "components": {
+        "wrapper": "dev.jdtech.mpv:libmpv:1.0.0",
+        "mpv": "0.41.0",
+        "ffmpeg": "n8.1",
+        "libass": "0.17.4"
+      },
+      "artifactEvidence": {
+        "aarBytes": 47574467,
+        "aarSha256": "DF146592480FC8418415A06B1F1A1D6318B0088E21F52254B0E9A82B61CA8FA2",
+        "abiCoverage": "four ABIs",
+        "jniSymbols": "16/16 per ABI",
+        "customNeededMissing": 0,
+        "loadAlignment16kb": "0x4000 for four ABIs",
+        "embeddedConfiguration": "mpv v0.41.0; FFmpeg n8.1; --enable-gpl --enable-version3; libass source linked"
+      },
+      "license": {
+        "wrapper": "MIT",
+        "mpv": "LGPL-2.1-or-later notice embedded",
+        "ffmpeg": "GPL-3.0-or-later self-identification and build flags",
+        "libass": "ISC",
+        "libcxx": "LLVM/NDK notice must be included",
+        "projectDirection": "GPL-3.0-only project is directionally compatible",
+        "notice": "BLOCKED; AAR has 0 license/notice entries and no final source offer"
+      },
+      "maintenance": "v1.0.0 latest checked, 2026-04-08; dependency tags visible but rebuild/attestation and security state not proven",
+      "technicalStatus": "PARTIAL",
+      "hardGates": [
+        "Media3 <-> mpv <-> Media3 same-process load order",
+        "FFmpeg/ass symbol interposition and subtitle/format behavior",
+        "GPL/LGPL source bundle, notices, relinkability",
+        "Reproducible rebuild or immutable build attestation"
+      ],
+      "recommendationForEvidence": "保留为候选能力轨道；V2-D200 禁止仅因包体删除。最终保留仍由格式、稳定性、画质/字幕和许可证据决定"
+    }
+  ],
+  "ttsCandidates": [
+    {
+      "id": "TTS-SHERPA-ONNX",
+      "fixedReference": {
+        "version": "v2.0.1",
+        "commit": "af2d8d81dbfa61c4cea4c568da78f3982edca005",
+        "standardAarSha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+        "fourAbi": true
+      },
+      "codeLicense": "Apache-2.0",
+      "offlineArchitecture": "local ONNX + tokens/lexicon/rule data + JNI; no remote API required",
+      "modelLicense": "BLOCKED until exact voice/model archive MODEL_CARD and license are frozen",
+      "notice": "code license does not cover ONNX Runtime, voice, lexicon, rule/training data",
+      "runtimeStatus": "BLOCKED: app-level zero-network, Chinese quality, latency, RTF, memory and battery not run",
+      "recommendationForEvidence": "若获 G2 授权，可先做 voice-license-first 隔离 Spike；不是最终引擎选择"
+    },
+    {
+      "id": "TTS-PIPER1-GPL",
+      "fixedReference": {
+        "version": "v1.8.0",
+        "commit": "639388b6317fc4731e91d53da42aea68fd4166ff",
+        "officialAndroidArtifact": false,
+        "releaseAssets": "Python wheels/sdist"
+      },
+      "codeLicense": "GPL-3.0",
+      "offlineArchitecture": "local ONNX + libpiper + ONNX Runtime + espeak/Chinese phonemizer data",
+      "modelLicense": "BLOCKED; each voice MODEL_CARD governs model/license restrictions",
+      "notice": "code and voice notices/data require separate inventory",
+      "maintenance": "active but README seeks maintainers; old rhasspy/piper archived",
+      "runtimeStatus": "BLOCKED: no official Android artifact and no NDK/JNI/device run",
+      "recommendationForEvidence": "在 Android packaging、maintainer 与 voice license 明确前不进入实现；不得以包体为由删除"
+    }
+  ],
+  "pdfCandidates": [
+    {
+      "id": "PDFIUM-IO-LEGERE-2.0.3",
+      "fixedReference": {
+        "tag": "2.0.3",
+        "commit": "92e6e42e2b886eb238a03b3574507b3d926e5cb5",
+        "coreAarBytes": 9787161,
+        "coreAarSha256": "F80B8D2166F226E0ED0A50B7014CEA91E297952C5E0AC158F10FF62C74D7E318",
+        "sameNativeBlobsAsAlpha": true
+      },
+      "technical": "four ABIs; PdfiumSource(length/read), text/search/bookmark APIs; global native lock",
+      "license": "wrapper Apache-2.0; PDFium BSD-3-Clause notice present in source tag; complete native third-party notice unavailable",
+      "sourceAvailability": "wrapper tag/source available; exact PDFium revision and GN build unavailable",
+      "static16kb": "BLOCKED by upstream issue #56: both 64-bit GNU_RELRO ends fail 0x4000 check",
+      "runtimeStatus": "BLOCKED: Range/206, cancel, weak network, large file and memory not run",
+      "recommendationForEvidence": "保留 PdfRenderer 回滚；不得替换。修复并证明 16 KB、native provenance/notice、Range 后才可比较"
+    },
+    {
+      "id": "PDFIUM-IO-LEGERE-3.0.4-ALPHA01",
+      "fixedReference": {
+        "tag": "3.0.4-alpha01",
+        "commit": "7331dc1a3cb4e88c24947d89d7cc124677aac108",
+        "coreAarBytes": 9788401,
+        "coreAarSha256": "00C5B696ADD8CADF15836C43318D2E481FF803B13E8694EEFE1877741D0205BB",
+        "sameNativeBlobsAsStable": true
+      },
+      "technical": "prerelease; native ELF blobs identical to 2.0.3",
+      "license": "same wrapper/native notice gap",
+      "static16kb": "BLOCKED by issue #56 with same RELRO values",
+      "runtimeStatus": "BLOCKED and additionally subject to alpha API churn",
+      "recommendationForEvidence": "不作为稳定主路径；无修复证据前不进入 Spike"
+    }
+  ],
+  "crossCuttingGates": [
+    "CANONICAL-PACKAGED-SBOM",
+    "FINAL-NOTICE-BUNDLE",
+    "SOURCE-OFFER-OR-CORRESPONDING-SOURCE",
+    "DUAL-ENGINE-LOAD-ORDER",
+    "16KB-DEVICE-RUNTIME",
+    "TTS-VOICE-LICENSE-AND-OFFLINE-PROOF",
+    "PDF-RANGE-LARGE-FILE"
+  ],
+  "decisionPacket": {
+    "allowedNow": "把 native 供应链与精确 BLOCKED 输入提报给 Q03；继续保留现有主路径与回滚，不做最终选择",
+    "notAllowedNow": [
+      "Q03 CLOSED",
+      "选择最终媒体/TTS/PDF 引擎",
+      "以 package size 删除能力",
+      "进入 G2/implementation/Release",
+      "把 issue/License 文本写成 release compliance PASS"
+    ]
+  }
+}

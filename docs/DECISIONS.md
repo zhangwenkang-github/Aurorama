@@ -210,8 +210,9 @@
 ## Open
 
 当前 G0 无开放产品问题。`V2-Q-G1-01/02` 已分别由 `V2-D198/D199` 关闭；
-`V2-Q-G1-03` 的 S4-B 媒体输入与 S4-C TTS / PDF 非媒体输入均已冻结，但完整 Q03 仍
-Open，G1 未通过，runtime、SBOM / native notice、16 KB 与 Range 大文件仍待证据；
+`V2-Q-G1-03` 的 S4-A Q03 runtime inventory / native provenance 静态增量、S4-B 媒体输入与
+S4-C TTS / PDF 非媒体输入均已冻结，但完整 Q03 仍 Open，G1 未通过，candidate packaged
+SBOM、native notice/source、TTS 零网络 / voice 许可、16 KB、Range 与 runtime 仍待证据；
 `V2-Q-G1-04` 的 S5 五主题、九交互、RWD、状态与无障碍静态证据已完成，推荐 R1，A2 / A3
 待用户比较；Q04 仍等待用户主观视觉确认。`docs/UI_DESIGN_SYSTEM.md` 仍为 v1.0，G1 未通过。
 `V2-D200` 只固定体验优先与包体非要求。代理建议不得代替用户拍板。
@@ -220,7 +221,7 @@ Open，G1 未通过，runtime、SBOM / native notice、16 KB 与 Range 大文件
 
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
 |---|---|---|---|---|
-| `V2-Q-G1-03` | `G1-S4-A/B/C` 已冻结 runtime graph、许可证输入、Media3 / decoder / libmpv 静态事实及 TTS / PDF 非媒体矩阵；S4-C 证据提交 `a84ce4f1…` 的 `s4cNonMediaInputReadyForQ03=true`，但 `fullQ03UserDecisionReady=false`、`g1Passed=false`。TTS runtime / voice license、PDFium 16 KB / native notice、PDF Range 大文件、SBOM 与真实链路仍开放 | Media3 主路径；Sherpa-ONNX 作为带门 G2 TTS Spike 主候选，system TTS 仅条件备选，Piper direct 延后；PDF 保留 PdfRenderer 回滚，stable PDFium 2.0.3 过硬门后再比较 | 双内核和 PDFium 提高覆盖；取舍看 runtime、许可与质量，不因包体单独删除能力 | **Open / S4-C non-media input ready；full Q03 Open；G1 not passed** |
+| `V2-Q-G1-03` | `G1-S4-A/B/C` 已冻结 runtime graph、许可证输入、Media3 / decoder / libmpv 静态事实及 TTS / PDF 非媒体矩阵；S4-C 证据提交 `a84ce4f1…` 的 `s4cNonMediaInputReadyForQ03=true`，但 `fullQ03UserDecisionReady=false`、`g1Passed=false`。新增 S4-A Q03 静态增量：`.planning/v2-g1/G1-S4-A-Q03-SBOM/` 为 11 文件 / 482,118 B，manifest SHA-256 `220BB878A975B133178ADBCA80CEE919F829474727268D2DF8C14D13982F1019`；CycloneDX 1.6 valid，SBOM SHA-256 `85AF8B2968D843E8C763D1D364AE59AA8E40E6D11F38437426D3BF0B7FD277E2`，296 external / 35 direct / 261 transitive / 0 unresolved / 296 PURL，license primary `46 EXACT_POM / 246 FAMILY_ONLY / 4 MIXED_EXACT_FAMILY / 0 UNKNOWN`，仅按 snapshot 可关闭 `Q03-SBOM-RUNTIME-INVENTORY`。`.planning/v2-g1/G1-S4-A-Q03-NATIVE/` 为 5 文件 / 52,469 B，manifest SHA-256 `40E667F8A7650AF06BC145D85720CF5349BBC057E71BD0372E6D2213FEDA81DE`，31 子项 `13 PROVEN / 6 PARTIAL / 12 BLOCKED`；Media3 1.11.1 + decoder 1.9.0+1 静态 ABI / pin / 16 KB 已证明但 runtime 未证明；libmpv 1.0.0→mpv 0.41.0 / FFmpeg n8.1 / libass 0.17.4，AAR notice、source offer、双内核 load-order 与 notices 仍 blocked；TTS 代码许可已证明，voice/model 与零网络 runtime 未证明；PDFium 2.0.3 / 3.0.4-alpha01 native blob 相同，revision / notice / 16 KB / Range runtime 为 blocked / partial。静态完成 ≠ Q03 closed；candidate packaged SBOM、native notice/source 与真实链路仍开放 | Media3 主路径；Sherpa-ONNX 作为带门 G2 TTS Spike 主候选，system TTS 仅条件备选，Piper direct 延后；PDF 保留 PdfRenderer 回滚，stable PDFium 2.0.3 过硬门后再比较 | 双内核和 PDFium 提高覆盖；取舍看 runtime、许可与质量，不因包体单独删除能力 | **Open / S4-A Q03 static increment complete；full Q03 Open；G1 not passed** |
 | `V2-Q-G1-04` | `G1-S5` 已完成静态决策输入：`.planning/v2-g1/G1-S5/decision-brief.md`、`manifest.json`；47 文件 / 780,415 字节，manifest SHA-256 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`，46 索引 = 45 证据 + 1 EOL / control；`.gitattributes` 固定 `* text eol=lf`，47/47 LF、CRLF 0。Verifier / builder 的 source hash 来自固定 source `397ff4f0…` 的 `git cat-file blob`，不读取当前 worktree；当前 HEAD `9aa76f57…` 只要求是 source baseline 后裔，docs 合法更新不再误报 `SOURCE_HASH_MISMATCH`。manifest / 证据 hash、预期 docs dirty 白名单、白名单外 dirty 拒绝、LF / `eol=lf` 与内容 counts 保留；`source hash mismatch`、`evidence SHA mismatch`、`outside dirty` 均 exit 1。主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130；独立 scoped evidence review PASS。静态覆盖不等于设备 / TalkBack / 真字体 / 动态色 runtime PASS | 推荐整包 R1“DNA 保留 + 共享骨架”：保留五主题材料语法，共享 IA、状态、48dp、可访问名称与反馈职责；`AmbientColors` 不作页面主题，只保留受控局部强调；五档 RWD 与 72 / 216dp 轨道、16 / 24 / 32 / 48dp 页面边距 | A2 强化玻璃、内高光与编辑材质表现，辨识度更强但增加可读性、性能和主题漂移风险；A3 强化结构统一，主题主要只换颜色 / 圆角，更稳但削弱 Lumen / Nocturne / Monolith 辨识度；也可逐项修订 | **Open / 等待用户视觉方向决策；G1 not passed；UI_DESIGN_SYSTEM 仍为 v1.0** |
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）

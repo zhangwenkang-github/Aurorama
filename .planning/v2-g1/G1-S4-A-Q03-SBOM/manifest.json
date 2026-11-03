@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "task": "G1-S4-A-Q03-SBOM",
+  "status": "PARTIAL",
+  "evidenceHead": "db6d176e55007a9d50c59cf53f84858ce7b9876f",
+  "branch": "codex/v2-integration",
+  "sourceHead": "cecc7d1013efd04a1ad25905b9f1832d2c5ccac9",
+  "inputs": [
+    {
+      "role": "s4a-runtime-closure",
+      "path": ".planning/v2-g1/G1-S4-A/runtime-closure.json",
+      "bytes": 20602,
+      "sha256": "4266cc5af2367444afd81a14a6d7663e9c0c4ecfef3d6095da1c5e89e406731e"
+    },
+    {
+      "role": "s4a-license-matrix",
+      "path": ".planning/v2-g1/G1-S4-A/license-matrix.json",
+      "bytes": 13551,
+      "sha256": "e9a2a1874a1f9076e7ac1de20715ac9a0cac96e492697ca11b335288a7b49773"
+    },
+    {
+      "role": "s4a-report",
+      "path": ".planning/v2-g1/G1-S4-A/report.json",
+      "bytes": 12487,
+      "sha256": "fa1e466351eb0f88d88f77c87b6ca4659c6380bdb18a335244666d69162de6ad"
+    },
+    {
+      "role": "frozen-arm64-apk",
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\w90a2-release-candidate-20261102\\Aurorama\\app\\phone\\build\\outputs\\apk\\libre\\release\\phone-libre-arm64-v8a-release.apk",
+      "bytes": 79729350,
+      "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb"
+    },
+    {
+      "role": "release-gradle-build",
+      "path": "app/phone/build.gradle.kts",
+      "bytes": 11628,
+      "sha256": "b8bcc3ce5271c2a445217aa5f65e6a1e714af4374b1aa227d170b99c35904805"
+    },
+    {
+      "role": "version-catalog",
+      "path": "gradle/libs.versions.toml",
+      "bytes": 7905,
+      "sha256": "68df25a2fdbe2566900e68a8de3bd539b7c1e346ec0c9d5c343c5cf99b6e6104"
+    },
+    {
+      "role": "jspecify-pom-exact-license",
+      "path": "C:\\Users\\zhangwenkang\\.gradle\\caches\\modules-2\\files-2.1\\org.jspecify\\jspecify\\1.0.0\\fae4a252aeee8a649653b2f239067bcead8f80cb\\jspecify-1.0.0.pom",
+      "bytes": 1511,
+      "sha256": "cdab929a3b95211f43d2090c5e2d0dfe8465960e378bc32b35841dab324433a6"
+    }
+  ],
+  "counts": {
+    "projectComponents": 9,
+    "externalComponents": 296,
+    "directExternal": 35,
+    "transitiveExternal": 261,
+    "nativeEntries": 14,
+    "nativeEntryBytes": 29482904
+  },
+  "licenseEvidence": {
+    "contractId": "aurorama-license-evidence-v1",
+    "primaryRule": "Primary grade is a total function of the component raw state. Direct/transitive relationship is independent and must never decide license evidence grade.",
+    "rawStateCounts": {
+      "UNKNOWN": 0,
+      "HIGH_FAMILY_MAPPING": 241,
+      "BLOCKED": 0,
+      "EXACT_POM_CHECKED": 10,
+      "DIRECT_POM_EXACT": 35,
+      "FAMILY_WITH_EXPLICIT_NAME_EXCEPTION": 3,
+      "FAMILY_EXCEPTION_POM_LICENSE_MISSING": 2,
+      "MIXED_EXACT_AND_FAMILY": 4,
+      "LOCAL_POM_EXACT": 1
+    },
+    "primaryGradeCounts": {
+      "EXACT_POM": 46,
+      "FAMILY_ONLY": 246,
+      "MIXED_EXACT_FAMILY": 4,
+      "UNKNOWN_BLOCKED": 0
+    }
+  },
+  "licenseCounts": {
+    "Apache-2.0": 276,
+    "MIT": 5,
+    "Bouncy Castle Licence": 3,
+    "GPL-3.0-only": 1,
+    "LGPL-3.0-only": 8,
+    "BSD-3-Clause": 3
+  },
+  "files": {
+    "count": 10,
+    "totalBytes": 477042,
+    "entries": [
+      {
+        "name": "build-sbom.ps1",
+        "bytes": 25820,
+        "sha256": "05ce55af96c4981320b384533cb2fd3f0536a56da835a2ef8e088eba0c21b6c6"
+      },
+      {
+        "name": "commands.log",
+        "bytes": 6133,
+        "sha256": "2f9c6b03d064ea4ceeb0fe102e0ca38b399f9477bc3d9a9a31b9c9cf0ec32e31"
+      },
+      {
+        "name": "commands.txt",
+        "bytes": 6133,
+        "sha256": "2f9c6b03d064ea4ceeb0fe102e0ca38b399f9477bc3d9a9a31b9c9cf0ec32e31"
+      },
+      {
+        "name": "license-evidence-contract.json",
+        "bytes": 2317,
+        "sha256": "5e4a5336089cce2500686b35465916505b66ee8c6ac957e7521785b3369b5651"
+      },
+      {
+        "name": "native-inventory.json",
+        "bytes": 8228,
+        "sha256": "019a9d1ee375cbe47dd3f4d435b337be0a5f72dd78ee88b23ec264ec6a5f6da4"
+      },
+      {
+        "name": "option-matrix.json",
+        "bytes": 7426,
+        "sha256": "e0761337a0992b4528455c8b6ff6dedee88d6bee0878f39d2fdf4c6035407a23"
+      },
+      {
+        "name": "README.md",
+        "bytes": 3148,
+        "sha256": "adb6ff3ed160cbf1b075ffc241ede460814bc637c4da924c9c1a49cb180bbd22"
+      },
+      {
+        "name": "report.json",
+        "bytes": 16033,
+        "sha256": "909c78fa1e6809dc2ee44e36795f5c27a0b38a4284e297dbb0b489e94f25cbcd"
+      },
+      {
+        "name": "sbom.cdx.json",
+        "bytes": 392740,
+        "sha256": "85af8b2968d843e8c763d1d364ae59aa8e40e6d11f38437426d3bf0b7fd277e2"
+      },
+      {
+        "name": "validate-sbom.ps1",
+        "bytes": 9064,
+        "sha256": "1129e40b6952c991d0ae93ad0d9757bd9e476c802b6d34416c811191fe186132"
+      }
+    ]
+  },
+  "limitations": [
+    "No parent-child topology exists in the frozen runtime closure; direct/transitive is a classification, not a reconstructed dependency graph.",
+    "This is a derived CycloneDX inventory for the frozen S4-A snapshot, not a canonical 2.0 candidate release SBOM.",
+    "Native license and runtime compatibility remain open."
+  ]
+}

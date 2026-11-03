@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / S4-A、S4-B、S4-C 与 S5 静态证据完成；Q04 待用户视觉方向决策
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_STATIC_INCREMENT_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / S4-A 的 Q03 静态增量、S4-B/C 与 S5 证据完成；Q03 runtime / packaged closure 与 Q04 用户决策仍开放
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-03
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2876,7 +2876,7 @@ Book direct Download 已可实现 200/206，但完整远程 range 仍需真实�
 |---|---|---|
 | `V2-Q-G1-01` ✅ | 已由 `V2-D198` 接受 | 先逻辑 seam + FQCN/模块 owner allowlist + debt ratchet；暂不全量物理拆 Gradle 模块，只有单 seam build pilot 证明收益后才重新提报 |
 | `V2-Q-G1-02` ✅ | 已由 `V2-D199` 接受 | 保留全部已承诺资产；首次升级执行有进度、可恢复、FAIL_CLOSED 的一次性 forward migration；禁清库、禁真实 down migration、未知 provenance 不猜来源 |
-| `V2-Q-G1-03` | 未就绪 | 等 `G1-S4` 的依赖闭包、Media3/FFmpeg、TTS/PDF、ABI / 包体 / 性能证据 |
+| `V2-Q-G1-03` | 静态增量可决策，完整 Q03 未就绪 | S4-A Q03 的 runtime inventory / native provenance 已冻结；仍等 packaged SBOM、native notice/source 与 runtime / device 证据 |
 | `V2-Q-G1-04` | 可决策 | `G1-S5` 五主题风格帧与九条低保真复核已完成；推荐 R1，等待用户整包确认或选择 A2/A3 / 逐项修订 |
 
 **G1/1 首波结论**：S1–S3 已形成可冻结的证据与决策输入，但没有任何真实服务器、设备、迁移、
@@ -2928,6 +2928,35 @@ runtime closure 作为 Q03 输入。
 保留”的方向，同时确认双内核 native / package 成本真实存在。最终选择必须等待 `S4-B`
 （Media3 / FFmpeg / libmpv native、符号、ABI、隔离 build）和 `S4-C`
 （完全离线 TTS、PdfRenderer / PDFium 能力与成本）收口。
+
+#### 5.11.10.1 G1-S4-A Q03 静态增量：runtime inventory / native provenance（2026-11-04）
+
+**状态**：`G1_S4A_Q03_STATIC_INCREMENT_COMPLETE / Q03_OPEN / G1_NOT_PASSED /
+RUNTIME_UNVERIFIED`。两条增量均由独立 scoped reviewer PASS；静态证据完成不等于完整 Q03
+关闭，也不选择最终媒体 / TTS / PDF 引擎。
+
+**SBOM 增量**：`.planning/v2-g1/G1-S4-A-Q03-SBOM/` 共 11 文件 / 482,118 B，manifest
+SHA-256 `220BB878A975B133178ADBCA80CEE919F829474727268D2DF8C14D13982F1019`。
+CycloneDX 1.6 valid，SBOM SHA-256
+`85AF8B2968D843E8C763D1D364AE59AA8E40E6D11F38437426D3BF0B7FD277E2`；296 external /
+35 direct / 261 transitive / 0 unresolved / 296 PURL。license primary 为
+`46 EXACT_POM / 246 FAMILY_ONLY / 4 MIXED_EXACT_FAMILY / 0 UNKNOWN`，raw 状态保留。
+原 S4-A snapshot 的 arm64 native 14 entries / 29,482,904 B 中，8 BLOCKED、6 PARTIAL；
+可关闭的仅 `Q03-SBOM-RUNTIME-INVENTORY`（S4-A snapshot），不是 2.0 candidate packaged
+SBOM，也不能形成发布许可 PASS。
+
+**Native provenance 增量**：`.planning/v2-g1/G1-S4-A-Q03-NATIVE/` 共 5 文件 / 52,469 B，
+manifest SHA-256 `40E667F8A7650AF06BC145D85720CF5349BBC057E71BD0372E6D2213FEDA81DE`。
+31 子项为 13 `PROVEN` / 6 `PARTIAL` / 12 `BLOCKED`。Media3 1.11.1 +
+decoder 1.9.0+1 的静态 ABI / FFmpeg pin / 16 KB 对齐已证明，runtime 未证明；libmpv
+1.0.0 映射到 mpv 0.41.0 / FFmpeg n8.1 / libass 0.17.4，AAR 无 notice，source offer、
+双内核 load-order 与完整 notices 仍 BLOCKED；TTS 代码许可已证明，voice/model 许可与零网络
+runtime 未证明；PDFium 2.0.3 与 3.0.4-alpha01 native blob 相同，revision / notice / 16 KB /
+Range runtime 仍 BLOCKED / PARTIAL。
+
+**提交边界**：两目录当前均未提交，且 `commands.log` 命中 `*.log` ignore；提交阶段必须由负责人
+显式 `git add -f`，不得以工作树文件存在冒充已入库证据。完整 Q03 仍等 packaged SBOM、
+native notice/source、runtime / device 与真实链路证据。
 
 #### 5.11.11 G1-S4-B 媒体 / Native ABI 静态证据（2026-11-03）
 
@@ -3216,15 +3245,21 @@ R1“DNA 保留 + 共享骨架”，A2“更强材料表现”与 A3“更强结
 Q03_Q04_OPEN / READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED /
 RUNTIME_UNVERIFIED / NO_IMPLEMENTATION`。
 
+**并行 Q03 增量**：S4-A 的 SBOM runtime inventory 与 native provenance 静态增量已完成并
+通过独立 scoped review；`Q03-SBOM-RUNTIME-INVENTORY` 仅按 S4-A snapshot 可关闭，完整 Q03
+仍等 candidate packaged SBOM / native notice-source 与 runtime / device 证据，保持 Open。
+
 **工作对象 / 当前事实**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`；分支
-`codex/v2-integration`，当前 HEAD `9aa76f577b107bf9b8c75070690560a12f91e213`。S5 source
-基线为 `397ff4f0a3d8378c91ee283da317c5263cc80285`，Verifier 的 Git policy 要求当前 HEAD
-可从该 source 到达（即为其后裔）。verifier / builder 的 source hash 从固定
+`codex/v2-integration`，手交输入 HEAD（本 docs 集成提交的父提交）为
+`db6d176e55007a9d50c59cf53f84858ce7b9876f`。S5 source 基线为
+`397ff4f0a3d8378c91ee283da317c5263cc80285`，Verifier 的 Git policy 要求校验时工作树
+HEAD 可从该 source 到达（即为其后裔）。verifier / builder 的 source hash 从固定
 `397ff4f…` 的 `git cat-file blob` 读取，不是当前 worktree；因此 docs 合法更新不会误报
 `SOURCE_HASH_MISMATCH`。截至本交接，
 S5 稳定性修复与本次三份文档写回仍未提交；使用分支 / HEAD / 工作树实况复核，不得把全部
-工作树内容误写成已提交。无设备、服务器或 Release 锁。
+工作树内容误写成已提交。最终集成提交 SHA 由 Git 实读，不写进自身 ACTIVE；该原则与 R028
+合法后继核验一致。无设备、服务器或 Release 锁。
 
 **证据入口 / 机械事实**：`.planning/v2-g1/G1-S5/README.md`、
 `.planning/v2-g1/G1-S5/decision-brief.md`、`.planning/v2-g1/G1-S5/manifest.json`。

@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "task": "G1-S4-A-Q03-SBOM",
+  "status": "PARTIAL",
+  "isUserDecision": false,
+  "q03Impact": "SBOM sub-evidence advanced; Q03 remains Open",
+  "options": [
+    {
+      "id": "SBOM-OPT-01",
+      "name": "Gradle dependencies / dependencyInsight text graph",
+      "availability": "BUILT_IN_EXISTING",
+      "productionChange": false,
+      "currentEvidence": "S4-A offline libreReleaseRuntimeClasspath resolution, exit 0",
+      "proves": "Resolved Maven/project coordinates, direct declarations and transitive text topology",
+      "doesNotProve": "Normalized SBOM, licenses, PURLs, final packaged files or nested native licenses",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "SBOM-OPT-02",
+      "name": "AboutLibraries plugin",
+      "availability": "APPLIED_EXISTING",
+      "productionChange": false,
+      "currentEvidence": "app/phone build applies AboutLibraries 15.2.0; no dedicated SBOM artifact found",
+      "proves": "Build-time dependency/license metadata usable by UI or notices",
+      "doesNotProve": "CycloneDX/SPDX conformance, complete native mapping, source offers or final APK inventory",
+      "status": "PARTIAL"
+    },
+    {
+      "id": "SBOM-OPT-03",
+      "name": "Offline derived CycloneDX inventory from frozen S4-A",
+      "availability": "IMPLEMENTED_IN_THIS_EVIDENCE",
+      "productionChange": false,
+      "currentEvidence": "sbom.cdx.json, 305 components, official CycloneDX 1.6 schema valid",
+      "proves": "296 external coordinates + 9 project modules, PURLs, direct/transitive classification, tiered license evidence",
+      "doesNotProve": "Parent-child graph, final candidate artifact mapping, exact transitive POM text or unresolved native provenance",
+      "status": "PROVEN_FOR_S4A_SNAPSHOT",
+      "selectedForThisTask": true
+    },
+    {
+      "id": "SBOM-OPT-04",
+      "name": "Official CycloneDX Gradle plugin on an isolated candidate build",
+      "availability": "NOT_INSTALLED_G2_CANDIDATE",
+      "productionChange": true,
+      "currentEvidence": "No CycloneDX plugin found in build scripts or version catalog",
+      "proves": "Maven component graph, resolved versions and plugin-supported license metadata when pinned and run offline",
+      "doesNotProve": "Nested AAR native files, native build flags, platform TTS/model assets or signed final APK mapping",
+      "status": "G2_CANDIDATE"
+    },
+    {
+      "id": "SBOM-OPT-05",
+      "name": "Candidate APK/AAB post-build file SBOM merged with Gradle component SBOM",
+      "availability": "REQUIRED_FOR_CANONICAL_RELEASE_G2_CANDIDATE",
+      "productionChange": true,
+      "currentEvidence": "14-entry native inventory proves separate packaged-file evidence is feasible",
+      "proves": "Final packaged files, hashes, ZIP/native layout and candidate-artifact identity when attached to a pinned candidate",
+      "doesNotProve": "Runtime compatibility, legal source-offer sufficiency or maintenance status without separate notice/source review",
+      "status": "RECOMMENDED_G2_RELEASE_PATH"
+    },
+    {
+      "id": "SBOM-OPT-06",
+      "name": "SPDX 2.3 alternative",
+      "availability": "NOT_INSTALLED_G2_CANDIDATE",
+      "productionChange": true,
+      "currentEvidence": "No SPDX generator or artifact found",
+      "proves": "Equivalent package/relationship/license inventory if consumer requires SPDX",
+      "doesNotProve": "Any fact not already present in inputs; same native/source/runtime gates remain",
+      "status": "G2_ONLY_IF_CONSUMER_REQUIRES"
+    }
+  ],
+  "nativeExpressionMatrix": [
+    {
+      "object": "androidx.media3:* 1.11.1",
+      "gradleAutoExpression": "WITHOUT_PLUGIN_PARTIAL",
+      "currentClassification": "PROVEN_COMPONENT_INVENTORY",
+      "limit": "Version presence does not prove Media3 codec/runtime behavior."
+    },
+    {
+      "object": "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1",
+      "gradleAutoExpression": "WITHOUT_PLUGIN_PARTIAL",
+      "currentClassification": "PROVEN_COMPONENT_AND_PACKAGED_JNI_FILE",
+      "limit": "POM requests Media3 1.9.0; JNI/API/native ABI compatibility with AndroidX Media3 1.11.1 remains unproven."
+    },
+    {
+      "object": "dev.jdtech.mpv:libmpv:1.0.0 wrapper",
+      "gradleAutoExpression": "WITHOUT_PLUGIN_PARTIAL",
+      "currentClassification": "PROVEN_COMPONENT_INVENTORY",
+      "limit": "MIT wrapper POM does not establish embedded libav*/libc++ license or source mapping."
+    },
+    {
+      "object": "libmpv AAR embedded libavcodec/libavformat/libavutil/libswscale/libswresample/libavdevice/libavfilter",
+      "gradleAutoExpression": false,
+      "currentClassification": "APK_FILE_PROVEN_LICENSE_BLOCKED",
+      "limit": "Requires AAR/APK file inventory plus pinned native source, build flags and notices."
+    },
+    {
+      "object": "io.github.peerless2012:ass-kt:0.5.1 wrapper",
+      "gradleAutoExpression": "WITHOUT_PLUGIN_PARTIAL",
+      "currentClassification": "PROVEN_COMPONENT_INVENTORY",
+      "limit": "Wrapper POM does not supply per-file libass/libc++ release notices."
+    },
+    {
+      "object": "libass.so / libasskt.so / selected libc++_shared.so",
+      "gradleAutoExpression": false,
+      "currentClassification": "APK_FILE_PROVEN_LICENSE_PARTIAL_OR_BLOCKED",
+      "limit": "NOTICE-only libass and unresolved libc++ text are insufficient for final release approval."
+    },
+    {
+      "object": "libandroidx.graphics.path.so",
+      "gradleAutoExpression": false,
+      "currentClassification": "APK_FILE_PROVEN_PARENT_LICENSE_PARTIAL",
+      "limit": "Nested file license text is not separately proven by the Maven graph."
+    },
+    {
+      "object": "PDFium",
+      "gradleAutoExpression": false,
+      "currentClassification": "ABSENT_FROM_FROZEN_RUNTIME",
+      "limit": "A binding Maven coordinate may be automatic after selection; PDFium native source/version/notice/16 KB remains outside Gradle."
+    },
+    {
+      "object": "Sherpa-ONNX / Piper / TTS voices",
+      "gradleAutoExpression": false,
+      "currentClassification": "ABSENT_OR_MIXED_MAVEN_AND_MODEL_ASSETS",
+      "limit": "Gradle can express a Maven AAR but not platform TTS availability, voice/model files, offline behavior or model licenses."
+    },
+    {
+      "object": "Native symbol compatibility and load order",
+      "gradleAutoExpression": false,
+      "currentClassification": "RUNTIME_EVIDENCE_REQUIRED",
+      "limit": "SBOM expresses inventory and relationships, not runtime ABI compatibility."
+    }
+  ],
+  "recommendedReleasePath": {
+    "id": "SBOM-REC-01",
+    "status": "G2_CANDIDATE_NOT_IMPLEMENTED",
+    "steps": [
+      "Pin candidate source and Gradle resolution inputs; require dependency lock or verification metadata.",
+      "Run a pinned CycloneDX Gradle generator offline for libreReleaseRuntimeClasspath in an isolated candidate build.",
+      "Build the candidate APK/AAB and inventory ZIP entries, native libraries, hashes and shrink/merge outcomes.",
+      "Merge Gradle components with packaged-file and native provenance records generated from pinned source/build metadata.",
+      "Resolve Guava, SLF4J and all transitive license text gaps; attach native source offers and notices.",
+      "Validate CycloneDX schema, component counts, PURL uniqueness, direct edge invariants and candidate artifact SHA-256.",
+      "Require an independent license/source review and runtime compatibility evidence before Q03 or release approval."
+    ]
+  }
+}

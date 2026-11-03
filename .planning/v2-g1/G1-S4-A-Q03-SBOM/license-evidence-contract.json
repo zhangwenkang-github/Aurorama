@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "contractId": "aurorama-license-evidence-v1",
+  "scope": "Each external Maven component has exactly one raw evidence annotation and exactly one derived primary grade.",
+  "primaryGrades": [
+    "EXACT_POM",
+    "FAMILY_ONLY",
+    "MIXED_EXACT_FAMILY",
+    "UNKNOWN_BLOCKED"
+  ],
+  "primaryRule": "Primary grade is a total function of the component raw state. Direct/transitive relationship is independent and must never decide license evidence grade.",
+  "rawStateToPrimary": {
+    "DIRECT_POM_EXACT": "EXACT_POM",
+    "LOCAL_POM_EXACT": "EXACT_POM",
+    "EXACT_POM_CHECKED": "EXACT_POM",
+    "HIGH_FAMILY_MAPPING": "FAMILY_ONLY",
+    "FAMILY_EXCEPTION_POM_LICENSE_MISSING": "FAMILY_ONLY",
+    "FAMILY_WITH_EXPLICIT_NAME_EXCEPTION": "FAMILY_ONLY",
+    "MIXED_EXACT_AND_FAMILY": "MIXED_EXACT_FAMILY",
+    "UNKNOWN": "UNKNOWN_BLOCKED",
+    "BLOCKED": "UNKNOWN_BLOCKED"
+  },
+  "rawStateDescriptions": {
+    "DIRECT_POM_EXACT": "S4-A direct artifact had a parsed POM license.",
+    "LOCAL_POM_EXACT": "This review parsed the exact local POM for the component.",
+    "EXACT_POM_CHECKED": "S4-A family row explicitly records exact POM checking for this evidence class.",
+    "HIGH_FAMILY_MAPPING": "License comes from a high-confidence coordinate-family mapping, not per-artifact POM extraction.",
+    "FAMILY_EXCEPTION_POM_LICENSE_MISSING": "The cached POM lacks a licenses element; family/NOTICE evidence remains non-exact.",
+    "FAMILY_WITH_EXPLICIT_NAME_EXCEPTION": "The family mapping needs an explicit non-SPDX license name; it is not promoted to exact evidence.",
+    "MIXED_EXACT_AND_FAMILY": "The source evidence class mixes exact and family evidence and must remain visibly mixed.",
+    "UNKNOWN": "No safe license evidence mapping.",
+    "BLOCKED": "License evidence resolution is blocked."
+  },
+  "snapshotInvariants": {
+    "externalComponents": 296,
+    "rawStateCounts": {
+      "DIRECT_POM_EXACT": 35,
+      "LOCAL_POM_EXACT": 1,
+      "EXACT_POM_CHECKED": 10,
+      "HIGH_FAMILY_MAPPING": 241,
+      "FAMILY_EXCEPTION_POM_LICENSE_MISSING": 2,
+      "FAMILY_WITH_EXPLICIT_NAME_EXCEPTION": 3,
+      "MIXED_EXACT_AND_FAMILY": 4
+    },
+    "primaryGradeCounts": {
+      "EXACT_POM": 46,
+      "FAMILY_ONLY": 246,
+      "MIXED_EXACT_FAMILY": 4,
+      "UNKNOWN_BLOCKED": 0
+    }
+  }
+}

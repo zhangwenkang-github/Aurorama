@@ -1,0 +1,216 @@
+G1-S4-A-Q03-NATIVE commands / results
+captured: 2026-11-04 +08:00
+worktree: F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+shell: pwsh / PowerShell 7
+
+STARTUP
+001 git rev-parse HEAD; git branch --show-current; git status --porcelain=v1
+    result: HEAD=db6d176e55007a9d50c59cf53f84858ce7b9876f
+    result: branch=codex/v2-integration
+    result: initialStatusPorcelain="" (clean)
+
+MEMORY / WHITELIST
+002 read Engramory MEMORY.md and relevant:
+    aurorama-v2-requirements.md
+    cinefin-pdf-engine-research.md
+    result: task-relevant background only; repository remains current truth
+003 read only requested AGENTS / PROJECT_RULES R020,R025,R027,R028 /
+    V2_PLAN sections 5.11.10-12 and ACTIVE / TASKS Q03-S4 / DECISIONS Q03
+004 if graphify-out/graph.json exists: graphify query ...
+    result: GRAPH_ABSENT; no graph evidence claimed
+
+EXISTING EVIDENCE
+005 parse S4-A report.json / license-matrix.json / runtime-closure.json
+    result: runtime graph 9 direct projects + 35 direct external + 296 external closure;
+            35/35 direct POM license text; release SBOM/native notice/maintenance still blocked
+006 parse S4-B report.json / native-matrix.json / abi-decision.json
+    result: four-ABI JNI and ELF facts reused; Media3<->mpv and libass load-order runtime unexecuted
+007 parse S4-C report.json / option-matrix.json
+    result: TTS/PDF candidate facts reused, but Q03 remains Open
+
+LOCAL ARTIFACTS
+008 locate Gradle cache files
+    media3-decoder-1.11.1.pom/aar
+    media3-ffmpeg-decoder-1.9.0+1.pom/aar
+    libmpv-1.0.0.pom/aar
+    ass-kt-0.5.1.pom/aar
+    PDFium io.legere: ABSENT
+009 Get-FileHash -Algorithm SHA256
+    media3-decoder-1.11.1.pom A0E4E32378B098DA0399303E787D6B05AB3E928A38364ED54CBF6873516EB81F (1721 B)
+    media3-decoder-1.11.1.aar C3BCD704959026E0D644B0260F9E682A2E26E7357C2CF82D990BCB323F800D49 (19422 B)
+    media3-ffmpeg-decoder-1.9.0+1.pom B6E0DA47B95716E304F34ED72BE46068A3C6ADEF69A4E0901053045A682EEDFD (2101 B)
+    media3-ffmpeg-decoder-1.9.0+1.aar DFC726C8BC9D9DB02E15B160F886A03BDD6DD51E88BA2DE89AA74CAF5E8CD181 (2913028 B)
+    libmpv-1.0.0.pom 38F1ECF8ADE2D44FF8DD867B74DBEABC6CA6ECB8EF5803471F1E705D4975E6D5 (1978 B)
+    libmpv-1.0.0.aar DF146592480FC8418415A06B1F1A1D6318B0088E21F52254B0E9A82B61CA8FA2 (47574467 B)
+    ass-kt-0.5.1.pom 3A23DE5A67C0BA928EAB43141A6257DC626F113B43C1D6A265D8F44BDF8CA188 (1836 B)
+    ass-kt-0.5.1.aar 1051212FAF98EF956E06992B002D43CFDC81B6C60DCD32662E8D3FF52D584D65 (6376237 B)
+010 inspect AAR ZIP entries
+    media3-ffmpeg-decoder AAR: entries=14
+    libmpv AAR: entries=50
+    ass-kt AAR: entries=22
+    license/notice/copying/third_party/readme entries:
+      media3-ffmpeg-decoder=0
+      libmpv=0
+      ass-kt=0
+011 parse POM license texts
+    media3-ffmpeg-decoder: GNU General Public License v3.0
+    libmpv: MIT license
+    ass-kt: MIT License
+012 inspect embedded binary strings from ZIP entries without extraction
+    media3 libffmpegJNI: FFmpeg/libav source path strings present
+    libmpv libmpv.so: mpv v0.41.0; LGPL-2.1-or-later notice; libass source paths
+    libavutil.so: libavutil license: GPL version 3 or later
+    libavutil.so: FFmpeg version n8.1
+    FFmpeg configuration includes --enable-gpl --enable-version3
+
+UPSTREAM TAGS
+013 git ls-remote --tags
+    androidx/media 1.11.1 tag object=915b73c447aed6471aa33380a95126121a79375d
+    androidx/media 1.11.1 peel=8c6678b657ede1e7883fc164ef73ed483c7796c3
+    jellyfin-androidx-media v1.9.0+1=af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396
+    libmpv-android v1.0.0=fcf6745703dc1265bca88f12fee8fc355ddf251e
+    sherpa-onnx v2.0.1=af2d8d81dbfa61c4cea4c568da78f3982edca005
+    piper1-gpl v1.8.0=639388b6317fc4731e91d53da42aea68fd4166ff
+    PdfiumAndroidKt 2.0.3=92e6e42e2b886eb238a03b3574507b3d926e5cb5
+    PdfiumAndroidKt 3.0.4-alpha01=7331dc1a3cb4e88c24947d89d7cc124677aac108
+    mpv v0.41.0 peel=41f6a645068483470267271e1d09966ca3b9f413
+    FFmpeg n8.1 peel=9047fa1b084f76b1b4d065af2d743df1b40dfb56
+    libass 0.17.4 peel=bbb3c7f1570a4a021e52683f3fbdf74fe492ae84
+
+MEDIA3 / JELLYFIN
+014 GitHub API exact tag trees
+    jellyfin repo: truncated=false, count=30
+    ffmpeg gitlink=37c90f55d8b6c3948c79449b04755527b4ae1351
+    Jellyfin root LICENSE blob=f288702d2fa16d3cdf0035b15a9fcbc552cd88e7 (GPLv3)
+    build.sh NDK=26.1.10909125; 11 audio decoders; no --enable-gpl
+015 androidx/media 1.11.1 tree and decoder recipe
+    decoder README says external FFmpeg libraries licensed separately
+    build_ffmpeg.sh: static FFmpeg, NDK ABI 23, 11 requested decoders
+    no --enable-gpl or --enable-version3
+016 reuse S4-B frozen facts
+    Media3 JNI 9/9 per ABI
+    ExperimentalFfmpegVideoRenderer stub
+    Media3/static FFmpeg dynamic av-family definitions arm64=994
+    same-name intersection with libmpv libav*=461
+    load alignment all 0x4000 for 64-bit; zipalign P16 PASS
+    runtime must still be executed later
+
+LIBMPV
+017 GitHub API v1.0.0 tree
+    truncated=false, count=66
+    buildscripts/include/depinfo.sh blob=81076694c6ed50247bc030161e2f030e91849e70
+    buildscripts/include/download-deps.sh blob=282ab5707632974a3cdcb513a9f560c1455a45ca
+    buildscripts/scripts/ffmpeg.sh blob=acf4a81d69a86fe565cb3b961d036d2f4c9a3168
+    buildscripts/scripts/libass.sh blob=87636304e454941785a7730e1acd8a9c9c95200a
+    buildscripts/scripts/mpv.sh blob=92f16a388b43d1a4a3d803b4b11a8b811579c5a1
+018 parse depinfo/build scripts
+    versions: libass=0.17.4, ffmpeg=8.1, mpv=0.41.0, NDK=29.0.14206865
+    link flag: -Wl,-z,max-page-size=16384
+    libass configured --enable-static; linked into libmpv.so
+    ffmpeg configured --enable-gpl --enable-version3
+    wrapper LICENSE blob=81d2ff31ab3e434d6f67fa5ac1e15e345f175db6 (MIT)
+019 inspect CI/publish workflows
+    dependencies cloned by mutable tags; apt/pip installs not digest-pinned
+    actions use major tags; runs-on ubuntu-latest
+    AAR build then publishToMavenCentral and GitHub release
+    result: AAR hash fixed, full reproducible rebuild not proven
+020 reuse S4-B
+    mpv JNI 16/16 per ABI; custom NEEDED missing=0
+    libmpv statically contains libass 0.17.4 commit bbb3c7f1570a4a021e52683f3fbdf74fe492ae84
+    libass intersection with ass-kt arm64=217
+
+TTS
+021 GitHub release API sherpa-onnx v2.0.1
+    published=2026-10-26T15:24:29Z; draft=false; prerelease=false; assets=288
+    sherpa-onnx-2.0.1.aar bytes=49441341
+      digest=sha256:a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7
+    static-onnxruntime AAR bytes=38577050
+      digest=sha256:07e042d97f3a6bd5b7fe74d4eef0513dc01a714b16c15a903250095aba43a575
+022 Sherpa LICENSE
+    Apache License Version 2.0
+023 Sherpa Android README
+    standalone TTS and TTS engine samples exist
+    F-Droid reproducible build documentation exists
+024 Sherpa vits docs
+    vits-melo-tts-zh_en converted from myshell-ai/MeloTTS-Chinese
+    documented archive contains a LICENSE file
+    content not fetched; models not downloaded/run
+025 Piper v1.8.0 README/docs
+    README seeks maintainers
+    VOICES.md: each voice MODEL_CARD contains important licensing information
+    VOICES.md: Piper is intended for personal use and research; some voices may restrict
+026 archived rhasspy/piper voices.json
+    zh_CN-huayan-medium MODEL_CARD size=276 B
+    MD5=b23255ace0cda4c2e02134d8a70c2e03
+    MODEL_CARD content not obtained
+027 HuggingFace API/raw attempts
+    result: TLS/HTTP failures/timeouts; no bypass, credentials, mirror or model download used
+    result: model license remains BLOCKED
+
+PDFIUM
+028 GitHub API release 2.0.3
+    published=2026-07-26T12:17:17Z; prerelease=false; assets=4
+    core-release.aar bytes=9787161
+      digest=sha256:f80b8d2166f226e0ed0a50b7014cea91e297952c5e0ac158f10ff62c74d7e318
+029 GitHub API release 3.0.4-alpha01
+    published=2026-07-26T13:02:33Z; prerelease=true; assets=0
+030 Maven Central HEAD/checksum for 2.0.3 and 3.0.4-alpha01
+    pdfiumandroid 2.0.3 377258 B SHA256=1f07a9160c9a5975d6efff72404c5e49217d46f2651bfe02c67c8afb133e02d7
+    core 2.0.3 9787161 B SHA256=f80b8d2166f226e0ed0a50b7014cea91e297952c5e0ac158f10ff62c74d7e318
+    api 2.0.3 44512 B SHA256=a47a0cc8210d3d435996ccb47a3c666361f8c7cb774efbe58ab02ac478731f3f
+    pdfiumandroid 3.0.4-alpha01 407147 B SHA256=c52e1b059a5fb83b2643d662f33edd795bdab92955b2a1bc19c96e1980b98463
+    core 3.0.4-alpha01 9788401 B SHA256=00c5b696add8cadf15836c43318d2e481ff803b13e8694eefe1877741d0205bb
+    api 3.0.4-alpha01 45348 B SHA256=90af5b69c61dd16634028f6301d55a5300173f56bd250f856823fe1a0f112f23
+031 inspect wrapper source tags
+    LICENSE blob=b413a3e5b8b0814a92f7395973a30f4f67b53c41
+      Apache-2.0 wrapper + BSD-3-Clause PDFium text
+    native files are committed in source tree
+      arm64 libpdfium.so blob=64d61b70ed655adff69d747506460876c0fa7368
+      armv7 libpdfium.so blob=e5c9f5f1ef92cf45903621c0faaf8e38d8f1a3af
+      x86 libpdfium.so blob=5769d16acbb837955e26f52465ce5812f7007bbe
+      x86_64 libpdfium.so blob=2d879b21a22285a6dd44fd0a2a8a80758372190d
+    same four blob IDs at 2.0.3 and 3.0.4-alpha01
+032 GitHub issues
+    issue #54 open: maintainer says native comes from Google weekly builds, updates "from time to time";
+      no exact revision/build config/third-party inventory
+    issue #56 open, created 2026-10-05, updated 2026-10-08, comments=0:
+      arm64 libpdfium GNU_RELRO end=0x486000 (mod 0x4000=0x2000)
+      arm64 libpdfiumandroid end=0x6f000 (mod 0x4000=0x3000)
+      x86_64 libpdfium end=0x42d000 (mod 0x4000=0x1000)
+      x86_64 libpdfiumandroid end=0x6d000 (mod 0x4000=0x1000)
+      same for 3.0.4-alpha01
+033 local PDFium AAR lookup
+    result: ABSENT in Gradle modules cache
+    result: no AAR downloaded due task boundary; local readelf not claimed
+
+STATUS / BUDGET
+034 deepseek-status via pwsh
+    model=deepseek-flash
+    input=71989 / 1048576 (6.9%)
+    cache hit=83.6%
+    session requests=566
+    captured=2026-11-04 00:09:43 +08
+035 raw.githubusercontent.com first attempt
+    result: TLS reset on official source/license pages
+    action: same-owner retry through GitHub API blobs; core evidence obtained
+    residual: some auxiliary license/maintenance pages unavailable; recorded as PARTIAL/BLOCKED, never PASS
+
+BOUNDARY
+- No production code, Gradle, resources, Manifest, schema, S4-A/B/C evidence modified.
+- No dependency/model download or installation.
+- No build, media playback, device, Jellyfin, server, QA, Release or G2 action.
+
+FINAL CHECKS
+036 JSON parse: report / option-matrix / provenance-matrix / manifest = PASS
+037 provenance row count=31; actual PROVEN=13, PARTIAL=6, BLOCKED=12
+038 file EOL/whitespace scan: CRLF=0, trailing whitespace=0
+039 manifest verification: four listed files match byte length and SHA-256
+040 HEAD remains db6d176e55007a9d50c59cf53f84858ce7b9876f; no commit/push
+041 concurrent untracked .planning/v2-g1/G1-S4-A-Q03-SBOM/ existed after startup;
+    it is outside this task's read/write whitelist and was not read or modified
+042 final deepseek-status capture
+    input=278299 / 1048576 (26.5%)
+    cache hit=99.9%
+    session requests=600
+    captured=2026-11-04 00:13:45 +08
+    result: exceeded original 90k estimate; evidence expansion stopped immediately
