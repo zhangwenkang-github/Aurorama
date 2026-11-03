@@ -1,0 +1,665 @@
+{
+  "schema_version": "g1-s6-risk-register/v1",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "severity_counts": {
+    "P0": 1,
+    "P1": 16,
+    "P2": 11,
+    "P3": 2
+  },
+  "risks": [
+    {
+      "id": "R-S6-P0-01",
+      "severity": "P0",
+      "title": "破坏性数据库 fallback 或迁移不一致可造成真实数据丢失",
+      "domain": [
+        "ARCH",
+        "DOWNLOAD",
+        "READER",
+        "MUSIC",
+        "WRITE"
+      ],
+      "source": [
+        "EV-S2",
+        "V2-D199"
+      ],
+      "impact": "真实用户登录、下载、书签、进度、歌单或设置可能被清空，或 UI 显示成功后文件 / 状态不一致。",
+      "gate": "G2-ARCH-CONTRACTS-MIGRATION / G2-DOWNLOAD-STATE",
+      "closure_evidence": [
+        "release 可达代码不存在 destructive fallback",
+        "1.4→2.0 在可丢弃 profile 上完成中断 / 恢复 / FAIL_CLOSED 测试",
+        "DB + WAL/SHM + sidecar + journal + file + projection 全部对账"
+      ]
+    },
+    {
+      "id": "R-S6-P1-01",
+      "severity": "P1",
+      "title": "逻辑 seam 与 owner allowlist 只存在于静态计划",
+      "domain": [
+        "ARCH"
+      ],
+      "source": [
+        "EV-S1",
+        "V2-D198"
+      ],
+      "impact": "实现可能继续跨层直连并放大后续集成、测试和回滚成本。",
+      "gate": "G2-ARCH-CONTRACTS-MIGRATION",
+      "closure_evidence": [
+        "debt ratchet 可执行",
+        "旧违规只减不增",
+        "关键 contract / owner 测试绑定候选 SHA"
+      ]
+    },
+    {
+      "id": "R-S6-P1-02",
+      "severity": "P1",
+      "title": "跨存储状态并非单事务，崩溃窗口仍可能制造假完成 / 幽灵状态",
+      "domain": [
+        "ARCH",
+        "DOWNLOAD",
+        "READER"
+      ],
+      "source": [
+        "EV-S2",
+        "EV-A1",
+        "V2-D199"
+      ],
+      "impact": "Room、sidecar、文件、通知、receipt 或离线投影可在崩溃后不一致。",
+      "gate": "G2-ARCH-CONTRACTS-MIGRATION / G2-DOWNLOAD-STATE / G2-READER-CORE",
+      "closure_evidence": [
+        "generation / receipt / journal 可重放",
+        "force-stop / reboot 后状态收敛",
+        "故障点注入逐项有终态"
+      ]
+    },
+    {
+      "id": "R-S6-P1-03",
+      "severity": "P1",
+      "title": "搜索历史 ANR / Input timeout 尚未在 2.0 候选包关闭",
+      "domain": [
+        "UX",
+        "NAV",
+        "BASE-001"
+      ],
+      "source": [
+        "EV-BASE001",
+        "EV-S3"
+      ],
+      "impact": "查询或结果渲染可能再次阻塞 Main，导致输入失效或 ANR。",
+      "gate": "G2-SEARCH",
+      "closure_evidence": [
+        "候选包连续搜索无 ≥5s Main block / Input timeout",
+        "返回恢复与离线状态证据",
+        "trace 绑定候选 SHA"
+      ]
+    },
+    {
+      "id": "R-S6-P1-04",
+      "severity": "P1",
+      "title": "应用更新与服务器写均存在“受理不等于确认”的假成功风险",
+      "domain": [
+        "BASE-002",
+        "WRITE"
+      ],
+      "source": [
+        "EV-A2",
+        "EV-S3",
+        "V2-D102"
+      ],
+      "impact": "更新可能未安装却显示完成；服务器写可能未回读却清除 pending。",
+      "gate": "G2-UPDATE-TRUST / G2-SERVER-WRITE",
+      "closure_evidence": [
+        "安装目标四字段回读",
+        "写后同源 GET equality",
+        "403 不重试",
+        "失败 / 冲突逐项可见"
+      ]
+    },
+    {
+      "id": "R-S6-P1-05",
+      "severity": "P1",
+      "title": "SWR 的跨进程 fence、304 合同与产品策略未冻结",
+      "domain": [
+        "BASE-003"
+      ],
+      "source": [
+        "EV-BASE003",
+        "EV-S3"
+      ],
+      "impact": "旧 generation 或跨账号缓存可能覆盖新值，缓存可能被误当实时真源。",
+      "gate": "G2-PERSISTENT-SWR",
+      "closure_evidence": [
+        "durable generation / tombstone",
+        "跨进程并发负例",
+        "304 只在获证能力启用",
+        "用户策略记录"
+      ]
+    },
+    {
+      "id": "R-S6-P1-06",
+      "severity": "P1",
+      "title": "R1 与单 MediaSession / 双内核组合只有静态设计或 ABI 证据",
+      "domain": [
+        "UX",
+        "VIDEO",
+        "MUSIC"
+      ],
+      "source": [
+        "EV-S5-R1",
+        "EV-S4B",
+        "EV-Q03-NATIVE"
+      ],
+      "impact": "Compose、TalkBack、RWD、动态色、双内核 load-order 或单实例可能运行时失败。",
+      "gate": "G2-UI-R1-FOUNDATION / G2-VIDEO-CORE",
+      "closure_evidence": [
+        "候选包主题 / RWD / 无障碍旅程",
+        "单 Player / 单 MediaSession 运行证据",
+        "双 FFmpeg / libass load-order 实测"
+      ]
+    },
+    {
+      "id": "R-S6-P1-07",
+      "severity": "P1",
+      "title": "TTS 引擎、voice 与模型资产许可尚未选择",
+      "domain": [
+        "READER"
+      ],
+      "source": [
+        "EV-Q03-NATIVE",
+        "EV-Q03-TTS-PDF",
+        "EV-S4C"
+      ],
+      "impact": "无法随包 voice、无法审核模型 / lexicon / training-data 条款，也无法承认离线 TTS 可用。",
+      "gate": "G2-READER-TTS-GATED / G2-Q03-SUPPLY-CHAIN-GATED",
+      "closure_evidence": [
+        "用户引擎 / voice 决策",
+        "资产逐项 hash / license / notice",
+        "零网络运行证据"
+      ]
+    },
+    {
+      "id": "R-S6-P1-08",
+      "severity": "P1",
+      "title": "TTS 纯本地承诺尚无零网络 runtime 与性能证据",
+      "domain": [
+        "READER"
+      ],
+      "source": [
+        "EV-Q03-NATIVE",
+        "EV-Q03-TTS-PDF",
+        "V2-D088"
+      ],
+      "impact": "架构 local-only 仍可能触发模型下载、网络回退、首音过长或设备不稳定。",
+      "gate": "G2-READER-TTS-GATED",
+      "closure_evidence": [
+        "飞行模式零 App 网络",
+        "中文 voice 可播放",
+        "首音 / RTF / 内存 / 耗电 / 30 分钟稳定性"
+      ]
+    },
+    {
+      "id": "R-S6-P1-09",
+      "severity": "P1",
+      "title": "PDFium 16 KB、native provenance 与 notice 未闭合",
+      "domain": [
+        "READER",
+        "Q03"
+      ],
+      "source": [
+        "EV-Q03-NATIVE",
+        "EV-Q03-TTS-PDF",
+        "issue #56"
+      ],
+      "impact": "targetSdk 36 下可能无法加载；BSD third-party notice 与 source revision 不可审计。",
+      "gate": "G2-READER-PDF-GATED / G2-Q03-SUPPLY-CHAIN-GATED",
+      "closure_evidence": [
+        "固定 native revision / GN args",
+        "64-bit 16 KB static + device PASS",
+        "complete notice / source inventory"
+      ]
+    },
+    {
+      "id": "R-S6-P1-10",
+      "severity": "P1",
+      "title": "PDF Range、取消、弱网与大文件 runtime 未执行",
+      "domain": [
+        "READER",
+        "Q03"
+      ],
+      "source": [
+        "EV-Q03-NATIVE",
+        "EV-S4C"
+      ],
+      "impact": "远程大 PDF 可能整本加载、内存失控、无法取消或卡死。",
+      "gate": "G2-READER-PDF-GATED",
+      "closure_evidence": [
+        "206 / Content-Range 逐段验证",
+        "2.53 GB / 5006 页旅程",
+        "取消 / 弱网 / 内存上限"
+      ]
+    },
+    {
+      "id": "R-S6-P1-11",
+      "severity": "P1",
+      "title": "音乐、视频、SyncPlay 与系统媒体入口可能分裂状态真源",
+      "domain": [
+        "MUSIC",
+        "VIDEO",
+        "NAV"
+      ],
+      "source": [
+        "EV-S3",
+        "V2-D107",
+        "V2-D190",
+        "V2-D195"
+      ],
+      "impact": "出现双 Player、双 MediaSession、旧账号媒体继续播放或通知 / UI / 队列不一致。",
+      "gate": "G2-MUSIC-CORE / G2-VIDEO-CORE / G2-NAV-IDENTITY",
+      "closure_evidence": [
+        "单活动逻辑会话",
+        "切号暂停并隐藏",
+        "通知 / UI / 队列 / 进度同一 owner 等式"
+      ]
+    },
+    {
+      "id": "R-S6-P1-12",
+      "severity": "P1",
+      "title": "本地歌单生产 parser / SAF / 身份适配尚未实现",
+      "domain": [
+        "BASE-004",
+        "MUSIC"
+      ],
+      "source": [
+        "EV-BASE004",
+        "EV-S2"
+      ],
+      "impact": "导入可能误合并、丢身份、非原子覆盖或重启后顺序丢失。",
+      "gate": "G2-LOCAL-PLAYLIST",
+      "closure_evidence": [
+        "LOCAL_DRAFT identity adapter",
+        "SAF 原子写",
+        "重复 / 缺曲 / 冲突策略决策",
+        "重启恢复"
+      ]
+    },
+    {
+      "id": "R-S6-P1-13",
+      "severity": "P1",
+      "title": "静态证据、fixture、fake、历史 1.4 记录被误升级为 2.0 PASS",
+      "domain": [
+        "ALL",
+        "R1"
+      ],
+      "source": [
+        "docs/V2_PLAN.md §5.11.7",
+        "EV-S5-R1",
+        "EV-A1",
+        "EV-A2"
+      ],
+      "impact": "发布门可能被无 device / candidate evidence 的绿色报告穿透。",
+      "gate": "ALL_G2_CARD_REVIEWS",
+      "closure_evidence": [
+        "每条 PASS 标记执行环境和证据等级",
+        "E5–E7 未执行不得写 PASS",
+        "候选 artifact SHA 与证据一致"
+      ]
+    },
+    {
+      "id": "R-S6-P1-14",
+      "severity": "P1",
+      "title": "下载 provenance / 通知 / 文件 / 删除一致性仍只有静态合同",
+      "domain": [
+        "DOWNLOAD",
+        "READER",
+        "MUSIC",
+        "VIDEO"
+      ],
+      "source": [
+        "EV-A1",
+        "EV-S2",
+        "EV-S3"
+      ],
+      "impact": "跨账号串副本、幽灵通知、UI 完成但文件缺失或删除假成功。",
+      "gate": "G2-DOWNLOAD-STATE",
+      "closure_evidence": [
+        "canonical four-part identity",
+        "complete receipt chain",
+        "WAL / file / projection / notification equality"
+      ]
+    },
+    {
+      "id": "R-S6-P1-15",
+      "severity": "P1",
+      "title": "SyncPlay 官方能力存在但客户端整合与多端运行证据缺失",
+      "domain": [
+        "VIDEO"
+      ],
+      "source": [
+        "EV-S3"
+      ],
+      "impact": "可能把 pending / echo / 时钟漂移显示成已同步，或创建无法收口的组。",
+      "gate": "G2-SYNCPLAY-GATED",
+      "closure_evidence": [
+        "versioned capability map",
+        "双客户端命令 / 时钟 / 重连",
+        "revision / resnapshot",
+        "离组清理"
+      ]
+    },
+    {
+      "id": "R-S6-P1-16",
+      "severity": "P1",
+      "title": "packaged SBOM、notice、source bundle 与 attestation 尚不存在",
+      "domain": [
+        "Q03",
+        "Architecture",
+        "Release"
+      ],
+      "source": [
+        "EV-Q03-SBOM",
+        "EV-Q03-NOTICE",
+        "EV-S4A"
+      ],
+      "impact": "候选包无法完成许可证 / 源码义务和供应链审计，Release 必须保持关闭。",
+      "gate": "G2-Q03-SUPPLY-CHAIN-GATED",
+      "closure_evidence": [
+        "file-to-component map",
+        "complete notices",
+        "source / written offer",
+        "attestation / rebuild / relink"
+      ]
+    },
+    {
+      "id": "R-S6-P2-01",
+      "severity": "P2",
+      "title": "R1 五主题、200%、动态色、折叠和 TalkBack 仅有静态覆盖",
+      "domain": [
+        "UX",
+        "R1"
+      ],
+      "source": [
+        "EV-S5-R1",
+        "EV-UI-R1"
+      ],
+      "impact": "视觉和交互可能在真实字体、系统设置、焦点顺序或窗口变化中失败。",
+      "gate": "G2-UI-R1-FOUNDATION",
+      "closure_evidence": [
+        "每主题明暗实机帧",
+        "TalkBack / 键盘 / 动态色 / 200% / 折叠证据"
+      ]
+    },
+    {
+      "id": "R-S6-P2-02",
+      "severity": "P2",
+      "title": "安装包当前候选与 R8 / installer 回读未执行",
+      "domain": [
+        "BASE-002"
+      ],
+      "source": [
+        "EV-A2",
+        "EV-S4B"
+      ],
+      "impact": "静态信任合同无法证明 2.0 release 安装链。",
+      "gate": "G2-UPDATE-TRUST",
+      "closure_evidence": [
+        "2.0 candidate package",
+        "installer result readback",
+        "upgrade asset preservation"
+      ]
+    },
+    {
+      "id": "R-S6-P2-03",
+      "severity": "P2",
+      "title": "TTL、容量、预取、歌单重复 / 部分导入等策略尚无用户决策",
+      "domain": [
+        "BASE-003",
+        "BASE-004",
+        "MUSIC"
+      ],
+      "source": [
+        "EV-BASE003",
+        "EV-BASE004"
+      ],
+      "impact": "实现会被迫自行选择产品行为，导致可持续的返工或数据合并风险。",
+      "gate": "G2-PERSISTENT-SWR / G2-LOCAL-PLAYLIST",
+      "closure_evidence": [
+        "负责人 / 用户决策记录",
+        "bounded runtime evidence"
+      ]
+    },
+    {
+      "id": "R-S6-P2-04",
+      "severity": "P2",
+      "title": "搜索排序、分组与跨源呈现仍待用户选择",
+      "domain": [
+        "BASE-001",
+        "NAV"
+      ],
+      "source": [
+        "EV-BASE001"
+      ],
+      "impact": "相同正结果可能以互相冲突的层级或顺序展示。",
+      "gate": "G2-SEARCH",
+      "closure_evidence": [
+        "用户排序 / 跨源决策",
+        "fixture + UI + device 对照"
+      ]
+    },
+    {
+      "id": "R-S6-P2-05",
+      "severity": "P2",
+      "title": "UI 文本和可访问名称可能回归为颜色或图标单通道",
+      "domain": [
+        "UX",
+        "R1"
+      ],
+      "source": [
+        "EV-S5-R1",
+        "V2-D069"
+      ],
+      "impact": "TalkBack、色觉障碍或减少动画用户无法判断动作 / 状态。",
+      "gate": "G2-UI-R1-FOUNDATION",
+      "closure_evidence": [
+        "可访问名称 / 角色 / 状态表",
+        "对比度与键盘焦点证据"
+      ]
+    },
+    {
+      "id": "R-S6-P2-06",
+      "severity": "P2",
+      "title": "阅读大书、弱网、格式差异与本地化字体尚未真机量化",
+      "domain": [
+        "READER"
+      ],
+      "source": [
+        "docs/V2_PLAN.md §5.4.5",
+        "EV-S2"
+      ],
+      "impact": "可能出现卡顿、内存峰值、错误空态或位置错页。",
+      "gate": "G2-READER-CORE",
+      "closure_evidence": [
+        "5000-page / large CBZ / weak network",
+        "locator after reflow",
+        "font / 200% rendering"
+      ]
+    },
+    {
+      "id": "R-S6-P2-07",
+      "severity": "P2",
+      "title": "服务器写真实 409 / 403 / 部分失败语义未执行",
+      "domain": [
+        "WRITE"
+      ],
+      "source": [
+        "EV-S3"
+      ],
+      "impact": "权限拒绝或 RMW 冲突可能被折叠为普通错误或误报成功。",
+      "gate": "G2-SERVER-WRITE",
+      "closure_evidence": [
+        "独立写服 401/403/404/409/503",
+        "read-back mismatch",
+        "batch partial results"
+      ]
+    },
+    {
+      "id": "R-S6-P2-08",
+      "severity": "P2",
+      "title": "下载通知 / 前台服务 / 存储卷 / OEM 行为存在设备差异",
+      "domain": [
+        "DOWNLOAD"
+      ],
+      "source": [
+        "EV-A1",
+        "EV-S2"
+      ],
+      "impact": "通知权限、MIUI 限制或 SAF 失效会让任务状态不可见或恢复失败。",
+      "gate": "G2-DOWNLOAD-STATE",
+      "closure_evidence": [
+        "双设备通知 / 存储 / force-stop / reboot",
+        "权限拒绝不阻塞传输"
+      ]
+    },
+    {
+      "id": "R-S6-P2-09",
+      "severity": "P2",
+      "title": "双 FFmpeg / libass 同名符号、R8 与多 ABI 兼容仍有运行时风险",
+      "domain": [
+        "VIDEO",
+        "MUSIC"
+      ],
+      "source": [
+        "EV-S4B",
+        "EV-Q03-NATIVE"
+      ],
+      "impact": "类初始化顺序、符号 interposition 或 R8 映射可能导致崩溃或静默回退。",
+      "gate": "G2-VIDEO-CORE / G2-Q03-SUPPLY-CHAIN-GATED",
+      "closure_evidence": [
+        "同进程 load / switch",
+        "符号解析日志",
+        "R8 candidate",
+        "四 ABI / 16 KB"
+      ]
+    },
+    {
+      "id": "R-S6-P2-10",
+      "severity": "P2",
+      "title": "SyncPlay 无显式 revision，排序依赖时间戳与 resnapshot",
+      "domain": [
+        "VIDEO"
+      ],
+      "source": [
+        "EV-S3"
+      ],
+      "impact": "并发命令和网络抖动可能造成同组状态不同步。",
+      "gate": "G2-SYNCPLAY-GATED",
+      "closure_evidence": [
+        "相关 id / generation",
+        "双端重连与 resnapshot",
+        "时钟误差和漂移窗口"
+      ]
+    },
+    {
+      "id": "R-S6-P2-11",
+      "severity": "P2",
+      "title": "导航侧轨紧凑项 44dp 视觉高度与 48dp 热区仍未设备确认",
+      "domain": [
+        "NAV",
+        "R1"
+      ],
+      "source": [
+        "EV-S5-R1",
+        "EV-S3"
+      ],
+      "impact": "紧凑项可能误触或焦点不可见。",
+      "gate": "G2-NAV-IDENTITY / G2-UI-R1-FOUNDATION",
+      "closure_evidence": [
+        "真实命中区测量",
+        "键盘焦点环",
+        "TalkBack 导航"
+      ]
+    },
+    {
+      "id": "R-S6-P3-01",
+      "severity": "P3",
+      "title": "S5 证据包中的 Q04=OPEN 是历史快照",
+      "domain": [
+        "R1",
+        "Q04"
+      ],
+      "source": [
+        "EV-S5-R1",
+        "V2-D201"
+      ],
+      "impact": "冷启动或 reviewer 可能把历史快照误当当前状态。",
+      "gate": "Scoped review entry",
+      "closure_evidence": [
+        "所有下游以 DECISIONS D201 和 V2_PLAN ACTIVE 当前状态为准"
+      ]
+    },
+    {
+      "id": "R-S6-P3-02",
+      "severity": "P3",
+      "title": "历史 1.4 QA / 界面记录与 2.0 候选包存在对象漂移",
+      "domain": [
+        "ALL"
+      ],
+      "source": [
+        "docs/V2_PLAN.md §9",
+        "docs/TASKS.md"
+      ],
+      "impact": "复用历史 PASS 可能掩盖 V2 新行为或新缺陷。",
+      "gate": "Scoped review / G2 acceptance",
+      "closure_evidence": [
+        "历史记录只作低阶参考",
+        "最终 PASS 绑定 2.0 candidate SHA"
+      ]
+    }
+  ],
+  "cross_domain_invariants": [
+    {
+      "id": "INV-IDENTITY",
+      "rule": "serverId + userId 是服务器状态边界；资源还需稳定 item/source/book/media identity；未知 provenance 不猜。",
+      "cards": [
+        "G2-ARCH-CONTRACTS-MIGRATION",
+        "G2-SEARCH",
+        "G2-PERSISTENT-SWR",
+        "G2-DOWNLOAD-STATE",
+        "G2-READER-CORE",
+        "G2-MUSIC-CORE",
+        "G2-VIDEO-CORE",
+        "G2-NAV-IDENTITY"
+      ]
+    },
+    {
+      "id": "INV-SINGLE-SESSION",
+      "rule": "音乐与视频共享仲裁器，只允许一个活动逻辑会话与一个 MediaSession。",
+      "cards": [
+        "G2-MUSIC-CORE",
+        "G2-VIDEO-CORE",
+        "G2-NAV-IDENTITY",
+        "G2-SYNCPLAY-GATED"
+      ]
+    },
+    {
+      "id": "INV-CROSS-SURFACE-EQUALITY",
+      "rule": "同一状态的页面、通知、角标、队列、离线库和失败终态必须来自同一持久真源并满足等式。",
+      "cards": [
+        "G2-DOWNLOAD-STATE",
+        "G2-MUSIC-CORE",
+        "G2-VIDEO-CORE",
+        "G2-READER-CORE"
+      ]
+    },
+    {
+      "id": "INV-FAIL-CLOSED",
+      "rule": "未知来源、旧 generation、迁移不一致、权限不明确、能力不可表达时必须 FAIL_CLOSED 或显式降级。",
+      "cards": [
+        "G2-ARCH-CONTRACTS-MIGRATION",
+        "G2-DOWNLOAD-STATE",
+        "G2-SERVER-WRITE",
+        "G2-READER-PDF-GATED",
+        "G2-Q03-SUPPLY-CHAIN-GATED"
+      ]
+    }
+  ]
+}

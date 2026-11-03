@@ -1,0 +1,817 @@
+{
+  "schema_version": "g1-s6-thresholds/v1",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "rules": [
+    "Every threshold must cite accepted requirement / decision / fixture.",
+    "Fixture-only small values are not product defaults.",
+    "UNRESOLVED means the accepted source does not provide a concrete value.",
+    "Passing a static threshold does not prove runtime, device or production protocol."
+  ],
+  "count": 46,
+  "thresholds": [
+    {
+      "id": "T-P0-ZERO",
+      "requirement_ids": [
+        "V2-REQ-ARCH-008",
+        "V2-REQ-ARCH-040"
+      ],
+      "metric": "P0 未关闭数量",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "release candidate",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.2.2",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-P1-CLOSED",
+      "requirement_ids": [
+        "V2-REQ-ARCH-008",
+        "V2-REQ-ARCH-040"
+      ],
+      "metric": "P1 未关闭数量",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "release candidate，除非有用户书面延期",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / EXCEPTION_RECORD_REQUIRED",
+      "source": "docs/V2_PLAN.md §5.2.2",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-MODULE-CYCLES",
+      "requirement_ids": [
+        "V2-REQ-ARCH-013",
+        "V2-REQ-ARCH-057",
+        "V2-REQ-ARCH-068",
+        "V2-REQ-ARCH-070"
+      ],
+      "metric": "模块级循环依赖数量",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "candidate architecture gate",
+      "evidence_level": "E1",
+      "status": "STATIC_BASELINE_PASS / IMPLEMENTATION_PENDING",
+      "source": "docs/V2_PLAN.md §5.2.2; EV-S1",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-UNAUTHORIZED-EDGES",
+      "requirement_ids": [
+        "V2-REQ-ARCH-013",
+        "V2-REQ-ARCH-057",
+        "V2-REQ-ARCH-068"
+      ],
+      "metric": "未授权跨层 / 反向 / 隐式依赖",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "candidate architecture gate",
+      "evidence_level": "E1",
+      "status": "CONTRACT_ONLY / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.2.2; EV-S1",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-DATA-OWNER",
+      "requirement_ids": [
+        "V2-REQ-ARCH-058"
+      ],
+      "metric": "无唯一 writer 的核心数据类别",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "candidate architecture gate",
+      "evidence_level": "E1",
+      "status": "CONTRACT_ONLY",
+      "source": "docs/V2_PLAN.md §5.2.2",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-PAGE-PADDING",
+      "requirement_ids": [
+        "V2-REQ-UX-009",
+        "R1-RWD-MEDIUM"
+      ],
+      "metric": "页面内边距下限",
+      "operator": ">=",
+      "value": 12,
+      "unit": "dp",
+      "environment": "phone and window classes",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.3.15; docs/UI_DESIGN_SYSTEM.md §V2-R1-03",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-BLOCK-GAP",
+      "requirement_ids": [
+        "V2-REQ-UX-009"
+      ],
+      "metric": "区块间距下限",
+      "operator": ">=",
+      "value": 32,
+      "unit": "dp",
+      "environment": "all UI forms",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.3.15",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-TOUCH-TARGET",
+      "requirement_ids": [
+        "V2-REQ-UX-009",
+        "V2-REQ-MUSIC-033",
+        "V2-REQ-READER-023",
+        "V2-REQ-VIDEO-062",
+        "R1-A11Y-TOUCH-48"
+      ],
+      "metric": "交互触控热区",
+      "operator": ">=",
+      "value": "48x48",
+      "unit": "dp",
+      "environment": "touch devices",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md V2-R1-04",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-FOCUS-RING",
+      "requirement_ids": [
+        "V2-REQ-UX-009"
+      ],
+      "metric": "键盘焦点环宽度",
+      "operator": "==",
+      "value": 2,
+      "unit": "dp",
+      "environment": "keyboard / pointer environment",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md V2-R1-04",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-A11Y-ACTION-NAMES",
+      "requirement_ids": [
+        "R1-A11Y-NAMES"
+      ],
+      "metric": "具有可访问名称、角色与状态策略的示例动作数",
+      "operator": "==",
+      "value": 18,
+      "unit": "actions",
+      "environment": "static R1 mapping / TalkBack and keyboard runtime separate",
+      "evidence_level": "E0/E5/E7",
+      "status": "STATIC_MAPPING_18/18 / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md V2-R1-04",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-TEXT-CONTRAST",
+      "requirement_ids": [
+        "V2-REQ-UX-008",
+        "R1-A11Y-CONTRAST"
+      ],
+      "metric": "正文文字对比度",
+      "operator": ">=",
+      "value": 4.5,
+      "unit": ":1",
+      "environment": "all themes / appearances",
+      "evidence_level": "E0/E5/E7",
+      "status": "STATIC_PASS_TEXT_110/110 / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md V2-R1-04",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-BOUNDARY-CONTRAST",
+      "requirement_ids": [
+        "R1-A11Y-CONTRAST"
+      ],
+      "metric": "焦点与必要边界对比度",
+      "operator": ">=",
+      "value": 3.0,
+      "unit": ":1",
+      "environment": "all themes / appearances",
+      "evidence_level": "E0/E5/E7",
+      "status": "STATIC_PASS_BOUNDARY_20/20 / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §129-130",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-TOTAL-CONTRAST",
+      "requirement_ids": [
+        "R1-A11Y-CONTRAST"
+      ],
+      "metric": "S5 静态对比度 pair 总数",
+      "operator": "==",
+      "value": 130,
+      "unit": "pair",
+      "environment": "static themes / appearances",
+      "evidence_level": "E0",
+      "status": "STATIC_PASS_TOTAL_130/130 / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §13-14, §129-130",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-THEME-MOTION",
+      "requirement_ids": [
+        "V2-REQ-UX-011",
+        "R1-I07"
+      ],
+      "metric": "主题交互动效时长",
+      "operator": "between",
+      "value": [
+        150,
+        300
+      ],
+      "unit": "ms",
+      "environment": "normal motion",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.3.15",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-REDUCE-MOTION",
+      "requirement_ids": [
+        "V2-REQ-UX-011",
+        "R1-A11Y-REDUCE-MOTION"
+      ],
+      "metric": "Reduce Motion 下装饰过渡时长",
+      "operator": "==",
+      "value": 0,
+      "unit": "ms",
+      "environment": "system reduced motion",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-04",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-RWD-COMPACT",
+      "requirement_ids": [
+        "V2-REQ-UX-037",
+        "R1-RWD-COMPACT"
+      ],
+      "metric": "Compact 有效宽度",
+      "operator": "<",
+      "value": 600,
+      "unit": "dp",
+      "environment": "window class selection",
+      "evidence_level": "E3/E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-03",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-RWD-MEDIUM",
+      "requirement_ids": [
+        "V2-REQ-UX-037",
+        "R1-RWD-MEDIUM"
+      ],
+      "metric": "Medium 有效宽度",
+      "operator": "range_inclusive",
+      "value": [
+        600,
+        839
+      ],
+      "unit": "dp",
+      "environment": "window class selection",
+      "evidence_level": "E3/E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-03",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-RWD-EXPANDED",
+      "requirement_ids": [
+        "V2-REQ-UX-037",
+        "R1-RWD-EXPANDED"
+      ],
+      "metric": "Expanded 有效宽度",
+      "operator": "range_inclusive",
+      "value": [
+        840,
+        1199
+      ],
+      "unit": "dp",
+      "environment": "window class selection",
+      "evidence_level": "E3/E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-03",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-RWD-LARGE",
+      "requirement_ids": [
+        "V2-REQ-UX-037",
+        "R1-RWD-LARGE"
+      ],
+      "metric": "Large 有效宽度",
+      "operator": "range_inclusive",
+      "value": [
+        1200,
+        1599
+      ],
+      "unit": "dp",
+      "environment": "window class selection",
+      "evidence_level": "E3/E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-03",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-RWD-EXTRA-LARGE",
+      "requirement_ids": [
+        "V2-REQ-UX-037",
+        "R1-RWD-EXTRA-LARGE"
+      ],
+      "metric": "ExtraLarge 有效宽度",
+      "operator": ">=",
+      "value": 1600,
+      "unit": "dp",
+      "environment": "window class selection",
+      "evidence_level": "E3/E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-03",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-NOCTURNE-RADIUS",
+      "requirement_ids": [
+        "R1-THEME-NOCTURNE",
+        "V2-D201",
+        "V2-D057"
+      ],
+      "metric": "Nocturne 基础圆角",
+      "operator": "==",
+      "value": 8,
+      "unit": "dp",
+      "environment": "Nocturne theme",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-02",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-PRISM-RADIUS",
+      "requirement_ids": [
+        "R1-THEME-PRISM",
+        "V2-D057"
+      ],
+      "metric": "Prism 基础圆角",
+      "operator": "==",
+      "value": 12,
+      "unit": "dp",
+      "environment": "Prism theme",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-02",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-LUMEN-RADIUS",
+      "requirement_ids": [
+        "R1-THEME-LUMEN",
+        "V2-D057"
+      ],
+      "metric": "Lumen 基础圆角",
+      "operator": "==",
+      "value": 16,
+      "unit": "dp",
+      "environment": "Lumen theme",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-02",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-MONOLITH-RADIUS",
+      "requirement_ids": [
+        "R1-THEME-MONOLITH",
+        "V2-D057"
+      ],
+      "metric": "Monolith 基础圆角",
+      "operator": "==",
+      "value": 8,
+      "unit": "dp",
+      "environment": "Monolith theme",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-02",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-DYNAMIC-RADIUS",
+      "requirement_ids": [
+        "R1-THEME-DYNAMIC",
+        "V2-D057"
+      ],
+      "metric": "系统动态色基础圆角",
+      "operator": "==",
+      "value": 12,
+      "unit": "dp",
+      "environment": "Android dynamic color theme",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/UI_DESIGN_SYSTEM.md §V2-R1-02",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-MUSIC-SPEED",
+      "requirement_ids": [
+        "V2-REQ-MUSIC-046"
+      ],
+      "metric": "音乐变速范围",
+      "operator": "range_inclusive",
+      "value": [
+        0.5,
+        2.0
+      ],
+      "unit": "x",
+      "environment": "music playback",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.6.6.1",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-MUSIC-RETRY",
+      "requirement_ids": [
+        "V2-REQ-MUSIC-018"
+      ],
+      "metric": "可重试瞬时网络失败最大额外尝试",
+      "operator": "==",
+      "value": 1,
+      "unit": "attempt",
+      "environment": "first failure; 401 only after one successful credential refresh",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.6.6.1",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-MUSIC-HORIZONTAL-COMMIT",
+      "requirement_ids": [
+        "V2-REQ-MUSIC-053"
+      ],
+      "metric": "横向切歌提交条件",
+      "operator": "OR",
+      "value": {
+        "min_distance_dp": 24,
+        "distance_dp": 72,
+        "velocity_dp_s": 600
+      },
+      "unit": "dp or dp/s",
+      "environment": "music gesture",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.6.6.1",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-MUSIC-VERTICAL-COMMIT",
+      "requirement_ids": [
+        "V2-REQ-MUSIC-053"
+      ],
+      "metric": "纵向面板提交条件",
+      "operator": "OR",
+      "value": {
+        "available_height_pct": 18,
+        "velocity_dp_s": 800
+      },
+      "unit": "% or dp/s",
+      "environment": "music gesture",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.6.6.1",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-MUSIC-SLEEP-FADE",
+      "requirement_ids": [
+        "V2-REQ-MUSIC-047"
+      ],
+      "metric": "睡眠定时结束前淡出",
+      "operator": "==",
+      "value": 5,
+      "unit": "s",
+      "environment": "active playback",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.6.6.1",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-MUSIC-SLEEP-CUSTOM",
+      "requirement_ids": [
+        "V2-REQ-MUSIC-047"
+      ],
+      "metric": "自定义睡眠定时范围",
+      "operator": "range_inclusive",
+      "value": [
+        1,
+        240
+      ],
+      "unit": "minute",
+      "environment": "music playback",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.6.6.1",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-BASE005-INITIAL-N",
+      "requirement_ids": [
+        "V2-REQ-BASE-005"
+      ],
+      "metric": "首屏懒补曲目数 N",
+      "operator": "UNRESOLVED",
+      "value": "UNRESOLVED",
+      "unit": "track",
+      "environment": "large playlist / queue",
+      "evidence_level": "G1 decision",
+      "status": "UNRESOLVED",
+      "source": "docs/V2_PLAN.md §5.10.5",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-BASE005-SCENARIO",
+      "requirement_ids": [
+        "V2-REQ-BASE-005"
+      ],
+      "metric": "大队列代表性规模",
+      "operator": "range_inclusive",
+      "value": [
+        349,
+        1000
+      ],
+      "unit": "tracks",
+      "environment": "large playlist / queue",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_SCENARIO / NOT_A_HARD_LIMIT",
+      "source": "docs/V2_PLAN.md §5.10.5",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-DOWNLOAD-PROGRESS-DISPLAY",
+      "requirement_ids": [
+        "V2-REQ-DOWNLOAD-006"
+      ],
+      "metric": "显示进度最短刷新间隔",
+      "operator": ">=",
+      "value": 500,
+      "unit": "ms",
+      "environment": "download UI",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.7; V2-D139",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-VIDEO-SPEED",
+      "requirement_ids": [
+        "V2-REQ-VIDEO-027"
+      ],
+      "metric": "普通视频倍速范围",
+      "operator": "range_inclusive",
+      "value": [
+        0.25,
+        4.0
+      ],
+      "unit": "x",
+      "environment": "video playback",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.8.9",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-VIDEO-LONG-PRESS-SPEED",
+      "requirement_ids": [
+        "V2-REQ-VIDEO-027"
+      ],
+      "metric": "长按临时倍速",
+      "operator": "==",
+      "value": 2.0,
+      "unit": "x",
+      "environment": "video playback gesture",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.8.9",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-VIDEO-SUBTITLE-DELAY-DEFAULT",
+      "requirement_ids": [
+        "V2-REQ-VIDEO-042"
+      ],
+      "metric": "字幕延迟默认值",
+      "operator": "==",
+      "value": 50,
+      "unit": "ms",
+      "environment": "video subtitle",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.8.9",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-VIDEO-SUBTITLE-DELAY-STEP",
+      "requirement_ids": [
+        "V2-REQ-VIDEO-042"
+      ],
+      "metric": "字幕延迟调整步长",
+      "operator": "==",
+      "value": 50,
+      "unit": "ms",
+      "environment": "video subtitle",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.8.9",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-VIDEO-SUBTITLE-DELAY-RANGE",
+      "requirement_ids": [
+        "V2-REQ-VIDEO-042"
+      ],
+      "metric": "字幕延迟范围",
+      "operator": "range_inclusive",
+      "value": [
+        -10000,
+        10000
+      ],
+      "unit": "ms",
+      "environment": "video subtitle",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.8.9",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-VIDEO-CONTROL-HIDE",
+      "requirement_ids": [
+        "V2-REQ-VIDEO-062",
+        "R1-I08"
+      ],
+      "metric": "播放中无操作隐藏控制层",
+      "operator": "~=",
+      "value": 4,
+      "unit": "s",
+      "environment": "video playback; paused/panel/assistive focus keeps visible",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_APPROXIMATE / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.8.9; docs/UI_DESIGN_SYSTEM.md V2-R1-04",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-VIDEO-GESTURE-DIRECTION",
+      "requirement_ids": [
+        "V2-REQ-VIDEO-057"
+      ],
+      "metric": "首次显著位移方向锁阈值",
+      "operator": "~range",
+      "value": [
+        8,
+        10
+      ],
+      "unit": "vp",
+      "environment": "video gesture",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_APPROXIMATE / EXACT_DEVICE_VALUE_OPEN",
+      "source": "docs/V2_PLAN.md §5.8.9",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-SYNCPLAY-SPEED",
+      "requirement_ids": [
+        "V2-REQ-VIDEO-093"
+      ],
+      "metric": "SyncPlay 成员用户倍速",
+      "operator": "==",
+      "value": 1.0,
+      "unit": "x",
+      "environment": "joined SyncPlay group",
+      "evidence_level": "E7",
+      "status": "ACCEPTED_STATIC / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.8.9",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-SEARCH-MAIN-BLOCK",
+      "requirement_ids": [
+        "V2-REQ-BASE-001"
+      ],
+      "metric": "搜索 Main 阻塞 / Input timeout",
+      "operator": "<",
+      "value": 5000,
+      "unit": "ms",
+      "environment": "candidate package search",
+      "evidence_level": "E5/E7",
+      "status": "ACCEPTED_REOPEN_THRESHOLD / RUNTIME_UNVERIFIED",
+      "source": "docs/V2_PLAN.md §5.10.5; §9 L14-01",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-SBOM-UNRESOLVED",
+      "requirement_ids": [
+        "V2-REQ-ARCH-070",
+        "V2-Q-G1-03"
+      ],
+      "metric": "snapshot 未解析 external component",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "frozen S4-A snapshot only",
+      "evidence_level": "E0",
+      "status": "STATIC_PASS / CANDIDATE_PACKAGED_SBOM_OPEN",
+      "source": "EV-Q03-SBOM",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-PDF-16KB",
+      "requirement_ids": [
+        "V2-Q-G1-03",
+        "V2-REQ-READER-081"
+      ],
+      "metric": "64-bit native 16 KB page-size 兼容",
+      "operator": "==",
+      "value": "PASS",
+      "unit": "static and runtime gate",
+      "environment": "candidate target ABI",
+      "evidence_level": "E0/E5/E7",
+      "status": "BLOCKED",
+      "source": "EV-Q03-NATIVE; issue #56",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-TTS-ZERO-NETWORK",
+      "requirement_ids": [
+        "V2-REQ-READER-060",
+        "V2-REQ-READER-063",
+        "V2-Q-G1-03"
+      ],
+      "metric": "TTS 期间 App 网络流量",
+      "operator": "==",
+      "value": 0,
+      "unit": "bytes / app",
+      "environment": "flight mode / selected device",
+      "evidence_level": "E5/E7",
+      "status": "BLOCKED",
+      "source": "EV-Q03-TTS-PDF; EV-S4C",
+      "runtime_executed": false,
+      "device_executed": false
+    }
+  ]
+}

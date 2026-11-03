@@ -1,0 +1,101 @@
+{
+  "schema_version": "g1-s6-manifest/v1",
+  "task_id": "G1-S6",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "generated_on": "2026-11-04",
+  "algorithm": "SHA-256",
+  "self_excluded": true,
+  "eol_policy": "UTF-8 no BOM; LF only",
+  "file_count_excluding_manifest": 11,
+  "total_bytes_excluding_manifest": 4890734,
+  "entries": [
+    {
+      "path": "README.md",
+      "bytes": 11218,
+      "sha256": "06D9F31EBBFC5890AC8825033C730372AC3772F131C24FC316A79C2AD8EC53DF",
+      "lf": 132,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "CHECKPOINT.md",
+      "bytes": 5632,
+      "sha256": "0D1D3F18B659A2581F3C3D28CEE37F62901084F0BC2774CA7F04BA8D71C697E0",
+      "lf": 62,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "acceptance-matrix.json",
+      "bytes": 2555251,
+      "sha256": "04989A2BB4378E903416C758196898960F41F2804E78612F41B4558159F849EF",
+      "lf": 63846,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "row-semantics.json",
+      "bytes": 1303775,
+      "sha256": "DDCEF70BA1AF33DF1D0B3C934D7076D929ED50C0842ECB5C7F8CC15DCB5DA3A4",
+      "lf": 20743,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "wave-membership.json",
+      "bytes": 320331,
+      "sha256": "6C8E12BB3ECAB79C02BBA78B87C91585AD748B7DAB43217AE2B2B2CC4D3F8583",
+      "lf": 10091,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "thresholds.json",
+      "bytes": 23446,
+      "sha256": "A7690C64EEE86CD8B37CD6467DCD7E0B27B9296228F1F7FC31B6F28054A2E325",
+      "lf": 817,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "g2-task-cards.json",
+      "bytes": 295996,
+      "sha256": "3FC9958CB2DC88BF12C8CE5B7710E5C36058E6E769B9960160AD342F240D2962",
+      "lf": 6542,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "risk-register.json",
+      "bytes": 19205,
+      "sha256": "AE11DC1861CEE826BBC7D9BEADF8CE7DA5004D8B7CDBD60D1F1788213B04A9E5",
+      "lf": 665,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "source-index.json",
+      "bytes": 21244,
+      "sha256": "AB6FEAC9FE720B27FF4B98835079351E8857A6FC0232A1F184780981B893FAB9",
+      "lf": 708,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "build_s6_artifacts.py",
+      "bytes": 249192,
+      "sha256": "BFEEFDA00A3725D5E3BCD9CDC5E79B9C79FE7951D7B05A2C94606027079EF98E",
+      "lf": 4612,
+      "crlf": 0,
+      "eol": "LF"
+    },
+    {
+      "path": "verify_s6_artifacts.py",
+      "bytes": 85444,
+      "sha256": "336FB09AE3C183E274583DDA79B4DDFCEC805172BC01128AADE07AE64F1922F4",
+      "lf": 2182,
+      "crlf": 0,
+      "eol": "LF"
+    }
+  ]
+}

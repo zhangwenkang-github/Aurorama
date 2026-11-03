@@ -1,0 +1,708 @@
+{
+  "schema_version": "g1-s6-source-index/v1",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "generated_on": "2026-11-04",
+  "document_sources": [
+    {
+      "id": "DOC-AGENTS",
+      "path": "AGENTS.md",
+      "purpose": "repository instructions: memory, PowerShell, graphify, write boundaries",
+      "uses": [
+        "all"
+      ],
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 42
+        }
+      ],
+      "bytes": 7341,
+      "sha256": "65136840F510FF0718C0667A87C7E26F17AEE4072E0A4EB52421A11218458E21",
+      "evidence_level": "human-readable authority / static input"
+    },
+    {
+      "id": "DOC-PROJECT",
+      "path": "docs/PROJECT_PLAN.md",
+      "purpose": "project task lines and multi-session protocol",
+      "uses": [
+        "goals",
+        "write boundaries",
+        "exit contract"
+      ],
+      "line_ranges": [
+        {
+          "start": 33,
+          "end": 98
+        },
+        {
+          "start": 233,
+          "end": 265
+        },
+        {
+          "start": 277,
+          "end": 284
+        }
+      ],
+      "bytes": 114728,
+      "sha256": "C3F12E05FC15F3065035A83A479139652E794DCC0660B4FC59152ECCE87E5567",
+      "evidence_level": "human-readable authority / static input"
+    },
+    {
+      "id": "DOC-V2-G0",
+      "path": "docs/V2_PLAN.md",
+      "purpose": "accepted G0 matrices and counts",
+      "uses": [
+        "external 445 / 376",
+        "BASE groups",
+        "E0–E7"
+      ],
+      "line_ranges": [
+        {
+          "start": 138,
+          "end": 218
+        },
+        {
+          "start": 741,
+          "end": 780
+        },
+        {
+          "start": 1098,
+          "end": 1194
+        },
+        {
+          "start": 1364,
+          "end": 1383
+        },
+        {
+          "start": 1505,
+          "end": 1645
+        },
+        {
+          "start": 1794,
+          "end": 1935
+        },
+        {
+          "start": 2114,
+          "end": 2335
+        },
+        {
+          "start": 2443,
+          "end": 2464
+        },
+        {
+          "start": 2497,
+          "end": 2659
+        }
+      ],
+      "bytes": 577845,
+      "sha256": "0D1B297BA686DC6FF5F726DF8A2CC854FD082DC42E0BFF4BB8F05211EAB871E0",
+      "evidence_level": "human-readable authority / static input"
+    },
+    {
+      "id": "DOC-V2-G1",
+      "path": "docs/V2_PLAN.md",
+      "purpose": "G1 static evidence, Q03, R1 and ACTIVE handoff",
+      "uses": [
+        "E0–E7",
+        "Q03",
+        "Q04",
+        "S6"
+      ],
+      "line_ranges": [
+        {
+          "start": 2660,
+          "end": 4067
+        },
+        {
+          "start": 4068,
+          "end": 4279
+        }
+      ],
+      "bytes": 577845,
+      "sha256": "0D1B297BA686DC6FF5F726DF8A2CC854FD082DC42E0BFF4BB8F05211EAB871E0",
+      "evidence_level": "human-readable authority / static input"
+    },
+    {
+      "id": "DOC-TASKS",
+      "path": "docs/TASKS.md",
+      "purpose": "current In Progress and done evidence",
+      "uses": [
+        "status"
+      ],
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 38
+        }
+      ],
+      "bytes": 8717,
+      "sha256": "C34561B6D40A4E0DBB364D7E408DF5E54C3974AB51B743F73299471318CBCC3D",
+      "evidence_level": "human-readable authority / static input"
+    },
+    {
+      "id": "DOC-DECISIONS",
+      "path": "docs/DECISIONS.md",
+      "purpose": "accepted decisions and open Q03",
+      "uses": [
+        "D057",
+        "D198–D201",
+        "Q03"
+      ],
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 290
+        }
+      ],
+      "bytes": 84857,
+      "sha256": "41FFF01D16F7E6C10AB5A89B7103C8439D22571FD10AE20E127054E6208219BC",
+      "evidence_level": "human-readable authority / static input"
+    },
+    {
+      "id": "DOC-UI-R1",
+      "path": "docs/UI_DESIGN_SYSTEM.md",
+      "purpose": "accepted R1 UI authority",
+      "uses": [
+        "themes",
+        "RWD",
+        "interactions",
+        "a11y"
+      ],
+      "line_ranges": [
+        {
+          "start": 1,
+          "end": 149
+        },
+        {
+          "start": 412,
+          "end": 558
+        },
+        {
+          "start": 634,
+          "end": 795
+        },
+        {
+          "start": 875,
+          "end": 891
+        }
+      ],
+      "bytes": 58873,
+      "sha256": "648E054E3A3558A470C2DF579B651DAB527EAC9E09F39F7715FC1C0D63C4D0A4",
+      "evidence_level": "human-readable authority / static input"
+    }
+  ],
+  "semantic_registry": {
+    "path": "row-semantics.json",
+    "schema_version": "g1-s6-row-semantics/v2",
+    "record_count": 456,
+    "join_key": "promise_id",
+    "bytes": 1303775,
+    "sha256": "DDCEF70BA1AF33DF1D0B3C934D7076D929ED50C0842ECB5C7F8CC15DCB5DA3A4",
+    "authority": "Explicit static seed entries plus deterministic source-grounded action composition; every action excerpt is checked against its accepted V2_PLAN line and unresolved dimensions stay explicit gaps.",
+    "verification_limit": "Mechanical checks cover schema, source anchors, coverage and known contradictions; natural-language equivalence requires scoped review."
+  },
+  "wave_membership_registry": {
+    "path": "wave-membership.json",
+    "schema_version": "g1-s6-wave-membership/v1",
+    "membership_record_count": 491,
+    "row_wave_edge_count": 554,
+    "join_key": "row_id",
+    "bytes": 320331,
+    "sha256": "6C8E12BB3ECAB79C02BBA78B87C91585AD748B7DAB43217AE2B2B2CC4D3F8583",
+    "authority": "Explicit atomic row to one-or-more delivery-wave membership. The builder joins this table; it does not partition rows by order, hash or keywords.",
+    "verification_limit": "Capability, entry, action and boundary tags are mechanically checked; natural-language completeness still requires independent scoped review."
+  },
+  "evidence_packages": [
+    {
+      "id": "EV-S1",
+      "label": "G1-S1 architecture static evidence",
+      "path": ".planning/v2-g1/G1-S1/report.json",
+      "kind": "report",
+      "level": "E0/E1-static-architecture",
+      "status": "COMPLETE_STATIC_EVIDENCE / 0 cycles / 19 direct edges",
+      "can_prove": [
+        "21? actual report declares 19 direct edges and 0 module cycles",
+        "11 stable violations",
+        "logical seam comparison"
+      ],
+      "cannot_prove": [
+        "compile / APK",
+        "runtime behavior",
+        "physical split benefit"
+      ],
+      "depends_on": [],
+      "exists": true,
+      "bytes_at_generation": 43182,
+      "sha256_at_generation": "6005BC3FC5F5EBC07C4EE9E7C58B33FD10F85BDBE95078F4324CB27276304DA4"
+    },
+    {
+      "id": "EV-S2",
+      "label": "G1-S2 schema / identity / migration evidence",
+      "path": ".planning/v2-g1/G1-S2/report.json",
+      "kind": "report",
+      "level": "E0/static",
+      "status": "EVIDENCE_FROZEN_FOR_INTEGRATION / P0 destructive fallback remains",
+      "can_prove": [
+        "1.4 schema and identity baseline",
+        "cross-store invariants",
+        "fixture design"
+      ],
+      "cannot_prove": [
+        "real migration",
+        "WAL/SHM/hot journal behavior",
+        "runtime"
+      ],
+      "depends_on": [],
+      "exists": true,
+      "bytes_at_generation": 24824,
+      "sha256_at_generation": "BAC00E67FF7DA2EFE0075FEB802E217F5C5C027848748F8F8865BECBC4038259"
+    },
+    {
+      "id": "EV-S3",
+      "label": "G1-S3 protocol capability contracts",
+      "path": ".planning/v2-g1/G1-S3/report.json",
+      "kind": "report",
+      "level": "E0/static",
+      "status": "G1_S3_STATIC_EVIDENCE_COMPLETE_WITH_BLOCKED_RUNTIME_GAPS",
+      "can_prove": [
+        "official endpoint / state model is statically expressible",
+        "client current gaps"
+      ],
+      "cannot_prove": [
+        "real HTTP / write / SyncPlay / range behavior"
+      ],
+      "depends_on": [],
+      "exists": true,
+      "bytes_at_generation": 29522,
+      "sha256_at_generation": "C79B70155BE14240EE05239FB2F4E26967F7B629CD1A24EB19D854AA67F66535"
+    },
+    {
+      "id": "EV-S4A",
+      "label": "G1-S4-A runtime closure and license input",
+      "path": ".planning/v2-g1/G1-S4-A/report.json",
+      "kind": "report",
+      "level": "E0/static",
+      "status": "COMPLETE_WITH_BLOCKED_LICENSE_CLOSURE",
+      "can_prove": [
+        "296 external dependency graph nodes",
+        "35 direct external",
+        "9 project modules",
+        "1.4 APK inventory"
+      ],
+      "cannot_prove": [
+        "candidate packaged SBOM",
+        "native exact license/provenance",
+        "runtime compatibility"
+      ],
+      "depends_on": [],
+      "exists": true,
+      "bytes_at_generation": 12487,
+      "sha256_at_generation": "FA1E466351EB0F88D88F77C87B6CA4659C6380BDB18A335244666D69162DE6AD"
+    },
+    {
+      "id": "EV-S4B",
+      "label": "G1-S4-B media/native ABI matrix",
+      "path": ".planning/v2-g1/G1-S4-B/report.json",
+      "kind": "report",
+      "level": "E0/static",
+      "status": "COMPLETE_WITH_RUNTIME_AND_DOWNSTREAM_Q03_GAPS",
+      "can_prove": [
+        "Media3 / decoder / libmpv / libc++ static ABI and symbol facts",
+        "17? see report details",
+        "Q03 media input ready"
+      ],
+      "cannot_prove": [
+        "dual-kernel runtime load-order",
+        "current release R8",
+        "playback / subtitle runtime"
+      ],
+      "depends_on": [
+        "EV-S4A"
+      ],
+      "exists": true,
+      "bytes_at_generation": 17723,
+      "sha256_at_generation": "698E4F51C6FCBC76958AF5FF89593516985736D9C278C131610988429DBD6998"
+    },
+    {
+      "id": "EV-S4C",
+      "label": "G1-S4-C TTS/PDF option matrix",
+      "path": ".planning/v2-g1/G1-S4-C/report.json",
+      "kind": "report",
+      "level": "E0/static",
+      "status": "non-media input ready for Q03 / full Q03 not ready",
+      "can_prove": [
+        "candidate options and hard gates",
+        "P0 none / six P1 risks"
+      ],
+      "cannot_prove": [
+        "selected engine / voice",
+        "device / runtime / 16 KB"
+      ],
+      "depends_on": [],
+      "exists": true,
+      "bytes_at_generation": 23781,
+      "sha256_at_generation": "0D18381564CD64033528736B90F900FD8C75C43194ABF42BFA7198BC72EECCED"
+    },
+    {
+      "id": "EV-S5-R1",
+      "label": "G1-S5 R1 static visual evidence",
+      "path": ".planning/v2-g1/G1-S5/manifest.json",
+      "kind": "manifest/report",
+      "level": "E0/static",
+      "status": "historical decision input; current Q04 closed by D201, R1 UI authority accepted",
+      "can_prove": [
+        "5 themes / 9 interactions / 6 RWD frames / 60 state mappings / 12 a11y checks / 130 contrast pairs static"
+      ],
+      "cannot_prove": [
+        "Compose / TalkBack / font / dynamic color / foldable / runtime"
+      ],
+      "depends_on": [
+        "EV-UI-R1"
+      ],
+      "exists": true,
+      "bytes_at_generation": 33092,
+      "sha256_at_generation": "BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1"
+    },
+    {
+      "id": "EV-UI-R1",
+      "label": "UI Design System V2 R1 accepted authority",
+      "path": "docs/UI_DESIGN_SYSTEM.md",
+      "kind": "authority",
+      "level": "human-readable authority",
+      "status": "V2_R1_ACCEPTED_DESIGN_AUTHORITY / RUNTIME_UNVERIFIED / G1_NOT_PASSED",
+      "can_prove": [
+        "accepted theme / tokens / RWD / interaction / a11y requirements"
+      ],
+      "cannot_prove": [
+        "render / device / a11y runtime"
+      ],
+      "depends_on": [],
+      "exists": true,
+      "bytes_at_generation": 58873,
+      "sha256_at_generation": "648E054E3A3558A470C2DF579B651DAB527EAC9E09F39F7715FC1C0D63C4D0A4"
+    },
+    {
+      "id": "EV-A1",
+      "label": "A1 download state contract",
+      "path": ".planning/v2-g1/G1-A1-DOWNLOAD-STATE-CONTRACT/report.json",
+      "kind": "report",
+      "level": "E0/fixture",
+      "status": "STATIC_CONTRACT_COMPLETE_WITH_CAPABILITY_GAPS / RUNTIME_UNVERIFIED",
+      "can_prove": [
+        "12 states",
+        "24 allowed transitions",
+        "16 forbidden examples",
+        "55 fixtures",
+        "10 equations"
+      ],
+      "cannot_prove": [
+        "Room+sidecar+file+WAL",
+        "WorkManager / notification / device",
+        "real download journey"
+      ],
+      "depends_on": [
+        "EV-S2",
+        "EV-S3"
+      ],
+      "exists": true,
+      "bytes_at_generation": 5065,
+      "sha256_at_generation": "121F9717CB3698172EC39CA1714724427031849FA5555B6026AA317AA5B1C59E"
+    },
+    {
+      "id": "EV-A2",
+      "label": "A2 update trust contract",
+      "path": ".planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/report.json",
+      "kind": "report",
+      "level": "E0/fixture",
+      "status": "STATIC_CONTRACT_COMPLETE_WITH_IMPLEMENTATION_GAPS",
+      "can_prove": [
+        "10 states",
+        "17 transitions",
+        "23 ordered checks",
+        "46 fixtures",
+        "348 properties"
+      ],
+      "cannot_prove": [
+        "real GitHub asset",
+        "real APK signer / installer",
+        "device upgrade"
+      ],
+      "depends_on": [
+        "EV-S3"
+      ],
+      "exists": true,
+      "bytes_at_generation": 10557,
+      "sha256_at_generation": "12A0128DF7094357517FB2EBB9AD8F5F0DABA80D399C75E39A428D34C5D6E53C"
+    },
+    {
+      "id": "EV-BASE001",
+      "label": "BASE-001 search route contract",
+      "path": ".planning/v2-g1/G1-BASE-001-SEARCH-ROUTE-CONTRACT/report.json",
+      "kind": "report",
+      "level": "E0/fixture",
+      "status": "STATIC_CONTRACT_COMPLETE_RUNTIME_UNVERIFIED",
+      "can_prove": [
+        "4 scopes",
+        "complete query shape",
+        "11 route states",
+        "31 fixtures",
+        "3 mutation classes"
+      ],
+      "cannot_prove": [
+        "production search",
+        "candidate ANR / restore / offline"
+      ],
+      "depends_on": [
+        "EV-S3"
+      ],
+      "exists": true,
+      "bytes_at_generation": 11486,
+      "sha256_at_generation": "7B80860EFC79DA691BC128BEAD25A327255E869D3AC4CD8B4870B874F0361501"
+    },
+    {
+      "id": "EV-BASE003",
+      "label": "BASE-003 persistent SWR contract",
+      "path": ".planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/report.json",
+      "kind": "report",
+      "level": "E0/fixture",
+      "status": "STATIC_CONTRACT_COMPLETE_WITH_OPEN_POLICY_AND_RUNTIME_GAPS",
+      "can_prove": [
+        "19 identity dimensions",
+        "10 projection states",
+        "11 TTL boundary rules",
+        "4 fixtures"
+      ],
+      "cannot_prove": [
+        "candidate stale marker",
+        "cross-process fence",
+        "304 endpoint contract"
+      ],
+      "depends_on": [
+        "EV-S3"
+      ],
+      "exists": true,
+      "bytes_at_generation": 10249,
+      "sha256_at_generation": "6A8D9B7F53F1B037D75655C384EBCAD1D1081356B056776F2BF83DF41B065770"
+    },
+    {
+      "id": "EV-BASE004",
+      "label": "BASE-004 local playlist exchange contract",
+      "path": ".planning/v2-g1/G1-BASE-004-PLAYLIST-EXCHANGE/report.json",
+      "kind": "report",
+      "level": "E0/fixture",
+      "status": "STATIC_CONTRACT_COMPLETE_WITH_B_C_D_OPEN",
+      "can_prove": [
+        "v1 schema",
+        "34 M3U8 mapping rows",
+        "69 roundtrip rows",
+        "99/99 static checks"
+      ],
+      "cannot_prove": [
+        "production parser",
+        "SAF device atomicity",
+        "user merge / partial import choices"
+      ],
+      "depends_on": [
+        "EV-S2"
+      ],
+      "exists": true,
+      "bytes_at_generation": 12239,
+      "sha256_at_generation": "6F08EFEA10A9F9415794A2AAC08A6EE9F1D6B8CC2C4392CCA0B7EFC9B4D77BF2"
+    },
+    {
+      "id": "EV-BASE005",
+      "label": "BASE-005 large queue / write amplification requirement and S3 input",
+      "path": "docs/V2_PLAN.md",
+      "kind": "requirement/static",
+      "level": "E0",
+      "status": "MUST group / runtime and N unresolved",
+      "can_prove": [
+        "no per-item synchronous negotiation for 349–1000 tail scenario",
+        "need bounded lazy fill"
+      ],
+      "cannot_prove": [
+        "initial N",
+        "concurrency cap",
+        "write amplification",
+        "device performance"
+      ],
+      "depends_on": [
+        "EV-S3"
+      ],
+      "exists": true,
+      "bytes_at_generation": 577845,
+      "sha256_at_generation": "0D1B297BA686DC6FF5F726DF8A2CC854FD082DC42E0BFF4BB8F05211EAB871E0"
+    },
+    {
+      "id": "EV-Q03-SBOM",
+      "label": "Q03 snapshot SBOM",
+      "path": ".planning/v2-g1/G1-S4-A-Q03-SBOM/report.json",
+      "kind": "report/SBOM summary",
+      "level": "E0/static",
+      "status": "PARTIAL / Q03_OPEN",
+      "can_prove": [
+        "296 external components",
+        "35 direct",
+        "261 transitive",
+        "0 unresolved snapshot",
+        "296 PURL"
+      ],
+      "cannot_prove": [
+        "candidate packaged SBOM",
+        "native exact provenance",
+        "runtime compatibility"
+      ],
+      "depends_on": [
+        "EV-S4A"
+      ],
+      "exists": true,
+      "bytes_at_generation": 16033,
+      "sha256_at_generation": "909C78FA1E6809DC2EE44E36795F5C27A0B38A4284E297DBB0B489E94F25CBCD"
+    },
+    {
+      "id": "EV-Q03-NATIVE",
+      "label": "Q03 native supply-chain matrix",
+      "path": ".planning/v2-g1/G1-S4-A-Q03-NATIVE/report.json",
+      "kind": "report",
+      "level": "E0/static",
+      "status": "Q03_NATIVE_PARTIAL / Q03_NOT_CLOSED",
+      "can_prove": [
+        "31 subitems = 13 PROVEN / 6 PARTIAL / 12 BLOCKED",
+        "Media3 / libmpv / TTS / PDF static facts"
+      ],
+      "cannot_prove": [
+        "load-order",
+        "zero-network TTS",
+        "PDFium 16 KB / Range",
+        "final notices"
+      ],
+      "depends_on": [
+        "EV-S4A",
+        "EV-S4B",
+        "EV-S4C"
+      ],
+      "exists": true,
+      "bytes_at_generation": 15906,
+      "sha256_at_generation": "DB07F6D4B4F550D265094ABE66496CB483135968832D62A7B5D3A2E0117B601C"
+    },
+    {
+      "id": "EV-Q03-NOTICE",
+      "label": "Q03 notice / source offer matrix",
+      "path": ".planning/v2-g1/G1-S4-A-Q03-NOTICE/report.json",
+      "kind": "report",
+      "level": "E0/static",
+      "status": "MEDIA_NOTICE_PARTIAL / Q03_OPEN",
+      "can_prove": [
+        "provenance 24=13/4/7",
+        "notice-source 10=5/2/3"
+      ],
+      "cannot_prove": [
+        "final packaged notice",
+        "source bundle",
+        "attestation / relink"
+      ],
+      "depends_on": [
+        "EV-S4A",
+        "EV-S4B"
+      ],
+      "exists": true,
+      "bytes_at_generation": 12185,
+      "sha256_at_generation": "D3A4482FD66339976CF34E6532D98C9BEC4AC01395610D9231B971286A6DB067"
+    },
+    {
+      "id": "EV-Q03-TTS-PDF",
+      "label": "Q03 TTS / PDF evidence",
+      "path": ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/report.json",
+      "kind": "report",
+      "level": "E0/static",
+      "status": "TTS_PDF_PARTIAL / Q03_OPEN",
+      "can_prove": [
+        "21 evidence rows = 9 PROVEN / 2 PARTIAL / 10 BLOCKED",
+        "engine/voice not selected"
+      ],
+      "cannot_prove": [
+        "voice model",
+        "zero-network runtime",
+        "PDFium runtime / notice revision"
+      ],
+      "depends_on": [
+        "EV-S4C"
+      ],
+      "exists": true,
+      "bytes_at_generation": 16002,
+      "sha256_at_generation": "3912B4311CC807B4A7D0F6A0189AB89BD5AC6DFA4EACF4616DF8EDFEBCDDAF73"
+    },
+    {
+      "id": "EV-S6",
+      "label": "S6 scoped-reviewed matrix and planning artifacts",
+      "path": ".planning/v2-g1/G1-S6/acceptance-matrix.json",
+      "kind": "S6 reviewed planning package",
+      "level": "E0/planning",
+      "status": "SCOPED_REVIEW_PASS_WITH_P2 / RUNTIME_UNVERIFIED",
+      "can_prove": [
+        "traceability, owner map, thresholds, risks and G2 input coverage"
+      ],
+      "cannot_prove": [
+        "implementation",
+        "runtime",
+        "device",
+        "QA",
+        "G1 PASS"
+      ],
+      "depends_on": [
+        "EV-S1",
+        "EV-S2",
+        "EV-S3",
+        "EV-S4A",
+        "EV-S4B",
+        "EV-S4C",
+        "EV-S5-R1",
+        "EV-UI-R1",
+        "EV-A1",
+        "EV-A2",
+        "EV-BASE001",
+        "EV-BASE003",
+        "EV-BASE004",
+        "EV-BASE005",
+        "EV-Q03-SBOM",
+        "EV-Q03-NATIVE",
+        "EV-Q03-NOTICE",
+        "EV-Q03-TTS-PDF"
+      ],
+      "exists": true,
+      "bytes_at_generation": null,
+      "sha256_at_generation": null,
+      "self_reference_policy": "generated by this run; manifest verifies the actual bytes"
+    }
+  ],
+  "status_authorities": [
+    {
+      "fact": "Q04 closed by D201 and UI authority is V2 R1",
+      "source_ids": [
+        "DOC-DECISIONS",
+        "DOC-UI-R1"
+      ]
+    },
+    {
+      "fact": "Q03 remains Open and G1 is NOT_PASSED",
+      "source_ids": [
+        "DOC-DECISIONS",
+        "DOC-V2-G1",
+        "DOC-TASKS"
+      ]
+    },
+    {
+      "fact": "S6 scoped review is PASS_WITH_P2; the only P2 is excluded __pycache__ and G1 remains NOT_PASSED",
+      "source_ids": [
+        "DOC-V2-G1"
+      ]
+    }
+  ],
+  "evidence_upgrade_rules": [
+    "Static fixture can support E0 only.",
+    "S5 static coverage can support static visual/a11y assertions, not Compose / TalkBack / device PASS.",
+    "Historical 1.4 evidence is lower-order context and is not a 2.0 candidate journey.",
+    "Only E5–E7 candidate runtime evidence may support a user-visible runtime PASS claim.",
+    "Fake, Worker SUCCESS, screenshot-only and notification-existence evidence cannot substitute production protocol or completion."
+  ]
+}
