@@ -203,19 +203,18 @@
 | `V2-D195` | 离线选择另一 saved user 属于本地身份切换：立即按 D190 暂停并隐藏绑定旧 `server + user` 的活动播放；纯本地播放继续；仍不联网、不验证 token、不清除离线标志。D191 的“切换到在线”与认证成功退出离线规则不变 | `V2_PLAN.md` §5.9.1～§5.9.2、§5.10.4；`V2-Q-FINAL-02`；用户于 2026-11-03 19:43:40 +08:00（记录时间）原话“1、2、3 均按推荐” |
 | `V2-D196` | 把 1.4 已有的搜索产品契约、应用内更新、持久 SWR、本地歌单完整管理、音乐懒补队列 / 写放大五组能力作为 2.0 既有能力基线保留，新增 `V2-REQ-BASE-001～005` 五个 `MUST` 组并补来源、解读、可观察验收、依赖、非目标和 G1 未决项；不把它们误写成外部需求的新增功能扩张 | `V2_PLAN.md` §5.10.5；`V2-Q-FINAL-03`；用户于 2026-11-03 19:43:40 +08:00（记录时间）原话“1、2、3 均按推荐” |
 | `V2-D197` | 接受完整 G0：外部八域最终 `445` 个 source ID、`376` 个 MVP MUST 子项，另有 `V2-REQ-BASE-001～005` 五个既有能力 MUST 组；`READER-056` 归一第三复合且阅读器 MVP `65→66`，`MUSIC-051` 后决归一并使音乐 MVP `49→50`；`V2-Q-FINAL-01～03` 全部关闭，G0 标记 PASS、`V2-FINAL-CHECK` 完成。该决定不批准或启动 G1、实现、QA、设备、服务器写、push、tag、Release | `V2_PLAN.md` §5.10、§12、§13；用户于 2026-11-03 19:43:40 +08:00（记录时间）原话“接受完整 G0，包含 MUSIC 49→50 与 READER 65→66，按此收口” |
+| `V2-D198` | 接受 `V2-Q-G1-01` 推荐方向：先建立逻辑 contracts seam、FQCN / 模块 owner allowlist 与 debt ratchet，并以 `G1-S1` 冻结的 19 条 direct edges、11 个稳定违规 ID 为基线；本轮不全量物理拆 Gradle 模块。物理拆分只有在后续单 seam build pilot 证明构建、回滚、回归收益后才重新提报，不得把“逻辑 seam”理解为已有实现 | `V2_PLAN.md` §5.11.8～§5.11.9、§12；用户于 2026-11-03 原话“继续下一步。全部按推荐。” |
+| `V2-D199` | 接受 `V2-Q-G1-02` 的推荐用户可见兼容范围：1.4→2.0 保留登录、下载、书签、阅读进度、歌单、播放进度、设置和本地媒体库等已承诺资产；首次升级执行显式一次性 forward migration，显示进度并允许中断后的安全恢复，只有完整校验通过才进入 READY。任一 DB / sidecar / journal 不一致必须 FAIL_CLOSED，禁止破坏性 fallback、清库、真实数据 down migration、未知 provenance 猜测或把“受理 / 部分写入”显示为成功；等待时长只接受有进度和恢复入口的一次性迁移窗口 | `V2_PLAN.md` §5.11.4、§5.11.9、§12；用户于 2026-11-03 原话“继续下一步。全部按推荐。” |
 
 ## Open
 
-当前 G0 无开放产品问题。G1/0 与 G1/1 S1–S3 已冻结四个证据门问题所需的首波材料；
-`V2-Q-G1-01/02` 已达到提报条件，`03/04` 仍分别等待 S4/S5。这些问题不是已接受决策，
-代理建议不得代替用户拍板。
+当前 G0 无开放产品问题。`V2-Q-G1-01/02` 已分别由 `V2-D198/D199` 关闭；
+`V2-Q-G1-03/04` 仍分别等待 S4/S5。代理建议不得代替用户拍板。
 
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
 |---|---|---|---|---|
-| `V2-Q-G1-01` | `G1-S1` 冻结 19 条 direct edges / 0 环 / 11 个稳定违规 ID；package-only allowlist 有 45 条 owner 歧义；逻辑 seam 的迁移 / 回滚面显著小于全量物理拆模块 | 先建立 contracts seam、FQCN/模块 owner allowlist 与 debt ratchet；物理拆分仅在需要时先做单 seam build pilot | 立即全量物理拆会扩大 Gradle/R/KSP/Hilt/native 回归；单 seam pilot 尚未执行 | **Open / `G1-S1` 证据已冻结，待用户方向决策** |
-| `V2-Q-G1-02` | 1.4.0(5) 双 APK 已绑定 Server v17 / Music v3 和两个 identityHash；Server 仍有全局破坏性 fallback P0。显式 forward migration、两级 identity、未知 provenance 隔离、DB+sidecar+journal FAIL_CLOSED 与禁清库是强制不变量 | 用户确认 1.4→2.0 的用户可见兼容范围、可接受的一次性等待 / 中断，以及迁移失败后的恢复入口；推荐保留全部已承诺资产 | E4/E5 真实迁移、WAL/SHM、故障注入仍未执行；“是否安全 / 是否允许清库”不列为可选取舍 | **Open / `G1-S2` 证据已冻结，待用户可见范围确认** |
 | `V2-Q-G1-03` | `G1-S3` 已完成播放事件 / MediaSource 最小协议可表达性；Media3 1.11.1、FFmpeg 1.9.0 绑定，libmpv native 与 libc++、TTS / PDF 选型仍未完成 | Media3 主路径；mpv 只在格式矩阵证明必需时保留；Sherpa/Piper、PdfRenderer/PDFium 由隔离 Spike 比较 | 双内核和 PDFium 提高覆盖但增加包体、许可证、维护与 native 风险 | **Open / 待 `G1-S4`** |
 | `V2-Q-G1-04` | V2 已有主题轴约束，但非 Prism 色板 / 材质、基础圆角、AmbientColors 去留、RWD 细节和九条低保真尚未确认 | 按 §5.11.6 候选先出五主题风格帧和低保真复核，再由用户整包确认 | 直接实现会固化第二主题、错误对比度和不一致 RWD | **Open / 待 `G1-S5`** |
 

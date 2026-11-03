@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S1_S3_STATIC_COMPLETE / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / G1/1 首波静态证据已完成，用户决策与 S4–S6 待续
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_ACTIVE / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / G1-S4 依赖、引擎与许可证据波
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-03
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2796,8 +2796,8 @@ Spike 与用户决策包，不是实现或 G2。
 
 #### 5.11.9 G1/1 首波 S1–S3 只读证据（2026-11-03）
 
-**状态**：`G1_1_S1_S3_STATIC_COMPLETE / EVIDENCE_FROZEN / G1_NOT_PASSED /
-NO_IMPLEMENTATION`。三项均由全新只读子代理执行，固定 `deepseek-flash /
+**状态**：`G1_1_S1_S3_STATIC_COMPLETE / Q01_Q02_ACCEPTED / G1_S4_ACTIVE /
+G1_NOT_PASSED / NO_IMPLEMENTATION`。S1–S3 均由全新只读子代理执行，固定 `deepseek-flash /
 reasoning_effort=max / fork_turns=none`；负责人仅消费压缩报告并执行文档集成。
 
 **证据基线**：分支 `codex/v2-integration`。三轨实际收口 HEAD 为
@@ -2874,22 +2874,22 @@ Book direct Download 已可实现 200/206，但完整远程 range 仍需真实�
 
 | ID | 当前准备度 | 本轮可给用户的结论 |
 |---|---|---|
-| `V2-Q-G1-01` | 可用于方向决策；物理拆模块收益证据不足 | 推荐先逻辑 seam + FQCN/模块 owner allowlist + debt ratchet；只有用户希望进一步比较物理拆分时才执行单 seam build pilot |
-| `V2-Q-G1-02` | 1.4 制品与安全合同已冻结，可用于用户可见兼容范围决策 | 推荐保留全部已承诺资产；一次性迁移须有进度、可安全中断 / 恢复和 FAIL_CLOSED 提示；禁清库、禁 down migration、未知 provenance 不猜来源不列为选择项 |
+| `V2-Q-G1-01` ✅ | 已由 `V2-D198` 接受 | 先逻辑 seam + FQCN/模块 owner allowlist + debt ratchet；暂不全量物理拆 Gradle 模块，只有单 seam build pilot 证明收益后才重新提报 |
+| `V2-Q-G1-02` ✅ | 已由 `V2-D199` 接受 | 保留全部已承诺资产；首次升级执行有进度、可恢复、FAIL_CLOSED 的一次性 forward migration；禁清库、禁真实 down migration、未知 provenance 不猜来源 |
 | `V2-Q-G1-03` | 未就绪 | 等 `G1-S4` 的依赖闭包、Media3/FFmpeg、TTS/PDF、ABI / 包体 / 性能证据 |
 | `V2-Q-G1-04` | 未就绪 | 等 `G1-S5` 的五主题风格帧与九条低保真复核 |
 
 **G1/1 首波结论**：S1–S3 已形成可冻结的证据与决策输入，但没有任何真实服务器、设备、迁移、
-协议或候选包 PASS；`V2-Q-G1-01/02` 可提交用户确认，`V2-Q-G1-03/04` 继续等待后续 Spike。
-下一角色为 G1/1 证据编排负责人；第一条动作是读取本检查点、三份 JSON 与用户决定，停止于任何
-服务器写、真实用户数据迁移、G2、实现、独立 QA、push、tag 或 Release。
+协议或候选包 PASS；`V2-Q-G1-01/02` 已由 `V2-D198/D199` 关闭，`V2-Q-G1-03/04` 继续等待
+S4/S5。下一入口为 S4 的依赖闭包 / Media3-FFmpeg / TTS-PDF 三分轨；停止于任何服务器写、
+真实用户数据迁移、G2、实现、独立 QA、push、tag 或 Release。
 
 ## 6. 三层前置门
 
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0 与 G1/1 S1–S3 静态证据完成；§5.11.9 已冻结架构 / 1.4 schema / 协议契约，S4–S6、真实证据和用户决策仍未收口 |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3 与 Q01/Q02 已完成；S4 依赖 / 引擎 / 许可、S5 UX、S6 验收矩阵及真实证据仍未收口 |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3027,18 +3027,19 @@ Book direct Download 已可实现 200/206，但完整远程 range 仍需真实�
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1/1 S1–S3 静态证据已冻结 / 后续决策与 S4–S6 待续（2026-11-03）
+### ACTIVE：G1-S4 依赖、引擎与许可证据波（2026-11-03）
 
 **当前负责人身份**：**G1/1 证据编排负责人 / 技术集成编排者**。只负责 G1/1 范围、风险、角色拆单、
 只读白名单、压缩报告与关键 diff 审查、证据门、文档和交接；不承担实现工程师、独立 QA、
 Release 架构师或 merge-prep owner。
 
-**一句话现状**：G1/0、G1/1 S1–S3 静态证据均已完成；1.4 schema / identityHash、19 边 /
-11 个稳定违规 ID、八能力 E0 契约与统一风险门已冻结。G1 仍未通过；下一步只提交
-`V2-Q-G1-01/02` 的用户决策包并排队 S4–S6，不进入实现、G2、QA、设备或服务器写。
+**一句话现状**：G1/0、S1–S3 已完成；`V2-Q-G1-01/02` 已按用户“全部按推荐”关闭。
+当前执行 S4：依赖闭包 / 许可、Media3-FFmpeg-libmpv native / ABI、TTS / PDF 选项成本
+三条互斥只读轨道。G1 仍未通过，不进入实现、G2、QA、设备或服务器写。
 
 **状态**：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE /
-G1_1_S1_S3_STATIC_COMPLETE / G1_NOT_PASSED / NO_IMPLEMENTATION`。
+G1_1_S1_S3_STATIC_COMPLETE / Q01_Q02_ACCEPTED / G1_S4_ACTIVE /
+G1_NOT_PASSED / NO_IMPLEMENTATION`。
 
 **交接顺序（用户 2026-11-03 再次强调，强制）**：先完成本 ACTIVE、任务看板、必要项目文档、
 提交与 clean 审计，再完成 Engramory 同步和 validator，最后才创建新会话；新会话首条 prompt
@@ -3063,8 +3064,8 @@ G1_1_S1_S3_STATIC_COMPLETE / G1_NOT_PASSED / NO_IMPLEMENTATION`。
   S3 的八能力 E0 契约、版本台账和真实证据缺口。证据位于
   `.planning/v2-g1/G1-S1`、`G1-S2`、`G1-S3`。
 - `DECISIONS.Open` 的 `V2-Q-G1-01～04` 是 evidence-gated 问题；对应 Spike 未收口前不得
-  要求用户做最终技术取舍，也不得把代理推荐写成已接受决策。当前 `V2-Q-G1-01/02`
-  已达到提报条件；`03` 等 S4，`04` 等 S5。
+  把代理推荐写成已接受决策。`V2-Q-G1-01/02` 已由 `V2-D198/D199` 关闭；`03` 等 S4，
+  `04` 等 S5。
 
 **首波完成 / 后续排队**：
 
@@ -3073,13 +3074,13 @@ G1_1_S1_S3_STATIC_COMPLETE / G1_NOT_PASSED / NO_IMPLEMENTATION`。
 | `G1-S1` ✅ | 资深移动端架构师 | 19 边 / 0 环 / 11 个稳定违规 ID；allowlist 与 seam / 物理拆分成本比较已冻结 | 仅静态，未构建；详见 `.planning/v2-g1/G1-S1/report.json` |
 | `G1-S2` ✅ | 资深 Android 数据 / 持久化架构师 | 1.4 两份 APK、schema 17 / 3、两个 identityHash、10 条 fixture 合同已冻结 | 未开真实用户 DB、未跑迁移 / instrumentation |
 | `G1-S3` ✅ | 资深 Jellyfin 协议集成工程师 | 八能力 E0 契约、版本台账、P0–P3 与 BLOCKED 缺口已冻结 | 零服务器调用；所有真实协议 / 写服证据仍未执行 |
-| `G1-S4` | 开源依赖 / 许可审查专家 | 完整 runtime closure、Media3/FFmpeg、ABI、包体、性能、TTS/PDF 选项成本 | 不下载/安装新依赖，不生成发布 APK |
+| `G1-S4` 🔄 | 依赖许可 / Android 媒体引擎 / 离线能力三个专业子代理 | runtime closure、Media3-FFmpeg-libmpv ABI、TTS/PDF 选项成本与 Q03 决策包 | 不下载/安装新依赖，不改 Gradle，不生成/安装 APK，不触设备 / 服务器 |
 | `G1-S5` | 资深 Android UX / 信息架构师 | 五主题风格帧、九条低保真复核、RWD / 状态 / 无障碍证据 | 未确认前不改 `UI_DESIGN_SYSTEM` 为 V2 权威 |
 | `G1-S6` | 资深移动端测试架构师 | E0–E7 证据矩阵、阈值、G2 任务卡输入和未覆盖门 | 不执行独立 QA、设备写或真实写服 |
 
-首波已按三个全新只读子代理执行，统一 `deepseek-flash`、`reasoning_effort="max"`、
-`fork_turns="none"`；负责人只保留一个文档集成车道。S4–S6 尚未启动，必须先消费用户对
-`V2-Q-G1-01/02` 的决定，再决定后续角色与白名单。
+首波已按三个全新只读子代理执行；Q01/Q02 已关闭。S4 当前按三个互斥子轨道并行，
+统一 `deepseek-flash`、`reasoning_effort="max"`、`fork_turns="none"`；负责人只保留一个
+文档集成车道。S5/S6 尚未启动。
 
 **第一读序**：
 
@@ -3503,3 +3504,8 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   合同；S3 冻结八能力 E0 契约、OpenAPI 12.4.0 / server / SDK 台账及真实运行缺口。
   `V2-Q-G1-01/02` 已具备提报条件，`03/04` 仍等待 S4/S5。未构建、未迁移、未触设备 /
   服务器、未 QA、未 push/tag/Release；G1 仍未通过。
+- **2026-11-03 — G1 架构与迁移方向获用户整包接受**：用户回复“继续下一步。全部按推荐。”
+  `V2-D198` 接受先逻辑 contracts seam / FQCN owner allowlist / debt ratchet，暂不全量
+  物理拆 Gradle 模块；`V2-D199` 接受保留 1.4 全部已承诺资产，并以有进度、可恢复、
+  FAIL_CLOSED 的一次性 forward migration 完成升级。`V2-Q-G1-01/02` 关闭；随后进入
+  `G1-S4` 依赖 / 许可与引擎选项证据波，仍未授权实现、真实迁移、G2、QA、设备或服务器写。
