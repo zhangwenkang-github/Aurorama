@@ -6,9 +6,15 @@
     "baseHead": "f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5",
     "branch": "codex/v2-integration"
   },
-  "status": "TECHNICAL_RECOMMENDATION_ONLY",
+  "status": "USER_PRIORITY_RECORDED_TECHNICAL_EVIDENCE_ONLY",
   "userDecisionRequired": true,
   "q03DecisionMade": false,
+  "userPriority": {
+    "decision": "V2-D200",
+    "date": "2026-11-03",
+    "statement": "app安装包体积没有要求，app以体验为主",
+    "policy": "Package size is not a release requirement. Do not remove an ABI, codec, subtitle capability or playback engine solely for APK size. Continue to record sizes for engineering awareness, but decide media scope from format coverage, runtime stability, visual/subtitle quality, license and maintenance evidence."
+  },
   "currentConfiguration": {
     "minSdk": 28,
     "abis": [
@@ -84,34 +90,36 @@
       "abi": "x86",
       "technicalRole": "ENGINEERING_OR_LEGACY_X86_OPTIONAL",
       "staticSupport": "PASS",
-      "reason": "All files and symbols are present, but release cost is higher than arm64 and no user x86 commitment was established in S4-B."
+      "reason": "All files and symbols are present. Package cost alone is not a reason to remove it under V2-D200; retain it if x86 or Chromebook support is part of the supported experience."
     },
     {
       "abi": "x86_64",
       "technicalRole": "ENGINEERING_OR_CHROMEBOOK_OPTIONAL",
       "staticSupport": "PASS",
-      "reason": "All files and symbols are present; retain only if x86_64 Android/Chromebook support is a known commitment."
+      "reason": "All files and symbols are present. Package cost alone is not a reason to remove it under V2-D200; retain it if x86_64 Android/Chromebook support is part of the supported experience."
     }
   ],
   "recommendation": {
-    "shrinkAbi": "YES_AS_A_RELEASE_SCOPE_CANDIDATE_NOT_A_USER_DECISION",
+    "shrinkAbi": "NO_SIZE_DRIVEN_SHRINK; SUPPORTED_PLATFORM_SCOPE_STILL_SEPARATE",
     "required": [
-      "arm64-v8a"
-    ],
-    "userFacingCandidateSet": [
       "arm64-v8a",
-      "armeabi-v7a"
-    ],
-    "engineeringOnlyCandidateSet": [
+      "armeabi-v7a",
       "x86",
       "x86_64"
     ],
-    "universalPrimaryArtifact": false,
-    "reason": "Four-ABI native payload makes universal APK 173,311,328 B. Split delivery avoids forcing 122.7 MB of irrelevant native code onto an arm64 user device. x86/x86_64 should be retained only for documented Android x86 / Chromebook support or emulator engineering builds.",
+    "userFacingCandidateSet": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ],
+    "engineeringOnlyCandidateSet": [],
+    "universalPrimaryArtifact": "NOT_DECIDED; SIZE_IS_NOT_A_REQUIREMENT",
+    "reason": "V2-D200 removes package size as the driver for ABI or engine reduction. Keep the current four-ABI build matrix through G1 unless the user separately narrows supported platforms. Split vs universal publication remains a distribution decision based on supported experience, not bytes.",
     "unknownBeforeDecision": [
       "Whether Android x86 or 32-bit ARM is a supported user platform",
       "Whether GitHub-release users need a universal fallback",
-      "Whether downloaded-artifact count / CI storage is acceptable"
+      "Whether split or universal publication better supports the intended user experience"
     ]
   },
   "packagePolicyEvidenceGate": {
@@ -135,8 +143,9 @@
     "rule": "Do not convert APK bytes into installed-size claims."
   },
   "q03Frame": {
-    "recommendedDirection": "Media3 主路径；mpv 仅格式证明必需",
+    "recommendedDirection": "Media3 主路径；mpv 在格式、字幕或画质矩阵证明能改善/保障体验时保留",
     "notAUserDecisionYet": true,
+    "userExperiencePriorityRecorded": true,
     "mediaEngineInputReady": true,
     "fullQ03Ready": false,
     "fullQ03BlockedBy": [
@@ -168,7 +177,7 @@
     "Switch Media3 <-> mpv repeatedly in one process, including subtitle rendering and cleanup.",
     "Verify the four required ABI packages selected for release; do not infer unshipped ABI support.",
     "Compare with a rollback build that excludes libmpv while retaining Media3 FFmpeg and ass-kt.",
-    "Record APK hashes, load order, native errors, first observable media output, and artifact size delta."
+    "Record APK hashes, load order, native errors, first observable media output, and artifact size delta; size is informational, not a pass/fail threshold."
   ],
   "rollbackBoundaries": {
     "removeMpvVariant": "Build/variant without libmpv and its libav* files; keep Media3 + FFmpeg audio + ass-kt only after the format matrix proves no required capability is lost.",

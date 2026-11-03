@@ -132,3 +132,13 @@ C18 final cleanup and validation
   required report fields: PASS
   credential pattern scan: 0 hits
   final Git clean check: run after the four evidence files are committed; the final response pins that clean HEAD
+
+C19 post-freeze user priority update
+  User statement: “app安装包体积没有要求，app以体验为主。”
+  Recorded as V2-D200 in the authoritative decision ledger and applied to report.json / abi-decision.json.
+  Effect: no ABI, codec, subtitle capability or playback engine may be removed solely for APK / native size; runtime, format, quality, license and maintenance gates remain.
+
+C20 handoff context watermark
+  pwsh -NoProfile -ExecutionPolicy Bypass -File C:/Users/zhangwenkang/.codex/deepseek-subagent-proxy/status.ps1
+  result at 2026-11-03 22:17:42 +08:00: deepseek-flash input=574762/1048576 (54.8%), cache=99.3%, requests=115
+  action: no further evidence expansion; finalize authority updates, validators, commit and create the S4-C handoff thread

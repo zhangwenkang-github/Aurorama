@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_COMPLETE / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / S4-A 依赖与许可证据完成，S4-B/C 待后续会话
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_COMPLETE / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / S4-A、S4-B 完成，S4-C 待新证据会话
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-03
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2929,12 +2929,39 @@ runtime closure 作为 Q03 输入。
 （Media3 / FFmpeg / libmpv native、符号、ABI、隔离 build）和 `S4-C`
 （完全离线 TTS、PdfRenderer / PDFium 能力与成本）收口。
 
+#### 5.11.11 G1-S4-B 媒体 / Native ABI 静态证据（2026-11-03）
+
+**状态**：`COMPLETE_WITH_RUNTIME_AND_DOWNSTREAM_Q03_GAPS / G1_S4_B_STATIC_COMPLETE /
+Q03_MEDIA_INPUT_READY / Q03_OPEN / G1_NOT_PASSED`。证据由全新“资深 Android 媒体引擎 /
+Native ABI 架构师 + G1-S4-B 证据 owner”执行，固定 `deepseek-flash /
+reasoning_effort=max / fork_turns=none`；证据提交
+`139156f15579cf5ffffd7ad8a94579be000643bf`。
+
+**实际执行**：基于 `f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5` 的 detached temp worktree
+完成 `--offline :app:phone:assembleDebug`，242 tasks、exit 0；四个 debug split 各含
+14 个 native 文件。Media3 1.11.1 / Jellyfin decoder 1.9.0+1 的 53 个 Media3 成员引用全部
+可解析；四 ABI Media3 JNI 9/9、mpv JNI 16/16，自定义 NEEDED 缺失 0；最终 libc++
+来自 libmpv 并包含 ass-kt 旧 libc++ 缺少的 `from_chars` 符号。
+
+**关键未闭环**：Media3 静态 FFmpeg 全局导出 994 个 `av*` 符号，与 libmpv FFmpeg n8.1
+有 461 个同名动态导出；libmpv 内嵌 libass 0.17.4 与 ass-kt 动态 libass 有 217 个同名
+导出。Jellyfin `ExperimentalFfmpegVideoRenderer` 是 stub，不能作为视频软解路径。真实
+加载顺序、同进程切换与播放未执行，因此不得写 runtime PASS。
+
+**用户新决策 `V2-D200`**：安装包体积不是要求，App 以体验为主。媒体引擎、codec、字幕能力
+和 ABI 的取舍不得仅以 APK / native 体积为依据；包体只保留为工程事实，最终仍由格式矩阵、
+运行时稳定性、画质 / 字幕质量、许可证和维护状态决定。
+
+**证据指针**：`.planning/v2-g1/G1-S4-B/report.json`、`native-matrix.json`、
+`abi-decision.json`、`commands.log`。Q03 的媒体引擎子输入已具备带门禁的提报条件；完整
+Q03 仍等待 S4-C 和 runtime / SBOM / native notice 证据。
+
 ## 6. 三层前置门
 
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02 与 S4-A runtime / 许可证据已完成；S4-B/C、S5、S6 与真实证据仍未收口 |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A 与 S4-B 静态证据已完成；S4-C、S5、S6、runtime 与真实证据仍未收口 |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3072,7 +3099,65 @@ runtime closure 作为 Q03 输入。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-S4-B 媒体引擎 / Native ABI 交接（2026-11-03）
+### ACTIVE：G1-S4-C 离线 TTS / PDF 证据交接（2026-11-03）
+
+**接手身份**：**资深离线语音 / 文档渲染架构师 + G1-S4-C 证据 owner**。只做只读与隔离
+证据；交付负责人 / 技术集成编排者保留范围、风险、拆单、报告审查、集成和发布门决策权。
+
+**一句话现状**：G0、G1/0、S1–S3、S4-A、S4-B 已完成；`V2-Q-G1-01/02` 已关闭，
+`V2-D200` 已固定“安装包体积无要求、体验优先”。当前只执行 S4-C，G1 仍未通过，不进入实现、
+G2、独立 QA、设备、服务器写或 Release。
+
+**状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_COMPLETE / Q01_Q02_ACCEPTED /
+D200_EXPERIENCE_FIRST / S4C_PENDING / G1_NOT_PASSED / NO_IMPLEMENTATION`。
+
+**工作对象 / 硬门**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
+分支 `codex/v2-integration`。S4-B 证据提交
+`139156f15579cf5ffffd7ad8a94579be000643bf`；新负责人必须先核验 HEAD 只比该提交多允许的
+文档后继、`git status --porcelain=v1 --untracked-files=all`、双祖先与外部原文 SHA：
+
+- 基线 `4fbe5e12d182fc1d9bdf2790c7a725bec0074d37`
+- 视频收口 `bd5e3aa59c2e5671ada9354f230da4519589272b`
+- 外部原文 `E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229`
+
+**已完成（稳定指针）**：S1–S3 见 `.planning/v2-g1/G1-S1～S3`；S4-A 见
+`.planning/v2-g1/G1-S4-A`；S4-B 见 `.planning/v2-g1/G1-S4-B`。S4-B 只证明
+compile / package / ELF 静态层，包含 P1 级 FFmpeg / libass 全局符号交叉和未执行的
+runtime load-order gate；不得重新解释为播放 PASS。
+
+**S4-C 要求**：在不安装模型 / 新依赖、不触设备与服务端的前提下，对完全离线 TTS
+（至少 Sherpa/Piper 候选及现有系统路径边界）和 PDF（PdfRenderer / PDFium）做能力、许可证、
+维护、ABI、包体事实、性能假设与回滚成本矩阵；明确 Range / 大文件内存、注释 / 目录 / 搜索
+等被 V2 需求约束的能力，不用 fake 或未验证推理冒充真实能力。允许查官方公开资料、读取本地
+缓存和隔离临时 worktree；禁止新依赖 / 模型下载、认证、播放、ADB、服务器写或生产代码修改。
+`V2-D200` 只取消包体硬阈值，不取消许可证、离线、性能、质量和运行时证据。
+
+**S4-C 证据白名单**：只写 `.planning/v2-g1/G1-S4-C/report.json`、
+`option-matrix.json`、`commands.log`；不得新建零散 `.md`，不得修改 `docs/` 或生产代码。
+
+**第一读序**：本 ACTIVE → §5.11.7 → §5.11.10～§5.11.11 → `TASKS` In Progress →
+`DECISIONS` 的 D200 / Open → `PROJECT_RULES` R008/R011/R014/R016/R017/R020/R025 →
+ADR-0003～0007 标题与结论 → 现有 TTS / PDF 相关代码只按窄白名单检索。禁止通读外部需求全文、
+全仓源码或历史任务线。
+
+**开工方式（用户 2026-11-03 强制）**：新负责人接到任务后先运行 DeepSeek 状态脚本并记录水位，
+随后创建全新的 `deepseek-flash / reasoning_effort=max / fork_turns=none` 只读子代理。该子代理
+核验事实 worktree、branch / HEAD、clean、双祖先、外部 SHA、ACTIVE / HISTORY、任务看板与
+本次读序白名单，只回压缩 `PASS / BLOCKED`；主负责人只消费压缩结论，不亲自加载全量文档。
+如果无法创建该开工检查子代理，停止，不得由主负责人替代通读。
+
+**下一步与停止**：开工检查 PASS 后，S4-C owner 再按自身窄白名单计划并同回合执行静态证据。
+对象漂移、需要修改生产代码、需要下载模型 / 依赖、需要设备 / 认证 / 服务器、许可证不可接受
+或证据无法在 25 万 token 前收口时，写检查点并停止。25 万收缩、30 万交接准备、35 万停止并
+创建后继。
+
+**当前负责人线程**：`PENDING_AFTER_HANDOFF_COMMIT`。
+
+**交接水位**：2026-11-03 22:17:42 +08:00 实测
+`574,762 / 1,048,576`（54.8%，缓存命中 99.3%，会话请求 115）；已超过 35 万硬线，
+当前会话只做交接写入、提交、记忆同步和新线程创建，不再扩大证据范围。
+
+### HISTORY：G1-S4-B 媒体引擎 / Native ABI 交接（2026-11-03；已被上方 G1-S4-C ACTIVE 取代）
 
 **当前负责人身份**：**G1/1 证据编排负责人 / 技术集成编排者**。只负责 G1/1 范围、风险、角色拆单、
 只读白名单、压缩报告与关键 diff 审查、证据门、文档和交接；不承担实现工程师、独立 QA、

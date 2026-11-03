@@ -30,6 +30,12 @@
       "exitCode": 0
     }
   },
+  "productPriorityInput": {
+    "date": "2026-11-03",
+    "decision": "V2-D200",
+    "userStatement": "app安装包体积没有要求，app以体验为主",
+    "effect": "Package size is not a product requirement and must not be used by itself to remove Media3 FFmpeg, libmpv, codec coverage, subtitle capability or an ABI. Size remains recorded as an engineering fact; license, runtime, quality and supported-experience evidence remain decision gates."
+  },
   "frozenVersions": {
     "media3": {
       "version": "1.11.1",
@@ -231,14 +237,14 @@
   },
   "abi": {
     "details": "abi-decision.json",
-    "status": "TECHNICAL_RECOMMENDATION_ONLY_USER_SCOPE_DECISION_REQUIRED",
+    "status": "USER_PRIORITY_RECORDED_NO_SIZE_DRIVEN_ABI_SHRINK",
     "recommendedPrimary": "arm64-v8a",
     "possibleCompatibilityAbi": "armeabi-v7a",
     "engineeringOnlyCandidate": [
       "x86",
       "x86_64"
     ],
-    "universalPrimaryPackageRecommended": false,
+    "universalPrimaryPackageDecision": "NOT_DECIDED_SIZE_IS_NOT_A_BLOCKER",
     "installedSize": "NOT_MEASURED",
     "runtimePerformance": "NOT_MEASURED"
   },
@@ -253,7 +259,7 @@
       "G1-S4-A 的 canonical release SBOM、native license provenance 与完整 notices 仍未闭环"
     ],
     "P2": [
-      "双 FFmpeg 供应链和四 ABI 输出产生显著包体：arm64 正式 split 为 79,729,350 B，universal 为 173,311,328 B",
+      "双 FFmpeg 供应链和四 ABI 输出产生显著包体：arm64 正式 split 为 79,729,350 B，universal 为 173,311,328 B；按 `V2-D200` 仅记录事实，不以体积为由削减体验或 ABI",
       "当前无 dependency lockfile / verification metadata，未来缓存或上游标签漂移无法自动阻止",
       "debug APK 约 147-155 MB；只能用于构建证据，不能用于形成下载成本结论",
       "libc++ 来自 libmpv NDK 29，ass-kt native 来自较旧 LLD 19 工具链；当前符号覆盖通过，但未做长时间 ABI 压力"
@@ -306,21 +312,22 @@
     "S4-C TTS and PDF/PDFium"
   ],
   "contextWatermark": {
-    "checkedAt": "2026-11-03 22:04:11 +08:00",
+    "checkedAt": "2026-11-03 22:17:42 +08:00",
     "model": "deepseek-flash",
-    "inputTokens": 464816,
+    "inputTokens": 574762,
     "contextWindow": 1048576,
-    "utilization": "44.3%",
-    "cacheHit": "99.4%",
-    "sessionRequests": 82,
-    "thresholdState": "已超过 25/30/35 万交接门；停止扩项，仅完成证据固化、验证、清理与交接"
+    "utilization": "54.8%",
+    "cacheHit": "99.3%",
+    "sessionRequests": 115,
+    "thresholdState": "已超过 25/30/35 万交接门；停止扩项，仅完成范围更新、验证、文档提交与新会话交接"
   },
   "q03Readiness": {
     "mediaEngineInputReady": true,
     "fullQ03Ready": false,
     "userDecisionMade": false,
+    "userExperiencePriorityRecorded": "V2-D200：安装包体积无要求，体验优先",
     "reportingCondition": "READY_WITH_RUNTIME_GATES",
-    "recommendedDirection": "Media3 主路径；mpv 只在已批准格式矩阵证明 Media3/MediaCodec/服务端转码均不能满足时保留",
+    "recommendedDirection": "Media3 主路径；mpv 在已批准格式、字幕与画质矩阵证明能改善或保障体验时保留。不得仅因 APK / native 体积删除媒体能力或 ABI",
     "missingBeforeFullQ03": [
       "S4-C TTS / PDF 选项",
       "runtime load-order regression",

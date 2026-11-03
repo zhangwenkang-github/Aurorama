@@ -205,17 +205,19 @@
 | `V2-D197` | 接受完整 G0：外部八域最终 `445` 个 source ID、`376` 个 MVP MUST 子项，另有 `V2-REQ-BASE-001～005` 五个既有能力 MUST 组；`READER-056` 归一第三复合且阅读器 MVP `65→66`，`MUSIC-051` 后决归一并使音乐 MVP `49→50`；`V2-Q-FINAL-01～03` 全部关闭，G0 标记 PASS、`V2-FINAL-CHECK` 完成。该决定不批准或启动 G1、实现、QA、设备、服务器写、push、tag、Release | `V2_PLAN.md` §5.10、§12、§13；用户于 2026-11-03 19:43:40 +08:00（记录时间）原话“接受完整 G0，包含 MUSIC 49→50 与 READER 65→66，按此收口” |
 | `V2-D198` | 接受 `V2-Q-G1-01` 推荐方向：先建立逻辑 contracts seam、FQCN / 模块 owner allowlist 与 debt ratchet，并以 `G1-S1` 冻结的 19 条 direct edges、11 个稳定违规 ID 为基线；本轮不全量物理拆 Gradle 模块。物理拆分只有在后续单 seam build pilot 证明构建、回滚、回归收益后才重新提报，不得把“逻辑 seam”理解为已有实现 | `V2_PLAN.md` §5.11.8～§5.11.9、§12；用户于 2026-11-03 原话“继续下一步。全部按推荐。” |
 | `V2-D199` | 接受 `V2-Q-G1-02` 的推荐用户可见兼容范围：1.4→2.0 保留登录、下载、书签、阅读进度、歌单、播放进度、设置和本地媒体库等已承诺资产；首次升级执行显式一次性 forward migration，显示进度并允许中断后的安全恢复，只有完整校验通过才进入 READY。任一 DB / sidecar / journal 不一致必须 FAIL_CLOSED，禁止破坏性 fallback、清库、真实数据 down migration、未知 provenance 猜测或把“受理 / 部分写入”显示为成功；等待时长只接受有进度和恢复入口的一次性迁移窗口 | `V2_PLAN.md` §5.11.4、§5.11.9、§12；用户于 2026-11-03 原话“继续下一步。全部按推荐。” |
+| `V2-D200` | 安装包体积不是 2.0 的硬性要求，产品取舍以体验为主；不得仅因 APK / native 体积删除 Media3 FFmpeg、mpv、codec、字幕能力或 ABI，也不得把体积当作运行时兼容、许可证或质量问题的替代决策。包体作为工程事实记录，最终媒体范围仍由格式覆盖、运行时稳定性、画质 / 字幕质量、许可证和维护证据决定 | `V2_PLAN.md` §5.11.11、§12；用户于 2026-11-03 原话“app安装包体积没有要求，app以体验为主” |
 
 ## Open
 
 当前 G0 无开放产品问题。`V2-Q-G1-01/02` 已分别由 `V2-D198/D199` 关闭；
-`V2-Q-G1-03` 等待 S4-B/C，`V2-Q-G1-04` 等待 S5。代理建议不得代替用户拍板。
+`V2-Q-G1-03` 的 S4-B 媒体输入已冻结，仍等待 S4-C、runtime 与 SBOM / native notice；
+`V2-Q-G1-04` 等待 S5。`V2-D200` 只固定体验优先与包体非要求。代理建议不得代替用户拍板。
 
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
 |---|---|---|---|---|
-| `V2-Q-G1-03` | `G1-S4-A` 已冻结 9 direct project / 35 direct external / 296 final external graph nodes、35/35 direct POM 许可与 1.4 APK native / ABI / 包体；但 release SBOM、Media3 1.11.1 ↔ FFmpeg decoder 1.9.0 绑定、libmpv bundled FFmpeg 许可来源、维护状态仍 BLOCKED；TTS / PDF 尚未选型 | Media3 主路径；mpv 只在格式矩阵证明必需时保留；Sherpa/Piper、PdfRenderer/PDFium 由隔离 Spike 比较 | 双内核和 PDFium 提高覆盖但增加包体、许可证、维护与 native 风险 | **Open / `G1-S4-A` 输入已冻结，待 `G1-S4-B/C`** |
+| `V2-Q-G1-03` | `G1-S4-A/B` 已冻结 runtime graph、许可证输入、Media3 / decoder / libmpv API / JNI / ELF / ABI / package 静态事实；S4-B 未发现硬不兼容，但 runtime load-order、FFmpeg / libass 全局符号交叉、SBOM / native notice 和 S4-C TTS / PDF 仍开放；D200 已规定体验优先、包体非要求 | Media3 主路径；mpv 在格式、字幕或画质矩阵证明能改善 / 保障体验时保留；Sherpa/Piper、PdfRenderer/PDFium 由隔离 Spike 比较 | 双内核和 PDFium 提高覆盖；取舍看运行时与质量，不因包体单独删除能力 | **Open / S4-B 输入已冻结，待 S4-C、runtime 与 SBOM** |
 | `V2-Q-G1-04` | V2 已有主题轴约束，但非 Prism 色板 / 材质、基础圆角、AmbientColors 去留、RWD 细节和九条低保真尚未确认 | 按 §5.11.6 候选先出五主题风格帧和低保真复核，再由用户整包确认 | 直接实现会固化第二主题、错误对比度和不一致 RWD | **Open / 待 `G1-S5`** |
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）
