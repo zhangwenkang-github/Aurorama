@@ -3034,8 +3034,9 @@ S4/S5。下一入口为 S4 的依赖闭包 / Media3-FFmpeg / TTS-PDF 三分轨�
 Release 架构师或 merge-prep owner。
 
 **一句话现状**：G1/0、S1–S3 已完成；`V2-Q-G1-01/02` 已按用户“全部按推荐”关闭。
-当前执行 S4：依赖闭包 / 许可、Media3-FFmpeg-libmpv native / ABI、TTS / PDF 选项成本
-三条互斥只读轨道。G1 仍未通过，不进入实现、G2、QA、设备或服务器写。
+当前实测约 24.5 万 token，已触发 25 万收缩门，S4 只启动最高优先级的 `S4-A`
+依赖闭包 / 许可单轨；`S4-B` Media3-FFmpeg-libmpv native / ABI 与 `S4-C` TTS/PDF
+明确排队到后续会话。G1 仍未通过，不进入实现、G2、QA、设备或服务器写。
 
 **状态**：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE /
 G1_1_S1_S3_STATIC_COMPLETE / Q01_Q02_ACCEPTED / G1_S4_ACTIVE /
@@ -3074,13 +3075,15 @@ G1_NOT_PASSED / NO_IMPLEMENTATION`。
 | `G1-S1` ✅ | 资深移动端架构师 | 19 边 / 0 环 / 11 个稳定违规 ID；allowlist 与 seam / 物理拆分成本比较已冻结 | 仅静态，未构建；详见 `.planning/v2-g1/G1-S1/report.json` |
 | `G1-S2` ✅ | 资深 Android 数据 / 持久化架构师 | 1.4 两份 APK、schema 17 / 3、两个 identityHash、10 条 fixture 合同已冻结 | 未开真实用户 DB、未跑迁移 / instrumentation |
 | `G1-S3` ✅ | 资深 Jellyfin 协议集成工程师 | 八能力 E0 契约、版本台账、P0–P3 与 BLOCKED 缺口已冻结 | 零服务器调用；所有真实协议 / 写服证据仍未执行 |
-| `G1-S4` 🔄 | 依赖许可 / Android 媒体引擎 / 离线能力三个专业子代理 | runtime closure、Media3-FFmpeg-libmpv ABI、TTS/PDF 选项成本与 Q03 决策包 | 不下载/安装新依赖，不改 Gradle，不生成/安装 APK，不触设备 / 服务器 |
+| `G1-S4-A` 🔄 | 资深 Android 开源依赖 / 许可审查专家 | runtime closure、直接 / 传递依赖、许可证、native 组成与 Q03 输入 | 不下载/安装新依赖，不改 Gradle，不生成/安装 APK，不触设备 / 服务器 |
+| `G1-S4-B` | 资深 Android 媒体引擎 / Native ABI 架构师 | Media3-FFmpeg-libmpv 版本、符号、ABI、包体与隔离 build pilot | 后续会话；不下载新依赖，不在主线改代码 |
+| `G1-S4-C` | 资深离线语音 / 文档渲染架构师 | Sherpa/Piper 与 PdfRenderer/PDFium 的离线、许可、ABI、性能选项 | 后续会话；不安装模型 / 依赖，不触设备 |
 | `G1-S5` | 资深 Android UX / 信息架构师 | 五主题风格帧、九条低保真复核、RWD / 状态 / 无障碍证据 | 未确认前不改 `UI_DESIGN_SYSTEM` 为 V2 权威 |
 | `G1-S6` | 资深移动端测试架构师 | E0–E7 证据矩阵、阈值、G2 任务卡输入和未覆盖门 | 不执行独立 QA、设备写或真实写服 |
 
-首波已按三个全新只读子代理执行；Q01/Q02 已关闭。S4 当前按三个互斥子轨道并行，
-统一 `deepseek-flash`、`reasoning_effort="max"`、`fork_turns="none"`；负责人只保留一个
-文档集成车道。S5/S6 尚未启动。
+首波已按三个全新只读子代理执行；Q01/Q02 已关闭。S4 因 25 万水位只启动 `S4-A` 单轨，
+固定 `deepseek-flash`、`reasoning_effort="max"`、`fork_turns="none"`；负责人只保留一个
+文档集成车道。`S4-B/S4-C` 与 S5/S6 尚未启动。
 
 **第一读序**：
 
