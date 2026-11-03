@@ -3,7 +3,7 @@
 > 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_STATIC_INCREMENT_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
 > 当前阶段：开发前置·G1 方案门进行中 / S4-A 的 Q03 静态增量、S4-B/C 与 S5 证据完成；Q03 runtime / packaged closure 与 Q04 用户决策仍开放
 > 当前集成分支：`codex/v2-integration`
-> 最后更新：2026-11-03
+> 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
 
 ## 1. 原始输入
@@ -3058,7 +3058,7 @@ PDF 必须保留 PdfRenderer feature flag 与同数据模型切换；新引擎�
 
 **状态**：`S5_EVIDENCE_COMPLETED / READY_FOR_V2_Q_G1_04_USER_DECISION / Q04_OPEN /
 G1_NOT_PASSED / RUNTIME_UNVERIFIED`。S5 证据制作已完成；verifier 支持精确显式预期 docs
-dirty 白名单、manifest hash 校验与 LF 门，Git policy 要求当前 HEAD 必须是 source
+dirty 白名单、manifest hash 校验与 LF 门，Git policy 要求校验时工作区 HEAD 必须是 source
 `397ff4f0a3d8378c91ee283da317c5263cc80285` 的后裔。verifier / builder 的 source hash
 来自固定 `397ff4f…` 的 `git cat-file blob`，不读取当前 worktree；因此 docs 合法更新不再
 误报 `SOURCE_HASH_MISMATCH`。负测 `source hash mismatch`、`evidence SHA mismatch` 与
@@ -3232,7 +3232,7 @@ S6 验收、实现、G2、独立 QA、设备或服务器写。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-Q04 视觉方向用户决策交接（2026-11-03）
+### ACTIVE：G1-Q04 视觉方向用户决策交接（2026-11-04；Q03 静态证据已集成）
 
 **接手身份**：用户是 `V2-Q-G1-04` 视觉 / UX 方向的最终决策者。交付负责人只整理候选、
 证据边界与写回记录，不得代替用户做审美判断、把推荐写成已接受事实或据此进入 S6。
@@ -3241,25 +3241,29 @@ S6 验收、实现、G2、独立 QA、设备或服务器写。
 R1“DNA 保留 + 共享骨架”，A2“更强材料表现”与 A3“更强结构统一”保留为备选；当前等待用户
 主观视觉确认，`V2-Q-G1-04` 仍 Open，G1 未通过。
 
-**状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S5_COMPLETE /
-Q03_Q04_OPEN / READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED /
-RUNTIME_UNVERIFIED / NO_IMPLEMENTATION`。
+**状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE /
+G1_S4A_Q03_STATIC_INCREMENT_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN /
+READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED / RUNTIME_UNVERIFIED /
+NO_IMPLEMENTATION`。
 
 **并行 Q03 增量**：S4-A 的 SBOM runtime inventory 与 native provenance 静态增量已完成并
-通过独立 scoped review；`Q03-SBOM-RUNTIME-INVENTORY` 仅按 S4-A snapshot 可关闭，完整 Q03
-仍等 candidate packaged SBOM / native notice-source 与 runtime / device 证据，保持 Open。
+通过独立 scoped review；仅 S4-A snapshot inventory 与静态 SBOM / native evidence 增量完成，
+`Q03-SBOM-RUNTIME-INVENTORY` 仅按该 snapshot 可关闭。完整 Q03 仍等 candidate packaged
+SBOM、精确 native notice / source offer 与 runtime / device 证据，保持 Open。
+
+**已完成提交指针**：Q03 static integration = `d234b40c958288cd5277072452212fe578bb5495`；
+LF policy = `c01e7361b2e86d4773aa4823429f324f9ed7d3df`。两个指针只标识已完成提交，
+不表示 Q03 关闭，也不是 HEAD 自引用。
 
 **工作对象 / 当前事实**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`；分支
-`codex/v2-integration`，手交输入 HEAD（本 docs 集成提交的父提交）为
-`db6d176e55007a9d50c59cf53f84858ce7b9876f`。S5 source 基线为
+`codex/v2-integration`。HEAD 实况由 `git rev-parse HEAD` 现场读取，不在 docs 自引用当前
+提交。S5 source 基线为
 `397ff4f0a3d8378c91ee283da317c5263cc80285`，Verifier 的 Git policy 要求校验时工作树
 HEAD 可从该 source 到达（即为其后裔）。verifier / builder 的 source hash 从固定
 `397ff4f…` 的 `git cat-file blob` 读取，不是当前 worktree；因此 docs 合法更新不会误报
-`SOURCE_HASH_MISMATCH`。截至本交接，
-S5 稳定性修复与本次三份文档写回仍未提交；使用分支 / HEAD / 工作树实况复核，不得把全部
-工作树内容误写成已提交。最终集成提交 SHA 由 Git 实读，不写进自身 ACTIVE；该原则与 R028
-合法后继核验一致。无设备、服务器或 Release 锁。
+`SOURCE_HASH_MISMATCH`。分支、HEAD 与工作树状态均以 Git 实况复核，不把工作树内容误写成
+已提交；该原则与 R028 合法后继核验一致。无设备、服务器或 Release 锁。
 
 **证据入口 / 机械事实**：`.planning/v2-g1/G1-S5/README.md`、
 `.planning/v2-g1/G1-S5/decision-brief.md`、`.planning/v2-g1/G1-S5/manifest.json`。
@@ -3270,6 +3274,14 @@ CRLF 0；LF / `eol=lf` 保证 hashtree / checkout 复现。Verifier 保留 manif
 预期 docs dirty 白名单与白名单外失败；`source hash mismatch`、`evidence SHA mismatch` 与
 `outside dirty` 均 exit 1。覆盖：主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、
 对比度 130/130。
+
+**clean clone 门（2026-11-04）**：在 LF policy 提交后的 clean clone 实跑，S5 verifier
+PASS、SBOM validator PASS；S5 47/47、Q03-SBOM 11/11、Q03-NATIVE 5/5 文件均为 LF，
+CRLF 0。三份 manifest SHA-256 分别为
+`BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`、
+`220BB878A975B133178ADBCA80CEE919F829474727268D2DF8C14D13982F1019`、
+`40E667F8A7650AF06BC145D85720CF5349BBC057E71BD0372E6D2213FEDA81DE`。该门只证明静态
+证据包完整、可复算与 LF 基线成立，不关闭 Q03 / Q04，也不证明 runtime / device。
 
 **推荐与备选**：R1 保留五主题 DNA，并统一共享骨架、状态语义、响应式与无障碍不变量；
 A2 在更多功能层强化材质和光感，辨识度更强但增加可读性、性能和主题漂移风险；A3 让主题
@@ -3285,8 +3297,8 @@ S5 证据、升级设计系统或进入实现均超出本交接。
 停止条件：用户尚未明确选择时保持 Q04 Open 与 G1 NOT_PASSED；若用户选择逐项修订，先登记
 差异项与影响再继续，不直接进入 S6 或实现。
 
-**实际上下文水位**：本次交接收口实测 `95,800 / 1,048,576`（9.1%），缓存命中 99.8%，
-会话请求数 170；最终以当前线程的 `deepseek-status` 实况为准。
+**实际上下文水位**：本次交接收口实测 `126,462 / 1,048,576`（12.1%），缓存命中 99.3%，
+会话请求数 806；最终以当前线程的 `deepseek-status` 实况为准。
 
 ### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-Q04 ACTIVE 取代）
 
@@ -3847,7 +3859,7 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
 - **2026-11-03 07:36:23 — `V2-REQ-MUSIC` 第二轮六项确认**：续接负责人复核 worktree、`codex/v2-integration`、HEAD `588da7b8`、clean、基线祖先与外部 SHA-256 全部通过，直接读取外部 558–746，并以只读代码证据重算前沿。用户原话“全部按推荐”；`V2-Q-MUSIC-07`～`12` 由 `V2-D112`～`D117` 关闭：Auto DJ `MUST` 默认关闭与推荐降级链、随机 `CURRENT_FIRST / FULL_QUEUE` 双模式、远端单次重试 / 本地缺失保留 / 非模态跳过错、本地完整元数据与未知语义、音乐专用直连 / 转码质量，以及手机 / 平板 / 折叠响应式骨架。上下文实测 `280,831 / 1,048,576`（26.8%），继续收敛进度条、动效、手势仲裁、歌词跟随、队列 / Mini Player、crossfade、睡眠定时与 Android Auto 边界。未改生产代码、未跑 Gradle、未做 G1 / QA、未触设备 / 服务器写、未 push / tag / Release。
 - **2026-11-03 07:44:35 — `V2-REQ-MUSIC` 第三轮六项确认并进入交接准备**：Git / 哈希门复核通过，用户原话“全部按推荐”；`V2-Q-MUSIC-13`～`18` 由 `V2-D118`～`D123` 关闭。确认确定性进度与缓冲、`SHOULD` 装饰波浪、300ms 内容器变换与 Reduce Motion、系统返回 / 局部控件 / 页面手势仲裁、歌词 5000ms 手动跟随恢复、分段队列与 Next Up、紧凑双行 Mini Player。上下文实测 `319,561 / 1,048,576`（30.5%），进入 30 万交接准备区；下一步只问 crossfade、睡眠定时和 Android Auto 边界，35 万时必须创建新负责人。未改生产代码、未跑 Gradle、未做 G1 / QA、未触设备 / 服务器写、未 push / tag / Release。
 - **2026-11-03 07:50:54 — `V2-REQ-MUSIC` 第四轮确认并清空问题前沿**：用户原话“全部按推荐”；问题正文对第二、第三项的 Q22 / Q23 误标已更正为 `V2-Q-MUSIC-20` / `21`。三项由 `V2-D124`～`D126` 关闭：真重叠 crossfade 维持 `SHOULD` 且须过单实例可行性门、睡眠定时增加快捷档与结束当前曲并 5 秒淡出、完整 Android Auto `LATER` 且不宣称车机验收。上下文实测 `347,766 / 1,048,576`（33.2%），落档后越过 35 万硬线；剩余工作仅为最终候选 ID / 等级 / MVP / 证据 / 依赖矩阵整包确认，必须全新负责人承接。未改生产代码、未跑 Gradle、未做 G1 / QA、未触设备 / 服务器写、未 push / tag / Release。
-- **2026-11-03 07:59 +08:00 — `V2-REQ-MUSIC` 最终候选矩阵提交确认**：Git / 哈希硬门通过（开工 HEAD `4a34062a`、分支 `codex/v2-integration`、开工 clean、双祖先可达、外部 SHA-256 一致）；期间父负责人追加允许的 `bc0ac415`（仅 `docs/V2_PLAN.md` Thread ID 2 行），当前 HEAD 即该提交。直接通读外部 558–746 并只读抽查音乐关键符号。归一 62 节点：`47 MUST / 5 SHOULD / 2 LATER / 5 OUT / 2 复合 / 1 流程`，MVP 为 49 个 MUST 子项；建立 `M-D`～`M-T` 证据口径，并对跨平台、主题、第三方歌词、双 Player、bit-perfect 与旧 D56 / 5 段 EQ / 单随机 / 扁平队列 / 近似 crossfade 逐项处置。`V2-Q-MUSIC-22` 等待用户整包确认；矩阵确认前不报收口。近实时上下文 `254,612 / 1,048,576`（24.3%），未到 30 万；未改生产代码、未跑 Gradle、未进入 G1 / QA / 设备 / 服务器 / push / tag / Release。
+- **2026-11-03 07:59 +08:00 — `V2-REQ-MUSIC` 最终候选矩阵提交确认**：Git / 哈希硬门通过（开工 HEAD `4a34062a`、分支 `codex/v2-integration`、开工 clean、双祖先可达、外部 SHA-256 一致）；期间父负责人追加允许的 `bc0ac415`（仅 `docs/V2_PLAN.md` Thread ID 2 行），当时 HEAD 即该提交。直接通读外部 558–746 并只读抽查音乐关键符号。归一 62 节点：`47 MUST / 5 SHOULD / 2 LATER / 5 OUT / 2 复合 / 1 流程`，MVP 为 49 个 MUST 子项；建立 `M-D`～`M-T` 证据口径，并对跨平台、主题、第三方歌词、双 Player、bit-perfect 与旧 D56 / 5 段 EQ / 单随机 / 扁平队列 / 近似 crossfade 逐项处置。`V2-Q-MUSIC-22` 等待用户整包确认；矩阵确认前不报收口。近实时上下文 `254,612 / 1,048,576`（24.3%），未到 30 万；未改生产代码、未跑 Gradle、未进入 G1 / QA / 设备 / 服务器 / push / tag / Release。
 - **2026-11-03 08:13:04 +08:00 — `V2-REQ-MUSIC` 整包接受并收口需求域**：用户原话“整包接受”；`V2-D127` 关闭 `V2-Q-MUSIC-22`，接受 62 节点最终矩阵、49 个 MUST 子项 MVP、`M-D`～`M-T` 证据口径及全部冲突 / 旧文档处置。`TASKS` 将音乐域移入 Done，`DECISIONS` Open 清零，项目地图改为 `V2-REQ-DOWNLOAD` 待交接。音乐域无剩余 Open；未改生产代码、未跑 Gradle、未做 G1 / QA、未触设备 / 服务器写、未 push / tag / Release。
 - **2026-11-03 — `V2-REQ-DOWNLOAD` 首轮六项决策接受**：Git / 哈希 / 白名单门通过；用户原话“接受全部推荐”，`V2-Q-DOWNLOAD-01`～`06` 由 `V2-D128`～`V2-D133` 关闭。确认四类原始媒体范围、完整 provenance 去重、统一状态与恢复、前置提示 / 权限、App 专用存储与显式分批、下载队列 / 离线库及通知一致性；新增 §5.7 候选索引与剩余前沿。最终矩阵未提交，未改业务代码，未跑 Gradle，未进入 G1 / QA / 设备 / 服务器写 / push / tag / Release。
 - **2026-11-03 — `V2-REQ-DOWNLOAD` 第二轮六项决策接受**：Git / 哈希 / 白名单复核通过，HEAD `add21fcc`，用户原话“全部接受”，`V2-Q-DOWNLOAD-07`～`12` 由 `V2-D134`～`V2-D139` 关闭。确认 sidecar 必需 / 可选分层、重试矩阵、暂停 / 取消 / 删除语义、有声书多文件归属、在线 / 离线可见性与 `allowOffline` 边界、现有设置及 500ms 前台进度反馈。下一轮仅剩多版本媒体、批量范围、存储失效 / 清理、身份不可用、迁移与最终矩阵；未改业务代码、未跑 Gradle、未进入 G1 / QA / 设备 / 服务器写 / push / tag / Release。
@@ -3944,7 +3956,7 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`；46 个条目 =
   45 个原证据 + 1 个 EOL 控制条目，`.gitattributes` 固定 `* text eol=lf` 且 47/47 LF、
   CRLF 0，保证 hashtree / checkout 复现。Verifier / builder 的 source hash 来自固定
-  `397ff4f0…` 的 `git cat-file blob`，不是当前 worktree；当前 HEAD
+  `397ff4f0…` 的 `git cat-file blob`，不是当前 worktree；校验时 HEAD
   `9aa76f577b107bf9b8c75070690560a12f91e213` 只要求是 source baseline 后裔，docs 合法更新
   不再误报 `SOURCE_HASH_MISMATCH`。manifest / 证据 hash、预期 docs dirty 白名单、白名单外
   dirty 拒绝、LF / `eol=lf` 与内容 counts 保留；`source hash mismatch`、
@@ -3954,3 +3966,9 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   用户比较；`V2-Q-G1-04` 保持 Open，G1 未通过，`UI_DESIGN_SYSTEM` 仍为 v1.0。仅更新三份
   权威文档，未修改生产代码 / 资源 / S4 证据 / Q03，未构建、未触设备 / 服务器、未 QA、
   未 commit / push / tag。
+- **2026-11-04 — Q03 静态证据集成与 clean-clone 门**：Q03 static integration
+  `d234b40c958288cd5277072452212fe578bb5495` 与 LF policy
+  `c01e7361b2e86d4773aa4823429f324f9ed7d3df` 已提交；clean clone 的 S5 verifier、
+  SBOM validator PASS，S5 / Q03-SBOM / Q03-NATIVE 为 47/47、11/11、5/5 LF，CRLF 0，
+  三 manifest hash 与 §12 一致。Q03 / Q04 仍 Open，G1 NOT_PASSED，
+  `UI_DESIGN_SYSTEM` 仍为 v1.0；本轮仅写回三份权威文档，未 commit / push。
