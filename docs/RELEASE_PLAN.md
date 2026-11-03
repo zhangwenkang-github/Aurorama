@@ -123,7 +123,12 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 - **发布面冒烟 ✅**：字幕面板打开并把 `zh` / `zh-Hant` 两条 ASS 文本轨设为主 / 次后交换成功；PDF `Anda's Game` 125% 从 23/24→24/24 保持，CBZ `futuristic_tales` 150% 从 4/4→3/4 保持；音乐 `Victory` 手动滚动歌词后点击“军队正激战”，position 129.2 s→169.3 s 且保持 PLAYING；播放与阅读基本链路正常；双机 0 FATAL / ANR。
 - 发布用副本在 `.planning/cinefin-expansion/release-1.3.0-evidence/final/Aurorama-1.3.0-*.apk`；旧候选哈希不再作为发布对象。**已发布 2026-10-18：tag `v1.3.0` + [GitHub Release](https://github.com/zhangwenkang-github/Aurorama/releases/tag/v1.3.0) + 双 APK；发布后下载资产的字节数、SHA-256、v2 签名与证书指纹复核一致。**
 
-**1.4.0 签名候选 · 未发布（2026-10-25 · 代码候选 `d18ed56`）**
+**HISTORY · 1.4.0 早期签名候选（2026-10-25 · 代码候选 `d18ed56`，已被最终发布取代）**
+
+> 本段只保留 2026-10-25 的中间候选证据。1.4.0 已于 2026-11-02 正式发布，最终构建源、
+> tag、Release、双 APK 和已知残余风险以 `PLAYER_PLAN` §48.6.73 与
+> `F:\Develop\code_data\qa\w90a2-release-assets-user-acceptance-20261102` 为准；
+> 不得把本段旧候选哈希当作当前发布对象。
 
 | 文件 | 体积（字节） | SHA-256 |
 |---|---:|---|
