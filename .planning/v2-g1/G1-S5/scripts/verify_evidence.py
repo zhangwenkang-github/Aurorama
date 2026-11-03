@@ -7,6 +7,7 @@ import argparse
 import csv
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -19,7 +20,7 @@ MANIFEST = ROOT / "manifest.json"
 ATTRIBUTES = ROOT / ".gitattributes"
 EVIDENCE_ROOT_REL = ".planning/v2-g1/G1-S5/"
 EXPECTED_BRANCH = "codex/v2-integration"
-EXPECTED_HEAD = "397ff4f0a3d8378c91ee283da317c5263cc80285"
+BASELINE_POLICY = "ancestor"
 EXPECTED_ATTRIBUTES = b"* text eol=lf\n"
 EXPECTED_LINE_ENDING_POLICY = {
     "scope": EVIDENCE_ROOT_REL,
@@ -46,9 +47,35 @@ def git(*args: str, strip_output: bool = True) -> str:
     return output.strip() if strip_output else output.rstrip("\r\n")
 
 
+def git_exit(*args: str) -> tuple[int, str]:
+    result = subprocess.run(
+        ["git", *args], cwd=REPO, check=False, capture_output=True,
+        text=True, encoding="utf-8",
+    )
+    return result.returncode, result.stderr.strip()
+
+
 def fail(code: str, detail: str) -> None:
     print(json.dumps({"status": "FAIL", "code": code, "detail": detail}, ensure_ascii=False))
     raise SystemExit(1)
+
+
+def assert_git_baseline(branch: str, head: str, baseline: str) -> bool:
+    if branch != EXPECTED_BRANCH:
+        fail("GIT_BASELINE_DRIFT", f"branch={branch}")
+    if not re.fullmatch(r"[0-9a-f]{40}", head or ""):
+        fail("GIT_BASELINE_INVALID", f"head={head}")
+    if not re.fullmatch(r"[0-9a-f]{40}", baseline or ""):
+        fail("GIT_BASELINE_INVALID", f"sourceBaseline={baseline}")
+    code, error = git_exit("merge-base", "--is-ancestor", baseline, head)
+    if code not in (0, 1):
+        fail("GIT_BASELINE_CHECK", error or f"git exit {code}")
+    if code != 0:
+        fail(
+            "GIT_BASELINE_DRIFT",
+            f"branch={branch} head={head} sourceBaseline={baseline}",
+        )
+    return True
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -102,8 +129,13 @@ def main(argv: list[str] | None = None) -> int:
 
     branch = git("branch", "--show-current")
     head = git("rev-parse", "HEAD")
-    if branch != EXPECTED_BRANCH or head != EXPECTED_HEAD:
-        fail("GIT_BASELINE_DRIFT", f"{branch} {head}")
+    git_baseline = manifest.get("gitBaseline", {})
+    if git_baseline.get("branch") != EXPECTED_BRANCH:
+        fail("GIT_BASELINE_MANIFEST", str(git_baseline.get("branch")))
+    if git_baseline.get("headPolicy") != BASELINE_POLICY:
+        fail("GIT_BASELINE_POLICY", str(git_baseline.get("headPolicy")))
+    baseline_head = str(git_baseline.get("head", ""))
+    assert_git_baseline(branch, head, baseline_head)
     outside = []
     status_output = git(
         "status", "--porcelain=v1", "--untracked-files=all", strip_output=False
@@ -284,6 +316,9 @@ def main(argv: list[str] | None = None) -> int:
         "status": "PASS",
         "manifest": f"{EVIDENCE_ROOT_REL}manifest.json",
         "manifestSha256": sha256(MANIFEST),
+        "sourceBaseline": baseline_head,
+        "head": head,
+        "baselinePolicy": BASELINE_POLICY,
         "entries": len(entries),
         "evidenceEntries": len(entries) - len(control_entries),
         "controlEntries": len(control_entries),

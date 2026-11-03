@@ -17,6 +17,7 @@
   "gitBaseline": {
     "branch": "codex/v2-integration",
     "head": "397ff4f0a3d8378c91ee283da317c5263cc80285",
+    "headPolicy": "ancestor",
     "worktreeOutsideEvidenceRoot": "clean",
     "evidenceRoot": ".planning/v2-g1/G1-S5/"
   },
@@ -32,7 +33,7 @@
       },
       {
         "path": "docs/V2_PLAN.md",
-        "sha256": "459fe34b6a7436c7871796b15955d6b20d8471ff1e05d7a160c698da83e4ec71"
+        "sha256": "afde83b3214fa5e53c369afe2ce203291f7805a7d678614181c2055f99f07f25"
       },
       {
         "path": "docs/UI_DESIGN_SYSTEM.md",
@@ -40,7 +41,7 @@
       },
       {
         "path": "docs/DECISIONS.md",
-        "sha256": "797d21740c07444c3fe0bac0ea5781756955e1adcd636572f561591c7618fc3e"
+        "sha256": "7b9577f3e2b294576842e6707b4fdba214102966026eea6cea702124f5535003"
       },
       {
         "path": "docs/adr/0007-v2-app-wide-theme-model.md",
@@ -121,7 +122,7 @@
   },
   "decisionBrief": "decision-brief.md",
   "reviewIndex": "index.html",
-  "verificationCommand": "pwsh -NoProfile -Command \"python .planning/v2-g1/G1-S5/scripts/verify_evidence.py --expected-dirty docs/DECISIONS.md --expected-dirty docs/TASKS.md --expected-dirty docs/V2_PLAN.md\"",
+  "verificationCommand": "pwsh -NoProfile -Command \"python .planning/v2-g1/G1-S5/scripts/verify_evidence.py\"",
   "entries": [
     {
       "id": "CONTROL-GITATTRIBUTES",
@@ -156,8 +157,8 @@
       "path": "README.md",
       "mime": "text/markdown",
       "pixelSize": null,
-      "bytes": 2212,
-      "sha256": "5c038a63c763d901522e22b3b114960247759ace5000aa4c774e14a286adf86d",
+      "bytes": 2430,
+      "sha256": "695bf1d969ec217125b81afab43219a2d48d01d379688623486c9491a892702b",
       "status": "READY_FOR_USER_DECISION",
       "limits": [
         "Static evidence only; runtime and user visual judgement remain outside this artifact."
@@ -1245,8 +1246,8 @@
       "path": "scripts/build_evidence.py",
       "mime": "text/x-python",
       "pixelSize": null,
-      "bytes": 104453,
-      "sha256": "252d778558bd7e9fa301f8e60cc870619967884a854a3398d30ef6e948c3972c",
+      "bytes": 105416,
+      "sha256": "6fbc99cbf146f8ab9ac1092c40c61d5e8ee9da899cd96c0b780ed3edeea2bea7",
       "status": "FROZEN_STATIC",
       "limits": []
     },
@@ -1264,8 +1265,8 @@
       "path": "scripts/verify_evidence.py",
       "mime": "text/x-python",
       "pixelSize": null,
-      "bytes": 12947,
-      "sha256": "eb0ae7d08f3eb4898072ad20e880cf2b76cb3003fa182dd8347c42cc287a3f2c",
+      "bytes": 14294,
+      "sha256": "1aa945552e85e27d737d52d68272544d2f9a3331a22cc09544a8d7624a9232f6",
       "status": "FROZEN_STATIC",
       "limits": []
     }

@@ -3,8 +3,9 @@
 状态：`READY_FOR_V2_Q_G1_04_USER_DECISION / Q04_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED`
 
 本目录只是 `V2-Q-G1-04` 的用户决策输入，不是 Q04 已确认、G1 PASS、实现、独立 QA 或发布证据。
-权威基线：分支 `codex/v2-integration`，HEAD `397ff4f0a3d8378c91ee283da317c5263cc80285`；目录级 `.gitattributes`
-固定 `text` / `eol=lf`，保证 checkout 与 manifest 按字节复现。
+证据源基线：分支 `codex/v2-integration`，提交 `397ff4f0a3d8378c91ee283da317c5263cc80285`；verifier 要求当前 HEAD
+是该基线的后继，而非精确相等。目录级 `.gitattributes` 固定 `text` / `eol=lf`，保证
+checkout 与 manifest 按字节复现。
 
 ## 建议读序
 
@@ -27,6 +28,8 @@
 
 ```powershell
 pwsh -NoProfile -Command "python .planning/v2-g1/G1-S5/scripts/build_evidence.py"
+pwsh -NoProfile -Command "python .planning/v2-g1/G1-S5/scripts/verify_evidence.py"
+# 仅当 docs owner 明确仍有三份预期 dirty 时：
 pwsh -NoProfile -Command "python .planning/v2-g1/G1-S5/scripts/verify_evidence.py --expected-dirty docs/DECISIONS.md --expected-dirty docs/TASKS.md --expected-dirty docs/V2_PLAN.md"
 ```
 

@@ -19,7 +19,7 @@ from pathlib import Path
 
 
 EXPECTED_BRANCH = "codex/v2-integration"
-EXPECTED_HEAD = "397ff4f0a3d8378c91ee283da317c5263cc80285"
+SOURCE_BASELINE_HEAD = "397ff4f0a3d8378c91ee283da317c5263cc80285"
 ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parents[2]
 ASSETS = ROOT / "assets"
@@ -28,6 +28,9 @@ SCRIPTS = ROOT / "scripts"
 ATTRIBUTES = ROOT / ".gitattributes"
 LINE_ENDING_RULE = "* text eol=lf\n"
 VERIFICATION_COMMAND = (
+    'pwsh -NoProfile -Command "python .planning/v2-g1/G1-S5/scripts/verify_evidence.py"'
+)
+EXPECTED_DIRTY_COMMAND = (
     'pwsh -NoProfile -Command "python .planning/v2-g1/G1-S5/scripts/verify_evidence.py '
     '--expected-dirty docs/DECISIONS.md --expected-dirty docs/TASKS.md '
     '--expected-dirty docs/V2_PLAN.md"'
@@ -47,7 +50,7 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def run_git(*args: str) -> str:
+def run_git(*args: str, strip_output: bool = True) -> str:
     result = subprocess.run(
         ["git", *args],
         cwd=REPO,
@@ -56,7 +59,19 @@ def run_git(*args: str) -> str:
         text=True,
         encoding="utf-8",
     )
-    return result.stdout.strip()
+    return result.stdout.strip() if strip_output else result.stdout.rstrip("\r\n")
+
+
+def run_git_exit(*args: str) -> tuple[int, str]:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=REPO,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return result.returncode, result.stderr.strip()
 
 
 def verify_git() -> dict:
@@ -64,10 +79,19 @@ def verify_git() -> dict:
     head = run_git("rev-parse", "HEAD")
     if branch != EXPECTED_BRANCH:
         raise SystemExit(f"BLOCKED_BRANCH: {branch}")
-    if head != EXPECTED_HEAD:
-        raise SystemExit(f"BLOCKED_HEAD: {head}")
+    ancestor_exit, error = run_git_exit(
+        "merge-base", "--is-ancestor", SOURCE_BASELINE_HEAD, head
+    )
+    if ancestor_exit != 0:
+        raise SystemExit(
+            f"BLOCKED_HEAD: {head} is not a descendant of {SOURCE_BASELINE_HEAD}"
+            + (f": {error}" if error else "")
+        )
     outside = []
-    for line in run_git("status", "--porcelain=v1", "--untracked-files=all").splitlines():
+    status_output = run_git(
+        "status", "--porcelain=v1", "--untracked-files=all", strip_output=False
+    )
+    for line in status_output.splitlines():
         rel = line[3:].strip().replace("\\", "/")
         if rel and not rel.startswith(".planning/v2-g1/G1-S5/"):
             outside.append(line)
@@ -76,6 +100,7 @@ def verify_git() -> dict:
     return {
         "branch": branch,
         "head": head,
+        "headPolicy": "ancestor",
         "worktreeOutsideEvidenceRoot": "clean",
         "evidenceRoot": ".planning/v2-g1/G1-S5/",
     }
@@ -1541,8 +1566,9 @@ def write_data_and_docs(theme_paths: list[Path], interaction_paths: list[Path],
 状态：`READY_FOR_V2_Q_G1_04_USER_DECISION / Q04_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED`
 
 本目录只是 `V2-Q-G1-04` 的用户决策输入，不是 Q04 已确认、G1 PASS、实现、独立 QA 或发布证据。
-权威基线：分支 `{git_state['branch']}`，HEAD `{git_state['head']}`；目录级 `.gitattributes`
-固定 `text` / `eol=lf`，保证 checkout 与 manifest 按字节复现。
+证据源基线：分支 `{git_state['branch']}`，提交 `{git_state['head']}`；verifier 要求当前 HEAD
+是该基线的后继，而非精确相等。目录级 `.gitattributes` 固定 `text` / `eol=lf`，保证
+checkout 与 manifest 按字节复现。
 
 ## 建议读序
 
@@ -1566,6 +1592,8 @@ def write_data_and_docs(theme_paths: list[Path], interaction_paths: list[Path],
 ```powershell
 pwsh -NoProfile -Command "python .planning/v2-g1/G1-S5/scripts/build_evidence.py"
 {VERIFICATION_COMMAND}
+# 仅当 docs owner 明确仍有三份预期 dirty 时：
+{EXPECTED_DIRTY_COMMAND}
 ```
 
 生成器只写本目录；不使用外部包、远程素材、设备、服务器、认证或生产资源。
