@@ -210,14 +210,15 @@
 ## Open
 
 当前 G0 无开放产品问题。`V2-Q-G1-01/02` 已分别由 `V2-D198/D199` 关闭；
-`V2-Q-G1-03` 的 S4-B 媒体输入已冻结，仍等待 S4-C、runtime 与 SBOM / native notice；
+`V2-Q-G1-03` 的 S4-B 媒体输入与 S4-C TTS / PDF 非媒体输入均已冻结，但完整 Q03 仍
+Open，G1 未通过，runtime、SBOM / native notice、16 KB 与 Range 大文件仍待证据；
 `V2-Q-G1-04` 等待 S5。`V2-D200` 只固定体验优先与包体非要求。代理建议不得代替用户拍板。
 
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
 |---|---|---|---|---|
-| `V2-Q-G1-03` | `G1-S4-A/B` 已冻结 runtime graph、许可证输入、Media3 / decoder / libmpv API / JNI / ELF / ABI / package 静态事实；S4-B 未发现硬不兼容，但 runtime load-order、FFmpeg / libass 全局符号交叉、SBOM / native notice 和 S4-C TTS / PDF 仍开放；D200 已规定体验优先、包体非要求 | Media3 主路径；mpv 在格式、字幕或画质矩阵证明能改善 / 保障体验时保留；Sherpa/Piper、PdfRenderer/PDFium 由隔离 Spike 比较 | 双内核和 PDFium 提高覆盖；取舍看运行时与质量，不因包体单独删除能力 | **Open / S4-B 输入已冻结，待 S4-C、runtime 与 SBOM** |
+| `V2-Q-G1-03` | `G1-S4-A/B/C` 已冻结 runtime graph、许可证输入、Media3 / decoder / libmpv 静态事实及 TTS / PDF 非媒体矩阵；S4-C 证据提交 `a84ce4f1…` 的 `s4cNonMediaInputReadyForQ03=true`，但 `fullQ03UserDecisionReady=false`、`g1Passed=false`。TTS runtime / voice license、PDFium 16 KB / native notice、PDF Range 大文件、SBOM 与真实链路仍开放 | Media3 主路径；Sherpa-ONNX 作为带门 G2 TTS Spike 主候选，system TTS 仅条件备选，Piper direct 延后；PDF 保留 PdfRenderer 回滚，stable PDFium 2.0.3 过硬门后再比较 | 双内核和 PDFium 提高覆盖；取舍看 runtime、许可与质量，不因包体单独删除能力 | **Open / S4-C non-media input ready；full Q03 Open；G1 not passed** |
 | `V2-Q-G1-04` | V2 已有主题轴约束，但非 Prism 色板 / 材质、基础圆角、AmbientColors 去留、RWD 细节和九条低保真尚未确认 | 按 §5.11.6 候选先出五主题风格帧和低保真复核，再由用户整包确认 | 直接实现会固化第二主题、错误对比度和不一致 RWD | **Open / 待 `G1-S5`** |
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）

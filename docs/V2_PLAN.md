@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_COMPLETE / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / S4-A、S4-B 完成，S4-C 待新证据会话
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / Q03_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / S4-A、S4-B、S4-C 静态证据完成；S4-C 带硬门冻结，下一入口为 S5
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-03
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2956,6 +2956,75 @@ reasoning_effort=max / fork_turns=none`；证据提交
 `abi-decision.json`、`commands.log`。Q03 的媒体引擎子输入已具备带门禁的提报条件；完整
 Q03 仍等待 S4-C 和 runtime / SBOM / native notice 证据。
 
+#### 5.11.12 G1-S4-C 离线 TTS / PDF 静态证据（2026-11-03）
+
+**身份**：`taskId=G1-S4-C`；角色为“资深离线语音 / 文档渲染架构师与 G1-S4-C 证据
+owner”；证据线程 `01a1a1c7-bb81-78f3-b470-4baaf481d3ac`，来源线程
+`01a1a1a5-6a59-7ff1-819d-ad5facce9408`。报告记录的交接提交为
+`2cc81c2c1e3c62d8c7d2554bd8f1848235b7ec4d`，`observedHead` 为
+`4b1591ff66e580dd5477d818257efca6eb527c50`，其限定是“指定交接提交的唯一纯文档后继，
+提交标题 `docs(v2): record g1 s4c handoff thread`，父提交正确，仅修改
+`docs/V2_PLAN.md` 并回写本 thread id”；本次证据提交与工作树事实 HEAD 为
+`a84ce4f1d3772414f1b9620d6301935c20d76af9`。
+
+**状态**：`S4C_EVIDENCE_FROZEN_WITH_GATES / S4C_NON_MEDIA_INPUT_READY_FOR_Q03 /
+FULL_Q03_OPEN / G1_NOT_PASSED / NO_IMPLEMENTATION`。报告顶层 `status` 为 `null`；实际
+证据状态记录在 `identity.status`。证据提交标题为
+`docs(v2): freeze g1 s4c tts pdf evidence`，只包含
+`.planning/v2-g1/G1-S4-C/report.json`、`option-matrix.json`、`commands.log` 三个文件，
+未修改生产代码、依赖、Manifest、资源、schema 或设备 / 服务器材料。
+
+**边界结论**：静态输入已冻结不等于 runtime PASS，也不等于完整 Q03 可拍板或 G1 PASS。
+本轮只证明 TTS / PDF 非媒体引擎的能力、许可、ABI、维护、成本与候选方向已形成可审查矩阵；
+离线实证、性能、Range 大文件、native 16 KB / notice、SBOM 与真实链路仍未执行。
+
+| 严重度 | ID | 冻结发现 |
+|---|---|---|
+| P1 | `P1-TTS-OFFLINE-PROOF` | 三个 TTS 候选均未在本任务完成飞行模式、零 App 网络流量与纯本地声音闭环；系统 TTS 还保留语音包下载 / 网络错误语义。 |
+| P1 | `P1-TTS-MODEL-LICENSE` | Sherpa 与 Piper 引擎许可证不等于声音模型许可证；随包中文 voice / lexicon / rule 数据必须逐项许可审查。 |
+| P1 | `P1-PDFIUM-16KB` | `io.legere` 2.0.3 与 3.0.4-alpha01 均有 open issue #56：64-bit `GNU_RELRO` 未通过 16 KB 边界检查；targetSdk 36 候选包不能忽略。 |
+| P1 | `P1-PDFIUM-NATIVE-PROVENANCE` | binding POM 的 Apache-2.0 不能覆盖 PDFium native；精确 PDFium 版本、BSD notice、AAR 哈希与最终 packaged SBOM 未闭环。 |
+| P1 | `P1-PDF-RANGE-RUNTIME` | `PdfiumSource` 静态 API 支持位置读，但未执行 Jellyfin 206、弱网、取消、大文件和缓存上限验证。 |
+| P1 | `P1-TTS-PERFORMANCE` | 中文质量、首音、RTF、内存、耗电、暂停恢复和连续稳定性全未实测。 |
+| P2 | `P2-SYSTEM-TTS-VARIANCE` | 设备是否安装合格离线中文 voice 与是否提供 `onRangeStart` 均不可保证；系统边界只能作条件备选。 |
+| P2 | `P2-SHERPA-DISTRIBUTION` | 未检索到 k2-fsa 官方 Maven Central 坐标；当前官方路径是固定 release AAR / 源码，需固定 AAR SHA、SBOM 与升级策略。 |
+| P2 | `P2-PIPER-ANDROID-CAPABILITY` | v1.8.0 无官方 Android 包，direct libpiper 需自建 JNI / NDK、ONNX Runtime 与 espeak 数据；官方 README 明示寻找维护者。 |
+| P2 | `P2-PDFIUM-3X-PRERELEASE` | Maven latest 3.0.4-alpha01 是预发布，且同一 16 KB issue 未关闭，不能作为稳定主路径。 |
+| P2 | `P2-PDF-UI-CONTROL` | PDFium 对象 API 与现有 `PageSource` / `PdfSearch` / `PdfLayoutSource` 抽象不完全同形，搜索聚合、取消、页窗口和线程围栏需要适配。 |
+| P3 | `P3-SIZE-FACTS` | 已记录 AAR / native 文件大小，仅作工程事实；D200 禁止用体积代替能力、稳定性或许可证判断。 |
+| P3 | `P3-ARCHIVED-PIPER` | `rhasspy/piper` 归档旧仓库仅可作历史 API / 模型来源参考，不作为新集成基线。 |
+
+**BLOCKED**：
+
+| ID | 原因 |
+|---|---|
+| `BLOCKED-RUNTIME-TTS-OFFLINE-PROOF` | 需要模型、设备、飞行模式与流量 / 音频测量；本任务明确禁止。 |
+| `BLOCKED-TTS-MODEL-LICENSE` | 需要在选定具体 voice 后核验模型卡、训练数据限制与 notices。 |
+| `BLOCKED-TTS-RUNTIME-PERFORMANCE` | 需要 G2 设备与模型。 |
+| `BLOCKED-PDFIUM-16KB` | 上游 open issue #56 尚未证明修复；最终 APK ELF 也不能在未下载 AAR 时复算。 |
+| `BLOCKED-PDFIUM-NATIVE-NOTICE` | 需要精确 PDFium source pin、AAR hash 与 packaged-file license inventory。 |
+| `BLOCKED-PDF-RANGE-RUNTIME` | 需要候选包、服务器只读 Range 与 2.53 GB 大文件测试；本任务禁止服务器 / 设备和新依赖。 |
+| `BLOCKED-SUPPLY-CHAIN-SBOM` | GitHub API 匿名限流阻止最后一轮 AAR digest 获取；未使用认证绕过，最终候选仍需本地 SBOM 与哈希。 |
+
+**Q03 readiness**：`s4cNonMediaInputReadyForQ03=true`、
+`fullQ03UserDecisionReady=false`、`g1Passed=false`。原因是 TTS / PDF 能力、许可、ABI、
+维护、成本矩阵已冻结，但 TTS runtime / voice license、PDFium 16 KB / native notice、
+PDF Range runtime 仍为硬门。
+
+**推荐（不是用户决策，`isUserDecision=false`）**：TTS 推荐进入带硬门的 Sherpa-ONNX
+v2.0.1 隔离 Spike；系统 TTS 仅作设备条件备选；Piper direct 在 Android 包与维护人问题
+解决前延后，但不因体积淘汰。PDF 推荐保留 PdfRenderer 本地路径与回滚，选择 stable
+`io.legere` 2.0.3 做 `PdfiumSource + 现有 HttpByteSource` 的隔离 Range Spike；
+16 KB、native notice、大文件内存任一不过即不得替换。TTS 必须保留系统 TTS / 明确不可用态；
+PDF 必须保留 PdfRenderer feature flag 与同数据模型切换；新引擎异常不得破坏进度、书签、
+本地 annotation 或下载文件。可向 Q03 提报的决策包为“Sherpa-ONNX gated G2 TTS Spike
+主候选、system TTS 条件备选、Piper direct 延后；PdfRenderer 回滚保留，stable PDFium
+2.0.3 过硬门后再比较”。
+
+**证据路径**：`.planning/v2-g1/G1-S4-C/report.json`、
+`.planning/v2-g1/G1-S4-C/option-matrix.json`、
+`.planning/v2-g1/G1-S4-C/commands.log`。
+
 ## 6. 三层前置门
 
 | 门 | 完成条件 | 当前状态 |
@@ -3099,7 +3168,68 @@ Q03 仍等待 S4-C 和 runtime / SBOM / native notice 证据。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-S4-C 离线 TTS / PDF 证据交接（2026-11-03）
+### ACTIVE：G1-S5 视觉方向证据交接（2026-11-03）
+
+**接手身份**：**交付负责人 / 技术集成编排者**。负责人只承担范围、风险、角色拆单、只读
+白名单、压缩报告 / 关键 diff 审查、证据门、集成决策、文档与交接；不得亲自承担 UI / 视觉
+设计证据 owner，也不得亲自通读五主题风格帧、低保真或视觉附件。
+
+**一句话现状**：G0、G1/0、S1–S3、S4-A/B/C 已完成相应静态证据；S4-C 证据提交
+`a84ce4f1d3772414f1b9620d6301935c20d76af9` 已冻结 TTS / PDF 非媒体输入，但完整 Q03
+仍 Open，G1 未通过。下一棒只进入 `G1-S5` 视觉方向证据，不进入 S6、实现、G2、QA、设备、
+服务器写或 Release。
+
+**状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / Q03_OPEN /
+G1_S5_PENDING / G1_NOT_PASSED / NO_IMPLEMENTATION`。
+
+**工作对象 / 硬门**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
+分支 `codex/v2-integration`。下一负责人必须核验本次 S4-C 证据提交
+`a84ce4f1d3772414f1b9620d6301935c20d76af9`、其后仅允许的纯文档后继、
+`git status --porcelain=v1 --untracked-files=all`、双祖先与外部原文 SHA：
+
+- 基线 `4fbe5e12d182fc1d9bdf2790c7a725bec0074d37`
+- 视频收口 `bd5e3aa59c2e5671ada9354f230da4519589272b`
+- 外部原文 `E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229`
+
+若本次文档同步尚未形成已提交后继或工作树不 clean，开工门必须 `BLOCKED`，不得在未提交的
+交接态直接开始 S5。
+
+**开工门（强制顺序）**：
+
+1. 新负责人接手后的第一条动作是运行 `deepseek-status`，记录当前上下文、缓存命中与请求数，
+   随后把实测水位写入本 ACTIVE / 进度日志；不得先读视觉材料或扩大范围。
+2. 记录水位后，创建**全新** `deepseek-flash / reasoning_effort=max / fork_turns=none`
+   只读子代理做开工门。该子代理只核验事实 worktree、branch / HEAD、clean、S4-C 证据提交
+   只含 3 个证据文件、允许文档后继、双祖先、外部 SHA、唯一 ACTIVE / HISTORY、`TASKS`
+   In Progress、`DECISIONS` Q03 / Q04 与本次读序白名单，只回压缩 `PASS / BLOCKED`。
+3. 开工门 PASS 后，负责人再创建**另一个全新 UI / 视觉设计证据子代理**执行 S5；该子代理
+   固定 `deepseek-flash / reasoning_effort=max / fork_turns=none`，产出五主题风格帧、
+   九条低保真交互复核，以及 RWD、状态和无障碍证据，统一写入
+   `.planning/v2-g1/G1-S5/`。
+4. 负责人只向视觉子代理提供已确认的需求 / 设计约束和只读白名单，只消费压缩文字结论、
+   文件路径、哈希 / 尺寸与关键 diff；不得打开或 inline 视觉材料，不得以“负责人通读”
+   替代独立视觉证据 owner。
+
+**S5 边界**：交付物只作为 `V2-Q-G1-04` 的用户决策输入；五主题色板 / 材质、AmbientColors
+去留、RWD 与低保真方向仍由用户拍板。未获用户整包确认前，不得把
+`UI_DESIGN_SYSTEM` 标成 V2 权威，不得进入 S6 验收矩阵、实现、G2 或 Release。Q03 保持
+Open，S5 不得用视觉方向证据关闭 TTS / PDF / SBOM / runtime 硬门。
+
+**第一批动作与停止条件**：先记录水位；再派开工门子代理；`PASS` 后声明 S5 唯一证据目录与
+只读白名单；最后派全新 UI / 视觉子代理执行 S5 并回传压缩报告。以下任一情况立即停止并写
+`BLOCKED`：无法记录水位或无法创建指定开工门子代理；worktree / branch / HEAD / clean /
+祖先 / SHA 漂移；S4-C 证据提交组成不符；需要负责人亲自通读视觉材料；需要修改生产代码、
+Gradle、Manifest、资源、schema 或 S4-C 证据；需要设备 / 服务器写 / 认证 / Release；
+范围扩展到 S6、runtime 或 Q03 拍板。25 万 token 收缩，30 万准备交接，35 万停止并创建后继。
+
+**下一步入口**：交付负责人 / 技术集成编排者；第一条只读动作是核验本 ACTIVE 与其已提交
+文档后继，但记录 `deepseek-status` 水位和派开工门子代理必须先于任何 S5 视觉材料读取。
+停止条件如上；没有用户新的 `V2-Q-G1-04` 决策或完整 S6 输入前，不得报 G1 PASS。
+
+### HISTORY：G1-S4-C 离线 TTS / PDF 证据交接（2026-11-03；已被上方 G1-S5 ACTIVE 取代）
+
+**历史收口**：S4-C 静态证据已冻结在 `a84ce4f1…`；`s4cNonMediaInputReadyForQ03=true`、
+`fullQ03UserDecisionReady=false`、`g1Passed=false`。以下保留该入口接手时的历史快照。
 
 **接手身份**：**资深离线语音 / 文档渲染架构师 + G1-S4-C 证据 owner**。只做只读与隔离
 证据；交付负责人 / 技术集成编排者保留范围、风险、拆单、报告审查、集成和发布门决策权。
@@ -3668,3 +3798,7 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   1.4 APK 的四 ABI、native 组成、包体与 libc++ 哈希已核对。release SBOM、Media3 1.11.1 /
   FFmpeg decoder 1.9.0 绑定、libmpv native 许可来源和维护状态仍未闭合，故 Q03 保持 Open，
   不报许可 PASS。未生成 / 安装 APK，未触设备 / 服务器、QA、G2 或实现。
+- **2026-11-03 — G1-S4-C 离线 TTS / PDF 静态证据冻结**：证据提交 `a84ce4f1…` 只含
+  `report.json`、`option-matrix.json`、`commands.log`；S4-C non-media input ready for Q03，
+  但完整 Q03 Open、G1 未通过，runtime TTS / SBOM / native notice / PDFium 16 KB / Range
+  大文件仍未覆盖，下一棒为 S5 视觉方向证据。
