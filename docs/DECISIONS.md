@@ -256,12 +256,14 @@ cross-account / old-generation / corrupt 均 FAIL_CLOSED，3 个负例 exit 1。
 implementation gaps 与 TTL / 容量 / 预取 / 时钟宽限 decision gaps 保留，304 与跨进程围栏
 尚无生产证明。
 
-`G1-BASE-004-PLAYLIST-EXCHANGE` 为 24 文件 / 115,243 B；manifest 4,493 B / 23 entries /
-110,750 B，SHA-256 `10121417575e006cfc1434283efd90f049d25b72519ac803da027ff8b33a9f08`。
-冻结 Draft 2020-12 / 68 properties、34 mapping、69 roundtrip=`48/2/2/17`、12 scenarios /
-99 checks；只有完整 SOURCE identity 可去重，缺曲 / 重复保留，identity conflict 零写入，
-generic M3U8 的损失显式。B 重复 / 部分导入选择、C SAF / 设备 / 重启证据与 D 生产 parser /
-持久化迁移 / 服务器实现仍 Open。三包均独立 reviewer PASS 且仅登记静态输入；前沿审计
+`G1-BASE-004-PLAYLIST-EXCHANGE` 为 24 文件 / 115,629 B；manifest 4,502 B / 23 entries /
+111,127 B，SHA-256 `755368ADF03E5D4FBA500B7F94B7E240486D2111415AC86E9F8608F9DC49A8D8`。
+manifest 冻结 `source.inputBaseline=6fc0a02995bb24c11237fe3b8753f21f06a57f72`，不绑定运行
+测试时的当前 HEAD。合同仍冻结 Draft 2020-12 / 68 properties、34 mapping、69
+roundtrip=`48/2/2/17`、12 scenarios / 99 checks；只有完整 SOURCE identity 可去重，缺曲 /
+重复保留，identity conflict 零写入，generic M3U8 的损失显式。B 重复 / 部分导入选择、C SAF /
+设备 / 重启证据与 D 生产 parser / 持久化迁移 / 服务器实现仍 Open。三包均独立 reviewer PASS
+且仅登记静态输入；前沿审计
 `NOW_SAFE`，没有未阻塞静态增量，下一步只等待用户 Q04 / B/C 决策、明确授权或 D runtime /
 device / implementation 证据。Q03 / Q04 仍 Open，G1 NOT_PASSED，`UI_DESIGN_SYSTEM` 仍为
 v1.0；不新增用户决策，不把 B/C/D、runtime、device、implementation 或 QA 标成 Done。

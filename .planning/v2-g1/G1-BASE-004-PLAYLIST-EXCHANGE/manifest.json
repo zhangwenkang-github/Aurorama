@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "source": {
     "branch": "codex/v2-integration",
-    "head": "6fc0a02995bb24c11237fe3b8753f21f06a57f72"
+    "inputBaseline": "6fc0a02995bb24c11237fe3b8753f21f06a57f72"
   },
   "policy": {
     "textEncoding": "UTF-8",
@@ -15,7 +15,7 @@
   },
   "counts": {
     "files": 23,
-    "bytes": 110750
+    "bytes": 111127
   },
   "files": [
     {
@@ -116,8 +116,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 1728,
-      "sha256": "9DAD78336D08E8B419045E1E060B5864543F4FF4E91260FFF75F537578292367",
+      "bytes": 1950,
+      "sha256": "3CF1722FE78EA6CB459D5144FE08DFC862E864358805DD39B3F7FDB77FFAAC72",
       "eol": "LF"
     },
     {
@@ -146,14 +146,14 @@
     },
     {
       "path": "test-results.json",
-      "bytes": 13498,
-      "sha256": "0C9BFB328726C842F79DCB41078A5958E763D8FEDAE7C7D79876882C12BD9E17",
+      "bytes": 13508,
+      "sha256": "AE4052AA598DA98028BBDA35651B0B8ED092B94E26F0B1E37083CAC86697FAD9",
       "eol": "LF"
     },
     {
       "path": "test_contract.py",
-      "bytes": 30771,
-      "sha256": "99245B77EDAC7D60D446AA32C96B5E960B8DE9E84B6A323334B5A40183BEBB7B",
+      "bytes": 30916,
+      "sha256": "0B5347FEF6EFF6EA52EC4D7F3E1C4FCB01A01CF4DD3F81E040FA4BF9324FE03E",
       "eol": "LF"
     }
   ]

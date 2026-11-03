@@ -2614,13 +2614,15 @@ unknown、cross-account、old-generation 与 corrupt 数据均 fail closed，3 �
 cross-process durable fence、304 能力与生产 mutation 集成未证明。
 
 **G1-BASE-004 本地歌单交换静态合同（2026-11-04，独立 reviewer PASS）**：
-`.planning/v2-g1/G1-BASE-004-PLAYLIST-EXCHANGE/` 共 24 文件 / 115,243 B；manifest 4,493 B /
-23 entries / 110,750 B，SHA-256
-`10121417575e006cfc1434283efd90f049d25b72519ac803da027ff8b33a9f08`。合同冻结 Draft 2020-12 /
-68 properties、34 mapping rows、69 roundtrip rows=`48 PRESERVE / 2 PRESERVE_OPAQUE / 2 DEGRADE /
-17 LOSS`，并以 12 scenarios / 99 checks 验证。去重只接受完整 SOURCE identity；缺曲与重复保留，
-identity conflict 零写入；generic M3U8 的身份 / 冲突语义显式 LOSS，不冒充无损。B 重复 / 部分导入
-用户选择、C SAF / 设备 / 重启证据、D 生产 parser / 持久化迁移 / 服务器歌单实现仍未完成。
+`.planning/v2-g1/G1-BASE-004-PLAYLIST-EXCHANGE/` 共 24 文件 / 115,629 B；manifest 4,502 B /
+23 entries / 111,127 B，SHA-256
+`755368ADF03E5D4FBA500B7F94B7E240486D2111415AC86E9F8608F9DC49A8D8`。manifest 冻结
+`source.inputBaseline=6fc0a02995bb24c11237fe3b8753f21f06a57f72`，不绑定运行测试时的当前 HEAD。
+合同冻结 Draft 2020-12 / 68 properties、34 mapping rows、69 roundtrip rows=`48 PRESERVE /
+2 PRESERVE_OPAQUE / 2 DEGRADE / 17 LOSS`，并以 12 scenarios / 99 checks 双跑验证。去重只接受
+完整 SOURCE identity；缺曲与重复保留，identity conflict 零写入；generic M3U8 的身份 / 冲突语义
+显式 LOSS，不冒充无损。B 重复 / 部分导入用户选择、C SAF / 设备 / 重启证据、D 生产 parser /
+持久化迁移 / 服务器歌单实现仍未完成。
 
 **G1-A2 应用内更新信任静态合同（2026-11-04，独立 reviewer PASS）**：
 `.planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/` 共 10 文件 / 88,530 B；manifest 覆盖 9 文件 /
@@ -3375,8 +3377,9 @@ PASS，详细合同见 §5.7.3 与 §5.10.5。A1 保留 6 个 P2 capability / ru
   19 dimensions / 11 TTL-clock-304 / 12 promises / 4 fixtures；unknown / cross-account /
   old-generation / corrupt fail closed，3 个负例 exit 1。6 个 P1 runtime / implementation gaps
   与 TTL / 容量 / 预取 / 时钟宽限 decision gaps 保留。
-- `G1-BASE-004`：24 文件 / 115,243 B；manifest 4,493 B / 23 entries / 110,750 B，SHA-256
-  `10121417575e006cfc1434283efd90f049d25b72519ac803da027ff8b33a9f08`。冻结 Draft 2020-12 /
+- `G1-BASE-004`：24 文件 / 115,629 B；manifest 4,502 B / 23 entries / 111,127 B，SHA-256
+  `755368ADF03E5D4FBA500B7F94B7E240486D2111415AC86E9F8608F9DC49A8D8`；冻结输入基线
+  `source.inputBaseline=6fc0a02995bb24c11237fe3b8753f21f06a57f72`。合同仍为 Draft 2020-12 /
   68 properties、34 mapping、69 roundtrip=`48/2/2/17`、12 scenarios / 99 checks；SOURCE-only
   dedupe，缺曲 / 重复保留，冲突零写入，M3U8 损失显式。B 重复 / 部分导入选择、C SAF / 设备、
   D 生产 parser / 迁移 / 服务器实现仍 Open。
@@ -4147,7 +4150,8 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   G1 NOT_PASSED，UI v1.0；未新增用户决策、未改证据 / 生产、未 commit。
 - **2026-11-04 — G1-BASE-001/003/004 静态合同写入权威文档**：BASE-001 为 13 文件 /
   103,530 B，manifest `1c04fc63…`；BASE-003 为 8 文件 / 54,820 B，manifest `9ee6e05c…`，
-  payload `7aa53d5f…`；BASE-004 为 24 文件 / 115,243 B，manifest `10121417…`。三包独立
+  payload `7aa53d5f…`；BASE-004 为 24 文件 / 115,629 B，manifest `755368AD…`；manifest
+  4,502 B / 23 entries / 111,127 B，双跑 hash 稳定且 99/99。三包独立
   reviewer PASS，分别冻结搜索路由、持久 SWR 与本地歌单交换合同；BASE-004 的 `*.m3u8`
   LF 属性与 24/24 LF 复现保留。前沿审计为 `NOW_SAFE`，下一步只等待用户 Q04 / B/C 决策、
   明确授权或 D 类 runtime / device / implementation 证据。Q03 / Q04 仍 Open，G1

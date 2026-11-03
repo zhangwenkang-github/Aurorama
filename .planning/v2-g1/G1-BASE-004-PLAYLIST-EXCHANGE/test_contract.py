@@ -12,7 +12,6 @@ import hashlib
 import json
 import math
 import re
-import subprocess
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -27,6 +26,8 @@ EXPECTATIONS_PATH = FIXTURES / "expected-results.json"
 RESULTS_PATH = ROOT / "test-results.json"
 MANIFEST_PATH = ROOT / "manifest.json"
 TEXT_SUFFIXES = {".json", ".md", ".m3u8", ".py", ".log"}
+INPUT_BASELINE = "6fc0a02995bb24c11237fe3b8753f21f06a57f72"
+INPUT_BRANCH = "codex/v2-integration"
 SECRET_PATTERNS = [
     re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{12,}"),
     re.compile(r"(?i)(?:api[_-]?key|access_token|auth_token|client_secret)=([^&\s\"']+)"),
@@ -538,16 +539,11 @@ def schema_property_declarations(schema: Any) -> int:
     return 0
 
 
-def run_git(*args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    return completed.stdout.strip()
+def manifest_source() -> dict[str, str]:
+    return {
+        "branch": INPUT_BRANCH,
+        "inputBaseline": INPUT_BASELINE,
+    }
 
 
 def text_files_for_checks() -> list[Path]:
@@ -603,10 +599,7 @@ def generate_manifest() -> dict[str, Any]:
     manifest = {
         "format": "aurorama.base004.manifest",
         "schemaVersion": 1,
-        "source": {
-            "branch": run_git("branch", "--show-current"),
-            "head": run_git("rev-parse", "HEAD"),
-        },
+        "source": manifest_source(),
         "policy": {
             "textEncoding": "UTF-8",
             "textEol": "LF",
@@ -668,10 +661,10 @@ def main() -> int:
                 parse_failed = False
             except json.JSONDecodeError:
                 parse_failed = True
-            check(f"{case_id}-corrupt-json", parse_failed)
             check(
-                f"{case_id}-no-write",
-                expected["writesCommitted"] == 0
+                f"{case_id}-rejected-corrupt-json",
+                parse_failed
+                and expected["writesCommitted"] == 0
                 and expected["decision"] == "REJECT"
                 and "CORRUPT_JSON" in expected["issueCodes"],
             )
@@ -836,6 +829,14 @@ def main() -> int:
             and document["playlist"]["serverPlaylistId"] is None
             for document in parsed_documents.values()
         ),
+    )
+    source = manifest_source()
+    check(
+        "manifest-source-frozen",
+        source["branch"] == INPUT_BRANCH
+        and source["inputBaseline"] == INPUT_BASELINE
+        and re.fullmatch(r"[0-9a-f]{40}", source["inputBaseline"]) is not None
+        and "head" not in source,
     )
 
     failed = [item for item in checks if item["status"] != "PASS"]

@@ -16,6 +16,9 @@
 - [test-results.json](test-results.json)：99/99 静态检查结果。
 - [manifest.json](manifest.json)：相对路径、bytes、SHA-256 与 LF 清单；排除自身。
 
+`manifest.source.inputBaseline` 是合同证据的冻结输入基线，不是运行测试时的当前 HEAD；
+`test_contract.py` 不读取当前 HEAD 生成 manifest，因此同一证据树重复运行不会自改 SHA。
+
 测试命令：
 
 ```powershell

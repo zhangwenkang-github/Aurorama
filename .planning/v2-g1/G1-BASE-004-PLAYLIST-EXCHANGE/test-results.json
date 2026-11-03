@@ -428,12 +428,7 @@
       "detail": "expected=['VERSION_UNSUPPORTED'] actual=['VERSION_UNSUPPORTED']"
     },
     {
-      "id": "corrupt-json-corrupt-json",
-      "status": "PASS",
-      "detail": ""
-    },
-    {
-      "id": "corrupt-json-no-write",
+      "id": "corrupt-json-rejected-corrupt-json",
       "status": "PASS",
       "detail": ""
     },
@@ -514,6 +509,11 @@
     },
     {
       "id": "local-server-playlist-boundary",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "manifest-source-frozen",
       "status": "PASS",
       "detail": ""
     }
