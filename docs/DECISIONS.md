@@ -206,6 +206,7 @@
 | `V2-D198` | 接受 `V2-Q-G1-01` 推荐方向：先建立逻辑 contracts seam、FQCN / 模块 owner allowlist 与 debt ratchet，并以 `G1-S1` 冻结的 19 条 direct edges、11 个稳定违规 ID 为基线；本轮不全量物理拆 Gradle 模块。物理拆分只有在后续单 seam build pilot 证明构建、回滚、回归收益后才重新提报，不得把“逻辑 seam”理解为已有实现 | `V2_PLAN.md` §5.11.8～§5.11.9、§12；用户于 2026-11-03 原话“继续下一步。全部按推荐。” |
 | `V2-D199` | 接受 `V2-Q-G1-02` 的推荐用户可见兼容范围：1.4→2.0 保留登录、下载、书签、阅读进度、歌单、播放进度、设置和本地媒体库等已承诺资产；首次升级执行显式一次性 forward migration，显示进度并允许中断后的安全恢复，只有完整校验通过才进入 READY。任一 DB / sidecar / journal 不一致必须 FAIL_CLOSED，禁止破坏性 fallback、清库、真实数据 down migration、未知 provenance 猜测或把“受理 / 部分写入”显示为成功；等待时长只接受有进度和恢复入口的一次性迁移窗口 | `V2_PLAN.md` §5.11.4、§5.11.9、§12；用户于 2026-11-03 原话“继续下一步。全部按推荐。” |
 | `V2-D200` | 安装包体积不是 2.0 的硬性要求，产品取舍以体验为主；不得仅因 APK / native 体积删除 Media3 FFmpeg、mpv、codec、字幕能力或 ABI，也不得把体积当作运行时兼容、许可证或质量问题的替代决策。包体作为工程事实记录，最终媒体范围仍由格式覆盖、运行时稳定性、画质 / 字幕质量、许可证和维护证据决定 | `V2_PLAN.md` §5.11.11、§12；用户于 2026-11-03 原话“app安装包体积没有要求，app以体验为主” |
+| `V2-D201` | 用户接受 S5 决策简报的整包 R1“DNA 保留 + 共享骨架”：保留五主题材料语法与辨识度，共享 IA、入口顺序、状态含义、可访问名称、48dp 触控与反馈职责；`AmbientColors` 不作页面主题，只保留当前 App 主题内单一、局部、可关闭的内容强调；采用五档 RWD 与九条低保真边界。`V2-D057` 仅将 Nocturne 基础圆角从 12dp 改为 8dp，D057 的其余圆角及全部其他内容原样保留。`V2-Q-G1-04` 由此关闭，`docs/UI_DESIGN_SYSTEM.md` 升级为 V2 R1 人类可读权威；`CinefinTokens.kt` 仍为唯一代码 token 源。该决定不关闭 Q03，不表示 Compose / TalkBack / 200% / 动态色 / 折叠等 runtime 通过，也不宣告 S6 通过，不授权 G2 / 实现 / QA / 设备 / 服务器写 / Release | `docs/V2_PLAN.md` §5.11.6～§5.11.7、§5.11.13、§12、§13；`.planning/v2-g1/G1-S5/decision-brief.md`；`.planning/v2-g1/G1-S5/manifest.json`（SHA-256 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`）；用户于 2026-11-04 原话“选择R1。继续下一步，注意交接规范。还是尽量不要停，尽量使用子代理。” |
 
 ## Open
 
@@ -228,18 +229,17 @@ BASE-004 确定性修复 `5b7841d1b84fd91d60966851f5ba6da45005a4f6` 已提交；
 仍 Open，G1 NOT_PASSED，candidate packaged notice / SBOM / source bundle、written offer /
 corresponding source、exact attestation / relink、TTS voice/model 与零网络、PDFium
 revision / 16 KB / Range 及 runtime / device 仍待证据；
-`V2-Q-G1-04` 的 S5 五主题、九交互、RWD、状态与无障碍静态证据已完成，推荐 R1，A2 / A3
-待用户比较；Q04 仍等待用户主观视觉确认或后续明确授权。`docs/UI_DESIGN_SYSTEM.md` 仍为
-v1.0，G1 未通过。唯一 ACTIVE 保持 Q04；新增静态工作须前沿审计与明确授权。
-`V2-D200` 只固定体验优先与包体非要求。代理建议不得代替用户拍板。
+`V2-Q-G1-04` 已由 `V2-D201` 关闭：用户于 2026-11-04 选择整包 R1，并仅窄覆盖
+`V2-D057` 的 Nocturne 圆角 12→8dp。`docs/UI_DESIGN_SYSTEM.md` 已升级为 V2 R1 权威；
+`V2-Q-G1-03` 仍 Open，G1 未通过，S6 未执行。唯一 ACTIVE 见 §12 的 S6 启动交接。
+`V2-D200` 只固定体验优先与包体非要求。
 
 **G1 最终候选边界（2026-11-04，非新决策）**：最终 BASE 提交指针只证明合同批次与确定性
-修复已完成，clean-clone 的契约 / verifier exit 0 只证明静态证据可复算，不表示 Q03 / Q04
-关闭或 G1 PASS。前沿定格 `NOW_SAFE=0`；剩余 `B=用户视觉 Q04 / 引擎 voice / 排序 TTL
-合并策略`、`C=runtime/device`、`D=production implementation`、
-`E=S6/G2/QA/Release 未授权`。唯一下一步为用户选择 R1/A2/A3，或明确授权对应 B/C/D；
-无用户选择不得进入 S6/G2/实现/QA/设备/Release。最终文档提交 SHA 由 Git 实读，不在文档中
-自引用当前提交。
+修复已完成，clean-clone 的契约 / verifier exit 0 只证明静态证据可复算，不表示 Q03
+关闭或 G1 PASS。前沿定格 `NOW_SAFE=0`；剩余 `B=引擎 voice / 排序 TTL 合并策略`、
+`C=runtime/device`、`D=production implementation`、`E=G2/QA/Release 未授权`。
+唯一下一步是 §12 的 S6 启动交接；S6 尚未执行，不得把启动入口写成 S6 或 G1 PASS。
+最终文档提交 SHA 由 Git 实读，不在文档中自引用当前提交。
 
 **G1-A1/A2 与 BASE-001/003/004 静态合同输入（2026-11-04，非新决策）**：
 `G1-A1-DOWNLOAD-STATE-CONTRACT` 为 11 文件 / 103,924 B，manifest
@@ -276,17 +276,17 @@ roundtrip=`48/2/2/17`、12 scenarios / 99 checks；只有完整 SOURCE identity 
 重复保留，identity conflict 零写入，generic M3U8 的损失显式。B 重复 / 部分导入选择、C SAF /
 设备 / 重启证据与 D 生产 parser / 持久化迁移 / 服务器实现仍 Open。三包均独立 reviewer PASS
 且仅登记静态输入；前沿审计
-`NOW_SAFE=0`，即没有未阻塞静态增量，下一步只等待用户选择 R1/A2/A3，或明确授权对应
-B/C/D 及其精确证据边界。Q03 / Q04 仍 Open，G1 NOT_PASSED，`UI_DESIGN_SYSTEM` 仍为
-v1.0；E 类 S6/G2/独立 QA/Release 未授权；不新增用户决策，不把 B/C/D、runtime、device、
-implementation 或 QA 标成 Done，也不把静态合同或 clean-clone 通过写成 G1 PASS。
+`NOW_SAFE=0`，即没有未阻塞静态增量；Q04 已由 `V2-D201` 关闭，唯一下一步是 §12 的 S6
+启动交接。Q03 仍 Open，G1 NOT_PASSED；S6 尚未执行，`G2 / 独立 QA / Release` 仍未授权。
+不把 B/C/D、runtime、device、implementation 或 QA 标成 Done，也不把静态合同或
+clean-clone 通过写成 S6 / G1 PASS。
 
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
 |---|---|---|---|---|
 | `V2-Q-G1-03` | `G1-S4-A/B/C` 已冻结 runtime graph、许可证输入、Media3 / decoder / libmpv 静态事实及 TTS / PDF 非媒体矩阵；S4-C 证据提交 `a84ce4f1…` 的 `s4cNonMediaInputReadyForQ03=true`，但 `fullQ03UserDecisionReady=false`、`g1Passed=false`。Q03 static integration 提交 `d234b40c958288cd5277072452212fe578bb5495`；父级 `.planning/v2-g1/.gitattributes` 与 G1 证据公共 LF 规则提交 `c01e7361b2e86d4773aa4823429f324f9ed7d3df`；Q03 gaps integration 提交 `287c37e1d1287e2a90c047e628f7272a13cc5970` 仅新增 NOTICE / TTS-PDF 两组并更新 docs，对父级属性文件无改动。提交后 `core.autocrlf=true` clean-clone 复现 S5 verifier / SBOM validator PASS，S5 / Q03-SBOM / Q03-NATIVE / Q03-NOTICE / Q03-TTS-PDF 为 47/47、11/11、5/5、7/7、5/5，合计 75/75 LF、CRLF 0。S4-A Q03 静态增量：`.planning/v2-g1/G1-S4-A-Q03-SBOM/` 为 11 文件 / 482,118 B，manifest SHA-256 `220BB878A975B133178ADBCA80CEE919F829474727268D2DF8C14D13982F1019`；CycloneDX 1.6 valid，SBOM SHA-256 `85AF8B2968D843E8C763D1D364AE59AA8E40E6D11F38437426D3BF0B7FD277E2`，296 external / 35 direct / 261 transitive / 0 unresolved / 296 PURL，license primary `46 EXACT_POM / 246 FAMILY_ONLY / 4 MIXED_EXACT_FAMILY / 0 UNKNOWN`，仅按 snapshot 可关闭 `Q03-SBOM-RUNTIME-INVENTORY`。`.planning/v2-g1/G1-S4-A-Q03-NATIVE/` 为 5 文件 / 52,469 B，manifest SHA-256 `40E667F8A7650AF06BC145D85720CF5349BBC057E71BD0372E6D2213FEDA81DE`，31 子项 `13 PROVEN / 6 PARTIAL / 12 BLOCKED`；Media3 1.11.1 + decoder 1.9.0+1 静态 ABI / pin / 16 KB 已证明但 runtime 未证明；libmpv 1.0.0→mpv 0.41.0 / FFmpeg n8.1 / libass 0.17.4，AAR notice、source offer、双内核 load-order 与 notices 仍 blocked；TTS 代码许可已证明，voice/model 与零网络 runtime 未证明；PDFium 2.0.3 / 3.0.4-alpha01 native blob 相同，revision / notice / 16 KB / Range runtime 为 blocked / partial。两目录独立 reviewer PASS。新增 `.planning/v2-g1/G1-S4-A-Q03-NOTICE/` 7 文件 / 80,035 B，manifest `89306984825B400136FFF2BA5DAF98F06C3A1E2F89DA0F18F725BBCCA0EA63FE`，provenance 24=`13/4/7`、notice/source 10=`5/2/3`，仅 `M3-05` / `MPV-05` 从 BLOCKED 收窄为 PARTIAL；`.planning/v2-g1/G1-S4-A-Q03-TTS-PDF/` 5 文件 / 55,691 B，manifest `43C51B06AD830FB055C97DAD069C4B1C516D51CBDB4E7AC226E87ED16A16E41B`，21=`9/2/10`，URL 41=`38 HTTP200/1 Git/2 timeout`、聚合 PARTIAL；issue #56 仍 OPEN。静态 NOTICE 与 TTS / PDF evidence 仍为 PARTIAL；candidate packaged notice / SBOM / source bundle、written offer / corresponding source、exact attestation / relink、runtime / device 与真实链路仍开放 | Media3 主路径；Sherpa-ONNX 作为带门 G2 TTS Spike 主候选，system TTS 仅条件备选，Piper direct 延后；PDF 保留 PdfRenderer 回滚，stable PDFium 2.0.3 过硬门后再比较 | 双内核和 PDFium 提高覆盖；取舍看 runtime、许可与质量，不因包体单独删除能力；新增静态工作须前沿审计与明确授权 | **Open / safe Q03 static increments maximized；full Q03 Open；G1 NOT_PASSED** |
-| `V2-Q-G1-04` | `G1-S5` 已完成静态决策输入：`.planning/v2-g1/G1-S5/decision-brief.md`、`manifest.json`；47 文件 / 780,415 字节，manifest SHA-256 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`，46 索引 = 45 证据 + 1 EOL / control；`.gitattributes` 固定 `* text eol=lf`，47/47 LF、CRLF 0。Verifier / builder 的 source hash 来自固定 source `397ff4f0…` 的 `git cat-file blob`，不读取当前 worktree；Git policy 只要求校验时工作区 HEAD 是 source baseline 后裔，HEAD 实况由 `git rev-parse HEAD` 现场读取，不在 docs 自引用当前提交；docs 合法更新不再误报 `SOURCE_HASH_MISMATCH`。manifest / 证据 hash、预期 docs dirty 白名单、白名单外 dirty 拒绝、LF / `eol=lf` 与内容 counts 保留；`source hash mismatch`、`evidence SHA mismatch`、`outside dirty` 均 exit 1。主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130；独立 scoped evidence review PASS。静态覆盖不等于设备 / TalkBack / 真字体 / 动态色 runtime PASS | 推荐整包 R1“DNA 保留 + 共享骨架”：保留五主题材料语法，共享 IA、状态、48dp、可访问名称与反馈职责；`AmbientColors` 不作页面主题，只保留受控局部强调；五档 RWD 与 72 / 216dp 轨道、16 / 24 / 32 / 48dp 页面边距 | A2 强化玻璃、内高光与编辑材质表现，辨识度更强但增加可读性、性能和主题漂移风险；A3 强化结构统一，主题主要只换颜色 / 圆角，更稳但削弱 Lumen / Nocturne / Monolith 辨识度；也可逐项修订 | **Open / 等待用户视觉方向决策；G1 NOT_PASSED；UI_DESIGN_SYSTEM 仍为 v1.0** |
+| `V2-Q-G1-04` | `G1-S5` 已完成静态决策输入：`.planning/v2-g1/G1-S5/decision-brief.md`、`manifest.json`；47 文件 / 780,415 字节，manifest SHA-256 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`，46 索引 = 45 证据 + 1 EOL / control；`.gitattributes` 固定 `* text eol=lf`，47/47 LF、CRLF 0。Verifier / builder 的 source hash 来自固定 source `397ff4f0…` 的 `git cat-file blob`，不读取当前 worktree；Git policy 只要求校验时工作区 HEAD 是 source baseline 后裔，HEAD 实况由 `git rev-parse HEAD` 现场读取，不在 docs 自引用当前提交；docs 合法更新不再误报 `SOURCE_HASH_MISMATCH`。manifest / 证据 hash、预期 docs dirty 白名单、白名单外 dirty 拒绝、LF / `eol=lf` 与内容 counts 保留；`source hash mismatch`、`evidence SHA mismatch`、`outside dirty` 均 exit 1。主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130；独立 scoped evidence review PASS。静态覆盖不等于设备 / TalkBack / 真字体 / 动态色 runtime PASS | 用户于 2026-11-04 整包接受 R1“DNA 保留 + 共享骨架”：保留五主题材料语法，共享 IA、状态、48dp、可访问名称与反馈职责；`AmbientColors` 不作页面主题，只保留受控局部强调；五档 RWD 与 72 / 216dp 轨道、16 / 24 / 32 / 48dp 页面边距；仅 D057 Nocturne 圆角 12→8dp | `HISTORY`：A2 强化玻璃 / 内高光与 A3 强化结构统一均未被用户选择；不据此改写 D057 其他圆角 | **Closed / Accepted / `V2-D201`；UI_DESIGN_SYSTEM = V2 R1；Q03 仍 Open；G1 NOT_PASSED；S6 未执行** |
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）
 

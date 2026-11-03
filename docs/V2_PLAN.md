@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / NOW_SAFE_0 / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门最终交接 / Q03 五组静态证据、A1/A2 与 BASE-001/003/004 静态合同及 clean-clone 复现已完成，静态前沿 `NOW_SAFE=0`；BASE B/C/D、runtime / implementation、Q03 packaged closure 与 Q04 用户决策仍开放，S6/G2/QA/Release 未授权
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / NOW_SAFE_0 / Q04_CLOSED_D201 / Q03_OPEN / UI_V2_R1_ACCEPTED / S6_READY_NOT_STARTED / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门 S6 启动交接 / Q04 已由 `V2-D201` 接受整包 R1 并升级 V2 设计权威；Q03 五组静态证据、A1/A2 与 BASE 静态合同及 clean-clone 复现已完成。静态前沿 `NOW_SAFE=0`；Q03 packaged / runtime / device、引擎 voice 与排序 / TTL / 合并策略、S6 输出和 G2 仍未收口或未授权
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2845,7 +2845,7 @@ G1 后续只向用户提交经证据收敛的高杠杆决策，不逐条询问�
 | `V2-Q-G1-01` | 目标架构先做逻辑 contracts seam，还是本轮物理拆 Gradle 模块？ | 先逻辑契约 + allowlist；物理拆分仅在边界 / 成本 Spike 证明收益时进入候选 | `G1-S1` 含拆模块成本与回归面比较 |
 | `V2-Q-G1-02` | 1.4→2.0 迁移的用户可见兼容范围与可接受中断 / 恢复成本是什么？ | 保留全部已承诺用户资产；一次性迁移等待应有明确进度与恢复入口 | `G1-S2`；FAIL_CLOSED、禁止真实数据 down migration / 清库、未知 provenance 隔离是强制安全不变量，不由用户拒绝 |
 | `V2-Q-G1-03` | Media3 / mpv 双内核、TTS 与 PDF 的高成本组合如何取舍？ | Media3 主路径；mpv 仅覆盖已证必需能力；TTS / PDF 先隔离 Spike | `G1-S3/S4` 含 native 兼容、ABI、包体、性能与失败证据 |
-| `V2-Q-G1-04` | 五主题色板 / 材质、AmbientColors 去留、RWD 与低保真方向是否接受？ | 待风格帧和低保真复核后给出推荐包 | `G1-S5` |
+| `V2-Q-G1-04` | 五主题色板 / 材质、AmbientColors 去留、RWD 与低保真方向是否接受？ | `V2-D201` 接受整包 R1；仅窄覆盖 D057 Nocturne 圆角 12→8dp | `G1-S5` 证据 + 用户 2026-11-04 决策 |
 
 其余内部命名、模块文件拆分、fixture 结构和测试组织由团队在 G2 留痕决定。写入服务器地址、
 凭据和独立写服授权仍不属于 G1；未提供时相关真实写证据保持 `BLOCKED_ENVIRONMENT`。
@@ -2937,11 +2937,12 @@ Book direct Download 已可实现 200/206，但完整远程 range 仍需真实�
 | `V2-Q-G1-01` ✅ | 已由 `V2-D198` 接受 | 先逻辑 seam + FQCN/模块 owner allowlist + debt ratchet；暂不全量物理拆 Gradle 模块，只有单 seam build pilot 证明收益后才重新提报 |
 | `V2-Q-G1-02` ✅ | 已由 `V2-D199` 接受 | 保留全部已承诺资产；首次升级执行有进度、可恢复、FAIL_CLOSED 的一次性 forward migration；禁清库、禁真实 down migration、未知 provenance 不猜来源 |
 | `V2-Q-G1-03` | 静态安全增量可决策，完整 Q03 未就绪 | Q03 runtime inventory / native provenance、NOTICE、TTS / PDF 静态增量已集成；NOTICE 与 TTS / PDF evidence 仍 PARTIAL；仍等 packaged notice / SBOM / source bundle、attestation / relink 与 runtime / device 证据 |
-| `V2-Q-G1-04` | 可决策 | `G1-S5` 五主题风格帧与九条低保真复核已完成；推荐 R1，等待用户整包确认或选择 A2/A3 / 逐项修订 |
+| `V2-Q-G1-04` ✅ | 已由 `V2-D201` 接受 | 整包 R1 生效；仅 D057 Nocturne 基础圆角 12→8dp，其他主题圆角与 D057 其他内容不变；Q03 仍 Open |
 
 **G1/1 首波结论（历史快照）**：S1–S3 已形成可冻结的证据与决策输入，但没有任何真实服务器、
-设备、迁移、协议或候选包 PASS；首波结束时 `V2-Q-G1-03/04` 尚等待 S4/S5。后续 S4/S5
-章节与 §12 ACTIVE 已取代该下一步入口；当前唯一入口仍是 §12 Q04，禁止从本快照恢复旧计划。
+设备、迁移、协议或候选包 PASS；首波结束时 `V2-Q-G1-03/04` 尚等待 S4/S5。后续 S4/S5、
+`V2-D201` 与 §12 ACTIVE 已取代该下一步入口；当前唯一入口是 §12 的 S6 启动交接，禁止从本
+快照恢复旧计划。
 
 #### 5.11.10 G1-S4-A runtime closure / 许可证据（2026-11-03）
 
@@ -3183,16 +3184,17 @@ IA、入口顺序、状态含义、48dp 触控、可访问名称和反馈职责�
 A3 强化结构统一，主题基本只替换颜色与圆角，但会削弱 Lumen / Nocturne / Monolith 辨识度。
 A2 / A3 与逐项修订均为用户可选项，最终必须由用户拍板。
 
-**边界**：`V2-Q-G1-04` 保持 Open，G1 未通过；`docs/UI_DESIGN_SYSTEM.md` 仍是 v1.0，
-不因 S5 成为 V2 权威。S5 不得关闭 Q03 的 TTS / PDF / SBOM / runtime 硬门，也不得用于
-S6 验收、实现、G2、独立 QA、设备或服务器写。
+**决策前边界（HISTORY）**：当时 `V2-Q-G1-04` 保持 Open，`docs/UI_DESIGN_SYSTEM.md` 仍是
+v1.0。**后续结果（2026-11-04）**：用户选择整包 R1，`V2-D201` 关闭 Q04，并仅窄覆盖 D057
+Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 TTS / PDF / SBOM / runtime
+硬门，也不构成 S6 通过、实现、G2、独立 QA、设备或服务器写证据。
 
 ## 6. 三层前置门
 
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C 与 S5 静态证据已完成；Q03/Q04、S6、runtime 与真实证据仍未收口 |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5 与 Q04 已完成；Q03、S6、runtime 与真实证据仍未收口 |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3222,7 +3224,7 @@ S6 验收、实现、G2、独立 QA、设备或服务器写。
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ✅ 9 节点最终矩阵、计数、证据与跨域处置由 `V2-D193` 整包接受；需求域已收口 |
 | 9 | `V2-REQ-BASE` | 1.4 既有能力补充基线 | ✅ `V2-REQ-BASE-001～005` 五个 `MUST` 组由 `V2-D196` 保留，来源、验收、依赖、非目标与 G1 未决项已落 §5.10.5 |
 | 10 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ✅ `V2-D197` 完整 G0 PASS；`V2-Q-FINAL-01～03` 全部关闭；后续由 G1 接管 |
-| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；候选方案待 `G1-S1～S6` 和用户确认，禁止自动进入实现或 G2 |
+| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；下一入口为 S6，S6 尚未执行；禁止自动进入实现或 G2 |
 
 每个需求域的退出条件：
 
@@ -3330,7 +3332,73 @@ S6 验收、实现、G2、独立 QA、设备或服务器写。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-Q04 视觉方向最终交接（2026-11-04；静态合同已定格，NOW_SAFE=0）
+### ACTIVE：G1-S6 验收矩阵与 G2 任务卡启动交接（2026-11-04；Q04 已关闭，S6 尚未执行）
+
+**接手身份**：下一交付负责人 / 技术集成编排者；首个子代理专业身份为“`G1-S6` 资深移动端
+测试架构师”。负责人只做范围、证据边界、任务拆单和集成审查；不得把本轮启动入口解释为
+独立 QA、设备测试、生产实现或 G2 开工。
+
+**一句话现状**：`V2-Q-G1-04` 已由 `V2-D201` 关闭，用户于 2026-11-04 接受整包 R1；
+`docs/UI_DESIGN_SYSTEM.md` 已升级为 V2 R1 人类可读权威。唯一冲突由 D201 窄覆盖为
+`V2-D057` Nocturne 基础圆角 12→8dp，其他主题圆角与 D057 其他内容不变。Q03 仍 Open，
+G1 未通过；S6 尚未执行，E0–E7 矩阵、阈值和 G2 任务卡均尚未产出。
+
+**S6 范围**：
+
+1. 以已接受的 G0 八域、`V2-REQ-BASE-001～005`、A1/A2/BASE 静态合同和 R1 设计权威为输入，
+   建立“用户承诺 → 入口 → 操作 → 可观察结果 → 状态 / 无障碍 / RWD → 自动化 / fixture
+   证据 → 设备 / 候选包证据 → 未覆盖”总矩阵。
+2. 按 E0–E7 标注每项承诺的现有证据层级、缺口、验收阈值、真实执行环境和不可伪造边界；
+   fake、静态 fixture、历史 1.4 记录不得替生产协议映射或 runtime 作证。
+3. 将 MUST / SHOULD / 用户旅程 / 横向质量门收敛为有依赖的 G2 任务卡输入，逐卡写明身份、
+   可观察目标、非目标、文件 / 接口边界、证据、P0–P3、设备 / 写服需求和停止条件。
+4. 显式汇入 R1 五主题共享骨架、九条交互、RWD / 折叠、48dp、可访问名称、200% 重排、
+   Reduce Motion 与阅读正文局部主题；R1 的静态证据不得升级为 Compose / TalkBack /
+   动态色 / 真字体 / 真机 PASS。
+5. 对 Q03 保持独立：TTS voice / 离线 runtime、PDFium 16 KB / Range、packaged SBOM /
+   notice / source offer、attestation / relink 与设备证据仍由 Q03 / 后续门承接，不在 S6
+   自动拍板或标 Done。
+
+**读序**：
+
+1. `docs/PROJECT_PLAN.md` §3、§5、§7；
+2. 本 ACTIVE → §5.11.6～§5.11.7 → §5.11.13 → §6、§8～§12 → §13 的 R1 / Q03 最近记录；
+3. `docs/DECISIONS.md` Accepted 中 `V2-D057`、`V2-D198`～`D201` 与 Open 的 Q03；
+4. `docs/TASKS.md`、V2 R1 `docs/UI_DESIGN_SYSTEM.md`；
+5. S1～S4、S5、A1/A2、BASE 与 Q03 各证据目录先读 `README.md` / `manifest.json` /
+   压缩 `report.json`，仅对缺口命中项读原始 JSON / fixture；不整包通读静态证据。
+
+**证据 / 验收入口**：`.planning/v2-g1/G1-S5/README.md`、`decision-brief.md`、
+`manifest.json`、`data/themes.json`、`data/accessibility.json`、`data/rwd-matrix.json`、
+`data/interactions.json`；`.planning/v2-g1/G1-S1～S4-C/`；G1-A1/A2 与
+G1-BASE-001/003/004 各自的 `README.md` + `manifest.json`；Q03 五组静态证据。S6 的
+退出交付是总矩阵、阈值与 G2 任务卡输入及其 scoped review 记录，不是实现或 QA 报告。
+
+**非目标**：不改生产 Kotlin / Gradle / resources / schema / Manifest；不运行 Gradle、
+Compose、设备、adb、服务器或 Release；不执行独立 QA / merge-prep / push / tag；不关闭 Q03；
+不替用户裁定 TTS / PDF 引擎、voice、TTL / 排序 / 合并策略；不把 S6 启动、静态合同或 R1
+设计权威写成 S6 PASS、G1 PASS 或实现已开始。
+
+**停止条件**：发现除 D057 Nocturne `12→8dp` 之外的 R1 语义冲突；需要新增用户选择；缺少
+某项承诺可核验的入口或证据导致无法映射；需要生产代码、设备、服务器写、QA 或 Release；
+或出现把静态证据 / fake / 历史记录升级为 runtime PASS 的路径时立即停止。
+
+### HISTORY：G1-Q04 视觉方向用户决策交接（2026-11-04；Completed，已被上方 G1-S6 ACTIVE 取代）
+
+**用户选择**：用户于 2026-11-04 原话“选择R1。继续下一步，注意交接规范。还是尽量不要停，
+尽量使用子代理。”`V2-Q-G1-04` 由 `V2-D201` 关闭为 Closed / Accepted。
+
+**落档结果**：整包接受 R1；`V2-D057` 仅窄覆盖 Nocturne 基础圆角 12→8dp，其他主题圆角与
+D057 其他内容全部保留。`docs/UI_DESIGN_SYSTEM.md` 升级为 V2 R1 权威，
+`CinefinTokens.kt` 仍为唯一代码 token 源。Q03 仍 Open，G1 未通过。
+
+**证据**：`.planning/v2-g1/G1-S5/decision-brief.md`、
+`.planning/v2-g1/G1-S5/manifest.json`（SHA-256
+`BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`）；
+详见 `docs/DECISIONS.md` `V2-D201`。
+
+> 以下为 Q04 决策前快照；其中“等待用户选择 / Q04 Open / UI v1.0 / 下一步”等表述均已由
+> 上方 S6 ACTIVE、`V2-D201` 与 V2 R1 设计权威取代，仅保留证据上下文。
 
 **接手身份**：用户是 `V2-Q-G1-04` 视觉 / UX 方向的最终决策者。交付负责人只整理候选、
 证据边界与写回记录，不得代替用户做审美判断、把推荐写成已接受事实或据此进入 S6。
@@ -3467,7 +3535,7 @@ S6 / G2、生产实现、独立 QA、设备或 Release，也不得把本 ACTIVE 
 会话请求数 1793；低于 30 万交接准备线，后续扩项仍先复核水位。最终以当前线程的
 `deepseek-status` 实况为准。
 
-### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-Q04 ACTIVE 取代）
+### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-S6 ACTIVE 与 Q04 HISTORY 取代）
 
 **历史收口**：S5 五主题、九交互、RWD、状态与无障碍静态证据已制作完成并通过 verifier 与
 独立 scoped evidence review；证据根为 47 个文件 / 780,415 字节，manifest SHA-256
@@ -4183,3 +4251,11 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `D=production implementation`、`E=S6/G2/QA/Release 未授权`。Q03 / Q04 Open，
   G1 NOT_PASSED，UI v1.0，唯一 ACTIVE 为 Q04 视觉方向交接。本轮仅写三份权威文档，
   不实现、不 QA、不改证据、不 commit / push；最终文档提交 SHA 由 Git 实读，不自引用。
+- **2026-11-04 — Q04 R1 用户决策落档 / V2 设计权威升级**：用户原话“选择R1。继续下一步，
+  注意交接规范。还是尽量不要停，尽量使用子代理。”`V2-D201` 接受整包 R1，并仅窄覆盖
+  `V2-D057` 的 Nocturne 基础圆角 12→8dp，其他主题圆角与 D057 其他内容不变。
+  `V2-Q-G1-04` 关闭为 Closed / Accepted，`docs/UI_DESIGN_SYSTEM.md` 升级为 V2 R1 权威；
+  `CinefinTokens.kt` 仍为唯一代码 token 源。Q03 仍 Open，Compose / TalkBack / 200% /
+  动态色 / 折叠等 runtime 保持 `UNVERIFIED_RUNTIME`；G1 未通过，S6 尚未执行。唯一 ACTIVE
+  已切为 S6 启动交接。本轮只改四份权威文档，不实现、不 QA、不触设备 / 服务器、不改证据、
+  不 commit / push；最终 SHA 由 Git 实读。
