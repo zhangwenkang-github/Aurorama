@@ -1942,7 +1942,7 @@ QA 证据。64 个 MUST 子项进入 2.0 发布必修范围，不等于已经实
 | 4 | `V2-REQ-WRITE` | 533–557 第四章 | ✅ 13 节点由 `V2-D099`～`D105` 接受：11 单级 MUST + 1 复合 MUST/LATER + 1 验收流程节点；需求域已收口 |
 | 5 | `V2-REQ-MUSIC` | 558–746 第一个“第五章” | ✅ 62 节点最终矩阵、49 个 MUST 子项 MVP、`M-D`～`M-T` 证据与冲突处置由 `V2-D127` 整包接受；需求域已收口 |
 | 6 | `V2-REQ-DOWNLOAD` | 747–930 第二个“第五章” | ✅ 68 节点最终矩阵、64 个 MUST 子项 MVP、`D-D`～`D-T` 证据与冲突处置由 `V2-D146` 整包接受；需求域已收口 |
-| 7 | `V2-REQ-VIDEO` | 931–1047 第六章 | ⚪ Todo |
+| 7 | `V2-REQ-VIDEO` | 931–1047 第六章 | 🟡 新需求负责人已创建；正在核验硬门与本域前沿 |
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ⚪ Todo |
 | 9 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ⚪ Todo |
 
@@ -1988,11 +1988,11 @@ QA 证据。64 个 MUST 子项进入 2.0 发布必修范围，不等于已经实
 
 ## 12. 下一需求域交接
 
-### ACTIVE：`V2-REQ-VIDEO` 待启动 / 下载域已收口（2026-11-03）
+### ACTIVE：`V2-REQ-VIDEO` 需求前沿 / 下载域已收口（2026-11-03）
 
-**状态**：`DOWNLOAD_REQUIREMENTS_DOMAIN_CLOSED / NEXT_VIDEO_HANDOFF_READY`。
+**状态**：`DOWNLOAD_REQUIREMENTS_DOMAIN_CLOSED / VIDEO_REQUIREMENT_HANDOFF_ACTIVE`。
 `V2-D146` 已接受下载 68 节点最终矩阵并关闭 `V2-Q-DOWNLOAD-FINAL`；`TASKS` 将
-`V2-REQ-DOWNLOAD` 移入 Done。当前没有活动需求实现，下一域为 `V2-REQ-VIDEO`。
+`V2-REQ-DOWNLOAD` 移入 Done。全新的 `V2-REQ-VIDEO` 需求负责人已创建并承接第一轮前沿。
 
 **工作对象 / 事实**：`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
 分支 `codex/v2-integration`；下载矩阵提交为 `8cade229c754ddd19b534b030862cfdd35e781e7`，
@@ -2006,20 +2006,26 @@ QA 证据。64 个 MUST 子项进入 2.0 发布必修范围，不等于已经实
 - `D-D / D-C / D-A / D-F / D-R / D-O / D-N / D-U / D-T` 证据生效；所有冲突 / 旧实现处置已归档。
 - 当前仍没有下载实现、G1 方案、候选包、设备、真实旅程、QA 或服务器写证据；需求收口不等于实现完成。
 
-**下一步入口**：创建全新的 `V2-REQ-VIDEO` 需求负责人。第一条只读动作是核验 worktree、
-`codex/v2-integration`、clean、双祖先与外部 SHA-256，然后只读 `docs/PROJECT_PLAN.md`、
-本 ACTIVE、`V2_PLAN.md` 的视频分支所在行、`TASKS` 与 `DECISIONS`，再只读外部第 931–1047 行。
-第一步只建视频章节标题地图、能力 / 冲突 / 依赖前沿，不进入实现。
+**当前负责人入口**：先核验上面列出的唯一 worktree、`codex/v2-integration`、clean、双祖先与
+外部 SHA-256，然后按交接 prompt 读取 `AGENTS.md`、Engramory、`PROJECT_PLAN`、本 ACTIVE、
+`V2_PLAN` Video 行、`TASKS` / `DECISIONS` 直接相关决策，再只读外部第 931–1047 行。第一轮只建
+视频章节标题地图、能力 / 冲突 / 依赖 / 状态不变量与可问前沿，不进入实现。
 
 **停止条件**：Git / 哈希 / 白名单漂移；需要新增未授权产品决策；需要 G1、实现、Gradle、设备、
 服务器写、QA 或发布。
 
-**上下文水位**：2026-11-03 09:13 经 `deepseek-status` 实测
-`348,525 / 1,048,576`（33.2%，缓存命中 97.9%，请求 44），已超过 30 万准备线但未到
-35 万硬线；本需求域在此自然边界收口，不在本线程启动 Video。
+**上下文水位**：交接方于 2026-11-03 11:50 经 `deepseek-status` 实测
+`382,838 / 1,048,576`（36.5%，缓存命中 99.9%，请求 60），已超过 35 万硬线；下载收口线程
+`01a19eeb-8a17-75a1-b43d-0d21de0d2309` 已完成交接并停止。新负责人必须重新测量自己的水位。
 
-**Thread ID**：`V2-REQ-VIDEO` 新负责人待创建；下载矩阵线程
-`01a19eeb-8a17-75a1-b43d-0d21de0d2309` 已完成本域收口。
+**Thread ID**：`V2-REQ-VIDEO` 负责人 = `01a19f88-ae80-7320-84be-6be62723dbd0`，标题
+“Aurorama 2.0 V2-REQ-VIDEO 需求前沿”。交接 prompt 已在创建后回读，专业身份、精确读序、
+931–1047 白名单、完整 SHA-256、非目标、第一步与停止条件均已核对。
+
+### HISTORY：`V2-REQ-VIDEO` 待启动 / 下载域已收口（2026-11-03）
+
+该状态已由上方 `VIDEO_REQUIREMENT_HANDOFF_ACTIVE` 取代。下载域由 `V2-D146` 收口后，
+新负责人交接尚未创建的短暂状态不再作为当前事实。
 
 ### HISTORY：`V2-REQ-DOWNLOAD` 最终矩阵已提交 / 等待整包确认（2026-11-03）
 
@@ -2124,3 +2130,4 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
 - **2026-11-03 — `V2-REQ-DOWNLOAD` 最终矩阵负责人已创建**：新线程 `01a19eeb-8a17-75a1-b43d-0d21de0d2309`，从 `cfabdc10051773d97a33f8940d4e68db688b8025` 承接最终候选矩阵与 `V2-Q-DOWNLOAD-FINAL` 整包确认；本负责人未继续提交最终矩阵。
 - **2026-11-03 — `V2-REQ-DOWNLOAD` 最终候选矩阵提交**：新负责人核验实际交接 HEAD `be49f512`；`cfabdc10..HEAD` 仅含允许的 `docs/V2_PLAN.md` Thread ID / 日志 3 行，双祖先、clean 与外部 SHA-256 全部通过。只读外部 747–930，定点核验下载状态 / sidecar / BookDownload / 通知 / Worker / Room 后，归一 68 节点与 `64` 个 MUST 子项 MVP，建立 `D-D`～`D-T` 证据和 23 项冲突 / 旧实现处置。`V2-Q-DOWNLOAD-FINAL` 等待用户整包确认；未改业务代码、未跑 Gradle、未进入 G1 / QA / 设备 / 服务器写 / push / tag / Release。
 - **2026-11-03 — `V2-REQ-DOWNLOAD` 整包接受并收口需求域**：用户原话“接受整包”；`V2-D146` 关闭 `V2-Q-DOWNLOAD-FINAL`，接受 68 节点最终矩阵、`62 MUST / 2 SHOULD / 0 LATER / 1 OUT / 2 复合 / 1 流程` 计数、64 个 MUST 子项 MVP、`D-D`～`D-T` 证据及全部冲突 / 旧文档处置。`TASKS` 将下载域移入 Done，`DECISIONS` Open 清零，`PROJECT_PLAN` 把下一域切到 `V2-REQ-VIDEO`。未改业务代码、未跑 Gradle、未进入 G1 / QA / 设备 / 服务器写 / push / tag / Release。
+- **2026-11-03 — `V2-REQ-VIDEO` 负责人交接已创建**：交接方实测 `382,838 / 1,048,576`（36.5%），超过 35 万硬线后创建全新需求负责人线程 `01a19f88-ae80-7320-84be-6be62723dbd0`。创建后回读确认专业身份、唯一 worktree、分支 / HEAD / 双祖先 / 外部 SHA-256、精确读序、931–1047 白名单、非目标、第一步与停止条件完整；下载收口线程停止继续扩项。
