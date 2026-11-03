@@ -3226,6 +3226,8 @@ Gradle、Manifest、资源、schema 或 S4-C 证据；需要设备 / 服务器�
 文档后继，但记录 `deepseek-status` 水位和派开工门子代理必须先于任何 S5 视觉材料读取。
 停止条件如上；没有用户新的 `V2-Q-G1-04` 决策或完整 S6 输入前，不得报 G1 PASS。
 
+**当前负责人线程**：`01a1a1de-5fd9-7290-99ca-01ac03b7c827`（2026-11-03 创建并已投递）。
+
 ### HISTORY：G1-S4-C 离线 TTS / PDF 证据交接（2026-11-03；已被上方 G1-S5 ACTIVE 取代）
 
 **历史收口**：S4-C 静态证据已冻结在 `a84ce4f1…`；`s4cNonMediaInputReadyForQ03=true`、
