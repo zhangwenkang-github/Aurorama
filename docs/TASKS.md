@@ -6,7 +6,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 停止条件 |
 |---|---|---|---|---|
-| `V2-SOLUTION-BASELINE` | G1 方案门 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | G0、G1/0、S1–S3、Q01/Q02 与 S4-A 已完成；S4-B native/ABI、S4-C TTS/PDF、S5/S6 待排 | G1 未通过；release SBOM / native 许可来源 / 维护检查仍 BLOCKED；真实迁移 / 写服 / SyncPlay / 设备证据仍未执行；禁止进入实现或 G2 |
+| `V2-SOLUTION-BASELINE` | G1 方案门 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | G0、G1/0、S1–S3、Q01/Q02 与 S4-A 已完成；当前 S4-B 媒体引擎 / Native ABI 已准备交接新会话；S4-C、S5/S6 待排 | G1 未通过；Media3 / FFmpeg decoder / libmpv ABI 与 native 冲突未证；release SBOM / native 许可来源 / 维护检查仍 BLOCKED；禁止进入实现或 G2 |
 
 ## Review
 

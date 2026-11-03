@@ -3072,7 +3072,7 @@ runtime closure 作为 Q03 输入。
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-S4-A 完成 / S4-B–C 与 S5–S6 后续排队（2026-11-03）
+### ACTIVE：G1-S4-B 媒体引擎 / Native ABI 交接（2026-11-03）
 
 **当前负责人身份**：**G1/1 证据编排负责人 / 技术集成编排者**。只负责 G1/1 范围、风险、角色拆单、
 只读白名单、压缩报告与关键 diff 审查、证据门、文档和交接；不承担实现工程师、独立 QA、
@@ -3080,8 +3080,8 @@ Release 架构师或 merge-prep owner。
 
 **一句话现状**：G1/0、S1–S3 与 S4-A 已完成；`V2-Q-G1-01/02` 已由用户接受。
 S4-A 冻结 296 个 runtime external graph node、35/35 direct POM 许可和 native / package
-事实，但权威 SBOM、native 许可来源、维护检查仍 BLOCKED。`S4-B/C` 与 S5/S6 排队；
-G1 仍未通过，不进入实现、G2、QA、设备或服务器写。
+事实，但权威 SBOM、native 许可来源、维护检查仍 BLOCKED。当前把 `S4-B` 交给新负责人；
+S4-C 与 S5/S6 继续排队。G1 仍未通过，不进入实现、G2、QA、设备或服务器写。
 
 **状态**：`G0_PASSED / G1_ACTIVE / G1_0_READONLY_COMPLETE /
 G1_1_S1_S3_STATIC_COMPLETE / Q01_Q02_ACCEPTED / G1_S4_A_COMPLETE /
@@ -3111,6 +3111,22 @@ G1_NOT_PASSED / NO_IMPLEMENTATION`。
   `.planning/v2-g1/G1-S1`、`G1-S2`、`G1-S3`。
 - §5.11.10 已冻结 S4-A：离线 runtime closure、direct license 覆盖、APK ABI / native /
   包体事实与 Q03 输入；发布许可仍未通过。证据位于 `.planning/v2-g1/G1-S4-A`。
+- **S4-B 交接 brief**：新负责人身份为“资深 Android 媒体引擎 / Native ABI 架构师 +
+  G1-S4-B 证据 owner”。目标是在不修改生产代码的前提下，冻结 Media3 1.11.1、
+  Jellyfin `media3-ffmpeg-decoder:1.9.0+1`、`libmpv:1.0.0` 与 libc++ 的
+  API / JNI / ELF / ABI / duplicate-native / package 兼容矩阵；必要时只在基于
+  `5dd799060982ebafe237776ecf39f95995d5dbc6` 的独立 detached temp worktree 做
+  `--offline` debug build，记录 base、命令、exit、APK 路径与哈希、lib entries、
+  `readelf`/`llvm-readelf` NEEDED/SONAME/符号版本检查，最后清理 temp worktree。
+  允许联网查 AndroidX Media3、Jellyfin media3 fork、mpv-android、FFmpeg、NDK / libc++、
+  CVE / 维护状态等公开官方资料；禁止下载/安装新应用依赖、认证、访问 Jellyfin 实例、
+  播放、设备 / ADB、服务器写、修改当前 worktree 生产文件。
+  证据仅写 `.planning/v2-g1/G1-S4-B/report.json`、`native-matrix.json`、
+  `abi-decision.json`、`commands.log`，不得创建零散 `.md` 或改 `docs/`。最多证明
+  compile/package/ELF 级兼容，不能声称运行时播放 PASS。第一条只读动作是核验 worktree /
+  HEAD / clean、读本 ACTIVE + §5.11.10 + S4-A `report.json` / `runtime-closure.json`。
+  停止条件：对象漂移、需要修改生产代码、需要新依赖下载、设备 / 服务器调用、许可冲突，
+  或证据无法在 25 万前收口。
 - `DECISIONS.Open` 的 `V2-Q-G1-01～04` 是 evidence-gated 问题；对应 Spike 未收口前不得
   把代理推荐写成已接受决策。`V2-Q-G1-01/02` 已由 `V2-D198/D199` 关闭；`03` 等 S4，
   `04` 等 S5。
@@ -3149,8 +3165,9 @@ Release。发现新产品 / UX 范围、数据破坏、许可不可接受、对�
 
 **当前负责人线程**：`01a1a178-a8ea-7ce1-bf18-f9ead6037071`（2026-11-03 创建并接管）。
 S1–S3 证据收口于 `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc`；S4-A 证据基线为
-`cecc7d1013efd04a1ad25905b9f1832d2c5ccac9`。本次收口前实测约 `27.8 万 / 1,048,576`
-（26.5%），已过 25 万收缩门、未到 30 万交接准备门；本波完成后不再扩项。
+`cecc7d1013efd04a1ad25905b9f1832d2c5ccac9`；S4-B 交接基线为
+`5dd799060982ebafe237776ecf39f95995d5dbc6`。本次收口前实测约 `29.1 万 / 1,048,576`
+（27.8%），已到 30 万交接准备门；本会话不再扩项，由新负责人接管 S4-B。
 `git diff --check`、S4-A 三份 JSON 解析、敏感扫描、Engramory checker 与 doctor 均通过；
 doctor 仅提示两个既有 / 当前项目 note 超过 12 KB。提交后的 clean / HEAD 由 Git 实况复核。
 
