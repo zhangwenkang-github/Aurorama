@@ -3191,6 +3191,15 @@ G1_S5_PENDING / G1_NOT_PASSED / NO_IMPLEMENTATION`。
 - 视频收口 `bd5e3aa59c2e5671ada9354f230da4519589272b`
 - 外部原文 `E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229`
 
+**本次交接提交等式（强制）**：主交接提交为
+`5bc0c52e1a2d4a9a63b7359f883b65a81f6a6d76`；允许的唯一纯文档后继为
+`2ba530f67012831dfb866a321bf90ed5c86786ac`，其直接父提交必须是前者、只改
+`docs/V2_PLAN.md` 且仅回写 thread id `01a1a1de-5fd9-7290-99ca-01ac03b7c827`。该后继是
+合法核验对象，不是漂移。其后只允许一个具名“交接头误判纠错提交”：主题必须为
+`docs(v2): prevent handoff head false positives`，只改 `AGENTS.md`、
+`docs/PROJECT_RULES.md`、`docs/V2_PLAN.md`；精确 SHA 由恢复 prompt 提供。开工门不得仅因
+HEAD 沿这条具名链前进而判 `BLOCKED`。
+
 若本次文档同步尚未形成已提交后继或工作树不 clean，开工门必须 `BLOCKED`，不得在未提交的
 交接态直接开始 S5。
 
