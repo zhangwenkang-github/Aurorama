@@ -1,0 +1,513 @@
+{
+  "schemaVersion": "1.0",
+  "identity": {
+    "taskId": "G1-S4-C",
+    "role": "资深离线语音 / 文档渲染架构师与 G1-S4-C 证据 owner",
+    "threadId": "01a1a1c7-bb81-78f3-b470-4baaf481d3ac",
+    "sourceThreadId": "01a1a1a5-6a59-7ff1-819d-ad5facce9408",
+    "handoffCommit": "2cc81c2c1e3c62d8c7d2554bd8f1848235b7ec4d",
+    "observedHead": "4b1591ff66e580dd5477d818257efca6eb527c50",
+    "observedHeadQualification": "指定交接提交的唯一纯文档后继，提交标题 docs(v2): record g1 s4c handoff thread，父提交正确，仅修改 docs/V2_PLAN.md 并回写本 thread id",
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "scope": "只读 / 隔离证据；TTS 与 PDF 非媒体引擎输入",
+    "status": "S4C_EVIDENCE_FROZEN_WITH_GATES / G1_NOT_PASSED / NO_IMPLEMENTATION"
+  },
+  "model": {
+    "primary": "deepseek-flash",
+    "reasoningEffort": "max",
+    "forkTurns": "none",
+    "startupChecker": {
+      "agent": "/root/s4c_startup_check",
+      "model": "deepseek-flash",
+      "reasoningEffort": "max",
+      "forkTurns": "none",
+      "result": "PASS"
+    }
+  },
+  "baseHead": "4b1591ff66e580dd5477d818257efca6eb527c50",
+  "branch": "codex/v2-integration",
+  "startupGate": {
+    "worktreeClean": true,
+    "gitDiffCheck": "PASS",
+    "baselineAncestor": "4fbe5e12d182fc1d9bdf2790c7a725bec0074d37",
+    "videoClosureAncestor": "bd5e3aa59c2e5671ada9354f230da4519589272b",
+    "bothAncestorsOfHead": true,
+    "externalSource": "F:\\Develop\\codex_work\\Documents\\Codex\\2.0更新文档.md",
+    "externalSourceSha256": "E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229",
+    "externalSourceShaMatched": true,
+    "activeHandoffUnique": true,
+    "historyHandoffsUnique": "12/12",
+    "allowedEvidencePathsOnly": true
+  },
+  "executed": [
+    {
+      "id": "S4C-EXE-01",
+      "action": "在事实 worktree、pwsh 7.6.5 下运行 DeepSeek 状态脚本两次并记录水位",
+      "status": "PASS",
+      "output": "初始 39884 tokens；写入前 256243 tokens"
+    },
+    {
+      "id": "S4C-EXE-02",
+      "action": "全新只读子代理核验 cwd、branch、HEAD、clean、git diff --check、双祖先、外部 SHA、ACTIVE/HISTORY、TASKS/DECISIONS 与白名单",
+      "status": "PASS",
+      "output": "压缩 PASS；未发现对象漂移"
+    },
+    {
+      "id": "S4C-EXE-03",
+      "action": "按指定读序读取 Engramory 索引与七个指定记忆、root AGENTS.md、V2_PLAN 指定章节、TASKS In Progress、DECISIONS D200/Open、PROJECT_RULES 指定规则、ADR-0003～0007 标题与结论",
+      "status": "PASS",
+      "output": "未加载 V2_PLAN 全文、外部需求全文、app/tv、测试或资源全量"
+    },
+    {
+      "id": "S4C-EXE-04",
+      "action": "窄检索现有 TTS、PDF、Gradle、Manifest 与本地 Gradle 缓存",
+      "status": "PASS",
+      "output": "未找到 TextToSpeech/TTS 实现；当前 PDF 为 PdfRenderer + PdfBox 补充；io.legere 与 androidx.pdf 本地缓存均 ABSENT；项目 minSdk 28、targetSdk 36、四 ABI"
+    },
+    {
+      "id": "S4C-EXE-05",
+      "action": "核验 Sherpa-ONNX、Piper、PdfiumAndroidKt 固定 tag/commit、release 元数据、官方源码 API 与许可证",
+      "status": "PASS_WITH_NETWORK_METADATA_LIMITS",
+      "output": "Sherpa v2.0.1@af2d8d81…；Piper v1.8.0@639388b6…；PdfiumAndroidKt 2.0.3@92e6e42e…；三个 tag 均由 git ls-remote 固定"
+    },
+    {
+      "id": "S4C-EXE-06",
+      "action": "查询 Maven Central 元数据/POM、Android 官方 API 文档与 OSV 包坐标",
+      "status": "PASS_WITH_SCOPE_LIMIT",
+      "output": "io.legere 稳定版 2.0.3、预发布 latest 3.0.4-alpha01；OSV 查询三个包坐标均为 0 条，但不代表 native 供应链已完成 CVE 映射"
+    }
+  ],
+  "notExecuted": [
+    {
+      "id": "S4C-NOT-01",
+      "item": "Gradle / APK build",
+      "reason": "S4-C 当前候选均未引入，静态证据已足够冻结输入；按边界未下载依赖，也未使用 temp worktree build"
+    },
+    {
+      "id": "S4C-NOT-02",
+      "item": "TTS 真机冷启动、中文音质、RTF、内存、耗电、暂停恢复、句级高亮和零网络流量",
+      "reason": "禁止模型下载、ADB、设备与认证；这些必须在 G2 隔离 Spike 执行"
+    },
+    {
+      "id": "S4C-NOT-03",
+      "item": "PDF Range 真实请求、2.53 GB / 5006 页大文件、渲染保真、搜索取消、目录和批注回放",
+      "reason": "禁止服务器访问、设备和新依赖；本报告只冻结静态 API 与已有历史证据"
+    },
+    {
+      "id": "S4C-NOT-04",
+      "item": "候选 AAR 解包、ELF 16 KB 对齐复算、最终 native notice / SBOM",
+      "reason": "不得下载新依赖；GitHub API 在最后一轮核验触发匿名限流，未用认证绕过"
+    },
+    {
+      "id": "S4C-NOT-05",
+      "item": "Jellyfin、播放、认证、服务器写、ADB、AVD、截图",
+      "reason": "明确超出 S4-C 边界"
+    }
+  ],
+  "candidates": {
+    "tts": [
+      {
+        "id": "TTS-SYSTEM",
+        "name": "Android system TextToSpeech / installed voices",
+        "status": "CONDITIONAL_BOUNDARY_ONLY"
+      },
+      {
+        "id": "TTS-SHERPA-ONNX",
+        "name": "Sherpa-ONNX v2.0.1 offline VITS / Piper-family voice",
+        "status": "RECOMMENDED_FOR_GATED_G2_SPIKE"
+      },
+      {
+        "id": "TTS-PIPER1-GPL",
+        "name": "Piper1-GPL v1.8.0 direct libpiper integration",
+        "status": "DEFER_PENDING_ANDROID_PACKAGING_AND_MAINTENANCE_GATE"
+      }
+    ],
+    "pdf": [
+      {
+        "id": "PDF-ANDROID-PDFRENDERER",
+        "name": "android.graphics.pdf.PdfRenderer current local renderer",
+        "status": "KEEP_AS_LOCAL_PATH_AND_ROLLBACK"
+      },
+      {
+        "id": "PDF-IO-LEGERE-2.0.3",
+        "name": "io.legere:pdfiumandroid:2.0.3 with PdfiumSource",
+        "status": "RECOMMENDED_FOR_GATED_G2_RANGE_SPIKE"
+      },
+      {
+        "id": "PDF-IO-LEGERE-3.0.4-ALPHA01",
+        "name": "io.legere:pdfiumandroid:3.0.4-alpha01",
+        "status": "DEFER_PRERELEASE_AND_SAME_16KB_RISK"
+      }
+    ]
+  },
+  "API": {
+    "tts": {
+      "systemAndroid": {
+        "surface": [
+          "TextToSpeech(context, listener)",
+          "getVoices() / getVoice()",
+          "Voice.isNetworkConnectionRequired()",
+          "setSpeechRate(float)",
+          "speak(text, queueMode, params, utteranceId)",
+          "synthesizeToFile(...)",
+          "UtteranceProgressListener.onStart/onDone/onError/onStop",
+          "UtteranceProgressListener.onRangeStart(start,end,frame) only when an engine supplies timing"
+        ],
+        "offlineBoundary": "过滤 isNetworkConnectionRequired=false 可缩小网络依赖面，但平台 API 同时暴露 ERROR_NETWORK、ERROR_NETWORK_TIMEOUT、ERROR_NOT_INSTALLED_YET 与语音数据下载语义；不能仅凭 API 把它判成完全离线",
+        "controlBoundary": "无原生 pause；stop 后可重新合成但未证明无缝暂停恢复；前/后句、句级高亮和定时由应用实现"
+      },
+      "sherpaOnnx": {
+        "fixedVersion": "v2.0.1",
+        "surface": [
+          "OfflineTts(config)",
+          "generate(text, sid, speed)",
+          "generateWithCallback(text, sid, speed, callback)",
+          "generateWithConfigAndCallback(...)",
+          "GeneratedAudio.samples/sampleRate/speed"
+        ],
+        "offlineBoundary": "模型、配置、词法/规则资源均落在进程内或应用资源；实现可做到运行时零远程 API，但本次没有飞行模式或流量证明",
+        "controlBoundary": "回调交付 PCM 分块，播放、暂停、队列、前后句与高亮由应用 AudioTrack/播放器状态机实现"
+      },
+      "piper1": {
+        "fixedVersion": "v1.8.0",
+        "surface": [
+          "piper_create / piper_free",
+          "piper_synthesize_start",
+          "piper_synthesize_next",
+          "piper_audio_chunk samples / sample_rate / phoneme_ids / alignments"
+        ],
+        "offlineBoundary": "C/C++ API 与 ONNX 声音模型可全本地；需自行打包 ONNX Runtime、espeak-ng 数据或中文音素资源",
+        "controlBoundary": "PCM 分块与音素/样本对齐可用，但 Android JNI、播放暂停、句子映射、线程与生命周期全部需要自建"
+      }
+    },
+    "pdf": {
+      "androidPdfRenderer": {
+        "surface": [
+          "PdfRenderer(ParcelFileDescriptor)",
+          "getPageCount()",
+          "openPage(index)",
+          "Page.render(Bitmap, ...)",
+          "Page.close()"
+        ],
+        "rangeBoundary": "构造函数只接受 seekable ParcelFileDescriptor；无自定义 random-access source，远端 PDF 不能直接按 Range 打开",
+        "documentServices": "公开高层 API 提供分页和渲染；文本抽取/搜索/目录由现有 PdfBox 适配补齐，不能视为 PdfRenderer 自身能力",
+        "threading": "官方文档说明内部锁串行化多线程访问；现有项目仍用 Mutex 显式串行化页面操作"
+      },
+      "legerePdfium": {
+        "fixedVersion": "2.0.3",
+        "surface": [
+          "PdfiumSource.length",
+          "PdfiumSource.read(position, buffer, size)",
+          "PdfiumCore.newDocument(PdfiumSource, password?)",
+          "PdfDocument.openPage(index)",
+          "PdfPage.openTextPage()",
+          "PdfTextPage.findStart/findNext",
+          "PdfDocument.getTableOfContents()",
+          "PdfPage.renderPageBitmap(..., renderAnnot)"
+        ],
+        "rangeBoundary": "自定义 source 明确接受位置、缓冲区和长度；可由现有 HttpByteSource 适配，但未执行真实 206 / Range 请求与内存验证",
+        "documentServices": "高层 API 已暴露文本页、页内查找、层级书签和 annotation render 开关；未发现高层创建/编辑嵌入式 annotation API",
+        "threading": "PdfiumCore 以全局锁串行化 native 调用；长请求需要独立 worker、取消登记与生命周期围栏"
+      }
+    }
+  },
+  "ABI": {
+    "project": {
+      "minSdk": 28,
+      "targetSdk": 36,
+      "compileSdk": 37,
+      "configuredAbis": [
+        "armeabi-v7a",
+        "arm64-v8a",
+        "x86",
+        "x86_64"
+      ]
+    },
+    "systemTts": "无由 App 打包的 native ABI；实际引擎与音色由设备/OEM/用户安装决定",
+    "sherpaOnnx": {
+      "status": "STATIC_PASS_PENDING_AAR_ELF_CHECK",
+      "abis": [
+        "armeabi-v7a",
+        "arm64-v8a",
+        "x86",
+        "x86_64"
+      ],
+      "evidence": "android/SherpaOnnxAar/sherpa_onnx/src/main/jniLibs 下四个 ABI 目录",
+      "minSdk": 21
+    },
+    "piper1": {
+      "status": "NO_OFFICIAL_ANDROID_ABI_ARTIFACT",
+      "abis": [],
+      "note": "v1.8.0 六个 release 资产均为 Python wheel 或 sdist；direct libpiper 需要自建 NDK/JNI 与 ONNX Runtime 交叉编译"
+    },
+    "androidPdfRenderer": {
+      "status": "PLATFORM_PROVIDED",
+      "abis": "无 App 自带 PDF native ABI；实际由系统镜像/设备 ABI 和 OS 更新负责"
+    },
+    "legerePdfium": {
+      "status": "STATIC_PASS_WITH_16KB_BLOCKER",
+      "abis": [
+        "armeabi-v7a",
+        "arm64-v8a",
+        "x86",
+        "x86_64"
+      ],
+      "minSdkFromPom": 24,
+      "nativeLibraryBytes": {
+        "arm64-v8a": 4738808,
+        "armeabi-v7a": 3123256,
+        "x86": 4397284,
+        "x86_64": 4372592
+      },
+      "blocker": "上游仓库 open issue #56 明确报告 2.0.3 与 3.0.4-alpha01 的 64-bit GNU_RELRO 未通过 16 KB 边界检查"
+    }
+  },
+  "license": {
+    "systemTts": "App 仅使用平台 API；系统引擎、OEM 音色与本地语音包不随 App 再分发，许可与安全更新由平台/供应商管理",
+    "sherpaOnnx": {
+      "engine": "Apache-2.0",
+      "transitive": "ONNX Runtime 与所选音色/词法/规则资源必须分别入 SBOM；Apache-2.0 AAR 不覆盖第三方声音模型",
+      "voiceModelGate": "每个中文模型、lexicon、rule FST/FAR 和随包数据必须逐项核验 MODEL_CARD/许可证"
+    },
+    "piper1": {
+      "engine": "GPL-3.0（COPYING 为 GNU GPL v3）",
+      "transitive": "espeak-ng、ONNX Runtime、中文音素数据与每个 voice MODEL_CARD 需逐项核验",
+      "compatibility": "与项目 GPL-3.0 方向不构成已知冲突，但分发义务与 notice 仍需法务/发布门签署"
+    },
+    "androidPdfRenderer": "平台 API；PDF 内容版权与系统组件更新单独处理，无新增 App native notice",
+    "legerePdfium": {
+      "binding": "Maven POM 与源码头为 Apache-2.0",
+      "nativePdfium": "上游 PDFium 通常按 BSD-3-Clause 处理；必须在最终 AAR 中复算精确版本、哈希、版权和 notice",
+      "status": "BLOCKED_NATIVE_PROVENANCE"
+    },
+    "securityAdvisory": {
+      "osv": {
+        "PyPI:sherpa-onnx@2.0.1": 0,
+        "PyPI:piper-tts@1.8.0": 0,
+        "Maven:io.legere:pdfiumandroid@2.0.3": 0
+      },
+      "interpretation": "包坐标无已知 OSV 记录不等于 native 组合无 CVE；未完成最终 SBOM 时不得写安全 PASS"
+    }
+  },
+  "maintenance": {
+    "systemTts": {
+      "status": "PLATFORM_MANAGED",
+      "risk": "设备、OEM、引擎版本和音色差异大；不能固定行为矩阵"
+    },
+    "sherpaOnnx": {
+      "status": "ACTIVE",
+      "release": "v2.0.1",
+      "publishedAt": "2026-10-26T15:24:29Z",
+      "commit": "af2d8d81dbfa61c4cea4c568da78f3982edca005",
+      "repositoryArchived": false,
+      "note": "官方 release 同时提供 AAR 与四 ABI Android 源码目录；AAR 的精确二进制流转与 SHA 仍需候选包阶段固定"
+    },
+    "piper1": {
+      "status": "ACTIVE_WITH_MAINTAINER_RISK",
+      "release": "v1.8.0",
+      "publishedAt": "2026-09-04T16:47:48Z",
+      "commit": "639388b6317fc4731e91d53da42aea68fd4166ff",
+      "repositoryArchived": false,
+      "risk": "官方 README 明示正在寻找 Piper 维护者；旧 rhasspy/piper 已归档，最后 release 2023.11.14-2@38917ffd…"
+    },
+    "androidPdfRenderer": {
+      "status": "PLATFORM_MANAGED",
+      "evidence": "API 21 起可用；API 35 增加 LoadParams / 隔离进程安全提示",
+      "risk": "OEM/OS 版本决定实际行为；远端 Range 与目录/文本能力缺口不随系统更新自动补齐"
+    },
+    "legerePdfium": {
+      "status": "ACTIVE_BUT_PRERELEASE_AND_COMPATIBILITY_RISK",
+      "stable": "2.0.3",
+      "stablePublishedAt": "2026-07-26T12:17:17Z",
+      "stableCommit": "92e6e42e2b886eb238a03b3574507b3d926e5cb5",
+      "mavenLatest": "3.0.4-alpha01",
+      "mavenLastUpdated": "2026-07-26T13:10:26Z",
+      "repositoryArchived": false,
+      "openIssuesObserved": 8,
+      "criticalOpenIssues": [
+        56,
+        54,
+        24
+      ]
+    }
+  },
+  "packageFacts": {
+    "policy": "V2-D200：安装包体积不是硬要求，不得仅因体积淘汰候选",
+    "systemTts": "项目 APK 增量 native 包体为 0；设备端引擎/音色包不归 App 管理",
+    "sherpaOnnx": {
+      "standardAarBytes": 49441341,
+      "staticLinkOnnxRuntimeAarBytes": 38577050,
+      "voiceModelBytes": "NOT_MEASURED_NO_MODEL_DOWNLOAD"
+    },
+    "piper1": {
+      "androidPackageBytes": "NOT_AVAILABLE",
+      "releaseArtifactNote": "v1.8.0 资产为约 34 MB 的桌面 Python wheel/sdist，不是可计入 Android APK 的最终值"
+    },
+    "androidPdfRenderer": "项目 APK 增量 native 包体为 0",
+    "legerePdfium": {
+      "coreAarBytes": 9787161,
+      "baseAarBytes": 377258,
+      "apiAarBytes": 44512,
+      "optionalArrowAarBytes": 322400,
+      "requiredArchiveSumBytesExcludingArrow": 10208931,
+      "note": "归档大小，不等于最终 APK 增量；不得作取舍硬阈值"
+    }
+  },
+  "performanceAssumptions": [
+    {
+      "id": "PERF-TTS-01",
+      "candidate": "TTS-SYSTEM",
+      "assumption": "Voice latency 分类值可为 20 / 50 / 200 / >200 ms 量级，但这是引擎自报分类，不是本设备端到端首音延迟",
+      "gate": "G2 必须在飞行模式记录冷/热首音、句间空档、暂停恢复、内存和电量"
+    },
+    {
+      "id": "PERF-TTS-02",
+      "candidate": "TTS-SHERPA-ONNX",
+      "assumption": "AAR 与模型可完全在进程内运行；回调可分块交付 PCM，但冷加载、RTF、峰值内存和线程数依赖模型与设备",
+      "gate": "G2 至少测一个中文 voice 在 Pad 5 / K60 的冷/热首音、RTF、Native/PSS、耗电与连续 30 分钟稳定性"
+    },
+    {
+      "id": "PERF-TTS-03",
+      "candidate": "TTS-PIPER1-GPL",
+      "assumption": "libpiper 支持分块输出和音素对齐，但 Android 交叉编译、JNI 线程和生命周期成本未测",
+      "gate": "只有官方/候选包级 Android 构建路径与维护人确定后才进入性能 Spike"
+    },
+    {
+      "id": "PERF-PDF-01",
+      "candidate": "PDF-ANDROID-PDFRENDERER",
+      "assumption": "历史真机已证明正常三页窗口稳态约 358 MB PSS；逐页 openPage 扫描会线性累积 native 内存，现有代码已用 PdfBox 元数据和 1500 页兜底规避",
+      "gate": "切换实现后仍须复测 5006 页、2.53 GB 文件，禁止把历史 W47/W48 证据冒充新候选 PASS"
+    },
+    {
+      "id": "PERF-PDF-02",
+      "candidate": "PDF-IO-LEGERE-2.0.3",
+      "assumption": "自定义 Source 可避免整本下载；现有 HttpByteSource 为 256 KB 分块、32 块上限（约 8 MB）并有 8 MB 单次读保护；PDFium 内部解析/缓存峰值仍需真实测量",
+      "gate": "G2 记录 Range 请求数/字节、首屏时间、取消、弱网、2.53 GB/5006 页 Native/PSS，并证明稳态不随页数增长"
+    }
+  ],
+  "P0": [],
+  "P1": [
+    {
+      "id": "P1-TTS-OFFLINE-PROOF",
+      "finding": "三个 TTS 候选均未在本任务完成飞行模式、零 App 网络流量与纯本地声音闭环；系统 TTS 还保留语音包下载/网络错误语义"
+    },
+    {
+      "id": "P1-TTS-MODEL-LICENSE",
+      "finding": "Sherpa 与 Piper 引擎许可证不等于声音模型许可证；随包中文 voice / lexicon / rule 数据必须逐项许可审查"
+    },
+    {
+      "id": "P1-PDFIUM-16KB",
+      "finding": "io.legere 2.0.3 与 3.0.4-alpha01 均有 open issue #56：64-bit GNU_RELRO 未通过 16 KB 边界检查；targetSdk 36 候选包不能忽略"
+    },
+    {
+      "id": "P1-PDFIUM-NATIVE-PROVENANCE",
+      "finding": "binding POM 的 Apache-2.0 不能覆盖 PDFium native；精确 PDFium 版本、BSD notice、AAR 哈希与最终 packaged SBOM 未闭环"
+    },
+    {
+      "id": "P1-PDF-RANGE-RUNTIME",
+      "finding": "PdfiumSource 静态 API 支持位置读，但未执行 Jellyfin 206、弱网、取消、大文件和缓存上限验证"
+    },
+    {
+      "id": "P1-TTS-PERFORMANCE",
+      "finding": "中文质量、首音、RTF、内存、耗电、暂停恢复和连续稳定性全未实测"
+    }
+  ],
+  "P2": [
+    {
+      "id": "P2-SYSTEM-TTS-VARIANCE",
+      "finding": "设备是否安装合格离线中文 voice 与是否提供 onRangeStart 均不可保证；系统边界只能作条件备选"
+    },
+    {
+      "id": "P2-SHERPA-DISTRIBUTION",
+      "finding": "未检索到 k2-fsa 官方 Maven Central 坐标；当前官方路径是固定 release AAR/源码，需固定 AAR SHA、SBOM 与升级策略"
+    },
+    {
+      "id": "P2-PIPER-ANDROID-CAPABILITY",
+      "finding": "v1.8.0 无官方 Android 包，direct libpiper 需自建 JNI/NDK、ONNX Runtime 与 espeak 数据；官方 README 明示寻找维护者"
+    },
+    {
+      "id": "P2-PDFIUM-3X-PRERELEASE",
+      "finding": "Maven latest 3.0.4-alpha01 是预发布，且同一 16 KB issue 未关闭，不能作为稳定主路径"
+    },
+    {
+      "id": "P2-PDF-UI-CONTROL",
+      "finding": "PDFium 对象 API 与现有 PageSource/PdfSearch/PdfLayoutSource 抽象不完全同形，搜索聚合、取消、页窗口和线程围栏需要适配"
+    }
+  ],
+  "P3": [
+    {
+      "id": "P3-SIZE-FACTS",
+      "finding": "已记录 AAR/native 文件大小，仅作工程事实；D200 禁止用体积代替能力、稳定性或许可证判断"
+    },
+    {
+      "id": "P3-ARCHIVED-PIPER",
+      "finding": "rhasspy/piper 归档旧仓库仅可作历史 API/模型来源参考，不作为新集成基线"
+    }
+  ],
+  "BLOCKED": [
+    {
+      "id": "BLOCKED-RUNTIME-TTS-OFFLINE-PROOF",
+      "reason": "需要模型、设备、飞行模式与流量/音频测量；本任务明确禁止"
+    },
+    {
+      "id": "BLOCKED-TTS-MODEL-LICENSE",
+      "reason": "需要在选定具体 voice 后核验模型卡、训练数据限制与 notices"
+    },
+    {
+      "id": "BLOCKED-TTS-RUNTIME-PERFORMANCE",
+      "reason": "需要 G2 设备与模型"
+    },
+    {
+      "id": "BLOCKED-PDFIUM-16KB",
+      "reason": "上游 open issue #56 尚未证明修复；最终 APK ELF 也不能在未下载 AAR时复算"
+    },
+    {
+      "id": "BLOCKED-PDFIUM-NATIVE-NOTICE",
+      "reason": "需要精确 PDFium source pin、AAR hash 与 packaged-file license inventory"
+    },
+    {
+      "id": "BLOCKED-PDF-RANGE-RUNTIME",
+      "reason": "需要候选包、服务器只读 Range 与 2.53 GB 大文件测试；本任务禁止服务器/设备和新依赖"
+    },
+    {
+      "id": "BLOCKED-SUPPLY-CHAIN-SBOM",
+      "reason": "GitHub API 匿名限流阻止最后一轮 AAR digest 获取；未使用认证绕过，最终候选仍需本地 SBOM 与哈希"
+    }
+  ],
+  "uncovered": [
+    "系统 TTS 在 Pad 5 / K60 上的可用中文离线 voice 清单与真实离线行为",
+    "Sherpa / Piper 的端到端首音、RTF、内存、耗电、音质、暂停恢复、句级高亮和 30 分钟稳定性",
+    "候选 AAR 的解包 ELF、16 KB 对齐、最终 ABI manifest、AAR SHA、native notice 与 SBOM",
+    "PDFium Range 请求次数/流量、弱网/取消、首屏、2.53 GB / 5006 页内存和渲染保真",
+    "PDF 搜索取消、目录层级、现有 annotation 回放、password/corrupt 文件和无文本层行为",
+    "完整 CVE 映射、模型训练数据限制、发布法务签署与回滚演练",
+    "任何真机、设备、ADB、Jellyfin、认证、播放、服务器写、Gradle build、G1 PASS、G2、独立 QA 或 Release 证据"
+  ],
+  "contextWatermark": {
+    "initialInputTokens": 39884,
+    "preWriteInputTokens": 256243,
+    "evidenceFreezeInputTokens": 280499,
+    "evidenceFreezePercent": 26.8,
+    "windowTokens": 1048576,
+    "preWritePercent": 24.4,
+    "policy": "达到 25 万即停止扩项；本报告按此门禁压缩收口"
+  },
+  "q03Readiness": {
+    "s4cNonMediaInputReadyForQ03": true,
+    "fullQ03UserDecisionReady": false,
+    "g1Passed": false,
+    "reason": "TTS / PDF 能力、许可、ABI、维护、成本矩阵已冻结；但 TTS runtime/voice license、PDFium 16 KB/native notice、PDF Range runtime 仍为硬门",
+    "recommendedDecisionPacket": "Sherpa-ONNX 作为 gated G2 TTS Spike 主候选；system TTS 仅作设备条件备选；Piper direct 延后；PDF 保留 PdfRenderer 回滚并让 stable PDFium 2.0.3 通过 16 KB、notice 与 Range 大文件门后再比较"
+  },
+  "recommendation": {
+    "isUserDecision": false,
+    "tts": "推荐进入带硬门的 Sherpa-ONNX v2.0.1 隔离 Spike；系统 TTS 仅作设备条件备选；Piper1 direct 在 Android 包与维护人问题解决前延后，但不因体积淘汰",
+    "pdf": "推荐保留 PdfRenderer 本地路径与回滚，选择 stable io.legere 2.0.3 做 PdfiumSource + 现有 HttpByteSource 的隔离 Range Spike；16 KB、native notice、大文件内存任一不过即不得替换",
+    "rollback": "TTS 必须保留系统 TTS/明确不可用态；PDF 必须保留 PdfRenderer feature flag 与同数据模型切换；新引擎异常不得破坏进度、书签、本地 annotation 或下载文件"
+  },
+  "evidencePaths": [
+    ".planning/v2-g1/G1-S4-C/report.json",
+    ".planning/v2-g1/G1-S4-C/option-matrix.json",
+    ".planning/v2-g1/G1-S4-C/commands.log"
+  ]
+}

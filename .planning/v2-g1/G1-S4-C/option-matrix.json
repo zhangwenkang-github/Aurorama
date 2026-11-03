@@ -1,0 +1,326 @@
+{
+  "schemaVersion": "1.0",
+  "identity": {
+    "taskId": "G1-S4-C",
+    "role": "资深离线语音 / 文档渲染架构师与 G1-S4-C 证据 owner",
+    "threadId": "01a1a1c7-bb81-78f3-b470-4baaf481d3ac",
+    "handoffCommit": "2cc81c2c1e3c62d8c7d2554bd8f1848235b7ec4d",
+    "observedHead": "4b1591ff66e580dd5477d818257efca6eb527c50",
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama"
+  },
+  "model": {
+    "primary": "deepseek-flash",
+    "reasoningEffort": "max",
+    "forkTurns": "none",
+    "startupChecker": "/root/s4c_startup_check",
+    "startupCheckerResult": "PASS"
+  },
+  "baseHead": "4b1591ff66e580dd5477d818257efca6eb527c50",
+  "branch": "codex/v2-integration",
+  "executed": [
+    "S4C-EXE-01 status/watermark",
+    "S4C-EXE-02 delegated startup gate",
+    "S4C-EXE-03 exact documentation read order",
+    "S4C-EXE-04 narrow local code/Gradle/Manifest/cache search",
+    "S4C-EXE-05 fixed official release/source/license check",
+    "S4C-EXE-06 Maven metadata/POM, Android API docs, OSV query"
+  ],
+  "notExecuted": [
+    "Gradle or APK build",
+    "device, ADB or AVD",
+    "TTS runtime, audio quality, memory, battery or zero-network proof",
+    "PDF Range runtime or 2.53 GB / 5006-page large-file test",
+    "Jellyfin, authentication, playback or server access",
+    "candidate AAR unpack, final ELF 16 KB check or final SBOM"
+  ],
+  "evaluationPolicy": {
+    "sizePolicy": "V2-D200：体积不是硬门槛，体积只记工程事实",
+    "hardGates": [
+      "许可证与可再分发 notice",
+      "运行时纯离线 / 零远程 API",
+      "V2 所需能力可表达",
+      "稳定性与性能可验证",
+      "可回滚且不破坏用户数据"
+    ],
+    "resultMeaning": "静态能力矩阵不等于 TTS/PDF runtime PASS，也不等于 Q03 或 G1 PASS"
+  },
+  "candidates": {
+    "tts": [
+      {
+        "id": "TTS-SYSTEM",
+        "name": "Android system TextToSpeech",
+        "fixedReference": "Android API 21+; target/compile SDK from project",
+        "pureOfflineGuarantee": "NO_BY_CONSTRUCTION",
+        "offlineFilter": "可用 Voice.isNetworkConnectionRequired() 过滤，但 API 仍含网络、超时和语音包未下载错误；不能证明系统引擎零网络",
+        "license": "平台 API；OEM/引擎/音色另行管理",
+        "maintenance": "平台/OEM 管理，行为矩阵不可固定",
+        "abi": "无 App 自带 native ABI",
+        "packageBytes": 0,
+        "chineseVoice": "DEVICE_DEPENDENT",
+        "pauseResume": "无原生 pause；stop 后重合成，未验证无缝恢复",
+        "sentenceHighlight": "onRangeStart 仅在引擎提供 timing 时可用；否则应用自管",
+        "coldStartLatency": "UNMEASURED; voice latency is engine-declared category",
+        "integrationCost": "S for API wiring; product uncertainty high",
+        "rollback": "TRIVIAL；不可用时必须显式降级",
+        "status": "CONDITIONAL_BOUNDARY_ONLY"
+      },
+      {
+        "id": "TTS-SHERPA-ONNX",
+        "name": "Sherpa-ONNX offline TTS with VITS/Piper-family model",
+        "fixedReference": {
+          "release": "v2.0.1",
+          "commit": "af2d8d81dbfa61c4cea4c568da78f3982edca005",
+          "publishedAt": "2026-10-26T15:24:29Z",
+          "standardAarBytes": 49441341,
+          "staticOnnxRuntimeAarBytes": 38577050
+        },
+        "pureOfflineGuarantee": "ARCHITECTURALLY_YES / RUNTIME_GATE_PENDING",
+        "offlineArchitecture": "ONNX model + local lexicons/rule data + JNI；无远程 API",
+        "license": "AAR Apache-2.0；ONNX Runtime、model、lexicon、rule data 需入 SBOM",
+        "maintenance": "ACTIVE；不归档；release 与源码四 ABI 可固定",
+        "abi": [
+          "armeabi-v7a",
+          "arm64-v8a",
+          "x86",
+          "x86_64"
+        ],
+        "minSdk": 21,
+        "chineseVoice": "MODEL_DEPENDENT; official examples include Chinese VITS/Matcha models; no model downloaded",
+        "pauseResume": "APP_OWNED audio queue/player",
+        "sentenceHighlight": "APP_OWNED token-to-audio mapping; callback provides PCM chunks",
+        "coldStartLatency": "UNMEASURED; model/thread/device dependent",
+        "integrationCost": "M；AAR/source + model assets + AudioTrack/foreground lifecycle + scheduler",
+        "rollback": "MEDIUM；feature flag to system TTS or explicit unavailable state",
+        "security": "OSV PyPI 2.0.1 no record; native SBOM/CVE mapping not complete",
+        "status": "RECOMMENDED_FOR_GATED_G2_SPIKE"
+      },
+      {
+        "id": "TTS-PIPER1-GPL",
+        "name": "Piper1-GPL direct libpiper",
+        "fixedReference": {
+          "release": "v1.8.0",
+          "commit": "639388b6317fc4731e91d53da42aea68fd4166ff",
+          "publishedAt": "2026-09-04T16:47:48Z",
+          "releaseAssets": "six Python wheels/sdist; no Android artifact"
+        },
+        "pureOfflineGuarantee": "ARCHITECTURALLY_YES / RUNTIME_GATE_PENDING",
+        "offlineArchitecture": "ONNX voice + libpiper C/C++ + ONNX Runtime + espeak-ng/Chinese phonemizer data",
+        "license": "GPL-3.0 engine; espeak/ONNX/model/data separately",
+        "maintenance": "ACTIVE_WITH_MAINTAINER_RISK；README asks for maintainers；old rhasspy/piper archived",
+        "abi": "NO_OFFICIAL_ANDROID_ABI_ARTIFACT",
+        "chineseVoice": "MODEL_DEPENDENT；model cards may restrict use",
+        "pauseResume": "APP_OWNED; C API streaming chunks",
+        "sentenceHighlight": "phoneme ids and sample alignments exposed; sentence mapping app-owned",
+        "coldStartLatency": "UNMEASURED; JNI/cross-build not executed",
+        "integrationCost": "L；NDK/JNI, ONNX Runtime, espeak data, voice packaging, lifecycle and security review",
+        "rollback": "HIGH；custom native surface",
+        "security": "OSV PyPI 1.8.0 no record; direct native Android artifact absent",
+        "status": "DEFER_PENDING_ANDROID_PACKAGING_AND_MAINTENANCE_GATE"
+      }
+    ],
+    "pdf": [
+      {
+        "id": "PDF-ANDROID-PDFRENDERER",
+        "name": "android.graphics.pdf.PdfRenderer",
+        "input": "Seekable ParcelFileDescriptor only",
+        "range": "NO_CUSTOM_SOURCE",
+        "render": "YES_PAGE_AT_A_TIME",
+        "textExtraction": "NOT_IN_PUBLIC_HIGH_LEVEL_API; current app supplements with PdfBox",
+        "search": "APP/PdfBox",
+        "outlineBookmarks": "NOT_IN_PUBLIC_HIGH_LEVEL_API; PdfBox supplement only",
+        "existingAnnotations": "Render through app overlay; no PDF annotation API",
+        "password": "Plain constructor rejects password; API 35 LoadParams is OS-version dependent",
+        "threading": "Official docs: thread-safe but native access serialized",
+        "largeFileEvidence": "Historical real-device 3649-page stable PSS about 358 MB with three-page window; repeated openPage scan caused 716–748 MB native heap and was fixed by PdfBox metadata plus 1500-page fallback",
+        "memoryModel": "Fixed page/bitmap window plus renderer structures; do not use per-page openPage for full-book metadata scan",
+        "license": "Platform API; no App native notice",
+        "maintenance": "PLATFORM_MANAGED",
+        "integrationCost": "S; already in production path",
+        "rollback": "CURRENT_BASELINE",
+        "status": "KEEP_AS_LOCAL_PATH_AND_ROLLBACK"
+      },
+      {
+        "id": "PDF-IO-LEGERE-2.0.3",
+        "name": "io.legere:pdfiumandroid:2.0.3",
+        "fixedReference": {
+          "release": "2.0.3",
+          "commit": "92e6e42e2b886eb238a03b3574507b3d926e5cb5",
+          "publishedAt": "2026-07-26T12:17:17Z",
+          "mavenVersion": "2.0.3"
+        },
+        "input": "PdfiumSource(length/read) or ParcelFileDescriptor/ByteArray",
+        "range": "YES_VIA_PdfiumSource; adapter/runtime not yet tested",
+        "render": "YES bitmap or Surface",
+        "textExtraction": "YES PdfTextPage",
+        "search": "YES page findStart/findNext; global aggregation/cancel app-owned",
+        "outlineBookmarks": "YES hierarchical Bookmark via getTableOfContents",
+        "existingAnnotations": "YES render toggle; high-level create/edit not found",
+        "password": "YES password parameter on newDocument",
+        "threading": "Global lock serializes native calls",
+        "largeFileEvidence": "Static source callback replaces whole-file load; no large-file runtime evidence in this task",
+        "memoryModel": "PDFium internal caches/object graph remain; boundary should reuse 3-bitmap cache and existing 8 MB HttpByteSource cache, with measured ceiling",
+        "license": "binding Apache-2.0; native PDFium notice/provenance blocked",
+        "maintenance": "ACTIVE; stable 2.0.3; 3.x alpha exists",
+        "abi": [
+          "armeabi-v7a",
+          "arm64-v8a",
+          "x86",
+          "x86_64"
+        ],
+        "minSdk": 24,
+        "packageBytes": {
+          "coreAar": 9787161,
+          "baseAar": 377258,
+          "apiAar": 44512,
+          "requiredSumExcludingArrow": 10208931
+        },
+        "blockingCompatibility": "open issue #56: 64-bit GNU_RELRO fails 16 KB boundary check",
+        "integrationCost": "M-H；adapter + PageSource/Text/Search/TOC mapping + global lock/cancel + flag",
+        "rollback": "MEDIUM；feature flag to PdfRenderer with same logical page/animation model",
+        "status": "RECOMMENDED_FOR_GATED_G2_RANGE_SPIKE"
+      },
+      {
+        "id": "PDF-IO-LEGERE-3.0.4-ALPHA01",
+        "name": "io.legere:pdfiumandroid:3.0.4-alpha01",
+        "fixedReference": {
+          "mavenLatest": "3.0.4-alpha01",
+          "mavenLastUpdated": "2026-07-26T13:10:26Z",
+          "commit": "NOT_PINNED_IN_THIS_TASK"
+        },
+        "range": "EXPECTED_YES_BUT_NOT_SELECTED",
+        "license": "POM Apache-2.0; native provenance still blocked",
+        "maintenance": "PRERELEASE",
+        "blockingCompatibility": "same open issue #56 in title; alpha status adds API churn",
+        "integrationCost": "H due prerelease",
+        "rollback": "H",
+        "status": "DEFER_PRERELEASE_AND_SAME_16KB_RISK"
+      }
+    ]
+  },
+  "API": {
+    "ttsRequiredContracts": [
+      "pure offline voice enumeration and failure state",
+      "play/pause/resume",
+      "previous/next sentence",
+      "speech rate",
+      "sentence highlight and return-to-text"
+    ],
+    "ttsObservedContracts": {
+      "system": "speak/stop/setSpeechRate/onStart/onDone/onError; onRangeStart optional; no native pause",
+      "sherpa": "generateWithCallback PCM; app owns playback and text alignment",
+      "piper": "synthesize_start/synthesize_next PCM chunks plus phoneme alignment; app owns JNI and playback"
+    },
+    "pdfRequiredContracts": [
+      "remote current-page Range read without whole-file download",
+      "bounded page bitmap window and cancellation",
+      "cross-format outline/bookmark",
+      "text layer/search and result rectangles",
+      "local annotation overlay persistence",
+      "failure/upgrade/rollback without data loss"
+    ],
+    "pdfObservedContracts": {
+      "androidPdfRenderer": "seekable local FD, render/page count; no custom Range source, text or outline API",
+      "stablePdfium": "custom length/read source, render, text page, find, hierarchical bookmarks, annotation render"
+    }
+  },
+  "ABI": {
+    "project": [
+      "armeabi-v7a",
+      "arm64-v8a",
+      "x86",
+      "x86_64"
+    ],
+    "TTS-SYSTEM": "none in APK",
+    "TTS-SHERPA-ONNX": "four ABI directories present in fixed source",
+    "TTS-PIPER1-GPL": "no official Android artifact",
+    "PDF-ANDROID-PDFRENDERER": "platform provided",
+    "PDF-IO-LEGERE-2.0.3": "four ABI .so files present; 16 KB ELF gate blocked",
+    "PDF-IO-LEGERE-3.0.4-ALPHA01": "same 16 KB issue reported"
+  },
+  "license": {
+    "TTS-SYSTEM": "platform/OEM",
+    "TTS-SHERPA-ONNX": "engine Apache-2.0; every model/data asset separate",
+    "TTS-PIPER1-GPL": "engine GPL-3.0; transitive/model/data separate",
+    "PDF-ANDROID-PDFRENDERER": "platform",
+    "PDF-IO-LEGERE-2.0.3": "binding Apache-2.0; native PDFium notice provenance BLOCKED",
+    "PDF-IO-LEGERE-3.0.4-ALPHA01": "same as stable with prerelease supply-chain risk"
+  },
+  "maintenance": {
+    "TTS-SYSTEM": "platform/OEM",
+    "TTS-SHERPA-ONNX": "active, v2.0.1 published 2026-10-26",
+    "TTS-PIPER1-GPL": "active but seeks maintainers; old repository archived",
+    "PDF-ANDROID-PDFRENDERER": "platform",
+    "PDF-IO-LEGERE-2.0.3": "active but issue #56 compatibility blocker",
+    "PDF-IO-LEGERE-3.0.4-ALPHA01": "alpha"
+  },
+  "performanceAssumptions": [
+    "Every TTS latency/RTF/memory result is model and device dependent and must be measured in G2.",
+    "System voice latency categories are engine-declared, not end-to-end proof.",
+    "PdfRenderer historical large-file evidence applies to the existing three-page window, not a future PDFium implementation.",
+    "PdfiumSource eliminates the need for an immediate whole-file copy but does not guarantee bounded PDFium internal memory; packet count, bytes, and PSS must be measured.",
+    "Package size remains a recorded fact only under V2-D200."
+  ],
+  "P0": [],
+  "P1": [
+    "TTS pure-offline runtime unproven",
+    "TTS voice-model licenses unverified",
+    "PDFium 16 KB ELF blocker",
+    "PDFium native license provenance",
+    "PDF Range integration/runtime unproven",
+    "TTS device performance and stability unproven"
+  ],
+  "P2": [
+    "system TTS availability variance",
+    "Sherpa release artifact distribution/SBOM",
+    "Piper no official Android packaging and maintainer risk",
+    "PDFium 3.x alpha",
+    "PDFium object API adaptation and cancellation"
+  ],
+  "P3": [
+    "size facts",
+    "archived Piper historical source only"
+  ],
+  "BLOCKED": [
+    "BLOCKED-RUNTIME-TTS-OFFLINE-PROOF",
+    "BLOCKED-TTS-MODEL-LICENSE",
+    "BLOCKED-TTS-RUNTIME-PERFORMANCE",
+    "BLOCKED-PDFIUM-16KB",
+    "BLOCKED-PDFIUM-NATIVE-NOTICE",
+    "BLOCKED-PDF-RANGE-RUNTIME",
+    "BLOCKED-SUPPLY-CHAIN-SBOM"
+  ],
+  "uncovered": [
+    "all runtime/device/model quality measurements",
+    "candidate AAR ELF/SBOM",
+    "real Range and large-file PDF behavior",
+    "full CVE and legal sign-off"
+  ],
+  "contextWatermark": {
+    "initialInputTokens": 39884,
+    "preWriteInputTokens": 256243,
+    "evidenceFreezeInputTokens": 280499,
+    "evidenceFreezePercent": 26.8,
+    "percent": 24.4,
+    "action": "SHRINK_AND_WRITE_ONLY"
+  },
+  "q03Readiness": {
+    "s4cNonMediaInputReadyForQ03": true,
+    "fullQ03UserDecisionReady": false,
+    "g1Passed": false,
+    "hardGatesRemaining": [
+      "TTS offline/performance/model license",
+      "PDFium 16 KB/native notice",
+      "PDF Range and large-file runtime"
+    ]
+  },
+  "recommendation": {
+    "tts": "gated Sherpa-ONNX Spike primary; system TTS conditional fallback; direct Piper deferred",
+    "pdf": "stable 2.0.3 PdfiumSource Range Spike behind PdfRenderer rollback; hard gates decide",
+    "decisionOwner": "用户，经完整 V2-Q-G1-03 包；本 JSON 不是拍板"
+  },
+  "evidencePaths": [
+    ".planning/v2-g1/G1-S4-C/report.json",
+    ".planning/v2-g1/G1-S4-C/option-matrix.json",
+    ".planning/v2-g1/G1-S4-C/commands.log"
+  ]
+}

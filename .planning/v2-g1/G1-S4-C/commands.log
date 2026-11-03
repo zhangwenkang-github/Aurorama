@@ -1,0 +1,40 @@
+# Aurorama 2.0 G1-S4-C command log
+# cwd: F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+# shell: pwsh 7.6.5
+# task: read-only / isolated TTS and PDF evidence; no implementation, build, device, ADB, playback, authentication, Jellyfin or server write
+
+001 | 2026-11-03 22:18 +08 | Get-Content -Raw -Encoding utf8 C:\Users\zhangwenkang\.agents\skills\engramory\SKILL.md | exit=0 | skill protocol loaded before substantive task work
+002 | 2026-11-03 22:19 +08 | pwsh -NoProfile -ExecutionPolicy Bypass -File C:\Users\zhangwenkang\.codex\deepseek-subagent-proxy\status.ps1 | exit=0 | initial context 39884 / 1048576
+003 | 2026-11-03 22:19 +08 | spawn_agent model=deepseek-flash reasoning_effort=max fork_turns=none | exit=0 | agent=/root/s4c_startup_check
+004 | 2026-11-03 22:20 +08 | delegated startup check: pwd; git branch --show-current; git rev-parse HEAD; git status --porcelain=v1 --untracked-files=all; git diff --check; git merge-base --is-ancestor <baseline> HEAD; git merge-base --is-ancestor <video-closure> HEAD; Get-FileHash -Algorithm SHA256 external-source; unique ACTIVE/HISTORY and TASKS/DECISIONS checks | result=PASS | branch=codex/v2-integration; HEAD=4b1591ff66e580dd5477d818257efca6eb527c50; clean=true; dual ancestors=true; external SHA matched
+005 | 2026-11-03 22:21 +08 | Get-Content -Raw -Encoding utf8 F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md and exactly seven assigned memory files | exit=0 | no unrelated memory loaded
+006 | 2026-11-03 22:22 +08 | Get-Content -Raw -Encoding utf8 AGENTS.md and bounded sections of docs/V2_PLAN.md, docs/TASKS.md, docs/DECISIONS.md, docs/PROJECT_RULES.md, docs/adr/0003..0007 | exit=0 | V2_PLAN full text not loaded
+007 | 2026-11-03 22:23 +08 | Get-Command graphify; Test-Path graphify-out/graph.json; Test-Path graphify-out/wiki/index.md | exit=0 | graph=false; wiki=false; graph query not available
+008 | 2026-11-03 22:23 +08 | rg -l -i --glob source-only patterns TextToSpeech|Tts|readAloud|speech | exit=1 | zero TTS implementation files
+009 | 2026-11-03 22:23 +08 | rg -n -i --glob app/**,core/**,data/**,modes/** src/main Kotlin patterns pdfium|PdfRenderer|io.legere|PdfBox | exit=0 | only PDF implementation hits; no io.legere or androidx.pdf in project
+010 | 2026-11-03 22:23 +08 | rg -n compileSdk|minSdk|targetSdk|abiFilters|pdfium|pdfbox app/phone/build.gradle.kts modes/book/build.gradle.kts core/build.gradle.kts gradle/libs.versions.toml | exit=0 | PDFBox 2.0.27.0; project ABI list four; SDK constants resolved separately
+011 | 2026-11-03 22:23 +08 | Test-Path %USERPROFILE%\.gradle\caches\modules-2\files-2.1\io.legere and ...\androidx.pdf | exit=0 | both ABSENT
+012 | 2026-11-03 22:24 +08 | bounded Get-Content / rg on PageSource.kt, PdfLayoutSource.kt, PdfSearch.kt, PdfBoxPageTextSource.kt, SpreadLayout.kt, BookByteSource.kt, ReaderStreamingPlan.kt, ReaderViewModel.kt | exit=0 | PdfRenderer local FD; three-bitmap window; PdfBox 8 MB mixed; HttpByteSource 256 KB x32; per-page scan limit 1500; no TTS code
+013 | 2026-11-03 22:24 +08 | git ls-remote fixed tags for k2-fsa/sherpa-onnx, OHF-Voice/piper1-gpl, johngray1965/PdfiumAndroidKt, rhasspy/piper | exit=0 | Sherpa v2.0.1=af2d8d81dbfa61c4cea4c568da78f3982edca005; Piper v1.8.0=639388b6317fc4731e91d53da42aea68fd4166ff; Pdfium 2.0.3=92e6e42e2b886eb238a03b3574507b3d926e5cb5; archived Piper=38917ffd8c0e219c6581d73e07b30ef1d572fce1
+014 | 2026-11-03 22:25 +08 | Invoke-WebRequest repo.maven.apache.org Maven metadata/POM for io.legere:pdfiumandroid 2.0.3 and 3.x | exit=0 | stable 2.0.3; latest metadata 3.0.4-alpha01; POM Apache-2.0; min API text 24
+015 | 2026-11-03 22:25 +08 | GitHub API fixed release/repository/tree/source/license requests for the three official candidates | exit=0 then rate-limited after final requests | Sherpa active v2.0.1 Apache-2.0 four ABI dirs; Piper active v1.8.0 GPL-3.0 and seeks maintainers; PDFium 2.0.3 stable four ABI dirs; open issues #56/#54/#24 observed
+016 | 2026-11-03 22:26 +08 | GitHub API pinned source inspection: PdfiumSource.kt, PdfiumCore.kt, PdfDocument.kt, PdfPage.kt, PdfTextPage.kt | exit=0 | custom length/read source; text page/search; hierarchical bookmarks; renderAnnot flag; global lock
+017 | 2026-11-03 22:27 +08 | Android official mirror reference reads: TextToSpeech, Voice, UtteranceProgressListener, PdfRenderer | HTTP 200 | network/download error constants; optional onRangeStart; seekable FD; platform serialization
+018 | 2026-11-03 22:27 +08 | developer.android.com direct reads | timeout/connection failure | non-blocking; switched to official developer.android.google.cn mirror
+019 | 2026-11-03 22:27 +08 | Android official 16 KB page-size guide | HTTP 200 | targetSdk >=35 Play requirement and 16 KB native compatibility requirement confirmed
+020 | 2026-11-03 22:28 +08 | OSV query: PyPI sherpa-onnx 2.0.1; PyPI piper-tts 1.8.0; Maven io.legere:pdfiumandroid 2.0.3 | HTTP 200 | 0 records each; not interpreted as complete native CVE proof
+021 | 2026-11-03 22:29 +08 | curl raw ONNX Runtime LICENSE / PDFium googlesource LICENSE; curl HEAD Sherpa AAR | failed | TLS reset / empty reply; no authenticated bypass and no dependency downloaded
+022 | 2026-11-03 22:30 +08 | pwsh status.ps1 | exit=0 | context 256243 / 1048576 (24.4%); scope immediately frozen
+023 | 2026-11-03 22:31 +08 | New-Item -ItemType Directory -Force .planning/v2-g1/G1-S4-C | exit=0 | evidence directory created
+024 | 2026-11-03 22:31 +08 | apply_patch add report.json, option-matrix.json, commands.log | exit=0 | only whitelist evidence files written
+025 | 2026-11-03 22:31 +08 | ConvertFrom-Json report.json/option-matrix.json; required-key audit; arithmetic audit; git status --porcelain=v1 --untracked-files=all; git diff --check; git check-ignore -v commands.log | PASS except expected ignored log | JSON valid; both matrices 3 TTS/3 PDF; required keys present; PDFium archive sum 10208931 verified; only three evidence files; commands.log matched generic *.log ignore
+026 | 2026-11-03 22:32 +08 | pwsh status.ps1 | exit=0 | evidence-freeze context 280499 / 1048576 (26.8%); no further research expansion
+027 | gate | JSON reparse after watermark patch; git diff --check; stage only three whitelist paths with git add -- option-matrix.json report.json and git add -f commands.log; commit evidence | scope fixed here | no production/docs/schema/Gradle/Manifest/resource changes
+
+not executed:
+- Gradle, assembleDebug, bundletool, APK packaging
+- model or dependency download
+- device, ADB, AVD, screenshot, playback
+- Jellyfin, authentication, network traffic proof, server access/write
+- runtime TTS quality/latency/memory/battery or PDF Range/large-file memory
+- GL1/G2/independent QA/Release/merge action
