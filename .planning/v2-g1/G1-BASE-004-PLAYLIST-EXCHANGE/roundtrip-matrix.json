@@ -1,0 +1,328 @@
+{
+  "format": "aurorama.base004.roundtrip-matrix",
+  "schemaVersion": 1,
+  "statusVocabulary": [
+    "PRESERVE",
+    "PRESERVE_OPAQUE",
+    "DEGRADE",
+    "LOSS",
+    "REJECT"
+  ],
+  "invariants": [
+    "JSON_TO_JSON preserves every recognized value and opaque unknown optional field.",
+    "Custom M3U8 markers preserve the exact contract object only while every marker survives byte-for-byte parsing.",
+    "Generic M3U8 never reconstructs stable identity from a title, filename, or URI alone.",
+    "Multiplicity remains visible even when identity or conflict semantics degrade.",
+    "Sensitive locator material is removed before export and reported as degradation; it is never re-synthesized."
+  ],
+  "lanes": [
+    {
+      "id": "JSON_TO_JSON",
+      "description": "Versioned local-playlist JSON read and canonical write with no semantic transformation.",
+      "rows": [
+        {
+          "jsonPath": "format",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "schemaVersion",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "producer",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "requiredFeatures",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "optionalFeatures",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "playlist.localDraftIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "playlist.name",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "playlist.originContext",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "playlist.revisionAndTimes",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.orderAndPosition",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.entryId",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.serverSourceIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.serverRequestIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.localSourceIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.unknownLegacyIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.display.title",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.display.durationMs",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.display.albumArtistsArtwork",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.availability",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.locator",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "extensions.unknownOptional",
+          "status": "PRESERVE_OPAQUE"
+        },
+        {
+          "jsonPath": "entries.duplicateMultiplicity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.conflictSemantics",
+          "status": "PRESERVE"
+        }
+      ]
+    },
+    {
+      "id": "JSON_TO_M3U8_TO_JSON_WITH_MARKERS",
+      "description": "Contract-owned markers survive parsing; standard EXTINF and URI lines remain playable hints.",
+      "rows": [
+        {
+          "jsonPath": "format",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "schemaVersion",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "producer",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "requiredFeatures",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "optionalFeatures",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "playlist.localDraftIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "playlist.name",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "playlist.originContext",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "playlist.revisionAndTimes",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.orderAndPosition",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.entryId",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.serverSourceIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.serverRequestIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.localSourceIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.unknownLegacyIdentity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.display.title",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.display.durationMs",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.display.albumArtistsArtwork",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.availability",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.locator",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "extensions.unknownOptional",
+          "status": "PRESERVE_OPAQUE"
+        },
+        {
+          "jsonPath": "entries.duplicateMultiplicity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.conflictSemantics",
+          "status": "PRESERVE"
+        }
+      ]
+    },
+    {
+      "id": "JSON_TO_M3U8_TO_JSON_GENERIC",
+      "description": "A generic tool rewrites the file and strips contract comments; only standard EXTINF and URI evidence remains.",
+      "rows": [
+        {
+          "jsonPath": "format",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "schemaVersion",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "producer",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "requiredFeatures",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "optionalFeatures",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "playlist.localDraftIdentity",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "playlist.name",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "playlist.originContext",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "playlist.revisionAndTimes",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "entries.orderAndPosition",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.entryId",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "entries.serverSourceIdentity",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "entries.serverRequestIdentity",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "entries.localSourceIdentity",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "entries.unknownLegacyIdentity",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "entries.display.title",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.display.durationMs",
+          "status": "DEGRADE"
+        },
+        {
+          "jsonPath": "entries.display.albumArtistsArtwork",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "entries.availability",
+          "status": "DEGRADE"
+        },
+        {
+          "jsonPath": "entries.locator",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "extensions.unknownOptional",
+          "status": "LOSS"
+        },
+        {
+          "jsonPath": "entries.duplicateMultiplicity",
+          "status": "PRESERVE"
+        },
+        {
+          "jsonPath": "entries.conflictSemantics",
+          "status": "LOSS"
+        }
+      ]
+    }
+  ],
+  "verdictRules": [
+    {
+      "verdict": "LOSSLESS",
+      "condition": "No lane row is DEGRADE or LOSS and every required comment survived."
+    },
+    {
+      "verdict": "LOSSY_PREVIEW_ONLY",
+      "condition": "Any identity, playlist boundary, availability, or conflict row is DEGRADE or LOSS."
+    },
+    {
+      "verdict": "REJECT",
+      "condition": "A schema major, required feature, encoding, marker integrity, HLS directive, or entry-order invariant fails."
+    }
+  ]
+}

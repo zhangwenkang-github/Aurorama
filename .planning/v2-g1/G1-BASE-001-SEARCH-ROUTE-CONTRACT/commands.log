@@ -1,0 +1,60 @@
+G1-BASE-001 command evidence
+Date: 2026-11-04
+Shell: pwsh 7
+Working directory: repository root
+
+[01] Read git identity and initial state
+command: git rev-parse HEAD; git branch --show-current; git status --short
+observed: exit=0; HEAD=6fc0a02995bb24c11237fe3b8753f21f06a57f72; branch=codex/v2-integration; two pre-existing unrelated untracked directories.
+
+[02] Locate graph state
+command: if(Test-Path '.\graphify-out\graph.json'){ graphify query "Android search route multi scope query cancellation stale response back stack restoration state identity" --budget 1800 } else { 'GRAPHIFY_GRAPH_MISSING' }
+observed: exit=0; GRAPHIFY_GRAPH_MISSING; scoped rg fallback used.
+
+[03] Locate search sources
+command: rg --files app core data modes | rg -i 'search|explore|browse'
+observed: exit=0; candidate search files listed; only three source files read locally.
+
+[04] Hash existing S3 evidence
+command: Get-FileHash -Algorithm SHA256 .\.planning\v2-g1\G1-S3\report.json,.\.planning\v2-g1\G1-S3\contracts.json,.\.planning\v2-g1\G1-S3\commands.log
+observed: exit=0; report C79B70155BE14240EE05239FB2F4E26967F7B629CD1A24EB19D854AA67F66535; contracts 6E5AD839B60CF7EB4D393CCA0BFAB78A230F1C9AE92493349AC19E66F46887C2; commands A7CCB3A8EDF634D9B01C721423AB059485F62A0423903364BEF6E1E6EDC1447E.
+
+[05] TDD RED before contract artifacts
+command: pwsh -NoProfile -File .\.planning\v2-g1\G1-BASE-001-SEARCH-ROUTE-CONTRACT\verify-contract.ps1
+observed: exit=1; CONTRACT_FAIL HARNESS: Missing required artifact: scope-query-matrix.json
+
+[06] Positive contract verification
+command: pwsh -NoProfile -File .\.planning\v2-g1\G1-BASE-001-SEARCH-ROUTE-CONTRACT\verify-contract.ps1
+observed: exit=0; CONTRACT_RESULT PASS mutation=none scopes=4 stateCases=16 identityCases=7 restoreCases=4.
+
+[07] Mutation: stale-response-overwrite
+command: pwsh -NoProfile -File .\.planning\v2-g1\G1-BASE-001-SEARCH-ROUTE-CONTRACT\verify-contract.ps1 -Mutation stale-response-overwrite
+observed: exit=1; CONTRACT_FAIL STALE_RESPONSE_COMMIT.
+
+[08] Mutation: cross-scope-hit
+command: pwsh -NoProfile -File .\.planning\v2-g1\G1-BASE-001-SEARCH-ROUTE-CONTRACT\verify-contract.ps1 -Mutation cross-scope-hit
+observed: exit=1; CONTRACT_FAIL SCOPE_MUSIC_TYPES.
+
+[09] Mutation: empty-as-error
+command: pwsh -NoProfile -File .\.planning\v2-g1\G1-BASE-001-SEARCH-ROUTE-CONTRACT\verify-contract.ps1 -Mutation empty-as-error
+observed: exit=1; CONTRACT_FAIL EMPTY_NOT_ERROR.
+
+[10] Generate manifest after content freeze
+command: pwsh -NoProfile -File .\.planning\v2-g1\G1-BASE-001-SEARCH-ROUTE-CONTRACT\verify-contract.ps1 -GenerateManifest
+observed: exit=0; manifest written for 12 artifacts; manifest excludes itself.
+
+[11] Final positive verification with manifest
+command: pwsh -NoProfile -File .\.planning\v2-g1\G1-BASE-001-SEARCH-ROUTE-CONTRACT\verify-contract.ps1
+observed: exit=0; CONTRACT_RESULT PASS mutation=none scopes=4 stateCases=16 identityCases=7 restoreCases=4; manifest hash/bytes/LF/sensitive-value checks passed.
+
+[12] Worktree scope audit
+command: git status --short; git diff --stat; git diff --name-only
+observed: only this task directory was added by this session; pre-existing BASE-003/004 untracked directories preserved; concurrent external change .planning/v2-g1/.gitattributes (+*.m3u8 text eol=lf) detected and preserved.
+
+[13] Engramory validation
+command: python C:\Users\zhangwenkang\.agents\skills\engramory\tools\engramory_check.py F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md; python C:\Users\zhangwenkang\.agents\skills\engramory\tools\engramory_doctor.py F:\Develop\codex_work\Documents\Codex\engramory-memory
+observed: exit=0; index 121 lines / 16,025 B; doctor clean, 92 notes, no broken pointers, orphans, or schema errors.
+
+[14] Context watermark
+command: pwsh -NoProfile -File C:\Users\zhangwenkang\.codex\deepseek-subagent-proxy\status.ps1
+observed: deepseek-flash 264,495 / 1,048,576 tokens (25.2%); below 350k handoff threshold.

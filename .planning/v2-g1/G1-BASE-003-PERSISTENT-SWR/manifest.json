@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0",
+  "contractId": "G1-BASE-003-PERSISTENT-SWR",
+  "algorithm": "SHA-256",
+  "lineEnding": "LF",
+  "fileCount": 7,
+  "totalBytes": 53323,
+  "payloadSha256": "7aa53d5fb2e7d36ff631a94045d28803cf8335de4195c61a4636a95b50bf4bf5",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1864,
+      "sha256": "7faf8a2d6bc49f9ffdf9c75bb613bcdfe8db22d4c028e79982e56708a4699e3e",
+      "lfCount": 30
+    },
+    {
+      "path": "cache-identity-matrix.json",
+      "bytes": 8380,
+      "sha256": "5346aa0c8e915983de1e9d1769cefa3a3d1f9e56099ec9e3aa8c8acc6c3fc635",
+      "lfCount": 272
+    },
+    {
+      "path": "commands.log",
+      "bytes": 2800,
+      "sha256": "1be1a9b931b04c01c21ac3646bcf7c51b5b85c16d3a9e35813ed27bad0ba80d3",
+      "lfCount": 40
+    },
+    {
+      "path": "fixture-test.ps1",
+      "bytes": 12149,
+      "sha256": "5bdf33917eba5627618cc080b8e461ec5090d02183a237661cb3e628bb5ca7bd",
+      "lfCount": 269
+    },
+    {
+      "path": "freshness-state-machine.json",
+      "bytes": 12417,
+      "sha256": "3c07eb12c4666721e3fbe08531a2710ddaff061b91a1a4178d50caaebacaa70d",
+      "lfCount": 301
+    },
+    {
+      "path": "report.json",
+      "bytes": 10249,
+      "sha256": "6a8d9b7f53f1b037d75655c384ebcad1d1081356b056776f2bf83df41b065770",
+      "lfCount": 262
+    },
+    {
+      "path": "user-commitment-matrix.json",
+      "bytes": 5464,
+      "sha256": "0bd10c7bc4c4e44cb88039f488b781aaf0d4447488e00bac1b5705e9c04c2beb",
+      "lfCount": 126
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "g1-stable-identity-matrix/v1",
+  "taskId": "G1-BASE-001",
+  "status": "STATIC_CONTRACT_FROZEN",
+  "stableIdentity": {
+    "server": {
+      "format": "server|serverId|userId|itemType|itemId",
+      "requiredFields": [
+        "serverId",
+        "userId",
+        "itemType",
+        "itemId"
+      ],
+      "titleIsIdentity": false
+    },
+    "local": {
+      "format": "local|libraryId|localStableId|itemType",
+      "requiredFields": [
+        "libraryId",
+        "localStableId",
+        "itemType"
+      ],
+      "titleIsIdentity": false
+    },
+    "downloadKnownProvenance": {
+      "format": "server|serverId|userId|itemType|itemId",
+      "mergeRole": "OVERLAY_ONLY",
+      "doesNotCreateSecondRow": true
+    },
+    "downloadUnknownProvenance": {
+      "format": "download|legacy|downloadRowId",
+      "mergeRole": "ISOLATED_LEGACY_ROW",
+      "guessServerOrUser": false
+    }
+  },
+  "rules": [
+    {
+      "id": "ID-NS",
+      "rule": "Search state, cache key, late-response acceptance, selection, and scroll anchors bind serverId + userId."
+    },
+    {
+      "id": "ID-TYPE",
+      "rule": "itemType is part of stable identity; a Movie, Audio, and Book may share the same title and must coexist."
+    },
+    {
+      "id": "ID-SAME",
+      "rule": "Repeated rows with the same stable identity and namespace fold once; source capabilities may be overlaid."
+    },
+    {
+      "id": "ID-DIFF-ID",
+      "rule": "Same title and same itemType with different itemId remain distinct."
+    },
+    {
+      "id": "ID-OVERLAY",
+      "rule": "A downloaded copy with proven serverId + userId + itemType + itemId overlays the matching server identity."
+    },
+    {
+      "id": "ID-LEGACY",
+      "rule": "Download provenance that is absent or unverified remains an isolated legacy row and never folds by title."
+    },
+    {
+      "id": "ID-LOCAL",
+      "rule": "Local media identity uses libraryId + localStableId + itemType; equal titles do not prove equivalence."
+    },
+    {
+      "id": "ID-CROSS-SOURCE",
+      "rule": "Server and local rows fold only with explicit shared stable identity evidence; otherwise both remain visible."
+    },
+    {
+      "id": "ID-PAGE",
+      "rule": "Pagination de-duplicates by stable identity across pages of the same generation and query shape."
+    },
+    {
+      "id": "ID-RESTORE",
+      "rule": "Scroll and selection anchors use stableIdentity, not list index, title, or card position."
+    },
+    {
+      "id": "ID-SCOPE",
+      "rule": "Every item must match its active scope before identity folding; invalid items cannot be rescued by an existing identity."
+    }
+  ],
+  "dedupePolicy": {
+    "key": "stableIdentity",
+    "metadataWinner": "SERVER_DTO_OVER_DERIVED_SUMMARY",
+    "capabilityOverlay": [
+      "DOWNLOADED",
+      "LOCAL_PLAYABLE",
+      "SERVER_STREAMABLE"
+    ],
+    "titleOrDisplayNameKeying": "FORBIDDEN",
+    "unknownProvenanceCrossMerge": "FORBIDDEN"
+  },
+  "ordering": {
+    "withinScopeServerPrimary": "server response order produced by sortBy=SortName, sortOrder=Ascending",
+    "deterministicTieBreakers": [
+      "normalized sortName ordinal",
+      "itemTypeRank",
+      "stableIdentity ordinal"
+    ],
+    "typeRank": {
+      "Movie": 0,
+      "Series": 1,
+      "Episode": 2,
+      "Video": 3,
+      "Audio": 4,
+      "Book": 5
+    },
+    "crossSourceInterleaving": "C_USER_PRODUCT_DECISION",
+    "allScopeCategoryGroupOrder": "C_USER_PRODUCT_DECISION",
+    "provisionalCurrentDefault": [
+      "VIDEO",
+      "MUSIC",
+      "BOOK"
+    ],
+    "stabilityInvariant": "The same stable identities and sort fields produce the same order regardless of callback completion order; download/local overlays do not move rows."
+  },
+  "selectionAndScroll": {
+    "scrollAnchor": {
+      "firstVisibleIdentity": "stableIdentity",
+      "offsetPx": "integer >= 0"
+    },
+    "selectionAnchor": "stableIdentity or NONE",
+    "missingAnchorOnRestore": "clamp scroll and clear selection with observable reason",
+    "listIndexOnly": "FORBIDDEN"
+  },
+  "crossDomainSameTitleMatrix": [
+    {
+      "title": "Dune",
+      "rows": [
+        {
+          "itemType": "Movie",
+          "identity": "server|server-a|user-a|Movie|movie-1"
+        },
+        {
+          "itemType": "Audio",
+          "identity": "server|server-a|user-a|Audio|audio-1"
+        },
+        {
+          "itemType": "Book",
+          "identity": "server|server-a|user-a|Book|book-1"
+        }
+      ],
+      "expectedUniqueRows": 3
+    }
+  ],
+  "currentImplementationObservation": {
+    "scopedRead": [
+      "modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchState.kt:13-48",
+      "modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchViewModel.kt:35-125"
+    ],
+    "observedShape": "SearchState keeps one result list and category filters; SearchViewModel stores query and scope in SavedStateHandle.",
+    "notProven": [
+      "full cross-page identity fold",
+      "stable server/client tie-break ordering",
+      "scroll and selection restoration"
+    ]
+  }
+}

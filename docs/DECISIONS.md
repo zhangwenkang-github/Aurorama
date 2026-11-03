@@ -229,7 +229,7 @@ revision / 16 KB / Range 及 runtime / device 仍待证据；
 v1.0，G1 未通过。唯一 ACTIVE 保持 Q04；新增静态工作须前沿审计与明确授权。
 `V2-D200` 只固定体验优先与包体非要求。代理建议不得代替用户拍板。
 
-**G1-A1/A2 静态合同输入（2026-11-04，非新决策）**：
+**G1-A1/A2 与 BASE-001/003/004 静态合同输入（2026-11-04，非新决策）**：
 `G1-A1-DOWNLOAD-STATE-CONTRACT` 为 11 文件 / 103,924 B，manifest
 `B45CF884E8950B7E02F851D07E32465FF6F4FB7097A8454407C709B3BEFE5AE2`；冻结 12 状态 /
 24 allowed / 16 forbidden / 144 pairs / 55 fixtures / 10 equations，6 个 P2
@@ -240,6 +240,31 @@ manifest 覆盖 9 文件 / 86,351 B，
 download / installer handoff / unknown / confirmed，并保留 `GAP-INSTALL-CONFIRM`、
 `GAP-ABI-PAYLOAD` 两个 P1 G2 implementation gaps。两份均独立 reviewer PASS；只登记静态
 输入和缺口，不新增用户问题 / 决策，不把任一合同写成实现、runtime / device 或 G1 PASS。
+
+`G1-BASE-001-SEARCH-ROUTE-CONTRACT` 为 13 文件 / 103,530 B；manifest 2,114 B / 12 entries /
+101,416 B，SHA-256 `1c04fc6368487e6c5cdfe4d82462b9e205b19b0082eb72e282b89626d4e463a6`。
+冻结 4 scopes / 11 states / 20 transitions / 11 identity / 13 promises / 31 fixtures /
+3 mutations；完整 query-shape，stale / wrong-scope FAIL_CLOSED，`EMPTY` 与 `ERROR` /
+`OFFLINE` / `CANCELLED` 分离，3 个负例 exit 1。历史 ANR 仍为 `ACCEPTED_RESIDUAL`；B 实现、
+C 排序 / 跨源呈现选择与 D runtime / device 仍 Open。
+
+`G1-BASE-003-PERSISTENT-SWR` 为 8 文件 / 54,820 B；manifest SHA-256
+`9ee6e05cd5201cca5eec47fe98cb8422c5e8310e93768320ecb92e3b5461d796`，payload SHA-256
+`7aa53d5fb2e7d36ff631a94045d28803cf8335de4195c61a4636a95b50bf4bf5`。冻结 10 states /
+19 identity dimensions / 11 TTL-clock-304 rules / 12 promises / 4 fixtures；unknown /
+cross-account / old-generation / corrupt 均 FAIL_CLOSED，3 个负例 exit 1。6 个 P1 runtime /
+implementation gaps 与 TTL / 容量 / 预取 / 时钟宽限 decision gaps 保留，304 与跨进程围栏
+尚无生产证明。
+
+`G1-BASE-004-PLAYLIST-EXCHANGE` 为 24 文件 / 115,243 B；manifest 4,493 B / 23 entries /
+110,750 B，SHA-256 `10121417575e006cfc1434283efd90f049d25b72519ac803da027ff8b33a9f08`。
+冻结 Draft 2020-12 / 68 properties、34 mapping、69 roundtrip=`48/2/2/17`、12 scenarios /
+99 checks；只有完整 SOURCE identity 可去重，缺曲 / 重复保留，identity conflict 零写入，
+generic M3U8 的损失显式。B 重复 / 部分导入选择、C SAF / 设备 / 重启证据与 D 生产 parser /
+持久化迁移 / 服务器实现仍 Open。三包均独立 reviewer PASS 且仅登记静态输入；前沿审计
+`NOW_SAFE`，没有未阻塞静态增量，下一步只等待用户 Q04 / B/C 决策、明确授权或 D runtime /
+device / implementation 证据。Q03 / Q04 仍 Open，G1 NOT_PASSED，`UI_DESIGN_SYSTEM` 仍为
+v1.0；不新增用户决策，不把 B/C/D、runtime、device、implementation 或 QA 标成 Done。
 
 ### `V2-SOLUTION-BASELINE` G1 决策门（2026-11-03，Evidence-gated）
 

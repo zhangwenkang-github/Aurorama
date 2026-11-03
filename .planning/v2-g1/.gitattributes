@@ -9,3 +9,4 @@
 *.ps1 text eol=lf
 *.txt text eol=lf
 *.log text eol=lf
+*.m3u8 text eol=lf

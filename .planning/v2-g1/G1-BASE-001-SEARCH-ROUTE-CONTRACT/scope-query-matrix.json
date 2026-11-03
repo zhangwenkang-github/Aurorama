@@ -1,0 +1,192 @@
+{
+  "schemaVersion": "g1-scope-query-matrix/v1",
+  "taskId": "G1-BASE-001",
+  "status": "STATIC_CONTRACT_FROZEN",
+  "namespaceTemplate": {
+    "serverId": "server-a",
+    "userId": "user-a",
+    "rule": "Every request, cache key, late-response comparison, and accepted result binds serverId + userId."
+  },
+  "scopeDefinitions": [
+    {
+      "scope": "ALL",
+      "includeItemTypes": [
+        "Movie",
+        "Series",
+        "Episode",
+        "Video",
+        "Audio",
+        "Book"
+      ],
+      "allowedUiCategories": [
+        "VIDEO",
+        "MUSIC",
+        "BOOK"
+      ],
+      "scopePredicate": "itemType in includeItemTypes",
+      "sameTitleAcrossTypes": "PRESERVE"
+    },
+    {
+      "scope": "VIDEO",
+      "includeItemTypes": [
+        "Movie",
+        "Series",
+        "Episode",
+        "Video"
+      ],
+      "allowedUiCategories": [
+        "VIDEO"
+      ],
+      "scopePredicate": "itemType in includeItemTypes",
+      "sameTitleAcrossTypes": "REJECT_OUTSIDE_SCOPE"
+    },
+    {
+      "scope": "MUSIC",
+      "includeItemTypes": [
+        "Audio"
+      ],
+      "allowedUiCategories": [
+        "MUSIC"
+      ],
+      "scopePredicate": "itemType in includeItemTypes",
+      "sameTitleAcrossTypes": "REJECT_OUTSIDE_SCOPE"
+    },
+    {
+      "scope": "BOOK",
+      "includeItemTypes": [
+        "Book"
+      ],
+      "allowedUiCategories": [
+        "BOOK"
+      ],
+      "scopePredicate": "itemType in includeItemTypes",
+      "sameTitleAcrossTypes": "REJECT_OUTSIDE_SCOPE"
+    }
+  ],
+  "queryNormalization": {
+    "pipeline": [
+      "Unicode NFKC",
+      "replace each Unicode whitespace run with one ASCII space",
+      "trim leading and trailing whitespace",
+      "preserve letter case for the wire searchTerm"
+    ],
+    "displayQuery": "canonical normalized searchTerm",
+    "blankQuery": "no request; state is IDLE_UNSUBMITTED, never EMPTY",
+    "identityRule": "The exact canonical searchTerm is part of queryShapeSha256; case is not silently folded."
+  },
+  "baselinePaging": {
+    "startIndex": 0,
+    "limit": 60,
+    "enableTotalRecordCount": true,
+    "continuationRule": "Keep queryShapeSha256 stable across pages except startIndex; append only pages from the same active generation and scope."
+  },
+  "baselineSort": {
+    "sortBy": [
+      "SortName"
+    ],
+    "sortOrder": [
+      "Ascending"
+    ],
+    "status": "A_STATIC_DETERMINISTIC_DEFAULT",
+    "clientTieBreaker": [
+      "normalized sortName",
+      "itemTypeRank",
+      "stableIdentity"
+    ],
+    "userSelectableSortOrPresentation": "C_USER_PRODUCT_DECISION"
+  },
+  "queryShape": {
+    "schemaVersion": "g1-search-query-shape/v1",
+    "serverEndpointReference": ".planning/v2-g1/G1-S3/contracts.json#contracts.SEARCH.request",
+    "fields": [
+      "serverId",
+      "userId",
+      "searchTerm",
+      "scope",
+      "includeItemTypes",
+      "excludeItemTypes",
+      "parentId",
+      "recursive",
+      "startIndex",
+      "limit",
+      "sortBy",
+      "sortOrder",
+      "fields",
+      "enableUserData",
+      "imageTypes",
+      "imageTypeLimit",
+      "enableImageTypes",
+      "enableImages",
+      "enableTotalRecordCount",
+      "filters"
+    ],
+    "requiredBehavior": {
+      "parentId": null,
+      "recursive": true,
+      "excludeItemTypes": [],
+      "fields": [],
+      "enableUserData": true,
+      "imageTypes": [],
+      "imageTypeLimit": null,
+      "enableImageTypes": [],
+      "enableImages": false,
+      "filters": {}
+    },
+    "extensionRule": "Any new non-null behavioral query parameter changes queryShapeSha256 and requires a fixture update; it must not be omitted from request identity."
+  },
+  "queryIdentity": {
+    "algorithm": "SHA-256",
+    "encoding": "UTF-8",
+    "serialization": "compact JSON with ordinal key ordering; arrays preserve semantic order",
+    "searchTermOnlyHashForbidden": true,
+    "requiredInput": "the complete queryShape object",
+    "includes": [
+      "serverId",
+      "userId",
+      "normalized searchTerm",
+      "scope",
+      "includeItemTypes",
+      "paging",
+      "sort",
+      "fields and user-data flags",
+      "image flags",
+      "filters",
+      "schemaVersion"
+    ],
+    "excluded": [
+      "credentials",
+      "transport headers",
+      "temporary job id",
+      "UI-only animation state"
+    ],
+    "scopeSeparationInvariant": "For the same namespace and searchTerm, ALL/VIDEO/MUSIC/BOOK produce four distinct queryShapeSha256 values."
+  },
+  "responseValidation": {
+    "http200TypePredicate": "Every accepted item must match the active scope includeItemTypes and stable type label.",
+    "mixedValidAndInvalidItems": "Keep valid items, surface PARTIAL with SCOPE_MISMATCH detail, and never relabel invalid items.",
+    "allItemsInvalid": "PROTOCOL_ERROR with SCOPE_MISMATCH; never EMPTY and never a successful cross-scope result."
+  },
+  "historyAnrBoundary": {
+    "staticRequirement": "Network, parsing, identity folding, and sorting must be cancellable work outside the UI blocking path; only a bounded state publication may run on Main.",
+    "runtimeRequired": true,
+    "gateClass": "D_RUNTIME_DEVICE",
+    "claim": "NOT_PROVEN_BY_STATIC_PACKAGE"
+  },
+  "sourceEvidence": [
+    {
+      "path": "docs/V2_PLAN.md",
+      "lines": "810,869,2592,2880-2893,3220-3221",
+      "use": "route scope, state distinctions, BASE-001 acceptance, S3 query-shape gap, legacy ANR"
+    },
+    {
+      "path": ".planning/v2-g1/G1-S3/contracts.json",
+      "sha256": "6E5AD839B60CF7EB4D393CCA0BFAB78A230F1C9AE92493349AC19E66F46887C2",
+      "use": "existing SEARCH endpoint shape and scope mapping; not duplicated here"
+    },
+    {
+      "path": "data/src/main/java/com/zhangwenkang/cinefin/repository/SearchQueryRules.kt",
+      "lines": "6-43",
+      "use": "current local evidence that scope-to-type mapping exists"
+    }
+  ]
+}

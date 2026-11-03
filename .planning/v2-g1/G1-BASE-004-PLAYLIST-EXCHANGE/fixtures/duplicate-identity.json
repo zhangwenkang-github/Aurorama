@@ -1,0 +1,72 @@
+{
+  "format": "aurorama.local-playlist.exchange",
+  "schemaVersion": 1,
+  "producer": {
+    "name": "aurorama-contract-fixture",
+    "version": "1.0.0"
+  },
+  "playlist": {
+    "identityDomain": "LOCAL_DRAFT",
+    "localPlaylistId": "local:playlist:duplicate-case",
+    "serverPlaylistId": null,
+    "name": "Duplicate Case",
+    "revision": 1,
+    "createdAt": "2026-11-03T08:00:00Z",
+    "updatedAt": "2026-11-04T08:00:00Z",
+    "originContext": null
+  },
+  "entries": [
+    {
+      "entryId": "duplicate-entry-a",
+      "position": 0,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "SERVER",
+        "serverId": "server-red",
+        "userId": "user-alice",
+        "libraryId": 1,
+        "itemId": "44444444-4444-4444-8444-444444444444",
+        "sourceToken": "media-source-a",
+        "provenanceComplete": true,
+        "matchDomain": "SOURCE"
+      },
+      "display": {
+        "title": "Repeated Track"
+      },
+      "availability": {
+        "status": "PLAYABLE"
+      },
+      "locator": {
+        "kind": "SERVER",
+        "uri": "https://media.example.invalid/audio/44444444-4444-4444-8444-444444444444"
+      }
+    },
+    {
+      "entryId": "duplicate-entry-b",
+      "position": 1,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "SERVER",
+        "serverId": "server-red",
+        "userId": "user-alice",
+        "libraryId": 1,
+        "itemId": "44444444-4444-4444-8444-444444444444",
+        "sourceToken": "media-source-a",
+        "provenanceComplete": true,
+        "matchDomain": "SOURCE"
+      },
+      "display": {
+        "title": "Repeated Track"
+      },
+      "availability": {
+        "status": "PLAYABLE"
+      },
+      "locator": {
+        "kind": "SERVER",
+        "uri": "https://media.example.invalid/audio/44444444-4444-4444-8444-444444444444"
+      }
+    }
+  ]
+}

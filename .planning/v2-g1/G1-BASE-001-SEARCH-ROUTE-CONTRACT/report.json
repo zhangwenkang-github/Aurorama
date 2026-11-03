@@ -1,0 +1,300 @@
+{
+  "schemaVersion": "g1-base001-report/v1",
+  "taskId": "G1-BASE-001",
+  "identity": {
+    "role": "搜索路由状态合同架构师",
+    "domain": "Android multi-scope search / cancellation / result identity / return restoration",
+    "implementer": false,
+    "independentQaStarted": false,
+    "releaseOwner": false
+  },
+  "status": "STATIC_CONTRACT_COMPLETE_RUNTIME_UNVERIFIED",
+  "git": {
+    "branch": "codex/v2-integration",
+    "head": "6fc0a02995bb24c11237fe3b8753f21f06a57f72",
+    "initialDirty": [
+      ".planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/",
+      ".planning/v2-g1/G1-BASE-004-PLAYLIST-EXCHANGE/"
+    ],
+    "concurrentExternalChanges": [
+      {
+        "path": ".planning/v2-g1/.gitattributes",
+        "change": "+*.m3u8 text eol=lf",
+        "ownership": "NOT_THIS_TASK",
+        "action": "PRESERVED"
+      }
+    ],
+    "unrelatedDirtyPreserved": true,
+    "productionFilesModified": false,
+    "committed": false,
+    "pushed": false
+  },
+  "boundaries": {
+    "readOnly": [
+      "AGENTS.md",
+      "docs/PROJECT_PLAN.md",
+      "docs/V2_PLAN.md selected sections",
+      "docs/TASKS.md BASE row",
+      "docs/DECISIONS.md D196/D197/Q03/Q04 records",
+      "docs/PROJECT_RULES.md R020/R025/R027/R028 matches",
+      ".planning/v2-g1/G1-S3 summaries",
+      "three scoped search source files"
+    ],
+    "writeRoot": ".planning/v2-g1/G1-BASE-001-SEARCH-ROUTE-CONTRACT/",
+    "deviceUsed": false,
+    "serverTouched": false,
+    "gradleExecuted": false,
+    "productionChanged": false
+  },
+  "contractCounts": {
+    "scopes": 4,
+    "queryBehaviorFields": 20,
+    "routeStates": 11,
+    "routeTransitions": 20,
+    "identityRules": 11,
+    "commitmentRows": 13,
+    "fixtures": {
+      "queryNormalization": 4,
+      "routeStates": 16,
+      "identity": 7,
+      "restore": 4,
+      "total": 31
+    },
+    "mutations": 3
+  },
+  "criticalInvariants": {
+    "queryIdentity": "complete queryShape, never searchTerm-only",
+    "scopeSeparation": "ALL/VIDEO/MUSIC/BOOK hashes distinct; response items must match active includeItemTypes",
+    "crossDomainSameTitle": "preserved by itemType + itemId identity",
+    "duplicateIdentity": "fold once with capability overlays",
+    "unknownProvenance": "isolated, never guessed",
+    "staleResponseCommit": "FORBIDDEN",
+    "requestAcceptance": "exact serverId + userId + generation + requestId + queryShapeSha256 before deadline",
+    "empty": "HTTP 200 + all sources completed + no failures + zero scope mismatches + zero items",
+    "emptyAsError": "FORBIDDEN",
+    "offlineAsEmpty": "FORBIDDEN",
+    "cancelledAsError": "FORBIDDEN",
+    "staleContent": "matching cache may display only with stale/offline marker",
+    "stableOrder": "SortName then itemType/stableIdentity tie-break; overlays do not move rows",
+    "restoreAnchors": "query, scope, queryShape binding, first-visible stableIdentity + offset, selection stableIdentity"
+  },
+  "sourceEvidenceDedup": {
+    "s3Role": "existing endpoint and OpenAPI/SDK protocol ledger",
+    "thisPackageRole": "search UI/request coordinator state and identity contract only",
+    "endpointLedgerDuplicated": false,
+    "s3Files": [
+      {
+        "path": ".planning/v2-g1/G1-S3/report.json",
+        "bytes": 29522,
+        "sha256": "C79B70155BE14240EE05239FB2F4E26967F7B629CD1A24EB19D854AA67F66535"
+      },
+      {
+        "path": ".planning/v2-g1/G1-S3/contracts.json",
+        "bytes": 28378,
+        "sha256": "6E5AD839B60CF7EB4D393CCA0BFAB78A230F1C9AE92493349AC19E66F46887C2"
+      },
+      {
+        "path": ".planning/v2-g1/G1-S3/commands.log",
+        "bytes": 3171,
+        "sha256": "A7CCB3A8EDF634D9B01C721423AB059485F62A0423903364BEF6E1E6EDC1447E"
+      }
+    ],
+    "s3SearchSummary": {
+      "verdict": "FULL_QUERY_SHAPE_EXPRESSIBLE_CLIENT_COVERS_MINIMUM_SUBSET",
+      "currentParameters": [
+        "userId",
+        "searchTerm",
+        "includeItemTypes",
+        "recursive"
+      ],
+      "knownGaps": [
+        "paging",
+        "sort",
+        "fields",
+        "images",
+        "filters",
+        "401/403/503 mapping"
+      ]
+    }
+  },
+  "scopedImplementationObservation": {
+    "filesRead": [
+      {
+        "path": "data/src/main/java/com/zhangwenkang/cinefin/repository/SearchQueryRules.kt",
+        "lines": "6-43",
+        "observation": "Scope-to-server-type mapping exists and ALL is an explicit union."
+      },
+      {
+        "path": "modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchState.kt",
+        "lines": "13-66",
+        "observation": "Scoped evidence exposes one loading flag, one result list, and server/local failure booleans; the richer state contract is not directly observable here."
+      },
+      {
+        "path": "modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchViewModel.kt",
+        "lines": "35-188",
+        "observation": "SavedState stores query and scope; request bookkeeping uses query+scope and a namespace guard; scroll/selection and full query-shape identity are not proven by this file."
+      }
+    ],
+    "notAProductionReview": true
+  },
+  "findingsBySeverity": {
+    "P0": [],
+    "P1": [
+      {
+        "id": "G1-BASE001-P1-ANR-RUNTIME",
+        "summary": "Historical search Input timeout / Main continuation P1 remains an accepted residual.",
+        "status": "OPEN_RUNTIME_GATE",
+        "evidence": "docs/V2_PLAN.md L14-01; route-state-machine.json#historyAnrGate",
+        "requiredClass": "D_RUNTIME_DEVICE"
+      }
+    ],
+    "P2": [
+      {
+        "id": "G1-BASE001-P2-QUERY-SHAPE",
+        "summary": "Scoped production evidence still covers only four query parameters while the contract requires complete behavior-shape identity.",
+        "status": "IMPLEMENTATION_PENDING",
+        "requiredClass": "B_PRODUCTION_IMPLEMENTATION"
+      },
+      {
+        "id": "G1-BASE001-P2-STATE-OBSERVABILITY",
+        "summary": "Scoped SearchState does not expose explicit timeout, cancelled, stale, offline, or protocol-error channels.",
+        "status": "IMPLEMENTATION_PENDING",
+        "requiredClass": "B_PRODUCTION_IMPLEMENTATION"
+      },
+      {
+        "id": "G1-BASE001-P2-RESTORE-ANCHORS",
+        "summary": "Scoped SavedState evidence proves query and scope only; scroll and selection restoration are not proven.",
+        "status": "RUNTIME_PENDING",
+        "requiredClass": "D_RUNTIME_DEVICE"
+      },
+      {
+        "id": "G1-BASE001-P2-ERROR-TAXONOMY",
+        "summary": "S3 reports 401/403/503 are not separately mapped by the current search client.",
+        "status": "IMPLEMENTATION_PENDING",
+        "requiredClass": "B_PRODUCTION_IMPLEMENTATION"
+      }
+    ],
+    "P3": [
+      {
+        "id": "G1-BASE001-P3-PRESENTATION",
+        "summary": "Cross-source interleaving and ALL category order remain user/product presentation choices.",
+        "status": "USER_DECISION_OPEN",
+        "requiredClass": "C_USER_PRODUCT_DECISION"
+      }
+    ]
+  },
+  "decisionGates": {
+    "A_STATIC_CONTRACT": [
+      "query normalization and complete shape",
+      "scope predicates",
+      "state taxonomy",
+      "cancellation/deadline/generation rules",
+      "stable identity and dedupe",
+      "back-stack minimum"
+    ],
+    "B_PRODUCTION_IMPLEMENTATION": [
+      "expand production query shape",
+      "map error taxonomy",
+      "wire generation/deadline/cancellation",
+      "implement identity fold and restore anchors"
+    ],
+    "C_USER_PRODUCT_DECISION": [
+      "user-selectable sort",
+      "cross-source interleaving",
+      "ALL category presentation"
+    ],
+    "D_RUNTIME_DEVICE": [
+      "historical ANR / Input timeout",
+      "slow-network and large-result Main-thread behavior",
+      "scroll/selection restoration",
+      "real offline/stale behavior"
+    ]
+  },
+  "automatedVerification": {
+    "script": "verify-contract.ps1",
+    "positiveExpectedExit": 0,
+    "mutationExpectedExit": 1,
+    "mutations": [
+      "stale-response-overwrite",
+      "cross-scope-hit",
+      "empty-as-error"
+    ],
+    "results": {
+      "positive": {
+        "exit": 0,
+        "summary": "4 scopes / 16 state fixture / 7 identity fixture / 4 restore fixture"
+      },
+      "stale-response-overwrite": {
+        "exit": 1,
+        "assertion": "STALE_RESPONSE_COMMIT"
+      },
+      "cross-scope-hit": {
+        "exit": 1,
+        "assertion": "SCOPE_MUSIC_TYPES"
+      },
+      "empty-as-error": {
+        "exit": 1,
+        "assertion": "EMPTY_NOT_ERROR"
+      }
+    },
+    "manifestValidation": "Generated over 12 artifacts; post-generation positive run exited 0, and the three mutations still exited 1."
+  },
+  "contextWatermarkAtCheckpoint": {
+    "model": "deepseek-flash",
+    "inputTokens": 264495,
+    "windowTokens": 1048576,
+    "percent": 25.2,
+    "handoffThreshold": 350000,
+    "status": "BELOW_HANDOFF_THRESHOLD"
+  },
+  "memoryCheckpoint": {
+    "added": [],
+    "updated": [],
+    "archived": [],
+    "skipped": [
+      "Durable contract content already lives in this repo evidence package.",
+      "HEAD, test counts, and current context are transient and belong in report/read-back, not a new memory."
+    ],
+    "indexLines": 121,
+    "indexBytes": 16025,
+    "validator": "PASS",
+    "doctor": "clean; 92 notes; no broken pointers/orphans/schema errors"
+  },
+  "executed": [
+    "git HEAD/branch/status read",
+    "project and selected authority documents read",
+    "S3 report/contracts/commands summaries and hashes read",
+    "graphify graph absence checked; scoped rg fallback used",
+    "three search source files read locally",
+    "TDD red run observed before contracts existed",
+    "positive PowerShell fixture run exited 0",
+    "three named in-memory mutations exited 1 at their intended assertions",
+    "manifest generated for 12 artifacts",
+    "post-manifest positive verification exited 0 with hash/bytes/LF/sensitive-value checks"
+  ],
+  "notExecuted": [
+    "No production code, resource, schema, Gradle, APK, device, ADB, server, authentication, or media request.",
+    "No real positive, empty, failure, offline, cancellation, timeout, pagination, back-stack, process-death, ANR, or permission flow.",
+    "No independent QA, merge-prep, commit, push, tag, Release, or G1/G2 pass."
+  ],
+  "BLOCKED": [],
+  "uncovered": [
+    "real server response shape and reverse-proxy timeout behavior",
+    "real device ANR/Input timeout and Main-thread traces",
+    "Compose scroll/selection restoration and process recreation",
+    "real offline cache and stale display",
+    "production page size, pagination end behavior, and large-result rendering",
+    "user-selected ranking/grouping/presentation"
+  ],
+  "conclusion": {
+    "staticContractReady": true,
+    "userCommitmentCoverageReady": true,
+    "implementationComplete": false,
+    "runtimeVerified": false,
+    "g1PassClaimed": false,
+    "summary": "The package freezes the missing search route contract and makes the three named regressions fail closed in a static harness. It does not alter production search and does not close the historical ANR or any real user journey."
+  },
+  "nextRole": "G1 evidence integrator or later authorized search implementation owner",
+  "firstReadOnlyAction": "Inspect README.md, verify-contract.ps1, report.json, and manifest.json; run the positive and three mutation commands without editing production.",
+  "stopCondition": "Stop before production changes, server/device access, independent QA, merge-prep, commit, push, or any claim that the historical ANR is resolved."
+}

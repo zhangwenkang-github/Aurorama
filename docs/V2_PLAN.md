@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 方案门进行中 / Q03 五组静态证据与 A1/A2 静态合同已完成；runtime / implementation 缺口、Q03 packaged closure 与 Q04 用户决策仍开放
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 方案门进行中 / Q03 五组静态证据、A1/A2 与 BASE-001/003/004 静态合同已完成；BASE B/C/D 门、runtime / implementation 缺口、Q03 packaged closure 与 Q04 用户决策仍开放
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2589,11 +2589,38 @@ NAV 增量产品 / 身份契约；`NAV-008～009` 是交付与证据流程节点
 
 | 稳定 ID / 能力组 | 来源 | 等级 | 规范化解读 | 可观察验收 | 依赖 | 非目标 | 未决项 |
 |---|---|---|---|---|---|---|---|
-| `V2-REQ-BASE-001` 搜索产品契约 | `L14-02`；`FIX_PLAN` W82 / W88；K60 Release QA | `MUST` | 在 App 内发起可解释的媒体搜索：定义可用内容域 / scope、查询规范化、正结果、空结果、失败、加载与返回恢复；同类结果保持稳定入口和详情跳转 | 真实正结果可打开目标；空结果与失败可区分；返回后恢复原查询 / 结果；查询输入与结果渲染不造成 ≥5 秒 Main 阻塞或 Input timeout | `NAV-004`、`UX-014`、`ARCH-065/070`、现有搜索适配器与生产只读查询 | 不引入外部搜索引擎、遥测或服务器写；不把搜索框存在当作产品契约；不关闭历史搜索 P1 的重开条件 | 无剩余产品未决；G1 固定 scope 映射、超时、fixture 与正 / 空 / 失败样本 |
+| `V2-REQ-BASE-001` 搜索产品契约 | `L14-02`；`FIX_PLAN` W82 / W88；K60 Release QA | `MUST` | 在 App 内发起可解释的媒体搜索：定义可用内容域 / scope、查询规范化、正结果、空结果、失败、加载与返回恢复；同类结果保持稳定入口和详情跳转 | 真实正结果可打开目标；空结果与失败可区分；返回后恢复原查询 / 结果；查询输入与结果渲染不造成 ≥5 秒 Main 阻塞或 Input timeout | `NAV-004`、`UX-014`、`ARCH-065/070`、现有搜索适配器与生产只读查询 | 不引入外部搜索引擎、遥测或服务器写；不把搜索框存在当作产品契约；不关闭历史搜索 P1 的重开条件 | 静态合同已冻结；剩 B 生产实现、C 排序 / 跨源呈现用户选择与 D ANR / 恢复 / 离线 runtime 门；静态包不关闭历史 P1 |
 | `V2-REQ-BASE-002` 应用内更新 | `L14-16`；`FIX_PLAN` W89；1.4 notes | `MUST` | 保留发现新版本、版本 / 通道判断、ABI 选包、下载与中断恢复、APK 完整性 / 签名校验、交给 Android 系统安装器和失败恢复的完整链路 | 已是最新时不误报；有更新时选择匹配包；中断可恢复或有明确重启路径；损坏 / 不匹配包被拒绝；安装入口由系统确认；失败不破坏现有安装 | `ARCH-044/063`、版本号 / 签名、可信更新源、网络与系统安装器 | 不静默或特权安装、不绕过用户 / 系统确认、不把下载完成冒充安装成功；不扩入未授权资产更新 | 无剩余产品未决；G1 固定更新源 / 通道、ABI 映射、校验权威与失败文案 |
-| `V2-REQ-BASE-003` 持久 SWR | `L14-17`、`L14-41`；`FIX_PLAN` W88-C | `MUST` | 持久缓存采用 stale-while-revalidate：按 `server + user + namespace + resource / query` 隔离；可先显示陈旧数据并在网络恢复后刷新；事件 / 写成功触发失效；预取与容量有界 | 冷启动可先显示可标记的缓存；刷新后内容替换不闪烁为错误；切号不串缓存；写后旧值被失效；304 / 墙钟过期 / 多进程不破坏一致性 | `NAV-004`、`HOME-08`、`D189`、持久存储、写入失效事件与网络层 | 不把缓存冒充服务器实时真源；不跨 server / user 复用；不把缓存成功冒充离线写成功；不无限预取 | 无剩余产品未决；G1 固定 TTL、容量、预取上限、并发 / 多进程与 304 契约 |
-| `V2-REQ-BASE-004` 本地歌单完整管理 | `L14-18`；`FIX_PLAN` W87-A/B；部分 `MUSIC-001/014/016/051` | `MUST` | 本地歌单支持创建、重命名、排序、删除、增删曲目与持久恢复；支持版本化 JSON / M3U8 导入导出；重复、缺曲、损坏文件和不支持项显式处理；本地歌单与服务器歌单身份分离 | 重启后歌单顺序与成员保持；重排 / 删除可逆确认符合规则；JSON / M3U8 往返保留可表达字段；缺曲不静默删除；跨账号 / 跨来源不误合并 | `MUSIC-001`、`MUSIC-014/016/051`、写域歌单契约、下载来源身份、文件选择器 / 存储 | 不自动把本地歌单转成服务器歌单、不无确认覆盖或破坏性合并；不新增第二套媒体身份 | 无剩余产品未决；G1 固定文件版本 / 编码、冲突策略、缺曲映射和写回边界 |
+| `V2-REQ-BASE-003` 持久 SWR | `L14-17`、`L14-41`；`FIX_PLAN` W88-C | `MUST` | 持久缓存采用 stale-while-revalidate：按 `server + user + namespace + resource / query` 隔离；可先显示陈旧数据并在网络恢复后刷新；事件 / 写成功触发失效；预取与容量有界 | 冷启动可先显示可标记的缓存；刷新后内容替换不闪烁为错误；切号不串缓存；写后旧值被失效；304 / 墙钟过期 / 多进程不破坏一致性 | `NAV-004`、`HOME-08`、`D189`、持久存储、写入失效事件与网络层 | 不把缓存冒充服务器实时真源；不跨 server / user 复用；不把缓存成功冒充离线写成功；不无限预取 | 静态合同已冻结；6 个 P1 runtime / implementation gaps 与 2 个 P2 policy decisions 保持 Open；TTL / 容量 / 预取 / 时钟宽限、跨进程围栏与 304 能力证明未关闭 |
+| `V2-REQ-BASE-004` 本地歌单完整管理 | `L14-18`；`FIX_PLAN` W87-A/B；部分 `MUSIC-001/014/016/051` | `MUST` | 本地歌单支持创建、重命名、排序、删除、增删曲目与持久恢复；支持版本化 JSON / M3U8 导入导出；重复、缺曲、损坏文件和不支持项显式处理；本地歌单与服务器歌单身份分离 | 重启后歌单顺序与成员保持；重排 / 删除可逆确认符合规则；JSON / M3U8 往返保留可表达字段；缺曲不静默删除；跨账号 / 跨来源不误合并 | `MUSIC-001`、`MUSIC-014/016/051`、写域歌单契约、下载来源身份、文件选择器 / 存储 | 不自动把本地歌单转成服务器歌单、不无确认覆盖或破坏性合并；不新增第二套媒体身份 | 静态交换合同已冻结；B 重复 / 部分导入用户选择、C SAF / 重启设备证据、D 生产 parser / 迁移 / 服务器实现仍 Open；静态包不代表实现完成 |
 | `V2-REQ-BASE-005` 音乐懒补队列 / 写放大 | `L14-33`；旧 `MUSIC_PLAN` D72；W87 | `MUST` | 大歌单 / 队列使用可恢复快照加有界懒补：先保证当前与近端曲目可用，接近末端再补；PlaybackInfo 协商和队列快照写入合并 / 节流；保留当前项、实际随机序、Next Up 与失败项身份 | 349–1000 首级队列打开时不同步逐首协商全部曲目；播放与 Next Up 可达；续补失败可解释；冷启动恢复不丢已确认顺序；写放大有上限证据 | `MUSIC-014/016`、`M-C`、`M-R`、后台任务 / 持久化、Jellyfin PlaybackInfo 契约 | 不把旧 1000 上限直接当作新产品硬上限；不无限预取、自动下载或让后台写入阻塞播放；不伪造未协商曲目已可用 | 无剩余产品未决；G1 量化首批 N、并发、写合并、deadline 与恢复上限 |
+
+**G1-BASE-001 搜索路由状态静态合同（2026-11-04，独立 reviewer PASS）**：
+`.planning/v2-g1/G1-BASE-001-SEARCH-ROUTE-CONTRACT/` 共 13 文件 / 103,530 B；manifest
+2,114 B / 12 entries / 101,416 B，SHA-256
+`1c04fc6368487e6c5cdfe4d82462b9e205b19b0082eb72e282b89626d4e463a6`。合同冻结 4 scopes /
+11 states / 20 transitions / 11 identity rules / 13 promises / 31 fixtures / 3 mutations。完整
+`queryShape` 是身份，stale 响应与 wrong-scope 命中 FAIL_CLOSED；`EMPTY` 与 `ERROR` / `OFFLINE` /
+`CANCELLED` 分离；三类 mutation 均 exit 1。历史搜索 ANR / Input timeout 仍是
+`ACCEPTED_RESIDUAL` runtime 门；B 生产实现、C 排序 / 跨源呈现选择与 D 设备 / 恢复证据均未完成。
+
+**G1-BASE-003 持久 SWR 静态合同（2026-11-04，独立 reviewer PASS）**：
+`.planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/` 共 8 文件 / 54,820 B；manifest SHA-256
+`9ee6e05cd5201cca5eec47fe98cb8422c5e8310e93768320ecb92e3b5461d796`，payload SHA-256
+`7aa53d5fb2e7d36ff631a94045d28803cf8335de4195c61a4636a95b50bf4bf5`。合同冻结 10 states /
+19 identity dimensions / 22 transitions / 11 TTL-clock-304 rules / 12 promises / 4 fixtures；
+unknown、cross-account、old-generation 与 corrupt 数据均 fail closed，3 个负例均 exit 1。仍保留
+6 个 P1 runtime / implementation gaps 与 TTL / 容量 / 预取 / 时钟宽限等 decision gaps；
+cross-process durable fence、304 能力与生产 mutation 集成未证明。
+
+**G1-BASE-004 本地歌单交换静态合同（2026-11-04，独立 reviewer PASS）**：
+`.planning/v2-g1/G1-BASE-004-PLAYLIST-EXCHANGE/` 共 24 文件 / 115,243 B；manifest 4,493 B /
+23 entries / 110,750 B，SHA-256
+`10121417575e006cfc1434283efd90f049d25b72519ac803da027ff8b33a9f08`。合同冻结 Draft 2020-12 /
+68 properties、34 mapping rows、69 roundtrip rows=`48 PRESERVE / 2 PRESERVE_OPAQUE / 2 DEGRADE /
+17 LOSS`，并以 12 scenarios / 99 checks 验证。去重只接受完整 SOURCE identity；缺曲与重复保留，
+identity conflict 零写入；generic M3U8 的身份 / 冲突语义显式 LOSS，不冒充无损。B 重复 / 部分导入
+用户选择、C SAF / 设备 / 重启证据、D 生产 parser / 持久化迁移 / 服务器歌单实现仍未完成。
 
 **G1-A2 应用内更新信任静态合同（2026-11-04，独立 reviewer PASS）**：
 `.planning/v2-g1/G1-A2-UPDATE-TRUST-CONTRACT/` 共 10 文件 / 88,530 B；manifest 覆盖 9 文件 /
@@ -2614,6 +2641,13 @@ G1 至少须关闭：`UI_DESIGN_SYSTEM` V2 token / fixture、TTS 完全离线引
 OpenAPI / 官方客户端写协议、独立写服、Book MediaSource 与迁移、可选 sidecar /
 Trickplay finalizer、通知 canonical identity、SyncPlay 协议、双内核真实能力、搜索 / 更新 /
 SWR / 本地歌单 / 音乐懒补的契约，以及全部设备 / 大文件 / 无障碍 / 断网 / 迁移证据。
+
+其中 BASE-001/003/004 的产品契约歧义已由静态合同冻结，但 B/C/D 门、runtime、device、
+candidate-package 与 production implementation 均未关闭；静态合同不把任何 `MUST` 运行时承诺
+升级为 PASS。公共 `.planning/v2-g1/.gitattributes` 已新增 `*.m3u8 text eol=lf`，BASE-004
+24/24 文件为 LF 且 manifest / hash 可复现。当前前沿审计结论为 `NOW_SAFE`：没有未阻塞的
+静态增量，下一步只等待用户对 Q04 / B/C 的选择、明确授权，或 D 类 runtime / device /
+implementation 证据。
 
 本轮明确非目标：不把 `MUST` 需求直接写成已实现；不把历史 1.4.0 通过记录冒充 V2 候选包证据；
 不把生产服务器写、TV / 车机 / 桌面产品面、第三方在线字幕 / 歌词、管理式媒体写、破坏性数据库
@@ -3299,15 +3333,16 @@ S6 验收、实现、G2、独立 QA、设备或服务器写。
 **接手身份**：用户是 `V2-Q-G1-04` 视觉 / UX 方向的最终决策者。交付负责人只整理候选、
 证据边界与写回记录，不得代替用户做审美判断、把推荐写成已接受事实或据此进入 S6。
 
-**一句话现状**：S5 证据制作、verifier 与独立 scoped evidence review 已完成；G1-A1 下载状态
-与 G1-A2 更新信任静态合同亦已完成，runtime / implementation gaps 原样保留。推荐整包为
-R1“DNA 保留 + 共享骨架”，视觉 A2“更强材料表现”与 A3“更强结构统一”保留为备选；本段是
-唯一 ACTIVE，等待用户主观视觉选择或后续明确授权，`V2-Q-G1-04` 仍 Open，G1 未通过。
+**一句话现状**：S5 证据制作、verifier 与独立 scoped evidence review 已完成；G1-A1 下载状态、
+G1-A2 更新信任与 BASE-001/003/004 三组静态合同亦已完成，runtime / decision /
+implementation gaps 原样保留。推荐整包为 R1“DNA 保留 + 共享骨架”，视觉 A2“更强材料表现”
+与 A3“更强结构统一”保留为备选；本段是唯一 ACTIVE，等待用户主观视觉选择或后续明确授权，
+`V2-Q-G1-04` 仍 Open，G1 未通过。
 
 **状态**：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE /
-G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN /
-READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED / RUNTIME_UNVERIFIED /
-NO_IMPLEMENTATION`。
+G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE /
+G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_S5_COMPLETE / Q03_Q04_OPEN /
+READY_FOR_V2_Q_G1_04_USER_DECISION / G1_NOT_PASSED / RUNTIME_UNVERIFIED / NO_IMPLEMENTATION`。
 
 **并行 Q03 增量**：S4-A 的 SBOM runtime inventory、native provenance、媒体
 notice / source-offer 与 TTS / PDF provenance 静态增量均已完成并通过独立 reviewer PASS。
@@ -3324,6 +3359,31 @@ runtime / device 证据，保持 Open。
 PASS，详细合同见 §5.7.3 与 §5.10.5。A1 保留 6 个 P2 capability / runtime gaps；A2 保留
 `GAP-INSTALL-CONFIRM` 与 `GAP-ABI-PAYLOAD` 两个 P1 实现 gap。它们不新增用户决策，不把静态
 合同写成实现、runtime / device 或 G1 PASS。
+
+**BASE-001/003/004 静态合同**：三包均已由独立 reviewer PASS，并分别冻结搜索路由、持久 SWR
+与本地歌单交换合同；这三包只减少产品 / 状态歧义，不新增用户决策、不改生产代码、不触设备或
+服务器，也不把 `MUST` runtime 升级为 PASS。
+
+- `G1-BASE-001`：13 文件 / 103,530 B；manifest 2,114 B / 12 entries / 101,416 B，SHA-256
+  `1c04fc6368487e6c5cdfe4d82462b9e205b19b0082eb72e282b89626d4e463a6`。冻结 4 scopes /
+  11 states / 20 transitions / 11 identity / 13 promises / 31 fixtures / 3 mutations；完整
+  query-shape，stale / wrong-scope fail closed，`EMPTY` 与 `ERROR` / `OFFLINE` / `CANCELLED`
+  分离。历史 ANR 仍为 `ACCEPTED_RESIDUAL`；B 实现、C 呈现选择与 D runtime / device 未完成。
+- `G1-BASE-003`：8 文件 / 54,820 B；manifest SHA-256
+  `9ee6e05cd5201cca5eec47fe98cb8422c5e8310e93768320ecb92e3b5461d796`，payload SHA-256
+  `7aa53d5fb2e7d36ff631a94045d28803cf8335de4195c61a4636a95b50bf4bf5`。冻结 10 states /
+  19 dimensions / 11 TTL-clock-304 / 12 promises / 4 fixtures；unknown / cross-account /
+  old-generation / corrupt fail closed，3 个负例 exit 1。6 个 P1 runtime / implementation gaps
+  与 TTL / 容量 / 预取 / 时钟宽限 decision gaps 保留。
+- `G1-BASE-004`：24 文件 / 115,243 B；manifest 4,493 B / 23 entries / 110,750 B，SHA-256
+  `10121417575e006cfc1434283efd90f049d25b72519ac803da027ff8b33a9f08`。冻结 Draft 2020-12 /
+  68 properties、34 mapping、69 roundtrip=`48/2/2/17`、12 scenarios / 99 checks；SOURCE-only
+  dedupe，缺曲 / 重复保留，冲突零写入，M3U8 损失显式。B 重复 / 部分导入选择、C SAF / 设备、
+  D 生产 parser / 迁移 / 服务器实现仍 Open。
+
+公共 `.planning/v2-g1/.gitattributes` 已新增 `*.m3u8 text eol=lf`；BASE-004 24/24 LF，目录
+manifest / hash 可复现。当前前沿审计已收口为 `NOW_SAFE`：没有未阻塞的静态增量，后续只等待
+用户 Q04 / B/C 选择、明确授权或 D 类 runtime / device / implementation 证据。
 
 **Q03 静态收敛边界**：安全的 Q03 静态增量已最大化；NOTICE 的 `M3-05` / `MPV-05` 只收窄到
 `PARTIAL`，静态 NOTICE 与 TTS / PDF evidence 仍为 `PARTIAL`，PDFium issue #56 仍 OPEN。
@@ -3371,9 +3431,10 @@ A2 在更多功能层强化材质和光感，辨识度更强但增加可读性�
 主要只替换颜色与圆角，结构最稳但削弱 Lumen / Nocturne / Monolith 的差异。推荐 R1，不是
 用户已拍板结果。
 
-**边界**：`docs/UI_DESIGN_SYSTEM.md` 仍为 v1.0；S5 只作为 Q04 决策输入，不关闭 Q04、
-不关闭 Q03、不构成 G1 PASS、S6 验收、实现、G2、独立 QA、设备或服务器证据。删除 / 修改
-S5 证据、升级设计系统或进入实现均超出本交接。
+**边界**：`docs/UI_DESIGN_SYSTEM.md` 仍为 v1.0；S5 只作为 Q04 决策输入，BASE 三合同也只作为
+静态合同输入。它们均不关闭 Q04 / Q03、不构成 G1 PASS、S6 验收、实现、G2、独立 QA、设备或
+服务器证据，也不把 BASE B/C/D 或 runtime 项标成 Done。删除 / 修改既有证据、升级设计系统或
+进入实现均超出本交接。
 
 **下一步入口**：用户先打开 `decision-brief.md`，按需查看证据包，然后明确选择 R1、A2、A3
 或逐项修订；交付负责人只据此更新 Q04 / TASKS / V2_PLAN 并记录用户原话，不补写审美结论。
@@ -3381,8 +3442,8 @@ S5 证据、升级设计系统或进入实现均超出本交接。
 解释为 Q03 扩项或实现许可。停止条件：用户尚未明确选择时保持 Q04 Open、G1 NOT_PASSED 与
 `UI_DESIGN_SYSTEM` v1.0；若用户选择逐项修订，先登记差异项与影响再继续，不直接进入 S6 或实现。
 
-**实际上下文水位**：本次收口实测 `299,581 / 1,048,576`（28.6%），缓存命中 98.4%，
-会话请求数 1385；已接近 30 万交接准备线，后续扩项前应先交接。最终以当前线程的
+**实际上下文水位**：本次收口实测 `207,317 / 1,048,576`（19.8%），缓存命中 99.6%，
+会话请求数 1665；低于 30 万交接准备线，后续扩项仍先复核水位。最终以当前线程的
 `deepseek-status` 实况为准。
 
 ### HISTORY：G1-S5 视觉方向证据交接（2026-11-03；Completed，已被上方 G1-Q04 ACTIVE 取代）
@@ -4084,3 +4145,10 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   download / handoff / unknown / confirmed，并保留 `GAP-INSTALL-CONFIRM` /
   `GAP-ABI-PAYLOAD` 两个 P1 G2 gaps。两份均独立 reviewer PASS，但 Q03 / Q04 仍 Open，
   G1 NOT_PASSED，UI v1.0；未新增用户决策、未改证据 / 生产、未 commit。
+- **2026-11-04 — G1-BASE-001/003/004 静态合同写入权威文档**：BASE-001 为 13 文件 /
+  103,530 B，manifest `1c04fc63…`；BASE-003 为 8 文件 / 54,820 B，manifest `9ee6e05c…`，
+  payload `7aa53d5f…`；BASE-004 为 24 文件 / 115,243 B，manifest `10121417…`。三包独立
+  reviewer PASS，分别冻结搜索路由、持久 SWR 与本地歌单交换合同；BASE-004 的 `*.m3u8`
+  LF 属性与 24/24 LF 复现保留。前沿审计为 `NOW_SAFE`，下一步只等待用户 Q04 / B/C 决策、
+  明确授权或 D 类 runtime / device / implementation 证据。Q03 / Q04 仍 Open，G1
+  NOT_PASSED，UI v1.0；未新增用户决策、未改证据 / 生产、未 commit / push。

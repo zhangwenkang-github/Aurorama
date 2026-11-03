@@ -1,0 +1,160 @@
+{
+  "format": "aurorama.base004.manifest",
+  "schemaVersion": 1,
+  "source": {
+    "branch": "codex/v2-integration",
+    "head": "6fc0a02995bb24c11237fe3b8753f21f06a57f72"
+  },
+  "policy": {
+    "textEncoding": "UTF-8",
+    "textEol": "LF",
+    "manifestExcludes": [
+      "manifest.json"
+    ],
+    "absolutePathsIncluded": false
+  },
+  "counts": {
+    "files": 23,
+    "bytes": 110750
+  },
+  "files": [
+    {
+      "path": "commands.log",
+      "bytes": 1312,
+      "sha256": "E0DA9A4B02E4903058344ECEEC2A8A7EE4A3261B89C46B01F20BDC5A169DB456",
+      "eol": "LF"
+    },
+    {
+      "path": "findings.md",
+      "bytes": 2714,
+      "sha256": "22713856019DED31280AC90D698D8881839D590E27BEB10F72A6E2DFFA39B362",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/conflict-identity.json",
+      "bytes": 1950,
+      "sha256": "786E65B60946FED142311BA19453993A5D1BC515ADD9589113245BED29B8AA39",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/corrupt-json.json",
+      "bytes": 155,
+      "sha256": "09B400BB59F4937692607F4D7A18E65963EC9D03076321C86C43794130EA6ECD",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/cross-source-same-item.json",
+      "bytes": 1910,
+      "sha256": "0F231A066DBAA01C93F4C3D5AD007004C302906DB2C0B888DA0B59C5E611FD83",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/duplicate-identity.json",
+      "bytes": 1912,
+      "sha256": "61C4A7DB97493DF07223F0C47AECE7C65504133DC484E8CDD37028B5347D3C6D",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/expected-results.json",
+      "bytes": 6021,
+      "sha256": "D1ABD094F0731288757828480BF5B3D76063B0577534335CE77A289F0856C281",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/generic-lossy.m3u8",
+      "bytes": 179,
+      "sha256": "54767B0A51E9F0DABC7998BA28BA2224826FE86923A4A33585DAF801A1714A44",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/missing-track.json",
+      "bytes": 1308,
+      "sha256": "5DB94CE1A6ACC37F4CBE659D988C636B5D62D2948F5119656261B9B8FC1B68E0",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/partial-import.m3u8",
+      "bytes": 194,
+      "sha256": "0ECA6D73EBEA6A7EAF3ECFACD51CDDDA1043A40B24D4131EE266ACCC8646B9D9",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/title-collision.json",
+      "bytes": 1819,
+      "sha256": "E2F544ECAC4BA68E12DAB30822BED2210D617786A682779F800C85F520A95973",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/unknown-feature.json",
+      "bytes": 529,
+      "sha256": "5CCF314B042A7ED3871AB81BCB3B03D1BF79B06AEB9DC64B2D33A4083D5B41F2",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/valid-mixed-playlist.json",
+      "bytes": 3857,
+      "sha256": "1E4C2F2A2602676D5DC6AC44B212ADE128D99F18CEF919914D82A55F79771A3A",
+      "eol": "LF"
+    },
+    {
+      "path": "fixtures/version-unsupported.json",
+      "bytes": 464,
+      "sha256": "66C10D18CF5CE3463FAFF3792EA13C3F02C1310A079CD6848F2D15DD9E041AE9",
+      "eol": "LF"
+    },
+    {
+      "path": "M3U8_MAPPING.md",
+      "bytes": 6195,
+      "sha256": "1DB2095AD7D7198EF3CA61907AECB4FCD8C4B395173FE708602513456F073945",
+      "eol": "LF"
+    },
+    {
+      "path": "progress.md",
+      "bytes": 875,
+      "sha256": "55226D62768583EF404EBE12AD1C4E082311718DD737C0FFE20D40C338ECF5FB",
+      "eol": "LF"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1728,
+      "sha256": "9DAD78336D08E8B419045E1E060B5864543F4FF4E91260FFF75F537578292367",
+      "eol": "LF"
+    },
+    {
+      "path": "report.json",
+      "bytes": 12239,
+      "sha256": "6F08EFEA10A9F9415794A2AAC08A6EE9F1D6B8CC2C4392CCA0B7EFC9B4D77BF2",
+      "eol": "LF"
+    },
+    {
+      "path": "roundtrip-matrix.json",
+      "bytes": 8606,
+      "sha256": "4B777F771CD454D06681F06F16CE245DB394A66233513043F64055DCE40EA4D9",
+      "eol": "LF"
+    },
+    {
+      "path": "schemas/local-playlist-exchange.v1.schema.json",
+      "bytes": 10775,
+      "sha256": "61D5B52D29A6096D8B4D452430D149814765DECD303DA0E8FB9D9049DE3C1856",
+      "eol": "LF"
+    },
+    {
+      "path": "task_plan.md",
+      "bytes": 1739,
+      "sha256": "FAAD33FC758185DDC9500152680301A8121AB42E09B5F2B225C2C97F86AEC809",
+      "eol": "LF"
+    },
+    {
+      "path": "test-results.json",
+      "bytes": 13498,
+      "sha256": "0C9BFB328726C842F79DCB41078A5958E763D8FEDAE7C7D79876882C12BD9E17",
+      "eol": "LF"
+    },
+    {
+      "path": "test_contract.py",
+      "bytes": 30771,
+      "sha256": "99245B77EDAC7D60D446AA32C96B5E960B8DE9E84B6A323334B5A40183BEBB7B",
+      "eol": "LF"
+    }
+  ]
+}

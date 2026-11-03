@@ -1,0 +1,54 @@
+{
+  "format": "aurorama.local-playlist.exchange",
+  "schemaVersion": 1,
+  "producer": {
+    "name": "aurorama-contract-fixture",
+    "version": "1.0.0"
+  },
+  "requiredFeatures": [
+    "missing-track-preservation"
+  ],
+  "playlist": {
+    "identityDomain": "LOCAL_DRAFT",
+    "localPlaylistId": "local:playlist:missing-case",
+    "serverPlaylistId": null,
+    "name": "Missing Case",
+    "revision": 2,
+    "createdAt": "2026-11-02T08:00:00Z",
+    "updatedAt": "2026-11-04T08:00:00Z",
+    "originContext": {
+      "serverId": "server-blue",
+      "userId": "user-bob"
+    }
+  },
+  "entries": [
+    {
+      "entryId": "missing-entry",
+      "position": 0,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "SERVER",
+        "serverId": "server-blue",
+        "userId": "user-bob",
+        "libraryId": 9,
+        "itemId": "33333333-3333-4333-8333-333333333333",
+        "sourceToken": null,
+        "provenanceComplete": false,
+        "matchDomain": "REQUEST_ONLY"
+      },
+      "display": {
+        "title": "No Longer Available",
+        "durationMs": 222000
+      },
+      "availability": {
+        "status": "MISSING",
+        "reasonCode": "ITEM_NOT_FOUND"
+      },
+      "locator": {
+        "kind": "NONE",
+        "uri": null
+      }
+    }
+  ]
+}

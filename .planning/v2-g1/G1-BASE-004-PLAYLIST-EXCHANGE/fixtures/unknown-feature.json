@@ -1,0 +1,22 @@
+{
+  "format": "aurorama.local-playlist.exchange",
+  "schemaVersion": 1,
+  "producer": {
+    "name": "future-writer",
+    "version": "9.0.0"
+  },
+  "requiredFeatures": [
+    "future-required-capability-v9"
+  ],
+  "playlist": {
+    "identityDomain": "LOCAL_DRAFT",
+    "localPlaylistId": "local:playlist:future-feature",
+    "serverPlaylistId": null,
+    "name": "Future Feature",
+    "revision": 1,
+    "createdAt": "2026-11-04T08:00:00Z",
+    "updatedAt": "2026-11-04T08:00:00Z",
+    "originContext": null
+  },
+  "entries": []
+}

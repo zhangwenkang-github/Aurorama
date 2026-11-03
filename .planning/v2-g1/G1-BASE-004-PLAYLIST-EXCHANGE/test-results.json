@@ -1,0 +1,524 @@
+{
+  "format": "aurorama.base004.test-results",
+  "schemaVersion": 1,
+  "status": "PASS",
+  "counts": {
+    "checks": 99,
+    "passed": 99,
+    "failed": 0,
+    "jsonFixtureFiles": 9,
+    "m3u8FixtureFiles": 2,
+    "fixtureFiles": 11,
+    "expectationFiles": 1,
+    "testCases": 12,
+    "schemaPropertyDeclarations": 68,
+    "roundtripLanes": 3,
+    "roundtripRows": 69,
+    "roundtripStatusCounts": {
+      "DEGRADE": 2,
+      "LOSS": 17,
+      "PRESERVE": 48,
+      "PRESERVE_OPAQUE": 2
+    }
+  },
+  "checks": [
+    {
+      "id": "schema-json-parse",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "positive-mixed-json-schema-valid",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "positive-mixed-json-decision",
+      "status": "PASS",
+      "detail": "expected='ACCEPT_WITH_WARNINGS' actual='ACCEPT_WITH_WARNINGS'"
+    },
+    {
+      "id": "positive-mixed-json-entryCount",
+      "status": "PASS",
+      "detail": "expected=4 actual=4"
+    },
+    {
+      "id": "positive-mixed-json-missingPreserved",
+      "status": "PASS",
+      "detail": "expected=1 actual=1"
+    },
+    {
+      "id": "positive-mixed-json-duplicateIdentities",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "positive-mixed-json-identityConflicts",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "positive-mixed-json-crossSourceCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "positive-mixed-json-titleCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "positive-mixed-json-writesCommitted",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "positive-mixed-json-issues",
+      "status": "PASS",
+      "detail": "expected=['MISSING_TRACK_PRESERVED', 'UNKNOWN_PROVENANCE_PRESERVED'] actual=['MISSING_TRACK_PRESERVED', 'UNKNOWN_PROVENANCE_PRESERVED']"
+    },
+    {
+      "id": "missing-track-schema-valid",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "missing-track-decision",
+      "status": "PASS",
+      "detail": "expected='ACCEPT_WITH_WARNINGS' actual='ACCEPT_WITH_WARNINGS'"
+    },
+    {
+      "id": "missing-track-entryCount",
+      "status": "PASS",
+      "detail": "expected=1 actual=1"
+    },
+    {
+      "id": "missing-track-missingPreserved",
+      "status": "PASS",
+      "detail": "expected=1 actual=1"
+    },
+    {
+      "id": "missing-track-duplicateIdentities",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "missing-track-identityConflicts",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "missing-track-crossSourceCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "missing-track-titleCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "missing-track-writesCommitted",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "missing-track-issues",
+      "status": "PASS",
+      "detail": "expected=['MISSING_TRACK_PRESERVED'] actual=['MISSING_TRACK_PRESERVED']"
+    },
+    {
+      "id": "duplicate-identity-schema-valid",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "duplicate-identity-decision",
+      "status": "PASS",
+      "detail": "expected='ACCEPT_WITH_WARNINGS' actual='ACCEPT_WITH_WARNINGS'"
+    },
+    {
+      "id": "duplicate-identity-entryCount",
+      "status": "PASS",
+      "detail": "expected=2 actual=2"
+    },
+    {
+      "id": "duplicate-identity-missingPreserved",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "duplicate-identity-duplicateIdentities",
+      "status": "PASS",
+      "detail": "expected=1 actual=1"
+    },
+    {
+      "id": "duplicate-identity-identityConflicts",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "duplicate-identity-crossSourceCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "duplicate-identity-titleCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "duplicate-identity-writesCommitted",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "duplicate-identity-issues",
+      "status": "PASS",
+      "detail": "expected=['DUPLICATE_IDENTITY_PRESERVED'] actual=['DUPLICATE_IDENTITY_PRESERVED']"
+    },
+    {
+      "id": "identity-conflict-schema-valid",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "identity-conflict-decision",
+      "status": "PASS",
+      "detail": "expected='REQUIRE_USER_CHOICE' actual='REQUIRE_USER_CHOICE'"
+    },
+    {
+      "id": "identity-conflict-entryCount",
+      "status": "PASS",
+      "detail": "expected=2 actual=2"
+    },
+    {
+      "id": "identity-conflict-missingPreserved",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "identity-conflict-duplicateIdentities",
+      "status": "PASS",
+      "detail": "expected=1 actual=1"
+    },
+    {
+      "id": "identity-conflict-identityConflicts",
+      "status": "PASS",
+      "detail": "expected=1 actual=1"
+    },
+    {
+      "id": "identity-conflict-crossSourceCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "identity-conflict-titleCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "identity-conflict-writesCommitted",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "identity-conflict-issues",
+      "status": "PASS",
+      "detail": "expected=['DUPLICATE_IDENTITY_PRESERVED', 'IDENTITY_CONFLICT', 'USER_DECISION_REQUIRED'] actual=['DUPLICATE_IDENTITY_PRESERVED', 'IDENTITY_CONFLICT', 'USER_DECISION_REQUIRED']"
+    },
+    {
+      "id": "cross-source-same-item-schema-valid",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "cross-source-same-item-decision",
+      "status": "PASS",
+      "detail": "expected='ACCEPT_WITH_WARNINGS' actual='ACCEPT_WITH_WARNINGS'"
+    },
+    {
+      "id": "cross-source-same-item-entryCount",
+      "status": "PASS",
+      "detail": "expected=2 actual=2"
+    },
+    {
+      "id": "cross-source-same-item-missingPreserved",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "cross-source-same-item-duplicateIdentities",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "cross-source-same-item-identityConflicts",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "cross-source-same-item-crossSourceCollisions",
+      "status": "PASS",
+      "detail": "expected=1 actual=1"
+    },
+    {
+      "id": "cross-source-same-item-titleCollisions",
+      "status": "PASS",
+      "detail": "expected=1 actual=1"
+    },
+    {
+      "id": "cross-source-same-item-writesCommitted",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "cross-source-same-item-issues",
+      "status": "PASS",
+      "detail": "expected=['CROSS_SOURCE_SAME_ITEM_PRESERVED', 'TITLE_COLLISION_NOT_MERGED'] actual=['CROSS_SOURCE_SAME_ITEM_PRESERVED', 'TITLE_COLLISION_NOT_MERGED']"
+    },
+    {
+      "id": "title-collision-schema-valid",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "title-collision-decision",
+      "status": "PASS",
+      "detail": "expected='ACCEPT_WITH_WARNINGS' actual='ACCEPT_WITH_WARNINGS'"
+    },
+    {
+      "id": "title-collision-entryCount",
+      "status": "PASS",
+      "detail": "expected=2 actual=2"
+    },
+    {
+      "id": "title-collision-missingPreserved",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "title-collision-duplicateIdentities",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "title-collision-identityConflicts",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "title-collision-crossSourceCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "title-collision-titleCollisions",
+      "status": "PASS",
+      "detail": "expected=1 actual=1"
+    },
+    {
+      "id": "title-collision-writesCommitted",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "title-collision-issues",
+      "status": "PASS",
+      "detail": "expected=['TITLE_COLLISION_NOT_MERGED'] actual=['TITLE_COLLISION_NOT_MERGED']"
+    },
+    {
+      "id": "unknown-required-feature-schema-valid",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "unknown-required-feature-decision",
+      "status": "PASS",
+      "detail": "expected='REJECT' actual='REJECT'"
+    },
+    {
+      "id": "unknown-required-feature-entryCount",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "unknown-required-feature-missingPreserved",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "unknown-required-feature-duplicateIdentities",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "unknown-required-feature-identityConflicts",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "unknown-required-feature-crossSourceCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "unknown-required-feature-titleCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "unknown-required-feature-writesCommitted",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "unknown-required-feature-issues",
+      "status": "PASS",
+      "detail": "expected=['FEATURE_UNSUPPORTED'] actual=['FEATURE_UNSUPPORTED']"
+    },
+    {
+      "id": "version-unsupported-schema-invalid",
+      "status": "PASS",
+      "detail": "$.schemaVersion: expected const 1"
+    },
+    {
+      "id": "version-unsupported-decision",
+      "status": "PASS",
+      "detail": "expected='REJECT' actual='REJECT'"
+    },
+    {
+      "id": "version-unsupported-entryCount",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "version-unsupported-missingPreserved",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "version-unsupported-duplicateIdentities",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "version-unsupported-identityConflicts",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "version-unsupported-crossSourceCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "version-unsupported-titleCollisions",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "version-unsupported-writesCommitted",
+      "status": "PASS",
+      "detail": "expected=0 actual=0"
+    },
+    {
+      "id": "version-unsupported-issues",
+      "status": "PASS",
+      "detail": "expected=['VERSION_UNSUPPORTED'] actual=['VERSION_UNSUPPORTED']"
+    },
+    {
+      "id": "corrupt-json-corrupt-json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "corrupt-json-no-write",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "json-to-json-deep-equal",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "unknown-fields-preserved",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "title-is-not-identity",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "generic-m3u8-entry-count",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "generic-m3u8-lossy-issues",
+      "status": "PASS",
+      "detail": "['COMMENT_IGNORED', 'GENERIC_M3U8_IDENTITY_LOST']"
+    },
+    {
+      "id": "generic-m3u8-unknown-no-merge",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "partial-m3u8-counts",
+      "status": "PASS",
+      "detail": "accepted=1 rejected=2"
+    },
+    {
+      "id": "partial-m3u8-issues",
+      "status": "PASS",
+      "detail": "['BROKEN_EXTINF', 'GENERIC_M3U8_IDENTITY_LOST', 'MISSING_URI', 'PARTIAL_IMPORT_REQUIRES_CONFIRMATION']"
+    },
+    {
+      "id": "partial-m3u8-zero-write",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "custom-m3u8-roundtrip-deep-equal",
+      "status": "PASS",
+      "detail": "custom markers, EXTINF, and URI lines must reconstruct the fixture"
+    },
+    {
+      "id": "custom-m3u8-roundtrip-no-loss",
+      "status": "PASS",
+      "detail": "issues=[] identityLost=1"
+    },
+    {
+      "id": "roundtrip-matrix-statuses",
+      "status": "PASS",
+      "detail": "{'PRESERVE': 48, 'PRESERVE_OPAQUE': 2, 'LOSS': 17, 'DEGRADE': 2}"
+    },
+    {
+      "id": "roundtrip-generic-loss-explicit",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "evidence-lf-only",
+      "status": "PASS",
+      "detail": "[]"
+    },
+    {
+      "id": "sensitive-value-scan",
+      "status": "PASS",
+      "detail": "[]"
+    },
+    {
+      "id": "local-server-playlist-boundary",
+      "status": "PASS",
+      "detail": ""
+    }
+  ],
+  "failedChecks": [],
+  "sensitiveHits": [],
+  "crlfFiles": []
+}

@@ -1,0 +1,474 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.aurorama.invalid/local-playlist-exchange/v1/schema.json",
+  "title": "Aurorama Local Playlist Exchange v1",
+  "description": "Static exchange contract for a locally owned playlist draft. This is not a Jellyfin server playlist schema and does not implement persistence or SAF I/O.",
+  "type": "object",
+  "required": [
+    "format",
+    "schemaVersion",
+    "playlist",
+    "entries"
+  ],
+  "properties": {
+    "format": {
+      "const": "aurorama.local-playlist.exchange"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "producer": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "version": {
+          "$ref": "#/$defs/nonEmptyString"
+        }
+      }
+    },
+    "requiredFeatures": {
+      "$ref": "#/$defs/featureList"
+    },
+    "optionalFeatures": {
+      "$ref": "#/$defs/featureList"
+    },
+    "playlist": {
+      "$ref": "#/$defs/playlist"
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "extensions": {
+      "$ref": "#/$defs/extensions"
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "featureList": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      },
+      "uniqueItems": true
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "originContext": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "serverId",
+            "userId"
+          ],
+          "properties": {
+            "serverId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "userId": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "playlist": {
+      "type": "object",
+      "description": "A local draft owns LOCAL_DEVICE identity. serverPlaylistId is always null here; copying to a server playlist is a separate explicit operation.",
+      "required": [
+        "identityDomain",
+        "localPlaylistId",
+        "serverPlaylistId",
+        "name",
+        "revision",
+        "createdAt",
+        "updatedAt",
+        "originContext"
+      ],
+      "properties": {
+        "identityDomain": {
+          "const": "LOCAL_DRAFT"
+        },
+        "localPlaylistId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "serverPlaylistId": {
+          "type": "null"
+        },
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "originContext": {
+          "$ref": "#/$defs/originContext"
+        }
+      },
+      "additionalProperties": true
+    },
+    "entry": {
+      "type": "object",
+      "required": [
+        "entryId",
+        "position",
+        "identity",
+        "display",
+        "availability",
+        "locator"
+      ],
+      "properties": {
+        "entryId": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "position": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "identity": {
+          "$ref": "#/$defs/mediaIdentity"
+        },
+        "display": {
+          "$ref": "#/$defs/display"
+        },
+        "availability": {
+          "$ref": "#/$defs/availability"
+        },
+        "locator": {
+          "$ref": "#/$defs/locator"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "mediaIdentity": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/serverSourceIdentity"
+        },
+        {
+          "$ref": "#/$defs/serverRequestIdentity"
+        },
+        {
+          "$ref": "#/$defs/localSourceIdentity"
+        },
+        {
+          "$ref": "#/$defs/unknownLegacyIdentity"
+        }
+      ]
+    },
+    "commonIdentity": {
+      "type": "object",
+      "required": [
+        "identityVersion",
+        "mediaKind"
+      ],
+      "properties": {
+        "identityVersion": {
+          "const": 1
+        },
+        "mediaKind": {
+          "const": "AUDIO"
+        }
+      },
+      "additionalProperties": true
+    },
+    "serverSourceIdentity": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonIdentity"
+        },
+        {
+          "type": "object",
+          "required": [
+            "sourceKind",
+            "serverId",
+            "userId",
+            "libraryId",
+            "itemId",
+            "sourceToken",
+            "provenanceComplete",
+            "matchDomain"
+          ],
+          "properties": {
+            "sourceKind": {
+              "const": "SERVER"
+            },
+            "serverId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "userId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "libraryId": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "itemId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "sourceToken": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "provenanceComplete": {
+              "const": true
+            },
+            "matchDomain": {
+              "const": "SOURCE"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "serverRequestIdentity": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonIdentity"
+        },
+        {
+          "type": "object",
+          "required": [
+            "sourceKind",
+            "serverId",
+            "userId",
+            "libraryId",
+            "itemId",
+            "sourceToken",
+            "provenanceComplete",
+            "matchDomain"
+          ],
+          "properties": {
+            "sourceKind": {
+              "const": "SERVER"
+            },
+            "serverId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "userId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "libraryId": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "itemId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "sourceToken": {
+              "type": "null"
+            },
+            "provenanceComplete": {
+              "const": false
+            },
+            "matchDomain": {
+              "const": "REQUEST_ONLY"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "localSourceIdentity": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonIdentity"
+        },
+        {
+          "type": "object",
+          "required": [
+            "sourceKind",
+            "localItemId",
+            "persistentUri",
+            "provenanceComplete",
+            "matchDomain"
+          ],
+          "properties": {
+            "sourceKind": {
+              "const": "LOCAL"
+            },
+            "localItemId": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "persistentUri": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "contentSha256": {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            },
+            "provenanceComplete": {
+              "const": true
+            },
+            "matchDomain": {
+              "const": "SOURCE"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "unknownLegacyIdentity": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonIdentity"
+        },
+        {
+          "type": "object",
+          "required": [
+            "sourceKind",
+            "legacyRecordKey",
+            "provenanceComplete",
+            "matchDomain"
+          ],
+          "properties": {
+            "sourceKind": {
+              "const": "UNKNOWN"
+            },
+            "legacyRecordKey": {
+              "$ref": "#/$defs/nonEmptyString"
+            },
+            "provenanceComplete": {
+              "const": false
+            },
+            "matchDomain": {
+              "const": "NO_MERGE"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "display": {
+      "type": "object",
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "album": {
+          "type": "string"
+        },
+        "artists": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "artworkUri": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "availability": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "PLAYABLE",
+            "MISSING",
+            "UNRESOLVED",
+            "UNSUPPORTED"
+          ]
+        },
+        "reasonCode": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "locator": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "uri"
+          ],
+          "properties": {
+            "kind": {
+              "const": "SERVER"
+            },
+            "uri": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "uri"
+          ],
+          "properties": {
+            "kind": {
+              "const": "LOCAL"
+            },
+            "uri": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          },
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "uri"
+          ],
+          "properties": {
+            "kind": {
+              "const": "NONE"
+            },
+            "uri": {
+              "type": "null"
+            }
+          },
+          "additionalProperties": true
+        }
+      ]
+    }
+  }
+}

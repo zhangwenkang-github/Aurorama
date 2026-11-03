@@ -1,0 +1,272 @@
+{
+  "schemaVersion": "1.0",
+  "contractId": "G1-BASE-003-CACHE-IDENTITY",
+  "status": "STATIC_CONTRACT_ONLY",
+  "scope": {
+    "requirement": "V2-REQ-BASE-003",
+    "owns": [
+      "canonical cache lookup identity",
+      "account isolation",
+      "query and page shape isolation",
+      "identity fail-closed behavior"
+    ],
+    "doesNotOwn": [
+      "Jellyfin endpoint status-code ledger",
+      "OpenAPI ETag or 304 capability claims",
+      "production schema",
+      "credential storage"
+    ]
+  },
+  "unknownIdentityPolicy": {
+    "decision": "FAIL_CLOSED",
+    "requirements": [
+      "principalContext is ONLINE_ACCOUNT or SAVED_OFFLINE_ACCOUNT",
+      "serverId is nonblank and is the exact stable server identity",
+      "userId is nonblank and is the exact stable user identity",
+      "the active identity generation is known"
+    ],
+    "forbiddenOnUnknown": [
+      "memory lookup",
+      "disk lookup",
+      "in-flight join",
+      "prefetch",
+      "write",
+      "fallback to no-account or another account"
+    ],
+    "observable": "IDENTITY_UNAVAILABLE; no cached payload is projected"
+  },
+  "canonicalKey": {
+    "materialEncoding": "UTF-8",
+    "materialRule": "For every dimension marked logicalDigest=true, in order, append decimal UTF-8 byte length, colon, normalized value, LF. Then append the cache schema version and key version.",
+    "digest": "SHA-256 over the length-prefixed material; persist lowercase hex",
+    "fullLookupTuple": [
+      "logicalKeyDigest",
+      "generationFence"
+    ],
+    "collisionRule": "A digest match without exact envelope identity checks is a miss; never treat a hash match as identity proof.",
+    "canonicalization": [
+      "Omit absent values; distinguish absent, empty string, and explicit false.",
+      "Percent-decode exactly once before canonical query-shape encoding.",
+      "Sort unordered sets; preserve order where server semantics are ordered.",
+      "Normalize locale to canonical BCP-47; preserve all server-affecting language and region variants.",
+      "Scope-derived includeItemTypes and all non-null behavioral query parameters are part of queryShapeSha256."
+    ]
+  },
+  "dimensions": [
+    {
+      "order": 1,
+      "field": "keyVersion",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "fixed integer string; incompatible key changes increment it"
+    },
+    {
+      "order": 2,
+      "field": "principalContext",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "ONLINE_ACCOUNT or SAVED_OFFLINE_ACCOUNT; no anonymous fallback"
+    },
+    {
+      "order": 3,
+      "field": "serverId",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "exact stable opaque ID; reject blank, whitespace-only, NUL"
+    },
+    {
+      "order": 4,
+      "field": "userId",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "exact stable opaque ID; reject blank, whitespace-only, NUL"
+    },
+    {
+      "order": 5,
+      "field": "namespace",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "versioned resource family such as search, items, home, item-detail"
+    },
+    {
+      "order": 6,
+      "field": "resourceKind",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "enum resource type; unknown value fails closed"
+    },
+    {
+      "order": 7,
+      "field": "resourceId",
+      "required": false,
+      "logicalDigest": true,
+      "normalization": "exact stable resource ID or explicit ABSENT sentinel"
+    },
+    {
+      "order": 8,
+      "field": "parentId",
+      "required": false,
+      "logicalDigest": true,
+      "normalization": "exact stable parent/library ID or explicit ABSENT sentinel"
+    },
+    {
+      "order": 9,
+      "field": "scope",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "normalized product scope such as ALL, VIDEO, MUSIC, BOOK"
+    },
+    {
+      "order": 10,
+      "field": "queryShapeSha256",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "SHA-256 of the complete canonical request shape; see queryShape"
+    },
+    {
+      "order": 11,
+      "field": "pageStartIndex",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "non-negative decimal integer or explicit NOT_PAGED sentinel"
+    },
+    {
+      "order": 12,
+      "field": "pageLimit",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "positive decimal integer or explicit NO_LIMIT sentinel"
+    },
+    {
+      "order": 13,
+      "field": "sortShape",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "ordered sortBy values plus sortOrder, or explicit SERVER_DEFAULT"
+    },
+    {
+      "order": 14,
+      "field": "filterShape",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "complete canonical filter/facet tuple or explicit NONE"
+    },
+    {
+      "order": 15,
+      "field": "fieldShape",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "ordered fields, image/user-data switches, or declared server default"
+    },
+    {
+      "order": 16,
+      "field": "localeVariant",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "canonical BCP-47 request locale plus server-affecting language region"
+    },
+    {
+      "order": 17,
+      "field": "responseSchemaVersion",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "version of the decoded value contract"
+    },
+    {
+      "order": 18,
+      "field": "cachePolicyVersion",
+      "required": true,
+      "logicalDigest": true,
+      "normalization": "version of TTL and invalidation semantics"
+    },
+    {
+      "order": 19,
+      "field": "generationFence",
+      "required": true,
+      "logicalDigest": false,
+      "normalization": "durable monotonic namespace generation; envelope and full lookup tuple only"
+    }
+  ],
+  "queryShape": {
+    "mustInclude": [
+      "all non-null behavioral query parameters",
+      "userId and identity-sensitive filters",
+      "searchTerm after documented normalization",
+      "scope-derived includeItemTypes",
+      "parentId, ids, paging, sorting, fields, images, filters and facets when present",
+      "repeated-array encoding and order rules",
+      "effective locale or language-affecting request variant"
+    ],
+    "mustExclude": [
+      "authorization headers",
+      "request start time",
+      "response latency",
+      "transport connection identity",
+      "unused client-only presentation state"
+    ],
+    "searchTermOnlyKey": "FORBIDDEN"
+  },
+  "envelope": {
+    "requiredFields": [
+      "schemaVersion",
+      "keyVersion",
+      "principalContext",
+      "serverId",
+      "userId",
+      "namespace",
+      "logicalKeyDigest",
+      "generationFence",
+      "logicalKey",
+      "payloadKind",
+      "payloadSha256",
+      "payloadFetchedAtWallMs",
+      "lastValidatedAtWallMs",
+      "validatorEtag",
+      "validatorLastModified",
+      "payload"
+    ],
+    "verificationOrder": [
+      "bounded file read",
+      "schema decode",
+      "serverId/userId/context exact match",
+      "logical key and digest exact match",
+      "generation fence exact match",
+      "payload kind support",
+      "payload checksum",
+      "clock and TTL evaluation"
+    ],
+    "onAnyFailure": "MISS_OR_QUARANTINE; never project the payload"
+  },
+  "mismatchMatrix": [
+    {
+      "case": "cross-account-hit",
+      "expected": "MISS_AND_QUARANTINE_TARGET_ONLY",
+      "mustNot": "decode or project the other account payload"
+    },
+    {
+      "case": "same-query-different-scope",
+      "expected": "DIFFERENT_LOGICAL_KEY",
+      "mustNot": "reuse a searchTerm-only entry"
+    },
+    {
+      "case": "same-query-different-page",
+      "expected": "DIFFERENT_LOGICAL_KEY",
+      "mustNot": "append second page to first-page cache"
+    },
+    {
+      "case": "same-query-different-locale",
+      "expected": "DIFFERENT_LOGICAL_KEY_WHEN_LOCALE_AFFECTS_RESPONSE",
+      "mustNot": "ignore effective locale"
+    },
+    {
+      "case": "unknown-principal",
+      "expected": "IDENTITY_UNAVAILABLE",
+      "mustNot": "lookup, join, prefetch or write"
+    },
+    {
+      "case": "partial-part-file",
+      "expected": "MISS_OR_QUARANTINE",
+      "mustNot": "publish before atomic finalization"
+    }
+  ]
+}

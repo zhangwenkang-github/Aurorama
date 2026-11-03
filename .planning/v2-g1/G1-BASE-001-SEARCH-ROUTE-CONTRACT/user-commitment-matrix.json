@@ -1,0 +1,220 @@
+{
+  "schemaVersion": "g1-user-commitment-matrix/v1",
+  "taskId": "G1-BASE-001",
+  "status": "STATIC_CONTRACT_FROZEN_RUNTIME_UNVERIFIED",
+  "classificationLegend": {
+    "A_STATIC_CONTRACT": "Resolved as a static architecture contract in this package.",
+    "B_PRODUCTION_IMPLEMENTATION": "Requires a later authorized production search change and implementation evidence.",
+    "C_USER_PRODUCT_DECISION": "Requires the user to choose ranking, grouping, or presentation behavior.",
+    "D_RUNTIME_DEVICE": "Requires real-device/runtime ANR, timing, Compose restoration, or server-path evidence."
+  },
+  "rows": [
+    {
+      "id": "UC-01",
+      "userPromise": "The search box searches the normalized text the user sees.",
+      "entry": "SearchRoute query field",
+      "operation": "Type and submit",
+      "observable": "NFKC, collapsed whitespace, no blank request; committed query remains visible.",
+      "staticEvidence": [
+        "scope-query-matrix.json#queryNormalization",
+        "fixtures/search-contract-cases.json#queryNormalization"
+      ],
+      "runtimeEvidence": "FORMAT_CASES_LOCAL_ONLY",
+      "classification": "A_STATIC_CONTRACT",
+      "status": "FROZEN"
+    },
+    {
+      "id": "UC-02",
+      "userPromise": "ALL, VIDEO, MUSIC, and BOOK isolate results without clearing the query.",
+      "entry": "SearchRoute scope selector",
+      "operation": "Switch scope with a nonblank query",
+      "observable": "Query preserved; incompatible old rows disappear; new scope request uses the new generation.",
+      "staticEvidence": [
+        "scope-query-matrix.json#scopeDefinitions",
+        "route-state-machine.json#T-06",
+        "fixtures/search-contract-cases.json#ST-15"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "D_RUNTIME_DEVICE",
+      "status": "CONTRACT_FROZEN_RUNTIME_PENDING"
+    },
+    {
+      "id": "UC-03",
+      "userPromise": "Cache and stale checks distinguish requests by the full behavior shape.",
+      "entry": "Repository search adapter and cache",
+      "operation": "Search the same text in different scope/page/sort shapes",
+      "observable": "queryShapeSha256 differs for each scope and any behavioral field change.",
+      "staticEvidence": [
+        "scope-query-matrix.json#queryShape",
+        "scope-query-matrix.json#queryIdentity"
+      ],
+      "runtimeEvidence": "HASH_PROPERTY_TEST_ONLY",
+      "classification": "B_PRODUCTION_IMPLEMENTATION",
+      "status": "CURRENT_CLIENT_COVERS_FOUR_PARAMETER_SUBSET"
+    },
+    {
+      "id": "UC-04",
+      "userPromise": "Loading is visible and never appears as empty or failed.",
+      "entry": "SearchRoute results",
+      "operation": "Submit current scope query",
+      "observable": "LOADING before settlement; previous incompatible rows are not labeled as the new query.",
+      "staticEvidence": [
+        "route-state-machine.json#states",
+        "fixtures/search-contract-cases.json#ST-01"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "D_RUNTIME_DEVICE",
+      "status": "CONTRACT_FROZEN_RUNTIME_PENDING"
+    },
+    {
+      "id": "UC-05",
+      "userPromise": "A true zero-result search is empty, not an error.",
+      "entry": "SearchRoute results",
+      "operation": "Receive HTTP 200 with zero items after every source succeeds",
+      "observable": "EMPTY state with query and scope retained.",
+      "staticEvidence": [
+        "route-state-machine.json#emptyClassification",
+        "fixtures/search-contract-cases.json#ST-04"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "D_RUNTIME_DEVICE",
+      "status": "CONTRACT_FROZEN_RUNTIME_PENDING"
+    },
+    {
+      "id": "UC-06",
+      "userPromise": "Failure, timeout, permission, and authentication are distinguishable and retryable where allowed.",
+      "entry": "SearchRoute results",
+      "operation": "401, 403, 5xx, transport failure, deadline",
+      "observable": "ERROR with specific errorKind; query and scope retained; retry creates a new generation.",
+      "staticEvidence": [
+        "route-state-machine.json#failureTaxonomy",
+        "fixtures/search-contract-cases.json#ST-06",
+        "fixtures/search-contract-cases.json#ST-07",
+        "fixtures/search-contract-cases.json#ST-08",
+        "fixtures/search-contract-cases.json#ST-14"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "B_PRODUCTION_IMPLEMENTATION",
+      "status": "IMPLEMENTATION_PENDING"
+    },
+    {
+      "id": "UC-07",
+      "userPromise": "Offline and stale are visible and are never translated into confirmed empty.",
+      "entry": "SearchRoute results",
+      "operation": "Open/submit offline with and without matching cache",
+      "observable": "OFFLINE_STALE or OFFLINE_NO_CACHE; only matching namespace/query shape may be shown stale.",
+      "staticEvidence": [
+        "route-state-machine.json#offline",
+        "route-state-machine.json#staleContentVsStaleResponse",
+        "fixtures/search-contract-cases.json#ST-09",
+        "fixtures/search-contract-cases.json#ST-10"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "B_PRODUCTION_IMPLEMENTATION",
+      "status": "IMPLEMENTATION_PENDING"
+    },
+    {
+      "id": "UC-08",
+      "userPromise": "Old responses cannot overwrite a newer scope or query.",
+      "entry": "SearchRoute request coordinator",
+      "operation": "Rapid query/scope changes, deadline expiry, retry",
+      "observable": "Only exact namespace + generation + requestId + queryShape response commits; stale callbacks are no-op.",
+      "staticEvidence": [
+        "route-state-machine.json#guards",
+        "route-state-machine.json#T-18",
+        "fixtures/search-contract-cases.json#ST-12",
+        "fixtures/search-contract-cases.json#ST-13"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "B_PRODUCTION_IMPLEMENTATION",
+      "status": "IMPLEMENTATION_PENDING"
+    },
+    {
+      "id": "UC-09",
+      "userPromise": "Same-title items across media domains remain distinct while true duplicates fold.",
+      "entry": "ALL results",
+      "operation": "Render Movie/Audio/Book with the same title and duplicate server rows",
+      "observable": "Three cross-domain rows survive; duplicate stable identities fold; unknown provenance never merges.",
+      "staticEvidence": [
+        "stable-identity-matrix.json#rules",
+        "fixtures/search-contract-cases.json#ID-01",
+        "fixtures/search-contract-cases.json#ID-02",
+        "fixtures/search-contract-cases.json#ID-05"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "B_PRODUCTION_IMPLEMENTATION",
+      "status": "IMPLEMENTATION_PENDING"
+    },
+    {
+      "id": "UC-10",
+      "userPromise": "Results keep a deterministic order within the active scope.",
+      "entry": "Search results list",
+      "operation": "Receive rows in different callback order",
+      "observable": "SortName then type/stable-identity tie-break; overlays do not move rows.",
+      "staticEvidence": [
+        "stable-identity-matrix.json#ordering",
+        "fixtures/search-contract-cases.json#ID-07"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "C_USER_PRODUCT_DECISION",
+      "status": "DETERMINISTIC_DEFAULT_FROZEN_USER_PRESENTATION_OPEN"
+    },
+    {
+      "id": "UC-11",
+      "userPromise": "Returning from detail restores the search context and anchors.",
+      "entry": "Search result detail",
+      "operation": "Open detail and navigate back; optionally recreate process",
+      "observable": "Query/scope restored; same result binding reused; scroll anchor and valid selection restored.",
+      "staticEvidence": [
+        "route-state-machine.json#backStack",
+        "stable-identity-matrix.json#selectionAndScroll",
+        "fixtures/search-contract-cases.json#RS-01",
+        "fixtures/search-contract-cases.json#RS-02"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "D_RUNTIME_DEVICE",
+      "status": "CONTRACT_FROZEN_RUNTIME_PENDING"
+    },
+    {
+      "id": "UC-12",
+      "userPromise": "Search input and rendering do not recreate the historical 5-second Input timeout or ANR.",
+      "entry": "SearchRoute under slow network and large result set",
+      "operation": "Type, submit, switch scope, scroll, open/back, go offline",
+      "observable": "No ANR, Input timeout, 5-second Main blocking, or NetworkOnMainThreadException.",
+      "staticEvidence": [
+        "route-state-machine.json#historyAnrGate",
+        "docs/V2_PLAN.md L14-01"
+      ],
+      "runtimeEvidence": "NOT_EXECUTED",
+      "classification": "D_RUNTIME_DEVICE",
+      "status": "ACCEPTED_RESIDUAL_REOPEN_GATE"
+    },
+    {
+      "id": "UC-13",
+      "userPromise": "A later implementation can consume one explicit route-state contract.",
+      "entry": "Production search owner",
+      "operation": "Implement pagination, cancellation, error mapping, restore",
+      "observable": "No second ad hoc state model; fixture and mutation gate remain applicable.",
+      "staticEvidence": [
+        "report.json",
+        "manifest.json"
+      ],
+      "runtimeEvidence": "NOT_APPLICABLE",
+      "classification": "B_PRODUCTION_IMPLEMENTATION",
+      "status": "IMPLEMENTATION_PENDING"
+    }
+  ],
+  "counts": {
+    "total": 13,
+    "A_STATIC_CONTRACT": 1,
+    "B_PRODUCTION_IMPLEMENTATION": 6,
+    "C_USER_PRODUCT_DECISION": 1,
+    "D_RUNTIME_DEVICE": 5
+  },
+  "notClaimed": [
+    "Production search was not changed.",
+    "No real server, device, or APK path was executed.",
+    "Historical ANR P1 is not closed.",
+    "User-selected ranking or presentation is not approved."
+  ]
+}

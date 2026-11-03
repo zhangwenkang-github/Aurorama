@@ -1,0 +1,155 @@
+{
+  "format": "aurorama.local-playlist.exchange",
+  "schemaVersion": 1,
+  "producer": {
+    "name": "aurorama-contract-fixture",
+    "version": "1.0.0"
+  },
+  "requiredFeatures": [
+    "local-source",
+    "missing-track-preservation",
+    "server-source"
+  ],
+  "optionalFeatures": [
+    "future-optional-metadata"
+  ],
+  "playlist": {
+    "identityDomain": "LOCAL_DRAFT",
+    "localPlaylistId": "local:playlist:morning-mix",
+    "serverPlaylistId": null,
+    "name": "Morning Mix",
+    "revision": 7,
+    "createdAt": "2026-11-01T08:00:00Z",
+    "updatedAt": "2026-11-04T08:00:00Z",
+    "originContext": {
+      "serverId": "server-red",
+      "userId": "user-alice"
+    }
+  },
+  "entries": [
+    {
+      "entryId": "entry-server-source",
+      "position": 0,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "SERVER",
+        "serverId": "server-red",
+        "userId": "user-alice",
+        "libraryId": 1,
+        "itemId": "11111111-1111-4111-8111-111111111111",
+        "sourceToken": "media-source-a",
+        "provenanceComplete": true,
+        "matchDomain": "SOURCE"
+      },
+      "display": {
+        "title": "Server Track",
+        "album": "Remote Album",
+        "artists": [
+          "Remote Artist"
+        ],
+        "durationMs": 180250
+      },
+      "availability": {
+        "status": "PLAYABLE"
+      },
+      "locator": {
+        "kind": "SERVER",
+        "uri": "https://media.example.invalid/audio/11111111-1111-4111-8111-111111111111"
+      },
+      "extensions": {
+        "futureEntryField": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "entryId": "entry-server-missing",
+      "position": 1,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "SERVER",
+        "serverId": "server-red",
+        "userId": "user-alice",
+        "libraryId": 1,
+        "itemId": "22222222-2222-4222-8222-222222222222",
+        "sourceToken": null,
+        "provenanceComplete": false,
+        "matchDomain": "REQUEST_ONLY"
+      },
+      "display": {
+        "title": "Missing Server Track",
+        "durationMs": 201000
+      },
+      "availability": {
+        "status": "MISSING",
+        "reasonCode": "MEDIA_SOURCE_REMOVED"
+      },
+      "locator": {
+        "kind": "NONE",
+        "uri": null
+      }
+    },
+    {
+      "entryId": "entry-local-source",
+      "position": 2,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "LOCAL",
+        "localItemId": "local:track:42",
+        "persistentUri": "content://aurorama.local/audio/42",
+        "contentSha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "provenanceComplete": true,
+        "matchDomain": "SOURCE"
+      },
+      "display": {
+        "title": "Local Track",
+        "artists": [
+          "Local Artist"
+        ],
+        "durationMs": 94500
+      },
+      "availability": {
+        "status": "PLAYABLE"
+      },
+      "locator": {
+        "kind": "LOCAL",
+        "uri": "content://aurorama.local/audio/42"
+      }
+    },
+    {
+      "entryId": "entry-unknown-legacy",
+      "position": 3,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "UNKNOWN",
+        "legacyRecordKey": "legacy:row:17",
+        "provenanceComplete": false,
+        "matchDomain": "NO_MERGE"
+      },
+      "display": {
+        "title": "Unknown Legacy Track",
+        "durationMs": 61000
+      },
+      "availability": {
+        "status": "UNRESOLVED",
+        "reasonCode": "PROVENANCE_UNKNOWN"
+      },
+      "locator": {
+        "kind": "NONE",
+        "uri": null
+      }
+    }
+  ],
+  "extensions": {
+    "futureOptional": {
+      "source": "synthetic-fixture"
+    }
+  },
+  "futureTopLevelField": {
+    "preserve": true
+  }
+}

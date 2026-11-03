@@ -1,0 +1,301 @@
+{
+  "schemaVersion": "1.0",
+  "contractId": "G1-BASE-003-FRESHNESS",
+  "stateCount": 10,
+  "dimensions": {
+    "recordState": [
+      "ABSENT",
+      "FRESH",
+      "STALE",
+      "EXPIRED",
+      "QUARANTINED",
+      "TOMBSTONED"
+    ],
+    "refreshState": [
+      "IDLE",
+      "IN_FLIGHT",
+      "REVALIDATED",
+      "ERROR",
+      "OFFLINE"
+    ],
+    "projectionState": "Exactly one of the ten states below; stale and error cannot be relabeled fresh."
+  },
+  "states": [
+    {
+      "id": "MISS_LOADING",
+      "payloadVisible": false,
+      "staleMarker": false,
+      "freshClaimAllowed": false,
+      "meaning": "no current usable record; one foreground request may be in flight"
+    },
+    {
+      "id": "FRESH",
+      "payloadVisible": true,
+      "staleMarker": false,
+      "freshClaimAllowed": true,
+      "meaning": "current generation and wall-clock freshness window agree"
+    },
+    {
+      "id": "STALE_REVALIDATING",
+      "payloadVisible": true,
+      "staleMarker": true,
+      "freshClaimAllowed": false,
+      "meaning": "stale-but-admissible payload visible while one background refresh runs"
+    },
+    {
+      "id": "STALE_REFRESH_FAILED",
+      "payloadVisible": true,
+      "staleMarker": true,
+      "freshClaimAllowed": false,
+      "meaning": "transient refresh failure retained an explicit stale fallback"
+    },
+    {
+      "id": "OFFLINE_STALE",
+      "payloadVisible": true,
+      "staleMarker": true,
+      "freshClaimAllowed": false,
+      "meaning": "current saved identity and an admissible stale snapshot are available offline"
+    },
+    {
+      "id": "EXPIRED_LOADING",
+      "payloadVisible": false,
+      "staleMarker": true,
+      "freshClaimAllowed": false,
+      "meaning": "hard age or clock safety rule forbids projection; refetch required"
+    },
+    {
+      "id": "ERROR_NO_DATA",
+      "payloadVisible": false,
+      "staleMarker": false,
+      "freshClaimAllowed": false,
+      "meaning": "refresh failed without an admissible payload or security/integrity error suppresses it"
+    },
+    {
+      "id": "FENCED_NO_DATA",
+      "payloadVisible": false,
+      "staleMarker": false,
+      "freshClaimAllowed": false,
+      "meaning": "identity or generation changed; prior result is no longer projectable"
+    },
+    {
+      "id": "TOMBSTONED_NO_DATA",
+      "payloadVisible": false,
+      "staleMarker": false,
+      "freshClaimAllowed": false,
+      "meaning": "mutation acknowledgement installed a newer durable fence and invalidated prior values"
+    },
+    {
+      "id": "QUARANTINED_NO_DATA",
+      "payloadVisible": false,
+      "staleMarker": false,
+      "freshClaimAllowed": false,
+      "meaning": "payload is corrupt, partial, unsupported, or bound to another identity/key"
+    }
+  ],
+  "transitions": [
+    {"from": "ABSENT", "event": "CURRENT_IDENTITY_LOOKUP", "to": "MISS_LOADING"},
+    {"from": "MISS_LOADING", "event": "FETCH_200_VALIDATED", "to": "FRESH"},
+    {"from": "MISS_LOADING", "event": "TRANSIENT_ERROR", "to": "ERROR_NO_DATA"},
+    {"from": "MISS_LOADING", "event": "SECURITY_OR_INTEGRITY_ERROR", "to": "ERROR_NO_DATA"},
+    {"from": "FRESH", "event": "SOFT_TTL_NOT_REACHED", "to": "FRESH"},
+    {"from": "FRESH", "event": "SOFT_TTL_REACHED", "to": "STALE_REVALIDATING"},
+    {"from": "STALE_REVALIDATING", "event": "REFRESH_200_VALIDATED", "to": "FRESH"},
+    {"from": "STALE_REVALIDATING", "event": "REFRESH_304_VALID", "to": "FRESH"},
+    {"from": "STALE_REVALIDATING", "event": "TRANSIENT_ERROR", "to": "STALE_REFRESH_FAILED"},
+    {"from": "STALE_REVALIDATING", "event": "SECURITY_OR_INTEGRITY_ERROR", "to": "ERROR_NO_DATA"},
+    {"from": "STALE_REVALIDATING", "event": "OFFLINE", "to": "OFFLINE_STALE"},
+    {"from": "STALE_REFRESH_FAILED", "event": "TRANSIENT_RETRY_STARTED", "to": "STALE_REVALIDATING"},
+    {"from": "STALE_REFRESH_FAILED", "event": "HARD_MAX_AGE_REACHED", "to": "EXPIRED_LOADING"},
+    {"from": "OFFLINE_STALE", "event": "NETWORK_ONLINE", "to": "STALE_REVALIDATING"},
+    {"from": "OFFLINE_STALE", "event": "HARD_MAX_AGE_REACHED", "to": "EXPIRED_LOADING"},
+    {"from": "EXPIRED_LOADING", "event": "FETCH_200_VALIDATED", "to": "FRESH"},
+    {"from": "EXPIRED_LOADING", "event": "TRANSIENT_ERROR", "to": "ERROR_NO_DATA"},
+    {"from": "ANY_CURRENT", "event": "WRITE_ACK_WITH_NEW_GENERATION", "to": "TOMBSTONED_NO_DATA"},
+    {"from": "TOMBSTONED_NO_DATA", "event": "NEXT_CURRENT_READ", "to": "MISS_LOADING"},
+    {"from": "ANY_CURRENT", "event": "IDENTITY_OR_GENERATION_MISMATCH", "to": "FENCED_NO_DATA"},
+    {"from": "ANY_CURRENT", "event": "CORRUPT_PARTIAL_OR_CROSS_IDENTITY", "to": "QUARANTINED_NO_DATA"},
+    {"from": "QUARANTINED_NO_DATA", "event": "FETCH_200_VALIDATED", "to": "FRESH"}
+  ],
+  "ttlBoundaryRules": [
+    {
+      "id": "TTL-01",
+      "rule": "payloadFetchedAtWallMs <= lastValidatedAtWallMs <= nowWallMs is required"
+    },
+    {
+      "id": "TTL-02",
+      "rule": "fresh iff 0 <= nowWallMs - lastValidatedAtWallMs < softTtlMs"
+    },
+    {
+      "id": "TTL-03",
+      "rule": "stale iff softTtlMs <= nowWallMs - lastValidatedAtWallMs < hardMaxAgeSincePayloadFetch"
+    },
+    {
+      "id": "TTL-04",
+      "rule": "expired iff nowWallMs - payloadFetchedAtWallMs >= hardMaxAgeSincePayloadFetch"
+    },
+    {
+      "id": "TTL-05",
+      "rule": "wall clock moved backward or timestamps are inverted => CLOCK_ANOMALY; never fresh"
+    },
+    {
+      "id": "TTL-06",
+      "rule": "large forward wall-clock jump may only move toward stale or expired, never fresher"
+    },
+    {
+      "id": "TTL-07",
+      "rule": "monotonic elapsedRealtime controls in-process timeout, cooldown and single-flight deadlines; it never proves persisted age across reboot"
+    },
+    {
+      "id": "TTL-08",
+      "rule": "response latency is not an age source and cannot extend freshness"
+    },
+    {
+      "id": "TTL-09",
+      "rule": "a valid current-fence 304 renews lastValidatedAtWallMs and soft freshness only; default policy does not renew hard age since payload fetch"
+    },
+    {
+      "id": "TTL-10",
+      "rule": "stale-if-error requires current identity/fence, previously complete payload, transient error class and an unexpired policy window"
+    },
+    {
+      "id": "TTL-11",
+      "rule": "offline stale uses the same wall-clock and hard-age checks as online stale; unknown identity remains fail-closed"
+    }
+  ],
+  "conditional304": {
+    "preconditions": [
+      "current identity and generation fence before request and before commit",
+      "stored complete payload and stored validator",
+      "conditional request actually sent with that validator",
+      "304 response class is explicitly supported by the active transport adapter",
+      "validator matches the stored representation"
+    ],
+    "acceptedEffect": [
+      "payload body remains byte-equivalent and untouched",
+      "lastValidatedAtWallMs is set from a trusted local clock after response",
+      "soft freshness restarts only if hard payload age remains valid",
+      "single-flight owner completes only under the same generation"
+    ],
+    "rejectedAs": "FALL_BACK_TO_FULL_GET_OR_ERROR",
+    "s3Boundary": "G1-S3 records zero OpenAPI 304 responses and zero ETag response headers. This contract does not claim Jellyfin endpoint support and is dormant unless a runtime adapter can prove a valid conditional exchange."
+  },
+  "staleIfError": {
+    "allowedErrorClasses": [
+      "offline",
+      "timeout",
+      "transient network failure",
+      "retryable 5xx"
+    ],
+    "blockedErrorClasses": [
+      "401",
+      "403",
+      "404",
+      "unsupported payload or schema",
+      "checksum failure",
+      "cross-account or cross-generation mismatch",
+      "clock anomaly outside an explicitly approved grace policy"
+    ],
+    "projectionRule": "Allowed fallback is visible only with stale=true, reason, savedAt and lastAttemptAt. A blocked class suppresses old payload."
+  },
+  "clock": {
+    "persistentAuthority": "wall-clock UTC epoch milliseconds",
+    "processAuthority": "monotonic clock for request timeouts, cooldowns and in-flight deadlines",
+    "backwardStep": "CLOCK_ANOMALY; no fresh claim; refetch or explicit stale fallback only if policy permits",
+    "forwardStep": "recompute conservatively; hard max age may immediately expire",
+    "responseLatency": "never used as TTL input"
+  },
+  "mutationInvalidation": {
+    "trigger": [
+      "authoritative server mutation acknowledgement",
+      "authoritative server event for the same identity and affected resource",
+      "account or authentication identity change"
+    ],
+    "atomicObligation": [
+      "increment durable namespace generation before any old snapshot can be projected",
+      "persist affected key prefixes or namespace tombstone/watermark",
+      "cancel or detach in-flight old-generation owners",
+      "reject every commit whose captured generation differs"
+    ],
+    "writeAfterInvariant": "For every pre-mutation record, freshClaimAllowed=false after the mutation commit is durable.",
+    "localIntentBoundary": "client-only accepted intent is not authoritative success and must not fabricate a cache refresh"
+  },
+  "capacity": {
+    "requiredPolicy": [
+      "global byte cap",
+      "entry-count cap",
+      "per-entry byte cap",
+      "per-account share or fairness rule",
+      "temporary-file accounting",
+      "hard behavior when pinned records exceed cap"
+    ],
+    "admission": "Reserve quota before write; a degraded write cannot publish partial bytes.",
+    "overCap": "Evict only eligible unpinned records or reject/degrade the new write; never silently exceed a hard cap."
+  },
+  "eviction": {
+    "candidateOrder": "TO_BE_DECIDED_BY_OWNER",
+    "mustHave": [
+      "deterministic tie-break",
+      "never evict another account as a substitute",
+      "never evict a payload with an active mutation obligation",
+      "prune only validated target files"
+    ],
+    "decisionClass": "USER_OR_OWNER_DECISION_REQUIRED"
+  },
+  "pin": {
+    "allowedReasons": [
+      "currently projected key",
+      "active mutation invalidation obligation",
+      "bounded user-visible prefetch"
+    ],
+    "requirements": [
+      "pin has owner, generation and deadline",
+      "pin count and bytes are bounded",
+      "expired/orphan pins are recovered after process death"
+    ],
+    "policyValues": "USER_OR_OWNER_DECISION_REQUIRED"
+  },
+  "inFlightDedupe": {
+    "key": "principalContext + serverId + userId + logicalKeyDigest + generationFence + fetchMode",
+    "joinerRule": "A joiner may reuse only the exact current-fence operation and must not receive another identity's result.",
+    "ownerRule": "One owner commits; late completion after fence change is discarded.",
+    "failureRule": "Owner failure may be retried by one current-fence owner; stale joiners are cancelled."
+  },
+  "singleWriter": {
+    "logicalRule": "At most one committed writer per namespace/key generation.",
+    "inProcessMinimum": "Serialize commit and generation check in one critical section.",
+    "crossProcessMinimum": "Use a durable compare-and-increment/CAS fence and atomic file/DB publication; an in-memory HashMap lock is insufficient.",
+    "allocationProof": "USER_OR_OWNER_DECISION_REQUIRED"
+  },
+  "crossProcess": {
+    "mandatoryInvariant": "No older generation may commit, become fresh, or project after a newer fence is durable.",
+    "requiredFixtures": [
+      "two writers same key, one generation advances",
+      "writer A delayed after account switch to B",
+      "mutation in process A followed by lookup in process B",
+      "crash between payload write and fence/tombstone publication"
+    ],
+    "runtimeEvidence": "NOT_EXECUTED"
+  },
+  "corruption": {
+    "signals": [
+      "missing final file",
+      "leftover part file",
+      "bounded-size overflow",
+      "malformed envelope",
+      "unsupported schema",
+      "identity or key mismatch",
+      "generation mismatch",
+      "payload checksum mismatch",
+      "invalid timestamps"
+    ],
+    "action": "do not project; quarantine/delete only the validated target; issue a bounded refetch",
+    "mustNot": "repair by borrowing another account, another page, or stale bytes from an unverified file"
+  },
+  "decisionPoints": [
+    "production soft TTL and hard max age",
+    "eviction order, pin cap and prefetch cap",
+    "clock-anomaly grace policy",
+    "cross-process storage and fence allocation",
+    "whether any runtime 304 adapter is supported"
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "format": "aurorama.local-playlist.exchange",
+  "schemaVersion": 1,
+  "producer": {
+    "name": "aurorama-contract-fixture",
+    "version": "1.0.0"
+  },
+  "playlist": {
+    "identityDomain": "LOCAL_DRAFT",
+    "localPlaylistId": "local:playlist:conflict-case",
+    "serverPlaylistId": null,
+    "name": "Conflict Case",
+    "revision": 3,
+    "createdAt": "2026-11-03T08:00:00Z",
+    "updatedAt": "2026-11-04T08:00:00Z",
+    "originContext": {
+      "serverId": "server-red",
+      "userId": "user-alice"
+    }
+  },
+  "entries": [
+    {
+      "entryId": "conflict-entry-a",
+      "position": 0,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "SERVER",
+        "serverId": "server-red",
+        "userId": "user-alice",
+        "libraryId": 1,
+        "itemId": "55555555-5555-4555-8555-555555555555",
+        "sourceToken": "media-source-a",
+        "provenanceComplete": true,
+        "matchDomain": "SOURCE"
+      },
+      "display": {
+        "title": "Metadata A",
+        "album": "Album A"
+      },
+      "availability": {
+        "status": "PLAYABLE"
+      },
+      "locator": {
+        "kind": "SERVER",
+        "uri": "https://media.example.invalid/audio/a"
+      }
+    },
+    {
+      "entryId": "conflict-entry-b",
+      "position": 1,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "SERVER",
+        "serverId": "server-red",
+        "userId": "user-alice",
+        "libraryId": 1,
+        "itemId": "55555555-5555-4555-8555-555555555555",
+        "sourceToken": "media-source-a",
+        "provenanceComplete": true,
+        "matchDomain": "SOURCE"
+      },
+      "display": {
+        "title": "Metadata B",
+        "album": "Album B"
+      },
+      "availability": {
+        "status": "PLAYABLE"
+      },
+      "locator": {
+        "kind": "SERVER",
+        "uri": "https://media.example.invalid/audio/b"
+      }
+    }
+  ]
+}

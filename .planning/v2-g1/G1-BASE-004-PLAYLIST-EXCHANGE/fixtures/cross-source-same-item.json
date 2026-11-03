@@ -1,0 +1,72 @@
+{
+  "format": "aurorama.local-playlist.exchange",
+  "schemaVersion": 1,
+  "producer": {
+    "name": "aurorama-contract-fixture",
+    "version": "1.0.0"
+  },
+  "playlist": {
+    "identityDomain": "LOCAL_DRAFT",
+    "localPlaylistId": "local:playlist:cross-source-case",
+    "serverPlaylistId": null,
+    "name": "Cross Source Case",
+    "revision": 1,
+    "createdAt": "2026-11-04T08:00:00Z",
+    "updatedAt": "2026-11-04T08:00:00Z",
+    "originContext": null
+  },
+  "entries": [
+    {
+      "entryId": "cross-source-red",
+      "position": 0,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "SERVER",
+        "serverId": "server-red",
+        "userId": "user-alice",
+        "libraryId": 1,
+        "itemId": "66666666-6666-4666-8666-666666666666",
+        "sourceToken": "media-source-red",
+        "provenanceComplete": true,
+        "matchDomain": "SOURCE"
+      },
+      "display": {
+        "title": "Same Title"
+      },
+      "availability": {
+        "status": "PLAYABLE"
+      },
+      "locator": {
+        "kind": "SERVER",
+        "uri": "https://red.example.invalid/audio/66666666-6666-4666-8666-666666666666"
+      }
+    },
+    {
+      "entryId": "cross-source-blue",
+      "position": 1,
+      "identity": {
+        "identityVersion": 1,
+        "mediaKind": "AUDIO",
+        "sourceKind": "SERVER",
+        "serverId": "server-blue",
+        "userId": "user-bob",
+        "libraryId": 2,
+        "itemId": "66666666-6666-4666-8666-666666666666",
+        "sourceToken": "media-source-blue",
+        "provenanceComplete": true,
+        "matchDomain": "SOURCE"
+      },
+      "display": {
+        "title": "Same Title"
+      },
+      "availability": {
+        "status": "PLAYABLE"
+      },
+      "locator": {
+        "kind": "SERVER",
+        "uri": "https://blue.example.invalid/audio/66666666-6666-4666-8666-666666666666"
+      }
+    }
+  ]
+}

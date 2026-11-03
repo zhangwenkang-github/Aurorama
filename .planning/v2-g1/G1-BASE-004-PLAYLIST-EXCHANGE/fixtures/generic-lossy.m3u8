@@ -1,0 +1,6 @@
+#EXTM3U
+#EXTINF:180.250,Server-like Track
+https://media.example.invalid/audio/generic-1
+# outside comment
+#EXTINF:61.000,Local-like Track
+content://aurorama.local/audio/generic-2

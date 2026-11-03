@@ -1,0 +1,6 @@
+#EXTM3U
+#EXTINF:100.000,Valid Track
+https://media.example.invalid/audio/valid
+#EXTINF:not-a-number,Broken Duration
+https://media.example.invalid/audio/broken-duration
+#EXTINF:30.000,Missing Uri

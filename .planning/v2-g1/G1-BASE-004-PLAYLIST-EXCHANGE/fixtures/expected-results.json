@@ -1,0 +1,227 @@
+{
+  "format": "aurorama.base004.test-expectations",
+  "schemaVersion": 1,
+  "supportedSchemaVersion": 1,
+  "supportedFeatures": [
+    "local-source",
+    "missing-track-preservation",
+    "server-source",
+    "uncertain-source-no-merge"
+  ],
+  "cases": [
+    {
+      "id": "positive-mixed-json",
+      "fixture": "valid-mixed-playlist.json",
+      "kind": "JSON",
+      "schemaValidity": "VALID",
+      "decision": "ACCEPT_WITH_WARNINGS",
+      "entryCount": 4,
+      "missingPreserved": 1,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "MISSING_TRACK_PRESERVED",
+        "UNKNOWN_PROVENANCE_PRESERVED"
+      ]
+    },
+    {
+      "id": "missing-track",
+      "fixture": "missing-track.json",
+      "kind": "JSON",
+      "schemaValidity": "VALID",
+      "decision": "ACCEPT_WITH_WARNINGS",
+      "entryCount": 1,
+      "missingPreserved": 1,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "MISSING_TRACK_PRESERVED"
+      ]
+    },
+    {
+      "id": "duplicate-identity",
+      "fixture": "duplicate-identity.json",
+      "kind": "JSON",
+      "schemaValidity": "VALID",
+      "decision": "ACCEPT_WITH_WARNINGS",
+      "entryCount": 2,
+      "missingPreserved": 0,
+      "duplicateIdentities": 1,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "DUPLICATE_IDENTITY_PRESERVED"
+      ]
+    },
+    {
+      "id": "identity-conflict",
+      "fixture": "conflict-identity.json",
+      "kind": "JSON",
+      "schemaValidity": "VALID",
+      "decision": "REQUIRE_USER_CHOICE",
+      "entryCount": 2,
+      "missingPreserved": 0,
+      "duplicateIdentities": 1,
+      "identityConflicts": 1,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "DUPLICATE_IDENTITY_PRESERVED",
+        "IDENTITY_CONFLICT",
+        "USER_DECISION_REQUIRED"
+      ]
+    },
+    {
+      "id": "cross-source-same-item",
+      "fixture": "cross-source-same-item.json",
+      "kind": "JSON",
+      "schemaValidity": "VALID",
+      "decision": "ACCEPT_WITH_WARNINGS",
+      "entryCount": 2,
+      "missingPreserved": 0,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 1,
+      "titleCollisions": 1,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "CROSS_SOURCE_SAME_ITEM_PRESERVED",
+        "TITLE_COLLISION_NOT_MERGED"
+      ]
+    },
+    {
+      "id": "title-collision",
+      "fixture": "title-collision.json",
+      "kind": "JSON",
+      "schemaValidity": "VALID",
+      "decision": "ACCEPT_WITH_WARNINGS",
+      "entryCount": 2,
+      "missingPreserved": 0,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 1,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "TITLE_COLLISION_NOT_MERGED"
+      ]
+    },
+    {
+      "id": "unknown-required-feature",
+      "fixture": "unknown-feature.json",
+      "kind": "JSON",
+      "schemaValidity": "VALID",
+      "decision": "REJECT",
+      "entryCount": 0,
+      "missingPreserved": 0,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "FEATURE_UNSUPPORTED"
+      ]
+    },
+    {
+      "id": "version-unsupported",
+      "fixture": "version-unsupported.json",
+      "kind": "JSON",
+      "schemaValidity": "INVALID",
+      "decision": "REJECT",
+      "entryCount": 0,
+      "missingPreserved": 0,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "VERSION_UNSUPPORTED"
+      ]
+    },
+    {
+      "id": "corrupt-json",
+      "fixture": "corrupt-json.json",
+      "kind": "JSON",
+      "schemaValidity": "UNPARSEABLE",
+      "decision": "REJECT",
+      "entryCount": 0,
+      "missingPreserved": 0,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "CORRUPT_JSON"
+      ]
+    },
+    {
+      "id": "generic-m3u8-lossy",
+      "fixture": "generic-lossy.m3u8",
+      "kind": "M3U8",
+      "schemaValidity": "NOT_APPLICABLE",
+      "decision": "PREVIEW_ONLY",
+      "entryCount": 2,
+      "missingPreserved": 0,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "GENERIC_M3U8_IDENTITY_LOST",
+        "COMMENT_IGNORED"
+      ]
+    },
+    {
+      "id": "partial-m3u8",
+      "fixture": "partial-import.m3u8",
+      "kind": "M3U8",
+      "schemaValidity": "NOT_APPLICABLE",
+      "decision": "REQUIRE_USER_CHOICE",
+      "entryCount": 3,
+      "acceptedEntries": 1,
+      "rejectedEntries": 2,
+      "missingPreserved": 0,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "PARTIAL_IMPORT_REQUIRES_CONFIRMATION",
+        "BROKEN_EXTINF",
+        "MISSING_URI",
+        "GENERIC_M3U8_IDENTITY_LOST"
+      ]
+    },
+    {
+      "id": "custom-m3u8-roundtrip",
+      "fixture": "valid-mixed-playlist.json",
+      "kind": "M3U8_ROUNDTRIP",
+      "schemaValidity": "VALID",
+      "decision": "ACCEPT_ATOMIC",
+      "entryCount": 4,
+      "missingPreserved": 1,
+      "duplicateIdentities": 0,
+      "identityConflicts": 0,
+      "crossSourceCollisions": 0,
+      "titleCollisions": 0,
+      "writesCommitted": 0,
+      "issueCodes": [
+        "CUSTOM_M3U8_ROUNDTRIP_LOSSLESS"
+      ]
+    }
+  ]
+}

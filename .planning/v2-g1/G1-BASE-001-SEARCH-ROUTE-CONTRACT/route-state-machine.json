@@ -1,0 +1,433 @@
+{
+  "schemaVersion": "g1-route-state-machine/v1",
+  "taskId": "G1-BASE-001",
+  "status": "STATIC_CONTRACT_FROZEN",
+  "requestIdentity": {
+    "fields": [
+      "requestId",
+      "generation",
+      "serverId",
+      "userId",
+      "queryShapeSha256",
+      "scope",
+      "deadlineAt"
+    ],
+    "generationRule": "Generation is monotonic per SearchRoute and increments on submit, scope change, retry, namespace change, or any query-shape change.",
+    "requestIdRule": "Every dispatched attempt receives a new opaque requestId even when retry keeps the same queryShapeSha256."
+  },
+  "states": [
+    {
+      "name": "IDLE_UNSUBMITTED",
+      "meaning": "No nonblank committed query; no request in flight.",
+      "isLoaded": false,
+      "isEmpty": false,
+      "isError": false
+    },
+    {
+      "name": "IDLE_EDITED",
+      "meaning": "Query text changed and invalidated prior result binding; no request yet.",
+      "isLoaded": false,
+      "isEmpty": false,
+      "isError": false
+    },
+    {
+      "name": "LOADING",
+      "meaning": "Current generation is in flight and no result content is shown.",
+      "isLoaded": false,
+      "isEmpty": false,
+      "isError": false
+    },
+    {
+      "name": "LOADING_STALE",
+      "meaning": "Matching cached content is shown while its same-shape refresh is in flight.",
+      "isLoaded": true,
+      "isEmpty": false,
+      "isError": false,
+      "stale": true
+    },
+    {
+      "name": "RESULTS",
+      "meaning": "Current generation committed at least one scope-valid result.",
+      "isLoaded": true,
+      "isEmpty": false,
+      "isError": false
+    },
+    {
+      "name": "EMPTY",
+      "meaning": "All required sources completed successfully for the current shape and produced zero results.",
+      "isLoaded": true,
+      "isEmpty": true,
+      "isError": false
+    },
+    {
+      "name": "PARTIAL",
+      "meaning": "At least one source produced content or an authoritative empty page while another source failed or returned invalid items.",
+      "isLoaded": true,
+      "isEmpty": false,
+      "isError": true
+    },
+    {
+      "name": "ERROR",
+      "meaning": "No current usable content and the request failed, timed out, or violated protocol.",
+      "isLoaded": false,
+      "isEmpty": false,
+      "isError": true
+    },
+    {
+      "name": "OFFLINE_STALE",
+      "meaning": "Offline with a matching nonempty cache; content is explicitly stale.",
+      "isLoaded": true,
+      "isEmpty": false,
+      "isError": false,
+      "stale": true
+    },
+    {
+      "name": "OFFLINE_NO_CACHE",
+      "meaning": "Offline with no matching cache; this is not confirmed empty.",
+      "isLoaded": false,
+      "isEmpty": false,
+      "isError": false
+    },
+    {
+      "name": "CANCELLED",
+      "meaning": "The request was explicitly superseded/left; no failure toast and no late commit.",
+      "isLoaded": false,
+      "isEmpty": false,
+      "isError": false
+    }
+  ],
+  "guards": {
+    "acceptanceRequires": [
+      "response.serverId == active.serverId",
+      "response.userId == active.userId",
+      "response.generation == active.generation",
+      "response.queryShapeSha256 == active.queryShapeSha256",
+      "response.requestId == active.requestId",
+      "now <= active.deadlineAt",
+      "active.cancelled == false"
+    ],
+    "missingIdentityEvidence": "REJECT_AND_RECORD_PROTOCOL_ERROR",
+    "oldGeneration": "DROP_NO_STATE_CHANGE",
+    "oldQueryShape": "DROP_NO_STATE_CHANGE",
+    "oldNamespace": "DROP_NO_STATE_CHANGE"
+  },
+  "staleResponseCommit": "FORBIDDEN",
+  "classificationOrder": [
+    "CANCELLED",
+    "IN_FLIGHT",
+    "OFFLINE",
+    "STALE_RESPONSE_OR_QUERY_SHAPE",
+    "DEADLINE",
+    "HTTP_ERROR",
+    "SCOPE_VALIDATION",
+    "PARTIAL_SOURCE",
+    "NONEMPTY_SUCCESS",
+    "CONFIRMED_EMPTY",
+    "INCOMPLETE"
+  ],
+  "emptyClassification": {
+    "httpStatus": 200,
+    "itemCount": 0,
+    "requiresAllSourcesCompleted": true,
+    "requiresNoSourceFailures": true,
+    "requiresNoScopeMismatch": true,
+    "visibleState": "EMPTY",
+    "errorKind": "NONE"
+  },
+  "cancellation": {
+    "triggers": [
+      "query text invalidation",
+      "scope change",
+      "new submit",
+      "retry",
+      "namespace change",
+      "leave SearchRoute"
+    ],
+    "visibleState": "CANCELLED",
+    "isError": false,
+    "lateEvents": "DROPPED",
+    "sameProcessDetailReturn": "Restore the last committed shape-bound state; do not expose a cancelled spinner as an error."
+  },
+  "offline": {
+    "cachedState": "OFFLINE_STALE",
+    "noCacheState": "OFFLINE_NO_CACHE",
+    "isConfirmedEmpty": false,
+    "cacheRequiresExactNamespaceAndQueryShape": true
+  },
+  "deadline": {
+    "defaultDeadlineMs": 10000,
+    "fixtureDeadlineMs": 10000,
+    "onExpiry": "ERROR",
+    "errorKind": "TIMEOUT_DEADLINE",
+    "lateSuccessAfterDeadline": "DROPPED",
+    "retryCreatesNewGeneration": true,
+    "uiBlockingAllowed": false
+  },
+  "failureTaxonomy": [
+    {
+      "condition": "HTTP 401",
+      "visibleState": "ERROR",
+      "errorKind": "AUTHENTICATION",
+      "retry": "AFTER_REAUTHENTICATION_ONLY"
+    },
+    {
+      "condition": "HTTP 403",
+      "visibleState": "ERROR",
+      "errorKind": "PERMISSION",
+      "retry": "FORBIDDEN_WITHOUT_CAPABILITY_CHANGE"
+    },
+    {
+      "condition": "HTTP 408, 429, 500-599, transport failure",
+      "visibleState": "ERROR",
+      "errorKind": "RETRYABLE",
+      "retry": "USER_OR_POLICY_BOUNDED"
+    },
+    {
+      "condition": "deadline",
+      "visibleState": "ERROR",
+      "errorKind": "TIMEOUT_DEADLINE",
+      "retry": "USER_OR_POLICY_BOUNDED"
+    },
+    {
+      "condition": "all returned items outside active scope",
+      "visibleState": "PROTOCOL_ERROR",
+      "errorKind": "SCOPE_MISMATCH",
+      "retry": "DIAGNOSTIC_RETRY_ALLOWED"
+    },
+    {
+      "condition": "one source failed while another settled",
+      "visibleState": "PARTIAL",
+      "errorKind": "SOURCE_PARTIAL",
+      "retry": "RETRY_FAILED_SOURCE"
+    }
+  ],
+  "staleContentVsStaleResponse": {
+    "staleContent": "A cache snapshot with a matching namespace and complete queryShapeSha256; visible only with stale/offline marker.",
+    "staleResponse": "A late or mismatched generation/queryShape/requestId/namespace; never rendered under the new query.",
+    "mustNotConflate": true
+  },
+  "backStack": {
+    "detailReturnMinimum": {
+      "query": "restore exact committed display query",
+      "scope": "restore active scope",
+      "resultBinding": "same queryShapeSha256; reuse committed results instead of duplicating request",
+      "scroll": "restore first visible stableIdentity plus pixel offset",
+      "selection": "restore stableIdentity only when present; otherwise clear with observable reason"
+    },
+    "processRecreation": {
+      "query": "SavedState required",
+      "scope": "SavedState required",
+      "results": "reload is allowed",
+      "scrollAndSelection": "D_RUNTIME_DEVICE"
+    }
+  },
+  "transitions": [
+    {
+      "id": "T-01",
+      "event": "OPEN_BLANK",
+      "from": "ROUTE_ABSENT",
+      "to": "IDLE_UNSUBMITTED",
+      "guards": []
+    },
+    {
+      "id": "T-02",
+      "event": "OPEN_RESTORED",
+      "from": "ROUTE_ABSENT",
+      "to": "SAME_COMMITTED_STATE_OR_LOADING",
+      "guards": [
+        "SavedState parse succeeds"
+      ]
+    },
+    {
+      "id": "T-03",
+      "event": "EDIT_QUERY",
+      "from": "ANY",
+      "to": "IDLE_EDITED",
+      "guards": [
+        "cancel active request",
+        "invalidate committed result binding"
+      ]
+    },
+    {
+      "id": "T-04",
+      "event": "EDIT_QUERY_BLANK",
+      "from": "ANY",
+      "to": "IDLE_UNSUBMITTED",
+      "guards": [
+        "cancel active request"
+      ]
+    },
+    {
+      "id": "T-05",
+      "event": "SUBMIT_NONBLANK",
+      "from": "IDLE_EDITED_OR_RETRYABLE",
+      "to": "LOADING",
+      "guards": [
+        "increment generation",
+        "create requestId",
+        "set deadline"
+      ]
+    },
+    {
+      "id": "T-06",
+      "event": "CHANGE_SCOPE_NONBLANK",
+      "from": "ANY",
+      "to": "LOADING",
+      "guards": [
+        "preserve query",
+        "clear incompatible results",
+        "increment generation"
+      ]
+    },
+    {
+      "id": "T-07",
+      "event": "CHANGE_SCOPE_BLANK",
+      "from": "ANY",
+      "to": "IDLE_UNSUBMITTED",
+      "guards": [
+        "preserve blank query"
+      ]
+    },
+    {
+      "id": "T-08",
+      "event": "MATCHING_CACHE_DURING_REFRESH",
+      "from": "LOADING",
+      "to": "LOADING_STALE",
+      "guards": [
+        "cache namespace and queryShape match"
+      ]
+    },
+    {
+      "id": "T-09",
+      "event": "CURRENT_NONEMPTY_SUCCESS",
+      "from": "LOADING_OR_LOADING_STALE",
+      "to": "RESULTS",
+      "guards": [
+        "all acceptance guards pass"
+      ]
+    },
+    {
+      "id": "T-10",
+      "event": "CURRENT_CONFIRMED_EMPTY",
+      "from": "LOADING_OR_LOADING_STALE",
+      "to": "EMPTY",
+      "guards": [
+        "all sources completed",
+        "zero source failures",
+        "zero scope mismatches"
+      ]
+    },
+    {
+      "id": "T-11",
+      "event": "PARTIAL_SOURCE",
+      "from": "LOADING_OR_LOADING_STALE",
+      "to": "PARTIAL",
+      "guards": [
+        "one source failed or one source has invalid items"
+      ]
+    },
+    {
+      "id": "T-12",
+      "event": "NONRETRYABLE_OR_RETRYABLE_FAILURE",
+      "from": "LOADING_OR_LOADING_STALE",
+      "to": "ERROR",
+      "guards": [
+        "no current usable content"
+      ]
+    },
+    {
+      "id": "T-13",
+      "event": "DEADLINE_EXPIRED",
+      "from": "LOADING",
+      "to": "ERROR",
+      "guards": [
+        "request generation still active"
+      ]
+    },
+    {
+      "id": "T-14",
+      "event": "OFFLINE_WITH_CACHE",
+      "from": "ANY_REQUEST",
+      "to": "OFFLINE_STALE",
+      "guards": [
+        "exact namespace and queryShape cache match"
+      ]
+    },
+    {
+      "id": "T-15",
+      "event": "OFFLINE_WITHOUT_CACHE",
+      "from": "ANY_REQUEST",
+      "to": "OFFLINE_NO_CACHE",
+      "guards": [
+        "no exact cache match"
+      ]
+    },
+    {
+      "id": "T-16",
+      "event": "USER_CANCEL",
+      "from": "LOADING_OR_LOADING_STALE",
+      "to": "CANCELLED",
+      "guards": [
+        "do not publish failure"
+      ]
+    },
+    {
+      "id": "T-17",
+      "event": "LEAVE_ROUTE",
+      "from": "ANY",
+      "to": "CANCELLED",
+      "guards": [
+        "retain last committed state for detail return"
+      ]
+    },
+    {
+      "id": "T-18",
+      "event": "LATE_OR_MISMATCHED_RESPONSE",
+      "from": "ANY",
+      "to": "NO_STATE_CHANGE",
+      "guards": [
+        "generation/queryShape/requestId/namespace mismatch or deadline exceeded"
+      ]
+    },
+    {
+      "id": "T-19",
+      "event": "RETRY",
+      "from": "ERROR_OR_PARTIAL",
+      "to": "LOADING",
+      "guards": [
+        "same query/scope may be reused",
+        "new requestId and generation required"
+      ]
+    },
+    {
+      "id": "T-20",
+      "event": "DETAIL_BACK",
+      "from": "SEARCH_DESTINATION_PAUSED",
+      "to": "SAME_COMMITTED_STATE",
+      "guards": [
+        "queryShape and namespace unchanged",
+        "scroll and selection anchors validated"
+      ]
+    }
+  ],
+  "historyAnrGate": {
+    "legacyId": "L14-01",
+    "status": "ACCEPTED_RESIDUAL",
+    "staticConstraints": [
+      "no network or full result mapping on Main",
+      "request work cancellable",
+      "bounded deadline",
+      "no unbounded Compose recomposition over raw response"
+    ],
+    "runtimeGate": "D_RUNTIME_DEVICE",
+    "requiredRuntimeEvidence": [
+      "typing and submit under slow network",
+      "100+ result publication",
+      "rapid scope/query switching",
+      "detail push/pop restoration",
+      "offline and timeout paths",
+      "ANR/Input timeout and Main-thread traces"
+    ],
+    "claim": "NOT_FIXED_OR_PROVEN_BY_THIS_STATIC_PACKAGE"
+  }
+}

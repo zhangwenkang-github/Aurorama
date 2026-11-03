@@ -1,0 +1,223 @@
+{
+  "format": "aurorama.base004.contract-report",
+  "schemaVersion": 1,
+  "taskId": "G1-BASE-004",
+  "role": "本地歌单交换合同架构师",
+  "status": "STATIC_CONTRACT_COMPLETE_WITH_B_C_D_OPEN",
+  "verdict": {
+    "staticContract": "PASS",
+    "productionImplementation": "OUT_OF_SCOPE_NOT_EXECUTED",
+    "g1": "NOT_PASSED",
+    "independentQaStarted": false,
+    "releaseStarted": false
+  },
+  "sourceBaseline": {
+    "cwd": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "6fc0a02995bb24c11237fe3b8753f21f06a57f72",
+    "expectedHeadMatched": true,
+    "initialTrackedWorktreeClean": true,
+    "commitCreated": false,
+    "pushExecuted": false
+  },
+  "scope": {
+    "writeDomainOnly": ".planning/v2-g1/G1-BASE-004-PLAYLIST-EXCHANGE/",
+    "productionCodeChanged": false,
+    "resourceChanged": false,
+    "schemaOutsideEvidenceChanged": false,
+    "deviceAccessed": false,
+    "safAccessed": false,
+    "serverAccessed": false,
+    "externalWriteExecuted": false
+  },
+  "contractCounts": {
+    "schemas": 1,
+    "schemaVersion": 1,
+    "schemaPropertyDeclarations": 68,
+    "mediaIdentityDomains": 4,
+    "m3u8MappingRows": 34,
+    "roundtripLanes": 3,
+    "roundtripRows": 69,
+    "roundtripStatusCounts": {
+      "PRESERVE": 48,
+      "PRESERVE_OPAQUE": 2,
+      "DEGRADE": 2,
+      "LOSS": 17
+    },
+    "fixturePayloadFiles": 11,
+    "jsonFixtureFiles": 9,
+    "m3u8FixtureFiles": 2,
+    "expectationFiles": 1,
+    "testCases": 12,
+    "testChecks": 99,
+    "testChecksPassed": 99
+  },
+  "versioning": {
+    "format": "aurorama.local-playlist.exchange",
+    "supportedSchemaVersion": 1,
+    "unknownOptionalFields": "PRESERVE_OPAQUE_JSON_TO_JSON",
+    "unknownRequiredFeatures": "REJECT_FEATURE_UNSUPPORTED",
+    "higherMajorVersion": "REJECT_VERSION_UNSUPPORTED",
+    "backwardCompatibility": "A v1 reader must supply documented defaults for absent optional v1 fields and preserve unknown optional fields.",
+    "forwardCompatibility": "A same-major future writer may be previewed only when every requiredFeature is supported; unknown optional fields are preserved and never interpreted.",
+    "canonicalJsonEncoding": "UTF-8 without BOM; canonical object keys for hashes; LF text output"
+  },
+  "playlistBoundary": {
+    "localDraftIdentityDomain": "LOCAL_DRAFT",
+    "localDraftKey": "localPlaylistId",
+    "serverPlaylistIdInLocalExchange": null,
+    "serverPlaylistIdentityDomain": "serverId+userId+serverPlaylistId (outside this schema)",
+    "offlineSavedUserBoundary": "Current offline saved-user selection never becomes track provenance. Entry provenance is the explicit server/user captured with the media identity.",
+    "copyOrConvertPolicy": "No implicit conversion, overwrite, or identity transfer; user must explicitly choose a copy/merge strategy.",
+    "titlePolicy": "Playlist name and track title are display data, never merge keys or provenance."
+  },
+  "mediaIdentity": {
+    "priority": [
+      "SERVER_SOURCE: identityVersion + mediaKind + SERVER + serverId + userId + libraryId + itemId + sourceToken",
+      "LOCAL_SOURCE: identityVersion + mediaKind + LOCAL + localItemId + persistentUri",
+      "SERVER_REQUEST_ONLY: serverId + userId + libraryId + itemId with sourceToken=null; no source-level merge",
+      "UNKNOWN_LEGACY: legacyRecordKey only; NO_MERGE"
+    ],
+    "dedupRule": "Only two complete SOURCE identities may be presented as the same resolved source. Duplicates remain as separate ordered entries until an explicit policy is chosen.",
+    "serverUserRule": "serverId and userId are mandatory and never inferred from the current session, current offline user, title, URI, or a bare itemId.",
+    "localRule": "localItemId plus persistentUri define the local source. contentSha256 is auxiliary evidence only and cannot replace stable identity.",
+    "sourceTokenRule": "sourceToken means an opaque stable media-source selector, never an authentication token.",
+    "missingSourceRule": "sourceToken=null is REQUEST_ONLY and cannot claim playable/resolved source identity.",
+    "legacyRule": "A record with unprovable source gets an independent legacyRecordKey and is never folded into a complete record."
+  },
+  "importPolicy": {
+    "defaultCommit": "PREVIEW_THEN_ATOMIC_COMMIT",
+    "writesCommittedByHarness": 0,
+    "missingTrack": "PRESERVE_PLACEHOLDER_AND_WARN",
+    "duplicateIdentity": "PRESERVE_MULTIPLICITY_AND_WARN",
+    "identityConflict": "PRESERVE_BOTH_STOP_FOR_USER_CHOICE",
+    "crossSourceSameItem": "KEEP_SEPARATE",
+    "titleCollision": "KEEP_SEPARATE",
+    "corruptJson": "REJECT_WITH_ZERO_WRITE",
+    "corruptOrPartialM3u8": "REQUIRE_USER_CHOICE_WITH_ZERO_WRITE",
+    "hlsPlaylist": "REJECT_AS_UNSUPPORTED_NOT_FLATTEN",
+    "unknownOptionalField": "PRESERVE_OPAQUE",
+    "orderInvariant": "Positions must be unique, contiguous, and equal to physical entry order."
+  },
+  "m3u8Contract": {
+    "kind": "STATIC_EXTENDED_AUDIO_TRACK_LIST_NOT_HLS",
+    "canonicalHeader": "#EXTM3U",
+    "contractMarkerPrefix": "#AURORAMA-",
+    "standardEvidence": [
+      "#EXTINF:<seconds>.<millis>,<display-title>",
+      "<uri>"
+    ],
+    "identityCarrier": "AURORAMA-DOCUMENT-V1 and AURORAMA-ENTRY-V1 base64url JSON comments",
+    "commentGuarantee": "Only this contract guarantees AURORAMA markers. Generic players and rewrite tools may discard comments.",
+    "genericImportPolicy": "Create UNKNOWN/NO_MERGE entries from EXTINF+URI evidence; never infer identity from title or filename.",
+    "extXPolicy": "Preserve-neutral EXT-X-VERSION may be read; HLS timing/master/key/map/range directives are unsupported and fail closed.",
+    "credentialPolicy": "Authentication values are not exchange identity and must be redacted before export; sourceToken is not an auth credential."
+  },
+  "roundtrip": {
+    "jsonToJson": "All recognized values and unknown optional JSON fields are preserved; conflicts/multiplicity remain visible.",
+    "jsonToM3u8ToJsonWithMarkers": "Recognized contract data is byte-decodable and deep-equal when every AURORAMA marker survives.",
+    "jsonToM3u8ToJsonGeneric": "Order/title/URI may survive, duration may degrade, and all playlist identity, entry identity, availability, extensions, and conflict semantics are explicitly LOSS.",
+    "secretUriRule": "A redacted authenticated URI is DEGRADE, not PRESERVE; the missing credential is not synthesized."
+  },
+  "executed": [
+    "Read AGENTS, Engramory index and relevant Aurorama 2.0 project memory.",
+    "Verified branch, HEAD, initial tracked-worktree status and expected HEAD.",
+    "Read only the requested R020/R025/R027/R028 rules, BASE-004, §5.10.5/§5.10.6, §5.11 S3 and relevant TASKS/DECISIONS rows.",
+    "Located playlist-related production files with rg because this worktree has no graphify-out/graph.json; locally inspected three files only.",
+    "Authored a Draft 2020-12 JSON Schema with a documented local-subset validator in the test harness.",
+    "Authored a 34-row M3U8 mapping matrix and a 69-row roundtrip matrix.",
+    "Executed 99 deterministic static checks over 12 scenarios and 11 payload fixtures.",
+    "Checked schema parse, identity/conflict behavior, missing preservation, version rejection, partial/corrupt handling, generic/custom M3U8 roundtrip, LF, and sensitive-value patterns.",
+    "Generated test-results, manifest, SHA-256 values and byte counts inside the write domain."
+  ],
+  "notExecuted": [
+    "No production JSON or M3U8 parser/exporter implementation.",
+    "No SAF document selection, persisted URI grant, atomic file write, reboot, device, or UI flow.",
+    "No Room schema/migration/DAO/UI change and no local playlist persistence migration.",
+    "No server playlist read/write, no local-to-server copy, and no real Jellyfin call.",
+    "No external player corpus replay, independent QA, merge-prep, commit, push, tag, or Release."
+  ],
+  "unexecutedInferences": [
+    "A content:// URI's stability across process death/reboot is not tested; retaining the SAF grant remains a G2/device obligation.",
+    "External tools are not guaranteed to preserve AURORAMA comments; the generic lossy lane is the conservative interpretation.",
+    "The current production model lacks a versioned source key with sourceToken and provenanceClass; this contract is a target, not evidence that production conforms.",
+    "Whether a future external M3U8 producer emits equivalent tags needs a real corpus and remains future evidence."
+  ],
+  "decisionsStillRequired": [
+    {
+      "id": "B-MERGE-STRATEGY",
+      "class": "B_USER_CHOICE",
+      "question": "When duplicate identity entries are exported or imported, keep duplicates by default or explicitly deduplicate/merge metadata?",
+      "blockingStaticContract": false
+    },
+    {
+      "id": "B-PARTIAL-IMPORT",
+      "class": "B_USER_CHOICE",
+      "question": "For a partial M3U8, cancel or accept the explicitly reported valid subset?",
+      "blockingStaticContract": false
+    },
+    {
+      "id": "C-SAF-DEVICE",
+      "class": "C_DEVICE_OR_SAF",
+      "question": "Verify document-picker grants, persistent content:// URIs, write atomicity, cancel, and reboot recovery.",
+      "blockingStaticContract": false
+    },
+    {
+      "id": "D-PRODUCTION-PARSER",
+      "class": "D_IMPLEMENTATION_OR_SERVER",
+      "question": "Implement production parsing/writing, persistence migration, copy to server playlists, and real protocol evidence.",
+      "blockingStaticContract": false
+    }
+  ],
+  "severity": {
+    "P0": [],
+    "P1": [
+      "GAP-IDENTITY-PRODUCTION: current local playlist key has no identityVersion/sourceToken/provenanceClass adapter evidence.",
+      "GAP-EXCHANGE-PRODUCTION: production JSON/M3U8 parser, redaction, preview, and atomic import are not implemented."
+    ],
+    "P2": [
+      "GAP-COMMENT-SURVIVAL: exact M3U8 roundtrip depends on comments that external tools may remove.",
+      "GAP-URI-STABILITY: persistentUri and authentication-redaction behavior need SAF/device evidence.",
+      "GAP-CONFLICT-UX: user-facing duplicate/conflict/partial-import choices are not wireframed or implemented."
+    ],
+    "P3": [
+      "Ordinary M3U8 comments are intentionally not persisted by default.",
+      "HLS and advanced EXT-X playlists are intentionally unsupported rather than flattened."
+    ]
+  },
+  "blocked": [],
+  "evidencePaths": [
+    "README.md",
+    "report.json",
+    "schemas/local-playlist-exchange.v1.schema.json",
+    "M3U8_MAPPING.md",
+    "roundtrip-matrix.json",
+    "fixtures/",
+    "test_contract.py",
+    "test-results.json",
+    "commands.log",
+    "manifest.json"
+  ],
+  "sourceEvidence": [
+    "docs/PROJECT_RULES.md R020/R025/R027/R028",
+    "docs/V2_PLAN.md §5.10.5 V2-REQ-BASE-004, §5.10.6, §5.11.4, §5.11.9 G1-S3",
+    "docs/TASKS.md V2-REQ-BASE and V2-SOLUTION-BASELINE rows",
+    "docs/DECISIONS.md V2-D196/D197/D198/D199, Q03/Q04 rows",
+    ".planning/v2-g1/G1-S2/report.json identityContract and unknownProvenanceIsolation",
+    ".planning/v2-g1/G1-S3/report.json versionLedger and WRITE/PLAYBACK_INFO state anchors",
+    "data/src/main/java/com/zhangwenkang/cinefin/database/music/MusicEntities.kt:54-124",
+    "data/src/main/java/com/zhangwenkang/cinefin/database/music/LocalPlaylistStorage.kt:40-170",
+    "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlaylistManager.kt:29-80"
+  ],
+  "memorySync": {
+    "checkpointRequired": true,
+    "strategy": "Repository evidence is the source of truth; do not duplicate this transient contract state into Engramory unless a durable non-repo convention is identified.",
+    "validatorResults": "See final handoff"
+  },
+  "nextStep": {
+    "owner": "负责人 / 集成交付编排者",
+    "action": "Review report.json, schema and test-results; decide whether to integrate this static evidence. A later professional implementation agent may consume it only after explicit G2 authorization.",
+    "firstReadOnlyAction": "python .\\.planning\\v2-g1\\G1-BASE-004-PLAYLIST-EXCHANGE\\test_contract.py",
+    "stopCondition": "Stop on schema/test mismatch, outside-write-domain changes, production/SAF/server scope, subjective merge decision, or any request to claim G1 PASS."
+  }
+}

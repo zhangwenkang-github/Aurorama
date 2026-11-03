@@ -1,0 +1,532 @@
+{
+  "schemaVersion": "g1-base001-fixtures/v1",
+  "base": {
+    "serverId": "server-a",
+    "userId": "user-a",
+    "canonicalQuery": "Dune",
+    "limit": 60
+  },
+  "queryNormalization": [
+    {
+      "id": "QN-01",
+      "input": "  Dune  ",
+      "expected": "Dune",
+      "blank": false
+    },
+    {
+      "id": "QN-02",
+      "input": "Dune   Part Two",
+      "expected": "Dune Part Two",
+      "blank": false
+    },
+    {
+      "id": "QN-03",
+      "input": "Ｄｕｎｅ",
+      "expected": "Dune",
+      "blank": false
+    },
+    {
+      "id": "QN-04",
+      "input": " \t \n ",
+      "expected": "",
+      "blank": true
+    }
+  ],
+  "stateCases": [
+    {
+      "id": "ST-01",
+      "conditions": {
+        "phase": "IN_FLIGHT"
+      },
+      "expected": {
+        "visibleState": "LOADING",
+        "errorKind": "NONE",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-02",
+      "conditions": {
+        "phase": "IN_FLIGHT",
+        "cachedContent": true
+      },
+      "expected": {
+        "visibleState": "LOADING_STALE",
+        "errorKind": "NONE",
+        "stale": true,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-03",
+      "conditions": {
+        "httpStatus": 200,
+        "itemCount": 2,
+        "serverCompleted": true,
+        "localCompleted": true
+      },
+      "expected": {
+        "visibleState": "RESULTS",
+        "errorKind": "NONE",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-04",
+      "conditions": {
+        "httpStatus": 200,
+        "itemCount": 0,
+        "serverCompleted": true,
+        "localCompleted": true
+      },
+      "expected": {
+        "visibleState": "EMPTY",
+        "errorKind": "NONE",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-05",
+      "conditions": {
+        "httpStatus": 200,
+        "itemCount": 0,
+        "serverCompleted": true,
+        "localCompleted": false,
+        "sourceFailures": 1
+      },
+      "expected": {
+        "visibleState": "PARTIAL",
+        "errorKind": "SOURCE_PARTIAL",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-06",
+      "conditions": {
+        "httpStatus": 401,
+        "itemCount": 0
+      },
+      "expected": {
+        "visibleState": "ERROR",
+        "errorKind": "AUTHENTICATION",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-07",
+      "conditions": {
+        "httpStatus": 403,
+        "itemCount": 0
+      },
+      "expected": {
+        "visibleState": "ERROR",
+        "errorKind": "PERMISSION",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-08",
+      "conditions": {
+        "httpStatus": 503,
+        "itemCount": 0
+      },
+      "expected": {
+        "visibleState": "ERROR",
+        "errorKind": "RETRYABLE",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-09",
+      "conditions": {
+        "offline": true,
+        "cacheMatch": true
+      },
+      "expected": {
+        "visibleState": "OFFLINE_STALE",
+        "errorKind": "OFFLINE",
+        "stale": true,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-10",
+      "conditions": {
+        "offline": true,
+        "cacheMatch": false
+      },
+      "expected": {
+        "visibleState": "OFFLINE_NO_CACHE",
+        "errorKind": "OFFLINE",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-11",
+      "conditions": {
+        "cancelled": true
+      },
+      "expected": {
+        "visibleState": "CANCELLED",
+        "errorKind": "NONE",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-12",
+      "conditions": {
+        "httpStatus": 200,
+        "itemCount": 1,
+        "activeGeneration": 2,
+        "responseGeneration": 1,
+        "activeQueryShape": "shape-new",
+        "responseQueryShape": "shape-new"
+      },
+      "expected": {
+        "visibleState": "DROPPED_STALE_RESPONSE",
+        "errorKind": "NONE",
+        "stale": true,
+        "noOp": true
+      }
+    },
+    {
+      "id": "ST-13",
+      "conditions": {
+        "httpStatus": 200,
+        "itemCount": 1,
+        "activeGeneration": 2,
+        "responseGeneration": 2,
+        "activeQueryShape": "shape-new",
+        "responseQueryShape": "shape-old"
+      },
+      "expected": {
+        "visibleState": "DROPPED_STALE_RESPONSE",
+        "errorKind": "NONE",
+        "stale": true,
+        "noOp": true
+      }
+    },
+    {
+      "id": "ST-14",
+      "conditions": {
+        "deadlineExpired": true,
+        "itemCount": 0
+      },
+      "expected": {
+        "visibleState": "ERROR",
+        "errorKind": "TIMEOUT_DEADLINE",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-15",
+      "conditions": {
+        "httpStatus": 200,
+        "itemCount": 2,
+        "scopeMismatchCount": 2,
+        "serverCompleted": true,
+        "localCompleted": true
+      },
+      "expected": {
+        "visibleState": "PROTOCOL_ERROR",
+        "errorKind": "SCOPE_MISMATCH",
+        "stale": false,
+        "noOp": false
+      }
+    },
+    {
+      "id": "ST-16",
+      "conditions": {
+        "httpStatus": 200,
+        "itemCount": 1,
+        "sourceFailures": 1,
+        "serverCompleted": true,
+        "localCompleted": true
+      },
+      "expected": {
+        "visibleState": "PARTIAL",
+        "errorKind": "SOURCE_PARTIAL",
+        "stale": false,
+        "noOp": false
+      }
+    }
+  ],
+  "identityCases": [
+    {
+      "id": "ID-01",
+      "items": [
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        },
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Audio",
+          "itemId": "audio-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        },
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Book",
+          "itemId": "book-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        }
+      ],
+      "expectedIdentities": [
+        "server|server-a|user-a|Movie|movie-1",
+        "server|server-a|user-a|Audio|audio-1",
+        "server|server-a|user-a|Book|book-1"
+      ]
+    },
+    {
+      "id": "ID-02",
+      "items": [
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        },
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        }
+      ],
+      "expectedIdentities": [
+        "server|server-a|user-a|Movie|movie-1"
+      ]
+    },
+    {
+      "id": "ID-03",
+      "items": [
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        },
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-2",
+          "title": "Dune",
+          "sortName": "Dune"
+        }
+      ],
+      "expectedIdentities": [
+        "server|server-a|user-a|Movie|movie-1",
+        "server|server-a|user-a|Movie|movie-2"
+      ]
+    },
+    {
+      "id": "ID-04",
+      "items": [
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        },
+        {
+          "source": "DOWNLOAD",
+          "provenanceKnown": true,
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        }
+      ],
+      "expectedIdentities": [
+        "server|server-a|user-a|Movie|movie-1"
+      ]
+    },
+    {
+      "id": "ID-05",
+      "items": [
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        },
+        {
+          "source": "DOWNLOAD",
+          "provenanceKnown": false,
+          "downloadRowId": "legacy-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        }
+      ],
+      "expectedIdentities": [
+        "server|server-a|user-a|Movie|movie-1",
+        "download|legacy|legacy-1"
+      ]
+    },
+    {
+      "id": "ID-06",
+      "items": [
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-1",
+          "title": "Dune",
+          "sortName": "Dune"
+        },
+        {
+          "source": "LOCAL",
+          "libraryId": "library-a",
+          "localStableId": "file-token-1",
+          "itemType": "Movie",
+          "title": "Dune",
+          "sortName": "Dune"
+        }
+      ],
+      "expectedIdentities": [
+        "server|server-a|user-a|Movie|movie-1",
+        "local|library-a|file-token-1|Movie"
+      ]
+    },
+    {
+      "id": "ID-07",
+      "items": [
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-z",
+          "title": "Zebra",
+          "sortName": "Zebra"
+        },
+        {
+          "source": "SERVER",
+          "serverId": "server-a",
+          "userId": "user-a",
+          "itemType": "Movie",
+          "itemId": "movie-a",
+          "title": "Alpha",
+          "sortName": "Alpha"
+        }
+      ],
+      "expectedOrderedIdentities": [
+        "server|server-a|user-a|Movie|movie-a",
+        "server|server-a|user-a|Movie|movie-z"
+      ]
+    }
+  ],
+  "restoreCases": [
+    {
+      "id": "RS-01",
+      "sameProcess": true,
+      "shapeMatches": true,
+      "selectionPresent": true,
+      "expected": {
+        "query": "RESTORED",
+        "scope": "RESTORED",
+        "results": "RESTORED",
+        "scroll": "RESTORED",
+        "selection": "RESTORED"
+      }
+    },
+    {
+      "id": "RS-02",
+      "sameProcess": true,
+      "shapeMatches": true,
+      "selectionPresent": false,
+      "expected": {
+        "query": "RESTORED",
+        "scope": "RESTORED",
+        "results": "RESTORED",
+        "scroll": "RESTORED",
+        "selection": "CLEARED_MISSING_IDENTITY"
+      }
+    },
+    {
+      "id": "RS-03",
+      "sameProcess": true,
+      "shapeMatches": false,
+      "selectionPresent": true,
+      "expected": {
+        "query": "RESTORED",
+        "scope": "RESTORED",
+        "results": "RELOAD_REQUIRED",
+        "scroll": "DEFERRED_UNTIL_SAME_SHAPE",
+        "selection": "DEFERRED_UNTIL_SAME_SHAPE"
+      }
+    },
+    {
+      "id": "RS-04",
+      "sameProcess": false,
+      "shapeMatches": true,
+      "selectionPresent": true,
+      "expected": {
+        "query": "RESTORED",
+        "scope": "RESTORED",
+        "results": "RELOAD_REQUIRED",
+        "scroll": "RUNTIME_REVALIDATE",
+        "selection": "RUNTIME_REVALIDATE"
+      }
+    }
+  ],
+  "mutations": [
+    {
+      "name": "stale-response-overwrite",
+      "target": "route-state-machine.json:staleResponseCommit",
+      "expectedExit": 1
+    },
+    {
+      "name": "cross-scope-hit",
+      "target": "scope-query-matrix.json:MUSIC.includeItemTypes",
+      "expectedExit": 1
+    },
+    {
+      "name": "empty-as-error",
+      "target": "route-state-machine.json:emptyClassification.visibleState",
+      "expectedExit": 1
+    }
+  ]
+}

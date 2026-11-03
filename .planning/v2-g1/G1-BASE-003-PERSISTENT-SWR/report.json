@@ -1,0 +1,262 @@
+{
+  "schemaVersion": "1.0",
+  "taskId": "G1-BASE-003",
+  "identity": "Aurorama 2.0 G1-BASE-003 持久 SWR 合同架构师",
+  "cwd": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+  "branch": "codex/v2-integration",
+  "baseHead": "6fc0a02995bb24c11237fe3b8753f21f06a57f72",
+  "status": "STATIC_CONTRACT_COMPLETE_WITH_OPEN_POLICY_AND_RUNTIME_GAPS",
+  "conclusion": {
+    "contractFrozen": true,
+    "implementationClaimed": false,
+    "g1PassClaimed": false,
+    "productionChanged": false,
+    "deviceTouched": false,
+    "serverTouched": false,
+    "summary": "Cache identity, freshness, mutation, capacity, process and corruption invariants are frozen. Production policy values and cross-process/runtime proof remain open."
+  },
+  "counts": {
+    "identityDimensions": 19,
+    "projectionStates": 10,
+    "transitions": 22,
+    "ttlBoundaryRules": 11,
+    "userCommitments": 12,
+    "knownCodeConstants": 10,
+    "contractGaps": 8,
+    "fixtures": {
+      "total": 4,
+      "positive": 1,
+      "negative": 3
+    }
+  },
+  "s3Deconfliction": {
+    "s3Owns": [
+      "GET /Items endpoint and status taxonomy",
+      "OpenAPI 12.4.0 ETag/304 capability ledger",
+      "client current query-shape subset"
+    ],
+    "s3FrozenFactsConsumed": [
+      "OpenAPI declares zero 304 responses and zero ETag response headers",
+      "current search client uses only userId, searchTerm, includeItemTypes and recursive",
+      "internal stale/generation is expressible but public stale marker and cross-process behavior are uncovered"
+    ],
+    "base003Owns": [
+      "canonical cache lookup identity",
+      "TTL and wall/monotonic boundary",
+      "stale-if-error/projection state",
+      "mutation generation invalidation",
+      "capacity and cross-process fence invariants"
+    ],
+    "dedupeRule": "Do not restate endpoint eligibility here; a 304 is handled only if the S3 transport adapter can prove one."
+  },
+  "knownCodeConstants": [
+    {
+      "name": "MetadataCacheRules.DEFAULT_TTL_MS",
+      "value": 600000,
+      "unit": "milliseconds",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataCache.kt:17",
+      "classification": "CURRENT_FACT_NOT_APPROVED_POLICY"
+    },
+    {
+      "name": "MetadataCacheRules.SEARCH_TTL_MS",
+      "value": 600000,
+      "unit": "milliseconds",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataCache.kt:20",
+      "classification": "CURRENT_FACT_NOT_APPROVED_POLICY"
+    },
+    {
+      "name": "MetadataCacheRules.PAGING_TTL_MS",
+      "value": 300000,
+      "unit": "milliseconds",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataCache.kt:23",
+      "classification": "CURRENT_FACT_NOT_APPROVED_POLICY"
+    },
+    {
+      "name": "MetadataCacheRules.DEFAULT_MAX_ENTRIES",
+      "value": 256,
+      "unit": "entries",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataCache.kt:26",
+      "classification": "MEMORY_ONLY_NOT_TOTAL_CAPACITY"
+    },
+    {
+      "name": "MetadataCacheRules.MIN_REFRESH_COOLDOWN_MS",
+      "value": 30000,
+      "unit": "milliseconds",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataCache.kt:34",
+      "classification": "CURRENT_FACT_NOT_APPROVED_POLICY"
+    },
+    {
+      "name": "MetadataSnapshotStoreLimits.maxFiles",
+      "value": 4096,
+      "unit": "files",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwr.kt:43",
+      "classification": "CURRENT_FACT_NOT_APPROVED_POLICY"
+    },
+    {
+      "name": "MetadataSnapshotStoreLimits.maxBytes",
+      "value": 268435456,
+      "unit": "bytes",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwr.kt:44",
+      "classification": "CURRENT_FACT_NOT_APPROVED_POLICY"
+    },
+    {
+      "name": "SEARCH_MAX_AGE_MS",
+      "value": 86400000,
+      "unit": "milliseconds",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwr.kt:19",
+      "classification": "CURRENT_FACT_NOT_APPROVED_POLICY"
+    },
+    {
+      "name": "BROWSE_MAX_AGE_MS",
+      "value": 604800000,
+      "unit": "milliseconds",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwr.kt:18",
+      "classification": "CURRENT_FACT_NOT_APPROVED_POLICY"
+    },
+    {
+      "name": "DEFAULT_MAX_FILE_BYTES",
+      "value": 8388608,
+      "unit": "bytes",
+      "source": "data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotStore.kt:408",
+      "classification": "CURRENT_FACT_NOT_APPROVED_POLICY"
+    }
+  ],
+  "contractGaps": [
+    {
+      "id": "GAP-PUBLIC-STALE",
+      "severity": "P1",
+      "fact": "Repository return shape does not expose stale, savedAt, reason and identity generation as a first-class projection.",
+      "requiredLater": "G2 implementation and candidate-package observable proof"
+    },
+    {
+      "id": "GAP-FULL-QUERY-SHAPE",
+      "severity": "P1",
+      "fact": "Current search logical key is query plus scope; the complete behavioral query shape is not yet integrated as the cache identity.",
+      "requiredLater": "Use the 19-dimension lookup contract before adding paging, sort, fields, filters or locale variants"
+    },
+    {
+      "id": "GAP-CROSS-PROCESS-SINGLE-WRITER",
+      "severity": "P1",
+      "fact": "The reviewed store serializes writes with in-process locks; no inter-process compare-and-increment fence is proven.",
+      "requiredLater": "Runtime/device evidence and an explicitly approved storage mechanism"
+    },
+    {
+      "id": "GAP-DURABLE-FENCE",
+      "severity": "P1",
+      "fact": "Generation is held in the in-memory cache; cross-process durable commit of generation plus tombstone/watermark is not shown.",
+      "requiredLater": "Atomic durable fence publication and crash-race fixtures"
+    },
+    {
+      "id": "GAP-304-CONTRACT",
+      "severity": "P1",
+      "fact": "S3 found no OpenAPI 304/ETag contract. The conditional-cache branch cannot be claimed for Jellyfin data APIs.",
+      "requiredLater": "Only a proven transport/server extension may activate it; otherwise use full GET"
+    },
+    {
+      "id": "GAP-POLICY-AUTHORITY",
+      "severity": "P2",
+      "fact": "Current TTL and capacity constants are code facts, not user-approved product policy.",
+      "requiredLater": "Owner/user decision before implementation"
+    },
+    {
+      "id": "GAP-PIN-PREFETCH-POLICY",
+      "severity": "P2",
+      "fact": "Pin ownership, fairness, eviction order and prefetch caps are not frozen as product limits.",
+      "requiredLater": "Decision plus bounded runtime evidence"
+    },
+    {
+      "id": "GAP-MUTATION-INTEGRATION",
+      "severity": "P1",
+      "fact": "The static fence algorithm is defined, but no production mutation path is proven to durably publish the new fence before old data can be projected.",
+      "requiredLater": "G2 code integration, contract tests and candidate-package evidence"
+    }
+  ],
+  "risks": {
+    "P0": [],
+    "P1": [
+      "full query shape not yet integrated",
+      "public stale state absent",
+      "cross-process durable fence and single writer unproven",
+      "mutation integration unproven",
+      "open questions about 304 capability; endpoint contract still owned by S3"
+    ],
+    "P2": [
+      "TTL, capacity, eviction, pin and prefetch values require an explicit policy decision",
+      "clock anomaly grace is not chosen"
+    ],
+    "P3": [
+      "current memory and disk constants overlap but measure different layers; documentation must keep that distinction"
+    ]
+  },
+  "decisionClassification": [
+    {
+      "id": "DEC-TTL",
+      "class": "USER_OR_OWNER_DECISION_REQUIRED",
+      "question": "Approve production soft TTL and hard max age per namespace."
+    },
+    {
+      "id": "DEC-CAPACITY",
+      "class": "USER_OR_OWNER_DECISION_REQUIRED",
+      "question": "Approve byte/file/entry caps, fairness, eviction order and pin limits."
+    },
+    {
+      "id": "DEC-PREFETCH",
+      "class": "USER_OR_OWNER_DECISION_REQUIRED",
+      "question": "Approve prefetch count/bytes/concurrency/deadline."
+    },
+    {
+      "id": "DEC-CLOCK-GRACE",
+      "class": "USER_OR_OWNER_DECISION_REQUIRED",
+      "question": "Approve any clock-rollback grace; absent approval means no fresh claim and no unrestricted offline fallback."
+    },
+    {
+      "id": "DEC-CROSS-PROCESS",
+      "class": "RUNTIME_DEVICE_AND_CODE_CHANGE_REQUIRED",
+      "question": "Prove a durable CAS fence and atomic publication across processes; no production code is changed in this task."
+    },
+    {
+      "id": "DEC-304",
+      "class": "RUNTIME_CAPABILITY_PROOF_REQUIRED",
+      "question": "Activate conditional 304 handling only if a versioned transport proof exists; S3 currently records none."
+    }
+  ],
+  "executed": [
+    "read-only Git baseline and whitelist documents",
+    "read-only S3 report/contracts summary",
+    "rg-only localization of three SWR implementation files",
+    "static contract generation",
+    "fixture harness generation"
+  ],
+  "notExecuted": [
+    "production or test-server request",
+    "device or emulator execution",
+    "Android build or instrumentation",
+    "database/schema/migration change",
+    "real two-process race",
+    "wall-clock or 304 device proof",
+    "candidate-package UI proof",
+    "commit, push, tag or release"
+  ],
+  "verification": {
+    "observedOn": "2026-11-04",
+    "positiveExitCodeExpected": 0,
+    "positiveExitCodeObserved": 0,
+    "negativeExitCodesExpected": {
+      "mutation-older-generation-used": 1,
+      "cross-account-hit": 1,
+      "write-after-still-fresh": 1
+    },
+    "negativeExitCodesObserved": {
+      "mutation-older-generation-used": 1,
+      "cross-account-hit": 1,
+      "write-after-still-fresh": 1
+    },
+    "manifest": "manifest.json",
+    "commands": "commands.log"
+  },
+  "next": {
+    "role": "负责人 / G1 集成审查",
+    "firstReadOnlyAction": "复核 report.json、三份矩阵、fixture 退出码与 manifest，再由负责人决定 TTL/容量策略是否需要用户拍板",
+    "stopCondition": "任何实现、设备、服务器、schema 或提交动作都需新的明确授权"
+  }
+}

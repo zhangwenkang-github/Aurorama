@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "1.0",
+  "contractId": "G1-BASE-003-USER-COMMITMENTS",
+  "rows": [
+    {
+      "id": "SWR-UC-01",
+      "promise": "冷启动可先显示缓存",
+      "entry": "受支持的搜索、首页或列表读取",
+      "operation": "冷启动读取当前已保存身份",
+      "observable": "完整快照在软 TTL 内标记 FRESH；陈旧快照明确标记 stale",
+      "rules": ["identity", "TTL-01", "TTL-02", "TTL-03"],
+      "fixtures": ["positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-02",
+      "promise": "刷新后内容替换不闪烁为错误",
+      "entry": "已有内容页面",
+      "operation": "软 TTL 到期并后台刷新",
+      "observable": "先保留内容并标记 STALE_REVALIDATING；成功后就地替换，失败仅在允许时显示 stale fallback",
+      "rules": ["STALE_REVALIDATING", "STALE_REFRESH_FAILED", "TTL-10"],
+      "fixtures": ["positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-03",
+      "promise": "切换账号不串缓存",
+      "entry": "账号切换或 saved user 切换",
+      "operation": "读取账号 B 的同一查询",
+      "observable": "账号 A 的 payload 不进入 B 的 lookup、in-flight 或 UI",
+      "rules": ["unknownIdentityPolicy", "dimensions 2-4", "FENCED_NO_DATA"],
+      "fixtures": ["positive", "cross-account-hit"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-04",
+      "promise": "写后旧值被失效",
+      "entry": "收藏、已看等已确认写操作",
+      "operation": "服务器写成功或权威事件到达后执行缓存读取",
+      "observable": "旧 generation 立即不能投影为 FRESH；页面只显示墓碑/miss 或新 generation 数据",
+      "rules": ["mutationInvalidation", "TTL-01"],
+      "fixtures": ["mutation-older-generation-used", "write-after-still-fresh", "positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-05",
+      "promise": "墙钟过期不被伪装成新鲜",
+      "entry": "任意持久缓存读取",
+      "operation": "设备墙钟到达软 TTL、硬上限或回拨",
+      "observable": "边界按 inclusive/exclusive 规则进入 stale/expired；回拨触发 CLOCK_ANOMALY",
+      "rules": ["TTL-01", "TTL-02", "TTL-03", "TTL-04", "TTL-05"],
+      "fixtures": ["positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-06",
+      "promise": "请求时延不改变缓存年龄",
+      "entry": "慢请求、重试或超时",
+      "operation": "请求经过长时间后返回",
+      "observable": "TTL 只由持久时间戳/validator 决定；monotonic 仅用于 in-flight/deadline",
+      "rules": ["TTL-07", "TTL-08", "clock"],
+      "fixtures": ["positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-07",
+      "promise": "304 不得被凭空推断",
+      "entry": "条件读取适配器",
+      "operation": "收到 304 或普通 200",
+      "observable": "仅完整前置条件和 validator 匹配的 304 可续软新鲜；Jellyfin OpenAPI 未承诺时不宣称 304",
+      "rules": ["conditional304", "TTL-09"],
+      "fixtures": ["positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-08",
+      "promise": "容量与预取有界",
+      "entry": "长期使用、离线快照和预取",
+      "operation": "达到文件/字节/条目/预取上限",
+      "observable": "准入前配额，受控淘汰或明确降级，不会无限增长",
+      "rules": ["capacity", "eviction", "pin"],
+      "fixtures": ["positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-09",
+      "promise": "同 key 不重复打服务器",
+      "entry": "并发页面读取",
+      "operation": "两个消费者同时 miss 或刷新同 key",
+      "observable": "只创建一个合法 owner；joiner 仅加入同一当前 fence",
+      "rules": ["inFlightDedupe", "singleWriter"],
+      "fixtures": ["positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-10",
+      "promise": "损坏或半写缓存失败关闭",
+      "entry": "持久快照读取",
+      "operation": "遇到 part、截断、checksum 错误或 schema 错误",
+      "observable": "目标记录 quarantined/miss 并重取，绝不展示未验证 payload",
+      "rules": ["envelope", "corruption", "QUARANTINED_NO_DATA"],
+      "fixtures": ["positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-11",
+      "promise": "离线只能显示当前身份可解释的旧数据",
+      "entry": "离线模式已保存账号",
+      "operation": "打开缓存页面",
+      "observable": "当前 server/user 的未超硬上限快照标记 offline+stale；未知身份无数据",
+      "rules": ["OFFLINE_STALE", "TTL-11", "unknownIdentityPolicy"],
+      "fixtures": ["positive"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    },
+    {
+      "id": "SWR-UC-12",
+      "promise": "进程或账户竞争不让旧结果回写",
+      "entry": "多进程或切换竞争",
+      "operation": "旧请求在 generation 推进后返回",
+      "observable": "所有旧 commit/projection 失败关闭，UI 不出现旧 generation 的 fresh",
+      "rules": ["crossProcess", "generationFence", "wildcard ANY_CURRENT mismatches"],
+      "fixtures": ["mutation-older-generation-used", "write-after-still-fresh"],
+      "runtimeEvidence": "NOT_EXECUTED"
+    }
+  ]
+}

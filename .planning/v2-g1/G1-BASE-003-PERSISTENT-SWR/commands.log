@@ -1,0 +1,40 @@
+2026-11-04 START G1-BASE-003 persistent SWR static contract
+2026-11-04 CWD F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+git rev-parse HEAD
+git branch --show-current
+git status --porcelain=v1
+Get-Content -Raw -Encoding UTF8 AGENTS.md
+Get-Content -Raw -Encoding UTF8 <engramory-memory>\MEMORY.md
+Get-Content -Raw -Encoding UTF8 <whitelisted engramory notes>
+Get-Content -Raw -Encoding UTF8 <graphify skill> and project AGENTS graphify rules
+Get-Content -Encoding UTF8 docs/V2_PLAN.md selected sections 5.7, 5.10.5, 5.10.6, 5.11 S1-S3
+rg -n R020/R025/R027/R028 docs/PROJECT_RULES.md
+rg -n Aurorama 2.0 docs/PROJECT_PLAN.md
+Read G1-S3 report.json and contracts.json with ConvertFrom-Json; extract SWR/SEARCH/DOWNLOAD_RANGE summaries only
+graphify query "persistent SWR cache TTL stale generation account isolation single writer mutation invalidation"
+GRAPHIFY_RESULT FALLBACK_TO_RG: graphify-out/graph.json missing in this worktree
+rg -l and rg -n over Kotlin files for SWR symbols
+Read three whitelisted implementation files:
+  data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataCache.kt
+  data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwr.kt
+  data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotStore.kt
+WRITE .planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/README.md
+WRITE .planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/cache-identity-matrix.json
+WRITE .planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/freshness-state-machine.json
+WRITE .planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/user-commitment-matrix.json
+WRITE .planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/report.json
+WRITE .planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/fixture-test.ps1
+WRITE .planning/v2-g1/G1-BASE-003-PERSISTENT-SWR/commands.log
+Compute manifest schema, final LF counts, byte counts and SHA-256 values
+Write manifest.json after all covered files are final
+TEST_RUN 2026-11-04 positive exit=0 PASS
+TEST_RUN 2026-11-04 mutation-older-generation-used exit=1 EXPECTED_NEGATIVE_TRIPPED
+TEST_RUN 2026-11-04 cross-account-hit exit=1 EXPECTED_NEGATIVE_TRIPPED
+TEST_RUN 2026-11-04 write-after-still-fresh exit=1 EXPECTED_NEGATIVE_TRIPPED
+HARNESS_CORRECTION 1: manifest payload uses path-sorted file records
+HARNESS_CORRECTION 2: fixed multiline boolean precedence in fresh projection predicate
+HARNESS_CORRECTION 3: negative fixtures explicitly model the forbidden candidate before exiting 1
+Rebuild manifest after all covered files and observed verification text are final
+Final rerun: positive and three negative fixture cases after manifest rebuild
+Validate JSON, manifest hashes, total bytes, LF-only encoding and sensitive-value patterns
+NOT EXECUTED: production/test server, device, emulator, Gradle, instrumentation, schema migration, commit, push, tag or release

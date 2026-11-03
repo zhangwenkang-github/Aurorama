@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "g1-base001-manifest/v1",
+  "taskId": "G1-BASE-001",
+  "status": "STATIC_CONTRACT_COMPLETE_RUNTIME_UNVERIFIED",
+  "algorithm": "SHA-256",
+  "manifestExcludes": [
+    "manifest.json"
+  ],
+  "fileCount": 12,
+  "totalBytes": 101416,
+  "files": [
+    {
+      "path": "commands.log",
+      "bytes": 3942,
+      "sha256": "4217B239A1C1B3CBB7C4B5488EA5549C33ACA5B270D2B2B867F4956BB90FC769"
+    },
+    {
+      "path": "findings.md",
+      "bytes": 2865,
+      "sha256": "CC69381774B9A692692F9F8D765E7415FF5FD19629B3FBD7E65EC448932BF684"
+    },
+    {
+      "path": "fixtures/search-contract-cases.json",
+      "bytes": 12048,
+      "sha256": "6F5AEFE6F65B9EBBC91F4A3C3205985C763778C54F86135F158A3540E7C3E84C"
+    },
+    {
+      "path": "progress.md",
+      "bytes": 3667,
+      "sha256": "C5BA93301DCE8413966C57AD5F045F1180CF2D99B5711890D22B4B4B1B599E2F"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1946,
+      "sha256": "600E2C2A454F3F14F2B7D1A4D5814160513D81A8EEE9E7FEC29E3334EDA6916D"
+    },
+    {
+      "path": "report.json",
+      "bytes": 11486,
+      "sha256": "7B80860EFC79DA691BC128BEAD25A327255E869D3AC4CD8B4870B874F0361501"
+    },
+    {
+      "path": "route-state-machine.json",
+      "bytes": 11786,
+      "sha256": "13FC13C44FF93192F2260B4EB2069E7B7BCAD91451ED0B65DADF481C2CCDDD89"
+    },
+    {
+      "path": "scope-query-matrix.json",
+      "bytes": 5813,
+      "sha256": "31D9FB12230E8DACC8F0109E92522871D18B5CDE969652333C7F4AE03DD682A7"
+    },
+    {
+      "path": "stable-identity-matrix.json",
+      "bytes": 5076,
+      "sha256": "30C2ABA6F8BAE0E16745037CC576ACC6455D47C6D1610CFA78F65C0DE245D447"
+    },
+    {
+      "path": "task_plan.md",
+      "bytes": 4385,
+      "sha256": "F78B99B186D30C2EF383B3943545DB49810A5DCE49BACED32451DF74D49CC129"
+    },
+    {
+      "path": "user-commitment-matrix.json",
+      "bytes": 9653,
+      "sha256": "6A5E873ECABB1AC74DB73DE25E71CCC792F3509ADCC7A11FE91F5376807538EC"
+    },
+    {
+      "path": "verify-contract.ps1",
+      "bytes": 28749,
+      "sha256": "615A5749AED5672D4EF5CB3074512CE498751F4AE5AD289A4CCCC0E115213DBC"
+    }
+  ]
+}
