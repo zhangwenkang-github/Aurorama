@@ -1,0 +1,180 @@
+{
+  "identity": {
+    "task": "G1-S4-B",
+    "role": "资深 Android 媒体引擎 / Native ABI 架构师与证据 owner",
+    "model": "deepseek-flash",
+    "baseHead": "f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5",
+    "branch": "codex/v2-integration"
+  },
+  "status": "TECHNICAL_RECOMMENDATION_ONLY",
+  "userDecisionRequired": true,
+  "q03DecisionMade": false,
+  "currentConfiguration": {
+    "minSdk": 28,
+    "abis": [
+      "armeabi-v7a",
+      "arm64-v8a",
+      "x86",
+      "x86_64"
+    ],
+    "universalApkDefault": false,
+    "universalApkBuildProperty": "-Paurorama.universalApk=true"
+  },
+  "releaseCostFrozenFrom14": {
+    "source": "G1-S4-A 1.4.0(5) libre release artifacts",
+    "arm64": {
+      "apkBytes": 79729350,
+      "nativeBytes": 29482904,
+      "nativeEntries": 14,
+      "sha256": "ACB1648D9E9C5265BC54DD13B24EEA7ADA3D16E397D3E10C6A72E23D2D2FF5BB"
+    },
+    "armeabi-v7a": {
+      "apkBytes": 76377930,
+      "nativeBytes": 26140184,
+      "nativeEntries": 14
+    },
+    "x86": {
+      "apkBytes": 82760738,
+      "nativeBytes": 32523564,
+      "nativeEntries": 14
+    },
+    "x86_64": {
+      "apkBytes": 84818292,
+      "nativeBytes": 34561376,
+      "nativeEntries": 14
+    },
+    "universal": {
+      "apkBytes": 173311328,
+      "nativeBytes": 122708028,
+      "nativeEntries": 56,
+      "abiCount": 4,
+      "sha256": "19B9FD8A8EBB7A8652468B594944545E14489D80AA99EF1AB28E1B54CBAC18A2"
+    },
+    "arm64VersusUniversal": {
+      "arm64IsPercentOfUniversal": "46.00%",
+      "universalMultipleOfArm64": 2.1737,
+      "apkDeltaBytes": 93581978,
+      "nativeDeltaBytes": 93225124
+    }
+  },
+  "arm64NativeComposition": {
+    "totalBytes": 29482904,
+    "libmpvAndBundledAvFamilyBytes": 24951312,
+    "media3FfmpegJniBytes": 1462200,
+    "assKtLibassGroupBytes": 3059296,
+    "androidxGraphicsPathBytes": 10096,
+    "libmpvAndBundledAvShareOfApk": "31.30%",
+    "allNativeShareOfApk": "36.98%",
+    "interpretation": "Most native package cost comes from the optional mpv stack and its bundled FFmpeg, not from the Media3 FFmpeg JNI alone."
+  },
+  "abiAssessment": [
+    {
+      "abi": "arm64-v8a",
+      "technicalRole": "PRIMARY",
+      "staticSupport": "PASS",
+      "reason": "All 14 native files, Media3 9/9 JNI, mpv 16/16 JNI, custom NEEDED closure, and 0x4000 ELF LOAD alignment pass."
+    },
+    {
+      "abi": "armeabi-v7a",
+      "technicalRole": "COMPATIBILITY_OPTIONAL",
+      "staticSupport": "PASS",
+      "reason": "All 14 native files and JNI coverage pass; LOAD alignment is mixed 0x1000/0x4000, but 32-bit ABI is not the 16 KB 64-bit page-size gate."
+    },
+    {
+      "abi": "x86",
+      "technicalRole": "ENGINEERING_OR_LEGACY_X86_OPTIONAL",
+      "staticSupport": "PASS",
+      "reason": "All files and symbols are present, but release cost is higher than arm64 and no user x86 commitment was established in S4-B."
+    },
+    {
+      "abi": "x86_64",
+      "technicalRole": "ENGINEERING_OR_CHROMEBOOK_OPTIONAL",
+      "staticSupport": "PASS",
+      "reason": "All files and symbols are present; retain only if x86_64 Android/Chromebook support is a known commitment."
+    }
+  ],
+  "recommendation": {
+    "shrinkAbi": "YES_AS_A_RELEASE_SCOPE_CANDIDATE_NOT_A_USER_DECISION",
+    "required": [
+      "arm64-v8a"
+    ],
+    "userFacingCandidateSet": [
+      "arm64-v8a",
+      "armeabi-v7a"
+    ],
+    "engineeringOnlyCandidateSet": [
+      "x86",
+      "x86_64"
+    ],
+    "universalPrimaryArtifact": false,
+    "reason": "Four-ABI native payload makes universal APK 173,311,328 B. Split delivery avoids forcing 122.7 MB of irrelevant native code onto an arm64 user device. x86/x86_64 should be retained only for documented Android x86 / Chromebook support or emulator engineering builds.",
+    "unknownBeforeDecision": [
+      "Whether Android x86 or 32-bit ARM is a supported user platform",
+      "Whether GitHub-release users need a universal fallback",
+      "Whether downloaded-artifact count / CI storage is acceptable"
+    ]
+  },
+  "packagePolicyEvidenceGate": {
+    "staticChecksCompleted": [
+      "14 unique native entries per ABI",
+      "0 duplicate full native paths",
+      "one libc++_shared.so per ABI",
+      "all custom DT_NEEDED present",
+      "Media3 9/9 and mpv 16/16 JNI symbols",
+      "asskt JNI_OnLoad present",
+      "arm64/x86_64 ELF LOAD alignment 0x4000",
+      "zipalign -P 16 passes"
+    ],
+    "notMeasured": [
+      "installed footprint",
+      "Play/install expansion and DEX optimization",
+      "update delta",
+      "process RSS / mmap residency",
+      "startup and decode performance"
+    ],
+    "rule": "Do not convert APK bytes into installed-size claims."
+  },
+  "q03Frame": {
+    "recommendedDirection": "Media3 主路径；mpv 仅格式证明必需",
+    "notAUserDecisionYet": true,
+    "mediaEngineInputReady": true,
+    "fullQ03Ready": false,
+    "fullQ03BlockedBy": [
+      "S4-C TTS / PDF options",
+      "runtime load-order regression",
+      "approved format matrix",
+      "release SBOM / native notices"
+    ]
+  },
+  "formatGate": {
+    "media3AudioCoverage": "The exact Jellyfin decoder tag enables flac, alac, pcm_mulaw, pcm_alaw, mp3, aac, ac3, eac3, dca, mlp, truehd.",
+    "media3VideoCoverage": "The packaged ExperimentalFfmpegVideoRenderer is a stub and cannot decode video.",
+    "mpvNecessaryOnlyIf": [
+      "an approved user-visible audio codec is not supported by Media3 FFmpeg",
+      "an approved video codec/container cannot be handled by MediaCodec, Media3, or the allowed server-transcode path",
+      "an offline/local-media promise requires decoding a format unavailable through the Media3 path",
+      "measured runtime behavior proves Media3 path fails a required format"
+    ],
+    "mpvNotJustifiedBy": [
+      "source comments or historical fallback alone",
+      "one arbitrary sample",
+      "UI preference without a product requirement",
+      "compile success alone"
+    ]
+  },
+  "minimalRegressionIfMpvRetained": [
+    "Load Media3 FfmpegLibrary first, then MPVLib and asskt; execute representative audio/video playback.",
+    "Load MPVLib and asskt first, then Media3 FfmpegLibrary; execute representative audio/video playback.",
+    "Switch Media3 <-> mpv repeatedly in one process, including subtitle rendering and cleanup.",
+    "Verify the four required ABI packages selected for release; do not infer unshipped ABI support.",
+    "Compare with a rollback build that excludes libmpv while retaining Media3 FFmpeg and ass-kt.",
+    "Record APK hashes, load order, native errors, first observable media output, and artifact size delta."
+  ],
+  "rollbackBoundaries": {
+    "removeMpvVariant": "Build/variant without libmpv and its libav* files; keep Media3 + FFmpeg audio + ass-kt only after the format matrix proves no required capability is lost.",
+    "excludeMedia3FfmpegVariant": "Only if Media3/FFmpeg runtime incompatibility is observed; removing it also removes the enabled audio-fallback codecs and must be treated as user-visible capability loss.",
+    "keepAssKt": "Do not remove ass-kt merely because libmpv is removed; Media3 subtitle rendering uses libass separately.",
+    "releaseRule": "Any rollback that changes supported formats, subtitle behavior, or ABI scope requires user-visible capability review; runtime evidence must identify the exact engine, format and ABI.",
+    "forbiddenShortcut": "Do not solve native symbol risk by silently deleting a codec/engine at release time."
+  }
+}

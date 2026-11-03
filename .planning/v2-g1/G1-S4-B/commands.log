@@ -1,0 +1,134 @@
+G1-S4-B COMMANDS
+Executed: 2026-11-03 Asia/Shanghai
+Worktree: F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama
+Base: f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5
+Branch: codex/v2-integration
+
+C01 identity gate
+  Set-Location 'F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama'
+  git branch --show-current
+  git rev-parse HEAD
+  git status --porcelain=v1 --untracked-files=all
+  result: branch=codex/v2-integration; HEAD=f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5; status empty
+
+C02 ancestry
+  git merge-base --is-ancestor 4fbe5e12d182fc1d9bdf2790c7a725bec0074d37 HEAD
+  git merge-base --is-ancestor bd5e3aa59c2e5671ada9354f230da4519589272b HEAD
+  result: both exit 0
+
+C03 external source hash
+  Get-FileHash 'F:/Develop/codex_work/Documents/Codex/2.0更新文档.md' -Algorithm SHA256
+  result: E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229
+  bytes=98302; lines=1156 by Get-Content count
+
+C04 cache artifact hashes
+  SHA256(media3-ffmpeg-decoder-1.9.0+1.aar)=DFC726C8BC9D9DB02E15B160F886A03BDD6DD51E88BA2DE89AA74CAF5E8CD181
+  SHA256(libmpv-1.0.0.aar)=DF146592480FC8418415A06B1F1A1D6318B0088E21F52254B0E9A82B61CA8FA2
+  SHA256(ass-kt-0.5.1.aar)=1051212FAF98EF956E06992B002D43CFDC81B6C60DCD32662E8D3FF52D584D65
+
+C05 classpath/API reference audit
+  javap -classpath <ffmpeg-decoder; media3-exoplayer 1.11.1; media3-decoder 1.11.1; media3-common 1.11.1> -p -c -constants androidx.media3.decoder.ffmpeg.*
+  result: 53 Media3 member references across 21 classes; missing classes=0
+  relocated: SimpleDecoderOutputBuffer.shouldBeSkipped:Z resolves to DecoderOutputBuffer.shouldBeSkipped:Z
+  unresolved after inheritance/field-resolution rules=0
+
+C06 native JNI symbol inventory
+  readelf --dyn-syms -W <abi>/libffmpegJNI.so
+  readelf --dyn-syms -W <abi>/libplayer.so
+  readelf --dyn-syms -W <abi>/libasskt.so
+  result: Media3 JNI 9/9 on each of four ABIs; mpv JNI 16/16 on each ABI; asskt JNI_OnLoad 1/1 on each ABI
+
+C07 temp worktree creation
+  git worktree add --detach F:/Develop/code_data/work_tree/Aurorama/s4b-f74-native-abi f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5
+  result: exit 0; temp HEAD=f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5; temp status empty
+
+C08 offline debug build
+  $env:JAVA_HOME='F:/Develop/Android/Android Studio/jbr'
+  $env:ANDROID_HOME='F:/Develop/Android/AndroidSDK'
+  $env:ANDROID_SDK_ROOT='F:/Develop/Android/AndroidSDK'
+  ./gradlew.bat :app:phone:assembleDebug --offline --console=plain
+  result: BUILD SUCCESSFUL; 242 actionable tasks executed; exit 0; elapsed 3m54s
+  build log SHA256=E66BAA2EB26C632C3F9D01936617D4C85C3C943BE0B8E24DBA9731A618C8C014
+
+C09 debug APK hashes and native payload
+  Get-ChildItem app/phone/build/outputs/apk -Recurse -Filter *.apk; Get-FileHash; ZipArchive lib/*
+  arm64-v8a: 150290331 B, SHA256=20ECD05FA6964A1F4B4C8D2DAB56D0275DC9BC7E951B695AC271D9BE37C62DB1, 14 native files, 29482904 native bytes
+  armeabi-v7a: 146938911 B, SHA256=0B8E2448DBEFE9D50AB732A90B70C482DED2019C1BD9E8E4286B2BA726C239AA, 14 native files, 26140184 native bytes
+  x86: 153321719 B, SHA256=8E9583C3874025321D50BF210D96FDECDF7E5CDC3A95A26BA7D820F1EBC42370, 14 native files, 32523564 native bytes
+  x86_64: 155379273 B, SHA256=7377ECE5809434C0C7C687ECD2BB74C8FE806EBF8CAF5A3331362ED39A823F87, 14 native files, 34561376 native bytes
+
+C10 retained libc++
+  Compare SHA-256 of APK lib/<abi>/libc++_shared.so against libmpv and ass-kt AAR copies.
+  result: every ABI matches libmpv AAR and does not match ass-kt AAR
+  arm64 final SHA256=C4C2FE5CBCB1FBA0003A31FC7AB29A9BB12DF6CC187EC45A806462540E83D93B
+  selected libc++ contains float and double __from_chars_floating_point; ass-kt libc++ does not.
+
+C11 ELF and dependency closure
+  readelf -h/-d/-lW/--version-info/--dyn-syms <each native library>
+  result: four ABIs each have 14 machine-compatible native files; custom NEEDED missing=0
+  arm64/x86_64 LOAD alignment=0x4000; 32-bit ABIs contain 0x1000 and 0x4000
+  SONAMEs: libffmpegJNI.so, libmpv.so, libplayer.so, libasskt.so, libass.so, libav*.so, libc++_shared.so
+
+C12 cross-library symbol findings
+  Compare dynamic definitions and undefined references.
+  libffmpegJNI arm64 dynamic av-family definitions=994
+  same-name intersection with libmpv FFmpeg n8.1 dynamic AV libraries=461
+  libmpv statically contains libass 0.17.4; same-name ass_* intersection with dynamic libass=217
+  selected libc++ resolves observed C++ references; only libc-system __cxa_atexit, __cxa_finalize and __cxa_thread_atexit_impl remain outside libc++ definitions.
+  static conclusion: symbol collision surface proven; runtime interposition outcome not executed.
+
+C13 release package evidence
+  Read frozen G1-S4-A 1.4.0(5) release artifacts and hashes; inspect ZIP native entries.
+  arm64 release=79729350 B / 29482904 native B / 14 entries
+  armeabi-v7a release=76377930 B / 26140184 native B / 14 entries
+  x86 release=82760738 B / 32523564 native B / 14 entries
+  x86_64 release=84818292 B / 34561376 native B / 14 entries
+  4-ABI universal=173311328 B / 122708028 native B / 56 entries
+  duplicate full native paths in universal=0
+
+C14 16 KB packaging
+  zipalign -c -P 16 -v 4 <apk>
+  result: exit 0 for four debug splits and all five 1.4.0(5) release APKs
+
+C15 R8/DEX package proof
+  apkanalyzer dex packages/references/code on 1.4.0(5) arm64 release APK; read R8 mapping/configuration.
+  mapping: FfmpegAudioRenderer -> androidx.media3.decoder.ffmpeg.b
+  mapping: ExperimentalFfmpegVideoRenderer -> qd2
+  DefaultRenderersFactory buildAudioRenderers uses const-class Lb; buildVideoRenderers uses const-class Lqd2.
+  result: packaged release path retains and adapts reflective FFmpeg renderer classes.
+
+C16 source/release identity checks
+  git ls-remote and public release metadata:
+  Media3 1.11.1 tag commit=8c6678b657ede1e7883fc164ef73ed483c7796c3
+  Jellyfin v1.9.0+1 tag commit=af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396
+  Jellyfin media submodule=7cc1056f840ce226598d3b990d4a6f7cd17e2831 (Media3 1.9.0)
+  Jellyfin FFmpeg submodule=37c90f55d8b6c3948c79449b04755527b4ae1351 (release/6.0)
+  libmpv v1.0.0 tag commit=fcf6745703dc1265bca88f12fee8fc355ddf251e
+  libmpv dependency manifest: mpv=0.41.0; ffmpeg=8.1
+  ass-kt v0.5.1 commit=504f64a325059ab5188c4c9d0eddc99c9356a23a
+  libass-cmake commit=d3f00a43ca66e42a2c34de964b1a7dbbfa9dbc8b
+  libass commit=bbb3c7f1570a4a021e52683f3fbdf74fe492ae84 (0.17.4)
+
+C17 context watermark
+  pwsh -NoProfile -ExecutionPolicy Bypass -File C:/Users/zhangwenkang/.codex/deepseek-subagent-proxy/status.ps1
+  result at 2026-11-03 22:04:11 +08:00: deepseek-flash input=464816/1048576 (44.3%), cache=99.4%, requests=82
+  action: stop expansion; finish evidence, validation, cleanup and handoff only
+
+C18 final cleanup and validation
+  git worktree remove --force F:/Develop/code_data/work_tree/Aurorama/s4b-f74-native-abi
+  result: Git registration removed, but directory deletion hit Windows `Filename too long`; temp path had already been verified and remained inside the intended sibling directory.
+  [System.IO.Directory]::Delete('\\?\F:\Develop\code_data\work_tree\Aurorama\s4b-f74-native-abi',$true)
+  result: temp worktree directory removed.
+  Removed verified temp extraction/source directories:
+    C:/Users/zhangwenkang/AppData/Local/Temp/aurorama-s4b-classlist
+    C:/Users/zhangwenkang/AppData/Local/Temp/aurorama-s4b-elf
+    C:/Users/zhangwenkang/AppData/Local/Temp/aurorama-s4b-releasedex
+    C:/Users/zhangwenkang/AppData/Local/Temp/aurorama-s4b-ass-kt-source
+    C:/Users/zhangwenkang/AppData/Local/Temp/aurorama-s4b-libass-cmake-source
+  Removed verified build log:
+    C:/Users/zhangwenkang/AppData/Local/Temp/aurorama-s4b-build.log
+  result: all listed paths exist=false
+  JSON validation: report.json/native-matrix.json/abi-decision.json parse PASS
+  required report fields: PASS
+  credential pattern scan: 0 hits
+  final Git clean check: run after the four evidence files are committed; the final response pins that clean HEAD

@@ -1,0 +1,352 @@
+{
+  "identity": {
+    "task": "G1-S4-B",
+    "role": "资深 Android 媒体引擎 / Native ABI 架构师与证据 owner",
+    "model": "deepseek-flash",
+    "baseHead": "f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5",
+    "branch": "codex/v2-integration",
+    "worktree": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama",
+    "identityGate": "PASS",
+    "initialStatusPorcelain": ""
+  },
+  "status": "COMPLETE_WITH_RUNTIME_AND_DOWNSTREAM_Q03_GAPS",
+  "conclusion": "Media3 1.11.1、Jellyfin media3-ffmpeg-decoder 1.9.0+1、dev.jdtech.mpv:libmpv:1.0.0 与最终选用的 libc++ 已完成 API、JNI、ELF、ABI 和 APK 静态矩阵。Gradle classpath 将 decoder 请求的 Media3 1.9.0 仲裁为 1.11.1；decoder 的 53 个 Media3 成员引用在 1.11.1 中均可解析，其中一个字段迁移到父类并由 Dex 字段解析覆盖。基于 f74 的离线 debug 构建 exit 0，四个 ABI 各有 14 个 native 文件，Media3 9/9 与 mpv 16/16 JNI 入口齐全，依赖闭包无缺失。未发现可证明的类/JNI/ABI 硬不兼容；但两条独立 FFmpeg 供应链存在 461 个同名全局动态符号交叉，libmpv 内嵌 libass 与 ass-kt 动态 libass 存在 217 个同名符号交叉，真实加载顺序和播放仍未验证，因此只能判静态兼容证据完成，不能判运行时 PASS。",
+  "externalIdentity": {
+    "path": "F:/Develop/codex_work/Documents/Codex/2.0更新文档.md",
+    "bytes": 98302,
+    "lines": 1156,
+    "sha256": "E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229",
+    "match": true
+  },
+  "ancestors": {
+    "baseline": {
+      "sha": "4fbe5e12d182fc1d9bdf2790c7a725bec0074d37",
+      "isAncestor": true,
+      "exitCode": 0
+    },
+    "videoClosure": {
+      "sha": "bd5e3aa59c2e5671ada9354f230da4519589272b",
+      "isAncestor": true,
+      "exitCode": 0
+    }
+  },
+  "frozenVersions": {
+    "media3": {
+      "version": "1.11.1",
+      "tagObject": "915b73c447aed6471aa33380a95126121a79375d",
+      "commit": "8c6678b657ede1e7883fc164ef73ed483c7796c3",
+      "releaseDate": "2026-09-11",
+      "latestStable": true,
+      "mavenMetadataLatest": "1.12.0-alpha02",
+      "mavenMetadataLastUpdated": "2026-10-26"
+    },
+    "jellyfinFfmpegDecoder": {
+      "artifact": "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1",
+      "tagCommit": "af9ee4e26b2045e3ea6f2ebf4a18ac8ebfeae396",
+      "releaseDate": "2025-12-29",
+      "latestPublishedReleaseAsChecked": "1.9.0+1",
+      "pomMedia3Request": "1.9.0",
+      "compiledMedia3SubmoduleCommit": "7cc1056f840ce226598d3b990d4a6f7cd17e2831",
+      "compiledMedia3Tag": "1.9.0",
+      "ffmpegSubmoduleCommit": "37c90f55d8b6c3948c79449b04755527b4ae1351",
+      "ffmpegBranch": "release/6.0",
+      "ffmpegCommitDate": "2025-12-03",
+      "enabledDecoders": [
+        "flac",
+        "alac",
+        "pcm_mulaw",
+        "pcm_alaw",
+        "mp3",
+        "aac",
+        "ac3",
+        "eac3",
+        "dca",
+        "mlp",
+        "truehd"
+      ]
+    },
+    "libmpv": {
+      "artifact": "dev.jdtech.mpv:libmpv:1.0.0",
+      "tagCommit": "fcf6745703dc1265bca88f12fee8fc355ddf251e",
+      "releaseDate": "2026-04-08",
+      "latestPublishedReleaseAsChecked": "v1.0.0",
+      "mpv": "0.41.0",
+      "ffmpeg": "8.1",
+      "ffmpegVersionString": "FFmpeg version n8.1",
+      "androidNdk": "29.0.14206865",
+      "minSdk": 26
+    },
+    "assKt": {
+      "artifact": "io.github.peerless2012:ass-kt:0.5.1",
+      "tagCommit": "504f64a325059ab5188c4c9d0eddc99c9356a23a",
+      "libassCmakeCommit": "d3f00a43ca66e42a2c34de964b1a7dbbfa9dbc8b",
+      "libassCommit": "bbb3c7f1570a4a021e52683f3fbdf74fe492ae84",
+      "libassVersion": "0.17.4"
+    },
+    "application": {
+      "minSdk": 28,
+      "compileSdk": 37,
+      "targetSdk": 36,
+      "configuredAbis": [
+        "armeabi-v7a",
+        "arm64-v8a",
+        "x86",
+        "x86_64"
+      ]
+    }
+  },
+  "executed": [
+    {
+      "id": "S4B-E01",
+      "action": "工作树身份门",
+      "result": "PASS：cwd、branch、HEAD 精确匹配；初始 status --porcelain=v1 --untracked-files=all 为空；双祖先 exit 0；外部原文 SHA-256 精确匹配"
+    },
+    {
+      "id": "S4B-E02",
+      "action": "指定限读文档、记忆与 S4-A JSON",
+      "result": "PASS：仅读取任务指定章节和 S4-A report/runtime-closure/license-matrix"
+    },
+    {
+      "id": "S4B-E03",
+      "action": "Gradle cache 中 Media3 / Jellyfin decoder / libmpv / ass-kt AAR、POM 和 class 元数据审计",
+      "result": "PASS：AAR/POM 坐标、SHA-256、native roots、classes.jar 与 classpath 依赖均已冻结"
+    },
+    {
+      "id": "S4B-E04",
+      "action": "decoder 对 Media3 1.11.1 的二进制引用审计",
+      "result": "53 个 Media3 成员引用、21 个目标类；1 个 owner 为 SimpleDecoderOutputBuffer 的字段引用解析到 DecoderOutputBuffer.shouldBeSkipped；最终 unresolved 0"
+    },
+    {
+      "id": "S4B-E05",
+      "action": "基于 f74 的独立 detached temp worktree 离线 debug build",
+      "result": "PASS：JAVA_HOME/ANDROID_HOME 显式设置，Gradle 9.7.1，--offline，242 tasks executed，BUILD SUCCESSFUL，exit 0"
+    },
+    {
+      "id": "S4B-E06",
+      "action": "生成 APK 身份、哈希、ZIP native entries 与 ABI 审计",
+      "result": "PASS：四个 debug split 各含 14 个唯一 native 文件；0 个重复完整路径；native entries 均为 stored"
+    },
+    {
+      "id": "S4B-E07",
+      "action": "JNI 符号、NEEDED、SONAME、ELF machine、符号版本和 libc++ 覆盖审计",
+      "result": "PASS：四 ABI Media3 JNI 9/9、mpv JNI 16/16；asskt JNI_OnLoad 1/1；自定义 NEEDED 缺失 0；C++ 自定义符号除 libc 提供的 3 个 __cxa 符号外无缺口"
+    },
+    {
+      "id": "S4B-E08",
+      "action": "符号重叠与静态不兼容分析",
+      "result": "未发现可证明硬不兼容；发现 Media3 FFmpeg 994 个 av* 动态导出与 libmpv FFmpeg 461 个同名动态导出交叉，以及 libass 217 个 ass_* 同名交叉"
+    },
+    {
+      "id": "S4B-E09",
+      "action": "1.4.0(5) 正式 APK 的 R8/DEX 与 16 KB 包装补证",
+      "result": "PASS（仅包级）：FfmpegAudioRenderer 被映射为 b 且 DefaultRenderersFactory 使用 const-class b；FfmpegVideoRenderer 被映射为 qd2；5 个正式 APK 均通过 zipalign -P 16 检查"
+    },
+    {
+      "id": "S4B-E10",
+      "action": "上游公开版本、release、source commit 与维护状态基础核验",
+      "result": "PARTIAL：确认 Media3 1.11.1、Jellyfin v1.9.0+1、libmpv v1.0.0 及精确 source commits；未完成逐 CVE 的全量映射"
+    }
+  ],
+  "notExecuted": [
+    "任何真机 / 模拟器 / ADB 安装、启动或播放",
+    "真实 Jellyfin 服务、认证、服务器读或写",
+    "Media3 FFmpeg 与 libmpv 的任一加载顺序运行时 probe",
+    "实际音频 / 视频格式矩阵、HDR、字幕特效、seek、切轨与长时间播放",
+    "当前 f74 的 release / R8 构建；仅审计现有 1.4.0(5) release 作为包级先例",
+    "安装后磁盘占用、DEX 优化体积、升级增量、进程内存、冷启动和解码性能",
+    "逐 CVE / security advisory 的完整 FFmpeg 6.0.x 与 n8.1 对照",
+    "TTS / PDF / PDFium 与 Q03 的非媒体引擎部分",
+    "独立 QA、G2、merge-prep、push、tag 或 Release",
+    "读取 app/tv、测试、资源、外部需求全文或无关生产源码"
+  ],
+  "buildEvidence": {
+    "tempWorktree": "F:/Develop/code_data/work_tree/Aurorama/s4b-f74-native-abi",
+    "tempBase": "f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5",
+    "command": ".\\gradlew.bat :app:phone:assembleDebug --offline --console=plain",
+    "exitCode": 0,
+    "tasksExecuted": 242,
+    "duration": "3m54s",
+    "jdk": "17.0.20.1+1",
+    "gradleWrapper": "9.7.1",
+    "buildLogEphemeralPath": "C:/Users/zhangwenkang/AppData/Local/Temp/aurorama-s4b-build.log",
+    "buildLogSha256": "E66BAA2EB26C632C3F9D01936617D4C85C3C943BE0B8E24DBA9731A618C8C014",
+    "artifactRetention": "temporary worktree and debug APKs were removed after evidence capture",
+    "debugApks": [
+      {
+        "abi": "arm64-v8a",
+        "bytes": 150290331,
+        "sha256": "20ECD05FA6964A1F4B4C8D2DAB56D0275DC9BC7E951B695AC271D9BE37C62DB1",
+        "nativeEntries": 14,
+        "nativeBytes": 29482904
+      },
+      {
+        "abi": "armeabi-v7a",
+        "bytes": 146938911,
+        "sha256": "0B8E2448DBEFE9D50AB732A90B70C482DED2019C1BD9E8E4286B2BA726C239AA",
+        "nativeEntries": 14,
+        "nativeBytes": 26140184
+      },
+      {
+        "abi": "x86",
+        "bytes": 153321719,
+        "sha256": "8E9583C3874025321D50BF210D96FDECDF7E5CDC3A95A26BA7D820F1EBC42370",
+        "nativeEntries": 14,
+        "nativeBytes": 32523564
+      },
+      {
+        "abi": "x86_64",
+        "bytes": 155379273,
+        "sha256": "7377ECE5809434C0C7C687ECD2BB74C8FE806EBF8CAF5A3331362ED39A823F87",
+        "nativeEntries": 14,
+        "nativeBytes": 34561376
+      }
+    ],
+    "debugPackageIdentity": {
+      "applicationId": "io.github.zhangwenkang.aurorama.debug",
+      "versionName": "1.4.0",
+      "versionCode": 5
+    },
+    "debugPackageWarning": "Debug APK 体积包含未裁剪 debug DEX，不能作为下载体积或安装体积结论。",
+    "releasePackageEvidence": {
+      "source": "G1-S4-A frozen 1.4.0(5) libre release artifacts",
+      "arm64Bytes": 79729350,
+      "universalBytes": 173311328,
+      "arm64NativeBytes": 29482904,
+      "universalNativeBytes": 122708028,
+      "allFiveReleaseApksZipalignP16ExitZero": true
+    },
+    "tempWorktreeCleanup": "PASS: worktree registration removed after `git worktree remove --force` hit Windows long-path deletion; the verified unregistered temp directory was then removed with PowerShell/.NET long-path deletion. Temp extraction/source-clone directories and build log were also deleted."
+  },
+  "nativeMatrix": {
+    "details": "native-matrix.json",
+    "verdict": "NO_STATIC_API_JNI_ABI_INCOMPATIBILITY_PROVEN_RUNTIME_UNPROVEN",
+    "media3JniSymbolsPerAbi": "9/9",
+    "mpvJniSymbolsPerAbi": "16/16",
+    "assJniOnLoadPerAbi": "1/1",
+    "customNeededMissingAcrossFourAbis": 0,
+    "nativeFilesPerAbi": 14,
+    "ffmpegGlobalSymbolNameOverlapArm64": 461,
+    "libassGlobalSymbolNameOverlapArm64": 217,
+    "finalLibcxxSource": "libmpv 1.0.0 AAR"
+  },
+  "abi": {
+    "details": "abi-decision.json",
+    "status": "TECHNICAL_RECOMMENDATION_ONLY_USER_SCOPE_DECISION_REQUIRED",
+    "recommendedPrimary": "arm64-v8a",
+    "possibleCompatibilityAbi": "armeabi-v7a",
+    "engineeringOnlyCandidate": [
+      "x86",
+      "x86_64"
+    ],
+    "universalPrimaryPackageRecommended": false,
+    "installedSize": "NOT_MEASURED",
+    "runtimePerformance": "NOT_MEASURED"
+  },
+  "priorities": {
+    "P0": [],
+    "P1": [
+      "Media3 1.11.1 与 decoder 1.9.0+1 的源码绑定不同；静态引用、JNI、DEX、R8 均未发现硬缺口，但真实类初始化、JNI_OnLoad 与播放尚未执行",
+      "libffmpegJNI 静态 FFmpeg 6.0.x 全局导出 994 个 av* 符号，libmpv 的动态 FFmpeg 8.1 库有 461 个同名导出；加载顺序和 ELF interposition 未做运行时验证",
+      "libmpv 内嵌 libass 0.17.4 与 ass-kt 动态 libass 0.17.4 有 217 个同名 ass_* 导出；两者同源且版本相同，但双实现加载顺序未验证",
+      "Jellyfin FFmpeg extension 的 ExperimentalFfmpegVideoRenderer 是 stub：supportsFormat 永远不支持，createDecoder 返回 null；不能把该 AAR当作视频软解能力",
+      "FFmpeg 6.0.x 快照、Jellyfin decoder 较旧版本线与完整 CVE 映射未闭环；当前只能证明坐标和维护活跃度基础事实",
+      "G1-S4-A 的 canonical release SBOM、native license provenance 与完整 notices 仍未闭环"
+    ],
+    "P2": [
+      "双 FFmpeg 供应链和四 ABI 输出产生显著包体：arm64 正式 split 为 79,729,350 B，universal 为 173,311,328 B",
+      "当前无 dependency lockfile / verification metadata，未来缓存或上游标签漂移无法自动阻止",
+      "debug APK 约 147-155 MB；只能用于构建证据，不能用于形成下载成本结论",
+      "libc++ 来自 libmpv NDK 29，ass-kt native 来自较旧 LLD 19 工具链；当前符号覆盖通过，但未做长时间 ABI 压力"
+    ],
+    "P3": [
+      "编译包含既有 Kotlin 警告，与 S4-B native 结论无直接因果关系",
+      "x86 / x86_64 32 位与 32-bit ARM ELF 仍同时存在 0x1000 与 0x4000 LOAD 对齐；64-bit ABIs 全部为 0x4000"
+    ]
+  },
+  "BLOCKED": [
+    {
+      "id": "BLOCKED-S4B-RUNTIME-LOAD-ORDER",
+      "reason": "任务禁止设备、ADB、安装与播放；无法证明 Media3 FfmpegLibrary、MPVLib、asskt 的类初始化顺序和动态符号解析结果",
+      "impact": "不能把静态兼容写成运行时 PASS，也不能判 P1 symbol collision 已关闭"
+    },
+    {
+      "id": "BLOCKED-CURRENT-RELEASE-R8",
+      "reason": "任务只允许 f74 的离线 debug build，不允许生成当前 release 候选",
+      "impact": "当前 f74 的 release class adaptation 只能由现有 1.4 release 先例和 R8 映射静态推断"
+    },
+    {
+      "id": "BLOCKED-CANONICAL-SBOM",
+      "reason": "继承 G1-S4-A；dependenciesInfo 关闭且本任务不生成 release SBOM",
+      "impact": "Q03 媒体输入可用，发布许可批准仍不可用"
+    },
+    {
+      "id": "BLOCKED-NATIVE-LICENSE-PROVENANCE",
+      "reason": "libmpv / ass-kt 的 native source commit 已查明，但完整 notice、source offer、libc++ NDK notice 与最终分发清单仍未生成",
+      "impact": "不得把 Q03 输入写成许可证 PASS"
+    },
+    {
+      "id": "BLOCKED-S4-C",
+      "reason": "完整 V2-Q-G1-03 还包含 TTS 与 PDF/PDFium 选择；本任务是 S4-B，不执行 S4-C",
+      "impact": "整个 Q03 不能在本报告内关闭；只能判定媒体引擎子输入已具备提报条件"
+    },
+    {
+      "id": "BLOCKED-CVE-DEEP-MAPPING",
+      "reason": "GitHub API 在基础维护核验后触发匿名 rate limit；未继续扩大查询，也未做逐漏洞二进制可达性分析",
+      "impact": "维护 / 安全只能记录为 P1 开放项，不写成 PASS"
+    }
+  ],
+  "uncovered": [
+    "Runtime load-order and playback compatibility",
+    "Media3 FFmpeg audio decoder codecs on device",
+    "mpv format matrix and real video decoding",
+    "Dual libass symbol resolution in the same process",
+    "Current f74 release/R8 artifact",
+    "Installed size, update delta and performance",
+    "CVE-to-binary reachability",
+    "S4-C TTS and PDF/PDFium"
+  ],
+  "contextWatermark": {
+    "checkedAt": "2026-11-03 22:04:11 +08:00",
+    "model": "deepseek-flash",
+    "inputTokens": 464816,
+    "contextWindow": 1048576,
+    "utilization": "44.3%",
+    "cacheHit": "99.4%",
+    "sessionRequests": 82,
+    "thresholdState": "已超过 25/30/35 万交接门；停止扩项，仅完成证据固化、验证、清理与交接"
+  },
+  "q03Readiness": {
+    "mediaEngineInputReady": true,
+    "fullQ03Ready": false,
+    "userDecisionMade": false,
+    "reportingCondition": "READY_WITH_RUNTIME_GATES",
+    "recommendedDirection": "Media3 主路径；mpv 只在已批准格式矩阵证明 Media3/MediaCodec/服务端转码均不能满足时保留",
+    "missingBeforeFullQ03": [
+      "S4-C TTS / PDF 选项",
+      "runtime load-order regression",
+      "format matrix evidence",
+      "release SBOM / native notices"
+    ]
+  },
+  "evidencePaths": {
+    "report": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-B/report.json",
+    "nativeMatrix": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-B/native-matrix.json",
+    "abiDecision": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-B/abi-decision.json",
+    "commands": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-B/commands.log",
+    "s4aReport": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-A/report.json",
+    "s4aRuntimeClosure": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-A/runtime-closure.json",
+    "s4aLicenseMatrix": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-S4-A/license-matrix.json"
+  },
+  "g1Status": {
+    "g1Passed": false,
+    "implementationAuthorized": false,
+    "qaAuthorized": false,
+    "releaseAuthorized": false
+  },
+  "next": {
+    "consumer": "交付负责人 / 技术集成编排者",
+    "task": "消费 S4-B 媒体输入，并在新会话执行 G1-S4-C；不得直接进入实现或 G2",
+    "firstReadAction": "Set-Location 到事实工作树，核验 branch/HEAD/status/双祖先/外部 SHA，然后只读 report.json -> native-matrix.json -> abi-decision.json -> commands.log",
+    "stopCondition": "对象漂移、需要设备/服务器/认证、需要修改生产代码或新依赖、许可证不可接受时停止"
+  }
+}

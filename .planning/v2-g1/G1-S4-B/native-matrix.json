@@ -1,0 +1,343 @@
+{
+  "identity": {
+    "task": "G1-S4-B",
+    "role": "资深 Android 媒体引擎 / Native ABI 架构师与证据 owner",
+    "model": "deepseek-flash",
+    "baseHead": "f74c0318b40c0fbd3fd4cea9f8bde882422c5ed5",
+    "branch": "codex/v2-integration"
+  },
+  "artifacts": {
+    "media3FfmpegDecoder": {
+      "coordinate": "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1",
+      "aarBytes": 2913028,
+      "aarSha256": "DFC726C8BC9D9DB02E15B160F886A03BDD6DD51E88BA2DE89AA74CAF5E8CD181",
+      "cachePath": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1/org.jellyfin.media3/media3-ffmpeg-decoder/1.9.0+1/624f3be3f886eeb3a3b9b1bd9f543436dbb3e622/media3-ffmpeg-decoder-1.9.0+1.aar"
+    },
+    "libmpv": {
+      "coordinate": "dev.jdtech.mpv:libmpv:1.0.0",
+      "aarBytes": 47574467,
+      "aarSha256": "DF146592480FC8418415A06B1F1A1D6318B0088E21F52254B0E9A82B61CA8FA2",
+      "cachePath": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1/dev.jdtech.mpv/libmpv/1.0.0/cc9acd422b2b23017e3760d34e74716dce49c9aa/libmpv-1.0.0.aar"
+    },
+    "assKt": {
+      "coordinate": "io.github.peerless2012:ass-kt:0.5.1",
+      "aarBytes": 6376237,
+      "aarSha256": "1051212FAF98EF956E06992B002D43CFDC81B6C60DCD32662E8D3FF52D584D65",
+      "cachePath": "C:/Users/zhangwenkang/.gradle/caches/modules-2/files-2.1/io.github.peerless2012/ass-kt/0.5.1/4f0e04046c1f218ac732fbe9912f6c75ad03924d/ass-kt-0.5.1.aar"
+    }
+  },
+  "classpathArbitration": {
+    "appMedia3": "1.11.1",
+    "decoderPomRequiresMedia3Decoder": "1.9.0",
+    "decoderPomRequiresMedia3Exoplayer": "1.9.0",
+    "resolvedMedia3Decoder": "1.11.1",
+    "resolvedMedia3Exoplayer": "1.11.1",
+    "decoderCompiledAgainstMedia3Tag": "1.9.0",
+    "decoderCompiledAgainstMedia3Commit": "7cc1056f840ce226598d3b990d4a6f7cd17e2831",
+    "buildResult": "PASS_ON_BASE_F74_OFFLINE_DEBUG",
+    "classpathConclusion": "Gradle arbitration succeeds, but does not alone prove runtime ABI compatibility."
+  },
+  "apiReferenceAudit": {
+    "method": "javap -p -c -constants on four decoder classes; resolve Media3 owner/member descriptors against 1.11.1 classpath and final DEX field resolution",
+    "decoderClasses": [
+      "androidx.media3.decoder.ffmpeg.FfmpegAudioDecoder",
+      "androidx.media3.decoder.ffmpeg.FfmpegAudioRenderer",
+      "androidx.media3.decoder.ffmpeg.FfmpegLibrary",
+      "androidx.media3.decoder.ffmpeg.ExperimentalFfmpegVideoRenderer"
+    ],
+    "media3MemberReferences": 53,
+    "media3TargetClasses": 21,
+    "missingClasses": 0,
+    "directMissingMemberReferences": 1,
+    "relocatedReferences": [
+      {
+        "ownerInDecoderBytecode": "androidx.media3.decoder.SimpleDecoderOutputBuffer",
+        "field": "shouldBeSkipped:Z",
+        "resolvedInMedia3_1_11_1SubclassOrSuperclass": "androidx.media3.decoder.DecoderOutputBuffer",
+        "dexEvidence": "apkanalyzer dex packages shows DecoderOutputBuffer boolean shouldBeSkipped; field resolution walks from the named class to its superclass",
+        "status": "RESOLVED_BY_INHERITANCE"
+      }
+    ],
+    "unresolvedAfterFieldResolutionRules": 0,
+    "reflectionCompatibility": {
+      "media3DefaultRenderersFactory": "1.11.1 still names FfmpegAudioRenderer and ExperimentalFfmpegVideoRenderer",
+      "debugDex": "Both decoder renderer classes are retained",
+      "release14Dex": "R8 maps FfmpegAudioRenderer -> b and ExperimentalFfmpegVideoRenderer -> qd2; DefaultRenderersFactory is rewritten from Class.forName to const-class for these kept constructors",
+      "status": "STATIC_PACKAGE_PATH_PRESENT"
+    },
+    "warning": "No runtime class initialization, JNI_OnLoad, audio output or playback was executed."
+  },
+  "media3Ffmpeg": {
+    "loadEntry": "androidx.media3.decoder.ffmpeg.FfmpegLibrary static initializer -> System.loadLibrary(\"ffmpegJNI\")",
+    "loadedLibrary": "libffmpegJNI.so",
+    "soname": "libffmpegJNI.so",
+    "neededSystemLibraries": [
+      "libandroid.so",
+      "liblog.so",
+      "libm.so",
+      "libdl.so",
+      "libc.so"
+    ],
+    "customNeededLibraries": [],
+    "dynamicFlags": [
+      "SYMBOLIC",
+      "BIND_NOW"
+    ],
+    "ffmpegSourceCommit": "37c90f55d8b6c3948c79449b04755527b4ae1351",
+    "ffmpegSourceBranch": "release/6.0",
+    "ffmpegCommitDate": "2025-12-03",
+    "ffmpegLinkage": "statically linked into libffmpegJNI.so",
+    "dynamicAvFamilyDefinitionsArm64": 994,
+    "jniSymbols": [
+      "Java_androidx_media3_decoder_ffmpeg_FfmpegLibrary_ffmpegGetVersion",
+      "Java_androidx_media3_decoder_ffmpeg_FfmpegLibrary_ffmpegGetInputBufferPaddingSize",
+      "Java_androidx_media3_decoder_ffmpeg_FfmpegLibrary_ffmpegHasDecoder",
+      "Java_androidx_media3_decoder_ffmpeg_FfmpegAudioDecoder_ffmpegInitialize",
+      "Java_androidx_media3_decoder_ffmpeg_FfmpegAudioDecoder_ffmpegDecode",
+      "Java_androidx_media3_decoder_ffmpeg_FfmpegAudioDecoder_ffmpegGetChannelCount",
+      "Java_androidx_media3_decoder_ffmpeg_FfmpegAudioDecoder_ffmpegGetSampleRate",
+      "Java_androidx_media3_decoder_ffmpeg_FfmpegAudioDecoder_ffmpegReset",
+      "Java_androidx_media3_decoder_ffmpeg_FfmpegAudioDecoder_ffmpegRelease"
+    ],
+    "jniSymbolCoverageByAbi": {
+      "arm64-v8a": "9/9",
+      "armeabi-v7a": "9/9",
+      "x86": "9/9",
+      "x86_64": "9/9"
+    },
+    "enabledDecoderSetFromExactTagBuildScript": [
+      "flac",
+      "alac",
+      "pcm_mulaw",
+      "pcm_alaw",
+      "mp3",
+      "aac",
+      "ac3",
+      "eac3",
+      "dca",
+      "mlp",
+      "truehd"
+    ],
+    "videoRendererCapability": {
+      "class": "androidx.media3.decoder.ffmpeg.ExperimentalFfmpegVideoRenderer",
+      "supportsFormat": "always FORMAT_UNSUPPORTED",
+      "createDecoder": "returns null",
+      "renderOutputBufferToSurface": "no-op",
+      "conclusion": "The packaged video renderer is a stub; Media3 FFmpeg is an audio decoder extension here."
+    }
+  },
+  "libmpvChain": {
+    "javaLoadEntry": "dev.jdtech.mpv.MPVLib static initializer -> System.loadLibrary(\"mpv\") -> System.loadLibrary(\"player\")",
+    "mpvVersion": "0.41.0",
+    "ffmpegVersion": "n8.1",
+    "ffmpegVersionEvidence": "strings in libavformat.so/libavutil.so and v1.0.0 dependency manifest",
+    "libassVersion": "0.17.4",
+    "libassCommit": "bbb3c7f1570a4a021e52683f3fbdf74fe492ae84",
+    "libassCommitMatchesAssKtSource": true,
+    "soname": "libmpv.so",
+    "dynamicFlags": [
+      "SYMBOLIC",
+      "BIND_NOW"
+    ],
+    "neededCustomLibraries": [
+      "libavcodec.so",
+      "libavfilter.so",
+      "libavformat.so",
+      "libavutil.so",
+      "libc++_shared.so",
+      "libswresample.so",
+      "libswscale.so",
+      "libavdevice.so"
+    ],
+    "jniImplementationLibrary": "libplayer.so",
+    "jniImplementationNeededLibraries": [
+      "libmpv.so",
+      "libavcodec.so",
+      "libc++_shared.so"
+    ],
+    "jniSymbols": [
+      "Java_dev_jdtech_mpv_MPVLib_nativeCreate",
+      "Java_dev_jdtech_mpv_MPVLib_nativeInit",
+      "Java_dev_jdtech_mpv_MPVLib_nativeDestroy",
+      "Java_dev_jdtech_mpv_MPVLib_nativeAttachSurface",
+      "Java_dev_jdtech_mpv_MPVLib_nativeDetachSurface",
+      "Java_dev_jdtech_mpv_MPVLib_nativeCommand",
+      "Java_dev_jdtech_mpv_MPVLib_nativeSetOptionString",
+      "Java_dev_jdtech_mpv_MPVLib_nativeGetPropertyInt",
+      "Java_dev_jdtech_mpv_MPVLib_nativeSetPropertyInt",
+      "Java_dev_jdtech_mpv_MPVLib_nativeGetPropertyDouble",
+      "Java_dev_jdtech_mpv_MPVLib_nativeSetPropertyDouble",
+      "Java_dev_jdtech_mpv_MPVLib_nativeGetPropertyBoolean",
+      "Java_dev_jdtech_mpv_MPVLib_nativeSetPropertyBoolean",
+      "Java_dev_jdtech_mpv_MPVLib_nativeGetPropertyString",
+      "Java_dev_jdtech_mpv_MPVLib_nativeSetPropertyString",
+      "Java_dev_jdtech_mpv_MPVLib_nativeObserveProperty"
+    ],
+    "jniSymbolCoverageByAbi": {
+      "arm64-v8a": "16/16",
+      "armeabi-v7a": "16/16",
+      "x86": "16/16",
+      "x86_64": "16/16"
+    },
+    "versionedLibavNodes": [
+      "LIBAVCODEC_62",
+      "LIBAVFORMAT_62",
+      "LIBAVUTIL_60",
+      "LIBAVDEVICE_62",
+      "LIBAVFILTER_11",
+      "LIBSWRESAMPLE_6",
+      "LIBSWSCALE_9"
+    ]
+  },
+  "assKtChain": {
+    "javaLoadEntry": "io.github.peerless2012.ass.Ass static initializer -> System.loadLibrary(\"asskt\")",
+    "implementationLibrary": "libasskt.so",
+    "neededCustomLibraries": [
+      "libass.so"
+    ],
+    "jniRegistration": "JNI_OnLoad present; class and method descriptors are registered dynamically",
+    "jniOnLoadCoverageByAbi": {
+      "arm64-v8a": "1/1",
+      "armeabi-v7a": "1/1",
+      "x86": "1/1",
+      "x86_64": "1/1"
+    },
+    "libassSourceCommit": "bbb3c7f1570a4a021e52683f3fbdf74fe492ae84",
+    "libassVersion": "0.17.4"
+  },
+  "libcxx": {
+    "policy": "packaging.pickFirsts removes basename collision, then app/phone mergeNativeLibs task overwrites the selected libc++_shared.so with the libmpv AAR copy per ABI",
+    "finalSource": "dev.jdtech.mpv:libmpv:1.0.0",
+    "finalMatchesLibmpvAarForAllAbis": true,
+    "finalMatchesAssKtAarForAllAbis": false,
+    "arm64FinalBytes": 1374336,
+    "arm64FinalSha256": "C4C2FE5CBCB1FBA0003A31FC7AB29A9BB12DF6CC187EC45A806462540E83D93B",
+    "libmpvToolchain": "LLD 21.0.0; Android NDK 29.0.14206865",
+    "assKtToolchain": "LLD 19.0.0",
+    "fromCharsFloatingPoint": {
+      "selectedLibmpvLibcxx": "PRESENT_FLOAT_AND_DOUBLE",
+      "assKtLibcxx": "ABSENT"
+    },
+    "cppSymbolResolution": {
+      "method": "dynamic undefined union across packaged native libraries, resolved against all packaged definitions plus libc system exceptions",
+      "missingCppSymbolsAfterSelectedLibcxxAndSystemLibc": 0,
+      "libcSystemExceptions": [
+        "__cxa_atexit",
+        "__cxa_finalize",
+        "__cxa_thread_atexit_impl"
+      ]
+    },
+    "verdict": "Selected libc++ has the required __from_chars symbols and resolves observed C++/ABI references; runtime stress still not executed."
+  },
+  "crossLibraryRisks": [
+    {
+      "id": "NATIVE-SYMBOL-FFMPEG",
+      "kind": "same-symbol-name cross-supply-chain",
+      "media3Side": "994 unversioned av/swr/sws/ff* dynamic definitions exported from statically linked FFmpeg 6.0.x in libffmpegJNI.so",
+      "mpvSide": "libav* dynamic libraries from FFmpeg n8.1 with versioned definitions",
+      "sameNameIntersectionArm64": 461,
+      "sameNameExamples": [
+        "avcodec_find_decoder",
+        "avcodec_open2",
+        "av_frame_alloc",
+        "av_frame_free",
+        "av_log",
+        "av_packet_unref",
+        "avcodec_decode_subtitle2",
+        "swr_alloc"
+      ],
+      "staticAssessment": "libffmpegJNI and libmpv use DF_SYMBOLIC for their own intra-object relocations, and libmpv's dependencies request LIBAV* version nodes; however both libraries inhabit the app namespace and the unversioned FFmpeg 6 exports remain a global interposition surface.",
+      "status": "RUNTIME_LOAD_ORDER_NOT_EXECUTED"
+    },
+    {
+      "id": "NATIVE-SYMBOL-LIBASS",
+      "kind": "same-source independent static/dynamic builds",
+      "mpvSide": "libmpv.so statically contains libass 0.17.4 and externally exports ass_*",
+      "assKtSide": "libasskt.so dynamically loads libass.so built from the same libass 0.17.4 commit",
+      "sameNameIntersectionArm64": 217,
+      "sameNameExamples": [
+        "ass_library_init",
+        "ass_library_done",
+        "ass_renderer_init",
+        "ass_read_memory",
+        "ass_set_frame_size"
+      ],
+      "staticAssessment": "No duplicate file name remains, but the process can expose two implementations of the same unversioned ass_* ABI; load order and cross-binding require runtime evidence.",
+      "status": "RUNTIME_LOAD_ORDER_NOT_EXECUTED"
+    },
+    {
+      "id": "NATIVE-LIBCXX-COLLISION",
+      "kind": "same-basename library",
+      "resolution": "one final libc++_shared.so per ABI copied from libmpv AAR",
+      "status": "STATIC_RESOLVED"
+    }
+  ],
+  "abiElfCoverage": {
+    "commonNativeFileNamesPerAbi": [
+      "libandroidx.graphics.path.so",
+      "libass.so",
+      "libasskt.so",
+      "libavcodec.so",
+      "libavdevice.so",
+      "libavfilter.so",
+      "libavformat.so",
+      "libavutil.so",
+      "libc++_shared.so",
+      "libffmpegJNI.so",
+      "libmpv.so",
+      "libplayer.so",
+      "libswresample.so",
+      "libswscale.so"
+    ],
+    "nativeFilesPerAbi": 14,
+    "duplicateFullPathEntriesPerSplit": 0,
+    "customNeededMissingByAbi": {
+      "arm64-v8a": 0,
+      "armeabi-v7a": 0,
+      "x86": 0,
+      "x86_64": 0
+    },
+    "machineByAbi": {
+      "arm64-v8a": "AArch64",
+      "armeabi-v7a": "ARM",
+      "x86": "Intel 80386",
+      "x86_64": "Advanced Micro Devices X86-64"
+    },
+    "loadAlignment": {
+      "arm64-v8a": "all 0x4000",
+      "armeabi-v7a": "0x1000 and 0x4000",
+      "x86": "0x1000 and 0x4000",
+      "x86_64": "all 0x4000"
+    },
+    "zipalignP16": "PASS for four debug splits and five 1.4.0(5) release APKs"
+  },
+  "runtimeIncompatibilityQuestion": {
+    "media3ClassJniApi": "No static hard incompatibility proven; all 53 Media3 member references resolve, all 9 JNI entrypoints exist, and the 1.4 R8 release path retains/adapts the renderer.",
+    "ffmpegVsLibmpv": "No immediate SONAME/file collision, but 461 global symbol-name overlaps create a runtime symbol-resolution risk that cannot be closed without executing both load orders.",
+    "libcxx": "Final selected libc++ resolves observed C++ references and supplies missing from_chars symbols.",
+    "globalVerdict": "STATIC_COMPATIBLE_WITH_P1_RUNTIME_GATES; runtime playback remains NOT_RUN."
+  },
+  "runtimeEvidenceGate": {
+    "requiredAfterG1ImplementationApproval": [
+      "On a test device, load Media3 FfmpegLibrary first, call availability/version, then initialize MPVLib and decode a representative stream.",
+      "Repeat with MPVLib first, then instantiate Media3 FFmpeg renderer and decode audio.",
+      "Switch Media3 -> mpv -> Media3 in one process repeatedly; verify no NoSuchFieldError, UnsatisfiedLinkError, SIGSEGV or wrong-version FFmpeg behavior.",
+      "Initialize libmpv and ass-kt in both orders, load an ASS subtitle and exercise mpv switching.",
+      "Run the approved audio/video format matrix; video cases must prove the FFmpeg video stub is not relied on as a decoding path."
+    ],
+    "evidenceToCapture": [
+      "exact APK hash and ABI",
+      "device model / Android / page size",
+      "load order and selected class/library logs",
+      "decoder name and first-successful-frame or audio-buffer assertion",
+      "failure reason and rollback variant result"
+    ],
+    "stopOn": [
+      "ClassNotFoundException or NoSuchFieldError",
+      "JNI or dlopen failure",
+      "native crash",
+      "wrong FFmpeg version or codec behavior",
+      "required format still unavailable after Media3 + server transcode"
+    ]
+  }
+}
