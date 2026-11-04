@@ -62,6 +62,12 @@ EXPECTED_REVIEW_AUTHORITY_FACT = (
     "implying G1, QA, runtime or release PASS; D204 exact engine/profile "
     "remains Open and L2/L3 remain LOCKED"
 )
+TASKS_SOLUTION_BASELINE_ROW_PREFIX = "| `V2-SOLUTION-BASELINE` |"
+STALE_TASKS_S6_RECONFIRM = re.compile(
+    r"S6[^|]{0,160}(?:需|待)[^|]{0,48}"
+    r"(?:D204\s*后\s*)?(?:fresh\s+scoped\s+)?reconfirm",
+    re.IGNORECASE,
+)
 Q03_TTS_PDF_REPORT_PATH = (
     ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/report.json"
 )
@@ -741,6 +747,38 @@ def current_state_errors(
         errors.append("historical review must not be current_reapproval=true")
     if "Q05 was Open" not in str(review.get("scope", "")):
         errors.append("historical review scope must be Q05 was Open")
+    return errors
+
+
+def tasks_current_s6_errors(tasks_text: str, source_index: dict) -> list[str]:
+    errors: list[str] = []
+    rows = [
+        line
+        for line in tasks_text.splitlines()
+        if line.startswith(TASKS_SOLUTION_BASELINE_ROW_PREFIX)
+    ]
+    if len(rows) != 1:
+        return [
+            "TASKS V2-SOLUTION-BASELINE current row must appear exactly once"
+        ]
+    row = rows[0]
+    state = source_index.get("current_decision_state", {})
+    if state.get("s6") == "SCOPED_RECONFIRM_PASS_AFTER_D204":
+        if "S6_SCOPED_RECONFIRM_PASS_AFTER_D204" not in row:
+            errors.append(
+                "TASKS current V2-SOLUTION-BASELINE row lacks S6 reconfirm PASS"
+            )
+        if (
+            "future artifact change" not in row
+            or "fresh scoped review" not in row
+        ):
+            errors.append(
+                "TASKS current row must retain the future artifact re-review invariant"
+            )
+    if STALE_TASKS_S6_RECONFIRM.search(tasks_text):
+        errors.append(
+            "TASKS current state still says S6 needs D204-after reconfirm"
+        )
     return errors
 
 
@@ -2092,6 +2130,7 @@ def run_self_test() -> None:
     registry = load_json("row-semantics.json")
     membership_doc = load_json("wave-membership.json")
     reader_060_contract = load_reader_060_contract()
+    tasks_text = TASKS_PATH.read_text(encoding="utf-8")
     rows = matrix["acceptance_rows"]
     base_rows = matrix["base_groups"]
     r1_rows = matrix["r1_quality_rows"]
@@ -2189,6 +2228,9 @@ def run_self_test() -> None:
         source_index.get("current_decision_state"),
         source_index.get("historical_review"),
     )
+    shipped_current_state.extend(
+        tasks_current_s6_errors(tasks_text, source_index)
+    )
     g1_overclaim_status = EXPECTED_STATUS.replace(
         "G1_NOT_PASSED",
         "G1_PASSED",
@@ -2201,6 +2243,17 @@ def run_self_test() -> None:
         shipped_current_state.append(
             "S6 scoped reconfirm PASS must not imply G1 PASS"
         )
+    stale_tasks_text = tasks_text.replace(
+        "S6_SCOPED_RECONFIRM_PASS_AFTER_D204",
+        "S6 需 D204 后 fresh scoped reconfirm",
+    )
+    if not tasks_current_s6_errors(
+        stale_tasks_text,
+        source_index,
+    ):
+        shipped_current_state.append(
+            "TASKS stale S6 reconfirm injection was not rejected"
+        )
     if shipped_current_state:
         results.append(("BASE-current-state", False, shipped_current_state[0]))
     else:
@@ -2208,7 +2261,7 @@ def run_self_test() -> None:
             (
                 "BASE-current-state",
                 True,
-                "D204 current state and Q05-Open historical review are separated",
+                "current S6 review PASS, historical Q05-Open review and TASKS row are consistent",
             )
         )
 
@@ -3218,6 +3271,12 @@ def main() -> None:
     )
     if state_errors:
         fail(state_errors[0])
+    tasks_errors = tasks_current_s6_errors(
+        TASKS_PATH.read_text(encoding="utf-8"),
+        source_index,
+    )
+    if tasks_errors:
+        fail("; ".join(tasks_errors))
 
     nodes = matrix["source_nodes"]
     rows = matrix["acceptance_rows"]

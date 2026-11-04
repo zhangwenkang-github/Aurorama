@@ -7,7 +7,7 @@
   "self_excluded": true,
   "eol_policy": "UTF-8 no BOM; LF only",
   "file_count_excluding_manifest": 11,
-  "total_bytes_excluding_manifest": 5216117,
+  "total_bytes_excluding_manifest": 5218167,
   "entries": [
     {
       "path": "README.md",
@@ -76,7 +76,7 @@
     {
       "path": "source-index.json",
       "bytes": 24544,
-      "sha256": "874781EE0A9E043DE39BE65A5B278B672E09D61E3E7AA024464C6DE064A78BCF",
+      "sha256": "2A62F9C9CCEC5D45E4BE52A281772D00E703DADAAF7BE2852A989FB33659AE6C",
       "lf": 788,
       "crlf": 0,
       "eol": "LF"
@@ -91,9 +91,9 @@
     },
     {
       "path": "verify_s6_artifacts.py",
-      "bytes": 149872,
-      "sha256": "9FDE6DAEB9C45DBE15DC5DA5A004D4297097BAF0A9BCBDCE11CB458B16266068",
-      "lf": 3915,
+      "bytes": 151922,
+      "sha256": "EE511EF900DC2A8EA26E79FD7E6912A6DEF9C18C2D8C71F8693AC398D9871513",
+      "lf": 3974,
       "crlf": 0,
       "eol": "LF"
     }
