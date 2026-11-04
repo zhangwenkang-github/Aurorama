@@ -1,0 +1,8 @@
+/.gitattributes text eol=lf
+*.json text eol=lf
+*.jsonl text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.sha256 text eol=lf
+*.txt text eol=lf
+build-console.txt text eol=lf whitespace=-blank-at-eol

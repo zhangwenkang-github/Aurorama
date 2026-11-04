@@ -1,0 +1,70 @@
+{
+  "actionable_tasks": 242,
+  "apk_artifacts": [
+    {
+      "artifact_status": "PRESENT_AND_UP_TO_DATE",
+      "bytes": 150290331,
+      "is_v2_candidate": false,
+      "path": "app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk",
+      "produced_by_attempt": false,
+      "sha256": "20ECD05FA6964A1F4B4C8D2DAB56D0275DC9BC7E951B695AC271D9BE37C62DB1"
+    },
+    {
+      "artifact_status": "PRESENT_AND_UP_TO_DATE",
+      "bytes": 146938911,
+      "is_v2_candidate": false,
+      "path": "app/phone/build/outputs/apk/libre/debug/phone-libre-armeabi-v7a-debug.apk",
+      "produced_by_attempt": false,
+      "sha256": "0B8E2448DBEFE9D50AB732A90B70C482DED2019C1BD9E8E4286B2BA726C239AA"
+    },
+    {
+      "artifact_status": "PRESENT_AND_UP_TO_DATE",
+      "bytes": 153321719,
+      "is_v2_candidate": false,
+      "path": "app/phone/build/outputs/apk/libre/debug/phone-libre-x86-debug.apk",
+      "produced_by_attempt": false,
+      "sha256": "8E9583C3874025321D50BF210D96FDECDF7E5CDC3A95A26BA7D820F1EBC42370"
+    },
+    {
+      "artifact_status": "PRESENT_AND_UP_TO_DATE",
+      "bytes": 155379273,
+      "is_v2_candidate": false,
+      "path": "app/phone/build/outputs/apk/libre/debug/phone-libre-x86_64-debug.apk",
+      "produced_by_attempt": false,
+      "sha256": "7377ECE5809434C0C7C687ECD2BB74C8FE806EBF8CAF5A3331362ED39A823F87"
+    }
+  ],
+  "attempt_id": "g1-l1-offline-build-02",
+  "build_mode": "INCREMENTAL_UP_TO_DATE",
+  "command": ".\\gradlew.bat :app:phone:assembleDebug --offline --no-daemon --console=plain",
+  "console_transcript": {
+    "absolute_paths_sanitized": true,
+    "bytes": 16855,
+    "gradle_private_daemon_logs_included": false,
+    "line_count": 321,
+    "line_endings": "LF",
+    "path": "build-console.txt",
+    "sha256": "64334CAB4D0F53D4B3F25ACAE8C168DF2B346EB8E272C8E689ED03B41079723B",
+    "stdout_stderr_merged": true
+  },
+  "device_accessed": false,
+  "ended_at_utc": "2026-11-03T23:52:15.2578557Z",
+  "environment": {
+    "daemon": false,
+    "gradle_wrapper": "9.7.1",
+    "java_home": "<JAVA_HOME>",
+    "java_version": "OpenJDK 25.0.3",
+    "offline": true
+  },
+  "exit_code": 0,
+  "failure_class": null,
+  "gradle_duration": "50s",
+  "gradle_result": "BUILD_SUCCESSFUL",
+  "network_used": false,
+  "schema_id": "aurorama.g1-l1.build-attempt/v1",
+  "started_at_utc": "2026-11-03T23:51:24.8901317Z",
+  "tasks_executed": 0,
+  "tasks_up_to_date": 242,
+  "wall_seconds": 50.368,
+  "working_directory": "repository root"
+}

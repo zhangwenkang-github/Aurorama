@@ -7,7 +7,7 @@
   "self_excluded": true,
   "eol_policy": "UTF-8 no BOM; LF only",
   "file_count_excluding_manifest": 11,
-  "total_bytes_excluding_manifest": 4890734,
+  "total_bytes_excluding_manifest": 4890735,
   "entries": [
     {
       "path": "README.md",
@@ -75,8 +75,8 @@
     },
     {
       "path": "source-index.json",
-      "bytes": 21244,
-      "sha256": "920A9D88D765242E5B73848CBFB2838917DF11D40D254C1D4DDFD136EFEF670F",
+      "bytes": 21245,
+      "sha256": "77DD376799BDC9BCD5BC540E25851E789BD9E9E8E9A5CA1BD51AAAA960C038B8",
       "lf": 708,
       "crlf": 0,
       "eol": "LF"

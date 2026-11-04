@@ -1,0 +1,146 @@
+{
+  "authorization": {
+    "account_accessed": false,
+    "device_accessed": false,
+    "g1_passed": false,
+    "l1_only": true,
+    "network_used": false,
+    "production_code_modified": false,
+    "q03_closed": false,
+    "runtime_executed": false,
+    "server_accessed": false
+  },
+  "build": {
+    "apk_count": 4,
+    "console_line_count": 321,
+    "console_sha256": "64334CAB4D0F53D4B3F25ACAE8C168DF2B346EB8E272C8E689ED03B41079723B",
+    "exit_code": 0,
+    "representative_apk": "app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk",
+    "representative_apk_sha256": "20ECD05FA6964A1F4B4C8D2DAB56D0275DC9BC7E951B695AC271D9BE37C62DB1"
+  },
+  "candidate_status": "CURRENT_APP_NOT_V2_CANDIDATE",
+  "checksum_file": "manifest.sha256",
+  "coverage": {
+    "corresponding_source": 0,
+    "dependency_license": {
+      "EXACT": 46,
+      "FAMILY": 250,
+      "UNKNOWN": 0
+    },
+    "engine_gaps": {
+      "BLOCKED": 3,
+      "PARTIAL": 1,
+      "gap_count": 4,
+      "rows": 4
+    },
+    "external_components": 296,
+    "license_gaps": {
+      "BLOCKED": 4,
+      "PARTIAL": 2,
+      "UNKNOWN": 0,
+      "gap_count": 6,
+      "rows": 6
+    },
+    "notice_mapped": 62
+  },
+  "evidence_root": ".planning/v2-g1/G1-L1-EVIDENCE",
+  "payload": {
+    "file_count": 13,
+    "files": [
+      {
+        "bytes": 195,
+        "path": ".gitattributes",
+        "sha256": "577E6C60527973E0CA5AF30289CCF98425CDDA960C96F4DF79DA8B16BF73C25D"
+      },
+      {
+        "bytes": 4965,
+        "path": "README.md",
+        "sha256": "D294D377A5EB34CC50097C75D34FAC6AD8278B5D51CA39C63C6D0E7EF6246A2C"
+      },
+      {
+        "bytes": 3293,
+        "path": "CHECKPOINT.md",
+        "sha256": "3FC37D56B05D37E1AC7EB8AF3912C7AFF03C945220B0A5CE2BE63D4150043C16"
+      },
+      {
+        "bytes": 4394,
+        "path": "source-index.json",
+        "sha256": "5A5FB748196CA9B7A33C1620BB1FC911889AE7B47A8556ACCCC6A192567017EE"
+      },
+      {
+        "bytes": 270460,
+        "path": "dependency-inventory.json",
+        "sha256": "4AB20B8EFA2E4338ECBB031DD4F379F5B60B9C2837E2DDAC732DC33CB229E621"
+      },
+      {
+        "bytes": 1374963,
+        "path": "packaged-inventory.json",
+        "sha256": "AA440FB14A62A2CE73E4DF72BA2FDA0F6C821D5634593DD6BC4CDBCB80ECBA75"
+      },
+      {
+        "bytes": 1781,
+        "path": "license-gap-matrix.json",
+        "sha256": "54012F8F7CE5E80B344FCABCFB46B7DE3BFF97B254F10AD38035C9D0727D68DB"
+      },
+      {
+        "bytes": 2481,
+        "path": "build-attempt.json",
+        "sha256": "DA84B828E6A90964ED925D99FAD3622D0D78D0AFAE513618B506E734F6976DAB"
+      },
+      {
+        "bytes": 3889,
+        "path": "engine-asset-gap-matrix.json",
+        "sha256": "617C1F7AFD7D4F1FC951FDD57BAC87F539EDBF179F4E15DBB3D1CFEAF07ABEF7"
+      },
+      {
+        "bytes": 3941,
+        "path": "commands.jsonl",
+        "sha256": "3CA2D87B2DECE4B5692F616A0AC051E4A536FF65317CD703E0AE27301636D673"
+      },
+      {
+        "bytes": 16855,
+        "path": "build-console.txt",
+        "sha256": "64334CAB4D0F53D4B3F25ACAE8C168DF2B346EB8E272C8E689ED03B41079723B"
+      },
+      {
+        "bytes": 31418,
+        "path": "build_l1_evidence.py",
+        "sha256": "4A9A56E2720435672347CC89E9E8A7D6110FA796C940F94B0DF40151118C1703"
+      },
+      {
+        "bytes": 35935,
+        "path": "verify_l1_evidence.py",
+        "sha256": "BE380771D0D8F9F406A2F5C7726E328DD7C024D5E84CB2D8130640FC338A8D51"
+      }
+    ],
+    "total_bytes": 1754570
+  },
+  "schema_id": "aurorama.g1-l1.manifest/v1",
+  "scope": "LOCAL_STATIC_DEPENDENCY_PACKAGED_EVIDENCE_ONLY",
+  "self_test_contract": [
+    "APK_HASH_MISSING",
+    "LICENSE_OVERCLAIM",
+    "MANIFEST_HASH_MISSING",
+    "CURRENT_APP_MISREPRESENTED",
+    "AUTHORIZATION_VIOLATION",
+    "COMMAND_RECORD_UNTRACKED",
+    "CONSOLE_TRANSCRIPT_MISSING",
+    "CONSOLE_SUCCESS_MARKER_MISSING",
+    "CONSOLE_OFFLINE_MARKER_MISSING",
+    "CONSOLE_NO_DAEMON_MARKER_MISSING",
+    "ATTR_JSONL_EOL_MISSING",
+    "ATTR_SHA256_EOL_MISSING",
+    "ATTR_CONSOLE_WHITESPACE_MISSING",
+    "EVIDENCE_DRY_RUN_INCOMPLETE",
+    "EVIDENCE_FILE_IGNORED",
+    "EVIDENCE_GIT_STATE_MIXED",
+    "MANIFEST_FILE_SET_MISMATCH"
+  ],
+  "source": {
+    "branch": "codex/v2-integration",
+    "head": "89f09ca5da57c252e3a20779cde01fa7a80cc7d2",
+    "initial_status_porcelain": ""
+  },
+  "status": "L1_PARTIAL",
+  "task_id": "V2-G1-L1-EVIDENCE"
+}

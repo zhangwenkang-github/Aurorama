@@ -1,0 +1,124 @@
+{
+  "inputs": [
+    {
+      "bytes": 195,
+      "path": ".planning/v2-g1/G1-L1-EVIDENCE/.gitattributes",
+      "role": "local L1 text attributes",
+      "sha256": "577E6C60527973E0CA5AF30289CCF98425CDDA960C96F4DF79DA8B16BF73C25D"
+    },
+    {
+      "bytes": 587168,
+      "path": "docs/V2_PLAN.md",
+      "role": "authoritative V2 plan",
+      "sha256": "28581FBC2D0DD525CAEFA0ECC6EB0CC67B288CB32CC73C5F3D17AB182568499E"
+    },
+    {
+      "bytes": 10328,
+      "path": "docs/TASKS.md",
+      "role": "authoritative task board",
+      "sha256": "D1D42069B59A3A576BF8964E00309EBE75577571864C772A2B53D7A68E4D19C5"
+    },
+    {
+      "bytes": 290,
+      "path": "gradle/wrapper/gradle-wrapper.properties",
+      "role": "gradle wrapper properties",
+      "sha256": "B8177AD860B448B587E0702899283F932FE643C32C69ACD3B36C8765A79B67CF"
+    },
+    {
+      "bytes": 48462,
+      "path": "gradle/wrapper/gradle-wrapper.jar",
+      "role": "gradle wrapper jar",
+      "sha256": "497C8C2A7E5031F6AA847F88104AA80A93532EC32EE17BDB8D1D2F67A194A9C7"
+    },
+    {
+      "bytes": 7905,
+      "path": "gradle/libs.versions.toml",
+      "role": "version catalog",
+      "sha256": "68DF25A2FDBE2566900E68A8DE3BD539B7C1E346EC0C9D5C343C5CF99B6E6104"
+    },
+    {
+      "bytes": 475,
+      "path": "buildSrc/src/main/kotlin/Versions.kt",
+      "role": "build versions",
+      "sha256": "7A95B6EAC354BDC0E4F8A90BA166286AAB5B60E398FB2B7BAF8DBEEF028352FC"
+    },
+    {
+      "bytes": 11628,
+      "path": "app/phone/build.gradle.kts",
+      "role": "phone build",
+      "sha256": "B8BCC3CE5271C2A445217AA5F65E6A1E714AF4374B1AA227D170B99C35904805"
+    },
+    {
+      "bytes": 392740,
+      "path": ".planning/v2-g1/G1-S4-A-Q03-SBOM/sbom.cdx.json",
+      "role": "Q03 SBOM",
+      "sha256": "85AF8B2968D843E8C763D1D364AE59AA8E40E6D11F38437426D3BF0B7FD277E2"
+    },
+    {
+      "bytes": 16094,
+      "path": ".planning/v2-g1/G1-S4-A-Q03-NATIVE/provenance-matrix.json",
+      "role": "Q03 native matrix",
+      "sha256": "E4456126E11324D807893CED247E5EF9C221027CD35375B9EC8BE4CD785F3D0C"
+    },
+    {
+      "bytes": 14468,
+      "path": ".planning/v2-g1/G1-S4-A-Q03-NOTICE/notice-source-offer-matrix.json",
+      "role": "Q03 notice matrix",
+      "sha256": "5CA1E7207A9DEC0CE9C78906125DCF682B57013B846A98CD4E065EF4123567DA"
+    },
+    {
+      "bytes": 13259,
+      "path": ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/pdfium-provenance.json",
+      "role": "Q03 PDFium provenance",
+      "sha256": "48F54053D440412B0D6BAE8EB8C8EB857D8F5FAFAC36AAEDB389AF464E5D336E"
+    },
+    {
+      "bytes": 15058,
+      "path": ".planning/v2-g1/G1-S4-C/option-matrix.json",
+      "role": "S4-C option matrix",
+      "sha256": "9233ABE027226F5979B9347AB15519E0B40778F185058C0F9F7041C12B2D22FA"
+    },
+    {
+      "bytes": 3941,
+      "path": ".planning/v2-g1/G1-L1-EVIDENCE/commands.jsonl",
+      "role": "trackable command record",
+      "sha256": "3CA2D87B2DECE4B5692F616A0AC051E4A536FF65317CD703E0AE27301636D673"
+    },
+    {
+      "bytes": 16855,
+      "path": ".planning/v2-g1/G1-L1-EVIDENCE/build-console.txt",
+      "role": "merged offline build console",
+      "sha256": "64334CAB4D0F53D4B3F25ACAE8C168DF2B346EB8E272C8E689ED03B41079723B"
+    },
+    {
+      "bytes": 150290331,
+      "path": "app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk",
+      "role": "built APK artifact",
+      "sha256": "20ECD05FA6964A1F4B4C8D2DAB56D0275DC9BC7E951B695AC271D9BE37C62DB1"
+    },
+    {
+      "bytes": 146938911,
+      "path": "app/phone/build/outputs/apk/libre/debug/phone-libre-armeabi-v7a-debug.apk",
+      "role": "built APK artifact",
+      "sha256": "0B8E2448DBEFE9D50AB732A90B70C482DED2019C1BD9E8E4286B2BA726C239AA"
+    },
+    {
+      "bytes": 153321719,
+      "path": "app/phone/build/outputs/apk/libre/debug/phone-libre-x86-debug.apk",
+      "role": "built APK artifact",
+      "sha256": "8E9583C3874025321D50BF210D96FDECDF7E5CDC3A95A26BA7D820F1EBC42370"
+    },
+    {
+      "bytes": 155379273,
+      "path": "app/phone/build/outputs/apk/libre/debug/phone-libre-x86_64-debug.apk",
+      "role": "built APK artifact",
+      "sha256": "7377ECE5809434C0C7C687ECD2BB74C8FE806EBF8CAF5A3331362ED39A823F87"
+    }
+  ],
+  "schema_id": "aurorama.g1-l1.source-index/v1",
+  "worktree_identity": {
+    "branch": "codex/v2-integration",
+    "head": "89f09ca5da57c252e3a20779cde01fa7a80cc7d2",
+    "initial_status_porcelain": ""
+  }
+}

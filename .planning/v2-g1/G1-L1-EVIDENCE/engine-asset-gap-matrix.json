@@ -1,0 +1,107 @@
+{
+  "counts": {
+    "BLOCKED": 3,
+    "PARTIAL": 1,
+    "gap_count": 4,
+    "rows": 4
+  },
+  "decision_context": "V2-D202 recommendations consumed; exact voice/model not selected.",
+  "global_boundaries": {
+    "device_accessed": false,
+    "g1_passed": false,
+    "network_used": false,
+    "q03_closed": false,
+    "runtime_verified": false
+  },
+  "rows": [
+    {
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "blocked_gaps": [
+        "Media3 1.11.1 with decoder 1.9.0+1 runtime JNI/API compatibility",
+        "Dual FFmpeg load order and symbol interposition",
+        "Packaged native source/notice closure"
+      ],
+      "exact_coordinates": [
+        "androidx.media3:media3-exoplayer:1.11.1",
+        "androidx.media3:media3-session:1.11.1",
+        "androidx.media3:media3-ui:1.11.1",
+        "org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1",
+        "dev.jdtech.mpv:libmpv:1.0.0",
+        "io.github.peerless2012:ass-kt:0.5.1"
+      ],
+      "finding": "Media3/decoder/libmpv/ass artifacts are present in the current offline debug build.",
+      "id": "A1",
+      "local_artifact_present": true,
+      "native_entries_per_package": [
+        14
+      ],
+      "static_16kb": {
+        "M3-07": "PROVEN_STATIC_ONLY",
+        "MPV-06": "PROVEN_STATIC_ONLY",
+        "runtime": "BLOCKED"
+      },
+      "status": "PARTIAL"
+    },
+    {
+      "finding": "Sherpa-ONNX v2.0.1 is absent from local Gradle caches and has no official Maven coordinate.",
+      "fixed_release": {
+        "commit": "af2d8d81dbfa61c4cea4c568da78f3982edca005",
+        "standard_aar_bytes": 49441341,
+        "static_onnx_runtime_aar_bytes": 38577050,
+        "version": "v2.0.1"
+      },
+      "id": "B1",
+      "local_artifact_present": false,
+      "missing_artifact_gate": [
+        "Pin release AAR and source archive by SHA-256.",
+        "Required download domain if later authorized: github.com (k2-fsa/sherpa-onnx release assets).",
+        "Prove zero-network capability before any system TTS fallback can be accepted."
+      ],
+      "status": "BLOCKED"
+    },
+    {
+      "decision": "NOT_SELECTED",
+      "exact_asset_selection_gate": [
+        "voice/model identity and upstream fixed release",
+        "model card and training-data restrictions",
+        "engine/model/lexicon/rule/espeak licenses and notice obligations",
+        "byte size and SHA-256 for every packaged asset",
+        "Mandarin quality, first-audio, RTF, memory, power and device gates in G2"
+      ],
+      "finding": "No auditable Mandarin voice, ONNX model, lexicon, rule data, or model card is present in the worktree.",
+      "id": "C1",
+      "local_asset_present": false,
+      "status": "BLOCKED"
+    },
+    {
+      "expected_aar_sha256": [
+        "1F07A9160C9A5975D6EFFF72404C5E49217D46F2651BFE02C67C8AFB133E02D7",
+        "F80B8D2166F226E0ED0A50B7014CEA91E297952C5E0AC158F10FF62C74D7E318",
+        "A47A0CC8210D3D435996CCB47A3C666361F8C7CB774EFBE58AB02AC478731F3F"
+      ],
+      "finding": "Stable PDFium 2.0.3 AAR/source artifacts are absent locally; only prior metadata and remote hashes are available.",
+      "fixed_coordinates": [
+        "io.legere:pdfiumandroid:2.0.3",
+        "io.legere:pdfiumandroid-core:2.0.3",
+        "io.legere:pdfiumandroid-api:2.0.3"
+      ],
+      "id": "D1",
+      "local_artifact_present": false,
+      "missing_download_gate": [
+        "Required domain if later authorized: repo1.maven.org for the three pinned 2.0.3 AAR/JAR/POM/source artifacts.",
+        "Local AAR hash, native revision, third-party notice and local 16 KB recheck."
+      ],
+      "native_revision": "BLOCKED",
+      "pdfrenderer_rollback": "RETAINED",
+      "static_16kb": "FAIL_REPORTED_UPSTREAM",
+      "status": "BLOCKED",
+      "third_party_notice": "BLOCKED"
+    }
+  ],
+  "schema_id": "aurorama.g1-l1.engine-asset-gap-matrix/v1"
+}

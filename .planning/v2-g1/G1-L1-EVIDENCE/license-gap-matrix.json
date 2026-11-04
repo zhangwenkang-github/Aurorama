@@ -1,0 +1,68 @@
+{
+  "counts": {
+    "BLOCKED": 4,
+    "PARTIAL": 2,
+    "UNKNOWN": 0,
+    "gap_count": 6,
+    "rows": 6
+  },
+  "coverage": {
+    "corresponding_source": {
+      "available": 0,
+      "total": 296
+    },
+    "external_license_provenance": {
+      "EXACT": 46,
+      "FAMILY": 250,
+      "UNKNOWN": 0,
+      "total": 296
+    },
+    "notice_mapped": 62,
+    "notice_total": 296
+  },
+  "decision": "Q03 remains OPEN; no PARTIAL or UNKNOWN value is promoted to PASS.",
+  "rows": [
+    {
+      "count": 296,
+      "detail": {
+        "EXACT": 46,
+        "FAMILY": 250,
+        "UNKNOWN": 0
+      },
+      "id": "LG-MAVEN-LICENSE-EVIDENCE",
+      "required_next": "Per-POM evidence for FAMILY components or explicit acceptance of provenance limits.",
+      "status": "PARTIAL"
+    },
+    {
+      "count": 17,
+      "detail": "License/notice-like files exist in the current APK, but no canonical 2.0 notice bundle exists.",
+      "id": "LG-PACKAGED-NOTICE",
+      "status": "PARTIAL"
+    },
+    {
+      "count": 0,
+      "detail": "No corresponding source bundle or written offer is present.",
+      "id": "LG-CORRESPONDING-SOURCE",
+      "status": "BLOCKED"
+    },
+    {
+      "count": 12,
+      "detail": "Q03 native matrix remains 13 PROVEN / 6 PARTIAL / 12 BLOCKED; runtime is unverified.",
+      "id": "LG-NATIVE-PROVENANCE",
+      "status": "BLOCKED"
+    },
+    {
+      "count": 0,
+      "detail": "Current app package has no packaged SBOM and is not a 2.0 candidate.",
+      "id": "LG-CANDIDATE-PACKAGED-SBOM",
+      "status": "BLOCKED"
+    },
+    {
+      "count": 0,
+      "detail": "Gradle lockfile and verification metadata are absent.",
+      "id": "LG-DEPENDENCY-LOCK-VERIFICATION",
+      "status": "BLOCKED"
+    }
+  ],
+  "schema_id": "aurorama.g1-l1.license-gap-matrix/v1"
+}
