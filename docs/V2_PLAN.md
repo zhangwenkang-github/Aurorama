@@ -3334,8 +3334,10 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ### ACTIVE：G1-L1 网络 artifact 完成，C1 voice/model 与 Q03 closure 待续（2026-11-04）
 
-**下一负责人线程**：`01a1a4d1-c0b5-7782-bc0d-3b2948b2829e`；主交接提交
-`a1c061c5b7f356577f9d58e8579e63ef86705a2f`，本行所在提交是其唯一 docs-only thread-id 后继。
+**下一负责人线程**：`01a1a4d1-c0b5-7782-bc0d-3b2948b2829e`。交接对象链为主提交
+`a1c061c5b7f356577f9d58e8579e63ef86705a2f` → thread-id 后继
+`a1bc66ec9db3c2f19663520ac359cac8d13a4fc8` → 本行所在 Sherpa 指纹对账提交；三段均只
+补交接元数据或派生 source/manifest hash，不改变产品结论。
 
 **一句话现状**：当前阶段为
 `L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_AND_Q03_CLOSURE`；`V2-G1-L1-EVIDENCE` 的
@@ -3345,8 +3347,8 @@ artifact 已按用户 allowlist 完成静态审计并获独立 review；下载�
 
 **已完成**：
 
-- Sherpa-ONNX：`.planning/v2-g1/G1-L1-NETWORK-SHERPA/` 共 15 文件 / 1,373,248 B，
-  manifest SHA-256 `f8b4223b0ed46484a7e3f9f69389c7c638e890ae60d822c837087b453d895eef`。
+- Sherpa-ONNX：`.planning/v2-g1/G1-L1-NETWORK-SHERPA/` 共 15 文件 / 1,373,244 B，
+  manifest SHA-256 `9F224A091B18475B9B627A7417CFACFD26B07C84006EB37B1D0D06EE8E93C00F`。
   3 个 exact GET 均 200；两个 AAR size / SHA-256 与固定值一致；source SHA-256 以
   `24ecc0f...` 起始。21 个 ELF 的 68 条 `PT_LOAD` 全部 `p_align=0x4000`；review
   `PASS_WITH_P2`。
@@ -4370,7 +4372,7 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
 - **2026-11-04 — G1-L1 网络 artifact 静态审计完成并收口**：Sherpa-ONNX 下载在 3 次
   受控失败后，由同一 owner 于 58.7 秒内以 3 个 exact GET 200 成功；PDFium 三个 2.0.3
   坐标的 18 个 allowlisted URL（9 主 artifact + 9 远端 SHA-256）均 200。Sherpa 证据根
-  15 文件 / 1,373,248 B，manifest SHA-256 `f8b4223b…`；两个 AAR hash / size 精确，
+  15 文件 / 1,373,244 B，manifest SHA-256 `9F224A09…`；两个 AAR hash / size 精确，
   source hash `24ecc0f…`，21 ELF / 68 条 `PT_LOAD` 全部 `0x4000`；review
   `PASS_WITH_P2`，保留 ORT notice / provenance P1 与 source tag→commit P2。PDFium 证据
   根 11 文件 / 163,231 B，manifest SHA-256 `0436042C…`；三个 AAR hash 精确，
