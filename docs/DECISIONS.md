@@ -277,22 +277,25 @@ revision / 16 KB / Range 及 runtime / device 仍待证据；
 `V2-Q-G1-04` 已由 `V2-D201` 关闭：用户于 2026-11-04 选择整包 R1，并仅窄覆盖
 `V2-D057` 的 Nocturne 圆角 12→8dp。`docs/UI_DESIGN_SYSTEM.md` 已升级为 V2 R1 权威；
 `V2-Q-G1-03` 仍 Open，G1 未通过；S6 原始 `PASS_WITH_P2` 仅是 Q05 当时 Open 的历史 review，
-D204 后必须 fresh scoped reconfirm。唯一 ACTIVE 为 D204 engine strategy A 下的第二引擎
-L1 Spike scoping / 许可门、D203 voice-pack 生命周期交接与 Q03+B/C/D/E 授权。
+D204 后 fresh scoped documentation reconfirm 已 PASS，D205 future artifact change 仍须重新
+review。唯一 ACTIVE 为 D204 strategy A + D205 方向 C 下的小型 Android 第二引擎 exact
+archive / 许可门、D203 voice-pack 生命周期交接与 Q03+B/C/D/E 授权。
 `V2-D200` 只固定体验优先与包体非要求。
 
-`V2-Q-G1-05` 已由 `V2-D204` 关闭；A 已接受，B/C 未选。其运行时、profile、许可与质量缺口
-移到 G1 任务 readiness，不另开 Q06 或新的产品选择题。
+`V2-Q-G1-05` 已由 `V2-D204` 关闭；该问题内的 A 已接受，B/C 未选。随后用户以
+`V2-D205` 从本轮 A/B/C/D 菜单选择方向 C，转为更小 Android 可行第二引擎重筛；这不是重开
+Q05，也不冻结 new engine / profile。其运行时、profile、许可与质量缺口继续在 G1 readiness。
 
 **G1 最终候选边界（2026-11-04，非新决策）**：最终 BASE 提交指针只证明合同批次与确定性
 修复已完成，clean-clone 的契约 / verifier exit 0 只证明静态证据可复算，不表示 Q03
 关闭或 G1 PASS。前沿定格 `NOW_SAFE=0`；剩余 `B=exact voice-pack profile / 试听 / 许可 /
 排序 TTL 合并策略`、
 `C=runtime/device`、`D=production implementation`、`E=G2/QA/Release 未授权`。
-唯一下一步是 §12 的高表现力第二引擎 L1 只读 / 静态可行性 Spike scoping 与官方许可门；
-S6 原始 `PASS_WITH_P2` 仅是 Q05 当时 Open 的历史 review，D204 后不得写成当前 re-approved
-或 G1 runtime PASS。Q03 仍 Open；B/C/D/E 与 G2 / 独立 QA / Release 仍未授权。最终文档
-提交 SHA 由 Git 实读，不在文档中自引用当前提交。
+唯一下一步是 §12 的小型 Android 第二引擎 exact archive 下载授权与只读内容校验：Kokoro
+`zf_001` / `zm_010` 第一，MOSS 第二，ZipVoice 许可 `HOLD`。S6 原始 `PASS_WITH_P2` 仅是
+Q05 当时 Open 的历史 review，D204 后不得写成 runtime PASS；D205 future artifact change
+仍须 fresh scoped review。Q03 仍 Open；权重 / archive 下载、推理、设备、B/C/D/E 与 G2 /
+独立 QA / Release 仍未授权。最终文档提交 SHA 由 Git 实读，不在文档中自引用当前提交。
 
 **G1-A1/A2 与 BASE-001/003/004 静态合同输入（2026-11-04，非新决策）**：
 `G1-A1-DOWNLOAD-STATE-CONTRACT` 为 11 文件 / 103,924 B，manifest
@@ -329,9 +332,10 @@ roundtrip=`48/2/2/17`、12 scenarios / 99 checks；只有完整 SOURCE identity 
 重复保留，identity conflict 零写入，generic M3U8 的损失显式。B 重复 / 部分导入选择、C SAF /
 设备 / 重启证据与 D 生产 parser / 持久化迁移 / 服务器实现仍 Open。三包均独立 reviewer PASS
 且仅登记静态输入；前沿审计
-`NOW_SAFE=0`，即没有未阻塞静态增量；Q04 已由 `V2-D201` 关闭，唯一下一步是 §12 的
-残余门审计 / 用户决策准备。Q03 仍 Open，G1 NOT_PASSED；S6 原始 review 仅为 Q05 当时 Open
-的历史，D204 后为 `S6_RECONFIRM_REQUIRED_AFTER_D204`，不得称当前 re-approved，
+`NOW_SAFE=0`，即没有未阻塞静态增量；Q04 已由 `V2-D201` 关闭，D205 后的唯一下一步是
+§12 的小型 Android 第二引擎 exact archive 下载授权 / 静态内容校验。Q03 仍 Open，G1
+NOT_PASSED；S6 原始 review 仅为 Q05 当时 Open 的历史，D204 后复审已 PASS；D205 current
+revision 的 fresh scoped reconfirm 也已 `PASS / no findings`，但不能写成 G1/runtime PASS，
 `G2 / 独立 QA / Release` 仍未授权。不把 B/C/D、runtime、device、
 implementation 或 QA 标成 Done，也不把静态合同、S6 规划包或 clean-clone 通过写成
 S6 / G1 runtime PASS。
@@ -341,12 +345,12 @@ S6 / G1 runtime PASS。
 | 问题 | 当前事实 | 推荐 | 备选 / 影响 | 状态 |
 |---|---|---|---|---|
 | `V2-Q-G1-03` | `G1-S4-A/B/C` 已冻结 runtime graph、许可证输入、Media3 / decoder / libmpv 静态事实及 TTS / PDF 非媒体矩阵；S4-C 证据提交 `a84ce4f1…` 的 `s4cNonMediaInputReadyForQ03=true`，但 `fullQ03UserDecisionReady=false`、`g1Passed=false`。Q03 static integration 提交 `d234b40c958288cd5277072452212fe578bb5495`；父级 `.planning/v2-g1/.gitattributes` 与 G1 证据公共 LF 规则提交 `c01e7361b2e86d4773aa4823429f324f9ed7d3df`；Q03 gaps integration 提交 `287c37e1d1287e2a90c047e628f7272a13cc5970` 仅新增 NOTICE / TTS-PDF 两组并更新 docs，对父级属性文件无改动。提交后 `core.autocrlf=true` clean-clone 复现 S5 verifier / SBOM validator PASS，S5 / Q03-SBOM / Q03-NATIVE / Q03-NOTICE / Q03-TTS-PDF 为 47/47、11/11、5/5、7/7、5/5，合计 75/75 LF、CRLF 0。S4-A Q03 静态增量：`.planning/v2-g1/G1-S4-A-Q03-SBOM/` 为 11 文件 / 482,118 B，manifest SHA-256 `220BB878A975B133178ADBCA80CEE919F829474727268D2DF8C14D13982F1019`；CycloneDX 1.6 valid，SBOM SHA-256 `85AF8B2968D843E8C763D1D364AE59AA8E40E6D11F38437426D3BF0B7FD277E2`，296 external / 35 direct / 261 transitive / 0 unresolved / 296 PURL，license primary `46 EXACT_POM / 246 FAMILY_ONLY / 4 MIXED_EXACT_FAMILY / 0 UNKNOWN`，仅按 snapshot 可关闭 `Q03-SBOM-RUNTIME-INVENTORY`。`.planning/v2-g1/G1-S4-A-Q03-NATIVE/` 为 5 文件 / 52,469 B，manifest SHA-256 `40E667F8A7650AF06BC145D85720CF5349BBC057E71BD0372E6D2213FEDA81DE`，31 子项 `13 PROVEN / 6 PARTIAL / 12 BLOCKED`；Media3 1.11.1 + decoder 1.9.0+1 静态 ABI / pin / 16 KB 已证明但 runtime 未证明；libmpv 1.0.0→mpv 0.41.0 / FFmpeg n8.1 / libass 0.17.4，AAR notice、source offer、双内核 load-order 与 notices 仍 blocked；TTS 代码许可已证明，voice/model 与零网络 runtime 未证明；PDFium 2.0.3 / 3.0.4-alpha01 native blob 相同，revision / notice / 16 KB / Range runtime 为 blocked / partial。两目录独立 reviewer PASS。新增 `.planning/v2-g1/G1-S4-A-Q03-NOTICE/` 7 文件 / 80,035 B，manifest `89306984825B400136FFF2BA5DAF98F06C3A1E2F89DA0F18F725BBCCA0EA63FE`，provenance 24=`13/4/7`、notice/source 10=`5/2/3`，仅 `M3-05` / `MPV-05` 从 BLOCKED 收窄为 PARTIAL；`.planning/v2-g1/G1-S4-A-Q03-TTS-PDF/` 5 文件 / 55,691 B，manifest `43C51B06AD830FB055C97DAD069C4B1C516D51CBDB4E7AC226E87ED16A16E41B`，21=`9/2/10`，URL 41=`38 HTTP200/1 Git/2 timeout`、聚合 PARTIAL；issue #56 仍 OPEN。`V2-D203` 固定 voice-pack system；`V2-D204` 已将 engine strategy 关闭为 A“Sherpa / Matcha 兼容回退 + 高表现力第二引擎 Android arm64 可行性 Spike”，但第二引擎与 exact profile、逐资产许可 / 试听、后台 / 锁屏、单音频 owner / MediaSession 与零网络 runtime 仍未闭合。静态 NOTICE 与 TTS / PDF evidence 仍为 PARTIAL；candidate packaged notice / SBOM / source bundle、written offer / corresponding source、exact attestation / relink、runtime / device 与真实链路仍开放 | Media3 主路径；D204 engine strategy A：保留 Sherpa / Matcha 兼容回退，另做高表现力第二开源引擎 Android arm64 可行性 Spike；exact engine / voice profile 仍未选，走试听 + 许可审计；PDF 保留 PdfRenderer 回滚，stable PDFium 2.0.3 过硬门后再比较 | 双内核和 PDFium 提高覆盖；TTS 以 voice-pack 目录、后台锁屏与单音频 owner 为产品基线；取舍看 runtime、许可与质量，不因包体单独删除能力；新增静态工作须前沿审计与明确授权 | **Open / safe Q03 static increments maximized；full Q03 Open；G1 NOT_PASSED** |
-| `V2-Q-G1-04` | `G1-S5` 已完成静态决策输入：`.planning/v2-g1/G1-S5/decision-brief.md`、`manifest.json`；47 文件 / 780,415 字节，manifest SHA-256 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`，46 索引 = 45 证据 + 1 EOL / control；`.gitattributes` 固定 `* text eol=lf`，47/47 LF、CRLF 0。Verifier / builder 的 source hash 来自固定 source `397ff4f0…` 的 `git cat-file blob`，不读取当前 worktree；Git policy 只要求校验时工作区 HEAD 是 source baseline 后裔，HEAD 实况由 `git rev-parse HEAD` 现场读取，不在 docs 自引用当前提交；docs 合法更新不再误报 `SOURCE_HASH_MISMATCH`。manifest / 证据 hash、预期 docs dirty 白名单、白名单外 dirty 拒绝、LF / `eol=lf` 与内容 counts 保留；`source hash mismatch`、`evidence SHA mismatch`、`outside dirty` 均 exit 1。主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130；独立 scoped evidence review PASS。静态覆盖不等于设备 / TalkBack / 真字体 / 动态色 runtime PASS | 用户于 2026-11-04 整包接受 R1“DNA 保留 + 共享骨架”：保留五主题材料语法，共享 IA、状态、48dp、可访问名称与反馈职责；`AmbientColors` 不作页面主题，只保留受控局部强调；五档 RWD 与 72 / 216dp 轨道、16 / 24 / 32 / 48dp 页面边距；仅 D057 Nocturne 圆角 12→8dp | `HISTORY`：A2 强化玻璃 / 内高光与 A3 强化结构统一均未被用户选择；不据此改写 D057 其他圆角 | **Closed / Accepted / `V2-D201`（历史时点）；UI_DESIGN_SYSTEM = V2 R1；Q03 仍 Open；G1 NOT_PASSED；S6 原始 review 仅为 Q05 当时 Open 的历史，D204 后为 `S6_RECONFIRM_REQUIRED_AFTER_D204`，不得称当前 re-approved** |
+| `V2-Q-G1-04` | `G1-S5` 已完成静态决策输入：`.planning/v2-g1/G1-S5/decision-brief.md`、`manifest.json`；47 文件 / 780,415 字节，manifest SHA-256 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`，46 索引 = 45 证据 + 1 EOL / control；`.gitattributes` 固定 `* text eol=lf`，47/47 LF、CRLF 0。Verifier / builder 的 source hash 来自固定 source `397ff4f0…` 的 `git cat-file blob`，不读取当前 worktree；Git policy 只要求校验时工作区 HEAD 是 source baseline 后裔，HEAD 实况由 `git rev-parse HEAD` 现场读取，不在 docs 自引用当前提交；docs 合法更新不再误报 `SOURCE_HASH_MISMATCH`。manifest / 证据 hash、预期 docs dirty 白名单、白名单外 dirty 拒绝、LF / `eol=lf` 与内容 counts 保留；`source hash mismatch`、`evidence SHA mismatch`、`outside dirty` 均 exit 1。主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130；独立 scoped evidence review PASS。静态覆盖不等于设备 / TalkBack / 真字体 / 动态色 runtime PASS | 用户于 2026-11-04 整包接受 R1“DNA 保留 + 共享骨架”：保留五主题材料语法，共享 IA、状态、48dp、可访问名称与反馈职责；`AmbientColors` 不作页面主题，只保留受控局部强调；五档 RWD 与 72 / 216dp 轨道、16 / 24 / 32 / 48dp 页面边距；仅 D057 Nocturne 圆角 12→8dp | `HISTORY`：A2 强化玻璃 / 内高光与 A3 强化结构统一均未被用户选择；不据此改写 D057 其他圆角 | **Closed / Accepted / `V2-D201`（历史时点）；UI_DESIGN_SYSTEM = V2 R1；Q03 仍 Open；G1 NOT_PASSED；S6 D204 后复审 PASS 与 D205 current revision `D205_SCOPED_RECONFIRM_PASS` 均为静态文档 / artifacts 结论，不是 runtime PASS** |
 
 **Q03 当前 TTS 子门说明（2026-11-04）**：上表 Q03 事实中的“D203 进一步固定 Sherpa 主引擎”
 只保留为 D203 历史语义；小说质量门失败后，Sherpa 当前仅作兼容回退候选。D204 已接受 A，
-关闭 engine strategy，但第二引擎与 exact profile 仍未选择。Q03 仍 Open，不因 D204 关闭
-Q05 engine strategy 或本轮文档更新关闭。
+关闭 engine strategy；D205 随后接受方向 C，重筛 Kokoro / MOSS / ZipVoice HOLD，但第二
+引擎与 exact profile 仍未选择。Q03 仍 Open，不因 D204/D205 或本轮文档更新关闭。
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）
 
@@ -404,3 +408,40 @@ Open；该接受不批准 G1、实现、QA、设备、服务器写或发布。
 NAV 需求域无剩余 Open；G0 后 `V2-D195` 补明确离线选号触发旧身份播放暂停 / 隐藏。
 完整 G0 已由 `V2-D197` 通过；用户随后明确启动 G1。G0 当前无开放产品问题；G1 的
 `V2-Q-G1-01～04` 已在上方登记为证据门问题，待对应 Spike 收口后才向用户提交最终选择。
+
+### `V2-D205` 第二引擎方向 C：转为小型 Android 可行候选重筛（2026-11-04，Accepted）
+
+用户原话：“按推荐选择方向C。查询时，可以扩大范围，不局限于github等网站，可以参考其他安卓
+阅读app或开源app的tts实现方案。比如静读天下等app。”
+
+接受语义：
+
+1. 不再把 IndexTTS 2.5、CosyVoice 2/3 或 GPT-SoVITS 的直接 Android 重移植作为默认下一
+   路径，改为重新筛选更小、Android arm64 实际可落地的离线第二引擎。
+2. 可将只读证据范围扩大到 Android 阅读 App、系统 / 第三方 TTS engine 和其他开源端侧实现；
+   这不自动授权权重 / archive 下载、APK 安装或逆向、推理、量化、Gradle / ADB、设备、账号、
+   服务器写、生产代码、G2、独立 QA 或 Release。
+3. 当前可执行静态短名单为：Kokoro v1.1-zh 的未否决 `zf_001`（sid 3）与 `zm_010`（sid 59）
+   先做 exact archive 门；MOSS-TTS-Nano 第二；ZipVoice 因权重 CC-BY-NC 列许可 `HOLD`。
+   speaker58 / `zm_009`、Melo、AISHELL3 sid66 继续否决，不因重新筛选复活。
+4. Moon+ Reader、FBReader、Librera 等公开证据支持阅读器普遍把语音合成委托给系统或第三方
+   TTS engine。Aurorama 核心验收只接受 App 内 bundled runtime；系统 / 第三方 engine 只可作
+   默认关闭、显式标注的兼容试听，不进入统一 voice-pack、删除回退、零网络、后台锁屏或单
+   音频 owner / MediaSession 核心验收。
+5. D205 只选择候选搜索策略，不选择或冻结 exact engine / model / profile / voice。Kokoro
+   发布包 `364,855,331 B` 与 MOSS 运行资产 `762,666,636 B` 是只读 metadata，不代表已下载、
+   已解包、许可通过或 Android 可运行；逐文件 hash、archive 内容、声音 / 训练数据权、文本
+   前端、长文、RAM / RTF / 首音与锁屏均仍 `BLOCKED / UNVERIFIED`。
+
+证据指针：`docs/V2_PLAN.md` §12 ACTIVE、§13；`docs/TASKS.md`
+`V2-G1-L1-EVIDENCE`；[Moon+ FAQ](https://www.moondownload.com/faq.html)、
+[FBReader](https://fbreader.org/en/android/reading-aloud)、
+[Librera](https://github.com/foobnix/LibreraReader)、
+[Kokoro 发布包](https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2)、
+[Kokoro 模型](https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh)、
+[MOSS](https://github.com/OpenMOSS/MOSS-TTS-Nano)、
+[ZipVoice](https://huggingface.co/k2-fsa/ZipVoice)。
+
+D204 engine strategy A、D203 voice-pack / 后台锁屏 / 零网络 / 单 owner 条款全部保持；Q03
+仍 Open，C1 exact profile 仍 Open，G1 `NOT_PASSED`、runtime `UNVERIFIED`、L2/L3
+`LOCKED`。后续下载 / 推理 / 设备 / 生产实现必须另获明确授权。

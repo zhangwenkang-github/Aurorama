@@ -1,11 +1,11 @@
 # Aurorama 2.0 · G1-S6 总验收矩阵与 G2 任务卡输入
 
-状态：`D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED / L2_L3_LOCKED`
+状态：`D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED / L2_L3_LOCKED`
 
-当前 decision state：`D204_ACCEPTED_ENGINE_STRATEGY_A / Q05_CLOSED_D204 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
-`EV-S6.status`：`S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`。历史 review `PASS_WITH_P2` 仅限定为 Q05 当时 Open 的原始 S6 review，不是 D204 后当前 re-approval。
+当前 decision state：`D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+`EV-S6.status`：`S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`。历史 review `PASS_WITH_P2` 仅限定为 Q05 当时 Open 的原始 S6 review，不是 D204 后当前 re-approval。
 
-D204 docs/S6 集成已完成，fresh scoped documentation review 最终为 PASS / no findings，并已记录为当前 review state；460 条行级语义保持 schema v2（外部 456 + D203 addendum 4）；49 个 delivery wave 与 495 条 atomic membership 保持原 schema。READER-060 保持引擎中立，D204-A 仅表示兼容回退 + gated 第二引擎 Spike；不选择第二引擎、exact profile 或 voice。Q03 nested evidence 只陈述底层报告能证明的静态事实。
+D204 docs/S6 fresh scoped documentation review 已 PASS / no findings；D205 current revision 随后由独立 fresh scoped reviewer 复审核定为 PASS / no findings。460 条行级语义保持 schema v2（外部 456 + D203 addendum 4）；49 个 delivery wave 与 495 条 atomic membership 保持原 schema。READER-060 保持引擎中立，D204-A 仅表示兼容回退 + gated 第二引擎 Spike；D205 仅将候选重筛为 Kokoro `zf_001` / `zm_010`、MOSS、ZipVoice HOLD，不选择第二引擎、exact profile 或 voice。Q03 nested evidence 只陈述底层报告能证明的静态事实。
 
 ## 目的
 
@@ -14,8 +14,8 @@ D204 docs/S6 集成已完成，fresh scoped documentation review 最终为 PASS 
 ## 权威输入与读序
 
 1. `AGENTS.md` 与 `docs/PROJECT_PLAN.md` §3/§5/§7：工作目录、写边界、交接和验证纪律。
-2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/D204/R1/Q03 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q05 Closed/D204、Q03 与 S6 ACTIVE。
-3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D204` / Open Q03：当前状态真源。
+2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/D204/D205/R1/Q03 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q05 Closed/D204、D205 小引擎重筛、Q03 与 S6 ACTIVE。
+3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D205` / Open Q03：当前状态真源。
 4. `docs/UI_DESIGN_SYSTEM.md` V2 R1：五主题、RWD、九条交互、无障碍与 `UNVERIFIED_RUNTIME`。
 5. `.planning/v2-g1/G1-S1～S5`、A1/A2、BASE-001/003/004、Q03-SBOM/NATIVE/NOTICE/TTS-PDF：只读压缩报告、README 与 manifest。
 
@@ -97,7 +97,7 @@ Q03 与 Reader TTS 卡只能为 `GATED/BLOCKED` 输入；D204 只给出 engine s
 
 ## S6 完成与 scoped review 结论
 
-本包保留以下历史静态交付门与原始 review `PASS_WITH_P2`；D204 后 `EV-S6` 当前状态为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`：
+本包保留以下历史静态交付门与原始 review `PASS_WITH_P2`；D204 后 `EV-S6` 当前状态为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`：
 
 - 外部 `445` 个 source node / `376` 个 MVP 子项保持可复算，D203 另列 4 个 project addendum / 4 个 MVP；归一化 source 449、MVP 380；
 - 五个 BASE MUST 组与 R1 横向承诺均有 owner / card；

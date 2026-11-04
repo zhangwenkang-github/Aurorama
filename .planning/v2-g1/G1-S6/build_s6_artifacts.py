@@ -32,8 +32,10 @@ UNSPECIFIED = "UNSPECIFIED_IN_SOURCE"
 
 STATUS = (
     "D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / "
-    "HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / "
+    "D205_ACCEPTED_SMALL_ENGINE_RESCAN / SMALL_ANDROID_SECOND_ENGINE_RESCAN / "
+    "KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / "
     "C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / "
+    "D205_SCOPED_RECONFIRM_PASS / "
     "G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / "
     "RUNTIME_UNVERIFIED / L2_L3_LOCKED"
 )
@@ -47,7 +49,7 @@ EOL_ATTRIBUTE_SCOPE = (
     "root .gitattributes and three authoritative docs; no wildcard rule"
 )
 EV_S6_STATUS = (
-    "S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / "
+    "S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / "
     "HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED"
 )
 REVIEW_AUTHORITY_FACT = (
@@ -4773,8 +4775,8 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
         (
             "DOC-V2-G1",
             "docs/V2_PLAN.md",
-            "G1 static evidence, Q03, R1 and ACTIVE handoff",
-            ["E0–E7", "Q03", "Q05", "Q04", "S6", "D203", "D204"],
+            "G1 static evidence, Q03, R1, D205 and ACTIVE handoff",
+            ["E0–E7", "Q03", "Q05", "Q04", "S6", "D203", "D204", "D205"],
             [(section_5_11_start, section_13_start - 1), (section_13_start, len(v2_doc_lines))],
         ),
         (
@@ -4788,7 +4790,7 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
             "DOC-DECISIONS",
             "docs/DECISIONS.md",
             "accepted decisions, closed Q05 and open Q03",
-            ["D057", "D198–D204", "Q03", "Q05", "background / voice-pack TTS"],
+            ["D057", "D198–D205", "Q03", "Q05", "background / voice-pack TTS"],
             [(1, len(read_text(DECISIONS_PATH).splitlines()))],
         ),
         (
@@ -4822,22 +4824,25 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
         "generated_on": "2026-11-04",
         "current_decision_state": {
             "d204": "ACCEPTED_ENGINE_STRATEGY_A",
+            "d205": "ACCEPTED_SMALL_ENGINE_RESCAN",
             "q05": "CLOSED_D204",
             "engine_strategy": "A_COMPAT_FALLBACK_PLUS_SECOND_ENGINE_SCOPE",
             "exact_engine": "UNSELECTED",
             "exact_profile": "OPEN",
             "sherpa_matcha": "COMPATIBILITY_FALLBACK_NOT_FROZEN",
+            "second_engine": "KOKORO_THEN_MOSS_STATIC_SHORTLIST",
             "q03": "OPEN",
             "g1": "NOT_PASSED",
             "runtime": "UNVERIFIED",
             "s6": "SCOPED_RECONFIRM_PASS_AFTER_D204",
+            "d205_review": "SCOPED_RECONFIRM_PASS",
             "l2_l3": "LOCKED",
         },
         "historical_review": {
             "status": HISTORICAL_REVIEW_STATUS,
             "scope": "S6 before D203 rebuild and D204; Q05 was Open at review time",
             "current_reapproval": False,
-            "note": "The historical review remains Q05-Open context; the separate D204-after scoped documentation reconfirm is recorded as current PASS.",
+            "note": "The historical review remains Q05-Open context. The D204-after scoped documentation reconfirm was the predecessor PASS; the D205 current revision has a separate fresh scoped reconfirm PASS with no findings. Neither review implies runtime, QA or release PASS.",
         },
         "line_ending_policy": {
             "path": ".gitattributes",
@@ -5044,10 +5049,12 @@ def matrix_document(
             "ui_design_system": "V2_R1_ACCEPTED_DESIGN_AUTHORITY",
             "runtime": "UNVERIFIED",
             "s6": "SCOPED_RECONFIRM_PASS_AFTER_D204",
+            "d205_review": "SCOPED_RECONFIRM_PASS",
             "d203": "ACCEPTED_VOICE_PACK_BACKGROUND_TTS",
             "d204": "ACCEPTED_ENGINE_STRATEGY_A",
+            "d205": "ACCEPTED_SMALL_ENGINE_RESCAN",
             "sherpa_quality": "SHERPA_QUALITY_INSUFFICIENT_COMPAT_FALLBACK",
-            "second_engine": "UNSELECTED_HIGH_EXPRESSIVE_L1_SPIKE_SCOPING",
+            "second_engine": "UNSELECTED_KOKORO_THEN_MOSS_STATIC_SHORTLIST",
             "c1_exact_profile": "OPEN_EXPRESSIVE_ENGINE_PROFILE",
             "l2_l3": "LOCKED",
         },
@@ -5097,10 +5104,10 @@ def readme_text(matrix: dict[str, Any], risks: dict[str, Any], cards: list[dict[
 
 状态：`{STATUS}`
 
-当前 decision state：`D204_ACCEPTED_ENGINE_STRATEGY_A / Q05_CLOSED_D204 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+当前 decision state：`D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
 `EV-S6.status`：`{EV_S6_STATUS}`。历史 review `PASS_WITH_P2` 仅限定为 Q05 当时 Open 的原始 S6 review，不是 D204 后当前 re-approval。
 
-D204 docs/S6 集成已完成，fresh scoped documentation review 最终为 PASS / no findings，并已记录为当前 review state；{matrix['counts']['normalized_acceptance_rows']} 条行级语义保持 schema v2（外部 {matrix['counts']['external_acceptance_rows']} + D203 addendum {matrix['counts']['project_addendum_acceptance_rows']}）；49 个 delivery wave 与 {matrix['counts']['wave_membership_records']} 条 atomic membership 保持原 schema。READER-060 保持引擎中立，D204-A 仅表示兼容回退 + gated 第二引擎 Spike；不选择第二引擎、exact profile 或 voice。Q03 nested evidence 只陈述底层报告能证明的静态事实。
+D204 docs/S6 fresh scoped documentation review 已 PASS / no findings；D205 current revision 随后由独立 fresh scoped reviewer 复审核定为 PASS / no findings。{matrix['counts']['normalized_acceptance_rows']} 条行级语义保持 schema v2（外部 {matrix['counts']['external_acceptance_rows']} + D203 addendum {matrix['counts']['project_addendum_acceptance_rows']}）；49 个 delivery wave 与 {matrix['counts']['wave_membership_records']} 条 atomic membership 保持原 schema。READER-060 保持引擎中立，D204-A 仅表示兼容回退 + gated 第二引擎 Spike；D205 仅将候选重筛为 Kokoro `zf_001` / `zm_010`、MOSS、ZipVoice HOLD，不选择第二引擎、exact profile 或 voice。Q03 nested evidence 只陈述底层报告能证明的静态事实。
 
 ## 目的
 
@@ -5109,8 +5116,8 @@ D204 docs/S6 集成已完成，fresh scoped documentation review 最终为 PASS 
 ## 权威输入与读序
 
 1. `AGENTS.md` 与 `docs/PROJECT_PLAN.md` §3/§5/§7：工作目录、写边界、交接和验证纪律。
-2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/D204/R1/Q03 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q05 Closed/D204、Q03 与 S6 ACTIVE。
-3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D204` / Open Q03：当前状态真源。
+2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/D204/D205/R1/Q03 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q05 Closed/D204、D205 小引擎重筛、Q03 与 S6 ACTIVE。
+3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D205` / Open Q03：当前状态真源。
 4. `docs/UI_DESIGN_SYSTEM.md` V2 R1：五主题、RWD、九条交互、无障碍与 `UNVERIFIED_RUNTIME`。
 5. `.planning/v2-g1/G1-S1～S5`、A1/A2、BASE-001/003/004、Q03-SBOM/NATIVE/NOTICE/TTS-PDF：只读压缩报告、README 与 manifest。
 
@@ -5305,11 +5312,11 @@ def checkpoint_text(
 
 ## Scoped review 结论与残余门
 
-**结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留，限定 Q05 当时 Open。D204 后独立 fresh scoped documentation review 已完成并 PASS / no findings，当前状态为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204`；这不表示 G1、QA、runtime 或 Release PASS。每 future artifact change 仍须重新 review。
+**结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留，限定 Q05 当时 Open。D204 后独立 fresh scoped documentation review 已 PASS；D205 current revision 随后独立 fresh scoped reconfirm 为 PASS / no findings。该结论不表示 G1、QA、runtime 或 Release PASS。
 
-**下一步入口**：无当前 review 待办。任何 future artifact change 的第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json` 的 current / historical review 字段与 manifest，再另派 fresh scoped review；D204 第二引擎 Spike、Q03、runtime 与 G1 仍需独立授权，不得代签 QA 或推进 G2。
+**下一步入口**：D205 current revision 已复审 PASS，当前无未完成 docs/artifact review；下一步是在用户单独授权后做 exact archive 下载与只读内容校验。D205 候选不冻结 engine/profile；Q03、runtime、设备与 G1 仍需独立证据和授权，不得代签 QA 或推进 G2。
 
-**停止条件**：下一步不得启动 Q03 runtime、第二引擎 / exact profile 实际选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、D204/Q03/Q04/UI/G1 状态漂移、L2/L3 解锁、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
+**停止条件**：下一步不得启动 Q03 runtime、第二引擎 / exact profile 实际选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、D204/D205/Q03/Q04/UI/G1 状态漂移、L2/L3 解锁、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
 
 ## 上下文水位
 

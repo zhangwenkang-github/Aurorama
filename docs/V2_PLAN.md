@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `D204_ACCEPTED_ENGINE_STRATEGY_A / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。用户于 2026-11-04 原话“按推荐选择A。”，A 仅表示保留 Sherpa / Matcha 兼容回退并另立高表现力开源第二引擎 Android arm64 可行性 Spike；第二引擎及 exact profile / voice 均未选择。S6 D204 后 fresh scoped documentation reconfirm 已 PASS，future artifact change 仍须重新 review；Q03 仍 Open、runtime `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 `LOCKED`。
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SMALL_ANDROID_SECOND_ENGINE_RESCAN / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。用户于 2026-11-04 选择方向 C，扩大只读查询范围以重筛更小的 Android arm64 可行第二引擎；Kokoro 两个未否决中文声线为第一静态门，MOSS-TTS-Nano 为第二，ZipVoice 因 CC-BY-NC `HOLD`。第二引擎及 exact profile / voice 均未选择，权重未下载。S6 D204 后 fresh scoped documentation reconfirm 已 PASS，future artifact change 仍须重新 review；Q03 仍 Open、runtime `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 `LOCKED`。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -2702,9 +2702,12 @@ Android arm64 可行性 Spike。IndexTTS / CosyVoice / GPT-SoVITS 及 Matcha / K
 其中 BASE-001/003/004 的产品契约歧义已由静态合同冻结，但 B/C/D 门、runtime、device、
 candidate-package 与 production implementation 均未关闭；静态合同不把任何 `MUST` 运行时承诺
 升级为 PASS。公共 `.planning/v2-g1/.gitattributes` 已新增 `*.m3u8 text eol=lf`，BASE-004
-24/24 文件为 LF 且 manifest / hash 可复现。当前前沿审计结论为
-`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`：下一步只允许只读 / 静态设计第二引擎
-可行性 Spike 与官方许可门，不执行网络、权重下载、Gradle / ADB、设备、runtime 或生产实现。
+24/24 文件为 LF 且 manifest / hash 可复现。当前 `V2-D205` 已选择方向 C，前沿审计结论为
+`SMALL_ENGINE_STATIC_SHORTLIST_READY / EXACT_ARCHIVE_DOWNLOAD_AUTH_REQUIRED`：Kokoro
+`zf_001` / `zm_010` 先做 exact archive 许可 / hash 门，MOSS 第二，ZipVoice `HOLD`。下一步
+只允许等待用户单独授权 archive 下载与内容校验，不执行推理、量化、Gradle / ADB、设备、
+runtime 或生产实现。D205 current docs/S6 revision 已由独立 fresh scoped reviewer 复核为
+`PASS / no findings`。
 
 本轮明确非目标：不把 `MUST` 需求直接写成已实现；不把历史 1.4.0 通过记录冒充 V2 候选包证据；
 不把生产服务器写、TV / 车机 / 桌面产品面、第三方在线字幕 / 歌词、管理式媒体写、破坏性数据库
@@ -3270,7 +3273,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 已完成；`V2-D202` 仅授权 L1，D203 voice-pack / 后台锁屏不变。`V2-D204` 接受 engine strategy A 并关闭 Q05：Sherpa / Matcha 保留兼容回退，高表现力开源第二引擎另做 Android arm64 可行性 Spike；第二引擎、exact profile / voice 与逐资产许可仍未选择。`V2-G1-L1-EVIDENCE` 当前 readiness=`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`；S6 D204 后 fresh scoped documentation reconfirm 已 PASS；Q03 Open、G1 NOT_PASSED、runtime UNVERIFIED，L2/L3 locked |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 已完成；`V2-D202` 仅授权 L1，D203 voice-pack / 后台锁屏不变。`V2-D204` 接受 engine strategy A 并关闭 Q05；`V2-D205` 接受方向 C，将更小 Android arm64 第二引擎重筛为 Kokoro `zf_001` / `zm_010`、MOSS、ZipVoice `HOLD`。第二引擎、exact profile / voice 与逐资产许可仍未选择。`V2-G1-L1-EVIDENCE` 当前 readiness=`SMALL_ENGINE_STATIC_SHORTLIST_READY / EXACT_ARCHIVE_DOWNLOAD_AUTH_REQUIRED`；S6 D204 后 fresh scoped documentation reconfirm 已 PASS，D205 current revision 的 fresh scoped reconfirm 也为 PASS / no findings；Q03 Open、G1 NOT_PASSED、runtime UNVERIFIED，L2/L3 locked |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3300,7 +3303,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ✅ 9 节点最终矩阵、计数、证据与跨域处置由 `V2-D193` 整包接受；需求域已收口 |
 | 9 | `V2-REQ-BASE` | 1.4 既有能力补充基线 | ✅ `V2-REQ-BASE-001～005` 五个 `MUST` 组由 `V2-D196` 保留，来源、验收、依赖、非目标与 G1 未决项已落 §5.10.5 |
 | 10 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ✅ `V2-D197` 完整 G0 PASS；`V2-Q-FINAL-01～03` 全部关闭；后续由 G1 接管 |
-| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 原始 review `PASS_WITH_P2` 仅作为 Q05 当时 Open 的历史，D204 后 fresh scoped documentation reconfirm 已 PASS；future artifact change 仍须重新 review；D203 voice-pack / 后台 TTS 条款不变，Sherpa / Matcha 当前仅兼容回退；D204 已关闭 Q05 engine strategy 为 A，当前 readiness=`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`；Q03 Open、C1 exact profile Open、L2/L3 locked，禁止 runtime、实现或 G2 |
+| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 原始 review `PASS_WITH_P2` 仅作为 Q05 当时 Open 的历史，D204 后 fresh scoped documentation reconfirm 已 PASS，D205 current revision 的 fresh scoped reconfirm 也为 PASS / no findings；D203 voice-pack / 后台 TTS 条款不变，Sherpa / Matcha 当前仅兼容回退；D204 已关闭 Q05 engine strategy 为 A，D205 已接受方向 C 的小型 Android 第二引擎重筛，当前 readiness=`SMALL_ENGINE_STATIC_SHORTLIST_READY / EXACT_ARCHIVE_DOWNLOAD_AUTH_REQUIRED`；Q03 Open、C1 exact profile Open、L2/L3 locked，禁止 runtime、实现或 G2 |
 
 每个需求域的退出条件：
 
@@ -3408,7 +3411,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：D204 engine strategy A 已接受，第二引擎 L1 Spike scoping 与许可门待做（2026-11-04）
+### ACTIVE：D204 strategy A + D205 方向 C 已接受，小型 Android 第二引擎重筛待 exact archive 授权（2026-11-04）
 
 **下一负责人线程**：`01a1a6e0-367e-7fd2-985a-f0772bcd1888`。当前交接不再等待 Q05；
 D204 只关闭 engine strategy，后续由负责人审查本集后安排全新只读 / 静态专业子代理设计第二
@@ -3421,19 +3424,59 @@ profile，不改写产品结论。
 **用户当前问题原话（2026-11-04）**：“前面候选的高表现力第二引擎似乎太大了，真的能在安卓
 上运行吗？Sherpa-ONNX可不可以通过调参的方式来满足要求？可以新建会话来交接。”
 
-**当前状态（2026-11-04）**：D204 已接受 engine strategy A；Q05 `Closed / Accepted / D204`；
-S6 当前为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204`。Q03 `Open`，G1 `NOT_PASSED`，runtime
-`UNVERIFIED`，L2/L3 `LOCKED`；exact engine / profile 未选、仍 Open。
+**用户方向 C 选择原话（2026-11-04）**：“按推荐选择方向C。查询时，可以扩大范围，不局限于
+github等网站，可以参考其他安卓阅读app或开源app的tts实现方案。比如静读天下等app。”
+该选择已落为 `V2-D205`：只改变候选搜索策略，不冻结 engine / model / profile / voice。
+
+**本线程静态结论（2026-11-04，仅用户决策输入）**：
+
+- IndexTTS 2.5、CosyVoice 2、CosyVoice 3、GPT-SoVITS 的官方材料均未发现可核验的
+  Android arm64 runtime；这不表示技术上绝对不可行。四者都依赖 Python / PyTorch 或复杂
+  文本、语义、自回归 / 流式组件，移动端需要独立导出、算子、状态与性能证明。受官方权重
+  元数据超时影响，本轮没有形成可审计的 exact 最小文件清单、下载体积、峰值 RAM、首音或
+  RTF 数值；上述项目全部保持 `UNVERIFIED`，不得用桌面 / 服务器指标外推手机 PASS。
+- Sherpa-ONNX v2.0.1 可调 `speed` / `length_scale`、VITS `noise_scale[_w]`、Matcha
+  `noise_scale`、全局 `silence_scale`、批大小、文本规范化 / 词典与句级停顿。它能改善语速、
+  稳定性和拼接节奏，不能保证把中性读报权重变成有情感跨度、角色表演和自然叙事韵律的小说
+  演播；VITS 仅在模型元数据与输入真实提供 `emotion_id` 时可选择已训练情感槽。Melo、
+  AISHELL3 sid66、Kokoro speaker58 的否决继续有效，不得靠改 speed/noise 复活。
+- 高表现力路径的相对工程审查顺序只可暂列为“GPT-SoVITS → CosyVoice 2 → CosyVoice 3 →
+  IndexTTS 2.5”，它是算子 / 前端 / 资源复杂度的待验假设，不是质量排序或选型结论。
+  CosyVoice 代码 Apache-2.0 不自动覆盖权重；GPT-SoVITS 源码 MIT 不覆盖预训练权重、第三方
+  前端与参考声；IndexTTS 自定义许可须逐资产核验。许可仍为 `PARTIAL / INSUFFICIENT`。
+- fresh scoped evidence review 为 `CHANGES_REQUIRED`，已据此撤销未经复算的 exact 体积值、
+  将 RAM / 首音 / RTF 降为未验证，并修正 `silence_scale` 与 `emotion_id` 的边界。该复审
+  不构成 engine、profile、质量、runtime、Q03 或 G1 PASS。
+- 阅读 App 侧的一手证据支持 Moon+ Reader、FBReader、Librera 等把合成委托给系统或第三方
+  TTS engine；Aurorama 核心验收仍只用 App 内 bundled runtime。系统 / 第三方 engine 仅作
+  默认关闭的显式兼容试听，不进入统一 voice-pack、可删除、零网络、后台锁屏或单 owner。
+- 方向 C 的 exact 静态短名单：Kokoro v1.1-zh 的 `zf_001`（sid 3）与 `zm_010`（sid 59）
+  先做 `kokoro-multi-lang-v1_1.tar.bz2` exact archive 门；MOSS-TTS-Nano 第二，官方 Android
+  smoke 使用预分词短句和固定帧，不能冒充生产 runtime；ZipVoice 因权重 CC-BY-NC 列
+  `HOLD`。以上都不冻结 model / voice。
+
+**当前状态（2026-11-04）**：D204 已接受 engine strategy A；D205 已接受方向 C；Q05
+`Closed / Accepted / D204`；S6 为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204`，D205 current
+revision 另有 `D205_SCOPED_RECONFIRM_PASS`。Q03
+`Open`，G1 `NOT_PASSED`，runtime `UNVERIFIED`，L2/L3 `LOCKED`；exact engine / profile
+未选、仍 Open。当前 readiness 为 `SMALL_ENGINE_STATIC_SHORTLIST_READY /
+EXACT_ARCHIVE_DOWNLOAD_AUTH_REQUIRED`。
 
 **一句话现状**：
-`D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / RUNTIME_UNVERIFIED / S6_SCOPED_RECONFIRM_PASS_AFTER_D204`。
-用户于 2026-11-04 原话“按推荐选择A。”，A 已接受，B/C 未选。第二引擎与 exact
-engine / model / profile / voice 均未选择；当前只允许设计只读 / 静态 Spike 与官方许可门。
+`D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / RUNTIME_UNVERIFIED / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS`。
+D204 保留 engine strategy A，D205 接受方向 C。第二引擎与 exact engine / model / profile /
+voice 均未选择；当前只允许静态短名单与 exact archive 授权门。
 D203 的 voice-pack、追加导入、删除回退、后台锁屏、单音频 owner / MediaSession、全局 /
 逐书音色与零网络条款不变。Q03 仍 Open，runtime 未验证，G1 未通过，L2/L3 仍锁定。
 
 **已完成**：
 
+- 具名 docs-only 父链开工门已完成：HEAD `e77c9d02a47cc32ddc82cb24f6e4b4cbbaa21393`
+  的直接父提交为 `eb535f2a587debf0ad6823dd893d38742147b295`，三分文件范围、clean、
+  D204/S6/Q03/G1/runtime/L2-L3 与 current ACTIVE 均一致，门禁 `PASS`。
+- 两个互斥只读专业任务与一个 fresh scoped evidence reviewer 已完成；只访问官方
+  GitHub / 模型页 / 项目本地证据，未下载权重、未运行推理或量化、未构建、未触设备，也未
+  修改生产代码。
 - `V2-D204` 已写入 DECISIONS，Q05 改为 Closed / Accepted / D204；A 语义、B/C 未选、可证明
   与不可证明边界、证据 URL 指针及全部红线和状态均已落档。
 - V2_PLAN / TASKS 的当前状态已切换到第二引擎 L1 Spike scoping / 许可门；S6 的 D204 后
@@ -3444,9 +3487,10 @@ D203 的 voice-pack、追加导入、删除回退、后台锁屏、单音频 own
 
 **未完成 / BLOCKED**：
 
-- 第二引擎 L1 Spike 尚未设计或执行；IndexTTS 2.5、CosyVoice 2、CosyVoice 3、GPT-SoVITS
-  均只有“官方 Android arm64 runtime 未证明”的结论，不得推断技术不可行。CosyVoice 2/3
-  仓库 / 模型权重许可页面冲突未解析。
+- 第二引擎 L1 Spike 尚未执行；IndexTTS 2.5、CosyVoice 2、CosyVoice 3、GPT-SoVITS
+  均只有“官方 Android arm64 runtime 未发现 / 未证明”的结论，不得推断技术不可行。
+  exact snapshot 文件 manifest、算子导出、许可、apk / 冷热首音、RTF、峰值内存与长稳均
+  未验证；CosyVoice 2/3 代码与权重许可必须分开审计。
 - C1 exact profile / model / lexicon / rule、逐资产许可 / model card / notice / hash、声音
   权属、RAM / RTF / 首音、后台锁屏、零网络与单音频 owner / MediaSession runtime 均未闭合。
   用户小说叙述风格质量门仍未通过。
@@ -3458,21 +3502,25 @@ D203 的 voice-pack、追加导入、删除回退、后台锁屏、单音频 own
 
 **下一步入口**：
 
-- 由负责人审查本集并决定是否启动全新的只读 / 静态 L1 Spike scoping 专业子代理；不得直接
-  进入实现、网络、下载、构建、设备或 runtime。
-- 第一条只读动作：核对本 ACTIVE、§13 D204 日志、`docs/DECISIONS.md` Q05 Closed / D204、
-  `docs/TASKS.md` readiness 与 `G1-S6/source-index.json` 的 current decision / historical
-  review 双字段。
-- 产出仅限：候选 Spike 问题、官方 runtime / 许可 / notice / hash 证据矩阵、停止条件与所需
-  的下一档授权申请；任一新域名或权重下载必须先单列并取得明确许可。
+- 方向 C 已收到；下一步由负责人等待用户对 exact asset 下载的单独授权。只读 metadata 已
+  固定：Kokoro 发布包 `364,855,331 B` / archive digest
+  `b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed`；MOSS 已固定两个
+  HF commit、13 个 LFS 文件和 `762,666,636 B` 运行资产。不得把 metadata 当已下载 / 已解包。
+- 若用户授权 Kokoro exact archive 下载，第一条动作只下载 / 校验该 archive 与 AAR，然后
+  核对文件清单、`id2speaker=3/58/59`、notice、许可与 speaker58 排除；只试听 `sid=3/59`。
+- 若用户授权 MOSS 资产下载，只允许两个固定 HF commit 的 13 个 LFS + 3 JSON，校验逐文件
+  size / LFS SHA；任何加载、推理、Gradle / ADB、设备或生产操作仍需再次授权。
+- 任一新域名、权重下载、运行时、设备、账号、服务器写、生产实现、独立 QA、G2 或 Release
+  都必须另行明确授权。
 
 **环境 / 权限 / 停止条件**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
 `codex/v2-integration`；HEAD、dirty 与锁由 Git / 设备现场读取。生产服务器永久只读。
-禁止网络、设备、账号、服务器、runtime、Gradle / ADB、生产代码、G2、独立 QA、Release、
-commit 或 push；不选择第二引擎 / exact profile，不把 Sherpa 升级回默认，不关闭 Q03，不申请
-L2/L3。出现新域名 / 下载请求、把 A 解释为具体引擎已选、L2/L3 解锁、P0–P2、Git / hash /
-manifest / LF 漂移，或静态证据被升级为 runtime / Q03 / G1 PASS 时立即停止。
+本轮官方只读页面已按白名单完成；后续禁止新增网络域、设备、账号、服务器写、runtime、
+Gradle / ADB、生产代码、G2、独立 QA 或 Release。不选择第二引擎 / exact profile，不把
+Sherpa 升级回默认，不关闭 Q03，不申请 L2/L3。出现新域名 / 下载请求、把 D204-A 解释为
+具体引擎已选、L2/L3 解锁、P0–P2、Git / hash / manifest / LF 漂移，或静态证据被升级为
+runtime / Q03 / G1 PASS 时立即停止。
 
 ### HISTORY：G1 残余门 / A-G 决策菜单（2026-11-04；Completed，D202 已接受推荐并由上方 L1 ACTIVE 取代）
 
@@ -4545,3 +4593,62 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   服务器 / 生产，不进入 QA / G2 / Release，不 commit / push。下一步由新负责人核验
   branch / HEAD / clean 与本 ACTIVE 后启动只读 / 静态评估；需要新网络、下载、runtime、设备或
   生产访问时停止并请求授权。
+- **2026-11-04 — 第二引擎 / Sherpa 只读证据与用户决策输入**：新线程开工门核验 HEAD
+  `e77c9d02a47cc32ddc82cb24f6e4b4cbbaa21393`、直接父提交
+  `eb535f2a587debf0ad6823dd893d38742147b295`、三分文件后继、clean 与 current 状态，
+  结果 `PASS`。两个互斥专业任务分别审计 [IndexTTS v2.5.0](https://github.com/index-tts/index-tts/tree/39207d91c30899cad1e7c1b9eb678c241f678e55)、
+  [CosyVoice](https://github.com/FunAudioLLM/CosyVoice/tree/074ca6dc9e80a2f424f1f74b48bdd7d3fea531cc)、
+  [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS/tree/d7c2210da8c013e81a94bfc7b811a477c99fd506)
+  与 [Sherpa-ONNX v2.0.1](https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.1)。
+  高表现力四者均未发现官方 Android arm64 runtime，不代表技术不可行；官方模型 metadata
+  超时使 exact 最小文件清单、下载体积、许可、RAM / 首音 / RTF 无法闭合，全部保持
+  `UNVERIFIED`。fresh scoped reviewer 为 `CHANGES_REQUIRED`：撤销未经复算的体积数值，
+  把候选工程复杂度排序降为 hypothesis，代码许可不得覆盖权重，且 `silence_scale` 是全局
+  静区缩放而非独立句 / 段停顿。
+- **2026-11-04 — Sherpa 参数边界证据**：VITS / Matcha 可用 `speed` / `length_scale`
+  改变整体时长，`noise_scale` 改变稳定性；`noise_scale_w` 仅 VITS。VITS 只有在模型
+  metadata 与 ONNX 输入真实提供情感槽时才支持 `emotion_id`，Matcha 未发现对应路径。
+  文本规范化、词典、句切分、精确 PCM 停顿、逐句缓存与接缝处理属于前端 / App 层，可改善
+  兼容回退的主要问题是漏字、节奏和拼接，但不能补齐训练声线外的情感跨度、角色表演、口音
+  与自然叙事韵律。用户已否决的 Melo、AISHELL3 sid66、Kokoro speaker58 不因重新调参复活；
+  最多再设计一次有边界、带硬止损的 not-rejected 候选取样试听，结果不得写成质量 PASS。
+- **2026-11-04 — 用户选型门就绪 / 状态未变**：本轮未下载权重、未运行推理 / 量化 / 构建 /
+  ADB、未触设备 / 账号 / 服务器写或生产代码，未进入 QA / G2 / Release。推荐顺序为用户
+  方向 C（重新筛选更小的 Android 可行第二引擎），A 仅作一次有边界兼容回退试听；B 仅在
+  用户接受高移植风险时继续，D 明确不承诺小说主朗读质量。Q03 仍 Open、G1
+  `NOT_PASSED`、runtime `UNVERIFIED`、L2/L3 `LOCKED`，第二 engine / exact profile /
+  voice 均未冻结。文档收口前会话水位 155,789 / 1,048,576 tokens；下一步等待用户选择 A/B/C/D。
+- **2026-11-04 — 用户接受 D205 方向 C / 扩大只读取证范围**：用户原话“按推荐选择方向C。
+  查询时，可以扩大范围，不局限于github等网站，可以参考其他安卓阅读app或开源app的tts实现
+  方案。比如静读天下等app。”已新增 `V2-D205`：不再以四类大体量高表现力模型的直接重移植为
+  默认下一路径，改为重筛更小的 Android arm64 可行第二引擎。扩大范围只授权查询，不授权
+  权重 / archive 下载、APK 安装或逆向、推理、量化、构建、设备或生产实现。
+- **2026-11-04 — 阅读 App / TTS runtime 只读证据**：Moon+ Reader FAQ 明确有 TTS engine
+  support，并提示后台限制需同时处理 reader 与 TTS engine；FBReader 明说没有自己的语音
+  生成器、使用系统已安装 TTS engine 且部分 voice 需要网络；Librera 源码调用 Android
+  `TextToSpeech`，并含前台 TTS service、MediaSession、句子到页面高亮映射。结论是阅读器
+  普遍负责句段 / 控制 / 高亮，语音合成委托给外部 engine。Aurorama 核心验收仍只接受 App
+  内 bundled runtime；系统 / 第三方 engine 仅作默认关闭的兼容试听，不能进入统一
+  voice-pack、删除、零网络、后台锁屏或单音频 owner 核心验收。
+- **2026-11-04 — 小型候选短名单与 exact 静态门**：候选复审后顺序为 Kokoro
+  `zf_001` / `zm_010` → MOSS-TTS-Nano → ZipVoice `HOLD`。Kokoro 固定 Sherpa
+  `kokoro-multi-lang-v1_1.tar.bz2` metadata `364,855,331 B` /
+  `b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed`，静态映射
+  `zf_001=sid3`、`zm_009=speaker58`（继续否决）、`zm_010=sid59`；archive 内容、逐文件
+  hash、AAR、notice、训练数据与逐 voice 权利未验。MOSS 已固定两个 HF commit、13 个 LFS
+  文件合计 `762,666,636 B`；官方 Android 示例只预分词短句、`maxFrames=160` ~12.8 秒、
+  Activity 内线程，无前台 service / MediaSession / 长文 / 手机 RTF / RAM 报告，且 18 个
+  预计算 prompt 声线没有权利闭合。ZipVoice 虽有 Sherpa C++ 支持，但权重 CC-BY-NC 且无
+  Android E2E，保持许可 HOLD。
+- **2026-11-04 — D205 下一步授权门**：当前只能等待用户单独授权 exact archive 下载与解包
+  校验。Kokoro 下载需固定 release URL、大小和 archive digest；MOSS 下载需固定两仓 commit、
+  13 LFS + 3 JSON 与逐文件 LFS SHA。任何模型加载、推理、试听、Gradle / ADB、设备、生产
+  代码或外部写入都必须另获授权。Q03 Open、G1 `NOT_PASSED`、runtime `UNVERIFIED`、
+  L2/L3 `LOCKED`，exact engine / profile / voice 均未冻结。
+- **2026-11-05 — D205 current docs/S6 revision fresh scoped review PASS**：独立 reviewer
+  最终为 `PASS / no findings`，P0–P3=`0/0/0/0`。3 个权威 docs + 12 个 G1-S6 派生文件
+  范围、builder / verifier、self-test `57 NEG + 10 BASE + 1 count = 68 GREEN`、manifest
+  11 条目、LF 与 source hashes 均一致；README / CHECKPOINT / source-index 已明确 D204
+  为前置静态复审、D205 current revision 为独立复审 PASS，二者都不表示 G1、runtime、QA
+  或 Release PASS。下一步仍为 exact archive 下载授权；本轮未下载权重、未推理、未构建或
+  触设备。

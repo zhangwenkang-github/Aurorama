@@ -6,14 +6,25 @@
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-| `V2-SOLUTION-BASELINE` | G1 方案门；总括行，非执行卡 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | 不自行启动 runtime / 设备 / 新网络 / 服务器 / 生产代码 / G2 / 独立 QA / Release；不把 S6 历史 `PASS_WITH_P2`、network review 或任一静态证据写成当前 S6 re-approval / G1 PASS | `V2-D202` 仅授权 `L1`；D203 voice-pack / 后台锁屏条款保持；`V2-D204` 接受 engine strategy A 并关闭 Q05，Sherpa / Matcha 仅兼容回退，第二引擎与 exact profile 未选。当前 `HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`；S6 当前为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204`；每 future artifact change 仍须 fresh scoped review；Q03 Open、Q04 Closed/D201；L2/L3 locked | G1 总体只在第二引擎静态可行性 / 许可门、exact profile / 许可 / notice / hash、Q03 closure、后台 / 锁屏 runtime 证据与完整闭包均通过后收口；当前总括行不得代签 | 任何新域名 / voice-pack 下载、把 D204-A 解释为具体引擎已选、越权设备 / 账号 / 服务器 / runtime / 生产代码 / G2 / QA / Release、Q03 / Q05 / G1 状态漂移、证据不可复算时立即停止 |
-| `V2-G1-L1-EVIDENCE` | G1 `L1`；状态 `HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN` | 在 D203 voice-pack / 后台锁屏静态边界和 D204 engine strategy A 上，只读 / 静态设计高表现力第二引擎 Android arm64 可行性 Spike、官方 runtime 与逐资产许可 / notice / hash 门 | ①网络 allowlist 已结束，任何新域名或 engine / voice-pack / profile 下载须另行授权；不得接触设备 / 账号 / 服务器或修改生产代码；②不启动 runtime、Gradle / ADB、独立 QA、G2 或 Release；③不把 D204-A 解释为具体引擎已选，不冻结 IndexTTS / CosyVoice / GPT-SoVITS / Matcha / Kokoro profile，不关闭 Q03，不把静态 / Spike 结果写成 G1 PASS | **当前 readiness = SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN（READ_ONLY_STATIC_ONLY）**；`V2-D202` + D203 voice-pack / 后台条款 + `V2-D204` Accepted + Q05 Closed/D204；`SHERPA_QUALITY_INSUFFICIENT`；四类候选均无官方 Android arm64 runtime 证据；Matcha zh-en 可兼容回退补样、Baker 非商业；Kokoro sid58 否决但 family 未整体定性；CosyVoice 2/3 许可页面冲突待解析；`L2/L3 LOCKED`；Q03 Open；Q04 Closed/D201；runtime remain open | 证据可本地复算；voice-pack import append / idempotency / delete fallback / hidden restore 与后台 / 锁屏 / MediaSession 静态合同保持；第二 engine、exact profile、逐资产许可 / notice / hash 与 runtime 均未冻结；用户主观质量门仍未过 | 需要任何新域名 / engine / profile download、设备 / 账号 / 服务器、生产代码或 runtime；重开 D204、把 A 写成具体引擎已选、申请 L2/L3 或关闭 Q03；出现 P0–P2、范围漂移、hash / manifest 不可复算时停止并请求明确授权 |
+| `V2-SOLUTION-BASELINE` | G1 方案门；总括行，非执行卡 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | 不自行启动 runtime / 设备 / 服务器 / 生产代码 / G2 / 独立 QA / Release；不把 S6 历史 `PASS_WITH_P2`、network review 或任一静态证据写成当前 S6 re-approval / G1 PASS | `V2-D202` 仅授权 `L1`；D203 voice-pack / 后台锁屏条款保持；`V2-D204` 接受 engine strategy A 并关闭 Q05；`V2-D205` 接受方向 C，转入更小 Android 可行第二引擎重筛，Kokoro `zf_001` / `zm_010` 先静态门、MOSS 第二、ZipVoice `HOLD`。当前 `SMALL_ANDROID_SECOND_ENGINE_RESCAN / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`；S6 为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204`，D205 current revision 为 `D205_SCOPED_RECONFIRM_PASS`；每 future artifact change 仍须 fresh scoped review；Q03 Open、Q04 Closed/D201；L2/L3 locked | G1 总体只在第二引擎 exact archive / 许可 / notice / hash / runtime 门、exact profile、Q03 closure、后台 / 锁屏证据与完整闭包均通过后收口；当前总括行不得代签 | 任何新域名 / 权重 / archive 下载、把 D204/D205 解释为具体引擎已选、越权设备 / 账号 / 服务器 / runtime / 生产代码 / G2 / QA / Release、Q03 / Q05 / G1 状态漂移、证据不可复算时立即停止 |
+| `V2-G1-L1-EVIDENCE` | G1 `L1`；状态 `SMALL_ENGINE_STATIC_SHORTLIST_READY / D205_SCOPED_RECONFIRM_PASS / EXACT_ARCHIVE_DOWNLOAD_AUTH_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN` | 在 D203 voice-pack / 后台锁屏静态边界、D204 engine strategy A 与 D205 方向 C 上，扩大只读到 Android 阅读 App / TTS engine / 端侧开源实现，形成更小 Android arm64 第二引擎短名单和 exact 资产门 | ①不下载权重 / archive、不安装 / 逆向 APK、不运行推理 / 量化 / Gradle / ADB；②不触账号 / 服务器写 / 生产代码，不启动独立 QA / G2 / Release；③不把 D205 短名单解释为 engine/profile/voice 已选，不关闭 Q03，不把 smoke / metadata / App 宣传写成质量、runtime 或 G1 PASS | **当前 readiness = SMALL_ENGINE_STATIC_SHORTLIST_READY / D205_SCOPED_RECONFIRM_PASS / EXACT_ARCHIVE_DOWNLOAD_AUTH_REQUIRED**；D204 + D205 Accepted；Moon+ / FBReader / Librera 的官方或源码证据支持“阅读器 + 外部 TTS engine”形态，但 Aurorama 核心验收仍要求 bundled runtime。Kokoro v1.1-zh 的 `zf_001` sid3 / `zm_010` sid59 为第一静态门；发布包 metadata `364,855,331 B` / digest `b78e1ac4…aed`，archive 内容与逐文件 hash 未验。MOSS 第二：官方 Android smoke 仅预分词短句，13 LFS `762,666,636 B`，声线 / 训练数据权未闭合。ZipVoice `HOLD`：CC-BY-NC 且无 Android E2E。speaker58 / `zm_009`、Melo、AISHELL3 sid66 不复活；Q03 Open、G1 NOT_PASSED、runtime UNVERIFIED、L2/L3 LOCKED | voice-pack import append / idempotency / delete fallback / hidden restore 与后台 / 锁屏 / MediaSession 静态合同保持；exact engine/profile、archive、逐资产许可 / notice / hash 与 runtime 均未冻结；下一步需用户单独授权下载 Kokoro archive 或 MOSS 固定资产，才可做内容校验；推理与设备仍需后续授权 | 未获 exact 下载 / 推理 / 设备 / 账号 / 服务器写授权；重开 D204/D205、把候选排序写成质量排序、复活已否决默认声线、把 MOSS smoke 写成 Android runtime、申请 L2/L3 或关闭 Q03；出现 P0–P2、范围漂移、hash / manifest 不可复算时停止 |
 
 ## Review
 
 - `V2-G1-L1-EVIDENCE`：离线证据与 network artifact 子项均有历史独立 review；Sherpa
   `PASS_WITH_P2`、PDFium `PASS` 不代表 D204 后当前状态已复核。P1 ORT notice / provenance、
   P2 source tag→commit 以及 PDFium source / notice / runtime 缺口不由此关闭；Q03 仍 Open。
+- `V2-G1-L1-EVIDENCE` 本轮 fresh scoped evidence review：`CHANGES_REQUIRED`。已撤销未经
+  exact manifest 复算的下载体积，Ram / 首音 / RTF 保持未验证；四候选的相对工程复杂度仅为
+  hypothesis；`silence_scale` 是全局静区缩放，VITS 情感只能选模型已提供的情感槽。
+- `V2-G1-L1-EVIDENCE` D205 候选复审：`CHANGES_REQUIRED` 后已修正为 Kokoro 先、MOSS 二、
+  ZipVoice 许可 HOLD；MOSS 只能称 Android smoke，763MB 为两仓运行资产合计；Kokoro
+  先前“4 条样音”口径须按 archive / 最新 tree 复验，当前只固定 `zf_001` sid3 /
+  `zm_010` sid59，speaker58 / `zm_009` 继续否决；外部 TTS engine 的冲突是核心验收边界，
+  不等于完全不可集成。
+- `V2-G1-L1-EVIDENCE` D205 current docs/S6 revision fresh scoped review：`PASS / no findings`，
+  P0–P3=`0/0/0/0`；3 个权威 docs + 12 个 G1-S6 派生文件范围、manifest / LF / verifier
+  均通过。该 PASS 只表示静态文档与证据一致，不表示 G1、runtime、QA 或 Release PASS。
 
 ## Todo
 

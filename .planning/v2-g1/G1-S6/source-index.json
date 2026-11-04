@@ -1,25 +1,28 @@
 {
   "schema_version": "g1-s6-source-index/v1",
-  "status": "D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED / L2_L3_LOCKED",
+  "status": "D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED / L2_L3_LOCKED",
   "generated_on": "2026-11-04",
   "current_decision_state": {
     "d204": "ACCEPTED_ENGINE_STRATEGY_A",
+    "d205": "ACCEPTED_SMALL_ENGINE_RESCAN",
     "q05": "CLOSED_D204",
     "engine_strategy": "A_COMPAT_FALLBACK_PLUS_SECOND_ENGINE_SCOPE",
     "exact_engine": "UNSELECTED",
     "exact_profile": "OPEN",
     "sherpa_matcha": "COMPATIBILITY_FALLBACK_NOT_FROZEN",
+    "second_engine": "KOKORO_THEN_MOSS_STATIC_SHORTLIST",
     "q03": "OPEN",
     "g1": "NOT_PASSED",
     "runtime": "UNVERIFIED",
     "s6": "SCOPED_RECONFIRM_PASS_AFTER_D204",
+    "d205_review": "SCOPED_RECONFIRM_PASS",
     "l2_l3": "LOCKED"
   },
   "historical_review": {
     "status": "PASS_WITH_P2",
     "scope": "S6 before D203 rebuild and D204; Q05 was Open at review time",
     "current_reapproval": false,
-    "note": "The historical review remains Q05-Open context; the separate D204-after scoped documentation reconfirm is recorded as current PASS."
+    "note": "The historical review remains Q05-Open context. The D204-after scoped documentation reconfirm was the predecessor PASS; the D205 current revision has a separate fresh scoped reconfirm PASS with no findings. Neither review implies runtime, QA or release PASS."
   },
   "line_ending_policy": {
     "path": ".gitattributes",
@@ -135,17 +138,17 @@
         },
         {
           "start": 2537,
-          "end": 2714
+          "end": 2717
         }
       ],
-      "bytes": 606462,
-      "sha256": "D21F8A8CFDB353D9E73841D1410176370939B0C0738AC726F8D61C7567850631",
+      "bytes": 617395,
+      "sha256": "DB00A585C3F40C66D5DD769E5753C053C25FB348B723D6E78B26F4FA0BCEA637",
       "evidence_level": "human-readable authority / static input"
     },
     {
       "id": "DOC-V2-G1",
       "path": "docs/V2_PLAN.md",
-      "purpose": "G1 static evidence, Q03, R1 and ACTIVE handoff",
+      "purpose": "G1 static evidence, Q03, R1, D205 and ACTIVE handoff",
       "uses": [
         "E0–E7",
         "Q03",
@@ -153,20 +156,21 @@
         "Q04",
         "S6",
         "D203",
-        "D204"
+        "D204",
+        "D205"
       ],
       "line_ranges": [
         {
-          "start": 2715,
-          "end": 4202
+          "start": 2718,
+          "end": 4261
         },
         {
-          "start": 4203,
-          "end": 4547
+          "start": 4262,
+          "end": 4654
         }
       ],
-      "bytes": 606462,
-      "sha256": "D21F8A8CFDB353D9E73841D1410176370939B0C0738AC726F8D61C7567850631",
+      "bytes": 617395,
+      "sha256": "DB00A585C3F40C66D5DD769E5753C053C25FB348B723D6E78B26F4FA0BCEA637",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -179,11 +183,11 @@
       "line_ranges": [
         {
           "start": 1,
-          "end": 58
+          "end": 69
         }
       ],
-      "bytes": 12851,
-      "sha256": "DB3F9D0EE5A20F060FDCA384972549777A602F8AA1FC0371398F007ED3F3EFE3",
+      "bytes": 14401,
+      "sha256": "97D30A6DBC63E47840A990350DAD4093D59CE2DDE674B2D4B8053BA9E7AE563C",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -192,7 +196,7 @@
       "purpose": "accepted decisions, closed Q05 and open Q03",
       "uses": [
         "D057",
-        "D198–D204",
+        "D198–D205",
         "Q03",
         "Q05",
         "background / voice-pack TTS"
@@ -200,11 +204,11 @@
       "line_ranges": [
         {
           "start": 1,
-          "end": 406
+          "end": 447
         }
       ],
-      "bytes": 95542,
-      "sha256": "76D6C9B983332C15A374A0266C554F74A4B7FA9C3E5ABF7414CF468126C70870",
+      "bytes": 98852,
+      "sha256": "6F09130DE3AFE27FE933ABE70AAC67102D9475108D2EBF334982E23888968EDF",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -256,8 +260,8 @@
     "schema_version": "g1-s6-row-semantics/v2",
     "record_count": 460,
     "join_key": "promise_id",
-    "bytes": 1324525,
-    "sha256": "428E686C919C0DF7049CF6F5984DA267E9438E630ED1AEF36715049E5054C407",
+    "bytes": 1324638,
+    "sha256": "26B8905FC497E51D034756F1D94F587B07F07471DD8401B87EAD03F12C5D99A0",
     "authority": "Explicit static seed entries plus deterministic source-grounded action composition; every action excerpt is checked against its accepted V2_PLAN line and unresolved dimensions stay explicit gaps.",
     "verification_limit": "Mechanical checks cover schema, source anchors, coverage and known contradictions; natural-language equivalence requires scoped review."
   },
@@ -267,8 +271,8 @@
     "membership_record_count": 495,
     "row_wave_edge_count": 560,
     "join_key": "row_id",
-    "bytes": 323937,
-    "sha256": "A969A5A1954CF82035A10D64D06ECDDD150703412EC0A830014941EFCE646283",
+    "bytes": 324050,
+    "sha256": "243D6DA1AE6EEA5832756AD8FDECF8CB55C4C4EBAC27D2739AA7491D73BA90F1",
     "authority": "Explicit atomic row to one-or-more delivery-wave membership. The builder joins this table; it does not partition rows by order, hash or keywords.",
     "verification_limit": "Capability, entry, action and boundary tags are mechanically checked; natural-language completeness still requires independent scoped review."
   },
@@ -590,8 +594,8 @@
         "EV-S3"
       ],
       "exists": true,
-      "bytes_at_generation": 606462,
-      "sha256_at_generation": "D21F8A8CFDB353D9E73841D1410176370939B0C0738AC726F8D61C7567850631"
+      "bytes_at_generation": 617395,
+      "sha256_at_generation": "DB00A585C3F40C66D5DD769E5753C053C25FB348B723D6E78B26F4FA0BCEA637"
     },
     {
       "id": "EV-Q03-SBOM",
@@ -699,7 +703,7 @@
       "path": ".planning/v2-g1/G1-S6/acceptance-matrix.json",
       "kind": "S6 reviewed planning package",
       "level": "E0/planning",
-      "status": "S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED",
+      "status": "S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED",
       "can_prove": [
         "traceability, owner map, thresholds, risks and G2 input coverage",
         "external 445/376 preserved; D203 addendum 4 / normalized MVP 380"
