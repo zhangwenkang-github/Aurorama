@@ -12,11 +12,13 @@
   },
   "counts": {
     "external_acceptance_rows": 456,
+    "project_addendum_acceptance_rows": 4,
+    "normalized_acceptance_rows": 460,
     "base_must_groups": 5,
     "r1_cross_cutting_promises": 30,
-    "membership_records": 491,
-    "row_wave_edges": 554,
-    "multi_wave_memberships": 44
+    "membership_records": 495,
+    "row_wave_edges": 560,
+    "multi_wave_memberships": 45
   },
   "memberships": [
     {
@@ -3625,13 +3627,13 @@
         "INVENTORY_COMPONENT",
         "SOURCE_OFFER",
         "VERIFY_ATTESTATION",
-        "SELECT_ENGINE",
+        "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS",
         "SELECT_VOICE",
         "TTS_PLAY",
         "TTS_SYNC",
         "OFFLINE"
       ],
-      "reason": "入口“阅读器 TTS 控制条”的动作能力 Q03.ARTIFACT_INVENTORY, Q03.SOURCE_ATTESTATION, TTS.ENGINE_DECISION, TTS.OFFLINE_RUNTIME 与以下 wave 的具体 capability / boundary 合同相容：packaged artifact inventory；source offer and attestation；TTS engine and voice decision；offline TTS runtime。"
+      "reason": "入口“阅读器 TTS 控制条”的动作能力 Q03.ARTIFACT_INVENTORY, Q03.SOURCE_ATTESTATION, TTS.ENGINE_DECISION, TTS.OFFLINE_RUNTIME 与以下 wave 的具体 capability / boundary 合同相容：packaged artifact inventory；source offer and attestation；fixed TTS engine with exact voice-pack/license inputs；offline TTS runtime。"
     },
     {
       "row_id": "S6-P-READER-061",
@@ -3657,13 +3659,13 @@
         "INVENTORY_COMPONENT",
         "SOURCE_OFFER",
         "VERIFY_ATTESTATION",
-        "SELECT_ENGINE",
+        "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS",
         "SELECT_VOICE",
         "TTS_PLAY",
         "TTS_SYNC",
         "OFFLINE"
       ],
-      "reason": "入口“阅读器批注层与批注列表”的动作能力 Q03.ARTIFACT_INVENTORY, Q03.SOURCE_ATTESTATION, TTS.ENGINE_DECISION, TTS.OFFLINE_RUNTIME 与以下 wave 的具体 capability / boundary 合同相容：packaged artifact inventory；source offer and attestation；TTS engine and voice decision；offline TTS runtime。"
+      "reason": "入口“阅读器批注层与批注列表”的动作能力 Q03.ARTIFACT_INVENTORY, Q03.SOURCE_ATTESTATION, TTS.ENGINE_DECISION, TTS.OFFLINE_RUNTIME 与以下 wave 的具体 capability / boundary 合同相容：packaged artifact inventory；source offer and attestation；fixed TTS engine with exact voice-pack/license inputs；offline TTS runtime。"
     },
     {
       "row_id": "S6-P-READER-062",
@@ -3689,13 +3691,13 @@
         "INVENTORY_COMPONENT",
         "SOURCE_OFFER",
         "VERIFY_ATTESTATION",
-        "SELECT_ENGINE",
+        "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS",
         "SELECT_VOICE",
         "TTS_PLAY",
         "TTS_SYNC",
         "OFFLINE"
       ],
-      "reason": "入口“阅读器 TTS 控制条”的动作能力 Q03.ARTIFACT_INVENTORY, Q03.SOURCE_ATTESTATION, TTS.ENGINE_DECISION, TTS.OFFLINE_RUNTIME 与以下 wave 的具体 capability / boundary 合同相容：packaged artifact inventory；source offer and attestation；TTS engine and voice decision；offline TTS runtime。"
+      "reason": "入口“阅读器 TTS 控制条”的动作能力 Q03.ARTIFACT_INVENTORY, Q03.SOURCE_ATTESTATION, TTS.ENGINE_DECISION, TTS.OFFLINE_RUNTIME 与以下 wave 的具体 capability / boundary 合同相容：packaged artifact inventory；source offer and attestation；fixed TTS engine with exact voice-pack/license inputs；offline TTS runtime。"
     },
     {
       "row_id": "S6-P-READER-063",
@@ -3721,13 +3723,13 @@
         "INVENTORY_COMPONENT",
         "SOURCE_OFFER",
         "VERIFY_ATTESTATION",
-        "SELECT_ENGINE",
+        "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS",
         "SELECT_VOICE",
         "TTS_PLAY",
         "TTS_SYNC",
         "OFFLINE"
       ],
-      "reason": "入口“阅读器 TTS 控制条”的动作能力 Q03.ARTIFACT_INVENTORY, Q03.SOURCE_ATTESTATION, TTS.ENGINE_DECISION, TTS.OFFLINE_RUNTIME 与以下 wave 的具体 capability / boundary 合同相容：packaged artifact inventory；source offer and attestation；TTS engine and voice decision；offline TTS runtime。"
+      "reason": "入口“阅读器 TTS 控制条”的动作能力 Q03.ARTIFACT_INVENTORY, Q03.SOURCE_ATTESTATION, TTS.ENGINE_DECISION, TTS.OFFLINE_RUNTIME 与以下 wave 的具体 capability / boundary 合同相容：packaged artifact inventory；source offer and attestation；fixed TTS engine with exact voice-pack/license inputs；offline TTS runtime。"
     },
     {
       "row_id": "S6-P-READER-064",
@@ -10067,6 +10069,115 @@
         "A11Y"
       ],
       "reason": "入口“设计 / 实现 / 审查入口”的动作能力 UI.TOKEN_THEME, UI.A11Y_MOTION 与以下 wave 的具体 capability / boundary 合同相容：tokens and themes；accessibility and motion。"
+    },
+    {
+      "row_id": "S6-P-READER-087",
+      "wave_ids": [
+        "G2-READER-TTS-GATED-W3"
+      ],
+      "protocol": "PRIMARY_WAVE",
+      "source_capabilities": [
+        "TTS.BACKGROUND_SESSION"
+      ],
+      "source_capability": "TTS.BACKGROUND_SESSION",
+      "entry_tags": [
+        "READER_TTS",
+        "MEDIA_SESSION"
+      ],
+      "action_tags": [
+        "TTS_PLAY",
+        "TTS_PAUSE",
+        "TTS_PREVIOUS_SENTENCE",
+        "TTS_NEXT_SENTENCE",
+        "TTS_STOP",
+        "RESTORE_STATE"
+      ],
+      "reason": "D203 background TTS owner, lockscreen controls, MediaSession equality and restart-paused recovery are explicitly bound to the background-session wave."
+    },
+    {
+      "row_id": "S6-P-READER-088",
+      "wave_ids": [
+        "G2-Q03-SUPPLY-CHAIN-GATED-W1",
+        "G2-Q03-SUPPLY-CHAIN-GATED-W2",
+        "G2-READER-TTS-GATED-W4"
+      ],
+      "protocol": "MULTI_WAVE_CROSS_CUTTING",
+      "source_capabilities": [
+        "Q03.ARTIFACT_INVENTORY",
+        "Q03.SOURCE_ATTESTATION",
+        "TTS.VOICE_CATALOG",
+        "TTS.VOICE_IMPORT",
+        "TTS.VOICE_SELECTION"
+      ],
+      "source_capability": "TTS.VOICE_CATALOG",
+      "entry_tags": [
+        "ARTIFACT",
+        "READER_TTS",
+        "VOICE_SETTINGS"
+      ],
+      "action_tags": [
+        "INVENTORY_COMPONENT",
+        "MAP_NOTICE",
+        "SOURCE_OFFER",
+        "VERIFY_ATTESTATION",
+        "IMPORT_VOICE",
+        "SELECT_VOICE",
+        "OVERRIDE_BOOK_VOICE",
+        "DEDUPLICATE_PROFILE"
+      ],
+      "reason": "D203 voice-pack catalog and append-only import require both packaged asset provenance and the explicit catalog/import/selection wave."
+    },
+    {
+      "row_id": "S6-P-READER-089",
+      "wave_ids": [
+        "G2-READER-TTS-GATED-W5"
+      ],
+      "protocol": "PRIMARY_WAVE",
+      "source_capabilities": [
+        "TTS.VOICE_DELETE",
+        "TTS.VOICE_FALLBACK"
+      ],
+      "source_capability": "TTS.VOICE_DELETE",
+      "entry_tags": [
+        "READER_TTS",
+        "VOICE_SETTINGS"
+      ],
+      "action_tags": [
+        "DELETE_VOICE",
+        "HIDE_BUILTIN_VOICE",
+        "RESTORE_BUILTIN_VOICE",
+        "FALLBACK_VOICE",
+        "CLEAN_REFERENCES",
+        "RETRY_DELETE"
+      ],
+      "reason": "D203 import deletion, built-in hidden restore, active fallback, reference cleanup and pending-retry semantics are explicitly bound to the delete wave."
+    },
+    {
+      "row_id": "S6-P-READER-090",
+      "wave_ids": [
+        "G2-READER-TTS-GATED-W6"
+      ],
+      "protocol": "PRIMARY_WAVE",
+      "source_capabilities": [
+        "TTS.AUDIO_OWNER",
+        "TTS.AUDIO_FOCUS",
+        "TTS.RESTART_RECOVERY"
+      ],
+      "source_capability": "TTS.AUDIO_OWNER",
+      "entry_tags": [
+        "READER_TTS",
+        "MEDIA_SESSION",
+        "MUSIC"
+      ],
+      "action_tags": [
+        "START_TTS",
+        "PAUSE_MUSIC",
+        "STOP_TTS",
+        "AUDIO_FOCUS",
+        "NOISY",
+        "RESTORE_STATE"
+      ],
+      "reason": "D203 single audio owner, music/TTS arbitration, focus/noisy and restart convergence are explicitly bound to the audio-arbitration wave."
     },
     {
       "row_id": "R1-DYNAMIC-COLOR-EXCLUSION",

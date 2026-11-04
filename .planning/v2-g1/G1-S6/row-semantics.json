@@ -5015,7 +5015,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1101,
+        "line": 1117,
         "requirement_id": "V2-REQ-READER-001",
         "excerpt": "设计 / 选型能列出参考用途与不可复制边界"
       },
@@ -5060,7 +5060,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1102,
+        "line": 1118,
         "requirement_id": "V2-REQ-READER-002",
         "excerpt": "EPUB 可打开、翻页、换设置后不丢位置"
       },
@@ -5105,7 +5105,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1103,
+        "line": 1119,
         "requirement_id": "V2-REQ-READER-003",
         "excerpt": "TXT 可从本地入架、分页 / 滚动、恢复位置"
       },
@@ -5150,7 +5150,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1104,
+        "line": 1120,
         "requirement_id": "V2-REQ-READER-004",
         "excerpt": "PDF 可打开、翻页、搜索或明确无文本层"
       },
@@ -5195,7 +5195,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1105,
+        "line": 1121,
         "requirement_id": "V2-REQ-READER-005",
         "excerpt": "既有 CBZ 测试书与真实入口继续可读"
       },
@@ -5240,7 +5240,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1106,
+        "line": 1122,
         "requirement_id": "V2-REQ-READER-006",
         "excerpt": "后续可从受控来源打开 HTML 并恢复位置"
       },
@@ -5285,7 +5285,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1107,
+        "line": 1123,
         "requirement_id": "V2-REQ-READER-007",
         "excerpt": "后续可阅读 FB2 并保留目录与位置"
       },
@@ -5330,7 +5330,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1108,
+        "line": 1124,
         "requirement_id": "V2-REQ-READER-008",
         "excerpt": "2.0 不出现伪支持入口"
       },
@@ -5375,7 +5375,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1109,
+        "line": 1125,
         "requirement_id": "V2-REQ-READER-009",
         "excerpt": "2.0 明确不支持并在打开失败时解释"
       },
@@ -5420,7 +5420,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1110,
+        "line": 1126,
         "requirement_id": "V2-REQ-READER-010",
         "excerpt": "同一 item 从书架 / 搜索 / 首页进入同一本书与进度"
       },
@@ -5465,7 +5465,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1111,
+        "line": 1127,
         "requirement_id": "V2-REQ-READER-011",
         "excerpt": "用户在既有本地库选书即可读，来源可见"
       },
@@ -5510,7 +5510,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1112,
+        "line": 1128,
         "requirement_id": "V2-REQ-READER-012",
         "excerpt": "飞行模式下核心阅读闭环成立"
       },
@@ -5555,7 +5555,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1113,
+        "line": 1129,
         "requirement_id": "V2-REQ-READER-013",
         "excerpt": "用户一次完成选文件、看到书籍和可读状态"
       },
@@ -5600,7 +5600,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1114,
+        "line": 1130,
         "requirement_id": "V2-REQ-READER-014",
         "excerpt": "同名书、同 item 异源不串进度或批注"
       },
@@ -5646,7 +5646,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1115,
+        "line": 1131,
         "requirement_id": "V2-REQ-READER-015",
         "excerpt": "用户看到可执行失败原因，不出现黑屏或假空态"
       },
@@ -5691,7 +5691,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1116,
+        "line": 1132,
         "requirement_id": "V2-REQ-READER-016",
         "excerpt": "进入阅读页后正文成为唯一主视觉焦点"
       },
@@ -5736,7 +5736,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1117,
+        "line": 1133,
         "requirement_id": "V2-REQ-READER-017",
         "excerpt": "单击即可在专注与控制间切换"
       },
@@ -5781,7 +5781,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1118,
+        "line": 1134,
         "requirement_id": "V2-REQ-READER-018",
         "excerpt": "目录、书签、搜索、设置不挤占顶栏"
       },
@@ -5826,7 +5826,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1119,
+        "line": 1135,
         "requirement_id": "V2-REQ-READER-019",
         "excerpt": "高频操作在屏幕下半部分单手可达"
       },
@@ -5872,7 +5872,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1120,
+        "line": 1136,
         "requirement_id": "V2-REQ-READER-020",
         "excerpt": "横屏 / 大字号下面板不截断"
       },
@@ -5918,7 +5918,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1121,
+        "line": 1137,
         "requirement_id": "V2-REQ-READER-021",
         "excerpt": "旋转或分屏后切换布局但保持文本位置"
       },
@@ -5965,7 +5965,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1122,
+        "line": 1138,
         "requirement_id": "V2-REQ-READER-022",
         "excerpt": "旋转、折叠、分屏不丢当前段落"
       },
@@ -6011,7 +6011,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1123,
+        "line": 1139,
         "requirement_id": "V2-REQ-READER-023",
         "excerpt": "TalkBack / 键盘 / 减少动画下核心阅读仍完整"
       },
@@ -6056,7 +6056,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1124,
+        "line": 1140,
         "requirement_id": "V2-REQ-READER-024",
         "excerpt": "同一段落保持在视口中"
       },
@@ -6101,7 +6101,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1125,
+        "line": 1141,
         "requirement_id": "V2-REQ-READER-025",
         "excerpt": "用户可选择，减少动画下直接切换"
       },
@@ -6146,7 +6146,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1126,
+        "line": 1142,
         "requirement_id": "V2-REQ-READER-026",
         "excerpt": "用户可在设置中明确选择翻页方式"
       },
@@ -6191,7 +6191,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1127,
+        "line": 1143,
         "requirement_id": "V2-REQ-READER-027",
         "excerpt": "开启后音量键改变页，不改变系统媒体音量"
       },
@@ -6236,7 +6236,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1128,
+        "line": 1144,
         "requirement_id": "V2-REQ-READER-028",
         "excerpt": "长文可连续阅读，进度不退回章节内局部百分比"
       },
@@ -6281,7 +6281,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1129,
+        "line": 1145,
         "requirement_id": "V2-REQ-READER-029",
         "excerpt": "后续可开启、暂停、调整间隔 / 速度并始终显示自动状态"
       },
@@ -6326,7 +6326,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1130,
+        "line": 1146,
         "requirement_id": "V2-REQ-READER-030",
         "excerpt": "分页稳定、不会与缩放手势互抢"
       },
@@ -6371,7 +6371,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1131,
+        "line": 1147,
         "requirement_id": "V2-REQ-READER-031",
         "excerpt": "二次打开不重复全量分页"
       },
@@ -6416,7 +6416,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1132,
+        "line": 1148,
         "requirement_id": "V2-REQ-READER-032",
         "excerpt": "调整设置不跳回章首或第一页"
       },
@@ -6462,7 +6462,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1133,
+        "line": 1149,
         "requirement_id": "V2-REQ-READER-033",
         "excerpt": "既有漫画 / PDF 阅读不回归，预设切换后页与缩放语义稳定"
       },
@@ -6507,7 +6507,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1134,
+        "line": 1150,
         "requirement_id": "V2-REQ-READER-034",
         "excerpt": "用户连续调参时正文保持可见"
       },
@@ -6552,7 +6552,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1135,
+        "line": 1151,
         "requirement_id": "V2-REQ-READER-035",
         "excerpt": "用户能明确看到并恢复当前字体状态"
       },
@@ -6597,7 +6597,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1136,
+        "line": 1152,
         "requirement_id": "V2-REQ-READER-036",
         "excerpt": "设置项对支持内容真实生效"
       },
@@ -6642,7 +6642,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1137,
+        "line": 1153,
         "requirement_id": "V2-REQ-READER-037",
         "excerpt": "长文在手机 / 平板上都可形成可读版心"
       },
@@ -6687,7 +6687,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1138,
+        "line": 1154,
         "requirement_id": "V2-REQ-READER-038",
         "excerpt": "五套主题稳定切换且外框服从 App 主题"
       },
@@ -6732,7 +6732,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1139,
+        "line": 1155,
         "requirement_id": "V2-REQ-READER-039",
         "excerpt": "2.0 不出现任意颜色编辑器"
       },
@@ -6777,7 +6777,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1140,
+        "line": 1156,
         "requirement_id": "V2-REQ-READER-040",
         "excerpt": "手势后显示真实百分比，离开页面恢复原窗口亮度"
       },
@@ -6797,10 +6797,10 @@
       "subitem_id": "READER-041",
       "domain": "READER",
       "user_promise": "ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书",
-      "entry": "阅读器正文与阅读设置",
+      "entry": "阅读器 TTS 控制条",
       "entry_status": "SOURCE_GROUNDED",
-      "operation": "用户在阅读器正文与阅读设置，选择并验证“ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书”；应观察到：重启保留阅读偏好，切 App 主题不丢位置",
-      "operation_source_excerpt": "ReaderSettings 按设备持久化",
+      "operation": "用户在阅读器 TTS 控制条，选择并验证“ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书；权威源片段：显示类 ReaderSettings 按设备持久化；原子子项：显示类 ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书。朗读音色是 的明确例外，支持全局默认与逐书覆盖”；应观察到：重启保留阅读偏好，切 App 主题不丢位置；逐书切换朗读音色不改变其他显示设置",
+      "operation_source_excerpt": "显示类 ReaderSettings 按设备持久化",
       "semantic_basis": "EXPLICIT_ROW_RECORD",
       "states_accessibility_rwd": {
         "record_id": "S6-P-READER-041",
@@ -6822,19 +6822,19 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1141,
+        "line": 1157,
         "requirement_id": "V2-REQ-READER-041",
-        "excerpt": "重启保留阅读偏好，切 App 主题不丢位置"
+        "excerpt": "重启保留阅读偏好，切 App 主题不丢位置；逐书切换朗读音色不改变其他显示设置"
       },
       "missing_reason": "权威源未明确枚举以下维度：无障碍、RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。",
       "actor": "用户",
-      "entry_surface": "阅读器正文与阅读设置",
+      "entry_surface": "阅读器 TTS 控制条",
       "action_verb": "选择并验证",
-      "action_object": "ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书",
-      "expected_response": "重启保留阅读偏好，切 App 主题不丢位置",
+      "action_object": "ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书；权威源片段：显示类 ReaderSettings 按设备持久化；原子子项：显示类 ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书。朗读音色是 的明确例外，支持全局默认与逐书覆盖",
+      "expected_response": "重启保留阅读偏好，切 App 主题不丢位置；逐书切换朗读音色不改变其他显示设置",
       "operation_mode": "USER_ACTION",
-      "action_source_excerpt": "ReaderSettings 按设备持久化",
-      "atomic_promise": "ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书"
+      "action_source_excerpt": "显示类 ReaderSettings 按设备持久化",
+      "atomic_promise": "显示类 ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书。朗读音色是 D203 的明确例外，支持全局默认与逐书覆盖"
     },
     {
       "promise_id": "S6-P-READER-042",
@@ -6867,7 +6867,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1142,
+        "line": 1158,
         "requirement_id": "V2-REQ-READER-042",
         "excerpt": "EPUB/TXT/PDF/CBZ 按真实 TOC 或页序列展示，缺失时明确说明"
       },
@@ -6912,7 +6912,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1143,
+        "line": 1159,
         "requirement_id": "V2-REQ-READER-043",
         "excerpt": "用户可识别读过章节且状态与进度一致"
       },
@@ -6957,7 +6957,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1144,
+        "line": 1160,
         "requirement_id": "V2-REQ-READER-044",
         "excerpt": "松手前可判断落点，松手后准确跳转"
       },
@@ -7002,7 +7002,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1145,
+        "line": 1161,
         "requirement_id": "V2-REQ-READER-045",
         "excerpt": "快捷操作后时间点与反馈明确"
       },
@@ -7047,7 +7047,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1146,
+        "line": 1162,
         "requirement_id": "V2-REQ-READER-046",
         "excerpt": "所有支持格式都能从书签准确回到原处；标记缺失不影响书签管理"
       },
@@ -7092,7 +7092,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1146,
+        "line": 1162,
         "requirement_id": "V2-REQ-READER-046",
         "excerpt": "所有支持格式都能从书签准确回到原处；标记缺失不影响书签管理"
       },
@@ -7137,7 +7137,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1147,
+        "line": 1163,
         "requirement_id": "V2-REQ-READER-047",
         "excerpt": "不用双击或无法双击的用户仍可管理书签"
       },
@@ -7183,7 +7183,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1148,
+        "line": 1164,
         "requirement_id": "V2-REQ-READER-048",
         "excerpt": "换字号后页码可变，但重开仍回原段落"
       },
@@ -7228,7 +7228,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1149,
+        "line": 1165,
         "requirement_id": "V2-REQ-READER-049",
         "excerpt": "选择文本后工具在手指附近出现"
       },
@@ -7273,7 +7273,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1150,
+        "line": 1166,
         "requirement_id": "V2-REQ-READER-050",
         "excerpt": "用户选中文本后能完成主要标注动作"
       },
@@ -7318,7 +7318,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1151,
+        "line": 1167,
         "requirement_id": "V2-REQ-READER-051",
         "excerpt": "未配置服务时入口不伪造可用"
       },
@@ -7363,7 +7363,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1152,
+        "line": 1168,
         "requirement_id": "V2-REQ-READER-052",
         "excerpt": "颜色跨版本稳定，编辑后锚点不变"
       },
@@ -7408,7 +7408,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1153,
+        "line": 1169,
         "requirement_id": "V2-REQ-READER-053",
         "excerpt": "字号 / 行距 / 双栏变化后批注仍对原文本；跨章定位不串到相邻章节"
       },
@@ -7453,7 +7453,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1154,
+        "line": 1170,
         "requirement_id": "V2-REQ-READER-054",
         "excerpt": "PDF 批注在重进、缩放、旋转后位置一致"
       },
@@ -7498,7 +7498,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1155,
+        "line": 1171,
         "requirement_id": "V2-REQ-READER-055",
         "excerpt": "漫画页可框选批注，入口明确"
       },
@@ -7544,7 +7544,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1156,
+        "line": 1172,
         "requirement_id": "V2-REQ-READER-056",
         "excerpt": "后续导出不需破坏性迁移；当前批注读写不丢失导出所需来源"
       },
@@ -7589,7 +7589,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1156,
+        "line": 1172,
         "requirement_id": "V2-REQ-READER-056",
         "excerpt": "后续导出不需破坏性迁移；当前批注读写不丢失导出所需来源"
       },
@@ -7634,7 +7634,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1157,
+        "line": 1173,
         "requirement_id": "V2-REQ-READER-057",
         "excerpt": "大书搜索可停止，跳转命中准确"
       },
@@ -7679,7 +7679,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1157,
+        "line": 1173,
         "requirement_id": "V2-REQ-READER-057",
         "excerpt": "大书搜索可停止，跳转命中准确"
       },
@@ -7724,7 +7724,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1158,
+        "line": 1174,
         "requirement_id": "V2-REQ-READER-058",
         "excerpt": "用户知道“没有结果”与“不能搜索”的区别"
       },
@@ -7770,7 +7770,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1159,
+        "line": 1175,
         "requirement_id": "V2-REQ-READER-059",
         "excerpt": "重启 / 断网后笔记仍在，坏文件有可解释降级"
       },
@@ -7792,8 +7792,8 @@
       "user_promise": "EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态",
       "entry": "阅读器 TTS 控制条",
       "entry_status": "SOURCE_GROUNDED",
-      "operation": "用户在阅读器 TTS 控制条，打开并控制播放“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态”；应观察到：无网可开始、暂停、跳句、调速并收起控制条",
-      "operation_source_excerpt": "EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS",
+      "operation": "交付负责人在阅读器 TTS 控制条审查并核对证据与契约“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession”；交付证据应显示：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读",
+      "operation_source_excerpt": "EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS",
       "semantic_basis": "EXPLICIT_ROW_RECORD",
       "states_accessibility_rwd": {
         "record_id": "S6-P-READER-060",
@@ -7816,19 +7816,19 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1160,
+        "line": 1176,
         "requirement_id": "V2-REQ-READER-060",
-        "excerpt": "无网可开始、暂停、跳句、调速并收起控制条"
+        "excerpt": "无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读"
       },
       "missing_reason": "权威源未明确枚举以下维度：无障碍、RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。",
-      "actor": "用户",
+      "actor": "交付负责人",
       "entry_surface": "阅读器 TTS 控制条",
-      "action_verb": "打开并控制播放",
-      "action_object": "EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态",
-      "expected_response": "无网可开始、暂停、跳句、调速并收起控制条",
-      "operation_mode": "USER_ACTION",
-      "action_source_excerpt": "EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS",
-      "atomic_promise": "EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态"
+      "action_verb": "核对证据与契约",
+      "action_object": "EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession",
+      "expected_response": "无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读",
+      "operation_mode": "ENGINEERING_CHECK",
+      "action_source_excerpt": "EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS",
+      "atomic_promise": "EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession"
     },
     {
       "promise_id": "S6-P-READER-061",
@@ -7862,7 +7862,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1161,
+        "line": 1177,
         "requirement_id": "V2-REQ-READER-061",
         "excerpt": "听觉与视觉位置始终一致，暂停策略可预期"
       },
@@ -7907,7 +7907,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1162,
+        "line": 1178,
         "requirement_id": "V2-REQ-READER-062",
         "excerpt": "计时到点停止且状态可解释"
       },
@@ -7952,7 +7952,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1163,
+        "line": 1179,
         "requirement_id": "V2-REQ-READER-063",
         "excerpt": "不支持设备不出现静默假成功"
       },
@@ -7997,7 +7997,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1164,
+        "line": 1180,
         "requirement_id": "V2-REQ-READER-064",
         "excerpt": "导入后书架信息完整且可打开"
       },
@@ -8042,7 +8042,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1165,
+        "line": 1181,
         "requirement_id": "V2-REQ-READER-065",
         "excerpt": "用户能跳章；编码或自定义规则错误不损坏原文"
       },
@@ -8087,7 +8087,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1166,
+        "line": 1182,
         "requirement_id": "V2-REQ-READER-066",
         "excerpt": "三处入口同一本书显示一致进度"
       },
@@ -8132,7 +8132,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1167,
+        "line": 1183,
         "requirement_id": "V2-REQ-READER-067",
         "excerpt": "用户看到真实可逆作用域，不误删服务器媒体"
       },
@@ -8177,7 +8177,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1168,
+        "line": 1184,
         "requirement_id": "V2-REQ-READER-068",
         "excerpt": "同名、同 item 异源或不同 MediaSource 数据隔离"
       },
@@ -8222,7 +8222,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1169,
+        "line": 1185,
         "requirement_id": "V2-REQ-READER-069",
         "excerpt": "上层无需按具体引擎散落判断"
       },
@@ -8268,7 +8268,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1170,
+        "line": 1186,
         "requirement_id": "V2-REQ-READER-070",
         "excerpt": "阅读页、书架、服务端同步读到同一语义位置"
       },
@@ -8313,7 +8313,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1171,
+        "line": 1187,
         "requirement_id": "V2-REQ-READER-071",
         "excerpt": "设置变化不会留下旧分页 / 错页"
       },
@@ -8358,7 +8358,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1172,
+        "line": 1188,
         "requirement_id": "V2-REQ-READER-072",
         "excerpt": "force-stop / 重启后回到同一段"
       },
@@ -8404,7 +8404,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1173,
+        "line": 1189,
         "requirement_id": "V2-REQ-READER-073",
         "excerpt": "断网可继续，联网后同步不回退，跨界面数值一致"
       },
@@ -8450,7 +8450,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1174,
+        "line": 1190,
         "requirement_id": "V2-REQ-READER-074",
         "excerpt": "状态徽标不把流式、下载和离线混成一个假状态"
       },
@@ -8496,7 +8496,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1175,
+        "line": 1191,
         "requirement_id": "V2-REQ-READER-075",
         "excerpt": "用户几分钟内能判断失败原因"
       },
@@ -8541,7 +8541,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1176,
+        "line": 1192,
         "requirement_id": "V2-REQ-READER-076",
         "excerpt": "换格式或新增能力时组件可替换，模块依赖检查证明无需重写整套阅读页"
       },
@@ -8586,7 +8586,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1177,
+        "line": 1193,
         "requirement_id": "V2-REQ-READER-077",
         "excerpt": "未启用能力不新增核心依赖；G1 相对基线记录冷启动与包体成本"
       },
@@ -8632,7 +8632,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1178,
+        "line": 1194,
         "requirement_id": "V2-REQ-READER-078",
         "excerpt": "大书打开期间 UI 可返回、可重试"
       },
@@ -8677,7 +8677,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1179,
+        "line": 1195,
         "requirement_id": "V2-REQ-READER-079",
         "excerpt": "重复打开不每次全量分页"
       },
@@ -8722,7 +8722,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1180,
+        "line": 1196,
         "requirement_id": "V2-REQ-READER-080",
         "excerpt": "弱网翻页不因 UserData 请求卡顿"
       },
@@ -8767,7 +8767,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1181,
+        "line": 1197,
         "requirement_id": "V2-REQ-READER-081",
         "excerpt": "未下载 PDF 可先出页，流量不随整本无限增长"
       },
@@ -8812,7 +8812,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1182,
+        "line": 1198,
         "requirement_id": "V2-REQ-READER-082",
         "excerpt": "不用触摸也能完成打开、翻页、退出"
       },
@@ -8857,7 +8857,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1183,
+        "line": 1199,
         "requirement_id": "V2-REQ-READER-083",
         "excerpt": "200% 字体、TalkBack 与减少动画下可读可用"
       },
@@ -8879,7 +8879,7 @@
       "user_promise": "大书内存不随页数增长；离页取消网络 / 搜索 / TTS；进程重建可恢复；核心链路 0 FATAL / ANR / Input timeout",
       "entry": "书架 → 打开书籍 → 阅读器搜索",
       "entry_status": "SOURCE_GROUNDED",
-      "operation": "用户在书架 → 打开书籍 → 阅读器搜索，输入查询并打开结果“大书内存不随页数增长；离页取消网络 / 搜索 / TTS；进程重建可恢复；核心链路 0 FATAL / ANR / Input timeout”；应观察到：5000 页级大书、弱网、force-stop / 重启与中断场景无崩溃或假死",
+      "operation": "交付负责人在书架 → 打开书籍 → 阅读器搜索审查并核对证据与契约“大书内存不随页数增长；离页取消网络 / 搜索 / TTS；进程重建可恢复；核心链路 0 FATAL / ANR / Input timeout；原子子项：大书内存不随页数增长；离开阅读页只取消页面级网络 / 搜索任务，不取消由 service owner 持有的 TTS；进程重建可恢复阅读与暂停态；核心链路 0 FATAL / ANR / Input timeout”；交付证据应显示：5000 页级大书、弱网、离页后台、force-stop / 重启与中断场景无崩溃或假死，后台 TTS 不被页面销毁误杀",
       "operation_source_excerpt": "大书内存不随页数增长",
       "semantic_basis": "EXPLICIT_ROW_RECORD",
       "states_accessibility_rwd": {
@@ -8903,19 +8903,19 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1184,
+        "line": 1200,
         "requirement_id": "V2-REQ-READER-084",
-        "excerpt": "5000 页级大书、弱网、force-stop / 重启与中断场景无崩溃或假死"
+        "excerpt": "5000 页级大书、弱网、离页后台、force-stop / 重启与中断场景无崩溃或假死，后台 TTS 不被页面销毁误杀"
       },
       "missing_reason": "权威源未明确枚举以下维度：无障碍、RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。",
-      "actor": "用户",
+      "actor": "交付负责人",
       "entry_surface": "书架 → 打开书籍 → 阅读器搜索",
-      "action_verb": "输入查询并打开结果",
-      "action_object": "大书内存不随页数增长；离页取消网络 / 搜索 / TTS；进程重建可恢复；核心链路 0 FATAL / ANR / Input timeout",
-      "expected_response": "5000 页级大书、弱网、force-stop / 重启与中断场景无崩溃或假死",
-      "operation_mode": "USER_ACTION",
+      "action_verb": "核对证据与契约",
+      "action_object": "大书内存不随页数增长；离页取消网络 / 搜索 / TTS；进程重建可恢复；核心链路 0 FATAL / ANR / Input timeout；原子子项：大书内存不随页数增长；离开阅读页只取消页面级网络 / 搜索任务，不取消由 service owner 持有的 TTS；进程重建可恢复阅读与暂停态；核心链路 0 FATAL / ANR / Input timeout",
+      "expected_response": "5000 页级大书、弱网、离页后台、force-stop / 重启与中断场景无崩溃或假死，后台 TTS 不被页面销毁误杀",
+      "operation_mode": "ENGINEERING_CHECK",
       "action_source_excerpt": "大书内存不随页数增长",
-      "atomic_promise": "大书内存不随页数增长；离页取消网络 / 搜索 / TTS；进程重建可恢复；核心链路 0 FATAL / ANR / Input timeout"
+      "atomic_promise": "大书内存不随页数增长；离开阅读页只取消页面级网络 / 搜索任务，不取消由 service owner 持有的 TTS；进程重建可恢复阅读与暂停态；核心链路 0 FATAL / ANR / Input timeout"
     },
     {
       "promise_id": "S6-P-READER-085",
@@ -8949,7 +8949,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1185,
+        "line": 1201,
         "requirement_id": "V2-REQ-READER-085",
         "excerpt": "无网仍能完成核心闭环，诊断数据只留本地"
       },
@@ -8994,7 +8994,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.4.5",
-        "line": 1186,
+        "line": 1202,
         "requirement_id": "V2-REQ-READER-086",
         "excerpt": "最终等级和 MVP 不再自相矛盾"
       },
@@ -9007,6 +9007,194 @@
       "operation_mode": "ENGINEERING_CHECK",
       "action_source_excerpt": "外部“所有核心模块 P0”与末尾“MVP 只取子集，其余 P1”冲突",
       "atomic_promise": "外部“所有核心模块 P0”与末尾“MVP 只取子集，其余 P1”冲突；用户已选择范围权威"
+    },
+    {
+      "promise_id": "S6-P-READER-087",
+      "requirement_id": "V2-REQ-READER-087",
+      "source_origin": "PROJECT_G0_ADDENDUM",
+      "counted_in_external_445": false,
+      "counted_in_external_376": false,
+      "user_promise": "TTS 由进程 / 前台 service owner 持有：正常后台与锁屏继续朗读，Activity / ViewModel 销毁不终止；进程死亡 / 重启不自动播放，只恢复暂停态与最后稳定句子，恢复前校验 pack。锁屏 / 通知提供播放 / 暂停、上一句 / 下一句与停止，不做伪造时间 seek；通知、UI、锁屏与系统控制必须与真实播放状态一致",
+      "entry": "阅读器 TTS 控制条 / 锁屏 / 系统媒体控制",
+      "semantic_source_anchor": {
+        "path": "docs/V2_PLAN.md",
+        "section": "docs/V2_PLAN.md §5.4.5",
+        "line": 1203,
+        "requirement_id": "V2-REQ-READER-087",
+        "excerpt": "离开阅读页、后台与锁屏可连续朗读；Activity / ViewModel 销毁不停止；进程死亡 / 重启保持暂停并恢复最后稳定句子且先校验 pack；通知、UI、锁屏与 MediaSession 真实状态一致"
+      },
+      "actor": "用户",
+      "entry_surface": "阅读器 TTS 控制条 / 锁屏 / 系统媒体控制",
+      "entry_status": "SOURCE_GROUNDED",
+      "action_verb": "核对后台锁屏 TTS 生命周期",
+      "action_object": "后台 / 锁屏 TTS 生命周期、通知与 MediaSession 真值：TTS 由进程 / 前台 service owner 持有：正常后台与锁屏继续朗读，Activity / ViewModel 销毁不终止；进程死亡 / 重启不自动播放，只恢复暂停态与最后稳定句子，恢复前校验 pack。锁屏 / 通知提供播放 / 暂停、上一句 / 下一句与停止，不做伪造时间 seek；通知、UI、锁屏与系统控制必须与真实播放状态一致",
+      "expected_response": "离开阅读页、后台与锁屏可连续朗读；Activity / ViewModel 销毁不停止；进程死亡 / 重启保持暂停并恢复最后稳定句子且先校验 pack；通知、UI、锁屏与 MediaSession 真实状态一致",
+      "operation_mode": "STATE_AUDIT",
+      "action_source_excerpt": "TTS 由进程 / 前台 service owner 持有：正常后台与锁屏继续朗读，Activity / ViewModel 销毁不终止",
+      "operation_source_excerpt": "TTS 由进程 / 前台 service owner 持有：正常后台与锁屏继续朗读，Activity / ViewModel 销毁不终止",
+      "operation": "用户从阅读器 TTS 控制条 / 锁屏 / 系统媒体控制触发并核对后台锁屏 TTS 生命周期“后台 / 锁屏 TTS 生命周期、通知与 MediaSession 真值：TTS 由进程 / 前台 service owner 持有：正常后台与锁屏继续朗读，Activity / ViewModel 销毁不终止；进程死亡 / 重启不自动播放，只恢复暂停态与最后稳定句子，恢复前校验 pack。锁屏 / 通知提供播放 / 暂停、上一句 / 下一句与停止，不做伪造时间 seek；通知、UI、锁屏与系统控制必须与真实播放状态一致”；应观察到：离开阅读页、后台与锁屏可连续朗读；Activity / ViewModel 销毁不停止；进程死亡 / 重启保持暂停并恢复最后稳定句子且先校验 pack；通知、UI、锁屏与 MediaSession 真实状态一致",
+      "atomic_promise": "TTS 由进程 / 前台 service owner 持有：正常后台与锁屏继续朗读，Activity / ViewModel 销毁不终止；进程死亡 / 重启不自动播放，只恢复暂停态与最后稳定句子，恢复前校验 pack。锁屏 / 通知提供播放 / 暂停、上一句 / 下一句与停止，不做伪造时间 seek；通知、UI、锁屏与系统控制必须与真实播放状态一致",
+      "semantic_basis": "EXPLICIT_ROW_RECORD",
+      "missing_reason": "权威源未明确枚举以下维度：无障碍、RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。",
+      "states_accessibility_rwd": {
+        "record_id": "S6-P-READER-087",
+        "basis": "EXPLICIT_ROW_RECORD:S6-P-READER-087",
+        "semantic_source_id": "V2-REQ-READER-087",
+        "applicability": "USER_VISIBLE_SOURCE_CONTRACT",
+        "states": [
+          "进程死亡 / 重启不自动播放，只恢复暂停态与最后稳定句子，恢复前校验 pack",
+          "锁屏 / 通知提供播放 / 暂停、上一句 / 下一句与停止，不做伪造时间 seek"
+        ],
+        "accessibility": [
+          "UNSPECIFIED_IN_SOURCE"
+        ],
+        "rwd": [
+          "UNSPECIFIED_IN_SOURCE"
+        ],
+        "coverage_status": "SOURCE_EXPLICIT_OR_GAP_MARKED; RUNTIME_UNVERIFIED",
+        "missing_reason": "权威源未明确枚举以下维度：无障碍、RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。"
+      }
+    },
+    {
+      "promise_id": "S6-P-READER-088",
+      "requirement_id": "V2-REQ-READER-088",
+      "source_origin": "PROJECT_G0_ADDENDUM",
+      "counted_in_external_445": false,
+      "counted_in_external_376": false,
+      "user_promise": "内置与用户本地导入音色统一列表并标来源；导入必须追加、不得替换；完全相同的 pack / profile 重复导入幂等复用，同名不同内容作为新 profile 追加；profile 有稳定身份、可被选择，并支持全局默认与逐书覆盖。其他显示类 ReaderSettings 仍为设备级",
+      "entry": "阅读器 TTS 音色列表 / 导入 / 逐书覆盖",
+      "semantic_source_anchor": {
+        "path": "docs/V2_PLAN.md",
+        "section": "docs/V2_PLAN.md §5.4.5",
+        "line": 1204,
+        "requirement_id": "V2-REQ-READER-088",
+        "excerpt": "多音色可同时保留；追加导入不替换旧项；相同 pack / profile 不产生重复，同名异内容生成新 profile；用户可选择全局默认并为单本设置逐书覆盖，其他显示设置仍保持设备级"
+      },
+      "actor": "用户",
+      "entry_surface": "阅读器 TTS 音色列表 / 导入 / 逐书覆盖",
+      "entry_status": "SOURCE_GROUNDED",
+      "action_verb": "导入、选择并配置音色",
+      "action_object": "voice-pack 追加导入、幂等身份与逐书覆盖：内置与用户本地导入音色统一列表并标来源；导入必须追加、不得替换；完全相同的 pack / profile 重复导入幂等复用，同名不同内容作为新 profile 追加；profile 有稳定身份、可被选择，并支持全局默认与逐书覆盖。其他显示类 ReaderSettings 仍为设备级",
+      "expected_response": "多音色可同时保留；追加导入不替换旧项；相同 pack / profile 不产生重复，同名异内容生成新 profile；用户可选择全局默认并为单本设置逐书覆盖，其他显示设置仍保持设备级",
+      "operation_mode": "USER_ACTION",
+      "action_source_excerpt": "内置与用户本地导入音色统一列表并标来源",
+      "operation_source_excerpt": "内置与用户本地导入音色统一列表并标来源",
+      "operation": "用户在阅读器 TTS 音色列表 / 导入 / 逐书覆盖，导入、选择并配置音色“voice-pack 追加导入、幂等身份与逐书覆盖：内置与用户本地导入音色统一列表并标来源；导入必须追加、不得替换；完全相同的 pack / profile 重复导入幂等复用，同名不同内容作为新 profile 追加；profile 有稳定身份、可被选择，并支持全局默认与逐书覆盖。其他显示类 ReaderSettings 仍为设备级”；应观察到：多音色可同时保留；追加导入不替换旧项；相同 pack / profile 不产生重复，同名异内容生成新 profile；用户可选择全局默认并为单本设置逐书覆盖，其他显示设置仍保持设备级",
+      "atomic_promise": "内置与用户本地导入音色统一列表并标来源；导入必须追加、不得替换；完全相同的 pack / profile 重复导入幂等复用，同名不同内容作为新 profile 追加；profile 有稳定身份、可被选择，并支持全局默认与逐书覆盖。其他显示类 ReaderSettings 仍为设备级",
+      "semantic_basis": "EXPLICIT_ROW_RECORD",
+      "missing_reason": "权威源未明确枚举以下维度：无障碍、RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。",
+      "states_accessibility_rwd": {
+        "record_id": "S6-P-READER-088",
+        "basis": "EXPLICIT_ROW_RECORD:S6-P-READER-088",
+        "semantic_source_id": "V2-REQ-READER-088",
+        "applicability": "USER_VISIBLE_SOURCE_CONTRACT",
+        "states": [
+          "profile 有稳定身份、可被选择，并支持全局默认与逐书覆盖",
+          "多音色可同时保留"
+        ],
+        "accessibility": [
+          "UNSPECIFIED_IN_SOURCE"
+        ],
+        "rwd": [
+          "UNSPECIFIED_IN_SOURCE"
+        ],
+        "coverage_status": "SOURCE_EXPLICIT_OR_GAP_MARKED; RUNTIME_UNVERIFIED",
+        "missing_reason": "权威源未明确枚举以下维度：无障碍、RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。"
+      }
+    },
+    {
+      "promise_id": "S6-P-READER-089",
+      "requirement_id": "V2-REQ-READER-089",
+      "source_origin": "PROJECT_G0_ADDENDUM",
+      "counted_in_external_445": false,
+      "counted_in_external_376": false,
+      "user_promise": "导入音色可删除；内置音色不可物理删除，可隐藏且可恢复。删除活动音色先停止朗读、清理全局 / 逐书引用并回退到有效内置 profile；文件删除失败显式待重试且不得悬空引用。删除一个音色不得破坏其他项",
+      "entry": "阅读器 TTS 音色列表 / 删除 / 恢复",
+      "semantic_source_anchor": {
+        "path": "docs/V2_PLAN.md",
+        "section": "docs/V2_PLAN.md §5.4.5",
+        "line": 1205,
+        "requirement_id": "V2-REQ-READER-089",
+        "excerpt": "非活动音色删除隔离其他项；活动音色先停止并回退有效内置 profile；引用、文件与派生数据清理完成或显示待重试；内置音色可隐藏并恢复；失败不留下悬空引用"
+      },
+      "actor": "用户",
+      "entry_surface": "阅读器 TTS 音色列表 / 删除 / 恢复",
+      "entry_status": "SOURCE_GROUNDED",
+      "action_verb": "删除或恢复音色并核对回退",
+      "action_object": "voice-pack 删除、回退、恢复与引用清理：导入音色可删除；内置音色不可物理删除，可隐藏且可恢复。删除活动音色先停止朗读、清理全局 / 逐书引用并回退到有效内置 profile；文件删除失败显式待重试且不得悬空引用。删除一个音色不得破坏其他项",
+      "expected_response": "非活动音色删除隔离其他项；活动音色先停止并回退有效内置 profile；引用、文件与派生数据清理完成或显示待重试；内置音色可隐藏并恢复；失败不留下悬空引用",
+      "operation_mode": "USER_ACTION",
+      "action_source_excerpt": "内置音色不可物理删除，可隐藏且可恢复",
+      "operation_source_excerpt": "内置音色不可物理删除，可隐藏且可恢复",
+      "operation": "用户在阅读器 TTS 音色列表 / 删除 / 恢复，删除或恢复音色并核对回退“voice-pack 删除、回退、恢复与引用清理：导入音色可删除；内置音色不可物理删除，可隐藏且可恢复。删除活动音色先停止朗读、清理全局 / 逐书引用并回退到有效内置 profile；文件删除失败显式待重试且不得悬空引用。删除一个音色不得破坏其他项”；应观察到：非活动音色删除隔离其他项；活动音色先停止并回退有效内置 profile；引用、文件与派生数据清理完成或显示待重试；内置音色可隐藏并恢复；失败不留下悬空引用",
+      "atomic_promise": "导入音色可删除；内置音色不可物理删除，可隐藏且可恢复。删除活动音色先停止朗读、清理全局 / 逐书引用并回退到有效内置 profile；文件删除失败显式待重试且不得悬空引用。删除一个音色不得破坏其他项",
+      "semantic_basis": "EXPLICIT_ROW_RECORD",
+      "missing_reason": "权威源未明确枚举以下维度：无障碍、RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。",
+      "states_accessibility_rwd": {
+        "record_id": "S6-P-READER-089",
+        "basis": "EXPLICIT_ROW_RECORD:S6-P-READER-089",
+        "semantic_source_id": "V2-REQ-READER-089",
+        "applicability": "USER_VISIBLE_SOURCE_CONTRACT",
+        "states": [
+          "内置音色不可物理删除，可隐藏且可恢复",
+          "文件删除失败显式待重试且不得悬空引用"
+        ],
+        "accessibility": [
+          "UNSPECIFIED_IN_SOURCE"
+        ],
+        "rwd": [
+          "UNSPECIFIED_IN_SOURCE"
+        ],
+        "coverage_status": "SOURCE_EXPLICIT_OR_GAP_MARKED; RUNTIME_UNVERIFIED",
+        "missing_reason": "权威源未明确枚举以下维度：无障碍、RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。"
+      }
+    },
+    {
+      "promise_id": "S6-P-READER-090",
+      "requirement_id": "V2-REQ-READER-090",
+      "source_origin": "PROJECT_G0_ADDENDUM",
+      "counted_in_external_445": false,
+      "counted_in_external_376": false,
+      "user_promise": "单活动音频 owner / 单活动 MediaSession：启动 TTS 暂停音乐并保留队列；停止 TTS 后音乐保持暂停、不自动恢复；音乐再次起播前先终止 TTS。音频焦点丢失、noisy 与进程重启须收敛到可解释的安全状态，不得出现静默双播或控制面假状态",
+      "entry": "阅读器 TTS / 音乐 / 系统媒体控制",
+      "semantic_source_anchor": {
+        "path": "docs/V2_PLAN.md",
+        "section": "docs/V2_PLAN.md §5.4.5",
+        "line": 1206,
+        "requirement_id": "V2-REQ-READER-090",
+        "excerpt": "任意时刻至多一个活动音频 owner / MediaSession；TTS 启动暂停音乐并保留队列，停止 TTS 不自动恢复音乐，音乐起播先停 TTS；audio focus / noisy / 重启后 UI、通知与真实音频一致"
+      },
+      "actor": "用户",
+      "entry_surface": "阅读器 TTS / 音乐 / 系统媒体控制",
+      "entry_status": "SOURCE_GROUNDED",
+      "action_verb": "控制音频 owner 并核对系统控制",
+      "action_object": "单音频 owner、音乐互斥与系统媒体控制真值：单活动音频 owner / 单活动 MediaSession：启动 TTS 暂停音乐并保留队列；停止 TTS 后音乐保持暂停、不自动恢复；音乐再次起播前先终止 TTS。音频焦点丢失、noisy 与进程重启须收敛到可解释的安全状态，不得出现静默双播或控制面假状态",
+      "expected_response": "任意时刻至多一个活动音频 owner / MediaSession；TTS 启动暂停音乐并保留队列，停止 TTS 不自动恢复音乐，音乐起播先停 TTS；audio focus / noisy / 重启后 UI、通知与真实音频一致",
+      "operation_mode": "STATE_AUDIT",
+      "action_source_excerpt": "单活动音频 owner / 单活动 MediaSession：启动 TTS 暂停音乐并保留队列",
+      "operation_source_excerpt": "单活动音频 owner / 单活动 MediaSession：启动 TTS 暂停音乐并保留队列",
+      "operation": "用户从阅读器 TTS / 音乐 / 系统媒体控制触发并控制音频 owner 并核对系统控制“单音频 owner、音乐互斥与系统媒体控制真值：单活动音频 owner / 单活动 MediaSession：启动 TTS 暂停音乐并保留队列；停止 TTS 后音乐保持暂停、不自动恢复；音乐再次起播前先终止 TTS。音频焦点丢失、noisy 与进程重启须收敛到可解释的安全状态，不得出现静默双播或控制面假状态”；应观察到：任意时刻至多一个活动音频 owner / MediaSession；TTS 启动暂停音乐并保留队列，停止 TTS 不自动恢复音乐，音乐起播先停 TTS；audio focus / noisy / 重启后 UI、通知与真实音频一致",
+      "atomic_promise": "单活动音频 owner / 单活动 MediaSession：启动 TTS 暂停音乐并保留队列；停止 TTS 后音乐保持暂停、不自动恢复；音乐再次起播前先终止 TTS。音频焦点丢失、noisy 与进程重启须收敛到可解释的安全状态，不得出现静默双播或控制面假状态",
+      "semantic_basis": "EXPLICIT_ROW_RECORD",
+      "missing_reason": "权威源未明确枚举以下维度：RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。",
+      "states_accessibility_rwd": {
+        "record_id": "S6-P-READER-090",
+        "basis": "EXPLICIT_ROW_RECORD:S6-P-READER-090",
+        "semantic_source_id": "V2-REQ-READER-090",
+        "applicability": "USER_VISIBLE_SOURCE_CONTRACT",
+        "states": [
+          "单活动音频 owner / 单活动 MediaSession：启动 TTS 暂停音乐并保留队列",
+          "停止 TTS 后音乐保持暂停、不自动恢复"
+        ],
+        "accessibility": [
+          "音频焦点丢失、noisy 与进程重启须收敛到可解释的安全状态，不得出现静默双播或控制面假状态"
+        ],
+        "rwd": [
+          "UNSPECIFIED_IN_SOURCE"
+        ],
+        "coverage_status": "SOURCE_EXPLICIT_OR_GAP_MARKED; RUNTIME_UNVERIFIED",
+        "missing_reason": "权威源未明确枚举以下维度：RWD；G2 必须保留未枚举分支 gap，不得由静态规划代签。"
+      }
     },
     {
       "promise_id": "S6-P-WRITE-001-USER-WRITE",
@@ -9040,7 +9228,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1366,
+        "line": 1404,
         "requirement_id": "V2-REQ-WRITE-001",
         "excerpt": "用户可使用真实用户级写；离线 intent 在恢复网络和原身份后按原作用域处理；2.0 不出现未被批准的管理类或破坏性入口"
       },
@@ -9085,7 +9273,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1366,
+        "line": 1404,
         "requirement_id": "V2-REQ-WRITE-001",
         "excerpt": "用户可使用真实用户级写；离线 intent 在恢复网络和原身份后按原作用域处理；2.0 不出现未被批准的管理类或破坏性入口"
       },
@@ -9130,7 +9318,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1367,
+        "line": 1405,
         "requirement_id": "V2-REQ-WRITE-002",
         "excerpt": "设计 / 实现能回答“依据哪一版、哪个操作、什么 schema”"
       },
@@ -9176,7 +9364,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1368,
+        "line": 1406,
         "requirement_id": "V2-REQ-WRITE-003",
         "excerpt": "用户在入口处获知失败和当前真实状态"
       },
@@ -9222,7 +9410,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1369,
+        "line": 1407,
         "requirement_id": "V2-REQ-WRITE-004",
         "excerpt": "用户知道是否能再试，界面不会无限转圈"
       },
@@ -9268,7 +9456,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1370,
+        "line": 1408,
         "requirement_id": "V2-REQ-WRITE-005",
         "excerpt": "无权限用户看不到可执行的越权动作"
       },
@@ -9314,7 +9502,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1371,
+        "line": 1409,
         "requirement_id": "V2-REQ-WRITE-006",
         "excerpt": "只有确认后显示已保存 / 已完成"
       },
@@ -9360,7 +9548,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1372,
+        "line": 1410,
         "requirement_id": "V2-REQ-WRITE-007",
         "excerpt": "用户能在变更前判断影响，执行后看到每一项真实结果和可重试动作，不把部分成功显示为整体成功"
       },
@@ -9406,7 +9594,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1373,
+        "line": 1411,
         "requirement_id": "V2-REQ-WRITE-008",
         "excerpt": "账号 A 的操作不会出现在账号 B，普通用户不继承管理员权限"
       },
@@ -9452,7 +9640,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1374,
+        "line": 1412,
         "requirement_id": "V2-REQ-WRITE-009",
         "excerpt": "写回后列表 / 详情 / 进度恢复一致，不残留假旧值；超时后用户看到失败原因与重试 / 取消动作"
       },
@@ -9498,7 +9686,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1375,
+        "line": 1413,
         "requirement_id": "V2-REQ-WRITE-010",
         "excerpt": "权限弹窗不会反复出现，用户获得真实原因"
       },
@@ -9543,7 +9731,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1376,
+        "line": 1414,
         "requirement_id": "V2-REQ-WRITE-011",
         "excerpt": "受限用户看到合理隐藏 / 禁用状态，证据能区分该账号的真实权限"
       },
@@ -9589,7 +9777,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1377,
+        "line": 1415,
         "requirement_id": "V2-REQ-WRITE-012",
         "excerpt": "相似 ID、账号和服务器切换后不串写；冲突有明确选择结果，不静默覆盖"
       },
@@ -9635,7 +9823,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.5.4",
-        "line": 1378,
+        "line": 1416,
         "requirement_id": "V2-REQ-WRITE-013",
         "excerpt": "候选包真实入口覆盖允许 / 拒绝 / 失败 / 恢复"
       },
@@ -9681,7 +9869,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1526,
+        "line": 1564,
         "requirement_id": "V2-REQ-MUSIC-001",
         "excerpt": "同一混合队列可连续播放远端与本地曲目，切歌无来源断层；同名 / 同 ID 异源不串身份"
       },
@@ -9727,7 +9915,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1527,
+        "line": 1565,
         "requirement_id": "V2-REQ-MUSIC-002",
         "excerpt": "用户选择质量后看到真实直连 / 转码结果，网络切换和原始不可直连时有明确状态"
       },
@@ -9772,7 +9960,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1528,
+        "line": 1566,
         "requirement_id": "V2-REQ-MUSIC-003",
         "excerpt": "二次进入本地曲库无需逐曲重解析；缺失值显示明确 fallback，不伪造数值"
       },
@@ -9818,7 +10006,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1529,
+        "line": 1567,
         "requirement_id": "V2-REQ-MUSIC-004",
         "excerpt": "核心格式可真实播放；APE / DSD 打开时得到“当前引擎不支持”的可执行说明而非静默失败"
       },
@@ -9864,7 +10052,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1529,
+        "line": 1567,
         "requirement_id": "V2-REQ-MUSIC-004",
         "excerpt": "核心格式可真实播放；APE / DSD 打开时得到“当前引擎不支持”的可执行说明而非静默失败"
       },
@@ -9909,7 +10097,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1530,
+        "line": 1568,
         "requirement_id": "V2-REQ-MUSIC-005",
         "excerpt": "同专辑、同编码或能力允许的相邻曲目自然推进无静音；不支持无缝的组合有明确回退"
       },
@@ -9954,7 +10142,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1531,
+        "line": 1569,
         "requirement_id": "V2-REQ-MUSIC-006",
         "excerpt": "满足单实例能力时可听到真重叠；关闭或回退时行为稳定，无第二播放器"
       },
@@ -9999,7 +10187,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1532,
+        "line": 1570,
         "requirement_id": "V2-REQ-MUSIC-007",
         "excerpt": "有标签曲目响度更一致；无标签曲目不出现假增益或静默异常"
       },
@@ -10045,7 +10233,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1533,
+        "line": 1571,
         "requirement_id": "V2-REQ-MUSIC-008",
         "excerpt": "离开 UI、锁屏、耳机或蓝牙操作时状态与通知一致，回到 App 进度连续"
       },
@@ -10090,7 +10278,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1534,
+        "line": 1572,
         "requirement_id": "V2-REQ-MUSIC-009",
         "excerpt": "通知、队列、进度、音效与 UI 始终跟随同一物理实例；音乐 / 视频不会同时出声"
       },
@@ -10135,7 +10323,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1535,
+        "line": 1573,
         "requirement_id": "V2-REQ-MUSIC-010",
         "excerpt": "2.0 不显示未实现的 AA 入口，也不宣称 AA 验收；未来保留扩展缝"
       },
@@ -10180,7 +10368,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1536,
+        "line": 1574,
         "requirement_id": "V2-REQ-MUSIC-011",
         "excerpt": "Android 音乐域不出现这些平台的伪支持或验收声明"
       },
@@ -10226,7 +10414,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1537,
+        "line": 1575,
         "requirement_id": "V2-REQ-MUSIC-012",
         "excerpt": "用户能区分本次播放来源与接下来播放；两类条目共享连续播放时间线"
       },
@@ -10271,7 +10459,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1538,
+        "line": 1576,
         "requirement_id": "V2-REQ-MUSIC-013",
         "excerpt": "手动插入曲目立即位于下一首；消费后不出现在分段队列残留"
       },
@@ -10317,7 +10505,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1539,
+        "line": 1577,
         "requirement_id": "V2-REQ-MUSIC-014",
         "excerpt": "每种队列动作后当前项、顺序、通知和恢复快照一致；单曲点击不替换已有活动队列，移除当前项按决策前进或停止"
       },
@@ -10363,7 +10551,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1540,
+        "line": 1578,
         "requirement_id": "V2-REQ-MUSIC-015",
         "excerpt": "两种随机的首曲、后续池和 UI 状态可区分；追加后当前曲不中断，重启后不悄悄换模式"
       },
@@ -10409,7 +10597,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1541,
+        "line": 1579,
         "requirement_id": "V2-REQ-MUSIC-016",
         "excerpt": "冷启动后恢复同一队列与位置，点播放从恢复点继续；不可用项保留身份；同一曲再次点击不重复追加"
       },
@@ -10454,7 +10642,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1542,
+        "line": 1580,
         "requirement_id": "V2-REQ-MUSIC-017",
         "excerpt": "开启后自然结束前追加可识别区段；关闭、无网或候选不足时正常结束并说明；手动追加仍在派生区之前"
       },
@@ -10500,7 +10688,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1543,
+        "line": 1581,
         "requirement_id": "V2-REQ-MUSIC-018",
         "excerpt": "网络失败不会弹模态框；最多出现一次可理解的跳过提示；不可重试错误不会重复请求"
       },
@@ -10545,7 +10733,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1544,
+        "line": 1582,
         "requirement_id": "V2-REQ-MUSIC-019",
         "excerpt": "队列不静默丢曲；用户能看到不可用原因并主动处理"
       },
@@ -10591,7 +10779,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1545,
+        "line": 1583,
         "requirement_id": "V2-REQ-MUSIC-020",
         "excerpt": "全部坏队列有终止状态，不出现循环跳歌或永久加载"
       },
@@ -10636,7 +10824,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1546,
+        "line": 1584,
         "requirement_id": "V2-REQ-MUSIC-021",
         "excerpt": "从队列、歌词、通知和恢复态看到同一曲目身份与一致操作"
       },
@@ -10682,7 +10870,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1547,
+        "line": 1585,
         "requirement_id": "V2-REQ-MUSIC-022",
         "excerpt": "打开 / 关闭全屏播放不重置当前页面；Mini 与全屏操作同一队列与状态"
       },
@@ -10728,7 +10916,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1548,
+        "line": 1586,
         "requirement_id": "V2-REQ-MUSIC-023",
         "excerpt": "旋转、分栏、折叠与自由窗口变化后封面、控制、歌词 / 队列仍可达且状态不丢"
       },
@@ -10774,7 +10962,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1549,
+        "line": 1587,
         "requirement_id": "V2-REQ-MUSIC-024",
         "excerpt": "手机、平板与横屏下主操作在可见安全区，不被刘海、手势区或内容挤压；收藏成功仅在服务器确认后显示"
       },
@@ -10819,7 +11007,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1550,
+        "line": 1588,
         "requirement_id": "V2-REQ-MUSIC-025",
         "excerpt": "有可解析艺术家时可跳转，缺失时入口明确不可用"
       },
@@ -10865,7 +11053,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1551,
+        "line": 1589,
         "requirement_id": "V2-REQ-MUSIC-026",
         "excerpt": "平板 / 折叠右侧内容模式可预测，空歌词自然回队列"
       },
@@ -10911,7 +11099,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1552,
+        "line": 1590,
         "requirement_id": "V2-REQ-MUSIC-027",
         "excerpt": "两种等价入口都能进入同一歌词状态；返回不关闭播放层"
       },
@@ -10957,7 +11145,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1553,
+        "line": 1591,
         "requirement_id": "V2-REQ-MUSIC-028",
         "excerpt": "五主题下播放器结构、对比度、状态与控件语义一致；切主题不丢播放状态"
       },
@@ -11003,7 +11191,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1554,
+        "line": 1592,
         "requirement_id": "V2-REQ-MUSIC-029",
         "excerpt": "封面加载无硬闪，文字始终可读；无封面或解码失败有稳定占位"
       },
@@ -11049,7 +11237,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1555,
+        "line": 1593,
         "requirement_id": "V2-REQ-MUSIC-030",
         "excerpt": "用户能在缓冲中暂停、看到目标时间并松手跳到准确位置"
       },
@@ -11094,7 +11282,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1556,
+        "line": 1594,
         "requirement_id": "V2-REQ-MUSIC-031",
         "excerpt": "松手后目标时间与播放器位置一致，短反馈结束不产生二次跳转"
       },
@@ -11140,7 +11328,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1557,
+        "line": 1595,
         "requirement_id": "V2-REQ-MUSIC-032",
         "excerpt": "波浪只作为视觉状态，关闭后进度与 seek 完全不受影响"
       },
@@ -11187,7 +11375,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1558,
+        "line": 1596,
         "requirement_id": "V2-REQ-MUSIC-033",
         "excerpt": "TalkBack、键盘焦点和大字号下所有核心动作可识别、可触达"
       },
@@ -11233,7 +11421,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1559,
+        "line": 1597,
         "requirement_id": "V2-REQ-MUSIC-034",
         "excerpt": "Mini 在滚动页面和导航之上稳定显示；切歌、点按、返回不会遮挡导航可点击区"
       },
@@ -11279,7 +11467,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1560,
+        "line": 1598,
         "requirement_id": "V2-REQ-MUSIC-035",
         "excerpt": "长标题可识别；无障碍和减少动画下不持续滚动"
       },
@@ -11324,7 +11512,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1561,
+        "line": 1599,
         "requirement_id": "V2-REQ-MUSIC-036",
         "excerpt": "用户编辑 / 导入覆盖优先；本地内嵌歌词能显示；断网时已缓存歌词可用；无歌词显示明确空态"
       },
@@ -11369,7 +11557,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1562,
+        "line": 1600,
         "requirement_id": "V2-REQ-MUSIC-037",
         "excerpt": "打开 .elrc 时不得伪装为普通 LRC 成功；可提示暂不支持"
       },
@@ -11414,7 +11602,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1563,
+        "line": 1601,
         "requirement_id": "V2-REQ-MUSIC-038",
         "excerpt": "无本机 / Jellyfin / 缓存歌词时显示缺失，不暗中联网取词"
       },
@@ -11459,7 +11647,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1564,
+        "line": 1602,
         "requirement_id": "V2-REQ-MUSIC-039",
         "excerpt": "重复打开不反复请求；断网可读已缓存歌词，更新后不显示错歌"
       },
@@ -11504,7 +11692,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1565,
+        "line": 1603,
         "requirement_id": "V2-REQ-MUSIC-040",
         "excerpt": "逐字歌词按时间推进；普通 LRC / 服务端无 cues 时仍稳定逐行高亮"
       },
@@ -11550,7 +11738,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1566,
+        "line": 1604,
         "requirement_id": "V2-REQ-MUSIC-041",
         "excerpt": "歌词随播放自然推进，当前行易读；不出现逐帧跳动"
       },
@@ -11596,7 +11784,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1567,
+        "line": 1605,
         "requirement_id": "V2-REQ-MUSIC-042",
         "excerpt": "手动查看歌词不被立即拉回；高亮、滚动与计时器有确定状态"
       },
@@ -11642,7 +11830,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1568,
+        "line": 1606,
         "requirement_id": "V2-REQ-MUSIC-043",
         "excerpt": "用户点歌词准确跳到对应歌词，播放 / 暂停状态保持"
       },
@@ -11687,7 +11875,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1569,
+        "line": 1607,
         "requirement_id": "V2-REQ-MUSIC-044",
         "excerpt": "八类预设与自定义值有确定声音变化，切后台不丢失 Enabled / 参数；视频不显示音乐 EQ，切域不泄漏处理链"
       },
@@ -11732,7 +11920,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1570,
+        "line": 1608,
         "requirement_id": "V2-REQ-MUSIC-045",
         "excerpt": "Android UI 不显示桌面专属 15 段承诺"
       },
@@ -11778,7 +11966,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1571,
+        "line": 1609,
         "requirement_id": "V2-REQ-MUSIC-046",
         "excerpt": "各档变速无音调异常，默认恢复 1.0×；切到视频或返回音乐时不串档位 / 长按状态"
       },
@@ -11824,7 +12012,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1572,
+        "line": 1610,
         "requirement_id": "V2-REQ-MUSIC-047",
         "excerpt": "用户可选择快捷 / 自定义 / 当前曲结束；到点平滑暂停且队列仍可恢复"
       },
@@ -11870,7 +12058,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1573,
+        "line": 1611,
         "requirement_id": "V2-REQ-MUSIC-048",
         "excerpt": "锁屏倒计时不中断；状态结束或取消后不再残留“即将停止”"
       },
@@ -11915,7 +12103,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1574,
+        "line": 1612,
         "requirement_id": "V2-REQ-MUSIC-049",
         "excerpt": "用户能在信息面板区分源与输出、直连与转码；字段不可证实时明确未知"
       },
@@ -11960,7 +12148,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1575,
+        "line": 1613,
         "requirement_id": "V2-REQ-MUSIC-050",
         "excerpt": "2.0 不显示“已 bit-perfect”，只展示可证实输出状态"
       },
@@ -12006,7 +12194,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1576,
+        "line": 1614,
         "requirement_id": "V2-REQ-MUSIC-051",
         "excerpt": "用户从列表能完成队列、歌单、收藏、音频信息与下载动作；下载入口与 DOWNLOAD 状态、恢复和通知一致"
       },
@@ -12052,7 +12240,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1576,
+        "line": 1614,
         "requirement_id": "V2-REQ-MUSIC-051",
         "excerpt": "用户从列表能完成队列、歌单、收藏、音频信息与下载动作；下载入口与 DOWNLOAD 状态、恢复和通知一致"
       },
@@ -12097,7 +12285,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1577,
+        "line": 1615,
         "requirement_id": "V2-REQ-MUSIC-052",
         "excerpt": "系统返回、seek、歌词滚动、队列拖拽和左右切歌互不误触"
       },
@@ -12143,7 +12331,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1578,
+        "line": 1616,
         "requirement_id": "V2-REQ-MUSIC-053",
         "excerpt": "小位移不误切歌，明确方向动作稳定完成；Mini 与全屏共享同一状态机"
       },
@@ -12189,7 +12377,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1579,
+        "line": 1617,
         "requirement_id": "V2-REQ-MUSIC-054",
         "excerpt": "拖动反馈与最终动作一致，未过阈值不会误关闭全屏或丢失播放"
       },
@@ -12235,7 +12423,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1580,
+        "line": 1618,
         "requirement_id": "V2-REQ-MUSIC-055",
         "excerpt": "Android 音乐界面不承诺桌面平台键盘产品面"
       },
@@ -12281,7 +12469,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1581,
+        "line": 1619,
         "requirement_id": "V2-REQ-MUSIC-056",
         "excerpt": "播放、gesture、seek 不被装饰动画锁住；中断后状态一致"
       },
@@ -12326,7 +12514,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1582,
+        "line": 1620,
         "requirement_id": "V2-REQ-MUSIC-057",
         "excerpt": "展开、收起、切歌视觉连续；文字和封面不硬切，交互可中途打断"
       },
@@ -12371,7 +12559,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1583,
+        "line": 1621,
         "requirement_id": "V2-REQ-MUSIC-058",
         "excerpt": "开启时反馈清晰；关闭 / 性能不足时功能与信息不丢失"
       },
@@ -12417,7 +12605,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1584,
+        "line": 1622,
         "requirement_id": "V2-REQ-MUSIC-059",
         "excerpt": "开启减少动画后所有核心操作可完成，视觉反馈仍可理解"
       },
@@ -12463,7 +12651,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1585,
+        "line": 1623,
         "requirement_id": "V2-REQ-MUSIC-060",
         "excerpt": "弱网时用户能看到缓冲并随时暂停，进度 / seek 状态可恢复"
       },
@@ -12508,7 +12696,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1586,
+        "line": 1624,
         "requirement_id": "V2-REQ-MUSIC-061",
         "excerpt": "用户界面不出现参考 App 的未批准功能；G1 设计 / 选型记录能回答借鉴点、许可和未采用项"
       },
@@ -12553,7 +12741,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.6.6.1",
-        "line": 1587,
+        "line": 1625,
         "requirement_id": "V2-REQ-MUSIC-062",
         "excerpt": "最终候选包按真实入口验收；不以代码列表、fake、Worker SUCCESS 或设计声明代替用户旅程"
       },
@@ -12599,7 +12787,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1802,
+        "line": 1840,
         "requirement_id": "V2-REQ-DOWNLOAD-001",
         "excerpt": "四类媒体都可创建原始媒体任务；转码不会伪装成已支持；不可打开格式有明确结果"
       },
@@ -12644,7 +12832,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1802,
+        "line": 1840,
         "requirement_id": "V2-REQ-DOWNLOAD-001",
         "excerpt": "四类媒体都可创建原始媒体任务；转码不会伪装成已支持；不可打开格式有明确结果"
       },
@@ -12689,7 +12877,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1803,
+        "line": 1841,
         "requirement_id": "V2-REQ-DOWNLOAD-002",
         "excerpt": "每个真实任务能观察到正确的请求形状、响应媒体类型与实际落盘文件"
       },
@@ -12735,7 +12923,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1804,
+        "line": 1842,
         "requirement_id": "V2-REQ-DOWNLOAD-003",
         "excerpt": "进度只随真实落盘字节前进；大小未知时显示未知而不是伪造百分比"
       },
@@ -12781,7 +12969,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1805,
+        "line": 1843,
         "requirement_id": "V2-REQ-DOWNLOAD-004",
         "excerpt": "每次新下载都能看到对象、范围与下一步；重复点击不会生成重复任务"
       },
@@ -12827,7 +13015,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1806,
+        "line": 1844,
         "requirement_id": "V2-REQ-DOWNLOAD-005",
         "excerpt": "用户在任何请求前知道空间和流量后果，并明确选择继续或取消"
       },
@@ -12873,7 +13061,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1807,
+        "line": 1845,
         "requirement_id": "V2-REQ-DOWNLOAD-006",
         "excerpt": "关闭通知后仍能下载并从 App 内看见状态；开启通知后可看到系统通知"
       },
@@ -12919,7 +13107,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1808,
+        "line": 1846,
         "requirement_id": "V2-REQ-DOWNLOAD-007",
         "excerpt": "默认下载无需危险存储权限；外部目录选择有明确授权与失效处理"
       },
@@ -12965,7 +13153,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1809,
+        "line": 1847,
         "requirement_id": "V2-REQ-DOWNLOAD-008",
         "excerpt": "用户在确认前能判断下载对象、空间成本与后续打开方式"
       },
@@ -13011,7 +13199,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1810,
+        "line": 1848,
         "requirement_id": "V2-REQ-DOWNLOAD-009",
         "excerpt": "用户在批量请求前知道将下载什么、多少和能否容纳"
       },
@@ -13057,7 +13245,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1811,
+        "line": 1849,
         "requirement_id": "V2-REQ-DOWNLOAD-010",
         "excerpt": "点击后先看到检查结果；失败时没有后台偷偷开始的请求"
       },
@@ -13102,7 +13290,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1812,
+        "line": 1850,
         "requirement_id": "V2-REQ-DOWNLOAD-011",
         "excerpt": "用户知道主媒体能否完整打开，也知道附属内容可能缺失"
       },
@@ -13147,7 +13335,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1813,
+        "line": 1851,
         "requirement_id": "V2-REQ-DOWNLOAD-012",
         "excerpt": "进程重建后任务仍在；重复点击不会新增并行副本"
       },
@@ -13192,7 +13380,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1814,
+        "line": 1852,
         "requirement_id": "V2-REQ-DOWNLOAD-013",
         "excerpt": "同 ID 异源不会误合并；切号后不会打开另一账号的副本"
       },
@@ -13238,7 +13426,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1815,
+        "line": 1853,
         "requirement_id": "V2-REQ-DOWNLOAD-014",
         "excerpt": "任务可跨进程恢复但不包含可用令牌；切号不会自动借用新账号"
       },
@@ -13283,7 +13471,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1816,
+        "line": 1854,
         "requirement_id": "V2-REQ-DOWNLOAD-015",
         "excerpt": "用户能看到并选择实际版本；恢复不会悄悄换成另一版本"
       },
@@ -13328,7 +13516,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1816,
+        "line": 1854,
         "requirement_id": "V2-REQ-DOWNLOAD-015",
         "excerpt": "用户能看到并选择实际版本；恢复不会悄悄换成另一版本"
       },
@@ -13374,7 +13562,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1817,
+        "line": 1855,
         "requirement_id": "V2-REQ-DOWNLOAD-016",
         "excerpt": "旧文件可见、可播放 / 阅读，但不会被错误宣称属于当前账号"
       },
@@ -13419,7 +13607,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1818,
+        "line": 1856,
         "requirement_id": "V2-REQ-DOWNLOAD-017",
         "excerpt": "用户能选择可用卷，任务行显示实际目标"
       },
@@ -13465,7 +13653,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1819,
+        "line": 1857,
         "requirement_id": "V2-REQ-DOWNLOAD-018",
         "excerpt": "用户看到聚合容器，暂停 / 重试 / 删除仍落到具体叶子"
       },
@@ -13511,7 +13699,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1820,
+        "line": 1858,
         "requirement_id": "V2-REQ-DOWNLOAD-019",
         "excerpt": "用户能看懂为什么只下载一部分，并主动确认范围"
       },
@@ -13557,7 +13745,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1821,
+        "line": 1859,
         "requirement_id": "V2-REQ-DOWNLOAD-020",
         "excerpt": "设置改变后有可见、可复现的队列 / 网络 / 通知行为，重启保持"
       },
@@ -13603,7 +13791,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1822,
+        "line": 1860,
         "requirement_id": "V2-REQ-DOWNLOAD-021",
         "excerpt": "离开下载页、锁屏或重建 UI 后队列继续；回到页面看到同一进度"
       },
@@ -13648,7 +13836,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1823,
+        "line": 1861,
         "requirement_id": "V2-REQ-DOWNLOAD-022",
         "excerpt": "大文件下载时内存不随文件大小线性增长；进度与磁盘实际写入一致"
       },
@@ -13694,7 +13882,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1824,
+        "line": 1862,
         "requirement_id": "V2-REQ-DOWNLOAD-023",
         "excerpt": "每个媒体任务都能回答当前阶段和可执行动作；技术子态不泄漏成错误状态"
       },
@@ -13740,7 +13928,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1825,
+        "line": 1863,
         "requirement_id": "V2-REQ-DOWNLOAD-024",
         "excerpt": "暂停后行状态为暂停，恢复从原进度继续，其他任务不被误停"
       },
@@ -13786,7 +13974,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1826,
+        "line": 1864,
         "requirement_id": "V2-REQ-DOWNLOAD-025",
         "excerpt": "恢复后已下载部分尽量保留；不能安全续接时明确重下"
       },
@@ -13832,7 +14020,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1827,
+        "line": 1865,
         "requirement_id": "V2-REQ-DOWNLOAD-026",
         "excerpt": "失败有明确原因和可执行的重试入口；无限重试或错误重试不会发生"
       },
@@ -13878,7 +14066,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1828,
+        "line": 1866,
         "requirement_id": "V2-REQ-DOWNLOAD-027",
         "excerpt": "旧 worker 迟到不会覆盖新状态，也不会产生重复完成通知"
       },
@@ -13924,7 +14112,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1829,
+        "line": 1867,
         "requirement_id": "V2-REQ-DOWNLOAD-028",
         "excerpt": "冷启动后看到原任务、原来源和可继续进度；不会因进程死亡丢失队列"
       },
@@ -13970,7 +14158,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1830,
+        "line": 1868,
         "requirement_id": "V2-REQ-DOWNLOAD-029",
         "excerpt": "用户重启设备后能在下一次 App 启动看到任务仍存在并可续传"
       },
@@ -14016,7 +14204,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1831,
+        "line": 1869,
         "requirement_id": "V2-REQ-DOWNLOAD-030",
         "excerpt": "用户锁屏 / 切页时仍能看到任务活动；系统结束后状态可恢复"
       },
@@ -14062,7 +14250,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1832,
+        "line": 1870,
         "requirement_id": "V2-REQ-DOWNLOAD-031",
         "excerpt": "用户只在文件可打开、记录可恢复、离线库可见时看到完成"
       },
@@ -14108,7 +14296,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1833,
+        "line": 1871,
         "requirement_id": "V2-REQ-DOWNLOAD-032",
         "excerpt": "用户可打开完成主媒体；可选内容缺失有明确提示，不反复让整个下载失败"
       },
@@ -14154,7 +14342,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1834,
+        "line": 1872,
         "requirement_id": "V2-REQ-DOWNLOAD-033",
         "excerpt": "未知大小任务最终有可信可读结果；截断响应会进入失败 / 可重试态"
       },
@@ -14200,7 +14388,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1835,
+        "line": 1873,
         "requirement_id": "V2-REQ-DOWNLOAD-034",
         "excerpt": "列表中每个任务都能看出当前状态和下一步，长任务不会停在无反馈的旧百分比"
       },
@@ -14246,7 +14434,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1836,
+        "line": 1874,
         "requirement_id": "V2-REQ-DOWNLOAD-035",
         "excerpt": "页面与中心状态同一真源；强制边界后重启不会回退明显进度"
       },
@@ -14292,7 +14480,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1837,
+        "line": 1875,
         "requirement_id": "V2-REQ-DOWNLOAD-036",
         "excerpt": "用户能在中心判断哪里慢、何时可能完成并继续操作"
       },
@@ -14338,7 +14526,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1838,
+        "line": 1876,
         "requirement_id": "V2-REQ-DOWNLOAD-037",
         "excerpt": "多任务下载时通知能说明当前工作，并可安全控制"
       },
@@ -14384,7 +14572,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1839,
+        "line": 1877,
         "requirement_id": "V2-REQ-DOWNLOAD-038",
         "excerpt": "同一任务不重复刷终态通知；点击总能到正确位置；删除后没有幽灵通知"
       },
@@ -14430,7 +14618,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1840,
+        "line": 1878,
         "requirement_id": "V2-REQ-DOWNLOAD-039",
         "excerpt": "用户拒绝权限后仍能完成下载并从 App 内操作；从系统设置返回后状态更新"
       },
@@ -14476,7 +14664,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1841,
+        "line": 1879,
         "requirement_id": "V2-REQ-DOWNLOAD-040",
         "excerpt": "关闭网络后从下载中心和普通媒体库都能打开已完成内容"
       },
@@ -14521,7 +14709,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1842,
+        "line": 1880,
         "requirement_id": "V2-REQ-DOWNLOAD-041",
         "excerpt": "长尾、等待网络、解析来源、最终提交和失败恢复都有可见反馈"
       },
@@ -14567,7 +14755,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1843,
+        "line": 1881,
         "requirement_id": "V2-REQ-DOWNLOAD-042",
         "excerpt": "用户能看到文件不可用及两个恢复动作，不出现点了才报错的假离线"
       },
@@ -14613,7 +14801,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1844,
+        "line": 1882,
         "requirement_id": "V2-REQ-DOWNLOAD-043",
         "excerpt": "卷拔除 / 不可挂载后任务不乱失败、不换目录；恢复后从原位置继续"
       },
@@ -14659,7 +14847,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1845,
+        "line": 1883,
         "requirement_id": "V2-REQ-DOWNLOAD-044",
         "excerpt": "无季节目仍可整剧下载；有季节目不会出现空白季或漏集"
       },
@@ -14705,7 +14893,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1846,
+        "line": 1884,
         "requirement_id": "V2-REQ-DOWNLOAD-045",
         "excerpt": "用户不会因整剧下载意外包含或排除特别篇；两个数量在确认前可见"
       },
@@ -14751,7 +14939,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1847,
+        "line": 1885,
         "requirement_id": "V2-REQ-DOWNLOAD-046",
         "excerpt": "同一曲目从专辑页可见所属组，从艺术家页可看到整批范围，从歌曲栏只操作自身；单曲点击范围可预测"
       },
@@ -14797,7 +14985,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1848,
+        "line": 1886,
         "requirement_id": "V2-REQ-DOWNLOAD-047",
         "excerpt": "从播放列表能一次下载全部唯一曲目；离线库按音乐库习惯找到它们"
       },
@@ -14842,7 +15030,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1849,
+        "line": 1887,
         "requirement_id": "V2-REQ-DOWNLOAD-048",
         "excerpt": "用户能区分这本书是什么类型、什么格式、能否打开"
       },
@@ -14887,7 +15075,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1850,
+        "line": 1888,
         "requirement_id": "V2-REQ-DOWNLOAD-049",
         "excerpt": "用户能看到整本有声书的文件与时长进度；播放章节按服务器顺序导航"
       },
@@ -14933,7 +15121,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1851,
+        "line": 1889,
         "requirement_id": "V2-REQ-DOWNLOAD-050",
         "excerpt": "不同媒体在提示、进度、完成和打开方式上符合各自语义"
       },
@@ -14978,7 +15166,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1852,
+        "line": 1890,
         "requirement_id": "V2-REQ-DOWNLOAD-051",
         "excerpt": "切换排序后层级和选中项仍稳定，用户不会丢失所属季 / 专辑"
       },
@@ -15024,7 +15212,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1853,
+        "line": 1891,
         "requirement_id": "V2-REQ-DOWNLOAD-052",
         "excerpt": "用户能区分“还要做什么”和“已经能离线用什么”"
       },
@@ -15070,7 +15258,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1854,
+        "line": 1892,
         "requirement_id": "V2-REQ-DOWNLOAD-053",
         "excerpt": "用户在任一视图都能先分辨媒体大类，再进入正确层级"
       },
@@ -15116,7 +15304,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1855,
+        "line": 1893,
         "requirement_id": "V2-REQ-DOWNLOAD-054",
         "excerpt": "无网时用户仍按正常媒体库路径找到内容"
       },
@@ -15162,7 +15350,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1856,
+        "line": 1894,
         "requirement_id": "V2-REQ-DOWNLOAD-055",
         "excerpt": "切换分区不会把另一分区选中项或展开树带过来；总进度不改变分区身份"
       },
@@ -15208,7 +15396,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1857,
+        "line": 1895,
         "requirement_id": "V2-REQ-DOWNLOAD-056",
         "excerpt": "用户既能看到整体又不会失去单项控制；一个叶子失败不会隐藏其他叶子"
       },
@@ -15253,7 +15441,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1858,
+        "line": 1896,
         "requirement_id": "V2-REQ-DOWNLOAD-057",
         "excerpt": "批量选择方便且不会误选其他组；单项控制仍可用"
       },
@@ -15299,7 +15487,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1859,
+        "line": 1897,
         "requirement_id": "V2-REQ-DOWNLOAD-058",
         "excerpt": "当前账号能看到自己的完成项；离线入口不丢旧完成文件"
       },
@@ -15345,7 +15533,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1860,
+        "line": 1898,
         "requirement_id": "V2-REQ-DOWNLOAD-059",
         "excerpt": "关闭后文件仍在离线库 / 在线本地角标；无账号离线入口不再显示"
       },
@@ -15391,7 +15579,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1861,
+        "line": 1899,
         "requirement_id": "V2-REQ-DOWNLOAD-060",
         "excerpt": "用户取消后不再看到下载中或失败；重新发起可创建新任务"
       },
@@ -15437,7 +15625,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1862,
+        "line": 1900,
         "requirement_id": "V2-REQ-DOWNLOAD-061",
         "excerpt": "删除后文件、离线库、通知同步消失；失败时仍有明确重试"
       },
@@ -15483,7 +15671,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1863,
+        "line": 1901,
         "requirement_id": "V2-REQ-DOWNLOAD-062",
         "excerpt": "完成文件不会因空间不足被自动抹掉；残片清理不会误删其他任务"
       },
@@ -15529,7 +15717,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1864,
+        "line": 1902,
         "requirement_id": "V2-REQ-DOWNLOAD-063",
         "excerpt": "切号不会泄漏、串写或冒充归属；回到原身份能继续；删除服务器后本地仍可选处理"
       },
@@ -15575,7 +15763,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1865,
+        "line": 1903,
         "requirement_id": "V2-REQ-DOWNLOAD-064",
         "excerpt": "新版本打开后旧文件仍可找到；不再可证明的任务不会被悄悄续传或标记完成"
       },
@@ -15621,7 +15809,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1866,
+        "line": 1904,
         "requirement_id": "V2-REQ-DOWNLOAD-065",
         "excerpt": "强制杀死进程后，重启得到一致的文件、任务、离线库和通知状态"
       },
@@ -15666,7 +15854,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1867,
+        "line": 1905,
         "requirement_id": "V2-REQ-DOWNLOAD-066",
         "excerpt": "用户能更快找到目标；排序不改变层级或任务优先级"
       },
@@ -15711,7 +15899,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1868,
+        "line": 1906,
         "requirement_id": "V2-REQ-DOWNLOAD-067",
         "excerpt": "2.0 不出现伪支持分区；四类媒体范围不扩张"
       },
@@ -15757,7 +15945,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.7.4",
-        "line": 1869,
+        "line": 1907,
         "requirement_id": "V2-REQ-DOWNLOAD-068",
         "excerpt": "候选包真实执行四类下载、提示、恢复、失败、离线、通知和重启；未执行项明确留白"
       },
@@ -15803,7 +15991,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2124,
+        "line": 2162,
         "requirement_id": "V2-REQ-VIDEO-001",
         "excerpt": "支持形态内可完成核心播放；不支持形态不出现伪入口或验收声明"
       },
@@ -15848,7 +16036,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2124,
+        "line": 2162,
         "requirement_id": "V2-REQ-VIDEO-001",
         "excerpt": "支持形态内可完成核心播放；不支持形态不出现伪入口或验收声明"
       },
@@ -15893,7 +16081,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2125,
+        "line": 2163,
         "requirement_id": "V2-REQ-VIDEO-002",
         "excerpt": "用户看到的能力与矩阵一致，未知能力明确说明而不伪装支持"
       },
@@ -15939,7 +16127,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2126,
+        "line": 2164,
         "requirement_id": "V2-REQ-VIDEO-003",
         "excerpt": "切集、seek、内核回退和迟到回调不会串到旧来源或其他账号"
       },
@@ -15984,7 +16172,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2127,
+        "line": 2165,
         "requirement_id": "V2-REQ-VIDEO-004",
         "excerpt": "UI、MediaSession、SyncPlay 与命令入口使用同一逻辑会话，不因内部内核不同改变操作语义"
       },
@@ -16029,7 +16217,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2128,
+        "line": 2166,
         "requirement_id": "V2-REQ-VIDEO-005",
         "excerpt": "用户能明确切内核；偏好持久且不会在未说明时被自动回退改写"
       },
@@ -16074,7 +16262,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2129,
+        "line": 2167,
         "requirement_id": "V2-REQ-VIDEO-006",
         "excerpt": "自动切换出现非阻断原因提示；已正常工作的 ASS/SSA 不因扩展名单独切换"
       },
@@ -16120,7 +16308,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2130,
+        "line": 2168,
         "requirement_id": "V2-REQ-VIDEO-007",
         "excerpt": "切内核无需回列表或手动记时；恢复后从目标位置继续，状态与选择一致"
       },
@@ -16166,7 +16354,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2131,
+        "line": 2169,
         "requirement_id": "V2-REQ-VIDEO-008",
         "excerpt": "用户得到可理解原因，旧播放不被破坏；不会出现错轨、同源重影或错误样式"
       },
@@ -16211,7 +16399,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2132,
+        "line": 2170,
         "requirement_id": "V2-REQ-VIDEO-009",
         "excerpt": "无 UI、页面销毁和重建后仍能接收系统命令并继续同一会话"
       },
@@ -16256,7 +16444,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2133,
+        "line": 2171,
         "requirement_id": "V2-REQ-VIDEO-010",
         "excerpt": "连续 seek、切源、回退或 SyncPlay 命令不会把 UI 拉回旧位置或错误宣称完成"
       },
@@ -16301,7 +16489,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2134,
+        "line": 2172,
         "requirement_id": "V2-REQ-VIDEO-011",
         "excerpt": "通知、UI、SyncPlay 与播放器跟随同一实例；音乐和视频不会同时出声"
       },
@@ -16347,7 +16535,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2135,
+        "line": 2173,
         "requirement_id": "V2-REQ-VIDEO-012",
         "excerpt": "布局变化不打断观看；进程重建不自动起播、不丢失可恢复身份"
       },
@@ -16392,7 +16580,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2136,
+        "line": 2174,
         "requirement_id": "V2-REQ-VIDEO-013",
         "excerpt": "核心容器可进入正确播放路径；不支持时给可执行说明而不是无限缓冲"
       },
@@ -16438,7 +16626,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2137,
+        "line": 2175,
         "requirement_id": "V2-REQ-VIDEO-014",
         "excerpt": "核心编码可真实播放；能力外编码会有证据型回退或清晰失败"
       },
@@ -16483,7 +16671,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2138,
+        "line": 2176,
         "requirement_id": "V2-REQ-VIDEO-015",
         "excerpt": "1080p 与 4K 路径有可验证结果；8K 不被伪装成 2.0 核心能力"
       },
@@ -16528,7 +16716,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2138,
+        "line": 2176,
         "requirement_id": "V2-REQ-VIDEO-015",
         "excerpt": "1080p 与 4K 路径有可验证结果；8K 不被伪装成 2.0 核心能力"
       },
@@ -16574,7 +16762,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2139,
+        "line": 2177,
         "requirement_id": "V2-REQ-VIDEO-016",
         "excerpt": "用户可看到实际音轨和播放结果；不支持组合明确转码或失败"
       },
@@ -16619,7 +16807,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2140,
+        "line": 2178,
         "requirement_id": "V2-REQ-VIDEO-017",
         "excerpt": "用户能看到实际播放路径和质量，网络 / 权限 / 格式失败有原因"
       },
@@ -16665,7 +16853,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2141,
+        "line": 2179,
         "requirement_id": "V2-REQ-VIDEO-018",
         "excerpt": "自动回退只影响当前媒体，并说明原因；用户能手动改变后续策略"
       },
@@ -16710,7 +16898,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2142,
+        "line": 2180,
         "requirement_id": "V2-REQ-VIDEO-019",
         "excerpt": "质量变化可追溯，重新打开其他视频不会无提示继承意外策略"
       },
@@ -16756,7 +16944,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2143,
+        "line": 2181,
         "requirement_id": "V2-REQ-VIDEO-020",
         "excerpt": "用户知道正在播放哪个版本；来源消失或能力失败不会静默换源"
       },
@@ -16801,7 +16989,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2144,
+        "line": 2182,
         "requirement_id": "V2-REQ-VIDEO-021",
         "excerpt": "用户能诊断“源是什么”和“实际播放什么”；未知字段显示未知"
       },
@@ -16847,7 +17035,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2145,
+        "line": 2183,
         "requirement_id": "V2-REQ-VIDEO-022",
         "excerpt": "UI 只显示可证实 HDR 状态；自动 / 手动 tone-mapping 不阻塞普通播放"
       },
@@ -16892,7 +17080,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2146,
+        "line": 2184,
         "requirement_id": "V2-REQ-VIDEO-023",
         "excerpt": "2.0 不出现伪投屏；未来接入必须另验协议与真实设备"
       },
@@ -16938,7 +17126,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2147,
+        "line": 2185,
         "requirement_id": "V2-REQ-VIDEO-024",
         "excerpt": "基本控制有稳定状态，不在缓冲中冻结全部交互"
       },
@@ -16983,7 +17171,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2148,
+        "line": 2186,
         "requirement_id": "V2-REQ-VIDEO-025",
         "excerpt": "拖动时用户看到真实目标，松手落到目标；无 Trickplay 不阻塞 seek"
       },
@@ -17029,7 +17217,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2149,
+        "line": 2187,
         "requirement_id": "V2-REQ-VIDEO-026",
         "excerpt": "用户能明确切换当前项与后续项；清空队列后当前播放不被静默终止；播完行为可预测"
       },
@@ -17075,7 +17263,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2150,
+        "line": 2188,
         "requirement_id": "V2-REQ-VIDEO-027",
         "excerpt": "用户可选完整倍速档；长按行为可预测，不误持续升速"
       },
@@ -17120,7 +17308,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2151,
+        "line": 2189,
         "requirement_id": "V2-REQ-VIDEO-028",
         "excerpt": "用户在结尾知道会循环、继续下一集或停住"
       },
@@ -17165,7 +17353,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2152,
+        "line": 2190,
         "requirement_id": "V2-REQ-VIDEO-029",
         "excerpt": "旋转锁定和退出全屏符合预期；不会误触退出页面"
       },
@@ -17211,7 +17399,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2153,
+        "line": 2191,
         "requirement_id": "V2-REQ-VIDEO-030",
         "excerpt": "画面可调且所有变换可撤销；字幕与控件不被错误裁掉"
       },
@@ -17257,7 +17445,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2154,
+        "line": 2192,
         "requirement_id": "V2-REQ-VIDEO-031",
         "excerpt": "用户离开页面后行为符合设置；系统入口和 UI 不互相矛盾，关闭后会话与通知一起收敛"
       },
@@ -17303,7 +17491,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2155,
+        "line": 2193,
         "requirement_id": "V2-REQ-VIDEO-032",
         "excerpt": "用户可防误触、定时停止和维持长片播放；锁定不会造成软锁，计时状态跨页面一致"
       },
@@ -17348,7 +17536,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2156,
+        "line": 2194,
         "requirement_id": "V2-REQ-VIDEO-033",
         "excerpt": "用户能主动或按设置跳过标记段落；无标记时不制造假按钮"
       },
@@ -17393,7 +17581,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2157,
+        "line": 2195,
         "requirement_id": "V2-REQ-VIDEO-034",
         "excerpt": "用户能判断进度与预计结束；格式设置即时并持久"
       },
@@ -17439,7 +17627,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2158,
+        "line": 2196,
         "requirement_id": "V2-REQ-VIDEO-035",
         "excerpt": "自动选择符合语言偏好；用户手动选择后同一媒体恢复正确音轨"
       },
@@ -17485,7 +17673,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2159,
+        "line": 2197,
         "requirement_id": "V2-REQ-VIDEO-036",
         "excerpt": "用户能校正音画同步；下一条媒体不会继承意外延迟"
       },
@@ -17530,7 +17718,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2160,
+        "line": 2198,
         "requirement_id": "V2-REQ-VIDEO-037",
         "excerpt": "有真实 DSP 与设备证据时可切换；不支持时不显示伪开关，不影响普通音轨与音量"
       },
@@ -17575,7 +17763,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2161,
+        "line": 2199,
         "requirement_id": "V2-REQ-VIDEO-038",
         "excerpt": "用户能看到服务器和内封 / 外挂字幕；无字幕时不自动联网取第三方资源"
       },
@@ -17621,7 +17809,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2162,
+        "line": 2200,
         "requirement_id": "V2-REQ-VIDEO-039",
         "excerpt": "用户能判断字幕来自哪里、当前启用哪条、为什么不能作为次字幕"
       },
@@ -17667,7 +17855,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2163,
+        "line": 2201,
         "requirement_id": "V2-REQ-VIDEO-040",
         "excerpt": "主字幕覆盖内封 / 外挂 / 图形中受支持项；次字幕不会伪造图形双语"
       },
@@ -17713,7 +17901,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2164,
+        "line": 2202,
         "requirement_id": "V2-REQ-VIDEO-041",
         "excerpt": "用户切换主次字幕无重影；无等价轨道时得到明确解释"
       },
@@ -17758,7 +17946,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2165,
+        "line": 2203,
         "requirement_id": "V2-REQ-VIDEO-042",
         "excerpt": "每次微调步长一致、结果可读、可回零；重新打开同一来源仍生效"
       },
@@ -17804,7 +17992,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2166,
+        "line": 2204,
         "requirement_id": "V2-REQ-VIDEO-043",
         "excerpt": "用户校正不会因跳转、变速或切内核丢失"
       },
@@ -17849,7 +18037,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2167,
+        "line": 2205,
         "requirement_id": "V2-REQ-VIDEO-044",
         "excerpt": "拖动中只看到目标时间对应的字幕，松手后无叠字"
       },
@@ -17895,7 +18083,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2168,
+        "line": 2206,
         "requirement_id": "V2-REQ-VIDEO-045",
         "excerpt": "文本字幕可调；ASS 特效不被破坏；图形字幕不出现伪字体 / 伪颜色控制"
       },
@@ -17941,7 +18129,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2169,
+        "line": 2207,
         "requirement_id": "V2-REQ-VIDEO-046",
         "excerpt": "用户修改后当前与后续媒体一致；切内核仍保留可表达样式"
       },
@@ -17986,7 +18174,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2170,
+        "line": 2208,
         "requirement_id": "V2-REQ-VIDEO-047",
         "excerpt": "用户导入后可立即选择；重进同一媒体仍可见；移除不影响其他媒体"
       },
@@ -18032,7 +18220,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2171,
+        "line": 2209,
         "requirement_id": "V2-REQ-VIDEO-048",
         "excerpt": "本地播放开箱获得匹配字幕；推断错误可手动纠正"
       },
@@ -18077,7 +18265,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2172,
+        "line": 2210,
         "requirement_id": "V2-REQ-VIDEO-049",
         "excerpt": "中文侧载字幕不静默乱码；坏文件不会中断视频"
       },
@@ -18123,7 +18311,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2173,
+        "line": 2211,
         "requirement_id": "V2-REQ-VIDEO-050",
         "excerpt": "支持的图形 / 特效字幕正确显示；无法显示时解释并保留播放状态"
       },
@@ -18169,7 +18357,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2174,
+        "line": 2212,
         "requirement_id": "V2-REQ-VIDEO-051",
         "excerpt": "2.0 不出现在线搜索入口或自动下载行为"
       },
@@ -18214,7 +18402,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2175,
+        "line": 2213,
         "requirement_id": "V2-REQ-VIDEO-052",
         "excerpt": "2.0 不出现多段 EQ 或伪装成专业 DSP 的控件"
       },
@@ -18259,7 +18447,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2176,
+        "line": 2214,
         "requirement_id": "V2-REQ-VIDEO-053",
         "excerpt": "单击能在观看与控制间切换，按钮点击不误触 seek / 暂停"
       },
@@ -18304,7 +18492,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2177,
+        "line": 2215,
         "requirement_id": "V2-REQ-VIDEO-054",
         "excerpt": "单次和连续双击结果可预测，方向与 HUD 一致"
       },
@@ -18349,7 +18537,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2178,
+        "line": 2216,
         "requirement_id": "V2-REQ-VIDEO-055",
         "excerpt": "拖动反馈跟随手指，松手准确 seek；取消或未达阈值有确定回退"
       },
@@ -18394,7 +18582,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2179,
+        "line": 2217,
         "requirement_id": "V2-REQ-VIDEO-056",
         "excerpt": "用户能校正亮度和音量，左右分区不串；退出后不留下不可控状态"
       },
@@ -18439,7 +18627,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2180,
+        "line": 2218,
         "requirement_id": "V2-REQ-VIDEO-057",
         "excerpt": "系统返回不被抢；seek 与亮度 / 音量不会在斜滑时抖动切换"
       },
@@ -18485,7 +18673,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2181,
+        "line": 2219,
         "requirement_id": "V2-REQ-VIDEO-058",
         "excerpt": "用户能裁黑边或局部放大，越界被限制且可恢复"
       },
@@ -18531,7 +18719,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2182,
+        "line": 2220,
         "requirement_id": "V2-REQ-VIDEO-059",
         "excerpt": "用户能退出播放页，滑动误触不会关闭全屏或页面"
       },
@@ -18576,7 +18764,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2183,
+        "line": 2221,
         "requirement_id": "V2-REQ-VIDEO-060",
         "excerpt": "用户知道手势目标和结果；辅助技术或手势关闭时仍能完成操作"
       },
@@ -18621,7 +18809,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2184,
+        "line": 2222,
         "requirement_id": "V2-REQ-VIDEO-061",
         "excerpt": "用户在每个支持形态都能找到全部功能；同一功能不出现两个竞争入口"
       },
@@ -18668,7 +18856,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2185,
+        "line": 2223,
         "requirement_id": "V2-REQ-VIDEO-062",
         "excerpt": "普通用户获得沉浸体验；TalkBack 和辅助输入不会把焦点丢进隐藏层"
       },
@@ -18714,7 +18902,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2186,
+        "line": 2224,
         "requirement_id": "V2-REQ-VIDEO-063",
         "excerpt": "旋转、折叠、分栏或 PiP 后画面、控制、字幕仍可达且进度连续"
       },
@@ -18760,7 +18948,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2187,
+        "line": 2225,
         "requirement_id": "V2-REQ-VIDEO-064",
         "excerpt": "五主题下视频控制结构、状态和对比度一致；切主题不中断播放"
       },
@@ -18806,7 +18994,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2188,
+        "line": 2226,
         "requirement_id": "V2-REQ-VIDEO-065",
         "excerpt": "操作反馈清楚；切内核不露黑帧或虚假新开播放器感"
       },
@@ -18851,7 +19039,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2189,
+        "line": 2227,
         "requirement_id": "V2-REQ-VIDEO-066",
         "excerpt": "开启时提供细腻反馈；关闭或性能不足不影响播放和功能发现"
       },
@@ -18897,7 +19085,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2190,
+        "line": 2228,
         "requirement_id": "V2-REQ-VIDEO-067",
         "excerpt": "减少动画用户仍能完成全部操作，状态反馈清晰"
       },
@@ -18942,7 +19130,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2191,
+        "line": 2229,
         "requirement_id": "V2-REQ-VIDEO-068",
         "excerpt": "2.0 不因环境光增加额外耗电或遮挡画面"
       },
@@ -18988,7 +19176,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2192,
+        "line": 2230,
         "requirement_id": "V2-REQ-VIDEO-069",
         "excerpt": "重新打开 Jellyfin 条目从正确位置继续；本地 / 下载内容不会写错服务器账号"
       },
@@ -19034,7 +19222,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2193,
+        "line": 2231,
         "requirement_id": "V2-REQ-VIDEO-070",
         "excerpt": "用户选择目录后可重复浏览和播放；重启后授权仍有效"
       },
@@ -19080,7 +19268,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2194,
+        "line": 2232,
         "requirement_id": "V2-REQ-VIDEO-071",
         "excerpt": "本地视频恢复符合用户选择；切换服务器 / 账号不改变本地进度归属"
       },
@@ -19126,7 +19314,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2195,
+        "line": 2233,
         "requirement_id": "V2-REQ-VIDEO-072",
         "excerpt": "断网后能从正确入口打开已完成视频；文件缺失时提示修复"
       },
@@ -19171,7 +19359,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2196,
+        "line": 2234,
         "requirement_id": "V2-REQ-VIDEO-073",
         "excerpt": "本地条目可识别并有合理标题 / 时长；未知字段明确显示"
       },
@@ -19216,7 +19404,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2197,
+        "line": 2235,
         "requirement_id": "V2-REQ-VIDEO-074",
         "excerpt": "2.0 只保证 SAF 本地库与已完成下载，不出现未实现入口"
       },
@@ -19262,7 +19450,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2198,
+        "line": 2236,
         "requirement_id": "V2-REQ-VIDEO-075",
         "excerpt": "用户可修复原库或移除坏条目；离线内容不会悄悄变成在线内容"
       },
@@ -19308,7 +19496,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2199,
+        "line": 2237,
         "requirement_id": "V2-REQ-VIDEO-076",
         "excerpt": "用户知道本地副本不可用，并能在下载域执行修复"
       },
@@ -19354,7 +19542,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2200,
+        "line": 2238,
         "requirement_id": "V2-REQ-VIDEO-077",
         "excerpt": "用户不会在不知情时看到另一版本或账号内容"
       },
@@ -19400,7 +19588,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2201,
+        "line": 2239,
         "requirement_id": "V2-REQ-VIDEO-078",
         "excerpt": "弱网不会直接退回列表；转码与内核回退有明确原因；旧回调不覆盖新状态"
       },
@@ -19445,7 +19633,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2202,
+        "line": 2240,
         "requirement_id": "V2-REQ-VIDEO-079",
         "excerpt": "用户能理解故障并选择下一步；不会在不知情时跑到下一集或无限循环"
       },
@@ -19491,7 +19679,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2203,
+        "line": 2241,
         "requirement_id": "V2-REQ-VIDEO-080",
         "excerpt": "用户能明确创建或加入观看派对；创建前暂停可见且不丢位置；离开后本地播放与会话不被错误状态污染"
       },
@@ -19537,7 +19725,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2204,
+        "line": 2242,
         "requirement_id": "V2-REQ-VIDEO-081",
         "excerpt": "同名 / 同媒体副本不会混淆；所有成员看到一致队列身份"
       },
@@ -19583,7 +19771,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2205,
+        "line": 2243,
         "requirement_id": "V2-REQ-VIDEO-082",
         "excerpt": "主机的组操作可预测，访客能添加但不能越权；失败不会假装成功"
       },
@@ -19629,7 +19817,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2206,
+        "line": 2244,
         "requirement_id": "V2-REQ-VIDEO-083",
         "excerpt": "用户动作与服务端确认可关联；回声和迟到命令不会让 UI / 播放器状态分裂"
       },
@@ -19675,7 +19863,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2207,
+        "line": 2245,
         "requirement_id": "V2-REQ-VIDEO-084",
         "excerpt": "用户知道请求是否送达、等待或被拒绝；不会把 pending 显示成成功"
       },
@@ -19721,7 +19909,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2208,
+        "line": 2246,
         "requirement_id": "V2-REQ-VIDEO-085",
         "excerpt": "访客可暂时停下处理私人事务，不拖累全组；回来重新同步"
       },
@@ -19766,7 +19954,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2209,
+        "line": 2247,
         "requirement_id": "V2-REQ-VIDEO-086",
         "excerpt": "组生命周期可预测；不会出现多个客户端各自宣称主机"
       },
@@ -19812,7 +20000,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2210,
+        "line": 2248,
         "requirement_id": "V2-REQ-VIDEO-087",
         "excerpt": "组命令按统一时钟执行；网络 RTT 不直接当组状态偏移"
       },
@@ -19858,7 +20046,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2211,
+        "line": 2249,
         "requirement_id": "V2-REQ-VIDEO-088",
         "excerpt": "小漂移无感、中大漂移可见校正；用户知道系统正在恢复同步"
       },
@@ -19904,7 +20092,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2212,
+        "line": 2250,
         "requirement_id": "V2-REQ-VIDEO-089",
         "excerpt": "不支持服务器上不出现可执行但必失败的组功能"
       },
@@ -19950,7 +20138,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2213,
+        "line": 2251,
         "requirement_id": "V2-REQ-VIDEO-090",
         "excerpt": "网络抖动不会把状态谎报为同步；用户能看到中断、重连、离开或重新加入"
       },
@@ -19995,7 +20183,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2214,
+        "line": 2252,
         "requirement_id": "V2-REQ-VIDEO-091",
         "excerpt": "PiP 画面与组状态一致；后台僵尸成员不会拖累全组，回来有明确重连过程"
       },
@@ -20041,7 +20229,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2215,
+        "line": 2253,
         "requirement_id": "V2-REQ-VIDEO-092",
         "excerpt": "用户不会误以为本地源已参与同步；服务器点播仍可创建组"
       },
@@ -20087,7 +20275,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2216,
+        "line": 2254,
         "requirement_id": "V2-REQ-VIDEO-093",
         "excerpt": "用户不会用本地倍速持续破坏组同步；自动追帧状态可见但不伪装为用户倍速"
       },
@@ -20132,7 +20320,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2217,
+        "line": 2255,
         "requirement_id": "V2-REQ-VIDEO-094",
         "excerpt": "每个成员可按语言 / 听力需要选择字幕和音轨，且不会改变他人"
       },
@@ -20178,7 +20366,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2218,
+        "line": 2256,
         "requirement_id": "V2-REQ-VIDEO-095",
         "excerpt": "用户总能找到组操作并分辨已同步、追帧、重连、中断和失败"
       },
@@ -20223,7 +20411,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2219,
+        "line": 2257,
         "requirement_id": "V2-REQ-VIDEO-096",
         "excerpt": "不出现不可用的聊天 / 深链承诺；核心创建、加入、队列和同步仍可完成"
       },
@@ -20268,7 +20456,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.8.9",
-        "line": 2220,
+        "line": 2258,
         "requirement_id": "V2-REQ-VIDEO-097",
         "excerpt": "所有 MUST / SHOULD 均能定位到矩阵节点与证据；P0 / P1 未关闭不进入发布材料或最终人工验收"
       },
@@ -20314,7 +20502,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2450,
+        "line": 2488,
         "requirement_id": "V2-REQ-NAV-001",
         "excerpt": "视频详情→音乐→视频落视频根且滚动仍在；当前入口再次点按回根；返回不越过当前详情 / 播放器层"
       },
@@ -20359,7 +20547,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2451,
+        "line": 2489,
         "requirement_id": "V2-REQ-NAV-002",
         "excerpt": "方向与入口顺序一致；动画中再次切换可立即接管；Reduce Motion 下直接切换或短淡入"
       },
@@ -20405,7 +20593,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2452,
+        "line": 2490,
         "requirement_id": "V2-REQ-NAV-003",
         "excerpt": "选中态无需等待动画；侧轨开合可立即操作；hover 不位移 / 缩放；Reduce Motion 下状态仍完整"
       },
@@ -20451,7 +20639,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2453,
+        "line": 2491,
         "requirement_id": "V2-REQ-NAV-004",
         "excerpt": "侧栏、媒体库、首页、下载、搜索只显示当前 server + user 数据；切号不闪旧库；失败不回退旧内容"
       },
@@ -20497,7 +20685,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2454,
+        "line": 2492,
         "requirement_id": "V2-REQ-NAV-005",
         "excerpt": "在线 / 离线都能从保存账户选择；添加账户不混入选择结果；不可用原因可读"
       },
@@ -20543,7 +20731,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2455,
+        "line": 2493,
         "requirement_id": "V2-REQ-NAV-006",
         "excerpt": "离线切账户后只显示新身份本地内容；旧身份在线 / 混合播放不继续或出现在新身份控制中；纯本地播放可继续；点击“切换到在线”后才认证"
       },
@@ -20589,7 +20777,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2456,
+        "line": 2494,
         "requirement_id": "V2-REQ-NAV-007",
         "excerpt": "在线与离线切号都使旧媒体不继续播放或出现在新身份控制中；回原账号看到原队列 / 位置但未自动起播；离线切换不联网、不清除离线标志"
       },
@@ -20635,7 +20823,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2456,
+        "line": 2494,
         "requirement_id": "V2-REQ-NAV-007",
         "excerpt": "在线与离线切号都使旧媒体不继续播放或出现在新身份控制中；回原账号看到原队列 / 位置但未自动起播；离线切换不联网、不清除离线标志"
       },
@@ -20680,7 +20868,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2457,
+        "line": 2495,
         "requirement_id": "V2-REQ-NAV-008",
         "excerpt": "G1 决策包能回答为何采用该容器、层级、最少操作与降级；未验证引用不冒充事实"
       },
@@ -20725,7 +20913,7 @@
       "semantic_source_anchor": {
         "path": "docs/V2_PLAN.md",
         "section": "docs/V2_PLAN.md §5.9.1",
-        "line": 2458,
+        "line": 2496,
         "requirement_id": "V2-REQ-NAV-009",
         "excerpt": "G1 有验收矩阵，候选包有真实旅程；fixture / 截图 / 代码存在不能单独替代入口操作"
       },

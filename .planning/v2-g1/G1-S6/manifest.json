@@ -7,93 +7,93 @@
   "self_excluded": true,
   "eol_policy": "UTF-8 no BOM; LF only",
   "file_count_excluding_manifest": 11,
-  "total_bytes_excluding_manifest": 4890735,
+  "total_bytes_excluding_manifest": 5157869,
   "entries": [
     {
       "path": "README.md",
-      "bytes": 11218,
-      "sha256": "06D9F31EBBFC5890AC8825033C730372AC3772F131C24FC316A79C2AD8EC53DF",
-      "lf": 132,
+      "bytes": 12309,
+      "sha256": "7D2E545664330DB815A35AC2C27308C0D8BCD9694A7667EA48D25CE04A5EC0EA",
+      "lf": 135,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "CHECKPOINT.md",
-      "bytes": 5632,
-      "sha256": "0D1D3F18B659A2581F3C3D28CEE37F62901084F0BC2774CA7F04BA8D71C697E0",
+      "bytes": 5951,
+      "sha256": "B4074497BAAC1685E6EBDB96276B23E808788498E8E6EBE0D2F93205954F7E6F",
       "lf": 62,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "acceptance-matrix.json",
-      "bytes": 2555251,
-      "sha256": "04989A2BB4378E903416C758196898960F41F2804E78612F41B4558159F849EF",
-      "lf": 63846,
+      "bytes": 2695470,
+      "sha256": "F10873ACDB016C57EF1FAF844F87E9DEE1C68CA568BD412B5BBE4B4843F6DFB4",
+      "lf": 67188,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "row-semantics.json",
-      "bytes": 1303775,
-      "sha256": "DDCEF70BA1AF33DF1D0B3C934D7076D929ED50C0842ECB5C7F8CC15DCB5DA3A4",
-      "lf": 20743,
+      "bytes": 1324029,
+      "sha256": "385327FABEEA52ABB5CAB7384DF2E34C991197213C99F619FF3CAEEC6741860D",
+      "lf": 20931,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "wave-membership.json",
-      "bytes": 320331,
-      "sha256": "6C8E12BB3ECAB79C02BBA78B87C91585AD748B7DAB43217AE2B2B2CC4D3F8583",
-      "lf": 10091,
+      "bytes": 323735,
+      "sha256": "BCA1409AE27E2672EB437BE648662562CD55CADB0235A208D4E48AFABB1B18EB",
+      "lf": 10202,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "thresholds.json",
-      "bytes": 23446,
-      "sha256": "A7690C64EEE86CD8B37CD6467DCD7E0B27B9296228F1F7FC31B6F28054A2E325",
-      "lf": 817,
+      "bytes": 25467,
+      "sha256": "9A4A91DFA240ADB7FE119B65804470CCFF31EE755F9F871312D3CF75B7269F39",
+      "lf": 886,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "g2-task-cards.json",
-      "bytes": 295996,
-      "sha256": "3FC9958CB2DC88BF12C8CE5B7710E5C36058E6E769B9960160AD342F240D2962",
-      "lf": 6542,
+      "bytes": 336094,
+      "sha256": "07D3EB20905EE5EAACD2B133C33C7CA267E0A7306418ACB4882E6F958C496944",
+      "lf": 7431,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "risk-register.json",
-      "bytes": 19205,
-      "sha256": "AE11DC1861CEE826BBC7D9BEADF8CE7DA5004D8B7CDBD60D1F1788213B04A9E5",
-      "lf": 665,
+      "bytes": 21652,
+      "sha256": "29AEFFD846343248C443A9B064632DA18F1E96CF7C000126438F5E8423EDDB1F",
+      "lf": 733,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "source-index.json",
-      "bytes": 21245,
-      "sha256": "E5CF50A5EAC0BF81DFED257FFADD4F6514BC5030953C3ED6184980D114CE02A9",
-      "lf": 708,
+      "bytes": 22140,
+      "sha256": "806B1CE523B75118BBDB640E61F1E2856EB05F2A066786F4EED0A20C0211C02E",
+      "lf": 731,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "build_s6_artifacts.py",
-      "bytes": 249192,
-      "sha256": "BFEEFDA00A3725D5E3BCD9CDC5E79B9C79FE7951D7B05A2C94606027079EF98E",
-      "lf": 4612,
+      "bytes": 275088,
+      "sha256": "D785CE4B1D3AF5C2B23814CF8849E5A59C6DD087F6A158B4F25456537B3529C0",
+      "lf": 5075,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "verify_s6_artifacts.py",
-      "bytes": 85444,
-      "sha256": "336FB09AE3C183E274583DDA79B4DDFCEC805172BC01128AADE07AE64F1922F4",
-      "lf": 2182,
+      "bytes": 115934,
+      "sha256": "8E42AA4F69078A021955910C52C010BA87039A9246CE922138B772BC17D639F9",
+      "lf": 2966,
       "crlf": 0,
       "eol": "LF"
     }

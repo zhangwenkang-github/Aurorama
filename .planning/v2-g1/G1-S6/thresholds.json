@@ -7,7 +7,7 @@
     "UNRESOLVED means the accepted source does not provide a concrete value.",
     "Passing a static threshold does not prove runtime, device or production protocol."
   ],
-  "count": 46,
+  "count": 50,
   "thresholds": [
     {
       "id": "T-P0-ZERO",
@@ -800,16 +800,85 @@
       "requirement_ids": [
         "V2-REQ-READER-060",
         "V2-REQ-READER-063",
+        "V2-REQ-READER-087",
+        "V2-REQ-READER-088",
+        "V2-REQ-READER-089",
+        "V2-REQ-READER-090",
         "V2-Q-G1-03"
       ],
       "metric": "TTS 期间 App 网络流量",
       "operator": "==",
       "value": 0,
       "unit": "bytes / app",
-      "environment": "flight mode / selected device",
+      "environment": "flight mode / background / selected device",
       "evidence_level": "E5/E7",
       "status": "BLOCKED",
-      "source": "EV-Q03-TTS-PDF; EV-S4C",
+      "source": "V2-D203; EV-Q03-TTS-PDF; EV-S4C",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-TTS-PROCESS-RESTART-AUTOPLAY",
+      "requirement_ids": [
+        "V2-REQ-READER-087"
+      ],
+      "metric": "进程死亡 / 重启后自动开始 TTS",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "candidate package process death / relaunch",
+      "evidence_level": "E4/E5/E7",
+      "status": "BLOCKED",
+      "source": "V2-D203",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-TTS-VOICE-DANGLING",
+      "requirement_ids": [
+        "V2-REQ-READER-088",
+        "V2-REQ-READER-089"
+      ],
+      "metric": "删除音色后悬空全局 / 逐书 profile 引用",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "voice-pack deletion fault injection",
+      "evidence_level": "E1/E4/E5",
+      "status": "BLOCKED",
+      "source": "V2-D203",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-TTS-VOICE-REIMPORT",
+      "requirement_ids": [
+        "V2-REQ-READER-088"
+      ],
+      "metric": "完全相同 pack / profile 重复导入新增条目",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "voice-pack import idempotency",
+      "evidence_level": "E1/E4",
+      "status": "BLOCKED",
+      "source": "V2-D203",
+      "runtime_executed": false,
+      "device_executed": false
+    },
+    {
+      "id": "T-TTS-ACTIVE-OWNER",
+      "requirement_ids": [
+        "V2-REQ-READER-090"
+      ],
+      "metric": "同时活动的 TTS 与音乐 audio owner / MediaSession",
+      "operator": "==",
+      "value": 0,
+      "unit": "count",
+      "environment": "background / focus / noisy / restart",
+      "evidence_level": "E4/E5/E7",
+      "status": "BLOCKED",
+      "source": "V2-D203",
       "runtime_executed": false,
       "device_executed": false
     }

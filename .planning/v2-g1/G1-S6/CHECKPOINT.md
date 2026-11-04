@@ -5,20 +5,20 @@
 ## 已完成
 
 - 已完成本轮允许范围内的静态读取与压缩取证：G0 八域最终表、五个 BASE 组、A1/A2/BASE-001/003/004、S1–S5、Q03-SBOM/NATIVE/NOTICE/TTS-PDF、当前 DECISIONS/TASKS/UI R1。
-- 已生成 445 个外部 source node、456 条原子验收行、376 个外部 MVP 子项；复合节点未压平，流程 / LATER / OUT 保留可追踪。
-- 已生成 456 条 schema v2 行语义记录；operation 由 actor / entry_surface / action_verb / action_object / expected_response 组合，MUSIC-003/014 与 NAV-004/005/006 已源特定修复，全部 action_object 元数据泄漏为 0；源中缺失的状态、无障碍与 RWD 分支显式标记 `UNSPECIFIED_IN_SOURCE`。
-- 已生成 491 条独立 explicit row membership、554 条 row→wave 边；builder 只按 `wave-membership.json` join，轮转推断已删除。MUSIC-003→本地扫描、MUSIC-014→queue-recovery、NAV-005→account-select/identity W2 均已修复，NAV-004/006 保持 W2。
-- 已生成 5 个 BASE MUST 组、30 条 R1 横向承诺、46 条阈值、16 张 planning umbrella、45 个可执行 delivery wave；单 wave 最大边界项 8。
-- 45 个 wave 均有专业 owner、非空真实 promise_ids、1 个结构化验收物、显式 capability / entry / action tags 与具体文件 / FQCN 边界；矩阵 491 条 membership 已映射到至少一个 wave。
+- 已生成 449 个归一化 source node，其中外部 445 + D203 addendum 4；460 条原子验收行，其中外部 456 + addendum 4；归一化 MVP 380（外部 376 + addendum 4）。复合节点未压平，流程 / LATER / OUT 保留可追踪。
+- 已生成 460 条 schema v2 行语义记录；operation 由 actor / entry_surface / action_verb / action_object / expected_response 组合，MUSIC-003/014 与 NAV-004/005/006 已源特定修复，全部 action_object 元数据泄漏为 0；源中缺失的状态、无障碍与 RWD 分支显式标记 `UNSPECIFIED_IN_SOURCE`。
+- 已生成 495 条独立 explicit row membership、560 条 row→wave 边；builder 只按 `wave-membership.json` join，轮转推断已删除。MUSIC-003→本地扫描、MUSIC-014→queue-recovery、NAV-005→account-select/identity W2 均已修复，NAV-004/006 保持 W2。
+- 已生成 5 个 BASE MUST 组、30 条 R1 横向承诺、50 条阈值、16 张 planning umbrella、49 个可执行 delivery wave；单 wave 最大边界项 8。
+- 49 个 wave 均有专业 owner、非空真实 promise_ids、1 个结构化验收物、显式 capability / entry / action tags 与具体文件 / FQCN 边界；矩阵 495 条 membership 已映射到至少一个 wave。
 - card 级 `EV-S6` 自证引用为 0；对外证据保留具体证据 ID 或显式 `NO_EVIDENCE_YET` 缺口。
-- 风险登记 P0/P1/P2/P3=`1/16/11/2`。
-- `verify_s6_artifacts.py` 与 491 条 explicit membership、554 条边的语义 / 能力 / 入口 / 动作 / 边界门禁及 29 个负向 self-test 已在收口时真实执行；manifest、SHA-256 与 LF / CRLF 由最终产物复算。
-- fresh scoped review 结论为 `PASS_WITH_P2`，接受 S6 为规划包及 docs integration/commit 候选；唯一 P2 为 `G1-S6/__pycache__/*.pyc` 不得进入提交。
+- 风险登记 P0/P1/P2/P3=`1/19/11/2`。
+- `verify_s6_artifacts.py` 与 495 条 explicit membership、560 条边的语义 / 能力 / 入口 / 动作 / 边界门禁及 42 个负向 self-test 已在 D203 重新生成后执行；manifest、SHA-256 与 LF / CRLF 由最终产物复算。
+- 原始 S6 scoped review 仍为 `PASS_WITH_P2`，唯一 P2 `G1-S6/__pycache__/*.pyc` 保持排除；D203 后重新生成本身不是新的独立 review。
 
 ## 未完成 / 不可声明
 
 - S6 通过不等于 G1 PASS；G1 仍为 `NOT_PASSED`，runtime 仍为 `UNVERIFIED`。
-- Q03 仍 Open：TTS 引擎 / voice / 模型零网络 runtime、PDFium 16 KB / Range / native revision / notice、packaged SBOM / source offer、attestation / relink 均未关闭。
+- Q03 仍 Open：TTS exact voice-pack profile / 试听 / 许可与后台锁屏零网络 runtime、PDFium 16 KB / Range / native revision / notice、packaged SBOM / source offer、attestation / relink 均未关闭。Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎已由 D203 固定，不等于 Q03 关闭。
 - 未执行实现、Gradle、ADB、设备、服务器、网络、独立 QA、Release；不得写 G1/runtime/device/QA PASS。
 - Base-003 TTL / capacity / prefetch、BASE-004 重复 / 部分导入、搜索排序 / 跨源呈现等产品策略仍未由用户拍板。
 
@@ -50,11 +50,11 @@
 
 ## Scoped review 结论与残余门
 
-**结论**：fresh scoped review `PASS_WITH_P2`；唯一 P2 `G1-S6/__pycache__/*.pyc` 已排除，不进入提交。S6 仅作为规划包与 docs integration/commit 候选。
+**结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留；D203 后本次 builder / verifier 重跑只更新静态规划包，不能代替新的 fresh reviewer。S6 仍只作为规划包与 docs integration 输入。
 
-**下一步入口**：交付负责人 / 技术集成编排者只做只读残余门审计和用户决策准备；第一条只读动作是读取本 checkpoint、`README.md`、`manifest.json` 与 `docs/DECISIONS.md` Open Q03，整理 Q03 + B/C/D/E 授权选项。
+**下一步入口**：fresh reviewer 第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json`、`docs/DECISIONS.md` D203/Open Q03 与 `docs/TASKS.md` `V2-G1-L1-EVIDENCE`，确认 external 445/376 与 addendum 4 / normalized 380 分离正确后停止；不得代签 QA 或推进 G2。
 
-**停止条件**：下一步不得启动 Q03 runtime、引擎 / voice 选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、Q03/Q04/UI/G1 状态漂移、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
+**停止条件**：下一步不得启动 Q03 runtime、exact profile / 引擎替换选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、Q03/Q04/UI/G1 状态漂移、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
 
 ## 上下文水位
 

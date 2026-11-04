@@ -36,6 +36,94 @@ ACTION_COMPONENTS = (
     "operation_mode",
     "action_source_excerpt",
 )
+D203_EXPECTED_SEMANTICS = {
+    "S6-P-READER-087": {
+        "entry": "阅读器 TTS 控制条 / 锁屏 / 系统媒体控制",
+        "action_verb": "核对后台锁屏 TTS 生命周期",
+        "action_object_prefix": "后台 / 锁屏 TTS 生命周期、通知与 MediaSession 真值",
+        "waves": ["G2-READER-TTS-GATED-W3"],
+        "response_tokens": [
+            "离开阅读页",
+            "后台",
+            "锁屏",
+            "Activity",
+            "ViewModel",
+            "销毁",
+            "进程",
+            "重启",
+            "暂停",
+            "最后稳定句子",
+            "pack",
+            "通知",
+            "UI",
+            "MediaSession",
+        ],
+    },
+    "S6-P-READER-088": {
+        "entry": "阅读器 TTS 音色列表 / 导入 / 逐书覆盖",
+        "action_verb": "导入、选择并配置音色",
+        "action_object_prefix": "voice-pack 追加导入、幂等身份与逐书覆盖",
+        "waves": [
+            "G2-Q03-SUPPLY-CHAIN-GATED-W1",
+            "G2-Q03-SUPPLY-CHAIN-GATED-W2",
+            "G2-READER-TTS-GATED-W4",
+        ],
+        "response_tokens": [
+            "多音色",
+            "追加",
+            "替换",
+            "相同 pack / profile",
+            "同名异内容",
+            "新 profile",
+            "全局默认",
+            "逐书覆盖",
+            "设备级",
+        ],
+    },
+    "S6-P-READER-089": {
+        "entry": "阅读器 TTS 音色列表 / 删除 / 恢复",
+        "action_verb": "删除或恢复音色并核对回退",
+        "action_object_prefix": "voice-pack 删除、回退、恢复与引用清理",
+        "waves": ["G2-READER-TTS-GATED-W5"],
+        "response_tokens": [
+            "非活动音色",
+            "活动音色",
+            "停止",
+            "回退",
+            "有效内置 profile",
+            "引用",
+            "文件",
+            "派生数据",
+            "待重试",
+            "隐藏",
+            "恢复",
+            "悬空引用",
+        ],
+    },
+    "S6-P-READER-090": {
+        "entry": "阅读器 TTS / 音乐 / 系统媒体控制",
+        "action_verb": "控制音频 owner 并核对系统控制",
+        "action_object_prefix": "单音频 owner、音乐互斥与系统媒体控制真值",
+        "waves": ["G2-READER-TTS-GATED-W6"],
+        "response_tokens": [
+            "至多一个活动音频 owner",
+            "MediaSession",
+            "暂停音乐",
+            "保留队列",
+            "不自动恢复",
+            "先停 TTS",
+            "audio focus",
+            "noisy",
+            "重启",
+            "通知",
+        ],
+    },
+}
+D203_GENERIC_FORBIDDEN = (
+    "书架 / 书籍操作菜单",
+    "导入或导出并核对",
+    "执行用户路径并核对",
+)
 GENERIC_ACTORS = {
     "按需求",
     "需求",
@@ -100,6 +188,300 @@ def require_nonempty(row: dict, fields: list[str], row_id: str) -> None:
             fail(f"{row_id} field {field} is null")
         if isinstance(value, (str, list, dict)) and len(value) == 0:
             fail(f"{row_id} field {field} is empty")
+
+
+def d203_addendum_errors(matrix: dict) -> list[str]:
+    errors: list[str] = []
+    expected_ids = {f"V2-REQ-READER-{number:03d}" for number in range(87, 91)}
+    nodes = matrix.get("source_nodes", [])
+    rows = matrix.get("acceptance_rows", [])
+    external_nodes = [node for node in nodes if node.get("source_origin") == "EXTERNAL_G0"]
+    addendum_nodes = [
+        node for node in nodes if node.get("source_origin") == "PROJECT_G0_ADDENDUM"
+    ]
+    external_rows = [row for row in rows if row.get("source_origin") == "EXTERNAL_G0"]
+    addendum_rows = [
+        row for row in rows if row.get("source_origin") == "PROJECT_G0_ADDENDUM"
+    ]
+    if len(nodes) != 449 or len(external_nodes) != 445 or len(addendum_nodes) != 4:
+        errors.append(
+            f"D203 source origin counts normalized={len(nodes)} "
+            f"external={len(external_nodes)} addendum={len(addendum_nodes)}"
+        )
+    if len(rows) != 460 or len(external_rows) != 456 or len(addendum_rows) != 4:
+        errors.append(
+            f"D203 row origin counts normalized={len(rows)} "
+            f"external={len(external_rows)} addendum={len(addendum_rows)}"
+        )
+    if {node.get("source_id") for node in addendum_nodes} != expected_ids:
+        errors.append("D203 source IDs must be exactly READER-087..090")
+    if {row.get("parent_source_id") for row in addendum_rows} != expected_ids:
+        errors.append("D203 row IDs must be exactly READER-087..090")
+    if any(row.get("counted_in_external_445") for row in addendum_rows):
+        errors.append("D203 rows must not be counted in external 445")
+    if any(row.get("counted_in_external_376") for row in addendum_rows):
+        errors.append("D203 MVP rows must not be counted in external 376")
+    return errors
+
+
+def d203_semantic_contract_errors(
+    registry: dict,
+    rows: list[dict],
+    cards: list[dict],
+    risks: dict,
+) -> list[str]:
+    errors: list[str] = []
+    records = {
+        record.get("promise_id"): record
+        for record in registry.get("rows", [])
+        if isinstance(record, dict)
+    }
+    rows_by_id = {row.get("promise_id"): row for row in rows}
+    waves = {
+        wave.get("id"): wave
+        for card in cards
+        for wave in card.get("delivery_waves", [])
+    }
+    for promise_id, expected in D203_EXPECTED_SEMANTICS.items():
+        record = records.get(promise_id)
+        row = rows_by_id.get(promise_id)
+        if record is None or row is None:
+            errors.append(f"{promise_id} D203 semantic/row record missing")
+            continue
+        if record.get("entry") != expected["entry"] or record.get(
+            "entry_surface"
+        ) != expected["entry"]:
+            errors.append(
+                f"{promise_id} entry mismatch: {record.get('entry')!r} != {expected['entry']!r}"
+            )
+        if record.get("entry_status") != "SOURCE_GROUNDED":
+            errors.append(f"{promise_id} entry_status must be SOURCE_GROUNDED")
+        if record.get("action_verb") != expected["action_verb"]:
+            errors.append(
+                f"{promise_id} action_verb mismatch: "
+                f"{record.get('action_verb')!r} != {expected['action_verb']!r}"
+            )
+        if not str(record.get("action_object", "")).startswith(
+            expected["action_object_prefix"]
+        ):
+            errors.append(
+                f"{promise_id} action_object lacks specialized prefix "
+                f"{expected['action_object_prefix']!r}"
+            )
+        operation = str(record.get("operation", ""))
+        if expected["entry"] not in operation or expected["action_verb"] not in operation:
+            errors.append(f"{promise_id} operation lacks specialized entry/action")
+        for forbidden in D203_GENERIC_FORBIDDEN:
+            if forbidden in record.get("entry", "") or forbidden in operation:
+                errors.append(f"{promise_id} uses generic semantic {forbidden!r}")
+
+        response = str(row.get("observable_result", ""))
+        if record.get("expected_response") != response:
+            errors.append(f"{promise_id} expected_response differs from matrix row")
+        missing_tokens = [
+            token for token in expected["response_tokens"] if token not in response
+        ]
+        if missing_tokens:
+            errors.append(
+                f"{promise_id} expected_response missing tokens: {missing_tokens}"
+            )
+        if row.get("entry") != expected["entry"]:
+            errors.append(f"{promise_id} matrix entry mismatch")
+        if row.get("operation") != operation:
+            errors.append(f"{promise_id} matrix operation mismatch")
+        if "G2-READER-TTS-GATED" not in row.get("g2_card_ids", []):
+            errors.append(f"{promise_id} lacks G2-READER-TTS-GATED task card")
+        if sorted(row.get("g2_wave_ids", [])) != sorted(expected["waves"]):
+            errors.append(
+                f"{promise_id} wave mismatch: "
+                f"{row.get('g2_wave_ids')} != {expected['waves']}"
+            )
+        for wave_id in expected["waves"]:
+            wave = waves.get(wave_id)
+            if wave is None:
+                errors.append(f"{promise_id} missing task-card wave {wave_id}")
+            elif promise_id not in wave.get("promise_ids", []):
+                errors.append(f"{promise_id} absent from task-card wave {wave_id}")
+
+    risk = next(
+        (item for item in risks.get("risks", []) if item.get("id") == "R-S6-P1-07"),
+        None,
+    )
+    if risk is None:
+        errors.append("R-S6-P1-07 missing")
+    else:
+        risk_text = "；".join(
+            [
+                str(risk.get("title", "")),
+                str(risk.get("impact", "")),
+                *[str(item) for item in risk.get("closure_evidence", [])],
+            ]
+        )
+        if "V2-D203" not in risk.get("source", []):
+            errors.append("R-S6-P1-07 must cite V2-D203")
+        if "G2-Q03-SUPPLY-CHAIN-GATED" not in str(risk.get("gate", "")):
+            errors.append("R-S6-P1-07 gate must cover G2-Q03-SUPPLY-CHAIN-GATED")
+        if "exact voice-pack/profile" not in str(risk.get("title", "")):
+            errors.append("R-S6-P1-07 title must name exact voice-pack/profile")
+        for token in ("试听", "model card", "许可", "notice", "hash"):
+            if token not in risk_text:
+                errors.append(f"R-S6-P1-07 closure/title lacks {token}")
+        for stale in ("引擎、voice 与模型资产许可尚未选择", "用户引擎 / voice 决策"):
+            if stale in risk_text:
+                errors.append(f"R-S6-P1-07 retains stale engine-not-selected claim: {stale}")
+
+    cards_by_id = {card.get("id"): card for card in cards}
+
+    def card_text(card: dict) -> str:
+        return "；".join(
+            [
+                str(card.get("objective", "")),
+                *[str(item) for item in card.get("non_goals", [])],
+                *[str(item) for item in card.get("acceptance_criteria", [])],
+                *[str(item) for item in card.get("boundaries", [])],
+                str(card.get("stop", "")),
+                *[
+                    str(wave.get("objective", ""))
+                    for wave in card.get("delivery_waves", [])
+                ],
+            ]
+        )
+
+    q03 = cards_by_id.get("G2-Q03-SUPPLY-CHAIN-GATED")
+    if q03 is None:
+        errors.append("G2-Q03-SUPPLY-CHAIN-GATED card missing")
+    else:
+        q03_text = card_text(q03)
+        for token in (
+            "Sherpa-ONNX v2.0.1 + ONNX Runtime",
+            "exact voice-pack/profile",
+            "逐资产许可 / model card / notice / hash / provenance",
+            "packaged supply chain",
+            "PDF 引擎选择仍按既有 Q03 门",
+        ):
+            if token not in q03_text:
+                errors.append(f"G2-Q03 card lacks D203 token: {token}")
+        if "任何引擎 / voice / PDF 选择必须先由用户关 Q03 决策" in q03_text:
+            errors.append("G2-Q03 card retains stale engine/voice/PDF selection decision")
+        if "R-S6-P1-07" not in q03.get("risks", []):
+            errors.append("G2-Q03 card must map R-S6-P1-07")
+
+    tts = cards_by_id.get("G2-READER-TTS-GATED")
+    if tts is None:
+        errors.append("G2-READER-TTS-GATED card missing")
+    else:
+        w1 = next(
+            (
+                wave
+                for wave in tts.get("delivery_waves", [])
+                if wave.get("id") == "G2-READER-TTS-GATED-W1"
+            ),
+            None,
+        )
+        if w1 is None:
+            errors.append("G2-READER-TTS-GATED-W1 missing")
+        else:
+            w1_text = str(w1.get("objective", ""))
+            for token in (
+                "Sherpa-ONNX v2.0.1 + ONNX Runtime",
+                "voice-pack/license",
+                "exact profile",
+                "试听",
+                "许可",
+                "matrix",
+            ):
+                if token not in w1_text:
+                    errors.append(f"G2-READER-TTS-GATED-W1 lacks D203 token: {token}")
+            if "消费用户引擎 / voice / 模型许可决策" in w1_text:
+                errors.append("G2-READER-TTS-GATED-W1 retains stale engine/voice decision")
+
+    reader_core = cards_by_id.get("G2-READER-CORE")
+    if reader_core is None:
+        errors.append("G2-READER-CORE card missing")
+    else:
+        reader_text = card_text(reader_core)
+        if "重选 D203 已固定" not in reader_text:
+            errors.append("G2-READER-CORE must prohibit re-selecting the fixed D203 engine")
+        for stale in (
+            "选择最终 TTS 引擎 / voice",
+            "选中具体 PDF/TTS 引擎",
+        ):
+            if stale in reader_text:
+                errors.append(f"G2-READER-CORE retains stale TTS engine selection: {stale}")
+    return errors
+
+
+def tts_w1_action_tag_errors(cards: list[dict], membership_doc: dict) -> list[str]:
+    errors: list[str] = []
+    expected_tag = "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS"
+    expected_rows = {
+        "S6-P-READER-060",
+        "S6-P-READER-061",
+        "S6-P-READER-062",
+        "S6-P-READER-063",
+    }
+    forbidden_engine_selection = (
+        "SELECT_ENGINE",
+        "CHOOSE_ENGINE",
+        "PICK_ENGINE",
+        "ENGINE_SELECTION",
+    )
+
+    tts = next(
+        (card for card in cards if card.get("id") == "G2-READER-TTS-GATED"),
+        None,
+    )
+    w1 = next(
+        (
+            wave
+            for wave in (tts or {}).get("delivery_waves", [])
+            if wave.get("id") == "G2-READER-TTS-GATED-W1"
+        ),
+        None,
+    )
+    if w1 is None:
+        errors.append("G2-READER-TTS-GATED-W1 missing")
+    else:
+        action_tags = list(w1.get("action_tags", []))
+        if expected_tag not in action_tags:
+            errors.append(f"G2-READER-TTS-GATED-W1 lacks {expected_tag}")
+        forbidden = [
+            tag
+            for tag in action_tags
+            if any(token in tag for token in forbidden_engine_selection)
+        ]
+        if forbidden:
+            errors.append(
+                f"G2-READER-TTS-GATED-W1 uses engine-selection action tags: {forbidden}"
+            )
+
+    memberships = membership_doc.get("memberships", [])
+    w1_memberships = [
+        item
+        for item in memberships
+        if "G2-READER-TTS-GATED-W1" in item.get("wave_ids", [])
+    ]
+    actual_rows = {item.get("row_id") for item in w1_memberships}
+    if actual_rows != expected_rows or len(w1_memberships) != 4:
+        errors.append(
+            "G2-READER-TTS-GATED-W1 membership rows must be exactly "
+            "S6-P-READER-060..063"
+        )
+    for item in w1_memberships:
+        row_id = item.get("row_id")
+        action_tags = list(item.get("action_tags", []))
+        if expected_tag not in action_tags:
+            errors.append(f"{row_id} W1 membership lacks {expected_tag}")
+        forbidden = [
+            tag
+            for tag in action_tags
+            if any(token in tag for token in forbidden_engine_selection)
+        ]
+        if forbidden:
+            errors.append(f"{row_id} W1 membership uses engine-selection tag {forbidden}")
+        if "TTS engine and voice decision" in str(item.get("reason", "")):
+            errors.append(f"{row_id} W1 membership reason retains engine decision")
+    return errors
 
 
 def has_cycle(graph: dict[str, list[str]]) -> bool:
@@ -1075,6 +1457,7 @@ def row_wave_errors(
         "external_acceptance_rows": sum(
             1 for row in rows if str(row.get("promise_id", "")).startswith("S6-P-")
             and row.get("g2_card_ids")
+            and row.get("source_origin") != "PROJECT_G0_ADDENDUM"
             and row.get("promise_id") not in {
                 "S6-P-BASE-001",
                 "S6-P-BASE-002",
@@ -1132,6 +1515,7 @@ def run_self_test() -> None:
     source_index = load_json("source-index.json")
     thresholds_doc = load_json("thresholds.json")
     cards_doc = load_json("g2-task-cards.json")
+    risks_doc = load_json("risk-register.json")
     registry = load_json("row-semantics.json")
     membership_doc = load_json("wave-membership.json")
     rows = matrix["acceptance_rows"]
@@ -1139,6 +1523,7 @@ def run_self_test() -> None:
     r1_rows = matrix["r1_quality_rows"]
     nodes = matrix["source_nodes"]
     cards = cards_doc["cards"]
+    risks = risks_doc["risks"]
     all_promise_ids = {
         row["promise_id"] for row in rows + base_rows + r1_rows
     }
@@ -1191,6 +1576,264 @@ def run_self_test() -> None:
                 "shipped explicit row-wave membership and capability join is valid",
             )
         )
+
+    base_addendum_errors = d203_addendum_errors(matrix)
+    if base_addendum_errors:
+        results.append(("BASE-d203-origin", False, base_addendum_errors[0]))
+    else:
+        results.append(
+            ("BASE-d203-origin", True, "external 445/376 and addendum 4 remain separated")
+        )
+
+    base_d203_contract = d203_semantic_contract_errors(
+        registry,
+        rows,
+        cards,
+        risks_doc,
+    )
+    if base_d203_contract:
+        results.append(("BASE-d203-semantics", False, base_d203_contract[0]))
+    else:
+        results.append(
+            ("BASE-d203-semantics", True, "specialized D203 entry/action/card/wave/risk contract is valid")
+        )
+
+    base_w1_tags = tts_w1_action_tag_errors(cards, membership_doc)
+    if base_w1_tags:
+        results.append(("BASE-tts-w1-action-tags", False, base_w1_tags[0]))
+    else:
+        results.append(
+            (
+                "BASE-tts-w1-action-tags",
+                True,
+                "W1 and four memberships verify the fixed engine without SELECT_ENGINE",
+            )
+        )
+
+    origin_mutation = copy.deepcopy(matrix)
+    next(
+        row
+        for row in origin_mutation["acceptance_rows"]
+        if row.get("source_origin") == "PROJECT_G0_ADDENDUM"
+    )["source_origin"] = "EXTERNAL_G0"
+    expect_failure(
+        "NEG-D203-ORIGIN-MIXED-INTO-EXTERNAL",
+        d203_addendum_errors(origin_mutation),
+        "D203 row origin counts",
+    )
+
+    def mutate_d203_semantics(
+        promise_id: str,
+        *,
+        entry: str | None = None,
+        action_verb: str | None = None,
+        operation: str | None = None,
+        expected_response: str | None = None,
+    ) -> tuple[dict, list[dict], list[dict], dict]:
+        mutation_registry = copy.deepcopy(registry)
+        mutation_rows = copy.deepcopy(rows)
+        mutation_cards = copy.deepcopy(cards)
+        mutation_risks = copy.deepcopy(risks_doc)
+        record = next(
+            item
+            for item in mutation_registry["rows"]
+            if item["promise_id"] == promise_id
+        )
+        row = next(
+            item for item in mutation_rows if item["promise_id"] == promise_id
+        )
+        if entry is not None:
+            record["entry"] = entry
+            record["entry_surface"] = entry
+            row["entry"] = entry
+        if action_verb is not None:
+            record["action_verb"] = action_verb
+        if operation is not None:
+            record["operation"] = operation
+            row["operation"] = operation
+        if expected_response is not None:
+            record["expected_response"] = expected_response
+            row["observable_result"] = expected_response
+        return mutation_registry, mutation_rows, mutation_cards, mutation_risks
+
+    expect_failure(
+        "NEG-D203-087-GENERIC-BOOK-ENTRY",
+        d203_semantic_contract_errors(
+            *mutate_d203_semantics(
+                "S6-P-READER-087",
+                entry="书架 / 书籍操作菜单",
+            )
+        ),
+        "S6-P-READER-087 entry mismatch",
+    )
+    expect_failure(
+        "NEG-D203-088-GENERIC-BOOK-IMPORT",
+        d203_semantic_contract_errors(
+            *mutate_d203_semantics(
+                "S6-P-READER-088",
+                entry="书架 / 书籍操作菜单",
+                action_verb="导入或导出并核对",
+                operation="用户在书架 / 书籍操作菜单，导入或导出并核对音色",
+            )
+        ),
+        "S6-P-READER-088 entry mismatch",
+    )
+    expect_failure(
+        "NEG-D203-089-GENERIC-BOOK-ACTION",
+        d203_semantic_contract_errors(
+            *mutate_d203_semantics(
+                "S6-P-READER-089",
+                entry="阅读器 TTS 音色列表 / 删除 / 恢复",
+                action_verb="导入或导出并核对",
+                operation="用户在阅读器 TTS 音色列表 / 删除 / 恢复，导入或导出并核对音色",
+            )
+        ),
+        "S6-P-READER-089 action_verb mismatch",
+    )
+    expect_failure(
+        "NEG-D203-090-WRONG-AUDIO-ACTION",
+        d203_semantic_contract_errors(
+            *mutate_d203_semantics(
+                "S6-P-READER-090",
+                entry="阅读器 TTS / 音乐 / 系统媒体控制",
+                action_verb="打开并控制播放",
+                operation="用户在阅读器 TTS / 音乐 / 系统媒体控制，打开并控制播放",
+            )
+        ),
+        "S6-P-READER-090 action_verb mismatch",
+    )
+    missing_088_response = mutate_d203_semantics(
+        "S6-P-READER-088",
+        expected_response="用户可导入多个音色并在列表中选择。",
+    )
+    expect_failure(
+        "NEG-D203-088-MISSING-EXPECTED",
+        d203_semantic_contract_errors(*missing_088_response),
+        "S6-P-READER-088 expected_response missing tokens",
+    )
+
+    missing_089_wave = copy.deepcopy(
+        (
+            registry,
+            rows,
+            cards,
+            risks_doc,
+        )
+    )
+    card_089 = next(item for item in missing_089_wave[2] if item["id"] == "G2-READER-TTS-GATED")
+    wave_089 = next(item for item in card_089["delivery_waves"] if item["id"] == "G2-READER-TTS-GATED-W5")
+    wave_089["promise_ids"].remove("S6-P-READER-089")
+    expect_failure(
+        "NEG-D203-089-TASKCARD-WAVE",
+        d203_semantic_contract_errors(*missing_089_wave),
+        "S6-P-READER-089 absent from task-card wave",
+    )
+
+    stale_risk = copy.deepcopy(
+        (
+            registry,
+            rows,
+            cards,
+            risks_doc,
+        )
+    )
+    risk_107 = next(
+        item for item in stale_risk[3]["risks"] if item["id"] == "R-S6-P1-07"
+    )
+    risk_107["title"] = "TTS 引擎、voice 与模型资产许可尚未选择"
+    risk_107["closure_evidence"] = ["用户引擎 / voice 决策"]
+    expect_failure(
+        "NEG-RISK-P1-07-ENGINE-UNSELECTED",
+        d203_semantic_contract_errors(*stale_risk),
+        "R-S6-P1-07",
+    )
+
+    stale_q03 = copy.deepcopy((registry, rows, cards, risks_doc))
+    q03_card = next(
+        item
+        for item in stale_q03[2]
+        if item["id"] == "G2-Q03-SUPPLY-CHAIN-GATED"
+    )
+    q03_card["boundaries"].append(
+        "任何引擎 / voice / PDF 选择必须先由用户关 Q03 决策。"
+    )
+    expect_failure(
+        "NEG-Q03-STALE-ENGINE-DECISION",
+        d203_semantic_contract_errors(*stale_q03),
+        "G2-Q03 card retains stale engine/voice/PDF selection decision",
+    )
+
+    stale_tts_w1 = copy.deepcopy((registry, rows, cards, risks_doc))
+    tts_card = next(
+        item for item in stale_tts_w1[2] if item["id"] == "G2-READER-TTS-GATED"
+    )
+    tts_w1 = next(
+        item
+        for item in tts_card["delivery_waves"]
+        if item["id"] == "G2-READER-TTS-GATED-W1"
+    )
+    tts_w1["objective"] = "消费用户引擎 / voice / 模型许可决策，不自选。"
+    expect_failure(
+        "NEG-TTS-W1-STALE-DECISION",
+        d203_semantic_contract_errors(*stale_tts_w1),
+        "G2-READER-TTS-GATED-W1 retains stale engine/voice decision",
+    )
+
+    stale_w1_tags = copy.deepcopy((cards, membership_doc))
+    stale_w1_card = next(
+        item
+        for item in stale_w1_tags[0]
+        if item["id"] == "G2-READER-TTS-GATED"
+    )
+    stale_w1_wave = next(
+        item
+        for item in stale_w1_card["delivery_waves"]
+        if item["id"] == "G2-READER-TTS-GATED-W1"
+    )
+    stale_w1_wave["action_tags"] = [
+        "SELECT_ENGINE" if tag == "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS" else tag
+        for tag in stale_w1_wave["action_tags"]
+    ]
+    for item in stale_w1_tags[1]["memberships"]:
+        if "G2-READER-TTS-GATED-W1" not in item.get("wave_ids", []):
+            continue
+        item["action_tags"] = [
+            "SELECT_ENGINE"
+            if tag == "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS"
+            else tag
+            for tag in item["action_tags"]
+        ]
+    expect_failure(
+        "NEG-TTS-W1-ACTION-SELECT-ENGINE",
+        tts_w1_action_tag_errors(*stale_w1_tags),
+        "G2-READER-TTS-GATED-W1 uses engine-selection action tags",
+    )
+
+    stale_reader_core = copy.deepcopy((registry, rows, cards, risks_doc))
+    reader_core_card = next(
+        item for item in stale_reader_core[2] if item["id"] == "G2-READER-CORE"
+    )
+    reader_core_card["non_goals"].append(
+        "不在本卡锁定 PDFium 或选择最终 TTS 引擎 / voice。"
+    )
+    expect_failure(
+        "NEG-READER-CORE-STALE-TTS-ENGINE",
+        d203_semantic_contract_errors(*stale_reader_core),
+        "G2-READER-CORE retains stale TTS engine selection",
+    )
+
+    missing_q03_risk = copy.deepcopy((registry, rows, cards, risks_doc))
+    q03_card = next(
+        item
+        for item in missing_q03_risk[2]
+        if item["id"] == "G2-Q03-SUPPLY-CHAIN-GATED"
+    )
+    q03_card["risks"].remove("R-S6-P1-07")
+    expect_failure(
+        "NEG-Q03-MISSING-RISK-P1-07",
+        d203_semantic_contract_errors(*missing_q03_risk),
+        "G2-Q03 card must map R-S6-P1-07",
+    )
 
     def relocate_membership(
         row_id: str,
@@ -1665,6 +2308,30 @@ def main() -> None:
     def feedback_check(check_id: str, passed: bool, detail: str) -> None:
         feedback_results.append((check_id, passed, detail))
 
+    addendum_errors = d203_addendum_errors(matrix)
+    feedback_check(
+        "P1-1c-d203-addendum-origin",
+        not addendum_errors,
+        f"d203_addendum_errors={addendum_errors}",
+    )
+    d203_contract_errors = d203_semantic_contract_errors(
+        semantics,
+        rows,
+        cards,
+        risks,
+    )
+    feedback_check(
+        "P1-1d-d203-specialized-semantics",
+        not d203_contract_errors,
+        f"d203_contract_errors={d203_contract_errors}",
+    )
+    w1_tag_errors = tts_w1_action_tag_errors(cards, membership)
+    feedback_check(
+        "P1-1e-tts-w1-fixed-engine-tags",
+        not w1_tag_errors,
+        f"w1_tag_errors={w1_tag_errors}",
+    )
+
     card_ids = {card["id"] for card in cards}
     evidence_entries = {
         item["id"]: item for item in source_index.get("evidence_packages", [])
@@ -1848,6 +2515,28 @@ def main() -> None:
                 membership_index.get("membership_record_count"),
             )
         )
+    expected_origin_counts = {
+        key: matrix["counts"].get(key)
+        for key in (
+            "external_source_nodes",
+            "project_addendum_source_nodes",
+            "normalized_source_nodes",
+            "external_acceptance_rows",
+            "project_addendum_acceptance_rows",
+            "normalized_acceptance_rows",
+            "external_mvp_subitems",
+            "project_addendum_mvp_subitems",
+            "normalized_mvp_subitems",
+        )
+    }
+    if source_index.get("source_origin_counts") != expected_origin_counts:
+        hash_failures.append(
+            (
+                "SOURCE-ORIGIN-COUNTS",
+                expected_origin_counts,
+                source_index.get("source_origin_counts"),
+            )
+        )
     feedback_check(
         "P1-3b-source-index-byte-hashes",
         not hash_failures,
@@ -1891,13 +2580,21 @@ def main() -> None:
         print(f"PASS {check_id}: {detail}")
 
     source_ids = [node["source_id"] for node in nodes]
-    if len(nodes) != 445 or len(set(source_ids)) != 445:
-        fail(f"source nodes expected 445 unique, got {len(nodes)} / {len(set(source_ids))}")
+    if len(nodes) != 449 or len(set(source_ids)) != 449:
+        fail(f"source nodes expected 449 unique, got {len(nodes)} / {len(set(source_ids))}")
+    external_nodes = [node for node in nodes if node.get("source_origin") == "EXTERNAL_G0"]
+    addendum_nodes = [
+        node for node in nodes if node.get("source_origin") == "PROJECT_G0_ADDENDUM"
+    ]
+    if len(external_nodes) != 445 or len(addendum_nodes) != 4:
+        fail(
+            f"source origin counts external={len(external_nodes)} addendum={len(addendum_nodes)}"
+        )
     domain_counts = Counter(node["domain"] for node in nodes)
     expected_domains = {
         "ARCH": 72,
         "UX": 38,
-        "READER": 86,
+        "READER": 90,
         "WRITE": 13,
         "MUSIC": 62,
         "DOWNLOAD": 68,
@@ -1906,6 +2603,50 @@ def main() -> None:
     }
     if dict(domain_counts) != expected_domains:
         fail(f"domain source counts mismatch: {dict(domain_counts)}")
+    external_domain_counts = Counter(node["domain"] for node in external_nodes)
+    expected_external_domains = {**expected_domains, "READER": 86}
+    if dict(external_domain_counts) != expected_external_domains:
+        fail(f"external domain source counts mismatch: {dict(external_domain_counts)}")
+    expected_addendum_ids = {
+        f"V2-REQ-READER-{number:03d}" for number in range(87, 91)
+    }
+    if {node["source_id"] for node in addendum_nodes} != expected_addendum_ids:
+        fail("D203 project addendum IDs mismatch")
+    reader_ids = sorted(
+        node["source_id"]
+        for node in nodes
+        if node["domain"] == "READER"
+    )
+    expected_reader_ids = [
+        f"V2-REQ-READER-{number:03d}" for number in range(1, 91)
+    ]
+    if reader_ids != expected_reader_ids:
+        fail("READER source IDs are not continuous V2-REQ-READER-001..090")
+    if matrix["counts"].get("normalized_source_nodes") != 449:
+        fail("normalized_source_nodes must be 449")
+    if matrix["counts"].get("external_source_nodes") != 445:
+        fail("external_source_nodes must remain 445")
+    if matrix["counts"].get("project_addendum_source_nodes") != 4:
+        fail("project_addendum_source_nodes must be 4")
+    if matrix["counts"].get("compound_source_nodes") != 11:
+        fail("compound_source_nodes must remain 11")
+    if matrix["counts"].get("process_source_nodes") != 7:
+        fail("process_source_nodes must remain 7")
+    if matrix["counts"].get("reader_matrix_source_nodes") != 90:
+        fail("reader_matrix_source_nodes must be 90")
+    reader_single_must = sum(
+        1
+        for node in nodes
+        if node["domain"] == "READER"
+        and not node["is_compound"]
+        and not node["is_process"]
+        and node["levels"] == ["MUST"]
+    )
+    if reader_single_must != 67 or matrix["counts"].get("reader_single_level_must") != 67:
+        fail(
+            f"reader single-level MUST expected 67, got {reader_single_must} / "
+            f"{matrix['counts'].get('reader_single_level_must')}"
+        )
     if len(base_rows) != 5:
         fail(f"BASE groups expected 5, got {len(base_rows)}")
     if len({row['source_ids'][0] for row in base_rows}) != 5:
@@ -1914,14 +2655,38 @@ def main() -> None:
     promise_ids = [row["promise_id"] for row in rows]
     if len(promise_ids) != len(set(promise_ids)):
         fail("duplicate promise_id in acceptance rows")
+    external_rows = [row for row in rows if row.get("source_origin") == "EXTERNAL_G0"]
+    addendum_rows = [
+        row for row in rows if row.get("source_origin") == "PROJECT_G0_ADDENDUM"
+    ]
+    if len(rows) != 460 or len(external_rows) != 456 or len(addendum_rows) != 4:
+        fail(
+            f"acceptance rows expected normalized=460 external=456 addendum=4, "
+            f"got {len(rows)}/{len(external_rows)}/{len(addendum_rows)}"
+        )
+    if {row["parent_source_id"] for row in addendum_rows} != expected_addendum_ids:
+        fail("D203 addendum acceptance row IDs mismatch")
     mvp_rows = [row for row in rows if row["mvp"]]
-    if len(mvp_rows) != 376:
-        fail(f"MVP subitems expected 376, got {len(mvp_rows)}")
+    external_mvp_rows = [
+        row for row in mvp_rows if row.get("source_origin") == "EXTERNAL_G0"
+    ]
+    addendum_mvp_rows = [
+        row for row in mvp_rows if row.get("source_origin") == "PROJECT_G0_ADDENDUM"
+    ]
+    if len(mvp_rows) != 380:
+        fail(f"MVP subitems expected 380, got {len(mvp_rows)}")
+    if len(external_mvp_rows) != 376 or len(addendum_mvp_rows) != 4:
+        fail(
+            f"MVP origin counts external={len(external_mvp_rows)} "
+            f"addendum={len(addendum_mvp_rows)}"
+        )
+    if matrix["counts"].get("normalized_mvp_subitems") != 380:
+        fail("normalized_mvp_subitems must be 380")
     mvp_domains = Counter(row["domain"] for row in mvp_rows)
     expected_mvp_domains = {
         "ARCH": 69,
         "UX": 21,
-        "READER": 66,
+        "READER": 70,
         "WRITE": 12,
         "MUSIC": 50,
         "DOWNLOAD": 64,
@@ -1930,6 +2695,13 @@ def main() -> None:
     }
     if dict(mvp_domains) != expected_mvp_domains:
         fail(f"MVP domain counts mismatch: {dict(mvp_domains)}")
+    if matrix["counts"].get("reader_mvp_subitems") != 70:
+        fail("reader_mvp_subitems must be 70")
+    external_mvp_domains = Counter(row["domain"] for row in external_mvp_rows)
+    if dict(external_mvp_domains) != {**expected_mvp_domains, "READER": 66}:
+        fail(f"external MVP domain counts mismatch: {dict(external_mvp_domains)}")
+    if {row["parent_source_id"] for row in addendum_mvp_rows} != expected_addendum_ids:
+        fail("D203 addendum MVP IDs mismatch")
 
     required = [
         "promise_id",
@@ -2070,6 +2842,9 @@ def main() -> None:
         "ui_design_system": "V2_R1_ACCEPTED_DESIGN_AUTHORITY",
         "runtime": "UNVERIFIED",
         "s6": "SCOPED_REVIEW_PASS_WITH_P2",
+        "d203": "ACCEPTED_VOICE_PACK_BACKGROUND_TTS",
+        "c1_exact_profile": "UNFROZEN_WAIT_USER_AUDITION_AND_LICENSE",
+        "l2_l3": "LOCKED",
     }:
         fail(f"global boundaries mismatch: {boundaries}")
 
@@ -2129,14 +2904,23 @@ def main() -> None:
         for wave in card.get("delivery_waves", [])
     ]
     print("PASS")
-    print(f"external_source_nodes={len(nodes)}")
-    print(f"external_acceptance_rows={len(rows)}")
+    print(f"normalized_source_nodes={len(nodes)}")
+    print(f"external_source_nodes={len(external_nodes)}")
+    print(f"project_addendum_source_nodes={len(addendum_nodes)}")
+    print(f"reader_matrix_source_nodes={sum(1 for node in nodes if node['domain'] == 'READER')}")
+    print(f"reader_single_level_must={reader_single_must}")
+    print(f"normalized_acceptance_rows={len(rows)}")
+    print(f"external_acceptance_rows={len(external_rows)}")
+    print(f"project_addendum_acceptance_rows={len(addendum_rows)}")
     print(f"explicit_semantic_records={len(semantics.get('rows', []))}")
     print(
         "semantic_operation_audit="
         + json.dumps(semantic_metrics, ensure_ascii=False, separators=(",", ":"))
     )
-    print(f"external_mvp_subitems={len(mvp_rows)}")
+    print(f"normalized_mvp_subitems={len(mvp_rows)}")
+    print(f"external_mvp_subitems={len(external_mvp_rows)}")
+    print(f"project_addendum_mvp_subitems={len(addendum_mvp_rows)}")
+    print(f"reader_mvp_subitems={sum(1 for row in mvp_rows if row['domain'] == 'READER')}")
     print("domain_sources=" + json.dumps(dict(sorted(domain_counts.items())), ensure_ascii=False, separators=(",", ":")))
     print("domain_mvp=" + json.dumps(dict(sorted(mvp_domains.items())), ensure_ascii=False, separators=(",", ":")))
     print(f"base_groups={len(base_rows)}")

@@ -3,7 +3,7 @@
   "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
   "severity_counts": {
     "P0": 1,
-    "P1": 16,
+    "P1": 19,
     "P2": 11,
     "P3": 2
   },
@@ -160,21 +160,22 @@
     {
       "id": "R-S6-P1-07",
       "severity": "P1",
-      "title": "TTS 引擎、voice 与模型资产许可尚未选择",
+      "title": "TTS exact voice-pack/profile 试听、许可与资产闭环尚未完成",
       "domain": [
         "READER"
       ],
       "source": [
+        "V2-D203",
         "EV-Q03-NATIVE",
         "EV-Q03-TTS-PDF",
         "EV-S4C"
       ],
-      "impact": "无法随包 voice、无法审核模型 / lexicon / training-data 条款，也无法承认离线 TTS 可用。",
+      "impact": "Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎虽已固定，但 exact profile 未试听 / 冻结，model card、训练 / 声线权属、lexicon、rule、notice 与逐文件 hash 仍不可审计。",
       "gate": "G2-READER-TTS-GATED / G2-Q03-SUPPLY-CHAIN-GATED",
       "closure_evidence": [
-        "用户引擎 / voice 决策",
-        "资产逐项 hash / license / notice",
-        "零网络运行证据"
+        "用户试听并确认 exact voice-pack/profile",
+        "逐资产 model card / license / notice / hash",
+        "pack/profile provenance 与 packaged source obligation"
       ]
     },
     {
@@ -367,6 +368,71 @@
         "complete notices",
         "source / written offer",
         "attestation / rebuild / relink"
+      ]
+    },
+    {
+      "id": "R-S6-P1-17",
+      "severity": "P1",
+      "title": "后台 / 锁屏 TTS owner 与 Activity / ViewModel 生命周期可能混淆",
+      "domain": [
+        "READER",
+        "MUSIC",
+        "VIDEO"
+      ],
+      "source": [
+        "V2-D203",
+        "EV-Q03-TTS-PDF"
+      ],
+      "impact": "离页或锁屏可能误停朗读，或进程重建后意外自动播放、通知与真实状态分裂。",
+      "gate": "G2-READER-TTS-GATED",
+      "closure_evidence": [
+        "service owner 在后台 / 锁屏持续",
+        "Activity / ViewModel 销毁不停止",
+        "进程死亡 / 重启只恢复暂停态",
+        "锁屏 / 通知 / UI 状态等式"
+      ]
+    },
+    {
+      "id": "R-S6-P1-18",
+      "severity": "P1",
+      "title": "voice-pack 导入、删除与引用清理可能产生覆盖、幽灵音色或悬空 profile",
+      "domain": [
+        "READER"
+      ],
+      "source": [
+        "V2-D203"
+      ],
+      "impact": "导入可能替换已有音色；重复导入可能制造副本；删除活动音色可能留下全局 / 逐书悬空引用或破坏其他音色。",
+      "gate": "G2-READER-TTS-GATED",
+      "closure_evidence": [
+        "append-only import",
+        "exact pack/profile idempotency",
+        "同名不同内容新 profile",
+        "active delete stop/fallback/clean refs",
+        "delete retry receipt"
+      ]
+    },
+    {
+      "id": "R-S6-P1-19",
+      "severity": "P1",
+      "title": "TTS、音乐与视频可能形成双音频 owner 或错误 MediaSession 状态",
+      "domain": [
+        "READER",
+        "MUSIC",
+        "VIDEO"
+      ],
+      "source": [
+        "V2-D203",
+        "V2-D190"
+      ],
+      "impact": "TTS 与音乐可能双播，停止 TTS 后音乐可能错误自动恢复，audio focus / noisy / 重启后控制面可能撒谎。",
+      "gate": "G2-READER-TTS-GATED / G2-MUSIC-CORE / G2-VIDEO-CORE",
+      "closure_evidence": [
+        "single active audio owner",
+        "single MediaSession",
+        "TTS start pauses music and keeps queue",
+        "music start terminates TTS",
+        "focus / noisy / restart state matrix"
       ]
     },
     {
@@ -632,8 +698,9 @@
     },
     {
       "id": "INV-SINGLE-SESSION",
-      "rule": "音乐与视频共享仲裁器，只允许一个活动逻辑会话与一个 MediaSession。",
+      "rule": "音乐、视频与 TTS 共享单活动音频 owner / MediaSession；TTS 启动暂停音乐并保留队列，音乐再起播前终止 TTS。",
       "cards": [
+        "G2-READER-TTS-GATED",
         "G2-MUSIC-CORE",
         "G2-VIDEO-CORE",
         "G2-NAV-IDENTITY",
@@ -647,7 +714,8 @@
         "G2-DOWNLOAD-STATE",
         "G2-MUSIC-CORE",
         "G2-VIDEO-CORE",
-        "G2-READER-CORE"
+        "G2-READER-CORE",
+        "G2-READER-TTS-GATED"
       ]
     },
     {

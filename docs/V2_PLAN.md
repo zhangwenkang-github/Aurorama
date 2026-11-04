@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / G1_S6_COMPLETE_SCOPED_REVIEW_PASS_WITH_P2 / D202_ACCEPTED_RECOMMENDATIONS / L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_AND_Q03_CLOSURE / L2_L3_LOCKED / Q04_CLOSED_D201 / Q03_OPEN / UI_V2_R1_ACCEPTED / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 `L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_AND_Q03_CLOSURE` / `V2-G1-L1-EVIDENCE` 的 Sherpa-ONNX 与 PDFium 网络 artifact 已完成静态审计并获独立 review；网络下载已按 allowlist 结束，当前等待 C1 exact voice/model 决策与 Q03 closure。Q03 仍 Open、Q04 仍 Closed/D201、runtime `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 仍 `LOCKED`
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / G1_S6_COMPLETE_SCOPED_REVIEW_PASS_WITH_P2 / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_VOICE_PACK_LICENSE_AND_USER_AUDITION / L2_L3_LOCKED / Q04_CLOSED_D201 / Q03_OPEN / UI_V2_R1_ACCEPTED / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 `L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_VOICE_PACK_LICENSE_AND_USER_AUDITION` / `V2-G1-L1-EVIDENCE` 的主引擎固定为 Sherpa-ONNX v2.0.1 + ONNX Runtime，TTS 升级为离线 voice-pack system，并纳入后台 / 锁屏 / MediaSession 生命周期。网络下载已按 allowlist 结束；当前等待 C1 exact voice-pack profile 的许可审计与用户试听，Q03 仍 Open。Q04 仍 Closed/D201、runtime `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 仍 `LOCKED`
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -1058,7 +1058,7 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 | 模式 | 分页 + 连续滚动 | EPUB/CBZ/PDF 均有滚动、分页、双栏；EPUB 滚动是资源内滚动 + 资源间翻页 | 保留并明确各格式语义，不宣称完全同构 |
 | 页动画 | 滑动 / 覆盖 / 仿真 | 无独立页动画设置 | `SHOULD`，不进 2.0 MVP；`V2-D094` |
 | 手势 | 单区点击、亮度、书签 | 双击左右翻页 / 中间适宽；纵向亮度；无音量键；无中心控制层 | 已由 `V2-D085`、`V2-D095` 确认完整优先级；实现须服从该唯一仲裁表 |
-| TTS | 本地朗读、句级高亮、可选定时 | 无；实现方案未选型 | EPUB/TXT 纯本地离线 TTS 进入 MVP；PDF/CBZ 后续；`V2-D088`、`V2-D097` |
+| TTS | 本地朗读、句级高亮、可选定时；D203 追加后台 / 锁屏与音色配置 | 无；主引擎已由 D203 固定为 Sherpa-ONNX v2.0.1 + ONNX Runtime | EPUB/TXT 纯本地离线 TTS 进入 MVP；统一内置 / 导入音色包列表，支持追加导入、删除与全局 / 逐书选择；后台与锁屏由进程 / 前台 service owner 延续；PDF/CBZ 后续；`V2-D088`、`V2-D097`、`V2-D203` |
 | 书架管理 | 导入、元数据、最近阅读、加入 / 移出 | 服务器书架 + SAF 本地库；无独立导入或“移出书架”私有模型 | 复用现有书架 / 本地库，避免第二套书库 |
 
 #### 5.4.4 术语、状态与不变量
@@ -1084,16 +1084,32 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 8. **输入仲裁唯一性**：选区与控件命中优先于双指缩放，双指优先于拖动，拖动优先于单击分区。
    选词 / 框选期间暂停翻页、亮度与控制层手势；双击书签只在开关开启时接管正文双击，并仅在此
    情况下延迟中央单击。任何格式都不得另建一套冲突的手势优先级。
-9. **TTS 状态**：引擎能力、播放状态、当前句子、语速与控制条展开状态分别存在。控制条收起不
-   等于停止；点击正文或“回到原文”默认暂停，但设备设置可改为继续。运行时只允许已安装的离线
-   能力，零远程 API、零自动语音包下载。
-10. **取消与重建**：离开阅读页必须取消在途网络、搜索与 TTS；已提交本地文件允许后台继续；
-    进程重建后从稳定 locator 恢复，不依赖页面内存或临时页码。
+9. **TTS 状态**：引擎能力、活动音色 profile、播放状态、当前句子、语速、全局默认 / 逐书覆盖
+   与控制条展开状态分别存在。控制条收起不等于停止；点击正文或“回到原文”默认暂停，但设备
+   设置可改为继续。运行时只允许已安装、许可审计完成的离线能力，零远程 API、零自动语音包
+   下载、零网络回退。系统 TTS 仅作非验收性可选兼容，Piper direct 延后。
+10. **音色包目录与身份**：内置与用户本地导入统一进入列表并标来源；稳定 profile 身份由 pack /
+    profile 内容身份构成，不依赖显示名。导入只追加，不替换已有音色；完全相同的 pack / profile
+   重复导入幂等复用，同名不同内容作为新 profile 追加。音色支持选择；朗读音色有全局默认与逐书
+   覆盖，其他显示类 ReaderSettings 仍保持设备级。
+11. **音色删除**：用户可删除导入音色；内置音色不可物理删除，只能隐藏并恢复。删除活动音色
+   必须先停止朗读、清理全局 / 逐书引用并回退到有效内置 profile；文件删除失败必须保留显式待
+   重试状态，不能留下悬空引用。删除任一导入音色不得破坏其他音色。
+12. **TTS 生命周期与取消**：TTS 由进程 / 前台 service owner 持有，正常后台、锁屏与 Activity /
+   ViewModel 销毁不终止。进程死亡 / 重启不自动播放，只恢复暂停态与最后稳定句子，并在恢复前
+   校验 pack。离开阅读页取消页面级网络、搜索与 UI 任务，但不得因此取消由 service owner 持有
+   的 TTS；只有显式停止、朗读结束、失败关闭或音频 owner 被另一合法会话接管时才终止。
+13. **单音频 owner**：同一时刻只允许一个活动音频 owner / 一个活动 MediaSession。启动 TTS 暂停
+   音乐并保留其队列；停止 TTS 后音乐保持暂停、不自动恢复；音乐再次起播前先终止 TTS。锁屏 /
+   通知提供播放 / 暂停、上一句 / 下一句与停止，不提供伪造时间 seek；通知、UI、锁屏和系统控制
+   必须与真实播放状态一致。音频焦点丢失、noisy 事件与进程重启均须收敛到可解释的安全状态。
 
 #### 5.4.5 候选需求清单
 
-> 下表 86 条最终等级、MVP 归属与证据口径已由 `V2-D098` 整包接受。原文 403 的“全部 P0”
-> 和 527 的 P1 建议冲突已由 `V2-D082` 裁决。
+> 下表 86 条外部最终等级、MVP 归属与证据口径已由 `V2-D098` 整包接受；`V2-D203` 另加 4 条
+> 项目来源的 G0 addendum（`READER-087～090`），因此当前阅读器矩阵为 90 条。原文 403 的
+> “全部 P0”和 527 的 P1 建议冲突已由 `V2-D082` 裁决；D203 只窄覆盖 D202 C1 的单音色部分
+> 与 D092 / D097 的“离页取消 TTS”旧表述。
 
 | ID | 最终等级 | 来源 | 原文要点 / 规范化解读 | 用户可观察结果 | 平台 | 依赖 / 非目标 | 后续证据 |
 |---|---|---|---|---|---|---|---|
@@ -1138,7 +1154,7 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 | `V2-REQ-READER-038` | `MUST`（已确认） | 440；`V2-D050`、`V2-D087` | 保留纸色、护眼、深色、OLED、跟随系统五套阅读显示主题；外部“日间”映射纸色 | 五套主题稳定切换且外框服从 App 主题 | 同左 | 不新增第六预设 | `R-D`, `R-F`, `R-R`, `R-U` |
 | `V2-REQ-READER-039` | `OUT`（已确认） | 440；`V2-D048`、`V2-D050`、`V2-D087` | 不允许每套阅读主题任意改背景、正文、链接和高亮色 | 2.0 不出现任意颜色编辑器 | 同左 | 若用户反对，需重开主题决策 | `R-D` |
 | `V2-REQ-READER-040` | `MUST`（已确认） | 442 | 应用内亮度独立于系统亮度；分页 / 双栏支持左缘纵向拖动，滚动模式仅左侧窄带避免抢滚动 | 手势后显示真实百分比，离开页面恢复原窗口亮度 | 同左 | `V2-D095`；选词 / 框选期间暂停；不持久化跨会话亮度 | `R-C`, `R-F`, `R-A`, `R-R` |
-| `V2-REQ-READER-041` | `MUST` | 436–442, 515 | ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书 | 重启保留阅读偏好，切 App 主题不丢位置 | 同左 | 首版不做逐书覆盖 | `R-C`, `R-A`, `R-R` |
+| `V2-REQ-READER-041` | `MUST` | 436–442, 515；`V2-D203` | 显示类 ReaderSettings 按设备持久化；App 主题、外观、阅读主题、内容域色保持正交；改主题不重载书。朗读音色是 D203 的明确例外，支持全局默认与逐书覆盖 | 重启保留阅读偏好，切 App 主题不丢位置；逐书切换朗读音色不改变其他显示设置 | 同左 | `V2-D203`；首版不做逐书显示设置覆盖 | `R-C`, `R-A`, `R-R` |
 | `V2-REQ-READER-042` | `MUST`（已确认） | 446 | 支持多级目录、当前章节高亮、标题与层级缩进；点击跳转并关闭抽屉 | EPUB/TXT/PDF/CBZ 按真实 TOC 或页序列展示，缺失时明确说明 | 同左 | `V2-D093`；TXT 目录由分章规则派生，不伪造章节 | `R-C`, `R-A`, `R-F`, `R-R` |
 | `V2-REQ-READER-043` | `LATER`（已确认） | 446 | 目录可显示章节已读 / 未读 | 用户可识别读过章节且状态与进度一致 | 同左 | `V2-D093`；“已读”阈值与状态留后续，不进 MVP | `R-C`, `R-A`, `R-F` |
 | `V2-REQ-READER-044` | `MUST`（已确认） | 448 | 全书进度可拖动；拖动预览目标章节与页码或百分比；进度轴显示章节分界 | 松手前可判断落点，松手后准确跳转 | 同左 | `V2-D093`；页码对重排格式仅为派生 | `R-C`, `R-A`, `R-F`, `R-R` |
@@ -1157,7 +1173,7 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 | `V2-REQ-READER-057` | `MUST`（PDF）/ `SHOULD`（EPUB/TXT）（已确认） | 464 | EPUB/TXT/PDF 全书搜索，结果含上下文与章节 / 页，点击跳转并临时高亮；可取消、有进度和上限 | 大书搜索可停止，跳转命中准确 | EPUB/TXT/PDF | `V2-D090`；PDF 为 MVP 阻断，EPUB/TXT 不阻塞 MVP；复合节点 | `R-C`, `R-A`, `R-F`, `R-R`, `R-P` |
 | `V2-REQ-READER-058` | `MUST`（已确认） | 464, 523 | 搜索能力按格式显式降级：PDF 无文本层、CBZ 无文本、EPUB/TXT 不支持异常都给出不同说明 | 用户知道“没有结果”与“不能搜索”的区别 | 同左 | `V2-D090`；不使用假空结果，CBZ 文本搜索 OUT | `R-C`, `R-F`, `R-R` |
 | `V2-REQ-READER-059` | `MUST` | 460, 462, 523 | 书签 / 批注本地原子持久化、坏文件不阻塞阅读、离线完全可用、格式带版本；服务器无标准 API 时不伪装同步 | 重启 / 断网后笔记仍在，坏文件有可解释降级 | 同左 | 跨端同步 LATER | `R-C`, `R-A`, `R-R` |
-| `V2-REQ-READER-060` | `MUST`（已确认） | 468 | EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态 | 无网可开始、暂停、跳句、调速并收起控制条 | 重排格式 | `V2-D088`、`V2-D097`；不接在线服务或自动语音包下载，PDF/CBZ TTS LATER | `R-C`, `R-A`, `R-R`, `R-U` |
+| `V2-REQ-READER-060` | `MUST`（已确认） | 468；`V2-D203` | EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession | 无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读 | 重排格式 | `V2-D088`、`V2-D097`、`V2-D203`；不接在线服务、自动语音包下载或网络回退，PDF/CBZ TTS LATER | `R-C`, `R-A`, `R-R`, `R-U` |
 | `V2-REQ-READER-061` | `MUST`（已确认） | 472–473, 503 | 朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放 | 听觉与视觉位置始终一致，暂停策略可预期 | 重排格式 | `V2-D088`、`V2-D097`；词级高亮 LATER | `R-C`, `R-A`, `R-R`, `R-P` |
 | `V2-REQ-READER-062` | `LATER`（已确认） | 475 | TTS 支持 15 / 30 / 60 分钟与本章结束停止；剩余时间可查看 | 计时到点停止且状态可解释 | 重排格式 | `V2-D088`；MVP 之后 | `R-C`, `R-A`, `R-R` |
 | `V2-REQ-READER-063` | `MUST`（已确认） | 468, 477, 523 | 纯本地 TTS 无引擎 / 无中文本地音色时显式降级；在线音色不得伪装为可用 | 不支持设备不出现静默假成功 | 重排格式 | `V2-D088`、`V2-D097`；只显示实际可离线工作的音色 | `R-C`, `R-F`, `R-R` |
@@ -1181,20 +1197,28 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 | `V2-REQ-READER-081` | `MUST`（继承） | 519；`READER_PLAN` D-F13 | 远端 PDF 最终按已接受的 PDFium Range 路线实现按需读取；2.0 前必须通过引擎 Spike、许可与回退门 | 未下载 PDF 可先出页，流量不随整本无限增长 | PDF | 尚未实现；不能在需求门声称通过 | `R-D`, `R-P`, `R-R` |
 | `V2-REQ-READER-082` | `MUST` | 521 | Android 手机 / 平板接物理键盘或蓝牙方向键时支持基础翻页与焦点移动；所有可操作控件可聚焦 | 不用触摸也能完成打开、翻页、退出 | 同左 | `V2-D181`；TV 工程仍冻结，不扩 `app/tv`，不宣称遥控器 TV 验收 | `R-F`, `R-A`, `R-R` |
 | `V2-REQ-READER-083` | `MUST` | 521 | 系统动态字体缩放不破坏布局；五套阅读主题正文和交互对照度满足基线，减少动画时状态仍完整 | 200% 字体、TalkBack 与减少动画下可读可用 | 同左 | 不靠缩小字号规避溢出 | `R-D`, `R-F`, `R-A`, `R-R` |
-| `V2-REQ-READER-084` | `MUST` | 519, 523；项目规则 | 大书内存不随页数增长；离页取消网络 / 搜索 / TTS；进程重建可恢复；核心链路 0 FATAL / ANR / Input timeout | 5000 页级大书、弱网、force-stop / 重启与中断场景无崩溃或假死 | 同左 | `DOWNLOAD-028/064/065`；具体内存预算由 G1 样本定 | `R-P`, `R-R` |
+| `V2-REQ-READER-084` | `MUST` | 519, 523；项目规则；`V2-D203` | 大书内存不随页数增长；离开阅读页只取消页面级网络 / 搜索任务，不取消由 service owner 持有的 TTS；进程重建可恢复阅读与暂停态；核心链路 0 FATAL / ANR / Input timeout | 5000 页级大书、弱网、离页后台、force-stop / 重启与中断场景无崩溃或假死，后台 TTS 不被页面销毁误杀 | 同左 | `DOWNLOAD-028/064/065`；具体内存预算由 G1 样本定；TTS 生命周期归 `V2-D203` | `R-P`, `R-R` |
 | `V2-REQ-READER-085` | `MUST` | 523；ADR-0006 | 阅读、翻页、本地书签、本地批注与本地 TTS 无网可用；不新增遥测、在线词典或自动上传 | 无网仍能完成核心闭环，诊断数据只留本地 | 同左 | 在线增强能力须另批 | `R-D`, `R-A`, `R-R` |
 | `V2-REQ-READER-086` | `流程节点`（已关闭；不计产品等级） | 403, 527, 529 | 外部“所有核心模块 P0”与末尾“MVP 只取子集，其余 P1”冲突；用户已选择范围权威 | 最终等级和 MVP 不再自相矛盾 | 全流程 | `V2-D082`；最终矩阵单独计入 86 节点，不计入产品 MUST / SHOULD 数 | `R-D`, `R-U` |
+| `V2-REQ-READER-087` | `MUST`（D203 addendum） | `V2-D203`（项目新增 G0 addendum；非外源行） | TTS 由进程 / 前台 service owner 持有：正常后台与锁屏继续朗读，Activity / ViewModel 销毁不终止；进程死亡 / 重启不自动播放，只恢复暂停态与最后稳定句子，恢复前校验 pack。锁屏 / 通知提供播放 / 暂停、上一句 / 下一句与停止，不做伪造时间 seek；通知、UI、锁屏与系统控制必须与真实播放状态一致 | 离开阅读页、后台与锁屏可连续朗读；Activity / ViewModel 销毁不停止；进程死亡 / 重启保持暂停并恢复最后稳定句子且先校验 pack；通知、UI、锁屏与 MediaSession 真实状态一致 | 重排格式 | `V2-D203`；Q03 / runtime 未证明 | `R-C`, `R-A`, `R-R`, `R-U` |
+| `V2-REQ-READER-088` | `MUST`（D203 addendum） | `V2-D203`（项目新增 G0 addendum；非外源行） | 内置与用户本地导入音色统一列表并标来源；导入必须追加、不得替换；完全相同的 pack / profile 重复导入幂等复用，同名不同内容作为新 profile 追加；profile 有稳定身份、可被选择，并支持全局默认与逐书覆盖。其他显示类 ReaderSettings 仍为设备级 | 多音色可同时保留；追加导入不替换旧项；相同 pack / profile 不产生重复，同名异内容生成新 profile；用户可选择全局默认并为单本设置逐书覆盖，其他显示设置仍保持设备级 | 重排格式 | `V2-D203`；exact profile、许可与 runtime 未冻结 | `R-C`, `R-D`, `R-A`, `R-R` |
+| `V2-REQ-READER-089` | `MUST`（D203 addendum） | `V2-D203`（项目新增 G0 addendum；非外源行） | 导入音色可删除；内置音色不可物理删除，可隐藏且可恢复。删除活动音色先停止朗读、清理全局 / 逐书引用并回退到有效内置 profile；文件删除失败显式待重试且不得悬空引用。删除一个音色不得破坏其他项 | 非活动音色删除隔离其他项；活动音色先停止并回退有效内置 profile；引用、文件与派生数据清理完成或显示待重试；内置音色可隐藏并恢复；失败不留下悬空引用 | 重排格式 | `V2-D203`；Q03 与文件系统故障注入未执行 | `R-C`, `R-D`, `R-A`, `R-R` |
+| `V2-REQ-READER-090` | `MUST`（D203 addendum） | `V2-D203`（项目新增 G0 addendum；非外源行） | 单活动音频 owner / 单活动 MediaSession：启动 TTS 暂停音乐并保留队列；停止 TTS 后音乐保持暂停、不自动恢复；音乐再次起播前先终止 TTS。音频焦点丢失、noisy 与进程重启须收敛到可解释的安全状态，不得出现静默双播或控制面假状态 | 任意时刻至多一个活动音频 owner / MediaSession；TTS 启动暂停音乐并保留队列，停止 TTS 不自动恢复音乐，音乐起播先停 TTS；audio focus / noisy / 重启后 UI、通知与真实音频一致 | 重排格式 + 音乐 | `V2-D203`；Q03、runtime、设备证据未执行 | `R-C`, `R-A`, `R-R`, `R-U` |
 
-**最终矩阵已接受计数**：86 个节点中，63 个单级 `MUST`、9 个单级 `SHOULD`、7 个
+**最终矩阵当前计数**：外部 86 节点中，63 个单级 `MUST`、9 个单级 `SHOULD`、7 个
 `LATER`、3 个 `OUT`、3 个复合节点、1 个流程节点。复合节点是 `READER-046`
 （书签管理 `MUST` / 进度轴标记 `SHOULD`）、`READER-057`（PDF `MUST` / EPUB/TXT `SHOULD`）
 与 `READER-056`（数据字段 `MUST` / Markdown 导出 `LATER`）；流程节点是已由 `V2-D082`
-关闭的 `READER-086`。合计 `63 + 9 + 7 + 3 + 3 + 1 = 86`。上述矩阵由 `V2-D098` 接受，
-`READER-056` 的第三复合归一与最终 MVP `66` 由 `V2-D197` 随完整 G0 确认。
+关闭的 `READER-086`。合计 `63 + 9 + 7 + 3 + 3 + 1 = 86`，这是外部历史矩阵与外部
+source count；`V2-D203` 另加 `READER-087～090` 四条单级 `MUST`，当前阅读器矩阵为
+`67 + 9 + 7 + 3 + 3 + 1 = 90`。外部 86 / `63 MUST` / MVP `66` 仍是 D098 / D197 历史事实；
+当前 D203 addendum 后阅读器 MVP 为 `66 + 4 = 70`。外部八域 source 仍为 `445`，归一化
+MVP 为外部 `376 + 4 = 380`，不得把四条改写为原外部 445 内的新增。
 
 #### 5.4.6 最终 MVP 边界
 
-最终 MVP 边界已由 `V2-D098` 确认。主要取舍：
+外部 86 条 MVP 边界由 `V2-D098` 确认，`V2-D203` 追加四条项目来源 MUST 后，当前阅读器
+MVP 边界为 70。主要取舍：
 
 - 2.0 核心读、写、恢复闭环优先于页动画、自动翻页、导出、在线词典与广泛格式。
 - UTF-8 / 常见中文编码 TXT 与 EPUB 同属重排阅读；PDF / CBZ 必须保留各自固定页语义。
@@ -1203,11 +1227,15 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 - 目录、进度跳转、四格式书签、恢复、失败可解释属于“阅读能不能用”；页动画、音量键翻页、
   自动滚动、章节已读状态和导出属于“好不好用”，不压 2.0 MVP 核心闭环。
 - 手势只保留 `V2-D095` 一张仲裁表；选区、双指、拖动和单击不得由不同格式各自重定义。
-- TTS 只接受运行时完全离线；引擎仍待 G1 调研，不在需求基线选型。
+- TTS 主引擎固定为 Sherpa-ONNX v2.0.1 + ONNX Runtime，运行时完全离线；系统 TTS 仅作
+  非验收性可选兼容，Piper direct 延后。C1 已从单个随包 voice 升级为离线 voice-pack system：
+  内置与本地导入统一目录、可追加导入与删除、支持全局默认 / 逐书覆盖，并由进程 / 前台 service
+  owner 支持后台与锁屏。
 
-**最终 MVP**：包含全部 63 个单级 `MUST`，以及 `READER-046` 的书签管理、
+**最终 MVP**：外部历史口径包含 63 个单级 `MUST`，以及 `READER-046` 的书签管理、
 `READER-057` 的 PDF 搜索与 `READER-056` 的导出字段兼容三个 `MUST` 子项，合计 `66`
-个 MUST 子项；不把纯 `SHOULD`、`LATER` 或 `OUT` 静默升入 MVP。
+个 MUST 子项；`V2-D203` 再追加 `READER-087～090` 四个 MUST 子项，当前阅读器 MVP 为
+`70`。外部 66 保持不变，不把纯 `SHOULD`、`LATER` 或 `OUT` 静默升入 MVP。
 
 1. EPUB + TXT + PDF + CBZ 的明确重排 / 固定页能力矩阵；
 2. 服务器书目、SAF 本地书与完整离线副本三种真实来源及正交状态；
@@ -1216,7 +1244,8 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 5. 四格式真实目录、全书进度、显式书签管理、自动保存与重启恢复；
 6. EPUB/TXT 文本批注、PDF 固定页矩形批注、格式能力显式降级；
 7. PDF 文本搜索；EPUB/TXT 搜索为 `SHOULD`，不得阻塞核心闭环；
-8. EPUB/TXT 纯本地离线 TTS 基础闭环与无离线音色时的明确降级；
+8. EPUB/TXT 纯本地离线 TTS 基础闭环、统一 voice-pack 目录、追加导入 / 删除、全局 / 逐书
+   选择、后台 / 锁屏、通知 / MediaSession 等式与单音频 owner 互斥；
 9. ReaderSettings、source-scoped 身份、同一进度真源与安全跨界面等式；
 10. 可访问性、主线程 / 缓存 / 取消 / 恢复、离线核心闭环和真实入口验收。
 
@@ -1224,7 +1253,7 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 
 用户于 **2026-11-02 23:58:02 +08:00** 原话回复“**1–6 全部按推荐接受**”。
 该确认只关闭六个首轮范围问题，不自动接受 86 条候选的完整 `MUST / SHOULD / LATER / OUT`
-最终矩阵。
+最终矩阵；D203 后续追加的四条项目来源需求不改变这段历史事实。
 
 | 关闭问题 | 决策 | 已确认结果 | 对后续的直接影响 |
 |---|---|---|---|
@@ -1248,6 +1277,10 @@ tts功能是纯本地的不依赖网络。其他的全部同意。注意上下�
 | `V2-Q-READER-10` | `V2-D091` | SAF 只引用源文件；元数据尽力提取；移出媒体库不删源文件；来源作用域身份 + 内容指纹用于稳定关联与重复提示 | 导入、书架、进度、批注和删除共用现有媒体库真源，禁止第二套身份或静默合并异源记录 |
 | `V2-Q-READER-11` | `V2-D092` | 性能、缓存、取消与恢复原则成为发布阻断；具体秒数、内存阈值和样本矩阵留 G1 | 需求证据矩阵必须能验证主线程、缓存、locator 回位、取消、进程重建与大书内存边界 |
 
+**D203 窄覆盖说明**：本节 `V2-D088` / `V2-D092` 的历史“离页取消”只保留页面级网络、搜索和
+UI 任务；TTS 已改由 `V2-D203` 的 service owner 生命周期承接。本节单音色候选与系统 TTS
+条件回退也只保留历史 / 兼容语境，不覆盖 D203 的 voice-pack system 与固定 Sherpa 主引擎。
+
 #### 5.4.9 第三轮已确认（2026-11-03）
 
 全新只读 subagent 先复核 worktree、分支、HEAD、基线祖先、clean、外部 SHA-256、
@@ -1269,11 +1302,16 @@ PDFium / PDF 按需读取仍不是新的产品二选一：PDF 已保留，PDFium
 #### 5.4.10 最终矩阵整包确认（已关闭）
 
 用户于 **2026-11-03 00:38:07 +08:00**（记录时间）原话回复“**整包接受。**”，
-`V2-Q-READER-17` 由 `V2-D098` 关闭。§5.4.5 的 86 条最终矩阵、§5.4.6 的 MVP 和
-`R-D`～`R-U` 证据口径成为 2.0 阅读器需求基线。矩阵保留全部 86 个节点，不删除任何原始需求；
+`V2-Q-READER-17` 由 `V2-D098` 关闭。§5.4.5 的 86 条外部最终矩阵、§5.4.6 的外部 MVP 和
+`R-D`～`R-U` 证据口径成为 2.0 阅读器需求基线。矩阵保留全部 86 个外部节点，不删除任何原始需求；
 `READER-046/057` 保持复合等级，`READER-086` 保持流程节点且不计产品等级。G0 交叉检查由
 `V2-D197` 确认 `READER-056` 的 MUST 字段兼容子项属于第三复合节点，不增加导出 UI；最终
 单级计数为 `63/9/7/3`，加 3 复合与 1 流程，MVP 为 `66`。
+
+**D203 后当前状态（2026-11-04）**：上述段保持 D098 / D197 历史不变；新增
+`READER-087～090` 四条项目来源 G0 addendum 后，阅读器当前矩阵为 `90`、单级 MUST 为 `67`、
+MVP 为 `70`。外部 source count 仍为 `445`，归一化 MVP 为 `380`。四项均为 MUST，但 exact
+voice-pack profile 仍未冻结，Q03 仍 Open，不能对 runtime / Q03 / G1 代签 PASS。
 
 ### 5.5 `V2-REQ-WRITE`：第四章服务器写能力基线（已确认）
 
@@ -2521,6 +2559,9 @@ NAV 增量产品 / 身份契约；`NAV-008～009` 是交付与证据流程节点
 | 931–1047 | VIDEO | `V2-REQ-VIDEO-001～097` | `86 MUST / 2 SHOULD / 5 LATER / 1 OUT / 2 复合 / 1 流程`；88 个 MUST 子项 | `V-*` 12 类 | 117/117 行；系统媒体、SyncPlay 创建、Trickplay、倍速 / 睡眠验收已补；真实能力留 G1/G2 |
 | 1048–1156 | NAV | `V2-REQ-NAV-001～009` | 6 单级 `4 MUST / 2 SHOULD / 0 LATER / 0 OUT` + 1 复合 `MUST/MUST` + 2 流程；MVP 6 | `N-D/N-F/N-R/N-A/N-M/N-P/N-X/N-T` | 109/109 行；NAV-001 来源与 1153 详情排版归属已修正；离线身份切换播放清场由 D195 确认 |
 
+`V2-D203` 的 `V2-REQ-READER-087～090` 是 **project-originated G0 addendum**，不属于外部
+395–532 原文，也不增加外部 source ID。外部 Reader 仍为 `86`，Reader 当前矩阵为 `90`。
+
 #### 5.10.2 G0 字段完整性与分类
 
 | 范围 | 稳定 ID | 来源 | 解读 | 可观察验收 | 分类 | 依赖 | 非目标 / 未决 | 审计状态 |
@@ -2544,6 +2585,10 @@ NAV 增量产品 / 身份契约；`NAV-008～009` 是交付与证据流程节点
   `363 + 26 + 16 + 22 + 11 + 7 = 445`。
 - 外部八域 MVP 标签机械合计为 `376` 个 MUST 子项；`MUSIC-051` 使音乐 `49→50`，
   `READER-056` 使阅读器 `65→66`。两项归一由 `V2-D197` 随完整 G0 接受。
+- `V2-D203` 新增 `V2-REQ-READER-087～090` 四条项目来源 MUST，不改变上述外部 `445 / 376`。
+  当前阅读器矩阵为 `90`、单级 MUST `67`、MVP `70`；跨八域归一化 MVP 为
+  `376 + 4 = 380`。G1-S6 必须同时输出 external 与 addendum 计数，禁止把 380 写成外部原文
+  445 内新增。
 - 1.4 既有能力另补 `V2-REQ-BASE-001～005` 五个 MUST 能力组，不属于上述 `445` 个外部
   source ID。它们与外部域的粒度不同，因此不把 `376 + 5` 冒充单一原子功能总数；交付计划必须
   分别报告外部 MVP 子项、五个稳定基线组与 unique-promise 数。
@@ -2567,6 +2612,7 @@ NAV 增量产品 / 身份契约；`NAV-008～009` 是交付与证据流程节点
 | `FC-11` | 验证别名 | UX-036→011；DOWNLOAD-039→006；WRITE-011→005；保留来源 ID，单列证据，不重复产品承诺 | `MERGED / EVIDENCE_ALIAS` |
 | `FC-12` | 引用修正 | `ARCH-001 D06→V2-D006`；DOWNLOAD-063、NAV-001、UX-033 与 VIDEO 详情归属已修正 | `REFERENCE_FIXED` |
 | `FC-13` | 1153 详情排版 | 由 UX RWD / 区块职责与 VIDEO 用户旅程共同承接，`VIDEO-021` 不再冒充页面排版 | `MERGED / G1_FIXTURE` |
+| `FC-14` | D203 ↔ D202-C1 / D092 / D097 | D203 窄覆盖 D202-C1 的单音色部分和“离页取消 TTS”旧表述；Sherpa v2.0.1 + ORT、voice-pack、后台 / 锁屏、单音频 owner 成为当前基线，其他离线要求保留 | `V2-D203`；`NARROW_OVERRIDE / CLOSED_BASELINE` |
 
 #### 5.10.4 用户确认结果（已关闭）
 
@@ -2639,10 +2685,15 @@ PackageManager 对外部 package / versionCode / versionName / signer 的精确�
 
 #### 5.10.6 G1 待核验与明确非目标
 
-G1 至少须关闭：`UI_DESIGN_SYSTEM` V2 token / fixture、TTS 完全离线引擎、PDFium Range、
+G1 至少须关闭：`UI_DESIGN_SYSTEM` V2 token / fixture、TTS exact voice-pack 许可与用户试听、
+后台 / 锁屏 / MediaSession 的零网络 runtime、PDFium Range、
 OpenAPI / 官方客户端写协议、独立写服、Book MediaSource 与迁移、可选 sidecar /
 Trickplay finalizer、通知 canonical identity、SyncPlay 协议、双内核真实能力、搜索 / 更新 /
 SWR / 本地歌单 / 音乐懒补的契约，以及全部设备 / 大文件 / 无障碍 / 断网 / 迁移证据。
+
+TTS 主引擎已由 D203 固定为 Sherpa-ONNX v2.0.1 + ONNX Runtime；尚未关闭的是 exact voice-pack
+profile、model / lexicon / rule 许可、用户试听、ORT notice / provenance、零网络与后台 / 锁屏
+runtime。因此 Q03 仍 Open，不得把“引擎已固定”写成 TTS 或 G1 PASS。
 
 其中 BASE-001/003/004 的产品契约歧义已由静态合同冻结，但 B/C/D 门、runtime、device、
 candidate-package 与 production implementation 均未关闭；静态合同不把任何 `MUST` 运行时承诺
@@ -2780,7 +2831,7 @@ commit `83d0d0e7f76e23e2e085c8ff67d28b772d35967d` 与 Jellyfin Kotlin SDK 1.8.12
 - `media3-ffmpeg-decoder:1.9.0+1` 的 POM 绑定 Media3 1.9.0，而 app 使用 1.11.1，必须先证明
   JNI / API 兼容或统一定版；Gradle classpath 仲裁不能证明 native 兼容。
 - `libc++_shared.so` 当前由自定义任务选择 libmpv 版本，必须把 ABI / 符号 / 版本组合冻结并测试。
-- TTS、PDFium 尚未实际引入；系统 TTS 不能证明完全离线，PdfBox 不能证明远程 Range。
+- TTS 主引擎已由 D203 固定为 Sherpa-ONNX v2.0.1 + ONNX Runtime，但尚未实际引入；voice-pack exact profile、后台 / 锁屏和零网络仍未验证。系统 TTS 不能证明完全离线，PdfBox 不能证明远程 Range。
 - 最终许可证门必须从候选 APK 生成完整 SBOM / notices，并核验 libmpv / FFmpeg / desugar 的
   native 与特殊条款；当前 `NOTICE` 的 1.0.0 口径不能用于 2.0 发布。
 
@@ -3139,7 +3190,7 @@ FULL_Q03_OPEN / G1_NOT_PASSED / NO_IMPLEMENTATION`。报告顶层 `status` 为 `
 维护、成本矩阵已冻结，但 TTS runtime / voice license、PDFium 16 KB / native notice、
 PDF Range runtime 仍为硬门。
 
-**推荐（不是用户决策，`isUserDecision=false`）**：TTS 推荐进入带硬门的 Sherpa-ONNX
+**历史推荐（`isUserDecision=false`）**：TTS 推荐进入带硬门的 Sherpa-ONNX
 v2.0.1 隔离 Spike；系统 TTS 仅作设备条件备选；Piper direct 在 Android 包与维护人问题
 解决前延后，但不因体积淘汰。PDF 推荐保留 PdfRenderer 本地路径与回滚，选择 stable
 `io.legere` 2.0.3 做 `PdfiumSource + 现有 HttpByteSource` 的隔离 Range Spike；
@@ -3148,6 +3199,17 @@ PDF 必须保留 PdfRenderer feature flag 与同数据模型切换；新引擎�
 本地 annotation 或下载文件。可向 Q03 提报的决策包为“Sherpa-ONNX gated G2 TTS Spike
 主候选、system TTS 条件备选、Piper direct 延后；PdfRenderer 回滚保留，stable PDFium
 2.0.3 过硬门后再比较”。
+
+**D203 当前覆盖（2026-11-04，用户已接受）**：B1 已从隔离候选升级为冻结主引擎
+Sherpa-ONNX v2.0.1 + ONNX Runtime；系统 TTS 仅作非验收性可选兼容，Piper direct 延后。
+C1 已从“随包一个普通话音色”升级为 voice-pack system：内置与本地导入统一列表、追加导入、
+删除 / 隐藏恢复、全局默认与逐书覆盖，并由 service owner 承担后台 / 锁屏 TTS。exact
+profile 仍未冻结；当前三个 B 组候选只作为试听 / 许可审计输入，Matcha C 组因 Baker 数据
+限制仅可用于非商业，禁止声称已冻结或可作为 runtime / Q03 / G1 PASS。
+
+三个 B 组输入分别为 `vits-melo-tts-zh_en`、`vits-icefall-zh-aishell3` speaker 66 与
+`kokoro-multi-lang-v1_1` speaker 58 / `zm_009`；`matcha-icefall-zh-baker` speaker 0 为
+C 组非商业参考。它们都不是已冻结 profile。
 
 **证据路径**：`.planning/v2-g1/G1-S4-C/report.json`、
 `.planning/v2-g1/G1-S4-C/option-matrix.json`、
@@ -3194,7 +3256,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 与 S6 已完成；`V2-D202` 接受 A-G 推荐语义并仅授权 L1，Sherpa-ONNX / PDFium 网络 artifact 已审计，`V2-G1-L1-EVIDENCE` 等待 C1 exact voice/model 决策与 Q03 closure；runtime、device 与真实证据仍未收口，L2/L3 locked |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 与 S6 已完成；`V2-D202` 接受 A-G 推荐语义并仅授权 L1，`V2-D203` 固定 Sherpa v2.0.1 + ORT 与 voice-pack 基线；Sherpa-ONNX / PDFium 网络 artifact 已审计，`V2-G1-L1-EVIDENCE` 等待 C1 exact voice-pack profile 许可 / 试听与 Q03 closure；runtime、device 与真实证据仍未收口，L2/L3 locked |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3216,7 +3278,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 0 | `V2-REQ-Q0` | 1–147 总提示词 + 第零章 | ✅ 已落档 |
 | 1 | `V2-REQ-ARCH` | 148–289 引言 + 第一章 | ✅ 72 条已分类（69 MUST / 3 SHOULD）；用户已确认 |
 | 2 | `V2-REQ-UX` | 290–394 第二章 | ✅ 38 条最终为 `21 MUST / 3 SHOULD / 2 LATER / 12 OUT`；页面 / 状态 / 响应式 / 图标 / 五主题需求由 `V2-D081` 接受 |
-| 3 | `V2-REQ-READER` | 395–532 第三章 | ✅ 86 条最终矩阵由 `V2-D098` 整包接受；G0 由 `V2-D197` 确认 `READER-056` 第三复合与 MVP `66` |
+| 3 | `V2-REQ-READER` | 395–532 第三章 | ✅ 外部 86 条由 `V2-D098` / `V2-D197` 接受；`V2-D203` 追加 `READER-087～090` 项目来源配置后，当前矩阵 `90` / 单级 MUST `67` / MVP `70`，外部 `86` / MVP `66` 历史不变 |
 | 4 | `V2-REQ-WRITE` | 533–557 第四章 | ✅ 13 节点由 `V2-D099`～`D105` 接受：11 单级 MUST + 1 复合 MUST/LATER + 1 验收流程节点；需求域已收口 |
 | 5 | `V2-REQ-MUSIC` | 558–746 第一个“第五章” | ✅ 62 节点最终矩阵由 `V2-D127` 接受；G0 由 `V2-D194` / `V2-D197` 确认重试谓词、`MUSIC-051` 后决归一并固定 MVP `50` |
 | 6 | `V2-REQ-DOWNLOAD` | 747–930 第二个“第五章” | ✅ 68 节点最终矩阵、64 个 MUST 子项 MVP、`D-D`～`D-T` 证据与冲突处置由 `V2-D146` 整包接受；需求域已收口 |
@@ -3224,7 +3286,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ✅ 9 节点最终矩阵、计数、证据与跨域处置由 `V2-D193` 整包接受；需求域已收口 |
 | 9 | `V2-REQ-BASE` | 1.4 既有能力补充基线 | ✅ `V2-REQ-BASE-001～005` 五个 `MUST` 组由 `V2-D196` 保留，来源、验收、依赖、非目标与 G1 未决项已落 §5.10.5 |
 | 10 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ✅ `V2-D197` 完整 G0 PASS；`V2-Q-FINAL-01～03` 全部关闭；后续由 G1 接管 |
-| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 已完成并通过 scoped review `PASS_WITH_P2`；D202 接受 A-G 推荐语义并仅授权 L1，Sherpa-ONNX / PDFium 网络 artifact 已完成静态审计，当前唯一任务 `V2-G1-L1-EVIDENCE` 等待 C1 exact voice/model 决策与 Q03 closure；L2/L3 locked，禁止启动 runtime、实现或 G2 |
+| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 已完成并通过 scoped review `PASS_WITH_P2`；D202 接受 A-G 推荐语义并仅授权 L1，D203 固定 Sherpa v2.0.1 + ORT 与 voice-pack / 后台 TTS 基线；Sherpa-ONNX / PDFium 网络 artifact 已完成静态审计，当前唯一任务 `V2-G1-L1-EVIDENCE` 等待 C1 exact profile 许可与用户试听以及 Q03 closure；L2/L3 locked，禁止启动 runtime、实现或 G2 |
 
 每个需求域的退出条件：
 
@@ -3332,7 +3394,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-L1 网络 artifact 完成，C1 voice/model 与 Q03 closure 待续（2026-11-04）
+### ACTIVE：D203 voice-pack / 后台 TTS 基线已接受，C1 许可与试听待续（2026-11-04）
 
 **下一负责人线程**：`01a1a4d1-c0b5-7782-bc0d-3b2948b2829e`。交接对象链为主提交
 `a1c061c5b7f356577f9d58e8579e63ef86705a2f` → thread-id 后继
@@ -3340,10 +3402,13 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 补交接元数据或派生 source/manifest hash，不改变产品结论。
 
 **一句话现状**：当前阶段为
-`L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_AND_Q03_CLOSURE`；`V2-G1-L1-EVIDENCE` 的
-readiness 为 `WAIT_C1_ASSET_DECISION_AND_Q03_CLOSURE`。Sherpa-ONNX 与 PDFium 网络
-artifact 已按用户 allowlist 完成静态审计并获独立 review；下载已结束，`L1` 仍是当前唯一
-任务线，`L2/L3` 仍 `LOCKED`。本轮不代签 C1、Q03、runtime、device、G1 或独立 QA PASS。
+`L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_VOICE_PACK_LICENSE_AND_USER_AUDITION`；
+`V2-G1-L1-EVIDENCE` 的 readiness 为 `WAIT_C1_VOICE_PACK_LICENSE_AND_USER_AUDITION`。
+用户已接受 `V2-D203`：主引擎固定为 Sherpa-ONNX v2.0.1 + ONNX Runtime，TTS 升级为
+voice-pack system，并包含追加导入 / 删除、全局 / 逐书选择、后台 / 锁屏、单音频 owner 与
+MediaSession。Sherpa-ONNX 与 PDFium 网络 artifact 已按 allowlist 完成静态审计并获独立
+review；下载已结束，`L1` 仍是当前唯一任务线，`L2/L3` 仍 `LOCKED`。本轮不代签 exact
+profile、Q03、runtime、device、G1 或独立 QA PASS。
 
 **已完成**：
 
@@ -3362,23 +3427,30 @@ artifact 已按用户 allowlist 完成静态审计并获独立 review；下载�
 
 **未完成 / BLOCKED**：
 
-- C1：exact 普通话 voice/model、lexicon、rule data、model card 与许可证尚未决策 /
-  冻结；不得把本轮 artifact 审计写成 voice/model 已完成。
+- C1：voice-pack system 已是冻结基线，但 exact profile 仍未冻结；当前三个 B 组候选只作为
+  试听 / 许可审计输入，Matcha C 组仅可用于非商业。逐 profile 的 model card、训练 / 声线
+  权属、lexicon、rule data、notice、hash 与用户试听仍未完成。
+- 当前 B 组输入为 `vits-melo-tts-zh_en`、`vits-icefall-zh-aishell3` speaker 66、
+  `kokoro-multi-lang-v1_1` speaker 58 / `zm_009`；`matcha-icefall-zh-baker` speaker 0
+  仅作 C 组非商业参考。不得替用户预选或把这些输入写成已冻结 profile。
 - Sherpa：P1 `P1-ONNXRUNTIME-NOTICE-PROVENANCE` 仍阻断完整 ORT notice / provenance；
   P2 `P2-SOURCE-TAG-COMMIT-UNBOUND` 表明 source tag 到 commit 尚未由字节独立证明。
 - PDFium：armeabi-v7a / x86 仍为 4 KB 对齐 FAIL；arm64-v8a / x86_64 仅为静态对齐
   PASS，runtime、`GNU_RELRO`、exact native source revision 与 notice 仍未闭合。
-- A1 runtime 尚未执行；TTS zero-network、PDF Range / 16 KB runtime、双内核 load-order
-  与候选 packaged SBOM / notice / source offer 均不能由本轮网络 artifact 静态审计代签。
+- A1 runtime 尚未执行；TTS zero-network、后台 / 锁屏持续、导入 / 删除故障注入、单活动
+  audio owner / MediaSession、PDF Range / 16 KB runtime、双内核 load-order 与候选 packaged
+  SBOM / notice / source offer 均不能由本轮网络 artifact 静态审计代签。
 - Q03 仍 Open、G1 `NOT_PASSED`、runtime `UNVERIFIED`；C/D/E 未授权、L2/L3 locked。
 
 **下一步入口**：
 
-- 由用户 / 交付负责人先作 C1 exact voice/model 资产决策，并另列 Q03 closure 所需的本地
-  provenance、notice、source、runtime 与设备证据；不得自动开始任何下载或 runtime。
+- 由用户完成 C1 候选音色试听并确认偏好；交付负责人随后组织 exact profile 的本地许可 /
+  provenance / notice / hash 审计。Q03 closure 还须另列后台 / 锁屏 TTS、音频互斥、runtime
+  与设备证据；不得自动开始任何下载或 runtime。
 - 新负责人第一条只读动作：读取本 ACTIVE、§13 本轮收口日志、`docs/TASKS.md`
-  `V2-G1-L1-EVIDENCE`，再核对两个 network evidence 根及其 manifest / verifier；之后只整理
-  C1 与 Q03 closure 选项，不执行网络、构建、ADB、设备或服务器动作。
+  `V2-G1-L1-EVIDENCE` 与 `DECISIONS` D203，再核对两个 network evidence 根及其
+  manifest / verifier；之后只整理 C1 profile 试听 / 许可与 Q03 closure 选项，不执行网络、
+  构建、ADB、设备或服务器动作。
 - 任一新域名、任意 voice/model 下载、runtime / device / 账号 / 服务器 / 生产代码 / G2 /
   独立 QA / Release 均须新的明确授权；本轮 allowlist 不可复用。
 
@@ -3386,8 +3458,8 @@ artifact 已按用户 allowlist 完成静态审计并获独立 review；下载�
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
 `codex/v2-integration`；HEAD、dirty 与锁由 Git / 设备现场读取。生产服务器永久只读。
 禁止网络、设备、账号、服务器、runtime、Gradle / ADB、生产代码、G2、独立 QA、Release、
-commit 或 push；不冻结 exact voice/model，不关闭 Q03，不申请 L2/L3。出现新域名 /
-下载请求、C1 决策缺失、P0–P2、Git / hash / manifest / LF 漂移、静态证据被升级为
+commit 或 push；不冻结 exact voice-pack profile，不关闭 Q03，不申请 L2/L3。出现新域名 /
+下载请求、C1 exact profile 决策缺失、P0–P2、Git / hash / manifest / LF 漂移、静态证据被升级为
 runtime / Q03 / G1 PASS，或任何越界动作时立即停止。
 
 ### HISTORY：G1 残余门 / A-G 决策菜单（2026-11-04；Completed，D202 已接受推荐并由上方 L1 ACTIVE 取代）
@@ -3402,8 +3474,8 @@ runtime / Q03 / G1 PASS，或任何越界动作时立即停止。
 | 项 | 当前事实 | 选项 | 推荐 | 仍不能证明 |
 |---|---|---|---|---|
 | A 媒体 | S4-B 已冻结 Media3 1.11.1 / decoder / libmpv 静态 ABI；现有双内核行为不等于 2.0 策略已定 | `A1`=Media3 默认，mpv 仅由真实能力 / 格式 / 字幕证据触发；`A2`=仅 Media3；`A3`=无条件双内核 | `A1` | runtime 兼容、格式 / 字幕覆盖、降级质量与用户接受度 |
-| B TTS 引擎 | 阅读器 TTS 必须纯本地完全离线；代码许可有静态证据，voice / model、零网络与 runtime 未证明 | `B1`=Sherpa-ONNX 主 Spike，系统 TTS 仅经能力探测与零网络证明后条件回退，Piper 延后；`B2`=系统 TTS 主路径；`B3`=Sherpa / Piper 双线 | `B1` | 引擎质量、包体、精确许可资产与设备离线行为 |
-| C voice | 随包 voice 的许可、质量与体积均未审计；系统 TTS 离线能力未证明 | `C1`=随包一个经许可普通话音色，系统音色仅离线证明通过时回退，exact voice / model 在 L1 资产审计后冻结；`C2`=随包男女双音色；`C3`=完全依赖系统 | `C1` | 资产许可、发音质量、体积与系统回退真实性 |
+| B TTS 引擎 | `HISTORY`：本菜单形成于 D203 前；当前主引擎已由 D203 固定为 Sherpa-ONNX v2.0.1 + ONNX Runtime | `B1`=Sherpa-ONNX 主 Spike，系统 TTS 仅经能力探测与零网络证明后条件回退，Piper 延后；`B2`=系统 TTS 主路径；`B3`=Sherpa / Piper 双线 | `B1`（D202 接受；D203 固定引擎） | 后台 / 锁屏、零网络 runtime、ORT notice / provenance 与设备行为仍未证明 |
+| C voice | `HISTORY`：单音色选项已被 D203 收窄；当前为离线 voice-pack system，exact profile 未冻结 | `C1`=随包一个经许可普通话音色，系统音色仅离线证明通过时回退，exact voice / model 在 L1 资产审计后冻结；`C2`=随包男女双音色；`C3`=完全依赖系统 | `C1`（D202 接受；D203 升级为 voice-pack system） | 三个 B 组候选的许可 / 试听、导入 / 删除、后台 session 与 runtime 仍 Open |
 | D PDF | PdfRenderer 可作生产回滚；PDFium stable / alpha native blob 相同，revision / notice / 16 KB / Range 尚未全过 | `D1`=stable PDFium 2.0.3 隔离 Spike，过 16 KB / revision / notice / Range 门后再比较；`D2`=alpha 主路径；`D3`=暂不做 Range | `D1` | runtime 渲染、Range 首开、16 KB 与 packaged notice |
 | E 搜索 | BASE-001 搜索静态路由 / 请求合同已冻结；排序 UI 与主线程阻塞阈值仍待 runtime | `E1`=按媒体类型 / 来源分组，组内默认相关性并提供适用排序；`E2`=全结果混排；`E3`=固定分组无排序 | `E1` | 相关性、排序语义、响应性与真实结果一致性 |
 | F SWR | BASE-003 持久 SWR 静态合同已冻结；现有 TTL / 容量是 evidence-gated 候选，LRU / single-flight / 时钟回拨未固定 | `F1`=沿用 10 / 5 分钟软 TTL、24h / 7d 硬上限、256MiB / 4096 文件 / 8MiB 单文件、内存 256 项，未固定项按 LRU、single-flight、0 宽限；`F2`=更长离线寿命；`F3`=更实时 | `F1`，数值由 G2 证据校准 | 设备缓存正确性、陈旧程度、磁盘 / 内存开销与回拨行为 |
@@ -4382,3 +4454,16 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   runtime `UNVERIFIED`、L2/L3 locked；本轮未运行 offline L1 build、Gradle、ADB、设备、
   账号、服务器、runtime、生产代码、独立 QA 或 Release，不 commit / push；任何新域名或
   voice/model 下载须另行授权。
+- **2026-11-04 — `V2-D203` 接受 voice-pack / 后台 TTS 新基线**：用户原话“按推荐来。不过要
+  注意阅读功能要求有后台语音可以锁屏听小说。导入的音色可以在列表中选择而不是替换，列表中的
+  音色可以删除。”据此新增 `READER-087～090` 四条 project-originated G0 addendum，并把 TTS
+  主引擎固定为 Sherpa-ONNX v2.0.1 + ONNX Runtime；系统 TTS 仅非验收性可选兼容，Piper direct
+  延后。voice-pack system 覆盖追加导入、幂等复用、删除 / 隐藏恢复、活动音色回退、全局默认与
+  逐书覆盖；TTS 改由进程 / 前台 service owner 持有，补齐后台 / 锁屏、MediaSession 控制等式、
+  单音频 owner 与音乐互斥。D203 只窄覆盖 D202-C1 的单音色部分及 D092 / D097 的“离页取消
+  TTS”旧表述，其他离线要求保留。外部 Reader `86` / `63 MUST` / MVP `66` 与外部八域
+  `445 / 376` 保持历史不变；当前 Reader `90` / 单级 MUST `67` / MVP `70`，归一化 MVP `380`。
+  exact profile 仍未冻结：三个 B 组候选仅作试听 / 许可输入，Matcha C 组仅非商业；
+  `WAIT_C1_VOICE_PACK_LICENSE_AND_USER_AUDITION`，Q03 Open、G1 `NOT_PASSED`、runtime
+  `UNVERIFIED`、L2/L3 locked。本轮只改权威文档与 G1-S6 生成物，不进入生产实现、QA、G2、
+  网络、下载、Gradle、ADB、设备、服务器或 Release，不 commit / push。

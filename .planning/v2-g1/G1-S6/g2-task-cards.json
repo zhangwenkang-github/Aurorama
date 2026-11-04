@@ -531,6 +531,78 @@
         "V2-REQ-ARCH-071",
         "V2-REQ-ARCH-072"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-ARCH-001",
+        "V2-REQ-ARCH-002",
+        "V2-REQ-ARCH-003",
+        "V2-REQ-ARCH-004",
+        "V2-REQ-ARCH-005",
+        "V2-REQ-ARCH-007",
+        "V2-REQ-ARCH-008",
+        "V2-REQ-ARCH-009",
+        "V2-REQ-ARCH-010",
+        "V2-REQ-ARCH-011",
+        "V2-REQ-ARCH-012",
+        "V2-REQ-ARCH-013",
+        "V2-REQ-ARCH-014",
+        "V2-REQ-ARCH-015",
+        "V2-REQ-ARCH-016",
+        "V2-REQ-ARCH-017",
+        "V2-REQ-ARCH-018",
+        "V2-REQ-ARCH-019",
+        "V2-REQ-ARCH-020",
+        "V2-REQ-ARCH-021",
+        "V2-REQ-ARCH-022",
+        "V2-REQ-ARCH-023",
+        "V2-REQ-ARCH-024",
+        "V2-REQ-ARCH-025",
+        "V2-REQ-ARCH-026",
+        "V2-REQ-ARCH-027",
+        "V2-REQ-ARCH-028",
+        "V2-REQ-ARCH-029",
+        "V2-REQ-ARCH-030",
+        "V2-REQ-ARCH-031",
+        "V2-REQ-ARCH-032",
+        "V2-REQ-ARCH-034",
+        "V2-REQ-ARCH-035",
+        "V2-REQ-ARCH-036",
+        "V2-REQ-ARCH-037",
+        "V2-REQ-ARCH-038",
+        "V2-REQ-ARCH-039",
+        "V2-REQ-ARCH-040",
+        "V2-REQ-ARCH-041",
+        "V2-REQ-ARCH-042",
+        "V2-REQ-ARCH-043",
+        "V2-REQ-ARCH-044",
+        "V2-REQ-ARCH-045",
+        "V2-REQ-ARCH-046",
+        "V2-REQ-ARCH-047",
+        "V2-REQ-ARCH-048",
+        "V2-REQ-ARCH-049",
+        "V2-REQ-ARCH-050",
+        "V2-REQ-ARCH-051",
+        "V2-REQ-ARCH-053",
+        "V2-REQ-ARCH-054",
+        "V2-REQ-ARCH-055",
+        "V2-REQ-ARCH-056",
+        "V2-REQ-ARCH-057",
+        "V2-REQ-ARCH-058",
+        "V2-REQ-ARCH-059",
+        "V2-REQ-ARCH-060",
+        "V2-REQ-ARCH-061",
+        "V2-REQ-ARCH-062",
+        "V2-REQ-ARCH-063",
+        "V2-REQ-ARCH-064",
+        "V2-REQ-ARCH-065",
+        "V2-REQ-ARCH-066",
+        "V2-REQ-ARCH-067",
+        "V2-REQ-ARCH-068",
+        "V2-REQ-ARCH-069",
+        "V2-REQ-ARCH-070",
+        "V2-REQ-ARCH-071",
+        "V2-REQ-ARCH-072"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [],
       "covers_r1_promises": [],
       "acceptance_artifacts": [
@@ -807,6 +879,8 @@
       "max_wave_boundary_count": 8,
       "wave_span": "2 independently verifiable delivery wave(s)",
       "covers_must_source_ids": [],
+      "covers_external_must_source_ids": [],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [
         "V2-REQ-BASE-001"
       ],
@@ -1073,6 +1147,8 @@
       "max_wave_boundary_count": 8,
       "wave_span": "2 independently verifiable delivery wave(s)",
       "covers_must_source_ids": [],
+      "covers_external_must_source_ids": [],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [
         "V2-REQ-BASE-002"
       ],
@@ -1336,6 +1412,8 @@
       "max_wave_boundary_count": 7,
       "wave_span": "2 independently verifiable delivery wave(s)",
       "covers_must_source_ids": [],
+      "covers_external_must_source_ids": [],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [
         "V2-REQ-BASE-003"
       ],
@@ -1806,6 +1884,35 @@
         "V2-REQ-UX-037",
         "V2-REQ-UX-038"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-NAV-001",
+        "V2-REQ-NAV-004",
+        "V2-REQ-NAV-005",
+        "V2-REQ-NAV-006",
+        "V2-REQ-NAV-007",
+        "V2-REQ-UX-001",
+        "V2-REQ-UX-002",
+        "V2-REQ-UX-005",
+        "V2-REQ-UX-006",
+        "V2-REQ-UX-007",
+        "V2-REQ-UX-008",
+        "V2-REQ-UX-009",
+        "V2-REQ-UX-010",
+        "V2-REQ-UX-011",
+        "V2-REQ-UX-012",
+        "V2-REQ-UX-013",
+        "V2-REQ-UX-014",
+        "V2-REQ-UX-015",
+        "V2-REQ-UX-016",
+        "V2-REQ-UX-017",
+        "V2-REQ-UX-020",
+        "V2-REQ-UX-021",
+        "V2-REQ-UX-034",
+        "V2-REQ-UX-036",
+        "V2-REQ-UX-037",
+        "V2-REQ-UX-038"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [],
       "covers_r1_promises": [
         "R1-A11Y-CONTRAST",
@@ -1844,7 +1951,8 @@
       "role": "资深 Android 阅读器内核 / 数据一致性工程师",
       "objective": "交付可替换的 Publication/BookDocument、source-scoped ReadingPosition、分页 / 滚动、书签、批注、搜索降级、离线阅读和大书恢复核心。",
       "non_goals": [
-        "不在本卡锁定 PDFium 或选择最终 TTS 引擎 / voice。",
+        "不在本卡重选 D203 已固定的 Sherpa-ONNX v2.0.1 + ONNX Runtime TTS 引擎。",
+        "不在本卡锁定 PDFium 或冻结未经试听 / 许可的 exact voice-pack profile。",
         "不把页码作为持久化位置真源。",
         "不把 CBZ 文本搜索或未证实 PDF 文字层伪装为空结果。"
       ],
@@ -1856,14 +1964,15 @@
       ],
       "boundaries": [
         "逻辑接口：Publication/BookDocument、ReaderSettings、ReadingPosition、Annotation store、format capabilities。",
-        "生产文件边界按模块 owner allowlist 在 G2 实例化；本卡不硬编码引擎。"
+        "生产文件边界按模块 owner allowlist 在 G2 实例化；TTS 只在 D203 白名单与 exact profile 许可 / matrix 门内推进。"
       ],
       "deps": [
         "EV-S2",
         "EV-S3",
         "EV-A1",
         "V2-D198",
-        "V2-D199"
+        "V2-D199",
+        "V2-D203"
       ],
       "risks": [
         "R-S6-P0-01",
@@ -1882,7 +1991,7 @@
       "writes": [
         "服务器进度写只使用已批准测试账号 / 写服；生产服务器只读。"
       ],
-      "stop": "需要改持久 locator 兼容、选中具体 PDF/TTS 引擎、访问真实用户数据或服务器写权限时停止。",
+      "stop": "需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。",
       "artifacts": [
         "格式能力矩阵",
         "位置 / 批注迁移 fixture",
@@ -2024,9 +2133,9 @@
           "blocking_conditions": [
             "前置依赖未满足：G2-ARCH-CONTRACTS-MIGRATION",
             "前置依赖未满足：G2-UI-R1-FOUNDATION",
-            "需要改持久 locator 兼容、选中具体 PDF/TTS 引擎、访问真实用户数据或服务器写权限时停止。"
+            "需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
           ],
-          "stop_condition": "格式能力与身份隔离测试 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、选中具体 PDF/TTS 引擎、访问真实用户数据或服务器写权限时停止。"
+          "stop_condition": "格式能力与身份隔离测试 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
         },
         {
           "id": "G2-READER-CORE-W2",
@@ -2170,9 +2279,9 @@
           "blocking_conditions": [
             "前置依赖未满足：G2-ARCH-CONTRACTS-MIGRATION",
             "前置依赖未满足：G2-UI-R1-FOUNDATION",
-            "需要改持久 locator 兼容、选中具体 PDF/TTS 引擎、访问真实用户数据或服务器写权限时停止。"
+            "需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
           ],
-          "stop_condition": "跨引擎位置等式与重启证据 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、选中具体 PDF/TTS 引擎、访问真实用户数据或服务器写权限时停止。"
+          "stop_condition": "跨引擎位置等式与重启证据 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
         },
         {
           "id": "G2-READER-CORE-W3",
@@ -2290,9 +2399,9 @@
           "blocking_conditions": [
             "前置依赖未满足：G2-ARCH-CONTRACTS-MIGRATION",
             "前置依赖未满足：G2-UI-R1-FOUNDATION",
-            "需要改持久 locator 兼容、选中具体 PDF/TTS 引擎、访问真实用户数据或服务器写权限时停止。"
+            "需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
           ],
-          "stop_condition": "格式化批注 / 搜索正负样本 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、选中具体 PDF/TTS 引擎、访问真实用户数据或服务器写权限时停止。"
+          "stop_condition": "格式化批注 / 搜索正负样本 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
         },
         {
           "id": "G2-READER-CORE-W4",
@@ -2397,9 +2506,9 @@
           "blocking_conditions": [
             "前置依赖未满足：G2-ARCH-CONTRACTS-MIGRATION",
             "前置依赖未满足：G2-UI-R1-FOUNDATION",
-            "需要改持久 locator 兼容、选中具体 PDF/TTS 引擎、访问真实用户数据或服务器写权限时停止。"
+            "需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
           ],
-          "stop_condition": "5000 页级 / 大 CBZ / 弱网报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、选中具体 PDF/TTS 引擎、访问真实用户数据或服务器写权限时停止。"
+          "stop_condition": "5000 页级 / 大 CBZ / 弱网报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
         }
       ],
       "delivery_wave_count": 4,
@@ -2469,6 +2578,70 @@
         "V2-REQ-READER-084",
         "V2-REQ-READER-085"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-READER-001",
+        "V2-REQ-READER-002",
+        "V2-REQ-READER-003",
+        "V2-REQ-READER-004",
+        "V2-REQ-READER-005",
+        "V2-REQ-READER-010",
+        "V2-REQ-READER-011",
+        "V2-REQ-READER-012",
+        "V2-REQ-READER-014",
+        "V2-REQ-READER-015",
+        "V2-REQ-READER-016",
+        "V2-REQ-READER-017",
+        "V2-REQ-READER-018",
+        "V2-REQ-READER-019",
+        "V2-REQ-READER-020",
+        "V2-REQ-READER-021",
+        "V2-REQ-READER-022",
+        "V2-REQ-READER-023",
+        "V2-REQ-READER-024",
+        "V2-REQ-READER-026",
+        "V2-REQ-READER-028",
+        "V2-REQ-READER-030",
+        "V2-REQ-READER-031",
+        "V2-REQ-READER-032",
+        "V2-REQ-READER-033",
+        "V2-REQ-READER-034",
+        "V2-REQ-READER-035",
+        "V2-REQ-READER-038",
+        "V2-REQ-READER-040",
+        "V2-REQ-READER-041",
+        "V2-REQ-READER-042",
+        "V2-REQ-READER-044",
+        "V2-REQ-READER-046",
+        "V2-REQ-READER-047",
+        "V2-REQ-READER-048",
+        "V2-REQ-READER-049",
+        "V2-REQ-READER-050",
+        "V2-REQ-READER-052",
+        "V2-REQ-READER-053",
+        "V2-REQ-READER-054",
+        "V2-REQ-READER-056",
+        "V2-REQ-READER-058",
+        "V2-REQ-READER-059",
+        "V2-REQ-READER-065",
+        "V2-REQ-READER-066",
+        "V2-REQ-READER-068",
+        "V2-REQ-READER-069",
+        "V2-REQ-READER-070",
+        "V2-REQ-READER-071",
+        "V2-REQ-READER-072",
+        "V2-REQ-READER-073",
+        "V2-REQ-READER-074",
+        "V2-REQ-READER-075",
+        "V2-REQ-READER-076",
+        "V2-REQ-READER-078",
+        "V2-REQ-READER-079",
+        "V2-REQ-READER-080",
+        "V2-REQ-READER-082",
+        "V2-REQ-READER-083",
+        "V2-REQ-READER-084",
+        "V2-REQ-READER-085"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [],
       "covers_r1_promises": [
         "R1-I01",
@@ -2485,24 +2658,25 @@
     },
     {
       "id": "G2-READER-TTS-GATED",
-      "role": "资深 Android 离线 TTS Spike 与集成工程师",
-      "objective": "在 Q03 解除前只准备可替换 TTS 端口、评估矩阵和零网络门，不选择最终引擎或 voice。",
+      "role": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
+      "objective": "消费 D203 的 Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎与 voice-pack 基线，交付追加导入 / 删除回退、全局与逐书选择、后台锁屏、单音频 owner 和零网络门。",
       "non_goals": [
-        "不暗选 Sherpa、Piper 或系统 TTS。",
-        "不下载或随包任何未批准 voice / model / lexicon。",
-        "不把架构 local-only 或静态许可写成零网络 runtime PASS。"
+        "不冻结 exact voice-pack profile，不下载或随包任何未批准 voice / model / lexicon。",
+        "不把架构 local-only 或静态许可写成零网络 runtime PASS。",
+        "不创建第二音频 owner、第二 MediaSession 或伪造时间 seek。"
       ],
       "criteria": [
-        "候选引擎与 voice 以用户决策记录进入，然后逐资产固定许可与哈希。",
-        "飞行模式下 App 零网络仍可开始、暂停、跳句、调速和收起。",
-        "句 / 段高亮与音频位置一致；无中文离线 voice 时显式降级。",
-        "质量、首音、RTF、内存、耗电和连续稳定性均有数值与设备记录。"
+        "exact voice-pack profile 以用户试听和逐资产许可 / 哈希审计进入；导入只追加，活动音色删除回退且不悬空引用。",
+        "飞行模式下 App 零网络仍可开始、暂停、跳句、调速、选音色和收起；后台 / 锁屏由 service owner 延续。",
+        "通知、锁屏、UI 与系统控制等式成立；TTS / 音乐互斥，停止 TTS 后音乐不自动恢复。",
+        "进程重启只恢复暂停态和最后稳定句子；焦点丢失 / noisy 与控制面一致；性能 / 稳定性有设备记录。"
       ],
       "boundaries": [
-        "逻辑接口：LocalTtsPort、VoiceCatalog、offline capability probe。",
-        "引擎 / voice / model 选择必须先由 Q03 决策；本卡只作 GATED 输入。"
+        "逻辑接口：LocalTtsPort、VoiceCatalog、VoicePackImporter、VoiceSelectionStore、TtsPlaybackOwner、TtsMediaSession、OfflineCapabilityProbe。",
+        "exact profile 仍由 C1 用户试听 + Q03 许可门决定；本卡保持 GATED。"
       ],
       "deps": [
+        "V2-D203",
         "V2-Q-G1-03",
         "EV-Q03-NATIVE",
         "EV-Q03-TTS-PDF",
@@ -2511,6 +2685,9 @@
       "risks": [
         "R-S6-P1-07",
         "R-S6-P1-08",
+        "R-S6-P1-17",
+        "R-S6-P1-18",
+        "R-S6-P1-19",
         "R-S6-P1-13"
       ],
       "evidence": [
@@ -2519,27 +2696,30 @@
         "EV-S4C"
       ],
       "devices": [
-        "Pad 5 与 K60：飞行模式、零网络、中文 voice、性能"
+        "Pad 5 与 K60：飞行模式、后台 / 锁屏、进程重启、音频焦点 / noisy、音色导入删除与性能"
       ],
       "writes": [
         "none"
       ],
-      "stop": "Q03 未选引擎 / voice、模型卡或许可未批准、无法证明零网络时保持 GATED/BLOCKED。",
+      "stop": "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。",
       "artifacts": [
-        "候选 / voice 决策包",
-        "资产许可与 hash 清单",
-        "飞行模式零网络证据",
-        "句级同步与性能报告"
+        "profile 试听与决策包",
+        "资产许可 / hash / notice",
+        "追加导入 / 删除回退 / 隐藏恢复状态机",
+        "后台锁屏 / MediaSession / 单音频 owner 设备报告",
+        "飞行模式零网络与性能报告"
       ],
       "status": "GATED_BY_V2_Q_G1_03",
       "acceptance_criteria": [
-        "候选引擎与 voice 以用户决策记录进入，然后逐资产固定许可与哈希。",
-        "飞行模式下 App 零网络仍可开始、暂停、跳句、调速和收起。",
-        "句 / 段高亮与音频位置一致；无中文离线 voice 时显式降级。",
-        "质量、首音、RTF、内存、耗电和连续稳定性均有数值与设备记录。"
+        "exact voice-pack profile 以用户试听和逐资产许可 / 哈希审计进入；导入只追加，活动音色删除回退且不悬空引用。",
+        "飞行模式下 App 零网络仍可开始、暂停、跳句、调速、选音色和收起；后台 / 锁屏由 service owner 延续。",
+        "通知、锁屏、UI 与系统控制等式成立；TTS / 音乐互斥，停止 TTS 后音乐不自动恢复。",
+        "进程重启只恢复暂停态和最后稳定句子；焦点丢失 / noisy 与控制面一致；性能 / 稳定性有设备记录。"
       ],
       "card_dependencies": [
-        "G2-READER-CORE"
+        "G2-READER-CORE",
+        "G2-MUSIC-CORE",
+        "G2-VIDEO-CORE"
       ],
       "planning_umbrella": true,
       "execution_kind": "PLANNING_UMBRELLA",
@@ -2550,8 +2730,8 @@
           "card_id": "G2-READER-TTS-GATED",
           "slug": "q03-decision",
           "execution_kind": "IMPLEMENTABLE_WAVE",
-          "objective": "消费用户引擎 / voice / 模型许可决策，不自选。",
-          "owner": "资深 Android 离线 TTS Spike 与集成工程师",
+          "objective": "消费 D203 已确定的 Sherpa-ONNX v2.0.1 + ONNX Runtime、当前 voice-pack/license 证据输入，并关闭 exact profile 用户试听、逐资产许可 / notice / hash 与 matrix 门。",
+          "owner": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
           "promise_ids": [
             "S6-P-READER-060",
             "S6-P-READER-061",
@@ -2565,14 +2745,16 @@
             "READER_TTS"
           ],
           "action_tags": [
-            "SELECT_ENGINE",
+            "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS",
             "SELECT_VOICE"
           ],
           "entry": "阅读器 TTS 控制条；阅读器批注层与批注列表",
-          "operation": "用户在阅读器 TTS 控制条，打开并控制播放“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态”；应观察到：无网可开始、暂停、跳句、调速并收起控制条；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
-          "observable_acceptance": "批准决策与资产 hash / notice；代表性可观察结果：无网可开始、暂停、跳句、调速并收起控制条；听觉与视觉位置始终一致，暂停策略可预期",
+          "operation": "交付负责人在阅读器 TTS 控制条审查并核对证据与契约“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession”；交付证据应显示：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
+          "observable_acceptance": "exact profile 试听 / 许可矩阵与资产 hash / notice；代表性可观察结果：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；听觉与视觉位置始终一致，暂停策略可预期",
           "external_dependencies": [
-            "G2-READER-CORE"
+            "G2-READER-CORE",
+            "G2-MUSIC-CORE",
+            "G2-VIDEO-CORE"
           ],
           "wave_dependencies": [],
           "file_interface_boundaries": [
@@ -2623,7 +2805,7 @@
               "id": "ART-G2-READER-TTS-GATED-W1",
               "kind": "static-ledger",
               "locator": "future-evidence://G2-READER-TTS-GATED-W1/q03-decision",
-              "expected": "批准决策与资产 hash / notice",
+              "expected": "exact profile 试听 / 许可矩阵与资产 hash / notice",
               "evidence_level": "E0_STATIC",
               "status": "PLANNED_NOT_EXECUTED",
               "can_prove": "Only the declared future artifact after execution is bound to a candidate SHA.",
@@ -2632,10 +2814,12 @@
           ],
           "blocking_conditions": [
             "前置依赖未满足：G2-READER-CORE",
+            "前置依赖未满足：G2-MUSIC-CORE",
+            "前置依赖未满足：G2-VIDEO-CORE",
             "V2-Q-G1-03 remains Open",
-            "Q03 未选引擎 / voice、模型卡或许可未批准、无法证明零网络时保持 GATED/BLOCKED。"
+            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
           ],
-          "stop_condition": "批准决策与资产 hash / notice 不可复算、需要越出本 wave 边界，或出现以下条件时停止：Q03 未选引擎 / voice、模型卡或许可未批准、无法证明零网络时保持 GATED/BLOCKED。"
+          "stop_condition": "exact profile 试听 / 许可矩阵与资产 hash / notice 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
         },
         {
           "id": "G2-READER-TTS-GATED-W2",
@@ -2643,7 +2827,7 @@
           "slug": "offline-runtime",
           "execution_kind": "IMPLEMENTABLE_WAVE",
           "objective": "执行飞行模式、句级同步、暂停恢复与性能旅程。",
-          "owner": "资深 Android 离线 TTS Spike 与集成工程师",
+          "owner": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
           "promise_ids": [
             "S6-P-READER-060",
             "S6-P-READER-061",
@@ -2662,10 +2846,12 @@
             "OFFLINE"
           ],
           "entry": "阅读器 TTS 控制条；阅读器批注层与批注列表",
-          "operation": "用户在阅读器 TTS 控制条，打开并控制播放“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态”；应观察到：无网可开始、暂停、跳句、调速并收起控制条；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
-          "observable_acceptance": "零网络和性能设备证据；代表性可观察结果：无网可开始、暂停、跳句、调速并收起控制条；听觉与视觉位置始终一致，暂停策略可预期",
+          "operation": "交付负责人在阅读器 TTS 控制条审查并核对证据与契约“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession”；交付证据应显示：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
+          "observable_acceptance": "零网络和性能设备证据；代表性可观察结果：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；听觉与视觉位置始终一致，暂停策略可预期",
           "external_dependencies": [
-            "G2-READER-CORE"
+            "G2-READER-CORE",
+            "G2-MUSIC-CORE",
+            "G2-VIDEO-CORE"
           ],
           "wave_dependencies": [
             "G2-READER-TTS-GATED-W1"
@@ -2721,29 +2907,466 @@
           ],
           "blocking_conditions": [
             "前置依赖未满足：G2-READER-CORE",
+            "前置依赖未满足：G2-MUSIC-CORE",
+            "前置依赖未满足：G2-VIDEO-CORE",
             "V2-Q-G1-03 remains Open",
-            "Q03 未选引擎 / voice、模型卡或许可未批准、无法证明零网络时保持 GATED/BLOCKED。"
+            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
           ],
-          "stop_condition": "零网络和性能设备证据 不可复算、需要越出本 wave 边界，或出现以下条件时停止：Q03 未选引擎 / voice、模型卡或许可未批准、无法证明零网络时保持 GATED/BLOCKED。"
+          "stop_condition": "零网络和性能设备证据 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+        },
+        {
+          "id": "G2-READER-TTS-GATED-W3",
+          "card_id": "G2-READER-TTS-GATED",
+          "slug": "background-session",
+          "execution_kind": "IMPLEMENTABLE_WAVE",
+          "objective": "交付进程 / 前台 service 持有、后台锁屏、通知 / MediaSession 等式与重启暂停恢复。",
+          "owner": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
+          "promise_ids": [
+            "S6-P-READER-087"
+          ],
+          "capability_tags": [
+            "TTS.BACKGROUND_SESSION"
+          ],
+          "entry_tags": [
+            "READER_TTS",
+            "MEDIA_SESSION"
+          ],
+          "action_tags": [
+            "TTS_PLAY",
+            "TTS_PAUSE",
+            "TTS_PREVIOUS_SENTENCE",
+            "TTS_NEXT_SENTENCE",
+            "TTS_STOP",
+            "RESTORE_STATE"
+          ],
+          "entry": "阅读器 TTS 控制条 / 锁屏 / 系统媒体控制",
+          "operation": "用户从阅读器 TTS 控制条 / 锁屏 / 系统媒体控制触发并核对后台锁屏 TTS 生命周期“后台 / 锁屏 TTS 生命周期、通知与 MediaSession 真值：TTS 由进程 / 前台 service owner 持有：正常后台与锁屏继续朗读，Activity / ViewModel 销毁不终止；进程死亡 / 重启不自动播放，只恢复暂停态与最后稳定句子，恢复前校验 pack。锁屏 / 通知提供播放 / 暂停、上一句 / 下一句与停止，不做伪造时间 seek；通知、UI、锁屏与系统控制必须与真实播放状态一致”；应观察到：离开阅读页、后台与锁屏可连续朗读；Activity / ViewModel 销毁不停止；进程死亡 / 重启保持暂停并恢复最后稳定句子且先校验 pack；通知、UI、锁屏与 MediaSession 真实状态一致",
+          "observable_acceptance": "后台锁屏与进程重启设备报告；代表性可观察结果：离开阅读页、后台与锁屏可连续朗读；Activity / ViewModel 销毁不停止；进程死亡 / 重启保持暂停并恢复最后稳定句子且先校验 pack；通知、UI、锁屏与 MediaSession 真实状态一致",
+          "external_dependencies": [
+            "G2-READER-CORE",
+            "G2-MUSIC-CORE",
+            "G2-VIDEO-CORE"
+          ],
+          "wave_dependencies": [
+            "G2-READER-TTS-GATED-W2"
+          ],
+          "file_interface_boundaries": [
+            {
+              "kind": "FILE",
+              "path": "modes/book/src/main/java/com/zhangwenkang/cinefin/book/presentation/reader/ReaderViewModel.kt",
+              "status": "FOUND",
+              "capability_tags": []
+            },
+            {
+              "kind": "FILE",
+              "path": "app/phone/src/main/java/com/zhangwenkang/cinefin/playback/CinefinPlaybackService.kt",
+              "status": "FOUND",
+              "capability_tags": []
+            },
+            {
+              "kind": "FILE",
+              "path": "app/phone/src/main/java/com/zhangwenkang/cinefin/playback/CinefinMediaNotificationProvider.kt",
+              "status": "FOUND",
+              "capability_tags": []
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.TtsPlaybackOwner",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.BACKGROUND_SESSION"
+              ]
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.TtsMediaSession",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.BACKGROUND_SESSION"
+              ]
+            },
+            {
+              "kind": "FILE",
+              "path": "app/phone/src/androidTest/java/com/zhangwenkang/cinefin/reader/TtsBackgroundLifecycleTest.kt",
+              "status": "PLANNED",
+              "capability_tags": []
+            }
+          ],
+          "existing_file_expansion_count": 4,
+          "acceptance_artifacts": [
+            {
+              "id": "ART-G2-READER-TTS-GATED-W3",
+              "kind": "device-evidence",
+              "locator": "future-evidence://G2-READER-TTS-GATED-W3/background-session",
+              "expected": "后台锁屏与进程重启设备报告",
+              "evidence_level": "E5_DEVICE",
+              "status": "PLANNED_NOT_EXECUTED",
+              "can_prove": "Only the declared future artifact after execution is bound to a candidate SHA.",
+              "cannot_prove": "No runtime, device, QA or release claim is made at S6."
+            }
+          ],
+          "blocking_conditions": [
+            "前置依赖未满足：G2-READER-CORE",
+            "前置依赖未满足：G2-MUSIC-CORE",
+            "前置依赖未满足：G2-VIDEO-CORE",
+            "V2-Q-G1-03 remains Open",
+            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          ],
+          "stop_condition": "后台锁屏与进程重启设备报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+        },
+        {
+          "id": "G2-READER-TTS-GATED-W4",
+          "card_id": "G2-READER-TTS-GATED",
+          "slug": "voice-catalog-import",
+          "execution_kind": "IMPLEMENTABLE_WAVE",
+          "objective": "交付统一音色目录、追加导入、幂等身份、全局默认与逐书覆盖。",
+          "owner": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
+          "promise_ids": [
+            "S6-P-READER-088"
+          ],
+          "capability_tags": [
+            "TTS.VOICE_CATALOG",
+            "TTS.VOICE_IMPORT",
+            "TTS.VOICE_SELECTION"
+          ],
+          "entry_tags": [
+            "READER_TTS",
+            "VOICE_SETTINGS"
+          ],
+          "action_tags": [
+            "IMPORT_VOICE",
+            "SELECT_VOICE",
+            "OVERRIDE_BOOK_VOICE",
+            "DEDUPLICATE_PROFILE"
+          ],
+          "entry": "阅读器 TTS 音色列表 / 导入 / 逐书覆盖",
+          "operation": "用户在阅读器 TTS 音色列表 / 导入 / 逐书覆盖，导入、选择并配置音色“voice-pack 追加导入、幂等身份与逐书覆盖：内置与用户本地导入音色统一列表并标来源；导入必须追加、不得替换；完全相同的 pack / profile 重复导入幂等复用，同名不同内容作为新 profile 追加；profile 有稳定身份、可被选择，并支持全局默认与逐书覆盖。其他显示类 ReaderSettings 仍为设备级”；应观察到：多音色可同时保留；追加导入不替换旧项；相同 pack / profile 不产生重复，同名异内容生成新 profile；用户可选择全局默认并为单本设置逐书覆盖，其他显示设置仍保持设备级",
+          "observable_acceptance": "voice-pack 目录 / 导入 / 选择状态机；代表性可观察结果：多音色可同时保留；追加导入不替换旧项；相同 pack / profile 不产生重复，同名异内容生成新 profile；用户可选择全局默认并为单本设置逐书覆盖，其他显示设置仍保持设备级",
+          "external_dependencies": [
+            "G2-READER-CORE",
+            "G2-MUSIC-CORE",
+            "G2-VIDEO-CORE"
+          ],
+          "wave_dependencies": [
+            "G2-READER-TTS-GATED-W3"
+          ],
+          "file_interface_boundaries": [
+            {
+              "kind": "FILE",
+              "path": "modes/book/src/main/java/com/zhangwenkang/cinefin/book/presentation/reader/ReaderScreen.kt",
+              "status": "FOUND",
+              "capability_tags": []
+            },
+            {
+              "kind": "FILE",
+              "path": "modes/book/src/main/java/com/zhangwenkang/cinefin/book/presentation/reader/ReaderViewModel.kt",
+              "status": "FOUND",
+              "capability_tags": []
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.VoiceCatalog",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.VOICE_CATALOG"
+              ]
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.VoicePackImporter",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.VOICE_IMPORT"
+              ]
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.VoiceSelectionStore",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.VOICE_SELECTION"
+              ]
+            },
+            {
+              "kind": "FILE",
+              "path": "modes/book/src/test/java/com/zhangwenkang/cinefin/book/tts/VoicePackCatalogTest.kt",
+              "status": "PLANNED",
+              "capability_tags": []
+            }
+          ],
+          "existing_file_expansion_count": 3,
+          "acceptance_artifacts": [
+            {
+              "id": "ART-G2-READER-TTS-GATED-W4",
+              "kind": "report",
+              "locator": "future-evidence://G2-READER-TTS-GATED-W4/voice-catalog-import",
+              "expected": "voice-pack 目录 / 导入 / 选择状态机",
+              "evidence_level": "E1_EVIDENCE_REPORT",
+              "status": "PLANNED_NOT_EXECUTED",
+              "can_prove": "Only the declared future artifact after execution is bound to a candidate SHA.",
+              "cannot_prove": "No runtime, device, QA or release claim is made at S6."
+            }
+          ],
+          "blocking_conditions": [
+            "前置依赖未满足：G2-READER-CORE",
+            "前置依赖未满足：G2-MUSIC-CORE",
+            "前置依赖未满足：G2-VIDEO-CORE",
+            "V2-Q-G1-03 remains Open",
+            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          ],
+          "stop_condition": "voice-pack 目录 / 导入 / 选择状态机 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+        },
+        {
+          "id": "G2-READER-TTS-GATED-W5",
+          "card_id": "G2-READER-TTS-GATED",
+          "slug": "voice-delete-fallback",
+          "execution_kind": "IMPLEMENTABLE_WAVE",
+          "objective": "交付导入音色删除、内置隐藏恢复、活动回退、引用清理与待重试终态。",
+          "owner": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
+          "promise_ids": [
+            "S6-P-READER-089"
+          ],
+          "capability_tags": [
+            "TTS.VOICE_DELETE",
+            "TTS.VOICE_FALLBACK"
+          ],
+          "entry_tags": [
+            "READER_TTS",
+            "VOICE_SETTINGS"
+          ],
+          "action_tags": [
+            "DELETE_VOICE",
+            "HIDE_BUILTIN_VOICE",
+            "RESTORE_BUILTIN_VOICE",
+            "FALLBACK_VOICE",
+            "CLEAN_REFERENCES",
+            "RETRY_DELETE"
+          ],
+          "entry": "阅读器 TTS 音色列表 / 删除 / 恢复",
+          "operation": "用户在阅读器 TTS 音色列表 / 删除 / 恢复，删除或恢复音色并核对回退“voice-pack 删除、回退、恢复与引用清理：导入音色可删除；内置音色不可物理删除，可隐藏且可恢复。删除活动音色先停止朗读、清理全局 / 逐书引用并回退到有效内置 profile；文件删除失败显式待重试且不得悬空引用。删除一个音色不得破坏其他项”；应观察到：非活动音色删除隔离其他项；活动音色先停止并回退有效内置 profile；引用、文件与派生数据清理完成或显示待重试；内置音色可隐藏并恢复；失败不留下悬空引用",
+          "observable_acceptance": "voice-pack 删除故障注入报告；代表性可观察结果：非活动音色删除隔离其他项；活动音色先停止并回退有效内置 profile；引用、文件与派生数据清理完成或显示待重试；内置音色可隐藏并恢复；失败不留下悬空引用",
+          "external_dependencies": [
+            "G2-READER-CORE",
+            "G2-MUSIC-CORE",
+            "G2-VIDEO-CORE"
+          ],
+          "wave_dependencies": [
+            "G2-READER-TTS-GATED-W4"
+          ],
+          "file_interface_boundaries": [
+            {
+              "kind": "FILE",
+              "path": "modes/book/src/main/java/com/zhangwenkang/cinefin/book/presentation/reader/ReaderViewModel.kt",
+              "status": "FOUND",
+              "capability_tags": [
+                "TTS.VOICE_FALLBACK"
+              ]
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.VoiceCatalog",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.VOICE_DELETE"
+              ]
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.VoiceSelectionStore",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.VOICE_FALLBACK"
+              ]
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.VoiceDeletionReceipt",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.VOICE_DELETE"
+              ]
+            },
+            {
+              "kind": "FILE",
+              "path": "modes/book/src/test/java/com/zhangwenkang/cinefin/book/tts/VoiceDeletionFallbackTest.kt",
+              "status": "PLANNED",
+              "capability_tags": []
+            }
+          ],
+          "existing_file_expansion_count": 2,
+          "acceptance_artifacts": [
+            {
+              "id": "ART-G2-READER-TTS-GATED-W5",
+              "kind": "report",
+              "locator": "future-evidence://G2-READER-TTS-GATED-W5/voice-delete-fallback",
+              "expected": "voice-pack 删除故障注入报告",
+              "evidence_level": "E1_EVIDENCE_REPORT",
+              "status": "PLANNED_NOT_EXECUTED",
+              "can_prove": "Only the declared future artifact after execution is bound to a candidate SHA.",
+              "cannot_prove": "No runtime, device, QA or release claim is made at S6."
+            }
+          ],
+          "blocking_conditions": [
+            "前置依赖未满足：G2-READER-CORE",
+            "前置依赖未满足：G2-MUSIC-CORE",
+            "前置依赖未满足：G2-VIDEO-CORE",
+            "V2-Q-G1-03 remains Open",
+            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          ],
+          "stop_condition": "voice-pack 删除故障注入报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+        },
+        {
+          "id": "G2-READER-TTS-GATED-W6",
+          "card_id": "G2-READER-TTS-GATED",
+          "slug": "audio-arbitration",
+          "execution_kind": "IMPLEMENTABLE_WAVE",
+          "objective": "交付单音频 owner、音乐 / TTS 互斥、audio focus / noisy 与恢复收敛。",
+          "owner": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
+          "promise_ids": [
+            "S6-P-READER-090"
+          ],
+          "capability_tags": [
+            "TTS.AUDIO_OWNER",
+            "TTS.AUDIO_FOCUS",
+            "TTS.RESTART_RECOVERY"
+          ],
+          "entry_tags": [
+            "READER_TTS",
+            "MEDIA_SESSION",
+            "MUSIC"
+          ],
+          "action_tags": [
+            "START_TTS",
+            "PAUSE_MUSIC",
+            "STOP_TTS",
+            "AUDIO_FOCUS",
+            "NOISY",
+            "RESTORE_STATE"
+          ],
+          "entry": "阅读器 TTS / 音乐 / 系统媒体控制",
+          "operation": "用户从阅读器 TTS / 音乐 / 系统媒体控制触发并控制音频 owner 并核对系统控制“单音频 owner、音乐互斥与系统媒体控制真值：单活动音频 owner / 单活动 MediaSession：启动 TTS 暂停音乐并保留队列；停止 TTS 后音乐保持暂停、不自动恢复；音乐再次起播前先终止 TTS。音频焦点丢失、noisy 与进程重启须收敛到可解释的安全状态，不得出现静默双播或控制面假状态”；应观察到：任意时刻至多一个活动音频 owner / MediaSession；TTS 启动暂停音乐并保留队列，停止 TTS 不自动恢复音乐，音乐起播先停 TTS；audio focus / noisy / 重启后 UI、通知与真实音频一致",
+          "observable_acceptance": "audio owner / MediaSession 设备等式；代表性可观察结果：任意时刻至多一个活动音频 owner / MediaSession；TTS 启动暂停音乐并保留队列，停止 TTS 不自动恢复音乐，音乐起播先停 TTS；audio focus / noisy / 重启后 UI、通知与真实音频一致",
+          "external_dependencies": [
+            "G2-READER-CORE",
+            "G2-MUSIC-CORE",
+            "G2-VIDEO-CORE"
+          ],
+          "wave_dependencies": [
+            "G2-READER-TTS-GATED-W5"
+          ],
+          "file_interface_boundaries": [
+            {
+              "kind": "FILE",
+              "path": "player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlaybackCoordinator.kt",
+              "status": "FOUND",
+              "capability_tags": [
+                "TTS.RESTART_RECOVERY"
+              ]
+            },
+            {
+              "kind": "FILE",
+              "path": "app/phone/src/main/java/com/zhangwenkang/cinefin/playback/CinefinPlaybackService.kt",
+              "status": "FOUND",
+              "capability_tags": [
+                "TTS.AUDIO_OWNER"
+              ]
+            },
+            {
+              "kind": "FILE",
+              "path": "app/phone/src/main/java/com/zhangwenkang/cinefin/playback/CinefinMediaNotificationProvider.kt",
+              "status": "FOUND",
+              "capability_tags": []
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.player.domain.SingleSessionArbiter",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.AUDIO_OWNER"
+              ]
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.TtsPlaybackOwner",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.RESTART_RECOVERY"
+              ]
+            },
+            {
+              "kind": "INTERFACE",
+              "fqcn": "com.zhangwenkang.cinefin.book.tts.TtsAudioFocusController",
+              "status": "PLANNED",
+              "capability_tags": [
+                "TTS.AUDIO_FOCUS"
+              ]
+            },
+            {
+              "kind": "FILE",
+              "path": "app/phone/src/androidTest/java/com/zhangwenkang/cinefin/reader/TtsAudioOwnerJourneyTest.kt",
+              "status": "PLANNED",
+              "capability_tags": []
+            }
+          ],
+          "existing_file_expansion_count": 4,
+          "acceptance_artifacts": [
+            {
+              "id": "ART-G2-READER-TTS-GATED-W6",
+              "kind": "device-evidence",
+              "locator": "future-evidence://G2-READER-TTS-GATED-W6/audio-arbitration",
+              "expected": "audio owner / MediaSession 设备等式",
+              "evidence_level": "E5_DEVICE",
+              "status": "PLANNED_NOT_EXECUTED",
+              "can_prove": "Only the declared future artifact after execution is bound to a candidate SHA.",
+              "cannot_prove": "No runtime, device, QA or release claim is made at S6."
+            }
+          ],
+          "blocking_conditions": [
+            "前置依赖未满足：G2-READER-CORE",
+            "前置依赖未满足：G2-MUSIC-CORE",
+            "前置依赖未满足：G2-VIDEO-CORE",
+            "V2-Q-G1-03 remains Open",
+            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          ],
+          "stop_condition": "audio owner / MediaSession 设备等式 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
         }
       ],
-      "delivery_wave_count": 2,
-      "wave_membership_edge_count": 8,
-      "max_wave_boundary_count": 6,
-      "wave_span": "2 independently verifiable delivery wave(s)",
+      "delivery_wave_count": 6,
+      "wave_membership_edge_count": 12,
+      "max_wave_boundary_count": 7,
+      "wave_span": "6 independently verifiable delivery wave(s)",
       "covers_must_source_ids": [
         "V2-REQ-READER-060",
         "V2-REQ-READER-061",
+        "V2-REQ-READER-063",
+        "V2-REQ-READER-087",
+        "V2-REQ-READER-088",
+        "V2-REQ-READER-089",
+        "V2-REQ-READER-090"
+      ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-READER-060",
+        "V2-REQ-READER-061",
         "V2-REQ-READER-063"
+      ],
+      "covers_project_addendum_source_ids": [
+        "V2-REQ-READER-087",
+        "V2-REQ-READER-088",
+        "V2-REQ-READER-089",
+        "V2-REQ-READER-090"
       ],
       "covers_base_groups": [],
       "covers_r1_promises": [],
       "acceptance_artifacts": [
         "ART-G2-READER-TTS-GATED-W1",
-        "ART-G2-READER-TTS-GATED-W2"
+        "ART-G2-READER-TTS-GATED-W2",
+        "ART-G2-READER-TTS-GATED-W3",
+        "ART-G2-READER-TTS-GATED-W4",
+        "ART-G2-READER-TTS-GATED-W5",
+        "ART-G2-READER-TTS-GATED-W6"
       ],
       "independent_qa_required_after_implementation": true,
-      "owner_in_s6": "资深 Android 离线 TTS Spike 与集成工程师"
+      "owner_in_s6": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师"
     },
     {
       "id": "G2-READER-PDF-GATED",
@@ -3072,6 +3695,11 @@
         "V2-REQ-READER-057",
         "V2-REQ-READER-081"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-READER-057",
+        "V2-REQ-READER-081"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [],
       "covers_r1_promises": [],
       "acceptance_artifacts": [
@@ -3783,6 +4411,58 @@
         "V2-REQ-MUSIC-059",
         "V2-REQ-MUSIC-060"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-MUSIC-001",
+        "V2-REQ-MUSIC-002",
+        "V2-REQ-MUSIC-003",
+        "V2-REQ-MUSIC-004",
+        "V2-REQ-MUSIC-005",
+        "V2-REQ-MUSIC-007",
+        "V2-REQ-MUSIC-008",
+        "V2-REQ-MUSIC-009",
+        "V2-REQ-MUSIC-012",
+        "V2-REQ-MUSIC-013",
+        "V2-REQ-MUSIC-014",
+        "V2-REQ-MUSIC-015",
+        "V2-REQ-MUSIC-016",
+        "V2-REQ-MUSIC-017",
+        "V2-REQ-MUSIC-018",
+        "V2-REQ-MUSIC-019",
+        "V2-REQ-MUSIC-020",
+        "V2-REQ-MUSIC-021",
+        "V2-REQ-MUSIC-022",
+        "V2-REQ-MUSIC-023",
+        "V2-REQ-MUSIC-024",
+        "V2-REQ-MUSIC-026",
+        "V2-REQ-MUSIC-027",
+        "V2-REQ-MUSIC-028",
+        "V2-REQ-MUSIC-029",
+        "V2-REQ-MUSIC-030",
+        "V2-REQ-MUSIC-031",
+        "V2-REQ-MUSIC-033",
+        "V2-REQ-MUSIC-034",
+        "V2-REQ-MUSIC-035",
+        "V2-REQ-MUSIC-036",
+        "V2-REQ-MUSIC-039",
+        "V2-REQ-MUSIC-040",
+        "V2-REQ-MUSIC-041",
+        "V2-REQ-MUSIC-042",
+        "V2-REQ-MUSIC-043",
+        "V2-REQ-MUSIC-044",
+        "V2-REQ-MUSIC-046",
+        "V2-REQ-MUSIC-047",
+        "V2-REQ-MUSIC-048",
+        "V2-REQ-MUSIC-049",
+        "V2-REQ-MUSIC-051",
+        "V2-REQ-MUSIC-052",
+        "V2-REQ-MUSIC-053",
+        "V2-REQ-MUSIC-054",
+        "V2-REQ-MUSIC-056",
+        "V2-REQ-MUSIC-057",
+        "V2-REQ-MUSIC-059",
+        "V2-REQ-MUSIC-060"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [
         "V2-REQ-BASE-005"
       ],
@@ -4050,6 +4730,10 @@
       "covers_must_source_ids": [
         "V2-REQ-MUSIC-051"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-MUSIC-051"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [
         "V2-REQ-BASE-004"
       ],
@@ -4331,6 +5015,21 @@
         "V2-REQ-WRITE-011",
         "V2-REQ-WRITE-012"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-WRITE-001",
+        "V2-REQ-WRITE-002",
+        "V2-REQ-WRITE-003",
+        "V2-REQ-WRITE-004",
+        "V2-REQ-WRITE-005",
+        "V2-REQ-WRITE-006",
+        "V2-REQ-WRITE-007",
+        "V2-REQ-WRITE-008",
+        "V2-REQ-WRITE-009",
+        "V2-REQ-WRITE-010",
+        "V2-REQ-WRITE-011",
+        "V2-REQ-WRITE-012"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [],
       "covers_r1_promises": [],
       "acceptance_artifacts": [
@@ -4841,6 +5540,74 @@
         "V2-REQ-DOWNLOAD-065",
         "V2-REQ-MUSIC-051"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-DOWNLOAD-001",
+        "V2-REQ-DOWNLOAD-002",
+        "V2-REQ-DOWNLOAD-003",
+        "V2-REQ-DOWNLOAD-004",
+        "V2-REQ-DOWNLOAD-005",
+        "V2-REQ-DOWNLOAD-006",
+        "V2-REQ-DOWNLOAD-007",
+        "V2-REQ-DOWNLOAD-008",
+        "V2-REQ-DOWNLOAD-009",
+        "V2-REQ-DOWNLOAD-010",
+        "V2-REQ-DOWNLOAD-011",
+        "V2-REQ-DOWNLOAD-012",
+        "V2-REQ-DOWNLOAD-013",
+        "V2-REQ-DOWNLOAD-014",
+        "V2-REQ-DOWNLOAD-015",
+        "V2-REQ-DOWNLOAD-016",
+        "V2-REQ-DOWNLOAD-017",
+        "V2-REQ-DOWNLOAD-018",
+        "V2-REQ-DOWNLOAD-019",
+        "V2-REQ-DOWNLOAD-020",
+        "V2-REQ-DOWNLOAD-021",
+        "V2-REQ-DOWNLOAD-022",
+        "V2-REQ-DOWNLOAD-023",
+        "V2-REQ-DOWNLOAD-024",
+        "V2-REQ-DOWNLOAD-025",
+        "V2-REQ-DOWNLOAD-026",
+        "V2-REQ-DOWNLOAD-027",
+        "V2-REQ-DOWNLOAD-028",
+        "V2-REQ-DOWNLOAD-029",
+        "V2-REQ-DOWNLOAD-030",
+        "V2-REQ-DOWNLOAD-031",
+        "V2-REQ-DOWNLOAD-032",
+        "V2-REQ-DOWNLOAD-033",
+        "V2-REQ-DOWNLOAD-034",
+        "V2-REQ-DOWNLOAD-035",
+        "V2-REQ-DOWNLOAD-036",
+        "V2-REQ-DOWNLOAD-037",
+        "V2-REQ-DOWNLOAD-038",
+        "V2-REQ-DOWNLOAD-039",
+        "V2-REQ-DOWNLOAD-040",
+        "V2-REQ-DOWNLOAD-041",
+        "V2-REQ-DOWNLOAD-042",
+        "V2-REQ-DOWNLOAD-043",
+        "V2-REQ-DOWNLOAD-044",
+        "V2-REQ-DOWNLOAD-045",
+        "V2-REQ-DOWNLOAD-046",
+        "V2-REQ-DOWNLOAD-047",
+        "V2-REQ-DOWNLOAD-048",
+        "V2-REQ-DOWNLOAD-049",
+        "V2-REQ-DOWNLOAD-050",
+        "V2-REQ-DOWNLOAD-051",
+        "V2-REQ-DOWNLOAD-052",
+        "V2-REQ-DOWNLOAD-053",
+        "V2-REQ-DOWNLOAD-054",
+        "V2-REQ-DOWNLOAD-055",
+        "V2-REQ-DOWNLOAD-056",
+        "V2-REQ-DOWNLOAD-058",
+        "V2-REQ-DOWNLOAD-059",
+        "V2-REQ-DOWNLOAD-060",
+        "V2-REQ-DOWNLOAD-061",
+        "V2-REQ-DOWNLOAD-062",
+        "V2-REQ-DOWNLOAD-063",
+        "V2-REQ-DOWNLOAD-064",
+        "V2-REQ-DOWNLOAD-065",
+        "V2-REQ-MUSIC-051"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [],
       "covers_r1_promises": [
         "R1-I05"
@@ -5463,6 +6230,81 @@
         "V2-REQ-VIDEO-078",
         "V2-REQ-VIDEO-079"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-VIDEO-001",
+        "V2-REQ-VIDEO-002",
+        "V2-REQ-VIDEO-003",
+        "V2-REQ-VIDEO-004",
+        "V2-REQ-VIDEO-005",
+        "V2-REQ-VIDEO-006",
+        "V2-REQ-VIDEO-007",
+        "V2-REQ-VIDEO-008",
+        "V2-REQ-VIDEO-009",
+        "V2-REQ-VIDEO-010",
+        "V2-REQ-VIDEO-011",
+        "V2-REQ-VIDEO-012",
+        "V2-REQ-VIDEO-013",
+        "V2-REQ-VIDEO-014",
+        "V2-REQ-VIDEO-015",
+        "V2-REQ-VIDEO-016",
+        "V2-REQ-VIDEO-017",
+        "V2-REQ-VIDEO-018",
+        "V2-REQ-VIDEO-019",
+        "V2-REQ-VIDEO-020",
+        "V2-REQ-VIDEO-021",
+        "V2-REQ-VIDEO-022",
+        "V2-REQ-VIDEO-024",
+        "V2-REQ-VIDEO-025",
+        "V2-REQ-VIDEO-026",
+        "V2-REQ-VIDEO-027",
+        "V2-REQ-VIDEO-028",
+        "V2-REQ-VIDEO-029",
+        "V2-REQ-VIDEO-030",
+        "V2-REQ-VIDEO-031",
+        "V2-REQ-VIDEO-032",
+        "V2-REQ-VIDEO-033",
+        "V2-REQ-VIDEO-034",
+        "V2-REQ-VIDEO-035",
+        "V2-REQ-VIDEO-036",
+        "V2-REQ-VIDEO-038",
+        "V2-REQ-VIDEO-039",
+        "V2-REQ-VIDEO-040",
+        "V2-REQ-VIDEO-041",
+        "V2-REQ-VIDEO-042",
+        "V2-REQ-VIDEO-043",
+        "V2-REQ-VIDEO-044",
+        "V2-REQ-VIDEO-045",
+        "V2-REQ-VIDEO-046",
+        "V2-REQ-VIDEO-047",
+        "V2-REQ-VIDEO-048",
+        "V2-REQ-VIDEO-049",
+        "V2-REQ-VIDEO-050",
+        "V2-REQ-VIDEO-053",
+        "V2-REQ-VIDEO-054",
+        "V2-REQ-VIDEO-055",
+        "V2-REQ-VIDEO-056",
+        "V2-REQ-VIDEO-057",
+        "V2-REQ-VIDEO-058",
+        "V2-REQ-VIDEO-059",
+        "V2-REQ-VIDEO-060",
+        "V2-REQ-VIDEO-061",
+        "V2-REQ-VIDEO-062",
+        "V2-REQ-VIDEO-063",
+        "V2-REQ-VIDEO-064",
+        "V2-REQ-VIDEO-065",
+        "V2-REQ-VIDEO-067",
+        "V2-REQ-VIDEO-069",
+        "V2-REQ-VIDEO-070",
+        "V2-REQ-VIDEO-071",
+        "V2-REQ-VIDEO-072",
+        "V2-REQ-VIDEO-073",
+        "V2-REQ-VIDEO-075",
+        "V2-REQ-VIDEO-076",
+        "V2-REQ-VIDEO-077",
+        "V2-REQ-VIDEO-078",
+        "V2-REQ-VIDEO-079"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [],
       "covers_r1_promises": [
         "R1-I02",
@@ -5826,6 +6668,25 @@
         "V2-REQ-VIDEO-094",
         "V2-REQ-VIDEO-095"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-VIDEO-080",
+        "V2-REQ-VIDEO-081",
+        "V2-REQ-VIDEO-082",
+        "V2-REQ-VIDEO-083",
+        "V2-REQ-VIDEO-084",
+        "V2-REQ-VIDEO-085",
+        "V2-REQ-VIDEO-086",
+        "V2-REQ-VIDEO-087",
+        "V2-REQ-VIDEO-088",
+        "V2-REQ-VIDEO-089",
+        "V2-REQ-VIDEO-090",
+        "V2-REQ-VIDEO-091",
+        "V2-REQ-VIDEO-092",
+        "V2-REQ-VIDEO-093",
+        "V2-REQ-VIDEO-094",
+        "V2-REQ-VIDEO-095"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [],
       "covers_r1_promises": [
         "R1-I09"
@@ -6130,6 +6991,14 @@
         "V2-REQ-NAV-006",
         "V2-REQ-NAV-007"
       ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-NAV-001",
+        "V2-REQ-NAV-004",
+        "V2-REQ-NAV-005",
+        "V2-REQ-NAV-006",
+        "V2-REQ-NAV-007"
+      ],
+      "covers_project_addendum_source_ids": [],
       "covers_base_groups": [],
       "covers_r1_promises": [
         "R1-I01",
@@ -6159,7 +7028,7 @@
       ],
       "boundaries": [
         "输入：S4-A/B/C、Q03-SBOM/NATIVE/NOTICE/TTS-PDF 与最终候选 artifact。",
-        "任何引擎 / voice / PDF 选择必须先由用户关 Q03 决策。"
+        "D203 已固定 Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎；Q03 保持 Open，等待 exact voice-pack/profile、逐资产许可 / model card / notice / hash / provenance、packaged supply chain 与 runtime。PDF 引擎选择仍按既有 Q03 门。"
       ],
       "deps": [
         "V2-Q-G1-03",
@@ -6169,6 +7038,7 @@
         "EV-Q03-TTS-PDF"
       ],
       "risks": [
+        "R-S6-P1-07",
         "R-S6-P1-08",
         "R-S6-P1-09",
         "R-S6-P1-10",
@@ -6223,7 +7093,8 @@
             "S6-P-READER-061",
             "S6-P-READER-062",
             "S6-P-READER-063",
-            "S6-P-READER-081"
+            "S6-P-READER-081",
+            "S6-P-READER-088"
           ],
           "capability_tags": [
             "Q03.ARTIFACT_INVENTORY"
@@ -6236,8 +7107,8 @@
             "MAP_NOTICE"
           ],
           "entry": "阅读器 TTS 控制条；阅读器批注层与批注列表；书架 → PDF 阅读器",
-          "operation": "用户在阅读器 TTS 控制条，打开并控制播放“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态”；应观察到：无网可开始、暂停、跳句、调速并收起控制条；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
-          "observable_acceptance": "packaged SBOM / notice；代表性可观察结果：无网可开始、暂停、跳句、调速并收起控制条；听觉与视觉位置始终一致，暂停策略可预期",
+          "operation": "交付负责人在阅读器 TTS 控制条审查并核对证据与契约“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession”；交付证据应显示：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
+          "observable_acceptance": "packaged SBOM / notice；代表性可观察结果：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；听觉与视觉位置始终一致，暂停策略可预期",
           "external_dependencies": [
             "G2-ARCH-CONTRACTS-MIGRATION",
             "G2-READER-TTS-GATED",
@@ -6323,7 +7194,8 @@
             "S6-P-READER-061",
             "S6-P-READER-062",
             "S6-P-READER-063",
-            "S6-P-READER-081"
+            "S6-P-READER-081",
+            "S6-P-READER-088"
           ],
           "capability_tags": [
             "Q03.SOURCE_ATTESTATION"
@@ -6336,8 +7208,8 @@
             "VERIFY_ATTESTATION"
           ],
           "entry": "书架 → 打开书籍 → 阅读器搜索；阅读器 TTS 控制条；阅读器批注层与批注列表",
-          "operation": "用户在书架 → 打开书籍 → 阅读器搜索，输入查询并打开结果“PDF 全书搜索支持上下文、页定位、取消、进度和上限。；权威源片段：EPUB/TXT/PDF 全书搜索，结果含上下文与章节 / 页，点击跳转并临时高亮”；应观察到：大 PDF 可停止，命中可准确跳转并临时高亮。；用户在阅读器 TTS 控制条，打开并控制播放“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态”；应观察到：无网可开始、暂停、跳句、调速并收起控制条；其余原子行按各自 operation 串行执行",
-          "observable_acceptance": "source obligation / attestation 证据；代表性可观察结果：大 PDF 可停止，命中可准确跳转并临时高亮。；无网可开始、暂停、跳句、调速并收起控制条",
+          "operation": "用户在书架 → 打开书籍 → 阅读器搜索，输入查询并打开结果“PDF 全书搜索支持上下文、页定位、取消、进度和上限。；权威源片段：EPUB/TXT/PDF 全书搜索，结果含上下文与章节 / 页，点击跳转并临时高亮”；应观察到：大 PDF 可停止，命中可准确跳转并临时高亮。；交付负责人在阅读器 TTS 控制条审查并核对证据与契约“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession”；交付证据应显示：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；其余原子行按各自 operation 串行执行",
+          "observable_acceptance": "source obligation / attestation 证据；代表性可观察结果：大 PDF 可停止，命中可准确跳转并临时高亮。；无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读",
           "external_dependencies": [
             "G2-ARCH-CONTRACTS-MIGRATION",
             "G2-READER-TTS-GATED",
@@ -6518,7 +7390,7 @@
         }
       ],
       "delivery_wave_count": 3,
-      "wave_membership_edge_count": 13,
+      "wave_membership_edge_count": 15,
       "max_wave_boundary_count": 7,
       "wave_span": "3 independently verifiable delivery wave(s)",
       "covers_must_source_ids": [
@@ -6526,7 +7398,24 @@
         "V2-REQ-READER-060",
         "V2-REQ-READER-061",
         "V2-REQ-READER-063",
+        "V2-REQ-READER-081",
+        "V2-REQ-READER-087",
+        "V2-REQ-READER-088",
+        "V2-REQ-READER-089",
+        "V2-REQ-READER-090"
+      ],
+      "covers_external_must_source_ids": [
+        "V2-REQ-READER-057",
+        "V2-REQ-READER-060",
+        "V2-REQ-READER-061",
+        "V2-REQ-READER-063",
         "V2-REQ-READER-081"
+      ],
+      "covers_project_addendum_source_ids": [
+        "V2-REQ-READER-087",
+        "V2-REQ-READER-088",
+        "V2-REQ-READER-089",
+        "V2-REQ-READER-090"
       ],
       "covers_base_groups": [],
       "covers_r1_promises": [],

@@ -53,49 +53,50 @@
       "purpose": "accepted G0 matrices and counts",
       "uses": [
         "external 445 / 376",
+        "D203 addendum 4 / normalized MVP 380",
         "BASE groups",
         "E0–E7"
       ],
       "line_ranges": [
         {
-          "start": 138,
-          "end": 218
+          "start": 144,
+          "end": 217
         },
         {
           "start": 741,
           "end": 780
         },
         {
-          "start": 1098,
-          "end": 1194
+          "start": 1114,
+          "end": 1206
         },
         {
-          "start": 1364,
-          "end": 1383
+          "start": 1402,
+          "end": 1416
         },
         {
-          "start": 1505,
-          "end": 1645
+          "start": 1562,
+          "end": 1625
         },
         {
-          "start": 1794,
-          "end": 1935
+          "start": 1838,
+          "end": 1907
         },
         {
-          "start": 2114,
-          "end": 2335
+          "start": 2160,
+          "end": 2258
         },
         {
-          "start": 2443,
-          "end": 2464
+          "start": 2486,
+          "end": 2496
         },
         {
-          "start": 2497,
-          "end": 2659
+          "start": 2535,
+          "end": 2710
         }
       ],
-      "bytes": 588944,
-      "sha256": "6436643E89FBFAD70C684A6A291F6DDF7F85739995A1C4A6D88DEB03D8D8F457",
+      "bytes": 601764,
+      "sha256": "EF52EECB9468EC32E5781416A83C793DBB8CF354D1D68888E6F4F3E307EBECDF",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -106,20 +107,21 @@
         "E0–E7",
         "Q03",
         "Q04",
-        "S6"
+        "S6",
+        "D203"
       ],
       "line_ranges": [
         {
-          "start": 2660,
-          "end": 4129
+          "start": 2711,
+          "end": 4201
         },
         {
-          "start": 4130,
-          "end": 4384
+          "start": 4202,
+          "end": 4469
         }
       ],
-      "bytes": 588944,
-      "sha256": "6436643E89FBFAD70C684A6A291F6DDF7F85739995A1C4A6D88DEB03D8D8F457",
+      "bytes": 601764,
+      "sha256": "EF52EECB9468EC32E5781416A83C793DBB8CF354D1D68888E6F4F3E307EBECDF",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -132,11 +134,11 @@
       "line_ranges": [
         {
           "start": 1,
-          "end": 38
+          "end": 58
         }
       ],
-      "bytes": 11418,
-      "sha256": "215744480702FB8C60BBAA669E59C7857299B49F3E9AA518AE53E873CB244D38",
+      "bytes": 11828,
+      "sha256": "15019905AAFFADF7903D7C16A1E4EDF486627165857A8E4360AC3A33CBF646FA",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -145,17 +147,18 @@
       "purpose": "accepted decisions and open Q03",
       "uses": [
         "D057",
-        "D198–D201",
-        "Q03"
+        "D198–D203",
+        "Q03",
+        "background / voice-pack TTS"
       ],
       "line_ranges": [
         {
           "start": 1,
-          "end": 290
+          "end": 356
         }
       ],
-      "bytes": 86243,
-      "sha256": "269707879A9B2E590C1CAE7FF8FD6F7AC750CFDB73DB1DD5FF6581AE12B6233E",
+      "bytes": 89637,
+      "sha256": "B38254055DBF5DC61705297766CA93A0B196F65EA70622343A164699317B1833",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -191,24 +194,35 @@
       "evidence_level": "human-readable authority / static input"
     }
   ],
+  "source_origin_counts": {
+    "external_source_nodes": 445,
+    "project_addendum_source_nodes": 4,
+    "normalized_source_nodes": 449,
+    "external_acceptance_rows": 456,
+    "project_addendum_acceptance_rows": 4,
+    "normalized_acceptance_rows": 460,
+    "external_mvp_subitems": 376,
+    "project_addendum_mvp_subitems": 4,
+    "normalized_mvp_subitems": 380
+  },
   "semantic_registry": {
     "path": "row-semantics.json",
     "schema_version": "g1-s6-row-semantics/v2",
-    "record_count": 456,
+    "record_count": 460,
     "join_key": "promise_id",
-    "bytes": 1303775,
-    "sha256": "DDCEF70BA1AF33DF1D0B3C934D7076D929ED50C0842ECB5C7F8CC15DCB5DA3A4",
+    "bytes": 1324029,
+    "sha256": "385327FABEEA52ABB5CAB7384DF2E34C991197213C99F619FF3CAEEC6741860D",
     "authority": "Explicit static seed entries plus deterministic source-grounded action composition; every action excerpt is checked against its accepted V2_PLAN line and unresolved dimensions stay explicit gaps.",
     "verification_limit": "Mechanical checks cover schema, source anchors, coverage and known contradictions; natural-language equivalence requires scoped review."
   },
   "wave_membership_registry": {
     "path": "wave-membership.json",
     "schema_version": "g1-s6-wave-membership/v1",
-    "membership_record_count": 491,
-    "row_wave_edge_count": 554,
+    "membership_record_count": 495,
+    "row_wave_edge_count": 560,
     "join_key": "row_id",
-    "bytes": 320331,
-    "sha256": "6C8E12BB3ECAB79C02BBA78B87C91585AD748B7DAB43217AE2B2B2CC4D3F8583",
+    "bytes": 323735,
+    "sha256": "BCA1409AE27E2672EB437BE648662562CD55CADB0235A208D4E48AFABB1B18EB",
     "authority": "Explicit atomic row to one-or-more delivery-wave membership. The builder joins this table; it does not partition rows by order, hash or keywords.",
     "verification_limit": "Capability, entry, action and boundary tags are mechanically checked; natural-language completeness still requires independent scoped review."
   },
@@ -530,8 +544,8 @@
         "EV-S3"
       ],
       "exists": true,
-      "bytes_at_generation": 588944,
-      "sha256_at_generation": "6436643E89FBFAD70C684A6A291F6DDF7F85739995A1C4A6D88DEB03D8D8F457"
+      "bytes_at_generation": 601764,
+      "sha256_at_generation": "EF52EECB9468EC32E5781416A83C793DBB8CF354D1D68888E6F4F3E307EBECDF"
     },
     {
       "id": "EV-Q03-SBOM",
@@ -618,11 +632,11 @@
       "status": "TTS_PDF_PARTIAL / Q03_OPEN",
       "can_prove": [
         "21 evidence rows = 9 PROVEN / 2 PARTIAL / 10 BLOCKED",
-        "engine/voice not selected"
+        "D203 fixes Sherpa-ONNX v2.0.1 + ONNX Runtime while exact voice-pack profile remains open"
       ],
       "cannot_prove": [
-        "voice model",
-        "zero-network runtime",
+        "exact voice-pack profile / license",
+        "background / lockscreen / zero-network runtime",
         "PDFium runtime / notice revision"
       ],
       "depends_on": [
@@ -640,7 +654,8 @@
       "level": "E0/planning",
       "status": "SCOPED_REVIEW_PASS_WITH_P2 / RUNTIME_UNVERIFIED",
       "can_prove": [
-        "traceability, owner map, thresholds, risks and G2 input coverage"
+        "traceability, owner map, thresholds, risks and G2 input coverage",
+        "external 445/376 preserved; D203 addendum 4 / normalized MVP 380"
       ],
       "cannot_prove": [
         "implementation",
@@ -685,6 +700,14 @@
     },
     {
       "fact": "Q03 remains Open and G1 is NOT_PASSED",
+      "source_ids": [
+        "DOC-DECISIONS",
+        "DOC-V2-G1",
+        "DOC-TASKS"
+      ]
+    },
+    {
+      "fact": "D203 accepts voice-pack / background-lockscreen TTS, but exact profile and C1 audition/license remain open",
       "source_ids": [
         "DOC-DECISIONS",
         "DOC-V2-G1",
