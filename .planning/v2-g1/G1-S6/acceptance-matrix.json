@@ -1,7 +1,7 @@
 {
   "schema_version": "g1-s6-acceptance-matrix/v1",
   "task_id": "G1-S6",
-  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
   "generated_on": "2026-11-04",
   "counts": {
     "normalized_source_nodes": 449,
@@ -67177,12 +67177,14 @@
   "global_boundaries": {
     "g1": "NOT_PASSED",
     "q03": "OPEN",
+    "q05": "OPEN_TTS_ENGINE_STRATEGY",
     "q04": "CLOSED_D201",
     "ui_design_system": "V2_R1_ACCEPTED_DESIGN_AUTHORITY",
     "runtime": "UNVERIFIED",
     "s6": "SCOPED_REVIEW_PASS_WITH_P2",
     "d203": "ACCEPTED_VOICE_PACK_BACKGROUND_TTS",
-    "c1_exact_profile": "UNFROZEN_WAIT_USER_AUDITION_AND_LICENSE",
+    "sherpa_quality": "SHERPA_QUALITY_INSUFFICIENT_COMPAT_FALLBACK",
+    "c1_exact_profile": "UNFROZEN_WAIT_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE",
     "l2_l3": "LOCKED"
   }
 }

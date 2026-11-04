@@ -1,6 +1,6 @@
 # Aurorama 2.0 · G1-S6 总验收矩阵与 G2 任务卡输入
 
-状态：`S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED`
+状态：`S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED`
 
 本轮已按前序 scoped RED 完成受控修复：460 条行级语义使用 schema v2（外部 456 + D203 addendum 4），operation 必须由 actor、entry_surface、action_verb、action_object 与 expected_response 组合；MUSIC-003/014 与 NAV-004/005/006 使用源特定入口/动作，action_object 不含源码行号、决策号或范围元数据。权威源中无法枚举的状态 / 无障碍 / RWD 保留 `UNSPECIFIED_IN_SOURCE` gap。49 个 delivery wave 均有专业 owner、真实原子 promise_ids、显式 capability tags 与结构化验收物；495 条 atomic membership 只从独立表 join，禁止按行序、哈希或关键词轮转分配。card 不引用 `EV-S6` 自证。fresh scoped review 结论为 `PASS_WITH_P2`，唯一 P2 为 `__pycache__` 不得进入提交；本次 D203 重新生成、机械 verifier 或 self-test 均不等于 G1 PASS。
 
@@ -13,8 +13,8 @@
 ## 权威输入与读序
 
 1. `AGENTS.md` 与 `docs/PROJECT_PLAN.md` §3/§5/§7：工作目录、写边界、交接和验证纪律。
-2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/R1/Q03 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q03/Q04 与 S6 ACTIVE。
-3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D203` / Open Q03：当前状态真源。
+2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/R1/Q03/Q05 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q03/Q05/Q04 与 S6 ACTIVE。
+3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D203` / Open Q03/Q05：当前状态真源。
 4. `docs/UI_DESIGN_SYSTEM.md` V2 R1：五主题、RWD、九条交互、无障碍与 `UNVERIFIED_RUNTIME`。
 5. `.planning/v2-g1/G1-S1～S5`、A1/A2、BASE-001/003/004、Q03-SBOM/NATIVE/NOTICE/TTS-PDF：只读压缩报告、README 与 manifest。
 
@@ -82,13 +82,17 @@
 
 `V2-Q-G1-03` 保持 Open。至少以下均未关闭：
 
-1. TTS exact voice-pack profile / model / lexicon / rule、试听、许可与零 App 网络 / 后台锁屏 runtime（主引擎已由 D203 固定，不等于 Q03 closure）；
+1. TTS engine strategy（Q05 Open）、exact profile / model / lexicon / rule、试听、许可与零 App 网络 / 后台锁屏 runtime；Sherpa 已被当前小说质量门降为兼容回退，不把 D203 历史引擎语义写成 Q03 closure；
 2. PDFium exact native revision、16 KB issue #56、Range / 206、取消与大文件；
 3. candidate packaged SBOM、complete notices、source bundle / written offer、attestation / relink；
 4. Media3 / decoder / libmpv / libass 双内核 load-order、符号解析、R8 与设备；
 5. 真实候选包、设备、server runtime 与独立 QA。
 
-Q03 相关卡只能为 `GATED/BLOCKED` 输入；D203 已固定的 Sherpa 主引擎不等于 exact profile 或 Q03 通过，不能暗中替换引擎或冻结未审计 profile。
+Q03 / Q05 相关卡只能为 `GATED/BLOCKED` 输入；Sherpa 当前是兼容回退而非小说默认，Q05 strategy、exact profile 与 Q03 均未通过，不能暗中冻结新引擎或 profile。
+
+## Q05 开放门
+
+`V2-Q-G1-05` 保持 Open：A 推荐为保留 Sherpa 兼容回退并另立高表现力第二开源引擎 Android arm64 可行性 Spike；B 为仅继续 Sherpa 官方 pack；C 为继续试听 / 调研。`IndexTTS 2.5` 为首选调研方向但无官方 Android arm64 runtime，CosyVoice 2/3 / GPT-SoVITS 为次选且均未证明；Matcha / Kokoro 边界与 exact profile 未冻结，用户尚未拍板，不得写成 D204 Accepted。
 
 ## S6 完成与 scoped review 结论
 

@@ -1,6 +1,6 @@
 {
   "schema_version": "g1-s6-row-semantics/v2",
-  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
   "generated_on": "2026-11-04",
   "rules": {
     "join_key": "promise_id",

@@ -1,7 +1,7 @@
 {
   "schema_version": "g1-s6-wave-membership/v1",
   "task_id": "G1-S6",
-  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
   "generated_on": "2026-11-04",
   "authority": "Explicit row-to-wave membership; builder joins this file only.",
   "rules": {

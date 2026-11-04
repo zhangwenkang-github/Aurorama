@@ -1,6 +1,6 @@
 # G1-S6 自包含 checkpoint（2026-11-04）
 
-状态：`S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED`
+状态：`S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED`
 
 ## 已完成
 
@@ -18,7 +18,7 @@
 ## 未完成 / 不可声明
 
 - S6 通过不等于 G1 PASS；G1 仍为 `NOT_PASSED`，runtime 仍为 `UNVERIFIED`。
-- Q03 仍 Open：TTS exact voice-pack profile / 试听 / 许可与后台锁屏零网络 runtime、PDFium 16 KB / Range / native revision / notice、packaged SBOM / source offer、attestation / relink 均未关闭。Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎已由 D203 固定，不等于 Q03 关闭。
+- Q03 / Q05 仍 Open：TTS engine strategy、exact profile / 试听 / 许可与后台锁屏零网络 runtime、PDFium 16 KB / Range / native revision / notice、packaged SBOM / source offer、attestation / relink 均未关闭。Sherpa 质量不足并降为兼容回退，不等于 Q03 / Q05 关闭。
 - 未执行实现、Gradle、ADB、设备、服务器、网络、独立 QA、Release；不得写 G1/runtime/device/QA PASS。
 - Base-003 TTL / capacity / prefetch、BASE-004 重复 / 部分导入、搜索排序 / 跨源呈现等产品策略仍未由用户拍板。
 
@@ -52,7 +52,7 @@
 
 **结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留；D203 后本次 builder / verifier 重跑只更新静态规划包，不能代替新的 fresh reviewer。S6 仍只作为规划包与 docs integration 输入。
 
-**下一步入口**：fresh reviewer 第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json`、`docs/DECISIONS.md` D203/Open Q03 与 `docs/TASKS.md` `V2-G1-L1-EVIDENCE`，确认 external 445/376 与 addendum 4 / normalized 380 分离正确后停止；不得代签 QA 或推进 G2。
+**下一步入口**：fresh reviewer 第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json`、`docs/DECISIONS.md` Q05 / Open Q03 与 `docs/TASKS.md` `V2-G1-L1-EVIDENCE`，确认 external 445/376 与 addendum 4 / normalized 380 分离、Sherpa 仅兼容回退后停止；不得代签 QA 或推进 G2。
 
 **停止条件**：下一步不得启动 Q03 runtime、exact profile / 引擎替换选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、Q03/Q04/UI/G1 状态漂移、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
 

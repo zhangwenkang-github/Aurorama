@@ -1,99 +1,99 @@
 {
   "schema_version": "g1-s6-manifest/v1",
   "task_id": "G1-S6",
-  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
   "generated_on": "2026-11-04",
   "algorithm": "SHA-256",
   "self_excluded": true,
   "eol_policy": "UTF-8 no BOM; LF only",
   "file_count_excluding_manifest": 11,
-  "total_bytes_excluding_manifest": 5157869,
+  "total_bytes_excluding_manifest": 5161036,
   "entries": [
     {
       "path": "README.md",
-      "bytes": 12309,
-      "sha256": "7D2E545664330DB815A35AC2C27308C0D8BCD9694A7667EA48D25CE04A5EC0EA",
-      "lf": 135,
+      "bytes": 12872,
+      "sha256": "179126F649F6F7C5DFA711F618CBA09FA29282B45425B9066795F487CBAD3B20",
+      "lf": 139,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "CHECKPOINT.md",
-      "bytes": 5951,
-      "sha256": "B4074497BAAC1685E6EBDB96276B23E808788498E8E6EBE0D2F93205954F7E6F",
+      "bytes": 5980,
+      "sha256": "2A01C8101C48A079463104DEA67AF2D1294CB357C6F11EF8ADC566D9B07E53D4",
       "lf": 62,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "acceptance-matrix.json",
-      "bytes": 2695470,
-      "sha256": "F10873ACDB016C57EF1FAF844F87E9DEE1C68CA568BD412B5BBE4B4843F6DFB4",
-      "lf": 67188,
+      "bytes": 2695602,
+      "sha256": "093E4EF1DEB08AADA693F99983F28E74B383B284A6751F0FED1B1CF6AEF28DE5",
+      "lf": 67190,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "row-semantics.json",
-      "bytes": 1324029,
-      "sha256": "385327FABEEA52ABB5CAB7384DF2E34C991197213C99F619FF3CAEEC6741860D",
+      "bytes": 1324040,
+      "sha256": "51D0B5E69552570BD355609CC7998A5D4DC3238414EAD7A1DF3BE39FAFFCD903",
       "lf": 20931,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "wave-membership.json",
-      "bytes": 323735,
-      "sha256": "BCA1409AE27E2672EB437BE648662562CD55CADB0235A208D4E48AFABB1B18EB",
+      "bytes": 323746,
+      "sha256": "95242241117CEF25546BCDF5C8502039E42F0695DE696B3E3D6201061B998D4F",
       "lf": 10202,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "thresholds.json",
-      "bytes": 25467,
-      "sha256": "9A4A91DFA240ADB7FE119B65804470CCFF31EE755F9F871312D3CF75B7269F39",
+      "bytes": 25478,
+      "sha256": "A03B08D324AAF2CC7C68B45FC27650165492822D86AEA4D7143145F3AC53B78B",
       "lf": 886,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "g2-task-cards.json",
-      "bytes": 336094,
-      "sha256": "07D3EB20905EE5EAACD2B133C33C7CA267E0A7306418ACB4882E6F958C496944",
-      "lf": 7431,
+      "bytes": 336501,
+      "sha256": "2C5E570D16F39A605CC9C0A78BABD837B0E987AE87FD985D96AB537166F2F44D",
+      "lf": 7433,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "risk-register.json",
-      "bytes": 21652,
-      "sha256": "29AEFFD846343248C443A9B064632DA18F1E96CF7C000126438F5E8423EDDB1F",
-      "lf": 733,
+      "bytes": 21809,
+      "sha256": "955BE868CC4A4A0697F0B0E2B9CA7F667A8D5C9D8EBC7776F5BB941958C130D8",
+      "lf": 735,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "source-index.json",
-      "bytes": 22140,
-      "sha256": "806B1CE523B75118BBDB640E61F1E2856EB05F2A066786F4EED0A20C0211C02E",
-      "lf": 731,
+      "bytes": 22290,
+      "sha256": "6BEAC4A41792ECE7D46B73578F54B6A7C80E833BEBF6D76A39878EFA1CE7BF5D",
+      "lf": 733,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "build_s6_artifacts.py",
-      "bytes": 275088,
-      "sha256": "D785CE4B1D3AF5C2B23814CF8849E5A59C6DD087F6A158B4F25456537B3529C0",
-      "lf": 5075,
+      "bytes": 276341,
+      "sha256": "57602C57E6133F65D72FC9AE9C9338BCC02EF627B76B1B347721D071A916AD19",
+      "lf": 5082,
       "crlf": 0,
       "eol": "LF"
     },
     {
       "path": "verify_s6_artifacts.py",
-      "bytes": 115934,
-      "sha256": "8E42AA4F69078A021955910C52C010BA87039A9246CE922138B772BC17D639F9",
-      "lf": 2966,
+      "bytes": 116377,
+      "sha256": "266A676317B2C8D9557E35E5916CD56CDA447924F0E23502F08464C31EA24DC7",
+      "lf": 2976,
       "crlf": 0,
       "eol": "LF"
     }

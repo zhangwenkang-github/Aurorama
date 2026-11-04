@@ -31,7 +31,7 @@ UNSPECIFIED = "UNSPECIFIED_IN_SOURCE"
 
 STATUS = (
     "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / "
-    "Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED"
+    "Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED"
 )
 
 DOMAINS = ("ARCH", "UX", "READER", "WRITE", "MUSIC", "DOWNLOAD", "VIDEO", "NAV")
@@ -538,7 +538,7 @@ CARD_SPECS = [
         "role": "资深 Android 阅读器内核 / 数据一致性工程师",
         "objective": "交付可替换的 Publication/BookDocument、source-scoped ReadingPosition、分页 / 滚动、书签、批注、搜索降级、离线阅读和大书恢复核心。",
         "non_goals": [
-            "不在本卡重选 D203 已固定的 Sherpa-ONNX v2.0.1 + ONNX Runtime TTS 引擎。",
+            "不在本卡重决 `V2-Q-G1-05` 主朗读 engine strategy，也不把 Sherpa 兼容回退恢复为默认。",
             "不在本卡锁定 PDFium 或冻结未经试听 / 许可的 exact voice-pack profile。",
             "不把页码作为持久化位置真源。",
             "不把 CBZ 文本搜索或未证实 PDF 文字层伪装为空结果。",
@@ -551,21 +551,21 @@ CARD_SPECS = [
         ],
         "boundaries": [
             "逻辑接口：Publication/BookDocument、ReaderSettings、ReadingPosition、Annotation store、format capabilities。",
-            "生产文件边界按模块 owner allowlist 在 G2 实例化；TTS 只在 D203 白名单与 exact profile 许可 / matrix 门内推进。",
+            "生产文件边界按模块 owner allowlist 在 G2 实例化；TTS 只在 Q05 strategy、D203 voice-pack 边界与 exact profile 许可 / matrix 门内推进。",
         ],
-        "deps": ["EV-S2", "EV-S3", "EV-A1", "V2-D198", "V2-D199", "V2-D203"],
+        "deps": ["EV-S2", "EV-S3", "EV-A1", "V2-D198", "V2-D199", "V2-D203", "V2-Q-G1-05"],
         "risks": ["R-S6-P0-01", "R-S6-P1-02", "R-S6-P2-06", "R-S6-P1-13"],
         "evidence": ["EV-S2", "EV-S3", "EV-A1", "EV-S6"],
         "devices": ["Pad 5 主验；K60 抽验；PDF / CBZ 大文件按可用样本"],
         "writes": ["服务器进度写只使用已批准测试账号 / 写服；生产服务器只读。"],
-        "stop": "需要改持久 locator 兼容、重选 D203 已固定 TTS 引擎、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。",
+        "stop": "需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。",
         "artifacts": ["格式能力矩阵", "位置 / 批注迁移 fixture", "大书 / force-stop / 弱网旅程", "跨界面进度等式"],
         "status": "READY_FOR_G2_PLANNING",
     },
     {
         "id": "G2-READER-TTS-GATED",
         "role": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
-        "objective": "消费 D203 的 Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎与 voice-pack 基线，交付追加导入 / 删除回退、全局与逐书选择、后台锁屏、单音频 owner 和零网络门。",
+        "objective": "保持 D203 voice-pack、追加导入 / 删除回退、全局 / 逐书选择、后台锁屏、单音频 owner 与零网络门；Sherpa-ONNX v2.0.1 + ORT 当前仅作兼容回退，主 engine strategy 由 Q05 待决。",
         "non_goals": [
             "不冻结 exact voice-pack profile，不下载或随包任何未批准 voice / model / lexicon。",
             "不把架构 local-only 或静态许可写成零网络 runtime PASS。",
@@ -581,7 +581,7 @@ CARD_SPECS = [
             "逻辑接口：LocalTtsPort、VoiceCatalog、VoicePackImporter、VoiceSelectionStore、TtsPlaybackOwner、TtsMediaSession、OfflineCapabilityProbe。",
             "exact profile 仍由 C1 用户试听 + Q03 许可门决定；本卡保持 GATED。",
         ],
-        "deps": ["V2-D203", "V2-Q-G1-03", "EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C"],
+        "deps": ["V2-D203", "V2-Q-G1-03", "V2-Q-G1-05", "EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C"],
         "risks": ["R-S6-P1-07", "R-S6-P1-08", "R-S6-P1-17", "R-S6-P1-18", "R-S6-P1-19", "R-S6-P1-13"],
         "evidence": ["EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C", "EV-S6"],
         "devices": ["Pad 5 与 K60：飞行模式、后台 / 锁屏、进程重启、音频焦点 / noisy、音色导入删除与性能"],
@@ -831,7 +831,7 @@ CARD_SPECS = [
         ],
         "boundaries": [
             "输入：S4-A/B/C、Q03-SBOM/NATIVE/NOTICE/TTS-PDF 与最终候选 artifact。",
-            "D203 已固定 Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎；Q03 保持 Open，等待 exact voice-pack/profile、逐资产许可 / model card / notice / hash / provenance、packaged supply chain 与 runtime。PDF 引擎选择仍按既有 Q03 门。",
+            "D203 初始固定的 Sherpa-ONNX v2.0.1 + ONNX Runtime 因小说质量门失败，当前仅作兼容回退候选；V2-Q-G1-05 保持 Open，等待高表现力 engine strategy。Q03 仍 Open，等待 exact voice-pack/profile、逐资产许可 / model card / notice / hash / provenance、packaged supply chain 与 runtime；PDF 引擎选择仍按既有 Q03 门。",
         ],
         "deps": ["V2-Q-G1-03", "EV-Q03-SBOM", "EV-Q03-NATIVE", "EV-Q03-NOTICE", "EV-Q03-TTS-PDF"],
         "risks": ["R-S6-P1-07", "R-S6-P1-08", "R-S6-P1-09", "R-S6-P1-10", "R-S6-P1-16"],
@@ -902,7 +902,7 @@ CARD_WAVE_DEFS = {
         ("large-book-recovery", "完成大书内存、取消、force-stop 与弱网恢复。", "5000 页级 / 大 CBZ / 弱网报告"),
     ],
     "G2-READER-TTS-GATED": [
-        ("q03-decision", "消费 D203 已确定的 Sherpa-ONNX v2.0.1 + ONNX Runtime、当前 voice-pack/license 证据输入，并关闭 exact profile 用户试听、逐资产许可 / notice / hash 与 matrix 门。", "exact profile 试听 / 许可矩阵与资产 hash / notice"),
+        ("q03-decision", "消费 D203 的 voice-pack / 后台锁屏基线与当前 Sherpa 兼容回退 / license 证据；主 engine strategy 等待 V2-Q-G1-05，exact profile 的用户试听、逐资产许可 / notice / hash 与 matrix 未关闭。", "engine strategy / exact profile 试听许可矩阵与资产 hash / notice"),
         ("offline-runtime", "执行飞行模式、句级同步、暂停恢复与性能旅程。", "零网络和性能设备证据"),
         ("background-session", "交付进程 / 前台 service 持有、后台锁屏、通知 / MediaSession 等式与重启暂停恢复。", "后台锁屏与进程重启设备报告"),
         ("voice-catalog-import", "交付统一音色目录、追加导入、幂等身份、全局默认与逐书覆盖。", "voice-pack 目录 / 导入 / 选择状态机"),
@@ -2148,13 +2148,14 @@ RISK_SPECS = [
     {
         "id": "R-S6-P1-07",
         "severity": "P1",
-        "title": "TTS exact voice-pack/profile 试听、许可与资产闭环尚未完成",
+        "title": "TTS 小说质量不足、主 engine strategy 与 exact profile 许可仍未闭合",
         "domain": ["READER"],
-        "source": ["V2-D203", "EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C"],
-        "impact": "Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎虽已固定，但 exact profile 未试听 / 冻结，model card、训练 / 声线权属、lexicon、rule、notice 与逐文件 hash 仍不可审计。",
+        "source": ["V2-D203", "V2-Q-G1-05", "EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C"],
+        "impact": "当前 Sherpa 三组小说声线均质量不足，Sherpa 仅降为兼容回退；IndexTTS / CosyVoice / GPT-SoVITS 尚无 Android arm64 runtime 证据，exact profile、model card、声线权属、lexicon、rule、notice 与 hash 均未闭合。",
         "gate": "G2-READER-TTS-GATED / G2-Q03-SUPPLY-CHAIN-GATED",
         "closure_evidence": [
-            "用户试听并确认 exact voice-pack/profile",
+            "V2-Q-G1-05 用户 engine strategy 决策",
+            "高表现力或兼容回退 profile 的用户试听确认",
             "逐资产 model card / license / notice / hash",
             "pack/profile provenance 与 packaged source obligation",
         ],
@@ -2642,8 +2643,8 @@ EVIDENCE_SPECS = [
         "kind": "report",
         "level": "E0/static",
         "status": "TTS_PDF_PARTIAL / Q03_OPEN",
-        "can_prove": ["21 evidence rows = 9 PROVEN / 2 PARTIAL / 10 BLOCKED", "D203 fixes Sherpa-ONNX v2.0.1 + ONNX Runtime while exact voice-pack profile remains open"],
-        "cannot_prove": ["exact voice-pack profile / license", "background / lockscreen / zero-network runtime", "PDFium runtime / notice revision"],
+        "can_prove": ["21 evidence rows = 9 PROVEN / 2 PARTIAL / 10 BLOCKED", "Sherpa-ONNX v2.0.1 + ONNX Runtime is current compatibility fallback after quality-gate failure; Q05 strategy remains open"],
+        "cannot_prove": ["engine strategy / exact expressive profile / license", "background / lockscreen / zero-network runtime", "PDFium runtime / notice revision"],
     },
     {
         "id": "EV-S6",
@@ -4466,7 +4467,7 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
             "DOC-V2-G1",
             "docs/V2_PLAN.md",
             "G1 static evidence, Q03, R1 and ACTIVE handoff",
-            ["E0–E7", "Q03", "Q04", "S6", "D203"],
+            ["E0–E7", "Q03", "Q05", "Q04", "S6", "D203"],
             [(section_5_11_start, section_13_start - 1), (section_13_start, len(v2_doc_lines))],
         ),
         (
@@ -4480,7 +4481,7 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
             "DOC-DECISIONS",
             "docs/DECISIONS.md",
             "accepted decisions and open Q03",
-            ["D057", "D198–D203", "Q03", "background / voice-pack TTS"],
+            ["D057", "D198–D203", "Q03", "Q05", "background / voice-pack TTS"],
             [(1, len(read_text(DECISIONS_PATH).splitlines()))],
         ),
         (
@@ -4567,11 +4568,11 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
                 "source_ids": ["DOC-DECISIONS", "DOC-UI-R1"],
             },
             {
-                "fact": "Q03 remains Open and G1 is NOT_PASSED",
+                "fact": "Q03 remains Open, Q05 remains Open, and G1 is NOT_PASSED",
                 "source_ids": ["DOC-DECISIONS", "DOC-V2-G1", "DOC-TASKS"],
             },
             {
-                "fact": "D203 accepts voice-pack / background-lockscreen TTS, but exact profile and C1 audition/license remain open",
+                "fact": "D203 voice-pack / background-lockscreen TTS remains, but Sherpa is quality-demoted to compatibility fallback and Q05 engine strategy remains open",
                 "source_ids": ["DOC-DECISIONS", "DOC-V2-G1", "DOC-TASKS"],
             },
             {
@@ -4695,12 +4696,14 @@ def matrix_document(
         "global_boundaries": {
             "g1": "NOT_PASSED",
             "q03": "OPEN",
+            "q05": "OPEN_TTS_ENGINE_STRATEGY",
             "q04": "CLOSED_D201",
             "ui_design_system": "V2_R1_ACCEPTED_DESIGN_AUTHORITY",
             "runtime": "UNVERIFIED",
             "s6": "SCOPED_REVIEW_PASS_WITH_P2",
             "d203": "ACCEPTED_VOICE_PACK_BACKGROUND_TTS",
-            "c1_exact_profile": "UNFROZEN_WAIT_USER_AUDITION_AND_LICENSE",
+            "sherpa_quality": "SHERPA_QUALITY_INSUFFICIENT_COMPAT_FALLBACK",
+            "c1_exact_profile": "UNFROZEN_WAIT_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE",
             "l2_l3": "LOCKED",
         },
     }
@@ -4760,8 +4763,8 @@ def readme_text(matrix: dict[str, Any], risks: dict[str, Any], cards: list[dict[
 ## 权威输入与读序
 
 1. `AGENTS.md` 与 `docs/PROJECT_PLAN.md` §3/§5/§7：工作目录、写边界、交接和验证纪律。
-2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/R1/Q03 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q03/Q04 与 S6 ACTIVE。
-3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D203` / Open Q03：当前状态真源。
+2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/R1/Q03/Q05 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q03/Q05/Q04 与 S6 ACTIVE。
+3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D203` / Open Q03/Q05：当前状态真源。
 4. `docs/UI_DESIGN_SYSTEM.md` V2 R1：五主题、RWD、九条交互、无障碍与 `UNVERIFIED_RUNTIME`。
 5. `.planning/v2-g1/G1-S1～S5`、A1/A2、BASE-001/003/004、Q03-SBOM/NATIVE/NOTICE/TTS-PDF：只读压缩报告、README 与 manifest。
 
@@ -4829,13 +4832,17 @@ def readme_text(matrix: dict[str, Any], risks: dict[str, Any], cards: list[dict[
 
 `V2-Q-G1-03` 保持 Open。至少以下均未关闭：
 
-1. TTS exact voice-pack profile / model / lexicon / rule、试听、许可与零 App 网络 / 后台锁屏 runtime（主引擎已由 D203 固定，不等于 Q03 closure）；
+1. TTS engine strategy（Q05 Open）、exact profile / model / lexicon / rule、试听、许可与零 App 网络 / 后台锁屏 runtime；Sherpa 已被当前小说质量门降为兼容回退，不把 D203 历史引擎语义写成 Q03 closure；
 2. PDFium exact native revision、16 KB issue #56、Range / 206、取消与大文件；
 3. candidate packaged SBOM、complete notices、source bundle / written offer、attestation / relink；
 4. Media3 / decoder / libmpv / libass 双内核 load-order、符号解析、R8 与设备；
 5. 真实候选包、设备、server runtime 与独立 QA。
 
-Q03 相关卡只能为 `GATED/BLOCKED` 输入；D203 已固定的 Sherpa 主引擎不等于 exact profile 或 Q03 通过，不能暗中替换引擎或冻结未审计 profile。
+Q03 / Q05 相关卡只能为 `GATED/BLOCKED` 输入；Sherpa 当前是兼容回退而非小说默认，Q05 strategy、exact profile 与 Q03 均未通过，不能暗中冻结新引擎或 profile。
+
+## Q05 开放门
+
+`V2-Q-G1-05` 保持 Open：A 推荐为保留 Sherpa 兼容回退并另立高表现力第二开源引擎 Android arm64 可行性 Spike；B 为仅继续 Sherpa 官方 pack；C 为继续试听 / 调研。`IndexTTS 2.5` 为首选调研方向但无官方 Android arm64 runtime，CosyVoice 2/3 / GPT-SoVITS 为次选且均未证明；Matcha / Kokoro 边界与 exact profile 未冻结，用户尚未拍板，不得写成 D204 Accepted。
 
 ## S6 完成与 scoped review 结论
 
@@ -4916,7 +4923,7 @@ def checkpoint_text(
 ## 未完成 / 不可声明
 
 - S6 通过不等于 G1 PASS；G1 仍为 `NOT_PASSED`，runtime 仍为 `UNVERIFIED`。
-- Q03 仍 Open：TTS exact voice-pack profile / 试听 / 许可与后台锁屏零网络 runtime、PDFium 16 KB / Range / native revision / notice、packaged SBOM / source offer、attestation / relink 均未关闭。Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎已由 D203 固定，不等于 Q03 关闭。
+- Q03 / Q05 仍 Open：TTS engine strategy、exact profile / 试听 / 许可与后台锁屏零网络 runtime、PDFium 16 KB / Range / native revision / notice、packaged SBOM / source offer、attestation / relink 均未关闭。Sherpa 质量不足并降为兼容回退，不等于 Q03 / Q05 关闭。
 - 未执行实现、Gradle、ADB、设备、服务器、网络、独立 QA、Release；不得写 G1/runtime/device/QA PASS。
 - Base-003 TTL / capacity / prefetch、BASE-004 重复 / 部分导入、搜索排序 / 跨源呈现等产品策略仍未由用户拍板。
 
@@ -4950,7 +4957,7 @@ def checkpoint_text(
 
 **结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留；D203 后本次 builder / verifier 重跑只更新静态规划包，不能代替新的 fresh reviewer。S6 仍只作为规划包与 docs integration 输入。
 
-**下一步入口**：fresh reviewer 第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json`、`docs/DECISIONS.md` D203/Open Q03 与 `docs/TASKS.md` `V2-G1-L1-EVIDENCE`，确认 external 445/376 与 addendum 4 / normalized 380 分离正确后停止；不得代签 QA 或推进 G2。
+**下一步入口**：fresh reviewer 第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json`、`docs/DECISIONS.md` Q05 / Open Q03 与 `docs/TASKS.md` `V2-G1-L1-EVIDENCE`，确认 external 445/376 与 addendum 4 / normalized 380 分离、Sherpa 仅兼容回退后停止；不得代签 QA 或推进 G2。
 
 **停止条件**：下一步不得启动 Q03 runtime、exact profile / 引擎替换选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、Q03/Q04/UI/G1 状态漂移、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
 

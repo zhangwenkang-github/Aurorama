@@ -210,6 +210,12 @@
 | `V2-D202` | 用户以原话“按推荐”接受上一问的全部推荐串 `A1-B1-C1-D1-E1-F1-G1` 与推荐语义，且仅批准 `L1`：`A1` Media3 默认、mpv 仅由真实能力 / 格式 / 字幕证据触发；`B1` Sherpa-ONNX 主 Spike，系统 TTS 仅在能力探测与零网络证明通过后条件回退，Piper 延后；`C1` 随包一个经许可普通话音色，系统音色仅在离线证明通过时回退，exact voice / model 仍须 `L1` 资产审计后冻结；`D1` 仅 stable PDFium 2.0.3 隔离 Spike，过 16 KB / revision / notice / Range 门后再比较，PdfRenderer 保留回滚；`E1` 按媒体类型 / 来源分组并在组内默认相关性 + 适用排序；`F1` 采用 §12 的 10 / 5 分钟软 TTL、24h / 7d 硬上限、256MiB / 4096 文件 / 8MiB 单文件、内存 256 项候选值，未固定项按 LRU / single-flight / 0 宽限并由 G2 证据校准；`G1` 预览后原子提交，缺曲 / 重复默认保留并允许显式去重，部分 M3U8 由用户接受有效子集或取消。`V2-Q-G1-03` 仍 Open（Q04 仍由 D201 Closed），G1 `NOT_PASSED`；L2/L3 locked。除另行授权外，禁止联网、设备、账号、服务器、生产代码、G2、独立 QA 与 Release；不得把本决定写成 runtime / S6 / G1 PASS | `docs/V2_PLAN.md` §12 ACTIVE、§13；`docs/TASKS.md` `V2-G1-L1-EVIDENCE`；用户于 2026-11-04 原话“按推荐” |
 | `V2-D203` | 用户原话“按推荐来。不过要注意阅读功能要求有后台语音可以锁屏听小说。导入的音色可以在列表中选择而不是替换，列表中的音色可以删除。”接受 TTS 新基线：①主引擎固定为 Sherpa-ONNX v2.0.1 + ONNX Runtime，Android 本地完全离线；系统 TTS 仅非验收性可选兼容，Piper direct 延后；②C1 从单个随包 voice 升级为离线 voice-pack system，内置与本地导入统一列表并标来源，可选择、灵活配置、支持本地导入；③导入追加不替换，完全相同的 pack / profile 重复导入幂等复用，同名不同内容作为新 profile 追加；④导入音色可删除，内置音色不可物理删除、可隐藏且可恢复，删除一个不破坏其他音色；⑤删除活动音色先停止朗读、清理全局 / 逐书引用、回退到有效内置 profile，文件删除失败显式待重试且不能悬空引用；⑥TTS 由进程 / 前台 service owner 持有，正常后台 / 锁屏继续，Activity / ViewModel 销毁不终止；进程死亡 / 重启不自动播放，只恢复暂停态与最后稳定句子并在恢复前校验 pack；⑦单活动音频 owner / 单活动 MediaSession，启动 TTS 暂停音乐并保留队列，停止 TTS 后音乐保持暂停，音乐再次起播前先终止 TTS；⑧锁屏 / 通知提供播放 / 暂停、上一句 / 下一句、停止，不做伪造时间 seek，通知 / UI / 系统控制必须与真实播放状态一致；⑨朗读音色支持全局默认与逐书覆盖，其他显示类 ReaderSettings 仍为设备级；⑩运行时零远程 TTS、零自动音色包下载、零网络回退；⑪C1 exact profile 仍未冻结，当前候选只作试听 / 许可审计，不得写成 runtime / Q03 / G1 PASS。D203 只窄覆盖 D202-C1 的单音色部分与 D092 / D097 的“离页取消 TTS”，其他 D202 / D088 / D097 离线要求保留；新增 `V2-REQ-READER-087～090` 四条项目来源 G0 addendum，外部 Reader `86` / `63 MUST` / MVP `66` 与外部八域 `445 / 376` 历史不变，当前 Reader `90` / 单级 MUST `67` / MVP `70`，归一化 MVP `380`。Q03 仍 Open、G1 `NOT_PASSED`、runtime `UNVERIFIED`、L2/L3 locked；不授权 G2 / QA / Release | `docs/V2_PLAN.md` §5.4.3～§5.4.10、§5.10、§5.11.12、§12、§13；`docs/TASKS.md` `V2-G1-L1-EVIDENCE`；`.planning/v2-g1/G1-L1-NETWORK-SHERPA/`；用户于 2026-11-04 原话“按推荐来。不过要注意阅读功能要求有后台语音可以锁屏听小说。导入的音色可以在列表中选择而不是替换，列表中的音色可以删除。” |
 
+**D203 质量门后的当前适用范围（2026-11-04）**：用户后续试听否决当前 Melo、AISHELL3 sid66
+与 Kokoro sid58，标记 `SHERPA_QUALITY_INSUFFICIENT`。D203 的 voice-pack、后台锁屏、删除回退、
+单音频 owner / MediaSession 条款仍有效；第①点“固定 Sherpa-ONNX v2.0.1 + ORT”主引擎语义
+不再表示小说主朗读默认已被质量接受，Sherpa 当前仅降为兼容回退候选。主 engine strategy 由
+`V2-Q-G1-05` Open 待决；不称 Sherpa 整体被技术淘汰，也不产生 D204 Accepted。
+
 ## Open
 
 当前 G0 无开放产品问题。`V2-Q-G1-01/02` 已分别由 `V2-D198/D199` 关闭；
@@ -238,8 +244,34 @@ revision / 16 KB / Range 及 runtime / device 仍待证据；
 `V2-Q-G1-04` 已由 `V2-D201` 关闭：用户于 2026-11-04 选择整包 R1，并仅窄覆盖
 `V2-D057` 的 Nocturne 圆角 12→8dp。`docs/UI_DESIGN_SYSTEM.md` 已升级为 V2 R1 权威；
 `V2-Q-G1-03` 仍 Open，G1 未通过；S6 已完成并通过 scoped review `PASS_WITH_P2`。唯一
-ACTIVE 为 §12 的 D203 voice-pack 许可 / 试听与 Q03+B/C/D/E 授权交接。
+ACTIVE 为 §12 的 `V2-Q-G1-05` engine strategy、D203 voice-pack 生命周期交接与 Q03+B/C/D/E 授权。
 `V2-D200` 只固定体验优先与包体非要求。
+
+### `V2-Q-G1-05` TTS 主朗读 engine strategy（2026-11-04，Open）
+
+用户原话：“感觉这三个候选都不太行，Kokoro speaker 58太生硬了，没有情感，只是在一个字一个字的发音。”
+当前 `vits-melo-tts-zh_en`、`vits-icefall-zh-aishell3` speaker 66 与
+`kokoro-multi-lang-v1_1` speaker 58 / `zm_009` 全部退出默认候选，
+`SHERPA_QUALITY_INSUFFICIENT` 是当前小说主朗读质量结论。不得据此宣称 Sherpa 整体被技术
+淘汰；D203 的 voice-pack、后台锁屏、删除回退与单音频 owner / MediaSession 条款不变，
+Sherpa-ONNX v2.0.1 + ONNX Runtime 当前仅降为兼容回退候选。
+
+| 选项 | 内容 | 当前判断 |
+|---|---|---|
+| **A（推荐）** | 保留 Sherpa / Matcha 等兼容回退，另立高表现力开源第二引擎 Android arm64 可行性 Spike | `IndexTTS 2.5` 为表现力首选调研方向，但官方无 Android arm64 runtime；CosyVoice 2/3、GPT-SoVITS 为次选，全部需隔离可行性 Spike |
+| **B** | 仅继续 Sherpa 官方 pack | 可能无法满足中文长篇小说叙事质量；不得据此关闭 Q05 |
+| **C** | 继续试听 / 调研后再选 engine strategy | 保持当前状态，不冻结新引擎 |
+
+边界：`matcha-icefall-zh-en` 约 72MB acoustic + 51MB vocoder、Apache 标注、官方 Android
+路径，可保留兼容回退试听，但无任何情绪控制证据；`matcha-icefall-zh-baker` 继续因 Baker
+非商业排除。Kokoro 基础权重 Apache 声明、v2.0.1 Android 路径最好，但 speaker 58 已被用户
+主观否决；不能由单个 speaker 判定整个家族不可用，其他中文 voice 可继续测试但不能默认。
+Kokoro 无显式情绪控制，exact v1.1-zh 模型卡、声线数据与附属 notices 仍未闭。
+
+`F5 / Spark / ChatTTS` 权重非商用 / 研究，Fish Drama 规模不适合 Android，均不得成为默认
+候选。Q05 当前 `Open`，推荐 A 尚未获用户接受；不得写 `V2-D204` Accepted，不得冻结
+IndexTTS / CosyVoice / GPT-SoVITS / Matcha / Kokoro 新 profile，也不得启动网络下载、设备、
+runtime 或第二引擎 Spike。
 
 **G1 最终候选边界（2026-11-04，非新决策）**：最终 BASE 提交指针只证明合同批次与确定性
 修复已完成，clean-clone 的契约 / verifier exit 0 只证明静态证据可复算，不表示 Q03
@@ -297,6 +329,10 @@ S6 / G1 runtime PASS。
 |---|---|---|---|---|
 | `V2-Q-G1-03` | `G1-S4-A/B/C` 已冻结 runtime graph、许可证输入、Media3 / decoder / libmpv 静态事实及 TTS / PDF 非媒体矩阵；S4-C 证据提交 `a84ce4f1…` 的 `s4cNonMediaInputReadyForQ03=true`，但 `fullQ03UserDecisionReady=false`、`g1Passed=false`。Q03 static integration 提交 `d234b40c958288cd5277072452212fe578bb5495`；父级 `.planning/v2-g1/.gitattributes` 与 G1 证据公共 LF 规则提交 `c01e7361b2e86d4773aa4823429f324f9ed7d3df`；Q03 gaps integration 提交 `287c37e1d1287e2a90c047e628f7272a13cc5970` 仅新增 NOTICE / TTS-PDF 两组并更新 docs，对父级属性文件无改动。提交后 `core.autocrlf=true` clean-clone 复现 S5 verifier / SBOM validator PASS，S5 / Q03-SBOM / Q03-NATIVE / Q03-NOTICE / Q03-TTS-PDF 为 47/47、11/11、5/5、7/7、5/5，合计 75/75 LF、CRLF 0。S4-A Q03 静态增量：`.planning/v2-g1/G1-S4-A-Q03-SBOM/` 为 11 文件 / 482,118 B，manifest SHA-256 `220BB878A975B133178ADBCA80CEE919F829474727268D2DF8C14D13982F1019`；CycloneDX 1.6 valid，SBOM SHA-256 `85AF8B2968D843E8C763D1D364AE59AA8E40E6D11F38437426D3BF0B7FD277E2`，296 external / 35 direct / 261 transitive / 0 unresolved / 296 PURL，license primary `46 EXACT_POM / 246 FAMILY_ONLY / 4 MIXED_EXACT_FAMILY / 0 UNKNOWN`，仅按 snapshot 可关闭 `Q03-SBOM-RUNTIME-INVENTORY`。`.planning/v2-g1/G1-S4-A-Q03-NATIVE/` 为 5 文件 / 52,469 B，manifest SHA-256 `40E667F8A7650AF06BC145D85720CF5349BBC057E71BD0372E6D2213FEDA81DE`，31 子项 `13 PROVEN / 6 PARTIAL / 12 BLOCKED`；Media3 1.11.1 + decoder 1.9.0+1 静态 ABI / pin / 16 KB 已证明但 runtime 未证明；libmpv 1.0.0→mpv 0.41.0 / FFmpeg n8.1 / libass 0.17.4，AAR notice、source offer、双内核 load-order 与 notices 仍 blocked；TTS 代码许可已证明，voice/model 与零网络 runtime 未证明；PDFium 2.0.3 / 3.0.4-alpha01 native blob 相同，revision / notice / 16 KB / Range runtime 为 blocked / partial。两目录独立 reviewer PASS。新增 `.planning/v2-g1/G1-S4-A-Q03-NOTICE/` 7 文件 / 80,035 B，manifest `89306984825B400136FFF2BA5DAF98F06C3A1E2F89DA0F18F725BBCCA0EA63FE`，provenance 24=`13/4/7`、notice/source 10=`5/2/3`，仅 `M3-05` / `MPV-05` 从 BLOCKED 收窄为 PARTIAL；`.planning/v2-g1/G1-S4-A-Q03-TTS-PDF/` 5 文件 / 55,691 B，manifest `43C51B06AD830FB055C97DAD069C4B1C516D51CBDB4E7AC226E87ED16A16E41B`，21=`9/2/10`，URL 41=`38 HTTP200/1 Git/2 timeout`、聚合 PARTIAL；issue #56 仍 OPEN。`V2-D203` 进一步固定 Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎与 voice-pack system，但 exact profile、逐资产许可 / 试听、后台 / 锁屏、单音频 owner / MediaSession 与零网络 runtime 仍未闭合。静态 NOTICE 与 TTS / PDF evidence 仍为 PARTIAL；candidate packaged notice / SBOM / source bundle、written offer / corresponding source、exact attestation / relink、runtime / device 与真实链路仍开放 | Media3 主路径；Sherpa-ONNX v2.0.1 + ORT 主引擎已由 D203 固定，system TTS 仅非验收性兼容，Piper direct 延后；exact voice-pack profile 走试听 + 许可审计；PDF 保留 PdfRenderer 回滚，stable PDFium 2.0.3 过硬门后再比较 | 双内核和 PDFium 提高覆盖；TTS 以 voice-pack 目录、后台锁屏与单音频 owner 为产品基线；取舍看 runtime、许可与质量，不因包体单独删除能力；新增静态工作须前沿审计与明确授权 | **Open / safe Q03 static increments maximized；full Q03 Open；G1 NOT_PASSED** |
 | `V2-Q-G1-04` | `G1-S5` 已完成静态决策输入：`.planning/v2-g1/G1-S5/decision-brief.md`、`manifest.json`；47 文件 / 780,415 字节，manifest SHA-256 `BB737C5D161D0F17C3857C87E27A0807DB929AB91B2482A1A9D791CEB6B407C1`，46 索引 = 45 证据 + 1 EOL / control；`.gitattributes` 固定 `* text eol=lf`，47/47 LF、CRLF 0。Verifier / builder 的 source hash 来自固定 source `397ff4f0…` 的 `git cat-file blob`，不读取当前 worktree；Git policy 只要求校验时工作区 HEAD 是 source baseline 后裔，HEAD 实况由 `git rev-parse HEAD` 现场读取，不在 docs 自引用当前提交；docs 合法更新不再误报 `SOURCE_HASH_MISMATCH`。manifest / 证据 hash、预期 docs dirty 白名单、白名单外 dirty 拒绝、LF / `eol=lf` 与内容 counts 保留；`source hash mismatch`、`evidence SHA mismatch`、`outside dirty` 均 exit 1。主题 5/5、交互 9/9、RWD 6/6、状态 60/60、无障碍 12/12、对比度 130/130；独立 scoped evidence review PASS。静态覆盖不等于设备 / TalkBack / 真字体 / 动态色 runtime PASS | 用户于 2026-11-04 整包接受 R1“DNA 保留 + 共享骨架”：保留五主题材料语法，共享 IA、状态、48dp、可访问名称与反馈职责；`AmbientColors` 不作页面主题，只保留受控局部强调；五档 RWD 与 72 / 216dp 轨道、16 / 24 / 32 / 48dp 页面边距；仅 D057 Nocturne 圆角 12→8dp | `HISTORY`：A2 强化玻璃 / 内高光与 A3 强化结构统一均未被用户选择；不据此改写 D057 其他圆角 | **Closed / Accepted / `V2-D201`（历史时点）；UI_DESIGN_SYSTEM = V2 R1；Q03 仍 Open；G1 NOT_PASSED；后续 S6 已由 2026-11-04 S6 日志完成并通过 scoped review `PASS_WITH_P2`** |
+
+**Q03 当前 TTS 子门说明（2026-11-04）**：上表 Q03 事实中的“D203 进一步固定 Sherpa 主引擎”
+只保留为 D203 历史语义；小说质量门失败后，Sherpa 当前仅作兼容回退候选，主 engine strategy
+由 `V2-Q-G1-05` 待决。Q03 仍 Open，不因 Q05 的推荐选项或本轮文档更新关闭。
 
 ### `V2-FINAL-CHECK`（2026-11-03，已关闭）
 

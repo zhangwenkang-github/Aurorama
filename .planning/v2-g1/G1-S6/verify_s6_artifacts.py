@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[3]
 OUT = Path(__file__).resolve().parent
 EXPECTED_STATUS = (
     "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / "
-    "Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED"
+    "Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED"
 )
 SEMANTIC_SCHEMA = "g1-s6-row-semantics/v2"
 MEMBERSHIP_SCHEMA = "g1-s6-wave-membership/v1"
@@ -319,10 +319,14 @@ def d203_semantic_contract_errors(
         )
         if "V2-D203" not in risk.get("source", []):
             errors.append("R-S6-P1-07 must cite V2-D203")
+        if "V2-Q-G1-05" not in risk.get("source", []):
+            errors.append("R-S6-P1-07 must cite V2-Q-G1-05")
         if "G2-Q03-SUPPLY-CHAIN-GATED" not in str(risk.get("gate", "")):
             errors.append("R-S6-P1-07 gate must cover G2-Q03-SUPPLY-CHAIN-GATED")
-        if "exact voice-pack/profile" not in str(risk.get("title", "")):
-            errors.append("R-S6-P1-07 title must name exact voice-pack/profile")
+        if "engine strategy" not in str(risk.get("title", "")):
+            errors.append("R-S6-P1-07 title must name engine strategy")
+        if "exact profile" not in str(risk.get("title", "")):
+            errors.append("R-S6-P1-07 title must name exact profile")
         for token in ("试听", "model card", "许可", "notice", "hash"):
             if token not in risk_text:
                 errors.append(f"R-S6-P1-07 closure/title lacks {token}")
@@ -354,6 +358,8 @@ def d203_semantic_contract_errors(
         q03_text = card_text(q03)
         for token in (
             "Sherpa-ONNX v2.0.1 + ONNX Runtime",
+            "兼容回退候选",
+            "V2-Q-G1-05",
             "exact voice-pack/profile",
             "逐资产许可 / model card / notice / hash / provenance",
             "packaged supply chain",
@@ -383,8 +389,9 @@ def d203_semantic_contract_errors(
         else:
             w1_text = str(w1.get("objective", ""))
             for token in (
-                "Sherpa-ONNX v2.0.1 + ONNX Runtime",
-                "voice-pack/license",
+                "voice-pack / 后台锁屏",
+                "Sherpa 兼容回退",
+                "V2-Q-G1-05",
                 "exact profile",
                 "试听",
                 "许可",
@@ -400,8 +407,8 @@ def d203_semantic_contract_errors(
         errors.append("G2-READER-CORE card missing")
     else:
         reader_text = card_text(reader_core)
-        if "重选 D203 已固定" not in reader_text:
-            errors.append("G2-READER-CORE must prohibit re-selecting the fixed D203 engine")
+        if "V2-Q-G1-05" not in reader_text:
+            errors.append("G2-READER-CORE must gate TTS on V2-Q-G1-05")
         for stale in (
             "选择最终 TTS 引擎 / voice",
             "选中具体 PDF/TTS 引擎",
@@ -2838,12 +2845,14 @@ def main() -> None:
     if boundaries != {
         "g1": "NOT_PASSED",
         "q03": "OPEN",
+        "q05": "OPEN_TTS_ENGINE_STRATEGY",
         "q04": "CLOSED_D201",
         "ui_design_system": "V2_R1_ACCEPTED_DESIGN_AUTHORITY",
         "runtime": "UNVERIFIED",
         "s6": "SCOPED_REVIEW_PASS_WITH_P2",
         "d203": "ACCEPTED_VOICE_PACK_BACKGROUND_TTS",
-        "c1_exact_profile": "UNFROZEN_WAIT_USER_AUDITION_AND_LICENSE",
+        "sherpa_quality": "SHERPA_QUALITY_INSUFFICIENT_COMPAT_FALLBACK",
+        "c1_exact_profile": "UNFROZEN_WAIT_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE",
         "l2_l3": "LOCKED",
     }:
         fail(f"global boundaries mismatch: {boundaries}")
@@ -2959,6 +2968,7 @@ def main() -> None:
     print("runtime_executed=false")
     print("g1_passed=false")
     print("q03=OPEN")
+    print("q05=OPEN")
     print("q04=CLOSED_D201")
 
 

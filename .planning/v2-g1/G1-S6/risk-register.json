@@ -1,6 +1,6 @@
 {
   "schema_version": "g1-s6-risk-register/v1",
-  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
   "severity_counts": {
     "P0": 1,
     "P1": 19,
@@ -160,20 +160,22 @@
     {
       "id": "R-S6-P1-07",
       "severity": "P1",
-      "title": "TTS exact voice-pack/profile 试听、许可与资产闭环尚未完成",
+      "title": "TTS 小说质量不足、主 engine strategy 与 exact profile 许可仍未闭合",
       "domain": [
         "READER"
       ],
       "source": [
         "V2-D203",
+        "V2-Q-G1-05",
         "EV-Q03-NATIVE",
         "EV-Q03-TTS-PDF",
         "EV-S4C"
       ],
-      "impact": "Sherpa-ONNX v2.0.1 + ONNX Runtime 主引擎虽已固定，但 exact profile 未试听 / 冻结，model card、训练 / 声线权属、lexicon、rule、notice 与逐文件 hash 仍不可审计。",
+      "impact": "当前 Sherpa 三组小说声线均质量不足，Sherpa 仅降为兼容回退；IndexTTS / CosyVoice / GPT-SoVITS 尚无 Android arm64 runtime 证据，exact profile、model card、声线权属、lexicon、rule、notice 与 hash 均未闭合。",
       "gate": "G2-READER-TTS-GATED / G2-Q03-SUPPLY-CHAIN-GATED",
       "closure_evidence": [
-        "用户试听并确认 exact voice-pack/profile",
+        "V2-Q-G1-05 用户 engine strategy 决策",
+        "高表现力或兼容回退 profile 的用户试听确认",
         "逐资产 model card / license / notice / hash",
         "pack/profile provenance 与 packaged source obligation"
       ]

@@ -1,6 +1,6 @@
 {
   "schema_version": "g1-s6-source-index/v1",
-  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
   "generated_on": "2026-11-04",
   "document_sources": [
     {
@@ -92,11 +92,11 @@
         },
         {
           "start": 2535,
-          "end": 2710
+          "end": 2711
         }
       ],
-      "bytes": 601764,
-      "sha256": "EF52EECB9468EC32E5781416A83C793DBB8CF354D1D68888E6F4F3E307EBECDF",
+      "bytes": 604887,
+      "sha256": "0D3E2B2A22252AB75EB287D42508F25481664F2C64EFAC4C89DC8DFE03F40DBF",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -106,22 +106,23 @@
       "uses": [
         "E0–E7",
         "Q03",
+        "Q05",
         "Q04",
         "S6",
         "D203"
       ],
       "line_ranges": [
         {
-          "start": 2711,
-          "end": 4201
+          "start": 2712,
+          "end": 4212
         },
         {
-          "start": 4202,
-          "end": 4469
+          "start": 4213,
+          "end": 4493
         }
       ],
-      "bytes": 601764,
-      "sha256": "EF52EECB9468EC32E5781416A83C793DBB8CF354D1D68888E6F4F3E307EBECDF",
+      "bytes": 604887,
+      "sha256": "0D3E2B2A22252AB75EB287D42508F25481664F2C64EFAC4C89DC8DFE03F40DBF",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -137,8 +138,8 @@
           "end": 58
         }
       ],
-      "bytes": 11828,
-      "sha256": "15019905AAFFADF7903D7C16A1E4EDF486627165857A8E4360AC3A33CBF646FA",
+      "bytes": 11845,
+      "sha256": "85BA47D761197F6DEA1EA06F1DFF597E70ACBAE52D182C583EC231A8F182BAB9",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -149,16 +150,17 @@
         "D057",
         "D198–D203",
         "Q03",
+        "Q05",
         "background / voice-pack TTS"
       ],
       "line_ranges": [
         {
           "start": 1,
-          "end": 356
+          "end": 392
         }
       ],
-      "bytes": 89637,
-      "sha256": "B38254055DBF5DC61705297766CA93A0B196F65EA70622343A164699317B1833",
+      "bytes": 92703,
+      "sha256": "D05F38194EE34F30B84103BEBDFF1450E97966B6D4EB265CDE2652C754ACFA85",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -210,8 +212,8 @@
     "schema_version": "g1-s6-row-semantics/v2",
     "record_count": 460,
     "join_key": "promise_id",
-    "bytes": 1324029,
-    "sha256": "385327FABEEA52ABB5CAB7384DF2E34C991197213C99F619FF3CAEEC6741860D",
+    "bytes": 1324040,
+    "sha256": "51D0B5E69552570BD355609CC7998A5D4DC3238414EAD7A1DF3BE39FAFFCD903",
     "authority": "Explicit static seed entries plus deterministic source-grounded action composition; every action excerpt is checked against its accepted V2_PLAN line and unresolved dimensions stay explicit gaps.",
     "verification_limit": "Mechanical checks cover schema, source anchors, coverage and known contradictions; natural-language equivalence requires scoped review."
   },
@@ -221,8 +223,8 @@
     "membership_record_count": 495,
     "row_wave_edge_count": 560,
     "join_key": "row_id",
-    "bytes": 323735,
-    "sha256": "BCA1409AE27E2672EB437BE648662562CD55CADB0235A208D4E48AFABB1B18EB",
+    "bytes": 323746,
+    "sha256": "95242241117CEF25546BCDF5C8502039E42F0695DE696B3E3D6201061B998D4F",
     "authority": "Explicit atomic row to one-or-more delivery-wave membership. The builder joins this table; it does not partition rows by order, hash or keywords.",
     "verification_limit": "Capability, entry, action and boundary tags are mechanically checked; natural-language completeness still requires independent scoped review."
   },
@@ -544,8 +546,8 @@
         "EV-S3"
       ],
       "exists": true,
-      "bytes_at_generation": 601764,
-      "sha256_at_generation": "EF52EECB9468EC32E5781416A83C793DBB8CF354D1D68888E6F4F3E307EBECDF"
+      "bytes_at_generation": 604887,
+      "sha256_at_generation": "0D3E2B2A22252AB75EB287D42508F25481664F2C64EFAC4C89DC8DFE03F40DBF"
     },
     {
       "id": "EV-Q03-SBOM",
@@ -632,10 +634,10 @@
       "status": "TTS_PDF_PARTIAL / Q03_OPEN",
       "can_prove": [
         "21 evidence rows = 9 PROVEN / 2 PARTIAL / 10 BLOCKED",
-        "D203 fixes Sherpa-ONNX v2.0.1 + ONNX Runtime while exact voice-pack profile remains open"
+        "Sherpa-ONNX v2.0.1 + ONNX Runtime is current compatibility fallback after quality-gate failure; Q05 strategy remains open"
       ],
       "cannot_prove": [
-        "exact voice-pack profile / license",
+        "engine strategy / exact expressive profile / license",
         "background / lockscreen / zero-network runtime",
         "PDFium runtime / notice revision"
       ],
@@ -699,7 +701,7 @@
       ]
     },
     {
-      "fact": "Q03 remains Open and G1 is NOT_PASSED",
+      "fact": "Q03 remains Open, Q05 remains Open, and G1 is NOT_PASSED",
       "source_ids": [
         "DOC-DECISIONS",
         "DOC-V2-G1",
@@ -707,7 +709,7 @@
       ]
     },
     {
-      "fact": "D203 accepts voice-pack / background-lockscreen TTS, but exact profile and C1 audition/license remain open",
+      "fact": "D203 voice-pack / background-lockscreen TTS remains, but Sherpa is quality-demoted to compatibility fallback and Q05 engine strategy remains open",
       "source_ids": [
         "DOC-DECISIONS",
         "DOC-V2-G1",
