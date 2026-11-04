@@ -1,0 +1,805 @@
+{
+  "asset_gate": "PARTIAL",
+  "gate_codes": {
+    "download_and_integrity": "PASS",
+    "archive_path_safety": "PASS",
+    "onnx_static_parse": "PASS_PARSE_ONLY",
+    "speaker_mapping": "PASS",
+    "aar_static_structure": "PASS",
+    "license_and_provenance": "PARTIAL",
+    "android_harness_runtime": "UNVERIFIED_BY_SCOPE"
+  },
+  "generated_at": "2026-11-05T00:38:32.431407+08:00",
+  "worktree": {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "cb68738e6dd81cfcce7e224aabb361876286e636",
+    "parent": "c1974d9291edb2dc9ff40692a4778f2cfc1be77b",
+    "expected_head": "cb68738e6dd81cfcce7e224aabb361876286e636",
+    "expected_parent": "c1974d9291edb2dc9ff40692a4778f2cfc1be77b",
+    "start_status_clean": true,
+    "status_snapshot_before_report": [
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/.gitignore",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/aar-archive-inventory.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/aar-unzip-list.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/classes-jar-entries.sha256",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/classes-jar-list.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/downloads.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/hash-summary.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/model-archive-inventory.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/model-archive-list.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/onnx-audit.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/package-audit.json"
+    ],
+    "outside_whitelist_changes_snapshot_before_report": []
+  },
+  "disk_gate": {
+    "free_bytes_before_download": 254418214912,
+    "free_gib": 236.95,
+    "minimum_required_gib": 2,
+    "status": "PASS"
+  },
+  "network_boundary": {
+    "allowed_requests": 2,
+    "task_network_requests": 2,
+    "extra_network_requests": 0,
+    "https_only": true,
+    "unknown_hosts_observed": [],
+    "signed_query_parameters_persisted": false
+  },
+  "downloads": [
+    {
+      "name": "kokoro-multi-lang-v1_1.tar.bz2",
+      "source_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+      "disposition": "DOWNLOADED_AND_VERIFIED",
+      "expected_size": 364855331,
+      "expected_sha256": "b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed",
+      "actual_size": 364855331,
+      "actual_sha256": "b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed",
+      "size_match": true,
+      "sha256_match": true,
+      "http_status": 200,
+      "redirect_count": 1,
+      "final_url_sanitized": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/bcaa5df6-6707-46c0-9742-26a3761013a0",
+      "final_host": "release-assets.githubusercontent.com",
+      "content_type": "application/octet-stream",
+      "redirect_locations_sanitized": [
+        "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/bcaa5df6-6707-46c0-9742-26a3761013a0"
+      ]
+    },
+    {
+      "name": "sherpa-onnx-2.0.1.aar",
+      "source_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar",
+      "disposition": "DOWNLOADED_AND_VERIFIED",
+      "expected_size": 49441341,
+      "expected_sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+      "actual_size": 49441341,
+      "actual_sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+      "size_match": true,
+      "sha256_match": true,
+      "http_status": 200,
+      "redirect_count": 1,
+      "final_url_sanitized": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/19a64cec-483e-478d-9761-5421689c2107",
+      "final_host": "release-assets.githubusercontent.com",
+      "content_type": "application/octet-stream",
+      "redirect_locations_sanitized": [
+        "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/19a64cec-483e-478d-9761-5421689c2107"
+      ]
+    }
+  ],
+  "archives": {
+    "kokoro": {
+      "archive": "assets/kokoro-multi-lang-v1_1.tar.bz2",
+      "member_count": 417,
+      "file_count": 377,
+      "directory_count": 40,
+      "link_count": 0,
+      "total_uncompressed_size": 426584734,
+      "list": "model-archive-list.txt",
+      "inventory": "model-archive-inventory.json"
+    },
+    "aar": {
+      "archive": "assets/sherpa-onnx-2.0.1.aar",
+      "member_count": 26,
+      "file_count": 21,
+      "directory_count": 5,
+      "total_uncompressed_size": 126405792,
+      "unzip_list": "aar-unzip-list.txt",
+      "inventory": "aar-archive-inventory.json",
+      "classes_jar_list": "classes-jar-list.txt"
+    }
+  },
+  "model": {
+    "root": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1",
+    "file_count": 377,
+    "total_bytes": 426584734,
+    "sample_rate": 24000,
+    "language_metadata": "multi-lang, e.g., English, Chinese",
+    "espeak_metadata": "1",
+    "speaker_checks": {
+      "zf_001": {
+        "expected_id": 3,
+        "match": true
+      },
+      "zm_009": {
+        "expected_id": 58,
+        "match": true
+      },
+      "zm_010": {
+        "expected_id": 59,
+        "match": true
+      }
+    },
+    "token_summary": {
+      "line_count": 171,
+      "min_id": 1,
+      "max_id": 177,
+      "missing_ids_within_min_max": [
+        8,
+        26,
+        27,
+        28,
+        29,
+        174
+      ]
+    },
+    "voices_bin": {
+      "bytes": 53790720,
+      "metadata_style_dim": "510,1,256",
+      "metadata_n_speakers": "103",
+      "arithmetic_float32_size_for_n_speakers_x_style_dim": 53790720,
+      "size_matches_float32_layout_arithmetic": true
+    },
+    "key_files": [
+      {
+        "relative_path": "model.onnx",
+        "bytes": 325561476,
+        "sha256": "99db0bc8fd0c5033d249fe922db16768b71b4a6b26cfd93d206fbf66c76efb5f",
+        "line_count": null,
+        "first_line": null,
+        "second_line": null,
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\model.onnx"
+      },
+      {
+        "relative_path": "voices.bin",
+        "bytes": 53790720,
+        "sha256": "e64a5a581d8c2a350d848f51c3121657cd83aa07ed6109172177345874a7244c",
+        "line_count": null,
+        "first_line": null,
+        "second_line": null,
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\voices.bin"
+      },
+      {
+        "relative_path": "tokens.txt",
+        "bytes": 1111,
+        "sha256": "931ab2df2400cd65d580a22402024c2347ced8ae9ea300e545144b1aacc48e14",
+        "line_count": 171,
+        "first_line": "; 1",
+        "second_line": ": 2",
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\tokens.txt"
+      },
+      {
+        "relative_path": "lexicon-us-en.txt",
+        "bytes": 5956885,
+        "sha256": "7daaab53a181be9885b853a8582bf1838186317e5dadacbcef9c426d6fa0da14",
+        "line_count": 178401,
+        "first_line": "kokoro k ˈ O k ə ɹ O",
+        "second_line": "misaki m i s ˈ ɑ k i",
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\lexicon-us-en.txt"
+      },
+      {
+        "relative_path": "lexicon-gb-en.txt",
+        "bytes": 6366635,
+        "sha256": "c4cbb37316f62210dff52718a7afcaae24f50c032cc75ab47ae67b831d1049e7",
+        "line_count": 191924,
+        "first_line": "kokoro k ˈ O k ə ɹ O",
+        "second_line": "misaki m i s ˈ ɑ k i",
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\lexicon-gb-en.txt"
+      },
+      {
+        "relative_path": "lexicon-zh.txt",
+        "bytes": 2120131,
+        "sha256": "fea060803db3e59193987f1a3436f56917bda09f3b3595b6588e46ae60cebf93",
+        "line_count": 68036,
+        "first_line": "一 ㄧ 1",
+        "second_line": "丁 ㄉ 应 1",
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\lexicon-zh.txt"
+      },
+      {
+        "relative_path": "date-zh.fst",
+        "bytes": 59154,
+        "sha256": "eb8aa079ae3cb81d8f4404992f39d61a0cb990947512b5b8d1e54d1f6980e718",
+        "line_count": null,
+        "first_line": null,
+        "second_line": null,
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\date-zh.fst"
+      },
+      {
+        "relative_path": "number-zh.fst",
+        "bytes": 64482,
+        "sha256": "743f402181fcfebf76cc2f0546b71fa26476e626fbe4e460fb7b4c3a7a8bd5bd",
+        "line_count": null,
+        "first_line": null,
+        "second_line": null,
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\number-zh.fst"
+      },
+      {
+        "relative_path": "phone-zh.fst",
+        "bytes": 88630,
+        "sha256": "1ac2b6fa56b1442320c4de7db08353bab8963a2b57f365eebcdd3a2d3562f8d7",
+        "line_count": null,
+        "first_line": null,
+        "second_line": null,
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\phone-zh.fst"
+      },
+      {
+        "relative_path": "LICENSE",
+        "bytes": 11358,
+        "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+        "line_count": 202,
+        "first_line": "",
+        "second_line": "                                 Apache License",
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\LICENSE"
+      },
+      {
+        "relative_path": "README.md",
+        "bytes": 114,
+        "sha256": "e2d39356ea4d67ac15c39a7e5a238ea12b0f6fb8a55bb0c87bc2f659eb1cf7ac",
+        "line_count": 5,
+        "first_line": "# Introduction",
+        "second_line": "",
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\README.md"
+      },
+      {
+        "relative_path": "dict/README.md",
+        "bytes": 683,
+        "sha256": "8bcc7c2ed7dff082d9a99c09de0bfd72249bf3b5c4298a3af328da40cbd8cfd1",
+        "line_count": 31,
+        "first_line": "# CppJieba字典",
+        "second_line": "",
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\dict\\README.md"
+      },
+      {
+        "relative_path": "dict/jieba.dict.utf8",
+        "bytes": 5071204,
+        "sha256": "3043b77068e09c9904f27cad82f12b6ebe9dbdb5aeff3b25e45ab7f9c1122b55",
+        "line_count": 348982,
+        "first_line": "AT&T 3 nz",
+        "second_line": "B超 3 n",
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\dict\\jieba.dict.utf8"
+      },
+      {
+        "relative_path": "dict/user.dict.utf8",
+        "bytes": 829194,
+        "sha256": "5faabcd0c52adf512de77fd7eee3d556da8c98b50f493b47c66a981b3a24959c",
+        "line_count": 45494,
+        "first_line": "一丁不识 10000 v",
+        "second_line": "一丁点儿 10000 v",
+        "absolute_path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\dict\\user.dict.utf8"
+      }
+    ],
+    "recommended_chinese_static_config": {
+      "model": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\model.onnx",
+      "voices": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\voices.bin",
+      "tokens": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\tokens.txt",
+      "data_dir": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\espeak-ng-data",
+      "lexicon": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\lexicon-zh.txt",
+      "lang": "zh",
+      "dict_dir": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\dict",
+      "rule_fsts": [
+        "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\date-zh.fst",
+        "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\number-zh.fst",
+        "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\kokoro-multi-lang-v1_1\\phone-zh.fst"
+      ],
+      "length_scale": 1.0,
+      "generation": {
+        "sid": {
+          "zf_001": 3,
+          "zm_010": 59
+        },
+        "speed": 1.0,
+        "normalization_status": "PARTIAL_NO_PACKAGED_MANIFEST"
+      }
+    },
+    "configuration_caveat": "No packaged normalization manifest binds lexicons/FSTs to a language. The listed Chinese static config is assembled from existing package paths plus the AAR public API; runtime normalization behavior is unverified."
+  },
+  "onnx": {
+    "status": "PASS_PARSE_ONLY",
+    "method": "read_only_minimal_onnx_protobuf_wire_parser",
+    "onnx_python_package": "ABSENT",
+    "onnxruntime_python_package": "ABSENT",
+    "inference_executed": false,
+    "ir_version": 7,
+    "producer_name": "pytorch",
+    "producer_version": "2.6.0",
+    "opset_import": [
+      {
+        "domain": "",
+        "version": 14
+      }
+    ],
+    "metadata": {
+      "model_type": "kokoro",
+      "language": "multi-lang, e.g., English, Chinese",
+      "has_espeak": "1",
+      "sample_rate": "24000",
+      "version": "2",
+      "voice": "en-us",
+      "style_dim": "510,1,256",
+      "n_speakers": "103",
+      "id2speaker": "0->af_maple,1->af_sol,2->bf_vale,3->zf_001,4->zf_002,5->zf_003,6->zf_004,7->zf_005,8->zf_006,9->zf_007,10->zf_008,11->zf_017,12->zf_018,13->zf_019,14->zf_021,15->zf_022,16->zf_023,17->zf_024,18->zf_026,19->zf_027,20->zf_028,21->zf_032,22->zf_036,23->zf_038,24->zf_039,25->zf_040,26->zf_042,27->zf_043,28->zf_044,29->zf_046,30->zf_047,31->zf_048,32->zf_049,33->zf_051,34->zf_059,35->zf_060,36->zf_067,37->zf_070,38->zf_071,39->zf_072,40->zf_073,41->zf_074,42->zf_075,43->zf_076,44->zf_077,45->zf_078,46->zf_079,47->zf_083,48->zf_084,49->zf_085,50->zf_086,51->zf_087,52->zf_088,53->zf_090,54->zf_092,55->zf_093,56->zf_094,57->zf_099,58->zm_009,59->zm_010,60->zm_011,61->zm_012,62->zm_013,63->zm_014,64->zm_015,65->zm_016,66->zm_020,67->zm_025,68->zm_029,69->zm_030,70->zm_031,71->zm_033,72->zm_034,73->zm_035,74->zm_037,75->zm_041,76->zm_045,77->zm_050,78->zm_052,79->zm_053,80->zm_054,81->zm_055,82->zm_056,83->zm_057,84->zm_058,85->zm_061,86->zm_062,87->zm_063,88->zm_064,89->zm_065,90->zm_066,91->zm_068,92->zm_069,93->zm_080,94->zm_081,95->zm_082,96->zm_089,97->zm_091,98->zm_095,99->zm_096,100->zm_097,101->zm_098,102->zm_100",
+      "speaker2id": "af_maple->0,af_sol->1,bf_vale->2,zf_001->3,zf_002->4,zf_003->5,zf_004->6,zf_005->7,zf_006->8,zf_007->9,zf_008->10,zf_017->11,zf_018->12,zf_019->13,zf_021->14,zf_022->15,zf_023->16,zf_024->17,zf_026->18,zf_027->19,zf_028->20,zf_032->21,zf_036->22,zf_038->23,zf_039->24,zf_040->25,zf_042->26,zf_043->27,zf_044->28,zf_046->29,zf_047->30,zf_048->31,zf_049->32,zf_051->33,zf_059->34,zf_060->35,zf_067->36,zf_070->37,zf_071->38,zf_072->39,zf_073->40,zf_074->41,zf_075->42,zf_076->43,zf_077->44,zf_078->45,zf_079->46,zf_083->47,zf_084->48,zf_085->49,zf_086->50,zf_087->51,zf_088->52,zf_090->53,zf_092->54,zf_093->55,zf_094->56,zf_099->57,zm_009->58,zm_010->59,zm_011->60,zm_012->61,zm_013->62,zm_014->63,zm_015->64,zm_016->65,zm_020->66,zm_025->67,zm_029->68,zm_030->69,zm_031->70,zm_033->71,zm_034->72,zm_035->73,zm_037->74,zm_041->75,zm_045->76,zm_050->77,zm_052->78,zm_053->79,zm_054->80,zm_055->81,zm_056->82,zm_057->83,zm_058->84,zm_061->85,zm_062->86,zm_063->87,zm_064->88,zm_065->89,zm_066->90,zm_068->91,zm_069->92,zm_080->93,zm_081->94,zm_082->95,zm_089->96,zm_091->97,zm_095->98,zm_096->99,zm_097->100,zm_098->101,zm_100->102",
+      "speaker_names": "af_maple,af_sol,bf_vale,zf_001,zf_002,zf_003,zf_004,zf_005,zf_006,zf_007,zf_008,zf_017,zf_018,zf_019,zf_021,zf_022,zf_023,zf_024,zf_026,zf_027,zf_028,zf_032,zf_036,zf_038,zf_039,zf_040,zf_042,zf_043,zf_044,zf_046,zf_047,zf_048,zf_049,zf_051,zf_059,zf_060,zf_067,zf_070,zf_071,zf_072,zf_073,zf_074,zf_075,zf_076,zf_077,zf_078,zf_079,zf_083,zf_084,zf_085,zf_086,zf_087,zf_088,zf_090,zf_092,zf_093,zf_094,zf_099,zm_009,zm_010,zm_011,zm_012,zm_013,zm_014,zm_015,zm_016,zm_020,zm_025,zm_029,zm_030,zm_031,zm_033,zm_034,zm_035,zm_037,zm_041,zm_045,zm_050,zm_052,zm_053,zm_054,zm_055,zm_056,zm_057,zm_058,zm_061,zm_062,zm_063,zm_064,zm_065,zm_066,zm_068,zm_069,zm_080,zm_081,zm_082,zm_089,zm_091,zm_095,zm_096,zm_097,zm_098,zm_100",
+      "model_url": "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh",
+      "maintainer": "k2-fsa",
+      "comment": "This is Kokoro v1.1-zh, a multilingual TTS model, supporting English, Chinese."
+    },
+    "input": [
+      {
+        "name": "tokens",
+        "type": {
+          "elem_type": 7,
+          "elem_type_name": "INT64",
+          "shape": [
+            {
+              "kind": "fixed",
+              "value": 1
+            },
+            {
+              "kind": "symbolic",
+              "value": "sequence_length"
+            }
+          ],
+          "kind": "tensor"
+        },
+        "doc_string": null
+      },
+      {
+        "name": "style",
+        "type": {
+          "elem_type": 1,
+          "elem_type_name": "FLOAT",
+          "shape": [
+            {
+              "kind": "fixed",
+              "value": 1
+            },
+            {
+              "kind": "fixed",
+              "value": 256
+            }
+          ],
+          "kind": "tensor"
+        },
+        "doc_string": null
+      },
+      {
+        "name": "speed",
+        "type": {
+          "elem_type": 1,
+          "elem_type_name": "FLOAT",
+          "shape": [
+            {
+              "kind": "fixed",
+              "value": 1
+            }
+          ],
+          "kind": "tensor"
+        },
+        "doc_string": null
+      }
+    ],
+    "output": [
+      {
+        "name": "audio",
+        "type": {
+          "elem_type": 1,
+          "elem_type_name": "FLOAT",
+          "shape": [
+            {
+              "kind": "symbolic",
+              "value": "audio_length"
+            }
+          ],
+          "kind": "tensor"
+        },
+        "doc_string": null
+      },
+      {
+        "name": "onnx::Shape_3411",
+        "type": {
+          "elem_type": 7,
+          "elem_type_name": "INT64",
+          "shape": [
+            {
+              "kind": "symbolic",
+              "value": "Squeezeonnx::Shape_3411_dim_0"
+            }
+          ],
+          "kind": "tensor"
+        },
+        "doc_string": null
+      }
+    ],
+    "initializer_count": 443
+  },
+  "aar": {
+    "root": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\sherpa-onnx-2.0.1",
+    "file_count_on_disk": 21,
+    "total_bytes_on_disk": 126405792,
+    "abi_directories": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ],
+    "arm64_v8a_present": true,
+    "native_libraries": [
+      {
+        "abi_directory": "arm64-v8a",
+        "name": "libonnxruntime.so",
+        "bytes": 22249560,
+        "sha256": "33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1",
+        "is_elf": true,
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": 183,
+        "machine_name": "AArch64",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "arm64-v8a",
+        "name": "libsherpa-onnx-c-api.so",
+        "bytes": 4303136,
+        "sha256": "0eadae93c4d595a26584d7eebde7b397b9a36d01eee3ebc7262e0d34df2fce10",
+        "is_elf": true,
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": 183,
+        "machine_name": "AArch64",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "arm64-v8a",
+        "name": "libsherpa-onnx-cxx-api.so",
+        "bytes": 272848,
+        "sha256": "de94e0952a124eb22e86d754e11aa0489a065affc837911a8ed5e7fd843baad6",
+        "is_elf": true,
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": 183,
+        "machine_name": "AArch64",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "arm64-v8a",
+        "name": "libsherpa-onnx-jni.so",
+        "bytes": 4609320,
+        "sha256": "5db8f89f12b2c900a98c9e01e00c475c59db35e9437a62e36e27839ec48b5575",
+        "is_elf": true,
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": 183,
+        "machine_name": "AArch64",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "armeabi-v7a",
+        "name": "libonnxruntime.so",
+        "bytes": 15359592,
+        "sha256": "7a8f17a707e52e0ac3a026be319272876d9eae61f4bb19585292772d785f7744",
+        "is_elf": true,
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": 40,
+        "machine_name": "ARM",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "armeabi-v7a",
+        "name": "libsherpa-onnx-c-api.so",
+        "bytes": 3157748,
+        "sha256": "cb5d912ec19b4f76582047d082db63f304f3e584cc89130e393337f4cea6ebe7",
+        "is_elf": true,
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": 40,
+        "machine_name": "ARM",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "armeabi-v7a",
+        "name": "libsherpa-onnx-cxx-api.so",
+        "bytes": 183600,
+        "sha256": "aa5f7bc8031baf5f0ba2e6c892e1cf70d17e1fe839db375424ebda175f0dc5e9",
+        "is_elf": true,
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": 40,
+        "machine_name": "ARM",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "armeabi-v7a",
+        "name": "libsherpa-onnx-jni.so",
+        "bytes": 3381796,
+        "sha256": "d45f377249d5c3191b91de6ba6edffcd83e4cf7e109bc523b212db341581c2a8",
+        "is_elf": true,
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": 40,
+        "machine_name": "ARM",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "x86",
+        "name": "libonnxruntime.so",
+        "bytes": 26491148,
+        "sha256": "fcb6cd80415f7951e58fdd8158a238946dce3710d5fee492b67174d5131f9eee",
+        "is_elf": true,
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": 3,
+        "machine_name": "x86",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "x86",
+        "name": "libsherpa-onnx-c-api.so",
+        "bytes": 4954780,
+        "sha256": "e1e483cc4a09aaadf7f72c1d406c010bba05e3a05fc763a4536117508ab3f390",
+        "is_elf": true,
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": 3,
+        "machine_name": "x86",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "x86",
+        "name": "libsherpa-onnx-cxx-api.so",
+        "bytes": 250072,
+        "sha256": "eb0e2a2b32ea48237582f5d5f31c1bf65e7911cbcb6ee3af08bb491e55fed027",
+        "is_elf": true,
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": 3,
+        "machine_name": "x86",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "x86",
+        "name": "libsherpa-onnx-jni.so",
+        "bytes": 5261876,
+        "sha256": "1eb37aaa10e377f6635086bec09685859ca8c7465460fdf9346a21eba90a4ee4",
+        "is_elf": true,
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": 3,
+        "machine_name": "x86",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "x86_64",
+        "name": "libonnxruntime.so",
+        "bytes": 25581120,
+        "sha256": "087e84297cad64acb823c3d901d6e0cc934e91add7cdb20da802cd1c0bea5c3e",
+        "is_elf": true,
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": 62,
+        "machine_name": "x86_64",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "x86_64",
+        "name": "libsherpa-onnx-c-api.so",
+        "bytes": 4782648,
+        "sha256": "8285ecf2e6275374d4c8c5b46020cbb1de82db9bd6b6baad011fdc480cf10ba2",
+        "is_elf": true,
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": 62,
+        "machine_name": "x86_64",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "x86_64",
+        "name": "libsherpa-onnx-cxx-api.so",
+        "bytes": 267552,
+        "sha256": "edcd50a1608458867d78213385f5e3013a39db7b7af43d4f87d72e4d84e5e3dc",
+        "is_elf": true,
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": 62,
+        "machine_name": "x86_64",
+        "elf_machine_matches_abi_directory": true
+      },
+      {
+        "abi_directory": "x86_64",
+        "name": "libsherpa-onnx-jni.so",
+        "bytes": 5053592,
+        "sha256": "878d61116f244131263eec24297ef05bf508d02bccdede2a4e3ad3202bbdaa48",
+        "is_elf": true,
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": 62,
+        "machine_name": "x86_64",
+        "elf_machine_matches_abi_directory": true
+      }
+    ],
+    "all_elf_machine_matches_abi_directory": true,
+    "classes_jar": {
+      "bytes": 245045,
+      "sha256": "0ee4991c56c19ef5a8a573b01891193d7298ffe7ebcc68f42b944361d8869d93",
+      "entry_count": 130,
+      "class_count": 124,
+      "license_notice_pom_entries": [],
+      "tts_entries": [
+        "com/k2fsa/sherpa/onnx/GeneratedAudio.class",
+        "com/k2fsa/sherpa/onnx/GenerationConfig.class",
+        "com/k2fsa/sherpa/onnx/OfflineTts$Companion.class",
+        "com/k2fsa/sherpa/onnx/OfflineTts.class",
+        "com/k2fsa/sherpa/onnx/OfflineTtsConfig.class",
+        "com/k2fsa/sherpa/onnx/OfflineTtsKittenModelConfig.class",
+        "com/k2fsa/sherpa/onnx/OfflineTtsKokoroModelConfig.class",
+        "com/k2fsa/sherpa/onnx/OfflineTtsMatchaModelConfig.class",
+        "com/k2fsa/sherpa/onnx/OfflineTtsModelConfig.class",
+        "com/k2fsa/sherpa/onnx/OfflineTtsPocketModelConfig.class",
+        "com/k2fsa/sherpa/onnx/OfflineTtsSupertonicModelConfig.class",
+        "com/k2fsa/sherpa/onnx/OfflineTtsVitsModelConfig.class",
+        "com/k2fsa/sherpa/onnx/OfflineTtsZipVoiceModelConfig.class",
+        "com/k2fsa/sherpa/onnx/TtsKt.class"
+      ]
+    },
+    "manifest": {
+      "package": "com.k2fsa.sherpa.onnx",
+      "min_sdk_version": 21,
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\sherpa-onnx-2.0.1\\AndroidManifest.xml"
+    },
+    "aar_metadata_present": true,
+    "top_level_license_notice_pom_entries": [],
+    "public_api_probe": {
+      "method": "javap -public only; no method bodies",
+      "kokoro_config_fields": [
+        "model",
+        "voices",
+        "tokens",
+        "dataDir",
+        "lexicon",
+        "lang",
+        "dictDir",
+        "lengthScale"
+      ],
+      "tts_config_fields": [
+        "model",
+        "ruleFsts",
+        "ruleFars",
+        "maxNumSentences",
+        "silenceScale"
+      ],
+      "generation_config_fields": [
+        "silenceScale",
+        "speed",
+        "sid",
+        "referenceAudio",
+        "referenceSampleRate",
+        "referenceText",
+        "numSteps",
+        "extra",
+        "phonemeCodepoints",
+        "tokens"
+      ]
+    }
+  },
+  "hashes": {
+    "files_hashed": 400,
+    "total_file_bytes": 967287198,
+    "classes_jar_entries_hashed": 125,
+    "algorithm": "SHA-256",
+    "files_manifest": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\files.sha256",
+    "classes_jar_manifest": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\classes-jar-entries.sha256",
+    "task_scope_hashed_files": "assets/** + extracted/**"
+  },
+  "license_matrix": [
+    {
+      "category": "model_package_license_text",
+      "status": "PROVEN",
+      "evidence": "extracted/kokoro-multi-lang-v1_1/LICENSE",
+      "finding": "Apache License Version 2.0 text is present."
+    },
+    {
+      "category": "model_weight_license_scope",
+      "status": "PARTIAL",
+      "evidence": "LICENSE + README.md + ONNX metadata",
+      "finding": "A generic Apache-2.0 file exists, but it has no owner/scope statement and no packaged model card; README only links to the external model page, which was not fetched under the two-asset network boundary."
+    },
+    {
+      "category": "text_frontend_lexicon_license_scope",
+      "status": "PARTIAL",
+      "evidence": "lexicon-*.txt; dict/README.md; dict/jieba.dict.utf8; espeak-ng-data",
+      "finding": "The only package-level license is the generic Apache-2.0 file. There is no per-component license/notice or file-to-license mapping for lexicons, CppJieba dictionaries, FSTs, or espeak-ng data."
+    },
+    {
+      "category": "voice_samples_speaker_rights",
+      "status": "MISSING",
+      "evidence": "voices.bin + ONNX id2speaker/speaker2id metadata",
+      "finding": "Speaker IDs and names are present, but consent, ownership, source-sample, and redistribution rights for the individual voices are absent."
+    },
+    {
+      "category": "training_data_provenance",
+      "status": "MISSING",
+      "evidence": "package file inventory",
+      "finding": "No training-data manifest, dataset names/licenses, provenance notes, or consent evidence are packaged."
+    },
+    {
+      "category": "model_card_notice",
+      "status": "MISSING",
+      "evidence": "package file inventory",
+      "finding": "No MODEL_CARD, NOTICE, or equivalent model-specific statement is packaged. README.md is a 114-byte redirect to an external model page."
+    },
+    {
+      "category": "aar_code_license",
+      "status": "MISSING",
+      "evidence": "sherpa-onnx-2.0.1.aar; classes.jar",
+      "finding": "No LICENSE, NOTICE, or POM entry exists at AAR root or in classes.jar."
+    },
+    {
+      "category": "aar_native_third_party_notices",
+      "status": "MISSING",
+      "evidence": "jni/**; AAR inventory",
+      "finding": "Sixteen native libraries are present, including ONNX Runtime, but no embedded third-party notices or source/license mapping are present."
+    },
+    {
+      "category": "harness_structure",
+      "status": "PROVEN",
+      "evidence": "AndroidManifest.xml; classes.jar; jni/arm64-v8a; aar-metadata.properties",
+      "finding": "The AAR is statically consumable by an Android local-file dependency: AAR metadata, minSdk 21, TTS classes, and arm64-v8a JNI libraries are present. Gradle/build/runtime compatibility was intentionally not executed."
+    }
+  ],
+  "license_conclusion": {
+    "overall": "PARTIAL",
+    "conflicts_observed_in_package": [],
+    "reason": "The binary package and AAR structure are complete enough for static harness integration, but package-scoped weight, text-frontend, training-data, speaker/voice-rights, and AAR third-party license evidence is incomplete."
+  },
+  "priorities": {
+    "P0": [],
+    "P1": [
+      "Do not freeze/distribute the Kokoro voice pack as license-cleared until weight scope, text-frontend/lexicon notices, speaker/voice rights, and training-data provenance are reconciled.",
+      "Add AAR code and native third-party license/notice/POM provenance before bundling the runtime into a distributable artifact."
+    ],
+    "P2": [
+      "No packaged normalization manifest identifies language-specific lexicon/FST binding; the isolated harness must pin lang, lexicon-zh.txt, dict, espeak-ng-data, and ruleFsts explicitly."
+    ],
+    "P3": [
+      "Python onnx/onnxruntime packages are absent; a read-only ONNX protobuf wire parser was used for metadata/input/output inspection.",
+      "unzip and jar were absent from PATH; Git bundled unzip and Android Studio JBR jar/javap were used read-only."
+    ]
+  },
+  "uncovered": [
+    "Kokoro inference, generated audio, quality, RTF, memory, time-to-first-audio, Android harness build, ADB/device execution, and runtime zero-network behavior were not performed by scope.",
+    "The external Hugging Face model card was not fetched because the task permits only the two fixed GitHub release downloads."
+  ],
+  "next_step": {
+    "owner": "交付负责人",
+    "action": "Review this PARTIAL asset/license gate, then explicitly authorize a separate isolated Android harness task if runtime work is desired; require a license/provenance closure task before calling the voice pack distributable.",
+    "first_read_only_action": "Read report.json, package-audit.json, onnx-audit.json, and license_matrix.",
+    "stop_condition": "Stop if the license-scope question is treated as cleared or if any asset/hash/ABI fact drifts."
+  },
+  "evidence": {
+    "report": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\report.json",
+    "commands_log": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\commands.log",
+    "command_log_lines_before_report": 38,
+    "files_sha256": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\files.sha256",
+    "classes_jar_entries_sha256": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\classes-jar-entries.sha256",
+    "downloads_json": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\downloads.json",
+    "model_archive_inventory": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\model-archive-inventory.json",
+    "model_archive_list": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\model-archive-list.txt",
+    "aar_inventory": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\aar-archive-inventory.json",
+    "aar_unzip_list": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\aar-unzip-list.txt",
+    "classes_jar_list": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\classes-jar-list.txt",
+    "onnx_audit": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\onnx-audit.json",
+    "package_audit": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\package-audit.json"
+  }
+}

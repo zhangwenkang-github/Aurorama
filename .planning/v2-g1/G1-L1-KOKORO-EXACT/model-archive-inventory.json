@@ -1,0 +1,2929 @@
+{
+  "archive": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\assets\\kokoro-multi-lang-v1_1.tar.bz2",
+  "member_count": 417,
+  "file_count": 377,
+  "directory_count": 40,
+  "link_count": 0,
+  "total_uncompressed_size": 426584734,
+  "members": [
+    {
+      "name": "kokoro-multi-lang-v1_1",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005719,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/lexicon-us-en.txt",
+      "type": "file",
+      "size": 5956885,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/phone-zh.fst",
+      "type": "file",
+      "size": 88630,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/voices.bin",
+      "type": "file",
+      "size": 53790720,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/LICENSE",
+      "type": "file",
+      "size": 11358,
+      "mtime": 1793005718,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/lexicon-gb-en.txt",
+      "type": "file",
+      "size": 6366635,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/date-zh.fst",
+      "type": "file",
+      "size": 59154,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/tokens.txt",
+      "type": "file",
+      "size": 1111,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/lexicon-zh.txt",
+      "type": "file",
+      "size": 2120131,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1701176644,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/my_dict",
+      "type": "file",
+      "size": 95948,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/id_dict",
+      "type": "file",
+      "size": 43458,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/gn_dict",
+      "type": "file",
+      "size": 3248,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/bs_dict",
+      "type": "file",
+      "size": 47068,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/cy_dict",
+      "type": "file",
+      "size": 43130,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/pap_dict",
+      "type": "file",
+      "size": 2128,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1701176644,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/whisper",
+      "type": "file",
+      "size": 186,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Diogo",
+      "type": "file",
+      "size": 379,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Nguyen",
+      "type": "file",
+      "size": 280,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/miguel",
+      "type": "file",
+      "size": 382,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/fast",
+      "type": "file",
+      "size": 149,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/iven4",
+      "type": "file",
+      "size": 261,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/klatt3",
+      "type": "file",
+      "size": 39,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/m4",
+      "type": "file",
+      "size": 290,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Jacky",
+      "type": "file",
+      "size": 267,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/shelby",
+      "type": "file",
+      "size": 280,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/iven3",
+      "type": "file",
+      "size": 262,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/klatt2",
+      "type": "file",
+      "size": 38,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Alex",
+      "type": "file",
+      "size": 128,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/aunty",
+      "type": "file",
+      "size": 358,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Mario",
+      "type": "file",
+      "size": 270,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/norbert",
+      "type": "file",
+      "size": 3189,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/robosoft2",
+      "type": "file",
+      "size": 454,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Mike",
+      "type": "file",
+      "size": 112,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/klatt4",
+      "type": "file",
+      "size": 39,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/iven",
+      "type": "file",
+      "size": 261,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/robosoft3",
+      "type": "file",
+      "size": 455,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/boris",
+      "type": "file",
+      "size": 224,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/m5",
+      "type": "file",
+      "size": 262,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/klatt",
+      "type": "file",
+      "size": 38,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Henrique",
+      "type": "file",
+      "size": 381,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/steph2",
+      "type": "file",
+      "size": 367,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/victor",
+      "type": "file",
+      "size": 253,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/grandma",
+      "type": "file",
+      "size": 263,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Tweaky",
+      "type": "file",
+      "size": 3189,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/quincy",
+      "type": "file",
+      "size": 354,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/m3",
+      "type": "file",
+      "size": 300,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/m8",
+      "type": "file",
+      "size": 284,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/f5",
+      "type": "file",
+      "size": 432,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/grandpa",
+      "type": "file",
+      "size": 256,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/steph",
+      "type": "file",
+      "size": 364,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/m6",
+      "type": "file",
+      "size": 188,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/croak",
+      "type": "file",
+      "size": 93,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/iven2",
+      "type": "file",
+      "size": 279,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/adam",
+      "type": "file",
+      "size": 75,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/anikaRobot",
+      "type": "file",
+      "size": 512,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/robosoft6",
+      "type": "file",
+      "size": 287,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/RicishayMax2",
+      "type": "file",
+      "size": 435,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/rob",
+      "type": "file",
+      "size": 265,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/robosoft8",
+      "type": "file",
+      "size": 243,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/mike2",
+      "type": "file",
+      "size": 188,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/robert",
+      "type": "file",
+      "size": 274,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Andrea",
+      "type": "file",
+      "size": 357,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/michel",
+      "type": "file",
+      "size": 404,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Michael",
+      "type": "file",
+      "size": 270,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/AnxiousAndy",
+      "type": "file",
+      "size": 361,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Marco",
+      "type": "file",
+      "size": 467,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/RicishayMax3",
+      "type": "file",
+      "size": 435,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/anika",
+      "type": "file",
+      "size": 493,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Demonic",
+      "type": "file",
+      "size": 3858,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/caleb",
+      "type": "file",
+      "size": 57,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/f1",
+      "type": "file",
+      "size": 324,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Alicia",
+      "type": "file",
+      "size": 474,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/paul",
+      "type": "file",
+      "size": 284,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/UniRobot",
+      "type": "file",
+      "size": 417,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/antonio",
+      "type": "file",
+      "size": 381,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/m2",
+      "type": "file",
+      "size": 264,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/zac",
+      "type": "file",
+      "size": 275,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/ian",
+      "type": "file",
+      "size": 3168,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/pablo",
+      "type": "file",
+      "size": 3142,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/john",
+      "type": "file",
+      "size": 3186,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/linda",
+      "type": "file",
+      "size": 350,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/benjamin",
+      "type": "file",
+      "size": 201,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/robosoft7",
+      "type": "file",
+      "size": 410,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/m1",
+      "type": "file",
+      "size": 335,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/marcelo",
+      "type": "file",
+      "size": 251,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/robosoft5",
+      "type": "file",
+      "size": 445,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/sandro",
+      "type": "file",
+      "size": 530,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Reed",
+      "type": "file",
+      "size": 202,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/steph3",
+      "type": "file",
+      "size": 377,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/travis",
+      "type": "file",
+      "size": 383,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/f3",
+      "type": "file",
+      "size": 375,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Gene",
+      "type": "file",
+      "size": 281,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/f4",
+      "type": "file",
+      "size": 350,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Denis",
+      "type": "file",
+      "size": 305,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/david",
+      "type": "file",
+      "size": 112,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/RicishayMax",
+      "type": "file",
+      "size": 233,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Gene2",
+      "type": "file",
+      "size": 283,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Lee",
+      "type": "file",
+      "size": 338,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/ed",
+      "type": "file",
+      "size": 287,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/m7",
+      "type": "file",
+      "size": 254,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/whisperf",
+      "type": "file",
+      "size": 392,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/klatt5",
+      "type": "file",
+      "size": 39,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/klatt6",
+      "type": "file",
+      "size": 39,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Annie",
+      "type": "file",
+      "size": 315,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/kaukovalta",
+      "type": "file",
+      "size": 361,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/edward",
+      "type": "file",
+      "size": 151,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/pedro",
+      "type": "file",
+      "size": 352,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/f2",
+      "type": "file",
+      "size": 357,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Hugo",
+      "type": "file",
+      "size": 378,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Mr serious",
+      "type": "file",
+      "size": 3193,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Storm",
+      "type": "file",
+      "size": 420,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/robosoft",
+      "type": "file",
+      "size": 451,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/Andy",
+      "type": "file",
+      "size": 320,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/max",
+      "type": "file",
+      "size": 225,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/gustave",
+      "type": "file",
+      "size": 253,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/robosoft4",
+      "type": "file",
+      "size": 447,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/announcer",
+      "type": "file",
+      "size": 300,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/edward2",
+      "type": "file",
+      "size": 152,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/voices/!v/belinda",
+      "type": "file",
+      "size": 340,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/py_dict",
+      "type": "file",
+      "size": 2409,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/fr_dict",
+      "type": "file",
+      "size": 63727,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/qya_dict",
+      "type": "file",
+      "size": 1939,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/en_dict",
+      "type": "file",
+      "size": 166944,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/gu_dict",
+      "type": "file",
+      "size": 82480,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/sv_dict",
+      "type": "file",
+      "size": 47836,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/te_dict",
+      "type": "file",
+      "size": 94837,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lv_dict",
+      "type": "file",
+      "size": 66337,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/shn_dict",
+      "type": "file",
+      "size": 88172,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/nog_dict",
+      "type": "file",
+      "size": 3294,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/es_dict",
+      "type": "file",
+      "size": 49252,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ga_dict",
+      "type": "file",
+      "size": 52673,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lfn_dict",
+      "type": "file",
+      "size": 2793,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/sd_dict",
+      "type": "file",
+      "size": 59928,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/piqd_dict",
+      "type": "file",
+      "size": 1710,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/kn_dict",
+      "type": "file",
+      "size": 87828,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/no_dict",
+      "type": "file",
+      "size": 4178,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/kl_dict",
+      "type": "file",
+      "size": 2838,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ml_dict",
+      "type": "file",
+      "size": 92345,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ug_dict",
+      "type": "file",
+      "size": 2070,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/hr_dict",
+      "type": "file",
+      "size": 49388,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/io_dict",
+      "type": "file",
+      "size": 2165,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/sr_dict",
+      "type": "file",
+      "size": 46832,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/pl_dict",
+      "type": "file",
+      "size": 76730,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ne_dict",
+      "type": "file",
+      "size": 95377,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ka_dict",
+      "type": "file",
+      "size": 87775,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/uk_dict",
+      "type": "file",
+      "size": 3492,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/gd_dict",
+      "type": "file",
+      "size": 49121,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/qu_dict",
+      "type": "file",
+      "size": 1919,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/is_dict",
+      "type": "file",
+      "size": 44354,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/qdb_dict",
+      "type": "file",
+      "size": 3028,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/vi_dict",
+      "type": "file",
+      "size": 52608,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ia_dict",
+      "type": "file",
+      "size": 331275,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/pa_dict",
+      "type": "file",
+      "size": 79953,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/bpy_dict",
+      "type": "file",
+      "size": 5226,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/uz_dict",
+      "type": "file",
+      "size": 2540,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/eo_dict",
+      "type": "file",
+      "size": 4666,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ru_dict",
+      "type": "file",
+      "size": 8532392,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/mto_dict",
+      "type": "file",
+      "size": 3960,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/fi_dict",
+      "type": "file",
+      "size": 43928,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/mi_dict",
+      "type": "file",
+      "size": 1346,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/sl_dict",
+      "type": "file",
+      "size": 45047,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/sjn_dict",
+      "type": "file",
+      "size": 1783,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/th_dict",
+      "type": "file",
+      "size": 2301,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/smj_dict",
+      "type": "file",
+      "size": 35095,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ky_dict",
+      "type": "file",
+      "size": 64977,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/tn_dict",
+      "type": "file",
+      "size": 3072,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/he_dict",
+      "type": "file",
+      "size": 6963,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/jbo_dict",
+      "type": "file",
+      "size": 2243,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ja_dict",
+      "type": "file",
+      "size": 47652,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ms_dict",
+      "type": "file",
+      "size": 53541,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/it_dict",
+      "type": "file",
+      "size": 152889,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/intonations",
+      "type": "file",
+      "size": 2040,
+      "mtime": 1701175054,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/chr_dict",
+      "type": "file",
+      "size": 2859,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/nci_dict",
+      "type": "file",
+      "size": 1534,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/cs_dict",
+      "type": "file",
+      "size": 49645,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/fa_dict",
+      "type": "file",
+      "size": 292423,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ta_dict",
+      "type": "file",
+      "size": 209553,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ku_dict",
+      "type": "file",
+      "size": 2265,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/mt_dict",
+      "type": "file",
+      "size": 4384,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/tt_dict",
+      "type": "file",
+      "size": 2121,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/haw_dict",
+      "type": "file",
+      "size": 2443,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/om_dict",
+      "type": "file",
+      "size": 2302,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/et_dict",
+      "type": "file",
+      "size": 44263,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ht_dict",
+      "type": "file",
+      "size": 1803,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/kok_dict",
+      "type": "file",
+      "size": 6394,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/eu_dict",
+      "type": "file",
+      "size": 48841,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/hi_dict",
+      "type": "file",
+      "size": 92143,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/de_dict",
+      "type": "file",
+      "size": 68276,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/an_dict",
+      "type": "file",
+      "size": 6691,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/yue_dict",
+      "type": "file",
+      "size": 563571,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ro_dict",
+      "type": "file",
+      "size": 68538,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/sw_dict",
+      "type": "file",
+      "size": 47804,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/mr_dict",
+      "type": "file",
+      "size": 87391,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/am_dict",
+      "type": "file",
+      "size": 63878,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/sk_dict",
+      "type": "file",
+      "size": 50002,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/da_dict",
+      "type": "file",
+      "size": 245287,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/cv_dict",
+      "type": "file",
+      "size": 1344,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/phonindex",
+      "type": "file",
+      "size": 39074,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/hy_dict",
+      "type": "file",
+      "size": 62263,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ira",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ira/ku",
+      "type": "file",
+      "size": 40,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ira/fa-Latn",
+      "type": "file",
+      "size": 269,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ira/fa",
+      "type": "file",
+      "size": 90,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/miz",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/miz/mto",
+      "type": "file",
+      "size": 183,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/iro",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/iro/chr",
+      "type": "file",
+      "size": 569,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zle",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zle/be",
+      "type": "file",
+      "size": 52,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zle/ru-cl",
+      "type": "file",
+      "size": 91,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zle/ru",
+      "type": "file",
+      "size": 57,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zle/ru-LV",
+      "type": "file",
+      "size": 280,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zle/uk",
+      "type": "file",
+      "size": 97,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/eo",
+      "type": "file",
+      "size": 41,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/io",
+      "type": "file",
+      "size": 50,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/piqd",
+      "type": "file",
+      "size": 56,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/qdb",
+      "type": "file",
+      "size": 57,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/py",
+      "type": "file",
+      "size": 140,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/jbo",
+      "type": "file",
+      "size": 69,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/sjn",
+      "type": "file",
+      "size": 175,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/qya",
+      "type": "file",
+      "size": 173,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/lfn",
+      "type": "file",
+      "size": 135,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/art/ia",
+      "type": "file",
+      "size": 29,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ccs",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ccs/ka",
+      "type": "file",
+      "size": 124,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/myn",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/myn/quc",
+      "type": "file",
+      "size": 210,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/map",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/map/haw",
+      "type": "file",
+      "size": 42,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/azc",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/azc/nci",
+      "type": "file",
+      "size": 114,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/esx",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/esx/kl",
+      "type": "file",
+      "size": 30,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/eu",
+      "type": "file",
+      "size": 54,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sem",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sem/ar",
+      "type": "file",
+      "size": 50,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sem/am",
+      "type": "file",
+      "size": 41,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sem/mt",
+      "type": "file",
+      "size": 41,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sem/he",
+      "type": "file",
+      "size": 40,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/grk",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/grk/el",
+      "type": "file",
+      "size": 23,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/grk/grc",
+      "type": "file",
+      "size": 99,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/qu",
+      "type": "file",
+      "size": 88,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/bnt",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/bnt/tn",
+      "type": "file",
+      "size": 42,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/bnt/sw",
+      "type": "file",
+      "size": 41,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/itc",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/itc/la",
+      "type": "file",
+      "size": 297,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sit",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sit/cmn",
+      "type": "file",
+      "size": 686,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sit/yue-Latn-jyutping",
+      "type": "file",
+      "size": 213,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sit/yue",
+      "type": "file",
+      "size": 194,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sit/cmn-Latn-pinyin",
+      "type": "file",
+      "size": 161,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sit/hak",
+      "type": "file",
+      "size": 128,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sit/my",
+      "type": "file",
+      "size": 56,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/jpx",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1701176644,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/jpx/ja",
+      "type": "file",
+      "size": 52,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/tai",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/tai/shn",
+      "type": "file",
+      "size": 92,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/tai/th",
+      "type": "file",
+      "size": 37,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/bn",
+      "type": "file",
+      "size": 25,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/pa",
+      "type": "file",
+      "size": 25,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/hi",
+      "type": "file",
+      "size": 23,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/mr",
+      "type": "file",
+      "size": 41,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/ur",
+      "type": "file",
+      "size": 94,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/or",
+      "type": "file",
+      "size": 39,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/sd",
+      "type": "file",
+      "size": 66,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/kok",
+      "type": "file",
+      "size": 26,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/si",
+      "type": "file",
+      "size": 55,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/as",
+      "type": "file",
+      "size": 42,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/ne",
+      "type": "file",
+      "size": 37,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/gu",
+      "type": "file",
+      "size": 42,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/inc/bpy",
+      "type": "file",
+      "size": 39,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/poz",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/poz/mi",
+      "type": "file",
+      "size": 367,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/poz/ms",
+      "type": "file",
+      "size": 430,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/poz/id",
+      "type": "file",
+      "size": 134,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zls",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zls/bs",
+      "type": "file",
+      "size": 230,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zls/hr",
+      "type": "file",
+      "size": 262,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zls/sl",
+      "type": "file",
+      "size": 43,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zls/bg",
+      "type": "file",
+      "size": 111,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zls/mk",
+      "type": "file",
+      "size": 28,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zls/sr",
+      "type": "file",
+      "size": 250,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zlw",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zlw/pl",
+      "type": "file",
+      "size": 38,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zlw/cs",
+      "type": "file",
+      "size": 23,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/zlw/sk",
+      "type": "file",
+      "size": 24,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ko",
+      "type": "file",
+      "size": 51,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/aav",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/aav/vi",
+      "type": "file",
+      "size": 111,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/aav/vi-VN-x-central",
+      "type": "file",
+      "size": 143,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/aav/vi-VN-x-south",
+      "type": "file",
+      "size": 142,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/ba",
+      "type": "file",
+      "size": 25,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/tr",
+      "type": "file",
+      "size": 25,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/uz",
+      "type": "file",
+      "size": 39,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/cv",
+      "type": "file",
+      "size": 40,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/ky",
+      "type": "file",
+      "size": 43,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/ug",
+      "type": "file",
+      "size": 24,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/az",
+      "type": "file",
+      "size": 45,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/tk",
+      "type": "file",
+      "size": 25,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/nog",
+      "type": "file",
+      "size": 39,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/tt",
+      "type": "file",
+      "size": 23,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/trk/kk",
+      "type": "file",
+      "size": 40,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/cus",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/cus/om",
+      "type": "file",
+      "size": 39,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/af",
+      "type": "file",
+      "size": 123,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/en-GB-x-gbclan",
+      "type": "file",
+      "size": 238,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/en-US",
+      "type": "file",
+      "size": 257,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/en-GB-x-rp",
+      "type": "file",
+      "size": 249,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/en",
+      "type": "file",
+      "size": 140,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/de",
+      "type": "file",
+      "size": 42,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/lb",
+      "type": "file",
+      "size": 31,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/en-GB-scotland",
+      "type": "file",
+      "size": 295,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/en-US-nyc",
+      "type": "file",
+      "size": 271,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/nl",
+      "type": "file",
+      "size": 23,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/en-GB-x-gbcwmd",
+      "type": "file",
+      "size": 188,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmw/en-029",
+      "type": "file",
+      "size": 335,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/cel",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/cel/gd",
+      "type": "file",
+      "size": 51,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/cel/ga",
+      "type": "file",
+      "size": 66,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/cel/cy",
+      "type": "file",
+      "size": 37,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ine",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ine/hy",
+      "type": "file",
+      "size": 61,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ine/hyw",
+      "type": "file",
+      "size": 365,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/ine/sq",
+      "type": "file",
+      "size": 103,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sai",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/sai/gn",
+      "type": "file",
+      "size": 47,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmq",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmq/nb",
+      "type": "file",
+      "size": 87,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmq/is",
+      "type": "file",
+      "size": 27,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmq/sv",
+      "type": "file",
+      "size": 25,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/gmq/da",
+      "type": "file",
+      "size": 43,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/pap",
+      "type": "file",
+      "size": 62,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/es",
+      "type": "file",
+      "size": 63,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/pt-BR",
+      "type": "file",
+      "size": 109,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/an",
+      "type": "file",
+      "size": 27,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/ht",
+      "type": "file",
+      "size": 140,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/fr",
+      "type": "file",
+      "size": 79,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/pt",
+      "type": "file",
+      "size": 95,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/fr-CH",
+      "type": "file",
+      "size": 86,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/ca",
+      "type": "file",
+      "size": 25,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/es-419",
+      "type": "file",
+      "size": 167,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/fr-BE",
+      "type": "file",
+      "size": 84,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/ro",
+      "type": "file",
+      "size": 26,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/roa/it",
+      "type": "file",
+      "size": 109,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/bat",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/bat/lt",
+      "type": "file",
+      "size": 28,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/bat/ltg",
+      "type": "file",
+      "size": 312,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/bat/lv",
+      "type": "file",
+      "size": 229,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/dra",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/dra/ml",
+      "type": "file",
+      "size": 57,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/dra/ta",
+      "type": "file",
+      "size": 51,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/dra/te",
+      "type": "file",
+      "size": 70,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/dra/kn",
+      "type": "file",
+      "size": 55,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/urj",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005623,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/urj/smj",
+      "type": "file",
+      "size": 45,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/urj/fi",
+      "type": "file",
+      "size": 237,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/urj/hu",
+      "type": "file",
+      "size": 73,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lang/urj/et",
+      "type": "file",
+      "size": 237,
+      "mtime": 1701173855,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ko_dict",
+      "type": "file",
+      "size": 47523,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/bn_dict",
+      "type": "file",
+      "size": 89979,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/bg_dict",
+      "type": "file",
+      "size": 87051,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/phondata",
+      "type": "file",
+      "size": 550424,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lt_dict",
+      "type": "file",
+      "size": 49890,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/af_dict",
+      "type": "file",
+      "size": 121473,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/as_dict",
+      "type": "file",
+      "size": 5005,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/hu_dict",
+      "type": "file",
+      "size": 153785,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/cmn_dict",
+      "type": "file",
+      "size": 1566335,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/az_dict",
+      "type": "file",
+      "size": 43773,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ar_dict",
+      "type": "file",
+      "size": 478165,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/lb_dict",
+      "type": "file",
+      "size": 687931,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/tk_dict",
+      "type": "file",
+      "size": 20868,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/be_dict",
+      "type": "file",
+      "size": 2652,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ca_dict",
+      "type": "file",
+      "size": 45566,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/grc_dict",
+      "type": "file",
+      "size": 3433,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/hak_dict",
+      "type": "file",
+      "size": 3335,
+      "mtime": 1701175057,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/pt_dict",
+      "type": "file",
+      "size": 67817,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/tr_dict",
+      "type": "file",
+      "size": 46793,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/el_dict",
+      "type": "file",
+      "size": 72841,
+      "mtime": 1701175056,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/nl_dict",
+      "type": "file",
+      "size": 65979,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/mk_dict",
+      "type": "file",
+      "size": 63859,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ba_dict",
+      "type": "file",
+      "size": 2098,
+      "mtime": 1701175055,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/ur_dict",
+      "type": "file",
+      "size": 133556,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/la_dict",
+      "type": "file",
+      "size": 3806,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/sq_dict",
+      "type": "file",
+      "size": 45003,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/phontab",
+      "type": "file",
+      "size": 55796,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/kk_dict",
+      "type": "file",
+      "size": 1859,
+      "mtime": 1701175058,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/si_dict",
+      "type": "file",
+      "size": 85384,
+      "mtime": 1701175060,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/phondata-manifest",
+      "type": "file",
+      "size": 21821,
+      "mtime": 1701175061,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/or_dict",
+      "type": "file",
+      "size": 89246,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/espeak-ng-data/quc_dict",
+      "type": "file",
+      "size": 1450,
+      "mtime": 1701175059,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/README.md",
+      "type": "file",
+      "size": 114,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/model.onnx",
+      "type": "file",
+      "size": 325561476,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1739851864,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/idf.utf8",
+      "type": "file",
+      "size": 5998717,
+      "mtime": 1739851829,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/generate_user_dict.py",
+      "type": "file",
+      "size": 545,
+      "mtime": 1739852969,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/user.dict.utf8",
+      "type": "file",
+      "size": 829194,
+      "mtime": 1739852980,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/pos_dict",
+      "type": "directory",
+      "size": 0,
+      "mtime": 1793005718,
+      "mode": "0o755"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/pos_dict/char_state_tab.utf8",
+      "type": "file",
+      "size": 327139,
+      "mtime": 1739851829,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/pos_dict/prob_start.utf8",
+      "type": "file",
+      "size": 4347,
+      "mtime": 1739851829,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/pos_dict/prob_emit.utf8",
+      "type": "file",
+      "size": 1687686,
+      "mtime": 1739851829,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/pos_dict/prob_trans.utf8",
+      "type": "file",
+      "size": 124159,
+      "mtime": 1739851829,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/stop_words.utf8",
+      "type": "file",
+      "size": 8974,
+      "mtime": 1739851829,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/hmm_model.utf8",
+      "type": "file",
+      "size": 519739,
+      "mtime": 1739851829,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/jieba.dict.utf8",
+      "type": "file",
+      "size": 5071204,
+      "mtime": 1739851829,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/dict/README.md",
+      "type": "file",
+      "size": 683,
+      "mtime": 1739851829,
+      "mode": "0o644"
+    },
+    {
+      "name": "kokoro-multi-lang-v1_1/number-zh.fst",
+      "type": "file",
+      "size": 64482,
+      "mtime": 1793005719,
+      "mode": "0o644"
+    }
+  ]
+}

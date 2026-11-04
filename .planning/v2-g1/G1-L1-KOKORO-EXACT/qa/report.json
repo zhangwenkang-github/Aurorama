@@ -1,0 +1,978 @@
+{
+  "schema": "aurorama.kokoro-exact.independent-qa.v2",
+  "task": "V2-G1-L1-KOKORO-EXACT",
+  "generatedAt": "2026-11-05T01:38:40.2008258+08:00",
+  "verdict": "BLOCKED",
+  "verdictCode": "BLOCKED_P1_HARNESS_API_COMPAT",
+  "summary": "K60 completed both approved voices, long-text override, PSS sampling, forced cancel, zero-network observation and cleanup. Pad 5 installs but fails before first audio on API 33 because the harness references java.util.HexFormat despite minSdk 26; execution stopped on the P1 gate.",
+  "git": {
+    "branch": "codex/v2-integration",
+    "head": "cb68738e6dd81cfcce7e224aabb361876286e636",
+    "parent": "c1974d9291edb2dc9ff40692a4778f2cfc1be77b",
+    "trackedChanges": 0,
+    "untrackedAtGeneration": 164,
+    "outsideEvidenceRootAtGeneration": [],
+    "evidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/"
+  },
+  "deviceLocks": {
+    "protocol": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "k60": {
+      "lockId": "G1-L1-KOKORO-EXACT-QA-K60-8e875894-20261105-0116",
+      "acquired": "2026-11-05 01:16 +08:00",
+      "released": "2026-11-05 01:29:39 +08:00",
+      "beforeSha256": "aeccfde324c4b83e87d7787e71ebc1689d07be3a6ca355b66ee79c3d18d18a3b"
+    },
+    "pad5": {
+      "lockId": "G1-L1-KOKORO-EXACT-QA-PAD5-43af8627-20261105-0130",
+      "acquired": "2026-11-05 01:30 +08:00",
+      "released": "2026-11-05 01:36:27 +08:00",
+      "beforeSha256": "106f710268c5c7ccc1bb11862515915017db44dc3ce4775a79b032e316f9486f"
+    },
+    "final": {
+      "file": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+      "activeCount": 0,
+      "activeEntries": [],
+      "finalSha256": "84b1905c12b8b18971b2f670cf019ba249e035c4dde4ce30ec7e5d0ce6a901f5"
+    }
+  },
+  "staticEvidence": {
+    "apk": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 426980914,
+      "sha256": "3aeb62d819890fb93ce2e0b6301f14c20ff68f2a448fa530bc9ad947b1dfb671",
+      "minSdk": 26,
+      "targetSdk": 37,
+      "abi": "arm64-v8a",
+      "permissions": [
+        "package: dev.aurorama.kokoro.harness"
+      ],
+      "internetPermissionAbsent": true,
+      "serviceCount": 0
+    },
+    "kokoroArchive": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/assets/kokoro-multi-lang-v1_1.tar.bz2",
+      "bytes": 364855331,
+      "sha256": "b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed"
+    },
+    "sherpaAar": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/assets/sherpa-onnx-2.0.1.aar",
+      "bytes": 49441341,
+      "sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "nativeLibraryCount": 16
+    },
+    "id2speaker": {
+      "sid3": "zf_001",
+      "sid58": "zm_009",
+      "sid59": "zm_010",
+      "source": "onnx-audit.json / report.json; sid 3, 58, 59 confirmed in packaged metadata"
+    },
+    "speakerCount": 103,
+    "licenseAndNotice": "PARTIAL (unchanged from implementation report)",
+    "narration": {
+      "textCharacters": 199,
+      "hanCharacters": 177,
+      "canonicalUtf8Sha256": "3908bcd1fa6aa9e57ab544636ed975c93f881c7d599ceb045fd57b953c05bfcb"
+    }
+  },
+  "devices": {
+    "k60": {
+      "serial": "8e875894",
+      "model": "23013RK75C",
+      "api": 35,
+      "androidRelease": "15",
+      "abi": "arm64-v8a",
+      "install": {
+        "installExit": 0,
+        "installStdout": "Performing Push Install\r\nSuccess",
+        "installStderr": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk: 1 file pushed, 0 skipped. 20.4 MB/s (426980914 bytes in 19.992s)",
+        "packageState": {
+          "package": "dev.aurorama.kokoro.harness",
+          "installed": true,
+          "versionName": "1.0-kokoro",
+          "versionCode": "1",
+          "codePath": "/data/app/~~na0kR0ESGYnDA_lfqibvIQ==/dev.aurorama.kokoro.harness-3r0dWDlQMtHgtXIawObPNw==",
+          "firstInstallTime": "2026-11-05 01:19:26",
+          "lastUpdateTime": "2026-11-05 01:19:26",
+          "dataDir": "/data/user/0/dev.aurorama.kokoro.harness",
+          "primaryCpuAbi": "arm64-v8a",
+          "userId": null
+        },
+        "installedPath": "/data/app/~~na0kR0ESGYnDA_lfqibvIQ==/dev.aurorama.kokoro.harness-3r0dWDlQMtHgtXIawObPNw==/base.apk",
+        "installedBytes": 426980914,
+        "installedSha256": "3aeb62d819890fb93ce2e0b6301f14c20ff68f2a448fa530bc9ad947b1dfb671",
+        "aaptPermissionOutput": [
+          "package: dev.aurorama.kokoro.harness"
+        ],
+        "installedPermissionLines": []
+      },
+      "firstAudio": {
+        "zf_001": {
+          "phase": "first-zf",
+          "mode": "zf",
+          "completed": true,
+          "elapsedWallSeconds": 43.727,
+          "launch": "Starting: Intent { cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\r\nStatus: ok\r\nLaunchState: COLD\r\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\r\nTotalTime: 441\r\nWaitTime: 445\r\nComplete",
+          "sampleCount": 30,
+          "missingPssSamples": 0,
+          "samplingIntervalTargetSeconds": 1.5,
+          "maxObservedSampleGapSeconds": 1.511,
+          "peakPssKb": 928419.0,
+          "minPssKb": 503645.0,
+          "pssCsv": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-first-zf.csv",
+          "logcat": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-first-zf.txt",
+          "metrics": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zf-metrics_zf.json",
+          "status": "PASS",
+          "errorType": null,
+          "error": null,
+          "speaker": "zf_001",
+          "sid": 3,
+          "textCharacters": 199,
+          "textSha256": "3908bcd1fa6aa9e57ab544636ed975c93f881c7d599ceb045fd57b953c05bfcb",
+          "parameters": "speed=1.0;lengthScale=1.0;silenceScale=1.0;numThreads=2;maxNumSentences=1",
+          "ttsLang": "en-us",
+          "modelLoadMillis": 1531,
+          "firstAudioMillis": 2844,
+          "inferenceMillis": 40569,
+          "audioDurationMillis": 58075,
+          "rtf": 0.698562,
+          "outputBytes": 2787644,
+          "outputSha256": "1840559fc3a56d566ce9dda5c074469cb72713c5a4b5249ab51b7b95a418b566",
+          "wavs": [
+            {
+              "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zf-zf_001_sid3.wav",
+              "bytes": 2787644,
+              "sha256": "1840559fc3a56d566ce9dda5c074469cb72713c5a4b5249ab51b7b95a418b566",
+              "sampleRate": 24000,
+              "channels": 1,
+              "bitsPerSample": 16,
+              "durationSeconds": 58.075
+            }
+          ]
+        },
+        "zm_010": {
+          "phase": "first-zm",
+          "mode": "zm",
+          "completed": true,
+          "elapsedWallSeconds": 43.71,
+          "launch": "Starting: Intent { cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\r\nStatus: ok\r\nLaunchState: COLD\r\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\r\nTotalTime: 425\r\nWaitTime: 431\r\nComplete",
+          "sampleCount": 30,
+          "missingPssSamples": 0,
+          "samplingIntervalTargetSeconds": 1.5,
+          "maxObservedSampleGapSeconds": 1.509,
+          "peakPssKb": 926473.0,
+          "minPssKb": 506729.0,
+          "pssCsv": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-first-zm.csv",
+          "logcat": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-first-zm.txt",
+          "metrics": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zm-metrics_zm.json",
+          "status": "PASS",
+          "errorType": null,
+          "error": null,
+          "speaker": "zm_010",
+          "sid": 59,
+          "textCharacters": 199,
+          "textSha256": "3908bcd1fa6aa9e57ab544636ed975c93f881c7d599ceb045fd57b953c05bfcb",
+          "parameters": "speed=1.0;lengthScale=1.0;silenceScale=1.0;numThreads=2;maxNumSentences=1",
+          "ttsLang": "en-us",
+          "modelLoadMillis": 1584,
+          "firstAudioMillis": 2811,
+          "inferenceMillis": 40968,
+          "audioDurationMillis": 58725,
+          "rtf": 0.697625,
+          "outputBytes": 2818844,
+          "outputSha256": "084557cad0922ce3227bc8cdaa6193280c93179a37c7b153b7f2fb168604fceb",
+          "wavs": [
+            {
+              "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zm-zm_010_sid59.wav",
+              "bytes": 2818844,
+              "sha256": "084557cad0922ce3227bc8cdaa6193280c93179a37c7b153b7f2fb168604fceb",
+              "sampleRate": 24000,
+              "channels": 1,
+              "bitsPerSample": 16,
+              "durationSeconds": 58.725
+            }
+          ]
+        }
+      },
+      "longText": {
+        "executedVia": "existing probe-zf arbitrary-text override",
+        "fixture": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/long-text.txt",
+        "fixtureSha256": "4b5e77caf319cb440369fe17ee8b923d4b12adee3b9023f0e7d9b991df49868f",
+        "textCharacters": 401,
+        "hanCharacters": 356,
+        "run": {
+          "phase": "long-text",
+          "mode": "probe-zf",
+          "completed": true,
+          "elapsedWallSeconds": 91.815,
+          "launch": "Starting: Intent { cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\r\nStatus: ok\r\nLaunchState: COLD\r\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\r\nTotalTime: 373\r\nWaitTime: 377\r\nComplete",
+          "sampleCount": 62,
+          "missingPssSamples": 0,
+          "samplingIntervalTargetSeconds": 1.5,
+          "maxObservedSampleGapSeconds": 1.513,
+          "peakPssKb": 926968.0,
+          "minPssKb": 484214.0,
+          "pssCsv": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-long-text.csv",
+          "logcat": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-long-text.txt",
+          "metrics": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/long-text-metrics_probe-zf.json",
+          "status": "PASS",
+          "errorType": null,
+          "error": null,
+          "speaker": "zf_001",
+          "sid": 3,
+          "textCharacters": 401,
+          "textSha256": "74599c7ba0424c666b7d99fe42e07c9247845a866f9d4eff7e15d8bb68661c36",
+          "parameters": "speed=1.0;lengthScale=1.0;silenceScale=1.0;numThreads=2;maxNumSentences=1",
+          "ttsLang": "en-us",
+          "modelLoadMillis": 1607,
+          "firstAudioMillis": 2843,
+          "inferenceMillis": 89000,
+          "audioDurationMillis": 116300,
+          "rtf": 0.765262,
+          "outputBytes": 5582444,
+          "outputSha256": "3676996760ac7b8881f16b9117537f7b2a953bbfce78c8be89848551285c77a4",
+          "wavs": [
+            {
+              "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/long-text-zf_001_sid3_probe.wav",
+              "bytes": 5582444,
+              "sha256": "3676996760ac7b8881f16b9117537f7b2a953bbfce78c8be89848551285c77a4",
+              "sampleRate": 24000,
+              "channels": 1,
+              "bitsPerSample": 16,
+              "durationSeconds": 116.3
+            }
+          ]
+        }
+      },
+      "backgroundLock": {
+        "executedShortSupplement": true,
+        "wakefulnessObserved": "Asleep",
+        "elapsedWallSeconds": 181.51,
+        "sampleCount": 121,
+        "peakPssKb": 941467.0,
+        "completedWithin180Seconds": false,
+        "result": "BLOCKED: NO_BACKGROUND_OWNER",
+        "reason": "Manifest/source have no service or foreground owner; one-shot Activity has no 30-minute continuous playback/owner path.",
+        "evidence": [
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-background-short.csv",
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-background-short.txt"
+        ]
+      },
+      "processRecreation": {
+        "result": "BLOCKED: NO_RESUME_STATE",
+        "interrupted": {
+          "case": "interrupted",
+          "duringInference": true,
+          "pidDuring": 28521,
+          "forceStopSucceeded": true,
+          "pidAfterStop": null,
+          "remoteFilesAfterStop": {
+            "capturedAt": "2026-11-05T01:21:17.0539282+08:00",
+            "listing": [
+              "total 2734",
+              "drwxrws--- 2 u0_a295 ext_data_rw    3452 2026-11-05 01:21 .",
+              "drwxrws--- 3 u0_a295 ext_data_rw    3452 2026-11-05 01:19 ..",
+              "-rw-rw---- 1 u0_a295 ext_data_rw     951 2026-11-05 01:20 metrics_zf.json",
+              "-rw-rw---- 1 u0_a295 ext_data_rw 2787644 2026-11-05 01:20 zf_001_sid3.wav"
+            ],
+            "files": [
+              "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/metrics_zf.json",
+              "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/zf_001_sid3.wav"
+            ]
+          },
+          "beforeRestartUi": {
+            "dumpExit": 0,
+            "texts": [
+              "天气",
+              "系统工具",
+              "搜索",
+              "电话",
+              "短信",
+              "浏览器",
+              "相机"
+            ],
+            "localXml": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa\\device-K60-8e875894\\ui-interrupted-before-restart.xml"
+          },
+          "restartCommand": "Starting: Intent { cmp=dev.aurorama.kokoro.harness/.HarnessActivity }\r\nStatus: ok\r\nLaunchState: COLD\r\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\r\nTotalTime: 350\r\nWaitTime: 355\r\nComplete",
+          "pidAfterRestart": 29069,
+          "afterRestartUi": {
+            "dumpExit": 0,
+            "texts": [
+              "Kokoro isolated harness: preparing",
+              "Kokoro isolated harness"
+            ],
+            "localXml": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa\\device-K60-8e875894\\ui-interrupted-after-restart.xml"
+          },
+          "metricsBothPresentAfter4Seconds": false,
+          "forceStopAfterRestartSucceeded": true,
+          "logcat": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa\\device-K60-8e875894\\logcat-K60-restart-interrupted.txt"
+        },
+        "completed": {
+          "case": "completed",
+          "duringInference": false,
+          "pidDuring": 26255,
+          "forceStopSucceeded": true,
+          "pidAfterStop": null,
+          "remoteFilesAfterStop": {
+            "capturedAt": "2026-11-05T01:20:58.074615+08:00",
+            "listing": [
+              "total 5494",
+              "drwxrws--- 2 u0_a295 ext_data_rw    3452 2026-11-05 01:20 .",
+              "drwxrws--- 3 u0_a295 ext_data_rw    3452 2026-11-05 01:19 ..",
+              "-rw-rw---- 1 u0_a295 ext_data_rw     951 2026-11-05 01:20 metrics_zf.json",
+              "-rw-rw---- 1 u0_a295 ext_data_rw     948 2026-11-05 01:20 metrics_zm.json",
+              "-rw-rw---- 1 u0_a295 ext_data_rw 2787644 2026-11-05 01:20 zf_001_sid3.wav",
+              "-rw-rw---- 1 u0_a295 ext_data_rw 2818844 2026-11-05 01:20 zm_010_sid59.wav"
+            ],
+            "files": [
+              "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/metrics_zf.json",
+              "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/zm_010_sid59.wav",
+              "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/metrics_zm.json",
+              "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/zf_001_sid3.wav"
+            ]
+          },
+          "beforeRestartUi": {
+            "dumpExit": 0,
+            "texts": [
+              "天气",
+              "系统工具",
+              "搜索",
+              "电话",
+              "短信",
+              "浏览器",
+              "相机"
+            ],
+            "localXml": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa\\device-K60-8e875894\\ui-completed-before-restart.xml"
+          },
+          "restartCommand": "Starting: Intent { cmp=dev.aurorama.kokoro.harness/.HarnessActivity }\r\nStatus: ok\r\nLaunchState: COLD\r\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\r\nTotalTime: 388\r\nWaitTime: 391\r\nComplete",
+          "pidAfterRestart": 26591,
+          "afterRestartUi": {
+            "dumpExit": 0,
+            "texts": [
+              "Kokoro isolated harness: preparing",
+              "Kokoro isolated harness"
+            ],
+            "localXml": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa\\device-K60-8e875894\\ui-completed-after-restart.xml"
+          },
+          "metricsBothPresentAfter4Seconds": false,
+          "forceStopAfterRestartSucceeded": true,
+          "logcat": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa\\device-K60-8e875894\\logcat-K60-restart-completed.txt"
+        },
+        "reason": "No persistent state or resume entry; restart enters preparing and starts a new default both run.",
+        "evidence": [
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/recreate-K60-interrupted.json",
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/recreate-K60-completed.json"
+        ]
+      },
+      "zeroNetwork": {
+        "device": "K60",
+        "serial": "8e875894",
+        "uid": 10304,
+        "airplaneModeBefore": "0",
+        "airplaneModeDuring": "1",
+        "activeDefaultNetworkDuring": [
+          "Active default network: none"
+        ],
+        "wifiOnDuring": "0",
+        "mobileDataSettingDuring": "1",
+        "before": {
+          "uid": 10304,
+          "identityBlockCount": 0,
+          "identityRxBytes": 0,
+          "identityTxBytes": 0,
+          "identityTotalBytes": 0,
+          "appUidStatsMapPresent": false,
+          "appUidStatsMapRxBytes": 0,
+          "appUidStatsMapTxBytes": 0,
+          "appUidStatsMapTotalBytes": 0,
+          "uidCounterSetPresent": false
+        },
+        "after": {
+          "uid": 10304,
+          "identityBlockCount": 0,
+          "identityRxBytes": 0,
+          "identityTxBytes": 0,
+          "identityTotalBytes": 0,
+          "appUidStatsMapPresent": false,
+          "appUidStatsMapRxBytes": 0,
+          "appUidStatsMapTxBytes": 0,
+          "appUidStatsMapTotalBytes": 0,
+          "uidCounterSetPresent": true
+        },
+        "identityRxDeltaBytes": 0,
+        "identityTxDeltaBytes": 0,
+        "identityTotalDeltaBytes": 0,
+        "appUidStatsMapRxDeltaBytes": 0,
+        "appUidStatsMapTxDeltaBytes": 0,
+        "appUidStatsMapTotalDeltaBytes": 0,
+        "run": {
+          "phase": "zero-network",
+          "mode": "warm-zf",
+          "completed": true,
+          "elapsedWallSeconds": 43.818,
+          "launch": "Starting: Intent { cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\r\nStatus: ok\r\nLaunchState: COLD\r\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\r\nTotalTime: 444\r\nWaitTime: 453\r\nComplete",
+          "sampleCount": 30,
+          "missingPssSamples": 0,
+          "samplingIntervalTargetSeconds": 1.5,
+          "maxObservedSampleGapSeconds": 1.509,
+          "peakPssKb": 929454.0,
+          "minPssKb": 487738.0,
+          "pssCsv": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-zero-network.csv",
+          "logcat": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-zero-network.txt",
+          "metrics": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/zero-network-metrics_warm-zf.json",
+          "status": "PASS",
+          "errorType": null,
+          "error": null,
+          "speaker": "zf_001",
+          "sid": 3,
+          "textCharacters": 199,
+          "textSha256": "3908bcd1fa6aa9e57ab544636ed975c93f881c7d599ceb045fd57b953c05bfcb",
+          "parameters": "speed=1.0;lengthScale=1.0;silenceScale=1.0;numThreads=2;maxNumSentences=1",
+          "ttsLang": "en-us",
+          "modelLoadMillis": 1614,
+          "firstAudioMillis": 2833,
+          "inferenceMillis": 40450,
+          "audioDurationMillis": 58075,
+          "rtf": 0.696513,
+          "outputBytes": 2787644,
+          "outputSha256": "6a097f57e06eaebb6177919ff17d42cb35f1e3333e84be6ebfc9855d51deff7e",
+          "wavs": [
+            {
+              "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/zero-network-warmup_zf_001_sid3.wav",
+              "bytes": 2787644,
+              "sha256": "6a097f57e06eaebb6177919ff17d42cb35f1e3333e84be6ebfc9855d51deff7e",
+              "sampleRate": 24000,
+              "channels": 1,
+              "bitsPerSample": 16,
+              "durationSeconds": 58.075
+            }
+          ]
+        },
+        "beforeEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/netstats-K60-zero-network-before.txt",
+        "afterEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/netstats-K60-zero-network-after.txt"
+      },
+      "cancel": {
+        "internalCancel": "NOT_IMPLEMENTED",
+        "hardCancel": "FORCED_CANCEL",
+        "pidDuring": 28521,
+        "pidAfterForceStop": null,
+        "partialWavOrTemporaryFileObserved": false,
+        "metricsPresentAfterForceStop": false,
+        "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/cancel-K60-force-stop-files.json"
+      },
+      "audioOwner": {
+        "result": "BLOCKED: HARNESS_NOT_AUDIO_OWNER",
+        "packageInAudioDumpDuringInference": false,
+        "packageInMediaSessionDumpDuringInference": false,
+        "manifestServiceCount": 0,
+        "conclusion": "WAV writer only; no AudioTrack, audio focus, service, or MediaSession ownership to test.",
+        "evidence": [
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/audio-K60-first-zm.txt",
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/media-session-K60-first-zm.txt"
+        ]
+      },
+      "speaker58": {
+        "staticWhitelistRejectsZm009Sid58": true,
+        "runtimeForbiddenHits": 0,
+        "allowedGenerated": [
+          {
+            "speaker": "zf_001",
+            "sid": 3
+          },
+          {
+            "speaker": "zm_010",
+            "sid": 59
+          }
+        ],
+        "evidence": [
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-first-zf.txt",
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-first-zm.txt"
+        ]
+      },
+      "cleanup": {
+        "startedAt": "2026-11-05T01:28:59.9187264+08:00",
+        "reason": "remaining-completed",
+        "forceStopSucceeded": true,
+        "runtimeBeforeUninstall": {
+          "capturedAt": "2026-11-05T01:29:00.2038073+08:00",
+          "listing": [
+            "total 8194",
+            "drwxrws--- 2 u0_a304 ext_data_rw    3452 2026-11-05 01:28 .",
+            "drwxrws--- 3 u0_a304 ext_data_rw    3452 2026-11-05 01:26 ..",
+            "-rw-rw---- 1 u0_a304 ext_data_rw     965 2026-11-05 01:28 metrics_probe-zf.json",
+            "-rw-rw---- 1 u0_a304 ext_data_rw     963 2026-11-05 01:27 metrics_warm-zf.json",
+            "-rw-rw---- 1 u0_a304 ext_data_rw 2787644 2026-11-05 01:27 warmup_zf_001_sid3.wav",
+            "-rw-rw---- 1 u0_a304 ext_data_rw 5582444 2026-11-05 01:28 zf_001_sid3_probe.wav"
+          ],
+          "files": [
+            "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/metrics_warm-zf.json",
+            "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/warmup_zf_001_sid3.wav",
+            "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/metrics_probe-zf.json",
+            "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/zf_001_sid3_probe.wav"
+          ]
+        },
+        "uninstallExit": 0,
+        "uninstallOutput": "Success",
+        "packageAfter": {
+          "package": "dev.aurorama.kokoro.harness",
+          "installed": false,
+          "versionName": null,
+          "versionCode": null,
+          "codePath": null,
+          "firstInstallTime": null,
+          "lastUpdateTime": null,
+          "dataDir": null,
+          "primaryCpuAbi": null,
+          "userId": null
+        },
+        "pidAfter": null,
+        "remoteFilesAfter": {
+          "capturedAt": "2026-11-05T01:29:02.8368695+08:00",
+          "listing": [
+            "ls: /sdcard/Android/data/dev.aurorama.kokoro.harness/files: No such file or directory"
+          ],
+          "files": [
+            "find: '/sdcard/Android/data/dev.aurorama.kokoro.harness/files': No such file or directory"
+          ]
+        },
+        "stateAfter": {
+          "capturedAt": "2026-11-05T01:29:03.3025421+08:00",
+          "currentUser": "0",
+          "airplaneMode": "0",
+          "wifiOnSetting": "1",
+          "mobileDataSetting": "1",
+          "wifiService": "Control the Wi-Fi manager\r\n\r\nusage: svc wifi [enable|disable]\r\n         Turn Wi-Fi on or off.",
+          "dataService": "Enable/Disable Mobile Data Connectivity\r\n\r\nusage: svc data [enable|disable]",
+          "connectivity": [
+            "Active default network: 174",
+            "  NetworkAgentInfo{network{174}  handle{750730006541}  ni{WIFI CONNECTED extra: } created=2026-11-04T17:27:19.885Z Score(Policies : TRANSPORT_PRIMARY&EVER_EVALUATED&IS_UNMETERED&EVER_VALIDATED&IS_VALIDATED ; KeepConnected : 0)  created 1134547938 firstValidated 1134548416 lastValidated 1134548416  lp{{InterfaceName: wlan0 LinkAddresses: [ fe80::3ccf:6aff:fefb:d699/64,192.168.0.183/24,2409:8d60:438:9de:3ccf:6aff:fefb:d699/64,2409:8d60:438:9de:46b7:375:ac90:1a13/64 ] DnsAddresses: [ /fe80::5cff:a90f:b6c6:1%wlan0,/192.168.0.1 ] Domains: null MTU: 1500 ServerAddress: /192.168.0.1 TcpBufferSizes: 524288,1048576,16777216,262144,524288,16777216 Routes: [ fe80::/64 -> :: wlan0 mtu 0,::/0 -> fe80::5cff:a90f:b6c6:1 wlan0 mtu 0,2409:8d60:438:9de::/64 -> :: wlan0 mtu 0,192.168.0.0/24 -> 0.0.0.0 wlan0 mtu 0,0.0.0.0/0 -> 192.168.0.1 wlan0 mtu 0 ]}}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED LinkUpBandwidth>=12000Kbps LinkDnBandwidth>=26268Kbps Specifier: <WifiNetworkAgentSpecifier [WifiConfiguration=, SSID=\"ZTE_0FB6C6\", BSSID=5c:ff:a9:0f:b6:c6, band=2, mMatchLocalOnlySpecifiers=false]> TransportInfo: <SSID: \"ZTE_0FB6C6\", BSSID: 5c:ff:a9:0f:b6:c6, MAC: 3e:cf:6a:fb:d6:99, IP: /192.168.0.183, Security type: 4, Supplicant state: COMPLETED, Wi-Fi standard: 11ax, RSSI: -37, Link speed: 1200Mbps, Tx Link speed: 1200Mbps, Max Supported Tx Link speed: 1200Mbps, Rx Link speed: 1200Mbps, Max Supported Rx Link speed: 1200Mbps, Frequency: 5180MHz, Net ID: 13, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>\"ZTE_0FB6C6\"wpa3-saeMLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>, Vendor Data: <none>> SignalStrength: -37 OwnerUid: 1000 AdminUids: [1000] SSID: \"ZTE_0FB6C6\" UnderlyingNetworks: Null]}  factorySerialNumber=11}",
+            "      NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=5, [ Capabilities: FOREGROUND Forbidden: LOCAL_NETWORK RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=7, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=8, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&FOREGROUND&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Forbidden: LOCAL_NETWORK Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=9, [ Capabilities: FOREGROUND Forbidden: LOCAL_NETWORK RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=11, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=14, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=15, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&FOREGROUND&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Forbidden: LOCAL_NETWORK Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=17, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=19, [ Transports: WIFI Capabilities: NOT_VPN&FOREGROUND Forbidden: LOCAL_NETWORK RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=21, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=23, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Forbidden: LOCAL_NETWORK Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=24, [ Forbidden: LOCAL_NETWORK RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=29, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10306 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10279 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=33, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10257 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=35, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10204 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=37, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10195 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=39, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10169 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=41, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10165 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=43, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10158 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10156 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=47, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10142 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=49, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10141 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=51, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10137 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10087 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=55, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 6102 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=57, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 6101 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=59, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=61, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10307 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=63, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10159 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=65, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 10286 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=66, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&VALIDATED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Forbidden: LOCAL_NETWORK Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=68, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ REQUEST id=70, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1073 RequestorUid: 1073 RequestorPkg: com.android.networkstack UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=71, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Uid: 1073 RequestorUid: 1073 RequestorPkg: com.android.networkstack UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=73, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED Forbidden: LOCAL_NETWORK Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]"
+          ],
+          "wakefulness": "Awake",
+          "keyguardShowing": "false",
+          "screenOffTimeout": "600000",
+          "lockAfterTimeout": "null",
+          "stayOnWhilePluggedIn": "15",
+          "topActivityLines": [
+            "      topResumedActivity=ActivityRecord{7af7a64 u0 com.miui.home/.launcher.Launcher t249}"
+          ]
+        },
+        "productionPackageDifferences": [],
+        "productionPackagesUnchanged": true,
+        "finishedAt": "2026-11-05T01:29:05.402088+08:00"
+      }
+    },
+    "pad5": {
+      "serial": "43af8627",
+      "model": "21051182C",
+      "api": 33,
+      "androidRelease": "13",
+      "abi": "arm64-v8a",
+      "install": {
+        "result": "PASS",
+        "exit": 0,
+        "installedBytes": 426980914,
+        "installedSha256": "3aeb62d819890fb93ce2e0b6301f14c20ff68f2a448fa530bc9ad947b1dfb671",
+        "evidence": [
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/install-Pad5-stdout.txt",
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/install-Pad5-stderr.txt"
+        ]
+      },
+      "firstAudio": {
+        "zf_001": {
+          "phase": "first-zf",
+          "mode": "zf",
+          "completed": false,
+          "elapsedWallSeconds": 180.004,
+          "launch": "Starting: Intent { cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\r\nStatus: ok\r\nLaunchState: COLD\r\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\r\nTotalTime: 984\r\nWaitTime: 995\r\nComplete",
+          "sampleCount": 120,
+          "missingPssSamples": 0,
+          "samplingIntervalTargetSeconds": 1.5,
+          "maxObservedSampleGapSeconds": 1.514,
+          "peakPssKb": 97315.0,
+          "minPssKb": 91662.0,
+          "pssCsv": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/pss-Pad5-first-zf.csv",
+          "logcat": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/logcat-Pad5-first-zf.txt",
+          "metrics": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/first-zf-metrics_failure.json",
+          "status": "FAIL",
+          "errorType": "java.lang.NoClassDefFoundError",
+          "error": "Failed resolution of: Ljava/util/HexFormat;",
+          "speaker": null,
+          "sid": null,
+          "textCharacters": null,
+          "textSha256": null,
+          "parameters": null,
+          "ttsLang": null,
+          "modelLoadMillis": null,
+          "firstAudioMillis": null,
+          "inferenceMillis": null,
+          "audioDurationMillis": null,
+          "rtf": null,
+          "outputBytes": null,
+          "outputSha256": null,
+          "wavs": []
+        },
+        "zm_010": {
+          "result": "NOT_RUN_COMPLETE_AFTER_P1_STOP",
+          "note": "The QA script automatically launched zm after the zf timeout, but the operator stopped on the newly discovered compatibility P1 before a completed metrics/WAV result was saved."
+        }
+      },
+      "compatibilityFailure": {
+        "result": "FAIL",
+        "type": "java.lang.NoClassDefFoundError",
+        "message": "Failed resolution of: Ljava/util/HexFormat;",
+        "firstAudioGenerated": false,
+        "modelLoadObserved": false,
+        "declaredMinSdk": 26,
+        "deviceApi": 33,
+        "rootCauseBoundary": "java.util.HexFormat is unavailable on API 33 and is invoked by the harness text SHA-256 path before model load.",
+        "evidence": [
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/first-zf-metrics_failure.json",
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/logcat-Pad5-first-zf.txt",
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/pss-Pad5-first-zf.csv"
+        ]
+      },
+      "pssValidity": {
+        "result": "NOT_VALID_FOR_INFERENCE",
+        "sampleCount": 120,
+        "peakPssKb": 97315.0,
+        "maxObservedSampleGapSeconds": 1.514,
+        "note": "Activity process stayed alive after worker failure; this PSS is process residency, not model inference peak."
+      },
+      "stoppedBranches": [
+        "long-text",
+        "background-lock",
+        "process-recreation",
+        "zero-network",
+        "graceful-cancel",
+        "audio-owner"
+      ],
+      "cleanup": {
+        "startedAt": "2026-11-05T01:36:06.443084+08:00",
+        "reason": "cleanup-only",
+        "forceStopSucceeded": true,
+        "runtimeBeforeUninstall": {
+          "capturedAt": "2026-11-05T01:36:06.833142+08:00",
+          "listing": [
+            "total 10",
+            "drwxrwx--x 2 u0_a329 sdcard_rw 3488 2026-11-05 01:34 .",
+            "drwxrwx--x 3 u0_a329 sdcard_rw 3488 2026-11-05 01:31 ..",
+            "-rw-rw---- 1 u0_a329 sdcard_rw  132 2026-11-05 01:34 metrics_failure.json"
+          ],
+          "files": [
+            "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/metrics_failure.json"
+          ]
+        },
+        "uninstallExit": 0,
+        "uninstallOutput": "Success",
+        "packageAfter": {
+          "package": "dev.aurorama.kokoro.harness",
+          "installed": false,
+          "versionName": null,
+          "versionCode": null,
+          "codePath": null,
+          "firstInstallTime": null,
+          "lastUpdateTime": null,
+          "dataDir": null,
+          "primaryCpuAbi": null,
+          "userId": null
+        },
+        "pidAfter": null,
+        "remoteFilesAfter": {
+          "capturedAt": "2026-11-05T01:36:09.8404191+08:00",
+          "listing": [
+            "ls: /sdcard/Android/data/dev.aurorama.kokoro.harness/files: No such file or directory"
+          ],
+          "files": [
+            "find: '/sdcard/Android/data/dev.aurorama.kokoro.harness/files': No such file or directory"
+          ]
+        },
+        "stateAfter": {
+          "capturedAt": "2026-11-05T01:36:10.7442339+08:00",
+          "currentUser": "0",
+          "airplaneMode": "0",
+          "wifiOnSetting": "1",
+          "mobileDataSetting": "1",
+          "wifiService": "Control the Wi-Fi manager\r\n\r\nusage: svc wifi [enable|disable]\r\n         Turn Wi-Fi on or off.",
+          "dataService": "Enable/Disable Mobile Data Connectivity\r\n\r\nusage: svc data [enable|disable]",
+          "connectivity": [
+            "Active default network: 186",
+            "  NetworkAgentInfo{network{186}  handle{802269614093}  ni{WIFI CONNECTED extra: } Score(60 ; KeepConnected : 0 ; Policies : TRANSPORT_PRIMARY&EVER_VALIDATED_NOT_AVOIDED_WHEN_BAD&IS_UNMETERED&IS_VALIDATED) currentScore: 60  created everValidated lastValidated  lp{{InterfaceName: wlan0 LinkAddresses: [ fe80::5847:ff:fe22:3ef6/64,192.168.0.53/24,2409:8d60:438:9de:5847:ff:fe22:3ef6/64,2409:8d60:438:9de:28cf:cdc7:cd35:edf0/64 ] DnsAddresses: [ /192.168.0.1 ] Domains: null MTU: 1500 ServerAddress: /192.168.0.1 TcpBufferSizes: 524288,1048576,16777216,262144,524288,16777216 Routes: [ fe80::/64 -> :: wlan0 mtu 0,::/0 -> fe80::5cff:a90f:b6c6:1 wlan0 mtu 0,2409:8d60:438:9de::/64 -> :: wlan0 mtu 0,192.168.0.0/24 -> 0.0.0.0 wlan0 mtu 0,0.0.0.0/0 -> 192.168.0.1 wlan0 mtu 0 ]}}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED&NOT_VCN_MANAGED LinkUpBandwidth>=32716Kbps LinkDnBandwidth>=35474Kbps Specifier: <WifiNetworkAgentSpecifier [WifiConfiguration=, SSID=\"ZTE_0FB6C6\", BSSID=5c:ff:a9:0f:b6:c6, band=2, mMatchLocalOnlySpecifiers=false]> TransportInfo: <SSID: \"ZTE_0FB6C6\", BSSID: 5c:ff:a9:0f:b6:c6, MAC: 5a:47:00:22:3e:f6, IP: /192.168.0.53, Security type: 4, Supplicant state: COMPLETED, Wi-Fi standard: 5, RSSI: -41, Link speed: 866Mbps, Tx Link speed: 866Mbps, Max Supported Tx Link speed: 866Mbps, Rx Link speed: 866Mbps, Max Supported Rx Link speed: 866Mbps, Frequency: 5180MHz, Net ID: 42, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>\"ZTE_0FB6C6\"wpa3-saeMLO Information: , AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>> SignalStrength: -41 OwnerUid: 1000 AdminUids: [1000] SSID: \"ZTE_0FB6C6\" UnderlyingNetworks: Null]}  factorySerialNumber=6}",
+            "      NetworkRequest [ REQUEST id=1, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=5, [ Capabilities: FOREGROUND RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=6, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=8, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&FOREGROUND&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=9, [ Capabilities: FOREGROUND RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=10, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&FOREGROUND&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=12, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=15, [ Transports: WIFI Capabilities: NOT_VPN&FOREGROUND RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=16, [ RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=17, [ Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=19, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10226 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=21, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10213 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=23, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10176 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=25, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10163 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=27, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10160 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=29, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10146 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=31, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10133 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=33, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10117 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=35, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10114 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=37, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10103 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=39, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=41, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10085 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=43, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10084 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=45, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10083 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=47, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10077 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=49, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 6102 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=51, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 6101 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=53, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10107 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=55, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10177 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=57, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=59, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10137 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=61, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=66, [ Transports: WIFI Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED Specifier: <WifiNetworkSpecifier [, SSID Match pattern=PatternMatcher{GLOB: .*}, BSSID Match pattern=Pair{00:00:00:00:00:00 00:00:00:00:00:00}, SSID=null, BSSID=null, band=2]> Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=69, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_DEFAULT id=71, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: com.android.networkstack.inprocess UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=73, [ Transports: WIFI Capabilities: NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1000 RequestorUid: 1000 RequestorPkg: com.android.networkstack.inprocess UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ TRACK_SYSTEM_DEFAULT id=74, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_VCN_MANAGED RequestorUid: 1000 RequestorPkg: com.android.networkstack.tethering.inprocess UnderlyingNetworks: Null] ]",
+            "      NetworkRequest [ LISTEN id=75, [ Transports: WIFI Capabilities: INTERNET&TRUSTED&NOT_VPN&NOT_VCN_MANAGED Uid: 1001 RequestorUid: 1001 RequestorPkg: com.android.phone UnderlyingNetworks: Null] ]"
+          ],
+          "wakefulness": "Awake",
+          "keyguardShowing": "false",
+          "screenOffTimeout": "2147483647",
+          "lockAfterTimeout": "null",
+          "stayOnWhilePluggedIn": "7",
+          "topActivityLines": [
+            "      topResumedActivity=ActivityRecord{bf12197 u0 com.miui.home/.launcher.Launcher} t2}"
+          ]
+        },
+        "productionPackageDifferences": [],
+        "productionPackagesUnchanged": true,
+        "finishedAt": "2026-11-05T01:36:14.1258714+08:00"
+      }
+    }
+  },
+  "matrix": [
+    {
+      "item": "1. install and first audio (zf_001 sid3 / zm_010 sid59)",
+      "k60": {
+        "executed": true,
+        "result": "PASS",
+        "detail": "both voices, 58.075 s / 58.725 s, within 45-60 s contract"
+      },
+      "pad5": {
+        "executed": true,
+        "result": "FAIL_P1",
+        "detail": "HexFormat NoClassDefFoundError before model load; zm incomplete after stop"
+      }
+    },
+    {
+      "item": "2. interval PSS peak",
+      "k60": {
+        "executed": true,
+        "result": "OBSERVED_NOT_HARDWARE_PEAK",
+        "detail": "zf 928419 KB; zm 926473 KB; max sample gap 1.511 s"
+      },
+      "pad5": {
+        "executed": true,
+        "result": "NOT_VALID_FOR_INFERENCE",
+        "detail": "worker crashed; 97315 KB is Activity residency only"
+      }
+    },
+    {
+      "item": "3. long text",
+      "k60": {
+        "executed": true,
+        "result": "PASS_VIA_EXISTING_OVERRIDE",
+        "detail": "401 chars / 356 Han; 116.300 s; RTF 0.765262"
+      },
+      "pad5": {
+        "executed": false,
+        "result": "BLOCKED_P1",
+        "detail": "stopped before long-text branch"
+      }
+    },
+    {
+      "item": "4. background + lock screen",
+      "k60": {
+        "executed": true,
+        "result": "BLOCKED: NO_BACKGROUND_OWNER",
+        "detail": "181.5 s asleep, no completion, no service/foreground owner"
+      },
+      "pad5": {
+        "executed": false,
+        "result": "BLOCKED_P1",
+        "detail": "stopped before branch"
+      }
+    },
+    {
+      "item": "5. process recreation/resume",
+      "k60": {
+        "executed": true,
+        "result": "BLOCKED: NO_RESUME_STATE",
+        "detail": "interrupted and completed force-stop both restart at preparing"
+      },
+      "pad5": {
+        "executed": false,
+        "result": "BLOCKED_P1",
+        "detail": "stopped before branch"
+      }
+    },
+    {
+      "item": "6. airplane / UID zero network",
+      "k60": {
+        "executed": true,
+        "result": "PASS_OBSERVED",
+        "detail": "UID 10304; active network none; identity and app-map byte deltas 0"
+      },
+      "pad5": {
+        "executed": false,
+        "result": "BLOCKED_P1",
+        "detail": "stopped before branch"
+      }
+    },
+    {
+      "item": "7. cancel",
+      "k60": {
+        "executed": true,
+        "result": "INTERNAL_NOT_IMPLEMENTED / HARD_FORCED_CANCEL",
+        "detail": "PID gone; no partial WAV/temp output"
+      },
+      "pad5": {
+        "executed": false,
+        "result": "BLOCKED_P1",
+        "detail": "stopped before branch"
+      }
+    },
+    {
+      "item": "8. audio focus / single owner",
+      "k60": {
+        "executed": true,
+        "result": "BLOCKED: HARNESS_NOT_AUDIO_OWNER",
+        "detail": "no harness entry in audio/media_session; no playback/focus API path"
+      },
+      "pad5": {
+        "executed": false,
+        "result": "BLOCKED_P1",
+        "detail": "stopped before branch"
+      }
+    },
+    {
+      "item": "9. speaker58 / zm_009 regression",
+      "k60": {
+        "executed": true,
+        "result": "PASS_IN_EXECUTED_SCOPE",
+        "detail": "static reject + runtime hits 0; only sid 3/59 generated"
+      },
+      "pad5": {
+        "executed": false,
+        "result": "NOT_RUN_COMPLETE",
+        "detail": "static source is shared, but no Pad inference result"
+      }
+    },
+    {
+      "item": "10. cleanup / production package stability",
+      "k60": {
+        "executed": true,
+        "result": "PASS",
+        "detail": "harness uninstalled; external files absent; release/debug exact MATCH"
+      },
+      "pad5": {
+        "executed": true,
+        "result": "PASS",
+        "detail": "harness uninstalled; external files absent; release exact MATCH; debug remained absent"
+      }
+    }
+  ],
+  "p0p3": {
+    "P0": [],
+    "P1": [
+      {
+        "id": "QA-KOKORO-P1-API-COMPAT",
+        "scope": "isolated harness",
+        "finding": "Pad 5 API 33 cannot resolve java.util.HexFormat although APK declares minSdk 26.",
+        "impact": "Both target voices cannot produce first audio on Pad 5; two-device QA gate is blocked.",
+        "evidence": [
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/first-zf-metrics_failure.json",
+          ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/logcat-Pad5-first-zf.txt"
+        ]
+      }
+    ],
+    "P2": [],
+    "P3": [
+      {
+        "id": "QA-KOKORO-P3-PSS-SEMANTICS",
+        "finding": "Independent K60 interval peaks are 928419/926473 KB and differ materially from the implementation summary 736167 KB; interval sampling is still not a hardware-counter peak."
+      },
+      {
+        "id": "QA-KOKORO-P3-TTS-LANG",
+        "finding": "K60 metrics reports ttsLang=en-us while the harness config requests zh; no subjective/pronunciation judgment was made."
+      }
+    ]
+  },
+  "uncovered": [
+    "Pad 5 first audio for zm_010 was not completed after the P1 stop; zf_001 failed before model load.",
+    "Pad 5 long text, background, process recreation, zero network, cancel, and audio owner were not executed.",
+    "30-minute continuous background/lock-screen availability is BLOCKED: NO_BACKGROUND_OWNER for the harness.",
+    "Pause/last-stable-sentence resume is BLOCKED: NO_RESUME_STATE for the harness.",
+    "Audio-focus contention and single MediaSession owner are BLOCKED: HARNESS_NOT_AUDIO_OWNER.",
+    "Subjective quality, pronunciation, voice-rights acceptance, production App integration, voice-pack lifecycle, G1/Q03/Release were not signed by QA."
+  ],
+  "maximumClaim": "On K60 API 35 / arm64-v8a only, the current isolated APK proves zf_001 sid3 and zm_010 sid59 each generate a 45-60 second 24 kHz mono WAV, a 356-Han long-text override completes, and the executed offline/cancel paths converge. It does not prove a two-device runtime, background ownership, resume, audio ownership, production integration, voice quality, or G1 readiness.",
+  "nextStep": {
+    "owner": "implementation owner (not independent QA)",
+    "action": "Fix only the harness API-compatibility class and produce a new immutable APK/hash with minSdk-correct SHA-256 code.",
+    "firstReadOnlyAction": "Re-read report.json P1 evidence, build info, and HarnessActivity SHA-256 path; confirm no asset drift.",
+    "stopCondition": "Stop if the replacement APK still fails on API 33, assets/ABI drift, any new P0-P2 appears, or QA is asked to modify harness/production code instead of testing an immutable candidate."
+  },
+  "evidence": {
+    "commands": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/commands.log",
+    "deviceSnapshots": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-snapshots.json",
+    "netstatsSummaryV2": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/netstats-K60-zero-network-summary-v2.json",
+    "qaRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa",
+    "qaTool": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-qa.ps1"
+  },
+  "qaProbeCorrection": "The first K60 pass used an incorrect UID parser and stopped before zero-network/long-text. The same QA owner corrected only qa/device-qa.ps1, uninstalled the harness, then reran the remaining K60 branches. The implementation and harness were not modified."
+}

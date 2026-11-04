@@ -62,8 +62,8 @@
           "end": 42
         }
       ],
-      "bytes": 7341,
-      "sha256": "65136840F510FF0718C0667A87C7E26F17AEE4072E0A4EB52421A11218458E21",
+      "bytes": 7547,
+      "sha256": "B108FB099D71E44A6893253DC48EA1EEC141B4D614668775BC08ACD12DF9A9DB",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -89,8 +89,8 @@
           "end": 284
         }
       ],
-      "bytes": 114728,
-      "sha256": "C3F12E05FC15F3065035A83A479139652E794DCC0660B4FC59152ECCE87E5567",
+      "bytes": 114906,
+      "sha256": "F85AFB8DE1B56D6DA037961B887F493CAD902B8E2389244CB489A1E397E0E262",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -138,11 +138,11 @@
         },
         {
           "start": 2537,
-          "end": 2717
+          "end": 2719
         }
       ],
-      "bytes": 617889,
-      "sha256": "3B530776F4A8B2C35AC22E36350EB425B0D4909FBCF8ADD4463D73A8381C274A",
+      "bytes": 628698,
+      "sha256": "C40C4C9BA5034F6E1DCD6475275B5F4B6DBC5FCF46C5295A45F247A599C54E8A",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -161,16 +161,16 @@
       ],
       "line_ranges": [
         {
-          "start": 2718,
-          "end": 4266
+          "start": 2720,
+          "end": 4353
         },
         {
-          "start": 4267,
-          "end": 4659
+          "start": 4354,
+          "end": 4779
         }
       ],
-      "bytes": 617889,
-      "sha256": "3B530776F4A8B2C35AC22E36350EB425B0D4909FBCF8ADD4463D73A8381C274A",
+      "bytes": 628698,
+      "sha256": "C40C4C9BA5034F6E1DCD6475275B5F4B6DBC5FCF46C5295A45F247A599C54E8A",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -186,8 +186,8 @@
           "end": 70
         }
       ],
-      "bytes": 15461,
-      "sha256": "9FA3DD66E35F66F5F74987593350C6260B2194A0B76931F59EC8CCDBC774BC43",
+      "bytes": 15114,
+      "sha256": "9832F8D490736D38FCBB1C4CE8E931F1BE7049539A824FD41E8186CD6868CBC2",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -204,11 +204,11 @@
       "line_ranges": [
         {
           "start": 1,
-          "end": 474
+          "end": 501
         }
       ],
-      "bytes": 100680,
-      "sha256": "6CB919797F06FFC25BE0E6EE7F54141B331877A87C4D0C07375632C19EF448BC",
+      "bytes": 102759,
+      "sha256": "B85144177835DDB8271A2A59C25BE9F380589B55729197CDD8800520A1F1EB7A",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -594,8 +594,8 @@
         "EV-S3"
       ],
       "exists": true,
-      "bytes_at_generation": 617889,
-      "sha256_at_generation": "3B530776F4A8B2C35AC22E36350EB425B0D4909FBCF8ADD4463D73A8381C274A"
+      "bytes_at_generation": 628698,
+      "sha256_at_generation": "C40C4C9BA5034F6E1DCD6475275B5F4B6DBC5FCF46C5295A45F247A599C54E8A"
     },
     {
       "id": "EV-Q03-SBOM",

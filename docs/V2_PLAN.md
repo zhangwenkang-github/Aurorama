@@ -1,9 +1,9 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SMALL_ANDROID_SECOND_ENGINE_RESCAN / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。用户于 2026-11-04 选择方向 C，扩大只读查询范围以重筛更小的 Android arm64 可行第二引擎；Kokoro 两个未否决中文声线为第一静态门，MOSS-TTS-Nano 为第二，ZipVoice 因 CC-BY-NC `HOLD`。第二引擎及 exact profile / voice 均未选择，权重未下载。S6 D204 后 fresh scoped documentation reconfirm 已 PASS，future artifact change 仍须重新 review；Q03 仍 Open、runtime `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 `LOCKED`。
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / KOKORO_LICENSE_PARTIAL / KOKORO_RUNTIME_PARTIAL_K60_PAD5 / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `D206_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / NEXT_RUNTIME_CLOSURE / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。2026-11-05 已完成固定 Kokoro archive 与 Sherpa AAR 的 size / SHA-256 / ABI / ONNX / speaker 身份核验，隔离 harness 在 K60 API 35 与 Pad 5 API 33 上完成 `zf_001` sid3 / `zm_010` sid59 推理、45–60 秒样音、长文和 UID 零网络测试；K60 另完成 forced cancel，Pad cancel 未执行；Pad API 33 的 harness `HexFormat` P1 已修复。用户已接受当前两条样音作为继续 G1 的输入，但不接受 profile / production 冻结。许可仍 PARTIAL，后台 owner、持久恢复、MediaSession / audio focus 未实现，Pad 性能 P2 与 Pad 解锁仍待处理。Q03 仍 Open、项目级 runtime 仍 `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 `LOCKED`，exact engine / profile / voice 未冻结。
 > 当前集成分支：`codex/v2-integration`
-> 最后更新：2026-11-04
+> 最后更新：2026-11-05
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
 
 ## 1. 原始输入
@@ -2702,12 +2702,14 @@ Android arm64 可行性 Spike。IndexTTS / CosyVoice / GPT-SoVITS 及 Matcha / K
 其中 BASE-001/003/004 的产品契约歧义已由静态合同冻结，但 B/C/D 门、runtime、device、
 candidate-package 与 production implementation 均未关闭；静态合同不把任何 `MUST` 运行时承诺
 升级为 PASS。公共 `.planning/v2-g1/.gitattributes` 已新增 `*.m3u8 text eol=lf`，BASE-004
-24/24 文件为 LF 且 manifest / hash 可复现。当前 `V2-D205` 已选择方向 C，前沿审计结论为
-`SMALL_ENGINE_STATIC_SHORTLIST_READY / EXACT_ARCHIVE_DOWNLOAD_AUTH_REQUIRED`：Kokoro
-`zf_001` / `zm_010` 先做 exact archive 许可 / hash 门，MOSS 第二，ZipVoice `HOLD`。下一步
-只允许等待用户单独授权 archive 下载与内容校验，不执行推理、量化、Gradle / ADB、设备、
-runtime 或生产实现。D205 current docs/S6 revision 已由独立 fresh scoped reviewer 复核为
-`PASS / no findings`。
+24/24 文件为 LF 且 manifest / hash 可复现。`V2-D206` 已完成固定 Kokoro archive / Sherpa
+AAR 下载、size / SHA-256 / 文件清单 / ABI / ONNX / `id2speaker` 核验，并执行隔离 harness
+与 K60 / Pad 5 双机样音；二进制身份门 PASS，许可门仍 PARTIAL，D203 后台 owner、恢复态与
+audio focus 尚未在 harness 实现。MOSS 第二但权重未授权下载，ZipVoice 继续 `HOLD`。
+用户已通过 `V2-D207` 接受当前两条样音；下一步是隔离 harness 的 service owner、
+MediaSession / audio focus、resume、UI cancel、30 分钟后台锁屏、进程重建与许可 closure。
+不得据此冻结 profile、关闭 Q03、把项目级 runtime 写成 PASS 或进入生产实现。D206 静态
+docs / S6 已复核 PASS，但不能代替 D207 当前 review；每 future artifact change 仍须重新 review。
 
 本轮明确非目标：不把 `MUST` 需求直接写成已实现；不把历史 1.4.0 通过记录冒充 V2 候选包证据；
 不把生产服务器写、TV / 车机 / 桌面产品面、第三方在线字幕 / 歌词、管理式媒体写、破坏性数据库
@@ -3273,7 +3275,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 已完成；`V2-D202` 仅授权 L1，D203 voice-pack / 后台锁屏不变。`V2-D204` 接受 engine strategy A 并关闭 Q05；`V2-D205` 接受方向 C，将更小 Android arm64 第二引擎重筛为 Kokoro `zf_001` / `zm_010`、MOSS、ZipVoice `HOLD`。第二引擎、exact profile / voice 与逐资产许可仍未选择。`V2-G1-L1-EVIDENCE` 当前 readiness=`SMALL_ENGINE_STATIC_SHORTLIST_READY / EXACT_ARCHIVE_DOWNLOAD_AUTH_REQUIRED`；S6 D204 后 fresh scoped documentation reconfirm 已 PASS，D205 current revision 的 fresh scoped reconfirm 也为 PASS / no findings；Q03 Open、G1 NOT_PASSED、runtime UNVERIFIED，L2/L3 locked |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 已完成；`V2-D202` 仅授权 L1，D203 voice-pack / 后台锁屏不变。`V2-D204` 接受 engine strategy A 并关闭 Q05；`V2-D205` 接受方向 C，将更小 Android arm64 第二引擎重筛为 Kokoro `zf_001` / `zm_010`、MOSS、ZipVoice `HOLD`。`V2-D206` 已完成固定资产身份核验、隔离 harness 与 K60 / Pad 5 双机双声线样音；Pad API33 P1 已修复。`V2-D207` 已接受当前两条样音作为继续 G1 输入，但许可 / 声音权属仍 PARTIAL、Pad 性能 P2、后台 / 恢复 / MediaSession 未实现。D206 docs / S6 已 scoped review PASS，但该 PASS 不表示产品 runtime；exact profile / voice 仍未选择；Q03 Open、G1 NOT_PASSED、项目级 runtime UNVERIFIED，L2/L3 locked |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3303,7 +3305,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ✅ 9 节点最终矩阵、计数、证据与跨域处置由 `V2-D193` 整包接受；需求域已收口 |
 | 9 | `V2-REQ-BASE` | 1.4 既有能力补充基线 | ✅ `V2-REQ-BASE-001～005` 五个 `MUST` 组由 `V2-D196` 保留，来源、验收、依赖、非目标与 G1 未决项已落 §5.10.5 |
 | 10 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ✅ `V2-D197` 完整 G0 PASS；`V2-Q-FINAL-01～03` 全部关闭；后续由 G1 接管 |
-| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 原始 review `PASS_WITH_P2` 仅作为 Q05 当时 Open 的历史，D204 后 fresh scoped documentation reconfirm 已 PASS，D205 current revision 的 fresh scoped reconfirm 也为 PASS / no findings；D203 voice-pack / 后台 TTS 条款不变，Sherpa / Matcha 当前仅兼容回退；D204 已关闭 Q05 engine strategy 为 A，D205 已接受方向 C 的小型 Android 第二引擎重筛，当前 readiness=`SMALL_ENGINE_STATIC_SHORTLIST_READY / EXACT_ARCHIVE_DOWNLOAD_AUTH_REQUIRED`；Q03 Open、C1 exact profile Open、L2/L3 locked，禁止 runtime、实现或 G2 |
+| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 原始 review `PASS_WITH_P2` 仅作为 Q05 当时 Open 的历史，D204 / D205 的旧 scoped reconfirm 与 D206 返修后的 fresh scoped review 均只陈述对应静态 / 文档边界；D203 voice-pack / 后台 TTS 条款不变，Sherpa / Matcha 当前仅兼容回退；D204 已关闭 Q05 engine strategy 为 A，D205 已接受方向 C，D206 已完成固定资产身份核验与隔离双机样音，D207 已接受当前两条样音。许可、后台 owner / MediaSession / resume、未来文本质量和 Pad 性能仍未闭合。Q03 Open、C1 exact profile Open、L2/L3 locked，禁止生产 runtime、实现或 G2 |
 
 每个需求域的退出条件：
 
@@ -3411,7 +3413,92 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：D204 strategy A + D205 方向 C 已接受，小型 Android 第二引擎重筛待 exact archive 授权（2026-11-04）
+### ACTIVE：D207 Kokoro 样音已接受，剩余 runtime / 许可 closure 交给新负责人（2026-11-05）
+
+**负责身份 / 线程**：G1 TTS Kokoro exact asset / runtime / audition / device 交付负责人；
+线程 `01a1a759-57c5-75a2-a59a-33643237aff1`。事实工作树
+`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
+`codex/v2-integration`。当前 HEAD、父链与 dirty 状态必须从 Git 现场读取；本轮没有修改生产代码。
+
+**状态**：
+`D206_EXECUTED / D206_DOCS_S6_REVIEW_PASS / D207_KOKORO_AUDITION_ACCEPTED / NEXT_RUNTIME_CLOSURE / KOKORO_ASSET_IDENTITY_PASS / KOKORO_LICENSE_PARTIAL / KOKORO_RUNTIME_PARTIAL_K60_PAD5 / API33_HEXFORMAT_P1_FIXED / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+这里的 runtime partial 只指隔离 harness，不能外推为生产 TTS、voice-pack、后台锁屏或候选包 PASS。
+
+**已执行**
+
+- 只下载 D206 固定的两个资产并核验：
+  `kokoro-multi-lang-v1_1.tar.bz2` 为 `364,855,331 B` /
+  `b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed`；
+  `sherpa-onnx-2.0.1.aar` 为 `49,441,341 B` /
+  `a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7`。
+  两者均 HTTPS 200 且仅经 GitHub 资产 CDN 正常重定向；archive 417 members / 377 files，
+  AAR 含 arm64-v8a 与 16 个 native `.so`；`id2speaker` 映射 `zf_001=3`、
+  `zm_009=58`、`zm_010=59` 与预期一致。
+- 隔离 harness 使用已审计的 ONNX / voices / tokens / lexicon / espeak / dict；TDD 10 checks
+  GREEN，arm64 debug APK 无 INTERNET，仅允许 sid 3 / 59。speaker58 / `zm_009` 未加载。
+- 两次独立 QA。首轮在 Pad 5 API 33 发现 harness `java.util.HexFormat`
+  `NoClassDefFoundError`；同一实现 owner 做最小 minSdk 兼容修复、保留旧 APK，并由新 QA
+  复核 P1 未复发。最终 APK `426,980,914 B` /
+  `051a73dadb1b9b239f95e543e24dfdbeebf82c026d46652f3b392559e2357826`。
+- K60 API 35 / arm64：`zf_001` load `1,611 ms`、首音 `2,833 ms`、推理 `40,469 ms`、
+  audio `58.075 s`、RTF `0.696840`、峰值 PSS `738,090 KB`；`zm_010` load `1,528 ms`、
+  首音 `2,801 ms`、推理 `40,882 ms`、audio `58.725 s`、RTF `0.696160`、
+  峰值 PSS `737,201 KB`。
+- Pad 5 API 33 / arm64：`zf_001` load `2,415 ms`、首音 `4,324 ms`、推理 `65,179 ms`、
+  RTF `1.122325`、峰值 PSS `848,051 KB`；`zm_010` load `1,745 ms`、首音 `4,272 ms`、
+  推理 `67,121 ms`、RTF `1.142971`、峰值 PSS `919,625 KB`。
+- 两机均完成 401 字符 / 356 Han 长文（116.300 秒，无截断 / 崩溃）与飞行模式下完整推理、
+  App UID `netstats` 零增量；K60 另完成推理中 forced cancel，Pad cancel 未执行；speaker58
+  坏命中 0。Pad 长文最坏值 RTF `1.154961`、峰值 PSS `925,482 KB`；K60 峰值 PSS
+  `739,355 KB`。所有设备锁串行获取并释放，harness 已卸载，既有 Aurorama 包状态恢复 MATCH。
+- 样音与文稿位于
+  `.planning/v2-g1/G1-L1-KOKORO-EXACT/samples/`；资产报告、实现报告和两轮 QA 证据位于同名
+  evidence root。最终 `git status` 只允许该 evidence root 与本次权威文档 / S6 派生更新，
+  禁止把 400MB+ APK、WAV 或解包模型误提交。
+
+**用户门 / 未完成**
+
+- 用户于 2026-11-05 原话“可以接受。继续下一步。创建新会话，交接。以后所有交接都必须是旧
+  负责人所有文档落实了在创建，不要创建后让新负责人停下。”接受当前 `zf_001` / `zm_010`
+  两条样音作为继续 G1 的输入；这只关闭这两条样音的主观门槛，不等于接受 Pad 性能 P2、
+  profile / production 冻结或后续其他章节的朗读质量。Pad 5 的测试关机触发了用户原有数字
+  密码锁屏；后续设备动作必须先由用户本人解锁，不得尝试绕过凭据。
+- 许可 / notice / 训练数据 / 逐 speaker 声音权属仍 `PARTIAL / MISSING`；AAR 根和
+  `classes.jar` 未携带 LICENSE / NOTICE。该缺口阻断 profile 冻结、发布资产集成与 Q03 关闭，
+  但不改变本轮“技术试验已执行”的事实。
+- Harness Manifest service=`0`，不播放 PCM、不持有 MediaSession / audio focus，也无持久
+  resume state：30 分钟后台锁屏、进程重建恢复、取消 UI、音乐暂停与单音频 owner 仍
+  `BLOCKED: NOT_IMPLEMENTED_IN_HARNESS`。不得用短时关屏或写 WAV 冒充 D203 runtime PASS。
+- Pad RTF 最高 `1.154961`、峰值 PSS 最高 `925,482 KB` 为 P2 性能风险；K60 约 `0.70`、
+  峰值 PSS `737,201–739,355 KB`。
+  是否接受该设备差异、调整线程数 / 文本切分或换引擎，需要用户决策与后续实现任务，不得把
+  “能在两机跑完”写成小说朗读性能 PASS。
+- `ttsLang` 运行面报告 `en-us` 而配置请求 `zh`；D207 已接受当前两条样音，但该 instrumentation
+  差异仍需在未来实现 / 其他章节听测中复核。Q03、exact profile / voice、生产集成、G1 与
+  Release 均未通过。
+
+**下一步入口**
+
+1. 新负责人身份：G1 Kokoro runtime closure / licensing / device delivery owner。第一条只读
+   动作：读本 ACTIVE、D203/D206/D207、`TASKS` 当前 KOKORO 行、实现报告与最终 QA，复核
+   最终 APK hash、资产 hash、设备锁 `ACTIVE=0` 和唯一 evidence root；随后派全新专业子代理，
+   不要先扩张或重复试听。
+2. 在隔离 harness 内补齐 service owner、MediaSession / audio focus、持久暂停 / resume、
+   UI cancel、30 分钟后台锁屏、进程重建、音乐互斥与零网络长稳；先 K60，Pad 解锁后再测，
+   不得让 Pad 锁屏阻止其余已授权工作。
+3. 只读补证许可 / NOTICE / 训练数据与声音权属；若需要新下载 / 新网络域或生产代码，停止并
+   报告真实授权缺口，不以“继续”替代授权。完成硬门后只能向用户提交 profile 冻结建议，
+   不得自行冻结 engine/profile/voice 或关闭 Q03。
+4. 所有交接必须先完成文档、ACTIVE、决策 / 日志、evidence 指针、memory 与 commit / clean
+   审计，再创建新会话；新 prompt 直接开始已授权工作，不得等待上一任补交接。
+
+**停止条件**：设备锁冲突、需要绕过 Pad 密码、未经授权的新域名 / 权重、把 harness 外推为生产
+PASS、speaker58 被调用、资产 / APK hash 漂移、许可冲突、需要修改生产代码、新 P0–P2 扩大，
+或 Q03 / G1 / profile / Release 被要求代签时停止。
+
+### HISTORY：D204 strategy A + D205 方向 C 已接受，小型 Android 第二引擎重筛待 exact archive 授权（2026-11-04）
+
+> 以下为 D206 执行前历史快照；其中的“当前状态 / 下一步”已由上方 D206 ACTIVE 取代。
 
 **下一负责人线程**：`01a1a6e0-367e-7fd2-985a-f0772bcd1888`。当前交接不再等待 Q05；
 D204 只关闭 engine strategy，后续由负责人审查本集后安排全新只读 / 静态专业子代理设计第二
@@ -4657,3 +4744,36 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   为前置静态复审、D205 current revision 为独立复审 PASS，二者都不表示 G1、runtime、QA
   或 Release PASS。下一步仍为 exact archive 下载授权；本轮未下载权重、未推理、未构建或
   触设备。
+- **2026-11-05 — D206 exact Kokoro asset / runtime / device 执行**：按授权仅下载固定
+  Kokoro archive 与 Sherpa AAR，size / SHA-256 / HTTPS redirect / archive 路径 / ABI /
+  ONNX metadata / `id2speaker` 全部复算；二进制身份门 PASS，许可与 notice 门 PARTIAL。
+  一次性隔离 harness 完成 TDD、arm64 构建与 K60 API 35 / Pad 5 API 33 真机执行。
+  首轮 QA 在 Pad API 33 发现 harness `HexFormat` P1；同一 owner 最小兼容修复、旧 APK 归档，
+  新独立 QA 复测 P1 未复发。两机均完成 `zf_001` sid3 / `zm_010` sid59 推理、45–60 秒样音、
+  356 Han 长文和飞行模式 UID 零网络；K60 另完成 forced cancel，Pad cancel 未执行。
+  K60 RTF 约 `0.70`、峰值 PSS `737,201–739,355 KB`，Pad RTF 最高 `1.154961`、峰值 PSS
+  最高 `925,482 KB`，Pad 性能构成 P2。
+  Harness 无后台 service owner、MediaSession / audio focus、持久 resume / UI cancel，
+  这些 D203 运行门仍 BLOCKED；`ttsLang=en-us` 与请求 `zh` 的表面不一致留给用户听感确认。
+  最终 `ACTIVE=0`，harness 已卸载，既有 Aurorama 包恢复 MATCH；Pad 5 因测试锁屏需用户本人
+  解锁。用户主观小说质量门未执行，许可 / 声音权属仍 PARTIAL，因此 exact engine / profile /
+  voice 不冻结，Q03 Open、项目级 runtime UNVERIFIED、G1 NOT_PASSED、L2/L3 LOCKED。
+  证据根为 `.planning/v2-g1/G1-L1-KOKORO-EXACT/`；本轮未改生产代码、未下载 MOSS、
+  未 push / Release / 服务器写。
+- **2026-11-05 — D206 docs / S6 fresh scoped review PASS**：首次 review 为
+  `CHANGES_REQUIRED`，指出非 HISTORY 的“待 archive 授权”旧状态、K60 forced cancel 被误写为
+  双机、Pad 长文最坏 RTF / PSS 漏列及 APK / WAV ignore 缺口。负责人已修正当前状态、取消
+  归属、最坏性能值和 evidence `.gitignore`，重建 source-index / manifest。第二次全新只读
+  review 为 `PASS / no findings`：tracked diff 仅 4 个白名单文件、唯一项目 ACTIVE、旧 D205
+  段为 HISTORY；S6 live verifier PASS，`57 NEG + 10 BASE + 1 count = 68 GREEN`，manifest
+  11/11、source hashes / LF / UTF-8 no BOM 全部匹配；大 APK / WAV / idsig 均被 ignore。
+  该 PASS 只允许提交用户试听与 PARTIAL 状态，不能代签 production runtime、Q03、G1、profile
+  freeze 或 Release。
+- **2026-11-05 — D207 接受样音 / runtime closure 交接**：用户原话“可以接受。继续下一步。
+  创建新会话，交接。以后所有交接都必须是旧负责人所有文档落实了在创建，不要创建后让新负责人
+  停下。”由此只接受当前 `zf_001` / `zm_010` 两条隔离样音作为继续 G1 的输入，不冻结
+  profile，也不接受 Pad 性能 P2、许可或生产 runtime。下一步由新负责人继续隔离 harness 的
+  service owner、MediaSession / audio focus、resume、UI cancel、30 分钟后台锁屏、进程重建、
+  音乐互斥与许可审计；需要生产代码 / MOSS / 新网络域时仍先取得授权。交接规则同步改为
+  “旧负责人先完成全部文档、memory、commit 与 clean 审计，再创建直接可执行的新会话”，
+  创建后不再由旧负责人补实质文档。

@@ -1,0 +1,44 @@
+{
+  "generated_at": "2026-11-05T00:32:35.1949660+08:00",
+  "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+  "assets": [
+    {
+      "name": "kokoro-multi-lang-v1_1.tar.bz2",
+      "source_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+      "disposition": "DOWNLOADED_AND_VERIFIED",
+      "expected_size": 364855331,
+      "expected_sha256": "b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed",
+      "actual_size": 364855331,
+      "actual_sha256": "b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed",
+      "size_match": true,
+      "sha256_match": true,
+      "http_status": 200,
+      "redirect_count": 1,
+      "final_url_sanitized": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/bcaa5df6-6707-46c0-9742-26a3761013a0",
+      "final_host": "release-assets.githubusercontent.com",
+      "content_type": "application/octet-stream",
+      "redirect_locations_sanitized": [
+        "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/bcaa5df6-6707-46c0-9742-26a3761013a0"
+      ]
+    },
+    {
+      "name": "sherpa-onnx-2.0.1.aar",
+      "source_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar",
+      "disposition": "DOWNLOADED_AND_VERIFIED",
+      "expected_size": 49441341,
+      "expected_sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+      "actual_size": 49441341,
+      "actual_sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+      "size_match": true,
+      "sha256_match": true,
+      "http_status": 200,
+      "redirect_count": 1,
+      "final_url_sanitized": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/19a64cec-483e-478d-9761-5421689c2107",
+      "final_host": "release-assets.githubusercontent.com",
+      "content_type": "application/octet-stream",
+      "redirect_locations_sanitized": [
+        "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/19a64cec-483e-478d-9761-5421689c2107"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,733 @@
+{
+  "schema": "aurorama.kokoro-isolated-harness.implementation-report.v1",
+  "task": "V2-G1-L1-KOKORO-EXACT",
+  "role": "senior Android TTS isolated-harness implementation engineer",
+  "generatedAt": "2026-11-05T01:52:34.0363071+08:00",
+  "status": "PASS",
+  "worktree": {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "cb68738e6dd81cfcce7e224aabb361876286e636",
+    "parent": "c1974d9291edb2dc9ff40692a4778f2cfc1be77b",
+    "expectedHead": "cb68738e6dd81cfcce7e224aabb361876286e636",
+    "expectedParent": "c1974d9291edb2dc9ff40692a4778f2cfc1be77b"
+  },
+  "inputGate": {
+    "kokoroArchiveBytes": 364855331,
+    "kokoroArchiveSha256": "b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed",
+    "sherpaAarBytes": 49441341,
+    "sherpaAarSha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+    "modelSha256": "99db0bc8fd0c5033d249fe922db16768b71b4a6b26cfd93d206fbf66c76efb5f",
+    "voicesSha256": "e64a5a581d8c2a350d848f51c3121657cd83aa07ed6109172177345874a7244c",
+    "tokensSha256": "931ab2df2400cd65d580a22402024c2347ced8ae9ea300e545144b1aacc48e14",
+    "lexiconZhSha256": "fea060803db3e59193987f1a3436f56917bda09f3b3595b6588e46ae60cebf93",
+    "modelSampleRate": 24000,
+    "assetGate": "PARTIAL",
+    "licenseAndNotice": "PARTIAL",
+    "profileFreeze": false
+  },
+  "compatibilityFix": {
+    "reportedP1": "Pad 5 API 33: java.lang.NoClassDefFoundError: java/util/HexFormat",
+    "status": "RESOLVED_ON_API33",
+    "rootCause": "HexFormat was linked from the text SHA-256 path before model load",
+    "replacement": "manual lowercase unsigned-byte hex encoder in HexCodec",
+    "additionalApiTightening": [
+      "replaced String.isBlank with trim().isEmpty()",
+      "replaced main-code List.of with Collections.unmodifiableList(Arrays.asList(...))"
+    ],
+    "hashAlgorithm": "SHA-256 unchanged",
+    "oldApk": {
+      "archivePath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\apk-archive\\kokoro-isolated-harness-debug-3aeb62d8.apk",
+      "bytes": 426980914,
+      "sha256": "3aeb62d819890fb93ce2e0b6301f14c20ff68f2a448fa530bc9ad947b1dfb671"
+    },
+    "newApk": {
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk",
+      "bytes": 426980914,
+      "sha256": "051a73dadb1b9b239f95e543e24dfdbeebf82c026d46652f3b392559e2357826"
+    },
+    "dexApiAudit": {
+      "status": "PASS",
+      "apkClassesDexBytes": 2917756,
+      "apkClassesDexSha256": "d7002a7ba73ba73825f965f0532cd52b89db961b1dbf52275dddb8fa3c0aa899",
+      "forbiddenPattern": "java/util/HexFormat|Ljava/nio/file/Files;\\.writeString|Ljava/nio/file/Files;\\.readString|Ljava/lang/String;\\.isBlank|Ljava/util/List;\\.of",
+      "forbiddenMatchCount": 0,
+      "log": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\dex-api-audit.log"
+    }
+  },
+  "whitelistDiff": {
+    "fullModelSpeakerCount": 103,
+    "allowed": [
+      {
+        "speaker": "zf_001",
+        "sid": 3
+      },
+      {
+        "speaker": "zm_010",
+        "sid": 59
+      }
+    ],
+    "explicitlyRejected": [
+      {
+        "speaker": "zm_009",
+        "sid": 58,
+        "reason": "user rejected; permanently forbidden"
+      }
+    ],
+    "generated": [
+      {
+        "speaker": "zf_001",
+        "sid": 3
+      },
+      {
+        "speaker": "zm_010",
+        "sid": 59
+      }
+    ],
+    "speaker58SelectedOrGenerated": false,
+    "violations": [],
+    "jvmCoverage": [
+      "allow sid 3",
+      "allow sid 59",
+      "reject sid 58 / zm_009",
+      "reject mismatch, unknown id, and null"
+    ]
+  },
+  "tdd": {
+    "red": {
+      "executed": true,
+      "exitCode": 1,
+      "stage": "compileTestJava",
+      "missingContractSymbols": 25,
+      "evidence": "implementation-report.red+failure; raw compiler output was observed before implementation"
+    },
+    "hexFixRed": {
+      "executed": true,
+      "exitCode": 1,
+      "stage": "compileTestJava",
+      "missingHexCodecSymbols": 4
+    },
+    "green": {
+      "executed": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "command": ".\\\\gradlew.bat -p '.planning\\\\v2-g1\\\\G1-L1-KOKORO-EXACT\\\\harness' :contract:test --offline --console=plain --rerun-tasks",
+      "log": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\tdd-hex-fix.log",
+      "cases": [
+        "HexCodecTest.encodesUnsignedBytesAsLowercaseHex",
+        "HexCodecTest.preservesSha256ContractWithoutHexFormat",
+        "NarrationContractTest.fixedNarrationMeetsOriginalNovelLengthAndPunctuationContract",
+        "NarrationContractTest.bothVoicesUseTheSameTextAndParameters",
+        "NarrationContractTest.generationParametersArePinned",
+        "SpeakerWhitelistTest.allowsExactlyTheTwoApprovedVoices",
+        "SpeakerWhitelistTest.explicitlyRejectsSpeaker58AndZm009",
+        "SpeakerWhitelistTest.rejectsMismatchedNamesUnknownIdsAndNulls",
+        "WavWriterTest.writesCanonical24kMono16BitPcmWave",
+        "WavWriterTest.rejectsEmptySamplesAndOverwrite"
+      ]
+    }
+  },
+  "build": {
+    "status": "PASS",
+    "strategy": "standalone SDK-toolchain APK; root Gradle project not modified",
+    "javaHome": "F:\\Develop\\Android\\Android Studio\\jbr",
+    "androidSdk": "F:\\Develop\\Android\\AndroidSDK",
+    "compileSdk": 37,
+    "buildTools": "37.0.0",
+    "minSdk": 26,
+    "targetSdk": 37,
+    "abi": "arm64-v8a",
+    "package": "dev.aurorama.kokoro.harness",
+    "apk": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk",
+    "apkBytes": 426980914,
+    "apkSha256": "051a73dadb1b9b239f95e543e24dfdbeebf82c026d46652f3b392559e2357826",
+    "signing": [
+      "APK Signature Scheme v2",
+      "APK Signature Scheme v3",
+      "Android debug certificate"
+    ],
+    "permissions": [],
+    "nativeLibraries": [
+      {
+        "name": "libonnxruntime.so",
+        "bytes": 22249560,
+        "sha256": "33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1"
+      },
+      {
+        "name": "libsherpa-onnx-c-api.so",
+        "bytes": 4303136,
+        "sha256": "0eadae93c4d595a26584d7eebde7b397b9a36d01eee3ebc7262e0d34df2fce10"
+      },
+      {
+        "name": "libsherpa-onnx-cxx-api.so",
+        "bytes": 272848,
+        "sha256": "de94e0952a124eb22e86d754e11aa0489a065affc837911a8ed5e7fd843baad6"
+      },
+      {
+        "name": "libsherpa-onnx-jni.so",
+        "bytes": 4609320,
+        "sha256": "5db8f89f12b2c900a98c9e01e00c475c59db35e9437a62e36e27839ec48b5575"
+      }
+    ],
+    "dexApiAudit": {
+      "status": "PASS",
+      "apkClassesDexBytes": 2917756,
+      "apkClassesDexSha256": "d7002a7ba73ba73825f965f0532cd52b89db961b1dbf52275dddb8fa3c0aa899",
+      "forbiddenPattern": "java/util/HexFormat|Ljava/nio/file/Files;\\.writeString|Ljava/nio/file/Files;\\.readString|Ljava/lang/String;\\.isBlank|Ljava/util/List;\\.of",
+      "forbiddenMatchCount": 0,
+      "log": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\dex-api-audit.log"
+    },
+    "commands": [
+      "& 'F:\\Develop\\Android\\AndroidSDK\\build-tools\\37.0.0\\aapt2.exe' link -o 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-unsigned.apk' --manifest 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\app\\src\\main\\AndroidManifest.xml' -I 'F:\\Develop\\Android\\AndroidSDK\\platforms\\android-37.0\\android.jar' -A 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\assets' --min-sdk-version 26 --target-sdk-version 37 --version-code 1 --version-name '1.0-kokoro' --debug-mode --no-compress",
+      "& 'F:\\Develop\\Android\\Android Studio\\jbr\\bin\\javac.exe' -encoding UTF-8 -source 17 -target 17 -classpath 'F:\\Develop\\Android\\AndroidSDK\\platforms\\android-37.0\\android.jar;F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\sherpa-onnx-2.0.1\\classes.jar;C:\\Users\\zhangwenkang\\.gradle\\caches\\modules-2\\files-2.1\\org.jetbrains.kotlin\\kotlin-stdlib\\2.4.20\\94c1451890d164aed65d43b3db0b7ecef7c183e7\\kotlin-stdlib-2.4.20.jar' -d 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\classes' '@F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\sources.txt'",
+      "& 'F:\\Develop\\Android\\Android Studio\\jbr\\bin\\jar.exe' --create --file 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\harness-classes.jar' -C 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\classes' .",
+      "& 'F:\\Develop\\Android\\AndroidSDK\\build-tools\\37.0.0\\d8.bat' --min-api 26 --lib 'F:\\Develop\\Android\\AndroidSDK\\platforms\\android-37.0\\android.jar' --output 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\dex' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\harness-classes.jar' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\sherpa-onnx-2.0.1\\classes.jar' 'C:\\Users\\zhangwenkang\\.gradle\\caches\\modules-2\\files-2.1\\org.jetbrains.kotlin\\kotlin-stdlib\\2.4.20\\94c1451890d164aed65d43b3db0b7ecef7c183e7\\kotlin-stdlib-2.4.20.jar'",
+      "& 'F:\\Develop\\Android\\Android Studio\\jbr\\bin\\jar.exe' --update --file 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-unsigned.apk' -C 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\apk-stage' .",
+      "& 'F:\\Develop\\Android\\AndroidSDK\\build-tools\\37.0.0\\zipalign.exe' -f -p 4 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-unsigned.apk' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-aligned.apk'",
+      "& 'F:\\Develop\\Android\\AndroidSDK\\build-tools\\37.0.0\\apksigner.bat' sign --ks 'C:\\Users\\zhangwenkang\\.android\\debug.keystore' --ks-pass pass:android --key-pass pass:android --ks-key-alias androiddebugkey --out 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-aligned.apk'"
+    ],
+    "command": "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\\\build.ps1'",
+    "info": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\build-info.json",
+    "log": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\android-build.log"
+  },
+  "installAndRuntime": {
+    "status": "PASS",
+    "firstInstallRequiredMiuiOfficialConfirmation": true,
+    "controlledRetries": [
+      "standard install rejected with INSTALL_FAILED_USER_RESTRICTED",
+      "install wrapper detected the first confirmation page",
+      "same-owner wrapper fixed page dedup and installed successfully"
+    ],
+    "finalUpdatePreservedHarnessData": true,
+    "device": {
+      "serial": "8e875894",
+      "model": "23013RK75C",
+      "api": 35,
+      "abiList": "arm64-v8a,armeabi-v7a,armeabi",
+      "runtimeAbi": "arm64-v8a"
+    },
+    "command": "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\\\install-harness.ps1' -Serial '8e875894' -ApkPath 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk'",
+    "finalStartCommands": [
+      "adb -s 8e875894 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zf",
+      "adb -s 8e875894 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zm",
+      "adb -s 8e875894 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode warm-zf"
+    ],
+    "cleanupCommand": "adb -s 8e875894 uninstall dev.aurorama.kokoro.harness",
+    "cleanup": {
+      "harnessPackageAbsent": true,
+      "harnessPidAbsent": true,
+      "harnessExternalFilesAbsent": true,
+      "productionPackagesUnchanged": true,
+      "padCommands": 0,
+      "postCleanupEvidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\post-uninstall-state.txt"
+    },
+    "api33CompatibilityRetest": {
+      "status": "PASS",
+      "p1Resolved": true,
+      "device": {
+        "serial": "43af8627",
+        "model": "21051182C",
+        "api": 33,
+        "abiList": "arm64-v8a,armeabi-v7a,armeabi",
+        "runtimeAbi": "arm64-v8a"
+      },
+      "installCommand": "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\\\install-harness.ps1' -Serial '43af8627' -ApkPath 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk'",
+      "startCommands": [
+        "adb -s 43af8627 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zf",
+        "adb -s 43af8627 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zm"
+      ],
+      "noClassDefFoundErrorMatches": 0,
+      "cleanupCommand": "adb -s 43af8627 uninstall dev.aurorama.kokoro.harness",
+      "cleanupEvidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\pad-api33-post-uninstall-state.txt",
+      "productionPackagesUnchanged": true,
+      "screenAndNetworkRestored": true
+    }
+  },
+  "deviceLock": {
+    "required": true,
+    "lockId": "G1-L1-KOKORO-EXACT-HEX-PAD-43af8627-20261105-0142",
+    "device": "Pad 5 43af8627",
+    "file": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "acquiredAt": "2026-11-05T01:42:49+08:00",
+    "releasedAt": "2026-11-05T01:48:17+08:00",
+    "activeBefore": 0,
+    "activeAfter": 0,
+    "finalLockSha256": "86c757dc90d792341192968bf1418f6eaccddc00423ee6b791d8d5617203b48f",
+    "status": "RELEASED"
+  },
+  "samples": {
+    "text": {
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\samples\\narration.txt",
+      "text": "雨停以后，旧车站的钟慢了两分钟。林舟把湿伞靠在长椅边，听见铜铃碰了三次。站台空无一人，铁轨尽头的雾像有人缓缓呼吸。他摊开褪色的车票，背面写着：等最后一盏灯熄灭，再向北走。提灯老人停下脚步，问他是否愿意替一列迟到的火车守住秘密。他想起母亲的叮嘱，也想起那些未说出的告别。铜铃又响了一声，风推开旧门，尘埃在斜光里浮起。他收好车票，跟着灯光走进雾里。身后，时钟追上现实，车站安静得像一场醒来后仍记得的梦。",
+      "hanCharacters": 177,
+      "suggestedHanRange": "220-300",
+      "deviationReason": "measured zf duration with 248 Han was 78.450 s; only text length was reduced to satisfy 45-60 s",
+      "canonicalUtf8Sha256": "3908bcd1fa6aa9e57ab544636ed975c93f881c7d599ceb045fd57b953c05bfcb",
+      "fileSha256": "d099414fa0134ce6de05604e1f40abbe3a8829a6fd46c34243587b37e3222dc0",
+      "bom": false
+    },
+    "parameters": {
+      "signature": "speed=1.0;lengthScale=1.0;silenceScale=1.0;numThreads=2;maxNumSentences=1",
+      "speed": 1.0,
+      "lengthScale": 1.0,
+      "silenceScale": 1.0,
+      "numThreads": 2,
+      "maxNumSentences": 1,
+      "identicalForBothVoices": true
+    },
+    "files": [
+      {
+        "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\samples\\zf_001_sid3.wav",
+        "speaker": "zf_001",
+        "sid": 3,
+        "fileBytes": 2787644,
+        "sha256": "13e719a424f68bfc5cb772698907af06ce97d86dce817486550fd12eda4ef309",
+        "riff": "RIFF",
+        "wave": "WAVE",
+        "sampleRate": 24000,
+        "channels": 1,
+        "bitDepth": 16,
+        "byteRate": 48000,
+        "dataBytes": 2787600,
+        "durationSeconds": 58.075,
+        "sampledMaxAbsPcm": 16947,
+        "sampledRmsPcm": 2011.975
+      },
+      {
+        "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\samples\\zm_010_sid59.wav",
+        "speaker": "zm_010",
+        "sid": 59,
+        "fileBytes": 2818844,
+        "sha256": "f266540f5c956b7040aee358edb4e6b0a7f7aebad2d854409c31ad06c6f5b308",
+        "riff": "RIFF",
+        "wave": "WAVE",
+        "sampleRate": 24000,
+        "channels": 1,
+        "bitDepth": 16,
+        "byteRate": 48000,
+        "dataBytes": 2818800,
+        "durationSeconds": 58.725,
+        "sampledMaxAbsPcm": 18838,
+        "sampledRmsPcm": 1767.321
+      }
+    ]
+  },
+  "metrics": {
+    "coldReference": {
+      "speaker": "zf_001",
+      "sid": 3,
+      "modelLoadMillis": 1681,
+      "firstAudioMillis": 2828,
+      "inferenceMillis": 40464,
+      "audioDurationMillis": 58075,
+      "rtf": 0.696754,
+      "ttsSampleRate": 24000,
+      "ttsSpeakerCount": 103,
+      "ttsLangObserved": "en-us"
+    },
+    "secondVoice": {
+      "speaker": "zm_010",
+      "sid": 59,
+      "modelLoadMillis": 1586,
+      "firstAudioMillis": 2804,
+      "inferenceMillis": 40886,
+      "audioDurationMillis": 58725,
+      "rtf": 0.696228,
+      "ttsSampleRate": 24000,
+      "ttsSpeakerCount": 103,
+      "ttsLangObserved": "en-us"
+    },
+    "warmReference": {
+      "definition": "second pass after force-stop with OS page cache warm",
+      "speaker": "zf_001",
+      "sid": 3,
+      "modelLoadMillis": 1785,
+      "firstAudioMillis": 2833,
+      "inferenceMillis": 40383,
+      "audioDurationMillis": 58075,
+      "rtf": 0.695359
+    },
+    "api33Compatibility": {
+      "zf001": {
+        "wav": {
+          "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\api33-zf_001_sid3.wav",
+          "speaker": "zf_001",
+          "sid": 3,
+          "fileBytes": 2787644,
+          "sha256": "b62ff5e14a0404d271f838d2066ab377c74906afa8844867e73558d0c12384e5",
+          "riff": "RIFF",
+          "wave": "WAVE",
+          "sampleRate": 24000,
+          "channels": 1,
+          "bitDepth": 16,
+          "byteRate": 48000,
+          "dataBytes": 2787600,
+          "durationSeconds": 58.075,
+          "sampledMaxAbsPcm": 16835,
+          "sampledRmsPcm": 2012.309
+        },
+        "modelLoadMillis": 2466,
+        "firstAudioMillis": 4247,
+        "inferenceMillis": 64295,
+        "audioDurationMillis": 58075,
+        "rtf": 1.107103,
+        "observedPssKb": 663296
+      },
+      "zm010": {
+        "wav": {
+          "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\api33-zm_010_sid59.wav",
+          "speaker": "zm_010",
+          "sid": 59,
+          "fileBytes": 2818844,
+          "sha256": "7ec7d4b065006a3add2303777488c43a31219af561d144ffba5ebeefa4e9da2c",
+          "riff": "RIFF",
+          "wave": "WAVE",
+          "sampleRate": 24000,
+          "channels": 1,
+          "bitDepth": 16,
+          "byteRate": 48000,
+          "dataBytes": 2818800,
+          "durationSeconds": 58.725,
+          "sampledMaxAbsPcm": 18357,
+          "sampledRmsPcm": 1767.621
+        },
+        "modelLoadMillis": 1869,
+        "firstAudioMillis": 4207,
+        "inferenceMillis": 66321,
+        "audioDurationMillis": 58725,
+        "rtf": 1.129349,
+        "pssSampleCount": 28,
+        "observedMaximumPssKb": 690793.0,
+        "observedMinimumPssKb": 521926.0
+      },
+      "noClassDefFoundErrorMatches": 0,
+      "rawMetrics": [
+        "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\metrics_zf_api33.json",
+        "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\metrics_zm_api33.json"
+      ],
+      "logs": [
+        "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\device-pad-api33-zf.log",
+        "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\device-pad-api33-zm.log"
+      ]
+    },
+    "pss": {
+      "source": "adb dumpsys meminfo TOTAL PSS",
+      "sampleCount": 21,
+      "intervalSeconds": 2,
+      "observedMaximumKb": 736167.0,
+      "observedMaximumMib": 718.91,
+      "observedMinimumKb": 520854.0,
+      "semantics": "interval-sampled observed maximum, not a hardware perf-counter peak",
+      "log": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\pss-samples-warm-zf.log"
+    },
+    "rawMetrics": [
+      "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\metrics_zf.json",
+      "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\metrics_zm.json",
+      "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\metrics_warm-zf.json"
+    ]
+  },
+  "knownLimitations": [
+    "Pad API 33 now passes the HexFormat P1 path, but performance is slower than K60: zf RTF 1.107103 and zm RTF 1.129349.",
+    "License and notice evidence remains PARTIAL; no profile freeze or full license PASS is claimed.",
+    "Final fixed text is 177 Han characters, below the suggested 220-300 range, because measured duration otherwise exceeded 60 seconds.",
+    "AAR ttsLang() surfaced en-us while the harness Kokoro config requested lang=zh; effective Chinese pronunciation and voice quality were not independently auditioned.",
+    "PSS is a 2-second interval-sampled dumpsys maximum, not a true hardware peak.",
+    "Cold/warm naming is harness-local: cold means first inference after process restart; warm means a later process with OS page cache warm.",
+    "This is an isolated debug runtime smoke, not production integration and not a deterministic waveform guarantee."
+  ],
+  "uncovered": [
+    "complete license / notice / model-card / voice-rights closure",
+    "independent subjective listening and pronunciation review",
+    "30-minute background and lock-screen run",
+    "process death/rebuild recovery matrix",
+    "UID-level zero-network full matrix",
+    "voice-pack import/delete/fallback and single-audio-owner production behavior",
+    "background owner, MediaSession, process-resume state, and audio-focus behavior",
+    "other Android API levels, devices, and ABIs"
+  ],
+  "p0p3": {
+    "P0": 0,
+    "P1": 0,
+    "resolvedP1": 1,
+    "P2": 0,
+    "P3": [
+      "fixed text length below suggestion because of measured duration",
+      "lang() surface en-us / subjective Chinese pronunciation not audited",
+      "license and notice remain PARTIAL",
+      "interval-sampled PSS only"
+    ]
+  },
+  "exactCommands": {
+    "tdd": ".\\\\gradlew.bat -p '.planning\\\\v2-g1\\\\G1-L1-KOKORO-EXACT\\\\harness' :contract:test --offline --console=plain --rerun-tasks",
+    "build": "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\\\build.ps1'",
+    "api35Install": "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\\\install-harness.ps1' -Serial '8e875894' -ApkPath 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk'",
+    "api35Start": [
+      "adb -s 8e875894 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zf",
+      "adb -s 8e875894 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zm",
+      "adb -s 8e875894 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode warm-zf"
+    ],
+    "api35Uninstall": "adb -s 8e875894 uninstall dev.aurorama.kokoro.harness",
+    "api33Install": "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\\\install-harness.ps1' -Serial '43af8627' -ApkPath 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk'",
+    "api33Start": [
+      "adb -s 43af8627 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zf",
+      "adb -s 43af8627 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zm"
+    ],
+    "api33Uninstall": "adb -s 43af8627 uninstall dev.aurorama.kokoro.harness",
+    "buildInternals": [
+      "& 'F:\\Develop\\Android\\AndroidSDK\\build-tools\\37.0.0\\aapt2.exe' link -o 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-unsigned.apk' --manifest 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\app\\src\\main\\AndroidManifest.xml' -I 'F:\\Develop\\Android\\AndroidSDK\\platforms\\android-37.0\\android.jar' -A 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\assets' --min-sdk-version 26 --target-sdk-version 37 --version-code 1 --version-name '1.0-kokoro' --debug-mode --no-compress",
+      "& 'F:\\Develop\\Android\\Android Studio\\jbr\\bin\\javac.exe' -encoding UTF-8 -source 17 -target 17 -classpath 'F:\\Develop\\Android\\AndroidSDK\\platforms\\android-37.0\\android.jar;F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\sherpa-onnx-2.0.1\\classes.jar;C:\\Users\\zhangwenkang\\.gradle\\caches\\modules-2\\files-2.1\\org.jetbrains.kotlin\\kotlin-stdlib\\2.4.20\\94c1451890d164aed65d43b3db0b7ecef7c183e7\\kotlin-stdlib-2.4.20.jar' -d 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\classes' '@F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\sources.txt'",
+      "& 'F:\\Develop\\Android\\Android Studio\\jbr\\bin\\jar.exe' --create --file 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\harness-classes.jar' -C 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\classes' .",
+      "& 'F:\\Develop\\Android\\AndroidSDK\\build-tools\\37.0.0\\d8.bat' --min-api 26 --lib 'F:\\Develop\\Android\\AndroidSDK\\platforms\\android-37.0\\android.jar' --output 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\dex' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\harness-classes.jar' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\extracted\\sherpa-onnx-2.0.1\\classes.jar' 'C:\\Users\\zhangwenkang\\.gradle\\caches\\modules-2\\files-2.1\\org.jetbrains.kotlin\\kotlin-stdlib\\2.4.20\\94c1451890d164aed65d43b3db0b7ecef7c183e7\\kotlin-stdlib-2.4.20.jar'",
+      "& 'F:\\Develop\\Android\\Android Studio\\jbr\\bin\\jar.exe' --update --file 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-unsigned.apk' -C 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\apk-stage' .",
+      "& 'F:\\Develop\\Android\\AndroidSDK\\build-tools\\37.0.0\\zipalign.exe' -f -p 4 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-unsigned.apk' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-aligned.apk'",
+      "& 'F:\\Develop\\Android\\AndroidSDK\\build-tools\\37.0.0\\apksigner.bat' sign --ks 'C:\\Users\\zhangwenkang\\.android\\debug.keystore' --ks-pass pass:android --key-pass pass:android --ks-key-alias androiddebugkey --out 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\kokoro-isolated-harness-aligned.apk'"
+    ]
+  },
+  "independentQa": {
+    "ownerRequirement": "new independent QA agent, different from this implementation session",
+    "readOnlyStartCommands": [
+      "Get-Content -Raw -Encoding utf8 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\implementation-report.json'",
+      "Get-Content -Raw -Encoding utf8 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\dex-api-audit.log'",
+      "Get-FileHash -LiteralPath 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk' -Algorithm SHA256"
+    ],
+    "prerequisite": "consume the read-only evidence first; acquire the unique ACTIVE device lock and verify serial/API/ABI before any adb command",
+    "startCommands": [
+      "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\\\build.ps1'",
+      ".\\\\gradlew.bat -p '.planning\\\\v2-g1\\\\G1-L1-KOKORO-EXACT\\\\harness' :contract:test --offline --console=plain --rerun-tasks",
+      "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\\\install-harness.ps1' -Serial '43af8627' -ApkPath 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk'",
+      "adb -s 43af8627 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zf",
+      "adb -s 43af8627 shell am start -W -n dev.aurorama.kokoro.harness/.HarnessActivity --es mode zm"
+    ],
+    "expectedSamples": [
+      {
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\samples\\zf_001_sid3.wav",
+        "bytes": 2787644,
+        "sha256": "13e719a424f68bfc5cb772698907af06ce97d86dce817486550fd12eda4ef309",
+        "durationSeconds": 58.075
+      },
+      {
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\samples\\zm_010_sid59.wav",
+        "bytes": 2818844,
+        "sha256": "f266540f5c956b7040aee358edb4e6b0a7f7aebad2d854409c31ad06c6f5b308",
+        "durationSeconds": 58.725
+      }
+    ],
+    "stopConditions": [
+      "no unique device lock or serial/lock drift",
+      "branch/HEAD/hash/asset drift",
+      "speaker other than sid 3 or 59 requested",
+      "speaker 58 or zm_009 selection/generation",
+      "default network dependency or server write",
+      "requires production-code change",
+      "sample header/duration/hash mismatch after accounting for stated nondeterminism",
+      "new P0-P2 or scope expansion"
+    ]
+  },
+  "notes": [
+    "This PASS proves isolated harness build/install/runtime/export on K60 API 35 and Pad 5 API 33 arm64.",
+    "The Pad API 33 NoClassDefFoundError P1 is resolved in the new APK and the old APK is archived immutably.",
+    "It is not independent QA, G1 PASS, runtime profile freeze, quality acceptance, or Release readiness."
+  ],
+  "scope": {
+    "implementationWriteRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/{harness,samples,logs,implementation-report.json}",
+    "deviceLockOperationalWrite": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "productionCodeModified": false,
+    "docsModified": false,
+    "otherEvidenceRootsModified": false,
+    "outOfWhitelistGitChanges": []
+  },
+  "gitStatus": {
+    "command": "git status --porcelain=v1 --untracked-files=all",
+    "lines": [
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/.gitignore",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/aar-archive-inventory.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/aar-unzip-list.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/classes-jar-entries.sha256",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/classes-jar-list.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/downloads.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/build.gradle.kts",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/AndroidManifest.xml",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/HarnessActivity.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build.gradle.kts",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build.ps1",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/build.gradle.kts",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/GenerationParameters.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/HexCodec.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/NarrationContract.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/NarrationRequest.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/SpeakerWhitelist.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/VoiceProfile.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/WavWriter.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/HexCodecTest.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/NarrationContractTest.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/SpeakerWhitelistTest.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/WavWriterTest.java",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/finalize-report.ps1",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/gradle.properties",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/install-harness.ps1",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/settings.gradle.kts",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/hash-summary.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/implementation-report.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/android-build-commands.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/android-build.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/api33-zf_001_sid3.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/api33-zm_010_sid59.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/apk-archive/build-info-3aeb62d8.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/apk-archive/kokoro-isolated-harness-debug-3aeb62d8.apk",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/build-info.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/device-environment.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/device-pad-api33-zf.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/device-pad-api33-zm.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/device-warm-zf.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/device-zf-final.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/device-zm-final.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/dex-api-audit.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/first-runtime-callback-crash.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/harness-package-before-uninstall.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/install-actions.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/install-retry-ui.xml",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/install-stderr.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/install-stdout.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/install-ui.xml",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/meminfo-final.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/metrics_warm-zf.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/metrics_zf.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/metrics_zf_api33.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/metrics_zm.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/metrics_zm_api33.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/pad-api33-baseline-state.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/pad-api33-harness-before-uninstall.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/pad-api33-post-uninstall-state.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/pad-api33-production-before.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/partial-zf-callback-stop.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/post-uninstall-state.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/procstats-final.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/pss-samples-pad-api33-zm-part2.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/pss-samples-pad-api33-zm.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/pss-samples-warm-zf.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/tdd-final.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/tdd-hex-fix.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/tuning-v2-metrics_zm.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/tuning-v2-zf-182han-59.45s.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/tuning-v2-zm-182han-60.20s.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/tuning-v2-zm-182han.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/tuning-zf-248han-78.45s.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/tuning-zf-248han.log",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/logs/warmup_zf_001_sid3.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/model-archive-inventory.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/model-archive-list.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/onnx-audit.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/package-audit.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/SHA256SUMS",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/aapt-permissions-K60.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/audio-K60-first-zm.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/audio-K60-zero-network.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/cancel-K60-force-stop-files.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/cleanup-K60.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/crash-K60-background-short.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/crash-K60-first-zf.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/crash-K60-first-zm.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/crash-K60-force-stop-cancel.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/crash-K60-long-text.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/crash-K60-restart-completed.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/crash-K60-restart-interrupted.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/crash-K60-zero-network.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/execution-error-K60.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zf-metrics_zf.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zf-zf_001_sid3.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zm-metrics_zm.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zm-zm_010_sid59.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/install-K60-stderr.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/install-K60-stdout.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/install-ui-8e875894.xml",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/installed-permissions-K60.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/launch-K60-background-short.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/launch-K60-first-zf.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/launch-K60-first-zm.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/launch-K60-long-text.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/launch-K60-zero-network.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-background-short.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-first-zf.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-first-zm.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-force-stop-cancel.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-long-text.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-restart-completed.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-restart-interrupted.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/logcat-K60-zero-network.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/long-text-K60.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/long-text-metrics_probe-zf.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/long-text-zf_001_sid3_probe.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/media-session-K60-first-zm.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/media-session-K60-zero-network.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/netstats-K60-zero-network-after.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/netstats-K60-zero-network-before.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/netstats-K60-zero-network-summary-v2.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/netstats-K60-zero-network-summary.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/network-K60-airplane-off.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/network-K60-restored.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/package-dev.aurorama.kokoro.harness.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/package-io.github.zhangwenkang.aurorama.debug.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/package-io.github.zhangwenkang.aurorama.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-background-short.csv",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-first-zf.csv",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-first-zm.csv",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-long-text.csv",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/pss-K60-zero-network.csv",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/recreate-K60-completed.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/recreate-K60-interrupted.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/run-K60-background-short.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/run-K60-first-zf.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/run-K60-first-zm.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/run-K60-long-text.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/run-K60-zero-network.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/snapshot-after-K60.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/snapshot-before-K60.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/summary-K60-remaining.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/summary-K60.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/ui-completed-after-restart.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/ui-completed-after-restart.xml",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/ui-completed-before-restart.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/ui-completed-before-restart.xml",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/ui-interrupted-after-restart.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/ui-interrupted-after-restart.xml",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/ui-interrupted-before-restart.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/ui-interrupted-before-restart.xml",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/zero-network-metrics_warm-zf.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/zero-network-warmup_zf_001_sid3.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/aapt-permissions-Pad5.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/audio-Pad5-first-zm.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/cleanup-Pad5.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/crash-Pad5-first-zf.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/first-zf-metrics_failure.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/install-Pad5-stderr.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/install-Pad5-stdout.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/install-ui-43af8627.xml",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/installed-permissions-Pad5.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/launch-Pad5-first-zf.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/launch-Pad5-first-zm.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/logcat-Pad5-first-zf.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/media-session-Pad5-first-zm.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/package-dev.aurorama.kokoro.harness.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/package-io.github.zhangwenkang.aurorama.debug.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/package-io.github.zhangwenkang.aurorama.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/pss-Pad5-first-zf.csv",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/run-Pad5-first-zf.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/snapshot-after-Pad5.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/snapshot-before-Pad5.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-qa.ps1",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-snapshots.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/finalize-report.ps1",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/long-text.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/report.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/report.md",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/report.json",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/samples/narration.txt",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/samples/zf_001_sid3.wav",
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/samples/zm_010_sid59.wav"
+    ],
+    "allWithinTaskEvidenceRoot": true
+  }
+}

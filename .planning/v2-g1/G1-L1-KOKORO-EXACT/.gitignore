@@ -1,0 +1,15 @@
+assets/
+extracted/
+tools/
+harness/**/build/
+harness/.gradle/
+!logs/**
+logs/
+qa/device-*/
+qa-v2/device-*/
+qa-v2/logs/
+qa-v2/netstats/
+qa-v2/build-report-v2.ps1
+**/*.apk
+**/*.idsig
+**/*.wav

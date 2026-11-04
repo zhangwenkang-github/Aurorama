@@ -278,8 +278,9 @@ revision / 16 KB / Range 及 runtime / device 仍待证据；
 `V2-D057` 的 Nocturne 圆角 12→8dp。`docs/UI_DESIGN_SYSTEM.md` 已升级为 V2 R1 权威；
 `V2-Q-G1-03` 仍 Open，G1 未通过；S6 原始 `PASS_WITH_P2` 仅是 Q05 当时 Open 的历史 review，
 D204 后 fresh scoped documentation reconfirm 已 PASS，D205 future artifact change 仍须重新
-review。唯一 ACTIVE 为 D204 strategy A + D205 方向 C 下的小型 Android 第二引擎 exact
-archive / 许可门、D203 voice-pack 生命周期交接与 Q03+B/C/D/E 授权。
+review。当前唯一 ACTIVE 为 D207 Kokoro 试听接受后的 `NEXT_RUNTIME_CLOSURE`：补许可 / notice、
+service owner、MediaSession / audio focus、resume、UI cancel、长稳 / 重建与 Pad 性能决策；
+生产实现、G2、Release 与服务器写仍未授权。
 `V2-D200` 只固定体验优先与包体非要求。
 
 `V2-Q-G1-05` 已由 `V2-D204` 关闭；该问题内的 A 已接受，B/C 未选。随后用户以
@@ -291,11 +292,12 @@ Q05，也不冻结 new engine / profile。其运行时、profile、许可与质�
 关闭或 G1 PASS。前沿定格 `NOW_SAFE=0`；剩余 `B=exact voice-pack profile / 试听 / 许可 /
 排序 TTL 合并策略`、
 `C=runtime/device`、`D=production implementation`、`E=G2/QA/Release 未授权`。
-唯一下一步是 §12 的小型 Android 第二引擎 exact archive 下载授权与只读内容校验：Kokoro
-`zf_001` / `zm_010` 第一，MOSS 第二，ZipVoice 许可 `HOLD`。S6 原始 `PASS_WITH_P2` 仅是
-Q05 当时 Open 的历史 review，D204 后不得写成 runtime PASS；D205 future artifact change
-仍须 fresh scoped review。Q03 仍 Open；权重 / archive 下载、推理、设备、B/C/D/E 与 G2 /
-独立 QA / Release 仍未授权。最终文档提交 SHA 由 Git 实读，不在文档中自引用当前提交。
+当前下一步是 §12 的 D207 `NEXT_RUNTIME_CLOSURE`：在隔离 harness 内补 service owner、
+MediaSession / audio focus、resume、UI cancel、30 分钟后台 / 重建与许可审计，Pad 解锁后补测。
+Kokoro `zf_001` / `zm_010` 已获用户样音接受，但不冻结 profile；MOSS 第二且权重仍未授权，
+ZipVoice 许可 `HOLD`。S6 原始 `PASS_WITH_P2` 仅是 Q05 当时 Open 的历史 review，D204 后不得
+写成 runtime PASS；D207 future artifact change 仍须 fresh scoped review。Q03 仍 Open；
+生产代码、B/C/D/E 与 G2 / 独立 QA / Release 仍未授权。
 
 **G1-A1/A2 与 BASE-001/003/004 静态合同输入（2026-11-04，非新决策）**：
 `G1-A1-DOWNLOAD-STATE-CONTRACT` 为 11 文件 / 103,924 B，manifest
@@ -332,11 +334,10 @@ roundtrip=`48/2/2/17`、12 scenarios / 99 checks；只有完整 SOURCE identity 
 重复保留，identity conflict 零写入，generic M3U8 的损失显式。B 重复 / 部分导入选择、C SAF /
 设备 / 重启证据与 D 生产 parser / 持久化迁移 / 服务器实现仍 Open。三包均独立 reviewer PASS
 且仅登记静态输入；前沿审计
-`NOW_SAFE=0`，即没有未阻塞静态增量；Q04 已由 `V2-D201` 关闭，D205 后的唯一下一步是
-§12 的小型 Android 第二引擎 exact archive 下载授权 / 静态内容校验。Q03 仍 Open，G1
-NOT_PASSED；S6 原始 review 仅为 Q05 当时 Open 的历史，D204 后复审已 PASS；D205 current
-revision 的 fresh scoped reconfirm 也已 `PASS / no findings`，但不能写成 G1/runtime PASS，
-`G2 / 独立 QA / Release` 仍未授权。不把 B/C/D、runtime、device、
+`NOW_SAFE=0`，即没有未阻塞静态增量；Q04 已由 `V2-D201` 关闭。D207 后当前下一步是
+§12 的 `NEXT_RUNTIME_CLOSURE`（隔离 harness 的 owner / MediaSession / resume / 长稳 /
+许可），不是重新等待 archive 下载授权。Q03 仍 Open，G1 NOT_PASSED；历史 S6 PASS 不能写成
+G1/runtime PASS，`G2 / 独立 QA / Release` 仍未授权。不把 B/C/D、runtime、device、
 implementation 或 QA 标成 Done，也不把静态合同、S6 规划包或 clean-clone 通过写成
 S6 / G1 runtime PASS。
 
@@ -472,3 +473,29 @@ v2.0.1 AAR。推理、试听与设备测试也一并授权。这些任务不必�
 `V2-G1-L1-KOKORO-EXACT`；Kokoro release asset、Sherpa v2.0.1 release/AAR、项目
 D203/D205/Q03 边界。后续结果必须记录 exact hash、实际执行命令、设备 serial、日志 / 产物
 和最多能证明的结论。
+
+### `V2-D207` Kokoro 试听接受、runtime closure 续办与交接时序（2026-11-05，Accepted）
+
+用户原话：“可以接受。继续下一步。创建新会话，交接。以后所有交接都必须是旧负责人所有文档
+落实了在创建，不要创建后让新负责人停下。”
+
+接受语义：
+
+1. 用户接受 D206 的 `zf_001` sid3 与 `zm_010` sid59 当前隔离 harness 样音，作为继续 G1
+   runtime closure 的主观质量输入。该接受只覆盖这两条样音；不等于接受 Pad 性能 P2、
+   full engine/profile 冻结、生产 voice-pack 质量或后续其他文本 / 章节的口味。
+2. 下一步是继续闭合 Kokoro 的 G1 交付缺口：许可 / NOTICE / 训练数据 / speaker 权属、
+   Android service owner、MediaSession / audio focus、持久暂停 / 恢复、UI 取消、30 分钟
+   后台锁屏、进程重建和 Pad 性能处理。仍只允许隔离 harness / 证据 / 只读许可审计，不把
+   隔离 runtime 外推为生产实现。
+3. Q03 仍 Open、C1 exact profile / voice Open、项目级 runtime UNVERIFIED、G1 NOT_PASSED、
+   L2/L3 LOCKED。MOSS 权重仍不得下载；生产代码、G2、Release、push、服务器写仍须另获授权。
+4. 以后所有负责人交接必须在旧负责人完成全部实质文档、唯一 ACTIVE、决策 / 日志、证据索引、
+   memory 同步与 Git 提交 / 审计，并确认提交后工作树 clean，之后再创建新会话。首条 prompt
+   必须是已授权、可直接执行的
+   自包含任务；不得创建后让新负责人等待交接、补旧文档或仅做状态确认。创建后旧负责人不得
+   再实质性修改工作树；thread id 不作为开工前必须等待的文档后继。
+
+证据入口：`docs/V2_PLAN.md` §12 ACTIVE、§13；`docs/TASKS.md`
+`V2-G1-L1-KOKORO-EXACT`；`.planning/v2-g1/G1-L1-KOKORO-EXACT/implementation-report.json`、
+`qa-v2/report.json`、`samples/`。该决定不关闭 Q03，也不构成 profile / production / G1 PASS。

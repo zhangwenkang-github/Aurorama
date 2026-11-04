@@ -1,0 +1,9 @@
+90a141741c040d211d13aa72c6a45951e844ee38cd6cb34c398b14dd1c61c41e  .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/report.json
+e96ccbf8a29ecb9395043548205f332352b822352a88553223249fb8f7965e9b  .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-snapshots.json
+7212c2f41bbbede6eacf9a862f48969437db21f56aeaf469c7488edb8b5d8ef4  .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/netstats-K60-zero-network-summary-v2.json
+b4e920018f4d4ee9af12eca74e0d74cc31fe2791a44b618c351bf4dc31ea5c96  .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/report.md
+0181489f17b8740f053d47097f18c26c38d22153802269ac88fc7c80cea1e9ee  .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/commands.log
+96efd9c05f51447ec4aaeaa74ca857ccc0d497e8770df1013a06ce1263a88b36  .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zf-metrics_zf.json
+66f054dc239b9482047a81ea2474f4c1bc6fca00854b2444665656484cbe4d7f  .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/first-zm-metrics_zm.json
+c75db4e14e570bbe8d5a577924c52aa1b8009fc6c8e8cb4b6257ce594e2a1fd2  .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-K60-8e875894/long-text-metrics_probe-zf.json
+d86f0dd7bc85056b3f256bb21aaa53d0904370725a8edff9297ecd34c60d89e3  .planning/v2-g1/G1-L1-KOKORO-EXACT/qa/device-Pad5-43af8627/first-zf-metrics_failure.json
