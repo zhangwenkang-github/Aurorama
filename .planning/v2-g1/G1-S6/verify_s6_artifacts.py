@@ -22,7 +22,7 @@ TASKS_PATH = ROOT / "docs" / "TASKS.md"
 EXPECTED_STATUS = (
     "D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / "
     "HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / "
-    "C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+    "C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / "
     "G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / "
     "RUNTIME_UNVERIFIED / L2_L3_LOCKED"
 )
@@ -53,8 +53,14 @@ EOL_ATTRIBUTE_SCOPE = (
 )
 EXPECTED_EV_Q03_TTS_PDF_STATUS = "TTS_PDF_PARTIAL / Q03_OPEN"
 EXPECTED_EV_S6_STATUS = (
-    "S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+    "S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / "
     "HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED"
+)
+EXPECTED_REVIEW_AUTHORITY_FACT = (
+    "Historical original S6 review is PASS_WITH_P2 while Q05 was Open; "
+    "the fresh scoped documentation reconfirm after D204 is PASS, without "
+    "implying G1, QA, runtime or release PASS; D204 exact engine/profile "
+    "remains Open and L2/L3 remain LOCKED"
 )
 Q03_TTS_PDF_REPORT_PATH = (
     ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/report.json"
@@ -141,7 +147,7 @@ EXPECTED_CURRENT_DECISION_STATE = {
     "q03": "OPEN",
     "g1": "NOT_PASSED",
     "runtime": "UNVERIFIED",
-    "s6": "RECONFIRM_REQUIRED_AFTER_D204",
+    "s6": "SCOPED_RECONFIRM_PASS_AFTER_D204",
     "l2_l3": "LOCKED",
 }
 SEMANTIC_SCHEMA = "g1-s6-row-semantics/v2"
@@ -663,7 +669,16 @@ def source_evidence_contract_errors(
         status = str(ev_s6.get("status", ""))
         if status != EXPECTED_EV_S6_STATUS:
             errors.append(
-                "EV-S6 current status must retain reconfirm plus historical Q05_OPEN boundary"
+                "EV-S6 current status must record scoped reconfirm PASS, "
+                "historical Q05_OPEN boundary and runtime unverified"
+            )
+        if "S6_RECONFIRM_REQUIRED_AFTER_D204" in status:
+            errors.append(
+                "EV-S6 stale reconfirm-required status cannot remain current"
+            )
+        if "S6_SCOPED_RECONFIRM_PASS_AFTER_D204" not in status:
+            errors.append(
+                "EV-S6 must record the D204-after scoped reconfirm PASS"
             )
         if (
             "HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2" in status
@@ -672,10 +687,16 @@ def source_evidence_contract_errors(
             errors.append(
                 "EV-S6 historical review pass must be qualified with Q05_OPEN"
             )
-        if "RECONFIRM_REQUIRED_AFTER_D204" not in status:
-            errors.append(
-                "EV-S6 current status must require reconfirm after D204"
-            )
+    authority_facts = {
+        str(item.get("fact", ""))
+        for item in source_index.get("status_authorities", [])
+        if isinstance(item, dict)
+    }
+    if EXPECTED_REVIEW_AUTHORITY_FACT not in authority_facts:
+        errors.append(
+            "source-index status_authorities must record historical Q05_OPEN, "
+            "current scoped reconfirm PASS and non-G1/QA/runtime/release limits"
+        )
     return errors
 
 
@@ -691,6 +712,10 @@ def current_state_errors(
 
     if "Q05_OPEN" in status_text:
         errors.append("Q05_OPEN is stale after D204; current state must be Q05_CLOSED_D204")
+    if "S6_RECONFIRM_REQUIRED_AFTER_D204" in status_text:
+        errors.append("S6 reconfirm-required state is stale after the fresh review PASS")
+    if "G1_PASSED" in status_text:
+        errors.append("S6 scoped reconfirm PASS must not imply G1 PASS")
     if status_text != EXPECTED_STATUS:
         errors.append(f"current status mismatch: {status_text!r}")
     if state.get("d204") != EXPECTED_CURRENT_DECISION_STATE["d204"]:
@@ -2164,6 +2189,18 @@ def run_self_test() -> None:
         source_index.get("current_decision_state"),
         source_index.get("historical_review"),
     )
+    g1_overclaim_status = EXPECTED_STATUS.replace(
+        "G1_NOT_PASSED",
+        "G1_PASSED",
+    )
+    if not current_state_errors(
+        g1_overclaim_status,
+        source_index.get("current_decision_state"),
+        source_index.get("historical_review"),
+    ):
+        shipped_current_state.append(
+            "S6 scoped reconfirm PASS must not imply G1 PASS"
+        )
     if shipped_current_state:
         results.append(("BASE-current-state", False, shipped_current_state[0]))
     else:
@@ -2316,16 +2353,19 @@ def run_self_test() -> None:
         "general overclaim",
     )
 
-    ev_s6_pass = copy.deepcopy(source_index)
+    ev_s6_stale_reconfirm = copy.deepcopy(source_index)
     next(
         item
-        for item in ev_s6_pass["evidence_packages"]
+        for item in ev_s6_stale_reconfirm["evidence_packages"]
         if item["id"] == "EV-S6"
-    )["status"] = "SCOPED_REVIEW_PASS_WITH_P2 / RUNTIME_UNVERIFIED"
+    )["status"] = (
+        "S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+        "SCOPED_REVIEW_PASS_WITH_P2 / RUNTIME_UNVERIFIED"
+    )
     expect_failure(
-        "NEG-EV-S6-UNCONDITIONAL-PASS",
-        source_evidence_contract_errors(ev_s6_pass),
-        "EV-S6 current status",
+        "NEG-EV-S6-STALE-RECONFIRM-CURRENT",
+        source_evidence_contract_errors(ev_s6_stale_reconfirm),
+        "stale reconfirm-required status",
     )
 
     ev_s6_historical_unqualified = copy.deepcopy(source_index)
@@ -2334,7 +2374,7 @@ def run_self_test() -> None:
         for item in ev_s6_historical_unqualified["evidence_packages"]
         if item["id"] == "EV-S6"
     )["status"] = (
-        "S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+        "S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / "
         "HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2 / RUNTIME_UNVERIFIED"
     )
     expect_failure(
@@ -3739,7 +3779,7 @@ def main() -> None:
         "q04": "CLOSED_D201",
         "ui_design_system": "V2_R1_ACCEPTED_DESIGN_AUTHORITY",
         "runtime": "UNVERIFIED",
-        "s6": "RECONFIRM_REQUIRED_AFTER_D204",
+        "s6": "SCOPED_RECONFIRM_PASS_AFTER_D204",
         "d203": "ACCEPTED_VOICE_PACK_BACKGROUND_TTS",
         "d204": "ACCEPTED_ENGINE_STRATEGY_A",
         "sherpa_quality": "SHERPA_QUALITY_INSUFFICIENT_COMPAT_FALLBACK",
@@ -3861,7 +3901,7 @@ def main() -> None:
     print("source_doc_attributes=.gitattributes,DECISIONS,V2_PLAN,TASKS_SET_LF")
     print("runtime_executed=false")
     print("g1_passed=false")
-    print("s6=S6_RECONFIRM_REQUIRED_AFTER_D204")
+    print("s6=S6_SCOPED_RECONFIRM_PASS_AFTER_D204")
     print("historical_s6_review=PASS_WITH_P2_Q05_OPEN")
     print("d204=ACCEPTED_ENGINE_STRATEGY_A")
     print("q03=OPEN")

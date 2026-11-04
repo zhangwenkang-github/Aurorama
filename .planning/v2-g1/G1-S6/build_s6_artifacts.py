@@ -33,7 +33,7 @@ UNSPECIFIED = "UNSPECIFIED_IN_SOURCE"
 STATUS = (
     "D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / "
     "HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / "
-    "C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+    "C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / "
     "G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / "
     "RUNTIME_UNVERIFIED / L2_L3_LOCKED"
 )
@@ -47,8 +47,14 @@ EOL_ATTRIBUTE_SCOPE = (
     "root .gitattributes and three authoritative docs; no wildcard rule"
 )
 EV_S6_STATUS = (
-    "S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+    "S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / "
     "HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED"
+)
+REVIEW_AUTHORITY_FACT = (
+    "Historical original S6 review is PASS_WITH_P2 while Q05 was Open; "
+    "the fresh scoped documentation reconfirm after D204 is PASS, without "
+    "implying G1, QA, runtime or release PASS; D204 exact engine/profile "
+    "remains Open and L2/L3 remain LOCKED"
 )
 READER_060_SOURCE_ID = "V2-REQ-READER-060"
 READER_060_PROMISE_ID = "S6-P-READER-060"
@@ -4824,14 +4830,14 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
             "q03": "OPEN",
             "g1": "NOT_PASSED",
             "runtime": "UNVERIFIED",
-            "s6": "RECONFIRM_REQUIRED_AFTER_D204",
+            "s6": "SCOPED_RECONFIRM_PASS_AFTER_D204",
             "l2_l3": "LOCKED",
         },
         "historical_review": {
             "status": HISTORICAL_REVIEW_STATUS,
             "scope": "S6 before D203 rebuild and D204; Q05 was Open at review time",
             "current_reapproval": False,
-            "note": "The historical review is not a current S6 re-approval after D204.",
+            "note": "The historical review remains Q05-Open context; the separate D204-after scoped documentation reconfirm is recorded as current PASS.",
         },
         "line_ending_policy": {
             "path": ".gitattributes",
@@ -4909,8 +4915,8 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
                 "source_ids": ["DOC-DECISIONS", "DOC-V2-G1", "DOC-TASKS"],
             },
             {
-                "fact": "Historical S6 review is PASS_WITH_P2 while Q05 was Open; D204 requires a fresh scoped reconfirm and G1 remains NOT_PASSED",
-                "source_ids": ["DOC-V2-G1"],
+                "fact": REVIEW_AUTHORITY_FACT,
+                "source_ids": ["DOC-V2-G1", "DOC-TASKS"],
             },
             {
                 "fact": "READER-060 requires target-Android fully offline local TTS; D204-A is compatibility fallback plus a gated expressive second-engine Spike, not a current Sherpa main-engine mandate",
@@ -5037,7 +5043,7 @@ def matrix_document(
             "q04": "CLOSED_D201",
             "ui_design_system": "V2_R1_ACCEPTED_DESIGN_AUTHORITY",
             "runtime": "UNVERIFIED",
-            "s6": "RECONFIRM_REQUIRED_AFTER_D204",
+            "s6": "SCOPED_RECONFIRM_PASS_AFTER_D204",
             "d203": "ACCEPTED_VOICE_PACK_BACKGROUND_TTS",
             "d204": "ACCEPTED_ENGINE_STRATEGY_A",
             "sherpa_quality": "SHERPA_QUALITY_INSUFFICIENT_COMPAT_FALLBACK",
@@ -5094,11 +5100,11 @@ def readme_text(matrix: dict[str, Any], risks: dict[str, Any], cards: list[dict[
 当前 decision state：`D204_ACCEPTED_ENGINE_STRATEGY_A / Q05_CLOSED_D204 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
 `EV-S6.status`：`{EV_S6_STATUS}`。历史 review `PASS_WITH_P2` 仅限定为 Q05 当时 Open 的原始 S6 review，不是 D204 后当前 re-approval。
 
-本轮按第二轮 scoped review 修复重建：{matrix['counts']['normalized_acceptance_rows']} 条行级语义保持 schema v2（外部 {matrix['counts']['external_acceptance_rows']} + D203 addendum {matrix['counts']['project_addendum_acceptance_rows']}）；49 个 delivery wave 与 {matrix['counts']['wave_membership_records']} 条 atomic membership 保持原 schema。READER-060 已改为引擎中立产品需求，D204-A 仅表示兼容回退 + gated 第二引擎 Spike；不选择第二引擎、exact profile 或 voice。Q03 nested evidence 只陈述底层报告能证明的静态事实，D204 只保留在 top-level current state / status authorities。机械 rebuild / verifier / self-test 不能替代新的 fresh scoped review。
+D204 docs/S6 集成已完成，fresh scoped documentation review 最终为 PASS / no findings，并已记录为当前 review state；{matrix['counts']['normalized_acceptance_rows']} 条行级语义保持 schema v2（外部 {matrix['counts']['external_acceptance_rows']} + D203 addendum {matrix['counts']['project_addendum_acceptance_rows']}）；49 个 delivery wave 与 {matrix['counts']['wave_membership_records']} 条 atomic membership 保持原 schema。READER-060 保持引擎中立，D204-A 仅表示兼容回退 + gated 第二引擎 Spike；不选择第二引擎、exact profile 或 voice。Q03 nested evidence 只陈述底层报告能证明的静态事实。
 
 ## 目的
 
-本目录把已接受的 G0 八域、`V2-REQ-BASE-001～005`、A1/A2/BASE 静态合同、S4/Q03 静态输入、D203 voice-pack / 后台 TTS 与 UI V2.0 R1 设计权威，收敛为 S6 规划包。原始 review `PASS_WITH_P2` 只作为历史输入；D204 后当前必须 fresh scoped reconfirm。它不是 G1 PASS，也不是实现、独立 QA、设备、服务器写或 Release 证据。
+本目录把已接受的 G0 八域、`V2-REQ-BASE-001～005`、A1/A2/BASE 静态合同、S4/Q03 静态输入、D203 voice-pack / 后台 TTS 与 UI V2.0 R1 设计权威，收敛为 S6 规划包。原始 review `PASS_WITH_P2` 只作为 Q05 Open 的历史输入；D204 后 fresh scoped documentation reconfirm 已 PASS。每 future artifact change 仍须重新 review；当前 PASS 不是 G1、QA、runtime、设备或 Release PASS。
 
 ## 权威输入与读序
 
@@ -5196,7 +5202,7 @@ Q03 与 Reader TTS 卡只能为 `GATED/BLOCKED` 输入；D204 只给出 engine s
 - Q03 / Q04 / UI / runtime / G1 状态等式成立；
 - JSON、manifest、LF / CRLF 与本地 verifier 通过。
 
-机械检查不能单独证明 460 条自然语言全部等价；D204 后本次 builder / verifier 重跑只证明静态包可复算，不能替代新的 fresh reviewer。原始 S6 P2 仍为 `__pycache__` 不得进入提交。历史 review 不等于当前 S6、G1、runtime、device 或 independent QA PASS。
+机械检查不能单独证明 460 条自然语言全部等价；D204 后 fresh scoped documentation review 已 PASS / no findings，当前记录不是 G1、runtime、device 或 independent QA PASS。每 future artifact change 仍须重新 review；原始 S6 P2 `__pycache__` 仍不得进入提交。
 
 ## 非目标
 
@@ -5226,7 +5232,7 @@ python -X utf8 .planning/v2-g1/G1-S6/verify_s6_artifacts.py
 python -X utf8 .planning/v2-g1/G1-S6/verify_s6_artifacts.py --self-test
 ```
 
-生成器只写 `G1-S6/`，不访问网络、设备或服务器。`row-semantics.json` 由显式 seed 与确定性、可回链源行的动作组合生成；`wave-membership.json` 是独立显式 join 表，builder 不得从行顺序、哈希或关键词重新分配。原始 review 只作为历史；D204 后必须 fresh scoped reconfirm，并重新运行 verifier、{SELF_TEST_NEGATIVE_FIXTURE_COUNT} negative fixtures + {SELF_TEST_BASE_CHECK_COUNT} base checks + 1 计数输出（{SELF_TEST_TOTAL_LIVE_CHECK_COUNT} live checks）与新鲜度审计。verifier 只读当前目录与声明的权威文档。
+生成器只写 `G1-S6/`，不访问网络、设备或服务器。`row-semantics.json` 由显式 seed 与确定性、可回链源行的动作组合生成；`wave-membership.json` 是独立显式 join 表，builder 不得从行顺序、哈希或关键词重新分配。原始 review 只作为 Q05 Open 的历史；D204 后 fresh scoped documentation reconfirm 已 PASS。每 future artifact change 仍须重新 review，并重跑 verifier、{SELF_TEST_NEGATIVE_FIXTURE_COUNT} negative fixtures + {SELF_TEST_BASE_CHECK_COUNT} base checks + 1 计数输出（{SELF_TEST_TOTAL_LIVE_CHECK_COUNT} live checks）与新鲜度审计。
 """
 
 
@@ -5260,7 +5266,7 @@ def checkpoint_text(
 - card 级 `EV-S6` 自证引用为 0；对外证据保留具体证据 ID 或显式 `NO_EVIDENCE_YET` 缺口。
 - 风险登记 P0/P1/P2/P3=`{risk_counts['P0']}/{risk_counts['P1']}/{risk_counts['P2']}/{risk_counts['P3']}`。
 - `verify_s6_artifacts.py` 与 {counts['wave_membership_records']} 条 explicit membership、{counts['wave_membership_edges']} 条边的语义 / 能力 / 入口 / 动作 / 边界门禁及 {SELF_TEST_NEGATIVE_FIXTURE_COUNT} 个负向 self-test 已在 D204 review 修复后重新生成并执行；manifest、SHA-256 与 LF / CRLF 由最终产物复算。
-- `EV-S6.status` 当前为 `{EV_S6_STATUS}`；原始 S6 scoped review 仍为 `PASS_WITH_P2`，唯一 P2 `G1-S6/__pycache__/*.pyc` 保持排除。该历史 review 发生在 Q05 当时 Open，D204 后当前必须 fresh scoped reconfirm，不得宣告 re-approved。
+- `EV-S6.status` 当前为 `{EV_S6_STATUS}`；原始 S6 scoped review 仍为 `PASS_WITH_P2` 且限定 Q05 当时 Open，唯一 P2 `G1-S6/__pycache__/*.pyc` 保持排除。D204 后 fresh scoped documentation reconfirm 已 PASS / no findings；这不是 G1、QA、runtime 或 Release PASS，future artifact change 仍须重新 review。
 
 ## 未完成 / 不可声明
 
@@ -5299,9 +5305,9 @@ def checkpoint_text(
 
 ## Scoped review 结论与残余门
 
-**结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留；该 Q05 当时 Open 的 review 不能自动覆盖 D204。D204 后当前状态为 `S6_RECONFIRM_REQUIRED_AFTER_D204`；builder / verifier 重跑只更新静态规划包，不能代替新的 fresh reviewer。S6 仍只作为规划包与 docs integration 输入。
+**结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留，限定 Q05 当时 Open。D204 后独立 fresh scoped documentation review 已完成并 PASS / no findings，当前状态为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204`；这不表示 G1、QA、runtime 或 Release PASS。每 future artifact change 仍须重新 review。
 
-**下一步入口**：fresh scoped reviewer 第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json` 的 current decision / historical review 双字段、`docs/DECISIONS.md` Q05 Closed/D204 / Open Q03 与 `docs/TASKS.md` `V2-G1-L1-EVIDENCE`，确认 external 445/376 与 addendum 4 / normalized 380 分离、D204 不选择第二引擎、Sherpa / Matcha 仅兼容回退；不得代签 QA 或推进 G2。
+**下一步入口**：无当前 review 待办。任何 future artifact change 的第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json` 的 current / historical review 字段与 manifest，再另派 fresh scoped review；D204 第二引擎 Spike、Q03、runtime 与 G1 仍需独立授权，不得代签 QA 或推进 G2。
 
 **停止条件**：下一步不得启动 Q03 runtime、第二引擎 / exact profile 实际选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、D204/Q03/Q04/UI/G1 状态漂移、L2/L3 解锁、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
 

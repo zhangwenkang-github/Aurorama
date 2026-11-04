@@ -1,8 +1,8 @@
 # G1-S6 自包含 checkpoint（2026-11-04）
 
-状态：`D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED / L2_L3_LOCKED`
+状态：`D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED / L2_L3_LOCKED`
 
-`EV-S6.status`：`S6_RECONFIRM_REQUIRED_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`；历史 `PASS_WITH_P2` 仅适用于 Q05 当时 Open 的原始 review。
+`EV-S6.status`：`S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`；历史 `PASS_WITH_P2` 仅适用于 Q05 当时 Open 的原始 review。
 
 ## 已完成
 
@@ -15,7 +15,7 @@
 - card 级 `EV-S6` 自证引用为 0；对外证据保留具体证据 ID 或显式 `NO_EVIDENCE_YET` 缺口。
 - 风险登记 P0/P1/P2/P3=`1/19/11/2`。
 - `verify_s6_artifacts.py` 与 495 条 explicit membership、560 条边的语义 / 能力 / 入口 / 动作 / 边界门禁及 57 个负向 self-test 已在 D204 review 修复后重新生成并执行；manifest、SHA-256 与 LF / CRLF 由最终产物复算。
-- `EV-S6.status` 当前为 `S6_RECONFIRM_REQUIRED_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`；原始 S6 scoped review 仍为 `PASS_WITH_P2`，唯一 P2 `G1-S6/__pycache__/*.pyc` 保持排除。该历史 review 发生在 Q05 当时 Open，D204 后当前必须 fresh scoped reconfirm，不得宣告 re-approved。
+- `EV-S6.status` 当前为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`；原始 S6 scoped review 仍为 `PASS_WITH_P2` 且限定 Q05 当时 Open，唯一 P2 `G1-S6/__pycache__/*.pyc` 保持排除。D204 后 fresh scoped documentation reconfirm 已 PASS / no findings；这不是 G1、QA、runtime 或 Release PASS，future artifact change 仍须重新 review。
 
 ## 未完成 / 不可声明
 
@@ -54,9 +54,9 @@
 
 ## Scoped review 结论与残余门
 
-**结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留；该 Q05 当时 Open 的 review 不能自动覆盖 D204。D204 后当前状态为 `S6_RECONFIRM_REQUIRED_AFTER_D204`；builder / verifier 重跑只更新静态规划包，不能代替新的 fresh reviewer。S6 仍只作为规划包与 docs integration 输入。
+**结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留，限定 Q05 当时 Open。D204 后独立 fresh scoped documentation review 已完成并 PASS / no findings，当前状态为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204`；这不表示 G1、QA、runtime 或 Release PASS。每 future artifact change 仍须重新 review。
 
-**下一步入口**：fresh scoped reviewer 第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json` 的 current decision / historical review 双字段、`docs/DECISIONS.md` Q05 Closed/D204 / Open Q03 与 `docs/TASKS.md` `V2-G1-L1-EVIDENCE`，确认 external 445/376 与 addendum 4 / normalized 380 分离、D204 不选择第二引擎、Sherpa / Matcha 仅兼容回退；不得代签 QA 或推进 G2。
+**下一步入口**：无当前 review 待办。任何 future artifact change 的第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json` 的 current / historical review 字段与 manifest，再另派 fresh scoped review；D204 第二引擎 Spike、Q03、runtime 与 G1 仍需独立授权，不得代签 QA 或推进 G2。
 
 **停止条件**：下一步不得启动 Q03 runtime、第二引擎 / exact profile 实际选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、D204/Q03/Q04/UI/G1 状态漂移、L2/L3 解锁、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
 

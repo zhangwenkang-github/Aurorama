@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `D204_ACCEPTED_ENGINE_STRATEGY_A / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。用户于 2026-11-04 原话“按推荐选择A。”，A 仅表示保留 Sherpa / Matcha 兼容回退并另立高表现力开源第二引擎 Android arm64 可行性 Spike；第二引擎及 exact profile / voice 均未选择。下一步只允许只读 / 静态绘制 Spike 边界与官方许可门，不授权新网络域、权重下载、Gradle / ADB、设备、runtime 或生产代码。D203 voice-pack、后台锁屏、删除回退、单音频 owner / MediaSession 与零网络条款不变；Q03 仍 Open、runtime `UNVERIFIED`、G1 `NOT_PASSED`，S6 需 D204 后 fresh scoped reconfirm，L2/L3 `LOCKED`。
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `D204_ACCEPTED_ENGINE_STRATEGY_A / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。用户于 2026-11-04 原话“按推荐选择A。”，A 仅表示保留 Sherpa / Matcha 兼容回退并另立高表现力开源第二引擎 Android arm64 可行性 Spike；第二引擎及 exact profile / voice 均未选择。S6 D204 后 fresh scoped documentation reconfirm 已 PASS，future artifact change 仍须重新 review；Q03 仍 Open、runtime `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 `LOCKED`。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3270,7 +3270,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 已完成；`V2-D202` 仅授权 L1，D203 voice-pack / 后台锁屏不变。`V2-D204` 接受 engine strategy A 并关闭 Q05：Sherpa / Matcha 保留兼容回退，高表现力开源第二引擎另做 Android arm64 可行性 Spike；第二引擎、exact profile / voice 与逐资产许可仍未选择。`V2-G1-L1-EVIDENCE` 当前 readiness=`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`；Q03 Open、G1 NOT_PASSED、runtime UNVERIFIED，S6 需 fresh scoped reconfirm，L2/L3 locked |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 已完成；`V2-D202` 仅授权 L1，D203 voice-pack / 后台锁屏不变。`V2-D204` 接受 engine strategy A 并关闭 Q05：Sherpa / Matcha 保留兼容回退，高表现力开源第二引擎另做 Android arm64 可行性 Spike；第二引擎、exact profile / voice 与逐资产许可仍未选择。`V2-G1-L1-EVIDENCE` 当前 readiness=`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`；S6 D204 后 fresh scoped documentation reconfirm 已 PASS；Q03 Open、G1 NOT_PASSED、runtime UNVERIFIED，L2/L3 locked |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3300,7 +3300,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ✅ 9 节点最终矩阵、计数、证据与跨域处置由 `V2-D193` 整包接受；需求域已收口 |
 | 9 | `V2-REQ-BASE` | 1.4 既有能力补充基线 | ✅ `V2-REQ-BASE-001～005` 五个 `MUST` 组由 `V2-D196` 保留，来源、验收、依赖、非目标与 G1 未决项已落 §5.10.5 |
 | 10 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ✅ `V2-D197` 完整 G0 PASS；`V2-Q-FINAL-01～03` 全部关闭；后续由 G1 接管 |
-| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 原始 review `PASS_WITH_P2` 仅作为 Q05 当时 Open 的历史，D204 后需 fresh scoped reconfirm；D203 voice-pack / 后台 TTS 条款不变，Sherpa / Matcha 当前仅兼容回退；D204 已关闭 Q05 engine strategy 为 A，当前 readiness=`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`；Q03 Open、C1 exact profile Open、L2/L3 locked，禁止 runtime、实现或 G2 |
+| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 原始 review `PASS_WITH_P2` 仅作为 Q05 当时 Open 的历史，D204 后 fresh scoped documentation reconfirm 已 PASS；future artifact change 仍须重新 review；D203 voice-pack / 后台 TTS 条款不变，Sherpa / Matcha 当前仅兼容回退；D204 已关闭 Q05 engine strategy 为 A，当前 readiness=`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`；Q03 Open、C1 exact profile Open、L2/L3 locked，禁止 runtime、实现或 G2 |
 
 每个需求域的退出条件：
 
@@ -3415,7 +3415,7 @@ D204 只关闭 engine strategy，后续由负责人审查本集后安排全新�
 引擎 Android arm64 可行性 Spike 与许可门。历史交接对象链保留为仓库历史，不据此扩权。
 
 **一句话现状**：
-`D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / RUNTIME_UNVERIFIED / S6_RECONFIRM_REQUIRED_AFTER_D204`。
+`D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / RUNTIME_UNVERIFIED / S6_SCOPED_RECONFIRM_PASS_AFTER_D204`。
 用户于 2026-11-04 原话“按推荐选择A。”，A 已接受，B/C 未选。第二引擎与 exact
 engine / model / profile / voice 均未选择；当前只允许设计只读 / 静态 Spike 与官方许可门。
 D203 的 voice-pack、追加导入、删除回退、后台锁屏、单音频 owner / MediaSession、全局 /
@@ -3425,8 +3425,9 @@ D203 的 voice-pack、追加导入、删除回退、后台锁屏、单音频 own
 
 - `V2-D204` 已写入 DECISIONS，Q05 改为 Closed / Accepted / D204；A 语义、B/C 未选、可证明
   与不可证明边界、证据 URL 指针及全部红线和状态均已落档。
-- V2_PLAN / TASKS 的当前状态已切换到第二引擎 L1 Spike scoping / 许可门；S6 只完成机械重建，
-  尚未获得 D204 后 fresh scoped review。
+- V2_PLAN / TASKS 的当前状态已切换到第二引擎 L1 Spike scoping / 许可门；S6 的 D204 后
+  fresh scoped documentation review 已完成并 PASS / no findings；future artifact change
+  仍须重新 review。
 - 既有 Sherpa / PDFium 网络 artifact、Q03 静态增量、A1/A2/BASE-001/003/004 与 S6 矩阵
   继续作为静态证据；其 hash、计数和 manifest 以仓库现场为准，不升级为 runtime 或 G1 PASS。
 
@@ -4519,3 +4520,8 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   相对基线累计新增 8 negative。计数、Q05 Closed/D204、Q03 Open、G1 NOT_PASSED、runtime
   UNVERIFIED、L2/L3 LOCKED 均不变。未联网、未运行 Gradle / ADB / 设备 / 服务器 / QA /
   Release，未 commit / push；下一步由负责人另派 fresh scoped reviewer。
+- **2026-11-04 — D204 docs/S6 integration fresh review PASS**：D204 后的 S6 文档集成完成；
+  前两轮 review 均为 `0/1/2/0` findings / blocked，修复后最终 fresh scoped documentation
+  review 为 `PASS / no findings`。最终 live 为 `57 NEG + 10 BASE + 1 count = 68`；manifest
+  与受控 checkout gates 通过。该 PASS 不表示 G1、QA、runtime 或 Release PASS，D204 exact
+  engine/profile 仍 Open，L2/L3 保持 LOCKED；每 future artifact change 仍须重新 review。
