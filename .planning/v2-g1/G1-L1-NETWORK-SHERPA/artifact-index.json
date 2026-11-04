@@ -1,0 +1,129 @@
+{
+  "schema": "aurorama.g1-sherpa-artifact-index.v1",
+  "expectedCommit": "af2d8d81dbfa61c4cea4c568da78f3982edca005",
+  "commitEvidence": "External task input; the GitHub source archive does not embed a Git commit and no additional GitHub URL was queried.",
+  "runtimeVerificationStatus": "UNVERIFIED",
+  "allowedHosts": [
+    "github.com",
+    "release-assets.githubusercontent.com",
+    "codeload.github.com"
+  ],
+  "redirectPolicy": "HEAD and GET: no automatic redirects; one official redirect validated for host, scheme, and same artifact path/filename.",
+  "artifacts": [
+    {
+      "id": "sherpa-standard-aar",
+      "kind": "aar",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-2.0.1.aar",
+      "filename": "sherpa-onnx-2.0.1.aar",
+      "observedSize": 49441341,
+      "size": 49441341,
+      "sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+      "expectedSize": 49441341,
+      "expectedSha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+      "network": {
+        "head": {
+          "requestHost": "github.com",
+          "status": 302,
+          "redirectStatus": 302,
+          "location": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/19a64cec-483e-478d-9761-5421689c2107?response-content-disposition=attachment%3B+filename%3Dsherpa-onnx-2.0.1.aar",
+          "finalHost": "release-assets.githubusercontent.com",
+          "finalUrl": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/19a64cec-483e-478d-9761-5421689c2107?response-content-disposition=attachment%3B+filename%3Dsherpa-onnx-2.0.1.aar",
+          "finalStatus": 200,
+          "contentLength": 49441341,
+          "sameArtifactValidated": true
+        },
+        "fetch": {
+          "requestHost": "release-assets.githubusercontent.com",
+          "requestMethod": "direct GET of the already validated redirect URL",
+          "redirectStatus": 302,
+          "location": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/19a64cec-483e-478d-9761-5421689c2107?response-content-disposition=attachment%3B+filename%3Dsherpa-onnx-2.0.1.aar",
+          "finalHost": "release-assets.githubusercontent.com",
+          "finalUrl": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/19a64cec-483e-478d-9761-5421689c2107?response-content-disposition=attachment%3B+filename%3Dsherpa-onnx-2.0.1.aar",
+          "status": 200,
+          "contentLength": 49441341,
+          "downloadedBytes": 49441341,
+          "sameArtifactValidated": true,
+          "httpVersion": "HTTP/1.1",
+          "retryPolicy": "--retry 2 --retry-delay 2 --retry-all-errors --max-time 240"
+        }
+      }
+    },
+    {
+      "id": "sherpa-static-onnxruntime-aar",
+      "kind": "aar",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/sherpa-onnx-static-link-onnxruntime-2.0.1.aar",
+      "filename": "sherpa-onnx-static-link-onnxruntime-2.0.1.aar",
+      "observedSize": 38577050,
+      "size": 38577050,
+      "sha256": "07e042d97f3a6bd5b7fe74d4eef0513dc01a714b16c15a903250095aba43a575",
+      "expectedSize": 38577050,
+      "expectedSha256": "07e042d97f3a6bd5b7fe74d4eef0513dc01a714b16c15a903250095aba43a575",
+      "network": {
+        "head": {
+          "requestHost": "github.com",
+          "status": 302,
+          "redirectStatus": 302,
+          "location": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/ba459b80-391f-42ee-9fe2-ae1f6da2d9c2?response-content-disposition=attachment%3B+filename%3Dsherpa-onnx-static-link-onnxruntime-2.0.1.aar",
+          "finalHost": "release-assets.githubusercontent.com",
+          "finalUrl": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/ba459b80-391f-42ee-9fe2-ae1f6da2d9c2?response-content-disposition=attachment%3B+filename%3Dsherpa-onnx-static-link-onnxruntime-2.0.1.aar",
+          "finalStatus": 200,
+          "contentLength": 38577050,
+          "sameArtifactValidated": true
+        },
+        "fetch": {
+          "requestHost": "release-assets.githubusercontent.com",
+          "requestMethod": "direct GET of the already validated redirect URL",
+          "redirectStatus": 302,
+          "location": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/ba459b80-391f-42ee-9fe2-ae1f6da2d9c2?response-content-disposition=attachment%3B+filename%3Dsherpa-onnx-static-link-onnxruntime-2.0.1.aar",
+          "finalHost": "release-assets.githubusercontent.com",
+          "finalUrl": "https://release-assets.githubusercontent.com/github-production-release-asset/531380835/ba459b80-391f-42ee-9fe2-ae1f6da2d9c2?response-content-disposition=attachment%3B+filename%3Dsherpa-onnx-static-link-onnxruntime-2.0.1.aar",
+          "status": 200,
+          "contentLength": 38577050,
+          "downloadedBytes": 38577050,
+          "sameArtifactValidated": true,
+          "httpVersion": "HTTP/1.1",
+          "retryPolicy": "--retry 2 --retry-delay 2 --retry-all-errors --max-time 240"
+        }
+      }
+    },
+    {
+      "id": "sherpa-source-v2.0.1",
+      "kind": "source",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/archive/refs/tags/v2.0.1.tar.gz",
+      "filename": "sherpa-onnx-2.0.1.tar.gz",
+      "observedSize": 11933876,
+      "size": 11933876,
+      "sha256": "24ecc0fccf6344c2556e7c229c849e9f61bf9456b915615197d85f35e3f177e7",
+      "expectedSize": null,
+      "expectedSha256": null,
+      "network": {
+        "head": {
+          "requestHost": "github.com",
+          "status": 302,
+          "redirectStatus": 302,
+          "location": "https://codeload.github.com/k2-fsa/sherpa-onnx/tar.gz/refs/tags/v2.0.1",
+          "finalHost": "codeload.github.com",
+          "finalUrl": "https://codeload.github.com/k2-fsa/sherpa-onnx/tar.gz/refs/tags/v2.0.1",
+          "finalStatus": 200,
+          "contentLength": null,
+          "sameArtifactValidated": true
+        },
+        "fetch": {
+          "requestHost": "codeload.github.com",
+          "requestMethod": "direct GET of the already validated redirect URL",
+          "redirectStatus": 302,
+          "location": "https://codeload.github.com/k2-fsa/sherpa-onnx/tar.gz/refs/tags/v2.0.1",
+          "finalHost": "codeload.github.com",
+          "finalUrl": "https://codeload.github.com/k2-fsa/sherpa-onnx/tar.gz/refs/tags/v2.0.1",
+          "status": 200,
+          "contentLength": 11933876,
+          "downloadedBytes": 11933876,
+          "sameArtifactValidated": true,
+          "httpVersion": "HTTP/1.1",
+          "retryPolicy": "--retry 2 --retry-delay 2 --retry-all-errors --max-time 240"
+        }
+      }
+    }
+  ],
+  "temporaryBinariesInEvidence": false
+}

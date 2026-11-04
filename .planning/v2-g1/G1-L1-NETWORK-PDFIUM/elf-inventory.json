@@ -1,0 +1,512 @@
+{
+  "abi_summary": [
+    {
+      "abi": "arm64-v8a",
+      "elf_file_count": 2,
+      "status": "PASS"
+    },
+    {
+      "abi": "armeabi-v7a",
+      "elf_file_count": 2,
+      "status": "FAIL"
+    },
+    {
+      "abi": "x86",
+      "elf_file_count": 2,
+      "status": "FAIL"
+    },
+    {
+      "abi": "x86_64",
+      "elf_file_count": 2,
+      "status": "PASS"
+    }
+  ],
+  "files": [
+    {
+      "abi": "arm64-v8a",
+      "alignment_status": "PASS",
+      "load_segments": [
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 4675504,
+          "p_memsz": 4675504,
+          "p_offset": 0,
+          "p_vaddr": 0
+        },
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 50040,
+          "p_memsz": 51280,
+          "p_offset": 4675504,
+          "p_vaddr": 4691888
+        },
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 11168,
+          "p_memsz": 22160,
+          "p_offset": 4725544,
+          "p_vaddr": 4758312
+        }
+      ],
+      "parse": {
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": "AArch64",
+        "program_header_count": 11,
+        "program_header_entry_size": 56,
+        "status": "OK"
+      },
+      "path": "jni/arm64-v8a/libpdfium.so",
+      "revision_markers": [
+        "iswdigit",
+        "FPDF_GetSecurityHandlerRevision",
+        "isxdigit_l",
+        "isdigit_l",
+        "libpdfium.so",
+        "CPU revision",
+        "PDFium",
+        "PDFIUM_HasGeneratedAP"
+      ],
+      "sha256": "EBBC6AAA2C37C3D54041BF2E14C2BB21946D212ED38BF2C860BB09FCF79D91B9",
+      "size": 4738808,
+      "source_module": "pdfiumandroid-core"
+    },
+    {
+      "abi": "arm64-v8a",
+      "alignment_status": "PASS",
+      "load_segments": [
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 416736,
+          "p_memsz": 416736,
+          "p_offset": 0,
+          "p_vaddr": 0
+        },
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 21448,
+          "p_memsz": 21536,
+          "p_offset": 416736,
+          "p_vaddr": 433120
+        },
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 384,
+          "p_memsz": 2472,
+          "p_offset": 438184,
+          "p_vaddr": 470952
+        }
+      ],
+      "parse": {
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": "AArch64",
+        "program_header_count": 9,
+        "program_header_entry_size": 56,
+        "status": "OK"
+      },
+      "path": "jni/arm64-v8a/libpdfiumandroid.so",
+      "revision_markers": [
+        "_ZNSt6__ndk1plIcNS_11char_traitsIcEENS_9allocatorIcEEEENS_12basic_stringIT_T0_T1_EEPKS6_RKS9_",
+        "libpdfium.so",
+        "libpdfiumandroid.so",
+        "io/legere/pdfiumandroid/core/jni/NativePageLink",
+        "io/legere/pdfiumandroid/api/PdfWriteCallback",
+        "io/legere/pdfiumandroid/core/jni/NativeFindResult",
+        "io/legere/pdfiumandroid/core/jni/NativeDocument",
+        "jniPdfium",
+        "io/legere/pdfiumandroid/core/jni/NativeTextPage",
+        "io/legere/pdfiumandroid/api/PdfPasswordException",
+        "io/legere/pdfiumandroid/core/util/PdfiumNativeSourceBridge",
+        "io/legere/pdfiumandroid/core/jni/NativeCore",
+        "io/legere/pdfiumandroid/core/jni/NativePage",
+        "(Lio/legere/pdfiumandroid/core/util/PdfiumNativeSourceBridge;Ljava/lang/String;J)J",
+        "(JLio/legere/pdfiumandroid/api/PdfWriteCallback;I)Z"
+      ],
+      "sha256": "40A596C80A0B829A781466FB64A84DFDA526F24FF1D0F498EEAA943D86629589",
+      "size": 441096,
+      "source_module": "pdfiumandroid-core"
+    },
+    {
+      "abi": "armeabi-v7a",
+      "alignment_status": "FAIL",
+      "load_segments": [
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 3068928,
+          "p_memsz": 3068928,
+          "p_offset": 0,
+          "p_vaddr": 0
+        },
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 43180,
+          "p_memsz": 44032,
+          "p_offset": 3068928,
+          "p_vaddr": 3073024
+        },
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 9728,
+          "p_memsz": 15460,
+          "p_offset": 3112112,
+          "p_vaddr": 3120304
+        }
+      ],
+      "parse": {
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": "ARM",
+        "program_header_count": 9,
+        "program_header_entry_size": 32,
+        "status": "OK"
+      },
+      "path": "jni/armeabi-v7a/libpdfium.so",
+      "revision_markers": [
+        "iswdigit",
+        "FPDF_GetSecurityHandlerRevision",
+        "isxdigit_l",
+        "isdigit_l",
+        "libpdfium.so",
+        "CPU revision",
+        "PDFium",
+        "RRRRRRRRRRRRRRRWPDFIUM_HasGeneratedAP"
+      ],
+      "sha256": "DBE87889B12B861585EDD505C45EB91C67A70AA941A8B2D98EEF0C46ECE3B024",
+      "size": 3123256,
+      "source_module": "pdfiumandroid-core"
+    },
+    {
+      "abi": "armeabi-v7a",
+      "alignment_status": "FAIL",
+      "load_segments": [
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 263392,
+          "p_memsz": 263392,
+          "p_offset": 0,
+          "p_vaddr": 0
+        },
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 10768,
+          "p_memsz": 11040,
+          "p_offset": 263392,
+          "p_vaddr": 267488
+        },
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 168,
+          "p_memsz": 880,
+          "p_offset": 274160,
+          "p_vaddr": 282352
+        }
+      ],
+      "parse": {
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": "ARM",
+        "program_header_count": 9,
+        "program_header_entry_size": 32,
+        "status": "OK"
+      },
+      "path": "jni/armeabi-v7a/libpdfiumandroid.so",
+      "revision_markers": [
+        "_ZNSt6__ndk1plIcNS_11char_traitsIcEENS_9allocatorIcEEEENS_12basic_stringIT_T0_T1_EEPKS6_RKS9_",
+        "libpdfium.so",
+        "libpdfiumandroid.so",
+        "io/legere/pdfiumandroid/core/jni/NativePageLink",
+        "io/legere/pdfiumandroid/api/PdfWriteCallback",
+        "io/legere/pdfiumandroid/core/jni/NativeFindResult",
+        "io/legere/pdfiumandroid/core/jni/NativeDocument",
+        "jniPdfium",
+        "io/legere/pdfiumandroid/core/jni/NativeTextPage",
+        "io/legere/pdfiumandroid/api/PdfPasswordException",
+        "io/legere/pdfiumandroid/core/util/PdfiumNativeSourceBridge",
+        "io/legere/pdfiumandroid/core/jni/NativeCore",
+        "io/legere/pdfiumandroid/core/jni/NativePage",
+        "(Lio/legere/pdfiumandroid/core/util/PdfiumNativeSourceBridge;Ljava/lang/String;J)J",
+        "(JLio/legere/pdfiumandroid/api/PdfWriteCallback;I)Z"
+      ],
+      "sha256": "D5A5C5368915E386C55309C03B548BFB82382579438ECC9C0152041D4BDB8CCF",
+      "size": 276260,
+      "source_module": "pdfiumandroid-core"
+    },
+    {
+      "abi": "x86",
+      "alignment_status": "FAIL",
+      "load_segments": [
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 4343104,
+          "p_memsz": 4343104,
+          "p_offset": 0,
+          "p_vaddr": 0
+        },
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 43076,
+          "p_memsz": 43712,
+          "p_offset": 4343104,
+          "p_vaddr": 4347200
+        },
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 9744,
+          "p_memsz": 16628,
+          "p_offset": 4386180,
+          "p_vaddr": 4394372
+        }
+      ],
+      "parse": {
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": "x86",
+        "program_header_count": 10,
+        "program_header_entry_size": 32,
+        "status": "OK"
+      },
+      "path": "jni/x86/libpdfium.so",
+      "revision_markers": [
+        "iswdigit",
+        "FPDF_GetSecurityHandlerRevision",
+        "isxdigit_l",
+        "isdigit_l",
+        "libpdfium.so",
+        "PDFium",
+        "PDFIUM_HasGeneratedAP"
+      ],
+      "sha256": "828960DDA5E6E9A118D19E7E0861EA23E08F7861870E122EF2BF47CFE4492F1A",
+      "size": 4397284,
+      "source_module": "pdfiumandroid-core"
+    },
+    {
+      "abi": "x86",
+      "alignment_status": "FAIL",
+      "load_segments": [
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 366544,
+          "p_memsz": 366544,
+          "p_offset": 0,
+          "p_vaddr": 0
+        },
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 10736,
+          "p_memsz": 14384,
+          "p_offset": 366544,
+          "p_vaddr": 370640
+        },
+        {
+          "align_16kb_ok": false,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 4096,
+          "p_filesz": 192,
+          "p_memsz": 912,
+          "p_offset": 377280,
+          "p_vaddr": 385472
+        }
+      ],
+      "parse": {
+        "class": "ELF32",
+        "endianness": "little",
+        "machine": "x86",
+        "program_header_count": 9,
+        "program_header_entry_size": 32,
+        "status": "OK"
+      },
+      "path": "jni/x86/libpdfiumandroid.so",
+      "revision_markers": [
+        "_ZNSt6__ndk1plIcNS_11char_traitsIcEENS_9allocatorIcEEEENS_12basic_stringIT_T0_T1_EEPKS6_RKS9_",
+        "libpdfium.so",
+        "libpdfiumandroid.so",
+        "R@io/legere/pdfiumandroid/core/jni/NativePageLink",
+        "io/legere/pdfiumandroid/api/PdfWriteCallback",
+        "io/legere/pdfiumandroid/core/jni/NativeFindResult",
+        "io/legere/pdfiumandroid/core/jni/NativeDocument",
+        "jniPdfium",
+        "io/legere/pdfiumandroid/core/jni/NativeTextPage",
+        "io/legere/pdfiumandroid/api/PdfPasswordException",
+        "io/legere/pdfiumandroid/core/util/PdfiumNativeSourceBridge",
+        "io/legere/pdfiumandroid/core/jni/NativeCore",
+        "io/legere/pdfiumandroid/core/jni/NativePage",
+        "(Lio/legere/pdfiumandroid/core/util/PdfiumNativeSourceBridge;Ljava/lang/String;J)J",
+        "(JLio/legere/pdfiumandroid/api/PdfWriteCallback;I)Z"
+      ],
+      "sha256": "DC81D28D0AB316C7A91ACF407E598A6B65A0D3DCDD0422FAA71A87F98A1E145A",
+      "size": 379348,
+      "source_module": "pdfiumandroid-core"
+    },
+    {
+      "abi": "x86_64",
+      "alignment_status": "PASS",
+      "load_segments": [
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 4282704,
+          "p_memsz": 4282704,
+          "p_offset": 0,
+          "p_vaddr": 0
+        },
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 76720,
+          "p_memsz": 79536,
+          "p_offset": 4282704,
+          "p_vaddr": 4299088
+        },
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 11152,
+          "p_memsz": 22140,
+          "p_offset": 4359424,
+          "p_vaddr": 4392192
+        }
+      ],
+      "parse": {
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": "x86_64",
+        "program_header_count": 10,
+        "program_header_entry_size": 56,
+        "status": "OK"
+      },
+      "path": "jni/x86_64/libpdfium.so",
+      "revision_markers": [
+        "iswdigit",
+        "FPDF_GetSecurityHandlerRevision",
+        "isxdigit_l",
+        "isdigit_l",
+        "libpdfium.so",
+        "PDFium",
+        "PDFIUM_HasGeneratedAP"
+      ],
+      "sha256": "5F98A1B298D0C1D6558AA656CF92EE11F4F0F8DF0371F871948AF1C003CE1784",
+      "size": 4372592,
+      "source_module": "pdfiumandroid-core"
+    },
+    {
+      "abi": "x86_64",
+      "alignment_status": "PASS",
+      "load_segments": [
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 405136,
+          "p_memsz": 405136,
+          "p_offset": 0,
+          "p_vaddr": 0
+        },
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 21360,
+          "p_memsz": 24944,
+          "p_offset": 405136,
+          "p_vaddr": 421520
+        },
+        {
+          "align_16kb_ok": true,
+          "offset_vaddr_congruent_ok": true,
+          "p_align": 16384,
+          "p_filesz": 392,
+          "p_memsz": 2464,
+          "p_offset": 426496,
+          "p_vaddr": 459264
+        }
+      ],
+      "parse": {
+        "class": "ELF64",
+        "endianness": "little",
+        "machine": "x86_64",
+        "program_header_count": 9,
+        "program_header_entry_size": 56,
+        "status": "OK"
+      },
+      "path": "jni/x86_64/libpdfiumandroid.so",
+      "revision_markers": [
+        "_ZNSt6__ndk1plIcNS_11char_traitsIcEENS_9allocatorIcEEEENS_12basic_stringIT_T0_T1_EEPKS6_RKS9_",
+        "libpdfium.so",
+        "libpdfiumandroid.so",
+        "io/legere/pdfiumandroid/core/jni/NativePageLink",
+        "io/legere/pdfiumandroid/api/PdfWriteCallback",
+        "io/legere/pdfiumandroid/core/jni/NativeFindResult",
+        "io/legere/pdfiumandroid/core/jni/NativeDocument",
+        "jniPdfium",
+        "io/legere/pdfiumandroid/core/jni/NativeTextPage",
+        "io/legere/pdfiumandroid/api/PdfPasswordException",
+        "io/legere/pdfiumandroid/core/util/PdfiumNativeSourceBridge",
+        "io/legere/pdfiumandroid/core/jni/NativeCore",
+        "io/legere/pdfiumandroid/core/jni/NativePage",
+        "(Lio/legere/pdfiumandroid/core/util/PdfiumNativeSourceBridge;Ljava/lang/String;J)J",
+        "(JLio/legere/pdfiumandroid/api/PdfWriteCallback;I)Z"
+      ],
+      "sha256": "C6D68B05A1A34B2070A259CD57EFBFDDD68915EFBF2B77CC29E250105FA93C33",
+      "size": 429416,
+      "source_module": "pdfiumandroid-core"
+    }
+  ],
+  "generated_at_utc": "2026-11-04T04:08:18Z",
+  "gnu_relro_boundary": {
+    "reason": "This task checks PT_LOAD alignment only; it does not validate the GNU_RELRO end boundary or Android runtime page size.",
+    "status": "UNPROVEN"
+  },
+  "parser": {
+    "implementation": "PYTHON_STRUCT_ELF_PROGRAM_HEADER_V1",
+    "llvm_readelf_available": false,
+    "rule": "Every PT_LOAD: p_align >= 16384 and p_offset % p_align == p_vaddr % p_align"
+  },
+  "runtime": {
+    "device_accessed": false,
+    "page_size_16kb_runtime_status": "UNVERIFIED",
+    "pdf_render_executed": false,
+    "range_executed": false,
+    "runtime_executed": false
+  },
+  "schema_id": "aurorama.g1-l1-network-pdfium.elf-inventory/v1",
+  "scope": "STATIC_ELF_PROGRAM_HEADER_ONLY",
+  "static_pass_is_runtime_pass": false
+}

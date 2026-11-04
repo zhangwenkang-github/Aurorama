@@ -1,0 +1,1553 @@
+{
+  "schema": "aurorama.g1-sherpa-elf-page-alignment.v1",
+  "scope": "static-elf-program-header-only",
+  "runtimeVerificationStatus": "UNVERIFIED",
+  "method": {
+    "pageSizeBytes": 16384,
+    "primary": "Reproducible Python parser of ELF header and PT_LOAD program headers.",
+    "llvmReadelf": "NOT_FOUND_IN_KNOWN_TOOLCHAIN_ROOTS_OR_PATH",
+    "crossCheck": "GNU readelf -lW via readelf.EXE",
+    "algorithm": [
+      "read ELF32/ELF64 class and endianness",
+      "enumerate e_phnum program headers at e_phoff",
+      "retain PT_LOAD entries",
+      "require p_align >= 16384 and (p_vaddr % p_align) == (p_offset % p_align)"
+    ],
+    "limitation": "A static PT_LOAD alignment PASS is not a device/runtime 16 KiB page-size PASS."
+  },
+  "abis": [
+    {
+      "abi": "arm64-v8a",
+      "status": "PASS",
+      "staticRule": "every PT_LOAD must have p_align >= 0x4000 and congruent p_offset/p_vaddr",
+      "libraries": [
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/arm64-v8a/libonnxruntime.so",
+          "name": "libonnxruntime.so",
+          "size": 22249560,
+          "bytes": 22249560,
+          "sha256": "33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 5536600,
+              "memsz": 5536600,
+              "flags": "R--",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 5536608,
+              "vaddr": 5552992,
+              "filesz": 16234464,
+              "memsz": 16234464,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 21771072,
+              "vaddr": 21803840,
+              "filesz": 471968,
+              "memsz": 474304,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 3,
+              "offset": 22243040,
+              "vaddr": 22292192,
+              "filesz": 4232,
+              "memsz": 38792,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 4,
+            "alignments": [
+              16384,
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libdl.so",
+            "liblog.so",
+            "libm.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 7737
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/arm64-v8a/libsherpa-onnx-c-api.so",
+          "name": "libsherpa-onnx-c-api.so",
+          "size": 4303136,
+          "bytes": 4303136,
+          "sha256": "0eadae93c4d595a26584d7eebde7b397b9a36d01eee3ebc7262e0d34df2fce10",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 4257328,
+              "memsz": 4257328,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 4257328,
+              "vaddr": 4273712,
+              "filesz": 43192,
+              "memsz": 43472,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 4300520,
+              "vaddr": 4333288,
+              "filesz": 538,
+              "memsz": 16649,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 5
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/arm64-v8a/libsherpa-onnx-cxx-api.so",
+          "name": "libsherpa-onnx-cxx-api.so",
+          "size": 272848,
+          "bytes": 272848,
+          "sha256": "de94e0952a124eb22e86d754e11aa0489a065affc837911a8ed5e7fd843baad6",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 262016,
+              "memsz": 262016,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 262016,
+              "vaddr": 278400,
+              "filesz": 8408,
+              "memsz": 12416,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 270424,
+              "vaddr": 303192,
+              "filesz": 344,
+              "memsz": 4392,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libsherpa-onnx-c-api.so",
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 3
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/arm64-v8a/libsherpa-onnx-jni.so",
+          "name": "libsherpa-onnx-jni.so",
+          "size": 4609320,
+          "bytes": 4609320,
+          "sha256": "5db8f89f12b2c900a98c9e01e00c475c59db35e9437a62e36e27839ec48b5575",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 4564144,
+              "memsz": 4564144,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 4564144,
+              "vaddr": 4580528,
+              "filesz": 42504,
+              "memsz": 43856,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 4606648,
+              "vaddr": 4639416,
+              "filesz": 594,
+              "memsz": 16697,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 6
+        },
+        {
+          "artifact": "sherpa-static-onnxruntime-aar",
+          "path": "jni/arm64-v8a/libsherpa-onnx-jni.so",
+          "name": "libsherpa-onnx-jni.so",
+          "size": 24177488,
+          "bytes": 24177488,
+          "sha256": "491b1b6e287fdfe5e0e1ffa918f5e5556299cb14bea7b7b8a0c19468f4156193",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 23789936,
+              "memsz": 23789936,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 23789936,
+              "vaddr": 23806320,
+              "filesz": 381024,
+              "memsz": 384656,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 24170960,
+              "vaddr": 24203728,
+              "filesz": 4376,
+              "memsz": 47800,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 4180
+        }
+      ]
+    },
+    {
+      "abi": "armeabi-v7a",
+      "status": "PASS",
+      "staticRule": "every PT_LOAD must have p_align >= 0x4000 and congruent p_offset/p_vaddr",
+      "libraries": [
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/armeabi-v7a/libonnxruntime.so",
+          "name": "libonnxruntime.so",
+          "size": 15359592,
+          "bytes": 15359592,
+          "sha256": "7a8f17a707e52e0ac3a026be319272876d9eae61f4bb19585292772d785f7744",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 3241068,
+              "memsz": 3241068,
+              "flags": "R--",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 3241072,
+              "vaddr": 3257456,
+              "filesz": 11881552,
+              "memsz": 11881552,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 15122624,
+              "vaddr": 15155392,
+              "filesz": 233552,
+              "memsz": 237376,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 3,
+              "offset": 15356176,
+              "vaddr": 15405328,
+              "filesz": 1688,
+              "memsz": 18700,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 4,
+            "alignments": [
+              16384,
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libdl.so",
+            "liblog.so",
+            "libm.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 7630
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/armeabi-v7a/libsherpa-onnx-c-api.so",
+          "name": "libsherpa-onnx-c-api.so",
+          "size": 3157748,
+          "bytes": 3157748,
+          "sha256": "cb5d912ec19b4f76582047d082db63f304f3e584cc89130e393337f4cea6ebe7",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 3133824,
+              "memsz": 3133824,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 3133824,
+              "vaddr": 3150208,
+              "filesz": 22208,
+              "memsz": 24192,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 3156032,
+              "vaddr": 3188800,
+              "filesz": 210,
+              "memsz": 7437,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 5
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/armeabi-v7a/libsherpa-onnx-cxx-api.so",
+          "name": "libsherpa-onnx-cxx-api.so",
+          "size": 183600,
+          "bytes": 183600,
+          "sha256": "aa5f7bc8031baf5f0ba2e6c892e1cf70d17e1fe839db375424ebda175f0dc5e9",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 177808,
+              "memsz": 177808,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 177808,
+              "vaddr": 194192,
+              "filesz": 4180,
+              "memsz": 6512,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 181988,
+              "vaddr": 214756,
+              "filesz": 156,
+              "memsz": 833,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libsherpa-onnx-c-api.so",
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 3
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/armeabi-v7a/libsherpa-onnx-jni.so",
+          "name": "libsherpa-onnx-jni.so",
+          "size": 3381796,
+          "bytes": 3381796,
+          "sha256": "d45f377249d5c3191b91de6ba6edffcd83e4cf7e109bc523b212db341581c2a8",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 3358288,
+              "memsz": 3358288,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 3358288,
+              "vaddr": 3374672,
+              "filesz": 21792,
+              "memsz": 25008,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 3380080,
+              "vaddr": 3412848,
+              "filesz": 210,
+              "memsz": 7437,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 6
+        },
+        {
+          "artifact": "sherpa-static-onnxruntime-aar",
+          "path": "jni/armeabi-v7a/libsherpa-onnx-jni.so",
+          "name": "libsherpa-onnx-jni.so",
+          "size": 16498184,
+          "bytes": 16498184,
+          "sha256": "fd2ab3cac78d88c89e8240900ac00c0548a538d225b44de4d083c13c8b1c792d",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 16303360,
+              "memsz": 16303360,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 16303360,
+              "vaddr": 16319744,
+              "filesz": 191304,
+              "memsz": 195328,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 16494664,
+              "vaddr": 16527432,
+              "filesz": 1912,
+              "memsz": 23305,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 4153
+        }
+      ]
+    },
+    {
+      "abi": "x86",
+      "status": "PASS",
+      "staticRule": "every PT_LOAD must have p_align >= 0x4000 and congruent p_offset/p_vaddr",
+      "libraries": [
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/x86/libonnxruntime.so",
+          "name": "libonnxruntime.so",
+          "size": 26491148,
+          "bytes": 26491148,
+          "sha256": "fcb6cd80415f7951e58fdd8158a238946dce3710d5fee492b67174d5131f9eee",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 5920628,
+              "memsz": 5920628,
+              "flags": "R--",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 5920640,
+              "vaddr": 5937024,
+              "filesz": 20334384,
+              "memsz": 20334384,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 26255024,
+              "vaddr": 26287792,
+              "filesz": 232560,
+              "memsz": 233808,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 3,
+              "offset": 26487584,
+              "vaddr": 26536736,
+              "filesz": 1952,
+              "memsz": 20892,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 4,
+            "alignments": [
+              16384,
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libdl.so",
+            "liblog.so",
+            "libm.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 7636
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/x86/libsherpa-onnx-c-api.so",
+          "name": "libsherpa-onnx-c-api.so",
+          "size": 4954780,
+          "bytes": 4954780,
+          "sha256": "e1e483cc4a09aaadf7f72c1d406c010bba05e3a05fc763a4536117508ab3f390",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 4930896,
+              "memsz": 4930896,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 4930896,
+              "vaddr": 4947280,
+              "filesz": 22232,
+              "memsz": 25264,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 4953128,
+              "vaddr": 4985896,
+              "filesz": 250,
+              "memsz": 8737,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 5
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/x86/libsherpa-onnx-cxx-api.so",
+          "name": "libsherpa-onnx-cxx-api.so",
+          "size": 250072,
+          "bytes": 250072,
+          "sha256": "eb0e2a2b32ea48237582f5d5f31c1bf65e7911cbcb6ee3af08bb491e55fed027",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 244352,
+              "memsz": 244352,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 244352,
+              "vaddr": 260736,
+              "filesz": 4200,
+              "memsz": 5504,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 248552,
+              "vaddr": 281320,
+              "filesz": 172,
+              "memsz": 1928,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libsherpa-onnx-c-api.so",
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 3
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/x86/libsherpa-onnx-jni.so",
+          "name": "libsherpa-onnx-jni.so",
+          "size": 5261876,
+          "bytes": 5261876,
+          "sha256": "1eb37aaa10e377f6635086bec09685859ca8c7465460fdf9346a21eba90a4ee4",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 5238368,
+              "memsz": 5238368,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 5238368,
+              "vaddr": 5254752,
+              "filesz": 21820,
+              "memsz": 24992,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 5260192,
+              "vaddr": 5292960,
+              "filesz": 282,
+              "memsz": 8761,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 6
+        },
+        {
+          "artifact": "sherpa-static-onnxruntime-aar",
+          "path": "jni/x86/libonnxruntime.so",
+          "name": "libonnxruntime.so",
+          "size": 26491148,
+          "bytes": 26491148,
+          "sha256": "fcb6cd80415f7951e58fdd8158a238946dce3710d5fee492b67174d5131f9eee",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 5920628,
+              "memsz": 5920628,
+              "flags": "R--",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 5920640,
+              "vaddr": 5937024,
+              "filesz": 20334384,
+              "memsz": 20334384,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 26255024,
+              "vaddr": 26287792,
+              "filesz": 232560,
+              "memsz": 233808,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 3,
+              "offset": 26487584,
+              "vaddr": 26536736,
+              "filesz": 1952,
+              "memsz": 20892,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 4,
+            "alignments": [
+              16384,
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libdl.so",
+            "liblog.so",
+            "libm.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 7636
+        },
+        {
+          "artifact": "sherpa-static-onnxruntime-aar",
+          "path": "jni/x86/libsherpa-onnx-jni.so",
+          "name": "libsherpa-onnx-jni.so",
+          "size": 5414252,
+          "bytes": 5414252,
+          "sha256": "eb1903190814c65027edea5f9c46179b3d7cebf8cbf94c710381c9795e56f9db",
+          "status": "PASS",
+          "elfClass": 32,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 5388816,
+              "memsz": 5388816,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 5388816,
+              "vaddr": 5405200,
+              "filesz": 23748,
+              "memsz": 26096,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 5412568,
+              "vaddr": 5445336,
+              "filesz": 284,
+              "memsz": 8792,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 6
+        }
+      ]
+    },
+    {
+      "abi": "x86_64",
+      "status": "PASS",
+      "staticRule": "every PT_LOAD must have p_align >= 0x4000 and congruent p_offset/p_vaddr",
+      "libraries": [
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/x86_64/libonnxruntime.so",
+          "name": "libonnxruntime.so",
+          "size": 25581120,
+          "bytes": 25581120,
+          "sha256": "087e84297cad64acb823c3d901d6e0cc934e91add7cdb20da802cd1c0bea5c3e",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 5745632,
+              "memsz": 5745632,
+              "flags": "R--",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 5745632,
+              "vaddr": 5762016,
+              "filesz": 19363904,
+              "memsz": 19363904,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 25109536,
+              "vaddr": 25142304,
+              "filesz": 465616,
+              "memsz": 465888,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 3,
+              "offset": 25575152,
+              "vaddr": 25624304,
+              "filesz": 3680,
+              "memsz": 37648,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 4,
+            "alignments": [
+              16384,
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libdl.so",
+            "liblog.so",
+            "libm.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 7758
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/x86_64/libsherpa-onnx-c-api.so",
+          "name": "libsherpa-onnx-c-api.so",
+          "size": 4782648,
+          "bytes": 4782648,
+          "sha256": "8285ecf2e6275374d4c8c5b46020cbb1de82db9bd6b6baad011fdc480cf10ba2",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 4738016,
+              "memsz": 4738016,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 4738016,
+              "vaddr": 4754400,
+              "filesz": 42016,
+              "memsz": 42016,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 4780032,
+              "vaddr": 4812800,
+              "filesz": 538,
+              "memsz": 16633,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 5
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/x86_64/libsherpa-onnx-cxx-api.so",
+          "name": "libsherpa-onnx-cxx-api.so",
+          "size": 267552,
+          "bytes": 267552,
+          "sha256": "edcd50a1608458867d78213385f5e3013a39db7b7af43d4f87d72e4d84e5e3dc",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 256960,
+              "memsz": 256960,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 256960,
+              "vaddr": 273344,
+              "filesz": 8232,
+              "memsz": 9280,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 265200,
+              "vaddr": 297968,
+              "filesz": 352,
+              "memsz": 4384,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libsherpa-onnx-c-api.so",
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 3
+        },
+        {
+          "artifact": "sherpa-standard-aar",
+          "path": "jni/x86_64/libsherpa-onnx-jni.so",
+          "name": "libsherpa-onnx-jni.so",
+          "size": 5053592,
+          "bytes": 5053592,
+          "sha256": "878d61116f244131263eec24297ef05bf508d02bccdede2a4e3ad3202bbdaa48",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 5009568,
+              "memsz": 5009568,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 5009568,
+              "vaddr": 5025952,
+              "filesz": 41352,
+              "memsz": 44896,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 5050920,
+              "vaddr": 5083688,
+              "filesz": 594,
+              "memsz": 16689,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libonnxruntime.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 6
+        },
+        {
+          "artifact": "sherpa-static-onnxruntime-aar",
+          "path": "jni/x86_64/libsherpa-onnx-jni.so",
+          "name": "libsherpa-onnx-jni.so",
+          "size": 27371968,
+          "bytes": 27371968,
+          "sha256": "9cd971c6a7fc3ec3ea5c22c516ca346c7e395d665cde794e2319e596ec25719b",
+          "status": "PASS",
+          "elfClass": 64,
+          "endianness": "little",
+          "loadSegments": [
+            {
+              "index": 0,
+              "offset": 0,
+              "vaddr": 0,
+              "filesz": 27010736,
+              "memsz": 27010736,
+              "flags": "R-X",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 1,
+              "offset": 27010736,
+              "vaddr": 27027120,
+              "filesz": 354544,
+              "memsz": 354640,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            },
+            {
+              "index": 2,
+              "offset": 27365280,
+              "vaddr": 27398048,
+              "filesz": 4536,
+              "memsz": 46576,
+              "flags": "RW-",
+              "align": 16384,
+              "alignHex": "0x4000",
+              "offsetVaddrCongruent": true,
+              "atLeast16KiB": true
+            }
+          ],
+          "parseError": null,
+          "readelfCrossCheck": {
+            "available": true,
+            "status": "PASS_STATIC",
+            "loadSegmentCount": 3,
+            "alignments": [
+              16384,
+              16384,
+              16384
+            ]
+          },
+          "neededLibraries": [
+            "libandroid.so",
+            "liblog.so",
+            "libm.so",
+            "libdl.so",
+            "libc.so"
+          ],
+          "onnxruntimeAsciiHitCount": 4156
+        }
+      ]
+    }
+  ]
+}

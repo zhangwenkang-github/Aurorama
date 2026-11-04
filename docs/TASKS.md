@@ -6,14 +6,14 @@
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-| `V2-SOLUTION-BASELINE` | G1 方案门；总括行，非执行卡 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | 不自行启动 runtime / 设备 / 网络 / 服务器 / 生产代码 / G2 / 独立 QA / Release；不把 S6 `PASS_WITH_P2` 或任一静态证据写成 G1 PASS | `V2-D202` 已接受全部推荐语义并仅授权 `L1`，当前 `L1_OFFLINE_PARTIAL_WAIT_NETWORK_AUTH`；S6 已完成并通过 scoped review `PASS_WITH_P2`；Q03 仍 Open，Q04 仍 Closed/D201；L2/L3 locked | G1 总体只在后续独立证据、用户决策与完整闭包均通过后收口；当前总括行不得代签 | 任何越权联网 / 设备 / 账号 / 服务器 / 生产代码 / G2 / QA / Release、Q03 或 G1 状态漂移、证据不可复算时立即停止 |
-| `V2-G1-L1-EVIDENCE` | G1 `L1`；状态 `L1_OFFLINE_PARTIAL / WAIT_NETWORK_AUTH` | 完成本地、可逆的静态 / 依赖 / packaged 证据准备，覆盖 SBOM、notice、source-offer、隔离构建证据，并为 B1 零网络能力、C1 voice/model 资产审计与 D1 stable PDFium 2.0.3 / PdfRenderer 回滚准备可复现输入 | ①未经另行授权不得联网、接触设备 / 账号 / 服务器或修改生产代码；②不启动 runtime、独立 QA、G2 或 Release；③不在审计前冻结 exact voice/model，不关闭 Q03，不把静态 / Spike 结果写成 G1 PASS | **唯一 readiness = user allowlist network**；`V2-D202`（A1/B1/C1/D1/E1/F1/G1 已接受，仅 `L1` 生效）；`L2/L3 LOCKED`；G1-S6 `PASS_WITH_P2`；Q03 Open；Q04 Closed/D201；UI V2 R1；B1/C1/D1 remain `BLOCKED` | 证据可由本地命令复算；依赖清单与 packaged SBOM / notice / source-offer 覆盖、缺口和来源明确；隔离构建 / Spike 有输入、命令、输出与清理记录；B1 明列系统 TTS 能力探测与零网络证明门；C1 明列候选 voice/model 许可、体积与质量审计；D1 固定 stable PDFium 2.0.3 Spike 且保留 PdfRenderer 回滚；全部记录证明未经另行授权不得联网 / 设备 / 账号 / 服务器 / 生产代码 | 需要网络下载但用户未单独 allowlist 域名 / artifact、设备 / 账号 / 服务器、生产代码或 runtime；需要关闭 Q03 或申请 L2/L3；出现 P0–P2、范围漂移、hash / manifest 不可复算时停止并请求明确授权 |
+| `V2-SOLUTION-BASELINE` | G1 方案门；总括行，非执行卡 | 建立目标架构、模块依赖、数据模型 / 迁移、协议契约、依赖许可、技术 Spike、UX 方向 / 低保真与验收矩阵，形成可确认的方案基线 | 不自行启动 runtime / 设备 / 新网络 / 服务器 / 生产代码 / G2 / 独立 QA / Release；不把 S6 `PASS_WITH_P2`、network review 或任一静态证据写成 G1 PASS | `V2-D202` 已接受全部推荐语义并仅授权 `L1`，当前 `L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_AND_Q03_CLOSURE`；Sherpa / PDFium 网络 artifact 已完成静态审计并 review；S6 已完成并通过 scoped review `PASS_WITH_P2`；Q03 仍 Open，Q04 仍 Closed/D201；L2/L3 locked | G1 总体只在 C1 exact asset、Q03 closure、后续独立证据、用户决策与完整闭包均通过后收口；当前总括行不得代签 | 任何新域名 / voice model download、越权设备 / 账号 / 服务器 / runtime / 生产代码 / G2 / QA / Release、Q03 或 G1 状态漂移、证据不可复算时立即停止 |
+| `V2-G1-L1-EVIDENCE` | G1 `L1`；状态 `L1_NETWORK_ARTIFACTS_AUDITED / WAIT_C1_ASSET_DECISION_AND_Q03_CLOSURE` | 完成本地、可逆的静态 / 依赖 / packaged 证据准备，覆盖 SBOM、notice、source-offer、隔离构建证据，并为 B1 零网络能力、C1 voice/model 资产审计与 D1 stable PDFium 2.0.3 / PdfRenderer 回滚准备可复现输入 | ①网络 allowlist 已结束，任何新域名或 voice/model download 须另行授权；不得接触设备 / 账号 / 服务器或修改生产代码；②不启动 runtime、独立 QA、G2 或 Release；③不替用户冻结 exact voice/model，不关闭 Q03，不把静态 / Spike 结果写成 G1 PASS | **唯一 readiness = WAIT_C1_ASSET_DECISION_AND_Q03_CLOSURE**；`V2-D202`（A1/B1/C1/D1/E1/F1/G1 已接受，仅 `L1` 生效）；Sherpa `.planning/v2-g1/G1-L1-NETWORK-SHERPA/` review `PASS_WITH_P2`，PDFium `.planning/v2-g1/G1-L1-NETWORK-PDFIUM/` review `PASS`；网络下载已完成并结束；`L2/L3 LOCKED`；G1-S6 `PASS_WITH_P2`；Q03 Open；Q04 Closed/D201；UI V2 R1；C1/A1 runtime remain open | 证据可由本地命令复算；依赖清单与 packaged SBOM / notice / source-offer 覆盖、缺口和来源明确；隔离构建 / Spike 有输入、命令、输出与清理记录；B1 明列系统 TTS 能力探测与零网络证明门；C1 明列 exact voice/model、model card、许可、体积与质量审计；D1 固定 stable PDFium 2.0.3 Spike 且保留 PdfRenderer 回滚；全部记录证明任何新增下载、runtime 与设备动作均需另授权 | 需要任何新域名 / voice model artifact download、C1 exact asset 用户决策缺失、设备 / 账号 / 服务器、生产代码或 runtime；需要关闭 Q03 或申请 L2/L3；出现 P0–P2、范围漂移、hash / manifest 不可复算时停止并请求明确授权 |
 
 ## Review
 
-- `V2-G1-L1-EVIDENCE`：前序 fresh scoped review `PASS_WITH_P2`。其后可跟踪命令记录 /
-  原始 console、文本 LF 属性与独立“移除 `--no-daemon`” self-test 的 P2 已修复；证据根
-  当前 15 文件，待 fresh scoped review 复核，不由本任务代签通过。
+- `V2-G1-L1-EVIDENCE`：离线证据与 network artifact 子项均已有独立 review；Sherpa
+  `PASS_WITH_P2`、PDFium `PASS`。前者的 P1 ORT notice / provenance、P2 source
+  tag→commit 以及 PDFium source / notice / runtime 缺口不由此关闭；Q03 仍 Open。
 
 ## Todo
 
@@ -38,6 +38,7 @@
 | `V2-FINAL-CHECK` | 完整 G0 PASS：外部 `1–1156` 全覆盖，三项产品问题关闭，外部八域 `445` 个 source ID、`376` 个 MVP 子项，另有五个既有能力 MUST 组；`MUSIC 49→50`、`READER 65→66` | 用户于 2026-11-03 19:43:40 +08:00（记录时间）原话“1、2、3 均按推荐；接受完整 G0，包含 MUSIC 49→50 与 READER 65→66，按此收口。”；`docs/V2_PLAN.md` §5.10、§12、§13；`DECISIONS` `V2-D194`～`D197`；结构检查见 §13 |
 | `V2-Q-G1-04` | 用户接受 S5 整包 R1，Q04 Closed/Accepted；五主题 DNA 与共享骨架成为 V2 R1 视觉方向；仅 D057 Nocturne 基础圆角 12→8dp，其他主题圆角与 D057 其他内容不变 | 用户于 2026-11-04 原话“选择R1。继续下一步，注意交接规范。还是尽量不要停，尽量使用子代理。”；`DECISIONS` `V2-D201`；`.planning/v2-g1/G1-S5/decision-brief.md`、`manifest.json`；`docs/UI_DESIGN_SYSTEM.md` V2 R1；Q03、runtime/device、S6、implementation 与 QA 均未因此 Done |
 | `V2-G1-S6` | G1-S6 总验收矩阵与 G2 任务卡输入完成：445 source、456 rows、376 MVP、5 BASE、30 R1、16 cards、45 waves、491 memberships、554 edges；fresh scoped review `PASS_WITH_P2`，接受为规划包与 docs integration/commit 候选 | `.planning/v2-g1/G1-S6/README.md`、`CHECKPOINT.md`、`manifest.json`、`acceptance-matrix.json`、`row-semantics.json`、`wave-membership.json`；verifier + 29/29 self-test GREEN；唯一 P2 `__pycache__` 已排除；Q03 Open、runtime UNVERIFIED、G1 NOT_PASSED，S6 完成不等于 G1 通过，独立 QA 未执行 |
+| `V2-G1-L1-NETWORK-ARTIFACTS` | G1-L1 Sherpa-ONNX / PDFium 网络 artifact 静态审计完成：Sherpa review `PASS_WITH_P2`；PDFium review `PASS`。仅完成允许的网络下载、hash / AAR / ELF / license / source 静态审计，不关闭 Q03 | `.planning/v2-g1/G1-L1-NETWORK-SHERPA/README.md`、`CHECKPOINT.md`、`manifest.json`、`manifest.sha256`；`.planning/v2-g1/G1-L1-NETWORK-PDFIUM/README.md`、`CHECKPOINT.md`、`manifest.json`、`manifest.sha256`；`docs/V2_PLAN.md` §12、§13。P1 ORT notice / provenance、P2 source tag→commit、PDFium 32-bit 4 KB / 64-bit runtime / GNU_RELRO / source / notice 与 C1/Q03 仍未关闭 |
 
 ## 任务卡模板
 

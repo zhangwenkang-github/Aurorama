@@ -1,0 +1,73 @@
+{
+  "schema": "aurorama.g1-l1.sherpa-static-audit.v1",
+  "status": "STATIC_EVIDENCE_READY / G1_NOT_PASSED / Q03_OPEN / RUNTIME_UNVERIFIED",
+  "selfExcluded": "manifest.json",
+  "checksumFile": "manifest.sha256",
+  "payload": [
+    {
+      "path": ".gitattributes",
+      "bytes": 112,
+      "sha256": "5e23ac41398f15a3e1320be779360a92e907d9e06ad8ef63eab1573f3ba9b322"
+    },
+    {
+      "path": "aar-inventory.json",
+      "bytes": 60953,
+      "sha256": "d3afd3369d9dc6a5d73f70f79e8a416a5832068f7b3c6cbb471bc02c83958fc1"
+    },
+    {
+      "path": "artifact-index.json",
+      "bytes": 6836,
+      "sha256": "d17bbb69cd948c2f700de15e6da733051f837607d1e880c2dabdf35a39b527c2"
+    },
+    {
+      "path": "build_sherpa_evidence.py",
+      "bytes": 47787,
+      "sha256": "a5a1a2ab2300842961f86e6ed1338d7c82f6b5c720a07960f5808bdd0c9002f5"
+    },
+    {
+      "path": "CHECKPOINT.md",
+      "bytes": 4662,
+      "sha256": "de004bf0fbadae2eda4534dc16b6c4e448b40e92dfc95a2d268642fa2f8f40dd"
+    },
+    {
+      "path": "commands.jsonl",
+      "bytes": 3640,
+      "sha256": "62095bceca3fa2b084134ab49d84982c9863482a28a827b6748d947133a3f1f6"
+    },
+    {
+      "path": "elf-inventory.json",
+      "bytes": 45608,
+      "sha256": "975e107ba3361cfd4350846ff6d3969de243de55bb739a7025b110c79f93f4d1"
+    },
+    {
+      "path": "license-source-matrix.json",
+      "bytes": 7738,
+      "sha256": "2071220d069d2572621c0037aec665aff614ab32b5112e999e14a85765727fd7"
+    },
+    {
+      "path": "license-texts/SOURCE-sherpa-onnx-2.0.1__LICENSE.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "license-texts/SOURCE-sherpa-onnx-2.0.1__sherpa-onnx__csrc__CMakeLists.txt.txt",
+      "bytes": 27609,
+      "sha256": "8bf18641b0543333bc9f5cafb10b3be56c51444b8afa43c83361b52cdb63b2eb"
+    },
+    {
+      "path": "README.md",
+      "bytes": 1292,
+      "sha256": "db7e840d0a12dde17bfd19b877beca757736cba0143943c8591e00e51e22a39d"
+    },
+    {
+      "path": "source-inventory.json",
+      "bytes": 1126813,
+      "sha256": "c1e41089380151596b53d7b357b76d4b0bf473add459ffe33abb5f1e4f405bf2"
+    },
+    {
+      "path": "verify_sherpa_evidence.py",
+      "bytes": 26432,
+      "sha256": "5858a2a38d09fda51b9b05844f39904d1cbd174f34b9dbb47c3fa275fb64adf7"
+    }
+  ]
+}

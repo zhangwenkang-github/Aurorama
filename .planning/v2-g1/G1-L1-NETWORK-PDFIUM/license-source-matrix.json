@@ -1,0 +1,221 @@
+{
+  "generated_at_utc": "2026-11-04T04:08:18Z",
+  "modules": [
+    {
+      "aar_license_notice_entry_count": 0,
+      "classes_jar_license_notice_entry_count": 0,
+      "deps_present": false,
+      "gn_present": false,
+      "java_source_count": 1,
+      "module": "pdfiumandroid",
+      "native_source_count": 0,
+      "pom_licenses": [
+        {
+          "distribution": null,
+          "name": "Apache License, Version 2.0",
+          "url": "http://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "distribution": "repo",
+          "name": "The Apache Software License, Version 2.0",
+          "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+        }
+      ],
+      "source_status": "SOURCE_INCOMPLETE",
+      "sources_license_notice_entry_count": 0
+    },
+    {
+      "aar_license_notice_entry_count": 0,
+      "classes_jar_license_notice_entry_count": 0,
+      "deps_present": false,
+      "gn_present": false,
+      "java_source_count": 1,
+      "module": "pdfiumandroid-core",
+      "native_source_count": 0,
+      "pom_licenses": [
+        {
+          "distribution": null,
+          "name": "Apache License, Version 2.0",
+          "url": "http://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "distribution": "repo",
+          "name": "The Apache Software License, Version 2.0",
+          "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+        }
+      ],
+      "source_status": "SOURCE_INCOMPLETE",
+      "sources_license_notice_entry_count": 0
+    },
+    {
+      "aar_license_notice_entry_count": 0,
+      "classes_jar_license_notice_entry_count": 0,
+      "deps_present": false,
+      "gn_present": false,
+      "java_source_count": 1,
+      "module": "pdfiumandroid-api",
+      "native_source_count": 0,
+      "pom_licenses": [
+        {
+          "distribution": null,
+          "name": "Apache License, Version 2.0",
+          "url": "http://www.apache.org/licenses/LICENSE-2.0"
+        },
+        {
+          "distribution": "repo",
+          "name": "The Apache Software License, Version 2.0",
+          "url": "http://www.apache.org/licenses/LICENSE-2.0.txt"
+        }
+      ],
+      "source_status": "SOURCE_INCOMPLETE",
+      "sources_license_notice_entry_count": 0
+    }
+  ],
+  "notice_signals": {
+    "apache_2_0": false,
+    "bsd_3_clause": false,
+    "third_party": false,
+    "written_offer": false
+  },
+  "obligations": [
+    {
+      "evidence": [
+        "artifact-index.json#/poms",
+        "license-source-matrix.json#/modules"
+      ],
+      "gap": null,
+      "id": "POM_BINDING_LICENSE",
+      "status": "SATISFIED"
+    },
+    {
+      "evidence": [
+        "artifact-index.json#/sources_jars"
+      ],
+      "gap": null,
+      "id": "JAVA_SOURCES_INCLUDED",
+      "status": "SATISFIED"
+    },
+    {
+      "evidence": [
+        "licenses/",
+        "artifact-index.json#/aar_inventory"
+      ],
+      "gap": "No short META-INF license/notice text found in AAR or nested classes.jar.",
+      "id": "BUNDLED_LICENSE_TEXT",
+      "status": "MISSING"
+    },
+    {
+      "evidence": [
+        "licenses/",
+        "license-source-matrix.json#/notice_signals"
+      ],
+      "gap": "No complete BSD-3-Clause PDFium notice was found in inspected artifact text.",
+      "id": "PDFIUM_BSD_NOTICE",
+      "status": "MISSING"
+    },
+    {
+      "evidence": [
+        "licenses/",
+        "license-source-matrix.json#/notice_signals"
+      ],
+      "gap": "No third-party notice bundle was identified.",
+      "id": "THIRD_PARTY_NOTICES",
+      "status": "MISSING"
+    },
+    {
+      "evidence": [
+        "artifact-index.json#/sources_jars"
+      ],
+      "gap": "sources.jar files contain no PDFium C/C++ native source.",
+      "id": "NATIVE_CORRESPONDING_SOURCE",
+      "status": "MISSING"
+    },
+    {
+      "evidence": [
+        "artifact-index.json#/sources_jars"
+      ],
+      "gap": "DEPS and GN build metadata are not present for all modules.",
+      "id": "DEPS_AND_GN_BUILD_METADATA",
+      "status": "MISSING"
+    },
+    {
+      "evidence": [
+        "artifact-index.json#/poms",
+        "elf-inventory.json#/revision_markers"
+      ],
+      "gap": "Maven artifact version 2.0.3 is proven; the PDFium upstream source revision is not proven by artifact metadata.",
+      "id": "EXACT_NATIVE_SOURCE_REVISION",
+      "status": "PARTIAL"
+    },
+    {
+      "evidence": [
+        "licenses/",
+        "license-source-matrix.json#/notice_signals"
+      ],
+      "gap": "No written source offer or corresponding-source bundle was found in the approved artifacts.",
+      "id": "CORRESPONDING_SOURCE_OFFER",
+      "status": "MISSING"
+    },
+    {
+      "evidence": [
+        "artifact-index.json#/poms",
+        "elf-inventory.json#/files"
+      ],
+      "gap": "Binding Maven version and native hashes are pinned, but they do not identify an exact PDFium source commit.",
+      "id": "VERSION_TRACEABILITY",
+      "status": "PARTIAL"
+    }
+  ],
+  "overall": {
+    "binding_license": "POM declares licenses; PDFium native text requires a separate notice/source conclusion.",
+    "g1_passed": false,
+    "notice_obligation": "MISSING",
+    "q03_closed": false,
+    "source_obligation": "SOURCE_INCOMPLETE"
+  },
+  "revision": {
+    "binding_scm": {
+      "pdfiumandroid": {
+        "connection": "scm:git@github.com:johngray1965/PdfiumAndroidKt.git",
+        "developerConnection": "scm:git@github.com:johngray1965/PdfiumAndroidKt.git",
+        "tag": null,
+        "url": "git@github.com:johngray1965/PdfiumAndroidKt.git"
+      },
+      "pdfiumandroid-api": {
+        "connection": "scm:git@github.com:johngray1965/PdfiumAndroidKt.git",
+        "developerConnection": "scm:git@github.com:johngray1965/PdfiumAndroidKt.git",
+        "tag": null,
+        "url": "git@github.com:johngray1965/PdfiumAndroidKt.git"
+      },
+      "pdfiumandroid-core": {
+        "connection": "scm:git@github.com:johngray1965/PdfiumAndroidKt.git",
+        "developerConnection": "scm:git@github.com:johngray1965/PdfiumAndroidKt.git",
+        "tag": null,
+        "url": "git@github.com:johngray1965/PdfiumAndroidKt.git"
+      }
+    },
+    "diagnosis": "The Maven version and native file hashes are reproducible, but no artifact text proves the exact upstream PDFium commit.",
+    "maven_artifact_version": "2.0.3",
+    "maven_version_status": "PROVEN",
+    "native_revision_evidence_file": null,
+    "native_source_revision": "UNPROVEN",
+    "native_source_revision_value": null
+  },
+  "schema_id": "aurorama.g1-l1-network-pdfium.license-source-matrix/v1",
+  "source_audit": {
+    "deps_present": false,
+    "gn_present": false,
+    "missing": [
+      "PDFium C/C++ native source",
+      "DEPS",
+      "GN build files"
+    ],
+    "native_source_present": false,
+    "status": "SOURCE_INCOMPLETE"
+  },
+  "source_baseline": {
+    "branch": "codex/v2-integration",
+    "head": "506fe75fddd40188ec116ca19496a09778868725",
+    "initial_status_porcelain": ""
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "artifact_hashes": {
+    "pdfiumandroid-api:AAR": {
+      "sha256": "A47A0CC8210D3D435996CCB47A3C666361F8C7CB774EFBE58AB02AC478731F3F",
+      "size": 44512
+    },
+    "pdfiumandroid-api:POM": {
+      "sha256": "9C831E5B7F556C419723734EDFC836FFB085C5E4D021C329E1F6B6F22EE75FF7",
+      "size": 2081
+    },
+    "pdfiumandroid-api:SOURCES_JAR": {
+      "sha256": "4E1725FF58AD83EADB2C85CB65579CDF3B287B5051309E08F469C3475EAF97FC",
+      "size": 15023
+    },
+    "pdfiumandroid-core:AAR": {
+      "sha256": "F80B8D2166F226E0ED0A50B7014CEA91E297952C5E0AC158F10FF62C74D7E318",
+      "size": 9787161
+    },
+    "pdfiumandroid-core:POM": {
+      "sha256": "7487F2A261A06A24363725435CE0727324DC8E6E6050CC354308D2A51C4A48FA",
+      "size": 2077
+    },
+    "pdfiumandroid-core:SOURCES_JAR": {
+      "sha256": "29B4722B7E1A4437F77227F033B9406EE66F5AD86641ABD9C2EEE2C7963D8199",
+      "size": 41348
+    },
+    "pdfiumandroid:AAR": {
+      "sha256": "1F07A9160C9A5975D6EFFF72404C5E49217D46F2651BFE02C67C8AFB133E02D7",
+      "size": 377258
+    },
+    "pdfiumandroid:POM": {
+      "sha256": "F28D790B57E49006F755692CEE0C5000F88BC3C95AA0D816D2AD0F0DCFE82962",
+      "size": 2461
+    },
+    "pdfiumandroid:SOURCES_JAR": {
+      "sha256": "909C450DCDCA3EB73BD9877BFAD599D65EC6D7B442B758BF8427D7CE3A6783F3",
+      "size": 32552
+    }
+  },
+  "authorization": {
+    "account_accessed": false,
+    "adb_accessed": false,
+    "approved_coordinates": [
+      "io.legere:pdfiumandroid:2.0.3",
+      "io.legere:pdfiumandroid-core:2.0.3",
+      "io.legere:pdfiumandroid-api:2.0.3"
+    ],
+    "approved_hosts": [
+      "repo1.maven.org"
+    ],
+    "binary_retained_in_evidence": false,
+    "commit_created": false,
+    "device_accessed": false,
+    "g1_passed": false,
+    "gradle_executed": false,
+    "https_only": true,
+    "push_performed": false,
+    "q03_closed": false,
+    "qa_started": false,
+    "redirects_followed": false,
+    "runtime_executed": false,
+    "server_accessed": false
+  },
+  "checksum_file": "manifest.sha256",
+  "elf_abi_summary": [
+    {
+      "abi": "arm64-v8a",
+      "elf_file_count": 2,
+      "status": "PASS"
+    },
+    {
+      "abi": "armeabi-v7a",
+      "elf_file_count": 2,
+      "status": "FAIL"
+    },
+    {
+      "abi": "x86",
+      "elf_file_count": 2,
+      "status": "FAIL"
+    },
+    {
+      "abi": "x86_64",
+      "elf_file_count": 2,
+      "status": "PASS"
+    }
+  ],
+  "payload": {
+    "file_count": 9,
+    "files": [
+      {
+        "bytes": 140,
+        "path": ".gitattributes",
+        "sha256": "18C2705A41587F7D54CE8FB10637B4D8DC042CA2CFFDA3852F1093AC0EE4D367"
+      },
+      {
+        "bytes": 33540,
+        "path": "artifact-index.json",
+        "sha256": "65D22AE377B367E4DB8DABF2314CCC191B6433D113B056EFF0BDBC236AADB9A3"
+      },
+      {
+        "bytes": 55382,
+        "path": "audit_pdfium_artifacts.py",
+        "sha256": "07772F5733D00CB64A040BB5A4C3DDC05862DD1853EF7772A38C6F8F079DE55E"
+      },
+      {
+        "bytes": 1620,
+        "path": "CHECKPOINT.md",
+        "sha256": "56EA43B7B5D8F6BF9ACD3D285C02BFF8FCAB72EB2B5454D8D0AC9420DCF93D47"
+      },
+      {
+        "bytes": 14583,
+        "path": "commands.jsonl",
+        "sha256": "BB41FCF3289BCA51366A6C3029324BD364F38AAAFC6005CE8995751CC5540935"
+      },
+      {
+        "bytes": 15592,
+        "path": "elf-inventory.json",
+        "sha256": "6C20613425D32105BDDC3DC1185E4AA746D6483A44C914FC124A5F1506852D74"
+      },
+      {
+        "bytes": 6919,
+        "path": "license-source-matrix.json",
+        "sha256": "9BC443096708B3DA310D2D6B072999CE51DE9453852A772571D7F8FE3DA7F1F4"
+      },
+      {
+        "bytes": 3308,
+        "path": "README.md",
+        "sha256": "F624C064D6CD7B4D1E62FE67231BD6B7B5892482410B6AB722B7EE1963FF5417"
+      },
+      {
+        "bytes": 27622,
+        "path": "verify_pdfium_artifact_audit.py",
+        "sha256": "91BB4B8444DBDFC3FB11C385AFFE545CFA7D151ECBF7674688962922D7A0590B"
+      }
+    ],
+    "total_bytes": 158706
+  },
+  "schema_id": "aurorama.g1-l1-network-pdfium.manifest/v1",
+  "scope": "NETWORK_ARTIFACT_STATIC_AUDIT_ONLY",
+  "source_baseline": {
+    "branch": "codex/v2-integration",
+    "head": "506fe75fddd40188ec116ca19496a09778868725",
+    "initial_status_porcelain": ""
+  },
+  "static_16kb_is_runtime_pass": false,
+  "status": "STATIC_AUDIT_COMPLETE / Q03_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED",
+  "verify_command": "python .planning/v2-g1/G1-L1-NETWORK-PDFIUM/verify_pdfium_artifact_audit.py"
+}

@@ -1,0 +1,169 @@
+{
+  "schema": "aurorama.g1-sherpa-license-source-matrix.v1",
+  "status": "STATIC_INPUT_ONLY",
+  "runtimeVerificationStatus": "UNVERIFIED",
+  "finalPackagedNoticeComplete": false,
+  "q03Status": "OPEN",
+  "g1Status": "NOT_PASSED",
+  "rows": [
+    {
+      "id": "apache-2.0-code",
+      "component": "sherpa-onnx source / AAR",
+      "observedLicenseFamily": "Apache-2.0",
+      "evidence": "source archive license/notice inventory",
+      "obligations": [
+        "retain license text for distributed Apache-2.0 code",
+        "state modified files when redistribution includes modifications",
+        "retain applicable copyright and attribution notices"
+      ],
+      "status": "OBSERVED"
+    },
+    {
+      "id": "onnxruntime",
+      "component": "ONNX Runtime linked by Sherpa-ONNX",
+      "form": "standard AAR embeds a separate libonnxruntime.so in all four ABIs; static AAR has no separate ONNX Runtime library on arm64-v8a, armeabi-v7a, x86_64 and still carries libonnxruntime.so on x86",
+      "evidence": "AAR DT_NEEDED/ASCII scans plus Android package URLs and SHA-256 values declared in source CMake; no execution",
+      "obligations": [
+        "record exact ONNX Runtime revision/configuration in final SBOM",
+        "retain ONNX Runtime license and notices when distributed",
+        "include third-party dependencies pulled into the linked runtime"
+      ],
+      "status": "PARTIAL"
+    },
+    {
+      "id": "third-party-notice",
+      "component": "transitive native / source dependencies",
+      "evidence": "source third_party inventory plus AAR license/notice entry scan",
+      "obligations": [
+        "derive final transitive inventory from the exact build configuration",
+        "retain required MIT / BSD / Apache / other notices",
+        "resolve source-availability duties for copyleft or file-level copyleft components"
+      ],
+      "status": "INCOMPLETE"
+    },
+    {
+      "id": "source-offer",
+      "component": "Aurorama distribution corresponding source / upstream source pointers",
+      "evidence": "source tarball is available and hashed; no final packaged source bundle",
+      "obligations": [
+        "include or offer the exact corresponding source required by Aurorama GPL-3.0 distribution",
+        "map any native modifications and build scripts to the shipped binary",
+        "do not treat this static tarball as the final source bundle"
+      ],
+      "status": "OPEN"
+    }
+  ],
+  "licenseNoticeEvidence": [
+    {
+      "source": "sherpa-source-v2.0.1",
+      "originalPath": "sherpa-onnx-2.0.1/LICENSE",
+      "path": "license-texts/SOURCE-sherpa-onnx-2.0.1__LICENSE.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "truncated": false
+    },
+    {
+      "source": "sherpa-source-v2.0.1",
+      "originalPath": "sherpa-onnx-2.0.1/sherpa-onnx/csrc/CMakeLists.txt",
+      "path": "license-texts/SOURCE-sherpa-onnx-2.0.1__sherpa-onnx__csrc__CMakeLists.txt.txt",
+      "sha256": "8bf18641b0543333bc9f5cafb10b3be56c51444b8afa43c83361b52cdb63b2eb",
+      "truncated": false
+    }
+  ],
+  "sbomInput": {
+    "readyForFinalPackagedSbom": false,
+    "sherpaSource": {
+      "id": "sherpa-source-v2.0.1",
+      "sha256": "24ecc0fccf6344c2556e7c229c849e9f61bf9456b915615197d85f35e3f177e7",
+      "bytes": 11933876
+    },
+    "aarInputs": [
+      {
+        "id": "sherpa-standard-aar",
+        "sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+        "bytes": 49441341
+      },
+      {
+        "id": "sherpa-static-onnxruntime-aar",
+        "sha256": "07e042d97f3a6bd5b7fe74d4eef0513dc01a714b16c15a903250095aba43a575",
+        "bytes": 38577050
+      }
+    ],
+    "onnxRuntimeObservedStatically": true,
+    "onnxRuntimePackageVersion": "1.28.2",
+    "onnxRuntimeRevisionEvidence": "Release version and package hash are embedded in the source CMake files; an upstream commit SHA is not embedded in the downloaded AAR/source inputs.",
+    "onnxRuntimeAndroidInputs": [
+      {
+        "abi": "arm64-v8a",
+        "linkage": "shared",
+        "cmakePath": "sherpa-onnx-2.0.1/cmake/onnxruntime-android-aarch64.cmake",
+        "packageVersion": "1.28.2",
+        "packageUrl": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-1.28.2.zip",
+        "packageSha256": "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d"
+      },
+      {
+        "abi": "arm64-v8a",
+        "linkage": "static",
+        "cmakePath": "sherpa-onnx-2.0.1/cmake/onnxruntime-android-aarch64-static.cmake",
+        "packageVersion": "1.28.2",
+        "packageUrl": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-arm64-v8a-static_lib-1.28.2.zip",
+        "packageSha256": "bc68410f35f13df82c260830bf476ee5565f5efd0ec7622297829a929613c6c0"
+      },
+      {
+        "abi": "armeabi-v7a",
+        "linkage": "shared",
+        "cmakePath": "sherpa-onnx-2.0.1/cmake/onnxruntime-android-arm.cmake",
+        "packageVersion": "1.28.2",
+        "packageUrl": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-1.28.2.zip",
+        "packageSha256": "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d"
+      },
+      {
+        "abi": "armeabi-v7a",
+        "linkage": "static",
+        "cmakePath": "sherpa-onnx-2.0.1/cmake/onnxruntime-android-arm-static.cmake",
+        "packageVersion": "1.28.2",
+        "packageUrl": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-armeabi-v7a-static_lib-1.28.2.zip",
+        "packageSha256": "21f8aaab5d536f397a11deeedc09c2ceecc740b45332d8a946c358e7717b5f18"
+      },
+      {
+        "abi": "x86",
+        "linkage": "shared",
+        "cmakePath": "sherpa-onnx-2.0.1/cmake/onnxruntime-android-i686.cmake",
+        "packageVersion": "1.28.2",
+        "packageUrl": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-1.28.2.zip",
+        "packageSha256": "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d"
+      },
+      {
+        "abi": "x86",
+        "linkage": "static",
+        "cmakePath": "sherpa-onnx-2.0.1/cmake/onnxruntime-android-i686-static.cmake",
+        "packageVersion": "1.28.2",
+        "packageUrl": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-x86-static_lib-1.28.2.zip",
+        "packageSha256": "8228edb42e8f9949a61c78a5e8b9adba7f3f90517d79d687ac070b907ef0bf1c"
+      },
+      {
+        "abi": "x86_64",
+        "linkage": "shared",
+        "cmakePath": "sherpa-onnx-2.0.1/cmake/onnxruntime-android-x86_64.cmake",
+        "packageVersion": "1.28.2",
+        "packageUrl": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-1.28.2.zip",
+        "packageSha256": "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d"
+      },
+      {
+        "abi": "x86_64",
+        "linkage": "static",
+        "cmakePath": "sherpa-onnx-2.0.1/cmake/onnxruntime-android-x86_64-static.cmake",
+        "packageVersion": "1.28.2",
+        "packageUrl": "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-x86_64-static_lib-1.28.2.zip",
+        "packageSha256": "f49dbf456ffe71dd417afb2123ef15202f8f57a4b2a05f12af1cf71f55448137"
+      }
+    ],
+    "thirdPartyClosure": "UNRESOLVED"
+  },
+  "missing": [
+    "final packaged notice bundle",
+    "upstream ONNX Runtime commit SHA and complete build configuration/notices",
+    "complete transitive third-party notice and source-obligation closure",
+    "final Aurorama GPL-3.0 corresponding-source bundle",
+    "runtime load / offline / zero-network behavior"
+  ]
+}

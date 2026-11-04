@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / G1_S6_COMPLETE_SCOPED_REVIEW_PASS_WITH_P2 / D202_ACCEPTED_RECOMMENDATIONS / L1_OFFLINE_PARTIAL_WAIT_NETWORK_AUTH / L2_L3_LOCKED / Q04_CLOSED_D201 / Q03_OPEN / UI_V2_R1_ACCEPTED / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 `L1_OFFLINE_PARTIAL_WAIT_NETWORK_AUTH` / `V2-G1-L1-EVIDENCE` 的离线静态、依赖与 packaged 证据已完成；前序 fresh scoped review `PASS_WITH_P2` 的可跟踪命令记录 / console、LF 属性与独立 `--no-daemon` 缺口已修复，待 fresh scoped review 复核，当前只等待用户对单列网络域名与 artifact 的明确授权。Q03 仍 Open、Q04 仍 Closed/D201、runtime `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 仍 `LOCKED`
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / G1_S6_COMPLETE_SCOPED_REVIEW_PASS_WITH_P2 / D202_ACCEPTED_RECOMMENDATIONS / L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_AND_Q03_CLOSURE / L2_L3_LOCKED / Q04_CLOSED_D201 / Q03_OPEN / UI_V2_R1_ACCEPTED / CANDIDATE_BASELINE / G1_NOT_PASSED`
+> 当前阶段：开发前置·G1 `L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_AND_Q03_CLOSURE` / `V2-G1-L1-EVIDENCE` 的 Sherpa-ONNX 与 PDFium 网络 artifact 已完成静态审计并获独立 review；网络下载已按 allowlist 结束，当前等待 C1 exact voice/model 决策与 Q03 closure。Q03 仍 Open、Q04 仍 Closed/D201、runtime `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 仍 `LOCKED`
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3194,7 +3194,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 与 S6 已完成；`V2-D202` 接受 A-G 推荐语义并仅授权 L1，`V2-G1-L1-EVIDENCE` ACTIVE；Q03、runtime、device 与真实证据仍未收口，L2/L3 locked |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 与 S6 已完成；`V2-D202` 接受 A-G 推荐语义并仅授权 L1，Sherpa-ONNX / PDFium 网络 artifact 已审计，`V2-G1-L1-EVIDENCE` 等待 C1 exact voice/model 决策与 Q03 closure；runtime、device 与真实证据仍未收口，L2/L3 locked |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3224,7 +3224,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ✅ 9 节点最终矩阵、计数、证据与跨域处置由 `V2-D193` 整包接受；需求域已收口 |
 | 9 | `V2-REQ-BASE` | 1.4 既有能力补充基线 | ✅ `V2-REQ-BASE-001～005` 五个 `MUST` 组由 `V2-D196` 保留，来源、验收、依赖、非目标与 G1 未决项已落 §5.10.5 |
 | 10 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ✅ `V2-D197` 完整 G0 PASS；`V2-Q-FINAL-01～03` 全部关闭；后续由 G1 接管 |
-| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 已完成并通过 scoped review `PASS_WITH_P2`；D202 接受 A-G 推荐语义并仅授权 L1，当前唯一可执行任务为 `V2-G1-L1-EVIDENCE`；L2/L3 locked，禁止启动 runtime、实现或 G2 |
+| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 已完成并通过 scoped review `PASS_WITH_P2`；D202 接受 A-G 推荐语义并仅授权 L1，Sherpa-ONNX / PDFium 网络 artifact 已完成静态审计，当前唯一任务 `V2-G1-L1-EVIDENCE` 等待 C1 exact voice/model 决策与 Q03 closure；L2/L3 locked，禁止启动 runtime、实现或 G2 |
 
 每个需求域的退出条件：
 
@@ -3332,61 +3332,58 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：G1-L1 离线基线完成，等待限定网络授权（2026-11-04）
+### ACTIVE：G1-L1 网络 artifact 完成，C1 voice/model 与 Q03 closure 待续（2026-11-04）
 
-**一句话现状**：`V2-G1-L1-EVIDENCE` 状态为
-`L1_OFFLINE_PARTIAL / WAIT_NETWORK_AUTH`。前序 fresh scoped review 为
-`PASS_WITH_P2`；其后可跟踪命令记录 / 原始 console、文本 LF 属性与独立
-`--no-daemon` self-test 的 P2 已修复，待 fresh scoped review 复核。`L1` 仍是当前唯一
-任务线，`L2/L3` 仍 `LOCKED`；本任务不代签 Q03、runtime、device、G1 或独立 QA PASS。
+**一句话现状**：当前阶段为
+`L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_AND_Q03_CLOSURE`；`V2-G1-L1-EVIDENCE` 的
+readiness 为 `WAIT_C1_ASSET_DECISION_AND_Q03_CLOSURE`。Sherpa-ONNX 与 PDFium 网络
+artifact 已按用户 allowlist 完成静态审计并获独立 review；下载已结束，`L1` 仍是当前唯一
+任务线，`L2/L3` 仍 `LOCKED`。本轮不代签 C1、Q03、runtime、device、G1 或独立 QA PASS。
 
 **已完成**：
 
-- L1 证据根 `.planning/v2-g1/G1-L1-EVIDENCE/` 共 15 文件；易变字节数与 manifest
-  SHA-256 不在此自引用，提交前从 `manifest.json` / `manifest.sha256` 现场读取。
-- `.\gradlew.bat :app:phone:assembleDebug --offline --no-daemon --console=plain`
-  exit 0，`BUILD SUCCESSFUL in 50s`、242 tasks，产出 4 个当前 1.4.0(5) debug APK；
-  candidate status 明确为 `CURRENT_APP_NOT_V2_CANDIDATE`。
-- 依赖盘点为 296 external + 9 project modules；license provenance 为
-  46 `EXACT` / 250 `FAMILY` / 0 `UNKNOWN`；corresponding source 0/296、notice
-  62/296；license gaps 为 2 `PARTIAL` + 4 `BLOCKED`。
-- A1 为 `PARTIAL`；B1/C1/D1 均为 `BLOCKED`。L1 verifier PASS，self-test 24/24。
-- 前序 `PASS_WITH_P2` 的可跟踪命令记录 / console、LF 属性与独立
-  `--no-daemon` 负例均已修复；结论仍须 fresh scoped review 复核，不由本任务代签 PASS。
+- Sherpa-ONNX：`.planning/v2-g1/G1-L1-NETWORK-SHERPA/` 共 15 文件 / 1,373,248 B，
+  manifest SHA-256 `f8b4223b0ed46484a7e3f9f69389c7c638e890ae60d822c837087b453d895eef`。
+  3 个 exact GET 均 200；两个 AAR size / SHA-256 与固定值一致；source SHA-256 以
+  `24ecc0f...` 起始。21 个 ELF 的 68 条 `PT_LOAD` 全部 `p_align=0x4000`；review
+  `PASS_WITH_P2`。
+- PDFium：`.planning/v2-g1/G1-L1-NETWORK-PDFIUM/` 共 11 文件 / 163,231 B，manifest
+  SHA-256 `0436042CDA00D9E7F1941965907491DB6ABD696AACF7E560777EEDE78D5A8FC9`。
+  18 个 allowlisted URL 均 200，其中 9 个远端 SHA-256 可用；三个 AAR SHA-256 与固定值
+  一致。arm64-v8a / x86_64 静态 16 KB 对齐 PASS，armeabi-v7a / x86 的 `p_align=4096`
+  FAIL；review `PASS`。
+- 网络访问只覆盖已批准的 `github.com` 及其 exact redirect、`repo1.maven.org` 与已列
+  artifact；下载动作现已结束。缓存、代理、review PASS 或本阶段状态均不扩展现有授权。
 
 **未完成 / BLOCKED**：
 
-- B1：Sherpa-ONNX v2.0.1 的本地 AAR/source 缺失；系统 TTS 能力探测、零网络与
-  runtime load-order 均未验证。
-- C1：exact 普通话 voice/model、lexicon、rule data 与 model card 尚未选定；不能用
-  网络 artifact 请求冒充审计完成。
-- D1：stable PDFium 2.0.3 的本地 AAR/source、native revision、notice、Range 与
-  16 KB 证明缺失；PdfRenderer 回滚路径继续保留。
-- Q03 仍 Open、G1 `NOT_PASSED`、runtime `UNVERIFIED`。当前 APK 不是 V2 candidate，
-  不能作为 packaged Q03 最终证据；当前离线构建不证明 A1 load-order、TTS zero-network、
-  PDF Range 或 16 KB runtime。
+- C1：exact 普通话 voice/model、lexicon、rule data、model card 与许可证尚未决策 /
+  冻结；不得把本轮 artifact 审计写成 voice/model 已完成。
+- Sherpa：P1 `P1-ONNXRUNTIME-NOTICE-PROVENANCE` 仍阻断完整 ORT notice / provenance；
+  P2 `P2-SOURCE-TAG-COMMIT-UNBOUND` 表明 source tag 到 commit 尚未由字节独立证明。
+- PDFium：armeabi-v7a / x86 仍为 4 KB 对齐 FAIL；arm64-v8a / x86_64 仅为静态对齐
+  PASS，runtime、`GNU_RELRO`、exact native source revision 与 notice 仍未闭合。
+- A1 runtime 尚未执行；TTS zero-network、PDF Range / 16 KB runtime、双内核 load-order
+  与候选 packaged SBOM / notice / source offer 均不能由本轮网络 artifact 静态审计代签。
+- Q03 仍 Open、G1 `NOT_PASSED`、runtime `UNVERIFIED`；C/D/E 未授权、L2/L3 locked。
 
-**下一步入口（仅请求用户单独网络授权）**：
+**下一步入口**：
 
-- `github.com`：仅获取 Sherpa-ONNX v2.0.1 的
-  `sherpa-onnx-2.0.1.aar`、`sherpa-onnx-static-link-onnxruntime-2.0.1.aar` 与
-  v2.0.1 source archive，用于本地 artifact / ELF / license / SBOM 审计。
-- `repo1.maven.org`：仅获取 `io.legere:pdfiumandroid`、`pdfiumandroid-core`、
-  `pdfiumandroid-api` 的 `2.0.3` 三个 AAR、三个 `sources.jar`、POM 与 SHA-256，
-  用于本地 16 KB / revision / notice / source 审计。
-- 上述两个域名及这些 artifact 仍需用户单独明确批准。C1 exact voice/model 尚未选定，
-  不能把该请求视为 C1 或 runtime 已完成。
+- 由用户 / 交付负责人先作 C1 exact voice/model 资产决策，并另列 Q03 closure 所需的本地
+  provenance、notice、source、runtime 与设备证据；不得自动开始任何下载或 runtime。
+- 新负责人第一条只读动作：读取本 ACTIVE、§13 本轮收口日志、`docs/TASKS.md`
+  `V2-G1-L1-EVIDENCE`，再核对两个 network evidence 根及其 manifest / verifier；之后只整理
+  C1 与 Q03 closure 选项，不执行网络、构建、ADB、设备或服务器动作。
+- 任一新域名、任意 voice/model 下载、runtime / device / 账号 / 服务器 / 生产代码 / G2 /
+  独立 QA / Release 均须新的明确授权；本轮 allowlist 不可复用。
 
-**环境 / 设备 / 权限**：事实 worktree 为
+**环境 / 权限 / 停止条件**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
-`codex/v2-integration`；HEAD、dirty 与锁均由 Git / 设备现场读取。本轮无设备、账号、
-服务器写、runtime、生产实现、QA、Release 或 commit / push。生产服务器永久只读。
-
-**非目标与停止条件**：未经本次单列授权，禁止联网、设备、账号、服务器、runtime、
-生产代码、G2、独立 QA、Release、commit 或 push；不得以缓存、代理或推荐语义推定授权。
-不关闭 Q03，不替用户冻结 exact voice/model，不自行选择替代 PDF 引擎，不申请 L2/L3。
-用户未明确批准域名 / artifact、出现 P0–P2、证据或 hash 不可复算、需要 C1 exact asset
-决策或任何越界动作时立即停止。
+`codex/v2-integration`；HEAD、dirty 与锁由 Git / 设备现场读取。生产服务器永久只读。
+禁止网络、设备、账号、服务器、runtime、Gradle / ADB、生产代码、G2、独立 QA、Release、
+commit 或 push；不冻结 exact voice/model，不关闭 Q03，不申请 L2/L3。出现新域名 /
+下载请求、C1 决策缺失、P0–P2、Git / hash / manifest / LF 漂移、静态证据被升级为
+runtime / Q03 / G1 PASS，或任何越界动作时立即停止。
 
 ### HISTORY：G1 残余门 / A-G 决策菜单（2026-11-04；Completed，D202 已接受推荐并由上方 L1 ACTIVE 取代）
 
@@ -4367,3 +4364,16 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   runtime、生产代码、QA 或 Release，不 commit / push。下一步仅等待用户单独批准
   `github.com` 与 `repo1.maven.org` 上已列 artifact；C1 exact voice/model 尚未选定，
   不能与本次网络请求合并冒充完成。
+- **2026-11-04 — G1-L1 网络 artifact 静态审计完成并收口**：Sherpa-ONNX 下载在 3 次
+  受控失败后，由同一 owner 于 58.7 秒内以 3 个 exact GET 200 成功；PDFium 三个 2.0.3
+  坐标的 18 个 allowlisted URL（9 主 artifact + 9 远端 SHA-256）均 200。Sherpa 证据根
+  15 文件 / 1,373,248 B，manifest SHA-256 `f8b4223b…`；两个 AAR hash / size 精确，
+  source hash `24ecc0f…`，21 ELF / 68 条 `PT_LOAD` 全部 `0x4000`；review
+  `PASS_WITH_P2`，保留 ORT notice / provenance P1 与 source tag→commit P2。PDFium 证据
+  根 11 文件 / 163,231 B，manifest SHA-256 `0436042C…`；三个 AAR hash 精确，
+  arm64-v8a / x86_64 静态 16 KB PASS，armeabi-v7a / x86 的 `p_align=4096` FAIL；
+  revision / source / notice 与 runtime 未闭合，review PASS。网络下载至此结束；C1 exact
+  voice/model、A1 runtime、Q03 与 C/D/E 仍未完成。Q03 保持 Open、G1 `NOT_PASSED`、
+  runtime `UNVERIFIED`、L2/L3 locked；本轮未运行 offline L1 build、Gradle、ADB、设备、
+  账号、服务器、runtime、生产代码、独立 QA 或 Release，不 commit / push；任何新域名或
+  voice/model 下载须另行授权。
