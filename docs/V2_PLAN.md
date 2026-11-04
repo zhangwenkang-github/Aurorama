@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / G1_S6_COMPLETE_SCOPED_REVIEW_PASS_WITH_P2 / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / SHERPA_QUALITY_INSUFFICIENT_COMPAT_FALLBACK / Q05_OPEN_TTS_ENGINE_STRATEGY / L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE / L2_L3_LOCKED / Q04_CLOSED_D201 / Q03_OPEN / UI_V2_R1_ACCEPTED / CANDIDATE_BASELINE / G1_NOT_PASSED`
-> 当前阶段：开发前置·G1 `L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE` / 用户试听判定当前 Sherpa 三组小说声线质量不足，现状为 `SHERPA_QUALITY_INSUFFICIENT`；D203 的 voice-pack、后台锁屏、删除回退与单音频 owner 条款不变，但 Sherpa-ONNX v2.0.1 + ONNX Runtime 当前仅降为兼容回退候选。`V2-Q-G1-05` 仍 Open，等待选择“Sherpa 兼容回退 + 高表现力第二引擎可行性 Spike / 仅继续 Sherpa pack / 继续试听调研”；未冻结 IndexTTS、CosyVoice、GPT-SoVITS 或任何 Matcha / Kokoro 新 profile。Q03 仍 Open、Q04 Closed/D201、runtime `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 `LOCKED`
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `D204_ACCEPTED_ENGINE_STRATEGY_A / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。用户于 2026-11-04 原话“按推荐选择A。”，A 仅表示保留 Sherpa / Matcha 兼容回退并另立高表现力开源第二引擎 Android arm64 可行性 Spike；第二引擎及 exact profile / voice 均未选择。下一步只允许只读 / 静态绘制 Spike 边界与官方许可门，不授权新网络域、权重下载、Gradle / ADB、设备、runtime 或生产代码。D203 voice-pack、后台锁屏、删除回退、单音频 owner / MediaSession 与零网络条款不变；Q03 仍 Open、runtime `UNVERIFIED`、G1 `NOT_PASSED`，S6 需 D204 后 fresh scoped reconfirm，L2/L3 `LOCKED`。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-04
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -1058,7 +1058,7 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 | 模式 | 分页 + 连续滚动 | EPUB/CBZ/PDF 均有滚动、分页、双栏；EPUB 滚动是资源内滚动 + 资源间翻页 | 保留并明确各格式语义，不宣称完全同构 |
 | 页动画 | 滑动 / 覆盖 / 仿真 | 无独立页动画设置 | `SHOULD`，不进 2.0 MVP；`V2-D094` |
 | 手势 | 单区点击、亮度、书签 | 双击左右翻页 / 中间适宽；纵向亮度；无音量键；无中心控制层 | 已由 `V2-D085`、`V2-D095` 确认完整优先级；实现须服从该唯一仲裁表 |
-| TTS | 本地朗读、句级高亮、可选定时；D203 追加后台 / 锁屏与音色配置 | 无；D203 初始固定 Sherpa-ONNX v2.0.1 + ONNX Runtime，质量门失败后当前仅保留为兼容回退候选，主朗读 engine strategy 由 `V2-Q-G1-05` 待决 | EPUB/TXT 纯本地离线 TTS 进入 MVP；统一内置 / 导入音色包列表，支持追加导入、删除与全局 / 逐书选择；后台与锁屏由进程 / 前台 service owner 延续；PDF/CBZ 后续；`V2-D088`、`V2-D097`、`V2-D203`、`V2-Q-G1-05` |
+| TTS | 本地朗读、句级高亮、可选定时；D203 追加后台 / 锁屏与音色配置 | 无；Sherpa-ONNX v2.0.1 + ONNX Runtime 在质量门失败后仅保留为兼容回退候选；`V2-D204` 已接受 engine strategy A，但高表现力第二引擎、exact profile / voice 仍未选择 | EPUB/TXT 纯本地离线 TTS 进入 MVP；统一内置 / 导入音色包列表，支持追加导入、删除与全局 / 逐书选择；后台与锁屏由进程 / 前台 service owner 延续；PDF/CBZ 后续；`V2-D088`、`V2-D097`、`V2-D203`、`V2-D204` |
 | 书架管理 | 导入、元数据、最近阅读、加入 / 移出 | 服务器书架 + SAF 本地库；无独立导入或“移出书架”私有模型 | 复用现有书架 / 本地库，避免第二套书库 |
 
 #### 5.4.4 术语、状态与不变量
@@ -1173,7 +1173,7 @@ MUST / SHOULD 均必须保留这条可回链。涉及跨层行为必须在末列
 | `V2-REQ-READER-057` | `MUST`（PDF）/ `SHOULD`（EPUB/TXT）（已确认） | 464 | EPUB/TXT/PDF 全书搜索，结果含上下文与章节 / 页，点击跳转并临时高亮；可取消、有进度和上限 | 大书搜索可停止，跳转命中准确 | EPUB/TXT/PDF | `V2-D090`；PDF 为 MVP 阻断，EPUB/TXT 不阻塞 MVP；复合节点 | `R-C`, `R-A`, `R-F`, `R-R`, `R-P` |
 | `V2-REQ-READER-058` | `MUST`（已确认） | 464, 523 | 搜索能力按格式显式降级：PDF 无文本层、CBZ 无文本、EPUB/TXT 不支持异常都给出不同说明 | 用户知道“没有结果”与“不能搜索”的区别 | 同左 | `V2-D090`；不使用假空结果，CBZ 文本搜索 OUT | `R-C`, `R-F`, `R-R` |
 | `V2-REQ-READER-059` | `MUST` | 460, 462, 523 | 书签 / 批注本地原子持久化、坏文件不阻塞阅读、离线完全可用、格式带版本；服务器无标准 API 时不伪装同步 | 重启 / 断网后笔记仍在，坏文件有可解释降级 | 同左 | 跨端同步 LATER | `R-C`, `R-A`, `R-R` |
-| `V2-REQ-READER-060` | `MUST`（已确认） | 468；`V2-D203` | EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession | 无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读 | 重排格式 | `V2-D088`、`V2-D097`、`V2-D203`；不接在线服务、自动语音包下载或网络回退，PDF/CBZ TTS LATER | `R-C`, `R-A`, `R-R`, `R-U` |
+| `V2-REQ-READER-060` | `MUST`（已确认） | 468；`V2-D203` | EPUB/TXT 从当前位置或当前章节起始使用可在目标 Android 完全离线的本地 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession。`V2-D204` 的 A 只决定“兼容回退 + 高表现力第二开源引擎 gated Android arm64 Spike”；Sherpa / Matcha 当前仅兼容回退，第二 engine 与 exact profile 未选，不得写成主引擎 | 无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读 | 重排格式 | `V2-D088`、`V2-D097`、`V2-D203`、`V2-D204`；不接在线服务、自动语音包下载或网络回退，PDF/CBZ TTS LATER | `R-C`, `R-A`, `R-R`, `R-U` |
 | `V2-REQ-READER-061` | `MUST`（已确认） | 472–473, 503 | 朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放 | 听觉与视觉位置始终一致，暂停策略可预期 | 重排格式 | `V2-D088`、`V2-D097`；词级高亮 LATER | `R-C`, `R-A`, `R-R`, `R-P` |
 | `V2-REQ-READER-062` | `LATER`（已确认） | 475 | TTS 支持 15 / 30 / 60 分钟与本章结束停止；剩余时间可查看 | 计时到点停止且状态可解释 | 重排格式 | `V2-D088`；MVP 之后 | `R-C`, `R-A`, `R-R` |
 | `V2-REQ-READER-063` | `MUST`（已确认） | 468, 477, 523 | 纯本地 TTS 无引擎 / 无中文本地音色时显式降级；在线音色不得伪装为可用 | 不支持设备不出现静默假成功 | 重排格式 | `V2-D088`、`V2-D097`；只显示实际可离线工作的音色 | `R-C`, `R-F`, `R-R` |
@@ -1227,9 +1227,10 @@ MVP 边界为 70。主要取舍：
 - 目录、进度跳转、四格式书签、恢复、失败可解释属于“阅读能不能用”；页动画、音量键翻页、
   自动滚动、章节已读状态和导出属于“好不好用”，不压 2.0 MVP 核心闭环。
 - 手势只保留 `V2-D095` 一张仲裁表；选区、双指、拖动和单击不得由不同格式各自重定义。
-- TTS 运行时必须完全离线；D203 初始固定的 Sherpa-ONNX v2.0.1 + ONNX Runtime 在小说主朗读
-  质量门失败后仅保留为兼容回退候选，主 engine strategy 由 `V2-Q-G1-05` 待决，不得宣称 Sherpa
-  整体被技术淘汰。C1 voice-pack system 与全局 / 逐书覆盖不变；后台 / 锁屏仍由进程 / 前台
+- TTS 运行时必须完全离线；Sherpa-ONNX v2.0.1 + ONNX Runtime 在小说主朗读质量门失败后仅
+  保留为兼容回退候选。D204 已接受 A：保留 Sherpa / Matcha 兼容回退，另立高表现力第二引擎
+  Android arm64 可行性 Spike；第二引擎与 exact profile / voice 仍未选择，不得宣称 Sherpa 整体
+  被技术淘汰。C1 voice-pack system 与全局 / 逐书覆盖不变；后台 / 锁屏仍由进程 / 前台
   service owner 持有，系统 TTS 仅非验收性兼容，Piper direct 延后。
 
 **最终 MVP**：外部历史口径包含 63 个单级 `MUST`，以及 `READER-046` 的书签管理、
@@ -1279,7 +1280,8 @@ tts功能是纯本地的不依赖网络。其他的全部同意。注意上下�
 
 **D203 窄覆盖说明**：本节 `V2-D088` / `V2-D092` 的历史“离页取消”只保留页面级网络、搜索和
 UI 任务；TTS 已改由 `V2-D203` 的 service owner 生命周期承接。本节单音色候选与系统 TTS
-条件回退只保留历史 / 兼容语境；voice-pack system 不变，Sherpa 当前仅作兼容回退，主策略由 Q05 待决。
+条件回退只保留历史 / 兼容语境；voice-pack system 不变，Sherpa / Matcha 当前仅作兼容回退，
+D204 已接受高表现力第二引擎 Spike 的 strategy，但 exact engine / profile 未选。
 
 #### 5.4.9 第三轮已确认（2026-11-03）
 
@@ -2685,23 +2687,24 @@ PackageManager 对外部 package / versionCode / versionName / signer 的精确�
 
 #### 5.10.6 G1 待核验与明确非目标
 
-G1 至少须关闭：`UI_DESIGN_SYSTEM` V2 token / fixture、`V2-Q-G1-05` 主朗读 engine strategy、
-TTS exact voice-pack 许可与用户试听、
+G1 至少须关闭：`UI_DESIGN_SYSTEM` V2 token / fixture、TTS 第二引擎的静态可行性 Spike 与
+exact voice-pack 许可 / 用户试听、
 后台 / 锁屏 / MediaSession 的零网络 runtime、PDFium Range、
 OpenAPI / 官方客户端写协议、独立写服、Book MediaSource 与迁移、可选 sidecar /
 Trickplay finalizer、通知 canonical identity、SyncPlay 协议、双内核真实能力、搜索 / 更新 /
 SWR / 本地歌单 / 音乐懒补的契约，以及全部设备 / 大文件 / 无障碍 / 断网 / 迁移证据。
 
-TTS 在 D203 中初始固定的 Sherpa-ONNX v2.0.1 + ONNX Runtime 因小说主朗读质量门失败，当前
-仅保留为兼容回退候选；主策略由 `V2-Q-G1-05` 待决，IndexTTS / CosyVoice / GPT-SoVITS 及
-Matcha / Kokoro 新 profile 均未冻结。Q03 / Q05 仍 Open，不得写成 TTS 或 G1 PASS。
+Sherpa-ONNX v2.0.1 + ONNX Runtime 因小说主朗读质量门失败，当前仅保留为兼容回退候选；
+`V2-D204` 已关闭 engine strategy 为 A，保留 Sherpa / Matcha 兼容回退并另立高表现力第二引擎
+Android arm64 可行性 Spike。IndexTTS / CosyVoice / GPT-SoVITS 及 Matcha / Kokoro 新 profile
+均未冻结，Q03 仍 Open，不得写成 TTS 或 G1 PASS。
 
 其中 BASE-001/003/004 的产品契约歧义已由静态合同冻结，但 B/C/D 门、runtime、device、
 candidate-package 与 production implementation 均未关闭；静态合同不把任何 `MUST` 运行时承诺
 升级为 PASS。公共 `.planning/v2-g1/.gitattributes` 已新增 `*.m3u8 text eol=lf`，BASE-004
-24/24 文件为 LF 且 manifest / hash 可复现。当前前沿审计结论为 `NOW_SAFE`：没有未阻塞的
-静态增量，下一步只等待用户对 Q04 / B/C 的选择、明确授权，或 D 类 runtime / device /
-implementation 证据。
+24/24 文件为 LF 且 manifest / hash 可复现。当前前沿审计结论为
+`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`：下一步只允许只读 / 静态设计第二引擎
+可行性 Spike 与官方许可门，不执行网络、权重下载、Gradle / ADB、设备、runtime 或生产实现。
 
 本轮明确非目标：不把 `MUST` 需求直接写成已实现；不把历史 1.4.0 通过记录冒充 V2 候选包证据；
 不把生产服务器写、TV / 车机 / 桌面产品面、第三方在线字幕 / 歌词、管理式媒体写、破坏性数据库
@@ -2832,7 +2835,7 @@ commit `83d0d0e7f76e23e2e085c8ff67d28b772d35967d` 与 Jellyfin Kotlin SDK 1.8.12
 - `media3-ffmpeg-decoder:1.9.0+1` 的 POM 绑定 Media3 1.9.0，而 app 使用 1.11.1，必须先证明
   JNI / API 兼容或统一定版；Gradle classpath 仲裁不能证明 native 兼容。
 - `libc++_shared.so` 当前由自定义任务选择 libmpv 版本，必须把 ABI / 符号 / 版本组合冻结并测试。
-- TTS 在 D203 中初始固定的 Sherpa-ONNX v2.0.1 + ONNX Runtime 因小说质量门失败，当前仅作兼容回退候选；主 engine strategy 由 Q05 待决，voice-pack exact profile、后台 / 锁屏和零网络仍未验证。系统 TTS 不能证明完全离线，PdfBox 不能证明远程 Range。
+- TTS 的 Sherpa-ONNX v2.0.1 + ONNX Runtime 因小说质量门失败，当前仅作兼容回退候选；D204 已接受 A“保留 Sherpa / Matcha 兼容回退 + 高表现力第二引擎 Android arm64 可行性 Spike”，但第二引擎、voice-pack exact profile、后台 / 锁屏和零网络仍未验证。系统 TTS 不能证明完全离线，PdfBox 不能证明远程 Range。
 - 最终许可证门必须从候选 APK 生成完整 SBOM / notices，并核验 libmpv / FFmpeg / desugar 的
   native 与特殊条款；当前 `NOTICE` 的 1.0.0 口径不能用于 2.0 发布。
 
@@ -3204,20 +3207,23 @@ PDF 必须保留 PdfRenderer feature flag 与同数据模型切换；新引擎�
 **D203 当前覆盖与质量门（2026-11-04）**：D203 的 voice-pack system、追加导入 / 删除回退、
 后台 / 锁屏、单音频 owner 与 MediaSession 条款保持不变。D203 最初固定的 Sherpa-ONNX v2.0.1 +
 ONNX Runtime 在小说主朗读质量门失败后，当前适用范围降为兼容回退候选；不得宣称 Sherpa 整体
-被技术淘汰。主 engine strategy 由 `V2-Q-G1-05` 待决，不构成 D204 Accepted。
+被技术淘汰。`V2-D204` 已关闭 engine strategy A：保留 Sherpa / Matcha 兼容回退，另立高表现力
+开源第二引擎 Android arm64 可行性 Spike；第二引擎与 exact profile / voice 均未选择。
 
 用户原话：“感觉这三个候选都不太行，Kokoro speaker 58太生硬了，没有情感，只是在一个字一个字的发音。”
 据此 `vits-melo-tts-zh_en`、`vits-icefall-zh-aishell3` speaker 66 与
 `kokoro-multi-lang-v1_1` speaker 58 / `zm_009` 全部退出默认候选，结论标记
-`SHERPA_QUALITY_INSUFFICIENT`。`IndexTTS 2.5` 是当前表现力首选调研方向，但官方无 Android
-arm64 runtime；CosyVoice 2/3 与 GPT-SoVITS 为次选，均须第二开源引擎可行性 Spike。F5 / Spark /
-ChatTTS 权重非商用 / 研究，Fish Drama 规模不适合 Android；不得冻结任何新引擎。
+`SHERPA_QUALITY_INSUFFICIENT`。IndexTTS 2.5、CosyVoice 2、CosyVoice 3 与 GPT-SoVITS 的官方
+公开材料均未给出官方 Android arm64 runtime；这是“官方 runtime 未证明”，不是技术不可行。
+F5 / Spark / ChatTTS 权重非商用 / 研究，Fish Drama 规模不适合 Android；不得冻结任何新引擎。
 
 Matcha：`matcha-icefall-zh-en` 约 72MB acoustic + 51MB vocoder、Apache 标注、官方 Android
 路径，可保留为兼容回退试听，但没有情绪控制证据；`matcha-icefall-zh-baker` 仍因 Baker 非商业
 排除。Kokoro：基础权重 Apache 声明、v2.0.1 Android 路径最好，但 speaker 58 已被用户主观否决；
 不能据一个 speaker 判定整个家族不可用，可继续测试其他中文 voice，但不能作默认；无显式情绪
-控制，exact v1.1-zh 模型卡、声线数据与附属 notices 仍未闭合。
+控制，官方 v1.1-zh 模型页有 4 个样音可试听但本轮未执行，exact v1.1-zh 模型卡、声线数据与
+附属 notices 仍未闭合。CosyVoice 2/3 的仓库 / 模型权重许可页面存在待统一解析的冲突。以上
+均不产生 RAM / RTF / 首音或质量结论。
 
 **证据路径**：`.planning/v2-g1/G1-S4-C/report.json`、
 `.planning/v2-g1/G1-S4-C/option-matrix.json`、
@@ -3264,7 +3270,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 门 | 完成条件 | 当前状态 |
 |---|---|---|
 | G0 需求门 | 全部章节按需求域澄清；每条需求有 ID、来源、解读、验收、分类、依赖、非目标和未决项；用户确认总检查 | ✅ `V2-D197`：外部 1–1156 全量审计、三项决策、两项计数归一、五个既有能力基线组与完整 G0 均获用户确认；G0 PASS |
-| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 与 S6 已完成；`V2-D202` 接受 A-G 推荐语义并仅授权 L1，D203 voice-pack / 后台锁屏不变，但 Sherpa 小说质量门失败后仅作兼容回退；`V2-Q-G1-05` Open，`V2-G1-L1-EVIDENCE` readiness=`WAIT_C1_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE`；Q03 Open、G1 NOT_PASSED、runtime UNVERIFIED，L2/L3 locked |
+| G1 方案门 | 目标架构、模块依赖、数据模型/迁移、第三方选型与许可证、技术 Spike、UX 方向和低保真交互经用户确认 | 🟡 G1/0、S1–S3、Q01/Q02、S4-A/B/C、S5、Q04 已完成；`V2-D202` 仅授权 L1，D203 voice-pack / 后台锁屏不变。`V2-D204` 接受 engine strategy A 并关闭 Q05：Sherpa / Matcha 保留兼容回退，高表现力开源第二引擎另做 Android arm64 可行性 Spike；第二引擎、exact profile / voice 与逐资产许可仍未选择。`V2-G1-L1-EVIDENCE` 当前 readiness=`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`；Q03 Open、G1 NOT_PASSED、runtime UNVERIFIED，S6 需 fresh scoped reconfirm，L2/L3 locked |
 | G2 开发门 | 形成有依赖的交付波次、完整任务卡、测试/验收矩阵、风险与集成顺序；用户明确批准开工 | ⚪ 未开始 |
 
 任何门未通过时，代码实现、设备写入测试和 Release 工程都不得开工。只读调研、事实探针、开源方案比较和本地无副作用检查可以提前做。
@@ -3294,7 +3300,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 | 8 | `V2-REQ-NAV` | 1048–1156 第七章 | ✅ 9 节点最终矩阵、计数、证据与跨域处置由 `V2-D193` 整包接受；需求域已收口 |
 | 9 | `V2-REQ-BASE` | 1.4 既有能力补充基线 | ✅ `V2-REQ-BASE-001～005` 五个 `MUST` 组由 `V2-D196` 保留，来源、验收、依赖、非目标与 G1 未决项已落 §5.10.5 |
 | 10 | `V2-FINAL-CHECK` | 全量索引与交叉依赖 | ✅ `V2-D197` 完整 G0 PASS；`V2-Q-FINAL-01～03` 全部关闭；后续由 G1 接管 |
-| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 原始 review `PASS_WITH_P2` 历史保留；D203 voice-pack / 后台 TTS 条款不变，Sherpa 当前仅兼容回退；`V2-Q-G1-05` Open，当前唯一 readiness=`WAIT_C1_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE`；Q03 Open、L2/L3 locked，禁止 runtime、实现或 G2 |
+| 11 | `V2-SOLUTION-BASELINE` | 全仓架构、契约、迁移、许可、Spike、UX 与验收矩阵 | 🟡 G1/0 六条只读轨道与问题树已完成（§5.11）；Q04 由 D201 关闭；S6 原始 review `PASS_WITH_P2` 仅作为 Q05 当时 Open 的历史，D204 后需 fresh scoped reconfirm；D203 voice-pack / 后台 TTS 条款不变，Sherpa / Matcha 当前仅兼容回退；D204 已关闭 Q05 engine strategy 为 A，当前 readiness=`SECOND_ENGINE_L1_SPIKE_SCOPING_AND_LICENSE_GATE_OPEN`；Q03 Open、C1 exact profile Open、L2/L3 locked，禁止 runtime、实现或 G2 |
 
 每个需求域的退出条件：
 
@@ -3402,76 +3408,59 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：Sherpa 小说质量不足，Q05 engine strategy 与高表现力 profile 待决（2026-11-04）
+### ACTIVE：D204 engine strategy A 已接受，第二引擎 L1 Spike scoping 与许可门待做（2026-11-04）
 
-**下一负责人线程**：`01a1a65e-7a01-7010-9b18-aaeac3333ca1`。交接对象链为主提交
-`a1c061c5b7f356577f9d58e8579e63ef86705a2f` → thread-id 后继
-`a1bc66ec9db3c2f19663520ac359cac8d13a4fc8` → 本行所在 Sherpa 指纹对账提交；三段均只
-补交接元数据或派生 source/manifest hash，不改变产品结论。
+**下一负责人线程**：`01a1a65e-7a01-7010-9b18-aaeac3333ca1`。当前交接不再等待 Q05；
+D204 只关闭 engine strategy，后续由负责人审查本集后安排全新只读 / 静态专业子代理设计第二
+引擎 Android arm64 可行性 Spike 与许可门。历史交接对象链保留为仓库历史，不据此扩权。
 
-**一句话现状**：当前阶段为
-`L1_NETWORK_ARTIFACTS_AUDITED_WAIT_C1_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE`；
-`V2-G1-L1-EVIDENCE` 的 readiness 为 `WAIT_C1_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE`。
-D203 的 voice-pack system、追加导入 / 删除、全局 / 逐书选择、后台 / 锁屏、单音频 owner 与
-MediaSession 条款保持；但用户试听判定当前 Melo、AISHELL3 sid66、Kokoro sid58 均不适合小说
-主朗读，现状为 `SHERPA_QUALITY_INSUFFICIENT`。Sherpa-ONNX v2.0.1 + ONNX Runtime 当前仅降为
-兼容回退候选，不被整体判定技术淘汰。`V2-Q-G1-05` Open，主 engine strategy 未决；L1 仍是
-当前唯一任务线，`L2/L3` 仍 `LOCKED`。本轮不代签 profile、Q03 / Q05、runtime、device、G1
-或独立 QA PASS。
+**一句话现状**：
+`D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / RUNTIME_UNVERIFIED / S6_RECONFIRM_REQUIRED_AFTER_D204`。
+用户于 2026-11-04 原话“按推荐选择A。”，A 已接受，B/C 未选。第二引擎与 exact
+engine / model / profile / voice 均未选择；当前只允许设计只读 / 静态 Spike 与官方许可门。
+D203 的 voice-pack、追加导入、删除回退、后台锁屏、单音频 owner / MediaSession、全局 /
+逐书音色与零网络条款不变。Q03 仍 Open，runtime 未验证，G1 未通过，L2/L3 仍锁定。
 
 **已完成**：
 
-- Sherpa-ONNX：`.planning/v2-g1/G1-L1-NETWORK-SHERPA/` 共 15 文件 / 1,373,244 B，
-  manifest SHA-256 `9F224A091B18475B9B627A7417CFACFD26B07C84006EB37B1D0D06EE8E93C00F`。
-  3 个 exact GET 均 200；两个 AAR size / SHA-256 与固定值一致；source SHA-256 以
-  `24ecc0f...` 起始。21 个 ELF 的 68 条 `PT_LOAD` 全部 `p_align=0x4000`；review
-  `PASS_WITH_P2`。
-- PDFium：`.planning/v2-g1/G1-L1-NETWORK-PDFIUM/` 共 11 文件 / 163,231 B，manifest
-  SHA-256 `0436042CDA00D9E7F1941965907491DB6ABD696AACF7E560777EEDE78D5A8FC9`。
-  18 个 allowlisted URL 均 200，其中 9 个远端 SHA-256 可用；三个 AAR SHA-256 与固定值
-  一致。arm64-v8a / x86_64 静态 16 KB 对齐 PASS，armeabi-v7a / x86 的 `p_align=4096`
-  FAIL；review `PASS`。
-- 网络访问只覆盖已批准的 `github.com` 及其 exact redirect、`repo1.maven.org` 与已列
-  artifact；下载动作现已结束。缓存、代理、review PASS 或本阶段状态均不扩展现有授权。
+- `V2-D204` 已写入 DECISIONS，Q05 改为 Closed / Accepted / D204；A 语义、B/C 未选、可证明
+  与不可证明边界、证据 URL 指针及全部红线和状态均已落档。
+- V2_PLAN / TASKS 的当前状态已切换到第二引擎 L1 Spike scoping / 许可门；S6 只完成机械重建，
+  尚未获得 D204 后 fresh scoped review。
+- 既有 Sherpa / PDFium 网络 artifact、Q03 静态增量、A1/A2/BASE-001/003/004 与 S6 矩阵
+  继续作为静态证据；其 hash、计数和 manifest 以仓库现场为准，不升级为 runtime 或 G1 PASS。
 
 **未完成 / BLOCKED**：
 
-- C1：voice-pack system 不变，exact profile 未冻结。`vits-melo-tts-zh_en`、
-  `vits-icefall-zh-aishell3` speaker 66、`kokoro-multi-lang-v1_1` speaker 58 / `zm_009`
-  全部退出默认候选，不得把当前 Sherpa 质量结论写成 runtime/Q03/G1 PASS。
-- `IndexTTS 2.5` 为表现力首选调研方向，但官方无 Android arm64 runtime；CosyVoice 2/3、
-  GPT-SoVITS 为次选，全部需要第二引擎可行性 Spike。F5 / Spark / ChatTTS 权重非商用 / 研究，
-  Fish Drama 规模不适配 Android；不得冻结新引擎。
-- `matcha-icefall-zh-en` 可按 Apache 标注与官方 Android 路径保留兼容回退试听，但无情绪
-  控制证据；Baker 仍因非商业排除。Kokoro 家族不能由 speaker 58 的单点否决整体定性，其他
-  中文 voice 可继续试听，但不得默认；v1.1-zh 模型卡、声线数据、附属 notices 仍未闭。
-- Sherpa：P1 `P1-ONNXRUNTIME-NOTICE-PROVENANCE` 仍阻断完整 ORT notice / provenance；
-  P2 `P2-SOURCE-TAG-COMMIT-UNBOUND` 表明 source tag 到 commit 尚未由字节独立证明。
-- PDFium：armeabi-v7a / x86 仍为 4 KB 对齐 FAIL；arm64-v8a / x86_64 仅为静态对齐
-  PASS，runtime、`GNU_RELRO`、exact native source revision 与 notice 仍未闭合。
-- A1 runtime 尚未执行；TTS zero-network、后台 / 锁屏持续、导入 / 删除故障注入、单活动
-  audio owner / MediaSession、PDF Range / 16 KB runtime、双内核 load-order 与候选 packaged
-  SBOM / notice / source offer 均不能由本轮网络 artifact 静态审计代签。
-- Q03 仍 Open、G1 `NOT_PASSED`、runtime `UNVERIFIED`；C/D/E 未授权、L2/L3 locked。
+- 第二引擎 L1 Spike 尚未设计或执行；IndexTTS 2.5、CosyVoice 2、CosyVoice 3、GPT-SoVITS
+  均只有“官方 Android arm64 runtime 未证明”的结论，不得推断技术不可行。CosyVoice 2/3
+  仓库 / 模型权重许可页面冲突未解析。
+- C1 exact profile / model / lexicon / rule、逐资产许可 / model card / notice / hash、声音
+  权属、RAM / RTF / 首音、后台锁屏、零网络与单音频 owner / MediaSession runtime 均未闭合。
+  用户小说叙述风格质量门仍未通过。
+- Matcha `zh-en` 只可补样 / 兼容回退，无情绪控制证据；Baker 非商业排除。Kokoro 官方 v1.1-zh
+  模型页有 4 个样音可试听，但本轮未试听；speaker 58 主观否决不整体淘汰家族，其他中文 voice
+  仍需逐 voice 质量与许可门。
+- Q03 仍 Open；PDFium revision / notice / 16 KB / Range、candidate packaged SBOM / source
+  offer / attestation、A1 runtime、TTS 后台锁屏与零网络等均未执行或未闭合。
 
 **下一步入口**：
 
-- 由用户先作 `V2-Q-G1-05` engine strategy 决策：A 推荐为 Sherpa 兼容回退 + 高表现力第二
-  开源引擎 Android arm64 可行性 Spike；B 为仅继续 Sherpa 官方 pack；C 为继续试听 / 调研。
-  未决策前不得冻结新引擎或继续把 Sherpa 当默认小说主引擎。
-- 新负责人第一条只读动作：读取本 ACTIVE、§13 本轮收口日志、`docs/TASKS.md`
-  `V2-G1-L1-EVIDENCE` 与 `DECISIONS` Q05，再核对 Sherpa network evidence 与 Matcha /
-  Kokoro 边界；之后只整理第二引擎可行性输入或用户试听，不执行网络、构建、ADB、设备或服务器动作。
-- 任一新域名、任意 voice/model 下载、runtime / device / 账号 / 服务器 / 生产代码 / G2 /
-  独立 QA / Release 均须新的明确授权；本轮 allowlist 不可复用。
+- 由负责人审查本集并决定是否启动全新的只读 / 静态 L1 Spike scoping 专业子代理；不得直接
+  进入实现、网络、下载、构建、设备或 runtime。
+- 第一条只读动作：核对本 ACTIVE、§13 D204 日志、`docs/DECISIONS.md` Q05 Closed / D204、
+  `docs/TASKS.md` readiness 与 `G1-S6/source-index.json` 的 current decision / historical
+  review 双字段。
+- 产出仅限：候选 Spike 问题、官方 runtime / 许可 / notice / hash 证据矩阵、停止条件与所需
+  的下一档授权申请；任一新域名或权重下载必须先单列并取得明确许可。
 
 **环境 / 权限 / 停止条件**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
 `codex/v2-integration`；HEAD、dirty 与锁由 Git / 设备现场读取。生产服务器永久只读。
 禁止网络、设备、账号、服务器、runtime、Gradle / ADB、生产代码、G2、独立 QA、Release、
-commit 或 push；不冻结新 engine/profile，不把 Sherpa 升级回默认，不关闭 Q03 / Q05，
-不申请 L2/L3。出现新域名 / 下载请求、Q05 用户决策缺失、P0–P2、Git / hash / manifest / LF
-漂移、静态证据被升级为 runtime / Q03 / Q05 / G1 PASS，或任何越界动作时立即停止。
+commit 或 push；不选择第二引擎 / exact profile，不把 Sherpa 升级回默认，不关闭 Q03，不申请
+L2/L3。出现新域名 / 下载请求、把 A 解释为具体引擎已选、L2/L3 解锁、P0–P2、Git / hash /
+manifest / LF 漂移，或静态证据被升级为 runtime / Q03 / G1 PASS 时立即停止。
 
 ### HISTORY：G1 残余门 / A-G 决策菜单（2026-11-04；Completed，D202 已接受推荐并由上方 L1 ACTIVE 取代）
 
@@ -4491,3 +4480,42 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   arm64 Spike，B 为仅继续 Sherpa 官方 pack，C 为继续试听 / 调研；推荐 A，但用户尚未拍板，
   不得写 D204 Accepted。readiness 切换为 `WAIT_C1_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE`；
   计数、Q03 Open、G1 `NOT_PASSED`、runtime `UNVERIFIED`、L2/L3 locked 均不变。
+- **2026-11-04 — `V2-D204` 接受 engine strategy A / Q05 关闭**：用户原话“按推荐选择A。”。
+  D204 只关闭 `V2-Q-G1-05` engine strategy：保留 Sherpa / Matcha 兼容回退，另立高表现力
+  开源第二引擎 Android arm64 可行性 Spike；B/C 未选。IndexTTS 2.5、CosyVoice 2、CosyVoice 3、
+  GPT-SoVITS 四类候选均只有“官方 Android arm64 runtime 未证明”，不推断技术不可行，也不
+  选择或冻结任一 exact engine / model / profile / voice。Matcha `zh-en` 只补样 / 兼容回退，
+  Kokoro speaker 58 主观否决不整体淘汰家族；官方 v1.1-zh 模型页有 4 个样音可试听但本轮未
+  试听。CosyVoice 2/3 仓库 / 模型权重许可页面冲突未解析；用户小说质量门仍未通过。证据 URL：
+  [IndexTTS](https://github.com/index-tts/index-tts)、
+  [CosyVoice](https://github.com/FunAudioLLM/CosyVoice) /
+  [FunAudioLLM 权重页](https://huggingface.co/FunAudioLLM)、
+  [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)、
+  [Sherpa TTS models](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models)、
+  [Kokoro v1.1-zh](https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh)；本轮未联网、未下载。
+  状态切换为 `D204_ACCEPTED_ENGINE_STRATEGY_A / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / RUNTIME_UNVERIFIED / S6_RECONFIRM_REQUIRED_AFTER_D204`。
+  D203 voice-pack、
+  追加导入、删除回退、后台锁屏、单音频 owner / MediaSession 与零网络条款不变。未完成：
+  Spike 设计 / 执行、exact profile、逐资产许可 / notice / hash、性能 / 首音、后台锁屏与
+  Q03 runtime；未执行网络、权重下载、Gradle / ADB、设备、生产代码、G2、独立 QA 或 Release；
+  不 commit / push，L2/L3 仍锁定。
+- **2026-11-04 — D204 scoped review 三组返修完成**：READER-060 当前正文改为目标 Android
+  完全离线本地 TTS 的引擎中立产品需求，D204-A 只表示 Sherpa / Matcha 兼容回退 + 高表现力
+  第二开源引擎 gated Android arm64 Spike，第二 engine 与 exact profile 未选；依赖保留
+  D088 / D097 / D203 并新增 D204。DECISIONS 当前边界撤销对历史 review 的当前 re-approved
+  暗示；根 `.gitattributes` 仅把三份权威 docs 固定为 LF。builder 增加显式 D204 语义与 TTS-W1
+  决策依赖，verifier 新增当前行正文 / 依赖 / 生成 W1 回流负例与 EOL 断言。当时 live 口径
+  为 42 negative + 6 base + 1 计数 = 49 checks，而非把 negative fixture 数当作总检查数；
+  该机械复核不代替
+  fresh scoped reviewer，Q03 Open、G1 NOT_PASSED、runtime UNVERIFIED、L2/L3 LOCKED。
+- **2026-11-04 — D204 第二轮 scoped review 返修完成**：根 `.gitattributes` 新增自稳定规则，
+  并与三份权威 docs 共同固定为 LF；`EV-Q03-TTS-PDF.can_prove` 移除 D204 / engine strategy
+  越权，只陈述底层报告支持的静态事实，`cannot_prove` 改为 specific second engine、exact
+  profile / voice、license / notice 与 runtime 等剩余项；`EV-S6.status` 改为
+  `S6_RECONFIRM_REQUIRED_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN /
+  RUNTIME_UNVERIFIED`。该轮复核前 live 口径为 55 negative + 10 base + 1 计数 = 66，
+  相对基线 49 新增 6 negative；最终 reviewer 再要求通用 evidence overclaim 与 READER-060
+  主引擎等价写法两条真实负例，最终为 57 negative + 10 base + 1 计数 = 68 checks GREEN，
+  相对基线累计新增 8 negative。计数、Q05 Closed/D204、Q03 Open、G1 NOT_PASSED、runtime
+  UNVERIFIED、L2/L3 LOCKED 均不变。未联网、未运行 Gradle / ADB / 设备 / 服务器 / QA /
+  Release，未 commit / push；下一步由负责人另派 fresh scoped reviewer。

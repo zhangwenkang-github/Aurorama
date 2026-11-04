@@ -18,6 +18,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[3]
 OUT = Path(__file__).resolve().parent
+GITATTRIBUTES_PATH = ROOT / ".gitattributes"
 V2_PATH = ROOT / "docs" / "V2_PLAN.md"
 UI_PATH = ROOT / "docs" / "UI_DESIGN_SYSTEM.md"
 DECISIONS_PATH = ROOT / "docs" / "DECISIONS.md"
@@ -30,8 +31,98 @@ WAVE_MEMBERSHIP_SCHEMA = "g1-s6-wave-membership/v1"
 UNSPECIFIED = "UNSPECIFIED_IN_SOURCE"
 
 STATUS = (
-    "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / "
-    "Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED"
+    "D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / "
+    "HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / "
+    "C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+    "G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / "
+    "RUNTIME_UNVERIFIED / L2_L3_LOCKED"
+)
+HISTORICAL_REVIEW_STATUS = "PASS_WITH_P2"
+ENGINE_EVIDENCE_ACTION_TAG = "VERIFY_ENGINE_STRATEGY_AND_LICENSE_INPUTS"
+SELF_TEST_NEGATIVE_FIXTURE_COUNT = 57
+SELF_TEST_BASE_CHECK_COUNT = 10
+SELF_TEST_TOTAL_LIVE_CHECK_COUNT = 68
+SELF_TEST_BASELINE_CHECK_COUNT = 49
+EOL_ATTRIBUTE_SCOPE = (
+    "root .gitattributes and three authoritative docs; no wildcard rule"
+)
+EV_S6_STATUS = (
+    "S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+    "HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED"
+)
+READER_060_SOURCE_ID = "V2-REQ-READER-060"
+READER_060_PROMISE_ID = "S6-P-READER-060"
+READER_060_REQUIRED_DEPENDENCIES = (
+    "V2-D088",
+    "V2-D097",
+    "V2-D203",
+    "V2-D204",
+)
+D204_TTS_W1_DECISION_DEPENDENCIES = (
+    "V2-D203",
+    "V2-D204",
+    "V2-Q-G1-03",
+)
+STALE_READER_060_MAIN_ENGINE = re.compile(
+    r"""
+    (
+        使用\s*Sherpa(?:-ONNX)?.*?TTS
+      | Sherpa(?:-ONNX)?[^。；;\n]{0,40}
+        (?:为主引擎|是主引擎|作为(?:当前|默认|主)?(?:朗读)?引擎)
+      | (?:当前|默认|主)(?:朗读)?引擎[^。；;\n]{0,12}
+        (?:=|:|：|为|是)\s*Sherpa(?:-ONNX)?
+      | \bSherpa(?:-ONNX)?\b[^。；;\n]{0,60}
+        \b(?:main|primary|default|selected|frozen)\b[^。；;\n]{0,30}
+        \bengine\b
+      | \b(?:main|primary|default|selected)\s+engine\b[^。；;\n]{0,12}
+        (?:=|:|is)\s*(?:the\s+)?\bSherpa(?:-ONNX)?\b
+    )
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+NEGATED_CLAIM_CONTEXT = re.compile(
+    r"\b(?:no|not|never|without|unproven|unverified|false|invalid)\b"
+    r"|(?:不|未|无|没有|并非|不是|禁止|不得|避免|不能|尚未)",
+    re.IGNORECASE,
+)
+PROHIBITED_EVIDENCE_CLAIMS = (
+    re.compile(
+        r"\b(?:selects?|selected|chooses?|chose|freezes?|frozen|locks?|locked)\b"
+        r"[^.;\n]{0,32}\b(?:engine|profile|voice)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:engine|profile|voice)\b[^.;\n]{0,32}"
+        r"\b(?:selected|chosen|frozen|locked)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bSherpa(?:-ONNX)?\b[^.;\n]{0,48}"
+        r"\b(?:main|primary|default|selected|frozen)\b"
+        r"[^.;\n]{0,24}\bengine\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:已|被)?(?:选择|选中|选定|冻结|锁定|确定)"
+        r"[^。；;\n]{0,20}(?:引擎|engine|profile|voice|音色)"
+        r"|(?:引擎|engine|profile|voice|音色)"
+        r"[^。；;\n]{0,20}(?:已|被)?(?:选择|选中|选定|冻结|锁定|确定)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:Android\s+)?runtime\s+(?:is|was|has\s+been)\s+"
+        r"(?:proven|verified|validated|ready|pass(?:ed)?)\b"
+        r"|\b(?:Android\s+)?runtime\s+PASS(?:ED)?\b"
+        r"|(?:Android\s*)?runtime\s*(?:已|已经)?(?:证明|验证|通过|就绪)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bproduction\s+(?:ready|proven|verified|validated|pass(?:ed)?)\b"
+        r"|\b(?:candidate|production)\s+(?:package\s+)?PASS(?:ED)?\b"
+        r"|(?:生产|发布|候选包)[^。；;\n]{0,10}"
+        r"(?:就绪|已证明|已验证|可发布|PASS)",
+        re.IGNORECASE,
+    ),
 )
 
 DOMAINS = ("ARCH", "UX", "READER", "WRITE", "MUSIC", "DOWNLOAD", "VIDEO", "NAV")
@@ -92,8 +183,8 @@ TABLE_SPECS: "OrderedDict[str, dict[str, Any]]" = OrderedDict(
         (
             "WRITE",
             {
-                "start": 1402,
-                "end": 1416,
+                "start": 1404,
+                "end": 1418,
                 "section": "docs/V2_PLAN.md §5.5.4",
                 "columns": [
                     "id",
@@ -110,8 +201,8 @@ TABLE_SPECS: "OrderedDict[str, dict[str, Any]]" = OrderedDict(
         (
             "MUSIC",
             {
-                "start": 1562,
-                "end": 1625,
+                "start": 1564,
+                "end": 1627,
                 "section": "docs/V2_PLAN.md §5.6.6.1",
                 "columns": [
                     "id",
@@ -129,8 +220,8 @@ TABLE_SPECS: "OrderedDict[str, dict[str, Any]]" = OrderedDict(
         (
             "DOWNLOAD",
             {
-                "start": 1838,
-                "end": 1907,
+                "start": 1840,
+                "end": 1909,
                 "section": "docs/V2_PLAN.md §5.7.4",
                 "columns": [
                     "id",
@@ -148,8 +239,8 @@ TABLE_SPECS: "OrderedDict[str, dict[str, Any]]" = OrderedDict(
         (
             "VIDEO",
             {
-                "start": 2160,
-                "end": 2258,
+                "start": 2162,
+                "end": 2260,
                 "section": "docs/V2_PLAN.md §5.8.9",
                 "columns": [
                     "id",
@@ -167,8 +258,8 @@ TABLE_SPECS: "OrderedDict[str, dict[str, Any]]" = OrderedDict(
         (
             "NAV",
             {
-                "start": 2486,
-                "end": 2496,
+                "start": 2488,
+                "end": 2498,
                 "section": "docs/V2_PLAN.md §5.9.1",
                 "columns": ["id", "level", "promise", "result", "dependencies", "evidence"],
             },
@@ -177,8 +268,8 @@ TABLE_SPECS: "OrderedDict[str, dict[str, Any]]" = OrderedDict(
 )
 
 BASE_SPEC = {
-    "start": 2636,
-    "end": 2642,
+    "start": 2638,
+    "end": 2644,
     "section": "docs/V2_PLAN.md §5.10.5",
     "columns": [
         "capability",
@@ -538,7 +629,7 @@ CARD_SPECS = [
         "role": "资深 Android 阅读器内核 / 数据一致性工程师",
         "objective": "交付可替换的 Publication/BookDocument、source-scoped ReadingPosition、分页 / 滚动、书签、批注、搜索降级、离线阅读和大书恢复核心。",
         "non_goals": [
-            "不在本卡重决 `V2-Q-G1-05` 主朗读 engine strategy，也不把 Sherpa 兼容回退恢复为默认。",
+            "不在本卡重开 `V2-D204` engine strategy A，也不选择高表现力第二引擎、把 A 写成具体引擎已选或把 Sherpa 恢复为默认。",
             "不在本卡锁定 PDFium 或冻结未经试听 / 许可的 exact voice-pack profile。",
             "不把页码作为持久化位置真源。",
             "不把 CBZ 文本搜索或未证实 PDF 文字层伪装为空结果。",
@@ -551,21 +642,21 @@ CARD_SPECS = [
         ],
         "boundaries": [
             "逻辑接口：Publication/BookDocument、ReaderSettings、ReadingPosition、Annotation store、format capabilities。",
-            "生产文件边界按模块 owner allowlist 在 G2 实例化；TTS 只在 Q05 strategy、D203 voice-pack 边界与 exact profile 许可 / matrix 门内推进。",
+            "生产文件边界按模块 owner allowlist 在 G2 实例化；TTS 只在 D204 engine strategy、D203 voice-pack 边界与 exact profile 许可 / matrix 门内推进。",
         ],
-        "deps": ["EV-S2", "EV-S3", "EV-A1", "V2-D198", "V2-D199", "V2-D203", "V2-Q-G1-05"],
+        "deps": ["EV-S2", "EV-S3", "EV-A1", "V2-D198", "V2-D199", "V2-D203", "V2-D204"],
         "risks": ["R-S6-P0-01", "R-S6-P1-02", "R-S6-P2-06", "R-S6-P1-13"],
         "evidence": ["EV-S2", "EV-S3", "EV-A1", "EV-S6"],
         "devices": ["Pad 5 主验；K60 抽验；PDF / CBZ 大文件按可用样本"],
         "writes": ["服务器进度写只使用已批准测试账号 / 写服；生产服务器只读。"],
-        "stop": "需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。",
+        "stop": "需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。",
         "artifacts": ["格式能力矩阵", "位置 / 批注迁移 fixture", "大书 / force-stop / 弱网旅程", "跨界面进度等式"],
         "status": "READY_FOR_G2_PLANNING",
     },
     {
         "id": "G2-READER-TTS-GATED",
         "role": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
-        "objective": "保持 D203 voice-pack、追加导入 / 删除回退、全局 / 逐书选择、后台锁屏、单音频 owner 与零网络门；Sherpa-ONNX v2.0.1 + ORT 当前仅作兼容回退，主 engine strategy 由 Q05 待决。",
+        "objective": "在 D204 engine strategy A 与 D203 voice-pack / 后台锁屏边界内，验证高表现力第二引擎或兼容回退的 exact profile；当前 Sherpa / Matcha 仅作兼容回退，第二引擎与 exact profile 均未选。",
         "non_goals": [
             "不冻结 exact voice-pack profile，不下载或随包任何未批准 voice / model / lexicon。",
             "不把架构 local-only 或静态许可写成零网络 runtime PASS。",
@@ -579,14 +670,14 @@ CARD_SPECS = [
         ],
         "boundaries": [
             "逻辑接口：LocalTtsPort、VoiceCatalog、VoicePackImporter、VoiceSelectionStore、TtsPlaybackOwner、TtsMediaSession、OfflineCapabilityProbe。",
-            "exact profile 仍由 C1 用户试听 + Q03 许可门决定；本卡保持 GATED。",
+            "exact engine / profile 仍由 C1 用户试听 + Q03 许可门决定；本卡保持 GATED，不因 D204 关闭 engine strategy 转 READY。",
         ],
-        "deps": ["V2-D203", "V2-Q-G1-03", "V2-Q-G1-05", "EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C"],
+        "deps": ["V2-D203", "V2-D204", "V2-Q-G1-03", "EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C"],
         "risks": ["R-S6-P1-07", "R-S6-P1-08", "R-S6-P1-17", "R-S6-P1-18", "R-S6-P1-19", "R-S6-P1-13"],
         "evidence": ["EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C", "EV-S6"],
         "devices": ["Pad 5 与 K60：飞行模式、后台 / 锁屏、进程重启、音频焦点 / noisy、音色导入删除与性能"],
         "writes": ["none"],
-        "stop": "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。",
+        "stop": "第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。",
         "artifacts": ["profile 试听与决策包", "资产许可 / hash / notice", "追加导入 / 删除回退 / 隐藏恢复状态机", "后台锁屏 / MediaSession / 单音频 owner 设备报告", "飞行模式零网络与性能报告"],
         "status": "GATED_BY_V2_Q_G1_03",
     },
@@ -831,7 +922,7 @@ CARD_SPECS = [
         ],
         "boundaries": [
             "输入：S4-A/B/C、Q03-SBOM/NATIVE/NOTICE/TTS-PDF 与最终候选 artifact。",
-            "D203 初始固定的 Sherpa-ONNX v2.0.1 + ONNX Runtime 因小说质量门失败，当前仅作兼容回退候选；V2-Q-G1-05 保持 Open，等待高表现力 engine strategy。Q03 仍 Open，等待 exact voice-pack/profile、逐资产许可 / model card / notice / hash / provenance、packaged supply chain 与 runtime；PDF 引擎选择仍按既有 Q03 门。",
+            "D203 voice-pack / 后台锁屏约束保持；V2-D204 已接受 engine strategy A，Sherpa-ONNX v2.0.1 + ONNX Runtime 与 Matcha 仅作兼容回退候选，高表现力第二引擎与 exact voice-pack/profile 均未选择。Q03 仍 Open，等待逐资产许可 / model card / notice / hash / provenance、packaged supply chain 与 runtime；PDF 引擎选择仍按既有 Q03 门。",
         ],
         "deps": ["V2-Q-G1-03", "EV-Q03-SBOM", "EV-Q03-NATIVE", "EV-Q03-NOTICE", "EV-Q03-TTS-PDF"],
         "risks": ["R-S6-P1-07", "R-S6-P1-08", "R-S6-P1-09", "R-S6-P1-10", "R-S6-P1-16"],
@@ -902,7 +993,7 @@ CARD_WAVE_DEFS = {
         ("large-book-recovery", "完成大书内存、取消、force-stop 与弱网恢复。", "5000 页级 / 大 CBZ / 弱网报告"),
     ],
     "G2-READER-TTS-GATED": [
-        ("q03-decision", "消费 D203 的 voice-pack / 后台锁屏基线与当前 Sherpa 兼容回退 / license 证据；主 engine strategy 等待 V2-Q-G1-05，exact profile 的用户试听、逐资产许可 / notice / hash 与 matrix 未关闭。", "engine strategy / exact profile 试听许可矩阵与资产 hash / notice"),
+        ("q03-decision", "消费 D203 voice-pack / 后台锁屏基线与 V2-D204 engine strategy A；Sherpa / Matcha 兼容回退，exact engine / profile 的用户试听、逐资产许可 / notice / hash 与 matrix 未关闭。", "exact engine / profile 试听许可矩阵与资产 hash / notice"),
         ("offline-runtime", "执行飞行模式、句级同步、暂停恢复与性能旅程。", "零网络和性能设备证据"),
         ("background-session", "交付进程 / 前台 service 持有、后台锁屏、通知 / MediaSession 等式与重启暂停恢复。", "后台锁屏与进程重启设备报告"),
         ("voice-catalog-import", "交付统一音色目录、追加导入、幂等身份、全局默认与逐书覆盖。", "voice-pack 目录 / 导入 / 选择状态机"),
@@ -1606,7 +1697,7 @@ WAVE_CONTRACTS = {
     ("G2-READER-TTS-GATED", "q03-decision"): {
         "capabilities": ["TTS.ENGINE_DECISION"],
         "entry_tags": ["READER_TTS"],
-        "action_tags": ["VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS", "SELECT_VOICE"],
+        "action_tags": [ENGINE_EVIDENCE_ACTION_TAG, "SELECT_VOICE"],
         "anchors": {
             "TTS.ENGINE_DECISION": [
                 "com.zhangwenkang.cinefin.book.tts.LocalTtsPort",
@@ -2148,14 +2239,14 @@ RISK_SPECS = [
     {
         "id": "R-S6-P1-07",
         "severity": "P1",
-        "title": "TTS 小说质量不足、主 engine strategy 与 exact profile 许可仍未闭合",
+        "title": "TTS 小说质量不足、D204 engine strategy A 与 exact profile 许可仍未闭合",
         "domain": ["READER"],
-        "source": ["V2-D203", "V2-Q-G1-05", "EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C"],
-        "impact": "当前 Sherpa 三组小说声线均质量不足，Sherpa 仅降为兼容回退；IndexTTS / CosyVoice / GPT-SoVITS 尚无 Android arm64 runtime 证据，exact profile、model card、声线权属、lexicon、rule、notice 与 hash 均未闭合。",
+        "source": ["V2-D203", "V2-D204", "EV-Q03-NATIVE", "EV-Q03-TTS-PDF", "EV-S4C"],
+        "impact": "当前 Sherpa 三组小说声线均质量不足，Sherpa / Matcha 仅降为兼容回退；D204 只关闭 engine strategy A，IndexTTS / CosyVoice / GPT-SoVITS 尚无官方 Android arm64 runtime 证据，exact engine / profile、model card、声线权属、lexicon、rule、notice 与 hash 均未闭合。",
         "gate": "G2-READER-TTS-GATED / G2-Q03-SUPPLY-CHAIN-GATED",
         "closure_evidence": [
-            "V2-Q-G1-05 用户 engine strategy 决策",
-            "高表现力或兼容回退 profile 的用户试听确认",
+            "D204-A 第二引擎 L1 静态可行性 Spike 与许可门",
+            "exact engine / 高表现力或兼容回退 profile 的用户试听确认",
             "逐资产 model card / license / notice / hash",
             "pack/profile provenance 与 packaged source obligation",
         ],
@@ -2643,8 +2734,16 @@ EVIDENCE_SPECS = [
         "kind": "report",
         "level": "E0/static",
         "status": "TTS_PDF_PARTIAL / Q03_OPEN",
-        "can_prove": ["21 evidence rows = 9 PROVEN / 2 PARTIAL / 10 BLOCKED", "Sherpa-ONNX v2.0.1 + ONNX Runtime is current compatibility fallback after quality-gate failure; Q05 strategy remains open"],
-        "cannot_prove": ["engine strategy / exact expressive profile / license", "background / lockscreen / zero-network runtime", "PDFium runtime / notice revision"],
+        "can_prove": [
+            "21 evidence rows = 9 PROVEN / 2 PARTIAL / 10 BLOCKED",
+            "Sherpa/Piper code and artifact facts plus PDF wrapper/native-license separation are statically reported; no TTS engine or voice is selected",
+        ],
+        "cannot_prove": [
+            "specific second engine / exact profile / voice",
+            "model / lexicon / rule / voice license and complete notice / source bundle",
+            "background / lockscreen / zero-network TTS runtime",
+            "PDFium exact revision / third-party notice / 16 KB / Range runtime",
+        ],
     },
     {
         "id": "EV-S6",
@@ -2652,7 +2751,7 @@ EVIDENCE_SPECS = [
         "path": ".planning/v2-g1/G1-S6/acceptance-matrix.json",
         "kind": "S6 reviewed planning package",
         "level": "E0/planning",
-        "status": "SCOPED_REVIEW_PASS_WITH_P2 / RUNTIME_UNVERIFIED",
+        "status": EV_S6_STATUS,
         "can_prove": ["traceability, owner map, thresholds, risks and G2 input coverage", "external 445/376 preserved; D203 addendum 4 / normalized MVP 380"],
         "cannot_prove": ["implementation", "runtime", "device", "QA", "G1 PASS"],
     },
@@ -2711,6 +2810,25 @@ def load_wave_membership() -> dict[str, dict[str, Any]]:
             raise ValueError(f"duplicate wave membership row_id: {row_id}")
         by_row_id[row_id] = record
     return by_row_id
+
+
+def normalize_wave_membership_registry() -> None:
+    document = json.loads(read_text(WAVE_MEMBERSHIP_PATH))
+    if document.get("schema_version") != WAVE_MEMBERSHIP_SCHEMA:
+        raise ValueError(
+            f"unexpected wave membership schema: {document.get('schema_version')}"
+        )
+    document["status"] = STATUS
+    for record in document.get("memberships", []):
+        record["action_tags"] = [
+            (
+                ENGINE_EVIDENCE_ACTION_TAG
+                if tag == "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS"
+                else tag
+            )
+            for tag in record.get("action_tags", [])
+        ]
+    write_json(WAVE_MEMBERSHIP_PATH, document)
 
 
 def compose_operation(record: dict[str, Any]) -> str:
@@ -2845,6 +2963,18 @@ ENTRY_RULES: dict[str, list[tuple[tuple[str, ...], str]]] = {
         (("返回", "详情", "播放器", "沉浸"), "系统返回栈 / 播放器层"),
     ],
 }
+
+D204_SEMANTIC_PROFILES: dict[str, dict[str, str]] = {
+    READER_060_PROMISE_ID: {
+        "entry_surface": "阅读器 TTS 控制条 / 锁屏 / 系统媒体控制",
+        "action_verb": "从当前位置开始并控制本地朗读",
+        "action_object_prefix": "目标 Android 完全离线本地 TTS、voice-pack 与后台锁屏控制",
+        "action_object_exact": "EPUB/TXT 从当前位置或当前章节起始使用可在目标 Android 完全离线的本地 TTS；控制播放 / 暂停、上一句 / 下一句、语速、音色与停止，支持收起、后台 / 锁屏与单活动 MediaSession；该决定仅确定兼容回退 + 高表现力第二开源引擎 gated Android arm64 Spike，Sherpa / Matcha 当前仅兼容回退，第二 engine 与 exact profile 未选",
+        "operation_mode": "USER_ACTION",
+        "actor": "用户",
+    },
+}
+
 
 D203_SEMANTIC_PROFILES: dict[str, dict[str, str]] = {
     "S6-P-READER-087": {
@@ -3081,7 +3211,9 @@ def enrich_semantic_record(
     accepted_promise: str,
 ) -> dict[str, Any]:
     combined = f"{row['user_promise']}；{row['observable_result']}"
-    profile = D203_SEMANTIC_PROFILES.get(row["promise_id"])
+    profile = D204_SEMANTIC_PROFILES.get(
+        row["promise_id"]
+    ) or D203_SEMANTIC_PROFILES.get(row["promise_id"])
     entry_surface, entry_status = entry_surface_for(
         row["domain"],
         combined,
@@ -3108,7 +3240,9 @@ def enrich_semantic_record(
         action_parts.append(f"原子子项：{atomic_action_text}")
     action_object = "；".join(dict.fromkeys(action_parts))
     override = profile or SEMANTIC_FIELD_OVERRIDES.get(row["promise_id"], {})
-    if prefix := override.get("action_object_prefix"):
+    if exact_action_object := override.get("action_object_exact"):
+        action_object = exact_action_object
+    elif prefix := override.get("action_object_prefix"):
         action_object = f"{prefix}：{action_object}"
     entry_surface = override.get("entry_surface", entry_surface)
     entry_status = "SOURCE_GROUNDED" if override else entry_status
@@ -3271,6 +3405,133 @@ def parse_table(lines: list[str], spec: dict[str, Any]) -> tuple[list[str], list
         row["_line"] = line_no
         rows.append(row)
     return header, rows
+
+
+def claim_is_negated(text: str, start: int, end: int) -> bool:
+    prefix = text[:start]
+    clause_start = max(
+        prefix.rfind("。"),
+        prefix.rfind("；"),
+        prefix.rfind(";"),
+        prefix.rfind("\n"),
+        start - 48,
+        0,
+    ) + 1
+    context = text[clause_start : min(len(text), end + 16)]
+    return NEGATED_CLAIM_CONTEXT.search(context) is not None
+
+
+def has_stale_reader_060_engine_claim(text: object) -> bool:
+    value = str(text)
+    return any(
+        not claim_is_negated(value, match.start(), match.end())
+        for match in STALE_READER_060_MAIN_ENGINE.finditer(value)
+    )
+
+
+def load_reader_060_row(v2_lines: list[str]) -> dict[str, Any]:
+    _, reader_rows = parse_table(v2_lines, TABLE_SPECS["READER"])
+    matches = [row for row in reader_rows if row.get("id") == READER_060_SOURCE_ID]
+    if len(matches) != 1:
+        raise ValueError(
+            f"{READER_060_SOURCE_ID} must appear exactly once in the READER table"
+        )
+    return matches[0]
+
+
+def validate_reader_060_row(row: dict[str, Any]) -> None:
+    if "MUST" not in levels_from_raw(row["level"]):
+        raise ValueError(f"{READER_060_SOURCE_ID} must remain MUST")
+    if not row["source"].startswith("468"):
+        raise ValueError(f"{READER_060_SOURCE_ID} external source must remain 468")
+    missing_dependencies = [
+        dependency
+        for dependency in READER_060_REQUIRED_DEPENDENCIES
+        if dependency not in row["dependencies"]
+    ]
+    if missing_dependencies:
+        raise ValueError(
+            f"{READER_060_SOURCE_ID} dependencies missing {missing_dependencies}"
+        )
+    if has_stale_reader_060_engine_claim(row["promise"]):
+        raise ValueError(
+            f"{READER_060_SOURCE_ID} must not mandate Sherpa-ONNX as the TTS engine"
+        )
+    required_promise_tokens = (
+        "可在目标 Android 完全离线的本地 TTS",
+        "V2-D204",
+        "兼容回退",
+        "第二开源引擎",
+        "gated Android arm64 Spike",
+        "Sherpa / Matcha 当前仅兼容回退",
+        "exact profile",
+        "未选",
+    )
+    missing_promise_tokens = [
+        token for token in required_promise_tokens if token not in row["promise"]
+    ]
+    if missing_promise_tokens:
+        raise ValueError(
+            f"{READER_060_SOURCE_ID} product contract missing "
+            f"{missing_promise_tokens}"
+        )
+
+
+def build_d204_reader_060_semantic_seed(
+    v2_lines: list[str],
+    existing_seed: dict[str, Any],
+) -> dict[str, Any]:
+    row = load_reader_060_row(v2_lines)
+    validate_reader_060_row(row)
+    profile = D204_SEMANTIC_PROFILES[READER_060_PROMISE_ID]
+    return {
+        **existing_seed,
+        "promise_id": READER_060_PROMISE_ID,
+        "requirement_id": READER_060_SOURCE_ID,
+        "user_promise": row["promise"],
+        "entry": profile["entry_surface"],
+        "dependencies": row["dependencies"],
+    }
+
+
+def validate_reader_060_engine_neutral_outputs(
+    semantic_document: dict[str, Any],
+    matrix: dict[str, Any],
+    cards: list[dict[str, Any]],
+) -> None:
+    record = next(
+        item
+        for item in semantic_document["rows"]
+        if item["promise_id"] == READER_060_PROMISE_ID
+    )
+    matrix_row = next(
+        item
+        for item in matrix["acceptance_rows"]
+        if item["promise_id"] == READER_060_PROMISE_ID
+    )
+    tts_card = next(item for item in cards if item["id"] == "G2-READER-TTS-GATED")
+    w1 = next(
+        item
+        for item in tts_card["delivery_waves"]
+        if item["id"] == "G2-READER-TTS-GATED-W1"
+    )
+    outputs = {
+        "READER-060 semantic user_promise": record.get("user_promise", ""),
+        "READER-060 semantic operation": record.get("operation", ""),
+        "READER-060 matrix user_promise": matrix_row.get("user_promise", ""),
+        "READER-060 matrix operation": matrix_row.get("operation", ""),
+        "G2-READER-TTS-GATED-W1 objective": w1.get("objective", ""),
+        "G2-READER-TTS-GATED-W1 operation": w1.get("operation", ""),
+    }
+    stale = [
+        label
+        for label, text in outputs.items()
+        if has_stale_reader_060_engine_claim(text)
+    ]
+    if stale:
+        raise ValueError(
+            f"READER-060 generated outputs retain a Sherpa main-engine claim: {stale}"
+        )
 
 
 def build_d203_semantic_seeds(v2_lines: list[str]) -> dict[str, dict[str, Any]]:
@@ -4204,9 +4465,21 @@ def build_card_outputs(
             operation_text = "；".join(operations)
             if len(assigned_rows) > len(operations):
                 operation_text += "；其余原子行按各自 operation 串行执行"
+            wave_external_dependencies = list(
+                CARD_DEPENDENCIES[spec["id"]]
+            )
+            if wave_id == "G2-READER-TTS-GATED-W1":
+                wave_external_dependencies = list(
+                    dict.fromkeys(
+                        [
+                            *D204_TTS_W1_DECISION_DEPENDENCIES,
+                            *wave_external_dependencies,
+                        ]
+                    )
+                )
             blockers = [
                 f"前置依赖未满足：{dependency}"
-                for dependency in CARD_DEPENDENCIES[spec["id"]]
+                for dependency in wave_external_dependencies
             ]
             if spec["status"].startswith("GATED_"):
                 blockers.append("V2-Q-G1-03 remains Open")
@@ -4228,9 +4501,7 @@ def build_card_outputs(
                     "observable_acceptance": (
                         f"{artifact}；代表性可观察结果：" + "；".join(results)
                     ),
-                    "external_dependencies": list(
-                        CARD_DEPENDENCIES[spec["id"]]
-                    ),
+                    "external_dependencies": wave_external_dependencies,
                     "wave_dependencies": [] if prior_wave is None else [prior_wave],
                     "file_interface_boundaries": boundaries,
                     "existing_file_expansion_count": expanded_files,
@@ -4380,6 +4651,33 @@ EVIDENCE_DEPENDENCIES = {
 }
 
 
+def evidence_package_claim_errors(
+    evidence_packages: list[dict[str, Any]],
+) -> list[str]:
+    errors: list[str] = []
+    for package in evidence_packages:
+        evidence_id = str(package.get("id", "UNKNOWN"))
+        claims = package.get("can_prove", [])
+        if not isinstance(claims, list):
+            claims = [claims]
+        for claim_index, claim in enumerate(claims):
+            text = str(claim)
+            for pattern in PROHIBITED_EVIDENCE_CLAIMS:
+                match = pattern.search(text)
+                if match and not claim_is_negated(
+                    text,
+                    match.start(),
+                    match.end(),
+                ):
+                    errors.append(
+                        f"{evidence_id}.can_prove[{claim_index}] general overclaim: "
+                        "selected/frozen engine or profile, Android runtime proof, "
+                        "production readiness or runtime PASS lacks executed evidence"
+                    )
+                    break
+    return errors
+
+
 def evidence_index() -> list[dict[str, Any]]:
     result = []
     for spec in EVIDENCE_SPECS:
@@ -4408,6 +4706,9 @@ def evidence_index() -> list[dict[str, Any]]:
                 "sha256_at_generation": sha256_bytes(data),
             }
         )
+    claim_errors = evidence_package_claim_errors(result)
+    if claim_errors:
+        raise ValueError("; ".join(claim_errors))
     return result
 
 
@@ -4467,7 +4768,7 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
             "DOC-V2-G1",
             "docs/V2_PLAN.md",
             "G1 static evidence, Q03, R1 and ACTIVE handoff",
-            ["E0–E7", "Q03", "Q05", "Q04", "S6", "D203"],
+            ["E0–E7", "Q03", "Q05", "Q04", "S6", "D203", "D204"],
             [(section_5_11_start, section_13_start - 1), (section_13_start, len(v2_doc_lines))],
         ),
         (
@@ -4480,8 +4781,8 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
         (
             "DOC-DECISIONS",
             "docs/DECISIONS.md",
-            "accepted decisions and open Q03",
-            ["D057", "D198–D203", "Q03", "Q05", "background / voice-pack TTS"],
+            "accepted decisions, closed Q05 and open Q03",
+            ["D057", "D198–D204", "Q03", "Q05", "background / voice-pack TTS"],
             [(1, len(read_text(DECISIONS_PATH).splitlines()))],
         ),
         (
@@ -4508,10 +4809,42 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
                 "evidence_level": "human-readable authority / static input",
             }
         )
+    gitattributes_data = GITATTRIBUTES_PATH.read_bytes()
     return {
         "schema_version": "g1-s6-source-index/v1",
         "status": STATUS,
         "generated_on": "2026-11-04",
+        "current_decision_state": {
+            "d204": "ACCEPTED_ENGINE_STRATEGY_A",
+            "q05": "CLOSED_D204",
+            "engine_strategy": "A_COMPAT_FALLBACK_PLUS_SECOND_ENGINE_SCOPE",
+            "exact_engine": "UNSELECTED",
+            "exact_profile": "OPEN",
+            "sherpa_matcha": "COMPATIBILITY_FALLBACK_NOT_FROZEN",
+            "q03": "OPEN",
+            "g1": "NOT_PASSED",
+            "runtime": "UNVERIFIED",
+            "s6": "RECONFIRM_REQUIRED_AFTER_D204",
+            "l2_l3": "LOCKED",
+        },
+        "historical_review": {
+            "status": HISTORICAL_REVIEW_STATUS,
+            "scope": "S6 before D203 rebuild and D204; Q05 was Open at review time",
+            "current_reapproval": False,
+            "note": "The historical review is not a current S6 re-approval after D204.",
+        },
+        "line_ending_policy": {
+            "path": ".gitattributes",
+            "bytes": len(gitattributes_data),
+            "sha256": sha256_bytes(gitattributes_data),
+            "rules": {
+                ".gitattributes": {"text": "set", "eol": "lf"},
+                "docs/DECISIONS.md": {"text": "set", "eol": "lf"},
+                "docs/V2_PLAN.md": {"text": "set", "eol": "lf"},
+                "docs/TASKS.md": {"text": "set", "eol": "lf"},
+            },
+            "scope": EOL_ATTRIBUTE_SCOPE,
+        },
         "document_sources": docs,
         "source_origin_counts": {
             "external_source_nodes": matrix["counts"]["external_source_nodes"],
@@ -4568,16 +4901,20 @@ def build_source_index(matrix: dict[str, Any]) -> dict[str, Any]:
                 "source_ids": ["DOC-DECISIONS", "DOC-UI-R1"],
             },
             {
-                "fact": "Q03 remains Open, Q05 remains Open, and G1 is NOT_PASSED",
+                "fact": "Q03 remains Open, Q05 is Closed by D204, and G1 is NOT_PASSED",
                 "source_ids": ["DOC-DECISIONS", "DOC-V2-G1", "DOC-TASKS"],
             },
             {
-                "fact": "D203 voice-pack / background-lockscreen TTS remains, but Sherpa is quality-demoted to compatibility fallback and Q05 engine strategy remains open",
+                "fact": "D203 voice-pack / background-lockscreen TTS remains; D204 accepts engine strategy A with Sherpa / Matcha compatibility fallback and no selected second engine or exact profile",
                 "source_ids": ["DOC-DECISIONS", "DOC-V2-G1", "DOC-TASKS"],
             },
             {
-                "fact": "S6 scoped review is PASS_WITH_P2; the only P2 is excluded __pycache__ and G1 remains NOT_PASSED",
+                "fact": "Historical S6 review is PASS_WITH_P2 while Q05 was Open; D204 requires a fresh scoped reconfirm and G1 remains NOT_PASSED",
                 "source_ids": ["DOC-V2-G1"],
+            },
+            {
+                "fact": "READER-060 requires target-Android fully offline local TTS; D204-A is compatibility fallback plus a gated expressive second-engine Spike, not a current Sherpa main-engine mandate",
+                "source_ids": ["DOC-V2-G0", "DOC-V2-G1", "DOC-DECISIONS", "DOC-TASKS"],
             },
         ],
         "evidence_upgrade_rules": [
@@ -4696,14 +5033,16 @@ def matrix_document(
         "global_boundaries": {
             "g1": "NOT_PASSED",
             "q03": "OPEN",
-            "q05": "OPEN_TTS_ENGINE_STRATEGY",
+            "q05": "CLOSED_D204_ENGINE_STRATEGY_A",
             "q04": "CLOSED_D201",
             "ui_design_system": "V2_R1_ACCEPTED_DESIGN_AUTHORITY",
             "runtime": "UNVERIFIED",
-            "s6": "SCOPED_REVIEW_PASS_WITH_P2",
+            "s6": "RECONFIRM_REQUIRED_AFTER_D204",
             "d203": "ACCEPTED_VOICE_PACK_BACKGROUND_TTS",
+            "d204": "ACCEPTED_ENGINE_STRATEGY_A",
             "sherpa_quality": "SHERPA_QUALITY_INSUFFICIENT_COMPAT_FALLBACK",
-            "c1_exact_profile": "UNFROZEN_WAIT_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE",
+            "second_engine": "UNSELECTED_HIGH_EXPRESSIVE_L1_SPIKE_SCOPING",
+            "c1_exact_profile": "OPEN_EXPRESSIVE_ENGINE_PROFILE",
             "l2_l3": "LOCKED",
         },
     }
@@ -4752,19 +5091,20 @@ def readme_text(matrix: dict[str, Any], risks: dict[str, Any], cards: list[dict[
 
 状态：`{STATUS}`
 
-本轮已按前序 scoped RED 完成受控修复：{matrix['counts']['normalized_acceptance_rows']} 条行级语义使用 schema v2（外部 {matrix['counts']['external_acceptance_rows']} + D203 addendum {matrix['counts']['project_addendum_acceptance_rows']}），operation 必须由 actor、entry_surface、action_verb、action_object 与 expected_response 组合；MUSIC-003/014 与 NAV-004/005/006 使用源特定入口/动作，action_object 不含源码行号、决策号或范围元数据。权威源中无法枚举的状态 / 无障碍 / RWD 保留 `UNSPECIFIED_IN_SOURCE` gap。{matrix['counts']['g2_delivery_waves']} 个 delivery wave 均有专业 owner、真实原子 promise_ids、显式 capability tags 与结构化验收物；{matrix['counts']['wave_membership_records']} 条 atomic membership 只从独立表 join，禁止按行序、哈希或关键词轮转分配。card 不引用 `EV-S6` 自证。fresh scoped review 结论为 `PASS_WITH_P2`，唯一 P2 为 `__pycache__` 不得进入提交；本次 D203 重新生成、机械 verifier 或 self-test 均不等于 G1 PASS。
+当前 decision state：`D204_ACCEPTED_ENGINE_STRATEGY_A / Q05_CLOSED_D204 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+`EV-S6.status`：`{EV_S6_STATUS}`。历史 review `PASS_WITH_P2` 仅限定为 Q05 当时 Open 的原始 S6 review，不是 D204 后当前 re-approval。
 
-上述 `PASS_WITH_P2` 是原始 S6 的历史 review 结论；D203 后本次重建没有获得新的独立 review，不能写成 S6 再认证、G1、runtime 或 QA PASS。
+本轮按第二轮 scoped review 修复重建：{matrix['counts']['normalized_acceptance_rows']} 条行级语义保持 schema v2（外部 {matrix['counts']['external_acceptance_rows']} + D203 addendum {matrix['counts']['project_addendum_acceptance_rows']}）；49 个 delivery wave 与 {matrix['counts']['wave_membership_records']} 条 atomic membership 保持原 schema。READER-060 已改为引擎中立产品需求，D204-A 仅表示兼容回退 + gated 第二引擎 Spike；不选择第二引擎、exact profile 或 voice。Q03 nested evidence 只陈述底层报告能证明的静态事实，D204 只保留在 top-level current state / status authorities。机械 rebuild / verifier / self-test 不能替代新的 fresh scoped review。
 
 ## 目的
 
-本目录把已接受的 G0 八域、`V2-REQ-BASE-001～005`、A1/A2/BASE 静态合同、S4/Q03 静态输入与 UI V2.0 R1 设计权威，收敛为已完成 fresh scoped review 的 S6 规划包。review 结论 `PASS_WITH_P2` 只接受其为规划包及 docs integration/commit 候选，不是 G1 PASS，也不是实现、独立 QA、设备、服务器写或 Release 证据。
+本目录把已接受的 G0 八域、`V2-REQ-BASE-001～005`、A1/A2/BASE 静态合同、S4/Q03 静态输入、D203 voice-pack / 后台 TTS 与 UI V2.0 R1 设计权威，收敛为 S6 规划包。原始 review `PASS_WITH_P2` 只作为历史输入；D204 后当前必须 fresh scoped reconfirm。它不是 G1 PASS，也不是实现、独立 QA、设备、服务器写或 Release 证据。
 
 ## 权威输入与读序
 
 1. `AGENTS.md` 与 `docs/PROJECT_PLAN.md` §3/§5/§7：工作目录、写边界、交接和验证纪律。
-2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/R1/Q03/Q05 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q03/Q05/Q04 与 S6 ACTIVE。
-3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D203` / Open Q03/Q05：当前状态真源。
+2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/D204/R1/Q03 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q05 Closed/D204、Q03 与 S6 ACTIVE。
+3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D204` / Open Q03：当前状态真源。
 4. `docs/UI_DESIGN_SYSTEM.md` V2 R1：五主题、RWD、九条交互、无障碍与 `UNVERIFIED_RUNTIME`。
 5. `.planning/v2-g1/G1-S1～S5`、A1/A2、BASE-001/003/004、Q03-SBOM/NATIVE/NOTICE/TTS-PDF：只读压缩报告、README 与 manifest。
 
@@ -4832,42 +5172,42 @@ def readme_text(matrix: dict[str, Any], risks: dict[str, Any], cards: list[dict[
 
 `V2-Q-G1-03` 保持 Open。至少以下均未关闭：
 
-1. TTS engine strategy（Q05 Open）、exact profile / model / lexicon / rule、试听、许可与零 App 网络 / 后台锁屏 runtime；Sherpa 已被当前小说质量门降为兼容回退，不把 D203 历史引擎语义写成 Q03 closure；
+1. D204 已关闭 TTS engine strategy A，但第二引擎、exact profile / model / lexicon / rule、试听、许可与零 App 网络 / 后台锁屏 runtime 仍未关闭；Sherpa / Matcha 仅作兼容回退，不把 D204 写成 Q03 closure；
 2. PDFium exact native revision、16 KB issue #56、Range / 206、取消与大文件；
 3. candidate packaged SBOM、complete notices、source bundle / written offer、attestation / relink；
 4. Media3 / decoder / libmpv / libass 双内核 load-order、符号解析、R8 与设备；
 5. 真实候选包、设备、server runtime 与独立 QA。
 
-Q03 / Q05 相关卡只能为 `GATED/BLOCKED` 输入；Sherpa 当前是兼容回退而非小说默认，Q05 strategy、exact profile 与 Q03 均未通过，不能暗中冻结新引擎或 profile。
+Q03 与 Reader TTS 卡只能为 `GATED/BLOCKED` 输入；D204 只给出 engine strategy A，second engine、exact profile 与 Q03 均未通过，不能暗中冻结新引擎或 profile，也不能把 TTS 卡转为 READY。
 
-## Q05 开放门
+## Q05 当前决策（Closed / Accepted / D204）
 
-`V2-Q-G1-05` 保持 Open：A 推荐为保留 Sherpa 兼容回退并另立高表现力第二开源引擎 Android arm64 可行性 Spike；B 为仅继续 Sherpa 官方 pack；C 为继续试听 / 调研。`IndexTTS 2.5` 为首选调研方向但无官方 Android arm64 runtime，CosyVoice 2/3 / GPT-SoVITS 为次选且均未证明；Matcha / Kokoro 边界与 exact profile 未冻结，用户尚未拍板，不得写成 D204 Accepted。
+用户于 2026-11-04 原话“按推荐选择A。”，A 已接受，B/C 未选。`V2-D204` 只关闭 engine strategy：保留 Sherpa / Matcha 兼容回退，另立高表现力开源第二引擎 Android arm64 可行性 Spike；IndexTTS 2.5、CosyVoice 2、CosyVoice 3、GPT-SoVITS 均未选择，任一候选都没有已证实的官方 Android arm64 runtime。Matcha `zh-en` 只补样 / 兼容回退，Kokoro speaker 58 主观否决不整体淘汰家族；官方 v1.1-zh 模型页有 4 个样音可试听但本轮未执行。CosyVoice 2/3 仓库 / 模型权重许可页面冲突未解析。用户主观小说质量门仍未过，exact profile / voice、许可 / notice / hash、RAM / RTF / 首音、后台锁屏与 runtime 全部保持 Open。
 
 ## S6 完成与 scoped review 结论
 
-本包满足以下静态交付门，fresh scoped review 结论为 `PASS_WITH_P2`：
+本包保留以下历史静态交付门与原始 review `PASS_WITH_P2`；D204 后 `EV-S6` 当前状态为 `{EV_S6_STATUS}`：
 
 - 外部 `445` 个 source node / `376` 个 MVP 子项保持可复算，D203 另列 4 个 project addendum / 4 个 MVP；归一化 source 449、MVP 380；
 - 五个 BASE MUST 组与 R1 横向承诺均有 owner / card；
 - 每个原子行有可观察结果、E0–E7 强度、fixture / device 边界、阈值引用、未覆盖和 G2 owner；
 - G2 卡 `non_goals[] >= 2`，所有 MUST 承诺被至少一张卡承接；
-- {matrix['counts']['normalized_acceptance_rows']} 条行语义均有动作组件与源锚；42 个注入负例覆盖统一公式、ID+结果包装、MUSIC/NAV 错域、action_object 元数据、9 边界、悬空依赖 / 证据、card 自证、自由文本验收物、wave DAG 环、D203 origin / 专用 entry-action / task-card wave / R-S6-P1-07 陈旧引擎断言、Q03 / TTS-W1 / Reader-Core 陈旧选择措辞、Q03 risk 映射与 W1 action tag，并新增 MUSIC-003→queue、MUSIC-014→playlist/large-queue、NAV-005→route/token、membership 缺失 / 重复 / 跨 capability 变异，且均被拒绝；
+- {matrix['counts']['normalized_acceptance_rows']} 条行语义均有动作组件与源锚；最终 live 口径为 {SELF_TEST_NEGATIVE_FIXTURE_COUNT} negative fixtures + {SELF_TEST_BASE_CHECK_COUNT} base checks + 1 计数输出 = {SELF_TEST_TOTAL_LIVE_CHECK_COUNT} checks。复核前为 55 + {SELF_TEST_BASE_CHECK_COUNT} + 1 = 66（相对基线 {SELF_TEST_BASELINE_CHECK_COUNT} 新增 6 negative）；本轮再以通用 evidence overclaim 与 READER-060 主引擎等价写法两条 negative 收敛，故最终相对基线累计新增 8 negative；全部真实执行并通过。
 - Q03 / Q04 / UI / runtime / G1 状态等式成立；
 - JSON、manifest、LF / CRLF 与本地 verifier 通过。
 
-机械检查不能单独证明 460 条自然语言全部等价；D203 后本次 builder / verifier 重跑只证明静态包可复算，不能替代新的 fresh reviewer。原始 S6 P2 仍为 `__pycache__` 不得进入提交。S6 通过不等于 G1、runtime、device 或 independent QA PASS。
+机械检查不能单独证明 460 条自然语言全部等价；D204 后本次 builder / verifier 重跑只证明静态包可复算，不能替代新的 fresh reviewer。原始 S6 P2 仍为 `__pycache__` 不得进入提交。历史 review 不等于当前 S6、G1、runtime、device 或 independent QA PASS。
 
 ## 非目标
 
 - 不运行 Gradle、ADB、设备、服务器、网络探测、独立 QA、Release 或生产实现。
-- 不修改生产源码、Gradle、Manifest、resources、schema、其他证据目录、memory；本包只由 D203 文档集成驱动重建 `docs/` 与 `G1-S6/`。
-- 不选择 TTS exact voice-pack profile、PDF 最终引擎、TTL / 排序 / 合并策略或任何未接受的产品取舍。
+- 不修改生产源码、Gradle、Manifest、resources、schema、其他证据目录、memory；本包只重建根 `.gitattributes` 白名单与 `G1-S6/`。
+- 不选择 TTS 第二引擎、exact voice-pack profile、PDF 最终引擎、TTL / 排序 / 合并策略或任何未接受的产品取舍。
 - 不把 S6 `PASS_WITH_P2`、静态 fixture、S5 覆盖、R1 设计权威或历史 1.4 记录写成 G1 / runtime / device / QA PASS。
 
 ## 停止条件
 
-出现以下任一项立即停止并报告 `BLOCKED`，不得代签：下一步超出只读残余门审计 / 用户授权准备；`__pycache__` 或其他非白名单产物进入提交；Q03 需要选型或用户拍板；需要设备 / 服务器 / 网络 runtime；需要生产实现 / 独立 QA / Release；G0 计数、UI 权威或 Q03/Q04 状态漂移；manifest 不能复算。
+出现以下任一项立即停止并报告 `BLOCKED`，不得代签：下一步超出只读 / 静态 Second-engine L1 Spike scoping 与许可门；`__pycache__` 或其他非白名单产物进入提交；Q03 需要选型或用户拍板；把 D204-A 写成具体引擎已选或解锁 L2/L3；需要设备 / 服务器 / 网络 runtime；需要生产实现 / 独立 QA / Release；G0 计数、UI 权威或 Q03/Q04/Q05 状态漂移；manifest 不能复算。
 
 ## 下游 G2 消费方式
 
@@ -4886,7 +5226,7 @@ python -X utf8 .planning/v2-g1/G1-S6/verify_s6_artifacts.py
 python -X utf8 .planning/v2-g1/G1-S6/verify_s6_artifacts.py --self-test
 ```
 
-生成器只写 `G1-S6/`，不访问网络、设备或服务器。`row-semantics.json` 由显式 seed 与确定性、可回链源行的动作组合生成；`wave-membership.json` 是独立显式 join 表，builder 不得从行顺序、哈希或关键词重新分配。机械检查与 fresh scoped review 已通过；后续修改仍须重新运行 verifier、self-test 与新鲜度审计。verifier 只读当前目录与声明的权威文档。
+生成器只写 `G1-S6/`，不访问网络、设备或服务器。`row-semantics.json` 由显式 seed 与确定性、可回链源行的动作组合生成；`wave-membership.json` 是独立显式 join 表，builder 不得从行顺序、哈希或关键词重新分配。原始 review 只作为历史；D204 后必须 fresh scoped reconfirm，并重新运行 verifier、{SELF_TEST_NEGATIVE_FIXTURE_COUNT} negative fixtures + {SELF_TEST_BASE_CHECK_COUNT} base checks + 1 计数输出（{SELF_TEST_TOTAL_LIVE_CHECK_COUNT} live checks）与新鲜度审计。verifier 只读当前目录与声明的权威文档。
 """
 
 
@@ -4907,6 +5247,8 @@ def checkpoint_text(
 
 状态：`{STATUS}`
 
+`EV-S6.status`：`{EV_S6_STATUS}`；历史 `PASS_WITH_P2` 仅适用于 Q05 当时 Open 的原始 review。
+
 ## 已完成
 
 - 已完成本轮允许范围内的静态读取与压缩取证：G0 八域最终表、五个 BASE 组、A1/A2/BASE-001/003/004、S1–S5、Q03-SBOM/NATIVE/NOTICE/TTS-PDF、当前 DECISIONS/TASKS/UI R1。
@@ -4917,13 +5259,13 @@ def checkpoint_text(
 - {wave_count} 个 wave 均有专业 owner、非空真实 promise_ids、1 个结构化验收物、显式 capability / entry / action tags 与具体文件 / FQCN 边界；矩阵 {sum(1 for row in matrix['acceptance_rows'] + matrix['base_groups'] + matrix['r1_quality_rows'] if row.get('g2_wave_ids'))} 条 membership 已映射到至少一个 wave。
 - card 级 `EV-S6` 自证引用为 0；对外证据保留具体证据 ID 或显式 `NO_EVIDENCE_YET` 缺口。
 - 风险登记 P0/P1/P2/P3=`{risk_counts['P0']}/{risk_counts['P1']}/{risk_counts['P2']}/{risk_counts['P3']}`。
-- `verify_s6_artifacts.py` 与 {counts['wave_membership_records']} 条 explicit membership、{counts['wave_membership_edges']} 条边的语义 / 能力 / 入口 / 动作 / 边界门禁及 42 个负向 self-test 已在 D203 重新生成后执行；manifest、SHA-256 与 LF / CRLF 由最终产物复算。
-- 原始 S6 scoped review 仍为 `PASS_WITH_P2`，唯一 P2 `G1-S6/__pycache__/*.pyc` 保持排除；D203 后重新生成本身不是新的独立 review。
+- `verify_s6_artifacts.py` 与 {counts['wave_membership_records']} 条 explicit membership、{counts['wave_membership_edges']} 条边的语义 / 能力 / 入口 / 动作 / 边界门禁及 {SELF_TEST_NEGATIVE_FIXTURE_COUNT} 个负向 self-test 已在 D204 review 修复后重新生成并执行；manifest、SHA-256 与 LF / CRLF 由最终产物复算。
+- `EV-S6.status` 当前为 `{EV_S6_STATUS}`；原始 S6 scoped review 仍为 `PASS_WITH_P2`，唯一 P2 `G1-S6/__pycache__/*.pyc` 保持排除。该历史 review 发生在 Q05 当时 Open，D204 后当前必须 fresh scoped reconfirm，不得宣告 re-approved。
 
 ## 未完成 / 不可声明
 
 - S6 通过不等于 G1 PASS；G1 仍为 `NOT_PASSED`，runtime 仍为 `UNVERIFIED`。
-- Q03 / Q05 仍 Open：TTS engine strategy、exact profile / 试听 / 许可与后台锁屏零网络 runtime、PDFium 16 KB / Range / native revision / notice、packaged SBOM / source offer、attestation / relink 均未关闭。Sherpa 质量不足并降为兼容回退，不等于 Q03 / Q05 关闭。
+- Q05 已由 D204 关闭 engine strategy，但第二引擎、exact profile / 试听 / 许可、后台锁屏零网络 runtime 仍未关闭；Q03 仍 Open，PDFium 16 KB / Range / native revision / notice、packaged SBOM / source offer、attestation / relink 均未关闭。Sherpa / Matcha 兼容回退不等于 Q03 关闭。
 - 未执行实现、Gradle、ADB、设备、服务器、网络、独立 QA、Release；不得写 G1/runtime/device/QA PASS。
 - Base-003 TTL / capacity / prefetch、BASE-004 重复 / 部分导入、搜索排序 / 跨源呈现等产品策略仍未由用户拍板。
 
@@ -4943,6 +5285,8 @@ def checkpoint_text(
 
 ## 已修正失败
 
+- 最终 fresh reviewer 三项 P2 RED：自测曾把 negative fixture 数误当总检查数；通用 evidence `can_prove` 未阻断 chosen engine / Android runtime / production overclaim；READER-060 只识别旧 Sherpa 句式。现统一 live 计数为 {SELF_TEST_NEGATIVE_FIXTURE_COUNT} negative + {SELF_TEST_BASE_CHECK_COUNT} base + 1 计数 = {SELF_TEST_TOTAL_LIVE_CHECK_COUNT}，并新增通用 overclaim 与三处主引擎等价注入门。
+- 第二轮 fresh reviewer RED：根 `.gitattributes` 未自稳定、Q03 nested `can_prove` 越权承载 D204、EV-S6 仍以无条件 pass 作当前状态；现新增自稳定 / eol 负例、底层报告语义交叉核对与历史 Q05_OPEN 双字段门。
 - 第五轮 reviewer RED：builder 按轮转分配导致 MUSIC-003 挂到 large-queue、MUSIC-014 挂 large-queue/playlist、NAV-005 挂 route/token；现改为独立 explicit membership，新增 8 个语义变异门与全量 capability mismatch 扫描，self-test 注入总数 29。
 - 第四轮 reviewer RED：MUSIC-003 歌词入口错域、MUSIC-014 系统媒体控制错域、NAV-004/005/006 泛化同动作、action_object 源码/决策元数据泄漏，已转为 3 个新增真实变异门与全量扫描门；self-test 注入总数 21。
 - 第三轮 reviewer RED：operation 结果包装、card `EV-S6` 自证、wave 缺 owner / promise / 结构化验收物、9 边界与悬空外部依赖均已转为 verifier 与注入负例断言。
@@ -4955,11 +5299,11 @@ def checkpoint_text(
 
 ## Scoped review 结论与残余门
 
-**结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留；D203 后本次 builder / verifier 重跑只更新静态规划包，不能代替新的 fresh reviewer。S6 仍只作为规划包与 docs integration 输入。
+**结论**：原始 S6 fresh scoped review `PASS_WITH_P2` 历史保留；该 Q05 当时 Open 的 review 不能自动覆盖 D204。D204 后当前状态为 `S6_RECONFIRM_REQUIRED_AFTER_D204`；builder / verifier 重跑只更新静态规划包，不能代替新的 fresh reviewer。S6 仍只作为规划包与 docs integration 输入。
 
-**下一步入口**：fresh reviewer 第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json`、`docs/DECISIONS.md` Q05 / Open Q03 与 `docs/TASKS.md` `V2-G1-L1-EVIDENCE`，确认 external 445/376 与 addendum 4 / normalized 380 分离、Sherpa 仅兼容回退后停止；不得代签 QA 或推进 G2。
+**下一步入口**：fresh scoped reviewer 第一条只读动作是核对本 checkpoint、`README.md`、`manifest.json` 的 current decision / historical review 双字段、`docs/DECISIONS.md` Q05 Closed/D204 / Open Q03 与 `docs/TASKS.md` `V2-G1-L1-EVIDENCE`，确认 external 445/376 与 addendum 4 / normalized 380 分离、D204 不选择第二引擎、Sherpa / Matcha 仅兼容回退；不得代签 QA 或推进 G2。
 
-**停止条件**：下一步不得启动 Q03 runtime、exact profile / 引擎替换选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、Q03/Q04/UI/G1 状态漂移、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
+**停止条件**：下一步不得启动 Q03 runtime、第二引擎 / exact profile 实际选型、设备、生产实现、G2、独立 QA 或 Release；任何计数不等、显式语义 / 源锚不可复算、`__pycache__` 回流、D204/Q03/Q04/UI/G1 状态漂移、L2/L3 解锁、manifest / LF 不复算，或需要写授权范围外文件时停止并报告 `BLOCKED`。
 
 ## 上下文水位
 
@@ -4974,6 +5318,12 @@ def main() -> None:
     v2_lines = v2_text.splitlines()
     semantics_by_id = load_row_semantics()
     semantics_by_id.update(build_d203_semantic_seeds(v2_lines))
+    if READER_060_PROMISE_ID not in semantics_by_id:
+        raise ValueError(f"{READER_060_PROMISE_ID} explicit seed is missing")
+    semantics_by_id[READER_060_PROMISE_ID] = build_d204_reader_060_semantic_seed(
+        v2_lines,
+        semantics_by_id[READER_060_PROMISE_ID],
+    )
     rebase_semantic_anchor_lines(v2_lines, semantics_by_id)
 
     nodes, rows, domain_counts = build_external_nodes(v2_lines, semantics_by_id)
@@ -4981,6 +5331,7 @@ def main() -> None:
     write_json(SEMANTICS_PATH, semantic_document)
     base_rows = parse_base_groups(v2_lines)
     r1_rows = build_r1_rows()
+    normalize_wave_membership_registry()
     membership_by_row = load_wave_membership()
     cards = build_card_outputs(nodes, rows, base_rows, r1_rows, membership_by_row)
     matrix = matrix_document(
@@ -4990,6 +5341,11 @@ def main() -> None:
         r1_rows,
         domain_counts,
         membership_by_row,
+    )
+    validate_reader_060_engine_neutral_outputs(
+        semantic_document,
+        matrix,
+        cards,
     )
     thresholds = {
         "schema_version": "g1-s6-thresholds/v1",

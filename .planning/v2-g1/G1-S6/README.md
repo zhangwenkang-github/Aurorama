@@ -1,20 +1,21 @@
 # Aurorama 2.0 · G1-S6 总验收矩阵与 G2 任务卡输入
 
-状态：`S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED`
+状态：`D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED / L2_L3_LOCKED`
 
-本轮已按前序 scoped RED 完成受控修复：460 条行级语义使用 schema v2（外部 456 + D203 addendum 4），operation 必须由 actor、entry_surface、action_verb、action_object 与 expected_response 组合；MUSIC-003/014 与 NAV-004/005/006 使用源特定入口/动作，action_object 不含源码行号、决策号或范围元数据。权威源中无法枚举的状态 / 无障碍 / RWD 保留 `UNSPECIFIED_IN_SOURCE` gap。49 个 delivery wave 均有专业 owner、真实原子 promise_ids、显式 capability tags 与结构化验收物；495 条 atomic membership 只从独立表 join，禁止按行序、哈希或关键词轮转分配。card 不引用 `EV-S6` 自证。fresh scoped review 结论为 `PASS_WITH_P2`，唯一 P2 为 `__pycache__` 不得进入提交；本次 D203 重新生成、机械 verifier 或 self-test 均不等于 G1 PASS。
+当前 decision state：`D204_ACCEPTED_ENGINE_STRATEGY_A / Q05_CLOSED_D204 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+`EV-S6.status`：`S6_RECONFIRM_REQUIRED_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`。历史 review `PASS_WITH_P2` 仅限定为 Q05 当时 Open 的原始 S6 review，不是 D204 后当前 re-approval。
 
-上述 `PASS_WITH_P2` 是原始 S6 的历史 review 结论；D203 后本次重建没有获得新的独立 review，不能写成 S6 再认证、G1、runtime 或 QA PASS。
+本轮按第二轮 scoped review 修复重建：460 条行级语义保持 schema v2（外部 456 + D203 addendum 4）；49 个 delivery wave 与 495 条 atomic membership 保持原 schema。READER-060 已改为引擎中立产品需求，D204-A 仅表示兼容回退 + gated 第二引擎 Spike；不选择第二引擎、exact profile 或 voice。Q03 nested evidence 只陈述底层报告能证明的静态事实，D204 只保留在 top-level current state / status authorities。机械 rebuild / verifier / self-test 不能替代新的 fresh scoped review。
 
 ## 目的
 
-本目录把已接受的 G0 八域、`V2-REQ-BASE-001～005`、A1/A2/BASE 静态合同、S4/Q03 静态输入与 UI V2.0 R1 设计权威，收敛为已完成 fresh scoped review 的 S6 规划包。review 结论 `PASS_WITH_P2` 只接受其为规划包及 docs integration/commit 候选，不是 G1 PASS，也不是实现、独立 QA、设备、服务器写或 Release 证据。
+本目录把已接受的 G0 八域、`V2-REQ-BASE-001～005`、A1/A2/BASE 静态合同、S4/Q03 静态输入、D203 voice-pack / 后台 TTS 与 UI V2.0 R1 设计权威，收敛为 S6 规划包。原始 review `PASS_WITH_P2` 只作为历史输入；D204 后当前必须 fresh scoped reconfirm。它不是 G1 PASS，也不是实现、独立 QA、设备、服务器写或 Release 证据。
 
 ## 权威输入与读序
 
 1. `AGENTS.md` 与 `docs/PROJECT_PLAN.md` §3/§5/§7：工作目录、写边界、交接和验证纪律。
-2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/R1/Q03/Q05 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q03/Q05/Q04 与 S6 ACTIVE。
-3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D203` / Open Q03/Q05：当前状态真源。
+2. `docs/V2_PLAN.md` §5.4、§5.10、§5.11.6～§5.11.13、§6、§8～§12、§13 当前 D203/D204/R1/Q03 记录：外部 G0 445 / 376、D203 addendum 4 / normalized MVP 380、E0–E7、Q05 Closed/D204、Q03 与 S6 ACTIVE。
+3. `docs/TASKS.md` In Progress、`docs/DECISIONS.md` `V2-D057` / `V2-D198～D204` / Open Q03：当前状态真源。
 4. `docs/UI_DESIGN_SYSTEM.md` V2 R1：五主题、RWD、九条交互、无障碍与 `UNVERIFIED_RUNTIME`。
 5. `.planning/v2-g1/G1-S1～S5`、A1/A2、BASE-001/003/004、Q03-SBOM/NATIVE/NOTICE/TTS-PDF：只读压缩报告、README 与 manifest。
 
@@ -82,42 +83,42 @@
 
 `V2-Q-G1-03` 保持 Open。至少以下均未关闭：
 
-1. TTS engine strategy（Q05 Open）、exact profile / model / lexicon / rule、试听、许可与零 App 网络 / 后台锁屏 runtime；Sherpa 已被当前小说质量门降为兼容回退，不把 D203 历史引擎语义写成 Q03 closure；
+1. D204 已关闭 TTS engine strategy A，但第二引擎、exact profile / model / lexicon / rule、试听、许可与零 App 网络 / 后台锁屏 runtime 仍未关闭；Sherpa / Matcha 仅作兼容回退，不把 D204 写成 Q03 closure；
 2. PDFium exact native revision、16 KB issue #56、Range / 206、取消与大文件；
 3. candidate packaged SBOM、complete notices、source bundle / written offer、attestation / relink；
 4. Media3 / decoder / libmpv / libass 双内核 load-order、符号解析、R8 与设备；
 5. 真实候选包、设备、server runtime 与独立 QA。
 
-Q03 / Q05 相关卡只能为 `GATED/BLOCKED` 输入；Sherpa 当前是兼容回退而非小说默认，Q05 strategy、exact profile 与 Q03 均未通过，不能暗中冻结新引擎或 profile。
+Q03 与 Reader TTS 卡只能为 `GATED/BLOCKED` 输入；D204 只给出 engine strategy A，second engine、exact profile 与 Q03 均未通过，不能暗中冻结新引擎或 profile，也不能把 TTS 卡转为 READY。
 
-## Q05 开放门
+## Q05 当前决策（Closed / Accepted / D204）
 
-`V2-Q-G1-05` 保持 Open：A 推荐为保留 Sherpa 兼容回退并另立高表现力第二开源引擎 Android arm64 可行性 Spike；B 为仅继续 Sherpa 官方 pack；C 为继续试听 / 调研。`IndexTTS 2.5` 为首选调研方向但无官方 Android arm64 runtime，CosyVoice 2/3 / GPT-SoVITS 为次选且均未证明；Matcha / Kokoro 边界与 exact profile 未冻结，用户尚未拍板，不得写成 D204 Accepted。
+用户于 2026-11-04 原话“按推荐选择A。”，A 已接受，B/C 未选。`V2-D204` 只关闭 engine strategy：保留 Sherpa / Matcha 兼容回退，另立高表现力开源第二引擎 Android arm64 可行性 Spike；IndexTTS 2.5、CosyVoice 2、CosyVoice 3、GPT-SoVITS 均未选择，任一候选都没有已证实的官方 Android arm64 runtime。Matcha `zh-en` 只补样 / 兼容回退，Kokoro speaker 58 主观否决不整体淘汰家族；官方 v1.1-zh 模型页有 4 个样音可试听但本轮未执行。CosyVoice 2/3 仓库 / 模型权重许可页面冲突未解析。用户主观小说质量门仍未过，exact profile / voice、许可 / notice / hash、RAM / RTF / 首音、后台锁屏与 runtime 全部保持 Open。
 
 ## S6 完成与 scoped review 结论
 
-本包满足以下静态交付门，fresh scoped review 结论为 `PASS_WITH_P2`：
+本包保留以下历史静态交付门与原始 review `PASS_WITH_P2`；D204 后 `EV-S6` 当前状态为 `S6_RECONFIRM_REQUIRED_AFTER_D204 / HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED`：
 
 - 外部 `445` 个 source node / `376` 个 MVP 子项保持可复算，D203 另列 4 个 project addendum / 4 个 MVP；归一化 source 449、MVP 380；
 - 五个 BASE MUST 组与 R1 横向承诺均有 owner / card；
 - 每个原子行有可观察结果、E0–E7 强度、fixture / device 边界、阈值引用、未覆盖和 G2 owner；
 - G2 卡 `non_goals[] >= 2`，所有 MUST 承诺被至少一张卡承接；
-- 460 条行语义均有动作组件与源锚；42 个注入负例覆盖统一公式、ID+结果包装、MUSIC/NAV 错域、action_object 元数据、9 边界、悬空依赖 / 证据、card 自证、自由文本验收物、wave DAG 环、D203 origin / 专用 entry-action / task-card wave / R-S6-P1-07 陈旧引擎断言、Q03 / TTS-W1 / Reader-Core 陈旧选择措辞、Q03 risk 映射与 W1 action tag，并新增 MUSIC-003→queue、MUSIC-014→playlist/large-queue、NAV-005→route/token、membership 缺失 / 重复 / 跨 capability 变异，且均被拒绝；
+- 460 条行语义均有动作组件与源锚；最终 live 口径为 57 negative fixtures + 10 base checks + 1 计数输出 = 68 checks。复核前为 55 + 10 + 1 = 66（相对基线 49 新增 6 negative）；本轮再以通用 evidence overclaim 与 READER-060 主引擎等价写法两条 negative 收敛，故最终相对基线累计新增 8 negative；全部真实执行并通过。
 - Q03 / Q04 / UI / runtime / G1 状态等式成立；
 - JSON、manifest、LF / CRLF 与本地 verifier 通过。
 
-机械检查不能单独证明 460 条自然语言全部等价；D203 后本次 builder / verifier 重跑只证明静态包可复算，不能替代新的 fresh reviewer。原始 S6 P2 仍为 `__pycache__` 不得进入提交。S6 通过不等于 G1、runtime、device 或 independent QA PASS。
+机械检查不能单独证明 460 条自然语言全部等价；D204 后本次 builder / verifier 重跑只证明静态包可复算，不能替代新的 fresh reviewer。原始 S6 P2 仍为 `__pycache__` 不得进入提交。历史 review 不等于当前 S6、G1、runtime、device 或 independent QA PASS。
 
 ## 非目标
 
 - 不运行 Gradle、ADB、设备、服务器、网络探测、独立 QA、Release 或生产实现。
-- 不修改生产源码、Gradle、Manifest、resources、schema、其他证据目录、memory；本包只由 D203 文档集成驱动重建 `docs/` 与 `G1-S6/`。
-- 不选择 TTS exact voice-pack profile、PDF 最终引擎、TTL / 排序 / 合并策略或任何未接受的产品取舍。
+- 不修改生产源码、Gradle、Manifest、resources、schema、其他证据目录、memory；本包只重建根 `.gitattributes` 白名单与 `G1-S6/`。
+- 不选择 TTS 第二引擎、exact voice-pack profile、PDF 最终引擎、TTL / 排序 / 合并策略或任何未接受的产品取舍。
 - 不把 S6 `PASS_WITH_P2`、静态 fixture、S5 覆盖、R1 设计权威或历史 1.4 记录写成 G1 / runtime / device / QA PASS。
 
 ## 停止条件
 
-出现以下任一项立即停止并报告 `BLOCKED`，不得代签：下一步超出只读残余门审计 / 用户授权准备；`__pycache__` 或其他非白名单产物进入提交；Q03 需要选型或用户拍板；需要设备 / 服务器 / 网络 runtime；需要生产实现 / 独立 QA / Release；G0 计数、UI 权威或 Q03/Q04 状态漂移；manifest 不能复算。
+出现以下任一项立即停止并报告 `BLOCKED`，不得代签：下一步超出只读 / 静态 Second-engine L1 Spike scoping 与许可门；`__pycache__` 或其他非白名单产物进入提交；Q03 需要选型或用户拍板；把 D204-A 写成具体引擎已选或解锁 L2/L3；需要设备 / 服务器 / 网络 runtime；需要生产实现 / 独立 QA / Release；G0 计数、UI 权威或 Q03/Q04/Q05 状态漂移；manifest 不能复算。
 
 ## 下游 G2 消费方式
 
@@ -136,4 +137,4 @@ python -X utf8 .planning/v2-g1/G1-S6/verify_s6_artifacts.py
 python -X utf8 .planning/v2-g1/G1-S6/verify_s6_artifacts.py --self-test
 ```
 
-生成器只写 `G1-S6/`，不访问网络、设备或服务器。`row-semantics.json` 由显式 seed 与确定性、可回链源行的动作组合生成；`wave-membership.json` 是独立显式 join 表，builder 不得从行顺序、哈希或关键词重新分配。机械检查与 fresh scoped review 已通过；后续修改仍须重新运行 verifier、self-test 与新鲜度审计。verifier 只读当前目录与声明的权威文档。
+生成器只写 `G1-S6/`，不访问网络、设备或服务器。`row-semantics.json` 由显式 seed 与确定性、可回链源行的动作组合生成；`wave-membership.json` 是独立显式 join 表，builder 不得从行顺序、哈希或关键词重新分配。原始 review 只作为历史；D204 后必须 fresh scoped reconfirm，并重新运行 verifier、57 negative fixtures + 10 base checks + 1 计数输出（68 live checks）与新鲜度审计。verifier 只读当前目录与声明的权威文档。

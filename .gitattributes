@@ -1,0 +1,4 @@
+/.gitattributes text eol=lf
+/docs/DECISIONS.md text eol=lf
+/docs/V2_PLAN.md text eol=lf
+/docs/TASKS.md text eol=lf

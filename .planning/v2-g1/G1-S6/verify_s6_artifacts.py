@@ -8,16 +8,142 @@ import hashlib
 import json
 import re
 import sys
+import tempfile
 from collections import Counter
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[3]
 OUT = Path(__file__).resolve().parent
+GITATTRIBUTES_PATH = ROOT / ".gitattributes"
+V2_PATH = ROOT / "docs" / "V2_PLAN.md"
+DECISIONS_PATH = ROOT / "docs" / "DECISIONS.md"
+TASKS_PATH = ROOT / "docs" / "TASKS.md"
 EXPECTED_STATUS = (
-    "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / "
-    "Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED"
+    "D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / "
+    "HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / "
+    "C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+    "G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / "
+    "RUNTIME_UNVERIFIED / L2_L3_LOCKED"
 )
+HISTORICAL_REVIEW_STATUS = "PASS_WITH_P2"
+ENGINE_EVIDENCE_ACTION_TAG = "VERIFY_ENGINE_STRATEGY_AND_LICENSE_INPUTS"
+EXPECTED_NEGATIVE_FIXTURE_INJECTIONS = 57
+READER_060_SOURCE_ID = "V2-REQ-READER-060"
+READER_060_PROMISE_ID = "S6-P-READER-060"
+READER_060_REQUIRED_DEPENDENCIES = (
+    "V2-D088",
+    "V2-D097",
+    "V2-D203",
+    "V2-D204",
+)
+D204_TTS_W1_DECISION_DEPENDENCIES = (
+    "V2-D203",
+    "V2-D204",
+    "V2-Q-G1-03",
+)
+EOL_ATTRIBUTE_RULES = {
+    ".gitattributes": ("set", "lf"),
+    "docs/DECISIONS.md": ("set", "lf"),
+    "docs/V2_PLAN.md": ("set", "lf"),
+    "docs/TASKS.md": ("set", "lf"),
+}
+EOL_ATTRIBUTE_SCOPE = (
+    "root .gitattributes and three authoritative docs; no wildcard rule"
+)
+EXPECTED_EV_Q03_TTS_PDF_STATUS = "TTS_PDF_PARTIAL / Q03_OPEN"
+EXPECTED_EV_S6_STATUS = (
+    "S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+    "HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2_Q05_OPEN / RUNTIME_UNVERIFIED"
+)
+Q03_TTS_PDF_REPORT_PATH = (
+    ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/report.json"
+)
+STALE_READER_060_MAIN_ENGINE = re.compile(
+    r"""
+    (
+        使用\s*Sherpa(?:-ONNX)?.*?TTS
+      | Sherpa(?:-ONNX)?[^。；;\n]{0,40}
+        (?:为主引擎|是主引擎|作为(?:当前|默认|主)?(?:朗读)?引擎)
+      | (?:当前|默认|主)(?:朗读)?引擎[^。；;\n]{0,12}
+        (?:=|:|：|为|是)\s*Sherpa(?:-ONNX)?
+      | \bSherpa(?:-ONNX)?\b[^。；;\n]{0,60}
+        \b(?:main|primary|default|selected|frozen)\b[^。；;\n]{0,30}
+        \bengine\b
+      | \b(?:main|primary|default|selected)\s+engine\b[^。；;\n]{0,12}
+        (?:=|:|is)\s*(?:the\s+)?\bSherpa(?:-ONNX)?\b
+    )
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+READER_060_STALE_ENGINE_VARIANTS = (
+    "Sherpa-ONNX 为主引擎",
+    "Sherpa-ONNX 是主引擎",
+    "Sherpa is the main engine",
+    "Sherpa is the selected engine",
+    "default engine = Sherpa",
+    "main engine = Sherpa",
+    "Sherpa is the default/main engine",
+    "Sherpa is the main/selected engine",
+    "default/main engine = Sherpa",
+)
+NEGATED_CLAIM_CONTEXT = re.compile(
+    r"\b(?:no|not|never|without|unproven|unverified|false|invalid)\b"
+    r"|(?:不|未|无|没有|并非|不是|禁止|不得|避免|不能|尚未)",
+    re.IGNORECASE,
+)
+PROHIBITED_EVIDENCE_CLAIMS = (
+    re.compile(
+        r"\b(?:selects?|selected|chooses?|chose|freezes?|frozen|locks?|locked)\b"
+        r"[^.;\n]{0,32}\b(?:engine|profile|voice)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:engine|profile|voice)\b[^.;\n]{0,32}"
+        r"\b(?:selected|chosen|frozen|locked)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bSherpa(?:-ONNX)?\b[^.;\n]{0,48}"
+        r"\b(?:main|primary|default|selected|frozen)\b"
+        r"[^.;\n]{0,24}\bengine\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"(?:已|被)?(?:选择|选中|选定|冻结|锁定|确定)"
+        r"[^。；;\n]{0,20}(?:引擎|engine|profile|voice|音色)"
+        r"|(?:引擎|engine|profile|voice|音色)"
+        r"[^。；;\n]{0,20}(?:已|被)?(?:选择|选中|选定|冻结|锁定|确定)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:Android\s+)?runtime\s+(?:is|was|has\s+been)\s+"
+        r"(?:proven|verified|validated|ready|pass(?:ed)?)\b"
+        r"|\b(?:Android\s+)?runtime\s+PASS(?:ED)?\b"
+        r"|(?:Android\s*)?runtime\s*(?:已|已经)?(?:证明|验证|通过|就绪)",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bproduction\s+(?:ready|proven|verified|validated|pass(?:ed)?)\b"
+        r"|\b(?:candidate|production)\s+(?:package\s+)?PASS(?:ED)?\b"
+        r"|(?:生产|发布|候选包)[^。；;\n]{0,10}"
+        r"(?:就绪|已证明|已验证|可发布|PASS)",
+        re.IGNORECASE,
+    ),
+)
+EXPECTED_CURRENT_DECISION_STATE = {
+    "d204": "ACCEPTED_ENGINE_STRATEGY_A",
+    "q05": "CLOSED_D204",
+    "engine_strategy": "A_COMPAT_FALLBACK_PLUS_SECOND_ENGINE_SCOPE",
+    "exact_engine": "UNSELECTED",
+    "exact_profile": "OPEN",
+    "sherpa_matcha": "COMPATIBILITY_FALLBACK_NOT_FROZEN",
+    "q03": "OPEN",
+    "g1": "NOT_PASSED",
+    "runtime": "UNVERIFIED",
+    "s6": "RECONFIRM_REQUIRED_AFTER_D204",
+    "l2_l3": "LOCKED",
+}
 SEMANTIC_SCHEMA = "g1-s6-row-semantics/v2"
 MEMBERSHIP_SCHEMA = "g1-s6-wave-membership/v1"
 UNSPECIFIED = "UNSPECIFIED_IN_SOURCE"
@@ -179,6 +305,420 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest().upper()
 
 
+def load_reader_060_contract() -> dict[str, str]:
+    lines = V2_PATH.read_text(encoding="utf-8").splitlines()
+    matches = [
+        line
+        for line in lines
+        if line.startswith(f"| `{READER_060_SOURCE_ID}` |")
+    ]
+    if len(matches) != 1:
+        fail(
+            f"{READER_060_SOURCE_ID} must appear exactly once in the READER table"
+        )
+    cells = [
+        value.strip().replace("`", "").replace("**", "")
+        for value in matches[0].strip().strip("|").split("|")
+    ]
+    columns = (
+        "id",
+        "level",
+        "source",
+        "promise",
+        "result",
+        "platform",
+        "dependencies",
+        "evidence",
+    )
+    if len(cells) != len(columns):
+        fail(
+            f"{READER_060_SOURCE_ID} expected {len(columns)} cells, got {len(cells)}"
+        )
+    return dict(zip(columns, cells))
+
+
+def claim_is_negated(text: str, start: int, end: int) -> bool:
+    prefix = text[:start]
+    clause_start = max(
+        prefix.rfind("。"),
+        prefix.rfind("；"),
+        prefix.rfind(";"),
+        prefix.rfind("\n"),
+        start - 48,
+        0,
+    ) + 1
+    context = text[clause_start : min(len(text), end + 16)]
+    return NEGATED_CLAIM_CONTEXT.search(context) is not None
+
+
+def has_stale_reader_060_engine_claim(text: object) -> bool:
+    value = str(text)
+    return any(
+        not claim_is_negated(value, match.start(), match.end())
+        for match in STALE_READER_060_MAIN_ENGINE.finditer(value)
+    )
+
+
+def reader_060_contract_errors(
+    reader_row: dict[str, str],
+    registry: dict,
+    rows: list[dict],
+    cards: list[dict],
+) -> list[str]:
+    errors: list[str] = []
+    dependencies = reader_row.get("dependencies", "")
+    missing_dependencies = [
+        dependency
+        for dependency in READER_060_REQUIRED_DEPENDENCIES
+        if dependency not in dependencies
+    ]
+    if "V2-D204" in missing_dependencies:
+        errors.append("READER-060 dependencies must include V2-D204")
+    other_missing = [
+        dependency
+        for dependency in missing_dependencies
+        if dependency != "V2-D204"
+    ]
+    if other_missing:
+        errors.append(
+            f"READER-060 dependencies must retain {other_missing}"
+        )
+    if "MUST" not in reader_row.get("level", ""):
+        errors.append("READER-060 must remain MUST")
+    if not reader_row.get("source", "").startswith("468"):
+        errors.append("READER-060 external source must remain 468")
+
+    promise = reader_row.get("promise", "")
+    if has_stale_reader_060_engine_claim(promise):
+        errors.append(
+            "READER-060 current promise must not mandate Sherpa-ONNX as TTS"
+        )
+    required_promise_tokens = (
+        "可在目标 Android 完全离线的本地 TTS",
+        "V2-D204",
+        "兼容回退",
+        "第二开源引擎",
+        "gated Android arm64 Spike",
+        "Sherpa / Matcha 当前仅兼容回退",
+        "exact profile",
+        "未选",
+    )
+    missing_tokens = [
+        token for token in required_promise_tokens if token not in promise
+    ]
+    if missing_tokens:
+        errors.append(
+            f"READER-060 current promise lacks D204-neutral tokens {missing_tokens}"
+        )
+
+    record = next(
+        (
+            item
+            for item in registry.get("rows", [])
+            if item.get("promise_id") == READER_060_PROMISE_ID
+        ),
+        None,
+    )
+    matrix_row = next(
+        (item for item in rows if item.get("promise_id") == READER_060_PROMISE_ID),
+        None,
+    )
+    tts_card = next(
+        (item for item in cards if item.get("id") == "G2-READER-TTS-GATED"),
+        None,
+    )
+    w1 = next(
+        (
+            wave
+            for wave in (tts_card or {}).get("delivery_waves", [])
+            if wave.get("id") == "G2-READER-TTS-GATED-W1"
+        ),
+        None,
+    )
+    if record is None or matrix_row is None or w1 is None:
+        errors.append("READER-060 semantic / matrix / TTS-W1 output is missing")
+        return errors
+
+    if record.get("user_promise") != promise:
+        errors.append("READER-060 semantic seed user_promise is stale")
+    if matrix_row.get("user_promise") != promise:
+        errors.append("READER-060 matrix user_promise is stale")
+    if "V2-D204" not in str(matrix_row.get("dependencies", "")):
+        errors.append("READER-060 matrix dependencies must include V2-D204")
+    if "V2-D204" not in str(record.get("dependencies", "")):
+        errors.append("READER-060 row-semantics dependencies must include V2-D204")
+    if "V2-D204" not in (tts_card or {}).get("deps", []):
+        errors.append("G2-READER-TTS-GATED deps must include V2-D204")
+    missing_w1_dependencies = [
+        dependency
+        for dependency in D204_TTS_W1_DECISION_DEPENDENCIES
+        if dependency not in w1.get("external_dependencies", [])
+    ]
+    if missing_w1_dependencies:
+        errors.append(
+            f"G2-READER-TTS-GATED-W1 external_dependencies missing "
+            f"{missing_w1_dependencies}"
+        )
+
+    generated_texts = {
+        "READER-060 semantic user_promise": record.get("user_promise", ""),
+        "READER-060 semantic operation": record.get("operation", ""),
+        "READER-060 matrix user_promise": matrix_row.get("user_promise", ""),
+        "READER-060 matrix operation": matrix_row.get("operation", ""),
+        "G2-READER-TTS-GATED-W1 objective": w1.get("objective", ""),
+        "G2-READER-TTS-GATED-W1 operation": w1.get("operation", ""),
+    }
+    for label, text in generated_texts.items():
+        if has_stale_reader_060_engine_claim(text):
+            errors.append(
+                f"{label} must not mandate Sherpa-ONNX as TTS"
+            )
+    return errors
+
+
+def source_eol_contract_errors(
+    source_index: dict,
+    attributes_path: Path = GITATTRIBUTES_PATH,
+) -> list[str]:
+    errors: list[str] = []
+    try:
+        attributes_data = attributes_path.read_bytes()
+    except FileNotFoundError:
+        return [".gitattributes is missing"]
+    if attributes_data.startswith(b"\xef\xbb\xbf"):
+        errors.append(".gitattributes must be UTF-8 without BOM")
+    if b"\r\n" in attributes_data:
+        errors.append(".gitattributes must use LF")
+    try:
+        attributes_text = attributes_data.decode("utf-8")
+    except UnicodeDecodeError:
+        errors.append(".gitattributes must be valid UTF-8")
+        attributes_text = ""
+
+    parsed_rules: dict[str, tuple[str, str]] = {}
+    for raw_line in attributes_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("*"):
+            errors.append(".gitattributes must not add a wildcard rule")
+            continue
+        parts = line.split()
+        if len(parts) != 3 or parts[1] != "text" or parts[2] != "eol=lf":
+            errors.append(f"unsupported .gitattributes rule: {line}")
+            continue
+        parsed_rules[parts[0].removeprefix("/")] = ("set", "lf")
+    if parsed_rules.get(".gitattributes") != ("set", "lf"):
+        errors.append(".gitattributes self rule must declare text eol=lf")
+    if parsed_rules != EOL_ATTRIBUTE_RULES:
+        errors.append(
+            f".gitattributes rules mismatch: {parsed_rules!r}"
+        )
+
+    for rel in EOL_ATTRIBUTE_RULES:
+        path = ROOT / rel
+        data = path.read_bytes()
+        if data.startswith(b"\xef\xbb\xbf"):
+            errors.append(f"{rel} must be UTF-8 without BOM")
+        if b"\r\n" in data:
+            errors.append(f"{rel} worktree bytes must use LF")
+        try:
+            data.decode("utf-8")
+        except UnicodeDecodeError:
+            errors.append(f"{rel} must be valid UTF-8")
+
+    policy = source_index.get("line_ending_policy", {})
+    if policy.get("path") != ".gitattributes":
+        errors.append("source-index line_ending_policy.path mismatch")
+    if policy.get("rules") != {
+        path: {"text": text, "eol": eol}
+        for path, (text, eol) in EOL_ATTRIBUTE_RULES.items()
+    }:
+        errors.append("source-index line_ending_policy.rules mismatch")
+    if policy.get("scope") != EOL_ATTRIBUTE_SCOPE:
+        errors.append("source-index line_ending_policy.scope mismatch")
+    if policy.get("bytes") != len(attributes_data):
+        errors.append("source-index .gitattributes bytes mismatch")
+    if policy.get("sha256") != sha256(attributes_data):
+        errors.append("source-index .gitattributes SHA-256 mismatch")
+    return errors
+
+
+def evidence_package_claim_errors(source_index: dict) -> list[str]:
+    errors: list[str] = []
+    for package in source_index.get("evidence_packages", []):
+        if not isinstance(package, dict):
+            continue
+        evidence_id = str(package.get("id", "UNKNOWN"))
+        claims = package.get("can_prove", [])
+        if not isinstance(claims, list):
+            claims = [claims]
+        for claim_index, claim in enumerate(claims):
+            text = str(claim)
+            for pattern in PROHIBITED_EVIDENCE_CLAIMS:
+                match = pattern.search(text)
+                if match and not claim_is_negated(
+                    text,
+                    match.start(),
+                    match.end(),
+                ):
+                    errors.append(
+                        f"{evidence_id}.can_prove[{claim_index}] general overclaim: "
+                        "selected/frozen engine or profile, Android runtime proof, "
+                        "production readiness or runtime PASS lacks executed evidence"
+                    )
+                    break
+    return errors
+
+
+def source_evidence_contract_errors(
+    source_index: dict,
+    q03_report: dict | None = None,
+) -> list[str]:
+    errors = evidence_package_claim_errors(source_index)
+    packages = source_index.get("evidence_packages", [])
+    by_id = {
+        item.get("id"): item
+        for item in packages
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+
+    q03 = by_id.get("EV-Q03-TTS-PDF")
+    if not isinstance(q03, dict):
+        errors.append("source-index is missing EV-Q03-TTS-PDF")
+    else:
+        can_prove = q03.get("can_prove", [])
+        cannot_prove = q03.get("cannot_prove", [])
+        can_text = "\n".join(map(str, can_prove))
+        cannot_text = "\n".join(map(str, cannot_prove)).lower()
+        if q03.get("status") != EXPECTED_EV_Q03_TTS_PDF_STATUS:
+            errors.append("EV-Q03-TTS-PDF status mismatch")
+        if q03.get("path") != Q03_TTS_PDF_REPORT_PATH:
+            errors.append("EV-Q03-TTS-PDF path mismatch")
+        if re.search(r"\bD204\b|engine strategy", can_text, re.IGNORECASE):
+            errors.append(
+                "EV-Q03-TTS-PDF.can_prove must not use D204 or engine strategy"
+            )
+        if "engine strategy" in cannot_text:
+            errors.append(
+                "EV-Q03-TTS-PDF.cannot_prove must use residual facts, not closed engine strategy"
+            )
+        for token in (
+            "specific second engine",
+            "exact profile",
+            "voice",
+            "license",
+            "notice",
+            "runtime",
+        ):
+            if token not in cannot_text:
+                errors.append(
+                    f"EV-Q03-TTS-PDF.cannot_prove must name {token!r}"
+                )
+
+        report = q03_report
+        if report is None:
+            try:
+                report = json.loads(
+                    (ROOT / Q03_TTS_PDF_REPORT_PATH).read_text(
+                        encoding="utf-8"
+                    )
+                )
+            except (OSError, ValueError) as error:
+                errors.append(
+                    f"EV-Q03-TTS-PDF underlying report unreadable: {error}"
+                )
+                report = {}
+        counts = report.get("evidenceCounts", {}) if isinstance(report, dict) else {}
+        expected_counts = (
+            f"{counts.get('total')} evidence rows = "
+            f"{counts.get('PROVEN')} PROVEN / "
+            f"{counts.get('PARTIAL')} PARTIAL / "
+            f"{counts.get('BLOCKED')} BLOCKED"
+        )
+        if expected_counts not in can_prove:
+            errors.append(
+                "EV-Q03-TTS-PDF.can_prove counts do not match underlying report"
+            )
+
+        selection_conclusions = [
+            item
+            for item in report.get("keyConclusions", [])
+            if item.get("topic") == "TTS selection"
+        ]
+        if (
+            len(selection_conclusions) != 1
+            or selection_conclusions[0].get("status") != "BLOCKED"
+            or "No engine or voice is selected"
+            not in str(selection_conclusions[0].get("conclusion", ""))
+        ):
+            errors.append(
+                "EV-Q03-TTS-PDF underlying report does not prove the no-selection boundary"
+            )
+
+    ev_s6 = by_id.get("EV-S6")
+    if not isinstance(ev_s6, dict):
+        errors.append("source-index is missing EV-S6")
+    else:
+        status = str(ev_s6.get("status", ""))
+        if status != EXPECTED_EV_S6_STATUS:
+            errors.append(
+                "EV-S6 current status must retain reconfirm plus historical Q05_OPEN boundary"
+            )
+        if (
+            "HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2" in status
+            and "Q05_OPEN" not in status
+        ):
+            errors.append(
+                "EV-S6 historical review pass must be qualified with Q05_OPEN"
+            )
+        if "RECONFIRM_REQUIRED_AFTER_D204" not in status:
+            errors.append(
+                "EV-S6 current status must require reconfirm after D204"
+            )
+    return errors
+
+
+def current_state_errors(
+    status: object,
+    decision_state: object,
+    historical_review: object,
+) -> list[str]:
+    errors: list[str] = []
+    status_text = str(status or "")
+    state = decision_state if isinstance(decision_state, dict) else {}
+    review = historical_review if isinstance(historical_review, dict) else {}
+
+    if "Q05_OPEN" in status_text:
+        errors.append("Q05_OPEN is stale after D204; current state must be Q05_CLOSED_D204")
+    if status_text != EXPECTED_STATUS:
+        errors.append(f"current status mismatch: {status_text!r}")
+    if state.get("d204") != EXPECTED_CURRENT_DECISION_STATE["d204"]:
+        errors.append(
+            "D204 semantics must be ACCEPTED_ENGINE_STRATEGY_A, "
+            f"got {state.get('d204')!r}"
+        )
+    for field, expected in EXPECTED_CURRENT_DECISION_STATE.items():
+        actual = state.get(field)
+        if actual != expected:
+            if field == "exact_engine":
+                errors.append(
+                    "D204-A must not select an exact engine; "
+                    f"exact_engine={actual!r}"
+                )
+            elif field == "l2_l3":
+                errors.append(f"L2/L3 must remain LOCKED; got {actual!r}")
+            else:
+                errors.append(f"current decision state {field} mismatch: {actual!r}")
+    if review.get("status") != HISTORICAL_REVIEW_STATUS:
+        errors.append(f"historical review status mismatch: {review.get('status')!r}")
+    if review.get("current_reapproval") is not False:
+        errors.append("historical review must not be current_reapproval=true")
+    if "Q05 was Open" not in str(review.get("scope", "")):
+        errors.append("historical review scope must be Q05 was Open")
+    return errors
+
+
 def require_nonempty(row: dict, fields: list[str], row_id: str) -> None:
     for field in fields:
         if field not in row:
@@ -319,8 +859,8 @@ def d203_semantic_contract_errors(
         )
         if "V2-D203" not in risk.get("source", []):
             errors.append("R-S6-P1-07 must cite V2-D203")
-        if "V2-Q-G1-05" not in risk.get("source", []):
-            errors.append("R-S6-P1-07 must cite V2-Q-G1-05")
+        if "V2-D204" not in risk.get("source", []):
+            errors.append("R-S6-P1-07 must cite V2-D204")
         if "G2-Q03-SUPPLY-CHAIN-GATED" not in str(risk.get("gate", "")):
             errors.append("R-S6-P1-07 gate must cover G2-Q03-SUPPLY-CHAIN-GATED")
         if "engine strategy" not in str(risk.get("title", "")):
@@ -359,7 +899,8 @@ def d203_semantic_contract_errors(
         for token in (
             "Sherpa-ONNX v2.0.1 + ONNX Runtime",
             "兼容回退候选",
-            "V2-Q-G1-05",
+            "V2-D204",
+            "第二引擎",
             "exact voice-pack/profile",
             "逐资产许可 / model card / notice / hash / provenance",
             "packaged supply chain",
@@ -390,9 +931,9 @@ def d203_semantic_contract_errors(
             w1_text = str(w1.get("objective", ""))
             for token in (
                 "voice-pack / 后台锁屏",
-                "Sherpa 兼容回退",
-                "V2-Q-G1-05",
-                "exact profile",
+                "Sherpa / Matcha 兼容回退",
+                "V2-D204",
+                "exact engine / profile",
                 "试听",
                 "许可",
                 "matrix",
@@ -407,8 +948,8 @@ def d203_semantic_contract_errors(
         errors.append("G2-READER-CORE card missing")
     else:
         reader_text = card_text(reader_core)
-        if "V2-Q-G1-05" not in reader_text:
-            errors.append("G2-READER-CORE must gate TTS on V2-Q-G1-05")
+        if "V2-D204" not in reader_text:
+            errors.append("G2-READER-CORE must gate TTS on V2-D204")
         for stale in (
             "选择最终 TTS 引擎 / voice",
             "选中具体 PDF/TTS 引擎",
@@ -420,7 +961,7 @@ def d203_semantic_contract_errors(
 
 def tts_w1_action_tag_errors(cards: list[dict], membership_doc: dict) -> list[str]:
     errors: list[str] = []
-    expected_tag = "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS"
+    expected_tag = ENGINE_EVIDENCE_ACTION_TAG
     expected_rows = {
         "S6-P-READER-060",
         "S6-P-READER-061",
@@ -1525,6 +2066,7 @@ def run_self_test() -> None:
     risks_doc = load_json("risk-register.json")
     registry = load_json("row-semantics.json")
     membership_doc = load_json("wave-membership.json")
+    reader_060_contract = load_reader_060_contract()
     rows = matrix["acceptance_rows"]
     base_rows = matrix["base_groups"]
     r1_rows = matrix["r1_quality_rows"]
@@ -1613,9 +2155,320 @@ def run_self_test() -> None:
             (
                 "BASE-tts-w1-action-tags",
                 True,
-                "W1 and four memberships verify the fixed engine without SELECT_ENGINE",
+                "W1 and four memberships verify D204 strategy inputs without SELECT_ENGINE",
             )
         )
+
+    shipped_current_state = current_state_errors(
+        source_index.get("status"),
+        source_index.get("current_decision_state"),
+        source_index.get("historical_review"),
+    )
+    if shipped_current_state:
+        results.append(("BASE-current-state", False, shipped_current_state[0]))
+    else:
+        results.append(
+            (
+                "BASE-current-state",
+                True,
+                "D204 current state and Q05-Open historical review are separated",
+            )
+        )
+
+    base_reader_060 = reader_060_contract_errors(
+        reader_060_contract,
+        registry,
+        rows,
+        cards,
+    )
+    missed_variants = [
+        variant
+        for variant in READER_060_STALE_ENGINE_VARIANTS
+        if not has_stale_reader_060_engine_claim(variant)
+    ]
+    if missed_variants:
+        base_reader_060.append(
+            f"READER-060 stale-engine variants escaped: {missed_variants}"
+        )
+    if has_stale_reader_060_engine_claim(
+        "Sherpa-ONNX is not the main engine"
+    ):
+        base_reader_060.append(
+            "READER-060 stale-engine guard rejects a negated non-claim"
+        )
+    if base_reader_060:
+        results.append(("BASE-reader-060-d204", False, base_reader_060[0]))
+    else:
+        results.append(
+            (
+                "BASE-reader-060-d204",
+                True,
+                "READER-060 is engine-neutral and D204 is bound through deps and TTS-W1",
+            )
+        )
+
+    base_eol = source_eol_contract_errors(source_index)
+    if base_eol:
+        results.append(("BASE-source-eol", False, base_eol[0]))
+    else:
+        results.append(
+            (
+                "BASE-source-eol",
+                True,
+                "three authoritative docs are UTF-8 no-BOM / LF with exact attributes",
+            )
+        )
+
+    base_source_evidence = source_evidence_contract_errors(source_index)
+    negated_evidence_claim = copy.deepcopy(source_index)
+    next(
+        item
+        for item in negated_evidence_claim["evidence_packages"]
+        if item["id"] == "EV-S4C"
+    )["can_prove"].extend(
+        [
+            "runtime unverified",
+            "Android runtime is not proven",
+            "Android runtime 未证明",
+        ]
+    )
+    base_source_evidence.extend(
+        evidence_package_claim_errors(negated_evidence_claim)
+    )
+    if base_source_evidence:
+        results.append(
+            ("BASE-source-evidence-boundary", False, base_source_evidence[0])
+        )
+    else:
+        results.append(
+            (
+                "BASE-source-evidence-boundary",
+                True,
+                "Q03 facts and EV-S6 historical/current status match their sources",
+            )
+        )
+
+    docs_only_attributes = (
+        "/docs/DECISIONS.md text eol=lf\n"
+        "/docs/V2_PLAN.md text eol=lf\n"
+        "/docs/TASKS.md text eol=lf\n"
+    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir) / ".gitattributes"
+        temp_path.write_text(docs_only_attributes, encoding="utf-8", newline="\n")
+        expect_failure(
+            "NEG-GITATTRIBUTES-SELF-RULE-MISSING",
+            source_eol_contract_errors(source_index, temp_path),
+            ".gitattributes self rule must declare text eol=lf",
+        )
+
+        temp_path.write_text(
+            "/.gitattributes text\n" + docs_only_attributes,
+            encoding="utf-8",
+            newline="\n",
+        )
+        expect_failure(
+            "NEG-GITATTRIBUTES-SELF-EOL-UNSPECIFIED",
+            source_eol_contract_errors(source_index, temp_path),
+            ".gitattributes self rule must declare text eol=lf",
+        )
+
+        temp_path.write_bytes(
+            (
+                "/.gitattributes text eol=lf\n" + docs_only_attributes
+            ).replace("\n", "\r\n").encode("utf-8")
+        )
+        expect_failure(
+            "NEG-GITATTRIBUTES-SELF-EOL-CRLF",
+            source_eol_contract_errors(source_index, temp_path),
+            ".gitattributes must use LF",
+        )
+
+    q03_overclaim = copy.deepcopy(source_index)
+    q03_evidence = next(
+        item
+        for item in q03_overclaim["evidence_packages"]
+        if item["id"] == "EV-Q03-TTS-PDF"
+    )
+    q03_evidence["can_prove"].append(
+        "D204 accepts engine strategy A and selects the second engine"
+    )
+    q03_evidence["cannot_prove"][0] = (
+        "engine strategy / exact profile / voice"
+    )
+    expect_failure(
+        "NEG-Q03-TTS-PDF-NESTED-D204-CLAIM",
+        source_evidence_contract_errors(q03_overclaim),
+        "must not use D204 or engine strategy",
+    )
+
+    general_evidence_overclaim = copy.deepcopy(source_index)
+    next(
+        item
+        for item in general_evidence_overclaim["evidence_packages"]
+        if item["id"] == "EV-Q03-NATIVE"
+    )["can_prove"].append(
+        "Sherpa-ONNX is the selected main engine and Android runtime is proven"
+    )
+    expect_failure(
+        "NEG-EVIDENCE-GENERAL-ENGINE-RUNTIME-OVERCLAIM",
+        source_evidence_contract_errors(general_evidence_overclaim),
+        "general overclaim",
+    )
+
+    ev_s6_pass = copy.deepcopy(source_index)
+    next(
+        item
+        for item in ev_s6_pass["evidence_packages"]
+        if item["id"] == "EV-S6"
+    )["status"] = "SCOPED_REVIEW_PASS_WITH_P2 / RUNTIME_UNVERIFIED"
+    expect_failure(
+        "NEG-EV-S6-UNCONDITIONAL-PASS",
+        source_evidence_contract_errors(ev_s6_pass),
+        "EV-S6 current status",
+    )
+
+    ev_s6_historical_unqualified = copy.deepcopy(source_index)
+    next(
+        item
+        for item in ev_s6_historical_unqualified["evidence_packages"]
+        if item["id"] == "EV-S6"
+    )["status"] = (
+        "S6_RECONFIRM_REQUIRED_AFTER_D204 / "
+        "HISTORICAL_SCOPED_REVIEW_PASS_WITH_P2 / RUNTIME_UNVERIFIED"
+    )
+    expect_failure(
+        "NEG-EV-S6-HISTORICAL-MISSING-Q05-OPEN",
+        source_evidence_contract_errors(ev_s6_historical_unqualified),
+        "must be qualified with Q05_OPEN",
+    )
+
+    old_q05_status = EXPECTED_STATUS.replace("Q05_CLOSED_D204", "Q05_OPEN")
+    expect_failure(
+        "NEG-CURRENT-Q05-OPEN",
+        current_state_errors(
+            old_q05_status,
+            source_index.get("current_decision_state"),
+            source_index.get("historical_review"),
+        ),
+        "Q05_OPEN is stale",
+    )
+
+    wrong_d204_state = copy.deepcopy(source_index.get("current_decision_state"))
+    wrong_d204_state["d204"] = "B_ONLY_SHERPA"
+    expect_failure(
+        "NEG-D204-WRONG-SEMANTICS",
+        current_state_errors(
+            source_index.get("status"),
+            wrong_d204_state,
+            source_index.get("historical_review"),
+        ),
+        "D204 semantics",
+    )
+
+    selected_engine_state = copy.deepcopy(source_index.get("current_decision_state"))
+    selected_engine_state["exact_engine"] = "IndexTTS 2.5"
+    expect_failure(
+        "NEG-D204-A-SELECTS-EXACT-ENGINE",
+        current_state_errors(
+            source_index.get("status"),
+            selected_engine_state,
+            source_index.get("historical_review"),
+        ),
+        "must not select an exact engine",
+    )
+
+    unlocked_state = copy.deepcopy(source_index.get("current_decision_state"))
+    unlocked_state["l2_l3"] = "UNLOCKED"
+    expect_failure(
+        "NEG-D204-L2-UNLOCKED",
+        current_state_errors(
+            source_index.get("status"),
+            unlocked_state,
+            source_index.get("historical_review"),
+        ),
+        "L2/L3 must remain LOCKED",
+    )
+
+    stale_reader_body = copy.deepcopy(reader_060_contract)
+    stale_reader_body["promise"] += (
+        "；使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS"
+    )
+    expect_failure(
+        "NEG-READER-060-SHERPA-MAIN-BODY",
+        reader_060_contract_errors(
+            stale_reader_body,
+            registry,
+            rows,
+            cards,
+        ),
+        "READER-060 current promise must not mandate Sherpa-ONNX as TTS",
+    )
+
+    equivalent_engine_claim = copy.deepcopy((registry, rows, cards))
+    next(
+        item
+        for item in equivalent_engine_claim[0]["rows"]
+        if item["promise_id"] == READER_060_PROMISE_ID
+    )["operation"] += "；Sherpa-ONNX 为主引擎"
+    next(
+        item
+        for item in equivalent_engine_claim[1]
+        if item["promise_id"] == READER_060_PROMISE_ID
+    )["operation"] += "；Sherpa-ONNX 为主引擎"
+    next(
+        wave
+        for card in equivalent_engine_claim[2]
+        if card["id"] == "G2-READER-TTS-GATED"
+        for wave in card["delivery_waves"]
+        if wave["id"] == "G2-READER-TTS-GATED-W1"
+    )["operation"] += "；Sherpa-ONNX 为主引擎"
+    expect_failure(
+        "NEG-READER-060-MAIN-ENGINE-EQUIVALENT",
+        reader_060_contract_errors(
+            reader_060_contract,
+            *equivalent_engine_claim,
+        ),
+        "must not mandate Sherpa-ONNX as TTS",
+    )
+
+    missing_reader_d204 = copy.deepcopy(reader_060_contract)
+    missing_reader_d204["dependencies"] = missing_reader_d204[
+        "dependencies"
+    ].replace("、V2-D204", "")
+    expect_failure(
+        "NEG-READER-060-D204-DEPENDENCY-MISSING",
+        reader_060_contract_errors(
+            missing_reader_d204,
+            registry,
+            rows,
+            cards,
+        ),
+        "READER-060 dependencies must include V2-D204",
+    )
+
+    stale_w1_operation = copy.deepcopy(cards)
+    stale_w1_card = next(
+        item for item in stale_w1_operation if item["id"] == "G2-READER-TTS-GATED"
+    )
+    stale_w1 = next(
+        item
+        for item in stale_w1_card["delivery_waves"]
+        if item["id"] == "G2-READER-TTS-GATED-W1"
+    )
+    stale_w1["operation"] += (
+        "；使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS"
+    )
+    expect_failure(
+        "NEG-TTS-W1-SHERPA-MAIN-OPERATION",
+        reader_060_contract_errors(
+            reader_060_contract,
+            registry,
+            rows,
+            stale_w1_operation,
+        ),
+        "G2-READER-TTS-GATED-W1 operation must not mandate Sherpa-ONNX as TTS",
+    )
 
     origin_mutation = copy.deepcopy(matrix)
     next(
@@ -1798,16 +2651,14 @@ def run_self_test() -> None:
         if item["id"] == "G2-READER-TTS-GATED-W1"
     )
     stale_w1_wave["action_tags"] = [
-        "SELECT_ENGINE" if tag == "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS" else tag
+        "SELECT_ENGINE" if tag == ENGINE_EVIDENCE_ACTION_TAG else tag
         for tag in stale_w1_wave["action_tags"]
     ]
     for item in stale_w1_tags[1]["memberships"]:
         if "G2-READER-TTS-GATED-W1" not in item.get("wave_ids", []):
             continue
         item["action_tags"] = [
-            "SELECT_ENGINE"
-            if tag == "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS"
-            else tag
+            "SELECT_ENGINE" if tag == ENGINE_EVIDENCE_ACTION_TAG else tag
             for tag in item["action_tags"]
         ]
     expect_failure(
@@ -2263,10 +3114,28 @@ def run_self_test() -> None:
         "delivery wave DAG contains a cycle",
     )
 
+    if sum(
+        1 for check_id, _, _ in results if check_id.startswith("NEG-")
+    ) != EXPECTED_NEGATIVE_FIXTURE_INJECTIONS:
+        results.append(
+            (
+                "BASE-negative-fixture-count",
+                False,
+                "expected "
+                f"{EXPECTED_NEGATIVE_FIXTURE_INJECTIONS}, got "
+                f"{sum(1 for check_id, _, _ in results if check_id.startswith('NEG-'))}",
+            )
+        )
     negative_injections = sum(
         1 for check_id, _, _ in results if check_id.startswith("NEG-")
     )
+    base_checks = sum(
+        1 for check_id, _, _ in results if check_id.startswith("BASE-")
+    )
+    total_live_checks = negative_injections + base_checks + 1
     print(f"NEGATIVE_FIXTURE_INJECTIONS={negative_injections}")
+    print(f"BASE_CHECKS={base_checks}")
+    print(f"TOTAL_LIVE_CHECKS={total_live_checks}")
     if any(not passed for _, passed, _ in results):
         print("SELF_TEST_RED")
         for check_id, passed, detail in results:
@@ -2302,6 +3171,13 @@ def main() -> None:
     ]:
         if obj.get("status") != EXPECTED_STATUS:
             fail(f"{name} status mismatch: {obj.get('status')}")
+    state_errors = current_state_errors(
+        source_index.get("status"),
+        source_index.get("current_decision_state"),
+        source_index.get("historical_review"),
+    )
+    if state_errors:
+        fail(state_errors[0])
 
     nodes = matrix["source_nodes"]
     rows = matrix["acceptance_rows"]
@@ -2309,6 +3185,20 @@ def main() -> None:
     r1_rows = matrix["r1_quality_rows"]
     cards = cards_doc["cards"]
     risk_rows = risks["risks"]
+    reader_060_errors = reader_060_contract_errors(
+        load_reader_060_contract(),
+        semantics,
+        rows,
+        cards,
+    )
+    if reader_060_errors:
+        fail("; ".join(reader_060_errors))
+    eol_errors = source_eol_contract_errors(source_index)
+    if eol_errors:
+        fail("; ".join(eol_errors))
+    evidence_boundary_errors = source_evidence_contract_errors(source_index)
+    if evidence_boundary_errors:
+        fail("; ".join(evidence_boundary_errors))
 
     feedback_results: list[tuple[str, bool, str]] = []
 
@@ -2845,14 +3735,16 @@ def main() -> None:
     if boundaries != {
         "g1": "NOT_PASSED",
         "q03": "OPEN",
-        "q05": "OPEN_TTS_ENGINE_STRATEGY",
+        "q05": "CLOSED_D204_ENGINE_STRATEGY_A",
         "q04": "CLOSED_D201",
         "ui_design_system": "V2_R1_ACCEPTED_DESIGN_AUTHORITY",
         "runtime": "UNVERIFIED",
-        "s6": "SCOPED_REVIEW_PASS_WITH_P2",
+        "s6": "RECONFIRM_REQUIRED_AFTER_D204",
         "d203": "ACCEPTED_VOICE_PACK_BACKGROUND_TTS",
+        "d204": "ACCEPTED_ENGINE_STRATEGY_A",
         "sherpa_quality": "SHERPA_QUALITY_INSUFFICIENT_COMPAT_FALLBACK",
-        "c1_exact_profile": "UNFROZEN_WAIT_ENGINE_STRATEGY_AND_EXPRESSIVE_PROFILE",
+        "second_engine": "UNSELECTED_HIGH_EXPRESSIVE_L1_SPIKE_SCOPING",
+        "c1_exact_profile": "OPEN_EXPRESSIVE_ENGINE_PROFILE",
         "l2_l3": "LOCKED",
     }:
         fail(f"global boundaries mismatch: {boundaries}")
@@ -2965,10 +3857,17 @@ def main() -> None:
     print(f"manifest_bytes={len(manifest_bytes)}")
     print(f"manifest_sha256={sha256(manifest_bytes)}")
     print("eol=PASS_LF_ONLY")
+    print("source_docs_eol=PASS_UTF8_NO_BOM_LF")
+    print("source_doc_attributes=.gitattributes,DECISIONS,V2_PLAN,TASKS_SET_LF")
     print("runtime_executed=false")
     print("g1_passed=false")
+    print("s6=S6_RECONFIRM_REQUIRED_AFTER_D204")
+    print("historical_s6_review=PASS_WITH_P2_Q05_OPEN")
+    print("d204=ACCEPTED_ENGINE_STRATEGY_A")
     print("q03=OPEN")
-    print("q05=OPEN")
+    print("q05=CLOSED_D204")
+    print("c1_exact_profile=OPEN")
+    print("l2_l3=LOCKED")
     print("q04=CLOSED_D201")
 
 

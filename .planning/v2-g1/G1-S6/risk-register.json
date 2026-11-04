@@ -1,6 +1,6 @@
 {
   "schema_version": "g1-s6-risk-register/v1",
-  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "status": "D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED / L2_L3_LOCKED",
   "severity_counts": {
     "P0": 1,
     "P1": 19,
@@ -160,22 +160,22 @@
     {
       "id": "R-S6-P1-07",
       "severity": "P1",
-      "title": "TTS 小说质量不足、主 engine strategy 与 exact profile 许可仍未闭合",
+      "title": "TTS 小说质量不足、D204 engine strategy A 与 exact profile 许可仍未闭合",
       "domain": [
         "READER"
       ],
       "source": [
         "V2-D203",
-        "V2-Q-G1-05",
+        "V2-D204",
         "EV-Q03-NATIVE",
         "EV-Q03-TTS-PDF",
         "EV-S4C"
       ],
-      "impact": "当前 Sherpa 三组小说声线均质量不足，Sherpa 仅降为兼容回退；IndexTTS / CosyVoice / GPT-SoVITS 尚无 Android arm64 runtime 证据，exact profile、model card、声线权属、lexicon、rule、notice 与 hash 均未闭合。",
+      "impact": "当前 Sherpa 三组小说声线均质量不足，Sherpa / Matcha 仅降为兼容回退；D204 只关闭 engine strategy A，IndexTTS / CosyVoice / GPT-SoVITS 尚无官方 Android arm64 runtime 证据，exact engine / profile、model card、声线权属、lexicon、rule、notice 与 hash 均未闭合。",
       "gate": "G2-READER-TTS-GATED / G2-Q03-SUPPLY-CHAIN-GATED",
       "closure_evidence": [
-        "V2-Q-G1-05 用户 engine strategy 决策",
-        "高表现力或兼容回退 profile 的用户试听确认",
+        "D204-A 第二引擎 L1 静态可行性 Spike 与许可门",
+        "exact engine / 高表现力或兼容回退 profile 的用户试听确认",
         "逐资产 model card / license / notice / hash",
         "pack/profile provenance 与 packaged source obligation"
       ]

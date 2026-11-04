@@ -1,6 +1,6 @@
 {
   "schema_version": "g1-s6-g2-task-cards/v1",
-  "status": "S6_SCOPED_REVIEW_PASS_WITH_P2 / G1_NOT_PASSED / Q03_OPEN / Q05_OPEN / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED",
+  "status": "D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_RECONFIRM_REQUIRED_AFTER_D204 / G1_NOT_PASSED / Q03_OPEN / Q05_CLOSED_D204 / Q04_CLOSED_D201 / RUNTIME_UNVERIFIED / L2_L3_LOCKED",
   "g2_gate": "NOT_AUTHORIZED",
   "rules": {
     "card_status_not_approval": true,
@@ -1951,7 +1951,7 @@
       "role": "资深 Android 阅读器内核 / 数据一致性工程师",
       "objective": "交付可替换的 Publication/BookDocument、source-scoped ReadingPosition、分页 / 滚动、书签、批注、搜索降级、离线阅读和大书恢复核心。",
       "non_goals": [
-        "不在本卡重决 `V2-Q-G1-05` 主朗读 engine strategy，也不把 Sherpa 兼容回退恢复为默认。",
+        "不在本卡重开 `V2-D204` engine strategy A，也不选择高表现力第二引擎、把 A 写成具体引擎已选或把 Sherpa 恢复为默认。",
         "不在本卡锁定 PDFium 或冻结未经试听 / 许可的 exact voice-pack profile。",
         "不把页码作为持久化位置真源。",
         "不把 CBZ 文本搜索或未证实 PDF 文字层伪装为空结果。"
@@ -1964,7 +1964,7 @@
       ],
       "boundaries": [
         "逻辑接口：Publication/BookDocument、ReaderSettings、ReadingPosition、Annotation store、format capabilities。",
-        "生产文件边界按模块 owner allowlist 在 G2 实例化；TTS 只在 Q05 strategy、D203 voice-pack 边界与 exact profile 许可 / matrix 门内推进。"
+        "生产文件边界按模块 owner allowlist 在 G2 实例化；TTS 只在 D204 engine strategy、D203 voice-pack 边界与 exact profile 许可 / matrix 门内推进。"
       ],
       "deps": [
         "EV-S2",
@@ -1973,7 +1973,7 @@
         "V2-D198",
         "V2-D199",
         "V2-D203",
-        "V2-Q-G1-05"
+        "V2-D204"
       ],
       "risks": [
         "R-S6-P0-01",
@@ -1992,7 +1992,7 @@
       "writes": [
         "服务器进度写只使用已批准测试账号 / 写服；生产服务器只读。"
       ],
-      "stop": "需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。",
+      "stop": "需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。",
       "artifacts": [
         "格式能力矩阵",
         "位置 / 批注迁移 fixture",
@@ -2134,9 +2134,9 @@
           "blocking_conditions": [
             "前置依赖未满足：G2-ARCH-CONTRACTS-MIGRATION",
             "前置依赖未满足：G2-UI-R1-FOUNDATION",
-            "需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
+            "需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
           ],
-          "stop_condition": "格式能力与身份隔离测试 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
+          "stop_condition": "格式能力与身份隔离测试 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
         },
         {
           "id": "G2-READER-CORE-W2",
@@ -2280,9 +2280,9 @@
           "blocking_conditions": [
             "前置依赖未满足：G2-ARCH-CONTRACTS-MIGRATION",
             "前置依赖未满足：G2-UI-R1-FOUNDATION",
-            "需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
+            "需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
           ],
-          "stop_condition": "跨引擎位置等式与重启证据 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
+          "stop_condition": "跨引擎位置等式与重启证据 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
         },
         {
           "id": "G2-READER-CORE-W3",
@@ -2400,9 +2400,9 @@
           "blocking_conditions": [
             "前置依赖未满足：G2-ARCH-CONTRACTS-MIGRATION",
             "前置依赖未满足：G2-UI-R1-FOUNDATION",
-            "需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
+            "需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
           ],
-          "stop_condition": "格式化批注 / 搜索正负样本 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
+          "stop_condition": "格式化批注 / 搜索正负样本 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
         },
         {
           "id": "G2-READER-CORE-W4",
@@ -2507,9 +2507,9 @@
           "blocking_conditions": [
             "前置依赖未满足：G2-ARCH-CONTRACTS-MIGRATION",
             "前置依赖未满足：G2-UI-R1-FOUNDATION",
-            "需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
+            "需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
           ],
-          "stop_condition": "5000 页级 / 大 CBZ / 弱网报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、越过 Q05 重定主 engine strategy、冻结未经许可的 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 Q05 / exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
+          "stop_condition": "5000 页级 / 大 CBZ / 弱网报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：需要改持久 locator 兼容、重开 D204、选择 / 冻结未经许可的第二引擎或 exact profile、访问真实用户数据或服务器写权限时停止；TTS 推进在 exact profile / 许可 / notice / hash / runtime 证据不足时停止。"
         }
       ],
       "delivery_wave_count": 4,
@@ -2660,7 +2660,7 @@
     {
       "id": "G2-READER-TTS-GATED",
       "role": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
-      "objective": "保持 D203 voice-pack、追加导入 / 删除回退、全局 / 逐书选择、后台锁屏、单音频 owner 与零网络门；Sherpa-ONNX v2.0.1 + ORT 当前仅作兼容回退，主 engine strategy 由 Q05 待决。",
+      "objective": "在 D204 engine strategy A 与 D203 voice-pack / 后台锁屏边界内，验证高表现力第二引擎或兼容回退的 exact profile；当前 Sherpa / Matcha 仅作兼容回退，第二引擎与 exact profile 均未选。",
       "non_goals": [
         "不冻结 exact voice-pack profile，不下载或随包任何未批准 voice / model / lexicon。",
         "不把架构 local-only 或静态许可写成零网络 runtime PASS。",
@@ -2674,12 +2674,12 @@
       ],
       "boundaries": [
         "逻辑接口：LocalTtsPort、VoiceCatalog、VoicePackImporter、VoiceSelectionStore、TtsPlaybackOwner、TtsMediaSession、OfflineCapabilityProbe。",
-        "exact profile 仍由 C1 用户试听 + Q03 许可门决定；本卡保持 GATED。"
+        "exact engine / profile 仍由 C1 用户试听 + Q03 许可门决定；本卡保持 GATED，不因 D204 关闭 engine strategy 转 READY。"
       ],
       "deps": [
         "V2-D203",
+        "V2-D204",
         "V2-Q-G1-03",
-        "V2-Q-G1-05",
         "EV-Q03-NATIVE",
         "EV-Q03-TTS-PDF",
         "EV-S4C"
@@ -2703,7 +2703,7 @@
       "writes": [
         "none"
       ],
-      "stop": "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。",
+      "stop": "第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。",
       "artifacts": [
         "profile 试听与决策包",
         "资产许可 / hash / notice",
@@ -2732,7 +2732,7 @@
           "card_id": "G2-READER-TTS-GATED",
           "slug": "q03-decision",
           "execution_kind": "IMPLEMENTABLE_WAVE",
-          "objective": "消费 D203 的 voice-pack / 后台锁屏基线与当前 Sherpa 兼容回退 / license 证据；主 engine strategy 等待 V2-Q-G1-05，exact profile 的用户试听、逐资产许可 / notice / hash 与 matrix 未关闭。",
+          "objective": "消费 D203 voice-pack / 后台锁屏基线与 V2-D204 engine strategy A；Sherpa / Matcha 兼容回退，exact engine / profile 的用户试听、逐资产许可 / notice / hash 与 matrix 未关闭。",
           "owner": "资深 Android 离线 TTS / MediaSession 与 voice-pack 集成工程师",
           "promise_ids": [
             "S6-P-READER-060",
@@ -2747,13 +2747,16 @@
             "READER_TTS"
           ],
           "action_tags": [
-            "VERIFY_FIXED_ENGINE_AND_LICENSE_INPUTS",
+            "VERIFY_ENGINE_STRATEGY_AND_LICENSE_INPUTS",
             "SELECT_VOICE"
           ],
-          "entry": "阅读器 TTS 控制条；阅读器批注层与批注列表",
-          "operation": "交付负责人在阅读器 TTS 控制条审查并核对证据与契约“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession”；交付证据应显示：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
-          "observable_acceptance": "engine strategy / exact profile 试听许可矩阵与资产 hash / notice；代表性可观察结果：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；听觉与视觉位置始终一致，暂停策略可预期",
+          "entry": "阅读器 TTS 控制条 / 锁屏 / 系统媒体控制；阅读器批注层与批注列表；阅读器 TTS 控制条",
+          "operation": "用户在阅读器 TTS 控制条 / 锁屏 / 系统媒体控制，从当前位置开始并控制本地朗读“EPUB/TXT 从当前位置或当前章节起始使用可在目标 Android 完全离线的本地 TTS；控制播放 / 暂停、上一句 / 下一句、语速、音色与停止，支持收起、后台 / 锁屏与单活动 MediaSession；该决定仅确定兼容回退 + 高表现力第二开源引擎 gated Android arm64 Spike，Sherpa / Matcha 当前仅兼容回退，第二 engine 与 exact profile 未选”；应观察到：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
+          "observable_acceptance": "exact engine / profile 试听许可矩阵与资产 hash / notice；代表性可观察结果：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；听觉与视觉位置始终一致，暂停策略可预期",
           "external_dependencies": [
+            "V2-D203",
+            "V2-D204",
+            "V2-Q-G1-03",
             "G2-READER-CORE",
             "G2-MUSIC-CORE",
             "G2-VIDEO-CORE"
@@ -2807,7 +2810,7 @@
               "id": "ART-G2-READER-TTS-GATED-W1",
               "kind": "static-ledger",
               "locator": "future-evidence://G2-READER-TTS-GATED-W1/q03-decision",
-              "expected": "engine strategy / exact profile 试听许可矩阵与资产 hash / notice",
+              "expected": "exact engine / profile 试听许可矩阵与资产 hash / notice",
               "evidence_level": "E0_STATIC",
               "status": "PLANNED_NOT_EXECUTED",
               "can_prove": "Only the declared future artifact after execution is bound to a candidate SHA.",
@@ -2815,13 +2818,16 @@
             }
           ],
           "blocking_conditions": [
+            "前置依赖未满足：V2-D203",
+            "前置依赖未满足：V2-D204",
+            "前置依赖未满足：V2-Q-G1-03",
             "前置依赖未满足：G2-READER-CORE",
             "前置依赖未满足：G2-MUSIC-CORE",
             "前置依赖未满足：G2-VIDEO-CORE",
             "V2-Q-G1-03 remains Open",
-            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+            "第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
           ],
-          "stop_condition": "engine strategy / exact profile 试听许可矩阵与资产 hash / notice 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          "stop_condition": "exact engine / profile 试听许可矩阵与资产 hash / notice 不可复算、需要越出本 wave 边界，或出现以下条件时停止：第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
         },
         {
           "id": "G2-READER-TTS-GATED-W2",
@@ -2847,8 +2853,8 @@
             "TTS_SYNC",
             "OFFLINE"
           ],
-          "entry": "阅读器 TTS 控制条；阅读器批注层与批注列表",
-          "operation": "交付负责人在阅读器 TTS 控制条审查并核对证据与契约“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession”；交付证据应显示：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
+          "entry": "阅读器 TTS 控制条 / 锁屏 / 系统媒体控制；阅读器批注层与批注列表；阅读器 TTS 控制条",
+          "operation": "用户在阅读器 TTS 控制条 / 锁屏 / 系统媒体控制，从当前位置开始并控制本地朗读“EPUB/TXT 从当前位置或当前章节起始使用可在目标 Android 完全离线的本地 TTS；控制播放 / 暂停、上一句 / 下一句、语速、音色与停止，支持收起、后台 / 锁屏与单活动 MediaSession；该决定仅确定兼容回退 + 高表现力第二开源引擎 gated Android arm64 Spike，Sherpa / Matcha 当前仅兼容回退，第二 engine 与 exact profile 未选”；应观察到：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
           "observable_acceptance": "零网络和性能设备证据；代表性可观察结果：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；听觉与视觉位置始终一致，暂停策略可预期",
           "external_dependencies": [
             "G2-READER-CORE",
@@ -2912,9 +2918,9 @@
             "前置依赖未满足：G2-MUSIC-CORE",
             "前置依赖未满足：G2-VIDEO-CORE",
             "V2-Q-G1-03 remains Open",
-            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+            "第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
           ],
-          "stop_condition": "零网络和性能设备证据 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          "stop_condition": "零网络和性能设备证据 不可复算、需要越出本 wave 边界，或出现以下条件时停止：第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
         },
         {
           "id": "G2-READER-TTS-GATED-W3",
@@ -3012,9 +3018,9 @@
             "前置依赖未满足：G2-MUSIC-CORE",
             "前置依赖未满足：G2-VIDEO-CORE",
             "V2-Q-G1-03 remains Open",
-            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+            "第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
           ],
-          "stop_condition": "后台锁屏与进程重启设备报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          "stop_condition": "后台锁屏与进程重启设备报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
         },
         {
           "id": "G2-READER-TTS-GATED-W4",
@@ -3114,9 +3120,9 @@
             "前置依赖未满足：G2-MUSIC-CORE",
             "前置依赖未满足：G2-VIDEO-CORE",
             "V2-Q-G1-03 remains Open",
-            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+            "第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
           ],
-          "stop_condition": "voice-pack 目录 / 导入 / 选择状态机 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          "stop_condition": "voice-pack 目录 / 导入 / 选择状态机 不可复算、需要越出本 wave 边界，或出现以下条件时停止：第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
         },
         {
           "id": "G2-READER-TTS-GATED-W5",
@@ -3213,9 +3219,9 @@
             "前置依赖未满足：G2-MUSIC-CORE",
             "前置依赖未满足：G2-VIDEO-CORE",
             "V2-Q-G1-03 remains Open",
-            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+            "第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
           ],
-          "stop_condition": "voice-pack 删除故障注入报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          "stop_condition": "voice-pack 删除故障注入报告 不可复算、需要越出本 wave 边界，或出现以下条件时停止：第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
         },
         {
           "id": "G2-READER-TTS-GATED-W6",
@@ -3328,9 +3334,9 @@
             "前置依赖未满足：G2-MUSIC-CORE",
             "前置依赖未满足：G2-VIDEO-CORE",
             "V2-Q-G1-03 remains Open",
-            "exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+            "第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
           ],
-          "stop_condition": "audio owner / MediaSession 设备等式 不可复算、需要越出本 wave 边界，或出现以下条件时停止：exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
+          "stop_condition": "audio owner / MediaSession 设备等式 不可复算、需要越出本 wave 边界，或出现以下条件时停止：第二引擎只停留在 strategy、exact profile 未试听 / 许可未批准、Q03 未关、voice-pack 删除出现悬空引用、后台状态等式或零网络无法证明时保持 GATED/BLOCKED。"
         }
       ],
       "delivery_wave_count": 6,
@@ -7030,7 +7036,7 @@
       ],
       "boundaries": [
         "输入：S4-A/B/C、Q03-SBOM/NATIVE/NOTICE/TTS-PDF 与最终候选 artifact。",
-        "D203 初始固定的 Sherpa-ONNX v2.0.1 + ONNX Runtime 因小说质量门失败，当前仅作兼容回退候选；V2-Q-G1-05 保持 Open，等待高表现力 engine strategy。Q03 仍 Open，等待 exact voice-pack/profile、逐资产许可 / model card / notice / hash / provenance、packaged supply chain 与 runtime；PDF 引擎选择仍按既有 Q03 门。"
+        "D203 voice-pack / 后台锁屏约束保持；V2-D204 已接受 engine strategy A，Sherpa-ONNX v2.0.1 + ONNX Runtime 与 Matcha 仅作兼容回退候选，高表现力第二引擎与 exact voice-pack/profile 均未选择。Q03 仍 Open，等待逐资产许可 / model card / notice / hash / provenance、packaged supply chain 与 runtime；PDF 引擎选择仍按既有 Q03 门。"
       ],
       "deps": [
         "V2-Q-G1-03",
@@ -7108,8 +7114,8 @@
             "INVENTORY_COMPONENT",
             "MAP_NOTICE"
           ],
-          "entry": "阅读器 TTS 控制条；阅读器批注层与批注列表；书架 → PDF 阅读器",
-          "operation": "交付负责人在阅读器 TTS 控制条审查并核对证据与契约“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession”；交付证据应显示：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
+          "entry": "阅读器 TTS 控制条 / 锁屏 / 系统媒体控制；阅读器批注层与批注列表；阅读器 TTS 控制条",
+          "operation": "用户在阅读器 TTS 控制条 / 锁屏 / 系统媒体控制，从当前位置开始并控制本地朗读“EPUB/TXT 从当前位置或当前章节起始使用可在目标 Android 完全离线的本地 TTS；控制播放 / 暂停、上一句 / 下一句、语速、音色与停止，支持收起、后台 / 锁屏与单活动 MediaSession；该决定仅确定兼容回退 + 高表现力第二开源引擎 gated Android arm64 Spike，Sherpa / Matcha 当前仅兼容回退，第二 engine 与 exact profile 未选”；应观察到：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；用户在阅读器批注层与批注列表，选择并验证“朗读句子 / 段落高亮与本地 TTS 边界对应；“回到原文”跳到当前朗读句；点击正文或回到原文默认暂停，可设置保持播放”；应观察到：听觉与视觉位置始终一致，暂停策略可预期；其余原子行按各自 operation 串行执行",
           "observable_acceptance": "packaged SBOM / notice；代表性可观察结果：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；听觉与视觉位置始终一致，暂停策略可预期",
           "external_dependencies": [
             "G2-ARCH-CONTRACTS-MIGRATION",
@@ -7209,8 +7215,8 @@
             "SOURCE_OFFER",
             "VERIFY_ATTESTATION"
           ],
-          "entry": "书架 → 打开书籍 → 阅读器搜索；阅读器 TTS 控制条；阅读器批注层与批注列表",
-          "operation": "用户在书架 → 打开书籍 → 阅读器搜索，输入查询并打开结果“PDF 全书搜索支持上下文、页定位、取消、进度和上限。；权威源片段：EPUB/TXT/PDF 全书搜索，结果含上下文与章节 / 页，点击跳转并临时高亮”；应观察到：大 PDF 可停止，命中可准确跳转并临时高亮。；交付负责人在阅读器 TTS 控制条审查并核对证据与契约“EPUB/TXT 从当前位置或当前章节起始使用纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速与可离线音色；可收起但不清失状态；权威源片段：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；原子子项：EPUB/TXT 从当前位置或当前章节起始使用 Sherpa-ONNX v2.0.1 + ONNX Runtime 的纯本地离线 TTS；控制条含播放 / 暂停、上一句 / 下一句、语速、音色选择与停止；可收起但不清失状态，后台 / 锁屏继续由 service owner 承接并使用单活动 MediaSession”；交付证据应显示：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；其余原子行按各自 operation 串行执行",
+          "entry": "书架 → 打开书籍 → 阅读器搜索；阅读器 TTS 控制条 / 锁屏 / 系统媒体控制；阅读器批注层与批注列表",
+          "operation": "用户在书架 → 打开书籍 → 阅读器搜索，输入查询并打开结果“PDF 全书搜索支持上下文、页定位、取消、进度和上限。；权威源片段：EPUB/TXT/PDF 全书搜索，结果含上下文与章节 / 页，点击跳转并临时高亮”；应观察到：大 PDF 可停止，命中可准确跳转并临时高亮。；用户在阅读器 TTS 控制条 / 锁屏 / 系统媒体控制，从当前位置开始并控制本地朗读“EPUB/TXT 从当前位置或当前章节起始使用可在目标 Android 完全离线的本地 TTS；控制播放 / 暂停、上一句 / 下一句、语速、音色与停止，支持收起、后台 / 锁屏与单活动 MediaSession；该决定仅确定兼容回退 + 高表现力第二开源引擎 gated Android arm64 Spike，Sherpa / Matcha 当前仅兼容回退，第二 engine 与 exact profile 未选”；应观察到：无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读；其余原子行按各自 operation 串行执行",
           "observable_acceptance": "source obligation / attestation 证据；代表性可观察结果：大 PDF 可停止，命中可准确跳转并临时高亮。；无网可开始、暂停、跳句、调速、选音色、收起控制条，并可在离开阅读页或锁屏后继续朗读",
           "external_dependencies": [
             "G2-ARCH-CONTRACTS-MIGRATION",
