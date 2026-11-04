@@ -1,0 +1,476 @@
+{
+  "schema": "aurorama.g1-kokoro-license-closure.sources.v1",
+  "generated_at": "2026-11-05T07:37:47.9606208+08:00",
+  "network_policy": {
+    "method": "GET/HEAD only",
+    "allowed_hosts": [
+      "github.com",
+      "huggingface.co"
+    ],
+    "search_services_used": false,
+    "automatic_cross_domain_redirects_followed": false,
+    "large_asset_downloads": false,
+    "credentials_read_or_recorded": false
+  },
+  "r024_controlled_retry": {
+    "completed_at": "2026-11-05T07:37:47.9606208+08:00",
+    "status": "EXTERNAL_SOURCE_UNREACHABLE",
+    "attempts_per_url": 1,
+    "authorization_required_new_domain": false,
+    "observations": [
+      {
+        "url": "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh",
+        "http_status": 0,
+        "remote_ip": null,
+        "connection_result": "CURLE_OPERATION_TIMEDOUT",
+        "elapsed_seconds": 12.269,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      },
+      {
+        "url": "https://github.com/yanyiwu/cppjieba",
+        "http_status": 0,
+        "remote_ip": "20.205.243.166",
+        "connection_result": "CURLE_GOT_NOTHING_EMPTY_REPLY",
+        "elapsed_seconds": 5.689,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      },
+      {
+        "url": "https://github.com/yanyiwu/cppjieba/blob/master/LICENSE",
+        "http_status": 0,
+        "remote_ip": "20.205.243.166",
+        "connection_result": "CURLE_GOT_NOTHING_EMPTY_REPLY",
+        "elapsed_seconds": 5.596,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      },
+      {
+        "url": "https://github.com/yanyiwu/cppjieba/blob/master/README.md",
+        "http_status": 0,
+        "remote_ip": null,
+        "connection_result": "CURLE_OPERATION_TIMEDOUT",
+        "elapsed_seconds": 12.261,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      },
+      {
+        "url": "https://github.com/yanyiwu/cppjieba/blob/master/dict/jieba.dict.utf8",
+        "http_status": 0,
+        "remote_ip": null,
+        "connection_result": "CURLE_OPERATION_TIMEDOUT",
+        "elapsed_seconds": 12.292,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      }
+    ],
+    "retry_policy": "No further automatic retry after R024."
+  },
+  "official_sources": [
+    {
+      "id": "SRC-HF-KOKORO-MODEL",
+      "url": "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh",
+      "kind": "official_model_page",
+      "method": [
+        "GET",
+        "HEAD"
+      ],
+      "http_status": 0,
+      "observed": "R024 one-shot GET returned CURLE_OPERATION_TIMEDOUT after 12.269 s; no remote IP was established in that attempt.",
+      "used_for": "Attempted model-card, training-data, license-scope and speaker-rights evidence.",
+      "result": "EXTERNAL_SOURCE_UNREACHABLE",
+      "controlled_retry": "R024",
+      "snapshot": null
+    },
+    {
+      "id": "SRC-HF-KOKORO-README",
+      "url": "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh/raw/main/README.md",
+      "kind": "official_model_card_candidate",
+      "method": "GET",
+      "http_status": 0,
+      "observed": "The earlier controlled attempt timed out; this raw README URL was not retried during R024 after the primary official page also failed.",
+      "used_for": "Attempted official README/model-card text.",
+      "result": "EXTERNAL_SOURCE_UNREACHABLE",
+      "controlled_retry": "R024_PRIMARY_PAGE_FAILED",
+      "snapshot": null
+    },
+    {
+      "id": "SRC-SHERPA-RELEASE-2.0.1",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.1",
+      "kind": "official_release_page",
+      "method": "HEAD_GET",
+      "http_status": 200,
+      "observed": "Page identifies v2.0.1 and links commit af2d8d81dbfa61c4cea4c568da78f3982edca005.",
+      "used_for": "Sherpa AAR/source version and release provenance.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-SHERPA-LICENSE",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/LICENSE",
+      "kind": "official_license_page",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "Apache License marker present; existing local evidence records blob d645695673349e3947e8e5ae42332d0ac3164cd7.",
+      "used_for": "Sherpa-ONNX code license identity.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-SHERPA-KALDI-NATIVE-FBANK-PIN",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/kaldi-native-fbank.cmake",
+      "kind": "official_build_pin",
+      "method": "GET",
+      "http_status": 200,
+      "observed": {
+        "version": "v1.22.4",
+        "archive_url": "https://github.com/csukuangfj/kaldi-native-fbank/archive/refs/tags/v1.22.4.tar.gz",
+        "archive_sha256": "257fea639585ca6ee00860493bb9d7ab32488b8a5407ffe434c1f361ea545fae"
+      },
+      "used_for": "Native dependency identity.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-SHERPA-SIMPLE-SENTENCEPIECE-PIN",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/simple-sentencepiece.cmake",
+      "kind": "official_build_pin",
+      "method": "GET",
+      "http_status": 200,
+      "observed": {
+        "version": "v0.7",
+        "archive_url": "https://github.com/pkufool/simple-sentencepiece/archive/refs/tags/v0.7.tar.gz",
+        "archive_sha256": "1748a822060a35baa9f6609f84efc8eb54dc0e74b9ece3d82367b7119fdc75af"
+      },
+      "used_for": "Native dependency identity.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-SHERPA-OPENFST-PIN",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/openfst.cmake",
+      "kind": "official_build_pin",
+      "method": "GET",
+      "http_status": 200,
+      "observed": {
+        "version": "v1.8.5-2026-07-09",
+        "archive_url": "https://github.com/csukuangfj/openfst/archive/refs/tags/v1.8.5-2026-07-09.tar.gz",
+        "archive_sha256": "2ff712a32952fcb01d351121a6bc8ccf4fdc6b2aa06ce8df2b3095dedd518c0e"
+      },
+      "used_for": "Native dependency identity.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-SHERPA-KALDI-DECODER-PIN",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/kaldi-decoder.cmake",
+      "kind": "official_build_pin",
+      "method": "GET",
+      "http_status": 200,
+      "observed": {
+        "version": "v0.3.0",
+        "archive_url": "https://github.com/k2-fsa/kaldi-decoder/archive/refs/tags/v0.3.0.tar.gz",
+        "archive_sha256": "b9f34cfb4fd3b1344100eead79ef4d37aa15962274b9e3056de345021f76a1b0"
+      },
+      "used_for": "Native dependency identity.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-SHERPA-UTF8PROC-PIN",
+      "url": "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/utf8proc.cmake",
+      "kind": "official_build_pin",
+      "method": "GET",
+      "http_status": 200,
+      "observed": {
+        "version": "v2.12.0",
+        "archive_url": "https://github.com/JuliaStrings/utf8proc/archive/refs/tags/v2.12.0.tar.gz",
+        "archive_sha256": "f564011d38b2888d583d510b08e69ffa15aa117155db1b9b49ef1dfe1fa25111"
+      },
+      "used_for": "Native dependency identity.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-KALDI-NATIVE-FBANK-LICENSE",
+      "url": "https://github.com/csukuangfj/kaldi-native-fbank/blob/v1.22.4/LICENSE",
+      "kind": "official_license_page",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "Apache License Version 2.0.",
+      "used_for": "kaldi-native-fbank license.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-KALDI-NATIVE-FBANK-NOTICE",
+      "url": "https://github.com/csukuangfj/kaldi-native-fbank/blob/v1.22.4/NOTICE",
+      "kind": "official_notice_path_probe",
+      "method": "HEAD",
+      "http_status": 404,
+      "observed": "No root NOTICE page at the pinned tag.",
+      "used_for": "Notice inventory.",
+      "result": "NOT_FOUND"
+    },
+    {
+      "id": "SRC-SIMPLE-SENTENCEPIECE-LICENSE",
+      "url": "https://github.com/pkufool/simple-sentencepiece/blob/v0.7/LICENSE",
+      "kind": "official_license_page",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "Apache License Version 2.0.",
+      "used_for": "simple-sentencepiece license.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-SIMPLE-SENTENCEPIECE-NOTICE",
+      "url": "https://github.com/pkufool/simple-sentencepiece/blob/v0.7/NOTICE",
+      "kind": "official_notice_path_probe",
+      "method": "HEAD",
+      "http_status": 404,
+      "observed": "No root NOTICE page at the pinned tag.",
+      "used_for": "Notice inventory.",
+      "result": "NOT_FOUND"
+    },
+    {
+      "id": "SRC-OPENFST-COPYING",
+      "url": "https://github.com/csukuangfj/openfst/blob/v1.8.5-2026-07-09/COPYING",
+      "kind": "official_license_page",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "Apache-2.0 licensing statement with Copyright 2005-2026 Google LLC.",
+      "used_for": "OpenFst license and copyright.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-OPENFST-NOTICE",
+      "url": "https://github.com/csukuangfj/openfst/blob/v1.8.5-2026-07-09/NOTICE",
+      "kind": "official_notice_path_probe",
+      "method": "HEAD",
+      "http_status": 404,
+      "observed": "No root NOTICE page at the pinned tag.",
+      "used_for": "Notice inventory.",
+      "result": "NOT_FOUND"
+    },
+    {
+      "id": "SRC-KALDI-DECODER-LICENSE",
+      "url": "https://github.com/k2-fsa/kaldi-decoder/blob/v0.3.0/LICENSE",
+      "kind": "official_license_page",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "Apache License Version 2.0.",
+      "used_for": "kaldi-decoder/kaldifst license.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-KALDI-DECODER-NOTICE",
+      "url": "https://github.com/k2-fsa/kaldi-decoder/blob/v0.3.0/NOTICE",
+      "kind": "official_notice_path_probe",
+      "method": "HEAD",
+      "http_status": 404,
+      "observed": "No root NOTICE page at the pinned tag.",
+      "used_for": "Notice inventory.",
+      "result": "NOT_FOUND"
+    },
+    {
+      "id": "SRC-UTF8PROC-LICENSE",
+      "url": "https://github.com/JuliaStrings/utf8proc/blob/v2.12.0/LICENSE.md",
+      "kind": "official_license_page",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "LICENSE.md contains the utf8proc MIT/expat terms and the Unicode data license, including copyright, permission and modification-notice requirements.",
+      "used_for": "utf8proc and Unicode data obligations.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-UTF8PROC-NOTICE",
+      "url": "https://github.com/JuliaStrings/utf8proc/blob/v2.12.0/NOTICE",
+      "kind": "official_notice_path_probe",
+      "method": "HEAD",
+      "http_status": 404,
+      "observed": "No root NOTICE page at the pinned tag.",
+      "used_for": "Notice inventory.",
+      "result": "NOT_FOUND"
+    },
+    {
+      "id": "SRC-ORT-LICENSE",
+      "url": "https://github.com/microsoft/onnxruntime/blob/v1.28.2/LICENSE",
+      "kind": "official_license_page",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "MIT license marker present; existing Q03 evidence records blob 48bc6bb4996ac924359e8e28b9ae88970e5ed3fc.",
+      "used_for": "ONNX Runtime code license.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-ORT-THIRD-PARTY-NOTICES",
+      "url": "https://github.com/microsoft/onnxruntime/blob/v1.28.2/ThirdPartyNotices.txt",
+      "kind": "official_third_party_notice",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "File tree page exists and exposes a raw link; GitHub does not render the full large text in the page.",
+      "used_for": "Mandatory ORT third-party notice identity.",
+      "result": "IDENTIFIED_NOT_ARCHIVED"
+    },
+    {
+      "id": "SRC-ESPEAK-COPYING",
+      "url": "https://github.com/espeak-ng/espeak-ng/blob/master/COPYING",
+      "kind": "official_license_page",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "GNU General Public License Version 3, 29 June 2007.",
+      "used_for": "License-family candidate for espeak-ng-data.",
+      "result": "PASS_FAMILY_ONLY"
+    },
+    {
+      "id": "SRC-ESPEAK-REPO",
+      "url": "https://github.com/espeak-ng/espeak-ng/tree/master",
+      "kind": "official_repository_page",
+      "method": "GET",
+      "http_status": 200,
+      "observed": "Root page references COPYING, COPYING.APACHE, COPYING.BSD2 and COPYING.UCD; no NOTICE reference observed.",
+      "used_for": "Supplementary notice inventory.",
+      "result": "PASS"
+    },
+    {
+      "id": "SRC-CPPJIEBA-REPO",
+      "url": "https://github.com/yanyiwu/cppjieba",
+      "kind": "upstream_repository_probe",
+      "method": "HEAD",
+      "http_status": 0,
+      "observed": "R024 one-shot GET returned empty reply from 20.205.243.166 after 5.689 s.",
+      "used_for": "Attempted CppJieba dictionary source/license pin.",
+      "result": "EXTERNAL_SOURCE_UNREACHABLE",
+      "controlled_retry": "R024"
+    },
+    {
+      "id": "SRC-CPPJIEBA-LICENSE",
+      "url": "https://github.com/yanyiwu/cppjieba/blob/master/LICENSE",
+      "kind": "upstream_license_probe",
+      "method": "HEAD_GET",
+      "http_status": 0,
+      "observed": "R024 one-shot GET returned empty reply from 20.205.243.166 after 5.596 s.",
+      "used_for": "Attempted dictionary license classification.",
+      "result": "EXTERNAL_SOURCE_UNREACHABLE",
+      "controlled_retry": "R024"
+    },
+    {
+      "id": "SRC-JIEBA-REPO",
+      "url": "https://github.com/fxsjy/jieba",
+      "kind": "upstream_repository_probe",
+      "method": "HEAD",
+      "http_status": 0,
+      "observed": "The earlier repository probe timed out; this secondary repository URL was not retried during R024 after the primary CppJieba page failed.",
+      "used_for": "Attempted data-origin cross-check.",
+      "result": "EXTERNAL_SOURCE_UNREACHABLE",
+      "controlled_retry": "R024_PRIMARY_PAGE_FAILED"
+    },
+    {
+      "id": "SRC-JIEBA-LICENSE",
+      "url": "https://github.com/fxsjy/jieba/blob/master/LICENSE",
+      "kind": "upstream_license_probe",
+      "method": "GET",
+      "http_status": 0,
+      "observed": "The earlier license probe timed out; this secondary Jieba URL was not retried during R024 after the primary CppJieba page failed.",
+      "used_for": "Attempted dictionary license classification.",
+      "result": "EXTERNAL_SOURCE_UNREACHABLE",
+      "controlled_retry": "R024_PRIMARY_PAGE_FAILED"
+    }
+  ],
+  "local_evidence": [
+    {
+      "id": "LOCAL-HEAD",
+      "path": ".git",
+      "observed": {
+        "branch": "codex/v2-integration",
+        "head": "eff0042cceca7231bb7f64d38f528e9ac6fd2979",
+        "status_at_audit_start": "clean"
+      },
+      "used_for": "Authoritative baseline."
+    },
+    {
+      "id": "LOCAL-KOKORO-REPORT",
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/report.json",
+      "observed": "asset_gate=PARTIAL; all four ABI hashes, key file hashes, speaker IDs, and license gaps are recorded.",
+      "used_for": "Primary asset and gap input."
+    },
+    {
+      "id": "LOCAL-KOKORO-FILES",
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+      "observed": "400 entries verified; bad=0.",
+      "used_for": "All local file/group hashes."
+    },
+    {
+      "id": "LOCAL-CLASSES-JAR",
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/classes-jar-entries.sha256",
+      "observed": "125 entries; classes.jar SHA-256 0ee4991c56c19ef5a8a573b01891193d7298ffe7ebcc68f42b944361d8869d93.",
+      "used_for": "Java wrapper identity and no embedded license/notice mapping."
+    },
+    {
+      "id": "LOCAL-AAR-INVENTORY",
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/aar-archive-inventory.json",
+      "observed": "AAR has 26 entries, four ABIs, 16 native .so files, no LICENSE/NOTICE/POM.",
+      "used_for": "AAR structure and accepted packaging fact."
+    },
+    {
+      "id": "LOCAL-KOKORO-ARCHIVE",
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/model-archive-inventory.json",
+      "observed": "417 members / 377 files; one LICENSE; no NOTICE or MODEL_CARD.",
+      "used_for": "Per-asset inventory."
+    },
+    {
+      "id": "LOCAL-HARNESS-BUILD",
+      "path": "HEAD:.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build.ps1",
+      "git_blob": "e8b68635034c2c4d4cb048d8c65f0a6a4434c625",
+      "observed": "Copies model, voices, tokens, lexicon-zh, three FSTs, espeak-ng-data and dict into harness assets.",
+      "used_for": "Actual packaged harness payload."
+    },
+    {
+      "id": "LOCAL-HARNESS-CONFIG",
+      "path": "HEAD:.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/HarnessActivity.java",
+      "git_blob": "bd3d36a02f9d8cea31764647bfc658d65f38f8b4",
+      "observed": "Sets model, voices, tokens, dataDir=espeak-ng-data, lexicon-zh, lang=zh, dictDir=dict and ruleFsts.",
+      "used_for": "Actual harness configuration."
+    },
+    {
+      "id": "LOCAL-AAR-CODE-STRINGS",
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/extracted/sherpa-onnx-2.0.1/jni/arm64-v8a/",
+      "observed": "Binary strings identify ORT 1.28.2; kaldi_decoder-src, kaldifst-src, openfst-src, simple-sentencepiece-src; ONNX, protobuf, Abseil and RE2 in ORT.",
+      "used_for": "Component presence evidence only; not an object-level SBOM."
+    },
+    {
+      "id": "LOCAL-ESPEAK-RUNTIME-WARNING",
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/extracted/sherpa-onnx-2.0.1/jni/arm64-v8a/libsherpa-onnx-c-api.so",
+      "observed": "WARNING strings state kokoro data-dir is deprecated and ignored since v2.0.0 and espeak-ng is no longer used.",
+      "used_for": "Separates packaged data from proven runtime use."
+    },
+    {
+      "id": "LOCAL-Q03-SHERPA",
+      "path": ".planning/v2-g1/G1-L1-NETWORK-SHERPA/license-source-matrix.json",
+      "observed": "finalPackagedNoticeComplete=false, thirdPartyClosure=UNRESOLVED, source-offer OPEN.",
+      "used_for": "Existing Q03 gate state."
+    },
+    {
+      "id": "LOCAL-Q03-NOTICE",
+      "path": ".planning/v2-g1/G1-S4-A-Q03-NOTICE/notice-source-offer-matrix.json",
+      "observed": "Final combined notice/source bundle is BLOCKED.",
+      "used_for": "Project-level distribution obligations."
+    },
+    {
+      "id": "LOCAL-Q03-TTS",
+      "path": ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/tts-license-matrix.json",
+      "observed": "Sherpa code artifact and ORT pins proven; voice/model, lexicon/rule and final notice remain blocked/partial.",
+      "used_for": "Q03 continuation."
+    },
+    {
+      "id": "LOCAL-CACHE-SEARCH",
+      "path": [
+        "C:\\Users\\zhangwenkang\\.gradle\\caches\\modules-2\\files-2.1",
+        "C:\\Users\\zhangwenkang\\.m2\\repository"
+      ],
+      "observed": "No sherpa/k2fsa artifact in Gradle cache; Maven repository path absent.",
+      "used_for": "POM/source provenance gap."
+    }
+  ],
+  "blocked_sources": [
+    {
+      "id": "BLOCKED-SRC-HF",
+      "reason": "R024 one-shot request to the official Hugging Face model page returned HTTP 000 / CURLE_OPERATION_TIMEDOUT.",
+      "authorization_status": "DOMAIN_ALLOWED_BUT_NETWORK_UNAVAILABLE",
+      "new_domain_required": false
+    },
+    {
+      "id": "BLOCKED-SRC-CPPJIEBA",
+      "reason": "R024 requests to CppJieba repo/LICENSE returned empty replies; README and dict source timed out. HTTP status was 000 in all cases.",
+      "authorization_status": "DOMAIN_ALLOWED_BUT_NETWORK_UNAVAILABLE",
+      "new_domain_required": false
+    }
+  ]
+}

@@ -10,6 +10,7 @@ qa-v2/device-*/
 qa-v2/logs/
 qa-v2/netstats/
 qa-v2/build-report-v2.ps1
+runtime-closure/device-*/
 **/*.apk
 **/*.idsig
 **/*.wav

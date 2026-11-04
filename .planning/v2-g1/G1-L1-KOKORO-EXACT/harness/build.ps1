@@ -114,7 +114,7 @@ $classpath = @($androidJar, $sherpaJar, $kotlinStdlib) -join ';'
 $commands = [Collections.Generic.List[string]]::new()
 $commands.Add(
     "& '$aapt2' link -o '$unsignedApk' --manifest '$manifest' -I '$androidJar' -A '$assetsRoot' " +
-    "--min-sdk-version 26 --target-sdk-version 37 --version-code 1 --version-name '1.0-kokoro' " +
+    "--min-sdk-version 26 --target-sdk-version 37 --version-code 2 --version-name '2.0-kokoro-runtime' " +
     "--debug-mode --no-compress")
 $commands.Add(
     "& '$javac' -encoding UTF-8 -source 17 -target 17 -classpath '$classpath' -d '$classesRoot' '@$sourceList'")
@@ -135,7 +135,7 @@ $commands.Add(
     [Text.UTF8Encoding]::new($false))
 
 & $aapt2 link -o $unsignedApk --manifest $manifest -I $androidJar -A $assetsRoot `
-    --min-sdk-version 26 --target-sdk-version 37 --version-code 1 --version-name '1.0-kokoro' `
+    --min-sdk-version 26 --target-sdk-version 37 --version-code 2 --version-name '2.0-kokoro-runtime' `
     --debug-mode --no-compress
 if ($LASTEXITCODE -ne 0) { throw "aapt2 link failed: $LASTEXITCODE" }
 
@@ -218,6 +218,8 @@ $buildInfo = [ordered]@{
     abi = 'arm64-v8a'
     minSdk = 26
     targetSdk = 37
+    versionCode = 2
+    versionName = '2.0-kokoro-runtime'
     kotlinStdlib = $kotlinStdlib
     aar = (Join-Path $taskRoot 'assets\sherpa-onnx-2.0.1.aar')
     nativeLibraries = $nativeLibraries

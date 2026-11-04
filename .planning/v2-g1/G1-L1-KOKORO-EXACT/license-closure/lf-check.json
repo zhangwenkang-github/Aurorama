@@ -1,0 +1,30 @@
+{
+  "schema": "aurorama.g1-kokoro-license-closure.lf-check.v1",
+  "generated_at": "2026-11-05T07:37:47.9606208+08:00",
+  "encoding": "UTF-8",
+  "bom_allowed": false,
+  "line_ending": "LF",
+  "files": [
+    {
+      "path": "report.json",
+      "bytes": 55930,
+      "lines": 1268,
+      "lf_count": 1268,
+      "crlf_count": 0,
+      "utf8_bom": false,
+      "json_parse": "PASS",
+      "sha256": "507ef84767c986416c2ebe03ecc6eadee2cde5069af86db34f9b27dd7d4e2270"
+    },
+    {
+      "path": "sources.json",
+      "bytes": 19207,
+      "lines": 476,
+      "lf_count": 476,
+      "crlf_count": 0,
+      "utf8_bom": false,
+      "json_parse": "PASS",
+      "sha256": "962c839156d9b9044a9fbb5013ce92a743bcae0bfbb52a91c35d94fe48f3a1ee"
+    }
+  ],
+  "result": "PASS"
+}

@@ -1,0 +1,409 @@
+{
+  "schema": "aurorama.kokoro-runtime-closure.implementation-report.v1",
+  "task": "V2-G1-L1-KOKORO-EXACT",
+  "role": "isolated harness implementation engineer",
+  "generatedAt": "2026-11-05T07:55:00+08:00",
+  "status": "IMPLEMENTED / TDD_GREEN / FINAL_BUILD_PASS / K60_MINIMAL_SELF_TEST_COMPLETE / CONCURRENT_OUT_OF_SCOPE_CHANGES_OBSERVED / NOT_INDEPENDENT_QA / NOT_PRODUCTION_RUNTIME / D203_NOT_FULLY_CLOSED / G1_NOT_PASSED",
+  "scope": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "eff0042cceca7231bb7f64d38f528e9ac6fd2979",
+    "initialGitStatusClean": true,
+    "productionCodeModified": false,
+    "rootGradleModified": false,
+    "docsModified": false,
+    "existingImplementationReportModified": false,
+    "existingQaModified": false,
+    "samplesModified": false,
+    "licenseClosureModifiedByThisAgent": false,
+    "device": "Redmi K60 8e875894",
+    "padTouched": false,
+    "commit": "NOT_CREATED_BY_INSTRUCTION",
+    "push": "NOT_CREATED_BY_INSTRUCTION"
+  },
+  "baselineArchive": {
+    "source": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+    "archive": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/apk-archive/kokoro-isolated-harness-debug-051a73da.apk",
+    "bytes": 426980914,
+    "sha256": "051a73dadb1b9b239f95e543e24dfdbeebf82c026d46652f3b392559e2357826",
+    "verifiedBeforeSourceChanges": true
+  },
+  "changes": {
+    "modifiedTracked": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/AndroidManifest.xml",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/HarnessActivity.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build.ps1"
+    ],
+    "newHarnessSources": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/KokoroRuntimeService.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/PcmAudioPlayer.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/AudioOwner.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/AudioOwnerArbiter.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/FocusPolicy.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/PackWhitelist.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/PersistentPlaybackState.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/PlaybackStateMachine.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/PlaybackStatus.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/ResumePolicy.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/RuntimePresentation.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/SentenceQueue.java"
+    ],
+    "newTests": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/AudioOwnerArbiterTest.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/PlaybackStateMachineTest.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/ResumePolicyTest.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/RuntimePresentationTest.java",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/SentenceQueueTest.java"
+    ],
+    "runtimeClosureEvidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/",
+    "logsRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/",
+    "diffStats": {
+      "trackedModifiedFiles": 3,
+      "trackedInsertions": 255,
+      "trackedDeletions": 256,
+      "newHarnessFiles": 17,
+      "newHarnessLines": 2686
+    }
+  },
+  "tdd": {
+    "initialRed": {
+      "executed": true,
+      "exitCode": 1,
+      "stage": "compileTestJava",
+      "compilerErrorCount": 85,
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/runtime-closure-tdd-red.log",
+      "meaning": "new state-machine contracts did not exist before production implementation"
+    },
+    "regressionReds": [
+      {
+        "executed": true,
+        "exitCode": 1,
+        "test": "ResumePolicyTest.toleratesSharedPreferencesTrailingIndentWithoutWeakeningValidation",
+        "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/runtime-closure-resume-trailing-red.log",
+        "rootCause": "SharedPreferences XML string read-back contained a whitespace-only trailing line"
+      },
+      {
+        "executed": true,
+        "exitCode": 1,
+        "test": "PlaybackStateMachineTest.requestingTheNextSentenceReturnsToPreparingBeforeNewAudio",
+        "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/runtime-closure-next-sentence-red.log",
+        "rootCause": "next sentence stayed PLAYING and its generated PCM was discarded as stale"
+      }
+    ],
+    "green": {
+      "executed": true,
+      "exitCode": 0,
+      "executedTests": 28,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "command": ".\\gradlew.bat -p '.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness' :contract:test --offline --console=plain --rerun-tasks",
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/runtime-closure-tdd-final2.log",
+      "covered": [
+        "playback status transitions",
+        "sentence queue and prev/next bounds",
+        "stable sentence persistence and manual restore",
+        "resume-not-autoplay",
+        "pack and speaker whitelist before restore",
+        "AudioFocus loss policy",
+        "single audio-owner arbitration and music queue retention",
+        "shared UI/notification/MediaSession presentation mapping",
+        "legacy HexFormat/API33 regression",
+        "WAV contract regression"
+      ]
+    }
+  },
+  "build": {
+    "initialCompileFailure": {
+      "executed": true,
+      "exitCode": 1,
+      "cause": "two Java API typing/method-name errors",
+      "resolution": "same-owner minimal correction and one controlled retry",
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/runtime-closure-build.log"
+    },
+    "final": {
+      "executed": true,
+      "exitCode": 0,
+      "strategy": "standalone SDK-toolchain APK; root Gradle project untouched",
+      "apk": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 427005490,
+      "sha256": "074ccfe96b6868c3ae9e02523a9bb9d7da2e35594cedc70721bbbca1287015e8",
+      "package": "dev.aurorama.kokoro.harness",
+      "versionCode": 2,
+      "versionName": "2.0-kokoro-runtime",
+      "minSdk": 26,
+      "targetSdk": 37,
+      "abi": "arm64-v8a",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
+      ],
+      "internetPermission": false,
+      "foregroundServiceType": "mediaPlayback (0x00000002)",
+      "serviceCount": 1,
+      "activityCount": 1,
+      "mediaSessionConstructionSites": 1,
+      "audioTrackConstructionSites": 1,
+      "dexApiAudit": {
+        "status": "PASS",
+        "forbiddenMatchCount": 0,
+        "classesDexBytes": 2977868,
+        "classesDexSha256": "97a19fd268d531f4463b8833eeda695f3e9440923e253ee2b868645a2229b9dc",
+        "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/dex-api-audit.log"
+      },
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/runtime-closure-badging-final.txt",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/runtime-closure-permissions-final.txt",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/runtime-closure-manifest-final.xmltree.txt",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/build-info.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/runtime-closure-build-final3.log"
+      ]
+    }
+  },
+  "deviceLock": {
+    "path": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "lockId": "G1-L1-KOKORO-EXACT-RUNTIME-K60-8e875894-20261105-0731",
+    "before": {
+      "activeCount": 0,
+      "sha256": "E3B1050B0AFB77C1CC7ED262FC0348FE96D0F7EA16A1E0F791E5368F0DB667AD"
+    },
+    "after": {
+      "activeCount": 0,
+      "sha256": "3E24EBD59ECB983C6682884C250354C427080E181DAE52BE99748A01276AE17C",
+      "releasedAt": "2026-11-05T07:52:26+08:00"
+    },
+    "status": "RELEASED"
+  },
+  "deviceSelfTest": {
+    "serial": "8e875894",
+    "model": "23013RK75C",
+    "api": 35,
+    "abi": "arm64-v8a",
+    "installedApk": {
+      "bytes": 427005490,
+      "sha256": "074ccfe96b6868c3ae9e02523a9bb9d7da2e35594cedc70721bbbca1287015e8",
+      "sizeMatch": true,
+      "shaMatch": true,
+      "internetPermission": false,
+      "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-installed.json"
+    },
+    "actualExecuted": [
+      {
+        "item": "foreground service ownership",
+        "result": "PASS",
+        "evidence": "dumpsys activity services showed isForeground=true and types=0x00000002"
+      },
+      {
+        "item": "single MediaSession and notification controls",
+        "result": "PASS",
+        "evidence": "one active Kokoro session; notification actions 上一句/继续/下一句/停止; session rejects seek"
+      },
+      {
+        "item": "real PCM playback",
+        "result": "PASS",
+        "evidence": "AudioTrack usage=USAGE_MEDIA content=CONTENT_TYPE_SPEECH; 9 completed sentence tracks in the full queue"
+      },
+      {
+        "item": "pause and resume",
+        "result": "PASS",
+        "evidence": "pause released AudioTrack/focus and converged to PAUSED; resume returned to PLAYING with a new AudioTrack"
+      },
+      {
+        "item": "previous/next/stop",
+        "result": "PASS",
+        "evidence": "state indices changed 0->1->0; stale generations discarded; stop left owner=NONE and focus/AudioTrack false"
+      },
+      {
+        "item": "UI/notification/MediaSession consistency",
+        "result": "PASS",
+        "evidence": "final pause UI, notification title and platform PlaybackState all PAUSED; notification actions exposed"
+      },
+      {
+        "item": "force-stop and manual restore",
+        "result": "PASS",
+        "evidence": "PLAYING + AudioTrack -> force-stop PID absent -> manual launch PAUSED, same stable sentence, autoPlay=false, no focus/AudioTrack; remained paused after 4 seconds; manual resume started playback"
+      },
+      {
+        "item": "48-second-plus background lock screen path",
+        "result": "SHORT_SELF_TEST_PASS_NOT_30_MIN_QA",
+        "evidence": "screen Asleep; 8 new AudioTrack sentence starts after screen off from 07:49:27 to 07:50:47; service and MediaSession remained active through 56-second checkpoint"
+      },
+      {
+        "item": "local music owner / queue mutual exclusion",
+        "result": "PASS_ISOLATED_SIMULATION_ONLY",
+        "evidence": "music PLAYING -> TTS paused music with owner TTS -> stop TTS left music PAUSED -> music restart required no TTS owner; never two active owners"
+      },
+      {
+        "item": "AudioFocus",
+        "result": "ACTUAL_REQUEST_PASS / LOSS_PATH_SIMULATED",
+        "evidence": "dumpsys audio showed harness focus stack; harness focus-loss command converged PAUSED, focus=false, AudioTrack=false"
+      },
+      {
+        "item": "UI internal cancel",
+        "result": "PASS",
+        "evidence": "UI button pointer/tap invoked cancel; PID absent; service/notification/MediaSession absent; no WAV/tmp/part files"
+      },
+      {
+        "item": "speaker58 / zm_009",
+        "result": "PASS_ZERO_INVOCATION",
+        "evidence": "runtime log forbidden-speaker hits=0; TTS sentence requests used only sid=3; static whitelist allows only sid 3/59"
+      },
+      {
+        "item": "cleanup and restore",
+        "result": "PASS",
+        "evidence": "harness uninstall Success; package/PID/external dir absent; production release/debug identity MATCH; network/volume/screen/current user/wakefulness MATCH"
+      }
+    ],
+    "keyEvidence": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-background-lockscreen-runtime.log",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-background-56s-audio.txt",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-background-56s-media-session.txt",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-restored-paused.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-restored-after-4s.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-resumed-playing.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-pause-media-session.txt",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-pause-notification.txt",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/cancel-ui-final.xml",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-music-playing.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-tts-over-music.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-tts-stop-music-paused.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/final-focus-loss-state.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/cleanup.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/device-K60-8e875894/after-cleanup-state.json"
+    ]
+  },
+  "resolvedDuringImplementation": [
+    {
+      "id": "IMPL-P1-01",
+      "status": "FIXED_AND_REGRESSION_GREEN",
+      "summary": "SharedPreferences trailing whitespace made a valid checkpoint fail to restore",
+      "redExitCode": 1,
+      "greenExitCode": 0
+    },
+    {
+      "id": "IMPL-P1-02",
+      "status": "FIXED_AND_REGRESSION_GREEN",
+      "summary": "a completed sentence left status PLAYING, so the next sentence became stale and the queue stalled",
+      "redExitCode": 1,
+      "greenExitCode": 0
+    }
+  ],
+  "findings": {
+    "P0": [],
+    "P1": [],
+    "P2": [],
+    "P3": [
+      "Notification/lock-screen action buttons were structurally verified but not tapped through SystemUI in this implementation self-test.",
+      "The physical speaker/headphone listening result was not subjectively judged; evidence proves the Android AudioTrack media path, not audible quality."
+    ]
+  },
+  "blocked": [],
+  "notRun": [
+    {
+      "item": "Pad 5 runtime/lock-screen",
+      "status": "NOT_RUN_USER_UNLOCK_REQUIRED",
+      "reason": "task explicitly assigns K60 only and forbids Pad unlock attempts"
+    },
+    {
+      "item": "30-minute lock-screen stability",
+      "status": "NOT_RUN_DEFERRED_TO_INDEPENDENT_QA"
+    },
+    {
+      "item": "OS-origin AudioFocus loss",
+      "status": "NOT_RUN",
+      "reason": "loss was exercised through the harness command into the same handler; actual request was observed in dumpsys audio"
+    },
+    {
+      "item": "notification/lock-screen button tap",
+      "status": "NOT_RUN",
+      "reason": "actions and MediaSession callbacks were verified statically/runtime-state-wise; no SystemUI automation"
+    },
+    {
+      "item": "zm_010 sid59 in this runtime closure",
+      "status": "NOT_RUN_IN_THIS_K60_MINIMAL_SELF_TEST",
+      "reason": "final runtime sample used zf_001 sid3; both allowed identities and rejections are covered by JVM tests and prior D206 evidence"
+    },
+    {
+      "item": "tampered on-device pack/speaker checkpoint",
+      "status": "NOT_RUN",
+      "reason": "restore validation has JVM tests; device test used a valid persisted checkpoint"
+    },
+    {
+      "item": "production TTS integration, production music integration, voice-pack lifecycle, quality and licensing",
+      "status": "OUT_OF_SCOPE"
+    }
+  ],
+  "inferencesNotExecuted": [
+    "No inference that 56-second lock-screen evidence satisfies the 30-minute gate.",
+    "No inference that the local music simulation proves production music integration.",
+    "No inference that isolated service ownership proves production D203 runtime closure.",
+    "No inference of independent QA, Release readiness, exact profile freeze, Q03 closure or G1 PASS."
+  ],
+  "keyCommands": [
+    ".\\gradlew.bat -p '.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness' :contract:test --offline --console=plain --rerun-tasks",
+    "pwsh -NoProfile -File '<task>/harness/build.ps1'",
+    "pwsh -NoProfile -File '<task>/harness/install-harness.ps1' -Serial '8e875894' -ApkPath '<task>/harness/build/outputs/kokoro-isolated-harness-debug.apk'",
+    "adb -s 8e875894 shell am start -W --activity-single-top -n dev.aurorama.kokoro.harness/.HarnessActivity --es command play_sample",
+    "adb -s 8e875894 shell am start -W --activity-single-top -n dev.aurorama.kokoro.harness/.HarnessActivity --es command play_full",
+    "adb -s 8e875894 shell dumpsys media_session",
+    "adb -s 8e875894 shell dumpsys notification --noredact",
+    "adb -s 8e875894 shell dumpsys audio",
+    "adb -s 8e875894 shell dumpsys activity services dev.aurorama.kokoro.harness",
+    "adb -s 8e875894 shell am force-stop dev.aurorama.kokoro.harness",
+    "adb -s 8e875894 uninstall dev.aurorama.kokoro.harness"
+  ],
+  "gitStatus": {
+    "command": "git status --porcelain=v1 --untracked-files=all",
+    "ownChangesWithinWhitelist": true,
+    "outOfWhitelistChangesByThisAgent": false,
+    "concurrentExternalChangesObserved": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/license-closure/files.sha256",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/license-closure/lf-check.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/license-closure/report.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/license-closure/sources.json"
+    ],
+    "externalChangeNote": "The worktree was clean at task start. These four files first appeared during this session, were never opened or written by this implementation agent, and were preserved untouched. Further code/device expansion stopped after discovery."
+  },
+  "appliedExperience": [
+    "Engramory background-owner-lifecycle: service owns runtime; Activity and ViewModel are adapters only.",
+    "Engramory test-runner-executed-evidence: final report records actual test count, exit code and device artifacts.",
+    "Engramory shared-lockfile-patch-context: lock edits used the unique heading and were read back immediately.",
+    "Engramory worktree-session-abspath-edits: all source and evidence writes used the unique worktree path.",
+    "Engramory PowerShell/ADB guidance: pwsh 7, explicit serial, UTF-8 XML parsing and no broad logcat capture."
+  ],
+  "newReusableExperienceCandidates": [
+    {
+      "status": "CANDIDATE_NOT_WRITTEN_TO_MEMORY",
+      "fact": "A SharedPreferences XML string may expose a whitespace-only trailing line on read-back; strict decoders should ignore whitespace-only framing lines without weakening field validation."
+    },
+    {
+      "status": "CANDIDATE_NOT_WRITTEN_TO_MEMORY",
+      "fact": "A graceful Android service stop can leave an empty cached process; pidof alone is not proof of a hanging component. Inspect service/notification/MediaSession and CPU, or explicitly self-terminate only in a disposable harness."
+    }
+  ],
+  "pendingProposals": [
+    "Ask the owner whether the two reusable-experience candidates should be promoted into Engramory after deduplication.",
+    "Independent QA should decide whether SystemUI notification/lock-screen button taps and an OS-origin focus-loss event are required in the next gate."
+  ],
+  "memoryCheckpoint": {
+    "added": "none",
+    "updated": "none",
+    "archived": "none",
+    "skipped": "no durable cross-project memory was written because the task write whitelist does not authorize the Engramory store; reusable candidates are reported above",
+    "index": {
+      "lines": 121,
+      "bytes": 16037
+    },
+    "engramoryCheck": "OK: index is 121 lines / 15.7 KB (cap 200 lines / 25.0 KB).",
+    "engramoryDoctor": "clean: 121 lines / 15.7 KB, 92 notes, no broken pointers, orphans, or schema errors; info-only warning: leader-delegation-by-role.md is 13.1 KB"
+  },
+  "maximumClaim": "The final isolated APK on K60 API35/arm64 implements and self-tests a service-owned PCM TTS runtime with one MediaSession, AudioFocus request/loss handling, pause/resume/prev/next/stop, persisted manual paused restore, UI cancel convergence, a short 56-second background lock-screen path and isolated music-owner arbitration. It does not prove independent QA, production runtime, 30-minute stability, production music integration, D203 full closure, profile freeze or G1 PASS.",
+  "nextStep": {
+    "owner": "delivery owner / independent QA dispatcher",
+    "firstReadOnlyAction": "Review this report, final APK SHA, device evidence root and concurrent out-of-scope license-closure status.",
+    "nextRole": "a fresh independent QA agent, explicitly authorized by the owner",
+    "stopCondition": "Stop if production code, Pad unlock, new network/weights, new scope, or a claim of D203/G1/production PASS is required."
+  }
+}

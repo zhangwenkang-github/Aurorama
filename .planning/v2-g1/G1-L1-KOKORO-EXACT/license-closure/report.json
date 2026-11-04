@@ -1,0 +1,1268 @@
+{
+  "schema": "aurorama.g1-kokoro-license-closure.report.v1",
+  "generated_at": "2026-11-05T07:37:47.9606208+08:00",
+  "auditor_role": "许可证 / 资产 provenance / 声音权属审计代理",
+  "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+  "baseline": {
+    "branch": "codex/v2-integration",
+    "head": "eff0042cceca7231bb7f64d38f528e9ac6fd2979",
+    "head_subject": "docs(v2): accept Kokoro audition and prepare runtime closure handoff",
+    "status_at_audit_start": "CLEAN",
+    "concurrent_out_of_scope_changes_observed": true,
+    "concurrent_changes_touched_by_this_audit": false,
+    "authoritative_harness_read": "Git object at HEAD, not the concurrently modified worktree file"
+  },
+  "scope": {
+    "kind": "READ_ONLY_EXTERNAL_FACT_AUDIT",
+    "allowed_external_hosts": [
+      "github.com",
+      "huggingface.co"
+    ],
+    "new_assets_downloaded": false,
+    "device_used": false,
+    "runtime_executed": false,
+    "production_code_changed": false,
+    "authoritative_docs_changed": false,
+    "qa_started": false,
+    "review_started": false,
+    "merge_prep_started": false,
+    "subagents_spawned": false,
+    "commit_or_push": false
+  },
+  "r024_controlled_retry": {
+    "status": "EXTERNAL_SOURCE_UNREACHABLE",
+    "attempts_per_url": 1,
+    "retry_expansion_allowed": false,
+    "authorization_required_new_domain": false,
+    "completed_at": "2026-11-05T07:37:47.9606208+08:00",
+    "method": "curl --http1.1 --max-time 45 --connect-timeout 12; no redirect following",
+    "targets": [
+      {
+        "id": "R024-HF-MODEL-CARD",
+        "url": "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh",
+        "http_status": 0,
+        "remote_ip": null,
+        "connection_result": "CURLE_OPERATION_TIMEDOUT",
+        "elapsed_seconds": 12.269,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      },
+      {
+        "id": "R024-CPPJIEBA-REPO",
+        "url": "https://github.com/yanyiwu/cppjieba",
+        "http_status": 0,
+        "remote_ip": "20.205.243.166",
+        "connection_result": "CURLE_GOT_NOTHING_EMPTY_REPLY",
+        "elapsed_seconds": 5.689,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      },
+      {
+        "id": "R024-CPPJIEBA-LICENSE",
+        "url": "https://github.com/yanyiwu/cppjieba/blob/master/LICENSE",
+        "http_status": 0,
+        "remote_ip": "20.205.243.166",
+        "connection_result": "CURLE_GOT_NOTHING_EMPTY_REPLY",
+        "elapsed_seconds": 5.596,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      },
+      {
+        "id": "R024-CPPJIEBA-README",
+        "url": "https://github.com/yanyiwu/cppjieba/blob/master/README.md",
+        "http_status": 0,
+        "remote_ip": null,
+        "connection_result": "CURLE_OPERATION_TIMEDOUT",
+        "elapsed_seconds": 12.261,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      },
+      {
+        "id": "R024-CPPJIEBA-DICT-SOURCE",
+        "url": "https://github.com/yanyiwu/cppjieba/blob/master/dict/jieba.dict.utf8",
+        "http_status": 0,
+        "remote_ip": null,
+        "connection_result": "CURLE_OPERATION_TIMEDOUT",
+        "elapsed_seconds": 12.292,
+        "result": "EXTERNAL_SOURCE_UNREACHABLE"
+      }
+    ],
+    "evidence_gained": [],
+    "no_retry_reason": "R024 限定一次受控重试；所有目标均未返回可读证据。"
+  },
+  "classification_rules": {
+    "EXACT": "官方固定版本/来源与许可原文均能直接覆盖该资产或代码单元。",
+    "FAMILY_ONLY": "只能证明父包或许可家族，缺少精确资产范围、版权归属或通知闭包。",
+    "UNKNOWN": "缺少足以判定来源、许可证或权利边界的证据。",
+    "rule": "归档顶层 LICENSE 不得替代逐数据资产许可；试听接受不得替代声音权属。"
+  },
+  "conclusion": {
+    "status": "PARTIAL",
+    "real_license_conflict": "NONE_PROVEN",
+    "conflict_qualification": "未发现明确互斥的许可证条款；这不表示所有资产已获准分发。",
+    "profile_freeze": "BLOCKED",
+    "distribution": "BLOCKED",
+    "q03": "BLOCKED",
+    "g1": "NOT_PASSED",
+    "summary": "Sherpa 代码、ONNX Runtime 版本和主要内嵌 native 依赖可定位；Kokoro 资产文件与哈希可复算。但模型权重范围、训练数据、speaker 权属、中文前端数据来源、第三方通知闭包及最终 source offer 均未闭合，因此不得冻结 profile 或宣称可分发。"
+  },
+  "summary": {
+    "kokoro_archive_files": 377,
+    "kokoro_archive_bytes": 426584734,
+    "kokoro_license_entries": 1,
+    "kokoro_notice_entries": 0,
+    "kokoro_model_card_entries": 0,
+    "kokoro_espeak_data_files": 355,
+    "kokoro_dict_files": 11,
+    "sherpa_aar_native_files": 16,
+    "sherpa_supported_abis": 4,
+    "sherpa_aar_license_notice_pom_entries": 0,
+    "sherpa_classes_jar_license_notice_pom_entries": 0,
+    "local_gradle_sherpa_or_k2fsa_artifacts": 0,
+    "local_maven_repository_present": false,
+    "asset_rows": 28,
+    "components_exact": 7,
+    "components_partial_or_unknown": 2
+  },
+  "asset_hash_algorithm": {
+    "file": "SHA-256",
+    "tree": "将现有 files.sha256 中匹配指定目录/文件的行按 ordinal 字符串排序，使用 UTF-8 无 BOM、LF 连接并追加一个末尾 LF，再计算 SHA-256。",
+    "tree_id": "sorted_manifest_lines_sha256_v1"
+  },
+  "asset_matrix": [
+    {
+      "id": "KOKORO-ARCHIVE",
+      "group": "Kokoro",
+      "path": "kokoro-multi-lang-v1_1.tar.bz2",
+      "version": "tts-models release asset named kokoro-multi-lang-v1_1",
+      "bytes": 364855331,
+      "sha256": "b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed",
+      "official_source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+      "source_identity": "EXACT",
+      "license_scope": "FAMILY_ONLY",
+      "license_evidence": "归档根 LICENSE 是 Apache-2.0 全文，但没有 owner 或逐组件 scope 声明。",
+      "copyright_notice": "Apache 文本本身不是独立版权归属声明；模型/数据作者与逐资产版权仍缺失。",
+      "obligations": [
+        "若最终分发，保留适用许可文本、版权/修改声明和实际 NOTICE。",
+        "不得以归档顶层 LICENSE 推定 voices、词典、FST、eSpeak 数据或训练数据均已清除。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/downloads.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/model-archive-inventory.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/extracted/kokoro-multi-lang-v1_1/LICENSE"
+      ],
+      "remaining_question": "精确模型卡、训练数据清单、speaker 来源和逐组件版权/许可映射。",
+      "gate_effect": "BLOCKS_PROFILE_FREEZE_AND_DISTRIBUTION"
+    },
+    {
+      "id": "KOKORO-MODEL",
+      "group": "Kokoro",
+      "path": "kokoro-multi-lang-v1_1/model.onnx",
+      "version": "Kokoro v1.1-zh ONNX; metadata version=2",
+      "bytes": 325561476,
+      "sha256": "99db0bc8fd0c5033d249fe922db16768b71b4a6b26cfd93d206fbf66c76efb5f",
+      "official_source": [
+        "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+        "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh"
+      ],
+      "source_identity": "EXACT",
+      "license_scope": "FAMILY_ONLY",
+      "license_evidence": "固定归档内含 Apache-2.0；ONNX metadata 的 model_url 指向官方 Hugging Face 模型页，但 R024 受控重试仍返回 HTTP 000 连接超时。",
+      "copyright_notice": "MISSING_IN_PACKAGE",
+      "obligations": [
+        "补齐并可复算官方模型卡中的权重许可、版权归属、训练数据与使用限制。",
+        "若分发，保留适用的 Apache-2.0 文本、版权归属和 NOTICE。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/onnx-audit.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/report.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/extracted/kokoro-multi-lang-v1_1/model.onnx"
+      ],
+      "remaining_question": "官方模型卡是否明确 Apache-2.0 覆盖 ONNX 派生权重，以及训练数据许可是否对此使用施加额外限制。",
+      "gate_effect": "BLOCKS_PROFILE_FREEZE_AND_DISTRIBUTION"
+    },
+    {
+      "id": "KOKORO-VOICES",
+      "group": "Kokoro",
+      "path": "kokoro-multi-lang-v1_1/voices.bin",
+      "version": "Kokoro v1.1-zh; metadata n_speakers=103; style_dim=510,1,256",
+      "bytes": 53790720,
+      "sha256": "e64a5a581d8c2a350d848f51c3121657cd83aa07ed6109172177345874a7244c",
+      "official_source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+      "source_identity": "EXACT",
+      "license_scope": "UNKNOWN",
+      "rights_scope": "UNKNOWN",
+      "license_evidence": "文件包含 103 个 speaker style。归档只有通用 Apache 文本；无逐 speaker 来源、同意、所有权、样本来源或再分发条款。",
+      "copyright_notice": "MISSING",
+      "obligations": [
+        "在冻结 zf_001 sid3 与 zm_010 sid59 前，取得或核验官方、上传者或权利人可复算的 voice provenance / consent / distribution basis。",
+        "若最终包仍携带整份 voices.bin，应评估全部 103 个嵌入 speaker；不能只描述为两条声音。",
+        "若改为裁剪包，仍需证明被保留 speaker 的权利并记录裁剪后文件 hash。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/report.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/onnx-audit.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256"
+      ],
+      "remaining_question": "zf_001 与 zm_010 的真实说话人、授权链和可分发边界均未知；D207 试听接受只覆盖主观质量输入。",
+      "gate_effect": "BLOCKS_PROFILE_FREEZE_AND_DISTRIBUTION"
+    },
+    {
+      "id": "KOKORO-SPEAKER-ZF001",
+      "group": "Kokoro voice rights",
+      "path": "voices.bin[sid=3]",
+      "version": "zf_001 -> sid 3",
+      "container_bytes": 53790720,
+      "container_sha256": "e64a5a581d8c2a350d848f51c3121657cd83aa07ed6109172177345874a7244c",
+      "official_source": "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh",
+      "source_identity": "EXACT_SPEAKER_ID_ONLY",
+      "license_scope": "UNKNOWN",
+      "speaker_rights": "UNKNOWN",
+      "evidence": "id2speaker 映射与试听样音存在；没有姓名、真人身份、同意、录音来源、数据许可或传播权限。",
+      "obligations": [
+        "不得以样音被 D207 接受替代声音授权。",
+        "补齐作者/权利人声明或从最终分发资产中移除。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/report.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/samples/zf_001_sid3.wav"
+      ],
+      "remaining_question": "MISSING",
+      "gate_effect": "BLOCKS_PROFILE_FREEZE"
+    },
+    {
+      "id": "KOKORO-SPEAKER-ZM010",
+      "group": "Kokoro voice rights",
+      "path": "voices.bin[sid=59]",
+      "version": "zm_010 -> sid 59",
+      "container_bytes": 53790720,
+      "container_sha256": "e64a5a581d8c2a350d848f51c3121657cd83aa07ed6109172177345874a7244c",
+      "official_source": "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh",
+      "source_identity": "EXACT_SPEAKER_ID_ONLY",
+      "license_scope": "UNKNOWN",
+      "speaker_rights": "UNKNOWN",
+      "evidence": "id2speaker 映射与试听样音存在；没有姓名、真人身份、同意、录音来源、数据许可或传播权限。",
+      "obligations": [
+        "不得以样音被 D207 接受替代声音授权。",
+        "补齐作者/权利人声明或从最终分发资产中移除。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/report.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/samples/zm_010_sid59.wav"
+      ],
+      "remaining_question": "MISSING",
+      "gate_effect": "BLOCKS_PROFILE_FREEZE"
+    },
+    {
+      "id": "KOKORO-TOKENS",
+      "group": "Kokoro",
+      "path": "kokoro-multi-lang-v1_1/tokens.txt",
+      "version": "Kokoro v1.1-zh package",
+      "bytes": 1111,
+      "sha256": "931ab2df2400cd65d580a22402024c2347ced8ae9ea300e545144b1aacc48e14",
+      "official_source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+      "source_identity": "EXACT",
+      "license_scope": "FAMILY_ONLY",
+      "license_evidence": "归档根 Apache-2.0；没有 tokens 生成脚本结果、版权归属或独立许可声明。",
+      "copyright_notice": "MISSING_IN_PACKAGE",
+      "obligations": [
+        "保留 Apache-2.0 包级许可并把 tokens 明确映射到最终 NOTICE/SBOM。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/report.json"
+      ],
+      "remaining_question": "tokens 的上游生成源与人工编辑历史未打包。",
+      "gate_effect": "PACKAGING_NOTICE_GAP"
+    },
+    {
+      "id": "KOKORO-LEXICON-ZH",
+      "group": "Kokoro text frontend",
+      "path": "kokoro-multi-lang-v1_1/lexicon-zh.txt",
+      "version": "Kokoro v1.1-zh package",
+      "bytes": 2120131,
+      "sha256": "fea060803db3e59193987f1a3436f56917bda09f3b3595b6588e46ae60cebf93",
+      "official_source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+      "source_identity": "UNKNOWN_UPSTREAM",
+      "license_scope": "UNKNOWN",
+      "license_evidence": "只知它在固定归档中且 harness 直接传入；没有生成源、上游词典、版权或独立许可。",
+      "copyright_notice": "MISSING",
+      "obligations": [
+        "补齐 lexicon 生成脚本/源词典版本、许可和版权。",
+        "在最终候选 NOTICE 和 source offer 中明确列出。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+        "HEAD:.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/HarnessActivity.java"
+      ],
+      "remaining_question": "词条数据可能来自独立上游；顶层 Apache 不足以证明其授权。",
+      "gate_effect": "BLOCKS_DISTRIBUTION"
+    },
+    {
+      "id": "KOKORO-DICT",
+      "group": "Kokoro Chinese segmentation",
+      "path": "kokoro-multi-lang-v1_1/dict/",
+      "version": "CppJieba dictionary layout; upstream version unknown",
+      "bytes": 14572387,
+      "tree_hash_algorithm": "sorted_manifest_lines_sha256_v1",
+      "tree_hash_input_files": 11,
+      "tree_manifest_bytes": 1350,
+      "tree_sha256": "221ed9ef3cc2652b76048584c46fec45848468304094bbba8a53fec76af854b9",
+      "key_files": [
+        {
+          "path": "dict/jieba.dict.utf8",
+          "bytes": 5071204,
+          "sha256": "3043b77068e09c9904f27cad82f12b6ebe9dbdb5aeff3b25e45ab7f9c1122b55"
+        },
+        {
+          "path": "dict/user.dict.utf8",
+          "bytes": 829194,
+          "sha256": "5faabcd0c52adf512de77fd7eee3d556da8c98b50f493b47c66a981b3a24959c"
+        },
+        {
+          "path": "dict/hmm_model.utf8",
+          "bytes": 519739,
+          "sha256": "f17790586ac86dd048c8adffed052c4bd2b28ed0682972c1275e59040c0589a7"
+        },
+        {
+          "path": "dict/idf.utf8",
+          "bytes": 5998717,
+          "sha256": "dbd1e03d72b2263cc8d84a4304ed77677eed9e7deaf43a1a5133bbba9733b535"
+        }
+      ],
+      "official_source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+      "source_identity": "FAMILY_ONLY",
+      "source_family_hint": "dict/README.md identifies the CppJieba dictionary format; no pinned upstream revision or archive hash is packaged.",
+      "license_scope": "UNKNOWN",
+      "license_evidence": "归档根 Apache-2.0；dict/README.md 不是许可证。R024 对 CppJieba 仓库/LICENSE 得到空回复、README/词典源码超时，未作许可证结论。",
+      "copyright_notice": "MISSING",
+      "obligations": [
+        "固定真正的 CppJieba/Jieba 数据版本、逐文件 hash、许可和版权。",
+        "harness 直接设置 dictDir；最终包若保留该目录，须进入 NOTICE/source 清单。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/extracted/kokoro-multi-lang-v1_1/dict/README.md",
+        "HEAD:.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/HarnessActivity.java"
+      ],
+      "remaining_question": "上游 repo、release/commit、词表版权和是否允许再分发均未固定。",
+      "gate_effect": "BLOCKS_DISTRIBUTION"
+    },
+    {
+      "id": "KOKORO-RULE-FSTS",
+      "group": "Kokoro text normalization",
+      "path": [
+        "kokoro-multi-lang-v1_1/date-zh.fst",
+        "kokoro-multi-lang-v1_1/number-zh.fst",
+        "kokoro-multi-lang-v1_1/phone-zh.fst"
+      ],
+      "version": "Kokoro v1.1-zh package",
+      "tree_hash_algorithm": "sorted_manifest_lines_sha256_v1",
+      "tree_hash_input_files": 3,
+      "tree_manifest_bytes": 336,
+      "tree_sha256": "fa1165eb8b2898576fdb5536f718cde6ea65dd88d062cd563b53908c2789a2d1",
+      "files": [
+        {
+          "path": "date-zh.fst",
+          "bytes": 59154,
+          "sha256": "eb8aa079ae3cb81d8f4404992f39d61a0cb990947512b5b8d1e54d1f6980e718"
+        },
+        {
+          "path": "number-zh.fst",
+          "bytes": 64482,
+          "sha256": "743f402181fcfebf76cc2f0546b71fa26476e626fbe4e460fb7b4c3a7a8bd5bd"
+        },
+        {
+          "path": "phone-zh.fst",
+          "bytes": 88630,
+          "sha256": "1ac2b6fa56b1442320c4de7db08353bab8963a2b57f365eebcdd3a2d3562f8d7"
+        }
+      ],
+      "official_source": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+      "source_identity": "UNKNOWN_UPSTREAM",
+      "license_scope": "UNKNOWN",
+      "license_evidence": "harness 直接传入 ruleFsts；归档没有生成脚本、规则源、版权或逐 FST 许可。",
+      "copyright_notice": "MISSING",
+      "obligations": [
+        "固定 FST 生成脚本、输入规则来源、OpenFst 构建和逐文件许可。",
+        "把运行时 OpenFst/kaldifst 许可与数据 FST 许可分开列明。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+        "HEAD:.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/HarnessActivity.java"
+      ],
+      "remaining_question": "数据授权与 FST 库的 Apache-2.0 不是同一问题。",
+      "gate_effect": "BLOCKS_DISTRIBUTION"
+    },
+    {
+      "id": "KOKORO-ESPEAK-DATA",
+      "group": "Kokoro legacy data_dir",
+      "path": "kokoro-multi-lang-v1_1/espeak-ng-data/",
+      "version": "eSpeak NG data layout; exact upstream version/commit unknown",
+      "file_count": 355,
+      "tree_hash_algorithm": "sorted_manifest_lines_sha256_v1",
+      "tree_manifest_bytes": 44926,
+      "tree_sha256": "d5601bcde92ff91bce8de3a23d90984b7959c33a389406d953a22069a3e9c991",
+      "key_files": [
+        {
+          "path": "phondata",
+          "bytes": 550424,
+          "sha256": "4e0288957874029a8c3c9f41a8f517ad4bf18127046decbdd4b9d1d6807ce3a3"
+        },
+        {
+          "path": "phontab",
+          "bytes": 55796,
+          "sha256": "886f3fa402cb0ba73d483aa8ad000af47a6b7cc06293c75a97913fba68a530f6"
+        },
+        {
+          "path": "phonindex",
+          "bytes": 39074,
+          "sha256": "3ca7b8fa3b42624e4b0f152707e7a39245fce569aa99ea47c055d9e622fcf0c4"
+        },
+        {
+          "path": "phondata-manifest",
+          "bytes": 21821,
+          "sha256": "7b387af0702c7cf0b61f0bead68feded0bd8e1620729b0b252e76acbc30d3813"
+        },
+        {
+          "path": "cmn_dict",
+          "bytes": 1566335,
+          "sha256": "109aaa7708d3727382acb3ae41d8e2094a7e2bb9f651a81835be22a6f08071fe"
+        }
+      ],
+      "official_source": [
+        "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2",
+        "https://github.com/espeak-ng/espeak-ng/blob/master/COPYING"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "UNKNOWN",
+      "license_family_candidate": "GPL-3.0-family",
+      "inclusion_status": "INCLUDED_IN_HARNESS_ASSETS",
+      "runtime_use_status": "NOT_PROVEN_USED",
+      "license_evidence": "官方 eSpeak NG 根 COPYING 为 GPLv3，并存在 COPYING.APACHE、COPYING.BSD2、COPYING.UCD；本地目录没有许可证/版本文件。Sherpa 2.0.1 二进制警告称 Kokoro data-dir 已废弃并忽略，espeak-ng no longer used。",
+      "copyright_notice": "MISSING; some voice files carry individual comments/authorship but comprehensive attribution is absent.",
+      "obligations": [
+        "当前 harness 实际复制 355 个文件并调用 setDataDir，但运行时语义显示该参数被忽略。",
+        "若最终 profile 仍分发该目录，必须固定 eSpeak 版本、包含 GPLv3 与补充许可/逐数据版权，并落实对应源码或 GPLv3 允许的 offer 路线。",
+        "若最终 profile 排除该目录且证明运行不需要它，则从最终 packaged SBOM/NOTICE 删除。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+        "HEAD:.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build.ps1",
+        "HEAD:.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/HarnessActivity.java",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/extracted/sherpa-onnx-2.0.1/jni/arm64-v8a/libsherpa-onnx-c-api.so"
+      ],
+      "remaining_question": "该目录是否来自某个固定 eSpeak commit、哪些文件有独立条款，以及最终 profile 是否保留它。",
+      "gate_effect": "BLOCKS_DISTRIBUTION_IF_RETAINED"
+    },
+    {
+      "id": "SHERPA-AAR",
+      "group": "Sherpa runtime",
+      "path": "sherpa-onnx-2.0.1.aar",
+      "version": "v2.0.1; source commit af2d8d81dbfa61c4cea4c568da78f3982edca005",
+      "bytes": 49441341,
+      "sha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7",
+      "official_source": "https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.1",
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "FAMILY_ONLY",
+      "license_evidence": "Sherpa 项目根 LICENSE 为 Apache-2.0；AAR 根没有 LICENSE/NOTICE/POM，classes.jar 也没有。",
+      "copyright_notice": "AAR 内 MISSING; 上游源码应提供适用归属。",
+      "obligations": [
+        "AAR 根和 classes.jar 无 LICENSE/NOTICE 是已证事实，不构成许可冲突。",
+        "最终包必须外挂 Sherpa Apache-2.0 文本、版权和修改声明（如有），并加入 native 依赖通知。",
+        "固定 release/source tag；本 AAR 没有 Maven POM 可供消费端自动派生许可。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/aar-archive-inventory.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/report.json",
+        ".planning/v2-g1/G1-L1-NETWORK-SHERPA/license-source-matrix.json"
+      ],
+      "remaining_question": "完整 transitive NOTICE/source closure 与最终 packaged notice/source bundle 缺失。",
+      "gate_effect": "BLOCKS_Q03_AND_DISTRIBUTION"
+    },
+    {
+      "id": "SHERPA-CLASSES-JAR",
+      "group": "Sherpa runtime",
+      "path": "sherpa-onnx-2.0.1.aar!/classes.jar",
+      "version": "v2.0.1",
+      "bytes": 245045,
+      "sha256": "0ee4991c56c19ef5a8a573b01891193d7298ffe7ebcc68f42b944361d8869d93",
+      "entry_count": 130,
+      "class_count": 124,
+      "official_source": "https://github.com/k2-fsa/sherpa-onnx/tree/v2.0.1",
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "EXACT",
+      "license_evidence": "classes.jar 由同 tag 的 Sherpa Android/Kotlin wrapper 构建；上游 LICENSE 为 Apache-2.0。",
+      "copyright_notice": "jar 内 MISSING",
+      "obligations": [
+        "随最终包保留 Sherpa Apache-2.0 许可和版权/归属文本。",
+        "不要因 jar 内无 LICENSE 判为冲突；这是通知打包缺口。"
+      ],
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/classes-jar-list.txt",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/classes-jar-entries.sha256",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/report.json"
+      ],
+      "remaining_question": "无独立 POM；需在最终 NOTICE/SBOM 中手工映射。",
+      "gate_effect": "NOTICE_ONLY"
+    },
+    {
+      "id": "SHERPA-NATIVE-ARM64-ONNXRUNTIME",
+      "group": "Sherpa native",
+      "abi": "arm64-v8a",
+      "path": "jni/arm64-v8a/libonnxruntime.so",
+      "bytes": 22249560,
+      "sha256": "33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1",
+      "dependency_refs": [
+        "ORT-1.28.2",
+        "ORT-THIRD-PARTY"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "evidence": "AAR 内独立 ORT shared object；字符串含 VERS_1.28.2，Sherpa CMake 固定预编译包 v1.28.2。",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-ARM64-C-API",
+      "group": "Sherpa native",
+      "abi": "arm64-v8a",
+      "path": "jni/arm64-v8a/libsherpa-onnx-c-api.so",
+      "bytes": 4303136,
+      "sha256": "0eadae93c4d595a26584d7eebde7b397b9a36d01eee3ebc7262e0d34df2fce10",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "ORT-1.28.2",
+        "KALDI-NATIVE-FBANK-1.22.4",
+        "UTF8PROC-2.12.0",
+        "KALDI-DECODER-0.3.0",
+        "OPENFST-1.8.5-2026-07-09",
+        "SIMPLE-SENTENCEPIECE-0.7"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "evidence": "ELF strings contain source paths for kaldi_decoder-src, kaldifst-src, openfst-src, simple-sentencepiece-src; CMake links kaldi-native-fbank-core, utf8proc, kaldi-decoder-core and ssentencepiece_core into static sherpa-onnx-core.",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-ARM64-CXX-API",
+      "group": "Sherpa native",
+      "abi": "arm64-v8a",
+      "path": "jni/arm64-v8a/libsherpa-onnx-cxx-api.so",
+      "bytes": 272848,
+      "sha256": "de94e0952a124eb22e86d754e11aa0489a065affc837911a8ed5e7fd843baad6",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "SHERPA-NATIVE-ARM64-C-API",
+        "ORT-1.28.2"
+      ],
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "FAMILY_ONLY",
+      "evidence": "DT_NEEDED includes libsherpa-onnx-c-api.so and libonnxruntime.so.",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-ARM64-JNI",
+      "group": "Sherpa native",
+      "abi": "arm64-v8a",
+      "path": "jni/arm64-v8a/libsherpa-onnx-jni.so",
+      "bytes": 4609320,
+      "sha256": "5db8f89f12b2c900a98c9e01e00c475c59db35e9437a62e36e27839ec48b5575",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "SHERPA-NATIVE-ARM64-C-API",
+        "ORT-1.28.2"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "evidence": "ELF contains kaldi_decoder, openfst, simple-sentencepiece and ORT dependency strings; exact object-level link closure is not attested.",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-ARMV7-ONNXRUNTIME",
+      "group": "Sherpa native",
+      "abi": "armeabi-v7a",
+      "path": "jni/armeabi-v7a/libonnxruntime.so",
+      "bytes": 15359592,
+      "sha256": "7a8f17a707e52e0ac3a026be319272876d9eae61f4bb19585292772d785f7744",
+      "dependency_refs": [
+        "ORT-1.28.2",
+        "ORT-THIRD-PARTY"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-ARMV7-C-API",
+      "group": "Sherpa native",
+      "abi": "armeabi-v7a",
+      "path": "jni/armeabi-v7a/libsherpa-onnx-c-api.so",
+      "bytes": 3157748,
+      "sha256": "cb5d912ec19b4f76582047d082db63f304f3e584cc89130e393337f4cea6ebe7",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "ORT-1.28.2",
+        "KALDI-NATIVE-FBANK-1.22.4",
+        "UTF8PROC-2.12.0",
+        "KALDI-DECODER-0.3.0",
+        "OPENFST-1.8.5-2026-07-09",
+        "SIMPLE-SENTENCEPIECE-0.7"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-ARMV7-CXX-API",
+      "group": "Sherpa native",
+      "abi": "armeabi-v7a",
+      "path": "jni/armeabi-v7a/libsherpa-onnx-cxx-api.so",
+      "bytes": 183600,
+      "sha256": "aa5f7bc8031baf5f0ba2e6c892e1cf70d17e1fe839db375424ebda175f0dc5e9",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "SHERPA-NATIVE-ARMV7-C-API",
+        "ORT-1.28.2"
+      ],
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-ARMV7-JNI",
+      "group": "Sherpa native",
+      "abi": "armeabi-v7a",
+      "path": "jni/armeabi-v7a/libsherpa-onnx-jni.so",
+      "bytes": 3381796,
+      "sha256": "d45f377249d5c3191b91de6ba6edffcd83e4cf7e109bc523b212db341581c2a8",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "SHERPA-NATIVE-ARMV7-C-API",
+        "ORT-1.28.2"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-X86-ONNXRUNTIME",
+      "group": "Sherpa native",
+      "abi": "x86",
+      "path": "jni/x86/libonnxruntime.so",
+      "bytes": 26491148,
+      "sha256": "fcb6cd80415f7951e58fdd8158a238946dce3710d5fee492b67174d5131f9eee",
+      "dependency_refs": [
+        "ORT-1.28.2",
+        "ORT-THIRD-PARTY"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-X86-C-API",
+      "group": "Sherpa native",
+      "abi": "x86",
+      "path": "jni/x86/libsherpa-onnx-c-api.so",
+      "bytes": 4954780,
+      "sha256": "e1e483cc4a09aaadf7f72c1d406c010bba05e3a05fc763a4536117508ab3f390",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "ORT-1.28.2",
+        "KALDI-NATIVE-FBANK-1.22.4",
+        "UTF8PROC-2.12.0",
+        "KALDI-DECODER-0.3.0",
+        "OPENFST-1.8.5-2026-07-09",
+        "SIMPLE-SENTENCEPIECE-0.7"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-X86-CXX-API",
+      "group": "Sherpa native",
+      "abi": "x86",
+      "path": "jni/x86/libsherpa-onnx-cxx-api.so",
+      "bytes": 250072,
+      "sha256": "eb0e2a2b32ea48237582f5d5f31c1bf65e7911cbcb6ee3af08bb491e55fed027",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "SHERPA-NATIVE-X86-C-API",
+        "ORT-1.28.2"
+      ],
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-X86-JNI",
+      "group": "Sherpa native",
+      "abi": "x86",
+      "path": "jni/x86/libsherpa-onnx-jni.so",
+      "bytes": 5261876,
+      "sha256": "1eb37aaa10e377f6635086bec09685859ca8c7465460fdf9346a21eba90a4ee4",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "SHERPA-NATIVE-X86-C-API",
+        "ORT-1.28.2"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-X86-64-ONNXRUNTIME",
+      "group": "Sherpa native",
+      "abi": "x86_64",
+      "path": "jni/x86_64/libonnxruntime.so",
+      "bytes": 25581120,
+      "sha256": "087e84297cad64acb823c3d901d6e0cc934e91add7cdb20da802cd1c0bea5c3e",
+      "dependency_refs": [
+        "ORT-1.28.2",
+        "ORT-THIRD-PARTY"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-X86-64-C-API",
+      "group": "Sherpa native",
+      "abi": "x86_64",
+      "path": "jni/x86_64/libsherpa-onnx-c-api.so",
+      "bytes": 4782648,
+      "sha256": "8285ecf2e6275374d4c8c5b46020cbb1de82db9bd6b6baad011fdc480cf10ba2",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "ORT-1.28.2",
+        "KALDI-NATIVE-FBANK-1.22.4",
+        "UTF8PROC-2.12.0",
+        "KALDI-DECODER-0.3.0",
+        "OPENFST-1.8.5-2026-07-09",
+        "SIMPLE-SENTENCEPIECE-0.7"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-X86-64-CXX-API",
+      "group": "Sherpa native",
+      "abi": "x86_64",
+      "path": "jni/x86_64/libsherpa-onnx-cxx-api.so",
+      "bytes": 267552,
+      "sha256": "edcd50a1608458867d78213385f5e3013a39db7b7af43d4f87d72e4d84e5e3dc",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "SHERPA-NATIVE-X86-64-C-API",
+        "ORT-1.28.2"
+      ],
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    },
+    {
+      "id": "SHERPA-NATIVE-X86-64-JNI",
+      "group": "Sherpa native",
+      "abi": "x86_64",
+      "path": "jni/x86_64/libsherpa-onnx-jni.so",
+      "bytes": 5053592,
+      "sha256": "878d61116f244131263eec24297ef05bf508d02bccdede2a4e3ad3202bbdaa48",
+      "dependency_refs": [
+        "SHERPA-CODE",
+        "SHERPA-NATIVE-X86-64-C-API",
+        "ORT-1.28.2"
+      ],
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "gate_effect": "BLOCKS_Q03_NOTICE_CLOSURE"
+    }
+  ],
+  "components": [
+    {
+      "id": "SHERPA-CODE",
+      "component": "Sherpa-ONNX v2.0.1",
+      "version": "af2d8d81dbfa61c4cea4c568da78f3982edca005",
+      "license": "Apache-2.0",
+      "source_identity": "EXACT",
+      "license_scope": "EXACT",
+      "evidence": "上游 LICENSE 与项目根同一 Apache-2.0；AAR/classes.jar 内无该文本。",
+      "notice": "未发现上游根 NOTICE；仍需在最终包保留适用版权与被修改文件声明。",
+      "source_offer": "Apache-2.0 本身不要求对应源码 offer；项目 GPL-3.0 分发仍需最终 corresponding source。",
+      "official_sources": [
+        "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/LICENSE",
+        "https://github.com/k2-fsa/sherpa-onnx/releases/tag/v2.0.1"
+      ]
+    },
+    {
+      "id": "ORT-1.28.2",
+      "component": "ONNX Runtime Android shared build",
+      "version": "1.28.2",
+      "commit": "33ca9628233dc8f002435e868d4c2e9f82766ca1",
+      "license": "MIT",
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "EXACT",
+      "archive_sha256": "01518867f78241138b6aa25925802e843a4fa9085af8d303d49e35bbb52aff4d",
+      "notice": "要求 ONNX Runtime LICENSE 与 ThirdPartyNotices.txt。",
+      "source_offer": "MIT 本身不要求 offer；须保留通知并冻结预编译包与上游 commit/build 配置。",
+      "official_sources": [
+        "https://github.com/microsoft/onnxruntime/blob/v1.28.2/LICENSE",
+        "https://github.com/microsoft/onnxruntime/blob/v1.28.2/ThirdPartyNotices.txt",
+        "https://github.com/csukuangfj/onnxruntime-libs/releases/download/v1.28.2/onnxruntime-android-1.28.2.zip"
+      ]
+    },
+    {
+      "id": "ORT-THIRD-PARTY",
+      "component": "ONNX Runtime statically embedded transitive code",
+      "version": "tied to ORT 1.28.2 prebuilt package; exact subcomponent commits not embedded",
+      "license": "NOTICE_FILE_REQUIRED",
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "FAMILY_ONLY",
+      "identified_by_binary_strings": [
+        "ONNX",
+        "protobuf",
+        "Abseil",
+        "RE2"
+      ],
+      "notice": "必须使用 ONNX Runtime v1.28.2 的 ThirdPartyNotices.txt；页面存在但本轮不下载大文本。",
+      "source_offer": "按 ThirdPartyNotices 与实际许可要求处置；最终 SBOM 需要精确组件版本。",
+      "official_sources": [
+        "https://github.com/microsoft/onnxruntime/blob/v1.28.2/ThirdPartyNotices.txt"
+      ]
+    },
+    {
+      "id": "KALDI-NATIVE-FBANK-1.22.4",
+      "component": "kaldi-native-fbank-core",
+      "version": "v1.22.4",
+      "archive_sha256": "257fea639585ca6ee00860493bb9d7ab32488b8a5407ffe434c1f361ea545fae",
+      "license": "Apache-2.0",
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "EXACT",
+      "notice": "未发现根 NOTICE；保留 Apache-2.0 与版权/修改声明。",
+      "source_offer": "Apache-2.0 本身不要求对应源码 offer；纳入最终 corresponding source 可复现链。",
+      "official_sources": [
+        "https://github.com/csukuangfj/kaldi-native-fbank/blob/v1.22.4/LICENSE",
+        "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/kaldi-native-fbank.cmake"
+      ]
+    },
+    {
+      "id": "SIMPLE-SENTENCEPIECE-0.7",
+      "component": "simple-sentencepiece / ssentencepiece",
+      "version": "v0.7",
+      "archive_sha256": "1748a822060a35baa9f6609f84efc8eb54dc0e74b9ece3d82367b7119fdc75af",
+      "license": "Apache-2.0",
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "EXACT",
+      "notice": "未发现根 NOTICE；保留 Apache-2.0 与版权/修改声明。",
+      "source_offer": "Apache-2.0 本身不要求对应源码 offer；纳入最终 corresponding source 可复现链。",
+      "official_sources": [
+        "https://github.com/pkufool/simple-sentencepiece/blob/v0.7/LICENSE",
+        "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/simple-sentencepiece.cmake"
+      ]
+    },
+    {
+      "id": "OPENFST-1.8.5-2026-07-09",
+      "component": "openfst",
+      "version": "v1.8.5-2026-07-09",
+      "archive_sha256": "2ff712a32952fcb01d351121a6bc8ccf4fdc6b2aa06ce8df2b3095dedd518c0e",
+      "license": "Apache-2.0",
+      "copyright_notice": "Copyright 2005-2026 Google LLC.",
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "EXACT",
+      "notice": "根 COPYING 含 Apache-2.0 与 Google 版权；未发现根 NOTICE。",
+      "source_offer": "Apache-2.0 本身不要求对应源码 offer；纳入最终 corresponding source 可复现链。",
+      "official_sources": [
+        "https://github.com/csukuangfj/openfst/blob/v1.8.5-2026-07-09/COPYING",
+        "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/openfst.cmake"
+      ]
+    },
+    {
+      "id": "KALDI-DECODER-0.3.0",
+      "component": "kaldi-decoder + kaldifst",
+      "version": "v0.3.0",
+      "archive_sha256": "b9f34cfb4fd3b1344100eead79ef4d37aa15962274b9e3056de345021f76a1b0",
+      "license": "Apache-2.0",
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "EXACT",
+      "notice": "未发现根 NOTICE；保留 Apache-2.0 与版权/修改声明。",
+      "source_offer": "Apache-2.0 本身不要求对应源码 offer；纳入最终 corresponding source 可复现链。",
+      "official_sources": [
+        "https://github.com/k2-fsa/kaldi-decoder/blob/v0.3.0/LICENSE",
+        "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/kaldi-decoder.cmake"
+      ]
+    },
+    {
+      "id": "UTF8PROC-2.12.0",
+      "component": "utf8proc and Unicode data",
+      "version": "v2.12.0",
+      "archive_sha256": "f564011d38b2888d583d510b08e69ffa15aa117155db1b9b49ef1dfe1fa25111",
+      "license": "MIT-style utf8proc license plus Unicode data license",
+      "source_identity": "EXACT_VERSION",
+      "license_scope": "EXACT",
+      "notice": "LICENSE.md requires copyright and permission notices, Unicode data notice, and modification notice where applicable.",
+      "source_offer": "MIT/Unicode 数据条款不要求 copyleft offer；须在最终 NOTICE 中复现通知。",
+      "official_sources": [
+        "https://github.com/JuliaStrings/utf8proc/blob/v2.12.0/LICENSE.md",
+        "https://github.com/k2-fsa/sherpa-onnx/blob/v2.0.1/cmake/utf8proc.cmake"
+      ]
+    },
+    {
+      "id": "ESPEAK-NG-DATA",
+      "component": "espeak-ng-data snapshot in Kokoro archive",
+      "version": "UNKNOWN exact upstream commit",
+      "license": "GPL-3.0-family candidate; exact data scope UNKNOWN",
+      "source_identity": "FAMILY_ONLY",
+      "license_scope": "UNKNOWN",
+      "notice": "若分发，需按上游 COPYING、COPYING.APACHE、COPYING.BSD2、COPYING.UCD 及逐数据版权处理。",
+      "source_offer": "若最终包保留，需固定对应 eSpeak 源码并选择 GPLv3 section 6 offer/source 路线。",
+      "official_sources": [
+        "https://github.com/espeak-ng/espeak-ng/blob/master/COPYING"
+      ]
+    }
+  ],
+  "notice_source_obligations": [
+    {
+      "id": "NSO-KOKORO-MODEL-DATA",
+      "status": "OPEN",
+      "required": [
+        "Kokoro 官方模型卡与逐资产许可/source provenance",
+        "Apache-2.0 文本、版权/修改声明与适用 NOTICE",
+        "tokens、lexicon-zh、dict、ruleFsts 的真实上游和许可"
+      ],
+      "blocking": [
+        "PROFILE_FREEZE",
+        "DISTRIBUTION",
+        "Q03"
+      ]
+    },
+    {
+      "id": "NSO-KOKORO-VOICE-RIGHTS",
+      "status": "OPEN",
+      "required": [
+        "zf_001 与 zm_010 的说话人、同意、来源样本、数据许可和可分发边界",
+        "若 voices.bin 原样分发，全部 103 个嵌入 speaker 的适用权属评估"
+      ],
+      "blocking": [
+        "PROFILE_FREEZE",
+        "DISTRIBUTION"
+      ]
+    },
+    {
+      "id": "NSO-SHERPA-AAR-CODE",
+      "status": "TEXT_IDENTIFIED",
+      "required": [
+        "Sherpa-ONNX Apache-2.0 LICENSE",
+        "适用版权和修改声明",
+        "AAR 无内嵌 LICENSE/NOTICE、无 POM 的显式人工映射"
+      ],
+      "blocking": [
+        "FINAL_PACKAGED_NOTICE"
+      ]
+    },
+    {
+      "id": "NSO-ORT",
+      "status": "TEXT_IDENTIFIED",
+      "required": [
+        "ONNX Runtime 1.28.2 LICENSE（MIT）",
+        "ONNX Runtime 1.28.2 ThirdPartyNotices.txt",
+        "预编译 Android 包 SHA-256 与上游 commit/build 配置"
+      ],
+      "blocking": [
+        "FINAL_PACKAGED_NOTICE",
+        "Q03"
+      ]
+    },
+    {
+      "id": "NSO-SHERPA-NATIVE-PERMISSIVE",
+      "status": "TEXT_IDENTIFIED_CLOSURE_OPEN",
+      "required": [
+        "kaldi-native-fbank v1.22.4 Apache-2.0",
+        "simple-sentencepiece v0.7 Apache-2.0",
+        "openfst v1.8.5-2026-07-09 Apache-2.0 与 Google 版权",
+        "kaldi-decoder v0.3.0 Apache-2.0",
+        "utf8proc v2.12.0 LICENSE.md（MIT-style + Unicode data notice）"
+      ],
+      "blocking": [
+        "FINAL_PACKAGED_NOTICE",
+        "Q03"
+      ]
+    },
+    {
+      "id": "NSO-ESPEAK-DATA",
+      "status": "CONDITIONAL_OPEN",
+      "condition": "最终 profile 保留 espeak-ng-data",
+      "required": [
+        "固定 eSpeak 数据上游版本/commit 和文件 hash",
+        "GPLv3 COPYING 与 COPYING.APACHE/BSD2/UCD",
+        "逐数据版权与改名/修改声明",
+        "对应源码或 GPLv3 允许的 written offer 路线"
+      ],
+      "blocking": [
+        "DISTRIBUTION",
+        "Q03"
+      ]
+    },
+    {
+      "id": "NSO-CPPJIEBA-DICT",
+      "status": "OPEN",
+      "required": [
+        "CppJieba/Jieba 数据上游 repo/tag/commit",
+        "逐数据许可证、版权和 NOTICE",
+        "最终 dict 文件清单与 hash"
+      ],
+      "blocking": [
+        "DISTRIBUTION",
+        "Q03"
+      ]
+    },
+    {
+      "id": "NSO-AURORAMA-CORRESPONDING-SOURCE",
+      "status": "BLOCKED",
+      "required": [
+        "与最终候选绑定的 Aurorama GPL-3.0-only corresponding source",
+        "native build scripts、prebuilt inputs、modification/relink 信息",
+        "source bundle 或经批准的 written offer"
+      ],
+      "blocking": [
+        "DISTRIBUTION",
+        "Q03",
+        "RELEASE"
+      ]
+    },
+    {
+      "id": "NSO-FINAL-NOTICE-BUNDLE",
+      "status": "BLOCKED",
+      "required": [
+        "从最终 APK/AAB packaged files 生成的 SBOM",
+        "逐文件 component mapping",
+        "所有 license text、copyright、NOTICE、ThirdPartyNotices",
+        "最终 bundle SHA-256"
+      ],
+      "blocking": [
+        "DISTRIBUTION",
+        "Q03",
+        "RELEASE"
+      ]
+    }
+  ],
+  "training_data_and_voice_rights": {
+    "training_data_provenance": "MISSING",
+    "training_data_license": "UNKNOWN",
+    "model_card_packaged": false,
+    "official_model_page_fetch": "BLOCKED_EXTERNAL_SOURCE_UNREACHABLE_AFTER_R024",
+    "r024_speaker_rights_lookup": "NOT_PERFORMED_SOURCE_UNREACHABLE",
+    "official_model_url": "https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh",
+    "package_training_manifest": false,
+    "speakers": {
+      "zf_001": {
+        "sid": 3,
+        "identity": "UNKNOWN",
+        "source_sample": "MISSING",
+        "consent": "MISSING",
+        "ownership": "MISSING",
+        "redistribution_rights": "UNKNOWN",
+        "audition_acceptance": "D207 covers subjective quality input only",
+        "status": "BLOCKED"
+      },
+      "zm_010": {
+        "sid": 59,
+        "identity": "UNKNOWN",
+        "source_sample": "MISSING",
+        "consent": "MISSING",
+        "ownership": "MISSING",
+        "redistribution_rights": "UNKNOWN",
+        "audition_acceptance": "D207 covers subjective quality input only",
+        "status": "BLOCKED"
+      }
+    },
+    "non_inference": "试听接受、speaker 名称和 ONNX id2speaker 映射均不能证明个人声音授权。"
+  },
+  "real_conflicts": [],
+  "conflict_analysis": {
+    "finding": "NONE_PROVEN",
+    "reasons": [
+      "Sherpa 及其已定位 native 依赖主要为 Apache-2.0 / MIT，可与项目 GPL-3.0-only 共存，但仍需通知和源码义务。",
+      "eSpeak NG 数据若被实际分发，GPL-3.0-family 与项目 GPL-3.0-only 不是已证冲突；真正缺口是精确版本、逐数据条款和对应源码。",
+      "未发现 AGPL/SSPL 或其他明确禁止当前分发的许可证文本。",
+      "speaker rights 与训练数据为 UNKNOWN，属于分发门 BLOCKED，不得写成已证实许可冲突。"
+    ]
+  },
+  "priorities": {
+    "P0": [],
+    "P1": [
+      "Kokoro 权重范围、训练数据许可、zf_001/zm_010 声音权属缺失，阻断 profile freeze 与分发。",
+      "Kokoro lexicon/dict/ruleFsts 与 eSpeak 数据的逐资产来源/许可不清，阻断最终 NOTICE/source offer。",
+      "Sherpa AAR、classes.jar、16 个 native 与 ORT/第三方依赖没有最终 packaged NOTICE/POM 映射，阻断 Q03。",
+      "最终 corresponding source / written offer 与 candidate packaged SBOM/NOTICE 不存在，阻断分发。"
+    ],
+    "P2": [
+      "AAR 是 GitHub release 文件而非带 POM 的 Maven 制品；消费端无法自动派生许可证。",
+      "espeak-ng-data 被 harness 打包并传参，但 Sherpa 2.0.1 说明该参数已废弃并忽略；最终 profile 必须明确保留或删除。"
+    ],
+    "P3": [
+      "R024 一次受控重试中 Hugging Face 官方模型页仍为 HTTP 000 / 连接超时；训练/声音权属保持 MISSING。",
+      "R024 中 CppJieba 仓库/LICENSE 为空回复，README/词典源码超时；词表许可不得猜测。"
+    ]
+  },
+  "executed": [
+    "读取 AGENTS、D203/D206/D207、当前任务行、V2_PLAN ACTIVE 及指定 Kokoro/AAR 机器证据。",
+    "校验 files.sha256 400/400，bad=0；classes-jar-entries.sha256 共 125 条。",
+    "复算 Kokoro 关键文件 SHA-256、dict/espeak/ruleFsts 目录树 hash。",
+    "检查 Kokoro 377 文件：LICENSE=1、NOTICE=0、MODEL_CARD=0、espeak data=355、dict=11。",
+    "检查 16 个 native ELF、AAR/classes.jar 顶层条目与 license/notice/POM=0。",
+    "对 arm64 native 执行 ASCII strings 扫描，识别 ORT 1.28.2、kaldi_decoder、kaldifst、openfst、simple-sentencepiece、ssentencepiece、kaldi、utf8proc 等证据。",
+    "读取 Sherpa CMake 的 kaldi-native-fbank v1.22.4、simple-sentencepiece v0.7、openfst v1.8.5-2026-07-09、kaldi-decoder v0.3.0、utf8proc v2.12.0 下载 URL 与 SHA-256。",
+    "以 GitHub 固定 tag 页面 GET/HEAD 验证 Sherpa、ORT、五个 native 依赖和 eSpeak COPYING 的许可/来源页面。",
+    "对官方 NOTICE 路径执行 HEAD：五个 native 依赖根 NOTICE 均 404；ONNX Runtime ThirdPartyNotices.txt 200。",
+    "搜索本机 Gradle/Maven 缓存，未发现 sherpa/k2fsa 制品；Maven repository 不存在。",
+    "读取 D207 最终 harness 的 HEAD Git 对象，确认 asset copy 与 OfflineTts 配置。",
+    "按 R024 对 5 个已授权 URL 各执行一次受控网络请求；无 URL 返回可用 HTTP 响应，未新增域名、未下载资产。",
+    "未触碰白名单外并发修改。"
+  ],
+  "not_covered": [
+    "没有设备、Gradle、APK、推理或运行行为执行。",
+    "没有视觉/试听复核；D207 主观试听结论只作为既有输入。",
+    "没有新下载模型、权重、AAR、源包或上游依赖包。",
+    "没有验证 eSpeak data_dir 在实际 Kokoro 推理中被读取；二进制明确提示它已被忽略。",
+    "没有验证 AAR 字节与源 tar 的可重复构建映射或 native object-level SBOM。",
+    "没有取得 Hugging Face 模型卡，因此训练数据名称、许可、speaker 身份与同意均未覆盖。",
+    "没有生成最终 candidate APK/AAB 的 packaged-file SBOM、NOTICE bundle 或 corresponding source。"
+  ],
+  "not_executed_inferences": [
+    "未把 AAR/classes.jar 无 LICENSE/NOTICE 判为许可冲突。",
+    "未把 Sherpa Apache-2.0 外推到 ONNX Runtime、Kokoro voices、词典、FST、eSpeak 或训练数据。",
+    "未把 GitHub 仓库 LICENSE 自动外推到归档中所有独立数据。",
+    "未把 D207 的两条样音接受写成 profile freeze 或 speaker consent。",
+    "未把当前 GPL-3.0-only 项目与 eSpeak GPL-3.0-family 判为互斥。"
+  ],
+  "blocked": [
+    {
+      "id": "BLOCKED-HF-MODEL-CARD",
+      "reason": "R024 对官方模型页的一次受控重试为 HTTP 000 / 连接超时；本机无 Hugging Face 缓存。",
+      "source_status": "EXTERNAL_SOURCE_UNREACHABLE",
+      "consequence": "训练数据与精确权重卡无法补证。"
+    },
+    {
+      "id": "BLOCKED-CPPJIEBA-UPSTREAM",
+      "reason": "R024 中 CppJieba 仓库/LICENSE 返回空回复，README/词典源码连接超时。",
+      "source_status": "EXTERNAL_SOURCE_UNREACHABLE",
+      "consequence": "词典许可证和精确上游版本保持 UNKNOWN。"
+    },
+    {
+      "id": "BLOCKED-VOICE-RIGHTS",
+      "reason": "归档、已读官方页和现有 Q03 证据均未给出 zf_001/zm_010 的个人声音授权。",
+      "consequence": "profile freeze 和分发保持 BLOCKED。"
+    },
+    {
+      "id": "BLOCKED-FINAL-SOURCE-NOTICE",
+      "reason": "最终候选、packaged SBOM、NOTICE bundle、corresponding source/written offer 均不存在。",
+      "consequence": "Q03 与发布资产集成分发门保持 BLOCKED。"
+    }
+  ],
+  "gate_matrix": [
+    {
+      "gate": "KOKORO_ASSET_IDENTITY",
+      "status": "PASS",
+      "basis": "归档、model、voices、tokens、lexicon、FST、AAR 与 16 native hash 均可复算。"
+    },
+    {
+      "gate": "KOKORO_MODEL_LICENSE_SCOPE",
+      "status": "PARTIAL",
+      "basis": "Apache-2.0 package text present; model card/weights/data scope missing."
+    },
+    {
+      "gate": "KOKORO_VOICE_RIGHTS",
+      "status": "BLOCKED",
+      "basis": "zf_001/zm_010 consent and ownership UNKNOWN."
+    },
+    {
+      "gate": "SHERPA_CODE_LICENSE",
+      "status": "PASS",
+      "basis": "v2.0.1 Apache-2.0 source pinned."
+    },
+    {
+      "gate": "SHERPA_THIRD_PARTY_NOTICE",
+      "status": "PARTIAL",
+      "basis": "components and pins identified; packaged NOTICE closure absent."
+    },
+    {
+      "gate": "PROFILE_FREEZE",
+      "status": "BLOCKED",
+      "basis": "model/data/speaker closure incomplete; D207 only audition input."
+    },
+    {
+      "gate": "DISTRIBUTION",
+      "status": "BLOCKED",
+      "basis": "notice/source obligations unresolved and no final candidate bundle."
+    },
+    {
+      "gate": "Q03",
+      "status": "BLOCKED",
+      "basis": "exact packaged license/notice/source evidence incomplete."
+    },
+    {
+      "gate": "REAL_LICENSE_CONFLICT",
+      "status": "NONE_PROVEN",
+      "basis": "No explicit mutually exclusive license terms found."
+    }
+  ],
+  "evidence": {
+    "authoritative_inputs": [
+      "AGENTS.md",
+      "docs/DECISIONS.md",
+      "docs/TASKS.md",
+      "docs/V2_PLAN.md §12 ACTIVE",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/report.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/package-audit.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/onnx-audit.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/downloads.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/files.sha256",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/model-archive-inventory.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/aar-archive-inventory.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/aar-unzip-list.txt",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/classes-jar-list.txt"
+    ],
+    "existing_q03": [
+      ".planning/v2-g1/G1-L1-NETWORK-SHERPA/license-source-matrix.json",
+      ".planning/v2-g1/G1-L1-NETWORK-SHERPA/artifact-index.json",
+      ".planning/v2-g1/G1-L1-NETWORK-SHERPA/aar-inventory.json",
+      ".planning/v2-g1/G1-L1-NETWORK-SHERPA/source-inventory.json",
+      ".planning/v2-g1/G1-S4-A-Q03-NOTICE/notice-source-offer-matrix.json",
+      ".planning/v2-g1/G1-S4-A-Q03-NOTICE/provenance-matrix.json",
+      ".planning/v2-g1/G1-S4-A-Q03-NATIVE/provenance-matrix.json",
+      ".planning/v2-g1/G1-S4-A-Q03-TTS-PDF/tts-license-matrix.json"
+    ],
+    "local_asset_paths": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/extracted/kokoro-multi-lang-v1_1/",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/extracted/sherpa-onnx-2.0.1/",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/assets/kokoro-multi-lang-v1_1.tar.bz2",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/assets/sherpa-onnx-2.0.1.aar"
+    ],
+    "this_audit": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/license-closure/report.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/license-closure/sources.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/license-closure/files.sha256",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/license-closure/lf-check.json"
+    ]
+  },
+  "experience": {
+    "applied": [
+      "fork/inherited asset audit：第三方资产先登记官方许可原文，不用二手解读。",
+      "worktree absolute paths：所有读写均指向唯一事实 worktree。",
+      "index before reading：先读 JSON key/文件清单，再局部读取目标事实。",
+      "graphify first：先用 graph 查询定位已有 Sherpa/Q03/Kokoro 证据。"
+    ],
+    "new_reusable": [
+      "许可矩阵必须同时记录 packaged presence、runtime use、declared source 和 license scope；已打包但被运行库忽略的数据仍有分发通知风险。",
+      "父包 LICENSE 与第三方 native/data 许可必须分轴记录；AAR 无 LICENSE/NOTICE 是 packaging gap，不是冲突证据。",
+      "多 speaker 文件若要冻结单 voice，先区分容器文件可分发性与单 speaker 权利；原样分发 inherits 整个容器。"
+    ],
+    "proposed_pending_confirmation": [
+      "是否把本报告的 source_identity/license_scope/rights_scope 三轴字段固化为 G1 后续 license evidence schema。"
+    ]
+  },
+  "next_gate": {
+    "owner": "G1 交付负责人",
+    "recommended_next_role": "新的只读许可补证代理（不得兼任实现/QA/Release）",
+    "first_read_only_action": "读取本 report.json、sources.json、D207 和现有 Q03 license matrices；R024 已完成一次重试，不再无条件重复，等待明确的新授权动作或可用证据输入。",
+    "stop_condition": "出现真实许可冲突、需要新域名/新资产下载、speaker 权利仍无官方证据、或试图把 D207 试听接受写成 profile freeze/Q03 PASS 时停止。"
+  }
+}
