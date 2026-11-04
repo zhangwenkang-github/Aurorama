@@ -3428,7 +3428,7 @@ profile，不改写产品结论。
 github等网站，可以参考其他安卓阅读app或开源app的tts实现方案。比如静读天下等app。”
 该选择已落为 `V2-D205`：只改变候选搜索策略，不冻结 engine / model / profile / voice。
 
-**下一次负责人线程（D206 handoff）**：`PENDING_THREAD_ID_SUCCESSOR`。用户于 2026-11-05
+**下一次负责人线程（D206 handoff）**：`01a1a759-57c5-75a2-a59a-33643237aff1`。用户于 2026-11-05
 另行授权下载 / 解包固定 Kokoro archive 与 Sherpa v2.0.1 AAR，并授权 Kokoro 推理、试听
 和现有目标设备测试，要求新负责人主动推进、不逐项等待确认。`V2-D206` 仅局部解锁本任务，
 不冻结 engine/profile/voice，不关闭 Q03，不把 runtime / audition 写成 G1 PASS。
