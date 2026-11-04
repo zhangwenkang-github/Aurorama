@@ -3410,9 +3410,20 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ### ACTIVE：D204 engine strategy A 已接受，第二引擎 L1 Spike scoping 与许可门待做（2026-11-04）
 
-**下一负责人线程**：`01a1a65e-7a01-7010-9b18-aaeac3333ca1`。当前交接不再等待 Q05；
+**下一负责人线程**：`01a1a6e0-367e-7fd2-985a-f0772bcd1888`。当前交接不再等待 Q05；
 D204 只关闭 engine strategy，后续由负责人审查本集后安排全新只读 / 静态专业子代理设计第二
 引擎 Android arm64 可行性 Spike 与许可门。历史交接对象链保留为仓库历史，不据此扩权。
+
+**本线程目标（仅用户决策输入）**：静态评估高表现力引擎 Android arm64 资源 / 移植现实性，
+以及 Sherpa-ONNX 中文调参能改善什么、不能改变什么；只输出用户决策输入，不冻结引擎 /
+profile，不改写产品结论。
+
+**用户当前问题原话（2026-11-04）**：“前面候选的高表现力第二引擎似乎太大了，真的能在安卓
+上运行吗？Sherpa-ONNX可不可以通过调参的方式来满足要求？可以新建会话来交接。”
+
+**当前状态（2026-11-04）**：D204 已接受 engine strategy A；Q05 `Closed / Accepted / D204`；
+S6 当前为 `S6_SCOPED_RECONFIRM_PASS_AFTER_D204`。Q03 `Open`，G1 `NOT_PASSED`，runtime
+`UNVERIFIED`，L2/L3 `LOCKED`；exact engine / profile 未选、仍 Open。
 
 **一句话现状**：
 `D204_ACCEPTED_ENGINE_STRATEGY_A / SHERPA_MATCHA_COMPAT_FALLBACK / HIGH_EXPRESSIVE_SECOND_ENGINE_L1_SPIKE_SCOPING / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / RUNTIME_UNVERIFIED / S6_SCOPED_RECONFIRM_PASS_AFTER_D204`。
@@ -4525,3 +4536,12 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   review 为 `PASS / no findings`。最终 live 为 `57 NEG + 10 BASE + 1 count = 68`；manifest
   与受控 checkout gates 通过。该 PASS 不表示 G1、QA、runtime 或 Release PASS，D204 exact
   engine/profile 仍 Open，L2/L3 保持 LOCKED；每 future artifact change 仍须重新 review。
+- **2026-11-04 — 300,569 水位交接 / 新会话目标切换**：用户原话“前面候选的高表现力第二引擎
+  似乎太大了，真的能在安卓上运行吗？Sherpa-ONNX可不可以通过调参的方式来满足要求？可以新建
+  会话来交接。”当前水位 300,569 / 1,048,576 tokens；新负责人线程为
+  `01a1a6e0-367e-7fd2-985a-f0772bcd1888`。新线程只做静态评估：高表现力引擎 Android arm64
+  资源 / 移植现实性，以及 Sherpa-ONNX 中文调参能改善什么、不能改变什么；只输出用户决策
+  输入，不冻结引擎 / profile。边界为只读 / 不下载 / 不 runtime、不 Gradle / ADB、不触设备 /
+  服务器 / 生产，不进入 QA / G2 / Release，不 commit / push。下一步由新负责人核验
+  branch / HEAD / clean 与本 ACTIVE 后启动只读 / 静态评估；需要新网络、下载、runtime、设备或
+  生产访问时停止并请求授权。

@@ -138,8 +138,8 @@
           "end": 2714
         }
       ],
-      "bytes": 604729,
-      "sha256": "C16775C8C255BEF7E0863E242DEE086924B5BA1FEF991A97D9890139175A7A10",
+      "bytes": 606462,
+      "sha256": "D21F8A8CFDB353D9E73841D1410176370939B0C0738AC726F8D61C7567850631",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -162,11 +162,11 @@
         },
         {
           "start": 4203,
-          "end": 4527
+          "end": 4547
         }
       ],
-      "bytes": 604729,
-      "sha256": "C16775C8C255BEF7E0863E242DEE086924B5BA1FEF991A97D9890139175A7A10",
+      "bytes": 606462,
+      "sha256": "D21F8A8CFDB353D9E73841D1410176370939B0C0738AC726F8D61C7567850631",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -590,8 +590,8 @@
         "EV-S3"
       ],
       "exists": true,
-      "bytes_at_generation": 604729,
-      "sha256_at_generation": "C16775C8C255BEF7E0863E242DEE086924B5BA1FEF991A97D9890139175A7A10"
+      "bytes_at_generation": 606462,
+      "sha256_at_generation": "D21F8A8CFDB353D9E73841D1410176370939B0C0738AC726F8D61C7567850631"
     },
     {
       "id": "EV-Q03-SBOM",
