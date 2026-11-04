@@ -141,8 +141,8 @@
           "end": 2717
         }
       ],
-      "bytes": 617395,
-      "sha256": "DB00A585C3F40C66D5DD769E5753C053C25FB348B723D6E78B26F4FA0BCEA637",
+      "bytes": 617880,
+      "sha256": "F0A15034210A8A82A1FEA5011DAB939600D452AA960F9E72E5CE5631FD6A3BD7",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -162,15 +162,15 @@
       "line_ranges": [
         {
           "start": 2718,
-          "end": 4261
+          "end": 4266
         },
         {
-          "start": 4262,
-          "end": 4654
+          "start": 4267,
+          "end": 4659
         }
       ],
-      "bytes": 617395,
-      "sha256": "DB00A585C3F40C66D5DD769E5753C053C25FB348B723D6E78B26F4FA0BCEA637",
+      "bytes": 617880,
+      "sha256": "F0A15034210A8A82A1FEA5011DAB939600D452AA960F9E72E5CE5631FD6A3BD7",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -183,11 +183,11 @@
       "line_ranges": [
         {
           "start": 1,
-          "end": 69
+          "end": 70
         }
       ],
-      "bytes": 14401,
-      "sha256": "97D30A6DBC63E47840A990350DAD4093D59CE2DDE674B2D4B8053BA9E7AE563C",
+      "bytes": 15461,
+      "sha256": "9FA3DD66E35F66F5F74987593350C6260B2194A0B76931F59EC8CCDBC774BC43",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -204,11 +204,11 @@
       "line_ranges": [
         {
           "start": 1,
-          "end": 447
+          "end": 474
         }
       ],
-      "bytes": 98852,
-      "sha256": "6F09130DE3AFE27FE933ABE70AAC67102D9475108D2EBF334982E23888968EDF",
+      "bytes": 100680,
+      "sha256": "6CB919797F06FFC25BE0E6EE7F54141B331877A87C4D0C07375632C19EF448BC",
       "evidence_level": "human-readable authority / static input"
     },
     {
@@ -594,8 +594,8 @@
         "EV-S3"
       ],
       "exists": true,
-      "bytes_at_generation": 617395,
-      "sha256_at_generation": "DB00A585C3F40C66D5DD769E5753C053C25FB348B723D6E78B26F4FA0BCEA637"
+      "bytes_at_generation": 617880,
+      "sha256_at_generation": "F0A15034210A8A82A1FEA5011DAB939600D452AA960F9E72E5CE5631FD6A3BD7"
     },
     {
       "id": "EV-Q03-SBOM",

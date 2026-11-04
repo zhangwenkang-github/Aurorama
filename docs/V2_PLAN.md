@@ -3428,6 +3428,11 @@ profile，不改写产品结论。
 github等网站，可以参考其他安卓阅读app或开源app的tts实现方案。比如静读天下等app。”
 该选择已落为 `V2-D205`：只改变候选搜索策略，不冻结 engine / model / profile / voice。
 
+**下一次负责人线程（D206 handoff）**：`PENDING_THREAD_ID_SUCCESSOR`。用户于 2026-11-05
+另行授权下载 / 解包固定 Kokoro archive 与 Sherpa v2.0.1 AAR，并授权 Kokoro 推理、试听
+和现有目标设备测试，要求新负责人主动推进、不逐项等待确认。`V2-D206` 仅局部解锁本任务，
+不冻结 engine/profile/voice，不关闭 Q03，不把 runtime / audition 写成 G1 PASS。
+
 **本线程静态结论（2026-11-04，仅用户决策输入）**：
 
 - IndexTTS 2.5、CosyVoice 2、CosyVoice 3、GPT-SoVITS 的官方材料均未发现可核验的
@@ -3502,16 +3507,16 @@ D203 的 voice-pack、追加导入、删除回退、后台锁屏、单音频 own
 
 **下一步入口**：
 
-- 方向 C 已收到；下一步由负责人等待用户对 exact asset 下载的单独授权。只读 metadata 已
-  固定：Kokoro 发布包 `364,855,331 B` / archive digest
-  `b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed`；MOSS 已固定两个
-  HF commit、13 个 LFS 文件和 `762,666,636 B` 运行资产。不得把 metadata 当已下载 / 已解包。
-- 若用户授权 Kokoro exact archive 下载，第一条动作只下载 / 校验该 archive 与 AAR，然后
-  核对文件清单、`id2speaker=3/58/59`、notice、许可与 speaker58 排除；只试听 `sid=3/59`。
-- 若用户授权 MOSS 资产下载，只允许两个固定 HF commit 的 13 个 LFS + 3 JSON，校验逐文件
-  size / LFS SHA；任何加载、推理、Gradle / ADB、设备或生产操作仍需再次授权。
+- 新负责人首先核验 `01a1a759-57c5-75a2-a59a-33643237aff1` 的 `ACTIVE`、D206、本提交
+  的具名 docs-only 后继与 clean；然后在隔离证据目录下载 / 解包固定 Kokoro archive 与
+  Sherpa AAR，核对大小、digest、文件清单、ABI、notice、许可、`id2speaker=3/58/59`。
+- 资产门 PASS 后直接建立隔离 harness，执行 `zf_001` (sid3) 与 `zm_010` (sid59) 推理和
+  有边界试听；speaker58 / `zm_009` 永不进入默认或试听集合。随后在单设备锁下推进长文、
+  首音 / RTF / PSS、后台锁屏、进程重建与零网络测试，不逐步等待用户确认。
+- MOSS 权重仍未授权下载；ZipVoice 保持 CC-BY-NC `HOLD`。任何生产代码、engine/profile/
+  voice 冻结、Q03 关闭、G1 PASS、G2、独立 QA、Release、push 或服务器写仍须另获授权。
 - 任一新域名、权重下载、运行时、设备、账号、服务器写、生产实现、独立 QA、G2 或 Release
-  都必须另行明确授权。
+  超出 D206 精确范围时都必须另行明确授权。
 
 **环境 / 权限 / 停止条件**：事实 worktree 为
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支

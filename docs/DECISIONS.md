@@ -445,3 +445,30 @@ NAV 需求域无剩余 Open；G0 后 `V2-D195` 补明确离线选号触发旧身
 D204 engine strategy A、D203 voice-pack / 后台锁屏 / 零网络 / 单 owner 条款全部保持；Q03
 仍 Open，C1 exact profile 仍 Open，G1 `NOT_PASSED`、runtime `UNVERIFIED`、L2/L3
 `LOCKED`。后续下载 / 推理 / 设备 / 生产实现必须另获明确授权。
+
+### `V2-D206` Kokoro exact 资产、推理、试听与设备测试授权（2026-11-05，Accepted）
+
+用户原话：“创建新会话交接。授权下载并解包固定的 Kokoro `364.9 MB` archive 与 Sherpa
+v2.0.1 AAR。推理、试听与设备测试也一并授权。这些任务不必停下来等待授权，我离开一会，由
+负责人主动推进任务。”
+
+接受语义：
+
+1. 新负责人获准只读下载并解包固定 Kokoro 发布包
+   `kokoro-multi-lang-v1_1.tar.bz2`（364,855,331 B）与 Sherpa Android AAR
+   `sherpa-onnx-2.0.1.aar`（49,441,341 B），校验大小、digest、文件清单、ABI、notice 和
+   `id2speaker`。
+2. 获准在隔离 harness 中运行 Kokoro 推理、生成样音并由用户试听；只允许未否决
+   `zf_001`（sid 3）与 `zm_010`（sid 59），speaker58 / `zm_009` 继续否决。
+3. 获准在现有目标设备范围执行真机性能、长文、后台锁屏、进程重建与零网络测试；设备使用
+   仍须遵循单设备 ACTIVE 锁，不与其它会话并行抢占。
+4. 负责人应在授权范围内自动推进，不逐项等待用户确认；遇到真实新风险、下载对象 / hash
+   漂移、来源身份异常、许可冲突、设备破坏性风险或业务范围扩张时才停止。
+5. 本授权不包含 MOSS 权重下载、生产代码合入、engine/profile/voice 冻结、Q03 关闭、G1
+   PASS、G2、独立 QA、Release、push 或服务器写。`L2/L3` 仅为本 Kokoro exact 任务局部解锁，
+   项目级状态仍 `LOCKED`。
+
+证据入口：`docs/V2_PLAN.md` §12 ACTIVE、§13；`docs/TASKS.md`
+`V2-G1-L1-KOKORO-EXACT`；Kokoro release asset、Sherpa v2.0.1 release/AAR、项目
+D203/D205/Q03 边界。后续结果必须记录 exact hash、实际执行命令、设备 serial、日志 / 产物
+和最多能证明的结论。
