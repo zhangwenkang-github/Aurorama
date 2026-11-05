@@ -23,6 +23,7 @@ $toolsPath = Join-Path $root 'tools'
 $postprocessPath = Join-Path $root 'postprocess.json'
 $securityScanPath = Join-Path $root 'security-scan.json'
 $manifestPath = Join-Path $root 'SHA256SUMS'
+Remove-Item -LiteralPath $manifestPath -Force -ErrorAction SilentlyContinue
 $secretNamePattern =
     '^(?:authorization|cookie|set-cookie|api[_-]?key|apikey|password|passwd|secret|credential|token|access[_-]?token|refresh[_-]?token|id[_-]?token|bearer[_-]?token)$'
 $secretValuePatterns = [ordered]@{
@@ -403,35 +404,6 @@ foreach ($file in $textFiles) {
     Write-NormalizedText $file.FullName $text
 }
 
-$manifestFiles = @(
-    Get-EvidenceFiles |
-        Where-Object {
-            $_.FullName -ne $manifestPath -and
-            $_.FullName -ne $postprocessPath
-        } |
-        Sort-Object { $_.FullName.Substring($root.Length).TrimStart('\') }
-)
-$manifestLines = @(
-    $manifestFiles |
-        ForEach-Object {
-            $relative = $_.FullName.Substring($root.Length).TrimStart('\').
-                Replace('\', '/')
-            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).
-                Hash.ToLowerInvariant()
-            "$hash  $relative"
-        }
-)
-[IO.File]::WriteAllText(
-    $manifestPath,
-    $(if ($manifestLines.Count -gt 0) {
-        (($manifestLines -join "`n") + "`n")
-    } else {
-        ''
-    }),
-    $utf8)
-$manifestSha256 = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).
-    Hash.ToLowerInvariant()
-
 $remainingTextFiles = Get-TextFiles
 $bomCount = 0
 $crlfCount = 0
@@ -499,10 +471,9 @@ $summary = [ordered]@{
         crlfFileCount = $crlfCount
     }
     manifest = [ordered]@{
-        path = $manifestPath.Substring($root.Length).TrimStart('\')
-        sha256 = $manifestSha256
-        entryCount = $manifestLines.Count
-        excludedFromItself = @('SHA256SUMS', 'postprocess.json')
+        mode = 'deferred_to_final_seal'
+        commandsMustBeFrozenFirst = $true
+        finalPath = $manifestPath.Substring($root.Length).TrimStart('\')
     }
 }
 [IO.File]::WriteAllText(

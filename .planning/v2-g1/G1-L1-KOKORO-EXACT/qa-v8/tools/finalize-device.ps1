@@ -41,6 +41,8 @@ $script:blockedReasons = [Collections.Generic.List[object]]::new()
 $script:stages = [Collections.Generic.List[object]]::new()
 $script:blocked = $false
 . (Join-Path $PSScriptRoot 'qa-evidence-common.ps1')
+. (Join-Path $PSScriptRoot 'qa-process-lifecycle.ps1')
+. (Join-Path $PSScriptRoot 'qa-evidence-contract.ps1')
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 [IO.File]::WriteAllText($progressPath, '', $utf8)
 
@@ -196,8 +198,7 @@ function Invoke-Stage {
 }
 
 function Get-RemainingSeconds([datetime] $Deadline, [int] $Maximum = 30) {
-    $remaining = [int][Math]::Floor(($Deadline - (Get-Date)).TotalSeconds)
-    return [Math]::Max(1, [Math]::Min($Maximum, $remaining))
+    return Get-QaRemainingSeconds -Deadline $Deadline -Maximum $Maximum
 }
 
 function Invoke-AdbToFile {
@@ -1267,25 +1268,34 @@ $logcatStopped = Invoke-Stage `
     -ForceWhenBlocked `
     -Action {
         param($deadline)
-        Start-Sleep -Seconds [Math]::Min(
-            3, [Math]::Max(1, (Get-RemainingSeconds $deadline)))
-        $stopped = $false
-        if ($null -ne $logcatMetadata) {
-            $logcatHostProcessId = [int]$logcatMetadata.hostProcessId
-            $logcatProcess = Get-Process `
-                -Id $logcatHostProcessId `
-                -ErrorAction SilentlyContinue
-            if ($null -ne $logcatProcess) {
-                Stop-Process -Id $logcatHostProcessId -Force
-                $stopped = $true
+        $stopped = if ($null -eq $logcatMetadata) {
+            [pscustomobject][ordered]@{
+                stopped = $true
+                alreadyExited = $true
+                reason = 'NO_OWNED_LOGCAT_STARTED'
+                processId = $null
             }
+        } else {
+            Stop-QaOwnedProcess `
+                -MetadataPath $logcatMetadataPath `
+                -ExpectedSerial $Serial `
+                -ExpectedEvidenceRoot $outputPath
+        }
+        if (-not $stopped.stopped) {
+            Add-BlockedReason `
+                -Stage 'stop-logcat' `
+                -Reason $stopped.reason `
+                -Command 'validated host adb logcat stop'
+            throw "Owned logcat stop failed closed: $($stopped.reason)"
         }
         Test-StageBudget `
             -Stage 'stop-logcat' `
             -Deadline $deadline `
             -Command 'stop host adb logcat process' `
             -IgnoreMemoryLimit
-        Start-Sleep -Milliseconds 500
+        $remainingSeconds = Get-RemainingSeconds -Deadline $deadline
+        Start-Sleep -Milliseconds (
+            [int][Math]::Min(500, 100 * [Math]::Max(1, $remainingSeconds)))
         $stopped
     }
 
@@ -1499,8 +1509,11 @@ $convergence = Invoke-Stage `
     -ForceWhenBlocked `
     -Action {
         param($deadline)
-        Start-Sleep -Seconds [Math]::Min(
-            3, [Math]::Max(1, (Get-RemainingSeconds $deadline)))
+        $remainingSeconds = Get-RemainingSeconds -Deadline $deadline
+        $sleepSeconds = [Math]::Min(
+            3,
+            [Math]::Max(1, [int]$remainingSeconds))
+        Start-Sleep -Seconds ([int]$sleepSeconds)
         $packageList = Invoke-AdbBounded `
             -Stage 'convergence' `
             -Command 'pm list packages' `
@@ -1772,15 +1785,15 @@ $sourceQueriesPassed = if ($crashEvidence) {
 } else {
     $false
 }
-$crashGatePassed =
-    $currentRunWindowValid -and
-    $sourceQueriesPassed -and
-    $fDebugCount -eq 0 -and
-    $nativeTombstoneCount -eq 0 -and
-    $fatalExceptionCount -eq 0 -and
-    $appAnrCount -eq 0 -and
-    $inputTimeoutCount -eq 0 -and
-    $reason5Count -eq 0
+$crashGatePassed = Test-QaCurrentRunCrashGate `
+    -CurrentRunWindowValid $currentRunWindowValid `
+    -SourceQueriesPassed $sourceQueriesPassed `
+    -FDebugCount $fDebugCount `
+    -NativeTombstoneCount $nativeTombstoneCount `
+    -JavaFatalCount $fatalExceptionCount `
+    -AnrCount $appAnrCount `
+    -InputTimeoutCount $inputTimeoutCount `
+    -Reason5Count $reason5Count
 
 $productionMatches = [Collections.Generic.List[object]]::new()
 if ($null -ne $restoreAndProduction) {
@@ -1977,7 +1990,7 @@ $netstatsZero =
         [int]$netstats.appUidStatsMapRowCount -gt 0
     ) -and
     [long]$netstats.totalBytes -eq 0
-$cleanupPassed =
+$cleanupArtifactsPassed =
     $packagesAbsent -and
     $pidsAbsent -and
     $serviceRecordsAbsent -and
@@ -1987,20 +2000,23 @@ $cleanupPassed =
     $externalPathsAbsent -and
     $internalDataAbsent -and
     $clearSucceeded -and
-    $uninstallSucceeded -and
+    $uninstallSucceeded
+$restorePassed =
     $productionAllMatch -and
     $networkMatch -and
     $volumeMatch -and
     $screenMatch -and
     $keyguardMatch -and
     $currentUserMatch
+$cleanupPassed = $cleanupArtifactsPassed -and $restorePassed
 
-$passed =
-    -not $script:blocked -and
-    $crashGatePassed -and
-    $cleanupPassed -and
-    $speakerGatePassed -and
-    $netstatsZero
+$passed = Test-QaFinalizeSafetyGate `
+    -Blocked $script:blocked `
+    -CrashGatePassed $crashGatePassed `
+    -CleanupArtifactsPassed $cleanupArtifactsPassed `
+    -RestorePassed $restorePassed `
+    -SpeakerGatePassed $speakerGatePassed `
+    -UidNetworkZero $netstatsZero
 $status = if ($script:blocked) {
     'FINALIZE_BLOCKED'
 } elseif ($passed) {
@@ -2144,6 +2160,8 @@ $result = [ordered]@{
     checks = [ordered]@{
         notBlocked = -not $script:blocked
         currentRunCrashGate = $crashGatePassed
+        cleanupArtifacts = $cleanupArtifactsPassed
+        restore = $restorePassed
         cleanup = $cleanupPassed
         speakerGate = $speakerGatePassed
         zeroUidNetwork = $netstatsZero

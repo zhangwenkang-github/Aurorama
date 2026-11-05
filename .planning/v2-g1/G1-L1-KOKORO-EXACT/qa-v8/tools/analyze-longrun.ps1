@@ -13,8 +13,8 @@ $samplesPath = Join-Path $root 'background-longrun-samples.jsonl'
 $startPath = Join-Path $root 'background-longrun-start.json'
 $eventsPath = Join-Path $root 'background-longrun-audio-events.json'
 $scriptSummaryPath = Join-Path $root 'background-longrun.json'
-$outputPath = Join-Path $root 'long-run-30m.json'
 $utf8 = [Text.UTF8Encoding]::new($false)
+. (Join-Path $PSScriptRoot 'qa-evidence-contract.ps1')
 
 $samples = @(
     Get-Content -LiteralPath $samplesPath -Encoding utf8 |
@@ -31,25 +31,35 @@ $scriptSummary = Get-Content -LiteralPath $scriptSummaryPath -Raw -Encoding utf8
     ConvertFrom-Json
 $installAudit = Get-Content -LiteralPath $InstallAuditPath -Raw -Encoding utf8 |
     ConvertFrom-Json
+$requestedMinutes = [int]$scriptSummary.requestedMinutes
+if ($requestedMinutes -le 0) {
+    throw "background-longrun.json has invalid requestedMinutes: $requestedMinutes"
+}
+$targetSeconds = $requestedMinutes * 60
+$segments = Get-QaLongRunSegments -TargetSeconds $targetSeconds
+$outputPath = Join-Path $root "long-run-${requestedMinutes}m.json"
 
 $windowEvents = @($events | Where-Object { [double]$_.offsetSeconds -ge 0 })
 $firstSegment = @(
     $windowEvents |
         Where-Object {
-            [double]$_.offsetSeconds -ge 0 -and
-            [double]$_.offsetSeconds -lt 60
+            [double]$_.offsetSeconds -ge $segments.first.startSeconds -and
+            [double]$_.offsetSeconds -lt $segments.first.endSeconds
         }
 )
 $midSegment = @(
     $windowEvents |
         Where-Object {
-            [double]$_.offsetSeconds -ge 870 -and
-            [double]$_.offsetSeconds -lt 930
+            [double]$_.offsetSeconds -ge $segments.middle.startSeconds -and
+            [double]$_.offsetSeconds -lt $segments.middle.endSeconds
         }
 )
 $finalSegment = @(
     $windowEvents |
-        Where-Object { [double]$_.offsetSeconds -ge 1740 }
+        Where-Object {
+            [double]$_.offsetSeconds -ge $segments.final.startSeconds -and
+            [double]$_.offsetSeconds -le $segments.final.endSeconds
+        }
 )
 $audioStartCount = @(
     $windowEvents | Where-Object eventType -eq 'STARTED'
@@ -105,12 +115,13 @@ for ($index = 1; $index -lt $audioMillisValues.Count; $index++) {
     }
 }
 $checks = [ordered]@{
-    observedAtLeast1800Seconds =
-        [double]$scriptSummary.observedSeconds -ge 1800
-    lastSampleAtLeast1800SecondsAfterScreenOff =
+    observedAtLeastTargetSeconds =
+        [double]$scriptSummary.observedSeconds -ge $targetSeconds
+    lastSampleAtLeastTargetSecondsAfterScreenOff =
         $null -ne $lastSampleFromScreenOffSeconds -and
-        [double]$lastSampleFromScreenOffSeconds -ge 1800
-    atLeast30MinuteSamples = $samples.Count -ge 30
+        [double]$lastSampleFromScreenOffSeconds -ge $targetSeconds
+    atLeastTargetMinuteSamples =
+        $samples.Count -ge [Math]::Floor($targetSeconds / 60)
     everySampleNonEmptyPid =
         @($samples | Where-Object {
             [string]::IsNullOrWhiteSpace([string]$_.appPid)
@@ -184,7 +195,7 @@ $result = [ordered]@{
     verdict = if ($passed) { 'PASS' } else { 'FAIL' }
     status =
         if ($passed) {
-            'PASS_30MIN_ALL_ASLEEP_REAL_AUDIOTRACK_QUEUE_PROGRESSION'
+            "PASS_${requestedMinutes}MIN_ALL_ASLEEP_REAL_AUDIOTRACK_QUEUE_PROGRESSION"
         } else {
             'FAIL'
         }
@@ -193,6 +204,8 @@ $result = [ordered]@{
         'API 33 dumpsys activity services for this service exposes isForeground=true but no types= field; mediaPlayback type is independently fixed by the installed APK manifest as 0x00000002.'
     sourceScriptStillHadApi33ParserAssertion = $true
     window = [ordered]@{
+        requestedMinutes = $requestedMinutes
+        targetSeconds = $targetSeconds
         screenOffAt = $scriptSummary.screenOffAt
         windowEnd = $scriptSummary.windowEnd
         observedSeconds = $scriptSummary.observedSeconds
@@ -222,21 +235,22 @@ $result = [ordered]@{
         finalAudioTrackPlaying = $scriptSummary.finalStateAudioTrackPlaying
     }
     audio = [ordered]@{
+        segmentWindows = $segments
         startCount = $audioStartCount
         completionCount = $audioCompletionCount
         eventCount = $windowEvents.Count
         firstSegment = [ordered]@{
-            windowSeconds = '0-60'
+            windowSeconds = $segments.first.label
             starts = @($firstSegment | Where-Object eventType -eq 'STARTED').Count
             completions = @($firstSegment | Where-Object eventType -eq 'COMPLETED').Count
         }
         midSegment = [ordered]@{
-            windowSeconds = '870-930'
+            windowSeconds = $segments.middle.label
             starts = @($midSegment | Where-Object eventType -eq 'STARTED').Count
             completions = @($midSegment | Where-Object eventType -eq 'COMPLETED').Count
         }
         finalSegment = [ordered]@{
-            windowSeconds = '1740-1800'
+            windowSeconds = $segments.final.label
             starts = @($finalSegment | Where-Object eventType -eq 'STARTED').Count
             completions = @($finalSegment | Where-Object eventType -eq 'COMPLETED').Count
         }

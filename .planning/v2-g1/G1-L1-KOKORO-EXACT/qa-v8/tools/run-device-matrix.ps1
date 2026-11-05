@@ -12,7 +12,18 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $PeerApk,
 
-    [int] $Minutes = 30,
+    [ValidateRange(1, 120)]
+    [int] $Minutes = 10,
+
+    [ValidateRange(1, 7200)]
+    [int] $DefaultStepTimeoutSeconds = 300,
+
+    [ValidateRange(1, 7200)]
+    [int] $FinalizeTimeoutSeconds = 600,
+
+    [string] $RunId,
+
+    [switch] $PreflightOnly,
 
     [string] $DeviceLockPath =
         'F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md'
@@ -41,14 +52,13 @@ $manifestPath = Join-Path $outputPath 'SHA256SUMS'
 $postprocessPath = Join-Path $outputPath 'postprocess.json'
 $utf8 = [Text.UTF8Encoding]::new($false)
 $pwshPath = (Get-Command 'pwsh.exe' -ErrorAction Stop).Source
+. (Join-Path $toolsRoot 'qa-process-lifecycle.ps1')
+. (Join-Path $toolsRoot 'qa-evidence-contract.ps1')
+$runId = Resolve-QaRunId -EvidenceRoot $outputPath -RequestedRunId $RunId
 New-Item -ItemType Directory -Force -Path $rawRoot, $logsRoot | Out-Null
 
 $stepResults = [Collections.Generic.List[object]]::new()
 $skippedSteps = [Collections.Generic.List[object]]::new()
-
-function Quote-CommandArgument([string] $Value) {
-    return "'" + ([string]$Value).Replace("'", "''") + "'"
-}
 
 function Write-StepState {
     $lines = @(
@@ -61,7 +71,7 @@ function Write-StepState {
         $utf8)
     [IO.File]::WriteAllText(
         $commandsJsonPath,
-        (($stepResults | ConvertTo-Json -Depth 20) + "`n"),
+        (ConvertTo-QaCommandsJson -Entries @($stepResults)),
         $utf8)
 }
 
@@ -75,90 +85,58 @@ function Invoke-MatrixStep {
 
         [hashtable] $Arguments = @{},
 
-        [string] $Kind = 'device'
+        [string] $Kind = 'device',
+
+        [ValidateRange(1, 7200)]
+        [int] $TimeoutSeconds = $DefaultStepTimeoutSeconds,
+
+        [switch] $PreserveOwnedLogcat
     )
 
-    if (-not (Test-Path -LiteralPath $ScriptPath)) {
-        throw "Matrix step script is missing: $ScriptPath"
-    }
-    $argumentTokens = [Collections.Generic.List[string]]::new()
-    foreach ($key in $Arguments.Keys) {
-        $argumentTokens.Add("-$key")
-        $argumentTokens.Add([string]$Arguments[$key])
-    }
-    $pwshArguments = @(
-        '-NoProfile',
-        '-ExecutionPolicy', 'Bypass',
-        '-File', $ScriptPath
-    ) + @($argumentTokens)
-    $displayParts = [Collections.Generic.List[string]]::new()
-    $displayParts.Add((Quote-CommandArgument $pwshPath))
-    foreach ($part in $pwshArguments) {
-        $displayParts.Add((Quote-CommandArgument $part))
-    }
-    $command = $displayParts -join ' '
-    $stdoutPath = Join-Path $rawRoot "$Name.stdout.log"
-    $stderrPath = Join-Path $rawRoot "$Name.stderr.log"
-    $startedAt = Get-Date
-    $output = @(& $pwshPath @pwshArguments 2>&1)
-    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
-    $finishedAt = Get-Date
-    $durationMs = [long]($finishedAt - $startedAt).TotalMilliseconds
-    $outputLines = @($output | ForEach-Object { [string]$_ })
-    [IO.File]::WriteAllText(
-        $stdoutPath,
-        $(if ($outputLines.Count -gt 0) {
-            ($outputLines -join "`n") + "`n"
+    $metadataPath = Join-Path $logsRoot 'logcat-start.json'
+    $entry = Invoke-QaMatrixStep `
+        -Name $Name `
+        -ScriptPath $ScriptPath `
+        -Arguments $Arguments `
+        -Kind $Kind `
+        -RawRoot $rawRoot `
+        -PwshPath $pwshPath `
+        -TimeoutSeconds $TimeoutSeconds `
+        -AllowedResidualMetadataPath $(if ($PreserveOwnedLogcat) {
+            $metadataPath
         } else {
-            ''
-        }),
-        $utf8)
-    [IO.File]::WriteAllText($stderrPath, '', $utf8)
-    $entry = [ordered]@{
-        name = $Name
-        kind = $Kind
-        command = $command
-        startedAt = $startedAt.ToString('o')
-        finishedAt = $finishedAt.ToString('o')
-        durationMs = $durationMs
-        exitCode = $exitCode
-        status = if ($exitCode -eq 0) { 'PASS' } else { 'FAIL' }
-        stdoutPath = $stdoutPath
-        stderrPath = $stderrPath
-    }
+            $null
+        }) `
+        -AllowedResidualSerial $(if ($PreserveOwnedLogcat) {
+            $Serial
+        } else {
+            $null
+        }) `
+        -AllowedResidualEvidenceRoot $(if ($PreserveOwnedLogcat) {
+            $outputPath
+        } else {
+            $null
+        })
     $stepResults.Add($entry)
     Write-StepState
-    return [pscustomobject]$entry
+    return $entry
 }
 
 function Assert-DeviceLock {
-    $lines = [IO.File]::ReadAllLines($DeviceLockPath, [Text.Encoding]::UTF8)
-    $active = @(
-        $lines |
-            Where-Object { $_ -match '^### .* — ACTIVE\s*$' }
-    )
-    $matching = @(
-        $active |
-            Where-Object {
-                $_ -match 'QA[-_]?V8' -and
-                $_ -match [regex]::Escape($Serial)
-            }
-    )
-    $result = [ordered]@{
-        schema = 'aurorama.kokoro-qa-v8.matrix-preflight.v1'
-        serial = $Serial
-        deviceLockPath = $DeviceLockPath
-        activeCount = $active.Count
-        matchingQaV8Count = $matching.Count
-        passed = $active.Count -eq 1 -and $matching.Count -eq 1
-        activeTitles = $active
-    }
+    $result = Test-QaRunLock `
+        -DeviceLockPath $DeviceLockPath `
+        -Serial $Serial `
+        -RunId $runId
     [IO.File]::WriteAllText(
         $preflightPath,
         (($result | ConvertTo-Json -Depth 10) + "`n"),
         $utf8)
     if (-not $result.passed) {
-        throw "Device lock gate failed: ACTIVE=$($active.Count) matchingQA-V8=$($matching.Count)"
+        throw (
+            "Device lock gate failed: RUN_ID=$($result.runId) " +
+            "ACTIVE=$($result.activeCount) " +
+            "matchingRun=$($result.matchingRunCount) " +
+            "reason=$($result.reason -join ',')")
     }
     return $result
 }
@@ -166,44 +144,10 @@ function Assert-DeviceLock {
 function Write-ToolDigestManifest {
     $qaRoot = Split-Path -Parent $toolsRoot
     $canonicalPath = Join-Path $qaRoot 'tools.sha256'
-    $toolFiles = @(
-        Get-ChildItem -LiteralPath $toolsRoot -File -Force |
-            Where-Object { $_.Name -ne 'tools.sha256' } |
-            Sort-Object Name
-    )
-    $lines = @(
-        $toolFiles |
-            ForEach-Object {
-                $relative = 'tools/' + $_.Name
-                $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).
-                    Hash.ToLowerInvariant()
-                "$hash  $relative"
-            }
-    )
-    [IO.File]::WriteAllText(
-        $canonicalPath,
-        $(if ($lines.Count -gt 0) { ($lines -join "`n") + "`n" } else { '' }),
-        $utf8)
-    $aggregateSha256 =
-        (Get-FileHash -LiteralPath $canonicalPath -Algorithm SHA256).
-            Hash.ToLowerInvariant()
-    $evidenceCopyPath = $canonicalPath
-    if (
-        -not [IO.Path]::GetFullPath($outputPath).Equals(
-            [IO.Path]::GetFullPath($qaRoot),
-            [StringComparison]::OrdinalIgnoreCase)
-    ) {
-        $evidenceCopyPath = Join-Path $outputPath 'tools.sha256'
-        Copy-Item -LiteralPath $canonicalPath -Destination $evidenceCopyPath -Force
-    }
-    return [ordered]@{
-        canonicalPath = $canonicalPath
-        evidenceCopyPath = $evidenceCopyPath
-        aggregateSha256 = $aggregateSha256
-        entryCount = $lines.Count
-        sortedBy = 'tools/<filename> ordinal'
-        selfExcluded = $true
-    }
+    return Write-QaToolDigestSnapshot `
+        -EvidenceRoot $outputPath `
+        -ToolsRoot $toolsRoot `
+        -CanonicalManifestPath $canonicalPath
 }
 
 $lockGate = $null
@@ -213,10 +157,15 @@ $finalizeResult = $null
 $postprocessResult = $null
 $topLevelError = $null
 $toolDigest = $null
+$commandsFreeze = $null
 
 try {
+$lockGate = Assert-DeviceLock
 $toolDigest = Write-ToolDigestManifest
 $requiredScripts = @(
+    'qa-evidence-common.ps1',
+    'qa-process-lifecycle.ps1',
+    'qa-evidence-contract.ps1',
     'prepare-device.ps1',
     'resource-consistency.ps1',
     'measure-voice-samples.ps1',
@@ -235,10 +184,27 @@ $requiredScripts = @(
 ) | ForEach-Object { Join-Path $toolsRoot $_ }
 $missingScripts = @($requiredScripts | Where-Object { -not (Test-Path -LiteralPath $_) })
 if ($missingScripts.Count -gt 0) {
-    throw "Required QA-v8 tools are missing: $($missingScripts -join ', ')"
+    throw "Required QA tools are missing for RUN_ID=${runId}: $($missingScripts -join ', ')"
 }
 
-$lockGate = Assert-DeviceLock
+if ($PreflightOnly) {
+    $dryRunResult = [ordered]@{
+        schema = 'aurorama.kokoro-qa.static-preflight.v1'
+        status = 'PASS_STATIC_PREFLIGHT'
+        runId = $runId
+        serial = $Serial
+        evidenceRoot = $outputPath
+        lockGate = $lockGate
+        toolDigest = $toolDigest
+        deviceActionExecuted = $false
+    }
+    [IO.File]::WriteAllText(
+        (Join-Path $rawRoot 'static-preflight.json'),
+        (($dryRunResult | ConvertTo-Json -Depth 20) + "`n"),
+        $utf8)
+    $dryRunResult | ConvertTo-Json -Depth 20
+    return
+}
 
 try {
     $deviceWorkStarted = $true
@@ -250,7 +216,11 @@ try {
             OutputRoot = $outputPath
             MainApk = $mainApkPath
             PeerApk = $peerApkPath
-        }
+            RunId = $runId
+            DeviceLockPath = $DeviceLockPath
+        } `
+        -TimeoutSeconds $DefaultStepTimeoutSeconds `
+        -PreserveOwnedLogcat
     if ($prepare.exitCode -ne 0) {
         $priorFailure = $true
     }
@@ -284,8 +254,9 @@ try {
             }
         },
         @{
-            Name = 'background-30m'
+            Name = "background-${Minutes}m"
             Script = 'background-longrun.ps1'
+            TimeoutSeconds = $Minutes * 60 + 180
             Arguments = @{
                 Serial = $Serial
                 OutputRoot = $outputPath
@@ -294,7 +265,7 @@ try {
             }
         },
         @{
-            Name = 'background-30m-analysis'
+            Name = "background-${Minutes}m-analysis"
             Script = 'analyze-longrun.ps1'
             Arguments = @{
                 LongRunRoot = $outputPath
@@ -379,7 +350,12 @@ try {
         $result = Invoke-MatrixStep `
             -Name $step.Name `
             -ScriptPath (Join-Path $toolsRoot $step.Script) `
-            -Arguments $step.Arguments
+            -Arguments $step.Arguments `
+            -TimeoutSeconds $(if ($step.ContainsKey('TimeoutSeconds')) {
+                [int]$step.TimeoutSeconds
+            } else {
+                $DefaultStepTimeoutSeconds
+            })
         if ($result.exitCode -ne 0) {
             $priorFailure = $true
         }
@@ -394,7 +370,8 @@ try {
                     Serial = $Serial
                     OutputRoot = $outputPath
                     LogcatPath = $logcatPath
-                }
+                } `
+                -TimeoutSeconds $FinalizeTimeoutSeconds
             if ($finalizeResult.exitCode -ne 0) {
                 $priorFailure = $true
             }
@@ -421,7 +398,8 @@ try {
                 -Arguments @{
                     EvidenceRoot = $outputPath
                 } `
-                -Kind 'postprocess'
+                -Kind 'postprocess' `
+                -TimeoutSeconds $DefaultStepTimeoutSeconds
             if ($postprocessResult.exitCode -ne 0) {
                 $priorFailure = $true
             }
@@ -447,6 +425,16 @@ try {
     $priorFailure = $true
 }
 
+try {
+    Write-StepState
+    $commandsFreeze = Write-QaCommandsFreeze -EvidenceRoot $outputPath
+} catch {
+    if ($null -eq $topLevelError) {
+        $topLevelError = $_
+    }
+    $priorFailure = $true
+}
+
 $finalStatus = if (
     $null -eq $topLevelError -and
     $lockGate.passed -and
@@ -464,6 +452,7 @@ $finalStatus = if (
 $matrixResult = [ordered]@{
     schema = 'aurorama.kokoro-qa-v8.device-matrix.v1'
     status = $finalStatus
+    runId = $runId
     serial = $Serial
     generatedAt = (Get-Date).ToString('o')
     strictSerial = $true
@@ -481,20 +470,44 @@ $matrixResult = [ordered]@{
     skipped = @($skippedSteps)
     finalizeAlwaysExecuted = $null -ne $finalizeResult
     postprocessAlwaysExecuted = $null -ne $postprocessResult
+    commandsFrozenBeforeFinalManifest = $null -ne $commandsFreeze
+    commandsFreeze = $commandsFreeze
     finalSealRequiredAfterMatrixResult = $true
 }
 [IO.File]::WriteAllText(
     $matrixResultPath,
     (($matrixResult | ConvertTo-Json -Depth 30) + "`n"),
     $utf8)
+$sealResult = Invoke-QaBoundedProcess `
+    -FilePath $pwshPath `
+    -Arguments @(
+        '-NoProfile',
+        '-ExecutionPolicy', 'Bypass',
+        '-File', (Join-Path $toolsRoot 'seal-evidence.ps1'),
+        '-EvidenceRoot', $outputPath,
+        '-ToolsManifestPath', $toolDigest.verificationManifestPath
+    ) `
+    -StandardOutputPath (Join-Path $rawRoot 'final-seal.stdout.log') `
+    -StandardErrorPath (Join-Path $rawRoot 'final-seal.stderr.log') `
+    -TimeoutSeconds $DefaultStepTimeoutSeconds `
+    -KillResidualProcesses
+$sealExitCode = if (
+    $sealResult.timedOut -or
+    $null -ne $sealResult.failureKind -or
+    @($sealResult.residualProcessIds).Count -gt 0
+) {
+    1
+} else {
+    [int]$sealResult.exitCode
+}
 $sealOutput = @(
-    & $pwshPath -NoProfile -ExecutionPolicy Bypass `
-        -File (Join-Path $toolsRoot 'seal-evidence.ps1') `
-        -EvidenceRoot $outputPath `
-        -ToolsManifestPath $toolDigest.canonicalPath 2>&1
+    if (Test-Path -LiteralPath $sealResult.stdoutPath) {
+        [IO.File]::ReadAllLines($sealResult.stdoutPath, [Text.Encoding]::UTF8)
+    }
+    if (Test-Path -LiteralPath $sealResult.stderrPath) {
+        [IO.File]::ReadAllLines($sealResult.stderrPath, [Text.Encoding]::UTF8)
+    }
 )
-$sealExitCode =
-    if ($null -eq $LASTEXITCODE) { 1 } else { [int]$LASTEXITCODE }
 $matrixResult | ConvertTo-Json -Depth 10
 if ($sealOutput.Count -gt 0) {
     $sealOutput

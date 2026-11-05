@@ -10,7 +10,12 @@ param(
     [string] $MainApk,
 
     [Parameter(Mandatory = $true)]
-    [string] $PeerApk
+    [string] $PeerApk,
+
+    [string] $RunId,
+
+    [string] $DeviceLockPath =
+        'F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,7 +26,6 @@ $peerApkPath = (Resolve-Path -LiteralPath $PeerApk).Path
 $mainPackage = 'dev.aurorama.kokoro.harness'
 $peerPackage = 'dev.aurorama.kokoro.focuspeer'
 $utf8 = [Text.UTF8Encoding]::new($false)
-$lockPath = 'F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md'
 $artifactAuditPath = (
     Resolve-Path -LiteralPath (
         Join-Path $toolsRoot '..\..\runtime-closure-v3\artifacts\artifact-audit.json')
@@ -41,6 +45,8 @@ $mainInstallRoot = Join-Path $outputPath 'main-install'
 $peerInstallRoot = Join-Path $outputPath 'peer-install'
 New-Item -ItemType Directory -Force -Path $mainInstallRoot, $peerInstallRoot | Out-Null
 . (Join-Path $PSScriptRoot 'qa-evidence-common.ps1')
+. (Join-Path $PSScriptRoot 'qa-evidence-contract.ps1')
+$runId = Resolve-QaRunId -EvidenceRoot $outputPath -RequestedRunId $RunId
 
 function Invoke-Adb([string[]] $AdbArgs) {
     $captured = @(& adb.exe -s $Serial @AdbArgs 2>&1)
@@ -52,22 +58,22 @@ function Invoke-Adb([string[]] $AdbArgs) {
 }
 
 function Assert-DeviceLock {
-    $lines = [IO.File]::ReadAllLines($lockPath, [Text.Encoding]::UTF8)
-    $matchingPattern =
-        '^### .*QA[-_]?V8.*' +
-        [regex]::Escape($Serial) +
-        '.* — ACTIVE\s*$'
-    $active = @(
-        $lines |
-            Where-Object { $_ -match $matchingPattern }
-    )
-    $allActive = @(
-        $lines |
-            Where-Object { $_ -match '^### .* — ACTIVE\s*$' }
-    )
-    if ($active.Count -ne 1 -or $allActive.Count -ne 1) {
-        throw "Device lock gate failed: matching=$($active.Count) allActive=$($allActive.Count)"
+    $result = Test-QaRunLock `
+        -DeviceLockPath $DeviceLockPath `
+        -Serial $Serial `
+        -RunId $runId
+    [IO.File]::WriteAllText(
+        (Join-Path $outputPath 'run-lock.json'),
+        (($result | ConvertTo-Json -Depth 10) + "`n"),
+        $utf8)
+    if (-not $result.passed) {
+        throw (
+            "Device lock gate failed: RUN_ID=$($result.runId) " +
+            "ACTIVE=$($result.activeCount) " +
+            "matchingRun=$($result.matchingRunCount) " +
+            "reason=$($result.reason -join ',')")
     }
+    return $result
 }
 
 function Read-PackageIdentity([string] $Package) {
@@ -281,6 +287,7 @@ $checks = [ordered]@{
 $passed = @($checks.Values | Where-Object { $_ -ne $true }).Count -eq 0
 $identity = [ordered]@{
     schema = 'aurorama.kokoro-qa-v8.install-identity.v1'
+    runId = $runId
     capturedAt = (Get-Date).ToString('o')
     serial = $Serial
     mainApk = $mainApkPath

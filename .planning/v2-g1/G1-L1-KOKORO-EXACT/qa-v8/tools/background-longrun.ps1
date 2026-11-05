@@ -9,7 +9,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $LogcatPath,
 
-    [int] $Minutes = 30
+    [ValidateRange(1, 120)]
+    [int] $Minutes = 10
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,6 +22,7 @@ $samplePath = Join-Path $outputPath 'background-longrun-samples.jsonl'
 $summaryPath = Join-Path $outputPath 'background-longrun.json'
 $startPath = Join-Path $outputPath 'background-longrun-start.json'
 . (Join-Path $PSScriptRoot 'qa-evidence-common.ps1')
+. (Join-Path $PSScriptRoot 'qa-evidence-contract.ps1')
 
 function Invoke-Adb([string[]] $AdbArgs) {
     $captured = @(& adb.exe -s $Serial @AdbArgs 2>&1)
@@ -236,6 +238,7 @@ $startEvidence = [ordered]@{
 
 $samples = [Collections.Generic.List[object]]::new()
 $targetSeconds = $Minutes * 60
+$segments = Get-QaLongRunSegments -TargetSeconds $targetSeconds
 $sampleIntervalSeconds = 60
 $requiredSampleEndSeconds = $targetSeconds
 $sampleNumber = 0
@@ -384,9 +387,27 @@ $fatalSamples = @(
     $allWindowLines |
         Select-String -Pattern 'FATAL EXCEPTION|ANR in dev\.aurorama\.kokoro\.harness|InputTimeout|Input dispatching timed out'
 )
-$segmentFirst = @($windowEvents | Where-Object { $_.offsetSeconds -ge 0 -and $_.offsetSeconds -lt 60 })
-$segmentMid = @($windowEvents | Where-Object { $_.offsetSeconds -ge 870 -and $_.offsetSeconds -lt 930 })
-$segmentFinal = @($windowEvents | Where-Object { $_.offsetSeconds -ge 1740 })
+$segmentFirst = @(
+    $windowEvents |
+        Where-Object {
+            $_.offsetSeconds -ge $segments.first.startSeconds -and
+            $_.offsetSeconds -lt $segments.first.endSeconds
+        }
+)
+$segmentMid = @(
+    $windowEvents |
+        Where-Object {
+            $_.offsetSeconds -ge $segments.middle.startSeconds -and
+            $_.offsetSeconds -lt $segments.middle.endSeconds
+        }
+)
+$segmentFinal = @(
+    $windowEvents |
+        Where-Object {
+            $_.offsetSeconds -ge $segments.final.startSeconds -and
+            $_.offsetSeconds -le $segments.final.endSeconds
+        }
+)
 $screenViolationCount = @($samples | Where-Object { -not $_.screenAsleep }).Count
 $foregroundViolationCount = @(
     $samples |
@@ -434,12 +455,18 @@ $passed =
 
 $summary = [ordered]@{
     schema = 'aurorama.kokoro-qa-v8.background-longrun.v1'
-    status = if ($passed) { 'PASS_30MIN_REAL_AUDIOTRACK_OWNERSHIP' } else { 'FAIL' }
+    status = if ($passed) {
+        "PASS_${Minutes}MIN_REAL_AUDIOTRACK_OWNERSHIP"
+    } else {
+        'FAIL'
+    }
     serial = $Serial
     screenOffAt = $screenOffAt.ToString('o')
     windowEnd = $windowEnd.ToString('o')
     windowEndDevice = $windowEndDevice.ToString('o')
     requestedMinutes = $Minutes
+    targetSeconds = $targetSeconds
+    segmentWindows = $segments
     observedSeconds = [Math]::Round(($windowEnd - $screenOffAt).TotalSeconds, 3)
     lineOffset = $lineOffset
     firstAudioLine = $firstAudioLine.Line

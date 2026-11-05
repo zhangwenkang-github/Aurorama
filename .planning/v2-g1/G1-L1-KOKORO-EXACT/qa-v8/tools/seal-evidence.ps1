@@ -13,6 +13,7 @@ $manifestPath = Join-Path $root 'SHA256SUMS'
 $finalSealPath = Join-Path $root 'final-seal.json'
 $finalScanPath = Join-Path $root 'security-scan-final.json'
 $utf8 = [Text.UTF8Encoding]::new($false)
+. (Join-Path $PSScriptRoot 'qa-evidence-contract.ps1')
 $secretPatterns = [ordered]@{
     authorization = '(?im)\bAuthorization\s*[:=]\s*(?!(?:Bearer\s+|Basic\s+)?\[REDACTED\])(?:Bearer\s+|Basic\s+)?[^\s,;"'']+'
     cookie = '(?im)\b(?:Cookie|Set-Cookie)\s*:\s*(?!"\[REDACTED\]")(?!\[REDACTED\])[^\r\n]+'
@@ -73,11 +74,26 @@ $allPayloadFiles = Get-EvidencePayloadFiles
 foreach ($file in $allPayloadFiles) {
     Normalize-TextFile $file
 }
+$commandsFreezeCheck = Test-QaCommandsFreeze -EvidenceRoot $root
+if (-not $commandsFreezeCheck.valid) {
+    $failedFreeze = [ordered]@{
+        schema = 'aurorama.kokoro-qa-v8.final-secret-scan.v1'
+        status = 'FAIL'
+        passed = $false
+        commandsFreeze = $commandsFreezeCheck
+    }
+    [IO.File]::WriteAllText(
+        $finalScanPath,
+        (($failedFreeze | ConvertTo-Json -Depth 10) + "`n"),
+        $utf8)
+    $failedFreeze | ConvertTo-Json -Depth 10
+    exit 1
+}
 
 $scanHits = [Collections.Generic.List[object]]::new()
 $scannedPaths = [Collections.Generic.List[string]]::new()
 foreach ($file in Get-EvidencePayloadFiles) {
-    if ($file.FullName -in @($finalScanPath, $finalSealPath)) {
+    if ($file.FullName -in @($manifestPath, $finalScanPath, $finalSealPath)) {
         continue
     }
     $bytes = [IO.File]::ReadAllBytes($file.FullName)
@@ -115,8 +131,15 @@ if (-not [string]::IsNullOrWhiteSpace($ToolsManifestPath) -and
 $matrixResultScanned = $scannedPaths -contains 'matrix-result.json'
 $postprocessStdoutScanned =
     $scannedPaths -contains 'raw/postprocess-evidence.stdout.log'
+$commandsJsonScanned = $scannedPaths -contains 'raw/commands.json'
+$commandsLogScanned = $scannedPaths -contains 'raw/commands.log'
+$commandsFreezeScanned = $scannedPaths -contains 'raw/commands-frozen.json'
 $requiredPostRunFilesScanned =
-    $matrixResultScanned -and $postprocessStdoutScanned
+    $matrixResultScanned -and
+    $postprocessStdoutScanned -and
+    $commandsJsonScanned -and
+    $commandsLogScanned -and
+    $commandsFreezeScanned
 $finalScan = [ordered]@{
     schema = 'aurorama.kokoro-qa-v8.final-secret-scan.v1'
     status = if ($scanHits.Count -eq 0 -and $requiredPostRunFilesScanned) {
@@ -131,9 +154,17 @@ $finalScan = [ordered]@{
     hits = @($scanHits)
     toolsDirectoryExcludedFromPayload = $true
     toolsManifest = $toolsManifestDetails
+    commandsFreeze = [ordered]@{
+        path = 'raw/commands-frozen.json'
+        passed = $commandsFreezeCheck.valid
+        entryCount = $commandsFreezeCheck.entryCount
+    }
     requiredPostRunFilesScanned = [ordered]@{
         matrixResult = $matrixResultScanned
         postprocessStdout = $postprocessStdoutScanned
+        commandsJson = $commandsJsonScanned
+        commandsLog = $commandsLogScanned
+        commandsFreeze = $commandsFreezeScanned
     }
 }
 $finalScanText = ($finalScan | ConvertTo-Json -Depth 20) + "`n"
@@ -151,22 +182,18 @@ if (-not [bool]$finalScan.passed) {
 }
 
 $manifestFiles = @(
-    Get-EvidencePayloadFiles |
-        Where-Object {
-            $_.FullName -notin $excludedFromManifest
-        } |
-        Sort-Object { $_.FullName.Substring($root.Length).TrimStart('\') }
+    Get-QaManifestPayloadFiles `
+        -Root $root `
+        -ExcludedRelativePaths @('SHA256SUMS', 'final-seal.json')
 )
 $manifestLines = @(
     $manifestFiles |
         ForEach-Object {
-            $relative = $_.FullName.
-                Substring($root.Length).
-                TrimStart('\').
-                Replace('\', '/')
-            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).
+            $hash = (Get-FileHash `
+                -LiteralPath $_.file.FullName `
+                -Algorithm SHA256).
                 Hash.ToLowerInvariant()
-            "$hash  $relative"
+            "$hash  $($_.relativePath)"
         }
 )
 $manifestText = if ($manifestLines.Count -gt 0) {
@@ -189,9 +216,16 @@ if ($manifestScanHits.Count -gt 0) {
     $failedScan | ConvertTo-Json -Depth 10
     exit 1
 }
-[IO.File]::WriteAllText($manifestPath, $manifestText, $utf8)
-$manifestSha256 = (Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).
-    Hash.ToLowerInvariant()
+$manifestWrite = Write-QaEvidenceManifest `
+    -Root $root `
+    -ExcludedRelativePaths @('SHA256SUMS', 'final-seal.json')
+$manifestVerification = Test-QaEvidenceManifest `
+    -Root $root `
+    -ExcludedRelativePaths @('SHA256SUMS', 'final-seal.json')
+if (-not $manifestVerification.valid) {
+    throw "Final manifest verification failed: $($manifestVerification.errors -join '; ')"
+}
+$manifestSha256 = $manifestWrite.sha256
 
 $finalSeal = [ordered]@{
     schema = 'aurorama.kokoro-qa-v8.final-seal.v1'
@@ -212,9 +246,16 @@ $finalSeal = [ordered]@{
         contentScannedBeforeWrite = $true
     }
     toolsManifest = $toolsManifestDetails
+    commandsFreeze = [ordered]@{
+        passed = $commandsFreezeCheck.valid
+        entryCount = $commandsFreezeCheck.entryCount
+    }
     postManifestFiles = [ordered]@{
         matrixResultScanned = $matrixResultScanned
         postprocessStdoutScanned = $postprocessStdoutScanned
+        commandsJsonScanned = $commandsJsonScanned
+        commandsLogScanned = $commandsLogScanned
+        commandsFreezeScanned = $commandsFreezeScanned
         finalSealContentScannedBeforeWrite = $true
     }
 }
