@@ -1,0 +1,860 @@
+{
+  "contractVersion": "HANDOFF_BOOTSTRAP_V2",
+  "schema": "aurorama.handoff-bootstrap.v2",
+  "generatedAt": "2026-11-06T01:07:44.781+08:00",
+  "inputBaseline": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "commit": "c180dd08984435d0af6421b36b19502b0f79d52c",
+    "qaV8HandoffHead": "3b760025dce0ff323c1ece65ec1453ec1cebd55c",
+    "implementationBaseline": "35ed65c2dc0e4171bdaf5b6fe055ad1f2e7ead8c",
+    "currentHeadPolicy": "VERIFY_ANCESTOR_AT_RUNTIME_DO_NOT_EMBED_POST_COMMIT_HEAD"
+  },
+  "handoffFlags": {
+    "SUBAGENT_FIRST": "YES",
+    "ONE_PHASE_PER_FRESH_AGENT": "YES",
+    "NO_REUSE_SUBAGENT": "YES",
+    "ROOT_INTEGRATION_ONLY": "YES"
+  },
+  "evidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8",
+  "evidence": {
+    "currentRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8",
+    "currentReportPath": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/report.json",
+    "nextPadRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9",
+    "nextK60Root": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v10",
+    "deviceLockPath": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md"
+  },
+  "qaRoundState": {
+    "status": "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+    "lastQaVerdict": "BLOCKED_TOOL_NONCONVERGENCE",
+    "round1IntegrationReview": "FAIL_1_P1_2_P2_REPAIRED_CLOSED_BY_ROUND2",
+    "round2IntegrationReview": "FAIL_P2_PREFLIGHT_SEMANTIC_BYPASS_REPAIRED_CLOSED_BY_ROUND3_PASS",
+    "independentIntegrationReview": "PASS",
+    "preHandoffAudit": "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
+    "padQaPromptDispatch": "BLOCKED",
+    "productFindings": {
+      "P0": "NOT_ASSESSED",
+      "P1": "NOT_ASSESSED",
+      "P2": "NOT_ASSESSED",
+      "P3": "NOT_ASSESSED"
+    },
+    "coreStepsExecuted": 0,
+    "padTenMinuteCoreRun": "NOT_RUN",
+    "k60Registration": "NOT_REGISTERED",
+    "k60CoreRun": "NOT_RUN",
+    "cleanup": "PASS_CLEANUP_AND_RESTORE",
+    "padLockActiveCount": 0
+  },
+  "acceptedArtifacts": {
+    "main": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 427009671,
+      "sha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+      "package": "dev.aurorama.kokoro.harness",
+      "versionCode": 4,
+      "versionName": "2.0-kokoro-runtime-v5",
+      "abi": "arm64-v8a",
+      "internetPermission": false
+    },
+    "peer": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+      "bytes": 12696,
+      "sha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+      "package": "dev.aurorama.kokoro.focuspeer",
+      "versionCode": 1,
+      "versionName": "1.0-focus-peer",
+      "internetPermission": false
+    },
+    "voiceProfiles": [
+      "zf_001",
+      "zm_010"
+    ]
+  },
+  "qaTools": {
+    "root": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools",
+    "manifestPath": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools.sha256",
+    "canonicalManifestLocation": "#/qaTools/canonicalManifestLines",
+    "canonicalManifestLines": [
+      "2dee7ec02a3cb691aaa5abb07f27aa87b730283728fd3bc54622ae3cc961ce4f  tools/analyze-longrun.ps1",
+      "22c135fd502db63ab1911e0759b4c35f715468dc279b12308989f6ee80493938  tools/background-longrun.ps1",
+      "ed2148e87757eaa24974ea9a63b24d6cfc9c56564fa8caf9d259ab0b924e3679  tools/capture-before.ps1",
+      "efa4ffe59418c208d705b5effe5c1aad4f8ce58ef15e60f29270ec97e2ec0a4c  tools/checkpoint-tamper-test.ps1",
+      "f95724644b29f8bae387ac6c2214c2cb71d140eae408d9c85812496d0e4be736  tools/device-snapshot.ps1",
+      "d18d3cccfb30829f4acb082d9e636e1a3557b8daa1a79e994a61fddae662c610  tools/finalize-device.ps1",
+      "66834bec499d41eada0f8365f9d1859b4f4303f2f4cfcf1bc8307544e2e2ca23  tools/focus-peer-test.ps1",
+      "23e8aadedaf195df1fe896d722eecb1593cd62da5bb2567f47d74ce4a0ed6d68  tools/install-with-miui-confirm.ps1",
+      "8fd2acf7353e490c696800d2f27a84ea674e9b55d6a8a763c13b73bf32335910  tools/measure-voice-samples.ps1",
+      "233c92151b12c5361113ffb54fdbaeefd28e80eca261a7194ee2e7221fad4adf  tools/music-tts-arbitration.ps1",
+      "0f0f20958a022be36a1c326b5b9313dd62514ddf591f29f7781e42de8f7de082  tools/notification-controls-v8.ps1",
+      "5b5d9b3da4f3b2b1ae76178e504e9fabdac9a4e0c19e1db4324d9fe5e987843b  tools/postprocess-evidence.ps1",
+      "dfe4d4d19e9032303aae68e81472a232876fa5af73313cbf5904832503faf2b6  tools/prepare-device.ps1",
+      "de5da79ac4e28eae2b21165a7a8ff222ef1db7a651bd114c1151a0fd94152af9  tools/qa-evidence-common.ps1",
+      "98ca78d2f10152f04e042e631efa65720bce90c1b06c72ba1c4b986eff76b95e  tools/qa-evidence-contract.ps1",
+      "51fc6a792b3b3d4f7f77492358c0e9f4783a65b776fc97fa4eced011cda7eb09  tools/qa-process-lifecycle.ps1",
+      "a2fb10fc645d0fc97cd1c2bb7c6393aec8bdcda6b97a9b3d97f88f36e83daf41  tools/recreate-paused.ps1",
+      "32bf722c9fb1613331150b9db145c0e671ca2fad576ce0ad791f49351baa9a71  tools/resource-consistency.ps1",
+      "100d554a5a4d09e6dd9544c05b21a9e01fa9ec05c68b8b9a4f8ea4311e6cfc47  tools/run-device-matrix.ps1",
+      "b1df38f9633e15bafbbe56f5965482b81b3b96b1e1282670401608a301a5f6ac  tools/seal-evidence.ps1",
+      "d4a85dc9d3a067d99adaf3525fa08aa792c1fe4a101f03ae96060c55dd7bcf61  tools/self-test.ps1",
+      "2d0c88bb3afbf062d717b1d5fce1d1e66065367c52d4df932885b1944befc7fc  tools/start-logcat.ps1",
+      "94fc206c5e32271451ca23dca0e0a85ce9ecd565583f654230704ebb60a2a421  tools/tests/fixtures/bounded-exit.ps1",
+      "7c8510aa1421cb1c0ecb63ca91d3f3faa627fcaaf03b088fa83de8db342475bd  tools/tests/fixtures/bounded-spawn-child.ps1",
+      "63cf3c5cfc296a103db4e87aa8b4c64840e5ccbed214e1c61d011d4c56e58029  tools/tests/fixtures/bounded-timeout.ps1",
+      "12572e1bc21130520f14e8647256c5ca2ab37ea05e4f615373f241cb0e7250c1  tools/tests/fixtures/fake-adb.ps1",
+      "9d133e9ef62ccf5b2fd73930a906ee997b4fe08c148561530e90b1d77869a054  tools/tests/fixtures/matrix-start-logcat.ps1",
+      "a29bd2a1adbcbb8bfebea9924dd3d0004d3663538b1abde3985f719fa0557386  tools/tests/fixtures/sleeper.ps1",
+      "7d339ebf9c8e3f251f527adcc3dc794922a40e06334c522024a527b94c64f005  tools/tests/run-tests.ps1",
+      "0f0c2fc00d847ba4c4bf82e48a6c0a03010a0e7f74a98e5121fc08047b47104e  tools/ui-cancel-test.ps1",
+      "910e7a2948fdc0fd6d4602f42ca85bb6aa558a0f5f6b2302d5e7b816e74f360f  tools/zero-network-v5.ps1"
+    ],
+    "digestSha256": "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+    "entryCount": 31,
+    "manifestBytes": 2984,
+    "canonicalManifestSha256": "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+    "sortOrder": "relative path ordinal",
+    "selfExcluded": true,
+    "legacyManifestSha256": "d8e98a90b250bafb1bb48d62f315041fd0f67653d8d81c4650aca9fb617d0bfb",
+    "legacyManifestState": "STALE_21_ENTRY_PRE_REPAIR_SNAPSHOT_HISTORY_ONLY",
+    "supersededContractDigestSha256": "a7e5def25343bb96c15b76398b421115de60f40824698d67a682f3c4b7908901",
+    "supersededContractDigestState": "HISTORICAL_ROUND1_DIGEST_NOT_CURRENT_AUTHORITY",
+    "repairEvidence": {
+      "round1ReviewVerdict": "FAIL",
+      "round1Findings": "1_P1_2_P2",
+      "repairOwnerFresh": true,
+      "repairOwnerMayBeReused": false,
+      "repairPhase": "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+      "changedToolFilesIncludingManifest": 7,
+      "regressionsAdded": 4,
+      "testsBefore": 21,
+      "testsAfter": 25,
+      "testRunnerConclusionEntry": "SUMMARY passed=<N> failed=<N>",
+      "currentTestRunnerExecution": "PASS_25_0",
+      "staticSelfTest": "25/25",
+      "ignoredNewCount": 10,
+      "astUtf8Lf": "PASS",
+      "tenMinuteDynamicFixture": "PASS",
+      "failClosed": "PASS",
+      "independentRound2Review": "FAIL_1_P2_REPAIRED",
+      "independentRound3Review": "PASS",
+      "round3ReviewEvidence": {
+        "verdict": "PASS",
+        "owner": "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+        "gitBoundary": "PASS",
+        "toolsEntryCount": 31,
+        "toolsManifestBytes": 2984,
+        "toolsDigestSha256": "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+        "runTests": "25/25",
+        "selfTest": "AST_31_UTF8_31_PASS",
+        "contractTests": "16/16",
+        "forgedContractCases": "15_EXIT_2",
+        "qaV9DryRun": "NO_TOOLS_MANIFEST_HASH_OR_MTIME_CHANGE",
+        "productP0P3": "NOT_ASSESSED",
+        "k60": "NOT_RUN"
+      },
+      "deviceQa": "NOT_RUN",
+      "findings": [
+        {
+          "id": "ROUND1-P1-01",
+          "severity": "P1",
+          "summary": "QA-V9 lock gate did not bind the unique current RunId",
+          "status": "CLOSED_BY_ROUND2_REVIEW",
+          "fixPointers": [
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/qa-evidence-contract.ps1#Test-QaRunLock",
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/prepare-device.ps1#Assert-DeviceLock",
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/run-device-matrix.ps1#Assert-DeviceLock"
+          ],
+          "regressionPointers": [
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/tests/run-tests.ps1#QA-V9 lock gate accepts only the unique current run"
+          ],
+          "verifiedCases": [
+            "old QA-V8 ACTIVE rejected",
+            "K60-or-other-serial early ACTIVE rejected",
+            "cross-run ACTIVE rejected"
+          ]
+        },
+        {
+          "id": "ROUND1-P2-01",
+          "severity": "P2",
+          "summary": "logcat cleanup trusted PID alone and could kill a reused or mismatched process",
+          "status": "CLOSED_BY_ROUND2_REVIEW",
+          "fixPointers": [
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/start-logcat.ps1#ownership-metadata",
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/qa-process-lifecycle.ps1#Stop-QaOwnedProcess"
+          ],
+          "regressionPointers": [
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/tests/run-tests.ps1#start-logcat ownership mismatch refuses cleanup and leaves recorded process",
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/tests/run-tests.ps1#owned logcat stop rejects exited and simulated reused processes"
+          ],
+          "verifiedCases": [
+            "metadata mismatch fails closed without killing the recorded process",
+            "exited owner does not kill a reused PID",
+            "serial and evidence-root identity must match"
+          ]
+        },
+        {
+          "id": "ROUND1-P2-02",
+          "severity": "P2",
+          "summary": "QA-V9 static dry-run could mutate canonical tools manifest state",
+          "status": "CLOSED_BY_ROUND2_REVIEW",
+          "fixPointers": [
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/run-device-matrix.ps1#PreflightOnly"
+          ],
+          "regressionPointers": [
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/tests/run-tests.ps1#QA-V9 static preflight preserves canonical tool manifest"
+          ],
+          "verifiedCases": [
+            "31-entry digest unchanged",
+            "tools directory mtime unchanged",
+            "manifest hash, mtime and 2984 bytes unchanged"
+          ]
+        }
+      ],
+      "round2Findings": [
+        {
+          "id": "ROUND2-P2-01",
+          "severity": "P2",
+          "summary": "preflight accepted review/audit status drift, gate owner/order field mutation, and a non-canonical prompt first action",
+          "status": "CLOSED_BY_ROUND3_REVIEW_PASS",
+          "fixPointers": [
+            "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/requiredGates",
+            "tools/v2-handoff/Invoke-HandoffPreflight.ps1#gate-and-action-validation",
+            "tools/v2-handoff/Test-HandoffPreflight.ps1"
+          ]
+        }
+      ],
+      "summaryTestPointer": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/tests/run-tests.ps1",
+      "selfTestPointer": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/self-test.ps1"
+    },
+    "rootForceAddRequired": true,
+    "rootForceAddPathFamilies": [
+      "tools/qa-evidence-contract.ps1",
+      "tools/qa-process-lifecycle.ps1",
+      "tools/self-test.ps1",
+      "tools/tests/**"
+    ],
+    "rootForceAddHint": "Round3 review is PASS. After fresh pre-handoff audit PASS, root must explicitly force-add the 10 ignored QA tool files; do not edit .gitignore and do not stage in this state-closure phase.",
+    "inputDigestFrozen": true,
+    "refreshRequiredAfterAnyToolChange": true,
+    "executeQaWithUnrefreshedDigest": "FORBIDDEN"
+  },
+  "devicePolicy": {
+    "DEVICE_ORDER": "Pad->K60",
+    "DEVICE_WINDOW_MINUTES": 10,
+    "windowScope": "REAL_RUNTIME_OBSERVATION_PER_DEVICE",
+    "extensionAllowed": false,
+    "devices": [
+      {
+        "order": 1,
+        "name": "Pad",
+        "serial": "43af8627",
+        "sdkAtLastEvidence": 33,
+        "registered": true,
+        "freshInstallRequired": true,
+        "profileIdentityRequired": "user0",
+        "entryGate": "PREFLIGHT_PASS",
+        "exitGate": "PAD_CORE_PASS_AND_CLEANUP_PASS"
+      },
+      {
+        "order": 2,
+        "name": "K60",
+        "serial": "8e875894",
+        "sdkAtLastEvidence": 35,
+        "registered": false,
+        "registrationGate": "PAD_CORE_PASS_AND_PAD_LOCK_RELEASED",
+        "freshInstallRequired": true,
+        "profileIdentityRequired": "recorded-and-restored",
+        "entryGate": "PAD_CORE_PASS_AND_CONTRACT_REFRESH",
+        "exitGate": "K60_CORE_PASS_AND_CLEANUP_PASS"
+      }
+    ],
+    "headMiddleTailRequired": true,
+    "maximumAudioGapSeconds": 15,
+    "oldThirtyMinuteEvidenceReusable": false
+  },
+  "productGates": [
+    "fresh-install-and-device-profile-identity",
+    "real-audiotrack-start-completion",
+    "head-middle-tail-continuity",
+    "maximum-audio-gap-lte-15s",
+    "foreground-service-mediasession-notification",
+    "pid-lifecycle-and-resource-convergence",
+    "current-run-native-java-crash-anr-inputtimeout-gate",
+    "audio-focus-and-single-audio-owner",
+    "voice-profiles-zf_001-zm_010",
+    "cleanup-and-capture-restore"
+  ],
+  "readOrder": [
+    {
+      "order": 1,
+      "path": "docs/V2_PLAN.md",
+      "section": "§12 唯一 ACTIVE，只读角色表、门禁、设备顺序与下一动作"
+    },
+    {
+      "order": 2,
+      "path": "AGENTS.md",
+      "section": "顶部 2.0 交接启动硬门与文件资格"
+    },
+    {
+      "order": 3,
+      "path": "docs/PROJECT_RULES.md",
+      "section": "R019、R027、R028、R029、R030、R031"
+    },
+    {
+      "order": 4,
+      "path": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+      "section": "机器契约全量"
+    },
+    {
+      "order": 5,
+      "path": "docs/TASKS.md",
+      "section": "In Progress 三条 2.0 任务"
+    },
+    {
+      "order": 6,
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/report.json",
+      "section": "仅 status、verdict、object、findings、cleanup、deviceLock 摘要"
+    }
+  ],
+  "rejectedScope": {
+    "readDenied": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/raw/**",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/attempts/**/raw/**",
+      "qa-v3、qa-v6、qa-v7 原始证据批量阅读",
+      "生产源码、全量日志、截图或全库设备快照",
+      "Engramory 写入、F:\\Develop\\codex_work\\Documents\\Codex\\资源.txt 内容"
+    ],
+    "executionDenied": [
+      "adb、设备、安装、卸载或真机 QA（除对应 fresh QA 角色本阶段授权外）",
+      "qa-v8/tools 修改（除 fresh TOOL_REPAIR_OWNER 外）",
+      "docs、AGENTS 或 preflight 修改（除 fresh DOC_PROTOCOL_OWNER 外）",
+      "生产代码、G2、Q03、profile freeze、Release、commit/push（除 ROOT 集成决定外）",
+      "服务器生产写、新网络域、凭据读取或 MOSS 下载"
+    ],
+    "evidenceReuseDenied": [
+      "旧 30 分钟、QA-v5、QA-v6、QA-v7 或实现自测替代本轮 10 分钟新证据",
+      "QA-v8 安装门、cleanup 或工具阻塞替代产品结论",
+      "K60 旧结果替代 Pad 先行门或本轮 K60 新证据",
+      "同形命令退出码或 Worker SUCCESS 替代真实 AudioTrack 与可观察产品门"
+    ]
+  },
+  "roles": [
+    {
+      "id": "ROOT_INTEGRATION",
+      "kind": "ROOT",
+      "identity": "Aurorama 2.0 G1 交付负责人 / 技术集成编排者",
+      "freshness": "THREAD_BOUND",
+      "phaseLimit": "ROOT_INTEGRATION_ONLY",
+      "reuse": "NOT_APPLICABLE",
+      "allowedActions": [
+        "范围、风险、角色拆单、白名单与压缩报告审查",
+        "集成决策、文档/提交门与下一 fresh owner 创建"
+      ],
+      "writeScope": [
+        "INTEGRATION_METADATA_AND_TASK_ROUTING_ONLY"
+      ],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "压缩集成决定、唯一 ACTIVE 与下一角色 prompt",
+    "stopAfter": "作为 thread-bound 编排角色派发一个 fresh 单阶段角色后停止本波；不得兼任专业执行角色"
+    },
+    {
+      "id": "HANDOFF_PROTOCOL_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "交接协议与机械 preflight owner",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "定义 HANDOFF_BOOTSTRAP_V2",
+        "实现只读 preflight 并同步 B 白名单文档"
+      ],
+      "writeScope": [
+        "AGENTS.md",
+        "docs/PROJECT_RULES.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        "docs/LESSONS.md",
+        "tools/v2-handoff/**"
+      ],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "机器契约、preflight、同步文档与压缩 PASS/BLOCKED 报告",
+    "stopAfter": "一次性历史角色；初始协议波次后永久退役，禁止 followup 接下一阶段"
+    },
+    {
+      "id": "IMPLEMENTATION_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "对应模块资深 Android 客户端工程师",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "单任务卡内定向实现与 TDD",
+        "构建和边界内最小自测"
+      ],
+      "writeScope": [
+        "TASK_CARD_SCOPED_PRODUCT_FILES_AND_TESTS_ONLY"
+      ],
+      "deviceAccess": "IMPLEMENTATION_SELF_TEST_ONLY_IF_AUTHORIZED",
+      "deliverable": "实现报告、构建与自测证据",
+    "stopAfter": "一次性角色；实现报告后停止，不得 followup 接独立 QA、审查或 Release"
+    },
+    {
+      "id": "TOOL_REPAIR_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "移动端 QA harness / PowerShell 工具可靠性工程师",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只修复 QA-v8 工具非收敛与 manifest 生成缺陷",
+        "做无设备的 parser、夹具、临时目录和自测"
+      ],
+      "writeScope": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/**"
+      ],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "A 白名单内工具修复与拟议新 digest",
+    "stopAfter": "一次性角色；工具修复报告后停止，禁止 followup 接 review、QA、audit、preflight 刷新或 Release"
+    },
+    {
+      "id": "DOC_PROTOCOL_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "技术文档与交接协议工程师",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "工具修复后用 B 白名单刷新 contract digest、ACTIVE 与 next prompt",
+        "仅做文档、JSON 与 preflight 自测"
+      ],
+      "writeScope": [
+        "AGENTS.md",
+        "docs/PROJECT_RULES.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        "docs/LESSONS.md",
+        "tools/v2-handoff/**"
+      ],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "刷新后的 B 契约与可执行 next prompt",
+    "stopAfter": "一次性角色；刷新完成后停止，禁止 followup 接 review、QA、audit 或 Release"
+    },
+    {
+      "id": "INTEGRATION_REVIEW_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "移动端架构师 / 集成审查员",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只读审查范围、角色表、契约、工具修复和关键 diff",
+        "输出压缩 findings 与集成建议"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "PASS / FAIL / BLOCKED 只读集成审查报告",
+    "stopAfter": "一次性 round-1 历史角色；FAIL 报告后已退役，禁止 followup 接续、复用或转 QA"
+  },
+  {
+    "id": "ROUND2_READONLY_INTEGRATION_REVIEW_OWNER",
+    "kind": "SPECIALIST",
+    "identity": "历史只读 round-2 集成复审员 / 工具契约与证据链审查员",
+    "freshness": "FRESH_PER_PHASE",
+    "phaseLimit": "ONE",
+    "reuse": "FORBIDDEN",
+    "allowedActions": [
+      "只读复审 round-1 三项 findings 的修复输入、关键 diff、25 项测试入口与 canonical manifest",
+      "只读核验 ACTIVE、TASKS、prompt 阻断、A/B 边界、设备顺序与 preflight 正负门"
+    ],
+    "writeScope": [],
+    "deviceAccess": "FORBIDDEN",
+    "deliverable": "历史 round-2 只读 FAIL / P2 压缩复审报告",
+    "stopAfter": "已退役；禁止复用或 followup 接 round3、pre-handoff audit、QA、Release"
+    },
+    {
+      "id": "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "全新只读 round3 集成复审员 / preflight 门序与动作契约审查员",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只读复核 round2 P2 修复、canonical gate lifecycle、角色与 prompt 首动作",
+        "只读执行 preflight 正负例、31 项 tools digest 与 ACTIVE/TASKS 门"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "round3 只读 PASS / FAIL / BLOCKED 压缩复审报告",
+      "stopAfter": "历史 round3 PASS 后永久退役；禁止复用或 followup 接 pre-handoff audit、QA、Release"
+    },
+    {
+      "id": "PRE_HANDOFF_AUDIT_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "独立交接审计员 / 证据与文档核验师",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "独立审查 Git、唯一 ACTIVE、任务板、契约、提示词、工具边界与证据指针",
+        "核验继承的未提交 / ignored 文件和 root force-add 集成说明"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "pre-handoff audit PASS / FAIL / BLOCKED 压缩报告",
+    "stopAfter": "一次性角色；交接审计报告后停止，禁止 followup 改文件、跑 QA、派代理或转交自身"
+    },
+    {
+      "id": "PAD_QA_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "资深移动端 QA 架构师 / 用户承诺验证经理",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "仅在 Pad 43af8627 执行一次 fresh-install 10 分钟完整核心矩阵",
+        "捕获并恢复设备状态，完成清理",
+        "写本轮 QA 报告"
+      ],
+      "writeScope": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/**"
+      ],
+      "deviceAccess": "PAD_ONLY",
+      "deliverable": "Pad 10 分钟核心矩阵 PASS/FAIL/BLOCKED 与 cleanup 证据",
+    "stopAfter": "一次性角色；Pad 报告后停止，禁止 followup 接 K60、修复工具、实现或 Release"
+    },
+    {
+      "id": "K60_QA_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "资深移动端 QA 架构师 / 跨设备用户承诺验证经理",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "仅在 Pad CORE PASS 且锁释放后登记 K60 8e875894",
+        "串行执行一次 fresh-install 10 分钟完整核心矩阵",
+        "捕获并恢复设备状态，完成清理"
+      ],
+      "writeScope": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v10/**"
+      ],
+      "deviceAccess": "K60_ONLY_AFTER_PAD_PASS",
+      "deliverable": "K60 10 分钟核心矩阵 PASS/FAIL/BLOCKED 与 cleanup 证据",
+    "stopAfter": "一次性角色；K60 报告后停止，禁止 followup 修改实现、工具、协议或接 Release"
+    }
+  ],
+  "requiredGates": {
+    "lifecycleVersion": "AURORAMA_HANDOFF_GATE_ORDER_V1",
+    "lifecycle": [
+      {
+        "id": "PREFLIGHT_PASS",
+        "owner": "ROOT_INTEGRATION",
+        "requiredBefore": [],
+        "status": "PASS"
+      },
+      {
+        "id": "TOOL_NONCONVERGENCE_REPAIRED",
+        "owner": "TOOL_REPAIR_OWNER",
+        "requiredBefore": [
+          "PREFLIGHT_PASS"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "CONTRACT_DIGEST_REFRESHED",
+        "owner": "DOC_PROTOCOL_OWNER",
+        "requiredBefore": [
+          "TOOL_NONCONVERGENCE_REPAIRED"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "INDEPENDENT_INTEGRATION_REVIEW_PASS",
+        "owner": "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+        "requiredBefore": [
+          "CONTRACT_DIGEST_REFRESHED"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "PRE_HANDOFF_AUDIT_PASS",
+        "owner": "PRE_HANDOFF_AUDIT_OWNER",
+        "requiredBefore": [
+          "INDEPENDENT_INTEGRATION_REVIEW_PASS"
+        ],
+        "status": "BLOCKED"
+      },
+      {
+        "id": "QA_DISPATCHABLE",
+        "owner": "PAD_QA_OWNER",
+        "requiredBefore": [
+          "PRE_HANDOFF_AUDIT_PASS"
+        ],
+        "status": "BLOCKED"
+      }
+    ]
+  },
+  "stopConditions": [
+    "PREFLIGHT_FAIL_CLOSED",
+    "CONTRACT_FIELD_MISSING_UNKNOWN_OR_ROLE_INCOMPLETE",
+    "DEVICE_ORDER_WINDOW_SERIAL_OR_LOCK_DRIFT",
+    "APK_SIZE_SHA_ABI_PERMISSION_PACKAGE_OR_VERSION_DRIFT",
+    "TOOLS_DIGEST_MISMATCH_OR_UNREFRESHED_AFTER_REPAIR",
+    "SHARED_WRITE_OVERLAP_OR_SAME_AGENT_REUSE",
+    "FRESH_INSTALL_OR_PROFILE_IDENTITY_FAIL",
+    "CORE_MATRIX_NOT_EXECUTED_OR_ANY_CORE_FAILURE",
+    "AUDIOTRACK_CONTINUITY_OR_GAP_GT_15_SECONDS_FAIL",
+    "CURRENT_RUN_NATIVE_JAVA_CRASH_ANR_INPUTTIMEOUT",
+    "RESOURCE_FOCUS_OWNER_OR_PID_NONCONVERGENCE",
+    "TEN_MINUTE_WINDOW_EXTENSION_REQUEST",
+    "K60_ATTEMPT_BEFORE_PAD_CORE_PASS",
+    "OLD_EVIDENCE_OR_INSTALL_CLEANUP_USED_AS_PRODUCT_PASS",
+    "NEW_P0_P2_OR_EVIDENCE_TAMPER",
+    "CLEANUP_OR_CAPTURE_RESTORE_FAIL",
+    "INDEPENDENT_REVIEW_OR_PRE_HANDOFF_AUDIT_NOT_PASSED",
+    "PRODUCTION_CODE_G2_Q03_PROFILE_RELEASE_SERVER_WRITE_OR_PUSH_NOT_AUTHORIZED"
+  ],
+  "firstReadOnlyActions": {
+    "toolRepair": [
+      "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -EmitPrompt",
+      "Preflight PASS 后，以全新 PRE_HANDOFF_AUDIT_OWNER 只读审计 Git、唯一 ACTIVE、TASKS、memory、设备锁、下一 prompt、round3 PASS 证据与 root force-add 说明；不得写文件或转 QA。"
+    ],
+    "padQa": [
+      "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -Prompt padQa -EmitPrompt",
+      "Preflight PASS 后，按 readOrder 顺序读取压缩材料；不进入 raw、旧证据或生产源码。"
+    ]
+  },
+  "activePrompt": "toolRepair",
+  "next_prompt_path": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/toolRepair/textLines",
+  "qa_prompt_path": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
+  "nextPromptPath": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/toolRepair/textLines",
+  "qaPromptPath": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
+  "prompts": {
+    "toolRepair": {
+      "roleId": "PRE_HANDOFF_AUDIT_OWNER",
+      "status": "ACTIVE",
+      "dispatchable": true,
+      "actionClass": "READ_ONLY_PREFLIGHT",
+      "command": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1",
+        "-EmitPrompt"
+      ],
+      "firstAction": "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -EmitPrompt",
+      "requiredTokens": [
+        "SUBAGENT_FIRST=YES",
+        "ONE_PHASE_PER_FRESH_AGENT=YES",
+        "NO_REUSE_SUBAGENT=YES",
+        "ROOT_INTEGRATION_ONLY=YES",
+        "PRE_HANDOFF_AUDIT_OWNER",
+        "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+        "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+        "INDEPENDENT_INTEGRATION_REVIEW_PASS",
+        "PRE_HANDOFF_AUDIT_PASS",
+        "ROUND2-P2-01",
+        "ROUND1-P1-01",
+        "ROUND1-P2-01",
+        "ROUND1-P2-02",
+        "31",
+        "2984",
+        "25/25",
+        "16/16",
+        "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+        "pre-handoff audit",
+        "qa-v8/tools",
+        "READ_ONLY_PREFLIGHT",
+        "QA_DISPATCHABLE",
+        "DEVICE_WINDOW_MINUTES=10",
+        "DEVICE_ORDER=Pad->K60"
+      ],
+      "textLines": [
+        "专业身份：PRE_HANDOFF_AUDIT_OWNER（Aurorama 2.0 G1 的全新独立 pre-handoff audit 审计员 / Git、文档、记忆与证据一致性核验师）；你不是 root、ROUND3_READONLY_INTEGRATION_REVIEW_OWNER、round1/round2 reviewer、工具修复 owner、B3/B4 写者、QA、Release 或 merge-prep 执行者。",
+        "SUBAGENT_FIRST=YES；ONE_PHASE_PER_FRESH_AGENT=YES；NO_REUSE_SUBAGENT=YES；ROOT_INTEGRATION_ONLY=YES。本角色一次性、只做 pre-handoff audit；禁止复用任何历史 reviewer / 修复 owner，禁止 followup 接 QA、Release 或任何下一阶段。",
+        "第一条只读动作必须实际执行：pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -EmitPrompt。其 actionClass 必须为 READ_ONLY_PREFLIGHT；命令路径与参数必须逐项命中机器契约，任何非零或 FAIL_CLOSED 立即停止并只报压缩失败。",
+        "Preflight PASS 后精确读序：docs/V2_PLAN.md §12 唯一 ACTIVE 的角色表、canonical gate lifecycle、状态与下一动作 → AGENTS.md 顶部 2.0 硬门 → docs/PROJECT_RULES.md R028/R029/R030/R031 → 本机器契约的 qaRoundState / requiredGates / roles / prompts / validation → docs/TASKS.md 仅三条 In Progress → docs/PROJECT_PLAN.md 2.0 行 → docs/LESSONS.md L020。Engramory 只读 MEMORY.md 及 Aurorama 2.0 project note，并运行 checker / doctor；禁止修改记忆。",
+        "Round3 独立复审已 PASS，owner=ROUND3_READONLY_INTEGRATION_REVIEW_OWNER；Git 边界无越界，qa-v8/tools 31/31、manifest 2984 B、digest 69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4；run-tests 25/25、self-test AST 31 / UTF-8 31、contract 16/16，15 类伪造契约 exit 2；QA-V9 dry-run 未改变 tools / manifest hash 或 mtime。",
+        "当前 phase 是 ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT。Round1 的 ROUND1-P1-01 / ROUND1-P2-01 / ROUND1-P2-02 已 CLOSED_BY_ROUND2_REVIEW；ROUND2-P2-01 已 CLOSED_BY_ROUND3_REVIEW_PASS。当前 gate 真实状态必须是 INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED；round3 PASS 不是 pre-handoff audit PASS、QA PASS、已合并或 G1 PASS。",
+        "审计范围：事实 worktree、branch、输入基线祖先、staged / unstaged 与 ignored 文件；唯一 ACTIVE；TASKS 恰三条；memory checker / doctor；设备锁 ACTIVE=0；下一 prompt 角色与首动作；10 个 ignored QA tools 的 root force-add 路径族；契约、文档、旧 findings 关闭状态与证据指针一致性。",
+        "预期当前工作树尚未 commit，允许的 tracked / untracked 变更必须只命中本轮 B 白名单与既有 qa-v8 tools 修复集合；qa-v8/tools 31 项 digest、manifest 2984 B / hash / mtime 不得改变，不得出现 qa-v9 证据、report 或生产改动。root 后续两段提交与 ignored 10 项 force-add 只作为审计对象，不由本角色执行。",
+        "只读写边界：不得修改任何仓库文件、ACTIVE、TASKS、契约、docs、qa-v8/tools、记忆、旧 report、QA 证据或 Git index；不得 adb、设备、网络、QA、commit/push/tag。只可运行既有只读 preflight / 测试 / memory validator，临时夹具必须置于系统临时目录并清理。",
+        "停止条件：任何非零或 FAIL_CLOSED；Git / 唯一 ACTIVE / TASKS / memory / 设备锁 / 下一 prompt 任一项不一致；需要写仓库或改 ACTIVE；发现越界文件、digest / mtime 漂移、产品 PASS 过度声明、QA 提前派发条件或新 P0-P2。立即停止并报 BLOCKED，不得修文件后继续。",
+        "全局设备门保持不变：DEVICE_WINDOW_MINUTES=10；DEVICE_ORDER=Pad->K60。审计阶段禁止 adb、设备与提前登记 K60；当前 padQa 必须为 BLOCKED_PENDING_PRE_HANDOFF_AUDIT、dispatchable=false。只有本轮 audit PASS 后由负责人刷新契约，才可另建全新 Pad QA。",
+        "输出仅含 PASS / FAIL / BLOCKED、Git 与文件范围、唯一 ACTIVE / TASKS=3、memory validator、设备锁、下一 prompt、round3 证据复算、P0-P3（产品未评估则 NOT_ASSESSED）、未覆盖与证据指针，然后停止。不得自行宣称 PRE_HANDOFF_AUDIT_PASS 已交付；实际审计结论必须由本 fresh owner 给出。"
+      ]
+    },
+    "padQa": {
+      "roleId": "PAD_QA_OWNER",
+      "status": "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
+      "dispatchable": false,
+      "actionClass": "READ_ONLY_PREFLIGHT",
+      "command": [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1",
+        "-Prompt",
+        "padQa",
+        "-EmitPrompt"
+      ],
+      "firstAction": "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -Prompt padQa -EmitPrompt",
+      "requiredTokens": [
+        "SUBAGENT_FIRST=YES",
+        "ONE_PHASE_PER_FRESH_AGENT=YES",
+        "NO_REUSE_SUBAGENT=YES",
+        "ROOT_INTEGRATION_ONLY=YES",
+        "PAD_QA_OWNER",
+        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
+        "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+        "READ_ONLY_PREFLIGHT",
+        "pre-handoff audit",
+        "DEVICE_WINDOW_MINUTES=10",
+        "DEVICE_ORDER=Pad->K60",
+        "43af8627",
+        "qa-v9",
+        "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+        "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+        "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+        "31",
+        "AudioTrack",
+        "15 秒",
+        "ApplicationExitInfo",
+        "K60"
+      ],
+      "textLines": [
+        "专业身份：PAD_QA_OWNER（Aurorama 2.0 G1 的全新独立 Pad QA / 用户承诺验证经理）；你与实现、QA-v7、QA-v8 两次执行、工具修复和协议 owner 均不同。",
+        "SUBAGENT_FIRST=YES；ONE_PHASE_PER_FRESH_AGENT=YES；NO_REUSE_SUBAGENT=YES；ROOT_INTEGRATION_ONLY=YES。每阶段换 agent；完成本阶段即停，禁止 followup 接 K60 或任何后续阶段。",
+        "第一条只读动作必须实际执行：pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -Prompt padQa -EmitPrompt。其 actionClass 必须为 READ_ONLY_PREFLIGHT；当前 prompt 状态固定为 BLOCKED_PENDING_PRE_HANDOFF_AUDIT 且不可派发；只有负责人已提供全新 ROUND3_READONLY_INTEGRATION_REVIEW_OWNER 的 PASS、另一全新 PRE_HANDOFF_AUDIT_OWNER 的 PASS，并把本 prompt 合法激活后才可继续。任何非零、PROMPT-NOT-ACTIVE 或 FAIL_CLOSED 立即停止。",
+        "精确读序：唯一 ACTIVE → AGENTS 顶部硬门 → PROJECT_RULES R029/R030/R031 → 本机器契约 → TASKS 三条 In Progress → round3 只读 integration review 压缩报告 → pre-handoff audit 压缩报告 → qa-v8/report.json 仅 status/verdict/object/findings/cleanup/deviceLock 摘要。rejectedScope：禁读 raw/attempts 原始日志、qa-v3/v6/v7 原始证据批量、全量 logcat、截图、生产源码、无关记忆；禁读或触碰凭据。",
+        "当前输入：main=.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk，427009671 B，SHA-256=252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161，package=dev.aurorama.kokoro.harness，versionCode=4，versionName=2.0-kokoro-runtime-v5，ABI=arm64-v8a，internetPermission=false；peer=.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk，12696 B，SHA-256=61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab，package=dev.aurorama.kokoro.focuspeer。",
+        "tools 输入固定为 31 项、manifest 2984 bytes、相对路径 ordinal 排序、自排除 tools.sha256、UTF-8/LF、摘要 69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4；启动前必须由 preflight 现场重算并 31/31 MATCH。旧 d8e98a90…d0bfb 的 21 条与 superseded digest 仅为历史，不得使用。",
+        "证据根固定为 .planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9；启动前确认未被复用、设备锁显式登记 serial=43af8627。DEVICE_ORDER=Pad->K60；本代理只碰 Pad，K60 serial=8e875894 必须等 Pad 核心 PASS 且锁释放后由另一全新 QA 执行。",
+        "Pad 先做 fresh install、package/version/ABI/permission 与 user0 身份核验，再执行单次 DEVICE_WINDOW_MINUTES=10 真实 runtime 观测，不得延长。完整产品门必须全部执行：zf_001/zm_010、真实 AudioTrack start/completion、头/中/尾连续性、最大 audio gap ≤15 秒、FGS/MediaSession/notification、PID/resource 收敛、当前 run ApplicationExitInfo/native/Java/F DEBUG/crash/ANR/InputTimeout、audio focus/单音频 owner、final UID 零网络、capture-restore 与 cleanup。",
+        "失败即停：核心未执行或失败、AudioTrack 不真、gap>15 秒、crash/ANR/InputTimeout、resource/focus/owner 不收敛、APK/SHA/tools/identity/lock 漂移、超过 10 分钟或需要第二次尝试均停止；不得自动重试，不得把旧 30 分钟/QA-v5/v6/v7/stop-only/安装门/cleanup 当作产品 PASS，也不得用 PASS_WITH_GAPS 覆盖核心未执行。",
+        "只允许写 qa-v9 证据；禁止改 qa-v8/tools、docs/AGENTS/preflight、实现、旧 report、生产代码，禁止 adb 触 K60、服务器生产写、新域、MOSS、G2、Q03、profile、Release、commit/push/tag。结束时 packages/PID/service/notification/MediaSession/focus/external/网络与用户设置必须恢复，设备锁 ACTIVE=0。",
+        "输出仅含结论、实际 executed、产品 P0-P3、未覆盖、工具 findings、证据指针、cleanup/restore 与下一门；Pad 阶段完成后停止。K60 必须由负责人另建不同 fresh agent，且仍固定 10 分钟与同一产品门。"
+      ]
+    }
+  },
+  "validation": {
+    "activeDocument": "docs/V2_PLAN.md",
+    "activeHeadingPrefix": "### ACTIVE",
+    "activePromptExpectedRoleId": "PRE_HANDOFF_AUDIT_OWNER",
+    "qaPromptRequiredStatus": "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
+    "tasksDocument": "docs/TASKS.md",
+    "tasksInProgressHeading": "## In Progress",
+    "tasksInProgressExpectedCount": 3,
+    "toolsDigestAlgorithm": "SHA256 UTF8(LF; '<file-sha256>  tools/<relative>' lines; relative path ordinal; final LF; tools.sha256 self-excluded)",
+    "activeRequiredTokens": [
+      "HANDOFF_BOOTSTRAP_V2",
+      "SUBAGENT_FIRST=YES",
+      "ONE_PHASE_PER_FRESH_AGENT=YES",
+      "NO_REUSE_SUBAGENT=YES",
+      "ROOT_INTEGRATION_ONLY=YES",
+      "DEVICE_WINDOW_MINUTES=10",
+      "DEVICE_ORDER=Pad->K60",
+      "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+      "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS",
+      "CONTRACT_DIGEST_REFRESHED",
+      "PREFLIGHT_PASS",
+      "PRE_HANDOFF_AUDIT_PASS=BLOCKED",
+      "QA_DISPATCHABLE=BLOCKED",
+      "QA_DISPATCHABLE_BLOCKED",
+      "ROUND3_REVIEW_PASS",
+      "CORE_STEPS_0",
+      "PRODUCT_P0_P3_NOT_ASSESSED",
+      "K60_NOT_RUN",
+      "ACTIVE=0",
+      "31",
+      "2984",
+      "25/25",
+      "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+      "ROUND1-P1-01",
+      "ROUND1-P2-01",
+      "ROUND1-P2-02",
+      "ROUND2-P2-01",
+      "ROOT_INTEGRATION",
+      "IMPLEMENTATION_OWNER",
+      "TOOL_REPAIR_OWNER",
+      "DOC_PROTOCOL_OWNER",
+      "INTEGRATION_REVIEW_OWNER",
+      "ROUND2_READONLY_INTEGRATION_REVIEW_OWNER",
+      "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+      "PRE_HANDOFF_AUDIT_OWNER",
+      "PAD_QA_OWNER",
+      "K60_QA_OWNER",
+      "INDEPENDENT_INTEGRATION_REVIEW_PASS",
+      "PRE_HANDOFF_AUDIT_PASS",
+      "QA_DISPATCHABLE",
+      "READ_ONLY_PREFLIGHT",
+      "tools/v2-handoff/Invoke-HandoffPreflight.ps1"
+    ],
+    "requiredTextAnchors": [
+      {
+        "path": "AGENTS.md",
+        "tokens": [
+          "HANDOFF_BOOTSTRAP_V2",
+          "Invoke-HandoffPreflight.ps1",
+          "FAIL_CLOSED",
+          "DEVICE_WINDOW_MINUTES=10"
+        ]
+      },
+      {
+        "path": "docs/PROJECT_RULES.md",
+        "tokens": [
+          "R029",
+          "R030",
+          "R031",
+          "HANDOFF_BOOTSTRAP_V2",
+          "DEVICE_ORDER=Pad->K60"
+        ]
+      },
+      {
+        "path": "docs/PROJECT_PLAN.md",
+        "tokens": [
+          "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+          "PRE_HANDOFF_AUDIT_OWNER",
+          "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+          "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+          "25/25",
+          "HANDOFF_BOOTSTRAP_V2"
+        ],
+        "forbiddenTokens": [
+          "Pad QA-v6 native crash P1 修复已授权",
+          "HANDOFF_BOOTSTRAP_V2_BUILT_PREFLIGHT_BLOCKED_A_TOOLS_DRIFT"
+        ]
+      },
+      {
+        "path": "docs/TASKS.md",
+        "tokens": [
+          "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+          "PRE_HANDOFF_AUDIT_OWNER",
+          "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+          "PAD_10_MIN_CORE_NOT_RUN",
+          "K60_NOT_REGISTERED_NOT_RUN",
+          "PRODUCT_P0_P3_NOT_ASSESSED",
+          "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+          "25/25"
+        ],
+        "forbiddenTokens": [
+          "BLOCKED_PENDING_TOOL_REPAIR_AND_CONTRACT_REFRESH",
+          "d8e98a90b250bafb1bb48d62f315041fd0f67653d8d81c4650aca9fb617d0bfb",
+          "a7e5def25343bb96c15b76398b421115de60f40824698d67a682f3c4b7908901",
+          "BLOCKED_PENDING_INTEGRATION_REVIEW_AND_PRE_HANDOFF_AUDIT",
+          "BLOCKED_PENDING_ROUND2_INTEGRATION_REVIEW_AND_PRE_HANDOFF_AUDIT"
+        ]
+      },
+      {
+        "path": "docs/LESSONS.md",
+        "tokens": [
+          "L018",
+          "L019",
+          "L020",
+          "HANDOFF_BOOTSTRAP_V2",
+          "NO_REUSE_SUBAGENT"
+        ]
+      }
+    ]
+  }
+}

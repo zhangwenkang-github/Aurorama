@@ -1,6 +1,6 @@
 # Cinefin · 项目总览与协作规程
 
-> **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-11-03　集成分支 `codex/v2-integration`
+> **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-11-06　集成分支 `codex/v2-integration`
 > 项目级状态、任务线地图、协作规程都在本文件；单个任务线内部的需求 / 进度 / 决策写各自的线文档。
 > **Aurorama 2.0 正在做开发前置收敛**：需求与交付入口是 `docs/V2_PLAN.md`；外部原始需求只读分片读取，禁止整篇通读。
 
@@ -34,7 +34,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 G1 方案门进行中 / Pad QA-v6 native crash P1 修复已授权 | G0、S1–S6、Q01/Q02/Q04 等既有静态门已完成；D203 voice-pack / 后台锁屏保持；D204 接受 engine strategy A，D205 重筛小引擎，D206 完成固定 Kokoro 资产与双机隔离 runtime，D207 接受当前 `zf_001` / `zm_010` 两条样音但不冻结 profile。v4 提交 `191a46e2`；K60 QA-v5 P0/P1/P2/P3=`0/0/0/1`。全新 Pad QA-v6 在 `43af8627` 完成双声线、`1,800.865 s` 全 Asleep 长跑、AudioTrack `134/135`、队列 `0→135/351`、通知停止、UID 零网络和清理；长跑 / 零网络 / 清理为窄 PASS，但通知停止后出现 `ApplicationExitInfo reason=5 APP CRASH(NATIVE), status=6`（ONNX / Sherpa `F DEBUG`），整体 `FAIL / P1 REV6-P1-01`。Pad `zf_001` 最差有效 `7,625 ms / 1.878750 / 956,214 KB`，P2 未接受。QA 初次误判 PASS 已由 fresh review 抓出并纠正；最终证据 71/71 SHA MATCH，网络键全部脱敏、锁快照最小化、receipt 自洽，锁 ACTIVE=0。用户已于 2026-11-05 授权下一步：只交接一个隔离 harness 实现 owner，修复 stop/native-inference teardown P1，完成 TDD、新 APK 和边界内自测后停止；独立 QA、生产代码 / G2 / Release / 服务器写仍须另派或另授权。许可仍 PARTIAL；Q03 Open、C1 exact profile Open、G1 NOT_PASSED、项目级 runtime UNVERIFIED。 |
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 G1 方案门进行中 / `ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT`；`HANDOFF_BOOTSTRAP_V2` 已切到唯一 fresh `PRE_HANDOFF_AUDIT_OWNER` | G0、S1–S6、Q01/Q02/Q04 等静态门保留；D203–D207 产品 / 许可边界保持。QA-v7 仅关闭 stop-only；QA-v8 核心步骤 `0`，K60 未登记未运行，cleanup / restore 12/12 PASS 且锁 `ACTIVE=0`，产品 P0–P3=`NOT_ASSESSED`。Round1 的 1 P1 + 2 P2 已由 round2 复审关闭；`ROUND2-P2-01` 已由全新 `ROUND3_READONLY_INTEGRATION_REVIEW_OWNER` 只读复审 PASS 并记 `CLOSED_BY_ROUND3_REVIEW_PASS`。Round3 证据：Git 边界无越界，`qa-v8/tools` 31/31、manifest `2984 B`、digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`、QA tools `25/25`、self-test AST/UTF-8 31、contract `16/16`、15 类伪造 exit 2，QA-V9 dry-run 无 tools / manifest hash 或 mtime 变化。`INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS`，`PRE_HANDOFF_AUDIT_PASS` 与 `QA_DISPATCHABLE` 仍 `BLOCKED`；round3 PASS 不是 audit / QA / 已合并或 G1 PASS。10 个 ignored 新文件待 audit PASS 后由 root 显式 force-add；当前不得改 `.gitignore` 或 stage。下一步仅 fresh pre-handoff audit，之后才可激活 10 分钟 Pad->K60 产品矩阵。许可 PARTIAL、Q03 Open、C1 exact profile Open、G1 NOT_PASSED、项目级 runtime UNVERIFIED。 |
 | **维护 / 缺陷修复**（v1.1.0，18 条 + 小增强） | `docs/FIX_PLAN.md`（W73 建线） | 🟢 v1.1.0 已发布（2026-10-07，tag + Release + 双 APK）；B9/B10/B11 修复已随版闭环 | W73–W75 全部合并（896/0）→ **W76**：B8 日志脱敏合并（master `f25f1d4`、合并态门禁 **899/0**）；`1.1.0 (2)` release 已构建签名（universal 163.2 MB / arm64 74.0 MB、指纹 `e449c4aa…e155ff`）；回归 = R2（Pad 5 核心，0 FATAL·ANR）+ R1（K60 发布面：覆盖升级 ✅ / SAF ✅ / mpv 兜底 ✅ / Quick Connect ✅ / 真实下载 ❌）；新发现 B9（P1 · 新装首次下载失败，根因已夹逼、建议随 1.1.0 修）/ B10（P2）/ B11（P3）——见 `FIX_PLAN` §6、`TEST_PLAN` §7.7；**v1.1.0 已发布（2026-10-07）；1.2.0 = W77 阅读流式波（见阅读器线）；2026-10-17 第二批 W78–W83（#22–#39）见 §3 追加段** |
 | **Aurorama 1.4.0（W84–W89）** | `docs/FIX_PLAN.md` §2.4 / §3 / §4 + `docs/PLAYER_PLAN.md` §41 / §43 / §44 / §45 | 🔴 W89-C 独立 QA 通过静态 / Pad 安装门；跨客户端音乐 P1 阻断用户验收 | W84–W89-B 已合并且代码 commit 三路 CI 绿。W89-C 代码候选 `d18ed56` 仅将版本 bump 到 1.4.0(5)；双 APK 契约、223 XML / 1505 JVM、安全 26/26、格式、debug 与 Pad 同签名覆盖安装均通过。Jellyfin Web、Pad 1.4、K60 1.3 测试多首音乐均失败；Web 提示客户端不支持媒体，K60 实捕 HTTP 404。故障已超出单一 Android 客户端，首要检查 Jellyfin 12.3.0 服务端媒体文件 / 格式、转码后端与反代音频路由。正式用户验收与 K60 升级阻断。Pad 登录内容保留、真实应用内下载 / 系统确认、用户全验、tag / Release 仍未验证；既有 P2/P3、全局 BLOCKED=2 与 349 首快照偏差保留。 |
 | **Aurorama 1.4.0 W90 验收整改** | `docs/FIX_PLAN.md` W90 / `docs/PLAYER_PLAN.md` §46–§47 | 🟢 音乐身份批次已合并且 push / CI 三绿；用户验收与发布待定 | 下载子批候选 `3a92061f` 已独立 QA 并为 P0/P1/P2/P3=`0/0/0/2`、merge-prep PASS。音乐 final fix `fe2dbacc` / `024235b4` 区分三阶段失败、用 revision + requestId 守护选择恢复、收敛 Play all 单点击层并保留 Loading 无障碍状态。身份残留 `27b82f57`、独立 QA 与 merge-prep PASS；接受 W89-C `Versions.kt` 1.4.0(5) 后 ff-only 合并到 `36ca73c1`，最终 push `fe746fe6`，Build / Unit / Format 同 SHA 三绿。设备未覆盖项、两项下载 P3 与 W89-C 未发布状态继续保留；tag / Release / workflow 未执行。 |
@@ -277,9 +277,11 @@ adb shell uiautomator dump /sdcard/u.xml; adb shell cat /sdcard/u.xml | Select-S
 
 ## 7. 新会话交接清单
 
-- [ ] 读本文件（§1–§5）+ 目标任务线文档
+- [ ] **Aurorama 2.0 首先**实际运行 `tools/v2-handoff/Invoke-HandoffPreflight.ps1` 并取得 `PASS`；失败即 `FAIL_CLOSED` 停止，不先通读材料、不先碰设备
+- [ ] 2.0 只读唯一 `ACTIVE` 的机器契约、角色表与指定白名单；负责人创建一个 fresh 单阶段专业代理，禁止同一代理跨阶段
+- [ ] 非 2.0 工作读本文件（§1–§5）+ 目标任务线文档
 - [ ] **读 `PLAYER_PLAN.md` §11**（2026-09-28 新增：播放页 UI/UX 改造待办，含自动选字幕/自动播放两个 bug 的线索）
 - [ ] `git log --oneline -10` + `git status --porcelain | Select-String "<任务线关键词>"`
-- [ ] 确认设备在线：`adb devices`（真机 `nabu`）
+- [ ] 设备项只在对应授权阶段核验实际 serial；2.0 起始 preflight 禁止 `adb`，无关设备离线不得制造假阻塞
 - [ ] 从任务线文档的任务清单里挑一条（P0 优先），动手前先写一句"本轮做什么"
 - [ ] 完成后：勾进度 → 写日志 → `git commit` → 需要时更新本文件 §3

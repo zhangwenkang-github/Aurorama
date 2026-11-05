@@ -1,6 +1,36 @@
 # Cinefin 协作约定
 
 - 全程使用简体中文回答。
+
+## Aurorama 2.0 交接启动硬门（2026-11-05，优先于下方通用开工顺序）
+
+- 新会话第一条只读动作必须实际运行
+  `pwsh -NoProfile -File 'F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\v2-handoff\Invoke-HandoffPreflight.ps1' -EmitPrompt`。
+  该命令只读、离线、不得调用 `adb` 或网络。任何非零退出、`FAIL_CLOSED`、缺失字段、未知值、
+  角色表不完整、gate owner / `requiredBefore` / 门序 / 状态漂移、prompt `actionClass` 或参数
+  不符、设备顺序漂移、窗口非 10 分钟或 APK/工具摘要不一致都必须立即停止。
+- 唯一权威机器契约为 `tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json`。唯一 `ACTIVE` 开头必须直接
+  展示 `SUBAGENT_FIRST=YES`、`ONE_PHASE_PER_FRESH_AGENT=YES`、`NO_REUSE_SUBAGENT=YES`、
+  `ROOT_INTEGRATION_ONLY=YES`、`DEVICE_WINDOW_MINUTES=10`、`DEVICE_ORDER=Pad->K60` 和完整
+  角色表；重要规则不能只留在聊天或 Engramory。
+- 唯一 gate 顺序为 `INDEPENDENT_INTEGRATION_REVIEW_PASS -> PRE_HANDOFF_AUDIT_PASS ->
+  QA_DISPATCHABLE`，并保留 `TOOL_NONCONVERGENCE_REPAIRED -> CONTRACT_DIGEST_REFRESHED ->
+  INDEPENDENT_INTEGRATION_REVIEW_PASS` 的上一段语义。每门必须含精确
+  `id / owner / requiredBefore / status`；下游 PASS 的前置门未 PASS、owner 漂移、重复 / 缺门、
+  乱序或未知状态一律 `FAIL_CLOSED`。QA 必须在 audit PASS 后才可派发。
+- 新会话 prompt 首动作必须绑定 `actionClass=READ_ONLY_PREFLIGHT` 的精确命令参数；仅以
+  `pwsh -NoProfile` 开头的任意命令不算通过。round3 reviewer 与 pre-handoff audit 必须分别使用
+  不同 fresh 角色，当前真实 QA 状态保持 `BLOCKED`。
+- 负责人只做交付 / 集成编排、范围、白名单、压缩报告与关键 diff 审查、集成决策和交接，不亲自
+  实现、修工具、写产品代码或跑真机 QA，也不批量读取 raw 证据。实现、工具修复、文档协议、
+  集成审查、Pad QA、K60 QA 各用全新专业子代理；每个 fresh agent 只做一阶段，禁止 followup
+  同一代理接下一阶段。
+- 当前 A/B 写边界互斥：A = `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/**`，只给全新
+  `TOOL_REPAIR_OWNER`；B = `AGENTS.md`、2.0 文档与本 preflight 工具根，只给全新
+  `DOC_PROTOCOL_OWNER`。任何共享文件变更由负责人串行仲裁，A/B 不得由同一代理跨写。
+- 每设备单次真实 runtime 观测窗固定 10 分钟，不得延长；Pad `43af8627` 核心全部 PASS 且锁释放
+  后才允许登记 K60 `8e875894`，且 K60 必须另派全新 QA 串行执行。旧 30 分钟、安装门、stop-only
+  或 cleanup 证据不得冒充本轮 10 分钟产品门。
 - **开工顺序**：先读 `docs/PROJECT_PLAN.md`（项目总览 / 模块地图 / 任务线 / 多会话协作规程）→ 再读所在任务线的文档。
   播放器线 = `docs/PLAYER_PLAN.md`（该线的需求、决策、进度、验收标准与踩坑库都在里面）。
 - **Aurorama 2.0 权威入口**：2.0 工作先读 `docs/V2_PLAN.md`，再按其中的本次只读白名单读取外部原始需求；执行规则以 `docs/PROJECT_RULES.md` 为准，任务状态看 `docs/TASKS.md`，决策看 `docs/DECISIONS.md`，项目内踩坑看 `docs/LESSONS.md`。外部原始需求永久只读，不在聊天中重复整段搬运。

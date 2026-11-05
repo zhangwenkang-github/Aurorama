@@ -1,9 +1,9 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / RUNTIME_V5_IMPLEMENTATION_COMMITTED / P1_IMPLEMENTED_SELF_TEST_PASS / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_READY / K60_QA_V5_FULL_PASS / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `P1_IMPLEMENTED_SELF_TEST_PASS / PAD_STOP_QA_V7_READY / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。v5 隔离 harness 已完成 `REV6-P1-01` 最小修复：TDD `39/0/0/0`，Pad 推理中 / playing 中 stop 自测无 SIGABRT、native crash、FATAL、ANR 或 InputTimeout，clean 与锁释放通过；完整事实见 `runtime-closure-v3/implementation-report.json`。该结果是实现自测，不是独立 QA。下一原子任务由不同全新 QA 在 Pad 上重建 stop-only 与 crash gate；通过后才另派完整 Pad/K60 runtime 重验。K60 QA-v5 与 Pad QA-v6 仅为旧候选基线，不能替新 APK 作证。许可、Pad P2、Q03、项目级 runtime、G1 与 profile 均未闭合。
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / RUNTIME_V5_IMPLEMENTATION_COMMITTED / P1_IMPLEMENTED_SELF_TEST_PASS / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_BLOCKED_TOOL_NONCONVERGENCE / ROUND1_FINDINGS_CLOSED / ROUND2_P2_PREFLIGHT_SEMANTIC_BYPASS_REPAIRED_CLOSED_BY_ROUND3 / ROUND3_INTEGRATION_REVIEW_PASS / TOOLS_STATIC_31_TESTS_25_OF_25 / CONTRACT_DIGEST_REFRESHED / PREFLIGHT_PASS / PRE_HANDOFF_AUDIT_BLOCKED / QA_DISPATCHABLE_BLOCKED / CORE_STEPS_0 / PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED / ROUND3_REVIEW_PASS / CORE_STEPS_0 / PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / ACTIVE=0`。Round-1 的 1 P1 + 2 P2 已由 round2 复审关闭；round2 `ROUND2-P2-01` 已由全新 `ROUND3_READONLY_INTEGRATION_REVIEW_OWNER` 复审并 `CLOSED_BY_ROUND3_REVIEW_PASS`。Round3 独立证据为 tools 31/31、manifest `2984 B`、digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`、QA tools `25/25`、AST/UTF-8 31、contract `16/16` 与 15 类伪造 exit 2；QA-V9 dry-run 无 tools / manifest hash / mtime 变化。当前不是 pre-handoff audit PASS、QA PASS、已合并或 G1 PASS。下一步唯一角色是全新 `PRE_HANDOFF_AUDIT_OWNER` 只读审计；QA 保持 `BLOCKED_PENDING_PRE_HANDOFF_AUDIT`。Pad 通过并释放锁后才允许 K60，每设备 10 分钟。许可、Pad P2、Q03、项目级 runtime、G1 与 profile 均未闭合。
 > 当前集成分支：`codex/v2-integration`
-> 最后更新：2026-11-05
+> 最后更新：2026-11-06
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
 
 ## 1. 原始输入
@@ -3413,67 +3413,153 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：QA-v8 工具非收敛 BLOCKED，等待负责人裁决定下一轮（2026-11-05）
+### ACTIVE：round3 独立集成复审 PASS，待全新 pre-handoff audit；QA 仍阻断（2026-11-06）
 
-**下一责任身份**：Aurorama 2.0 G1 交付负责人 / 技术集成编排者。只负责范围、风险、
-角色拆单、证据与决策；若继续，必须另行创建与实现、QA-v7、QA-v8 两次执行代理和工具
-writer 都不同的专业代理，不得把本轮 BLOCKED 改写成产品结论。
+**身份与优先硬门**
 
-**对象**：事实工作树
-`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
-`codex/v2-integration`；QA-v8 开工 HEAD
-`3b760025dce0ff323c1ece65ec1453ec1cebd55c`。new main
-`427,009,671 B / 252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`，
-version `4 / 2.0-kokoro-runtime-v5`；new peer
-`12,696 B / 61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`；
-工具摘要 `d8e98a90b250bafb1bb48d62f315041fd0f67653d8d81c4650aca9fb617d0bfb`。
+下一责任身份仍是 Aurorama 2.0 G1 交付负责人 / 技术集成编排者。唯一 `ACTIVE` 直接覆盖通用
+开工规则：`SUBAGENT_FIRST=YES`、`ONE_PHASE_PER_FRESH_AGENT=YES`、`NO_REUSE_SUBAGENT=YES`、
+`ROOT_INTEGRATION_ONLY=YES`。负责人只做范围、风险、拆单、白名单、压缩报告 / 关键 diff 审查、
+集成决策和交接；不得亲自实现、修工具、做独立审查、跑 pre-handoff audit 或真机 QA。
 
-**状态**：
-`QA_V8_BLOCKED_TOOL_NONCONVERGENCE / PAD_ONLY / CORE_STEPS_0 / K60_NOT_REGISTERED_NOT_RUN / CLEANUP_PASS / DEVICE_LOCK_ACTIVE_0 / PRODUCT_P0_P3_NOT_ASSESSED / PAD_P2_UNACCEPTED / KOKORO_LICENSE_PARTIAL / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+新会话第一条只读动作必须实际运行：
 
-**本轮事实**
+`pwsh -NoProfile -File 'F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\v2-handoff\Invoke-HandoffPreflight.ps1' -EmitPrompt`
 
-- 两次 Pad QA-v8 attempt 都只到工具门，核心步骤 `0`；30 分钟、样音、真实 AudioTrack、
-PID 计数为 `0 / 0 / 0 / none`，全矩阵、通知、audio focus、30 分钟、零网络与双机均
-`NOT_RUN`。K60 `8e875894` 未登记、未运行，针对性命令 0。
-- attempt 1 的 prepare 因 fresh-install 日期解析拒绝 `2026-11-05` 而 exit 1；
-finalize 在 `361,075 ms` 后被宿主 OOM 终止，exit `-1`，无结构化终态。证据归档在
-`.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/attempts/20261105-pad-01-tool-blocked/`。
-- attempt 2 fresh install 与设备身份 PASS：双 APK bytes/SHA、main `arm64-v8a`、
-versionCode 4 / `2.0-kokoro-runtime-v5`、精确权限集和无 INTERNET 均通过；但 prepare
-因遗留宿主 logcat job 不返回，finalize 又在 stop-logcat / convergence 阶段收到字面量
-`[Math]::Min`，Seconds 参数绑定 exit 1。
-- attempt 2 设备级 `SHA256SUMS` 为 19 条、2 条漂移；最终 `qa-v8/SHA256SUMS` 是交付清单。
-工具 findings 为重复非收敛 P1 与 manifest drift P2；产品 P0–P3 因核心零执行统一
-`NOT_ASSESSED`，不是产品 FAIL，也不是 `PASS_WITH_GAPS`。
-- 独立最终 cleanup / restore PASS：12/12 checks，双包、PID、service、notification、
-active MediaSession 与 external 均无；网络 `0/1/1/190`、音量 41、屏幕
-`2147483647/null/7`、user0、Awake、keyguard=false；生产 release
-`acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb` MATCH。
-Pad 锁已 `RELEASED`，`ACTIVE=0`。
-- 报告入口：
-`.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/report.json`；README、敏感扫描与最终清单同在
-`qa-v8/`。本轮报告 owner 未执行 adb / 设备 / 网络 / 生产访问，未改 harness、
-`qa-v8/tools`、v3/v7 证据或生产代码。
+preflight 只读、离线、显式 UTF-8/LF，不调用 `adb` 或网络。任何非零 / `FAIL_CLOSED`、字段缺失、
+未知值、角色表不全、gate owner / requiredBefore / 门序 / 状态漂移、prompt actionClass 或命令参数
+不符、设备顺序漂移、窗口非 10 分钟、APK / manifest / tools digest 不符都必须停止。
+唯一机器契约是 `tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json`，preflight 是
+`tools/v2-handoff/Invoke-HandoffPreflight.ps1`；契约只固定输入基线，不写入接收方当前 HEAD。
 
-**下一原子任务**
+**对象与现场事实**
 
-1. 第一条只读动作：读本 ACTIVE、`qa-v8/report.json`、attempt-1 `matrix-result.json`、
-attempt-2 `finalize-device.json`、`cleanup-recovery.json` 与最终 `SHA256SUMS`，确认设备锁
-`ACTIVE=0`。
-2. 由负责人决定：授权一次窄范围 QA-v8 工具修复并另派全新 QA 轮次，或明确延期 QA。
-本轮不会自动重试设备；重复执行前必须更换工具 owner 与 QA 执行者。
-3. 若授权修复，只允许新工具 owner 改 `qa-v8/tools`，修复后由不同全新 QA 代理从干净宿主
-状态重跑完整 Pad 矩阵；Pad 核心全部执行并收口后才可再登记 K60。
+- 事实工作树 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
+  分支 `codex/v2-integration`，输入基线 `c180dd08984435d0af6421b36b19502b0f79d52c`；当前
+  HEAD / clean / 祖先只由接收方现场读取。
+- 状态：`ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT /
+  INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=BLOCKED /
+  QA_DISPATCHABLE=BLOCKED / QA_DISPATCHABLE_BLOCKED / ROUND3_REVIEW_PASS /
+  CONTRACT_DIGEST_REFRESHED / PREFLIGHT_PASS / CORE_STEPS_0 /
+  PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / ACTIVE=0`。补充事实保持
+  `PAD_10_MIN_CORE_NOT_RUN / K60_NOT_REGISTERED_NOT_RUN / CLEANUP_PASS /
+  DEVICE_LOCK_ACTIVE_0 / PAD_P2_UNACCEPTED / KOKORO_LICENSE_PARTIAL / Q03_OPEN /
+  G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+- Round-1 的 1 P1 + 2 P2 已达 `CLOSED_BY_ROUND2_REVIEW`：`ROUND1-P1-01` QA-V9 锁未绑定唯一
+  当前 RunId；`ROUND1-P2-01` logcat cleanup 仅凭 PID；`ROUND1-P2-02` QA-V9 static dry-run
+  可能改变 canonical tools manifest 状态。三项关闭不等于 QA 产品 PASS。
+- Round2 新命中 `ROUND2-P2-01`：旧 preflight 仍接受 `preHandoffAudit=PASS` 但 review `NOT_RUN`、
+  gate owner 改成 `PAD_QA_OWNER` 并删除 `requiredBefore`、以及任意 `pwsh -NoProfile -File ...`
+  首动作。B4 已改为六门 canonical lifecycle、精确 owner / 前置门 / 状态传播与
+  `actionClass=READ_ONLY_PREFLIGHT` + 参数数组校验；全新
+  `ROUND3_READONLY_INTEGRATION_REVIEW_OWNER` 已真实复审并给出 `PASS`，该 finding 状态为
+  `CLOSED_BY_ROUND3_REVIEW_PASS`，round1 / round2 findings 均无仍开放项。
+- `qa-v8/tools` 当前 31 项，canonical manifest `2984 bytes / LF / 31 行`；相对路径 ordinal、
+  自排除 `tools.sha256` 后递归 digest 与 manifest SHA 均为
+  `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`，实际文件 31/31
+  MATCH。测试由 21 增至 25，结论入口为 `run-tests.ps1` 的
+  `SUMMARY passed=<N> failed=<N>`；本刷新阶段实跑 `PASS_25_0`，self-test 结论 `25/25`、
+  AST / UTF-8 / LF `PASS`。round3 reviewer 已独立复算并 PASS；这不是独立 QA、设备 runtime
+  或 G1 PASS。
+- QA-V9 dry-run 已按回归核验：前后 31 项 digest、`qa-v8/tools` 目录 mtime、canonical manifest
+  hash / mtime / `2984 bytes` 均不变。旧契约摘要仅在契约历史字段出现；旧 21 条 manifest 也
+  仅为历史，不具当前权威。
+- round3 复审与 B5 状态收口共用 `16/16 PASS`：正常契约 exit 0；review PASS 后伪造 audit
+  PASS 仍无合法 audit phase、audit owner 漂移、`requiredBefore` 缺失、首动作任意路径 /
+  未知参数、gate 乱序 / 重复 / 缺门 / 未知状态、QA 提前 PASS、顶层字段缺失、角色不全、
+  30 分钟、K60->Pad、复用已退役 round3 prompt owner 与直接 padQa 均 exit 2 `FAIL_CLOSED`。
+  当前 schema 尚无 audit actual receipt，因此以“当前 phase 必须等待 audit、任何 audit PASS
+  均不得提前生效”保持闭锁；不扩到下一阶段。AST、JSON、UTF-8 no BOM / LF、唯一 ACTIVE、TASKS=3、
+  `qa-v8/tools` 31/31 / `2984 B` / digest、mtime、`git diff --check`、未 stage 与
+  `.gitignore` 未改均 PASS；临时目录已清理。
+- QA-v8 两次 Pad attempt 的核心步骤仍为 `0`；samples / AudioTrack / PID=`0/0/0/none`，
+  Pad 10 分钟核心与 K60 均未运行，产品 P0–P3 全部 `NOT_ASSESSED`。最终 cleanup / restore
+  12/12 PASS、生产 release MATCH、Pad 锁 `RELEASED / ACTIVE=0`。
+- 集成红线：10 个新增工具被现有多级 `tools/` ignore 规则忽略，路径族为
+  `tools/qa-evidence-contract.ps1`、`tools/qa-process-lifecycle.ps1`、`tools/self-test.ps1`、
+  `tools/tests/**`。root 后续必须显式 force-add 这 10 个文件并复核 staged 集合；不得修改
+  `.gitignore`，也不得把当前未跟踪状态误当已交付。
+- 接受输入 main `427,009,671 B /` SHA-256
+  `252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`，
+  version `4 / 2.0-kokoro-runtime-v5`；peer `12,696 B /` SHA-256
+  `61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`。
 
-**非目标 / 停止门**：不得把安装门 PASS、清理 PASS、旧 QA-v5/v7 或实现自测扩写成完整
-runtime / 产品 PASS / FAIL / `PASS_WITH_GAPS` / G1 / Q03 / profile / Release；不得绕过
-设备锁、K60 未登记、核心零执行、hash / permission / ABI 漂移、重复工具非收敛、新
-P0–P2 或未授权生产 / 网络 / MOSS / G2 / Release。
+**完整角色表**
 
-**后续**：工具修复与完整双机 runtime 全通过后，剩余独立门仍是 Pad P2 决策、
-Kokoro / native 逐资产许可与 notice / source provenance、exact profile / 试听及 Q03；
-全部闭合前 G1 保持 `NOT_PASSED`。
+| role | 专业身份 | freshness / 阶段 | 写入边界 | 设备 | 交付与停止 |
+|---|---|---|---|---|---|
+| `ROOT_INTEGRATION` | 交付负责人 / 技术集成编排者 | thread-bound / integration-only | 集成元数据、staging 与路由 | 禁止 | 派一个 fresh 单阶段角色后停本波 |
+| `HANDOFF_PROTOCOL_OWNER` | 初始交接协议 / preflight owner | fresh / one | 初始 B 白名单 | 禁止 | 已永久退役，禁止复用 |
+| `IMPLEMENTATION_OWNER` | 对应模块资深 Android 工程师 | fresh / one | 任务卡产品文件与测试 | 仅授权自测 | 实现报告后停，不派 / 不做 QA |
+| `TOOL_REPAIR_OWNER` | QA harness / PowerShell 可靠性工程师 | fresh / one | 仅 A=`qa-v8/tools` | 禁止 | 历史修波角色；一次性，禁止 followup 接 review / QA |
+| `DOC_PROTOCOL_OWNER` | 技术文档与交接协议工程师 | fresh / one | 仅 B=docs/AGENTS/preflight | 禁止 | B3 / B4 历史刷新后退役；一次性，禁止 followup |
+| `INTEGRATION_REVIEW_OWNER` | round-1 移动端架构师 / 集成审查员 | fresh / one | 只读 | 禁止 | 历史角色，round-1 `FAIL / 1 P1 + 2 P2`；一次性，禁止 followup |
+| `ROUND2_READONLY_INTEGRATION_REVIEW_OWNER` | round2 只读集成复审员 | fresh / one | 只读 | 禁止 | 历史 `FAIL / P2` 后退役；不得 followup 或复用 |
+| `ROUND3_READONLY_INTEGRATION_REVIEW_OWNER` | 历史只读 round3 集成复审员 / preflight 门序与动作契约审查员 | fresh / one | 只读 | 禁止 | 已真实 `PASS` 后退役；不得复用或 followup 接 audit / QA |
+| `PRE_HANDOFF_AUDIT_OWNER` | 下一唯一角色：独立交接审计员 / Git、文档、记忆与证据核验师 | fresh / one | 只读 | 禁止 | 审计 PASS/FAIL/BLOCKED 后停；一次性，不得 followup 或复用 round3 |
+| `PAD_QA_OWNER` | 独立移动端 QA / 用户承诺验证经理 | fresh / one | 仅 `qa-v9/**` | 仅 Pad 10 分钟 | Pad 报告后停；一次性，不接 K60 或 Release |
+| `K60_QA_OWNER` | 独立跨设备 QA / 用户承诺验证经理 | fresh / one | 仅 `qa-v10/**` | 仅 Pad PASS 后 K60 10 分钟 | K60 报告后停；一次性，不得 followup |
+
+除 `ROOT_INTEGRATION` 的 thread-bound 编排身份外，所有历史与新增专业角色均一次性、每个 fresh
+agent 只做一阶段，禁止 followup 接下一阶段；修复 owner 不得复用为 reviewer。
+
+**写资格与独立审查边界**
+
+- A = `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/**`，只曾给 `TOOL_REPAIR_OWNER`；当前已冻结，
+  review / audit / root / QA 均不得再改。
+- B = `AGENTS.md`、2.0 文档与 `tools/v2-handoff/**`，只曾给 fresh `DOC_PROTOCOL_OWNER`；
+  B4 已收口，round3 review 已 PASS；当前仅由 root 做状态收口，下一 fresh audit 只读，不得替
+  root 自证，也不得转 QA。
+- 唯一 gate lifecycle 为 `PREFLIGHT_PASS -> TOOL_NONCONVERGENCE_REPAIRED ->
+  CONTRACT_DIGEST_REFRESHED -> INDEPENDENT_INTEGRATION_REVIEW_PASS ->
+  PRE_HANDOFF_AUDIT_PASS -> QA_DISPATCHABLE`。`requiredGates` 的每门必须含精确
+  `id / owner / requiredBefore / status`；independent review owner 只能为
+  `ROUND3_READONLY_INTEGRATION_REVIEW_OWNER`，audit owner 只能为
+  `PRE_HANDOFF_AUDIT_OWNER`，QA dispatch owner 只能为 `PAD_QA_OWNER`。任何 PASS 若前置门未
+  PASS、重复 / 缺门、乱序或未知状态均 `FAIL_CLOSED`。
+- 当前 real status 固定 `PREFLIGHT_PASS=PASS / TOOL_NONCONVERGENCE_REPAIRED=PASS /
+  CONTRACT_DIGEST_REFRESHED=PASS / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS /
+  PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED`。
+  QA prompt 固定在 `#/prompts/padQa/textLines`，当前状态
+  `BLOCKED_PENDING_PRE_HANDOFF_AUDIT`、`dispatchable=false`，
+  不得提前派发或自行改 ACTIVE。
+
+**设备与 10 分钟产品门**
+
+- `DEVICE_WINDOW_MINUTES=10`：每设备只执行一次真实 runtime 观测窗，不延长；fresh install、
+  profile/current-user 身份、设备锁与 cleanup 另行显式取证。
+- `DEVICE_ORDER=Pad->K60`：先 Pad `43af8627` 全核心 PASS 并释放锁，才登记 K60 `8e875894`；
+  K60 由另一 fresh agent 串行执行，仍为 10 分钟，禁止并行或复用 Pad 代理。
+- 全产品门不降低：双声线 `zf_001/zm_010`、真实 AudioTrack start/completion、头/中/尾连续性、
+  最大 audio gap `≤15 秒`、FGS / MediaSession / notification、PID 与资源收敛、当前 run
+  native / Java crash / ANR / InputTimeout、audio focus / 单音频 owner、零网络与 capture-restore。
+- 旧 30 分钟、K60 QA-v5、Pad QA-v6、QA-v7 stop-only、QA-v8 install / cleanup 均不得冒充本轮
+  10 分钟产品证据；核心未执行不得写产品 FAIL、PASS 或 `PASS_WITH_GAPS`。
+
+**下一执行链（每阶段换新 agent）**
+
+1. 负责人运行 preflight 并派全新 `PRE_HANDOFF_AUDIT_OWNER`，不得由 root 自证，也不得复用
+   round3、round1 / round2 reviewer、B3 / B4 owner 或工具修复 owner。其第一条只读动作仍须
+   精确命中 `READ_ONLY_PREFLIGHT` command；只核验 Git、唯一 ACTIVE、TASKS=3、memory、
+   设备锁、下一 prompt、round3 PASS 证据、QA prompt 阻断、A/B 不重叠与 ignored 10 项
+   force-add 说明，不跑 QA。
+2. audit `PASS` 后，root 才能记录 `PRE_HANDOFF_AUDIT_PASS`、force-add ignored 10 项、串行
+   集成元数据 / 文档并再次通过 preflight；此后才可建立新的、合法激活的 Pad QA prompt。
+3. 当前 schema 尚无 audit actual receipt；本 phase 明确要求 audit gate 保持 `BLOCKED`，
+   任何把 review PASS 后直接改成 audit PASS 的临时伪造都必须 `FAIL_CLOSED`。
+4. Pad 只跑一次 10 分钟完整核心矩阵；失败即停，不自动第二次。Pad 核心 PASS 且 cleanup /
+   锁释放后，负责人另建不同 fresh 的 `K60_QA_OWNER` 做一次 10 分钟串行矩阵。
+
+**停止门**：任何非零 / `FAIL_CLOSED`；Git、唯一 ACTIVE、TASKS、memory、设备锁或下一 prompt
+不一致；需要写仓库；契约漂移、A/B 重叠、review/audit 复用、root 自证或亲跑设备、QA prompt
+提前激活、窗口延长、K60 先行、APK / SHA / ABI / package / permission 漂移、工具 digest 未
+刷新、fresh install / profile 失败、核心未执行或失败、AudioTrack 不真、gap >15 秒、crash /
+ANR / InputTimeout、resource / focus / owner 不收敛、旧证据冒充、cleanup 失败、新 P0–P2、
+生产代码 / G2 / Q03 / profile / Release / 服务器写 / push 未授权，立即停止。
+
+**后续**：只有独立审查、pre-handoff audit、新 10 分钟双机核心矩阵、许可与 notice、Pad P2、
+exact profile、Q03 全部闭合后，G1 才可重新评审。本 ACTIVE 只收口静态工具与交接契约，
+不改变产品、QA、runtime 或 G1 结论。
 
 ### HISTORY：QA-v7 stop-only PASS，交接全新完整 runtime QA（2026-11-05；已被上方 QA-v8 BLOCKED ACTIVE 取代）
 
@@ -5128,3 +5214,103 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   30 分钟 / 零网络均 `NOT_RUN`。不得写产品 FAIL 或 `PASS_WITH_GAPS`。证据
   `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/report.json`；下一步仅由负责人决定受控工具
   修复并另派全新 QA，或明确延期。
+- **2026-11-05 — QA-v8 交接协议与机械 preflight 落地**：新增
+  `tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json` 与只读
+  `tools/v2-handoff/Invoke-HandoffPreflight.ps1`，固定输入基线、双 APK SHA、当前工具 digest、
+  唯一读序、rejected scope、设备 serial / `DEVICE_ORDER=Pad->K60` /
+  `DEVICE_WINDOW_MINUTES=10`、8 角色表、A/B 互斥写边界、required gates、stop conditions 与
+  下一 prompt。新会话第一条只读动作改为实际运行 preflight；默认 active prompt 指向 fresh
+  `TOOL_REPAIR_OWNER`，Pad QA prompt 保持 `BLOCKED_PENDING_TOOL_REPAIR_AND_CONTRACT_REFRESH`，
+  待 fresh B 刷新 digest 后才可激活。`PROJECT_PLAN` §3 的旧 QA-v6 修复授权已改为 QA-v8
+  工具非收敛 BLOCKED；TASKS 三条同步 `PAD_10_MIN_CORE_NOT_RUN /
+  K60_NOT_REGISTERED_NOT_RUN / PRODUCT_P0_P3_NOT_ASSESSED`。机械门使用 `pwsh -NoProfile`
+  完成 parser、JSON / UTF-8 / LF 检查，五个临时契约缺损均 exit `2 / FAIL_CLOSED`；初始
+  manifest 级检查曾 `PASS`，随后加强为逐文件校验时发现另一 A 写者持续修改
+  `start-logcat.ps1`、`run-device-matrix.ps1`、`finalize-device.ps1`，当前
+  `FAIL_CLOSED` 为工具文件 SHA mismatch 与目录 / manifest 不一致。本 B 阶段未改 / 未回滚 A；
+  A 冻结并 review 后必须由全新 B 刷新 digest / prompt。本轮未运行 adb / 设备 / 网络 / QA /
+  产品实现，未改旧证据，未 commit / push，G1 与产品状态不变。
+- **2026-11-05 — B2 工具静态修复契约刷新 / 独立审查 ready**：现场复算 A 的
+  `qa-v8/tools` 为 31 项（7 tracked 修改 + 10 ignored 新增 + 14 既有），按相对路径 ordinal、
+  自排除 `tools.sha256`、UTF-8/LF 与末尾 LF 得到
+  `a7e5def25343bb96c15b76398b421115de60f40824698d67a682f3c4b7908901`；契约写入 31/31
+  canonical manifest，旧 21 条 `tools.sha256` 降为历史快照且 preflight 直接从实际文件重算。
+  A 报告的 self-test `21/21`、AST/UTF-8/LF、10 分钟动态夹具与 fail-closed 仅按 A 侧待审输入
+  记录，不写成独立 QA。唯一 ACTIVE / TASKS / `PROJECT_PLAN` 已同步
+  `TOOLS_STATIC_REPAIR_READY_FOR_INDEPENDENT_REVIEW / CORE_STEPS_0 /
+  PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / ACTIVE=0`；下一角色为全新
+  `INTEGRATION_REVIEW_OWNER`，之后再由另一全新 `PRE_HANDOFF_AUDIT_OWNER` 审计。默认
+  `prompts.toolRepair` 已指向独立集成审查；`prompts.padQa` 保持
+  `BLOCKED_PENDING_INTEGRATION_REVIEW_AND_PRE_HANDOFF_AUDIT`，不得提前派发。正常 preflight
+  `PASS`（roles 9、TASKS In Progress 3、APK + manifest 31/31 + digest MATCH），缺失字段 /
+  角色不全 / 30 分钟 / 设备顺序错 / 未知 prompt 状态均临时构造 exit 2 `FAIL_CLOSED` 并清理；
+  直接请求 padQa 亦 exit 2。10 个 ignored 新增文件路径族已写入 ACTIVE / 契约，root 后续须
+  force-add；本轮未改 `.gitignore`、A 工具、`.planning` 证据，未 adb / 网络 / QA，未
+  commit / push / tag，产品、G1 与 profile 结论不变。
+- **2026-11-06 — B3 修复输入刷新 / 全新 round-2 只读复审 ready**：round-1 独立审查为
+  `FAIL`，具体 `1 P1 + 2 P2`：QA-V9 锁未绑定唯一当前 RunId、logcat cleanup 仅凭 PID、
+  QA-V9 static dry-run 可改变 canonical manifest 状态。全新修复 owner 已改 7 个 tools 路径
+  （含 manifest）并新增 4 个回归，测试 `21→25`；现场 `run-tests.ps1` 结论入口实跑
+  `SUMMARY passed=25 failed=0`，self-test `PASS` / AST 31、UTF-8/LF 31、BOM 0、CR 0。
+  `qa-v8/tools` 递归为 31 项，canonical manifest `2984 bytes / LF`，digest 与 manifest SHA
+  均为 `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`，逐文件 31/31
+  MATCH；历史 B2 摘要 `a7e5def25343bb96c15b76398b421115de60f40824698d67a682f3c4b7908901`
+  仅为 superseded history，不是当前权威。QA-V9 dry-run 前后 tools 31 项 digest、目录 mtime、
+  manifest hash / mtime / 2984 bytes 不变；旧 QA-V8 与 K60 提前锁负例均拒绝，PID metadata
+  mismatch 不杀已记录进程。ACTIVE / TASKS 三行 / `PROJECT_PLAN` / 契约同步为
+  `TOOLS_REVIEW_FINDINGS_REPAIRED_AWAITING_FRESH_INDEPENDENT_REREVIEW / CORE_STEPS_0 /
+  PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / ACTIVE=0`；三项 findings 只记
+  `CLOSED_PENDING_FRESH_INDEPENDENT_REREVIEW`，不写 QA PASS。`prompts.toolRepair` 指向全新
+  `ROUND2_READONLY_INTEGRATION_REVIEW_OWNER`，禁止 root 自证、禁止复用修复 owner；
+  `prompts.padQa` 保持
+  `BLOCKED_PENDING_ROUND2_INTEGRATION_REVIEW_AND_PRE_HANDOFF_AUDIT / dispatchable=false`。
+  正常 preflight `PASS`（roles 10、TASKS 3、APK + manifest 31/31 + digest MATCH）；缺字段 /
+  角色不全 / 30 分钟 / K60->Pad / 直接 padQa 五类临时负例全部 exit 2 `FAIL_CLOSED` 并清理。
+  ignored 新增仍为 10 个，路径族为 `qa-evidence-contract.ps1`、`qa-process-lifecycle.ps1`、
+  `self-test.ps1`、`tests/**`；root 后续须 force-add，刷新阶段未改 `.gitignore`、未 stage。
+  本轮只写 B 白名单，未改 `qa-v8/tools` / QA 证据，未 adb / 设备 / 网络 / QA / commit /
+  push / tag；产品、G1、profile 与 runtime 结论不变。
+- **2026-11-06 — B4 round2 P2 修复 / fresh round3 只读复审 ready**：环境复现旧契约三类绕过：
+  `preHandoffAudit=PASS` 且 review `NOT_RUN`、review owner 改成 `PAD_QA_OWNER` 并删除
+  `requiredBefore`、prompt 首动作换成任意 `pwsh -NoProfile -File ...`，旧 preflight 均为
+  exit 0。`ROUND2-P2-01` 已改唯一 lifecycle
+  `PREFLIGHT_PASS -> TOOL_NONCONVERGENCE_REPAIRED -> CONTRACT_DIGEST_REFRESHED ->
+  INDEPENDENT_INTEGRATION_REVIEW_PASS -> PRE_HANDOFF_AUDIT_PASS -> QA_DISPATCHABLE`；
+  `requiredGates` 为带 `lifecycleVersion + lifecycle[]` 的机械对象，每门精确
+  `id / owner / requiredBefore / status`，preflight 校验 owner、前置依赖、门序、重复 / 缺门、
+  未知状态和任何下游 PASS 的前置传播。独立 review owner 固定全新
+  `ROUND3_READONLY_INTEGRATION_REVIEW_OWNER`，audit / QA 分别为
+  `PRE_HANDOFF_AUDIT_OWNER` / `PAD_QA_OWNER`；当前真实状态保持 round3 `NOT_RUN`、
+  audit / QA `BLOCKED`。`prompts.toolRepair` 为 `ACTIVE`、`dispatchable=true`，首动作声明
+  `READ_ONLY_PREFLIGHT` + 精确 command 参数数组；`prompts.padQa` 保持
+  `BLOCKED_PENDING_ROUND3_INTEGRATION_REVIEW_AND_PRE_HANDOFF_AUDIT / dispatchable=false`，
+  并保留 10 分钟、Pad->K60、双声线、AudioTrack、FGS / MediaSession / notification、
+  crash / ANR / InputTimeout、focus / owner、零网络、cleanup 与 `SUBAGENT_FIRST=YES` 全门。
+  Round1 `1 P1 + 2 P2` 记为 `CLOSED_BY_ROUND2_REVIEW`，round2 P2 仅
+  `REPAIRED_PENDING_FRESH_ROUND3_REREVIEW`。机械回归 `16/16 PASS`，含正常契约 exit 0 与
+  15 类非法契约 / 直接 padQa exit 2；AST、JSON、UTF-8 no BOM / LF、唯一 ACTIVE、TASKS=3、
+  `qa-v8/tools` 31/31、manifest `2984 B`、digest
+  `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`、tools / manifest
+  mtime、`git diff --check`、未 stage、`.gitignore` 未改及临时目录清理均 PASS。历史
+  round1 findings 状态已关闭，但产品 P0–P3 仍 `NOT_ASSESSED`、K60 未评估，G1 NOT_PASSED。
+  下一角色唯一为 `ROUND3_READONLY_INTEGRATION_REVIEW_OWNER`；本轮未 adb / 设备 / 网络 / QA，
+  未改 `qa-v8/tools` / `.planning` 证据 / `.gitignore`，未 stage / commit / push / tag，
+  未写记忆。
+- **2026-11-06 — B5 round3 PASS 状态收口 / fresh pre-handoff audit ready**：全新
+  `ROUND3_READONLY_INTEGRATION_REVIEW_OWNER` 已真实 PASS：Git 边界无越界；`qa-v8/tools`
+  31/31、canonical manifest `2984 B`、digest
+  `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`；`run-tests` 25/25、
+  self-test AST 31 / UTF-8 31、contract `16/16`，15 类伪造契约 exit 2；QA-V9 dry-run 前后
+  tools / manifest hash 与 mtime 不变。`ROUND2-P2-01` 转为
+  `CLOSED_BY_ROUND3_REVIEW_PASS`，round1 / round2 findings 无开放项。
+  `INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS`，`PRE_HANDOFF_AUDIT_PASS` 与
+  `QA_DISPATCHABLE` 均保持 `BLOCKED`。当前 phase 为
+  `ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT / CORE_STEPS_0 /
+  PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / ACTIVE=0`；现有 schema 尚无 audit actual
+  receipt，因此 review PASS 后伪造 audit PASS 仍由“必须等待 audit phase”规则 exit 2。
+  `prompts.toolRepair` 现指向唯一全新 `PRE_HANDOFF_AUDIT_OWNER`，保持
+  `ACTIVE / dispatchable=true / READ_ONLY_PREFLIGHT`；`prompts.padQa` 保持
+  `BLOCKED_PENDING_PRE_HANDOFF_AUDIT / dispatchable=false`，完整保留 fresh、NO_REUSE、
+  qa-v9 证据根、APK SHA、31 项 digest、读序、rejectedScope、Pad->K60、10 分钟、产品门、
+  设备锁与 cleanup。本轮仅改 B 白名单，未 adb / 设备 / 网络 / QA，未改 `qa-v8/tools` /
+  report / QA 证据 / `.gitignore`，未 stage / commit / push / tag、未写记忆。产品仍未评估。

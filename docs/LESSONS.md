@@ -120,3 +120,46 @@
 - **根因**：崩溃门只匹配 Java `FATAL EXCEPTION`、ANR 和 InputTimeout，没有检查 native exit reason、当前 run 的 `F DEBUG` / signal，也未拒绝时间窗不匹配的旧 events 缓冲。
 - **对策**：任何 Android runtime QA 都同时采集 `dumpsys activity exit-info`、当前 run 的 `F DEBUG` / crash buffer 和包过滤 logcat；只保留时间与目标 UID/package 匹配的证据，旧窗口必须显式标 `NON-EVIDENCE`。`reason=5`、signal / tombstone 与产品 P0–P2 分开记录，工具盲区不得吞掉产品失败。
 - **来源**：2026-11-05 Pad QA-v6 / scoped review `REV6-P1-01`；不能把 stop 后 service 收敛当成 native inference 已安全结束。
+
+## L018 交接规则必须进入唯一 ACTIVE 和机械 preflight
+
+- **现象**：交接文档已有角色、fresh、设备与证据规则，但 `PROJECT_PLAN` 仍保留旧授权，ACTIVE 漏字段，新会话仍可能先按通用清单读材料；只靠记忆或长文无法证明规则生效。
+- **根因**：规则分散在通用约定、历史交接与 Engramory，缺少唯一当前入口和可执行门禁；负责人又容易亲自批量读证据，导致规则尚未执行就消耗上下文。
+- **对策**：把 `HANDOFF_BOOTSTRAP_V2` 放在 `tools/v2-handoff/`，新会话第一条只读动作实际运行
+  `pwsh -NoProfile` preflight；缺字段、未知值、角色表不完整、设备顺序 / 窗口 / APK / digest 漂移
+  一律 `FAIL_CLOSED`。交接首段直接压过通用规则，负责人只消费压缩 PASS 并派 fresh 专业角色。
+- **来源**：2026-11-05 QA-v8 工具阻塞交接；本文件 L001/L016/L017。
+
+## L019 一阶段一 fresh agent，设备顺序与时间窗必须固定
+
+- **现象**：同一代理被 followup 追问多个阶段会膨胀上下文并混淆实现、工具、QA 与集成职责；旧 30 分钟结果又容易被拿来覆盖新的 10 分钟授权。
+- **根因**：派单没有不可变角色表、freshness、A/B 写边界和机器可读设备策略，当前决定只埋在聊天或历史段落。
+- **对策**：固定 `SUBAGENT_FIRST=YES`、`ONE_PHASE_PER_FRESH_AGENT=YES`、`NO_REUSE_SUBAGENT=YES`、
+  `ROOT_INTEGRATION_ONLY=YES`；A=`qa-v8/tools`、B=docs/AGENTS/preflight 互斥。设备严格
+  `DEVICE_ORDER=Pad->K60`、`DEVICE_WINDOW_MINUTES=10`，Pad 核心 PASS 且锁释放后才另派 K60；
+  旧 30 分钟、安装门、stop-only、cleanup 或旧 APK 不得冒充本轮产品门。
+- **来源**：2026-11-05 用户修正；QA-v8 工具门与既有 30 分钟证据历史。
+
+## L020 交接门必须校验语义状态与完整命令，不得只校验名称或前缀
+
+- **现象**：`preHandoffAudit=PASS` 但 independent review 仍 `NOT_RUN`、gate owner 漂移并删除
+  `requiredBefore`、prompt 首动作换成任意 `pwsh -NoProfile -File ...`，旧 preflight 仍 exit 0。
+- **根因**：校验只比较 gate id 集合和命令前缀，没有消费 `id / owner / requiredBefore / status`、
+  下游 PASS 的前置门传播，也没有把 prompt 首动作与 canonical 路径和参数数组逐项绑定。
+- **对策**：唯一 lifecycle 使用机械对象，任何下游 PASS 必须要求全部前置门 PASS；独立审查、
+  pre-handoff audit、QA dispatch owner 固定且唯一。prompt 同时携带
+  `actionClass=READ_ONLY_PREFLIGHT` 与精确参数数组，文本首动作、`firstAction` 和
+  `firstReadOnlyActions` 必须逐字一致；替换路径、插入未知参数、乱序 / 重复 / 缺门、未知状态
+  全部 `FAIL_CLOSED`。修复按 round2 P2 记录，fresh round3 PASS 前不得激活 QA。
+- **Round3 结果（2026-11-06）**：全新只读 `ROUND3_READONLY_INTEGRATION_REVIEW_OWNER` 已真实
+  `PASS`；Git 边界无越界，tools `31/31`、manifest `2984 B`、digest
+  `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`，QA tools `25/25`、
+  self-test AST/UTF-8 31、contract `16/16`，15 类伪造契约 exit 2，QA-V9 dry-run 未改变
+  tools / manifest hash 或 mtime。`ROUND1-P1-01` / `ROUND1-P2-01` / `ROUND1-P2-02` 已由
+  round2 关闭，`ROUND2-P2-01` 已由 round3 关闭。产品 P0–P3 仍 `NOT_ASSESSED`，K60 未运行。
+- **Next-phase guard**：当前 schema 尚无 audit actual receipt，review PASS 后必须保持
+  `PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED`，唯一下一角色为全新
+  `PRE_HANDOFF_AUDIT_OWNER`；伪造 audit PASS、audit owner 漂移、QA 提前 PASS 均须 exit 2，
+  不能把“允许 audit”误写成“audit 已 PASS”。
+- **来源**：2026-11-06 `ROUND2-P2-01` B4 修复、round3 独立复审与 B5 状态收口；上述三类
+  绕过及 round3 正负门均复现。
