@@ -1,0 +1,6 @@
+{
+  "launch": "Starting: Intent { flg=0x20000000 cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\r\nStatus: ok\r\nLaunchState: COLD\r\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\r\nTotalTime: 711\r\nWaitTime: 719\r\nComplete",
+  "lineOffset": 1067,
+  "firstAudio": "11-05 19:02:30.683  9571 30015 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=2 samples=96000 durationMillis=4000 longRun=false longRunAudioMillis=0",
+  "startedAt": "2026-11-05T19:02:31.8073200+08:00"
+}

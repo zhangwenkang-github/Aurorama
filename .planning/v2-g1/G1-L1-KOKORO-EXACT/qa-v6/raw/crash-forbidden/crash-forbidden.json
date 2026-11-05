@@ -1,0 +1,125 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.crash-forbidden.v2",
+  "verdict": "FAIL",
+  "status": "FAIL_P1_NATIVE_CRASH_AFTER_STOP",
+  "serial": "43af8627",
+  "scanCoverage": {
+    "javaFatalExceptionPattern": "FATAL EXCEPTION",
+    "nativeApplicationExitInfo": "dumpsys activity exit-info",
+    "nativeCrashBuffer": "F DEBUG / SIG / status signal",
+    "anr": "events am_anr",
+    "inputTimeout": "Input dispatching timed out",
+    "oldGateDefect": "Before correction, only Java FATAL text, ANR and InputTimeout were counted; native ApplicationExitInfo/F DEBUG was not parsed."
+  },
+  "allAppCrashCount": 1,
+  "javaFatalExceptionCount": 0,
+  "nativeAppCrashCount": 1,
+  "appAnrCount": 0,
+  "inputTimeoutCount": 0,
+  "nativeCrash": {
+    "schema": "aurorama.kokoro-qa-v6.native-crash-evidence.v1",
+    "findingId": "REV6-P1-01",
+    "severity": "P1",
+    "package": "dev.aurorama.kokoro.harness",
+    "uid": 10334,
+    "pid": 9571,
+    "nativeInferenceThread": "kokoro-tts-runt",
+    "stopCommandAt": "2026-11-05T19:03:03.078+08:00",
+    "serviceDestroyedAt": "2026-11-05T19:03:03.751+08:00",
+    "fDebugAt": "2026-11-05T19:03:04.954+08:00",
+    "applicationExitAt": "2026-11-05T19:03:05.098+08:00",
+    "processDeathAt": "2026-11-05T19:03:05.206+08:00",
+    "applicationExitInfo": {
+      "reasonCode": 5,
+      "reason": "APP CRASH(NATIVE)",
+      "subreasonCode": 0,
+      "subreason": "UNKNOWN",
+      "status": 6,
+      "interpretedSignalNumber": 6,
+      "interpretedSignal": "SIGABRT",
+      "signalInterpretationDerived": true,
+      "pssMb": 597,
+      "rssMb": 678,
+      "description": "crash"
+    },
+    "crashBuffer": {
+      "fDebugLineCount": 30,
+      "packageFilteredLineCount": 30,
+      "onnxFrameCount": 17,
+      "sherpaFrameCount": 7
+    },
+    "classification": {
+      "intentionalForceStop": false,
+      "stopUiCommandSucceeded": true,
+      "resourceStateReportedStoppedBeforeCrash": true,
+      "nativeCrashAfterStop": true,
+      "productStopPathFailed": true,
+      "overallNotificationStopVerdict": "FAIL"
+    },
+    "reviewerCorroboration": {
+      "source": "fresh scoped reviewer / delivery lead",
+      "reportedChangesRequired": true,
+      "reportedSignalEvidence": true,
+      "exactRawSignalHeaderInSavedFilter": false,
+      "note": "The package-token extractor did not preserve a separate raw signal header; status=6 in ApplicationExitInfo and the retained F DEBUG native stack independently corroborate SIGABRT."
+    },
+    "whyPreviousScanMissed": "The crash gate searched only FATAL EXCEPTION, app ANR and InputTimeout. It did not query ApplicationExitInfo reason=5 or treat F DEBUG native crash lines as a crash, so it incorrectly returned zero FATAL.",
+    "evidence": {
+      "combinedBundle": ".planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\native-crash-evidence.txt",
+      "combinedBundleSha256": "8d75cd5bae24d87be5b4c46368d71c3d8cd6940bf4a33c7177f230346e7f000c",
+      "crashBuffer": ".planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\crash-buffer-target-filtered.txt",
+      "crashBufferSha256": "075aa2d4a5f6976af67889e8109b99c0d9ae21d3daa7f07f0373c46cebfa832d",
+      "exitInfo": ".planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\exit-info-main.txt",
+      "exitInfoSha256": "62a3396020ea5e4dd0f84bcf20275d3162e8150d931d94b469d09cb5ad167c84",
+      "taskFilteredLog": ".planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\logs\\runtime-logcat-target-filtered.log",
+      "taskFilteredLogSha256": "5ab146378790a060c864b85652c030b761621922eb1ec706376cd45848776351"
+    }
+  },
+  "approvedTtsRequestCount": 154,
+  "approvedVoiceIds": [
+    {
+      "voiceSid": "zf_001/3",
+      "count": 152
+    },
+    {
+      "voiceSid": "zm_010/59",
+      "count": 2
+    }
+  ],
+  "unapprovedTtsRequestCount": 0,
+  "forbiddenTtsRequestCount": 0,
+  "forbiddenLiteralHitCount": 0,
+  "intentionalProcessExitLines": [
+    "11-05 18:27:17.598  1977 13031 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:22382",
+    "11-05 18:27:17.605  1977 13031 I ActivityManager: Killing 9565:dev.aurorama.kokoro.harness/u0a334 (adj 0): stop dev.aurorama.kokoro.harness due to from process:22382",
+    "11-05 18:27:17.827  1977  6341 I ActivityManager: Force stopping dev.aurorama.kokoro.focuspeer appid=10335 user=0: from process:22399",
+    "11-05 18:28:22.488  1977  6194 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:22483",
+    "11-05 18:29:08.872  1977  3265 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:23093",
+    "11-05 18:29:08.880  1977  3265 I ActivityManager: Killing 9567:dev.aurorama.kokoro.harness/u0a334 (adj 0): stop dev.aurorama.kokoro.harness due to from process:23093",
+    "11-05 18:30:54.246  1977  2119 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:23646",
+    "11-05 18:30:54.250  1977  2119 I ActivityManager: Killing 9569:dev.aurorama.kokoro.harness/u0a334 (adj 0): stop dev.aurorama.kokoro.harness due to from process:23646",
+    "11-05 19:02:22.943  1977  3604 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:29616",
+    "11-05 19:02:22.948  1977  3604 I ActivityManager: Killing 9570:dev.aurorama.kokoro.harness/u0a334 (adj 0): stop dev.aurorama.kokoro.harness due to from process:29616",
+    "11-05 19:03:37.982  1977 16164 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:30336",
+    "11-05 19:03:38.045  1977  2426 I ActivityManager: Force stopping dev.aurorama.kokoro.focuspeer appid=10335 user=0: from process:30344"
+  ],
+  "nativeCrashIsIntentionalForceStop": false,
+  "laterForceStopAt": "2026-11-05T19:03:37.982+08:00",
+  "interpretation": "The 19:03:05.098 native crash is not the intentional force-stop at 19:03:37.982. The product notification-Stop path failed because native inference survived stop long enough to abort after the service/UI reported stopped.",
+  "evidence": {
+    "nativeCrashEvidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\native-crash-evidence.json",
+    "nativeCrashBundle": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\native-crash-evidence.txt",
+    "crashBuffer": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\crash-buffer-target-filtered.txt",
+    "exitInfo": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\exit-info-main.txt",
+    "taskFilteredHostLog": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\logs\\runtime-logcat-target-filtered.log"
+  },
+  "rejectedEvidence": {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\events-target-filtered-NON-EVIDENCE-old-01xx-buffer.txt",
+    "bytes": 48493,
+    "firstTimestamp": "11-05 01:31:45.897",
+    "lastTimestamp": "11-05 02:20:06.215",
+    "isCurrentRunEvidence": false,
+    "reason": "01:xx old events-buffer window; explicitly non-evidence for QA-v6 current 19:03 crash."
+  },
+  "passed": false
+}

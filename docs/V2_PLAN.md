@@ -3413,7 +3413,76 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：K60 Kokoro runtime v4 独立 QA 已 PASS，Pad 小型差异化 QA 已具备后继条件（2026-11-05）
+### ACTIVE：Pad Kokoro 差异化 QA FAIL，通知停止触发 native crash P1（2026-11-05）
+
+**负责身份**：G1 Kokoro runtime closure / licensing / device delivery owner（交付负责人 /
+技术集成编排者）。事实工作树
+`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
+`codex/v2-integration`。当前 HEAD、父链、clean 与排序对象必须从 Git 现场读取；实现候选为
+`191a46e227c6cecac14392a2de4bc0a0fae026ee`。本轮未修改生产代码、未 push / tag / Release。
+
+**状态**：
+`K60_QA_V5_FULL_PASS / PAD_QA_V6_FAIL_P1_NATIVE_CRASH_AFTER_STOP / PAD_QA_V6_P2_PERFORMANCE_UNACCEPTED / PAD_ARTIFACTS_CLEANED / DEVICE_LOCK_ACTIVE_0 / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+
+**本波实际执行**
+
+- startup gate 首轮抓到 harness 输出路径被 QA-v5 的非复现独立构建覆盖。用户授权后，从
+  `qa-v5/inputs/` 恢复已冻结 main / peer，备份原构建到宿主 Temp；第二轮对象门 `PASS`，
+  main `427,009,671 B / 9bfba9aa…6778a`、peer `12,696 B / de651dda…f90c`。
+- 全新 Pad QA-v6 在 `43af8627`（API33 / arm64-v8a）完成固定 APK 安装、双声线真实短样、
+  完整 30 分钟全 Asleep 长跑、通知停止、final APK UID 零网络、禁止声线 / 崩溃扫描、卸载和恢复。
+- 30 分钟窄 PASS：`1,800.865 s`、30/30 Asleep、单 PID、FGS / active MediaSession /
+  notification 均 30/30、AudioTrack start/completion=`134/135`、首/中/末段
+  `4/4、4/4、4/5`、队列 `0→135/351`、最长相邻音频事件间隔 `9,629 ms`。这表示真实音频
+  活动跨越完整窗口，不表示连续 30 分钟无间隙有声。
+- 零网络窄 PASS：UID `10334` 的 identity/tag 全分块及 app stats map 前后增量 `0/0`，
+  2 次真实 AudioTrack 且完整推理完成；静态 INTERNET ABSENT 仅作补充。清理后双包、service /
+  FGS / notification / MediaSession / external 全无残留，生产包、网络、音量、屏幕和 current
+  user 恢复 MATCH，设备锁 `RELEASED / ACTIVE=0`。
+- **整体 FAIL / P1 `REV6-P1-01`**：通知“停止”在 native inference 期间接收，
+  `19:03:03.078 stop → 19:03:03.751 service destroyed → 19:03:04.954 F DEBUG
+  (ONNX Runtime / Sherpa JNI) → 19:03:05.098 ApplicationExitInfo
+  reason=5 APP CRASH(NATIVE), status=6`。这不是随后 intentional force-stop。停止路径不可交付。
+- **P2 `REV6-P2-01`**：Pad `zf_001` 最终样本首音 / 首句 RTF / 聚合 RTF / 峰值 PSS 为
+  `6,416 ms / 1.597500 / 1.301791 / 884,597 KB`；最差有效样本为
+  `7,625 ms / 1.878750 / 956,214 KB`。`zm_010` 为
+  `4,303 ms / 1.083291 / 1.093069 / 700,338 KB`。长跑未失效，但性能 P2 未接受。
+- QA-v6 初次报告误判 PASS，fresh scoped review 从 raw `ApplicationExitInfo` / `F DEBUG`
+  抓到 native crash。QA 已撤回 PASS、删除未过滤宿主整日志、补齐 native crash 扫描，证据包
+  闭环复审 `PASS`；该复审只证明失败被如实记录，不是产品 QA PASS。
+
+**证据**
+
+- `qa-v6/report.json`：整体 `FAIL`，P0/P1/P2/P3=`0/1/1/0`。
+- `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v6/raw/crash-forbidden/native-crash-evidence.txt`
+- `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v6/raw/notification-stop/notification-stop.json`
+- `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v6/raw/long-run/long-run-30m.json`
+- `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v6/raw/zero-network/zero-network.json`
+- `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v6/raw/cleanup/cleanup-restore.json`
+- `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v6/integrity-receipt.json`：71 项 SHA 清单、
+  report / sensitive scan / SHA256SUMS 哈希自洽；网络键统一 `<REDACTED>`，完整锁副本已最小化。
+
+**未完成 / 停止门**
+
+- 未实现 stop 与 native inference 生命周期的安全取消 / join 修复；修复需要新的隔离 harness
+  实现任务与用户授权。修复前不得只重跑 30 分钟来洗掉 P1。
+- 修复会产生新 APK 身份；新候选必须由不同全新 QA 先复测通知停止与 native crash 门，通过后
+  仍需在 Pad 与 K60 上重验核心 runtime 承诺，旧 QA-v5 / v6 APK 证据不能直接继承。
+- 许可 / 训练数据 / voice 权属 / notice / source offer 仍 PARTIAL；exact profile / voice、
+  Q03、项目级 runtime、G1、G2 与 Release 均未通过。
+
+**下一步入口（需用户先授权修复，不创建空后继）**
+
+1. 由全新隔离 harness 实现 owner 先只读复现 `REV6-P1-01`，以 TDD 增加“stop 必须等待或安全
+   取消 native inference 后才能 teardown”的合同测试，再构建新 APK。
+2. 修复自测只证明候选；随后由另一全新独立 QA 在 Pad 先执行 stop-only native crash 门，
+   通过后再跑完整 30 分钟 / 零网络矩阵；K60 也须在新候选上重验受影响路径。
+3. 性能 P2 与许可 P1/P2 不因 P1 修复自动关闭。
+
+**停止条件**：native crash P1 未修复；hash / source / permission 漂移；需生产代码、G2、
+Release、服务器写、新域名 / MOSS 下载；或要求代签 profile freeze / Q03 / G1。
+
+### HISTORY：K60 Kokoro runtime v4 独立 QA 已 PASS，Pad 小型差异化 QA 已具备后继条件（2026-11-05；已被上方 Pad FAIL ACTIVE 取代）
 
 **负责身份**：G1 Kokoro runtime closure / licensing / device delivery owner（交付负责人 /
 技术集成编排者）。事实工作树
@@ -4817,3 +4886,18 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   read-only pre-handoff audit PASS → 创建后继并派具体任务”。仅等待用户 / 设备 / 外部状态
   时禁止创建空会话；35 万只有在存在已授权、可立即执行的后继任务时才交接。Pad 已由用户再次
   解锁，后续由全新小型 QA 只做差异化矩阵，K60 完整矩阵不重复。
+- **2026-11-05 — Pad QA-v6 FAIL：通知停止触发 native crash P1，30 分钟 / 零网络窄 PASS**：
+  startup gate 先发现 harness 输出路径被旧独立构建覆盖；用户授权后从 QA-v5 冻结输入恢复
+  固定 main / peer，原构建备份到宿主 Temp，第二轮对象门 PASS。全新 Pad QA-v6 在
+  `43af8627` 完成双声线、`1,800.865 s` 全 Asleep 长跑、通知停止、UID 零网络与清理；
+  30 分钟真实 AudioTrack `134/135`、队列 `0→135/351`、最长事件间隔 `9,629 ms`，窄门通过。
+  但通知停止时 native inference 未安全收口，随后 `ApplicationExitInfo reason=5
+  APP CRASH(NATIVE), status=6`，ONNX Runtime / Sherpa JNI `F DEBUG` 栈成立，故整体
+  `FAIL / P1`。Pad `zf_001` 最差有效首音 / 首句 RTF / 峰值 PSS
+  `7,625 ms / 1.878750 / 956,214 KB`，P2 未接受。初次 QA 报告误判 PASS，fresh review
+  从 raw exit-info / `F DEBUG` 抓到后，QA 撤回 PASS、保留 crash、删除未过滤宿主日志并补
+  native crash gate；随后又发现未过滤 netstats 含 Wi‑Fi identity 与完整锁副本过度取证，
+  QA 已原位脱敏 2,996 个网络键、删除完整锁副本、最小化弹窗证据并固定 UTF-8 / LF；
+  最终 71/71 SHA 与 receipt 自洽，fresh review PASS。设备已清理并释放锁 `ACTIVE=0`。
+  本轮未改产品、未 push / Release / 服务器写；下一步需用户授权新隔离 harness 修复，
+  暂不创建后继。

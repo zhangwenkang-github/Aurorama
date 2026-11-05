@@ -1,0 +1,133 @@
+Activity Resolver Table:
+  Non-Data Actions:
+      android.intent.action.MAIN:
+        8df7b9d dev.aurorama.kokoro.harness/.HarnessActivity filter 73fa812
+          Action: "android.intent.action.MAIN"
+          Category: "android.intent.category.LAUNCHER"
+
+Domain verification status:
+
+Key Set Manager:
+  [dev.aurorama.kokoro.harness]
+      Signing KeySets: 155
+
+Packages:
+  Package [dev.aurorama.kokoro.harness] (39da5d8):
+    userId=10334
+    pkg=Package{5d4d42b dev.aurorama.kokoro.harness}
+    codePath=/data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==
+    resourcePath=/data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==
+    legacyNativeLibraryDir=/data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/lib
+    extractNativeLibs=true
+    primaryCpuAbi=arm64-v8a
+    secondaryCpuAbi=null
+    cpuAbiOverride=null
+    versionCode=3 minSdk=26 targetSdk=37
+    minExtensionVersions=[]
+    versionName=2.0-kokoro-runtime-v4
+    usesNonSdkApi=false
+    splits=[base]
+    apkSigningVersion=3
+    flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA LARGE_HEAP ]
+    privateFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    forceQueryable=false
+    dataDir=/data/user/0/dev.aurorama.kokoro.harness
+    supportsScreens=[small, medium, large, xlarge, resizeable, anyDensity]
+    timeStamp=2026-11-05 18:25:14
+    lastUpdateTime=2026-11-05 18:25:17
+    packageSource=0
+    signatures=PackageSignatures{885a088 version:3, signatures:[7417a8e0], past signatures:[]}
+    installPermissionsFixed=true
+    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA LARGE_HEAP ]
+    requested permissions:
+      android.permission.FOREGROUND_SERVICE
+      android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK
+      android.permission.POST_NOTIFICATIONS
+      android.permission.WAKE_LOCK
+    install permissions:
+      android.permission.FOREGROUND_SERVICE: granted=true
+      android.permission.WAKE_LOCK: granted=true
+    User 0: ceDataInode=761236 installed=true hidden=false suspended=false distractionFlags=0 stopped=false notLaunched=false enabled=0 instant=false virtual=false
+      installReason=0
+      firstInstallTime=2026-11-05 18:25:17
+      uninstallReason=0
+      overlay paths:
+        /product/overlay/GestureLineOverlay.apk
+        /data/resource-cache/com.android.systemui-neutral-JS76.frro
+        /data/resource-cache/com.android.systemui-accent-SjaQ.frro
+      legacy overlay paths:
+        /product/overlay/GestureLineOverlay.apk
+      runtime permissions:
+        android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+
+Queries:
+  system apps queryable: false
+  queries via forceQueryable:
+  queries via package name:
+  queries via component:
+    com.android.providers.downloads.ui:
+      dev.aurorama.kokoro.harness
+    com.taoymall.taohuatan.bzmh:
+      dev.aurorama.kokoro.harness
+    com.miui.player:
+      dev.aurorama.kokoro.harness
+    com.android.calendar:
+      dev.aurorama.kokoro.harness
+    com.miui.video:
+      dev.aurorama.kokoro.harness
+    com.xiaomi.gamecenter.sdk.service:
+      dev.aurorama.kokoro.harness
+    com.android.browser:
+      dev.aurorama.kokoro.harness
+    com.miui.packageinstaller:
+      dev.aurorama.kokoro.harness
+    com.miui.gallery:
+      dev.aurorama.kokoro.harness
+    com.xiaomi.payment:
+      dev.aurorama.kokoro.harness
+    com.miui.hybrid:
+      dev.aurorama.kokoro.harness
+    com.xiaomi.xmsf:
+      dev.aurorama.kokoro.harness
+    com.xiaomi.market:
+      dev.aurorama.kokoro.harness
+    com.miui.systemAdSolution:
+      dev.aurorama.kokoro.harness
+    [app id 10149 not installed]:
+      dev.aurorama.kokoro.harness
+    com.xiaomi.account:
+      dev.aurorama.kokoro.harness
+    com.android.settings.intelligence:
+      dev.aurorama.kokoro.harness
+    com.android.email:
+      dev.aurorama.kokoro.harness
+    com.baidu.input_mi:
+      dev.aurorama.kokoro.harness
+    com.tencent.mm:
+      dev.aurorama.kokoro.harness
+    com.xiaomi.shop:
+      dev.aurorama.kokoro.harness
+    com.liuzho.file.explorer:
+      dev.aurorama.kokoro.harness
+    com.manga.manhuaren:
+      dev.aurorama.kokoro.harness
+  queryable via interaction:
+    User 0:
+      [com.xiaomi.location.fused,com.android.networkstack.inprocess,com.xiaomi.mi_connect_service,com.miui.wmsvc,com.xiaomi.aiasst.vision,com.xiaomi.gnss.polaris,com.miui.maintenancemode,com.xiaomi.misettings,com.miui.aod,com.android.dynsystem,com.miui.qr,com.miui.uireporter,com.xiaomi.trustservice,com.xiaomi.mtb,com.wapi.wapicertmanage,com.miui.notification,com.xiaomi.barrage,com.miui.daemon,com.android.wallpaperbackup,com.android.localtransport,com.xiaomi.joyose,com.android.providers.settings,com.xiaomi.digitalkey,android,com.miui.securitycore,com.modemdebug,com.miui.securitycenter,com.miui.audiomonitor,com.miui.face,com.android.networkstack.tethering.inprocess,com.miui.freeform,com.xiaomi.touchservice,miui.systemui.plugin,com.miui.miinput,com.android.systemui,com.miui.bugreport,com.android.keychain,com.bsp.catchlog,com.android.location.fused,com.android.server.telecom,com.android.provision,com.xiaomi.devauth,com.miui.screenrecorder,com.qualcomm.qti.xrcb,com.miui.catcherpatch,com.android.settings,com.miui.contentcatcher,com.xiaomi.otrpbroker,com.miui.cit,com.android.inputdevices,com.miui.powerkeeper,com.miui.cleanmaster,com.xiaomi.mirror]:
+        dev.aurorama.kokoro.harness
+      com.lbe.security.miui:
+        dev.aurorama.kokoro.harness
+      com.sohu.inputmethod.sogou.xiaomi:
+        dev.aurorama.kokoro.harness
+  queryable via uses-library:
+
+Dexopt state:
+  [dev.aurorama.kokoro.harness]
+    path: /data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/base.apk
+      arm64: [status=run-from-apk] [reason=unknown]
+      odex file size: null
+
+Compiler stats:
+  [dev.aurorama.kokoro.harness]
+    (No recorded stats)
+

@@ -1,0 +1,145 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.cleanup-restore.v1",
+  "verdict": "PASS",
+  "serial": "43af8627",
+  "uninstall": {
+    "events": [
+      "11-05 01:36:06.527  1977 10660 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/31277 of null",
+      "11-05 01:47:27.360  1977  2943 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/1729 of null",
+      "11-05 02:22:14.310  1977  6194 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/11824 of null",
+      "11-05 13:06:49.574  1977  4242 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/27721 of null",
+      "11-05 13:06:49.776  1977  4242 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.focuspeer u0 flags:2 from u2000/27729 of null",
+      "11-05 19:06:07.996  1977  6194 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/31148 of null",
+      "11-05 19:06:08.362  1977 16414 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.focuspeer u0 flags:2 from u2000/31159 of null"
+    ],
+    "packagesAfter": ""
+  },
+  "servicesAndMedia": {
+    "mainPid": "",
+    "peerPid": "",
+    "mainServiceMatches": [],
+    "peerServiceMatches": [],
+    "notificationMatches": [],
+    "mediaSessionMatches": []
+  },
+  "paths": {
+    "externalAndInternalChecks": [
+      "ls: /sdcard/Android/data/dev.aurorama.kokoro.harness: No such file or directory",
+      "ls: /data/data/dev.aurorama.kokoro.harness: No such file or directory",
+      "ls: /sdcard/Android/data/dev.aurorama.kokoro.focuspeer: No such file or directory",
+      "ls: /data/data/dev.aurorama.kokoro.focuspeer: No such file or directory"
+    ],
+    "remoteChecked": [
+      "/sdcard/qa_v6_notification_stop.xml",
+      "/sdcard/qa_v6_notification_permission.xml",
+      "/sdcard/qa_v6_after_longrun.xml",
+      "/sdcard/qa_v6_speed.xml",
+      "/sdcard/qa_v6_miui_install-1.xml",
+      "/sdcard/qa_v6_miui_install-2.xml"
+    ],
+    "remotePresent": [],
+    "hostLogcatProcesses": []
+  },
+  "restore": {
+    "networkBefore": {
+      "airplaneMode": "0",
+      "wifiOn": "1",
+      "mobileData": "1",
+      "activeDefaultNetwork": "188",
+      "transport": "WIFI"
+    },
+    "networkAfter": {
+      "airplaneMode": "0",
+      "wifiOn": "1",
+      "mobileData": "1",
+      "activeDefaultNetwork": "189",
+      "transport": "WIFI"
+    },
+    "volumeBefore": 41,
+    "volumeAfter": 41,
+    "screenBefore": {
+      "wakefulness": "Awake",
+      "screenOffTimeout": "2147483647",
+      "lockAfterTimeout": "null",
+      "stayOn": "7",
+      "keyguardShowing": "false"
+    },
+    "screenAfter": {
+      "wakefulness": "Awake",
+      "screenOffTimeout": "2147483647",
+      "lockAfterTimeout": "null",
+      "stayOn": "7",
+      "keyguardShowing": "false"
+    },
+    "currentUserBefore": "0",
+    "currentUserAfter": "0",
+    "productionReleaseBefore": {
+      "package": "io.github.zhangwenkang.aurorama",
+      "installed": true,
+      "apks": [
+        {
+          "path": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+          "bytes": 79729350,
+          "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb"
+        }
+      ],
+      "metadata": [
+        "    codePath=/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==",
+        "    primaryCpuAbi=arm64-v8a",
+        "    versionCode=5 minSdk=28 targetSdk=36",
+        "    versionName=1.4.0",
+        "    lastUpdateTime=2026-11-04 19:35:22",
+        "      firstInstallTime=2026-11-04 19:35:22"
+      ]
+    },
+    "productionReleaseAfter": {
+      "package": "io.github.zhangwenkang.aurorama",
+      "installed": true,
+      "apks": [
+        {
+          "path": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+          "bytes": 79729350,
+          "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb"
+        }
+      ],
+      "metadata": [
+        "    codePath=/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==",
+        "    primaryCpuAbi=arm64-v8a",
+        "    versionCode=5 minSdk=28 targetSdk=36",
+        "    versionName=1.4.0",
+        "    lastUpdateTime=2026-11-04 19:35:22",
+        "      firstInstallTime=2026-11-04 19:35:22"
+      ]
+    },
+    "productionDebugBefore": false,
+    "productionDebugAfter": false
+  },
+  "checks": {
+    "packagesAbsent": true,
+    "servicesAbsent": true,
+    "notificationAbsent": true,
+    "activeMediaSessionAbsent": true,
+    "mainPidAbsent": true,
+    "peerPidAbsent": true,
+    "externalAndDataAbsent": true,
+    "remoteQaFilesAbsent": true,
+    "hostLogcatAbsent": true,
+    "uninstallEventsObserved": true,
+    "networkScalarMatch": true,
+    "networkTransportAndOnlineMatch": true,
+    "volumeMatch": true,
+    "screenSettingsMatch": true,
+    "wakefulnessMatch": true,
+    "keyguardFalse": true,
+    "currentUserMatch": true,
+    "productionReleaseHashMatch": true,
+    "productionReleasePathMatch": true,
+    "productionReleaseMetadataMatch": true,
+    "productionDebugAbsentBoth": true
+  },
+  "evidence": {
+    "beforeSnapshot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\device-before.json",
+    "afterSnapshot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\device-after.json",
+    "uninstallEvents": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\cleanup\\uninstall-events.txt"
+  }
+}

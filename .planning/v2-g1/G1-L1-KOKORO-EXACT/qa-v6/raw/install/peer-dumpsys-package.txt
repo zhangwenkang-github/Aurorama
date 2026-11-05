@@ -1,0 +1,118 @@
+Activity Resolver Table:
+  Non-Data Actions:
+      android.intent.action.MAIN:
+        b4bf73b dev.aurorama.kokoro.focuspeer/.FocusPeerActivity filter 74e6e58
+          Action: "android.intent.action.MAIN"
+          Category: "android.intent.category.LAUNCHER"
+
+Domain verification status:
+
+Key Set Manager:
+  [dev.aurorama.kokoro.focuspeer]
+      Signing KeySets: 155
+
+Packages:
+  Package [dev.aurorama.kokoro.focuspeer] (b468e9f):
+    userId=10335
+    pkg=Package{6df5b64 dev.aurorama.kokoro.focuspeer}
+    codePath=/data/app/~~EmiAIBt3JhSnGpwJPwl6fA==/dev.aurorama.kokoro.focuspeer-XYVNNccIomaguE8jOJ-Vyw==
+    resourcePath=/data/app/~~EmiAIBt3JhSnGpwJPwl6fA==/dev.aurorama.kokoro.focuspeer-XYVNNccIomaguE8jOJ-Vyw==
+    legacyNativeLibraryDir=/data/app/~~EmiAIBt3JhSnGpwJPwl6fA==/dev.aurorama.kokoro.focuspeer-XYVNNccIomaguE8jOJ-Vyw==/lib
+    extractNativeLibs=true
+    primaryCpuAbi=null
+    secondaryCpuAbi=null
+    cpuAbiOverride=null
+    versionCode=1 minSdk=26 targetSdk=37
+    minExtensionVersions=[]
+    versionName=1.0-focus-peer
+    usesNonSdkApi=false
+    splits=[base]
+    apkSigningVersion=3
+    flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    privateFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    forceQueryable=false
+    dataDir=/data/user/0/dev.aurorama.kokoro.focuspeer
+    supportsScreens=[small, medium, large, xlarge, resizeable, anyDensity]
+    timeStamp=2026-11-05 18:25:25
+    lastUpdateTime=2026-11-05 18:25:29
+    packageSource=0
+    signatures=PackageSignatures{e4a91cd version:3, signatures:[7417a8e0], past signatures:[]}
+    installPermissionsFixed=false
+    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+    User 0: ceDataInode=875698 installed=true hidden=false suspended=false distractionFlags=0 stopped=true notLaunched=true enabled=0 instant=false virtual=false
+      installReason=0
+      firstInstallTime=2026-11-05 18:25:29
+      uninstallReason=0
+      overlay paths:
+        /product/overlay/GestureLineOverlay.apk
+        /data/resource-cache/com.android.systemui-neutral-JS76.frro
+        /data/resource-cache/com.android.systemui-accent-SjaQ.frro
+      legacy overlay paths:
+        /product/overlay/GestureLineOverlay.apk
+      runtime permissions:
+
+Queries:
+  system apps queryable: false
+  queries via forceQueryable:
+  queries via package name:
+  queries via component:
+    com.android.providers.downloads.ui:
+      dev.aurorama.kokoro.focuspeer
+    com.taoymall.taohuatan.bzmh:
+      dev.aurorama.kokoro.focuspeer
+    com.miui.player:
+      dev.aurorama.kokoro.focuspeer
+    com.android.calendar:
+      dev.aurorama.kokoro.focuspeer
+    com.miui.video:
+      dev.aurorama.kokoro.focuspeer
+    com.xiaomi.gamecenter.sdk.service:
+      dev.aurorama.kokoro.focuspeer
+    com.android.browser:
+      dev.aurorama.kokoro.focuspeer
+    com.miui.packageinstaller:
+      dev.aurorama.kokoro.focuspeer
+    com.miui.gallery:
+      dev.aurorama.kokoro.focuspeer
+    com.xiaomi.payment:
+      dev.aurorama.kokoro.focuspeer
+    com.miui.hybrid:
+      dev.aurorama.kokoro.focuspeer
+    com.xiaomi.xmsf:
+      dev.aurorama.kokoro.focuspeer
+    com.xiaomi.market:
+      dev.aurorama.kokoro.focuspeer
+    com.miui.systemAdSolution:
+      dev.aurorama.kokoro.focuspeer
+    [app id 10149 not installed]:
+      dev.aurorama.kokoro.focuspeer
+    com.xiaomi.account:
+      dev.aurorama.kokoro.focuspeer
+    com.android.settings.intelligence:
+      dev.aurorama.kokoro.focuspeer
+    com.android.email:
+      dev.aurorama.kokoro.focuspeer
+    com.baidu.input_mi:
+      dev.aurorama.kokoro.focuspeer
+    com.tencent.mm:
+      dev.aurorama.kokoro.focuspeer
+    com.xiaomi.shop:
+      dev.aurorama.kokoro.focuspeer
+    com.liuzho.file.explorer:
+      dev.aurorama.kokoro.focuspeer
+    com.manga.manhuaren:
+      dev.aurorama.kokoro.focuspeer
+  queryable via interaction:
+    User 0:
+  queryable via uses-library:
+
+Dexopt state:
+  [dev.aurorama.kokoro.focuspeer]
+    path: /data/app/~~EmiAIBt3JhSnGpwJPwl6fA==/dev.aurorama.kokoro.focuspeer-XYVNNccIomaguE8jOJ-Vyw==/base.apk
+      arm64: [status=run-from-apk] [reason=unknown]
+      odex file size: null
+
+Compiler stats:
+  [dev.aurorama.kokoro.focuspeer]
+    (No recorded stats)
+

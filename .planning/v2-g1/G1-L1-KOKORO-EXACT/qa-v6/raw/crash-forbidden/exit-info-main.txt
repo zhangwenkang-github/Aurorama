@@ -1,0 +1,24 @@
+ACTIVITY MANAGER PROCESS EXIT INFO (dumpsys activity exit-info)
+Last Timestamp of Persistence Into Persistent Storage: 2026-11-05 18:57:17.658
+  package: dev.aurorama.kokoro.harness
+    Historical Process Exit for uid=10334
+        ApplicationExitInfo #0:
+          timestamp=2026-11-05 19:03:05.098 pid=9571 realUid=10334 packageUid=10334 definingUid=10334 user=0
+          process=dev.aurorama.kokoro.harness reason=5 (APP CRASH(NATIVE)) subreason=0 (UNKNOWN) status=6
+          importance=400 pss=597MB rss=678MB description=crash state=empty trace=null
+        ApplicationExitInfo #1:
+          timestamp=2026-11-05 19:02:22.948 pid=9570 realUid=10334 packageUid=10334 definingUid=10334 user=0
+          process=dev.aurorama.kokoro.harness reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=753MB rss=827MB description=stop dev.aurorama.kokoro.harness due to from process:29616 state=empty trace=null
+        ApplicationExitInfo #2:
+          timestamp=2026-11-05 18:30:54.250 pid=9569 realUid=10334 packageUid=10334 definingUid=10334 user=0
+          process=dev.aurorama.kokoro.harness reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=684MB rss=764MB description=stop dev.aurorama.kokoro.harness due to from process:23646 state=empty trace=null
+        ApplicationExitInfo #3:
+          timestamp=2026-11-05 18:29:08.880 pid=9567 realUid=10334 packageUid=10334 definingUid=10334 user=0
+          process=dev.aurorama.kokoro.harness reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=650MB rss=727MB description=stop dev.aurorama.kokoro.harness due to from process:23093 state=empty trace=null
+        ApplicationExitInfo #4:
+          timestamp=2026-11-05 18:27:17.605 pid=9565 realUid=10334 packageUid=10334 definingUid=10334 user=0
+          process=dev.aurorama.kokoro.harness reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=119MB rss=203MB description=stop dev.aurorama.kokoro.harness due to from process:22382 state=empty trace=null

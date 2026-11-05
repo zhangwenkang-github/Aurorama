@@ -1,0 +1,99 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.long-run-analysis.v1",
+  "verdict": "PASS",
+  "status": "PASS_30MIN_ALL_ASLEEP_REAL_AUDIOTRACK_QUEUE_PROGRESSION",
+  "scriptRawSummaryVerdict": "FAIL",
+  "scriptFalseNegativeReason": "API 33 dumpsys activity services for this service exposes isForeground=true but no types= field; mediaPlayback type is independently fixed by the installed APK manifest as 0x00000002.",
+  "sourceScriptStillHadApi33ParserAssertion": true,
+  "window": {
+    "screenOffAt": "2026-11-05T18:31:02.3417491+08:00",
+    "windowEnd": "2026-11-05T19:01:03.2069776+08:00",
+    "observedSeconds": 1800.865,
+    "sampleCount": 30,
+    "wakefulnessValues": [
+      {
+        "value": "Asleep",
+        "count": 30
+      }
+    ],
+    "foregroundSamples": 30,
+    "activeMediaSessionSamples": 30,
+    "notificationSamples": 30,
+    "uniquePidCount": 1,
+    "pidValues": [
+      "9570"
+    ],
+    "terminalStateSampleCount": 0,
+    "ttsCompletionCountInWindow": 0,
+    "finalQueueIndex": 135,
+    "finalQueueSize": 351,
+    "finalLongRunAudioMillis": 871125,
+    "finalStatus": "PREPARING",
+    "finalActiveAudioOwner": "TTS",
+    "finalAudioTrackPlaying": false
+  },
+  "audio": {
+    "startCount": 134,
+    "completionCount": 135,
+    "eventCount": 269,
+    "firstSegment": {
+      "windowSeconds": "0-60",
+      "starts": 4,
+      "completions": 4
+    },
+    "midSegment": {
+      "windowSeconds": "870-930",
+      "starts": 4,
+      "completions": 4
+    },
+    "finalSegment": {
+      "windowSeconds": "1740-1800",
+      "starts": 4,
+      "completions": 5
+    },
+    "maximumEventGapMs": 9629,
+    "maximumGapFrom": {
+      "at": "2026-11-05T18:59:32.861",
+      "offsetSeconds": 1710.519,
+      "eventType": "COMPLETED",
+      "line": "11-05 18:59:32.861  9570 28881 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=130"
+    },
+    "maximumGapTo": {
+      "at": "2026-11-05T18:59:42.49",
+      "offsetSeconds": 1720.148,
+      "eventType": "STARTED",
+      "line": "11-05 18:59:42.490  9570 28912 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=131 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=829350"
+    }
+  },
+  "checks": {
+    "observedAtLeast1800Seconds": true,
+    "atLeast30MinuteSamples": true,
+    "everySampleExactAsleep": true,
+    "everySampleForegroundService": true,
+    "runtimeForegroundTypeFieldUnavailable": true,
+    "manifestMediaPlaybackForegroundType": true,
+    "everySampleActiveMediaSession": true,
+    "everySampleNotificationRecord": true,
+    "singleStablePid": true,
+    "queueMonotonic": true,
+    "queueProgressed": true,
+    "noTerminalSample": true,
+    "noTtsCompletionInWindow": true,
+    "realAudioStartsAndCompletions": true,
+    "firstSegmentAudioEvidence": true,
+    "midSegmentAudioEvidence": true,
+    "finalSegmentAudioEvidence": true,
+    "noFatalAnrInputTimeout": true,
+    "stayOnRestored": true
+  },
+  "crashGate": {
+    "fatalAnrInputTimeoutCount": 0,
+    "lines": []
+  },
+  "evidence": {
+    "samples": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\long-run\\background-longrun-samples.jsonl",
+    "start": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\long-run\\background-longrun-start.json",
+    "audioEvents": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\long-run\\background-longrun-audio-events.json",
+    "originalScriptSummary": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\long-run\\background-longrun.json"
+  }
+}

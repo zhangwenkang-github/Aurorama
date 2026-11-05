@@ -1,0 +1,20 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.log-extraction.v1",
+  "originalPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\logs\\runtime-logcat.log",
+  "originalBytes": 628978,
+  "originalLines": 1175,
+  "originalSha256": "eb0c50c375787ade45e40b186298941c60719b8f3f3432ba03ad639eae57f340",
+  "filterRegex": "KOKORO_RUNTIME|KOKORO_FOCUS_PEER|dev\\.aurorama\\.kokoro\\.(harness|focuspeer)|pid 9571|pid=9571",
+  "extractedPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\logs\\runtime-logcat-target-filtered.log",
+  "extractedLines": 1017,
+  "extractedBytes": 596626,
+  "extractedFirst": "11-05 18:27:17.598  1977 13031 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:22382",
+  "extractedLast": "11-05 19:04:11.034  9573  9573 I KOKORO_RUNTIME: TTS_COMPLETED longRun=false longRunAudioMillis=0 targetMillis=0",
+  "nativeCrashSeparateEvidence": [
+    "crash-buffer-target-filtered.txt",
+    "exit-info-main.txt",
+    "native-crash-evidence.txt"
+  ],
+  "fullUnfilteredDeleted": true,
+  "fullUnfilteredDeletionReason": "Removed oversized/non-target host log after extracting 1,017 task-filtered lines; native crash stack remains separately preserved."
+}

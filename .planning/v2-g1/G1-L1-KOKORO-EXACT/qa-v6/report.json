@@ -1,0 +1,831 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.pad.report.v2",
+  "task": "Aurorama 2.0 G1-L1 Kokoro exact isolated harness Pad API33 differential runtime QA v6",
+  "role": "fresh independent Pad runtime QA",
+  "generatedAt": "2026-11-05T20:10:48.7203734+08:00",
+  "verdict": "FAIL",
+  "status": "FAIL_P1_NATIVE_CRASH_AFTER_STOP / PAD_PERFORMANCE_P2",
+  "verdictScope": "Overall Pad QA-v6 is FAIL. The fixed isolated harness 30-minute run passed, but the notification-Stop journey caused an app native crash after stop.",
+  "candidate": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "cf0f3580c43d9de0f4cf971d5a5c4a35ad645189",
+    "candidate": "191a46e227c6cecac14392a2de4bc0a0fae026ee",
+    "candidateIsHeadAncestor": true,
+    "trackedChangesByQa": 0,
+    "onlyAllowedUntrackedEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v6/"
+  },
+  "objectGate": {
+    "main": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 427009671,
+      "sha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+      "deviceBytes": 427009671,
+      "deviceSha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+      "package": "dev.aurorama.kokoro.harness",
+      "uid": 10334,
+      "versionCode": 3,
+      "versionName": "2.0-kokoro-runtime-v4",
+      "abi": "arm64-v8a",
+      "internetPermission": false,
+      "serviceCount": 1,
+      "foregroundServiceType": "mediaPlayback (0x00000002)",
+      "mediaSessionConstructionSites": 1,
+      "audioTrackConstructionSites": 1
+    },
+    "focusPeer": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+      "bytes": 12696,
+      "sha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c",
+      "deviceBytes": 12696,
+      "deviceSha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c",
+      "package": "dev.aurorama.kokoro.focuspeer",
+      "uid": 10335,
+      "versionCode": 1,
+      "versionName": "1.0-focus-peer",
+      "requestedPermissions": 0,
+      "internetPermission": false
+    },
+    "pad": {
+      "serial": "43af8627",
+      "state": "device",
+      "sdk": 33,
+      "abi": "arm64-v8a",
+      "device": "nabu",
+      "keyguardAtStart": false,
+      "bothHarnessPackagesAbsentAtStart": true
+    },
+    "checksPassed": 10
+  },
+  "startup": {
+    "permissionPath": "MEANINGFUL_OS_PERMISSION_UI",
+    "permissionDialog": "是否允许“Kokoro isolated harness”发送通知",
+    "permissionChoice": "始终允许",
+    "postNotificationsGranted": true,
+    "deviceBaselineEvidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\device-before.json"
+  },
+  "actualExecuted": [
+    "object gate and MIUI install validation",
+    "two approved real voice samples with real AudioTrack/RTF/PSS",
+    "full 1800-second locked-screen long run",
+    "actual notification Stop tap; resource convergence observed but stop path FAILED by subsequent native crash",
+    "final APK offline inference with UID all-block netstats",
+    "corrected native ApplicationExitInfo/F DEBUG/ANR/InputTimeout crash scan",
+    "uninstall, device restore and Pad lock release"
+  ],
+  "notRunBecauseNonGoal": [
+    "K60 four-control matrix",
+    "tamper tests",
+    "music/TTS arbitration",
+    "force-stop reconstruction",
+    "OS focus peer",
+    "production Aurorama integration"
+  ],
+  "voices": {
+    "selection": "zf_001",
+    "selectionReason": "Higher RTF and PSS than zm_010, so it exercises the worse performance path.",
+    "zf_001": {
+      "sid": 3,
+      "firstAudioMs": 6416,
+      "firstAudioDefinition": "COMMAND play_sample to first real AudioTrack start",
+      "firstAudioMsFromRequest": 6390,
+      "firstSentenceRtf": 1.5975,
+      "aggregateRtf": 1.301791,
+      "peakPssKbAcrossValidSamples": 956214,
+      "finalPassSamplePeakPssKb": 884597,
+      "pssSampleCount": 12,
+      "requestCount": 152,
+      "evidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\voices\\voice-zf_001.json",
+      "controlledRepeatEvidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\voices\\voice-zf_001-attempt1-analysis.json",
+      "finalPassSample": {
+        "firstAudioMs": 6416,
+        "firstSentenceRtf": 1.5975,
+        "aggregateRtf": 1.301791,
+        "peakPssKb": 884597,
+        "evidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\voices\\voice-zf_001.json"
+      },
+      "worstValidSample": {
+        "firstAudioMs": 7625,
+        "firstSentenceRtf": 1.87875,
+        "aggregateRtf": null,
+        "aggregateRtfNote": "Not retained as a valid aggregate because the first analysis script had an aggregation bug; per-sentence raw metrics remain valid.",
+        "peakPssKb": 956214,
+        "evidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\voices\\voice-zf_001-attempt1-analysis.json"
+      },
+      "performanceAccepted": false
+    },
+    "zm_010": {
+      "sid": 59,
+      "firstAudioMs": 4303,
+      "firstAudioMsFromRequest": 4279,
+      "firstSentenceRtf": 1.083291,
+      "aggregateRtf": 1.093069,
+      "peakPssKb": 700338,
+      "pssSampleCount": 11,
+      "requestCount": 2,
+      "evidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\voices\\voice-zm_010.json"
+    }
+  },
+  "longRun": {
+    "verdict": "PASS",
+    "status": "PASS_30MIN_ALL_ASLEEP_REAL_AUDIOTRACK_QUEUE_PROGRESSION",
+    "screenOffAt": "2026-11-05T18:31:02.3417491+08:00",
+    "windowEnd": "2026-11-05T19:01:03.2069776+08:00",
+    "observedSeconds": 1800.865,
+    "sampleCount": 30,
+    "wakefulnessSamples": [
+      {
+        "value": "Asleep",
+        "count": 30
+      }
+    ],
+    "foregroundSamples": 30,
+    "activeMediaSessionSamples": 30,
+    "notificationSamples": 30,
+    "uniquePidCount": 1,
+    "pid": "9570",
+    "queueInitial": 0,
+    "queueFinal": 135,
+    "queueSize": 351,
+    "terminalStateSampleCount": 0,
+    "ttsCompletionCountInWindow": 0,
+    "audioStarts": 134,
+    "audioCompletions": 135,
+    "firstSegment": {
+      "windowSeconds": "0-60",
+      "starts": 4,
+      "completions": 4
+    },
+    "midSegment": {
+      "windowSeconds": "870-930",
+      "starts": 4,
+      "completions": 4
+    },
+    "finalSegment": {
+      "windowSeconds": "1740-1800",
+      "starts": 4,
+      "completions": 5
+    },
+    "maximumAudioEventGapMs": 9629,
+    "maximumGapFrom": {
+      "at": "2026-11-05T18:59:32.861",
+      "offsetSeconds": 1710.519,
+      "eventType": "COMPLETED",
+      "line": "11-05 18:59:32.861  9570 28881 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=130"
+    },
+    "maximumGapTo": {
+      "at": "2026-11-05T18:59:42.49",
+      "offsetSeconds": 1720.148,
+      "eventType": "STARTED",
+      "line": "11-05 18:59:42.490  9570 28912 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=131 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=829350"
+    },
+    "rawScriptVerdict": "FAIL",
+    "rawScriptFalseNegativeReason": "API 33 dumpsys activity services for this service exposes isForeground=true but no types= field; mediaPlayback type is independently fixed by the installed APK manifest as 0x00000002.",
+    "evidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\long-run\\long-run-30m.json",
+    "samples": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\long-run\\background-longrun-samples.jsonl",
+    "audioEvents": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\long-run\\background-longrun-audio-events.json",
+    "keyguardRecovery": {
+      "schema": "aurorama.kokoro-qa-v6.keyguard-recovery.v1",
+      "afterLongRunKeyguardShowingBeforeUnlock": true,
+      "credentialPromptObserved": false,
+      "credentialAttempted": false,
+      "authorizedAction": "swipe up on non-credential keyguard",
+      "gesture": "input swipe 1280 1400 1280 250 320",
+      "afterUnlockKeyguardStateMonitor": "false",
+      "afterUnlockShowingLine": "false",
+      "afterUnlockKeyguardShowing": false,
+      "focusAfter": "mCurrentFocus=Window{c18b56 u0 dev.aurorama.kokoro.harness/dev.aurorama.kokoro.harness.HarnessActivity}"
+    },
+    "overallQaImpact": "Narrow 30-minute lock-screen result PASS; it cannot rescue the separate notification-Stop P1 failure.",
+    "notificationStopPathPass": false
+  },
+  "notificationStop": {
+    "schema": "aurorama.kokoro-qa-v6.notification-stop.v2",
+    "verdict": "FAIL",
+    "status": "FAIL_P1_NATIVE_CRASH_AFTER_STOP",
+    "serial": "43af8627",
+    "package": "dev.aurorama.kokoro.harness",
+    "observedControl": {
+      "text": "停止",
+      "resourceId": "dev.aurorama.kokoro.harness:id/action_stop",
+      "bounds": "[794,441][1030,549]",
+      "enabled": "true",
+      "clickable": "true",
+      "tap": "912,495"
+    },
+    "tapAt": "2026-11-05T19:03:03.7048387+08:00",
+    "stopCommandLines": [
+      "11-05 19:03:03.078  9571  9571 I KOKORO_RUNTIME: COMMAND stop"
+    ],
+    "serviceBeforePresent": true,
+    "foregroundBefore": true,
+    "notificationRecordCountBefore": 1,
+    "notificationRecordCountAfter10s": 0,
+    "serviceAfter3sPresent": false,
+    "serviceAfter10sPresent": false,
+    "activeMediaSessionAfter10s": false,
+    "runtimePidAfter3s": null,
+    "runtimePidAfter10s": null,
+    "finalState": {
+      "schema": "aurorama.kokoro-runtime.state.v1",
+      "pid": 9571,
+      "status": "STOPPED",
+      "activeAudioOwner": "NONE",
+      "musicStatus": "IDLE",
+      "musicIndex": 0,
+      "queueLoaded": true,
+      "queueIndex": 3,
+      "queueSize": 9,
+      "longRunMode": false,
+      "longRunCycleCount": 0,
+      "longRunTargetMillis": 0,
+      "longRunPlannedMinimumMillis": 0,
+      "longRunAudioMillis": 0,
+      "stableIndex": 3,
+      "currentSentence": "他摊开褪色的车票，背面写着：等最后一盏灯熄灭，再向北走。",
+      "stableSentence": "他摊开褪色的车票，背面写着：等最后一盏灯熄灭，再向北走。",
+      "packId": "kokoro-multi-lang-v1_1",
+      "speaker": "zf_001",
+      "sid": 3,
+      "focusHeld": false,
+      "audioTrackPlaying": false,
+      "positionMillis": 0,
+      "generation": 6,
+      "autoPlay": false,
+      "notificationTitle": "朗读已停止",
+      "notificationText": "他摊开褪色的车票，背面写着：等最后一盏灯熄灭，再向北走。 （4/9）",
+      "playPauseAction": "NONE",
+      "mediaSessionState": "STOPPED",
+      "notificationCompactActions": [
+        "STOP",
+        "PLAY_PAUSE",
+        "NEXT"
+      ],
+      "notificationRecordActions": [
+        "STOP",
+        "PLAY_PAUSE",
+        "NEXT",
+        "PREVIOUS"
+      ],
+      "lastCommand": "stop",
+      "lastError": "",
+      "updatedAtEpochMillis": 1793876583098
+    },
+    "resourceConvergence": {
+      "uiStopControlActionable": true,
+      "serviceGoneAfter3s": true,
+      "notificationGoneAfter10s": true,
+      "activeMediaSessionGoneAfter10s": true,
+      "noNewAudioStartAfterTap": true
+    },
+    "processOutcome": {
+      "pid": 9571,
+      "nativeCrash": true,
+      "applicationExitAt": "2026-11-05T19:03:05.098+08:00",
+      "reason": 5,
+      "reasonText": "APP CRASH(NATIVE)",
+      "status": 6,
+      "interpretedSignal": "SIGABRT",
+      "crashThread": "kokoro-tts-runt",
+      "onnxFrameCount": 17,
+      "sherpaFrameCount": 7,
+      "intentionalForceStop": false
+    },
+    "checks": {
+      "controlPresent": true,
+      "enabled": true,
+      "clickable": true,
+      "serviceBefore": true,
+      "foregroundBefore": true,
+      "notificationBefore": true,
+      "activeMediaSessionBefore": true,
+      "stopCommandObserved": true,
+      "serviceGoneAfter3s": true,
+      "serviceGoneAfter10s": true,
+      "notificationGoneAfter10s": true,
+      "activeMediaSessionGoneAfter10s": true,
+      "noNewAudioStartAfterTap": true,
+      "finalStateStopped": true,
+      "processStayedAliveAfterStop": false,
+      "noNativeCrashAfterStop": false,
+      "overallStopPathSafe": false
+    },
+    "findingId": "REV6-P1-01",
+    "interpretation": "The Stop control and visible resource state converged, but the process later native-crashed while the stopped native inference unwound. Therefore notification-Stop user journey is FAIL; UI convergence alone is insufficient.",
+    "evidence": {
+      "notificationUi": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\notification-stop\\notification-stop-ui.xml",
+      "serviceBefore": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\notification-stop\\service-before.txt",
+      "serviceAfter10s": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\notification-stop\\service-after-10s.txt",
+      "notificationAfter10s": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\notification-stop\\notification-after-10s-filtered.txt",
+      "mediaBefore": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\notification-stop\\media-session-before.txt",
+      "mediaAfter10s": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\notification-stop\\media-session-after-10s.txt",
+      "nativeCrash": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\native-crash-evidence.json",
+      "taskFilteredLog": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\logs\\runtime-logcat-target-filtered.log"
+    }
+  },
+  "finalZeroNetwork": {
+    "schema": "aurorama.kokoro-qa-v6.zero-network.v1",
+    "serial": "43af8627",
+    "package": "dev.aurorama.kokoro.harness",
+    "uid": 10334,
+    "launchExitCode": 0,
+    "launchOutput": "Starting: Intent { flg=0x20000000 cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\nStatus: ok\nLaunchState: COLD\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\nTotalTime: 487\nWaitTime: 489\nComplete",
+    "networkBefore": {
+      "capturedAt": "2026-11-05T19:03:38.530839+08:00",
+      "airplaneMode": "0",
+      "wifiOn": "1",
+      "mobileData": "1",
+      "activeDefaultNetwork": "188",
+      "transport": "WIFI"
+    },
+    "networkDuring": {
+      "capturedAt": "2026-11-05T19:03:47.6006314+08:00",
+      "airplaneMode": "1",
+      "wifiOn": "0",
+      "mobileData": "0",
+      "activeDefaultNetwork": "none",
+      "transport": ""
+    },
+    "runtimeExcerpt": [
+      "11-05 19:03:47.731  9573  9573 I KOKORO_RUNTIME: COMMAND play_sample",
+      "11-05 19:03:47.754  9573  9573 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=0 speaker=zf_001 sid=3 generation=2 longRun=false total=2",
+      "11-05 19:03:54.478  9573 30592 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=2 samples=96000 durationMillis=4000 longRun=false longRunAudioMillis=0",
+      "11-05 19:03:58.286  9573 30592 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=2",
+      "11-05 19:03:58.309  9573  9573 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=1 speaker=zf_001 sid=3 generation=3 longRun=false total=2",
+      "11-05 19:04:05.215  9573 30604 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=3 samples=145200 durationMillis=6050 longRun=false longRunAudioMillis=0",
+      "11-05 19:04:11.009  9573 30604 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=3",
+      "11-05 19:04:11.034  9573  9573 I KOKORO_RUNTIME: TTS_COMPLETED longRun=false longRunAudioMillis=0 targetMillis=0"
+    ],
+    "before": {
+      "uid": 10334,
+      "identityBlockCount": 0,
+      "identityBlocks": [],
+      "identityRxBytes": 0,
+      "identityTxBytes": 0,
+      "appUidStatsMapRowCount": 0,
+      "appUidStatsMapRows": [],
+      "appUidStatsMapRxBytes": 0,
+      "appUidStatsMapTxBytes": 0
+    },
+    "after": {
+      "uid": 10334,
+      "identityBlockCount": 0,
+      "identityBlocks": [],
+      "identityRxBytes": 0,
+      "identityTxBytes": 0,
+      "appUidStatsMapRowCount": 0,
+      "appUidStatsMapRows": [],
+      "appUidStatsMapRxBytes": 0,
+      "appUidStatsMapTxBytes": 0
+    },
+    "identityRxDeltaBytes": 0,
+    "identityTxDeltaBytes": 0,
+    "identityTotalDeltaBytes": 0,
+    "appUidStatsMapRxDeltaBytes": 0,
+    "appUidStatsMapTxDeltaBytes": 0,
+    "appUidStatsMapTotalDeltaBytes": 0,
+    "beforeNetstats": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\zero-network\\netstats\\before.txt",
+    "afterNetstats": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\zero-network\\netstats\\after.txt",
+    "restoredNetwork": {
+      "capturedAt": "2026-11-05T19:04:22.4584407+08:00",
+      "airplaneMode": "0",
+      "wifiOn": "1",
+      "mobileData": "1",
+      "activeDefaultNetwork": "189",
+      "transport": "WIFI"
+    },
+    "networkRestored": true,
+    "mainInternetPermission": false,
+    "peerInternetPermission": false,
+    "status": "PASS_OFFLINE_COMPLETE_INFERENCE_ZERO_UID_NETSTATS",
+    "rawRedacted": true,
+    "redaction": {
+      "filesRedacted": 2,
+      "wifiNetworkKeyValuesRedacted": 2996,
+      "placeholder": "<REDACTED>",
+      "nonRedactedWifiNetworkKeyRemaining": 0,
+      "unredactedCopiesRetained": 0,
+      "evidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\zero-network\\netstats\\redaction.json"
+    },
+    "recomputedFromRedactedFiles": {
+      "source": "redacted before.txt/after.txt",
+      "uid": 10334,
+      "before": {
+        "uid": 10334,
+        "identityBlockCount": 0,
+        "identityRxBytes": 0,
+        "identityTxBytes": 0,
+        "appUidStatsMapRowCount": 0,
+        "appUidStatsMapRxBytes": 0,
+        "appUidStatsMapTxBytes": 0
+      },
+      "after": {
+        "uid": 10334,
+        "identityBlockCount": 0,
+        "identityRxBytes": 0,
+        "identityTxBytes": 0,
+        "appUidStatsMapRowCount": 0,
+        "appUidStatsMapRxBytes": 0,
+        "appUidStatsMapTxBytes": 0
+      },
+      "allIdentityTagBlocksRxDeltaBytes": 0,
+      "allIdentityTagBlocksTxDeltaBytes": 0,
+      "allIdentityTagBlocksTotalDeltaBytes": 0,
+      "appUidStatsMapRxDeltaBytes": 0,
+      "appUidStatsMapTxDeltaBytes": 0,
+      "appUidStatsMapTotalDeltaBytes": 0
+    },
+    "statusAfterRedaction": "PASS_OFFLINE_COMPLETE_INFERENCE_ZERO_UID_NETSTATS_FROM_REDACTED_FILES"
+  },
+  "crashForbidden": {
+    "schema": "aurorama.kokoro-qa-v6.crash-forbidden.v2",
+    "verdict": "FAIL",
+    "status": "FAIL_P1_NATIVE_CRASH_AFTER_STOP",
+    "serial": "43af8627",
+    "scanCoverage": {
+      "javaFatalExceptionPattern": "FATAL EXCEPTION",
+      "nativeApplicationExitInfo": "dumpsys activity exit-info",
+      "nativeCrashBuffer": "F DEBUG / SIG / status signal",
+      "anr": "events am_anr",
+      "inputTimeout": "Input dispatching timed out",
+      "oldGateDefect": "Before correction, only Java FATAL text, ANR and InputTimeout were counted; native ApplicationExitInfo/F DEBUG was not parsed."
+    },
+    "allAppCrashCount": 1,
+    "javaFatalExceptionCount": 0,
+    "nativeAppCrashCount": 1,
+    "appAnrCount": 0,
+    "inputTimeoutCount": 0,
+    "nativeCrash": {
+      "schema": "aurorama.kokoro-qa-v6.native-crash-evidence.v1",
+      "findingId": "REV6-P1-01",
+      "severity": "P1",
+      "package": "dev.aurorama.kokoro.harness",
+      "uid": 10334,
+      "pid": 9571,
+      "nativeInferenceThread": "kokoro-tts-runt",
+      "stopCommandAt": "2026-11-05T19:03:03.078+08:00",
+      "serviceDestroyedAt": "2026-11-05T19:03:03.751+08:00",
+      "fDebugAt": "2026-11-05T19:03:04.954+08:00",
+      "applicationExitAt": "2026-11-05T19:03:05.098+08:00",
+      "processDeathAt": "2026-11-05T19:03:05.206+08:00",
+      "applicationExitInfo": {
+        "reasonCode": 5,
+        "reason": "APP CRASH(NATIVE)",
+        "subreasonCode": 0,
+        "subreason": "UNKNOWN",
+        "status": 6,
+        "interpretedSignalNumber": 6,
+        "interpretedSignal": "SIGABRT",
+        "signalInterpretationDerived": true,
+        "pssMb": 597,
+        "rssMb": 678,
+        "description": "crash"
+      },
+      "crashBuffer": {
+        "fDebugLineCount": 30,
+        "packageFilteredLineCount": 30,
+        "onnxFrameCount": 17,
+        "sherpaFrameCount": 7
+      },
+      "classification": {
+        "intentionalForceStop": false,
+        "stopUiCommandSucceeded": true,
+        "resourceStateReportedStoppedBeforeCrash": true,
+        "nativeCrashAfterStop": true,
+        "productStopPathFailed": true,
+        "overallNotificationStopVerdict": "FAIL"
+      },
+      "reviewerCorroboration": {
+        "source": "fresh scoped reviewer / delivery lead",
+        "reportedChangesRequired": true,
+        "reportedSignalEvidence": true,
+        "exactRawSignalHeaderInSavedFilter": false,
+        "note": "The package-token extractor did not preserve a separate raw signal header; status=6 in ApplicationExitInfo and the retained F DEBUG native stack independently corroborate SIGABRT."
+      },
+      "whyPreviousScanMissed": "The crash gate searched only FATAL EXCEPTION, app ANR and InputTimeout. It did not query ApplicationExitInfo reason=5 or treat F DEBUG native crash lines as a crash, so it incorrectly returned zero FATAL.",
+      "evidence": {
+        "combinedBundle": ".planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\native-crash-evidence.txt",
+        "combinedBundleSha256": "8d75cd5bae24d87be5b4c46368d71c3d8cd6940bf4a33c7177f230346e7f000c",
+        "crashBuffer": ".planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\crash-buffer-target-filtered.txt",
+        "crashBufferSha256": "075aa2d4a5f6976af67889e8109b99c0d9ae21d3daa7f07f0373c46cebfa832d",
+        "exitInfo": ".planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\exit-info-main.txt",
+        "exitInfoSha256": "62a3396020ea5e4dd0f84bcf20275d3162e8150d931d94b469d09cb5ad167c84",
+        "taskFilteredLog": ".planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\logs\\runtime-logcat-target-filtered.log",
+        "taskFilteredLogSha256": "5ab146378790a060c864b85652c030b761621922eb1ec706376cd45848776351"
+      }
+    },
+    "approvedTtsRequestCount": 154,
+    "approvedVoiceIds": [
+      {
+        "voiceSid": "zf_001/3",
+        "count": 152
+      },
+      {
+        "voiceSid": "zm_010/59",
+        "count": 2
+      }
+    ],
+    "unapprovedTtsRequestCount": 0,
+    "forbiddenTtsRequestCount": 0,
+    "forbiddenLiteralHitCount": 0,
+    "intentionalProcessExitLines": [
+      "11-05 18:27:17.598  1977 13031 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:22382",
+      "11-05 18:27:17.605  1977 13031 I ActivityManager: Killing 9565:dev.aurorama.kokoro.harness/u0a334 (adj 0): stop dev.aurorama.kokoro.harness due to from process:22382",
+      "11-05 18:27:17.827  1977  6341 I ActivityManager: Force stopping dev.aurorama.kokoro.focuspeer appid=10335 user=0: from process:22399",
+      "11-05 18:28:22.488  1977  6194 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:22483",
+      "11-05 18:29:08.872  1977  3265 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:23093",
+      "11-05 18:29:08.880  1977  3265 I ActivityManager: Killing 9567:dev.aurorama.kokoro.harness/u0a334 (adj 0): stop dev.aurorama.kokoro.harness due to from process:23093",
+      "11-05 18:30:54.246  1977  2119 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:23646",
+      "11-05 18:30:54.250  1977  2119 I ActivityManager: Killing 9569:dev.aurorama.kokoro.harness/u0a334 (adj 0): stop dev.aurorama.kokoro.harness due to from process:23646",
+      "11-05 19:02:22.943  1977  3604 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:29616",
+      "11-05 19:02:22.948  1977  3604 I ActivityManager: Killing 9570:dev.aurorama.kokoro.harness/u0a334 (adj 0): stop dev.aurorama.kokoro.harness due to from process:29616",
+      "11-05 19:03:37.982  1977 16164 I ActivityManager: Force stopping dev.aurorama.kokoro.harness appid=10334 user=0: from process:30336",
+      "11-05 19:03:38.045  1977  2426 I ActivityManager: Force stopping dev.aurorama.kokoro.focuspeer appid=10335 user=0: from process:30344"
+    ],
+    "nativeCrashIsIntentionalForceStop": false,
+    "laterForceStopAt": "2026-11-05T19:03:37.982+08:00",
+    "interpretation": "The 19:03:05.098 native crash is not the intentional force-stop at 19:03:37.982. The product notification-Stop path failed because native inference survived stop long enough to abort after the service/UI reported stopped.",
+    "evidence": {
+      "nativeCrashEvidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\native-crash-evidence.json",
+      "nativeCrashBundle": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\native-crash-evidence.txt",
+      "crashBuffer": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\crash-buffer-target-filtered.txt",
+      "exitInfo": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\exit-info-main.txt",
+      "taskFilteredHostLog": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\logs\\runtime-logcat-target-filtered.log"
+    },
+    "rejectedEvidence": {
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\events-target-filtered-NON-EVIDENCE-old-01xx-buffer.txt",
+      "bytes": 48493,
+      "firstTimestamp": "11-05 01:31:45.897",
+      "lastTimestamp": "11-05 02:20:06.215",
+      "isCurrentRunEvidence": false,
+      "reason": "01:xx old events-buffer window; explicitly non-evidence for QA-v6 current 19:03 crash."
+    },
+    "passed": false
+  },
+  "startupAndCleanup": {
+    "verdict": "PASS",
+    "uninstallPackagesAbsent": true,
+    "servicesAbsent": true,
+    "notificationAbsent": true,
+    "activeMediaSessionAbsent": true,
+    "externalAndDataAbsent": true,
+    "remoteQaFilesAbsent": true,
+    "logcatClientAbsent": true,
+    "networkMatch": true,
+    "networkTransportOnlineMatch": true,
+    "volumeBefore": 41,
+    "volumeAfter": 41,
+    "screenBefore": {
+      "wakefulness": "Awake",
+      "screenOffTimeout": "2147483647",
+      "lockAfterTimeout": "null",
+      "stayOn": "7",
+      "keyguardShowing": "false"
+    },
+    "screenAfter": {
+      "wakefulness": "Awake",
+      "screenOffTimeout": "2147483647",
+      "lockAfterTimeout": "null",
+      "stayOn": "7",
+      "keyguardShowing": "false"
+    },
+    "currentUserAfter": "0",
+    "productionReleaseHashBefore": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+    "productionReleaseHashAfter": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+    "productionReleaseMatch": true,
+    "productionDebugAbsentBoth": true,
+    "evidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\cleanup\\cleanup-restore.json",
+    "deviceLockBeforeMetadata": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\device-lock-before.json"
+  },
+  "findings": {
+    "P0": [],
+    "P1": [
+      {
+        "id": "REV6-P1-01",
+        "title": "Notification Stop leads to ONNX/Sherpa native crash after reporting STOPPED",
+        "severity": "P1",
+        "detail": "TTS generation 5 was in native inference when COMMAND stop arrived at 19:03:03.078. Service was destroyed at 19:03:03.751, then the crash thread kokoro-tts-runt produced F DEBUG at 19:03:04.954 with ONNX Runtime and Sherpa JNI frames. ApplicationExitInfo records pid 9571 at 19:03:05.098 with reason=5 APP CRASH(NATIVE), status=6 (signal 6 / SIGABRT). This is not the intentional force-stop at 19:03:37.982.",
+        "impact": "The visible Stop control and resource convergence are misleading; stopping during native inference can crash the app process.",
+        "evidence": [
+          "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\native-crash-evidence.json",
+          "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\native-crash-evidence.txt",
+          "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\exit-info-main.txt",
+          "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\crash-buffer-target-filtered.txt"
+        ]
+      }
+    ],
+    "P2": [
+      {
+        "id": "REV6-P2-01",
+        "title": "zf_001 Pad performance exceeds realtime and reaches ~956000 KB PSS",
+        "severity": "P2",
+        "detail": "Final sample: firstAudioMs=6416, firstSentenceRtf=1.5975, aggregateRtf=1.301791, peakPssKb=884597. Worst valid sample: firstAudioMs=7625, firstSentenceRtf=1.87875, peakPssKb=956214.",
+        "accepted": false
+      }
+    ],
+    "P3": [],
+    "summary": "0/1/1/0"
+  },
+  "qaHarnessIssues": [
+    {
+      "id": "QA6-EV-01",
+      "kind": "CRASH_SCANNER_FALSE_NEGATIVE",
+      "detail": "Old crash gate searched FATAL EXCEPTION, ANR and InputTimeout only. It omitted ApplicationExitInfo reason=5 and F DEBUG native crash lines, producing the incorrect zero-FATAL/PASS result."
+    },
+    {
+      "id": "QA6-EV-02",
+      "kind": "STALE_EVENT_BUFFER",
+      "detail": "events-target-filtered.txt contained only 01:xx history and zero 19:03 records. It was renamed NON-EVIDENCE and replaced for the current crash by 19:03 ApplicationExitInfo and F DEBUG evidence."
+    },
+    {
+      "id": "QA6-EV-03",
+      "kind": "UNFILTERED_HOST_LOG",
+      "detail": "Privacy/evidence overcollection: the 628,978 B host log was not task-filtered; both netstats snapshots each exposed 1,498 wifiNetworkKey values; an 885,469 B full lock history was copied into evidence; and a 69,137 B failed-install launcher XML contained unrelated UI. Remediation: task filter, 2,996 network-key value redactions, minimal lock metadata, and zero-target launcher XML minimization.",
+      "remediation": "Unfiltered copies removed; redacted netstats retained; minimal lock metadata and install UI retained."
+    }
+  ],
+  "uncovered": [
+    "implementation fix and post-fix stop-path validation",
+    "root-cause code change inside stop/native inference synchronization",
+    "production Aurorama TTS/service integration",
+    "voice-pack/profile freeze and licenses",
+    "physical speaker audibility and subjective quality",
+    "K60 parallel focus/tamper/music/reconstruction/four-control matrix, deliberately not repeated",
+    "independent debug-build byte reproducibility",
+    "secure-keyguard media-card controls"
+  ],
+  "maximumClaim": "Pad QA-v6 FAILS. The fixed isolated harness passed the full 1,800.865-second locked-screen run and other narrow gates, but the notification-Stop path FAILED: report says STOPPED and service is destroyed, then ONNX Runtime / Sherpa native inference crashes uid 10334 pid 9571 with ApplicationExitInfo reason=5 APP CRASH(NATIVE), status=6 SIGABRT. The earlier PASS and zero-FATAL claim are withdrawn. Production runtime, profile freeze, Q03, G2 and G1 remain unproven.",
+  "lock": {
+    "path": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "beforeHash": "93d7eacbb57ef0b257c1261bd7bdb7f68d12e5ce592b9a46f4e9e3a27792d20b",
+    "acquiredHash": "38a08afe45f5f8c3251274b974360d6cbde2afe44c224e093e1ba4babe55d154",
+    "finalHash": "b3690da1dbfbea425e69cf12e378c4c05bd34a598400a3e597cf6e4d09a4a1f2",
+    "activeHeaders": 0,
+    "v6": "RELEASED",
+    "qaReleaseHashBeforeCorrection": "b56d60d3814051d038cccbcb1cdf8f98e7bd5b43104da783795a52509a98f8cd",
+    "correctionScope": "V6 result text corrected to FAIL; ACTIVE remains 0 and K60 entry unchanged."
+  },
+  "nextStep": {
+    "owner": "delivery owner / implementation owner after explicit fix task",
+    "nextRole": "implementation owner for stop/native-inference lifecycle fix; then fresh independent re-QA of notification Stop and crash gates",
+    "firstReadOnlyAction": "Read corrected report, REV6-P1-01 native-crash evidence, notification-stop v2 and task-filtered log.",
+    "stopCondition": "Do not re-run 30 minutes until the stop-path fix is implemented; require device use and a fresh QA authorization. Any fix must stop inference safely without native crash."
+  },
+  "evidenceRoot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6",
+  "correction": {
+    "reviewTrigger": "fresh scoped reviewer CHANGES_REQUIRED; delivery lead confirmed",
+    "previousVerdict": "PASS (withdrawn)",
+    "previousFatalClaim": "0 FATAL (withdrawn because it excluded native ApplicationExitInfo/F DEBUG)",
+    "confirmedFinding": "REV6-P1-01",
+    "correctedVerdict": "FAIL",
+    "correctedCrashBreakdown": "native crash 1 / Java FATAL 0 / ANR 0 / InputTimeout 0",
+    "reason": "Stop reported success, but in-flight ONNX/Sherpa native inference later aborted pid 9571."
+  },
+  "overallOutcome": {
+    "overall": "FAIL",
+    "thirtyMinuteLongRun": "PASS_NARROWLY",
+    "notificationStopPath": "FAIL",
+    "nativeCrashAfterStop": 1,
+    "javaFatalExceptionCount": 0,
+    "appAnrCount": 0,
+    "inputTimeoutCount": 0,
+    "zeroNetwork": "PASS",
+    "cleanupRestore": "PASS",
+    "keyConstraint": "30-minute lock-screen PASS does not imply notification-Stop PASS; process health is part of the stop contract."
+  },
+  "memoryCheckpoint": {
+    "added": [],
+    "updated": [
+      "aurorama-v2-requirements.md"
+    ],
+    "archived": [],
+    "skipped": [
+      "Current crash timeline/test values remain in the QA report instead of memory.",
+      "No new reusable feedback note added; the user requested project-state treatment."
+    ],
+    "indexLines": 122,
+    "indexBytes": 16187,
+    "check": "OK: index is 122 lines / 15.8 KB (cap 200 lines / 25.0 KB).",
+    "doctor": "engramory-doctor: clean - index 122 lines / 15.8 KB, 93 note(s), no broken pointers, orphans, or schema errors."
+  },
+  "evidenceIntegrity": {
+    "netstats": {
+      "rawRedacted": true,
+      "filesRedacted": 2,
+      "wifiNetworkKeyValuesRedacted": 2996,
+      "nonRedactedWifiNetworkKeyRemaining": 0,
+      "unredactedCopiesRetained": 0,
+      "uid10334IdentityTotalDeltaBytes": 0,
+      "uid10334AppMapTotalDeltaBytes": 0
+    },
+    "deviceLockBefore": {
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\device-lock-before.json",
+      "sizeBytes": 885469,
+      "lineCount": 4313,
+      "sha256": "93d7eacbb57ef0b257c1261bd7bdb7f68d12e5ce592b9a46f4e9e3a27792d20b",
+      "activeHeaderCount": 0,
+      "v6": "ABSENT",
+      "fullHistoryRetained": false
+    },
+    "hostLog": {
+      "unfilteredOriginalBytes": 628978,
+      "unfilteredOriginalLines": 1175,
+      "unfilteredSha256": "eb0c50c375787ade45e40b186298941c60719b8f3f3432ba03ad639eae57f340",
+      "taskFilteredLines": 1017,
+      "taskFilteredBytes": 596626,
+      "unfilteredCopyRetained": false
+    },
+    "staleEvents": {
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\crash-forbidden\\events-target-filtered-NON-EVIDENCE-old-01xx-buffer.txt",
+      "isCurrentRunEvidence": false,
+      "firstTimestamp": "11-05 01:31:45.897",
+      "lastTimestamp": "11-05 02:20:06.215"
+    },
+    "installUi": {
+      "failedRawBytes": 69137,
+      "failedRawTargetPackageNodeCount": 0,
+      "failedRawInstallPromptNodeCount": 0,
+      "fullLauncherXmlRetained": false,
+      "minimizedXml": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\install\\main\\miui-install-popup-minimized.xml"
+    },
+    "gitAttributes": {
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\.gitattributes",
+      "rules": [
+        "*.json text eol=lf",
+        "*.jsonl text eol=lf",
+        "*.txt text eol=lf",
+        "*.md text eol=lf",
+        "*.xml text eol=lf",
+        "SHA256SUMS text eol=lf"
+      ]
+    },
+    "textNormalization": {
+      "status": "COMPLETE",
+      "encoding": "UTF-8 without BOM",
+      "eol": "LF",
+      "strictUtf8DecodeFailures": 0,
+      "utf8BomFileCount": 0,
+      "carriageReturnFileCount": 0,
+      "checkedFiles": 73,
+      "gitAttributesCoveredFiles": 73,
+      "coverageMatch": true
+    },
+    "sensitiveScan": {
+      "status": "PASS",
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\security\\sensitive-scan.json",
+      "generatedAt": "2026-11-05T20:10:37.9179531+08:00",
+      "scannedFileCount": 72,
+      "strictDecodeErrorFileCount": 0,
+      "filesWithPatternMatches": 12,
+      "wifiNetworkKeyNonRedactedCount": 0,
+      "networkIdentityValueCount": 0,
+      "credentialValueCount": 0,
+      "urlCount": 40,
+      "standardXmlNamespaceUrlCount": 40,
+      "otherUrlCount": 0,
+      "passwordFalseAttributeCount": 60,
+      "tokenLabelCount": 5,
+      "onlyNamesAndCountsStored": true,
+      "receiptGeneratedAfterScan": true
+    },
+    "shaManifest": {
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\SHA256SUMS",
+      "algorithm": "SHA-256",
+      "status": "REBUILT_BEFORE_RECEIPT",
+      "entryCount": 71,
+      "uniquePaths": true,
+      "excludesSelf": true,
+      "excludesIntegrityReceipt": true
+    },
+    "integrityReceipt": {
+      "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\integrity-receipt.json",
+      "generatedLast": true,
+      "excludedFromSha256Sums": true,
+      "containsReportOrManifestSelfHash": false
+    },
+    "deliverability": {
+      "gitIgnorePath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\.gitignore",
+      "gitIgnoreInShaManifest": true,
+      "unignoredTargetCount": 8,
+      "checkIgnoreNotIgnoredCount": 8,
+      "otherFilesIncludeAllTargets": 8,
+      "logDeliverables": [
+        "raw/logs/runtime-logcat-target-filtered.log",
+        "raw/logs/runtime-logcat-extraction.json"
+      ],
+      "helperScripts": [
+        "tools/analyze-longrun.ps1",
+        "tools/background-longrun-30m.ps1",
+        "tools/device-snapshot.ps1",
+        "tools/install-with-miui-confirm.ps1",
+        "tools/measure-voice-samples.ps1",
+        "tools/zero-network.ps1"
+      ],
+      "unfilteredHostLogUnignored": false,
+      "tmpApkImagesUnignored": false,
+      "blockedNonDeliverableCheckCount": 5,
+      "blockedNonDeliverableIgnoredCount": 5,
+      "untrackedExportCount": 9
+    }
+  }
+}

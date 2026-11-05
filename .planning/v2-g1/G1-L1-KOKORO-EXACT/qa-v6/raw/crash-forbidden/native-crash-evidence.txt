@@ -1,0 +1,41 @@
+# Kokoro Pad QA-v6 native crash evidence
+#
+# This is a package-filtered correction bundle. Raw source files remain intact:
+# - crash-buffer-target-filtered.txt: 30 package-filtered F DEBUG lines
+# - exit-info-main.txt: ApplicationExitInfo history
+# - runtime-logcat-target-filtered.log: task-only host log
+#
+# OBSERVED stop/inference sequence
+11-05 19:03:01.280  9571  9571 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=3 speaker=zf_001 sid=3 generation=5 longRun=false total=9
+11-05 19:03:03.078  9571  9571 I KOKORO_RUNTIME: COMMAND stop
+11-05 19:03:03.102  9571  9571 I KOKORO_RUNTIME: STATE {...,"status":"STOPPED",...,"generation":6,...}
+11-05 19:03:03.102  9571  9571 I KOKORO_RUNTIME: TTS_STOPPED music=IDLE musicIndex=0
+11-05 19:03:03.751  9571  9571 I KOKORO_RUNTIME: SERVICE_DESTROYED pid=9571
+
+# OBSERVED native crash process
+11-05 19:03:04.954 30213 30213 F DEBUG   : Cmdline: dev.aurorama.kokoro.harness
+11-05 19:03:04.954 30213 30213 F DEBUG   : pid: 9571, tid: 29947, name: kokoro-tts-runt  >>> dev.aurorama.kokoro.harness <<<
+11-05 19:03:04.956 30213 30213 F DEBUG   :       #04 pc 0000000000573118  /data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/lib/arm64/libonnxruntime.so
+11-05 19:03:04.957 30213 30213 F DEBUG   :       #20 pc 00000000005cea54  /data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/lib/arm64/libonnxruntime.so
+11-05 19:03:04.957 30213 30213 F DEBUG   :       #21 pc 00000000001ee580  /data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/lib/arm64/libsherpa-onnx-jni.so (BuildId: 1f1eca385035d0e1e562f152076405ced1b216cc)
+11-05 19:03:04.957 30213 30213 F DEBUG   :       #27 pc 0000000000190ec8  /data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/lib/arm64/libsherpa-onnx-jni.so (Java_com_k2fsa_sherpa_onnx_OfflineTts_generateWithCallbackImpl+232) (BuildId: 1f1eca385035d0e1e562f152076405ced1b216cc)
+11-05 19:03:04.957 30213 30213 F DEBUG   :       #30 pc 0000000000061134  [anon:dalvik-classes.dex extracted in memory from /data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/base.apk] (com.k2fsa.sherpa.onnx.OfflineTts.generateWithCallback+44)
+11-05 19:03:04.957 30213 30213 F DEBUG   :       #32 pc 000000000006f922  [anon:dalvik-classes.dex extracted in memory from /data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/base.apk] (dev.aurorama.kokoro.harness.KokoroRuntimeService.lambda$startCurrentTtsSentence$0+54)
+11-05 19:03:04.958 30213 30213 F DEBUG   :       #36 pc 000000000006e018  [anon:dalvik-classes.dex extracted in memory from /data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/base.apk] (dev.aurorama.kokoro.harness.KokoroRuntimeService$6.run+20)
+
+# OBSERVED ApplicationExitInfo
+timestamp=2026-11-05 19:03:05.098 pid=9571 realUid=10334 packageUid=10334 definingUid=10334 user=0
+process=dev.aurorama.kokoro.harness reason=5 (APP CRASH(NATIVE)) subreason=0 (UNKNOWN) status=6
+importance=400 pss=597MB rss=678MB description=crash state=empty trace=null
+
+# OBSERVED process death
+11-05 19:03:05.103  1977 30216 W ActivityTaskManager:   Force finishing activity dev.aurorama.kokoro.harness/.HarnessActivity
+11-05 19:03:05.206  1977  2119 I ActivityManager: Process dev.aurorama.kokoro.harness (pid 9571) has died: cch CRE
+
+# DERIVED SIGNAL CORRELATION
+# For a native ApplicationExitInfo crash, status=6 is the process termination signal
+# number, i.e. Unix signal 6 / SIGABRT. This line is an interpretation, not a newly
+# invented raw log line. The saved package-token filter did not retain the separate
+# signal header, but the raw status=6 exit record and the F DEBUG native stack above
+# independently establish the native crash. A fresh scoped reviewer also observed the
+# signal evidence before the correction request.

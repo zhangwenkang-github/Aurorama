@@ -1,0 +1,20 @@
+# Re-include only the two task-filtered log deliverables.
+!raw/logs/
+raw/logs/*
+!raw/logs/runtime-logcat-target-filtered.log
+!raw/logs/runtime-logcat-extraction.json
+
+# Re-include only the six QA helper scripts.
+!tools/
+tools/*
+!tools/*.ps1
+
+# Keep non-deliverable local output excluded.
+/tmp/
+*.apk
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+raw/logs/runtime-logcat.log

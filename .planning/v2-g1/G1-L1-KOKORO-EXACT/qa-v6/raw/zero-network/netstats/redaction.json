@@ -1,0 +1,90 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.netstats-redaction.v1",
+  "appliedAt": "2026-11-05T19:44:24.923696+08:00",
+  "placeholder": "wifiNetworkKey=\"<REDACTED>\"",
+  "files": [
+    {
+      "file": "before.txt",
+      "before": {
+        "bytes": 1083009,
+        "lines": 16761,
+        "wifiFieldCount": 1498,
+        "nonRedactedWifi": 1498,
+        "identCount": 1574,
+        "uidCount": 1560,
+        "setCount": 1574,
+        "tagCount": 1574,
+        "rxFieldCount": 0,
+        "txFieldCount": 0
+      },
+      "after": {
+        "bytes": 1077739,
+        "lines": 16761,
+        "wifiFieldCount": 1498,
+        "nonRedactedWifi": 0,
+        "redactedWifi": 1498,
+        "identCount": 1574,
+        "uidCount": 1560,
+        "setCount": 1574,
+        "tagCount": 1574,
+        "rxFieldCount": 0,
+        "txFieldCount": 0,
+        "hasUtf8Bom": false,
+        "hasCrLf": false
+      },
+      "replacedValueCount": 1498,
+      "structureCountsMatch": true
+    },
+    {
+      "file": "after.txt",
+      "before": {
+        "bytes": 1083009,
+        "lines": 16761,
+        "wifiFieldCount": 1498,
+        "nonRedactedWifi": 1498,
+        "identCount": 1574,
+        "uidCount": 1560,
+        "setCount": 1574,
+        "tagCount": 1574,
+        "rxFieldCount": 0,
+        "txFieldCount": 0
+      },
+      "after": {
+        "bytes": 1077739,
+        "lines": 16761,
+        "wifiFieldCount": 1498,
+        "nonRedactedWifi": 0,
+        "redactedWifi": 1498,
+        "identCount": 1574,
+        "uidCount": 1560,
+        "setCount": 1574,
+        "tagCount": 1574,
+        "rxFieldCount": 0,
+        "txFieldCount": 0,
+        "hasUtf8Bom": false,
+        "hasCrLf": false
+      },
+      "replacedValueCount": 1498,
+      "structureCountsMatch": true
+    }
+  ],
+  "fileCount": 2,
+  "replacedValueCountTotal": 2996,
+  "nonRedactedWifiNetworkKeyCountTotal": 0,
+  "unredactedCopiesRetained": 0,
+  "uid10334Before": {
+    "uid": 10334,
+    "identityBlockCount": 0,
+    "identityBlocks": [],
+    "rxBytes": 0,
+    "txBytes": 0
+  },
+  "uid10334After": {
+    "uid": 10334,
+    "identityBlockCount": 0,
+    "identityBlocks": [],
+    "rxBytes": 0,
+    "txBytes": 0
+  },
+  "uid10334TotalDeltaBytes": 0
+}

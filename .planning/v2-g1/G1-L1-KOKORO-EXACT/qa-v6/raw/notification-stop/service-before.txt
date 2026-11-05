@@ -1,0 +1,24 @@
+ACTIVITY MANAGER SERVICES (dumpsys activity services)
+  User 0 active services:
+  * ServiceRecord{9855d46 u0 dev.aurorama.kokoro.harness/.KokoroRuntimeService}
+    intent={act=dev.aurorama.kokoro.harness.action.RUNTIME_COMMAND cmp=dev.aurorama.kokoro.harness/.KokoroRuntimeService}
+    packageName=dev.aurorama.kokoro.harness
+    processName=dev.aurorama.kokoro.harness
+    baseDir=/data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/base.apk
+    dataDir=/data/user/0/dev.aurorama.kokoro.harness
+    app=ProcessRecord{9dcc76b 9571:dev.aurorama.kokoro.harness/u0a334}
+    allowWhileInUsePermissionInFgs=true
+    recentCallingPackage=dev.aurorama.kokoro.harness
+    recentCallingUid=10334
+    allowStartForeground=PROC_STATE_TOP
+    startForegroundCount=1
+    infoAllowStartForeground=[callingPackage: dev.aurorama.kokoro.harness; callingUid: 10334; uidState: TOP ; intent: Intent { act=dev.aurorama.kokoro.harness.action.RUNTIME_COMMAND cmp=dev.aurorama.kokoro.harness/.KokoroRuntimeService (has extras) }; code:PROC_STATE_TOP; tempAllowListReason:<null>; targetSdkVersion:37; callerTargetSdkVersion:37; startForegroundCount:0; bindFromPackage:null]
+    isForeground=true foregroundId=1263487823 foregroundNoti=Notification(channel=kokoro_runtime_media shortcut=null contentView=dev.aurorama.kokoro.harness/0x7f020000 vibrate=null sound=null defaults=0x0 flags=0x6a color=0xff9f2e22 category=transport actions=4 vis=PUBLIC)
+    createTime=-38s986ms startingBgTimeout=--
+    lastActivity=-38s983ms restartTime=-38s986ms createdFromFg=true
+    startRequested=true delayedStop=false stopIfKilled=true callStart=true lastStartId=1
+    Bindings:
+    * IntentBindRecord{1759564}:
+      intent={cmp=dev.aurorama.kokoro.harness/.KokoroRuntimeService}
+      binder=android.os.BinderProxy@1ed43cd
+      requested=true received=true hasBound=false doRebind=false

@@ -1,0 +1,13 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.device-lock-before-metadata.v1",
+  "sourcePath": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+  "collectedAt": "2026-11-05T13:08:02.5400177+08:00",
+  "sizeBytes": 885469,
+  "lineCount": 4313,
+  "sha256": "93d7eacbb57ef0b257c1261bd7bdb7f68d12e5ce592b9a46f4e9e3a27792d20b",
+  "activeHeaderCount": 0,
+  "qaV6Entry": "ABSENT",
+  "padOccupancy": "NONE",
+  "fullHistoryCopied": false,
+  "note": "Only non-sensitive metadata was retained; the complete historical lock file was removed from QA-v6."
+}

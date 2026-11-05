@@ -1,0 +1,13 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.notification-permission.v1",
+  "serial": "43af8627",
+  "path": "MEANINGFUL_OS_PERMISSION_UI",
+  "dialogPackage": "com.lbe.security.miui",
+  "dialogTitle": "是否允许“Kokoro isolated harness”发送通知",
+  "chosen": "始终允许",
+  "bounds": "[1291,967][1613,1070]",
+  "tap": "1452,1018",
+  "tapOutput": "",
+  "grantState": "android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]",
+  "granted": true
+}

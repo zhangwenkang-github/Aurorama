@@ -1,0 +1,12 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.keyguard-recovery.v1",
+  "afterLongRunKeyguardShowingBeforeUnlock": true,
+  "credentialPromptObserved": false,
+  "credentialAttempted": false,
+  "authorizedAction": "swipe up on non-credential keyguard",
+  "gesture": "input swipe 1280 1400 1280 250 320",
+  "afterUnlockKeyguardStateMonitor": "false",
+  "afterUnlockShowingLine": "false",
+  "afterUnlockKeyguardShowing": false,
+  "focusAfter": "mCurrentFocus=Window{c18b56 u0 dev.aurorama.kokoro.harness/dev.aurorama.kokoro.harness.HarnessActivity}"
+}

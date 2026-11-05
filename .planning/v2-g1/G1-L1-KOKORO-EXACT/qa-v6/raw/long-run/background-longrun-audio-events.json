@@ -1,0 +1,1622 @@
+[
+  {
+    "at": "2026-11-05T18:31:01.2760000",
+    "offsetSeconds": -1.066,
+    "eventType": "STARTED",
+    "line": "11-05 18:31:01.276  9570 23800 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=2 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=0"
+  },
+  {
+    "at": "2026-11-05T18:31:05.1210000",
+    "offsetSeconds": 2.779,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:31:05.121  9570 23800 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=2"
+  },
+  {
+    "at": "2026-11-05T18:31:11.6410000",
+    "offsetSeconds": 9.299,
+    "eventType": "STARTED",
+    "line": "11-05 18:31:11.641  9570 23943 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=3 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=4000"
+  },
+  {
+    "at": "2026-11-05T18:31:17.4990000",
+    "offsetSeconds": 15.157,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:31:17.499  9570 23943 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=3"
+  },
+  {
+    "at": "2026-11-05T18:31:24.1570000",
+    "offsetSeconds": 21.815,
+    "eventType": "STARTED",
+    "line": "11-05 18:31:24.157  9570 23953 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=4 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=10050"
+  },
+  {
+    "at": "2026-11-05T18:31:30.2220000",
+    "offsetSeconds": 27.88,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:31:30.222  9570 23953 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=4"
+  },
+  {
+    "at": "2026-11-05T18:31:39.5210000",
+    "offsetSeconds": 37.179,
+    "eventType": "STARTED",
+    "line": "11-05 18:31:39.521  9570 23992 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=5 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=16300"
+  },
+  {
+    "at": "2026-11-05T18:31:47.7280000",
+    "offsetSeconds": 45.386,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:31:47.728  9570 23992 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=5"
+  },
+  {
+    "at": "2026-11-05T18:31:55.9480000",
+    "offsetSeconds": 53.606,
+    "eventType": "STARTED",
+    "line": "11-05 18:31:55.948  9570 24022 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=6 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=24775"
+  },
+  {
+    "at": "2026-11-05T18:32:03.2140000",
+    "offsetSeconds": 60.872,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:32:03.214  9570 24022 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=6"
+  },
+  {
+    "at": "2026-11-05T18:32:09.8620000",
+    "offsetSeconds": 67.52,
+    "eventType": "STARTED",
+    "line": "11-05 18:32:09.862  9570 24071 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=7 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=32225"
+  },
+  {
+    "at": "2026-11-05T18:32:15.9290000",
+    "offsetSeconds": 73.587,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:32:15.929  9570 24071 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=7"
+  },
+  {
+    "at": "2026-11-05T18:32:23.8720000",
+    "offsetSeconds": 81.53,
+    "eventType": "STARTED",
+    "line": "11-05 18:32:23.872  9570 24085 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=8 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=38425"
+  },
+  {
+    "at": "2026-11-05T18:32:31.1350000",
+    "offsetSeconds": 88.793,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:32:31.135  9570 24085 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=8"
+  },
+  {
+    "at": "2026-11-05T18:32:36.3820000",
+    "offsetSeconds": 94.04,
+    "eventType": "STARTED",
+    "line": "11-05 18:32:36.382  9570 24113 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=9 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=45825"
+  },
+  {
+    "at": "2026-11-05T18:32:41.0630000",
+    "offsetSeconds": 98.721,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:32:41.063  9570 24113 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=9"
+  },
+  {
+    "at": "2026-11-05T18:32:49.2710000",
+    "offsetSeconds": 106.929,
+    "eventType": "STARTED",
+    "line": "11-05 18:32:49.271  9570 24142 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=10 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=50700"
+  },
+  {
+    "at": "2026-11-05T18:32:56.5470000",
+    "offsetSeconds": 114.205,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:32:56.547  9570 24142 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=10"
+  },
+  {
+    "at": "2026-11-05T18:33:00.8780000",
+    "offsetSeconds": 118.536,
+    "eventType": "STARTED",
+    "line": "11-05 18:33:00.878  9570 24149 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=11 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=58075"
+  },
+  {
+    "at": "2026-11-05T18:33:04.7370000",
+    "offsetSeconds": 122.395,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:33:04.737  9570 24149 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=11"
+  },
+  {
+    "at": "2026-11-05T18:33:11.2970000",
+    "offsetSeconds": 128.955,
+    "eventType": "STARTED",
+    "line": "11-05 18:33:11.297  9570 24184 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=12 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=62075"
+  },
+  {
+    "at": "2026-11-05T18:33:17.1650000",
+    "offsetSeconds": 134.823,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:33:17.165  9570 24184 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=12"
+  },
+  {
+    "at": "2026-11-05T18:33:23.8710000",
+    "offsetSeconds": 141.529,
+    "eventType": "STARTED",
+    "line": "11-05 18:33:23.871  9570 24202 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=13 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=68125"
+  },
+  {
+    "at": "2026-11-05T18:33:29.9110000",
+    "offsetSeconds": 147.569,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:33:29.911  9570 24202 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=13"
+  },
+  {
+    "at": "2026-11-05T18:33:39.1530000",
+    "offsetSeconds": 156.811,
+    "eventType": "STARTED",
+    "line": "11-05 18:33:39.153  9570 24221 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=14 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=74375"
+  },
+  {
+    "at": "2026-11-05T18:33:47.3650000",
+    "offsetSeconds": 165.023,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:33:47.365  9570 24221 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=14"
+  },
+  {
+    "at": "2026-11-05T18:33:55.4380000",
+    "offsetSeconds": 173.096,
+    "eventType": "STARTED",
+    "line": "11-05 18:33:55.438  9570 24255 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=15 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=82850"
+  },
+  {
+    "at": "2026-11-05T18:34:02.7000000",
+    "offsetSeconds": 180.358,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:34:02.700  9570 24255 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=15"
+  },
+  {
+    "at": "2026-11-05T18:34:09.5140000",
+    "offsetSeconds": 187.172,
+    "eventType": "STARTED",
+    "line": "11-05 18:34:09.514  9570 24304 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=16 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=90300"
+  },
+  {
+    "at": "2026-11-05T18:34:15.5860000",
+    "offsetSeconds": 193.244,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:34:15.586  9570 24304 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=16"
+  },
+  {
+    "at": "2026-11-05T18:34:23.6190000",
+    "offsetSeconds": 201.277,
+    "eventType": "STARTED",
+    "line": "11-05 18:34:23.619  9570 24319 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=17 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=96500"
+  },
+  {
+    "at": "2026-11-05T18:34:30.8600000",
+    "offsetSeconds": 208.518,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:34:30.860  9570 24319 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=17"
+  },
+  {
+    "at": "2026-11-05T18:34:36.1950000",
+    "offsetSeconds": 213.853,
+    "eventType": "STARTED",
+    "line": "11-05 18:34:36.195  9570 24347 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=18 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=103900"
+  },
+  {
+    "at": "2026-11-05T18:34:40.8440000",
+    "offsetSeconds": 218.502,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:34:40.844  9570 24347 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=18"
+  },
+  {
+    "at": "2026-11-05T18:34:48.7690000",
+    "offsetSeconds": 226.427,
+    "eventType": "STARTED",
+    "line": "11-05 18:34:48.769  9570 24367 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=19 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=108775"
+  },
+  {
+    "at": "2026-11-05T18:34:55.9380000",
+    "offsetSeconds": 233.596,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:34:55.938  9570 24367 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=19"
+  },
+  {
+    "at": "2026-11-05T18:35:00.2380000",
+    "offsetSeconds": 237.896,
+    "eventType": "STARTED",
+    "line": "11-05 18:35:00.238  9570 24400 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=20 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=116150"
+  },
+  {
+    "at": "2026-11-05T18:35:04.0960000",
+    "offsetSeconds": 241.754,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:35:04.096  9570 24400 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=20"
+  },
+  {
+    "at": "2026-11-05T18:35:10.6300000",
+    "offsetSeconds": 248.288,
+    "eventType": "STARTED",
+    "line": "11-05 18:35:10.630  9570 24447 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=21 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=120150"
+  },
+  {
+    "at": "2026-11-05T18:35:16.4380000",
+    "offsetSeconds": 254.096,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:35:16.438  9570 24447 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=21"
+  },
+  {
+    "at": "2026-11-05T18:35:23.2040000",
+    "offsetSeconds": 260.862,
+    "eventType": "STARTED",
+    "line": "11-05 18:35:23.204  9570 24470 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=22 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=126200"
+  },
+  {
+    "at": "2026-11-05T18:35:29.2730000",
+    "offsetSeconds": 266.931,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:35:29.273  9570 24470 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=22"
+  },
+  {
+    "at": "2026-11-05T18:35:38.5300000",
+    "offsetSeconds": 276.188,
+    "eventType": "STARTED",
+    "line": "11-05 18:35:38.530  9570 24502 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=23 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=132450"
+  },
+  {
+    "at": "2026-11-05T18:35:46.8160000",
+    "offsetSeconds": 284.474,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:35:46.816  9570 24502 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=23"
+  },
+  {
+    "at": "2026-11-05T18:35:54.9350000",
+    "offsetSeconds": 292.593,
+    "eventType": "STARTED",
+    "line": "11-05 18:35:54.935  9570 24545 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=24 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=140925"
+  },
+  {
+    "at": "2026-11-05T18:36:02.2020000",
+    "offsetSeconds": 299.86,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:36:02.202  9570 24545 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=24"
+  },
+  {
+    "at": "2026-11-05T18:36:09.0660000",
+    "offsetSeconds": 306.724,
+    "eventType": "STARTED",
+    "line": "11-05 18:36:09.066  9570 24883 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=25 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=148375"
+  },
+  {
+    "at": "2026-11-05T18:36:15.1450000",
+    "offsetSeconds": 312.803,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:36:15.145  9570 24883 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=25"
+  },
+  {
+    "at": "2026-11-05T18:36:23.1530000",
+    "offsetSeconds": 320.811,
+    "eventType": "STARTED",
+    "line": "11-05 18:36:23.153  9570 24915 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=26 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=154575"
+  },
+  {
+    "at": "2026-11-05T18:36:30.4170000",
+    "offsetSeconds": 328.075,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:36:30.417  9570 24915 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=26"
+  },
+  {
+    "at": "2026-11-05T18:36:35.7080000",
+    "offsetSeconds": 333.366,
+    "eventType": "STARTED",
+    "line": "11-05 18:36:35.708  9570 24934 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=27 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=161975"
+  },
+  {
+    "at": "2026-11-05T18:36:40.3460000",
+    "offsetSeconds": 338.004,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:36:40.346  9570 24934 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=27"
+  },
+  {
+    "at": "2026-11-05T18:36:48.5050000",
+    "offsetSeconds": 346.163,
+    "eventType": "STARTED",
+    "line": "11-05 18:36:48.505  9570 24953 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=28 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=166850"
+  },
+  {
+    "at": "2026-11-05T18:36:55.7400000",
+    "offsetSeconds": 353.398,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:36:55.740  9570 24953 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=28"
+  },
+  {
+    "at": "2026-11-05T18:37:00.1730000",
+    "offsetSeconds": 357.831,
+    "eventType": "STARTED",
+    "line": "11-05 18:37:00.173  9570 24996 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=29 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=174225"
+  },
+  {
+    "at": "2026-11-05T18:37:04.0370000",
+    "offsetSeconds": 361.695,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:37:04.037  9570 24996 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=29"
+  },
+  {
+    "at": "2026-11-05T18:37:10.8040000",
+    "offsetSeconds": 368.462,
+    "eventType": "STARTED",
+    "line": "11-05 18:37:10.804  9570 25033 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=30 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=178225"
+  },
+  {
+    "at": "2026-11-05T18:37:16.6880000",
+    "offsetSeconds": 374.346,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:37:16.688  9570 25033 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=30"
+  },
+  {
+    "at": "2026-11-05T18:37:23.6210000",
+    "offsetSeconds": 381.279,
+    "eventType": "STARTED",
+    "line": "11-05 18:37:23.621  9570 25074 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=31 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=184275"
+  },
+  {
+    "at": "2026-11-05T18:37:29.6790000",
+    "offsetSeconds": 387.337,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:37:29.679  9570 25074 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=31"
+  },
+  {
+    "at": "2026-11-05T18:37:39.0700000",
+    "offsetSeconds": 396.728,
+    "eventType": "STARTED",
+    "line": "11-05 18:37:39.070  9570 25116 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=32 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=190525"
+  },
+  {
+    "at": "2026-11-05T18:37:47.3430000",
+    "offsetSeconds": 405.001,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:37:47.343  9570 25116 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=32"
+  },
+  {
+    "at": "2026-11-05T18:37:55.4800000",
+    "offsetSeconds": 413.138,
+    "eventType": "STARTED",
+    "line": "11-05 18:37:55.480  9570 25165 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=33 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=199000"
+  },
+  {
+    "at": "2026-11-05T18:38:02.8670000",
+    "offsetSeconds": 420.525,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:38:02.867  9570 25165 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=33"
+  },
+  {
+    "at": "2026-11-05T18:38:09.6950000",
+    "offsetSeconds": 427.353,
+    "eventType": "STARTED",
+    "line": "11-05 18:38:09.695  9570 25244 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=34 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=206450"
+  },
+  {
+    "at": "2026-11-05T18:38:15.7520000",
+    "offsetSeconds": 433.41,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:38:15.752  9570 25244 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=34"
+  },
+  {
+    "at": "2026-11-05T18:38:23.8050000",
+    "offsetSeconds": 441.463,
+    "eventType": "STARTED",
+    "line": "11-05 18:38:23.805  9570 25266 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=35 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=212650"
+  },
+  {
+    "at": "2026-11-05T18:38:31.0980000",
+    "offsetSeconds": 448.756,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:38:31.098  9570 25266 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=35"
+  },
+  {
+    "at": "2026-11-05T18:38:36.3760000",
+    "offsetSeconds": 454.034,
+    "eventType": "STARTED",
+    "line": "11-05 18:38:36.376  9570 25306 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=36 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=220050"
+  },
+  {
+    "at": "2026-11-05T18:38:41.0210000",
+    "offsetSeconds": 458.679,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:38:41.021  9570 25306 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=36"
+  },
+  {
+    "at": "2026-11-05T18:38:49.1390000",
+    "offsetSeconds": 466.797,
+    "eventType": "STARTED",
+    "line": "11-05 18:38:49.139  9570 25326 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=37 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=224925"
+  },
+  {
+    "at": "2026-11-05T18:38:56.4150000",
+    "offsetSeconds": 474.073,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:38:56.415  9570 25326 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=37"
+  },
+  {
+    "at": "2026-11-05T18:39:00.8010000",
+    "offsetSeconds": 478.459,
+    "eventType": "STARTED",
+    "line": "11-05 18:39:00.801  9570 25369 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=38 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=232300"
+  },
+  {
+    "at": "2026-11-05T18:39:04.6290000",
+    "offsetSeconds": 482.287,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:39:04.629  9570 25369 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=38"
+  },
+  {
+    "at": "2026-11-05T18:39:11.2660000",
+    "offsetSeconds": 488.924,
+    "eventType": "STARTED",
+    "line": "11-05 18:39:11.266  9570 25401 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=39 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=236300"
+  },
+  {
+    "at": "2026-11-05T18:39:17.0750000",
+    "offsetSeconds": 494.733,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:39:17.075  9570 25401 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=39"
+  },
+  {
+    "at": "2026-11-05T18:39:24.0070000",
+    "offsetSeconds": 501.665,
+    "eventType": "STARTED",
+    "line": "11-05 18:39:24.007  9570 25446 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=40 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=242350"
+  },
+  {
+    "at": "2026-11-05T18:39:30.0760000",
+    "offsetSeconds": 507.734,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:39:30.076  9570 25446 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=40"
+  },
+  {
+    "at": "2026-11-05T18:39:39.3130000",
+    "offsetSeconds": 516.971,
+    "eventType": "STARTED",
+    "line": "11-05 18:39:39.313  9570 25481 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=41 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=248600"
+  },
+  {
+    "at": "2026-11-05T18:39:47.5860000",
+    "offsetSeconds": 525.244,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:39:47.586  9570 25481 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=41"
+  },
+  {
+    "at": "2026-11-05T18:39:55.7490000",
+    "offsetSeconds": 533.407,
+    "eventType": "STARTED",
+    "line": "11-05 18:39:55.749  9570 25528 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=42 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=257075"
+  },
+  {
+    "at": "2026-11-05T18:40:03.0180000",
+    "offsetSeconds": 540.676,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:40:03.018  9570 25528 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=42"
+  },
+  {
+    "at": "2026-11-05T18:40:09.8450000",
+    "offsetSeconds": 547.503,
+    "eventType": "STARTED",
+    "line": "11-05 18:40:09.845  9570 25578 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=43 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=264525"
+  },
+  {
+    "at": "2026-11-05T18:40:15.9180000",
+    "offsetSeconds": 553.576,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:40:15.918  9570 25578 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=43"
+  },
+  {
+    "at": "2026-11-05T18:40:24.1250000",
+    "offsetSeconds": 561.783,
+    "eventType": "STARTED",
+    "line": "11-05 18:40:24.125  9570 25601 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=44 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=270725"
+  },
+  {
+    "at": "2026-11-05T18:40:31.3920000",
+    "offsetSeconds": 569.05,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:40:31.392  9570 25601 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=44"
+  },
+  {
+    "at": "2026-11-05T18:40:36.6740000",
+    "offsetSeconds": 574.332,
+    "eventType": "STARTED",
+    "line": "11-05 18:40:36.674  9570 25617 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=45 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=278125"
+  },
+  {
+    "at": "2026-11-05T18:40:41.3520000",
+    "offsetSeconds": 579.01,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:40:41.352  9570 25617 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=45"
+  },
+  {
+    "at": "2026-11-05T18:40:49.5190000",
+    "offsetSeconds": 587.177,
+    "eventType": "STARTED",
+    "line": "11-05 18:40:49.519  9570 25635 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=46 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=283000"
+  },
+  {
+    "at": "2026-11-05T18:40:56.6920000",
+    "offsetSeconds": 594.35,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:40:56.692  9570 25635 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=46"
+  },
+  {
+    "at": "2026-11-05T18:41:01.0850000",
+    "offsetSeconds": 598.743,
+    "eventType": "STARTED",
+    "line": "11-05 18:41:01.085  9570 25675 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=47 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=290375"
+  },
+  {
+    "at": "2026-11-05T18:41:04.8980000",
+    "offsetSeconds": 602.556,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:41:04.898  9570 25675 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=47"
+  },
+  {
+    "at": "2026-11-05T18:41:11.6420000",
+    "offsetSeconds": 609.3,
+    "eventType": "STARTED",
+    "line": "11-05 18:41:11.642  9570 25704 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=48 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=294375"
+  },
+  {
+    "at": "2026-11-05T18:41:17.5220000",
+    "offsetSeconds": 615.18,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:41:17.522  9570 25704 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=48"
+  },
+  {
+    "at": "2026-11-05T18:41:24.3640000",
+    "offsetSeconds": 622.022,
+    "eventType": "STARTED",
+    "line": "11-05 18:41:24.364  9570 25748 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=49 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=300425"
+  },
+  {
+    "at": "2026-11-05T18:41:30.3870000",
+    "offsetSeconds": 628.045,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:41:30.387  9570 25748 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=49"
+  },
+  {
+    "at": "2026-11-05T18:41:39.5900000",
+    "offsetSeconds": 637.248,
+    "eventType": "STARTED",
+    "line": "11-05 18:41:39.590  9570 25786 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=50 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=306675"
+  },
+  {
+    "at": "2026-11-05T18:41:47.8070000",
+    "offsetSeconds": 645.465,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:41:47.807  9570 25786 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=50"
+  },
+  {
+    "at": "2026-11-05T18:41:55.8450000",
+    "offsetSeconds": 653.503,
+    "eventType": "STARTED",
+    "line": "11-05 18:41:55.845  9570 25808 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=51 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=315150"
+  },
+  {
+    "at": "2026-11-05T18:42:03.1200000",
+    "offsetSeconds": 660.778,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:42:03.120  9570 25808 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=51"
+  },
+  {
+    "at": "2026-11-05T18:42:09.8250000",
+    "offsetSeconds": 667.483,
+    "eventType": "STARTED",
+    "line": "11-05 18:42:09.825  9570 25860 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=52 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=322600"
+  },
+  {
+    "at": "2026-11-05T18:42:15.9060000",
+    "offsetSeconds": 673.564,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:42:15.906  9570 25860 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=52"
+  },
+  {
+    "at": "2026-11-05T18:42:24.0410000",
+    "offsetSeconds": 681.699,
+    "eventType": "STARTED",
+    "line": "11-05 18:42:24.041  9570 25902 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=53 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=328800"
+  },
+  {
+    "at": "2026-11-05T18:42:31.3010000",
+    "offsetSeconds": 688.959,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:42:31.301  9570 25902 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=53"
+  },
+  {
+    "at": "2026-11-05T18:42:36.5870000",
+    "offsetSeconds": 694.245,
+    "eventType": "STARTED",
+    "line": "11-05 18:42:36.587  9570 25918 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=54 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=336200"
+  },
+  {
+    "at": "2026-11-05T18:42:41.2610000",
+    "offsetSeconds": 698.919,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:42:41.261  9570 25918 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=54"
+  },
+  {
+    "at": "2026-11-05T18:42:49.3800000",
+    "offsetSeconds": 707.038,
+    "eventType": "STARTED",
+    "line": "11-05 18:42:49.380  9570 26035 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=55 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=341075"
+  },
+  {
+    "at": "2026-11-05T18:42:56.6070000",
+    "offsetSeconds": 714.265,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:42:56.607  9570 26035 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=55"
+  },
+  {
+    "at": "2026-11-05T18:43:01.0770000",
+    "offsetSeconds": 718.735,
+    "eventType": "STARTED",
+    "line": "11-05 18:43:01.077  9570 26050 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=56 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=348450"
+  },
+  {
+    "at": "2026-11-05T18:43:04.9640000",
+    "offsetSeconds": 722.622,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:43:04.964  9570 26050 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=56"
+  },
+  {
+    "at": "2026-11-05T18:43:11.5960000",
+    "offsetSeconds": 729.254,
+    "eventType": "STARTED",
+    "line": "11-05 18:43:11.596  9570 26079 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=57 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=352450"
+  },
+  {
+    "at": "2026-11-05T18:43:17.3860000",
+    "offsetSeconds": 735.044,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:43:17.386  9570 26079 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=57"
+  },
+  {
+    "at": "2026-11-05T18:43:24.1330000",
+    "offsetSeconds": 741.791,
+    "eventType": "STARTED",
+    "line": "11-05 18:43:24.133  9570 26122 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=58 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=358500"
+  },
+  {
+    "at": "2026-11-05T18:43:30.2100000",
+    "offsetSeconds": 747.868,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:43:30.210  9570 26122 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=58"
+  },
+  {
+    "at": "2026-11-05T18:43:39.4100000",
+    "offsetSeconds": 757.068,
+    "eventType": "STARTED",
+    "line": "11-05 18:43:39.410  9570 26166 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=59 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=364750"
+  },
+  {
+    "at": "2026-11-05T18:43:47.6430000",
+    "offsetSeconds": 765.301,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:43:47.643  9570 26166 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=59"
+  },
+  {
+    "at": "2026-11-05T18:43:55.9410000",
+    "offsetSeconds": 773.599,
+    "eventType": "STARTED",
+    "line": "11-05 18:43:55.941  9570 26182 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=60 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=373225"
+  },
+  {
+    "at": "2026-11-05T18:44:03.1560000",
+    "offsetSeconds": 780.814,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:44:03.156  9570 26182 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=60"
+  },
+  {
+    "at": "2026-11-05T18:44:09.8700000",
+    "offsetSeconds": 787.528,
+    "eventType": "STARTED",
+    "line": "11-05 18:44:09.870  9570 26243 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=61 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=380675"
+  },
+  {
+    "at": "2026-11-05T18:44:15.9370000",
+    "offsetSeconds": 793.595,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:44:15.937  9570 26243 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=61"
+  },
+  {
+    "at": "2026-11-05T18:44:24.2400000",
+    "offsetSeconds": 801.898,
+    "eventType": "STARTED",
+    "line": "11-05 18:44:24.240  9570 26290 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=62 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=386875"
+  },
+  {
+    "at": "2026-11-05T18:44:31.4690000",
+    "offsetSeconds": 809.127,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:44:31.469  9570 26290 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=62"
+  },
+  {
+    "at": "2026-11-05T18:44:36.7690000",
+    "offsetSeconds": 814.427,
+    "eventType": "STARTED",
+    "line": "11-05 18:44:36.769  9570 26308 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=63 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=394275"
+  },
+  {
+    "at": "2026-11-05T18:44:41.4030000",
+    "offsetSeconds": 819.061,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:44:41.403  9570 26308 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=63"
+  },
+  {
+    "at": "2026-11-05T18:44:49.4510000",
+    "offsetSeconds": 827.109,
+    "eventType": "STARTED",
+    "line": "11-05 18:44:49.451  9570 26342 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=64 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=399150"
+  },
+  {
+    "at": "2026-11-05T18:44:56.7170000",
+    "offsetSeconds": 834.375,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:44:56.717  9570 26342 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=64"
+  },
+  {
+    "at": "2026-11-05T18:45:01.0720000",
+    "offsetSeconds": 838.73,
+    "eventType": "STARTED",
+    "line": "11-05 18:45:01.072  9570 26393 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=65 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=406525"
+  },
+  {
+    "at": "2026-11-05T18:45:04.9420000",
+    "offsetSeconds": 842.6,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:45:04.942  9570 26393 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=65"
+  },
+  {
+    "at": "2026-11-05T18:45:11.5090000",
+    "offsetSeconds": 849.167,
+    "eventType": "STARTED",
+    "line": "11-05 18:45:11.509  9570 26426 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=66 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=410525"
+  },
+  {
+    "at": "2026-11-05T18:45:17.3630000",
+    "offsetSeconds": 855.021,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:45:17.363  9570 26426 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=66"
+  },
+  {
+    "at": "2026-11-05T18:45:24.1580000",
+    "offsetSeconds": 861.816,
+    "eventType": "STARTED",
+    "line": "11-05 18:45:24.158  9570 26470 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=67 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=416575"
+  },
+  {
+    "at": "2026-11-05T18:45:30.2260000",
+    "offsetSeconds": 867.884,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:45:30.226  9570 26470 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=67"
+  },
+  {
+    "at": "2026-11-05T18:45:39.6060000",
+    "offsetSeconds": 877.264,
+    "eventType": "STARTED",
+    "line": "11-05 18:45:39.606  9570 26494 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=68 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=422825"
+  },
+  {
+    "at": "2026-11-05T18:45:47.8980000",
+    "offsetSeconds": 885.556,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:45:47.898  9570 26494 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=68"
+  },
+  {
+    "at": "2026-11-05T18:45:55.9090000",
+    "offsetSeconds": 893.567,
+    "eventType": "STARTED",
+    "line": "11-05 18:45:55.909  9570 26533 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=69 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=431300"
+  },
+  {
+    "at": "2026-11-05T18:46:03.1710000",
+    "offsetSeconds": 900.829,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:46:03.171  9570 26533 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=69"
+  },
+  {
+    "at": "2026-11-05T18:46:09.9010000",
+    "offsetSeconds": 907.559,
+    "eventType": "STARTED",
+    "line": "11-05 18:46:09.901  9570 26593 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=70 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=438750"
+  },
+  {
+    "at": "2026-11-05T18:46:15.9700000",
+    "offsetSeconds": 913.628,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:46:15.970  9570 26593 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=70"
+  },
+  {
+    "at": "2026-11-05T18:46:24.0370000",
+    "offsetSeconds": 921.695,
+    "eventType": "STARTED",
+    "line": "11-05 18:46:24.037  9570 26643 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=71 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=444950"
+  },
+  {
+    "at": "2026-11-05T18:46:31.3190000",
+    "offsetSeconds": 928.977,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:46:31.319  9570 26643 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=71"
+  },
+  {
+    "at": "2026-11-05T18:46:36.6100000",
+    "offsetSeconds": 934.268,
+    "eventType": "STARTED",
+    "line": "11-05 18:46:36.610  9570 26667 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=72 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=452350"
+  },
+  {
+    "at": "2026-11-05T18:46:41.2590000",
+    "offsetSeconds": 938.917,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:46:41.259  9570 26667 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=72"
+  },
+  {
+    "at": "2026-11-05T18:46:49.3260000",
+    "offsetSeconds": 946.984,
+    "eventType": "STARTED",
+    "line": "11-05 18:46:49.326  9570 26689 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=73 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=457225"
+  },
+  {
+    "at": "2026-11-05T18:46:56.6080000",
+    "offsetSeconds": 954.266,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:46:56.608  9570 26689 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=73"
+  },
+  {
+    "at": "2026-11-05T18:47:00.9580000",
+    "offsetSeconds": 958.616,
+    "eventType": "STARTED",
+    "line": "11-05 18:47:00.958  9570 26704 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=74 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=464600"
+  },
+  {
+    "at": "2026-11-05T18:47:04.8240000",
+    "offsetSeconds": 962.482,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:47:04.824  9570 26704 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=74"
+  },
+  {
+    "at": "2026-11-05T18:47:11.4370000",
+    "offsetSeconds": 969.095,
+    "eventType": "STARTED",
+    "line": "11-05 18:47:11.437  9570 26758 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=75 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=468600"
+  },
+  {
+    "at": "2026-11-05T18:47:17.2790000",
+    "offsetSeconds": 974.937,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:47:17.279  9570 26758 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=75"
+  },
+  {
+    "at": "2026-11-05T18:47:24.1170000",
+    "offsetSeconds": 981.775,
+    "eventType": "STARTED",
+    "line": "11-05 18:47:24.117  9570 26800 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=76 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=474650"
+  },
+  {
+    "at": "2026-11-05T18:47:30.1740000",
+    "offsetSeconds": 987.832,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:47:30.174  9570 26800 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=76"
+  },
+  {
+    "at": "2026-11-05T18:47:39.3920000",
+    "offsetSeconds": 997.05,
+    "eventType": "STARTED",
+    "line": "11-05 18:47:39.392  9570 26813 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=77 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=480900"
+  },
+  {
+    "at": "2026-11-05T18:47:47.6500000",
+    "offsetSeconds": 1005.308,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:47:47.650  9570 26813 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=77"
+  },
+  {
+    "at": "2026-11-05T18:47:55.7240000",
+    "offsetSeconds": 1013.382,
+    "eventType": "STARTED",
+    "line": "11-05 18:47:55.724  9570 26865 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=78 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=489375"
+  },
+  {
+    "at": "2026-11-05T18:48:02.9570000",
+    "offsetSeconds": 1020.615,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:48:02.957  9570 26865 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=78"
+  },
+  {
+    "at": "2026-11-05T18:48:09.6950000",
+    "offsetSeconds": 1027.353,
+    "eventType": "STARTED",
+    "line": "11-05 18:48:09.695  9570 26922 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=79 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=496825"
+  },
+  {
+    "at": "2026-11-05T18:48:15.7760000",
+    "offsetSeconds": 1033.434,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:48:15.776  9570 26922 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=79"
+  },
+  {
+    "at": "2026-11-05T18:48:23.7820000",
+    "offsetSeconds": 1041.44,
+    "eventType": "STARTED",
+    "line": "11-05 18:48:23.782  9570 26938 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=80 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=503025"
+  },
+  {
+    "at": "2026-11-05T18:48:31.0510000",
+    "offsetSeconds": 1048.709,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:48:31.051  9570 26938 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=80"
+  },
+  {
+    "at": "2026-11-05T18:48:36.4080000",
+    "offsetSeconds": 1054.066,
+    "eventType": "STARTED",
+    "line": "11-05 18:48:36.408  9570 26972 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=81 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=510425"
+  },
+  {
+    "at": "2026-11-05T18:48:41.0080000",
+    "offsetSeconds": 1058.666,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:48:41.008  9570 26972 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=81"
+  },
+  {
+    "at": "2026-11-05T18:48:49.3790000",
+    "offsetSeconds": 1067.037,
+    "eventType": "STARTED",
+    "line": "11-05 18:48:49.379  9570 27016 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=82 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=515300"
+  },
+  {
+    "at": "2026-11-05T18:48:56.6560000",
+    "offsetSeconds": 1074.314,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:48:56.656  9570 27016 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=82"
+  },
+  {
+    "at": "2026-11-05T18:49:00.9840000",
+    "offsetSeconds": 1078.642,
+    "eventType": "STARTED",
+    "line": "11-05 18:49:00.984  9570 27038 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=83 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=522675"
+  },
+  {
+    "at": "2026-11-05T18:49:04.8580000",
+    "offsetSeconds": 1082.516,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:49:04.858  9570 27038 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=83"
+  },
+  {
+    "at": "2026-11-05T18:49:11.5310000",
+    "offsetSeconds": 1089.189,
+    "eventType": "STARTED",
+    "line": "11-05 18:49:11.531  9570 27101 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=84 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=526675"
+  },
+  {
+    "at": "2026-11-05T18:49:17.3850000",
+    "offsetSeconds": 1095.043,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:49:17.385  9570 27101 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=84"
+  },
+  {
+    "at": "2026-11-05T18:49:24.2280000",
+    "offsetSeconds": 1101.886,
+    "eventType": "STARTED",
+    "line": "11-05 18:49:24.228  9570 27119 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=85 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=532725"
+  },
+  {
+    "at": "2026-11-05T18:49:30.2960000",
+    "offsetSeconds": 1107.954,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:49:30.296  9570 27119 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=85"
+  },
+  {
+    "at": "2026-11-05T18:49:39.7170000",
+    "offsetSeconds": 1117.375,
+    "eventType": "STARTED",
+    "line": "11-05 18:49:39.717  9570 27176 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=86 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=538975"
+  },
+  {
+    "at": "2026-11-05T18:49:47.9590000",
+    "offsetSeconds": 1125.617,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:49:47.959  9570 27176 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=86"
+  },
+  {
+    "at": "2026-11-05T18:49:56.3580000",
+    "offsetSeconds": 1134.016,
+    "eventType": "STARTED",
+    "line": "11-05 18:49:56.358  9570 27218 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=87 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=547450"
+  },
+  {
+    "at": "2026-11-05T18:50:03.6190000",
+    "offsetSeconds": 1141.277,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:50:03.619  9570 27218 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=87"
+  },
+  {
+    "at": "2026-11-05T18:50:10.5250000",
+    "offsetSeconds": 1148.183,
+    "eventType": "STARTED",
+    "line": "11-05 18:50:10.525  9570 27277 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=88 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=554900"
+  },
+  {
+    "at": "2026-11-05T18:50:16.5590000",
+    "offsetSeconds": 1154.217,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:50:16.559  9570 27277 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=88"
+  },
+  {
+    "at": "2026-11-05T18:50:24.7190000",
+    "offsetSeconds": 1162.377,
+    "eventType": "STARTED",
+    "line": "11-05 18:50:24.719  9570 27294 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=89 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=561100"
+  },
+  {
+    "at": "2026-11-05T18:50:31.9870000",
+    "offsetSeconds": 1169.645,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:50:31.987  9570 27294 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=89"
+  },
+  {
+    "at": "2026-11-05T18:50:37.2800000",
+    "offsetSeconds": 1174.938,
+    "eventType": "STARTED",
+    "line": "11-05 18:50:37.280  9570 27333 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=90 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=568500"
+  },
+  {
+    "at": "2026-11-05T18:50:41.9280000",
+    "offsetSeconds": 1179.586,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:50:41.928  9570 27333 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=90"
+  },
+  {
+    "at": "2026-11-05T18:50:50.0150000",
+    "offsetSeconds": 1187.673,
+    "eventType": "STARTED",
+    "line": "11-05 18:50:50.015  9570 27370 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=91 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=573375"
+  },
+  {
+    "at": "2026-11-05T18:50:57.2700000",
+    "offsetSeconds": 1194.928,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:50:57.270  9570 27370 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=91"
+  },
+  {
+    "at": "2026-11-05T18:51:01.5920000",
+    "offsetSeconds": 1199.25,
+    "eventType": "STARTED",
+    "line": "11-05 18:51:01.592  9570 27385 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=92 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=580750"
+  },
+  {
+    "at": "2026-11-05T18:51:05.4750000",
+    "offsetSeconds": 1203.133,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:51:05.475  9570 27385 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=92"
+  },
+  {
+    "at": "2026-11-05T18:51:12.1720000",
+    "offsetSeconds": 1209.83,
+    "eventType": "STARTED",
+    "line": "11-05 18:51:12.172  9570 27440 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=93 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=584750"
+  },
+  {
+    "at": "2026-11-05T18:51:18.0370000",
+    "offsetSeconds": 1215.695,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:51:18.037  9570 27440 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=93"
+  },
+  {
+    "at": "2026-11-05T18:51:24.9030000",
+    "offsetSeconds": 1222.561,
+    "eventType": "STARTED",
+    "line": "11-05 18:51:24.903  9570 27460 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=94 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=590800"
+  },
+  {
+    "at": "2026-11-05T18:51:30.9400000",
+    "offsetSeconds": 1228.598,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:51:30.940  9570 27460 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=94"
+  },
+  {
+    "at": "2026-11-05T18:51:40.1330000",
+    "offsetSeconds": 1237.791,
+    "eventType": "STARTED",
+    "line": "11-05 18:51:40.133  9570 27496 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=95 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=597050"
+  },
+  {
+    "at": "2026-11-05T18:51:48.3840000",
+    "offsetSeconds": 1246.042,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:51:48.384  9570 27496 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=95"
+  },
+  {
+    "at": "2026-11-05T18:51:56.4550000",
+    "offsetSeconds": 1254.113,
+    "eventType": "STARTED",
+    "line": "11-05 18:51:56.455  9570 27536 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=96 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=605525"
+  },
+  {
+    "at": "2026-11-05T18:52:03.6890000",
+    "offsetSeconds": 1261.347,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:52:03.689  9570 27536 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=96"
+  },
+  {
+    "at": "2026-11-05T18:52:10.4080000",
+    "offsetSeconds": 1268.066,
+    "eventType": "STARTED",
+    "line": "11-05 18:52:10.408  9570 27596 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=97 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=612975"
+  },
+  {
+    "at": "2026-11-05T18:52:16.4460000",
+    "offsetSeconds": 1274.104,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:52:16.446  9570 27596 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=97"
+  },
+  {
+    "at": "2026-11-05T18:52:24.4920000",
+    "offsetSeconds": 1282.15,
+    "eventType": "STARTED",
+    "line": "11-05 18:52:24.492  9570 27613 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=98 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=619175"
+  },
+  {
+    "at": "2026-11-05T18:52:31.7380000",
+    "offsetSeconds": 1289.396,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:52:31.738  9570 27613 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=98"
+  },
+  {
+    "at": "2026-11-05T18:52:37.0830000",
+    "offsetSeconds": 1294.741,
+    "eventType": "STARTED",
+    "line": "11-05 18:52:37.083  9570 27631 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=99 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=626575"
+  },
+  {
+    "at": "2026-11-05T18:52:41.7730000",
+    "offsetSeconds": 1299.431,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:52:41.773  9570 27631 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=99"
+  },
+  {
+    "at": "2026-11-05T18:52:50.0400000",
+    "offsetSeconds": 1307.698,
+    "eventType": "STARTED",
+    "line": "11-05 18:52:50.040  9570 27678 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=100 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=631450"
+  },
+  {
+    "at": "2026-11-05T18:52:57.2770000",
+    "offsetSeconds": 1314.935,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:52:57.277  9570 27678 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=100"
+  },
+  {
+    "at": "2026-11-05T18:53:01.6690000",
+    "offsetSeconds": 1319.327,
+    "eventType": "STARTED",
+    "line": "11-05 18:53:01.669  9570 27716 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=101 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=638825"
+  },
+  {
+    "at": "2026-11-05T18:53:05.4920000",
+    "offsetSeconds": 1323.15,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:53:05.492  9570 27716 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=101"
+  },
+  {
+    "at": "2026-11-05T18:53:12.2370000",
+    "offsetSeconds": 1329.895,
+    "eventType": "STARTED",
+    "line": "11-05 18:53:12.237  9570 27757 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=102 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=642825"
+  },
+  {
+    "at": "2026-11-05T18:53:18.1090000",
+    "offsetSeconds": 1335.767,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:53:18.109  9570 27757 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=102"
+  },
+  {
+    "at": "2026-11-05T18:53:24.8450000",
+    "offsetSeconds": 1342.503,
+    "eventType": "STARTED",
+    "line": "11-05 18:53:24.845  9570 27799 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=103 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=648875"
+  },
+  {
+    "at": "2026-11-05T18:53:30.9050000",
+    "offsetSeconds": 1348.563,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:53:30.905  9570 27799 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=103"
+  },
+  {
+    "at": "2026-11-05T18:53:40.2090000",
+    "offsetSeconds": 1357.867,
+    "eventType": "STARTED",
+    "line": "11-05 18:53:40.209  9570 27844 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=104 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=655125"
+  },
+  {
+    "at": "2026-11-05T18:53:48.3810000",
+    "offsetSeconds": 1366.039,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:53:48.381  9570 27844 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=104"
+  },
+  {
+    "at": "2026-11-05T18:53:56.4320000",
+    "offsetSeconds": 1374.09,
+    "eventType": "STARTED",
+    "line": "11-05 18:53:56.432  9570 27897 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=105 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=663600"
+  },
+  {
+    "at": "2026-11-05T18:54:03.7020000",
+    "offsetSeconds": 1381.36,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:54:03.702  9570 27897 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=105"
+  },
+  {
+    "at": "2026-11-05T18:54:10.4180000",
+    "offsetSeconds": 1388.076,
+    "eventType": "STARTED",
+    "line": "11-05 18:54:10.418  9570 27929 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=106 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=671050"
+  },
+  {
+    "at": "2026-11-05T18:54:16.5080000",
+    "offsetSeconds": 1394.166,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:54:16.508  9570 27929 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=106"
+  },
+  {
+    "at": "2026-11-05T18:54:24.8380000",
+    "offsetSeconds": 1402.496,
+    "eventType": "STARTED",
+    "line": "11-05 18:54:24.838  9570 27980 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=107 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=677250"
+  },
+  {
+    "at": "2026-11-05T18:54:32.0810000",
+    "offsetSeconds": 1409.739,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:54:32.081  9570 27980 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=107"
+  },
+  {
+    "at": "2026-11-05T18:54:37.3910000",
+    "offsetSeconds": 1415.049,
+    "eventType": "STARTED",
+    "line": "11-05 18:54:37.391  9570 28001 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=108 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=684650"
+  },
+  {
+    "at": "2026-11-05T18:54:42.0710000",
+    "offsetSeconds": 1419.729,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:54:42.071  9570 28001 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=108"
+  },
+  {
+    "at": "2026-11-05T18:54:50.2680000",
+    "offsetSeconds": 1427.926,
+    "eventType": "STARTED",
+    "line": "11-05 18:54:50.268  9570 28052 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=109 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=689525"
+  },
+  {
+    "at": "2026-11-05T18:54:57.4600000",
+    "offsetSeconds": 1435.118,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:54:57.460  9570 28052 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=109"
+  },
+  {
+    "at": "2026-11-05T18:55:01.9680000",
+    "offsetSeconds": 1439.626,
+    "eventType": "STARTED",
+    "line": "11-05 18:55:01.968  9570 28102 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=110 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=696900"
+  },
+  {
+    "at": "2026-11-05T18:55:05.8300000",
+    "offsetSeconds": 1443.488,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:55:05.830  9570 28102 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=110"
+  },
+  {
+    "at": "2026-11-05T18:55:12.6030000",
+    "offsetSeconds": 1450.261,
+    "eventType": "STARTED",
+    "line": "11-05 18:55:12.603  9570 28172 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=111 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=700900"
+  },
+  {
+    "at": "2026-11-05T18:55:18.4210000",
+    "offsetSeconds": 1456.079,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:55:18.421  9570 28172 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=111"
+  },
+  {
+    "at": "2026-11-05T18:55:25.4640000",
+    "offsetSeconds": 1463.122,
+    "eventType": "STARTED",
+    "line": "11-05 18:55:25.464  9570 28194 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=112 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=706950"
+  },
+  {
+    "at": "2026-11-05T18:55:31.5540000",
+    "offsetSeconds": 1469.212,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:55:31.554  9570 28194 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=112"
+  },
+  {
+    "at": "2026-11-05T18:55:40.8580000",
+    "offsetSeconds": 1478.516,
+    "eventType": "STARTED",
+    "line": "11-05 18:55:40.858  9570 28244 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=113 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=713200"
+  },
+  {
+    "at": "2026-11-05T18:55:49.1130000",
+    "offsetSeconds": 1486.771,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:55:49.113  9570 28244 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=113"
+  },
+  {
+    "at": "2026-11-05T18:55:57.2050000",
+    "offsetSeconds": 1494.863,
+    "eventType": "STARTED",
+    "line": "11-05 18:55:57.205  9570 28265 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=114 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=721675"
+  },
+  {
+    "at": "2026-11-05T18:56:04.4790000",
+    "offsetSeconds": 1502.137,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:56:04.479  9570 28265 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=114"
+  },
+  {
+    "at": "2026-11-05T18:56:11.1770000",
+    "offsetSeconds": 1508.835,
+    "eventType": "STARTED",
+    "line": "11-05 18:56:11.177  9570 28325 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=115 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=729125"
+  },
+  {
+    "at": "2026-11-05T18:56:17.2000000",
+    "offsetSeconds": 1514.858,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:56:17.200  9570 28325 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=115"
+  },
+  {
+    "at": "2026-11-05T18:56:25.2440000",
+    "offsetSeconds": 1522.902,
+    "eventType": "STARTED",
+    "line": "11-05 18:56:25.244  9570 28343 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=116 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=735325"
+  },
+  {
+    "at": "2026-11-05T18:56:32.5180000",
+    "offsetSeconds": 1530.176,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:56:32.518  9570 28343 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=116"
+  },
+  {
+    "at": "2026-11-05T18:56:37.8260000",
+    "offsetSeconds": 1535.484,
+    "eventType": "STARTED",
+    "line": "11-05 18:56:37.826  9570 28385 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=117 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=742725"
+  },
+  {
+    "at": "2026-11-05T18:56:42.4830000",
+    "offsetSeconds": 1540.141,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:56:42.483  9570 28385 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=117"
+  },
+  {
+    "at": "2026-11-05T18:56:50.5720000",
+    "offsetSeconds": 1548.23,
+    "eventType": "STARTED",
+    "line": "11-05 18:56:50.572  9570 28414 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=118 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=747600"
+  },
+  {
+    "at": "2026-11-05T18:56:57.8430000",
+    "offsetSeconds": 1555.501,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:56:57.843  9570 28414 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=118"
+  },
+  {
+    "at": "2026-11-05T18:57:02.2080000",
+    "offsetSeconds": 1559.866,
+    "eventType": "STARTED",
+    "line": "11-05 18:57:02.208  9570 28460 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=119 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=754975"
+  },
+  {
+    "at": "2026-11-05T18:57:06.0950000",
+    "offsetSeconds": 1563.753,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:57:06.095  9570 28460 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=119"
+  },
+  {
+    "at": "2026-11-05T18:57:12.6580000",
+    "offsetSeconds": 1570.316,
+    "eventType": "STARTED",
+    "line": "11-05 18:57:12.658  9570 28491 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=120 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=758975"
+  },
+  {
+    "at": "2026-11-05T18:57:18.5220000",
+    "offsetSeconds": 1576.18,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:57:18.522  9570 28491 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=120"
+  },
+  {
+    "at": "2026-11-05T18:57:25.5380000",
+    "offsetSeconds": 1583.196,
+    "eventType": "STARTED",
+    "line": "11-05 18:57:25.538  9570 28530 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=121 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=765025"
+  },
+  {
+    "at": "2026-11-05T18:57:31.6220000",
+    "offsetSeconds": 1589.28,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:57:31.622  9570 28530 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=121"
+  },
+  {
+    "at": "2026-11-05T18:57:41.1630000",
+    "offsetSeconds": 1598.821,
+    "eventType": "STARTED",
+    "line": "11-05 18:57:41.163  9570 28576 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=122 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=771275"
+  },
+  {
+    "at": "2026-11-05T18:57:49.3890000",
+    "offsetSeconds": 1607.047,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:57:49.389  9570 28576 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=122"
+  },
+  {
+    "at": "2026-11-05T18:57:57.8300000",
+    "offsetSeconds": 1615.488,
+    "eventType": "STARTED",
+    "line": "11-05 18:57:57.830  9570 28703 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=123 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=779750"
+  },
+  {
+    "at": "2026-11-05T18:58:05.0900000",
+    "offsetSeconds": 1622.748,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:58:05.090  9570 28703 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=123"
+  },
+  {
+    "at": "2026-11-05T18:58:12.1020000",
+    "offsetSeconds": 1629.76,
+    "eventType": "STARTED",
+    "line": "11-05 18:58:12.102  9570 28741 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=124 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=787200"
+  },
+  {
+    "at": "2026-11-05T18:58:18.1610000",
+    "offsetSeconds": 1635.819,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:58:18.161  9570 28741 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=124"
+  },
+  {
+    "at": "2026-11-05T18:58:26.3090000",
+    "offsetSeconds": 1643.967,
+    "eventType": "STARTED",
+    "line": "11-05 18:58:26.309  9570 28763 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=125 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=793400"
+  },
+  {
+    "at": "2026-11-05T18:58:33.5620000",
+    "offsetSeconds": 1651.22,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:58:33.562  9570 28763 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=125"
+  },
+  {
+    "at": "2026-11-05T18:58:38.9640000",
+    "offsetSeconds": 1656.622,
+    "eventType": "STARTED",
+    "line": "11-05 18:58:38.964  9570 28778 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=126 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=800800"
+  },
+  {
+    "at": "2026-11-05T18:58:43.6290000",
+    "offsetSeconds": 1661.287,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:58:43.629  9570 28778 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=126"
+  },
+  {
+    "at": "2026-11-05T18:58:51.9420000",
+    "offsetSeconds": 1669.6,
+    "eventType": "STARTED",
+    "line": "11-05 18:58:51.942  9570 28797 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=127 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=805675"
+  },
+  {
+    "at": "2026-11-05T18:58:59.1600000",
+    "offsetSeconds": 1676.818,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:58:59.160  9570 28797 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=127"
+  },
+  {
+    "at": "2026-11-05T18:59:03.5730000",
+    "offsetSeconds": 1681.231,
+    "eventType": "STARTED",
+    "line": "11-05 18:59:03.573  9570 28853 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=128 samples=96000 durationMillis=4000 longRun=true longRunAudioMillis=813050"
+  },
+  {
+    "at": "2026-11-05T18:59:07.4570000",
+    "offsetSeconds": 1685.115,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:59:07.457  9570 28853 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=128"
+  },
+  {
+    "at": "2026-11-05T18:59:14.1770000",
+    "offsetSeconds": 1691.835,
+    "eventType": "STARTED",
+    "line": "11-05 18:59:14.177  9570 28868 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=129 samples=145200 durationMillis=6050 longRun=true longRunAudioMillis=817050"
+  },
+  {
+    "at": "2026-11-05T18:59:19.9930000",
+    "offsetSeconds": 1697.651,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:59:19.993  9570 28868 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=129"
+  },
+  {
+    "at": "2026-11-05T18:59:26.7910000",
+    "offsetSeconds": 1704.449,
+    "eventType": "STARTED",
+    "line": "11-05 18:59:26.791  9570 28881 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=130 samples=150000 durationMillis=6250 longRun=true longRunAudioMillis=823100"
+  },
+  {
+    "at": "2026-11-05T18:59:32.8610000",
+    "offsetSeconds": 1710.519,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:59:32.861  9570 28881 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=130"
+  },
+  {
+    "at": "2026-11-05T18:59:42.4900000",
+    "offsetSeconds": 1720.148,
+    "eventType": "STARTED",
+    "line": "11-05 18:59:42.490  9570 28912 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=131 samples=203400 durationMillis=8475 longRun=true longRunAudioMillis=829350"
+  },
+  {
+    "at": "2026-11-05T18:59:50.7670000",
+    "offsetSeconds": 1728.425,
+    "eventType": "COMPLETED",
+    "line": "11-05 18:59:50.767  9570 28912 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=131"
+  },
+  {
+    "at": "2026-11-05T18:59:59.0140000",
+    "offsetSeconds": 1736.672,
+    "eventType": "STARTED",
+    "line": "11-05 18:59:59.014  9570 28926 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=132 samples=178800 durationMillis=7450 longRun=true longRunAudioMillis=837825"
+  },
+  {
+    "at": "2026-11-05T19:00:06.2710000",
+    "offsetSeconds": 1743.929,
+    "eventType": "COMPLETED",
+    "line": "11-05 19:00:06.271  9570 28926 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=132"
+  },
+  {
+    "at": "2026-11-05T19:00:13.2340000",
+    "offsetSeconds": 1750.892,
+    "eventType": "STARTED",
+    "line": "11-05 19:00:13.234  9570 29008 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=133 samples=148800 durationMillis=6200 longRun=true longRunAudioMillis=845275"
+  },
+  {
+    "at": "2026-11-05T19:00:19.2860000",
+    "offsetSeconds": 1756.944,
+    "eventType": "COMPLETED",
+    "line": "11-05 19:00:19.286  9570 29008 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=133"
+  },
+  {
+    "at": "2026-11-05T19:00:27.4400000",
+    "offsetSeconds": 1765.098,
+    "eventType": "STARTED",
+    "line": "11-05 19:00:27.440  9570 29059 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=134 samples=177600 durationMillis=7400 longRun=true longRunAudioMillis=851475"
+  },
+  {
+    "at": "2026-11-05T19:00:34.6240000",
+    "offsetSeconds": 1772.282,
+    "eventType": "COMPLETED",
+    "line": "11-05 19:00:34.624  9570 29059 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=134"
+  },
+  {
+    "at": "2026-11-05T19:00:39.9490000",
+    "offsetSeconds": 1777.607,
+    "eventType": "STARTED",
+    "line": "11-05 19:00:39.949  9570 29068 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=135 samples=117000 durationMillis=4875 longRun=true longRunAudioMillis=858875"
+  },
+  {
+    "at": "2026-11-05T19:00:44.6260000",
+    "offsetSeconds": 1782.284,
+    "eventType": "COMPLETED",
+    "line": "11-05 19:00:44.626  9570 29068 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=135"
+  },
+  {
+    "at": "2026-11-05T19:00:52.6930000",
+    "offsetSeconds": 1790.351,
+    "eventType": "STARTED",
+    "line": "11-05 19:00:52.693  9570 29079 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=136 samples=177000 durationMillis=7375 longRun=true longRunAudioMillis=863750"
+  },
+  {
+    "at": "2026-11-05T19:00:59.9370000",
+    "offsetSeconds": 1797.595,
+    "eventType": "COMPLETED",
+    "line": "11-05 19:00:59.937  9570 29079 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=136"
+  }
+]

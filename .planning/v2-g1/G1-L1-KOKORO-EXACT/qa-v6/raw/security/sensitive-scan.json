@@ -1,0 +1,104 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.sensitive-scan.v3",
+  "generatedAt": "2026-11-05T20:10:37.9179531+08:00",
+  "policy": "Only file names and counts are recorded; matched values are never emitted.",
+  "scannedFileCount": 72,
+  "decodeErrorFileCount": 0,
+  "patternNames": [
+    "wifiNetworkKeyNonRedacted",
+    "ssidValue",
+    "bssidValue",
+    "bssidMacLike",
+    "url",
+    "credentialedUrl",
+    "bearerCredential",
+    "tokenAssignment",
+    "cookieValue",
+    "passwordValue",
+    "passwordAttributeFalse",
+    "apiKeyValue",
+    "tokenLabel"
+  ],
+  "matchesByPattern": {
+    "wifiNetworkKeyNonRedacted": [],
+    "ssidValue": [],
+    "bssidValue": [],
+    "bssidMacLike": [],
+    "url": [
+      {
+        "file": "raw/install/main-manifest.xmltree.txt",
+        "count": 25
+      },
+      {
+        "file": "raw/install/peer-manifest.xmltree.txt",
+        "count": 15
+      }
+    ],
+    "credentialedUrl": [],
+    "bearerCredential": [],
+    "tokenAssignment": [],
+    "cookieValue": [],
+    "passwordValue": [],
+    "passwordAttributeFalse": [
+      {
+        "file": "raw/install/main-retry1/miui-install-popup-attempt-1.xml",
+        "count": 8
+      },
+      {
+        "file": "raw/install/peer/miui-install-popup-attempt-1.xml",
+        "count": 8
+      },
+      {
+        "file": "raw/long-run/keyguard-after-window.xml",
+        "count": 11
+      },
+      {
+        "file": "raw/notification-permission/permission-dialog.xml",
+        "count": 6
+      },
+      {
+        "file": "raw/notification-stop/notification-stop-ui.xml",
+        "count": 26
+      },
+      {
+        "file": "README.md",
+        "count": 1
+      }
+    ],
+    "apiKeyValue": [],
+    "tokenLabel": [
+      {
+        "file": "raw/crash-forbidden/crash-forbidden.json",
+        "count": 1
+      },
+      {
+        "file": "raw/crash-forbidden/native-crash-evidence.json",
+        "count": 1
+      },
+      {
+        "file": "raw/crash-forbidden/native-crash-evidence.txt",
+        "count": 1
+      },
+      {
+        "file": "README.md",
+        "count": 1
+      },
+      {
+        "file": "report.json",
+        "count": 1
+      }
+    ]
+  },
+  "summary": {
+    "wifiNetworkKeyNonRedactedCount": 0,
+    "networkIdentityValueCount": 0,
+    "credentialValueCount": 0,
+    "urlCount": 40,
+    "standardXmlNamespaceUrlCount": 40,
+    "otherUrlCount": 0,
+    "passwordFalseAttributeCount": 60,
+    "tokenLabelCount": 5,
+    "filesWithPatternMatches": 12
+  },
+  "pass": true
+}

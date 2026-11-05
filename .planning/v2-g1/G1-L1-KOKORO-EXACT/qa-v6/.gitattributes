@@ -1,0 +1,11 @@
+# Keep QA-v6 text evidence byte-stable across checkouts.
+*.json text eol=lf
+*.jsonl text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
+*.xml text eol=lf
+*.ps1 text eol=lf
+*.log text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+SHA256SUMS text eol=lf

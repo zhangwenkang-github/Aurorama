@@ -1,0 +1,66 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.install-object-audit.v1",
+  "serial": "43af8627",
+  "localMainBytes": 427009671,
+  "localMainSha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+  "localPeerBytes": 12696,
+  "localPeerSha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c",
+  "device": [
+    {
+      "package": "dev.aurorama.kokoro.harness",
+      "uidText": "package:dev.aurorama.kokoro.harness uid:10334",
+      "path": "/data/app/~~12hJXwGAQGhKvwGVAYCAhQ==/dev.aurorama.kokoro.harness-PK63Nj9hXFgSNVsPhJRBbw==/base.apk",
+      "bytes": 427009671,
+      "sha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a"
+    },
+    {
+      "package": "dev.aurorama.kokoro.focuspeer",
+      "uidText": "package:dev.aurorama.kokoro.focuspeer uid:10335",
+      "path": "/data/app/~~EmiAIBt3JhSnGpwJPwl6fA==/dev.aurorama.kokoro.focuspeer-XYVNNccIomaguE8jOJ-Vyw==/base.apk",
+      "bytes": 12696,
+      "sha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c"
+    }
+  ],
+  "mainBadging": [
+    "package: name='dev.aurorama.kokoro.harness' versionCode='3' versionName='2.0-kokoro-runtime-v4' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'",
+    "minSdkVersion:'26'",
+    "targetSdkVersion:'37'",
+    "launchable-activity: name='dev.aurorama.kokoro.harness.HarnessActivity'  label='' icon=''",
+    "native-code: 'arm64-v8a'"
+  ],
+  "peerBadging": [
+    "package: name='dev.aurorama.kokoro.focuspeer' versionCode='1' versionName='1.0-focus-peer' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'",
+    "minSdkVersion:'26'",
+    "targetSdkVersion:'37'",
+    "launchable-activity: name='dev.aurorama.kokoro.focuspeer.FocusPeerActivity'  label='' icon=''"
+  ],
+  "mainRequestedPermissions": [
+    "package: dev.aurorama.kokoro.harness",
+    "uses-permission: name='android.permission.FOREGROUND_SERVICE'",
+    "uses-permission: name='android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'",
+    "uses-permission: name='android.permission.POST_NOTIFICATIONS'",
+    "uses-permission: name='android.permission.WAKE_LOCK'"
+  ],
+  "peerRequestedPermissions": [
+    "package: dev.aurorama.kokoro.focuspeer"
+  ],
+  "internetPermissionCountMain": 0,
+  "internetPermissionCountPeer": 0,
+  "serviceCount": 1,
+  "mediaPlaybackForegroundServiceTypeMatches": 1,
+  "mediaSessionConstructionSites": 1,
+  "audioTrackConstructionSites": 1,
+  "postNotificationsGranted": true,
+  "checks": {
+    "deviceHashesMatch": true,
+    "mainArm64": true,
+    "mainVersion": true,
+    "peerVersion": true,
+    "internetAbsent": true,
+    "singleService": true,
+    "fgsMediaPlayback": true,
+    "singleMediaSession": true,
+    "singleAudioTrackConstruction": true,
+    "postNotificationsGranted": true
+  }
+}

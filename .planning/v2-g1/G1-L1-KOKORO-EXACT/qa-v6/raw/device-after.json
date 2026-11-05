@@ -1,0 +1,58 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.device-snapshot.v1",
+  "serial": "43af8627",
+  "prefix": "after",
+  "capturedAt": "2026-11-05T19:07:04.6913863+08:00",
+  "network": {
+    "airplaneMode": "0",
+    "wifiOn": "1",
+    "mobileData": "1",
+    "activeDefaultNetwork": "189",
+    "transport": "WIFI"
+  },
+  "musicVolume": {
+    "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 41 in range [0..150]",
+    "value": 41,
+    "min": 0,
+    "max": 150
+  },
+  "screen": {
+    "wakefulness": "Awake",
+    "screenOffTimeout": "2147483647",
+    "lockAfterTimeout": "null",
+    "stayOn": "7",
+    "keyguardShowing": "false"
+  },
+  "currentUser": {
+    "current": "0",
+    "users": "Users:\n\tUserInfo{0:机主:c13} running"
+  },
+  "productionPackages": [
+    {
+      "package": "io.github.zhangwenkang.aurorama",
+      "installed": true,
+      "apks": [
+        {
+          "path": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+          "bytes": 79729350,
+          "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb"
+        }
+      ],
+      "metadata": [
+        "    codePath=/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==",
+        "    primaryCpuAbi=arm64-v8a",
+        "    versionCode=5 minSdk=28 targetSdk=36",
+        "    versionName=1.4.0",
+        "    lastUpdateTime=2026-11-04 19:35:22",
+        "      firstInstallTime=2026-11-04 19:35:22"
+      ]
+    },
+    {
+      "package": "io.github.zhangwenkang.aurorama.debug",
+      "installed": false,
+      "apks": [],
+      "metadata": []
+    }
+  ],
+  "harnessPackagesPresent": []
+}

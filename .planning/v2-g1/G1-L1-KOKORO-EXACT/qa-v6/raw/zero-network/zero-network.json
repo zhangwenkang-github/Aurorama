@@ -1,0 +1,114 @@
+{
+  "schema": "aurorama.kokoro-qa-v6.zero-network.v1",
+  "serial": "43af8627",
+  "package": "dev.aurorama.kokoro.harness",
+  "uid": 10334,
+  "launchExitCode": 0,
+  "launchOutput": "Starting: Intent { flg=0x20000000 cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\nStatus: ok\nLaunchState: COLD\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\nTotalTime: 487\nWaitTime: 489\nComplete",
+  "networkBefore": {
+    "capturedAt": "2026-11-05T19:03:38.530839+08:00",
+    "airplaneMode": "0",
+    "wifiOn": "1",
+    "mobileData": "1",
+    "activeDefaultNetwork": "188",
+    "transport": "WIFI"
+  },
+  "networkDuring": {
+    "capturedAt": "2026-11-05T19:03:47.6006314+08:00",
+    "airplaneMode": "1",
+    "wifiOn": "0",
+    "mobileData": "0",
+    "activeDefaultNetwork": "none",
+    "transport": ""
+  },
+  "runtimeExcerpt": [
+    "11-05 19:03:47.731  9573  9573 I KOKORO_RUNTIME: COMMAND play_sample",
+    "11-05 19:03:47.754  9573  9573 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=0 speaker=zf_001 sid=3 generation=2 longRun=false total=2",
+    "11-05 19:03:54.478  9573 30592 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=2 samples=96000 durationMillis=4000 longRun=false longRunAudioMillis=0",
+    "11-05 19:03:58.286  9573 30592 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=2",
+    "11-05 19:03:58.309  9573  9573 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=1 speaker=zf_001 sid=3 generation=3 longRun=false total=2",
+    "11-05 19:04:05.215  9573 30604 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=3 samples=145200 durationMillis=6050 longRun=false longRunAudioMillis=0",
+    "11-05 19:04:11.009  9573 30604 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=3",
+    "11-05 19:04:11.034  9573  9573 I KOKORO_RUNTIME: TTS_COMPLETED longRun=false longRunAudioMillis=0 targetMillis=0"
+  ],
+  "before": {
+    "uid": 10334,
+    "identityBlockCount": 0,
+    "identityBlocks": [],
+    "identityRxBytes": 0,
+    "identityTxBytes": 0,
+    "appUidStatsMapRowCount": 0,
+    "appUidStatsMapRows": [],
+    "appUidStatsMapRxBytes": 0,
+    "appUidStatsMapTxBytes": 0
+  },
+  "after": {
+    "uid": 10334,
+    "identityBlockCount": 0,
+    "identityBlocks": [],
+    "identityRxBytes": 0,
+    "identityTxBytes": 0,
+    "appUidStatsMapRowCount": 0,
+    "appUidStatsMapRows": [],
+    "appUidStatsMapRxBytes": 0,
+    "appUidStatsMapTxBytes": 0
+  },
+  "identityRxDeltaBytes": 0,
+  "identityTxDeltaBytes": 0,
+  "identityTotalDeltaBytes": 0,
+  "appUidStatsMapRxDeltaBytes": 0,
+  "appUidStatsMapTxDeltaBytes": 0,
+  "appUidStatsMapTotalDeltaBytes": 0,
+  "beforeNetstats": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\zero-network\\netstats\\before.txt",
+  "afterNetstats": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\zero-network\\netstats\\after.txt",
+  "restoredNetwork": {
+    "capturedAt": "2026-11-05T19:04:22.4584407+08:00",
+    "airplaneMode": "0",
+    "wifiOn": "1",
+    "mobileData": "1",
+    "activeDefaultNetwork": "189",
+    "transport": "WIFI"
+  },
+  "networkRestored": true,
+  "mainInternetPermission": false,
+  "peerInternetPermission": false,
+  "status": "PASS_OFFLINE_COMPLETE_INFERENCE_ZERO_UID_NETSTATS",
+  "rawRedacted": true,
+  "redaction": {
+    "filesRedacted": 2,
+    "wifiNetworkKeyValuesRedacted": 2996,
+    "placeholder": "<REDACTED>",
+    "nonRedactedWifiNetworkKeyRemaining": 0,
+    "unredactedCopiesRetained": 0,
+    "evidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v6\\raw\\zero-network\\netstats\\redaction.json"
+  },
+  "recomputedFromRedactedFiles": {
+    "source": "redacted before.txt/after.txt",
+    "uid": 10334,
+    "before": {
+      "uid": 10334,
+      "identityBlockCount": 0,
+      "identityRxBytes": 0,
+      "identityTxBytes": 0,
+      "appUidStatsMapRowCount": 0,
+      "appUidStatsMapRxBytes": 0,
+      "appUidStatsMapTxBytes": 0
+    },
+    "after": {
+      "uid": 10334,
+      "identityBlockCount": 0,
+      "identityRxBytes": 0,
+      "identityTxBytes": 0,
+      "appUidStatsMapRowCount": 0,
+      "appUidStatsMapRxBytes": 0,
+      "appUidStatsMapTxBytes": 0
+    },
+    "allIdentityTagBlocksRxDeltaBytes": 0,
+    "allIdentityTagBlocksTxDeltaBytes": 0,
+    "allIdentityTagBlocksTotalDeltaBytes": 0,
+    "appUidStatsMapRxDeltaBytes": 0,
+    "appUidStatsMapTxDeltaBytes": 0,
+    "appUidStatsMapTotalDeltaBytes": 0
+  },
+  "statusAfterRedaction": "PASS_OFFLINE_COMPLETE_INFERENCE_ZERO_UID_NETSTATS_FROM_REDACTED_FILES"
+}

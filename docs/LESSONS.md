@@ -113,3 +113,10 @@
 - **根因**：创建新会话时手工重写首条 prompt，把 64 位哈希抄成 62 位，漏掉中间两个字符；仓库和外部文件均未漂移。
 - **对策**：创建线程前从权威文档原样复制哈希，并机械断言长度必须为 64；创建后回读首条 prompt 再核对一次，禁止凭记忆重写。
 - **来源**：2026-11-02 `V2-REQ-UX` 交接；实际值 `E7E2C21DE6C06799598628A98C82B32B7DF33BE7736A0533943864413920F229`。
+
+## L017 Native crash gate 必须检查 ApplicationExitInfo 与 tombstones
+
+- **现象**：Pad QA 初报 `0 FATAL / PASS`，fresh review 却发现通知停止后 ONNX Runtime / Sherpa JNI 进程以 `ApplicationExitInfo reason=5 APP CRASH(NATIVE), status=6` 退出。
+- **根因**：崩溃门只匹配 Java `FATAL EXCEPTION`、ANR 和 InputTimeout，没有检查 native exit reason、当前 run 的 `F DEBUG` / signal，也未拒绝时间窗不匹配的旧 events 缓冲。
+- **对策**：任何 Android runtime QA 都同时采集 `dumpsys activity exit-info`、当前 run 的 `F DEBUG` / crash buffer 和包过滤 logcat；只保留时间与目标 UID/package 匹配的证据，旧窗口必须显式标 `NON-EVIDENCE`。`reason=5`、signal / tombstone 与产品 P0–P2 分开记录，工具盲区不得吞掉产品失败。
+- **来源**：2026-11-05 Pad QA-v6 / scoped review `REV6-P1-01`；不能把 stop 后 service 收敛当成 native inference 已安全结束。

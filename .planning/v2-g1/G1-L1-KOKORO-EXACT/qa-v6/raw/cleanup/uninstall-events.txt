@@ -1,0 +1,7 @@
+11-05 01:36:06.527  1977 10660 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/31277 of null
+11-05 01:47:27.360  1977  2943 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/1729 of null
+11-05 02:22:14.310  1977  6194 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/11824 of null
+11-05 13:06:49.574  1977  4242 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/27721 of null
+11-05 13:06:49.776  1977  4242 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.focuspeer u0 flags:2 from u2000/27729 of null
+11-05 19:06:07.996  1977  6194 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.harness u0 flags:2 from u2000/31148 of null
+11-05 19:06:08.362  1977 16414 I pm_critical_info: Uninstall pkg: dev.aurorama.kokoro.focuspeer u0 flags:2 from u2000/31159 of null
