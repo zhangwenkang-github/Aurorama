@@ -15,6 +15,635 @@ $utf8Output = [System.Text.UTF8Encoding]::new($false)
 [Console]::OutputEncoding = $utf8Output
 $OutputEncoding = $utf8Output
 
+$expectedActiveTokenPointers = [string[]]@(
+    "ACTIVE_SECTION"
+)
+$prePendingActiveRequiredTokens = [string[]]@(
+    "HANDOFF_BOOTSTRAP_V2",
+    "SUBAGENT_FIRST=YES",
+    "ONE_PHASE_PER_FRESH_AGENT=YES",
+    "NO_REUSE_SUBAGENT=YES",
+    "ROOT_INTEGRATION_ONLY=YES",
+    "DEVICE_WINDOW_MINUTES=10",
+    "DEVICE_ORDER=Pad->K60",
+    "PRE_REVIEW_PENDING",
+    "PRE_REVIEW_PASS_AWAITING_AUDIT",
+    "ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW",
+    "BLOCKED_PENDING_ROUND9_REVIEW",
+    "validation.handoffPhase=PRE_HANDOFF_AUDIT",
+    "INDEPENDENT_INTEGRATION_REVIEW_PASS=BLOCKED",
+    "PREFLIGHT_PASS",
+    "PRE_HANDOFF_AUDIT_PASS=BLOCKED",
+    "QA_DISPATCHABLE=BLOCKED",
+    "ROUND8-P1-01",
+    "ROUND4-P1-01",
+    "ROUND5-P1-01",
+    "ROUND6-P1-01",
+    "ROUND7-P1-01",
+    "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND8_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND7_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND6_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND5_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND4_READONLY_INTEGRATION_REVIEW_OWNER",
+    "POST_HANDOFF_AUDIT_READY",
+    "auditReceipt",
+    "CORE_STEPS_0",
+    "PRODUCT_P0_P3_NOT_ASSESSED",
+    "K60_NOT_RUN",
+    "ACTIVE=0",
+    "22",
+    "31",
+    "2984",
+    "25/25",
+    "86/86",
+    "96/96",
+    "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+    "ROUND1-P1-01",
+    "ROUND1-P2-01",
+    "ROUND1-P2-02",
+    "ROUND2-P2-01",
+    "ROOT_INTEGRATION",
+    "IMPLEMENTATION_OWNER",
+    "TOOL_REPAIR_OWNER",
+    "DOC_PROTOCOL_OWNER",
+    "HANDOFF_POST_AUDIT_PHASE_REPAIR_OWNER",
+    "HANDOFF_POST_SCOPE_REPAIR_OWNER",
+    "HANDOFF_ANCHOR_HARDENING_REPAIR_OWNER",
+    "HANDOFF_ROLE_SCOPE_HARDENING_REPAIR_OWNER",
+    "INTEGRATION_REVIEW_OWNER",
+    "ROUND2_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND4_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND5_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND6_READONLY_INTEGRATION_REVIEW_OWNER",
+    "PRE_HANDOFF_AUDIT_OWNER",
+    "PAD_QA_OWNER",
+    "K60_QA_OWNER",
+    "INDEPENDENT_INTEGRATION_REVIEW_PASS",
+    "PRE_HANDOFF_AUDIT_PASS",
+    "QA_DISPATCHABLE",
+    "READ_ONLY_PREFLIGHT",
+    "tools/v2-handoff/Invoke-HandoffPreflight.ps1"
+)
+$preReviewPassActiveRequiredTokens = [string[]]@(
+    "HANDOFF_BOOTSTRAP_V2",
+    "SUBAGENT_FIRST=YES",
+    "ONE_PHASE_PER_FRESH_AGENT=YES",
+    "NO_REUSE_SUBAGENT=YES",
+    "ROOT_INTEGRATION_ONLY=YES",
+    "DEVICE_WINDOW_MINUTES=10",
+    "DEVICE_ORDER=Pad->K60",
+    "PRE_REVIEW_PENDING",
+    "PRE_REVIEW_PASS_AWAITING_AUDIT",
+    "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+    "validation.handoffPhase=PRE_HANDOFF_AUDIT",
+    "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS",
+    "PREFLIGHT_PASS",
+    "PRE_HANDOFF_AUDIT_PASS=BLOCKED",
+    "QA_DISPATCHABLE=BLOCKED",
+    "ROUND8-P1-01",
+    "ROUND4-P1-01",
+    "ROUND5-P1-01",
+    "ROUND6-P1-01",
+    "ROUND7-P1-01",
+    "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND8_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND7_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND6_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND5_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND4_READONLY_INTEGRATION_REVIEW_OWNER",
+    "POST_HANDOFF_AUDIT_READY",
+    "auditReceipt",
+    "CORE_STEPS_0",
+    "PRODUCT_P0_P3_NOT_ASSESSED",
+    "K60_NOT_RUN",
+    "ACTIVE=0",
+    "22",
+    "31",
+    "2984",
+    "25/25",
+    "86/86",
+    "96/96",
+    "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+    "ROUND1-P1-01",
+    "ROUND1-P2-01",
+    "ROUND1-P2-02",
+    "ROUND2-P2-01",
+    "ROOT_INTEGRATION",
+    "IMPLEMENTATION_OWNER",
+    "TOOL_REPAIR_OWNER",
+    "DOC_PROTOCOL_OWNER",
+    "HANDOFF_POST_AUDIT_PHASE_REPAIR_OWNER",
+    "HANDOFF_POST_SCOPE_REPAIR_OWNER",
+    "HANDOFF_ANCHOR_HARDENING_REPAIR_OWNER",
+    "HANDOFF_ROLE_SCOPE_HARDENING_REPAIR_OWNER",
+    "INTEGRATION_REVIEW_OWNER",
+    "ROUND2_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND4_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND5_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND6_READONLY_INTEGRATION_REVIEW_OWNER",
+    "PRE_HANDOFF_AUDIT_OWNER",
+    "PAD_QA_OWNER",
+    "K60_QA_OWNER",
+    "INDEPENDENT_INTEGRATION_REVIEW_PASS",
+    "PRE_HANDOFF_AUDIT_PASS",
+    "QA_DISPATCHABLE",
+    "READ_ONLY_PREFLIGHT",
+    "tools/v2-handoff/Invoke-HandoffPreflight.ps1"
+)
+$preActiveRequiredTokensByState = @{
+    PRE_REVIEW_PENDING = $prePendingActiveRequiredTokens
+    PRE_REVIEW_PASS_AWAITING_AUDIT = $preReviewPassActiveRequiredTokens
+}
+$postActiveRequiredTokens = [string[]]@(
+    "HANDOFF_BOOTSTRAP_V2",
+    "SUBAGENT_FIRST=YES",
+    "ONE_PHASE_PER_FRESH_AGENT=YES",
+    "NO_REUSE_SUBAGENT=YES",
+    "ROOT_INTEGRATION_ONLY=YES",
+    "DEVICE_WINDOW_MINUTES=10",
+    "DEVICE_ORDER=Pad->K60",
+    "POST_HANDOFF_AUDIT_READY",
+    "validation.handoffPhase=POST_HANDOFF_AUDIT_READY",
+    "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS",
+    "PRE_HANDOFF_AUDIT_PASS=PASS",
+    "QA_DISPATCHABLE=PASS",
+    "ROUND4-P1-01",
+    "ROUND5-P1-01",
+    "ROUND6-P1-01",
+    "ROUND7-P1-01",
+    "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND8_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND7_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND5_READONLY_INTEGRATION_REVIEW_OWNER",
+    "ROUND4_READONLY_INTEGRATION_REVIEW_OWNER",
+    "HANDOFF_ANCHOR_HARDENING_REPAIR_OWNER",
+    "immutableStateSha256",
+    "postMutationPointerAllowlist",
+    "auditReceipt",
+    "CORE_STEPS_0",
+    "PRODUCT_P0_P3_NOT_ASSESSED",
+    "K60_NOT_RUN",
+    "ACTIVE=0",
+    "31",
+    "2984",
+    "25/25",
+    "96/96",
+    "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+    "c4a2d2a1",
+    "ROOT_INTEGRATION",
+    "HANDOFF_POST_AUDIT_PHASE_REPAIR_OWNER",
+    "PRE_HANDOFF_AUDIT_OWNER",
+    "PAD_QA_OWNER",
+    "K60_QA_OWNER",
+    "READ_ONLY_PREFLIGHT",
+    "tools/v2-handoff/Invoke-HandoffPreflight.ps1"
+)
+$expectedRequiredTextAnchorPointers = @(
+    [pscustomobject]@{ id = "AGENTS"; path = "AGENTS.md" },
+    [pscustomobject]@{ id = "PROJECT_RULES"; path = "docs/PROJECT_RULES.md" },
+    [pscustomobject]@{ id = "PROJECT_PLAN"; path = "docs/PROJECT_PLAN.md" },
+    [pscustomobject]@{ id = "TASKS"; path = "docs/TASKS.md" },
+    [pscustomobject]@{ id = "LESSONS"; path = "docs/LESSONS.md" }
+)
+$prePendingAnchorTokenSets = @{
+    AGENTS = [string[]]@(
+        "HANDOFF_BOOTSTRAP_V2",
+        "Invoke-HandoffPreflight.ps1",
+        "FAIL_CLOSED",
+        "DEVICE_WINDOW_MINUTES=10",
+        "PRE_REVIEW_PENDING",
+        "PRE_REVIEW_PASS_AWAITING_AUDIT",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+        "B11",
+        "PRE_HANDOFF_AUDIT",
+        "POST_HANDOFF_AUDIT_READY",
+        "auditReceipt"
+    )
+    PROJECT_RULES = [string[]]@(
+        "R029",
+        "R030",
+        "R031",
+        "R032",
+        "HANDOFF_BOOTSTRAP_V2",
+        "DEVICE_ORDER=Pad->K60",
+        "PRE_REVIEW_PENDING",
+        "PRE_REVIEW_PASS_AWAITING_AUDIT",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+        "auditReceipt"
+    )
+    PROJECT_PLAN = [string[]]@(
+        "ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW",
+        "INDEPENDENT_INTEGRATION_REVIEW_PASS=BLOCKED",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND8-P1-01",
+        "ROUND7-P1-01",
+        "ROUND6-P1-01",
+        "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+        "25/25",
+        "86/86",
+        "96/96",
+        "HANDOFF_BOOTSTRAP_V2",
+        "c4a2d2a1"
+    )
+    TASKS = [string[]]@(
+        "ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW",
+        "INDEPENDENT_INTEGRATION_REVIEW_PASS=BLOCKED",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND8-P1-01",
+        "ROUND7-P1-01",
+        "ROUND6-P1-01",
+        "PAD_10_MIN_CORE_NOT_RUN",
+        "K60_NOT_REGISTERED_NOT_RUN",
+        "PRODUCT_P0_P3_NOT_ASSESSED",
+        "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+        "25/25",
+        "86/86",
+        "96/96"
+    )
+    LESSONS = [string[]]@(
+        "L026",
+        "L024",
+        "L018",
+        "L019",
+        "L020",
+        "L021",
+        "L022",
+        "L023",
+        "HANDOFF_BOOTSTRAP_V2",
+        "NO_REUSE_SUBAGENT",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
+    )
+}
+$preReviewPassAnchorTokenSets = @{
+    AGENTS = $prePendingAnchorTokenSets.AGENTS
+    PROJECT_RULES = $prePendingAnchorTokenSets.PROJECT_RULES
+    PROJECT_PLAN = [string[]]@(
+        "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+        "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND8-P1-01",
+        "ROUND7-P1-01",
+        "ROUND6-P1-01",
+        "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+        "25/25",
+        "86/86",
+        "96/96",
+        "HANDOFF_BOOTSTRAP_V2",
+        "c4a2d2a1"
+    )
+    TASKS = [string[]]@(
+        "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+        "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND8-P1-01",
+        "ROUND7-P1-01",
+        "ROUND6-P1-01",
+        "PAD_10_MIN_CORE_NOT_RUN",
+        "K60_NOT_REGISTERED_NOT_RUN",
+        "PRODUCT_P0_P3_NOT_ASSESSED",
+        "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+        "25/25",
+        "86/86",
+        "96/96"
+    )
+    LESSONS = $prePendingAnchorTokenSets.LESSONS
+}
+$preAnchorTokenSetsByState = @{
+    PRE_REVIEW_PENDING = $prePendingAnchorTokenSets
+    PRE_REVIEW_PASS_AWAITING_AUDIT = $preReviewPassAnchorTokenSets
+}
+$postAnchorTokenSets = @{
+    AGENTS = $prePendingAnchorTokenSets.AGENTS
+    PROJECT_RULES = $prePendingAnchorTokenSets.PROJECT_RULES
+    PROJECT_PLAN = $preReviewPassAnchorTokenSets.PROJECT_PLAN
+    TASKS = [string[]]@(
+        "POST_HANDOFF_AUDIT_READY",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND8_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND7-P1-01",
+        "ROUND6-P1-01",
+        "PAD_10_MIN_CORE_NOT_RUN",
+        "K60_NOT_REGISTERED_NOT_RUN",
+        "PRODUCT_P0_P3_NOT_ASSESSED",
+        "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+        "25/25",
+        "86/86",
+        "96/96"
+    )
+    LESSONS = $prePendingAnchorTokenSets.LESSONS
+}
+$anchorForbiddenTokenSets = @{
+    AGENTS = [string[]]@()
+    PROJECT_RULES = [string[]]@()
+    PROJECT_PLAN = [string[]]@(
+        "Pad QA-v6 native crash P1 修复已授权",
+        "HANDOFF_BOOTSTRAP_V2_BUILT_PREFLIGHT_BLOCKED_A_TOOLS_DRIFT",
+        "10 个 ignored 新文件待 audit PASS 后由 root 显式 force-add"
+    )
+    TASKS = [string[]]@(
+        "BLOCKED_PENDING_TOOL_REPAIR_AND_CONTRACT_REFRESH",
+        "d8e98a90b250bafb1bb48d62f315041fd0f67653d8d81c4650aca9fb617d0bfb",
+        "a7e5def25343bb96c15b76398b421115de60f40824698d67a682f3c4b7908901",
+        "BLOCKED_PENDING_INTEGRATION_REVIEW_AND_PRE_HANDOFF_AUDIT",
+        "BLOCKED_PENDING_ROUND2_INTEGRATION_REVIEW_AND_PRE_HANDOFF_AUDIT",
+        "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+        "PRE_HANDOFF_AUDIT_BLOCKED_POST_AUDIT_PHASE_REPAIRED_AWAITING_FRESH_ROUND4_REVIEW"
+    )
+    LESSONS = [string[]]@()
+}
+
+$handoffProtocolScopes = [string[]]@(
+    "AGENTS.md",
+    "docs/PROJECT_RULES.md",
+    "docs/PROJECT_PLAN.md",
+    "docs/V2_PLAN.md",
+    "docs/TASKS.md",
+    "docs/LESSONS.md",
+    "tools/v2-handoff/**"
+)
+$handoffRepairScopes = [string[]]@(
+    "AGENTS.md",
+    "docs/PROJECT_RULES.md",
+    "docs/PROJECT_PLAN.md",
+    "docs/V2_PLAN.md",
+    "docs/TASKS.md",
+    "docs/LESSONS.md",
+    "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+    "tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+    "tools/v2-handoff/Test-HandoffPreflight.ps1"
+)
+$roleCategoryPatterns = [ordered]@{
+    ROOT = "^ROOT_INTEGRATION$"
+    HANDOFF_PROTOCOL = "^(?:HANDOFF_PROTOCOL_OWNER|DOC_PROTOCOL_OWNER|HANDOFF_(?:POST_AUDIT_PHASE|POST_SCOPE|ANCHOR_HARDENING|SOURCE_PRE_VALIDATION|ROLE_SCOPE_HARDENING)_REPAIR_OWNER)$"
+    IMPLEMENTATION = "^IMPLEMENTATION_OWNER$"
+    TOOL_REPAIR = "^TOOL_REPAIR_OWNER$"
+    READ_ONLY_REVIEW_AUDIT = "^(?:INTEGRATION_REVIEW_OWNER|ROUND[2-9]_READONLY_INTEGRATION_REVIEW_OWNER|PRE_HANDOFF_AUDIT_OWNER)$"
+    PAD_QA = "^PAD_QA_OWNER$"
+    K60_QA = "^K60_QA_OWNER$"
+}
+$roleWriteScopeMarkers = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::Ordinal
+)
+[void]$roleWriteScopeMarkers.Add(
+    "INTEGRATION_METADATA_AND_TASK_ROUTING_ONLY"
+)
+[void]$roleWriteScopeMarkers.Add(
+    "TASK_CARD_SCOPED_PRODUCT_FILES_AND_TESTS_ONLY"
+)
+$productionWriteScopeRoots = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::Ordinal
+)
+foreach ($productionRoot in @(
+    "app",
+    "core",
+    "data",
+    "player",
+    "modes",
+    "settings",
+    "setup",
+    "buildSrc"
+)) {
+    [void]$productionWriteScopeRoots.Add($productionRoot)
+}
+$immutableRoleSpecs = @(
+    [pscustomobject]@{
+        id = "ROOT_INTEGRATION"
+        category = "ROOT"
+        kind = "ROOT"
+        freshness = "THREAD_BOUND"
+        phaseLimit = "ROOT_INTEGRATION_ONLY"
+        reuse = "NOT_APPLICABLE"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@(
+            "INTEGRATION_METADATA_AND_TASK_ROUTING_ONLY"
+        )
+    },
+    [pscustomobject]@{
+        id = "HANDOFF_PROTOCOL_OWNER"
+        category = "HANDOFF_PROTOCOL"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = $handoffProtocolScopes
+    },
+    [pscustomobject]@{
+        id = "IMPLEMENTATION_OWNER"
+        category = "IMPLEMENTATION"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "IMPLEMENTATION_SELF_TEST_ONLY_IF_AUTHORIZED"
+        writeScope = [string[]]@(
+            "TASK_CARD_SCOPED_PRODUCT_FILES_AND_TESTS_ONLY"
+        )
+    },
+    [pscustomobject]@{
+        id = "TOOL_REPAIR_OWNER"
+        category = "TOOL_REPAIR"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@(
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/**"
+        )
+    },
+    [pscustomobject]@{
+        id = "DOC_PROTOCOL_OWNER"
+        category = "HANDOFF_PROTOCOL"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = $handoffProtocolScopes
+    },
+    [pscustomobject]@{
+        id = "HANDOFF_POST_AUDIT_PHASE_REPAIR_OWNER"
+        category = "HANDOFF_PROTOCOL"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = $handoffRepairScopes
+    },
+    [pscustomobject]@{
+        id = "HANDOFF_POST_SCOPE_REPAIR_OWNER"
+        category = "HANDOFF_PROTOCOL"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = $handoffRepairScopes
+    },
+    [pscustomobject]@{
+        id = "HANDOFF_ANCHOR_HARDENING_REPAIR_OWNER"
+        category = "HANDOFF_PROTOCOL"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = $handoffRepairScopes
+    },
+    [pscustomobject]@{
+        id = "HANDOFF_SOURCE_PRE_VALIDATION_REPAIR_OWNER"
+        category = "HANDOFF_PROTOCOL"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = $handoffRepairScopes
+    },
+    [pscustomobject]@{
+        id = "HANDOFF_ROLE_SCOPE_HARDENING_REPAIR_OWNER"
+        category = "HANDOFF_PROTOCOL"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = $handoffRepairScopes
+    },
+    [pscustomobject]@{
+        id = "INTEGRATION_REVIEW_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "ROUND2_READONLY_INTEGRATION_REVIEW_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "ROUND4_READONLY_INTEGRATION_REVIEW_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "ROUND5_READONLY_INTEGRATION_REVIEW_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "ROUND6_READONLY_INTEGRATION_REVIEW_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "ROUND7_READONLY_INTEGRATION_REVIEW_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "ROUND8_READONLY_INTEGRATION_REVIEW_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "PRE_HANDOFF_AUDIT_OWNER"
+        category = "READ_ONLY_REVIEW_AUDIT"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "FORBIDDEN"
+        writeScope = [string[]]@()
+    },
+    [pscustomobject]@{
+        id = "PAD_QA_OWNER"
+        category = "PAD_QA"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "PAD_ONLY"
+        writeScope = [string[]]@(
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/**"
+        )
+    },
+    [pscustomobject]@{
+        id = "K60_QA_OWNER"
+        category = "K60_QA"
+        kind = "SPECIALIST"
+        freshness = "FRESH_PER_PHASE"
+        phaseLimit = "ONE"
+        reuse = "FORBIDDEN"
+        deviceAccess = "K60_ONLY_AFTER_PAD_PASS"
+        writeScope = [string[]]@(
+            ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v10/**"
+        )
+    }
+)
+$expectedRoleIds = [string[]]@(
+    $immutableRoleSpecs | ForEach-Object { $_.id }
+)
+
 $validationErrors = [System.Collections.Generic.List[string]]::new()
 
 function Add-PreflightError {
@@ -59,6 +688,232 @@ function Test-StringArray {
     }
 
     return $true
+}
+
+function Test-CanonicalRoleWriteScope {
+    param([AllowNull()][object]$Value)
+
+    if (
+        $Value -isnot [string] -or
+        [string]::IsNullOrEmpty($Value) -or
+        $Value -cne $Value.Trim()
+    ) {
+        return $false
+    }
+    if ($roleWriteScopeMarkers.Contains($Value)) {
+        return $true
+    }
+    if ([regex]::IsMatch($Value, "[\x00-\x20\\:?`"<>|]")) {
+        return $false
+    }
+    if ($Value.StartsWith("/", [System.StringComparison]::Ordinal)) {
+        return $false
+    }
+
+    $segments = $Value.Split("/")
+    if ($segments.Count -eq 0) {
+        return $false
+    }
+    for ($segmentIndex = 0; $segmentIndex -lt $segments.Count; $segmentIndex++) {
+        $segment = $segments[$segmentIndex]
+        if (
+            [string]::IsNullOrEmpty($segment) -or
+            $segment -ceq "." -or
+            $segment -ceq ".."
+        ) {
+            return $false
+        }
+        if ($segment -ceq "**") {
+            if ($segmentIndex -ne $segments.Count - 1) {
+                return $false
+            }
+            continue
+        }
+        if (
+            $segment.Contains("*") -or
+            -not [regex]::IsMatch(
+                $segment,
+                "^[A-Za-z0-9._-]+$",
+                [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+            )
+        ) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Test-ProductionRoleWriteScope {
+    param(
+        [Parameter(Mandatory)][string]$Value,
+        [Parameter(Mandatory)][string]$Category
+    )
+
+    if ($Category -ceq "IMPLEMENTATION") {
+        return $false
+    }
+    if ($roleWriteScopeMarkers.Contains($Value)) {
+        return $false
+    }
+    return $productionWriteScopeRoots.Contains($Value.Split("/")[0])
+}
+
+function Assert-RoleDefinition {
+    param(
+        [AllowNull()][object]$RoleObject,
+        [Parameter(Mandatory)][object]$ExpectedSpec,
+        [Parameter(Mandatory)][string]$ErrorPrefix
+    )
+
+    $roleId = [string](Get-ContractProperty $RoleObject "id")
+    $requiredRoleProperties = @(
+        "id",
+        "kind",
+        "identity",
+        "freshness",
+        "phaseLimit",
+        "reuse",
+        "allowedActions",
+        "writeScope",
+        "deviceAccess",
+        "deliverable",
+        "stopAfter"
+    )
+    if (-not (Test-ExactObjectProperties `
+        -ObjectValue $RoleObject `
+        -ExpectedProperties $requiredRoleProperties)) {
+        Add-PreflightError -Code "$ErrorPrefix-SCHEMA-INVALID-$roleId"
+        if ($null -eq $RoleObject) {
+            return
+        }
+    }
+
+    if ($roleId -cne $ExpectedSpec.id) {
+        Add-PreflightError -Code "$ErrorPrefix-ID-DRIFT-$roleId"
+    }
+    $categoryPattern = $roleCategoryPatterns[$ExpectedSpec.category]
+    if (
+        [string]::IsNullOrWhiteSpace($categoryPattern) -or
+        -not [regex]::IsMatch(
+            $roleId,
+            $categoryPattern,
+            [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+        )
+    ) {
+        Add-PreflightError -Code "$ErrorPrefix-CATEGORY-INVALID-$roleId"
+    }
+    foreach ($fieldName in @(
+        "kind",
+        "freshness",
+        "phaseLimit",
+        "reuse",
+        "deviceAccess"
+    )) {
+        if (
+            [string](Get-ContractProperty $RoleObject $fieldName) -cne
+            [string]$ExpectedSpec.$fieldName
+        ) {
+            Add-PreflightError -Code "$ErrorPrefix-$fieldName-INVALID-$roleId"
+        }
+    }
+    foreach ($fieldName in @("identity", "deliverable", "stopAfter")) {
+        if (-not (Test-NonEmptyString -Value (
+            Get-ContractProperty $RoleObject $fieldName
+        ))) {
+            Add-PreflightError -Code "$ErrorPrefix-$fieldName-INVALID-$roleId"
+        }
+    }
+    if (-not (Test-StringArray -Value (
+        Get-ContractProperty $RoleObject "allowedActions"
+    ))) {
+        Add-PreflightError -Code "$ErrorPrefix-ACTIONS-INVALID-$roleId"
+    }
+
+    $writeScopeProperty = $RoleObject.PSObject.Properties["writeScope"]
+    if (
+        $null -eq $writeScopeProperty -or
+        $writeScopeProperty.Value -isnot [System.Array]
+    ) {
+        Add-PreflightError -Code "$ErrorPrefix-WRITE-SCOPE-INVALID-$roleId"
+        return
+    }
+    $actualWriteScope = [string[]]@($writeScopeProperty.Value)
+    $expectedWriteScope = [string[]]@($ExpectedSpec.writeScope)
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual $actualWriteScope `
+        -Expected $expectedWriteScope)) {
+        Add-PreflightError -Code "$ErrorPrefix-WRITE-SCOPE-SET-DRIFT-$roleId"
+    }
+    $writeScopeSet = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::Ordinal
+    )
+    foreach ($scopeValue in $actualWriteScope) {
+        if (-not $writeScopeSet.Add($scopeValue)) {
+            Add-PreflightError -Code "$ErrorPrefix-WRITE-SCOPE-DUPLICATE-$roleId"
+        }
+        if (-not (Test-CanonicalRoleWriteScope -Value $scopeValue)) {
+            Add-PreflightError -Code "$ErrorPrefix-WRITE-SCOPE-SYNTAX-$roleId"
+        }
+        elseif (Test-ProductionRoleWriteScope `
+            -Value $scopeValue `
+            -Category $ExpectedSpec.category) {
+            Add-PreflightError -Code "$ErrorPrefix-WRITE-SCOPE-PRODUCTION-$roleId"
+        }
+    }
+}
+
+function Assert-RoleCatalog {
+    param(
+        [AllowNull()][object]$RolesValue,
+        [Parameter(Mandatory)][object[]]$ExpectedSpecs,
+        [Parameter(Mandatory)][string]$ErrorPrefix
+    )
+
+    if ($RolesValue -isnot [System.Array]) {
+        Add-PreflightError -Code "$ErrorPrefix-TABLE-NOT-ARRAY"
+        return
+    }
+    $roleObjects = @($RolesValue)
+    $expectedIds = [string[]]@(
+        $ExpectedSpecs | ForEach-Object { $_.id }
+    )
+    $actualIds = [string[]]@(
+        $roleObjects | ForEach-Object {
+            [string](Get-ContractProperty $_ "id")
+        }
+    )
+    if (
+        $actualIds.Count -ne $expectedIds.Count -or
+        -not (Test-OrdinalStringArrayEqual `
+            -Actual $actualIds `
+            -Expected $expectedIds)
+    ) {
+        Add-PreflightError -Code "$ErrorPrefix-TABLE-INVALID"
+    }
+    $roleIdSet = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::Ordinal
+    )
+    foreach ($roleId in $actualIds) {
+        if (-not $roleIdSet.Add($roleId)) {
+            Add-PreflightError -Code "$ErrorPrefix-DUPLICATE-ID-$roleId"
+        }
+    }
+    for (
+        $roleIndex = 0;
+        $roleIndex -lt $ExpectedSpecs.Count;
+        $roleIndex++
+    ) {
+        $roleObject = if ($roleIndex -lt $roleObjects.Count) {
+            $roleObjects[$roleIndex]
+        }
+        else {
+            $null
+        }
+        Assert-RoleDefinition `
+            -RoleObject $roleObject `
+            -ExpectedSpec $ExpectedSpecs[$roleIndex] `
+            -ErrorPrefix $ErrorPrefix
+    }
 }
 
 function Test-OrdinalSetEqual {
@@ -134,6 +989,392 @@ function Test-ExactObjectProperties {
     return Test-OrdinalSetEqual `
         -Actual ([string[]]$actualProperties) `
         -Expected $ExpectedProperties
+}
+
+function Test-RequiredTextAnchorPointers {
+    param([AllowNull()][object]$Value)
+
+    if ($Value -isnot [System.Array]) {
+        return $false
+    }
+    $actualPointers = @($Value)
+    if ($actualPointers.Count -ne $expectedRequiredTextAnchorPointers.Count) {
+        return $false
+    }
+    for (
+        $anchorIndex = 0;
+        $anchorIndex -lt $expectedRequiredTextAnchorPointers.Count;
+        $anchorIndex++
+    ) {
+        $actualAnchor = $actualPointers[$anchorIndex]
+        $expectedAnchor = $expectedRequiredTextAnchorPointers[$anchorIndex]
+        if (-not (Test-ExactObjectProperties `
+            -ObjectValue $actualAnchor `
+            -ExpectedProperties @("id", "path"))) {
+            return $false
+        }
+        if (
+            (Get-ContractProperty $actualAnchor "id") -cne
+            $expectedAnchor.id -or
+            (Get-ContractProperty $actualAnchor "path") -cne
+            $expectedAnchor.path
+        ) {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Get-Utf8LfSha256 {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$TextValue
+    )
+
+    $normalized = $TextValue.Replace("`r`n", "`n").Replace("`r", "`n")
+    if (-not $normalized.EndsWith("`n", [System.StringComparison]::Ordinal)) {
+        $normalized += "`n"
+    }
+    $bytes = [System.Text.UTF8Encoding]::new($false).GetBytes($normalized)
+    return [Convert]::ToHexString(
+        [System.Security.Cryptography.SHA256]::HashData($bytes)
+    ).ToLowerInvariant()
+}
+
+function Get-BytesSha256 {
+    param(
+        [Parameter(Mandatory)][byte[]]$Bytes
+    )
+
+    return [Convert]::ToHexString(
+        [System.Security.Cryptography.SHA256]::HashData($Bytes)
+    ).ToLowerInvariant()
+}
+
+function Get-CompactJsonSha256 {
+    param(
+        [Parameter(Mandatory)][object]$Value
+    )
+
+    $json = $Value | ConvertTo-Json -Compress -Depth 20
+    return Get-Utf8LfSha256 -TextValue $json
+}
+
+function Write-CanonicalJsonElement {
+    param(
+        [Parameter(Mandatory)][System.Text.Json.Utf8JsonWriter]$Writer,
+        [Parameter(Mandatory)][System.Text.Json.JsonElement]$Element
+    )
+
+    if ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::Object) {
+        $Writer.WriteStartObject()
+        $propertyNames = [string[]]@(
+            $Element.EnumerateObject() | ForEach-Object { $_.Name }
+        )
+        [Array]::Sort($propertyNames, [System.StringComparer]::Ordinal)
+        foreach ($propertyName in $propertyNames) {
+            $Writer.WritePropertyName($propertyName)
+            Write-CanonicalJsonElement `
+                -Writer $Writer `
+                -Element $Element.GetProperty($propertyName)
+        }
+        $Writer.WriteEndObject()
+        return
+    }
+
+    if ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::Array) {
+        $Writer.WriteStartArray()
+        foreach ($item in $Element.EnumerateArray()) {
+            Write-CanonicalJsonElement -Writer $Writer -Element $item
+        }
+        $Writer.WriteEndArray()
+        return
+    }
+
+    if ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::String) {
+        $Writer.WriteStringValue($Element.GetString())
+        return
+    }
+
+    if ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::Number) {
+        $Writer.WriteRawValue($Element.GetRawText(), $true)
+        return
+    }
+
+    if ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::True) {
+        $Writer.WriteBooleanValue($true)
+        return
+    }
+
+    if ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::False) {
+        $Writer.WriteBooleanValue($false)
+        return
+    }
+
+    if ($Element.ValueKind -eq [System.Text.Json.JsonValueKind]::Null) {
+        $Writer.WriteNullValue()
+        return
+    }
+
+    throw "Unsupported canonical JSON value kind: $($Element.ValueKind)"
+}
+
+function Get-CanonicalJsonText {
+    param(
+        [Parameter(Mandatory)][AllowNull()][object]$Value
+    )
+
+    $serialized = ConvertTo-Json -InputObject $Value -Compress -Depth 100
+    $document = [System.Text.Json.JsonDocument]::Parse($serialized)
+    $memory = [System.IO.MemoryStream]::new()
+    $writerOptions = [System.Text.Json.JsonWriterOptions]::new()
+    $writerOptions.Indented = $false
+    $writer = [System.Text.Json.Utf8JsonWriter]::new($memory, $writerOptions)
+    try {
+        Write-CanonicalJsonElement -Writer $writer -Element $document.RootElement
+        $writer.Flush()
+        return $utf8Output.GetString($memory.ToArray())
+    }
+    finally {
+        $writer.Dispose()
+        $document.Dispose()
+        $memory.Dispose()
+    }
+}
+
+function Get-ImmutableContractProjection {
+    param(
+        [Parameter(Mandatory)][object]$Contract,
+        [Parameter(Mandatory)][string[]]$Fields
+    )
+
+    $sortedFields = [string[]]@($Fields.Clone())
+    [Array]::Sort($sortedFields, [System.StringComparer]::Ordinal)
+    $projection = [ordered]@{}
+    foreach ($fieldName in $sortedFields) {
+        $property = $Contract.PSObject.Properties[$fieldName]
+        if ($null -eq $property) {
+            throw "Immutable contract field is missing: $fieldName"
+        }
+        $projection[$fieldName] = $property.Value
+    }
+    return [pscustomobject]$projection
+}
+
+function Get-JsonPointerToken {
+    param([Parameter(Mandatory)][string]$Name)
+    return $Name.Replace("~", "~0").Replace("/", "~1")
+}
+
+function Test-JsonObjectValue {
+    param([AllowNull()][object]$Value)
+    return $Value -is [System.Management.Automation.PSCustomObject]
+}
+
+function Add-JsonMutationDiff {
+    param(
+        [AllowNull()][object]$SourceValue,
+        [AllowNull()][object]$CurrentValue,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Pointer,
+        [Parameter(Mandatory)][AllowEmptyCollection()]
+        [System.Collections.Generic.List[string]]$Mutations
+    )
+
+    if ($null -eq $SourceValue -and $null -eq $CurrentValue) {
+        return
+    }
+    if ($null -eq $SourceValue -or $null -eq $CurrentValue) {
+        $Mutations.Add($Pointer)
+        return
+    }
+
+    $sourceIsObject = Test-JsonObjectValue -Value $SourceValue
+    $currentIsObject = Test-JsonObjectValue -Value $CurrentValue
+    if ($sourceIsObject -or $currentIsObject) {
+        if (-not $sourceIsObject -or -not $currentIsObject) {
+            $Mutations.Add($Pointer)
+            return
+        }
+
+        $names = [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::Ordinal
+        )
+        foreach ($property in $SourceValue.PSObject.Properties) {
+            [void]$names.Add($property.Name)
+        }
+        foreach ($property in $CurrentValue.PSObject.Properties) {
+            [void]$names.Add($property.Name)
+        }
+        $sortedNames = [string[]]@($names)
+        [Array]::Sort($sortedNames, [System.StringComparer]::Ordinal)
+        foreach ($name in $sortedNames) {
+            $sourceProperty = $SourceValue.PSObject.Properties[$name]
+            $currentProperty = $CurrentValue.PSObject.Properties[$name]
+            $childPointer = $Pointer + "/" + (Get-JsonPointerToken -Name $name)
+            if ($null -eq $sourceProperty -or $null -eq $currentProperty) {
+                $Mutations.Add($childPointer)
+                continue
+            }
+            Add-JsonMutationDiff `
+                -SourceValue $sourceProperty.Value `
+                -CurrentValue $currentProperty.Value `
+                -Pointer $childPointer `
+                -Mutations $Mutations
+        }
+        return
+    }
+
+    $sourceIsArray = $SourceValue -is [System.Array]
+    $currentIsArray = $CurrentValue -is [System.Array]
+    if ($sourceIsArray -or $currentIsArray) {
+        if (-not $sourceIsArray -or -not $currentIsArray) {
+            $Mutations.Add($Pointer)
+            return
+        }
+
+        $sourceItems = @($SourceValue)
+        $currentItems = @($CurrentValue)
+        if ($sourceItems.Count -ne $currentItems.Count) {
+            $Mutations.Add($Pointer)
+            return
+        }
+        for ($itemIndex = 0; $itemIndex -lt $sourceItems.Count; $itemIndex++) {
+            Add-JsonMutationDiff `
+                -SourceValue $sourceItems[$itemIndex] `
+                -CurrentValue $currentItems[$itemIndex] `
+                -Pointer ($Pointer + "/" + $itemIndex) `
+                -Mutations $Mutations
+        }
+        return
+    }
+
+    $sourceJson = Get-CanonicalJsonText -Value $SourceValue
+    $currentJson = Get-CanonicalJsonText -Value $CurrentValue
+    if ($sourceJson -cne $currentJson) {
+        $Mutations.Add($Pointer)
+    }
+}
+
+function Test-JsonPointerAllowed {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Pointer,
+        [Parameter(Mandatory)][string[]]$AllowedPatterns
+    )
+
+    foreach ($pattern in $AllowedPatterns) {
+        $regexPattern = (
+            "^" +
+            ([regex]::Escape($pattern).Replace("\*", "[^/]+")) +
+            "$"
+        )
+        if ([regex]::IsMatch(
+            $Pointer,
+            $regexPattern,
+            [System.Text.RegularExpressions.RegexOptions]::CultureInvariant
+        )) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Get-ChangedRepoPaths {
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRootPath,
+        [Parameter(Mandatory)][string]$BaseRevision,
+        [Parameter(Mandatory)][string]$ErrorPrefix
+    )
+
+    $changed = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::Ordinal
+    )
+    $diffPaths = @(
+        & git -C $RepositoryRootPath diff --name-only --no-renames $BaseRevision -- 2>$null
+    )
+    if ($LASTEXITCODE -ne 0) {
+        Add-PreflightError -Code "$ErrorPrefix-GIT-DIFF-FAILED"
+        return [string[]]@()
+    }
+    foreach ($pathValue in $diffPaths) {
+        $normalized = ([string]$pathValue).Replace("\", "/")
+        if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+            [void]$changed.Add($normalized)
+        }
+    }
+
+    $untrackedPaths = @(
+        & git -C $RepositoryRootPath ls-files --others --exclude-standard 2>$null
+    )
+    if ($LASTEXITCODE -ne 0) {
+        Add-PreflightError -Code "$ErrorPrefix-GIT-UNTRACKED-FAILED"
+        return [string[]]@()
+    }
+    foreach ($pathValue in $untrackedPaths) {
+        $normalized = ([string]$pathValue).Replace("\", "/")
+        if (-not [string]::IsNullOrWhiteSpace($normalized)) {
+            [void]$changed.Add($normalized)
+        }
+    }
+
+    $paths = [string[]]@($changed)
+    [Array]::Sort($paths, [System.StringComparer]::Ordinal)
+    return $paths
+}
+
+function Get-DeviceLockSnapshot {
+    param(
+        [Parameter(Mandatory)][string]$DeviceLockPath
+    )
+
+    if (-not (Test-Path -LiteralPath $DeviceLockPath -PathType Leaf)) {
+        Add-PreflightError -Code "DEVICE-LOCK-MISSING"
+        return $null
+    }
+
+    $bytes = [System.IO.File]::ReadAllBytes($DeviceLockPath)
+    try {
+        $text = $utf8Strict.GetString($bytes)
+    }
+    catch {
+        Add-PreflightError -Code "DEVICE-LOCK-NOT-UTF8"
+        return $null
+    }
+    $lines = @($text.Replace("`r", "").Split("`n"))
+    $currentStart = -1
+    $currentEnd = $lines.Count
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex] -ceq "## 当前占用") {
+            $currentStart = $lineIndex + 1
+            break
+        }
+    }
+    if ($currentStart -lt 0) {
+        Add-PreflightError -Code "DEVICE-LOCK-CURRENT-SECTION-MISSING"
+        return $null
+    }
+    for ($lineIndex = $currentStart; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex].StartsWith("## ", [System.StringComparison]::Ordinal)) {
+            $currentEnd = $lineIndex
+            break
+        }
+    }
+    $activeCount = 0
+    for ($lineIndex = $currentStart; $lineIndex -lt $currentEnd; $lineIndex++) {
+        if ($lines[$lineIndex] -match '^### .*— ACTIVE(?:\s|$)') {
+            $activeCount++
+        }
+    }
+    $state = if ($activeCount -eq 0) {
+        "RELEASED_ACTIVE_0"
+    }
+    else {
+        "ACTIVE_COUNT_$activeCount"
+    }
+
+    return [pscustomobject][ordered]@{
+        sha256 = Get-BytesSha256 -Bytes $bytes
+        state = $state
+        activeCount = $activeCount
+    }
 }
 
 function Get-QaToolsDigestSnapshot {
@@ -313,14 +1554,602 @@ function Assert-Tokens {
         [Parameter(Mandatory)][string]$ErrorPrefix
     )
 
+    if ($Tokens.Count -eq 0) {
+        Add-PreflightError -Code "$ErrorPrefix-TOKENS-EMPTY"
+        return
+    }
+    $validTokens = [System.Collections.Generic.List[string]]::new()
+    foreach ($token in $Tokens) {
+        if (
+            $token -isnot [string] -or
+            [string]::IsNullOrWhiteSpace($token) -or
+            $token -cne $token.Trim() -or
+            $token.Trim().Length -lt 2 -or
+            $token.Contains("*", [System.StringComparison]::Ordinal) -or
+            $token.Contains("?", [System.StringComparison]::Ordinal) -or
+            $token.Contains("`r", [System.StringComparison]::Ordinal) -or
+            $token.Contains("`n", [System.StringComparison]::Ordinal)
+        ) {
+            Add-PreflightError -Code "$ErrorPrefix-TOKEN-INVALID"
+            continue
+        }
+        $validTokens.Add($token)
+    }
     if ($null -eq $TextValue) {
         Add-PreflightError -Code "$ErrorPrefix-TEXT-MISSING"
         return
     }
 
-    foreach ($token in $Tokens) {
+    foreach ($token in $validTokens) {
         if (-not $TextValue.Contains($token, [System.StringComparison]::Ordinal)) {
-            Add-PreflightError -Code ("{0}-TOKEN-{1}" -f $ErrorPrefix, $token)
+            $tokenCode = $token.Replace("/", "~").Replace(" ", "_")
+            Add-PreflightError -Code "$ErrorPrefix-TOKEN-MISSING-$tokenCode"
+        }
+    }
+}
+
+function Read-GitCommitPathStrictUtf8LfFile {
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRootPath,
+        [Parameter(Mandatory)][string]$CommitId,
+        [Parameter(Mandatory)][string]$RelativePath,
+        [Parameter(Mandatory)][string]$ErrorPrefix
+    )
+
+    if ($CommitId -notmatch "^[0-9a-f]{40}$") {
+        Add-PreflightError -Code "$ErrorPrefix-COMMIT-INVALID"
+        return $null
+    }
+    if (
+        [string]::IsNullOrWhiteSpace($RelativePath) -or
+        [System.IO.Path]::IsPathRooted($RelativePath) -or
+        $RelativePath.Contains("\", [System.StringComparison]::Ordinal) -or
+        $RelativePath.Contains(":", [System.StringComparison]::Ordinal) -or
+        $RelativePath.Contains("`r", [System.StringComparison]::Ordinal) -or
+        $RelativePath.Contains("`n", [System.StringComparison]::Ordinal) -or
+        $RelativePath.StartsWith("/", [System.StringComparison]::Ordinal) -or
+        $RelativePath.EndsWith("/", [System.StringComparison]::Ordinal) -or
+        @($RelativePath.Split("/") | Where-Object { $_ -ceq ".." }).Count -gt 0
+    ) {
+        Add-PreflightError -Code "$ErrorPrefix-PATH-INVALID"
+        return $null
+    }
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo.FileName = "git"
+    $process.StartInfo.UseShellExecute = $false
+    $process.StartInfo.CreateNoWindow = $true
+    $process.StartInfo.RedirectStandardOutput = $true
+    $process.StartInfo.RedirectStandardError = $true
+    foreach ($argument in @(
+        "-C",
+        $RepositoryRootPath,
+        "cat-file",
+        "blob",
+        "${CommitId}:${RelativePath}"
+    )) {
+        [void]$process.StartInfo.ArgumentList.Add($argument)
+    }
+
+    $memory = [System.IO.MemoryStream]::new()
+    try {
+        if (-not $process.Start()) {
+            Add-PreflightError -Code "$ErrorPrefix-START-FAILED"
+            return $null
+        }
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $process.StandardOutput.BaseStream.CopyTo($memory)
+        $stderrText = $stderrTask.GetAwaiter().GetResult()
+        $process.WaitForExit()
+        $bytes = $memory.ToArray()
+        if ($process.ExitCode -ne 0) {
+            Add-PreflightError -Code "$ErrorPrefix-READ-FAILED"
+            return $null
+        }
+        if ($stderrText.Length -gt 0) {
+            Add-PreflightError -Code "$ErrorPrefix-STDERR-NOT-EMPTY"
+            return $null
+        }
+        if ($bytes.Length -eq 0) {
+            Add-PreflightError -Code "$ErrorPrefix-EMPTY"
+            return $null
+        }
+        if (
+            $bytes.Length -ge 3 -and
+            $bytes[0] -eq 0xEF -and
+            $bytes[1] -eq 0xBB -and
+            $bytes[2] -eq 0xBF
+        ) {
+            Add-PreflightError -Code "$ErrorPrefix-BOM-FORBIDDEN"
+            return $null
+        }
+        if (
+            [Array]::IndexOf($bytes, [byte]13) -ge 0 -or
+            $bytes[$bytes.Length - 1] -ne [byte]10
+        ) {
+            Add-PreflightError -Code "$ErrorPrefix-LF-REQUIRED"
+            return $null
+        }
+        try {
+            return $utf8Strict.GetString($bytes)
+        }
+        catch {
+            Add-PreflightError -Code "$ErrorPrefix-UTF8-INVALID"
+            return $null
+        }
+    }
+    finally {
+        $process.Dispose()
+        $memory.Dispose()
+    }
+}
+
+function Assert-PreAuditState {
+    param(
+        [AllowNull()][object]$Contract,
+        [Parameter(Mandatory)]
+        [ValidateSet("SOURCE", "CURRENT")]
+        [string]$Mode,
+        [Parameter(Mandatory)][object]$ReferenceContract,
+        [Parameter(Mandatory)][string[]]$RequiredTopLevelNames,
+        [Parameter(Mandatory)][string[]]$ExpectedRoleIds,
+        [Parameter(Mandatory)][string[]]$ExpectedImmutableStateFields,
+        [Parameter(Mandatory)][string[]]$ExpectedActiveTokenPointers,
+        [Parameter(Mandatory)][object[]]$ExpectedRequiredTextAnchorPointers,
+        [Parameter(Mandatory)][string[]]$ExpectedPostMutationPointerAllowlist,
+        [Parameter(Mandatory)][string[]]$ExpectedPostAuditTransitionPaths,
+        [Parameter(Mandatory)][string[]]$ExpectedAuditReceiptSchema,
+        [Parameter(Mandatory)][string]$SourceContractRelativePath
+    )
+
+    $isSourceMode = $Mode -ceq "SOURCE"
+    $errorPrefix = if ($isSourceMode) {
+        "AUDIT-SOURCE-PRE"
+    }
+    else {
+        "CURRENT-PRE"
+    }
+    if (-not (Test-JsonObjectValue -Value $Contract)) {
+        Add-PreflightError -Code "$errorPrefix-CONTRACT-NOT-OBJECT"
+        return
+    }
+
+    $actualTopLevelNames = [string[]]@(
+        $Contract.PSObject.Properties | ForEach-Object { $_.Name }
+    )
+    if (
+        $actualTopLevelNames.Count -ne $RequiredTopLevelNames.Count -or
+        -not (Test-OrdinalSetEqual `
+            -Actual $actualTopLevelNames `
+            -Expected $RequiredTopLevelNames)
+    ) {
+        Add-PreflightError -Code "$errorPrefix-TOP-LEVEL-SET-INVALID"
+    }
+    if (
+        (Get-ContractProperty $Contract "contractVersion") -cne
+        "HANDOFF_BOOTSTRAP_V2" -or
+        (Get-ContractProperty $Contract "schema") -cne
+        "aurorama.handoff-bootstrap.v2"
+    ) {
+        Add-PreflightError -Code "$errorPrefix-IDENTITY-INVALID"
+    }
+
+    $sourceValidation = Get-ContractProperty $Contract "validation"
+    if (
+        (Get-ContractProperty $sourceValidation "handoffPhase") -cne
+        "PRE_HANDOFF_AUDIT" -or
+        $null -ne (Get-ContractProperty $Contract "auditReceipt")
+    ) {
+        Add-PreflightError -Code "$errorPrefix-PHASE-OR-RECEIPT-INVALID"
+    }
+    $expectedValidationProperties = @(
+        "handoffPhase",
+        "activeDocument",
+        "activeHeadingPrefix",
+        "activePromptExpectedRoleId",
+        "qaPromptRequiredStatus",
+        "tasksDocument",
+        "tasksInProgressHeading",
+        "tasksInProgressExpectedCount",
+        "memoryIndexPath",
+        "preAuditAllowedDirtyPaths",
+        "postAuditTransitionPaths",
+        "auditReceiptSchema",
+        "immutableStateFields",
+        "postMutationPointerAllowlist",
+        "qaPromptSha256Algorithm",
+        "rejectedScopeHashAlgorithm",
+        "memoryIndexSha256Algorithm",
+        "deviceLockStateAlgorithm",
+        "toolsDigestAlgorithm",
+        "immutableStateSha256Algorithm",
+        "activeRequiredTokens",
+        "requiredTextAnchors"
+    )
+    if (-not (Test-ExactObjectProperties `
+        -ObjectValue $sourceValidation `
+        -ExpectedProperties $expectedValidationProperties)) {
+        Add-PreflightError -Code "$errorPrefix-VALIDATION-SCHEMA-INVALID"
+    }
+    if ($isSourceMode) {
+        foreach ($validationName in $expectedValidationProperties) {
+            if ($validationName -cin @(
+                "handoffPhase",
+                "activePromptExpectedRoleId",
+                "qaPromptRequiredStatus"
+            )) {
+                continue
+            }
+            $sourceValue = Get-ContractProperty $sourceValidation $validationName
+            $referenceValue = Get-ContractProperty `
+                (Get-ContractProperty $ReferenceContract "validation") `
+                $validationName
+            if (
+                (Get-CanonicalJsonText -Value $sourceValue) -cne
+                (Get-CanonicalJsonText -Value $referenceValue)
+            ) {
+                Add-PreflightError -Code "$errorPrefix-VALIDATION-DRIFT-$validationName"
+            }
+        }
+    }
+    $contractReviewState = [string](
+        Get-ContractProperty (
+            Get-ContractProperty $Contract "qaRoundState"
+        ) "independentIntegrationReview"
+    )
+    $expectedActivePromptRoleIdByReviewState = if (
+        $contractReviewState -ceq "PASS"
+    ) {
+            "PRE_HANDOFF_AUDIT_OWNER"
+    }
+    else {
+            "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
+    }
+    if (
+        (Get-ContractProperty $sourceValidation "activePromptExpectedRoleId") -cne
+        $expectedActivePromptRoleIdByReviewState -or
+        (Get-ContractProperty $sourceValidation "qaPromptRequiredStatus") -cne
+        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+    ) {
+        Add-PreflightError -Code "$errorPrefix-VALIDATION-PHASE-BINDING-INVALID"
+    }
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual ([string[]]@(
+            Get-ContractProperty $sourceValidation "activeRequiredTokens"
+        )) `
+        -Expected $ExpectedActiveTokenPointers)) {
+        Add-PreflightError -Code "$errorPrefix-ACTIVE-TOKEN-POINTER-DRIFT"
+    }
+    $sourceAnchorPointers = @(
+        Get-ContractProperty $sourceValidation "requiredTextAnchors"
+    )
+    if (
+        (Get-CanonicalJsonText -Value $sourceAnchorPointers) -cne
+        (Get-CanonicalJsonText -Value $ExpectedRequiredTextAnchorPointers)
+    ) {
+        Add-PreflightError -Code "$errorPrefix-ANCHOR-POINTER-DRIFT"
+    }
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual (Get-ContractProperty $sourceValidation "immutableStateFields") `
+        -Expected $ExpectedImmutableStateFields)) {
+        Add-PreflightError -Code "$errorPrefix-IMMUTABLE-FIELD-LIST-DRIFT"
+    }
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual (Get-ContractProperty $sourceValidation "postMutationPointerAllowlist") `
+        -Expected $ExpectedPostMutationPointerAllowlist)) {
+        Add-PreflightError -Code "$errorPrefix-MUTATION-ALLOWLIST-DRIFT"
+    }
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual (Get-ContractProperty $sourceValidation "postAuditTransitionPaths") `
+        -Expected $ExpectedPostAuditTransitionPaths)) {
+        Add-PreflightError -Code "$errorPrefix-TRANSITION-ALLOWLIST-DRIFT"
+    }
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual (Get-ContractProperty $sourceValidation "auditReceiptSchema") `
+        -Expected $ExpectedAuditReceiptSchema)) {
+        Add-PreflightError -Code "$errorPrefix-RECEIPT-SCHEMA-DRIFT"
+    }
+
+    $sourceImmutableProjection = Get-ImmutableContractProjection `
+        -Contract $Contract `
+        -Fields $ExpectedImmutableStateFields
+    $referenceImmutableProjection = Get-ImmutableContractProjection `
+        -Contract $ReferenceContract `
+        -Fields $ExpectedImmutableStateFields
+    if (
+        (Get-CanonicalJsonText -Value $sourceImmutableProjection) -cne
+        (Get-CanonicalJsonText -Value $referenceImmutableProjection)
+    ) {
+        Add-PreflightError -Code "$errorPrefix-IMMUTABLE-STATE-DRIFT"
+    }
+
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual $ExpectedRoleIds `
+        -Expected $expectedRoleIds)) {
+        Add-PreflightError -Code "$errorPrefix-ROLE-CONSTANT-DRIFT"
+    }
+    Assert-RoleCatalog `
+        -RolesValue (Get-ContractProperty $Contract "roles") `
+        -ExpectedSpecs $immutableRoleSpecs `
+        -ErrorPrefix $errorPrefix-ROLE
+
+    $sourceQaRoundState = Get-ContractProperty $Contract "qaRoundState"
+    $qaRoundStateProperties = @(
+        "status",
+        "lastQaVerdict",
+        "round1IntegrationReview",
+        "round2IntegrationReview",
+        "independentIntegrationReview",
+        "preHandoffAudit",
+        "padQaPromptDispatch",
+        "productFindings",
+        "coreStepsExecuted",
+        "padTenMinuteCoreRun",
+        "k60Registration",
+        "k60CoreRun",
+        "cleanup",
+        "padLockActiveCount"
+    )
+    if (-not (Test-ExactObjectProperties `
+        -ObjectValue $sourceQaRoundState `
+        -ExpectedProperties $qaRoundStateProperties)) {
+        Add-PreflightError -Code "$errorPrefix-QA-ROUND-STATE-SCHEMA-INVALID"
+    }
+    $reviewState = [string](
+        Get-ContractProperty $sourceQaRoundState "independentIntegrationReview"
+    )
+    $preAuditState = if ($reviewState -ceq "BLOCKED_PENDING_ROUND9_REVIEW") {
+        "PRE_REVIEW_PENDING"
+    }
+    elseif ($reviewState -ceq "PASS") {
+        "PRE_REVIEW_PASS_AWAITING_AUDIT"
+    }
+    else {
+        "INVALID"
+    }
+    $expectedSourceRoundStatus = switch ($preAuditState) {
+        "PRE_REVIEW_PENDING" {
+            "ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW"
+        }
+        "PRE_REVIEW_PASS_AWAITING_AUDIT" {
+            "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT"
+        }
+        default {
+            "INVALID"
+        }
+    }
+    $sourceRoundExpectations = [ordered]@{
+        status = $expectedSourceRoundStatus
+        lastQaVerdict = "BLOCKED_TOOL_NONCONVERGENCE"
+        round1IntegrationReview = "FAIL_1_P1_2_P2_REPAIRED_CLOSED_BY_ROUND2"
+        round2IntegrationReview = "FAIL_P2_PREFLIGHT_SEMANTIC_BYPASS_REPAIRED_CLOSED_BY_ROUND3_PASS"
+        preHandoffAudit = "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+        padQaPromptDispatch = "BLOCKED"
+        coreStepsExecuted = 0
+        padTenMinuteCoreRun = "NOT_RUN"
+        k60Registration = "NOT_REGISTERED"
+        k60CoreRun = "NOT_RUN"
+        cleanup = "PASS_CLEANUP_AND_RESTORE"
+        padLockActiveCount = 0
+    }
+    if ($expectedSourceRoundStatus -ceq "INVALID") {
+        Add-PreflightError -Code "$errorPrefix-REVIEW-STATE-INVALID"
+    }
+    foreach ($stateName in $sourceRoundExpectations.Keys) {
+        if (
+            (Get-ContractProperty $sourceQaRoundState $stateName) -cne
+            $sourceRoundExpectations[$stateName]
+        ) {
+            Add-PreflightError -Code "$errorPrefix-QA-ROUND-STATE-INVALID-$stateName"
+        }
+    }
+    $sourceProductFindings = Get-ContractProperty `
+        $sourceQaRoundState `
+        "productFindings"
+    if (-not (Test-ExactObjectProperties `
+        -ObjectValue $sourceProductFindings `
+        -ExpectedProperties @("P0", "P1", "P2", "P3"))) {
+        Add-PreflightError -Code "$errorPrefix-PRODUCT-FINDINGS-SCHEMA-INVALID"
+    }
+    foreach ($severity in @("P0", "P1", "P2", "P3")) {
+        if (
+            (Get-ContractProperty $sourceProductFindings $severity) -cne
+            "NOT_ASSESSED"
+        ) {
+            Add-PreflightError -Code "$errorPrefix-PRODUCT-INVALID-$severity"
+        }
+    }
+
+    $sourceGateContainer = Get-ContractProperty $Contract "requiredGates"
+    $expectedGateSpecs = @(
+        [pscustomobject]@{
+            id = "PREFLIGHT_PASS"
+            owner = "ROOT_INTEGRATION"
+            requiredBefore = [string[]]@()
+        },
+        [pscustomobject]@{
+            id = "TOOL_NONCONVERGENCE_REPAIRED"
+            owner = "TOOL_REPAIR_OWNER"
+            requiredBefore = [string[]]@("PREFLIGHT_PASS")
+        },
+        [pscustomobject]@{
+            id = "CONTRACT_DIGEST_REFRESHED"
+            owner = "DOC_PROTOCOL_OWNER"
+            requiredBefore = [string[]]@("TOOL_NONCONVERGENCE_REPAIRED")
+        },
+        [pscustomobject]@{
+            id = "INDEPENDENT_INTEGRATION_REVIEW_PASS"
+            owner = "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
+            requiredBefore = [string[]]@("CONTRACT_DIGEST_REFRESHED")
+        },
+        [pscustomobject]@{
+            id = "PRE_HANDOFF_AUDIT_PASS"
+            owner = "PRE_HANDOFF_AUDIT_OWNER"
+            requiredBefore = [string[]]@(
+                "INDEPENDENT_INTEGRATION_REVIEW_PASS"
+            )
+        },
+        [pscustomobject]@{
+            id = "QA_DISPATCHABLE"
+            owner = "PAD_QA_OWNER"
+            requiredBefore = [string[]]@("PRE_HANDOFF_AUDIT_PASS")
+        }
+    )
+    if (-not (Test-ExactObjectProperties `
+        -ObjectValue $sourceGateContainer `
+        -ExpectedProperties @("lifecycleVersion", "lifecycle"))) {
+        Add-PreflightError -Code "$errorPrefix-GATE-CONTAINER-INVALID"
+    }
+    $sourceGates = @(Get-ContractProperty $sourceGateContainer "lifecycle")
+    if (
+        (Get-ContractProperty $sourceGateContainer "lifecycleVersion") -cne
+        "AURORAMA_HANDOFF_GATE_ORDER_V2"
+    ) {
+        Add-PreflightError -Code "$errorPrefix-GATE-LIFECYCLE-VERSION-INVALID"
+    }
+    if ($sourceGates.Count -ne $expectedGateSpecs.Count) {
+        Add-PreflightError -Code "$errorPrefix-GATE-COUNT-INVALID"
+    }
+    for ($gateIndex = 0; $gateIndex -lt $expectedGateSpecs.Count; $gateIndex++) {
+        $gate = if ($gateIndex -lt $sourceGates.Count) {
+            $sourceGates[$gateIndex]
+        }
+        else {
+            $null
+        }
+        $expectedGate = $expectedGateSpecs[$gateIndex]
+        if (-not (Test-ExactObjectProperties `
+            -ObjectValue $gate `
+            -ExpectedProperties @("id", "owner", "requiredBefore", "status"))) {
+            Add-PreflightError -Code "$errorPrefix-GATE-SCHEMA-INVALID-$gateIndex"
+            continue
+        }
+        if (
+            (Get-ContractProperty $gate "id") -cne $expectedGate.id -or
+            (Get-ContractProperty $gate "owner") -cne $expectedGate.owner -or
+            -not (Test-OrdinalStringArrayEqual `
+                -Actual ([string[]]@(
+                    Get-ContractProperty $gate "requiredBefore"
+                )) `
+                -Expected $expectedGate.requiredBefore)
+        ) {
+            Add-PreflightError -Code "$errorPrefix-GATE-DEFINITION-DRIFT-$gateIndex"
+        }
+        $expectedGateStatus = if ($expectedGate.id -ceq "INDEPENDENT_INTEGRATION_REVIEW_PASS") {
+            if ($reviewState -ceq "PASS") { "PASS" } else { "BLOCKED" }
+        }
+        elseif ($expectedGate.id -cin @(
+            "PRE_HANDOFF_AUDIT_PASS",
+            "QA_DISPATCHABLE"
+        )) {
+            "BLOCKED"
+        }
+        else {
+            "PASS"
+        }
+        if ((Get-ContractProperty $gate "status") -cne $expectedGateStatus) {
+            Add-PreflightError -Code "$errorPrefix-GATE-STATUS-INVALID-$($expectedGate.id)"
+        }
+    }
+
+    $sourcePrompts = Get-ContractProperty $Contract "prompts"
+    $referencePrompts = Get-ContractProperty $ReferenceContract "prompts"
+    foreach ($promptName in @("toolRepair", "padQa")) {
+        $sourcePrompt = Get-ContractProperty $sourcePrompts $promptName
+        $referencePrompt = Get-ContractProperty $referencePrompts $promptName
+        if (-not (Test-ExactObjectProperties `
+            -ObjectValue $sourcePrompt `
+            -ExpectedProperties @(
+                "roleId",
+                "status",
+                "dispatchable",
+                "retiredReason",
+                "actionClass",
+                "command",
+                "firstAction",
+                "requiredTokens",
+                "textLines"
+            ))) {
+            Add-PreflightError -Code "$errorPrefix-PROMPT-SCHEMA-INVALID-$promptName"
+            continue
+        }
+        foreach ($contentField in @(
+            "roleId",
+            "actionClass",
+            "command",
+            "firstAction",
+            "requiredTokens",
+            "textLines"
+        )) {
+            if (
+                (Get-CanonicalJsonText -Value (
+                    Get-ContractProperty $sourcePrompt $contentField
+                )) -cne
+                (Get-CanonicalJsonText -Value (
+                    Get-ContractProperty $referencePrompt $contentField
+                ))
+            ) {
+                Add-PreflightError -Code "$errorPrefix-PROMPT-CONTENT-DRIFT-$promptName-$contentField"
+            }
+        }
+    }
+    $toolRepairPrompt = Get-ContractProperty $sourcePrompts "toolRepair"
+    $sourcePadQaPrompt = Get-ContractProperty $sourcePrompts "padQa"
+    $expectedPreActivePromptRoleId = if (
+        $preAuditState -ceq "PRE_REVIEW_PASS_AWAITING_AUDIT"
+    ) {
+        "PRE_HANDOFF_AUDIT_OWNER"
+    }
+    else {
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
+    }
+    if (
+        (Get-ContractProperty $toolRepairPrompt "roleId") -cne
+        $expectedPreActivePromptRoleId -or
+        (Get-ContractProperty $toolRepairPrompt "status") -cne "ACTIVE" -or
+        (Get-ContractProperty $toolRepairPrompt "dispatchable") -ne $true -or
+        $null -ne (Get-ContractProperty $toolRepairPrompt "retiredReason")
+    ) {
+        Add-PreflightError -Code "$errorPrefix-TOOL-REPAIR-PROMPT-BOUNDARY-INVALID"
+    }
+    if (
+        (Get-ContractProperty $sourcePadQaPrompt "roleId") -cne "PAD_QA_OWNER" -or
+        (Get-ContractProperty $sourcePadQaPrompt "status") -cne
+        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT" -or
+        (Get-ContractProperty $sourcePadQaPrompt "dispatchable") -ne $false -or
+        $null -ne (Get-ContractProperty $sourcePadQaPrompt "retiredReason")
+    ) {
+        Add-PreflightError -Code "$errorPrefix-PAD-QA-PROMPT-BOUNDARY-INVALID"
+    }
+    if ((Get-ContractProperty $Contract "activePrompt") -cne "toolRepair") {
+        Add-PreflightError -Code "$errorPrefix-ACTIVE-PROMPT-MUST-NOT-BE-PADQA"
+    }
+    $expectedNextPointer = (
+        $SourceContractRelativePath + "#/prompts/toolRepair/textLines"
+    )
+    $expectedQaPointer = (
+        $SourceContractRelativePath + "#/prompts/padQa/textLines"
+    )
+    if (
+        (Get-ContractProperty $Contract "next_prompt_path") -cne
+        $expectedNextPointer -or
+        (Get-ContractProperty $Contract "nextPromptPath") -cne
+        $expectedNextPointer -or
+        (Get-ContractProperty $Contract "qa_prompt_path") -cne
+        $expectedQaPointer -or
+        (Get-ContractProperty $Contract "qaPromptPath") -cne
+        $expectedQaPointer
+    ) {
+        Add-PreflightError -Code "$errorPrefix-PROMPT-POINTER-INVALID"
+    }
+    return [pscustomobject]@{
+        substate = $preAuditState
+        expectedStatus = $expectedSourceRoundStatus
+        reviewGateStatus = if ($preAuditState -ceq "PRE_REVIEW_PASS_AWAITING_AUDIT") {
+            "PASS"
+        }
+        else {
+            "BLOCKED"
         }
     }
 }
@@ -333,6 +2162,10 @@ $script:gateCount = 0
 $script:toolsEntryCount = 0
 $script:toolsDigestValue = "unknown"
 $script:tasksInProgressCount = 0
+$script:handoffPhaseValue = "unknown"
+$script:preAuditSubstateValue = "unknown"
+$script:auditReceiptState = "UNKNOWN"
+$script:transitionPathCount = 0
 
 try {
     if ($PSVersionTable.PSVersion.Major -lt 7) {
@@ -378,7 +2211,7 @@ try {
     }
 
     try {
-        $contractData = $contractText | ConvertFrom-Json
+        $contractData = $contractText | ConvertFrom-Json -DateKind String
     }
     catch {
         Add-PreflightError -Code "CONTRACT-JSON-INVALID"
@@ -394,6 +2227,7 @@ try {
         "evidenceRoot",
         "evidence",
         "qaRoundState",
+        "auditReceipt",
         "acceptedArtifacts",
         "qaTools",
         "devicePolicy",
@@ -417,6 +2251,17 @@ try {
             Add-PreflightError -Code "TOP-LEVEL-MISSING-$name"
         }
     }
+    $actualTopLevelNames = [string[]]@(
+        $contractData.PSObject.Properties | ForEach-Object { $_.Name }
+    )
+    if (
+        $actualTopLevelNames.Count -ne $requiredTopLevelNames.Count -or
+        -not (Test-OrdinalSetEqual `
+            -Actual $actualTopLevelNames `
+            -Expected ([string[]]$requiredTopLevelNames))
+    ) {
+        Add-PreflightError -Code "TOP-LEVEL-SET-INVALID"
+    }
     if ($validationErrors.Count -gt 0) {
         throw "Required top-level fields are missing."
     }
@@ -426,6 +2271,34 @@ try {
         (Get-ContractProperty $contractData "schema") -cne "aurorama.handoff-bootstrap.v2"
     ) {
         Add-PreflightError -Code "CONTRACT-IDENTITY-INVALID"
+    }
+
+    $validation = Get-ContractProperty $contractData "validation"
+    $handoffPhase = [string](
+        Get-ContractProperty $validation "handoffPhase"
+    )
+    $script:handoffPhaseValue = if (
+        [string]::IsNullOrWhiteSpace($handoffPhase)
+    ) {
+        "unknown"
+    }
+    else {
+        $handoffPhase
+    }
+    if ($handoffPhase -cnotin @(
+        "PRE_HANDOFF_AUDIT",
+        "POST_HANDOFF_AUDIT_READY"
+    )) {
+        Add-PreflightError -Code "HANDOFF-PHASE-UNKNOWN"
+    }
+    $isPostAuditPhase = $handoffPhase -ceq "POST_HANDOFF_AUDIT_READY"
+    $auditReceipt = Get-ContractProperty $contractData "auditReceipt"
+    $auditedSourceCommit = ""
+    if (
+        (-not $isPostAuditPhase -and $null -ne $auditReceipt) -or
+        ($isPostAuditPhase -and $null -eq $auditReceipt)
+    ) {
+        Add-PreflightError -Code "AUDIT-RECEIPT-PHASE-MISMATCH"
     }
 
     $inputBaseline = Get-ContractProperty $contractData "inputBaseline"
@@ -560,14 +2433,76 @@ try {
         -ExpectedProperties $qaRoundStateProperties)) {
         Add-PreflightError -Code "QA-ROUND-STATE-SCHEMA-INVALID"
     }
+    $independentReviewState = [string](
+        Get-ContractProperty $qaRoundState "independentIntegrationReview"
+    )
+    $preAuditSubstate = if (
+        $independentReviewState -ceq "BLOCKED_PENDING_ROUND9_REVIEW"
+    ) {
+        "PRE_REVIEW_PENDING"
+    }
+    elseif ($independentReviewState -ceq "PASS") {
+        "PRE_REVIEW_PASS_AWAITING_AUDIT"
+    }
+    else {
+        "INVALID"
+    }
+    $preExpectedRoundStatus = switch ($preAuditSubstate) {
+        "PRE_REVIEW_PENDING" {
+            "ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW"
+        }
+        "PRE_REVIEW_PASS_AWAITING_AUDIT" {
+            "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT"
+        }
+        default {
+            "INVALID"
+        }
+    }
+    $preReviewGateStatus = if (
+        $preAuditSubstate -ceq "PRE_REVIEW_PENDING"
+    ) {
+        "BLOCKED"
+    }
+    elseif ($preAuditSubstate -ceq "PRE_REVIEW_PASS_AWAITING_AUDIT") {
+        "PASS"
+    }
+    else {
+        "INVALID"
+    }
+    if (
+        -not $isPostAuditPhase -and
+        $preReviewGateStatus -ceq "INVALID"
+    ) {
+        Add-PreflightError -Code "INDEPENDENT-REVIEW-STATE-INVALID"
+    }
     $expectedQaRoundState = [ordered]@{
-        status = "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT"
+        status = if ($isPostAuditPhase) {
+            "POST_HANDOFF_AUDIT_READY"
+        }
+        else {
+            $preExpectedRoundStatus
+        }
         lastQaVerdict = "BLOCKED_TOOL_NONCONVERGENCE"
         round1IntegrationReview = "FAIL_1_P1_2_P2_REPAIRED_CLOSED_BY_ROUND2"
         round2IntegrationReview = "FAIL_P2_PREFLIGHT_SEMANTIC_BYPASS_REPAIRED_CLOSED_BY_ROUND3_PASS"
-        independentIntegrationReview = "PASS"
-        preHandoffAudit = "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
-        padQaPromptDispatch = "BLOCKED"
+        independentIntegrationReview = if ($isPostAuditPhase) {
+            "PASS"
+        }
+        else {
+            $independentReviewState
+        }
+        preHandoffAudit = if ($isPostAuditPhase) {
+            "PASS"
+        }
+        else {
+            "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+        }
+        padQaPromptDispatch = if ($isPostAuditPhase) {
+            "PASS"
+        }
+        else {
+            "BLOCKED"
+        }
         coreStepsExecuted = 0
         padTenMinuteCoreRun = "NOT_RUN"
         k60Registration = "NOT_REGISTERED"
@@ -595,84 +2530,26 @@ try {
         }
     }
 
-    $expectedRoleIds = @(
-        "ROOT_INTEGRATION",
-        "HANDOFF_PROTOCOL_OWNER",
-        "IMPLEMENTATION_OWNER",
-        "TOOL_REPAIR_OWNER",
-        "DOC_PROTOCOL_OWNER",
-        "INTEGRATION_REVIEW_OWNER",
-        "ROUND2_READONLY_INTEGRATION_REVIEW_OWNER",
-        "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
-        "PRE_HANDOFF_AUDIT_OWNER",
-        "PAD_QA_OWNER",
-        "K60_QA_OWNER"
-    )
     $roleObjects = @(Get-ContractProperty $contractData "roles")
     $script:roleCount = $roleObjects.Count
-    $actualRoleIds = @(
-        $roleObjects | ForEach-Object {
-            [string](Get-ContractProperty $_ "id")
-        }
-    )
-    if (-not (Test-OrdinalSetEqual `
-        -Actual $actualRoleIds `
-        -Expected $expectedRoleIds)) {
-        Add-PreflightError -Code "ROLE-TABLE-INCOMPLETE"
-    }
-    if ($actualRoleIds.Count -ne $expectedRoleIds.Count) {
-        Add-PreflightError -Code "ROLE-DUPLICATE-OR-EXTRA"
-    }
-
-    $requiredRoleProperties = @(
-        "id",
-        "kind",
-        "identity",
-        "freshness",
-        "phaseLimit",
-        "reuse",
-        "allowedActions",
-        "writeScope",
-        "deviceAccess",
-        "deliverable",
-        "stopAfter"
-    )
-    foreach ($roleObject in $roleObjects) {
-        $roleId = [string](Get-ContractProperty $roleObject "id")
-        foreach ($propertyName in $requiredRoleProperties) {
-            if ($null -eq $roleObject.PSObject.Properties[$propertyName]) {
-                Add-PreflightError -Code "ROLE-PROPERTY-MISSING-$roleId-$propertyName"
-            }
-        }
-        if (-not (Test-StringArray -Value (Get-ContractProperty $roleObject "allowedActions"))) {
-            Add-PreflightError -Code "ROLE-ALLOWED-INVALID-$roleId"
-        }
-        $writeScopeValue = $roleObject.PSObject.Properties["writeScope"].Value
-        if ($writeScopeValue -isnot [System.Array]) {
-            Add-PreflightError -Code "ROLE-WRITE-SCOPE-INVALID-$roleId"
-        }
-        if ($roleId -eq "ROOT_INTEGRATION") {
-            if (
-                (Get-ContractProperty $roleObject "freshness") -cne "THREAD_BOUND" -or
-                (Get-ContractProperty $roleObject "phaseLimit") -cne "ROOT_INTEGRATION_ONLY" -or
-                (Get-ContractProperty $roleObject "deviceAccess") -cne "FORBIDDEN"
-            ) {
-                Add-PreflightError -Code "ROOT-ROLE-BOUNDARY-INVALID"
-            }
-        }
-        elseif (
-            (Get-ContractProperty $roleObject "freshness") -cne "FRESH_PER_PHASE" -or
-            (Get-ContractProperty $roleObject "phaseLimit") -cne "ONE" -or
-            (Get-ContractProperty $roleObject "reuse") -cne "FORBIDDEN"
-        ) {
-            Add-PreflightError -Code "FRESH-ROLE-BOUNDARY-INVALID-$roleId"
-        }
-    }
+    Assert-RoleCatalog `
+        -RolesValue (Get-ContractProperty $contractData "roles") `
+        -ExpectedSpecs $immutableRoleSpecs `
+        -ErrorPrefix "ROLE"
 
     $activePromptName = [string](Get-ContractProperty $contractData "activePrompt")
     $allowedPromptNames = @("toolRepair", "padQa")
     if ($activePromptName -notin $allowedPromptNames) {
         Add-PreflightError -Code "ACTIVE-PROMPT-UNKNOWN"
+    }
+    $expectedActivePromptName = if ($isPostAuditPhase) {
+        "padQa"
+    }
+    else {
+        "toolRepair"
+    }
+    if ($activePromptName -cne $expectedActivePromptName) {
+        Add-PreflightError -Code "ACTIVE-PROMPT-PHASE-MISMATCH"
     }
 
     $canonicalPreflightPath = [System.IO.Path]::GetFullPath($PSCommandPath)
@@ -713,6 +2590,7 @@ try {
                 "roleId",
                 "status",
                 "dispatchable",
+                "retiredReason",
                 "actionClass",
                 "command",
                 "firstAction",
@@ -724,14 +2602,23 @@ try {
         $promptStatus = Get-ContractProperty $promptObject "status"
         $allowedPromptStatuses = @(
             "ACTIVE",
-            "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+            "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
+            "RETIRED_AFTER_AUDIT_PASS"
         )
         if ($promptStatus -notin $allowedPromptStatuses) {
             Add-PreflightError -Code "PROMPT-STATUS-UNKNOWN-$promptName"
         }
         $promptRoleId = [string](Get-ContractProperty $promptObject "roleId")
         $expectedPromptRoleId = if ($promptName -eq "toolRepair") {
-            "PRE_HANDOFF_AUDIT_OWNER"
+            if (
+                $isPostAuditPhase -or
+                $preAuditSubstate -ceq "PRE_REVIEW_PASS_AWAITING_AUDIT"
+            ) {
+                "PRE_HANDOFF_AUDIT_OWNER"
+            }
+            else {
+                "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
+            }
         }
         else {
             "PAD_QA_OWNER"
@@ -740,18 +2627,51 @@ try {
             Add-PreflightError -Code "PROMPT-ROLE-MISMATCH-$promptName"
         }
         $promptDispatchable = Get-ContractProperty $promptObject "dispatchable"
-        $expectedPromptDispatchable = $promptName -eq "toolRepair"
+        $expectedPromptDispatchable = if ($isPostAuditPhase) {
+            $promptName -eq "padQa"
+        }
+        else {
+            $promptName -eq "toolRepair"
+        }
         if ($promptDispatchable -ne $expectedPromptDispatchable) {
             Add-PreflightError -Code "PROMPT-DISPATCH-BOUNDARY-INVALID-$promptName"
         }
-        $expectedPromptStatus = if ($promptName -eq "toolRepair") {
-            "ACTIVE"
+        $expectedPromptStatus = if ($isPostAuditPhase) {
+            if ($promptName -eq "padQa") {
+                "ACTIVE"
+            }
+            else {
+                "RETIRED_AFTER_AUDIT_PASS"
+            }
         }
         else {
-            "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+            if ($promptName -eq "padQa") {
+                "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+            }
+            else {
+                "ACTIVE"
+            }
         }
         if ($promptStatus -cne $expectedPromptStatus) {
             Add-PreflightError -Code "PROMPT-STATUS-MISMATCH-$promptName"
+        }
+        $retiredReason = Get-ContractProperty $promptObject "retiredReason"
+        if ($isPostAuditPhase) {
+            if (
+                $promptName -eq "toolRepair" -and
+                (-not (Test-NonEmptyString $retiredReason))
+            ) {
+                Add-PreflightError -Code "PROMPT-RETIRED-REASON-MISSING-$promptName"
+            }
+            elseif (
+                $promptName -eq "padQa" -and
+                $null -ne $retiredReason
+            ) {
+                Add-PreflightError -Code "PROMPT-RETIRED-REASON-UNEXPECTED-$promptName"
+            }
+        }
+        elseif ($null -ne $retiredReason) {
+            Add-PreflightError -Code "PROMPT-RETIRED-REASON-UNEXPECTED-$promptName"
         }
         if (
             (Get-ContractProperty $promptObject "actionClass") -cne
@@ -854,15 +2774,48 @@ try {
         ) `
         -ErrorPrefix "MANDATORY-PAD-QA-PROMPT"
     $toolRepairPrompt = Get-ContractProperty $promptsObject "toolRepair"
-    if ((Get-ContractProperty $toolRepairPrompt "status") -cne "ACTIVE") {
-        Add-PreflightError -Code "TOOL-REPAIR-PROMPT-NOT-ACTIVE"
+    $expectedToolRepairPromptStatus = if ($isPostAuditPhase) {
+        "RETIRED_AFTER_AUDIT_PASS"
+    }
+    else {
+        "ACTIVE"
+    }
+    if (
+        (Get-ContractProperty $toolRepairPrompt "status") -cne
+        $expectedToolRepairPromptStatus
+    ) {
+        Add-PreflightError -Code "TOOL-REPAIR-PROMPT-STATUS-INVALID"
     }
     $padQaPrompt = Get-ContractProperty $promptsObject "padQa"
+    $expectedPadQaPromptStatus = if ($isPostAuditPhase) {
+        "ACTIVE"
+    }
+    else {
+        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+    }
     if (
         (Get-ContractProperty $padQaPrompt "status") -cne
-        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+        $expectedPadQaPromptStatus
     ) {
         Add-PreflightError -Code "PAD-QA-PROMPT-DISPATCH-BOUNDARY-INVALID"
+    }
+    $padQaPromptTextForStaleCheck = Get-PromptText `
+        -PromptValue $padQaPrompt `
+        -ErrorPrefix "PAD-QA-PROMPT-STALE-CHECK"
+    foreach ($staleToken in @(
+        "尚未 commit",
+        "未提交 / ignored",
+        "force-add 集成说明"
+    )) {
+        if (
+            $null -ne $padQaPromptTextForStaleCheck -and
+            $padQaPromptTextForStaleCheck.Contains(
+                $staleToken,
+                [System.StringComparison]::Ordinal
+            )
+        ) {
+            Add-PreflightError -Code "PAD-QA-PROMPT-STALE-COMMIT-STATE"
+        }
     }
 
     $selectedPromptName = if ($Prompt -eq "next") {
@@ -938,7 +2891,15 @@ try {
         if (
             $promptName -eq "toolRepair" -and
             -not $actionList[1].Contains(
-                "PRE_HANDOFF_AUDIT_OWNER",
+                $(if (
+                    $isPostAuditPhase -or
+                    $preAuditSubstate -ceq "PRE_REVIEW_PASS_AWAITING_AUDIT"
+                ) {
+                    "PRE_HANDOFF_AUDIT_OWNER"
+                }
+                else {
+                    "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
+                }),
                 [System.StringComparison]::Ordinal
             )
         ) {
@@ -996,7 +2957,7 @@ try {
         "ROOT_INTEGRATION",
         "TOOL_REPAIR_OWNER",
         "DOC_PROTOCOL_OWNER",
-        "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
         "PRE_HANDOFF_AUDIT_OWNER",
         "PAD_QA_OWNER"
     )
@@ -1014,14 +2975,26 @@ try {
         )
         QA_DISPATCHABLE = [string[]]@("PRE_HANDOFF_AUDIT_PASS")
     }
-    $expectedGateStatuses = @(
-        "PASS",
-        "PASS",
-        "PASS",
-        "PASS",
-        "BLOCKED",
-        "BLOCKED"
-    )
+    $expectedGateStatuses = if ($isPostAuditPhase) {
+        @(
+            "PASS",
+            "PASS",
+            "PASS",
+            "PASS",
+            "PASS",
+            "PASS"
+        )
+    }
+    else {
+        @(
+            "PASS",
+            "PASS",
+            "PASS",
+            $preReviewGateStatus,
+            "BLOCKED",
+            "BLOCKED"
+        )
+    }
     $allowedGateStatuses = @("PASS", "NOT_RUN", "BLOCKED")
 
     $gateContainersValid = (
@@ -1029,7 +3002,7 @@ try {
             -ObjectValue $requiredGateContainer `
             -ExpectedProperties @("lifecycleVersion", "lifecycle")) -and
         (Get-ContractProperty $requiredGateContainer "lifecycleVersion") -ceq
-        "AURORAMA_HANDOFF_GATE_ORDER_V1"
+        "AURORAMA_HANDOFF_GATE_ORDER_V2"
     )
     if (-not $gateContainersValid) {
         Add-PreflightError -Code "REQUIRED-GATE-CONTAINER-INVALID"
@@ -1137,24 +3110,32 @@ try {
     $preHandoffAuditStateValue = [string](
         Get-ContractProperty $qaRoundState "preHandoffAudit"
     )
-    if (
-        $preHandoffAuditStateValue -ceq "PASS" -or
-        (
-            $gateStatusById.ContainsKey("PRE_HANDOFF_AUDIT_PASS") -and
-            $gateStatusById["PRE_HANDOFF_AUDIT_PASS"] -ceq "PASS"
-        )
-    ) {
-        Add-PreflightError -Code "AUDIT-PASS-WITHOUT-ALLOWED-AUDIT-PHASE"
-    }
-    if (
-        $gateStatusById.ContainsKey("QA_DISPATCHABLE") -and
-        $gateStatusById["QA_DISPATCHABLE"] -ceq "PASS" -and
-        (
+    $sourceContractData = $null
+    if ($isPostAuditPhase) {
+        if (
+            $preHandoffAuditStateValue -cne "PASS" -or
             -not $gateStatusById.ContainsKey("PRE_HANDOFF_AUDIT_PASS") -or
             $gateStatusById["PRE_HANDOFF_AUDIT_PASS"] -cne "PASS"
-        )
-    ) {
-        Add-PreflightError -Code "QA-DISPATCHABLE-BEFORE-AUDIT-PASS"
+        ) {
+            Add-PreflightError -Code "AUDIT-PASS-GATE-RECEIPT-PHASE-INVALID"
+        }
+    }
+    else {
+        if (
+            $preHandoffAuditStateValue -ceq "PASS" -or
+            (
+                $gateStatusById.ContainsKey("PRE_HANDOFF_AUDIT_PASS") -and
+                $gateStatusById["PRE_HANDOFF_AUDIT_PASS"] -ceq "PASS"
+            )
+        ) {
+            Add-PreflightError -Code "AUDIT-PASS-WITHOUT-POST-PHASE-RECEIPT"
+        }
+        if (
+            $gateStatusById.ContainsKey("QA_DISPATCHABLE") -and
+            $gateStatusById["QA_DISPATCHABLE"] -ceq "PASS"
+        ) {
+            Add-PreflightError -Code "QA-PASS-IN-PRE-AUDIT-PHASE"
+        }
     }
 
     $stopConditionValues = @(
@@ -1166,7 +3147,11 @@ try {
         "SHARED_WRITE_OVERLAP_OR_SAME_AGENT_REUSE",
         "TEN_MINUTE_WINDOW_EXTENSION_REQUEST",
         "K60_ATTEMPT_BEFORE_PAD_CORE_PASS",
-        "OLD_EVIDENCE_OR_INSTALL_CLEANUP_USED_AS_PRODUCT_PASS"
+        "OLD_EVIDENCE_OR_INSTALL_CLEANUP_USED_AS_PRODUCT_PASS",
+        "NEW_P0_P2_OR_EVIDENCE_TAMPER",
+        "CONTRACT_FIELD_MISSING_UNKNOWN_OR_ROLE_INCOMPLETE",
+        "AUDIT_RECEIPT_MISSING_UNKNOWN_OR_BINDING_DRIFT",
+        "POST_AUDIT_TRANSITION_PATH_OUTSIDE_ALLOWLIST"
     )
     foreach ($stopCondition in $minimumStopConditions) {
         if ($stopCondition -cnotin $stopConditionValues) {
@@ -1197,6 +3182,12 @@ try {
         }
     }
     $deviceLockPath = [string](Get-ContractProperty $evidence "deviceLockPath")
+    if (
+        $deviceLockPath -cne
+        "F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md"
+    ) {
+        Add-PreflightError -Code "DEVICE-LOCK-PATH-DRIFT"
+    }
     if (-not (Test-Path -LiteralPath $deviceLockPath -PathType Leaf)) {
         Add-PreflightError -Code "DEVICE-LOCK-MISSING"
     }
@@ -1236,6 +3227,14 @@ try {
     $qaTools = Get-ContractProperty $contractData "qaTools"
     $qaToolsRootPath = [string](Get-ContractProperty $qaTools "root")
     $legacyToolsManifestPath = [string](Get-ContractProperty $qaTools "manifestPath")
+    if (
+        $qaToolsRootPath -cne
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools" -or
+        $legacyToolsManifestPath -cne
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools.sha256"
+    ) {
+        Add-PreflightError -Code "QA-TOOLS-PATH-DRIFT"
+    }
     $canonicalManifestLines = @(
         Get-ContractProperty $qaTools "canonicalManifestLines"
     )
@@ -1386,6 +3385,18 @@ try {
     ) {
         Add-PreflightError -Code "ROUND3-REVIEW-EVIDENCE-INVALID"
     }
+    if ((Get-ContractProperty $qaTools "rootForceAddRequired") -ne $false) {
+        Add-PreflightError -Code "STALE-ROOT-FORCE-ADD-STATE"
+    }
+    $rootForceAddHint = [string](
+        Get-ContractProperty $qaTools "rootForceAddHint"
+    )
+    if (-not $rootForceAddHint.Contains(
+        "c4a2d2a1",
+        [System.StringComparison]::Ordinal
+    )) {
+        Add-PreflightError -Code "COMMITTED-QA-TOOLS-POINTER-MISSING"
+    }
     if (
         (Get-ContractProperty $qaTools "inputDigestFrozen") -ne $true -or
         (Get-ContractProperty $qaTools "refreshRequiredAfterAnyToolChange") -ne $true -or
@@ -1535,6 +3546,479 @@ try {
         }
     }
 
+    $expectedAuditReceiptSchema = @(
+        "schema",
+        "verdict",
+        "auditorRole",
+        "auditedSourceCommit",
+        "auditedSourceTree",
+        "auditedAt",
+        "qaPromptSha256",
+        "toolsDigest",
+        "deviceLockState",
+        "deviceLockSha256",
+        "qaEvidenceRoot",
+        "rejectedScopeHash",
+        "memoryIndexSha256",
+        "immutableStateSha256",
+        "transitionPaths"
+    )
+    $expectedImmutableStateFields = @(
+        "acceptedArtifacts",
+        "contractVersion",
+        "devicePolicy",
+        "evidence",
+        "evidenceRoot",
+        "firstReadOnlyActions",
+        "generatedAt",
+        "handoffFlags",
+        "inputBaseline",
+        "productGates",
+        "qaTools",
+        "qa_prompt_path",
+        "qaPromptPath",
+        "readOrder",
+        "rejectedScope",
+        "roles",
+        "schema",
+        "stopConditions"
+    )
+    $expectedPostMutationPointerAllowlist = @(
+        "/auditReceipt",
+        "/validation/handoffPhase",
+        "/validation/activePromptExpectedRoleId",
+        "/validation/qaPromptRequiredStatus",
+        "/qaRoundState/status",
+        "/qaRoundState/preHandoffAudit",
+        "/qaRoundState/padQaPromptDispatch",
+        "/activePrompt",
+        "/next_prompt_path",
+        "/nextPromptPath",
+        "/prompts/toolRepair/status",
+        "/prompts/toolRepair/dispatchable",
+        "/prompts/toolRepair/retiredReason",
+        "/prompts/padQa/status",
+        "/prompts/padQa/dispatchable",
+        "/prompts/padQa/retiredReason",
+        "/requiredGates/lifecycle/4/status",
+        "/requiredGates/lifecycle/5/status"
+    )
+    $expectedPostAuditTransitionPaths = @(
+        "docs/TASKS.md",
+        "docs/V2_PLAN.md",
+        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
+    )
+    $expectedPreAuditDirtyPaths = @(
+        "AGENTS.md",
+        "docs/PROJECT_RULES.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        "docs/LESSONS.md",
+        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+        "tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+        "tools/v2-handoff/Test-HandoffPreflight.ps1"
+    )
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual (Get-ContractProperty $validation "auditReceiptSchema") `
+        -Expected $expectedAuditReceiptSchema)) {
+        Add-PreflightError -Code "AUDIT-RECEIPT-SCHEMA-DRIFT"
+    }
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual (Get-ContractProperty $validation "immutableStateFields") `
+        -Expected $expectedImmutableStateFields)) {
+        Add-PreflightError -Code "IMMUTABLE-STATE-FIELD-LIST-DRIFT"
+    }
+    $actualActiveTokenPointers = @(
+        Get-ContractProperty $validation "activeRequiredTokens"
+    )
+    if (
+        $actualActiveTokenPointers.Count -ne 1 -or
+        $actualActiveTokenPointers[0] -cne $expectedActiveTokenPointers[0]
+    ) {
+        Add-PreflightError -Code "ACTIVE-REQUIRED-TOKEN-POINTER-DRIFT"
+    }
+    if (-not (Test-RequiredTextAnchorPointers `
+        -Value (Get-ContractProperty $validation "requiredTextAnchors"))) {
+        Add-PreflightError -Code "REQUIRED-TEXT-ANCHOR-POINTER-DRIFT"
+    }
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual (Get-ContractProperty $validation "postMutationPointerAllowlist") `
+        -Expected $expectedPostMutationPointerAllowlist)) {
+        Add-PreflightError -Code "POST-MUTATION-POINTER-ALLOWLIST-DRIFT"
+    }
+    if (-not (Test-OrdinalStringArrayEqual `
+        -Actual (Get-ContractProperty $validation "postAuditTransitionPaths") `
+        -Expected $expectedPostAuditTransitionPaths)) {
+        Add-PreflightError -Code "POST-AUDIT-TRANSITION-ALLOWLIST-DRIFT"
+    }
+    if (-not (Test-OrdinalSetEqual `
+        -Actual ([string[]]@(
+            Get-ContractProperty $validation "preAuditAllowedDirtyPaths"
+        )) `
+        -Expected $expectedPreAuditDirtyPaths)) {
+        Add-PreflightError -Code "PRE-AUDIT-DIRTY-ALLOWLIST-DRIFT"
+    }
+    $expectedAlgorithmBindings = [ordered]@{
+        qaPromptSha256Algorithm = "SHA256 UTF8(LF; prompts.padQa.textLines joined by LF; final LF)"
+        rejectedScopeHashAlgorithm = "SHA256 UTF8(LF; rejectedScope serialized as compact JSON in property order; final LF)"
+        memoryIndexSha256Algorithm = "SHA256 raw MEMORY.md bytes"
+        deviceLockStateAlgorithm = "RELEASED_ACTIVE_0 only when current-occupancy headings contain no ACTIVE lock"
+        toolsDigestAlgorithm = "SHA256 UTF8(LF; '<file-sha256>  tools/<relative>' lines; relative path ordinal; final LF; tools.sha256 self-excluded)"
+        immutableStateSha256Algorithm = "SHA256 UTF8(LF; selected source-contract fields canonicalized with ordinal-sorted object keys, arrays in order, compact JSON; final LF)"
+    }
+    foreach ($algorithmName in $expectedAlgorithmBindings.Keys) {
+        if (
+            (Get-ContractProperty $validation $algorithmName) -cne
+            $expectedAlgorithmBindings[$algorithmName]
+        ) {
+            Add-PreflightError -Code "VALIDATION-ALGORITHM-DRIFT-$algorithmName"
+        }
+    }
+    $expectedMemoryIndexPath = "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+    $memoryIndexPath = [string](
+        Get-ContractProperty $validation "memoryIndexPath"
+    )
+    if ($memoryIndexPath -cne $expectedMemoryIndexPath) {
+        Add-PreflightError -Code "MEMORY-INDEX-PATH-DRIFT"
+    }
+
+    if (-not $isPostAuditPhase) {
+        $currentPreAuditState = Assert-PreAuditState `
+            -Contract $contractData `
+            -Mode "CURRENT" `
+            -ReferenceContract $contractData `
+            -RequiredTopLevelNames $requiredTopLevelNames `
+            -ExpectedRoleIds $expectedRoleIds `
+            -ExpectedImmutableStateFields $expectedImmutableStateFields `
+            -ExpectedActiveTokenPointers $expectedActiveTokenPointers `
+            -ExpectedRequiredTextAnchorPointers $expectedRequiredTextAnchorPointers `
+            -ExpectedPostMutationPointerAllowlist $expectedPostMutationPointerAllowlist `
+            -ExpectedPostAuditTransitionPaths $expectedPostAuditTransitionPaths `
+            -ExpectedAuditReceiptSchema $expectedAuditReceiptSchema `
+            -SourceContractRelativePath "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
+        if ($null -ne $currentPreAuditState) {
+            $script:preAuditSubstateValue = [string]$currentPreAuditState.substate
+            $preAuditSubstate = [string]$currentPreAuditState.substate
+            $preReviewGateStatus = [string]$currentPreAuditState.reviewGateStatus
+            $preExpectedRoundStatus = [string]$currentPreAuditState.expectedStatus
+        }
+    }
+
+    if ($isPostAuditPhase) {
+        $script:auditReceiptState = "REQUIRED"
+        if (-not (Test-ExactObjectProperties `
+            -ObjectValue $auditReceipt `
+            -ExpectedProperties $expectedAuditReceiptSchema)) {
+            Add-PreflightError -Code "AUDIT-RECEIPT-SCHEMA-INVALID"
+        }
+        else {
+            $receiptSchema = [string](
+                Get-ContractProperty $auditReceipt "schema"
+            )
+            if ($receiptSchema -cne "aurorama.handoff-audit-receipt.v1") {
+                Add-PreflightError -Code "AUDIT-RECEIPT-IDENTITY-INVALID"
+            }
+            if ((Get-ContractProperty $auditReceipt "verdict") -cne "PASS") {
+                Add-PreflightError -Code "AUDIT-RECEIPT-VERDICT-NOT-PASS"
+            }
+            if (
+                (Get-ContractProperty $auditReceipt "auditorRole") -cne
+                "PRE_HANDOFF_AUDIT_OWNER"
+            ) {
+                Add-PreflightError -Code "AUDIT-RECEIPT-AUDITOR-DRIFT"
+            }
+
+            $auditedSourceCommit = [string](
+                Get-ContractProperty $auditReceipt "auditedSourceCommit"
+            )
+            $auditedSourceTree = [string](
+                Get-ContractProperty $auditReceipt "auditedSourceTree"
+            )
+            if ($auditedSourceCommit -notmatch "^[0-9a-f]{40}$") {
+                Add-PreflightError -Code "AUDIT-RECEIPT-SOURCE-COMMIT-INVALID"
+            }
+            else {
+                & git -C $repositoryRoot cat-file -e "$auditedSourceCommit^{commit}" 2>$null
+                if ($LASTEXITCODE -ne 0) {
+                    Add-PreflightError -Code "AUDIT-RECEIPT-SOURCE-COMMIT-MISSING"
+                }
+                else {
+                    $postCurrentHead = ([string](& git -C $repositoryRoot rev-parse HEAD 2>$null)).Trim()
+                    & git -C $repositoryRoot merge-base --is-ancestor $auditedSourceCommit $postCurrentHead 2>$null
+                    if ($LASTEXITCODE -ne 0) {
+                        Add-PreflightError -Code "AUDIT-RECEIPT-SOURCE-NOT-ANCESTOR"
+                    }
+                    $actualSourceTree = (
+                        [string](& git -C $repositoryRoot rev-parse "$auditedSourceCommit^{tree}" 2>$null)
+                    ).Trim()
+                    if ($LASTEXITCODE -ne 0) {
+                        Add-PreflightError -Code "AUDIT-RECEIPT-SOURCE-TREE-READ-FAILED"
+                    }
+                    elseif ($auditedSourceTree -cne $actualSourceTree) {
+                        Add-PreflightError -Code "AUDIT-RECEIPT-SOURCE-TREE-MISMATCH"
+                    }
+
+                    $sourceContractRelativePath =
+                        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
+                    $sourceContractText = Read-GitCommitPathStrictUtf8LfFile `
+                        -RepositoryRootPath $repositoryRoot `
+                        -CommitId $auditedSourceCommit `
+                        -RelativePath $sourceContractRelativePath `
+                        -ErrorPrefix "AUDIT-SOURCE-CONTRACT"
+                    if ($null -ne $sourceContractText) {
+                        try {
+                            $sourceContractData = $sourceContractText |
+                                ConvertFrom-Json -DateKind String
+                        }
+                        catch {
+                            Add-PreflightError -Code "AUDIT-SOURCE-CONTRACT-JSON-INVALID"
+                        }
+                    }
+                }
+            }
+
+            $auditedAtText = [string](
+                Get-ContractProperty $auditReceipt "auditedAt"
+            )
+            $auditedAtValue = [DateTimeOffset]::MinValue
+            if (
+                $auditedAtText -notmatch "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$" -or
+                -not [DateTimeOffset]::TryParse(
+                    $auditedAtText,
+                    [System.Globalization.CultureInfo]::InvariantCulture,
+                    [System.Globalization.DateTimeStyles]::None,
+                    [ref]$auditedAtValue
+                )
+            ) {
+                Add-PreflightError -Code "AUDIT-RECEIPT-TIMESTAMP-INVALID"
+            }
+
+            $receiptQaPromptSha256 = [string](
+                Get-ContractProperty $auditReceipt "qaPromptSha256"
+            )
+            $actualQaPromptSha256 = if ($null -ne $padQaPromptText) {
+                Get-Utf8LfSha256 -TextValue $padQaPromptText
+            }
+            else {
+                "unknown"
+            }
+            if (
+                $receiptQaPromptSha256 -notmatch "^[0-9a-f]{64}$" -or
+                $receiptQaPromptSha256 -cne $actualQaPromptSha256
+            ) {
+                Add-PreflightError -Code "AUDIT-RECEIPT-QA-PROMPT-HASH-DRIFT"
+            }
+
+            $receiptToolsDigest = [string](
+                Get-ContractProperty $auditReceipt "toolsDigest"
+            )
+            if (
+                $receiptToolsDigest -notmatch "^[0-9a-f]{64}$" -or
+                $receiptToolsDigest -cne $actualToolsSnapshot.digestSha256 -or
+                $receiptToolsDigest -cne $expectedToolsDigest
+            ) {
+                Add-PreflightError -Code "AUDIT-RECEIPT-TOOLS-DIGEST-DRIFT"
+            }
+
+            $deviceLockSnapshot = Get-DeviceLockSnapshot `
+                -DeviceLockPath $deviceLockPath
+            if ($null -ne $deviceLockSnapshot) {
+                $receiptDeviceLockState = [string](
+                    Get-ContractProperty $auditReceipt "deviceLockState"
+                )
+                $receiptDeviceLockSha256 = [string](
+                    Get-ContractProperty $auditReceipt "deviceLockSha256"
+                )
+                if (
+                    $receiptDeviceLockState -cne "RELEASED_ACTIVE_0" -or
+                    $deviceLockSnapshot.state -cne $receiptDeviceLockState
+                ) {
+                    Add-PreflightError -Code "AUDIT-RECEIPT-DEVICE-LOCK-STATE-DRIFT"
+                }
+                if (
+                    $receiptDeviceLockSha256 -notmatch "^[0-9a-f]{64}$" -or
+                    $receiptDeviceLockSha256 -cne $deviceLockSnapshot.sha256
+                ) {
+                    Add-PreflightError -Code "AUDIT-RECEIPT-DEVICE-LOCK-HASH-DRIFT"
+                }
+            }
+
+            $receiptQaEvidenceRoot = [string](
+                Get-ContractProperty $auditReceipt "qaEvidenceRoot"
+            )
+            if (
+                $receiptQaEvidenceRoot -cne
+                [string](Get-ContractProperty $evidence "nextPadRoot")
+            ) {
+                Add-PreflightError -Code "AUDIT-RECEIPT-QA-EVIDENCE-ROOT-DRIFT"
+            }
+
+            $receiptRejectedScopeHash = [string](
+                Get-ContractProperty $auditReceipt "rejectedScopeHash"
+            )
+            $actualRejectedScopeHash = Get-CompactJsonSha256 -Value $rejectedScope
+            if (
+                $receiptRejectedScopeHash -notmatch "^[0-9a-f]{64}$" -or
+                $receiptRejectedScopeHash -cne $actualRejectedScopeHash
+            ) {
+                Add-PreflightError -Code "AUDIT-RECEIPT-REJECTED-SCOPE-DRIFT"
+            }
+
+            $receiptMemoryIndexSha256 = [string](
+                Get-ContractProperty $auditReceipt "memoryIndexSha256"
+            )
+            if (-not (Test-Path -LiteralPath $memoryIndexPath -PathType Leaf)) {
+                Add-PreflightError -Code "MEMORY-INDEX-MISSING"
+            }
+            else {
+                $actualMemoryIndexSha256 = Get-BytesSha256 `
+                    -Bytes ([System.IO.File]::ReadAllBytes($memoryIndexPath))
+                if (
+                    $receiptMemoryIndexSha256 -notmatch "^[0-9a-f]{64}$" -or
+                    $receiptMemoryIndexSha256 -cne $actualMemoryIndexSha256
+                ) {
+                    Add-PreflightError -Code "AUDIT-RECEIPT-MEMORY-INDEX-DRIFT"
+                }
+            }
+
+            if ($null -eq $sourceContractData) {
+                Add-PreflightError -Code "AUDIT-SOURCE-CONTRACT-UNAVAILABLE"
+            }
+            else {
+                $sourcePreAuditState = Assert-PreAuditState `
+                    -Contract $sourceContractData `
+                    -Mode "SOURCE" `
+                    -ReferenceContract $contractData `
+                    -RequiredTopLevelNames $requiredTopLevelNames `
+                    -ExpectedRoleIds $expectedRoleIds `
+                    -ExpectedImmutableStateFields $expectedImmutableStateFields `
+                    -ExpectedActiveTokenPointers $expectedActiveTokenPointers `
+                    -ExpectedRequiredTextAnchorPointers $expectedRequiredTextAnchorPointers `
+                    -ExpectedPostMutationPointerAllowlist $expectedPostMutationPointerAllowlist `
+                    -ExpectedPostAuditTransitionPaths $expectedPostAuditTransitionPaths `
+                    -ExpectedAuditReceiptSchema $expectedAuditReceiptSchema `
+                    -SourceContractRelativePath $sourceContractRelativePath
+                if ($null -eq $sourcePreAuditState) {
+                    Add-PreflightError -Code "AUDIT-SOURCE-PRE-STATE-UNAVAILABLE"
+                }
+                if (
+                    (Get-ContractProperty $sourceContractData "contractVersion") -cne
+                    "HANDOFF_BOOTSTRAP_V2" -or
+                    (Get-ContractProperty $sourceContractData "schema") -cne
+                    "aurorama.handoff-bootstrap.v2"
+                ) {
+                    Add-PreflightError -Code "AUDIT-SOURCE-CONTRACT-IDENTITY-INVALID"
+                }
+                $sourceValidation = Get-ContractProperty $sourceContractData "validation"
+                if (
+                    (Get-ContractProperty $sourceValidation "handoffPhase") -cne
+                    "PRE_HANDOFF_AUDIT" -or
+                    $null -ne (Get-ContractProperty $sourceContractData "auditReceipt")
+                ) {
+                    Add-PreflightError -Code "AUDIT-SOURCE-CONTRACT-PHASE-INVALID"
+                }
+                if (-not (Test-OrdinalStringArrayEqual `
+                    -Actual (Get-ContractProperty $sourceValidation "immutableStateFields") `
+                    -Expected $expectedImmutableStateFields)) {
+                    Add-PreflightError -Code "AUDIT-SOURCE-IMMUTABLE-FIELDS-DRIFT"
+                }
+                $sourceActiveTokenPointers = @(
+                    Get-ContractProperty $sourceValidation "activeRequiredTokens"
+                )
+                if (
+                    $sourceActiveTokenPointers.Count -ne 1 -or
+                    $sourceActiveTokenPointers[0] -cne $expectedActiveTokenPointers[0]
+                ) {
+                    Add-PreflightError -Code "AUDIT-SOURCE-ACTIVE-TOKEN-POINTER-DRIFT"
+                }
+                if (-not (Test-RequiredTextAnchorPointers `
+                    -Value (Get-ContractProperty $sourceValidation "requiredTextAnchors"))) {
+                    Add-PreflightError -Code "AUDIT-SOURCE-ANCHOR-POINTER-DRIFT"
+                }
+                if (-not (Test-OrdinalStringArrayEqual `
+                    -Actual (Get-ContractProperty $sourceValidation "postMutationPointerAllowlist") `
+                    -Expected $expectedPostMutationPointerAllowlist)) {
+                    Add-PreflightError -Code "AUDIT-SOURCE-MUTATION-ALLOWLIST-DRIFT"
+                }
+                if (
+                    (Get-ContractProperty $sourceValidation "immutableStateSha256Algorithm") -cne
+                    "SHA256 UTF8(LF; selected source-contract fields canonicalized with ordinal-sorted object keys, arrays in order, compact JSON; final LF)"
+                ) {
+                    Add-PreflightError -Code "AUDIT-SOURCE-IMMUTABLE-ALGORITHM-DRIFT"
+                }
+
+                $sourceImmutableProjection = Get-ImmutableContractProjection `
+                    -Contract $sourceContractData `
+                    -Fields $expectedImmutableStateFields
+                $currentImmutableProjection = Get-ImmutableContractProjection `
+                    -Contract $contractData `
+                    -Fields $expectedImmutableStateFields
+                $actualSourceImmutableStateSha256 = Get-Utf8LfSha256 `
+                    -TextValue (Get-CanonicalJsonText -Value $sourceImmutableProjection)
+                $actualCurrentImmutableStateSha256 = Get-Utf8LfSha256 `
+                    -TextValue (Get-CanonicalJsonText -Value $currentImmutableProjection)
+                $receiptImmutableStateSha256 = [string](
+                    Get-ContractProperty $auditReceipt "immutableStateSha256"
+                )
+                if (
+                    $receiptImmutableStateSha256 -notmatch "^[0-9a-f]{64}$" -or
+                    $receiptImmutableStateSha256 -cne $actualSourceImmutableStateSha256 -or
+                    $receiptImmutableStateSha256 -cne $actualCurrentImmutableStateSha256
+                ) {
+                    Add-PreflightError -Code "AUDIT-RECEIPT-IMMUTABLE-STATE-HASH-DRIFT"
+                }
+
+                $sourceTopLevelNames = [string[]]@(
+                    $sourceContractData.PSObject.Properties |
+                        ForEach-Object { $_.Name }
+                )
+                if (
+                    $sourceTopLevelNames.Count -ne $requiredTopLevelNames.Count -or
+                    -not (Test-OrdinalSetEqual `
+                        -Actual $sourceTopLevelNames `
+                        -Expected ([string[]]$requiredTopLevelNames))
+                ) {
+                    Add-PreflightError -Code "POST-MUTATION-TOP-LEVEL-SET-MISMATCH"
+                }
+                $mutationPointers =
+                    [System.Collections.Generic.List[string]]::new()
+                Add-JsonMutationDiff `
+                    -SourceValue $sourceContractData `
+                    -CurrentValue $contractData `
+                    -Pointer "" `
+                    -Mutations $mutationPointers
+                foreach ($mutationPointer in @($mutationPointers)) {
+                    if (-not (Test-JsonPointerAllowed `
+                        -Pointer $mutationPointer `
+                        -AllowedPatterns $expectedPostMutationPointerAllowlist)) {
+                        Add-PreflightError -Code (
+                            "POST-MUTATION-POINTER-NOT-ALLOWED:" + $mutationPointer
+                        )
+                    }
+                }
+            }
+
+            $receiptTransitionPathsValue = Get-ContractProperty `
+                $auditReceipt `
+                "transitionPaths"
+            if (
+                -not (Test-StringArray -Value $receiptTransitionPathsValue) -or
+                -not (Test-OrdinalStringArrayEqual `
+                    -Actual $receiptTransitionPathsValue `
+                    -Expected $expectedPostAuditTransitionPaths)
+            ) {
+                Add-PreflightError -Code "AUDIT-RECEIPT-TRANSITION-PATH-DRIFT"
+            }
+            else {
+                $script:transitionPathCount = @($receiptTransitionPathsValue).Count
+            }
+        }
+    }
+    else {
+        $script:auditReceiptState = "INACTIVE"
+    }
+
     $reportPath = [string](Get-ContractProperty $evidence "currentReportPath")
     $reportFullPath = Resolve-RepoFile `
         -RelativeOrAbsolutePath $reportPath `
@@ -1545,7 +4029,7 @@ try {
             -AbsolutePath $reportFullPath `
             -ErrorPrefix "QA-REPORT"
         try {
-            $reportData = $reportText | ConvertFrom-Json
+            $reportData = $reportText | ConvertFrom-Json -DateKind String
             if ((Get-ContractProperty $reportData "status") -cne "BLOCKED_TOOL_NONCONVERGENCE") {
                 Add-PreflightError -Code "QA-REPORT-STATUS-MISMATCH"
             }
@@ -1593,13 +4077,28 @@ try {
     }
 
     $validation = Get-ContractProperty $contractData "validation"
+    $expectedActivePromptRole = if ($isPostAuditPhase) {
+        "PAD_QA_OWNER"
+    }
+    elseif ($preAuditSubstate -ceq "PRE_REVIEW_PASS_AWAITING_AUDIT") {
+        "PRE_HANDOFF_AUDIT_OWNER"
+    }
+    else {
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
+    }
+    $expectedQaPromptRequiredStatus = if ($isPostAuditPhase) {
+        "ACTIVE"
+    }
+    else {
+        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+    }
     $activePromptExpectedRoleId = [string](
         Get-ContractProperty $validation "activePromptExpectedRoleId"
     )
     if (
         $activePromptExpectedRoleId -cne
-        "PRE_HANDOFF_AUDIT_OWNER" -or
-        (Get-ContractProperty $toolRepairPrompt "roleId") -cne
+        $expectedActivePromptRole -or
+        (Get-ContractProperty (Get-ContractProperty $promptsObject $activePromptName) "roleId") -cne
         $activePromptExpectedRoleId
     ) {
         Add-PreflightError -Code "ACTIVE-PROMPT-EXPECTED-ROLE-INVALID"
@@ -1609,7 +4108,7 @@ try {
     )
     if (
         $qaPromptRequiredStatus -cne
-        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT" -or
+        $expectedQaPromptRequiredStatus -or
         (Get-ContractProperty $padQaPrompt "status") -cne
         $qaPromptRequiredStatus
     ) {
@@ -1654,13 +4153,45 @@ try {
             $activeSectionText = (
                 $activeDocumentLines[$activeStart..($activeEnd - 1)] -join "`n"
             )
-            $activeRequiredTokens = @(
-                Get-ContractProperty $validation "activeRequiredTokens"
-            )
+            $activeRequiredTokens = if ($isPostAuditPhase) {
+                $postActiveRequiredTokens
+            }
+            elseif ($preActiveRequiredTokensByState.ContainsKey($preAuditSubstate)) {
+                [string[]]@($preActiveRequiredTokensByState[$preAuditSubstate])
+            }
+            else {
+                [string[]]@()
+            }
             Assert-Tokens `
                 -TextValue $activeSectionText `
                 -Tokens $activeRequiredTokens `
                 -ErrorPrefix "ACTIVE-SECTION"
+            $mandatoryActiveTokens = if ($isPostAuditPhase) {
+                @(
+                    "POST_HANDOFF_AUDIT_READY",
+                    "validation.handoffPhase=POST_HANDOFF_AUDIT_READY",
+                    "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS",
+                    "PRE_HANDOFF_AUDIT_PASS=PASS",
+                    "QA_DISPATCHABLE=PASS",
+                    "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+                    "auditReceipt"
+                )
+            }
+            else {
+                @(
+                    "validation.handoffPhase=PRE_HANDOFF_AUDIT",
+                    ("INDEPENDENT_INTEGRATION_REVIEW_PASS=" + $preReviewGateStatus),
+                    "PRE_HANDOFF_AUDIT_PASS=BLOCKED",
+                    "QA_DISPATCHABLE=BLOCKED",
+                    $preExpectedRoundStatus,
+                    "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+                    "auditReceipt"
+                )
+            }
+            Assert-Tokens `
+                -TextValue $activeSectionText `
+                -Tokens $mandatoryActiveTokens `
+                -ErrorPrefix "MANDATORY-ACTIVE"
         }
     }
 
@@ -1729,6 +4260,7 @@ try {
         Get-ContractProperty $validation "requiredTextAnchors"
     )
     foreach ($anchor in $requiredTextAnchors) {
+        $anchorId = [string](Get-ContractProperty $anchor "id")
         $anchorPath = [string](Get-ContractProperty $anchor "path")
         $anchorFullPath = Resolve-RepoFile `
             -RelativeOrAbsolutePath $anchorPath `
@@ -1740,12 +4272,17 @@ try {
         $anchorText = Read-StrictUtf8LfFile `
             -AbsolutePath $anchorFullPath `
             -ErrorPrefix "ANCHOR-$anchorPath"
-        $anchorTokens = @(Get-ContractProperty $anchor "tokens")
+        $anchorTokens = if ($isPostAuditPhase) {
+            @($postAnchorTokenSets[$anchorId])
+        }
+        else {
+            @($preAnchorTokenSetsByState[$preAuditSubstate][$anchorId])
+        }
         Assert-Tokens `
             -TextValue $anchorText `
             -Tokens $anchorTokens `
             -ErrorPrefix "ANCHOR-$anchorPath"
-        $forbiddenTokens = @(Get-ContractProperty $anchor "forbiddenTokens")
+        $forbiddenTokens = @($anchorForbiddenTokenSets[$anchorId])
         foreach ($forbiddenToken in $forbiddenTokens) {
             if (
                 (Test-NonEmptyString $forbiddenToken) -and
@@ -1788,10 +4325,46 @@ try {
         else {
             $script:dirtyCount = $statusOutput.Count
         }
+
+        if ($isPostAuditPhase) {
+            if ($auditedSourceCommit -notmatch "^[0-9a-f]{40}$") {
+                Add-PreflightError -Code "AUDIT-TRANSITION-SOURCE-INVALID"
+            }
+            else {
+                $postAuditChangedPaths = @(
+                    Get-ChangedRepoPaths `
+                        -RepositoryRootPath $repositoryRoot `
+                        -BaseRevision $auditedSourceCommit `
+                        -ErrorPrefix "POST-AUDIT"
+                )
+                if (-not (Test-OrdinalStringArrayEqual `
+                    -Actual ([string[]]$postAuditChangedPaths) `
+                    -Expected ([string[]]$expectedPostAuditTransitionPaths))) {
+                    Add-PreflightError -Code "POST-AUDIT-TRANSITION-PATH-SET-MISMATCH"
+                }
+            }
+        }
+        else {
+            $preAuditChangedPaths = @(
+                Get-ChangedRepoPaths `
+                    -RepositoryRootPath $repositoryRoot `
+                    -BaseRevision "HEAD" `
+                    -ErrorPrefix "PRE-AUDIT"
+            )
+            foreach ($changedPath in $preAuditChangedPaths) {
+                if ($changedPath -cnotin $expectedPreAuditDirtyPaths) {
+                    Add-PreflightError -Code "PRE-AUDIT-DIRTY-PATH-OUTSIDE-ALLOWLIST"
+                }
+            }
+        }
     }
 }
 catch {
     Add-PreflightError -Code ("PREFLIGHT-EXCEPTION-" + $_.Exception.GetType().Name)
+    if ($env:AURORAMA_PREFLIGHT_DEBUG -ceq "1") {
+        Write-Output ("DEBUG_EXCEPTION " + $_.Exception.Message)
+        Write-Output ("DEBUG_STACK " + $_.ScriptStackTrace)
+    }
 }
 
 if ($validationErrors.Count -gt 0) {
@@ -1809,7 +4382,10 @@ if ($validationErrors.Count -gt 0) {
 }
 
 Write-Output (
-    "PASS HANDOFF_BOOTSTRAP_V2 branch={0} head={1} dirty={2} input={3} roles={4} tasks={5} gates={6} order=Pad->K60 window=10 apk=MATCH tools=MATCH manifest=MATCH({7}/{7}) digest={8} docs=MATCH lock=RELEASED" -f
+    "PASS HANDOFF_BOOTSTRAP_V2 phase={0} receipt={1} transitions={2} branch={3} head={4} dirty={5} input={6} roles={7} tasks={8} gates={9} order=Pad->K60 window=10 apk=MATCH tools=MATCH manifest=MATCH({10}/{10}) digest={11} docs=MATCH lock=RELEASED pre={12}" -f
+    $script:handoffPhaseValue,
+    $script:auditReceiptState,
+    $script:transitionPathCount,
     $script:branchValue,
     $script:headValue,
     $script:dirtyCount,
@@ -1818,7 +4394,8 @@ Write-Output (
     $script:tasksInProgressCount,
     $script:gateCount,
     $script:toolsEntryCount,
-    $script:toolsDigestValue
+    $script:toolsDigestValue,
+    $script:preAuditSubstateValue
 )
 
 if ($EmitPrompt) {

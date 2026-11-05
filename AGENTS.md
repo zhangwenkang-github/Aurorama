@@ -2,32 +2,73 @@
 
 - 全程使用简体中文回答。
 
-## Aurorama 2.0 交接启动硬门（2026-11-05，优先于下方通用开工顺序）
+## Aurorama 2.0 交接启动硬门（2026-11-06，优先于下方通用开工顺序）
 
 - 新会话第一条只读动作必须实际运行
   `pwsh -NoProfile -File 'F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\v2-handoff\Invoke-HandoffPreflight.ps1' -EmitPrompt`。
   该命令只读、离线、不得调用 `adb` 或网络。任何非零退出、`FAIL_CLOSED`、缺失字段、未知值、
   角色表不完整、gate owner / `requiredBefore` / 门序 / 状态漂移、prompt `actionClass` 或参数
-  不符、设备顺序漂移、窗口非 10 分钟或 APK/工具摘要不一致都必须立即停止。
+  不符、设备顺序漂移、窗口非 10 分钟、APK/工具摘要不一致、`auditReceipt` 对象绑定漂移、
+  未知顶层字段、非白名单 JSON pointer、`immutableStateSha256`、`activeRequiredTokens` 或
+  `requiredTextAnchors` stable pointer 漂移都必须立即停止。
 - 唯一权威机器契约为 `tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json`。唯一 `ACTIVE` 开头必须直接
   展示 `SUBAGENT_FIRST=YES`、`ONE_PHASE_PER_FRESH_AGENT=YES`、`NO_REUSE_SUBAGENT=YES`、
   `ROOT_INTEGRATION_ONLY=YES`、`DEVICE_WINDOW_MINUTES=10`、`DEVICE_ORDER=Pad->K60` 和完整
   角色表；重要规则不能只留在聊天或 Engramory。
-- 唯一 gate 顺序为 `INDEPENDENT_INTEGRATION_REVIEW_PASS -> PRE_HANDOFF_AUDIT_PASS ->
-  QA_DISPATCHABLE`，并保留 `TOOL_NONCONVERGENCE_REPAIRED -> CONTRACT_DIGEST_REFRESHED ->
-  INDEPENDENT_INTEGRATION_REVIEW_PASS` 的上一段语义。每门必须含精确
+- 唯一 gate 顺序为 `PREFLIGHT_PASS -> TOOL_NONCONVERGENCE_REPAIRED ->
+  CONTRACT_DIGEST_REFRESHED -> INDEPENDENT_INTEGRATION_REVIEW_PASS -> PRE_HANDOFF_AUDIT_PASS ->
+  QA_DISPATCHABLE`。每门必须含精确
   `id / owner / requiredBefore / status`；下游 PASS 的前置门未 PASS、owner 漂移、重复 / 缺门、
   乱序或未知状态一律 `FAIL_CLOSED`。QA 必须在 audit PASS 后才可派发。
+- `validation.handoffPhase` 是唯一阶段开关：`PRE_HANDOFF_AUDIT` 只有两个合法子态：
+  `PRE_REVIEW_PENDING`（review gate `BLOCKED`）与
+  `PRE_REVIEW_PASS_AWAITING_AUDIT`（review gate `PASS`）；两者都要求
+  audit / QA=`BLOCKED` 且 padQa 不可派发。`POST_HANDOFF_AUDIT_READY` 只在合法
+  `auditReceipt` 的 `verdict=PASS`、source commit/tree、QA prompt / tools / device-lock /
+  evidence-root / rejectedScope / memory hashes 与现场完全绑定后允许。PRE 下任何 audit / QA
+  PASS、POST 缺 receipt 或 receipt 字段未知 / 缺失 / 算法漂移均 `FAIL_CLOSED`；不得放宽为任意 PASS。
+- POST receipt 还须证明 `auditedSourceCommit` 存在且为当前 HEAD 祖先、`auditedSourceTree`
+  与该 commit 的 tree 一致，并从该 commit 到工作树的变更恰为
+  `auditReceipt.transitionPaths` 白名单；该文件范围门不能替代对象门。POST 还必须从 source
+  commit 的固定 `commit:path` 以严格 UTF-8/LF 读取合同 JSON；source PRE 必须通过与真实
+  PRE 相同的完整语义断言，确认 phase、`auditReceipt=null`、audit/QA gate `BLOCKED`、
+  qaRoundState audit/QA/dispatch 非 PASS、padQa 不可派发且不是 active prompt，并校验
+  `requiredBefore / owner / anchor / tools / APK / roles` 等完整绑定。随后递归比较当前 JSON
+  的 mutation pointer，只允许 receipt、phase、
+  audit / QA gate、qaRoundState audit / dispatch、active prompt / next path、prompt
+  status / dispatch / retiredReason 与固定 validation 转换字段；同时 receipt
+  `immutableStateSha256` 必须同时命中 source 与 current 的 canonical immutable projection。
+  合法 finalizer 不触碰工具、产品或 QA 证据。
+- 文档 token 只能来自 preflight 按 `handoffPhase` 定义的不可变 PRE/POST 常量；合同只保存
+  `ACTIVE_SECTION` 与五个稳定 anchor id/path。POST mutation allowlist 不得包含
+  `activeRequiredTokens` 或 `requiredTextAnchors` 下的任何 pointer；token 为空、带首尾空白、
+  通配符、长度不足或只命中空白均 `FAIL_CLOSED`。
+- `roles[].writeScope` 不能只校验“是数组”。脚本必须按精确角色 ID / 类别常量逐项校验
+  `kind / freshness / phaseLimit / reuse / deviceAccess / writeScope`：`ROOT_INTEGRATION`
+  只有集成元数据占位域，不得写产品或 QA 证据；`TOOL_REPAIR_OWNER` 仅
+  `qa-v8/tools/**`；协议/文档 owner 只可写授权 docs 与 handoff 工具；review / audit
+  owner 写域必须为空；`PAD_QA_OWNER` 仅 `qa-v9/**`；`K60_QA_OWNER` 仅
+  `qa-v10/**` 且只能在 Pad PASS 后解锁。unknown / duplicate role、非精确集合、重复项、
+  空白、traversal、越界 wildcard 或生产路径均 `FAIL_CLOSED`；source 与 current 同步篡改
+  即使重算 receipt / immutable hash 也必须被常量拦截。
 - 新会话 prompt 首动作必须绑定 `actionClass=READ_ONLY_PREFLIGHT` 的精确命令参数；仅以
-  `pwsh -NoProfile` 开头的任意命令不算通过。round3 reviewer 与 pre-handoff audit 必须分别使用
-  不同 fresh 角色，当前真实 QA 状态保持 `BLOCKED`。
+  `pwsh -NoProfile` 开头的任意命令不算通过。round7 因 `ROUND7-P1-01`、round8 因
+  `ROUND8-P1-01` 永久退役，既往 pre-handoff audit owner 永久退役；B11 已修复 PRE 双子态
+  与 source/current 共用断言；全新 `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER` 已独立
+  `PASS` 并永久退役，当前状态为 `ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT`。
+  唯一下一角色是全新 `PRE_HANDOFF_AUDIT_OWNER`，必须只读、`writeScope=[]`、
+  `deviceAccess=FORBIDDEN`，首动作精确运行 preflight。当前真实合同仍为
+  `PRE_HANDOFF_AUDIT`，review gate `PASS`，audit / QA gate `BLOCKED`、`auditReceipt=null`，
+  padQa 保持 `BLOCKED_PENDING_PRE_HANDOFF_AUDIT / dispatchable=false`；review PASS 不是
+  audit / QA / G1 PASS。
 - 负责人只做交付 / 集成编排、范围、白名单、压缩报告与关键 diff 审查、集成决策和交接，不亲自
   实现、修工具、写产品代码或跑真机 QA，也不批量读取 raw 证据。实现、工具修复、文档协议、
   集成审查、Pad QA、K60 QA 各用全新专业子代理；每个 fresh agent 只做一阶段，禁止 followup
   同一代理接下一阶段。
 - 当前 A/B 写边界互斥：A = `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/**`，只给全新
-  `TOOL_REPAIR_OWNER`；B = `AGENTS.md`、2.0 文档与本 preflight 工具根，只给全新
-  `DOC_PROTOCOL_OWNER`。任何共享文件变更由负责人串行仲裁，A/B 不得由同一代理跨写。
+  `TOOL_REPAIR_OWNER`；B = `AGENTS.md`、2.0 文档与本 preflight 工具根，只给 fresh
+  `DOC_PROTOCOL_OWNER` 或本波 B11 / B12 协议状态 owner。B6 / B7 / B8 / B9 / B10 / B11 /
+  B12 完成后均永久退役；任何共享文件变更由负责人串行仲裁，A/B 不得由同一代理跨写。
 - 每设备单次真实 runtime 观测窗固定 10 分钟，不得延长；Pad `43af8627` 核心全部 PASS 且锁释放
   后才允许登记 K60 `8e875894`，且 K60 必须另派全新 QA 串行执行。旧 30 分钟、安装门、stop-only
   或 cleanup 证据不得冒充本轮 10 分钟产品门。

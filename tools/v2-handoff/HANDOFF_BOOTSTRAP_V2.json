@@ -1,7 +1,7 @@
 {
   "contractVersion": "HANDOFF_BOOTSTRAP_V2",
   "schema": "aurorama.handoff-bootstrap.v2",
-  "generatedAt": "2026-11-06T01:07:44.781+08:00",
+  "generatedAt": "2026-11-06T05:33:05.5748834+08:00",
   "inputBaseline": {
     "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
     "branch": "codex/v2-integration",
@@ -25,7 +25,7 @@
     "deviceLockPath": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md"
   },
   "qaRoundState": {
-    "status": "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+    "status": "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
     "lastQaVerdict": "BLOCKED_TOOL_NONCONVERGENCE",
     "round1IntegrationReview": "FAIL_1_P1_2_P2_REPAIRED_CLOSED_BY_ROUND2",
     "round2IntegrationReview": "FAIL_P2_PREFLIGHT_SEMANTIC_BYPASS_REPAIRED_CLOSED_BY_ROUND3_PASS",
@@ -45,6 +45,7 @@
     "cleanup": "PASS_CLEANUP_AND_RESTORE",
     "padLockActiveCount": 0
   },
+  "auditReceipt": null,
   "acceptedArtifacts": {
     "main": {
       "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
@@ -122,7 +123,7 @@
       "round1Findings": "1_P1_2_P2",
       "repairOwnerFresh": true,
       "repairOwnerMayBeReused": false,
-      "repairPhase": "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+      "repairPhase": "POST_SCOPE_P1_REPAIRED_AWAITING_FRESH_ROUND5_REVIEW",
       "changedToolFilesIncludingManifest": 7,
       "regressionsAdded": 4,
       "testsBefore": 21,
@@ -225,14 +226,125 @@
       "summaryTestPointer": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/tests/run-tests.ps1",
       "selfTestPointer": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/self-test.ps1"
     },
-    "rootForceAddRequired": true,
+    "postAuditPhaseRepair": {
+      "rootCause": "CONTRACT_ALLOWED_PRE_AUDIT_STATE_ONLY",
+      "states": [
+        "PRE_HANDOFF_AUDIT",
+        "POST_HANDOFF_AUDIT_READY"
+      ],
+      "receiptRequiredInPost": true,
+      "reviewStatus": "ROUND4_FAIL_P1_REPAIRED_AWAITING_ROUND5_REVIEW",
+      "testStatus": "PASS_50_0"
+    },
+    "postScopeRepair": {
+      "findingId": "ROUND4-P1-01",
+      "severity": "P1",
+      "status": "REPAIRED_AWAITING_FRESH_ROUND5_REVIEW",
+      "rootCause": "POST_VALIDATION_CHECKED_CHANGED_PATHS_ONLY_NOT_JSON_MUTATION_SCOPE",
+      "bypasses": [
+        "acceptedArtifacts.main.versionName",
+        "PAD_QA_OWNER.writeScope += app/phone/src/main/**",
+        "delete NEW_P0_P2_OR_EVIDENCE_TAMPER"
+      ],
+      "repair": "SOURCE_CONTRACT_IMMUTABLE_STATE_HASH_PLUS_RECURSIVE_JSON_POINTER_ALLOWLIST",
+      "testsBefore": 43,
+      "testsAfter": 50,
+      "regressions": [
+        "post-immutable-accepted-versionName",
+        "post-role-writeScope-append",
+        "post-stop-condition-deleted",
+        "top-level-field-extra",
+        "post-unknown-nested-field",
+        "post-non-allowlisted-pointer",
+        "post-immutable-state-hash-drift"
+      ]
+    },
+    "anchorHardeningRepair": {
+      "findingId": "ROUND5-P1-01",
+      "severity": "P1",
+      "status": "REPAIRED_AWAITING_FRESH_ROUND6_REVIEW",
+      "rootCause": "POST_ALLOWED_ANCHOR_TOKEN_MUTATION_AND_CONTAINS_ACCEPTED_WHITESPACE",
+      "repair": "IMMUTABLE_SCRIPT_PHASE_TOKEN_CATALOG_PLUS_STABLE_CONTRACT_POINTERS",
+      "testsBefore": 50,
+      "testsAfter": 54,
+      "regressions": [
+        "post-anchor-tokens-spaces-pretasks-comment",
+        "post-single-anchor-token-drift",
+        "post-unknown-anchor-added",
+        "post-blank-active-required-token"
+      ]
+    },
+    "sourcePreValidationRepair": {
+      "findingId": "ROUND6-P1-01",
+      "severity": "P1",
+      "status": "REPAIRED_AWAITING_FRESH_ROUND7_REVIEW",
+      "rootCause": "POST_VALIDATED_ONLY_PARTIAL_SOURCE_PRE_FIELDS",
+      "repair": "FIXED_COMMIT_PATH_STRICT_UTF8_SOURCE_PRE_ASSERTION_PLUS_CURRENT_POST_ASSERTION",
+      "sourcePhase": "PRE_HANDOFF_AUDIT",
+      "sourceAuditGate": "BLOCKED",
+      "sourceQaGate": "BLOCKED",
+      "sourcePadQaDispatchable": false,
+      "testsBefore": 54,
+      "testsAfter": 67,
+      "regressions": [
+        "source-audit-gate-pass",
+        "source-qa-gate-pass",
+        "source-qa-round-audit-pass",
+        "source-qa-round-dispatch-pass",
+        "source-padQa-active-dispatchable",
+        "source-active-prompt-padQa",
+        "source-receipt-nonnull",
+        "source-audit-owner-drift",
+        "source-audit-required-before-missing",
+        "source-anchor-pointer-drift",
+        "source-tools-digest-drift",
+        "source-apk-sha-drift",
+        "source-contract-utf8-bom"
+      ]
+    },
+    "sourceReviewPassPreStateRepair": {
+      "findingId": "ROUND8-P1-01",
+      "severity": "P1",
+      "status": "REPAIRED_AWAITING_FRESH_ROUND9_REVIEW",
+      "rootCause": "CURRENT_PRE_AND_ACTIVE_TOKENS_HARDCODED_PENDING_REVIEW",
+      "preAuditSubstates": [
+        "PRE_REVIEW_PENDING",
+        "PRE_REVIEW_PASS_AWAITING_AUDIT"
+      ],
+      "reviewGatePolicy": {
+        "PRE_REVIEW_PENDING": "BLOCKED",
+        "PRE_REVIEW_PASS_AWAITING_AUDIT": "PASS"
+      },
+      "auditGatePolicy": "BLOCKED",
+      "qaGatePolicy": "BLOCKED",
+      "padQaDispatchable": false,
+      "sharedAssertion": "Assert-PreAuditState(mode)",
+      "nextRoleId": "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+      "testsBefore": 86,
+      "testsAfter": 96,
+      "regressions": [
+        "current-contract",
+        "pre-review-pass-awaiting-audit-valid",
+        "pre-review-pass-active-token-mismatch",
+        "pre-review-pass-audit-gate-pass",
+        "pre-review-pass-qa-gate-pass",
+        "pre-review-pass-qa-round-audit-pass",
+        "pre-review-pass-padQa-dispatchable",
+        "pre-review-pass-receipt-nonnull",
+        "pre-review-pass-review-gate-blocked",
+        "pre-round8-status-residual",
+        "role-round9-review-writeScope",
+        "post-audit-ready-valid"
+      ]
+    },
+    "rootForceAddRequired": false,
     "rootForceAddPathFamilies": [
       "tools/qa-evidence-contract.ps1",
       "tools/qa-process-lifecycle.ps1",
       "tools/self-test.ps1",
       "tools/tests/**"
     ],
-    "rootForceAddHint": "Round3 review is PASS. After fresh pre-handoff audit PASS, root must explicitly force-add the 10 ignored QA tool files; do not edit .gitignore and do not stage in this state-closure phase.",
+    "rootForceAddHint": "The formerly ignored QA tool files are committed by c4a2d2a1. Treat force-add and uncommitted-file language as historical; do not force-add or stage them again.",
     "inputDigestFrozen": true,
     "refreshRequiredAfterAnyToolChange": true,
     "executeQaWithUnrefreshedDigest": "FORBIDDEN"
@@ -297,7 +409,7 @@
     {
       "order": 3,
       "path": "docs/PROJECT_RULES.md",
-      "section": "R019、R027、R028、R029、R030、R031"
+      "section": "R019、R027、R028、R029、R030、R031、R032"
     },
     {
       "order": 4,
@@ -311,6 +423,11 @@
     },
     {
       "order": 6,
+      "path": "docs/PROJECT_PLAN.md",
+      "section": "Aurorama 2.0 任务线状态"
+    },
+    {
+      "order": 7,
       "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/report.json",
       "section": "仅 status、verdict、object、findings、cleanup、deviceLock 摘要"
     }
@@ -378,7 +495,7 @@
       ],
       "deviceAccess": "FORBIDDEN",
       "deliverable": "机器契约、preflight、同步文档与压缩 PASS/BLOCKED 报告",
-    "stopAfter": "一次性历史角色；初始协议波次后永久退役，禁止 followup 接下一阶段"
+      "stopAfter": "一次性历史角色；初始协议波次后永久退役，禁止 followup 接下一阶段"
     },
     {
       "id": "IMPLEMENTATION_OWNER",
@@ -396,7 +513,7 @@
       ],
       "deviceAccess": "IMPLEMENTATION_SELF_TEST_ONLY_IF_AUTHORIZED",
       "deliverable": "实现报告、构建与自测证据",
-    "stopAfter": "一次性角色；实现报告后停止，不得 followup 接独立 QA、审查或 Release"
+      "stopAfter": "一次性角色；实现报告后停止，不得 followup 接独立 QA、审查或 Release"
     },
     {
       "id": "TOOL_REPAIR_OWNER",
@@ -414,7 +531,7 @@
       ],
       "deviceAccess": "FORBIDDEN",
       "deliverable": "A 白名单内工具修复与拟议新 digest",
-    "stopAfter": "一次性角色；工具修复报告后停止，禁止 followup 接 review、QA、audit、preflight 刷新或 Release"
+      "stopAfter": "一次性角色；工具修复报告后停止，禁止 followup 接 review、QA、audit、preflight 刷新或 Release"
     },
     {
       "id": "DOC_PROTOCOL_OWNER",
@@ -438,7 +555,137 @@
       ],
       "deviceAccess": "FORBIDDEN",
       "deliverable": "刷新后的 B 契约与可执行 next prompt",
-    "stopAfter": "一次性角色；刷新完成后停止，禁止 followup 接 review、QA、audit 或 Release"
+      "stopAfter": "一次性角色；刷新完成后停止，禁止 followup 接 review、QA、audit 或 Release"
+    },
+    {
+      "id": "HANDOFF_POST_AUDIT_PHASE_REPAIR_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "Aurorama 2.0 G1 全新两阶段 handoff 状态机修复 owner（B6）",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只修复 PRE/POST 两阶段状态机、auditReceipt、round4 prompt 与 fail-closed 测试",
+        "同步 B 白名单文档并执行无设备静态门"
+      ],
+      "writeScope": [
+        "AGENTS.md",
+        "docs/PROJECT_RULES.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        "docs/LESSONS.md",
+        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+        "tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+        "tools/v2-handoff/Test-HandoffPreflight.ps1"
+      ],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "两阶段合同、receipt fail-closed、负例测试与待 round4 复审报告",
+      "stopAfter": "B6 修复阶段完成后永久退役；禁止 followup 接 round4、audit、QA、commit、Release 或 merge-prep"
+    },
+    {
+      "id": "HANDOFF_POST_SCOPE_REPAIR_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "Aurorama 2.0 G1 全新 POST mutation-scope repair owner（B7-RETRY）",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只修复 POST 对象 mutation allowlist、immutable state hash 与 fail-closed 回归",
+        "同步 B 白名单文档并执行无设备静态门"
+      ],
+      "writeScope": [
+        "AGENTS.md",
+        "docs/PROJECT_RULES.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        "docs/LESSONS.md",
+        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+        "tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+        "tools/v2-handoff/Test-HandoffPreflight.ps1"
+      ],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "P1 修复、对象 mutation 负例与待 round5 复审报告",
+      "stopAfter": "B7-RETRY 修复阶段完成后永久退役；禁止 followup 接 round5、audit、QA、commit、Release 或 merge-prep"
+    },
+    {
+      "id": "HANDOFF_ANCHOR_HARDENING_REPAIR_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "Aurorama 2.0 G1 全新 anchor hardening repair owner（B8）",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只修复 PRE/POST 文档 token 的脚本周周期常量、合同稳定 pointer 与 anchor fail-closed 回归",
+        "同步 B 白名单文档并执行无设备静态门"
+      ],
+      "writeScope": [
+        "AGENTS.md",
+        "docs/PROJECT_RULES.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        "docs/LESSONS.md",
+        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+        "tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+        "tools/v2-handoff/Test-HandoffPreflight.ps1"
+      ],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "anchor P1 修复、精确 token 负例与待 round6 复审报告",
+      "stopAfter": "B8 修复阶段完成后永久退役；禁止 followup 接 round6、audit、QA、commit、Release 或 merge-prep"
+    },
+    {
+      "id": "HANDOFF_SOURCE_PRE_VALIDATION_REPAIR_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "Aurorama 2.0 G1 全新 source PRE validation repair owner（B9）",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只修复 audited source commit 的完整 PRE 语义断言、strict UTF-8 commit:path 读取与 fail-closed 回归",
+        "同步 B 白名单文档并执行无设备静态门"
+      ],
+      "writeScope": [
+        "AGENTS.md",
+        "docs/PROJECT_RULES.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        "docs/LESSONS.md",
+        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+        "tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+        "tools/v2-handoff/Test-HandoffPreflight.ps1"
+      ],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "source PRE P1 修复、伪 source 负例与 round7 复审输入",
+      "stopAfter": "B9 修复阶段已完成并永久退役；禁止 followup 接 round7、audit、QA、commit、Release 或 merge-prep"
+    },
+    {
+      "id": "HANDOFF_ROLE_SCOPE_HARDENING_REPAIR_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "Aurorama 2.0 G1 全新 role-scope hardening repair owner（B10）",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只在脚本常量中固化角色类别与精确 writeScope，并严格校验 source PRE 与 current POST",
+        "补齐同步篡改、未知角色、重复角色、路径语法与生产越界回归"
+      ],
+      "writeScope": [
+        "AGENTS.md",
+        "docs/PROJECT_RULES.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        "docs/LESSONS.md",
+        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+        "tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+        "tools/v2-handoff/Test-HandoffPreflight.ps1"
+      ],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "角色精确 writeScope 常量、同步篡改回归与待 round8 复审报告",
+      "stopAfter": "B10 修复阶段完成后永久退役；禁止 followup 接 round8、audit、QA、commit、Release 或 merge-prep"
     },
     {
       "id": "INTEGRATION_REVIEW_OWNER",
@@ -454,23 +701,23 @@
       "writeScope": [],
       "deviceAccess": "FORBIDDEN",
       "deliverable": "PASS / FAIL / BLOCKED 只读集成审查报告",
-    "stopAfter": "一次性 round-1 历史角色；FAIL 报告后已退役，禁止 followup 接续、复用或转 QA"
-  },
-  {
-    "id": "ROUND2_READONLY_INTEGRATION_REVIEW_OWNER",
-    "kind": "SPECIALIST",
-    "identity": "历史只读 round-2 集成复审员 / 工具契约与证据链审查员",
-    "freshness": "FRESH_PER_PHASE",
-    "phaseLimit": "ONE",
-    "reuse": "FORBIDDEN",
-    "allowedActions": [
-      "只读复审 round-1 三项 findings 的修复输入、关键 diff、25 项测试入口与 canonical manifest",
-      "只读核验 ACTIVE、TASKS、prompt 阻断、A/B 边界、设备顺序与 preflight 正负门"
-    ],
-    "writeScope": [],
-    "deviceAccess": "FORBIDDEN",
-    "deliverable": "历史 round-2 只读 FAIL / P2 压缩复审报告",
-    "stopAfter": "已退役；禁止复用或 followup 接 round3、pre-handoff audit、QA、Release"
+      "stopAfter": "一次性 round-1 历史角色；FAIL 报告后已退役，禁止 followup 接续、复用或转 QA"
+    },
+    {
+      "id": "ROUND2_READONLY_INTEGRATION_REVIEW_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "历史只读 round-2 集成复审员 / 工具契约与证据链审查员",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只读复审 round-1 三项 findings 的修复输入、关键 diff、25 项测试入口与 canonical manifest",
+        "只读核验 ACTIVE、TASKS、prompt 阻断、A/B 边界、设备顺序与 preflight 正负门"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "历史 round-2 只读 FAIL / P2 压缩复审报告",
+      "stopAfter": "已退役；禁止复用或 followup 接 round3、pre-handoff audit、QA、Release"
     },
     {
       "id": "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
@@ -489,6 +736,102 @@
       "stopAfter": "历史 round3 PASS 后永久退役；禁止复用或 followup 接 pre-handoff audit、QA、Release"
     },
     {
+      "id": "ROUND4_READONLY_INTEGRATION_REVIEW_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "全新只读 round4 集成复审员 / 两阶段 handoff 状态机与 auditReceipt 审查员",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只读复核 PRE/POST 两阶段状态机、auditReceipt、transitionPaths 与 fail-closed 负例",
+        "只读核验 Git 边界、ACTIVE/TASKS、round4 首动作、tools digest 与下一阶段可行性"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "round4 只读 PASS / FAIL / BLOCKED 压缩复审报告",
+      "stopAfter": "已因 ROUND4-P1-01 退役；禁止 followup、复用或接 round5、commit、pre-handoff audit、QA 与 Release"
+    },
+    {
+      "id": "ROUND5_READONLY_INTEGRATION_REVIEW_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "全新只读 round5 集成复审员 / POST mutation-scope 与 immutable state 审查员",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只读复核 ROUND4-P1-01 的三项绕过、recursive pointer allowlist 与 immutable hash",
+        "只读执行 PRE/POST 正负例、TASKS/ACTIVE、tools digest 与下一阶段可行性核验"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "round5 只读 PASS / FAIL / BLOCKED 压缩复审报告",
+      "stopAfter": "已因 ROUND5-P1-01 永久退役；禁止复用或 followup 接 round6、commit、pre-handoff audit、QA 或 Release"
+    },
+    {
+      "id": "ROUND6_READONLY_INTEGRATION_REVIEW_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "全新只读 round6 集成复审员 / anchor token catalog 与 POST immutability 审查员",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只读复核 ROUND5-P1-01、PRE/POST 精确 token、稳定 anchor pointer 与 Assert-Tokens fail-closed",
+        "只读执行 PRE/POST 正负例、tools digest、ACTIVE/TASKS 与下一阶段可行性核验"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "round6 历史只读复审报告",
+      "stopAfter": "round6 因 ROUND6-P1-01 永久退役；禁止复用或 followup"
+    },
+    {
+      "id": "ROUND7_READONLY_INTEGRATION_REVIEW_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "Aurorama 2.0 G1 全新只读 round7 集成复审员 / source PRE 与 current POST 双断言审查员",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只读复审 ROUND6-P1-01、audited source PRE 完整语义、fixed commit:path 严格读取与 current POST 双断言",
+        "只读执行 PRE/POST 正负例、tools digest、ACTIVE/TASKS 与阶段边界核验"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "round7 只读 PASS / FAIL / BLOCKED 压缩复审报告",
+      "stopAfter": "round7 已因 ROUND7-P1-01 永久退役；禁止复用或 followup 接 commit、pre-handoff audit、QA 或 Release"
+    },
+    {
+      "id": "ROUND8_READONLY_INTEGRATION_REVIEW_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "Aurorama 2.0 G1 全新只读 round8 集成复审员 / 角色 writeScope 语义与同步篡改审查员",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只读复审 ROUND7-P1-01、source/current 角色类别与精确 writeScope 常量及同步摘要重算回归",
+        "只读执行 PRE/POST 正负例、tools digest、ACTIVE/TASKS 与阶段边界核验"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "round8 只读 PASS / FAIL / BLOCKED 压缩复审报告",
+      "stopAfter": "round8 因 ROUND8-P1-01 永久退役；禁止 followup 接 commit、pre-handoff audit、QA 或 Release"
+    },
+    {
+      "id": "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+      "kind": "SPECIALIST",
+      "identity": "Aurorama 2.0 G1 全新只读 round9 集成复审员 / PRE 双子态、current PRE 与 source PRE 一致性审查员",
+      "freshness": "FRESH_PER_PHASE",
+      "phaseLimit": "ONE",
+      "reuse": "FORBIDDEN",
+      "allowedActions": [
+        "只读复审 ROUND8-P1-01、PRE_REVIEW_PENDING 与 PRE_REVIEW_PASS_AWAITING_AUDIT 两子态",
+        "只读验证 source/current 共用 Assert-PreAuditState、round9 token 与 audit/QA 永阻断边界"
+      ],
+      "writeScope": [],
+      "deviceAccess": "FORBIDDEN",
+      "deliverable": "round9 只读 PASS / FAIL / BLOCKED 压缩复审报告",
+      "stopAfter": "一次性角色；round9 复审报告后永久退役，禁止 followup 接 commit、pre-handoff audit、QA 或 Release"
+    },
+    {
       "id": "PRE_HANDOFF_AUDIT_OWNER",
       "kind": "SPECIALIST",
       "identity": "独立交接审计员 / 证据与文档核验师",
@@ -497,12 +840,12 @@
       "reuse": "FORBIDDEN",
       "allowedActions": [
         "独立审查 Git、唯一 ACTIVE、任务板、契约、提示词、工具边界与证据指针",
-        "核验继承的未提交 / ignored 文件和 root force-add 集成说明"
+        "在 POST 阶段复核 auditReceipt 的对象绑定、转换范围和 QA 可派发条件"
       ],
       "writeScope": [],
       "deviceAccess": "FORBIDDEN",
       "deliverable": "pre-handoff audit PASS / FAIL / BLOCKED 压缩报告",
-    "stopAfter": "一次性角色；交接审计报告后停止，禁止 followup 改文件、跑 QA、派代理或转交自身"
+      "stopAfter": "一次性角色；交接审计报告后停止，禁止 followup 改文件、跑 QA、派代理或转交自身"
     },
     {
       "id": "PAD_QA_OWNER",
@@ -521,7 +864,7 @@
       ],
       "deviceAccess": "PAD_ONLY",
       "deliverable": "Pad 10 分钟核心矩阵 PASS/FAIL/BLOCKED 与 cleanup 证据",
-    "stopAfter": "一次性角色；Pad 报告后停止，禁止 followup 接 K60、修复工具、实现或 Release"
+      "stopAfter": "一次性角色；Pad 报告后停止，禁止 followup 接 K60、修复工具、实现或 Release"
     },
     {
       "id": "K60_QA_OWNER",
@@ -540,11 +883,11 @@
       ],
       "deviceAccess": "K60_ONLY_AFTER_PAD_PASS",
       "deliverable": "K60 10 分钟核心矩阵 PASS/FAIL/BLOCKED 与 cleanup 证据",
-    "stopAfter": "一次性角色；K60 报告后停止，禁止 followup 修改实现、工具、协议或接 Release"
+      "stopAfter": "一次性角色；K60 报告后停止，禁止 followup 修改实现、工具、协议或接 Release"
     }
   ],
   "requiredGates": {
-    "lifecycleVersion": "AURORAMA_HANDOFF_GATE_ORDER_V1",
+    "lifecycleVersion": "AURORAMA_HANDOFF_GATE_ORDER_V2",
     "lifecycle": [
       {
         "id": "PREFLIGHT_PASS",
@@ -570,7 +913,7 @@
       },
       {
         "id": "INDEPENDENT_INTEGRATION_REVIEW_PASS",
-        "owner": "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+        "owner": "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
         "requiredBefore": [
           "CONTRACT_DIGEST_REFRESHED"
         ],
@@ -612,12 +955,16 @@
     "NEW_P0_P2_OR_EVIDENCE_TAMPER",
     "CLEANUP_OR_CAPTURE_RESTORE_FAIL",
     "INDEPENDENT_REVIEW_OR_PRE_HANDOFF_AUDIT_NOT_PASSED",
+    "AUDIT_RECEIPT_MISSING_UNKNOWN_OR_BINDING_DRIFT",
+    "POST_AUDIT_TRANSITION_PATH_OUTSIDE_ALLOWLIST",
+    "ANCHOR_TOKEN_OR_POINTER_DRIFT",
+    "SOURCE_PRE_AUDIT_QA_PASS_OR_STATE_DRIFT",
     "PRODUCTION_CODE_G2_Q03_PROFILE_RELEASE_SERVER_WRITE_OR_PUSH_NOT_AUTHORIZED"
   ],
   "firstReadOnlyActions": {
     "toolRepair": [
       "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -EmitPrompt",
-      "Preflight PASS 后，以全新 PRE_HANDOFF_AUDIT_OWNER 只读审计 Git、唯一 ACTIVE、TASKS、memory、设备锁、下一 prompt、round3 PASS 证据与 root force-add 说明；不得写文件或转 QA。"
+      "Preflight PASS 后，以全新 PRE_HANDOFF_AUDIT_OWNER 对 round9 review PASS 后的 PRE 合同执行一次只读 pre-handoff audit；不得写文件、接 QA、复用 reviewer 或宣称 audit PASS。"
     ],
     "padQa": [
       "pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -Prompt padQa -EmitPrompt",
@@ -634,6 +981,7 @@
       "roleId": "PRE_HANDOFF_AUDIT_OWNER",
       "status": "ACTIVE",
       "dispatchable": true,
+      "retiredReason": null,
       "actionClass": "READ_ONLY_PREFLIGHT",
       "command": [
         "pwsh",
@@ -649,8 +997,30 @@
         "NO_REUSE_SUBAGENT=YES",
         "ROOT_INTEGRATION_ONLY=YES",
         "PRE_HANDOFF_AUDIT_OWNER",
-        "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
-        "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND8_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW",
+        "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+        "BLOCKED_PENDING_ROUND9_REVIEW",
+        "PRE_REVIEW_PENDING",
+        "PRE_REVIEW_PASS_AWAITING_AUDIT",
+        "ROUND8-P1-01",
+        "validation.handoffPhase=PRE_HANDOFF_AUDIT",
+        "POST_HANDOFF_AUDIT_READY",
+        "auditReceipt",
+        "ROUND6-P1-01",
+        "ROUND7-P1-01",
+        "ROUND5-P1-01",
+        "ROUND4-P1-01",
+        "immutableStateSha256",
+        "postMutationPointerAllowlist",
+        "requiredTextAnchors",
+        "activeRequiredTokens",
+        "ROUND6_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND5_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND4_READONLY_INTEGRATION_REVIEW_OWNER",
+        "HANDOFF_SOURCE_PRE_VALIDATION_REPAIR_OWNER",
+        "HANDOFF_ROLE_SCOPE_HARDENING_REPAIR_OWNER",
         "INDEPENDENT_INTEGRATION_REVIEW_PASS",
         "PRE_HANDOFF_AUDIT_PASS",
         "ROUND2-P2-01",
@@ -660,9 +1030,10 @@
         "31",
         "2984",
         "25/25",
-        "16/16",
+        "86/86",
+        "96/96",
         "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
-        "pre-handoff audit",
+        "GET / POST fail-closed",
         "qa-v8/tools",
         "READ_ONLY_PREFLIGHT",
         "QA_DISPATCHABLE",
@@ -670,24 +1041,25 @@
         "DEVICE_ORDER=Pad->K60"
       ],
       "textLines": [
-        "专业身份：PRE_HANDOFF_AUDIT_OWNER（Aurorama 2.0 G1 的全新独立 pre-handoff audit 审计员 / Git、文档、记忆与证据一致性核验师）；你不是 root、ROUND3_READONLY_INTEGRATION_REVIEW_OWNER、round1/round2 reviewer、工具修复 owner、B3/B4 写者、QA、Release 或 merge-prep 执行者。",
-        "SUBAGENT_FIRST=YES；ONE_PHASE_PER_FRESH_AGENT=YES；NO_REUSE_SUBAGENT=YES；ROOT_INTEGRATION_ONLY=YES。本角色一次性、只做 pre-handoff audit；禁止复用任何历史 reviewer / 修复 owner，禁止 followup 接 QA、Release 或任何下一阶段。",
+        "专业身份：PRE_HANDOFF_AUDIT_OWNER（Aurorama 2.0 G1 的全新独立只读 pre-handoff audit owner / 对象绑定与证据链核验师）；你与 root、全部 repair owner、ROUND9_READONLY_INTEGRATION_REVIEW_OWNER、历史 reviewer、QA 与 Release 均不同。",
+        "SUBAGENT_FIRST=YES；ONE_PHASE_PER_FRESH_AGENT=YES；NO_REUSE_SUBAGENT=YES；ROOT_INTEGRATION_ONLY=YES。本角色一次性、只做本轮 pre-handoff audit；ROUND9_READONLY_INTEGRATION_REVIEW_OWNER 与 ROUND8_READONLY_INTEGRATION_REVIEW_OWNER 已退役，禁止复用、followup 或接 commit / QA / Release。",
         "第一条只读动作必须实际执行：pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -EmitPrompt。其 actionClass 必须为 READ_ONLY_PREFLIGHT；命令路径与参数必须逐项命中机器契约，任何非零或 FAIL_CLOSED 立即停止并只报压缩失败。",
-        "Preflight PASS 后精确读序：docs/V2_PLAN.md §12 唯一 ACTIVE 的角色表、canonical gate lifecycle、状态与下一动作 → AGENTS.md 顶部 2.0 硬门 → docs/PROJECT_RULES.md R028/R029/R030/R031 → 本机器契约的 qaRoundState / requiredGates / roles / prompts / validation → docs/TASKS.md 仅三条 In Progress → docs/PROJECT_PLAN.md 2.0 行 → docs/LESSONS.md L020。Engramory 只读 MEMORY.md 及 Aurorama 2.0 project note，并运行 checker / doctor；禁止修改记忆。",
-        "Round3 独立复审已 PASS，owner=ROUND3_READONLY_INTEGRATION_REVIEW_OWNER；Git 边界无越界，qa-v8/tools 31/31、manifest 2984 B、digest 69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4；run-tests 25/25、self-test AST 31 / UTF-8 31、contract 16/16，15 类伪造契约 exit 2；QA-V9 dry-run 未改变 tools / manifest hash 或 mtime。",
-        "当前 phase 是 ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT。Round1 的 ROUND1-P1-01 / ROUND1-P2-01 / ROUND1-P2-02 已 CLOSED_BY_ROUND2_REVIEW；ROUND2-P2-01 已 CLOSED_BY_ROUND3_REVIEW_PASS。当前 gate 真实状态必须是 INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED；round3 PASS 不是 pre-handoff audit PASS、QA PASS、已合并或 G1 PASS。",
-        "审计范围：事实 worktree、branch、输入基线祖先、staged / unstaged 与 ignored 文件；唯一 ACTIVE；TASKS 恰三条；memory checker / doctor；设备锁 ACTIVE=0；下一 prompt 角色与首动作；10 个 ignored QA tools 的 root force-add 路径族；契约、文档、旧 findings 关闭状态与证据指针一致性。",
-        "预期当前工作树尚未 commit，允许的 tracked / untracked 变更必须只命中本轮 B 白名单与既有 qa-v8 tools 修复集合；qa-v8/tools 31 项 digest、manifest 2984 B / hash / mtime 不得改变，不得出现 qa-v9 证据、report 或生产改动。root 后续两段提交与 ignored 10 项 force-add 只作为审计对象，不由本角色执行。",
+        "Preflight PASS 后精确读序：docs/V2_PLAN.md §12 唯一 ACTIVE 的角色表、两阶段状态、canonical gate lifecycle 与下一动作 → AGENTS.md 顶部 2.0 硬门 → docs/PROJECT_RULES.md R028/R029/R029A/R030/R031/R032 → 本机器契约的 validation.handoffPhase / activeRequiredTokens / requiredTextAnchors / immutableStateFields / postMutationPointerAllowlist / auditReceipt / requiredGates / roles / prompts → docs/TASKS.md 仅三条 In Progress → docs/PROJECT_PLAN.md 2.0 行 → docs/LESSONS.md L024/L025/L026。Engramory 只读 MEMORY.md 及 Aurorama 2.0 project note，并运行 checker / doctor；禁止修改记忆。",
+        "审计目标：独立核验 round9 fresh reviewer 的 PASS 证据、Git / branch / HEAD / 工作树、唯一 ACTIVE、三条 In Progress、22 角色、6 gates、prompts.toolRepair=ACTIVE PRE_HANDOFF_AUDIT_OWNER、prompts.padQa=BLOCKED_PENDING_PRE_HANDOFF_AUDIT / dispatchable=false、auditReceipt=null、设备锁与证据指针；确认 PRE_REVIEW_PENDING 与 PRE_REVIEW_PASS_AWAITING_AUDIT 两合法子态、ROUND8-P1-01 修复及当前 review PASS，audit / QA 仍 blocked。任何 audit / QA PASS、padQa dispatch 或 receipt nonnull 均 exit 2。",
+        "当前事实：validation.handoffPhase=PRE_HANDOFF_AUDIT；合同状态 ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT；review PASS owner ROUND9_READONLY_INTEGRATION_REVIEW_OWNER；历史 BLOCKED_PENDING_ROUND9_REVIEW 与 ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW 仅作回归。下一唯一角色是全新 PRE_HANDOFF_AUDIT_OWNER；PRE 仍不得写 audit / QA PASS 或激活 padQa。",
+        "历史关闭项 ROUND1-P1-01 / ROUND1-P2-01 / ROUND1-P2-02 / ROUND2-P2-01 不得复活；旧 ROUND8-P1-01 / ROUND7-P1-01 / ROUND6-P1-01 / ROUND5-P1-01 / ROUND4-P1-01 以及 ROUND6_READONLY_INTEGRATION_REVIEW_OWNER / ROUND5_READONLY_INTEGRATION_REVIEW_OWNER / ROUND4_READONLY_INTEGRATION_REVIEW_OWNER、HANDOFF_SOURCE_PRE_VALIDATION_REPAIR_OWNER、HANDOFF_ROLE_SCOPE_HARDENING_REPAIR_OWNER 只作退役回归。GET / POST fail-closed 均须继续由正负夹具证明；legal POST_HANDOFF_AUDIT_READY 仍须验证 immutableStateSha256、INDEPENDENT_INTEGRATION_REVIEW_PASS、PRE_HANDOFF_AUDIT_PASS、QA_DISPATCHABLE。",
+        "当前工作树的 10 个原有 QA 工具文件已由 c4a2d2a1 纳入 Git；qa-v8/tools 31 项、manifest 2984 B、digest 69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4、run-tests 25/25 必须维持不变。B10 原始 86/86 回归全部保留，B11 合同回归 96/96 PASS 且 TEMP_CLEANUP=PASS；round9 fresh reviewer 已独立 PASS，仍须由本角色重新核验事实，不得引用自证代替。",
         "只读写边界：不得修改任何仓库文件、ACTIVE、TASKS、契约、docs、qa-v8/tools、记忆、旧 report、QA 证据或 Git index；不得 adb、设备、网络、QA、commit/push/tag。只可运行既有只读 preflight / 测试 / memory validator，临时夹具必须置于系统临时目录并清理。",
-        "停止条件：任何非零或 FAIL_CLOSED；Git / 唯一 ACTIVE / TASKS / memory / 设备锁 / 下一 prompt 任一项不一致；需要写仓库或改 ACTIVE；发现越界文件、digest / mtime 漂移、产品 PASS 过度声明、QA 提前派发条件或新 P0-P2。立即停止并报 BLOCKED，不得修文件后继续。",
-        "全局设备门保持不变：DEVICE_WINDOW_MINUTES=10；DEVICE_ORDER=Pad->K60。审计阶段禁止 adb、设备与提前登记 K60；当前 padQa 必须为 BLOCKED_PENDING_PRE_HANDOFF_AUDIT、dispatchable=false。只有本轮 audit PASS 后由负责人刷新契约，才可另建全新 Pad QA。",
-        "输出仅含 PASS / FAIL / BLOCKED、Git 与文件范围、唯一 ACTIVE / TASKS=3、memory validator、设备锁、下一 prompt、round3 证据复算、P0-P3（产品未评估则 NOT_ASSESSED）、未覆盖与证据指针，然后停止。不得自行宣称 PRE_HANDOFF_AUDIT_PASS 已交付；实际审计结论必须由本 fresh owner 给出。"
+        "停止条件：任何非零或 FAIL_CLOSED；Git / 唯一 ACTIVE / TASKS / memory / 设备锁 / 下一 prompt 任一项不一致；需要写仓库或改 ACTIVE；review PASS 与 gate / token / owner 不一致；auditReceipt 字段缺失 / 未知 / 算法漂移；source commit / tree / transitionPaths / 各哈希不一致；未知 JSON pointer、immutable hash 漂移；QA 提前派发、产品 PASS 过度声明或新 P0-P2。立即停止并报 BLOCKED，不得修文件后继续。",
+        "全局设备门保持不变：DEVICE_WINDOW_MINUTES=10；DEVICE_ORDER=Pad->K60。审计阶段禁止 adb、设备与提前登记 K60；只有本审计 PASS、root 固定源码对象并生成 exact receipt 后，合法 finalizer 才可切换 POST 并激活 padQa。",
+        "输出仅含 PASS / FAIL / BLOCKED、Git 与文件范围、PRE/POST 正负例、receipt 字段与对象绑定、唯一 ACTIVE / TASKS=3、memory validator、设备锁、P0-P3（产品未评估则 NOT_ASSESSED）、未覆盖与证据指针，然后停止。不得自行修改 ACTIVE、运行 QA 或将待审计写成 audit PASS。"
       ]
     },
     "padQa": {
       "roleId": "PAD_QA_OWNER",
       "status": "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
       "dispatchable": false,
+      "retiredReason": null,
       "actionClass": "READ_ONLY_PREFLIGHT",
       "command": [
         "pwsh",
@@ -706,7 +1078,17 @@
         "ROOT_INTEGRATION_ONLY=YES",
         "PAD_QA_OWNER",
         "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
-        "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
+        "POST_HANDOFF_AUDIT_READY",
+        "auditReceipt",
+        "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND8_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND6_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND5_READONLY_INTEGRATION_REVIEW_OWNER",
+        "ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW",
+        "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+        "PRE_REVIEW_PENDING",
+        "PRE_REVIEW_PASS_AWAITING_AUDIT",
+        "ROUND8-P1-01",
         "READ_ONLY_PREFLIGHT",
         "pre-handoff audit",
         "DEVICE_WINDOW_MINUTES=10",
@@ -725,10 +1107,10 @@
       "textLines": [
         "专业身份：PAD_QA_OWNER（Aurorama 2.0 G1 的全新独立 Pad QA / 用户承诺验证经理）；你与实现、QA-v7、QA-v8 两次执行、工具修复和协议 owner 均不同。",
         "SUBAGENT_FIRST=YES；ONE_PHASE_PER_FRESH_AGENT=YES；NO_REUSE_SUBAGENT=YES；ROOT_INTEGRATION_ONLY=YES。每阶段换 agent；完成本阶段即停，禁止 followup 接 K60 或任何后续阶段。",
-        "第一条只读动作必须实际执行：pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -Prompt padQa -EmitPrompt。其 actionClass 必须为 READ_ONLY_PREFLIGHT；当前 prompt 状态固定为 BLOCKED_PENDING_PRE_HANDOFF_AUDIT 且不可派发；只有负责人已提供全新 ROUND3_READONLY_INTEGRATION_REVIEW_OWNER 的 PASS、另一全新 PRE_HANDOFF_AUDIT_OWNER 的 PASS，并把本 prompt 合法激活后才可继续。任何非零、PROMPT-NOT-ACTIVE 或 FAIL_CLOSED 立即停止。",
-        "精确读序：唯一 ACTIVE → AGENTS 顶部硬门 → PROJECT_RULES R029/R030/R031 → 本机器契约 → TASKS 三条 In Progress → round3 只读 integration review 压缩报告 → pre-handoff audit 压缩报告 → qa-v8/report.json 仅 status/verdict/object/findings/cleanup/deviceLock 摘要。rejectedScope：禁读 raw/attempts 原始日志、qa-v3/v6/v7 原始证据批量、全量 logcat、截图、生产源码、无关记忆；禁读或触碰凭据。",
+        "第一条只读动作必须实际执行：pwsh -NoProfile -File 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\tools\\v2-handoff\\Invoke-HandoffPreflight.ps1' -Prompt padQa -EmitPrompt。其 actionClass 必须为 READ_ONLY_PREFLIGHT；PRE 合同必须返回 BLOCKED_PENDING_PRE_HANDOFF_AUDIT 且 dispatchable=false，任何 PRE_REVIEW_PENDING 或 PRE_REVIEW_PASS_AWAITING_AUDIT 均不得激活 QA；只有 POST_HANDOFF_AUDIT_READY 的合法 auditReceipt、round9 PASS 与 fresh pre-handoff audit PASS 全部绑定后才允许 ACTIVE。任何非零、PROMPT-NOT-ACTIVE 或 FAIL_CLOSED 立即停止。ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW 与 ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT 都只表示 PRE，后者也不是 audit PASS。",
+        "精确读序：唯一 ACTIVE → AGENTS 顶部硬门 → PROJECT_RULES R029/R029A/R030/R031/R032 → 本机器契约 → TASKS 三条 In Progress → ROUND9_READONLY_INTEGRATION_REVIEW_OWNER 的压缩报告 → fresh pre-handoff audit 压缩报告 → qa-v8/report.json 仅 status/verdict/object/findings/cleanup/deviceLock 摘要；ROUND8_READONLY_INTEGRATION_REVIEW_OWNER 因 ROUND8-P1-01 退役，ROUND6_READONLY_INTEGRATION_REVIEW_OWNER、ROUND5_READONLY_INTEGRATION_REVIEW_OWNER 与 ROUND7_READONLY_INTEGRATION_REVIEW_OWNER 仅作历史。rejectedScope：禁读 raw/attempts 原始日志、qa-v3/v6/v7 原始证据批量、全量 logcat、截图、生产源码、无关记忆；禁读或触碰凭据。",
         "当前输入：main=.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk，427009671 B，SHA-256=252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161，package=dev.aurorama.kokoro.harness，versionCode=4，versionName=2.0-kokoro-runtime-v5，ABI=arm64-v8a，internetPermission=false；peer=.planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk，12696 B，SHA-256=61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab，package=dev.aurorama.kokoro.focuspeer。",
-        "tools 输入固定为 31 项、manifest 2984 bytes、相对路径 ordinal 排序、自排除 tools.sha256、UTF-8/LF、摘要 69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4；启动前必须由 preflight 现场重算并 31/31 MATCH。旧 d8e98a90…d0bfb 的 21 条与 superseded digest 仅为历史，不得使用。",
+        "tools 输入固定为 31 项、manifest 2984 bytes、相对路径 ordinal 排序、自排除 tools.sha256、UTF-8/LF、摘要 69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4；启动前必须由 preflight 现场重算并 31/31 MATCH。10 个既有工具文件已由 c4a2d2a1 入库，不得再次登记为未提交对象。旧 d8e98a90…d0bfb 的 21 条与 superseded digest 仅为历史，不得使用。",
         "证据根固定为 .planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9；启动前确认未被复用、设备锁显式登记 serial=43af8627。DEVICE_ORDER=Pad->K60；本代理只碰 Pad，K60 serial=8e875894 必须等 Pad 核心 PASS 且锁释放后由另一全新 QA 执行。",
         "Pad 先做 fresh install、package/version/ABI/permission 与 user0 身份核验，再执行单次 DEVICE_WINDOW_MINUTES=10 真实 runtime 观测，不得延长。完整产品门必须全部执行：zf_001/zm_010、真实 AudioTrack start/completion、头/中/尾连续性、最大 audio gap ≤15 秒、FGS/MediaSession/notification、PID/resource 收敛、当前 run ApplicationExitInfo/native/Java/F DEBUG/crash/ANR/InputTimeout、audio focus/单音频 owner、final UID 零网络、capture-restore 与 cleanup。",
         "失败即停：核心未执行或失败、AudioTrack 不真、gap>15 秒、crash/ANR/InputTimeout、resource/focus/owner 不收敛、APK/SHA/tools/identity/lock 漂移、超过 10 分钟或需要第二次尝试均停止；不得自动重试，不得把旧 30 分钟/QA-v5/v6/v7/stop-only/安装门/cleanup 当作产品 PASS，也不得用 PASS_WITH_GAPS 覆盖核心未执行。",
@@ -738,6 +1120,7 @@
     }
   },
   "validation": {
+    "handoffPhase": "PRE_HANDOFF_AUDIT",
     "activeDocument": "docs/V2_PLAN.md",
     "activeHeadingPrefix": "### ACTIVE",
     "activePromptExpectedRoleId": "PRE_HANDOFF_AUDIT_OWNER",
@@ -745,115 +1128,109 @@
     "tasksDocument": "docs/TASKS.md",
     "tasksInProgressHeading": "## In Progress",
     "tasksInProgressExpectedCount": 3,
+    "memoryIndexPath": "F:\\Develop\\codex_work\\Documents\\Codex\\engramory-memory\\MEMORY.md",
+    "preAuditAllowedDirtyPaths": [
+      "AGENTS.md",
+      "docs/PROJECT_RULES.md",
+      "docs/PROJECT_PLAN.md",
+      "docs/V2_PLAN.md",
+      "docs/TASKS.md",
+      "docs/LESSONS.md",
+      "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+      "tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+      "tools/v2-handoff/Test-HandoffPreflight.ps1"
+    ],
+    "postAuditTransitionPaths": [
+      "docs/TASKS.md",
+      "docs/V2_PLAN.md",
+      "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
+    ],
+    "auditReceiptSchema": [
+      "schema",
+      "verdict",
+      "auditorRole",
+      "auditedSourceCommit",
+      "auditedSourceTree",
+      "auditedAt",
+      "qaPromptSha256",
+      "toolsDigest",
+      "deviceLockState",
+      "deviceLockSha256",
+      "qaEvidenceRoot",
+      "rejectedScopeHash",
+      "memoryIndexSha256",
+      "immutableStateSha256",
+      "transitionPaths"
+    ],
+    "immutableStateFields": [
+      "acceptedArtifacts",
+      "contractVersion",
+      "devicePolicy",
+      "evidence",
+      "evidenceRoot",
+      "firstReadOnlyActions",
+      "generatedAt",
+      "handoffFlags",
+      "inputBaseline",
+      "productGates",
+      "qaTools",
+      "qa_prompt_path",
+      "qaPromptPath",
+      "readOrder",
+      "rejectedScope",
+      "roles",
+      "schema",
+      "stopConditions"
+    ],
+    "postMutationPointerAllowlist": [
+      "/auditReceipt",
+      "/validation/handoffPhase",
+      "/validation/activePromptExpectedRoleId",
+      "/validation/qaPromptRequiredStatus",
+      "/qaRoundState/status",
+      "/qaRoundState/preHandoffAudit",
+      "/qaRoundState/padQaPromptDispatch",
+      "/activePrompt",
+      "/next_prompt_path",
+      "/nextPromptPath",
+      "/prompts/toolRepair/status",
+      "/prompts/toolRepair/dispatchable",
+      "/prompts/toolRepair/retiredReason",
+      "/prompts/padQa/status",
+      "/prompts/padQa/dispatchable",
+      "/prompts/padQa/retiredReason",
+      "/requiredGates/lifecycle/4/status",
+      "/requiredGates/lifecycle/5/status"
+    ],
+    "qaPromptSha256Algorithm": "SHA256 UTF8(LF; prompts.padQa.textLines joined by LF; final LF)",
+    "rejectedScopeHashAlgorithm": "SHA256 UTF8(LF; rejectedScope serialized as compact JSON in property order; final LF)",
+    "memoryIndexSha256Algorithm": "SHA256 raw MEMORY.md bytes",
+    "deviceLockStateAlgorithm": "RELEASED_ACTIVE_0 only when current-occupancy headings contain no ACTIVE lock",
     "toolsDigestAlgorithm": "SHA256 UTF8(LF; '<file-sha256>  tools/<relative>' lines; relative path ordinal; final LF; tools.sha256 self-excluded)",
+    "immutableStateSha256Algorithm": "SHA256 UTF8(LF; selected source-contract fields canonicalized with ordinal-sorted object keys, arrays in order, compact JSON; final LF)",
     "activeRequiredTokens": [
-      "HANDOFF_BOOTSTRAP_V2",
-      "SUBAGENT_FIRST=YES",
-      "ONE_PHASE_PER_FRESH_AGENT=YES",
-      "NO_REUSE_SUBAGENT=YES",
-      "ROOT_INTEGRATION_ONLY=YES",
-      "DEVICE_WINDOW_MINUTES=10",
-      "DEVICE_ORDER=Pad->K60",
-      "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
-      "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS",
-      "CONTRACT_DIGEST_REFRESHED",
-      "PREFLIGHT_PASS",
-      "PRE_HANDOFF_AUDIT_PASS=BLOCKED",
-      "QA_DISPATCHABLE=BLOCKED",
-      "QA_DISPATCHABLE_BLOCKED",
-      "ROUND3_REVIEW_PASS",
-      "CORE_STEPS_0",
-      "PRODUCT_P0_P3_NOT_ASSESSED",
-      "K60_NOT_RUN",
-      "ACTIVE=0",
-      "31",
-      "2984",
-      "25/25",
-      "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
-      "ROUND1-P1-01",
-      "ROUND1-P2-01",
-      "ROUND1-P2-02",
-      "ROUND2-P2-01",
-      "ROOT_INTEGRATION",
-      "IMPLEMENTATION_OWNER",
-      "TOOL_REPAIR_OWNER",
-      "DOC_PROTOCOL_OWNER",
-      "INTEGRATION_REVIEW_OWNER",
-      "ROUND2_READONLY_INTEGRATION_REVIEW_OWNER",
-      "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
-      "PRE_HANDOFF_AUDIT_OWNER",
-      "PAD_QA_OWNER",
-      "K60_QA_OWNER",
-      "INDEPENDENT_INTEGRATION_REVIEW_PASS",
-      "PRE_HANDOFF_AUDIT_PASS",
-      "QA_DISPATCHABLE",
-      "READ_ONLY_PREFLIGHT",
-      "tools/v2-handoff/Invoke-HandoffPreflight.ps1"
+      "ACTIVE_SECTION"
     ],
     "requiredTextAnchors": [
       {
-        "path": "AGENTS.md",
-        "tokens": [
-          "HANDOFF_BOOTSTRAP_V2",
-          "Invoke-HandoffPreflight.ps1",
-          "FAIL_CLOSED",
-          "DEVICE_WINDOW_MINUTES=10"
-        ]
+        "id": "AGENTS",
+        "path": "AGENTS.md"
       },
       {
-        "path": "docs/PROJECT_RULES.md",
-        "tokens": [
-          "R029",
-          "R030",
-          "R031",
-          "HANDOFF_BOOTSTRAP_V2",
-          "DEVICE_ORDER=Pad->K60"
-        ]
+        "id": "PROJECT_RULES",
+        "path": "docs/PROJECT_RULES.md"
       },
       {
-        "path": "docs/PROJECT_PLAN.md",
-        "tokens": [
-          "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
-          "PRE_HANDOFF_AUDIT_OWNER",
-          "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
-          "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
-          "25/25",
-          "HANDOFF_BOOTSTRAP_V2"
-        ],
-        "forbiddenTokens": [
-          "Pad QA-v6 native crash P1 修复已授权",
-          "HANDOFF_BOOTSTRAP_V2_BUILT_PREFLIGHT_BLOCKED_A_TOOLS_DRIFT"
-        ]
+        "id": "PROJECT_PLAN",
+        "path": "docs/PROJECT_PLAN.md"
       },
       {
-        "path": "docs/TASKS.md",
-        "tokens": [
-          "ROUND3_INTEGRATION_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
-          "PRE_HANDOFF_AUDIT_OWNER",
-          "ROUND3_READONLY_INTEGRATION_REVIEW_OWNER",
-          "PAD_10_MIN_CORE_NOT_RUN",
-          "K60_NOT_REGISTERED_NOT_RUN",
-          "PRODUCT_P0_P3_NOT_ASSESSED",
-          "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
-          "25/25"
-        ],
-        "forbiddenTokens": [
-          "BLOCKED_PENDING_TOOL_REPAIR_AND_CONTRACT_REFRESH",
-          "d8e98a90b250bafb1bb48d62f315041fd0f67653d8d81c4650aca9fb617d0bfb",
-          "a7e5def25343bb96c15b76398b421115de60f40824698d67a682f3c4b7908901",
-          "BLOCKED_PENDING_INTEGRATION_REVIEW_AND_PRE_HANDOFF_AUDIT",
-          "BLOCKED_PENDING_ROUND2_INTEGRATION_REVIEW_AND_PRE_HANDOFF_AUDIT"
-        ]
+        "id": "TASKS",
+        "path": "docs/TASKS.md"
       },
       {
-        "path": "docs/LESSONS.md",
-        "tokens": [
-          "L018",
-          "L019",
-          "L020",
-          "HANDOFF_BOOTSTRAP_V2",
-          "NO_REUSE_SUBAGENT"
-        ]
+        "id": "LESSONS",
+        "path": "docs/LESSONS.md"
       }
     ]
   }

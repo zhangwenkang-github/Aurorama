@@ -163,3 +163,137 @@
   不能把“允许 audit”误写成“audit 已 PASS”。
 - **来源**：2026-11-06 `ROUND2-P2-01` B4 修复、round3 独立复审与 B5 状态收口；上述三类
   绕过及 round3 正负门均复现。
+
+## L021 后审计阶段必须是独立状态，不得用“等待 audit”永久封死
+
+- **现象**：pre-handoff audit 准备提交 `PASS` 时被 preflight 拒绝；脚本把 audit / QA 永久固定为
+  `BLOCKED`，契约没有合法 post-audit 状态，也没有可绑定的审计 receipt。
+- **根因**：状态机只实现 PRE 断言，没有表达“同一合同在合法 audit PASS 后进入 QA 可派发”的
+  第二状态；同时 round3 与旧的未提交 / force-add 叙述仍被当成当前事实。
+- **对策**：引入 `validation.handoffPhase` 与嵌入式 `auditReceipt`。PRE 严格保持
+  audit / QA=`BLOCKED`、padQa 不可派发；POST 只接受 exact receipt，并绑定 source commit / tree、
+  QA prompt、tools digest、设备锁状态与哈希、证据根、rejectedScope、memory index 与
+  `transitionPaths`。任何字段未知 / 缺失、非祖先、tree / hash / path 漂移均 `FAIL_CLOSED`；
+  合法 finalizer 只改 receipt / 阶段 / gate / prompt / validation / ACTIVE / TASKS。
+- **验证**：合同回归 **43/43 PASS**；PRE 与临时 POST 正例通过，原 16 项与新增 receipt /
+  source / tree / hash / role / path 负例全部 exit 2。未改动的 QA tools 仍 `25/25`，
+  self-test artifact / AST / UTF-8=`31/31/31`，digest / manifest 不变。
+- **来源**：2026-11-06 B6 `HANDOFF_POST_AUDIT_PHASE_REPAIR_OWNER`；10 个 QA 工具文件已由
+  `c4a2d2a1` 提交，不得再沿用 force-add / uncommitted 叙述。round3 与既往 audit owner 永久退役，
+  下一唯一角色为全新 `ROUND4_READONLY_INTEGRATION_REVIEW_OWNER`。
+
+- **Round4 结果（2026-11-06）**：round4 在 B6 候选上发现 `ROUND4-P1-01` 并退役。合法 POST
+  仍可改 `acceptedArtifacts.main.versionName`、给 `PAD_QA_OWNER.writeScope` 追加
+  `app/phone/src/main/**`、删除 `NEW_P0_P2_OR_EVIDENCE_TAMPER`，三次均 exit 0。因此 B6
+  `43/43` 只证明 receipt / path 门，不证明 JSON 对象 mutation scope。
+
+## L022 POST 必须校验 JSON 对象 mutation，不得只校验变化文件路径
+
+- **现象**：B6 的合法 POST 已绑定 receipt、source / tree / hash 与三文件 `transitionPaths`，
+  但合同内部可被任意改写；`acceptedArtifacts.main.versionName`、角色 `writeScope` 和
+  `stopConditions` 都位于同一个合法合同路径，路径级白名单无法判别对象 pointer。
+- **根因**：校验层把“git diff 文件集合”误当成“业务对象 mutation allowlist”，没有从 audited
+  source commit 读取合同 JSON，也没有递归比较 current JSON 或绑定 immutable projection。
+- **对策**：`auditReceipt.immutableStateSha256` 绑定 source / current 的 canonical immutable
+  projection；POST 逐 pointer 比较 source commit JSON 与 current JSON。只允许 receipt、phase、
+  audit / QA gates、qaRoundState audit / dispatch、active prompt / next path、prompt
+  status / dispatch / retiredReason 与固定 validation 转换字段；未知顶层字段、未知 nested
+  field、任何其他 pointer 或 hash 漂移都 exit 2。三文件 `transitionPaths` 继续保留为附加门。
+- **验证**：B7-RETRY 保留原 43 项并新增三项 P1 精确回归，以及 unknown top-level / nested
+  pointer / non-allowlisted pointer / immutable hash 负例；最终 **50/50 PASS**、
+  `TEMP_CLEANUP=PASS`。合法 PRE、合法临时 POST 与 receipt / source / tree / hash / path
+  既有正负例继续执行。真实合同仍 PRE，不写 audit / QA PASS。
+- **来源**：2026-11-06 `ROUND4-P1-01` 与 B7-RETRY owner；下一唯一角色为全新
+  `ROUND5_READONLY_INTEGRATION_REVIEW_OWNER`，round4 永久退役。
+
+## L023 Anchor token 必须来自 phase 常量，合同不能保存可变正文 token
+
+- **现象**：合法 POST 可把所有 TASKS anchor token 改成等长空白，再恢复 PRE TASKS 并在无害
+  HTML 注释中放置对应长度空白；旧 `Contains` 命中后仍 exit 0。
+- **根因**：POST mutation allowlist 放行 `requiredTextAnchors/*/tokens/*`，合同自身决定待检
+  token，`Assert-Tokens` 又只检查空白是否出现；三层叠加把“锚点存在”降成“任意空白存在”。
+- **对策**：PRE/POST exact token 只由 `Invoke-HandoffPreflight.ps1` 的 phase 常量提供；合同
+  `activeRequiredTokens` 仅保存 `ACTIVE_SECTION`，`requiredTextAnchors` 仅保存五个稳定
+  id/path。两字段从 POST mutation allowlist 删除。token 必须非空、无首尾空白、无 `* / ?`
+  通配、trim 后长度至少 2，并用 `Ordinal Contains` 逐字命中。
+- **验证状态**：B8 已实际加入空格 token + PRE TASKS/注释、单 token 漂移、未知 anchor、空白
+  activeRequiredToken 回归；合同回归 `54/54 PASS`、四项 anchor 负例均 exit 2、
+  `TEMP_CLEANUP=PASS`。这只表示修复输入待 round6 复审，不是 review / audit / QA PASS。
+- **来源**：2026-11-06 `ROUND5-P1-01` 与 B8 `HANDOFF_ANCHOR_HARDENING_REPAIR_OWNER`；
+  round5 永久退役，下一唯一角色为 `ROUND6_READONLY_INTEGRATION_REVIEW_OWNER`。
+
+## L024 source PRE 必须与 current POST 使用同等完整断言
+
+- **现象**：POST 从 `auditedSourceCommit` 读取 source 合同时只检查 phase、receipt 与少量
+  immutable pointer；伪 source 同时把 audit/QA gate、qaRoundState audit/dispatch 和 padQa
+  dispatch 设为 PASS，并令 activePrompt=padQa、auditReceipt=null，旧 preflight 仍 exit 0。
+- **根因**：把“source/current JSON pointer 一致”和“immutable hash 一致”误当成 source 自身
+  合法 PRE 的充分条件。允许 POST 转换的字段恰好包括 audit/QA gate 与派发状态，因此若 source
+  已经伪造这些值、current 保持相同的伪 POST 值，递归 diff 看不到变化。
+- **对策**：新增 `Assert-PreAuditState`：source 合同必须具有 exact top-level / roles /
+  validation schema，phase=`PRE_HANDOFF_AUDIT`、auditReceipt=null、review gate 可为当前合法
+  PASS，但 audit/QA gate 必须 `BLOCKED`；qaRoundState audit/QA/dispatch 不得 PASS；
+  padQa 必须 `BLOCKED_PENDING_PRE_HANDOFF_AUDIT / dispatchable=false`，activePrompt 不得为
+  padQa；owner、`requiredBefore`、门序、anchor pointer、immutable tools / APK / roles 与
+  current POST 的既有完整校验分别执行。source 读取改为固定 `commit:path` 的原始 blob，
+  严格 UTF-8、no BOM、LF。
+- **验证状态**：B9 保留原 54 项并新增 13 项，合法 source PRE / 临时合法 POST 通过；
+  source audit/QA gate PASS、qaRoundState audit/dispatch PASS、padQa active/dispatchable、
+  activePrompt=padQa、receipt nonnull、owner / requiredBefore / anchor / tools / APK 漂移及
+  UTF-8 BOM 均 exit 2。实际 `67/67 PASS + TEMP_CLEANUP=PASS`，source 负例
+  expected/actual 均为 `2/2`。这只表示修复输入待 round7 复审，不是 review / audit / QA PASS。
+- **来源**：2026-11-06 `ROUND6-P1-01` 与 B9
+  `HANDOFF_SOURCE_PRE_VALIDATION_REPAIR_OWNER`；round6 永久退役，下一唯一角色为
+  `ROUND7_READONLY_INTEGRATION_REVIEW_OWNER`。
+
+## L025 角色 writeScope 必须按类别常量做精确语义校验
+
+- **现象**：`roles[].writeScope` 只被验证为数组；给 `PAD_QA_OWNER` 追加
+  `app/phone/src/main/**`，并在 source/current 同步篡改后重算 receipt /
+  `immutableStateSha256`，旧 POST 仍 exit 0。类似地，tool repair、reviewer/audit 与 root
+  都可借摘要重算获得越界写域。
+- **根因**：摘要只证明两边一致，不证明角色语义合法；角色 ID 集合、`kind`、freshness、
+  phase、deviceAccess 与 `writeScope` 的组合没有独立于 JSON 的权威常量。
+- **对策**：preflight 内固化角色 ID / 类别与精确 `writeScope` 常量；`ROOT_INTEGRATION`
+  只允许集成元数据占位域，`TOOL_REPAIR_OWNER` 仅 `qa-v8/tools/**`，协议 owner 仅授权
+  docs+handoff，review/audit 空写域，`PAD_QA_OWNER` 仅 `qa-v9/**`，`K60_QA_OWNER` 仅
+  `qa-v10/**` 且 Pad PASS 前锁定。source PRE 与 current POST 共用同一角色目录断言，并额外
+  拒绝 unknown/duplicate role、非精确集合、重复 scope、空白、traversal、越界 wildcard、
+  生产路径和错误 `kind / freshness / phaseLimit / reuse / deviceAccess`。
+- **验证状态**：B10 已实现同步 source/current PAD 生产写域重算摘要负例及 tool/review/audit/
+  root、unknown/duplicate、空白/traversal/wildcard 回归；合同测试 **86/86 PASS +
+  TEMP_CLEANUP=PASS**，同步篡改 expected/actual=`2/2`。该状态只表示修复输入待 round8 复审，
+  不是 review / audit / QA PASS。
+- **来源**：2026-11-06 `ROUND7-P1-01` 与 B10
+  `HANDOFF_ROLE_SCOPE_HARDENING_REPAIR_OWNER`；round7 永久退役。round8 随后因
+  `ROUND8-P1-01` 退役，B11 修复后下一唯一角色为
+  `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER`。
+
+## L026 PRE 必须同时接受 review pending 与 review PASS awaiting audit
+
+- **现象**：source PRE 已允许 review `PASS` 并接受
+  `ROUND8_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT`，但 current PRE 主路径、ACTIVE token 与
+  round8 角色 owner 仍硬编码“待 review / BLOCKED”。真正 round8 `PASS` 后 preflight 反而死锁。
+- **根因**：PRE 被误写成单一静态快照，current 与 source 各自维护重复断言；
+  `validation.handoffPhase=PRE_HANDOFF_AUDIT` 没有显式拆成
+  `PRE_REVIEW_PENDING` 与 `PRE_REVIEW_PASS_AWAITING_AUDIT`。
+- **对策**：两个子态均保持 `PRE_HANDOFF_AUDIT`。pending 只允许 review gate `BLOCKED`；
+  review-pass 只允许 review gate `PASS` 并对应
+  `ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT`；两者始终要求 audit / QA `BLOCKED`、
+  qaRoundState audit / QA / dispatch 非 PASS、padQa `dispatchable=false` 且 receipt `null`。
+  source PRE 与 current PRE 共用 `Assert-PreAuditState(mode)`；ACTIVE token 按子态选择，
+  round9 pending 与未来 round9 PASS formal token 都由脚本常量固定，合同只保存稳定 pointer。
+- **验证状态**：B11 保留 B10 原始 86 项，新增 pending PRE、临时 round9 review-pass PRE、
+  legal POST、review PASS 下 audit / QA PASS、padQa dispatch、receipt nonnull、
+  ACTIVE token / gate 不一致、round8 旧状态和 round9 reviewer 越界写域回归；目标
+  **96/96 PASS + TEMP_CLEANUP=PASS**。fresh round9 reviewer 随后独立复核：测试再次
+  `96/96 PASS + TEMP_CLEANUP=PASS`、独立 `21/21`；pending 与 review-pass PRE 正例 PASS，
+  audit / QA 提前 exit 2，role / source / current / receipt 门 PASS；QA tools `25/25`、
+  self-test `31`，无设备 / 网络 / secret / 残留。B12 据此把真实合同推进到
+  `ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT`，review gate `PASS`；audit / QA 仍
+  `BLOCKED`、padQa 不可派发、receipt `null`。下一唯一角色为全新
+  `PRE_HANDOFF_AUDIT_OWNER`；review PASS 仍不是 audit / QA / G1 PASS。
+- **来源**：2026-11-06 `ROUND8-P1-01` 与 B11
+  `HANDOFF_REVIEW_PASS_PRE_STATE_REPAIR_OWNER`，以及 B12 round9 状态收口；round8 因 P1
+  永久退役，round9 reviewer 已 PASS 后永久退役，均禁止复用、followup、commit、audit、
+  QA 或 Release。
