@@ -1,0 +1,176 @@
+{
+  "schema": "aurorama.g1.kokoro.runtime-qa-v4.interrupted/v1",
+  "task": "G1 runtime QA-v4 / user-promise verification",
+  "role": "fresh independent Android runtime QA / user-promise verification specialist",
+  "generatedAt": "2026-11-05T09:59:08+08:00",
+  "verdict": "INTERRUPTED_BY_USER",
+  "status": "CORE_RUNTIME_QA_NOT_RUN / CLEANUP_PASS / DEVICE_STATE_MATCH / ACTIVE_0",
+  "candidate": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "commit": "191a46e227c6cecac14392a2de4bc0a0fae026ee",
+    "initialGitStatusClean": true,
+    "headEqualsCandidate": true,
+    "candidateAncestorVerified": true,
+    "diffCheckExitCode": 0,
+    "candidateDiffChangedPaths": 33,
+    "candidateDiffOutsideDeclaredWhitelist": [],
+    "mainApk": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 427009671,
+      "sha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+      "staticPermissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
+      ],
+      "internetPermission": false,
+      "nativeCode": [
+        "arm64-v8a"
+      ],
+      "serviceCount": 1,
+      "foregroundServiceType": "mediaPlayback (0x00000002)"
+    },
+    "focusPeerApk": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+      "bytes": 12696,
+      "sha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c",
+      "usesPermissions": [],
+      "internetPermission": false
+    },
+    "fixedApksStillMatchAfterInterruptCleanup": true
+  },
+  "actualExecuted": [
+    {
+      "step": "read-only candidate and artifact gate",
+      "status": "PASS",
+      "detail": "HEAD/branch/ancestor/clean, both APK size+SHA, main no INTERNET/arm64/mediaPlayback FGS, peer no permissions/INTERNET, 33 changed paths inside declared harness/runtime-closure-v2 whitelist, and initial device lock ACTIVE=0 were verified."
+    },
+    {
+      "step": "independent contract tests",
+      "status": "PASS",
+      "command": ".\\.gradlew.bat -p .planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness :contract:test --offline --console=plain --rerun-tasks",
+      "exitCode": 0,
+      "tests": 36,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xmlSuites": 11,
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v4/logs/contract-tests.log",
+      "xmlDirectory": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v4/evidence/contract-test-results"
+    },
+    {
+      "step": "independent offline build",
+      "status": "NOT_EXECUTED",
+      "reason": "The prepared build command was rejected by the execution policy before process launch; user then interrupted QA. No independent build hash was produced and no new hash is treated as candidate evidence."
+    },
+    {
+      "step": "device install/runtime/destructive or playback matrix",
+      "status": "NOT_EXECUTED",
+      "reason": "INTERRUPTED_BY_USER"
+    }
+  ],
+  "notExecuted": [
+    "Install main harness and focus peer",
+    "UID separation and no-INTERNET runtime check",
+    "Single service / MediaSession / active audio owner runtime check",
+    "play_long real service-owned 31-minute content",
+    "full 30-minute screen-off AudioTrack continuity window",
+    "maximum no-AudioTrack gap and first/15-minute/final segment audio evidence",
+    "zf_001 sid3 and zm_010 sid59 real playback control, RTF and PSS",
+    "MIUI SystemUI actual taps for stop, play/pause, previous and next",
+    "OS-origin LOSS_TRANSIENT via second UID focus peer",
+    "process recreation, pack/speaker fail-closed and UI cancel",
+    "local music owner queue exclusion regression",
+    "zero-network netstats matrix",
+    "FATAL / ANR / InputTimeout runtime gate",
+    "speaker58 / zm_009 runtime invocation check",
+    "Pad 5 runtime: NOT_RUN_USER_UNLOCK_REQUIRED; zero Pad-targeted commands were sent"
+  ],
+  "cleanup": {
+    "capturedAt": "2026-11-05T09:58:33.2641100+08:00",
+    "serial": "8e875894",
+    "device": "Redmi K60 / API 35 / arm64-v8a",
+    "mainHarnessInstalled": false,
+    "peerInstalled": false,
+    "mainHarnessPid": null,
+    "peerPid": null,
+    "mainExternalDirPresent": false,
+    "peerExternalDirPresent": false,
+    "servicePresent": false,
+    "notificationPresent": false,
+    "forceStopRequired": false,
+    "uninstallRequired": false,
+    "uninstallExecuted": false,
+    "reasonNoUninstall": "Both harness packages were already absent before any QA install; package-specific external directories, PIDs, service and notifications were also absent.",
+    "qaChangedSettings": false,
+    "settingsRestoreExecuted": false,
+    "currentUser": "0",
+    "network": {
+      "baselineAndCurrentMatch": true,
+      "airplaneMode": "0",
+      "wifiEnabled": "1",
+      "mobileData": "1"
+    },
+    "musicVolume": 0,
+    "musicVolumeRangeMaximum": 150,
+    "screen": {
+      "baselineAndCurrentMatch": true,
+      "wakefulness": "Awake",
+      "screenOffTimeout": "600000",
+      "lockAfterTimeout": "null",
+      "stayOnWhilePluggedIn": "15",
+      "screenBrightness": "2",
+      "brightnessMode": "1"
+    },
+    "productionRelease": {
+      "baselineAndCurrentMatch": true,
+      "path": "package:/data/app/~~IfebW6cH3WhkLF6WD5QpvA==/io.github.zhangwenkang.aurorama-jIxVgLCrbx6Yxe_Y0ximVQ==/base.apk",
+      "version": "versionCode=5 minSdk=28 targetSdk=36",
+      "dataDir": "dataDir=/data/user/0/io.github.zhangwenkang.aurorama",
+      "firstInstallTime": "firstInstallTime=2026-10-25 01:48:26",
+      "lastUpdateTime": "lastUpdateTime=2026-11-02 11:54:07",
+      "bytes": 79729350,
+      "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb"
+    },
+    "productionDebug": {
+      "baselineAndCurrentMatch": true,
+      "path": "package:/data/app/~~Rswn1AAs_kTpNthrpWMKfQ==/io.github.zhangwenkang.aurorama.debug-F1jI7af_PVdxG4-MldbuVg==/base.apk",
+      "version": "versionCode=5 minSdk=28 targetSdk=36",
+      "dataDir": "dataDir=/data/user/0/io.github.zhangwenkang.aurorama.debug",
+      "firstInstallTime": "firstInstallTime=2026-10-21 20:36:42",
+      "lastUpdateTime": "lastUpdateTime=2026-10-31 01:29:36",
+      "bytes": 150241179,
+      "sha256": "f00cd53392025a9975916ae4738fc6340fbf348a9050f1a4b5ab67326edd8d49"
+    },
+    "baselineEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/device-before.json",
+    "currentDeviceEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v4/evidence/cleanup-device-final.json"
+  },
+  "deviceLock": {
+    "initialActiveCount": 0,
+    "lockAcquiredAt": "2026-11-05 09:56:08 +08:00",
+    "releasedAt": "2026-11-05 09:58:41 +08:00",
+    "finalActiveCount": 0,
+    "finalActiveTitles": [],
+    "finalLockSha256": "2501A2FF894E2EC3C370309644D01BEE516703805311A49A159743F4E20A9E38",
+    "lockFile": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md"
+  },
+  "findings": {
+    "P0": [],
+    "P1": [],
+    "P2": [],
+    "P3": []
+  },
+  "blocked": [
+    "INTERRUPTED_BY_USER"
+  ],
+  "inferencesNotExecuted": [
+    "No runtime PASS or FAIL can be inferred from the contract tests alone.",
+    "The fixed APK hashes and static manifest facts do not prove 30-minute AudioTrack continuity, OS-origin focus behavior, notification clicks, process reconstruction, cancellation or audio-owner arbitration."
+  ],
+  "maximumClaim": "Only the static candidate identity/permission gate, 36/0/0/0 contract tests, cleanup state and ACTIVE=0 lock state are verified. Core K60 runtime QA was not executed and no runtime verdict is claimed.",
+  "sourceOrDocsModified": false,
+  "implementationReportsModified": false,
+  "nextStep": "Wait for a new user instruction before resuming QA. A future fresh QA run must start from a clean object check and reacquire an ACTIVE K60 lock."
+}

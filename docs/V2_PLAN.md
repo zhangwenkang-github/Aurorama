@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / KOKORO_LICENSE_PARTIAL / KOKORO_RUNTIME_PARTIAL_K60_PAD5 / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `D206_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / NEXT_RUNTIME_CLOSURE / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。2026-11-05 已完成固定 Kokoro archive 与 Sherpa AAR 的 size / SHA-256 / ABI / ONNX / speaker 身份核验，隔离 harness 在 K60 API 35 与 Pad 5 API 33 上完成 `zf_001` sid3 / `zm_010` sid59 推理、45–60 秒样音、长文和 UID 零网络测试；K60 另完成 forced cancel，Pad cancel 未执行；Pad API 33 的 harness `HexFormat` P1 已修复。用户已接受当前两条样音作为继续 G1 的输入，但不接受 profile / production 冻结。许可仍 PARTIAL，后台 owner、持久恢复、MediaSession / audio focus 未实现，Pad 性能 P2 与 Pad 解锁仍待处理。Q03 仍 Open、项目级 runtime 仍 `UNVERIFIED`、G1 `NOT_PASSED`，L2/L3 `LOCKED`，exact engine / profile / voice 未冻结。
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / RUNTIME_V4_IMPLEMENTATION_COMMITTED / INDEPENDENT_QA_V3_FAIL_30MIN_CONTINUITY / QA_V4_INTERRUPTED_BY_USER / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `D207_KOKORO_AUDITION_ACCEPTED / RUNTIME_V4_IMPLEMENTATION_COMMITTED / FULL_30MIN_QA_PAUSED_BY_USER / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。v4 隔离 harness 已实现 service-owned 31 分钟内容计划、单 MediaSession / AudioFocus、持久暂停恢复、UI cancel、通知四控件和独立 UID focus peer；合同测试 `36/0/0/0`，K60 完成 5 分钟关屏实现侧自测。独立 QA-v3 曾在 30 分钟窗口发现真实音频仅持续 93.819 秒的 P1，v4 声称已修复但完整 30 分钟尚未复核；QA-v4 按用户要求中断，只完成静态门与合同测试。许可仍 PARTIAL：训练数据、speaker 权属、逐资产许可、最终 NOTICE / source offer 阻断 profile / Q03。Pad 解锁与性能 P2 仍待用户处理。Q03 Open、项目级 runtime UNVERIFIED、G1 NOT_PASSED、L2/L3 LOCKED，exact engine / profile / voice 未冻结。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-05
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3413,88 +3413,87 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：D207 Kokoro 样音已接受，剩余 runtime / 许可 closure 交给新负责人（2026-11-05）
+### ACTIVE：Kokoro runtime v4 已实现自测，独立 QA 被用户暂停，等待恢复通知（2026-11-05）
 
-**负责身份 / 线程**：G1 TTS Kokoro exact asset / runtime / audition / device 交付负责人；
-线程 `01a1a759-57c5-75a2-a59a-33643237aff1`。事实工作树
+**负责身份**：G1 Kokoro runtime closure / licensing / device delivery owner（交付负责人 /
+技术集成编排者）。事实工作树
 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
-`codex/v2-integration`。当前 HEAD、父链与 dirty 状态必须从 Git 现场读取；本轮没有修改生产代码。
+`codex/v2-integration`。当前 HEAD、父链、clean 与排序对象必须从 Git 现场读取；候选实现提交为
+`191a46e227c6cecac14392a2de4bc0a0fae026ee`。本轮未修改生产代码、未 push / tag / Release。
 
 **状态**：
-`D206_EXECUTED / D206_DOCS_S6_REVIEW_PASS / D207_KOKORO_AUDITION_ACCEPTED / NEXT_RUNTIME_CLOSURE / KOKORO_ASSET_IDENTITY_PASS / KOKORO_LICENSE_PARTIAL / KOKORO_RUNTIME_PARTIAL_K60_PAD5 / API33_HEXFORMAT_P1_FIXED / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
-这里的 runtime partial 只指隔离 harness，不能外推为生产 TTS、voice-pack、后台锁屏或候选包 PASS。
+`D207_KOKORO_AUDITION_ACCEPTED / RUNTIME_IMPLEMENTATION_V4_COMMITTED / K60_5MIN_SELF_TEST_PASS / INDEPENDENT_QA_V3_FAIL_30MIN_CONTINUITY_FIXED_PENDING_RECHECK / QA_V4_INTERRUPTED_BY_USER / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+所有 v4 runtime 结果目前只是隔离 harness 实现侧自测；独立 QA-v4 只完成静态门和
+`36/0/0/0` contract tests，随后按用户要求中断，未安装设备、未执行 30 分钟、通知、focus、
+重建、cancel 或零网络矩阵。
 
-**已执行**
+**已固定资产 / 历史基线**
 
-- 只下载 D206 固定的两个资产并核验：
-  `kokoro-multi-lang-v1_1.tar.bz2` 为 `364,855,331 B` /
+- Kokoro `kokoro-multi-lang-v1_1.tar.bz2`：`364,855,331 B` /
   `b78e1ac42b852e839cceaafbe88f66806bf5860992d1d7b9a3f2ad1198427aed`；
-  `sherpa-onnx-2.0.1.aar` 为 `49,441,341 B` /
+  Sherpa AAR：`49,441,341 B` /
   `a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7`。
-  两者均 HTTPS 200 且仅经 GitHub 资产 CDN 正常重定向；archive 417 members / 377 files，
-  AAR 含 arm64-v8a 与 16 个 native `.so`；`id2speaker` 映射 `zf_001=3`、
-  `zm_009=58`、`zm_010=59` 与预期一致。
-- 隔离 harness 使用已审计的 ONNX / voices / tokens / lexicon / espeak / dict；TDD 10 checks
-  GREEN，arm64 debug APK 无 INTERNET，仅允许 sid 3 / 59。speaker58 / `zm_009` 未加载。
-- 两次独立 QA。首轮在 Pad 5 API 33 发现 harness `java.util.HexFormat`
-  `NoClassDefFoundError`；同一实现 owner 做最小 minSdk 兼容修复、保留旧 APK，并由新 QA
-  复核 P1 未复发。最终 APK `426,980,914 B` /
-  `051a73dadb1b9b239f95e543e24dfdbeebf82c026d46652f3b392559e2357826`。
-- K60 API 35 / arm64：`zf_001` load `1,611 ms`、首音 `2,833 ms`、推理 `40,469 ms`、
-  audio `58.075 s`、RTF `0.696840`、峰值 PSS `738,090 KB`；`zm_010` load `1,528 ms`、
-  首音 `2,801 ms`、推理 `40,882 ms`、audio `58.725 s`、RTF `0.696160`、
-  峰值 PSS `737,201 KB`。
-- Pad 5 API 33 / arm64：`zf_001` load `2,415 ms`、首音 `4,324 ms`、推理 `65,179 ms`、
-  RTF `1.122325`、峰值 PSS `848,051 KB`；`zm_010` load `1,745 ms`、首音 `4,272 ms`、
-  推理 `67,121 ms`、RTF `1.142971`、峰值 PSS `919,625 KB`。
-- 两机均完成 401 字符 / 356 Han 长文（116.300 秒，无截断 / 崩溃）与飞行模式下完整推理、
-  App UID `netstats` 零增量；K60 另完成推理中 forced cancel，Pad cancel 未执行；speaker58
-  坏命中 0。Pad 长文最坏值 RTF `1.154961`、峰值 PSS `925,482 KB`；K60 峰值 PSS
-  `739,355 KB`。所有设备锁串行获取并释放，harness 已卸载，既有 Aurorama 包状态恢复 MATCH。
-- 样音与文稿位于
-  `.planning/v2-g1/G1-L1-KOKORO-EXACT/samples/`；资产报告、实现报告和两轮 QA 证据位于同名
-  evidence root。最终 `git status` 只允许该 evidence root 与本次权威文档 / S6 派生更新，
-  禁止把 400MB+ APK、WAV 或解包模型误提交。
+  资产身份 / ABI / ONNX / `id2speaker` 已 MATCH；`zf_001=3`、`zm_010=59`。
+- D206 双机推理、样音、长文、零网络与 Pad API33 `HexFormat` P1 修复证据继续有效，但对应旧
+  APK / harness 不是当前 v4 候选。D207 只接受两条当前样音，不是 profile / voice 冻结。
+- QA-v3 证据提交 `b75f9a22`、候选 `a986f2e2`。该轮独立 QA 为 `FAIL`：30 分钟窗口
+  `1801.002 s` 中真实 AudioTrack 只到关屏后 `93.819 s`，之后为 service 空活；MIUI 未暴露
+  通知停止按钮为 P2。其余已执行项见 `qa-v3/report.json`，不得把空活写成后台 PASS。
 
-**用户门 / 未完成**
+**v4 实现侧已执行**
 
-- 用户于 2026-11-05 原话“可以接受。继续下一步。创建新会话，交接。以后所有交接都必须是旧
-  负责人所有文档落实了在创建，不要创建后让新负责人停下。”接受当前 `zf_001` / `zm_010`
-  两条样音作为继续 G1 的输入；这只关闭这两条样音的主观门槛，不等于接受 Pad 性能 P2、
-  profile / production 冻结或后续其他章节的朗读质量。Pad 5 的测试关机触发了用户原有数字
-  密码锁屏；后续设备动作必须先由用户本人解锁，不得尝试绕过凭据。
-- 许可 / notice / 训练数据 / 逐 speaker 声音权属仍 `PARTIAL / MISSING`；AAR 根和
-  `classes.jar` 未携带 LICENSE / NOTICE。该缺口阻断 profile 冻结、发布资产集成与 Q03 关闭，
-  但不改变本轮“技术试验已执行”的事实。
-- Harness Manifest service=`0`，不播放 PCM、不持有 MediaSession / audio focus，也无持久
-  resume state：30 分钟后台锁屏、进程重建恢复、取消 UI、音乐暂停与单音频 owner 仍
-  `BLOCKED: NOT_IMPLEMENTED_IN_HARNESS`。不得用短时关屏或写 WAV 冒充 D203 runtime PASS。
-- Pad RTF 最高 `1.154961`、峰值 PSS 最高 `925,482 KB` 为 P2 性能风险；K60 约 `0.70`、
-  峰值 PSS `737,201–739,355 KB`。
-  是否接受该设备差异、调整线程数 / 文本切分或换引擎，需要用户决策与后续实现任务，不得把
-  “能在两机跑完”写成小说朗读性能 PASS。
-- `ttsLang` 运行面报告 `en-us` 而配置请求 `zh`；D207 已接受当前两条样音，但该 instrumentation
-  差异仍需在未来实现 / 其他章节听测中复核。Q03、exact profile / voice、生产集成、G1 与
-  Release 均未通过。
+- 实现提交 `191a46e2`；合同测试 `36/0/0/0`，11 XML suites；离线 standalone build /
+  main + focus peer 签名审计通过。
+- 主 APK：`427,009,671 B` /
+  `9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a`；arm64-v8a、
+  无 INTERNET、单 service / 单 MediaSession、FGS `mediaPlayback`。focus peer：
+  `12,696 B` / `de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c`，
+  无权限 / 无 INTERNET。
+- K60 5 分钟关屏自测：`300.007 s` 全程 Asleep，AudioTrack 启动 `3→30`、完成 `2→29`，
+  队列推进到 `29/351`。该结果只证明 5 分钟路径，不证明 30 分钟。
+- MIUI 自定义通知四控件经实现侧真实点击：停止、播放/暂停、上一句、下一句；第二 UID focus
+  peer 触发系统 `LOSS_TRANSIENT`，主 TTS 暂停且 peer 释放后不自动恢复；force-stop 恢复
+  paused、UI cancel、speaker58 零命中均做实现侧自测。
+- 两个 harness 已卸载；生产 release/debug、网络、音量、屏幕、current user 恢复 MATCH；
+  设备锁 `ACTIVE=0`。实现侧完整证据见 `runtime-closure-v2/implementation-report.json`
+  与 ignored 的设备原始证据根。
 
-**下一步入口**
+**许可 / 数据 / 声音权属**
 
-1. 新负责人身份：G1 Kokoro runtime closure / licensing / device delivery owner。第一条只读
-   动作：读本 ACTIVE、D203/D206/D207、`TASKS` 当前 KOKORO 行、实现报告与最终 QA，复核
-   最终 APK hash、资产 hash、设备锁 `ACTIVE=0` 和唯一 evidence root；随后派全新专业子代理，
-   不要先扩张或重复试听。
-2. 在隔离 harness 内补齐 service owner、MediaSession / audio focus、持久暂停 / resume、
-   UI cancel、30 分钟后台锁屏、进程重建、音乐互斥与零网络长稳；先 K60，Pad 解锁后再测，
-   不得让 Pad 锁屏阻止其余已授权工作。
-3. 只读补证许可 / NOTICE / 训练数据与声音权属；若需要新下载 / 新网络域或生产代码，停止并
-   报告真实授权缺口，不以“继续”替代授权。完成硬门后只能向用户提交 profile 冻结建议，
-   不得自行冻结 engine/profile/voice 或关闭 Q03。
-4. 所有交接必须先完成文档、ACTIVE、决策 / 日志、evidence 指针、memory 与 commit / clean
-   审计，再创建新会话；新 prompt 直接开始已授权工作，不得等待上一任补交接。
+- 独立许可审计仍为 `PARTIAL / BLOCKED FOR FREEZE-DISTRIBUTION-Q03`，独立审查 verdict 为
+  `PASS_WITH_P3`，即报告准确但不是许可通过。未证明真实互斥许可证冲突。
+- P1：Kokoro 权重 / 训练数据 / `zf_001` / `zm_010` speaker 同意、所有权与再分发权缺失；
+  lexicon / dict / ruleFST / eSpeak 逐资产上游与许可未闭合；AAR / classes.jar / ORT /
+  native 的最终 NOTICE 映射及 corresponding source / written offer 不存在。
+- P2：当前隔离 APK 实际含 355 个 eSpeak 数据和 11 个 dict 文件；最终必须删除或补齐 GPLv3 /
+  数据版权 / source offer 义务，不得仅凭运行参数忽略警告判断未使用。
+- 已授权官方页面一次受控重试仍超时；未新增域名、未下载模型 / 权重。D207 不关闭这些缺口。
 
-**停止条件**：设备锁冲突、需要绕过 Pad 密码、未经授权的新域名 / 权重、把 harness 外推为生产
-PASS、speaker58 被调用、资产 / APK hash 漂移、许可冲突、需要修改生产代码、新 P0–P2 扩大，
-或 Q03 / G1 / profile / Release 被要求代签时停止。
+**未完成 / 用户门**
+
+- 完整 30 分钟真实 AudioTrack 连续性、v4 通知四控件、OS-origin focus、final APK 零网络、
+  重建 / cancel / 音乐互斥尚未由独立 QA 复核；QA-v4 `INTERRUPTED_BY_USER`，只完成静态门与
+  `36/0/0/0` contract tests，设备矩阵 `NOT_RUN`。
+- Pad 5 `43af8627` 仍待用户本人解锁；不得尝试绕过密码。Pad RTF 最高 `1.154961`、峰值 PSS
+  最高 `925,482 KB` 的 P2 仍未由用户接受或由方案解决。
+- exact engine / profile / voice 未冻结；Q03 Open；项目级 runtime UNVERIFIED；G1 / Release
+  均未通过。
+
+**下一步入口（等用户通知）**
+
+1. 用户通知恢复后，由负责人显式启动**全新独立 QA-v5**；第一条只读动作是核验当前 Git 对象、
+   `runtime-closure-v2/implementation-report.json`、`qa-v4/interrupted-report.json`、
+   两个 APK hash、`ACTIVE=0` 与最终 evidence 白名单。
+2. K60 独占锁上从 `play_long` 执行完整 30 分钟真实 AudioTrack 窗口，再验通知四控件、
+   第二 UID focus、重建、cancel、音乐互斥、final APK 零网络、speaker58 零调用与清理。
+3. Pad 仅在用户明确解锁后由同一 QA 顺序补测；若仍锁定只记 `NOT_RUN_USER_UNLOCK_REQUIRED`，
+   不阻塞 K60 收尾。
+4. 许可硬门未通过前不得提出 profile freeze；即使 runtime 全过，也只能提交 profile 冻结建议
+   与剩余法务 / 训练数据 / speaker 权属缺口，由用户决策。
+
+**停止条件**：当前等待用户通知；不得自行恢复设备 QA。恢复后若设备锁冲突、需绕过 Pad 密码、
+出现 hash / source / permission 漂移、30 分钟真实音频中断、新 P0–P2、未经授权的新域名 /
+资产 / 生产代码 / 服务器写，或要求代签 profile freeze、Q03、G1、Release 时停止并报告。
 
 ### HISTORY：D204 strategy A + D205 方向 C 已接受，小型 Android 第二引擎重筛待 exact archive 授权（2026-11-04）
 
@@ -4777,3 +4776,21 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   音乐互斥与许可审计；需要生产代码 / MOSS / 新网络域时仍先取得授权。交接规则同步改为
   “旧负责人先完成全部文档、memory、commit 与 clean 审计，再创建直接可执行的新会话”，
   创建后不再由旧负责人补实质文档。
+- **2026-11-05 — Kokoro runtime QA-v3 / v4 返修**：独立 QA-v3 对候选 `a986f2e2` /
+  APK `074ccfe9…15e8` 执行 K60 完整矩阵，判定 `FAIL`；30 分钟窗口 `1801.002 s` 内真实
+  AudioTrack 只到关屏后 `93.819 s`，其余为 service 空活，另发现 MIUI 通知停止入口 P2。
+  证据提交 `b75f9a22`，报告在 `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/`。随后全新实现
+  owner 增加 service-owned 31 分钟内容计划、自定义四控件通知、独立 UID focus peer 和终止
+  态清理；合同测试 `36/0/0/0`，K60 5 分钟实测 AudioTrack `3→30`、真实系统
+  `LOSS_TRANSIENT`、四控件点击与清理通过。实现提交 `191a46e2`，main APK `9bfba9aa…6778a`、
+  peer `de651dda…f90c`；报告在 `runtime-closure-v2/implementation-report.json`。这仅是
+  实现侧自测，不是 30 分钟或独立 QA PASS。
+- **2026-11-05 — 许可独立审查 / QA-v4 用户暂停**：许可审计将 Kokoro 与 Sherpa / ORT /
+  native 逐资产矩阵固定为 `PARTIAL`；独立 reviewer 结论 `PASS_WITH_P3`，确认没有已证明的
+  互斥许可证冲突，但训练数据、`zf_001` / `zm_010` 声音权属、lexicon / dict / FST /
+  eSpeak、最终 NOTICE / source offer / packaged SBOM 仍为 P1，eSpeak 分发为 P2；
+  profile freeze / distribute / Q03 仍 BLOCKED。全新 QA-v4 对 `191a46e2` 完成只读对象门与
+  `36/0/0/0` contract tests 后，用户要求“在合适的地方停下，写好文档，等我通知”，因此
+  设备安装与完整 30 分钟矩阵 `NOT_RUN`。中断报告在 `qa-v4/interrupted-report.json`；
+  K60 上无 harness 残留，锁已 `RELEASED / ACTIVE=0`，生产包与设备设置 MATCH。Pad 仍
+  `NOT_RUN_USER_UNLOCK_REQUIRED`。
