@@ -1,0 +1,6 @@
+*.apk
+*.idsig
+*.wav
+**/logs/runtime-logcat.log
+**/.stdout.log
+**/raw-netstats*

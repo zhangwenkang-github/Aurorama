@@ -1,0 +1,9 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.secret-scan.v1",
+  "status": "PASS",
+  "passed": true,
+  "scannedFileCount": 17,
+  "hitFileCount": 0,
+  "hits": [],
+  "screenshotFileCount": 0
+}

@@ -1,0 +1,506 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.cleanup-recovery.v1",
+  "task": "Aurorama 2.0 G1-L1 Kokoro QA-v8 final Pad cleanup and restore",
+  "role": "fresh device cleanup and recovery verification subagent",
+  "generatedAt": "2026-11-05T22:54:33.1826290+08:00",
+  "status": "PASS_CLEANUP_AND_RESTORE",
+  "verdictScope": "Pad 43af8627 final cleanup, T+0/T+10 residue convergence, baseline restoration, and production package identity only. No QA feature was rerun; this does not change the QA-v8 functional verdict.",
+  "object": {
+    "serial": "43af8627",
+    "model": "21051182C",
+    "sdk": 33,
+    "worktree": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "3b760025dce0ff323c1ece65ec1453ec1cebd55c",
+    "beforeJson": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/device-PAD5-43af8627/before.json",
+    "beforeJsonSha256": "4D14CD96C1C008C72B9735629B9FF25C146221D3523867B5061A62D795AAD3E8"
+  },
+  "executionBoundary": {
+    "featureRerun": false,
+    "k60TargetedCommands": 0,
+    "screenshotsTaken": 0,
+    "productionCodeOrToolsModified": false,
+    "deviceLockModified": false,
+    "activeLockLeftForLead": true,
+    "writeWhitelist": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/device-PAD5-43af8627/cleanup-recovery.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/device-PAD5-43af8627/.stdout.log"
+    ]
+  },
+  "hostLogcatCleanup": {
+    "matchingRule": "Only adb.exe processes whose command line starts `adb[.exe] -s 43af8627 logcat` and may contain logcat formatting arguments.",
+    "recordedHostProcessId": 2632,
+    "recordedHostProcessExistsAtFinalCheck": false,
+    "initialExactOrphanMatches": 0,
+    "processesKilled": 0,
+    "finalExactOrphanMatches": 0,
+    "verifiedAbsent": true
+  },
+  "deviceCleanup": {
+    "actionAt": "2026-11-05T22:53:22.4405056+08:00",
+    "actionFinishedAt": "2026-11-05T22:53:23.2796274+08:00",
+    "packages": [
+      {
+        "package": "dev.aurorama.kokoro.harness",
+        "forceStopCommand": "adb -s 43af8627 shell am force-stop dev.aurorama.kokoro.harness",
+        "forceStopExitCode": 0,
+        "uninstallCommand": "adb -s 43af8627 shell pm uninstall --user 0 dev.aurorama.kokoro.harness",
+        "uninstallExitCode": 1,
+        "uninstallOutput": "Failure [not installed for 0]",
+        "interpretation": "The prior interrupted cleanup had already removed the package. Idempotent uninstall reports not installed; package absence was independently verified at T+0 and T+10.",
+        "postState": "ABSENT",
+        "verdict": "PASS"
+      },
+      {
+        "package": "dev.aurorama.kokoro.focuspeer",
+        "forceStopCommand": "adb -s 43af8627 shell am force-stop dev.aurorama.kokoro.focuspeer",
+        "forceStopExitCode": 0,
+        "uninstallCommand": "adb -s 43af8627 shell pm uninstall --user 0 dev.aurorama.kokoro.focuspeer",
+        "uninstallExitCode": 1,
+        "uninstallOutput": "Failure [not installed for 0]",
+        "interpretation": "The prior interrupted cleanup had already removed the package. Idempotent uninstall reports not installed; package absence was independently verified at T+0 and T+10.",
+        "postState": "ABSENT",
+        "verdict": "PASS"
+      }
+    ],
+    "remoteTemporary": {
+      "pattern": "/sdcard/qa_v8_*",
+      "before": [],
+      "removedCount": 0,
+      "after": [],
+      "verdict": "PASS"
+    },
+    "externalPaths": [
+      {
+        "path": "/sdcard/Android/data/dev.aurorama.kokoro.harness",
+        "removeExitCode": 0,
+        "existsAfter": false
+      },
+      {
+        "path": "/sdcard/Android/media/dev.aurorama.kokoro.harness",
+        "removeExitCode": 0,
+        "existsAfter": false
+      },
+      {
+        "path": "/sdcard/Android/obb/dev.aurorama.kokoro.harness",
+        "removeExitCode": 0,
+        "existsAfter": false
+      },
+      {
+        "path": "/sdcard/Android/data/dev.aurorama.kokoro.focuspeer",
+        "removeExitCode": 0,
+        "existsAfter": false
+      },
+      {
+        "path": "/sdcard/Android/media/dev.aurorama.kokoro.focuspeer",
+        "removeExitCode": 0,
+        "existsAfter": false
+      },
+      {
+        "path": "/sdcard/Android/obb/dev.aurorama.kokoro.focuspeer",
+        "removeExitCode": 0,
+        "existsAfter": false
+      }
+    ],
+    "internalDataCache": [
+      {
+        "path": "/data/user/0/dev.aurorama.kokoro.harness",
+        "testExistsExitCode": 1,
+        "existsAfter": false
+      },
+      {
+        "path": "/data/user/0/dev.aurorama.kokoro.harness/cache",
+        "testExistsExitCode": 1,
+        "existsAfter": false
+      },
+      {
+        "path": "/data/user/0/dev.aurorama.kokoro.focuspeer",
+        "testExistsExitCode": 1,
+        "existsAfter": false
+      },
+      {
+        "path": "/data/user/0/dev.aurorama.kokoro.focuspeer/cache",
+        "testExistsExitCode": 1,
+        "existsAfter": false
+      }
+    ],
+    "verdict": "PASS"
+  },
+  "snapshots": {
+    "comparison": "IDENTICAL_FOR_ALL_REQUESTED_RESIDUE_FIELDS",
+    "T+0": {
+      "capturedAt": "2026-11-05T22:53:51.0981523+08:00",
+      "pmPath": {
+        "dev.aurorama.kokoro.harness": [],
+        "dev.aurorama.kokoro.focuspeer": [],
+        "io.github.zhangwenkang.aurorama": [
+          "package:/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk"
+        ],
+        "io.github.zhangwenkang.aurorama.debug": []
+      },
+      "pmListExact": [
+        "package:io.github.zhangwenkang.aurorama"
+      ],
+      "pidof": {
+        "dev.aurorama.kokoro.harness": "",
+        "dev.aurorama.kokoro.focuspeer": ""
+      },
+      "psHits": [],
+      "activityServicesHits": [],
+      "notificationPackageRecords": [],
+      "mediaSession": {
+        "parserScope": "Sessions Stack only; Audio playback and other sections ignored",
+        "stackHeaders": [
+          "  Sessions Stack - have 0 sessions:",
+          "  Sessions Stack - have 0 sessions:",
+          "  Sessions Stack - have 0 sessions:"
+        ],
+        "perStackSessionCounts": [
+          0,
+          0,
+          0
+        ],
+        "totalSessions": 0,
+        "activeTestPackageSessions": 0
+      },
+      "sdcardQaV8Temp": [],
+      "externalFindHits": [],
+      "externalPathStates": [
+        {
+          "path": "/sdcard/Android/data/dev.aurorama.kokoro.harness",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/media/dev.aurorama.kokoro.harness",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/obb/dev.aurorama.kokoro.harness",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/data/dev.aurorama.kokoro.focuspeer",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/media/dev.aurorama.kokoro.focuspeer",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/obb/dev.aurorama.kokoro.focuspeer",
+          "exitCode": 1,
+          "exists": false
+        }
+      ],
+      "internalDataCacheStates": [
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.harness",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.harness/cache",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.focuspeer",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.focuspeer/cache",
+          "exitCode": 1,
+          "exists": false
+        }
+      ]
+    },
+    "T+10": {
+      "capturedAt": "2026-11-05T22:54:02.3627949+08:00",
+      "pmPath": {
+        "dev.aurorama.kokoro.harness": [],
+        "dev.aurorama.kokoro.focuspeer": [],
+        "io.github.zhangwenkang.aurorama": [
+          "package:/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk"
+        ],
+        "io.github.zhangwenkang.aurorama.debug": []
+      },
+      "pmListExact": [
+        "package:io.github.zhangwenkang.aurorama"
+      ],
+      "pidof": {
+        "dev.aurorama.kokoro.harness": "",
+        "dev.aurorama.kokoro.focuspeer": ""
+      },
+      "psHits": [],
+      "activityServicesHits": [],
+      "notificationPackageRecords": [],
+      "mediaSession": {
+        "parserScope": "Sessions Stack only; Audio playback and other sections ignored",
+        "stackHeaders": [
+          "  Sessions Stack - have 0 sessions:",
+          "  Sessions Stack - have 0 sessions:",
+          "  Sessions Stack - have 0 sessions:"
+        ],
+        "perStackSessionCounts": [
+          0,
+          0,
+          0
+        ],
+        "totalSessions": 0,
+        "activeTestPackageSessions": 0
+      },
+      "sdcardQaV8Temp": [],
+      "externalFindHits": [],
+      "externalPathStates": [
+        {
+          "path": "/sdcard/Android/data/dev.aurorama.kokoro.harness",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/media/dev.aurorama.kokoro.harness",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/obb/dev.aurorama.kokoro.harness",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/data/dev.aurorama.kokoro.focuspeer",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/media/dev.aurorama.kokoro.focuspeer",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/sdcard/Android/obb/dev.aurorama.kokoro.focuspeer",
+          "exitCode": 1,
+          "exists": false
+        }
+      ],
+      "internalDataCacheStates": [
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.harness",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.harness/cache",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.focuspeer",
+          "exitCode": 1,
+          "exists": false
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.focuspeer/cache",
+          "exitCode": 1,
+          "exists": false
+        }
+      ]
+    }
+  },
+  "restoration": {
+    "capturedAt": "2026-11-05T22:54:33.1826290+08:00",
+    "restoreActions": [],
+    "restoreActionReason": "Every captured baseline value already matched, so no device-setting write was needed.",
+    "network": {
+      "before": {
+        "airplaneMode": "0",
+        "wifiOn": "1",
+        "mobileData": "1",
+        "activeDefaultNetwork": "190"
+      },
+      "after": {
+        "airplaneMode": "0",
+        "wifiOn": "1",
+        "mobileData": "1",
+        "activeDefaultNetwork": "190"
+      },
+      "match": true
+    },
+    "musicVolume": {
+      "stream": "STREAM_MUSIC",
+      "before": 41,
+      "after": 41,
+      "range": "0..150",
+      "raw": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 41 in range [0..150]",
+      "match": true
+    },
+    "screen": {
+      "before": {
+        "screenOffTimeout": "2147483647",
+        "lockAfterTimeout": "null",
+        "stayOnWhilePluggedIn": "7"
+      },
+      "after": {
+        "screenOffTimeout": "2147483647",
+        "lockAfterTimeout": "null",
+        "stayOnWhilePluggedIn": "7"
+      },
+      "match": true
+    },
+    "currentUser": {
+      "before": "0",
+      "after": "0",
+      "match": true
+    },
+    "wakefulness": {
+      "before": "Awake",
+      "after": "Awake",
+      "match": true
+    },
+    "keyguard": {
+      "before": "false",
+      "after": "false",
+      "match": true
+    },
+    "allMatch": true
+  },
+  "productionPackages": [
+    {
+      "package": "io.github.zhangwenkang.aurorama",
+      "variant": "release",
+      "before": {
+        "installed": true,
+        "basePath": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+        "bytes": 79729350,
+        "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+        "metadata": [
+          "    codePath=/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==",
+          "    primaryCpuAbi=arm64-v8a",
+          "    versionCode=5 minSdk=28 targetSdk=36",
+          "    versionName=1.4.0",
+          "    lastUpdateTime=2026-11-04 19:35:22",
+          "      firstInstallTime=2026-11-04 19:35:22"
+        ]
+      },
+      "after": {
+        "installed": true,
+        "basePath": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+        "bytes": 79729350,
+        "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+        "metadata": [
+          "    codePath=/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==",
+          "    primaryCpuAbi=arm64-v8a",
+          "    versionCode=5 minSdk=28 targetSdk=36",
+          "    versionName=1.4.0",
+          "    lastUpdateTime=2026-11-04 19:35:22",
+          "      firstInstallTime=2026-11-04 19:35:22"
+        ]
+      },
+      "hashMatch": true,
+      "pathMatch": true,
+      "metadataMatch": true,
+      "allMatch": true
+    },
+    {
+      "package": "io.github.zhangwenkang.aurorama.debug",
+      "variant": "debug",
+      "before": {
+        "installed": false,
+        "basePath": null,
+        "bytes": null,
+        "sha256": null,
+        "metadata": null
+      },
+      "after": {
+        "installed": false,
+        "basePath": null,
+        "bytes": null,
+        "sha256": null,
+        "metadata": []
+      },
+      "hashMatch": true,
+      "pathMatch": true,
+      "metadataMatch": true,
+      "allMatch": true,
+      "note": "Before and after are both absent; hash/path/metadata MATCH by absence."
+    }
+  ],
+  "checks": [
+    {
+      "id": "HOST_LOGCAT_ORPHAN",
+      "status": "PASS",
+      "detail": "0 exact orphan matches; 0 killed; final match count 0."
+    },
+    {
+      "id": "PACKAGE_REMOVAL",
+      "status": "PASS",
+      "detail": "harness and focuspeer are absent at T+0 and T+10; no PID, service, notification, or active MediaSession residue."
+    },
+    {
+      "id": "REMOTE_AND_EXTERNAL_CLEANUP",
+      "status": "PASS",
+      "detail": "/sdcard/qa_v8_* is empty; all six package-specific external paths are absent."
+    },
+    {
+      "id": "INTERNAL_DATA_CACHE",
+      "status": "PASS",
+      "detail": "Both packages and all four package data/cache probes are absent after uninstall."
+    },
+    {
+      "id": "T0_T10_CONVERGENCE",
+      "status": "PASS",
+      "detail": "All requested residue fields are identical at T+0 and T+10."
+    },
+    {
+      "id": "NETWORK_RESTORE",
+      "status": "PASS",
+      "detail": "airplane/wifi/mobile/default network before and after are 0/1/1/190."
+    },
+    {
+      "id": "VOLUME_RESTORE",
+      "status": "PASS",
+      "detail": "STREAM_MUSIC is 41 in range 0..150."
+    },
+    {
+      "id": "SCREEN_RESTORE",
+      "status": "PASS",
+      "detail": "screen timeout/lock-after/stay-on are 2147483647/null/7."
+    },
+    {
+      "id": "USER_POWER_KEYGUARD_RESTORE",
+      "status": "PASS",
+      "detail": "current user 0, Wakefulness Awake, keyguard=false."
+    },
+    {
+      "id": "PRODUCTION_RELEASE_IDENTITY",
+      "status": "PASS",
+      "detail": "Path, 79729350 bytes, SHA-256, and six metadata fields MATCH before.json."
+    },
+    {
+      "id": "PRODUCTION_DEBUG_IDENTITY",
+      "status": "PASS",
+      "detail": "Debug is absent before and after; path/hash/metadata MATCH by absence."
+    },
+    {
+      "id": "SCOPE",
+      "status": "PASS",
+      "detail": "0 feature reruns, 0 K60-targeted commands, 0 screenshots, no lock or source writes."
+    }
+  ],
+  "unresolved": [],
+  "counters": {
+    "passes": 12,
+    "fails": 0,
+    "blocked": 0,
+    "logcatOrphansKilled": 0,
+    "remoteTempEntriesRemoved": 0,
+    "k60TargetedCommands": 0,
+    "screenshotsTaken": 0
+  }
+}

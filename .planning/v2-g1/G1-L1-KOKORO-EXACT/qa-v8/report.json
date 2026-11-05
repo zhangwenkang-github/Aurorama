@@ -1,0 +1,474 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.blocked-report.v1",
+  "task": "Aurorama 2.0 G1-L1 Kokoro isolated harness QA-v8 BLOCKED closure and evidence report",
+  "role": "fresh BLOCKED closure / evidence report owner; distinct from implementation, QA-v7, both QA-v8 execution agents and the tools writer",
+  "generatedAt": "2026-11-05T23:00:20.869+08:00",
+  "status": "BLOCKED_TOOL_NONCONVERGENCE",
+  "verdict": "BLOCKED",
+  "verdictScope": "QA-v8 executed only on Xiaomi Pad 5 43af8627 and stopped at tool gates. No product core journey completed. Product P0-P3 are NOT_ASSESSED; this report is neither product FAIL nor PASS_WITH_GAPS.",
+  "object": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "handoffHead": "3b760025dce0ff323c1ece65ec1453ec1cebd55c",
+    "implementationBaseline": "35ed65c2dc0e4171bdaf5b6fe055ad1f2e7ead8c",
+    "implementationBaselineIsAncestor": true,
+    "hostMain": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 427009671,
+      "sha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+      "versionCode": 4,
+      "versionName": "2.0-kokoro-runtime-v5",
+      "abi": "arm64-v8a",
+      "internetPermission": false,
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
+      ]
+    },
+    "hostPeer": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+      "bytes": 12696,
+      "sha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+      "versionCode": 1,
+      "versionName": "1.0-focus-peer",
+      "internetPermission": false
+    },
+    "fixture": {
+      "kind": "isolated Kokoro runtime harness",
+      "mainPackage": "dev.aurorama.kokoro.harness",
+      "focusPeerPackage": "dev.aurorama.kokoro.focuspeer",
+      "voiceProfilesDeclaredByHarness": [
+        "zf_001",
+        "zm_010"
+      ],
+      "voiceSamplesExecuted": 0
+    },
+    "device": {
+      "serial": "43af8627",
+      "model": "21051182C",
+      "sdk": 33,
+      "abi": "arm64-v8a",
+      "currentUser": 0,
+      "wakefulness": "Awake",
+      "keyguardShowing": false
+    },
+    "tools": {
+      "canonicalPath": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools.sha256",
+      "evidenceCopyPath": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/device-PAD5-43af8627/tools.sha256",
+      "aggregateSha256": "d8e98a90b250bafb1bb48d62f315041fd0f67653d8d81c4650aca9fb617d0bfb",
+      "entryCount": 21,
+      "sortedBy": "tools/<filename> ordinal",
+      "selfExcluded": true
+    }
+  },
+  "executionBoundary": {
+    "reportOwnerAdbCommands": 0,
+    "reportOwnerDeviceCommands": 0,
+    "reportOwnerNetworkCalls": 0,
+    "reportOwnerServerAccesses": 0,
+    "reportOwnerScreenshots": 0,
+    "reportOwnerViewImageCalls": 0,
+    "harnessModified": false,
+    "qaV8ToolsModified": false,
+    "qaV3OrV7EvidenceModified": false,
+    "productionCodeModified": false,
+    "apkCommitted": false,
+    "unfilteredHostLogCommitted": false,
+    "rawNetstatsCommitted": false,
+    "push": false,
+    "tag": false,
+    "release": false
+  },
+  "actualExecuted": [
+    "The worktree, branch, fixed starting HEAD, implementation-baseline ancestry and Pad-only device lock were checked before QA-v8 execution.",
+    "Attempt 1 captured Pad baseline state, then stopped at prepare-device because the fresh-install date parser rejected date value 2026-11-05 (exit 1).",
+    "Attempt 1 still ran finalize-device; the process was terminated by an out-of-memory condition after 361075 ms with exit -1 and no structured finalize JSON.",
+    "Attempt 1 evidence was archived under attempts/20261105-pad-01-tool-blocked; postprocess itself exited 0.",
+    "Attempt 2 freshly installed both pinned APKs through the MIUI confirmation path; both wrappers exited 0 and device identity checks PASSED.",
+    "Attempt 2 prepare-device did not return because a pre-existing logcat job remained attached; no completion exit code was available.",
+    "Attempt 2 finalize-device exited 1 after 12093 ms because the stop-logcat and convergence stages received literal [Math]::Min as a Seconds parameter.",
+    "The device-level postprocess step exited 0, but its 19-entry SHA256SUMS had 2 drift entries after command records changed.",
+    "A separate final cleanup and restoration pass removed both test packages, verified T+0/T+10 convergence, and restored the production baseline; cleanup evidence is PASS.",
+    "This report owner only read retained evidence and wrote repository documentation/evidence. No device, adb, network, server, harness, qa-v8/tools, production code or old evidence was touched."
+  ],
+  "executed": {
+    "deviceSerials": [
+      "43af8627"
+    ],
+    "strictSerial": true,
+    "fixture": "isolated Kokoro runtime harness main + focus peer",
+    "mainFreshInstall": true,
+    "peerFreshInstall": true,
+    "installAndDeviceIdentityGate": "PASS_FRESH_INSTALL_DEVICE_IDENTITY",
+    "coreMatrixStepsExecuted": 0,
+    "longRunMinutesExecuted": 0,
+    "voiceSamplesExecuted": 0,
+    "realAudioTracksExecuted": 0,
+    "runtimePidEvidence": "none",
+    "fullQaV8Matrix": "NOT_RUN",
+    "dualDevice": "NOT_RUN",
+    "notificationControls": "NOT_RUN",
+    "audioFocus": "NOT_RUN",
+    "background30Minutes": "NOT_RUN",
+    "zeroNetwork": "NOT_RUN",
+    "pauseRecreateResume": "NOT_RUN",
+    "uiCancel": "NOT_RUN",
+    "musicTtsSingleOwner": "NOT_RUN",
+    "tamperFailClosed": "NOT_RUN",
+    "speakerGate": "NOT_RUN",
+    "crashGate": "NOT_ASSESSED",
+    "resourceConvergenceProductGate": "NOT_ASSESSED",
+    "k60": {
+      "registered": false,
+      "targetedCommands": 0,
+      "run": false
+    },
+    "productFindings": "NOT_ASSESSED"
+  },
+  "commands": [
+    {
+      "attempt": 1,
+      "name": "prepare-device",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File qa-v8/tools/prepare-device.ps1 -OutputRoot qa-v8/device-PAD5-43af8627 -PeerApk .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk -Serial 43af8627 -MainApk .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "startedAt": "2026-11-05T22:13:50.7669172+08:00",
+      "finishedAt": "2026-11-05T22:13:53.8552880+08:00",
+      "durationMs": 3088,
+      "exitCode": 1,
+      "status": "FAIL",
+      "observedError": "ParseExact rejected String '2026-11-05' as a valid DateTime."
+    },
+    {
+      "attempt": 1,
+      "name": "finalize-device",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File qa-v8/tools/finalize-device.ps1 -OutputRoot qa-v8/device-PAD5-43af8627 -LogcatPath qa-v8/device-PAD5-43af8627/logs/runtime-logcat.log -Serial 43af8627",
+      "startedAt": "2026-11-05T22:13:53.8849260+08:00",
+      "finishedAt": "2026-11-05T22:19:54.9600621+08:00",
+      "durationMs": 361075,
+      "exitCode": -1,
+      "status": "FAIL_OOM",
+      "observedError": "Finalization was terminated after more than six minutes by host out-of-memory pressure; no structured finalize result was produced."
+    },
+    {
+      "attempt": 1,
+      "name": "postprocess-evidence",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File qa-v8/tools/postprocess-evidence.ps1 -EvidenceRoot qa-v8/device-PAD5-43af8627",
+      "startedAt": "2026-11-05T22:19:55.0005657+08:00",
+      "finishedAt": "2026-11-05T22:19:55.9507965+08:00",
+      "durationMs": 950,
+      "exitCode": 0,
+      "status": "PASS"
+    },
+    {
+      "attempt": 2,
+      "name": "fresh-install-main",
+      "command": "MIUI-confirmed fresh install of kokoro-isolated-harness-debug.apk on 43af8627",
+      "startedAt": "2026-11-05T22:40:07.0498596+08:00",
+      "finishedAt": null,
+      "confirmationClickedAt": "2026-11-05T22:40:05.6274961+08:00",
+      "exitCode": 0,
+      "status": "PASS"
+    },
+    {
+      "attempt": 2,
+      "name": "fresh-install-peer",
+      "command": "MIUI-confirmed fresh install of kokoro-focus-peer-debug.apk on 43af8627",
+      "startedAt": "2026-11-05T22:40:11.1459887+08:00",
+      "finishedAt": null,
+      "confirmationClickedAt": "2026-11-05T22:40:10.1304945+08:00",
+      "exitCode": 0,
+      "status": "PASS"
+    },
+    {
+      "attempt": 2,
+      "name": "prepare-device",
+      "command": "prepare-device.ps1 launched; exact invocation was not retained in the final evidence set",
+      "startedAt": "before 2026-11-05T22:40:14.8524849+08:00",
+      "finishedAt": null,
+      "durationMs": null,
+      "exitCode": "NO_RETURN",
+      "status": "BLOCKED_LEFTOVER_LOGCAT_JOB",
+      "observedError": "The preparation process remained attached to a pre-existing host logcat job and did not return."
+    },
+    {
+      "attempt": 2,
+      "name": "finalize-device",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File qa-v8/tools/finalize-device.ps1 -Serial 43af8627 -LogcatPath qa-v8/device-PAD5-43af8627/logs/runtime-logcat.log -OutputRoot qa-v8/device-PAD5-43af8627",
+      "startedAt": "2026-11-05T22:49:20.2117978+08:00",
+      "finishedAt": "2026-11-05T22:49:32.3043903+08:00",
+      "durationMs": 12093,
+      "exitCode": 1,
+      "status": "FAIL",
+      "observedError": "Cannot bind parameter 'Seconds'. Cannot convert value '[Math]::Min' to type 'System.Double'."
+    },
+    {
+      "attempt": 2,
+      "name": "postprocess-evidence",
+      "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File qa-v8/tools/postprocess-evidence.ps1 -EvidenceRoot qa-v8/device-PAD5-43af8627",
+      "startedAt": "2026-11-05T22:49:32.3428688+08:00",
+      "finishedAt": "2026-11-05T22:49:34.1213591+08:00",
+      "durationMs": 1778,
+      "exitCode": 0,
+      "status": "PASS"
+    }
+  ],
+  "attempts": [
+    {
+      "id": "PAD-01",
+      "evidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/attempts/20261105-pad-01-tool-blocked",
+      "result": "BLOCKED_TOOL",
+      "prepare": {
+        "exitCode": 1,
+        "failure": "fresh-install date parse rejected 2026-11-05"
+      },
+      "finalize": {
+        "exitCode": -1,
+        "durationMs": 361075,
+        "failure": "host OOM termination; no final structured document"
+      },
+      "matrix": {
+        "status": "FAIL_PRIMARY_GATES",
+        "coreStepsExecuted": 0,
+        "skippedBecausePriorStepFailed": 11
+      },
+      "postprocessExitCode": 0,
+      "archived": true
+    },
+    {
+      "id": "PAD-02",
+      "evidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/device-PAD5-43af8627",
+      "result": "BLOCKED_TOOL",
+      "freshInstall": "PASS",
+      "installIdentity": {
+        "mainBytes": 427009671,
+        "mainSha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+        "peerBytes": 12696,
+        "peerSha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+        "versionCode": 4,
+        "versionName": "2.0-kokoro-runtime-v5",
+        "arm64": true,
+        "exactPermissionSet": true,
+        "noInternetPermission": true,
+        "distinctUids": true,
+        "identityGateDetected": false
+      },
+      "prepare": {
+        "exitCode": "NO_RETURN",
+        "failure": "pre-existing host logcat job kept the preparation process attached"
+      },
+      "finalize": {
+        "exitCode": 1,
+        "durationMs": 12093,
+        "failure": "literal [Math]::Min reached a Double Seconds parameter during stop-logcat and convergence"
+      },
+      "deviceManifest": {
+        "path": "device-PAD5-43af8627/SHA256SUMS",
+        "entryCount": 19,
+        "mismatchCount": 2,
+        "mismatches": [
+          "raw/commands.json",
+          "raw/commands.log"
+        ],
+        "reason": "The per-device manifest was finalized before command records reached their retained content; the final qa-v8/SHA256SUMS supersedes it."
+      },
+      "postprocessExitCode": 0,
+      "coreStepsExecuted": 0
+    }
+  ],
+  "cleanup": {
+    "status": "PASS_CLEANUP_AND_RESTORE",
+    "evidencePath": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/device-PAD5-43af8627/cleanup-recovery.json",
+    "capturedAt": "2026-11-05T22:54:33.182629+08:00",
+    "passes": 12,
+    "fails": 0,
+    "blocked": 0,
+    "unresolved": [],
+    "hostLogcatOrphansAtFinalCheck": 0,
+    "packagesAbsentAtT0": true,
+    "packagesAbsentAtT10": true,
+    "runtimePidsAbsent": true,
+    "serviceRecordsAbsent": true,
+    "notificationRecordsAbsent": true,
+    "activeMediaSessionsAbsent": true,
+    "externalPathsAbsent": true,
+    "internalDataCacheAbsent": true,
+    "remoteTemporaryEntries": 0,
+    "productionRelease": {
+      "package": "io.github.zhangwenkang.aurorama",
+      "bytes": 79729350,
+      "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+      "match": true
+    },
+    "productionDebug": "ABSENT_BEFORE_AND_AFTER",
+    "restored": {
+      "network": {
+        "airplaneMode": "0",
+        "wifiEnabled": "1",
+        "mobileData": "1",
+        "activeDefaultNetwork": "190",
+        "match": true
+      },
+      "musicVolume": 41,
+      "screenOffTimeout": "2147483647",
+      "lockAfterTimeout": "null",
+      "stayOnWhilePluggedIn": "7",
+      "currentUser": 0,
+      "wakefulness": "Awake",
+      "keyguardShowing": false,
+      "allMatch": true
+    },
+    "k60TargetedCommands": 0,
+    "screenshots": 0
+  },
+  "assertions": [
+    {
+      "id": "QA8-OBJECT-GATE",
+      "status": "PASS",
+      "scope": "worktree, branch, starting HEAD, implementation-baseline ancestry, APK sizes/hashes and distinct device UIDs"
+    },
+    {
+      "id": "QA8-FRESH-INSTALL-IDENTITY",
+      "status": "PASS",
+      "scope": "attempt 2 Pad only; both APK bytes/SHA, arm64 main, exact permissions, no Internet permission and absence of a device identity gate"
+    },
+    {
+      "id": "QA8-TOOL-IDEMPOTENCY",
+      "status": "FAIL",
+      "scope": "two consecutive Pad attempts failed at different prepared/finalize tool gates; no core step ran"
+    },
+    {
+      "id": "QA8-DEVICE-MANIFEST",
+      "status": "FAIL_P2",
+      "scope": "device-PAD5-43af8627/SHA256SUMS has 2/19 mismatches; final qa-v8/SHA256SUMS is authoritative"
+    },
+    {
+      "id": "QA8-CLEANUP",
+      "status": "PASS",
+      "scope": "final independent cleanup/recovery only; not a product-runtime assertion"
+    },
+    {
+      "id": "QA8-PRODUCT-RUNTIME",
+      "status": "NOT_RUN",
+      "scope": "30-minute, samples, AudioTrack, PID, notification, focus, resume, cancel, single-owner, tamper, zero-network and Pad/K60 dual-device matrix"
+    },
+    {
+      "id": "QA8-PRODUCT-P0-P3",
+      "status": "NOT_ASSESSED",
+      "scope": "core product execution count is zero"
+    }
+  ],
+  "findings": {
+    "product": {
+      "P0": "NOT_ASSESSED",
+      "P1": "NOT_ASSESSED",
+      "P2": "NOT_ASSESSED",
+      "P3": "NOT_ASSESSED"
+    },
+    "tool": {
+      "P0": [],
+      "P1": [
+        {
+          "id": "QA8-TOOL-P1-REPEATED-NONCONVERGENCE",
+          "status": "OPEN",
+          "detail": "Two QA-v8 Pad attempts failed at successive tool gates: date parsing plus finalize OOM, then leftover logcat attachment plus a literal [Math]::Min argument-binding failure. Core execution remained zero.",
+          "productImpact": "UNKNOWN; product runtime was not executed"
+        }
+      ],
+      "P2": [
+        {
+          "id": "QA8-TOOL-P2-MANIFEST-DRIFT",
+          "status": "OPEN",
+          "detail": "The second attempt's device manifest contains 19 entries and 2 mismatches, raw/commands.json and raw/commands.log, because command records changed after that manifest was produced.",
+          "remediation": "Use the final qa-v8/SHA256SUMS for the closure evidence set."
+        }
+      ],
+      "P3": []
+    },
+    "summary": "Product findings are NOT_ASSESSED. Tool findings are P1 repeated non-convergence and P2 manifest drift."
+  },
+  "uncovered": [
+    "entire QA-v8 product matrix",
+    "Pad/K60 dual-device execution; K60 was never registered or used",
+    "30-minute background and lock-screen runtime",
+    "zf_001 and zm_010 sample execution",
+    "real AudioTrack start/completion evidence",
+    "runtime PID, process recreation and resume evidence",
+    "notification four-control matrix",
+    "OS-origin audio focus",
+    "UI cancel",
+    "music/TTS single-owner arbitration",
+    "checkpoint tamper fail-closed",
+    "final UID zero-network proof",
+    "speaker allowlist gate",
+    "current-run crash and resource-convergence product gates",
+    "Pad performance P2 acceptance",
+    "license, training data and voice ownership closure",
+    "production runtime, exact profile, Q03, G2, G1 or Release"
+  ],
+  "blocked": {
+    "code": "BLOCKED_TOOL_NONCONVERGENCE",
+    "reason": "Two independent Pad attempts did not pass the QA tool gates; core execution was zero.",
+    "retryPerformed": true,
+    "retryCount": 1,
+    "automaticRetryAuthorized": false,
+    "nextDecisionOwner": "delivery lead / technical integration owner",
+    "requiredDecision": "choose a controlled QA tool repair and fresh QA round, or explicitly defer QA; do not infer product status from this blocked run"
+  },
+  "maximumClaim": "On Pad 43af8627, QA-v8 proved that the pinned main and peer APKs could be freshly installed with matching bytes/SHA and expected package identities, and that a later independent cleanup restored the production package and device baseline. QA-v8 did not execute any product core step, so it cannot claim product PASS, FAIL, PASS_WITH_GAPS or product P0-P3. The only QA verdict is BLOCKED_TOOL_NONCONVERGENCE.",
+  "nextStep": {
+    "role": "delivery lead / technical integration owner",
+    "decision": "Decide whether to authorize a narrowly scoped QA-v8 tool repair followed by a fresh QA round, or defer QA. No further device retry is automatic.",
+    "firstReadOnlyAction": "Read this report, the attempt-1 matrix result, attempt-2 finalize-device result, cleanup-recovery result and final SHA256SUMS; confirm the QA-v8 Pad lock is RELEASED and ACTIVE=0.",
+    "repairBoundaryIfAuthorized": "A new tool owner may change only qa-v8/tools, then a different fresh QA agent must rerun the complete Pad matrix from a clean host state before K60 registration.",
+    "stopCondition": "Stop on repeated tool non-convergence without a new decision, missing/ambiguous evidence, lock conflict, core execution still zero, new P0-P2 product evidence, or any request to broaden into production / Q03 / G2 / Release."
+  },
+  "deviceLock": {
+    "path": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "padSerial": "43af8627",
+    "acquiredAt": "2026-11-05T21:22:34+08:00",
+    "releasedAt": "2026-11-05T23:00:20.869+08:00",
+    "padStateAfterClosure": "RELEASED",
+    "activeCountAfterClosure": 0,
+    "k60Registered": false,
+    "k60TargetedCommands": 0
+  },
+  "security": {
+    "screenshotsTaken": 0,
+    "viewImageCalls": 0,
+    "unfilteredHostLogRetained": false,
+    "rawNetstatsRetained": false,
+    "notificationXmlRetained": false,
+    "serverWrites": 0,
+    "accountOrIdentityGate": "NOT_TRIGGERED",
+    "sensitiveScanPath": "security/sensitive-scan.json",
+    "sensitiveScanStatus": "PASS",
+    "sensitiveScanFileCount": 69,
+    "sensitiveScanRequiredCategories": [
+      "authorization header",
+      "bearer scheme",
+      "cookie",
+      "password",
+      "token",
+      "API key",
+      "credential",
+      "JWT"
+    ],
+    "removedUnfilteredHostConsole": {
+      "path": "device-PAD5-43af8627/.stdout.log",
+      "bytes": 5796,
+      "sha256": "1a9159c1440f929fa43912134c1fc966ef320876d0baf9514325c476df5fcb59",
+      "reason": "unfiltered host console output; structured cleanup-recovery.json retains the evidence"
+    }
+  },
+  "evidenceIndex": {
+    "attempt1": "attempts/20261105-pad-01-tool-blocked",
+    "attempt2Install": "device-PAD5-43af8627/install-gate.json",
+    "attempt2Finalize": "device-PAD5-43af8627/finalize-device.json",
+    "attempt2Postprocess": "device-PAD5-43af8627/postprocess.json",
+    "cleanup": "device-PAD5-43af8627/cleanup-recovery.json",
+    "toolsDigest": "tools.sha256",
+    "securityScan": "security/sensitive-scan.json",
+    "finalManifest": "SHA256SUMS"
+  }
+}

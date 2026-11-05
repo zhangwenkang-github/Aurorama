@@ -1,0 +1,72 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.postprocess.v1",
+  "status": "PASS_EVIDENCE_FILTERED_REDACTED_LF_NO_BOM",
+  "generatedAt": "2026-11-05T22:49:34.0106712+08:00",
+  "evidenceRoot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627",
+  "filters": {
+    "packages": [
+      "dev.aurorama.kokoro.harness",
+      "dev.aurorama.kokoro.focuspeer",
+      "io.github.zhangwenkang.aurorama",
+      "io.github.zhangwenkang.aurorama.debug"
+    ],
+    "tags": [
+      "KOKORO_RUNTIME",
+      "KokoroRuntimeService"
+    ],
+    "pids": [],
+    "uids": [
+      10342,
+      10343
+    ]
+  },
+  "hostLogFiltering": [
+    {
+      "source": "logs\\runtime-logcat.log",
+      "filtered": "logs\\runtime-logcat.package-pid-tag-uid-filtered.log",
+      "originalLines": 102438,
+      "retainedLines": 307
+    }
+  ],
+  "deletedFiles": [
+    {
+      "path": "main-install\\miui-install-popup.xml",
+      "reason": "temporary_xml",
+      "bytes": 7749
+    },
+    {
+      "path": "peer-install\\miui-install-popup.xml",
+      "reason": "temporary_xml",
+      "bytes": 7744
+    },
+    {
+      "path": "logs\\runtime-logcat.pid",
+      "reason": "transient_logcat_pid",
+      "bytes": 4
+    }
+  ],
+  "rawHostLogRetained": false,
+  "unfilteredNetstatsRetained": false,
+  "screenshotsRetained": false,
+  "sanitizedJsonCount": 8,
+  "sanitizedXmlCount": 0,
+  "secretScan": {
+    "passed": true,
+    "path": "security-scan.json"
+  },
+  "encoding": {
+    "utf8WithoutBom": true,
+    "lfOnly": true,
+    "bomFileCount": 0,
+    "crlfFileCount": 0
+  },
+  "manifest": {
+    "path": "SHA256SUMS",
+    "sha256": "f3d8671002383a08a4b7d43433114357d77f0c495b0b1dd0e90f9133f2a63123",
+    "entryCount": 19,
+    "excludedFromItself": [
+      "SHA256SUMS",
+      "postprocess.json"
+    ]
+  }
+}

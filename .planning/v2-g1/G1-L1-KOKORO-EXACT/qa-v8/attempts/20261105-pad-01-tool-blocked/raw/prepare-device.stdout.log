@@ -1,0 +1,80 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.before-device.v1",
+  "capturedAt": "2026-11-05T22:13:52.3159463+08:00",
+  "serial": "43af8627",
+  "model": "21051182C",
+  "sdk": "33",
+  "abi": "arm64-v8a,armeabi-v7a,armeabi",
+  "fingerprint": "Xiaomi/nabu/nabu:13/TKQ1.221114.001/V816.0.3.0.TKXCNXM:user/release-keys",
+  "powerLines": [
+    "  mWakefulness=Awake",
+    "  mStayOn=true"
+  ],
+  "wakefulness": "Awake",
+  "keyguardLines": [
+    "    mDisplayHomeButtonHandlers=    mKeyguardOccluded=false mKeyguardOccludedChanged=false mPendingKeyguardOccluded=false",
+    "      showing=false",
+    "      deviceHasKeyguard=true",
+    "      KeyguardStateMonitor",
+    "        mIsShowing=false"
+  ],
+  "keyguardShowing": "false",
+  "currentUser": "0",
+  "users": "Users:\n\tUserInfo{0:机主:c13} running",
+  "harnessPackages": "",
+  "harnessServicePresent": false,
+  "harnessNotificationRecordPresent": [],
+  "airplaneMode": "0",
+  "wifiOn": "1",
+  "mobileData": "1",
+  "activeNetworkLines": [
+    "Active default network: 190"
+  ],
+  "musicVolumeCommand": {
+    "exitCode": 0,
+    "text": "[V] will control stream=3 (STREAM_MUSIC)\n[V] will get volume\n[V] Connecting to AudioService\n[V] volume is 41 in range [0..150]"
+  },
+  "musicVolumeSetting": 41,
+  "musicVolumeRange": "0..150",
+  "screenOffTimeout": "2147483647",
+  "lockAfterTimeout": "null",
+  "stayOn": "7",
+  "productionPackages": [
+    {
+      "package": "io.github.zhangwenkang.aurorama",
+      "pathText": "package:/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+      "basePath": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+      "stat": {
+        "exitCode": 0,
+        "text": "79729350",
+        "lines": [
+          "79729350"
+        ]
+      },
+      "sha256": {
+        "exitCode": 0,
+        "text": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb  /data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+        "lines": [
+          "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb  /data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk"
+        ]
+      },
+      "versionLine": [
+        "    codePath=/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==",
+        "    primaryCpuAbi=arm64-v8a",
+        "    versionCode=5 minSdk=28 targetSdk=36",
+        "    versionName=1.4.0",
+        "    lastUpdateTime=2026-11-04 19:35:22",
+        "      firstInstallTime=2026-11-04 19:35:22"
+      ]
+    },
+    {
+      "package": "io.github.zhangwenkang.aurorama.debug",
+      "pathText": "",
+      "basePath": [],
+      "stat": null,
+      "sha256": null,
+      "versionLine": []
+    }
+  ]
+}
+prepare-device.ps1: Exception calling "ParseExact" with "3" argument(s): "String '2026-11-05' was not recognized as a valid DateTime."

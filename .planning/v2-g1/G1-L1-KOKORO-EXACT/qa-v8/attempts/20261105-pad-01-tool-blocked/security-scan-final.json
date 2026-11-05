@@ -1,0 +1,35 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.final-secret-scan.v1",
+  "status": "PASS",
+  "passed": true,
+  "scannedFileCount": 15,
+  "scannedFiles": [
+    "before.json",
+    "matrix-result.json",
+    "postprocess.json",
+    "security-scan.json",
+    "SHA256SUMS",
+    "tools.sha256",
+    "raw/commands.json",
+    "raw/commands.log",
+    "raw/finalize-device.stderr.log",
+    "raw/finalize-device.stdout.log",
+    "raw/postprocess-evidence.stderr.log",
+    "raw/postprocess-evidence.stdout.log",
+    "raw/preflight.json",
+    "raw/prepare-device.stderr.log",
+    "raw/prepare-device.stdout.log"
+  ],
+  "hitFileCount": 0,
+  "hits": [],
+  "toolsDirectoryExcludedFromPayload": true,
+  "toolsManifest": {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\tools.sha256",
+    "sha256": "51a2c26fa1bfcb25db6701c2dc6bb4e03a2d8cd75f2bb673e274a067bf16c02a",
+    "lineCount": 21
+  },
+  "requiredPostRunFilesScanned": {
+    "matrixResult": true,
+    "postprocessStdout": true
+  }
+}

@@ -3413,7 +3413,69 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：QA-v7 stop-only PASS，交接全新完整 runtime QA（2026-11-05）
+### ACTIVE：QA-v8 工具非收敛 BLOCKED，等待负责人裁决定下一轮（2026-11-05）
+
+**下一责任身份**：Aurorama 2.0 G1 交付负责人 / 技术集成编排者。只负责范围、风险、
+角色拆单、证据与决策；若继续，必须另行创建与实现、QA-v7、QA-v8 两次执行代理和工具
+writer 都不同的专业代理，不得把本轮 BLOCKED 改写成产品结论。
+
+**对象**：事实工作树
+`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
+`codex/v2-integration`；QA-v8 开工 HEAD
+`3b760025dce0ff323c1ece65ec1453ec1cebd55c`。new main
+`427,009,671 B / 252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`，
+version `4 / 2.0-kokoro-runtime-v5`；new peer
+`12,696 B / 61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`；
+工具摘要 `d8e98a90b250bafb1bb48d62f315041fd0f67653d8d81c4650aca9fb617d0bfb`。
+
+**状态**：
+`QA_V8_BLOCKED_TOOL_NONCONVERGENCE / PAD_ONLY / CORE_STEPS_0 / K60_NOT_REGISTERED_NOT_RUN / CLEANUP_PASS / DEVICE_LOCK_ACTIVE_0 / PRODUCT_P0_P3_NOT_ASSESSED / PAD_P2_UNACCEPTED / KOKORO_LICENSE_PARTIAL / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+
+**本轮事实**
+
+- 两次 Pad QA-v8 attempt 都只到工具门，核心步骤 `0`；30 分钟、样音、真实 AudioTrack、
+PID 计数为 `0 / 0 / 0 / none`，全矩阵、通知、audio focus、30 分钟、零网络与双机均
+`NOT_RUN`。K60 `8e875894` 未登记、未运行，针对性命令 0。
+- attempt 1 的 prepare 因 fresh-install 日期解析拒绝 `2026-11-05` 而 exit 1；
+finalize 在 `361,075 ms` 后被宿主 OOM 终止，exit `-1`，无结构化终态。证据归档在
+`.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/attempts/20261105-pad-01-tool-blocked/`。
+- attempt 2 fresh install 与设备身份 PASS：双 APK bytes/SHA、main `arm64-v8a`、
+versionCode 4 / `2.0-kokoro-runtime-v5`、精确权限集和无 INTERNET 均通过；但 prepare
+因遗留宿主 logcat job 不返回，finalize 又在 stop-logcat / convergence 阶段收到字面量
+`[Math]::Min`，Seconds 参数绑定 exit 1。
+- attempt 2 设备级 `SHA256SUMS` 为 19 条、2 条漂移；最终 `qa-v8/SHA256SUMS` 是交付清单。
+工具 findings 为重复非收敛 P1 与 manifest drift P2；产品 P0–P3 因核心零执行统一
+`NOT_ASSESSED`，不是产品 FAIL，也不是 `PASS_WITH_GAPS`。
+- 独立最终 cleanup / restore PASS：12/12 checks，双包、PID、service、notification、
+active MediaSession 与 external 均无；网络 `0/1/1/190`、音量 41、屏幕
+`2147483647/null/7`、user0、Awake、keyguard=false；生产 release
+`acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb` MATCH。
+Pad 锁已 `RELEASED`，`ACTIVE=0`。
+- 报告入口：
+`.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/report.json`；README、敏感扫描与最终清单同在
+`qa-v8/`。本轮报告 owner 未执行 adb / 设备 / 网络 / 生产访问，未改 harness、
+`qa-v8/tools`、v3/v7 证据或生产代码。
+
+**下一原子任务**
+
+1. 第一条只读动作：读本 ACTIVE、`qa-v8/report.json`、attempt-1 `matrix-result.json`、
+attempt-2 `finalize-device.json`、`cleanup-recovery.json` 与最终 `SHA256SUMS`，确认设备锁
+`ACTIVE=0`。
+2. 由负责人决定：授权一次窄范围 QA-v8 工具修复并另派全新 QA 轮次，或明确延期 QA。
+本轮不会自动重试设备；重复执行前必须更换工具 owner 与 QA 执行者。
+3. 若授权修复，只允许新工具 owner 改 `qa-v8/tools`，修复后由不同全新 QA 代理从干净宿主
+状态重跑完整 Pad 矩阵；Pad 核心全部执行并收口后才可再登记 K60。
+
+**非目标 / 停止门**：不得把安装门 PASS、清理 PASS、旧 QA-v5/v7 或实现自测扩写成完整
+runtime / 产品 PASS / FAIL / `PASS_WITH_GAPS` / G1 / Q03 / profile / Release；不得绕过
+设备锁、K60 未登记、核心零执行、hash / permission / ABI 漂移、重复工具非收敛、新
+P0–P2 或未授权生产 / 网络 / MOSS / G2 / Release。
+
+**后续**：工具修复与完整双机 runtime 全通过后，剩余独立门仍是 Pad P2 决策、
+Kokoro / native 逐资产许可与 notice / source provenance、exact profile / 试听及 Q03；
+全部闭合前 G1 保持 `NOT_PASSED`。
+
+### HISTORY：QA-v7 stop-only PASS，交接全新完整 runtime QA（2026-11-05；已被上方 QA-v8 BLOCKED ACTIVE 取代）
 
 **下一责任身份**：Aurorama 2.0 G1 全新完整 runtime QA / 用户承诺验证专家；必须与
 runtime-closure-v3 实现 owner、QA-v7 都不同。只重验 v5 新 APK 的已授权核心 runtime，
@@ -5053,3 +5115,16 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `REV6-P1-01` stop-only / native-crash 门；不覆盖完整 30 分钟、K60 / 双机、P2、许可、
   生产 runtime、Q03 或 G1。证据 `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v7/report.json`；
   下一步另派与实现 / QA-v7 都不同的全新完整 runtime QA。
+- **2026-11-05 — QA-v8 Pad 两次工具非收敛 / BLOCKED 收口**：全新 QA-v8 两次均只到工具门，
+  核心步骤 0；30 分钟 / samples / AudioTrack / PID=`0/0/0/none`，K60 未登记未运行。
+  attempt 1 prepare 因 fresh-install 日期 `2026-11-05` 解析失败 exit 1，finalize 在
+  `361,075 ms` 后 OOM、exit `-1`；attempt 2 fresh install / 设备身份 PASS，但 prepare 被
+  遗留 logcat job 挂住不返回，finalize 因字面量 `[Math]::Min` 不能绑定 Seconds 参数 exit 1，
+  设备级 manifest 19 条中 2 条漂移。最终 cleanup / restore 12/12 PASS，双包、PID、service、
+  notification、active MediaSession、external 全无，生产 release
+  `acb1648d…2ff5bb` 与网络、音量 41、屏幕、user0、Awake、keyguard=false MATCH；Pad 锁
+  `RELEASED / ACTIVE=0`。结论 `BLOCKED_TOOL_NONCONVERGENCE`；工具 P1 重复非收敛、
+  P2 manifest drift，产品 P0–P3 因核心零执行 `NOT_ASSESSED`，全矩阵 / 双机 / 通知 / focus /
+  30 分钟 / 零网络均 `NOT_RUN`。不得写产品 FAIL 或 `PASS_WITH_GAPS`。证据
+  `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/report.json`；下一步仅由负责人决定受控工具
+  修复并另派全新 QA，或明确延期。

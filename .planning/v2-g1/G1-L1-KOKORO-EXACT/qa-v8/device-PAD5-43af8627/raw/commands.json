@@ -1,0 +1,26 @@
+[
+  {
+    "name": "finalize-device",
+    "kind": "device",
+    "command": "'C:\\Users\\zhangwenkang\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe' '-NoProfile' '-ExecutionPolicy' 'Bypass' '-File' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\tools\\finalize-device.ps1' '-Serial' '43af8627' '-LogcatPath' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\logs\\runtime-logcat.log' '-OutputRoot' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627'",
+    "startedAt": "2026-11-05T22:49:20.2117978+08:00",
+    "finishedAt": "2026-11-05T22:49:32.3043903+08:00",
+    "durationMs": 12093,
+    "exitCode": 1,
+    "status": "FAIL",
+    "stdoutPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\finalize-device.stdout.log",
+    "stderrPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\finalize-device.stderr.log"
+  },
+  {
+    "name": "postprocess-evidence",
+    "kind": "postprocess",
+    "command": "'C:\\Users\\zhangwenkang\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe' '-NoProfile' '-ExecutionPolicy' 'Bypass' '-File' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\tools\\postprocess-evidence.ps1' '-EvidenceRoot' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627'",
+    "startedAt": "2026-11-05T22:49:32.3428688+08:00",
+    "finishedAt": "2026-11-05T22:49:34.1213591+08:00",
+    "durationMs": 1778,
+    "exitCode": 0,
+    "status": "PASS",
+    "stdoutPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\postprocess-evidence.stdout.log",
+    "stderrPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\postprocess-evidence.stderr.log"
+  }
+]

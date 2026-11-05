@@ -1,0 +1,32 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.final-seal.v1",
+  "status": "PASS_FINAL_FILES_SCANNED_AND_SEALED",
+  "generatedAt": "2026-11-05T22:19:56.4567036+08:00",
+  "evidenceRoot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627",
+  "finalSecretScan": {
+    "path": "security-scan-final.json",
+    "passed": true,
+    "scannedFileCount": 15,
+    "contentScannedBeforeWrite": true
+  },
+  "manifest": {
+    "path": "SHA256SUMS",
+    "sha256": "89143c9b4746166920ae8b508f5f6fbc22c6f0588d05fac494dc4698c14eef1c",
+    "entryCount": 15,
+    "excludedFromItself": [
+      "SHA256SUMS",
+      "final-seal.json"
+    ],
+    "contentScannedBeforeWrite": true
+  },
+  "toolsManifest": {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\tools.sha256",
+    "sha256": "51a2c26fa1bfcb25db6701c2dc6bb4e03a2d8cd75f2bb673e274a067bf16c02a",
+    "lineCount": 21
+  },
+  "postManifestFiles": {
+    "matrixResultScanned": true,
+    "postprocessStdoutScanned": true,
+    "finalSealContentScannedBeforeWrite": true
+  }
+}

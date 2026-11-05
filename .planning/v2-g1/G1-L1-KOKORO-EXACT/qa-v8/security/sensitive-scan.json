@@ -1,0 +1,108 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.sensitive-scan.v1",
+  "generatedAt": "2026-11-05T23:00:20.869+08:00",
+  "status": "PASS",
+  "passed": true,
+  "evidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8",
+  "scope": {
+    "scannedFileCount": 69,
+    "extensions": [
+      ".md",
+      ".json",
+      ".jsonl",
+      ".log",
+      ".txt",
+      ".ps1",
+      ".sha256",
+      ".gitattributes",
+      ".gitignore"
+    ],
+    "additionalFilenames": [
+      "SHA256SUMS"
+    ],
+    "includedFinalFiles": [
+      "SHA256SUMS",
+      "security/sensitive-scan.json"
+    ],
+    "finalManifestSelfExcluded": true
+  },
+  "categories": [
+    {
+      "id": "authorizationHeader",
+      "checked": true,
+      "hits": 0
+    },
+    {
+      "id": "bearerScheme",
+      "checked": true,
+      "hits": 0
+    },
+    {
+      "id": "cookie",
+      "checked": true,
+      "hits": 0
+    },
+    {
+      "id": "password",
+      "checked": true,
+      "hits": 0
+    },
+    {
+      "id": "token",
+      "checked": true,
+      "hits": 0
+    },
+    {
+      "id": "apiKey",
+      "checked": true,
+      "hits": 0
+    },
+    {
+      "id": "credential",
+      "checked": true,
+      "hits": 0
+    },
+    {
+      "id": "jwt",
+      "checked": true,
+      "hits": 0
+    },
+    {
+      "id": "privateKey",
+      "checked": true,
+      "hits": 0
+    }
+  ],
+  "rawPatternMatchCount": 4,
+  "reviewRequiredCount": 0,
+  "hitFileCount": 0,
+  "hits": [],
+  "allowlistedDetectorDefinitions": [
+    {
+      "file": "tools/postprocess-evidence.ps1",
+      "lines": [
+        29,
+        30
+      ],
+      "reason": "Regular-expression detector source, not a credential value"
+    },
+    {
+      "file": "tools/seal-evidence.ps1",
+      "lines": [
+        17,
+        18
+      ],
+      "reason": "Regular-expression detector source, not a credential value"
+    }
+  ],
+  "artifactHygiene": {
+    "screenshots": 0,
+    "viewImageCalls": 0,
+    "apkFilesPresent": 0,
+    "unfilteredHostLogPresent": false,
+    "rawNetstatsPresent": false,
+    "notificationXmlPresent": false,
+    "serverCredentialMaterial": false
+  },
+  "conclusion": "No sensitive credential value was found in the retained QA-v8 text, JSON, XML-free evidence set. Four raw regex matches are detector definitions in tool source and are explicitly allowlisted."
+}

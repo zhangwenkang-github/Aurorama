@@ -1,0 +1,26 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.miui-install-wrapper.v1",
+  "freshInstall": true,
+  "serial": "43af8627",
+  "apk": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-focus-peer-debug.apk",
+  "apkSize": 12696,
+  "apkSha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+  "startedAt": "2026-11-05T22:40:11.1459887+08:00",
+  "installExitCode": 0,
+  "stdout": "Performing Push Install\r\nSuccess\r\n",
+  "stderr": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-focus-peer-debug.apk: 1 file pushed, 0 skipped. 77.4 MB/s (12696 bytes in 0.000s)\r\n",
+  "observedFocusTransitions": [
+    "mCurrentFocus=Window{4553afc u0 com.miui.securitycenter/com.miui.permcenter.install.AdbInstallActivity}",
+    "mCurrentFocus=Window{bf63b01 u0 com.miui.home/com.miui.home.launcher.Launcher}"
+  ],
+  "confirmationClicks": {
+    "clickedAt": "2026-11-05T22:40:10.1304945+08:00",
+    "text": "继续安装",
+    "bounds": "[946,939][1267,1042]",
+    "tap": "1106,990",
+    "exitCode": 0,
+    "output": ""
+  },
+  "identityGateDetected": false,
+  "success": true
+}

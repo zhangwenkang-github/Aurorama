@@ -1,0 +1,116 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.device-matrix.v1",
+  "status": "FAIL_PRIMARY_GATES",
+  "serial": "43af8627",
+  "generatedAt": "2026-11-05T22:19:55.9563886+08:00",
+  "strictSerial": true,
+  "crashGateCoverage": "final current-run filter from logs/logcat-start.json covers every device step and cleanup",
+  "topLevelError": null,
+  "toolDigest": {
+    "canonicalPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\tools.sha256",
+    "evidenceCopyPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\tools.sha256",
+    "aggregateSha256": "51a2c26fa1bfcb25db6701c2dc6bb4e03a2d8cd75f2bb673e274a067bf16c02a",
+    "entryCount": 21,
+    "sortedBy": "tools/<filename> ordinal",
+    "selfExcluded": true
+  },
+  "lockGate": {
+    "schema": "aurorama.kokoro-qa-v8.matrix-preflight.v1",
+    "serial": "43af8627",
+    "deviceLockPath": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "activeCount": 1,
+    "matchingQaV8Count": 1,
+    "passed": true,
+    "activeTitles": [
+      "### G1-L1-KOKORO-EXACT-QA-V8-PAD-43af8627-20261105 — ACTIVE"
+    ]
+  },
+  "requestedMinutes": 30,
+  "commands": [
+    {
+      "name": "prepare-device",
+      "kind": "device",
+      "command": "'C:\\Users\\zhangwenkang\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe' '-NoProfile' '-ExecutionPolicy' 'Bypass' '-File' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\tools\\prepare-device.ps1' '-OutputRoot' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627' '-PeerApk' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-focus-peer-debug.apk' '-Serial' '43af8627' '-MainApk' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk'",
+      "startedAt": "2026-11-05T22:13:50.7669172+08:00",
+      "finishedAt": "2026-11-05T22:13:53.8552880+08:00",
+      "durationMs": 3088,
+      "exitCode": 1,
+      "status": "FAIL",
+      "stdoutPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\prepare-device.stdout.log",
+      "stderrPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\prepare-device.stderr.log"
+    },
+    {
+      "name": "finalize-device",
+      "kind": "device",
+      "command": "'C:\\Users\\zhangwenkang\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe' '-NoProfile' '-ExecutionPolicy' 'Bypass' '-File' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\tools\\finalize-device.ps1' '-OutputRoot' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627' '-LogcatPath' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\logs\\runtime-logcat.log' '-Serial' '43af8627'",
+      "startedAt": "2026-11-05T22:13:53.8849260+08:00",
+      "finishedAt": "2026-11-05T22:19:54.9600621+08:00",
+      "durationMs": 361075,
+      "exitCode": -1,
+      "status": "FAIL",
+      "stdoutPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\finalize-device.stdout.log",
+      "stderrPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\finalize-device.stderr.log"
+    },
+    {
+      "name": "postprocess-evidence",
+      "kind": "postprocess",
+      "command": "'C:\\Users\\zhangwenkang\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe' '-NoProfile' '-ExecutionPolicy' 'Bypass' '-File' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\tools\\postprocess-evidence.ps1' '-EvidenceRoot' 'F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627'",
+      "startedAt": "2026-11-05T22:19:55.0005657+08:00",
+      "finishedAt": "2026-11-05T22:19:55.9507965+08:00",
+      "durationMs": 950,
+      "exitCode": 0,
+      "status": "PASS",
+      "stdoutPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\postprocess-evidence.stdout.log",
+      "stderrPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\raw\\postprocess-evidence.stderr.log"
+    }
+  ],
+  "skipped": [
+    {
+      "name": "resource-consistency",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "dual-voice-samples",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "background-30m",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "background-30m-analysis",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "notification-four-controls",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "os-focus-peer",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "paused-recreate",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "ui-cancel",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "music-tts-arbitration",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "checkpoint-tamper",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    },
+    {
+      "name": "zero-network",
+      "reason": "prior_matrix_step_failed_stop_gate"
+    }
+  ],
+  "finalizeAlwaysExecuted": true,
+  "postprocessAlwaysExecuted": true,
+  "finalSealRequiredAfterMatrixResult": true
+}

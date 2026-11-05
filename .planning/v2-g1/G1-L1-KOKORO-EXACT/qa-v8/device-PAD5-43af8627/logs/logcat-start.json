@@ -1,0 +1,14 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.logcat-start.v2",
+  "serial": "43af8627",
+  "hostStartedAt": "2026-11-05T22:40:14.8524849+08:00",
+  "hostProcessId": 2632,
+  "stdoutPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\logs\\runtime-logcat.package-pid-tag-uid-filtered.log",
+  "stderrPath": "[REMOVED_UNFILTERED_STDERR]",
+  "deviceLogcatDate": "2026-11-05",
+  "deviceEpochSeconds": 1793889616,
+  "hostClockSampleStartedAt": "2026-11-05T22:40:16.8877446+08:00",
+  "hostClockSampleFinishedAt": "2026-11-05T22:40:16.9482421+08:00",
+  "deviceClockDriftMilliseconds": -918,
+  "estimatedDeviceLogStartedAt": "2026-11-05 22:40:13.934"
+}

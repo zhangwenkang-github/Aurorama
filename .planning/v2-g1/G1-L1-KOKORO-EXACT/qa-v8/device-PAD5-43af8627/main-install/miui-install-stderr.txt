@@ -1,0 +1,1 @@
+F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\.planning\v2-g1\G1-L1-KOKORO-EXACT\harness\build\outputs\kokoro-isolated-harness-debug.apk: 1 file pushed, 0 skipped. 20.1 MB/s (427009671 bytes in 20.231s)

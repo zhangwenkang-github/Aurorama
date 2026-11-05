@@ -1,0 +1,351 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.finalize-device.v3",
+  "status": "FINALIZE_BLOCKED",
+  "serial": "43af8627",
+  "capturedAt": "2026-11-05T22:49:32.1723817+08:00",
+  "executionLimits": {
+    "stageTimeoutSeconds": 30,
+    "maxWorkingSetBytes": 2147483648,
+    "maxCaptureBytes": 67108864,
+    "maxEvidenceLines": 500,
+    "boundedStreaming": true,
+    "tempCaptureRoot": "C:\\Users\\zhangwenkang\\AppData\\Local\\Temp\\aurorama-qa-v8-finalize-e79b2f5751734e23a36e7ff1792d448b"
+  },
+  "blockedReasons": [
+    {
+      "stage": "stop-logcat",
+      "reason": "Cannot bind parameter 'Seconds'. Cannot convert value \"[Math]::Min\" to type \"System.Double\". Error: \"The input string '[Math]::Min' was not in a correct format.\"",
+      "command": "stop host adb logcat process and flush",
+      "at": "2026-11-05T22:49:22.7026133+08:00",
+      "memory": {
+        "workingSetBytes": 120868864,
+        "privateBytes": 59064320
+      }
+    },
+    {
+      "stage": "convergence",
+      "reason": "Cannot bind parameter 'Seconds'. Cannot convert value \"[Math]::Min\" to type \"System.Double\". Error: \"The input string '[Math]::Min' was not in a correct format.\"",
+      "command": "bounded package pid service notification media cleanup checks",
+      "at": "2026-11-05T22:49:27.5904539+08:00",
+      "memory": {
+        "workingSetBytes": 125489152,
+        "privateBytes": 57450496
+      }
+    }
+  ],
+  "stages": [
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "pre-cleanup",
+      "command": "pidof netstats capture and force-stop",
+      "startedAt": "2026-11-05T22:49:20.7177674+08:00",
+      "finishedAt": "2026-11-05T22:49:22.6212134+08:00",
+      "durationMs": 1903,
+      "memoryBefore": {
+        "workingSetBytes": 97013760,
+        "privateBytes": 40726528
+      },
+      "memoryAfter": {
+        "workingSetBytes": 120680448,
+        "privateBytes": 59924480
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "stop-logcat",
+      "command": "stop host adb logcat process and flush",
+      "startedAt": "2026-11-05T22:49:22.6592246+08:00",
+      "finishedAt": "2026-11-05T22:49:22.7109173+08:00",
+      "durationMs": 52,
+      "memoryBefore": {
+        "workingSetBytes": 120188928,
+        "privateBytes": 59035648
+      },
+      "memoryAfter": {
+        "workingSetBytes": 120877056,
+        "privateBytes": 59064320
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "BLOCKED",
+      "error": "Cannot bind parameter 'Seconds'. Cannot convert value \"[Math]::Min\" to type \"System.Double\". Error: \"The input string '[Math]::Min' was not in a correct format.\""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "minimal-cleanup",
+      "command": "force-stop clear uninstall external/remote cleanup",
+      "startedAt": "2026-11-05T22:49:22.7291489+08:00",
+      "finishedAt": "2026-11-05T22:49:27.5408803+08:00",
+      "durationMs": 4812,
+      "memoryBefore": {
+        "workingSetBytes": 116830208,
+        "privateBytes": 54865920
+      },
+      "memoryAfter": {
+        "workingSetBytes": 128184320,
+        "privateBytes": 60309504
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "convergence",
+      "command": "bounded package pid service notification media cleanup checks",
+      "startedAt": "2026-11-05T22:49:27.5605868+08:00",
+      "finishedAt": "2026-11-05T22:49:27.5980148+08:00",
+      "durationMs": 37,
+      "memoryBefore": {
+        "workingSetBytes": 125452288,
+        "privateBytes": 57450496
+      },
+      "memoryAfter": {
+        "workingSetBytes": 125489152,
+        "privateBytes": 57450496
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "BLOCKED",
+      "error": "Cannot bind parameter 'Seconds'. Cannot convert value \"[Math]::Min\" to type \"System.Double\". Error: \"The input string '[Math]::Min' was not in a correct format.\""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "restore-production",
+      "command": "bounded restoration and production package comparison",
+      "startedAt": "2026-11-05T22:49:27.6119567+08:00",
+      "finishedAt": "2026-11-05T22:49:32.1083556+08:00",
+      "durationMs": 4496,
+      "memoryBefore": {
+        "workingSetBytes": 125321216,
+        "privateBytes": 57290752
+      },
+      "memoryAfter": {
+        "workingSetBytes": 144883712,
+        "privateBytes": 74743808
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    }
+  ],
+  "progressPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\device-PAD5-43af8627\\finalize-progress.jsonl",
+  "currentRunFilter": {
+    "hostStartedAt": "11/05/2026 22:40:14",
+    "estimatedDeviceLogStartedAt": "2026-11-05 22:40:13.934",
+    "deviceClockDriftMilliseconds": -918,
+    "valid": true,
+    "hostLogPresent": true,
+    "appPids": null,
+    "coversAllMatrixRounds": true,
+    "oldCrashBufferAndDropboxEntriesExcluded": true
+  },
+  "finalNetstats": {
+    "uid": 10342,
+    "identityBlockCount": 0,
+    "appUidStatsMapRowCount": 0,
+    "totalRxBytes": 0,
+    "totalTxBytes": 0,
+    "totalBytes": 0,
+    "scannedLines": 16867
+  },
+  "finalUidNetstatsZero": false,
+  "crashGate": {
+    "passed": false,
+    "currentRunWindowValid": true,
+    "sourceQueriesPassed": false,
+    "sourceExitCodes": null,
+    "fDebugCount": 0,
+    "nativeTombstoneCount": 0,
+    "javaFatalCount": 0,
+    "anrCount": 0,
+    "inputTimeoutCount": 0,
+    "applicationExitReason5Count": 0,
+    "historicalApplicationExitReason5Excluded": 0,
+    "currentExitInfoBlocks": null,
+    "filteredLines": {
+      "fDebug": null,
+      "tombstone": null,
+      "fatal": null,
+      "anr": null,
+      "inputTimeout": null
+    }
+  },
+  "speakerGate": {
+    "passed": false,
+    "approvedRequestCounts": null,
+    "forbiddenTtsRequestCount": 0,
+    "forbiddenLiteralCount": 0,
+    "filteredLines": null
+  },
+  "cleanup": {
+    "passed": false,
+    "preCleanupPids": {
+      "dev.aurorama.kokoro.harness": "",
+      "dev.aurorama.kokoro.focuspeer": ""
+    },
+    "clearResults": {
+      "dev.aurorama.kokoro.harness": {
+        "exitCode": 0,
+        "text": "Success\r\n",
+        "bytes": 9,
+        "timedOut": false,
+        "captureLimited": false
+      },
+      "dev.aurorama.kokoro.focuspeer": {
+        "exitCode": 0,
+        "text": "Success\r\n",
+        "bytes": 9,
+        "timedOut": false,
+        "captureLimited": false
+      }
+    },
+    "uninstallResults": {
+      "dev.aurorama.kokoro.harness": {
+        "exitCode": 0,
+        "text": "Success\r\n",
+        "bytes": 9,
+        "timedOut": false,
+        "captureLimited": false
+      },
+      "dev.aurorama.kokoro.focuspeer": {
+        "exitCode": 0,
+        "text": "Success\r\n",
+        "bytes": 9,
+        "timedOut": false,
+        "captureLimited": false
+      }
+    },
+    "externalPaths": {
+      "dev.aurorama.kokoro.harness": {
+        "/sdcard/Android/data/dev.aurorama.kokoro.harness": {
+          "removeExitCode": 0
+        },
+        "/sdcard/Android/media/dev.aurorama.kokoro.harness": {
+          "removeExitCode": 0
+        },
+        "/sdcard/Android/obb/dev.aurorama.kokoro.harness": {
+          "removeExitCode": 0
+        }
+      },
+      "dev.aurorama.kokoro.focuspeer": {
+        "/sdcard/Android/data/dev.aurorama.kokoro.focuspeer": {
+          "removeExitCode": 0
+        },
+        "/sdcard/Android/media/dev.aurorama.kokoro.focuspeer": {
+          "removeExitCode": 0
+        },
+        "/sdcard/Android/obb/dev.aurorama.kokoro.focuspeer": {
+          "removeExitCode": 0
+        }
+      }
+    },
+    "externalPathsAbsent": false,
+    "internalDataAbsent": false,
+    "internalProbes": null,
+    "packagesAbsent": true,
+    "pidsAbsent": true,
+    "serviceRecordsAbsent": true,
+    "notificationAbsent": true,
+    "activeSessionsAbsent": true,
+    "remoteTemporaryAbsent": true,
+    "productionPackages": [
+      {
+        "package": "io.github.zhangwenkang.aurorama",
+        "installedBefore": true,
+        "installedAfter": true,
+        "hashBefore": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+        "hashAfter": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+        "hashMatch": true,
+        "pathBefore": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+        "pathAfter": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+        "pathMatch": true,
+        "metadataMatch": false
+      },
+      {
+        "package": "io.github.zhangwenkang.aurorama.debug",
+        "installedBefore": false,
+        "installedAfter": false,
+        "hashBefore": "",
+        "hashAfter": null,
+        "hashMatch": false,
+        "pathBefore": "",
+        "pathAfter": "",
+        "pathMatch": true,
+        "metadataMatch": true
+      }
+    ],
+    "productionAllMatch": false,
+    "convergence": null,
+    "logcatStopped": null
+  },
+  "restoration": {
+    "values": {
+      "network": {
+        "airplaneMode": "0",
+        "wifiOn": "1",
+        "mobileData": "1",
+        "activeDefaultNetwork": "190"
+      },
+      "volume": 41,
+      "wakefulness": "Awake",
+      "screenOffTimeout": "2147483647",
+      "lockAfterTimeout": "null",
+      "stayOn": "7",
+      "keyguard": "false",
+      "currentUser": "0",
+      "production": [
+        {
+          "package": "io.github.zhangwenkang.aurorama",
+          "installed": true,
+          "basePath": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+          "bytes": 79729350,
+          "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+          "metadata": [
+            "    codePath=/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==",
+            "    primaryCpuAbi=arm64-v8a",
+            "    versionCode=5 minSdk=28 targetSdk=36",
+            "    versionName=1.4.0",
+            "    lastUpdateTime=2026-11-04 19:35:22",
+            "      android.permission.INTERNET",
+            "      android.permission.WAKE_LOCK",
+            "      android.permission.POST_NOTIFICATIONS",
+            "      android.permission.FOREGROUND_SERVICE",
+            "      android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+            "      android.permission.FOREGROUND_SERVICE: granted=true",
+            "      android.permission.INTERNET: granted=true",
+            "      android.permission.WAKE_LOCK: granted=true",
+            "      firstInstallTime=2026-11-04 19:35:22",
+            "        android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]"
+          ]
+        },
+        {
+          "package": "io.github.zhangwenkang.aurorama.debug",
+          "installed": false,
+          "basePath": null,
+          "bytes": null,
+          "sha256": null,
+          "metadata": []
+        }
+      ]
+    },
+    "networkMatch": true,
+    "volumeMatch": true,
+    "screenMatch": true,
+    "keyguardMatch": true,
+    "currentUserMatch": true
+  },
+  "checks": {
+    "notBlocked": false,
+    "currentRunCrashGate": false,
+    "cleanup": false,
+    "speakerGate": false,
+    "zeroUidNetwork": false
+  }
+}
