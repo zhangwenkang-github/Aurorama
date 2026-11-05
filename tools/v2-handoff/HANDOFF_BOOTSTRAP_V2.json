@@ -25,13 +25,13 @@
     "deviceLockPath": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md"
   },
   "qaRoundState": {
-    "status": "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT",
+    "status": "POST_HANDOFF_AUDIT_READY",
     "lastQaVerdict": "BLOCKED_TOOL_NONCONVERGENCE",
     "round1IntegrationReview": "FAIL_1_P1_2_P2_REPAIRED_CLOSED_BY_ROUND2",
     "round2IntegrationReview": "FAIL_P2_PREFLIGHT_SEMANTIC_BYPASS_REPAIRED_CLOSED_BY_ROUND3_PASS",
     "independentIntegrationReview": "PASS",
-    "preHandoffAudit": "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
-    "padQaPromptDispatch": "BLOCKED",
+    "preHandoffAudit": "PASS",
+    "padQaPromptDispatch": "PASS",
     "productFindings": {
       "P0": "NOT_ASSESSED",
       "P1": "NOT_ASSESSED",
@@ -45,7 +45,27 @@
     "cleanup": "PASS_CLEANUP_AND_RESTORE",
     "padLockActiveCount": 0
   },
-  "auditReceipt": null,
+  "auditReceipt": {
+    "schema": "aurorama.handoff-audit-receipt.v1",
+    "verdict": "PASS",
+    "auditorRole": "PRE_HANDOFF_AUDIT_OWNER",
+    "auditedSourceCommit": "804b4a8ab27d72e00401842c97c12e8154d68060",
+    "auditedSourceTree": "cfdc136e25ebf613904bfdbad88534109de7b689",
+    "auditedAt": "2026-11-06T05:50:49.7800907+08:00",
+    "qaPromptSha256": "0d47ca2497d0d2afe96de52f2a115151c7ca32fe65a157610d75b6cf2251b0ab",
+    "toolsDigest": "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+    "deviceLockState": "RELEASED_ACTIVE_0",
+    "deviceLockSha256": "8335b81832a39b96356db1532b17216f05c1c07d273953b187e775227f610428",
+    "qaEvidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9",
+    "rejectedScopeHash": "ac8d5874162cfc6e4d1158edfd8c3e4cad60b9a868eea19184b6b62624cd5d50",
+    "memoryIndexSha256": "15ec94259ccfb5760c6a9e14ed357f61477027339cd5d6068c90e640f58cff05",
+    "immutableStateSha256": "2592dcd233265039298672d9ba174045f67509a85c6ac2bc0442e75acf3af029",
+    "transitionPaths": [
+      "docs/TASKS.md",
+      "docs/V2_PLAN.md",
+      "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
+    ]
+  },
   "acceptedArtifacts": {
     "main": {
       "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
@@ -925,7 +945,7 @@
         "requiredBefore": [
           "INDEPENDENT_INTEGRATION_REVIEW_PASS"
         ],
-        "status": "BLOCKED"
+        "status": "PASS"
       },
       {
         "id": "QA_DISPATCHABLE",
@@ -933,7 +953,7 @@
         "requiredBefore": [
           "PRE_HANDOFF_AUDIT_PASS"
         ],
-        "status": "BLOCKED"
+        "status": "PASS"
       }
     ]
   },
@@ -971,17 +991,17 @@
       "Preflight PASS 后，按 readOrder 顺序读取压缩材料；不进入 raw、旧证据或生产源码。"
     ]
   },
-  "activePrompt": "toolRepair",
-  "next_prompt_path": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/toolRepair/textLines",
+  "activePrompt": "padQa",
+  "next_prompt_path": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
   "qa_prompt_path": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
-  "nextPromptPath": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/toolRepair/textLines",
+  "nextPromptPath": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
   "qaPromptPath": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
   "prompts": {
     "toolRepair": {
       "roleId": "PRE_HANDOFF_AUDIT_OWNER",
-      "status": "ACTIVE",
-      "dispatchable": true,
-      "retiredReason": null,
+      "status": "RETIRED_AFTER_AUDIT_PASS",
+      "dispatchable": false,
+      "retiredReason": "PRE_HANDOFF_AUDIT_PASS",
       "actionClass": "READ_ONLY_PREFLIGHT",
       "command": [
         "pwsh",
@@ -1057,8 +1077,8 @@
     },
     "padQa": {
       "roleId": "PAD_QA_OWNER",
-      "status": "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
-      "dispatchable": false,
+      "status": "ACTIVE",
+      "dispatchable": true,
       "retiredReason": null,
       "actionClass": "READ_ONLY_PREFLIGHT",
       "command": [
@@ -1120,11 +1140,11 @@
     }
   },
   "validation": {
-    "handoffPhase": "PRE_HANDOFF_AUDIT",
+    "handoffPhase": "POST_HANDOFF_AUDIT_READY",
     "activeDocument": "docs/V2_PLAN.md",
     "activeHeadingPrefix": "### ACTIVE",
-    "activePromptExpectedRoleId": "PRE_HANDOFF_AUDIT_OWNER",
-    "qaPromptRequiredStatus": "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
+    "activePromptExpectedRoleId": "PAD_QA_OWNER",
+    "qaPromptRequiredStatus": "ACTIVE",
     "tasksDocument": "docs/TASKS.md",
     "tasksInProgressHeading": "## In Progress",
     "tasksInProgressExpectedCount": 3,

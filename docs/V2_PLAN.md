@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_S1_S6_STATIC_BASELINE_RETAINED / D202_D205_ACCEPTED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_BLOCKED_TOOL_NONCONVERGENCE / ROUND1_TO_ROUND8_HISTORY_RETAINED / ROUND8_P1_REPAIRED_AND_RETIRED_BY_B11 / ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT / B11_CONTRACT_96_OF_96 / TOOLS_STATIC_31_TESTS_25_OF_25 / CONTRACT_DIGEST_REFRESHED / PREFLIGHT_PASS / PRE_HANDOFF_AUDIT_BLOCKED / QA_DISPATCHABLE_BLOCKED / CORE_STEPS_0 / PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT / validation.handoffPhase=PRE_HANDOFF_AUDIT / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED / ROUND8-P1-01 / CORE_STEPS_0 / PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / ACTIVE=0`。round9 fresh reviewer 已独立 PASS：Test `96/96` 且 `TEMP_CLEANUP=PASS`，独立 `21/21`；pending 与 review-pass PRE 均 PASS，audit/QA 提前 exit 2，role/source/current/receipt 门通过；QA tools `25/25`、self-test `31`，无设备 / 网络 / secret / 残留。B12 只做机械状态收口，review gate 已 `PASS`，audit / QA 仍 `BLOCKED`，padQa `dispatchable=false`，`auditReceipt=null`；下一唯一角色是全新 `PRE_HANDOFF_AUDIT_OWNER`。当前不是 audit PASS、QA PASS、已合并或 G1 PASS。工具基线为 tools 31/31、manifest `2984 B`、digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`。Pad 通过并释放锁后才允许 K60，每设备 10 分钟。许可、Pad P2、Q03、项目级 runtime、G1 与 profile 均未闭合。
+> 状态：`G0_PASSED / G1_ACTIVE / G1_S1_S6_STATIC_BASELINE_RETAINED / D202_D205_ACCEPTED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_BLOCKED_TOOL_NONCONVERGENCE / ROUND1_TO_ROUND9_HISTORY_RETAINED / ROUND9_REVIEW_PASS / PRE_HANDOFF_AUDIT_PASS_QA_V9_DISPATCH_READY / B11_CONTRACT_96_OF_96 / TOOLS_STATIC_31_TESTS_25_OF_25 / CONTRACT_DIGEST_REFRESHED / PREFLIGHT_PASS / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=PASS / CORE_STEPS_0 / PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `PRE_HANDOFF_AUDIT_PASS_QA_V9_DISPATCH_READY / validation.handoffPhase=POST_HANDOFF_AUDIT_READY / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=PASS / ROUND8-P1-01 / CORE_STEPS_0 / PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / ACTIVE=0`。fresh `PRE_HANDOFF_AUDIT_OWNER` 已真实 PASS 并退役，exact embedded `auditReceipt` 绑定 source commit / tree、QA prompt、tools、设备锁、证据根、rejectedScope、memory 与 immutable state；POST preflight 是 QA 派发前最后机械门。round9 reviewer 的 Test `96/96 + TEMP_CLEANUP=PASS`、独立 `21/21` 与 QA tools `25/25`、self-test `31` 均保留；active prompt 已切到全新 `PAD_QA_OWNER`，`toolRepair=RETIRED_AFTER_AUDIT_PASS / dispatchable=false` 且 `padQa=ACTIVE / dispatchable=true`。Pad core、K60、产品 P0–P3、QA 与 runtime 仍未执行 / 未评估；当前不是 QA PASS、已合并或 G1 PASS。工具基线为 tools 31/31、manifest `2984 B`、digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`。Pad 通过并释放锁后才允许 K60，每设备 10 分钟。许可、Pad P2、Q03、项目级 runtime、G1 与 profile 均未闭合。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-06
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3413,21 +3413,21 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：round9 只读复审 PASS，等待全新 pre-handoff audit；audit / QA 仍阻断（2026-11-06）
+### ACTIVE：PRE_HANDOFF_AUDIT_PASS_QA_V9_DISPATCH_READY（2026-11-06）
 
 **身份与优先硬门**
 
-本波专业身份是 Aurorama 2.0 G1 全新 HANDOFF ROUND9 STATE FINALIZER（B12）；它只把已由
-fresh round9 reviewer 判 PASS 的合法 PRE 状态机械推进到 review PASS awaiting audit，完成后
-永久退役。下一唯一专业身份是全新 `PRE_HANDOFF_AUDIT_OWNER`；负责人恢复为 Aurorama 2.0 G1
-交付负责人 / 技术集成编排者。唯一 `ACTIVE` 直接覆盖通用
+本波专业身份是 Aurorama 2.0 G1 全新一次性 QA-V9 POST-audit FINALIZER；它只把 fresh
+`PRE_HANDOFF_AUDIT_OWNER` 的真实 PASS receipt 与合法 PRE 对象机械推进到
+`POST_HANDOFF_AUDIT_READY`，完成后永久退役。下一唯一专业身份是全新 `PAD_QA_OWNER`；
+负责人恢复为 Aurorama 2.0 G1 交付负责人 / 技术集成编排者。唯一 `ACTIVE` 直接覆盖通用
 开工规则：`SUBAGENT_FIRST=YES`、`ONE_PHASE_PER_FRESH_AGENT=YES`、`NO_REUSE_SUBAGENT=YES`、
 `ROOT_INTEGRATION_ONLY=YES`。负责人只做范围、风险、拆单、白名单、压缩报告 / 关键 diff 审查、
 集成决策和交接；不得亲自实现、修工具、做独立审查、跑 pre-handoff audit 或真机 QA。
 
-新会话第一条只读动作必须实际运行：
+新 `PAD_QA_OWNER` 的第一条只读动作必须实际运行：
 
-`pwsh -NoProfile -File 'F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\v2-handoff\Invoke-HandoffPreflight.ps1' -EmitPrompt`
+`pwsh -NoProfile -File 'F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\v2-handoff\Invoke-HandoffPreflight.ps1' -Prompt padQa -EmitPrompt`
 
 preflight 只读、离线、显式 UTF-8/LF，不调用 `adb` 或网络。任何非零 / `FAIL_CLOSED`、字段缺失、
 未知顶层字段、非白名单 JSON pointer、immutable hash 漂移、角色表不全、gate owner /
@@ -3439,14 +3439,11 @@ stable pointer 漂移、anchor token 非精确常量、unknown / duplicate role�
 唯一机器契约是 `tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json`，preflight 是
 `tools/v2-handoff/Invoke-HandoffPreflight.ps1`；契约只固定输入基线，不写入接收方当前 HEAD。
 
-`validation.handoffPhase` 只允许两值：当前 `PRE_HANDOFF_AUDIT` 仅有两个合法子态。
-`PRE_REVIEW_PENDING` 的 review gate 必须 `BLOCKED`；`PRE_REVIEW_PASS_AWAITING_AUDIT` 的
-review gate 必须 `PASS` 并对应正式状态 `ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT`。
-当前真实 review 状态为 `PASS`，owner 为
-`ROUND9_READONLY_INTEGRATION_REVIEW_OWNER`；该 reviewer 已按一次性契约永久退役。
-两者都属于 PRE，始终要求 audit / QA `BLOCKED`、qaRoundState audit / QA / dispatch 非 PASS、
-padQa `dispatchable=false` 且 receipt `null`。source PRE 与 current PRE 必须共用
-`Assert-PreAuditState(mode)`；`POST_HANDOFF_AUDIT_READY` 只能由合法 embedded
+`validation.handoffPhase` 只允许 `PRE_HANDOFF_AUDIT` 与 `POST_HANDOFF_AUDIT_READY`。
+当前唯一真实值是 `POST_HANDOFF_AUDIT_READY`；PRE 的 `PRE_REVIEW_PENDING` /
+`PRE_REVIEW_PASS_AWAITING_AUDIT` 只保留历史回归。当前 review PASS owner 为已退役的
+`ROUND9_READONLY_INTEGRATION_REVIEW_OWNER`，pre-handoff audit PASS owner 为本轮已退役的
+`PRE_HANDOFF_AUDIT_OWNER`。`POST_HANDOFF_AUDIT_READY` 只能由合法 embedded
 `auditReceipt` 进入，并须绑定 source commit/tree、QA prompt、tools digest、设备锁状态与哈希、
 QA evidence root、rejectedScope、memory index、`immutableStateSha256` 和 `transitionPaths`。
 POST 还要从 source commit 的固定 `commit:path` 以严格 UTF-8/LF 读取合同 JSON；source PRE
@@ -3471,10 +3468,11 @@ source PRE、current PRE 与 current POST 共用同一角色目录断言；摘�
 - 事实工作树 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，
   分支 `codex/v2-integration`，输入基线 `c180dd08984435d0af6421b36b19502b0f79d52c`；当前
   HEAD / clean / 祖先只由接收方现场读取。
-- 状态：`ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT /
-  validation.handoffPhase=PRE_HANDOFF_AUDIT / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS /
-  PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED / ROUND8-P1-01 /
-  PREFLIGHT_PASS / CORE_STEPS_0 / PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / ACTIVE=0`。
+- 状态：`PRE_HANDOFF_AUDIT_PASS_QA_V9_DISPATCH_READY /
+  validation.handoffPhase=POST_HANDOFF_AUDIT_READY /
+  INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=PASS /
+  QA_DISPATCHABLE=PASS / ROUND8-P1-01 / PREFLIGHT_PASS / CORE_STEPS_0 /
+  PRODUCT_P0_P3_NOT_ASSESSED / K60_NOT_RUN / ACTIVE=0`。
   补充事实保持
   `PAD_10_MIN_CORE_NOT_RUN / K60_NOT_REGISTERED_NOT_RUN / CLEANUP_PASS /
   DEVICE_LOCK_ACTIVE_0 / PAD_P2_UNACCEPTED / KOKORO_LICENSE_PARTIAL / Q03_OPEN /
@@ -3578,8 +3576,8 @@ source PRE、current PRE 与 current POST 共用同一角色目录断言；摘�
 | `ROUND7_READONLY_INTEGRATION_REVIEW_OWNER` | 历史 round7 source PRE / current POST 双断言只读复审员 | fresh / one | 只读 | 禁止 | 因 `ROUND7-P1-01` 永久退役；禁止复用或 followup |
 | `ROUND8_READONLY_INTEGRATION_REVIEW_OWNER` | 历史 round8 角色写域与同步篡改只读复审员 | fresh / one | 只读 | 禁止 | 因 `ROUND8-P1-01` 永久退役；不接 commit / audit / QA |
 | `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER` | 历史：PRE 双子态、source/current 共用断言与 round9 token 只读复审员 | fresh / one | 只读 | 禁止 | 已真实 `PASS` 后永久退役；不接 commit / audit / QA |
-| `PRE_HANDOFF_AUDIT_OWNER` | 下一唯一角色：独立交接审计员 / receipt 对象与证据核验师 | fresh / one | 只读 | 禁止 | round9 PASS 且 B12 状态收口后由 root 提交，再由该全新角色审计；审计后退役，不得 followup 或复用 |
-| `PAD_QA_OWNER` | 独立移动端 QA / 用户承诺验证经理 | fresh / one | 仅 `qa-v9/**` | 仅 Pad 10 分钟 | Pad 报告后停；一次性，不接 K60 或 Release |
+| `PRE_HANDOFF_AUDIT_OWNER` | 历史：独立交接审计员 / receipt 对象与证据核验师 | fresh / one | 只读 | 禁止 | 已真实 `PASS` 后永久退役；不得 followup 或复用 |
+| `PAD_QA_OWNER` | 当前唯一角色：独立移动端 QA / 用户承诺验证经理 | fresh / one | 仅 `qa-v9/**` | 仅 Pad 10 分钟 | audit PASS 后才可派发；Pad 报告后停；一次性，不接 K60 或 Release |
 | `K60_QA_OWNER` | 独立跨设备 QA / 用户承诺验证经理 | fresh / one | 仅 `qa-v10/**`，当前锁定 | 仅 Pad PASS 后 K60 10 分钟 | K60 报告后停；一次性，不得提前运行或 followup |
 
 除 `ROOT_INTEGRATION` 的 thread-bound 编排身份外，所有历史与新增专业角色均一次性、每个 fresh
@@ -3589,9 +3587,10 @@ agent 只做一阶段，禁止 followup 接下一阶段；修复 owner 不得复
 
 - A = `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/**`，只曾给 `TOOL_REPAIR_OWNER`；当前已冻结，
   review / audit / root / QA 均不得再改。
-- B = `AGENTS.md`、2.0 文档与 `tools/v2-handoff/**`，曾给 fresh `DOC_PROTOCOL_OWNER`；本轮
-  B12 仅获九文件机械状态收口白名单。B6 / B7 / B8 / B9 / B10 / B11 / B12 完成后退役；
-  round9 reviewer 已 PASS 退役，下一 fresh audit 只读，不得替 root 自证，也不得转 QA。
+- B = `AGENTS.md`、2.0 文档与 `tools/v2-handoff/**`，曾给 fresh `DOC_PROTOCOL_OWNER`；
+  本轮 POST finalizer 仅获三文件机械状态收口白名单。B6 / B7 / B8 / B9 / B10 / B11 / B12
+  与 POST finalizer 完成后退役；round9 reviewer 与 pre-handoff audit owner 均已 PASS 退役，
+  下一 fresh Pad QA 只读首门，不得复用或转 K60。
 - 精确角色语义由 preflight 常量单独断言：review / audit 的 `writeScope=[]`；`PAD_QA_OWNER`
   仅 `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/**`；`K60_QA_OWNER` 仅 `qa-v10/**` 且
   `deviceAccess=K60_ONLY_AFTER_PAD_PASS`。unknown / duplicate role、非精确集合、重复项、
@@ -3599,21 +3598,18 @@ agent 只做一阶段，禁止 followup 接下一阶段；修复 owner 不得复
 - 唯一 gate lifecycle 为 `PREFLIGHT_PASS -> TOOL_NONCONVERGENCE_REPAIRED ->
   CONTRACT_DIGEST_REFRESHED -> INDEPENDENT_INTEGRATION_REVIEW_PASS ->
   PRE_HANDOFF_AUDIT_PASS -> QA_DISPATCHABLE`。`requiredGates` 的每门必须含精确
-  `id / owner / requiredBefore / status`；当前与 POST 的 independent review owner 均为
-  `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER`；当前 review PASS 子态已把该门设为 `PASS`；
-  audit owner 只能为 `PRE_HANDOFF_AUDIT_OWNER`，QA dispatch owner 只能为
+  `id / owner / requiredBefore / status`；历史与 POST 的 independent review owner 均为
+  `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER`；当前 POST 的六门按固定 `requiredBefore`
+  链全部 `PASS`；audit owner 只能为 `PRE_HANDOFF_AUDIT_OWNER`，QA dispatch owner 只能为
   `PAD_QA_OWNER`。`postMutationPointerAllowlist` 必须与 preflight 固定集合逐字一致；任何 PASS
   若前置门未 PASS、重复 / 缺门、乱序或未知状态均 `FAIL_CLOSED`。
 - 当前 real status 固定 `PREFLIGHT_PASS=PASS / TOOL_NONCONVERGENCE_REPAIRED=PASS /
   CONTRACT_DIGEST_REFRESHED=PASS / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS /
-  PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED`。
-  `prompts.toolRepair` 当前只承载下一阶段，角色固定为
-  `PRE_HANDOFF_AUDIT_OWNER`、`ACTIVE / dispatchable=true`；`auditReceipt=null`、`writeScope=[]`、
-  `deviceAccess=FORBIDDEN`，首动作固定为 `READ_ONLY_PREFLIGHT`，不得把 review PASS 写成
-  audit PASS。round9 reviewer 已退役。
-  QA prompt 固定在 `#/prompts/padQa/textLines`，当前状态
-  `BLOCKED_PENDING_PRE_HANDOFF_AUDIT`、`dispatchable=false`，
-  不得提前派发或自行改 ACTIVE。
+  PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=PASS`。
+  `prompts.toolRepair` 当前只承载已退役的 audit 阶段，角色为
+  `PRE_HANDOFF_AUDIT_OWNER`、`RETIRED_AFTER_AUDIT_PASS / dispatchable=false` 且写有
+  `retiredReason`。QA prompt 固定在 `#/prompts/padQa/textLines`，当前状态
+  `ACTIVE / dispatchable=true`，唯一允许的下一阶段是全新 `PAD_QA_OWNER`。
 
 **设备与 10 分钟产品门**
 
@@ -3630,39 +3626,34 @@ agent 只做一阶段，禁止 followup 接下一阶段；修复 owner 不得复
 **下一执行链（每阶段换新 agent）**
 
 1. round9 fresh reviewer 已对 `ROUND8-P1-01`、PRE 双子态、source/current 共用断言、
-   audit / QA 永阻断及历史回归独立 PASS；该角色已永久退役。B12 已把真实状态机械推进到
-   `ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT`，并把下一 active prompt 切给全新
-   `PRE_HANDOFF_AUDIT_OWNER`。
-2. root 先提交 B12 收口后的 9 个协议白名单文件；随后另派全新 `PRE_HANDOFF_AUDIT_OWNER`
-   审计真实 PRE 合同、Git、memory、设备锁与 round9 证据。该角色首动作必须精确命中
-   `READ_ONLY_PREFLIGHT` command，`writeScope=[]`、`deviceAccess=FORBIDDEN`，不写仓库、
-   不接 QA。
-3. 合法 audit `PASS` 后，另一次 fresh finalizer 只写 `auditReceipt` 并切换 phase / gates /
-   prompt / validation、唯一 ACTIVE 与 TASKS；不得触碰 preflight、产品、旧 report 或 QA 证据。
-   POST preflight 必须再次通过后才能激活全新 `PAD_QA_OWNER`。
+   audit / QA 永阻断及历史回归独立 PASS；该角色已永久退役。
+2. fresh `PRE_HANDOFF_AUDIT_OWNER` 已产出真实 `PASS` receipt 并永久退役；本轮 POST finalizer
+   只写 receipt 与白名单状态转换、唯一 ACTIVE 与 TASKS，未触碰 preflight、产品、旧 report
+   或 QA 证据；POST preflight 已通过。
+3. root 复核三文件 diff 后可做单提交；提交后仅创建全新 `PAD_QA_OWNER`，首动作必须精确命中
+   `READ_ONLY_PREFLIGHT`，只写 `qa-v9/**`，不接 K60、Release 或后续阶段。
 4. Pad 只跑一次 10 分钟完整核心矩阵；失败即停，不自动第二次。Pad 核心 PASS 且 cleanup /
    锁释放后，负责人另建不同 fresh 的 `K60_QA_OWNER` 做一次 10 分钟串行矩阵。
 
-**audit PASS 后的机械转换清单（本波不执行）**
+**POST 机械转换记录（已完成，QA 未执行）**
 
-1. 从 fresh audit 报告取 `auditedSourceCommit / auditedSourceTree / auditedAt`，现场计算
-   `qaPromptSha256 / toolsDigest / deviceLockState / deviceLockSha256 / qaEvidenceRoot /
-   rejectedScopeHash / memoryIndexSha256 / immutableStateSha256`；任一缺失或未知即停止。
-2. 只把 `auditReceipt.transitionPaths` 固定为
+1. 已从 fresh audit receipt 取 `auditedSourceCommit / auditedSourceTree / auditedAt`，并现场
+   复核 `qaPromptSha256 / toolsDigest / deviceLockState / deviceLockSha256 / qaEvidenceRoot /
+   rejectedScopeHash / memoryIndexSha256 / immutableStateSha256`。
+2. `auditReceipt.transitionPaths` 固定为
    `tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json`、`docs/V2_PLAN.md`、`docs/TASKS.md`。
-3. 只改合同 embedded `auditReceipt`；`validation.handoffPhase` 切到 `POST_HANDOFF_AUDIT_READY`；
-   audit / QA gates 与 `qaRoundState.preHandoffAudit / padQaPromptDispatch` 切 PASS；独立 review
-   owner 已为 round9；`activePrompt` 从 `toolRepair` 切到 `padQa`；padQa
-   `ACTIVE / dispatchable=true`，toolRepair 记为
-   `RETIRED_AFTER_AUDIT_PASS / false` 并写 `retiredReason`。
-4. 只同步唯一 ACTIVE 与 TASKS 的 POST 状态，并运行 POST preflight；不改工具、preflight、
-   `activeRequiredTokens / requiredTextAnchors`、产品代码、旧 report、证据或 memory，不
-   stage / commit。POST preflight 必须同时通过 `transitionPaths`、递归 mutation allowlist、
+3. 合同 embedded `auditReceipt` 已写入；`validation.handoffPhase=POST_HANDOFF_AUDIT_READY`；
+   audit / QA gates 与 `qaRoundState.preHandoffAudit / padQaPromptDispatch` 已 PASS；独立 review
+   owner 仍为 round9；`activePrompt=padQa`；padQa `ACTIVE / dispatchable=true`，toolRepair
+   为 `RETIRED_AFTER_AUDIT_PASS / false` 并写 `retiredReason`。
+4. 唯一 ACTIVE 与 TASKS 的 POST 状态已同步；未改工具、preflight、
+   `activeRequiredTokens / requiredTextAnchors`、产品代码、旧 report、证据或 memory，未
+   stage / commit。POST preflight 已通过 `transitionPaths`、递归 mutation allowlist、
    immutable anchor pointers 和 immutable hash。
 
 **停止门**：任何非零 / `FAIL_CLOSED`；Git、唯一 ACTIVE、TASKS、memory、设备锁或下一 prompt
 不一致；需要写仓库；契约漂移、A/B 重叠、review/audit 复用、root 自证或亲跑设备、QA prompt
-提前激活、窗口延长、K60 先行、APK / SHA / ABI / package / permission 漂移、工具 digest 未
+非 `padQa / ACTIVE / dispatchable=true`、窗口延长、K60 先行、APK / SHA / ABI / package / permission 漂移、工具 digest 未
 刷新、fresh install / profile 失败、核心未执行或失败、AudioTrack 不真、gap >15 秒、crash /
 ANR / InputTimeout、auditReceipt 字段未知 / 缺失 / source / tree / hash / transitionPaths
 漂移、未知 top-level / nested field、非白名单 JSON pointer、immutableStateSha256 漂移、
@@ -3672,11 +3663,11 @@ role、角色 `kind / freshness / phaseLimit / reuse / deviceAccess`、`writeSco
 resource / focus / owner 不收敛、旧证据冒充、cleanup 失败、新 P0–P2、
 生产代码 / G2 / Q03 / profile / Release / 服务器写 / push 未授权，立即停止。
 
-**后续**：只有独立审查、pre-handoff audit、新 10 分钟双机核心矩阵、许可与 notice、Pad P2、
+**后续**：独立审查与 pre-handoff audit 已 PASS；只有新 10 分钟双机核心矩阵、许可与 notice、Pad P2、
 exact profile、Q03 全部闭合后，G1 才可重新评审。本 ACTIVE 只收口静态工具与交接契约，
 不改变产品、QA、runtime 或 G1 结论。
 
-### HISTORY：QA-v7 stop-only PASS，交接全新完整 runtime QA（2026-11-05；已被上方 B11 ACTIVE 取代）
+### HISTORY：QA-v7 stop-only PASS，交接全新完整 runtime QA（2026-11-05；已被上方 POST ACTIVE 取代）
 
 **下一责任身份**：Aurorama 2.0 G1 全新完整 runtime QA / 用户承诺验证专家；必须与
 runtime-closure-v3 实现 owner、QA-v7 都不同。只重验 v5 新 APK 的已授权核心 runtime，
@@ -5532,3 +5523,19 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   下一步只能先由 root 提交本轮 9 文件，再由该全新 audit owner 核验。本轮未 adb / 设备 /
   网络 / QA、未 stage / commit / push / tag、未写 memory；产品 P0–P3 仍 `NOT_ASSESSED`。
   当前不是 audit / QA / merged / G1 PASS。
+- **2026-11-06 — pre-handoff audit PASS / Pad QA-v9 dispatch ready**：fresh
+  `PRE_HANDOFF_AUDIT_OWNER` 给出 `PASS` receipt，绑定 source
+  `804b4a8ab27d72e00401842c97c12e8154d68060` / tree
+  `cfdc136e25ebf613904bfdbad88534109de7b689`；QA prompt
+  `0d47ca2497d0d2afe96de52f2a115151c7ca32fe65a157610d75b6cf2251b0ab`、tools digest
+  `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`、设备锁
+  `RELEASED_ACTIVE_0`、rejected scope、memory index 与 `immutableStateSha256` 均现场复核。
+  合法 POST 只改 embedded `auditReceipt`、phase / gates、qaRoundState、active prompt、
+  prompt 状态与 `validation` 转换字段；其余合同 immutable 投影不变。POST preflight
+  `PASS`（transitions=3、roles=22、tasks=3、gates=6、tools 31/31、manifest 2984 B）。
+  B11 suite 在 audited-source 临时副本运行 **96/96 PASS + TEMP_CLEANUP=PASS**；QA tools
+  `25/25`、self-test 31、digest / manifest mtime 不变。`activePrompt=padQa`，
+  `padQa=ACTIVE / dispatchable=true`，`toolRepair=RETIRED_AFTER_AUDIT_PASS /
+  dispatchable=false`。本轮未 adb / 设备 / 网络 / QA，未改工具 / 证据 / memory，未 stage /
+  commit / push / tag；最终候选状态只含三文件未提交修改。Pad core、K60、产品 P0–P3、
+  QA、runtime 与 G1 仍未评估，当前不是 QA / G1 PASS。

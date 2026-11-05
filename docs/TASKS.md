@@ -4,25 +4,25 @@
 
 ## In Progress
 
-> 当前覆盖状态（2026-11-06 B12）：`ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT /
-> validation.handoffPhase=PRE_HANDOFF_AUDIT / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS /
-> PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED`。round9 fresh reviewer 已独立
-> PASS：合同回归 **96/96 PASS + TEMP_CLEANUP=PASS**、独立 21/21，pending / review-pass PRE
-> 正例 PASS，audit / QA 提前 exit 2，role / source / current / receipt 门通过；QA tools
-> 25/25、self-test 31，无设备 / 网络 / secret / 残留。B12 只做机械状态收口，review gate
-> 已 PASS，audit / QA 仍 blocked、receipt null、padQa 不可派发；round9 reviewer 已退役，
-> 下一唯一角色为全新 `PRE_HANDOFF_AUDIT_OWNER`。当前不是 audit / QA / G1 PASS。后续
-> `HISTORY` 表仅表示历史快照，不得作为当前方向。
+> 当前覆盖状态（2026-11-06 POST）：`PRE_HANDOFF_AUDIT_PASS_QA_V9_DISPATCH_READY /
+> validation.handoffPhase=POST_HANDOFF_AUDIT_READY / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS /
+> PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=PASS`。fresh `PRE_HANDOFF_AUDIT_OWNER`
+> 已 PASS 并退役，exact `auditReceipt` 绑定 source commit / tree、QA prompt、tools、设备锁、
+> evidence root、rejected scope、memory 与 immutable state；POST preflight 是 QA 派发前最后
+> 机械门。B11 合同回归 **96/96 PASS + TEMP_CLEANUP=PASS**，QA tools 25/25、self-test 31，
+> 无设备 / 网络 / secret / 残留。active prompt 已是 `padQa`；`toolRepair` 为
+> `RETIRED_AFTER_AUDIT_PASS / dispatchable=false`，`padQa=ACTIVE / dispatchable=true`。
+> 当前不是 QA / G1 PASS；Pad 核心、K60、产品 P0–P3 与 runtime 仍未执行 / 未评估。
 
-> round9 reviewer `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER` 已 PASS 并退役；round8
-> `ROUND8_READONLY_INTEGRATION_REVIEW_OWNER` 仅作历史。下一唯一角色是全新
-> `PRE_HANDOFF_AUDIT_OWNER`。
+> round9 reviewer `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER` 与 pre-handoff audit owner 均已
+> PASS 并退役；round8 `ROUND8_READONLY_INTEGRATION_REVIEW_OWNER` 仅作历史。下一唯一角色是
+> 全新 `PAD_QA_OWNER`，首动作必须是 `READ_ONLY_PREFLIGHT` 并取得 POST PASS。
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-| `V2-SOLUTION-BASELINE` | G1 方案门总括行，非执行卡 | 维持已确认需求基线，等待全新 pre-handoff audit 核验 round9 review PASS 后的 PRE 状态与对象绑定 | ①不启动生产 runtime / 服务器写 / 生产代码 / G2 / Release；②不把 round9 review PASS、工具自测或 B12 收口写成 audit / QA / G1 PASS | `V2-D202` 仅授权 L1；D203–D207 保持；状态 `ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT / validation.handoffPhase=PRE_HANDOFF_AUDIT / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=BLOCKED / QA_DISPATCHABLE=BLOCKED` | 唯一 ACTIVE、review-pass PRE preflight、round9 reviewer PASS（合同 96/96 PASS / TEMP_CLEANUP=PASS、独立 21/21）、round9 reviewer 退役与下一唯一 `PRE_HANDOFF_AUDIT_OWNER`（`writeScope=[]` / `deviceAccess=FORBIDDEN`）一致；`ROUND8-P1-01` / `ROUND7-P1-01` / `ROUND6-P1-01` 回归保留；tools 31/2984/digest、QA tools 25/25、self-test 31、B10 86/86、B11 96/96 一致 | 非零 / FAIL_CLOSED、review PASS 与 gate / ACTIVE token / next role 不一致、audit 或 QA 提前 PASS、receipt nonnull、padQa 可派发、round9 reviewer 复用、unknown/duplicate role、anchor/token/pointer 漂移、需写白名单外路径或越权时停止 |
-| `V2-G1-L1-EVIDENCE` | G1 L1 证据任务 | 保留 round9 fresh reviewer 的 PASS 证据摘要，并交由下一全新只读 audit owner 核验真实 PRE 合同、Git、memory、设备锁、receipt 前置与证据指针 | ①不下载 MOSS；②不触账号 / 生产 / G2 / Release；③不把旧 30 分钟、stop-only、安装、cleanup、工具自测或 round9 review PASS 冒充 audit / 产品证据 | main `427,009,671 B / 252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`；peer `12,696 B / 61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`；tools 31/2984/digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`；QA tools `25/25` | round9 reviewer：Test 96/96、TEMP_CLEANUP=PASS、独立 21/21；pending 与 review-pass PRE PASS；audit/QA 提前 exit2；role/source/current/receipt 门 PASS；无设备/网络/secret/残留。当前 review gate PASS，audit/QA gate 与 padQa 仍 blocked，receipt null | 复用 round9 / 任一历史 audit owner、A/B 越界、digest/manifest 漂移、review 后状态或 token 漂移、source/current 同步篡改绕过、角色语义漏项、核心证据过度声明、需写仓库时停止 |
-| `V2-G1-L1-KOKORO-EXACT` | G1 L1→L3 scoped 子任务 | 在既有 v5 输入上等待 fresh pre-handoff audit；审计 PASS 前保持 QA blocked，不重开设备 QA | 不做 P2 接受、许可闭环、生产代码、Q03、G2、Release；不把 round9 review PASS 或 audit 待办写成 runtime / QA PASS | 输入基线与 APK SHA 见机器契约；`qa-v8/report.json` 为历史压缩入口；`qa-v8/tools` 31/2984/digest 冻结；`ACTIVE=1 / TASKS=3` | 当前 PRE、22 角色、6 gates、review PASS、audit/QA blocked、padQa `dispatchable=false`、receipt null；`ACTIVE=0`，`PAD_10_MIN_CORE_NOT_RUN / K60_NOT_REGISTERED_NOT_RUN / PRODUCT_P0_P3_NOT_ASSESSED` 一致 | 设备锁/首动作/hash/path/owner/role writeScope 漂移、round9 reviewer 复用、QA 提前、review gate/token 不一致、真实需要写白名单外路径、新 P0-P2 时停止 |
+| `V2-SOLUTION-BASELINE` | G1 方案门总括行，非执行卡 | 维持已确认需求基线，并把 fresh pre-handoff audit PASS 后的 POST 状态供全新 Pad QA-v9 使用 | ①不启动生产 runtime / 服务器写 / 生产代码 / G2 / Release；②不把 preflight、工具自测、audit PASS 或 POST 可派发写成 QA / G1 PASS | `V2-D202` 仅授权 L1；D203–D207 保持；状态 `PRE_HANDOFF_AUDIT_PASS_QA_V9_DISPATCH_READY / validation.handoffPhase=POST_HANDOFF_AUDIT_READY / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=PASS` | 唯一 ACTIVE、POST preflight、exact audit receipt、round9 reviewer PASS、pre-handoff audit PASS 与下一唯一 `PAD_QA_OWNER`（`writeScope=.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/**` / `deviceAccess=Pad only`）一致；`ROUND8-P1-01` / `ROUND7-P1-01` / `ROUND6-P1-01` 回归保留；tools 31/2984/digest、QA tools 25/25、self-test 31、B10 86/86、B11 96/96 一致 | 非零 / FAIL_CLOSED、POST transition 非三文件、receipt 字段 / source / tree / hash / transitionPaths 漂移、audit gate 未 PASS、qaRoundState 或 padQa 状态不一致、round9 reviewer / audit owner 复用、unknown/duplicate role、anchor/token/pointer 漂移、需写白名单外路径、设备或 QA 越权时停止 |
+| `V2-G1-L1-EVIDENCE` | G1 L1 证据任务 | 保留 round9 reviewer 与 fresh pre-handoff audit 的 PASS，并让 exact receipt 后的 POST 状态只放行全新 Pad QA-v9 | ①不下载 MOSS；②不触账号 / 生产 / G2 / Release；③不把旧 30 分钟、stop-only、安装、cleanup、工具自测、review / audit PASS 冒充产品证据 | main `427,009,671 B / 252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`；peer `12,696 B / 61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`；tools 31/2984/digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`；QA tools `25/25` | round9 reviewer：Test 96/96、TEMP_CLEANUP=PASS、独立 21/21；fresh audit：receipt PASS、`auditedSourceCommit=804b4a8ab27d72e00401842c97c12e8154d68060`、`auditedSourceTree=cfdc136e25ebf613904bfdbad88534109de7b689`；`validation.handoffPhase=POST_HANDOFF_AUDIT_READY`、`PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=PASS`、gate / qaRoundState / active prompt PASS；ACTIVE=1 / TASKS=3 | 复用 round9 / 任一历史 audit owner、A/B 越界、digest/manifest 漂移、receipt 字段漂移、source/current 同步篡改绕过、角色语义漏项、POST 状态与三文件 transitionPaths 不一致、核心证据过度声明、需写仓库时停止 |
+| `V2-G1-L1-KOKORO-EXACT` | G1 L1→L3 scoped 子任务 | 在既有 v5 输入和 audit PASS receipt 上，从 `POST_HANDOFF_AUDIT_READY` 只派发一次全新 Pad QA-v9 10 分钟完整核心矩阵 | 不做 P2 接受、许可闭环、生产代码、Q03、G2、Release；不把 review / audit PASS 或工具自测写成 runtime / QA PASS | 输入基线与 APK SHA 见机器契约；`qa-v8/report.json` 为历史压缩入口；`qa-v8/tools` 31/2984/digest 冻结；`ACTIVE=1 / TASKS=3` | 当前 POST、22 角色、6 gates 全前置 PASS、`PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=PASS`、activePrompt=padQa、padQa `ACTIVE / dispatchable=true`、toolRepair `RETIRED_AFTER_AUDIT_PASS / false`、auditReceipt 绑定 exact；设备锁 `ACTIVE=0`，`PAD_10_MIN_CORE_NOT_RUN / K60_NOT_REGISTERED_NOT_RUN / PRODUCT_P0_P3_NOT_ASSESSED` 一致 | 设备锁/首动作/hash/path/owner/role writeScope 漂移、round9 reviewer 或 audit owner 复用、K60 提前、窗口非 10、POST preflight 非零、真实需要写白名单外路径、核心失败或新 P0-P2 时停止 |
 
 ## HISTORY — B7 POST mutation-scope 修复待 round5 的快照（已被 B9 取代）
 
