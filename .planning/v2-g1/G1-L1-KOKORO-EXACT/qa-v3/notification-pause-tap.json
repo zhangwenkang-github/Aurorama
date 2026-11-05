@@ -1,0 +1,14 @@
+{
+  "starts": [
+    "11-05 08:16:05.075  9502 16075 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=48 samples=94800 durationMillis=3950",
+    "11-05 08:16:13.275  9502 16107 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=49 samples=147600 durationMillis=6150"
+  ],
+  "expandExit": 0,
+  "dumpExitCode": 0,
+  "pullExitCode": 0,
+  "action2Description": "暂停",
+  "action2Bounds": "[458,579][623,717]",
+  "tapAt": "2026-11-05T08:16:17.2999222+08:00",
+  "tapExitCode": 0,
+  "uiXml": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\ui\\notification-tap.xml"
+}

@@ -1,0 +1,7 @@
+{
+  "probe": "adb -s 8e875894 logcat -d -v threadtime",
+  "matchCount": 0,
+  "matchFile": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\logs\\fatal-anr-input-final.txt",
+  "kernelFatalAppMatches": 0,
+  "inputTimeoutMatches": 0
+}

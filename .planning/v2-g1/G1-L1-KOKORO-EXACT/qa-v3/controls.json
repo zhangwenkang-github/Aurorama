@@ -1,0 +1,52 @@
+{
+  "ui": {
+    "play": "PASS",
+    "pause": "PASS",
+    "resume": "PASS",
+    "previous": "PASS",
+    "next": "PASS",
+    "stop": "PASS",
+    "evidence": [
+      "ui/ui-play-start.tap.json",
+      "ui-play-pause-sequence.json",
+      "ui/ui-resume.tap.json",
+      "ui/ui-previous.tap.json",
+      "ui/ui-next.tap.json",
+      "ui/ui-stop.tap.json"
+    ]
+  },
+  "mediaSession": {
+    "pause": "PASS",
+    "play": "PASS",
+    "previous": "PASS",
+    "next": "PASS",
+    "stop": "PASS",
+    "evidence": [
+      "media-pause.json",
+      "media-play.json",
+      "media-previous.json",
+      "media-next.json",
+      "media-stop.json"
+    ]
+  },
+  "notification": {
+    "pause": "PASS",
+    "resume": "PASS",
+    "previous": "PASS",
+    "next": "PASS",
+    "stop": "NOT_RUN_NOT_EXPOSED",
+    "evidence": [
+      "notification-pause-tap.json",
+      "notification-resume-tap.json",
+      "notification-previous-tap.json",
+      "notification-next-tap.json",
+      "notification-actions.json"
+    ]
+  },
+  "lockScreen": {
+    "result": "NOT_RUN_NO_VISIBLE_KEYGUARD_UI",
+    "reason": "K60 wake returned directly to app; no keyguard media card was presented. No bypass attempted."
+  },
+  "seekUsed": false,
+  "seekAssertion": "No seek command/action was issued; static MediaSession.onSeekTo only logs rejection."
+}

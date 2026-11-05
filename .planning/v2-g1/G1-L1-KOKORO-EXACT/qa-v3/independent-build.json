@@ -1,0 +1,13 @@
+{
+  "command": "pwsh -NoProfile -File F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build.ps1",
+  "exitCode": 0,
+  "builtAt": "2026-11-05T08:01:34.8106813+08:00",
+  "builtApk": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk",
+  "builtBytes": 427005490,
+  "builtSha256": "3e249d177cb6e843084ed743bd21f5581c59fc504c441879430d82b3334604ae",
+  "fixedSnapshot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\fixed-candidate.snapshot.apk",
+  "fixedBytes": 427005490,
+  "fixedSha256": "074ccfe96b6868c3ae9e02523a9bb9d7da2e35594cedc70721bbbca1287015e8",
+  "match": false,
+  "log": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\logs\\independent-build.log"
+}

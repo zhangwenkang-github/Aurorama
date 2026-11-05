@@ -1,0 +1,103 @@
+{
+  "networkSettingsMatch": true,
+  "beforeNetwork": {
+    "airplaneMode": "0",
+    "wifiEnabled": "1",
+    "mobileData": "1",
+    "wifiState": "Wi-Fi is enabled",
+    "activeNetwork": "Active default network: 176"
+  },
+  "afterNetwork": {
+    "airplaneMode": "0",
+    "wifiEnabled": "1",
+    "mobileData": "1",
+    "activeNetwork": "Active default network: 179"
+  },
+  "volumeBefore": "0",
+  "volumeAfter": "0",
+  "volumeMatch": true,
+  "screenMatch": true,
+  "beforeScreen": {
+    "wakefulness": "mWakefulness=Awake",
+    "screenOffTimeout": "600000",
+    "lockAfterTimeout": "null",
+    "stayOn": "15",
+    "screenBrightness": "2",
+    "brightnessMode": "1"
+  },
+  "afterScreen": {
+    "wakefulness": "mWakefulness=Awake",
+    "screenOffTimeout": "600000",
+    "lockAfterTimeout": "null",
+    "stayOn": "15",
+    "screenBrightness": "2",
+    "brightnessMode": "1"
+  },
+  "currentUserMatch": true,
+  "production": {
+    "io.github.zhangwenkang.aurorama": {
+      "pathMatch": true,
+      "bytesMatch": true,
+      "shaMatch": true,
+      "versionMatch": true,
+      "dataDirMatch": true,
+      "timesMatch": true,
+      "before": {
+        "path": "package:/data/app/~~IfebW6cH3WhkLF6WD5QpvA==/io.github.zhangwenkang.aurorama-jIxVgLCrbx6Yxe_Y0ximVQ==/base.apk",
+        "version": "versionCode=5 minSdk=28 targetSdk=36",
+        "dataDir": "dataDir=/data/user/0/io.github.zhangwenkang.aurorama",
+        "times": [
+          "lastUpdateTime=2026-11-02 11:54:07",
+          "firstInstallTime=2026-10-25 01:48:26"
+        ],
+        "basePath": "/data/app/~~IfebW6cH3WhkLF6WD5QpvA==/io.github.zhangwenkang.aurorama-jIxVgLCrbx6Yxe_Y0ximVQ==/base.apk",
+        "baseBytes": "79729350",
+        "baseSha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb"
+      },
+      "after": {
+        "basePath": "/data/app/~~IfebW6cH3WhkLF6WD5QpvA==/io.github.zhangwenkang.aurorama-jIxVgLCrbx6Yxe_Y0ximVQ==/base.apk",
+        "baseBytes": "79729350",
+        "baseSha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+        "version": "versionCode=5 minSdk=28 targetSdk=36",
+        "dataDir": "dataDir=/data/user/0/io.github.zhangwenkang.aurorama",
+        "times": [
+          "lastUpdateTime=2026-11-02 11:54:07",
+          "firstInstallTime=2026-10-25 01:48:26"
+        ]
+      }
+    },
+    "io.github.zhangwenkang.aurorama.debug": {
+      "pathMatch": true,
+      "bytesMatch": true,
+      "shaMatch": true,
+      "versionMatch": true,
+      "dataDirMatch": true,
+      "timesMatch": true,
+      "before": {
+        "path": "package:/data/app/~~Rswn1AAs_kTpNthrpWMKfQ==/io.github.zhangwenkang.aurorama.debug-F1jI7af_PVdxG4-MldbuVg==/base.apk",
+        "version": "versionCode=5 minSdk=28 targetSdk=36",
+        "dataDir": "dataDir=/data/user/0/io.github.zhangwenkang.aurorama.debug",
+        "times": [
+          "lastUpdateTime=2026-10-31 01:29:36",
+          "firstInstallTime=2026-10-21 20:36:42"
+        ],
+        "basePath": "/data/app/~~Rswn1AAs_kTpNthrpWMKfQ==/io.github.zhangwenkang.aurorama.debug-F1jI7af_PVdxG4-MldbuVg==/base.apk",
+        "baseBytes": "150241179",
+        "baseSha256": "f00cd53392025a9975916ae4738fc6340fbf348a9050f1a4b5ab67326edd8d49"
+      },
+      "after": {
+        "basePath": "/data/app/~~Rswn1AAs_kTpNthrpWMKfQ==/io.github.zhangwenkang.aurorama.debug-F1jI7af_PVdxG4-MldbuVg==/base.apk",
+        "baseBytes": "150241179",
+        "baseSha256": "f00cd53392025a9975916ae4738fc6340fbf348a9050f1a4b5ab67326edd8d49",
+        "version": "versionCode=5 minSdk=28 targetSdk=36",
+        "dataDir": "dataDir=/data/user/0/io.github.zhangwenkang.aurorama.debug",
+        "times": [
+          "lastUpdateTime=2026-10-31 01:29:36",
+          "firstInstallTime=2026-10-21 20:36:42"
+        ]
+      }
+    }
+  },
+  "harnessUninstalled": true,
+  "deviceTempZero": true
+}

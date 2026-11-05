@@ -1,0 +1,12 @@
+{
+  "forceStopExitCode": 0,
+  "uninstallExitCode": 0,
+  "uninstallOutput": "Success",
+  "pidAfter": null,
+  "pmPathAfter": "",
+  "pmPathExitCode": 1,
+  "servicePresent": false,
+  "notificationPresent": false,
+  "mediaSessionPresent": false,
+  "externalFilesDirExists": false
+}

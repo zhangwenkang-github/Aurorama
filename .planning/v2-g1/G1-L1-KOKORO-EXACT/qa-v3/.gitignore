@@ -1,0 +1,16 @@
+dex-compare/
+logs/
+netstats/
+states/
+test-results/
+ui/
+device-before.json
+device-after.json
+device-temp-cleanup.json
+runtime-logcat.log
+audio-focus-stack.txt
+*.apk
+*.dex
+*.dexdump.txt
+*.strings.txt
+*.xml

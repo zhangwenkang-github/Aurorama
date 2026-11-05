@@ -1,0 +1,27 @@
+{
+  "pid": "9502",
+  "uiTexts": [
+    "隔离 harness：前台 service、单 MediaSession、AudioFocus、真实 PCM 与持久暂停恢复。该页面不构成生产 TTS / D203 全闭环。",
+    "Status: PAUSED\nActive audio owner: NONE\nSentence: 7/9\nSpeaker: zm_010 sid=59\nPack: kokoro-multi-lang-v1_1\nAudioTrack playing: false\nAudioFocus held: false\nMusic: IDLE index=0\nAutoPlay: false\nStable sentence: 铜铃又响了一声，风推开旧门，尘埃在斜光里浮起。",
+    "UI / notification / MediaSession 共用同一快照\nNotification: 朗读已暂停 · 铜铃又响了一声，风推开旧门，尘埃在斜光里浮起。 （7/9）\nMediaSession: PAUSED\nLast command: pause\nLast error: "
+  ],
+  "service": [
+    "  * ServiceRecord{a7801a9 u0 dev.aurorama.kokoro.harness/.KokoroRuntimeService c:dev.aurorama.kokoro.harness}",
+    "    processName=dev.aurorama.kokoro.harness",
+    "    app=ProcessRecord{d2789b8 9502:dev.aurorama.kokoro.harness/u0a309}",
+    "    isForeground=true foregroundId=1263487823 types=0x00000002 foregroundNoti=Notification(channel=kokoro_runtime_media shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=ONGOING_EVENT|ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE|NO_DISMISS color=0xff9f2e22 category=transport actions=4 vis=PUBLIC)",
+    "    startRequested=true delayedStop=false stopIfKilled=true callStart=true lastStartId=1"
+  ],
+  "media": [
+    "    ownerPid=2728, ownerUid=1000, userId=0",
+    "    package=com.android.server.telecom",
+    "    active=false",
+    "  Media button session is dev.aurorama.kokoro.harness/Kokoro isolated runtime/103 (userId=0)",
+    "    Kokoro isolated runtime dev.aurorama.kokoro.harness/Kokoro isolated runtime/103 (userId=0)",
+    "      ownerPid=9502, ownerUid=10309, userId=0",
+    "      package=dev.aurorama.kokoro.harness",
+    "      active=true",
+    "      state=PlaybackState {state=PAUSED(2), position=3521, buffered position=0, speed=0.0, updated=1159177893, actions=567, custom actions=[], active item id=-1, error=null}",
+    "      metadata: size=3, description=朗读已暂停, Kokoro isolated runtime · zm_010, kokoro-multi-lang-v1_1"
+  ]
+}

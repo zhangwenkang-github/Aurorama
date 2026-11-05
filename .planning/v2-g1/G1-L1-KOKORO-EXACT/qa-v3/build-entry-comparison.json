@@ -1,0 +1,45 @@
+{
+  "fixedApk": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\fixed-candidate.snapshot.apk",
+  "builtApk": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk",
+  "fixedEntryCount": 383,
+  "builtEntryCount": 383,
+  "nameDiffCount": 0,
+  "nameDiffs": [],
+  "changedEntryCount": 4,
+  "changedEntries": [
+    {
+      "name": "classes.dex",
+      "reason": "length",
+      "a": 2977868,
+      "b": 2977812
+    },
+    {
+      "name": "META-INF/ANDROIDD.SF",
+      "reason": "content",
+      "aSha256": "0e488aecc4ece200630c3005a1392e5943cd60e167753e05a6a0a6b815383fbb",
+      "bSha256": "9061e36df4b755eda04f21518fc84bae385c2c29500a1379acd746ef1cf36170"
+    },
+    {
+      "name": "META-INF/ANDROIDD.RSA",
+      "reason": "content",
+      "aSha256": "e70f3de0d298f24a3a22051b3adff33493762028a4c49daba1edfbd986805ae9",
+      "bSha256": "638c16016236d5d97762ef6a098704986a260f449de313ad4e6aef9bfbd28c20"
+    },
+    {
+      "name": "META-INF/MANIFEST.MF",
+      "reason": "content",
+      "aSha256": "0cb533ed642884960e1ca3adb111db1e1b95b69f49b01deeb828092fd260dbc8",
+      "bSha256": "0ec492baa92b983e443f3c39819f71d5bda0e3f628090ae6696aedf83b8ddf71"
+    }
+  ],
+  "nonMetaInfChangedCount": 1,
+  "nonMetaInfChanged": [
+    {
+      "name": "classes.dex",
+      "reason": "length",
+      "a": 2977868,
+      "b": 2977812
+    }
+  ],
+  "payloadMatch": false
+}

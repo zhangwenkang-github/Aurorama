@@ -1,0 +1,14 @@
+{
+  "startTapExit": 0,
+  "ttsAudioLine": "11-05 08:22:20.664 17784 18795 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=13 samples=94800 durationMillis=3950",
+  "cancelTapExit": 0,
+  "pidAfter": null,
+  "servicePresent": false,
+  "notificationPresent": false,
+  "mediaSessionPresent": false,
+  "externalFiles": "/sdcard/Android/data/dev.aurorama.kokoro.harness/files/runtime/runtime_state.json",
+  "forbiddenTempMatches": [],
+  "cancelLog": [],
+  "fileProbeCommand": "adb -s 8e875894 shell find /sdcard/Android/data/dev.aurorama.kokoro.harness/files -type f",
+  "fileProbeExitCode": 0
+}

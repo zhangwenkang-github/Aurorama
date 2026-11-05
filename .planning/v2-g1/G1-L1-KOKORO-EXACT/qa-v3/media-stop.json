@@ -1,0 +1,10 @@
+{
+  "action": "stop",
+  "exitCode": 0,
+  "output": "",
+  "uiTexts": [
+    "隔离 harness：前台 service、单 MediaSession、AudioFocus、真实 PCM 与持久暂停恢复。该页面不构成生产 TTS / D203 全闭环。",
+    "Status: STOPPED\nActive audio owner: NONE\nSentence: 3/9\nSpeaker: zm_010 sid=59\nPack: kokoro-multi-lang-v1_1\nAudioTrack playing: false\nAudioFocus held: false\nMusic: IDLE index=0\nAutoPlay: false\nStable sentence: 站台空无一人，铁轨尽头的雾像有人缓缓呼吸。",
+    "UI / notification / MediaSession 共用同一快照\nNotification: 朗读已停止 · 站台空无一人，铁轨尽头的雾像有人缓缓呼吸。 （3/9）\nMediaSession: STOPPED\nLast command: stop\nLast error: "
+  ]
+}

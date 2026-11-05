@@ -1,0 +1,23 @@
+{
+  "launchExitCode": 0,
+  "pid": "18000",
+  "uiTexts": [
+    "隔离 harness：前台 service、单 MediaSession、AudioFocus、真实 PCM 与持久暂停恢复。该页面不构成生产 TTS / D203 全闭环。",
+    "Status: ERROR\nActive audio owner: NONE\nSentence: 2/2\nSpeaker: zf_001 sid=3\nPack: kokoro-multi-lang-v1_1\nAudioTrack playing: false\nAudioFocus held: false\nMusic: IDLE index=0\nAutoPlay: false\nStable sentence: 林舟把湿伞靠在长椅边，听见铜铃碰了三次。",
+    "UI / notification / MediaSession 共用同一快照\nNotification: 朗读错误 · 林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2/2）\nMediaSession: ERROR\nLast command: __qa_invalid_command__\nLast error: java.lang.IllegalArgumentException: Unsupported runtime command: __qa_invalid_command__"
+  ],
+  "media": [
+    "      state=PlaybackState {state=ERROR(7), position=6050, buffered position=0, speed=0.0, updated=1159572576, actions=567, custom actions=[], active item id=-1, error=java.lang.IllegalArgumentException: Unsupported runtime command: __qa_invalid_command__}",
+    "      metadata: size=3, description=朗读错误, Kokoro isolated runtime · zf_001, kokoro-multi-lang-v1_1"
+  ],
+  "notification": [
+    "                android.text=String (点按即可了解详情或停止应用。)",
+    "                android.title=String (Networking)",
+    "                android.title=String (Continuity)",
+    "    NotificationRecord(0x0496354e: pkg=com.miui.tsmclient user=UserHandle{0} id=1001 tag=null importance=2 key=0|com.miui.tsmclient|1001|null|1027 bbbc=0: Notification(channel=TMS_CHANNEL_BACKGROUND_SERVICE shortcut=null contentView=null vibrate=[0] sound=null tick defaults=0 flags=NO_CLEAR|FOREGROUND_SERVICE color=0x00000000 groupKey=group_key_foreground_service vis=PRIVATE))",
+    "                android.title=String (钱包)",
+    "                android.text=String (小米智能卡正在运行中…)",
+    "                android.title=String (“跨屏协同服务”正在运行)",
+    "                android.text=String (点按即可了解详情或停止应用。)"
+  ]
+}

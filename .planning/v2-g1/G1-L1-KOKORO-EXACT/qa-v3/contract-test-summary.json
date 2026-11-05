@@ -1,0 +1,87 @@
+{
+  "command": ".\\gradlew.bat -p .planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness :contract:test --offline --console=plain --rerun-tasks",
+  "exitCode": 0,
+  "log": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\logs\\contract-test.log",
+  "xmlDirectory": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results",
+  "executed": {
+    "tests": 28,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "timeSeconds": 0.046,
+    "suites": [
+      {
+        "name": "dev.aurorama.kokoro.harness.AudioOwnerArbiterTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results\\TEST-dev.aurorama.kokoro.harness.AudioOwnerArbiterTest.xml"
+      },
+      {
+        "name": "dev.aurorama.kokoro.harness.HexCodecTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results\\TEST-dev.aurorama.kokoro.harness.HexCodecTest.xml"
+      },
+      {
+        "name": "dev.aurorama.kokoro.harness.NarrationContractTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results\\TEST-dev.aurorama.kokoro.harness.NarrationContractTest.xml"
+      },
+      {
+        "name": "dev.aurorama.kokoro.harness.PlaybackStateMachineTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results\\TEST-dev.aurorama.kokoro.harness.PlaybackStateMachineTest.xml"
+      },
+      {
+        "name": "dev.aurorama.kokoro.harness.ResumePolicyTest",
+        "tests": 5,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results\\TEST-dev.aurorama.kokoro.harness.ResumePolicyTest.xml"
+      },
+      {
+        "name": "dev.aurorama.kokoro.harness.RuntimePresentationTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results\\TEST-dev.aurorama.kokoro.harness.RuntimePresentationTest.xml"
+      },
+      {
+        "name": "dev.aurorama.kokoro.harness.SentenceQueueTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results\\TEST-dev.aurorama.kokoro.harness.SentenceQueueTest.xml"
+      },
+      {
+        "name": "dev.aurorama.kokoro.harness.SpeakerWhitelistTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results\\TEST-dev.aurorama.kokoro.harness.SpeakerWhitelistTest.xml"
+      },
+      {
+        "name": "dev.aurorama.kokoro.harness.WavWriterTest",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "file": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\test-results\\TEST-dev.aurorama.kokoro.harness.WavWriterTest.xml"
+      }
+    ]
+  }
+}

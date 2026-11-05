@@ -1,0 +1,14 @@
+{
+  "runtimeLog": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\logs\\runtime-logcat.log",
+  "ttsSentenceRequests": 68,
+  "zf001Sid3Requests": 28,
+  "zm010Sid59Requests": 40,
+  "forbiddenInvocationCount": 0,
+  "forbiddenInvocations": [],
+  "intentionalRejectionLogCount": 2,
+  "intentionalRejectionExamples": [
+    "11-05 08:20:07.155 17605 17605 E KOKORO_RUNTIME: java.lang.IllegalArgumentException: speaker 58 / zm_009 is permanently rejected by the exact-task whitelist",
+    "11-05 08:20:07.247 17605 17605 E KOKORO_RUNTIME: java.lang.IllegalArgumentException: speaker 58 / zm_009 is permanently rejected by the exact-task whitelist"
+  ],
+  "interpretation": "Forbidden token may appear only in explicit fail-closed rejection; no TTS_SENTENCE_REQUEST may use sid 58 / zm_009."
+}

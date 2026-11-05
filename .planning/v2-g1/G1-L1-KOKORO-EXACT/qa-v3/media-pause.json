@@ -1,0 +1,11 @@
+{
+  "action": "pause",
+  "dispatchExitCode": 0,
+  "dispatchOutput": "",
+  "audioStarted": "11-05 08:14:04.876  9502 15257 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=31 samples=147600 durationMillis=6150",
+  "uiTexts": [
+    "隔离 harness：前台 service、单 MediaSession、AudioFocus、真实 PCM 与持久暂停恢复。该页面不构成生产 TTS / D203 全闭环。",
+    "Status: PAUSED\nActive audio owner: NONE\nSentence: 2/9\nSpeaker: zm_010 sid=59\nPack: kokoro-multi-lang-v1_1\nAudioTrack playing: false\nAudioFocus held: false\nMusic: IDLE index=0\nAutoPlay: false\nStable sentence: 林舟把湿伞靠在长椅边，听见铜铃碰了三次。",
+    "UI / notification / MediaSession 共用同一快照\nNotification: 朗读已暂停 · 林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2/9）\nMediaSession: PAUSED\nLast command: pause\nLast error: "
+  ]
+}

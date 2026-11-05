@@ -1,0 +1,21 @@
+{
+  "tapExitCode": 0,
+  "newAudioLine": "11-05 08:18:54.137  9649 17360 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=1 samples=180000 durationMillis=7500",
+  "uiTexts": [
+    "隔离 harness：前台 service、单 MediaSession、AudioFocus、真实 PCM 与持久暂停恢复。该页面不构成生产 TTS / D203 全闭环。",
+    "Status: PLAYING\nActive audio owner: TTS\nSentence: 7/9\nSpeaker: zm_010 sid=59\nPack: kokoro-multi-lang-v1_1\nAudioTrack playing: true\nAudioFocus held: true\nMusic: IDLE index=0\nAutoPlay: false\nStable sentence: 铜铃又响了一声，风推开旧门，尘埃在斜光里浮起。",
+    "UI / notification / MediaSession 共用同一快照\nNotification: 正在朗读 · 铜铃又响了一声，风推开旧门，尘埃在斜光里浮起。 （7/9）\nMediaSession: PLAYING\nLast command: resume\nLast error: "
+  ],
+  "media": [
+    "    ownerPid=2728, ownerUid=1000, userId=0",
+    "    package=com.android.server.telecom",
+    "    active=false",
+    "  Media button session is dev.aurorama.kokoro.harness/Kokoro isolated runtime/104 (userId=0)",
+    "    Kokoro isolated runtime dev.aurorama.kokoro.harness/Kokoro isolated runtime/104 (userId=0)",
+    "      ownerPid=9649, ownerUid=10309, userId=0",
+    "      package=dev.aurorama.kokoro.harness",
+    "      active=true",
+    "      state=PlaybackState {state=PLAYING(3), position=85, buffered position=0, speed=1.0, updated=1159242028, actions=567, custom actions=[], active item id=-1, error=null}",
+    "      metadata: size=3, description=正在朗读, Kokoro isolated runtime · zm_010, kokoro-multi-lang-v1_1"
+  ]
+}

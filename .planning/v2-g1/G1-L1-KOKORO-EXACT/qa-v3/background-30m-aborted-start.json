@@ -1,0 +1,14 @@
+{
+  "enteredAt": "2026-11-05T08:25:27.1896685+08:00",
+  "screenOffAt": "2026-11-05T08:25:23.6675651+08:00",
+  "logLineOffset": 555,
+  "launchExitCode": 0,
+  "firstAudioLine": "11-05 08:25:22.270 18148 20021 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=2 samples=96000 durationMillis=4000",
+  "wakefulness": "Asleep",
+  "serviceForeground": true,
+  "serviceMediaPlaybackType": true,
+  "mediaSessionPresent": true,
+  "mediaPlaying": true,
+  "notificationPresent": true,
+  "focusStackPresent": true
+}

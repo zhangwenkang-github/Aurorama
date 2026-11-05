@@ -1,0 +1,93 @@
+{
+  "schema": "aurorama.kokoro-runtime-closure.qa-v3.zero-network.v1",
+  "capturedAt": "2026-11-05T08:23:51.9354546+08:00",
+  "serial": "8e875894",
+  "package": "dev.aurorama.kokoro.harness",
+  "uid": 10309,
+  "networkBefore": {
+    "capturedAt": "2026-11-05T08:23:15.4206315+08:00",
+    "airplaneMode": "0",
+    "wifiOn": "1",
+    "mobileData": "1",
+    "wifiStatus": "Control the Wi-Fi manager\n\nusage: svc wifi [enable|disable]\n         Turn Wi-Fi on or off.",
+    "dataStatus": "Enable/Disable Mobile Data Connectivity\n\nusage: svc data [enable|disable]",
+    "activeNetworkLines": [
+      "Active default network: 176",
+      "  NetworkAgentInfo{network{176}  handle{759319941133}  ni{WIFI CONNECTED extra: } created=2026-11-04T18:04:12.126Z Score(Policies : TRANSPORT_PRIMARY&EVER_EVALUATED&IS_UNMETERED&EVER_VALIDATED&IS_VALIDATED ; KeepConnected : 0)  created 1136760207 firstValidated 1136760719 lastValidated 1136760719  lp{{InterfaceName: wlan0 LinkAddresses: [ fe80::3ccf:6aff:fefb:d699/64,192.168.0.183/24,2409:8d60:438:9de:3ccf:6aff:fefb:d699/64,2409:8d60:438:9de:4cc2:f153:8e3a:e8d2/64 ] DnsAddresses: [ /fe80::5cff:a90f:b6c6:1%wlan0,/192.168.0.1 ] Domains: null MTU: 1500 ServerAddress: /192.168.0.1 TcpBufferSizes: 524288,1048576,16777216,262144,524288,16777216 Routes: [ fe80::/64 -> :: wlan0 mtu 0,::/0 -> fe80::5cff:a90f:b6c6:1 wlan0 mtu 0,2409:8d60:438:9de::/64 -> :: wlan0 mtu 0,192.168.0.0/24 -> 0.0.0.0 wlan0 mtu 0,0.0.0.0/0 -> 192.168.0.1 wlan0 mtu 0 ]}}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED LinkUpBandwidth>=12000Kbps LinkDnBandwidth>=26268Kbps Specifier: <WifiNetworkAgentSpecifier [WifiConfiguration=, SSID=\"ZTE_0FB6C6\", BSSID=5c:ff:a9:0f:b6:c6, band=2, mMatchLocalOnlySpecifiers=false]> TransportInfo: <SSID: \"ZTE_0FB6C6\", BSSID: 5c:ff:a9:0f:b6:c6, MAC: 3e:cf:6a:fb:d6:99, IP: /192.168.0.183, Security type: 4, Supplicant state: COMPLETED, Wi-Fi standard: 11ax, RSSI: -39, Link speed: 1200Mbps, Tx Link speed: 1200Mbps, Max Supported Tx Link speed: 1200Mbps, Rx Link speed: 1200Mbps, Max Supported Rx Link speed: 1200Mbps, Frequency: 5180MHz, Net ID: 13, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>\"ZTE_0FB6C6\"wpa3-saeMLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>, Vendor Data: <none>> SignalStrength: -39 OwnerUid: 1000 AdminUids: [1000] SSID: \"ZTE_0FB6C6\" UnderlyingNetworks: Null]}  factorySerialNumber=11}"
+    ],
+    "activeDefaultNetwork": "176"
+  },
+  "networkDuring": {
+    "capturedAt": "2026-11-05T08:23:24.2784676+08:00",
+    "airplaneMode": "1",
+    "wifiOn": "0",
+    "mobileData": "1",
+    "wifiStatus": "Control the Wi-Fi manager\n\nusage: svc wifi [enable|disable]\n         Turn Wi-Fi on or off.",
+    "dataStatus": "Enable/Disable Mobile Data Connectivity\n\nusage: svc data [enable|disable]",
+    "activeNetworkLines": [
+      "Active default network: none"
+    ],
+    "activeDefaultNetwork": "none",
+    "airplaneEnableExitCode": 0,
+    "wifiCommandExitCode": 0,
+    "wifiServiceExitCode": 0,
+    "phoneDataCommandExitCode": 0,
+    "dataServiceExitCode": 0
+  },
+  "launchExitCode": 0,
+  "launchOutput": "Starting: Intent { flg=0x20000000 cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\nStatus: ok\nLaunchState: COLD\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\nTotalTime: 447\nWaitTime: 451\nComplete",
+  "runtimeExcerpt": [
+    "11-05 08:23:24.013 18000 18000 I KOKORO_RUNTIME: COMMAND play_sample",
+    "11-05 08:23:24.028 18000 18000 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=0 speaker=zf_001 sid=3 generation=2",
+    "11-05 08:23:28.426 18000 19156 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=2 samples=96000 durationMillis=4000",
+    "11-05 08:23:32.247 18000 19156 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=2",
+    "11-05 08:23:32.264 18000 18000 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=1 speaker=zf_001 sid=3 generation=3",
+    "11-05 08:23:36.520 18000 19188 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=3 samples=145200 durationMillis=6050",
+    "11-05 08:23:42.338 18000 19188 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=3",
+    "11-05 08:23:42.357 18000 18000 I KOKORO_RUNTIME: TTS_COMPLETED"
+  ],
+  "parsedBefore": {
+    "uid": 10309,
+    "identityBlockCount": 0,
+    "identityBlocks": [],
+    "identityRxBytes": 0,
+    "identityTxBytes": 0,
+    "appUidStatsMapRowCount": 0,
+    "appUidStatsMapRows": [],
+    "appUidStatsMapRxBytes": 0,
+    "appUidStatsMapTxBytes": 0
+  },
+  "parsedAfter": {
+    "uid": 10309,
+    "identityBlockCount": 0,
+    "identityBlocks": [],
+    "identityRxBytes": 0,
+    "identityTxBytes": 0,
+    "appUidStatsMapRowCount": 0,
+    "appUidStatsMapRows": [],
+    "appUidStatsMapRxBytes": 0,
+    "appUidStatsMapTxBytes": 0
+  },
+  "identityRxDeltaBytes": 0,
+  "identityTxDeltaBytes": 0,
+  "identityTotalDeltaBytes": 0,
+  "appUidStatsMapRxDeltaBytes": 0,
+  "appUidStatsMapTxDeltaBytes": 0,
+  "appUidStatsMapTotalDeltaBytes": 0,
+  "beforeNetstats": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\netstats\\before.txt",
+  "afterNetstats": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\netstats\\after.txt",
+  "restoredNetwork": {
+    "capturedAt": "2026-11-05T08:23:56.6644907+08:00",
+    "airplaneMode": "0",
+    "wifiOn": "1",
+    "mobileData": "1",
+    "wifiStatus": "Control the Wi-Fi manager\n\nusage: svc wifi [enable|disable]\n         Turn Wi-Fi on or off.",
+    "dataStatus": "Enable/Disable Mobile Data Connectivity\n\nusage: svc data [enable|disable]",
+    "activeNetworkLines": [
+      "Active default network: 177",
+      "  NetworkAgentInfo{network{177}  handle{763614908429}  ni{WIFI CONNECTED extra: } created=2026-11-05T00:23:53.600Z Score(Policies : TRANSPORT_PRIMARY&EVER_EVALUATED&IS_UNMETERED&EVER_VALIDATED&IS_VALIDATED ; KeepConnected : 0)  created 1159541650 firstValidated 1159542210 lastValidated 1159542210  lp{{InterfaceName: wlan0 LinkAddresses: [ fe80::3ccf:6aff:fefb:d699/64,192.168.0.183/24,2409:8d60:438:9de:3ccf:6aff:fefb:d699/64,2409:8d60:438:9de:cde7:1036:5b7d:9a5d/64 ] DnsAddresses: [ /fe80::5cff:a90f:b6c6:1%wlan0,/192.168.0.1 ] Domains: null MTU: 1500 ServerAddress: /192.168.0.1 TcpBufferSizes: 524288,1048576,16777216,262144,524288,16777216 Routes: [ fe80::/64 -> :: wlan0 mtu 0,::/0 -> fe80::5cff:a90f:b6c6:1 wlan0 mtu 0,2409:8d60:438:9de::/64 -> :: wlan0 mtu 0,192.168.0.0/24 -> 0.0.0.0 wlan0 mtu 0,0.0.0.0/0 -> 192.168.0.1 wlan0 mtu 0 ]}}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED&NOT_VCN_MANAGED&NOT_BANDWIDTH_CONSTRAINED LinkUpBandwidth>=12000Kbps LinkDnBandwidth>=26268Kbps Specifier: <WifiNetworkAgentSpecifier [WifiConfiguration=, SSID=\"ZTE_0FB6C6\", BSSID=5c:ff:a9:0f:b6:c6, band=2, mMatchLocalOnlySpecifiers=false]> TransportInfo: <SSID: \"ZTE_0FB6C6\", BSSID: 5c:ff:a9:0f:b6:c6, MAC: 3e:cf:6a:fb:d6:99, IP: /192.168.0.183, Security type: 4, Supplicant state: COMPLETED, Wi-Fi standard: 11ax, RSSI: -38, Link speed: 1200Mbps, Tx Link speed: 1200Mbps, Max Supported Tx Link speed: 1200Mbps, Rx Link speed: 1200Mbps, Max Supported Rx Link speed: 1200Mbps, Frequency: 5180MHz, Net ID: 13, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>\"ZTE_0FB6C6\"wpa3-saeMLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>, Vendor Data: <none>> SignalStrength: -38 OwnerUid: 1000 AdminUids: [1000] SSID: \"ZTE_0FB6C6\" UnderlyingNetworks: Null]}  factorySerialNumber=11}"
+    ],
+    "activeDefaultNetwork": "177"
+  },
+  "networkRestoredMatch": true
+}

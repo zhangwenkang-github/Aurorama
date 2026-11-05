@@ -1,0 +1,33 @@
+{
+  "speakerBase64": "em1fMDA5",
+  "tamperFile": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\checkpoint-tamper-speaker.xml",
+  "pushExit": 0,
+  "copyExit": 0,
+  "deviceContainsTamper": true,
+  "launchExit": 0,
+  "pid": "17605",
+  "uiTexts": [
+    "隔离 harness：前台 service、单 MediaSession、AudioFocus、真实 PCM 与持久暂停恢复。该页面不构成生产 TTS / D203 全闭环。",
+    "Status: IDLE\nActive audio owner: NONE\nSentence: none\nSpeaker: zf_001 sid=3\nPack: kokoro-multi-lang-v1_1\nAudioTrack playing: false\nAudioFocus held: false\nMusic: IDLE index=0\nAutoPlay: false\nStable sentence: ",
+    "UI / notification / MediaSession 共用同一快照\nNotification: Kokoro runtime 待机 · \nMediaSession: NONE\nLast command: restore\nLast error: Resume rejected fail-closed: speaker 58 / zm_009 is permanently rejected by the exact-task whitelist"
+  ],
+  "service": [
+    "  * ServiceRecord{ef70b12 u0 dev.aurorama.kokoro.harness/.KokoroRuntimeService c:dev.aurorama.kokoro.harness}",
+    "    processName=dev.aurorama.kokoro.harness",
+    "    app=ProcessRecord{30a0fa7 17605:dev.aurorama.kokoro.harness/u0a309}",
+    "    isForeground=true foregroundId=1263487823 types=0x00000002 foregroundNoti=Notification(channel=kokoro_runtime_media shortcut=null contentView=null vibrate=null sound=null defaults=0 flags=ONLY_ALERT_ONCE|NO_CLEAR|FOREGROUND_SERVICE color=0xff9f2e22 category=transport actions=4 vis=PUBLIC)",
+    "    startRequested=true delayedStop=false stopIfKilled=true callStart=true lastStartId=1"
+  ],
+  "media": [
+    "    ownerPid=2728, ownerUid=1000, userId=0",
+    "    package=com.android.server.telecom",
+    "    active=false",
+    "  Media button session is dev.aurorama.kokoro.harness/Kokoro isolated runtime/108 (userId=0)",
+    "    Kokoro isolated runtime dev.aurorama.kokoro.harness/Kokoro isolated runtime/108 (userId=0)",
+    "      ownerPid=17605, ownerUid=10309, userId=0",
+    "      package=dev.aurorama.kokoro.harness",
+    "      active=true",
+    "      state=PlaybackState {state=NONE(0), position=0, buffered position=0, speed=0.0, updated=1159315151, actions=567, custom actions=[], active item id=-1, error=Resume rejected fail-closed: speaker 58 / zm_009 is permanently rejected by the exact-task whitelist}",
+    "      metadata: size=3, description=Kokoro runtime 待机, Kokoro isolated runtime · zf_001, kokoro-multi-lang-v1_1"
+  ]
+}

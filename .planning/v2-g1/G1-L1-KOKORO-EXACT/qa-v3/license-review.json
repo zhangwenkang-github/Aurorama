@@ -1,0 +1,213 @@
+{
+  "schema": "aurorama.g1-kokoro-license-review.v3",
+  "task_id": "G1-L1-KOKORO-EXACT",
+  "reviewer_role": "全新独立许可 / provenance evidence reviewer",
+  "reviewed_at": "2026-11-05T08:12:09.8122472+08:00",
+  "review_mode": {
+    "read_only": true,
+    "network_assets_downloaded": false,
+    "device_used": false,
+    "production_code_changed": false,
+    "harness_changed": false,
+    "docs_changed": false,
+    "existing_reports_changed": false,
+    "subagents_spawned": false,
+    "commit_push_tag": false,
+    "write_boundary": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/license-review.json"
+  },
+  "baseline": {
+    "worktree": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "a986f2e2ccf0e5d7f95e219f68ff813571e1ee33",
+    "expected_head": "a986f2e2ccf0e5d7f95e219f68ff813571e1ee33",
+    "head_match": true,
+    "branch_match": true,
+    "clean_at_review_start": true,
+    "all_required_paths_present": true,
+    "qa_v3_preexisting": true,
+    "runtime_qa_files_preserved": true
+  },
+  "verdict": "PASS_WITH_P3",
+  "verdict_scope": "本次 verdict 只评价 license-closure 证据是否可作为准确的 PARTIAL 许可门输入；不代表 profile、分发、Q03 或 G1 通过。",
+  "gate_conclusions": {
+    "license_evidence_report": "PASS_WITH_P3",
+    "profile_freeze": "BLOCKED",
+    "distribution": "BLOCKED",
+    "q03_close": "BLOCKED",
+    "q03_status": "OPEN",
+    "g1_status": "NOT_PASSED",
+    "real_license_conflict": "NONE_PROVEN",
+    "maximum_claim": "可确认资产身份、代码 / native 版本线索、notice/source 缺口和声音权属缺口；不可确认任何许可已整体闭合。"
+  },
+  "findings": {
+    "P0": [],
+    "P1": [
+      {
+        "id": "LIC-P1-01",
+        "title": "Kokoro 权重、训练数据与声音权属仍未闭合",
+        "evidence": "包内仅有 1 个无 owner/scope 的 Apache-2.0 文本；无 MODEL_CARD、训练数据清单、speaker consent 或 ownership。zf_001 sid3 与 zm_010 sid59 均保持 UNKNOWN/MISSING。",
+        "gate_effect": "阻断 profile freeze 与分发；D207 只代表试听质量接受。",
+        "report_accuracy": "原报告已准确按 P1 / BLOCKED 记录，未把顶层 Apache-2.0 覆盖到权重或声音。"
+      },
+      {
+        "id": "LIC-P1-02",
+        "title": "Kokoro 文本前端与数据资产缺少逐资产许可",
+        "evidence": "lexicon-zh、11 个 CppJieba 格式字典文件和 3 个 ruleFst 的文件身份可复算，但上游版本、作者、许可证和同源生成脚本未闭合；eSpeak-ng-data 精确上游版本同样未知。",
+        "gate_effect": "阻断最终 NOTICE、source offer 与分发。",
+        "report_accuracy": "原报告已将上述资产分类为 UNKNOWN / FAMILY_ONLY，没有用包级 Apache-2.0 代替逐资产许可。"
+      },
+      {
+        "id": "LIC-P1-03",
+        "title": "Sherpa AAR、classes.jar、16 个 native 与 ORT 依赖缺少最终 packaged notice/provenance 映射",
+        "evidence": "AAR 根和 classes.jar 均无 LICENSE/NOTICE/POM entry；可追溯到 Sherpa v2.0.1、ORT 1.28.2 和若干 native 依赖，但最终 ThirdPartyNotices、对象级 SBOM 与 packaged mapping 不存在。",
+        "gate_effect": "阻断 Q03 与分发；AAR 内缺文件本身是通知打包缺口，不是已证许可冲突。",
+        "report_accuracy": "原报告准确记录为 PARTIAL / BLOCKED，没有虚构互斥许可证。"
+      },
+      {
+        "id": "LIC-P1-04",
+        "title": "最终 corresponding source、source offer、packaged SBOM 与 NOTICE bundle 不存在",
+        "evidence": "仅有静态 Q03 snapshot SBOM、notice/source 矩阵和待补文件清单；未发现与最终候选绑定的完整 source bundle、书面 offer、packaged-file SBOM 或完整 NOTICE。",
+        "gate_effect": "阻断分发与 Q03 关闭。",
+        "report_accuracy": "原报告已准确标为 BLOCKED。"
+      }
+    ],
+    "P2": [
+      {
+        "id": "LIC-P2-01",
+        "title": "当前隔离 APK 实际携带 eSpeak 数据，最终必须删除或承担 GPL / 数据通知义务",
+        "evidence": "当前 final isolated APK 074ccfe96b6868c3ae9e02523a9bb9d7da2e35594cedc70721bbbca1287015e8 内含 355 个 espeak-ng-data 文件与 11 个 dict 文件，且无 LICENSE/NOTICE。Sherpa 2.0.1 二进制同时明确写出 Kokoro data-dir 自 v2.0.0 起 deprecated/ignored、espeak-ng no longer used。",
+        "gate_effect": "若保留该目录，必须固定 eSpeak 版本、文件哈希、GPLv3 与补充许可、逐数据版权并落实对应源码或合法 written-offer 路线；不得因参数被忽略就断言实际运行未读取。",
+        "report_accuracy": "原报告已发出相同 P2 条件，并保留 NOT_PROVEN_USED 与 runtime 未覆盖。"
+      }
+    ],
+    "P3": [
+      {
+        "id": "LIC-P3-01",
+        "title": "两个 HEAD 源码证据指针只固定到审计基线 eff0042",
+        "evidence": "sources.json 的 build.ps1 blob e8b686… 和 HarnessActivity.java blob bd3d36… 均精确匹配 eff0042，但不匹配候选 a986；当前配置已迁至 KokoroRuntimeService.java，仍存在同样的 model/voices/tokens/dataDir/lexicon/lang/dict/ruleFsts 设置。",
+        "gate_effect": "不改变许可结论；报告已声明 baseline HEAD=eff0042。建议未来把证据固定为“commit:path + blob”，避免把 HEAD 解释成移动指针。"
+      },
+      {
+        "id": "LIC-P3-02",
+        "title": "R024 没有保存原始 curl stderr / timing transcript",
+        "evidence": "report.json 与 sources.json 对 5 个 URL 的 HTTP 0、CURLE 和 elapsed_seconds 完全一致，但目录内没有原始命令输出可供独立重算；本次只读复核重新访问 6 个固定 GitHub 文本页也因超时或空回复失败。",
+        "gate_effect": "不改变保守的 UNKNOWN/MISSING 结论；外部证据仍只能依赖既有记录。"
+      },
+      {
+        "id": "LIC-P3-03",
+        "title": "请求中的 AK1 标识未在仓库中定位",
+        "evidence": "对 docs、.planning 和 Git log 做不区分大小写的 AK1 / AK-1 / AK_1 搜索均无结果；未臆测其含义，也未用 A1 等相邻任务替代。",
+        "gate_effect": "不阻断本次许可结论，但该指定输入无法交叉核验。"
+      },
+      {
+        "id": "LIC-P3-04",
+        "title": "两个旧 JSON 在本地 checkout 呈现 CRLF，但候选 Git blob 为 LF",
+        "evidence": "downloads.json 与 aar-archive-inventory.json 的 Git blob 均为 UTF-8 no BOM、CRLF=0；由于 core.autocrlf=true，当前 worktree 物化分别为 44/44 与 34/34 CRLF。license-closure 四文件本身在 worktree 也是 no BOM / LF。",
+        "gate_effect": "候选提交内容满足 LF；不把它误报为仓库内容失败，但后续本地校验应固定检查 Git blob。"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "01_repository_gate",
+      "result": "PASS",
+      "evidence": "HEAD、分支与预期完全一致；审查开始时 worktree clean；指定 license-closure、原 audit、manifest/inventory 和 docs 入口全部存在。"
+    },
+    {
+      "id": "02_asset_size_sha_manifest",
+      "result": "PASS",
+      "evidence": "Kokoro archive 364855331 B / b78e1ac4…；Sherpa AAR 49441341 B / a8d09d1d…；files.sha256 400 unique entries、400 scoped files、bad=0、extras=0、总字节 967287198。"
+    },
+    {
+      "id": "03_kokoro_archive_inventory",
+      "result": "PASS",
+      "evidence": "独立读取 tar.bz2 得 417 members / 377 files / 40 dirs / 0 links / 426584734 uncompressed bytes，与 model-archive-inventory 完全一致；关键文件哈希均与 asset_matrix 一致。"
+    },
+    {
+      "id": "04_files_and_tree_hashes",
+      "result": "PASS",
+      "evidence": "model/voices/tokens/lexicon-zh 等文件哈希一致；dict 11 文件 tree SHA-256 221ed9ef…、espeak 355 文件 d5601bcd…、3 FST fa1165eb…，files 与 manifest bytes 全部复算一致。"
+    },
+    {
+      "id": "05_aar_classes_native",
+      "result": "PASS",
+      "evidence": "AAR 26 entries / 21 files / 5 dirs / 16 native / 4 ABI；16 个 ELF 的 ABI machine、大小、SHA 全匹配；classes.jar 245045 B / 0ee4991c… / 130 entries / 124 class；classes manifest 125/125 匹配；AAR 根与 classes.jar 的 LICENSE/NOTICE/POM 均为 0。"
+    },
+    {
+      "id": "06_ort_and_dependencies",
+      "result": "PARTIAL",
+      "evidence": "4/4 libonnxruntime.so 均含 1.28.2；现有 Q03 TTS 证据把 ORT v1.28.2 commit 33ca9628…、MIT 和 Android archive SHA 01518867… 固定。Sherpa、五个 native 依赖和 ORT 的文本来源 URL / pin 内部一致；ORT 传导依赖与最终对象级映射仍未闭合。"
+    },
+    {
+      "id": "07_license_scope",
+      "result": "PASS_FOR_REPORT_ACCURACY",
+      "evidence": "Kokoro 包只有 1 个 Apache-2.0 文本、0 NOTICE、0 MODEL_CARD；weights/voices、lexicon、dict、FST、eSpeak、training data、speaker rights 均未被顶层许可证覆盖。原报告逐项保留 FAMILY_ONLY / UNKNOWN / MISSING。"
+    },
+    {
+      "id": "08_target_speakers",
+      "result": "BLOCKED_BY_RIGHTS",
+      "evidence": "ONNX metadata 仍为 zf_001=3、zm_010=59、zm_009=58；两个目标 speaker 的 identity/source_sample/consent/ownership/redistribution_rights 仍为 UNKNOWN/MISSING。"
+    },
+    {
+      "id": "09_aar_notice_provenance",
+      "result": "PASS_FOR_REPORT_ACCURACY",
+      "evidence": "AAR 根与 classes.jar 无 LICENSE/NOTICE/POM 是事实，不是许可证冲突；Sherpa v2.0.1 Apache-2.0 与补通知义务可定位，最终 packaged mapping 缺失。"
+    },
+    {
+      "id": "10_espeak_obligation",
+      "result": "PASS_WITH_CONDITION_OPEN",
+      "evidence": "二进制 warning 支持“参数 deprecated/ignored”仅作静态语义证据；当前 APK 的 355 个 eSpeak 文件和 11 个 dict 文件实际存在且哈希匹配。最终只能二选一：删除并证明不需要，或保留并闭合 GPLv3 / 补充许可 / 数据版权 / source-offer。"
+    },
+    {
+      "id": "11_final_artifacts",
+      "result": "BLOCKED",
+      "evidence": "存在静态 Q03 snapshot SBOM 和待补矩阵，但不存在最终 corresponding source、source offer、packaged SBOM 或 NOTICE bundle；当前 isolated APK 383 entries 中 LICENSE/NOTICE/COPYING/ThirdParty/POM/SBOM 命中为 0。"
+    },
+    {
+      "id": "12_real_conflict",
+      "result": "NONE_PROVEN",
+      "evidence": "已识别的 Apache-2.0、MIT、Unicode / BSD 系与项目 GPL-3.0-only 未发现明确互斥；eSpeak GPL-3.0-family 与 GPL-3.0-only 亦未证明互斥。未知权利不能改写成已知冲突。"
+    },
+    {
+      "id": "13_sources_network",
+      "result": "PASS_WITH_P3",
+      "evidence": "license-closure report / sources 共出现 37 个 HTTPS URL，host 仅为 github.com 与 huggingface.co；0 个未授权域、0 个签名查询参数。R024 两次 JSON 的 5 个 URL、HTTP 0、CURLE 与 elapsed 数值一致，但无原始 stderr transcript。"
+    },
+    {
+      "id": "14_sensitive_data",
+      "result": "PASS",
+      "evidence": "license-closure 四文件中未命中 Authorization、Bearer、password、API/token/secret value、cookie、私钥、邮箱或已知设备 serial；无 keystore 路径。唯一 IP 是公开 GitHub 响应地址，不是本机 / 设备地址。"
+    },
+    {
+      "id": "15_json_encoding_lf",
+      "result": "PASS_WITH_P3",
+      "evidence": "11 个核心证据 Git blob 均 UTF-8、no BOM、CRLF=0 且 JSON parse PASS；license-closure 的 report/sources/lf-check/files.sha256 在当前 worktree 也为 LF。两个旧 JSON 的本地 CRLF 物化已作为 P3 记录，候选 blob 未受影响。"
+    },
+    {
+      "id": "16_pointer_integrity",
+      "result": "PASS_WITH_P3",
+      "evidence": "从 report/sources 抽出的 40 个仓库 / Git 指针均存在；两个显式 git_blob 均匹配审计基线 eff0042，但不匹配候选 a986。缺失的 .m2 repository 是 sources 明确记录的否定事实，不是断链。"
+    },
+    {
+      "id": "17_candidate_apk_payload",
+      "result": "PASS_FOR_PACKAGE_IDENTITY",
+      "evidence": "当前 final isolated APK 为 427005490 B / 074ccfe9…，其 7 个关键模型资产、355 个 eSpeak 文件与 11 个 dict 文件相对源文件均有 373/373 size 与 SHA 匹配；该 APK 不是生产候选，也不含 notices/SBOM。"
+    }
+  ],
+  "uncovered": [
+    "未重新下载任何资产；固定 GitHub 文本页的独立在线复核在当前网络下失败，外部页面来源仍依赖既有 R024 / sources 记录。",
+    "未取得 Hugging Face 官方模型卡、训练数据、speaker identity、consent 或 redistribution evidence。",
+    "未取得 CppJieba / Jieba、lexicon-zh、FST 的真实上游 revision 与逐数据权利。",
+    "未取得 ORT ThirdPartyNotices 全文、对象级 native link closure、AAR/source 可重复构建映射或最终 SBOM。",
+    "未在设备或 runtime 中证明 eSpeak data 是否被读取；只证明它被打包、hash 一致且二进制声明 dataDir deprecated/ignored。",
+    "未作法律意见；本审查只能证明“无明确互斥条款”，不能替法务批准分发。",
+    "指定 AK1 输入未在仓库或 Git history 中定位。"
+  ],
+  "maximum_claim": "许可证报告可被接受为准确的 PARTIAL / BLOCKED 门禁输入：资产身份和主要代码 / native 版本线索可追溯，顶层 Apache-2.0 没有被错误外推，AAR 缺口被正确写成 notice/provenance gap，zf_001/zm_010 仍无声音权属，eSpeak 数据仍随当前隔离 APK 分发且义务未闭合，最终 source/offer/SBOM/NOTICE 仍不存在。不得据此冻结 profile、分发、关闭 Q03 或宣称 G1 PASS；也未证明存在真实互斥许可证冲突。",
+  "next_step": {
+    "decision": "保留 Q03 Open、license PARTIAL、G1 NOT_PASSED；将本文件作为独立 review 输入交回 G1 交付负责人。",
+    "recommended_owner": "新的只读许可 / provenance 补证代理，不得兼任实现、QA 或 Release。",
+    "first_read_only_action": "核对本 review、license-closure/report.json、sources.json 与 Q03 notice/source 矩阵，然后优先获取可复算的 HF 模型卡、逐 speaker 权利、词典/FST 上游和最终 packaged notice/source 输入。",
+    "stop_condition": "出现真实许可冲突、必须新增域名或资产下载、无法取得的 speaker 权利、把 D207 写成 profile freeze，或试图把本 PASS_WITH_P3 解释成分发 / Q03 / G1 PASS 时停止。"
+  }
+}

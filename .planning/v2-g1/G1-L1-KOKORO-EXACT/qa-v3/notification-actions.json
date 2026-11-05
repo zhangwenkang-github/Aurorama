@@ -1,0 +1,49 @@
+{
+  "uiXml": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\ui\\notification-shade2.xml",
+  "actions": [
+    {
+      "resourceId": "com.android.systemui:id/media_seamless",
+      "description": "",
+      "bounds": "[881,424][974,517]",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "com.android.systemui:id/media_seamless_image",
+      "description": "选择设备",
+      "bounds": "[881,424][974,517]",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "com.android.systemui:id/action0",
+      "description": "",
+      "bounds": "[54,579][219,717]",
+      "enabled": "false"
+    },
+    {
+      "resourceId": "com.android.systemui:id/action1",
+      "description": "上一首",
+      "bounds": "[256,579][421,717]",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "com.android.systemui:id/action2",
+      "description": "暂停",
+      "bounds": "[458,579][623,717]",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "com.android.systemui:id/action3",
+      "description": "下一首",
+      "bounds": "[659,579][824,717]",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "com.android.systemui:id/action4",
+      "description": "",
+      "bounds": "[861,579][1026,717]",
+      "enabled": "false"
+    }
+  ],
+  "stopExposed": false,
+  "finding": "MIUI SystemUI media card exposed previous/play-pause/next only; app NotificationRecord still contained four actions including 停止, but no actual stop button was exposed for tap."
+}

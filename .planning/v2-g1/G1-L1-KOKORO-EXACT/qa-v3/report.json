@@ -1,0 +1,585 @@
+{
+  "schema": "aurorama.kokoro-runtime-closure.qa-v3.report.v1",
+  "task": "V2-G1-L1-KOKORO-EXACT independent Android runtime QA / user-promise verification",
+  "role": "fresh independent Android runtime QA engineer; no implementation, no license audit, no merge-prep, no Release",
+  "generatedAt": "2026-11-05T09:18:52.9660231+08:00",
+  "verdict": "FAIL",
+  "verdictReason": "A core user promise failed in real execution: the 30-minute lock-screen playback window contained real TTS AudioTrack audio only through 93.819 seconds after screen-off, then the fixed 9/9-sentence queue completed and the remaining roughly 28.5 minutes were service-only survival. The candidate therefore cannot claim 30-minute continuous background reading.",
+  "candidate": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "commit": "a986f2e2ccf0e5d7f95e219f68ff813571e1ee33",
+    "head": "a986f2e2ccf0e5d7f95e219f68ff813571e1ee33",
+    "candidateIsAncestorOfHead": true,
+    "initialGitStatusClean": true,
+    "apkPath": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+    "apkBytes": 427005490,
+    "apkSha256": "074ccfe96b6868c3ae9e02523a9bb9d7da2e35594cedc70721bbbca1287015e8",
+    "fixedApkRestoredAfterIndependentBuild": true,
+    "package": "dev.aurorama.kokoro.harness",
+    "versionCode": 2,
+    "versionName": "2.0-kokoro-runtime",
+    "minSdk": 26,
+    "targetSdk": 37,
+    "abi": "arm64-v8a",
+    "permissions": [
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.WAKE_LOCK"
+    ],
+    "internetPermission": false,
+    "serviceCount": 1,
+    "activityCount": 1,
+    "foregroundServiceType": "mediaPlayback (0x00000002)",
+    "mediaSessionConstructionSites": 1,
+    "audioTrackConstructionSites": 1,
+    "signatureSchemes": {
+      "v2": true,
+      "v3": true,
+      "signerCount": 1
+    }
+  },
+  "scopeAndBoundaries": {
+    "deviceSerial": "8e875894",
+    "deviceModel": "23013RK75C",
+    "api": 35,
+    "abi": "arm64-v8a",
+    "padSerial": "43af8627",
+    "padCommands": 0,
+    "padUnlockAttempts": 0,
+    "productionPackageWrites": 0,
+    "productionServerAccess": 0,
+    "sourceOrHarnessChangesByQa": 0,
+    "screenshotsTaken": 0,
+    "viewImageCalls": 0,
+    "seekCommandsIssued": false,
+    "claimBoundary": "The candidate is an isolated harness, not production TTS, production music integration, D203 closure, voice/profile freeze, Q03 closure, Release readiness or G1 PASS."
+  },
+  "licenseClosureReadOnly": {
+    "report": ".planning/v2-g1/G1-L1-KOKORO-EXACT/license-closure/report.json",
+    "status": "PARTIAL",
+    "realLicenseConflict": "NONE_PROVEN",
+    "profileFreeze": "BLOCKED",
+    "distribution": "BLOCKED",
+    "q03": "BLOCKED",
+    "g1": "NOT_PASSED"
+  },
+  "implementationAndOldQa": {
+    "implementationReport": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure/implementation-report.json",
+    "implementationStatus": "IMPLEMENTED / TDD_GREEN / FINAL_BUILD_PASS / K60_MINIMAL_SELF_TEST_COMPLETE / NOT_INDEPENDENT_QA / NOT_PRODUCTION_RUNTIME / D203_NOT_FULLY_CLOSED / G1_NOT_PASSED",
+    "oldQa": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v2/report.json",
+    "oldQaVerdict": "PARTIAL",
+    "oldQaGaps": [
+      "No foreground service / MediaSession / AudioTrack owner",
+      "No persistent paused restore",
+      "No actual background owner",
+      "No OS AudioFocus request/loss evidence",
+      "No 30-minute lock-screen proof"
+    ],
+    "currentQaDifference": "This round independently exercised those newly implemented paths on the fixed final APK and found the 30-minute playback queue gap that the implementation report explicitly deferred."
+  },
+  "deviceLock": {
+    "path": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "lockId": "G1-L1-KOKORO-EXACT-QA-V3-K60-8e875894-20261105-0759",
+    "activeBefore": 0,
+    "registeredActive": true,
+    "releasedAt": "2026-11-05T09:18:00+08:00",
+    "activeAfter": 0,
+    "hashBeforeRegistration": "3E24EBD59ECB983C6682884C250354C427080E181DAE52BE99748A01276AE17C",
+    "hashBeforeRelease": "1CFEB38209E0432D6DED6199A72756EE57A4FE117D5A3B205450E5795DB1F753",
+    "hashAfterRelease": "BCEEDE03B266F8D7F13A4AE535353353F584CBC73B8C4623EBAEE5CEFFCB00ED"
+  },
+  "tdd": {
+    "command": ".\\gradlew.bat -p .planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness :contract:test --offline --console=plain --rerun-tasks",
+    "exitCode": 0,
+    "executed": {
+      "tests": 28,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xmlSuites": 9
+    },
+    "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/logs/contract-test.log",
+    "xmlDirectory": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/test-results",
+    "summary": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/contract-test-summary.json"
+  },
+  "independentBuild": {
+    "command": "pwsh -NoProfile -File .planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build.ps1",
+    "exitCode": 0,
+    "fixedBytes": 427005490,
+    "fixedSha256": "074ccfe96b6868c3ae9e02523a9bb9d7da2e35594cedc70721bbbca1287015e8",
+    "rebuiltBytes": 427005490,
+    "rebuiltSha256": "3e249d177cb6e843084ed743bd21f5581c59fc504c441879430d82b3334604ae",
+    "byteMatch": false,
+    "entryNamesMatch": true,
+    "entryCount": 383,
+    "changedNonMetaInfEntries": [
+      "classes.dex"
+    ],
+    "classesDexSizeDeltaBytes": -56,
+    "observedCause": "D8 emitted a different set of synthetic lambda names and method-parameter metadata; fixed has 17971 strings and rebuilt has 17970, with 23 fixed-only and 22 rebuilt-only strings",
+    "classification": "P3 unit/build reproducibility observation; source contract tests and fixed APK were used for runtime QA",
+    "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/logs/independent-build.log",
+    "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/build-analysis.json"
+  },
+  "runtime": {
+    "zf001Sid3": {
+      "coldLaunchExitCode": 0,
+      "requestToFirstAudioMs": 4863,
+      "modelLoadMs": 1948,
+      "inferenceAfterLoadMs": 2915,
+      "firstAudioDurationMs": 4000,
+      "firstAudioRtf": 0.72875,
+      "pssPeakKb": 721705,
+      "pssSamples": 15,
+      "actualAudioTrackStarted": true,
+      "mediaSessionObserved": true,
+      "notificationObserved": true,
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/zf-launch.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/zf-warm-pss.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/logs/runtime-logcat.log"
+      ]
+    },
+    "zm010Sid59": {
+      "toggleExitCode": 0,
+      "warmRequestToFirstAudioMs": 2843,
+      "inferenceMs": 2843,
+      "firstAudioDurationMs": 3950,
+      "firstAudioRtf": 0.719746835443038,
+      "pssPeakKb": 722487,
+      "pssSamples": 15,
+      "actualAudioTrackStarted": true,
+      "mediaSessionObserved": true,
+      "notificationObserved": true,
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/zm-runtime.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/logs/runtime-logcat.log"
+      ]
+    },
+    "audioAttribute": "USAGE_MEDIA / CONTENT_TYPE_SPEECH / mono 24 kHz / Android AudioTrack state=started",
+    "physicalAudibility": "NOT_SUBJECTIVELY_EVALUATED; device STREAM_MUSIC remained at index 0 throughout, while AudioPlaybackConfiguration proved a started AudioTrack and speaker routing."
+  },
+  "userPromiseMatrix": [
+    {
+      "id": 1,
+      "userPromise": "Contract tests and independent build are real and the fixed APK has the required identity.",
+      "entry": "Gradle contract task; harness/build.ps1; aapt2; source owner audit",
+      "operation": "Rerun all contract tests, rebuild, hash, inspect manifest and owner construction sites",
+      "observable": "28/0/0/0 executed, build exit 0, fixed APK identity restored, package/ABI/no-INTERNET/FGS/service/owner facts match",
+      "fixtureAutomationEvidence": "contract-test-summary.json; test-results/*.xml; independent-build.json; build-analysis.json",
+      "k60Evidence": "Device base APK size/hash matched before launch",
+      "uncovered": "Independent build is not byte-identical because of D8 synthetic lambda naming",
+      "status": "PASS_WITH_P3"
+    },
+    {
+      "id": 2,
+      "userPromise": "K60 is serialized and all mutable device state is captured before testing.",
+      "entry": "device-lock.md; explicit adb -s 8e875894",
+      "operation": "Verify ACTIVE=0, register lock, capture device/package/network/audio/screen/user",
+      "observable": "Initial ACTIVE=0, one QA-V3 ACTIVE lock, production identities and reversible settings captured",
+      "fixtureAutomationEvidence": "device-lock.md; qa-v3/device-before.json",
+      "k60Evidence": "serial/model/API/ABI/current user matched; Pad commands were zero",
+      "uncovered": "None",
+      "status": "PASS"
+    },
+    {
+      "id": 3,
+      "userPromise": "Approved zf_001 sid3 and zm_010 sid59 both run real offline TTS with first audio, inference, AudioTrack, MediaSession and notification metrics.",
+      "entry": "HarnessActivity start/toggle commands",
+      "operation": "Run each approved voice and sample PSS; inspect platform state",
+      "observable": "Both produced real AudioTrack; zf RTF 0.72875 / 721705 KB PSS; zm RTF 0.71975 / 722487 KB PSS",
+      "fixtureAutomationEvidence": "contract tests plus qa-v3/zf-launch.json, zf-warm-pss.json, zm-runtime.json",
+      "k60Evidence": "logs contain TTS_SENTENCE_REQUEST and AUDIO_TRACK_STARTED for sid3 and sid59",
+      "uncovered": "Physical audibility not judged; STREAM_MUSIC was 0",
+      "status": "PASS_RUNTIME"
+    },
+    {
+      "id": 4,
+      "userPromise": "A foreground service owns playback after Activity exits and exposes one MediaSession.",
+      "entry": "Harness UI then HOME",
+      "operation": "Background Activity and inspect service/process/session/notification",
+      "observable": "PID unchanged, isForeground=true, types=0x2, one active MediaSession and notification",
+      "fixtureAutomationEvidence": "states/activity-background-owner.json; media_session dumps",
+      "k60Evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/activity-background-owner.json",
+      "uncovered": "This is isolated harness ownership, not production integration",
+      "status": "PASS"
+    },
+    {
+      "id": 5,
+      "userPromise": "Play, pause, resume, previous, next and stop work through UI, MediaSession and the system notification/lock-screen surface without fake seek.",
+      "entry": "Harness buttons; cmd media_session dispatch; expanded MIUI SystemUI media card",
+      "operation": "Exercise each control through UI and MediaSession; tap actual SystemUI media-card actions",
+      "observable": "UI and MediaSession covered all six controls; SystemUI notification tap covered pause/resume/previous/next",
+      "fixtureAutomationEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/controls.json; media-*.json; ui/*.tap.json",
+      "k60Evidence": "Runtime logs show COMMAND/state transitions after each tap/dispatch",
+      "uncovered": "MIUI SystemUI did not expose a stop button; no visible keyguard media card was present. No seek was issued.",
+      "status": "PARTIAL"
+    },
+    {
+      "id": 6,
+      "userPromise": "Real audio continues through a 30-minute screen-off lock-screen window.",
+      "entry": "Full 9-sentence queue started from real playback; power key off",
+      "operation": "Monitor 30 minutes with stay_on temporarily set to 0; record every minute and all AudioTrack starts/completions",
+      "observable": "Screen stayed Asleep for 1801.002 seconds, but 9/9 sentences completed and real audio ended 93.819 seconds after screen-off; service-only survival followed",
+      "fixtureAutomationEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/background-30m.json; background-30m-samples.jsonl",
+      "k60Evidence": "PID 18292 and FGS stayed alive; MediaSession changed to STOPPED; no later AudioTrack starts",
+      "uncovered": "Candidate has no continuous source longer than the fixed 9-sentence queue and no production queue/loop semantics",
+      "status": "FAIL"
+    },
+    {
+      "id": 7,
+      "userPromise": "Paused playback reconstructs safely but never auto-plays or restores rejected objects.",
+      "entry": "Pause, force-stop, manual launch; on-device SharedPreferences tamper",
+      "operation": "Restore valid paused state; tamper pack and speaker checkpoint; restore original",
+      "observable": "Same 7/9 sentence returned as PAUSED with autoPlay=false and no Track/focus; fake-pack and zm_009/sid58 were rejected fail-closed",
+      "fixtureAutomationEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/recreate-*.json; tamper-*.json; contract ResumePolicy tests",
+      "k60Evidence": "Device prefs were edited only for harness package, then restored and revalidated",
+      "uncovered": "No production persistence migration was tested",
+      "status": "PASS"
+    },
+    {
+      "id": 8,
+      "userPromise": "UI cancel converges all runtime surfaces and temporary output.",
+      "entry": "Harness UI Cancel TTS / cleanup",
+      "operation": "Cancel while a TTS task is active, then inspect all process and file surfaces",
+      "observable": "PID/service/notification/MediaSession disappeared; no WAV/tmp/part/partial file remained; no PLAYING residue",
+      "fixtureAutomationEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/ui-cancel.json; ui/ui-cancel.tap.json",
+      "k60Evidence": "PID null; service false; notification false; MediaSession false; only runtime_state.json existed before uninstall",
+      "uncovered": "Production output directory contract not tested",
+      "status": "PASS"
+    },
+    {
+      "id": 9,
+      "userPromise": "AudioFocus is requested and a genuine competing owner pauses TTS.",
+      "entry": "Runtime focus request; dumpsys audio focus stack",
+      "operation": "Start TTS and capture active focus stack; attempt safe second owner",
+      "observable": "Real GAIN stack entry present for UID 10309 with PAUSES_ON_DUCKABLE_LOSS",
+      "fixtureAutomationEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/audio-focus.json; audio-focus-stack.txt",
+      "k60Evidence": "dumpsys audio shows one harness focus entry",
+      "uncovered": "OS-origin loss was NOT_RUN: no authorized second audio app/owner was available without touching user media data; harness simulated loss was not used as proof",
+      "status": "PARTIAL"
+    },
+    {
+      "id": 10,
+      "userPromise": "Local music and TTS never have two active owners; music queue is retained and not auto-resumed.",
+      "entry": "Harness music simulation and TTS controls",
+      "operation": "music->TTS, TTS stop, TTS->music restart; inspect state and AudioTrack configuration",
+      "observable": "Music paused with queue index retained; after TTS stop music stayed PAUSED; TTS was terminated before music AudioTrack restarted; only one started AudioTrack at the captured point",
+      "fixtureAutomationEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/music-*.json; tts-over-music.json; tts-stop-music-paused.json",
+      "k60Evidence": "Runtime logs contain MUSIC_PAUSED_FOR_TTS and TTS_TERMINATED_BEFORE_MUSIC",
+      "uncovered": "Isolated simulation only; no production music integration inference",
+      "status": "PASS_ISOLATED_ONLY"
+    },
+    {
+      "id": 11,
+      "userPromise": "A complete inference/playback runs with airplane mode, Wi-Fi and mobile off, with zero UID network increment, then network is restored.",
+      "entry": "Airplane/Wi-Fi/data settings and full harness sample",
+      "operation": "Disable network, capture UID netstats, execute two-sentence runtime, capture netstats, restore network",
+      "observable": "airplane=1, wifi=0, active network=none; complete two-AudioTrack sample; UID identity delta=0 and mAppUidStatsMap delta=0; restored settings MATCH",
+      "fixtureAutomationEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/zero-network.json; netstats/before.txt; netstats/after.txt",
+      "k60Evidence": "UID 10309 had no traffic identity rows/map rows before or after, and unchanged empty counters",
+      "uncovered": "The UID counter set was empty, so the netstats result is a zero-delta empty-set observation, not a known-traffic calibration; no INTERNET permission plus real offline runtime remains the stronger cross-check.",
+      "status": "PASS_RUNTIME_WITH_NETSTATS_LIMITATION"
+    },
+    {
+      "id": 12,
+      "userPromise": "UI, notification and MediaSession agree during cancel, failure, restart and background; no FATAL/ANR/Input timeout; forbidden speaker never invoked.",
+      "entry": "Cancel, invalid command error, restore, 30-minute final state, whitelist audit",
+      "operation": "Compare surfaces and scan logs",
+      "observable": "PAUSED/PLAYING/STOPPED/COMPLETED/ERROR surfaces matched; 0 FATAL/ANR/Input timeout; 0 forbidden TTS requests",
+      "fixtureAutomationEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/states/*.json; crash-anr-input.json; speaker-whitelist.json",
+      "k60Evidence": "Runtime log 68 TTS requests: 28 zf_001/sid3 and 40 zm_010/sid59; forbidden invocation count 0",
+      "uncovered": "MIUI SystemUI stop action was absent; intentional rejection logs still contain the forbidden token as an error string",
+      "status": "PASS"
+    },
+    {
+      "id": 13,
+      "userPromise": "Harness and temporary artifacts are removed; device settings, user and production packages are restored; lock reaches ACTIVE=0.",
+      "entry": "adb uninstall and device snapshots",
+      "operation": "Uninstall, delete temp XML/data, compare before/after state, release lock",
+      "observable": "Uninstall Success; PID/service/notification/MediaSession/external data gone; production path/bytes/SHA/dataDir/times MATCH; network/volume/screen/current user restored; ACTIVE=0",
+      "fixtureAutomationEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/uninstall.json; device-temp-cleanup.json; cleanup-comparison.json; device-after.json",
+      "k60Evidence": "Serial remained 8e875894; Pad remained untouched",
+      "uncovered": "None",
+      "status": "PASS"
+    }
+  ],
+  "actualExecuted": [
+    "git identity, branch, ancestor and clean-tree checks",
+    "aapt2 badging, permissions, manifest service/type and apksigner checks",
+    "28 contract tests with 9 XML suites",
+    "independent standalone harness build and entry-level APK comparison",
+    "fixed APK install; MIUI install confirmation retry",
+    "zf_001 sid3 and zm_010 sid59 real TTS/AudioTrack/MediaSession/notification runtime",
+    "UI, MediaSession and SystemUI notification control paths",
+    "Activity background and foreground-service ownership",
+    "valid paused restore after force-stop; tampered pack and speaker fail-closed tests",
+    "UI cancel convergence",
+    "real AudioFocus request and active focus stack capture",
+    "isolated music/TTS mutual exclusion",
+    "disabled-network complete inference/playback and network restore",
+    "30-minute screen-off monitor with 30 one-minute samples",
+    "invalid-command ERROR consistency",
+    "speaker58 / zm_009 invocation audit",
+    "FATAL / ANR / Input timeout scan",
+    "uninstall, device-temp cleanup, production identity comparison and lock release"
+  ],
+  "uncovered": [
+    "Pad 5 runtime was not run: NOT_RUN_USER_UNLOCK_REQUIRED; zero Pad-targeted commands were sent",
+    "OS-origin AudioFocus loss was not produced by an authorized second audio owner",
+    "No visible keyguard media card was available; no lock-screen button tap was performed",
+    "MIUI SystemUI did not expose a stop action for actual tap",
+    "Physical audibility and subjective voice quality were not evaluated; STREAM_MUSIC was 0",
+    "Production Aurorama integration, production music arbitration, voice-pack import/delete/rollback and profile freeze were not tested",
+    "Network stats contained an empty UID counter set rather than a calibrated nonzero baseline",
+    "Bluetooth/headset/media-button and other API/ABI matrices were not tested"
+  ],
+  "inferencesNotExecuted": [
+    "No inference that a 56-second or 93.819-second audio segment proves a 30-minute continuous-reading promise",
+    "No inference that service-only survival is audio continuity",
+    "No inference that the harness music simulation proves production ExoPlayer/music integration",
+    "No inference from harness MediaSession/FGS to production D203 closure",
+    "No inference from the isolated APK to exact profile freeze, Q03 closure, G1 PASS or Release readiness",
+    "No inference from the empty UID netstats set to a fully calibrated network isolation proof",
+    "No inference from tampered checkpoint rejection to license/distribution approval"
+  ],
+  "blocked": [],
+  "findings": {
+    "P0": [],
+    "P1": [
+      {
+        "id": "QA3-P1-01",
+        "title": "30-minute lock-screen playback is unsupported by the fixed sentence queue",
+        "reproduction": [
+          "Start play_full with a real AudioTrack.",
+          "Temporarily set stay_on_while_plugged_in=0 and power the screen off.",
+          "Observe AudioTrack starts/completions and service state for 30 minutes."
+        ],
+        "observed": "9/9 sentences completed at screen-off+93.819 s; queue completed at 93.858 s; no AudioTrack start during the remaining approximately 1707 s. PID/FGS/notification remained alive but MediaSession was STOPPED.",
+        "impact": "Users cannot receive 30 minutes of continuous reading from the background TTS path.",
+        "minimalNextImplementation": "Provide a continuous source longer than 30 minutes or an approved continuation policy that turns more content into new TTS sentences without requiring page/ViewModel ownership, while maintaining one AudioTrack owner, one MediaSession, truthful pause/stop and no silent auto-restart after explicit pause/stop."
+      }
+    ],
+    "P2": [
+      {
+        "id": "QA3-P2-01",
+        "title": "MIUI SystemUI media card does not expose the notification stop action",
+        "reproduction": [
+          "Start TTS and expand the notification shade.",
+          "Inspect the SystemUI media-card action nodes."
+        ],
+        "observed": "The app NotificationRecord contains four actions including 停止, but the system card exposes only previous, play/pause and next; the fourth slot is disabled. Actual stop taps worked from UI and MediaSession, not from SystemUI.",
+        "impact": "The requested system-notification stop path is unavailable on the target K60/MIUI surface.",
+        "minimalNextImplementation": "Use a system-integrated media control surface that exposes stop as a real action, or explicitly define the supported system-control capability and keep UI/MediaSession stop as the guaranteed fallback."
+      }
+    ],
+    "P3": [
+      {
+        "id": "QA3-P3-01",
+        "title": "Independent debug build is not byte-reproducible",
+        "detail": "Same source and size produced a different SHA-256 due to D8 synthetic lambda naming and metadata. This does not change the fixed APK runtime evidence but weakens byte-for-byte rebuild claims."
+      },
+      {
+        "id": "QA3-P3-02",
+        "title": "Long-screen test must neutralize stay-on-while-plugged-in",
+        "detail": "The first 30-minute attempt woke at about 17 minutes because K60 had stay_on_while_plugged_in=15. The invalid attempt is retained as background-30m-aborted-*; the valid rerun temporarily set 0 and restored 15."
+      }
+    ]
+  },
+  "executedCommands": [
+    {
+      "command": "git -C <worktree> rev-parse HEAD / branch --show-current / merge-base --is-ancestor",
+      "exitCode": 0,
+      "result": "branch codex/v2-integration; HEAD candidate; ancestor true"
+    },
+    {
+      "command": "aapt2 dump badging / dump permissions / dump xmltree",
+      "exitCode": 0,
+      "result": "package, arm64-v8a, no INTERNET, one service, mediaPlayback type"
+    },
+    {
+      "command": "gradlew :contract:test --offline --console=plain --rerun-tasks",
+      "exitCode": 0,
+      "result": "28 tests, 0 failures/errors/skips"
+    },
+    {
+      "command": "pwsh -NoProfile -File harness/build.ps1",
+      "exitCode": 0,
+      "result": "APK built; 427005490 B; rebuilt SHA differs as P3; fixed APK restored"
+    },
+    {
+      "command": "adb -s 8e875894 install --no-streaming -r <fixed-apk>",
+      "exitCode": 1,
+      "result": "MIUI INSTALL_FAILED_USER_RESTRICTED on first attempt"
+    },
+    {
+      "command": "pwsh -NoProfile -File harness/install-harness.ps1 -Serial 8e875894 ...",
+      "exitCode": 0,
+      "result": "Success after authorized installer UI confirmation"
+    },
+    {
+      "command": "adb -s 8e875894 shell am start ... --es command play_sample / play_full / toggle_voice",
+      "exitCode": 0,
+      "result": "real TTS and AudioTrack states"
+    },
+    {
+      "command": "adb -s 8e875894 shell cmd media_session dispatch pause|play|next|previous|stop",
+      "exitCode": 0,
+      "result": "all MediaSession controls reached the runtime state machine"
+    },
+    {
+      "command": "adb -s 8e875894 shell input keyevent 3",
+      "exitCode": 0,
+      "result": "Activity backgrounded; PID/FGS/MediaSession remained"
+    },
+    {
+      "command": "adb -s 8e875894 shell am force-stop dev.aurorama.kokoro.harness",
+      "exitCode": 0,
+      "result": "PID/service/notification/MediaSession cleared for rebuild tests"
+    },
+    {
+      "command": "pwsh -NoProfile -File qa-v3/tools/background-30m-monitor.ps1 -Minutes 30",
+      "exitCode": 0,
+      "result": "30-minute window executed; continuous audio failed at 93.819 s"
+    },
+    {
+      "command": "pwsh -NoProfile -File qa-v3/tools/zero-network-v3.ps1",
+      "exitCode": 0,
+      "result": "offline runtime completed; UID deltas 0; settings restored"
+    },
+    {
+      "command": "adb -s 8e875894 uninstall dev.aurorama.kokoro.harness",
+      "exitCode": 0,
+      "result": "Success"
+    },
+    {
+      "command": "adb -s 8e875894 shell pm path dev.aurorama.kokoro.harness",
+      "exitCode": 1,
+      "result": "package absent"
+    },
+    {
+      "command": "adb -s 8e875894 logcat -d -v threadtime | filter FATAL/ANR/Input timeout",
+      "exitCode": 0,
+      "result": "0 matching lines"
+    }
+  ],
+  "cleanup": {
+    "harnessUninstall": "Success",
+    "pidAfter": null,
+    "serviceAfter": false,
+    "notificationAfter": false,
+    "mediaSessionAfter": false,
+    "externalFilesAfter": false,
+    "sdcardTempRemaining": 0,
+    "dataLocalTmpRemaining": 0,
+    "productionReleaseMatch": true,
+    "productionDebugMatch": true,
+    "networkSettingsMatch": true,
+    "musicVolumeBefore": 0,
+    "musicVolumeAfter": 0,
+    "screenBefore": "Awake / 600000 / null / 15 / brightness 2 / mode 1",
+    "screenAfter": "Awake / 600000 / null / 15 / brightness 2 / mode 1",
+    "currentUserBefore": 0,
+    "currentUserAfter": 0,
+    "lockActiveAfter": 0,
+    "evidence": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/uninstall.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/device-temp-cleanup.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/cleanup-comparison.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/device-after.json"
+    ]
+  },
+  "speaker58": {
+    "result": "PASS_ZERO_INVOCATION",
+    "ttsSentenceRequests": 68,
+    "zf001Sid3Requests": 28,
+    "zm010Sid59Requests": 40,
+    "forbiddenInvocationCount": 0,
+    "intentionalRejectionCount": 2,
+    "interpretation": "Every TTS_SENTENCE_REQUEST used zf_001 sid3 or zm_010 sid59. The forbidden tokens appear only in a deliberate tampered-checkpoint rejection string.",
+    "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/speaker-whitelist.json"
+  },
+  "noCrashGate": {
+    "fatalExceptionCount": 0,
+    "appAnrCount": 0,
+    "inputTimeoutCount": 0,
+    "evidence": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/crash-anr-input.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/logs/fatal-anr-input-final.txt"
+    ]
+  },
+  "maximumClaim": "On the fixed K60 API35 arm64 harness, the candidate runs two approved Kokoro voices, one AudioTrack/MediaSession/FGS owner, real pause/resume/prev/next/stop, a manual paused restore, fail-closed checkpoint validation, UI cancel convergence, short background/lockscreen ownership, isolated music arbitration and an offline complete playback with zero UID netstats deltas. It does not deliver 30 minutes of continuous real audio: the fixed 9-sentence queue ends in about 95 seconds of playback, so the candidate is not acceptable as a 30-minute background-reading implementation.",
+  "evidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3",
+  "keyEvidence": [
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/device-before.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/device-after.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/contract-test-summary.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/independent-build.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/build-analysis.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/background-30m.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/background-30m-samples.jsonl",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/states/background-30m-final.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/zero-network.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/netstats/before.txt",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/netstats/after.txt",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/recreate-restored-paused.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/tamper-pack-rejected.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/tamper-speaker-rejected.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/ui-cancel.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/audio-focus-stack.txt",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/music-restart-terminates-tts.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/speaker-whitelist.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/crash-anr-input.json",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/cleanup-comparison.json"
+  ],
+  "appliedExperience": [
+    "test-runner-executed-evidence: 28 tests were verified through actual XML, not only Gradle exit 0",
+    "android-app-traffic-measure: all UID identity blocks and the app UID stats map were parsed, with empty-set limitation recorded",
+    "miui-notif-logcat-evidence: notification/SystemUI evidence was obtained with uiautomator XML and dumpsys, not screenshots",
+    "miui-adb-install: one controlled MIUI installer retry used dynamic UI bounds",
+    "shared-lockfile-patch-context: lock update used the unique QA-V3 heading and was read back",
+    "powershell-reserved-automatic-vars: an erroneous $PID probe was discarded and rerun with an appPid variable",
+    "screenshot-budget-visual-qa: zero screenshots and zero view_image calls"
+  ],
+  "newReusableExperienceCandidates": [
+    {
+      "status": "CANDIDATE_NOT_WRITTEN_MEMORY_DUE_WRITE_WHITELIST",
+      "fact": "Android K60 can wake during a long screen-off run when stay_on_while_plugged_in is 15; long-screen QA must capture, set it to 0, verify Asleep throughout, and restore the exact original value."
+    },
+    {
+      "status": "CANDIDATE_NOT_WRITTEN_MEMORY_DUE_WRITE_WHITELIST",
+      "fact": "MIUI SystemUI may omit a Notification ACTION_STOP even when dumpsys shows the NotificationRecord has four actions; system-control claims need an actual UI node/tap, not NotificationRecord text alone."
+    },
+    {
+      "status": "CANDIDATE_NOT_WRITTEN_MEMORY_DUE_WRITE_WHITELIST",
+      "fact": "D8 debug APK rebuilds can differ byte-for-byte because synthetic lambda names and metadata change; compare fixed SHA and runtime behavior separately from source rebuild success."
+    },
+    {
+      "status": "CANDIDATE_NOT_WRITTEN_MEMORY_DUE_WRITE_WHITELIST",
+      "fact": "A never-networked UID can have no netstats identity rows; zero delta is still empty-set evidence and must be reported as a limitation unless a calibrated traffic probe exists."
+    }
+  ],
+  "memoryCheckpoint": {
+    "added": "none",
+    "updated": "none",
+    "archived": "none",
+    "skipped": "The user write whitelist permits only qa-v3 and the device lock; no Engramory write was authorized.",
+    "index": {
+      "lines": 121,
+      "bytes": 16037
+    },
+    "engramoryCheck": "OK: index is 121 lines / 15.7 KB",
+    "engramoryDoctor": "clean: 121 lines / 15.7 KB, 92 notes, no broken pointers, orphans, or schema errors; one info-only size warning for leader-delegation-by-role.md (13.1 KB)"
+  },
+  "nextStep": {
+    "owner": "delivery owner / implementation dispatcher",
+    "nextRole": "fresh implementation agent",
+    "firstReadOnlyAction": "Read qa-v3/report.json, background-30m.json, background-30m-samples.jsonl and the final state; verify candidate ancestry and fixed APK hash again.",
+    "requiredImplementation": "Provide a real continuous-reading source longer than 30 minutes or an approved generation/continuation strategy that produces new sentences in the service owner after the current queue ends without auto-playing after an explicit pause/stop.",
+    "stopCondition": "Do not claim G1/release/production PASS, freeze profile, or touch production server/account; stop if the fix requires changing this QA evidence, using Pad without user unlock, or introducing an unapproved network/model asset.",
+    "nextGate": "A new independent QA run must repeat the 30-minute screen-off window and the notification/system-control stop path."
+  },
+  "noteOnConcurrentUntrackedFile": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v3/license-review.json was not authored or consumed by this runtime QA and is preserved untouched as a concurrent evidence-root file."
+}

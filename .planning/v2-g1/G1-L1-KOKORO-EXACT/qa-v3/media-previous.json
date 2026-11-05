@@ -1,0 +1,13 @@
+{
+  "action": "previous",
+  "exitCode": 0,
+  "output": "",
+  "log": [
+    "11-05 08:14:40.086  9502  9502 I KOKORO_RUNTIME: COMMAND previous",
+    "11-05 08:14:40.087  9502  9502 I KOKORO_RUNTIME: TTS_NAVIGATE from=3 to=2 wasActive=true"
+  ],
+  "uiTexts": [
+    "Status: PREPARING\nActive audio owner: TTS\nSentence: 3/9\nSpeaker: zm_010 sid=59\nPack: kokoro-multi-lang-v1_1\nAudioTrack playing: false\nAudioFocus held: true\nMusic: IDLE index=0\nAutoPlay: false\nStable sentence: 站台空无一人，铁轨尽头的雾像有人缓缓呼吸。",
+    "UI / notification / MediaSession 共用同一快照\nNotification: 正在准备朗读 · 站台空无一人，铁轨尽头的雾像有人缓缓呼吸。 （3/9）\nMediaSession: BUFFERING\nLast command: previous\nLast error: "
+  ]
+}

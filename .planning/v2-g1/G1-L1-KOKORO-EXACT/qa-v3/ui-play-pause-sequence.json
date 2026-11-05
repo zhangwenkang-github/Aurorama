@@ -1,0 +1,30 @@
+{
+  "sourceUi": "ui/ui-paused.xml",
+  "startText": "Start 60-second TTS queue",
+  "startBounds": "[53,1422][1027,1548]",
+  "startTap": {
+    "x": 540,
+    "y": 1485,
+    "exitCode": 0,
+    "at": "2026-11-05T08:12:38.3195584+08:00"
+  },
+  "detectedAudioStart": "11-05 08:12:36.928  9502 14864 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=18 samples=94800 durationMillis=3950",
+  "pauseText": "Pause",
+  "pauseBounds": "[53,1564][1027,1690]",
+  "pauseTap": {
+    "x": 540,
+    "y": 1627,
+    "exitCode": 0,
+    "at": "2026-11-05T08:12:38.2663660+08:00"
+  },
+  "newLog": [
+    "11-05 08:12:34.029  9502  9502 I KOKORO_RUNTIME: COMMAND play_full",
+    "11-05 08:12:34.031  9502  9502 I KOKORO_RUNTIME: AUDIO_FOCUS_REQUEST result=1",
+    "11-05 08:12:34.049  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"PREPARING\",\"activeAudioOwner\":\"TTS\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":0,\"queueSize\":9,\"stableIndex\":0,\"currentSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"stableSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":true,\"audioTrackPlaying\":false,\"positionMillis\":0,\"generation\":18,\"autoPlay\":false,\"notificationTitle\":\"正在准备朗读\",\"notificationText\":\"雨停以后，旧车站的钟慢了两分钟。 （1\\/9）\",\"playPauseAction\":\"PAUSE_TTS\",\"mediaSessionState\":\"BUFFERING\",\"lastCommand\":\"play_full\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837554036}",
+    "11-05 08:12:34.049  9502  9502 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=0 speaker=zm_010 sid=59 generation=18",
+    "11-05 08:12:36.878  9502  9502 I KOKORO_RUNTIME: WAKE_LOCK_ACQUIRED",
+    "11-05 08:12:36.886  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"PLAYING\",\"activeAudioOwner\":\"TTS\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":0,\"queueSize\":9,\"stableIndex\":0,\"currentSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"stableSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":true,\"audioTrackPlaying\":false,\"positionMillis\":0,\"generation\":18,\"autoPlay\":false,\"notificationTitle\":\"正在朗读\",\"notificationText\":\"雨停以后，旧车站的钟慢了两分钟。 （1\\/9）\",\"playPauseAction\":\"PAUSE_TTS\",\"mediaSessionState\":\"PLAYING\",\"lastCommand\":\"play_full\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837556879}",
+    "11-05 08:12:36.928  9502 14864 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=18 samples=94800 durationMillis=3950",
+    "11-05 08:12:36.938  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"PLAYING\",\"activeAudioOwner\":\"TTS\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":0,\"queueSize\":9,\"stableIndex\":0,\"currentSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"stableSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":true,\"audioTrackPlaying\":true,\"positionMillis\":85,\"generation\":18,\"autoPlay\":false,\"notificationTitle\":\"正在朗读\",\"notificationText\":\"雨停以后，旧车站的钟慢了两分钟。 （1\\/9）\",\"playPauseAction\":\"PAUSE_TTS\",\"mediaSessionState\":\"PLAYING\",\"lastCommand\":\"play_full\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837556929}"
+  ]
+}

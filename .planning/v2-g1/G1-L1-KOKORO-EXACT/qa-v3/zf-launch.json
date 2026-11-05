@@ -1,0 +1,7 @@
+{
+  "voice": "zf_001",
+  "sid": 3,
+  "startedAt": "2026-11-05T08:08:42.2240905+08:00",
+  "exitCode": 0,
+  "output": "Starting: Intent { flg=0x20000000 cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\nStatus: ok\nLaunchState: COLD\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\nTotalTime: 546\nWaitTime: 561\nComplete"
+}

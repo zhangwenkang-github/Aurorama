@@ -1,0 +1,124 @@
+{
+  "voice": "zm_010",
+  "sid": 59,
+  "toggleExitCode": 0,
+  "toggleOutput": "Starting: Intent { flg=0x20000000 cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\nWarning: Activity not started, intent has been delivered to currently running top-most instance.\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\nTotalTime: 0\nWaitTime: 11\nComplete",
+  "startedAt": "2026-11-05T08:10:25.3000538+08:00",
+  "launchExitCode": 0,
+  "launch": "Starting: Intent { flg=0x20000000 cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }\nWarning: Activity not started, intent has been delivered to currently running top-most instance.\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: dev.aurorama.kokoro.harness/.HarnessActivity\nTotalTime: 0\nWaitTime: 11\nComplete",
+  "sampleCount": 15,
+  "peakTotalPssKb": 722487,
+  "samples": [
+    {
+      "at": "2026-11-05T08:10:25.6002196+08:00",
+      "appPid": "9502",
+      "totalPssKb": 718241,
+      "nativeHeapKb": 611400
+    },
+    {
+      "at": "2026-11-05T08:10:26.809405+08:00",
+      "appPid": "9502",
+      "totalPssKb": 719133,
+      "nativeHeapKb": 612528
+    },
+    {
+      "at": "2026-11-05T08:10:27.9781929+08:00",
+      "appPid": "9502",
+      "totalPssKb": 719125,
+      "nativeHeapKb": 612528
+    },
+    {
+      "at": "2026-11-05T08:10:29.2223999+08:00",
+      "appPid": "9502",
+      "totalPssKb": 720983,
+      "nativeHeapKb": 613032
+    },
+    {
+      "at": "2026-11-05T08:10:30.4380402+08:00",
+      "appPid": "9502",
+      "totalPssKb": 720443,
+      "nativeHeapKb": 613032
+    },
+    {
+      "at": "2026-11-05T08:10:31.6513152+08:00",
+      "appPid": "9502",
+      "totalPssKb": 720431,
+      "nativeHeapKb": 613032
+    },
+    {
+      "at": "2026-11-05T08:10:32.8496581+08:00",
+      "appPid": "9502",
+      "totalPssKb": 720689,
+      "nativeHeapKb": 613252
+    },
+    {
+      "at": "2026-11-05T08:10:34.0444383+08:00",
+      "appPid": "9502",
+      "totalPssKb": 720333,
+      "nativeHeapKb": 613732
+    },
+    {
+      "at": "2026-11-05T08:10:35.2182391+08:00",
+      "appPid": "9502",
+      "totalPssKb": 721001,
+      "nativeHeapKb": 614080
+    },
+    {
+      "at": "2026-11-05T08:10:36.4086803+08:00",
+      "appPid": "9502",
+      "totalPssKb": 720677,
+      "nativeHeapKb": 614080
+    },
+    {
+      "at": "2026-11-05T08:10:37.6464523+08:00",
+      "appPid": "9502",
+      "totalPssKb": 722487,
+      "nativeHeapKb": 614216
+    },
+    {
+      "at": "2026-11-05T08:10:38.8443347+08:00",
+      "appPid": "9502",
+      "totalPssKb": 722043,
+      "nativeHeapKb": 614216
+    },
+    {
+      "at": "2026-11-05T08:10:40.0484988+08:00",
+      "appPid": "9502",
+      "totalPssKb": 722031,
+      "nativeHeapKb": 614216
+    },
+    {
+      "at": "2026-11-05T08:10:41.2760818+08:00",
+      "appPid": "9502",
+      "totalPssKb": 722035,
+      "nativeHeapKb": 614216
+    },
+    {
+      "at": "2026-11-05T08:10:42.4984744+08:00",
+      "appPid": "9502",
+      "totalPssKb": 722031,
+      "nativeHeapKb": 614216
+    }
+  ],
+  "newLog": [
+    "11-05 08:10:24.120  9502  9502 I KOKORO_RUNTIME: COMMAND play_sample",
+    "11-05 08:10:24.121  9502  9502 I KOKORO_RUNTIME: AUDIO_FOCUS_REQUEST result=1",
+    "11-05 08:10:24.133  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"PREPARING\",\"activeAudioOwner\":\"TTS\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":0,\"queueSize\":2,\"stableIndex\":0,\"currentSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"stableSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":true,\"audioTrackPlaying\":false,\"positionMillis\":0,\"generation\":11,\"autoPlay\":false,\"notificationTitle\":\"正在准备朗读\",\"notificationText\":\"雨停以后，旧车站的钟慢了两分钟。 （1\\/2）\",\"playPauseAction\":\"PAUSE_TTS\",\"mediaSessionState\":\"BUFFERING\",\"lastCommand\":\"play_sample\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837424125}",
+    "11-05 08:10:24.133  9502  9502 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=0 speaker=zm_010 sid=59 generation=11",
+    "11-05 08:10:26.928  9502  9502 I KOKORO_RUNTIME: WAKE_LOCK_ACQUIRED",
+    "11-05 08:10:26.936  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"PLAYING\",\"activeAudioOwner\":\"TTS\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":0,\"queueSize\":2,\"stableIndex\":0,\"currentSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"stableSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":true,\"audioTrackPlaying\":false,\"positionMillis\":0,\"generation\":11,\"autoPlay\":false,\"notificationTitle\":\"正在朗读\",\"notificationText\":\"雨停以后，旧车站的钟慢了两分钟。 （1\\/2）\",\"playPauseAction\":\"PAUSE_TTS\",\"mediaSessionState\":\"PLAYING\",\"lastCommand\":\"play_sample\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837426928}",
+    "11-05 08:10:26.976  9502 14432 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=11 samples=94800 durationMillis=3950",
+    "11-05 08:10:26.985  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"PLAYING\",\"activeAudioOwner\":\"TTS\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":0,\"queueSize\":2,\"stableIndex\":0,\"currentSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"stableSentence\":\"雨停以后，旧车站的钟慢了两分钟。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":true,\"audioTrackPlaying\":true,\"positionMillis\":0,\"generation\":11,\"autoPlay\":false,\"notificationTitle\":\"正在朗读\",\"notificationText\":\"雨停以后，旧车站的钟慢了两分钟。 （1\\/2）\",\"playPauseAction\":\"PAUSE_TTS\",\"mediaSessionState\":\"PLAYING\",\"lastCommand\":\"play_sample\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837426976}",
+    "11-05 08:10:30.790  9502 14432 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=11",
+    "11-05 08:10:30.806  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"PREPARING\",\"activeAudioOwner\":\"TTS\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":1,\"queueSize\":2,\"stableIndex\":1,\"currentSentence\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。\",\"stableSentence\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":true,\"audioTrackPlaying\":false,\"positionMillis\":0,\"generation\":12,\"autoPlay\":false,\"notificationTitle\":\"正在准备朗读\",\"notificationText\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2\\/2）\",\"playPauseAction\":\"PAUSE_TTS\",\"mediaSessionState\":\"BUFFERING\",\"lastCommand\":\"play_sample\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837430796}",
+    "11-05 08:10:30.806  9502  9502 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=1 speaker=zm_010 sid=59 generation=12",
+    "11-05 08:10:35.137  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"PLAYING\",\"activeAudioOwner\":\"TTS\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":1,\"queueSize\":2,\"stableIndex\":1,\"currentSentence\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。\",\"stableSentence\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":true,\"audioTrackPlaying\":false,\"positionMillis\":0,\"generation\":12,\"autoPlay\":false,\"notificationTitle\":\"正在朗读\",\"notificationText\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2\\/2）\",\"playPauseAction\":\"PAUSE_TTS\",\"mediaSessionState\":\"PLAYING\",\"lastCommand\":\"play_sample\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837435128}",
+    "11-05 08:10:35.181  9502 14496 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=12 samples=147600 durationMillis=6150",
+    "11-05 08:10:35.190  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"PLAYING\",\"activeAudioOwner\":\"TTS\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":1,\"queueSize\":2,\"stableIndex\":1,\"currentSentence\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。\",\"stableSentence\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":true,\"audioTrackPlaying\":true,\"positionMillis\":85,\"generation\":12,\"autoPlay\":false,\"notificationTitle\":\"正在朗读\",\"notificationText\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2\\/2）\",\"playPauseAction\":\"PAUSE_TTS\",\"mediaSessionState\":\"PLAYING\",\"lastCommand\":\"play_sample\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837435181}",
+    "11-05 08:10:41.197  9502 14496 I KOKORO_RUNTIME: AUDIO_TRACK_COMPLETED owner=TTS generation=12",
+    "11-05 08:10:41.198  9502  9502 I KOKORO_RUNTIME: WAKE_LOCK_RELEASED",
+    "11-05 08:10:41.198  9502  9502 I KOKORO_RUNTIME: AUDIO_FOCUS_ABANDONED",
+    "11-05 08:10:41.226  9502  9502 I KOKORO_RUNTIME: STATE {\"schema\":\"aurorama.kokoro-runtime.state.v1\",\"pid\":9502,\"status\":\"COMPLETED\",\"activeAudioOwner\":\"NONE\",\"musicStatus\":\"IDLE\",\"musicIndex\":0,\"queueLoaded\":true,\"queueIndex\":1,\"queueSize\":2,\"stableIndex\":1,\"currentSentence\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。\",\"stableSentence\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。\",\"packId\":\"kokoro-multi-lang-v1_1\",\"speaker\":\"zm_010\",\"sid\":59,\"focusHeld\":false,\"audioTrackPlaying\":false,\"positionMillis\":6150,\"generation\":12,\"autoPlay\":false,\"notificationTitle\":\"朗读已完成\",\"notificationText\":\"林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2\\/2）\",\"playPauseAction\":\"NONE\",\"mediaSessionState\":\"STOPPED\",\"lastCommand\":\"play_sample\",\"lastError\":\"\",\"updatedAtEpochMillis\":1793837441202}",
+    "11-05 08:10:41.226  9502  9502 I KOKORO_RUNTIME: TTS_COMPLETED"
+  ]
+}

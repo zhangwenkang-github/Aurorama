@@ -1,0 +1,122 @@
+{
+  "schema": "aurorama.kokoro-runtime-closure.qa-v3.build-analysis.v1",
+  "independentBuild": {
+    "command": "pwsh -NoProfile -File F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build.ps1",
+    "exitCode": 0,
+    "builtAt": "2026-11-05T08:01:34.8106813+08:00",
+    "builtApk": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk",
+    "builtBytes": 427005490,
+    "builtSha256": "3e249d177cb6e843084ed743bd21f5581c59fc504c441879430d82b3334604ae",
+    "fixedSnapshot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\fixed-candidate.snapshot.apk",
+    "fixedBytes": 427005490,
+    "fixedSha256": "074ccfe96b6868c3ae9e02523a9bb9d7da2e35594cedc70721bbbca1287015e8",
+    "match": false,
+    "log": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v3\\logs\\independent-build.log"
+  },
+  "archiveComparison": {
+    "entryCountFixed": 383,
+    "entryCountRebuilt": 383,
+    "nameDiffCount": 0,
+    "changedEntryCount": 4,
+    "changedEntries": [
+      {
+        "name": "classes.dex",
+        "reason": "length",
+        "a": 2977868,
+        "b": 2977812
+      },
+      {
+        "name": "META-INF/ANDROIDD.SF",
+        "reason": "content",
+        "aSha256": "0e488aecc4ece200630c3005a1392e5943cd60e167753e05a6a0a6b815383fbb",
+        "bSha256": "9061e36df4b755eda04f21518fc84bae385c2c29500a1379acd746ef1cf36170"
+      },
+      {
+        "name": "META-INF/ANDROIDD.RSA",
+        "reason": "content",
+        "aSha256": "e70f3de0d298f24a3a22051b3adff33493762028a4c49daba1edfbd986805ae9",
+        "bSha256": "638c16016236d5d97762ef6a098704986a260f449de313ad4e6aef9bfbd28c20"
+      },
+      {
+        "name": "META-INF/MANIFEST.MF",
+        "reason": "content",
+        "aSha256": "0cb533ed642884960e1ca3adb111db1e1b95b69f49b01deeb828092fd260dbc8",
+        "bSha256": "0ec492baa92b983e443f3c39819f71d5bda0e3f628090ae6696aedf83b8ddf71"
+      }
+    ],
+    "nonMetaInfChangedCount": 1,
+    "nonMetaInfChanged": [
+      {
+        "name": "classes.dex",
+        "reason": "length",
+        "a": 2977868,
+        "b": 2977812
+      }
+    ]
+  },
+  "dexSemanticComparison": {
+    "fixedBytes": 2977868,
+    "fixedSha256": "97a19fd268d531f4463b8833eeda695f3e9440923e253ee2b868645a2229b9dc",
+    "rebuiltBytes": 2977812,
+    "rebuiltSha256": "977d02a9d81121b256b906f32433e38c1018d2ef0bdc3ef48c40554558c9b783",
+    "fixedStringCount": 17971,
+    "rebuiltStringCount": 17970,
+    "onlyFixedStringCount": 23,
+    "onlyRebuiltStringCount": 22,
+    "onlyFixedStrings": [
+      "$SwitchMap$dev$aurorama$kokoro$harness$FocusPolicy$FocusChange",
+      "$r8$lambda$-aikjAzXecw2CK4PVAorA8y9c5A",
+      "$r8$lambda$9nZHkxoEgzeIPYpZLuNKBmLLiWw",
+      "$r8$lambda$HoWdZfKqTDyXz01Dktd28L7CIxo",
+      "$r8$lambda$NhtDmUDU0WjeWkJviPzeHpcaC-A",
+      "$r8$lambda$X9a6zeEnYpjivezwGq0F0Sf0tO0",
+      "$r8$lambda$ZZgXiYMPswAHhEMNWfJKOkDj280",
+      "$r8$lambda$mU4SmjJ6H4S830W_rcRxSEedz7k",
+      "$r8$lambda$mbI48EI4GkYmffZ8fA4qNgmt28M",
+      "$r8$lambda$q3NdTubrJ4Zo_xn1O2878vEkuwo",
+      "$r8$lambda$u6XDVyYp5gPoZTSMECfmKF3qMtk",
+      "$r8$lambda$vsluaYSNBhunXP6457bQU95jQT0",
+      "Ldev/aurorama/kokoro/harness/FocusPolicy$1;",
+      "lambda$addListener$1",
+      "lambda$cancelRuntime$4",
+      "lambda$onAudioFocusChange$5",
+      "lambda$onCompleted$1",
+      "lambda$onError$2",
+      "lambda$onPause$1",
+      "lambda$onSkipToNext$3",
+      "lambda$onSkipToPrevious$2",
+      "lambda$onStop$4",
+      "lambda$startCurrentTtsSentence$3"
+    ],
+    "onlyRebuiltStrings": [
+      "$r8$lambda$-yL5LQy5oevNTXyCG_UKVbtxyMc",
+      "$r8$lambda$39nsj9PmjJzgSNDOxksXHjXDeLc",
+      "$r8$lambda$7TX0u1VdAxfcsXi1aMZyS-8P9TI",
+      "$r8$lambda$CHR17Ou8mFIJ9msAyCkNI47E2SY",
+      "$r8$lambda$CS3VqZLSsw0fNc52WnnXz-Ag--o",
+      "$r8$lambda$D76u6yiDOgA9hshthMQmX26mZvw",
+      "$r8$lambda$FU7xo6ptMA5b7tDRfFkEGFzZnfY",
+      "$r8$lambda$WUI1sMgt9tzfZ_U17lLvIp8CCH8",
+      "$r8$lambda$v4QAZtTEaz8u7ZVGfvF8_3BpMuI",
+      "$r8$lambda$wWyrIx19SbnmvdMi54ex1ssNaM8",
+      "$r8$lambda$wXgK1tiGKZswr0224lCOxUdUiM4",
+      "Ldalvik/annotation/MethodParameters;",
+      "lambda$addListener$0",
+      "lambda$cancelRuntime$0",
+      "lambda$onAudioFocusChange$0",
+      "lambda$onCompleted$0",
+      "lambda$onError$0",
+      "lambda$onPause$0",
+      "lambda$onSkipToNext$0",
+      "lambda$onSkipToPrevious$0",
+      "lambda$onStop$0",
+      "lambda$startCurrentTtsSentence$0"
+    ],
+    "observedDifferenceClass": "D8 synthetic lambda naming and method-parameter metadata ordering; no deterministic byte reproduction",
+    "severity": "P3"
+  },
+  "fixedCandidateRestoredToExpectedPath": true,
+  "fixedCandidateRestoredBytes": 427005490,
+  "fixedCandidateRestoredSha256": "074ccfe96b6868c3ae9e02523a9bb9d7da2e35594cedc70721bbbca1287015e8",
+  "interpretation": "Independent build exited 0 and produced the same size; contract tests remain the behavioral evidence. The rebuilt APK was not byte-identical because D8 emitted different synthetic lambda names. QA used only the fixed candidate snapshot and restored the candidate APK path to the expected SHA."
+}

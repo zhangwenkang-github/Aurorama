@@ -1,0 +1,13 @@
+{
+  "action": "next",
+  "exitCode": 0,
+  "output": "",
+  "log": [
+    "11-05 08:14:29.189  9502  9502 I KOKORO_RUNTIME: COMMAND next",
+    "11-05 08:14:29.189  9502  9502 I KOKORO_RUNTIME: TTS_NAVIGATE from=2 to=3 wasActive=true"
+  ],
+  "uiTexts": [
+    "Status: PREPARING\nActive audio owner: TTS\nSentence: 4/9\nSpeaker: zm_010 sid=59\nPack: kokoro-multi-lang-v1_1\nAudioTrack playing: false\nAudioFocus held: true\nMusic: IDLE index=0\nAutoPlay: false\nStable sentence: 他摊开褪色的车票，背面写着：等最后一盏灯熄灭，再向北走。",
+    "UI / notification / MediaSession 共用同一快照\nNotification: 正在准备朗读 · 他摊开褪色的车票，背面写着：等最后一盏灯熄灭，再向北走。 （4/9）\nMediaSession: BUFFERING\nLast command: next\nLast error: "
+  ]
+}
