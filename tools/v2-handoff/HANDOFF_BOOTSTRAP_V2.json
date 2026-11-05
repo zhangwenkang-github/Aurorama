@@ -58,7 +58,7 @@
     "deviceLockSha256": "8335b81832a39b96356db1532b17216f05c1c07d273953b187e775227f610428",
     "qaEvidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9",
     "rejectedScopeHash": "ac8d5874162cfc6e4d1158edfd8c3e4cad60b9a868eea19184b6b62624cd5d50",
-    "memoryIndexSha256": "15ec94259ccfb5760c6a9e14ed357f61477027339cd5d6068c90e640f58cff05",
+    "memoryIndexSha256": "22abc8da4a877ff401487414b375bf70b17a58d4f3a64ba10a02dc09c9f223d5",
     "immutableStateSha256": "2592dcd233265039298672d9ba174045f67509a85c6ac2bc0442e75acf3af029",
     "transitionPaths": [
       "docs/TASKS.md",
