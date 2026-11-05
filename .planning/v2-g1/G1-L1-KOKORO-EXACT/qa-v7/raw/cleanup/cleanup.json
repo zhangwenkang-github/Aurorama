@@ -1,0 +1,76 @@
+{
+  "schema": "aurorama.kokoro-qa-v7.cleanup.v1",
+  "serial": "43af8627",
+  "completedAt": "2026-11-05T21:11:00.7738049+08:00",
+  "uninstall": {
+    "dev.aurorama.kokoro.harness": {
+      "output": [
+        "Failure [not installed for 0]"
+      ],
+      "success": false
+    },
+    "dev.aurorama.kokoro.focuspeer": {
+      "output": [
+        "Failure [not installed for 0]"
+      ],
+      "success": false
+    }
+  },
+  "packagePaths": {
+    "dev.aurorama.kokoro.harness": [],
+    "dev.aurorama.kokoro.focuspeer": []
+  },
+  "runtimePids": {
+    "dev.aurorama.kokoro.harness": "",
+    "dev.aurorama.kokoro.focuspeer": ""
+  },
+  "serviceRecordCount": 0,
+  "notificationRecordCount": 0,
+  "activeMediaSessionCount": 0,
+  "externalPathsRemain": {
+    "/sdcard/Android/data/dev.aurorama.kokoro.harness": false,
+    "/sdcard/Android/obb/dev.aurorama.kokoro.harness": false,
+    "/sdcard/Android/media/dev.aurorama.kokoro.harness": false,
+    "/sdcard/Android/data/dev.aurorama.kokoro.focuspeer": false,
+    "/sdcard/Android/obb/dev.aurorama.kokoro.focuspeer": false,
+    "/sdcard/Android/media/dev.aurorama.kokoro.focuspeer": false
+  },
+  "remoteHelperEntries": [],
+  "beforeSnapshot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\device-before.json",
+  "afterSnapshot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\cleanup\\device-after.json",
+  "productionMatch": true,
+  "testsAbsent": true,
+  "restoreMatch": true,
+  "productionBefore": {
+    "installed": true,
+    "basePath": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+    "bytes": 79729350,
+    "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+    "versionName": "1.4.0",
+    "versionCode": 5
+  },
+  "productionAfter": {
+    "installed": true,
+    "basePath": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+    "bytes": 79729350,
+    "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+    "versionName": "1.4.0",
+    "versionCode": 5
+  },
+  "restored": {
+    "keyguardShowing": false,
+    "wakefulness": "Awake",
+    "currentUser": 0,
+    "musicVolume": 41,
+    "airplaneMode": "0",
+    "wifiEnabled": "1",
+    "mobileData": "1",
+    "activeDefaultNetworkLine": [
+      "Active default network: 190"
+    ],
+    "screenOffTimeout": "2147483647",
+    "stayOnWhilePluggedIn": "7",
+    "lockAfterTimeout": "null"
+  },
+  "passed": true
+}

@@ -1,0 +1,168 @@
+{
+  "schema": "aurorama.kokoro-qa-v7.stop-round.v1",
+  "serial": "43af8627",
+  "package": "dev.aurorama.kokoro.harness",
+  "label": "playing-stop",
+  "stopPhase": "playing",
+  "startAt": "2026-11-05T21:07:56.9412862+08:00",
+  "startClock": "2026-11-05 21:07:56",
+  "gate": {
+    "keyguardShowing": false,
+    "deviceApk": {
+      "path": "/data/app/~~MVWJPFlwQzP7t75i0aJjQA==/dev.aurorama.kokoro.harness-Tu3REEzhjkyZJDFZ8Zau8g==/base.apk",
+      "sha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161"
+    }
+  },
+  "launch": [
+    "Starting: Intent { cmp=dev.aurorama.kokoro.harness/.HarnessActivity (has extras) }",
+    "Status: ok",
+    "LaunchState: COLD",
+    "Activity: dev.aurorama.kokoro.harness/.HarnessActivity",
+    "TotalTime: 548",
+    "WaitTime: 554",
+    "Complete"
+  ],
+  "requestObservedAt": "2026-11-05T21:07:57.9337393+08:00",
+  "preconditionAt": "2026-11-05T21:08:04.9262497+08:00",
+  "runtimePidBefore": "7704",
+  "runtimePidAfter": "7704",
+  "samePid": true,
+  "processAliveAfterWait": true,
+  "serviceBefore": {
+    "recordCount": 1,
+    "foreground": true
+  },
+  "notificationRecordCountBefore": 1,
+  "activeMediaSessionCountBefore": 1,
+  "notificationControl": {
+    "text": "停止",
+    "resourceId": "dev.aurorama.kokoro.harness:id/action_stop",
+    "contentDescription": "",
+    "bounds": "[794,441][1030,549]",
+    "x": 912,
+    "y": 495,
+    "enabled": "true",
+    "clickable": "true"
+  },
+  "notificationUiDump": [
+    {
+      "attempt": 1,
+      "dump": [
+        "java.io.FileNotFoundException: /data/system/theme_config/theme_compatibility.xml: open failed: ENOENT (No such file or directory)",
+        "\tat libcore.io.IoBridge.open(IoBridge.java:574)",
+        "\tat java.io.FileInputStream.<init>(FileInputStream.java:160)",
+        "\tat java.io.FileInputStream.<init>(FileInputStream.java:115)",
+        "\tat java.io.FileReader.<init>(FileReader.java:60)",
+        "\tat miui.content.res.ThemeCompatibilityLoader.getVersion(ThemeCompatibilityLoader.java:108)",
+        "\tat miui.content.res.ThemeCompatibilityLoader.getConfigDocumentTree(ThemeCompatibilityLoader.java:126)",
+        "\tat miui.content.res.ThemeCompatibilityLoader.loadConfig(ThemeCompatibilityLoader.java:59)",
+        "\tat miui.content.res.ThemeCompatibility.<clinit>(ThemeCompatibility.java:31)",
+        "\tat miui.content.res.ThemeCompatibility.isThemeEnabled(ThemeCompatibility.java:111)",
+        "\tat android.content.res.MiuiResourcesImpl.<clinit>(MiuiResourcesImpl.java:40)",
+        "\tat android.content.res.MiuiResources.<init>(MiuiResources.java:58)",
+        "\tat android.content.res.IMiuiResourceImpl.createResources(IMiuiResourceImpl.java:13)",
+        "\tat android.content.res.ThemeManagerStub.createMiuiResources(ThemeManagerStub.java:56)",
+        "\tat android.content.res.Resources.getSystem(Resources.java:251)",
+        "\tat android.util.MiuiMultiWindowAdapter.<clinit>(MiuiMultiWindowAdapter.java:177)",
+        "\tat android.util.MiuiMultiWindowAdapter.getSize(MiuiMultiWindowAdapter.java:827)",
+        "\tat com.xiaomi.freeform.MiuiFreeformImpl.getSize(MiuiFreeformImpl.java:62)",
+        "\tat android.util.MiuiFreeformUtils.getSize(MiuiFreeformUtils.java:48)",
+        "\tat android.view.Display.getSize(Display.java:829)",
+        "\tat com.android.commands.uiautomator.DumpCommand.run(DumpCommand.java:110)",
+        "\tat com.android.commands.uiautomator.Launcher.main(Launcher.java:83)",
+        "\tat com.android.internal.os.RuntimeInit.nativeFinishInit(Native Method)",
+        "\tat com.android.internal.os.RuntimeInit.main(RuntimeInit.java:368)",
+        "Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)",
+        "\tat libcore.io.Linux.open(Native Method)",
+        "\tat libcore.io.ForwardingOs.open(ForwardingOs.java:563)",
+        "\tat libcore.io.BlockGuardOs.open(BlockGuardOs.java:274)",
+        "\tat libcore.io.IoBridge.open(IoBridge.java:560)",
+        "\t... 22 more",
+        "UI hierchary dumped to: /sdcard/qa_v7_playing-stop.xml"
+      ],
+      "pull": [
+        "/sdcard/qa_v7_playing-stop.xml: 1 file pulled, 0 skipped. 8.0 MB/s (13242 bytes in 0.002s)"
+      ],
+      "parsed": true
+    }
+  ],
+  "tapAt": "2026-11-05T21:08:07.6227453+08:00",
+  "stopLogTime": "11-05 21:08:07.106",
+  "atThreeSeconds": {
+    "runtimePid": "7704",
+    "serviceCount": 0,
+    "notificationCount": 0,
+    "activeMediaSessionCount": 0
+  },
+  "atTenSeconds": {
+    "runtimePid": "7704",
+    "serviceCount": 0,
+    "notificationCount": 0,
+    "activeMediaSessionCount": 0
+  },
+  "serviceRetainedAfterWait": false,
+  "notificationRecordCountAfterWait": 0,
+  "activeMediaSessionCountAfterWait": 0,
+  "phaseValid": true,
+  "inferenceStopValid": false,
+  "playingStopValid": true,
+  "audioStartsBeforeStop": 1,
+  "audioCompletionsBeforeStop": 0,
+  "audioStartsAfterStop": 0,
+  "releaseDeferredSeen": false,
+  "releaseAfterInferenceSeen": false,
+  "releaseImmediateSeen": true,
+  "crashGate": {
+    "passed": true,
+    "fDebugCount": 0,
+    "tombstoneCount": 0,
+    "currentRunApplicationExitReason5Count": 0,
+    "currentRunApplicationExitBlockCount": 0,
+    "javaFatalCount": 0,
+    "anrCount": 0,
+    "inputTimeoutCount": 0,
+    "tombstoneDirectory": "PERMISSION_DENIED; SYSTEM_TOMBSTONE filtered by current start time and package"
+  },
+  "resourceConvergence": {
+    "passed": true,
+    "serviceGoneAfter3s": true,
+    "serviceGoneAfter10s": true,
+    "notificationGoneAfter10s": true,
+    "activeMediaSessionGoneAfter10s": true,
+    "noNewAudioStartAfterStop": true
+  },
+  "verdict": "PASS",
+  "evidence": {
+    "timeline": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\stop-timeline-filtered.log",
+    "filteredLog": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\runtime-logcat-package-filtered.log",
+    "crashBuffer": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\crash-buffer-package-filtered.txt",
+    "exitInfoRaw": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\exit-info-package-raw.txt",
+    "exitInfoCurrent": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\exit-info-current-run.txt",
+    "tombstonesCurrent": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\tombs-current-run.txt",
+    "mediaSessionBeforeStack": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\media-session-before-stack.txt",
+    "mediaSessionAfterWaitStack": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\media-session-after-wait-stack.txt"
+  },
+  "analysisCorrection": {
+    "id": "QA7-EV-PLAYING-STOP-MEDIA-SESSIONS",
+    "kind": "MEDIA_SESSION_PARSER_FALSE_POSITIVE",
+    "detail": "The first parser matched package text in the Android audio-playback history after the active session stack. The active SessionStack count is the discriminator; history alone does not prove a live MediaSession.",
+    "previousCounts": {
+      "before": 1,
+      "after3s": 0,
+      "after10s": 0,
+      "afterWait": 0
+    },
+    "correctedCounts": {
+      "before": 1,
+      "after3s": 0,
+      "after10s": 0,
+      "afterWait": 0
+    },
+    "evidence": {
+      "beforeStack": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\media-session-before-stack.txt",
+      "afterWaitStack": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\media-session-after-wait-stack.txt"
+    },
+    "deviceRerunRequired": false,
+    "reason": "The already-captured raw dumps contain explicit SessionStack counts; recomputing the derived assertion preserves the device execution evidence."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "schema": "aurorama.kokoro-qa-v7.miui-install-wrapper.v1",
+  "serial": "43af8627",
+  "apk": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-focus-peer-debug.apk",
+  "apkSize": 12696,
+  "apkSha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+  "startedAt": "2026-11-05T21:03:57.4456946+08:00",
+  "installExitCode": 0,
+  "stdout": "Performing Push Install\r\nSuccess\r\n",
+  "stderr": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-focus-peer-debug.apk: 1 file pushed, 0 skipped. 69.0 MB/s (12696 bytes in 0.000s)\r\n",
+  "observedPages": [
+    {
+      "attempt": 1,
+      "capturedAt": "2026-11-05T21:04:00.0622647+08:00",
+      "visibleText": [
+        "USB安装提示",
+        "Kokoro focus peer",
+        "正在通过USB安装此应用，是否继续？",
+        "拒绝后下次安装不再提示",
+        "继续安装",
+        "拒绝（10）"
+      ],
+      "candidateNodes": [
+        {
+          "text": "继续安装",
+          "resourceId": "android:id/button2",
+          "bounds": "[946,939][1267,1042]",
+          "enabled": "true",
+          "clickable": "true"
+        }
+      ],
+      "localEvidence": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\install\\peer\\kokoro-focus-peer-debug-install-popup-attempt-1.xml"
+    }
+  ],
+  "confirmationClicks": [
+    {
+      "clickedAt": "2026-11-05T21:04:00.1767612+08:00",
+      "text": "继续安装",
+      "bounds": "[946,939][1267,1042]",
+      "tap": "1106,990",
+      "exitCode": 0,
+      "output": []
+    }
+  ],
+  "identityGateDetected": false,
+  "success": true
+}

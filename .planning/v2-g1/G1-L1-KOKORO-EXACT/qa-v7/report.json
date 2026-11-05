@@ -1,0 +1,365 @@
+{
+  "schema": "aurorama.kokoro-qa-v7.report.v1",
+  "task": "Aurorama 2.0 G1-L1 Kokoro isolated harness Pad stop-only and native-crash gate",
+  "role": "fresh independent Pad runtime QA / user-promise verification expert",
+  "generatedAt": "2026-11-05T21:13:21.0317949+08:00",
+  "status": "PASS_STOP_ONLY / P1_STOP_GATE_CLOSED / FULL_RUNTIME_REVALIDATION_REQUIRED",
+  "verdict": "PASS_STOP_ONLY",
+  "verdictScope": "Closes only REV6-P1-01 stop-only and native-crash gates on Pad 43af8627. It does not close full 30-minute runtime, K60, dual-device matrix, Pad performance P2, licenses, production integration, Q03, G2 or G1.",
+  "object": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "handoffHead": "9a4496d7471774d7b680999d9912ad1b4ad92a37",
+    "implementationBaseline": "35ed65c2dc0e4171bdaf5b6fe055ad1f2e7ead8c",
+    "implementationBaselineIsAncestor": true,
+    "hostMain": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 427009671,
+      "sha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+      "versionCode": 4,
+      "versionName": "2.0-kokoro-runtime-v5",
+      "abi": "arm64-v8a",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
+      ],
+      "internetPermission": false,
+      "serviceCount": 1,
+      "signatureVerification": "PASS"
+    },
+    "hostPeer": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+      "bytes": 12696,
+      "sha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+      "versionCode": 1,
+      "versionName": "1.0-focus-peer",
+      "permissions": [],
+      "internetPermission": false,
+      "signatureVerification": "PASS"
+    },
+    "artifactAudit": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\runtime-closure-v3\\artifacts\\artifact-audit.json",
+    "artifactAuditMatch": true,
+    "deviceMain": {
+      "installed": true,
+      "basePath": "/data/app/~~MVWJPFlwQzP7t75i0aJjQA==/dev.aurorama.kokoro.harness-Tu3REEzhjkyZJDFZ8Zau8g==/base.apk",
+      "bytes": 427009671,
+      "sha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+      "versionName": "2.0-kokoro-runtime-v5",
+      "versionCode": 4
+    },
+    "devicePeer": {
+      "installed": true,
+      "basePath": "/data/app/~~JQ7fqmonXeo_JXqXF8Cs7w==/dev.aurorama.kokoro.focuspeer-Xtle9LgcrytDCD9RbAkYBg==/base.apk",
+      "bytes": 12696,
+      "sha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+      "versionName": "1.0-focus-peer",
+      "versionCode": 1
+    },
+    "deviceObserved": {
+      "serial": "43af8627",
+      "sdk": 33,
+      "abi": "arm64-v8a",
+      "primaryCpuAbi": "arm64-v8a",
+      "secondaryCpuAbi": null,
+      "postNotificationsGrantedForTest": true,
+      "noIdentityOrAccountGate": true,
+      "servicePresentWhenForeground": true,
+      "serviceForeground": true,
+      "mediaSessionMetadataObserved": "Kokoro isolated runtime · zf_001 / kokoro-multi-lang-v1_1",
+      "notificationActionsObserved": [
+        "STOP",
+        "PLAY_PAUSE",
+        "NEXT",
+        "PREVIOUS"
+      ]
+    }
+  },
+  "actualExecuted": [
+    "Verified worktree, branch, clean state, implementation-baseline ancestry, both host APK bytes/SHA, Pad keyguard and device-lock ACTIVE=0.",
+    "Registered a unique QA-v7 Pad lock for 43af8627; issued zero K60-targeted commands.",
+    "Installed both new APKs as fresh installs through the MIUI USB-install confirmation path; no identity or account gate appeared.",
+    "Read device-side base.apk bytes/SHA, package, versionCode/name, arm64-v8a ABI, permissions, foreground service, notification actions and active MediaSession metadata.",
+    "Granted only POST_NOTIFICATIONS for the harness notification journey.",
+    "Executed one short-sample Stop during native preparation/inference with no AudioTrack start before Stop.",
+    "Executed one Stop during a real 4-second TTS AudioTrack after AUDIO_TRACK_STARTED and before AUDIO_TRACK_COMPLETED.",
+    "Captured per-round package/pid-filtered logcat, stop command, PID before/after, service/FGS, notification, active MediaSession, ApplicationExitInfo, crash-buffer F DEBUG and SYSTEM_TOMBSTONE filtering.",
+    "Uninstalled both APKs, removed package-specific external data and remote helper XML, waited for ActivityManager cleanup, and proved no test package/PID/service/notification/active MediaSession residue.",
+    "Restored and re-read production app and device baseline; production release SHA/path/version and network/volume/screen/current-user/wakefulness/keyguard all matched."
+  ],
+  "inferenceStop": {
+    "verdict": "PASS",
+    "pid": "23183",
+    "pidAfterWait": "23183",
+    "samePid": true,
+    "stopAtHost": "2026-11-05T21:06:19.2353386+08:00",
+    "stopLogTime": "11-05 21:06:18.758",
+    "phaseValid": true,
+    "audioStartsBeforeStop": 0,
+    "releaseDeferredSeen": true,
+    "releaseAfterInferenceSeen": true,
+    "newAudioTracksAfterStop": 0,
+    "notificationControl": {
+      "text": "停止",
+      "resourceId": "dev.aurorama.kokoro.harness:id/action_stop",
+      "contentDescription": "",
+      "bounds": "[794,441][1030,549]",
+      "x": 912,
+      "y": 495,
+      "enabled": "true",
+      "clickable": "true"
+    },
+    "summary": "raw/inference-stop/summary.json",
+    "timeline": "raw/inference-stop/stop-timeline-filtered.log",
+    "filteredLog": "raw/inference-stop/runtime-logcat-package-filtered.log",
+    "crashBuffer": "raw/inference-stop/crash-buffer-package-filtered.txt",
+    "exitInfoCurrent": "raw/inference-stop/exit-info-current-run.txt",
+    "tombstoneCurrent": "raw/inference-stop/tombs-current-run.txt"
+  },
+  "playingStop": {
+    "verdict": "PASS",
+    "pid": "7704",
+    "pidAfterWait": "7704",
+    "samePid": true,
+    "stopAtHost": "2026-11-05T21:08:07.6227453+08:00",
+    "stopLogTime": "11-05 21:08:07.106",
+    "phaseValid": true,
+    "audioStartsBeforeStop": 1,
+    "audioCompletionsBeforeStop": 0,
+    "stoppedAtPositionMillis": 3121,
+    "releaseImmediateSeen": true,
+    "newAudioTracksAfterStop": 0,
+    "notificationControl": {
+      "text": "停止",
+      "resourceId": "dev.aurorama.kokoro.harness:id/action_stop",
+      "contentDescription": "",
+      "bounds": "[794,441][1030,549]",
+      "x": 912,
+      "y": 495,
+      "enabled": "true",
+      "clickable": "true"
+    },
+    "summary": "raw/playing-stop/summary.json",
+    "timeline": "raw/playing-stop/stop-timeline-filtered.log",
+    "filteredLog": "raw/playing-stop/runtime-logcat-package-filtered.log",
+    "crashBuffer": "raw/playing-stop/crash-buffer-package-filtered.txt",
+    "exitInfoCurrent": "raw/playing-stop/exit-info-current-run.txt",
+    "tombstoneCurrent": "raw/playing-stop/tombs-current-run.txt"
+  },
+  "crashGate": {
+    "passed": true,
+    "currentRunApplicationExitReason5Count": 0,
+    "rawApplicationExitInfo": [
+      {
+        "round": "inference-stop",
+        "command": "adb -s 43af8627 shell dumpsys activity exit-info dev.aurorama.kokoro.harness",
+        "currentRunBlockCount": 0,
+        "path": "raw/inference-stop/exit-info-package-raw.txt"
+      },
+      {
+        "round": "playing-stop",
+        "command": "adb -s 43af8627 shell dumpsys activity exit-info dev.aurorama.kokoro.harness",
+        "currentRunBlockCount": 0,
+        "path": "raw/playing-stop/exit-info-package-raw.txt"
+      }
+    ],
+    "fDebugCount": 0,
+    "nativeTombstoneCount": 0,
+    "javaFatalCount": 0,
+    "anrCount": 0,
+    "inputTimeoutCount": 0,
+    "tombstoneScan": "Direct /data/tombstones listing is permission denied on the unrooted Pad; dumpsys dropbox SYSTEM_TOMBSTONE was filtered to the current run start and package. Old QA-v6 entries were not counted.",
+    "scanCoverage": "ApplicationExitInfo, crash buffer F DEBUG, Java FATAL, app ANR and InputTimeout per round."
+  },
+  "resourceConvergence": {
+    "passed": true,
+    "inference": {
+      "passed": true,
+      "serviceGoneAfter3s": true,
+      "serviceGoneAfter10s": true,
+      "notificationGoneAfter10s": true,
+      "activeMediaSessionGoneAfter10s": true,
+      "noNewAudioStartAfterStop": true
+    },
+    "playing": {
+      "passed": true,
+      "serviceGoneAfter3s": true,
+      "serviceGoneAfter10s": true,
+      "notificationGoneAfter10s": true,
+      "activeMediaSessionGoneAfter10s": true,
+      "noNewAudioStartAfterStop": true
+    },
+    "activeMediaSessionCorrection": [
+      {
+        "round": "inference-stop",
+        "issue": "MEDIA_SESSION_PARSER_FALSE_POSITIVE",
+        "correctedCounts": {
+          "before": 1,
+          "after3s": 0,
+          "after10s": 0,
+          "afterWait": 0
+        },
+        "evidence": {
+          "beforeStack": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\inference-stop\\media-session-before-stack.txt",
+          "afterWaitStack": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\inference-stop\\media-session-after-wait-stack.txt"
+        }
+      },
+      {
+        "round": "playing-stop",
+        "issue": "MEDIA_SESSION_PARSER_FALSE_POSITIVE",
+        "correctedCounts": {
+          "before": 1,
+          "after3s": 0,
+          "after10s": 0,
+          "afterWait": 0
+        },
+        "evidence": {
+          "beforeStack": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\media-session-before-stack.txt",
+          "afterWaitStack": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v7\\raw\\playing-stop\\media-session-after-wait-stack.txt"
+        }
+      }
+    ]
+  },
+  "cleanup": {
+    "passed": true,
+    "initialUninstall": "Both adb uninstall --user 0 commands returned Success at the first cleanup pass.",
+    "idempotentRecheck": "A later verification pass returned not installed for both packages, proving absence.",
+    "activityManagerTransient": "The first immediate snapshot retained one stale service record; a 3-second follow-up showed 0 service records. Final evidence has 0.",
+    "packagePathsAbsent": true,
+    "runtimePidsAbsent": true,
+    "serviceRecordCount": 0,
+    "notificationRecordCount": 0,
+    "activeMediaSessionCount": 0,
+    "externalPackagePathsAbsent": true,
+    "remoteHelperEntriesAbsent": true,
+    "productionMatch": true,
+    "restoreMatch": true,
+    "restored": {
+      "keyguardShowing": false,
+      "wakefulness": "Awake",
+      "currentUser": 0,
+      "musicVolume": 41,
+      "airplaneMode": "0",
+      "wifiEnabled": "1",
+      "mobileData": "1",
+      "activeDefaultNetworkLine": [
+        "Active default network: 190"
+      ],
+      "screenOffTimeout": "2147483647",
+      "stayOnWhilePluggedIn": "7",
+      "lockAfterTimeout": "null"
+    },
+    "evidence": "raw/cleanup/cleanup.json",
+    "afterSnapshot": "raw/cleanup/device-after.json"
+  },
+  "actualDeviceSerials": [
+    "43af8627"
+  ],
+  "k60TargetedCommands": 0,
+  "screenshotsTaken": 0,
+  "viewImageCalls": 0,
+  "findings": {
+    "P0": [],
+    "P1": [
+      {
+        "id": "REV6-P1-01",
+        "status": "CLOSED_STOP_ONLY",
+        "detail": "Fresh independent QA reproduced both required Stop phases on the new v5 APK without native crash, Java FATAL, ANR, InputTimeout, tombstone or current-run ApplicationExitInfo reason=5.",
+        "scopeLimit": "Does not close full runtime duration, background reliability, dual-device behavior or production integration."
+      }
+    ],
+    "P2": [
+      {
+        "id": "REV6-P2-01",
+        "status": "UNCHANGED / NOT_RETESTED / UNACCEPTED",
+        "detail": "Pad zf_001 performance remains external to this stop-only gate."
+      }
+    ],
+    "P3": [],
+    "summary": "New P0/P1/P2/P3 = 0/0/0/0; REV6-P1-01 stop-only gate is closed; existing Pad P2 remains unaccepted."
+  },
+  "qaHarnessIssues": [
+    {
+      "id": "QA7-EV-ROOT",
+      "kind": "EVIDENCE_PATH_SCOPE",
+      "detail": "The first stop-round script resolved its root one level too high and created a new raw evidence directory outside qa-v7.",
+      "remediation": "The entire newly created evidence tree was moved into qa-v7/raw before analysis, the source root was corrected, and no existing harness or v3 evidence was touched.",
+      "deviceRerunRequired": false
+    },
+    {
+      "id": "QA7-EV-MEDIA",
+      "kind": "MEDIA_SESSION_PARSER_FALSE_POSITIVE",
+      "detail": "The first parser counted package text in the Android audio-playback history rather than the active SessionStack.",
+      "remediation": "Derived assertions were recomputed from the captured SessionStack lines: 1 before Stop and 0 after Stop in both rounds. The incorrect initial values are retained in a correction object.",
+      "deviceRerunRequired": false
+    },
+    {
+      "id": "QA7-EV-TRANSIENT-SERVICE",
+      "kind": "ACTIVITY_MANAGER_TRANSIENT_RECORD",
+      "detail": "The first cleanup snapshot immediately after uninstall retained one stale service record.",
+      "remediation": "A delayed recheck found 0 service records and no package, PID, notification or active MediaSession; final cleanup evidence is PASS.",
+      "deviceRerunRequired": false
+    }
+  ],
+  "uncovered": [
+    "full 30-minute or longer Pad runtime",
+    "K60 rerun and full dual-device runtime matrix",
+    "Pad zf_001 performance acceptance",
+    "license, notice, training data and voice ownership closure",
+    "production Aurorama TTS/service integration",
+    "profile freeze, Q03, G2 or G1 PASS",
+    "physical speaker audibility and subjective quality"
+  ],
+  "maximumClaim": "On fresh-installed new APK 252a3a15...e161 on Pad 43af8627, notification Stop invoked during native inference and during real TTS AudioTrack playback both completed without current-run native crash, Java FATAL, ANR, InputTimeout, tombstone, active MediaSession, notification, service or new AudioTrack residue. This is PASS_STOP_ONLY only; it is not full runtime, K60, performance, production, license, Q03 or G1 PASS.",
+  "nextStep": {
+    "role": "different fresh full runtime QA, distinct from both implementation owner and QA-v7",
+    "action": "Revalidate the new APK on Pad and K60 with the full authorized runtime matrix.",
+    "firstReadOnlyAction": "Read qa-v7/report.json and both round summaries, then verify new APK bytes/SHA and device-lock ACTIVE=0 before installing.",
+    "stopCondition": "Stop on APK/source drift, keyguard or lock conflict, any current-run native crash/F DEBUG/tombstone/FATAL/ANR/InputTimeout/reason=5, resource non-convergence, new P0-P2, or any request to broaden scope without authorization."
+  },
+  "deviceLock": {
+    "path": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "serial": "43af8627",
+    "acquiredHash": "9a0894f533b7d3c917f21d6292f152cdf895da4ecf221df5401b08995a9fdd7f",
+    "finalHash": "575d0bbec7e5bd96d59b44c00c6a6898c274256e8440078d7cd6caed91035ebf",
+    "qaV7Released": true,
+    "activeHeaderCount": 0
+  },
+  "security": {
+    "screenshotsTaken": 0,
+    "notificationXmlRetained": false,
+    "unfilteredHostLogRetained": false,
+    "logRetention": "Package/PID/task-filtered lines only; no unfiltered host log.",
+    "serverWrites": 0,
+    "accountOrIdentityGate": "NOT_TRIGGERED",
+    "k60TargetedCommands": 0
+  },
+  "memoryCheckpoint": {
+    "status": "COMPLETE",
+    "added": [],
+    "updated": [
+      "aurorama-v2-requirements.md",
+      "miui-notif-logcat-evidence.md"
+    ],
+    "archived": [],
+    "skipped": [
+      "No new project note: the existing Aurorama 2.0 note was updated in place.",
+      "No new reference note: APK, device, runtime and evidence facts remain authoritative in the repository report."
+    ],
+    "indexLines": 122,
+    "indexBytes": 16177,
+    "check": "OK: index is 122 lines / 15.8 KB (cap 200 lines / 25.0 KB).",
+    "doctor": "clean - index 122 lines / 15.8 KB, 93 notes, no broken pointers, orphans, or schema errors; two pre-existing note-size info messages."
+  },
+  "evidenceIndex": {
+    "inferenceSummary": "raw/inference-stop/summary.json",
+    "inferenceTimeline": "raw/inference-stop/stop-timeline-filtered.log",
+    "playingSummary": "raw/playing-stop/summary.json",
+    "playingTimeline": "raw/playing-stop/stop-timeline-filtered.log",
+    "cleanup": "raw/cleanup/cleanup.json",
+    "deviceBefore": "raw/device-before.json",
+    "deviceInstalled": "raw/device-installed.json",
+    "artifactAudit": "F:/Develop/code_data/work_tree/Aurorama/v2-requirements-baseline/Aurorama/.planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/artifacts/artifact-audit.json"
+  }
+}

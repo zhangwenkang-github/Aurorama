@@ -1,0 +1,26 @@
+{
+  "schema": "aurorama.kokoro-qa-v7.sensitive-scan.v1",
+  "generatedAt": "2026-11-05T21:18:11.3663284+08:00",
+  "scannedFileCount": 67,
+  "strictDecodeErrorCount": 0,
+  "strictDecodeErrors": [],
+  "bomFileCountBeforeNormalization": 0,
+  "crFileCountBeforeNormalization": 0,
+  "normalizedTextFileCount": 68,
+  "secretPatternHitCount": 0,
+  "secretPatternHits": {
+    "bearer": [],
+    "jwt": [],
+    "accessTokenValue": [],
+    "wifiNetworkKey": [],
+    "ssidValue": [],
+    "passwordValue": [],
+    "authorizationHeader": []
+  },
+  "urlHitCount": 0,
+  "unexpectedUrlHits": [],
+  "unfilteredHostLogCount": 0,
+  "unfilteredHostLogs": [],
+  "notificationXmlRetained": false,
+  "status": "PASS"
+}

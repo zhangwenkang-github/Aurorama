@@ -1,0 +1,50 @@
+  Media key listener: null
+  Media key listener package:
+  OnMediaKeyEventDispatchedListener: added 0 listener(s)
+  OnMediaKeyEventSessionChangedListener: added 1 listener(s)
+    from com.xiaomi.bluetooth
+  Last MediaButtonReceiver: null
+  Media button session is null
+  Sessions Stack - have 1 sessions:
+    Kokoro isolated runtime dev.aurorama.kokoro.harness/Kokoro isolated runtime (userId=0)
+      ownerPid=23183, ownerUid=10340, userId=0
+      package=dev.aurorama.kokoro.harness
+      launchIntent=null
+      mediaButtonReceiver=null
+      active=true
+      flags=3
+      rating type=0
+      controllers: 8
+      state=PlaybackState {state=6, position=0, buffered position=0, speed=0.0, updated=2621006392, actions=567, custom actions=[], active item id=-1, error=null}
+      audioAttrs=AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN flags=0x800 tags= bundle=null
+      volumeType=1, controlType=2, max=0, current=0
+      metadata: size=3, description=正在准备朗读, Kokoro isolated runtime · zf_001, kokoro-multi-lang-v1_1
+      queueTitle=null, size=0
+Record for full_user=12
+  Volume key long-press listener: null
+  Volume key long-press listener package:
+  OnMediaKeyEventDispatchedListener: added 0 listener(s)
+  OnMediaKeyEventSessionChangedListener: added 1 listener(s)
+    from com.xiaomi.bluetooth
+  Last MediaButtonReceiver: null
+  Media button session is null
+  Sessions Stack - have 1 sessions:
+    Kokoro isolated runtime dev.aurorama.kokoro.harness/Kokoro isolated runtime (userId=0)
+      ownerPid=23183, ownerUid=10340, userId=0
+      package=dev.aurorama.kokoro.harness
+      launchIntent=null
+      mediaButtonReceiver=null
+      active=true
+      flags=3
+      rating type=0
+      controllers: 8
+      state=PlaybackState {state=6, position=0, buffered position=0, speed=0.0, updated=2621006392, actions=567, custom actions=[], active item id=-1, error=null}
+      audioAttrs=AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN flags=0x800 tags= bundle=null
+      volumeType=1, controlType=2, max=0, current=0
+      metadata: size=3, description=正在准备朗读, Kokoro isolated runtime · zf_001, kokoro-multi-lang-v1_1
+      queueTitle=null, size=0
+Record for full_user=12
+  Volume key long-press listener: null
+  Volume key long-press listener package:
+  Media key listener: null
+  Media key listener package:

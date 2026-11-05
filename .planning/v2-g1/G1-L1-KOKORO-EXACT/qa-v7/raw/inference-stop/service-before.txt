@@ -1,0 +1,1 @@
+  * ServiceRecord{d8303e6 u0 dev.aurorama.kokoro.harness/.KokoroRuntimeService}

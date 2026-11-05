@@ -3413,7 +3413,62 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：P1 v5 实现自测 PASS，交接全新 Pad stop-only QA-v7（2026-11-05）
+### ACTIVE：QA-v7 stop-only PASS，交接全新完整 runtime QA（2026-11-05）
+
+**下一责任身份**：Aurorama 2.0 G1 全新完整 runtime QA / 用户承诺验证专家；必须与
+runtime-closure-v3 实现 owner、QA-v7 都不同。只重验 v5 新 APK 的已授权核心 runtime，
+不扩展为生产实现、G2、Q03、许可或 Release。
+
+**对象**：事实工作树
+`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
+`codex/v2-integration`；实现输入基线
+`35ed65c2dc0e4171bdaf5b6fe055ad1f2e7ead8c`。new main
+`427,009,671 B / 252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`，
+version `4 / 2.0-kokoro-runtime-v5`；new peer
+`12,696 B / 61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`。
+实际 HEAD、clean、锁与设备状态由下一责任方现场读取。
+
+**状态**：
+`PAD_QA_V7_STOP_PASS / P1_STOP_GATE_CLOSED / FULL_RUNTIME_REVALIDATION_READY / PAD_V6_BASELINE_FAIL / PAD_P2_UNACCEPTED / KOKORO_LICENSE_PARTIAL / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+
+**上一波已完成**
+
+- QA-v7 在新 main/peer fresh install 上独立执行通知 Stop：推理中 Stop 出现
+  `TTS_RELEASE_DEFERRED inFlight=1` 后安全延迟 release；真实 4 秒 AudioTrack playing
+  中途 Stop 在 position `3,121 ms` 命中且安全立即 release。
+- 两轮 PID 均存活、stop 后 0 个新 AudioTrack，service / foreground / notification /
+  active MediaSession 收敛；当前运行 F DEBUG / tombstone / Java FATAL / ANR /
+  InputTimeout / 新 `reason=5` 均为 0。
+- 双包已卸载，包专属 external/data 与远端 helper 清理；生产 release `acb1648d…2ff5bb`、
+  网络、音量 41、屏幕、current user 0、Awake、keyguard=false 恢复，锁释放 `ACTIVE=0`。
+- 报告：`.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v7/report.json`。QA-v7 issue 仅涉及证据
+  路径归一、把 MediaSession 末尾 lastly-played 历史误计为活动会话、卸载后 ActivityManager
+  瞬时旧记录；均由已捕获原始 dumps 重新计算或等待复核，不要求设备重跑。
+
+**下一原子任务**
+
+1. 第一条只读动作：运行
+   `pwsh -NoProfile -ExecutionPolicy Bypass -File 'C:\Users\zhangwenkang\.codex\deepseek-subagent-proxy\status.ps1'`，
+   再读本 ACTIVE、`.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v7/report.json`、两份 round
+   summary、`artifact-audit.json` 与设备锁顶部。
+2. 核验 worktree / branch / clean、输入基线祖先、双 APK size/SHA、设备锁和实际设备，
+   先从 fresh install 重核设备侧 APK 身份。
+3. 在 Pad `43af8627` 与 K60 `8e875894` 上独立重验新 APK 的核心用户承诺：完整授权运行时窗、
+   真实 AudioTrack、通知 Stop / 四控件、后台锁屏、零网络、audio focus、暂停 / 重建、
+   音乐/TTS 单 owner 与清理恢复；旧 QA-v5/v6 或实现日志不能替新候选作证。
+4. 任一核心旅程未执行不得以 `PASS_WITH_GAPS` 覆盖；P2 性能必须另行接受或保留风险，
+   不得由完整 runtime QA 代签许可、Q03、profile、G1 或 Release。
+
+**非目标 / 停止门**：不做生产集成、G2、Q03 closure、许可 / 声音权属冻结、Release 或
+push/tag；不下载 MOSS / 新模型 / 新域名，不写服务器，不绕过身份门。出现新 P0–P2、
+APK/权限/ABI/hash 漂移、设备锁冲突、crash / resource 不收敛或核心旅程不可执行时停止并报告。
+
+**后续**：完整 runtime 通过后，剩余独立门为 Pad P2 决策、Kokoro / native 逐资产许可与
+notice / source provenance、exact profile / 试听及 Q03；全部闭合前 G1 保持 NOT_PASSED。
+
+**交接水位**：2026-11-05 21:17 +08:00，实际 `298,823 / 1,048,576 tokens`（28.5%）。
+
+### HISTORY：P1 v5 实现自测 PASS，交接全新 Pad stop-only QA-v7（2026-11-05；已被上方 QA-v7 PASS / full-runtime ACTIVE 取代）
 
 **下一责任身份**：Aurorama 2.0 G1 全新独立 Pad runtime QA / 用户承诺验证专家。本会话只关闭
 新候选的 stop-only 与 native crash 门；不得沿用实现 owner 的身份，也不得在本波扩成完整
@@ -4988,3 +5043,13 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `reason=5`，PID 与资源收敛，锁释放 `ACTIVE=0`。新 main/peer 已生成并审计；实现提交
   `35ed65c2`。本波只做实现自测，不是独立 QA / 30 分钟 / 双机 / G1。下一步仅交接不同全新
   Pad QA-v7 独立复测 stop-only 与 crash gate；通过后才另派完整 Pad/K60 revalidation。
+- **2026-11-05 — QA-v7 Pad stop-only PASS / P1 stop gate 关闭**：与实现 owner 不同的全新
+  QA 在 Pad `43af8627` fresh install new main/peer，设备侧 size/SHA/version MATCH。推理中
+  通知 Stop 触发 `TTS_RELEASE_DEFERRED inFlight=1` 后安全延迟 release；真实 4 秒
+  AudioTrack playing 中 Stop 命中 `generation=2`、未完成、position `3,121 ms` 后安全立即
+  release。两轮 PID 存活、无新 AudioTrack，service/notification/active MediaSession 收敛；
+  当前运行 F DEBUG / tombstone / Java FATAL / ANR / InputTimeout / `reason=5` 均为 0。
+  双包与设备改动清理恢复，生产包 MATCH，锁 `ACTIVE=0`。结论 `PASS_STOP_ONLY`，只关闭
+  `REV6-P1-01` stop-only / native-crash 门；不覆盖完整 30 分钟、K60 / 双机、P2、许可、
+  生产 runtime、Q03 或 G1。证据 `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v7/report.json`；
+  下一步另派与实现 / QA-v7 都不同的全新完整 runtime QA。

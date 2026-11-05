@@ -1,0 +1,13 @@
+{
+  "schema": "aurorama.kokoro-qa-v7.integrity-receipt.v1",
+  "generatedAt": "2026-11-05T21:18:11.4224868+08:00",
+  "manifest": "SHA256SUMS",
+  "manifestSha256": "c5aa28b7f3b25c814bfb4a2c8a558772919609e2ef6b176e34bddda99e2d0128",
+  "manifestEntryCount": 68,
+  "report": "report.json",
+  "reportSha256": "b728fa671649ee5c6f31a7bb6824a4e1cf98fadf3659c4f9019135bebaa495bf",
+  "sensitiveScan": "sensitive-scan.json",
+  "sensitiveScanStatus": "PASS",
+  "excludesSelf": true,
+  "excludesReceipt": true
+}

@@ -1,0 +1,8 @@
+ACTIVITY MANAGER PROCESS EXIT INFO (dumpsys activity exit-info)
+Last Timestamp of Persistence Into Persistent Storage: 2026-11-05 20:42:53.704
+  package: dev.aurorama.kokoro.harness
+    Historical Process Exit for uid=10340
+        ApplicationExitInfo #0:
+          timestamp=2026-11-05 21:07:55.891 pid=23183 realUid=10340 packageUid=10340 definingUid=10340 user=0
+          process=dev.aurorama.kokoro.harness reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=400 pss=526MB rss=608MB description=stop dev.aurorama.kokoro.harness due to from process:15351 state=empty trace=null

@@ -1,0 +1,61 @@
+{
+  "schema": "aurorama.kokoro-qa-v7.device-snapshot.v1",
+  "capturedAt": "2026-11-05T21:04:07.6161461+08:00",
+  "serial": "43af8627",
+  "state": "device",
+  "sdk": 33,
+  "abi": "arm64-v8a",
+  "device": "nabu",
+  "keyguardStateSamples": [
+    "false"
+  ],
+  "keyguardShowing": false,
+  "wakefulness": "Awake",
+  "currentUser": 0,
+  "screenOffTimeout": "2147483647",
+  "stayOnWhilePluggedIn": "7",
+  "lockAfterTimeout": "null",
+  "musicVolume": 41,
+  "airplaneMode": "0",
+  "wifiEnabled": "1",
+  "mobileData": "1",
+  "activeDefaultNetworkLine": [
+    "Active default network: 190"
+  ],
+  "productionPackage": {
+    "installed": true,
+    "basePath": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+    "bytes": 79729350,
+    "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+    "versionName": "1.4.0",
+    "versionCode": 5
+  },
+  "productionPackagePathMatches": [
+    "package:/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk=io.github.zhangwenkang.aurorama"
+  ],
+  "testPackagePaths": [
+    "package:/data/app/~~JQ7fqmonXeo_JXqXF8Cs7w==/dev.aurorama.kokoro.focuspeer-Xtle9LgcrytDCD9RbAkYBg==/base.apk=dev.aurorama.kokoro.focuspeer",
+    "package:/data/app/~~MVWJPFlwQzP7t75i0aJjQA==/dev.aurorama.kokoro.harness-Tu3REEzhjkyZJDFZ8Zau8g==/base.apk=dev.aurorama.kokoro.harness"
+  ],
+  "testPackageIdentities": {
+    "dev.aurorama.kokoro.harness": {
+      "installed": true,
+      "basePath": "/data/app/~~MVWJPFlwQzP7t75i0aJjQA==/dev.aurorama.kokoro.harness-Tu3REEzhjkyZJDFZ8Zau8g==/base.apk",
+      "bytes": 427009671,
+      "sha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+      "versionName": "2.0-kokoro-runtime-v5",
+      "versionCode": 4
+    },
+    "dev.aurorama.kokoro.focuspeer": {
+      "installed": true,
+      "basePath": "/data/app/~~JQ7fqmonXeo_JXqXF8Cs7w==/dev.aurorama.kokoro.focuspeer-Xtle9LgcrytDCD9RbAkYBg==/base.apk",
+      "bytes": 12696,
+      "sha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+      "versionName": "1.0-focus-peer",
+      "versionCode": 1
+    }
+  },
+  "notificationRecordCount": 0,
+  "activeMediaSessionCount": 0,
+  "testServiceRecordCount": 0
+}
