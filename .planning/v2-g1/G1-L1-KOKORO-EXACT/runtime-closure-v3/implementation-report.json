@@ -1,0 +1,301 @@
+{
+  "schema": "aurorama.kokoro.runtime-closure-v3.implementation-report.v1",
+  "task": "Aurorama 2.0 G1-L1 Kokoro REV6-P1-01 isolated harness stop/native-inference teardown repair",
+  "role": "isolated harness stop-path implementation owner; senior Android native audio / ONNX runtime engineer",
+  "generatedAt": "2026-11-05T20:45:00+08:00",
+  "status": "IMPLEMENTED / TDD_GREEN / BUILD_PASS / PAD_STOP_ONLY_SELF_TEST_PASS / NOT_INDEPENDENT_QA / NOT_FULL_30MIN / NOT_PRODUCTION_RUNTIME / G1_NOT_PASSED",
+  "guardrails": {
+    "subagentsSpawned": 0,
+    "successorThreadsCreated": 0,
+    "independentQaStarted": false,
+    "reviewOrMergePrepEntered": false,
+    "releaseEntered": false,
+    "pushTagOrReleasePerformed": false,
+    "productionCodeModified": false,
+    "docsOrTasksOrProjectPlanModified": false,
+    "serverOrAccountAccessed": false,
+    "k60TargetedCommands": 0,
+    "screenshotsTaken": 0,
+    "viewImageCalls": 0
+  },
+  "startState": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "cfb251eb05a6e6854d7e464a709eb41921f2a50a",
+    "clean": true,
+    "candidate": "191a46e227c6cecac14392a2de4bc0a0fae026ee",
+    "candidateIsHeadAncestor": true,
+    "deviceLockActiveBefore": 0
+  },
+  "rootCause": {
+    "id": "REV6-P1-01",
+    "mechanism": "Notification Stop invalidated the generation and stopped the foreground service. When the Activity binding ended, onDestroy called ttsExecutor.shutdownNow() and immediately called OfflineTts.release() while the single worker was still inside OfflineTts.generateWithCallback. release destroyed ONNX Runtime synchronization objects; the worker later re-entered a destroyed pthread mutex.",
+    "nativeEvidence": "FORTIFY: pthread_mutex_lock called on a destroyed mutex; kokoro-tts-runt crash at libonnxruntime.so via OfflineTts.generateWithCallbackImpl; SIGABRT; ApplicationExitInfo reason=5 APP CRASH(NATIVE), status=6.",
+    "whyShutdownNowWasInsufficient": "An ExecutorService interrupt does not synchronously quiesce JNI work. shutdownNow() returns before the native inference call has unwound.",
+    "reproduction": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\runtime-closure-v3\\evidence\\repro-v4-before-home\\native-crash-evidence.txt"
+  },
+  "fix": {
+    "contract": "NativeInferenceLifecycle serializes inference ownership against native teardown. Release is immediate only when no inference is active; otherwise the finishing worker owns release. No new inference may begin after release is requested.",
+    "serviceIntegration": [
+      "Reserve inference ownership before queueing the TTS worker.",
+      "Check generation before creating native TTS and again before generateWithCallback.",
+      "Finish inference ownership in the worker finally block.",
+      "Replace onDestroy shutdownNow()-then-release with executor.shutdown(), a release request, and deferred release after the worker unwinds.",
+      "Apply the same safe release helper to cancel teardown."
+    ]
+  },
+  "tdd": {
+    "red": {
+      "executed": true,
+      "exitCode": 1,
+      "stage": "contract:compileTestJava",
+      "reason": "NativeInferenceLifecycle did not exist",
+      "compilerErrors": 6,
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/logs/native-inference-lifecycle-red.log"
+    },
+    "green": {
+      "executed": true,
+      "exitCode": 0,
+      "command": ".\\gradlew.bat -p .planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness :contract:test --offline --console=plain --rerun-tasks",
+      "xmlSuites": 12,
+      "tests": 39,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/logs/native-inference-lifecycle-green.log",
+      "xmlDirectory": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/build/test-results/test"
+    },
+    "newContracts": [
+      "release is deferred until the in-flight inference finishes",
+      "a worker cannot start using native objects after release was requested",
+      "release is immediate when no inference is active and cannot happen twice"
+    ]
+  },
+  "changedFiles": [
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/NativeInferenceLifecycle.java",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/test/java/dev/aurorama/kokoro/harness/NativeInferenceLifecycleTest.java",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/KokoroRuntimeService.java",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build.ps1",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/tools/reproduce-stop.ps1",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/**"
+  ],
+  "build": {
+    "executed": true,
+    "exitCode": 0,
+    "strategy": "standalone cached Android SDK/JDK toolchain; no production module or dependency change",
+    "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build.ps1",
+    "buildInfo": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/logs/build-info.json",
+    "artifactAudit": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/artifacts/artifact-audit.json",
+    "signatureVerified": true,
+    "dexMinSdkAudit": "PASS"
+  },
+  "apks": {
+    "oldMain": {
+      "bytes": 427009671,
+      "sha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+      "archive": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/apk-archive/kokoro-isolated-harness-debug-9bfba9aa.apk",
+      "archiveRetained": true
+    },
+    "newMain": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 427009671,
+      "sha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+      "package": "dev.aurorama.kokoro.harness",
+      "versionCode": 4,
+      "versionName": "2.0-kokoro-runtime-v5",
+      "minSdk": 26,
+      "targetSdk": 37,
+      "abi": "arm64-v8a",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
+      ],
+      "internetPermission": false,
+      "serviceCount": 1,
+      "foregroundServiceType": "mediaPlayback (0x00000002)",
+      "mediaSessionConstructionSites": 1,
+      "mediaSessionMetadata": {
+        "sessionTag": "Kokoro isolated runtime",
+        "title": "derived from current runtime presentation title",
+        "artist": "Kokoro isolated runtime · approved voice",
+        "album": "kokoro-multi-lang-v1_1"
+      },
+      "audioTrackConstructionSites": 1
+    },
+    "oldPeer": {
+      "bytes": 12696,
+      "sha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c",
+      "archive": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/apk-archive/kokoro-focus-peer-debug-de651dda.apk",
+      "archiveRetained": true
+    },
+    "newPeer": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+      "bytes": 12696,
+      "sha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+      "package": "dev.aurorama.kokoro.focuspeer",
+      "versionCode": 1,
+      "versionName": "1.0-focus-peer",
+      "requestedPermissions": 0,
+      "internetPermission": false
+    },
+    "deviceSideIdentity": "MATCH for both new APKs on Pad 43af8627"
+  },
+  "deviceSelfTest": {
+    "serial": "43af8627",
+    "api": 33,
+    "abi": "arm64-v8a",
+    "screenshots": 0,
+    "inferenceStop": {
+      "verdict": "PASS_SELF_TEST_INFERENCE_STOP",
+      "pid": 23181,
+      "stopCommandAt": "2026-11-05 20:38:16.091",
+      "serviceDestroyedAt": "2026-11-05 20:38:16.122",
+      "releaseDeferredLog": "TTS_RELEASE_DEFERRED inFlight=1",
+      "inferenceFinishedAt": "2026-11-05 20:38:31.724",
+      "releaseAt": "2026-11-05 20:38:31.901",
+      "releaseReason": "deferred_until_inference_finished",
+      "staleResultDiscarded": true,
+      "processAliveAfterWait": true,
+      "serviceRetained": false,
+      "currentNotificationRecordCount": 0,
+      "activeMediaSessionCount": 0,
+      "newAudioTracksAfterStop": 0,
+      "crashGatePassed": true,
+      "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/evidence/fixed-v5-inference-stop/"
+    },
+    "playingStop": {
+      "verdict": "PASS_SELF_TEST_PLAYING_STOP",
+      "pid": 23182,
+      "audioStartedAt": "2026-11-05 20:40:28.746",
+      "stopCommandAt": "2026-11-05 20:40:32.212",
+      "audioCompletedBeforeStop": 0,
+      "stopDuringPlaying": true,
+      "releaseAt": "2026-11-05 20:40:32.472",
+      "releaseReason": "no_inference_in_flight",
+      "processAliveAfterWait": true,
+      "serviceRetained": false,
+      "currentNotificationRecordCount": 0,
+      "activeMediaSessionCount": 0,
+      "newAudioTracksAfterStop": 0,
+      "crashGatePassed": true,
+      "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/evidence/fixed-v5-playing-stop/"
+    },
+    "repeatCount": 2,
+    "repeatRationale": "One stop during native preparation/inference and one stop during real AudioTrack playback provide the minimum phase discrimination; no long run was needed."
+  },
+  "crashGate": {
+    "oldV4NativeCrashReproduced": true,
+    "oldV4ExitReason": 5,
+    "oldV4ExitStatus": 6,
+    "fixedV5FDebugCount": 0,
+    "fixedV5NativeTombstoneCount": 0,
+    "fixedV5JavaFatalCount": 0,
+    "fixedV5AnrCount": 0,
+    "fixedV5InputTimeoutCount": 0,
+    "fixedV5CurrentRunApplicationExitReason5Count": 0,
+    "passed": true
+  },
+  "evidenceIntegrity": {
+    "sensitiveScan": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/evidence/security/sensitive-scan.json",
+    "status": "PASS",
+    "strictUtf8DecodeFailures": 0,
+    "utf8BomFileCount": 0,
+    "credentialPatternHitCount": 0,
+    "nonWhitelistedUrlCount": 0,
+    "fullNotificationDumpsRetained": false,
+    "unfilteredHostLogsRetained": false
+  },
+  "cleanup": {
+    "packagesUninstalled": true,
+    "mainPidPresent": false,
+    "servicePresent": false,
+    "notificationRecordCount": 0,
+    "activeMediaSessionCount": 0,
+    "externalPackagePathsAbsent": true,
+    "remoteHelperFilesAbsent": true,
+    "productionReleaseSha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+    "productionReleaseMatch": true,
+    "productionDebugAbsent": true,
+    "airplaneMode": "0",
+    "wifiEnabled": "1",
+    "mobileData": "1",
+    "musicVolume": 41,
+    "screenOffTimeout": "2147483647",
+    "stayOnWhilePluggedIn": "7",
+    "lockAfterTimeout": "null",
+    "currentUser": "0",
+    "wakefulness": "Awake",
+    "keyguardShowing": false,
+    "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/evidence/cleanup/device-after.json"
+  },
+  "findings": {
+    "P0": [],
+    "P1": [
+      {
+        "id": "REV6-P1-01",
+        "status": "IMPLEMENTED_SELF_TEST_PASS / INDEPENDENT_QA_PENDING",
+        "detail": "The destroyed-mutex crash no longer occurs in the two bounded stop paths. Final closure still requires fresh independent QA on the new APK."
+      }
+    ],
+    "P2": [
+      {
+        "id": "REV6-P2-01",
+        "status": "UNCHANGED / NOT_RETESTED_AS_NON_GOAL",
+        "detail": "Pad zf_001 performance remains the existing external P2."
+      }
+    ],
+    "P3": [],
+    "summary": "0 new P0 / P1 implemented self-test pass pending independent QA / P2 unchanged / 0 new P3"
+  },
+  "harnessIssuesResolved": [
+    "First v4 attempt kept HarnessActivity bound, so stopSelf did not destroy the service; the corrected attempt pressed HOME before notification Stop and reproduced the crash.",
+    "A catch-all log matcher falsely counted debugBuild text as native F DEBUG; the final scanner is case-sensitive and requires the F DEBUG tag.",
+    "One accidental bash invocation failed at Select-String before execution and changed no device or file state; every subsequent terminal command used PowerShell 7.",
+    "One MIUI install confirmation was canceled while the notification shade was open; after collapse and HOME the controlled retry succeeded.",
+    "A cleanup script initially used PowerShell automatic variable $pid; it was changed to $runtimePid and the cleanup evidence was recomputed."
+  ],
+  "notCovered": [
+    "fresh independent QA of notification Stop and crash gates",
+    "full 30-minute Pad and K60 runtime revalidation on the new candidate",
+    "K60 rerun and cross-device full matrix",
+    "Pad P2 performance acceptance",
+    "license, notice, training data and voice ownership closure",
+    "production Aurorama TTS/service integration",
+    "profile freeze, Q03, G2 or G1 PASS",
+    "physical speaker audibility and subjective quality"
+  ],
+  "maximumClaim": "The isolated v5 harness defers OfflineTts release until in-flight native inference finishes, starts no stale queued inference after teardown, and passed two bounded Pad stop-only self-tests without SIGABRT or native crash evidence. This is not independent QA, not a full 30-minute or dual-device PASS, not production runtime, and not G1 closure.",
+  "nextStep": {
+    "owner": "delivery lead",
+    "nextRole": "different fresh independent QA agent",
+    "instruction": "Run stop-only first on the new APK identity, then perform the full Pad/K60 runtime revalidation required by the delivery gate. Do not inherit old APK evidence.",
+    "firstReadOnlyAction": "Read implementation-report.json, artifact-audit.json, both fixed-v5 stop evidence directories and device-lock.md; verify worktree/HEAD/APK identity before installing.",
+    "stopCondition": "Stop on APK/source drift, unexpected lock/keyguard state, any F DEBUG/native tombstone/FATAL/ANR/InputTimeout/reason=5, service/notification/MediaSession failure, new P0-P2, production write, or request to waive full revalidation."
+  },
+  "deviceLock": {
+    "path": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "lockId": "G1-L1-KOKORO-EXACT-REV6-P1-01-PAD-43af8627-20261105",
+    "serial": "43af8627",
+    "releasedAt": "2026-11-05T20:43:28+08:00",
+    "activeAfter": 0,
+    "finalSha256": "AF79818434F9DB2E7AEB879FBFEE964F709BBD179FE6CF92FA32BD56A5A7F075"
+  },
+  "memoryCheckpoint": {
+    "status": "COMPLETE",
+    "added": [],
+    "updated": [
+      "aurorama-v2-requirements.md"
+    ],
+    "archived": [],
+    "skipped": [
+      "No new feedback note: the concrete mechanism and device timeline remain in the repository implementation report, avoiding duplication.",
+      "No new project note: the existing Aurorama project note was updated in place."
+    ],
+    "indexLines": 122,
+    "indexBytes": 16181,
+    "check": "OK: index is 122 lines / 15.8 KB (cap 200 lines / 25.0 KB).",
+    "doctor": "clean - index 122 lines / 15.8 KB, 93 note(s), no broken pointers, orphans, or schema errors; one pre-existing note-size info for leader-delegation-by-role.md."
+  }
+}

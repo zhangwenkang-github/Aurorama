@@ -1,0 +1,19 @@
+{
+  "schema": "aurorama.kokoro.runtime-closure-v3.stop-reproduction.v1",
+  "serial": "43af8627",
+  "package": "dev.aurorama.kokoro.harness",
+  "apkSha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+  "startAt": "2026-11-05T20:31:25.9174957+08:00",
+  "stopAt": "2026-11-05T20:31:31.6903332+08:00",
+  "clickMethod": "NOTIFICATION_UI_TAP",
+  "clickBounds": "[794,441][1030,549]",
+  "clickPoint": "912,495",
+  "runtimePid": "9574",
+  "processAliveAfter12s": true,
+  "serviceDestroyed": false,
+  "outcome": "NO_CRASH_SERVICE_BOUND",
+  "reason": "HarnessActivity remained bound after stopSelf, so service onDestroy did not run; this attempt did not meet the intended teardown precondition.",
+  "fDebugPresent": false,
+  "applicationExitReason5Present": false,
+  "next": "Retry with HOME before notification Stop to release Activity binding while inference is active."
+}

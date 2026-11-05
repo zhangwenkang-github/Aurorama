@@ -1,0 +1,15 @@
+{
+  "schema": "aurorama.kokoro.runtime-closure-v3.sensitive-scan.v1",
+  "generatedAt": "2026-11-05T20:48:23.9585603+08:00",
+  "fileCount": 46,
+  "utf8BomFileCount": 0,
+  "strictUtf8DecodeFailures": 0,
+  "rawTokenPatternHitCount": 10,
+  "benignAndroidTokenHitCount": 10,
+  "credentialPatternHitCount": 0,
+  "urlCount": 26,
+  "standardAndroidNamespaceUrlCount": 25,
+  "publicGradleDocsUrlCount": 1,
+  "otherUrlCount": 0,
+  "status": "PASS"
+}

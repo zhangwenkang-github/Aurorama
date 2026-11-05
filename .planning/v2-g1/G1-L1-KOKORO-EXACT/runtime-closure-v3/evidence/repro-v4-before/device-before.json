@@ -1,0 +1,19 @@
+{
+  "capturedAt": "2026-11-05T20:28:39.1939597+08:00",
+  "serial": "43af8627",
+  "keyguardShowing": false,
+  "currentUser": "0",
+  "airplaneMode": "0",
+  "wifiEnabled": "1",
+  "mobileData": "1",
+  "musicVolume": 41,
+  "screenOffTimeout": "2147483647",
+  "stayOnWhilePluggedIn": "7",
+  "lockAfterTimeout": "null",
+  "wakefulness": "mWakefulness=Awake",
+  "productionPath": "package:/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+  "productionSha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+  "harnessPackages": [],
+  "deviceLockActive": 1,
+  "keyguardRaw": "showing=false"
+}

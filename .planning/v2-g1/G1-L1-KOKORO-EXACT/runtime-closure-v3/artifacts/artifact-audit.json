@@ -1,0 +1,63 @@
+{
+  "schema": "aurorama.kokoro.runtime-closure-v3.artifact-audit.v1",
+  "generatedAt": "2026-11-05T20:36:13.6261540+08:00",
+  "main": {
+    "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+    "bytes": 427009671,
+    "sha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+    "package": "package: name='dev.aurorama.kokoro.harness' versionCode='4' versionName='2.0-kokoro-runtime-v5' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'",
+    "sdk": [
+      "targetSdkVersion:'37'"
+    ],
+    "abi": [
+      "native-code: 'arm64-v8a'"
+    ],
+    "permissions": [
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.WAKE_LOCK"
+    ],
+    "internetPermission": false,
+    "signatureVerification": "PASS",
+    "serviceCount": 1,
+    "manifestEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/artifacts/main-manifest.xmltree.txt"
+  },
+  "peer": {
+    "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+    "bytes": 12696,
+    "sha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab",
+    "badging": [
+      "package: name='dev.aurorama.kokoro.focuspeer' versionCode='1' versionName='1.0-focus-peer' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'",
+      "minSdkVersion:'26'",
+      "targetSdkVersion:'37'",
+      "application: label='Kokoro focus peer' icon=''",
+      "application-debuggable",
+      "launchable-activity: name='dev.aurorama.kokoro.focuspeer.FocusPeerActivity'  label='' icon=''",
+      "feature-group: label=''",
+      "  uses-feature: name='android.hardware.faketouch'",
+      "  uses-implied-feature: name='android.hardware.faketouch' reason='default feature for all apps'",
+      "main",
+      "supports-screens: 'small' 'normal' 'large' 'xlarge'",
+      "supports-any-density: 'true'",
+      "locales:",
+      "densities:"
+    ],
+    "permissions": "package: dev.aurorama.kokoro.focuspeer",
+    "signatureVerification": "PASS"
+  },
+  "sourceSites": [
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main\\AndroidManifest.xml:25:            android:name=\".KokoroRuntimeService\"",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main\\java\\dev\\aurorama\\kokoro\\harness\\PcmAudioPlayer.java:110:                    new AudioTrack.Builder()",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main\\java\\dev\\aurorama\\kokoro\\harness\\KokoroRuntimeService.java:1058:        mediaSession = new MediaSession(this, \"Kokoro isolated runtime\");",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main\\java\\dev\\aurorama\\kokoro\\harness\\KokoroRuntimeService.java:1107:                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);"
+  ],
+  "oldMain": {
+    "bytes": 427009671,
+    "sha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a"
+  },
+  "oldPeer": {
+    "bytes": 12696,
+    "sha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c"
+  }
+}

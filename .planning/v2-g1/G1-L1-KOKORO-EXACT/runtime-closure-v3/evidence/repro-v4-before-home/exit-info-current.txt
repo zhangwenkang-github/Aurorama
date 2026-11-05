@@ -1,0 +1,12 @@
+ACTIVITY MANAGER PROCESS EXIT INFO (dumpsys activity exit-info)
+Last Timestamp of Persistence Into Persistent Storage: 2026-11-05 19:40:12.834
+  package: dev.aurorama.kokoro.harness
+    Historical Process Exit for uid=10336
+        ApplicationExitInfo #0:
+          timestamp=2026-11-05 20:32:40.919 pid=23179 realUid=10336 packageUid=10336 definingUid=10336 user=0
+          process=dev.aurorama.kokoro.harness reason=5 (APP CRASH(NATIVE)) subreason=0 (UNKNOWN) status=6
+          importance=400 pss=0.00 rss=0.00 description=crash state=empty trace=null
+        ApplicationExitInfo #1:
+          timestamp=2026-11-05 20:32:33.872 pid=9574 realUid=10336 packageUid=10336 definingUid=10336 user=0
+          process=dev.aurorama.kokoro.harness reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0
+          importance=100 pss=643MB rss=711MB description=stop dev.aurorama.kokoro.harness due to from process:8058 state=empty trace=null

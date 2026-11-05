@@ -114,6 +114,8 @@ public final class KokoroRuntimeService extends Service
     private final CopyOnWriteArrayList<RuntimeListener> listeners =
             new CopyOnWriteArrayList<>();
     private final AtomicLong generation = new AtomicLong();
+    private final NativeInferenceLifecycle nativeInferenceLifecycle =
+            new NativeInferenceLifecycle();
     private final AudioOwnerArbiter arbiter = new AudioOwnerArbiter(3);
     private final PlaybackStateMachine playback = new PlaybackStateMachine();
 
@@ -223,17 +225,7 @@ public final class KokoroRuntimeService extends Service
         }
         releasePlaybackResources();
         releaseSessionAndForeground();
-        if (ttsExecutor != null) {
-            ttsExecutor.shutdownNow();
-        }
-        if (tts != null) {
-            try {
-                tts.release();
-            } catch (Throwable error) {
-                Log.w(TAG, "TTS release failed", error);
-            }
-            tts = null;
-        }
+        requestTtsShutdownAndRelease();
         Log.i(TAG, "SERVICE_DESTROYED pid=" + android.os.Process.myPid());
         super.onDestroy();
     }
@@ -405,41 +397,54 @@ public final class KokoroRuntimeService extends Service
                         + longRunMode
                         + " total="
                         + playback.queue().size());
-        ttsExecutor.execute(
-                () -> {
-                    try {
-                        OfflineTts engine = getOrCreateTts();
-                        if (!isCurrentGeneration(token)) {
-                            return;
+        nativeInferenceLifecycle.beginInference();
+        try {
+            ttsExecutor.execute(
+                    () -> {
+                        try {
+                            if (!isCurrentGeneration(token)) {
+                                return;
+                            }
+                            OfflineTts engine = getOrCreateTts();
+                            if (!isCurrentGeneration(token)) {
+                                return;
+                            }
+                            GeneratedAudio audio =
+                                    engine.generateWithCallback(
+                                            sentence,
+                                            selectedVoice.getSid(),
+                                            NarrationContract.PARAMETERS.getSpeed(),
+                                            new CancellableCallback(token));
+                            if (audio == null
+                                    || audio.getSamples() == null
+                                    || audio.getSamples().length == 0) {
+                                throw new IllegalStateException(
+                                        "TTS returned empty PCM for sentence " + sentenceIndex);
+                            }
+                            if (audio.getSampleRate() != MUSIC_SAMPLE_RATE) {
+                                throw new IllegalStateException(
+                                        "Unexpected TTS sample rate " + audio.getSampleRate());
+                            }
+                            final float[] samples = audio.getSamples();
+                            mainHandler.post(
+                                    () -> playGeneratedTtsSentence(token, samples));
+                        } catch (Throwable error) {
+                            mainHandler.post(
+                                    () -> {
+                                        if (isCurrentGeneration(token)) {
+                                            fail(error);
+                                        }
+                                    });
+                        } finally {
+                            finishNativeInferenceOnWorker();
                         }
-                        GeneratedAudio audio =
-                                engine.generateWithCallback(
-                                        sentence,
-                                        selectedVoice.getSid(),
-                                        NarrationContract.PARAMETERS.getSpeed(),
-                                        new CancellableCallback(token));
-                        if (audio == null
-                                || audio.getSamples() == null
-                                || audio.getSamples().length == 0) {
-                            throw new IllegalStateException(
-                                    "TTS returned empty PCM for sentence " + sentenceIndex);
-                        }
-                        if (audio.getSampleRate() != MUSIC_SAMPLE_RATE) {
-                            throw new IllegalStateException(
-                                    "Unexpected TTS sample rate " + audio.getSampleRate());
-                        }
-                        final float[] samples = audio.getSamples();
-                        mainHandler.post(
-                                () -> playGeneratedTtsSentence(token, samples));
-                    } catch (Throwable error) {
-                        mainHandler.post(
-                                () -> {
-                                    if (isCurrentGeneration(token)) {
-                                        fail(error);
-                                    }
-                                });
-                    }
-                });
+                    });
+        } catch (Throwable error) {
+            if (nativeInferenceLifecycle.finishInference()) {
+                releaseTtsEngine("executor_rejected_after_release_request");
+            }
+            throw error;
+        }
     }
 
     private void playGeneratedTtsSentence(long token, float[] samples) {
@@ -788,9 +793,7 @@ public final class KokoroRuntimeService extends Service
         publishState();
         Log.i(TAG, "CANCEL_CONVERGED pid=" + android.os.Process.myPid());
         releaseSessionAndForeground();
-        if (ttsExecutor != null) {
-            ttsExecutor.shutdownNow();
-        }
+        requestTtsShutdownAndRelease();
         stopSelf();
         mainHandler.postDelayed(
                 () -> {
@@ -890,6 +893,49 @@ public final class KokoroRuntimeService extends Service
                         + " lang="
                         + tts.lang());
         return tts;
+    }
+
+    private void finishNativeInferenceOnWorker() {
+        boolean releaseNow = nativeInferenceLifecycle.finishInference();
+        Log.i(
+                TAG,
+                "TTS_INFERENCE_FINISHED inFlight="
+                        + nativeInferenceLifecycle.inFlightCount()
+                        + " releaseNow="
+                        + releaseNow);
+        if (releaseNow) {
+            releaseTtsEngine("deferred_until_inference_finished");
+        }
+    }
+
+    private void requestTtsShutdownAndRelease() {
+        if (ttsExecutor != null) {
+            ttsExecutor.shutdown();
+        }
+        boolean releaseNow = nativeInferenceLifecycle.requestRelease();
+        if (releaseNow) {
+            releaseTtsEngine("no_inference_in_flight");
+        } else if (!nativeInferenceLifecycle.isReleased()) {
+            Log.i(
+                    TAG,
+                    "TTS_RELEASE_DEFERRED inFlight="
+                            + nativeInferenceLifecycle.inFlightCount());
+        }
+    }
+
+    private void releaseTtsEngine(String reason) {
+        OfflineTts engine = tts;
+        tts = null;
+        if (engine == null) {
+            Log.i(TAG, "TTS_RELEASE_SKIPPED reason=" + reason);
+            return;
+        }
+        try {
+            engine.release();
+            Log.i(TAG, "TTS_RELEASED reason=" + reason);
+        } catch (Throwable error) {
+            Log.w(TAG, "TTS release failed reason=" + reason, error);
+        }
     }
 
     private final class CancellableCallback implements Function1<float[], Integer> {

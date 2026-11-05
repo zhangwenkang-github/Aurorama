@@ -1,0 +1,12 @@
+{
+  "schema": "aurorama.kokoro.runtime-closure-v3.notification-stop-target.v1",
+  "sourceBytes": 29666,
+  "sourceSha256": "bc08c15a54cf8bd62043037e30b33ca815605b6c936aef84cacbec0925bc29b8",
+  "package": "dev.aurorama.kokoro.harness",
+  "text": "停止",
+  "resourceId": "dev.aurorama.kokoro.harness:id/action_stop",
+  "bounds": "[794,441][1030,549]",
+  "enabled": "true",
+  "clickable": "true",
+  "clickPoint": "912,495"
+}

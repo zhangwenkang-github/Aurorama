@@ -1,0 +1,92 @@
+# Kokoro fixed-v4 root-cause reproduction
+# Notification stop occurred during OfflineTts.generateWithCallback; service onDestroy released native TTS while worker still used it.
+
+11-05 20:32:34.245 23179 23179 E Zygote  : process_name_ptr:23179 dev.aurorama.kokoro.harness
+11-05 20:32:34.844 23179 23179 I KOKORO_RUNTIME: STATE {"schema":"aurorama.kokoro-runtime.state.v1","pid":23179,"status":"PREPARING","activeAudioOwner":"TTS","musicStatus":"IDLE","musicIndex":0,"queueLoaded":true,"queueIndex":0,"queueSize":2,"longRunMode":false,"longRunCycleCount":0,"longRunTargetMillis":0,"longRunPlannedMinimumMillis":0,"longRunAudioMillis":0,"stableIndex":0,"currentSentence":"雨停以后，旧车站的钟慢了两分钟。","stableSentence":"雨停以后，旧车站的钟慢了两分钟。","packId":"kokoro-multi-lang-v1_1","speaker":"zf_001","sid":3,"focusHeld":true,"audioTrackPlaying":false,"positionMillis":0,"generation":2,"autoPlay":false,"notificationTitle":"正在准备朗读","notificationText":"雨停以后，旧车站的钟慢了两分钟。 （1\/2）","playPauseAction":"PAUSE_TTS","mediaSessionState":"BUFFERING","notificationCompactActions":["STOP","PLAY_PAUSE","NEXT"],"notificationRecordActions":["STOP","PLAY_PAUSE","NEXT","PREVIOUS"],"lastCommand":"play_sample","lastError":"","updatedAtEpochMillis":1793881954824}
+11-05 20:32:34.844 23179 23179 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=0 speaker=zf_001 sid=3 generation=2 longRun=false total=2
+11-05 20:32:37.421 23179  8136 I KOKORO_RUNTIME: TTS_LOADED sampleRate=24000 speakers=103 lang=en-us
+11-05 20:32:39.049 23179 23179 I KOKORO_RUNTIME: COMMAND stop
+11-05 20:32:39.073 23179 23179 I KOKORO_RUNTIME: FOREGROUND_AND_NOTIFICATION_REMOVED
+11-05 20:32:39.078 23179 23179 I KOKORO_RUNTIME: STATE {"schema":"aurorama.kokoro-runtime.state.v1","pid":23179,"status":"STOPPED","activeAudioOwner":"NONE","musicStatus":"IDLE","musicIndex":0,"queueLoaded":true,"queueIndex":0,"queueSize":2,"longRunMode":false,"longRunCycleCount":0,"longRunTargetMillis":0,"longRunPlannedMinimumMillis":0,"longRunAudioMillis":0,"stableIndex":0,"currentSentence":"雨停以后，旧车站的钟慢了两分钟。","stableSentence":"雨停以后，旧车站的钟慢了两分钟。","packId":"kokoro-multi-lang-v1_1","speaker":"zf_001","sid":3,"focusHeld":false,"audioTrackPlaying":false,"positionMillis":0,"generation":3,"autoPlay":false,"notificationTitle":"朗读已停止","notificationText":"雨停以后，旧车站的钟慢了两分钟。 （1\/2）","playPauseAction":"NONE","mediaSessionState":"STOPPED","notificationCompactActions":["STOP","PLAY_PAUSE","NEXT"],"notificationRecordActions":["STOP","PLAY_PAUSE","NEXT","PREVIOUS"],"lastCommand":"stop","lastError":"","updatedAtEpochMillis":1793881959073}
+11-05 20:32:39.078 23179 23179 I KOKORO_RUNTIME: TTS_STOPPED music=IDLE musicIndex=0
+11-05 20:32:39.080  1108  8723 I vendor.qti.hardware.servicetracker@1.2-service: destroyService is called for service : dev.aurorama.kokoro.harness/.KokoroRuntimeService
+11-05 20:32:39.380 23179  8136 F libc    : FORTIFY: pthread_mutex_lock called on a destroyed mutex (0xb400007765ad57c8)
+11-05 20:32:39.398 23179  8136 F libc    : Fatal signal 6 (SIGABRT), code -1 (SI_QUEUE) in tid 8136 (kokoro-tts-runt), pid 23179 (.kokoro.harness)
+11-05 20:32:39.584 23179 23179 I KOKORO_RUNTIME: SERVICE_DESTROYED pid=23179
+11-05 20:32:40.800  8271  8271 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+11-05 20:32:40.800  8271  8271 F DEBUG   : Build fingerprint: 'Xiaomi/nabu/nabu:13/TKQ1.221114.001/V816.0.3.0.TKXCNXM:user/release-keys'
+11-05 20:32:40.800  8271  8271 F DEBUG   : Revision: '0'
+11-05 20:32:40.800  8271  8271 F DEBUG   : ABI: 'arm64'
+11-05 20:32:40.800  8271  8271 F DEBUG   : Timestamp: 2026-11-05 20:32:39.938657315+0800
+11-05 20:32:40.800  8271  8271 F DEBUG   : Process uptime: 7409s
+11-05 20:32:40.800  8271  8271 F DEBUG   : ZygotePid: 956
+11-05 20:32:40.800  8271  8271 F DEBUG   : Cmdline: dev.aurorama.kokoro.harness
+11-05 20:32:40.800  8271  8271 F DEBUG   : pid: 23179, tid: 8136, name: kokoro-tts-runt  >>> dev.aurorama.kokoro.harness <<<
+11-05 20:32:40.800  8271  8271 F DEBUG   : uid: 10336
+11-05 20:32:40.800  8271  8271 F DEBUG   : signal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------
+11-05 20:32:40.800  8271  8271 F DEBUG   : Abort message: 'FORTIFY: pthread_mutex_lock called on a destroyed mutex (0xb400007765ad57c8)'
+11-05 20:32:40.800  8271  8271 F DEBUG   :     x0  0000000000000000  x1  0000000000001fc8  x2  0000000000000006  x3  000000776f904250
+11-05 20:32:40.800  8271  8271 F DEBUG   :     x4  0000000080808080  x5  0000000080808080  x6  0000000080808080  x7  8080808080808080
+11-05 20:32:40.801  8271  8271 F DEBUG   :     x8  00000000000000f0  x9  000000788b6f8d30  x10 0000000000000001  x11 000000788b76d9c8
+11-05 20:32:40.801  8271  8271 F DEBUG   :     x12 0101010101010101  x13 000000006aec7767  x14 0016787681036c00  x15 0000000000000028
+11-05 20:32:40.801  8271  8271 F DEBUG   :     x16 000000788b7d8a80  x17 000000788b7b1650  x18 00000077621d0000  x19 0000000000005a8b
+11-05 20:32:40.801  8271  8271 F DEBUG   :     x20 0000000000001fc8  x21 00000000ffffffff  x22 000000776f904560  x23 b400007765a4dee8
+11-05 20:32:40.801  8271  8271 F DEBUG   :     x24 0000000000000000  x25 0000000000000001  x26 0000000000000001  x27 b400007765ad5780
+11-05 20:32:40.801  8271  8271 F DEBUG   :     x28 0000000000000000  x29 000000776f9042d0
+11-05 20:32:40.801  8271  8271 F DEBUG   :     lr  000000788b75e948  sp  000000776f904230  pc  000000788b75e974  pst 0000000000000000
+11-05 20:32:40.801  8271  8271 F DEBUG   : backtrace:
+11-05 20:32:40.801  8271  8271 F DEBUG   :       #00 pc 000000000008d974  /apex/com.android.runtime/lib64/bionic/libc.so (abort+168) (BuildId: 8a2277585401a6103d671ea1f801ed52)
+11-05 20:32:40.801  8271  8271 F DEBUG   :       #01 pc 000000000008f7d4  /apex/com.android.runtime/lib64/bionic/libc.so (__fortify_fatal(char const*, ...)+128) (BuildId: 8a2277585401a6103d671ea1f801ed52)
+11-05 20:32:40.801  8271  8271 F DEBUG   :       #02 pc 00000000000f69c0  /apex/com.android.runtime/lib64/bionic/libc.so (HandleUsingDestroyedMutex(pthread_mutex_t*, char const*)+68) (BuildId: 8a2277585401a6103d671ea1f801ed52)
+11-05 20:32:40.801  8271  8271 F DEBUG   :       #03 pc 00000000000f6840  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_mutex_lock+248) (BuildId: 8a2277585401a6103d671ea1f801ed52)
+11-05 20:32:40.801  8271  8271 F DEBUG   :       #04 pc 0000000000573118  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.801  8271  8271 F DEBUG   :       #05 pc 0000000001247b80  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.801  8271  8271 F DEBUG   :       #06 pc 0000000001247e6c  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.801  8271  8271 F DEBUG   :       #07 pc 00000000012472a8  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #08 pc 00000000012450ac  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #09 pc 0000000001241c18  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #10 pc 00000000012417fc  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #11 pc 000000000096b9c4  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #12 pc 0000000000984e0c  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #13 pc 0000000001033b78  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #14 pc 0000000001031ee0  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #15 pc 00000000010518f8  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #16 pc 0000000001036824  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #17 pc 000000000107b624  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #18 pc 000000000107b130  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #19 pc 000000000061e3bc  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #20 pc 0000000000620748  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #21 pc 00000000005cea54  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libonnxruntime.so
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #22 pc 00000000001ee580  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libsherpa-onnx-jni.so (BuildId: 1f1eca385035d0e1e562f152076405ced1b216cc)
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #23 pc 00000000003bec44  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libsherpa-onnx-jni.so (BuildId: 1f1eca385035d0e1e562f152076405ced1b216cc)
+11-05 20:32:40.802  8271  8271 F DEBUG   :       #24 pc 00000000003be980  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libsherpa-onnx-jni.so (BuildId: 1f1eca385035d0e1e562f152076405ced1b216cc)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #25 pc 000000000038dab4  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libsherpa-onnx-jni.so (BuildId: 1f1eca385035d0e1e562f152076405ced1b216cc)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #26 pc 000000000038b504  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libsherpa-onnx-jni.so (BuildId: 1f1eca385035d0e1e562f152076405ced1b216cc)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #27 pc 000000000035f46c  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libsherpa-onnx-jni.so (BuildId: 1f1eca385035d0e1e562f152076405ced1b216cc)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #28 pc 0000000000190ec8  /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/lib/arm64/libsherpa-onnx-jni.so (Java_com_k2fsa_sherpa_onnx_OfflineTts_generateWithCallbackImpl+232) (BuildId: 1f1eca385035d0e1e562f152076405ced1b216cc)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #29 pc 000000000021a354  /apex/com.android.art/lib64/libart.so (art_quick_generic_jni_trampoline+148) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #30 pc 000000000020b02c  /apex/com.android.art/lib64/libart.so (nterp_helper+7468) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #31 pc 0000000000061134  [anon:dalvik-classes.dex extracted in memory from /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/base.apk] (com.k2fsa.sherpa.onnx.OfflineTts.generateWithCallback+44)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #32 pc 000000000020a254  /apex/com.android.art/lib64/libart.so (nterp_helper+3924) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #33 pc 000000000006f922  [anon:dalvik-classes.dex extracted in memory from /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/base.apk] (dev.aurorama.kokoro.harness.KokoroRuntimeService.lambda$startCurrentTtsSentence$0+54)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #34 pc 000000000020a958  /apex/com.android.art/lib64/libart.so (nterp_helper+5720) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #35 pc 000000000006f0a8  [anon:dalvik-classes.dex extracted in memory from /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/base.apk] (dev.aurorama.kokoro.harness.KokoroRuntimeService.$r8$lambda$D76u6yiDOgA9hshthMQmX26mZvw+0)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #36 pc 0000000000209ae4  /apex/com.android.art/lib64/libart.so (nterp_helper+2020) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.803  8271  8271 F DEBUG   :       #37 pc 000000000006e018  [anon:dalvik-classes.dex extracted in memory from /data/app/~~yWWT9LJG0OWg4gw_A80pdg==/dev.aurorama.kokoro.harness-xylCsTt9CH6MMKzz-ZeXaA==/base.apk] (dev.aurorama.kokoro.harness.KokoroRuntimeService$6.run+20)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #38 pc 000000000020b074  /apex/com.android.art/lib64/libart.so (nterp_helper+7540) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #39 pc 0000000000222708  /apex/com.android.art/javalib/core-oj.jar (java.util.concurrent.ThreadPoolExecutor.runWorker+156)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #40 pc 000000000020a254  /apex/com.android.art/lib64/libart.so (nterp_helper+3924) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #41 pc 000000000022150c  /apex/com.android.art/javalib/core-oj.jar (java.util.concurrent.ThreadPoolExecutor$Worker.run+4)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #42 pc 000000000020b074  /apex/com.android.art/lib64/libart.so (nterp_helper+7540) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #43 pc 00000000000f67b0  /apex/com.android.art/javalib/core-oj.jar (java.lang.Thread.run+8)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #44 pc 000000000021096c  /apex/com.android.art/lib64/libart.so (art_quick_invoke_stub+556) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #45 pc 000000000027b478  /apex/com.android.art/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+188) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #46 pc 000000000061bc4c  /apex/com.android.art/lib64/libart.so (art::JValue art::InvokeVirtualOrInterfaceWithJValues<art::ArtMethod*>(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, art::ArtMethod*, jvalue const*)+464) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #47 pc 0000000000663fac  /apex/com.android.art/lib64/libart.so (art::Thread::CreateCallback(void*)+1292) (BuildId: 14fc77b24db0b351b919c97009dc86bf)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #48 pc 00000000000f57c8  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+208) (BuildId: 8a2277585401a6103d671ea1f801ed52)
+11-05 20:32:40.804  8271  8271 F DEBUG   :       #49 pc 000000000008f1bc  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+68) (BuildId: 8a2277585401a6103d671ea1f801ed52)
+11-05 20:32:40.907  1977  8274 I am_crash: [1977,0,dev.aurorama.kokoro.harness,817380934,Native crash,Aborted,unknown,0]
+11-05 20:32:40.923  1977  8274 W ActivityTaskManager:   Force finishing activity dev.aurorama.kokoro.harness/.HarnessActivity
+11-05 20:32:40.969  5251  5609 D DigestGenerator: digest=============dev.aurorama.kokoro.harnessAbort message: 'FORTIFY: pthread_mutex_lock called on a destroyed mutex ()'
+11-05 20:32:41.031  1977  6294 I ActivityManager: Process dev.aurorama.kokoro.harness (pid 23179) has died: cch CRE
+11-05 20:32:41.033   956   956 I Zygote  : Process 23179 exited due to signal 6 (Aborted)
