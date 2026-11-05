@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / RUNTIME_V4_IMPLEMENTATION_COMMITTED / K60_QA_V5_FULL_PASS / PAD_UNLOCKED / PAD_QA_V5_ABORTED_USER_OVERRIDE / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `D207_KOKORO_AUDITION_ACCEPTED / K60_QA_V5_FULL_PASS / PAD_UNLOCKED / PAD_SMALL_QA_READY_IN_SUCCESSOR / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。v4 隔离 harness 已在 K60 API35 完成独立 QA-v5：36/0/0/0 合同测试、双声线真实 AudioTrack、30 分钟全程锁屏、165 次真实音频 start/completion、通知四控件、系统 AudioFocus、暂停重建、tamper fail-closed、UI cancel、音乐互斥、final APK 零网络与清理全部通过。K60 `zf_001` 首句 RTF `1.146`、聚合 `0.886866`、峰值 PSS `924,446 KB`，继续作为性能风险。用户确认 Pad 已解锁，并要求使用全新小型 QA，只做差异化测试；旧 QA 的提前 Pad 数据已作废。许可仍 PARTIAL：训练数据、speaker 权属、逐资产许可、最终 NOTICE / source offer 阻断 profile / Q03。Q03 Open、项目级 runtime UNVERIFIED、G1 NOT_PASSED、L2/L3 LOCKED，exact engine / profile / voice 未冻结。
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / RUNTIME_V5_IMPLEMENTATION_COMMITTED / P1_IMPLEMENTED_SELF_TEST_PASS / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_READY / K60_QA_V5_FULL_PASS / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `P1_IMPLEMENTED_SELF_TEST_PASS / PAD_STOP_QA_V7_READY / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。v5 隔离 harness 已完成 `REV6-P1-01` 最小修复：TDD `39/0/0/0`，Pad 推理中 / playing 中 stop 自测无 SIGABRT、native crash、FATAL、ANR 或 InputTimeout，clean 与锁释放通过；完整事实见 `runtime-closure-v3/implementation-report.json`。该结果是实现自测，不是独立 QA。下一原子任务由不同全新 QA 在 Pad 上重建 stop-only 与 crash gate；通过后才另派完整 Pad/K60 runtime 重验。K60 QA-v5 与 Pad QA-v6 仅为旧候选基线，不能替新 APK 作证。许可、Pad P2、Q03、项目级 runtime、G1 与 profile 均未闭合。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-05
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3413,7 +3413,77 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：Pad QA FAIL P1 已定位，隔离 harness stop-path 修复已授权（2026-11-05）
+### ACTIVE：P1 v5 实现自测 PASS，交接全新 Pad stop-only QA-v7（2026-11-05）
+
+**下一责任身份**：Aurorama 2.0 G1 全新独立 Pad runtime QA / 用户承诺验证专家。本会话只关闭
+新候选的 stop-only 与 native crash 门；不得沿用实现 owner 的身份，也不得在本波扩成完整
+30 分钟或双机矩阵。
+
+**对象**：事实工作树
+`F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`，分支
+`codex/v2-integration`。实现输入基线提交
+`35ed65c2dc0e4171bdaf5b6fe055ad1f2e7ead8c`；文档后继提交后的实际 HEAD、clean、父链和
+候选祖先必须由接收方现场读取，不得把本段自身提交当作固定 HEAD。
+
+**状态**：
+`P1_IMPLEMENTED_SELF_TEST_PASS / PAD_STOP_QA_V7_READY / RUNTIME_V5_BUILT / DEVICE_LOCK_ACTIVE_0 / PAD_QA_V6_BASELINE_FAIL / PAD_P2_UNACCEPTED / KOKORO_LICENSE_PARTIAL / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+
+**上一波已完成**
+
+- 固定 v4 main/peer 在 Pad `43af8627` 复现 `REV6-P1-01`：通知停止后 native inference
+  仍运行，旧 service teardown 释放 `OfflineTts`，ONNX mutex 已销毁后触发 SIGABRT；
+  `ApplicationExitInfo reason=5 APP CRASH(NATIVE), status=6`。
+- 新增 `NativeInferenceLifecycle`；stop/cancel teardown 只请求 release，实际 release 由
+  inference worker `finally` 在 native 调用收口后执行。TDD RED=`compileTestJava exit 1 /
+  6 errors`，GREEN=`39/0/0/0`、12 XML suites。
+- 新 main `427,009,671 B / 252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`，
+  `versionCode 4 / 2.0-kokoro-runtime-v5`；新 peer
+  `12,696 B / 61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`。
+  两 APK 均 arm64-v8a、无 INTERNET、签名 PASS；main 单 service / 单 MediaSession /
+  单 AudioTrack construction site。
+- 实现侧 Pad 自测：推理中 stop 出现 `TTS_RELEASE_DEFERRED inFlight=1`，约 15.8 秒后
+  inference 返回并 release；playing 中 stop 后无新 AudioTrack。两轮 PID 存活，
+  service/notification/MediaSession 收敛，无 `F DEBUG` / tombstone / FATAL / ANR /
+  InputTimeout / 新 `reason=5`。
+- 上一波证据与完整事实只读
+  `.planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/implementation-report.json` 与同目录
+  `artifact-audit.json`；实现自测不是独立 QA。
+
+**下一原子任务（QA-v7，Pad only）**
+
+1. 第一条只读动作：运行
+   `pwsh -NoProfile -ExecutionPolicy Bypass -File 'C:\Users\zhangwenkang\.codex\deepseek-subagent-proxy\status.ps1'`，
+   然后读本 ACTIVE、`runtime-closure-v3/implementation-report.json`、
+   `artifact-audit.json`、两轮 implementation evidence、QA-v6 report 与
+   `F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md` 顶部。
+2. 核验 worktree/branch/current HEAD/clean、实现输入基线是 HEAD 祖先、设备锁 ACTIVE=0；
+   只使用 Pad `43af8627`（API33/arm64），先验 keyguard=false。若锁屏则
+   `USER_UNLOCK_REQUIRED` 停止，绝不尝试密码 / 图案 / PIN / 生物识别。K60 零针对性命令。
+3. 独占登记新 QA-v7 锁；核验宿主 main/peer bytes+SHA 与设备安装后 bytes+SHA MATCH，
+   再从 fresh install 独立执行通知 stop-only，不复用实现自测日志作证。
+4. 至少各一次“短样 native inference 中 stop”与“真实 AudioTrack playing 中 stop”。
+   保存自己生成的 package-filtered logcat、stop 时间、PID、`ApplicationExitInfo`、F DEBUG /
+   tombstone 扫描、service/FGS/notification/MediaSession、无新 AudioTrack 与 PID 存活证据。
+5. 验收仅允许 `PASS_STOP_ONLY`：两轮均无 native crash / Java FATAL / ANR / InputTimeout /
+   新 `reason=5`，进程存活，资源收敛，设备清理恢复。任何 crash 为 `FAIL`，不得用实现
+   self-test、旧 APK 或其它设备结果覆盖。
+6. 只写新证据根 `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v7/**`、设备锁和 ignored 临时输出；
+   不改 harness / v3 报告 / 生产代码；完成后必须写回本 ACTIVE / §13、TASKS 和 qa-v7 报告，可本地 commit，但禁止 push / tag / Release；不派子代理或
+   合并。结束前卸载双包、清 external/data、恢复生产包/网络/音量/屏幕/current user，证明
+   锁 ACTIVE=0，并提交自己的 QA 报告。
+
+**非目标 / 停止门**：不做完整 30 分钟、K60 / 双机全矩阵、Pad P2 接受、许可 / notice、
+profile freeze、生产集成、Q03、G2、G1 或 Release；不下载 MOSS / 新模型 / 新域名、不写
+服务器、不绕过安全身份门。出现新 P0–P2、APK/source/hash/permission 漂移、锁冲突、
+需要实现返修或 stop-only 无法独立复现时停止并报告。
+
+**后续（本波成功后另派）**：另创建一个与实现、QA-v7 都不同的全新完整 runtime QA，在新
+APK 上重验 Pad/K60 核心承诺、30 分钟、零网络、focus/重建/互斥和清理；旧 QA-v5/v6 证据不能
+替新候选作证。
+
+**交接水位**：2026-11-05 20:50 +08:00，实际 `353,953 / 1,048,576 tokens`（33.8%）。
+
+### HISTORY：Pad QA FAIL P1 已定位，隔离 harness stop-path 修复已授权（2026-11-05；已被上方 QA-v7 ACTIVE 取代）
 
 **负责身份**：G1 Kokoro runtime closure / licensing / device delivery owner（交付负责人 /
 技术集成编排者）。事实工作树
@@ -4909,3 +4979,10 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   teardown crash；仅做定向复现、TDD、最小修复、构建、边界内 stop-only 真机自测与实现报告。
   不包含独立 QA、完整 30 分钟矩阵、性能 P2 接受、许可闭环、生产代码、G2 或 Release。
   实现收口后停止，再由负责人另派全新独立 QA；后续派单按“一个子代理一个原子阶段”控制上下文。
+- **2026-11-05 — P1 v5 隔离修复完成 / 交接 Pad stop-only QA-v7**：固定 v4 在 Pad
+  复现 destroyed-mutex native crash；v5 以 `NativeInferenceLifecycle` 延迟 release 到
+  inference worker 收口。TDD RED 为 6 个编译错误，GREEN=`39/0/0/0`；实现侧推理中 /
+  playing 中 stop 自测均无 `F DEBUG`、tombstone、FATAL、ANR、InputTimeout 或新
+  `reason=5`，PID 与资源收敛，锁释放 `ACTIVE=0`。新 main/peer 已生成并审计；实现提交
+  `35ed65c2`。本波只做实现自测，不是独立 QA / 30 分钟 / 双机 / G1。下一步仅交接不同全新
+  Pad QA-v7 独立复测 stop-only 与 crash gate；通过后才另派完整 Pad/K60 revalidation。
