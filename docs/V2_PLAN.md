@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / RUNTIME_V4_IMPLEMENTATION_COMMITTED / K60_QA_V5_FULL_PASS / PAD_QA_V5_ABORTED_USER_OVERRIDE / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `D207_KOKORO_AUDITION_ACCEPTED / K60_QA_V5_FULL_PASS / PAD_SMALL_QA_PENDING_USER_UNLOCK / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。v4 隔离 harness 已在 K60 API35 完成独立 QA-v5：36/0/0/0 合同测试、双声线真实 AudioTrack、30 分钟全程锁屏、165 次真实音频 start/completion、通知四控件、系统 AudioFocus、暂停重建、tamper fail-closed、UI cancel、音乐互斥、final APK 零网络与清理全部通过。K60 `zf_001` 首句 RTF `1.146`、聚合 `0.886866`、峰值 PSS `924,446 KB`，仍有高内存风险需记录。用户要求 Pad 由全新小型 QA 做差异化测试；旧 QA 已提前中止 Pad 且数据作废，当前 Pad keyguard 再次锁屏，待用户解锁。许可仍 PARTIAL：训练数据、speaker 权属、逐资产许可、最终 NOTICE / source offer 阻断 profile / Q03。Q03 Open、项目级 runtime UNVERIFIED、G1 NOT_PASSED、L2/L3 LOCKED，exact engine / profile / voice 未冻结。
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / RUNTIME_V4_IMPLEMENTATION_COMMITTED / K60_QA_V5_FULL_PASS / PAD_UNLOCKED / PAD_QA_V5_ABORTED_USER_OVERRIDE / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `D207_KOKORO_AUDITION_ACCEPTED / K60_QA_V5_FULL_PASS / PAD_UNLOCKED / PAD_SMALL_QA_READY_IN_SUCCESSOR / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。v4 隔离 harness 已在 K60 API35 完成独立 QA-v5：36/0/0/0 合同测试、双声线真实 AudioTrack、30 分钟全程锁屏、165 次真实音频 start/completion、通知四控件、系统 AudioFocus、暂停重建、tamper fail-closed、UI cancel、音乐互斥、final APK 零网络与清理全部通过。K60 `zf_001` 首句 RTF `1.146`、聚合 `0.886866`、峰值 PSS `924,446 KB`，继续作为性能风险。用户确认 Pad 已解锁，并要求使用全新小型 QA，只做差异化测试；旧 QA 的提前 Pad 数据已作废。许可仍 PARTIAL：训练数据、speaker 权属、逐资产许可、最终 NOTICE / source offer 阻断 profile / Q03。Q03 Open、项目级 runtime UNVERIFIED、G1 NOT_PASSED、L2/L3 LOCKED，exact engine / profile / voice 未冻结。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-05
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3413,7 +3413,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：K60 Kokoro runtime v4 独立 QA 已 PASS，Pad 小型差异化 QA 等待解锁（2026-11-05）
+### ACTIVE：K60 Kokoro runtime v4 独立 QA 已 PASS，Pad 小型差异化 QA 已具备后继条件（2026-11-05）
 
 **负责身份**：G1 Kokoro runtime closure / licensing / device delivery owner（交付负责人 /
 技术集成编排者）。事实工作树
@@ -3422,7 +3422,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 `191a46e227c6cecac14392a2de4bc0a0fae026ee`。本轮未修改生产代码、未 push / tag / Release。
 
 **状态**：
-`D207_KOKORO_AUDITION_ACCEPTED / RUNTIME_IMPLEMENTATION_V4_COMMITTED / K60_QA_V5_FULL_PASS / PAD_QA_V5_ABORTED_USER_OVERRIDE / PAD_USER_UNLOCK_REQUIRED / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+`D207_KOKORO_AUDITION_ACCEPTED / RUNTIME_IMPLEMENTATION_V4_COMMITTED / K60_QA_V5_FULL_PASS / PAD_QA_V5_ABORTED_USER_OVERRIDE / PAD_UNLOCKED / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
 K60 的 v4 隔离 harness 已由全新 QA-v5 完成完整矩阵并通过。Pad 只做差异化小型 QA；
 旧 QA 在用户“换新代理、Pad 简单测”更新到达前已提前碰过 Pad 安装与一次 `play_long`，因
 monitor sample=0，所有结果作废，已卸载清理；不得作为 Pad 证据。
@@ -3478,8 +3478,8 @@ monitor sample=0，所有结果作废，已卸载清理；不得作为 Pad 证�
 
 **未完成 / 用户门**
 
-- Pad 5 `43af8627` 当前 `screen ON / keyguard showing=true`，必须由用户本人再次解锁；
-  不得尝试密码或生物识别。用户已要求 Pad 使用全新小型 QA，只测差异化风险：
+- Pad 5 `43af8627` 已由用户确认解锁；交接 audit 前应再次确认 `keyguard=false` 且两个
+  KOKORO 包未安装。用户要求 Pad 使用全新小型 QA，只测差异化风险：
   API33 安装 / 启动、双声线首音与 RTF / PSS、30 分钟后台真实 AudioTrack、通知停止入口、
   final APK 零网络与清理；不重复 K60 的全量四控件、tamper、音乐互斥和重建矩阵。
 - K60 本次 `zf_001` 峰值 PSS `924,446 KB`、首句 RTF `1.146` 虽未阻断 SDK QA，但显存 /
@@ -3487,7 +3487,7 @@ monitor sample=0，所有结果作废，已卸载清理；不得作为 Pad 证�
 - exact engine / profile / voice 未冻结；Q03 Open；项目级 runtime UNVERIFIED；G1 / Release
   均未通过。
 
-**下一步入口（用户解锁 Pad 后）**
+**下一步入口（Pad 已解锁，完成后继 audit 后交由新会话）**
 
 1. 使用**全新小型 Pad QA 子代理**，不得复用 QA-v5；第一条只读动作是核验 Pad
    `keyguard=false`、两个 KOKORO 包未安装、`ACTIVE=0`、HEAD / 候选祖先与固定 APK hash。
@@ -3497,7 +3497,7 @@ monitor sample=0，所有结果作废，已卸载清理；不得作为 Pad 证�
 3. Pad 通过后汇总“K60 完整 + Pad 差异化”证据，向用户说明性能 P2、许可 P1 / P2 与剩余
    生产化缺口；不得自行冻结 profile 或关闭 Q03 / G1。
 
-**停止条件**：Pad 仍锁屏、需要绕过密码、设备锁冲突、哈希 / 权限漂移、30 分钟真实 AudioTrack
+**停止条件**：Pad 再次锁屏、需要绕过密码、设备锁冲突、哈希 / 权限漂移、30 分钟真实 AudioTrack
 中断、新 P0–P2、未经授权的新域名 / 资产 / 生产代码 / 服务器写，或要求代签 profile freeze、
 Q03、G1、Release 时停止并报告。
 
@@ -4810,3 +4810,10 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   更新前已提前启动 Pad 安装和一次 `play_long`，因 monitor sample=0，结果全部作废并安全清理。
   Pad 当前 keyguard 再次显示 `showing=true`，不得绕过；下一轮必须使用全新小型 Pad QA，仅测
   API33 安装 / 双声线 / RTF/PSS / 30 分钟真实 AudioTrack / 通知停止 / 零网络与清理。
+- **2026-11-05 — 交接规范二次修订与 Pad 后继**：用户指出旧会话未收口就交接、以及创建
+  “只等待、无实际任务”的空后继是近期反复问题。`AGENTS.md`、`PROJECT_RULES` R020/R028、
+  `PROJECT_PLAN` §5.8 已改为固定顺序“完成当前最小波次或明确 BLOCKED → 文档 / ACTIVE /
+  决策 / 日志 / 证据 → 提交 + clean → Engramory sync + checker/doctor → 旧会话 fresh
+  read-only pre-handoff audit PASS → 创建后继并派具体任务”。仅等待用户 / 设备 / 外部状态
+  时禁止创建空会话；35 万只有在存在已授权、可立即执行的后继任务时才交接。Pad 已由用户再次
+  解锁，后续由全新小型 QA 只做差异化矩阵，K60 完整矩阵不重复。
