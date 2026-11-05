@@ -1,0 +1,502 @@
+{
+  "schema": "aurorama.kokoro-qa-v5.report.v1",
+  "task": "Aurorama 2.0 G1 independent Android runtime QA / user-promise verification",
+  "role": "fresh independent Android runtime QA and user-promise verification specialist; no source, harness, docs, old-QA, merge-prep, commit, push or Release changes",
+  "generatedAt": "2026-11-05T13:08:00+08:00",
+  "verdict": "K60_PASS_PAD_ABORTED_BY_USER",
+  "status": "K60_RUNTIME_PASS / PAD_PARTIAL_NOT_USED / USER_UNLOCK_REQUIRED / GLOBAL_RUNTIME_NOT_VERIFIED / G1_NOT_PASSED",
+  "boundaries": {
+    "claimSurface": "fixed isolated KOKORO harness only",
+    "productionRuntime": "UNVERIFIED",
+    "d203Closure": "NOT_PROVEN",
+    "profileFreeze": "NOT_AUTHORIZED",
+    "q03": "OPEN",
+    "g1": "NOT_PASSED",
+    "sourceOrHarnessModified": false,
+    "existingReportsModified": false,
+    "commitsPushesTagsOrReleases": 0,
+    "subagentsSpawned": 0,
+    "screenshotsTaken": 0,
+    "viewImageCalls": 0
+  },
+  "candidate": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "1388e00e97e42dc28e53391adb4d0e9e75277204",
+    "implementationCandidate": "191a46e227c6cecac14392a2de4bc0a0fae026ee",
+    "candidateIsAncestorOfHead": true,
+    "initialGitClean": true,
+    "finalGitStatus": [
+      "?? .planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v5/"
+    ],
+    "trackedDiffCount": 0
+  },
+  "objectGate": {
+    "fixedMain": {
+      "sourcePath": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "frozenCopy": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v5/inputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 427009671,
+      "sha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+      "package": "dev.aurorama.kokoro.harness",
+      "versionCode": 3,
+      "versionName": "2.0-kokoro-runtime-v4",
+      "nativeCode": "arm64-v8a",
+      "serviceCount": 1,
+      "foregroundServiceType": "mediaPlayback (0x00000002)",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
+      ],
+      "internetPermission": false
+    },
+    "focusPeer": {
+      "sourcePath": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+      "frozenCopy": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v5/inputs/kokoro-focus-peer-debug.apk",
+      "bytes": 12696,
+      "sha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c",
+      "package": "dev.aurorama.kokoro.focuspeer",
+      "permissionCount": 0,
+      "internetPermission": false
+    },
+    "contractTests": {
+      "command": ".\\gradlew.bat -p .planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness :contract:test --offline --console=plain --rerun-tasks",
+      "exitCode": 0,
+      "xmlFileCount": 11,
+      "executed": 36,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "evidence": "raw/contract-test-gradle.log"
+    },
+    "independentBuild": {
+      "firstAttempt": {
+        "exitCode": 1,
+        "reason": "wrong Gradle project selection :app; corrected as a local tool invocation error"
+      },
+      "correctedCommand": "pwsh -NoProfile -File .planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build.ps1",
+      "exitCode": 0,
+      "mainBytes": 427009671,
+      "mainSha256": "e17ee2e045da0b36ffa5702335f00991cb2e5209163e9aa5a48e1c0dd3f77ed9",
+      "peerBytes": 12696,
+      "peerSha256": "44783989cccc8a692123a7ec3d0445d4a3f9bce7ccd1dd30d48f7cb659a645cd",
+      "fixedApkUsedOnDevices": true,
+      "finding": "P3_QAV5_01 independent debug build is not byte-reproducible"
+    }
+  },
+  "userPromiseMatrix": [
+    {
+      "id": "QA5-U01",
+      "device": "K60 8e875894 / API35 / arm64",
+      "promise": "Fixed candidate identity, permissions, contract tests and offline build are independently rechecked.",
+      "entry": "Git and aapt2 gates; Gradle; standalone build.ps1",
+      "executed": true,
+      "exit": "0 for contracts and corrected build",
+      "observable": "36/0/0/0; arm64; no INTERNET; one mediaPlayback FGS; fixed copies used on device",
+      "evidence": [
+        "raw/contract-test-gradle.log",
+        "raw/independent-build-retry.log",
+        "raw/main-badging.txt",
+        "raw/main-permissions.txt",
+        "raw/main-manifest-tree.txt",
+        "raw/peer-permissions.txt"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U02",
+      "device": "K60 8e875894",
+      "promise": "main and independent-UID peer install from the fixed hashes with separate UIDs and no INTERNET.",
+      "entry": "MIUI installer with runtime-bounds continue click",
+      "executed": true,
+      "exit": "0/0",
+      "observable": "UID 10312 main / 10313 peer; both device APK hashes MATCH; peer permissions 0",
+      "evidence": [
+        "device-K60-8e875894/miui-install-main.json",
+        "device-K60-8e875894/peer-install/miui-install-wrapper.json",
+        "device-K60-8e875894/install-gate.json"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U03",
+      "device": "K60 8e875894",
+      "promise": "zf_001 sid3 and zm_010 sid59 produce real first audio, AudioTrack playback, controls, RTF and peak PSS.",
+      "entry": "Harness play_sample then approved voice toggle",
+      "executed": true,
+      "exit": "0/0",
+      "observable": "Both samples complete with real AudioTrack; forbidden speaker requests 0",
+      "evidence": [
+        "device-K60-8e875894/voice-zf_001.json",
+        "device-K60-8e875894/voice-zm_010.json",
+        "device-K60-8e875894/notification-controls.json"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U04",
+      "device": "K60 8e875894",
+      "promise": "A complete 30-minute screen-off playback remains real audio, not service-only survival or early completion.",
+      "entry": "play_long; stay-on captured/set to 0; screen power key; 30 one-minute samples",
+      "executed": true,
+      "exit": 0,
+      "observable": "1804.924 s; 30/30 Asleep; 165 starts + 165 completions; 0 FGS/MediaSession/notification/PID violations; queue 165/351; no completion",
+      "evidence": [
+        "device-K60-8e875894/background-longrun.json",
+        "device-K60-8e875894/background-longrun-start.json",
+        "device-K60-8e875894/background-longrun-samples.jsonl",
+        "device-K60-8e875894/background-longrun-audio-events.json"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U05",
+      "device": "K60 8e875894",
+      "promise": "SystemUI custom notification exposes truthful stop, play/pause, previous and next actions.",
+      "entry": "Expand notification shade; tap live resource-ID bounds",
+      "executed": true,
+      "exit": "0 for six taps",
+      "observable": "pause/next/resume/previous/pause/stop reached runtime; previous TTS_NAVIGATE 175 -> 174; service destroyed after stop",
+      "evidence": [
+        "device-K60-8e875894/notification-controls.json",
+        "device-K60-8e875894/notification-ui-step-1.json",
+        "device-K60-8e875894/notification-ui-step-2.json",
+        "device-K60-8e875894/notification-ui-step-3.json",
+        "device-K60-8e875894/notification-ui-step-4.json",
+        "device-K60-8e875894/notification-ui-step-5.json",
+        "device-K60-8e875894/notification-ui-step-6.json"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U06",
+      "device": "K60 8e875894",
+      "promise": "A second app's OS audio focus request pauses main TTS and never auto-resumes it.",
+      "entry": "Independent-UID focus peer requests AUDIOFOCUS_GAIN_TRANSIENT with real AudioTrack",
+      "executed": true,
+      "exit": 0,
+      "observable": "peer granted; main receives change=-2 LOSS_TRANSIENT; main abandons focus; after release PAUSED, autoPlay=false, no TTS restart",
+      "evidence": [
+        "device-K60-8e875894/focus-peer.json"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U07",
+      "device": "K60 8e875894",
+      "promise": "Force-stop/manual restart restores the same stable sentence as PAUSED only; tampered pack/speaker fail closed.",
+      "entry": "Pause, force-stop, manual Activity launch; run-as checkpoint tamper and restore",
+      "executed": true,
+      "exit": 0,
+      "observable": "same stable index/sentence; 8 s with no AudioTrack; tampered-pack and zm_009/sid58 both IDLE with no owner; original checkpoint SHA restored",
+      "evidence": [
+        "device-K60-8e875894/recreate-paused.json",
+        "device-K60-8e875894/checkpoint-tamper.json",
+        "device-K60-8e875894/tamper-pack.json",
+        "device-K60-8e875894/tamper-speaker.json"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U08",
+      "device": "K60 8e875894",
+      "promise": "UI cancel and music/TTS arbitration converge to truthful single-owner behavior.",
+      "entry": "Tap runtime_command:cancel; music_play/TTS/stop sequences",
+      "executed": true,
+      "exit": 0,
+      "observable": "cancel kills process and clears service/notification/MediaSession; music and TTS never coexist; music remains PAUSED after TTS stop",
+      "evidence": [
+        "device-K60-8e875894/ui-cancel.json",
+        "device-K60-8e875894/music-tts-arbitration.json"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U09",
+      "device": "K60 8e875894",
+      "promise": "Complete inference/playback remains zero-network and UID netstats stay zero.",
+      "entry": "Airplane mode + Wi-Fi/data off; complete play_sample; all UID blocks and mAppUidStatsMap",
+      "executed": true,
+      "exit": 0,
+      "observable": "two real TTS AudioTracks complete offline; UID 10312 identity blocks 0 and map rows 0 before/after; total delta 0; network restored",
+      "evidence": [
+        "device-K60-8e875894/zero-network.json",
+        "device-K60-8e875894/netstats/before.txt",
+        "device-K60-8e875894/netstats/after.txt",
+        "device-K60-8e875894/final-netstats.txt"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U10",
+      "device": "K60 8e875894",
+      "promise": "No FATAL/ANR/InputTimeout; forbidden speaker is never invoked; packages/state/settings are cleaned.",
+      "entry": "Host log, crash/events buffers, final netstats, uninstall and before/after snapshots",
+      "executed": true,
+      "exit": 0,
+      "observable": "FATAL/ANR/InputTimeout 0/0/0; forbidden TTS request 0; UI cancel SIGKILL is intentional; both uninstalls Success; production and settings MATCH",
+      "evidence": [
+        "device-K60-8e875894/finalize-device.json",
+        "device-K60-8e875894/before.json"
+      ],
+      "status": "PASS"
+    },
+    {
+      "id": "QA5-U11",
+      "device": "Pad 5 43af8627 / API33 / arm64",
+      "promise": "The full Pad user-promise matrix is independently executed.",
+      "entry": "Initially started, then explicit user override required immediate stop",
+      "executed": false,
+      "exit": "ABORTED",
+      "observable": "Partial install and two voice samples existed before override; 30-minute run started at 13:05:45 but had 0 monitor samples before abort; no Pad verdict",
+      "evidence": [
+        "device-PAD5-43af8627/aborted-cleanup.json",
+        "device-PAD5-43af8627/background-longrun-start.json"
+      ],
+      "status": "NOT_RUN_USER_OVERRIDE_PARTIAL_NOT_USED"
+    }
+  ],
+  "k60LongRun": {
+    "screenOffAt": "2026-11-05T12:15:52.3053488+08:00",
+    "windowEnd": "2026-11-05T12:45:57.2289884+08:00",
+    "observedSeconds": 1804.924,
+    "sampleCount": 30,
+    "allSamplesAsleep": true,
+    "foregroundViolationCount": 0,
+    "mediaSessionViolationCount": 0,
+    "notificationViolationCount": 0,
+    "pidViolationCount": 0,
+    "earlyStopOrCompletionCount": 0,
+    "audioTrackStarts": 165,
+    "audioTrackCompletions": 165,
+    "firstSegment": {
+      "windowSeconds": "0-60",
+      "starts": 5,
+      "completions": 5
+    },
+    "midSegment": {
+      "windowSeconds": "870-930",
+      "starts": 6,
+      "completions": 5
+    },
+    "finalSegment": {
+      "windowSeconds": "1740-1800",
+      "starts": 6,
+      "completions": 6
+    },
+    "maximumInactiveAudioGapMs": 7000,
+    "maximumInactiveGap": {
+      "fromOffsetSeconds": 22.626,
+      "toOffsetSeconds": 28.705,
+      "fromEvent": "AUDIO_TRACK_COMPLETED generation=4",
+      "toEvent": "AUDIO_TRACK_STARTED generation=5"
+    },
+    "finalQueue": "165/351",
+    "finalLongRunAudioMillis": 1061650,
+    "finalStateAtLastSleepingSample": "PLAYING / TTS / audioTrackPlaying=true",
+    "stayOnRestored": "15"
+  },
+  "k60VoiceMetrics": {
+    "zf_001": {
+      "sid": 3,
+      "firstAudioMs": 4584,
+      "firstSentenceRtf": 1.146,
+      "aggregateRtf": 0.886866,
+      "aggregateAudioDurationMs": 10050,
+      "peakPssKb": 924446,
+      "pssSampleCount": 10
+    },
+    "zm_010": {
+      "sid": 59,
+      "firstAudioMs": 2837,
+      "firstSentenceRtf": 0.718228,
+      "aggregateRtf": 0.712673,
+      "aggregateAudioDurationMs": 10100,
+      "peakPssKb": 655124,
+      "pssSampleCount": 9
+    }
+  },
+  "k60NotificationActualTaps": [
+    {
+      "control": "action_play_pause",
+      "text": "暂停",
+      "bounds": "[320,445][534,532]",
+      "result": "PAUSED / audioTrackPlaying=false"
+    },
+    {
+      "control": "action_next",
+      "text": "下一句",
+      "bounds": "[770,445][984,532]",
+      "result": "PAUSED / index 173 -> 174"
+    },
+    {
+      "control": "action_play_pause",
+      "text": "继续",
+      "bounds": "[320,445][534,532]",
+      "result": "PLAYING / AudioTrack true"
+    },
+    {
+      "control": "action_previous",
+      "text": "上一句",
+      "bounds": "[545,445][759,532]",
+      "result": "TTS_NAVIGATE from=175 to=174"
+    },
+    {
+      "control": "action_play_pause",
+      "text": "暂停",
+      "bounds": "[320,445][534,532]",
+      "result": "PAUSED"
+    },
+    {
+      "control": "action_stop",
+      "text": "停止",
+      "bounds": "[96,445][309,532]",
+      "result": "STOPPED / SERVICE_DESTROYED"
+    }
+  ],
+  "k60Focus": {
+    "peerUid": 10313,
+    "mainUid": 10312,
+    "peerRequest": "AUDIOFOCUS_GAIN_TRANSIENT granted with real peer AudioTrack",
+    "systemCallback": "AUDIOFOCUS_LOSS_TRANSIENT / change=-2",
+    "mainBehavior": "paused, abandoned focus, stopped AudioTrack",
+    "afterPeerRelease": "PAUSED / autoPlay=false / focusHeld=false / audioTrackPlaying=false",
+    "mainAudioStartsAfterPeerRelease": 0
+  },
+  "k60ReconstructionAndSafety": {
+    "forceStopManualRestart": "PASS / same stable sentence / 8 s no AudioTrack",
+    "tamperedPack": "IDLE / no AudioTrack / fail-closed",
+    "tamperedSpeaker": "zm_009 sid58 rejected / IDLE / no AudioTrack",
+    "originalCheckpointSha256": "fecf35fe18960504911696dbe690ce4717aee7c2acabb1a524bf676d66a28aca",
+    "checkpointRestoredSha256": "fecf35fe18960504911696dbe690ce4717aee7c2acabb1a524bf676d66a28aca",
+    "uiCancel": "PASS / CANCEL_CONVERGED / CANCEL_PROCESS_EXIT / all service resources gone",
+    "musicTts": "PASS / single active owner / music stayed PAUSED after TTS stop / no music autoplay"
+  },
+  "k60ZeroNetwork": {
+    "uid": 10312,
+    "networkDuring": {
+      "airplaneMode": "1",
+      "wifiOn": "0",
+      "activeDefaultNetwork": "none"
+    },
+    "realTtsAudioTracks": 2,
+    "completedInference": true,
+    "identityBlockCountBefore": 0,
+    "identityBlockCountAfter": 0,
+    "appUidStatsMapRowsBefore": 0,
+    "appUidStatsMapRowsAfter": 0,
+    "totalDeltaBytes": 0,
+    "networkRestored": true,
+    "mainInternetPermission": false,
+    "peerInternetPermission": false
+  },
+  "k60CrashAndSpeakerGate": {
+    "fatalExceptionCount": 0,
+    "appAnrCount": 0,
+    "inputTimeoutCount": 0,
+    "forbiddenTtsSentenceRequestCount": 0,
+    "approvedTtsSentenceRequests": {
+      "zf001Sid3": 191,
+      "zm010Sid59": 2
+    },
+    "forbiddenLiteralLogHits": 15,
+    "forbiddenLiteralInterpretation": "All literal hits are deliberate fail-closed tampered-speaker rejection text; no TTS request invoked speaker 58 / zm_009.",
+    "intentionalProcessExit": "One SIGNALED exit is the explicit UI-cancel killProcess path, not a crash."
+  },
+  "k60Cleanup": {
+    "mainUninstall": "Success",
+    "peerUninstall": "Success",
+    "harnessPackagesAfter": 0,
+    "serviceAfter": false,
+    "notificationAfter": false,
+    "activeMediaSessionAfter": false,
+    "externalDataAfter": "ABSENT",
+    "remoteQaXmlAfter": 0,
+    "productionReleaseSha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+    "productionDebugSha256": "f00cd53392025a9975916ae4738fc6340fbf348a9050f1a4b5ab67326edd8d49",
+    "productionPackagesMatch": true,
+    "network": "0/1/1 / active WIFI",
+    "currentUser": 0,
+    "screen": "Awake / 600000 / null / stay-on 15",
+    "effectiveMusicVolume": 0,
+    "musicMutedRepresentation": true,
+    "finalUidNetstatsBytes": 0,
+    "logcatStopped": true
+  },
+  "padAborted": {
+    "userOverride": "Stop immediately after K60; no further Pad QA by QA-v5; hand Pad to a fresh small agent.",
+    "partialBeforeOverride": {
+      "mainPeerInstall": "SUCCESS",
+      "deviceHashesMatched": true,
+      "uidPair": "10332/10333",
+      "postNotificationsExplicitlyGranted": true,
+      "zfSample": "real AudioTrack completed; firstAudioMs=8274; firstRtf=2.0685; peakPssKb=875947; NOT_USED_FOR_VERDICT",
+      "zmSample": "real AudioTrack completed; firstAudioMs=4341; firstRtf=1.098987; peakPssKb=693323; NOT_USED_FOR_VERDICT",
+      "longRun": "play_long started at 13:05:45; one real TTS AudioTrack observed; monitor sample count 0 before abort",
+      "padRuntimeVerdict": "NOT_RUN_AFTER_USER_OVERRIDE"
+    },
+    "cleanup": {
+      "mainUninstall": "Success",
+      "peerUninstall": "Success",
+      "harnessPackagesAfter": 0,
+      "serviceAfter": false,
+      "notificationAfter": false,
+      "activeMediaSessionAfter": false,
+      "externalDataAfter": "ABSENT",
+      "remoteQaTempAfter": 0,
+      "network": "0/1/1",
+      "stayOn": "7",
+      "screenOffTimeout": "2147483647",
+      "lockAfterTimeout": "null",
+      "volume": "41/150",
+      "currentUser": 0,
+      "productionReleaseSha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+      "productionPathAndMetadataMatch": true,
+      "logcatStopped": true
+    },
+    "deviceState": {
+      "wakefulness": "Awake",
+      "keyguardShowing": true,
+      "status": "USER_UNLOCK_REQUIRED",
+      "passwordOrBiometricUnlockAttempted": false
+    }
+  },
+  "findings": {
+    "P0": [],
+    "P1": [],
+    "P2": [],
+    "P3": [
+      {
+        "id": "QA5-P3-01",
+        "title": "Standalone debug build remains non-byte-reproducible",
+        "detail": "Same fixed source and main size produced main SHA e17ee2e0... and peer SHA 44783989..., different from the fixed artifacts. Devices used only the frozen copies."
+      }
+    ],
+    "k60Summary": "0/0/0/1",
+    "pad": "No verdict; partial evidence only. A Pad performance signal exists in the partial samples but is not promoted to a completed P2 finding after the user override."
+  },
+  "uncovered": [
+    "Pad full user-promise matrix was not executed after the explicit user override.",
+    "Pad notification, OS focus, force-stop reconstruction, tamper, cancel, music arbitration, zero-network and final crash gates are NOT_RUN.",
+    "Pad is currently at keyguard showing=true and requires the user to unlock before a fresh agent starts.",
+    "This isolated harness does not prove production voice-pack import/delete, production ExoPlayer integration, D203 closure or profile license/distribution.",
+    "Bluetooth/headset routing, media buttons, other API levels and physical audibility were not tested."
+  ],
+  "maximumClaim": "On the fixed K60 API35 arm64 isolated harness, QA-v5 independently verifies the complete requested runtime matrix: 36/0/0/0 contracts, both approved voices with real AudioTrack/RTF/PSS, a 30-minute all-Asleep window with 165 real AudioTrack starts/completions and truthful FGS/MediaSession/notification/queue progression, actual four-control SystemUI taps, OS-origin LOSS_TRANSIENT without autoplay, paused reconstruction, fail-closed tamper, UI cancel, music/TTS single ownership, offline complete inference with zero UID netstats, zero FATAL/ANR/InputTimeout, zero forbidden TTS requests and clean restoration. This is K60 isolated-harness runtime PASS only. Pad was aborted by explicit user override and is not a PASS; global two-device runtime, production runtime, D203, profile/Q03 and G1 remain unverified/not passed.",
+  "nextStep": {
+    "owner": "delivery owner / integration orchestrator",
+    "nextRole": "fresh small independent Pad runtime QA agent, separate from QA-v5",
+    "prerequisite": "User must unlock Pad 43af8627; QA-v5 will not attempt it.",
+    "firstReadOnlyAction": "Verify Pad keyguard=false, KOKORO packages absent, ACTIVE=0, then re-verify HEAD 1388e00e/ancestor 191a46e2 and fixed APK hashes before acquiring a new Pad lock.",
+    "stopCondition": "Stop without password attempts if keyguard remains true; otherwise run the full Pad matrix without inheriting K60 results."
+  },
+  "lock": {
+    "path": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "k60": "RELEASED",
+    "pad": "RELEASED",
+    "activeHeaders": 0,
+    "finalSha256": "93D7EACBB57EF0B257C1261BD7BDB7F68D12E5CE592B9A46F4E9E3A27792D20B"
+  },
+  "evidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v5"
+}

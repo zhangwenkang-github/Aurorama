@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / RUNTIME_V4_IMPLEMENTATION_COMMITTED / INDEPENDENT_QA_V3_FAIL_30MIN_CONTINUITY / QA_V4_INTERRUPTED_BY_USER / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `D207_KOKORO_AUDITION_ACCEPTED / RUNTIME_V4_IMPLEMENTATION_COMMITTED / FULL_30MIN_QA_PAUSED_BY_USER / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。v4 隔离 harness 已实现 service-owned 31 分钟内容计划、单 MediaSession / AudioFocus、持久暂停恢复、UI cancel、通知四控件和独立 UID focus peer；合同测试 `36/0/0/0`，K60 完成 5 分钟关屏实现侧自测。独立 QA-v3 曾在 30 分钟窗口发现真实音频仅持续 93.819 秒的 P1，v4 声称已修复但完整 30 分钟尚未复核；QA-v4 按用户要求中断，只完成静态门与合同测试。许可仍 PARTIAL：训练数据、speaker 权属、逐资产许可、最终 NOTICE / source offer 阻断 profile / Q03。Pad 解锁与性能 P2 仍待用户处理。Q03 Open、项目级 runtime UNVERIFIED、G1 NOT_PASSED、L2/L3 LOCKED，exact engine / profile / voice 未冻结。
+> 状态：`G0_PASSED / G1_ACTIVE / G1_1_S4_A_B_C_STATIC_COMPLETE / G1_S4A_Q03_GAPS_INTEGRATED / G1_A1_A2_STATIC_CONTRACTS_COMPLETE / G1_BASE_001_003_004_STATIC_CONTRACTS_COMPLETE / G1_BASE_FINAL_COMMITS_DONE / CLEAN_CLONE_CONTRACT_GATES_PASS / G1_S5_COMPLETE / D202_ACCEPTED_RECOMMENDATIONS / D203_ACCEPTED_VOICE_PACK_BACKGROUND_TTS / D204_ACCEPTED_ENGINE_STRATEGY_A / D205_ACCEPTED_SMALL_ENGINE_RESCAN / SHERPA_MATCHA_COMPAT_FALLBACK / SMALL_ANDROID_SECOND_ENGINE_RESCAN / KOKORO_THEN_MOSS_STATIC_SHORTLIST / ZIPVOICE_HOLD_LICENSE / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / KOKORO_ASSET_IDENTITY_PASS / RUNTIME_V4_IMPLEMENTATION_COMMITTED / K60_QA_V5_FULL_PASS / PAD_QA_V5_ABORTED_USER_OVERRIDE / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / S6_SCOPED_RECONFIRM_PASS_AFTER_D204 / D205_SCOPED_RECONFIRM_PASS / Q05_CLOSED_D204 / Q03_OPEN / L2_L3_LOCKED / Q04_CLOSED_D201 / UI_V2_R1_ACCEPTED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1 `D207_KOKORO_AUDITION_ACCEPTED / K60_QA_V5_FULL_PASS / PAD_SMALL_QA_PENDING_USER_UNLOCK / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN`。v4 隔离 harness 已在 K60 API35 完成独立 QA-v5：36/0/0/0 合同测试、双声线真实 AudioTrack、30 分钟全程锁屏、165 次真实音频 start/completion、通知四控件、系统 AudioFocus、暂停重建、tamper fail-closed、UI cancel、音乐互斥、final APK 零网络与清理全部通过。K60 `zf_001` 首句 RTF `1.146`、聚合 `0.886866`、峰值 PSS `924,446 KB`，仍有高内存风险需记录。用户要求 Pad 由全新小型 QA 做差异化测试；旧 QA 已提前中止 Pad 且数据作废，当前 Pad keyguard 再次锁屏，待用户解锁。许可仍 PARTIAL：训练数据、speaker 权属、逐资产许可、最终 NOTICE / source offer 阻断 profile / Q03。Q03 Open、项目级 runtime UNVERIFIED、G1 NOT_PASSED、L2/L3 LOCKED，exact engine / profile / voice 未冻结。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-05
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3413,7 +3413,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：Kokoro runtime v4 已实现自测，独立 QA 被用户暂停，等待恢复通知（2026-11-05）
+### ACTIVE：K60 Kokoro runtime v4 独立 QA 已 PASS，Pad 小型差异化 QA 等待解锁（2026-11-05）
 
 **负责身份**：G1 Kokoro runtime closure / licensing / device delivery owner（交付负责人 /
 技术集成编排者）。事实工作树
@@ -3422,10 +3422,10 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 `191a46e227c6cecac14392a2de4bc0a0fae026ee`。本轮未修改生产代码、未 push / tag / Release。
 
 **状态**：
-`D207_KOKORO_AUDITION_ACCEPTED / RUNTIME_IMPLEMENTATION_V4_COMMITTED / K60_5MIN_SELF_TEST_PASS / INDEPENDENT_QA_V3_FAIL_30MIN_CONTINUITY_FIXED_PENDING_RECHECK / QA_V4_INTERRUPTED_BY_USER / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / PAD_USER_UNLOCK_REQUIRED / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
-所有 v4 runtime 结果目前只是隔离 harness 实现侧自测；独立 QA-v4 只完成静态门和
-`36/0/0/0` contract tests，随后按用户要求中断，未安装设备、未执行 30 分钟、通知、focus、
-重建、cancel 或零网络矩阵。
+`D207_KOKORO_AUDITION_ACCEPTED / RUNTIME_IMPLEMENTATION_V4_COMMITTED / K60_QA_V5_FULL_PASS / PAD_QA_V5_ABORTED_USER_OVERRIDE / PAD_USER_UNLOCK_REQUIRED / KOKORO_LICENSE_PARTIAL_REVIEW_PASS_WITH_P3 / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+K60 的 v4 隔离 harness 已由全新 QA-v5 完成完整矩阵并通过。Pad 只做差异化小型 QA；
+旧 QA 在用户“换新代理、Pad 简单测”更新到达前已提前碰过 Pad 安装与一次 `play_long`，因
+monitor sample=0，所有结果作废，已卸载清理；不得作为 Pad 证据。
 
 **已固定资产 / 历史基线**
 
@@ -3457,6 +3457,13 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 - 两个 harness 已卸载；生产 release/debug、网络、音量、屏幕、current user 恢复 MATCH；
   设备锁 `ACTIVE=0`。实现侧完整证据见 `runtime-closure-v2/implementation-report.json`
   与 ignored 的设备原始证据根。
+- **K60 独立 QA-v5 PASS**：固定 APK 上 `36/0/0/0` contract tests；`zf_001` / `zm_010`
+  真实 AudioTrack、RTF / PSS 已测；30 分钟窗口 `1,804.924 s`，30/30 Asleep，真实
+  AudioTrack 启动 / 完成各 165 次，队列 `0→165/351`，最长无音频事件间隔 `8.323 s`，
+  末段仍 PLAYING；通知四控件、系统 focus、force-stop paused 恢复、pack/speaker
+  fail-closed、UI cancel、music/TTS 单 owner、final APK 零网络、0 FATAL/ANR/InputTimeout
+  全部 PASS。K60 P0/P1/P2/P3=`0/0/0/1`，P3 仅为独立 debug build 非字节复现。
+  报告：`.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v5/report.json`。
 
 **许可 / 数据 / 声音权属**
 
@@ -3471,29 +3478,28 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 **未完成 / 用户门**
 
-- 完整 30 分钟真实 AudioTrack 连续性、v4 通知四控件、OS-origin focus、final APK 零网络、
-  重建 / cancel / 音乐互斥尚未由独立 QA 复核；QA-v4 `INTERRUPTED_BY_USER`，只完成静态门与
-  `36/0/0/0` contract tests，设备矩阵 `NOT_RUN`。
-- Pad 5 `43af8627` 仍待用户本人解锁；不得尝试绕过密码。Pad RTF 最高 `1.154961`、峰值 PSS
-  最高 `925,482 KB` 的 P2 仍未由用户接受或由方案解决。
+- Pad 5 `43af8627` 当前 `screen ON / keyguard showing=true`，必须由用户本人再次解锁；
+  不得尝试密码或生物识别。用户已要求 Pad 使用全新小型 QA，只测差异化风险：
+  API33 安装 / 启动、双声线首音与 RTF / PSS、30 分钟后台真实 AudioTrack、通知停止入口、
+  final APK 零网络与清理；不重复 K60 的全量四控件、tamper、音乐互斥和重建矩阵。
+- K60 本次 `zf_001` 峰值 PSS `924,446 KB`、首句 RTF `1.146` 虽未阻断 SDK QA，但显存 /
+  长跑成本仍需在 Pad 与最终方案取舍中作为性能风险记录，不能因 QA PASS 忽略。
 - exact engine / profile / voice 未冻结；Q03 Open；项目级 runtime UNVERIFIED；G1 / Release
   均未通过。
 
-**下一步入口（等用户通知）**
+**下一步入口（用户解锁 Pad 后）**
 
-1. 用户通知恢复后，由负责人显式启动**全新独立 QA-v5**；第一条只读动作是核验当前 Git 对象、
-   `runtime-closure-v2/implementation-report.json`、`qa-v4/interrupted-report.json`、
-   两个 APK hash、`ACTIVE=0` 与最终 evidence 白名单。
-2. K60 独占锁上从 `play_long` 执行完整 30 分钟真实 AudioTrack 窗口，再验通知四控件、
-   第二 UID focus、重建、cancel、音乐互斥、final APK 零网络、speaker58 零调用与清理。
-3. Pad 仅在用户明确解锁后由同一 QA 顺序补测；若仍锁定只记 `NOT_RUN_USER_UNLOCK_REQUIRED`，
-   不阻塞 K60 收尾。
-4. 许可硬门未通过前不得提出 profile freeze；即使 runtime 全过，也只能提交 profile 冻结建议
-   与剩余法务 / 训练数据 / speaker 权属缺口，由用户决策。
+1. 使用**全新小型 Pad QA 子代理**，不得复用 QA-v5；第一条只读动作是核验 Pad
+   `keyguard=false`、两个 KOKORO 包未安装、`ACTIVE=0`、HEAD / 候选祖先与固定 APK hash。
+2. 只执行 Pad 差异化矩阵：安装、`zf_001` / `zm_010` 首音和 RTF / PSS、完整 30 分钟后台
+   真实 AudioTrack、通知停止入口、final APK 零网络、speaker58 零调用与清理。若 K60 已覆盖的
+   通用控制未出现 API33 风险，不批量重复四控件 / tamper / 音乐互斥 / 重建。
+3. Pad 通过后汇总“K60 完整 + Pad 差异化”证据，向用户说明性能 P2、许可 P1 / P2 与剩余
+   生产化缺口；不得自行冻结 profile 或关闭 Q03 / G1。
 
-**停止条件**：当前等待用户通知；不得自行恢复设备 QA。恢复后若设备锁冲突、需绕过 Pad 密码、
-出现 hash / source / permission 漂移、30 分钟真实音频中断、新 P0–P2、未经授权的新域名 /
-资产 / 生产代码 / 服务器写，或要求代签 profile freeze、Q03、G1、Release 时停止并报告。
+**停止条件**：Pad 仍锁屏、需要绕过密码、设备锁冲突、哈希 / 权限漂移、30 分钟真实 AudioTrack
+中断、新 P0–P2、未经授权的新域名 / 资产 / 生产代码 / 服务器写，或要求代签 profile freeze、
+Q03、G1、Release 时停止并报告。
 
 ### HISTORY：D204 strategy A + D205 方向 C 已接受，小型 Android 第二引擎重筛待 exact archive 授权（2026-11-04）
 
@@ -4794,3 +4800,13 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   设备安装与完整 30 分钟矩阵 `NOT_RUN`。中断报告在 `qa-v4/interrupted-report.json`；
   K60 上无 harness 残留，锁已 `RELEASED / ACTIVE=0`，生产包与设备设置 MATCH。Pad 仍
   `NOT_RUN_USER_UNLOCK_REQUIRED`。
+- **2026-11-05 — K60 QA-v5 完整 PASS / Pad 改派用户门**：用户确认双机解锁后恢复独立
+  QA-v5。K60 `8e875894` 在固定 main / peer APK 上完成 `36/0/0/0` 合同测试、双声线真实
+  AudioTrack、30 分钟 `1,804.924 s` 全 Asleep 长跑、165 次 AudioTrack start / completion、
+  通知四控件实际点击、第二 UID 系统 `LOSS_TRANSIENT`、force-stop 暂停恢复、pack/speaker
+  fail-closed、UI cancel、music/TTS 单 owner、final APK UID 零网络与清理；P0/P1/P2/P3=
+  `0/0/0/1`，唯一 P3 为独立 debug build 非字节复现。K60 zf 峰值 PSS `924,446 KB` 被记录为
+  后续性能风险。用户随后要求“不能在同一个子代理做 Pad QA，Pad 简单一点”，旧 QA-v5 在收到
+  更新前已提前启动 Pad 安装和一次 `play_long`，因 monitor sample=0，结果全部作废并安全清理。
+  Pad 当前 keyguard 再次显示 `showing=true`，不得绕过；下一轮必须使用全新小型 Pad QA，仅测
+  API33 安装 / 双声线 / RTF/PSS / 30 分钟真实 AudioTrack / 通知停止 / 零网络与清理。

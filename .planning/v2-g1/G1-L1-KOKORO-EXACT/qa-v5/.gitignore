@@ -1,0 +1,6 @@
+device-*/
+raw/
+logs/
+*.apk
+*.wav
+*.xml
