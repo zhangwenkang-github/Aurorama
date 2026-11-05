@@ -1,0 +1,21 @@
+package: name='dev.aurorama.kokoro.harness' versionCode='3' versionName='2.0-kokoro-runtime-v4' platformBuildVersionName='17' platformBuildVersionCode='37' compileSdkVersion='37' compileSdkVersionCodename='17'
+minSdkVersion:'26'
+targetSdkVersion:'37'
+uses-permission: name='android.permission.FOREGROUND_SERVICE'
+uses-permission: name='android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.WAKE_LOCK'
+application-label:'Kokoro isolated harness'
+application: label='Kokoro isolated harness' icon=''
+application-debuggable
+launchable-activity: name='dev.aurorama.kokoro.harness.HarnessActivity'  label='' icon=''
+feature-group: label=''
+  uses-feature: name='android.hardware.faketouch'
+  uses-implied-feature: name='android.hardware.faketouch' reason='default feature for all apps'
+main
+other-services
+supports-screens: 'small' 'normal' 'large' 'xlarge'
+supports-any-density: 'true'
+locales: '--_--'
+densities: '160'
+native-code: 'arm64-v8a'

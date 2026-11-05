@@ -23,6 +23,7 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.util.Log;
+import android.widget.RemoteViews;
 
 import com.k2fsa.sherpa.onnx.GeneratedAudio;
 import com.k2fsa.sherpa.onnx.OfflineTts;
@@ -55,6 +56,7 @@ public final class KokoroRuntimeService extends Service
     public static final String COMMAND_RESTORE = "restore";
     public static final String COMMAND_PLAY_SAMPLE = "play_sample";
     public static final String COMMAND_PLAY_FULL = "play_full";
+    public static final String COMMAND_PLAY_LONG = "play_long";
     public static final String COMMAND_RESUME = "resume";
     public static final String COMMAND_PAUSE = "pause";
     public static final String COMMAND_PREVIOUS = "previous";
@@ -128,6 +130,11 @@ public final class KokoroRuntimeService extends Service
     private VoiceProfile voice = SpeakerWhitelist.requireAllowed("zf_001");
     private String packId = PackWhitelist.KOKORO_PACK_ID;
     private boolean queueLoaded;
+    private boolean longRunMode;
+    private int longRunCycleCount;
+    private long longRunTargetMillis;
+    private long longRunPlannedMinimumMillis;
+    private long longRunCompletedAudioMillis;
     private boolean focusHeld;
     private boolean foregroundStarted;
     private boolean shuttingDown;
@@ -264,7 +271,14 @@ public final class KokoroRuntimeService extends Service
                     startTtsText(SAMPLE_TEXT);
                     break;
                 case COMMAND_PLAY_FULL:
-                    startTtsText(NarrationContract.TEXT);
+                    startTtsQueue(
+                            SentenceQueue.fromText(NarrationContract.TEXT),
+                            false,
+                            0,
+                            0L);
+                    break;
+                case COMMAND_PLAY_LONG:
+                    startLongRun();
                     break;
                 case COMMAND_RESUME:
                     resumeTts();
@@ -311,12 +325,45 @@ public final class KokoroRuntimeService extends Service
         }
     }
 
-    private void startTtsText(String text) throws Exception {
+    private void startTtsText(String text) {
+        startTtsQueue(SentenceQueue.fromText(text), false, 0, 0L);
+    }
+
+    private void startLongRun() {
+        LongRunNarrationPlan plan = LongRunNarrationPlan.pinned();
+        startTtsQueue(
+                new SentenceQueue(plan.getSentences()),
+                true,
+                plan.getCycleCount(),
+                plan.getTargetDurationMillis());
+        Log.i(
+                TAG,
+                "LONG_RUN_STARTED queueSize="
+                        + playback.queue().size()
+                        + " cycles="
+                        + plan.getCycleCount()
+                        + " targetMillis="
+                        + plan.getTargetDurationMillis()
+                        + " plannedMinimumMillis="
+                        + plan.getPlannedMinimumDurationMillis());
+    }
+
+    private void startTtsQueue(
+            SentenceQueue queue,
+            boolean longRun,
+            int cycleCount,
+            long targetMillis) {
         cancelPlaybackToken();
         audioPlayer.stop();
         releaseWakeLock();
-        playback.loadQueue(SentenceQueue.fromText(text));
+        playback.loadQueue(queue);
         queueLoaded = true;
+        longRunMode = longRun;
+        longRunCycleCount = cycleCount;
+        longRunTargetMillis = targetMillis;
+        longRunPlannedMinimumMillis =
+                longRun ? LongRunNarrationPlan.pinned().getPlannedMinimumDurationMillis() : 0L;
+        longRunCompletedAudioMillis = 0L;
         positionMillis = 0L;
         voice = SpeakerWhitelist.requireAllowed(voice.getName(), voice.getSid());
         packId = PackWhitelist.requireAllowed(packId);
@@ -328,6 +375,8 @@ public final class KokoroRuntimeService extends Service
             throw new IllegalStateException("No TTS sentence queue is loaded");
         }
         audioPlayer.stop();
+        ensureMediaSession();
+        ensureForeground();
         AudioOwnerArbiter.ArbitrationDecision decision = arbiter.beginTts();
         if (decision.mustPauseMusic()) {
             Log.i(TAG, "MUSIC_PAUSED_FOR_TTS index=" + arbiter.musicIndex());
@@ -351,7 +400,11 @@ public final class KokoroRuntimeService extends Service
                         + " sid="
                         + selectedVoice.getSid()
                         + " generation="
-                        + token);
+                        + token
+                        + " longRun="
+                        + longRunMode
+                        + " total="
+                        + playback.queue().size());
         ttsExecutor.execute(
                 () -> {
                     try {
@@ -414,7 +467,11 @@ public final class KokoroRuntimeService extends Service
                                             + " samples="
                                             + samples.length
                                             + " durationMillis="
-                                            + Math.round(samples.length * 1000.0 / MUSIC_SAMPLE_RATE));
+                                            + trackDurationMillis(samples.length)
+                                            + " longRun="
+                                            + longRunMode
+                                            + " longRunAudioMillis="
+                                            + longRunCompletedAudioMillis);
                             mainHandler.post(() -> publishState());
                         }
 
@@ -428,6 +485,10 @@ public final class KokoroRuntimeService extends Service
                             Log.i(
                                     TAG,
                                     "AUDIO_TRACK_COMPLETED owner=TTS generation=" + token);
+                            if (longRunMode) {
+                                longRunCompletedAudioMillis +=
+                                        trackDurationMillis(samples.length);
+                            }
                             mainHandler.post(
                                     () -> {
                                         if (isCurrentGeneration(token)) {
@@ -464,8 +525,17 @@ public final class KokoroRuntimeService extends Service
         arbiter.stopTts();
         releasePlaybackResources();
         persistCheckpoint();
+        demoteTerminalState();
         publishState();
-        Log.i(TAG, "TTS_COMPLETED");
+        Log.i(
+                TAG,
+                "TTS_COMPLETED longRun="
+                        + longRunMode
+                        + " longRunAudioMillis="
+                        + longRunCompletedAudioMillis
+                        + " targetMillis="
+                        + longRunTargetMillis);
+        stopSelf();
     }
 
     private void resumeTts() {
@@ -509,6 +579,7 @@ public final class KokoroRuntimeService extends Service
         }
         arbiter.stopTts();
         releasePlaybackResources();
+        demoteTerminalState();
         publishState();
         Log.i(
                 TAG,
@@ -516,6 +587,7 @@ public final class KokoroRuntimeService extends Service
                         + arbiter.musicStatus()
                         + " musicIndex="
                         + arbiter.musicIndex());
+        stopSelf();
     }
 
     private void navigate(int direction) {
@@ -593,6 +665,8 @@ public final class KokoroRuntimeService extends Service
             Log.i(TAG, "TTS_TERMINATED_BEFORE_MUSIC");
         }
         audioPlayer.stop();
+        ensureMediaSession();
+        ensureForeground();
         AudioOwnerArbiter.ArbitrationDecision decision = arbiter.beginMusic();
         if (decision.mustTerminateTts() && !terminatingTts) {
             cancelPlaybackToken();
@@ -736,8 +810,10 @@ public final class KokoroRuntimeService extends Service
         }
         arbiter.stopTts();
         releasePlaybackResources();
+        demoteTerminalState();
         publishState();
         Log.e(TAG, "RUNTIME_FAILED", error);
+        stopSelf();
     }
 
     private void restoreCheckpoint() {
@@ -973,6 +1049,10 @@ public final class KokoroRuntimeService extends Service
     }
 
     private void ensureForeground() {
+        if (foregroundStarted) {
+            return;
+        }
+        ensureMediaSession();
         Notification notification = buildNotification();
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(
@@ -985,12 +1065,14 @@ public final class KokoroRuntimeService extends Service
         foregroundStarted = true;
     }
 
+    private void ensureMediaSession() {
+        if (mediaSession == null) {
+            createMediaSession();
+        }
+    }
+
     private Notification buildNotification() {
         RuntimePresentation presentation = buildPresentation();
-        Notification.MediaStyle mediaStyle =
-                new Notification.MediaStyle()
-                        .setMediaSession(mediaSession.getSessionToken())
-                        .setShowActionsInCompactView(0, 1, 2);
         Notification.Builder builder =
                 new Notification.Builder(this, CHANNEL_ID)
                         .setSmallIcon(android.R.drawable.ic_media_play)
@@ -1003,14 +1085,10 @@ public final class KokoroRuntimeService extends Service
                         .setOnlyAlertOnce(true)
                         .setShowWhen(false)
                         .setOngoing(playbackOngoing())
-                        .setStyle(mediaStyle);
+                        .setStyle(
+                                new Notification.BigTextStyle()
+                                        .bigText(presentation.getNotificationText()));
 
-        builder.addAction(
-                new Notification.Action.Builder(
-                                android.R.drawable.ic_media_previous,
-                                "上一句",
-                                commandPendingIntent(COMMAND_PREVIOUS, 11))
-                        .build());
         RuntimePresentation.PlayPauseAction playPause = presentation.getPlayPauseAction();
         String playPauseLabel;
         int playPauseIcon;
@@ -1039,6 +1117,36 @@ public final class KokoroRuntimeService extends Service
                 playPauseCommand = COMMAND_PLAY_SAMPLE;
                 break;
         }
+        RemoteViews controls =
+                new RemoteViews(getPackageName(), resourceId("layout", "notification_controls"));
+        controls.setTextViewText(
+                resourceId("id", "notification_title"),
+                presentation.getNotificationTitle());
+        controls.setTextViewText(
+                resourceId("id", "notification_text"),
+                presentation.getNotificationText());
+        controls.setTextViewText(
+                resourceId("id", "action_play_pause"), playPauseLabel);
+        controls.setOnClickPendingIntent(
+                resourceId("id", "action_stop"),
+                commandPendingIntent(COMMAND_STOP, 14));
+        controls.setOnClickPendingIntent(
+                resourceId("id", "action_play_pause"),
+                commandPendingIntent(playPauseCommand, 12));
+        controls.setOnClickPendingIntent(
+                resourceId("id", "action_previous"),
+                commandPendingIntent(COMMAND_PREVIOUS, 11));
+        controls.setOnClickPendingIntent(
+                resourceId("id", "action_next"),
+                commandPendingIntent(COMMAND_NEXT, 13));
+        builder.setCustomContentView(controls);
+        builder.setCustomBigContentView(controls);
+        builder.addAction(
+                new Notification.Action.Builder(
+                                android.R.drawable.ic_menu_close_clear_cancel,
+                                "停止",
+                                commandPendingIntent(COMMAND_STOP, 14))
+                        .build());
         builder.addAction(
                 new Notification.Action.Builder(
                                 playPauseIcon,
@@ -1053,9 +1161,9 @@ public final class KokoroRuntimeService extends Service
                         .build());
         builder.addAction(
                 new Notification.Action.Builder(
-                                android.R.drawable.ic_menu_close_clear_cancel,
-                                "停止",
-                                commandPendingIntent(COMMAND_STOP, 14))
+                                android.R.drawable.ic_media_previous,
+                                "上一句",
+                                commandPendingIntent(COMMAND_PREVIOUS, 11))
                         .build());
         return builder.build();
     }
@@ -1091,6 +1199,9 @@ public final class KokoroRuntimeService extends Service
 
     private void updateNotification() {
         if (!foregroundStarted || shuttingDown) {
+            return;
+        }
+        if (!RuntimeControlPolicy.requiresForeground(displayStatus())) {
             return;
         }
         notificationManager.notify(NOTIFICATION_ID, buildNotification());
@@ -1156,12 +1267,18 @@ public final class KokoroRuntimeService extends Service
                                 "Kokoro isolated runtime · " + voice.getName())
                         .putString(MediaMetadata.METADATA_KEY_ALBUM, packId);
         mediaSession.setMetadata(metadata.build());
-        mediaSession.setActive(true);
+        mediaSession.setActive(
+                foregroundStarted
+                        && RuntimeControlPolicy.requiresForeground(displayStatus()));
     }
 
     private void publishState() {
         if (shuttingDown && !lastCommand.equals(COMMAND_CANCEL)) {
             return;
+        }
+        if (foregroundStarted
+                && !RuntimeControlPolicy.requiresForeground(displayStatus())) {
+            demoteTerminalState();
         }
         JSONObject snapshot = buildSnapshot();
         latestStateJson = snapshot.toString();
@@ -1190,6 +1307,16 @@ public final class KokoroRuntimeService extends Service
             snapshot.put("queueLoaded", queueLoaded);
             snapshot.put("queueIndex", queueLoaded ? playback.currentIndex() : -1);
             snapshot.put("queueSize", queueLoaded ? playback.queue().size() : 0);
+            snapshot.put("longRunMode", longRunMode);
+            snapshot.put("longRunCycleCount", longRunCycleCount);
+            snapshot.put("longRunTargetMillis", longRunTargetMillis);
+            snapshot.put("longRunPlannedMinimumMillis", longRunPlannedMinimumMillis);
+            snapshot.put(
+                    "longRunAudioMillis",
+                    longRunCompletedAudioMillis
+                            + (displayStatus() == PlaybackStatus.PLAYING
+                                    ? positionMillis
+                                    : 0L));
             snapshot.put("stableIndex", queueLoaded ? playback.stableIndex() : -1);
             snapshot.put(
                     "currentSentence", queueLoaded ? playback.currentSentence() : "");
@@ -1207,6 +1334,12 @@ public final class KokoroRuntimeService extends Service
             snapshot.put("notificationText", presentation.getNotificationText());
             snapshot.put("playPauseAction", presentation.getPlayPauseAction().name());
             snapshot.put("mediaSessionState", presentation.getMediaStateLabel());
+            snapshot.put(
+                    "notificationCompactActions",
+                    actionNames(RuntimeControlPolicy.compactNotificationActions()));
+            snapshot.put(
+                    "notificationRecordActions",
+                    actionNames(RuntimeControlPolicy.allNotificationActions()));
             snapshot.put("lastCommand", lastCommand);
             snapshot.put("lastError", lastError);
             snapshot.put(
@@ -1277,7 +1410,7 @@ public final class KokoroRuntimeService extends Service
                 throw new IllegalStateException("Cannot create runtime evidence directory");
             }
             File output = new File(root, "runtime_state.json");
-            JSONObject wrapped = new JSONObject(latestStateJson);
+            JSONObject wrapped = buildSnapshot();
             wrapped.put("evidenceDumpAtEpochMillis", System.currentTimeMillis());
             Files.write(
                     output.toPath(),
@@ -1289,15 +1422,43 @@ public final class KokoroRuntimeService extends Service
     }
 
     private void releaseSessionAndForeground() {
+        demoteTerminalState();
         if (mediaSession != null) {
-            mediaSession.setActive(false);
             mediaSession.release();
             mediaSession = null;
+        }
+    }
+
+    private void demoteTerminalState() {
+        if (mediaSession != null) {
+            mediaSession.setActive(false);
         }
         if (foregroundStarted) {
             stopForeground(STOP_FOREGROUND_REMOVE);
             notificationManager.cancel(NOTIFICATION_ID);
             foregroundStarted = false;
+            Log.i(TAG, "FOREGROUND_AND_NOTIFICATION_REMOVED");
         }
+    }
+
+    private static long trackDurationMillis(int sampleCount) {
+        return Math.round(sampleCount * 1000.0 / MUSIC_SAMPLE_RATE);
+    }
+
+    private static JSONArray actionNames(
+            List<RuntimeControlPolicy.NotificationAction> actions) {
+        JSONArray names = new JSONArray();
+        for (RuntimeControlPolicy.NotificationAction action : actions) {
+            names.put(action.name());
+        }
+        return names;
+    }
+
+    private int resourceId(String type, String name) {
+        int id = getResources().getIdentifier(name, type, getPackageName());
+        if (id == 0) {
+            throw new IllegalStateException("Missing notification resource: " + type + "/" + name);
+        }
+        return id;
     }
 }

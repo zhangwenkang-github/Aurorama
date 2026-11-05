@@ -1,0 +1,5 @@
+device-*/
+logs/
+test-results/
+*.apk
+*.wav

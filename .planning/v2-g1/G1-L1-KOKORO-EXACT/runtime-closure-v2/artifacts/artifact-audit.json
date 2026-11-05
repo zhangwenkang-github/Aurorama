@@ -1,0 +1,24 @@
+{
+  "capturedAt": "2026-11-05T09:29:07.4972766+08:00",
+  "main": {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-isolated-harness-debug.apk",
+    "bytes": 427009586,
+    "sha256": "17e569ff04832f8bce002b7ea92bb6028b41238d1c1f7e048503a41ca3f82bee",
+    "package": "dev.aurorama.kokoro.harness",
+    "abi": "arm64-v8a",
+    "internetPermission": false,
+    "foregroundServiceMediaPlaybackType": false,
+    "serviceCount": 1,
+    "mediaSessionConstructionSites": 1,
+    "audioTrackConstructionSites": 1
+  },
+  "peer": {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness\\build\\outputs\\kokoro-focus-peer-debug.apk",
+    "bytes": 12696,
+    "sha256": "e5aa5d79c8e25dc59469336ebe380c2e8d0e235b7a9b247814adb942a6172c85",
+    "package": "dev.aurorama.kokoro.focuspeer",
+    "internetPermission": false,
+    "realAudioTrackConstructionSites": 1,
+    "focusMode": "AUDIOFOCUS_GAIN_TRANSIENT"
+  }
+}

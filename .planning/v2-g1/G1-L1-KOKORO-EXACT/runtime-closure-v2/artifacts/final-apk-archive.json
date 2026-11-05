@@ -1,0 +1,12 @@
+[
+  {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\apk-archive\\kokoro-isolated-harness-debug-9bfba9aa.apk",
+    "bytes": 427009671,
+    "sha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a"
+  },
+  {
+    "path": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\logs\\apk-archive\\kokoro-focus-peer-debug-de651dda.apk",
+    "bytes": 12696,
+    "sha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c"
+  }
+]

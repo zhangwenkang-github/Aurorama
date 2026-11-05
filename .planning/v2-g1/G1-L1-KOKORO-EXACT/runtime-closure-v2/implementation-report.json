@@ -1,0 +1,478 @@
+{
+  "schema": "aurorama.kokoro-runtime-closure-v2.implementation-report.v1",
+  "task": "V2-G1-L1-KOKORO-EXACT isolated harness P1 background continuity / P2 MIUI stop / OS-origin AudioFocus repair",
+  "role": "fresh isolated-harness repair implementation agent; TDD, build, bounded K60 self-test and implementation report only",
+  "generatedAt": "2026-11-05T09:51:00+08:00",
+  "status": "IMPLEMENTED / TDD_GREEN / FINAL_BUILD_PASS / K60_MINIMAL_SELF_TEST_COMPLETE / NOT_INDEPENDENT_QA / NOT_30MIN_PASS / NOT_PRODUCTION_RUNTIME / G1_NOT_PASSED",
+  "guardrails": {
+    "subagentsSpawned": 0,
+    "independentQaStarted": false,
+    "reviewOrMergePrepEntered": false,
+    "releaseEntered": false,
+    "commitOrPushOrTagPerformed": false,
+    "productionCodeModified": false,
+    "docsOrQaV3OrLicenseClosureOrOldRuntimeClosureModified": false,
+    "productionServerOrAccountAccessed": false,
+    "padTargetedCommands": 0,
+    "padUnlockAttempts": 0,
+    "screenshotsTaken": 0,
+    "viewImageCalls": 0
+  },
+  "startState": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "b75f9a226663c88b39a6307db19cd16eb9cab4bb",
+    "clean": true,
+    "previousCandidateApk": {
+      "bytes": 427005490,
+      "sha256": "074ccfe96b6868c3ae9e02523a9bb9d7da2e35594cedc70721bbbca1287015e8",
+      "archive": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/apk-archive/kokoro-isolated-harness-debug-074ccfe9.apk",
+      "archiveVerified": true
+    }
+  },
+  "finalState": {
+    "branch": "codex/v2-integration",
+    "head": "b75f9a226663c88b39a6307db19cd16eb9cab4bb",
+    "headUnchanged": true,
+    "uncommittedByInstruction": true,
+    "worktreeClean": false,
+    "allRepositoryChangesInsideDeclaredWhitelist": true,
+    "gitDiffCheckPass": true,
+    "deviceLockActive": 0
+  },
+  "rootCause": [
+    {
+      "id": "P1",
+      "cause": "The previous runtime queue contained only NarrationContract's fixed 9 sentences. It completed about 93.819 seconds after screen-off while the foreground service kept the process and notification alive for the remainder of the 30-minute observation."
+    },
+    {
+      "id": "P2",
+      "cause": "MIUI SystemUI maps Notification.MediaStyle to a fixed previous/play-pause/next transport row and ignored both app action order and the fourth stop action. Reordering compact actions alone was not sufficient."
+    },
+    {
+      "id": "focus-gap",
+      "cause": "The previous candidate had a real focus request but no independent package/UID audio owner to trigger a genuine OS focus-loss callback. Same-process simulation was not acceptable evidence."
+    },
+    {
+      "id": "cleanup-gap",
+      "cause": "Terminal TTS states persisted through publishState but did not demote the foreground service or remove its notification automatically."
+    }
+  ],
+  "tdd": {
+    "red": {
+      "executed": true,
+      "exitCode": 1,
+      "stage": "compileTestJava",
+      "reportedCompilerErrors": 30,
+      "reason": "LongRunNarrationPlan and RuntimeControlPolicy contracts did not exist",
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/logs/long-run-notification-red.log"
+    },
+    "green": {
+      "executed": true,
+      "exitCode": 0,
+      "command": ".\\gradlew.bat -p .planning\\v2-g1\\G1-L1-KOKORO-EXACT\\harness :contract:test --offline --console=plain --rerun-tasks",
+      "tests": 36,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xmlSuites": 11,
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/logs/contracts-final.log",
+      "xmlDirectory": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/test-results"
+    },
+    "covered": [
+      "long-run plan target is 31 minutes and planned lower bound is 1,872,000 ms",
+      "long-run plan object stores text/list state but contains no PCM array fields",
+      "cross-cycle queue progression and absolute first/last navigation boundaries",
+      "stop, cancel and completion are terminal, non-restorable and never auto-play",
+      "long-run stable checkpoint restores manually paused",
+      "MIUI-priority notification binding order starts with STOP",
+      "paused keeps foreground while stopped/completed/error removes it"
+    ]
+  },
+  "changes": [
+    {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/LongRunNarrationPlan.java",
+      "change": "Added a 39-cycle / 351-sentence service-owned text plan. Planned lower bound is 1,872,000 ms for a 1,860,000 ms target; no multi-minute PCM is materialized."
+    },
+    {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/contract/src/main/java/dev/aurorama/kokoro/harness/RuntimeControlPolicy.java",
+      "change": "Pinned notification action semantics and foreground retention by playback status."
+    },
+    {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/KokoroRuntimeService.java",
+      "change": "Added play_long, long-run metrics, stable-sentence checkpointing across the plan, custom RemoteViews notification controls, terminal foreground/notification demotion and session reactivation."
+    },
+    {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/res/layout/notification_controls.xml",
+      "change": "Added four 48dp clickable controls: stop, play/pause, previous and next."
+    },
+    {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/peer",
+      "change": "Added independent package dev.aurorama.kokoro.focuspeer with AUDIOFOCUS_GAIN_TRANSIENT and a real 10-second AudioTrack, no network permission."
+    },
+    {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build.ps1",
+      "change": "Added resource compilation, main version 3, independent peer APK build/signature verification and two-APK build metadata."
+    },
+    {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/install-harness.ps1",
+      "change": "Added ExpectedPackage parameter so the same MIUI installer helper can install the independent peer package."
+    },
+    {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/app/src/main/java/dev/aurorama/kokoro/harness/HarnessActivity.java",
+      "change": "Added the 31-minute long-run UI entry and long-run status display; removed the simulated focus-loss button from the UI."
+    }
+  ],
+  "build": {
+    "strategy": "standalone cached Android SDK/JDK toolchain; no root Gradle or production module modification",
+    "offlineCompatible": true,
+    "initialAttemptExit": 1,
+    "initialAttemptCause": "PowerShell hashtable numeric literals with underscores were parsed as a command after both APKs had otherwise built and verified",
+    "controlledRetry": {
+      "exitCode": 0,
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/logs/standalone-build-retry1.log"
+    },
+    "customNotificationFinalBuild": {
+      "exitCode": 0,
+      "log": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/logs/standalone-build-custom-notification.log"
+    }
+  },
+  "apks": {
+    "main": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "archive": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/apk-archive/kokoro-isolated-harness-debug-9bfba9aa.apk",
+      "bytes": 427009671,
+      "sha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+      "package": "dev.aurorama.kokoro.harness",
+      "versionCode": 3,
+      "versionName": "2.0-kokoro-runtime-v4",
+      "minSdk": 26,
+      "targetSdk": 37,
+      "abi": "arm64-v8a",
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
+      ],
+      "internetPermission": false,
+      "foregroundServiceType": "mediaPlayback (0x00000002)",
+      "serviceCount": 1,
+      "mediaSessionConstructionSites": 1,
+      "audioTrackConstructionSites": 1,
+      "signatureVerified": true,
+      "dexForbiddenApiStatus": "PASS",
+      "dexForbiddenMatchCount": 0,
+      "dexClassesSha256": "1da06d0417723bfe57237417616eefa96bac2e8e523acf340bd70a62415c1d6b",
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/artifacts/artifact-audit-final.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/artifacts/main-badging-final.txt",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/artifacts/main-permissions-final.txt",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/artifacts/main-manifest-final.xmltree.txt",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/dex-api-audit.log"
+      ]
+    },
+    "focusPeer": {
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+      "archive": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/apk-archive/kokoro-focus-peer-debug-de651dda.apk",
+      "bytes": 12696,
+      "sha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c",
+      "package": "dev.aurorama.kokoro.focuspeer",
+      "versionCode": 1,
+      "versionName": "1.0-focus-peer",
+      "requestedPermissions": [],
+      "internetPermission": false,
+      "focusMode": "AUDIOFOCUS_GAIN_TRANSIENT",
+      "realAudioTrackConstructionSites": 1,
+      "signatureVerified": true,
+      "evidence": [
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/artifacts/artifact-audit-final.json",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/artifacts/peer-badging-final.txt",
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/artifacts/peer-permissions-final.txt"
+      ]
+    },
+    "archiveHashVerification": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/artifacts/final-apk-archive.json"
+  },
+  "deviceLock": {
+    "path": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "lockId": "G1-L1-KOKORO-EXACT-RUNTIME-V4-K60-8e875894-20261105-0923",
+    "serial": "8e875894",
+    "model": "23013RK75C",
+    "api": 35,
+    "lockedDeviceOnly": true,
+    "hashBeforeRegistration": "BCEEDE03B266F8D7F13A4AE535353353F584CBC73B8C4623EBAEE5CEFFCB00ED",
+    "releasedAt": "2026-11-05T09:50:38+08:00",
+    "hashAfterRelease": "34C9BAA3065C5021BAECCF9390B08E350DB04A2183FB8DE384AE5E42AB60CDD3",
+    "activeAfter": 0
+  },
+  "deviceInstall": {
+    "mainDeviceSideBytes": 427009671,
+    "mainDeviceSideSha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+    "peerDeviceSideBytes": 12696,
+    "peerDeviceSideSha256": "de651ddab3c13110e5230f1df2407048d03170e539785cce8001e662aee8f90c",
+    "mainUid": 10310,
+    "peerUid": 10311,
+    "distinctUids": true,
+    "identityMatch": true,
+    "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/install-audit.json"
+  },
+  "actualExecuted": [
+    "read-only Git, branch, HEAD, clean-tree, device-lock and scoped decision/task checks",
+    "final offline JVM contracts with 36 executed and 11 XML suites",
+    "final standalone main and peer APK builds, resource compilation, signing and device-side size/SHA checks",
+    "final APK install on K60; Pad received zero targeted commands",
+    "31-minute content plan started as one foreground service / one MediaSession / one TTS AudioTrack owner",
+    "final-APK 5-minute screen-off long-run monitor with 11 samples",
+    "MIUI custom notification four-control visibility and actual SystemUI taps",
+    "independent-UID focus peer real AudioFocus request and real AudioTrack",
+    "system-origin transient focus loss, AudioTrack release and no auto-resume",
+    "force-stop and manual restore to PAUSED at the stable long-run sentence",
+    "UI cancel convergence",
+    "zero-network permission/netstats checks",
+    "speaker58 / zm_009 negative scan",
+    "terminal foreground/notification cleanup",
+    "uninstall, device restore, production package identity comparison and lock release"
+  ],
+  "longRun5m": {
+    "status": "OBSERVED_5_MIN_AUDIO_OWNER_PASS",
+    "apkSha256": "9bfba9aaaf318a167ea8facf5c109e7f38a208859ca4bbe7bb04fa10ebd6778a",
+    "observedSeconds": 300.007,
+    "sampleCount": 11,
+    "allSamplesScreenAsleep": true,
+    "allSamplesForegroundMediaPlayback": true,
+    "runtimePidStable": "21943",
+    "ttsAudioTrackStarts": {
+      "firstSample": 3,
+      "lastSample": 30,
+      "additional": 27
+    },
+    "ttsAudioTrackCompletions": {
+      "firstSample": 2,
+      "lastSample": 29
+    },
+    "finalQueueIndex": 28,
+    "queueSize": 351,
+    "finalAccumulatedSpeechMillis": 178225,
+    "speechVsWallTimeNote": "Speech duration excludes inference gaps at sentence boundaries. AudioTrack starts are distributed across the entire 300-second wall window, which is the required owner/continuity evidence for this minimal run.",
+    "summary": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/long-run-5m-final.json",
+    "samples": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/long-run-5m-final-samples.jsonl",
+    "logcat": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/logcat-final.log",
+    "notEvidenceFor30MinutePass": true
+  },
+  "notificationStop": {
+    "status": "SYSTEMUI_CONTROLS_SEMANTICS_PASS",
+    "mediaStyleFinding": "MIUI exposed previous/play-pause/next and ignored app action ordering and the fourth stop action.",
+    "implementedCarrier": "single custom RemoteViews notification backed by the same MediaSession and service state",
+    "visibleControlsFinal": [
+      {
+        "control": "action_stop",
+        "text": "停止",
+        "bounds": "[96,445][309,532]",
+        "enabled": true,
+        "clickable": true
+      },
+      {
+        "control": "action_play_pause",
+        "text": "继续/暂停",
+        "bounds": "[320,445][534,532]",
+        "enabled": true,
+        "clickable": true
+      },
+      {
+        "control": "action_previous",
+        "text": "上一句",
+        "bounds": "[545,445][759,532]",
+        "enabled": true,
+        "clickable": true
+      },
+      {
+        "control": "action_next",
+        "text": "下一句",
+        "bounds": "[770,445][984,532]",
+        "enabled": true,
+        "clickable": true
+      }
+    ],
+    "actualTapSequence": [
+      "继续 -> resume",
+      "下一句 -> next",
+      "暂停 -> pause",
+      "上一句 -> previous",
+      "继续 -> resume",
+      "停止 -> stop"
+    ],
+    "stopAfterClick": {
+      "servicePresent": false,
+      "foregroundPresent": false,
+      "notificationRecordPresent": false,
+      "serviceDestroyedLogged": true
+    },
+    "k60UiNote": "With the device's existing notification volume, the app notification was under the MIUI aggregate; tapping '更多通知' exposed the custom four-control card. The stop control was then visible and directly clickable.",
+    "evidence": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/notification-stop-click.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/notification-controls-via-systemui.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/notification-controls-7.xml"
+    ]
+  },
+  "osOriginAudioFocus": {
+    "status": "PASS",
+    "mainUid": 10310,
+    "peerUid": 10311,
+    "peerRequestLine": "PEER_FOCUS_REQUEST result=1 focus=GAIN_TRANSIENT uid=10311",
+    "peerAudioTrackLine": "PEER_AUDIO_TRACK_STARTED uid=10311 durationMillis=10000",
+    "mainCallbackLines": [
+      "AUDIO_FOCUS_CHANGE change=-2 policy=LOSS_TRANSIENT",
+      "AUDIO_FOCUS_LOSS source=system_change_-2"
+    ],
+    "mainStateDuringLoss": "PAUSED",
+    "mainFocusHeldAfterLoss": false,
+    "mainAudioTrackPlayingAfterLoss": false,
+    "peerReleasedFocus": true,
+    "ttsAudioTrackStartDeltaAfterPeerRelease": 0,
+    "stateAfterPeerRelease": "PAUSED",
+    "autoPlay": false,
+    "noSameProcessSimulationUsedAsEvidence": true,
+    "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/focus-peer-os-origin.json"
+  },
+  "processRecreate": {
+    "status": "PASS",
+    "method": "force-stop then manual Activity launch without play command",
+    "restoredStatus": "PAUSED",
+    "restoredSentence": "30/351",
+    "autoPlay": false,
+    "audioTrackStartDeltaAfterEightSeconds": 0,
+    "focusHeld": false,
+    "serviceForeground": true,
+    "mediaPlaybackType": true,
+    "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/recreate-paused-verification.json"
+  },
+  "cancel": {
+    "status": "PASS",
+    "method": "actual UI runtime_command:cancel tap",
+    "tapBounds": "[53,2205][1027,2331]",
+    "tapPoint": "540,2268",
+    "commandCancelLogged": true,
+    "cancelConvergedLogged": true,
+    "cancelProcessExitLogged": true,
+    "servicePresent": false,
+    "notificationRecordPresent": false,
+    "runtimePid": null,
+    "wavPcmTemporaryOutputPresent": false,
+    "evidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/ui-cancel-convergence.json"
+  },
+  "negativeChecks": {
+    "speaker58Hits": 0,
+    "zm009Hits": 0,
+    "fatalAnrInputTimeoutHits": 0,
+    "internetPermissionHitsInLog": 0,
+    "mainInternetPermission": false,
+    "peerInternetPermission": false,
+    "netstatsObservation": "ZERO_DELTA_EMPTY_UID_SET",
+    "netstatsNote": "No identity or byte-counter rows existed for UID 10310 before or after; CRLF and LF were normalized before comparison.",
+    "netstatsEvidence": ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/zero-network.json"
+  },
+  "findings": {
+    "currentP0": [],
+    "currentP1": [],
+    "currentP2": [],
+    "currentP3": [
+      "The custom notification may be grouped under MIUI '更多通知' when the system already has many notifications; the four controls are actionable after expanding that aggregate.",
+      "The full 30-minute wall window was intentionally not run by implementation self-test; only 5 minutes was executed and must not be promoted to 30-minute PASS.",
+      "Pad 5 was intentionally untouched; all new runtime claims are K60/API35 only until independent QA."
+    ],
+    "originalFindingsImplemented": [
+      {
+        "id": "qa-v3-P1",
+        "status": "IMPLEMENTED_SELF_TEST_PASS / INDEPENDENT_QA_PENDING"
+      },
+      {
+        "id": "qa-v3-P2",
+        "status": "IMPLEMENTED_SELF_TEST_PASS / INDEPENDENT_QA_PENDING"
+      }
+    ]
+  },
+  "blocked": [],
+  "notCovered": [
+    "full independent 30-minute continuous background reading",
+    "Pad 5 runtime and unlock",
+    "actual secure-keyguard media-card button taps",
+    "physical speaker audibility and subjective voice quality",
+    "production Aurorama TTS/service integration",
+    "production music arbitration and voice-pack lifecycle",
+    "licenses, notice, training data and speaker ownership",
+    "independent QA, review, release and G1 acceptance"
+  ],
+  "inferencesNotExecuted": [
+    "Do not infer that the 5-minute run proves 30-minute success.",
+    "Do not infer that K60 MIUI behavior proves other OEM SystemUI behavior.",
+    "Do not infer that a remoteViews notification control proves backend state without callback/log evidence.",
+    "Do not infer that the independent focus peer proves production music integration.",
+    "Do not infer production runtime, voice/profile freeze, Q03 closure or G1 PASS."
+  ],
+  "cleanup": {
+    "mainUninstall": "Success",
+    "peerUninstall": "Success",
+    "packagesRemaining": [],
+    "mainPid": null,
+    "peerPid": null,
+    "mainExternalDirPresent": false,
+    "peerExternalDirPresent": false,
+    "servicePresent": false,
+    "notificationRecordPresent": false,
+    "remoteKokoroXmlCount": 0,
+    "productionReleasePackageRecordMatch": true,
+    "productionDebugPackageRecordMatch": true,
+    "currentUserMatch": true,
+    "screenOffTimeoutMatch": true,
+    "stayOnWhilePluggedInMatch": true,
+    "lockScreenLockAfterTimeoutMatch": true,
+    "airplaneModeMatch": true,
+    "musicVolumeMatch": true,
+    "wakefulnessRestored": "Awake",
+    "activeLockCount": 0,
+    "evidence": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/uninstall.json",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/device-K60-8e875894/device-after.json"
+    ]
+  },
+  "gitWhitelist": {
+    "trackedOrUntrackedRepositoryChangesOnlyIn": [
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/",
+      ".planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v2/"
+    ],
+    "ignoredArtifactArchiveUsed": ".planning/v2-g1/G1-L1-KOKORO-EXACT/logs/apk-archive/",
+    "externalDeviceLockUsed": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "forbiddenPathsModified": [],
+    "graphifyUpdate": "SKIPPED because graphify-out/ is outside the explicit write whitelist"
+  },
+  "experience": [
+    "A MediaStyle notification's action order is not a reliable cross-OEM control layout. On the tested MIUI build, SystemUI derived previous/play-pause/next from the media surface and hid stop; a custom RemoteViews notification was required to make all four actions visible.",
+    "Exact current-notification checks must match NotificationRecord records, not historical notification dump text.",
+    "PowerShell automatic variable $pid must not carry runtime PIDs; use a task-specific variable such as runtimePid.",
+    "A host-side filtered logcat file is required for multi-minute audio evidence because the device main buffer rotates.",
+    "Terminal playback states must demote foreground/notification explicitly; service survival alone is not playback continuity."
+  ],
+  "memoryCheckpoint": {
+    "added": [],
+    "updated": [
+      "miui-notif-logcat-evidence.md",
+      "aurorama-v2-requirements.md"
+    ],
+    "archived": [],
+    "skipped": [
+      "full 30-minute result, independent QA, production runtime and profile freeze were not promoted because they were not executed"
+    ],
+    "indexLines": 121,
+    "indexBytes": 16037,
+    "indexSoftCapStatus": "UNDER_SOFT_CAP",
+    "engramoryCheck": "OK",
+    "engramoryDoctor": "clean; one pre-existing note-size info for leader-delegation-by-role.md (13.1 KB), unrelated to this task",
+    "currentHashesStoredInMemory": false
+  },
+  "maximumClaim": "The final isolated K60 harness implements and self-tests a 31-minute-content plan that crosses a 5-minute screen-off window with repeated real TTS AudioTracks, a service-owned single media session, a four-control MIUI custom notification, terminal cleanup, independent-UID OS AudioFocus loss, paused-only process reconstruction and UI cancel. It is not independent QA, not a 30-minute PASS, not production runtime and not G1 closure.",
+  "nextStep": {
+    "owner": "delivery lead through a fresh independent QA agent after implementation close",
+    "firstReadOnlyAction": "Read this report, artifact-audit-final.json and device-lock.md; then verify final APK size/SHA and worktree scope before installing on the explicitly assigned device.",
+    "stopCondition": "Stop on APK/source drift, Pad access without explicit handling, missing active lock, full 30-minute queue evidence failure, OS focus mismatch, unexpected production changes, or any new P0-P2."
+  }
+}

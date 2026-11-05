@@ -4,7 +4,9 @@ param(
     [string] $Serial,
 
     [Parameter(Mandatory = $true)]
-    [string] $ApkPath
+    [string] $ApkPath,
+
+    [string] $ExpectedPackage = 'dev.aurorama.kokoro.harness'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -16,7 +18,7 @@ $stdoutLog = Join-Path $logRoot 'install-stdout.log'
 $stderrLog = Join-Path $logRoot 'install-stderr.log'
 $uiXml = Join-Path $logRoot 'install-retry-ui.xml'
 $remoteXml = '/sdcard/kokoro_harness_install_retry.xml'
-$expectedPackage = 'dev.aurorama.kokoro.harness'
+$expectedPackage = $ExpectedPackage
 
 Remove-Item -LiteralPath $stdoutLog, $stderrLog, $uiXml -Force -ErrorAction SilentlyContinue
 $install = Start-Process -FilePath 'adb.exe' `

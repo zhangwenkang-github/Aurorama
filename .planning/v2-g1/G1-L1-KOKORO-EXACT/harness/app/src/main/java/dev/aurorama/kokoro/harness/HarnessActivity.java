@@ -128,6 +128,7 @@ public final class HarnessActivity extends Activity {
 
         addButton(root, "Start short TTS sample", KokoroRuntimeService.COMMAND_PLAY_SAMPLE, false);
         addButton(root, "Start 60-second TTS queue", KokoroRuntimeService.COMMAND_PLAY_FULL, false);
+        addButton(root, "Start 31-minute continuous TTS", KokoroRuntimeService.COMMAND_PLAY_LONG, false);
         addButton(root, "Pause", KokoroRuntimeService.COMMAND_PAUSE, false);
         addButton(root, "Resume", KokoroRuntimeService.COMMAND_RESUME, false);
         addButton(root, "Previous sentence", KokoroRuntimeService.COMMAND_PREVIOUS, false);
@@ -138,7 +139,6 @@ public final class HarnessActivity extends Activity {
         addButton(root, "Pause local music", KokoroRuntimeService.COMMAND_MUSIC_PAUSE, false);
         addButton(root, "Restore paused state", KokoroRuntimeService.COMMAND_RESTORE, false);
         addButton(root, "Dump runtime state", KokoroRuntimeService.COMMAND_DUMP_STATE, false);
-        addButton(root, "Simulate AudioFocus loss", KokoroRuntimeService.COMMAND_SIMULATE_FOCUS_LOSS, false);
         addButton(root, "Cancel TTS / cleanup", KokoroRuntimeService.COMMAND_CANCEL, true);
 
         ScrollView scroll = new ScrollView(this);
@@ -257,6 +257,11 @@ public final class HarnessActivity extends Activity {
                             + state.optBoolean("audioTrackPlaying")
                             + "\nAudioFocus held: "
                             + state.optBoolean("focusHeld")
+                            + "\nLong-run audio: "
+                            + state.optLong("longRunAudioMillis")
+                            + " / "
+                            + state.optLong("longRunTargetMillis")
+                            + " ms"
                             + "\nMusic: "
                             + state.optString("musicStatus")
                             + " index="

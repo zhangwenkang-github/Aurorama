@@ -99,9 +99,22 @@ Copy-Item -LiteralPath (Join-Path $modelRoot 'espeak-ng-data') -Destination $ass
 Copy-Item -LiteralPath (Join-Path $modelRoot 'dict') -Destination $assetsRoot -Recurse
 
 $manifest = Join-Path $harnessRoot 'app\src\main\AndroidManifest.xml'
+$resourcesRoot = Join-Path $harnessRoot 'app\src\main\res'
+$compiledResources = Join-Path $buildRoot 'compiled-resources.zip'
 $unsignedApk = Join-Path $buildRoot 'kokoro-isolated-harness-unsigned.apk'
 $alignedApk = Join-Path $buildRoot 'kokoro-isolated-harness-aligned.apk'
 $signedApk = Join-Path $outputRoot 'kokoro-isolated-harness-debug.apk'
+$peerClassesRoot = Join-Path $buildRoot 'peer-classes'
+$peerClassesJar = Join-Path $buildRoot 'focus-peer-classes.jar'
+$peerDexRoot = Join-Path $buildRoot 'peer-dex'
+$peerStageRoot = Join-Path $buildRoot 'peer-apk-stage'
+$peerManifest = Join-Path $harnessRoot 'peer\src\main\AndroidManifest.xml'
+$peerUnsignedApk = Join-Path $buildRoot 'kokoro-focus-peer-unsigned.apk'
+$peerAlignedApk = Join-Path $buildRoot 'kokoro-focus-peer-aligned.apk'
+$peerSignedApk = Join-Path $outputRoot 'kokoro-focus-peer-debug.apk'
+$peerBadgingLog = Join-Path $logRoot 'focus-peer-badging.txt'
+$null =
+    New-Item -ItemType Directory -Path $peerClassesRoot, $peerDexRoot, $peerStageRoot -Force
 
 $sources = @(
     Get-ChildItem -LiteralPath (Join-Path $harnessRoot 'contract\src\main\java') -Recurse -Filter '*.java' -File
@@ -109,12 +122,19 @@ $sources = @(
 ) | ForEach-Object FullName
 $sourceList = Join-Path $buildRoot 'sources.txt'
 [IO.File]::WriteAllLines($sourceList, $sources, [Text.UTF8Encoding]::new($false))
+$peerSources = @(
+    Get-ChildItem -LiteralPath (Join-Path $harnessRoot 'peer\src\main\java') -Recurse -Filter '*.java' -File
+) | ForEach-Object FullName
+$peerSourceList = Join-Path $buildRoot 'focus-peer-sources.txt'
+[IO.File]::WriteAllLines($peerSourceList, $peerSources, [Text.UTF8Encoding]::new($false))
 $classpath = @($androidJar, $sherpaJar, $kotlinStdlib) -join ';'
 
 $commands = [Collections.Generic.List[string]]::new()
 $commands.Add(
-    "& '$aapt2' link -o '$unsignedApk' --manifest '$manifest' -I '$androidJar' -A '$assetsRoot' " +
-    "--min-sdk-version 26 --target-sdk-version 37 --version-code 2 --version-name '2.0-kokoro-runtime' " +
+    "& '$aapt2' compile --dir '$resourcesRoot' -o '$compiledResources'")
+$commands.Add(
+    "& '$aapt2' link -o '$unsignedApk' --manifest '$manifest' -I '$androidJar' -A '$assetsRoot' -R '$compiledResources' " +
+    "--min-sdk-version 26 --target-sdk-version 37 --version-code 3 --version-name '2.0-kokoro-runtime-v4' " +
     "--debug-mode --no-compress")
 $commands.Add(
     "& '$javac' -encoding UTF-8 -source 17 -target 17 -classpath '$classpath' -d '$classesRoot' '@$sourceList'")
@@ -129,13 +149,33 @@ $commands.Add(
 $commands.Add(
     "& '$apksigner' sign --ks '$debugKeystore' --ks-pass pass:android --key-pass pass:android " +
     "--ks-key-alias androiddebugkey --out '$signedApk' '$alignedApk'")
+$commands.Add(
+    "& '$aapt2' link -o '$peerUnsignedApk' --manifest '$peerManifest' -I '$androidJar' " +
+    "--min-sdk-version 26 --target-sdk-version 37 --version-code 1 --version-name '1.0-focus-peer' " +
+    "--debug-mode --no-compress")
+$commands.Add(
+    "& '$javac' -encoding UTF-8 -source 17 -target 17 -classpath '$androidJar' -d '$peerClassesRoot' '@$peerSourceList'")
+$commands.Add(
+    "& '$jarTool' --create --file '$peerClassesJar' -C '$peerClassesRoot' .")
+$commands.Add(
+    "& '$d8' --min-api 26 --lib '$androidJar' --output '$peerDexRoot' '$peerClassesJar'")
+$commands.Add(
+    "& '$jarTool' --update --file '$peerUnsignedApk' -C '$peerStageRoot' .")
+$commands.Add(
+    "& '$zipalign' -f -p 4 '$peerUnsignedApk' '$peerAlignedApk'")
+$commands.Add(
+    "& '$apksigner' sign --ks '$debugKeystore' --ks-pass pass:android --key-pass pass:android " +
+    "--ks-key-alias androiddebugkey --out '$peerSignedApk' '$peerAlignedApk'")
 [IO.File]::WriteAllLines(
     (Join-Path $logRoot 'android-build-commands.log'),
     $commands,
     [Text.UTF8Encoding]::new($false))
 
-& $aapt2 link -o $unsignedApk --manifest $manifest -I $androidJar -A $assetsRoot `
-    --min-sdk-version 26 --target-sdk-version 37 --version-code 2 --version-name '2.0-kokoro-runtime' `
+& $aapt2 compile --dir $resourcesRoot -o $compiledResources
+if ($LASTEXITCODE -ne 0) { throw "aapt2 resource compile failed: $LASTEXITCODE" }
+
+& $aapt2 link -o $unsignedApk --manifest $manifest -I $androidJar -A $assetsRoot -R $compiledResources `
+    --min-sdk-version 26 --target-sdk-version 37 --version-code 3 --version-name '2.0-kokoro-runtime-v4' `
     --debug-mode --no-compress
 if ($LASTEXITCODE -ne 0) { throw "aapt2 link failed: $LASTEXITCODE" }
 
@@ -166,6 +206,37 @@ if ($LASTEXITCODE -ne 0) { throw "apksigner failed: $LASTEXITCODE" }
 
 & $apksigner verify --verbose --print-certs $signedApk
 if ($LASTEXITCODE -ne 0) { throw "APK signature verification failed" }
+
+& $aapt2 link -o $peerUnsignedApk --manifest $peerManifest -I $androidJar `
+    --min-sdk-version 26 --target-sdk-version 37 --version-code 1 --version-name '1.0-focus-peer' `
+    --debug-mode --no-compress
+if ($LASTEXITCODE -ne 0) { throw "focus peer aapt2 link failed: $LASTEXITCODE" }
+
+& $javac -encoding UTF-8 -source 17 -target 17 -classpath $androidJar -d $peerClassesRoot "@$peerSourceList"
+if ($LASTEXITCODE -ne 0) { throw "focus peer javac failed: $LASTEXITCODE" }
+
+& $jarTool --create --file $peerClassesJar -C $peerClassesRoot .
+if ($LASTEXITCODE -ne 0) { throw "focus peer classes jar failed: $LASTEXITCODE" }
+
+& $d8 --min-api 26 --lib $androidJar --output $peerDexRoot $peerClassesJar
+if ($LASTEXITCODE -ne 0) { throw "focus peer d8 failed: $LASTEXITCODE" }
+
+Copy-Item -LiteralPath (Join-Path $peerDexRoot 'classes.dex') -Destination $peerStageRoot
+& $jarTool --update --file $peerUnsignedApk -C $peerStageRoot .
+if ($LASTEXITCODE -ne 0) { throw "focus peer jar update failed: $LASTEXITCODE" }
+
+& $zipalign -f -p 4 $peerUnsignedApk $peerAlignedApk
+if ($LASTEXITCODE -ne 0) { throw "focus peer zipalign failed: $LASTEXITCODE" }
+
+& $apksigner sign --ks $debugKeystore --ks-pass pass:android --key-pass pass:android `
+    --ks-key-alias androiddebugkey --out $peerSignedApk $peerAlignedApk
+if ($LASTEXITCODE -ne 0) { throw "focus peer apksigner failed: $LASTEXITCODE" }
+
+& $apksigner verify --verbose --print-certs $peerSignedApk
+if ($LASTEXITCODE -ne 0) { throw "Focus peer APK signature verification failed" }
+
+& $aapt2 dump badging $peerSignedApk 2>&1 |
+    Set-Content -LiteralPath $peerBadgingLog -Encoding utf8
 
 $verifyRoot = Join-Path $buildRoot 'verify-apk'
 $null = New-Item -ItemType Directory -Path $verifyRoot -Force
@@ -200,6 +271,8 @@ try {
 }
 
 $apkHash = (Get-FileHash -LiteralPath $signedApk -Algorithm SHA256).Hash.ToLowerInvariant()
+$peerApkHash = (Get-FileHash -LiteralPath $peerSignedApk -Algorithm SHA256).Hash.ToLowerInvariant()
+$peerApkBytes = (Get-Item -LiteralPath $peerSignedApk).Length
 $nativeLibraries =
     Get-ChildItem -LiteralPath $nativeStage -Filter '*.so' -File |
         ForEach-Object {
@@ -218,8 +291,23 @@ $buildInfo = [ordered]@{
     abi = 'arm64-v8a'
     minSdk = 26
     targetSdk = 37
-    versionCode = 2
-    versionName = '2.0-kokoro-runtime'
+    versionCode = 3
+    versionName = '2.0-kokoro-runtime-v4'
+    longRunTargetMillis = 1860000
+    longRunConservativeCycleMillis = 48000
+    longRunCycleCount = 39
+    longRunPlannedMinimumMillis = 1872000
+    focusPeer = [ordered]@{
+        apk = $peerSignedApk
+        apkBytes = $peerApkBytes
+        apkSha256 = $peerApkHash
+        package = 'dev.aurorama.kokoro.focuspeer'
+        versionCode = 1
+        versionName = '1.0-focus-peer'
+        focus = 'AUDIOFOCUS_GAIN_TRANSIENT'
+        audioTrack = 'USAGE_MEDIA / CONTENT_TYPE_MUSIC / mono 24 kHz'
+        networkPermission = $false
+    }
     kotlinStdlib = $kotlinStdlib
     aar = (Join-Path $taskRoot 'assets\sherpa-onnx-2.0.1.aar')
     nativeLibraries = $nativeLibraries
@@ -242,3 +330,6 @@ $buildInfo | ConvertTo-Json -Depth 8 |
 Write-Output "APK=$signedApk"
 Write-Output "BYTES=$($buildInfo.apkBytes)"
 Write-Output "SHA256=$apkHash"
+Write-Output "PEER_APK=$peerSignedApk"
+Write-Output "PEER_BYTES=$peerApkBytes"
+Write-Output "PEER_SHA256=$peerApkHash"
