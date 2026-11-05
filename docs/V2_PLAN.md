@@ -3413,7 +3413,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：Pad Kokoro 差异化 QA FAIL，通知停止触发 native crash P1（2026-11-05）
+### ACTIVE：Pad QA FAIL P1 已定位，隔离 harness stop-path 修复已授权（2026-11-05）
 
 **负责身份**：G1 Kokoro runtime closure / licensing / device delivery owner（交付负责人 /
 技术集成编排者）。事实工作树
@@ -3422,7 +3422,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 `191a46e227c6cecac14392a2de4bc0a0fae026ee`。本轮未修改生产代码、未 push / tag / Release。
 
 **状态**：
-`K60_QA_V5_FULL_PASS / PAD_QA_V6_FAIL_P1_NATIVE_CRASH_AFTER_STOP / PAD_QA_V6_P2_PERFORMANCE_UNACCEPTED / PAD_ARTIFACTS_CLEANED / DEVICE_LOCK_ACTIVE_0 / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
+`P1_FIX_AUTHORIZED / ISOLATED_HARNESS_REPAIR_ONLY / K60_QA_V5_FULL_PASS / PAD_QA_V6_FAIL_P1_NATIVE_CRASH_AFTER_STOP / PAD_QA_V6_P2_PERFORMANCE_UNACCEPTED / PAD_ARTIFACTS_CLEANED / DEVICE_LOCK_ACTIVE_0 / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED / L2_L3_LOCKED`。
 
 **本波实际执行**
 
@@ -3471,13 +3471,15 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 - 许可 / 训练数据 / voice 权属 / notice / source offer 仍 PARTIAL；exact profile / voice、
   Q03、项目级 runtime、G1、G2 与 Release 均未通过。
 
-**下一步入口（需用户先授权修复，不创建空后继）**
+**下一步入口（用户已授权，交接为单一原子实现任务）**
 
-1. 由全新隔离 harness 实现 owner 先只读复现 `REV6-P1-01`，以 TDD 增加“stop 必须等待或安全
-   取消 native inference 后才能 teardown”的合同测试，再构建新 APK。
-2. 修复自测只证明候选；随后由另一全新独立 QA 在 Pad 先执行 stop-only native crash 门，
-   通过后再跑完整 30 分钟 / 零网络矩阵；K60 也须在新候选上重验受影响路径。
-3. 性能 P2 与许可 P1/P2 不因 P1 修复自动关闭。
+1. 由全新隔离 harness 实现 owner 只处理 `REV6-P1-01`：先只读复现，以 TDD 增加“stop 必须
+   等待或安全取消 native inference 后才能 teardown”的合同测试，完成最小修复并构建新 APK。
+2. 实现 owner 只做自身 TDD、构建、边界内 stop-only 真机自测和实现报告；不得开启 / 派发
+   独立 QA，不得跑完整 30 分钟矩阵，不得进入生产代码 / G2 / Release。
+3. 实现收口后再由负责人另派不同全新 QA：先关闭 stop-only native crash 门，通过后才在新
+   候选上重验 Pad / K60 核心 runtime；旧 QA-v5 / v6 APK 不能替新候选作证。
+4. 性能 P2 与许可 P1/P2 不因 P1 修复自动关闭。
 
 **停止条件**：native crash P1 未修复；hash / source / permission 漂移；需生产代码、G2、
 Release、服务器写、新域名 / MOSS 下载；或要求代签 profile freeze / Q03 / G1。
@@ -4901,3 +4903,9 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   最终 71/71 SHA 与 receipt 自洽，fresh review PASS。设备已清理并释放锁 `ACTIVE=0`。
   本轮未改产品、未 push / Release / 服务器写；下一步需用户授权新隔离 harness 修复，
   暂不创建后继。
+- **2026-11-05 — P1 隔离 harness 修复已授权 / 单原子任务交接**：用户原话“授权下一步。
+  交接，注意交接规范。以后尽量不要让子代理做过多的任务，上下文容易过大”。下一步仅交接
+  一个隔离 harness 实现 owner，目标只关闭 `REV6-P1-01` 的 stop / native-inference
+  teardown crash；仅做定向复现、TDD、最小修复、构建、边界内 stop-only 真机自测与实现报告。
+  不包含独立 QA、完整 30 分钟矩阵、性能 P2 接受、许可闭环、生产代码、G2 或 Release。
+  实现收口后停止，再由负责人另派全新独立 QA；后续派单按“一个子代理一个原子阶段”控制上下文。
