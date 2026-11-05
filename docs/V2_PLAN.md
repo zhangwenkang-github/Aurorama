@@ -3446,15 +3446,17 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
   service/notification/MediaSession 收敛，无 `F DEBUG` / tombstone / FATAL / ANR /
   InputTimeout / 新 `reason=5`。
 - 上一波证据与完整事实只读
-  `.planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/implementation-report.json` 与同目录
-  `artifact-audit.json`；实现自测不是独立 QA。
+  `.planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/implementation-report.json` 与
+  `.planning/v2-g1/G1-L1-KOKORO-EXACT/runtime-closure-v3/artifacts/artifact-audit.json`；
+  实现自测不是独立 QA。
 
 **下一原子任务（QA-v7，Pad only）**
 
 1. 第一条只读动作：运行
    `pwsh -NoProfile -ExecutionPolicy Bypass -File 'C:\Users\zhangwenkang\.codex\deepseek-subagent-proxy\status.ps1'`，
    然后读本 ACTIVE、`runtime-closure-v3/implementation-report.json`、
-   `artifact-audit.json`、两轮 implementation evidence、QA-v6 report 与
+   `runtime-closure-v3/artifacts/artifact-audit.json`、两轮 implementation evidence、
+   QA-v6 report 与
    `F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md` 顶部。
 2. 核验 worktree/branch/current HEAD/clean、实现输入基线是 HEAD 祖先、设备锁 ACTIVE=0；
    只使用 Pad `43af8627`（API33/arm64），先验 keyguard=false。若锁屏则
