@@ -648,3 +648,39 @@ TTS/G2 runtime、handoff 与特殊工具问题留到后期，由新方案或更�
 `V2-CORE-NON-TTS-DELIVERY-PLANNING` 与 `V2-TTS-G2-SPECIAL-SOLVE`；`docs/LESSONS.md`
 `L039`；Git 分支 `codex/g2-prewindow-blocked-20261107` 与 commit `c5a5ac0a`。本决定不构成
 任何 TTS、QA、runtime、G1 或产品 PASS。
+
+### `V2-D212` 每个用户 bug 的历史修复 lineage 与候选回归门（2026-11-07，Accepted）
+
+用户要求防止已修复 bug 在后续发布版本复发。接受一套跨版本、轻量且可执行的 Git / 测试
+约定；它复用现有任务卡、Git ancestry、测试 runner、候选包 QA 与 Release 文档，不建立新的
+自动化 harness、状态机或 exact-count 协议。
+
+接受语义：
+
+1. 每个用户 bug 使用稳定 `V2-FIX-<AREA>-NNN` lineage ID；已有 `L14-*`、需求 ID 或 issue
+   继续作为 source / 关联 ID，不能因再次修复而重新编号。同一个 bug 复发时沿用原 lineage
+   ID，只追加新的 fix commit、回归 ID 与候选证据。
+2. 每条 lineage 至少记录：`bug ID + source`、用户可观察场景、已合入 fix commit(s)、回归
+   test / fixture ID、候选 commit / 包验证结果、当前状态。台账放在现有 `V2_PLAN.md` 或
+   对应任务线文档，不新建说明文件。
+3. 进入 integration、release candidate、并行分支集成、cherry-pick 或打 tag 前，从 Git /
+   测试现场生成“历史 bug → 当前候选”小矩阵；每个 fix 用
+   `git merge-base --is-ancestor <fix_commit> <candidate>` 证明祖先。非祖先时必须有负责人
+   批准的 `EQUIVALENT` 替代实现与等价回归证据；patch-id 只用于识别复制关系，不能单独证明
+   用户行为已经保留。
+4. 在 release candidate 的同一 commit / 包上至少执行该 bug 的回归测试或用户场景。单测通过
+   不等于候选包含修复；核心或用户直接可见 bug 还必须执行至少一条候选包真实入口场景。
+5. 祖先 / EQUIVALENT 与候选回归任一缺失，lineage 标 `UNPROVEN`；不得写 `fixed / closed /
+   PASS`，不得由“任务曾合并”“分支已交付”“CI 绿”或历史版本通过替代。只有两项均有可
+   核验证据时才可标记 `FIXED_IN_CANDIDATE`。
+6. 遇到具体复发时，只针对该 lineage 比较最后已知好 tag、首个坏候选与相关 fix / test；
+   必要时才 `git bisect`。不得升级为全仓泛化 bug 扫描。
+7. 本决定从首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` / `V2-FIX-DOWNLOAD-001` 开始执行；
+   不对既有 1.4 全部 bug 追溯补写成已通过。现有 Git 抽样只能证明相关 fix commit 已进入
+   `v1.4.0` 与当前 integration，不能区分后续复发是漏测、漏合并还是行为回归，统一保持
+   `CAUSE_NOT_PROVEN`，直到逐 bug 证据齐备。
+
+证据入口：`docs/V2_PLAN.md` §12 ACTIVE 的六波规划、历史修复 lineage 与首卡；§13 最新
+日志；`docs/PROJECT_RULES.md` `R034`；`docs/LESSONS.md` `L040`；release tags
+`v1.0.0`～`v1.4.0` 与当前 `codex/v2-integration` Git 现场。本决定只约束修复可追溯性与候选
+回归，不构成产品、TTS、QA、runtime、G1 或 Release PASS。

@@ -515,3 +515,25 @@
   bespoke harness；工具局部 PASS 不是产品 PASS。
 - **来源**：2026-11-07 Aurorama TTS/G2 control-plane 收口、cleanup `de6dd31e` 与 handoff
   `65 errors` 复盘；用于后续 QA、下载、播放器及其他高风险工具链。
+
+## L040 修复要按 bug lineage 核候选祖先与候选回归，不能只看任务合并
+
+- **现象**：历史修复可能在下一次集成或发布后再次以用户可见形式出现；仅看到任务曾完成、
+  分支曾合并、CI 绿或单测存在，无法回答“这个具体 bug 是否仍在当前候选”。Aurorama 1.4
+  W90 的歌词回页、下载多选、即时反馈等缺陷说明，版本推进后仍需逐个用户场景复核。
+- **根因**：流程以任务 / 分支 / patch-id 为中心记录交付，缺少“用户 bug → fix commit →
+  回归 test / fixture → 当前候选”的逐项绑定；同时 `release candidate` 与普通分支、历史
+  1.4 证据、控制面局部测试之间没有统一解释边界。
+- **对策**：
+  1. 每个用户 bug 保留稳定 `V2-FIX-<AREA>-NNN`，复发时沿用同一 ID，只追加 fix / test。
+  2. 候选祖先和候选回归同时成立才可写 `FIXED_IN_CANDIDATE`；前者用 Git
+     `merge-base --is-ancestor` 或负责人批准的 `EQUIVALENT`，后者在候选 commit / 包上执行。
+  3. 核心或用户直接可见 bug 至少执行一条真实入口场景；单测、静态合同、CI 或旧版本通过
+     都不能单独代替。
+  4. 并行分支、cherry-pick、tag / Release 前只生成该范围的小矩阵；不要扩成全仓扫描或
+     新 bespoke 审计系统。
+- **证据边界**：若 Git / 测试无法区分漏测、漏合并与行为回归，状态只能是
+  `CAUSE_NOT_PROVEN / UNPROVEN`；下一步只针对具体 lineage 比较最后已知好 tag、首个坏候选
+  与相关 test / fix，必要时才 `git bisect`。
+- **来源**：2026-11-07 非 TTS 2.0 规划时对 release tags、v1.4 候选 lineage、W90 已知债与
+  当前 G1-S6 矩阵的只读审计；执行规则见 D212 / R034。

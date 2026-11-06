@@ -2,15 +2,16 @@
 
 > **当前状态（2026-11-07）**：`TTS_G2_DEFERRED / DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE /
 > DEFERRED_BLOCKED_CONTROL_PLANE /
-> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_CORE_PLANNING_IN_PROGRESS /
+> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_PLAN_READY_PENDING_USER_APPROVAL /
 > DO_NOT_RESUME_OLD_HANDOFF_LOOP / G0_PASSED / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
-> PRODUCT_P0_P3_NOT_ASSESSED / NO_RELEASE_AUTHORIZATION`。
+> PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序已延期；不得写成需求删除、已交付、
-> QA / runtime / G1 PASS。integration HEAD `de6dd31e1eb3c7d75d2f91a75a1d33a935dd20a9`
-> 开工时 clean；失败现场在本地只读归档分支 `codex/g2-prewindow-blocked-20261107`，commit
+> QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
+> `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场在本地只读归档分支
+> `codex/g2-prewindow-blocked-20261107`，commit
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），含 9 个 settlement
 > 文件与 `qa-pad-v2` 三文件，不合入、不 push、不 tag。旧 G2 合同与 QA evidence 冻结；
-> 当前先推进非 TTS 的 2.0 功能波次规划，产品实现、设备、QA 与 Release 仍需单独批准。
+> 非 TTS 2.0 功能波次与首张任务卡已规划完成，产品实现、设备、QA 与 Release 仍需单独批准。
 > 下方 `PAD_RUNTIME...` 与 64/65 段只作旧 G2 控制面 HISTORY，不得恢复执行循环。
 >
 > **HISTORY（2026-11-07 前；非当前状态）** 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / PAD_QA_PROMPT_DESCRIPTOR_READY_PENDING_FRESH_REVIEW / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / HISTORICAL_PRE_HANDOFF_AUDIT_PASS=PASS / HISTORICAL_OUTER_HANDOFF_QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64=AUDIT_SNAPSHOT_ONLY / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`。其中
@@ -3445,18 +3446,18 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：TTS_G2_DEFERRED_AFTER_2_0_CORE / NON_TTS_CORE_PLANNING_IN_PROGRESS（2026-11-07）
+### ACTIVE：TTS_G2_DEFERRED_AFTER_2_0_CORE / NON_TTS_PLAN_READY_PENDING_USER_APPROVAL（2026-11-07）
 
 **当前状态**：`TTS_G2=DEFERRED_BLOCKED_CONTROL_PLANE /
-SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_CORE_PLANNING_IN_PROGRESS /
+SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_PLAN_READY_PENDING_USER_APPROVAL /
 DO_NOT_RESUME_OLD_HANDOFF_LOOP / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 PRODUCT_P0_P3_NOT_ASSESSED / NO_RELEASE_AUTHORIZATION`。用户以 `V2-D211` 决定先推进其他
 非 TTS 的 2.0 core 功能，TTS/G2 runtime 的问题留到后期由新方案或更强 owner 解决。
 TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；当前只延期交付顺序，绝不
 代表 TTS、QA、runtime 或 G1 PASS。
 
-**冻结与可恢复性**：integration HEAD 为
-`de6dd31e1eb3c7d75d2f91a75a1d33a935dd20a9`；失败现场只读归档在本地分支
+**冻结与可恢复性**：本轮规划开工时 integration HEAD 为
+`a18362f85a4e03c089cf1aca2b583d0a53173113`；失败现场只读归档在本地分支
 `codex/g2-prewindow-blocked-20261107`，commit
 `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），包含 9 个 settlement
 文件与 `qa-pad-v2` 三文件原字节。该历史分支不得合入 `codex/v2-integration`、push 或
@@ -3469,10 +3470,194 @@ Pad/K60 QA。后续 agent 不得重入 64/65 transition、exact count 或旧 han
 产品 runtime 证据。上述结果只证明 cleanup / 工具局部收敛，不关闭 Q03、profile / voice、
 设备门、G1 或产品 P0–P3。
 
-**当前唯一入口**：`docs/TASKS.md` 的 `V2-CORE-NON-TTS-DELIVERY-PLANNING`。第一步只整理
-非 TTS 2.0 功能波次、依赖和第一条可执行任务卡，明确审批边界；不开始产品实现、QA、设备
-或 Release。若工作转入 TTS/G2，必须先建立新任务、新方案和新验收，并重新取得用户授权；
-旧 QA attempt / evidence 只能作历史输入，不能复用为 PASS。
+**规划基线**：G1-S6 当前为 16 张 planning umbrella、49 个可执行 micro-wave、495 条
+membership / 560 条边；外部 `445` source、`376` MVP 子项、D203 addendum 4 与
+`V2-REQ-BASE-001～005` 五个 MUST 组保持原语义。以下候选波次只重排交付顺序，不重算需求、
+不改变等级，也不把静态合同、计划或历史 1.4 证据升级为 2.0 产品结果。
+
+**TTS / G2 排除边界**：本次不纳入 `G2-READER-TTS-GATED` 的 6 个 wave，不纳入旧 G2
+runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些能力的任务。
+`G2-READER-CORE-W1/W2/W4` 与 `G2-Q03-SUPPLY-CHAIN-GATED-W1/W2` 含 TTS 混合成员
+（如 `READER-022/060/061/063/074/075/084/085/088`），不能整卡复用；阅读核心只能使用
+显式非 TTS 切片，父 promise 保持 `PARTIAL_NON_TTS / UNVERIFIED`。`G2-READER-PDF-GATED`
+本身不是 TTS 专项，但与含 TTS 的 Q03 供应链证据耦合，暂不进入本轮六波；分离供应链证据
+或用户另行授权后再排。`G2-SYNCPLAY-GATED` 同样保留为后续独立门，不混入本轮核心波。
+
+**候选波次与顺序**
+
+1. `V2-NON-TTS-W0 回归护栏与下载完成项可达性`
+   - 目标：修复 `L14-15` 的完成下载卡中央/整卡点击目标不完整，建立第一条
+     `V2-FIX-DOWNLOAD-001` lineage；以最小真实修复验证 D212 / R034 可执行。
+   - 成员与依赖：`G2-DOWNLOAD-STATE-W2` 的窄切片、`S6-P-DOWNLOAD-041`、
+     `L14-15`、D212、R034；不依赖架构迁移、通知重写或服务器。
+   - 非目标：不改下载 12 状态机、Worker、schema、通知或删除 receipt；不做下载页重设计；
+     不把历史 P3 写成已关闭。
+   - 风险：Compose 命中层级、长按与尾部动作可能互相吞事件；无障碍语义可能仍把整卡/操作
+     混成一个节点。当前规划未上机，不能预判当前代码一定复现。
+   - 可观察验收：在一条已完成下载上，点击卡片中央/普通区域进入正确详情或本地内容；
+     暂停/删除/更多等显式动作仍独立触发；Compose 语义与视觉热区一致；修复 commit、
+     `V2-REG-DOWNLOAD-001` 与候选场景绑定同一 lineage。
+   - 文件面：`app/phone` 下载行呈现与导航测试；`modes/film` 下载 UI 状态/测试；只有复用
+     共享组件确有必要时才进入 `core` presentation。禁止 `data` / Worker / Room / schema。
+   - TTS 关系：无；不触 TTS、voice-pack、audio-owner 或 G2。
+   - 为什么先做：爆炸半径最小、用户可直接感知、可一屏验证，并能在真实产品修复上建立
+     回归 lineage，而不是再建一套控制面。
+
+2. `V2-NON-TTS-W1 读路径信任与共享 UI 基座`
+   - 目标：交付搜索正/空/错/离线与返回恢复、持久 SWR 身份与失效、应用内更新信任，以及
+     R1 token / RWD / 状态 / 48dp / 200% / Reduce Motion 的共同基座。
+   - 成员与依赖：`G2-SEARCH-W1/W2`、`G2-PERSISTENT-SWR-W1/W2`、
+     `G2-UPDATE-TRUST-W1/W2`、`G2-UI-R1-FOUNDATION-W1/W2/W3`、
+     `G2-NAV-IDENTITY-W1`；依赖 BASE-001/002/003 静态合同、D202-E1/F1、既有路由与
+     持久存储。搜索排序/跨源呈现若仍需用户选择，本波先停在该决策门前。
+   - 非目标：不引入外部搜索引擎、遥测、服务器写、静默安装、无限预取或跨账号缓存复用；
+     不以 UI 静态 token 代替设备 / TalkBack 结果。
+   - 风险：查询身份、返回栈和缓存 generation 一旦混用会造成错账号串数据；更新安装成功
+     极易由“下载完成/安装器已打开”误报；R1 横切页面广，需逐页迁移。
+   - 可观察验收：真实正结果可打开，空/错/离线可区分且返回原查询；冷启动可先显示可标记的
+     陈旧数据并安全刷新；切号不串缓存；更新包的来源/版本/ABI/digest/signature 不匹配时
+     拒绝，系统安装结果未回读前保持未知；R1 在选定响应式与输入方式下可操作。
+   - 文件面：`data` 搜索/缓存/网络、`app/phone` 与 `modes/*` 搜索入口和共享 UI、
+     `core` 设计系统/更新/缓存公共层、`settings` 版本与持久偏好。
+   - TTS 关系：无；R1 只提供共享视觉/交互语义，不消费 voice-pack 或 TTS runtime。
+   - 为什么排第二：搜索、更新和缓存是高频用户承诺，共享 UI 基座越早收敛，后续下载、
+     播放与阅读越少返工。
+
+3. `V2-NON-TTS-W2 下载真相、离线投影与迁移`
+   - 目标：把 PENDING / RUNNING / PAUSED / COMPLETED / FAILED 等状态、canonical
+     provenance、暂停/恢复/取消/删除、通知、文件、sidecar、Room、离线投影和 1.4→2.0
+     前置迁移收敛到同一可重放事实。
+   - 成员与依赖：`G2-DOWNLOAD-STATE-W1/W2/W3`、
+     `G2-ARCH-CONTRACTS-MIGRATION-W2/W3` 的下载相关窄切片；依赖 W1 的身份/UI、现有
+     BASE-003、可丢弃 profile 迁移计划与显式测试数据授权。
+   - 非目标：不删除服务器媒体、不伪造进度、不承诺 OEM 自启、不做破坏性 DB fallback；
+     不以 Worker `SUCCESS`、文件存在或通知出现单独证明下载完成。
+   - 风险：跨存储部分成功、旧通知复活、书籍暂停缺失、跨账号同 UUID、多进程 WAL、
+     destructive migration 和通知/UI 双真源均可能造成 P0/P1 数据或信任问题。
+   - 可观察验收：真实创建并受理任务；进度、失败、暂停、恢复、取消、删除、冷启/重启
+     恢复；通知—下载页—DB/清单—文件—离线投影一致；删除完成项不留旧通知；迁移中断可
+     恢复，任一不一致 FAIL_CLOSED。
+   - 文件面：`core` Downloader/Worker/持久队列、`data` Room/DAO/sidecar/repository、
+     `app/phone` 通知与下载页、`modes/film` 下载呈现、`settings/setup` 离线身份。
+   - TTS 关系：无；音频下载只是文件/状态任务，不启动或持有 TTS audio owner。
+   - 为什么排第三：播放和阅读离线都依赖下载身份与真实状态；此层不先收敛，上层会重复
+     制造“入口正常、内容不可用”的假交付。
+
+4. `V2-NON-TTS-W3 音乐 / 视频连续性与身份收敛`
+   - 目标：交付音乐单 ExoPlayer / 单 MediaSession、队列/Next Up/恢复/懒补，视频统一
+     PlaybackEngine 与会话恢复，本地歌单 CRUD/交换，以及切号时旧身份播放原子清场。
+   - 成员与依赖：`G2-MUSIC-CORE-W1～W5`、`G2-VIDEO-CORE-W1～W4`、
+     `G2-LOCAL-PLAYLIST-W1/W2`、`G2-NAV-IDENTITY-W2`；依赖 W1 UI/身份、W2 下载/离线
+     provenance 与 BASE-004/005。
+   - 非目标：不做 TTS、voice-pack、TTS audio owner、SyncPlay、服务器歌单写或第二播放器；
+     不把历史 1.4 单机通过当成 V2 runtime 证据。
+   - 风险：单实例仲裁、后台/锁屏/蓝牙、实际随机序、大队列写放大、书/音乐/视频多类型
+     队列、切内核和切号残留均可能产生错播、双声或旧账号内容泄漏。
+   - 可观察验收：音乐和视频各自只对应一个活动逻辑会话；后台/通知/锁屏与 UI 状态一致；
+     队列、Next Up、随机历史、重启恢复保持；本地歌单重启与导入导出保留可表达字段；切号
+     立即暂停并隐藏旧身份播放，不串缓存。
+   - 文件面：`player/core`、`player/local`、`app/phone` playback service/notification、
+     `modes/film`、`modes/music`、`data` 本地歌单、`settings/setup` 身份。
+   - TTS 关系：不触 TTS；音乐/视频的 sessions 与仲裁只服务本波媒体，后续 TTS 另建单音频
+     owner 集成合同，不能从本波自动推导。
+   - 为什么排第四：播放是核心高频旅程，但必须建立在稳定身份、下载/离线与共享 UI 之上。
+
+5. `V2-NON-TTS-W4 非 TTS 阅读核心切片`
+   - 目标：交付 Publication/BookDocument、source-scoped locator、分页/滚动、书签、批注、
+     搜索降级、本地持久化和大书/弱网/强停恢复的非 TTS 子集。
+   - 成员与依赖：`G2-READER-CORE-W1～W4` 中显式剔除 TTS 子句后的切片；依赖 W1 UI、
+     W2 下载/离线 source identity。PDF 本轮继续保守使用现有能力，PDFium 替换与 Q03
+     供应链后置。
+   - 非目标：不做 TTS / 朗读音色 / 后台锁屏语音 / voice-pack / audio owner；不以 PDFium
+     gated 卡阻塞非 TTS 阅读计划；不把含 TTS 子句的父 promise 整体标完成。
+   - 风险：source-scoped bookId、position/WAL、大书内存、排版重排、书签/批注迁移和
+     流式与下载并存容易产生错书、丢进度或静默失败。
+   - 可观察验收：EPUB/CBZ/现有 PDF 可打开并翻页/滚动；设置、窗口和重启后位置稳定；
+     书签、批注、搜索失败原因与返回路径明确；离线可读；大书无假死。涉及 TTS 的父 promise
+     保持 `PARTIAL_NON_TTS / UNVERIFIED`。
+   - 文件面：`modes/book`、`data` reader/repository/database、`app/phone` 阅读导航与离线
+     入口；不进入 TTS harness 或 voice-pack 目录。
+   - TTS 关系：显式排除；只有在新的 TTS 任务中才能关闭原父 promise 的语音条款。
+   - 为什么排第五：依赖下载身份和共享 UI，但可独立于 TTS 交付；先让“打开、定位、笔记、
+     离线恢复”可信，再恢复音频朗读专项。
+
+6. `V2-NON-TTS-W5 受控写操作`
+   - 目标：在独立可写测试服务器上交付当前用户级收藏、已看、播放/阅读进度与服务器歌单写的
+     身份、权限、确认、回读、冲突、离线 intent 和部分失败语义。
+   - 成员与依赖：`G2-SERVER-WRITE-W1/W2`；依赖 W1 身份、W3 媒体/本地歌单、独立测试写入
+     服务器、明确任务卡和凭据位置。
+   - 非目标：不写生产 `jellyfins.zhangwenkang.com`；不做管理式媒体删除、用户权限管理、
+     远程会话管理或 SyncPlay；403 不重试，不以本地成功冒充服务器成功。
+   - 风险：鉴权/权限、403、409、重复提交、部分批次、回读漂移、离线 intent 和服务器清理
+     均可造成真实数据破坏；必须保留确认、可恢复与审计边界。
+   - 可观察验收：允许/拒绝/冲突/离线分别可见；写受理后回读目标状态；403 不重试；批次
+     部分失败可解释；测试对象清理可复现；生产服务器请求保持只读。
+   - 文件面：`data` Jellyfin API/repository、`settings` auth、`app/phone` 与
+     `modes/film/music/book` 动作面；测试写入仅使用获批独立服务器。
+   - TTS 关系：无；不触 voice-pack 或音频 owner。
+   - 为什么最后：用户价值和影响都高，但外部写授权、回滚与数据完整性风险最高；必须先有
+     读路径、身份、下载与播放的稳定底座。
+
+**历史修复 lineage 与证据边界**
+
+- Git 只读事实：release tags 为 `v1.0.0`～`v1.4.0`；`v1.4.0` 是 annotated tag，目标
+  `7b69e531fa0536379d66a5203736fd5ac43a5568`。本轮 sampled fix / candidate
+  `fe2dbacc`、`024235b4`、`27b82f57`、`005639a6`、`a8bfd836` 均为 `v1.4.0` 与当前
+  `codex/v2-integration` 的祖先；`005639a6..v1.4.0` 只增加 `docs/PLAYER_PLAN.md`。
+- 当前流程已有 Git/tag、候选祖先、patch-id、CI、签名 APK 与候选 QA 文档；没有“每个用户
+  bug → fix commit → test ID → 候选包场景”的强制台账。`publish.yaml` 仍为 disabled /
+  workflow_dispatch，tag 本身不会执行祖先或 bug 回归门。
+- 因此“可能是未测试或未合并”只能判 `CAUSE_NOT_PROVEN`：现有证据能证明被抽样的修复提交
+  已进入 1.4 发布与当前集成分支，不能证明每个历史 bug 都在后续候选包执行过，也不能证明
+  目录、测试或单测数量代表用户场景保持。下一步最小取证只限首卡 `V2-FIX-DOWNLOAD-001`：
+  在实现候选上执行绑定测试，并记录 commit/test/candidate 三项；若未来出现具体复发，再用
+  最后已知好 tag 与首个坏候选做定向比较或 `git bisect`，不做全仓泛化扫描。
+
+**首张任务卡（仅规划，待用户批准）**
+
+本轮没有打开产品源码或设备，因此“当前 v1.4/v2 分支仍可复现”尚未证明。在两个同属下载
+UI、且都可用一屏验证的候选之间做规划选择：
+
+- 候选 A：`L14-15` 完成下载卡中央 / 普通点击目标不完整；证据直接写明了
+  `DownloadRows`、整卡 / 尾部动作热区与“中央进度区实测”缺口，文件面最小。
+- 候选 B：`L14-26` 全已下载时按钮置灰但缺少禁用原因或等价反馈；也属下载 UI 且用户可见，
+  但需要先确认产品期望的反馈语义，验收比 A 多一个“为什么不可操作”的判据。
+
+推荐 A：交互结果明确、爆炸半径小、可直接验证“打开完成项”，并能用同一修复种下第一条
+lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静默换成 B；应停止并以最小
+只读证据回到用户 / 负责人重新批准。
+
+- ID：`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
+- 状态：`PLANNED_PENDING_USER_APPROVAL`
+- Bug / fix lineage：`V2-FIX-DOWNLOAD-001`，source `L14-15`
+- 后续专业角色：全新 `ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER`；实现收口后由用户另行
+  授权不同全新独立 QA，不由实现者自派。
+- 目标：修复完成下载卡中央/普通点击区域被进度布局拦截或目标不完整；从卡片可进入正确
+  详情/本地内容，显式动作仍独立可用。
+- 非目标：①不改下载状态机、Worker、Room、sidecar、通知、账号或迁移；②不重做下载页 /
+  不新增分享、批量或服务器动作；③不触 TTS / voice-pack / audio-owner / G2。
+- 依赖：`L14-15`、`S6-P-DOWNLOAD-041`、`G2-DOWNLOAD-STATE-W2` 窄切片、
+  `docs/V2_PLAN.md` §9 旧债边界、D212、R034。
+- 文件 / 接口边界（实现时按实际源码实例化）：`app/phone` 下载行 presentation /
+  navigation test；`modes/film` 下载 UI state / test；必要时才改 `core` 共享
+  presentation component。禁止 `data`、`core Downloader`、Worker、Room、schema、
+  notification 与服务器。
+- 验收：①先写 RED，复现“完成卡中央区域不可打开或触发错误目标”；②GREEN 后卡片普通/
+  中央区域进入正确详情或本地内容；③暂停/删除/更多动作仍独立触发且不穿透；④语义节点与
+  视觉热区一致，至少覆盖完成态和一种进行中态回归；⑤独立 QA 在真实候选包执行同一 bug 场景；
+  ⑥确认 fix commit 是候选祖先，测试 ID=`V2-REG-DOWNLOAD-001`；缺任一项标 `UNPROVEN`。
+- 证据与命令：实现 owner 首条只读动作 `git status --short`，随后 `git rev-parse HEAD`；
+  只读定位 `DownloadRows.kt` 对应行与现有下载 UI 测试，再跑最小 RED/GREEN；不先跑全仓。
+  收口报告记录 commit、test ID、candidate SHA、实际命令、executed 数与证据指针。
+- 风险 / 停止：当前规划未做源码复现；若实现时行为已正确，记录 `NO_DEFECT_REPRODUCED`
+  并停止，不为凑任务改代码。若修复需要下载状态机、通知、schema、数据迁移或设备授权，
+  立即拆卡并停止；任何 TTS/G2 需求出现即退出本波。
+- TTS 关系：无。
+
+**当前唯一入口**：用户审批 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`。未获实现授权前保持
+`PLANNED_PENDING_USER_APPROVAL`，不开始产品代码、QA、设备或 Release。若工作转入 TTS/G2，
+必须先建立新任务、新方案和新验收，并重新取得用户授权；旧 QA attempt / evidence 只能作
+历史输入，不能复用为 PASS。
 
 ### HISTORY：G2 FINAL AUDIT / PLAN A CLEANUP CONTROL-PLANE（旧 ACTIVE；已被 TTS_G2_DEFERRED_AFTER_2_0_CORE 取代）
 
@@ -6378,3 +6563,15 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   真实设备 runtime、产品 P0–P3 评估或 Release；旧 64/65、exact count 与 handoff 修复
   循环停止。下一步仅进入 `V2-CORE-NON-TTS-DELIVERY-PLANNING` 整理波次与首张任务卡，
   不开始产品实现。
+- **2026-11-07 — 非 TTS 2.0 交付规划收口，首卡待批准**：全新一次性
+  `AURORAMA_V2_NON_TTS_DELIVERY_PLANNER_2026_11_07` 在 clean HEAD
+  `a18362f85a4e03c089cf1aca2b583d0a53173113` 只读压缩审计 G1-S6 的 16 卡 / 49 wave /
+  495 membership、5 个 BASE 组、D201–D211、R020/R028/R030–R033、L036–L039、release
+  tags 与近期 Git lineage。新增六个候选波次，明确排除 TTS/G2/voice-pack/audio-owner，
+  并要求含 TTS 混合成员的 Reader Core / Q03 卡必须先切片；新增 D212/R034 与 L040，
+  把稳定 bug ID、fix commit、回归测试 ID、候选祖先 / EQUIVALENT 和候选场景绑定为轻量
+  发布门。首卡选定 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`，source `L14-15`，状态
+  `PLANNED_PENDING_USER_APPROVAL`；不开始实现。Git 抽样证明 v1.4 与当前 integration
+  包含已知 fix/candidate 提交，但缺少逐 bug 候选回归矩阵，因此用户所述可能原因保持
+  `CAUSE_NOT_PROVEN`。本轮无产品源码 / QA / 设备 / 网络 / 服务器 / schema / G2 合同改动，
+  产品 P0–P3 仍 `NOT_ASSESSED`；下一步仅由用户决定是否批准首卡。

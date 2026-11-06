@@ -5,18 +5,19 @@
 ## In Progress
 
 > **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
-> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_CORE_PLANNING_IN_PROGRESS /
+> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_PLAN_READY_PENDING_USER_APPROVAL /
 > DO_NOT_RESUME_OLD_HANDOFF_LOOP`。TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；
-> 不得写成删除、已交付、QA / runtime / G1 PASS。integration HEAD
-> `de6dd31e1eb3c7d75d2f91a75a1d33a935dd20a9` 开工时 clean；失败现场只读归档在
+> 不得写成删除、已交付、QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
+> `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场只读归档在
 > `codex/g2-prewindow-blocked-20261107` /
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 冻结，不得恢复
-> 64/65、exact count 或 handoff 修复循环；先整理非 TTS 功能波次，产品实现、设备、QA
+> 64/65、exact count 或 handoff 修复循环。非 TTS 六波与首卡已规划；产品实现、设备、QA
 > 与 Release 仍需单独批准。
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-| `V2-CORE-NON-TTS-DELIVERY-PLANNING` | Aurorama 2.0 非 TTS 主线；`V2-D211` | 从既有 MUST 基线、G1-S6 波次成员和当前用户门中整理非 TTS 功能波次、依赖、验收证据与第一条可执行任务卡；只规划，不实施 | ①不开始产品代码、QA、设备、Release；②不重开 TTS/G2 或修改冻结 evidence；③不新增产品或改变已确认语义 | `V2-D211`；`V2_PLAN.md` 当前 ACTIVE；`PROJECT_RULES`；`G1-S6/wave-membership.json` 与 `acceptance-matrix.json` 摘要 | 输出有序非 TTS 波次、依赖与审批门；第一条任务卡含目标、非目标、文件 / 接口边界、验收、证据和停止条件；产品工作树零改动 | 需要产品实现 / QA / 设备 / Release 授权；需要新需求语义；需要改 G2 合同、工具、源码或新增说明文件；旧 TTS 控制面被重新激活 |
+当前无 `In Progress` 产品任务。首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 只位于
+`Todo / Deferred`，状态 `PLANNED_PENDING_USER_APPROVAL`；用户批准前不得派实现或 QA。
 
 ## HISTORY — G2 / TTS 控制面失败现场（非当前入口）
 
@@ -147,6 +148,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 退出条件 |
 |---|---|---|---|---|
+| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`PLANNED_PENDING_USER_APPROVAL`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | 修复完成下载卡中央 / 普通点击被进度布局拦截或目标不完整；卡片可进入正确详情 / 本地内容，显式动作保持独立；绑定回归 ID `V2-REG-DOWNLOAD-001` | 用户批准首卡；D212 / R034；`S6-P-DOWNLOAD-041`；`G2-DOWNLOAD-STATE-W2` 窄切片；详见 `V2_PLAN.md` §12 首卡 | 最小 RED/GREEN + 候选祖先 + 独立候选 QA 场景均绑定同一 fix；重做下载状态机 / 通知 / schema / 设备 / TTS/G2 即停止拆卡 |
 | `V2-TTS-G2-SPECIAL-SOLVE` | TTS / G2 runtime 后期专项（Deferred） | 在其他非 TTS 的 2.0 core 功能之后，以新任务、新方案、新验收解决离线 TTS、G2 runtime、handoff 与设备闭环；保留当前失败现场作为历史输入 | `V2-D211`；用户重新授权；新 owner / 新合同 / 新验收；旧分支 `codex/g2-prewindow-blocked-20261107` 与 G2 evidence 只读 | 新方案明确产品可观察承诺、最便宜可信证据、设备/安全/数据边界、两轮止损预算和恢复入口，并经用户批准；旧 QA attempt 不得作为 PASS，且不得复活 64/65 / exact-count / handoff 循环 |
 | `V2-IMPLEMENTATION-PLAN` | G2 开发门 | 交付波次、完整任务卡、QA/集成顺序和用户开工批准 | G1 完整收口 + 用户明确解除 E 门；当前不得启动 | 用户批准开始实现 |
 
@@ -154,6 +156,7 @@
 
 | ID | 成果 | 证据 |
 |---|---|---|
+| `V2-CORE-NON-TTS-DELIVERY-PLANNING` | 非 TTS 2.0 六波、依赖、风险、可观察验收、文件面、TTS 排除边界与首张任务卡已规划；新增轻量历史修复 lineage 机制；未开始产品实现 / QA / 设备 / Release | `docs/V2_PLAN.md` §12 ACTIVE、§13；`docs/DECISIONS.md` `V2-D212`；`docs/PROJECT_RULES.md` `R034`；`docs/LESSONS.md` `L040`；Git 只读证据为 `v1.4.0` 目标 `7b69e531` 与 sampled fix/candidate 均进入当前集成分支 |
 | `V2-P0-01` | 第零章、8 项根决策、资源边界、权威文档和 ADR 基线；基线提交 `ee7ff239` 已本地进入集成分支 | `docs/V2_PLAN.md`、`PROJECT_RULES`、`LESSONS`、`DECISIONS`、ADR-0003～0005 |
 | `V2-REQ-ARCH` | 引言 + 第一章 72 条需求完成归一与分级：69 `MUST` / 3 `SHOULD` / 0 `LATER` / `0 OUT`；11 组决策全部确认 | 收口提交 `426e5c01`；`docs/V2_PLAN.md` §5.2、§12、§13；`DECISIONS` `V2-D010`～`D020`；ADR-0003/0004/0006 |
 | `V2-REQ-UX` | 第二章 38 条最终为 `21 MUST / 3 SHOULD / 2 LATER / 12 OUT`；一级 / 二级页面、首页边界、五档响应式、七类状态、选择性图标词表、五主题约束和证据口径完成；用户于 2026-11-02 接受整包 | 建议包提交 `c22963b5`；`docs/V2_PLAN.md` §5.3.15～§5.3.17、§12、§13；`DECISIONS` `V2-D081`；`V2-Q-UX-60` 已关闭 |
