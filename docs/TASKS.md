@@ -25,7 +25,8 @@
 > 历史 `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER`、
 > `ROUND8_READONLY_INTEGRATION_REVIEW_OWNER`、`ROUND7-P1-01`、`ROUND6-P1-01` 与 B10
 > `86/86`、B11 `96/96` 回归只作退役证据保留，不得复活为当前执行角色或 PASS；当前
-> settlement 合同回归 `104/104 PASS + TEMP_CLEANUP=PASS`；G2 入口契约就绪不等于 G2 已授权。
+> settlement 合同回归 `104/104 PASS + TEMP_CLEANUP=PASS`；D209 只授权全新
+> `G2_RUNTIME_CONTRACT_OWNER` 建立 runtime 合同，不等于 QA、设备、G2 实现或 Release 已授权。
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|

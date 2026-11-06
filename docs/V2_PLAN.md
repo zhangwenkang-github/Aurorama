@@ -3494,6 +3494,7 @@ G1；本契约不把任何一行标成 Done。
 **唯一当前状态**
 
 `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS /
+G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / V2-D209 /
 QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 
 机器合同为 `HANDOFF_BOOTSTRAP_V2`，当前 `validation.handoffPhase=POST_QA_RUNTIME_DEFERRED`。
@@ -3501,7 +3502,9 @@ QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 `POST_HANDOFF_AUDIT_READY`、历史 `auditReceipt=PASS` 与三文件审计时 transition set 全部保留，
 不得改写成 QA / runtime / G1 PASS。用户已通过 `V2-D208` 决定：停止本轮 QA 工具修复与重试，
 完整 Pad/K60 runtime QA 延期到 G2 入口门；G1 只继续可离线闭合的静态收口。QA-v9 是本轮真实
-证据，不是产品失败或产品通过。
+证据，不是产品失败或产品通过。用户又通过 `V2-D209` 只授权全新
+`G2_RUNTIME_CONTRACT_OWNER` 建立新 runtime 合同与 evidence 边界；该授权不执行 QA、不碰
+设备、不写产品代码，也不启动 G2 实现或 Release。
 
 `SUBAGENT_FIRST=YES`；`ONE_PHASE_PER_FRESH_AGENT=YES`；`NO_REUSE_SUBAGENT=YES`；
 `ROOT_INTEGRATION_ONLY=YES`；`DEVICE_WINDOW_MINUTES=10`；`DEVICE_ORDER=Pad->K60`。
@@ -3565,7 +3568,7 @@ Preflight PASS 后精确读序：
 3. `docs/PROJECT_PLAN.md` 的 2.0 任务线状态；
 4. `docs/V2_PLAN.md` §6、§10、§12、§13 最新日志；
 5. `docs/TASKS.md` `## In Progress`；
-6. `docs/DECISIONS.md` 当前 Open、`V2-D203`～`V2-D208`；
+6. `docs/DECISIONS.md` 当前 Open、`V2-D203`～`V2-D209`；
 7. `tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json` 的 `qaRoundState / auditReceipt /
    requiredGates / prompts / validation`；
 8. `Invoke-HandoffPreflight.ps1` 的 source/current、auditReceipt、post-QA transition、
