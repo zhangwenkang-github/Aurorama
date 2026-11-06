@@ -4849,7 +4849,7 @@ if ($EmitPrompt) {
     if ($isPostQaDeferredPhase) {
         Write-Output "NEXT_PROMPT_PATH=docs/V2_PLAN.md#ACTIVE"
         Write-Output "NEXT_PROMPT_BEGIN"
-        Write-Output "USER_RESUMED_G2_TOOL_REPAIR_HANDOFF；RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；G2_RUNTIME_CONTRACT_PACKAGE_READY；PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT；K60_GATED_LOCKED；V2-D210；当前合同没有可派发 QA prompt；旧 handoff 契约继续 activePrompt=none。首次 Pad QA 因路径绑定停止；repair owner 已修复并做到 57/57 工具回归、37 negative，设备命令为 0。用户已恢复并要求新会话交接，下一会话只接 fresh read-only repair audit，audit PASS 后才可另派 Pad QA。"
+        Write-Output "R2_WIP_REPAIR_R3_IN_PROGRESS；qaDispatchable=false；RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；PAD_RUNTIME_ATTEMPT_SCOPE_V2；K60_GATED_LOCKED；V2-D210；当前合同没有可派发 QA prompt；activePrompt=none。首次 Pad QA 因路径绑定停止，qa-pad-v1 的 NOT_STARTED blocker、cleanup 快照与自持锁保持原字节；新 attempt 仅使用 qa-pad-v2 / qa-k60-v2，并绑定外部权威锁 RELEASED_ACTIVE_0、registration/session 与 finalizer released lock。R2 WIP 未验收；R3 只完成实现侧修复，不声称 ready。下一步由 root 决定 fresh scoped review；review 第一条只读动作必须是 git status --short，随后 git diff --stat。"
         Write-Output "NEXT_PROMPT_END"
     }
     else {

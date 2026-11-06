@@ -45,7 +45,7 @@
     },
     "evidenceRoot": {
       "type": "string",
-      "pattern": "^\\.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-(pad|k60)-v1$"
+      "pattern": "^\\.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-(pad|k60)-v2$"
     },
     "candidate": {
       "type": "object",
@@ -193,8 +193,14 @@
       "required": [
         "deviceOrder",
         "coreVerdict",
+        "productVerdict",
         "lockStateAfterClosure",
-        "evidencePointer"
+        "evidenceRoot",
+        "evidencePointer",
+        "reportSha256",
+        "lockSha256",
+        "candidateMainSha256",
+        "candidateFocusPeerSha256"
       ],
       "properties": {
         "deviceOrder": {
@@ -203,12 +209,34 @@
         "coreVerdict": {
           "const": "PASS"
         },
+        "productVerdict": {
+          "const": "PASS"
+        },
         "lockStateAfterClosure": {
           "const": "RELEASED_ACTIVE_0"
+        },
+        "evidenceRoot": {
+          "const": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2"
         },
         "evidencePointer": {
           "type": "string",
           "minLength": 1
+        },
+        "reportSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "lockSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidateMainSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidateFocusPeerSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
         }
       }
     },

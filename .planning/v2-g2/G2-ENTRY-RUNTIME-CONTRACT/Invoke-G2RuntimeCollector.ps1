@@ -52,7 +52,11 @@ $pinnedMainSha256 =
 $pinnedPeerSha256 =
     "d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a"
 $pinnedSchemaSha256 =
-    "8cb6d8766e773107e9493b828239ee417c61cf703a3c7756f94b684729921046"
+    "a1c1549eb08b8c49ad0a2c4b6bb59fb8bbf641d1529f05948d1bb9e591409bae"
+$pinnedAuthoritativeLockPath =
+    "F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md"
+$handoffContractRelativePath =
+    "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
 $requiredProductGates = @(
     "G2-RT-01-FRESH-INSTALL-IDENTITY",
     "G2-RT-02-AUDIOTRACK-START-COMPLETION",
@@ -202,12 +206,13 @@ function Resolve-G2EvidenceRoot {
     param(
         [Parameter(Mandatory)][string]$ContractRoot,
         [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
-        [AllowNull()][string]$RequestedEvidenceRoot
+        [AllowNull()][string]$RequestedEvidenceRoot,
+        [AllowNull()][string]$RepositoryBase
     )
     $expectedRelative = if ($DeviceRole -ceq "Pad") {
-        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1"
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2"
     } else {
-        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v1"
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v2"
     }
     if ([string]::IsNullOrWhiteSpace($RequestedEvidenceRoot)) {
         $RequestedEvidenceRoot = $expectedRelative
@@ -216,14 +221,22 @@ function Resolve-G2EvidenceRoot {
     if ($normalized -cne $expectedRelative) {
         throw "EVIDENCE_ROOT_MISMATCH expected=$expectedRelative actual=$normalized"
     }
-    $repository = [System.IO.Path]::GetFullPath(
-        (Join-Path $ContractRoot "..\..\..")
-    )
+    $repository = if ([string]::IsNullOrWhiteSpace($RepositoryBase)) {
+        [System.IO.Path]::GetFullPath(
+            (Join-Path $ContractRoot "..\..\..")
+        )
+    } else {
+        [System.IO.Path]::GetFullPath($RepositoryBase)
+    }
     $fullPath = [System.IO.Path]::GetFullPath(
         (Join-Path $repository $expectedRelative)
     )
+    Assert-G2NoReparsePath -Root $repository -FullPath $fullPath
+    $effectiveContractRoot = Join-Path `
+        $repository `
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT"
     $contractPrefix =
-        [System.IO.Path]::GetFullPath($ContractRoot).
+        $effectiveContractRoot.
             TrimEnd([System.IO.Path]::DirectorySeparatorChar) +
         [System.IO.Path]::DirectorySeparatorChar
     if (-not $fullPath.StartsWith(
@@ -259,12 +272,255 @@ function Assert-G2WindowPolicy {
     }
 }
 
+function Get-G2AttemptRecoveryDefinition {
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole
+    )
+    if (
+        [string]$Contract.attemptRecovery.schema -cne
+            "aurorama.g2-prewindow-recovery.v1"
+    ) {
+        throw "ATTEMPT_RECOVERY_SCHEMA_MISMATCH"
+    }
+    $activeRoot = if ($DeviceRole -ceq "Pad") {
+        [string]$Contract.evidence.padRuntimeRoot
+    } else {
+        [string]$Contract.evidence.k60RuntimeRoot
+    }
+    if ($activeRoot -cne (
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/" +
+        $(if ($DeviceRole -ceq "Pad") { "qa-pad-v2" } else { "qa-k60-v2" })
+    )) {
+        throw "ACTIVE_ATTEMPT_SCOPE_MISMATCH role=$DeviceRole"
+    }
+    $historical = if ($DeviceRole -ceq "Pad") {
+        $Contract.attemptRecovery.historicalPreWindowBlock
+    } else {
+        $null
+    }
+    if ($DeviceRole -ceq "Pad") {
+        if (
+            [string]$historical.root -cne
+                ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1" -or
+            [string]$historical.outcome -cne "PRE_WINDOW_TOOL_BLOCK" -or
+            @($historical.evidenceFiles).Count -ne 5
+        ) {
+            throw "HISTORICAL_PREWINDOW_SCOPE_MISMATCH"
+        }
+    }
+    return [pscustomobject]@{
+        DeviceRole = $DeviceRole
+        ActiveRoot = $activeRoot
+        HistoricalRoot = if ($null -eq $historical) {
+            $null
+        } else {
+            [string]$historical.root
+        }
+        Historical = $historical
+        QaOwnerRole = if ($DeviceRole -ceq "Pad") {
+            "G2_PAD_QA_OWNER_2026_11_06"
+        } else {
+            "G2_K60_QA_OWNER_2026_11_06"
+        }
+    }
+}
+
+function Get-G2AuthoritativeLockSnapshot {
+    param([Parameter(Mandatory)][string]$DeviceLockPath)
+    if (-not (Test-Path -LiteralPath $DeviceLockPath -PathType Leaf)) {
+        throw "AUTHORITATIVE_DEVICE_LOCK_MISSING"
+    }
+    $bytes = [System.IO.File]::ReadAllBytes($DeviceLockPath)
+    try {
+        $text = $utf8Strict.GetString($bytes)
+    } catch {
+        throw "AUTHORITATIVE_DEVICE_LOCK_NOT_UTF8"
+    }
+    $lines = @($text.Replace("`r", "").Split("`n"))
+    $currentStart = -1
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex] -ceq "## 当前占用") {
+            $currentStart = $lineIndex + 1
+            break
+        }
+    }
+    if ($currentStart -lt 0) {
+        throw "AUTHORITATIVE_DEVICE_LOCK_SECTION_MISSING"
+    }
+    $currentEnd = $lines.Count
+    for ($lineIndex = $currentStart; $lineIndex -lt $lines.Count; $lineIndex++) {
+        if ($lines[$lineIndex].StartsWith(
+            "## ",
+            [System.StringComparison]::Ordinal
+        )) {
+            $currentEnd = $lineIndex
+            break
+        }
+    }
+    $activeCount = 0
+    for ($lineIndex = $currentStart; $lineIndex -lt $currentEnd; $lineIndex++) {
+        if ($lines[$lineIndex] -match '^### .*— ACTIVE(?:\s|$)') {
+            $activeCount++
+        }
+    }
+    return [pscustomobject]@{
+        state = if ($activeCount -eq 0) {
+            "RELEASED_ACTIVE_0"
+        } else {
+            "ACTIVE_COUNT_$activeCount"
+        }
+        activeCount = $activeCount
+        sha256 = [Convert]::ToHexString(
+            [System.Security.Cryptography.SHA256]::HashData($bytes)
+        ).ToLowerInvariant()
+    }
+}
+
+function Assert-G2HistoricalBlockerSemantics {
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)]$Blocker
+    )
+    if (
+        [string]$Blocker.schema -cne "aurorama.g2-pad-blocker.v1" -or
+        [string]$Blocker.contractId -cne [string]$Contract.contractId -or
+        [string]$Blocker.ownerRole -cne
+            "G2_PAD_QA_OWNER_2026_11_06" -or
+        [string]$Blocker.status -cne
+            "BLOCKED_RUNTIME_TOOL_PATH_BINDING" -or
+        [string]$Blocker.executed.attemptWindow -cne "NOT_STARTED" -or
+        [string]$Blocker.executed.freshInstall -cne "NOT_RUN" -or
+        [string]$Blocker.executed.coreRuntimeMatrix -cne "NOT_RUN" -or
+        [bool]$Blocker.rootCauseBoundary.windowConsumed -ne $false -or
+        [string]$Blocker.candidate.mainSha256 -cne
+            [string]$Contract.candidate.main.sha256 -or
+        [string]$Blocker.candidate.focusPeerSha256 -cne
+            [string]$Contract.candidate.focusPeer.sha256
+    ) {
+        throw "PREWINDOW_HISTORICAL_BLOCKER_NOT_UNCONSUMED"
+    }
+    if (
+        [string]$Blocker.device.serial -cne "43af8627" -or
+        [bool]$Blocker.k60.registered -ne $false -or
+        [int]$Blocker.k60.targetedCommands -ne 0
+    ) {
+        throw "PREWINDOW_HISTORICAL_DEVICE_BOUNDARY_MISMATCH"
+    }
+    return [pscustomobject]@{
+        status = [string]$Blocker.status
+        attemptWindow = [string]$Blocker.executed.attemptWindow
+        freshInstall = [string]$Blocker.executed.freshInstall
+        deviceLockState = "ACTIVE_COUNT_1"
+    }
+}
+
+function Assert-G2HistoricalPreWindowBlock {
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)][string]$HistoricalRoot
+    )
+    $definition = Get-G2AttemptRecoveryDefinition `
+        -Contract $Contract `
+        -DeviceRole Pad
+    if (-not (Test-Path -LiteralPath $HistoricalRoot -PathType Container)) {
+        throw "PREWINDOW_HISTORICAL_ROOT_MISSING"
+    }
+    $blockerPath = Join-Path $HistoricalRoot "blocker.json"
+    if (-not (Test-Path -LiteralPath $blockerPath -PathType Leaf)) {
+        throw "PREWINDOW_HISTORICAL_BLOCKER_MISSING"
+    }
+    foreach ($runtimeArtifact in @(
+        "collector-registration.json",
+        "window-started.json",
+        "collector-session.json",
+        "report.json"
+    )) {
+        if (Test-Path -LiteralPath (
+            Join-Path $HistoricalRoot $runtimeArtifact
+        ) -PathType Leaf) {
+            throw "PREWINDOW_HISTORICAL_ATTEMPT_CONSUMED $runtimeArtifact"
+        }
+    }
+    $blocker = Read-G2JsonStrict $blockerPath
+    $semantics = Assert-G2HistoricalBlockerSemantics `
+        -Contract $Contract `
+        -Blocker $blocker
+    foreach ($item in @($definition.Historical.evidenceFiles)) {
+        $relativePath = [string]$item.path
+        $segments = @($relativePath -split "[\\/]")
+        if (
+            [string]::IsNullOrWhiteSpace($relativePath) -or
+            [System.IO.Path]::IsPathRooted($relativePath) -or
+            $segments -contains ".." -or
+            $segments -contains "." -or
+            $segments -contains ""
+        ) {
+            throw "PREWINDOW_HISTORICAL_EVIDENCE_PATH_INVALID"
+        }
+        $path = Join-Path $HistoricalRoot $relativePath
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "PREWINDOW_HISTORICAL_EVIDENCE_MISSING $relativePath"
+        }
+        if ((Get-G2FileSha256 $path) -cne [string]$item.sha256) {
+            throw "PREWINDOW_HISTORICAL_EVIDENCE_SHA_DRIFT $relativePath"
+        }
+    }
+    $historicalLock = Read-G2JsonStrict (
+        Join-Path $HistoricalRoot "device-lock.json"
+    )
+    if (
+        [string]$historicalLock.schema -cne
+            "aurorama.g2-device-lock.v1" -or
+        [string]$historicalLock.deviceRole -cne "Pad" -or
+        [string]$historicalLock.serial -cne "43af8627" -or
+        [string]$historicalLock.state -cne "ACTIVE_COUNT_1" -or
+        [int]$historicalLock.activeCount -ne 1 -or
+        [int]$historicalLock.attemptNumber -ne 1 -or
+        $null -ne $historicalLock.releasedAt
+    ) {
+        throw "PREWINDOW_HISTORICAL_INTERNAL_LOCK_MISMATCH"
+    }
+    return [pscustomobject]@{
+        status = $semantics.status
+        attemptWindow = $semantics.attemptWindow
+        freshInstall = $semantics.freshInstall
+        deviceLockState = [string]$historicalLock.state
+        blockerPath = $blockerPath
+        blockerSha256 = Get-G2FileSha256 $blockerPath
+        deviceLockPath = Join-Path $HistoricalRoot "device-lock.json"
+        deviceLockSha256 = Get-G2FileSha256 (
+            Join-Path $HistoricalRoot "device-lock.json"
+        )
+    }
+}
+
+function Assert-G2NewAttemptScopeFresh {
+    param([Parameter(Mandatory)][string]$EvidenceFullPath)
+    if (Test-Path -LiteralPath $EvidenceFullPath -PathType Container) {
+        $scopeEntries = @(
+            Get-ChildItem -LiteralPath $EvidenceFullPath -Force `
+                -ErrorAction Stop
+        )
+        if ($scopeEntries.Count -gt 0) {
+            $entryNames = @($scopeEntries | ForEach-Object {
+                [string]$_.Name
+            })
+            throw (
+                "ATTEMPT_SCOPE_MUST_BE_EMPTY unknownContent=" +
+                ($entryNames -join ",")
+            )
+        }
+    }
+}
+
 function Assert-G2DevicePolicy {
     param(
         [Parameter(Mandatory)]$Contract,
         [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
         [Parameter(Mandatory)][string]$Serial,
-        [AllowNull()]$Predecessor
+        [AllowNull()]$Predecessor,
+        [AllowNull()]$Context
     )
     $expectedSerial = if ($DeviceRole -ceq "Pad") {
         [string]$Contract.devicePolicy.pad.serial
@@ -277,8 +533,50 @@ function Assert-G2DevicePolicy {
     if ($DeviceRole -ceq "Pad") {
         return
     }
+    $definition = Get-G2AttemptRecoveryDefinition `
+        -Contract $Contract `
+        -DeviceRole K60
+    $expectedEvidenceRoot = [string]$Contract.evidence.padRuntimeRoot
+    $expectedPointer = "$expectedEvidenceRoot/report.json"
+    if (
+        $null -eq $Context -or
+        $null -eq $Context.PSObject.Properties["RepositoryRoot"] -or
+        [string]::IsNullOrWhiteSpace([string]$Context.RepositoryRoot)
+    ) {
+        throw "K60_PREDECESSOR_REPOSITORY_CONTEXT_REQUIRED"
+    }
+    $repositoryBase = [System.IO.Path]::GetFullPath(
+        [string]$Context.RepositoryRoot
+    )
+    $padRoot = Resolve-G2BoundedPath `
+        -Root $repositoryBase `
+        -RelativePath $expectedEvidenceRoot
+    $actualPredecessor = Get-G2PadPredecessor `
+        -Context $Context `
+        -PadRoot $padRoot
+    $expectedFields = @(
+        "deviceOrder",
+        "coreVerdict",
+        "productVerdict",
+        "lockStateAfterClosure",
+        "evidenceRoot",
+        "evidencePointer",
+        "reportSha256",
+        "lockSha256",
+        "candidateMainSha256",
+        "candidateFocusPeerSha256"
+    )
+    $actualFields = if ($null -eq $Predecessor) {
+        @()
+    } else {
+        @($Predecessor.PSObject.Properties.Name)
+    }
     if (
         $null -eq $Predecessor -or
+        $actualFields.Count -ne $expectedFields.Count -or
+        @($expectedFields | Where-Object {
+            $actualFields -notcontains $_
+        }).Count -gt 0 -or
         [string]$Predecessor.deviceOrder -cne "Pad" -or
         [string]$Predecessor.coreVerdict -cne "PASS" -or
         [string]$Predecessor.productVerdict -cne "PASS" -or
@@ -287,17 +585,19 @@ function Assert-G2DevicePolicy {
         [string]$Predecessor.candidateMainSha256 -cne
             [string]$Contract.candidate.main.sha256 -or
         [string]$Predecessor.candidateFocusPeerSha256 -cne
-            [string]$Contract.candidate.focusPeer.sha256
+            [string]$Contract.candidate.focusPeer.sha256 -or
+        [string]$Predecessor.evidenceRoot -cne $expectedEvidenceRoot -or
+        [string]$Predecessor.evidencePointer -cne $expectedPointer -or
+        [string]$Predecessor.reportSha256 -cne
+            [string]$actualPredecessor.reportSha256 -or
+        [string]$Predecessor.lockSha256 -cne
+            [string]$actualPredecessor.lockSha256 -or
+        [string]$Predecessor.candidateMainSha256 -cne
+            [string]$actualPredecessor.candidateMainSha256 -or
+        [string]$Predecessor.candidateFocusPeerSha256 -cne
+            [string]$actualPredecessor.candidateFocusPeerSha256
     ) {
-        throw "K60_PREDECESSOR_PAD_PASS_AND_RELEASED_LOCK_REQUIRED"
-    }
-    $pointer = [string]$Predecessor.evidencePointer
-    $normalizedPointer = $pointer.Replace("\", "/")
-    if (-not $normalizedPointer.StartsWith(
-        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1/",
-        [System.StringComparison]::Ordinal
-    )) {
-        throw "K60_PREDECESSOR_EVIDENCE_POINTER_OUTSIDE_PAD_ROOT"
+        throw "K60_PREDECESSOR_FIELD_OR_FILE_SHA_MISMATCH"
     }
 }
 
@@ -390,8 +690,7 @@ function Get-G2ContractContext {
         "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06") {
         throw "CONTRACT_ID_MISMATCH"
     }
-    if ($contract.status -cne
-        "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT") {
+    if ($contract.status -cne "R2_WIP_REPAIR_R3_IN_PROGRESS") {
         throw "CONTRACT_STATUS_MISMATCH"
     }
     if ($contract.owner.roleId -cne
@@ -404,11 +703,11 @@ function Get-G2ContractContext {
         throw "RUNTIME_TOOL_OWNER_MISMATCH"
     }
     if ($contract.tools.runtimeCollector.status -cne
-            "READY_SELF_TESTED_STATIC_ONLY" -or
+            "R2_WIP_REPAIR_R3_IN_PROGRESS" -or
         $contract.tools.runtimeFinalizer.status -cne
-            "READY_SELF_TESTED_STATIC_ONLY" -or
+            "R2_WIP_REPAIR_R3_IN_PROGRESS" -or
         $contract.tools.cleanupVerifier.status -cne
-            "READY_SELF_TESTED_STATIC_ONLY") {
+            "R2_WIP_REPAIR_R3_IN_PROGRESS") {
         throw "RUNTIME_TOOL_STATUS_NOT_READY"
     }
     if ($manifest.ownerRole -cne $toolOwnerRole -or
@@ -497,6 +796,7 @@ function Get-G2ContractContext {
         Manifest = $manifest
         Evidence = $resolvedEvidence
         ToolsDigest = $actualDigest
+        RepositoryRoot = $repositoryRoot
     }
 }
 
@@ -1070,6 +1370,92 @@ function Invoke-G2LogcatCapture {
         -PassThru
 }
 
+function Assert-G2CollectorRegistrationState {
+    param(
+        [Parameter(Mandatory)]$Context,
+        [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
+        [Parameter(Mandatory)]$Registration
+    )
+    $contract = $Context.Contract
+    $evidence = $Context.Evidence
+    $definition = Get-G2AttemptRecoveryDefinition `
+        -Contract $contract `
+        -DeviceRole $DeviceRole
+    $serial = if ($DeviceRole -ceq "Pad") {
+        [string]$contract.devicePolicy.pad.serial
+    } else {
+        [string]$contract.devicePolicy.k60.serial
+    }
+    if (
+        [string]$Registration.schema -cne
+            "aurorama.g2-collector-registration.v1" -or
+        [string]$Registration.contractId -cne [string]$contract.contractId -or
+        [string]$Registration.toolOwnerRole -cne $toolOwnerRole -or
+        [string]$Registration.qaOwnerRole -cne $definition.QaOwnerRole -or
+        [string]$Registration.deviceRole -cne $DeviceRole -or
+        [string]$Registration.serial -cne $serial -or
+        [string]$Registration.attemptScope -cne $definition.ActiveRoot -or
+        [string]$Registration.attemptState -cne
+            "REGISTERED_WINDOW_NOT_STARTED" -or
+        [int]$Registration.attemptNumber -ne 1 -or
+        [int]$Registration.windowSeconds -ne 600 -or
+        [string]$Registration.lockState -cne "ACTIVE_COUNT_1" -or
+        [string]$Registration.candidateMainSha256 -cne
+            [string]$contract.candidate.main.sha256 -or
+        [string]$Registration.candidateFocusPeerSha256 -cne
+            [string]$contract.candidate.focusPeer.sha256 -or
+        [string]$Registration.sourceCommit -cne
+            [string]$contract.candidate.sourceCommit -or
+        [string]$Registration.toolsDigest -cne [string]$Context.ToolsDigest -or
+        [string]$Registration.authoritativeLockState -cne
+            "RELEASED_ACTIVE_0"
+    ) {
+        throw "COLLECTOR_REGISTRATION_MISMATCH"
+    }
+    if ($DeviceRole -ceq "Pad") {
+        if (
+            [string]$Registration.recoveryBasis.outcome -cne
+                "PRE_WINDOW_TOOL_BLOCK" -or
+            [bool]$Registration.recoveryBasis.historicalWindowConsumed -ne
+                $false -or
+            [string]$Registration.recoveryBasis.blockerSha256 -notmatch
+                "^[0-9a-f]{64}$" -or
+            [string]$Registration.recoveryBasis.historicalDeviceLockSha256 `
+                -notmatch "^[0-9a-f]{64}$" -or
+            [string]$Registration.recoveryBasis.authoritativeLockState -cne
+                "RELEASED_ACTIVE_0"
+        ) {
+            throw "COLLECTOR_REGISTRATION_RECOVERY_BASIS_MISMATCH"
+        }
+    } else {
+        Assert-G2DevicePolicy `
+            -Contract $contract `
+            -Context $Context `
+            -DeviceRole K60 `
+            -Serial $serial `
+            -Predecessor $Registration.predecessor
+    }
+    $lockPath = Join-Path $evidence.FullPath "device-lock.json"
+    if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) {
+        throw "ACTIVE_ATTEMPT_LOCK_MISSING"
+    }
+    $lock = Read-G2JsonStrict $lockPath
+    if (
+        [string]$lock.schema -cne "aurorama.g2-device-lock.v1" -or
+        [string]$lock.deviceRole -cne $DeviceRole -or
+        [string]$lock.serial -cne $serial -or
+        [string]$lock.attemptScope -cne $definition.ActiveRoot -or
+        [string]$lock.state -cne "ACTIVE_COUNT_1" -or
+        [int]$lock.activeCount -ne 1 -or
+        [int]$lock.attemptNumber -ne 1 -or
+        $null -ne $lock.releasedAt -or
+        [string]$lock.authoritativeLockStateAtRegistration -cne
+            "RELEASED_ACTIVE_0"
+    ) {
+        throw "ACTIVE_ATTEMPT_LOCK_MISMATCH"
+    }
+}
+
 function Invoke-G2Window {
     param(
         [Parameter(Mandatory)]$Context,
@@ -1097,18 +1483,10 @@ function Invoke-G2Window {
         throw "ATTEMPT_ALREADY_CONSUMED RETRY_FORBIDDEN"
     }
     $registration = Read-G2JsonStrict $registrationPath
-    if (
-        [string]$registration.contractId -cne [string]$contract.contractId -or
-        [string]$registration.deviceRole -cne $DeviceRole -or
-        [int]$registration.attemptNumber -ne 1 -or
-        [string]$registration.lockState -cne "ACTIVE_COUNT_1" -or
-        [string]$registration.candidateMainSha256 -cne
-            [string]$contract.candidate.main.sha256 -or
-        [string]$registration.candidateFocusPeerSha256 -cne
-            [string]$contract.candidate.focusPeer.sha256
-    ) {
-        throw "COLLECTOR_REGISTRATION_MISMATCH"
-    }
+    Assert-G2CollectorRegistrationState `
+        -Context $Context `
+        -DeviceRole $DeviceRole `
+        -Registration $registration
     $plan = @(Read-G2InteractionPlan -Path $PlanPath)
     $serial = if ($DeviceRole -ceq "Pad") {
         [string]$contract.devicePolicy.pad.serial
@@ -1118,6 +1496,7 @@ function Invoke-G2Window {
     $device = Get-G2DeviceMetadata -Serial $serial
     Assert-G2DevicePolicy `
         -Contract $contract `
+        -Context $Context `
         -DeviceRole $DeviceRole `
         -Serial $device.serial `
         -Predecessor $registration.predecessor
@@ -1409,6 +1788,8 @@ function Invoke-G2Window {
         toolOwnerRole = $toolOwnerRole
         qaOwnerRole = [string]$registration.qaOwnerRole
         evidenceRoot = [string]$evidence.RelativePath
+        attemptScope = [string]$evidence.RelativePath
+        attemptState = "WINDOW_STARTED"
         toolsDigest = [string]$Context.ToolsDigest
         candidateMainSha256 = [string]$contract.candidate.main.sha256
         candidateFocusPeerSha256 = [string]$contract.candidate.focusPeer.sha256
@@ -1453,10 +1834,137 @@ function Invoke-G2Window {
     Write-Output "SESSION=$sessionPath"
 }
 
-function Register-G2Device {
+function Get-G2PadPredecessor {
     param(
         [Parameter(Mandatory)]$Context,
-        [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole
+        [Parameter(Mandatory)][string]$PadRoot
+    )
+    $contract = $Context.Contract
+    $expectedRoot = [string]$contract.evidence.padRuntimeRoot
+    if (
+        $null -eq $Context.PSObject.Properties["RepositoryRoot"] -or
+        [string]::IsNullOrWhiteSpace([string]$Context.RepositoryRoot)
+    ) {
+        throw "K60_PREDECESSOR_REPOSITORY_CONTEXT_REQUIRED"
+    }
+    $repositoryBase = [System.IO.Path]::GetFullPath(
+        [string]$Context.RepositoryRoot
+    )
+    $expectedPadRoot = Resolve-G2BoundedPath `
+        -Root $repositoryBase `
+        -RelativePath $expectedRoot
+    $actualPadRoot = [System.IO.Path]::GetFullPath($PadRoot)
+    if ($actualPadRoot -cne $expectedPadRoot) {
+        throw "K60_PREDECESSOR_FIXED_PAD_ROOT_MISMATCH"
+    }
+    $reportPath = Join-Path $actualPadRoot "report.json"
+    $lockPath = Join-Path $actualPadRoot "device-lock.json"
+    if (
+        -not (Test-Path -LiteralPath $reportPath -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $lockPath -PathType Leaf)
+    ) {
+        throw "K60_PREDECESSOR_REPORT_OR_LOCK_MISSING"
+    }
+    $padReport = Read-G2JsonStrict $reportPath
+    $padLock = Read-G2JsonStrict $lockPath
+    $gateIds = @($padReport.productGates | ForEach-Object {
+        [string]$_.gateId
+    })
+    $nonPassGates = @(
+        $padReport.productGates |
+            Where-Object { [string]$_.status -cne "PASS" }
+    )
+    $historicalBlocker = @(
+        $contract.attemptRecovery.historicalPreWindowBlock.evidenceFiles |
+            Where-Object { [string]$_.path -ceq "blocker.json" }
+    )
+    if ($historicalBlocker.Count -ne 1) {
+        throw "K60_PREDECESSOR_HISTORICAL_BLOCKER_PIN_MISSING"
+    }
+    $cleanup = $padReport.cleanupAndRestore
+    if (
+        [string]$padReport.schema -cne
+            "aurorama.g2-entry-runtime-report.v1" -or
+        [string]$padReport.contractId -cne [string]$contract.contractId -or
+        [string]$padReport.ownerRole -cne
+            "G2_PAD_QA_OWNER_2026_11_06" -or
+        [string]$padReport.evidenceRoot -cne $expectedRoot -or
+        [string]$padReport.device.order -cne "Pad" -or
+        [string]$padReport.device.role -cne
+            "G2_PAD_QA_OWNER_2026_11_06" -or
+        [string]$padReport.device.serial -cne "43af8627" -or
+        [int]$padReport.execution.attemptNumber -ne 1 -or
+        [int]$padReport.execution.windowSeconds -ne 600 -or
+        [bool]$padReport.execution.extended -ne $false -or
+        [bool]$padReport.execution.retry -ne $false -or
+        [bool]$padReport.execution.continuous -ne $true -or
+        [bool]$padReport.passWithGapsForbidden -ne $true -or
+        $null -ne $padReport.predecessor -or
+        [string]$padReport.verdict -cne "PASS" -or
+        [string]$padReport.productVerdict -cne "PASS" -or
+        $gateIds.Count -ne 13 -or
+        @($gateIds | Select-Object -Unique).Count -ne 13 -or
+        @($requiredProductGates | Where-Object {
+            $gateIds -notcontains $_
+        }).Count -gt 0 -or
+        $nonPassGates.Count -gt 0 -or
+        [string]$cleanup.status -cne "PASS" -or
+        [bool]$cleanup.packagesAbsent -ne $true -or
+        [bool]$cleanup.pidsAbsent -ne $true -or
+        [bool]$cleanup.serviceRecordsAbsent -ne $true -or
+        [bool]$cleanup.activeNotificationRecordsAbsent -ne $true -or
+        [bool]$cleanup.activeMediaSessionsAbsent -ne $true -or
+        [bool]$cleanup.audioFocusReleased -ne $true -or
+        [bool]$cleanup.externalDataAbsent -ne $true -or
+        [bool]$cleanup.internalDataAbsent -ne $true -or
+        [int]$cleanup.hostLogcatOrphans -ne 0 -or
+        [bool]$cleanup.networkRestored -ne $true -or
+        [bool]$cleanup.userSettingsRestored -ne $true -or
+        [bool]$cleanup.productionPackageMatch -ne $true -or
+        [string]$cleanup.deviceLockState -cne
+            "RELEASED_ACTIVE_0" -or
+        [int]$cleanup.deviceLockActiveCount -ne 0 -or
+        [string]$padReport.candidate.mainSha256 -cne
+            [string]$contract.candidate.main.sha256 -or
+        [string]$padReport.candidate.focusPeerSha256 -cne
+            [string]$contract.candidate.focusPeer.sha256 -or
+        [string]$padReport.candidate.sourceCommit -cne
+            [string]$contract.candidate.sourceCommit -or
+        [string]$padLock.schema -cne "aurorama.g2-device-lock.v1" -or
+        [string]$padLock.deviceRole -cne "Pad" -or
+        [string]$padLock.serial -cne "43af8627" -or
+        [string]$padLock.attemptScope -cne $expectedRoot -or
+        [string]$padLock.state -cne "RELEASED_ACTIVE_0" -or
+        [int]$padLock.activeCount -ne 0 -or
+        [int]$padLock.attemptNumber -ne 1 -or
+        [string]::IsNullOrWhiteSpace([string]$padLock.releasedAt) -or
+        [string]$padLock.authoritativeLockStateAtRegistration -cne
+            "RELEASED_ACTIVE_0" -or
+        [string]$padLock.historicalBlockerSha256 -cne
+            [string]$historicalBlocker[0].sha256
+    ) {
+        throw "K60_PREDECESSOR_PAD_NOT_FULL_PASS_OR_LOCK_NOT_RELEASED"
+    }
+    return [pscustomobject]@{
+        deviceOrder = "Pad"
+        coreVerdict = "PASS"
+        productVerdict = "PASS"
+        lockStateAfterClosure = "RELEASED_ACTIVE_0"
+        evidenceRoot = $expectedRoot
+        candidateMainSha256 = [string]$contract.candidate.main.sha256
+        candidateFocusPeerSha256 = [string]$contract.candidate.focusPeer.sha256
+        evidencePointer = "$expectedRoot/report.json"
+        reportSha256 = Get-G2FileSha256 $reportPath
+        lockSha256 = Get-G2FileSha256 $lockPath
+    }
+}
+
+function Invoke-G2DeviceRegistration {
+    param(
+        [Parameter(Mandatory)]$Context,
+        [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
+        [AllowNull()][string]$HistoricalRoot,
+        [Parameter(Mandatory)][string]$AuthoritativeLockPath
     )
     Assert-G2WindowPolicy `
         -Attempt $Attempt `
@@ -1465,60 +1973,52 @@ function Register-G2Device {
         -Retry $Retry.IsPresent
     $contract = $Context.Contract
     $evidence = $Context.Evidence
-    [void][System.IO.Directory]::CreateDirectory($evidence.FullPath)
-    $registrationPath = Join-Path $evidence.FullPath "collector-registration.json"
-    $lockPath = Join-Path $evidence.FullPath "device-lock.json"
-    if (
-        (Test-Path -LiteralPath $registrationPath -PathType Leaf) -or
-        (Test-Path -LiteralPath $lockPath -PathType Leaf)
-    ) {
-        throw "ATTEMPT_ALREADY_REGISTERED RETRY_FORBIDDEN"
+    $definition = Get-G2AttemptRecoveryDefinition `
+        -Contract $contract `
+        -DeviceRole $DeviceRole
+    if ([string]$evidence.RelativePath -cne $definition.ActiveRoot) {
+        throw "ACTIVE_ATTEMPT_EVIDENCE_ROOT_MISMATCH"
     }
-    $predecessor = $null
-    if ($DeviceRole -ceq "K60") {
-        $padReportPath = Join-Path `
-            $contractRoot `
-            "qa-pad-v1/report.json"
-        $padLockPath = Join-Path `
-            $contractRoot `
-            "qa-pad-v1/device-lock.json"
-        if (
-            -not (Test-Path -LiteralPath $padReportPath -PathType Leaf) -or
-            -not (Test-Path -LiteralPath $padLockPath -PathType Leaf)
-        ) {
-            throw "K60_PREDECESSOR_REPORT_OR_LOCK_MISSING"
-        }
-        $padReport = Read-G2JsonStrict $padReportPath
-        $padLock = Read-G2JsonStrict $padLockPath
-        $nonPassGates = @(
-            $padReport.productGates |
-                Where-Object { [string]$_.status -cne "PASS" }
+    Assert-G2NewAttemptScopeFresh -EvidenceFullPath $evidence.FullPath
+    $authoritativeLock = Get-G2AuthoritativeLockSnapshot `
+        -DeviceLockPath $AuthoritativeLockPath
+    if ([string]$authoritativeLock.state -cne "RELEASED_ACTIVE_0") {
+        throw (
+            "AUTHORITATIVE_DEVICE_LOCK_ACTIVE " +
+            "state=$($authoritativeLock.state)"
         )
-        if (
-            [string]$padReport.verdict -cne "PASS" -or
-            [string]$padReport.productVerdict -cne "PASS" -or
-            $nonPassGates.Count -gt 0 -or
-            [string]$padReport.cleanupAndRestore.status -cne "PASS" -or
-            [string]$padReport.candidate.mainSha256 -cne
-                [string]$contract.candidate.main.sha256 -or
-            [string]$padReport.candidate.focusPeerSha256 -cne
-                [string]$contract.candidate.focusPeer.sha256 -or
-            [string]$padLock.state -cne "RELEASED_ACTIVE_0" -or
-            [int]$padLock.activeCount -ne 0
-        ) {
-            throw "K60_PREDECESSOR_PAD_NOT_FULL_PASS_OR_LOCK_NOT_RELEASED"
+    }
+    $recoveryBasis = $null
+    $predecessor = $null
+    if ($DeviceRole -ceq "Pad") {
+        if ([string]::IsNullOrWhiteSpace($HistoricalRoot)) {
+            throw "PREWINDOW_HISTORICAL_ROOT_REQUIRED"
         }
-        $predecessor = [pscustomobject]@{
-            deviceOrder = "Pad"
-            coreVerdict = "PASS"
-            productVerdict = "PASS"
-            lockStateAfterClosure = "RELEASED_ACTIVE_0"
-            candidateMainSha256 = [string]$contract.candidate.main.sha256
-            candidateFocusPeerSha256 = [string]$contract.candidate.focusPeer.sha256
-            evidencePointer = (
-                ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1/report.json"
+        $historicalProof = Assert-G2HistoricalPreWindowBlock `
+            -Contract $contract `
+            -HistoricalRoot $HistoricalRoot
+        $recoveryBasis = [pscustomobject]@{
+            outcome = "PRE_WINDOW_TOOL_BLOCK"
+            historicalWindowConsumed = $false
+            blockerEvidencePointer = (
+                $definition.HistoricalRoot + "/blocker.json"
             )
+            blockerSha256 = [string]$historicalProof.blockerSha256
+            historicalDeviceLockEvidencePointer = (
+                $definition.HistoricalRoot + "/device-lock.json"
+            )
+            historicalDeviceLockSha256 =
+                [string]$historicalProof.deviceLockSha256
+            authoritativeLockState = [string]$authoritativeLock.state
+            authoritativeLockSha256 = [string]$authoritativeLock.sha256
         }
+    } else {
+        $padRoot = Resolve-G2BoundedPath `
+            -Root $repositoryRoot `
+            -RelativePath ([string]$contract.evidence.padRuntimeRoot)
+        $predecessor = Get-G2PadPredecessor `
+            -Context $Context `
+            -PadRoot $padRoot
     }
     $serial = if ($DeviceRole -ceq "Pad") {
         [string]$contract.devicePolicy.pad.serial
@@ -1527,14 +2027,13 @@ function Register-G2Device {
     }
     Assert-G2DevicePolicy `
         -Contract $contract `
+        -Context $Context `
         -DeviceRole $DeviceRole `
         -Serial $serial `
         -Predecessor $predecessor
-    $qaOwnerRole = if ($DeviceRole -ceq "Pad") {
-        "G2_PAD_QA_OWNER_2026_11_06"
-    } else {
-        "G2_K60_QA_OWNER_2026_11_06"
-    }
+    $qaOwnerRole = $definition.QaOwnerRole
+    [void][System.IO.Directory]::CreateDirectory($evidence.FullPath)
+    Assert-G2NewAttemptScopeFresh -EvidenceFullPath $evidence.FullPath
     $registeredAt = [DateTimeOffset]::Now.ToString("o")
     $registration = [pscustomobject]@{
         schema = "aurorama.g2-collector-registration.v1"
@@ -1545,27 +2044,94 @@ function Register-G2Device {
         serial = $serial
         attemptNumber = 1
         windowSeconds = 600
+        attemptScope = [string]$evidence.RelativePath
+        attemptState = "REGISTERED_WINDOW_NOT_STARTED"
         registeredAt = $registeredAt
         candidateMainSha256 = [string]$contract.candidate.main.sha256
         candidateFocusPeerSha256 = [string]$contract.candidate.focusPeer.sha256
         sourceCommit = [string]$contract.candidate.sourceCommit
         toolsDigest = [string]$Context.ToolsDigest
         predecessor = $predecessor
+        recoveryBasis = $recoveryBasis
+        authoritativeLockState = [string]$authoritativeLock.state
+        authoritativeLockSha256 = [string]$authoritativeLock.sha256
         lockState = "ACTIVE_COUNT_1"
     }
+    $registrationPath = Join-Path `
+        $evidence.FullPath `
+        "collector-registration.json"
+    $lockPath = Join-Path $evidence.FullPath "device-lock.json"
     Write-G2Json -Path $registrationPath -Value $registration
     Write-G2Json -Path $lockPath -Value ([pscustomobject]@{
         schema = "aurorama.g2-device-lock.v1"
         deviceRole = $DeviceRole
         serial = $serial
+        attemptScope = [string]$evidence.RelativePath
         state = "ACTIVE_COUNT_1"
         activeCount = 1
         attemptNumber = 1
+        authoritativeLockStateAtRegistration =
+            [string]$authoritativeLock.state
+        historicalBlockerSha256 = if ($null -eq $recoveryBasis) {
+            $null
+        } else {
+            [string]$recoveryBasis.blockerSha256
+        }
         registeredAt = $registeredAt
         releasedAt = $null
     })
     Write-Output "REGISTERED G2_DEVICE role=$DeviceRole serial=$serial"
     Write-Output "REGISTRATION=$registrationPath"
+}
+
+function Register-G2Device {
+    param(
+        [Parameter(Mandatory)]$Context,
+        [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole
+    )
+    $contract = $Context.Contract
+    $evidence = $Context.Evidence
+    $definition = Get-G2AttemptRecoveryDefinition `
+        -Contract $contract `
+        -DeviceRole $DeviceRole
+    if ([string]$evidence.RelativePath -cne $definition.ActiveRoot) {
+        throw "ACTIVE_ATTEMPT_EVIDENCE_ROOT_MISMATCH"
+    }
+    $expectedFullPath = Resolve-G2BoundedPath `
+        -Root $repositoryRoot `
+        -RelativePath $definition.ActiveRoot
+    if (
+        [System.IO.Path]::GetFullPath([string]$evidence.FullPath) -cne
+            $expectedFullPath
+    ) {
+        throw "ACTIVE_ATTEMPT_PHYSICAL_ROOT_MISMATCH"
+    }
+    $handoffContractPath = Resolve-G2BoundedPath `
+        -Root $repositoryRoot `
+        -RelativePath $handoffContractRelativePath
+    $handoffContract = Read-G2JsonStrict $handoffContractPath
+    if (
+        [string]$handoffContract.contractVersion -cne
+            "HANDOFF_BOOTSTRAP_V2" -or
+        [string]$handoffContract.evidence.deviceLockPath -cne
+            $pinnedAuthoritativeLockPath
+    ) {
+        throw "AUTHORITATIVE_LOCK_SOURCE_MISMATCH"
+    }
+    $historicalRoot = if ($DeviceRole -ceq "Pad") {
+        Resolve-G2BoundedPath `
+            -Root $repositoryRoot `
+            -RelativePath $definition.HistoricalRoot
+    } else {
+        $null
+    }
+    Invoke-G2DeviceRegistration `
+        -Context $Context `
+        -DeviceRole $DeviceRole `
+        -HistoricalRoot $historicalRoot `
+        -AuthoritativeLockPath (
+            [string]$handoffContract.evidence.deviceLockPath
+        )
 }
 
 function Get-G2ReconciledObservations {
@@ -1583,6 +2149,33 @@ function Get-G2ReconciledObservations {
     $registration = Read-G2JsonStrict (
         Join-Path $evidence.FullPath "collector-registration.json"
     )
+    Assert-G2CollectorRegistrationState `
+        -Context $Context `
+        -DeviceRole $DeviceRole `
+        -Registration $registration
+    if (
+        [string]$session.schema -cne
+            "aurorama.g2-collector-session.v1" -or
+        [string]$session.contractId -cne [string]$contract.contractId -or
+        [string]$session.qaOwnerRole -cne
+            [string]$registration.qaOwnerRole -or
+        [string]$session.evidenceRoot -cne [string]$evidence.RelativePath -or
+        [string]$session.attemptScope -cne [string]$evidence.RelativePath -or
+        [string]$session.attemptState -cne "WINDOW_STARTED" -or
+        [string]$session.deviceRole -cne $DeviceRole -or
+        [int]$session.attemptNumber -ne 1 -or
+        [int]$session.windowSeconds -ne 600 -or
+        [bool]$session.extended -ne $false -or
+        [bool]$session.retry -ne $false -or
+        [bool]$session.continuous -ne $true -or
+        [string]$session.candidateMainSha256 -cne
+            [string]$contract.candidate.main.sha256 -or
+        [string]$session.candidateFocusPeerSha256 -cne
+            [string]$contract.candidate.focusPeer.sha256 -or
+        [string]$session.toolsDigest -cne [string]$Context.ToolsDigest
+    ) {
+        throw "COLLECTOR_SESSION_SCOPE_MISMATCH"
+    }
     $runtimeLogPath = Join-Path $evidence.FullPath "raw/runtime.log"
     $runtimeLines = if (Test-Path -LiteralPath $runtimeLogPath) {
         @(Get-Content -LiteralPath $runtimeLogPath -Encoding utf8)

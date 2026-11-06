@@ -297,3 +297,62 @@
   `HANDOFF_REVIEW_PASS_PRE_STATE_REPAIR_OWNER`，以及 B12 round9 状态收口；round8 因 P1
   永久退役，round9 reviewer 已 PASS 后永久退役，均禁止复用、followup、commit、audit、
   QA 或 Release。
+
+## L027 pre-window 工具阻断不得消费设备 attempt
+
+- **现象**：首次 G2 Pad QA 在 collector `Validate` 的路径绑定处失败，600 秒窗口未开始、
+  fresh install / 核心矩阵均未运行；cleanup verifier 却在该证据根写入
+  `device-lock.json: ACTIVE_COUNT_1`。后续 `Register` 只按该文件存在判断 attempt 已登记，
+  于是尚未消费窗口的新 QA 被 `ATTEMPT_ALREADY_REGISTERED RETRY_FORBIDDEN` 永久挡住。
+- **根因**：把“工具生命周期”与“产品设备 attempt 生命周期”混成同一状态；静态 Validate、
+  cleanup 观测、设备登记、600 秒窗口和 attempt 消费没有独立状态机。文件存在被误当作
+  attempt 已消费，cleanup 在从未登记时也会自造锁。
+- **对策**：Validate 必须无副作用；只有登记成功后才可创建 attempt 锁；attempt 至少区分
+  `NOT_CREATED / RESERVED / WINDOW_STARTED / CONSUMED / CLEANED`。pre-window 工具阻断、
+  cleanup 快照和自持锁必须进入不可变工具证据域，不得在 attempt 域内冒充已消费窗口。
+  未消费阻断恢复时使用版本化新 scope，保留旧证据字节；登记前同时证明窗口 `NOT_STARTED`、
+  install/core `NOT_RUN`、`windowConsumed=false` 与权威外部锁 `RELEASED_ACTIVE_0`。
+  真实 registration、真实 session、live ACTIVE lock、重复登记和 retry 仍必须 FAIL_CLOSED。
+- **验证要求**：至少覆盖“历史 pre-window 锁 + 无 registration 可开新 scope”“真实
+  registration / live lock 不可重开”“旧证据 SHA 不变”“finalizer/K60 只消费新 scope”
+  四组正负例；不能用删除旧 blocker 或改写旧锁来绕过。
+- **来源**：2026-11-06 G2 首次 Pad QA 工具阻断、repair audit 后新 `Register` 阻断，以及
+  `V2-D210` “每设备一次、未开始窗口不消费”的既有约束。
+
+## L028 审计 PASS 必须作为控制面事务回写，不得只存在于聊天
+
+- **现象**：fresh repair audit 已在聊天中明确 PASS，但合同、ACTIVE 与 handoff 仍停留在
+  `PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / qaDispatchable=false`；root 直接按聊天
+  结论进入下一修复，形成“审计已完成、机器状态仍待审计”的双真源。
+- **根因**：把 audit 只当成代理最终回复，没有要求 immutable receipt、权威文档回写、
+  提交与 clean preflight；下一阶段又从脏的 WIP 开始，后续代理无法判断哪些改动已审计。
+- **对策**：每次 audit 必须产生固定输入 / 输出对象：被审计 commit/tree、owner、命令、
+  计数、证据 SHA、结论与下一角色；root 先更新合同 / ACTIVE / TASKS 并提交 clean，
+  再由 preflight 切换到下一状态。审计后未回写的 WIP 只能标 `WIP_NOT_ACCEPTED`，不得派发
+  QA 或继续叠加第二阶段实现。
+- **来源**：2026-11-06 G2 repair audit 到 pre-window recovery repair 的状态衔接。
+
+## L029 长回归必须分层并设置硬超时
+
+- **现象**：`Test-HandoffPreflight.ps1` 的 104 项完整回归约需数分钟；第二轮 repair 在
+  内循环再次整套执行，超过 18 分钟仍无最终报告。中断父代理后，子 `pwsh` / 临时仓库
+  preflight 仍作为孤儿进程运行，必须由 root 再定位并终止。
+- **根因**：没有 fast / full 分层，没有 per-case timeout、总 wall-clock budget 或中断时
+  的进程树清理；每个 case 启动新 PowerShell 子进程，长套件被当成普通单测反复运行。
+- **对策**：日常 RED/GREEN 只跑 `-Case` / `-Category` / `-Fast` 定向集；完整 104 项只在
+  候选稳定、准备提交或 fresh audit 时跑一次。测试需要每 case 超时、总超时、失败即输出
+  case 名 / child PID / 临时路径，并在 finally 中终止整个进程树、清理 temp。进度按 case
+  刷盘或写日志，不能等 15 分钟后才判断是否卡住。
+- **来源**：2026-11-06 R2 repair owner 长时间运行与中断后孤儿测试进程。
+
+## L030 命令调用必须使用单一 canonical wrapper
+
+- **现象**：同一 preflight 在 root 中可直接运行，但 fresh repair owner 用
+  `pwsh -File '<quoted path>'` 的外层包装时 exit 64，带引号路径被原样传给 `-File`；
+  另有嵌套 `pwsh -Command` 中 `$` 变量被外层提前展开，导致命令实际变形。
+- **根因**：两层 shell 同时解析同一字符串；引号、变量和参数数组没有在唯一边界确定。
+- **对策**：在已确认 PowerShell 7 的会话中优先用
+  `& '<absolute-script>' -Arg value` 直接调用；需要子进程时使用参数数组，不手拼命令串。
+  首动作脚本由机器合同固定完整 argv，失败时记录 `exit / stderr / argv`。禁止把同一命令
+  在 `pwsh -Command` 与 `pwsh -File` 之间反复嵌套重写。
+- **来源**：2026-11-06 R2 repair owner preflight exit 64，以及 root 早期嵌套变量调用失配。

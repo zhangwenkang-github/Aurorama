@@ -2,7 +2,8 @@
   "schema": "aurorama.g2-runtime-tools.v1",
   "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
   "ownerRole": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
-  "status": "READY_SELF_TESTED_STATIC_ONLY",
+  "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
+  "attemptRecoveryStatus": "PREWINDOW_HISTORY_PINNED_NEW_ATTEMPT_SCOPE_V2",
   "createdAt": "2026-11-06T13:11:25.0690822+08:00",
   "freshness": "ONE_TIME_ONLY",
   "reuse": "FORBIDDEN",
@@ -28,6 +29,9 @@
     "runtimeCollector": [
       "contract-candidate-authorization-schema-binding",
       "repo-relative-tool-and-evidence-relative-contract-path-enforcement",
+      "prewindow-historical-block-hash-pinning",
+      "fresh-attempt-scope-registration",
+      "authoritative-handoff-lock-release-gate",
       "fresh-install-identity-readback",
       "filtered-host-logcat-capture",
       "real-audiotrack-start-completion-voice-mapping",
@@ -47,6 +51,8 @@
       "missing-field-fail-closed",
       "core-not-run-cannot-pass",
       "fixture-cannot-produce-pass",
+      "registration-session-released-lock-binding",
+      "k60-new-pad-report-lock-hash-binding",
       "thirteen-product-gate-recomputation"
     ],
     "cleanupVerifier": [
@@ -61,28 +67,29 @@
       "network",
       "user-settings",
       "production-package-set",
+      "attempt-scope-binding",
       "external-lock-release-and-reread-active-0"
     ]
   },
   "files": [
     {
       "path": "Invoke-G2RuntimeCollector.ps1",
-      "sha256": "6b6a3e94dabd9c73b10c746a444b32d309c2de31eb1f9363a4ecb96d65038971",
+      "sha256": "e00cdcb2c153670a259148f4ed6e34f9b5d46eab26e3ddd8ce2bb6ed6e9a7b6a",
       "kind": "tool"
     },
     {
       "path": "Finalize-G2RuntimeReport.ps1",
-      "sha256": "4a149f2726c92c278be59acc25a7457a795e3d777906ee45605dc6e54827a666",
+      "sha256": "bb83072433a0b9e3c4c42dc476a10f6752f0f3f23bdc6090f95fbd86ccc7a628",
       "kind": "tool"
     },
     {
       "path": "Test-G2CleanupRestore.ps1",
-      "sha256": "f41b7b5669f39855f2603881fd632db1dd9d91507ff3c1a9509351954160257e",
+      "sha256": "eada2d45011ce989a11188f5ed8d9dc24d052f09f7d9fc5a82482353b073087e",
       "kind": "tool"
     },
     {
       "path": "tests/Test-G2RuntimeTools.ps1",
-      "sha256": "91ebbb41a556dc65705d0fc20beb25e249d1e0c31c3d3375c7e24972620156aa",
+      "sha256": "83b389e7089977047276fb29cab8a5166bca9bb16f68ebfa459e3abc6790fd47",
       "kind": "test"
     },
     {
@@ -102,7 +109,7 @@
     },
     {
       "path": "tests/fixtures/observations-complete.json",
-      "sha256": "c45c55c77ae41452369dfa9d72aa69d51f2ccdb2f032c198934a794ee50e11fb",
+      "sha256": "dd67847eae6094f89916a3102bc496cb1ee576417c0990b0b35950e0d9a9855f",
       "kind": "fixture"
     },
     {
@@ -111,5 +118,5 @@
       "kind": "fixture"
     }
   ],
-  "toolsDigestSha256": "dac3540bca28945375f0d41e03cb9d10c4c6dbc2a5714b6dbdcb299cf639d9e5"
+  "toolsDigestSha256": "d27166fcc3c5481c1943bdbb0178015caa7a7af5783c35799eb3ed4a976d5c6e"
 }

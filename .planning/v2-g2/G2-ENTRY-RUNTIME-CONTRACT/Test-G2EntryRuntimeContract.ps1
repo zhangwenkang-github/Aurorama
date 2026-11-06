@@ -139,7 +139,7 @@ Assert-True `
 Assert-True `
     -Condition (
         $contract.status -ceq
-        "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT"
+        "R2_WIP_REPAIR_R3_IN_PROGRESS"
     ) `
     -Name "CONTRACT-STATUS"
 Assert-True `
@@ -160,12 +160,62 @@ Assert-True `
 Assert-True `
     -Condition (
         $contract.authorization.qaDispatchable -eq $false -and
-        $contract.authorization.activePrompt -ceq
-            "G2_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT_OWNER" -and
+        $contract.authorization.activePrompt -ceq "none" -and
+        $contract.authorization.contractPackageReady -eq $false -and
         $contract.authorization.deviceExecution -ceq
             "AUTHORIZED_PAD_FIRST_K60_GATED"
     ) `
     -Name "RUNTIME-AUTHORIZATION-OPEN"
+Assert-True `
+    -Condition (
+        $contract.attemptRecovery.schema -ceq
+            "aurorama.g2-prewindow-recovery.v1" -and
+        $contract.evidence.padRuntimeRoot -ceq
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2" -and
+        $contract.evidence.k60RuntimeRoot -ceq
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v2" -and
+        $contract.attemptRecovery.historicalPreWindowBlock.root -ceq
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1" -and
+        $contract.attemptRecovery.historicalPreWindowBlock.outcome -ceq
+            "PRE_WINDOW_TOOL_BLOCK" -and
+        $contract.attemptRecovery.historicalPreWindowBlock.
+            requiredAttemptWindow -ceq "NOT_STARTED" -and
+        $contract.attemptRecovery.historicalPreWindowBlock.
+            requiredFreshInstall -ceq "NOT_RUN" -and
+        $contract.attemptRecovery.historicalPreWindowBlock.
+            requiredCoreRuntimeMatrix -ceq "NOT_RUN" -and
+        $contract.attemptRecovery.historicalPreWindowBlock.
+            requiredWindowConsumed -eq $false -and
+        $contract.attemptRecovery.historicalPreWindowBlock.
+            internalLockAuthoritative -eq $false -and
+        @($contract.attemptRecovery.historicalPreWindowBlock.evidenceFiles).
+            Count -eq 5 -and
+        $contract.attemptRecovery.activeAttempt.attemptNumber -eq 1 -and
+        $contract.attemptRecovery.activeAttempt.windowSeconds -eq 600 -and
+        $contract.attemptRecovery.authoritativeLock.handoffContractPath -ceq
+            "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json" -and
+        $contract.attemptRecovery.authoritativeLock.deviceLockPath -ceq
+            "F:\Develop\codex_work\.planning\cinefin-expansion\device-lock.md" -and
+        $contract.attemptRecovery.authoritativeLock.
+            requiredStateAtRegistration -ceq "RELEASED_ACTIVE_0"
+    ) `
+    -Name "PREWINDOW-RECOVERY-SCOPE"
+foreach ($historicalEvidence in @(
+    $contract.attemptRecovery.historicalPreWindowBlock.evidenceFiles
+)) {
+    $historicalPath = Resolve-EvidencePath (
+        $contract.attemptRecovery.historicalPreWindowBlock.root +
+        "/" +
+        $historicalEvidence.path
+    )
+    Assert-True `
+        -Condition (
+            (Test-Path -LiteralPath $historicalPath -PathType Leaf) -and
+            (Get-FileSha256 $historicalPath) -ceq
+                $historicalEvidence.sha256
+        ) `
+        -Name ("PREWINDOW-HISTORICAL-SHA-" + $historicalEvidence.path)
+}
 Assert-True `
     -Condition (
         $authorization.schema -ceq
@@ -205,7 +255,13 @@ Assert-True `
         $contract.devicePolicy.attemptsPerDevice -eq 1 -and
         $contract.devicePolicy.k60Locked -eq $true -and
         $contract.devicePolicy.pad.serial -ceq "43af8627" -and
-        $contract.devicePolicy.k60.serial -ceq "8e875894"
+        $contract.devicePolicy.k60.serial -ceq "8e875894" -and
+        @($contract.devicePolicy.pad.writeScope).Count -eq 1 -and
+        $contract.devicePolicy.pad.writeScope[0] -ceq
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2/**" -and
+        @($contract.devicePolicy.k60.writeScope).Count -eq 1 -and
+        $contract.devicePolicy.k60.writeScope[0] -ceq
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v2/**"
     ) `
     -Name "DEVICE-POLICY"
 Assert-True `
@@ -231,11 +287,11 @@ Assert-True `
         $contract.tools.cleanupVerifier.roleId -ceq
             "G2_RUNTIME_TOOL_OWNER_2026_11_06" -and
         $contract.tools.runtimeCollector.status -ceq
-            "READY_SELF_TESTED_STATIC_ONLY" -and
+            "R2_WIP_REPAIR_R3_IN_PROGRESS" -and
         $contract.tools.runtimeFinalizer.status -ceq
-            "READY_SELF_TESTED_STATIC_ONLY" -and
+            "R2_WIP_REPAIR_R3_IN_PROGRESS" -and
         $contract.tools.cleanupVerifier.status -ceq
-            "READY_SELF_TESTED_STATIC_ONLY" -and
+            "R2_WIP_REPAIR_R3_IN_PROGRESS" -and
         $contract.tools.runtimeCollector.deviceAccess -ceq
             "STATIC_SELF_TEST_ONLY_THIS_PHASE" -and
         $contract.tools.runtimeFinalizer.deviceAccess -ceq
@@ -255,7 +311,7 @@ Assert-True `
         $runtimeToolsManifest.ownerRole -ceq
             "G2_RUNTIME_TOOL_OWNER_2026_11_06" -and
         $runtimeToolsManifest.status -ceq
-            "READY_SELF_TESTED_STATIC_ONLY" -and
+            "R2_WIP_REPAIR_R3_IN_PROGRESS" -and
         [int]$runtimeToolsManifest.qaV9ReuseCount -eq 0 -and
         [int]$runtimeToolsManifest.deviceCommandsExecutedInSelfTest -eq 0 -and
         [int]$runtimeToolsManifest.adbCallsInSelfTest -eq 0 -and

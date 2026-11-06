@@ -1321,15 +1321,15 @@ try {
                 [System.StringComparison]::Ordinal
             ) -and
             $deferredEmitText.Contains(
-                "G2_RUNTIME_CONTRACT_PACKAGE_READY",
+                "R2_WIP_REPAIR_R3_IN_PROGRESS",
                 [System.StringComparison]::Ordinal
             ) -and
             $deferredEmitText.Contains(
-                "USER_RESUMED_G2_TOOL_REPAIR_HANDOFF",
+                "qaDispatchable=false",
                 [System.StringComparison]::Ordinal
             ) -and
             $deferredEmitText.Contains(
-                "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT",
+                "git status --short",
                 [System.StringComparison]::Ordinal
             ) -and
             $deferredEmitText.Contains(

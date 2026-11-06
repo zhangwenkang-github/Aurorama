@@ -25,6 +25,7 @@ $schemaPath = Join-Path $contractRoot "report.schema.json"
 
 $script:passed = 0
 $script:failed = 0
+$script:negativeChecks = 0
 $script:failures = [System.Collections.Generic.List[string]]::new()
 
 function Assert-True {
@@ -53,6 +54,7 @@ function Assert-Throws {
         [Parameter(Mandatory)][scriptblock]$Action,
         [Parameter(Mandatory)][string]$MessagePattern
     )
+    $script:negativeChecks++
     $threw = $false
     try {
         & $Action
@@ -102,6 +104,79 @@ function Get-FileSha256 {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).
         Hash.
         ToLowerInvariant()
+}
+
+function New-TestTempRoot {
+    $tempBase = [System.IO.Path]::GetFullPath(
+        [System.IO.Path]::GetTempPath()
+    )
+    $tempRoot = Join-Path `
+        $tempBase `
+        ("aurorama-g2-test-" + [Guid]::NewGuid().ToString("N"))
+    [void][System.IO.Directory]::CreateDirectory($tempRoot)
+    return [pscustomobject]@{
+        Base = $tempBase
+        Root = [System.IO.Path]::GetFullPath($tempRoot)
+    }
+}
+
+function Remove-TestTempRoot {
+    param([Parameter(Mandatory)]$Temp)
+    $root = [System.IO.Path]::GetFullPath([string]$Temp.Root)
+    $leaf = Split-Path -Leaf $root
+    Assert-True `
+        -Condition ($root.StartsWith(
+            [string]$Temp.Base,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) `
+        -Message "Unsafe temporary root."
+    Assert-True `
+        -Condition ($leaf.StartsWith(
+            "aurorama-g2-test-",
+            [System.StringComparison]::Ordinal
+        )) `
+        -Message "Unexpected temporary root name."
+    if ([System.IO.Directory]::Exists($root)) {
+        [System.IO.Directory]::Delete($root, $true)
+    }
+    Assert-True `
+        -Condition (-not [System.IO.Directory]::Exists($root)) `
+        -Message "Temporary root was not removed."
+}
+
+function Write-TestJson {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)]$Value
+    )
+    $text = ($Value | ConvertTo-Json -Depth 100).
+        Replace("`r`n", "`n").
+        Replace("`r", "`n")
+    [System.IO.File]::WriteAllText(
+        $Path,
+        $text,
+        [System.Text.UTF8Encoding]::new($false)
+    )
+}
+
+function Copy-G2HistoricalFixture {
+    param(
+        [Parameter(Mandatory)][string]$Destination,
+        [Parameter(Mandatory)][string]$Source
+    )
+    [void][System.IO.Directory]::CreateDirectory($Destination)
+    foreach ($fileName in @(
+        "blocker.json",
+        "cleanup-before.json",
+        "cleanup-after.json",
+        "cleanup.json",
+        "device-lock.json"
+    )) {
+        [System.IO.File]::Copy(
+            (Join-Path $Source $fileName),
+            (Join-Path $Destination $fileName)
+        )
+    }
 }
 
 function Assert-Utf8LfNoBom {
@@ -172,30 +247,236 @@ function New-FixturePassReport {
     return $report
 }
 
+function New-TestFinalizerBindingContext {
+    param(
+        [Parameter(Mandatory)]$Temp,
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)]$Observations
+    )
+    $root = Join-Path $Temp.Root "qa-pad-v2"
+    [void][System.IO.Directory]::CreateDirectory($root)
+    Write-TestJson `
+        -Path (Join-Path $root "collector-registration.json") `
+        -Value ([pscustomobject]@{
+            schema = "aurorama.g2-collector-registration.v1"
+            contractId = $Contract.contractId
+            toolOwnerRole = "G2_RUNTIME_TOOL_OWNER_2026_11_06"
+            qaOwnerRole = "G2_PAD_QA_OWNER_2026_11_06"
+            deviceRole = "Pad"
+            serial = "43af8627"
+            attemptScope = $Contract.evidence.padRuntimeRoot
+            attemptState = "REGISTERED_WINDOW_NOT_STARTED"
+            lockState = "ACTIVE_COUNT_1"
+            attemptNumber = 1
+            windowSeconds = 600
+            candidateMainSha256 = $Contract.candidate.main.sha256
+            candidateFocusPeerSha256 = $Contract.candidate.focusPeer.sha256
+            toolsDigest = $Contract.tools.digestSha256
+            authoritativeLockState = "RELEASED_ACTIVE_0"
+            recoveryBasis = [pscustomobject]@{
+                outcome = "PRE_WINDOW_TOOL_BLOCK"
+                historicalWindowConsumed = $false
+                blockerEvidencePointer = (
+                    ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/" +
+                    "qa-pad-v1/blocker.json"
+                )
+                blockerSha256 = ("a" * 64)
+                historicalDeviceLockSha256 = ("b" * 64)
+                authoritativeLockState = "RELEASED_ACTIVE_0"
+            }
+        })
+    Write-TestJson `
+        -Path (Join-Path $root "collector-session.json") `
+        -Value ([pscustomobject]@{
+            schema = "aurorama.g2-collector-session.v1"
+            contractId = $Contract.contractId
+            qaOwnerRole = "G2_PAD_QA_OWNER_2026_11_06"
+            evidenceRoot = $Contract.evidence.padRuntimeRoot
+            attemptScope = $Contract.evidence.padRuntimeRoot
+            attemptState = "WINDOW_STARTED"
+            deviceRole = "Pad"
+            serial = "43af8627"
+            attemptNumber = 1
+            windowSeconds = 600
+            extended = $false
+            retry = $false
+            continuous = $true
+            hostLogcatProcessStopped = $true
+            startedAt = $Observations.execution.startedAt
+            completedAt = $Observations.execution.completedAt
+            candidateMainSha256 = $Contract.candidate.main.sha256
+            candidateFocusPeerSha256 = $Contract.candidate.focusPeer.sha256
+            toolsDigest = $Contract.tools.digestSha256
+            error = $null
+        })
+    Write-TestJson `
+        -Path (Join-Path $root "device-lock.json") `
+        -Value ([pscustomobject]@{
+            schema = "aurorama.g2-device-lock.v1"
+            deviceRole = "Pad"
+            serial = "43af8627"
+            attemptScope = $Contract.evidence.padRuntimeRoot
+            state = "RELEASED_ACTIVE_0"
+            activeCount = 0
+            attemptNumber = 1
+            authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
+            historicalBlockerSha256 = ("a" * 64)
+            releasedAt = "2026-11-06T12:20:00.000+08:00"
+        })
+    return [pscustomobject]@{
+        Contract = $Contract
+        Evidence = [pscustomobject]@{
+            RelativePath = $Contract.evidence.padRuntimeRoot
+            FullPath = $root
+        }
+        ToolsDigest = $Contract.tools.digestSha256
+    }
+}
+
+function New-TestPadPredecessorFixture {
+    param(
+        [Parameter(Mandatory)]$Temp,
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)]$Observations
+    )
+    $padRoot = Join-Path $Temp.Root $Contract.evidence.padRuntimeRoot
+    [void][System.IO.Directory]::CreateDirectory($padRoot)
+    $report = New-FixturePassReport
+    $reportPath = Join-Path $padRoot "report.json"
+    Write-TestJson -Path $reportPath -Value $report
+    $historicalBlocker =
+        $Contract.attemptRecovery.historicalPreWindowBlock.evidenceFiles |
+            Where-Object { [string]$_.path -ceq "blocker.json" } |
+            Select-Object -First 1
+    $historicalBlockerSha256 = [string]$historicalBlocker.sha256
+    $lockPath = Join-Path $padRoot "device-lock.json"
+    Write-TestJson `
+        -Path $lockPath `
+        -Value ([pscustomobject]@{
+            schema = "aurorama.g2-device-lock.v1"
+            deviceRole = "Pad"
+            serial = "43af8627"
+            attemptScope = $Contract.evidence.padRuntimeRoot
+            state = "RELEASED_ACTIVE_0"
+            activeCount = 0
+            attemptNumber = 1
+            authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
+            historicalBlockerSha256 = $historicalBlockerSha256
+            releasedAt = "2026-11-06T12:20:00.000+08:00"
+        })
+    $context = [pscustomobject]@{
+        Contract = $Contract
+        RepositoryRoot = $Temp.Root
+    }
+    $predecessor = Get-G2PadPredecessor `
+        -Context $context `
+        -PadRoot $padRoot
+    return [pscustomobject]@{
+        Temp = $Temp
+        Context = $context
+        PadRoot = $padRoot
+        ReportPath = $reportPath
+        LockPath = $lockPath
+        Report = $report
+        Predecessor = $predecessor
+    }
+}
+
+function New-TestK60RegistrationFixture {
+    param(
+        [Parameter(Mandatory)]$Temp,
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)]$Observations
+    )
+    $pad = New-TestPadPredecessorFixture `
+        -Temp $Temp `
+        -Contract $Contract `
+        -Observations $Observations
+    $k60Root = Join-Path $Temp.Root $Contract.evidence.k60RuntimeRoot
+    [void][System.IO.Directory]::CreateDirectory($k60Root)
+    $registration = [pscustomobject]@{
+        schema = "aurorama.g2-collector-registration.v1"
+        contractId = $Contract.contractId
+        toolOwnerRole = "G2_RUNTIME_TOOL_OWNER_2026_11_06"
+        qaOwnerRole = "G2_K60_QA_OWNER_2026_11_06"
+        deviceRole = "K60"
+        serial = "8e875894"
+        attemptNumber = 1
+        windowSeconds = 600
+        attemptScope = $Contract.evidence.k60RuntimeRoot
+        attemptState = "REGISTERED_WINDOW_NOT_STARTED"
+        candidateMainSha256 = $Contract.candidate.main.sha256
+        candidateFocusPeerSha256 = $Contract.candidate.focusPeer.sha256
+        sourceCommit = $Contract.candidate.sourceCommit
+        toolsDigest = $Contract.tools.digestSha256
+        predecessor = $pad.Predecessor
+        recoveryBasis = $null
+        authoritativeLockState = "RELEASED_ACTIVE_0"
+        lockState = "ACTIVE_COUNT_1"
+    }
+    $registrationPath = Join-Path $k60Root "collector-registration.json"
+    Write-TestJson -Path $registrationPath -Value $registration
+    $lockPath = Join-Path $k60Root "device-lock.json"
+    Write-TestJson `
+        -Path $lockPath `
+        -Value ([pscustomobject]@{
+            schema = "aurorama.g2-device-lock.v1"
+            deviceRole = "K60"
+            serial = "8e875894"
+            attemptScope = $Contract.evidence.k60RuntimeRoot
+            state = "ACTIVE_COUNT_1"
+            activeCount = 1
+            attemptNumber = 1
+            authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
+            historicalBlockerSha256 = $null
+            releasedAt = $null
+        })
+    $context = [pscustomobject]@{
+        Contract = $Contract
+        RepositoryRoot = $Temp.Root
+        Evidence = [pscustomobject]@{
+            RelativePath = $Contract.evidence.k60RuntimeRoot
+            FullPath = $k60Root
+        }
+        ToolsDigest = $Contract.tools.digestSha256
+    }
+    return [pscustomobject]@{
+        Pad = $pad
+        Context = $context
+        Registration = $registration
+        RegistrationPath = $registrationPath
+        LockPath = $lockPath
+    }
+}
+
 Invoke-Case "CONTRACT-RUNTIME-TOOLS-BOUND" {
     Assert-Equal `
         -Actual $contract.status `
-        -Expected "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT" `
+        -Expected "R2_WIP_REPAIR_R3_IN_PROGRESS" `
         -Message "Contract status"
     Assert-Equal `
         -Actual $contract.authorization.activePrompt `
-        -Expected "G2_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT_OWNER" `
-        -Message "Active prompt"
+        -Expected "none" `
+        -Message "No downstream prompt while R3 repair is active"
     Assert-Equal `
         -Actual $contract.authorization.qaDispatchable `
         -Expected $false `
         -Message "QA dispatch before fresh audit"
     Assert-Equal `
+        -Actual $contract.authorization.contractPackageReady `
+        -Expected $false `
+        -Message "R3 repair state is not ready"
+    Assert-Equal `
         -Actual $contract.tools.runtimeCollector.status `
-        -Expected "READY_SELF_TESTED_STATIC_ONLY" `
+        -Expected "R2_WIP_REPAIR_R3_IN_PROGRESS" `
         -Message "Collector status"
     Assert-Equal `
         -Actual $contract.tools.runtimeFinalizer.status `
-        -Expected "READY_SELF_TESTED_STATIC_ONLY" `
+        -Expected "R2_WIP_REPAIR_R3_IN_PROGRESS" `
         -Message "Finalizer status"
     Assert-Equal `
         -Actual $contract.tools.cleanupVerifier.status `
-        -Expected "READY_SELF_TESTED_STATIC_ONLY" `
+        -Expected "R2_WIP_REPAIR_R3_IN_PROGRESS" `
         -Message "Cleanup status"
     foreach ($toolName in @(
         "runtimeCollector",
@@ -210,6 +491,346 @@ Invoke-Case "CONTRACT-RUNTIME-TOOLS-BOUND" {
             -Actual $contract.tools.$toolName.deviceAccess `
             -Expected "STATIC_SELF_TEST_ONLY_THIS_PHASE" `
             -Message "$toolName device access"
+    }
+}
+
+Invoke-Case "CONTRACT-PREWINDOW-RECOVERY-SCOPE-BOUND" {
+    $recovery = $contract.attemptRecovery
+    Assert-Equal `
+        -Actual $recovery.schema `
+        -Expected "aurorama.g2-prewindow-recovery.v1" `
+        -Message "Recovery schema"
+    Assert-Equal `
+        -Actual $contract.evidence.padRuntimeRoot `
+        -Expected ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2" `
+        -Message "Active Pad scope"
+    Assert-Equal `
+        -Actual $contract.evidence.k60RuntimeRoot `
+        -Expected ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v2" `
+        -Message "Active K60 scope"
+    Assert-Equal `
+        -Actual $recovery.historicalPreWindowBlock.root `
+        -Expected ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1" `
+        -Message "Historical Pad scope"
+    Assert-Equal `
+        -Actual $recovery.historicalPreWindowBlock.outcome `
+        -Expected "PRE_WINDOW_TOOL_BLOCK" `
+        -Message "Historical outcome"
+    Assert-Equal `
+        -Actual $contract.authorization.activePrompt `
+        -Expected "none" `
+        -Message "No downstream prompt during R3"
+    Assert-Equal `
+        -Actual $contract.authorization.qaDispatchable `
+        -Expected $false `
+        -Message "QA dispatch remains deferred"
+    Assert-Equal `
+        -Actual @($recovery.historicalPreWindowBlock.evidenceFiles).Count `
+        -Expected 5 `
+        -Message "Historical evidence count"
+}
+
+Invoke-Case "PREWINDOW-HISTORICAL-BLOCK-PROVES-NOT-STARTED" {
+    $historicalRoot = Join-Path $contractRoot "qa-pad-v1"
+    $proof = Assert-G2HistoricalPreWindowBlock `
+        -Contract $contract `
+        -HistoricalRoot $historicalRoot
+    Assert-Equal `
+        -Actual $proof.status `
+        -Expected "BLOCKED_RUNTIME_TOOL_PATH_BINDING" `
+        -Message "Historical blocker status"
+    Assert-Equal `
+        -Actual $proof.attemptWindow `
+        -Expected "NOT_STARTED" `
+        -Message "Historical window"
+    Assert-Equal `
+        -Actual $proof.freshInstall `
+        -Expected "NOT_RUN" `
+        -Message "Historical install"
+    Assert-Equal `
+        -Actual $proof.deviceLockState `
+        -Expected "ACTIVE_COUNT_1" `
+        -Message "Historical internal lock remains historical"
+}
+
+Invoke-Case "PREWINDOW-HISTORICAL-REJECTS-CONSUMED-BLOCKER" {
+    $blocker = Read-Json (Join-Path $contractRoot "qa-pad-v1/blocker.json")
+    $blocker.executed.attemptWindow = "STARTED"
+    $blocker.rootCauseBoundary.windowConsumed = $true
+    Assert-Throws `
+        -MessagePattern "PREWINDOW|WINDOW|CONSUMED|STARTED" `
+        -Action {
+            Assert-G2HistoricalBlockerSemantics `
+                -Contract $contract `
+                -Blocker $blocker
+        }
+}
+
+Invoke-Case "PREWINDOW-HISTORICAL-REJECTS-RETRY-ARTIFACT" {
+    $temp = New-TestTempRoot
+    try {
+        Copy-G2HistoricalFixture `
+            -Destination $temp.Root `
+            -Source (Join-Path $contractRoot "qa-pad-v1")
+        Write-TestJson `
+            -Path (Join-Path $temp.Root "collector-registration.json") `
+            -Value ([pscustomobject]@{
+                schema = "aurorama.g2-collector-registration.v1"
+                attemptNumber = 1
+            })
+        Assert-Throws `
+            -MessagePattern "PREWINDOW|REGISTRATION|CONSUMED|RETRY" `
+            -Action {
+                Assert-G2HistoricalPreWindowBlock `
+                    -Contract $contract `
+                    -HistoricalRoot $temp.Root
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "PREWINDOW-HISTORICAL-REJECTS-MISSING-BLOCKER" {
+    $temp = New-TestTempRoot
+    try {
+        Copy-G2HistoricalFixture `
+            -Destination $temp.Root `
+            -Source (Join-Path $contractRoot "qa-pad-v1")
+        [System.IO.File]::Delete((Join-Path $temp.Root "blocker.json"))
+        Assert-Throws `
+            -MessagePattern "PREWINDOW|BLOCKER|MISSING" `
+            -Action {
+                Assert-G2HistoricalPreWindowBlock `
+                    -Contract $contract `
+                    -HistoricalRoot $temp.Root
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "PREWINDOW-HISTORICAL-REJECTS-EVIDENCE-DRIFT" {
+    $temp = New-TestTempRoot
+    try {
+        Copy-G2HistoricalFixture `
+            -Destination $temp.Root `
+            -Source (Join-Path $contractRoot "qa-pad-v1")
+        $path = Join-Path $temp.Root "cleanup-after.json"
+        $bytes = [System.IO.File]::ReadAllBytes($path)
+        $bytes[$bytes.Length - 2] = $bytes[$bytes.Length - 2] -bxor 1
+        [System.IO.File]::WriteAllBytes($path, $bytes)
+        Assert-Throws `
+            -MessagePattern "PREWINDOW|SHA|HASH|DRIFT" `
+            -Action {
+                Assert-G2HistoricalPreWindowBlock `
+                    -Contract $contract `
+                    -HistoricalRoot $temp.Root
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "REGISTER-FRESH-SCOPE-ACCEPTS-PREWINDOW-HISTORY" {
+    $temp = New-TestTempRoot
+    try {
+        $lockPath = Join-Path $temp.Root "authoritative-device-lock.md"
+        [System.IO.File]::WriteAllText(
+            $lockPath,
+            "# Device Lock`n`n## 当前占用`n`n## 历史记录`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $freshRoot = Join-Path $temp.Root "fresh-scope"
+        $context = [pscustomobject]@{
+            Contract = $contract
+            Evidence = [pscustomobject]@{
+                RelativePath = $contract.evidence.padRuntimeRoot
+                FullPath = $freshRoot
+            }
+            ToolsDigest = $contract.tools.digestSha256
+        }
+        Invoke-G2DeviceRegistration `
+            -Context $context `
+            -DeviceRole Pad `
+            -HistoricalRoot (Join-Path $contractRoot "qa-pad-v1") `
+            -AuthoritativeLockPath $lockPath
+        $registration = Read-Json (
+            Join-Path $freshRoot "collector-registration.json"
+        )
+        $newLock = Read-Json (Join-Path $freshRoot "device-lock.json")
+        $historicalLock = Read-Json (
+            Join-Path $contractRoot "qa-pad-v1/device-lock.json"
+        )
+        Assert-Equal `
+            -Actual $registration.attemptScope `
+            -Expected $contract.evidence.padRuntimeRoot `
+            -Message "Fresh registration scope"
+        Assert-Equal `
+            -Actual $registration.recoveryBasis.outcome `
+            -Expected "PRE_WINDOW_TOOL_BLOCK" `
+            -Message "Fresh registration lineage"
+        Assert-Equal `
+            -Actual $registration.recoveryBasis.authoritativeLockState `
+            -Expected "RELEASED_ACTIVE_0" `
+            -Message "Authoritative lock at registration"
+        Assert-Equal `
+            -Actual $newLock.state `
+            -Expected "ACTIVE_COUNT_1" `
+            -Message "Fresh instrumented lock"
+        Assert-Equal `
+            -Actual $historicalLock.state `
+            -Expected "ACTIVE_COUNT_1" `
+            -Message "Historical lock must remain unchanged"
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "REGISTER-REJECTS-NEW-SCOPE-REGISTRATION" {
+    $temp = New-TestTempRoot
+    try {
+        $freshRoot = Join-Path $temp.Root "fresh-scope"
+        [void][System.IO.Directory]::CreateDirectory($freshRoot)
+        Write-TestJson `
+            -Path (Join-Path $freshRoot "collector-registration.json") `
+            -Value ([pscustomobject]@{ attemptNumber = 1 })
+        $lockPath = Join-Path $temp.Root "authoritative-device-lock.md"
+        [System.IO.File]::WriteAllText(
+            $lockPath,
+            "## 当前占用`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $context = [pscustomobject]@{
+            Contract = $contract
+            Evidence = [pscustomobject]@{
+                RelativePath = $contract.evidence.padRuntimeRoot
+                FullPath = $freshRoot
+            }
+            ToolsDigest = $contract.tools.digestSha256
+        }
+        Assert-Throws `
+            -MessagePattern "ATTEMPT|SCOPE|REGISTERED|RETRY" `
+            -Action {
+                Invoke-G2DeviceRegistration `
+                    -Context $context `
+                    -DeviceRole Pad `
+                    -HistoricalRoot (Join-Path $contractRoot "qa-pad-v1") `
+                    -AuthoritativeLockPath $lockPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "REGISTER-REJECTS-NEW-SCOPE-LOCK" {
+    $temp = New-TestTempRoot
+    try {
+        $freshRoot = Join-Path $temp.Root "fresh-scope"
+        [void][System.IO.Directory]::CreateDirectory($freshRoot)
+        Write-TestJson `
+            -Path (Join-Path $freshRoot "device-lock.json") `
+            -Value ([pscustomobject]@{
+                schema = "aurorama.g2-device-lock.v1"
+                state = "RELEASED_ACTIVE_0"
+                activeCount = 0
+                attemptNumber = 1
+            })
+        $lockPath = Join-Path $temp.Root "authoritative-device-lock.md"
+        [System.IO.File]::WriteAllText(
+            $lockPath,
+            "## 当前占用`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $context = [pscustomobject]@{
+            Contract = $contract
+            Evidence = [pscustomobject]@{
+                RelativePath = $contract.evidence.padRuntimeRoot
+                FullPath = $freshRoot
+            }
+            ToolsDigest = $contract.tools.digestSha256
+        }
+        Assert-Throws `
+            -MessagePattern "ATTEMPT|SCOPE|REGISTERED|RETRY" `
+            -Action {
+                Invoke-G2DeviceRegistration `
+                    -Context $context `
+                    -DeviceRole Pad `
+                    -HistoricalRoot (Join-Path $contractRoot "qa-pad-v1") `
+                    -AuthoritativeLockPath $lockPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "REGISTER-REJECTS-HIDDEN-SCOPE-CONTENT" {
+    $temp = New-TestTempRoot
+    try {
+        $freshRoot = Join-Path $temp.Root "fresh-scope"
+        [void][System.IO.Directory]::CreateDirectory($freshRoot)
+        [System.IO.File]::WriteAllText(
+            (Join-Path $freshRoot ".unknown"),
+            "unexpected",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -MessagePattern "ATTEMPT|SCOPE|EMPTY|CONTENT|REGISTERED" `
+            -Action {
+                Assert-G2NewAttemptScopeFresh `
+                    -EvidenceFullPath $freshRoot
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "REGISTER-REJECTS-UNKNOWN-SCOPE-DIRECTORY" {
+    $temp = New-TestTempRoot
+    try {
+        $freshRoot = Join-Path $temp.Root "fresh-scope"
+        [void][System.IO.Directory]::CreateDirectory(
+            (Join-Path $freshRoot "unknown-directory")
+        )
+        Assert-Throws `
+            -MessagePattern "ATTEMPT|SCOPE|EMPTY|CONTENT|REGISTERED" `
+            -Action {
+                Assert-G2NewAttemptScopeFresh `
+                    -EvidenceFullPath $freshRoot
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "REGISTER-REJECTS-AUTHORITATIVE-ACTIVE-LOCK" {
+    $temp = New-TestTempRoot
+    try {
+        $lockPath = Join-Path $temp.Root "authoritative-device-lock.md"
+        [System.IO.File]::WriteAllText(
+            $lockPath,
+            "## 当前占用`n`n### Pad 43af8627 — ACTIVE`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $freshRoot = Join-Path $temp.Root "fresh-scope"
+        $context = [pscustomobject]@{
+            Contract = $contract
+            Evidence = [pscustomobject]@{
+                RelativePath = $contract.evidence.padRuntimeRoot
+                FullPath = $freshRoot
+            }
+            ToolsDigest = $contract.tools.digestSha256
+        }
+        Assert-Throws `
+            -MessagePattern "AUTHORITATIVE|ACTIVE|LOCK" `
+            -Action {
+                Invoke-G2DeviceRegistration `
+                    -Context $context `
+                    -DeviceRole Pad `
+                    -HistoricalRoot (Join-Path $contractRoot "qa-pad-v1") `
+                    -AuthoritativeLockPath $lockPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
     }
 }
 
@@ -408,9 +1029,9 @@ Invoke-Case "PATH-REJECTS-ABSOLUTE" {
 }
 
 Invoke-Case "PATH-REJECTS-REPARSE-ESCAPE" {
-    $guardName = ".path-guard-" + [Guid]::NewGuid().ToString("N")
-    $guardRoot = Join-Path $testsRoot $guardName
-    $guardTarget = Join-Path $testsRoot ($guardName + "-target")
+    $temp = New-TestTempRoot
+    $guardRoot = Join-Path $temp.Root "guard"
+    $guardTarget = Join-Path $temp.Root "target"
     $guardLink = Join-Path $guardRoot "escape"
     try {
         [void][System.IO.Directory]::CreateDirectory($guardRoot)
@@ -424,26 +1045,52 @@ Invoke-Case "PATH-REJECTS-REPARSE-ESCAPE" {
                     -RelativePath "escape/file.txt"
             }
     } finally {
-        if (Test-Path -LiteralPath $guardRoot) {
-            $resolvedGuardRoot = [System.IO.Path]::GetFullPath($guardRoot)
-            Assert-True `
-                -Condition $resolvedGuardRoot.StartsWith(
-                    ($testsRoot + [System.IO.Path]::DirectorySeparatorChar),
-                    [System.StringComparison]::OrdinalIgnoreCase
-                ) `
-                -Message "Unsafe test cleanup root."
-            Remove-Item -LiteralPath $resolvedGuardRoot -Recurse -Force
+        if ([System.IO.Directory]::Exists($guardLink)) {
+            [System.IO.Directory]::Delete($guardLink)
         }
-        if (Test-Path -LiteralPath $guardTarget) {
-            $resolvedGuardTarget = [System.IO.Path]::GetFullPath($guardTarget)
-            Assert-True `
-                -Condition $resolvedGuardTarget.StartsWith(
-                    ($testsRoot + [System.IO.Path]::DirectorySeparatorChar),
-                    [System.StringComparison]::OrdinalIgnoreCase
-                ) `
-                -Message "Unsafe test cleanup target."
-            Remove-Item -LiteralPath $resolvedGuardTarget -Recurse -Force
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "V2-EVIDENCE-ROOT-JUNCTIONS-FAIL-CLOSED" {
+    $temp = New-TestTempRoot
+    $relativeRoot = ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2"
+    $parent = Join-Path $temp.Root (
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT"
+    )
+    $junction = Join-Path $temp.Root $relativeRoot
+    $target = Join-Path $temp.Root "junction-target"
+    try {
+        [void][System.IO.Directory]::CreateDirectory($parent)
+        [void][System.IO.Directory]::CreateDirectory($target)
+        [void](New-Item -ItemType Junction -Path $junction -Target $target)
+        Assert-Throws `
+            -MessagePattern "REPARSE|JUNCTION" `
+            -Action {
+                Resolve-G2EvidenceRoot `
+                    -ContractRoot $parent `
+                    -DeviceRole Pad `
+                    -RepositoryBase $temp.Root
+            }
+        Assert-Throws `
+            -MessagePattern "REPARSE|JUNCTION" `
+            -Action {
+                Resolve-G2ReportEvidenceRoot `
+                    -DeviceRole Pad `
+                    -RepositoryBase $temp.Root
+            }
+        Assert-Throws `
+            -MessagePattern "REPARSE|JUNCTION" `
+            -Action {
+                Resolve-G2CleanupEvidenceRoot `
+                    -DeviceRole Pad `
+                    -RepositoryBase $temp.Root
+            }
+    } finally {
+        if ([System.IO.Directory]::Exists($junction)) {
+            [System.IO.Directory]::Delete($junction)
         }
+        Remove-TestTempRoot -Temp $temp
     }
 }
 
@@ -530,6 +1177,49 @@ Invoke-Case "CLEANUP-REJECTS-PINNED-IDENTITY-DRIFT" {
         }
 }
 
+Invoke-Case "CLEANUP-CONTEXT-ACCEPTS-CURRENT-SCHEMA-PIN" {
+    $context = Get-G2CleanupContext -DeviceRole Pad
+    Assert-Equal `
+        -Actual $context.Evidence.RelativePath `
+        -Expected $contract.evidence.padRuntimeRoot `
+        -Message "Cleanup context scope"
+    Assert-Equal `
+        -Actual $context.Contract.evidence.reportSchemaSha256 `
+        -Expected (Get-FileSha256 $schemaPath) `
+        -Message "Cleanup context schema pin"
+}
+
+Invoke-Case "CLEANUP-REJECTS-SCHEMA-FILE-HASH-DRIFT" {
+    $temp = New-TestTempRoot
+    try {
+        $driftedSchema = Join-Path $temp.Root "report.schema.json"
+        [System.IO.File]::Copy($schemaPath, $driftedSchema)
+        $bytes = [System.IO.File]::ReadAllBytes($driftedSchema)
+        $bytes[$bytes.Length - 1] = $bytes[$bytes.Length - 1] -bxor 1
+        [System.IO.File]::WriteAllBytes($driftedSchema, $bytes)
+        Assert-Throws `
+            -MessagePattern "CLEANUP.*SCHEMA.*(SHA|HASH|PINNED)" `
+            -Action {
+                Assert-G2CleanupSchemaPin `
+                    -Contract $contract `
+                    -SchemaPath $driftedSchema
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "CLEANUP-REJECTS-OLD-SCHEMA-PIN" {
+    $drifted = $contract | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+    $drifted.evidence.reportSchemaSha256 =
+        "8cb6d8766e773107e9493b828239ee417c61cf703a3c7756f94b684729921046"
+    Assert-Throws `
+        -MessagePattern "PINNED|IDENTITY|SCHEMA|SHA" `
+        -Action {
+            Assert-G2CleanupPinnedIdentity -Contract $drifted
+        }
+}
+
 Invoke-Case "CLEANUP-REJECTS-AUTH-SCOPE-DRIFT" {
     $drifted = $authorization | ConvertTo-Json -Depth 100 | ConvertFrom-Json
     $drifted.scope.k60.authorized = $false
@@ -567,22 +1257,361 @@ Invoke-Case "K60-REQUIRES-PAD-PREDECESSOR" {
 }
 
 Invoke-Case "K60-ACCEPTS-VALID-PREDECESSOR" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestPadPredecessorFixture `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        Assert-G2DevicePolicy `
+            -Contract $contract `
+            -Context $fixture.Context `
+            -DeviceRole K60 `
+            -Serial "8e875894" `
+            -Predecessor $fixture.Predecessor
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "K60-REJECTS-FORGED-A-B-SHA-REGISTRATION" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestK60RegistrationFixture `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        $forged = $fixture.Registration | ConvertTo-Json -Depth 100 |
+            ConvertFrom-Json
+        $forged.predecessor.reportSha256 = ("a" * 64)
+        $forged.predecessor.lockSha256 = ("b" * 64)
+        Assert-Throws `
+            -MessagePattern "K60|PREDECESSOR|SHA|REPORT|LOCK|MISMATCH" `
+            -Action {
+                Assert-G2CollectorRegistrationState `
+                    -Context $fixture.Context `
+                    -DeviceRole K60 `
+                    -Registration $forged
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "K60-REJECTS-REPORT-SHA-DRIFT-AFTER-REGISTRATION" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestK60RegistrationFixture `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        [System.IO.File]::AppendAllText(
+            $fixture.Pad.ReportPath,
+            "`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -MessagePattern "K60|PREDECESSOR|SHA|REPORT|LOCK|MISMATCH" `
+            -Action {
+                Assert-G2CollectorRegistrationState `
+                    -Context $fixture.Context `
+                    -DeviceRole K60 `
+                    -Registration $fixture.Registration
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "K60-REJECTS-LOCK-SHA-DRIFT-AFTER-REGISTRATION" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestK60RegistrationFixture `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        [System.IO.File]::AppendAllText(
+            $fixture.Pad.LockPath,
+            "`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -MessagePattern "K60|PREDECESSOR|SHA|REPORT|LOCK|MISMATCH" `
+            -Action {
+                Assert-G2CollectorRegistrationState `
+                    -Context $fixture.Context `
+                    -DeviceRole K60 `
+                    -Registration $fixture.Registration
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "K60-REJECTS-DUPLICATE-PRODUCT-GATE" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestPadPredecessorFixture `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        $invalidReport = $fixture.Report | ConvertTo-Json -Depth 100 |
+            ConvertFrom-Json
+        $invalidReport.productGates[1].gateId =
+            $invalidReport.productGates[0].gateId
+        Write-TestJson -Path $fixture.ReportPath -Value $invalidReport
+        Assert-Throws `
+            -MessagePattern "K60|PREDECESSOR|GATE|PRODUCT|MISMATCH" `
+            -Action {
+                Get-G2PadPredecessor `
+                    -Context $fixture.Context `
+                    -PadRoot $fixture.PadRoot
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "K60-REJECTS-NON-PASS-CLEANUP-REPORT" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestPadPredecessorFixture `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        $invalidReport = $fixture.Report | ConvertTo-Json -Depth 100 |
+            ConvertFrom-Json
+        $invalidReport.cleanupAndRestore.status = "FAIL"
+        Write-TestJson -Path $fixture.ReportPath -Value $invalidReport
+        Assert-Throws `
+            -MessagePattern "K60|PREDECESSOR|CLEANUP|PASS|MISMATCH" `
+            -Action {
+                Get-G2PadPredecessor `
+                    -Context $fixture.Context `
+                    -PadRoot $fixture.PadRoot
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "K60-REJECTS-ACTIVE-PAD-LOCK" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestPadPredecessorFixture `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        $activeLock = Read-Json $fixture.LockPath
+        $activeLock.state = "ACTIVE_COUNT_1"
+        $activeLock.activeCount = 1
+        $activeLock.releasedAt = $null
+        Write-TestJson -Path $fixture.LockPath -Value $activeLock
+        Assert-Throws `
+            -MessagePattern "K60|PREDECESSOR|LOCK|RELEASED|ACTIVE" `
+            -Action {
+                Get-G2PadPredecessor `
+                    -Context $fixture.Context `
+                    -PadRoot $fixture.PadRoot
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "K60-REJECTS-OLD-REPORT-AND-LOCK-SCOPE" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestPadPredecessorFixture `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        $oldReport = $fixture.Report | ConvertTo-Json -Depth 100 |
+            ConvertFrom-Json
+        $oldReport.evidenceRoot =
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1"
+        Write-TestJson -Path $fixture.ReportPath -Value $oldReport
+        $oldLock = Read-Json $fixture.LockPath
+        $oldLock.attemptScope =
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1"
+        Write-TestJson -Path $fixture.LockPath -Value $oldLock
+        Assert-Throws `
+            -MessagePattern "K60|PREDECESSOR|PAD|ROOT|SCOPE|PASS|LOCK" `
+            -Action {
+                Get-G2PadPredecessor `
+                    -Context $fixture.Context `
+                    -PadRoot $fixture.PadRoot
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "K60-REJECTS-HISTORICAL-PAD-PREDECESSOR" {
     $predecessor = [pscustomobject]@{
         deviceOrder = "Pad"
         coreVerdict = "PASS"
         lockStateAfterClosure = "RELEASED_ACTIVE_0"
         productVerdict = "PASS"
+        evidenceRoot = (
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1"
+        )
         candidateMainSha256 = $contract.candidate.main.sha256
         candidateFocusPeerSha256 = $contract.candidate.focusPeer.sha256
         evidencePointer = (
             ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1/report.json"
         )
+        reportSha256 = ("a" * 64)
+        lockSha256 = ("b" * 64)
     }
-    Assert-G2DevicePolicy `
-        -Contract $contract `
-        -DeviceRole K60 `
-        -Serial "8e875894" `
-        -Predecessor $predecessor
+    Assert-Throws `
+        -MessagePattern "K60|PREDECESSOR|PAD|EVIDENCE|SCOPE" `
+        -Action {
+            Assert-G2DevicePolicy `
+                -Contract $contract `
+                -DeviceRole K60 `
+                -Serial "8e875894" `
+                -Predecessor $predecessor
+        }
+}
+
+Invoke-Case "FINALIZER-REJECTS-OLD-PAD-EVIDENCE-ROOT" {
+    $report = New-FixturePassReport
+    $report.evidenceRoot = (
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1"
+    )
+    Assert-Throws `
+        -MessagePattern "EVIDENCE|SCOPE|PAD|ROOT" `
+        -Action {
+            Test-G2ReportSemantics `
+                -Report $report `
+                -Contract $contract
+        }
+}
+
+Invoke-Case "FINALIZER-REJECTS-ACTIVE-NEW-SCOPE-LOCK" {
+    $temp = New-TestTempRoot
+    try {
+        $lockPath = Join-Path $temp.Root "device-lock.json"
+        Write-TestJson `
+            -Path $lockPath `
+            -Value ([pscustomobject]@{
+                schema = "aurorama.g2-device-lock.v1"
+                deviceRole = "Pad"
+                serial = "43af8627"
+                attemptScope = $contract.evidence.padRuntimeRoot
+                state = "ACTIVE_COUNT_1"
+                activeCount = 1
+                attemptNumber = 1
+                releasedAt = $null
+            })
+        Assert-Throws `
+            -MessagePattern "FINALIZER|LOCK|RELEASED|ACTIVE" `
+            -Action {
+                Assert-G2FinalizerReleasedLock `
+                    -Contract $contract `
+                    -DeviceRole Pad `
+                    -EvidenceRoot $contract.evidence.padRuntimeRoot `
+                    -LockPath $lockPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "FINALIZER-ATTEMPT-BINDING-ACCEPTS-FRESH-SCOPE" {
+    $temp = New-TestTempRoot
+    try {
+        $context = New-TestFinalizerBindingContext `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        $binding = Assert-G2FinalizerAttemptBinding `
+            -Context $context `
+            -Observations $observations
+        Assert-Equal `
+            -Actual $binding.evidenceRoot `
+            -Expected $contract.evidence.padRuntimeRoot `
+            -Message "Finalizer binding scope"
+        Assert-Equal `
+            -Actual $binding.attemptNumber `
+            -Expected 1 `
+            -Message "Finalizer binding attempt"
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "FINALIZER-ATTEMPT-BINDING-REJECTS-SESSION-ATTEMPT-TWO" {
+    $temp = New-TestTempRoot
+    try {
+        $context = New-TestFinalizerBindingContext `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        $sessionPath = Join-Path `
+            $context.Evidence.FullPath `
+            "collector-session.json"
+        $session = Read-Json $sessionPath
+        $session.attemptNumber = 2
+        Write-TestJson -Path $sessionPath -Value $session
+        Assert-Throws `
+            -MessagePattern "FINALIZER|SESSION|ATTEMPT|BINDING" `
+            -Action {
+                Assert-G2FinalizerAttemptBinding `
+                    -Context $context `
+                    -Observations $observations
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "WINDOW-REJECTS-RELEASED-LOCK-BEFORE-COMPLETION" {
+    $temp = New-TestTempRoot
+    try {
+        $authoritativeLockPath = Join-Path `
+            $temp.Root `
+            "authoritative-device-lock.md"
+        [System.IO.File]::WriteAllText(
+            $authoritativeLockPath,
+            "## 当前占用`n",
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $freshRoot = Join-Path $temp.Root "fresh-scope"
+        $context = [pscustomobject]@{
+            Contract = $contract
+            Evidence = [pscustomobject]@{
+                RelativePath = $contract.evidence.padRuntimeRoot
+                FullPath = $freshRoot
+            }
+            ToolsDigest = $contract.tools.digestSha256
+        }
+        Invoke-G2DeviceRegistration `
+            -Context $context `
+            -DeviceRole Pad `
+            -HistoricalRoot (Join-Path $contractRoot "qa-pad-v1") `
+            -AuthoritativeLockPath $authoritativeLockPath
+        $registration = Read-Json (
+            Join-Path $freshRoot "collector-registration.json"
+        )
+        $lockPath = Join-Path $freshRoot "device-lock.json"
+        $released = Read-Json $lockPath
+        $released.state = "RELEASED_ACTIVE_0"
+        $released.activeCount = 0
+        $released.releasedAt = "2026-11-06T12:20:00.000+08:00"
+        Write-TestJson -Path $lockPath -Value $released
+        Assert-Throws `
+            -MessagePattern "ACTIVE|LOCK|WINDOW|MISMATCH" `
+            -Action {
+                Assert-G2CollectorRegistrationState `
+                    -Context $context `
+                    -DeviceRole Pad `
+                    -Registration $registration
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
 }
 
 Invoke-Case "WINDOW-REJECTS-SHORT-DURATION" {
@@ -618,6 +1647,18 @@ Invoke-Case "WINDOW-REJECTS-EXTENSION" {
                 -WindowSeconds 600 `
                 -Extended $true `
                 -Retry $false
+        }
+}
+
+Invoke-Case "WINDOW-REJECTS-RETRY-TRUE" {
+    Assert-Throws `
+        -MessagePattern "RETRY" `
+        -Action {
+            Assert-G2WindowPolicy `
+                -Attempt 1 `
+                -WindowSeconds 600 `
+                -Extended $false `
+                -Retry $true
         }
 }
 
@@ -821,6 +1862,7 @@ Invoke-Case "FINALIZER-PASS-REJECTS-UNMATCHED-AUDIO-COMPLETION" {
 Invoke-Case "FINALIZER-PASS-REJECTS-K60-WITHOUT-PREDECESSOR" {
     $report = New-FixturePassReport
     $report.ownerRole = "G2_K60_QA_OWNER_2026_11_06"
+    $report.evidenceRoot = $contract.evidence.k60RuntimeRoot
     $report.device.order = "K60"
     $report.device.role = "G2_K60_QA_OWNER_2026_11_06"
     $report.device.serial = "8e875894"
@@ -992,24 +2034,27 @@ Invoke-Case "CLEANUP-LIVE-SESSION-LOGCAT-IS-ORPHAN" {
 }
 
 Invoke-Case "CLEANUP-SUCCESS-RELEASES-AND-REREADS-LOCK" {
-    $lockPath = Join-Path `
-        $testsRoot `
-        (".cleanup-lock-" + [Guid]::NewGuid().ToString("N") + ".json")
+    $temp = New-TestTempRoot
+    $lockPath = Join-Path $temp.Root "device-lock.json"
     try {
         Write-G2CleanupJson -Path $lockPath -Value ([pscustomobject]@{
             schema = "aurorama.g2-device-lock.v1"
             deviceRole = "Pad"
             serial = "43af8627"
+            attemptScope = $contract.evidence.padRuntimeRoot
             state = "ACTIVE_COUNT_1"
             activeCount = 1
             attemptNumber = 1
+            authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
+            historicalBlockerSha256 = ("a" * 64)
             releasedAt = $null
         })
         $occupancy = Complete-G2CleanupDeviceLock `
             -Path $lockPath `
             -AllOtherChecksPassed $true `
             -DeviceRole Pad `
-            -Serial "43af8627"
+            -Serial "43af8627" `
+            -AttemptScope $contract.evidence.padRuntimeRoot
         Assert-Equal `
             -Actual $occupancy.state `
             -Expected "RELEASED_ACTIVE_0" `
@@ -1028,31 +2073,32 @@ Invoke-Case "CLEANUP-SUCCESS-RELEASES-AND-REREADS-LOCK" {
             -Expected 0 `
             -Message "External active count"
     } finally {
-        if (Test-Path -LiteralPath $lockPath) {
-            Remove-Item -LiteralPath $lockPath -Force
-        }
+        Remove-TestTempRoot -Temp $temp
     }
 }
 
 Invoke-Case "CLEANUP-TRUE-ACTIVE-LOCK-STILL-FAILS" {
-    $lockPath = Join-Path `
-        $testsRoot `
-        (".cleanup-lock-" + [Guid]::NewGuid().ToString("N") + ".json")
+    $temp = New-TestTempRoot
+    $lockPath = Join-Path $temp.Root "device-lock.json"
     try {
         Write-G2CleanupJson -Path $lockPath -Value ([pscustomobject]@{
             schema = "aurorama.g2-device-lock.v1"
             deviceRole = "Pad"
             serial = "43af8627"
+            attemptScope = $contract.evidence.padRuntimeRoot
             state = "ACTIVE_COUNT_1"
             activeCount = 1
             attemptNumber = 1
+            authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
+            historicalBlockerSha256 = ("a" * 64)
             releasedAt = $null
         })
         $occupancy = Complete-G2CleanupDeviceLock `
             -Path $lockPath `
             -AllOtherChecksPassed $false `
             -DeviceRole Pad `
-            -Serial "43af8627"
+            -Serial "43af8627" `
+            -AttemptScope $contract.evidence.padRuntimeRoot
         $observed = $cleanupFixture |
             ConvertTo-Json -Depth 20 |
             ConvertFrom-Json
@@ -1064,9 +2110,7 @@ Invoke-Case "CLEANUP-TRUE-ACTIVE-LOCK-STILL-FAILS" {
             -Expected "FAIL" `
             -Message "True ACTIVE lock"
     } finally {
-        if (Test-Path -LiteralPath $lockPath) {
-            Remove-Item -LiteralPath $lockPath -Force
-        }
+        Remove-TestTempRoot -Temp $temp
     }
 }
 
@@ -1134,7 +2178,7 @@ Write-Output (
     "SUMMARY PASS={0} FAIL={1} NEGATIVE_CASES={2}" -f
     $script:passed,
     $script:failed,
-    37
+    $script:negativeChecks
 )
 
 if ($script:failed -gt 0) {

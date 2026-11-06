@@ -1,6 +1,7 @@
 # G2 Entry Runtime Contract Checkpoint
 
-状态：`USER_RESUMED_G2_TOOL_REPAIR_HANDOFF / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED / RUNTIME_UNVERIFIED / G1_NOT_PASSED`
+状态：`R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / K60_GATED_LOCKED /
+RUNTIME_UNVERIFIED / G1_NOT_PASSED / PRODUCT_P0_P3_NOT_ASSESSED / activePrompt=none`
 
 ## 已完成
 
@@ -14,6 +15,13 @@
   runtime UNVERIFIED、L2/L3 LOCKED。
 - 全新一次性 tool repair owner 复现并修复 collector repo-relative 工具路径二次绑定；
   cleanup verifier 改为只接受当前 focus stack、真实路径、本 session 进程与回读后的锁状态。
+- 定向 RED 复现“历史 blocker + 自持 ACTIVE 锁、无注册文件时仍拒绝新登记”；修复后改为
+  历史证据与当前 attempt 双作用域，旧 `qa-pad-v1/` 不被删除、移动或改写。
+- 合同固定 `qa-pad-v1/` 五个历史文件的 SHA-256；只有 blocker 明确证明窗口
+  `NOT_STARTED`、候选未安装、`windowConsumed=false`，且 handoff 权威外部锁为
+  `RELEASED_ACTIVE_0` 时，才允许进入空的 `qa-pad-v2/`。
+- `qa-pad-v1/device-lock.json` 始终保持历史 `ACTIVE_COUNT_1`，不会再被解释为新 attempt
+  已释放，也不会被 cleanup 覆盖。
 
 ## 候选与工具
 
@@ -24,49 +32,55 @@
 - Builder：`Build-G2Candidate.ps1`，
   `069caf154e71310d0c6632837a7a13bfee8cf575ef1a4f5af3b07a116eb8839c`。
 - Validator：`Test-G2EntryRuntimeContract.ps1`，
-  `10acad646a78375a4a33b3b1cbb908c589dbada77d28170a26146e76ed9ba402`。
+  `9578fdbf377e64f5d154d4a10d325c3a55820905cc52a64bb96937a6f230bec7`。
 - Report schema：`report.schema.json`，
-  `8cb6d8766e773107e9493b828239ee417c61cf703a3c7756f94b684729921046`。
+  `a1c1549eb08b8c49ad0a2c4b6bb59fb8bbf641d1529f05948d1bb9e591409bae`。
 - Collector：`Invoke-G2RuntimeCollector.ps1`，
-  `6b6a3e94dabd9c73b10c746a444b32d309c2de31eb1f9363a4ecb96d65038971`。
+  `e00cdcb2c153670a259148f4ed6e34f9b5d46eab26e3ddd8ce2bb6ed6e9a7b6a`。
 - Finalizer：`Finalize-G2RuntimeReport.ps1`，
-  `4a149f2726c92c278be59acc25a7457a795e3d777906ee45605dc6e54827a666`。
+  `bb83072433a0b9e3c4c42dc476a10f6752f0f3f23bdc6090f95fbd86ccc7a628`。
 - Cleanup verifier：`Test-G2CleanupRestore.ps1`，
-  `f41b7b5669f39855f2603881fd632db1dd9d91507ff3c1a9509351954160257e`。
+  `eada2d45011ce989a11188f5ed8d9dc24d052f09f7d9fc5a82482353b073087e`。
 - Tool manifest：`runtime-tools.manifest.json`，
-  `c956c67adde8befb27166ab9a5107861879d7ed125077d7a4e7d49e878434bcc`。
+  `c35f51008be1bcb235a5969d23782856ebac17c721b6edda2be749e00fed9a13`。
 - Tools digest：
-  `dac3540bca28945375f0d41e03cb9d10c4c6dbc2a5714b6dbdcb299cf639d9e5`。
+  `d27166fcc3c5481c1943bdbb0178015caa7a7af5783c35799eb3ed4a976d5c6e`。
 
 ## 未执行 / 不可声明
 
 - Pad / K60 runtime、安装、ADB、网络、账号和服务端调用均未执行。
 - 产品 P0-P3 仍为 `NOT_ASSESSED`；没有 runtime 或 G1 PASS。
-- Runtime 工具已 `READY_SELF_TESTED_STATIC_ONLY`；用户已恢复并要求新会话交接，
-  `qaDispatchable=false`，新会话只接 fresh read-only repair audit，不直接接 Pad/K60 QA。
+- R2 WIP 的旧状态、计数与 manifest 均未验收；R3 只修复已定位 finding，工具状态保持
+  `R2_WIP_REPAIR_R3_IN_PROGRESS`，`qaDispatchable=false`，不声称 ready。
 - 未关闭 Q03、未冻结 profile / voice、未接受 Pad P2、未启动 G2 实现或 Release。
 
-## 已验证
+## R3 修复
 
+- cleanup schema pin 改为合同字段与实际 `report.schema.json` 文件 SHA 双绑定；旧
+  `8cb6d876…` 常量已移除，schema 漂移与旧 pin 均有负例。
+- K60 `RunWindow` 的 registration 复核改为回读固定 `qa-pad-v2/report.json` 与
+  `device-lock.json`，复算实际 SHA，并现场验证 candidate main / peer、13 gate、
+  verdict / productVerdict、cleanup 与释放锁；伪造 registration、`a*64 / b*64`、旧 scope、
+  文件漂移均 fail closed。
+- collector / finalizer / cleanup 的 v2 evidence root 解析均调用 reparse helper；evidence
+  root 本身为 junction 时拒绝。
+- attempt root 必须完全为空；任意文件、目录、隐藏项或未知条目都会拒绝登记。
+- 当前状态统一为 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false`。
+
+## 实现侧验证
+
+- `Test-G2RuntimeTools.ps1`：`87 PASS / 0 FAIL / 52 dynamic negative`；该计数只是本轮
+  implementation-side 观测，不是独立 audit / QA / runtime PASS。
 - `Test-G2EntryRuntimeContract.ps1`：`PASS G2_ENTRY_RUNTIME_CONTRACT`。
-- `Test-HandoffPreflight.ps1`：`104/104 PASS + TEMP_CLEANUP=PASS`。
-- 新 G2 post-QA transition 白名单正例：
-  `ASSERT POST-QA-G2-TRANSITION-ALLOWED=PASS`。
-- `Invoke-HandoffPreflight.ps1 -EmitPrompt`：合同阶段 `PASS`；
-  当前合同阶段为 `PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT /
-  K60_GATED_LOCKED`。
-- 候选仅通过本地 `aapt2` / `apksigner` 身份与签名校验，不代表 runtime。
-- `tests/Test-G2RuntimeTools.ps1`：`57/57 PASS`，含 37 个负例；仅静态 fixture / AST /
-  JSON / StaticSelfTest，`DEVICE_COMMANDS=0`。
-- repo-relative 工具路径与 evidence-relative 合同路径均只解析一次；绝对、traversal 与
-  reparse escape 继续 fail closed。
-- cleanup 历史 focus event、`ls ... No such file` 文本、无本 session 的 adb-logcat 进程均
-  不再冒充残留；真实当前 focus / 路径 / 进程与外部 ACTIVE lock 仍会 FAIL。
-- Runtime 工具 owner、candidate source / main / peer SHA、report schema、Pad/K60 evidence
-  root、K60 predecessor 与授权 receipt 均由三份工具现场绑定并 fail closed。
+- collector / finalizer / cleanup `StaticSelfTest` 通过，`DEVICE_COMMANDS=0`。
+- 候选在线身份、schema 与工具摘要从现场复算；真实 SHA 见固定对象段和
+  `runtime-tools.manifest.json`。
+- 未运行 `Test-HandoffPreflight.ps1` 104 项长套件；它只应在 root 稳定/提交候选后由另一个
+  fresh audit 执行。
 
 ## 下一门
 
-Tool repair checkpoint 保持 `PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT`，外层状态为
-`USER_RESUMED_G2_TOOL_REPAIR_HANDOFF`。下一会话必须由另一个全新只读 audit 复核两份 bug
-diff、`57/57` 回归与全部摘要；audit 完成后停止，不得直接进入 Pad/K60 QA。K60 继续保持锁定。
+无自动下一角色。root 决定是否启动 fresh scoped review；review 第一条只读动作必须是
+`git status --short`，随后 `git diff --stat`。若 HEAD、17 文件 WIP 范围、候选 SHA、
+`qa-pad-v1` 五文件或授权对象漂移，立即 `BLOCKED_SCOPE_DRIFT`。review 前不得运行 handoff
+preflight、不得派 Pad/K60 QA，K60 继续保持锁定。

@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`USER_RESUMED_G2_TOOL_REPAIR_HANDOFF / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / G2_RUNTIME_CONTRACT_PACKAGE_READY / D202_D210_ACCEPTED / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / CONTRACT_REGRESSION_104_OF_104 / TOOLS_STATIC_31_TESTS_25_OF_25 / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1→G2 入口 `USER_RESUMED_G2_TOOL_REPAIR_HANDOFF / RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。首次 Pad QA 在 collector Validate 路径二次绑定处停止，窗口未开始、候选未安装、锁释放、K60 零接触。repair owner 已修复路径与 cleanup 假阳性，`57/57 PASS / 37 negative`。用户现已恢复并要求开新会话交接；下一会话只接 fresh read-only repair audit，不直接接 Pad/K60 QA。当前不是 QA、runtime、产品 FAIL 或 G1 PASS。
+> 状态：`R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / CONTRACT_REGRESSION_104_OF_104 / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1→G2 入口 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。首次 Pad QA 在 collector Validate 路径二次绑定处停止，窗口未开始、候选未安装、外部权威锁释放、K60 零接触；其 `qa-pad-v1` 历史 blockers、cleanup 快照与自持锁字节保持不变。本轮将历史 `PRE_WINDOW_TOOL_BLOCK` 与新一次 attempt 分离：新 scope 为 `qa-pad-v2` / `qa-k60-v2`，只有历史窗口 `NOT_STARTED`、`freshInstall=NOT_RUN` 且外部权威锁 `RELEASED_ACTIVE_0` 时才允许开户。R2 WIP 尚未被接受；R3 只修复当前 findings 并等待 root 决定下一角色。当前不是 QA、runtime、产品 FAIL 或 G1 PASS。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-06
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3495,8 +3495,8 @@ G1；本契约不把任何一行标成 Done。
 
 **G2 入口 runtime 合同包（2026-11-06，静态合同完成）**
 
-`USER_RESUMED_G2_TOOL_REPAIR_HANDOFF / G2_RUNTIME_CONTRACT_PACKAGE=READY /
-PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED`。
+`R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false /
+PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED`。
 唯一合同根为 `.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/`；新 owner 为
 `G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06`，只做合同，报告后退役。合同、候选记录、
 README、checkpoint 与 `report.schema.json` 均在该根内，不读取或修改 qa-v9。
@@ -3517,16 +3517,17 @@ README、checkpoint 与 `report.schema.json` 均在该根内，不读取或修�
   零网络、P0-P3、cleanup / restore 与最终 verdict。
 - 设备顺序仍为 `Pad 43af8627 -> K60 8e875894`；每设备一次连续 10 分钟，不延长、不重试。
   Pad 核心全 PASS 且锁释放后才允许登记 K60；K60 当前 `LOCKED_NOT_REGISTERED`。
-- `V2-D210` authorization receipt 已绑定本合同与 main / peer SHA；下一阶段只可先由全新
-  runtime tool owner 创建新采集 / finalizer / cleanup 工具。K60 当前 `LOCKED_NOT_REGISTERED`，
-  Pad 全核心 PASS 且锁释放前不得登记。
+- `V2-D210` authorization receipt 已绑定本合同与 main / peer SHA。首次 Pad QA 的历史
+  `qa-pad-v1` 是 `PRE_WINDOW_TOOL_BLOCK`：窗口 `NOT_STARTED`、候选未安装、核心 `NOT_RUN`；
+  其中自持 `device-lock.json` 不是权威外部占用且字节保持不变。新 attempt 只使用
+  `qa-pad-v2` / `qa-k60-v2`，注册前同时验证历史五文件 SHA 与 handoff 外部锁
+  `RELEASED_ACTIVE_0`。K60 当前 `LOCKED_NOT_REGISTERED`，Pad 全核心 PASS 且锁释放前不得登记。
 
 **唯一当前状态**
 
 `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS /
-G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / V2-D209 /
-G2_RUNTIME_CONTRACT_PACKAGE_READY / V2-D210 / USER_RESUMED_G2_TOOL_REPAIR_HANDOFF /
-PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT /
+G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / V2-D209 / V2-D210 /
+R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / PAD_RUNTIME_ATTEMPT_SCOPE_V2 /
 QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 
 机器合同为 `HANDOFF_BOOTSTRAP_V2`，当前 `validation.handoffPhase=POST_QA_RUNTIME_DEFERRED`。
@@ -3535,15 +3536,16 @@ QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 不得改写成 QA / runtime / G1 PASS。用户已通过 `V2-D208` 决定：停止本轮 QA 工具修复与重试，
 完整 Pad/K60 runtime QA 延期到 G2 入口门；G1 只继续可离线闭合的静态收口。QA-v9 是本轮真实
 证据，不是产品失败或产品通过。`V2-D209` 授权合同 owner 建立 runtime 合同与 evidence
-边界；`V2-D210` 随后确认设备执行，当前可先建设本合同专用运行时工具并派全新 Pad QA。
-K60 仍锁定，产品代码、G2 实现与 Release 仍未授权。
+边界；`V2-D210` 随后确认设备执行。R2 WIP 未通过验收，R3 只处理已定位修复；当前没有可派发
+Pad / K60 QA。K60 仍锁定，产品代码、G2 实现与 Release 仍未授权。
 
 `SUBAGENT_FIRST=YES`；`ONE_PHASE_PER_FRESH_AGENT=YES`；`NO_REUSE_SUBAGENT=YES`；
 `ROOT_INTEGRATION_ONLY=YES`；`DEVICE_WINDOW_MINUTES=10`；`DEVICE_ORDER=Pad->K60`。
 负责人仍只做交付 / 集成编排；不得亲自跑 QA、修产品、做独立 audit 或替用户验收。
 历史 `PAD_QA_OWNER` 与 `K60_QA_OWNER` 仍不可派发；G2 必须使用新的
 `G2_RUNTIME_TOOL_OWNER_2026_11_06`、`G2_PAD_QA_OWNER_2026_11_06`、
-`G2_K60_QA_OWNER_2026_11_06` 且每阶段全新。`K60_NOT_REGISTERED_NOT_RUN` 是当前设备事实。
+`G2_K60_QA_OWNER_2026_11_06` 且每阶段全新；下一步由 root 决定是否启动 fresh scoped review。
+`K60_NOT_REGISTERED_NOT_RUN` 是当前设备事实。
 preflight 入口为
 `tools/v2-handoff/Invoke-HandoffPreflight.ps1`。
 
@@ -3583,25 +3585,30 @@ preflight 入口为
 
 首次 Pad QA 在 collector Validate 路径二次绑定处停止，窗口未开始、候选未安装、产品
 P0–P3 `NOT_ASSESSED`，设备锁释放且 K60 零接触。repair owner 已修复路径与 cleanup 六项
-假阳性，`57/57 PASS / 37 negative`。用户已恢复并要求新会话交接；下一步只允许 fresh
-read-only repair audit，未派发 Pad / K60 QA。K60 继续保持锁定。
+假阳性；第二轮 repair 又把历史 pre-window blocker 与真实新 attempt 分离，形成未验收 WIP，
+其计数、manifest 与状态均不得视为 PASS。R3 已修复 cleanup schema pin、K60
+predecessor 现场回读、v2 root junction、scope 空态与状态双源，只完成实现侧 TDD / 静态验证。
+下一步由 root 决定是否启动 fresh scoped review；未完成 review、提交与 clean 前不得派发
+Pad / K60 QA。K60 继续保持锁定。
 
-冷启动第一条只读动作必须实际运行：
+fresh scoped review 在 dirty WIP 上的前两条只读动作必须是：
 
-`pwsh -NoProfile -File 'F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\v2-handoff\Invoke-HandoffPreflight.ps1' -EmitPrompt`
+`git status --short`
 
-必须得到 `PASS`，actionClass 为 `READ_ONLY_PREFLIGHT`，并明确当前
-`RUNTIME_QA_DEFERRED_TO_G2`；任何非零、`FAIL_CLOSED`、仍显示 QA 可派发、产品已评估、
-K60 已登记或历史 receipt 被改写都立即停止。
+`git diff --stat`
 
-Preflight PASS 后精确读序：
+必须确认 WIP 范围未漂移且 HEAD 未变；此时不运行 handoff preflight。若范围、HEAD、
+`qa-pad-v1`、候选 SHA 或授权对象漂移，立即停止。handoff preflight 只在 root 完成状态收口
+并形成稳定/提交对象后由另一个 fresh audit 执行。
+
+fresh scoped review 的精确读序：
 
 1. 本 ACTIVE；
 2. `AGENTS.md` 顶部 Aurorama 2.0 硬门；
 3. `docs/PROJECT_PLAN.md` 的 2.0 任务线状态；
 4. `docs/V2_PLAN.md` §6、§10、§12、§13 最新日志；
 5. `docs/TASKS.md` `## In Progress`；
-6. `docs/DECISIONS.md` 当前 Open、`V2-D203`～`V2-D209`；
+6. `docs/DECISIONS.md` 当前 Open、`V2-D203`～`V2-D210`；
 7. `tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json` 的 `qaRoundState / auditReceipt /
    requiredGates / prompts / validation`；
 8. `Invoke-HandoffPreflight.ps1` 的 source/current、auditReceipt、post-QA transition、
@@ -3615,7 +3622,7 @@ Gradle、产品代码、Q03 关闭、profile/voice 冻结、G2 实现、Release 
 exact profile / voice 保持 Open，Pad P2 未接受，G1 `NOT_PASSED`，项目级 runtime
 `UNVERIFIED`，L2/L3 `LOCKED`。
 
-停止条件：preflight 非零；需要篡改 audit receipt、qa-v9 证据或历史 finding 才能通过；
+停止条件：WIP 范围 / HEAD 漂移；需要篡改 audit receipt、qa-pad-v1 五文件、候选或授权对象；
 当前设备锁不是 `RELEASED_ACTIVE_0`；qa-v9 report 结论 / cleanup / K60 未触及事实漂移；
 需要设备、网络、凭据、产品代码、QA 重试、正式实现或新用户范围决策；写域越界。遇到任一项
 报告 `BLOCKED` 并停止，不得无限扩展状态层。
@@ -5793,19 +5800,17 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   authorization receipt 固定当前合同和双方 SHA，K60 仍锁定。Q03 Open、exact profile / voice Open、Pad P2
   unaccepted、G1 NOT_PASSED、runtime UNVERIFIED、L2/L3 LOCKED。合同校验器 PASS；
   handoff 回归 `104/104 PASS + TEMP_CLEANUP=PASS`，新增
-  `POST-QA-G2-TRANSITION-ALLOWED=PASS`；preflight 输出
-  `USER_RESUMED_G2_TOOL_REPAIR_HANDOFF /
-  G2_RUNTIME_CONTRACT_PACKAGE_READY / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT /
-  K60_GATED_LOCKED`。
-- **2026-11-06 — G2 runtime 工具阶段完成 / 独立 Pad QA 待派发**：全新
+  `POST-QA-G2-TRANSITION-ALLOWED=PASS`；当时 preflight 输出的 package-ready /
+  pending-audit 标签仅为 HISTORY，已被 R3 状态取代；`K60_GATED_LOCKED` 仍有效。
+- **HISTORY 2026-11-06 — G2 runtime 工具阶段记录（R2 WIP_NOT_ACCEPTED）**：全新
   `G2_RUNTIME_TOOL_OWNER_2026_11_06` 建立 `Invoke-G2RuntimeCollector.ps1`、
   `Finalize-G2RuntimeReport.ps1`、`Test-G2CleanupRestore.ps1`、runtime tool manifest 与
   fixtures；TDD 静态测试 `48/48 PASS / 33 negative`，collector / finalizer / cleanup 的
   static self-test 均为 `DEVICE_COMMANDS=0`。工具绑定 V2-D210 authorization receipt、合同
   main / peer SHA、report schema、evidence root 与 `Pad->K60` 门控；fixture 不能产出 PASS。
   合同 validator PASS，文本 / JSON / AST / diff 检查通过；工具阶段未 adb、设备、网络、
-  Gradle、QA 或产品源码。当前状态
-  `PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA / K60_GATED_LOCKED`，下一步只能另派全新
+  Gradle、QA 或产品源码。当时记录旧的 ready / QA 待派发标签与
+  `K60_GATED_LOCKED`；该 ready 标签已被 `R2_WIP_NOT_ACCEPTED` 取代，下一步只能另派全新
   `G2_PAD_QA_OWNER_2026_11_06`。Q03 Open、exact profile / voice Open、Pad P2 未接受、
   G1 NOT_PASSED、runtime UNVERIFIED、L2/L3 LOCKED。
 - **2026-11-06 — G2 Pad QA 首次执行工具阻断 / repair required**：全新
@@ -5819,22 +5824,59 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   生产包 MATCH，锁 `RELEASED_ACTIVE_0`，K60 `registered=false / targetedCommands=0`。
   证据在 `.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1/`。下一角色只能是全新 runtime
   tool repair owner；不得复用该 Pad QA，不得设备重试，不得把工具失败写成产品结论。
-- **2026-11-06 — G2 runtime 工具定点修复 / fresh audit ready**：全新
+- **HISTORY 2026-11-06 — G2 runtime 工具定点修复 WIP（未验收）**：全新
   `G2_RUNTIME_TOOL_REPAIR_OWNER_2026_11_06` 精确复现 collector 仓库相对路径二次绑定，并
   新增 repo-relative / evidence-relative 双路径正例与越界负例；cleanup verifier 修正
   AudioFocus 当前 stack、`ls` 缺失文本、本 session logcat orphan 与锁释放回读语义。RED
   阶段 `48 PASS / 9 FAIL`，GREEN 为 `57/57 PASS / 37 negative`，真实 current residue 仍
   fail-closed。Contract `10/10` SHA、manifest `9/9`、contract validator、collector Validate、
-  JSON 12/12、AST 6/6 通过；设备命令 / adb / 网络 / Gradle = 0。当前
-  `PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / qaDispatchable=false`，下一角色只能是
-  全新只读 `G2_RUNTIME_TOOL_REPAIR_AUDIT_OWNER`。
-- **2026-11-06 — 用户要求暂停 / 等待后续通知**：工具修复 checkpoint、BLOCKED 证据、
-  contract / tool SHA 与 handoff 回归均已落档，但用户要求先停下。当前
-  `WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR /
-  PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED / activePrompt=none`。
+  JSON 12/12、AST 6/6 通过；设备命令 / adb / 网络 / Gradle = 0。该轮自报的 pending-audit
+  标记未形成可接受 audit receipt、提交与 clean 状态，已由 `R2_WIP_NOT_ACCEPTED` 取代。
+- **HISTORY 2026-11-06 — 用户要求暂停 / 等待后续通知**：工具修复 checkpoint、BLOCKED 证据、
+  contract / tool SHA 与 handoff 回归均已落档，但用户要求先停下。当时记录为等待用户通知、
+  pending-audit 标签、`K60_GATED_LOCKED / activePrompt=none`。
   未创建 repair audit、未重派 Pad QA、未接触 K60/设备；用户恢复前不得继续派发。
-- **2026-11-06 — 用户恢复 / 新会话交接 fresh repair audit**：用户明确要求继续并因上下文较长
+- **HISTORY 2026-11-06 — 用户恢复 / 新会话交接记录**：用户明确要求继续并因上下文较长
   开新会话。旧负责人只完成文档、记忆、提交与 clean 检查；新会话首条 prompt 固定专业身份
   `G2_RUNTIME_TOOL_REPAIR_AUDIT_OWNER_2026_11_06`，先跑 handoff preflight，再只读复核
   `57/57` 工具回归、repair diff 与全部 SHA。新会话不直接接 Pad/K60 QA；audit PASS 后另派
-  全新 QA。当前 `PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED`。
+  全新 QA。当时状态后因 R2 WIP 未回写 / 未提交而失效。
+- **HISTORY 2026-11-06 — G2 pre-window 历史锁 / 新 attempt 状态机 WIP**：同一 repair owner
+  TEMP RED 复现 `qa-pad-v1` 有 blocker 与自持 `ACTIVE_COUNT_1`、无 registration 时仍抛
+  `ATTEMPT_ALREADY_REGISTERED RETRY_FORBIDDEN`。修复将历史证据与当前 attempt 分域：
+  `qa-pad-v1` 固定为 `PRE_WINDOW_TOOL_BLOCK`（窗口 `NOT_STARTED`、fresh install
+  `NOT_RUN`、core `NOT_RUN`、windowConsumed=false），五个历史文件 SHA 写入合同并保持原字节；
+  新 attempt 只写空的 `qa-pad-v2` / `qa-k60-v2`，登记前只读 handoff 权威外部锁并要求
+  `RELEASED_ACTIVE_0`。运行时 scope 锁必须是 `ACTIVE_COUNT_1`；cleanup 后 finalizer 只接受
+  同一 scope 的 `RELEASED_ACTIVE_0` 并校验 registration/session；K60 predecessor 只接受
+  `qa-pad-v2/report.json` 与其报告 / 锁 SHA，不读取旧失败证据。当时自报的旧 GREEN 计数
+  （已撤销，原 57 项保留）随 R2 WIP 一起标记
+  `R2_WIP_NOT_ACCEPTED`；contract validator、collector Validate、
+  collector / finalizer / cleanup StaticSelfTest、handoff `104/104 + TEMP_CLEANUP=PASS`
+  通过。该 WIP 的 ready / pending-audit 状态现已失效，统一为
+  `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false`。未 adb、设备、
+  QA、网络、Gradle、产品源码、服务器写、stage、commit、push 或 tag；产品 P0–P3 仍
+  `NOT_ASSESSED`，runtime / G1 未通过。
+- **2026-11-06 18:56 — G2 工具链错误复盘 / R2 WIP 暂停待审查**：用户要求解释连续工具
+  错误并固化经验。已确认问题分属五层：历史 pre-window 自持锁与 attempt 消费混淆、audit
+  PASS 未事务化回写、`pwsh -File` 外层引号包装 exit 64、嵌套命令变量展开、104 项 handoff
+  长回归缺少 fast/full 分层与硬超时。经验写入 `LESSONS` L027–L030。第二轮 repair owner
+  已产出 16 文件 / 约 1,798 行 WIP，并自称工具 GREEN 与 handoff 通过，但在完整重跑中未返回
+  最终实现报告；root 已中断该代理并终止遗留测试进程，因此当前统一标记
+  `R2_WIP_NOT_ACCEPTED`，不得把工作树中的旧计数、工具 SHA、契约状态或 old evidence
+  分类当成已审计事实，也不得派发 Pad/K60 QA。`qa-pad-v1` 五份历史证据未出现在本轮 diff
+  中，产品 P0–P3 仍 `NOT_ASSESSED`。下一步先派全新只读 WIP reviewer：首条动作跑 handoff
+  preflight；随后只审查 16 文件关键 diff、历史证据 SHA 与目标 fast tests，明确
+  `CONTINUE_REPAIR / REWRITE_SCOPE / DISCARD_REQUIRES_USER_DECISION` 后再决定是否进入
+  当时建议的下一角色安排。未 adb、设备、QA、网络、Gradle、服务器写、stage、commit、
+  push 或 tag。
+- **2026-11-06 — G2 R2 WIP 第三轮定点修复**：全新一次性 R3 owner 在不接受 R2 旧计数 /
+  manifest / 状态的前提下，先 RED 复现 cleanup 旧 schema pin 与 K60 伪造 predecessor 绕过。
+  修复后 cleanup 同时绑定合同字段与实际 schema 文件 SHA；K60 使用前从固定
+  `qa-pad-v2` root 回读 `report.json` / `device-lock.json`，复算实际 SHA 并验证候选双 SHA、
+  13 gate、verdict / productVerdict、cleanup 与释放锁；collector / finalizer / cleanup
+  的 v2 evidence root 均复用 reparse helper；attempt root 任意未知内容均拒绝登记。当前统一为
+  `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false`，不声称 ready 或 audit pending。
+  `qa-pad-v1` 五文件与候选 main / peer SHA 保持不变；产品 P0–P3 仍 `NOT_ASSESSED`。下一步由
+  root 决定 fresh scoped review，首条只读动作为 `git status --short`，随后 `git diff --stat`；
+  未 adb、设备、QA、网络、Gradle、服务器写、stage、commit、push 或 tag。

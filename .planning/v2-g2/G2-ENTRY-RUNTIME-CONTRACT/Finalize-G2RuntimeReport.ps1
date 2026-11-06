@@ -34,7 +34,7 @@ $pinnedMainSha256 =
 $pinnedPeerSha256 =
     "d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a"
 $pinnedSchemaSha256 =
-    "8cb6d8766e773107e9493b828239ee417c61cf703a3c7756f94b684729921046"
+    "a1c1549eb08b8c49ad0a2c4b6bb59fb8bbf641d1529f05948d1bb9e591409bae"
 $gateIds = @(
     "G2-RT-01-FRESH-INSTALL-IDENTITY",
     "G2-RT-02-AUDIOTRACK-START-COMPLETION",
@@ -241,12 +241,13 @@ function Assert-G2ReportAuthorization {
 function Resolve-G2ReportEvidenceRoot {
     param(
         [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
-        [AllowNull()][string]$RequestedEvidenceRoot
+        [AllowNull()][string]$RequestedEvidenceRoot,
+        [AllowNull()][string]$RepositoryBase
     )
     $expectedRelative = if ($DeviceRole -ceq "Pad") {
-        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1"
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2"
     } else {
-        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v1"
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v2"
     }
     if ([string]::IsNullOrWhiteSpace($RequestedEvidenceRoot)) {
         $RequestedEvidenceRoot = $expectedRelative
@@ -255,11 +256,26 @@ function Resolve-G2ReportEvidenceRoot {
     if ($normalized -cne $expectedRelative) {
         throw "EVIDENCE_ROOT_MISMATCH"
     }
+    $effectiveRepositoryRoot = if (
+        [string]::IsNullOrWhiteSpace($RepositoryBase)
+    ) {
+        $repositoryRoot
+    } else {
+        [System.IO.Path]::GetFullPath($RepositoryBase)
+    }
     $fullPath = [System.IO.Path]::GetFullPath(
-        (Join-Path $repositoryRoot $expectedRelative)
+        (Join-Path $effectiveRepositoryRoot $expectedRelative)
     )
+    Assert-G2ReportNoReparsePath `
+        -Root $effectiveRepositoryRoot `
+        -FullPath $fullPath
+    $effectiveContractRoot = Join-Path `
+        $effectiveRepositoryRoot `
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT"
     $contractPrefix =
-        $contractRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) +
+        $effectiveContractRoot.TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar
+        ) +
         [System.IO.Path]::DirectorySeparatorChar
     if (-not $fullPath.StartsWith(
         $contractPrefix,
@@ -270,6 +286,50 @@ function Resolve-G2ReportEvidenceRoot {
     return [pscustomobject]@{
         RelativePath = $expectedRelative
         FullPath = $fullPath
+    }
+}
+
+function Assert-G2FinalizerReleasedLock {
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
+        [Parameter(Mandatory)][string]$EvidenceRoot,
+        [Parameter(Mandatory)][string]$LockPath
+    )
+    if (-not (Test-Path -LiteralPath $LockPath -PathType Leaf)) {
+        throw "FINALIZER_LOCK_MISSING"
+    }
+    $lock = Read-G2ReportJsonStrict $LockPath
+    $serial = if ($DeviceRole -ceq "Pad") {
+        [string]$Contract.devicePolicy.pad.serial
+    } else {
+        [string]$Contract.devicePolicy.k60.serial
+    }
+    $expectedRoot = if ($DeviceRole -ceq "Pad") {
+        [string]$Contract.evidence.padRuntimeRoot
+    } else {
+        [string]$Contract.evidence.k60RuntimeRoot
+    }
+    if (
+        $EvidenceRoot -cne $expectedRoot -or
+        [string]$lock.schema -cne "aurorama.g2-device-lock.v1" -or
+        [string]$lock.deviceRole -cne $DeviceRole -or
+        [string]$lock.serial -cne $serial -or
+        [string]$lock.attemptScope -cne $expectedRoot -or
+        [string]$lock.state -cne "RELEASED_ACTIVE_0" -or
+        [int]$lock.activeCount -ne 0 -or
+        [int]$lock.attemptNumber -ne 1 -or
+        [string]::IsNullOrWhiteSpace([string]$lock.releasedAt) -or
+        [string]$lock.authoritativeLockStateAtRegistration -cne
+            "RELEASED_ACTIVE_0"
+    ) {
+        throw "FINALIZER_LOCK_NOT_RELEASED_ACTIVE_0"
+    }
+    return [pscustomobject]@{
+        state = "RELEASED_ACTIVE_0"
+        activeCount = 0
+        attemptNumber = 1
+        sha256 = Get-G2ReportFileSha256 $LockPath
     }
 }
 
@@ -298,13 +358,12 @@ function Get-G2FinalizerContext {
         $contract.schema -cne "aurorama.g2-entry-runtime-contract.v1" -or
         $contract.contractId -cne
             "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06" -or
-        $contract.status -cne
-            "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT" -or
+        $contract.status -cne "R2_WIP_REPAIR_R3_IN_PROGRESS" -or
         $contract.owner.roleId -cne
             "G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06" -or
         $contract.tools.runtimeFinalizer.roleId -cne $toolOwnerRole -or
         $contract.tools.runtimeFinalizer.status -cne
-            "READY_SELF_TESTED_STATIC_ONLY"
+            "R2_WIP_REPAIR_R3_IN_PROGRESS"
     ) {
         throw "FINALIZER_CONTRACT_BINDING_MISMATCH"
     }
@@ -351,6 +410,177 @@ function Get-G2FinalizerContext {
         Evidence = Resolve-G2ReportEvidenceRoot `
             -DeviceRole $DeviceRole `
             -RequestedEvidenceRoot $RequestedEvidenceRoot
+        RepositoryRoot = $repositoryRoot
+    }
+}
+
+function Assert-G2FinalizerAttemptBinding {
+    param(
+        [Parameter(Mandatory)]$Context,
+        [Parameter(Mandatory)]$Observations
+    )
+    $contract = $Context.Contract
+    $deviceRole = [string]$Observations.device.order
+    if ($deviceRole -notin @("Pad", "K60")) {
+        throw "FINALIZER_ATTEMPT_DEVICE_INVALID"
+    }
+    $expectedRoot = if ($deviceRole -ceq "Pad") {
+        [string]$contract.evidence.padRuntimeRoot
+    } else {
+        [string]$contract.evidence.k60RuntimeRoot
+    }
+    $expectedOwner = if ($deviceRole -ceq "Pad") {
+        "G2_PAD_QA_OWNER_2026_11_06"
+    } else {
+        "G2_K60_QA_OWNER_2026_11_06"
+    }
+    $expectedSerial = if ($deviceRole -ceq "Pad") {
+        "43af8627"
+    } else {
+        "8e875894"
+    }
+    if (
+        [string]$Context.Evidence.RelativePath -cne $expectedRoot -or
+        [string]$Observations.evidenceRoot -cne $expectedRoot -or
+        [string]$Observations.ownerRole -cne $expectedOwner -or
+        [string]$Observations.device.role -cne $expectedOwner -or
+        [string]$Observations.device.serial -cne $expectedSerial
+    ) {
+        throw "FINALIZER_ATTEMPT_SCOPE_MISMATCH"
+    }
+    $registrationPath = Join-Path `
+        $Context.Evidence.FullPath `
+        "collector-registration.json"
+    $sessionPath = Join-Path `
+        $Context.Evidence.FullPath `
+        "collector-session.json"
+    $lockPath = Join-Path $Context.Evidence.FullPath "device-lock.json"
+    foreach ($requiredAttemptFile in @(
+        $registrationPath,
+        $sessionPath,
+        $lockPath
+    )) {
+        if (-not (Test-Path -LiteralPath $requiredAttemptFile -PathType Leaf)) {
+            throw "FINALIZER_ATTEMPT_FILE_MISSING $requiredAttemptFile"
+        }
+    }
+    $registration = Read-G2ReportJsonStrict $registrationPath
+    $session = Read-G2ReportJsonStrict $sessionPath
+    if (
+        [string]$registration.schema -cne
+            "aurorama.g2-collector-registration.v1" -or
+        [string]$registration.contractId -cne [string]$contract.contractId -or
+        [string]$registration.deviceRole -cne $deviceRole -or
+        [string]$registration.serial -cne $expectedSerial -or
+        [string]$registration.qaOwnerRole -cne $expectedOwner -or
+        [string]$registration.attemptScope -cne $expectedRoot -or
+        [string]$registration.attemptState -cne
+            "REGISTERED_WINDOW_NOT_STARTED" -or
+        [string]$registration.lockState -cne "ACTIVE_COUNT_1" -or
+        [int]$registration.attemptNumber -ne 1 -or
+        [int]$registration.windowSeconds -ne 600 -or
+        [string]$registration.candidateMainSha256 -cne
+            [string]$contract.candidate.main.sha256 -or
+        [string]$registration.candidateFocusPeerSha256 -cne
+            [string]$contract.candidate.focusPeer.sha256 -or
+        [string]$registration.toolsDigest -cne
+            [string]$contract.tools.digestSha256 -or
+        [string]$registration.authoritativeLockState -cne
+            "RELEASED_ACTIVE_0"
+    ) {
+        throw "FINALIZER_REGISTRATION_BINDING_MISMATCH"
+    }
+    if ($deviceRole -ceq "Pad") {
+        if (
+            [string]$registration.recoveryBasis.outcome -cne
+                "PRE_WINDOW_TOOL_BLOCK" -or
+            [bool]$registration.recoveryBasis.historicalWindowConsumed -ne
+                $false -or
+            [string]$registration.recoveryBasis.blockerEvidencePointer -cne
+                (
+                    ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/" +
+                    "qa-pad-v1/blocker.json"
+                ) -or
+            [string]$registration.recoveryBasis.blockerSha256 -notmatch
+                "^[0-9a-f]{64}$"
+        ) {
+            throw "FINALIZER_PREWINDOW_RECOVERY_BASIS_MISMATCH"
+        }
+    }
+    if (
+        [string]$session.schema -cne
+            "aurorama.g2-collector-session.v1" -or
+        [string]$session.contractId -cne [string]$contract.contractId -or
+        [string]$session.qaOwnerRole -cne $expectedOwner -or
+        [string]$session.evidenceRoot -cne $expectedRoot -or
+        [string]$session.attemptScope -cne $expectedRoot -or
+        [string]$session.attemptState -cne "WINDOW_STARTED" -or
+        [string]$session.deviceRole -cne $deviceRole -or
+        [string]$session.serial -cne $expectedSerial -or
+        [int]$session.attemptNumber -ne 1 -or
+        [int]$session.windowSeconds -ne 600 -or
+        [bool]$session.extended -ne $false -or
+        [bool]$session.retry -ne $false -or
+        [bool]$session.continuous -ne $true -or
+        [bool]$session.hostLogcatProcessStopped -ne $true -or
+        [string]$session.startedAt -cne
+            [string]$Observations.execution.startedAt -or
+        [string]$session.completedAt -cne
+            [string]$Observations.execution.completedAt -or
+        [string]$session.candidateMainSha256 -cne
+            [string]$contract.candidate.main.sha256 -or
+        [string]$session.candidateFocusPeerSha256 -cne
+            [string]$contract.candidate.focusPeer.sha256 -or
+        [string]$session.toolsDigest -cne
+            [string]$contract.tools.digestSha256 -or
+        -not [string]::IsNullOrWhiteSpace([string]$session.error)
+    ) {
+        throw "FINALIZER_SESSION_BINDING_MISMATCH"
+    }
+    $releasedLock = Assert-G2FinalizerReleasedLock `
+        -Contract $contract `
+        -DeviceRole $deviceRole `
+        -EvidenceRoot $expectedRoot `
+        -LockPath $lockPath
+    if ($deviceRole -ceq "K60") {
+        $predecessor = $Observations.predecessor
+        $padRoot = [string]$contract.evidence.padRuntimeRoot
+        $expectedPointer = "$padRoot/report.json"
+        $repositoryRoot = [System.IO.Path]::GetFullPath(
+            (Join-Path $contractRoot "..\..\..")
+        )
+        $padReportPath = Resolve-G2ReportBoundedPath `
+            -Root $repositoryRoot `
+            -RelativePath $expectedPointer
+        $padLockPath = Resolve-G2ReportBoundedPath `
+            -Root $repositoryRoot `
+            -RelativePath "$padRoot/device-lock.json"
+        if (
+            $null -eq $predecessor -or
+            [string]$predecessor.coreVerdict -cne "PASS" -or
+            [string]$predecessor.productVerdict -cne "PASS" -or
+            [string]$predecessor.evidenceRoot -cne $padRoot -or
+            [string]$predecessor.evidencePointer -cne $expectedPointer -or
+            [string]$predecessor.lockStateAfterClosure -cne
+                "RELEASED_ACTIVE_0" -or
+            [string]$predecessor.candidateMainSha256 -cne
+                [string]$contract.candidate.main.sha256 -or
+            [string]$predecessor.candidateFocusPeerSha256 -cne
+                [string]$contract.candidate.focusPeer.sha256 -or
+            [string]$predecessor.reportSha256 -cne
+                (Get-G2ReportFileSha256 $padReportPath) -or
+            [string]$predecessor.lockSha256 -cne
+                (Get-G2ReportFileSha256 $padLockPath)
+        ) {
+            throw "FINALIZER_K60_PREDECESSOR_BINDING_MISMATCH"
+        }
+    }
+    return [pscustomobject]@{
+        evidenceRoot = $expectedRoot
+        attemptNumber = 1
+        registrationSha256 = Get-G2ReportFileSha256 $registrationPath
+        sessionSha256 = Get-G2ReportFileSha256 $sessionPath
+        deviceLockSha256 = [string]$releasedLock.sha256
     }
 }
 
@@ -662,8 +892,16 @@ function ConvertTo-G2PredecessorReport {
     return [pscustomobject]@{
         deviceOrder = [string]$Predecessor.deviceOrder
         coreVerdict = [string]$Predecessor.coreVerdict
+        productVerdict = [string]$Predecessor.productVerdict
         lockStateAfterClosure = [string]$Predecessor.lockStateAfterClosure
+        evidenceRoot = [string]$Predecessor.evidenceRoot
         evidencePointer = [string]$Predecessor.evidencePointer
+        reportSha256 = [string]$Predecessor.reportSha256
+        lockSha256 = [string]$Predecessor.lockSha256
+        candidateMainSha256 =
+            [string]$Predecessor.candidateMainSha256
+        candidateFocusPeerSha256 =
+            [string]$Predecessor.candidateFocusPeerSha256
     }
 }
 
@@ -955,6 +1193,19 @@ function Test-G2ReportSemantics {
     if ($Report.contractId -cne $Contract.contractId) {
         throw "REPORT_CONTRACT_ID_MISMATCH"
     }
+    $expectedEvidenceRoot = if ([string]$Report.device.order -ceq "Pad") {
+        [string]$Contract.evidence.padRuntimeRoot
+    } elseif ([string]$Report.device.order -ceq "K60") {
+        [string]$Contract.evidence.k60RuntimeRoot
+    } else {
+        $null
+    }
+    if (
+        [string]::IsNullOrWhiteSpace($expectedEvidenceRoot) -or
+        [string]$Report.evidenceRoot -cne $expectedEvidenceRoot
+    ) {
+        throw "REPORT_EVIDENCE_SCOPE_MISMATCH"
+    }
     if ($Report.passWithGapsForbidden -ne $true) {
         throw "PASS_WITH_GAPS_GATE_MISSING"
     }
@@ -1092,8 +1343,24 @@ function Test-G2ReportSemantics {
             $null -eq $Report.predecessor -or
             [string]$Report.predecessor.deviceOrder -cne "Pad" -or
             [string]$Report.predecessor.coreVerdict -cne "PASS" -or
+            [string]$Report.predecessor.productVerdict -cne "PASS" -or
             [string]$Report.predecessor.lockStateAfterClosure -cne
-                "RELEASED_ACTIVE_0"
+                "RELEASED_ACTIVE_0" -or
+            [string]$Report.predecessor.evidenceRoot -cne
+                [string]$Contract.evidence.padRuntimeRoot -or
+            [string]$Report.predecessor.evidencePointer -cne
+                (
+                    [string]$Contract.evidence.padRuntimeRoot +
+                    "/report.json"
+                ) -or
+            [string]$Report.predecessor.reportSha256 -notmatch
+                "^[0-9a-f]{64}$" -or
+            [string]$Report.predecessor.lockSha256 -notmatch
+                "^[0-9a-f]{64}$" -or
+            [string]$Report.predecessor.candidateMainSha256 -cne
+                [string]$Contract.candidate.main.sha256 -or
+            [string]$Report.predecessor.candidateFocusPeerSha256 -cne
+                [string]$Contract.candidate.focusPeer.sha256
         ) {
             throw "REPORT_K60_PREDECESSOR_REQUIRED"
         }
@@ -1208,6 +1475,11 @@ function Invoke-G2FinalizerMain {
         -Authorization $context.Authorization `
         -ContractRoot $contractRoot `
         -FixtureOnly:$FixtureMode
+    if (-not $FixtureMode) {
+        [void](Assert-G2FinalizerAttemptBinding `
+            -Context $context `
+            -Observations $observations)
+    }
     $json = $report | ConvertTo-Json -Depth 100
     if (-not ($json | Test-Json -SchemaFile $schemaPath)) {
         throw "REPORT_SCHEMA_VALIDATION_FAILED"

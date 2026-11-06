@@ -2,7 +2,7 @@
   "schema": "aurorama.g2-runtime-observations.v1",
   "fixtureOnly": true,
   "ownerRole": "G2_PAD_QA_OWNER_2026_11_06",
-  "evidenceRoot": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1",
+  "evidenceRoot": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2",
   "device": {
     "order": "Pad",
     "role": "G2_PAD_QA_OWNER_2026_11_06",

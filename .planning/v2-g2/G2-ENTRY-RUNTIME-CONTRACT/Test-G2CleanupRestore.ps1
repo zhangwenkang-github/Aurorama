@@ -36,7 +36,7 @@ $pinnedMainSha256 =
 $pinnedPeerSha256 =
     "d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a"
 $pinnedSchemaSha256 =
-    "8cb6d8766e773107e9493b828239ee417c61cf703a3c7756f94b684729921046"
+    "a1c1549eb08b8c49ad0a2c4b6bb59fb8bbf641d1529f05948d1bb9e591409bae"
 $mainPackage = "dev.aurorama.kokoro.harness"
 $peerPackage = "dev.aurorama.kokoro.focuspeer"
 $capturedSettings = @(
@@ -201,6 +201,28 @@ function Assert-G2CleanupPinnedIdentity {
     }
 }
 
+function Assert-G2CleanupSchemaPin {
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)][string]$SchemaPath
+    )
+    Assert-G2CleanupPinnedIdentity -Contract $Contract
+    if (-not (Test-Path -LiteralPath $SchemaPath -PathType Leaf)) {
+        throw "CLEANUP_SCHEMA_MISSING"
+    }
+    $actualSchemaSha256 = Get-G2CleanupFileSha256 $SchemaPath
+    if (
+        $actualSchemaSha256 -cne $pinnedSchemaSha256 -or
+        $actualSchemaSha256 -cne
+            [string]$Contract.evidence.reportSchemaSha256
+    ) {
+        throw (
+            "CLEANUP_SCHEMA_FILE_SHA_MISMATCH " +
+            "expected=$pinnedSchemaSha256 actual=$actualSchemaSha256"
+        )
+    }
+}
+
 function Assert-G2CleanupAuthorization {
     param(
         [Parameter(Mandatory)]$Contract,
@@ -235,12 +257,13 @@ function Assert-G2CleanupAuthorization {
 function Resolve-G2CleanupEvidenceRoot {
     param(
         [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
-        [AllowNull()][string]$RequestedEvidenceRoot
+        [AllowNull()][string]$RequestedEvidenceRoot,
+        [AllowNull()][string]$RepositoryBase
     )
     $expectedRelative = if ($DeviceRole -ceq "Pad") {
-        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1"
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2"
     } else {
-        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v1"
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v2"
     }
     if ([string]::IsNullOrWhiteSpace($RequestedEvidenceRoot)) {
         $RequestedEvidenceRoot = $expectedRelative
@@ -249,11 +272,26 @@ function Resolve-G2CleanupEvidenceRoot {
     if ($normalized -cne $expectedRelative) {
         throw "EVIDENCE_ROOT_MISMATCH"
     }
+    $effectiveRepositoryRoot = if (
+        [string]::IsNullOrWhiteSpace($RepositoryBase)
+    ) {
+        $repositoryRoot
+    } else {
+        [System.IO.Path]::GetFullPath($RepositoryBase)
+    }
     $fullPath = [System.IO.Path]::GetFullPath(
-        (Join-Path $repositoryRoot $expectedRelative)
+        (Join-Path $effectiveRepositoryRoot $expectedRelative)
     )
+    Assert-G2CleanupNoReparsePath `
+        -Root $effectiveRepositoryRoot `
+        -FullPath $fullPath
+    $effectiveContractRoot = Join-Path `
+        $effectiveRepositoryRoot `
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT"
     $contractPrefix =
-        $contractRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar) +
+        $effectiveContractRoot.TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar
+        ) +
         [System.IO.Path]::DirectorySeparatorChar
     if (-not $fullPath.StartsWith(
         $contractPrefix,
@@ -285,16 +323,17 @@ function Get-G2CleanupContext {
     $contract = Read-G2CleanupJsonStrict $contractPath
     $authorization = Read-G2CleanupJsonStrict $authorizationPath
     $manifest = Read-G2CleanupJsonStrict $manifestPath
-    Assert-G2CleanupPinnedIdentity -Contract $contract
+    Assert-G2CleanupSchemaPin `
+        -Contract $contract `
+        -SchemaPath $schemaPath
     if (
         $contract.schema -cne "aurorama.g2-entry-runtime-contract.v1" -or
         $contract.contractId -cne
             "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06" -or
-        $contract.status -cne
-            "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT" -or
+        $contract.status -cne "R2_WIP_REPAIR_R3_IN_PROGRESS" -or
         $contract.tools.cleanupVerifier.roleId -cne $toolOwnerRole -or
         $contract.tools.cleanupVerifier.status -cne
-            "READY_SELF_TESTED_STATIC_ONLY"
+            "R2_WIP_REPAIR_R3_IN_PROGRESS"
     ) {
         throw "CLEANUP_CONTRACT_BINDING_MISMATCH"
     }
@@ -490,13 +529,16 @@ function Get-G2CleanupDeviceLockOccupancy {
     param(
         [Parameter(Mandatory)][string]$Path,
         [AllowNull()][string]$DeviceRole,
-        [AllowNull()][string]$Serial
+        [AllowNull()][string]$Serial,
+        [AllowNull()][string]$AttemptScope
     )
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         return [pscustomobject]@{
             state = "RELEASED_ACTIVE_0"
             activeCount = 0
             attemptNumber = 1
+            authoritativeLockStateAtRegistration = $null
+            historicalBlockerSha256 = $null
         }
     }
     $lock = Read-G2CleanupJsonStrict $Path
@@ -512,7 +554,9 @@ function Get-G2CleanupDeviceLockOccupancy {
         (-not [string]::IsNullOrWhiteSpace($DeviceRole) -and
             [string]$lock.deviceRole -cne $DeviceRole) -or
         (-not [string]::IsNullOrWhiteSpace($Serial) -and
-            [string]$lock.serial -cne $Serial)
+            [string]$lock.serial -cne $Serial) -or
+        (-not [string]::IsNullOrWhiteSpace($AttemptScope) -and
+            [string]$lock.attemptScope -cne $AttemptScope)
     ) {
         throw "CLEANUP_DEVICE_LOCK_INVALID"
     }
@@ -520,6 +564,22 @@ function Get-G2CleanupDeviceLockOccupancy {
         state = $state
         activeCount = $activeCount
         attemptNumber = [int]$lock.attemptNumber
+        authoritativeLockStateAtRegistration = if (
+            $null -eq $lock.PSObject.Properties[
+                "authoritativeLockStateAtRegistration"
+            ]
+        ) {
+            $null
+        } else {
+            [string]$lock.authoritativeLockStateAtRegistration
+        }
+        historicalBlockerSha256 = if (
+            $null -eq $lock.PSObject.Properties["historicalBlockerSha256"]
+        ) {
+            $null
+        } else {
+            [string]$lock.historicalBlockerSha256
+        }
     }
 }
 
@@ -528,35 +588,43 @@ function Complete-G2CleanupDeviceLock {
         [Parameter(Mandatory)][string]$Path,
         [Parameter(Mandatory)][bool]$AllOtherChecksPassed,
         [Parameter(Mandatory)][ValidateSet("Pad", "K60")][string]$DeviceRole,
-        [Parameter(Mandatory)][string]$Serial
+        [Parameter(Mandatory)][string]$Serial,
+        [AllowNull()][string]$AttemptScope
     )
     if (-not $AllOtherChecksPassed) {
         return Get-G2CleanupDeviceLockOccupancy `
             -Path $Path `
             -DeviceRole $DeviceRole `
-            -Serial $Serial
+            -Serial $Serial `
+            -AttemptScope $AttemptScope
     }
-    $attemptNumber = 1
-    if (Test-Path -LiteralPath $Path -PathType Leaf) {
-        $current = Get-G2CleanupDeviceLockOccupancy `
-            -Path $Path `
-            -DeviceRole $DeviceRole `
-            -Serial $Serial
-        $attemptNumber = $current.attemptNumber
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "CLEANUP_ACTIVE_ATTEMPT_LOCK_MISSING"
     }
+    $current = Get-G2CleanupDeviceLockOccupancy `
+        -Path $Path `
+        -DeviceRole $DeviceRole `
+        -Serial $Serial `
+        -AttemptScope $AttemptScope
+    $attemptNumber = $current.attemptNumber
     Write-G2CleanupJson -Path $Path -Value ([pscustomobject]@{
         schema = "aurorama.g2-device-lock.v1"
         deviceRole = $DeviceRole
         serial = $Serial
+        attemptScope = $AttemptScope
         state = "RELEASED_ACTIVE_0"
         activeCount = 0
         attemptNumber = $attemptNumber
+        authoritativeLockStateAtRegistration =
+            $current.authoritativeLockStateAtRegistration
+        historicalBlockerSha256 = $current.historicalBlockerSha256
         releasedAt = [DateTimeOffset]::Now.ToString("o")
     })
     $occupancy = Get-G2CleanupDeviceLockOccupancy `
         -Path $Path `
         -DeviceRole $DeviceRole `
-        -Serial $Serial
+        -Serial $Serial `
+        -AttemptScope $AttemptScope
     if (
         $occupancy.state -cne "RELEASED_ACTIVE_0" -or
         $occupancy.activeCount -ne 0
@@ -1032,7 +1100,8 @@ function Invoke-G2CleanupVerification {
         -Path $lockPath `
         -AllOtherChecksPassed $allOtherChecksPassed `
         -DeviceRole $DeviceRole `
-        -Serial $serial
+        -Serial $serial `
+        -AttemptScope ([string]$Context.Evidence.RelativePath)
     $failClosed = [pscustomobject]@{
         packagesAbsent = [bool]$residuals.packagesAbsent
         pidsAbsent = [bool]$residuals.pidsAbsent
@@ -1065,9 +1134,13 @@ function Invoke-G2CleanupVerification {
         schema = "aurorama.g2-device-lock.v1"
         deviceRole = $DeviceRole
         serial = $serial
+        attemptScope = [string]$Context.Evidence.RelativePath
         state = [string]$result.deviceLockState
         activeCount = [int]$result.deviceLockActiveCount
         attemptNumber = [int]$lockOccupancy.attemptNumber
+        authoritativeLockStateAtRegistration =
+            $lockOccupancy.authoritativeLockStateAtRegistration
+        historicalBlockerSha256 = $lockOccupancy.historicalBlockerSha256
         releasedAt = if ($lockReleased) {
             [DateTimeOffset]::Now.ToString("o")
         } else {
@@ -1077,7 +1150,8 @@ function Invoke-G2CleanupVerification {
     $externalLock = Get-G2CleanupDeviceLockOccupancy `
         -Path $lockPath `
         -DeviceRole $DeviceRole `
-        -Serial $serial
+        -Serial $serial `
+        -AttemptScope ([string]$Context.Evidence.RelativePath)
     if (
         $externalLock.state -cne [string]$result.deviceLockState -or
         $externalLock.activeCount -ne [int]$result.deviceLockActiveCount

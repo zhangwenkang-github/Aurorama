@@ -577,8 +577,9 @@ QA、runtime、production 或 G1 PASS。
    Open，exact profile / voice 保持 Open，Pad P2 未接受，G1 `NOT_PASSED`，runtime
    `UNVERIFIED`。
 
-当前执行状态：全新 runtime tool owner 已完成 collector / finalizer / cleanup verifier 与
-`48/48` 静态自测；`PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA / K60_GATED_LOCKED`。
+历史执行记录：全新 runtime tool owner 曾完成 collector / finalizer / cleanup verifier 与
+`48/48` 静态自测并留下旧的 ready / QA 待派发标签；该标签已被
+`R2_WIP_NOT_ACCEPTED` 取代，`K60_GATED_LOCKED` 仍有效。
 工具就绪不是 runtime PASS，下一角色必须是另一全新 Pad QA owner。
 
 首次独立 Pad QA 在 collector Validate 的仓库相对路径二次绑定处
@@ -586,17 +587,30 @@ QA、runtime、production 或 G1 PASS。
 `NOT_ASSESSED`，设备锁已释放、K60 零接触。cleanup verifier 另有 6 项假阳性。该结果是工具
 阻断，不是产品 FAIL / PASS；下一角色改为全新 runtime tool repair owner。
 
-repair owner 已修复路径基准和 cleanup 假阳性，工具回归扩为 `57/57 PASS / 37 negative`，
-真实 current residual 仍 fail-closed。当前 `PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT /
-qaDispatchable=false`；下一角色只能是全新只读 repair audit，工具修复不是产品结论。
+repair owner 曾修复路径基准和 cleanup 假阳性，并自报工具回归扩为
+`57/57 PASS / 37 negative`，真实 current residual 仍 fail-closed。当时的 pending-audit
+标签与 `qaDispatchable=false` 未形成可接受
+audit receipt、提交和 clean 状态，工具修复不是产品结论。
 
-用户随后要求暂停并等待后续通知；当前外层状态为
+用户随后要求暂停并等待后续通知；当时外层状态为
 `WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR / activePrompt=none`。未派发 repair audit
 或 Pad/K60 QA，后续必须由用户恢复后才可继续。
 
-用户现已恢复并要求因上下文较长开新会话交接。状态推进为
-`USER_RESUMED_G2_TOOL_REPAIR_HANDOFF / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT`；
-新会话只接 fresh read-only repair audit，不直接接 Pad/K60 QA。
+用户现已恢复并要求因上下文较长开新会话交接。当时曾记录 user-resumed 与 pending-audit
+标签，随后因 R2 WIP 未验收而失效。
+
+第二轮 repair owner 在 TEMP 用静态 fixture 复现了遗留 `qa-pad-v1` 自持锁阻断 fresh
+registration 的缺陷，并形成未验收 WIP。该 WIP 采用版本化 attempt scope，而不是删除或
+改写历史锁：
+`qa-pad-v1` 被固定为 `PRE_WINDOW_TOOL_BLOCK`，其 blocker / cleanup 快照 / 自持锁字节与
+SHA 保持不变；新 attempt 只使用 `qa-pad-v2` / `qa-k60-v2`，登记前要求历史窗口
+`NOT_STARTED`、候选未安装、`windowConsumed=false` 且 handoff 权威外部锁为
+`RELEASED_ACTIVE_0`。新 scope 运行时锁必须 `ACTIVE_COUNT_1`，finalizer 只接收 cleanup 后
+同 scope 的 `RELEASED_ACTIVE_0`；K60 predecessor 只接受新 Pad report / lock 及其 SHA。
+该 WIP 曾自报旧计数与 manifest，但没有形成可接受的 audit receipt、提交和 clean 状态，
+因此当前统一为 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false`。R3 只修复已定位的
+schema pin、K60 predecessor、v2 root junction、scope 空态与状态双源，完成后由 root 决定
+下一角色。这不增加用户授权，也不是 ready、fresh audit request、QA / runtime / G1 PASS。
 
 证据入口：`.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json`、
 `contract.json`、`report.schema.json`；`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；
