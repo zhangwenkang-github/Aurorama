@@ -19,7 +19,8 @@
   CONTRACT_DIGEST_REFRESHED -> INDEPENDENT_INTEGRATION_REVIEW_PASS -> PRE_HANDOFF_AUDIT_PASS ->
   QA_DISPATCHABLE`。每门必须含精确
   `id / owner / requiredBefore / status`；下游 PASS 的前置门未 PASS、owner 漂移、重复 / 缺门、
-  乱序或未知状态一律 `FAIL_CLOSED`。QA 必须在 audit PASS 后才可派发。
+  乱序或未知状态一律 `FAIL_CLOSED`。QA 只有在 audit PASS 后的 `POST_HANDOFF_AUDIT_READY`
+  且 padQa 仍 dispatchable 时才可派发；`POST_QA_RUNTIME_DEFERRED` 下 QA 必须退役。
 - `validation.handoffPhase` 是唯一阶段开关：`PRE_HANDOFF_AUDIT` 只有两个合法子态：
   `PRE_REVIEW_PENDING`（review gate `BLOCKED`）与
   `PRE_REVIEW_PASS_AWAITING_AUDIT`（review gate `PASS`）；两者都要求
@@ -27,6 +28,9 @@
   `auditReceipt` 的 `verdict=PASS`、source commit/tree、QA prompt / tools / device-lock /
   evidence-root / rejectedScope / memory hashes 与现场完全绑定后允许。PRE 下任何 audit / QA
   PASS、POST 缺 receipt 或 receipt 字段未知 / 缺失 / 算法漂移均 `FAIL_CLOSED`；不得放宽为任意 PASS。
+  QA-v9 之后唯一允许的收口子态是 `POST_QA_RUNTIME_DEFERRED`：保留历史 receipt，要求
+  `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / PRODUCT_P0_P3_NOT_ASSESSED /
+  K60_LOCKED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none`，不得再派发 QA。
 - POST receipt 还须证明 `auditedSourceCommit` 存在且为当前 HEAD 祖先、`auditedSourceTree`
   与该 commit 的 tree 一致，并从该 commit 到工作树的变更恰为
   `auditReceipt.transitionPaths` 白名单；该文件范围门不能替代对象门。POST 还必须从 source
@@ -38,7 +42,11 @@
   audit / QA gate、qaRoundState audit / dispatch、active prompt / next path、prompt
   status / dispatch / retiredReason 与固定 validation 转换字段；同时 receipt
   `immutableStateSha256` 必须同时命中 source 与 current 的 canonical immutable projection。
-  合法 finalizer 不触碰工具、产品或 QA 证据。
+  合法 finalizer 不触碰工具、产品或 QA 证据。`POST_QA_RUNTIME_DEFERRED` 例外只适用于
+  QA-v9 已真实执行后的当前态：历史 receipt 的锁哈希 / memory hash / transitionPaths 仍是
+  审计时快照，preflight 另行要求当前锁 `RELEASED_ACTIVE_0`、qa-v9 目录与报告存在且摘要
+  `BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED`；当前 transition set 只允许
+  授权 docs、`AGENTS.md`、handoff 工具与 `qa-v9/**`，不得删除 / 移动证据。
 - 文档 token 只能来自 preflight 按 `handoffPhase` 定义的不可变 PRE/POST 常量；合同只保存
   `ACTIVE_SECTION` 与五个稳定 anchor id/path。POST mutation allowlist 不得包含
   `activeRequiredTokens` 或 `requiredTextAnchors` 下的任何 pointer；token 为空、带首尾空白、
@@ -54,24 +62,28 @@
 - 新会话 prompt 首动作必须绑定 `actionClass=READ_ONLY_PREFLIGHT` 的精确命令参数；仅以
   `pwsh -NoProfile` 开头的任意命令不算通过。round7 因 `ROUND7-P1-01`、round8 因
   `ROUND8-P1-01` 永久退役，既往 pre-handoff audit owner 永久退役；B11 已修复 PRE 双子态
-  与 source/current 共用断言；全新 `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER` 已独立
-  `PASS` 并永久退役，当前状态为 `ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT`。
-  唯一下一角色是全新 `PRE_HANDOFF_AUDIT_OWNER`，必须只读、`writeScope=[]`、
-  `deviceAccess=FORBIDDEN`，首动作精确运行 preflight。当前真实合同仍为
-  `PRE_HANDOFF_AUDIT`，review gate `PASS`，audit / QA gate `BLOCKED`、`auditReceipt=null`，
-  padQa 保持 `BLOCKED_PENDING_PRE_HANDOFF_AUDIT / dispatchable=false`；review PASS 不是
-  audit / QA / G1 PASS。
+  与 source/current 共用断言；全新 `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER` 与
+  `PRE_HANDOFF_AUDIT_OWNER` 已完成历史 PASS 并永久退役。当前 `V2-D208` 状态为
+  `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS /
+  QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`；
+  `validation.handoffPhase=POST_QA_RUNTIME_DEFERRED`，历史
+  `PRE_HANDOFF_AUDIT_PASS=PASS`，`QA_DISPATCHABLE=DEFERRED_TO_G2`，`activePrompt=none`。
+  `PAD_QA_OWNER` / `K60_QA_OWNER` 无当前派发权；
+  `G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION`，当前没有可执行 planning / QA role，
+  下一步只等待用户明确授权是否为 G2 入口重新开户。settlement 合同回归为 `104/104 PASS`；
+  延期不是 QA / runtime / G1 PASS，契约就绪也不是 G2 授权。
 - 负责人只做交付 / 集成编排、范围、白名单、压缩报告与关键 diff 审查、集成决策和交接，不亲自
   实现、修工具、写产品代码或跑真机 QA，也不批量读取 raw 证据。实现、工具修复、文档协议、
   集成审查、Pad QA、K60 QA 各用全新专业子代理；每个 fresh agent 只做一阶段，禁止 followup
   同一代理接下一阶段。
-- 当前 A/B 写边界互斥：A = `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v8/tools/**`，只给全新
-  `TOOL_REPAIR_OWNER`；B = `AGENTS.md`、2.0 文档与本 preflight 工具根，只给 fresh
-  `DOC_PROTOCOL_OWNER` 或本波 B11 / B12 协议状态 owner。B6 / B7 / B8 / B9 / B10 / B11 /
-  B12 完成后均永久退役；任何共享文件变更由负责人串行仲裁，A/B 不得由同一代理跨写。
+- `qa-v8/tools/**` 已冻结；`qa-v9/**` 是只读历史证据，当前 settlement 与后续静态 planning
+  均不得修改、移动或删除。`AGENTS.md`、2.0 文档与 `tools/v2-handoff/**` 只给当前授权
+  settlement / fresh 静态 owner；B6 / B7 / B8 / B9 / B10 / B11 / B12 均永久退役。任何共享
+  文件变更由负责人串行仲裁。
 - 每设备单次真实 runtime 观测窗固定 10 分钟，不得延长；Pad `43af8627` 核心全部 PASS 且锁释放
   后才允许登记 K60 `8e875894`，且 K60 必须另派全新 QA 串行执行。旧 30 分钟、安装门、stop-only
-  或 cleanup 证据不得冒充本轮 10 分钟产品门。
+  或 cleanup 证据不得冒充本轮 10 分钟产品门。`V2-D208` 后完整 Pad/K60 runtime 门延期到
+  G2 入口；当前 K60 未登记并保持锁定，禁止用延期触发设备动作。
 - **开工顺序**：先读 `docs/PROJECT_PLAN.md`（项目总览 / 模块地图 / 任务线 / 多会话协作规程）→ 再读所在任务线的文档。
   播放器线 = `docs/PLAYER_PLAN.md`（该线的需求、决策、进度、验收标准与踩坑库都在里面）。
 - **Aurorama 2.0 权威入口**：2.0 工作先读 `docs/V2_PLAN.md`，再按其中的本次只读白名单读取外部原始需求；执行规则以 `docs/PROJECT_RULES.md` 为准，任务状态看 `docs/TASKS.md`，决策看 `docs/DECISIONS.md`，项目内踩坑看 `docs/LESSONS.md`。外部原始需求永久只读，不在聊天中重复整段搬运。

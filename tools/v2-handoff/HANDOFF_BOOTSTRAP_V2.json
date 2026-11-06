@@ -25,23 +25,23 @@
     "deviceLockPath": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md"
   },
   "qaRoundState": {
-    "status": "POST_HANDOFF_AUDIT_READY",
+    "status": "RUNTIME_QA_DEFERRED_TO_G2",
     "lastQaVerdict": "BLOCKED_TOOL_NONCONVERGENCE",
     "round1IntegrationReview": "FAIL_1_P1_2_P2_REPAIRED_CLOSED_BY_ROUND2",
     "round2IntegrationReview": "FAIL_P2_PREFLIGHT_SEMANTIC_BYPASS_REPAIRED_CLOSED_BY_ROUND3_PASS",
     "independentIntegrationReview": "PASS",
     "preHandoffAudit": "PASS",
-    "padQaPromptDispatch": "PASS",
+    "padQaPromptDispatch": "DEFERRED_TO_G2",
     "productFindings": {
       "P0": "NOT_ASSESSED",
       "P1": "NOT_ASSESSED",
       "P2": "NOT_ASSESSED",
       "P3": "NOT_ASSESSED"
     },
-    "coreStepsExecuted": 0,
-    "padTenMinuteCoreRun": "NOT_RUN",
-    "k60Registration": "NOT_REGISTERED",
-    "k60CoreRun": "NOT_RUN",
+    "coreStepsExecuted": 1,
+    "padTenMinuteCoreRun": "PARTIAL_TOOL_BLOCKED",
+    "k60Registration": "LOCKED_NOT_REGISTERED",
+    "k60CoreRun": "NOT_RUN_LOCKED",
     "cleanup": "PASS_CLEANUP_AND_RESTORE",
     "padLockActiveCount": 0
   },
@@ -953,7 +953,7 @@
         "requiredBefore": [
           "PRE_HANDOFF_AUDIT_PASS"
         ],
-        "status": "PASS"
+        "status": "DEFERRED_TO_G2"
       }
     ]
   },
@@ -991,10 +991,10 @@
       "Preflight PASS 后，按 readOrder 顺序读取压缩材料；不进入 raw、旧证据或生产源码。"
     ]
   },
-  "activePrompt": "padQa",
-  "next_prompt_path": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
+  "activePrompt": "none",
+  "next_prompt_path": "docs/V2_PLAN.md#ACTIVE",
   "qa_prompt_path": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
-  "nextPromptPath": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
+  "nextPromptPath": "docs/V2_PLAN.md#ACTIVE",
   "qaPromptPath": "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines",
   "prompts": {
     "toolRepair": {
@@ -1077,9 +1077,9 @@
     },
     "padQa": {
       "roleId": "PAD_QA_OWNER",
-      "status": "ACTIVE",
-      "dispatchable": true,
-      "retiredReason": null,
+      "status": "RETIRED_RUNTIME_QA_DEFERRED_TO_G2",
+      "dispatchable": false,
+      "retiredReason": "RUNTIME_QA_DEFERRED_TO_G2_BY_V2-D208",
       "actionClass": "READ_ONLY_PREFLIGHT",
       "command": [
         "pwsh",
@@ -1140,11 +1140,11 @@
     }
   },
   "validation": {
-    "handoffPhase": "POST_HANDOFF_AUDIT_READY",
+    "handoffPhase": "POST_QA_RUNTIME_DEFERRED",
     "activeDocument": "docs/V2_PLAN.md",
     "activeHeadingPrefix": "### ACTIVE",
-    "activePromptExpectedRoleId": "PAD_QA_OWNER",
-    "qaPromptRequiredStatus": "ACTIVE",
+    "activePromptExpectedRoleId": "NONE",
+    "qaPromptRequiredStatus": "RETIRED_RUNTIME_QA_DEFERRED_TO_G2",
     "tasksDocument": "docs/TASKS.md",
     "tasksInProgressHeading": "## In Progress",
     "tasksInProgressExpectedCount": 3,

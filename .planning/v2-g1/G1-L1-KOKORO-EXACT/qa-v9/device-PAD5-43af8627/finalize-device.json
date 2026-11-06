@@ -1,0 +1,564 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.finalize-device.v3",
+  "status": "FAIL",
+  "serial": "43af8627",
+  "capturedAt": "2026-11-06T06:22:26.7765144+08:00",
+  "executionLimits": {
+    "stageTimeoutSeconds": 30,
+    "maxWorkingSetBytes": 2147483648,
+    "maxCaptureBytes": 67108864,
+    "maxEvidenceLines": 500,
+    "boundedStreaming": true,
+    "tempCaptureRoot": "C:\\Users\\zhangwenkang\\AppData\\Local\\Temp\\aurorama-qa-v8-finalize-4988e9dc31a94b8f927fe632ef8e93d2"
+  },
+  "blockedReasons": [],
+  "stages": [
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "pre-cleanup",
+      "command": "pidof netstats capture and force-stop",
+      "startedAt": "2026-11-06T06:21:59.8730556+08:00",
+      "finishedAt": "2026-11-06T06:22:01.7817504+08:00",
+      "durationMs": 1909,
+      "memoryBefore": {
+        "workingSetBytes": 97943552,
+        "privateBytes": 40427520
+      },
+      "memoryAfter": {
+        "workingSetBytes": 123424768,
+        "privateBytes": 60567552
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "stop-logcat",
+      "command": "stop host adb logcat process and flush",
+      "startedAt": "2026-11-06T06:22:01.8226363+08:00",
+      "finishedAt": "2026-11-06T06:22:02.6194749+08:00",
+      "durationMs": 797,
+      "memoryBefore": {
+        "workingSetBytes": 123625472,
+        "privateBytes": 60297216
+      },
+      "memoryAfter": {
+        "workingSetBytes": 130174976,
+        "privateBytes": 62631936
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "host-log",
+      "command": "stream runtime-logcat.log with current-run filter",
+      "startedAt": "2026-11-06T06:22:02.6431698+08:00",
+      "finishedAt": "2026-11-06T06:22:06.0875641+08:00",
+      "durationMs": 3444,
+      "memoryBefore": {
+        "workingSetBytes": 128024576,
+        "privateBytes": 60395520
+      },
+      "memoryAfter": {
+        "workingSetBytes": 140754944,
+        "privateBytes": 68431872
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "crash-scan",
+      "command": "stream crash/events/exit-info/SYSTEM_TOMBSTONE",
+      "startedAt": "2026-11-06T06:22:06.1076257+08:00",
+      "finishedAt": "2026-11-06T06:22:07.4567966+08:00",
+      "durationMs": 1349,
+      "memoryBefore": {
+        "workingSetBytes": 141352960,
+        "privateBytes": 69165056
+      },
+      "memoryAfter": {
+        "workingSetBytes": 143126528,
+        "privateBytes": 70000640
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "minimal-cleanup",
+      "command": "force-stop clear uninstall external/remote cleanup",
+      "startedAt": "2026-11-06T06:22:07.4771910+08:00",
+      "finishedAt": "2026-11-06T06:22:12.2520354+08:00",
+      "durationMs": 4775,
+      "memoryBefore": {
+        "workingSetBytes": 143978496,
+        "privateBytes": 70656000
+      },
+      "memoryAfter": {
+        "workingSetBytes": 140587008,
+        "privateBytes": 66142208
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "convergence",
+      "command": "bounded package pid service notification media cleanup checks",
+      "startedAt": "2026-11-06T06:22:12.2760693+08:00",
+      "finishedAt": "2026-11-06T06:22:22.2033217+08:00",
+      "durationMs": 9927,
+      "memoryBefore": {
+        "workingSetBytes": 131575808,
+        "privateBytes": 57835520
+      },
+      "memoryAfter": {
+        "workingSetBytes": 138035200,
+        "privateBytes": 63881216
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    },
+    {
+      "schema": "aurorama.kokoro-qa-v8.finalize-progress.v1",
+      "stage": "restore-production",
+      "command": "bounded restoration and production package comparison",
+      "startedAt": "2026-11-06T06:22:22.2211674+08:00",
+      "finishedAt": "2026-11-06T06:22:26.6594788+08:00",
+      "durationMs": 4438,
+      "memoryBefore": {
+        "workingSetBytes": 134610944,
+        "privateBytes": 60391424
+      },
+      "memoryAfter": {
+        "workingSetBytes": 146628608,
+        "privateBytes": 70975488
+      },
+      "maxWorkingSetBytes": 2147483648,
+      "stageTimeoutSeconds": 30,
+      "status": "PASS",
+      "error": ""
+    }
+  ],
+  "progressPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v9\\device-PAD5-43af8627\\finalize-progress.jsonl",
+  "currentRunFilter": {
+    "hostStartedAt": "11/06/2026 06:21:30",
+    "estimatedDeviceLogStartedAt": "2026-11-06 06:21:29.774",
+    "deviceClockDriftMilliseconds": -327,
+    "valid": true,
+    "hostLogPresent": true,
+    "appPids": 7707,
+    "coversAllMatrixRounds": true,
+    "oldCrashBufferAndDropboxEntriesExcluded": true
+  },
+  "finalNetstats": {
+    "uid": 10344,
+    "identityBlockCount": 0,
+    "appUidStatsMapRowCount": 0,
+    "totalRxBytes": 0,
+    "totalTxBytes": 0,
+    "totalBytes": 0,
+    "scannedLines": 17037
+  },
+  "finalUidNetstatsZero": false,
+  "crashGate": {
+    "passed": true,
+    "currentRunWindowValid": true,
+    "sourceQueriesPassed": true,
+    "sourceExitCodes": {
+      "crashBuffer": 0,
+      "eventsBuffer": 0,
+      "exitInfo": 0,
+      "dropbox": 0
+    },
+    "fDebugCount": 0,
+    "nativeTombstoneCount": 0,
+    "javaFatalCount": 0,
+    "anrCount": 0,
+    "inputTimeoutCount": 0,
+    "applicationExitReason5Count": 0,
+    "historicalApplicationExitReason5Excluded": 0,
+    "currentExitInfoBlocks": {
+      "index": 0,
+      "timestamp": "2026-11-06T06:22:01.144",
+      "pid": 7707,
+      "process": "dev.aurorama.kokoro.harness",
+      "reason": 10,
+      "status": 0,
+      "lines": [
+        "        ApplicationExitInfo #0:",
+        "          timestamp=2026-11-06 06:22:01.144 pid=7707 realUid=10344 packageUid=10344 definingUid=10344 user=0",
+        "          process=dev.aurorama.kokoro.harness reason=10 (USER REQUESTED) subreason=21 (FORCE STOP) status=0",
+        "          importance=400 pss=654MB rss=730MB description=stop dev.aurorama.kokoro.harness due to from process:26932 state=empty trace=null"
+      ]
+    },
+    "filteredLines": {
+      "fDebug": null,
+      "tombstone": null,
+      "fatal": null,
+      "anr": null,
+      "inputTimeout": null
+    }
+  },
+  "speakerGate": {
+    "passed": false,
+    "approvedRequestCounts": {
+      "zf001Sid3": 2,
+      "zm010Sid59": 0
+    },
+    "forbiddenTtsRequestCount": 0,
+    "forbiddenLiteralCount": 0,
+    "filteredLines": [
+      "11-06 06:21:36.238  7707  7707 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=0 speaker=zf_001 sid=3 generation=2 longRun=false total=9",
+      "11-06 06:21:47.937  7707  7707 I KOKORO_RUNTIME: TTS_SENTENCE_REQUEST index=1 speaker=zf_001 sid=3 generation=3 longRun=false total=9"
+    ]
+  },
+  "cleanup": {
+    "passed": false,
+    "preCleanupPids": {
+      "dev.aurorama.kokoro.harness": "7707",
+      "dev.aurorama.kokoro.focuspeer": ""
+    },
+    "clearResults": {
+      "dev.aurorama.kokoro.harness": {
+        "exitCode": 0,
+        "text": "Success\r\n",
+        "bytes": 9,
+        "timedOut": false,
+        "captureLimited": false
+      },
+      "dev.aurorama.kokoro.focuspeer": {
+        "exitCode": 0,
+        "text": "Success\r\n",
+        "bytes": 9,
+        "timedOut": false,
+        "captureLimited": false
+      }
+    },
+    "uninstallResults": {
+      "dev.aurorama.kokoro.harness": {
+        "exitCode": 0,
+        "text": "Success\r\n",
+        "bytes": 9,
+        "timedOut": false,
+        "captureLimited": false
+      },
+      "dev.aurorama.kokoro.focuspeer": {
+        "exitCode": 0,
+        "text": "Success\r\n",
+        "bytes": 9,
+        "timedOut": false,
+        "captureLimited": false
+      }
+    },
+    "externalPaths": {
+      "dev.aurorama.kokoro.harness": {
+        "/sdcard/Android/data/dev.aurorama.kokoro.harness": {
+          "removeExitCode": 0
+        },
+        "/sdcard/Android/media/dev.aurorama.kokoro.harness": {
+          "removeExitCode": 0
+        },
+        "/sdcard/Android/obb/dev.aurorama.kokoro.harness": {
+          "removeExitCode": 0
+        }
+      },
+      "dev.aurorama.kokoro.focuspeer": {
+        "/sdcard/Android/data/dev.aurorama.kokoro.focuspeer": {
+          "removeExitCode": 0
+        },
+        "/sdcard/Android/media/dev.aurorama.kokoro.focuspeer": {
+          "removeExitCode": 0
+        },
+        "/sdcard/Android/obb/dev.aurorama.kokoro.focuspeer": {
+          "removeExitCode": 0
+        }
+      }
+    },
+    "externalPathsAbsent": true,
+    "internalDataAbsent": true,
+    "internalProbes": {
+      "dev.aurorama.kokoro.harness": [
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.harness",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/user_de/0/dev.aurorama.kokoro.harness",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/data/dev.aurorama.kokoro.harness",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.harness/cache",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.harness/data",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/user_de/0/dev.aurorama.kokoro.harness/code_cache",
+          "present": false,
+          "exitCode": 1
+        }
+      ],
+      "dev.aurorama.kokoro.focuspeer": [
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.focuspeer",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/user_de/0/dev.aurorama.kokoro.focuspeer",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/data/dev.aurorama.kokoro.focuspeer",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.focuspeer/cache",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/user/0/dev.aurorama.kokoro.focuspeer/data",
+          "present": false,
+          "exitCode": 1
+        },
+        {
+          "path": "/data/user_de/0/dev.aurorama.kokoro.focuspeer/code_cache",
+          "present": false,
+          "exitCode": 1
+        }
+      ]
+    },
+    "packagesAbsent": true,
+    "pidsAbsent": true,
+    "serviceRecordsAbsent": true,
+    "notificationAbsent": true,
+    "activeSessionsAbsent": true,
+    "remoteTemporaryAbsent": true,
+    "productionPackages": [
+      {
+        "package": "io.github.zhangwenkang.aurorama",
+        "installedBefore": true,
+        "installedAfter": true,
+        "hashBefore": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+        "hashAfter": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+        "hashMatch": true,
+        "pathBefore": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+        "pathAfter": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+        "pathMatch": true,
+        "metadataMatch": false
+      },
+      {
+        "package": "io.github.zhangwenkang.aurorama.debug",
+        "installedBefore": false,
+        "installedAfter": false,
+        "hashBefore": "",
+        "hashAfter": null,
+        "hashMatch": false,
+        "pathBefore": "",
+        "pathAfter": "",
+        "pathMatch": true,
+        "metadataMatch": true
+      }
+    ],
+    "productionAllMatch": false,
+    "convergence": {
+      "packageList": "package:com.android.camera\r\npackage:com.miui.daemon\r\npackage:com.android.updater\r\npackage:com.miui.powerkeeper\r\npackage:com.qti.phone\r\npackage:com.miui.miservice\r\npackage:com.miui.miwallpaper.overlay.customize\r\npackage:com.android.modulemetadata\r\npackage:com.android.connectivity.resources\r\npackage:android.miui.overlay\r\npackage:com.android.calllogbackup\r\npackage:com.qualcomm.qti.lpa\r\npackage:android.miui.home.launcher.res\r\npackage:com.qualcomm.atfwd\r\npackage:com.qualcomm.qti.cne\r\npackage:cn.wps.moffice_eng\r\npackage:com.android.overlay.gmscontactprovider\r\npackage:com.miui.face\r\npackage:com.xiaomi.devauth\r\npackage:com.miui.securitycore\r\npackage:com.android.providers.contacts\r\npackage:com.miui.vpnsdkmanager\r\npackage:com.qualcomm.uimremoteserver\r\npackage:com.miui.settings.rro.device.systemui.overlay\r\npackage:com.xiaomi.trustservice\r\npackage:com.android.dreams.basic\r\npackage:com.android.companiondevicemanager\r\npackage:com.android.cts.priv.ctsshim\r\npackage:com.miui.video\r\npackage:com.android.mms.service\r\npackage:com.android.providers.downloads\r\npackage:com.miui.mediaviewer\r\npackage:com.android.bluetoothmidiservice\r\npackage:com.android.networkstack.overlay\r\npackage:com.xiaomi.xmsf\r\npackage:moe.nb4a\r\npackage:com.google.android.printservice.recommendation\r\npackage:com.miui.voiceassist\r\npackage:com.xiaomi.micloud.sdk\r\npackage:com.android.keychain\r\npackage:com.xiaomi.metoknlp\r\npackage:com.qti.service.colorservice\r\npackage:com.qualcomm.qti.confdialer\r\npackage:com.qualcomm.qti.devicestatisticsservice\r\npackage:com.android.shell\r\npackage:com.miui.micloudsync\r\npackage:com.android.wifi.resources.xiaomi\r\npackage:com.miuix.editor\r\npackage:com.xiaomi.scanner\r\npackage:com.android.inputdevices\r\npackage:com.qti.qualcomm.datastatusnotification\r\npackage:com.miui.weather2\r\npackage:com.miui.rom\r\npackage:com.xiaomi.gnss.polaris\r\npackage:com.qti.dpmserviceapp\r\npackage:com.google.android.onetimeinitializer\r\npackage:com.android.apps.tag\r\npackage:com.miui.core.internal.services\r\npackage:com.android.sharedstoragebackup\r\npackage:com.qualcomm.qti.uimGbaApp\r\npackage:com.qualcomm.qti.ridemodeaudio\r\npackage:com.android.providers.media\r\npackage:com.android.providers.calendar\r\npackage:com.miui.analytics\r\npackage:com.android.incallui\r\npackage:com.android.providers.blockednumber\r\npackage:com.google.android.documentsui\r\npackage:com.xiaomi.joyose\r\npackage:com.android.networkstack.tethering.inprocess\r\npackage:com.miui.handwriting\r\npackage:com.android.statementservice\r\npackage:com.miui.audiomonitor\r\npackage:com.android.proxyhandler\r\npackage:com.android.calendar\r\npackage:com.xiaomi.account\r\npackage:com.android.cellbroadcastreceiver.overlay.common\r\npackage:com.android.safetycenter.resources\r\npackage:com.android.managedprovisioning\r\npackage:com.android.emergency\r\npackage:com.google.android.gms.location.history\r\npackage:com.miui.mishare.connectivity\r\npackage:com.miui.aod\r\npackage:com.google.android.overlay.gmsconfig\r\npackage:com.qualcomm.location\r\npackage:com.android.carrierdefaultapp\r\npackage:com.miui.translationservice\r\npackage:com.xiaomi.payment\r\npackage:com.android.backupconfirm\r\npackage:com.xiaomi.mi_connect_service\r\npackage:com.miui.uireporter\r\npackage:com.android.server.telecom.overlay.miui\r\npackage:com.ionewu.android.jdxb\r\npackage:com.android.carrierconfig.overlay.common\r\npackage:com.android.cellbroadcastservice\r\npackage:com.android.mtp\r\npackage:com.google.android.gsf\r\npackage:com.android.systemui.navigation.bar.overlay\r\npackage:io.github.zhangwenkang.aurorama\r\npackage:com.miui.screenrecorder\r\npackage:com.android.settings.resource.overlay\r\npackage:com.miui.translation.kingsoft\r\npackage:com.android.internal.display.cutout.emulation.double\r\npackage:com.android.theme.font.notoserifsource\r\npackage:com.miui.personalassistant\r\npackage:com.android.server.telecom.overlay.common\r\npackage:com.wapi.wapicertmanage\r\npackage:com.qualcomm.qti.xrcb\r\npackage:com.android.browser\r\npackage:com.miui.guardprovider\r\npackage:com.miui.cloudbackup\r\npackage:com.android.managedprovisioning.overlay\r\npackage:com.android.systemui\r\npackage:com.android.wallpapercropper\r\npackage:com.xiaomi.security.onetrack\r\npackage:com.miui.contentcatcher\r\npackage:com.qualcomm.qti.uceShimService\r\npackage:com.android.internal.systemui.navbar.gestural\r\npackage:com.android.soundrecorder\r\npackage:com.baidu.input_mi\r\npackage:com.qti.dcf\r\npackage:com.miui.systemui.overlay.devices.android\r\npackage:com.android.settings.intelligence\r\npackage:com.qualcomm.timeservice\r\npackage:com.qualcomm.qti.gpudrivers.msmnile.api30\r\npackage:com.xiaomi.macro\r\npackage:com.qualcomm.qti.qcolor\r\npackage:com.lbe.security.miui\r\npackage:com.xiaomi.aicr\r\npackage:com.android.settings.overlay.miui\r\npackage:com.miui.player\r\npackage:dev.jdtech.jellyfin\r\npackage:com.miui.phrase\r\npackage:com.qualcomm.wfd.service\r\npackage:com.android.overlay.gmssettings\r\npackage:vendor.qti.imsrcs\r\npackage:com.miui.extraphoto\r\npackage:com.bsp.catchlog\r\npackage:com.google.android.webview\r\npackage:com.android.deskclock\r\npackage:com.android.wallpaperbackup\r\npackage:com.miui.securityadd\r\npackage:com.android.overlay.cngmstelecomm\r\npackage:com.android.internal.systemui.navbar.threebutton\r\npackage:com.miui.systemAdSolution\r\npackage:com.miui.core\r\npackage:com.miui.settings.rro.device.type.overlay\r\npackage:com.android.localtransport\r\npackage:android\r\npackage:com.android.email\r\npackage:com.xiaomi.touchservice\r\npackage:com.android.permissioncontroller\r\npackage:com.miui.gallery\r\npackage:com.qualcomm.qti.dynamicddsservice\r\npackage:com.miui.face.overlay.miui\r\npackage:com.android.se\r\npackage:com.android.pacprocessor\r\npackage:com.miui.accessibility\r\npackage:com.android.providers.media.module\r\npackage:com.miui.freeform\r\npackage:com.xiaomi.digitalkey\r\npackage:com.qualcomm.embms\r\npackage:com.tencent.mm\r\npackage:com.android.overlay.systemui\r\npackage:com.android.internal.display.cutout.emulation.hole\r\npackage:com.miui.calculator\r\npackage:com.android.settings\r\npackage:com.android.bips\r\npackage:com.qualcomm.qti.telephonyservice\r\npackage:com.android.internal.systemui.navbar.gestural_narrow_back\r\npackage:com.xiaomi.bluetooth\r\npackage:com.android.internal.display.cutout.emulation.tall\r\npackage:com.android.cameraextensions\r\npackage:com.miui.notes\r\npackage:com.miui.maintenancemode\r\npackage:com.android.carrierconfig\r\npackage:com.android.internal.systemui.navbar.gestural_wide_back\r\npackage:com.xiaomi.shop\r\npackage:com.android.overlay.gmstelephony\r\npackage:com.taoymall.taohuatan.bzmh\r\npackage:com.xiaomi.finddevice\r\npackage:com.google.android.ext.shared\r\npackage:com.miui.packageinstaller\r\npackage:com.android.networkstack.inprocess\r\npackage:com.xiaomi.xmsfkeeper\r\npackage:com.miui.notification\r\npackage:org.codeaurora.ims\r\npackage:com.android.remoteprovisioner\r\npackage:com.qualcomm.qcrilmsgtunnel\r\npackage:com.android.incallui.overlay\r\npackage:android.overlay.common\r\npackage:com.xiaomi.location.fused\r\npackage:com.tencent.wemeet.app\r\npackage:com.android.adservices.api\r\npackage:com.rongcard.eid\r\npackage:com.modemdebug\r\npackage:com.google.android.overlay.modules.ext.services.cn\r\npackage:miui.systemui.plugin\r\npackage:com.miui.bugreport\r\npackage:com.android.smspush\r\npackage:com.google.android.marvin.talkback\r\npackage:com.miui.yellowpage\r\npackage:vendor.qti.hardware.cacert.server\r\npackage:com.miui.catcherpatch\r\npackage:com.xiaomi.ab\r\npackage:com.android.providers.downloads.ui\r\npackage:com.qualcomm.qti.performancemode\r\npackage:com.miui.miwallpaper\r\npackage:com.android.ons\r\npackage:com.miui.cit\r\npackage:com.manga.manhuaren\r\npackage:com.xiaomi.ugd\r\npackage:com.miui.vsimcore\r\npackage:com.android.certinstaller\r\npackage:com.miui.hybrid\r\npackage:com.miui.system\r\npackage:com.qualcomm.uimremoteclient\r\npackage:com.android.wifi.resources\r\npackage:com.android.wifi.dialog\r\npackage:com.miui.cleanmaster\r\npackage:com.android.captiveportallogin\r\npackage:com.xiaomi.market\r\npackage:com.qualcomm.qti.server.qtiwifi\r\npackage:com.miui.systemui.carriers.overlay\r\npackage:com.xiaomi.otrpbroker\r\npackage:com.miui.backup\r\npackage:com.miui.securitycenter\r\npackage:com.qualcomm.qti.powersavemode\r\npackage:com.android.fileexplorer\r\npackage:com.android.simappdialog\r\npackage:tv.danmaku.bili\r\npackage:com.android.providers.telephony\r\npackage:com.android.wallpaper.livepicker\r\npackage:com.android.systemui.overlay.common\r\npackage:com.fido.asm\r\npackage:com.android.sdksandbox\r\npackage:com.miui.audioeffect\r\npackage:com.xiaomi.xaee\r\npackage:com.xiaomi.barrage\r\npackage:com.qualcomm.qti.poweroffalarm\r\npackage:com.android.internal.display.cutout.emulation.waterfall\r\npackage:com.quicinc.voice.activation\r\npackage:com.miui.qr\r\npackage:com.android.providers.settings\r\npackage:com.android.overlay.gmssettingprovider\r\npackage:vendor.qti.iwlan\r\npackage:com.android.phone\r\npackage:com.android.internal.systemui.navbar.gestural_extra_wide_back\r\npackage:com.android.stk.overlay.miui\r\npackage:com.android.systemui.gesture.line.overlay\r\npackage:android.aosp.overlay\r\npackage:com.android.bluetooth.overlay\r\npackage:com.android.traceur\r\npackage:com.qualcomm.qti.autoregistration\r\npackage:com.android.contacts\r\npackage:com.xiaomi.mirror\r\npackage:com.android.overlay.gmstelecomm\r\npackage:com.android.location.fused\r\npackage:com.android.vpndialogs\r\npackage:com.miui.screenshot\r\npackage:org.jellyfin.mobile\r\npackage:com.android.cellbroadcastreceiver\r\npackage:com.xiaomi.migameservice\r\npackage:com.miui.voicetrigger\r\npackage:com.android.settings.overlay.common\r\npackage:com.android.wifi.resources.overlay.common\r\npackage:com.qualcomm.qtil.btdsda\r\npackage:com.google.android.cellbroadcastreceiver.overlay.miui\r\npackage:com.android.phone.overlay.common\r\npackage:com.android.ondevicepersonalization.services\r\npackage:com.tencent.mobileqq\r\npackage:com.android.htmlviewer\r\npackage:com.qti.qualcomm.deviceinfo\r\npackage:com.android.vending\r\npackage:com.miui.home\r\npackage:com.google.android.ext.services\r\npackage:com.google.android.configupdater\r\npackage:android.qvaoverlay.common\r\npackage:com.miui.wmsvc\r\npackage:android.overlay.target\r\npackage:com.miui.system.overlay\r\npackage:com.xiaomi.gamecenter.sdk.service\r\npackage:com.qti.qcc\r\npackage:org.ifaa.aidl.manager\r\npackage:com.miui.miinput\r\npackage:com.android.providers.settings.overlay\r\npackage:com.android.providers.userdictionary\r\npackage:com.android.cts.ctsshim\r\npackage:com.xiaomi.aiasst.vision\r\npackage:com.android.bluetooth\r\npackage:com.liuzho.file.explorer\r\npackage:com.qualcomm.qti.workloadclassifier\r\npackage:com.android.internal.display.cutout.emulation.corner\r\npackage:com.google.android.gms\r\npackage:com.android.storagemanager\r\npackage:com.android.quicksearchbox\r\npackage:com.xiaomi.mtb\r\npackage:com.miui.cloudservice\r\npackage:com.android.systemui.overlay.miui\r\npackage:com.milink.service\r\npackage:com.android.thememanager\r\npackage:com.miui.voiceassistoverlay\r\npackage:com.android.inputsettings.overlay.miui\r\npackage:com.android.phone.overlay.miui\r\npackage:com.android.printspooler\r\npackage:com.vivo.browser\r\npackage:com.miui.systemui.devices.overlay\r\npackage:com.miui.otaprovision\r\npackage:com.xiaomi.misettings\r\npackage:com.android.wifi.resources.overlay.target\r\npackage:com.miui.misound\r\npackage:com.qualcomm.qti.uim\r\npackage:com.android.provision\r\npackage:com.miui.wallpaper.overlay.customize\r\npackage:com.android.dynsystem\r\npackage:com.tencent.soter.soterserver\r\npackage:com.flyersoft.moonreader\r\npackage:com.sohu.inputmethod.sogou.xiaomi\r\npackage:com.android.hotspot2.osulogin\r\npackage:com.qualcomm.qti.improvetouch.service\r\npackage:com.google.android.cellbroadcastservice.overlay.miui\r\npackage:com.android.externalstorage\r\npackage:com.miui.translation.xmcloud\r\npackage:vendor.qti.imsdatachannel\r\npackage:com.android.server.telecom\r\npackage:com.android.provision.resource.overlay\r\npackage:com.miui.securityinputmethod\r\n",
+      "pids": {
+        "dev.aurorama.kokoro.harness": "",
+        "dev.aurorama.kokoro.focuspeer": ""
+      },
+      "serviceCounts": {
+        "dev.aurorama.kokoro.harness": 0,
+        "dev.aurorama.kokoro.focuspeer": 0
+      },
+      "externalPresence": {
+        "dev.aurorama.kokoro.harness": {
+          "/sdcard/Android/data/dev.aurorama.kokoro.harness": false,
+          "/sdcard/Android/media/dev.aurorama.kokoro.harness": false,
+          "/sdcard/Android/obb/dev.aurorama.kokoro.harness": false
+        },
+        "dev.aurorama.kokoro.focuspeer": {
+          "/sdcard/Android/data/dev.aurorama.kokoro.focuspeer": false,
+          "/sdcard/Android/media/dev.aurorama.kokoro.focuspeer": false,
+          "/sdcard/Android/obb/dev.aurorama.kokoro.focuspeer": false
+        }
+      },
+      "internalProbes": {
+        "dev.aurorama.kokoro.harness": [
+          {
+            "path": "/data/user/0/dev.aurorama.kokoro.harness",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/user_de/0/dev.aurorama.kokoro.harness",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/data/dev.aurorama.kokoro.harness",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/user/0/dev.aurorama.kokoro.harness/cache",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/user/0/dev.aurorama.kokoro.harness/data",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/user_de/0/dev.aurorama.kokoro.harness/code_cache",
+            "present": false,
+            "exitCode": 1
+          }
+        ],
+        "dev.aurorama.kokoro.focuspeer": [
+          {
+            "path": "/data/user/0/dev.aurorama.kokoro.focuspeer",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/user_de/0/dev.aurorama.kokoro.focuspeer",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/data/dev.aurorama.kokoro.focuspeer",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/user/0/dev.aurorama.kokoro.focuspeer/cache",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/user/0/dev.aurorama.kokoro.focuspeer/data",
+            "present": false,
+            "exitCode": 1
+          },
+          {
+            "path": "/data/user_de/0/dev.aurorama.kokoro.focuspeer/code_cache",
+            "present": false,
+            "exitCode": 1
+          }
+        ]
+      },
+      "notificationCount": 0,
+      "activeSessionCount": 0,
+      "remoteTemporaryEntries": ""
+    },
+    "logcatStopped": {
+      "stopped": true,
+      "alreadyExited": false,
+      "reason": "STOPPED_OWNED_PROCESS",
+      "processId": 32724,
+      "identity": {
+        "valid": true,
+        "reason": "OWNED_PROCESS_MATCH",
+        "processId": 32724,
+        "alreadyExited": false,
+        "commandLine": "\"F:\\Develop\\Android\\AndroidSDK\\platform-tools\\adb.exe\" -s 43af8627 logcat -v threadtime"
+      }
+    }
+  },
+  "restoration": {
+    "values": {
+      "network": {
+        "airplaneMode": "0",
+        "wifiOn": "1",
+        "mobileData": "1",
+        "activeDefaultNetwork": "191"
+      },
+      "volume": 41,
+      "wakefulness": "Awake",
+      "screenOffTimeout": "2147483647",
+      "lockAfterTimeout": "null",
+      "stayOn": "7",
+      "keyguard": "false",
+      "currentUser": "0",
+      "production": [
+        {
+          "package": "io.github.zhangwenkang.aurorama",
+          "installed": true,
+          "basePath": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+          "bytes": 79729350,
+          "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+          "metadata": [
+            "    codePath=/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==",
+            "    primaryCpuAbi=arm64-v8a",
+            "    versionCode=5 minSdk=28 targetSdk=36",
+            "    versionName=1.4.0",
+            "    lastUpdateTime=2026-11-04 19:35:22",
+            "      android.permission.INTERNET",
+            "      android.permission.WAKE_LOCK",
+            "      android.permission.POST_NOTIFICATIONS",
+            "      android.permission.FOREGROUND_SERVICE",
+            "      android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+            "      android.permission.FOREGROUND_SERVICE: granted=true",
+            "      android.permission.INTERNET: granted=true",
+            "      android.permission.WAKE_LOCK: granted=true",
+            "      firstInstallTime=2026-11-04 19:35:22",
+            "        android.permission.POST_NOTIFICATIONS: granted=true, flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]"
+          ]
+        },
+        {
+          "package": "io.github.zhangwenkang.aurorama.debug",
+          "installed": false,
+          "basePath": null,
+          "bytes": null,
+          "sha256": null,
+          "metadata": []
+        }
+      ]
+    },
+    "networkMatch": true,
+    "volumeMatch": true,
+    "screenMatch": true,
+    "keyguardMatch": true,
+    "currentUserMatch": true
+  },
+  "checks": {
+    "notBlocked": true,
+    "currentRunCrashGate": true,
+    "cleanupArtifacts": true,
+    "restore": false,
+    "cleanup": false,
+    "speakerGate": false,
+    "zeroUidNetwork": false
+  }
+}

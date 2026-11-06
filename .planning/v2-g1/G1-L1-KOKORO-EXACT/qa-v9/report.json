@@ -1,0 +1,176 @@
+{
+  "schema": "aurorama.kokoro-qa-v9.report.v1",
+  "generatedAt": "2026-11-06T06:25:37.606+08:00",
+  "status": "BLOCKED_TOOL_NONCONVERGENCE",
+  "verdict": "BLOCKED",
+  "productVerdict": "NOT_ASSESSED",
+  "object": {
+    "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+    "branch": "codex/v2-integration",
+    "head": "b37f07331fbde5d3fbfe994c5bb5787a51737805",
+    "cleanAtStart": true,
+    "qaEvidenceRoot": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9",
+    "main": {
+      "package": "dev.aurorama.kokoro.harness",
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-isolated-harness-debug.apk",
+      "bytes": 427009671,
+      "sha256": "252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161",
+      "versionCode": 4,
+      "versionName": "2.0-kokoro-runtime-v5",
+      "abi": "arm64-v8a",
+      "internetPermission": false
+    },
+    "peer": {
+      "package": "dev.aurorama.kokoro.focuspeer",
+      "path": ".planning/v2-g1/G1-L1-KOKORO-EXACT/harness/build/outputs/kokoro-focus-peer-debug.apk",
+      "bytes": 12696,
+      "sha256": "61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab"
+    },
+    "tools": {
+      "entryCount": 31,
+      "manifestBytes": 2984,
+      "aggregateSha256": "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+      "sortedBy": "relative path ordinal",
+      "selfExcluded": true
+    },
+    "device": {
+      "serial": "43af8627",
+      "model": "21051182C",
+      "sdk": 33,
+      "abi": "arm64-v8a",
+      "currentUser": 0
+    }
+  },
+  "executed": {
+    "preflight": "PASS_READ_ONLY_PREFLIGHT",
+    "staticRunnerPreflight": "PASS_STATIC_PREFLIGHT",
+    "freshInstall": "PASS",
+    "deviceIdentity": "PASS",
+    "resourceConsistency": "FAIL_TOOL_CROSS_TIME_SNAPSHOT",
+    "postprocessEvidence": "FAIL_PREREQUISITE_RESOURCE_GATE",
+    "finalEvidenceSeal": "FAIL_TOOL_COMMANDS_FREEZE_MISMATCH",
+    "coreStepsAttempted": 1,
+    "coreStepsSkippedAfterStopGate": 10,
+    "zf001": {
+      "status": "PARTIAL",
+      "realAudioTrackStart": true,
+      "audioTrackCompletion": "NOT_RUN",
+      "sentenceRequestsObserved": 2
+    },
+    "zm010": "NOT_RUN",
+    "deviceWindowMinutesRequested": 10,
+    "deviceWindowExecuted": false,
+    "headMiddleTailContinuity": "NOT_RUN",
+    "maximumAudioGap": "NOT_RUN",
+    "foregroundService": "PARTIAL_OBSERVED_START_AND_STOP_CONVERGENCE",
+    "notification": "PARTIAL_FOUR_ACTIONS_OBSERVED",
+    "mediaSession": "PARTIAL_ACTIVE_THEN_CONVERGED",
+    "pidAndResourceConvergence": "PASS_AFTER_STOP",
+    "currentRunCrashScan": "PASS_WITHIN_EXECUTED_WINDOW",
+    "audioFocusAndSingleOwner": "PARTIAL_ZF001_TTS_AND_OS_FOCUS_REQUEST_ABANDON_OBSERVED",
+    "finalUidZeroNetwork": "NOT_ASSESSED",
+    "captureRestore": "PASS",
+    "cleanup": "PASS_MANUAL_CROSSCHECK"
+  },
+  "productFindings": {
+    "P0": "NOT_ASSESSED",
+    "P1": "NOT_ASSESSED",
+    "P2": "NOT_ASSESSED",
+    "P3": "NOT_ASSESSED",
+    "summary": "No product severity was assigned because the full 10-minute core matrix did not execute."
+  },
+  "toolFindings": {
+    "P0": [],
+    "P1": [
+      {
+        "id": "QA9-TOOL-P1-RESOURCE-CROSS-TIME-SNAPSHOT",
+        "status": "OPEN",
+        "detail": "resource-consistency sampled PLAYING at 06:21:44.042 with sentence 1, then compared it to a later PREPARING sentence-2 UI/MediaSession after the 06:21:47.937 next-sentence request. The exact-equality gate therefore compared different product states.",
+        "productImpact": "Unknown; runtime was stopped before the full product matrix."
+      },
+      {
+        "id": "QA9-TOOL-P1-FINALIZER-METADATA-FALSE-NEGATIVE",
+        "status": "OPEN",
+        "detail": "finalize-device compared a six-line before snapshot with an after snapshot that also included permission lines; hash, path, version and timestamps matched, but metadataMatch was reported false.",
+        "productImpact": "None demonstrated; cleanup and production identity were manually cross-checked as unchanged."
+      },
+      {
+        "id": "QA9-TOOL-P1-SEAL-SELF-STDERR-SHARING",
+        "status": "OPEN",
+        "detail": "The matrix final-seal child tried to read raw/final-seal.stderr.log while the parent capture still held it, failing with a sharing violation.",
+        "productImpact": "No product execution; prevented the runner's first sealing attempt."
+      },
+      {
+        "id": "QA9-TOOL-P1-SEAL-MUTATES-FROZEN-COMMANDS",
+        "status": "OPEN",
+        "detail": "A direct device-root seal normalized raw/commands.json before validating commands-frozen.json. The frozen SHA-256 was 8c8f06bd84a0b30ea6b0559fdb451a3c68ece5149c35d2380834af0532ffe610, but the post-normalization SHA-256 was e05a7774bb5cd6820c709204a67fef753f7eea4a6b9b8f17b78252ace5307555.",
+        "productImpact": "No product execution; prevented final evidence sealing."
+      }
+    ],
+    "P2": [
+      {
+        "id": "QA9-HANDOFF-P2-AGENTS-STALE-PRE",
+        "status": "OPEN",
+        "detail": "AGENTS.md lines 54-63 still describe the PRE state and next PRE_HANDOFF_AUDIT_OWNER while the current machine contract, ACTIVE and TASKS are POST_HANDOFF_AUDIT_READY with PAD_QA_OWNER active.",
+        "productImpact": "None demonstrated; current user instruction and successful POST preflight were used."
+      }
+    ],
+    "P3": [],
+    "summary": "Tool non-convergence prevented the full product matrix. The observed product samples are not sufficient for P0-P3 assessment."
+  },
+  "notCovered": [
+    "Single DEVICE_WINDOW_MINUTES=10 runtime window",
+    "zm_010 voice path",
+    "True AudioTrack completion",
+    "Head/middle/tail continuity and maximum audio gap <=15 seconds",
+    "Full notification controls/state consistency over the runtime window",
+    "OS focus peer, pause recreation, UI cancel, music/TTS arbitration and tamper test",
+    "Final UID zero-network proof; netstats identity and map rows were both zero",
+    "K60 QA"
+  ],
+  "cleanupAndRestore": {
+    "status": "PASS_MANUAL_CROSSCHECK",
+    "supplementPath": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/cleanup-supplement.json",
+    "packagesAbsent": true,
+    "pidsAbsent": true,
+    "serviceRecordsAbsent": true,
+    "activeNotificationRecordsAbsent": true,
+    "activeMediaSessionsAbsent": true,
+    "audioFocusReleased": true,
+    "externalPathsAbsent": true,
+    "internalDataAbsent": true,
+    "hostLogcatOrphans": 0,
+    "networkRestored": true,
+    "userSettingsRestored": true,
+    "productionPackageMatch": true,
+    "deviceLock": {
+      "state": "RELEASED_ACTIVE_0",
+      "activeCount": 0,
+      "sha256": "4aee10046e810a47e7d9ec55260d479cfd8aa6e96b1cd6cd0f501b79798ba388"
+    },
+    "k60": {
+      "serial": "8e875894",
+      "registered": false,
+      "targetedCommands": 0
+    }
+  },
+  "evidence": {
+    "staticPreflight": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/device-PAD5-43af8627/raw/static-preflight.json",
+    "installGate": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/device-PAD5-43af8627/install-gate.json",
+    "resourceConsistency": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/device-PAD5-43af8627/resource-consistency.json",
+    "finalize": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/device-PAD5-43af8627/finalize-device.json",
+    "matrixResult": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/device-PAD5-43af8627/matrix-result.json",
+    "cleanupSupplement": ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/cleanup-supplement.json",
+    "evidenceSeal": {
+      "status": "FAIL",
+      "reason": "COMMANDS_JSON_HASH_MISMATCH",
+      "manifestCreated": false
+    }
+  },
+  "nextGate": {
+    "owner": "ROOT_INTEGRATION",
+    "action": "Review this QA-v9 report and decide the tool repair or explicit deferral. Any later Pad validation requires a newly created fresh QA agent and a new active handoff; K60 remains locked until Pad core PASS and lock release.",
+    "firstReadOnlyActionForFutureAgent": "Run the exact handoff preflight for the newly active role and stop on any non-PASS or drift.",
+    "stopCondition": "Any drift, need for a second Pad attempt without authorization, product change outside the isolated harness, K60 early execution, secret access, new network domain, MOSS, G2, Q03, profile, Release, commit, push or tag."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.sanitized-ui.v1",
+  "name": "resource-main-ui",
+  "texts": [
+    "Kokoro isolated harness",
+    "Kokoro service-owned audio runtime",
+    "隔离 harness：前台 service、单 MediaSession、AudioFocus、真实 PCM 与持久暂停恢复。该页面不构成生产 TTS / D203 全闭环。",
+    "Status: PREPARING\nActive audio owner: TTS\nSentence: 2/9\nSpeaker: zf_001 sid=3\nPack: kokoro-multi-lang-v1_1\nAudioTrack playing: false\nAudioFocus held: true\nLong-run audio: 0 / 0 ms\nMusic: IDLE index=0\nAutoPlay: false\nStable sentence: 林舟把湿伞靠在长椅边，听见铜铃碰了三次。",
+    "UI / notification / MediaSession 共用同一快照\nNotification: 正在准备朗读 · 林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2/9）\nMediaSession: BUFFERING\nLast command: play_full\nLast error: ",
+    "Start short TTS sample",
+    "Start 60-second TTS queue",
+    "Start 31-minute continuous TTS",
+    "Pause"
+  ],
+  "controls": []
+}

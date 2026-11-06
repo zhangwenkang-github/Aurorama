@@ -1,0 +1,13 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.commands-freeze.v1",
+  "frozenAt": "2026-11-06T06:22:27.9420459+08:00",
+  "entryCount": 4,
+  "commandsJson": {
+    "path": "raw/commands.json",
+    "sha256": "8c8f06bd84a0b30ea6b0559fdb451a3c68ece5149c35d2380834af0532ffe610"
+  },
+  "commandsLog": {
+    "path": "raw/commands.log",
+    "sha256": "e44c86254f1ae3da3a2df1ec0a2e181bc3bc08f138fa0591782f0371c3b3255c"
+  }
+}

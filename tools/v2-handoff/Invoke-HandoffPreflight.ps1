@@ -2,7 +2,7 @@
 param(
     [string]$ContractPath,
     [string]$RepoRoot,
-    [ValidateSet("next", "padQa")]
+    [ValidateSet("next", "padQa", "none")]
     [string]$Prompt = "next",
     [switch]$EmitPrompt
 )
@@ -201,6 +201,55 @@ $postActiveRequiredTokens = [string[]]@(
     "READ_ONLY_PREFLIGHT",
     "tools/v2-handoff/Invoke-HandoffPreflight.ps1"
 )
+$postQaDeferredActiveRequiredTokens = [string[]]@(
+    "HANDOFF_BOOTSTRAP_V2",
+    "SUBAGENT_FIRST=YES",
+    "ONE_PHASE_PER_FRESH_AGENT=YES",
+    "NO_REUSE_SUBAGENT=YES",
+    "ROOT_INTEGRATION_ONLY=YES",
+    "DEVICE_WINDOW_MINUTES=10",
+    "DEVICE_ORDER=Pad->K60",
+    "POST_HANDOFF_AUDIT_READY",
+    "validation.handoffPhase=POST_QA_RUNTIME_DEFERRED",
+    "RUNTIME_QA_DEFERRED_TO_G2",
+    "G1_STATIC_CLOSURE_IN_PROGRESS",
+    "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+    "QA_V9_BLOCKED_TOOL_NONCONVERGENCE",
+    "PRODUCT_P0_P3_NOT_ASSESSED",
+    "K60_LOCKED",
+    "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS",
+    "PRE_HANDOFF_AUDIT_PASS=PASS",
+    "QA_DISPATCHABLE=DEFERRED_TO_G2",
+    "V2-D208",
+    "ROUND8-P1-01",
+    "ROUND7-P1-01",
+    "ROUND6-P1-01",
+    "ROUND5-P1-01",
+    "ROUND4-P1-01",
+    "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER",
+    "PRE_HANDOFF_AUDIT_OWNER",
+    "PAD_QA_OWNER",
+    "K60_QA_OWNER",
+    "POST_HANDOFF_AUDIT_READY",
+    "auditReceipt",
+    "CORE_STEPS_1",
+    "PAD_10_MIN_PARTIAL_TOOL_BLOCKED",
+    "K60_NOT_REGISTERED_NOT_RUN",
+    "ACTIVE=0",
+    "31",
+    "2984",
+    "25/25",
+    "96/96",
+    "104/104",
+    "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+    "qa-v9",
+    "READ_ONLY_PREFLIGHT",
+    "tools/v2-handoff/Invoke-HandoffPreflight.ps1"
+)
+$expectedHistoricalAuditDeviceLockSha256 =
+    "8335b81832a39b96356db1532b17216f05c1c07d273953b187e775227f610428"
+$expectedHistoricalAuditMemoryIndexSha256 =
+    "22abc8da4a877ff401487414b375bf70b17a58d4f3a64ba10a02dc09c9f223d5"
 $expectedRequiredTextAnchorPointers = @(
     [pscustomobject]@{ id = "AGENTS"; path = "AGENTS.md" },
     [pscustomobject]@{ id = "PROJECT_RULES"; path = "docs/PROJECT_RULES.md" },
@@ -332,6 +381,52 @@ $postAnchorTokenSets = @{
         "25/25",
         "86/86",
         "96/96"
+    )
+    LESSONS = $prePendingAnchorTokenSets.LESSONS
+}
+$postQaDeferredAnchorTokenSets = @{
+    AGENTS = [string[]]@(
+        $prePendingAnchorTokenSets.AGENTS +
+        @(
+            "RUNTIME_QA_DEFERRED_TO_G2",
+            "G1_STATIC_CLOSURE_IN_PROGRESS",
+            "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+            "validation.handoffPhase=POST_QA_RUNTIME_DEFERRED",
+            "QA_DISPATCHABLE=DEFERRED_TO_G2",
+            "V2-D208",
+            "104/104"
+        )
+    )
+    PROJECT_RULES = $prePendingAnchorTokenSets.PROJECT_RULES
+    PROJECT_PLAN = [string[]]@(
+        "RUNTIME_QA_DEFERRED_TO_G2",
+        "G1_STATIC_CLOSURE_IN_PROGRESS",
+        "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+        "QA_V9_BLOCKED_TOOL_NONCONVERGENCE",
+        "PRODUCT_P0_P3_NOT_ASSESSED",
+        "K60_LOCKED",
+        "V2-D208",
+        "ROUND8-P1-01",
+        "ROUND7-P1-01",
+        "ROUND6-P1-01",
+        "25/25",
+        "86/86",
+        "96/96",
+        "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+        "HANDOFF_BOOTSTRAP_V2",
+        "c4a2d2a1"
+    )
+    TASKS = [string[]]@(
+        $postAnchorTokenSets.TASKS +
+        @(
+            "RUNTIME_QA_DEFERRED_TO_G2",
+            "G1_STATIC_CLOSURE_IN_PROGRESS",
+            "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+            "QA_V9_BLOCKED_TOOL_NONCONVERGENCE",
+            "PRODUCT_P0_P3_NOT_ASSESSED",
+            "K60_LOCKED",
+            "V2-D208"
+        )
     )
     LESSONS = $prePendingAnchorTokenSets.LESSONS
 }
@@ -1320,6 +1415,24 @@ function Get-ChangedRepoPaths {
     return $paths
 }
 
+function Test-ChangedPathAllowed {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string[]]$ExactPaths,
+        [Parameter(Mandatory)][string[]]$AllowedPrefixes
+    )
+
+    if ($Path -cin $ExactPaths) {
+        return $true
+    }
+    foreach ($prefix in $AllowedPrefixes) {
+        if ($Path.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
+            return $true
+        }
+    }
+    return $false
+}
+
 function Get-DeviceLockSnapshot {
     param(
         [Parameter(Mandatory)][string]$DeviceLockPath
@@ -2166,6 +2279,7 @@ $script:handoffPhaseValue = "unknown"
 $script:preAuditSubstateValue = "unknown"
 $script:auditReceiptState = "UNKNOWN"
 $script:transitionPathCount = 0
+$script:currentTransitionPathCount = 0
 
 try {
     if ($PSVersionTable.PSVersion.Major -lt 7) {
@@ -2287,11 +2401,16 @@ try {
     }
     if ($handoffPhase -cnotin @(
         "PRE_HANDOFF_AUDIT",
-        "POST_HANDOFF_AUDIT_READY"
+        "POST_HANDOFF_AUDIT_READY",
+        "POST_QA_RUNTIME_DEFERRED"
     )) {
         Add-PreflightError -Code "HANDOFF-PHASE-UNKNOWN"
     }
-    $isPostAuditPhase = $handoffPhase -ceq "POST_HANDOFF_AUDIT_READY"
+    $isPostQaDeferredPhase = $handoffPhase -ceq "POST_QA_RUNTIME_DEFERRED"
+    $isPostAuditPhase = $handoffPhase -cin @(
+        "POST_HANDOFF_AUDIT_READY",
+        "POST_QA_RUNTIME_DEFERRED"
+    )
     $auditReceipt = Get-ContractProperty $contractData "auditReceipt"
     $auditedSourceCommit = ""
     if (
@@ -2476,7 +2595,10 @@ try {
         Add-PreflightError -Code "INDEPENDENT-REVIEW-STATE-INVALID"
     }
     $expectedQaRoundState = [ordered]@{
-        status = if ($isPostAuditPhase) {
+        status = if ($isPostQaDeferredPhase) {
+            "RUNTIME_QA_DEFERRED_TO_G2"
+        }
+        elseif ($isPostAuditPhase) {
             "POST_HANDOFF_AUDIT_READY"
         }
         else {
@@ -2497,16 +2619,34 @@ try {
         else {
             "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
         }
-        padQaPromptDispatch = if ($isPostAuditPhase) {
+        padQaPromptDispatch = if ($isPostQaDeferredPhase) {
+            "DEFERRED_TO_G2"
+        }
+        elseif ($isPostAuditPhase) {
             "PASS"
         }
         else {
             "BLOCKED"
         }
-        coreStepsExecuted = 0
-        padTenMinuteCoreRun = "NOT_RUN"
-        k60Registration = "NOT_REGISTERED"
-        k60CoreRun = "NOT_RUN"
+        coreStepsExecuted = if ($isPostQaDeferredPhase) { 1 } else { 0 }
+        padTenMinuteCoreRun = if ($isPostQaDeferredPhase) {
+            "PARTIAL_TOOL_BLOCKED"
+        }
+        else {
+            "NOT_RUN"
+        }
+        k60Registration = if ($isPostQaDeferredPhase) {
+            "LOCKED_NOT_REGISTERED"
+        }
+        else {
+            "NOT_REGISTERED"
+        }
+        k60CoreRun = if ($isPostQaDeferredPhase) {
+            "NOT_RUN_LOCKED"
+        }
+        else {
+            "NOT_RUN"
+        }
         cleanup = "PASS_CLEANUP_AND_RESTORE"
         padLockActiveCount = 0
     }
@@ -2539,10 +2679,14 @@ try {
 
     $activePromptName = [string](Get-ContractProperty $contractData "activePrompt")
     $allowedPromptNames = @("toolRepair", "padQa")
-    if ($activePromptName -notin $allowedPromptNames) {
+    $allowedActivePromptNames = @($allowedPromptNames + "none")
+    if ($activePromptName -notin $allowedActivePromptNames) {
         Add-PreflightError -Code "ACTIVE-PROMPT-UNKNOWN"
     }
-    $expectedActivePromptName = if ($isPostAuditPhase) {
+    $expectedActivePromptName = if ($isPostQaDeferredPhase) {
+        "none"
+    }
+    elseif ($isPostAuditPhase) {
         "padQa"
     }
     else {
@@ -2603,7 +2747,8 @@ try {
         $allowedPromptStatuses = @(
             "ACTIVE",
             "BLOCKED_PENDING_PRE_HANDOFF_AUDIT",
-            "RETIRED_AFTER_AUDIT_PASS"
+            "RETIRED_AFTER_AUDIT_PASS",
+            "RETIRED_RUNTIME_QA_DEFERRED_TO_G2"
         )
         if ($promptStatus -notin $allowedPromptStatuses) {
             Add-PreflightError -Code "PROMPT-STATUS-UNKNOWN-$promptName"
@@ -2627,7 +2772,10 @@ try {
             Add-PreflightError -Code "PROMPT-ROLE-MISMATCH-$promptName"
         }
         $promptDispatchable = Get-ContractProperty $promptObject "dispatchable"
-        $expectedPromptDispatchable = if ($isPostAuditPhase) {
+        $expectedPromptDispatchable = if ($isPostQaDeferredPhase) {
+            $false
+        }
+        elseif ($isPostAuditPhase) {
             $promptName -eq "padQa"
         }
         else {
@@ -2636,7 +2784,15 @@ try {
         if ($promptDispatchable -ne $expectedPromptDispatchable) {
             Add-PreflightError -Code "PROMPT-DISPATCH-BOUNDARY-INVALID-$promptName"
         }
-        $expectedPromptStatus = if ($isPostAuditPhase) {
+        $expectedPromptStatus = if ($isPostQaDeferredPhase) {
+            if ($promptName -eq "padQa") {
+                "RETIRED_RUNTIME_QA_DEFERRED_TO_G2"
+            }
+            else {
+                "RETIRED_AFTER_AUDIT_PASS"
+            }
+        }
+        elseif ($isPostAuditPhase) {
             if ($promptName -eq "padQa") {
                 "ACTIVE"
             }
@@ -2656,7 +2812,14 @@ try {
             Add-PreflightError -Code "PROMPT-STATUS-MISMATCH-$promptName"
         }
         $retiredReason = Get-ContractProperty $promptObject "retiredReason"
-        if ($isPostAuditPhase) {
+        if ($isPostQaDeferredPhase) {
+            if (
+                -not (Test-NonEmptyString $retiredReason)
+            ) {
+                Add-PreflightError -Code "PROMPT-RETIRED-REASON-MISSING-$promptName"
+            }
+        }
+        elseif ($isPostAuditPhase) {
             if (
                 $promptName -eq "toolRepair" -and
                 (-not (Test-NonEmptyString $retiredReason))
@@ -2787,7 +2950,10 @@ try {
         Add-PreflightError -Code "TOOL-REPAIR-PROMPT-STATUS-INVALID"
     }
     $padQaPrompt = Get-ContractProperty $promptsObject "padQa"
-    $expectedPadQaPromptStatus = if ($isPostAuditPhase) {
+    $expectedPadQaPromptStatus = if ($isPostQaDeferredPhase) {
+        "RETIRED_RUNTIME_QA_DEFERRED_TO_G2"
+    }
+    elseif ($isPostAuditPhase) {
         "ACTIVE"
     }
     else {
@@ -2838,17 +3004,40 @@ try {
     if ($snakeQaPromptPath -cne $qaPromptPath) {
         Add-PreflightError -Code "QA-PROMPT-PATH-MISMATCH"
     }
+    if (
+        $isPostQaDeferredPhase -and
+        (
+            $nextPromptPath -cne "docs/V2_PLAN.md#ACTIVE" -or
+            $snakeNextPromptPath -cne "docs/V2_PLAN.md#ACTIVE"
+        )
+    ) {
+        Add-PreflightError -Code "DEFERRED-NEXT-PROMPT-PATH-INVALID"
+    }
+    $activePromptPointerPairs = if ($isPostQaDeferredPhase) {
+        @(
+            @{
+                Name = "QA"
+                Pointer = $qaPromptPath
+                ExpectedSuffix = "/prompts/padQa/textLines"
+            }
+        )
+    }
+    else {
+        @(
+            @{
+                Name = "NEXT"
+                Pointer = $nextPromptPath
+                ExpectedSuffix = "/prompts/$activePromptName/textLines"
+            },
+            @{
+                Name = "QA"
+                Pointer = $qaPromptPath
+                ExpectedSuffix = "/prompts/padQa/textLines"
+            }
+        )
+    }
     foreach ($promptPointerPair in @(
-        @{
-            Name = "NEXT"
-            Pointer = $nextPromptPath
-            ExpectedSuffix = "/prompts/$activePromptName/textLines"
-        },
-        @{
-            Name = "QA"
-            Pointer = $qaPromptPath
-            ExpectedSuffix = "/prompts/padQa/textLines"
-        }
+        $activePromptPointerPairs
     )) {
         $pointerValue = $promptPointerPair.Pointer
         if ($pointerValue -notmatch "^([^#]+)#(/.*)$") {
@@ -2975,7 +3164,17 @@ try {
         )
         QA_DISPATCHABLE = [string[]]@("PRE_HANDOFF_AUDIT_PASS")
     }
-    $expectedGateStatuses = if ($isPostAuditPhase) {
+    $expectedGateStatuses = if ($isPostQaDeferredPhase) {
+        @(
+            "PASS",
+            "PASS",
+            "PASS",
+            "PASS",
+            "PASS",
+            "DEFERRED_TO_G2"
+        )
+    }
+    elseif ($isPostAuditPhase) {
         @(
             "PASS",
             "PASS",
@@ -2995,7 +3194,7 @@ try {
             "BLOCKED"
         )
     }
-    $allowedGateStatuses = @("PASS", "NOT_RUN", "BLOCKED")
+    $allowedGateStatuses = @("PASS", "NOT_RUN", "BLOCKED", "DEFERRED_TO_G2")
 
     $gateContainersValid = (
         (Test-ExactObjectProperties `
@@ -3175,7 +3374,11 @@ try {
         -RelativeOrAbsolutePath ([string](Get-ContractProperty $evidence "nextPadRoot")) `
         -RepositoryRootPath $repositoryRoot `
         -ErrorCode "NEXT-PAD-EVIDENCE-ROOT"
-    if ($null -ne $nextPadRoot -and (Test-Path -LiteralPath $nextPadRoot)) {
+    if (
+        -not $isPostQaDeferredPhase -and
+        $null -ne $nextPadRoot -and
+        (Test-Path -LiteralPath $nextPadRoot)
+    ) {
         $nextPadChildren = @(Get-ChildItem -LiteralPath $nextPadRoot -Force)
         if ($nextPadChildren.Count -gt 0) {
             Add-PreflightError -Code "NEXT-PAD-EVIDENCE-ROOT-REUSED"
@@ -3603,10 +3806,34 @@ try {
         "/requiredGates/lifecycle/4/status",
         "/requiredGates/lifecycle/5/status"
     )
+    $expectedPostQaMutationPointerAllowlist = @(
+        $expectedPostMutationPointerAllowlist +
+        @(
+            "/qaRoundState/coreStepsExecuted",
+            "/qaRoundState/padTenMinuteCoreRun",
+            "/qaRoundState/k60Registration",
+            "/qaRoundState/k60CoreRun",
+            "/qaRoundState/cleanup",
+            "/qaRoundState/padLockActiveCount"
+        )
+    )
     $expectedPostAuditTransitionPaths = @(
         "docs/TASKS.md",
         "docs/V2_PLAN.md",
         "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
+    )
+    $expectedPostQaSettlementTransitionPaths = @(
+        "AGENTS.md",
+        "docs/DECISIONS.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/TASKS.md",
+        "docs/V2_PLAN.md",
+        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json",
+        "tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+        "tools/v2-handoff/Test-HandoffPreflight.ps1"
+    )
+    $expectedPostQaSettlementTransitionPrefixes = @(
+        ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/"
     )
     $expectedPreAuditDirtyPaths = @(
         "AGENTS.md",
@@ -3838,7 +4065,15 @@ try {
                 }
                 if (
                     $receiptDeviceLockSha256 -notmatch "^[0-9a-f]{64}$" -or
-                    $receiptDeviceLockSha256 -cne $deviceLockSnapshot.sha256
+                    (
+                        $isPostQaDeferredPhase -and
+                        $receiptDeviceLockSha256 -cne
+                        $expectedHistoricalAuditDeviceLockSha256
+                    ) -or
+                    (
+                        -not $isPostQaDeferredPhase -and
+                        $receiptDeviceLockSha256 -cne $deviceLockSnapshot.sha256
+                    )
                 ) {
                     Add-PreflightError -Code "AUDIT-RECEIPT-DEVICE-LOCK-HASH-DRIFT"
                 }
@@ -3852,6 +4087,146 @@ try {
                 [string](Get-ContractProperty $evidence "nextPadRoot")
             ) {
                 Add-PreflightError -Code "AUDIT-RECEIPT-QA-EVIDENCE-ROOT-DRIFT"
+            }
+            if ($isPostQaDeferredPhase) {
+                $qaV9Root = Resolve-RepoFile `
+                    -RelativeOrAbsolutePath $receiptQaEvidenceRoot `
+                    -RepositoryRootPath $repositoryRoot `
+                    -ErrorCode "POST-QA-EVIDENCE-ROOT"
+                if (
+                    $null -eq $qaV9Root -or
+                    -not (Test-Path -LiteralPath $qaV9Root -PathType Container) -or
+                    @(Get-ChildItem -LiteralPath $qaV9Root -Force).Count -eq 0
+                ) {
+                    Add-PreflightError -Code "POST-QA-EVIDENCE-ROOT-MISSING"
+                }
+                $qaV9ReportRelativePath = $receiptQaEvidenceRoot.TrimEnd("/") + "/report.json"
+                $qaV9ReportPath = Resolve-RepoFile `
+                    -RelativeOrAbsolutePath $qaV9ReportRelativePath `
+                    -RepositoryRootPath $repositoryRoot `
+                    -ErrorCode "POST-QA-REPORT"
+                if (
+                    $null -eq $qaV9ReportPath -or
+                    -not (Test-Path -LiteralPath $qaV9ReportPath -PathType Leaf)
+                ) {
+                    Add-PreflightError -Code "POST-QA-REPORT-MISSING"
+                }
+                else {
+                    $qaV9ReportText = Read-StrictUtf8LfFile `
+                        -AbsolutePath $qaV9ReportPath `
+                        -ErrorPrefix "POST-QA-REPORT"
+                    if ($null -ne $qaV9ReportText) {
+                        try {
+                            $qaV9Report = $qaV9ReportText |
+                                ConvertFrom-Json -DateKind String
+                            if (
+                                (Get-ContractProperty $qaV9Report "schema") -cne
+                                "aurorama.kokoro-qa-v9.report.v1" -or
+                                (Get-ContractProperty $qaV9Report "status") -cne
+                                "BLOCKED_TOOL_NONCONVERGENCE" -or
+                                (Get-ContractProperty $qaV9Report "verdict") -cne
+                                "BLOCKED" -or
+                                (Get-ContractProperty $qaV9Report "productVerdict") -cne
+                                "NOT_ASSESSED"
+                            ) {
+                                Add-PreflightError -Code "POST-QA-REPORT-VERDICT-INVALID"
+                            }
+                            $qaV9Object = Get-ContractProperty $qaV9Report "object"
+                            if (
+                                (Get-ContractProperty $qaV9Object "qaEvidenceRoot") -cne
+                                $receiptQaEvidenceRoot
+                            ) {
+                                Add-PreflightError -Code "POST-QA-REPORT-ROOT-DRIFT"
+                            }
+                            foreach ($artifactName in @("main", "peer")) {
+                                $contractArtifact = Get-ContractProperty `
+                                    $acceptedArtifacts `
+                                    $artifactName
+                                $reportArtifact = Get-ContractProperty `
+                                    $qaV9Object `
+                                    $artifactName
+                                if (
+                                    (Get-ContractProperty $reportArtifact "sha256") -cne
+                                    (Get-ContractProperty $contractArtifact "sha256") -or
+                                    (Get-ContractProperty $reportArtifact "bytes") -ne
+                                    (Get-ContractProperty $contractArtifact "bytes")
+                                ) {
+                                    Add-PreflightError -Code (
+                                        "POST-QA-REPORT-ARTIFACT-MISMATCH-" + $artifactName
+                                    )
+                                }
+                            }
+                            $qaV9Tools = Get-ContractProperty $qaV9Object "tools"
+                            if (
+                                (Get-ContractProperty $qaV9Tools "aggregateSha256") -cne
+                                $expectedToolsDigest
+                            ) {
+                                Add-PreflightError -Code "POST-QA-REPORT-TOOLS-MISMATCH"
+                            }
+                            $qaV9Device = Get-ContractProperty $qaV9Object "device"
+                            if (
+                                (Get-ContractProperty $qaV9Device "serial") -cne
+                                "43af8627"
+                            ) {
+                                Add-PreflightError -Code "POST-QA-REPORT-PAD-SERIAL-MISMATCH"
+                            }
+                            $qaV9ProductFindings = Get-ContractProperty `
+                                $qaV9Report `
+                                "productFindings"
+                            foreach ($severity in @("P0", "P1", "P2", "P3")) {
+                                if (
+                                    (Get-ContractProperty `
+                                        $qaV9ProductFindings `
+                                        $severity) -cne "NOT_ASSESSED"
+                                ) {
+                                    Add-PreflightError -Code (
+                                        "POST-QA-REPORT-PRODUCT-ASSESSED-" + $severity
+                                    )
+                                }
+                            }
+                            $qaV9Executed = Get-ContractProperty $qaV9Report "executed"
+                            $qaV9Zf = Get-ContractProperty $qaV9Executed "zf001"
+                            if (
+                                (Get-ContractProperty $qaV9Executed "coreStepsAttempted") -ne 1 -or
+                                (Get-ContractProperty $qaV9Zf "status") -cne "PARTIAL" -or
+                                (Get-ContractProperty $qaV9Zf "realAudioTrackStart") -ne $true -or
+                                (Get-ContractProperty $qaV9Zf "audioTrackCompletion") -cne
+                                "NOT_RUN" -or
+                                (Get-ContractProperty $qaV9Executed "zm010") -cne
+                                "NOT_RUN" -or
+                                (Get-ContractProperty $qaV9Executed "deviceWindowMinutesRequested") -ne
+                                10 -or
+                                (Get-ContractProperty $qaV9Executed "deviceWindowExecuted") -ne
+                                $false -or
+                                (Get-ContractProperty $qaV9Executed "cleanup") -cne
+                                "PASS_MANUAL_CROSSCHECK"
+                            ) {
+                                Add-PreflightError -Code "POST-QA-REPORT-PARTIAL-SCOPE-INVALID"
+                            }
+                            $qaV9Cleanup = Get-ContractProperty `
+                                $qaV9Report `
+                                "cleanupAndRestore"
+                            $qaV9CleanupLock = Get-ContractProperty `
+                                $qaV9Cleanup `
+                                "deviceLock"
+                            $qaV9K60 = Get-ContractProperty $qaV9Cleanup "k60"
+                            if (
+                                (Get-ContractProperty $qaV9Cleanup "status") -cne
+                                "PASS_MANUAL_CROSSCHECK" -or
+                                (Get-ContractProperty $qaV9CleanupLock "state") -cne
+                                "RELEASED_ACTIVE_0" -or
+                                (Get-ContractProperty $qaV9CleanupLock "activeCount") -ne 0 -or
+                                (Get-ContractProperty $qaV9K60 "registered") -ne $false -or
+                                (Get-ContractProperty $qaV9K60 "targetedCommands") -ne 0
+                            ) {
+                                Add-PreflightError -Code "POST-QA-REPORT-CLEANUP-LOCK-INVALID"
+                            }
+                        }
+                        catch {
+                            Add-PreflightError -Code "POST-QA-REPORT-JSON-INVALID"
+                        }
+                    }
+                }
             }
 
             $receiptRejectedScopeHash = [string](
@@ -3876,7 +4251,15 @@ try {
                     -Bytes ([System.IO.File]::ReadAllBytes($memoryIndexPath))
                 if (
                     $receiptMemoryIndexSha256 -notmatch "^[0-9a-f]{64}$" -or
-                    $receiptMemoryIndexSha256 -cne $actualMemoryIndexSha256
+                    (
+                        $isPostQaDeferredPhase -and
+                        $receiptMemoryIndexSha256 -cne
+                        $expectedHistoricalAuditMemoryIndexSha256
+                    ) -or
+                    (
+                        -not $isPostQaDeferredPhase -and
+                        $receiptMemoryIndexSha256 -cne $actualMemoryIndexSha256
+                    )
                 ) {
                     Add-PreflightError -Code "AUDIT-RECEIPT-MEMORY-INDEX-DRIFT"
                 }
@@ -3988,10 +4371,16 @@ try {
                     -CurrentValue $contractData `
                     -Pointer "" `
                     -Mutations $mutationPointers
+                $activeMutationAllowlist = if ($isPostQaDeferredPhase) {
+                    $expectedPostQaMutationPointerAllowlist
+                }
+                else {
+                    $expectedPostMutationPointerAllowlist
+                }
                 foreach ($mutationPointer in @($mutationPointers)) {
                     if (-not (Test-JsonPointerAllowed `
                         -Pointer $mutationPointer `
-                        -AllowedPatterns $expectedPostMutationPointerAllowlist)) {
+                        -AllowedPatterns $activeMutationAllowlist)) {
                         Add-PreflightError -Code (
                             "POST-MUTATION-POINTER-NOT-ALLOWED:" + $mutationPointer
                         )
@@ -4077,7 +4466,10 @@ try {
     }
 
     $validation = Get-ContractProperty $contractData "validation"
-    $expectedActivePromptRole = if ($isPostAuditPhase) {
+    $expectedActivePromptRole = if ($isPostQaDeferredPhase) {
+        "NONE"
+    }
+    elseif ($isPostAuditPhase) {
         "PAD_QA_OWNER"
     }
     elseif ($preAuditSubstate -ceq "PRE_REVIEW_PASS_AWAITING_AUDIT") {
@@ -4086,7 +4478,10 @@ try {
     else {
         "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
     }
-    $expectedQaPromptRequiredStatus = if ($isPostAuditPhase) {
+    $expectedQaPromptRequiredStatus = if ($isPostQaDeferredPhase) {
+        "RETIRED_RUNTIME_QA_DEFERRED_TO_G2"
+    }
+    elseif ($isPostAuditPhase) {
         "ACTIVE"
     }
     else {
@@ -4095,11 +4490,18 @@ try {
     $activePromptExpectedRoleId = [string](
         Get-ContractProperty $validation "activePromptExpectedRoleId"
     )
+    $activePromptRoleMatches = if ($isPostQaDeferredPhase) {
+        $activePromptName -ceq "none"
+    }
+    else {
+        (Get-ContractProperty `
+            (Get-ContractProperty $promptsObject $activePromptName) `
+            "roleId") -ceq $activePromptExpectedRoleId
+    }
     if (
         $activePromptExpectedRoleId -cne
         $expectedActivePromptRole -or
-        (Get-ContractProperty (Get-ContractProperty $promptsObject $activePromptName) "roleId") -cne
-        $activePromptExpectedRoleId
+        -not $activePromptRoleMatches
     ) {
         Add-PreflightError -Code "ACTIVE-PROMPT-EXPECTED-ROLE-INVALID"
     }
@@ -4153,7 +4555,10 @@ try {
             $activeSectionText = (
                 $activeDocumentLines[$activeStart..($activeEnd - 1)] -join "`n"
             )
-            $activeRequiredTokens = if ($isPostAuditPhase) {
+            $activeRequiredTokens = if ($isPostQaDeferredPhase) {
+                $postQaDeferredActiveRequiredTokens
+            }
+            elseif ($isPostAuditPhase) {
                 $postActiveRequiredTokens
             }
             elseif ($preActiveRequiredTokensByState.ContainsKey($preAuditSubstate)) {
@@ -4166,7 +4571,23 @@ try {
                 -TextValue $activeSectionText `
                 -Tokens $activeRequiredTokens `
                 -ErrorPrefix "ACTIVE-SECTION"
-            $mandatoryActiveTokens = if ($isPostAuditPhase) {
+            $mandatoryActiveTokens = if ($isPostQaDeferredPhase) {
+                @(
+                    "validation.handoffPhase=POST_QA_RUNTIME_DEFERRED",
+                    "RUNTIME_QA_DEFERRED_TO_G2",
+                    "G1_STATIC_CLOSURE_IN_PROGRESS",
+                    "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+                    "QA_V9_BLOCKED_TOOL_NONCONVERGENCE",
+                    "PRODUCT_P0_P3_NOT_ASSESSED",
+                    "K60_LOCKED",
+                    "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS",
+                    "PRE_HANDOFF_AUDIT_PASS=PASS",
+                    "QA_DISPATCHABLE=DEFERRED_TO_G2",
+                    "V2-D208",
+                    "auditReceipt"
+                )
+            }
+            elseif ($isPostAuditPhase) {
                 @(
                     "POST_HANDOFF_AUDIT_READY",
                     "validation.handoffPhase=POST_HANDOFF_AUDIT_READY",
@@ -4272,7 +4693,10 @@ try {
         $anchorText = Read-StrictUtf8LfFile `
             -AbsolutePath $anchorFullPath `
             -ErrorPrefix "ANCHOR-$anchorPath"
-        $anchorTokens = if ($isPostAuditPhase) {
+        $anchorTokens = if ($isPostQaDeferredPhase) {
+            @($postQaDeferredAnchorTokenSets[$anchorId])
+        }
+        elseif ($isPostAuditPhase) {
             @($postAnchorTokenSets[$anchorId])
         }
         else {
@@ -4337,7 +4761,18 @@ try {
                         -BaseRevision $auditedSourceCommit `
                         -ErrorPrefix "POST-AUDIT"
                 )
-                if (-not (Test-OrdinalStringArrayEqual `
+                $script:currentTransitionPathCount = $postAuditChangedPaths.Count
+                if ($isPostQaDeferredPhase) {
+                    foreach ($changedPath in $postAuditChangedPaths) {
+                        if (-not (Test-ChangedPathAllowed `
+                            -Path $changedPath `
+                            -ExactPaths $expectedPostQaSettlementTransitionPaths `
+                            -AllowedPrefixes $expectedPostQaSettlementTransitionPrefixes)) {
+                            Add-PreflightError -Code "POST-QA-TRANSITION-PATH-OUTSIDE-ALLOWLIST"
+                        }
+                    }
+                }
+                elseif (-not (Test-OrdinalStringArrayEqual `
                     -Actual ([string[]]$postAuditChangedPaths) `
                     -Expected ([string[]]$expectedPostAuditTransitionPaths))) {
                     Add-PreflightError -Code "POST-AUDIT-TRANSITION-PATH-SET-MISMATCH"
@@ -4382,7 +4817,7 @@ if ($validationErrors.Count -gt 0) {
 }
 
 Write-Output (
-    "PASS HANDOFF_BOOTSTRAP_V2 phase={0} receipt={1} transitions={2} branch={3} head={4} dirty={5} input={6} roles={7} tasks={8} gates={9} order=Pad->K60 window=10 apk=MATCH tools=MATCH manifest=MATCH({10}/{10}) digest={11} docs=MATCH lock=RELEASED pre={12}" -f
+    "PASS HANDOFF_BOOTSTRAP_V2 phase={0} receipt={1} receiptTransitions={2} currentTransitions={13} branch={3} head={4} dirty={5} input={6} roles={7} tasks={8} gates={9} order=Pad->K60 window=10 apk=MATCH tools=MATCH manifest=MATCH({10}/{10}) digest={11} docs=MATCH lock=RELEASED pre={12}" -f
     $script:handoffPhaseValue,
     $script:auditReceiptState,
     $script:transitionPathCount,
@@ -4395,22 +4830,31 @@ Write-Output (
     $script:gateCount,
     $script:toolsEntryCount,
     $script:toolsDigestValue,
-    $script:preAuditSubstateValue
+    $script:preAuditSubstateValue,
+    $script:currentTransitionPathCount
 )
 
 if ($EmitPrompt) {
-    $selectedPromptObject = Get-ContractProperty $promptsObject $selectedPromptName
-    $selectedPromptText = Get-PromptText `
-        -PromptValue $selectedPromptObject `
-        -ErrorPrefix "EMIT-$selectedPromptName"
-    $selectedPromptPath = if ($selectedPromptName -eq "padQa") {
-        $qaPromptPath
+    if ($isPostQaDeferredPhase) {
+        Write-Output "NEXT_PROMPT_PATH=docs/V2_PLAN.md#ACTIVE"
+        Write-Output "NEXT_PROMPT_BEGIN"
+        Write-Output "RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION；当前没有可派发 QA 或 planning 角色。冷启动代理在 preflight PASS 后只读取唯一 ACTIVE 的证据与用户授权门；未经用户明确授权，不得创建 G2 runtime 合同、派发 QA、碰设备或启动实现。"
+        Write-Output "NEXT_PROMPT_END"
     }
     else {
-        $nextPromptPath
+        $selectedPromptObject = Get-ContractProperty $promptsObject $selectedPromptName
+        $selectedPromptText = Get-PromptText `
+            -PromptValue $selectedPromptObject `
+            -ErrorPrefix "EMIT-$selectedPromptName"
+        $selectedPromptPath = if ($selectedPromptName -eq "padQa") {
+            $qaPromptPath
+        }
+        else {
+            $nextPromptPath
+        }
+        Write-Output "NEXT_PROMPT_PATH=$selectedPromptPath"
+        Write-Output "NEXT_PROMPT_BEGIN"
+        Write-Output $selectedPromptText
+        Write-Output "NEXT_PROMPT_END"
     }
-    Write-Output "NEXT_PROMPT_PATH=$selectedPromptPath"
-    Write-Output "NEXT_PROMPT_BEGIN"
-    Write-Output $selectedPromptText
-    Write-Output "NEXT_PROMPT_END"
 }

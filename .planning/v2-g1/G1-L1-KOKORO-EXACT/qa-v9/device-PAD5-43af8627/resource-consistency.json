@@ -1,0 +1,252 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.resource-consistency.v1",
+  "status": "FAIL",
+  "serial": "43af8627",
+  "capturedAt": "2026-11-06T06:21:58.9789308+08:00",
+  "lineOffset": 119927,
+  "audioStartLine": "11-06 06:21:44.041  7707 26717 I KOKORO_RUNTIME: AUDIO_TRACK_STARTED owner=TTS generation=2 samples=96000 durationMillis=4000 longRun=false longRunAudioMillis=0",
+  "stateBeforeStop": {
+    "schema": "aurorama.kokoro-runtime.state.v1",
+    "pid": 7707,
+    "status": "PLAYING",
+    "activeAudioOwner": "TTS",
+    "musicStatus": "IDLE",
+    "musicIndex": 0,
+    "queueLoaded": true,
+    "queueIndex": 0,
+    "queueSize": 9,
+    "longRunMode": false,
+    "longRunCycleCount": 0,
+    "longRunTargetMillis": 0,
+    "longRunPlannedMinimumMillis": 0,
+    "longRunAudioMillis": 0,
+    "stableIndex": 0,
+    "currentSentence": "雨停以后，旧车站的钟慢了两分钟。",
+    "stableSentence": "雨停以后，旧车站的钟慢了两分钟。",
+    "packId": "kokoro-multi-lang-v1_1",
+    "speaker": "zf_001",
+    "sid": 3,
+    "focusHeld": true,
+    "audioTrackPlaying": true,
+    "positionMillis": 0,
+    "generation": 2,
+    "autoPlay": false,
+    "notificationTitle": "正在朗读",
+    "notificationText": "雨停以后，旧车站的钟慢了两分钟。 （1/9）",
+    "playPauseAction": "PAUSE_TTS",
+    "mediaSessionState": "PLAYING",
+    "notificationCompactActions": [
+      "STOP",
+      "PLAY_PAUSE",
+      "NEXT"
+    ],
+    "notificationRecordActions": [
+      "STOP",
+      "PLAY_PAUSE",
+      "NEXT",
+      "PREVIOUS"
+    ],
+    "lastCommand": "play_full",
+    "lastError": "",
+    "updatedAtEpochMillis": 1793917304042
+  },
+  "stateAfterStop": {
+    "schema": "aurorama.kokoro-runtime.state.v1",
+    "pid": 7707,
+    "status": "STOPPED",
+    "activeAudioOwner": "NONE",
+    "musicStatus": "IDLE",
+    "musicIndex": 0,
+    "queueLoaded": true,
+    "queueIndex": 1,
+    "queueSize": 9,
+    "longRunMode": false,
+    "longRunCycleCount": 0,
+    "longRunTargetMillis": 0,
+    "longRunPlannedMinimumMillis": 0,
+    "longRunAudioMillis": 0,
+    "stableIndex": 1,
+    "currentSentence": "林舟把湿伞靠在长椅边，听见铜铃碰了三次。",
+    "stableSentence": "林舟把湿伞靠在长椅边，听见铜铃碰了三次。",
+    "packId": "kokoro-multi-lang-v1_1",
+    "speaker": "zf_001",
+    "sid": 3,
+    "focusHeld": false,
+    "audioTrackPlaying": false,
+    "positionMillis": 721,
+    "generation": 4,
+    "autoPlay": false,
+    "notificationTitle": "朗读已停止",
+    "notificationText": "林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2/9）",
+    "playPauseAction": "NONE",
+    "mediaSessionState": "STOPPED",
+    "notificationCompactActions": [
+      "STOP",
+      "PLAY_PAUSE",
+      "NEXT"
+    ],
+    "notificationRecordActions": [
+      "STOP",
+      "PLAY_PAUSE",
+      "NEXT",
+      "PREVIOUS"
+    ],
+    "lastCommand": "stop",
+    "lastError": "",
+    "updatedAtEpochMillis": 1793917315583
+  },
+  "stopOffset": 125390,
+  "foregroundBeforeStop": {
+    "servicePresent": true,
+    "isForeground": true,
+    "explicitTypeFields": [],
+    "explicitTypeFieldPresent": false,
+    "explicitMediaPlaybackType": false,
+    "api33TypeFieldMayBeAbsent": true
+  },
+  "foregroundAfterStop": {
+    "servicePresent": false,
+    "isForeground": false,
+    "explicitTypeFields": [],
+    "explicitTypeFieldPresent": false,
+    "explicitMediaPlaybackType": false,
+    "api33TypeFieldMayBeAbsent": true
+  },
+  "notificationRecordLines": [
+    "    NotificationRecord(0x06d07abb: pkg=dev.aurorama.kokoro.harness user=UserHandle{0} id=1263487823 tag=null importance=2 key=0|dev.aurorama.kokoro.harness|1263487823|null|10344 bbbc=0: Notification(channel=kokoro_runtime_media shortcut=null contentView=dev.aurorama.kokoro.harness/0x7f020000 vibrate=null sound=null defaults=0x0 flags=0x6a color=0xff9f2e22 category=transport actions=4 vis=PUBLIC))"
+  ],
+  "notificationRecordActionCount": 4,
+  "notificationUi": {
+    "sanitizedPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v9\\device-PAD5-43af8627\\resource-notification-ui-sanitized.json",
+    "actionIds": [
+      "dev.aurorama.kokoro.harness:id/action_stop",
+      "dev.aurorama.kokoro.harness:id/action_play_pause",
+      "dev.aurorama.kokoro.harness:id/action_previous",
+      "dev.aurorama.kokoro.harness:id/action_next"
+    ],
+    "title": "正在准备朗读",
+    "text": "林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2/9）",
+    "playPauseLabel": "暂停"
+  },
+  "mainUiSanitizedPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v9\\device-PAD5-43af8627\\resource-main-ui-sanitized.json",
+  "mediaSessionBeforeStop": {
+    "stackFound": true,
+    "stackCount": 3,
+    "segments": [
+      {
+        "startLine": 30,
+        "endLine": 53,
+        "declaredSessionCount": 1,
+        "excerpt": "  Sessions Stack - have 1 sessions:\n    Kokoro isolated runtime dev.aurorama.kokoro.harness/Kokoro isolated runtime (userId=0)\n      ownerPid=7707, ownerUid=10344, userId=0\n      package=dev.aurorama.kokoro.harness\n      launchIntent=null\n      mediaButtonReceiver=null\n      active=true\n      flags=3\n      rating type=0\n      controllers: 10\n      state=PlaybackState {state=6, position=0, buffered position=0, speed=0.0, updated=2654340302, actions=567, custom actions=[], active item id=-1, error=null}\n      audioAttrs=AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN flags=0x800 tags= bundle=null\n      volumeType=1, controlType=2, max=0, current=0\n      metadata: size=3, description=姝ｅ湪鍑嗗鏈楄, Kokoro isolated runtime 路 zf_001, kokoro-multi-lang-v1_1\n      queueTitle=null, size=0\nRecord for full_user=12\n  Volume key long-press listener: null\n  Volume key long-press listener package: \n  Media key listener: null\n  Media key listener package: \n  OnMediaKeyEventDispatchedListener: added 0 listener(s)\n  OnMediaKeyEventSessionChangedListener: added 0 listener(s)\n  Last MediaButtonReceiver: null\n  Media button session is null"
+      },
+      {
+        "startLine": 54,
+        "endLine": 63,
+        "declaredSessionCount": 0,
+        "excerpt": "  Sessions Stack - have 0 sessions:\nRecord for full_user=17\n  Volume key long-press listener: null\n  Volume key long-press listener package: \n  Media key listener: null\n  Media key listener package: \n  OnMediaKeyEventDispatchedListener: added 0 listener(s)\n  OnMediaKeyEventSessionChangedListener: added 0 listener(s)\n  Last MediaButtonReceiver: null\n  Media button session is null"
+      },
+      {
+        "startLine": 64,
+        "endLine": 64,
+        "declaredSessionCount": 0,
+        "excerpt": "  Sessions Stack - have 0 sessions:"
+      }
+    ],
+    "sessionRecords": [
+      {
+        "name": "Kokoro isolated runtime",
+        "package": "dev.aurorama.kokoro.harness",
+        "tag": "Kokoro isolated runtime",
+        "userId": 0,
+        "ownerPid": 7707,
+        "ownerUid": 10344,
+        "active": true,
+        "playbackState": 6,
+        "playbackStateLabel": "BUFFERING",
+        "metadataTitle": "姝ｅ湪鍑嗗鏈楄",
+        "metadataArtist": "Kokoro isolated runtime 路 zf_001",
+        "metadataAlbum": "kokoro-multi-lang-v1_1"
+      }
+    ],
+    "activeSessions": [
+      {
+        "name": "Kokoro isolated runtime",
+        "package": "dev.aurorama.kokoro.harness",
+        "tag": "Kokoro isolated runtime",
+        "userId": 0,
+        "ownerPid": 7707,
+        "ownerUid": 10344,
+        "active": true,
+        "playbackState": 6,
+        "playbackStateLabel": "BUFFERING",
+        "metadataTitle": "姝ｅ湪鍑嗗鏈楄",
+        "metadataArtist": "Kokoro isolated runtime 路 zf_001",
+        "metadataAlbum": "kokoro-multi-lang-v1_1"
+      }
+    ],
+    "activeCount": 1,
+    "historyExcluded": true,
+    "excerpt": "  Sessions Stack - have 1 sessions:\n    Kokoro isolated runtime dev.aurorama.kokoro.harness/Kokoro isolated runtime (userId=0)\n      ownerPid=7707, ownerUid=10344, userId=0\n      package=dev.aurorama.kokoro.harness\n      launchIntent=null\n      mediaButtonReceiver=null\n      active=true\n      flags=3\n      rating type=0\n      controllers: 10\n      state=PlaybackState {state=6, position=0, buffered position=0, speed=0.0, updated=2654340302, actions=567, custom actions=[], active item id=-1, error=null}\n      audioAttrs=AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN flags=0x800 tags= bundle=null\n      volumeType=1, controlType=2, max=0, current=0\n      metadata: size=3, description=姝ｅ湪鍑嗗鏈楄, Kokoro isolated runtime 路 zf_001, kokoro-multi-lang-v1_1\n      queueTitle=null, size=0\nRecord for full_user=12\n  Volume key long-press listener: null\n  Volume key long-press listener package: \n  Media key listener: null\n  Media key listener package: \n  OnMediaKeyEventDispatchedListener: added 0 listener(s)\n  OnMediaKeyEventSessionChangedListener: added 0 listener(s)\n  Last MediaButtonReceiver: null\n  Media button session is null\n  Sessions Stack - have 0 sessions:\nRecord for full_user=17\n  Volume key long-press listener: null\n  Volume key long-press listener package: \n  Media key listener: null\n  Media key listener package: \n  OnMediaKeyEventDispatchedListener: added 0 listener(s)\n  OnMediaKeyEventSessionChangedListener: added 0 listener(s)\n  Last MediaButtonReceiver: null\n  Media button session is null\n  Sessions Stack - have 0 sessions:"
+  },
+  "mediaSessionAfterStop": {
+    "stackFound": true,
+    "stackCount": 3,
+    "segments": [
+      {
+        "startLine": 30,
+        "endLine": 39,
+        "declaredSessionCount": 0,
+        "excerpt": "  Sessions Stack - have 0 sessions:\nRecord for full_user=12\n  Volume key long-press listener: null\n  Volume key long-press listener package: \n  Media key listener: null\n  Media key listener package: \n  OnMediaKeyEventDispatchedListener: added 0 listener(s)\n  OnMediaKeyEventSessionChangedListener: added 0 listener(s)\n  Last MediaButtonReceiver: null\n  Media button session is null"
+      },
+      {
+        "startLine": 40,
+        "endLine": 49,
+        "declaredSessionCount": 0,
+        "excerpt": "  Sessions Stack - have 0 sessions:\nRecord for full_user=17\n  Volume key long-press listener: null\n  Volume key long-press listener package: \n  Media key listener: null\n  Media key listener package: \n  OnMediaKeyEventDispatchedListener: added 0 listener(s)\n  OnMediaKeyEventSessionChangedListener: added 0 listener(s)\n  Last MediaButtonReceiver: null\n  Media button session is null"
+      },
+      {
+        "startLine": 50,
+        "endLine": 50,
+        "declaredSessionCount": 0,
+        "excerpt": "  Sessions Stack - have 0 sessions:"
+      }
+    ],
+    "sessionRecords": [],
+    "activeSessions": [],
+    "activeCount": 0,
+    "historyExcluded": true,
+    "excerpt": "  Sessions Stack - have 0 sessions:\nRecord for full_user=12\n  Volume key long-press listener: null\n  Volume key long-press listener package: \n  Media key listener: null\n  Media key listener package: \n  OnMediaKeyEventDispatchedListener: added 0 listener(s)\n  OnMediaKeyEventSessionChangedListener: added 0 listener(s)\n  Last MediaButtonReceiver: null\n  Media button session is null\n  Sessions Stack - have 0 sessions:\nRecord for full_user=17\n  Volume key long-press listener: null\n  Volume key long-press listener package: \n  Media key listener: null\n  Media key listener package: \n  OnMediaKeyEventDispatchedListener: added 0 listener(s)\n  OnMediaKeyEventSessionChangedListener: added 0 listener(s)\n  Last MediaButtonReceiver: null\n  Media button session is null\n  Sessions Stack - have 0 sessions:"
+  },
+  "newTtsAudioTracksAfterStop": [],
+  "checks": {
+    "beforeStop": {
+      "stateOwnerIsTts": true,
+      "stateAudioTrackPlaying": true,
+      "liveServiceForeground": true,
+      "installedManifestMediaPlayback": true,
+      "uiHasSpeakerSid": true,
+      "uiHasPack": true,
+      "uiHasNotificationSnapshot": false,
+      "notificationTitleMatches": false,
+      "notificationBodyMatches": false,
+      "notificationHasFourActions": true,
+      "notificationRecordHasFourActions": true,
+      "playPauseLabelMatches": true,
+      "stateActionModelHasFour": true,
+      "singleActiveMainMediaSession": true,
+      "mediaSessionActive": true,
+      "mediaSessionTitleMatches": false,
+      "mediaSessionSpeakerMatches": false,
+      "mediaSessionPackMatches": true
+    },
+    "afterStop": {
+      "stopCommandExitZero": true,
+      "stoppedStateObserved": true,
+      "audioTrackNotPlaying": true,
+      "noNewTtsAudioTrackAfterStop": true,
+      "serviceForegroundConverged": true,
+      "notificationConverged": true,
+      "activeMediaSessionConverged": true
+    }
+  }
+}

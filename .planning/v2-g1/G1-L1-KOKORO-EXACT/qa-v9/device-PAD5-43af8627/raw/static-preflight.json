@@ -1,0 +1,32 @@
+{
+  "schema": "aurorama.kokoro-qa.static-preflight.v1",
+  "status": "PASS_STATIC_PREFLIGHT",
+  "runId": "QA-V9",
+  "serial": "43af8627",
+  "evidenceRoot": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v9\\device-PAD5-43af8627",
+  "lockGate": {
+    "schema": "aurorama.kokoro-qa.run-lock.v1",
+    "runId": "QA-V9",
+    "serial": "43af8627",
+    "deviceLockPath": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+    "activeCount": 1,
+    "matchingRunCount": 1,
+    "passed": true,
+    "reason": [],
+    "activeTitles": [
+      "### AURORAMA-2.0-G1-PAD-QA-V9-43af8627-20261106-0620 — ACTIVE"
+    ]
+  },
+  "toolDigest": {
+    "schema": "aurorama.kokoro-qa.tool-digest-snapshot.v1",
+    "canonicalPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v8\\tools.sha256",
+    "canonicalSha256": "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+    "verificationManifestPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g1\\G1-L1-KOKORO-EXACT\\qa-v9\\device-PAD5-43af8627\\tools.sha256",
+    "aggregateSha256": "69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4",
+    "entryCount": 31,
+    "sortedBy": "relative path ordinal",
+    "selfExcluded": true,
+    "runtimeWritesCanonical": false
+  },
+  "deviceActionExecuted": false
+}

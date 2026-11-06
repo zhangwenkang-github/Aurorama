@@ -278,9 +278,9 @@ revision / 16 KB / Range 及 runtime / device 仍待证据；
 `V2-D057` 的 Nocturne 圆角 12→8dp。`docs/UI_DESIGN_SYSTEM.md` 已升级为 V2 R1 权威；
 `V2-Q-G1-03` 仍 Open，G1 未通过；S6 原始 `PASS_WITH_P2` 仅是 Q05 当时 Open 的历史 review，
 D204 后 fresh scoped documentation reconfirm 已 PASS，D205 future artifact change 仍须重新
-review。当前唯一 ACTIVE 为 D207 Kokoro 试听接受后的 `NEXT_RUNTIME_CLOSURE`：补许可 / notice、
-service owner、MediaSession / audio focus、resume、UI cancel、长稳 / 重建与 Pad 性能决策；
-生产实现、G2、Release 与服务器写仍未授权。
+review。当前唯一 ACTIVE 为 D208 的 `RUNTIME_QA_DEFERRED_TO_G2 /
+G1_STATIC_CLOSURE_IN_PROGRESS`：QA-v9 工具非收敛后停止本轮修复 / 重试，完整 Pad/K60
+runtime 门延期到 G2 入口；G1 只继续离线静态收口。生产实现、G2、Release 与服务器写仍未授权。
 `V2-D200` 只固定体验优先与包体非要求。
 
 `V2-Q-G1-05` 已由 `V2-D204` 关闭；该问题内的 A 已接受，B/C 未选。随后用户以
@@ -292,8 +292,8 @@ Q05，也不冻结 new engine / profile。其运行时、profile、许可与质�
 关闭或 G1 PASS。前沿定格 `NOW_SAFE=0`；剩余 `B=exact voice-pack profile / 试听 / 许可 /
 排序 TTL 合并策略`、
 `C=runtime/device`、`D=production implementation`、`E=G2/QA/Release 未授权`。
-当前下一步是 §12 的 D207 `NEXT_RUNTIME_CLOSURE`：在隔离 harness 内补 service owner、
-MediaSession / audio focus、resume、UI cancel、30 分钟后台 / 重建与许可审计，Pad 解锁后补测。
+当前下一步是 §12 的 D208 `G1_STATIC_CLOSURE_IN_PROGRESS`：只做离线静态 G1 / G2 planning，
+不再重试 QA-v9 或派发 Pad/K60。完整 runtime QA 在 G2 入口门另行开户。
 Kokoro `zf_001` / `zm_010` 已获用户样音接受，但不冻结 profile；MOSS 第二且权重仍未授权，
 ZipVoice 许可 `HOLD`。S6 原始 `PASS_WITH_P2` 仅是 Q05 当时 Open 的历史 review，D204 后不得
 写成 runtime PASS；D207 future artifact change 仍须 fresh scoped review。Q03 仍 Open；
@@ -499,3 +499,37 @@ D203/D205/Q03 边界。后续结果必须记录 exact hash、实际执行命令�
 证据入口：`docs/V2_PLAN.md` §12 ACTIVE、§13；`docs/TASKS.md`
 `V2-G1-L1-KOKORO-EXACT`；`.planning/v2-g1/G1-L1-KOKORO-EXACT/implementation-report.json`、
 `qa-v2/report.json`、`samples/`。该决定不关闭 Q03，也不构成 profile / production / G1 PASS。
+
+### `V2-D208` QA-v9 后停止重试、runtime QA 延期到 G2（2026-11-06，Accepted）
+
+用户于 2026-11-06 明确决定：不再继续本轮 QA 工具修复与重试；完整 Pad/K60 runtime QA
+延期到 G2 入口门；G1 只继续可离线闭合的静态收口。该决定把当前唯一状态固定为
+`RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS /
+QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
+
+接受语义：
+
+1. `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/report.json` 原样保留为
+   `BLOCKED_TOOL_NONCONVERGENCE / BLOCKED`；真实 `zf_001` AudioTrack start partial、
+   cleanup / restore PASS 与设备锁释放是历史事实。`zm_010`、完整 10 分钟、gap、完整通知 /
+   focus、零网络与 K60 均未执行，产品 P0/P1/P2/P3 全部 `NOT_ASSESSED`。
+2. 停止本轮 QA 工具修复、QA-v9 重试与任何替代 QA 轮次；不得把 partial、cleanup、安装门、
+   旧 K60 30 分钟 / stop-only 结果或工具问题写成产品 PASS、FAIL、`PASS_WITH_GAPS` 或 G1 PASS。
+3. G1 仅继续离线静态收口与 G2 入口 planning。完整 Pad/K60 runtime matrix 在 G2 入口门以
+   新合同、新激活范围、全新代理和用户授权重新开户；不是自动执行项。
+4. 历史 `auditReceipt`、PRE/POST 回归、qa-v8/qa-v9 证据与全部失败 finding 保留。合同末态
+   只允许在既有 PRE/POST audit 链之后增加一个 `POST_QA_RUNTIME_DEFERRED` 终态子态；历史
+   receipt 的设备锁哈希和 transitionPaths 是审计时快照，不得用当前锁哈希或 QA 后集合覆盖。
+5. `qa-v8/tools` 31 项 / `2984 B` / digest
+   `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4` 继续冻结；
+   `PAD_QA_OWNER` 与 `K60_QA_OWNER` 无当前派发权。K60 serial `8e875894` 未登记并保持
+   `K60_LOCKED`，设备锁必须 `ACTIVE=0`。
+6. Q03 仍 Open，exact profile / voice 仍 Open，Pad P2 未接受，G1 `NOT_PASSED`，项目级
+   runtime `UNVERIFIED`，L2/L3 `LOCKED`。生产代码、G2 实现、Release、push、服务器写、
+   MOSS、新网络域与凭据读取均未授权。
+
+证据入口：`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；`docs/TASKS.md`
+`V2-G1-L1-KOKORO-EXACT`；`tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json`；
+`.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/report.json` 摘要；
+`.planning/v2-g1/G1-S6/CHECKPOINT.md`。该决定不关闭 Q03，不冻结 profile / voice，不构成
+QA、runtime、production 或 G1 PASS。

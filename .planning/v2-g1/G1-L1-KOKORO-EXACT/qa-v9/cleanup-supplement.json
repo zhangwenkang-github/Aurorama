@@ -1,0 +1,74 @@
+{
+  "schema": "aurorama.kokoro-qa-v9.cleanup-supplement.v1",
+  "generatedAt": "2026-11-06T06:25:37.606+08:00",
+  "serial": "43af8627",
+  "status": "PASS_CLEANUP_AND_RESTORE_MANUAL_CROSSCHECK",
+  "finalizerStatus": "FAIL_DUE_TOOL_FALSE_NEGATIVE",
+  "packages": {
+    "dev.aurorama.kokoro.harness": "ABSENT",
+    "dev.aurorama.kokoro.focuspeer": "ABSENT"
+  },
+  "pids": {
+    "dev.aurorama.kokoro.harness": "ABSENT",
+    "dev.aurorama.kokoro.focuspeer": "ABSENT"
+  },
+  "serviceRecordsAbsent": true,
+  "activeNotificationRecordsAbsent": true,
+  "activeMediaSessionsAbsent": true,
+  "audioFocus": {
+    "released": true,
+    "lastRunAbandonObservedAt": "2026-11-06 06:21:55.579",
+    "activeRequesterFromRunAbsent": true
+  },
+  "externalPathsAbsent": true,
+  "internalDataAbsent": true,
+  "hostLogcatOrphans": 0,
+  "network": {
+    "airplaneMode": "0",
+    "wifiOn": "1",
+    "mobileData": "1",
+    "activeDefaultNetwork": "191",
+    "match": true
+  },
+  "settings": {
+    "musicVolume": 41,
+    "screenOffTimeout": "2147483647",
+    "lockAfterTimeout": "null",
+    "stayOnWhilePluggedIn": "7",
+    "wakefulness": "Awake",
+    "keyguardShowing": false,
+    "currentUser": 0,
+    "allMatch": true
+  },
+  "productionPackage": {
+    "package": "io.github.zhangwenkang.aurorama",
+    "basePath": "/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==/base.apk",
+    "bytes": 79729350,
+    "sha256": "acb1648d9e9c5265bc54dd13b24eea7ada3d16e397d3e10c6a72e23d2d2ff5bb",
+    "coreMetadataMatch": true,
+    "metadata": [
+      "codePath=/data/app/~~jnjuU1KnukUGLp5mGiMxQA==/io.github.zhangwenkang.aurorama-rr0d2p8fJY6fFTTYB47mRw==",
+      "primaryCpuAbi=arm64-v8a",
+      "versionCode=5 minSdk=28 targetSdk=36",
+      "versionName=1.4.0",
+      "lastUpdateTime=2026-11-04 19:35:22",
+      "firstInstallTime=2026-11-04 19:35:22"
+    ]
+  },
+  "finalizerFalseNegative": {
+    "findingId": "QA9-TOOL-P1-FINALIZER-METADATA-FALSE-NEGATIVE",
+    "beforeSnapshotFields": "codePath, primaryCpuAbi, versionCode, versionName, lastUpdateTime, firstInstallTime",
+    "afterSnapshotFields": "same six fields plus permission lines",
+    "explanation": "The finalizer compared differently shaped line arrays, so identical package identity metadata was reported as metadataMatch=false."
+  },
+  "deviceLock": {
+    "state": "RELEASED_ACTIVE_0",
+    "activeCount": 0,
+    "sha256": "4aee10046e810a47e7d9ec55260d479cfd8aa6e96b1cd6cd0f501b79798ba388"
+  },
+  "k60": {
+    "serial": "8e875894",
+    "registered": false,
+    "targetedCommands": 0
+  }
+}

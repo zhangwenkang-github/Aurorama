@@ -282,6 +282,12 @@ function New-PostAuditRepositoryFixture {
         [Parameter(Mandatory)][string]$BaseContractText
     )
 
+    $historicalPostCommit = "b37f07331fbde5d3fbfe994c5bb5787a51737805"
+    & git -C $repositoryRoot cat-file -e "$historicalPostCommit^{commit}" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        throw "FIXTURE-HISTORICAL-POST-COMMIT-MISSING"
+    }
+
     $postRepo = Join-Path $RootDirectory "post-audit-repo"
     [void][System.IO.Directory]::CreateDirectory($postRepo)
     [void](Invoke-FixtureGit `
@@ -352,20 +358,67 @@ function New-PostAuditRepositoryFixture {
 
     $sourceContractPath = Join-Path $postRepo `
         "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
+    $historicalProjectPlanPath = Join-Path $postRepo "docs/PROJECT_PLAN.md"
+    $historicalProjectPlanLines = @(
+        & git -C $repositoryRoot show `
+            "$($historicalPostCommit):docs/PROJECT_PLAN.md" 2>$null
+    )
+    if ($LASTEXITCODE -ne 0) {
+        throw "FIXTURE-HISTORICAL-PROJECT-PLAN-READ-FAILED"
+    }
+    Write-LfText `
+        -Text (($historicalProjectPlanLines -join "`n") + "`n") `
+        -Path $historicalProjectPlanPath
     $sourceContract = $BaseContractText | ConvertFrom-Json -Depth 100 -DateKind String
     $sourceContract.generatedAt = [DateTimeOffset]::Now.ToString("o")
     $sourceContract.inputBaseline.worktree = $postRepo
     $sourceContract.inputBaseline.commit = $baselineCommit
     $sourceContract.inputBaseline.qaV8HandoffHead = $baselineCommit
+    $sourceContract.validation.handoffPhase = "PRE_HANDOFF_AUDIT"
+    $sourceContract.validation.activePromptExpectedRoleId =
+        "PRE_HANDOFF_AUDIT_OWNER"
+    $sourceContract.validation.qaPromptRequiredStatus =
+        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
     $sourceContract.qaRoundState.status =
         "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT"
     $sourceContract.qaRoundState.independentIntegrationReview = "PASS"
+    $sourceContract.qaRoundState.preHandoffAudit =
+        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+    $sourceContract.qaRoundState.padQaPromptDispatch = "BLOCKED"
+    $sourceContract.qaRoundState.coreStepsExecuted = 0
+    $sourceContract.qaRoundState.padTenMinuteCoreRun = "NOT_RUN"
+    $sourceContract.qaRoundState.k60Registration = "NOT_REGISTERED"
+    $sourceContract.qaRoundState.k60CoreRun = "NOT_RUN"
+    $sourceContract.qaRoundState.cleanup = "PASS_CLEANUP_AND_RESTORE"
+    $sourceContract.qaRoundState.padLockActiveCount = 0
+    $sourceContract.auditReceipt = $null
+    $sourceContract.activePrompt = "toolRepair"
+    $sourceContract.next_prompt_path =
+        "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/toolRepair/textLines"
+    $sourceContract.nextPromptPath = $sourceContract.next_prompt_path
+    $sourceContract.prompts.toolRepair.roleId = "PRE_HANDOFF_AUDIT_OWNER"
+    $sourceContract.prompts.toolRepair.status = "ACTIVE"
+    $sourceContract.prompts.toolRepair.dispatchable = $true
+    $sourceContract.prompts.toolRepair.retiredReason = $null
+    $sourceContract.prompts.padQa.roleId = "PAD_QA_OWNER"
+    $sourceContract.prompts.padQa.status =
+        "BLOCKED_PENDING_PRE_HANDOFF_AUDIT"
+    $sourceContract.prompts.padQa.dispatchable = $false
+    $sourceContract.prompts.padQa.retiredReason = $null
     $sourceReviewGate = @(
         $sourceContract.requiredGates.lifecycle |
             Where-Object { $_.id -ceq "INDEPENDENT_INTEGRATION_REVIEW_PASS" }
     )[0]
     $sourceReviewGate.owner = "ROUND9_READONLY_INTEGRATION_REVIEW_OWNER"
     $sourceReviewGate.status = "PASS"
+    foreach ($gate in @($sourceContract.requiredGates.lifecycle)) {
+        if ($gate.id -cin @("PRE_HANDOFF_AUDIT_PASS", "QA_DISPATCHABLE")) {
+            $gate.status = "BLOCKED"
+        }
+        elseif ($gate.id -ne "INDEPENDENT_INTEGRATION_REVIEW_PASS") {
+            $gate.status = "PASS"
+        }
+    }
     Write-LfJson -Value $sourceContract -Path $sourceContractPath
     $sourceContractText = [System.IO.File]::ReadAllText(
         $sourceContractPath,
@@ -405,9 +458,16 @@ function New-PostAuditRepositoryFixture {
         $utf8Strict
     ) | ConvertFrom-Json -Depth 100 -DateKind String
     $postContract.validation.handoffPhase = "POST_HANDOFF_AUDIT_READY"
+    $postContract.qaRoundState.lastQaVerdict = "BLOCKED_TOOL_NONCONVERGENCE"
     $postContract.qaRoundState.status = "POST_HANDOFF_AUDIT_READY"
     $postContract.qaRoundState.preHandoffAudit = "PASS"
     $postContract.qaRoundState.padQaPromptDispatch = "PASS"
+    $postContract.qaRoundState.coreStepsExecuted = 0
+    $postContract.qaRoundState.padTenMinuteCoreRun = "NOT_RUN"
+    $postContract.qaRoundState.k60Registration = "NOT_REGISTERED"
+    $postContract.qaRoundState.k60CoreRun = "NOT_RUN"
+    $postContract.qaRoundState.cleanup = "PASS_CLEANUP_AND_RESTORE"
+    $postContract.qaRoundState.padLockActiveCount = 0
     $postContract.activePrompt = "padQa"
     $postContract.next_prompt_path =
         "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json#/prompts/padQa/textLines"
@@ -417,6 +477,7 @@ function New-PostAuditRepositoryFixture {
     $postContract.prompts.toolRepair.retiredReason = "PRE_HANDOFF_AUDIT_PASS"
     $postContract.prompts.padQa.status = "ACTIVE"
     $postContract.prompts.padQa.dispatchable = $true
+    $postContract.prompts.padQa.retiredReason = $null
     $postContract.validation.activePromptExpectedRoleId = "PAD_QA_OWNER"
     $postContract.validation.qaPromptRequiredStatus = "ACTIVE"
     foreach ($gate in @($postContract.requiredGates.lifecycle)) {
@@ -444,27 +505,19 @@ function New-PostAuditRepositoryFixture {
         )
     }
 
-    $replacements = [ordered]@{
-        "ROUND8_PASS_PRE_STATE_REPAIRED_AWAITING_FRESH_ROUND9_REVIEW" = "POST_HANDOFF_AUDIT_READY"
-        "ROUND9_REVIEW_PASS_AWAITING_PRE_HANDOFF_AUDIT" = "POST_HANDOFF_AUDIT_READY"
-        "validation.handoffPhase=PRE_HANDOFF_AUDIT" = "validation.handoffPhase=POST_HANDOFF_AUDIT_READY"
-        "INDEPENDENT_INTEGRATION_REVIEW_PASS=BLOCKED" = "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS"
-        "PRE_HANDOFF_AUDIT_PASS=BLOCKED" = "PRE_HANDOFF_AUDIT_PASS=PASS"
-        "QA_DISPATCHABLE=BLOCKED" = "QA_DISPATCHABLE=PASS"
-    }
-    foreach ($relativePath in @("docs/V2_PLAN.md", "docs/TASKS.md")) {
+    foreach ($relativePath in @(
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md"
+    )) {
         $documentPath = Join-Path $postRepo $relativePath
-        $documentText = [System.IO.File]::ReadAllText(
-            $documentPath,
-            $utf8Strict
+        $historicalLines = @(
+            & git -C $repositoryRoot show `
+                "$($historicalPostCommit):$relativePath" 2>$null
         )
-        foreach ($replacementName in $replacements.Keys) {
-            $documentText = $documentText.Replace(
-                $replacementName,
-                $replacements[$replacementName]
-            )
+        if ($LASTEXITCODE -ne 0) {
+            throw "FIXTURE-HISTORICAL-POST-DOC-READ-FAILED $relativePath"
         }
-        Write-LfText -Text $documentText -Path $documentPath
+        Write-LfText -Text (($historicalLines -join "`n") + "`n") -Path $documentPath
     }
     Write-LfJson -Value $postContract -Path $sourceContractPath
 
@@ -617,8 +670,9 @@ function Invoke-Preflight {
     param(
         [string]$FixturePath,
         [string]$RepoRootOverride,
-        [ValidateSet("next", "padQa")]
-        [string]$PromptName = "next"
+        [ValidateSet("next", "padQa", "none")]
+        [string]$PromptName = "next",
+        [switch]$EmitPrompt
     )
 
     $effectiveRepoRoot = if ([string]::IsNullOrWhiteSpace($RepoRootOverride)) {
@@ -639,6 +693,9 @@ function Invoke-Preflight {
     }
     if ($PromptName -ne "next") {
         $arguments += @("-Prompt", $PromptName)
+    }
+    if ($EmitPrompt) {
+        $arguments += "-EmitPrompt"
     }
 
     $output = @(& pwsh @arguments 2>&1)
@@ -783,6 +840,8 @@ try {
             name = "audit-pass-without-allowed-phase"
             mutate = {
                 param($contract)
+                $contract.validation.handoffPhase = "PRE_HANDOFF_AUDIT"
+                $contract.auditReceipt = $null
                 $contract.qaRoundState.preHandoffAudit = "PASS"
                 (Get-Gate $contract "PRE_HANDOFF_AUDIT_PASS").status = "PASS"
             }
@@ -1174,6 +1233,58 @@ try {
                     "INDEPENDENT_INTEGRATION_REVIEW_PASS"
                 ).owner = "ROUND8_READONLY_INTEGRATION_REVIEW_OWNER"
             }
+        },
+        @{
+            name = "deferred-padQa-active"
+            mutate = {
+                param($contract)
+                $contract.prompts.padQa.status = "ACTIVE"
+                $contract.prompts.padQa.dispatchable = $true
+                $contract.prompts.padQa.retiredReason = "SHOULD_NOT_BE_PRESENT"
+            }
+        },
+        @{
+            name = "deferred-qa-gate-pass"
+            mutate = {
+                param($contract)
+                (Get-Gate $contract "QA_DISPATCHABLE").status = "PASS"
+            }
+        },
+        @{
+            name = "deferred-product-assessed"
+            mutate = {
+                param($contract)
+                $contract.qaRoundState.productFindings.P0 = "0"
+            }
+        },
+        @{
+            name = "deferred-k60-unlocked"
+            mutate = {
+                param($contract)
+                $contract.qaRoundState.k60Registration = "REGISTERED"
+                $contract.qaRoundState.k60CoreRun = "RUN"
+            }
+        },
+        @{
+            name = "deferred-audit-receipt-missing"
+            mutate = {
+                param($contract)
+                $contract.auditReceipt = $null
+            }
+        },
+        @{
+            name = "deferred-historical-lock-hash-rewritten"
+            mutate = {
+                param($contract)
+                $contract.auditReceipt.deviceLockSha256 = ("f" * 64)
+            }
+        },
+        @{
+            name = "deferred-phase-still-post"
+            mutate = {
+                param($contract)
+                $contract.validation.handoffPhase = "POST_HANDOFF_AUDIT_READY"
+            }
         }
     )
 
@@ -1192,6 +1303,25 @@ try {
         -Case "direct-padQa-request" `
         -ExpectedExit 2 `
         -Result (Invoke-Preflight -PromptName "padQa")
+
+    $deferredEmitResult = Invoke-Preflight -EmitPrompt
+    Add-CaseResult `
+        -Case "deferred-emit-no-qa-prompt" `
+        -ExpectedExit 0 `
+        -Result $deferredEmitResult
+    $deferredEmitText = @($deferredEmitResult.output) -join "`n"
+    Assert-Condition `
+        -Condition (
+            $deferredEmitText.Contains(
+                "当前没有可派发 QA 或 planning 角色",
+                [System.StringComparison]::Ordinal
+            ) -and
+            -not $deferredEmitText.Contains(
+                "专业身份：PAD_QA_OWNER",
+                [System.StringComparison]::Ordinal
+            )
+        ) `
+        -Name "DEFERRED-EMIT-NO-QA-ROLE"
 
     $postFixture = New-PostAuditRepositoryFixture `
         -RootDirectory $tempDirectory `
@@ -1221,14 +1351,18 @@ try {
             "INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS"
     }
     $preReviewPassDocumentTexts = [ordered]@{}
+    $historicalPreCommit = [string]$baseContract.auditReceipt.auditedSourceCommit
+    if ($historicalPreCommit -notmatch "^[0-9a-f]{40}$") {
+        throw "FIXTURE-HISTORICAL-PRE-COMMIT-INVALID"
+    }
     foreach ($relativePath in @(
         "docs/PROJECT_PLAN.md",
         "docs/V2_PLAN.md",
         "docs/TASKS.md"
     )) {
         $committedLines = @(
-            & git -C $postFixture.repositoryRoot show `
-                "$($postFixture.sourceCommit):$relativePath" 2>$null
+            & git -C $repositoryRoot show `
+                "$($historicalPreCommit):$relativePath" 2>$null
         )
         if ($LASTEXITCODE -ne 0) {
             throw "FIXTURE-PRE-REVIEW-PASS-DOC-READ-FAILED $relativePath"

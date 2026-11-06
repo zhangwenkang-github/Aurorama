@@ -1,0 +1,13 @@
+{
+  "schema": "aurorama.kokoro-qa.run-lock.v1",
+  "runId": "QA-V9",
+  "serial": "43af8627",
+  "deviceLockPath": "F:\\Develop\\codex_work\\.planning\\cinefin-expansion\\device-lock.md",
+  "activeCount": 1,
+  "matchingRunCount": 1,
+  "passed": true,
+  "reason": [],
+  "activeTitles": [
+    "### AURORAMA-2.0-G1-PAD-QA-V9-43af8627-20261106-0620 — ACTIVE"
+  ]
+}

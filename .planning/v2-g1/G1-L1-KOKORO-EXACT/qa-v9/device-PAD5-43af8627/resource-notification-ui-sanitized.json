@@ -1,0 +1,65 @@
+{
+  "schema": "aurorama.kokoro-qa-v8.sanitized-ui.v1",
+  "name": "resource-notification-ui",
+  "texts": [
+    "6:21",
+    "11月6日 周五上午",
+    "正在准备朗读",
+    "林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2/9）",
+    "停止",
+    "暂停",
+    "上一句",
+    "下一句",
+    "历史通知"
+  ],
+  "controls": [
+    {
+      "resourceId": "dev.aurorama.kokoro.harness:id/notification_title",
+      "text": "正在准备朗读",
+      "contentDescription": "",
+      "bounds": "[794,338][1766,387]",
+      "clickable": "false",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "dev.aurorama.kokoro.harness:id/notification_text",
+      "text": "林舟把湿伞靠在长椅边，听见铜铃碰了三次。 （2/9）",
+      "contentDescription": "",
+      "bounds": "[794,387][1766,427]",
+      "clickable": "false",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "dev.aurorama.kokoro.harness:id/action_stop",
+      "text": "停止",
+      "contentDescription": "",
+      "bounds": "[794,441][1030,549]",
+      "clickable": "true",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "dev.aurorama.kokoro.harness:id/action_play_pause",
+      "text": "暂停",
+      "contentDescription": "",
+      "bounds": "[1039,441][1275,549]",
+      "clickable": "true",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "dev.aurorama.kokoro.harness:id/action_previous",
+      "text": "上一句",
+      "contentDescription": "",
+      "bounds": "[1284,441][1520,549]",
+      "clickable": "true",
+      "enabled": "true"
+    },
+    {
+      "resourceId": "dev.aurorama.kokoro.harness:id/action_next",
+      "text": "下一句",
+      "contentDescription": "",
+      "bounds": "[1529,441][1766,549]",
+      "clickable": "true",
+      "enabled": "true"
+    }
+  ]
+}
