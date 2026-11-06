@@ -615,3 +615,36 @@ schema pin、K60 predecessor、v2 root junction、scope 空态与状态双源，
 证据入口：`.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json`、
 `contract.json`、`report.schema.json`；`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；
 `docs/TASKS.md` In Progress。设备授权不是 QA / runtime / G1 PASS。
+
+### `V2-D211` TTS/G2 runtime 延期到其他 2.0 core 功能之后（2026-11-07，Accepted）
+
+用户于 2026-11-07 拍板：TTS 不从 2.0 产品需求中静默删除，也不宣布 TTS PASS；当前状态
+统一为 `DEFERRED_BLOCKED_CONTROL_PLANE / SOLVE_AFTER_OTHER_2_0_CORE_FEATURES`，
+交付顺序标记 `TTS_G2_DEFERRED_AFTER_2_0_CORE`。先推进其他非 TTS 的 2.0 core 功能，
+TTS/G2 runtime、handoff 与特殊工具问题留到后期，由新方案或更强的全新 owner 解决。
+
+接受语义：
+
+1. TTS 需求仍是 2.0 的 `MUST` 历史基线；本次只延期交付顺序，不删除需求，不改变已确认的
+   离线、后台 / 锁屏、voice-pack、单音频 owner 或状态一致性产品语义，也不构成 shipped、
+   QA、runtime、G1 或 Release PASS。
+2. 当前 G2 合同与 QA evidence 冻结保留，不继续修旧 handoff 控制面，不允许跳过 handoff
+   直接派 Pad/K60 QA。旧 64/65 transition、exact count 与多轮审计字段不再作为当前产品
+   主线；后续 agent 不得恢复该循环。
+3. 失败现场归档在本地分支 `codex/g2-prewindow-blocked-20261107`，commit
+   `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），保留 9 个 settlement
+   文件与 `qa-pad-v2` 三文件原字节。该分支不合入 `codex/v2-integration`，不 push，不 tag。
+4. cleanup 修复 `de6dd31e` 本身有效：隔离 PRE 回归为 `116 PASS / 0 FAIL / 188 dynamic
+   negative / 3 StaticSelfTest PASS`，candidate 与历史锁 MATCH；失败来自 handoff 控制面
+   `HANDOFF_BOOTSTRAP_V2 errors=65`，不是 TTS 音频产物或产品 runtime 证据。该局部结果不得
+   扩写为 TTS / QA / runtime / G1 PASS。
+5. 本决定只解除“TTS 必须先完成才能规划其他 2.0 功能”的顺序阻塞。其他 2.0 功能的实现门、
+   用户批准、设备授权、安全、生产写与数据完整性边界保持不变；不得自行授权产品实现、
+   QA、Release 或改变已确认产品语义。
+6. 日后再启 TTS/G2 必须建立新任务、新方案、新验收与全新 owner；旧 QA attempt、旧工具状态
+   和旧 evidence 只能作历史输入，不得复用为 PASS，也不得以延期冒充 `PASS_WITH_GAPS`。
+
+证据入口：`docs/V2_PLAN.md` 顶部、§12 ACTIVE / HISTORY、§13 最新日志；`docs/TASKS.md`
+`V2-CORE-NON-TTS-DELIVERY-PLANNING` 与 `V2-TTS-G2-SPECIAL-SOLVE`；`docs/LESSONS.md`
+`L039`；Git 分支 `codex/g2-prewindow-blocked-20261107` 与 commit `c5a5ac0a`。本决定不构成
+任何 TTS、QA、runtime、G1 或产品 PASS。

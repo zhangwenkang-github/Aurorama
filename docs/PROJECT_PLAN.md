@@ -1,13 +1,13 @@
 # Cinefin · 项目总览与协作规程
 
-> **2026-11-07 当前状态**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
-> SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
-> CLEAN_PREFLIGHT_PASS`。下方 `PENDING_FRESH_REVIEW` 文案只作 pre-review 证据。
-> 用户已选择方案 A：receipt / contract / policy / schema 的 `currentTransitions=64`
-> 是不可变 audit-time snapshot；root settlement 提交后的 canonical preflight 可观测到
-> 不同 live transition count（已实测 65），该值只记录、不与 64 比较。fresh review 已 PASS；
-> settlement commit `241b8b35` 已 clean，canonical preflight 已 PASS；Pad QA 具备派发条件但
-> 尚未派发。其他 live 对象漂移仍 fail-closed；产品 P0–P3 仍 `NOT_ASSESSED`，K60 锁定。
+> **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
+> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_CORE_PLANNING_IN_PROGRESS`。
+> TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、QA /
+> runtime / G1 PASS。integration HEAD `de6dd31e1eb3c7d75d2f91a75a1d33a935dd20a9`
+> 开工时 clean；失败现场只读归档在本地分支 `codex/g2-prewindow-blocked-20261107`，commit
+> `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 保持冻结，
+> 非 TTS 主线继续做功能波次规划；实现、设备、QA、Release 仍需用户单独批准。产品 P0–P3
+> 仍 `NOT_ASSESSED`，K60 锁定；旧 G2 审计事实只在 `V2_PLAN.md` §12 HISTORY 追溯。
 
 > **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-11-07　集成分支 `codex/v2-integration`
 > 项目级状态、任务线地图、协作规程都在本文件；单个任务线内部的需求 / 进度 / 决策写各自的线文档。
@@ -43,7 +43,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 独立 audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 audited source/provenance commit `96e19ca2606d851ecbe1c4ed15188767207f9f64` PASS：G2 tools `116/0/188`、handoff `108/0 + TEMP_CLEANUP=PASS`、manifest `11/11`、clean witness `33/33`。方案 A 已把 receipt/contract/policy/schema 的 audit snapshot `currentTransitions=64` 与 settlement 后 live preflight observation（当前推导 65）分离，live count 不比较、不否定 clean settlement；历史 `POST_QA_RUNTIME_DEFERRED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none` 只作 outer-handoff anchor。receipt 新 SHA `c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d`、contract 新 SHA `70d3b869cfb33f34f372c7de9e13cb5198f5e8502dc6c07383bb559e9f91bad0`、Pad QA prompt 新 SHA `5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172`。真实机器合同仍为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / qaDispatchable=true`；Plan A patch 的 contract validator 已执行 `1 run / exit 0 / PASS`，`TOOL_STATE_MODE=AUDIT_PASS_PENDING_FRESH_PAD_QA`，但 fresh review 尚未完成，未执行 QA。下一步仅 fresh reviewer；review PASS 后 root 才可提交，commit clean 与 fresh preflight PASS 后才可另派全新 Pad QA。Q03/Open、exact profile/voice/Open、Pad P2 未接受、G1 `NOT_PASSED`、runtime `UNVERIFIED`、L2/L3 `LOCKED` 和产品 P0–P3 `NOT_ASSESSED` 均未改变。 |
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE / SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_CORE_PLANNING_IN_PROGRESS / PRODUCT_P0_P3_NOT_ASSESSED` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。失败现场在本地归档分支 `codex/g2-prewindow-blocked-20261107`，commit `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），只读保留 9 个 settlement 文件与 `qa-pad-v2` 三文件，不合入、不 push、不 tag。当前主线先整理非 TTS 的 2.0 功能波次与第一条可执行任务；`V2-D211` 只解除“TTS 先完成才能规划其他功能”的顺序阻塞，不授权产品实现、设备 QA 或 Release。旧 G2 audit / 64/65 / handoff 记录统一放入 `docs/V2_PLAN.md` §12 HISTORY，禁止恢复旧控制面循环。 |
 > `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；当前唯一末态是
 > `POST_QA_RUNTIME_DEFERRED` 作为 handoff-bootstrap 历史措辞保留，
 > `PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，不是 QA / runtime / G1 PASS。
@@ -301,8 +301,8 @@ adb shell uiautomator dump /sdcard/u.xml; adb shell cat /sdcard/u.xml | Select-S
 
 ## 7. 新会话交接清单
 
-- [ ] **Aurorama 2.0 首先**实际运行 `tools/v2-handoff/Invoke-HandoffPreflight.ps1` 并取得 `PASS`；失败即 `FAIL_CLOSED` 停止，不先通读材料、不先碰设备
-- [ ] 2.0 只读唯一 `ACTIVE` 的机器契约、角色表与指定白名单；负责人创建一个 fresh 单阶段专业代理，禁止同一代理跨阶段
+- [ ] **HISTORY / TTS-G2 only**：旧入口曾要求先运行 `tools/v2-handoff/Invoke-HandoffPreflight.ps1`；该命令不再属于当前非 TTS 主线，禁止据旧回归恢复 handoff 修复或设备派发
+- [ ] 当前 2.0 先读 `V2_PLAN.md` 的 `TTS_G2_DEFERRED_AFTER_2_0_CORE` ACTIVE 与 `TASKS.md` 的 `V2-CORE-NON-TTS-DELIVERY-PLANNING`；负责人创建一个 fresh 单阶段专业代理，禁止同一代理跨阶段
 - [ ] 非 2.0 工作读本文件（§1–§5）+ 目标任务线文档
 - [ ] **读 `PLAYER_PLAN.md` §11**（2026-09-28 新增：播放页 UI/UX 改造待办，含自动选字幕/自动播放两个 bug 的线索）
 - [ ] `git log --oneline -10` + `git status --porcelain | Select-String "<任务线关键词>"`

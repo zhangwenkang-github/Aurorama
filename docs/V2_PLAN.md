@@ -1,13 +1,26 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / PAD_QA_PROMPT_DESCRIPTOR_READY_PENDING_FRESH_REVIEW / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / HISTORICAL_PRE_HANDOFF_AUDIT_PASS=PASS / HISTORICAL_OUTER_HANDOFF_QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64=AUDIT_SNAPSHOT_ONLY / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`。其中
+> **当前状态（2026-11-07）**：`TTS_G2_DEFERRED / DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE /
+> DEFERRED_BLOCKED_CONTROL_PLANE /
+> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_CORE_PLANNING_IN_PROGRESS /
+> DO_NOT_RESUME_OLD_HANDOFF_LOOP / G0_PASSED / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
+> PRODUCT_P0_P3_NOT_ASSESSED / NO_RELEASE_AUTHORIZATION`。
+> TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序已延期；不得写成需求删除、已交付、
+> QA / runtime / G1 PASS。integration HEAD `de6dd31e1eb3c7d75d2f91a75a1d33a935dd20a9`
+> 开工时 clean；失败现场在本地只读归档分支 `codex/g2-prewindow-blocked-20261107`，commit
+> `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），含 9 个 settlement
+> 文件与 `qa-pad-v2` 三文件，不合入、不 push、不 tag。旧 G2 合同与 QA evidence 冻结；
+> 当前先推进非 TTS 的 2.0 功能波次规划，产品实现、设备、QA 与 Release 仍需单独批准。
+> 下方 `PAD_RUNTIME...` 与 64/65 段只作旧 G2 控制面 HISTORY，不得恢复执行循环。
+>
+> **HISTORY（2026-11-07 前；非当前状态）** 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / PAD_QA_PROMPT_DESCRIPTOR_READY_PENDING_FRESH_REVIEW / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / HISTORICAL_PRE_HANDOFF_AUDIT_PASS=PASS / HISTORICAL_OUTER_HANDOFF_QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64=AUDIT_SNAPSHOT_ONLY / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`。其中
 > `RUNTIME_QA_DEFERRED_TO_G2 / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED /
 > QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none` 仅保留既有
 > `HANDOFF_BOOTSTRAP_V2` outer-handoff anchor 与 emitted prompt 的历史语义，不是当前 G2
 > dispatch 状态；当前执行权由 clean settlement + canonical preflight PASS 后的
 > `contract.authorization.qaDispatch.promptText` 决定。
 > 当前阶段：开发前置·G1→G2 入口 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / auditedSourceCommit=96e19ca2606d851ecbe1c4ed15188767207f9f64 / receiptSha256=c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d / contractSha256=70d3b869cfb33f34f372c7de9e13cb5198f5e8502dc6c07383bb559e9f91bad0 / qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 / promptSha256=5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172 / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / HISTORICAL_GATE=validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / HISTORICAL_GATE=QA_DISPATCHABLE=DEFERRED_TO_G2 / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。独立 full audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 audited source/provenance `96e19ca2` PASS：G2 tools `116/0/188`、handoff `108/0 + TEMP_CLEANUP=PASS`、manifest `11/11`、clean witness、候选与历史证据均通过。`head/headExpectation` 只绑定 audited source/provenance；clean settlement 后 QA live HEAD 取 canonical preflight 现场值，历史 emitted `NEXT_PROMPT_BEGIN` 不覆盖 settlement 后 G2 dispatch。方案 A 已把 audit-time `currentTransitions=64` 与 live preflight transition observation 分离；当前 patch 仍待 fresh review，QA 尚未执行。真实机器合同仍为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / qaDispatchable=true`，当前不是 review、QA、runtime 或 G1 PASS。
-> **当前状态（2026-11-07）**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
+> **HISTORY（旧 G2 settlement 收口；非当前）**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
 > SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
 > CLEAN_PREFLIGHT_PASS`。下方 `PENDING_FRESH_REVIEW` 文案只作 pre-review 证据。
 > 当前是未提交 settlement WIP，不是 committed HEAD 的授权；receipt / contract / policy /
@@ -3432,7 +3445,40 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / PLAN_A_STATE_MODEL_REVIEW_PASS / CLEAN_PREFLIGHT_PASS（2026-11-07）
+### ACTIVE：TTS_G2_DEFERRED_AFTER_2_0_CORE / NON_TTS_CORE_PLANNING_IN_PROGRESS（2026-11-07）
+
+**当前状态**：`TTS_G2=DEFERRED_BLOCKED_CONTROL_PLANE /
+SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_CORE_PLANNING_IN_PROGRESS /
+DO_NOT_RESUME_OLD_HANDOFF_LOOP / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
+PRODUCT_P0_P3_NOT_ASSESSED / NO_RELEASE_AUTHORIZATION`。用户以 `V2-D211` 决定先推进其他
+非 TTS 的 2.0 core 功能，TTS/G2 runtime 的问题留到后期由新方案或更强 owner 解决。
+TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；当前只延期交付顺序，绝不
+代表 TTS、QA、runtime 或 G1 PASS。
+
+**冻结与可恢复性**：integration HEAD 为
+`de6dd31e1eb3c7d75d2f91a75a1d33a935dd20a9`；失败现场只读归档在本地分支
+`codex/g2-prewindow-blocked-20261107`，commit
+`c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），包含 9 个 settlement
+文件与 `qa-pad-v2` 三文件原字节。该历史分支不得合入 `codex/v2-integration`、push 或
+tag；旧 G2 合同、工具与 QA evidence 冻结，不继续修，也不允许跳过 handoff 直接派
+Pad/K60 QA。后续 agent 不得重入 64/65 transition、exact count 或旧 handoff 修复循环。
+
+**已确认的控制面结果**：cleanup 修复 `de6dd31e` 本身有效；隔离 PRE 回归为
+`116 PASS / 0 FAIL / 188 dynamic-negative / 3 StaticSelfTest PASS`，candidate 与历史锁 MATCH。
+失败位于 handoff 控制面，实际为 `HANDOFF_BOOTSTRAP_V2 errors=65`，不是 TTS 音频产物或
+产品 runtime 证据。上述结果只证明 cleanup / 工具局部收敛，不关闭 Q03、profile / voice、
+设备门、G1 或产品 P0–P3。
+
+**当前唯一入口**：`docs/TASKS.md` 的 `V2-CORE-NON-TTS-DELIVERY-PLANNING`。第一步只整理
+非 TTS 2.0 功能波次、依赖和第一条可执行任务卡，明确审批边界；不开始产品实现、QA、设备
+或 Release。若工作转入 TTS/G2，必须先建立新任务、新方案和新验收，并重新取得用户授权；
+旧 QA attempt / evidence 只能作历史输入，不能复用为 PASS。
+
+### HISTORY：G2 FINAL AUDIT / PLAN A CLEANUP CONTROL-PLANE（旧 ACTIVE；已被 TTS_G2_DEFERRED_AFTER_2_0_CORE 取代）
+
+> 以下内容保留 2026-11-07 前的 G2 audit、settlement、exact-count 与 handoff 执行事实，
+> 只用于追溯。其中的“当前 / 下一步 / 唯一入口 / dispatchable”均不再是可执行状态，
+> 不得据此恢复旧循环或派发设备 QA。
 
 **2026-11-07 方案 A 状态模型已收口**：用户已选择方案 A。receipt / contract / policy /
 schema 的 `currentTransitions=64` 是不可变 audit-time snapshot，继续 exact 绑定；
@@ -6319,3 +6365,16 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   dirty=0 ... currentTransitions=65 ... lock=RELEASED`。这实测验证了方案 A：`64` 是
   audit snapshot，`65` 是 clean settlement live observation，不作为 receipt drift。
   Pad QA 尚未派发，产品 P0–P3 仍 `NOT_ASSESSED`，K60 仍锁定。
+- **2026-11-07 — TTS/G2 阶段收口并转向非 TTS 主线**：用户拍板 `V2-D211`，把 TTS/G2
+  runtime 标记为 `DEFERRED_BLOCKED_CONTROL_PLANE /
+  SOLVE_AFTER_OTHER_2_0_CORE_FEATURES`，先做其他非 TTS 的 2.0 core 功能规划。TTS
+  仍是历史 `MUST` 基线，未删除，也未宣布 shipped / QA / runtime / G1 PASS。cleanup 修复
+  `de6dd31e` 的真实局部结果为隔离 PRE 回归 `116 PASS / 0 FAIL / 188 dynamic-negative /
+  3 StaticSelfTest PASS`，candidate 与历史锁 MATCH；失败集中在 handoff 控制面
+  `HANDOFF_BOOTSTRAP_V2 errors=65`，不是 TTS 音频产物证据。失败现场以本地只读分支
+  `codex/g2-prewindow-blocked-20261107`、commit
+  `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0` 归档，含 9 个 settlement 文件与
+  `qa-pad-v2` 三文件原字节；不合入、不 push、不 tag。未执行 Pad/K60 QA、候选安装、
+  真实设备 runtime、产品 P0–P3 评估或 Release；旧 64/65、exact count 与 handoff 修复
+  循环停止。下一步仅进入 `V2-CORE-NON-TTS-DELIVERY-PLANNING` 整理波次与首张任务卡，
+  不开始产品实现。

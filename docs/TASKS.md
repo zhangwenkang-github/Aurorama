@@ -4,7 +4,23 @@
 
 ## In Progress
 
-> **2026-11-07 当前状态**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
+> **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
+> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_CORE_PLANNING_IN_PROGRESS /
+> DO_NOT_RESUME_OLD_HANDOFF_LOOP`。TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；
+> 不得写成删除、已交付、QA / runtime / G1 PASS。integration HEAD
+> `de6dd31e1eb3c7d75d2f91a75a1d33a935dd20a9` 开工时 clean；失败现场只读归档在
+> `codex/g2-prewindow-blocked-20261107` /
+> `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 冻结，不得恢复
+> 64/65、exact count 或 handoff 修复循环；先整理非 TTS 功能波次，产品实现、设备、QA
+> 与 Release 仍需单独批准。
+
+| ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
+|---|---|---|---|---|---|---|
+| `V2-CORE-NON-TTS-DELIVERY-PLANNING` | Aurorama 2.0 非 TTS 主线；`V2-D211` | 从既有 MUST 基线、G1-S6 波次成员和当前用户门中整理非 TTS 功能波次、依赖、验收证据与第一条可执行任务卡；只规划，不实施 | ①不开始产品代码、QA、设备、Release；②不重开 TTS/G2 或修改冻结 evidence；③不新增产品或改变已确认语义 | `V2-D211`；`V2_PLAN.md` 当前 ACTIVE；`PROJECT_RULES`；`G1-S6/wave-membership.json` 与 `acceptance-matrix.json` 摘要 | 输出有序非 TTS 波次、依赖与审批门；第一条任务卡含目标、非目标、文件 / 接口边界、验收、证据和停止条件；产品工作树零改动 | 需要产品实现 / QA / 设备 / Release 授权；需要新需求语义；需要改 G2 合同、工具、源码或新增说明文件；旧 TTS 控制面被重新激活 |
+
+## HISTORY — G2 / TTS 控制面失败现场（非当前入口）
+
+> **HISTORY（2026-11-07 前）**：以下旧 `PLAN_A_STATE_MODEL_REVIEW_PASS /
 > SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
 > CLEAN_PREFLIGHT_PASS`。下方 `PENDING_FRESH_REVIEW` 文案只作 pre-review 证据。
 > 用户已选择方案 A：receipt / contract / policy / schema 的 `currentTransitions=64`
@@ -127,10 +143,11 @@
   P0–P3=`0/0/0/0`；3 个权威 docs + 12 个 G1-S6 派生文件范围、manifest / LF / verifier
   均通过。该 PASS 只表示静态文档与证据一致，不表示 G1、runtime、QA 或 Release PASS。
 
-## Todo
+## Todo / Deferred
 
 | ID | 需求域 | 目标 | 依赖 | 退出条件 |
 |---|---|---|---|---|
+| `V2-TTS-G2-SPECIAL-SOLVE` | TTS / G2 runtime 后期专项（Deferred） | 在其他非 TTS 的 2.0 core 功能之后，以新任务、新方案、新验收解决离线 TTS、G2 runtime、handoff 与设备闭环；保留当前失败现场作为历史输入 | `V2-D211`；用户重新授权；新 owner / 新合同 / 新验收；旧分支 `codex/g2-prewindow-blocked-20261107` 与 G2 evidence 只读 | 新方案明确产品可观察承诺、最便宜可信证据、设备/安全/数据边界、两轮止损预算和恢复入口，并经用户批准；旧 QA attempt 不得作为 PASS，且不得复活 64/65 / exact-count / handoff 循环 |
 | `V2-IMPLEMENTATION-PLAN` | G2 开发门 | 交付波次、完整任务卡、QA/集成顺序和用户开工批准 | G1 完整收口 + 用户明确解除 E 门；当前不得启动 | 用户批准开始实现 |
 
 ## Done

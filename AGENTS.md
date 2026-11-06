@@ -4,14 +4,31 @@
 
 ## Aurorama 2.0 交接启动硬门（2026-11-06，优先于下方通用开工顺序）
 
-- **当前状态（2026-11-07）**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
+- **当前状态（2026-11-07，优先于下方旧 G2 控制面条目）**：`TTS_G2_DEFERRED /
+  DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE /
+  DEFERRED_BLOCKED_CONTROL_PLANE / SOLVE_AFTER_OTHER_2_0_CORE_FEATURES /
+  DO_NOT_RESUME_OLD_HANDOFF_LOOP / NON_TTS_CORE_PLANNING_IN_PROGRESS`。
+  TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、
+  QA / runtime / G1 PASS。integration HEAD `de6dd31e1eb3c7d75d2f91a75a1d33a935dd20a9`
+  开工时 clean；失败现场归档在本地分支 `codex/g2-prewindow-blocked-20261107`，commit
+  `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），含 9 个 settlement
+  文件与 `qa-pad-v2` 三文件，只读保留，不合入，不 push，不 tag。旧 G2 合同与 QA evidence
+  冻结；不得重入 64/65 transition、exact count 或旧 handoff 修复循环，不得跳过 handoff
+  直接派 Pad/K60 QA。先做非 TTS 的 2.0 功能波次规划；产品实现、设备、QA 与 Release 仍需
+  单独授权。日后再启 TTS 必须新任务、新方案、新验收和全新 owner，旧 QA attempt 不可作为
+  PASS。
+
+> 下方旧 G2 条目原样保留用于审计追溯；其中“当前 / 下一步 / 必须 / ACTIVE”等措辞只描述
+> 对应历史时点，不能作为当前执行指令。当前非 TTS 主线不运行旧 handoff 循环。
+
+- **HISTORY（2026-11-07 前 G2 控制面；非当前）**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
   SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
   CLEAN_PREFLIGHT_PASS`。
   用户已选择方案 A：receipt / contract / policy / schema 的 `currentTransitions=64` 是
   audit-time immutable snapshot，必须继续 exact 绑定；root settlement 提交后的 canonical
   preflight 可返回不同的 live transition count（已实测为 65）。该 live 值只作为观测记录，
   不得与 receipt / contract 的 64 比较，也不得据此否定 clean settlement commit。
-- QA 的 live gate 固定为：preflight PASS，且现场 branch / HEAD / dirty / candidate / tool /
+- **HISTORY**：旧 G2 QA live gate 固定为 preflight PASS，且现场 branch / HEAD / dirty / candidate / tool /
   manifest / lock / receipt 均匹配 clean settlement dispatch object；
   `LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND`，仅记录、不比 64。
   **2026-11-07 已满足此门**：fresh review `PASS / 0 findings`，settlement commit
@@ -19,14 +36,14 @@
   `head=241b8b356e2aab4d1ef43016639dc0203eb10f7d / dirty=0 / currentTransitions=65`
   返回 PASS。Pad QA 尚未派发；K60 继续锁定。产品 P0–P3 仍为 `NOT_ASSESSED`。
 
-- 已提交且 clean 的常规新会话第一条只读动作必须实际运行
+- **HISTORY / 禁止当前复用**：旧 G2 handoff 曾在已提交且 clean 的常规新会话要求第一条只读动作实际运行
   `pwsh -NoProfile -File 'F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\v2-handoff\Invoke-HandoffPreflight.ps1' -EmitPrompt`。
   该命令只读、离线、不得调用 `adb` 或网络。任何非零退出、`FAIL_CLOSED`、缺失字段、未知值、
   角色表不完整、gate owner / `requiredBefore` / 门序 / 状态漂移、prompt `actionClass` 或参数
   不符、设备顺序漂移、窗口非 10 分钟、APK/工具摘要不一致、`auditReceipt` 对象绑定漂移、
   未知顶层字段、非白名单 JSON pointer、`immutableStateSha256`、`activeRequiredTokens` 或
   `requiredTextAnchors` stable pointer 漂移都必须立即停止。
-- dirty settlement / Plan A 语义 patch / fresh review 例外：前两条只读动作固定为
+- **HISTORY / 禁止当前复用**：旧 dirty settlement / Plan A 语义 patch / fresh review 例外曾是前两条只读动作
   `git status --short` 与 `git diff --stat`，确认 HEAD、WIP 范围和授权对象未漂移后才读 diff；
   此阶段不运行 handoff preflight。只有 root 完成 review、提交并形成 clean checkout 后，才由
   另一个 fresh audit 运行 canonical preflight。
@@ -98,7 +115,7 @@
   `validation.handoffPhase=POST_QA_RUNTIME_DEFERRED`、
   `PRE_HANDOFF_AUDIT_PASS=PASS`、`QA_DISPATCHABLE=DEFERRED_TO_G2` 与
   `activePrompt=none` 继续作为 handoff-bootstrap 历史事实保留。
-- 当前 G2 settlement 机器合同为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA /
+- **HISTORY（旧 G2 settlement 快照）**：机器合同曾为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA /
   AUDIT_RECEIPT_PASS / qaDispatchable=true /
   activePrompt=G2_PAD_QA_OWNER_2026_11_06 / PAD_QA_NOT_EXECUTED`；WIP 文档状态为
   `PLAN_A_STATE_MODEL_REVIEW_PASS / SETTLEMENT_COMMIT=241b8b35 /
@@ -112,7 +129,7 @@
   clean HEAD 必须取自 canonical preflight 现场结果并与其及合同现场一致；合法 settlement
   后继不得因不等于 audited SHA 而误停，任何 live HEAD / branch / dirty / candidate / tool /
   manifest / lock / receipt 漂移仍 `BLOCKED`。
-- 本轮 Plan A 语义修补把 audit snapshot 与 settlement 后 live transition observation 分离，
+- **HISTORY**：本轮 Plan A 语义修补把 audit snapshot 与 settlement 后 live transition observation 分离，
   并把历史 `HANDOFF_BOOTSTRAP_V2` / `POST_QA_RUNTIME_DEFERRED` /
   `QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none` 限定为历史 outer-handoff anchor。
   唯一下一步是全新 fresh reviewer；其前两条只读动作 `git status --short`、`git diff --stat`，
@@ -125,11 +142,11 @@
   实现、修工具、写产品代码或跑真机 QA，也不批量读取 raw 证据。实现、工具修复、文档协议、
   集成审查、Pad QA、K60 QA 各用全新专业子代理；每个 fresh agent 只做一阶段，禁止 followup
   同一代理接下一阶段。
-- `qa-v8/tools/**` 已冻结；`qa-v9/**` 是只读历史证据，当前 settlement 与后续静态 planning
+- **HISTORY**：`qa-v8/tools/**` 已冻结；`qa-v9/**` 是只读历史证据，旧 settlement 与后续静态 planning
   均不得修改、移动或删除。`AGENTS.md`、2.0 文档与 `tools/v2-handoff/**` 只给当前授权
   settlement / fresh 静态 owner；B6 / B7 / B8 / B9 / B10 / B11 / B12 均永久退役。任何共享
   文件变更由负责人串行仲裁。
-- 每设备单次真实 runtime 观测窗固定 10 分钟，不得延长；Pad `43af8627` 核心全部 PASS 且锁释放
+- **HISTORY / TTS-G2 专用**：每设备单次真实 runtime 观测窗固定 10 分钟，不得延长；Pad `43af8627` 核心全部 PASS 且锁释放
   后才允许登记 K60 `8e875894`，且 K60 必须另派全新 QA 串行执行。旧 30 分钟、安装门、stop-only
   或 cleanup 证据不得冒充本轮 10 分钟产品门。`V2-D208` 后完整 Pad/K60 runtime 门延期到
   G2 入口；当前 K60 未登记并保持锁定，禁止用延期触发设备动作。
