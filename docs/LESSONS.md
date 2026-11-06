@@ -372,3 +372,83 @@
   TASKS 缺失 token 各自 fail-closed；完整 handoff 回归只跑一次并核对真实计数与
   `TEMP_CLEANUP=PASS`。
 - **来源**：2026-11-06 G2 post-QA handoff 首跑三项 `FAIL_CLOSED`。
+
+## L032 工具状态常量必须先做 transition rehearsal
+
+- **现象**：settlement owner 将合同从 `R2_WIP_REPAIR_R3_IN_PROGRESS` 推进到
+  `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA` 时，collector / finalizer / cleanup
+  各自按旧常量拒绝合同，导致合法未来状态没有统一入口。
+- **根因**：状态字符串散落在三份脚本，既没有封闭状态表，也没有在真实切换前用临时 fixture
+  演练“当前态只静态、audit-ready 才可运行时”的权限差。
+- **对策**：tool-facing 状态只由单一 `Assert-G2RuntimeToolStatePolicy` 解析；每个状态必须
+  显式列出 `qaDispatchable / activePrompt / tool status / deviceAccess / allowed actions`。
+  禁止用 OR 放行任意状态。任何新增状态上线前，先用临时合同对象和 receipt 正负 fixture 分别
+  证明当前态不能开 attempt、未来态只在合法 receipt 下允许 `Register / RunWindow`。
+- **验证要求**：至少覆盖两状态权限矩阵、未知状态、`qaDispatchable` 不一致、当前态已有
+  receipt、future state 缺 receipt，以及 collector / finalizer / cleanup 三 context 正例。
+- **来源**：2026-11-06 G2 settlement 状态推进被三份硬编码状态拒绝。
+
+## L033 audit receipt 必须可机械复算，不得充当状态便签
+
+- **现象**：聊天中的 audit PASS 曾与机器状态不一致；若只凭一个 `verdict=PASS` 文件即可推进
+  QA，任何旧 commit、漂移候选或历史证据都能被伪装成 fresh audit。
+- **根因**：receipt 没有严格 schema、未知字段拒绝、严格后继 commit / 实际 parent 关系，
+  以及当前候选、tools digest、`qa-pad-v1` 五 SHA、外部锁 state/SHA 和 boundary 门绑定。
+- **对策**：receipt 固定 UTF-8 no BOM / LF，未知顶层或嵌套字段 fail-closed；每次读取都现场
+  复算 audited commit 是否为最低基线的严格后继、parent 是否精确、候选 source commit 是否
+  仍为 audited commit 祖先，并核对候选双 SHA、tool digest、五个历史文件 SHA 与外部锁 SHA。
+  audited commit 等于最低基线、等于最低基线 parent 或 parent 漂移均拒绝；不得要求 audited
+  commit 必须是当前 `HEAD` 祖先，否则提交后会错误拒绝真实审计。任何一个漂移只允许停留在
+  pre-audit，不得静默降级为 QA ready。
+- **验证要求**：覆盖合法 receipt 正例，以及 missing、verdict 非 PASS、未知字段、BOM/CRLF、
+  最低基线相等、最低基线 parent、parent/SHA/digest/lock/qa-pad-v1 漂移的独立负例；合法
+  正例必须使用临时 Git object 中的合成严格后继 provenance，禁止把 current `HEAD` 相等
+  当作审计后代。contract 与 receipt 同步抬高 tests / dynamic negative / handoff counts
+  也必须拒绝。
+- **来源**：2026-11-06 G2 audit PASS 事务化、状态兼容与 commit-boundary 修复。
+
+## L034 运行时 cleanup 必须在首个设备或文件副作用前完成 predecessor 门
+
+- **现象**：future 状态的 K60 cleanup context 只校验状态、授权与 root，没有验证 Pad
+  predecessor；后续 `CaptureBefore` 会先执行 ADB 快照并创建 evidence 目录，`Verify` 也会
+  force-stop / uninstall 候选包。
+- **根因**：前置关系只在 collector 的 K60 registration 路径实现，cleanup 作为独立工具入口
+  没有复用同一 predecessor helper；context 返回不代表所有跨设备前置已经闭合。
+- **对策**：把 Pad report / lock 回读、13 gate、cleanup、候选双 SHA、释放锁和 pointer
+  校验抽为共享 helper；cleanup context 对 future K60 在同一函数内执行，并在任何 ADB、
+  `Directory.CreateDirectory` 或文件写入之前完成。K60 registration 记录的实际 report / lock
+  SHA 必须与现场复算值一致。
+- **验证要求**：Pad 缺失、非 PASS、旧 scope、SHA drift、ACTIVE lock 各覆盖
+  `CaptureBefore` / `Verify`，并断言 ADB 与目录写入计数均为 0。
+- **来源**：2026-11-06 G2 R4 state-policy scoped finding P1-01。
+
+## L035 审计计数与 manifest 必须 exact，不得用下限或 tool 子集代替
+
+- **现象**：future receipt 的 tests / dynamic negative / handoff 只做下限检查，
+  `59/1/1` 也能解闸；manifest 只校验四个 tool 文件，10 / 12 项、duplicate 与未知 kind
+  都可能通过局部检查。
+- **根因**：实现把“非零 / 至少 104 / tool digest 正确”误当成合同完整集合，未把最终 audit
+  的精确计数与 11 个唯一文件条目写入受审计字段。
+- **对策**：pre-audit 合同只保存 pending / null expectations；settlement 后由最终 audit
+  commit 和命令结果填充 exact counts。policy 对 receipt 的每一个计数逐项相等比较，并对
+  manifest 的 11 个 path-kind pair、唯一性和 SHA 做完整集合校验。schema 不承担安全下限，
+  只保证类型；精确语义由 policy 与合同共同裁决。
+- **验证要求**：低值、高值、缺失、null、字符串、count source drift，以及 manifest
+  10 / 12 / duplicate / unknown kind / SHA drift 都必须是独立负例。
+- **来源**：2026-11-06 G2 R4 state-policy scoped findings P1-02 / P2-01。
+
+## L036 严格 LF 哈希必须先由版本化 attributes 保证 checkout
+
+- **现象**：Windows 全局 `core.autocrlf=true` 时，工作区里的 UTF-8 no BOM / LF
+  文本可能在 checkout 后变成 CRLF；此时直接计算文件 SHA 会遇到假 mismatch，不能证明
+  固定提交的内容不可复现。
+- **根因**：只在生成证据时写出 LF，没有把 `text eol=lf` 绑定到受版本控制的精确扩展名；
+  后续 checkout 仍服从机器级换行策略。
+- **对策**：在共享 `.gitattributes` 为实际使用的纯文本扩展名声明
+  `text eol=lf`，包括 `.ps1` / `.json` / `.md` / `.txt` / `.log`；不使用会污染未来
+  二进制的目录级 `** text`，APK 等二进制的 `text` 必须保持 unspecified。
+- **验证要求**：先跑 `git check-attr text eol -- <text> <apk>`，确认文本为
+  `text: set` / `eol: lf`，APK 不得为 `text: set`；再在系统临时目录构造
+  `GIT_INDEX_FILE` 与 `checkout-index` 验证真实 checkout 字节，最后才比较严格 LF hash。
+- **来源**：2026-11-06 G2 checkout LF 可复现性修复；`L033` 已被 audit receipt 使用，
+  因此顺序编号，不重复既有 lesson。

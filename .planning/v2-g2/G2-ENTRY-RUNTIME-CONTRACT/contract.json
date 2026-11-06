@@ -1,7 +1,7 @@
 {
   "schema": "aurorama.g2-entry-runtime-contract.v1",
   "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
-  "version": "1.0.3",
+  "version": "1.0.7",
   "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
   "createdAt": "2026-11-06T12:05:43.7576139+08:00",
   "owner": {
@@ -17,6 +17,29 @@
       "docs/TASKS.md"
     ],
     "retiresAfterContractReport": true
+  },
+  "toolStatePolicy": {
+    "schema": "aurorama.g2-tool-state-policy.v1",
+    "preAuditStatus": "R2_WIP_REPAIR_R3_IN_PROGRESS",
+    "qaReadyStatus": "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA",
+    "qaReadyActivePrompt": "G2_PAD_QA_OWNER_2026_11_06",
+    "currentToolDeviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
+    "qaReadyToolDeviceAccess": "PAD_FIRST_K60_GATED_AFTER_AUDIT",
+    "repairAuditReceiptPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/repair-audit-receipt.json",
+    "repairAuditReceiptSchemaPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/repair-audit-receipt.schema.json",
+    "repairAuditReceiptSchemaSha256": "df7ebcae8a3b45332b30a629b8a944a7736032ab598b471c162d28c2f399929a",
+    "minimumAuditedCommit": "6b04eb300256fc8384e5407cee24907e8343f949",
+    "requiredNextRole": "G2_PAD_QA_OWNER_2026_11_06"
+  },
+  "validation": {
+    "repairAuditExpectations": {
+      "status": "PENDING_SETTLEMENT_FINAL_AUDIT",
+      "source": null,
+      "preflightCounts": null,
+      "g2ToolsCounts": null,
+      "handoffCounts": null,
+      "boundaryViolations": null
+    }
   },
   "evidence": {
     "root": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT",
@@ -117,15 +140,23 @@
     "contractValidator": {
       "roleId": "G2_CONTRACT_VALIDATOR_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2EntryRuntimeContract.ps1",
-      "sha256": "9578fdbf377e64f5d154d4a10d325c3a55820905cc52a64bb96937a6f230bec7",
+      "sha256": "58862c088748d6e4e603685d23f4388b63f3e469b0a39a94f1ee9bd0c585f806",
       "status": "READY_CONTRACT_ONLY",
+      "deviceAccess": "FORBIDDEN",
+      "networkAccess": "FORBIDDEN"
+    },
+    "statePolicy": {
+      "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
+      "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/G2RuntimeStatePolicy.ps1",
+      "sha256": "7aa095a5b213b2d9595d3e0c7415f6e48bcd0432a168b816cd4806ca00e5fce8",
+      "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
     },
     "runtimeCollector": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Invoke-G2RuntimeCollector.ps1",
-      "sha256": "e00cdcb2c153670a259148f4ed6e34f9b5d46eab26e3ddd8ce2bb6ed6e9a7b6a",
+      "sha256": "9d248404c3f0cc450c249ec2b6aaf142978c90d52c0146163f677d0b1adeba49",
       "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
       "deviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
       "networkAccess": "FORBIDDEN",
@@ -134,7 +165,7 @@
     "runtimeFinalizer": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Finalize-G2RuntimeReport.ps1",
-      "sha256": "bb83072433a0b9e3c4c42dc476a10f6752f0f3f23bdc6090f95fbd86ccc7a628",
+      "sha256": "59b6f69dab3550a47740f3b141df25b26c6de22c77a00265efe2705af770aed1",
       "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
       "deviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
       "networkAccess": "FORBIDDEN",
@@ -143,7 +174,7 @@
     "cleanupVerifier": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2CleanupRestore.ps1",
-      "sha256": "eada2d45011ce989a11188f5ed8d9dc24d052f09f7d9fc5a82482353b073087e",
+      "sha256": "6f581a5707720eb2085920a8a58e292a9461b751d13318030de34305c8379057",
       "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
       "deviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
       "networkAccess": "FORBIDDEN",
@@ -152,12 +183,12 @@
     "runtimeManifest": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/runtime-tools.manifest.json",
-      "sha256": "c35f51008be1bcb235a5969d23782856ebac17c721b6edda2be749e00fed9a13",
+      "sha256": "bc25909554a12fd87eeeaf2f65fdf3d7bf3d9287aa13aab829f92fca70e16d74",
       "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
     },
-    "digestSha256": "d27166fcc3c5481c1943bdbb0178015caa7a7af5783c35799eb3ed4a976d5c6e"
+    "digestSha256": "9222b335a13066694e7b8f6201fddb8c52b7b12912aec28f9ba17fcae954f063"
   },
   "authorization": {
     "entryDecision": "V2-D209",

@@ -5,7 +5,8 @@
 ## In Progress
 
 > 当前覆盖状态（2026-11-06）：`R2_WIP_REPAIR_R3_IN_PROGRESS /
-> qaDispatchable=false / RUNTIME_QA_DEFERRED_TO_G2 /
+> qaDispatchable=false / PENDING_SETTLEMENT_FINAL_AUDIT / no receipt /
+> RUNTIME_QA_DEFERRED_TO_G2 /
 > G1_STATIC_CLOSURE_IN_PROGRESS / QA_V9_BLOCKED_TOOL_NONCONVERGENCE /
 > PRODUCT_P0_P3_NOT_ASSESSED / K60_GATED_LOCKED / activePrompt=none`。
 > `V2-D208` 的 runtime 延期与静态收口语义仍有效；历史 `POST_HANDOFF_AUDIT_READY`、
@@ -25,19 +26,39 @@
 > 假阳性；第二轮 repair owner 又用 TEMP RED 复现历史 `qa-pad-v1` 自持锁阻止新登记的缺陷，
 > 将历史 `PRE_WINDOW_TOOL_BLOCK` 与 `qa-pad-v2` / `qa-k60-v2` 新 attempt 分离，并绑定外部
 > handoff 锁、registration/session、finalizer released lock 与 K60 predecessor SHA。
-> 该 WIP 的旧计数、manifest 与状态均未验收；R3 只修复发现并进行实现侧静态验证。
+> 该 WIP 的旧计数、manifest 与状态均未验收；R3–R8 只修复发现并进行实现侧静态验证。
+> 本轮 compatibility repair 已把 collector / finalizer / cleanup 的硬编码状态收敛到
+> `G2RuntimeStatePolicy.ps1`：真实 pre-audit 只允许 `Validate / StaticSelfTest`；
+> future `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA` 只有在严格
+> `repair-audit-receipt.json` 下才可开放运行时动作。实际 receipt 未创建、状态未切换。
+> R6 又修复 JSON 字段集合大小写与重复属性绕过：字段集合改为 Ordinal 大小写敏感，
+> `Status` / `G2ToolsCounts`、未知字段与重复 JSON 属性均拒绝；失败调用 / 窗口 / 计数
+> 既有回归保留。R7 将 settlement policy 改为独立 exact constants（不可由 contract / receipt
+> 抬高或提供），并给 contract 根、manifest、authorization、candidate、registration、
+> session、device-lock 与 runtime report 补 Ordinal exact-property；同步 `111/151/109`
+> 与根 `Status` / `Validation` 均已拒绝。R8 把 `currentTransitions` 固定为独立 exact `62`，
+> contract expectation 与 receipt 两层及 schema `const` 同步；同步 `61`、单层 `61`、
+> 缺失、null 与字符串均拒绝。R9 把 audited commit 收紧为最低基线
+> `6b04eb300256fc8384e5407cee24907e8343f949` 的严格后继，相等 / parent / parent 漂移拒绝，
+> 合法后继接受；future fixture 使用临时合成 Git object 的严格后继 provenance，候选 source
+> commit 仍须为祖先，并新增 synchronized pure-high counts 负例。
+> `Test-G2RuntimeTools` 现场 `114/0/172`，contract validator /
+> collector Validate / 三份 StaticSelfTest PASS，当前 Register 以
+> `PRE_AUDIT_ACTION_FORBIDDEN` 失败；该计数仍是 implementation-side，不是 fresh audit。
+> 完整 handoff 的现场基线为 `108/108`，本轮未运行，标“待 final audit”；历史
+> `104/104 PASS` 只是过去快照，不能当作当前完整数。
 > 当前不派 Pad / K60 QA，也不是 QA / runtime / G1 PASS，延期不是 `PASS_WITH_GAPS`。
 >
 > 历史 `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER`、
 > `ROUND8_READONLY_INTEGRATION_REVIEW_OWNER`、`ROUND7-P1-01`、`ROUND6-P1-01` 与 B10
 > `86/86`、B11 `96/96` 回归只作退役证据保留，不得复活为当前执行角色或 PASS；当前
-> settlement 合同回归 `104/104 PASS + TEMP_CLEANUP=PASS`；D209 只授权全新
+> settlement 历史回归 `104/104 PASS + TEMP_CLEANUP=PASS` 只作历史快照；D209 只授权全新
 > `G2_RUNTIME_CONTRACT_OWNER` 已只建立 runtime 合同；这仍不等于 QA、设备、G2 实现或
 > Release 已授权。
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-| `V2-SOLUTION-BASELINE / V2-G2-ENTRY-CONTRACT` | G1→G2 入口 runtime 工具 R3 修复 | 修复 R2 WIP 的 cleanup schema pin、K60 predecessor 绕过、v2 root junction、scope 空态与状态双源；完成实现侧 TDD / 静态验证并交 root 决定下一角色 | ①不运行设备、不安装包、不接触 K60；②不写产品代码/G2 实现/Release；③不复用 qa-v9、failed Pad QA 或 repair owner，不关闭 Q03、不冻结 profile/voice、不接受 P2 | `V2-D210`；qa-pad-v1 五文件；qa-pad-v2 / qa-k60-v2 空 scope；contract / schema / manifest；状态 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 完成 R3 后由 root 决定 fresh scoped review；review 首条只读动作为 `git status --short` 与 `git diff --stat`，确认 WIP 范围后才读 diff。R3 自身只报告实际 GREEN、动态 negative、五份历史 SHA、候选双 SHA 与未运行项 | SHA / owner / scope 漂移、设备 / 网络 / 产品代码 / 证据篡改 / qa-pad-v1 改写或删除 / G2 根外写入或新范围决策时停止 |
+| `V2-SOLUTION-BASELINE / V2-G2-ENTRY-CONTRACT` | G1→G2 入口 runtime 工具 R3–R9 / contract-state、exact counts、transition 与 JSON exact-property 修复 | 修复 R2 WIP 的 cleanup schema pin、K60 predecessor 绕过、v2 root junction、scope 空态与状态双源；用单一封闭策略兼容 pre-audit / audit-ready 两状态；R4 补 future K60 cleanup 前置门、receipt exact counts 与 manifest 11 项精确集合；R6 修复字段集合大小写与重复 JSON 属性；R7 固定独立 exact constants 并封闭全部状态承载对象属性集；R8 将 `currentTransitions=62` 固定到 policy、contract expectation 与 receipt schema 三层 | ①不运行设备、不安装包、不接触 K60；②不写产品代码/G2 实现/Release；③不复用 qa-v9、failed Pad QA 或 repair owner，不关闭 Q03、不冻结 profile/voice、不接受 P2；④不创建实际 PASS receipt、不切真实状态 | `V2-D210`；qa-pad-v1 五文件；qa-pad-v2 / qa-k60-v2 空 scope；状态 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED`；contract `ac3ae6d6c43c15aa80099e12c21049e61b2c97d24457d7bd78f1f9dcaa5c848f`；manifest `bc25909554a12fd87eeeaf2f65fdf3d7bf3d9287aa13aab829f92fca70e16d74`；policy `7aa095a5b213b2d9595d3e0c7415f6e48bcd0432a168b816cd4806ca00e5fce8`；test `4f1b7a2e76b3b0b49e17acc54681c0bc43abccb45348255c6188e17b7de8c1a8`；schema `df7ebcae8a3b45332b30a629b8a944a7736032ab598b471c162d28c2f399929a`；collector `9d248404c3f0cc450c249ec2b6aaf142978c90d52c0146163f677d0b1adeba49`；finalizer `59b6f69dab3550a47740f3b141df25b26c6de22c77a00265efe2705af770aed1`；cleanup `6f581a5707720eb2085920a8a58e292a9461b751d13318030de34305c8379057`；validator `58862c088748d6e4e603685d23f4388b63f3e469b0a39a94f1ee9bd0c585f806`；tools digest `9222b335a13066694e7b8f6201fddb8c52b7b12912aec28f9ba17fcae954f063` | 当前态只允许 `Validate / StaticSelfTest`，任何 Register/RunWindow/Finalize/Verify 在状态门失败；temp fixture future 仅在合法 receipt 与 policy exact constants 三方相等时被三工具 context 接受；同步 `111/151/109`、根 `Status` / `Validation`、未知或重复属性均拒绝；`currentTransitions` 仅接受两层 exact `62`，同步 / 单层 `61`、缺失、null 与字符串拒绝；K60 cleanup 所有 Pad 负例均在 ADB / 目录写入前失败；manifest 恰 11 个唯一路径。现场 `114/0/172`、contract validator、collector Validate、三份 StaticSelfTest PASS；full handoff 基线 `108` 未运行，待 final audit。下一步由 root 决定 fresh scoped review；review 首条只读动作为 `git status --short` 与 `git diff --stat`，之后才可提交并由新 audit 生成 receipt | SHA / owner / scope 漂移、设备 / 网络 / 产品代码 / 证据篡改 / qa-pad-v1 改写或删除 / G2 根外写入 / 任意大小写或重复字段接受 / transition 非 62 / 缺 receipt 或伪 receipt 获得 QA 权限 / 新范围决策时停止 |
 | `V2-G1-L1-EVIDENCE` | G1 L1 证据与静态收口 | 保留 qa-v8/qa-v9 历史证据与全部 fail-closed 回归，只允许补可离线复核的 G1 静态缺口 / G2 planning 输入 | ①不下载 MOSS、不触发新网络域；②不关闭 Q03、不冻结 profile / voice、不接受 Pad P2；③不用旧 30 分钟、stop-only、安装、cleanup、partial AudioTrack 或工具阻塞替代产品证据 | main `427,009,671 B / 252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`；peer `12,696 B / 61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`；tools 31/2984/digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`；QA-v8 tools 冻结 | `qa-v9/report.json` 为 `BLOCKED_TOOL_NONCONVERGENCE / BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED`；`CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / K60_LOCKED`；cleanup PASS；历史 `auditReceipt` 与 transitionPaths 保留，当前 post-QA 集合并列校验；ACTIVE=1 / TASKS=3 | 复用 QA / audit owner、改旧 report 或 raw 证据、digest / manifest / APK 漂移、证据根删除 / 移动、产品过度声明、设备 / 网络 / 生产写或越界时停止 |
 | `V2-G1-L1-KOKORO-EXACT` | G1 L1→L3 scoped 子任务；runtime 部分延期 | 把完整 Pad/K60 10 分钟 runtime matrix 延期到 G2 入口门；G1 只保留 qa-v9 partial 证据和静态 planning 输入 | 不做 QA 重试、Pad/K60 设备动作、P2 接受、生产代码、Q03、G2 实现或 Release；不把 qa-v9 start-only、cleanup、旧 K60 v5 或 Pad v6/v7 结果扩写为完整门 | v5 输入基线、`qa-v9/report.json`、`qa-v8/report.json` 摘要、`qa-v8/tools` digest、G1-S6 checkpoint；`ACTIVE=1 / TASKS=3` | 当前 `POST_QA_RUNTIME_DEFERRED`、auditReceipt 历史 PASS、`QA_DISPATCHABLE=DEFERRED_TO_G2`、padQa retired / dispatchable=false、K60 `8e875894` 未登记、锁 `ACTIVE=0`、产品 P0–P3 `NOT_ASSESSED` 一致 | QA / runtime PASS 过度声明、QA 重试、设备 / 首动作 / hash / path / owner / role writeScope 漂移、K60 提前、需产品代码或新范围决策时停止 |
 

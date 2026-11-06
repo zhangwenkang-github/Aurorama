@@ -70,6 +70,8 @@ $requiredObservationProperties = @(
     "cleanupAndRestore"
 )
 
+. (Join-Path $contractRoot "G2RuntimeStatePolicy.ps1")
+
 function Read-G2ReportJsonStrict {
     param([Parameter(Mandatory)][string]$Path)
     $bytes = [System.IO.File]::ReadAllBytes($Path)
@@ -84,8 +86,12 @@ function Read-G2ReportJsonStrict {
     if ([Array]::IndexOf($bytes, [byte]13) -ge 0) {
         throw "JSON_CR_FORBIDDEN $Path"
     }
+    $jsonText = $utf8Strict.GetString($bytes)
+    Assert-G2StateNoDuplicateJsonProperties `
+        -JsonText $jsonText `
+        -Name $Path
     return (
-        $utf8Strict.GetString($bytes) |
+        $jsonText |
             ConvertFrom-Json -Depth 100 -DateKind String
     )
 }
@@ -300,6 +306,9 @@ function Assert-G2FinalizerReleasedLock {
         throw "FINALIZER_LOCK_MISSING"
     }
     $lock = Read-G2ReportJsonStrict $LockPath
+    Assert-G2StateDeviceLockShape `
+        -Lock $lock `
+        -Name "FINALIZER_DEVICE_LOCK"
     $serial = if ($DeviceRole -ceq "Pad") {
         [string]$Contract.devicePolicy.pad.serial
     } else {
@@ -336,68 +345,70 @@ function Assert-G2FinalizerReleasedLock {
 function Get-G2FinalizerContext {
     param(
         [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
-        [AllowNull()][string]$RequestedEvidenceRoot
+        [AllowNull()][string]$RequestedEvidenceRoot,
+        [string]$Action = "Finalize",
+        [AllowNull()][string]$ContractPathOverride,
+        [AllowNull()][string]$ManifestPathOverride,
+        [AllowNull()][string]$RepairAuditReceiptPathOverride
     )
+    $effectiveContractPath = if ([string]::IsNullOrWhiteSpace(
+        $ContractPathOverride
+    )) {
+        $contractPath
+    } else {
+        [System.IO.Path]::GetFullPath($ContractPathOverride)
+    }
+    $effectiveManifestPath = if ([string]::IsNullOrWhiteSpace(
+        $ManifestPathOverride
+    )) {
+        $manifestPath
+    } else {
+        [System.IO.Path]::GetFullPath($ManifestPathOverride)
+    }
     foreach ($required in @(
-        $contractPath,
+        $effectiveContractPath,
         $candidatePath,
         $authorizationPath,
         $schemaPath,
-        $manifestPath
+        $effectiveManifestPath
     )) {
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
             throw "REQUIRED_FILE_MISSING $required"
         }
     }
-    $contract = Read-G2ReportJsonStrict $contractPath
+    $contract = Read-G2ReportJsonStrict $effectiveContractPath
     $candidate = Read-G2ReportJsonStrict $candidatePath
     $authorization = Read-G2ReportJsonStrict $authorizationPath
-    $manifest = Read-G2ReportJsonStrict $manifestPath
+    $manifest = Read-G2ReportJsonStrict $effectiveManifestPath
+    Assert-G2CandidateRecordShape `
+        -Candidate $candidate `
+        -Name "FINALIZER_CANDIDATE_RECORD"
+    Assert-G2AuthorizationReceiptShape `
+        -Authorization $authorization `
+        -Name "FINALIZER_AUTHORIZATION_RECEIPT"
     Assert-G2ReportPinnedIdentity -Contract $contract
     if (
         $contract.schema -cne "aurorama.g2-entry-runtime-contract.v1" -or
         $contract.contractId -cne
             "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06" -or
-        $contract.status -cne "R2_WIP_REPAIR_R3_IN_PROGRESS" -or
         $contract.owner.roleId -cne
             "G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06" -or
         $contract.tools.runtimeFinalizer.roleId -cne $toolOwnerRole -or
-        $contract.tools.runtimeFinalizer.status -cne
-            "R2_WIP_REPAIR_R3_IN_PROGRESS"
+        $contract.tools.runtimeFinalizer.path -cne
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Finalize-G2RuntimeReport.ps1"
     ) {
         throw "FINALIZER_CONTRACT_BINDING_MISMATCH"
     }
-    if ($manifest.ownerRole -cne $toolOwnerRole -or
-        [int]$manifest.qaV9ReuseCount -ne 0) {
-        throw "FINALIZER_MANIFEST_IDENTITY_MISMATCH"
-    }
-    foreach ($entry in @($manifest.files)) {
-        $path = Resolve-G2ReportBoundedPath `
-            -Root $contractRoot `
-            -RelativePath ([string]$entry.path)
-        if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or
-            (Get-G2ReportFileSha256 $path) -cne [string]$entry.sha256) {
-            throw "FINALIZER_MANIFEST_HASH_MISMATCH $($entry.path)"
-        }
-    }
+    $statePolicy = Assert-G2RuntimeToolStatePolicy `
+        -Contract $contract `
+        -ContractRoot $contractRoot `
+        -RepositoryRoot $repositoryRoot `
+        -Action $Action `
+        -RepairAuditReceiptPathOverride $RepairAuditReceiptPathOverride `
+        -ManifestPathOverride $effectiveManifestPath
     Assert-G2ReportAuthorization `
         -Contract $contract `
         -Authorization $authorization
-    foreach ($artifact in @(
-        $contract.candidate.main,
-        $contract.candidate.focusPeer
-    )) {
-        $artifactPath = Resolve-G2ReportBoundedPath `
-            -Root $repositoryRoot `
-            -RelativePath ([string]$artifact.path)
-        if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf) -or
-            (Get-Item -LiteralPath $artifactPath).Length -ne
-                [long]$artifact.bytes -or
-            (Get-G2ReportFileSha256 $artifactPath) -cne
-                [string]$artifact.sha256) {
-            throw "FINALIZER_CANDIDATE_MISMATCH $($artifact.path)"
-        }
-    }
     if ((Get-G2ReportFileSha256 $schemaPath) -cne
         [string]$contract.evidence.reportSchemaSha256) {
         throw "FINALIZER_SCHEMA_HASH_MISMATCH"
@@ -410,6 +421,7 @@ function Get-G2FinalizerContext {
         Evidence = Resolve-G2ReportEvidenceRoot `
             -DeviceRole $DeviceRole `
             -RequestedEvidenceRoot $RequestedEvidenceRoot
+        StatePolicy = $statePolicy
         RepositoryRoot = $repositoryRoot
     }
 }
@@ -466,6 +478,12 @@ function Assert-G2FinalizerAttemptBinding {
     }
     $registration = Read-G2ReportJsonStrict $registrationPath
     $session = Read-G2ReportJsonStrict $sessionPath
+    Assert-G2StateRegistrationShape `
+        -Registration $registration `
+        -Name "FINALIZER_REGISTRATION"
+    Assert-G2StateSessionShape `
+        -Session $session `
+        -Name "FINALIZER_SESSION"
     if (
         [string]$registration.schema -cne
             "aurorama.g2-collector-registration.v1" -or
@@ -555,6 +573,29 @@ function Assert-G2FinalizerAttemptBinding {
         $padLockPath = Resolve-G2ReportBoundedPath `
             -Root $repositoryRoot `
             -RelativePath "$padRoot/device-lock.json"
+        Assert-G2StateExactFields `
+            -Value $predecessor `
+            -Expected @(
+                "deviceOrder",
+                "coreVerdict",
+                "productVerdict",
+                "lockStateAfterClosure",
+                "evidenceRoot",
+                "evidencePointer",
+                "reportSha256",
+                "lockSha256",
+                "candidateMainSha256",
+                "candidateFocusPeerSha256"
+            ) `
+            -Name "FINALIZER_K60_PREDECESSOR"
+        $padReport = Read-G2ReportJsonStrict $padReportPath
+        $padLock = Read-G2ReportJsonStrict $padLockPath
+        Assert-G2StateRuntimeReportShape `
+            -Report $padReport `
+            -Name "FINALIZER_K60_PAD_REPORT"
+        Assert-G2StateDeviceLockShape `
+            -Lock $padLock `
+            -Name "FINALIZER_K60_PAD_LOCK"
         if (
             $null -eq $predecessor -or
             [string]$predecessor.coreVerdict -cne "PASS" -or
@@ -1428,7 +1469,8 @@ function Invoke-G2FinalizerMain {
     }
     $context = Get-G2FinalizerContext `
         -DeviceRole $DeviceRole `
-        -RequestedEvidenceRoot $EvidenceRoot
+        -RequestedEvidenceRoot $EvidenceRoot `
+        -Action Finalize
     $resolvedObservationsPath = if (
         [string]::IsNullOrWhiteSpace($ObservationsPath)
     ) {

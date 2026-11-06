@@ -73,6 +73,8 @@ $requiredProductGates = @(
     "G2-RT-13-SINGLE-10MIN-WINDOW-NO-RETRY"
 )
 
+. (Join-Path $contractRoot "G2RuntimeStatePolicy.ps1")
+
 function Read-G2JsonStrict {
     param([Parameter(Mandatory)][string]$Path)
     $bytes = [System.IO.File]::ReadAllBytes($Path)
@@ -87,8 +89,12 @@ function Read-G2JsonStrict {
     if ([Array]::IndexOf($bytes, [byte]13) -ge 0) {
         throw "JSON_CR_FORBIDDEN $Path"
     }
+    $jsonText = $utf8Strict.GetString($bytes)
+    Assert-G2StateNoDuplicateJsonProperties `
+        -JsonText $jsonText `
+        -Name $Path
     return (
-        $utf8Strict.GetString($bytes) |
+        $jsonText |
             ConvertFrom-Json -Depth 100 -DateKind String
     )
 }
@@ -98,6 +104,11 @@ function Get-G2FileSha256 {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).
         Hash.
         ToLowerInvariant()
+}
+
+function New-G2CollectorDirectory {
+    param([Parameter(Mandatory)][string]$Path)
+    [void][System.IO.Directory]::CreateDirectory($Path)
 }
 
 function Write-G2Utf8LfText {
@@ -111,7 +122,7 @@ function Write-G2Utf8LfText {
     }
     $parent = [System.IO.Path]::GetDirectoryName($Path)
     if (-not [string]::IsNullOrWhiteSpace($parent)) {
-        [void][System.IO.Directory]::CreateDirectory($parent)
+        New-G2CollectorDirectory -Path $parent
     }
     [System.IO.File]::WriteAllText($Path, $normalized, $utf8Output)
 }
@@ -566,17 +577,18 @@ function Assert-G2DevicePolicy {
         "candidateMainSha256",
         "candidateFocusPeerSha256"
     )
-    $actualFields = if ($null -eq $Predecessor) {
-        @()
-    } else {
-        @($Predecessor.PSObject.Properties.Name)
+    if ($null -eq $Predecessor) {
+        throw "K60_PREDECESSOR_FIELD_OR_FILE_SHA_MISMATCH"
+    }
+    try {
+        Assert-G2StateExactFields `
+            -Value $Predecessor `
+            -Expected $expectedFields `
+            -Name "K60_PREDECESSOR"
+    } catch {
+        throw "K60_PREDECESSOR_FIELD_OR_FILE_SHA_MISMATCH"
     }
     if (
-        $null -eq $Predecessor -or
-        $actualFields.Count -ne $expectedFields.Count -or
-        @($expectedFields | Where-Object {
-            $actualFields -notcontains $_
-        }).Count -gt 0 -or
         [string]$Predecessor.deviceOrder -cne "Pad" -or
         [string]$Predecessor.coreVerdict -cne "PASS" -or
         [string]$Predecessor.productVerdict -cne "PASS" -or
@@ -665,23 +677,47 @@ function Assert-G2AuthorizationReceipt {
 function Get-G2ContractContext {
     param(
         [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
-        [AllowNull()][string]$RequestedEvidenceRoot
+        [AllowNull()][string]$RequestedEvidenceRoot,
+        [string]$Action = "Validate",
+        [AllowNull()][string]$ContractPathOverride,
+        [AllowNull()][string]$ManifestPathOverride,
+        [AllowNull()][string]$RepairAuditReceiptPathOverride
     )
+    $effectiveContractPath = if ([string]::IsNullOrWhiteSpace(
+        $ContractPathOverride
+    )) {
+        $contractPath
+    } else {
+        [System.IO.Path]::GetFullPath($ContractPathOverride)
+    }
+    $effectiveManifestPath = if ([string]::IsNullOrWhiteSpace(
+        $ManifestPathOverride
+    )) {
+        $manifestPath
+    } else {
+        [System.IO.Path]::GetFullPath($ManifestPathOverride)
+    }
     foreach ($requiredPath in @(
-        $contractPath,
+        $effectiveContractPath,
         $candidatePath,
         $authorizationPath,
         $schemaPath,
-        $manifestPath
+        $effectiveManifestPath
     )) {
         if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
             throw "REQUIRED_FILE_MISSING $requiredPath"
         }
     }
-    $contract = Read-G2JsonStrict $contractPath
+    $contract = Read-G2JsonStrict $effectiveContractPath
     $candidate = Read-G2JsonStrict $candidatePath
     $authorization = Read-G2JsonStrict $authorizationPath
-    $manifest = Read-G2JsonStrict $manifestPath
+    $manifest = Read-G2JsonStrict $effectiveManifestPath
+    Assert-G2CandidateRecordShape `
+        -Candidate $candidate `
+        -Name "COLLECTOR_CANDIDATE_RECORD"
+    Assert-G2AuthorizationReceiptShape `
+        -Authorization $authorization `
+        -Name "COLLECTOR_AUTHORIZATION_RECEIPT"
     if ($contract.schema -cne "aurorama.g2-entry-runtime-contract.v1") {
         throw "CONTRACT_SCHEMA_MISMATCH"
     }
@@ -689,9 +725,6 @@ function Get-G2ContractContext {
     if ($contract.contractId -cne
         "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06") {
         throw "CONTRACT_ID_MISMATCH"
-    }
-    if ($contract.status -cne "R2_WIP_REPAIR_R3_IN_PROGRESS") {
-        throw "CONTRACT_STATUS_MISMATCH"
     }
     if ($contract.owner.roleId -cne
         "G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06") {
@@ -702,85 +735,17 @@ function Get-G2ContractContext {
         $contract.tools.cleanupVerifier.roleId -cne $toolOwnerRole) {
         throw "RUNTIME_TOOL_OWNER_MISMATCH"
     }
-    if ($contract.tools.runtimeCollector.status -cne
-            "R2_WIP_REPAIR_R3_IN_PROGRESS" -or
-        $contract.tools.runtimeFinalizer.status -cne
-            "R2_WIP_REPAIR_R3_IN_PROGRESS" -or
-        $contract.tools.cleanupVerifier.status -cne
-            "R2_WIP_REPAIR_R3_IN_PROGRESS") {
-        throw "RUNTIME_TOOL_STATUS_NOT_READY"
-    }
-    if ($manifest.ownerRole -cne $toolOwnerRole -or
-        [int]$manifest.qaV9ReuseCount -ne 0) {
-        throw "RUNTIME_TOOL_MANIFEST_IDENTITY_MISMATCH"
-    }
-    foreach ($entry in @($manifest.files)) {
-        $entryPath = Resolve-G2BoundedPath `
-            -Root $contractRoot `
-            -RelativePath ([string]$entry.path)
-        if (-not (Test-Path -LiteralPath $entryPath -PathType Leaf)) {
-            throw "MANIFEST_FILE_MISSING $($entry.path)"
-        }
-        if ((Get-G2FileSha256 $entryPath) -cne [string]$entry.sha256) {
-            throw "MANIFEST_FILE_SHA_MISMATCH $($entry.path)"
-        }
-    }
-    foreach ($toolName in @(
-        "runtimeCollector",
-        "runtimeFinalizer",
-        "cleanupVerifier"
-    )) {
-        $tool = $contract.tools.$toolName
-        $toolPath = Resolve-G2BoundedPath `
-            -Root $repositoryRoot `
-            -RelativePath ([string]$tool.path)
-        if ((Get-G2FileSha256 $toolPath) -cne [string]$tool.sha256) {
-            throw "RUNTIME_TOOL_SHA_MISMATCH $toolName"
-        }
-    }
-    $toolFiles = @(
-        "Finalize-G2RuntimeReport.ps1",
-        "Invoke-G2RuntimeCollector.ps1",
-        "Test-G2CleanupRestore.ps1"
-    ) | Sort-Object
-    $digestBuilder = [System.Text.StringBuilder]::new()
-    foreach ($fileName in $toolFiles) {
-        $path = Join-Path $contractRoot $fileName
-        [void]$digestBuilder.Append(
-            (Get-G2FileSha256 $path) + "  " + $fileName + "`n"
-        )
-    }
-    $actualDigest = [Convert]::ToHexString(
-        [System.Security.Cryptography.SHA256]::HashData(
-            $utf8Output.GetBytes($digestBuilder.ToString())
-        )
-    ).ToLowerInvariant()
-    if ($actualDigest -cne [string]$contract.tools.digestSha256) {
-        throw "RUNTIME_TOOLS_DIGEST_MISMATCH"
-    }
+    $statePolicy = Assert-G2RuntimeToolStatePolicy `
+        -Contract $contract `
+        -ContractRoot $contractRoot `
+        -RepositoryRoot $repositoryRoot `
+        -Action $Action `
+        -RepairAuditReceiptPathOverride $RepairAuditReceiptPathOverride `
+        -ManifestPathOverride $effectiveManifestPath
     Assert-G2AuthorizationReceipt `
         -Contract $contract `
         -Authorization $authorization `
         -DeviceRole $DeviceRole
-    foreach ($artifact in @(
-        $contract.candidate.main,
-        $contract.candidate.focusPeer
-    )) {
-        $artifactPath = Resolve-G2BoundedPath `
-            -Root $repositoryRoot `
-            -RelativePath ([string]$artifact.path)
-        if (-not (Test-Path -LiteralPath $artifactPath -PathType Leaf)) {
-            throw "CANDIDATE_ARTIFACT_MISSING $($artifact.path)"
-        }
-        if ((Get-Item -LiteralPath $artifactPath).Length -ne
-            [long]$artifact.bytes) {
-            throw "CANDIDATE_BYTES_MISMATCH $($artifact.path)"
-        }
-        if ((Get-G2FileSha256 $artifactPath) -cne
-            [string]$artifact.sha256) {
-            throw "CANDIDATE_SHA_MISMATCH $($artifact.path)"
-        }
-    }
     if ((Get-G2FileSha256 $schemaPath) -cne
         [string]$contract.evidence.reportSchemaSha256) {
         throw "REPORT_SCHEMA_SHA_MISMATCH"
@@ -795,7 +760,8 @@ function Get-G2ContractContext {
         Authorization = $authorization
         Manifest = $manifest
         Evidence = $resolvedEvidence
-        ToolsDigest = $actualDigest
+        StatePolicy = $statePolicy
+        ToolsDigest = [string]$statePolicy.ToolsDigest
         RepositoryRoot = $repositoryRoot
     }
 }
@@ -1088,7 +1054,7 @@ function Get-G2SnapshotDirectory {
         throw "SNAPSHOT_NAME_INVALID $Name"
     }
     $directory = Join-Path $EvidenceFullPath "raw/snapshots/$Name"
-    [void][System.IO.Directory]::CreateDirectory($directory)
+    New-G2CollectorDirectory -Path $directory
     return $directory
 }
 
@@ -1386,6 +1352,9 @@ function Assert-G2CollectorRegistrationState {
     } else {
         [string]$contract.devicePolicy.k60.serial
     }
+    Assert-G2StateRegistrationShape `
+        -Registration $Registration `
+        -Name "COLLECTOR_REGISTRATION"
     if (
         [string]$Registration.schema -cne
             "aurorama.g2-collector-registration.v1" -or
@@ -1440,6 +1409,9 @@ function Assert-G2CollectorRegistrationState {
         throw "ACTIVE_ATTEMPT_LOCK_MISSING"
     }
     $lock = Read-G2JsonStrict $lockPath
+    Assert-G2StateDeviceLockShape `
+        -Lock $lock `
+        -Name "COLLECTOR_ACTIVE_ATTEMPT_LOCK"
     if (
         [string]$lock.schema -cne "aurorama.g2-device-lock.v1" -or
         [string]$lock.deviceRole -cne $DeviceRole -or
@@ -1469,7 +1441,6 @@ function Invoke-G2Window {
         -Retry $Retry.IsPresent
     $contract = $Context.Contract
     $evidence = $Context.Evidence
-    [void][System.IO.Directory]::CreateDirectory($evidence.FullPath)
     $registrationPath = Join-Path $evidence.FullPath "collector-registration.json"
     $windowStartedPath = Join-Path $evidence.FullPath "window-started.json"
     $sessionPath = Join-Path $evidence.FullPath "collector-session.json"
@@ -1509,6 +1480,7 @@ function Invoke-G2Window {
             throw "PAD_IDENTITY_MISMATCH"
         }
     }
+    New-G2CollectorDirectory -Path $evidence.FullPath
     $startedAt = [DateTimeOffset]::Now
     Write-G2Json `
         -Path $windowStartedPath `
@@ -1526,7 +1498,7 @@ function Invoke-G2Window {
         -Value $device
 
     $logDirectory = Join-Path $evidence.FullPath "raw"
-    [void][System.IO.Directory]::CreateDirectory($logDirectory)
+    New-G2CollectorDirectory -Path $logDirectory
     $runtimeLogPath = Join-Path $logDirectory "runtime.log"
     $runtimeErrorPath = Join-Path $logDirectory "logcat.err"
     $commands = [System.Collections.Generic.List[object]]::new()
@@ -1839,124 +1811,16 @@ function Get-G2PadPredecessor {
         [Parameter(Mandatory)]$Context,
         [Parameter(Mandatory)][string]$PadRoot
     )
-    $contract = $Context.Contract
-    $expectedRoot = [string]$contract.evidence.padRuntimeRoot
     if (
         $null -eq $Context.PSObject.Properties["RepositoryRoot"] -or
         [string]::IsNullOrWhiteSpace([string]$Context.RepositoryRoot)
     ) {
         throw "K60_PREDECESSOR_REPOSITORY_CONTEXT_REQUIRED"
     }
-    $repositoryBase = [System.IO.Path]::GetFullPath(
-        [string]$Context.RepositoryRoot
-    )
-    $expectedPadRoot = Resolve-G2BoundedPath `
-        -Root $repositoryBase `
-        -RelativePath $expectedRoot
-    $actualPadRoot = [System.IO.Path]::GetFullPath($PadRoot)
-    if ($actualPadRoot -cne $expectedPadRoot) {
-        throw "K60_PREDECESSOR_FIXED_PAD_ROOT_MISMATCH"
-    }
-    $reportPath = Join-Path $actualPadRoot "report.json"
-    $lockPath = Join-Path $actualPadRoot "device-lock.json"
-    if (
-        -not (Test-Path -LiteralPath $reportPath -PathType Leaf) -or
-        -not (Test-Path -LiteralPath $lockPath -PathType Leaf)
-    ) {
-        throw "K60_PREDECESSOR_REPORT_OR_LOCK_MISSING"
-    }
-    $padReport = Read-G2JsonStrict $reportPath
-    $padLock = Read-G2JsonStrict $lockPath
-    $gateIds = @($padReport.productGates | ForEach-Object {
-        [string]$_.gateId
-    })
-    $nonPassGates = @(
-        $padReport.productGates |
-            Where-Object { [string]$_.status -cne "PASS" }
-    )
-    $historicalBlocker = @(
-        $contract.attemptRecovery.historicalPreWindowBlock.evidenceFiles |
-            Where-Object { [string]$_.path -ceq "blocker.json" }
-    )
-    if ($historicalBlocker.Count -ne 1) {
-        throw "K60_PREDECESSOR_HISTORICAL_BLOCKER_PIN_MISSING"
-    }
-    $cleanup = $padReport.cleanupAndRestore
-    if (
-        [string]$padReport.schema -cne
-            "aurorama.g2-entry-runtime-report.v1" -or
-        [string]$padReport.contractId -cne [string]$contract.contractId -or
-        [string]$padReport.ownerRole -cne
-            "G2_PAD_QA_OWNER_2026_11_06" -or
-        [string]$padReport.evidenceRoot -cne $expectedRoot -or
-        [string]$padReport.device.order -cne "Pad" -or
-        [string]$padReport.device.role -cne
-            "G2_PAD_QA_OWNER_2026_11_06" -or
-        [string]$padReport.device.serial -cne "43af8627" -or
-        [int]$padReport.execution.attemptNumber -ne 1 -or
-        [int]$padReport.execution.windowSeconds -ne 600 -or
-        [bool]$padReport.execution.extended -ne $false -or
-        [bool]$padReport.execution.retry -ne $false -or
-        [bool]$padReport.execution.continuous -ne $true -or
-        [bool]$padReport.passWithGapsForbidden -ne $true -or
-        $null -ne $padReport.predecessor -or
-        [string]$padReport.verdict -cne "PASS" -or
-        [string]$padReport.productVerdict -cne "PASS" -or
-        $gateIds.Count -ne 13 -or
-        @($gateIds | Select-Object -Unique).Count -ne 13 -or
-        @($requiredProductGates | Where-Object {
-            $gateIds -notcontains $_
-        }).Count -gt 0 -or
-        $nonPassGates.Count -gt 0 -or
-        [string]$cleanup.status -cne "PASS" -or
-        [bool]$cleanup.packagesAbsent -ne $true -or
-        [bool]$cleanup.pidsAbsent -ne $true -or
-        [bool]$cleanup.serviceRecordsAbsent -ne $true -or
-        [bool]$cleanup.activeNotificationRecordsAbsent -ne $true -or
-        [bool]$cleanup.activeMediaSessionsAbsent -ne $true -or
-        [bool]$cleanup.audioFocusReleased -ne $true -or
-        [bool]$cleanup.externalDataAbsent -ne $true -or
-        [bool]$cleanup.internalDataAbsent -ne $true -or
-        [int]$cleanup.hostLogcatOrphans -ne 0 -or
-        [bool]$cleanup.networkRestored -ne $true -or
-        [bool]$cleanup.userSettingsRestored -ne $true -or
-        [bool]$cleanup.productionPackageMatch -ne $true -or
-        [string]$cleanup.deviceLockState -cne
-            "RELEASED_ACTIVE_0" -or
-        [int]$cleanup.deviceLockActiveCount -ne 0 -or
-        [string]$padReport.candidate.mainSha256 -cne
-            [string]$contract.candidate.main.sha256 -or
-        [string]$padReport.candidate.focusPeerSha256 -cne
-            [string]$contract.candidate.focusPeer.sha256 -or
-        [string]$padReport.candidate.sourceCommit -cne
-            [string]$contract.candidate.sourceCommit -or
-        [string]$padLock.schema -cne "aurorama.g2-device-lock.v1" -or
-        [string]$padLock.deviceRole -cne "Pad" -or
-        [string]$padLock.serial -cne "43af8627" -or
-        [string]$padLock.attemptScope -cne $expectedRoot -or
-        [string]$padLock.state -cne "RELEASED_ACTIVE_0" -or
-        [int]$padLock.activeCount -ne 0 -or
-        [int]$padLock.attemptNumber -ne 1 -or
-        [string]::IsNullOrWhiteSpace([string]$padLock.releasedAt) -or
-        [string]$padLock.authoritativeLockStateAtRegistration -cne
-            "RELEASED_ACTIVE_0" -or
-        [string]$padLock.historicalBlockerSha256 -cne
-            [string]$historicalBlocker[0].sha256
-    ) {
-        throw "K60_PREDECESSOR_PAD_NOT_FULL_PASS_OR_LOCK_NOT_RELEASED"
-    }
-    return [pscustomobject]@{
-        deviceOrder = "Pad"
-        coreVerdict = "PASS"
-        productVerdict = "PASS"
-        lockStateAfterClosure = "RELEASED_ACTIVE_0"
-        evidenceRoot = $expectedRoot
-        candidateMainSha256 = [string]$contract.candidate.main.sha256
-        candidateFocusPeerSha256 = [string]$contract.candidate.focusPeer.sha256
-        evidencePointer = "$expectedRoot/report.json"
-        reportSha256 = Get-G2FileSha256 $reportPath
-        lockSha256 = Get-G2FileSha256 $lockPath
-    }
+    return Get-G2ValidatedPadPredecessor `
+        -Contract $Context.Contract `
+        -RepositoryRoot ([string]$Context.RepositoryRoot) `
+        -PadRoot $PadRoot
 }
 
 function Invoke-G2DeviceRegistration {
@@ -2149,6 +2013,12 @@ function Get-G2ReconciledObservations {
     $registration = Read-G2JsonStrict (
         Join-Path $evidence.FullPath "collector-registration.json"
     )
+    Assert-G2StateSessionShape `
+        -Session $session `
+        -Name "COLLECTOR_SESSION"
+    Assert-G2StateRegistrationShape `
+        -Registration $registration `
+        -Name "COLLECTOR_REGISTRATION"
     Assert-G2CollectorRegistrationState `
         -Context $Context `
         -DeviceRole $DeviceRole `
@@ -2526,7 +2396,8 @@ function Invoke-G2CollectorMain {
     }
     $context = Get-G2ContractContext `
         -DeviceRole $DeviceRole `
-        -RequestedEvidenceRoot $EvidenceRoot
+        -RequestedEvidenceRoot $EvidenceRoot `
+        -Action $Action
     switch ($Action) {
         "Validate" {
             Write-Output "PASS G2_RUNTIME_COLLECTOR_CONTRACT"

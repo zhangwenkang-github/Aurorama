@@ -1446,7 +1446,18 @@ try {
     $g2TransitionProbe = Join-Path `
         $repositoryRoot `
         ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/preflight-transition-probe.json"
+    $gitAttributesTransitionPath = Join-Path $repositoryRoot ".gitattributes"
+    $gitAttributesOriginalBytes = [System.IO.File]::ReadAllBytes(
+        $gitAttributesTransitionPath
+    )
+    $ordinaryDocsTransitionProbe = Join-Path `
+        $repositoryRoot `
+        "docs/post-qa-g2-transition-probe.md"
     try {
+        $gitAttributesText = $utf8Strict.GetString($gitAttributesOriginalBytes)
+        Write-LfText `
+            -Text ($gitAttributesText + "# post-qa-gitattributes-transition-probe`n") `
+            -Path $gitAttributesTransitionPath
         Write-LfText -Text "{`"probe`":true}`n" -Path $g2TransitionProbe
         $g2TransitionResult = Invoke-Preflight
         Assert-Condition `
@@ -1459,10 +1470,32 @@ try {
             ) `
             -Name "POST-QA-G2-TRANSITION-ALLOWED"
         Write-Output "ASSERT POST-QA-G2-TRANSITION-ALLOWED=PASS"
+
+        Write-LfText `
+            -Text "ordinary docs transition`n" `
+            -Path $ordinaryDocsTransitionProbe
+        $ordinaryDocsTransitionResult = Invoke-Preflight
+        Assert-Condition `
+            -Condition (
+                $ordinaryDocsTransitionResult.exitCode -eq 2 -and
+                (@($ordinaryDocsTransitionResult.output) -join "`n").Contains(
+                    "POST-QA-TRANSITION-PATH-OUTSIDE-ALLOWLIST",
+                    [System.StringComparison]::Ordinal
+                )
+            ) `
+            -Name "POST-QA-G2-ORDINARY-DOCS-DENIED"
+        Write-Output "ASSERT POST-QA-G2-ORDINARY-DOCS-DENIED=PASS"
     }
     finally {
+        [System.IO.File]::WriteAllBytes(
+            $gitAttributesTransitionPath,
+            $gitAttributesOriginalBytes
+        )
         if (Test-Path -LiteralPath $g2TransitionProbe) {
             [System.IO.File]::Delete($g2TransitionProbe)
+        }
+        if (Test-Path -LiteralPath $ordinaryDocsTransitionProbe) {
+            [System.IO.File]::Delete($ordinaryDocsTransitionProbe)
         }
     }
 

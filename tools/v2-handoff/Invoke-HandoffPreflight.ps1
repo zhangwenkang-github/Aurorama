@@ -3831,6 +3831,7 @@ try {
         "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
     )
     $expectedPostQaSettlementTransitionPaths = @(
+        ".gitattributes",
         "AGENTS.md",
         "docs/DECISIONS.md",
         "docs/LESSONS.md",

@@ -1,4 +1,10 @@
 /.gitattributes text eol=lf
+**/*.ps1 text eol=lf
+**/*.json text eol=lf
+**/*.md text eol=lf
+**/*.txt text eol=lf
+**/*.log text eol=lf
+/docs/LESSONS.md text eol=lf
 /docs/DECISIONS.md text eol=lf
 /docs/V2_PLAN.md text eol=lf
 /docs/TASKS.md text eol=lf

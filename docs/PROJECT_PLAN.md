@@ -34,10 +34,19 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `USER_RESUMED_G2_TOOL_REPAIR_HANDOFF / RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / G2_RUNTIME_CONTRACT_PACKAGE_READY / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_LOCKED / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED` | `V2-D209` 授权的 `G2_RUNTIME_CONTRACT_OWNER` 已建立合同；`V2-D210` 授权设备 QA。首次 Pad QA 因 collector 路径二次绑定工具阻断，窗口未开始、候选未安装、锁释放、K60 零接触；repair owner 已修复并做到 `57/57 PASS / 37 negative`，设备命令为 0。产品 P0–P3 仍 `NOT_ASSESSED`。用户现已恢复并要求开新会话交接；下一会话只接 fresh repair audit，PASS 后才可另派 Pad QA。QA-v9 仅历史阻断。原 ignored QA 工具由 `c4a2d2a1` 入库；历史 `ROUND8-P1-01` / `ROUND7-P1-01` / `ROUND6-P1-01` 保留；QA tools `25/25`、B10 `86/86`、合同历史 `96/96`，冻结 digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4` 不变。Q03 Open、exact profile / voice Open、Pad P2 未接受、G1_NOT_PASSED、runtime UNVERIFIED、L2/L3 locked。工具修复不是产品 FAIL 或 PASS。 |
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / PENDING_SETTLEMENT_FINAL_AUDIT / no receipt / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 当前实现侧 `Test-G2RuntimeTools=114/0/172 dynamic negative`；current preflight `roles=22 / tasks=3 / gates=6 / currentTransitions=62`；完整 handoff 基线 `108/108` 尚未执行，待 final audit。真实合同无 `repair-audit-receipt.json`，`qaDispatchable=false`、`activePrompt=none`，K60 保持锁定。下一步由 root 启动 fresh scoped review；首条只读动作 `git status --short`，随后 `git diff --stat`。产品 P0–P3 仍 `NOT_ASSESSED`，这不是 QA / runtime / G1 PASS。 |
 > `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；当前唯一末态是
 > `POST_QA_RUNTIME_DEFERRED`，`PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，
 > 不是 QA / runtime / G1 PASS。`V2-D208` 之后不再有可执行 QA role。
+> **HISTORY（非当前状态）**：`G2_RUNTIME_CONTRACT_PACKAGE_READY /
+> PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / 57/57 PASS / 37 negative` 已被
+> R2 WIP repair 的 R3–R9 与当前 exact counts 取代，不得作为当前状态或验收结论。
+> 连续性 anchor（非状态提升）：`RUNTIME_QA_DEFERRED_TO_G2 /
+> G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS /
+> V2-D209 / G2_RUNTIME_CONTRACT_OWNER / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / K60_LOCKED /
+> ROUND8-P1-01 / ROUND7-P1-01 / ROUND6-P1-01 / QA tools 25/25 / B10 86/86 /
+> 合同历史 96/96 / c4a2d2a1 /
+> 69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`。
 | **维护 / 缺陷修复**（v1.1.0，18 条 + 小增强） | `docs/FIX_PLAN.md`（W73 建线） | 🟢 v1.1.0 已发布（2026-10-07，tag + Release + 双 APK）；B9/B10/B11 修复已随版闭环 | W73–W75 全部合并（896/0）→ **W76**：B8 日志脱敏合并（master `f25f1d4`、合并态门禁 **899/0**）；`1.1.0 (2)` release 已构建签名（universal 163.2 MB / arm64 74.0 MB、指纹 `e449c4aa…e155ff`）；回归 = R2（Pad 5 核心，0 FATAL·ANR）+ R1（K60 发布面：覆盖升级 ✅ / SAF ✅ / mpv 兜底 ✅ / Quick Connect ✅ / 真实下载 ❌）；新发现 B9（P1 · 新装首次下载失败，根因已夹逼、建议随 1.1.0 修）/ B10（P2）/ B11（P3）——见 `FIX_PLAN` §6、`TEST_PLAN` §7.7；**v1.1.0 已发布（2026-10-07）；1.2.0 = W77 阅读流式波（见阅读器线）；2026-10-17 第二批 W78–W83（#22–#39）见 §3 追加段** |
 | **Aurorama 1.4.0（W84–W89）** | `docs/FIX_PLAN.md` §2.4 / §3 / §4 + `docs/PLAYER_PLAN.md` §41 / §43 / §44 / §45 | 🔴 W89-C 独立 QA 通过静态 / Pad 安装门；跨客户端音乐 P1 阻断用户验收 | W84–W89-B 已合并且代码 commit 三路 CI 绿。W89-C 代码候选 `d18ed56` 仅将版本 bump 到 1.4.0(5)；双 APK 契约、223 XML / 1505 JVM、安全 26/26、格式、debug 与 Pad 同签名覆盖安装均通过。Jellyfin Web、Pad 1.4、K60 1.3 测试多首音乐均失败；Web 提示客户端不支持媒体，K60 实捕 HTTP 404。故障已超出单一 Android 客户端，首要检查 Jellyfin 12.3.0 服务端媒体文件 / 格式、转码后端与反代音频路由。正式用户验收与 K60 升级阻断。Pad 登录内容保留、真实应用内下载 / 系统确认、用户全验、tag / Release 仍未验证；既有 P2/P3、全局 BLOCKED=2 与 349 首快照偏差保留。 |
 | **Aurorama 1.4.0 W90 验收整改** | `docs/FIX_PLAN.md` W90 / `docs/PLAYER_PLAN.md` §46–§47 | 🟢 音乐身份批次已合并且 push / CI 三绿；用户验收与发布待定 | 下载子批候选 `3a92061f` 已独立 QA 并为 P0/P1/P2/P3=`0/0/0/2`、merge-prep PASS。音乐 final fix `fe2dbacc` / `024235b4` 区分三阶段失败、用 revision + requestId 守护选择恢复、收敛 Play all 单点击层并保留 Loading 无障碍状态。身份残留 `27b82f57`、独立 QA 与 merge-prep PASS；接受 W89-C `Versions.kt` 1.4.0(5) 后 ff-only 合并到 `36ca73c1`，最终 push `fe746fe6`，Build / Unit / Format 同 SHA 三绿。设备未覆盖项、两项下载 P3 与 W89-C 未发布状态继续保留；tag / Release / workflow 未执行。 |

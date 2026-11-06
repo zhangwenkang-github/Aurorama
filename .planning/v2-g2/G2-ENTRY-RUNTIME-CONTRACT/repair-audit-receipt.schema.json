@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aurorama.g2-repair-audit-receipt.v1",
+  "title": "Aurorama G2 runtime tool repair audit receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "version",
+    "auditorRole",
+    "auditedCommit",
+    "parent",
+    "auditedAt",
+    "verdict",
+    "scope",
+    "preflightCounts",
+    "g2ToolsCounts",
+    "handoffCounts",
+    "toolsDigest",
+    "candidate",
+    "qaPadV1",
+    "externalLock",
+    "boundaryViolations",
+    "nextRole"
+  ],
+  "properties": {
+    "schema": {
+      "const": "aurorama.g2-repair-audit-receipt.v1"
+    },
+    "version": {
+      "const": "1.0.0"
+    },
+    "auditorRole": {
+      "type": "string",
+      "pattern": "^G2_[A-Z0-9_]*AUDIT_OWNER_2026_11_06$",
+      "minLength": 24,
+      "maxLength": 96
+    },
+    "auditedCommit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "parent": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "auditedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2}))$"
+    },
+    "verdict": {
+      "const": "PASS"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractId",
+        "contractRoot",
+        "mode",
+        "qaExecuted",
+        "deviceTouched",
+        "networkUsed"
+      ],
+      "properties": {
+        "contractId": {
+          "const": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06"
+        },
+        "contractRoot": {
+          "const": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT"
+        },
+        "mode": {
+          "const": "AUDIT_PASS_PENDING_FRESH_PAD_QA"
+        },
+        "qaExecuted": {
+          "const": false
+        },
+        "deviceTouched": {
+          "const": false
+        },
+        "networkUsed": {
+          "const": false
+        }
+      }
+    },
+    "preflightCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputFiles",
+        "roles",
+        "tasks",
+        "gates",
+        "currentTransitions"
+      ],
+      "properties": {
+        "inputFiles": {
+          "type": "integer",
+          "const": 1
+        },
+        "roles": {
+          "type": "integer",
+          "const": 22
+        },
+        "tasks": {
+          "type": "integer",
+          "const": 3
+        },
+        "gates": {
+          "type": "integer",
+          "const": 6
+        },
+        "currentTransitions": {
+          "type": "integer",
+          "const": 62
+        }
+      }
+    },
+    "g2ToolsCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "files",
+        "testsPassed",
+        "testsFailed",
+        "dynamicNegative",
+        "staticSelfTests"
+      ],
+      "properties": {
+        "files": {
+          "type": "integer"
+        },
+        "testsPassed": {
+          "type": "integer"
+        },
+        "testsFailed": {
+          "type": "integer",
+          "const": 0
+        },
+        "dynamicNegative": {
+          "type": "integer"
+        },
+        "staticSelfTests": {
+          "type": "integer",
+          "const": 3
+        }
+      }
+    },
+    "handoffCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "passed",
+        "failed",
+        "dynamicNegative",
+        "tempCleanupPassed"
+      ],
+      "properties": {
+        "passed": {
+          "type": "integer"
+        },
+        "failed": {
+          "type": "integer",
+          "const": 0
+        },
+        "dynamicNegative": {
+          "type": "integer"
+        },
+        "tempCleanupPassed": {
+          "const": true
+        }
+      }
+    },
+    "toolsDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mainSha256",
+        "focusPeerSha256"
+      ],
+      "properties": {
+        "mainSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "focusPeerSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "qaPadV1": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "enum": [
+              "blocker.json",
+              "cleanup-before.json",
+              "cleanup-after.json",
+              "cleanup.json",
+              "device-lock.json"
+            ]
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    "externalLock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "sha256"
+      ],
+      "properties": {
+        "state": {
+          "const": "RELEASED_ACTIVE_0"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "boundaryViolations": {
+      "type": "integer",
+      "const": 0
+    },
+    "nextRole": {
+      "const": "G2_PAD_QA_OWNER_2026_11_06"
+    }
+  }
+}

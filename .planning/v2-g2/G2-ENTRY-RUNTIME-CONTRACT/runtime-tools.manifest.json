@@ -74,23 +74,33 @@
   "files": [
     {
       "path": "Invoke-G2RuntimeCollector.ps1",
-      "sha256": "e00cdcb2c153670a259148f4ed6e34f9b5d46eab26e3ddd8ce2bb6ed6e9a7b6a",
+      "sha256": "9d248404c3f0cc450c249ec2b6aaf142978c90d52c0146163f677d0b1adeba49",
       "kind": "tool"
     },
     {
       "path": "Finalize-G2RuntimeReport.ps1",
-      "sha256": "bb83072433a0b9e3c4c42dc476a10f6752f0f3f23bdc6090f95fbd86ccc7a628",
+      "sha256": "59b6f69dab3550a47740f3b141df25b26c6de22c77a00265efe2705af770aed1",
       "kind": "tool"
     },
     {
       "path": "Test-G2CleanupRestore.ps1",
-      "sha256": "eada2d45011ce989a11188f5ed8d9dc24d052f09f7d9fc5a82482353b073087e",
+      "sha256": "6f581a5707720eb2085920a8a58e292a9461b751d13318030de34305c8379057",
+      "kind": "tool"
+    },
+    {
+      "path": "G2RuntimeStatePolicy.ps1",
+      "sha256": "7aa095a5b213b2d9595d3e0c7415f6e48bcd0432a168b816cd4806ca00e5fce8",
       "kind": "tool"
     },
     {
       "path": "tests/Test-G2RuntimeTools.ps1",
-      "sha256": "83b389e7089977047276fb29cab8a5166bca9bb16f68ebfa459e3abc6790fd47",
+      "sha256": "4f1b7a2e76b3b0b49e17acc54681c0bc43abccb45348255c6188e17b7de8c1a8",
       "kind": "test"
+    },
+    {
+      "path": "repair-audit-receipt.schema.json",
+      "sha256": "df7ebcae8a3b45332b30a629b8a944a7736032ab598b471c162d28c2f399929a",
+      "kind": "schema"
     },
     {
       "path": "tests/fixtures/netstats-before.txt",
@@ -118,5 +128,5 @@
       "kind": "fixture"
     }
   ],
-  "toolsDigestSha256": "d27166fcc3c5481c1943bdbb0178015caa7a7af5783c35799eb3ed4a976d5c6e"
+  "toolsDigestSha256": "9222b335a13066694e7b8f6201fddb8c52b7b12912aec28f9ba17fcae954f063"
 }

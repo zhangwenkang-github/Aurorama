@@ -64,6 +64,8 @@ $requiredBooleanChecks = @(
     "productionPackageMatch"
 )
 
+. (Join-Path $contractRoot "G2RuntimeStatePolicy.ps1")
+
 function Read-G2CleanupJsonStrict {
     param([Parameter(Mandatory)][string]$Path)
     $bytes = [System.IO.File]::ReadAllBytes($Path)
@@ -78,8 +80,12 @@ function Read-G2CleanupJsonStrict {
     if ([Array]::IndexOf($bytes, [byte]13) -ge 0) {
         throw "JSON_CR_FORBIDDEN $Path"
     }
+    $jsonText = $utf8Strict.GetString($bytes)
+    Assert-G2StateNoDuplicateJsonProperties `
+        -JsonText $jsonText `
+        -Name $Path
     return (
-        $utf8Strict.GetString($bytes) |
+        $jsonText |
             ConvertFrom-Json -Depth 100 -DateKind String
     )
 }
@@ -89,6 +95,11 @@ function Get-G2CleanupFileSha256 {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).
         Hash.
         ToLowerInvariant()
+}
+
+function New-G2CleanupDirectory {
+    param([Parameter(Mandatory)][string]$Path)
+    [void][System.IO.Directory]::CreateDirectory($Path)
 }
 
 function Write-G2CleanupText {
@@ -102,7 +113,7 @@ function Write-G2CleanupText {
     }
     $parent = [System.IO.Path]::GetDirectoryName($Path)
     if (-not [string]::IsNullOrWhiteSpace($parent)) {
-        [void][System.IO.Directory]::CreateDirectory($parent)
+        New-G2CleanupDirectory -Path $parent
     }
     [System.IO.File]::WriteAllText($Path, $normalized, $utf8Output)
 }
@@ -305,24 +316,134 @@ function Resolve-G2CleanupEvidenceRoot {
     }
 }
 
+function Resolve-G2CleanupDevicePreflight {
+    param(
+        [Parameter(Mandatory)]$Context,
+        [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
+        [Parameter(Mandatory)][ValidateSet("CaptureBefore", "Verify")]
+        [string]$Action
+    )
+    if ($DeviceRole -cne "K60") {
+        return $null
+    }
+    if (
+        [string]$Context.StatePolicy.Mode -cne
+            "AUDIT_PASS_PENDING_FRESH_PAD_QA"
+    ) {
+        throw "K60_CLEANUP_REQUIRES_AUDIT_READY_STATE"
+    }
+    if (
+        $null -eq $Context.PSObject.Properties["RepositoryRoot"] -or
+        [string]::IsNullOrWhiteSpace([string]$Context.RepositoryRoot)
+    ) {
+        throw "K60_CLEANUP_REPOSITORY_CONTEXT_REQUIRED"
+    }
+    $repositoryBase = [System.IO.Path]::GetFullPath(
+        [string]$Context.RepositoryRoot
+    )
+    $padRootRelative = [string]$Context.Contract.evidence.padRuntimeRoot
+    $padRoot = Resolve-G2StateBoundedPath `
+        -Root $repositoryBase `
+        -RelativePath $padRootRelative
+    $actualPredecessor = Get-G2ValidatedPadPredecessor `
+        -Contract $Context.Contract `
+        -RepositoryRoot $repositoryBase `
+        -PadRoot $padRoot
+
+    $registrationRelative = (
+        [string]$Context.Contract.evidence.k60RuntimeRoot +
+        "/collector-registration.json"
+    )
+    $registrationPath = Resolve-G2StateBoundedPath `
+        -Root $repositoryBase `
+        -RelativePath $registrationRelative
+    if (-not (Test-Path -LiteralPath $registrationPath -PathType Leaf)) {
+        throw "K60_CLEANUP_REGISTRATION_MISSING"
+    }
+    $registration = Read-G2StateJsonStrict $registrationPath
+    Assert-G2StateRegistrationShape `
+        -Registration $registration `
+        -Name "K60_CLEANUP_REGISTRATION"
+    if (
+        [string]$registration.schema -cne
+            "aurorama.g2-collector-registration.v1" -or
+        [string]$registration.contractId -cne
+            [string]$Context.Contract.contractId -or
+        [string]$registration.toolOwnerRole -cne $toolOwnerRole -or
+        [string]$registration.qaOwnerRole -cne
+            "G2_K60_QA_OWNER_2026_11_06" -or
+        [string]$registration.deviceRole -cne "K60" -or
+        [string]$registration.serial -cne "8e875894" -or
+        [int]$registration.attemptNumber -ne 1 -or
+        [int]$registration.windowSeconds -ne 600 -or
+        [string]$registration.attemptScope -cne
+            [string]$Context.Contract.evidence.k60RuntimeRoot -or
+        [string]$registration.attemptState -cne
+            "REGISTERED_WINDOW_NOT_STARTED" -or
+        [string]$registration.candidateMainSha256 -cne
+            [string]$Context.Contract.candidate.main.sha256 -or
+        [string]$registration.candidateFocusPeerSha256 -cne
+            [string]$Context.Contract.candidate.focusPeer.sha256 -or
+        [string]$registration.sourceCommit -cne
+            [string]$Context.Contract.candidate.sourceCommit -or
+        [string]$registration.toolsDigest -cne
+            [string]$Context.Contract.tools.digestSha256 -or
+        $null -ne $registration.recoveryBasis -or
+        [string]$registration.authoritativeLockState -cne
+            "RELEASED_ACTIVE_0" -or
+        [string]$registration.lockState -cne "ACTIVE_COUNT_1"
+    ) {
+        throw "K60_CLEANUP_REGISTRATION_BINDING_MISMATCH"
+    }
+    Assert-G2PadPredecessorBinding `
+        -Expected $registration.predecessor `
+        -Actual $actualPredecessor
+    return $actualPredecessor
+}
+
 function Get-G2CleanupContext {
     param(
         [Parameter(Mandatory)][ValidateSet("Pad", "K60")]$DeviceRole,
-        [AllowNull()][string]$RequestedEvidenceRoot
+        [AllowNull()][string]$RequestedEvidenceRoot,
+        [string]$Action = "Verify",
+        [AllowNull()][string]$ContractPathOverride,
+        [AllowNull()][string]$ManifestPathOverride,
+        [AllowNull()][string]$RepairAuditReceiptPathOverride,
+        [AllowNull()][string]$RepositoryBaseOverride
     )
+    $effectiveContractPath = if ([string]::IsNullOrWhiteSpace(
+        $ContractPathOverride
+    )) {
+        $contractPath
+    } else {
+        [System.IO.Path]::GetFullPath($ContractPathOverride)
+    }
+    $effectiveManifestPath = if ([string]::IsNullOrWhiteSpace(
+        $ManifestPathOverride
+    )) {
+        $manifestPath
+    } else {
+        [System.IO.Path]::GetFullPath($ManifestPathOverride)
+    }
     foreach ($required in @(
-        $contractPath,
+        $effectiveContractPath,
         $authorizationPath,
         $schemaPath,
-        $manifestPath
+        $effectiveManifestPath
     )) {
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
             throw "REQUIRED_FILE_MISSING $required"
         }
     }
-    $contract = Read-G2CleanupJsonStrict $contractPath
+    $contract = Read-G2CleanupJsonStrict $effectiveContractPath
     $authorization = Read-G2CleanupJsonStrict $authorizationPath
-    $manifest = Read-G2CleanupJsonStrict $manifestPath
+    $manifest = Read-G2CleanupJsonStrict $effectiveManifestPath
+    Assert-G2CandidateRecordShape `
+        -Candidate (Read-G2CleanupJsonStrict $candidatePath) `
+        -Name "CLEANUP_CANDIDATE_RECORD"
+    Assert-G2AuthorizationReceiptShape `
+        -Authorization $authorization `
+        -Name "CLEANUP_AUTHORIZATION_RECEIPT"
     Assert-G2CleanupSchemaPin `
         -Contract $contract `
         -SchemaPath $schemaPath
@@ -330,27 +451,48 @@ function Get-G2CleanupContext {
         $contract.schema -cne "aurorama.g2-entry-runtime-contract.v1" -or
         $contract.contractId -cne
             "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06" -or
-        $contract.status -cne "R2_WIP_REPAIR_R3_IN_PROGRESS" -or
         $contract.tools.cleanupVerifier.roleId -cne $toolOwnerRole -or
-        $contract.tools.cleanupVerifier.status -cne
-            "R2_WIP_REPAIR_R3_IN_PROGRESS"
+        $contract.tools.cleanupVerifier.path -cne
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2CleanupRestore.ps1"
     ) {
         throw "CLEANUP_CONTRACT_BINDING_MISMATCH"
     }
-    if ($manifest.ownerRole -cne $toolOwnerRole -or
-        [int]$manifest.qaV9ReuseCount -ne 0) {
-        throw "CLEANUP_MANIFEST_IDENTITY_MISMATCH"
-    }
+    $statePolicy = Assert-G2RuntimeToolStatePolicy `
+        -Contract $contract `
+        -ContractRoot $contractRoot `
+        -RepositoryRoot $repositoryRoot `
+        -Action $Action `
+        -RepairAuditReceiptPathOverride $RepairAuditReceiptPathOverride `
+        -ManifestPathOverride $effectiveManifestPath
     Assert-G2CleanupAuthorization `
         -Contract $contract `
         -Authorization $authorization
-    return [pscustomobject]@{
+    $effectiveRepositoryRoot = if (
+        [string]::IsNullOrWhiteSpace($RepositoryBaseOverride)
+    ) {
+        $repositoryRoot
+    } else {
+        [System.IO.Path]::GetFullPath($RepositoryBaseOverride)
+    }
+    $resolvedEvidence = Resolve-G2CleanupEvidenceRoot `
+        -DeviceRole $DeviceRole `
+        -RequestedEvidenceRoot $RequestedEvidenceRoot `
+        -RepositoryBase $effectiveRepositoryRoot
+    $context = [pscustomobject]@{
         Contract = $contract
         Authorization = $authorization
-        Evidence = Resolve-G2CleanupEvidenceRoot `
-            -DeviceRole $DeviceRole `
-            -RequestedEvidenceRoot $RequestedEvidenceRoot
+        Evidence = $resolvedEvidence
+        RepositoryRoot = $effectiveRepositoryRoot
+        StatePolicy = $statePolicy
+        Predecessor = $null
     }
+    if ($DeviceRole -ceq "K60") {
+        $context.Predecessor = Resolve-G2CleanupDevicePreflight `
+            -Context $context `
+            -DeviceRole $DeviceRole `
+            -Action $Action
+    }
+    return $context
 }
 
 function Test-G2ActiveMediaSessionAbsent {
@@ -537,11 +679,15 @@ function Get-G2CleanupDeviceLockOccupancy {
             state = "RELEASED_ACTIVE_0"
             activeCount = 0
             attemptNumber = 1
+            registeredAt = $null
             authoritativeLockStateAtRegistration = $null
             historicalBlockerSha256 = $null
         }
     }
     $lock = Read-G2CleanupJsonStrict $Path
+    Assert-G2StateDeviceLockShape `
+        -Lock $lock `
+        -Name "CLEANUP_DEVICE_LOCK"
     $state = [string]$lock.state
     $activeCount = [int]$lock.activeCount
     $validState = (
@@ -564,6 +710,7 @@ function Get-G2CleanupDeviceLockOccupancy {
         state = $state
         activeCount = $activeCount
         attemptNumber = [int]$lock.attemptNumber
+        registeredAt = [string]$lock.registeredAt
         authoritativeLockStateAtRegistration = if (
             $null -eq $lock.PSObject.Properties[
                 "authoritativeLockStateAtRegistration"
@@ -615,6 +762,7 @@ function Complete-G2CleanupDeviceLock {
         state = "RELEASED_ACTIVE_0"
         activeCount = 0
         attemptNumber = $attemptNumber
+        registeredAt = $current.registeredAt
         authoritativeLockStateAtRegistration =
             $current.authoritativeLockStateAtRegistration
         historicalBlockerSha256 = $current.historicalBlockerSha256
@@ -909,7 +1057,7 @@ function Capture-G2CleanupBefore {
     $snapshot = Get-G2CleanupSnapshot `
         -Serial $serial `
         -Contract $Context.Contract
-    [void][System.IO.Directory]::CreateDirectory($Context.Evidence.FullPath)
+    New-G2CleanupDirectory -Path $Context.Evidence.FullPath
     $path = Join-Path $Context.Evidence.FullPath "cleanup-before.json"
     if (Test-Path -LiteralPath $path -PathType Leaf) {
         throw "CLEANUP_BEFORE_ALREADY_EXISTS"
@@ -1024,6 +1172,9 @@ function Invoke-G2CleanupVerification {
     $session = $null
     if (Test-Path -LiteralPath $sessionPath -PathType Leaf) {
         $session = Read-G2CleanupJsonStrict $sessionPath
+        Assert-G2StateSessionShape `
+            -Session $session `
+            -Name "CLEANUP_SESSION"
     }
     $hostProcesses = if ($null -eq $session) {
         @()
@@ -1218,7 +1369,8 @@ function Invoke-G2CleanupMain {
     }
     $context = Get-G2CleanupContext `
         -DeviceRole $DeviceRole `
-        -RequestedEvidenceRoot $EvidenceRoot
+        -RequestedEvidenceRoot $EvidenceRoot `
+        -Action $Action
     switch ($Action) {
         "CaptureBefore" {
             Capture-G2CleanupBefore `

@@ -22,11 +22,22 @@ $manifestPath = Join-Path $contractRoot "runtime-tools.manifest.json"
 $contractPath = Join-Path $contractRoot "contract.json"
 $authorizationPath = Join-Path $contractRoot "authorization-receipt.json"
 $schemaPath = Join-Path $contractRoot "report.schema.json"
+$policyPath = Join-Path $contractRoot "G2RuntimeStatePolicy.ps1"
+$auditReceiptSchemaPath = Join-Path `
+    $contractRoot `
+    "repair-audit-receipt.schema.json"
+$auditReceiptPath = Join-Path `
+    $contractRoot `
+    "repair-audit-receipt.json"
 
 $script:passed = 0
 $script:failed = 0
 $script:negativeChecks = 0
 $script:failures = [System.Collections.Generic.List[string]]::new()
+$script:ExpectedG2ToolsPassed = 114
+$script:ExpectedG2DynamicNegative = 172
+$script:ExpectedHandoffPassed = 108
+$script:ExpectedHandoffDynamicNegative = 0
 
 function Assert-True {
     param(
@@ -106,6 +117,13 @@ function Get-FileSha256 {
         ToLowerInvariant()
 }
 
+function Get-TestOrdinalSortedStrings {
+    param([AllowNull()][string[]]$Value)
+    [string[]]$copy = @($Value)
+    [Array]::Sort($copy, [System.StringComparer]::Ordinal)
+    return $copy
+}
+
 function New-TestTempRoot {
     $tempBase = [System.IO.Path]::GetFullPath(
         [System.IO.Path]::GetTempPath()
@@ -159,6 +177,389 @@ function Write-TestJson {
     )
 }
 
+function Get-TestGitValue {
+    param([Parameter(Mandatory)][string[]]$Arguments)
+    $output = @(& git -C $repositoryRoot @Arguments 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        throw "Test Git command failed: git $($Arguments -join ' ')"
+    }
+    return (($output | ForEach-Object { [string]$_ }) -join "`n").Trim()
+}
+
+function Initialize-TestSyntheticAuditProvenance {
+    param(
+        [Parameter(Mandatory)]$Temp,
+        [Parameter(Mandatory)][string]$MinimumAuditedCommit
+    )
+    $objectDirectory = Join-Path $Temp.Root "synthetic-audit-objects"
+    [void][System.IO.Directory]::CreateDirectory($objectDirectory)
+    $actualObjectDirectory = Get-TestGitValue @(
+        "rev-parse",
+        "--path-format=absolute",
+        "--git-path",
+        "objects"
+    )
+    $environmentNames = @(
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_AUTHOR_NAME",
+        "GIT_AUTHOR_EMAIL",
+        "GIT_AUTHOR_DATE",
+        "GIT_COMMITTER_NAME",
+        "GIT_COMMITTER_EMAIL",
+        "GIT_COMMITTER_DATE"
+    )
+    $previousEnvironment = @{}
+    foreach ($name in $environmentNames) {
+        $previousEnvironment[$name] =
+            [Environment]::GetEnvironmentVariable($name, "Process")
+    }
+    try {
+        $env:GIT_OBJECT_DIRECTORY = $objectDirectory
+        $env:GIT_ALTERNATE_OBJECT_DIRECTORIES = $actualObjectDirectory
+        $env:GIT_AUTHOR_NAME = "G2 Synthetic Audit Fixture"
+        $env:GIT_AUTHOR_EMAIL = "g2-synthetic-audit@example.invalid"
+        $env:GIT_AUTHOR_DATE = "946684800 +0000"
+        $env:GIT_COMMITTER_NAME = "G2 Synthetic Audit Fixture"
+        $env:GIT_COMMITTER_EMAIL = "g2-synthetic-audit@example.invalid"
+        $env:GIT_COMMITTER_DATE = "946684800 +0000"
+        $tree = Get-TestGitValue @(
+            "rev-parse",
+            "$MinimumAuditedCommit^{tree}"
+        )
+        $auditedCommit = Get-TestGitValue @(
+            "commit-tree",
+            $tree,
+            "-p",
+            $MinimumAuditedCommit,
+            "-m",
+            "G2 synthetic strict-descendant audit fixture"
+        )
+        $parent = Get-TestGitValue @(
+            "rev-parse",
+            "$auditedCommit^1"
+        )
+        $head = Get-TestGitValue @("rev-parse", "HEAD")
+        Assert-Equal `
+            -Actual $parent `
+            -Expected $MinimumAuditedCommit `
+            -Message "Synthetic audit parent"
+        Assert-True `
+            -Condition ($auditedCommit -cne $MinimumAuditedCommit) `
+            -Message "Synthetic audit commit equals minimum."
+        Assert-True `
+            -Condition ($auditedCommit -cne $head) `
+            -Message "Synthetic audit commit equals current HEAD."
+        return [pscustomobject]@{
+            Mode = "SYNTHETIC_STRICT_DESCENDANT"
+            MinimumAuditedCommit = $MinimumAuditedCommit
+            AuditedCommit = $auditedCommit
+            Parent = $parent
+            ObjectDirectory = $objectDirectory
+            PreviousEnvironment = $previousEnvironment
+        }
+    } catch {
+        foreach ($name in $environmentNames) {
+            [Environment]::SetEnvironmentVariable(
+                $name,
+                $previousEnvironment[$name],
+                "Process"
+            )
+        }
+        throw
+    }
+}
+
+function Restore-TestSyntheticAuditProvenance {
+    param(
+        [Parameter(Mandatory)]$Provenance,
+        [Parameter(Mandatory)]$Temp
+    )
+    foreach ($name in $Provenance.PreviousEnvironment.Keys) {
+        [Environment]::SetEnvironmentVariable(
+            $name,
+            $Provenance.PreviousEnvironment[$name],
+            "Process"
+        )
+    }
+    if ([System.IO.Directory]::Exists([string]$Temp.Root)) {
+        Get-ChildItem -LiteralPath $Temp.Root -Recurse -Force |
+            ForEach-Object {
+                if (
+                    $_.Attributes -band
+                        [System.IO.FileAttributes]::ReadOnly
+                ) {
+                    $_.Attributes =
+                        $_.Attributes -band
+                        (-bnot [System.IO.FileAttributes]::ReadOnly)
+                }
+            }
+    }
+    Remove-TestTempRoot -Temp $Temp
+}
+
+function Copy-TestObject {
+    param([Parameter(Mandatory)]$Value)
+    return (
+        $Value |
+            ConvertTo-Json -Depth 100 |
+            ConvertFrom-Json -Depth 100 -DateKind String
+    )
+}
+
+function Invoke-TestCatching {
+    param([Parameter(Mandatory)][scriptblock]$Action)
+    try {
+        & $Action
+        return [pscustomobject]@{
+            Threw = $false
+            ErrorMessage = ""
+        }
+    } catch {
+        return [pscustomobject]@{
+            Threw = $true
+            ErrorMessage = [string]$_.Exception.Message
+        }
+    }
+}
+
+function Get-TestRelativeEntrySet {
+    param([Parameter(Mandatory)][string]$Root)
+    $fullRoot = [System.IO.Path]::GetFullPath($Root)
+    if (-not [System.IO.Directory]::Exists($fullRoot)) {
+        return @()
+    }
+    $entries = @(
+        Get-ChildItem -LiteralPath $fullRoot -Recurse -Force |
+            ForEach-Object {
+                [System.IO.Path]::GetRelativePath(
+                    $fullRoot,
+                    $_.FullName
+                ).Replace("\", "/")
+            }
+    )
+    return @(Get-TestOrdinalSortedStrings -Value $entries)
+}
+
+function New-FutureContractFixture {
+    param(
+        [Parameter(Mandatory)]$SourceContract,
+        [Parameter(Mandatory)][string]$ManifestPath,
+        [Parameter(Mandatory)][string]$Destination
+    )
+    $futureManifest = (
+        [System.IO.File]::ReadAllText(
+            $ManifestPath,
+            [System.Text.UTF8Encoding]::new($false, $true)
+        ) |
+            ConvertFrom-Json -Depth 100 -DateKind String
+    )
+    $testEntry = @(
+        $futureManifest.files |
+            Where-Object {
+                [string]$_.path -ceq "tests/Test-G2RuntimeTools.ps1"
+            }
+    )
+    Assert-Equal `
+        -Actual $testEntry.Count `
+        -Expected 1 `
+        -Message "Future manifest test entry"
+    $testEntry[0].sha256 = Get-FileSha256 (
+        Join-Path $testsRoot "Test-G2RuntimeTools.ps1"
+    )
+    $futureStatus = "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA"
+    $futureManifest.status = $futureStatus
+    $futureManifestPath = Join-Path $Destination "future-manifest.json"
+    Write-TestJson -Path $futureManifestPath -Value $futureManifest
+
+    $future = (
+        $SourceContract |
+            ConvertTo-Json -Depth 100 |
+            ConvertFrom-Json -Depth 100 -DateKind String
+    )
+    $auditedCommit = $script:SyntheticAuditProvenance.AuditedCommit
+    $future.status = $future.toolStatePolicy.qaReadyStatus
+    foreach ($toolName in @(
+        "runtimeCollector",
+        "runtimeFinalizer",
+        "cleanupVerifier"
+    )) {
+        $future.tools.$toolName.status = $future.status
+        $future.tools.$toolName.deviceAccess =
+            $future.toolStatePolicy.qaReadyToolDeviceAccess
+    }
+    $future.tools.statePolicy.status = $future.status
+    $future.tools.runtimeManifest.status = $future.status
+    $future.tools.runtimeManifest.sha256 = Get-FileSha256 $futureManifestPath
+    $future.authorization.contractPackageReady = $true
+    $future.authorization.qaDispatchable = $true
+    $future.authorization.activePrompt =
+        $future.toolStatePolicy.qaReadyActivePrompt
+    $future.authorization.generatedExecutableQaPrompt = $true
+    $repairAuditExpectations = [pscustomobject][ordered]@{
+        status = "SETTLED_FROM_FINAL_AUDIT"
+        source = [pscustomobject][ordered]@{
+            auditedCommit = $auditedCommit
+            g2ToolsCommand = (
+                "pwsh -NoProfile -File " +
+                ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/" +
+                "tests/Test-G2RuntimeTools.ps1"
+            )
+            handoffCommand = (
+                "pwsh -NoProfile -File " +
+                "tools/v2-handoff/Test-HandoffPreflight.ps1"
+            )
+            staticSelfTestCommand = (
+                "collector/finalizer/cleanup -StaticSelfTest"
+            )
+        }
+        preflightCounts = [pscustomobject][ordered]@{
+            inputFiles = 1
+            roles = 22
+            tasks = 3
+            gates = 6
+            currentTransitions = 62
+        }
+        g2ToolsCounts = [pscustomobject][ordered]@{
+            files = 4
+            testsPassed = $script:ExpectedG2ToolsPassed
+            testsFailed = 0
+            dynamicNegative = $script:ExpectedG2DynamicNegative
+            staticSelfTests = 3
+        }
+        handoffCounts = [pscustomobject][ordered]@{
+            passed = $script:ExpectedHandoffPassed
+            failed = 0
+            dynamicNegative = $script:ExpectedHandoffDynamicNegative
+            tempCleanupPassed = $true
+        }
+        boundaryViolations = 0
+    }
+    if ($null -eq $future.PSObject.Properties["validation"]) {
+        $future | Add-Member `
+            -NotePropertyName validation `
+            -NotePropertyValue ([pscustomobject]@{})
+    }
+    if (
+        $null -eq
+        $future.validation.PSObject.Properties["repairAuditExpectations"]
+    ) {
+        $future.validation | Add-Member `
+            -NotePropertyName repairAuditExpectations `
+            -NotePropertyValue $repairAuditExpectations
+    } else {
+        $future.validation.repairAuditExpectations =
+            $repairAuditExpectations
+    }
+    $futureContractPath = Join-Path $Destination "future-contract.json"
+    Write-TestJson -Path $futureContractPath -Value $future
+    return [pscustomobject]@{
+        Contract = $future
+        ContractPath = $futureContractPath
+        Manifest = $futureManifest
+        ManifestPath = $futureManifestPath
+    }
+}
+
+function New-RepairAuditReceiptFixture {
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)][string]$ManifestPath,
+        [Parameter(Mandatory)][string]$Destination
+    )
+    $auditedCommit = $script:SyntheticAuditProvenance.AuditedCommit
+    $parent = $script:SyntheticAuditProvenance.Parent
+    $handoff = Read-Json (
+        Join-Path $repositoryRoot "tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json"
+    )
+    $lockPath = [string]$handoff.evidence.deviceLockPath
+    $manifest = Read-Json $ManifestPath
+    $expectations = $Contract.validation.repairAuditExpectations
+    $toolFiles = @(
+        $manifest.files |
+            Where-Object { [string]$_.kind -ceq "tool" }
+    )
+    $qaPadV1 = @(
+        $Contract.attemptRecovery.historicalPreWindowBlock.evidenceFiles |
+            ForEach-Object {
+                [pscustomobject]@{
+                    path = [string]$_.path
+                    sha256 = [string]$_.sha256
+                }
+            }
+    )
+    $receipt = [pscustomobject][ordered]@{
+        schema = "aurorama.g2-repair-audit-receipt.v1"
+        version = "1.0.0"
+        auditorRole =
+            "G2_RUNTIME_TOOL_STATE_BINDING_AUDIT_OWNER_2026_11_06"
+        auditedCommit = $auditedCommit
+        parent = $parent
+        auditedAt = [DateTimeOffset]::UtcNow.ToString(
+            "yyyy-MM-ddTHH:mm:ss.fffffffZ",
+            [System.Globalization.CultureInfo]::InvariantCulture
+        )
+        verdict = "PASS"
+        scope = [pscustomobject][ordered]@{
+            contractId = [string]$Contract.contractId
+            contractRoot = [string]$Contract.evidence.root
+            mode = "AUDIT_PASS_PENDING_FRESH_PAD_QA"
+            qaExecuted = $false
+            deviceTouched = $false
+            networkUsed = $false
+        }
+        preflightCounts = [pscustomobject][ordered]@{
+            inputFiles = [int]$expectations.preflightCounts.inputFiles
+            roles = [int]$expectations.preflightCounts.roles
+            tasks = [int]$expectations.preflightCounts.tasks
+            gates = [int]$expectations.preflightCounts.gates
+            currentTransitions =
+                [int]$expectations.preflightCounts.currentTransitions
+        }
+        g2ToolsCounts = [pscustomobject][ordered]@{
+            files = $toolFiles.Count
+            testsPassed =
+                [int]$expectations.g2ToolsCounts.testsPassed
+            testsFailed =
+                [int]$expectations.g2ToolsCounts.testsFailed
+            dynamicNegative =
+                [int]$expectations.g2ToolsCounts.dynamicNegative
+            staticSelfTests =
+                [int]$expectations.g2ToolsCounts.staticSelfTests
+        }
+        handoffCounts = [pscustomobject][ordered]@{
+            passed = [int]$expectations.handoffCounts.passed
+            failed = [int]$expectations.handoffCounts.failed
+            dynamicNegative =
+                [int]$expectations.handoffCounts.dynamicNegative
+            tempCleanupPassed =
+                [bool]$expectations.handoffCounts.tempCleanupPassed
+        }
+        toolsDigest = [string]$Contract.tools.digestSha256
+        candidate = [pscustomobject][ordered]@{
+            mainSha256 = [string]$Contract.candidate.main.sha256
+            focusPeerSha256 =
+                [string]$Contract.candidate.focusPeer.sha256
+        }
+        qaPadV1 = $qaPadV1
+        externalLock = [pscustomobject][ordered]@{
+            state = "RELEASED_ACTIVE_0"
+            sha256 = Get-FileSha256 $lockPath
+        }
+        boundaryViolations = [int]$expectations.boundaryViolations
+        nextRole = "G2_PAD_QA_OWNER_2026_11_06"
+    }
+    $receiptPath = Join-Path $Destination "repair-audit-receipt.json"
+    Write-TestJson -Path $receiptPath -Value $receipt
+    return [pscustomobject]@{
+        Receipt = $receipt
+        Path = $receiptPath
+        LockPath = $lockPath
+        AuditedCommit = $auditedCommit
+        Parent = $parent
+    }
+}
+
 function Copy-G2HistoricalFixture {
     param(
         [Parameter(Mandatory)][string]$Destination,
@@ -205,10 +606,17 @@ Invoke-Case "STATIC-TOOLS-EXIST" {
             -Condition (Test-Path -LiteralPath $toolPath -PathType Leaf) `
             -Message "Missing tool: $toolPath"
     }
+    foreach ($policyArtifact in @($policyPath, $auditReceiptSchemaPath)) {
+        Assert-True `
+            -Condition (Test-Path -LiteralPath $policyArtifact -PathType Leaf) `
+            -Message "Missing state-policy artifact: $policyArtifact"
+    }
 }
 
 Invoke-Case "STATIC-UTF8-LF-NO-BOM" {
     foreach ($path in @($toolPaths + @(
+        $policyPath,
+        $auditReceiptSchemaPath,
         $manifestPath,
         (Join-Path $testsRoot "Test-G2RuntimeTools.ps1")
     ))) {
@@ -224,11 +632,21 @@ if ($toolsPresent) {
     . $finalizerPath
     . $cleanupPath
 }
+if (Test-Path -LiteralPath $policyPath -PathType Leaf) {
+    . $policyPath
+}
 
 $contract = Read-Json $contractPath
 $authorization = Read-Json $authorizationPath
 $observations = Read-Json (Join-Path $fixturesRoot "observations-complete.json")
 $cleanupFixture = Read-Json (Join-Path $fixturesRoot "cleanup-complete.json")
+$script:SyntheticAuditTemp = New-TestTempRoot
+$script:SyntheticAuditProvenance =
+    Initialize-TestSyntheticAuditProvenance `
+        -Temp $script:SyntheticAuditTemp `
+        -MinimumAuditedCommit (
+            [string]$contract.toolStatePolicy.minimumAuditedCommit
+        )
 
 function New-FixturePassReport {
     $report = New-G2RuntimeReportFromObservations `
@@ -264,6 +682,7 @@ function New-TestFinalizerBindingContext {
             qaOwnerRole = "G2_PAD_QA_OWNER_2026_11_06"
             deviceRole = "Pad"
             serial = "43af8627"
+            registeredAt = "2026-11-06T12:00:00.000+08:00"
             attemptScope = $Contract.evidence.padRuntimeRoot
             attemptState = "REGISTERED_WINDOW_NOT_STARTED"
             lockState = "ACTIVE_COUNT_1"
@@ -271,8 +690,11 @@ function New-TestFinalizerBindingContext {
             windowSeconds = 600
             candidateMainSha256 = $Contract.candidate.main.sha256
             candidateFocusPeerSha256 = $Contract.candidate.focusPeer.sha256
+            sourceCommit = $Contract.candidate.sourceCommit
             toolsDigest = $Contract.tools.digestSha256
+            predecessor = $null
             authoritativeLockState = "RELEASED_ACTIVE_0"
+            authoritativeLockSha256 = ("c" * 64)
             recoveryBasis = [pscustomobject]@{
                 outcome = "PRE_WINDOW_TOOL_BLOCK"
                 historicalWindowConsumed = $false
@@ -281,8 +703,13 @@ function New-TestFinalizerBindingContext {
                     "qa-pad-v1/blocker.json"
                 )
                 blockerSha256 = ("a" * 64)
+                historicalDeviceLockEvidencePointer = (
+                    ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/" +
+                    "qa-pad-v1/device-lock.json"
+                )
                 historicalDeviceLockSha256 = ("b" * 64)
                 authoritativeLockState = "RELEASED_ACTIVE_0"
+                authoritativeLockSha256 = ("c" * 64)
             }
         })
     Write-TestJson `
@@ -290,6 +717,7 @@ function New-TestFinalizerBindingContext {
         -Value ([pscustomobject]@{
             schema = "aurorama.g2-collector-session.v1"
             contractId = $Contract.contractId
+            toolOwnerRole = "G2_RUNTIME_TOOL_OWNER_2026_11_06"
             qaOwnerRole = "G2_PAD_QA_OWNER_2026_11_06"
             evidenceRoot = $Contract.evidence.padRuntimeRoot
             attemptScope = $Contract.evidence.padRuntimeRoot
@@ -306,7 +734,20 @@ function New-TestFinalizerBindingContext {
             completedAt = $Observations.execution.completedAt
             candidateMainSha256 = $Contract.candidate.main.sha256
             candidateFocusPeerSha256 = $Contract.candidate.focusPeer.sha256
+            sourceCommit = $Contract.candidate.sourceCommit
             toolsDigest = $Contract.tools.digestSha256
+            uid = [int]$Observations.zeroNetwork.uid
+            device = [pscustomobject][ordered]@{
+                serial = $Observations.device.serial
+                model = $Observations.device.model
+                sdk = [int]$Observations.device.sdk
+                abi = $Observations.device.abi
+                user = [int]$Observations.device.user
+            }
+            commandCount = 0
+            commands = @()
+            snapshots = @()
+            hostLogcatProcessId = $null
             error = $null
         })
     Write-TestJson `
@@ -319,6 +760,7 @@ function New-TestFinalizerBindingContext {
             state = "RELEASED_ACTIVE_0"
             activeCount = 0
             attemptNumber = 1
+            registeredAt = "2026-11-06T12:00:00.000+08:00"
             authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
             historicalBlockerSha256 = ("a" * 64)
             releasedAt = "2026-11-06T12:20:00.000+08:00"
@@ -360,6 +802,7 @@ function New-TestPadPredecessorFixture {
             state = "RELEASED_ACTIVE_0"
             activeCount = 0
             attemptNumber = 1
+            registeredAt = "2026-11-06T12:00:00.000+08:00"
             authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
             historicalBlockerSha256 = $historicalBlockerSha256
             releasedAt = "2026-11-06T12:20:00.000+08:00"
@@ -405,6 +848,7 @@ function New-TestK60RegistrationFixture {
         windowSeconds = 600
         attemptScope = $Contract.evidence.k60RuntimeRoot
         attemptState = "REGISTERED_WINDOW_NOT_STARTED"
+        registeredAt = "2026-11-06T12:00:00.000+08:00"
         candidateMainSha256 = $Contract.candidate.main.sha256
         candidateFocusPeerSha256 = $Contract.candidate.focusPeer.sha256
         sourceCommit = $Contract.candidate.sourceCommit
@@ -412,6 +856,7 @@ function New-TestK60RegistrationFixture {
         predecessor = $pad.Predecessor
         recoveryBasis = $null
         authoritativeLockState = "RELEASED_ACTIVE_0"
+        authoritativeLockSha256 = ("a" * 64)
         lockState = "ACTIVE_COUNT_1"
     }
     $registrationPath = Join-Path $k60Root "collector-registration.json"
@@ -427,6 +872,7 @@ function New-TestK60RegistrationFixture {
             state = "ACTIVE_COUNT_1"
             activeCount = 1
             attemptNumber = 1
+            registeredAt = "2026-11-06T12:00:00.000+08:00"
             authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
             historicalBlockerSha256 = $null
             releasedAt = $null
@@ -446,6 +892,121 @@ function New-TestK60RegistrationFixture {
         Registration = $registration
         RegistrationPath = $registrationPath
         LockPath = $lockPath
+    }
+}
+
+function New-TestFutureCleanupFixture {
+    param(
+        [Parameter(Mandatory)]$Temp,
+        [Parameter(Mandatory)]$Observations
+    )
+    $future = New-FutureContractFixture `
+        -SourceContract $contract `
+        -ManifestPath $manifestPath `
+        -Destination $Temp.Root
+    $receipt = New-RepairAuditReceiptFixture `
+        -Contract $future.Contract `
+        -ManifestPath $future.ManifestPath `
+        -Destination $Temp.Root
+    $k60 = New-TestK60RegistrationFixture `
+        -Temp $Temp `
+        -Contract $future.Contract `
+        -Observations $Observations
+    $k60Evidence = [pscustomobject]@{
+        RelativePath = $future.Contract.evidence.k60RuntimeRoot
+        FullPath = Join-Path `
+            $Temp.Root `
+            $future.Contract.evidence.k60RuntimeRoot
+    }
+    $context = [pscustomobject]@{
+        Contract = $future.Contract
+        Evidence = $k60Evidence
+        RepositoryRoot = $Temp.Root
+        StatePolicy = [pscustomobject]@{
+            Mode = "AUDIT_PASS_PENDING_FRESH_PAD_QA"
+            QaDispatchable = $true
+        }
+    }
+    return [pscustomobject]@{
+        Future = $future
+        Receipt = $receipt
+        K60 = $k60
+        Context = $context
+        PadReportPath = $k60.Pad.ReportPath
+        PadLockPath = $k60.Pad.LockPath
+    }
+}
+
+Invoke-Case "STATE-ARTIFACT-SHAPES-REJECT-CASE-VARIANTS" {
+    $temp = New-TestTempRoot
+    try {
+        $binding = New-TestFinalizerBindingContext `
+            -Temp $temp `
+            -Contract $contract `
+            -Observations $observations
+        $registration = Read-Json (
+            Join-Path $binding.Evidence.FullPath "collector-registration.json"
+        )
+        $registrationLockState = $registration.lockState
+        [void]$registration.PSObject.Properties.Remove("lockState")
+        $registration | Add-Member `
+            -NotePropertyName LockState `
+            -NotePropertyValue $registrationLockState
+        Assert-Throws `
+            -MessagePattern "FIELD|REGISTRATION|STATE" `
+            -Action {
+                Assert-G2StateRegistrationShape `
+                    -Registration $registration `
+                    -Name "TEST_REGISTRATION"
+            }
+
+        $session = Read-Json (
+            Join-Path $binding.Evidence.FullPath "collector-session.json"
+        )
+        $sessionAttemptState = $session.attemptState
+        [void]$session.PSObject.Properties.Remove("attemptState")
+        $session | Add-Member `
+            -NotePropertyName AttemptState `
+            -NotePropertyValue $sessionAttemptState
+        Assert-Throws `
+            -MessagePattern "FIELD|SESSION|STATE" `
+            -Action {
+                Assert-G2StateSessionShape `
+                    -Session $session `
+                    -Name "TEST_SESSION"
+            }
+
+        $lock = Read-Json (
+            Join-Path $binding.Evidence.FullPath "device-lock.json"
+        )
+        $lockState = $lock.state
+        [void]$lock.PSObject.Properties.Remove("state")
+        $lock | Add-Member `
+            -NotePropertyName State `
+            -NotePropertyValue $lockState
+        Assert-Throws `
+            -MessagePattern "FIELD|LOCK|STATE" `
+            -Action {
+                Assert-G2StateDeviceLockShape `
+                    -Lock $lock `
+                    -Name "TEST_LOCK"
+            }
+
+        $report = New-FixturePassReport
+        $verdict = $report.verdict
+        [void]$report.PSObject.Properties.Remove("verdict")
+        $report | Add-Member `
+            -NotePropertyName Verdict `
+            -NotePropertyValue $verdict
+        Assert-Throws `
+            -MessagePattern "FIELD|REPORT|STATE" `
+            -Action {
+                Assert-G2StateRuntimeReportShape `
+                    -Report $report `
+                    -Name "TEST_REPORT"
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
     }
 }
 
@@ -492,6 +1053,1433 @@ Invoke-Case "CONTRACT-RUNTIME-TOOLS-BOUND" {
             -Expected "STATIC_SELF_TEST_ONLY_THIS_PHASE" `
             -Message "$toolName device access"
     }
+}
+
+Invoke-Case "CONTRACT-TOOL-STATE-POLICY-BOUND" {
+    Assert-Equal `
+        -Actual $contract.toolStatePolicy.schema `
+        -Expected "aurorama.g2-tool-state-policy.v1" `
+        -Message "Tool state policy schema"
+    Assert-Equal `
+        -Actual $contract.toolStatePolicy.preAuditStatus `
+        -Expected "R2_WIP_REPAIR_R3_IN_PROGRESS" `
+        -Message "Pre-audit state"
+    Assert-Equal `
+        -Actual $contract.toolStatePolicy.qaReadyStatus `
+        -Expected "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA" `
+        -Message "QA-ready state"
+    Assert-Equal `
+        -Actual $contract.toolStatePolicy.qaReadyActivePrompt `
+        -Expected "G2_PAD_QA_OWNER_2026_11_06" `
+        -Message "QA-ready prompt"
+    Assert-Equal `
+        -Actual $contract.toolStatePolicy.requiredNextRole `
+        -Expected "G2_PAD_QA_OWNER_2026_11_06" `
+        -Message "Receipt next role"
+    Assert-Equal `
+        -Actual $contract.toolStatePolicy.minimumAuditedCommit `
+        -Expected "6b04eb300256fc8384e5407cee24907e8343f949" `
+        -Message "Minimum audit baseline"
+}
+
+Invoke-Case "CONTRACT-REPAIR-AUDIT-EXPECTATIONS-PENDING" {
+    $validationProperty = $contract.PSObject.Properties["validation"]
+    Assert-True `
+        -Condition ($null -ne $validationProperty) `
+        -Message "Contract validation object is missing."
+    $expectationProperty =
+        $contract.validation.PSObject.Properties["repairAuditExpectations"]
+    Assert-True `
+        -Condition ($null -ne $expectationProperty) `
+        -Message "repairAuditExpectations field is missing."
+    Assert-Equal `
+        -Actual $contract.validation.repairAuditExpectations.status `
+        -Expected "PENDING_SETTLEMENT_FINAL_AUDIT" `
+        -Message "Pre-audit expectations status"
+    Assert-True `
+        -Condition (
+            $null -eq $contract.validation.repairAuditExpectations.source -and
+            $null -eq
+                $contract.validation.repairAuditExpectations.
+                    preflightCounts -and
+            $null -eq
+                $contract.validation.repairAuditExpectations.
+                    g2ToolsCounts -and
+            $null -eq
+                $contract.validation.repairAuditExpectations.
+                    handoffCounts -and
+            $null -eq
+                $contract.validation.repairAuditExpectations.
+                    boundaryViolations
+        ) `
+        -Message "Pre-audit contract must not invent settled counts."
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-CASE-VARIANT-UNKNOWN-AND-DUPLICATE-FIELDS" {
+    $temp = New-TestTempRoot
+    try {
+        $statusCase = Copy-TestObject $contract
+        $statusExpectation =
+            $statusCase.validation.repairAuditExpectations
+        $statusValue = $statusExpectation.status
+        [void]$statusExpectation.PSObject.Properties.Remove("status")
+        $statusExpectation | Add-Member `
+            -NotePropertyName Status `
+            -NotePropertyValue $statusValue
+        Assert-Throws `
+            -MessagePattern "FIELD|EXPECTATIONS|STATE" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $statusCase `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Validate
+            }
+
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+
+        $countsCase = Copy-TestObject $future.Contract
+        $countsExpectation =
+            $countsCase.validation.repairAuditExpectations
+        $countsValue = $countsExpectation.g2ToolsCounts
+        [void]$countsExpectation.PSObject.Properties.Remove(
+            "g2ToolsCounts"
+        )
+        $countsExpectation | Add-Member `
+            -NotePropertyName G2ToolsCounts `
+            -NotePropertyValue $countsValue
+        Assert-Throws `
+            -MessagePattern "FIELD|EXPECTATIONS|COUNTS|STATE" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $countsCase `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Validate `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        $unknownCase = Copy-TestObject $future.Contract
+        $unknownCase.validation.repairAuditExpectations.
+            g2ToolsCounts | Add-Member `
+                -NotePropertyName unexpected `
+                -NotePropertyValue 1
+        Assert-Throws `
+            -MessagePattern "FIELD|EXPECTATIONS|COUNTS|STATE" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $unknownCase `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Validate `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        $manifestText = [System.IO.File]::ReadAllText(
+            $manifestPath,
+            [System.Text.UTF8Encoding]::new($false, $true)
+        )
+        $schemaLine = '  "schema": "aurorama.g2-runtime-tools.v1",'
+        Assert-True `
+            -Condition $manifestText.Contains(
+                $schemaLine,
+                [System.StringComparison]::Ordinal
+            ) `
+            -Message "Manifest schema line is missing."
+        $duplicateManifestPath = Join-Path `
+            $temp.Root `
+            "duplicate-manifest.json"
+        $duplicateText = $manifestText.Replace(
+            $schemaLine,
+            $schemaLine + "`n" + $schemaLine
+        )
+        [System.IO.File]::WriteAllText(
+            $duplicateManifestPath,
+            $duplicateText,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        $duplicateContract = Copy-TestObject $contract
+        $duplicateContract.tools.runtimeManifest.sha256 =
+            Get-FileSha256 $duplicateManifestPath
+        Assert-Throws `
+            -MessagePattern "DUPLICATE_PROPERTY|MANIFEST|STATE" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $duplicateContract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Validate `
+                    -ManifestPathOverride $duplicateManifestPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-ROOT-CASE-VARIANT-AND-UNKNOWN-FIELDS" {
+    $temp = New-TestTempRoot
+    try {
+        $overrideManifest = Read-Json $manifestPath
+        foreach ($entry in @($overrideManifest.files)) {
+            if ([string]$entry.path -ceq "tests/Test-G2RuntimeTools.ps1") {
+                $entry.sha256 = Get-FileSha256 (
+                    Join-Path $testsRoot "Test-G2RuntimeTools.ps1"
+                )
+            }
+        }
+        $overrideManifestPath = Join-Path $temp.Root "manifest.json"
+        Write-TestJson `
+            -Path $overrideManifestPath `
+            -Value $overrideManifest
+        $overrideManifestSha = Get-FileSha256 $overrideManifestPath
+
+    $statusCase = Copy-TestObject $contract
+    $statusCase.tools.runtimeManifest.sha256 = $overrideManifestSha
+    $statusValue = $statusCase.status
+    [void]$statusCase.PSObject.Properties.Remove("status")
+    $statusCase | Add-Member `
+        -NotePropertyName Status `
+        -NotePropertyValue $statusValue
+    Assert-Throws `
+        -MessagePattern "FIELD|ROOT|STATE" `
+        -Action {
+            Assert-G2RuntimeToolStatePolicy `
+                -Contract $statusCase `
+                -ContractRoot $contractRoot `
+                -RepositoryRoot $repositoryRoot `
+                -Action Validate `
+                -ManifestPathOverride $overrideManifestPath
+        }
+
+    $validationCase = Copy-TestObject $contract
+    $validationCase.tools.runtimeManifest.sha256 = $overrideManifestSha
+    $validationValue = $validationCase.validation
+    [void]$validationCase.PSObject.Properties.Remove("validation")
+    $validationCase | Add-Member `
+        -NotePropertyName Validation `
+        -NotePropertyValue $validationValue
+    Assert-Throws `
+        -MessagePattern "FIELD|ROOT|STATE" `
+        -Action {
+            Assert-G2RuntimeToolStatePolicy `
+                -Contract $validationCase `
+                -ContractRoot $contractRoot `
+                -RepositoryRoot $repositoryRoot `
+                -Action Validate `
+                -ManifestPathOverride $overrideManifestPath
+        }
+
+    $unknownCase = Copy-TestObject $contract
+    $unknownCase.tools.runtimeManifest.sha256 = $overrideManifestSha
+    $unknownCase | Add-Member `
+        -NotePropertyName unexpectedRoot `
+        -NotePropertyValue $true
+    Assert-Throws `
+        -MessagePattern "FIELD|ROOT|STATE" `
+        -Action {
+            Assert-G2RuntimeToolStatePolicy `
+                -Contract $unknownCase `
+                -ContractRoot $contractRoot `
+                -RepositoryRoot $repositoryRoot `
+                -Action Validate `
+                -ManifestPathOverride $overrideManifestPath
+        }
+
+    $authorizationCase = Copy-TestObject $contract
+    $authorizationCase.tools.runtimeManifest.sha256 = $overrideManifestSha
+    $qaDispatchable = $authorizationCase.authorization.qaDispatchable
+    [void]$authorizationCase.authorization.PSObject.Properties.Remove(
+        "qaDispatchable"
+    )
+    $authorizationCase.authorization | Add-Member `
+        -NotePropertyName QaDispatchable `
+        -NotePropertyValue $qaDispatchable
+    Assert-Throws `
+        -MessagePattern "FIELD|AUTH|STATE" `
+        -Action {
+            Assert-G2RuntimeToolStatePolicy `
+                -Contract $authorizationCase `
+                -ContractRoot $contractRoot `
+                -RepositoryRoot $repositoryRoot `
+                -Action Validate `
+                -ManifestPathOverride $overrideManifestPath
+        }
+
+    $toolCase = Copy-TestObject $contract
+    $toolCase.tools.runtimeManifest.sha256 = $overrideManifestSha
+    $toolStatus = $toolCase.tools.runtimeCollector.status
+    [void]$toolCase.tools.runtimeCollector.PSObject.Properties.Remove(
+        "status"
+    )
+    $toolCase.tools.runtimeCollector | Add-Member `
+        -NotePropertyName Status `
+        -NotePropertyValue $toolStatus
+    Assert-Throws `
+        -MessagePattern "FIELD|TOOL|STATE" `
+        -Action {
+            Assert-G2RuntimeToolStatePolicy `
+                -Contract $toolCase `
+                -ContractRoot $contractRoot `
+                -RepositoryRoot $repositoryRoot `
+                -Action Validate `
+                -ManifestPathOverride $overrideManifestPath
+        }
+
+    $devicePolicyCase = Copy-TestObject $contract
+    $devicePolicyCase.tools.runtimeManifest.sha256 = $overrideManifestSha
+    $deviceOrder = $devicePolicyCase.devicePolicy.deviceOrder
+    [void]$devicePolicyCase.devicePolicy.PSObject.Properties.Remove(
+        "deviceOrder"
+    )
+    $devicePolicyCase.devicePolicy | Add-Member `
+        -NotePropertyName DeviceOrder `
+        -NotePropertyValue $deviceOrder
+    Assert-Throws `
+        -MessagePattern "FIELD|DEVICE|STATE" `
+        -Action {
+            Assert-G2RuntimeToolStatePolicy `
+                -Contract $devicePolicyCase `
+                -ContractRoot $contractRoot `
+                -RepositoryRoot $repositoryRoot `
+                -Action Validate `
+                -ManifestPathOverride $overrideManifestPath
+        }
+
+    $manifestCase = Copy-TestObject $overrideManifest
+    $manifestStatus = $manifestCase.status
+    [void]$manifestCase.PSObject.Properties.Remove("status")
+    $manifestCase | Add-Member `
+        -NotePropertyName Status `
+        -NotePropertyValue $manifestStatus
+    $manifestCasePath = Join-Path $temp.Root "manifest-Status.json"
+    Write-TestJson -Path $manifestCasePath -Value $manifestCase
+    $manifestCaseContract = Copy-TestObject $contract
+    $manifestCaseContract.tools.runtimeManifest.sha256 =
+        Get-FileSha256 $manifestCasePath
+    Assert-Throws `
+        -MessagePattern "FIELD|MANIFEST|STATE" `
+        -Action {
+            Assert-G2RuntimeToolStatePolicy `
+                -Contract $manifestCaseContract `
+                -ContractRoot $contractRoot `
+                -RepositoryRoot $repositoryRoot `
+                -Action Validate `
+                -ManifestPathOverride $manifestCasePath
+        }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-HAS-INDEPENDENT-SETTLEMENT-AUDIT-BASELINE" {
+    $command = Get-Command `
+        Get-G2SettlementAuditBaseline `
+        -ErrorAction SilentlyContinue
+    Assert-True `
+        -Condition ($null -ne $command) `
+        -Message "Independent settlement audit baseline is missing."
+    $baseline = Get-G2SettlementAuditBaseline
+    Assert-Equal `
+        -Actual $baseline.schema `
+        -Expected "aurorama.g2-settlement-audit-baseline.v1" `
+        -Message "Settlement baseline schema"
+    Assert-Equal `
+        -Actual $baseline.toolFilesExact `
+        -Expected 4 `
+        -Message "Settlement baseline tool files"
+    Assert-Equal `
+        -Actual $baseline.testsPassedExact `
+        -Expected $script:ExpectedG2ToolsPassed `
+        -Message "Settlement baseline exact test count"
+    Assert-Equal `
+        -Actual $baseline.testsFailedExact `
+        -Expected 0 `
+        -Message "Settlement baseline testsFailed"
+    Assert-Equal `
+        -Actual $baseline.dynamicNegativeExact `
+        -Expected $script:ExpectedG2DynamicNegative `
+        -Message "Settlement baseline exact dynamic negatives"
+    Assert-Equal `
+        -Actual $baseline.staticSelfTestsExact `
+        -Expected 3 `
+        -Message "Settlement baseline static self-tests"
+    Assert-Equal `
+        -Actual $baseline.handoffPassedExact `
+        -Expected $script:ExpectedHandoffPassed `
+        -Message "Settlement baseline exact handoff count"
+    Assert-Equal `
+        -Actual $baseline.handoffDynamicNegativeExact `
+        -Expected $script:ExpectedHandoffDynamicNegative `
+        -Message "Settlement baseline exact handoff dynamic negatives"
+    Assert-Equal `
+        -Actual $baseline.handoffFailedExact `
+        -Expected 0 `
+        -Message "Settlement baseline handoff failures"
+    Assert-True `
+        -Condition ([bool]$baseline.handoffTempCleanupPassedExact) `
+        -Message "Settlement baseline temp cleanup"
+    Assert-Equal `
+        -Actual $baseline.boundaryViolationsExact `
+        -Expected 0 `
+        -Message "Settlement baseline boundary violations"
+}
+
+Invoke-Case "STATE-POLICY-PRE-REJECTS-SETTLED-OR-POPULATED-EXPECTATIONS" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $settledExpectations = Copy-TestObject `
+            $future.Contract.validation.repairAuditExpectations
+
+        $validPending = Copy-TestObject $contract
+        $state = Assert-G2RuntimeToolStatePolicy `
+            -Contract $validPending `
+            -ContractRoot $contractRoot `
+            -RepositoryRoot $repositoryRoot `
+            -Action Validate
+        Assert-Equal `
+            -Actual $state.Mode `
+            -Expected "PRE_AUDIT_STATIC_ONLY" `
+            -Message "Canonical pending expectations mode"
+
+        $settledPreContract = Copy-TestObject $contract
+        $settledPreContract.validation.repairAuditExpectations =
+            Copy-TestObject $settledExpectations
+        Assert-Throws `
+            -MessagePattern "PRE_AUDIT|REPAIR_AUDIT|EXPECTATIONS|PENDING|SETTLEMENT" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $settledPreContract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Validate
+            }
+
+        $populationFactories = @(
+            {
+                param($value, $settled)
+                $value.source = Copy-TestObject $settled.source
+            },
+            {
+                param($value, $settled)
+                $value.preflightCounts =
+                    Copy-TestObject $settled.preflightCounts
+            },
+            {
+                param($value, $settled)
+                $value.g2ToolsCounts =
+                    Copy-TestObject $settled.g2ToolsCounts
+            },
+            {
+                param($value, $settled)
+                $value.handoffCounts =
+                    Copy-TestObject $settled.handoffCounts
+            },
+            {
+                param($value, $settled)
+                $value.boundaryViolations = 0
+            }
+        )
+        foreach ($populate in $populationFactories) {
+            $pendingWithValue = Copy-TestObject $contract
+            $pendingExpectations =
+                $pendingWithValue.validation.repairAuditExpectations
+            & $populate $pendingExpectations $settledExpectations
+            Assert-Throws `
+                -MessagePattern "PRE_AUDIT|REPAIR_AUDIT|EXPECTATIONS|PENDING|NULL" `
+                -Action {
+                    Assert-G2RuntimeToolStatePolicy `
+                        -Contract $pendingWithValue `
+                        -ContractRoot $contractRoot `
+                        -RepositoryRoot $repositoryRoot `
+                        -Action Validate
+                }
+        }
+
+        $pendingWithExtraField = Copy-TestObject $contract
+        $pendingWithExtraField.validation.repairAuditExpectations |
+            Add-Member `
+                -NotePropertyName unexpected `
+                -NotePropertyValue $true
+        Assert-Throws `
+            -MessagePattern "FIELD|EXPECTATIONS|PRE_AUDIT" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $pendingWithExtraField `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Validate
+            }
+
+        $pendingWithUnknownStatus = Copy-TestObject $contract
+        $pendingWithUnknownStatus.validation.
+            repairAuditExpectations.status = "PENDING"
+        Assert-Throws `
+            -MessagePattern "STATUS|EXPECTATIONS|PRE_AUDIT" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $pendingWithUnknownStatus `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Validate
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REQUIRES-EXACT-AUDITED-COUNTS" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $original = (
+            $receipt.Receipt |
+                ConvertTo-Json -Depth 100 |
+                ConvertFrom-Json -Depth 100 -DateKind String
+        )
+        $mutations = @(
+            {
+                param($value)
+                $value.g2ToolsCounts.testsPassed = 1
+            },
+            {
+                param($value)
+                $value.g2ToolsCounts.testsPassed =
+                    $script:ExpectedG2ToolsPassed + 1
+            },
+            {
+                param($value)
+                $value.g2ToolsCounts.PSObject.Properties.Remove(
+                    "testsPassed"
+                )
+            },
+            {
+                param($value)
+                $value.g2ToolsCounts.testsPassed = $null
+            },
+            {
+                param($value)
+                $value.g2ToolsCounts.testsPassed = "1"
+            },
+            {
+                param($value)
+                $value.g2ToolsCounts.dynamicNegative = 0
+            },
+            {
+                param($value)
+                $value.g2ToolsCounts.dynamicNegative =
+                    $script:ExpectedG2DynamicNegative + 1
+            },
+            {
+                param($value)
+                $value.preflightCounts.currentTransitions = 0
+            },
+            {
+                param($value)
+                $value.handoffCounts.passed = 0
+            },
+            {
+                param($value)
+                $value.handoffCounts.passed =
+                    $script:ExpectedHandoffPassed + 1
+            },
+            {
+                param($value)
+                $value.handoffCounts.failed = 1
+            },
+            {
+                param($value)
+                $value.handoffCounts.dynamicNegative = 1
+            },
+            {
+                param($value)
+                $value.boundaryViolations = 1
+            },
+            {
+                param($value)
+                $value.g2ToolsCounts.files = 3
+            }
+        )
+        foreach ($mutation in $mutations) {
+            $copy = (
+                $original |
+                    ConvertTo-Json -Depth 100 |
+                    ConvertFrom-Json -Depth 100 -DateKind String
+            )
+            & $mutation $copy
+            Write-TestJson -Path $receipt.Path -Value $copy
+            Assert-Throws `
+                -MessagePattern "COUNT|EXPECT|RECEIPT|INTEGER|FIELD|MISMATCH" `
+                -Action {
+                    Assert-G2RuntimeToolStatePolicy `
+                        -Contract $future.Contract `
+                        -ContractRoot $contractRoot `
+                        -RepositoryRoot $repositoryRoot `
+                        -Action Register `
+                        -RepairAuditReceiptPathOverride $receipt.Path `
+                        -ManifestPathOverride $future.ManifestPath
+                }
+        }
+
+        $pendingContract = (
+            $future.Contract |
+                ConvertTo-Json -Depth 100 |
+                ConvertFrom-Json -Depth 100 -DateKind String
+        )
+        $pendingContract.validation.repairAuditExpectations.status =
+            "PENDING_SETTLEMENT_FINAL_AUDIT"
+        Write-TestJson -Path $receipt.Path -Value $original
+        Assert-Throws `
+            -MessagePattern "EXPECT|SETTLEMENT|FINAL|AUDIT" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $pendingContract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        $wrongSource = (
+            $future.Contract |
+                ConvertTo-Json -Depth 100 |
+                ConvertFrom-Json -Depth 100 -DateKind String
+        )
+        $wrongSource.validation.repairAuditExpectations.source.auditedCommit =
+            ("0" * 40)
+        Assert-Throws `
+            -MessagePattern "EXPECT|SOURCE|AUDITED|COMMIT|MISMATCH" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $wrongSource `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-SELF-CONSISTENT-LOW-COUNTS" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+
+        $lowContract = Copy-TestObject $future.Contract
+        $lowReceipt = Copy-TestObject $receipt.Receipt
+        foreach ($target in @(
+            $lowContract.validation.repairAuditExpectations.
+                g2ToolsCounts,
+            $lowReceipt.g2ToolsCounts
+        )) {
+            $target.testsPassed = 1
+            $target.testsFailed = 0
+            $target.dynamicNegative = 0
+            $target.staticSelfTests = 3
+        }
+        foreach ($target in @(
+            $lowContract.validation.repairAuditExpectations.handoffCounts,
+            $lowReceipt.handoffCounts
+        )) {
+            $target.passed = 1
+            $target.failed = 0
+            $target.dynamicNegative = 0
+            $target.tempCleanupPassed = $true
+        }
+        $lowContract.validation.repairAuditExpectations.
+            boundaryViolations = 0
+        $lowReceipt.boundaryViolations = 0
+        Write-TestJson -Path $receipt.Path -Value $lowReceipt
+        Assert-Throws `
+            -MessagePattern "BASELINE|COUNT|SETTLEMENT|EXACT|INTEGER|STATE" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $lowContract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        $highContract = Copy-TestObject $future.Contract
+        $highReceipt = Copy-TestObject $receipt.Receipt
+        $highContract.validation.repairAuditExpectations.
+            g2ToolsCounts.testsPassed =
+                $script:ExpectedG2ToolsPassed + 1
+        $highContract.validation.repairAuditExpectations.
+            g2ToolsCounts.dynamicNegative =
+                $script:ExpectedG2DynamicNegative + 1
+        $highContract.validation.repairAuditExpectations.
+            handoffCounts.passed =
+                $script:ExpectedHandoffPassed + 1
+        Write-TestJson -Path $receipt.Path -Value $highReceipt
+        Assert-Throws `
+            -MessagePattern "COUNT|RECEIPT|EXPECT|MISMATCH" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $highContract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        $synchronizedHighContract = Copy-TestObject $future.Contract
+        $synchronizedHighReceipt = Copy-TestObject $receipt.Receipt
+        foreach ($target in @(
+            $synchronizedHighContract.validation.
+                repairAuditExpectations.g2ToolsCounts,
+            $synchronizedHighReceipt.g2ToolsCounts
+        )) {
+            $target.testsPassed = 111
+            $target.dynamicNegative = 151
+        }
+        foreach ($target in @(
+            $synchronizedHighContract.validation.
+                repairAuditExpectations.handoffCounts,
+            $synchronizedHighReceipt.handoffCounts
+        )) {
+            $target.passed = 109
+        }
+        Write-TestJson `
+            -Path $receipt.Path `
+            -Value $synchronizedHighReceipt
+        Assert-Throws `
+            -MessagePattern "EXACT|BASELINE|COUNT|MISMATCH" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $synchronizedHighContract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        $invalidMutations = @(
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    g2ToolsCounts.testsPassed = -1
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    g2ToolsCounts.dynamicNegative = $true
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    g2ToolsCounts.testsPassed = $null
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    g2ToolsCounts.PSObject.Properties.Remove("dynamicNegative")
+                $receiptValue.g2ToolsCounts.PSObject.Properties.Remove(
+                    "dynamicNegative"
+                )
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    g2ToolsCounts.testsPassed =
+                        [string]$script:ExpectedG2ToolsPassed
+                $receiptValue.g2ToolsCounts.testsPassed =
+                    [string]$script:ExpectedG2ToolsPassed
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    g2ToolsCounts | Add-Member `
+                        -NotePropertyName unexpected `
+                        -NotePropertyValue 1
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    source.auditedCommit = $null
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    source.auditedCommit = (
+                        [string]$contractValue.validation.
+                            repairAuditExpectations.source.auditedCommit +
+                        "-string"
+                    )
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    source.auditedCommit = $true
+            }
+        )
+        foreach ($mutation in $invalidMutations) {
+            $invalidContract = Copy-TestObject $future.Contract
+            $invalidReceipt = Copy-TestObject $receipt.Receipt
+            & $mutation $invalidContract $invalidReceipt
+            Write-TestJson `
+                -Path $receipt.Path `
+                -Value $invalidReceipt
+            Assert-Throws `
+                -MessagePattern "BASELINE|COUNT|INTEGER|FIELD|SOURCE|AUDIT|COMMIT|EXPECT" `
+                -Action {
+                    Assert-G2RuntimeToolStatePolicy `
+                        -Contract $invalidContract `
+                        -ContractRoot $contractRoot `
+                        -RepositoryRoot $repositoryRoot `
+                        -Action Register `
+                        -RepairAuditReceiptPathOverride $receipt.Path `
+                        -ManifestPathOverride $future.ManifestPath
+                }
+        }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-SYNCHRONIZED-PURE-HIGH-COUNTS" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $highContract = Copy-TestObject $future.Contract
+        $highReceipt = Copy-TestObject $receipt.Receipt
+        foreach ($target in @(
+            $highContract.validation.repairAuditExpectations.
+                g2ToolsCounts,
+            $highReceipt.g2ToolsCounts
+        )) {
+            $target.testsPassed =
+                $script:ExpectedG2ToolsPassed + 1
+            $target.dynamicNegative =
+                $script:ExpectedG2DynamicNegative + 1
+        }
+        foreach ($target in @(
+            $highContract.validation.repairAuditExpectations.handoffCounts,
+            $highReceipt.handoffCounts
+        )) {
+            $target.passed = $script:ExpectedHandoffPassed + 1
+        }
+        Write-TestJson -Path $receipt.Path -Value $highReceipt
+        Assert-Throws `
+            -MessagePattern "EXACT|BASELINE|COUNT|MISMATCH" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $highContract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REQUIRES-EXACT-CURRENT-TRANSITIONS-62" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+
+        $legalState = Assert-G2RuntimeToolStatePolicy `
+            -Contract $future.Contract `
+            -ContractRoot $contractRoot `
+            -RepositoryRoot $repositoryRoot `
+            -Action Register `
+            -RepairAuditReceiptPathOverride $receipt.Path `
+            -ManifestPathOverride $future.ManifestPath
+        Assert-Equal `
+            -Actual $legalState.Mode `
+            -Expected "AUDIT_PASS_PENDING_FRESH_PAD_QA" `
+            -Message "Legal currentTransitions=62 mode"
+
+        $mutations = @(
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    preflightCounts.currentTransitions = 61
+                $receiptValue.preflightCounts.currentTransitions = 61
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    preflightCounts.currentTransitions = 61
+            },
+            {
+                param($contractValue, $receiptValue)
+                $receiptValue.preflightCounts.currentTransitions = 61
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    preflightCounts.PSObject.Properties.Remove(
+                        "currentTransitions"
+                    )
+            },
+            {
+                param($contractValue, $receiptValue)
+                $receiptValue.preflightCounts.PSObject.Properties.Remove(
+                    "currentTransitions"
+                )
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    preflightCounts.currentTransitions = $null
+            },
+            {
+                param($contractValue, $receiptValue)
+                $receiptValue.preflightCounts.currentTransitions = $null
+            },
+            {
+                param($contractValue, $receiptValue)
+                $contractValue.validation.repairAuditExpectations.
+                    preflightCounts.currentTransitions = "62"
+            },
+            {
+                param($contractValue, $receiptValue)
+                $receiptValue.preflightCounts.currentTransitions = "62"
+            }
+        )
+        foreach ($mutation in $mutations) {
+            $invalidContract = Copy-TestObject $future.Contract
+            $invalidReceipt = Copy-TestObject $receipt.Receipt
+            & $mutation $invalidContract $invalidReceipt
+            Write-TestJson -Path $receipt.Path -Value $invalidReceipt
+            Assert-Throws `
+                -MessagePattern (
+                    "STATE|INTEGER|MISMATCH|SCHEMA|FIELD|COUNT|EXPECT|RECEIPT"
+                ) `
+                -Action {
+                    Assert-G2RuntimeToolStatePolicy `
+                        -Contract $invalidContract `
+                        -ContractRoot $contractRoot `
+                        -RepositoryRoot $repositoryRoot `
+                        -Action Register `
+                        -RepairAuditReceiptPathOverride $receipt.Path `
+                        -ManifestPathOverride $future.ManifestPath
+                }
+        }
+
+        $baseline = Get-G2SettlementAuditBaseline
+        Assert-Equal `
+            -Actual $baseline.currentTransitionsExact `
+            -Expected 62 `
+            -Message "Independent currentTransitions baseline"
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-CURRENT-STATIC-ONLY" {
+    $state = Assert-G2RuntimeToolStatePolicy `
+        -Contract $contract `
+        -ContractRoot $contractRoot `
+        -RepositoryRoot $repositoryRoot `
+        -Action Validate
+    Assert-Equal `
+        -Actual $state.Mode `
+        -Expected "PRE_AUDIT_STATIC_ONLY" `
+        -Message "Current state mode"
+    Assert-Equal `
+        -Actual $state.QaDispatchable `
+        -Expected $false `
+        -Message "Current QA dispatch"
+    Assert-True `
+        -Condition (-not (Test-Path -LiteralPath $auditReceiptPath)) `
+        -Message "Current contract must not contain a repair-audit receipt."
+    foreach ($action in @("Register", "Finalize", "Verify")) {
+        Assert-Throws `
+            -MessagePattern "PRE_AUDIT|ACTION|STATUS|POLICY" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $contract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action $action
+            }
+    }
+}
+
+Invoke-Case "STATE-POLICY-CURRENT-FORBIDS-ANY-RECEIPT-FILE" {
+    $temp = New-TestTempRoot
+    try {
+        $receiptPath = Join-Path $temp.Root "repair-audit-receipt.json"
+        Write-TestJson `
+            -Path $receiptPath `
+            -Value ([pscustomobject]@{ verdict = "PASS" })
+        Assert-Throws `
+            -MessagePattern "PRE_AUDIT|RECEIPT|FORBIDDEN" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $contract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Validate `
+                    -RepairAuditReceiptPathOverride $receiptPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-QA-READY-EXACT-POLICY-CONSTANTS-ACCEPTED" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $baseline = Get-G2SettlementAuditBaseline
+        Assert-Equal `
+            -Actual $receipt.Receipt.g2ToolsCounts.testsPassed `
+            -Expected $baseline.testsPassedExact `
+            -Message "Legal future testsPassed"
+        Assert-Equal `
+            -Actual $receipt.Receipt.g2ToolsCounts.dynamicNegative `
+            -Expected $baseline.dynamicNegativeExact `
+            -Message "Legal future dynamic negatives"
+        Assert-Equal `
+            -Actual $receipt.Receipt.handoffCounts.passed `
+            -Expected $baseline.handoffPassedExact `
+            -Message "Legal future handoff passed"
+        foreach ($action in @("Validate", "Register", "RunWindow")) {
+            $state = Assert-G2RuntimeToolStatePolicy `
+                -Contract $future.Contract `
+                -ContractRoot $contractRoot `
+                -RepositoryRoot $repositoryRoot `
+                -Action $action `
+                -RepairAuditReceiptPathOverride $receipt.Path `
+                -ManifestPathOverride $future.ManifestPath
+            Assert-Equal `
+                -Actual $state.Mode `
+                -Expected "AUDIT_PASS_PENDING_FRESH_PAD_QA" `
+                -Message "Future state mode"
+            Assert-Equal `
+                -Actual $state.QaDispatchable `
+                -Expected $true `
+                -Message "Future QA dispatch"
+        }
+        $collectorContext = Get-G2ContractContext `
+            -DeviceRole Pad `
+            -RequestedEvidenceRoot $future.Contract.evidence.padRuntimeRoot `
+            -Action Validate `
+            -ContractPathOverride $future.ContractPath `
+            -ManifestPathOverride $future.ManifestPath `
+            -RepairAuditReceiptPathOverride $receipt.Path
+        Assert-Equal `
+            -Actual $collectorContext.StatePolicy.Mode `
+            -Expected "AUDIT_PASS_PENDING_FRESH_PAD_QA" `
+            -Message "Collector future Validator"
+        $finalizerContext = Get-G2FinalizerContext `
+            -DeviceRole Pad `
+            -RequestedEvidenceRoot $future.Contract.evidence.padRuntimeRoot `
+            -Action Finalize `
+            -ContractPathOverride $future.ContractPath `
+            -ManifestPathOverride $future.ManifestPath `
+            -RepairAuditReceiptPathOverride $receipt.Path
+        Assert-Equal `
+            -Actual $finalizerContext.StatePolicy.QaDispatchable `
+            -Expected $true `
+            -Message "Finalizer future context"
+        $cleanupContext = Get-G2CleanupContext `
+            -DeviceRole Pad `
+            -RequestedEvidenceRoot $future.Contract.evidence.padRuntimeRoot `
+            -Action Verify `
+            -ContractPathOverride $future.ContractPath `
+            -ManifestPathOverride $future.ManifestPath `
+            -RepairAuditReceiptPathOverride $receipt.Path
+        Assert-Equal `
+            -Actual $cleanupContext.StatePolicy.QaDispatchable `
+            -Expected $true `
+            -Message "Cleanup future context"
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-QA-READY-REJECTS-MISSING-RECEIPT" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        Assert-Throws `
+            -MessagePattern "RECEIPT|MISSING|POLICY" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $future.Contract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride (
+                        Join-Path $temp.Root "missing-receipt.json"
+                    ) `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-RECEIPT-UNKNOWN-FIELDS" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $receipt.Receipt | Add-Member `
+            -NotePropertyName unexpected `
+            -NotePropertyValue $true
+        Write-TestJson -Path $receipt.Path -Value $receipt.Receipt
+        Assert-Throws `
+            -MessagePattern "SCHEMA|FIELD|UNKNOWN|PROPERTY" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $future.Contract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        $receipt.Receipt.scope | Add-Member `
+            -NotePropertyName unexpectedNested `
+            -NotePropertyValue $true
+        Write-TestJson -Path $receipt.Path -Value $receipt.Receipt
+        Assert-Throws `
+            -MessagePattern "SCHEMA|FIELD|UNKNOWN|PROPERTY" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $future.Contract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-NON-LF-OR-BOM-RECEIPT" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $originalBytes = [System.IO.File]::ReadAllBytes($receipt.Path)
+        [System.IO.File]::WriteAllBytes(
+            $receipt.Path,
+            [byte[]](@(0xEF, 0xBB, 0xBF) + $originalBytes)
+        )
+        Assert-Throws `
+            -MessagePattern "BOM|UTF8|RECEIPT" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $future.Contract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+        $text = [System.IO.File]::ReadAllText(
+            $receipt.Path,
+            [System.Text.UTF8Encoding]::new($false, $true)
+        ).Substring(3).Replace("`n", "`r`n")
+        [System.IO.File]::WriteAllText(
+            $receipt.Path,
+            $text,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Assert-Throws `
+            -MessagePattern "CR|LF|UTF8|RECEIPT" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $future.Contract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-RECEIPT-IDENTITY-DRIFT" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $mutations = @(
+            {
+                param($value)
+                $value.candidate.mainSha256 = "a" * 64
+            },
+            {
+                param($value)
+                $value.externalLock.sha256 = "b" * 64
+            },
+            {
+                param($value)
+                $value.toolsDigest = "c" * 64
+            },
+            {
+                param($value)
+                $value.qaPadV1[0].sha256 = "d" * 64
+            },
+            {
+                param($value)
+                $value.nextRole = "G2_K60_QA_OWNER_2026_11_06"
+            },
+            {
+                param($value)
+                $value.verdict = "FAIL"
+            },
+            {
+                param($value)
+                $value.boundaryViolations = 1
+            }
+        )
+        foreach ($mutation in $mutations) {
+            $copy = (
+                $receipt.Receipt |
+                    ConvertTo-Json -Depth 100 |
+                    ConvertFrom-Json -Depth 100 -DateKind String
+            )
+            & $mutation $copy
+            Write-TestJson -Path $receipt.Path -Value $copy
+            Assert-Throws `
+                -MessagePattern "MISMATCH|DRIFT|PASS|BOUNDARY|NEXT|SHA|DIGEST" `
+                -Action {
+                    Assert-G2RuntimeToolStatePolicy `
+                        -Contract $future.Contract `
+                        -ContractRoot $contractRoot `
+                        -RepositoryRoot $repositoryRoot `
+                        -Action Register `
+                        -RepairAuditReceiptPathOverride $receipt.Path `
+                        -ManifestPathOverride $future.ManifestPath
+                }
+        }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-AUDIT-COMMIT-BINDING-DRIFT" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $minimumCommit = [string](
+            $future.Contract.toolStatePolicy.minimumAuditedCommit
+        )
+        $minimumParent = Get-TestGitValue @(
+            "rev-parse",
+            "$minimumCommit^1"
+        )
+        $originalContract = Copy-TestObject $future.Contract
+        $originalReceipt = Copy-TestObject $receipt.Receipt
+
+        $equalContract = Copy-TestObject $future.Contract
+        $equalContract.validation.repairAuditExpectations.source.auditedCommit =
+            $minimumCommit
+        $equalReceipt = Copy-TestObject $receipt.Receipt
+        $equalReceipt.auditedCommit = $minimumCommit
+        $equalReceipt.parent = $minimumParent
+        Write-TestJson -Path $receipt.Path -Value $equalReceipt
+        Assert-Throws `
+            -MessagePattern "STRICT_DESCENDANT|AUDITED_COMMIT" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $equalContract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        $parentDriftReceipt = Copy-TestObject $originalReceipt
+        $parentDriftReceipt.parent = $minimumParent
+        Write-TestJson -Path $receipt.Path -Value $parentDriftReceipt
+        Assert-Throws `
+            -MessagePattern "PARENT|MISMATCH" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $originalContract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        Write-TestJson -Path $receipt.Path -Value $originalReceipt
+        $accepted = Assert-G2RuntimeToolStatePolicy `
+            -Contract $originalContract `
+            -ContractRoot $contractRoot `
+            -RepositoryRoot $repositoryRoot `
+            -Action Register `
+            -RepairAuditReceiptPathOverride $receipt.Path `
+            -ManifestPathOverride $future.ManifestPath
+        Assert-Equal `
+            -Actual $accepted.Receipt.AuditedCommit `
+            -Expected $originalReceipt.auditedCommit `
+            -Message "Synthetic later audit descendant"
+        Assert-Equal `
+            -Actual $accepted.Receipt.Parent `
+            -Expected $minimumCommit `
+            -Message "Synthetic audit parent"
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-UNKNOWN-OR-INCONSISTENT-STATE" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $future.Contract.authorization.qaDispatchable = $false
+        Assert-Throws `
+            -MessagePattern "AUTHORIZATION|DISPATCH|STATE|POLICY" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $future.Contract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+
+        $future.Contract.authorization.qaDispatchable = $true
+        $future.Contract.status = "R2_WIP_REPAIR_R3_IN_PROGRESS_OR_READY"
+        Assert-Throws `
+            -MessagePattern "STATUS|STATE|POLICY|UNKNOWN" `
+            -Action {
+                Assert-G2RuntimeToolStatePolicy `
+                    -Contract $future.Contract `
+                    -ContractRoot $contractRoot `
+                    -RepositoryRoot $repositoryRoot `
+                    -Action Register `
+                    -RepairAuditReceiptPathOverride $receipt.Path `
+                    -ManifestPathOverride $future.ManifestPath
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "CURRENT-COLLECTOR-RUNTIME-ACTION-FAILS-CLOSED" {
+    $registrationPath = Join-Path `
+        $contractRoot `
+        "qa-pad-v2/collector-registration.json"
+    $sessionPath = Join-Path `
+        $contractRoot `
+        "qa-pad-v2/collector-session.json"
+    Assert-True `
+        -Condition (-not (Test-Path -LiteralPath $registrationPath)) `
+        -Message "Pre-audit Register unexpectedly left registration evidence."
+    $output = @(
+        & pwsh -NoProfile -File $collectorPath `
+            -Action Register `
+            -DeviceRole Pad 2>&1
+    )
+    Assert-True `
+        -Condition ($LASTEXITCODE -ne 0) `
+        -Message "Pre-audit collector Register unexpectedly passed."
+    Assert-True `
+        -Condition (($output -join "`n") -match
+            "PRE_AUDIT|ACTION|STATUS|POLICY") `
+        -Message ("Unexpected pre-audit Register error: " + ($output -join " | "))
+    Assert-True `
+        -Condition (-not (Test-Path -LiteralPath $registrationPath)) `
+        -Message "Pre-audit collector Register wrote registration evidence."
+    Assert-True `
+        -Condition (-not (Test-Path -LiteralPath $sessionPath)) `
+        -Message "Pre-audit collector Register wrote session evidence."
 }
 
 Invoke-Case "CONTRACT-PREWINDOW-RECOVERY-SCOPE-BOUND" {
@@ -883,15 +2871,33 @@ Invoke-Case "TOOL-MANIFEST-HASHES" {
             -Expected $tool.sha256 `
             -Message "Contract hash $toolName"
     }
-    $digestFiles = @($toolPaths | Sort-Object {
-        [System.IO.Path]::GetFileName($_)
-    })
+    $digestPaths = @(
+        $manifest.files |
+            Where-Object { [string]$_.kind -ceq "tool" } |
+            ForEach-Object { [string]$_.path }
+    )
+    $digestPaths = @(
+        Get-TestOrdinalSortedStrings -Value $digestPaths
+    )
+    $digestFiles = @(
+        $digestPaths |
+            ForEach-Object {
+                $digestPath = $_
+                @(
+                    $manifest.files |
+                        Where-Object {
+                            [string]$_.path -ceq $digestPath
+                        }
+                )[0]
+            }
+    )
     $digestText = [System.Text.StringBuilder]::new()
-    foreach ($toolPath in $digestFiles) {
+    foreach ($entry in $digestFiles) {
+        $toolPath = Join-Path $contractRoot ([string]$entry.path)
         [void]$digestText.Append(
             (Get-FileSha256 $toolPath) +
                 "  " +
-                [System.IO.Path]::GetFileName($toolPath) +
+                [string]$entry.path +
                 "`n"
         )
     }
@@ -906,8 +2912,127 @@ Invoke-Case "TOOL-MANIFEST-HASHES" {
         -Message "Tools digest"
 }
 
+Invoke-Case "TOOL-MANIFEST-EXACT-11-UNIQUE-AND-KIND-SET" {
+    $manifest = Read-Json $manifestPath
+    $entries = @($manifest.files)
+    Assert-Equal `
+        -Actual $entries.Count `
+        -Expected 11 `
+        -Message "Manifest entry count"
+    $pathSet = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::Ordinal
+    )
+    foreach ($entry in $entries) {
+        Assert-True `
+            -Condition $pathSet.Add([string]$entry.path) `
+            -Message "Manifest path casing duplicate: $($entry.path)"
+    }
+    Assert-Equal `
+        -Actual $pathSet.Count `
+        -Expected 11 `
+        -Message "Manifest unique path count"
+    foreach ($expectedKind in @(
+        @("fixture", 5),
+        @("schema", 1),
+        @("test", 1),
+        @("tool", 4)
+    )) {
+        Assert-Equal `
+            -Actual @(
+                $entries |
+                    Where-Object {
+                        [string]$_.kind -ceq [string]$expectedKind[0]
+                    }
+            ).Count `
+            -Expected $expectedKind[1] `
+            -Message "Manifest kind count $($expectedKind[0])"
+    }
+    Assert-Equal `
+        -Actual @(
+            $entries |
+                Where-Object {
+                    [string]$_.kind -notin @(
+                        "fixture",
+                        "schema",
+                        "test",
+                        "tool"
+                    )
+                }
+        ).Count `
+        -Expected 0 `
+        -Message "Unknown manifest kind"
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-MANIFEST-CARDINALITY-KIND-AND-SHA" {
+    $temp = New-TestTempRoot
+    try {
+        $baseManifest = Read-Json $manifestPath
+        $mutations = @(
+            {
+                param($value)
+                $value.files = @($value.files | Select-Object -First 10)
+            },
+            {
+                param($value)
+                $value.files = @($value.files) + @($value.files[-1])
+            },
+            {
+                param($value)
+                $value.files[9] = (
+                    $value.files[10] |
+                        ConvertTo-Json -Depth 20 |
+                        ConvertFrom-Json
+                )
+            },
+            {
+                param($value)
+                $value.files[9].kind = "unknown"
+            },
+            {
+                param($value)
+                $value.files[9].sha256 = ("0" * 64)
+            }
+        )
+        $mutationIndex = 0
+        foreach ($mutation in $mutations) {
+            $mutationIndex++
+            $manifest = (
+                $baseManifest |
+                    ConvertTo-Json -Depth 100 |
+                    ConvertFrom-Json -Depth 100 -DateKind String
+            )
+            & $mutation $manifest
+            $mutatedManifestPath = Join-Path `
+                $temp.Root `
+                "manifest-$mutationIndex.json"
+            Write-TestJson `
+                -Path $mutatedManifestPath `
+                -Value $manifest
+            $driftedContract = (
+                $contract |
+                    ConvertTo-Json -Depth 100 |
+                    ConvertFrom-Json -Depth 100 -DateKind String
+            )
+            $driftedContract.tools.runtimeManifest.sha256 =
+                Get-FileSha256 $mutatedManifestPath
+            Assert-Throws `
+                -MessagePattern "MANIFEST|CARDINAL|UNIQUE|DUPLICATE|KIND|SHA|DIGEST" `
+                -Action {
+                    Assert-G2RuntimeToolStatePolicy `
+                        -Contract $driftedContract `
+                        -ContractRoot $contractRoot `
+                        -RepositoryRoot $repositoryRoot `
+                        -Action Validate `
+                        -ManifestPathOverride $mutatedManifestPath
+                }
+        }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
 Invoke-Case "NO-HISTORICAL-TOOL-REUSE" {
-    foreach ($toolPath in $toolPaths) {
+    foreach ($toolPath in @($toolPaths + $policyPath)) {
         $text = Get-Content -LiteralPath $toolPath -Raw -Encoding utf8
         Assert-True `
             -Condition (-not $text.Contains(
@@ -919,7 +3044,7 @@ Invoke-Case "NO-HISTORICAL-TOOL-REUSE" {
 }
 
 Invoke-Case "NO-CREDENTIAL-READS" {
-    foreach ($toolPath in $toolPaths) {
+    foreach ($toolPath in @($toolPaths + $policyPath)) {
         $text = Get-Content -LiteralPath $toolPath -Raw -Encoding utf8
         foreach ($forbidden in @(
             "资源.txt",
@@ -1178,7 +3303,9 @@ Invoke-Case "CLEANUP-REJECTS-PINNED-IDENTITY-DRIFT" {
 }
 
 Invoke-Case "CLEANUP-CONTEXT-ACCEPTS-CURRENT-SCHEMA-PIN" {
-    $context = Get-G2CleanupContext -DeviceRole Pad
+    $context = Get-G2CleanupContext `
+        -DeviceRole Pad `
+        -Action Validate
     Assert-Equal `
         -Actual $context.Evidence.RelativePath `
         -Expected $contract.evidence.padRuntimeRoot `
@@ -1269,6 +3396,298 @@ Invoke-Case "K60-ACCEPTS-VALID-PREDECESSOR" {
             -DeviceRole K60 `
             -Serial "8e875894" `
             -Predecessor $fixture.Predecessor
+        $caseVariant = Copy-TestObject $fixture.Predecessor
+        $deviceOrder = $caseVariant.deviceOrder
+        [void]$caseVariant.PSObject.Properties.Remove("deviceOrder")
+        $caseVariant | Add-Member `
+            -NotePropertyName DeviceOrder `
+            -NotePropertyValue $deviceOrder
+        Assert-Throws `
+            -MessagePattern "K60|PREDECESSOR|FIELD" `
+            -Action {
+                Assert-G2DevicePolicy `
+                    -Contract $contract `
+                    -Context $fixture.Context `
+                    -DeviceRole K60 `
+                    -Serial "8e875894" `
+                    -Predecessor $caseVariant
+            }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "K60-CLEANUP-GATE-PRECEDES-ADB-AND-DIRECTORY-WRITES" {
+    foreach ($cleanupAction in @("CaptureBefore", "Verify")) {
+        foreach ($condition in @(
+            "PAD_MISSING",
+            "PAD_NON_PASS",
+            "OLD_SCOPE",
+            "SHA_DRIFT",
+            "ACTIVE_LOCK"
+        )) {
+            $temp = New-TestTempRoot
+            try {
+                $fixture = New-TestFutureCleanupFixture `
+                    -Temp $temp `
+                    -Observations $observations
+                switch ($condition) {
+                    "PAD_MISSING" {
+                        [System.IO.File]::Delete(
+                            $fixture.PadReportPath
+                        )
+                    }
+                    "PAD_NON_PASS" {
+                        $report = Read-Json $fixture.PadReportPath
+                        $report.verdict = "FAIL"
+                        $report.productVerdict = "FAIL"
+                        Write-TestJson `
+                            -Path $fixture.PadReportPath `
+                            -Value $report
+                    }
+                    "OLD_SCOPE" {
+                        $oldRoot = (
+                            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/" +
+                            "qa-pad-v1"
+                        )
+                        $report = Read-Json $fixture.PadReportPath
+                        $report.evidenceRoot = $oldRoot
+                        Write-TestJson `
+                            -Path $fixture.PadReportPath `
+                            -Value $report
+                        $lock = Read-Json $fixture.PadLockPath
+                        $lock.attemptScope = $oldRoot
+                        Write-TestJson `
+                            -Path $fixture.PadLockPath `
+                            -Value $lock
+                    }
+                    "SHA_DRIFT" {
+                        [System.IO.File]::AppendAllText(
+                            $fixture.PadReportPath,
+                            "`n",
+                            [System.Text.UTF8Encoding]::new($false)
+                        )
+                    }
+                    "ACTIVE_LOCK" {
+                        $lock = Read-Json $fixture.PadLockPath
+                        $lock.state = "ACTIVE_COUNT_1"
+                        $lock.activeCount = 1
+                        $lock.releasedAt = $null
+                        Write-TestJson `
+                            -Path $fixture.PadLockPath `
+                            -Value $lock
+                    }
+                }
+                $k60Root = Join-Path `
+                    $temp.Root `
+                    $fixture.Future.Contract.evidence.k60RuntimeRoot
+                if ($condition -ceq "PAD_MISSING") {
+                    Assert-True `
+                        -Condition ($k60Root.StartsWith(
+                            $temp.Root,
+                            [System.StringComparison]::OrdinalIgnoreCase
+                        )) `
+                        -Message "Unsafe K60 fixture root."
+                    if ([System.IO.Directory]::Exists($k60Root)) {
+                        [System.IO.Directory]::Delete($k60Root, $true)
+                    }
+                }
+
+                $script:k60CleanupSideEffects = [pscustomobject]@{
+                    AdbCalls = 0
+                    DirectoryCalls = 0
+                    TextWrites = 0
+                }
+                function Invoke-G2CleanupAdb {
+                    param(
+                        [Parameter(Mandatory)][string]$Serial,
+                        [Parameter(Mandatory)][string[]]$Arguments,
+                        [switch]$AllowFailure
+                    )
+                    $script:k60CleanupSideEffects.AdbCalls++
+                    throw "UNEXPECTED_K60_CLEANUP_ADB"
+                }
+                function New-G2CleanupDirectory {
+                    param([Parameter(Mandatory)][string]$Path)
+                    $script:k60CleanupSideEffects.DirectoryCalls++
+                    throw "UNEXPECTED_K60_CLEANUP_DIRECTORY"
+                }
+                function Write-G2CleanupText {
+                    param(
+                        [Parameter(Mandatory)][string]$Path,
+                        [Parameter(Mandatory)][string]$Text
+                    )
+                    $script:k60CleanupSideEffects.TextWrites++
+                    throw "UNEXPECTED_K60_CLEANUP_WRITE"
+                }
+
+                Assert-Throws `
+                    -MessagePattern "UNEXPECTED_K60_CLEANUP_ADB" `
+                    -Action {
+                        Invoke-G2CleanupAdb `
+                            -Serial "43af8627" `
+                            -Arguments @("shell", "true")
+                    }
+                Assert-Equal `
+                    -Actual $script:k60CleanupSideEffects.AdbCalls `
+                    -Expected 1 `
+                    -Message "Fail-on-call ADB wrapper did not fire."
+                Assert-Throws `
+                    -MessagePattern "UNEXPECTED_K60_CLEANUP_DIRECTORY" `
+                    -Action {
+                        New-G2CleanupDirectory -Path (
+                            Join-Path $temp.Root "must-not-exist"
+                        )
+                    }
+                Assert-Equal `
+                    -Actual $script:k60CleanupSideEffects.DirectoryCalls `
+                    -Expected 1 `
+                    -Message "Fail-on-call directory wrapper did not fire."
+                Assert-Throws `
+                    -MessagePattern "UNEXPECTED_K60_CLEANUP_WRITE" `
+                    -Action {
+                        Write-G2CleanupText `
+                            -Path (Join-Path $temp.Root "must-not-exist.json") `
+                            -Text "{}"
+                    }
+                Assert-Equal `
+                    -Actual $script:k60CleanupSideEffects.TextWrites `
+                    -Expected 1 `
+                    -Message "Fail-on-call text wrapper did not fire."
+                $script:k60CleanupSideEffects.AdbCalls = 0
+                $script:k60CleanupSideEffects.DirectoryCalls = 0
+                $script:k60CleanupSideEffects.TextWrites = 0
+                $expectedFailure = switch ($condition) {
+                    "PAD_MISSING" {
+                        "K60_PREDECESSOR_REPORT_OR_LOCK_MISSING"
+                    }
+                    "SHA_DRIFT" {
+                        "PAD_PREDECESSOR_BINDING_MISMATCH"
+                    }
+                    default {
+                        "K60_PREDECESSOR_PAD_NOT_FULL_PASS_OR_LOCK_NOT_RELEASED"
+                    }
+                }
+
+                $beforeEntries = Get-TestRelativeEntrySet -Root $k60Root
+                $result = Invoke-TestCatching -Action {
+                    $context = Get-G2CleanupContext `
+                        -DeviceRole K60 `
+                        -RequestedEvidenceRoot (
+                            $fixture.Future.Contract.evidence.k60RuntimeRoot
+                        ) `
+                        -Action $cleanupAction `
+                        -ContractPathOverride (
+                            $fixture.Future.ContractPath
+                        ) `
+                        -ManifestPathOverride (
+                            $fixture.Future.ManifestPath
+                        ) `
+                        -RepairAuditReceiptPathOverride (
+                            $fixture.Receipt.Path
+                        ) `
+                        -RepositoryBaseOverride $temp.Root
+                    switch ($cleanupAction) {
+                        "CaptureBefore" {
+                            Capture-G2CleanupBefore `
+                                -Context $context `
+                                -DeviceRole K60
+                        }
+                        "Verify" {
+                            Invoke-G2CleanupVerification `
+                                -Context $context `
+                                -DeviceRole K60
+                        }
+                    }
+                }
+                Assert-True `
+                    -Condition ([bool]$result.Threw) `
+                    -Message (
+                        "$cleanupAction/$condition predecessor gate did not fail."
+                    )
+                Assert-True `
+                    -Condition (
+                        [string]$result.ErrorMessage -match
+                            [regex]::Escape($expectedFailure)
+                    ) `
+                    -Message (
+                        "$cleanupAction/$condition hit an unrelated failure: " +
+                        [string]$result.ErrorMessage
+                    )
+                Assert-Equal `
+                    -Actual $script:k60CleanupSideEffects.AdbCalls `
+                    -Expected 0 `
+                    -Message "$cleanupAction/$condition ADB call count"
+                Assert-Equal `
+                    -Actual $script:k60CleanupSideEffects.DirectoryCalls `
+                    -Expected 0 `
+                    -Message "$cleanupAction/$condition directory call count"
+                Assert-Equal `
+                    -Actual $script:k60CleanupSideEffects.TextWrites `
+                    -Expected 0 `
+                    -Message "$cleanupAction/$condition file write count"
+                if ($condition -ceq "PAD_MISSING") {
+                    Assert-True `
+                        -Condition (-not [System.IO.Directory]::Exists(
+                            $k60Root
+                        )) `
+                        -Message (
+                            "$cleanupAction/$condition created K60 directory."
+                        )
+                } else {
+                    $afterEntries = Get-TestRelativeEntrySet -Root $k60Root
+                    Assert-Equal `
+                        -Actual ($afterEntries -join "`n") `
+                        -Expected ($beforeEntries -join "`n") `
+                        -Message (
+                            "$cleanupAction/$condition changed K60 tree."
+                        )
+                }
+            } finally {
+                Remove-TestTempRoot -Temp $temp
+            }
+        }
+    }
+}
+
+Invoke-Case "K60-CLEANUP-GATE-ACCEPTS-SAME-VALID-PREDECESSOR" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestFutureCleanupFixture `
+            -Temp $temp `
+            -Observations $observations
+        foreach ($action in @("CaptureBefore", "Verify")) {
+            $context = Get-G2CleanupContext `
+                -DeviceRole K60 `
+                -RequestedEvidenceRoot (
+                    $fixture.Future.Contract.evidence.k60RuntimeRoot
+                ) `
+                -Action $action `
+                -ContractPathOverride $fixture.Future.ContractPath `
+                -ManifestPathOverride $fixture.Future.ManifestPath `
+                -RepairAuditReceiptPathOverride $fixture.Receipt.Path `
+                -RepositoryBaseOverride $temp.Root
+            $predecessor = $context.Predecessor
+            Assert-Equal `
+                -Actual $predecessor.coreVerdict `
+                -Expected "PASS" `
+                -Message "$action predecessor core verdict"
+            Assert-Equal `
+                -Actual $predecessor.productVerdict `
+                -Expected "PASS" `
+                -Message "$action predecessor product verdict"
+            Assert-Equal `
+                -Actual $predecessor.lockStateAfterClosure `
+                -Expected "RELEASED_ACTIVE_0" `
+                -Message "$action predecessor lock state"
+            Assert-Equal `
+                -Actual $predecessor.evidencePointer `
+                -Expected (
+                    $fixture.Future.Contract.evidence.padRuntimeRoot +
+                    "/report.json"
+                ) `
+                -Message "$action predecessor pointer"
+        }
     } finally {
         Remove-TestTempRoot -Temp $temp
     }
@@ -1473,6 +3892,280 @@ Invoke-Case "K60-REJECTS-HISTORICAL-PAD-PREDECESSOR" {
                 -Serial "8e875894" `
                 -Predecessor $predecessor
         }
+}
+
+Invoke-Case "WINDOW-CREATES-HOST-EVIDENCE-AFTER-ALL_PREFLIGHT_GATES" {
+    $collectorText = [System.IO.File]::ReadAllText(
+        $collectorPath,
+        [System.Text.UTF8Encoding]::new($false, $true)
+    )
+    $windowStart = $collectorText.IndexOf(
+        "function Invoke-G2Window",
+        [System.StringComparison]::Ordinal
+    )
+    $registrationCheck = $collectorText.IndexOf(
+        "COLLECTOR_REGISTRATION_MISSING",
+        $windowStart,
+        [System.StringComparison]::Ordinal
+    )
+    $registrationAssert = $collectorText.IndexOf(
+        "Assert-G2CollectorRegistrationState",
+        $windowStart,
+        [System.StringComparison]::Ordinal
+    )
+    $deviceAssert = $collectorText.IndexOf(
+        "Assert-G2DevicePolicy",
+        $windowStart,
+        [System.StringComparison]::Ordinal
+    )
+    $hostWriteIndexes = @(
+        foreach ($marker in @(
+            "New-G2CollectorDirectory",
+            "Write-G2Json",
+            "Write-G2Utf8LfText",
+            "[System.IO.Directory]::CreateDirectory"
+        )) {
+            $collectorText.IndexOf(
+                $marker,
+                $windowStart,
+                [System.StringComparison]::Ordinal
+            )
+        }
+    ) | Where-Object { $_ -ge 0 }
+    $firstHostWrite = (
+        $hostWriteIndexes |
+            Measure-Object -Minimum
+    ).Minimum
+    Assert-True `
+        -Condition (
+            $windowStart -ge 0 -and
+            $registrationCheck -gt $windowStart -and
+            $registrationAssert -gt $registrationCheck -and
+            $deviceAssert -gt $registrationAssert -and
+            $firstHostWrite -gt $deviceAssert
+        ) `
+        -Message (
+            "RunWindow must create host evidence only after registration " +
+            "and device policy gates."
+        )
+
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $evidenceRelative = $future.Contract.evidence.padRuntimeRoot
+        $evidenceFullPath = Join-Path $temp.Root $evidenceRelative
+        $context = [pscustomobject]@{
+            Contract = $future.Contract
+            Evidence = [pscustomobject]@{
+                RelativePath = $evidenceRelative
+                FullPath = $evidenceFullPath
+            }
+            RepositoryRoot = $temp.Root
+            ToolsDigest = $future.Contract.tools.digestSha256
+            StatePolicy = [pscustomobject]@{
+                Mode = "AUDIT_PASS_PENDING_FRESH_PAD_QA"
+                QaDispatchable = $true
+            }
+        }
+        $script:g2WindowSideEffects = [pscustomobject]@{
+            AdbCalls = 0
+            DirectoryCalls = 0
+            TextWrites = 0
+        }
+        function Invoke-G2Adb {
+            param(
+                [Parameter(Mandatory)][string]$Serial,
+                [Parameter(Mandatory)][string[]]$Arguments,
+                [switch]$AllowFailure
+            )
+            $script:g2WindowSideEffects.AdbCalls++
+            throw "UNEXPECTED_G2_WINDOW_ADB"
+        }
+        function New-G2CollectorDirectory {
+            param([Parameter(Mandatory)][string]$Path)
+            $script:g2WindowSideEffects.DirectoryCalls++
+            throw "UNEXPECTED_G2_WINDOW_DIRECTORY"
+        }
+        function Write-G2Utf8LfText {
+            param(
+                [Parameter(Mandatory)][string]$Path,
+                [Parameter(Mandatory)][string]$Text
+            )
+            $script:g2WindowSideEffects.TextWrites++
+            throw "UNEXPECTED_G2_WINDOW_WRITE"
+        }
+        Assert-Throws `
+            -MessagePattern "UNEXPECTED_G2_WINDOW_ADB" `
+            -Action {
+                Invoke-G2Adb `
+                    -Serial "43af8627" `
+                    -Arguments @("shell", "true")
+            }
+        Assert-Throws `
+            -MessagePattern "UNEXPECTED_G2_WINDOW_DIRECTORY" `
+            -Action {
+                New-G2CollectorDirectory -Path (
+                    Join-Path $temp.Root "must-not-exist"
+                )
+            }
+        Assert-Throws `
+            -MessagePattern "UNEXPECTED_G2_WINDOW_WRITE" `
+            -Action {
+                Write-G2Utf8LfText `
+                    -Path (Join-Path $temp.Root "must-not-exist.json") `
+                    -Text "{}"
+            }
+        Assert-Equal `
+            -Actual $script:g2WindowSideEffects.AdbCalls `
+            -Expected 1 `
+            -Message "Window ADB wrapper did not fire."
+        Assert-Equal `
+            -Actual $script:g2WindowSideEffects.DirectoryCalls `
+            -Expected 1 `
+            -Message "Window directory wrapper did not fire."
+        Assert-Equal `
+            -Actual $script:g2WindowSideEffects.TextWrites `
+            -Expected 1 `
+            -Message "Window file wrapper did not fire."
+        $script:g2WindowSideEffects.AdbCalls = 0
+        $script:g2WindowSideEffects.DirectoryCalls = 0
+        $script:g2WindowSideEffects.TextWrites = 0
+
+        $result = Invoke-TestCatching -Action {
+            Invoke-G2Window `
+                -Context $context `
+                -DeviceRole Pad `
+                -PlanPath $null
+        }
+        Assert-True `
+            -Condition ([bool]$result.Threw) `
+            -Message "RunWindow without registration did not fail closed."
+        Assert-True `
+            -Condition (
+                [string]$result.ErrorMessage -match
+                    "COLLECTOR_REGISTRATION_MISSING"
+            ) `
+            -Message (
+                "RunWindow failed for the wrong reason: " +
+                [string]$result.ErrorMessage
+            )
+        Assert-Equal `
+            -Actual $script:g2WindowSideEffects.AdbCalls `
+            -Expected 0 `
+            -Message "RunWindow ADB calls before registration"
+        Assert-Equal `
+            -Actual $script:g2WindowSideEffects.DirectoryCalls `
+            -Expected 0 `
+            -Message "RunWindow directory calls before registration"
+        Assert-Equal `
+            -Actual $script:g2WindowSideEffects.TextWrites `
+            -Expected 0 `
+            -Message "RunWindow file writes before registration"
+        Assert-True `
+            -Condition (-not [System.IO.Directory]::Exists(
+                $evidenceFullPath
+            )) `
+            -Message "RunWindow created the attempt directory early."
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "WINDOW-K60-PREDECESSOR-FAILS-BEFORE-HOST-SIDE-EFFECTS" {
+    $temp = New-TestTempRoot
+    try {
+        $fixture = New-TestFutureCleanupFixture `
+            -Temp $temp `
+            -Observations $observations
+        $registration = Read-Json $fixture.K60.RegistrationPath
+        $registration.predecessor.reportSha256 = ("0" * 64)
+        Write-TestJson `
+            -Path $fixture.K60.RegistrationPath `
+            -Value $registration
+        $evidenceRelative = $fixture.Future.Contract.evidence.k60RuntimeRoot
+        $evidenceFullPath = Join-Path $temp.Root $evidenceRelative
+        $beforeEntries = Get-TestRelativeEntrySet -Root $evidenceFullPath
+        $context = [pscustomobject]@{
+            Contract = $fixture.Future.Contract
+            Evidence = [pscustomobject]@{
+                RelativePath = $evidenceRelative
+                FullPath = $evidenceFullPath
+            }
+            RepositoryRoot = $temp.Root
+            ToolsDigest = $fixture.Future.Contract.tools.digestSha256
+            StatePolicy = [pscustomobject]@{
+                Mode = "AUDIT_PASS_PENDING_FRESH_PAD_QA"
+                QaDispatchable = $true
+            }
+        }
+        $script:k60WindowSideEffects = [pscustomobject]@{
+            AdbCalls = 0
+            DirectoryCalls = 0
+            TextWrites = 0
+        }
+        function Invoke-G2Adb {
+            param(
+                [Parameter(Mandatory)][string]$Serial,
+                [Parameter(Mandatory)][string[]]$Arguments,
+                [switch]$AllowFailure
+            )
+            $script:k60WindowSideEffects.AdbCalls++
+            throw "UNEXPECTED_K60_WINDOW_ADB"
+        }
+        function New-G2CollectorDirectory {
+            param([Parameter(Mandatory)][string]$Path)
+            $script:k60WindowSideEffects.DirectoryCalls++
+            throw "UNEXPECTED_K60_WINDOW_DIRECTORY"
+        }
+        function Write-G2Utf8LfText {
+            param(
+                [Parameter(Mandatory)][string]$Path,
+                [Parameter(Mandatory)][string]$Text
+            )
+            $script:k60WindowSideEffects.TextWrites++
+            throw "UNEXPECTED_K60_WINDOW_WRITE"
+        }
+        $result = Invoke-TestCatching -Action {
+            Invoke-G2Window `
+                -Context $context `
+                -DeviceRole K60 `
+                -PlanPath $null
+        }
+        Assert-True `
+            -Condition ([bool]$result.Threw) `
+            -Message "RunWindow with a forged predecessor did not fail."
+        Assert-True `
+            -Condition (
+                [string]$result.ErrorMessage -match
+                    "K60|PREDECESSOR|SHA|MISMATCH"
+            ) `
+            -Message (
+                "RunWindow K60 predecessor failed for the wrong reason: " +
+                [string]$result.ErrorMessage
+            )
+        Assert-Equal `
+            -Actual $script:k60WindowSideEffects.AdbCalls `
+            -Expected 0 `
+            -Message "K60 RunWindow ADB calls before predecessor"
+        Assert-Equal `
+            -Actual $script:k60WindowSideEffects.DirectoryCalls `
+            -Expected 0 `
+            -Message "K60 RunWindow directory calls before predecessor"
+        Assert-Equal `
+            -Actual $script:k60WindowSideEffects.TextWrites `
+            -Expected 0 `
+            -Message "K60 RunWindow writes before predecessor"
+        $afterEntries = Get-TestRelativeEntrySet -Root $evidenceFullPath
+        Assert-Equal `
+            -Actual ($afterEntries -join "`n") `
+            -Expected ($beforeEntries -join "`n") `
+            -Message "K60 RunWindow changed evidence before predecessor gate."
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
 }
 
 Invoke-Case "FINALIZER-REJECTS-OLD-PAD-EVIDENCE-ROOT" {
@@ -2045,6 +4738,7 @@ Invoke-Case "CLEANUP-SUCCESS-RELEASES-AND-REREADS-LOCK" {
             state = "ACTIVE_COUNT_1"
             activeCount = 1
             attemptNumber = 1
+            registeredAt = "2026-11-06T12:00:00.000+08:00"
             authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
             historicalBlockerSha256 = ("a" * 64)
             releasedAt = $null
@@ -2089,6 +4783,7 @@ Invoke-Case "CLEANUP-TRUE-ACTIVE-LOCK-STILL-FAILS" {
             state = "ACTIVE_COUNT_1"
             activeCount = 1
             attemptNumber = 1
+            registeredAt = "2026-11-06T12:00:00.000+08:00"
             authoritativeLockStateAtRegistration = "RELEASED_ACTIVE_0"
             historicalBlockerSha256 = ("a" * 64)
             releasedAt = $null
@@ -2173,6 +4868,20 @@ Sessions Stack - have 1 sessions:
         -Condition (-not (Test-G2ActiveMediaSessionAbsent -Dump $dump)) `
         -Message "Active session was not detected."
 }
+
+Restore-TestSyntheticAuditProvenance `
+    -Provenance $script:SyntheticAuditProvenance `
+    -Temp $script:SyntheticAuditTemp
+
+$finalSettlementBaseline = Get-G2SettlementAuditBaseline
+Assert-Equal `
+    -Actual $finalSettlementBaseline.testsPassedExact `
+    -Expected $script:passed `
+    -Message "Final executed tool test count"
+Assert-Equal `
+    -Actual $finalSettlementBaseline.dynamicNegativeExact `
+    -Expected $script:negativeChecks `
+    -Message "Final executed dynamic negative count"
 
 Write-Output (
     "SUMMARY PASS={0} FAIL={1} NEGATIVE_CASES={2}" -f

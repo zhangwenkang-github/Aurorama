@@ -20,6 +20,10 @@ $schemaPath = Join-Path $evidenceRoot "report.schema.json"
 $runtimeToolsManifestPath = Join-Path `
     $evidenceRoot `
     "runtime-tools.manifest.json"
+$policyPath = Join-Path $evidenceRoot "G2RuntimeStatePolicy.ps1"
+$receiptSchemaPath = Join-Path `
+    $evidenceRoot `
+    "repair-audit-receipt.schema.json"
 $aapt2 = "F:\Develop\Android\AndroidSDK\build-tools\37.0.0\aapt2.exe"
 $apksigner =
     "F:\Develop\Android\AndroidSDK\build-tools\37.0.0\apksigner.bat"
@@ -48,8 +52,12 @@ function Read-JsonStrict {
     Assert-True `
         -Condition ([Array]::IndexOf($bytes, [byte]13) -lt 0) `
         -Name ("LF-" + [System.IO.Path]::GetFileName($Path))
+    $jsonText = $utf8Strict.GetString($bytes)
+    Assert-G2StateNoDuplicateJsonProperties `
+        -JsonText $jsonText `
+        -Name $Path
     return (
-        $utf8Strict.GetString($bytes) |
+        $jsonText |
             ConvertFrom-Json -Depth 100 -DateKind String
     )
 }
@@ -119,6 +127,8 @@ foreach ($requiredPath in @(
     $authorizationPath,
     $schemaPath,
     $runtimeToolsManifestPath,
+    $policyPath,
+    $receiptSchemaPath,
     $aapt2,
     $apksigner
 )) {
@@ -127,19 +137,40 @@ foreach ($requiredPath in @(
         -Name ("EXISTS-" + [System.IO.Path]::GetFileName($requiredPath))
 }
 
+. $policyPath
+
 $contract = Read-JsonStrict $contractPath
 $candidate = Read-JsonStrict $candidatePath
 $authorization = Read-JsonStrict $authorizationPath
+Assert-G2CandidateRecordShape `
+    -Candidate $candidate `
+    -Name "CONTRACT_CANDIDATE_RECORD"
+Assert-G2AuthorizationReceiptShape `
+    -Authorization $authorization `
+    -Name "CONTRACT_AUTHORIZATION_RECEIPT"
 [void](Read-JsonStrict $schemaPath)
 $runtimeToolsManifest = Read-JsonStrict $runtimeToolsManifestPath
+[void](Read-JsonStrict $receiptSchemaPath)
+
+$statePolicy = Assert-G2RuntimeToolStatePolicy `
+    -Contract $contract `
+    -ContractRoot $evidenceRoot `
+    -RepositoryRoot $repositoryRoot `
+    -Action Validate
+$expectedDeviceAccess = if (
+    $statePolicy.Mode -ceq "PRE_AUDIT_STATIC_ONLY"
+) {
+    "STATIC_SELF_TEST_ONLY_THIS_PHASE"
+} else {
+    "PAD_FIRST_K60_GATED_AFTER_AUDIT"
+}
 
 Assert-True `
     -Condition ($contract.schema -ceq "aurorama.g2-entry-runtime-contract.v1") `
     -Name "CONTRACT-SCHEMA"
 Assert-True `
     -Condition (
-        $contract.status -ceq
-        "R2_WIP_REPAIR_R3_IN_PROGRESS"
+        $contract.status -ceq $statePolicy.Status
     ) `
     -Name "CONTRACT-STATUS"
 Assert-True `
@@ -159,9 +190,33 @@ Assert-True `
     -Name "EVIDENCE-ROOT"
 Assert-True `
     -Condition (
-        $contract.authorization.qaDispatchable -eq $false -and
-        $contract.authorization.activePrompt -ceq "none" -and
-        $contract.authorization.contractPackageReady -eq $false -and
+        $null -ne $contract.PSObject.Properties["validation"] -and
+        $null -ne
+            $contract.validation.PSObject.Properties[
+                "repairAuditExpectations"
+            ] -and
+        $contract.validation.repairAuditExpectations.status -ceq
+            "PENDING_SETTLEMENT_FINAL_AUDIT" -and
+        $null -eq $contract.validation.repairAuditExpectations.source -and
+        $null -eq
+            $contract.validation.repairAuditExpectations.preflightCounts -and
+        $null -eq
+            $contract.validation.repairAuditExpectations.g2ToolsCounts -and
+        $null -eq
+            $contract.validation.repairAuditExpectations.handoffCounts -and
+        $null -eq
+            $contract.validation.repairAuditExpectations.boundaryViolations
+    ) `
+    -Name "REPAIR-AUDIT-EXPECTATIONS-PENDING"
+Assert-True `
+    -Condition (
+        $contract.authorization.qaDispatchable -eq
+            $statePolicy.QaDispatchable -and
+        $contract.authorization.activePrompt -ceq
+            $statePolicy.ActivePrompt -and
+        $contract.authorization.generatedExecutableQaPrompt -eq
+            ($statePolicy.Mode -ceq
+                "AUDIT_PASS_PENDING_FRESH_PAD_QA") -and
         $contract.authorization.deviceExecution -ceq
             "AUTHORIZED_PAD_FIRST_K60_GATED"
     ) `
@@ -287,17 +342,17 @@ Assert-True `
         $contract.tools.cleanupVerifier.roleId -ceq
             "G2_RUNTIME_TOOL_OWNER_2026_11_06" -and
         $contract.tools.runtimeCollector.status -ceq
-            "R2_WIP_REPAIR_R3_IN_PROGRESS" -and
+            $statePolicy.Status -and
         $contract.tools.runtimeFinalizer.status -ceq
-            "R2_WIP_REPAIR_R3_IN_PROGRESS" -and
+            $statePolicy.Status -and
         $contract.tools.cleanupVerifier.status -ceq
-            "R2_WIP_REPAIR_R3_IN_PROGRESS" -and
+            $statePolicy.Status -and
         $contract.tools.runtimeCollector.deviceAccess -ceq
-            "STATIC_SELF_TEST_ONLY_THIS_PHASE" -and
+            $expectedDeviceAccess -and
         $contract.tools.runtimeFinalizer.deviceAccess -ceq
-            "STATIC_SELF_TEST_ONLY_THIS_PHASE" -and
+            $expectedDeviceAccess -and
         $contract.tools.cleanupVerifier.deviceAccess -ceq
-            "STATIC_SELF_TEST_ONLY_THIS_PHASE" -and
+            $expectedDeviceAccess -and
         $contract.tools.runtimeCollector.networkAccess -ceq "FORBIDDEN" -and
         $contract.tools.runtimeFinalizer.networkAccess -ceq "FORBIDDEN" -and
         $contract.tools.cleanupVerifier.networkAccess -ceq "FORBIDDEN"
@@ -311,7 +366,7 @@ Assert-True `
         $runtimeToolsManifest.ownerRole -ceq
             "G2_RUNTIME_TOOL_OWNER_2026_11_06" -and
         $runtimeToolsManifest.status -ceq
-            "R2_WIP_REPAIR_R3_IN_PROGRESS" -and
+            $statePolicy.Status -and
         [int]$runtimeToolsManifest.qaV9ReuseCount -eq 0 -and
         [int]$runtimeToolsManifest.deviceCommandsExecutedInSelfTest -eq 0 -and
         [int]$runtimeToolsManifest.adbCallsInSelfTest -eq 0 -and
@@ -320,6 +375,27 @@ Assert-True `
         $runtimeToolsManifest.fixtureModeCannotProducePass -eq $true
     ) `
     -Name "RUNTIME-TOOLS-MANIFEST-IDENTITY"
+$runtimeToolEntries = @($runtimeToolsManifest.files)
+$runtimeToolKinds = @($runtimeToolEntries | ForEach-Object {
+    [string]$_.kind
+})
+Assert-True `
+    -Condition (
+        $runtimeToolEntries.Count -eq 11 -and
+        @(
+            $runtimeToolEntries |
+                ForEach-Object { [string]$_.path } |
+                Select-Object -Unique
+        ).Count -eq 11 -and
+        @($runtimeToolKinds | Where-Object { $_ -ceq "tool" }).Count -eq 4 -and
+        @($runtimeToolKinds | Where-Object { $_ -ceq "test" }).Count -eq 1 -and
+        @($runtimeToolKinds | Where-Object { $_ -ceq "schema" }).Count -eq 1 -and
+        @($runtimeToolKinds | Where-Object { $_ -ceq "fixture" }).Count -eq 5 -and
+        @($runtimeToolKinds | Where-Object {
+            $_ -notin @("tool", "test", "schema", "fixture")
+        }).Count -eq 0
+    ) `
+    -Name "RUNTIME-TOOLS-MANIFEST-EXACT-CARDINALITY"
 Assert-True `
     -Condition (
         @($runtimeToolsManifest.devicePolicy.allowedSerials).Count -eq 2 -and
@@ -361,33 +437,16 @@ foreach ($requiredRuntimeTool in @(
     "Invoke-G2RuntimeCollector.ps1",
     "Finalize-G2RuntimeReport.ps1",
     "Test-G2CleanupRestore.ps1",
+    "G2RuntimeStatePolicy.ps1",
     "tests/Test-G2RuntimeTools.ps1"
 )) {
     Assert-True `
         -Condition $runtimeToolPathSet.Contains($requiredRuntimeTool) `
         -Name ("RUNTIME-TOOL-MANIFEST-MISSING-" + $requiredRuntimeTool)
 }
-$runtimeToolDigestBuilder = [System.Text.StringBuilder]::new()
-foreach ($fileName in @(
-    "Finalize-G2RuntimeReport.ps1",
-    "Invoke-G2RuntimeCollector.ps1",
-    "Test-G2CleanupRestore.ps1"
-) | Sort-Object) {
-    $runtimeToolPath = Join-Path $evidenceRoot $fileName
-    [void]$runtimeToolDigestBuilder.Append(
-        (Get-FileSha256 $runtimeToolPath) + "  " + $fileName + "`n"
-    )
-}
-$runtimeToolsDigest = [Convert]::ToHexString(
-    [System.Security.Cryptography.SHA256]::HashData(
-        [System.Text.Encoding]::UTF8.GetBytes(
-            $runtimeToolDigestBuilder.ToString()
-        )
-    )
-).ToLowerInvariant()
 Assert-True `
     -Condition (
-        $runtimeToolsDigest -ceq $contract.tools.digestSha256 -and
+        $statePolicy.ToolsDigest -ceq $contract.tools.digestSha256 -and
         $runtimeToolsManifest.toolsDigestSha256 -ceq
             $contract.tools.digestSha256
     ) `
@@ -433,6 +492,8 @@ $validatorPath = Resolve-EvidencePath $contract.tools.contractValidator.path
 $schemaContractPath = Resolve-EvidencePath $contract.evidence.reportSchemaPath
 $runtimeManifestPath = Resolve-EvidencePath `
     $contract.tools.runtimeManifest.path
+$statePolicyContractPath = Resolve-EvidencePath `
+    $contract.tools.statePolicy.path
 Assert-True `
     -Condition (
         (Get-FileSha256 $builderPath) -ceq
@@ -441,6 +502,10 @@ Assert-True `
         $contract.tools.contractValidator.sha256 -and
         (Get-FileSha256 $runtimeManifestPath) -ceq
             $contract.tools.runtimeManifest.sha256 -and
+        (Get-FileSha256 $statePolicyContractPath) -ceq
+            $contract.tools.statePolicy.sha256 -and
+        (Get-FileSha256 $receiptSchemaPath) -ceq
+            $contract.toolStatePolicy.repairAuditReceiptSchemaSha256 -and
         (Get-FileSha256 $schemaContractPath) -ceq
         $contract.evidence.reportSchemaSha256
     ) `
@@ -546,3 +611,4 @@ Write-Output "PASS G2_ENTRY_RUNTIME_CONTRACT"
 Write-Output "MAIN_SHA256=$($candidate.main.sha256)"
 Write-Output "PEER_SHA256=$($candidate.focusPeer.sha256)"
 Write-Output "RUNTIME_AUTHORIZATION=PAD_FIRST_K60_GATED"
+Write-Output "TOOL_STATE_MODE=$($statePolicy.Mode)"
