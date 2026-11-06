@@ -1,0 +1,9 @@
+{
+  "schema": "aurorama.g2-device-lock.v1",
+  "deviceRole": "Pad",
+  "serial": "43af8627",
+  "state": "ACTIVE_COUNT_1",
+  "activeCount": 1,
+  "attemptNumber": 1,
+  "releasedAt": null
+}

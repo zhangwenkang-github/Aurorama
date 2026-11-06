@@ -1,0 +1,111 @@
+{
+  "schema": "aurorama.g2-pad-blocker.v1",
+  "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
+  "ownerRole": "G2_PAD_QA_OWNER_2026_11_06",
+  "authorizationDecision": "V2-D210",
+  "status": "BLOCKED_RUNTIME_TOOL_PATH_BINDING",
+  "recordedAt": "2026-11-06T13:52:00+08:00",
+  "head": "1b26d7a789bb903dd302db1aa832e4054f9262e9",
+  "branch": "codex/v2-integration",
+  "candidate": {
+    "mainSha256": "1b3aedb1707f6444505dd96f5a4fd39b6ab27bd24c82d58a86272db62b7ac2a3",
+    "mainBytes": 427009669,
+    "focusPeerSha256": "d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a",
+    "focusPeerBytes": 12698
+  },
+  "device": {
+    "role": "Pad",
+    "serial": "43af8627",
+    "model": "21051182C",
+    "sdk": 33,
+    "abi": "arm64-v8a",
+    "user": 0
+  },
+  "preflightBefore": {
+    "status": "PASS",
+    "dirty": 0,
+    "headMatched": true,
+    "lockActiveCount": 0,
+    "requiredTokensPresent": true
+  },
+  "executed": {
+    "contractValidator": "PASS",
+    "runtimeTools": "PASS_48_OF_48_NEGATIVE_33",
+    "collectorValidate": "FAIL_EXIT_1_PATH_DOUBLE_BOUND",
+    "attemptWindow": "NOT_STARTED",
+    "freshInstall": "NOT_RUN",
+    "candidateIdentityDeviceReadback": "NOT_RUN",
+    "coreRuntimeMatrix": "NOT_RUN",
+    "finalizer": "BLOCKED_OBSERVATIONS_FILE_MISSING"
+  },
+  "rootCauseBoundary": {
+    "tool": "Invoke-G2RuntimeCollector.ps1",
+    "failure": "The repository-relative contract tool path was joined below the contract root a second time.",
+    "observedPath": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\\.planning\\v2-g2\\G2-ENTRY-RUNTIME-CONTRACT\\.planning\\v2-g2\\G2-ENTRY-RUNTIME-CONTRACT\\Invoke-G2RuntimeCollector.ps1",
+    "toolCodeModified": false,
+    "windowConsumed": false
+  },
+  "cleanup": {
+    "verifierStatus": "FAIL",
+    "verifierExitCode": 1,
+    "verifierFailures": [
+      "audioFocusReleased",
+      "externalDataAbsent",
+      "internalDataAbsent",
+      "hostLogcatOrphans",
+      "deviceLockState",
+      "deviceLockActiveCount"
+    ],
+    "independentTextChecks": {
+      "packagesAbsent": true,
+      "mainPidAbsent": true,
+      "peerPidAbsent": true,
+      "serviceRecordsAbsent": true,
+      "activeNotificationRecordsAbsent": true,
+      "activeMediaSessionStackZero": true,
+      "audioFocusCurrentStackEmpty": true,
+      "externalDataPathAbsent": true,
+      "internalDataPathAbsent": true,
+      "hostPadAdbLogcatProcessCount": 0,
+      "networkSettingsRestored": true,
+      "userSettingsRestored": true,
+      "productionPackageSetMatched": true,
+      "deviceLockActiveCount": 0
+    },
+    "verifierFalsePositiveNotes": [
+      "The audio dump contains retained historical focus events from 2026-11-05, while the current focus stack is empty.",
+      "The external and internal path checks matched the literal ls No such file or directory message, not a directory.",
+      "The verifier records a host-logcat orphan when no collector session exists, but no adb-logcat process for this Pad remains.",
+      "The verifier keeps its self-authored lock state ACTIVE until every provisional check passes."
+    ]
+  },
+  "productFindings": {
+    "P0": "NOT_ASSESSED",
+    "P1": "NOT_ASSESSED",
+    "P2": "NOT_ASSESSED",
+    "P3": "NOT_ASSESSED"
+  },
+  "uncovered": [
+    "zf_001 and zm_010 real AudioTrack start/completion",
+    "head, middle, and tail continuity",
+    "maximum audio gap",
+    "FGS, MediaSession, notification, UI, and system-control equality",
+    "audio focus and single-owner behavior",
+    "UI cancel and process-death recovery",
+    "current-window crash, ANR, InputTimeout, and ApplicationExitInfo",
+    "App UID all-partition zero network",
+    "schema-compliant runtime report"
+  ],
+  "k60": {
+    "serial": "8e875894",
+    "registered": false,
+    "targetedCommands": 0,
+    "state": "K60_LOCKED"
+  },
+  "evidence": [
+    "cleanup-before.json",
+    "cleanup-after.json",
+    "cleanup.json",
+    "device-lock.json"
+  ]
+}

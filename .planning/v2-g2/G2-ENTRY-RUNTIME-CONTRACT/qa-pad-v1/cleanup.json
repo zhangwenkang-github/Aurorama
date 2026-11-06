@@ -1,0 +1,31 @@
+{
+  "schema": "aurorama.g2-cleanup-verification.v1",
+  "fixtureOnly": false,
+  "status": "FAIL",
+  "packagesAbsent": true,
+  "pidsAbsent": true,
+  "serviceRecordsAbsent": true,
+  "activeNotificationRecordsAbsent": true,
+  "activeMediaSessionsAbsent": true,
+  "audioFocusReleased": false,
+  "externalDataAbsent": false,
+  "internalDataAbsent": false,
+  "hostLogcatOrphans": 1,
+  "networkRestored": true,
+  "userSettingsRestored": true,
+  "productionPackageMatch": true,
+  "deviceLockState": "ACTIVE_COUNT_1",
+  "deviceLockActiveCount": 1,
+  "evidence": [
+    "cleanup-before.json",
+    "cleanup-after.json"
+  ],
+  "failures": [
+    "audioFocusReleased",
+    "externalDataAbsent",
+    "internalDataAbsent",
+    "hostLogcatOrphans",
+    "deviceLockState",
+    "deviceLockActiveCount"
+  ]
+}

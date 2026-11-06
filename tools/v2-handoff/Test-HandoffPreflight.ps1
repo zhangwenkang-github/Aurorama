@@ -1325,7 +1325,11 @@ try {
                 [System.StringComparison]::Ordinal
             ) -and
             $deferredEmitText.Contains(
-                "PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA",
+                "PAD_RUNTIME_QA_BLOCKED_RUNTIME_TOOL_PATH_BINDING",
+                [System.StringComparison]::Ordinal
+            ) -and
+            $deferredEmitText.Contains(
+                "TOOL_REPAIR_REQUIRED",
                 [System.StringComparison]::Ordinal
             ) -and
             $deferredEmitText.Contains(

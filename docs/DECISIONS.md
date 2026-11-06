@@ -581,6 +581,11 @@ QA、runtime、production 或 G1 PASS。
 `48/48` 静态自测；`PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA / K60_GATED_LOCKED`。
 工具就绪不是 runtime PASS，下一角色必须是另一全新 Pad QA owner。
 
+首次独立 Pad QA 在 collector Validate 的仓库相对路径二次绑定处
+`BLOCKED_RUNTIME_TOOL_PATH_BINDING`；窗口未开始、候选未安装、产品 P0–P3 仍
+`NOT_ASSESSED`，设备锁已释放、K60 零接触。cleanup verifier 另有 6 项假阳性。该结果是工具
+阻断，不是产品 FAIL / PASS；下一角色改为全新 runtime tool repair owner。
+
 证据入口：`.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json`、
 `contract.json`、`report.schema.json`；`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；
 `docs/TASKS.md` In Progress。设备授权不是 QA / runtime / G1 PASS。
