@@ -2,7 +2,7 @@
   "schema": "aurorama.g2-runtime-tools.v1",
   "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
   "ownerRole": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
-  "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
+  "status": "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA",
   "attemptRecoveryStatus": "PREWINDOW_HISTORY_PINNED_NEW_ATTEMPT_SCOPE_V2",
   "createdAt": "2026-11-06T13:11:25.0690822+08:00",
   "freshness": "ONE_TIME_ONLY",

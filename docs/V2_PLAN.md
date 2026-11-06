@@ -1,7 +1,18 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G2_TOOL_CONTRACT_AUDIT_PASS_PENDING_SETTLEMENT / R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / NO_REPAIR_AUDIT_RECEIPT / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64 / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1→G2 入口 `G2_TOOL_CONTRACT_AUDIT_PASS_PENDING_SETTLEMENT / CONTRACT_STATUS_R2_WIP_REPAIR_R3_IN_PROGRESS / auditedCommit=96e19ca2606d851ecbe1c4ed15188767207f9f64 / qaDispatchable=false / no receipt / RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。独立 full audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 `96e19ca2` PASS：preflight/clean、G2 tools `116/0/188`、handoff `108/0`、manifest HEAD `11/11`、clean witness、候选与历史证据均通过。真实合同仍保持 PRE，因为按 L028 尚未生成 `repair-audit-receipt.json`、未切换 contract/ACTIVE/TASKS。下一次只做 settlement：用该 audited commit/count/hash 生成唯一 receipt 与 Pad QA descriptor，再提交 clean；不得继续扩工具门，也不得在 receipt 前执行 Register 或 QA。产品 P0–P3 仍 `NOT_ASSESSED`，当前不是 QA、runtime 或 G1 PASS。
+> 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / PAD_QA_PROMPT_DESCRIPTOR_READY_PENDING_FRESH_REVIEW / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / HISTORICAL_PRE_HANDOFF_AUDIT_PASS=PASS / HISTORICAL_OUTER_HANDOFF_QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64=AUDIT_SNAPSHOT_ONLY / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`。其中
+> `RUNTIME_QA_DEFERRED_TO_G2 / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED /
+> QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none` 仅保留既有
+> `HANDOFF_BOOTSTRAP_V2` outer-handoff anchor 与 emitted prompt 的历史语义，不是当前 G2
+> dispatch 状态；当前执行权由 clean settlement + canonical preflight PASS 后的
+> `contract.authorization.qaDispatch.promptText` 决定。
+> 当前阶段：开发前置·G1→G2 入口 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / auditedSourceCommit=96e19ca2606d851ecbe1c4ed15188767207f9f64 / receiptSha256=c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d / contractSha256=70d3b869cfb33f34f372c7de9e13cb5198f5e8502dc6c07383bb559e9f91bad0 / qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 / promptSha256=5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172 / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / HISTORICAL_GATE=validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / HISTORICAL_GATE=QA_DISPATCHABLE=DEFERRED_TO_G2 / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。独立 full audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 audited source/provenance `96e19ca2` PASS：G2 tools `116/0/188`、handoff `108/0 + TEMP_CLEANUP=PASS`、manifest `11/11`、clean witness、候选与历史证据均通过。`head/headExpectation` 只绑定 audited source/provenance；clean settlement 后 QA live HEAD 取 canonical preflight 现场值，历史 emitted `NEXT_PROMPT_BEGIN` 不覆盖 settlement 后 G2 dispatch。方案 A 已把 audit-time `currentTransitions=64` 与 live preflight transition observation 分离；当前 patch 仍待 fresh review，QA 尚未执行。真实机器合同仍为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / qaDispatchable=true`，当前不是 review、QA、runtime 或 G1 PASS。
+> **当前 WIP（2026-11-07）**：`PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`。
+> 当前是未提交 settlement WIP，不是 committed HEAD 的授权；receipt / contract / policy /
+> schema 的 `currentTransitions=64` 仅是不可变 audit snapshot，root settlement 提交后
+> canonical preflight 可观测到不同的 live count（当前推导 65），该值只记录、不与 64 比较。
+> 其他 live 对象漂移仍 fail-closed。fresh review PASS 前禁止 root commit；root commit
+> clean 与 canonical preflight PASS 前禁止 Pad/K60 QA；产品 P0–P3 仍 `NOT_ASSESSED`。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-07
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3419,7 +3430,71 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS（2026-11-06）
+### ACTIVE：PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW（2026-11-07）
+
+**2026-11-07 方案 A 状态模型修补**：用户已选择方案 A。receipt / contract / policy /
+schema 的 `currentTransitions=64` 是不可变 audit-time snapshot，继续 exact 绑定；
+root settlement 提交后的 canonical preflight 可返回不同的 live transition count
+（当前推导为 65）。live 值只作为 observation 记录，不与 64 比较，也不能否定 clean
+settlement commit；其他 live branch / HEAD / dirty / candidate / tool / manifest / lock /
+receipt 漂移仍 fail-closed。当前仍是未提交 WIP，committed HEAD 为 settlement 前
+`6b51800b…`；fresh review PASS 前不得提交，root commit clean 与 canonical preflight PASS
+前不得 QA 或任何设备动作。该状态不是 review、QA、runtime 或 G1 PASS。
+
+**G2 tool contract audit settlement（2026-11-07，PASS）**
+
+`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS /
+qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 /
+PAD_QA_NOT_EXECUTED / PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW /
+K60_GATED_LOCKED`。本轮唯一一次性
+settlement owner 事务化了 `G2_FINAL_AUDIT_OWNER_2026_11_06` 对
+`96e19ca2606d851ecbe1c4ed15188767207f9f64` 的 PASS：
+
+- audited parent：`ebe5dc591ed49a9939e1a7b4b60ab99e6e4a308b`。
+- receipt：`repair-audit-receipt.json`，`c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d`；
+  `auditedAt=2026-11-07T02:09:53.4828394+08:00` 是 settlement 接收 final audit PASS 并生成
+  receipt 时的现场 UTC+08 时间，不伪造更早的 audit 完成时刻。
+- Pad QA descriptor：`authorization.qaDispatch`，owner `G2_PAD_QA_OWNER_2026_11_06`；
+  canonical first action `pwsh -NoProfile -File tools/v2-handoff/Invoke-HandoffPreflight.ps1 -EmitPrompt`；
+  `qa-pad-v2/**` 唯一写域；Pad `43af8627` only；K60 forbidden；单次连续 10 分钟 / 600 秒 /
+  无 retry / 无 extension；13 个产品门、contract non-goals 与全部 stop conditions。
+- prompt text 为 UTF-8 no BOM / LF，SHA-256
+  `5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172`；contract descriptor、
+  receipt 与 policy 复算值一致。
+- counts：audit-time preflight snapshot `inputFiles=1 / roles=22 / tasks=3 / gates=6 /
+  currentTransitions=64`；settlement 后 live transition count 另从 canonical preflight
+  记录为 observation，当前推导 `65`，不与 receipt / contract 的 64 比较；
+  G2 tools `files=4 / tests=116/0/188 / staticSelfTests=3`；handoff `108/0`、
+  `dynamicNegative=0`、`TEMP_CLEANUP=PASS`；`boundaryViolations=0`。
+- tools digest `5cd2474619cd789b734798b38eae1c2c272600c6865ec8bdec809539a6ba502a`；
+  main `1b3aedb1…` / peer `d1387ed5…`；`qa-pad-v1` 五 SHA、external lock
+  `RELEASED_ACTIVE_0` / `eab7b48d…` 均现场复算一致。
+- runtime manifest 只改合法 `status` 字段后为
+  `5562c1dcccbb9079794badf21b6aef22a116c8f3b3ac35286442247f170dbbd5`；11/11 文件 SHA 与
+  tools digest 不变。
+
+方案 A 已按用户选择修补 round-2 的 P1-01/P1-02。`HANDOFF_BOOTSTRAP_V2` 的
+`POST_QA_RUNTIME_DEFERRED`、`QA_DISPATCHABLE=DEFERRED_TO_G2`、`activePrompt=none` 与
+canonical preflight emitted `NEXT_PROMPT_BEGIN` 全部限定为历史 outer-handoff anchor；
+preflight exit / PASS 仍是机械门，clean settlement 提交且 preflight PASS 后，可执行下一角色
+只由 `contract.authorization.qaDispatch.promptText` 决定。descriptor `head=96e19...` /
+`headExpectation=EXACT_AUDITED_COMMIT_CLEAN` 仅为 audited source/provenance binding；
+QA live HEAD 必须从 clean settlement 后的 canonical preflight 获取，其他 live 对象漂移仍
+fail-closed。receipt/contract/policy/schema 的 `currentTransitions=64` 保持 audit-time
+immutable snapshot；settlement 后 live `currentTransitions`（当前推导 65）仅记录为
+observation，不与 64 比较。contract 新 SHA
+`70d3b869cfb33f34f372c7de9e13cb5198f5e8502dc6c07383bb559e9f91bad0`，receipt 新 SHA
+`c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d`，prompt 新 SHA
+`5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172`；Plan A patch 的
+唯一一次静态验证已由本轮执行，contract validator 为 `1 run / exit 0 / PASS`，
+`TOOL_STATE_MODE=AUDIT_PASS_PENDING_FRESH_PAD_QA`；不能用此前 validator PASS 冒充。当前未执行
+Register / RunWindow / Finalize / Capture / Verify、adb、设备、QA、网络或 Gradle，Pad QA 未开始，
+K60 零接触。产品 P0–P3 仍 `NOT_ASSESSED`；Q03、exact profile/voice、Pad P2、G1、runtime 与
+L2/L3 状态不变。下一步仅 root 启动 fresh reviewer，第一条只读动作
+`git status --short`，随后 `git diff --stat`；review PASS、root 提交 clean 与 canonical
+preflight PASS 前不得派 QA。
+本会话 settlement 实测上下文为 `283,615 / 1,048,576`（27.0%，请求 121），已越过 25 万
+软预警，但低于 30 万交接线；按 L038 收口后立即停止，不继续扩工具门。
 
 **G2 入口契约（2026-11-06，纯文档 / 静态）**
 
@@ -3428,8 +3503,11 @@ G2_GATE=NOT_AUTHORIZED / QA_DISPATCHABLE=DEFERRED_TO_G2`。
 本节把 G2 入口顺序、残余门归属、运行时约束和用户门边界写成静态契约；它不是 QA prompt。
 `V2-G2-ENTRY-RUNTIME-CONTRACT` 已由全新一次性合同 owner 在
 `.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/` 落档，固定新候选 SHA、结果 schema、工具身份
-与独立 evidenceRoot；合同没有派发 QA，也没有接触 Pad / K60。当前任务完成后停止，设备执行
-只能由用户另行确认后的全新角色继续。
+与独立 evidenceRoot。上述 `QA_DISPATCHABLE=DEFERRED_TO_G2` 与“合同没有派发 QA，也没有接触
+Pad / K60”是 2026-11-06 合同开户时的 historical outer-handoff 边界，已被 `V2-D210`、
+当前 G2 descriptor 与后续 clean dispatch 取代；不得再把它读成“当前无可执行 QA”或要求
+另一次设备确认。仅在 fresh review PASS + root commit clean + canonical preflight PASS 后，
+由全新 QA 执行合同 prompt。
 
 唯一分类规则：每个残余项只出现一次。已由冻结静态证据或既有用户决定解决的归
 `CLOSED_STATIC`；只差可离线闭合证据的归 `OFFLINE_NEXT`；需要生产代码、持久化、协议映射或
@@ -3490,12 +3568,13 @@ G1；本契约不把任何一行标成 Done。
   阻断事实引用，禁止复用其工具、owner 或证据充当新产品门，也禁止用
   `PASS_WITH_GAPS` 覆盖核心未执行。
 - `Q03` 保持 Open，exact profile / voice 保持 Open，Pad P2 未接受，`G1 NOT_PASSED`，
-  runtime `UNVERIFIED`，`L2/L3 LOCKED`；`QA_DISPATCHABLE=DEFERRED_TO_G2`，不生成可执行 QA
-  prompt。
+  runtime `UNVERIFIED`，`L2/L3 LOCKED`；G2 audit settlement 后
+  `qaDispatchable=true`， executable Pad QA prompt 已生成，但尚未派发或执行。
 
 **G2 入口 runtime 合同包（2026-11-06，静态合同完成）**
 
-`R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false /
+`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / qaDispatchable=true /
+activePrompt=G2_PAD_QA_OWNER_2026_11_06 / PAD_QA_NOT_EXECUTED /
 PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED`。
 唯一合同根为 `.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/`；新 owner 为
 `G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06`，只做合同，报告后退役。合同、候选记录、
@@ -3515,15 +3594,17 @@ README、checkpoint 与 `report.schema.json` 均在该根内，不读取或修�
   头 / 中 / 尾、`<=15s` gap、FGS / MediaSession / notification / UI / system 等式、
   AudioFocus / 单 owner、crash / ANR / InputTimeout、UI cancel、进程恢复、App UID 全分块
   零网络、P0-P3、cleanup / restore 与最终 verdict。
-- tool-facing 状态由 `G2RuntimeStatePolicy.ps1` 单一封闭表管理。当前
-  `R2_WIP_REPAIR_R3_IN_PROGRESS` 只允许 `Validate / StaticSelfTest`；future
-  `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA` 只有在严格
+- tool-facing 状态由 `G2RuntimeStatePolicy.ps1` 单一封闭表管理。历史
+  `R2_WIP_REPAIR_R3_IN_PROGRESS` 只允许 `Validate / StaticSelfTest`；当前
+  `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA` 已通过严格
   `repair-audit-receipt.json` 通过严格后继 commit / 实际 parent、scope、counts、
   tools digest、候选双 SHA、
   `qa-pad-v1` 五 SHA、外部锁 state/SHA 与 boundary 门后才允许运行时动作。preflight
-  `currentTransitions` 在 contract expectation、receipt 与 schema 均固定 exact `64`；
-  同步 / 单层 `63`、缺失、null 与字符串均 fail-closed。当前真实合同没有 receipt，仍是
-  pre-audit。合法 audited commit 必须是
+  `currentTransitions` 在 contract expectation、receipt、policy 与 schema 均固定 exact `64`；
+  该 64 是不可改写的 audit-time snapshot，同步 / 单层 `63`、缺失、null 与字符串均
+  fail-closed。settlement 后 canonical preflight 的 live count 是
+  `LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND`，当前推导 65；QA 只记录观测，
+  不与 64 比较，也不以此否定 clean settlement。合法 audited commit 必须是
   `6b04eb300256fc8384e5407cee24907e8343f949` 的严格后继；相等、最低基线 parent 与
   parent 漂移拒绝，候选 source commit 仍须为 audited commit 的祖先。
 - 设备顺序仍为 `Pad 43af8627 -> K60 8e875894`；每设备一次连续 10 分钟，不延长、不重试。
@@ -3536,26 +3617,36 @@ README、checkpoint 与 `report.schema.json` 均在该根内，不读取或修�
 
 **唯一当前状态**
 
-`RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS /
+`HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS /
 G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / V2-D209 / V2-D210 /
-R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / PAD_RUNTIME_ATTEMPT_SCOPE_V2 /
+PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS /
+qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 /
+PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW /
+AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 /
+LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND /
+PAD_RUNTIME_ATTEMPT_SCOPE_V2 /
 QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 
 机器合同为 `HANDOFF_BOOTSTRAP_V2`，当前 `validation.handoffPhase=POST_QA_RUNTIME_DEFERRED`。
-这是既有 `PRE_HANDOFF_AUDIT -> POST_HANDOFF_AUDIT_READY` 审计链之后的唯一终态转换；原
+这是既有 `PRE_HANDOFF_AUDIT -> POST_HANDOFF_AUDIT_READY` 审计链之后的 handoff-bootstrap
+历史终态；其 emitted `NEXT_PROMPT_BEGIN`、`activePrompt=none` 与“下一步只做 settlement”
+措辞只作为审计时历史。canonical preflight exit / PASS 仍必须通过，但 G2 settlement 提交
+clean 且 preflight PASS 后，真正可执行派发只来自 G2
+`contract.authorization.qaDispatch.promptText`，不得运行或修改 preflight 来改这段历史。原
 `POST_HANDOFF_AUDIT_READY`、历史 `auditReceipt=PASS` 与三文件审计时 transition set 全部保留，
 不得改写成 QA / runtime / G1 PASS。用户已通过 `V2-D208` 决定：停止本轮 QA 工具修复与重试，
 完整 Pad/K60 runtime QA 延期到 G2 入口门；G1 只继续可离线闭合的静态收口。QA-v9 是本轮真实
 证据，不是产品失败或产品通过。`V2-D209` 授权合同 owner 建立 runtime 合同与 evidence
-边界；`V2-D210` 随后确认设备执行。R2 WIP 未通过验收，R3 只处理已定位修复；当前没有可派发
-Pad / K60 QA。K60 仍锁定，产品代码、G2 实现与 Release 仍未授权。
+边界；`V2-D210` 随后确认设备执行。G2 tool contract 已由独立 final audit PASS，settlement
+的 receipt、Pad QA descriptor、contract 与文档已同步；Pad QA 尚未执行。K60 仍锁定，
+产品代码、G2 实现与 Release 仍未授权。
 
 `SUBAGENT_FIRST=YES`；`ONE_PHASE_PER_FRESH_AGENT=YES`；`NO_REUSE_SUBAGENT=YES`；
 `ROOT_INTEGRATION_ONLY=YES`；`DEVICE_WINDOW_MINUTES=10`；`DEVICE_ORDER=Pad->K60`。
 负责人仍只做交付 / 集成编排；不得亲自跑 QA、修产品、做独立 audit 或替用户验收。
 历史 `PAD_QA_OWNER` 与 `K60_QA_OWNER` 仍不可派发；G2 必须使用新的
 `G2_RUNTIME_TOOL_OWNER_2026_11_06`、`G2_PAD_QA_OWNER_2026_11_06`、
-`G2_K60_QA_OWNER_2026_11_06` 且每阶段全新；下一步由 root 决定是否启动 fresh scoped review。
+`G2_K60_QA_OWNER_2026_11_06` 且每阶段全新；下一步仅由 root 启动 fresh review。
 `K60_NOT_REGISTERED_NOT_RUN` 是当前设备事实。
 preflight 入口固定为 `actionClass=READ_ONLY_PREFLIGHT`，命令为
 `tools/v2-handoff/Invoke-HandoffPreflight.ps1`。
@@ -3563,8 +3654,10 @@ preflight 入口固定为 `actionClass=READ_ONLY_PREFLIGHT`，命令为
 **机器门与历史绑定**
 
 - `INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS`、`PRE_HANDOFF_AUDIT_PASS=PASS` 只证明原
-  PRE/POST handoff 工具链与交接对象在审计时合法；`QA_DISPATCHABLE=DEFERRED_TO_G2`，
-  `activePrompt=none`，当前不存在可派发 QA 或可执行 runtime 角色。
+  PRE/POST handoff 工具链与交接对象在审计时合法；其
+  `QA_DISPATCHABLE=DEFERRED_TO_G2` 是 historical outer-handoff anchor。G2 settlement 的
+  `activePrompt=G2_PAD_QA_OWNER_2026_11_06` 在 fresh review PASS、root commit clean 与
+  canonical preflight PASS 后才成为执行源；prompt 已生成但 QA 未派发。
 - `auditReceipt` 保持 2026-11-06 原 `PASS` 快照：`auditedSourceCommit` / tree、QA prompt、
   tools digest、当时设备锁状态与哈希、qa-v9 evidence root、rejected scope、memory hash、
   `immutableStateSha256` 与历史 transitionPaths 均原样保留。QA-v9 执行后当前设备锁哈希与
@@ -3577,9 +3670,8 @@ preflight 入口固定为 `actionClass=READ_ONLY_PREFLIGHT`，命令为
 - `qa-v8/tools` 继续冻结为 31 项 / manifest `2984` B / digest
   `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`；QA tools
   `25/25`、self-test 31、合同历史 `96/96` 回归不得删除；settlement 合同回归为
-  `108/108` 的完整 handoff 基线，但本轮未运行，必须标“待 final audit”。历史
-  `104/104 PASS` 只是过去快照，不能当作当前完整数。本轮只维护合同末态与回归，不伪造
-  新的 QA / audit PASS。
+  final audit `108/0 + TEMP_CLEANUP=PASS` 的完整 handoff 结果；settlement 未重跑长回归。
+  历史 `104/104 PASS` 只是旧快照。本轮只维护合同末态，不伪造 QA / runtime PASS。
 
 **QA-v9 实际证据与未覆盖**
 
@@ -3597,47 +3689,48 @@ preflight 入口固定为 `actionClass=READ_ONLY_PREFLIGHT`，命令为
 **唯一 ACTIVE 的下一步**
 
 首次 Pad QA 在 collector Validate 路径二次绑定处停止，窗口未开始、候选未安装、产品
-P0–P3 `NOT_ASSESSED`，设备锁释放且 K60 零接触。repair owner 已修复路径与 cleanup 六项
-假阳性；第二轮 repair 又把历史 pre-window blocker 与真实新 attempt 分离，形成未验收 WIP，
-其计数、manifest 与状态均不得视为 PASS。R3 已修复 cleanup schema pin、K60
-predecessor 现场回读、v2 root junction、scope 空态与状态双源，只完成实现侧 TDD / 静态验证。
-R6 又把 JSON 字段集合比较改为 Ordinal 大小写敏感，并在四个严格读取入口拒绝重复属性；
-R7 再把 settlement policy 改为不可由 contract / receipt 提供或抬高的独立 exact constants，
-并封闭 contract 根、manifest、authorization、candidate、registration、session、
-device-lock 与 runtime report 的状态对象属性集。`Status` / `Validation`、
-`g2ToolsCounts`→`G2ToolsCounts`、K60 `deviceOrder`→`DeviceOrder`、未知字段、重复字段与
-同步 `111/151/109` 均有负例。R8 又把 `currentTransitions` 固定为独立 exact `62`，
-contract expectation 与 receipt 两层及 schema `const` 同步；同步 / 单层 `61`、缺失、null
-与字符串均有负例。R9 将 audited commit 从“基线祖先（允许相等）”改为最低基线
-`6b04eb300256fc8384e5407cee24907e8343f949` 的严格后继，删除错误的当前 `HEAD` 祖先约束；
-相等、最低基线 parent 与 parent 漂移均拒绝，严格后继正例接受。future fixture 使用临时
-Git object directory 中的合成严格后继及其实际 parent，候选 source commit 仍须为祖先；
-并新增 contract / receipt 同步 pure-high counts 负例。
-settled QA-ready 兼容已就绪但仍待 final audit：PRE 必须为
-`generatedExecutableQaPrompt=false` + `authorization.qaDispatch=null`；future temp fixture
-才允许 `true` 与具体 descriptor，并绑定 owner、canonical read-only preflight、
-worktree / 分支 / audited head、固定读序、non-goals、`qa-pad-v2/**` 写域、Pad-only /
-K60 forbidden、单次 10 分钟无 retry、13 个产品门和全部 stop conditions。prompt 文本的
-UTF-8 SHA-256 在 contract / receipt / policy 三方一致；缺 prompt、hash、owner、device、
-window、K60 或其他必需字段均 fail-closed。真实合同没有生成该对象。
-`Test-G2RuntimeTools` 现场 `116/0/188`，contract validator、
-collector Validate 与三份
-StaticSelfTest PASS；当前 Register 以 `PRE_AUDIT_ACTION_FORBIDDEN` 失败。完整 handoff
-基线为 `108`，本轮未运行，待 final audit。
-下一步由 root 决定是否启动 fresh scoped review；未完成 review、提交与 clean 前不得派发
+P0–P3 `NOT_ASSESSED`，设备锁释放且 K60 零接触。该历史阻断的修复 WIP 现由
+`G2_FINAL_AUDIT_OWNER_2026_11_06` 在 `96e19ca2` final audit PASS，R3–R9 的 exact
+counts、严格后继 commit / parent、11 项 manifest、损坏路径与状态属性负例均已冻结；不再继续
+扩工具门。
+
+settlement 已生成并修订 `repair-audit-receipt.json`（`c7d90051…`）与真实 Pad QA descriptor。
+contract `authorization` 现为 `contractPackageReady=true / qaDispatchable=true /
+generatedExecutableQaPrompt=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06`；descriptor 绑定
+canonical read-only preflight、worktree / 分支 / audited head、7 项读序、non-goals、
+`qa-pad-v2/**`、Pad-only / K60 forbidden、单次 10 分钟 / 600 秒 / 无 retry、13 个产品门与
+全部 stop conditions。prompt SHA-256
+`5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172` 在 contract / receipt /
+policy 三方一致。descriptor `head` / `headExpectation` 是 audited source/provenance policy
+binding，不是 QA live checkout HEAD；QA 必须从 clean settlement 后的 canonical preflight
+取得 live HEAD。receipt / contract / policy / schema 的 `currentTransitions=64` 是不可变
+audit snapshot；settlement 后 live count（当前推导 65）只记录为 observation，不与 64
+比较。合法 settlement 后继不得仅因 HEAD 或 live transition count 不等于 audit 对象而停止，
+其他 live 对象漂移仍 `BLOCKED`。
+
+Plan A patch 的本轮唯一一次 contract validator 已静态验证通过，exit 0，
+`TOOL_STATE_MODE=AUDIT_PASS_PENDING_FRESH_PAD_QA`。此前 settlement validator PASS 不覆盖
+当前 Plan A 修订对象，本结果也只证明合同一致性，不是 review、QA 或 runtime PASS。本轮未执行
+Register / RunWindow /
+Finalize / Capture / Verify、adb、设备、QA、网络、Gradle，也未重跑 116 项或 handoff 108
+长回归。`qa-pad-v2/` 不存在，K60 零接触。
+
+下一步仅由 root 启动 fresh review；未完成 review PASS、提交、clean 与重新预检前不得派发
 Pad / K60 QA。K60 继续保持锁定。
 
-fresh scoped review 在 dirty WIP 上的前两条只读动作必须是：
+fresh review 在 dirty WIP 上的前两条只读动作必须是：
 
 `git status --short`
 
 `git diff --stat`
 
-必须确认 WIP 范围未漂移且 HEAD 未变；此时不运行 handoff preflight。若范围、HEAD、
-`qa-pad-v1`、候选 SHA 或授权对象漂移，立即停止。handoff preflight 只在 root 完成状态收口
-并形成稳定/提交对象后由另一个 fresh audit 执行。
+fresh review 必须确认 Plan A patch WIP 范围与 HEAD
+`6b51800bf9a166d19c113864efc24bb6edb9eeaf` 未漂移；
+此时不运行 handoff preflight。若范围、HEAD、`qa-pad-v1`、候选 SHA、audited commit、
+receipt、prompt SHA 或授权对象漂移，立即停止。handoff preflight 只在 root 完成 review 与
+提交后由另一个 fresh audit 执行。
 
-fresh scoped review 的精确读序：
+fresh review 的精确读序：
 
 1. 本 ACTIVE；
 2. `AGENTS.md` 顶部 Aurorama 2.0 硬门；
@@ -6146,3 +6239,71 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   已记录 `LESSONS L038`：同一不变量最多两轮修复/复审，audit PASS 后冻结并只做
   settlement/QA。当前上下文实测 `505,725 / 1,048,576`（48.2%），已超过 35 万交接线；
   本线程到此停止扩项，下一步由全新会话执行 settlement，之后再派全新 Pad QA。
+- **2026-11-07 — G2 final audit PASS settlement / Pad QA descriptor ready**：全新一次性
+  `G2_AUDIT_SETTLEMENT_OWNER_2026_11_07` 在 canonical preflight PASS 后，把
+  `G2_FINAL_AUDIT_OWNER_2026_11_06` 对 `96e19ca2606d851ecbe1c4ed15188767207f9f64`
+  （parent `ebe5dc591ed49a9939e1a7b4b60ab99e6e4a308b`）的 PASS 事务化：
+  receipt `94a6fff1e6289fc496a66444803f39609e36eb982c3e82bf8ffd0f8b11a1a780`，
+  prompt `4005c3d0c5c1022ee0988f1777746963caa1cd08165376d27cb123b278200c8c`。
+  `auditedAt=2026-11-07T02:09:53.4828394+08:00` 是 settlement 接收 audit PASS 并写入
+  receipt 的现场时间。contract、runtime manifest、README、CHECKPOINT、TASKS、
+  PROJECT_PLAN 与本日志已切换为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA /
+  AUDIT_RECEIPT_PASS / qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 /
+  PAD_QA_NOT_EXECUTED / ROOT_SCOPED_REVIEW_PENDING`。
+  runtime manifest 只改 `status` 为
+  `5562c1dcccbb9079794badf21b6aef22a116c8f3b3ac35286442247f170dbbd5`，11/11 文件 SHA
+  与 tools digest
+  `5cd2474619cd789b734798b38eae1c2c272600c6865ec8bdec809539a6ba502a` 不变；
+  contract 新 SHA 为
+  `8082f7075f5c3d65488602aadf0f89934a28e74094aee27d2a16867537a0a8bb`。
+  contract validator 单次 PASS，`TOOL_STATE_MODE=AUDIT_PASS_PENDING_FRESH_PAD_QA`。未执行
+  QA、Register、RunWindow、Finalize、Capture、Verify、adb、设备、网络、Gradle，未重跑
+  116 项或 handoff 108 长回归。产品 P0–P3 仍 `NOT_ASSESSED`；Q03/Open、profile/Open、
+  Pad P2 未接受、G1 `NOT_PASSED`、runtime `UNVERIFIED`、L2/L3 `LOCKED` 不变。
+  root 尚需 fresh scoped review 与 commit；下一步不是 Pad QA。本会话收口前实测上下文
+  `283,615 / 1,048,576`（27.0%，请求 121），已越过 25 万软预警、低于 30 万交接线。
+- **2026-11-07 — G2 settlement round-1 P1-01/P1-02 定点修补**：round-1 scoped review
+  FAIL 的两项已修复。P1-01 将 `HANDOFF_BOOTSTRAP_V2` 的
+  `POST_QA_RUNTIME_DEFERRED` 与 canonical preflight emitted `NEXT_PROMPT_BEGIN` 标为历史
+  handoff-bootstrap 措辞；preflight exit / PASS 保留机械门地位，settlement 提交 clean 且
+  preflight PASS 后，可执行下一角色由 G2
+  `contract.authorization.qaDispatch.promptText` 决定。P1-02 保留 descriptor
+  `head=96e19ca2606d851ecbe1c4ed15188767207f9f64` 与
+  `headExpectation=EXACT_AUDITED_COMMIT_CLEAN`，并将其精确限定为 audited
+  source/provenance binding；QA live clean HEAD 由 canonical preflight 现场返回并校验，
+  合法 settlement 后继不得误停，任何现场对象漂移仍 `BLOCKED`。
+  prompt SHA 更新为
+  `d8b3d21b5f5d67013c672f8a036f7ed7c71a03b2031491a9a84008bf687fdf2c`，receipt 新 SHA
+  `e16bc2107e48a149c4e5082e76fa72b0651ade6eeab7240b4f10a041db527ac2`，contract 新 SHA
+  `55d7a961c64aae4cababc39dca19aa0cf45153df03cfa45bc17a34fa607d3ae7`。WIP 状态为
+  `ROOT_SCOPED_REVIEW_ROUND1_FAIL_P1_PATCHED_PENDING_ROUND2_REVIEW`；P1 patch 的唯一静态
+  验证由本轮收口执行，尚未宣称 review PASS。未改 preflight、handoff 合同、工具、测试、
+  schema、候选、authorization、`qa-pad-v1`、`qa-v9` 或 runtime manifest 内容。
+- **2026-11-07 — G2 settlement round-2 review FAIL / 停止状态模型修补**：全新
+  `G2_SETTLEMENT_ROUND2_REVIEWER_2026_11_07` 复核为 `FAIL / P0-P3=0/2/0/0`。P1-01：
+  V2 ACTIVE 仍残留旧 `QA_DISPATCHABLE=DEFERRED_TO_G2` 与非 HISTORY 的“无可执行 QA”
+  文案，precedence 修补未端到端完成。P1-02：HEAD provenance 已隔离，但 audit receipt
+  的 `currentTransitions=64` 与加入 receipt 后 clean 现场预计 `65` 未隔离；README 仍写
+  现场 64，QA prompt 又禁止结果漂移。两项均可能让 fresh QA 误停。按 L038 到此停止，
+  不进行第三轮修补。settlement WIP 保持未 stage / 未 commit；HEAD 仍
+  `6b51800bf9a166d19c113864efc24bb6edb9eeaf`。未运行 clean preflight、QA、设备、
+  Gradle 或网络；产品 P0–P3=`NOT_ASSESSED`。下一步必须先由用户决定是否重设计
+  audit-snapshot/live-transition 语义，或退役/重建 settlement 对象。
+- **2026-11-07 — G2 Plan A audit-snapshot / live-transition 语义修补**：用户选择方案 A。
+  receipt / contract / policy / schema 的 `currentTransitions=64` 保持 immutable
+  audit-time snapshot；clean settlement 后的 canonical preflight live transition count
+  另记为 `OBSERVED_NOT_RECEIPT_BOUND`（当前推导 65），不与 64 比较，也不否定 clean
+  settlement。QA prompt 改为 fresh review PASS + root settlement commit clean +
+  canonical preflight PASS 后才可执行，live HEAD 取该 preflight 现场值，其他 live
+  branch / dirty / candidate / tool / manifest / lock / receipt 漂移仍 `BLOCKED`。历史
+  `POST_QA_RUNTIME_DEFERRED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none` 与
+  preflight emitted `NEXT_PROMPT_BEGIN` 只保留为 outer-handoff anchor，从属于 G2
+  `qaDispatch.promptText`。prompt SHA
+  `5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172`，receipt SHA
+  `c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d`，contract SHA
+  `70d3b869cfb33f34f372c7de9e13cb5198f5e8502dc6c07383bb559e9f91bad0`。唯一一次
+  contract validator `PASS / exit 0`，`TOOL_STATE_MODE=AUDIT_PASS_PENDING_FRESH_PAD_QA`；
+  未执行 116、handoff 108、Gradle、设备、QA 或网络。WIP 状态为
+  `PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`；本轮不宣称 review PASS。
+  下一步仅由全新 fresh reviewer 只读复核，首动作 `git status --short`、随后
+  `git diff --stat`；发现漂移即停止。

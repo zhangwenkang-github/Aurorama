@@ -1,5 +1,13 @@
 # Cinefin · 项目总览与协作规程
 
+> **2026-11-07 当前 WIP**：`PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`。
+> 用户已选择方案 A：receipt / contract / policy / schema 的 `currentTransitions=64`
+> 是不可变 audit-time snapshot；root settlement 提交后的 canonical preflight 可观测到
+> 不同 live transition count（当前推导 65），该值只记录、不与 64 比较。committed HEAD
+> 仍是 settlement 前 `6b51800b…`，当前 receipt/prompt 是不可执行 WIP；fresh review PASS
+> 前不得 root commit，root commit clean 与 canonical preflight PASS 前不得派 Pad/K60 QA。
+> 其他 live 对象漂移仍 fail-closed；产品 P0–P3 仍 `NOT_ASSESSED`，下一步仅 fresh review。
+
 > **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-11-07　集成分支 `codex/v2-integration`
 > 项目级状态、任务线地图、协作规程都在本文件；单个任务线内部的需求 / 进度 / 决策写各自的线文档。
 > **Aurorama 2.0 正在做开发前置收敛**：需求与交付入口是 `docs/V2_PLAN.md`；外部原始需求只读分片读取，禁止整篇通读。
@@ -34,16 +42,19 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `G2_TOOL_CONTRACT_AUDIT_PASS_PENDING_SETTLEMENT / CONTRACT_STATUS_R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / NO_REPAIR_AUDIT_RECEIPT / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 独立 audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 committed HEAD `96e19ca2606d851ecbe1c4ed15188767207f9f64` PASS：G2 tools `116/0/188`、handoff `108/0`、manifest HEAD `11/11`、clean witness `33/33`、preflight clean。真实合同仍 PRE、无 receipt、`qaDispatch=null`、`activePrompt=none`，K60 锁定。下一会话只做 settlement：用该 audited commit 创建 schema 合法 receipt 与 Pad QA descriptor，提交 clean 后另派全新 Pad QA；不得继续扩工具门或执行设备。产品 P0–P3 仍 `NOT_ASSESSED`。 |
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 独立 audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 audited source/provenance commit `96e19ca2606d851ecbe1c4ed15188767207f9f64` PASS：G2 tools `116/0/188`、handoff `108/0 + TEMP_CLEANUP=PASS`、manifest `11/11`、clean witness `33/33`。方案 A 已把 receipt/contract/policy/schema 的 audit snapshot `currentTransitions=64` 与 settlement 后 live preflight observation（当前推导 65）分离，live count 不比较、不否定 clean settlement；历史 `POST_QA_RUNTIME_DEFERRED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none` 只作 outer-handoff anchor。receipt 新 SHA `c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d`、contract 新 SHA `70d3b869cfb33f34f372c7de9e13cb5198f5e8502dc6c07383bb559e9f91bad0`、Pad QA prompt 新 SHA `5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172`。真实机器合同仍为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / qaDispatchable=true`；Plan A patch 的 contract validator 已执行 `1 run / exit 0 / PASS`，`TOOL_STATE_MODE=AUDIT_PASS_PENDING_FRESH_PAD_QA`，但 fresh review 尚未完成，未执行 QA。下一步仅 fresh reviewer；review PASS 后 root 才可提交，commit clean 与 fresh preflight PASS 后才可另派全新 Pad QA。Q03/Open、exact profile/voice/Open、Pad P2 未接受、G1 `NOT_PASSED`、runtime `UNVERIFIED`、L2/L3 `LOCKED` 和产品 P0–P3 `NOT_ASSESSED` 均未改变。 |
 > `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；当前唯一末态是
-> `POST_QA_RUNTIME_DEFERRED`，`PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，
-> 不是 QA / runtime / G1 PASS。`V2-D208` 之后不再有可执行 QA role。
+> `POST_QA_RUNTIME_DEFERRED` 作为 handoff-bootstrap 历史措辞保留，
+> `PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，不是 QA / runtime / G1 PASS。
+> canonical preflight 的 exit / PASS 仍是机械门，但其 emitted `NEXT_PROMPT_BEGIN` 中的
+> `activePrompt=none` / 只接 settlement 文案是历史措辞；G2 settlement 提交 clean 且 preflight
+> PASS 后，真正可执行下一角色只由 `contract.authorization.qaDispatch.promptText` 决定。
 > **HISTORY（非当前状态）**：`G2_RUNTIME_CONTRACT_PACKAGE_READY /
 > PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / 57/57 PASS / 37 negative` 已被
 > R2 WIP repair 的 R3–R9 与当前 exact counts 取代，不得作为当前状态或验收结论。
 > 连续性 anchor（非状态提升）：`RUNTIME_QA_DEFERRED_TO_G2 /
 > G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS /
-> V2-D209 / G2_RUNTIME_CONTRACT_OWNER / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / K60_LOCKED /
+> V2-D208 / V2-D209 / G2_RUNTIME_CONTRACT_OWNER / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / K60_LOCKED /
 > ROUND8-P1-01 / ROUND7-P1-01 / ROUND6-P1-01 / QA tools 25/25 / B10 86/86 /
 > 合同历史 96/96 / c4a2d2a1 /
 > 69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`。

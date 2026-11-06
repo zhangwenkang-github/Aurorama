@@ -2,7 +2,7 @@
   "schema": "aurorama.g2-entry-runtime-contract.v1",
   "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
   "version": "1.0.8",
-  "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
+  "status": "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA",
   "createdAt": "2026-11-06T12:05:43.7576139+08:00",
   "owner": {
     "roleId": "G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06",
@@ -33,12 +33,34 @@
   },
   "validation": {
     "repairAuditExpectations": {
-      "status": "PENDING_SETTLEMENT_FINAL_AUDIT",
-      "source": null,
-      "preflightCounts": null,
-      "g2ToolsCounts": null,
-      "handoffCounts": null,
-      "boundaryViolations": null
+      "status": "SETTLED_FROM_FINAL_AUDIT",
+      "source": {
+        "auditedCommit": "96e19ca2606d851ecbe1c4ed15188767207f9f64",
+        "g2ToolsCommand": "pwsh -NoProfile -File .planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/tests/Test-G2RuntimeTools.ps1",
+        "handoffCommand": "pwsh -NoProfile -File tools/v2-handoff/Test-HandoffPreflight.ps1",
+        "staticSelfTestCommand": "collector/finalizer/cleanup -StaticSelfTest"
+      },
+      "preflightCounts": {
+        "inputFiles": 1,
+        "roles": 22,
+        "tasks": 3,
+        "gates": 6,
+        "currentTransitions": 64
+      },
+      "g2ToolsCounts": {
+        "files": 4,
+        "testsPassed": 116,
+        "testsFailed": 0,
+        "dynamicNegative": 188,
+        "staticSelfTests": 3
+      },
+      "handoffCounts": {
+        "passed": 108,
+        "failed": 0,
+        "dynamicNegative": 0,
+        "tempCleanupPassed": true
+      },
+      "boundaryViolations": 0
     }
   },
   "evidence": {
@@ -149,7 +171,7 @@
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/G2RuntimeStatePolicy.ps1",
       "sha256": "e4ea0752e6a3390c742a8807f339d5f0dce2d388652d6f417d89a4ed9e8ea34a",
-      "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
+      "status": "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
     },
@@ -157,8 +179,8 @@
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Invoke-G2RuntimeCollector.ps1",
       "sha256": "9d248404c3f0cc450c249ec2b6aaf142978c90d52c0146163f677d0b1adeba49",
-      "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
-      "deviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
+      "status": "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA",
+      "deviceAccess": "PAD_FIRST_K60_GATED_AFTER_AUDIT",
       "networkAccess": "FORBIDDEN",
       "mustBeNew": true
     },
@@ -166,8 +188,8 @@
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Finalize-G2RuntimeReport.ps1",
       "sha256": "59b6f69dab3550a47740f3b141df25b26c6de22c77a00265efe2705af770aed1",
-      "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
-      "deviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
+      "status": "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA",
+      "deviceAccess": "PAD_FIRST_K60_GATED_AFTER_AUDIT",
       "networkAccess": "FORBIDDEN",
       "mustBeNew": true
     },
@@ -175,16 +197,16 @@
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2CleanupRestore.ps1",
       "sha256": "6f581a5707720eb2085920a8a58e292a9461b751d13318030de34305c8379057",
-      "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
-      "deviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
+      "status": "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA",
+      "deviceAccess": "PAD_FIRST_K60_GATED_AFTER_AUDIT",
       "networkAccess": "FORBIDDEN",
       "mustBeNew": true
     },
     "runtimeManifest": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/runtime-tools.manifest.json",
-      "sha256": "ef8fadc2fe97e58d857928a1f6ca831e7cd51645b05e336958c3cd06a0e348c0",
-      "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
+      "sha256": "5562c1dcccbb9079794badf21b6aef22a116c8f3b3ac35286442247f170dbbd5",
+      "status": "PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
     },
@@ -194,11 +216,94 @@
     "entryDecision": "V2-D209",
     "deviceAuthorizationDecision": "V2-D210",
     "contractOnly": false,
-    "contractPackageReady": false,
-    "qaDispatchable": false,
-    "activePrompt": "none",
-    "generatedExecutableQaPrompt": false,
-    "qaDispatch": null,
+    "contractPackageReady": true,
+    "qaDispatchable": true,
+    "activePrompt": "G2_PAD_QA_OWNER_2026_11_06",
+    "generatedExecutableQaPrompt": true,
+    "qaDispatch": {
+      "schema": "aurorama.g2-pad-qa-dispatch.v1",
+      "ownerRole": "G2_PAD_QA_OWNER_2026_11_06",
+      "actionClass": "READ_ONLY_PREFLIGHT",
+      "firstReadOnlyAction": "pwsh -NoProfile -File tools/v2-handoff/Invoke-HandoffPreflight.ps1 -EmitPrompt",
+      "worktree": "F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama",
+      "branch": "codex/v2-integration",
+      "head": "96e19ca2606d851ecbe1c4ed15188767207f9f64",
+      "headExpectation": "EXACT_AUDITED_COMMIT_CLEAN",
+      "readOrder": [
+        "AGENTS.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/CHECKPOINT.md",
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/README.md",
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/contract.json"
+      ],
+      "writeScope": [
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2/**"
+      ],
+      "device": {
+        "order": "Pad->K60",
+        "first": "Pad",
+        "serial": "43af8627",
+        "roleId": "G2_PAD_QA_OWNER_2026_11_06",
+        "k60": "FORBIDDEN_UNTIL_PAD_FULL_CORE_PASS_AND_RELEASED_ACTIVE_0"
+      },
+      "window": {
+        "minutes": 10,
+        "seconds": 600,
+        "attempts": 1,
+        "continuous": true,
+        "extensionAllowed": false,
+        "retryAllowed": false
+      },
+      "productGateIds": [
+        "G2-RT-01-FRESH-INSTALL-IDENTITY",
+        "G2-RT-02-AUDIOTRACK-START-COMPLETION",
+        "G2-RT-03-VOICE-PROFILES-ZF-ZM",
+        "G2-RT-04-HEAD-MIDDLE-TAIL-CONTINUITY",
+        "G2-RT-05-MAX-AUDIO-GAP-15S",
+        "G2-RT-06-FGS-MEDIASESSION-NOTIFICATION-UI-EQUALITY",
+        "G2-RT-07-AUDIOFOCUS-SINGLE-OWNER",
+        "G2-RT-08-CRASH-ANR-INPUTTIMEOUT",
+        "G2-RT-09-UI-CANCEL",
+        "G2-RT-10-PROCESS-RESTART-RECOVERY",
+        "G2-RT-11-APP-UID-ZERO-NETWORK",
+        "G2-RT-12-CLEANUP-CAPTURE-RESTORE",
+        "G2-RT-13-SINGLE-10MIN-WINDOW-NO-RETRY"
+      ],
+      "nonGoals": [
+        "Do not execute runtime QA or send any command to Pad or K60.",
+        "Do not reuse qa-v9 tools, owners, evidence roots or executable prompt.",
+        "Do not close Q03, freeze exact profile/voice or accept Pad P2.",
+        "Do not start G2 implementation, Release, server write or L2/L3.",
+        "Do not claim runtime PASS from contract readiness or candidate build."
+      ],
+      "stopConditions": [
+        "PREFLIGHT_FAIL_CLOSED_OR_CONTRACT_DIGEST_DRIFT",
+        "CANDIDATE_BYTES_SHA256_PACKAGE_VERSION_ABI_OR_PERMISSION_DRIFT",
+        "DEVICE_AUTHORIZATION_RECEIPT_MISSING_OR_NOT_BOUND_TO_THIS_CONTRACT",
+        "DEVICE_ORDER_WINDOW_SERIAL_USER_OR_LOCK_DRIFT",
+        "K60_TOUCHED_BEFORE_PAD_FULL_PASS_AND_RELEASED_LOCK",
+        "TEN_MINUTE_WINDOW_EXTENDED_RETRIED_OR_REPLACED",
+        "CORE_STEP_NOT_EXECUTED_OR_PASS_WITH_GAPS_USED",
+        "AUDIOTRACK_START_COMPLETION_MISSING_OR_NOT_REAL_AUDIO",
+        "ZF_001_OR_ZM_010_NOT_EXERCISED",
+        "HEAD_MIDDLE_TAIL_CONTINUITY_MISSING",
+        "AUDIO_GAP_GREATER_THAN_15_SECONDS",
+        "FGS_MEDIASESSION_NOTIFICATION_UI_OR_SYSTEM_CONTROL_MISMATCH",
+        "AUDIOFOCUS_OR_SINGLE_OWNER_DRIFT",
+        "CURRENT_RUN_NATIVE_JAVA_CRASH_ANR_OR_INPUTTIMEOUT",
+        "UI_CANCEL_OR_PROCESS_RECOVERY_FAILURE",
+        "APP_UID_NETWORK_NONZERO_OR_PARTITIONS_UNACCOUNTED",
+        "CLEANUP_RESTORE_PRODUCTION_MATCH_OR_LOCK_RELEASE_FAILURE",
+        "QA_V9_TOOL_OWNER_EVIDENCE_OR_PROMPT_REUSED",
+        "NEW_P0_P2_OR_EVIDENCE_TAMPER",
+        "Q03_PROFILE_PAD_P2_G2_IMPLEMENTATION_OR_RELEASE_OVERCLAIM",
+        "WRITE_OUTSIDE_CONTRACT_PACKAGE_OR_AUTHORIZED_DOC_SCOPE"
+      ],
+      "promptText": "You are G2_PAD_QA_OWNER_2026_11_06, the fresh one-time Aurorama G2 Pad runtime QA owner for the audited contract.\n\nThis dispatch becomes executable only after the root fresh review returns PASS, the root creates the settlement commit, the checkout is clean, and the canonical preflight exits 0 with PASS. This prompt is not authority to run on the current dirty WIP.\n\nAction class: READ_ONLY_PREFLIGHT.\nFirst read-only action: pwsh -NoProfile -File tools/v2-handoff/Invoke-HandoffPreflight.ps1 -EmitPrompt\nThis first action must exit 0 and print PASS. Its exit and PASS are the canonical mechanical gate.\nThe canonical preflight still emits audited HANDOFF_BOOTSTRAP_V2 POST_QA_RUNTIME_DEFERRED wording, including its historical NEXT_PROMPT_BEGIN block and any activePrompt=none or next-settlement sentence.\nTreat that emitted block as historical handoff-bootstrap text, not the executable dispatch. After the root settlement commit and clean canonical preflight PASS, contract.authorization.qaDispatch.promptText is the authoritative next-role instruction.\nThe preflight exit/PASS gate remains mandatory, but its emitted historical text cannot override this settled G2 dispatch and must not be edited to try to make it do so.\n\nAudit snapshot versus live transition state:\n- receipt/contract preflightCounts.currentTransitions=64 is the immutable audit-time snapshot. It remains exactly bound in the receipt, contract expectations, policy, and schema and must not be changed to the post-settlement count.\n- After the root settlement commit, canonical preflight may report a different live currentTransitions value (currently derived as 65). Record that live value as an observation in the permitted QA evidence. Do not compare it with the audit snapshot 64, and do not use inequality against 64 to reject a clean settlement commit or fail an otherwise-clean QA dispatch.\n- The live gate is: canonical preflight PASS plus live branch, HEAD, dirty state, candidate, tools, runtime manifest, handoff manifest, external lock, receipt, and descriptor all match the clean settlement dispatch object and the canonical preflight/contract result.\n- Every other live-object drift remains BLOCKED. In particular, PREFLIGHT_FAIL_CLOSED_OR_CONTRACT_DIGEST_DRIFT still applies to every live object named above other than the live transition-count observation.\n- Any non-zero exit, FAIL_CLOSED, identity mismatch, dirty tree, or drift outside the explicitly observational live transition count is BLOCKED; execute no device action.\n\nWorktree: F:\\Develop\\code_data\\work_tree\\Aurorama\\v2-requirements-baseline\\Aurorama\nBranch: codex/v2-integration\nAudited source/provenance binding: head=96e19ca2606d851ecbe1c4ed15188767207f9f64\nPolicy head expectation token: headExpectation=EXACT_AUDITED_COMMIT_CLEAN\nThese two descriptor fields are policy-required audited source/provenance bindings for the audited implementation object and settlement receipt. They do not assert that the QA live checkout HEAD equals the audited SHA.\nAfter the root settlement commit and clean checkout, the live HEAD must come from the canonical preflight result and must be validated against that result and this contract. Do not require live HEAD to equal the audited SHA, and do not stop merely because live HEAD is a legitimate settlement descendant of 96e19ca2606d851ecbe1c4ed15188767207f9f64.\nA descendant is allowed only when canonical preflight returns PASS and the live branch, clean state, candidate, tools, manifests, external lock, receipt, and descriptor match the clean settlement dispatch object. Any drift in those live objects remains BLOCKED.\n\nRead order (exactly these seven entries, in this order):\n- AGENTS.md\n- docs/PROJECT_PLAN.md\n- docs/V2_PLAN.md\n- docs/TASKS.md\n- .planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/CHECKPOINT.md\n- .planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/README.md\n- .planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/contract.json\n\nWrite scope: .planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2/** is the only permitted write root. Do not modify contract, receipt, manifest, docs, candidate, authorization, qa-pad-v1, qa-v9, tools, tests, schemas, product source, or qa-k60-v2.\n\nDevice policy: Pad->K60 order; this dispatch is Pad 43af8627 only. K60 8e875894 is FORBIDDEN_UNTIL_PAD_FULL_CORE_PASS_AND_RELEASED_ACTIVE_0. Do not register, install, command, or otherwise touch K60.\nWindow: exactly 10 minutes / 600 seconds / one attempt / continuous. Window extension is forbidden. Retry is forbidden. A pre-window tool failure must not consume the attempt; stop and report BLOCKED.\n\nProduct gates (all 13 are required):\n- G2-RT-01-FRESH-INSTALL-IDENTITY\n- G2-RT-02-AUDIOTRACK-START-COMPLETION\n- G2-RT-03-VOICE-PROFILES-ZF-ZM\n- G2-RT-04-HEAD-MIDDLE-TAIL-CONTINUITY\n- G2-RT-05-MAX-AUDIO-GAP-15S\n- G2-RT-06-FGS-MEDIASESSION-NOTIFICATION-UI-EQUALITY\n- G2-RT-07-AUDIOFOCUS-SINGLE-OWNER\n- G2-RT-08-CRASH-ANR-INPUTTIMEOUT\n- G2-RT-09-UI-CANCEL\n- G2-RT-10-PROCESS-RESTART-RECOVERY\n- G2-RT-11-APP-UID-ZERO-NETWORK\n- G2-RT-12-CLEANUP-CAPTURE-RESTORE\n- G2-RT-13-SINGLE-10MIN-WINDOW-NO-RETRY\n\nContract-authoring non-goals retained verbatim for contract binding:\n- Do not execute runtime QA or send any command to Pad or K60.\n- Do not reuse qa-v9 tools, owners, evidence roots or executable prompt.\n- Do not close Q03, freeze exact profile/voice or accept Pad P2.\n- Do not start G2 implementation, Release, server write or L2/L3.\n- Do not claim runtime PASS from contract readiness or candidate build.\nThe first non-goal records the retired contract-authoring phase; this descriptor and the settled V2-D210 authorization are the explicit scope for this QA dispatch.\n\nStop conditions (stop immediately and report BLOCKED on any):\n- PREFLIGHT_FAIL_CLOSED_OR_CONTRACT_DIGEST_DRIFT\n- CANDIDATE_BYTES_SHA256_PACKAGE_VERSION_ABI_OR_PERMISSION_DRIFT\n- DEVICE_AUTHORIZATION_RECEIPT_MISSING_OR_NOT_BOUND_TO_THIS_CONTRACT\n- DEVICE_ORDER_WINDOW_SERIAL_USER_OR_LOCK_DRIFT\n- K60_TOUCHED_BEFORE_PAD_FULL_PASS_AND_RELEASED_LOCK\n- TEN_MINUTE_WINDOW_EXTENDED_RETRIED_OR_REPLACED\n- CORE_STEP_NOT_EXECUTED_OR_PASS_WITH_GAPS_USED\n- AUDIOTRACK_START_COMPLETION_MISSING_OR_NOT_REAL_AUDIO\n- ZF_001_OR_ZM_010_NOT_EXERCISED\n- HEAD_MIDDLE_TAIL_CONTINUITY_MISSING\n- AUDIO_GAP_GREATER_THAN_15_SECONDS\n- FGS_MEDIASESSION_NOTIFICATION_UI_OR_SYSTEM_CONTROL_MISMATCH\n- AUDIOFOCUS_OR_SINGLE_OWNER_DRIFT\n- CURRENT_RUN_NATIVE_JAVA_CRASH_ANR_OR_INPUTTIMEOUT\n- UI_CANCEL_OR_PROCESS_RECOVERY_FAILURE\n- APP_UID_NETWORK_NONZERO_OR_PARTITIONS_UNACCOUNTED\n- CLEANUP_RESTORE_PRODUCTION_MATCH_OR_LOCK_RELEASE_FAILURE\n- QA_V9_TOOL_OWNER_EVIDENCE_OR_PROMPT_REUSED\n- NEW_P0_P2_OR_EVIDENCE_TAMPER\n- Q03_PROFILE_PAD_P2_G2_IMPLEMENTATION_OR_RELEASE_OVERCLAIM\n- WRITE_OUTSIDE_CONTRACT_PACKAGE_OR_AUTHORIZED_DOC_SCOPE\n\nProduct P0-P3 remain NOT_ASSESSED until real executed evidence exists. Q03 remains OPEN, exact profile/voice remains OPEN, Pad P2 remains UNACCEPTED, G1 remains NOT_PASSED, runtime remains UNVERIFIED, and L2/L3 remain LOCKED. Do not treat the audit receipt, this descriptor, candidate readiness, registration, an install, or cleanup as QA/runtime/G1 PASS.",
+      "promptSha256": "5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172"
+    },
     "deviceExecution": "AUTHORIZED_PAD_FIRST_K60_GATED",
     "requiredDeviceAuthorizationReceipt": true,
     "authorizationReceiptPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json",

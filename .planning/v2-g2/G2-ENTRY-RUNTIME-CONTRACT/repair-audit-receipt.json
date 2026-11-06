@@ -1,0 +1,71 @@
+{
+  "schema": "aurorama.g2-repair-audit-receipt.v1",
+  "version": "1.0.0",
+  "auditorRole": "G2_FINAL_AUDIT_OWNER_2026_11_06",
+  "auditedCommit": "96e19ca2606d851ecbe1c4ed15188767207f9f64",
+  "parent": "ebe5dc591ed49a9939e1a7b4b60ab99e6e4a308b",
+  "auditedAt": "2026-11-07T02:09:53.4828394+08:00",
+  "verdict": "PASS",
+  "scope": {
+    "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
+    "contractRoot": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT",
+    "mode": "AUDIT_PASS_PENDING_FRESH_PAD_QA",
+    "qaExecuted": false,
+    "deviceTouched": false,
+    "networkUsed": false
+  },
+  "preflightCounts": {
+    "inputFiles": 1,
+    "roles": 22,
+    "tasks": 3,
+    "gates": 6,
+    "currentTransitions": 64
+  },
+  "g2ToolsCounts": {
+    "files": 4,
+    "testsPassed": 116,
+    "testsFailed": 0,
+    "dynamicNegative": 188,
+    "staticSelfTests": 3
+  },
+  "handoffCounts": {
+    "passed": 108,
+    "failed": 0,
+    "dynamicNegative": 0,
+    "tempCleanupPassed": true
+  },
+  "toolsDigest": "5cd2474619cd789b734798b38eae1c2c272600c6865ec8bdec809539a6ba502a",
+  "candidate": {
+    "mainSha256": "1b3aedb1707f6444505dd96f5a4fd39b6ab27bd24c82d58a86272db62b7ac2a3",
+    "focusPeerSha256": "d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a"
+  },
+  "qaPromptSha256": "5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172",
+  "qaPadV1": [
+    {
+      "path": "blocker.json",
+      "sha256": "483a6fbb0df591de0e32a017b02c36b1ee39fb2e8d426447ee8a85b9fd1505af"
+    },
+    {
+      "path": "cleanup-before.json",
+      "sha256": "c1c1068700910c58ecca17b630e5c9f9ca75b1ec56b8163c2cfb4af4dd3543de"
+    },
+    {
+      "path": "cleanup-after.json",
+      "sha256": "78f1864a58bf7ede515b5c0720aa8809e25e473a441b24794a40cb2146c5f4ad"
+    },
+    {
+      "path": "cleanup.json",
+      "sha256": "b215079e9baff37c4533fae7f6069643d5d385ece5e87ec432a791e5be941e26"
+    },
+    {
+      "path": "device-lock.json",
+      "sha256": "dfa3d1d102795dcfe68da5f598fa7520917dd7c76bf9b906c9aec3d7a557b056"
+    }
+  ],
+  "externalLock": {
+    "state": "RELEASED_ACTIVE_0",
+    "sha256": "eab7b48d6a41d61577df37de3fdfa91f566f6e86c16add75fa91646342645b1b"
+  },
+  "boundaryViolations": 0,
+  "nextRole": "G2_PAD_QA_OWNER_2026_11_06"
+}
