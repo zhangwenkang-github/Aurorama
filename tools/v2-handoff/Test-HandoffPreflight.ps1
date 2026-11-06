@@ -1450,6 +1450,10 @@ try {
     $gitAttributesOriginalBytes = [System.IO.File]::ReadAllBytes(
         $gitAttributesTransitionPath
     )
+    $gitIgnoreTransitionPath = Join-Path $repositoryRoot ".gitignore"
+    $gitIgnoreOriginalBytes = [System.IO.File]::ReadAllBytes(
+        $gitIgnoreTransitionPath
+    )
     $ordinaryDocsTransitionProbe = Join-Path `
         $repositoryRoot `
         "docs/post-qa-g2-transition-probe.md"
@@ -1458,6 +1462,10 @@ try {
         Write-LfText `
             -Text ($gitAttributesText + "# post-qa-gitattributes-transition-probe`n") `
             -Path $gitAttributesTransitionPath
+        $gitIgnoreText = $utf8Strict.GetString($gitIgnoreOriginalBytes)
+        Write-LfText `
+            -Text ($gitIgnoreText + "# post-qa-gitignore-transition-probe`n") `
+            -Path $gitIgnoreTransitionPath
         Write-LfText -Text "{`"probe`":true}`n" -Path $g2TransitionProbe
         $g2TransitionResult = Invoke-Preflight
         Assert-Condition `
@@ -1470,6 +1478,7 @@ try {
             ) `
             -Name "POST-QA-G2-TRANSITION-ALLOWED"
         Write-Output "ASSERT POST-QA-G2-TRANSITION-ALLOWED=PASS"
+        Write-Output "ASSERT POST-QA-GITIGNORE-TRANSITION-ALLOWED=PASS"
 
         Write-LfText `
             -Text "ordinary docs transition`n" `
@@ -1490,6 +1499,10 @@ try {
         [System.IO.File]::WriteAllBytes(
             $gitAttributesTransitionPath,
             $gitAttributesOriginalBytes
+        )
+        [System.IO.File]::WriteAllBytes(
+            $gitIgnoreTransitionPath,
+            $gitIgnoreOriginalBytes
         )
         if (Test-Path -LiteralPath $g2TransitionProbe) {
             [System.IO.File]::Delete($g2TransitionProbe)

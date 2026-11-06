@@ -57,19 +57,19 @@ P0-P3、未覆盖、cleanup、最终 verdict。
 - Cleanup verifier：`Test-G2CleanupRestore.ps1`，
   `6f581a5707720eb2085920a8a58e292a9461b751d13318030de34305c8379057`。
 - Shared state policy：`G2RuntimeStatePolicy.ps1`，
-  `dba045308623233b69f4a46cf0c1d773b8eefeb0be3b150fe5e54b4da55f19ac`。
+  `e4ea0752e6a3390c742a8807f339d5f0dce2d388652d6f417d89a4ed9e8ea34a`。
 - Contract validator：`Test-G2EntryRuntimeContract.ps1`，
   `987e3ae7ec47b32541799522c94cb2c15384422f72688541a6baf6efbdde09eb`。
 - Tests：`tests/Test-G2RuntimeTools.ps1`，
-  `1ef28350d7b10c3915aa069bcc5c380d9b790b9fe9417dc7f30cf0c2a496c5e5`。
+  `99f200a1dd1fa4766ee41865f867282a6fe309588358c496c2491e40a5db4269`。
 - Repair audit receipt schema：`repair-audit-receipt.schema.json`，
-  `8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac`。
+  `566f97577861ca78e2416dbba7ad383b3ada99c3a0bba65f82d070a56f0c542e`。
 - Tool manifest：`runtime-tools.manifest.json`，
-  `5595f6124cdbb043dcb703500ad9b511c8dbd29c7be2ccbaf2e59c30e6206cc1`。
+  `ef8fadc2fe97e58d857928a1f6ca831e7cd51645b05e336958c3cd06a0e348c0`。
 - Contract：`contract.json`，
-  `b076be9caca2923dee1e57d8116948513f11019fa3f1cf28d787cd56bca7d42b`。
+  `81bce792d0ae3e86d3b311e12b3b8d425eecc422b805ef261d9e64a1161f424b`。
 - Tools digest：
-  `9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d`。
+  `5cd2474619cd789b734798b38eae1c2c272600c6865ec8bdec809539a6ba502a`。
 - 当前实现侧结果为 `116 PASS / 0 FAIL / 188 dynamic negative`；该结果不是独立 audit、
   QA 或 runtime PASS。
 
@@ -77,7 +77,7 @@ P0-P3、未覆盖、cleanup、最终 verdict。
 设备、网络或 Gradle。Collector 仅对接本合同的 Pad/K60 evidence root；K60 仍必须取得
 Pad 全核心 PASS、Pad 锁 `RELEASED_ACTIVE_0` 和 `V2-D210` receipt 后才能登记。
 current handoff preflight 为 PASS，实际 `roles=22 / tasks=3 / gates=6 /
-currentTransitions=62`。完整 handoff 的现场基线是 `108/108`；本轮未运行该长回归，
+currentTransitions=64`。完整 handoff 的现场基线是 `108/108`；本轮未运行该长回归，
 必须标为“待 final audit”，历史 `104/104 PASS` 不能当作当前完整数。
 
 ## Tool-facing 状态策略
@@ -111,12 +111,12 @@ future fixture 使用临时 Git object 中的合成严格后继，不使用当�
 当前真实合同的 `validation.repairAuditExpectations` 仍为
 `PENDING_SETTLEMENT_FINAL_AUDIT`，source / counts 全为 null。策略文件自身固定独立 exact
 constants：`toolFiles=4`、`testsPassed=116`、`testsFailed=0`、
-`dynamicNegative=188`、`currentTransitions=62`、`staticSelfTests=3`、`handoffPassed=108`、
+`dynamicNegative=188`、`currentTransitions=64`、`staticSelfTests=3`、`handoffPassed=108`、
 `handoffFailed=0`、`handoffDynamicNegative=0`、`tempCleanupPassed=true`、
 `boundaryViolations=0`。future audit 必须让 contract expectations 与 receipt 同时逐项
 exact equal 这组策略常量，任一方不能提供或抬高该基线；高位、低位、缺失、null 与类型漂移
-全部拒绝。receipt schema 同时以 `const: 62` 固定 `currentTransitions`；同步 `61`、任一层
-单独 `61`、缺失、null 与字符串均 fail-closed。runtime manifest 同时要求恰好 11 个唯一路径
+全部拒绝。receipt schema 同时以 `const: 64` 固定 `currentTransitions`；同步 `63`、任一层
+单独 `63`、缺失、null 与字符串均 fail-closed。runtime manifest 同时要求恰好 11 个唯一路径
 和固定 kind 集合。
 
 当前真实合同**没有** `repair-audit-receipt.json`，`authorization.qaDispatch=null`，仍保持

@@ -452,3 +452,20 @@
   `GIT_INDEX_FILE` 与 `checkout-index` 验证真实 checkout 字节，最后才比较严格 LF hash。
 - **来源**：2026-11-06 G2 checkout LF 可复现性修复；`L033` 已被 audit receipt 使用，
   因此顺序编号，不重复既有 lesson。
+
+## L037 manifest 所列文件必须由 Git 跟踪并做 clean-checkout 校验
+
+- **现象**：`runtime-tools.manifest.json` 列出的 fixture 在当前工作区存在且 SHA 匹配，
+  但其 `*.log` 扩展名被全仓忽略，导致该文件不在 HEAD；clean checkout 实际只有 10/11，
+  当前工作区的 manifest 校验仍会通过。
+- **根因**：manifest 校验把“工作区可读”误当成“合同文件已持久化”，没有把 manifest path
+  set 与 Git tracked set / clean checkout 做交叉验证；同时全扩展名 ignore 与单 fixture
+  例外没有成对维护。
+- **对策**：manifest 每个 `path-kind` 项都必须是受版本控制的合同文件；需要放行 ignored
+  扩展名时只写根锚定的单一 exact negation，禁止用 `!*.log` 等 broad unignore。实现侧
+  可在提交前报告 expected untracked，但阶段门必须要求提交后 tracked set 为 11/11。
+- **验证要求**：逐项比对 manifest paths、`git ls-files` 与 clean checkout / archive；
+  `git check-ignore -q` 证明 exact fixture 不为 ignored，第二个同扩展名 probe 仍被原规则
+  拦截；fixture SHA / size 在 ignore 调整前后必须完全不变。
+- **来源**：2026-11-07 G2 manifest fixture persistence P1；工作区 1219 B /
+  `bb4857956bbdfe9b6a3284c3e8930a7ccb38c5d21a9ad37c831ab5f920ad6dbd`。

@@ -27,7 +27,7 @@
     "qaReadyToolDeviceAccess": "PAD_FIRST_K60_GATED_AFTER_AUDIT",
     "repairAuditReceiptPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/repair-audit-receipt.json",
     "repairAuditReceiptSchemaPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/repair-audit-receipt.schema.json",
-    "repairAuditReceiptSchemaSha256": "8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac",
+    "repairAuditReceiptSchemaSha256": "566f97577861ca78e2416dbba7ad383b3ada99c3a0bba65f82d070a56f0c542e",
     "minimumAuditedCommit": "6b04eb300256fc8384e5407cee24907e8343f949",
     "requiredNextRole": "G2_PAD_QA_OWNER_2026_11_06"
   },
@@ -148,7 +148,7 @@
     "statePolicy": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/G2RuntimeStatePolicy.ps1",
-      "sha256": "dba045308623233b69f4a46cf0c1d773b8eefeb0be3b150fe5e54b4da55f19ac",
+      "sha256": "e4ea0752e6a3390c742a8807f339d5f0dce2d388652d6f417d89a4ed9e8ea34a",
       "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
@@ -183,12 +183,12 @@
     "runtimeManifest": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/runtime-tools.manifest.json",
-      "sha256": "5595f6124cdbb043dcb703500ad9b511c8dbd29c7be2ccbaf2e59c30e6206cc1",
+      "sha256": "ef8fadc2fe97e58d857928a1f6ca831e7cd51645b05e336958c3cd06a0e348c0",
       "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
     },
-    "digestSha256": "9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d"
+    "digestSha256": "5cd2474619cd789b734798b38eae1c2c272600c6865ec8bdec809539a6ba502a"
   },
   "authorization": {
     "entryDecision": "V2-D209",

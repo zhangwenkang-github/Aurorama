@@ -11,6 +11,7 @@ local.properties
 
 # Log/OS Files
 *.log
+!/.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/tests/fixtures/runtime-log-happy.log
 
 # Android Studio generated files and folders
 captures/

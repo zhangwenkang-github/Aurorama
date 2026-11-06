@@ -429,7 +429,7 @@ function New-FutureContractFixture {
             roles = 22
             tasks = 3
             gates = 6
-            currentTransitions = 62
+            currentTransitions = 64
         }
         g2ToolsCounts = [pscustomobject][ordered]@{
             files = 4
@@ -2310,7 +2310,7 @@ Invoke-Case "STATE-POLICY-REJECTS-SYNCHRONIZED-PURE-HIGH-COUNTS" {
     }
 }
 
-Invoke-Case "STATE-POLICY-REQUIRES-EXACT-CURRENT-TRANSITIONS-62" {
+Invoke-Case "STATE-POLICY-REQUIRES-EXACT-CURRENT-TRANSITIONS-64" {
     $temp = New-TestTempRoot
     try {
         $future = New-FutureContractFixture `
@@ -2332,23 +2332,23 @@ Invoke-Case "STATE-POLICY-REQUIRES-EXACT-CURRENT-TRANSITIONS-62" {
         Assert-Equal `
             -Actual $legalState.Mode `
             -Expected "AUDIT_PASS_PENDING_FRESH_PAD_QA" `
-            -Message "Legal currentTransitions=62 mode"
+            -Message "Legal currentTransitions=64 mode"
 
         $mutations = @(
             {
                 param($contractValue, $receiptValue)
                 $contractValue.validation.repairAuditExpectations.
-                    preflightCounts.currentTransitions = 61
-                $receiptValue.preflightCounts.currentTransitions = 61
+                    preflightCounts.currentTransitions = 63
+                $receiptValue.preflightCounts.currentTransitions = 63
             },
             {
                 param($contractValue, $receiptValue)
                 $contractValue.validation.repairAuditExpectations.
-                    preflightCounts.currentTransitions = 61
+                    preflightCounts.currentTransitions = 63
             },
             {
                 param($contractValue, $receiptValue)
-                $receiptValue.preflightCounts.currentTransitions = 61
+                $receiptValue.preflightCounts.currentTransitions = 63
             },
             {
                 param($contractValue, $receiptValue)
@@ -2375,11 +2375,11 @@ Invoke-Case "STATE-POLICY-REQUIRES-EXACT-CURRENT-TRANSITIONS-62" {
             {
                 param($contractValue, $receiptValue)
                 $contractValue.validation.repairAuditExpectations.
-                    preflightCounts.currentTransitions = "62"
+                    preflightCounts.currentTransitions = "64"
             },
             {
                 param($contractValue, $receiptValue)
-                $receiptValue.preflightCounts.currentTransitions = "62"
+                $receiptValue.preflightCounts.currentTransitions = "64"
             }
         )
         foreach ($mutation in $mutations) {
@@ -2405,7 +2405,7 @@ Invoke-Case "STATE-POLICY-REQUIRES-EXACT-CURRENT-TRANSITIONS-62" {
         $baseline = Get-G2SettlementAuditBaseline
         Assert-Equal `
             -Actual $baseline.currentTransitionsExact `
-            -Expected 62 `
+            -Expected 64 `
             -Message "Independent currentTransitions baseline"
     } finally {
         Remove-TestTempRoot -Temp $temp

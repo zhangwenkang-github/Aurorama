@@ -3832,6 +3832,7 @@ try {
     )
     $expectedPostQaSettlementTransitionPaths = @(
         ".gitattributes",
+        ".gitignore",
         "AGENTS.md",
         "docs/DECISIONS.md",
         "docs/LESSONS.md",

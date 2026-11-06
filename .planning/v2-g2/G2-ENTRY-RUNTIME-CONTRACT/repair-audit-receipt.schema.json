@@ -114,7 +114,7 @@
         },
         "currentTransitions": {
           "type": "integer",
-          "const": 62
+          "const": 64
         }
       }
     },

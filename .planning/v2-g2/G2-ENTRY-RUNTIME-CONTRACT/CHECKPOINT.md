@@ -44,22 +44,22 @@ RUNTIME_UNVERIFIED / G1_NOT_PASSED / PRODUCT_P0_P3_NOT_ASSESSED / activePrompt=n
 - Cleanup verifier：`Test-G2CleanupRestore.ps1`，
   `6f581a5707720eb2085920a8a58e292a9461b751d13318030de34305c8379057`。
 - Shared state policy：`G2RuntimeStatePolicy.ps1`，
-  `dba045308623233b69f4a46cf0c1d773b8eefeb0be3b150fe5e54b4da55f19ac`。
+  `e4ea0752e6a3390c742a8807f339d5f0dce2d388652d6f417d89a4ed9e8ea34a`。
 - Tests：`tests/Test-G2RuntimeTools.ps1`，
-  `1ef28350d7b10c3915aa069bcc5c380d9b790b9fe9417dc7f30cf0c2a496c5e5`。
+  `99f200a1dd1fa4766ee41865f867282a6fe309588358c496c2491e40a5db4269`。
 - Audit receipt schema：`repair-audit-receipt.schema.json`，
-  `8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac`。
+  `566f97577861ca78e2416dbba7ad383b3ada99c3a0bba65f82d070a56f0c542e`。
 - Tool manifest：`runtime-tools.manifest.json`，
-  `5595f6124cdbb043dcb703500ad9b511c8dbd29c7be2ccbaf2e59c30e6206cc1`。
+  `ef8fadc2fe97e58d857928a1f6ca831e7cd51645b05e336958c3cd06a0e348c0`。
 - Tools digest：
-  `9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d`。
+  `5cd2474619cd789b734798b38eae1c2c272600c6865ec8bdec809539a6ba502a`。
 - Contract：`contract.json`，
-  `b076be9caca2923dee1e57d8116948513f11019fa3f1cf28d787cd56bca7d42b`。
+  `81bce792d0ae3e86d3b311e12b3b8d425eecc422b805ef261d9e64a1161f424b`。
 
 | Manifest 非工具项 | SHA-256 |
 |---|---|
-| `tests/Test-G2RuntimeTools.ps1` | `1ef28350d7b10c3915aa069bcc5c380d9b790b9fe9417dc7f30cf0c2a496c5e5` |
-| `repair-audit-receipt.schema.json` | `8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac` |
+| `tests/Test-G2RuntimeTools.ps1` | `99f200a1dd1fa4766ee41865f867282a6fe309588358c496c2491e40a5db4269` |
+| `repair-audit-receipt.schema.json` | `566f97577861ca78e2416dbba7ad383b3ada99c3a0bba65f82d070a56f0c542e` |
 | `tests/fixtures/netstats-before.txt` | `3c226961c4a54583629521a79015195f5b706ae802d13c45a1783751f0eebf34` |
 | `tests/fixtures/netstats-after.txt` | `8a6e7fadbe828801b909fc9c1fe7885276801bb6b7203b6bc2599641dff88bfe` |
 | `tests/fixtures/runtime-log-happy.log` | `bb4857956bbdfe9b6a3284c3e8930a7ccb38c5d21a9ad37c831ab5f920ad6dbd` |
@@ -112,6 +112,9 @@ RUNTIME_UNVERIFIED / G1_NOT_PASSED / PRODUCT_P0_P3_NOT_ASSESSED / activePrompt=n
 - R8 RED 证明 contract expectations 与 receipt 同步 `currentTransitions=61` 仍被接受。
   修复后 policy 独立常量与 receipt schema 都固定 `62`；合法 `62` 保留，contract-only /
   receipt-only / 同步 `61`、缺失、null 与字符串均 fail-closed。
+- 2026-11-07 current transition repair 将当前 oracle 原位刷新为 `64`：policy、receipt schema
+  与 future fixture 一致，负例改为同步 / 单层 `63` 与字符串 `"64"`。该变更是 R8 历史
+  `62` 的当前基线刷新，不改变 case 数量，也不是 audit / QA / runtime PASS。
 - runtime manifest 精确要求 11 个唯一路径与
   `4 tool + 1 test + 1 schema + 5 fixture`；10 / 12 项、duplicate、未知 kind 与 SHA
   漂移均 fail-closed。
@@ -145,10 +148,10 @@ RUNTIME_UNVERIFIED / G1_NOT_PASSED / PRODUCT_P0_P3_NOT_ASSESSED / activePrompt=n
   `TOOL_STATE_MODE=PRE_AUDIT_STATIC_ONLY`。
 - collector / finalizer / cleanup `StaticSelfTest` 通过，`DEVICE_COMMANDS=0`。
 - collector `Validate` PASS，输出 tools digest
-  `9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d`；
+  `5cd2474619cd789b734798b38eae1c2c272600c6865ec8bdec809539a6ba502a`；
   当前态直接执行 `Register` 在状态门失败且未写 registration/session。
 - current handoff preflight PASS，实际
-  `roles=22 / tasks=3 / gates=6 / currentTransitions=62`，无 QA prompt 派发。
+  `roles=22 / tasks=3 / gates=6 / currentTransitions=64`，无 QA prompt 派发。
 - 候选在线身份、schema 与工具摘要从现场复算；真实 SHA 见固定对象段和
   `runtime-tools.manifest.json`。
 - 完整 handoff 的现场基线为 `108/108`，本轮未运行；只能标“待 final audit”。
