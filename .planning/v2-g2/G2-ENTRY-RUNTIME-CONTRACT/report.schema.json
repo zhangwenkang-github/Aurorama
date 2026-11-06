@@ -1,0 +1,887 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "aurorama.g2-entry-runtime-report.v1",
+  "title": "Aurorama G2 entry runtime QA report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "contractId",
+    "ownerRole",
+    "evidenceRoot",
+    "candidate",
+    "toolsDigest",
+    "authorization",
+    "device",
+    "predecessor",
+    "execution",
+    "productGates",
+    "audioTrackEvents",
+    "continuity",
+    "systemSurfaces",
+    "audioFocus",
+    "stability",
+    "uiCancel",
+    "processRecovery",
+    "zeroNetwork",
+    "productFindings",
+    "uncovered",
+    "cleanupAndRestore",
+    "passWithGapsForbidden",
+    "productVerdict",
+    "verdict",
+    "finalizedAt"
+  ],
+  "properties": {
+    "schema": {
+      "const": "aurorama.g2-entry-runtime-report.v1"
+    },
+    "contractId": {
+      "const": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06"
+    },
+    "ownerRole": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidenceRoot": {
+      "type": "string",
+      "pattern": "^\\.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-(pad|k60)-v1$"
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceCommit",
+        "mainPath",
+        "mainSha256",
+        "mainBytes",
+        "mainPackage",
+        "mainVersionCode",
+        "mainVersionName",
+        "mainAbi",
+        "mainInternetPermission",
+        "focusPeerPath",
+        "focusPeerSha256",
+        "focusPeerBytes"
+      ],
+      "properties": {
+        "sourceCommit": {
+          "const": "35f9d493f16cdf79f946871fc331e2ceece287d2"
+        },
+        "mainPath": {
+          "const": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/candidate-main-v6.apk"
+        },
+        "mainSha256": {
+          "const": "1b3aedb1707f6444505dd96f5a4fd39b6ab27bd24c82d58a86272db62b7ac2a3"
+        },
+        "mainBytes": {
+          "const": 427009669
+        },
+        "mainPackage": {
+          "const": "dev.aurorama.kokoro.harness"
+        },
+        "mainVersionCode": {
+          "const": 5
+        },
+        "mainVersionName": {
+          "const": "2.0-g2-runtime-contract-v6"
+        },
+        "mainAbi": {
+          "const": "arm64-v8a"
+        },
+        "mainInternetPermission": {
+          "const": false
+        },
+        "focusPeerPath": {
+          "const": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/candidate-focus-peer-v2.apk"
+        },
+        "focusPeerSha256": {
+          "const": "d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a"
+        },
+        "focusPeerBytes": {
+          "const": 12698
+        }
+      }
+    },
+    "toolsDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deviceExecutionGranted",
+        "grantReceiptPath",
+        "grantReceiptSha256",
+        "contractOnlyPhase"
+      ],
+      "properties": {
+        "deviceExecutionGranted": {
+          "const": true
+        },
+        "grantReceiptPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grantReceiptSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "contractOnlyPhase": {
+          "const": false
+        }
+      }
+    },
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order",
+        "role",
+        "serial",
+        "model",
+        "sdk",
+        "abi",
+        "user",
+        "lockStateAtStart"
+      ],
+      "properties": {
+        "order": {
+          "enum": [
+            "Pad",
+            "K60"
+          ]
+        },
+        "role": {
+          "enum": [
+            "G2_PAD_QA_OWNER_2026_11_06",
+            "G2_K60_QA_OWNER_2026_11_06"
+          ]
+        },
+        "serial": {
+          "enum": [
+            "43af8627",
+            "8e875894"
+          ]
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sdk": {
+          "type": "integer",
+          "minimum": 26
+        },
+        "abi": {
+          "const": "arm64-v8a"
+        },
+        "user": {
+          "const": 0
+        },
+        "lockStateAtStart": {
+          "const": "ACTIVE_COUNT_1"
+        }
+      }
+    },
+    "predecessor": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "deviceOrder",
+        "coreVerdict",
+        "lockStateAfterClosure",
+        "evidencePointer"
+      ],
+      "properties": {
+        "deviceOrder": {
+          "const": "Pad"
+        },
+        "coreVerdict": {
+          "const": "PASS"
+        },
+        "lockStateAfterClosure": {
+          "const": "RELEASED_ACTIVE_0"
+        },
+        "evidencePointer": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "windowMinutes",
+        "windowSeconds",
+        "attemptNumber",
+        "extended",
+        "retry",
+        "continuous",
+        "startedAt",
+        "completedAt",
+        "freshInstall",
+        "candidateIdentityVerified"
+      ],
+      "properties": {
+        "windowMinutes": {
+          "const": 10
+        },
+        "windowSeconds": {
+          "const": 600
+        },
+        "attemptNumber": {
+          "const": 1
+        },
+        "extended": {
+          "const": false
+        },
+        "retry": {
+          "const": false
+        },
+        "continuous": {
+          "const": true
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "freshInstall": {
+          "const": true
+        },
+        "candidateIdentityVerified": {
+          "const": true
+        }
+      }
+    },
+    "productGates": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gateId",
+          "status",
+          "evidence"
+        ],
+        "properties": {
+          "gateId": {
+            "enum": [
+              "G2-RT-01-FRESH-INSTALL-IDENTITY",
+              "G2-RT-02-AUDIOTRACK-START-COMPLETION",
+              "G2-RT-03-VOICE-PROFILES-ZF-ZM",
+              "G2-RT-04-HEAD-MIDDLE-TAIL-CONTINUITY",
+              "G2-RT-05-MAX-AUDIO-GAP-15S",
+              "G2-RT-06-FGS-MEDIASESSION-NOTIFICATION-UI-EQUALITY",
+              "G2-RT-07-AUDIOFOCUS-SINGLE-OWNER",
+              "G2-RT-08-CRASH-ANR-INPUTTIMEOUT",
+              "G2-RT-09-UI-CANCEL",
+              "G2-RT-10-PROCESS-RESTART-RECOVERY",
+              "G2-RT-11-APP-UID-ZERO-NETWORK",
+              "G2-RT-12-CLEANUP-CAPTURE-RESTORE",
+              "G2-RT-13-SINGLE-10MIN-WINDOW-NO-RETRY"
+            ]
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "BLOCKED",
+              "NOT_RUN"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "observed": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "audioTrackEvents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "timestamp",
+          "voiceId",
+          "sentenceRequestId",
+          "trackSessionId"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "START",
+              "COMPLETION"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "voiceId": {
+            "enum": [
+              "zf_001",
+              "zm_010"
+            ]
+          },
+          "sentenceRequestId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "trackSessionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observedPid": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "head",
+        "middle",
+        "tail",
+        "maximumAudioGapSeconds"
+      ],
+      "properties": {
+        "head": {
+          "$ref": "#/$defs/continuitySample"
+        },
+        "middle": {
+          "$ref": "#/$defs/continuitySample"
+        },
+        "tail": {
+          "$ref": "#/$defs/continuitySample"
+        },
+        "maximumAudioGapSeconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 15
+        }
+      }
+    },
+    "systemSurfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "foregroundService",
+        "mediaSession",
+        "notification",
+        "ui",
+        "systemControls",
+        "stateEquality"
+      ],
+      "properties": {
+        "foregroundService": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "mediaSession": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "notification": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "ui": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "systemControls": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "stateEquality": {
+          "$ref": "#/$defs/checkWithEvidence"
+        }
+      }
+    },
+    "audioFocus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "singleOwner",
+        "ownerPids",
+        "focusRequest",
+        "focusLoss",
+        "focusGain",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "singleOwner": {
+          "type": "boolean"
+        },
+        "ownerPids": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "focusRequest": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "focusLoss": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "focusGain": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "stability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nativeCrash",
+        "javaFatal",
+        "anr",
+        "inputTimeout",
+        "applicationExitInfo",
+        "evidence"
+      ],
+      "properties": {
+        "nativeCrash": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "javaFatal": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "anr": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "inputTimeout": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "applicationExitInfo": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "uiCancel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "cancelObserved",
+        "pidConverged",
+        "serviceConverged",
+        "notificationConverged",
+        "mediaSessionConverged",
+        "focusConverged",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "cancelObserved": {
+          "type": "boolean"
+        },
+        "pidConverged": {
+          "type": "boolean"
+        },
+        "serviceConverged": {
+          "type": "boolean"
+        },
+        "notificationConverged": {
+          "type": "boolean"
+        },
+        "mediaSessionConverged": {
+          "type": "boolean"
+        },
+        "focusConverged": {
+          "type": "boolean"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "processRecovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "processKilled",
+        "recoveryMode",
+        "autoPlaybackAfterDeath",
+        "lastStableSentenceRestored",
+        "packWhitelistVerified",
+        "serviceOwnerAfterRestart",
+        "evidence"
+      ],
+      "properties": {
+        "processKilled": {
+          "type": "boolean"
+        },
+        "recoveryMode": {
+          "enum": [
+            "PAUSED_AT_LAST_STABLE_SENTENCE",
+            "CLEAN_START",
+            "FAIL_CLOSED"
+          ]
+        },
+        "autoPlaybackAfterDeath": {
+          "const": false
+        },
+        "lastStableSentenceRestored": {
+          "type": "boolean"
+        },
+        "packWhitelistVerified": {
+          "type": "boolean"
+        },
+        "serviceOwnerAfterRestart": {
+          "$ref": "#/$defs/checkWithEvidence"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "zeroNetwork": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "uid",
+        "allPartitionsAccounted",
+        "windowBytesDelta",
+        "nonzeroAttribution",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "uid": {
+          "type": "integer",
+          "minimum": 10000
+        },
+        "allPartitionsAccounted": {
+          "type": "boolean"
+        },
+        "windowBytesDelta": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "nonzeroAttribution": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "productFindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "P0",
+        "P1",
+        "P2",
+        "P3",
+        "summary"
+      ],
+      "properties": {
+        "P0": {
+          "$ref": "#/$defs/findingValue"
+        },
+        "P1": {
+          "$ref": "#/$defs/findingValue"
+        },
+        "P2": {
+          "$ref": "#/$defs/findingValue"
+        },
+        "P3": {
+          "$ref": "#/$defs/findingValue"
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "uncovered": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "cleanupAndRestore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "packagesAbsent",
+        "pidsAbsent",
+        "serviceRecordsAbsent",
+        "activeNotificationRecordsAbsent",
+        "activeMediaSessionsAbsent",
+        "audioFocusReleased",
+        "externalDataAbsent",
+        "internalDataAbsent",
+        "hostLogcatOrphans",
+        "networkRestored",
+        "userSettingsRestored",
+        "productionPackageMatch",
+        "deviceLockState",
+        "deviceLockActiveCount",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "BLOCKED"
+          ]
+        },
+        "packagesAbsent": {
+          "type": "boolean"
+        },
+        "pidsAbsent": {
+          "type": "boolean"
+        },
+        "serviceRecordsAbsent": {
+          "type": "boolean"
+        },
+        "activeNotificationRecordsAbsent": {
+          "type": "boolean"
+        },
+        "activeMediaSessionsAbsent": {
+          "type": "boolean"
+        },
+        "audioFocusReleased": {
+          "type": "boolean"
+        },
+        "externalDataAbsent": {
+          "type": "boolean"
+        },
+        "internalDataAbsent": {
+          "type": "boolean"
+        },
+        "hostLogcatOrphans": {
+          "const": 0
+        },
+        "networkRestored": {
+          "type": "boolean"
+        },
+        "userSettingsRestored": {
+          "type": "boolean"
+        },
+        "productionPackageMatch": {
+          "type": "boolean"
+        },
+        "deviceLockState": {
+          "const": "RELEASED_ACTIVE_0"
+        },
+        "deviceLockActiveCount": {
+          "const": 0
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "passWithGapsForbidden": {
+      "const": true
+    },
+    "productVerdict": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED",
+        "NOT_ASSESSED"
+      ]
+    },
+    "verdict": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED"
+      ]
+    },
+    "finalizedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED",
+        "NOT_RUN"
+      ]
+    },
+    "findingValue": {
+      "oneOf": [
+        {
+          "const": "NOT_ASSESSED"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "checkWithEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "evidence"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "continuitySample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timestamp",
+        "voiceId",
+        "audioTrackStarted",
+        "audioTrackCompleted",
+        "evidence"
+      ],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "voiceId": {
+          "enum": [
+            "zf_001",
+            "zm_010"
+          ]
+        },
+        "audioTrackStarted": {
+          "type": "boolean"
+        },
+        "audioTrackCompleted": {
+          "type": "boolean"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "verdict": {
+            "const": "PASS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "uncovered": {
+            "maxItems": 0
+          },
+          "cleanupAndRestore": {
+            "properties": {
+              "status": {
+                "const": "PASS"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "device": {
+            "properties": {
+              "order": {
+                "const": "K60"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "predecessor": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}

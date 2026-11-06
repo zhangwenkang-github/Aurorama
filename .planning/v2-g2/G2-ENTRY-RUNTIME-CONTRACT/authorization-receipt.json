@@ -1,0 +1,53 @@
+{
+  "schema": "aurorama.g2-device-execution-authorization.v1",
+  "receiptId": "G2-DEVICE-AUTH-2026-11-06-PAD-K60",
+  "decisionId": "V2-D210",
+  "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
+  "authorizedAt": "2026-11-06T12:40:53.1233779+08:00",
+  "authorizedBy": "USER",
+  "sourceQuote": "确认，进行下一步。注意交接规范",
+  "scope": {
+    "runtimeQa": true,
+    "deviceInstall": true,
+    "newRuntimeToolCreation": true,
+    "pad": {
+      "authorized": true,
+      "serial": "43af8627",
+      "order": 1
+    },
+    "k60": {
+      "authorized": true,
+      "conditional": true,
+      "serial": "8e875894",
+      "order": 2,
+      "condition": "PAD_FULL_CORE_PASS_AND_RELEASED_ACTIVE_0"
+    },
+    "g2Implementation": false,
+    "release": false,
+    "serverWrite": false,
+    "q03Close": false,
+    "profileVoiceFreeze": false,
+    "padP2Acceptance": false,
+    "l2L3Unlock": false
+  },
+  "candidate": {
+    "sourceCommit": "35f9d493f16cdf79f946871fc331e2ceece287d2",
+    "mainSha256": "1b3aedb1707f6444505dd96f5a4fd39b6ab27bd24c82d58a86272db62b7ac2a3",
+    "mainBytes": 427009669,
+    "mainVersionCode": 5,
+    "mainVersionName": "2.0-g2-runtime-contract-v6",
+    "focusPeerSha256": "d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a",
+    "focusPeerBytes": 12698
+  },
+  "executionPolicy": {
+    "deviceOrder": "Pad->K60",
+    "deviceWindowMinutes": 10,
+    "attemptsPerInstrumentedPhase": 1,
+    "windowExtensionAllowed": false,
+    "retryAllowed": false,
+    "sameCandidateRequired": true,
+    "freshOwnerPerDevice": true,
+    "k60LockedUntilPadClosure": true,
+    "passWithGapsForbiddenForCore": true
+  }
+}

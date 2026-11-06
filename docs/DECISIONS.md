@@ -559,3 +559,24 @@ QA、runtime、production 或 G1 PASS。
 证据入口：`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；`docs/TASKS.md` In Progress；
 `tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json`；`.planning/v2-g1/G1-S6/CHECKPOINT.md`。
 该决定不构成 QA、runtime、production 或 G1 PASS。
+
+### `V2-D210` 确认 G2 设备执行，Pad 先行、K60 门控（2026-11-06，Accepted）
+
+用户原话：“确认，进行下一步。注意交接规范。”
+
+接受语义：
+
+1. `V2-D209` 产生的 G2 runtime 合同、新 main / peer candidate、13 个产品门、单次
+   10 分钟 `Pad->K60` 顺序与 report schema 成为设备执行对象。
+2. 授权在本合同内建设全新的 runtime collector / finalizer / cleanup 工具，并由全新 owner
+   执行 Pad / K60 QA；不得复用 qa-v9 工具、owner、证据或 prompt。
+3. 设备顺序与门控不变：Pad `43af8627` 先行；Pad 全部核心门 PASS、报告 PASS、cleanup PASS
+   且锁 `RELEASED_ACTIVE_0` 后，才可登记 K60 `8e875894` 并由另一全新 owner 执行。
+4. 每设备只允许一次连续 10 分钟窗口，不延长、不重试；`PASS_WITH_GAPS` 不得覆盖核心门。
+5. 本决定不授权产品代码、G2 实现、Release、push、tag、服务器写或 L2/L3 解锁；Q03 保持
+   Open，exact profile / voice 保持 Open，Pad P2 未接受，G1 `NOT_PASSED`，runtime
+   `UNVERIFIED`。
+
+证据入口：`.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json`、
+`contract.json`、`report.schema.json`；`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；
+`docs/TASKS.md` In Progress。设备授权不是 QA / runtime / G1 PASS。

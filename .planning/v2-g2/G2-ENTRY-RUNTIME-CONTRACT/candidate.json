@@ -1,0 +1,51 @@
+{
+  "schema": "aurorama.g2-entry-candidate.v1",
+  "ownerRole": "G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06",
+  "builtAt": "2026-11-06T12:05:43.7576139+08:00",
+  "sourceCommit": "35f9d493f16cdf79f946871fc331e2ceece287d2",
+  "sourceInputsDigestSha256": "f6c601311c0a06de3e8c9b647ab0e699208341dee57b3de39d529f94978a7662",
+  "buildMode": "OFFLINE_LOCAL_TOOLCHAIN_VERSION_ONLY_DELTA",
+  "qaExecuted": false,
+  "deviceTouched": false,
+  "networkUsed": false,
+  "main": {
+    "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/candidate-main-v6.apk",
+    "bytes": 427009669,
+    "sha256": "1b3aedb1707f6444505dd96f5a4fd39b6ab27bd24c82d58a86272db62b7ac2a3",
+    "package": "dev.aurorama.kokoro.harness",
+    "versionCode": 5,
+    "versionName": "2.0-g2-runtime-contract-v6",
+    "abi": "arm64-v8a",
+    "internetPermission": false,
+    "permissions": [
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+      "android.permission.POST_NOTIFICATIONS",
+      "android.permission.WAKE_LOCK"
+    ],
+    "signerCertificateSha256": "a645eac56cff83f4cc7a93b092db628ee8b504c3347cc951de2ffe85d9e910d6"
+  },
+  "focusPeer": {
+    "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/candidate-focus-peer-v2.apk",
+    "bytes": 12698,
+    "sha256": "d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a",
+    "package": "dev.aurorama.kokoro.focuspeer",
+    "versionCode": 2,
+    "versionName": "1.1-g2-focus-peer",
+    "internetPermission": false,
+    "permissions": [],
+    "signerCertificateSha256": "a645eac56cff83f4cc7a93b092db628ee8b504c3347cc951de2ffe85d9e910d6"
+  },
+  "runtimeInputs": {
+    "modelOnnxSha256": "99db0bc8fd0c5033d249fe922db16768b71b4a6b26cfd93d206fbf66c76efb5f",
+    "voicesSha256": "e64a5a581d8c2a350d848f51c3121657cd83aa07ed6109172177345874a7244c",
+    "tokensSha256": "931ab2df2400cd65d580a22402024c2347ced8ae9ea300e545144b1aacc48e14",
+    "lexiconSha256": "fea060803db3e59193987f1a3436f56917bda09f3b3595b6588e46ae60cebf93",
+    "sherpaAarSha256": "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7"
+  },
+  "worktreeStatusAtBuild": [
+    " M tools/v2-handoff/Invoke-HandoffPreflight.ps1",
+    " M tools/v2-handoff/Test-HandoffPreflight.ps1",
+    "?? .planning/v2-g2/"
+  ]
+}

@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D209_ACCEPTED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / CONTRACT_REGRESSION_104_OF_104 / TOOLS_STATIC_31_TESTS_25_OF_25 / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1→G2 入口 `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED / ACTIVE=0`。`V2-D208` 把完整 Pad/K60 runtime QA 延期到 G2 入口；`V2-D208` 后的 G2 入口契约已完成，用户以 `V2-D209` 仅授权全新 `G2_RUNTIME_CONTRACT_OWNER` 建立新 runtime 合同与 evidence 边界。历史 embedded `auditReceipt`、旧 PRE/POST 状态与 96/96 回归原样保留，当前 settlement 合同回归 `104/104 + TEMP_CLEANUP=PASS`。QA-v9 仅 `zf_001` AudioTrack start partial，`zm_010`、完整 10 分钟、gap、完整通知/focus、零网络与 K60 未执行；cleanup PASS、锁释放、K60 `8e875894` 未登记。当前没有可执行 QA role；D209 不授权 QA、设备、产品代码、G2 实现、Release 或 `L2/L3`。当前不是 QA、runtime、已合并或 G1 PASS。工具基线为 tools 31/31、manifest `2984 B`、digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`。Q03、Pad P2、许可、项目级 runtime、G1 与 exact profile 均未闭合。
+> 状态：`G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / G2_RUNTIME_CONTRACT_PACKAGE_READY / D202_D210_ACCEPTED / PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / CONTRACT_REGRESSION_104_OF_104 / TOOLS_STATIC_31_TESTS_25_OF_25 / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1→G2 入口 `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。`V2-D208` 把完整 Pad/K60 runtime QA 延期到 G2 入口；`V2-D209` 完成合同包；用户以 `V2-D210` 接受下一步，授权本合同下的全新 runtime 工具和 `Pad->K60` QA，K60 仍只能在 Pad 全核心 PASS 且锁释放后登记。历史 embedded `auditReceipt`、旧 PRE/POST 状态与 96/96 回归原样保留，当前 settlement 合同回归 `104/104 + TEMP_CLEANUP=PASS`。QA-v9 仅 `zf_001` AudioTrack start partial，`zm_010`、完整 10 分钟、gap、完整通知/focus、零网络与 K60 未执行；cleanup PASS、锁释放、K60 `8e875894` 未登记。D210 不授权产品代码、G2 实现、Release、服务器写或 `L2/L3`。当前不是 QA、runtime、已合并或 G1 PASS。工具基线为 tools 31/31、manifest `2984 B`、digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`。Q03、Pad P2、许可、项目级 runtime、G1 与 exact profile 均未闭合。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-06
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3425,9 +3425,11 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 `G2_ENTRY_CONTRACT=READY / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS /
 G2_GATE=NOT_AUTHORIZED / QA_DISPATCHABLE=DEFERRED_TO_G2`。
-本节只把 G2 入口顺序、残余门归属、运行时约束和用户门边界写成静态契约；它不是 QA prompt，
-不创建 owner、role、evidenceRoot、命令或可派发任务。当前任务完成后停止，后续只能由明确
-授权的新角色继续。
+本节把 G2 入口顺序、残余门归属、运行时约束和用户门边界写成静态契约；它不是 QA prompt。
+`V2-G2-ENTRY-RUNTIME-CONTRACT` 已由全新一次性合同 owner 在
+`.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/` 落档，固定新候选 SHA、结果 schema、工具身份
+与独立 evidenceRoot；合同没有派发 QA，也没有接触 Pad / K60。当前任务完成后停止，设备执行
+只能由用户另行确认后的全新角色继续。
 
 唯一分类规则：每个残余项只出现一次。已由冻结静态证据或既有用户决定解决的归
 `CLOSED_STATIC`；只差可离线闭合证据的归 `OFFLINE_NEXT`；需要生产代码、持久化、协议映射或
@@ -3465,7 +3467,7 @@ G1；本契约不把任何一行标成 Done。
 | 顺序 | 门 | 允许动作与退出条件 |
 |---|---|---|
 | 0 | 静态计划就绪 | 本入口契约、残余门唯一映射、G1-S6 依赖和验收矩阵均已落档，且 preflight / 合同回归 PASS。静态计划就绪不等于 Q03、exact profile、runtime 或 G1 已关闭。 |
-| 1 | 用户授权 | `V2-D209` 已批准 G2 入口重新开户；只授权建立新 runtime 合同与 evidence 边界，不自动授权 runtime QA、设备、G2 实现、Release、服务器写或 `L2/L3`。设备执行仍需另次确认。 |
+| 1 | 用户授权 | `V2-D209` 批准合同开户；`V2-D210` 已确认设备执行，授权全新 runtime 工具和 `Pad->K60` QA。K60 仍受 Pad 全 PASS / 锁释放前置约束；产品代码、G2 实现、Release、服务器写与 `L2/L3` 仍未授权。 |
 | 2 | 新 runtime 合同 | 由全新合同 owner 固定新 owner、工具、evidenceRoot、候选 SHA、产品门与 stop 条件。不得把本文件或 qa-v9 prompt 当可执行 prompt。 |
 | 3 | 全新 Pad QA | 全新 QA 只在 Pad `43af8627` 执行；K60 保持锁定。Pad 核心全 PASS、证据绑定同一候选且锁 `ACTIVE=0` 后才可进入下一行。 |
 | 4 | 全新 K60 QA | 另一全新 QA 在 K60 `8e875894` 登记后执行；当前 `registered=false / targetedCommands=0`，本契约不授权提前登记或运行。 |
@@ -3491,10 +3493,38 @@ G1；本契约不把任何一行标成 Done。
   runtime `UNVERIFIED`，`L2/L3 LOCKED`；`QA_DISPATCHABLE=DEFERRED_TO_G2`，不生成可执行 QA
   prompt。
 
+**G2 入口 runtime 合同包（2026-11-06，静态合同完成）**
+
+`G2_RUNTIME_CONTRACT_PACKAGE=READY / PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING / K60_GATED_LOCKED`。
+唯一合同根为 `.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/`；新 owner 为
+`G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06`，只做合同，报告后退役。合同、候选记录、
+README、checkpoint 与 `report.schema.json` 均在该根内，不读取或修改 qa-v9。
+
+- 新 main candidate：`candidate-main-v6.apk`，`427009669 B`，SHA-256
+  `1b3aedb1707f6444505dd96f5a4fd39b6ab27bd24c82d58a86272db62b7ac2a3`，
+  `dev.aurorama.kokoro.harness` / versionCode `5` / versionName
+  `2.0-g2-runtime-contract-v6` / arm64-v8a / INTERNET=false。
+- 新 focus peer：`candidate-focus-peer-v2.apk`，`12698 B`，SHA-256
+  `d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a`；
+  versionCode `2` / versionName `1.1-g2-focus-peer`。
+- 合同工具：`Build-G2Candidate.ps1`、`Test-G2EntryRuntimeContract.ps1`；合同校验器只读
+  candidate / JSON / `aapt2` / `apksigner` 身份，不调用 adb、设备或网络。
+- report schema：`aurorama.g2-entry-runtime-report.v1`；每设备一份，必须记录候选 SHA、
+  单独设备授权 receipt、10 分钟单次窗口、13 个产品门、AudioTrack start / completion、
+  头 / 中 / 尾、`<=15s` gap、FGS / MediaSession / notification / UI / system 等式、
+  AudioFocus / 单 owner、crash / ANR / InputTimeout、UI cancel、进程恢复、App UID 全分块
+  零网络、P0-P3、cleanup / restore 与最终 verdict。
+- 设备顺序仍为 `Pad 43af8627 -> K60 8e875894`；每设备一次连续 10 分钟，不延长、不重试。
+  Pad 核心全 PASS 且锁释放后才允许登记 K60；K60 当前 `LOCKED_NOT_REGISTERED`。
+- `V2-D210` authorization receipt 已绑定本合同与 main / peer SHA；下一阶段只可先由全新
+  runtime tool owner 创建新采集 / finalizer / cleanup 工具。K60 当前 `LOCKED_NOT_REGISTERED`，
+  Pad 全核心 PASS 且锁释放前不得登记。
+
 **唯一当前状态**
 
 `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS /
 G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / V2-D209 /
+G2_RUNTIME_CONTRACT_PACKAGE_READY / V2-D210 / PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING /
 QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 
 机器合同为 `HANDOFF_BOOTSTRAP_V2`，当前 `validation.handoffPhase=POST_QA_RUNTIME_DEFERRED`。
@@ -3502,15 +3532,17 @@ QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 `POST_HANDOFF_AUDIT_READY`、历史 `auditReceipt=PASS` 与三文件审计时 transition set 全部保留，
 不得改写成 QA / runtime / G1 PASS。用户已通过 `V2-D208` 决定：停止本轮 QA 工具修复与重试，
 完整 Pad/K60 runtime QA 延期到 G2 入口门；G1 只继续可离线闭合的静态收口。QA-v9 是本轮真实
-证据，不是产品失败或产品通过。用户又通过 `V2-D209` 只授权全新
-`G2_RUNTIME_CONTRACT_OWNER` 建立新 runtime 合同与 evidence 边界；该授权不执行 QA、不碰
-设备、不写产品代码，也不启动 G2 实现或 Release。
+证据，不是产品失败或产品通过。`V2-D209` 授权合同 owner 建立 runtime 合同与 evidence
+边界；`V2-D210` 随后确认设备执行，当前可先建设本合同专用运行时工具并派全新 Pad QA。
+K60 仍锁定，产品代码、G2 实现与 Release 仍未授权。
 
 `SUBAGENT_FIRST=YES`；`ONE_PHASE_PER_FRESH_AGENT=YES`；`NO_REUSE_SUBAGENT=YES`；
 `ROOT_INTEGRATION_ONLY=YES`；`DEVICE_WINDOW_MINUTES=10`；`DEVICE_ORDER=Pad->K60`。
 负责人仍只做交付 / 集成编排；不得亲自跑 QA、修产品、做独立 audit 或替用户验收。
-完整角色表继续保留 `PAD_QA_OWNER` 与 `K60_QA_OWNER` 的历史定义和锁定写域，但二者均不可
-派发；`K60_NOT_REGISTERED_NOT_RUN` 是当前设备事实。preflight 入口为
+历史 `PAD_QA_OWNER` 与 `K60_QA_OWNER` 仍不可派发；G2 必须使用新的
+`G2_RUNTIME_TOOL_OWNER_2026_11_06`、`G2_PAD_QA_OWNER_2026_11_06`、
+`G2_K60_QA_OWNER_2026_11_06` 且每阶段全新。`K60_NOT_REGISTERED_NOT_RUN` 是当前设备事实。
+preflight 入口为
 `tools/v2-handoff/Invoke-HandoffPreflight.ps1`。
 
 **机器门与历史绑定**
@@ -3547,11 +3579,10 @@ QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 
 **唯一 ACTIVE 的下一步**
 
-`V2-D209` 已批准 G2 入口重新开户。下一角色只能是全新的 `G2_RUNTIME_CONTRACT_OWNER`，
-只建立新 runtime 合同、owner、evidenceRoot、候选 SHA、产品门、执行顺序与 stop 条件；
-不执行 QA、不碰 Pad/K60、不写产品代码、不启动 G2 实现或 Release。设备执行必须在 runtime
-合同完成后另行确认。机器合同继续设置 `activePrompt=none`，因此当前合同本身不提供可执行
-QA prompt；新角色由旧负责人按交接规范另建线程。
+`V2-D209` 的合同阶段与 `V2-D210` 设备授权已完成。下一步唯一入口是全新
+`G2_RUNTIME_TOOL_OWNER_2026_11_06`：只在新 evidenceRoot 内创建并自测本轮专用 collector /
+finalizer / cleanup verifier，不碰设备。工具收口并提交后，再由另一全新
+`G2_PAD_QA_OWNER_2026_11_06` 执行 Pad 单次 10 分钟矩阵；K60 继续保持锁定。
 
 冷启动第一条只读动作必须实际运行：
 
@@ -5747,3 +5778,19 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   G2 runtime 合同 / owner / evidenceRoot / 候选 SHA / 产品门与 stop 条件，不授权 runtime
   QA、Pad/K60 设备、产品代码、G2 实现、Release、push、服务器写或 L2/L3 解锁。Q03、
   exact profile / voice 仍 Open，Pad P2 未接受，G1 `NOT_PASSED`，runtime `UNVERIFIED`。
+- **2026-11-06 — G2 入口 runtime 合同包落档 / 设备授权仍关闭**：全新
+  `G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06` 在
+  `.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/` 建立独立合同、候选记录、13 个产品门、
+  report schema、合同校验器与 checkpoint。离线本地工具链只做版本身份增量，生成新 main
+  `427009669 B / 1b3aedb1707f6444505dd96f5a4fd39b6ab27bd24c82d58a86272db62b7ac2a3`
+  （v6 / versionCode 5）与 peer
+  `12698 B / d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a`
+  （v2 / versionCode 2）。当前 `CONTRACT_READY_RUNTIME_QA_NOT_AUTHORIZED /
+  activePrompt=none`；没有 QA、adb、设备、网络、账号、服务器写、G2 实现或 Release。
+  用户随后以 `V2-D210` 确认下一步，授权本合同下的全新 runtime 工具与 `Pad->K60` QA；
+  authorization receipt 固定当前合同和双方 SHA，K60 仍锁定。Q03 Open、exact profile / voice Open、Pad P2
+  unaccepted、G1 NOT_PASSED、runtime UNVERIFIED、L2/L3 LOCKED。合同校验器 PASS；
+  handoff 回归 `104/104 PASS + TEMP_CLEANUP=PASS`，新增
+  `POST-QA-G2-TRANSITION-ALLOWED=PASS`；preflight 输出
+  `G2_RUNTIME_CONTRACT_PACKAGE_READY / PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING /
+  K60_GATED_LOCKED`。

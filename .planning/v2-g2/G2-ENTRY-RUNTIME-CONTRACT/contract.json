@@ -1,0 +1,327 @@
+{
+  "schema": "aurorama.g2-entry-runtime-contract.v1",
+  "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
+  "version": "1.0.0",
+  "status": "PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING",
+  "createdAt": "2026-11-06T12:05:43.7576139+08:00",
+  "owner": {
+    "roleId": "G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06",
+    "kind": "CONTRACT_ONLY",
+    "freshness": "ONE_TIME_ONLY",
+    "reuse": "FORBIDDEN",
+    "qaAuthority": false,
+    "deviceAccess": "FORBIDDEN",
+    "writeScope": [
+      ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/**",
+      "docs/V2_PLAN.md",
+      "docs/TASKS.md"
+    ],
+    "retiresAfterContractReport": true
+  },
+  "evidence": {
+    "root": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT",
+    "contractPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/contract.json",
+    "candidatePath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/candidate.json",
+    "reportSchemaPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/report.schema.json",
+    "reportSchemaSha256": "8cb6d8766e773107e9493b828239ee417c61cf703a3c7756f94b684729921046",
+    "padRuntimeRoot": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1",
+    "k60RuntimeRoot": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v1"
+  },
+  "candidate": {
+    "sourceCommit": "35f9d493f16cdf79f946871fc331e2ceece287d2",
+    "sourceInputsDigestSha256": "f6c601311c0a06de3e8c9b647ab0e699208341dee57b3de39d529f94978a7662",
+    "buildMode": "OFFLINE_LOCAL_TOOLCHAIN_VERSION_ONLY_DELTA",
+    "qaExecuted": false,
+    "deviceTouched": false,
+    "networkUsed": false,
+    "main": {
+      "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/candidate-main-v6.apk",
+      "bytes": 427009669,
+      "sha256": "1b3aedb1707f6444505dd96f5a4fd39b6ab27bd24c82d58a86272db62b7ac2a3",
+      "package": "dev.aurorama.kokoro.harness",
+      "versionCode": 5,
+      "versionName": "2.0-g2-runtime-contract-v6",
+      "abi": "arm64-v8a",
+      "internetPermission": false,
+      "signerCertificateSha256": "a645eac56cff83f4cc7a93b092db628ee8b504c3347cc951de2ffe85d9e910d6"
+    },
+    "focusPeer": {
+      "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/candidate-focus-peer-v2.apk",
+      "bytes": 12698,
+      "sha256": "d1387ed57d2481397b4ade80932351210f88f0b79e8ac1d7afdd598253773a7a",
+      "package": "dev.aurorama.kokoro.focuspeer",
+      "versionCode": 2,
+      "versionName": "1.1-g2-focus-peer",
+      "internetPermission": false,
+      "signerCertificateSha256": "a645eac56cff83f4cc7a93b092db628ee8b504c3347cc951de2ffe85d9e910d6"
+    }
+  },
+  "tools": {
+    "candidateBuilder": {
+      "roleId": "G2_CANDIDATE_BUILDER_2026_11_06",
+      "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Build-G2Candidate.ps1",
+      "sha256": "069caf154e71310d0c6632837a7a13bfee8cf575ef1a4f5af3b07a116eb8839c",
+      "status": "READY_CONTRACT_ONLY",
+      "deviceAccess": "FORBIDDEN",
+      "networkAccess": "FORBIDDEN"
+    },
+    "contractValidator": {
+      "roleId": "G2_CONTRACT_VALIDATOR_2026_11_06",
+      "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2EntryRuntimeContract.ps1",
+      "sha256": "a1cd9aa98703f651797651127909bab7fe2c2022b5f854a66ec677174f5c86f4",
+      "status": "READY_CONTRACT_ONLY",
+      "deviceAccess": "FORBIDDEN",
+      "networkAccess": "FORBIDDEN"
+    },
+    "runtimeCollector": {
+      "roleId": "G2_FRESH_RUNTIME_TOOL_OWNER",
+      "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Invoke-G2RuntimeCollector.ps1",
+      "status": "NOT_CREATED_AUTHORIZED_PENDING_TOOL_OWNER",
+      "deviceAccess": "ALLOWED_AFTER_FRESH_TOOL_OWNER",
+      "mustBeNew": true
+    },
+    "runtimeFinalizer": {
+      "roleId": "G2_FRESH_RUNTIME_TOOL_OWNER",
+      "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Finalize-G2RuntimeReport.ps1",
+      "status": "NOT_CREATED_AUTHORIZED_PENDING_TOOL_OWNER",
+      "mustBeNew": true
+    },
+    "cleanupVerifier": {
+      "roleId": "G2_FRESH_RUNTIME_TOOL_OWNER",
+      "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2CleanupRestore.ps1",
+      "status": "NOT_CREATED_AUTHORIZED_PENDING_TOOL_OWNER",
+      "mustBeNew": true
+    },
+    "digestSha256": "4efa9513f5753ffa1896023c17009c0b0d50c51d9e667e1940abe20d71510859"
+  },
+  "authorization": {
+    "entryDecision": "V2-D209",
+    "deviceAuthorizationDecision": "V2-D210",
+    "contractOnly": false,
+    "contractPackageReady": true,
+    "qaDispatchable": true,
+    "activePrompt": "G2_PAD_QA_PENDING_FRESH_TOOL_OWNER",
+    "generatedExecutableQaPrompt": false,
+    "deviceExecution": "AUTHORIZED_PAD_FIRST_K60_GATED",
+    "requiredDeviceAuthorizationReceipt": true,
+    "authorizationReceiptPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json",
+    "padExecutionAuthorized": true,
+    "k60ExecutionConditional": true,
+    "k60Condition": "PAD_FULL_CORE_PASS_AND_RELEASED_ACTIVE_0"
+  },
+  "devicePolicy": {
+    "deviceOrder": "Pad->K60",
+    "deviceWindowMinutes": 10,
+    "windowSeconds": 600,
+    "attemptsPerDevice": 1,
+    "windowExtensionAllowed": false,
+    "retryAllowed": false,
+    "k60Locked": true,
+    "pad": {
+      "roleId": "G2_PAD_QA_OWNER_2026_11_06",
+      "serial": "43af8627",
+      "model": "21051182C",
+      "sdk": 33,
+      "currentUser": 0,
+      "freshness": "ONE_TIME_ONLY",
+      "deviceAccess": "PAD_ONLY",
+      "writeScope": [
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1/**"
+      ]
+    },
+    "k60": {
+      "roleId": "G2_K60_QA_OWNER_2026_11_06",
+      "serial": "8e875894",
+      "currentStatus": "LOCKED_NOT_REGISTERED",
+      "freshness": "ONE_TIME_ONLY",
+      "deviceAccess": "K60_ONLY_AFTER_PAD_PASS_AND_LOCK_RELEASE",
+      "writeScope": [
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-k60-v1/**"
+      ]
+    }
+  },
+  "executionPolicy": {
+    "padRequiresFullCorePassBeforeK60": true,
+    "padLockMustBeReleasedBeforeK60": true,
+    "sameCandidateRequiredForBothDevices": true,
+    "candidateDriftFailsClosed": true,
+    "windowExtensionAllowed": false,
+    "retryAllowed": false,
+    "passWithGapsAllowedForCore": false,
+    "singleContinuousWindowPerDevice": true,
+    "audioGapLimitSeconds": 15,
+    "requiredVoices": [
+      "zf_001",
+      "zm_010"
+    ],
+    "zeroNetworkMustCoverEveryUidPartition": true
+  },
+  "productGates": [
+    {
+      "id": "G2-RT-01-FRESH-INSTALL-IDENTITY",
+      "requirement": "Fresh install and verify package, versionCode, versionName, ABI, permissions, user0 and candidate SHA before the window."
+    },
+    {
+      "id": "G2-RT-02-AUDIOTRACK-START-COMPLETION",
+      "requirement": "Observe real AudioTrack start and matching completion for every required voice; request-only, plan-only and Worker success do not count."
+    },
+    {
+      "id": "G2-RT-03-VOICE-PROFILES-ZF-ZM",
+      "requirement": "Execute both zf_001 and zm_010 with real audio in the same authorized window without freezing either profile."
+    },
+    {
+      "id": "G2-RT-04-HEAD-MIDDLE-TAIL-CONTINUITY",
+      "requirement": "Capture head, middle and tail continuity with timestamped start/completion evidence."
+    },
+    {
+      "id": "G2-RT-05-MAX-AUDIO-GAP-15S",
+      "requirement": "Maximum observed audio gap must be less than or equal to 15 seconds."
+    },
+    {
+      "id": "G2-RT-06-FGS-MEDIASESSION-NOTIFICATION-UI-EQUALITY",
+      "requirement": "Foreground service, MediaSession, notification, UI and system controls must agree on the same active or stopped state."
+    },
+    {
+      "id": "G2-RT-07-AUDIOFOCUS-SINGLE-OWNER",
+      "requirement": "One TTS audio owner holds focus; music and TTS are mutually exclusive and focus loss/gain behavior is observable."
+    },
+    {
+      "id": "G2-RT-08-CRASH-ANR-INPUTTIMEOUT",
+      "requirement": "No current-run native crash, Java fatal, ANR, InputTimeout or unexplained ApplicationExitInfo."
+    },
+    {
+      "id": "G2-RT-09-UI-CANCEL",
+      "requirement": "UI cancel is executed and converges PID, service, notification, MediaSession and audio focus without native crash."
+    },
+    {
+      "id": "G2-RT-10-PROCESS-RESTART-RECOVERY",
+      "requirement": "Process death or restart must not auto-play; recovery remains paused at the last stable sentence and revalidates the pack."
+    },
+    {
+      "id": "G2-RT-11-APP-UID-ZERO-NETWORK",
+      "requirement": "App UID network is measured across the complete window and every accounting partition; any nonzero application traffic fails."
+    },
+    {
+      "id": "G2-RT-12-CLEANUP-CAPTURE-RESTORE",
+      "requirement": "Restore packages, PID, service, notification, MediaSession, audio focus, external/internal data, logs, network and user settings; production package MATCH and device lock ACTIVE=0."
+    },
+    {
+      "id": "G2-RT-13-SINGLE-10MIN-WINDOW-NO-RETRY",
+      "requirement": "Use exactly one continuous 10-minute window per device; no extension, second attempt or substitute historical evidence."
+    }
+  ],
+  "sequence": [
+    {
+      "order": 0,
+      "id": "CONTRACT_PACKAGE_READY",
+      "deviceAction": "FORBIDDEN",
+      "exitCondition": "Contract validator PASS; contract readiness alone grants no device execution."
+    },
+    {
+      "order": 1,
+      "id": "SEPARATE_DEVICE_EXECUTION_AUTHORIZATION",
+      "deviceAction": "PAD_ENABLE_ONLY",
+      "exitCondition": "V2-D210 receipt is bound to this contract and candidate; K60 remains locked."
+    },
+    {
+      "order": 2,
+      "id": "PAD_SINGLE_WINDOW",
+      "deviceAction": "PAD_ONLY",
+      "exitCondition": "All 13 product gates PASS, report PASS, cleanup PASS and device lock RELEASED_ACTIVE_0."
+    },
+    {
+      "order": 3,
+      "id": "K60_REGISTRATION_AND_SINGLE_WINDOW",
+      "deviceAction": "K60_ONLY_AFTER_PREDECESSOR_PASS",
+      "exitCondition": "Fresh K60 owner registers only after Pad closure and then runs the same 10-minute matrix on the same candidate."
+    },
+    {
+      "order": 4,
+      "id": "USER_PRODUCT_GATES",
+      "deviceAction": "FORBIDDEN",
+      "exitCondition": "User resolves Q03, exact profile/voice, Pad P2 and any permitted uncovered risk from the new evidence."
+    },
+    {
+      "order": 5,
+      "id": "G2_IMPLEMENTATION_APPROVAL",
+      "deviceAction": "FORBIDDEN",
+      "exitCondition": "Separate explicit user approval after orders 0-4; no approval is inferred from this contract."
+    }
+  ],
+  "reportModel": {
+    "schemaPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/report.schema.json",
+    "schemaId": "aurorama.g2-entry-runtime-report.v1",
+    "oneReportPerDevice": true,
+    "resultValues": [
+      "PASS",
+      "FAIL",
+      "BLOCKED",
+      "NOT_ASSESSED"
+    ],
+    "productP0P3Required": true,
+    "uncoveredRequired": true,
+    "executedEvidenceRequired": true,
+    "passWithGapsForbidden": true
+  },
+  "stopConditions": [
+    "PREFLIGHT_FAIL_CLOSED_OR_CONTRACT_DIGEST_DRIFT",
+    "CANDIDATE_BYTES_SHA256_PACKAGE_VERSION_ABI_OR_PERMISSION_DRIFT",
+    "DEVICE_AUTHORIZATION_RECEIPT_MISSING_OR_NOT_BOUND_TO_THIS_CONTRACT",
+    "DEVICE_ORDER_WINDOW_SERIAL_USER_OR_LOCK_DRIFT",
+    "K60_TOUCHED_BEFORE_PAD_FULL_PASS_AND_RELEASED_LOCK",
+    "TEN_MINUTE_WINDOW_EXTENDED_RETRIED_OR_REPLACED",
+    "CORE_STEP_NOT_EXECUTED_OR_PASS_WITH_GAPS_USED",
+    "AUDIOTRACK_START_COMPLETION_MISSING_OR_NOT_REAL_AUDIO",
+    "ZF_001_OR_ZM_010_NOT_EXERCISED",
+    "HEAD_MIDDLE_TAIL_CONTINUITY_MISSING",
+    "AUDIO_GAP_GREATER_THAN_15_SECONDS",
+    "FGS_MEDIASESSION_NOTIFICATION_UI_OR_SYSTEM_CONTROL_MISMATCH",
+    "AUDIOFOCUS_OR_SINGLE_OWNER_DRIFT",
+    "CURRENT_RUN_NATIVE_JAVA_CRASH_ANR_OR_INPUTTIMEOUT",
+    "UI_CANCEL_OR_PROCESS_RECOVERY_FAILURE",
+    "APP_UID_NETWORK_NONZERO_OR_PARTITIONS_UNACCOUNTED",
+    "CLEANUP_RESTORE_PRODUCTION_MATCH_OR_LOCK_RELEASE_FAILURE",
+    "QA_V9_TOOL_OWNER_EVIDENCE_OR_PROMPT_REUSED",
+    "NEW_P0_P2_OR_EVIDENCE_TAMPER",
+    "Q03_PROFILE_PAD_P2_G2_IMPLEMENTATION_OR_RELEASE_OVERCLAIM",
+    "WRITE_OUTSIDE_CONTRACT_PACKAGE_OR_AUTHORIZED_DOC_SCOPE"
+  ],
+  "reusePolicy": {
+    "qaV9OwnerReusable": false,
+    "qaV9ToolsReusable": false,
+    "qaV9EvidenceReusable": false,
+    "qaV9PromptReusable": false,
+    "qaV9HistoricalReferenceOnly": true,
+    "oldThirtyMinuteEvidenceReusable": false,
+    "oldStopOnlyEvidenceReusable": false,
+    "installOrCleanupAloneCanProveRuntime": false
+  },
+  "stateLocks": {
+    "q03": "OPEN",
+    "exactProfileVoice": "OPEN",
+    "padP2": "UNACCEPTED",
+    "g1": "NOT_PASSED",
+    "runtime": "UNVERIFIED",
+    "l2L3": "LOCKED",
+    "g2Implementation": "NOT_AUTHORIZED",
+    "release": "NOT_AUTHORIZED",
+    "serverWrite": "NOT_AUTHORIZED",
+    "qaV9Status": "BLOCKED_TOOL_NONCONVERGENCE",
+    "productP0P3": "NOT_ASSESSED"
+  },
+  "nonGoals": [
+    "Do not execute runtime QA or send any command to Pad or K60.",
+    "Do not reuse qa-v9 tools, owners, evidence roots or executable prompt.",
+    "Do not close Q03, freeze exact profile/voice or accept Pad P2.",
+    "Do not start G2 implementation, Release, server write or L2/L3.",
+    "Do not claim runtime PASS from contract readiness or candidate build."
+  ],
+  "sourcePointers": [
+    "docs/V2_PLAN.md#ACTIVE",
+    "docs/TASKS.md#In-Progress",
+    "docs/DECISIONS.md#V2-D209",
+    ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/report.json",
+    ".planning/v2-g1/G1-S6/CHECKPOINT.md",
+    ".planning/v2-g1/G1-S6/g2-task-cards.json"
+  ]
+}

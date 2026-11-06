@@ -3841,6 +3841,7 @@ try {
         "tools/v2-handoff/Test-HandoffPreflight.ps1"
     )
     $expectedPostQaSettlementTransitionPrefixes = @(
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/",
         ".planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/"
     )
     $expectedPreAuditDirtyPaths = @(
@@ -4848,7 +4849,7 @@ if ($EmitPrompt) {
     if ($isPostQaDeferredPhase) {
         Write-Output "NEXT_PROMPT_PATH=docs/V2_PLAN.md#ACTIVE"
         Write-Output "NEXT_PROMPT_BEGIN"
-        Write-Output "RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；V2-D209；当前合同没有可派发 QA prompt。用户已授权旧负责人按交接规范另建全新 G2_RUNTIME_CONTRACT_OWNER，只建立 runtime 合同；不得派发 QA、碰设备、写产品代码或启动 G2 实现 / Release。"
+        Write-Output "RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；G2_RUNTIME_CONTRACT_PACKAGE_READY；PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING；K60_GATED_LOCKED；V2-D210；当前合同没有可派发 QA prompt；旧 handoff 契约继续 activePrompt=none。下一步只允许全新 runtime tool owner 创建 / 自测工具，之后另派全新 Pad owner；K60 必须等待 Pad 全 PASS 且锁释放，不得写产品代码或启动 G2 实现 / Release。"
         Write-Output "NEXT_PROMPT_END"
     }
     else {

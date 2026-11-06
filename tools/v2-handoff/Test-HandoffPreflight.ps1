@@ -1320,12 +1320,51 @@ try {
                 "G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS",
                 [System.StringComparison]::Ordinal
             ) -and
+            $deferredEmitText.Contains(
+                "G2_RUNTIME_CONTRACT_PACKAGE_READY",
+                [System.StringComparison]::Ordinal
+            ) -and
+            $deferredEmitText.Contains(
+                "PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING",
+                [System.StringComparison]::Ordinal
+            ) -and
+            $deferredEmitText.Contains(
+                "K60_GATED_LOCKED",
+                [System.StringComparison]::Ordinal
+            ) -and
+            $deferredEmitText.Contains(
+                "V2-D210",
+                [System.StringComparison]::Ordinal
+            ) -and
             -not $deferredEmitText.Contains(
                 "专业身份：PAD_QA_OWNER",
                 [System.StringComparison]::Ordinal
             )
         ) `
         -Name "DEFERRED-EMIT-NO-QA-ROLE"
+
+    $g2TransitionProbe = Join-Path `
+        $repositoryRoot `
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/preflight-transition-probe.json"
+    try {
+        Write-LfText -Text "{`"probe`":true}`n" -Path $g2TransitionProbe
+        $g2TransitionResult = Invoke-Preflight
+        Assert-Condition `
+            -Condition (
+                $g2TransitionResult.exitCode -eq 0 -and
+                $g2TransitionResult.firstLine.StartsWith(
+                    "PASS ",
+                    [System.StringComparison]::Ordinal
+                )
+            ) `
+            -Name "POST-QA-G2-TRANSITION-ALLOWED"
+        Write-Output "ASSERT POST-QA-G2-TRANSITION-ALLOWED=PASS"
+    }
+    finally {
+        if (Test-Path -LiteralPath $g2TransitionProbe) {
+            [System.IO.File]::Delete($g2TransitionProbe)
+        }
+    }
 
     $postFixture = New-PostAuditRepositoryFixture `
         -RootDirectory $tempDirectory `
@@ -1982,6 +2021,7 @@ try {
             -FixturePath $postFixture.contractPath `
             -RepoRootOverride $postFixture.repositoryRoot)
     [System.IO.File]::Delete($outsidePath)
+
     Write-LfText -Text $postBaseText -Path $postFixture.contractPath
 
     foreach ($scriptFile in @($preflightPath, $testPath)) {
