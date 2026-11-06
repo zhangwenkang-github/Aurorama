@@ -594,6 +594,10 @@ qaDispatchable=false`；下一角色只能是全新只读 repair audit，工具�
 `WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR / activePrompt=none`。未派发 repair audit
 或 Pad/K60 QA，后续必须由用户恢复后才可继续。
 
+用户现已恢复并要求因上下文较长开新会话交接。状态推进为
+`USER_RESUMED_G2_TOOL_REPAIR_HANDOFF / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT`；
+新会话只接 fresh read-only repair audit，不直接接 Pad/K60 QA。
+
 证据入口：`.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json`、
 `contract.json`、`report.schema.json`；`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；
 `docs/TASKS.md` In Progress。设备授权不是 QA / runtime / G1 PASS。

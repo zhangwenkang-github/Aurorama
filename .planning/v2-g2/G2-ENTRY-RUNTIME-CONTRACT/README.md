@@ -1,6 +1,6 @@
 # Aurorama G2 入口 Runtime 合同
 
-状态：`WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR /
+状态：`USER_RESUMED_G2_TOOL_REPAIR_HANDOFF /
 PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED`
 
 本目录是全新的 G2 runtime 合同与证据边界。用户已通过 `V2-D210` 授权本合同下的运行时
@@ -78,6 +78,6 @@ pwsh -NoProfile -File 'tools/v2-handoff/Invoke-HandoffPreflight.ps1' -EmitPrompt
 ## 当前禁止项
 
 Q03 保持 Open，exact profile / voice 保持 Open，Pad P2 未接受，G1 `NOT_PASSED`，
-runtime `UNVERIFIED`，L2/L3 `LOCKED`。工具修复 checkpoint 已完成，但用户要求暂停等待
-后续通知；`activePrompt=none / qaDispatchable=false`，不得创建 fresh audit 或 Pad/K60 QA。
-K60 保持锁定，不得安装、运行或提前登记。G2 实现与 Release 仍未授权。
+runtime `UNVERIFIED`，L2/L3 `LOCKED`。工具修复 checkpoint 已完成，用户已恢复并要求新会话
+交接；下一会话只接 fresh read-only repair audit，`qaDispatchable=false`，不得直接接
+Pad/K60 QA。K60 保持锁定，不得安装、运行或提前登记。G2 实现与 Release 仍未授权。

@@ -1,6 +1,6 @@
 # G2 Entry Runtime Contract Checkpoint
 
-状态：`WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED / RUNTIME_UNVERIFIED / G1_NOT_PASSED`
+状态：`USER_RESUMED_G2_TOOL_REPAIR_HANDOFF / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED / RUNTIME_UNVERIFIED / G1_NOT_PASSED`
 
 ## 已完成
 
@@ -42,8 +42,8 @@
 
 - Pad / K60 runtime、安装、ADB、网络、账号和服务端调用均未执行。
 - 产品 P0-P3 仍为 `NOT_ASSESSED`；没有 runtime 或 G1 PASS。
-- Runtime 工具已 `READY_SELF_TESTED_STATIC_ONLY`；用户已要求暂停等待后续通知，
-  `activePrompt=none`、`qaDispatchable=false`，不得创建 fresh audit 或 Pad/K60 QA。
+- Runtime 工具已 `READY_SELF_TESTED_STATIC_ONLY`；用户已恢复并要求新会话交接，
+  `qaDispatchable=false`，新会话只接 fresh read-only repair audit，不直接接 Pad/K60 QA。
 - 未关闭 Q03、未冻结 profile / voice、未接受 Pad P2、未启动 G2 实现或 Release。
 
 ## 已验证
@@ -67,7 +67,6 @@
 
 ## 下一门
 
-Tool repair checkpoint 保持 `PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT`，但外层状态为
-`WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR / activePrompt=none`。用户恢复前不得创建
-audit、Pad QA 或设备动作。恢复后仍须由另一个全新只读 audit 复核两份 bug diff、`57/57`
-回归与全部摘要；K60 继续保持锁定。
+Tool repair checkpoint 保持 `PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT`，外层状态为
+`USER_RESUMED_G2_TOOL_REPAIR_HANDOFF`。下一会话必须由另一个全新只读 audit 复核两份 bug
+diff、`57/57` 回归与全部摘要；audit 完成后停止，不得直接进入 Pad/K60 QA。K60 继续保持锁定。

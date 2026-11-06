@@ -1325,7 +1325,7 @@ try {
                 [System.StringComparison]::Ordinal
             ) -and
             $deferredEmitText.Contains(
-                "WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR",
+                "USER_RESUMED_G2_TOOL_REPAIR_HANDOFF",
                 [System.StringComparison]::Ordinal
             ) -and
             $deferredEmitText.Contains(
