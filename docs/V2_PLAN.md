@@ -3546,7 +3546,7 @@ Pad / K60 QA。K60 仍锁定，产品代码、G2 实现与 Release 仍未授权�
 `G2_RUNTIME_TOOL_OWNER_2026_11_06`、`G2_PAD_QA_OWNER_2026_11_06`、
 `G2_K60_QA_OWNER_2026_11_06` 且每阶段全新；下一步由 root 决定是否启动 fresh scoped review。
 `K60_NOT_REGISTERED_NOT_RUN` 是当前设备事实。
-preflight 入口为
+preflight 入口固定为 `actionClass=READ_ONLY_PREFLIGHT`，命令为
 `tools/v2-handoff/Invoke-HandoffPreflight.ps1`。
 
 **机器门与历史绑定**

@@ -3833,6 +3833,7 @@ try {
     $expectedPostQaSettlementTransitionPaths = @(
         "AGENTS.md",
         "docs/DECISIONS.md",
+        "docs/LESSONS.md",
         "docs/PROJECT_PLAN.md",
         "docs/TASKS.md",
         "docs/V2_PLAN.md",

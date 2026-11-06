@@ -356,3 +356,19 @@
   首动作脚本由机器合同固定完整 argv，失败时记录 `exit / stderr / argv`。禁止把同一命令
   在 `pwsh -Command` 与 `pwsh -File` 之间反复嵌套重写。
 - **来源**：2026-11-06 R2 repair owner preflight exit 64，以及 root 早期嵌套变量调用失配。
+
+## L031 handoff allowlist 必须从真实 audited-source→HEAD diff 推导
+
+- **现象**：G2 post-QA allowlist 已加入 G2 root prefix，却漏掉真实 transition 中合法的
+  exact `docs/LESSONS.md`；ACTIVE 与 TASKS anchor 也缺少 preflight 常量要求的字面 token，
+  直到 handoff 首跑才同时暴露三项错误。
+- **根因**：allowlist 按“预期改了什么”维护，没有从固定 `auditedSourceCommit` 到当前 HEAD
+  的真实 diff 逐项推导；文档 token、测试与 preflight 常量也没有在同一提交前做完整实证。
+- **对策**：每次更新 post-QA transition 约束时，先用
+  `git diff --name-only <auditedSourceCommit>..HEAD` 列出真实 set，再逐项决定 exact path
+  或合同规定的最小 prefix；不得为省事放宽整个 `docs/**` / `tools/**`。提交前必须实际运行
+  带 `-EmitPrompt` 的 preflight，确认 ACTIVE、In Progress anchor 与 transition 同时 PASS。
+- **验证要求**：至少覆盖新增 exact path 正例、同目录任意 `docs/*.md` 负例，以及 ACTIVE /
+  TASKS 缺失 token 各自 fail-closed；完整 handoff 回归只跑一次并核对真实计数与
+  `TEMP_CLEANUP=PASS`。
+- **来源**：2026-11-06 G2 post-QA handoff 首跑三项 `FAIL_CLOSED`。

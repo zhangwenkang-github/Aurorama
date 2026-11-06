@@ -1347,6 +1347,102 @@ try {
         ) `
         -Name "DEFERRED-EMIT-NO-QA-ROLE"
 
+    $postQaTokenRegressionCases = @(
+        @{
+            name = "post-qa-active-read-only-preflight-token-missing"
+            relativePath = "docs/V2_PLAN.md"
+            token = "READ_ONLY_PREFLIGHT"
+            errorCode = "ACTIVE-SECTION-TOKEN-MISSING-READ_ONLY_PREFLIGHT"
+        },
+        @{
+            name = "post-qa-tasks-v2-d208-token-missing"
+            relativePath = "docs/TASKS.md"
+            token = "V2-D208"
+            errorCode = "ANCHOR-docs/TASKS.md-TOKEN-MISSING-V2-D208"
+        }
+    )
+    foreach ($case in $postQaTokenRegressionCases) {
+        $documentPath = Join-Path $repositoryRoot $case.relativePath
+        $originalBytes = [System.IO.File]::ReadAllBytes($documentPath)
+        try {
+            $documentText = $utf8Strict.GetString($originalBytes)
+            $mutatedText = $documentText.Replace(
+                $case.token,
+                "",
+                [System.StringComparison]::Ordinal
+            )
+            Assert-Condition `
+                -Condition ($mutatedText -cne $documentText) `
+                -Name ("TOKEN-REGRESSION-SETUP-" + $case.name)
+            Write-LfText -Text $mutatedText -Path $documentPath
+            $tokenMissingResult = Invoke-Preflight
+            Assert-Condition `
+                -Condition (
+                    (@($tokenMissingResult.output) -join "`n").Contains(
+                        $case.errorCode,
+                        [System.StringComparison]::Ordinal
+                    )
+                ) `
+                -Name ("TOKEN-REGRESSION-CODE-" + $case.name)
+            Add-CaseResult `
+                -Case $case.name `
+                -ExpectedExit 2 `
+                -Result $tokenMissingResult
+        }
+        finally {
+            [System.IO.File]::WriteAllBytes($documentPath, $originalBytes)
+        }
+    }
+
+    $lessonsTransitionPath = Join-Path $repositoryRoot "docs/LESSONS.md"
+    $lessonsOriginalBytes = [System.IO.File]::ReadAllBytes(
+        $lessonsTransitionPath
+    )
+    $outsideDocsTransitionPath = Join-Path `
+        $repositoryRoot `
+        "docs/post-qa-transition-outside-probe.md"
+    Assert-Condition `
+        -Condition (-not (Test-Path -LiteralPath $outsideDocsTransitionPath)) `
+        -Name "POST-QA-OUTSIDE-PROBE-PRECONDITION"
+    try {
+        $lessonsText = $utf8Strict.GetString($lessonsOriginalBytes)
+        Write-LfText `
+            -Text ($lessonsText + "`n<!-- post-qa-lessons-transition-probe -->`n") `
+            -Path $lessonsTransitionPath
+        $lessonsTransitionResult = Invoke-Preflight
+        Add-CaseResult `
+            -Case "post-qa-lessons-transition-allowed" `
+            -ExpectedExit 0 `
+            -Result $lessonsTransitionResult
+        Write-Output "ASSERT POST-QA-LESSONS-TRANSITION-ALLOWED=PASS"
+
+        Write-LfText `
+            -Text "outside transition`n" `
+            -Path $outsideDocsTransitionPath
+        $outsideDocsTransitionResult = Invoke-Preflight
+        Assert-Condition `
+            -Condition (
+                (@($outsideDocsTransitionResult.output) -join "`n").Contains(
+                    "POST-QA-TRANSITION-PATH-OUTSIDE-ALLOWLIST",
+                    [System.StringComparison]::Ordinal
+                )
+            ) `
+            -Name "POST-QA-OUTSIDE-DOCS-TRANSITION-DENIED"
+        Add-CaseResult `
+            -Case "post-qa-outside-docs-transition-denied" `
+            -ExpectedExit 2 `
+            -Result $outsideDocsTransitionResult
+    }
+    finally {
+        [System.IO.File]::WriteAllBytes(
+            $lessonsTransitionPath,
+            $lessonsOriginalBytes
+        )
+        if (Test-Path -LiteralPath $outsideDocsTransitionPath) {
+            [System.IO.File]::Delete($outsideDocsTransitionPath)
+        }
+    }
+
     $g2TransitionProbe = Join-Path `
         $repositoryRoot `
         ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/preflight-transition-probe.json"

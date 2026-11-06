@@ -8,7 +8,8 @@
 > qaDispatchable=false / RUNTIME_QA_DEFERRED_TO_G2 /
 > G1_STATIC_CLOSURE_IN_PROGRESS / QA_V9_BLOCKED_TOOL_NONCONVERGENCE /
 > PRODUCT_P0_P3_NOT_ASSESSED / K60_GATED_LOCKED / activePrompt=none`。
-> 历史 `POST_HANDOFF_AUDIT_READY`、exact `auditReceipt` 与 qa-v9 证据原样保留；
+> `V2-D208` 的 runtime 延期与静态收口语义仍有效；历史 `POST_HANDOFF_AUDIT_READY`、
+> exact `auditReceipt` 与 qa-v9 证据原样保留；
 > 当前设备锁只要求 `RELEASED_ACTIVE_0`。
 
 > QA-v9 实际执行为 `CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED`：仅 `zf_001` 有真实
