@@ -26,6 +26,7 @@ $repositoryRoot = [System.IO.Path]::GetFullPath(
     (Join-Path $contractRoot "..\..\..")
 )
 $contractPath = Join-Path $contractRoot "contract.json"
+$candidatePath = Join-Path $contractRoot "candidate.json"
 $authorizationPath = Join-Path $contractRoot "authorization-receipt.json"
 $schemaPath = Join-Path $contractRoot "report.schema.json"
 $manifestPath = Join-Path $contractRoot "runtime-tools.manifest.json"
@@ -1322,6 +1323,14 @@ function Invoke-G2CleanupVerification {
 }
 
 function Invoke-G2CleanupStaticSelfTest {
+    $resolvedCandidatePath = Resolve-Path `
+        -LiteralPath $candidatePath `
+        -ErrorAction Stop
+    if (-not (Test-Path `
+        -LiteralPath $resolvedCandidatePath.ProviderPath `
+        -PathType Leaf)) {
+        throw "CLEANUP_STATIC_CANDIDATE_PATH_INVALID"
+    }
     $fixture = [pscustomobject]@{
         packagesAbsent = $true
         pidsAbsent = $true
