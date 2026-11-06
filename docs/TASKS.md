@@ -15,10 +15,12 @@
 
 > QA-v9 实际执行为 `CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED`：仅 `zf_001` 有真实
 > AudioTrack start partial；`zm_010`、完整 10 分钟、gap、完整通知/focus、零网络与 K60 均未执行。
-> cleanup / restore PASS、锁 `ACTIVE=0`，K60 `8e875894` 未登记。当前无 QA / planning role、
-> 无 `activePrompt` 可执行 prompt；`G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION`，
-> 下一步只等待用户明确授权是否为 G2 入口重新开户。未授权前禁止创建 runtime 合同、QA 重试、
-> 设备、生产实现与 Release。当前不是 QA / runtime / G1 PASS；延期不是 `PASS_WITH_GAPS`。
+> cleanup / restore PASS、锁 `ACTIVE=0`，K60 `8e875894` 未登记。当前无 QA role、无
+> `activePrompt` 可执行 prompt；`V2-D209` 已批准
+> `G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS`，下一角色只允许全新
+> `G2_RUNTIME_CONTRACT_OWNER` 建立 runtime 合同与 evidence 边界。D209 不授权 QA、设备、
+> 产品实现、Release、服务器写或 L2/L3。当前不是 QA / runtime / G1 PASS；延期不是
+> `PASS_WITH_GAPS`。
 >
 > 历史 `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER`、
 > `ROUND8_READONLY_INTEGRATION_REVIEW_OWNER`、`ROUND7-P1-01`、`ROUND6-P1-01` 与 B10
@@ -27,7 +29,7 @@
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-| `V2-SOLUTION-BASELINE / V2-G2-ENTRY-CONTRACT` | G1 方案门总括行 + G2 入口静态契约；非执行卡 | 原地把 `V2-D208` 的 runtime 延期事实扩写为可审查的 G2 入口契约：静态计划就绪 -> 用户授权 -> 新 runtime 合同 -> 全新 Pad QA -> 全新 K60 QA -> 用户门决议 -> G2 实现批准；并把 A1/A2、BASE-001/003/004、Q03 与 G1-S6 残余门各自唯一映射到 `CLOSED_STATIC / OFFLINE_NEXT / G2_RUNTIME / G2_IMPLEMENTATION / USER_DECISION` | ①不派发 / 重跑 QA，不碰 Pad/K60，不生成可执行 QA prompt，不复用 qa-v9 工具 / owner / 证据；②不写生产代码、合同 JSON、证据、memory 或白名单外文件，不 commit / stage / push / tag；③不新增用户决策或 Accepted，不关闭 Q03，不冻结 exact profile / voice，不接受 Pad P2，不写 G1 / runtime PASS | `V2-D202`～`D205`、`V2-D208`；qa-v9 report 摘要；G1-S6 checkpoint + 16 张 G2 卡；A1/A2、BASE-001/003/004、Q03 正式 report / manifest 入口；状态 `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED` | §12 ACTIVE 契约完整；每个残余项只归一门且有优先级与关闭证据；D202-F1 / G1 已接受默认不重问；入口固定每设备 10 分钟、`Pad->K60`、K60 当前锁定、零网络、通知 / focus、AudioTrack gap、cleanup；唯一 ACTIVE=1 / TASKS=3 / roles=22 / gates=6；`QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none`；preflight 前后 PASS、合同测试与 UTF-8 no BOM / LF / `git diff --check` PASS；除既有 8 个 settlement 修改与 qa-v9 untracked 外，本轮只多 `docs/V2_PLAN.md` / `docs/TASKS.md` 允许 diff 且未 stage | 非零 / FAIL_CLOSED、需改合同 / 工具 / 证据 / memory、白名单外写入、TASKS 行数变化、静默 stage、历史 receipt 或 qa-v9 finding 漂移、K60 提前、复用旧 QA、产品 / Q03 / profile / P2 过度声明，或需要设备 / 网络 / 源码 / 新用户范围决策时停止并报 BLOCKED |
+| `V2-SOLUTION-BASELINE / V2-G2-ENTRY-CONTRACT` | G1→G2 入口静态契约；非执行卡 | 在已完成的 G2 入口分类与顺序上，由 `V2-D209` 授权全新 `G2_RUNTIME_CONTRACT_OWNER` 只建立新 runtime 合同、owner、evidenceRoot、候选 SHA、产品门、执行顺序与 stop 条件；合同完成后仍需另行确认设备执行 | ①不派发 / 重跑 QA，不碰 Pad/K60，不生成可执行 QA prompt，不复用 qa-v9 工具 / owner / 证据；②不写生产代码、产品源码、证据、memory 或白名单外文件；③不关闭 Q03，不冻结 exact profile / voice，不接受 Pad P2，不启动 G2 实现 / Release / 服务器写，不写 G1 / runtime PASS | `V2-D202`～`D205`、`V2-D208`、`V2-D209`；qa-v9 report 摘要；G1-S6 checkpoint + 16 张 G2 卡；A1/A2、BASE-001/003/004、Q03 正式 report / manifest 入口；状态 `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED` | 新 runtime 合同固定每设备 10 分钟、`Pad->K60`、K60 当前锁定、零网络、通知 / focus、真实 AudioTrack start / completion、`≤15s` gap、cleanup 与全新证据根；唯一 ACTIVE=1 / TASKS=3 / roles=22 / gates=6；`QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none`；preflight 与合同回归 PASS；D209 只授权合同建立，不授权设备或实现 | 非零 / FAIL_CLOSED、需要 QA / 设备 / 网络 / 源码 / 合同白名单外写入、TASKS 行数变化、历史 receipt 或 qa-v9 漂移、K60 提前、复用旧 QA、产品 / Q03 / profile / P2 / G2 实现过度声明，或需要新用户范围决策时停止并报 BLOCKED |
 | `V2-G1-L1-EVIDENCE` | G1 L1 证据与静态收口 | 保留 qa-v8/qa-v9 历史证据与全部 fail-closed 回归，只允许补可离线复核的 G1 静态缺口 / G2 planning 输入 | ①不下载 MOSS、不触发新网络域；②不关闭 Q03、不冻结 profile / voice、不接受 Pad P2；③不用旧 30 分钟、stop-only、安装、cleanup、partial AudioTrack 或工具阻塞替代产品证据 | main `427,009,671 B / 252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`；peer `12,696 B / 61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`；tools 31/2984/digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`；QA-v8 tools 冻结 | `qa-v9/report.json` 为 `BLOCKED_TOOL_NONCONVERGENCE / BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED`；`CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / K60_LOCKED`；cleanup PASS；历史 `auditReceipt` 与 transitionPaths 保留，当前 post-QA 集合并列校验；ACTIVE=1 / TASKS=3 | 复用 QA / audit owner、改旧 report 或 raw 证据、digest / manifest / APK 漂移、证据根删除 / 移动、产品过度声明、设备 / 网络 / 生产写或越界时停止 |
 | `V2-G1-L1-KOKORO-EXACT` | G1 L1→L3 scoped 子任务；runtime 部分延期 | 把完整 Pad/K60 10 分钟 runtime matrix 延期到 G2 入口门；G1 只保留 qa-v9 partial 证据和静态 planning 输入 | 不做 QA 重试、Pad/K60 设备动作、P2 接受、生产代码、Q03、G2 实现或 Release；不把 qa-v9 start-only、cleanup、旧 K60 v5 或 Pad v6/v7 结果扩写为完整门 | v5 输入基线、`qa-v9/report.json`、`qa-v8/report.json` 摘要、`qa-v8/tools` digest、G1-S6 checkpoint；`ACTIVE=1 / TASKS=3` | 当前 `POST_QA_RUNTIME_DEFERRED`、auditReceipt 历史 PASS、`QA_DISPATCHABLE=DEFERRED_TO_G2`、padQa retired / dispatchable=false、K60 `8e875894` 未登记、锁 `ACTIVE=0`、产品 P0–P3 `NOT_ASSESSED` 一致 | QA / runtime PASS 过度声明、QA 重试、设备 / 首动作 / hash / path / owner / role writeScope 漂移、K60 提前、需产品代码或新范围决策时停止 |
 

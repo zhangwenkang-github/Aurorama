@@ -68,10 +68,11 @@
   QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`；
   `validation.handoffPhase=POST_QA_RUNTIME_DEFERRED`，历史
   `PRE_HANDOFF_AUDIT_PASS=PASS`，`QA_DISPATCHABLE=DEFERRED_TO_G2`，`activePrompt=none`。
-  `PAD_QA_OWNER` / `K60_QA_OWNER` 无当前派发权；
-  `G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION`，当前没有可执行 planning / QA role，
-  下一步只等待用户明确授权是否为 G2 入口重新开户。settlement 合同回归为 `104/104 PASS`；
-  延期不是 QA / runtime / G1 PASS，契约就绪也不是 G2 授权。
+  `PAD_QA_OWNER` / `K60_QA_OWNER` 无当前派发权；`V2-D209` 已把状态推进为
+  `G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS`，只授权全新
+  `G2_RUNTIME_CONTRACT_OWNER` 建立新 runtime 合同与 evidence 边界。当前合同没有可执行 QA
+  prompt，不授权 QA、设备、产品代码、G2 实现、Release 或 L2/L3。settlement 合同回归为
+  `104/104 PASS`；契约授权不是 QA / runtime / G1 PASS。
 - 负责人只做交付 / 集成编排、范围、白名单、压缩报告与关键 diff 审查、集成决策和交接，不亲自
   实现、修工具、写产品代码或跑真机 QA，也不批量读取 raw 证据。实现、工具修复、文档协议、
   集成审查、Pad QA、K60 QA 各用全新专业子代理；每个 fresh agent 只做一阶段，禁止 followup

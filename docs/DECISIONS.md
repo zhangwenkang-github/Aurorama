@@ -533,3 +533,29 @@ QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 `.planning/v2-g1/G1-L1-KOKORO-EXACT/qa-v9/report.json` 摘要；
 `.planning/v2-g1/G1-S6/CHECKPOINT.md`。该决定不关闭 Q03，不冻结 profile / voice，不构成
 QA、runtime、production 或 G1 PASS。
+
+### `V2-D209` 批准 G2 入口重新开户，仅授权新 runtime 合同（2026-11-06，Accepted）
+
+用户于 2026-11-06 选择方案 A：按交接规范完成本地提交与 fresh pre-handoff audit，并授权
+重新开启 G2 入口；本决定只批准建立一个全新的 `G2_RUNTIME_CONTRACT_OWNER` 与新的 runtime
+合同 / evidence 边界，不授权执行 runtime QA、Pad/K60 设备动作、产品实现、Release、push、
+服务器写或 `L2/L3` 解锁。
+
+接受语义：
+
+1. 当前 `V2-G2-ENTRY-CONTRACT` 已静态落档；用户授权把入口步骤 1 从等待态推进到
+   `G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS`。
+2. 下一角色必须是全新、一次性的 `G2_RUNTIME_CONTRACT_OWNER`。它只建立新 runtime 合同、
+   owner、evidenceRoot、候选 SHA、产品门、执行顺序与 stop 条件；不得兼任 QA、实现或
+   Release。
+3. 本授权不创建可执行 QA prompt，不解除 `QA_DISPATCHABLE=DEFERRED_TO_G2`，也不授权运行
+   Pad/K60；设备执行必须在 runtime 合同完成后另行确认。
+4. Q03 仍 Open，exact profile / voice 仍 Open，Pad P2 未接受，G1 `NOT_PASSED`，项目级
+   runtime `UNVERIFIED`，L2/L3 `LOCKED`。历史 audit receipt、qa-v9 与全部 finding 保持
+   只读。
+5. 本地提交与 34 路径候选只服务交接可恢复性；外部 push、tag、GitHub Release 和任何生产
+   变更仍需另行授权。
+
+证据入口：`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；`docs/TASKS.md` In Progress；
+`tools/v2-handoff/HANDOFF_BOOTSTRAP_V2.json`；`.planning/v2-g1/G1-S6/CHECKPOINT.md`。
+该决定不构成 QA、runtime、production 或 G1 PASS。

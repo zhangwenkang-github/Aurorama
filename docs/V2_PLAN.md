@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION / D202_D208_ACCEPTED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / CONTRACT_REGRESSION_104_OF_104 / TOOLS_STATIC_31_TESTS_25_OF_25 / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1 `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED / ACTIVE=0`。用户以 `V2-D208` 决定停止本轮 QA 工具修复与重试，把完整 Pad/K60 runtime QA 延期到 G2 入口门；G1 静态收口已完成可决策的 G2 入口契约。历史 embedded `auditReceipt`、旧 PRE/POST 状态与 96/96 回归原样保留，当前 settlement 合同回归 `104/104 + TEMP_CLEANUP=PASS`。QA-v9 仅 `zf_001` AudioTrack start partial，`zm_010`、完整 10 分钟、gap、完整通知/focus、零网络与 K60 未执行；cleanup PASS、锁释放、K60 `8e875894` 未登记。当前没有可执行 QA / planning role，`PAD_QA_OWNER` retired / dispatchable=false。下一步只等待用户决定是否授权 G2 入口开户；当前不是 QA、runtime、已合并或 G1 PASS。工具基线为 tools 31/31、manifest `2984 B`、digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`。Q03、Pad P2、许可、项目级 runtime、G1 与 exact profile 均未闭合。
+> 状态：`G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D209_ACCEPTED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / CONTRACT_REGRESSION_104_OF_104 / TOOLS_STATIC_31_TESTS_25_OF_25 / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1→G2 入口 `RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / INDEPENDENT_INTEGRATION_REVIEW_PASS=PASS / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED / ACTIVE=0`。`V2-D208` 把完整 Pad/K60 runtime QA 延期到 G2 入口；`V2-D208` 后的 G2 入口契约已完成，用户以 `V2-D209` 仅授权全新 `G2_RUNTIME_CONTRACT_OWNER` 建立新 runtime 合同与 evidence 边界。历史 embedded `auditReceipt`、旧 PRE/POST 状态与 96/96 回归原样保留，当前 settlement 合同回归 `104/104 + TEMP_CLEANUP=PASS`。QA-v9 仅 `zf_001` AudioTrack start partial，`zm_010`、完整 10 分钟、gap、完整通知/focus、零网络与 K60 未执行；cleanup PASS、锁释放、K60 `8e875894` 未登记。当前没有可执行 QA role；D209 不授权 QA、设备、产品代码、G2 实现、Release 或 `L2/L3`。当前不是 QA、runtime、已合并或 G1 PASS。工具基线为 tools 31/31、manifest `2984 B`、digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`。Q03、Pad P2、许可、项目级 runtime、G1 与 exact profile 均未闭合。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-06
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3423,7 +3423,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 **G2 入口契约（2026-11-06，纯文档 / 静态）**
 
-`G2_ENTRY_CONTRACT=READY / G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION /
+`G2_ENTRY_CONTRACT=READY / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS /
 G2_GATE=NOT_AUTHORIZED / QA_DISPATCHABLE=DEFERRED_TO_G2`。
 本节只把 G2 入口顺序、残余门归属、运行时约束和用户门边界写成静态契约；它不是 QA prompt，
 不创建 owner、role、evidenceRoot、命令或可派发任务。当前任务完成后停止，后续只能由明确
@@ -3465,7 +3465,7 @@ G1；本契约不把任何一行标成 Done。
 | 顺序 | 门 | 允许动作与退出条件 |
 |---|---|---|
 | 0 | 静态计划就绪 | 本入口契约、残余门唯一映射、G1-S6 依赖和验收矩阵均已落档，且 preflight / 合同回归 PASS。静态计划就绪不等于 Q03、exact profile、runtime 或 G1 已关闭。 |
-| 1 | 用户授权 | 用户明确授权为 G2 入口重新开户；只授权建立新 runtime 合同与运行窗口，不自动授权 G2 实现、Release、服务器写或 `L2/L3`。没有该授权即停止。 |
+| 1 | 用户授权 | `V2-D209` 已批准 G2 入口重新开户；只授权建立新 runtime 合同与 evidence 边界，不自动授权 runtime QA、设备、G2 实现、Release、服务器写或 `L2/L3`。设备执行仍需另次确认。 |
 | 2 | 新 runtime 合同 | 由全新合同 owner 固定新 owner、工具、evidenceRoot、候选 SHA、产品门与 stop 条件。不得把本文件或 qa-v9 prompt 当可执行 prompt。 |
 | 3 | 全新 Pad QA | 全新 QA 只在 Pad `43af8627` 执行；K60 保持锁定。Pad 核心全 PASS、证据绑定同一候选且锁 `ACTIVE=0` 后才可进入下一行。 |
 | 4 | 全新 K60 QA | 另一全新 QA 在 K60 `8e875894` 登记后执行；当前 `registered=false / targetedCommands=0`，本契约不授权提前登记或运行。 |
@@ -3544,11 +3544,11 @@ QA_V9_BLOCKED_TOOL_NONCONVERGENCE / PRODUCT_P0_P3_NOT_ASSESSED / K60_LOCKED`。
 
 **唯一 ACTIVE 的下一步**
 
-G1 静态规划阶段已完成，当前没有可执行 QA 或 planning role。唯一下一步是用户对“是否为
-G2 入口重新开户”作出明确授权；未授权前停止，不创建 runtime 合同、不派发 QA、不启动 G2
-实现。若用户授权，下一角色只能是全新的 G2 runtime contract owner，先建立新合同与
-evidenceRoot；仍不自动授权实现、Release、服务器写或 `L2/L3`。
-机器合同故意设置 `activePrompt=none`，因此不提供可执行 prompt。
+`V2-D209` 已批准 G2 入口重新开户。下一角色只能是全新的 `G2_RUNTIME_CONTRACT_OWNER`，
+只建立新 runtime 合同、owner、evidenceRoot、候选 SHA、产品门、执行顺序与 stop 条件；
+不执行 QA、不碰 Pad/K60、不写产品代码、不启动 G2 实现或 Release。设备执行必须在 runtime
+合同完成后另行确认。机器合同继续设置 `activePrompt=none`，因此当前合同本身不提供可执行
+QA prompt；新角色由旧负责人按交接规范另建线程。
 
 冷启动第一条只读动作必须实际运行：
 
@@ -5736,6 +5736,11 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   gates=6`。改后 preflight PASS；handoff 合同回归 `104/104 PASS + TEMP_CLEANUP=PASS`，
   UTF-8 no BOM / LF、`git diff --check` 与 staged=0 PASS。仅改 `docs/V2_PLAN.md` /
   `docs/TASKS.md`，未触设备、网络、Gradle、QA、源码、工具、证据或 memory，未 stage /
-  commit / push / tag。收口后当前状态为
+  commit / push / tag。该阶段收口后当时状态为
   `G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION`：没有可执行 planning / QA role，
   下一步只等待用户决定是否为 G2 入口重新开户；契约就绪不授权 G2 实现。
+- **2026-11-06 — `V2-D209` 授权 G2 入口 runtime 合同**：用户选择方案 A，批准按交接规范完成
+  本地提交、fresh pre-handoff audit 与全新 `G2_RUNTIME_CONTRACT_OWNER`。该授权只允许建立
+  G2 runtime 合同 / owner / evidenceRoot / 候选 SHA / 产品门与 stop 条件，不授权 runtime
+  QA、Pad/K60 设备、产品代码、G2 实现、Release、push、服务器写或 L2/L3 解锁。Q03、
+  exact profile / voice 仍 Open，Pad P2 未接受，G1 `NOT_PASSED`，runtime `UNVERIFIED`。

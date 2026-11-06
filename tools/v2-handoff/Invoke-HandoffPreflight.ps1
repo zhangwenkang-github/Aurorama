@@ -213,7 +213,9 @@ $postQaDeferredActiveRequiredTokens = [string[]]@(
     "validation.handoffPhase=POST_QA_RUNTIME_DEFERRED",
     "RUNTIME_QA_DEFERRED_TO_G2",
     "G1_STATIC_CLOSURE_IN_PROGRESS",
-    "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+    "G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS",
+    "V2-D209",
+    "G2_RUNTIME_CONTRACT_OWNER",
     "QA_V9_BLOCKED_TOOL_NONCONVERGENCE",
     "PRODUCT_P0_P3_NOT_ASSESSED",
     "K60_LOCKED",
@@ -390,7 +392,9 @@ $postQaDeferredAnchorTokenSets = @{
         @(
             "RUNTIME_QA_DEFERRED_TO_G2",
             "G1_STATIC_CLOSURE_IN_PROGRESS",
-            "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+            "G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS",
+            "V2-D209",
+            "G2_RUNTIME_CONTRACT_OWNER",
             "validation.handoffPhase=POST_QA_RUNTIME_DEFERRED",
             "QA_DISPATCHABLE=DEFERRED_TO_G2",
             "V2-D208",
@@ -401,7 +405,9 @@ $postQaDeferredAnchorTokenSets = @{
     PROJECT_PLAN = [string[]]@(
         "RUNTIME_QA_DEFERRED_TO_G2",
         "G1_STATIC_CLOSURE_IN_PROGRESS",
-        "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+        "G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS",
+        "V2-D209",
+        "G2_RUNTIME_CONTRACT_OWNER",
         "QA_V9_BLOCKED_TOOL_NONCONVERGENCE",
         "PRODUCT_P0_P3_NOT_ASSESSED",
         "K60_LOCKED",
@@ -421,7 +427,9 @@ $postQaDeferredAnchorTokenSets = @{
         @(
             "RUNTIME_QA_DEFERRED_TO_G2",
             "G1_STATIC_CLOSURE_IN_PROGRESS",
-            "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+            "G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS",
+            "V2-D209",
+            "G2_RUNTIME_CONTRACT_OWNER",
             "QA_V9_BLOCKED_TOOL_NONCONVERGENCE",
             "PRODUCT_P0_P3_NOT_ASSESSED",
             "K60_LOCKED",
@@ -4576,7 +4584,9 @@ try {
                     "validation.handoffPhase=POST_QA_RUNTIME_DEFERRED",
                     "RUNTIME_QA_DEFERRED_TO_G2",
                     "G1_STATIC_CLOSURE_IN_PROGRESS",
-                    "G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION",
+                    "G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS",
+                    "V2-D209",
+                    "G2_RUNTIME_CONTRACT_OWNER",
                     "QA_V9_BLOCKED_TOOL_NONCONVERGENCE",
                     "PRODUCT_P0_P3_NOT_ASSESSED",
                     "K60_LOCKED",
@@ -4838,7 +4848,7 @@ if ($EmitPrompt) {
     if ($isPostQaDeferredPhase) {
         Write-Output "NEXT_PROMPT_PATH=docs/V2_PLAN.md#ACTIVE"
         Write-Output "NEXT_PROMPT_BEGIN"
-        Write-Output "RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_CONTRACT_READY_AWAITING_USER_AUTHORIZATION；当前没有可派发 QA 或 planning 角色。冷启动代理在 preflight PASS 后只读取唯一 ACTIVE 的证据与用户授权门；未经用户明确授权，不得创建 G2 runtime 合同、派发 QA、碰设备或启动实现。"
+        Write-Output "RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；V2-D209；当前合同没有可派发 QA prompt。用户已授权旧负责人按交接规范另建全新 G2_RUNTIME_CONTRACT_OWNER，只建立 runtime 合同；不得派发 QA、碰设备、写产品代码或启动 G2 实现 / Release。"
         Write-Output "NEXT_PROMPT_END"
     }
     else {

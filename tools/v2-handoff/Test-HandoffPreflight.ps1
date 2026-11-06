@@ -1313,7 +1313,11 @@ try {
     Assert-Condition `
         -Condition (
             $deferredEmitText.Contains(
-                "当前没有可派发 QA 或 planning 角色",
+                "当前合同没有可派发 QA prompt",
+                [System.StringComparison]::Ordinal
+            ) -and
+            $deferredEmitText.Contains(
+                "G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS",
                 [System.StringComparison]::Ordinal
             ) -and
             -not $deferredEmitText.Contains(
