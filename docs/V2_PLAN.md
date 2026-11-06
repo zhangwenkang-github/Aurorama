@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / PENDING_SETTLEMENT_FINAL_AUDIT / NO_REPAIR_AUDIT_RECEIPT / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_114_0_172 / CURRENT_TRANSITIONS_EXACT_62 / CONTRACT_REGRESSION_108_PENDING_FINAL_AUDIT / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1→G2 入口 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / PENDING_SETTLEMENT_FINAL_AUDIT / no receipt / RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。首次 Pad QA 在 collector Validate 路径二次绑定处停止，窗口未开始、候选未安装、外部权威锁释放、K60 零接触；其 `qa-pad-v1` 历史 blockers、cleanup 快照与自持锁字节保持不变。本轮将历史 `PRE_WINDOW_TOOL_BLOCK` 与新一次 attempt 分离：新 scope 为 `qa-pad-v2` / `qa-k60-v2`，只有历史窗口 `NOT_STARTED`、`freshInstall=NOT_RUN` 且外部权威锁 `RELEASED_ACTIVE_0` 时才允许开户。R2 WIP 尚未被接受；R3–R9 只修当前 findings，`currentTransitions=62` 在 contract、receipt 与 schema 三层 exact，现场 G2 工具实现侧为 `114/0/172`，完整 handoff 基线 `108` 待 final audit。当前不是 QA、runtime、产品 FAIL 或 G1 PASS。
+> 状态：`R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / SETTLED_COMPATIBILITY_READY_PENDING_FINAL_AUDIT / PENDING_SETTLEMENT_FINAL_AUDIT / NO_REPAIR_AUDIT_RECEIPT / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_62 / CONTRACT_REGRESSION_108_PENDING_FINAL_AUDIT / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1→G2 入口 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / SETTLED_COMPATIBILITY_READY_PENDING_FINAL_AUDIT / PENDING_SETTLEMENT_FINAL_AUDIT / no receipt / RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。首次 Pad QA 在 collector Validate 路径二次绑定处停止，窗口未开始、候选未安装、外部权威锁释放、K60 零接触；其 `qa-pad-v1` 历史 blockers、cleanup 快照与自持锁字节保持不变。本轮将历史 `PRE_WINDOW_TOOL_BLOCK` 与新一次 attempt 分离：新 scope 为 `qa-pad-v2` / `qa-k60-v2`，只有历史窗口 `NOT_STARTED`、`freshInstall=NOT_RUN` 且外部权威锁 `RELEASED_ACTIVE_0` 时才允许开户。R2 WIP 尚未被接受；R3–R10 只修当前 findings，`currentTransitions=62` 在 contract、receipt 与 schema 三层 exact，现场 G2 工具实现侧为 `116/0/188`，完整 handoff 基线 `108` 待 final audit。当前真实合同仍 PRE、`qaDispatch=null`、无 receipt / executable prompt；settled 兼容只在 temp fixture 中成立。当前不是 QA、runtime、产品 FAIL 或 G1 PASS。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-06
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -3613,7 +3613,14 @@ contract expectation 与 receipt 两层及 schema `const` 同步；同步 / 单�
 相等、最低基线 parent 与 parent 漂移均拒绝，严格后继正例接受。future fixture 使用临时
 Git object directory 中的合成严格后继及其实际 parent，候选 source commit 仍须为祖先；
 并新增 contract / receipt 同步 pure-high counts 负例。
-`Test-G2RuntimeTools` 现场 `114/0/172`，contract validator、
+settled QA-ready 兼容已就绪但仍待 final audit：PRE 必须为
+`generatedExecutableQaPrompt=false` + `authorization.qaDispatch=null`；future temp fixture
+才允许 `true` 与具体 descriptor，并绑定 owner、canonical read-only preflight、
+worktree / 分支 / audited head、固定读序、non-goals、`qa-pad-v2/**` 写域、Pad-only /
+K60 forbidden、单次 10 分钟无 retry、13 个产品门和全部 stop conditions。prompt 文本的
+UTF-8 SHA-256 在 contract / receipt / policy 三方一致；缺 prompt、hash、owner、device、
+window、K60 或其他必需字段均 fail-closed。真实合同没有生成该对象。
+`Test-G2RuntimeTools` 现场 `116/0/188`，contract validator、
 collector Validate 与三份
 StaticSelfTest PASS；当前 Register 以 `PRE_AUDIT_ACTION_FORBIDDEN` 失败。完整 handoff
 基线为 `108`，本轮未运行，待 final audit。
@@ -6058,3 +6065,32 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   未运行；未 adb、设备、QA、网络、Gradle、Memory、产品源码、服务器写、stage、commit
   或 temp residue；产品 P0–P3 仍 `NOT_ASSESSED`。下一步由 root 启动 fresh scoped review，
   首条只读动作 `git status --short`，随后 `git diff --stat`。
+- **2026-11-06 — G2 settled QA-ready prompt compatibility 修复**：全新一次性
+  `G2_SETTLED_STATE_COMPAT_REPAIR_OWNER_2026_11_07` 先以 temp future fixture RED 固定
+  当前策略不认识 `authorization.qaDispatch`，且旧 validator 把
+  `PENDING_SETTLEMENT_FINAL_AUDIT` 写死。GREEN 后 PRE 严格要求
+  `generatedExecutableQaPrompt=false`、`qaDispatch=null`、无 receipt；future settled 模式
+  要求 `qaDispatchable=true`、`activePrompt=G2_PAD_QA_OWNER_2026_11_06`、
+  `generatedExecutableQaPrompt=true`、`contractPackageReady=true` 和严格 audit receipt。
+  descriptor 固定 canonical read-only preflight、显式 worktree / `codex/v2-integration` /
+  audited head、7 项读序、non-goals、`qa-pad-v2/**`、Pad-only / K60 forbidden、10 分钟 /
+  600 秒 / 单次 / 无 extension / 无 retry、13 gates 与全部 stop conditions。
+  `promptText` 的 UTF-8 SHA-256 同时绑定 contract descriptor、receipt 与 policy 复算值；
+  prompt / hash / owner / device / window / K60 / read order / non-goal / stop 字段缺失或
+  漂移均有 fail-closed 负例。`Test-G2RuntimeTools` 最终 `116/0/188`；contract validator、
+  collector Validate 与三份 StaticSelfTest PASS，current preflight
+  `roles=22 / tasks=3 / gates=6 / currentTransitions=62`。最终 SHA：policy
+  `dba045308623233b69f4a46cf0c1d773b8eefeb0be3b150fe5e54b4da55f19ac`、test
+  `1ef28350d7b10c3915aa069bcc5c380d9b790b9fe9417dc7f30cf0c2a496c5e5`、schema
+  `8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac`、collector
+  `9d248404c3f0cc450c249ec2b6aaf142978c90d52c0146163f677d0b1adeba49`、finalizer
+  `59b6f69dab3550a47740f3b141df25b26c6de22c77a00265efe2705af770aed1`、cleanup
+  `6f581a5707720eb2085920a8a58e292a9461b751d13318030de34305c8379057`、validator
+  `987e3ae7ec47b32541799522c94cb2c15384422f72688541a6baf6efbdde09eb`、manifest
+  `5595f6124cdbb043dcb703500ad9b511c8dbd29c7be2ccbaf2e59c30e6206cc1`、contract
+  `b076be9caca2923dee1e57d8116948513f11019fa3f1cf28d787cd56bca7d42b`；tools digest
+  `9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d`。真实合同未创建
+  receipt、未切换状态、未生成 prompt；未 adb、设备、QA、网络、Gradle、Memory、产品源码、
+  Register / RunWindow、qa-pad-v2、stage 或 commit。完整 handoff `108` 仍未运行，待 final
+  audit；下一步由 root 启动 fresh scoped review，首条只读动作 `git status --short`，随后
+  `git diff --stat`。

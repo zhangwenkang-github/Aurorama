@@ -8,6 +8,24 @@ $script:G2StatePolicySchema = "aurorama.g2-tool-state-policy.v1"
 $script:G2StateReceiptSchema = "aurorama.g2-repair-audit-receipt.v1"
 $script:G2StateCurrentDeviceAccess = "STATIC_SELF_TEST_ONLY_THIS_PHASE"
 $script:G2StateQaReadyDeviceAccess = "PAD_FIRST_K60_GATED_AFTER_AUDIT"
+$script:G2StateQaPromptSchema = "aurorama.g2-pad-qa-dispatch.v1"
+$script:G2StateQaPromptActionClass = "READ_ONLY_PREFLIGHT"
+$script:G2StateQaFirstReadOnlyAction =
+    "pwsh -NoProfile -File tools/v2-handoff/Invoke-HandoffPreflight.ps1 -EmitPrompt"
+$script:G2StateQaWorktree =
+    "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama"
+$script:G2StateQaBranch = "codex/v2-integration"
+$script:G2StateQaReadOrder = @(
+    "AGENTS.md",
+    "docs/PROJECT_PLAN.md",
+    "docs/V2_PLAN.md",
+    "docs/TASKS.md",
+    ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/CHECKPOINT.md",
+    ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/README.md",
+    ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/contract.json"
+)
+$script:G2StateQaWriteScope =
+    ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2/**"
 $script:G2StateMinimumAuditedCommit =
     "6b04eb300256fc8384e5407cee24907e8343f949"
 $script:G2StateCurrentReceiptPath =
@@ -17,9 +35,9 @@ $script:G2StateReceiptSchemaPath =
 $script:G2StateSettlementAuditBaseline = [pscustomobject][ordered]@{
     schema = "aurorama.g2-settlement-audit-baseline.v1"
     toolFilesExact = 4
-    testsPassedExact = 114
+    testsPassedExact = 116
     testsFailedExact = 0
-    dynamicNegativeExact = 172
+    dynamicNegativeExact = 188
     currentTransitionsExact = 62
     staticSelfTestsExact = 3
     handoffPassedExact = 108
@@ -209,6 +227,27 @@ function Get-G2StateOrdinalSortedStrings {
     [string[]]$copy = @($Value)
     [Array]::Sort($copy, [System.StringComparer]::Ordinal)
     return $copy
+}
+
+function Test-G2StateOrdinalSequenceEquals {
+    param(
+        [AllowNull()][object[]]$Left,
+        [AllowNull()][object[]]$Right
+    )
+    $leftValues = @($Left)
+    $rightValues = @($Right)
+    if ($leftValues.Count -ne $rightValues.Count) {
+        return $false
+    }
+    for ($index = 0; $index -lt $leftValues.Count; $index++) {
+        if (
+            [string]$leftValues[$index] -cne
+                [string]$rightValues[$index]
+        ) {
+            return $false
+        }
+    }
+    return $true
 }
 
 function Test-G2StateOrdinalStringSetEquals {
@@ -520,6 +559,7 @@ function Assert-G2ContractStateShape {
             "qaDispatchable",
             "activePrompt",
             "generatedExecutableQaPrompt",
+            "qaDispatch",
             "deviceExecution",
             "requiredDeviceAuthorizationReceipt",
             "authorizationReceiptPath",
@@ -2096,6 +2136,254 @@ function Assert-G2RepairAuditReceiptMatchesExpectations {
     return $expectations
 }
 
+function Assert-G2QaDispatchDescriptor {
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)]$Descriptor,
+        [Parameter(Mandatory)][string]$AuditedCommit
+    )
+    Assert-G2StateExactFields `
+        -Value $Descriptor `
+        -Expected @(
+            "schema",
+            "ownerRole",
+            "actionClass",
+            "firstReadOnlyAction",
+            "worktree",
+            "branch",
+            "head",
+            "headExpectation",
+            "readOrder",
+            "writeScope",
+            "device",
+            "window",
+            "productGateIds",
+            "nonGoals",
+            "stopConditions",
+            "promptText",
+            "promptSha256"
+        ) `
+        -Name "QA_DISPATCH"
+    Assert-G2StateExactFields `
+        -Value $Descriptor.device `
+        -Expected @(
+            "order",
+            "first",
+            "serial",
+            "roleId",
+            "k60"
+        ) `
+        -Name "QA_DISPATCH_DEVICE"
+    Assert-G2StateExactFields `
+        -Value $Descriptor.window `
+        -Expected @(
+            "minutes",
+            "seconds",
+            "attempts",
+            "continuous",
+            "extensionAllowed",
+            "retryAllowed"
+        ) `
+        -Name "QA_DISPATCH_WINDOW"
+    if (
+        [string]$Descriptor.schema -cne $G2StateQaPromptSchema -or
+        [string]$Descriptor.ownerRole -cne $G2StateQaNextRole -or
+        [string]$Descriptor.actionClass -cne
+            $G2StateQaPromptActionClass -or
+        [string]$Descriptor.firstReadOnlyAction -cne
+            $G2StateQaFirstReadOnlyAction -or
+        [string]$Descriptor.worktree -cne $G2StateQaWorktree -or
+        [string]$Descriptor.branch -cne $G2StateQaBranch -or
+        [string]$Descriptor.head -cnotmatch "^[0-9a-f]{40}$" -or
+        [string]$Descriptor.head -cne $AuditedCommit -or
+        [string]$Descriptor.headExpectation -cne
+            "EXACT_AUDITED_COMMIT_CLEAN"
+    ) {
+        throw "QA_DISPATCH_IDENTITY_OR_HEAD_MISMATCH"
+    }
+    $readOrder = @(
+        $Descriptor.readOrder |
+            ForEach-Object { [string]$_ }
+    )
+    if (
+        $readOrder.Count -ne $G2StateQaReadOrder.Count -or
+        -not (Test-G2StateOrdinalSequenceEquals `
+            -Left $readOrder `
+            -Right $G2StateQaReadOrder)
+    ) {
+        throw "QA_DISPATCH_READ_ORDER_MISMATCH"
+    }
+    $writeScope = @(
+        $Descriptor.writeScope |
+            ForEach-Object { [string]$_ }
+    )
+    if (
+        $writeScope.Count -ne 1 -or
+        $writeScope[0] -cne $G2StateQaWriteScope
+    ) {
+        throw "QA_DISPATCH_WRITE_SCOPE_MISMATCH"
+    }
+    if (
+        [string]$Descriptor.device.order -cne "Pad->K60" -or
+        [string]$Descriptor.device.first -cne "Pad" -or
+        [string]$Descriptor.device.serial -cne "43af8627" -or
+        [string]$Descriptor.device.roleId -cne $G2StateQaNextRole -or
+        [string]$Descriptor.device.k60 -cne
+            "FORBIDDEN_UNTIL_PAD_FULL_CORE_PASS_AND_RELEASED_ACTIVE_0"
+    ) {
+        throw "QA_DISPATCH_DEVICE_MISMATCH"
+    }
+    Assert-G2StateInteger `
+        -Value $Descriptor.window.minutes `
+        -Expected 10 `
+        -Name "QA_DISPATCH_WINDOW_MINUTES"
+    Assert-G2StateInteger `
+        -Value $Descriptor.window.seconds `
+        -Expected 600 `
+        -Name "QA_DISPATCH_WINDOW_SECONDS"
+    Assert-G2StateInteger `
+        -Value $Descriptor.window.attempts `
+        -Expected 1 `
+        -Name "QA_DISPATCH_WINDOW_ATTEMPTS"
+    Assert-G2StateBoolean `
+        -Value $Descriptor.window.continuous `
+        -Expected $true `
+        -Name "QA_DISPATCH_WINDOW_CONTINUOUS"
+    Assert-G2StateBoolean `
+        -Value $Descriptor.window.extensionAllowed `
+        -Expected $false `
+        -Name "QA_DISPATCH_WINDOW_EXTENSION"
+    Assert-G2StateBoolean `
+        -Value $Descriptor.window.retryAllowed `
+        -Expected $false `
+        -Name "QA_DISPATCH_WINDOW_RETRY"
+    $productGateIds = @(
+        $Descriptor.productGateIds |
+            ForEach-Object { [string]$_ }
+    )
+    $expectedGateIds = @(
+        $Contract.productGates |
+            ForEach-Object { [string]$_.id }
+    )
+    if (
+        $productGateIds.Count -ne 13 -or
+        @($productGateIds | Select-Object -Unique).Count -ne 13 -or
+        $expectedGateIds.Count -ne 13 -or
+        -not (Test-G2StateOrdinalStringSetEquals `
+            -Left $productGateIds `
+            -Right $G2StateRequiredProductGateIds) -or
+        -not (Test-G2StateOrdinalStringSetEquals `
+            -Left $expectedGateIds `
+            -Right $G2StateRequiredProductGateIds)
+    ) {
+        throw "QA_DISPATCH_PRODUCT_GATES_MISMATCH"
+    }
+    $nonGoals = @(
+        $Descriptor.nonGoals |
+            ForEach-Object { [string]$_ }
+    )
+    $contractNonGoals = @(
+        $Contract.nonGoals |
+            ForEach-Object { [string]$_ }
+    )
+    if (
+        $nonGoals.Count -lt 1 -or
+        -not (Test-G2StateOrdinalSequenceEquals `
+            -Left $nonGoals `
+            -Right $contractNonGoals)
+    ) {
+        throw "QA_DISPATCH_NON_GOALS_MISMATCH"
+    }
+    $stopConditions = @(
+        $Descriptor.stopConditions |
+            ForEach-Object { [string]$_ }
+    )
+    $contractStopConditions = @(
+        $Contract.stopConditions |
+            ForEach-Object { [string]$_ }
+    )
+    if (
+        $stopConditions.Count -lt 1 -or
+        -not (Test-G2StateOrdinalSequenceEquals `
+            -Left $stopConditions `
+            -Right $contractStopConditions)
+    ) {
+        throw "QA_DISPATCH_STOP_CONDITIONS_MISMATCH"
+    }
+    $promptText = [string]$Descriptor.promptText
+    if (
+        [string]::IsNullOrWhiteSpace($promptText) -or
+        $promptText.Contains("`r", [System.StringComparison]::Ordinal) -or
+        -not $promptText.Contains(
+            $G2StateQaNextRole,
+            [System.StringComparison]::Ordinal
+        ) -or
+        -not $promptText.Contains(
+            $G2StateQaFirstReadOnlyAction,
+            [System.StringComparison]::Ordinal
+        ) -or
+        -not $promptText.Contains(
+            $G2StateQaWorktree,
+            [System.StringComparison]::Ordinal
+        ) -or
+        -not $promptText.Contains(
+            $G2StateQaBranch,
+            [System.StringComparison]::Ordinal
+        ) -or
+        -not $promptText.Contains(
+            $AuditedCommit,
+            [System.StringComparison]::Ordinal
+        ) -or
+        -not $promptText.Contains(
+            $G2StateQaWriteScope,
+            [System.StringComparison]::Ordinal
+        ) -or
+        -not $promptText.Contains(
+            "K60",
+            [System.StringComparison]::Ordinal
+        ) -or
+        -not $promptText.Contains(
+            "10 minutes",
+            [System.StringComparison]::Ordinal
+        ) -or
+        -not $promptText.Contains(
+            "retry",
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        throw "QA_DISPATCH_PROMPT_TEXT_INVALID"
+    }
+    foreach ($requiredText in @(
+        $readOrder +
+        $productGateIds +
+        $nonGoals +
+        $stopConditions
+    )) {
+        if (-not $promptText.Contains(
+            [string]$requiredText,
+            [System.StringComparison]::Ordinal
+        )) {
+            throw "QA_DISPATCH_PROMPT_TEXT_MISSING $requiredText"
+        }
+    }
+    $actualPromptSha256 = [Convert]::ToHexString(
+        [System.Security.Cryptography.SHA256]::HashData(
+            $G2StateUtf8Output.GetBytes($promptText)
+        )
+    ).ToLowerInvariant()
+    if (
+        [string]$Descriptor.promptSha256 -cnotmatch "^[0-9a-f]{64}$" -or
+        [string]$Descriptor.promptSha256 -cne $actualPromptSha256
+    ) {
+        throw "QA_DISPATCH_PROMPT_HASH_MISMATCH"
+    }
+    return [pscustomobject]@{
+        OwnerRole = [string]$Descriptor.ownerRole
+        PromptSha256 = [string]$Descriptor.promptSha256
+        Head = [string]$Descriptor.head
+    }
+}
+
 function Assert-G2RepairAuditReceipt {
     param(
         [Parameter(Mandatory)]$Contract,
@@ -2120,6 +2408,7 @@ function Assert-G2RepairAuditReceipt {
         "handoffCounts",
         "toolsDigest",
         "candidate",
+        "qaPromptSha256",
         "qaPadV1",
         "externalLock",
         "boundaryViolations",
@@ -2184,6 +2473,7 @@ function Assert-G2RepairAuditReceipt {
             "^G2_[A-Z0-9_]*AUDIT_OWNER_2026_11_06$" -or
         [string]$Receipt.verdict -cne "PASS" -or
         [string]$Receipt.nextRole -cne $G2StateQaNextRole -or
+        [string]$Receipt.qaPromptSha256 -cnotmatch "^[0-9a-f]{64}$" -or
         [int]$Receipt.boundaryViolations -ne 0
     ) {
         throw "REPAIR_AUDIT_RECEIPT_IDENTITY_MISMATCH"
@@ -2238,6 +2528,16 @@ function Assert-G2RepairAuditReceipt {
             [string]$Contract.candidate.focusPeer.sha256
     ) {
         throw "REPAIR_AUDIT_TOOL_OR_CANDIDATE_MISMATCH"
+    }
+    $qaDispatchState = Assert-G2QaDispatchDescriptor `
+        -Contract $Contract `
+        -Descriptor $Contract.authorization.qaDispatch `
+        -AuditedCommit ([string]$Receipt.auditedCommit)
+    if (
+        [string]$Receipt.qaPromptSha256 -cne
+            [string]$qaDispatchState.PromptSha256
+    ) {
+        throw "REPAIR_AUDIT_PROMPT_HASH_MISMATCH"
     }
     $expectedEvidence = @(
         $Contract.attemptRecovery.historicalPreWindowBlock.evidenceFiles
@@ -2311,6 +2611,7 @@ function Assert-G2RepairAuditReceipt {
         AuditedCommit = [string]$Receipt.auditedCommit
         Parent = [string]$Receipt.parent
         ToolsDigest = [string]$Receipt.toolsDigest
+        QaPromptSha256 = [string]$qaDispatchState.PromptSha256
         ExternalLock = $LockSnapshot
     }
 }
@@ -2461,7 +2762,8 @@ function Assert-G2RuntimeToolStatePolicy {
                 [string]$Contract.authorization.activePrompt -cne "none" -or
                 [bool]$Contract.authorization.contractPackageReady -ne $false -or
                 [bool]$Contract.authorization.generatedExecutableQaPrompt `
-                    -ne $false
+                    -ne $false -or
+                $null -ne $Contract.authorization.qaDispatch
             ) {
                 throw "PRE_AUDIT_AUTHORIZATION_STATE_MISMATCH"
             }
@@ -2476,6 +2778,7 @@ function Assert-G2RuntimeToolStatePolicy {
                 Mode = "PRE_AUDIT_STATIC_ONLY"
                 QaDispatchable = $false
                 ActivePrompt = "none"
+                QaPromptSha256 = $null
                 AllowedActions = @($G2StateStaticActions)
                 Action = $Action
                 ToolsDigest = [string]$manifestState.ToolsDigest
@@ -2518,6 +2821,9 @@ function Assert-G2RuntimeToolStatePolicy {
             ) {
                 throw "QA_READY_AUTHORIZATION_STATE_MISMATCH"
             }
+            if ($null -eq $Contract.authorization.qaDispatch) {
+                throw "QA_READY_QA_DISPATCH_MISSING"
+            }
             if (-not (Test-Path -LiteralPath $receiptPath -PathType Leaf)) {
                 throw "QA_READY_REPAIR_AUDIT_RECEIPT_MISSING"
             }
@@ -2556,6 +2862,7 @@ function Assert-G2RuntimeToolStatePolicy {
                 Mode = "AUDIT_PASS_PENDING_FRESH_PAD_QA"
                 QaDispatchable = $true
                 ActivePrompt = $G2StateQaNextRole
+                QaPromptSha256 = [string]$receiptState.QaPromptSha256
                 AllowedActions = @(
                     $G2StateStaticActions + $G2StateRuntimeActions
                 )

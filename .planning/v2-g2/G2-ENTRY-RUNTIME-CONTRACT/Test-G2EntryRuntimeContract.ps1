@@ -188,26 +188,46 @@ Assert-True `
         ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT"
     ) `
     -Name "EVIDENCE-ROOT"
+$expectations = $contract.validation.repairAuditExpectations
+$expectationsMatchState = if (
+    $statePolicy.Mode -ceq "PRE_AUDIT_STATIC_ONLY"
+) {
+    (
+        $expectations.status -ceq "PENDING_SETTLEMENT_FINAL_AUDIT" -and
+        $null -eq $expectations.source -and
+        $null -eq $expectations.preflightCounts -and
+        $null -eq $expectations.g2ToolsCounts -and
+        $null -eq $expectations.handoffCounts -and
+        $null -eq $expectations.boundaryViolations
+    )
+} elseif (
+    $statePolicy.Mode -ceq "AUDIT_PASS_PENDING_FRESH_PAD_QA"
+) {
+    (
+        $expectations.status -ceq "SETTLED_FROM_FINAL_AUDIT" -and
+        $null -ne $expectations.source -and
+        $null -ne $expectations.preflightCounts -and
+        $null -ne $expectations.g2ToolsCounts -and
+        $null -ne $expectations.handoffCounts -and
+        $null -ne $expectations.boundaryViolations
+    )
+} else {
+    $false
+}
 Assert-True `
-    -Condition (
-        $null -ne $contract.PSObject.Properties["validation"] -and
-        $null -ne
-            $contract.validation.PSObject.Properties[
-                "repairAuditExpectations"
-            ] -and
-        $contract.validation.repairAuditExpectations.status -ceq
-            "PENDING_SETTLEMENT_FINAL_AUDIT" -and
-        $null -eq $contract.validation.repairAuditExpectations.source -and
-        $null -eq
-            $contract.validation.repairAuditExpectations.preflightCounts -and
-        $null -eq
-            $contract.validation.repairAuditExpectations.g2ToolsCounts -and
-        $null -eq
-            $contract.validation.repairAuditExpectations.handoffCounts -and
-        $null -eq
-            $contract.validation.repairAuditExpectations.boundaryViolations
-    ) `
-    -Name "REPAIR-AUDIT-EXPECTATIONS-PENDING"
+    -Condition $expectationsMatchState `
+    -Name "REPAIR-AUDIT-EXPECTATIONS-STATE"
+$qaDispatchMatchesState = if (
+    $statePolicy.Mode -ceq "AUDIT_PASS_PENDING_FRESH_PAD_QA"
+) {
+    (
+        $null -ne $contract.authorization.qaDispatch -and
+        $contract.authorization.qaDispatch.promptSha256 -ceq
+            $statePolicy.QaPromptSha256
+    )
+} else {
+    $null -eq $contract.authorization.qaDispatch
+}
 Assert-True `
     -Condition (
         $contract.authorization.qaDispatchable -eq
@@ -217,6 +237,7 @@ Assert-True `
         $contract.authorization.generatedExecutableQaPrompt -eq
             ($statePolicy.Mode -ceq
                 "AUDIT_PASS_PENDING_FRESH_PAD_QA") -and
+        $qaDispatchMatchesState -and
         $contract.authorization.deviceExecution -ceq
             "AUTHORIZED_PAD_FIRST_K60_GATED"
     ) `

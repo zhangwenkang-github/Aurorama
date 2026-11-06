@@ -34,7 +34,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / PENDING_SETTLEMENT_FINAL_AUDIT / no receipt / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 当前实现侧 `Test-G2RuntimeTools=114/0/172 dynamic negative`；current preflight `roles=22 / tasks=3 / gates=6 / currentTransitions=62`；完整 handoff 基线 `108/108` 尚未执行，待 final audit。真实合同无 `repair-audit-receipt.json`，`qaDispatchable=false`、`activePrompt=none`，K60 保持锁定。下一步由 root 启动 fresh scoped review；首条只读动作 `git status --short`，随后 `git diff --stat`。产品 P0–P3 仍 `NOT_ASSESSED`，这不是 QA / runtime / G1 PASS。 |
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / SETTLED_COMPATIBILITY_READY_PENDING_FINAL_AUDIT / PENDING_SETTLEMENT_FINAL_AUDIT / no receipt / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 当前实现侧 `Test-G2RuntimeTools=116/0/188 dynamic negative`；current preflight `roles=22 / tasks=3 / gates=6 / currentTransitions=62`；完整 handoff 基线 `108/108` 尚未执行，待 final audit。真实合同仍 PRE、无 `repair-audit-receipt.json`、`authorization.qaDispatch=null`、`qaDispatchable=false`、`activePrompt=none`，K60 保持锁定。future temp fixture 已严格支持 audit PASS 后的 executable Pad QA prompt / descriptor / SHA-256，不等于真实 prompt 已生成或 QA 已授权。下一步由 root 启动 fresh scoped review；首条只读动作 `git status --short`，随后 `git diff --stat`。产品 P0–P3 仍 `NOT_ASSESSED`，这不是 QA / runtime / G1 PASS。 |
 > `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；当前唯一末态是
 > `POST_QA_RUNTIME_DEFERRED`，`PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，
 > 不是 QA / runtime / G1 PASS。`V2-D208` 之后不再有可执行 QA role。

@@ -89,17 +89,17 @@
     },
     {
       "path": "G2RuntimeStatePolicy.ps1",
-      "sha256": "7aa095a5b213b2d9595d3e0c7415f6e48bcd0432a168b816cd4806ca00e5fce8",
+      "sha256": "dba045308623233b69f4a46cf0c1d773b8eefeb0be3b150fe5e54b4da55f19ac",
       "kind": "tool"
     },
     {
       "path": "tests/Test-G2RuntimeTools.ps1",
-      "sha256": "4f1b7a2e76b3b0b49e17acc54681c0bc43abccb45348255c6188e17b7de8c1a8",
+      "sha256": "1ef28350d7b10c3915aa069bcc5c380d9b790b9fe9417dc7f30cf0c2a496c5e5",
       "kind": "test"
     },
     {
       "path": "repair-audit-receipt.schema.json",
-      "sha256": "df7ebcae8a3b45332b30a629b8a944a7736032ab598b471c162d28c2f399929a",
+      "sha256": "8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac",
       "kind": "schema"
     },
     {
@@ -128,5 +128,5 @@
       "kind": "fixture"
     }
   ],
-  "toolsDigestSha256": "9222b335a13066694e7b8f6201fddb8c52b7b12912aec28f9ba17fcae954f063"
+  "toolsDigestSha256": "9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d"
 }

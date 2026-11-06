@@ -1,6 +1,7 @@
 # G2 Entry Runtime Contract Checkpoint
 
 状态：`R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false /
+SETTLED_COMPATIBILITY_READY_PENDING_FINAL_AUDIT /
 PENDING_SETTLEMENT_FINAL_AUDIT / no receipt / K60_GATED_LOCKED /
 RUNTIME_UNVERIFIED / G1_NOT_PASSED / PRODUCT_P0_P3_NOT_ASSESSED / activePrompt=none`
 
@@ -33,7 +34,7 @@ RUNTIME_UNVERIFIED / G1_NOT_PASSED / PRODUCT_P0_P3_NOT_ASSESSED / activePrompt=n
 - Builder：`Build-G2Candidate.ps1`，
   `069caf154e71310d0c6632837a7a13bfee8cf575ef1a4f5af3b07a116eb8839c`。
 - Validator：`Test-G2EntryRuntimeContract.ps1`，
-  `58862c088748d6e4e603685d23f4388b63f3e469b0a39a94f1ee9bd0c585f806`。
+  `987e3ae7ec47b32541799522c94cb2c15384422f72688541a6baf6efbdde09eb`。
 - Report schema：`report.schema.json`，
   `a1c1549eb08b8c49ad0a2c4b6bb59fb8bbf641d1529f05948d1bb9e591409bae`。
 - Collector：`Invoke-G2RuntimeCollector.ps1`，
@@ -43,22 +44,22 @@ RUNTIME_UNVERIFIED / G1_NOT_PASSED / PRODUCT_P0_P3_NOT_ASSESSED / activePrompt=n
 - Cleanup verifier：`Test-G2CleanupRestore.ps1`，
   `6f581a5707720eb2085920a8a58e292a9461b751d13318030de34305c8379057`。
 - Shared state policy：`G2RuntimeStatePolicy.ps1`，
-  `7aa095a5b213b2d9595d3e0c7415f6e48bcd0432a168b816cd4806ca00e5fce8`。
+  `dba045308623233b69f4a46cf0c1d773b8eefeb0be3b150fe5e54b4da55f19ac`。
 - Tests：`tests/Test-G2RuntimeTools.ps1`，
-  `4f1b7a2e76b3b0b49e17acc54681c0bc43abccb45348255c6188e17b7de8c1a8`。
+  `1ef28350d7b10c3915aa069bcc5c380d9b790b9fe9417dc7f30cf0c2a496c5e5`。
 - Audit receipt schema：`repair-audit-receipt.schema.json`，
-  `df7ebcae8a3b45332b30a629b8a944a7736032ab598b471c162d28c2f399929a`。
+  `8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac`。
 - Tool manifest：`runtime-tools.manifest.json`，
-  `bc25909554a12fd87eeeaf2f65fdf3d7bf3d9287aa13aab829f92fca70e16d74`。
+  `5595f6124cdbb043dcb703500ad9b511c8dbd29c7be2ccbaf2e59c30e6206cc1`。
 - Tools digest：
-  `9222b335a13066694e7b8f6201fddb8c52b7b12912aec28f9ba17fcae954f063`。
+  `9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d`。
 - Contract：`contract.json`，
-  `ac3ae6d6c43c15aa80099e12c21049e61b2c97d24457d7bd78f1f9dcaa5c848f`。
+  `b076be9caca2923dee1e57d8116948513f11019fa3f1cf28d787cd56bca7d42b`。
 
 | Manifest 非工具项 | SHA-256 |
 |---|---|
-| `tests/Test-G2RuntimeTools.ps1` | `4f1b7a2e76b3b0b49e17acc54681c0bc43abccb45348255c6188e17b7de8c1a8` |
-| `repair-audit-receipt.schema.json` | `df7ebcae8a3b45332b30a629b8a944a7736032ab598b471c162d28c2f399929a` |
+| `tests/Test-G2RuntimeTools.ps1` | `1ef28350d7b10c3915aa069bcc5c380d9b790b9fe9417dc7f30cf0c2a496c5e5` |
+| `repair-audit-receipt.schema.json` | `8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac` |
 | `tests/fixtures/netstats-before.txt` | `3c226961c4a54583629521a79015195f5b706ae802d13c45a1783751f0eebf34` |
 | `tests/fixtures/netstats-after.txt` | `8a6e7fadbe828801b909fc9c1fe7885276801bb6b7203b6bc2599641dff88bfe` |
 | `tests/fixtures/runtime-log-happy.log` | `bb4857956bbdfe9b6a3284c3e8930a7ccb38c5d21a9ad37c831ab5f920ad6dbd` |
@@ -99,8 +100,8 @@ RUNTIME_UNVERIFIED / G1_NOT_PASSED / PRODUCT_P0_P3_NOT_ASSESSED / activePrompt=n
   旧 scope、SHA 漂移、ACTIVE lock 五类负例 × 两个 action 均为 ADB=0、目录写入=0。
 - 当前真实合同的 `validation.repairAuditExpectations` 仍为
   `PENDING_SETTLEMENT_FINAL_AUDIT`，source / counts 全为 null。R7 把策略基线改为不可由
-  contract / receipt 提供或抬高的独立 exact constants：`toolFiles=4`、`testsPassed=114`、
-  `testsFailed=0`、`dynamicNegative=172`、`currentTransitions=62`、`staticSelfTests=3`、
+  contract / receipt 提供或抬高的独立 exact constants：`toolFiles=4`、`testsPassed=116`、
+  `testsFailed=0`、`dynamicNegative=188`、`currentTransitions=62`、`staticSelfTests=3`、
   `handoffPassed=108`、`handoffFailed=0`、`handoffDynamicNegative=0`、
   `tempCleanupPassed=true`、`boundaryViolations=0`。future fixture 要求 contract
   expectations 与 receipt 三方逐项 exact equal；同步 `111/151/109`、低值、缺失、null 与
@@ -128,16 +129,23 @@ RUNTIME_UNVERIFIED / G1_NOT_PASSED / PRODUCT_P0_P3_NOT_ASSESSED / activePrompt=n
   directory 中生成合成严格后继及其实际 parent，不写工作树、ref 或永久 Git object。
 - 新增 synchronized pure-high `testsPassed+1 / dynamicNegative+1 / handoffPassed+1`
   负例，防止 contract 与 receipt 同步抬高 counts 解闸。
+- settled QA-ready 兼容已就绪但仍待 final audit：PRE 要求
+  `generatedExecutableQaPrompt=false` 且 `authorization.qaDispatch=null`；future temp
+  fixture 才要求 `true` 与具体 descriptor。descriptor 绑定 owner、canonical read-only
+  preflight、worktree / branch / audited head、固定读序、non-goals、`qa-pad-v2/**` 写域、
+  Pad-only / K60 forbidden、单次 10 分钟无 retry、13 gates 与全部 stop conditions。
+  `promptText` 的 UTF-8 SHA-256 同时绑定 contract / receipt / policy，descriptor 或 hash
+  缺失、owner / device / window / K60 / read order / non-goal / stop fields 漂移均拒绝。
 
 ## 实现侧验证
 
-- `Test-G2RuntimeTools.ps1`：`114 PASS / 0 FAIL / 172 dynamic negative`；该计数只是本轮
+- `Test-G2RuntimeTools.ps1`：`116 PASS / 0 FAIL / 188 dynamic negative`；该计数只是本轮
   implementation-side 观测，不是独立 audit / QA / runtime PASS。
 - `Test-G2EntryRuntimeContract.ps1`：`PASS G2_ENTRY_RUNTIME_CONTRACT`，
   `TOOL_STATE_MODE=PRE_AUDIT_STATIC_ONLY`。
 - collector / finalizer / cleanup `StaticSelfTest` 通过，`DEVICE_COMMANDS=0`。
 - collector `Validate` PASS，输出 tools digest
-  `9222b335a13066694e7b8f6201fddb8c52b7b12912aec28f9ba17fcae954f063`；
+  `9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d`；
   当前态直接执行 `Register` 在状态门失败且未写 registration/session。
 - current handoff preflight PASS，实际
   `roles=22 / tasks=3 / gates=6 / currentTransitions=62`，无 QA prompt 派发。

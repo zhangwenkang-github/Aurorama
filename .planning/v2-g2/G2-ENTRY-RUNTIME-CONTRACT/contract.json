@@ -1,7 +1,7 @@
 {
   "schema": "aurorama.g2-entry-runtime-contract.v1",
   "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
   "createdAt": "2026-11-06T12:05:43.7576139+08:00",
   "owner": {
@@ -27,7 +27,7 @@
     "qaReadyToolDeviceAccess": "PAD_FIRST_K60_GATED_AFTER_AUDIT",
     "repairAuditReceiptPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/repair-audit-receipt.json",
     "repairAuditReceiptSchemaPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/repair-audit-receipt.schema.json",
-    "repairAuditReceiptSchemaSha256": "df7ebcae8a3b45332b30a629b8a944a7736032ab598b471c162d28c2f399929a",
+    "repairAuditReceiptSchemaSha256": "8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac",
     "minimumAuditedCommit": "6b04eb300256fc8384e5407cee24907e8343f949",
     "requiredNextRole": "G2_PAD_QA_OWNER_2026_11_06"
   },
@@ -140,7 +140,7 @@
     "contractValidator": {
       "roleId": "G2_CONTRACT_VALIDATOR_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2EntryRuntimeContract.ps1",
-      "sha256": "58862c088748d6e4e603685d23f4388b63f3e469b0a39a94f1ee9bd0c585f806",
+      "sha256": "987e3ae7ec47b32541799522c94cb2c15384422f72688541a6baf6efbdde09eb",
       "status": "READY_CONTRACT_ONLY",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
@@ -148,7 +148,7 @@
     "statePolicy": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/G2RuntimeStatePolicy.ps1",
-      "sha256": "7aa095a5b213b2d9595d3e0c7415f6e48bcd0432a168b816cd4806ca00e5fce8",
+      "sha256": "dba045308623233b69f4a46cf0c1d773b8eefeb0be3b150fe5e54b4da55f19ac",
       "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
@@ -183,12 +183,12 @@
     "runtimeManifest": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/runtime-tools.manifest.json",
-      "sha256": "bc25909554a12fd87eeeaf2f65fdf3d7bf3d9287aa13aab829f92fca70e16d74",
+      "sha256": "5595f6124cdbb043dcb703500ad9b511c8dbd29c7be2ccbaf2e59c30e6206cc1",
       "status": "R2_WIP_REPAIR_R3_IN_PROGRESS",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
     },
-    "digestSha256": "9222b335a13066694e7b8f6201fddb8c52b7b12912aec28f9ba17fcae954f063"
+    "digestSha256": "9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d"
   },
   "authorization": {
     "entryDecision": "V2-D209",
@@ -198,6 +198,7 @@
     "qaDispatchable": false,
     "activePrompt": "none",
     "generatedExecutableQaPrompt": false,
+    "qaDispatch": null,
     "deviceExecution": "AUTHORIZED_PAD_FIRST_K60_GATED",
     "requiredDeviceAuthorizationReceipt": true,
     "authorizationReceiptPath": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json",

@@ -1,6 +1,7 @@
 # Aurorama G2 入口 Runtime 合同
 
 状态：`R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false /
+SETTLED_COMPATIBILITY_READY_PENDING_FINAL_AUDIT /
 PENDING_SETTLEMENT_FINAL_AUDIT / no receipt / K60_GATED_LOCKED /
 PRODUCT_P0_P3_NOT_ASSESSED`
 
@@ -56,20 +57,20 @@ P0-P3、未覆盖、cleanup、最终 verdict。
 - Cleanup verifier：`Test-G2CleanupRestore.ps1`，
   `6f581a5707720eb2085920a8a58e292a9461b751d13318030de34305c8379057`。
 - Shared state policy：`G2RuntimeStatePolicy.ps1`，
-  `7aa095a5b213b2d9595d3e0c7415f6e48bcd0432a168b816cd4806ca00e5fce8`。
+  `dba045308623233b69f4a46cf0c1d773b8eefeb0be3b150fe5e54b4da55f19ac`。
 - Contract validator：`Test-G2EntryRuntimeContract.ps1`，
-  `58862c088748d6e4e603685d23f4388b63f3e469b0a39a94f1ee9bd0c585f806`。
+  `987e3ae7ec47b32541799522c94cb2c15384422f72688541a6baf6efbdde09eb`。
 - Tests：`tests/Test-G2RuntimeTools.ps1`，
-  `4f1b7a2e76b3b0b49e17acc54681c0bc43abccb45348255c6188e17b7de8c1a8`。
+  `1ef28350d7b10c3915aa069bcc5c380d9b790b9fe9417dc7f30cf0c2a496c5e5`。
 - Repair audit receipt schema：`repair-audit-receipt.schema.json`，
-  `df7ebcae8a3b45332b30a629b8a944a7736032ab598b471c162d28c2f399929a`。
+  `8895cb8ac6287543aa89b75240d779f94924574de76fddd85b858a100fdaacac`。
 - Tool manifest：`runtime-tools.manifest.json`，
-  `bc25909554a12fd87eeeaf2f65fdf3d7bf3d9287aa13aab829f92fca70e16d74`。
+  `5595f6124cdbb043dcb703500ad9b511c8dbd29c7be2ccbaf2e59c30e6206cc1`。
 - Contract：`contract.json`，
-  `ac3ae6d6c43c15aa80099e12c21049e61b2c97d24457d7bd78f1f9dcaa5c848f`。
+  `b076be9caca2923dee1e57d8116948513f11019fa3f1cf28d787cd56bca7d42b`。
 - Tools digest：
-  `9222b335a13066694e7b8f6201fddb8c52b7b12912aec28f9ba17fcae954f063`。
-- 当前实现侧结果为 `114 PASS / 0 FAIL / 172 dynamic negative`；该结果不是独立 audit、
+  `9f563e9d7a2cbb14db905960883a26b911203d5fdc49d0b29a127c0b76b4748d`。
+- 当前实现侧结果为 `116 PASS / 0 FAIL / 188 dynamic negative`；该结果不是独立 audit、
   QA 或 runtime PASS。
 
 工具自测只使用静态 fixture、AST / JSON 和三份脚本的 `StaticSelfTest`；未调用 adb、
@@ -85,13 +86,18 @@ currentTransitions=62`。完整 handoff 的现场基线是 `108/108`；本轮未
 接受任意状态。当前合同只允许以下封闭集合：
 
 - `R2_WIP_REPAIR_R3_IN_PROGRESS`：`qaDispatchable=false`、`activePrompt=none`、
+  `generatedExecutableQaPrompt=false`、`authorization.qaDispatch=null`；
   `repair-audit-receipt.json` 不得存在；三工具仅允许 `Validate` / `StaticSelfTest`，
   `Register`、`RunWindow`、`Finalize`、`CaptureBefore` / `Verify` 全部拒绝。
 - `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA`：只可在合法
   `repair-audit-receipt.json` 下成立，要求 `qaDispatchable=true`，
-  `activePrompt=G2_PAD_QA_OWNER_2026_11_06`，三个工具状态与合同状态一致，三工具
-  contract / manifest / digest 现场匹配。Collector 才可进入全新 Pad `qa-pad-v2` 的
-  `Register` / `RunWindow`；K60 现有 predecessor 与锁门仍保持不变。
+  `activePrompt=G2_PAD_QA_OWNER_2026_11_06`、`generatedExecutableQaPrompt=true`、
+  `contractPackageReady=true`，并携带具体 `authorization.qaDispatch`。descriptor 必须绑定
+  canonical read-only preflight、显式 worktree / `codex/v2-integration` / audited head、
+  固定读序、`qa-pad-v2/**` 写域、Pad-only / K60 forbidden、单次 10 分钟无 retry、13 个
+  product gates、non-goals 与全部 stop conditions；`promptText` 的 UTF-8 SHA-256 必须同时
+  等于 contract `promptSha256`、receipt `qaPromptSha256` 与 policy 复算值。Collector 才可
+  进入全新 Pad `qa-pad-v2` 的 `Register` / `RunWindow`；K60 predecessor 与锁门保持不变。
 
 receipt schema 为 `aurorama.g2-repair-audit-receipt.v1`，严格 UTF-8 no BOM / LF、
 Ordinal 大小写敏感字段集合、重复 JSON 属性与未知字段 fail-closed。receipt 绑定 auditor、
@@ -104,8 +110,8 @@ future fixture 使用临时 Git object 中的合成严格后继，不使用当�
 
 当前真实合同的 `validation.repairAuditExpectations` 仍为
 `PENDING_SETTLEMENT_FINAL_AUDIT`，source / counts 全为 null。策略文件自身固定独立 exact
-constants：`toolFiles=4`、`testsPassed=114`、`testsFailed=0`、
-`dynamicNegative=172`、`currentTransitions=62`、`staticSelfTests=3`、`handoffPassed=108`、
+constants：`toolFiles=4`、`testsPassed=116`、`testsFailed=0`、
+`dynamicNegative=188`、`currentTransitions=62`、`staticSelfTests=3`、`handoffPassed=108`、
 `handoffFailed=0`、`handoffDynamicNegative=0`、`tempCleanupPassed=true`、
 `boundaryViolations=0`。future audit 必须让 contract expectations 与 receipt 同时逐项
 exact equal 这组策略常量，任一方不能提供或抬高该基线；高位、低位、缺失、null 与类型漂移
@@ -113,8 +119,9 @@ exact equal 这组策略常量，任一方不能提供或抬高该基线；高�
 单独 `61`、缺失、null 与字符串均 fail-closed。runtime manifest 同时要求恰好 11 个唯一路径
 和固定 kind 集合。
 
-当前真实合同**没有** `repair-audit-receipt.json`，仍保持 pre-audit 状态；本轮不推进状态，
-也没有生成 PASS receipt。contract 根对象、manifest、authorization、candidate、registration、
+当前真实合同**没有** `repair-audit-receipt.json`，`authorization.qaDispatch=null`，仍保持
+pre-audit / no executable prompt 状态；settled 兼容只在 temp fixture 中验证，本轮不推进
+真实状态，也没有生成 PASS receipt。contract 根对象、manifest、authorization、candidate、registration、
 session、device-lock 与 runtime report 的状态承载对象均按 Ordinal exact-property 校验。
 `Status` / `Validation`、`g2ToolsCounts` / `G2ToolsCounts`、K60
 `deviceOrder` / `DeviceOrder`、未知字段与同一对象中的重复属性均有负例覆盖。

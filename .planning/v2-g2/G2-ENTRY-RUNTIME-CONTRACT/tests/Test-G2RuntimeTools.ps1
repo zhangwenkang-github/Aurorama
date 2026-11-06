@@ -34,8 +34,8 @@ $script:passed = 0
 $script:failed = 0
 $script:negativeChecks = 0
 $script:failures = [System.Collections.Generic.List[string]]::new()
-$script:ExpectedG2ToolsPassed = 114
-$script:ExpectedG2DynamicNegative = 172
+$script:ExpectedG2ToolsPassed = 116
+$script:ExpectedG2DynamicNegative = 188
 $script:ExpectedHandoffPassed = 108
 $script:ExpectedHandoffDynamicNegative = 0
 
@@ -396,6 +396,17 @@ function New-FutureContractFixture {
     $future.authorization.activePrompt =
         $future.toolStatePolicy.qaReadyActivePrompt
     $future.authorization.generatedExecutableQaPrompt = $true
+    if (
+        $null -eq
+        $future.authorization.PSObject.Properties["qaDispatch"]
+    ) {
+        $future.authorization | Add-Member `
+            -NotePropertyName qaDispatch `
+            -NotePropertyValue $null
+    }
+    $future.authorization.qaDispatch = New-TestQaDispatchFixture `
+        -Contract $future `
+        -AuditedCommit $auditedCommit
     $repairAuditExpectations = [pscustomobject][ordered]@{
         status = "SETTLED_FROM_FINAL_AUDIT"
         source = [pscustomobject][ordered]@{
@@ -459,6 +470,135 @@ function New-FutureContractFixture {
         Manifest = $futureManifest
         ManifestPath = $futureManifestPath
     }
+}
+
+function New-TestQaDispatchFixture {
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)][string]$AuditedCommit
+    )
+    $ownerRole = "G2_PAD_QA_OWNER_2026_11_06"
+    $firstReadOnlyAction =
+        "pwsh -NoProfile -File tools/v2-handoff/Invoke-HandoffPreflight.ps1 -EmitPrompt"
+    $worktree =
+        "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama"
+    $branch = "codex/v2-integration"
+    $readOrder = @(
+        "AGENTS.md",
+        "docs/PROJECT_PLAN.md",
+        "docs/V2_PLAN.md",
+        "docs/TASKS.md",
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/CHECKPOINT.md",
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/README.md",
+        ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/contract.json"
+    )
+    $nonGoals = @($Contract.nonGoals | ForEach-Object { [string]$_ })
+    $stopConditions = @(
+        $Contract.stopConditions |
+            ForEach-Object { [string]$_ }
+    )
+    $productGateIds = @(
+        $Contract.productGates |
+            ForEach-Object { [string]$_.id }
+    )
+    $device = [pscustomobject][ordered]@{
+        order = "Pad->K60"
+        first = "Pad"
+        serial = "43af8627"
+        roleId = $ownerRole
+        k60 = "FORBIDDEN_UNTIL_PAD_FULL_CORE_PASS_AND_RELEASED_ACTIVE_0"
+    }
+    $window = [pscustomobject][ordered]@{
+        minutes = 10
+        seconds = 600
+        attempts = 1
+        continuous = $true
+        extensionAllowed = $false
+        retryAllowed = $false
+    }
+    $promptLines = [System.Collections.Generic.List[string]]::new()
+    $promptLines.Add("You are $ownerRole.")
+    $promptLines.Add("First read-only action: $firstReadOnlyAction")
+    $promptLines.Add("Worktree: $worktree")
+    $promptLines.Add("Branch: $branch")
+    $promptLines.Add(
+        "Head: $AuditedCommit (exact audited commit; clean new expected state)"
+    )
+    $promptLines.Add("Read order:")
+    foreach ($entry in $readOrder) {
+        $promptLines.Add("- $entry")
+    }
+    $promptLines.Add(
+        "Write scope: .planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2/**"
+    )
+    $promptLines.Add(
+        "Device: Pad $($device.serial) only; K60 $($device.k60)."
+    )
+    $promptLines.Add(
+        "Window: exactly 10 minutes / 600 seconds / one attempt / continuous; extension and retry are forbidden."
+    )
+    $promptLines.Add("Product gates:")
+    foreach ($gateId in $productGateIds) {
+        $promptLines.Add("- $gateId")
+    }
+    $promptLines.Add("Non-goals:")
+    foreach ($nonGoal in $nonGoals) {
+        $promptLines.Add("- $nonGoal")
+    }
+    $promptLines.Add("Stop conditions:")
+    foreach ($stopCondition in $stopConditions) {
+        $promptLines.Add("- $stopCondition")
+    }
+    $promptText = $promptLines -join "`n"
+    $promptSha256 = [Convert]::ToHexString(
+        [System.Security.Cryptography.SHA256]::HashData(
+            [System.Text.UTF8Encoding]::new($false).GetBytes($promptText)
+        )
+    ).ToLowerInvariant()
+    return [pscustomobject][ordered]@{
+        schema = "aurorama.g2-pad-qa-dispatch.v1"
+        ownerRole = $ownerRole
+        actionClass = "READ_ONLY_PREFLIGHT"
+        firstReadOnlyAction = $firstReadOnlyAction
+        worktree = $worktree
+        branch = $branch
+        head = $AuditedCommit
+        headExpectation = "EXACT_AUDITED_COMMIT_CLEAN"
+        readOrder = $readOrder
+        writeScope = @(
+            ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v2/**"
+        )
+        device = $device
+        window = $window
+        productGateIds = $productGateIds
+        nonGoals = $nonGoals
+        stopConditions = $stopConditions
+        promptText = $promptText
+        promptSha256 = $promptSha256
+    }
+}
+
+function Update-TestQaPromptBinding {
+    param(
+        [Parameter(Mandatory)]$Contract,
+        [Parameter(Mandatory)]$Receipt,
+        [Parameter(Mandatory)][string]$AuditedCommit
+    )
+    $dispatch = $Contract.authorization.qaDispatch
+    $previousHead = [string]$dispatch.head
+    $dispatch.head = $AuditedCommit
+    $dispatch.promptText = ([string]$dispatch.promptText).Replace(
+        $previousHead,
+        $AuditedCommit
+    )
+    $dispatch.promptSha256 = [Convert]::ToHexString(
+        [System.Security.Cryptography.SHA256]::HashData(
+            [System.Text.UTF8Encoding]::new($false).GetBytes(
+                [string]$dispatch.promptText
+            )
+        )
+    ).ToLowerInvariant()
+    $Receipt.qaPromptSha256 = $dispatch.promptSha256
 }
 
 function New-RepairAuditReceiptFixture {
@@ -541,6 +681,8 @@ function New-RepairAuditReceiptFixture {
             focusPeerSha256 =
                 [string]$Contract.candidate.focusPeer.sha256
         }
+        qaPromptSha256 =
+            [string]$Contract.authorization.qaDispatch.promptSha256
         qaPadV1 = $qaPadV1
         externalLock = [pscustomobject][ordered]@{
             state = "RELEASED_ACTIVE_0"
@@ -1113,6 +1255,263 @@ Invoke-Case "CONTRACT-REPAIR-AUDIT-EXPECTATIONS-PENDING" {
                     boundaryViolations
         ) `
         -Message "Pre-audit contract must not invent settled counts."
+}
+
+Invoke-Case "CONTRACT-STATE-SUPPORTS-PRE-AND-SETTLED-QA-PROMPT" {
+    $temp = New-TestTempRoot
+    try {
+        $preState = Assert-G2RuntimeToolStatePolicy `
+            -Contract $contract `
+            -ContractRoot $contractRoot `
+            -RepositoryRoot $repositoryRoot `
+            -Action Validate
+        Assert-Equal `
+            -Actual $preState.Mode `
+            -Expected "PRE_AUDIT_STATIC_ONLY" `
+            -Message "Current contract must stay PRE."
+        Assert-True `
+            -Condition (
+                $contract.authorization.generatedExecutableQaPrompt -eq
+                    $false -and
+                $null -eq $contract.authorization.qaDispatch
+            ) `
+            -Message "Current PRE contract must not carry or generate a prompt."
+
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $dispatch = $future.Contract.authorization.qaDispatch
+        Assert-Equal `
+            -Actual $dispatch.ownerRole `
+            -Expected "G2_PAD_QA_OWNER_2026_11_06" `
+            -Message "Future prompt owner."
+        Assert-Equal `
+            -Actual $dispatch.device.first `
+            -Expected "Pad" `
+            -Message "Future prompt first device."
+        Assert-Equal `
+            -Actual $dispatch.window.minutes `
+            -Expected 10 `
+            -Message "Future prompt window."
+        Assert-Equal `
+            -Actual @($dispatch.productGateIds).Count `
+            -Expected 13 `
+            -Message "Future prompt gate count."
+        Assert-True `
+            -Condition $dispatch.promptText.Contains(
+                "First read-only action: " +
+                    "pwsh -NoProfile -File " +
+                    "tools/v2-handoff/Invoke-HandoffPreflight.ps1 -EmitPrompt",
+                [System.StringComparison]::Ordinal
+            ) `
+            -Message "Future prompt canonical preflight is missing."
+        $expectedPromptSha = [Convert]::ToHexString(
+            [System.Security.Cryptography.SHA256]::HashData(
+                [System.Text.UTF8Encoding]::new($false).GetBytes(
+                    [string]$dispatch.promptText
+                )
+            )
+        ).ToLowerInvariant()
+        Assert-Equal `
+            -Actual $dispatch.promptSha256 `
+            -Expected $expectedPromptSha `
+            -Message "Future prompt hash."
+        Assert-Equal `
+            -Actual $receipt.Receipt.qaPromptSha256 `
+            -Expected $dispatch.promptSha256 `
+            -Message "Future receipt prompt binding."
+
+        $settledState = Assert-G2RuntimeToolStatePolicy `
+            -Contract $future.Contract `
+            -ContractRoot $contractRoot `
+            -RepositoryRoot $repositoryRoot `
+            -Action Validate `
+            -RepairAuditReceiptPathOverride $receipt.Path `
+            -ManifestPathOverride $future.ManifestPath
+        Assert-Equal `
+            -Actual $settledState.Mode `
+            -Expected "AUDIT_PASS_PENDING_FRESH_PAD_QA" `
+            -Message "Future settled mode."
+        Assert-Equal `
+            -Actual $settledState.QaPromptSha256 `
+            -Expected $dispatch.promptSha256 `
+            -Message "Policy prompt hash."
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
+}
+
+Invoke-Case "STATE-POLICY-REJECTS-UNBOUND-QA-PROMPT" {
+    $temp = New-TestTempRoot
+    try {
+        $future = New-FutureContractFixture `
+            -SourceContract $contract `
+            -ManifestPath $manifestPath `
+            -Destination $temp.Root
+        $receipt = New-RepairAuditReceiptFixture `
+            -Contract $future.Contract `
+            -ManifestPath $future.ManifestPath `
+            -Destination $temp.Root
+        $contractCases = @(
+            @{
+                Pattern = "AUTHORIZATION|PROMPT|STATE"
+                Mutate = {
+                    param($value)
+                    $value.authorization.generatedExecutableQaPrompt = $false
+                }
+            },
+            @{
+                Pattern = "AUTHORIZATION|PROMPT|STATE"
+                Mutate = {
+                    param($value)
+                    $value.authorization.contractPackageReady = $false
+                }
+            },
+            @{
+                Pattern = "AUTHORIZATION|PROMPT|STATE"
+                Mutate = {
+                    param($value)
+                    $value.authorization.activePrompt = "wrong-owner"
+                }
+            },
+            @{
+                Pattern = "PROMPT|DISPATCH"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch = $null
+                }
+            },
+            @{
+                Pattern = "PROMPT|FIELD|HASH"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.PSObject.Properties.
+                        Remove("promptSha256")
+                }
+            },
+            @{
+                Pattern = "PROMPT|HASH|MISMATCH"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.promptSha256 = ("0" * 64)
+                }
+            },
+            @{
+                Pattern = "PROMPT|HASH|MISMATCH"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.promptText += "`ntamper"
+                }
+            },
+            @{
+                Pattern = "PROMPT|OWNER|IDENTITY"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.ownerRole = "wrong-owner"
+                }
+            },
+            @{
+                Pattern = "PROMPT|DEVICE|FIELD"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.device.PSObject.Properties.
+                        Remove("k60")
+                }
+            },
+            @{
+                Pattern = "PROMPT|WINDOW|FIELD"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.window.PSObject.Properties.
+                        Remove("retryAllowed")
+                }
+            },
+            @{
+                Pattern = "PROMPT|READ_ORDER|READORDER"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.readOrder = @()
+                }
+            },
+            @{
+                Pattern = "PROMPT|NON_GOALS|NONGOALS"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.nonGoals = @()
+                }
+            },
+            @{
+                Pattern = "PROMPT|STOP|FIELD"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.PSObject.Properties.
+                        Remove("stopConditions")
+                }
+            },
+            @{
+                Pattern = "PROMPT|AUDIT|HEAD|COMMIT"
+                Mutate = {
+                    param($value)
+                    $value.authorization.qaDispatch.head = ("1" * 40)
+                }
+            }
+        )
+        foreach ($contractCase in $contractCases) {
+            $invalidContract = Copy-TestObject $future.Contract
+            & $contractCase.Mutate $invalidContract
+            Assert-Throws `
+                -MessagePattern $contractCase.Pattern `
+                -Action {
+                    Assert-G2RuntimeToolStatePolicy `
+                        -Contract $invalidContract `
+                        -ContractRoot $contractRoot `
+                        -RepositoryRoot $repositoryRoot `
+                        -Action Validate `
+                        -RepairAuditReceiptPathOverride $receipt.Path `
+                        -ManifestPathOverride $future.ManifestPath
+                }
+        }
+
+        $receiptCases = @(
+            @{
+                Pattern = "RECEIPT|PROMPT|FIELD"
+                Mutate = {
+                    param($value)
+                    $value.PSObject.Properties.Remove("qaPromptSha256")
+                }
+            },
+            @{
+                Pattern = "RECEIPT|PROMPT|HASH|MISMATCH"
+                Mutate = {
+                    param($value)
+                    $value.qaPromptSha256 = ("0" * 64)
+                }
+            }
+        )
+        foreach ($receiptCase in $receiptCases) {
+            $invalidReceipt = Copy-TestObject $receipt.Receipt
+            & $receiptCase.Mutate $invalidReceipt
+            Write-TestJson -Path $receipt.Path -Value $invalidReceipt
+            Assert-Throws `
+                -MessagePattern $receiptCase.Pattern `
+                -Action {
+                    Assert-G2RuntimeToolStatePolicy `
+                        -Contract $future.Contract `
+                        -ContractRoot $contractRoot `
+                        -RepositoryRoot $repositoryRoot `
+                        -Action Validate `
+                        -RepairAuditReceiptPathOverride $receipt.Path `
+                        -ManifestPathOverride $future.ManifestPath
+                }
+        }
+    } finally {
+        Remove-TestTempRoot -Temp $temp
+    }
 }
 
 Invoke-Case "STATE-POLICY-REJECTS-CASE-VARIANT-UNKNOWN-AND-DUPLICATE-FIELDS" {
@@ -2361,6 +2760,10 @@ Invoke-Case "STATE-POLICY-REJECTS-AUDIT-COMMIT-BINDING-DRIFT" {
         $equalReceipt = Copy-TestObject $receipt.Receipt
         $equalReceipt.auditedCommit = $minimumCommit
         $equalReceipt.parent = $minimumParent
+        Update-TestQaPromptBinding `
+            -Contract $equalContract `
+            -Receipt $equalReceipt `
+            -AuditedCommit $minimumCommit
         Write-TestJson -Path $receipt.Path -Value $equalReceipt
         Assert-Throws `
             -MessagePattern "STRICT_DESCENDANT|AUDITED_COMMIT" `
