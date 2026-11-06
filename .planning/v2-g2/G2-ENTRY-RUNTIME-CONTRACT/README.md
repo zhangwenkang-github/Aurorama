@@ -1,6 +1,7 @@
 # Aurorama G2 入口 Runtime 合同
 
-状态：`PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA / K60_GATED_LOCKED`
+状态：`WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR /
+PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED`
 
 本目录是全新的 G2 runtime 合同与证据边界。用户已通过 `V2-D210` 授权本合同下的运行时
 工具建设和设备 QA。Pad 可先执行；K60 必须等待 Pad 全核心 PASS 且锁释放后另派全新 owner。
@@ -43,24 +44,26 @@ P0-P3、未覆盖、cleanup、最终 verdict。
 
 ## Runtime 工具
 
-状态：`PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA /
+状态：`PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT /
 READY_SELF_TESTED_STATIC_ONLY / DEVICE_QA_NOT_RUN`。
 
 - Collector：`Invoke-G2RuntimeCollector.ps1`，
-  `b40a11358d3e451e81bdeddcec71c2256dc926c39350daf661b3c0f5059c2720`。
+  `6b6a3e94dabd9c73b10c746a444b32d309c2de31eb1f9363a4ecb96d65038971`。
 - Finalizer：`Finalize-G2RuntimeReport.ps1`，
-  `c81aab0fa93e8b917a997e9388b7d52384e7c338e66a73dfa9e3b8707ff5e42e`。
+  `4a149f2726c92c278be59acc25a7457a795e3d777906ee45605dc6e54827a666`。
 - Cleanup verifier：`Test-G2CleanupRestore.ps1`，
-  `4718ff2f20b364b83e31391be174e23e01970f0cc45945972c3e0365d43ac20a`。
+  `f41b7b5669f39855f2603881fd632db1dd9d91507ff3c1a9509351954160257e`。
 - Tool manifest：`runtime-tools.manifest.json`，
-  `88ef952eb7f87a3eb03bd1896a948e955a564d24ce744582b9d9c9b84e3c48bb`。
+  `c956c67adde8befb27166ab9a5107861879d7ed125077d7a4e7d49e878434bcc`。
 - Tools digest：
-  `df4d2425054c27f6f1bc5fc4d19029dfa03aeffb3b7ed5f57a8928d2adee6267`。
-- Tests：`tests/Test-G2RuntimeTools.ps1`，`48/48 PASS`，含 33 个负例。
+  `dac3540bca28945375f0d41e03cb9d10c4c6dbc2a5714b6dbdcb299cf639d9e5`。
+- Tests：`tests/Test-G2RuntimeTools.ps1`，`57/57 PASS`，含 37 个负例。
 
 工具自测只使用静态 fixture、AST / JSON 和三份脚本的 `StaticSelfTest`；未调用 adb、
 设备、网络或 Gradle。Collector 仅对接本合同的 Pad/K60 evidence root；K60 仍必须取得
 Pad 全核心 PASS、Pad 锁 `RELEASED_ACTIVE_0` 和 `V2-D210` receipt 后才能登记。
+本轮修复将 repo-relative 工具路径与 evidence-relative 合同路径分开解析，并把 cleanup
+判定收紧为当前 focus stack、真实路径状态、当前 session 进程与外部锁回读。
 
 ## 本地验证
 
@@ -75,5 +78,6 @@ pwsh -NoProfile -File 'tools/v2-handoff/Invoke-HandoffPreflight.ps1' -EmitPrompt
 ## 当前禁止项
 
 Q03 保持 Open，exact profile / voice 保持 Open，Pad P2 未接受，G1 `NOT_PASSED`，
-runtime `UNVERIFIED`，L2/L3 `LOCKED`。工具已静态自测完成；随后必须由另一个全新 Pad owner
-执行。K60 保持锁定，不得安装、运行或提前登记。G2 实现与 Release 仍未授权。
+runtime `UNVERIFIED`，L2/L3 `LOCKED`。工具修复 checkpoint 已完成，但用户要求暂停等待
+后续通知；`activePrompt=none / qaDispatchable=false`，不得创建 fresh audit 或 Pad/K60 QA。
+K60 保持锁定，不得安装、运行或提前登记。G2 实现与 Release 仍未授权。

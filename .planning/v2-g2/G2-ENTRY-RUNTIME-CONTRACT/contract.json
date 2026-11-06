@@ -1,8 +1,8 @@
 {
   "schema": "aurorama.g2-entry-runtime-contract.v1",
   "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
-  "version": "1.0.0",
-  "status": "PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA",
+  "version": "1.0.1",
+  "status": "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT",
   "createdAt": "2026-11-06T12:05:43.7576139+08:00",
   "owner": {
     "roleId": "G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06",
@@ -68,7 +68,7 @@
     "contractValidator": {
       "roleId": "G2_CONTRACT_VALIDATOR_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2EntryRuntimeContract.ps1",
-      "sha256": "39c5d76fae368d5a464a2e7e321620ba8dd5db5c4f9fdb630da00ba64ad157a7",
+      "sha256": "10acad646a78375a4a33b3b1cbb908c589dbada77d28170a26146e76ed9ba402",
       "status": "READY_CONTRACT_ONLY",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
@@ -76,7 +76,7 @@
     "runtimeCollector": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Invoke-G2RuntimeCollector.ps1",
-      "sha256": "b40a11358d3e451e81bdeddcec71c2256dc926c39350daf661b3c0f5059c2720",
+      "sha256": "6b6a3e94dabd9c73b10c746a444b32d309c2de31eb1f9363a4ecb96d65038971",
       "status": "READY_SELF_TESTED_STATIC_ONLY",
       "deviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
       "networkAccess": "FORBIDDEN",
@@ -85,7 +85,7 @@
     "runtimeFinalizer": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Finalize-G2RuntimeReport.ps1",
-      "sha256": "c81aab0fa93e8b917a997e9388b7d52384e7c338e66a73dfa9e3b8707ff5e42e",
+      "sha256": "4a149f2726c92c278be59acc25a7457a795e3d777906ee45605dc6e54827a666",
       "status": "READY_SELF_TESTED_STATIC_ONLY",
       "deviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
       "networkAccess": "FORBIDDEN",
@@ -94,7 +94,7 @@
     "cleanupVerifier": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2CleanupRestore.ps1",
-      "sha256": "4718ff2f20b364b83e31391be174e23e01970f0cc45945972c3e0365d43ac20a",
+      "sha256": "f41b7b5669f39855f2603881fd632db1dd9d91507ff3c1a9509351954160257e",
       "status": "READY_SELF_TESTED_STATIC_ONLY",
       "deviceAccess": "STATIC_SELF_TEST_ONLY_THIS_PHASE",
       "networkAccess": "FORBIDDEN",
@@ -103,20 +103,20 @@
     "runtimeManifest": {
       "roleId": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
       "path": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/runtime-tools.manifest.json",
-      "sha256": "88ef952eb7f87a3eb03bd1896a948e955a564d24ce744582b9d9c9b84e3c48bb",
+      "sha256": "c956c67adde8befb27166ab9a5107861879d7ed125077d7a4e7d49e878434bcc",
       "status": "PASS",
       "deviceAccess": "FORBIDDEN",
       "networkAccess": "FORBIDDEN"
     },
-    "digestSha256": "df4d2425054c27f6f1bc5fc4d19029dfa03aeffb3b7ed5f57a8928d2adee6267"
+    "digestSha256": "dac3540bca28945375f0d41e03cb9d10c4c6dbc2a5714b6dbdcb299cf639d9e5"
   },
   "authorization": {
     "entryDecision": "V2-D209",
     "deviceAuthorizationDecision": "V2-D210",
     "contractOnly": false,
     "contractPackageReady": true,
-    "qaDispatchable": true,
-    "activePrompt": "G2_PAD_QA_READY_PENDING_FRESH_QA_OWNER",
+    "qaDispatchable": false,
+    "activePrompt": "G2_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT_OWNER",
     "generatedExecutableQaPrompt": false,
     "deviceExecution": "AUTHORIZED_PAD_FIRST_K60_GATED",
     "requiredDeviceAuthorizationReceipt": true,

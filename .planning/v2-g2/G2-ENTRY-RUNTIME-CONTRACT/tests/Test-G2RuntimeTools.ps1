@@ -175,12 +175,16 @@ function New-FixturePassReport {
 Invoke-Case "CONTRACT-RUNTIME-TOOLS-BOUND" {
     Assert-Equal `
         -Actual $contract.status `
-        -Expected "PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA" `
+        -Expected "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT" `
         -Message "Contract status"
     Assert-Equal `
         -Actual $contract.authorization.activePrompt `
-        -Expected "G2_PAD_QA_READY_PENDING_FRESH_QA_OWNER" `
+        -Expected "G2_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT_OWNER" `
         -Message "Active prompt"
+    Assert-Equal `
+        -Actual $contract.authorization.qaDispatchable `
+        -Expected $false `
+        -Message "QA dispatch before fresh audit"
     Assert-Equal `
         -Actual $contract.tools.runtimeCollector.status `
         -Expected "READY_SELF_TESTED_STATIC_ONLY" `
@@ -348,13 +352,39 @@ Invoke-Case "CLEANUP-STATIC-SELF-TEST" {
         -Message "Cleanup static mode reported device commands."
 }
 
-Invoke-Case "PATH-ACCEPTS-PAD-EVIDENCE-ROOT" {
+Invoke-Case "PATH-ACCEPTS-EVIDENCE-RELATIVE-ROOT" {
+    $expected = [System.IO.Path]::GetFullPath(
+        (Join-Path $contractRoot "qa-pad-v1")
+    )
     $resolved = Resolve-G2BoundedPath `
         -Root $contractRoot `
-        -RelativePath ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1"
+        -RelativePath "qa-pad-v1"
+    Assert-Equal `
+        -Actual $resolved `
+        -Expected $expected `
+        -Message "Evidence-relative path"
     Assert-True `
-        -Condition $resolved.EndsWith("qa-pad-v1") `
-        -Message "Pad evidence path was not resolved."
+        -Condition (Test-Path -LiteralPath $resolved -PathType Container) `
+        -Message "Pad evidence directory was not resolved."
+}
+
+Invoke-Case "PATH-REPO-RELATIVE-TOOL-VALIDATE-PASSES" {
+    $output = @(
+        & pwsh -NoProfile -File $collectorPath `
+            -Action Validate `
+            -DeviceRole Pad 2>&1
+    )
+    $exitCode = $LASTEXITCODE
+    Assert-Equal `
+        -Actual $exitCode `
+        -Expected 0 `
+        -Message ("Collector Validate failed: " + ($output -join " | "))
+    Assert-True `
+        -Condition (($output -join "`n").Contains(
+            "PASS G2_RUNTIME_COLLECTOR_CONTRACT",
+            [System.StringComparison]::Ordinal
+        )) `
+        -Message "Collector Validate did not report contract PASS."
 }
 
 Invoke-Case "PATH-REJECTS-TRAVERSAL" {
@@ -870,6 +900,176 @@ Invoke-Case "CLEANUP-REJECTS-LOCK-NOT-RELEASED" {
     Assert-Equal -Actual $result.status -Expected "FAIL" -Message "Status"
 }
 
+Invoke-Case "CLEANUP-LS-NOT-FOUND-IS-ABSENT" {
+    $path = "/sdcard/Android/data/$mainPackage"
+    Assert-True `
+        -Condition (Test-G2CleanupPathAbsent `
+            -ExitCode 1 `
+            -Output "ls: ${path}: No such file or directory" `
+            -Path $path) `
+        -Message "ls not-found text was treated as a path."
+}
+
+Invoke-Case "CLEANUP-LS-CURRENT-PATH-IS-RESIDUAL" {
+    $path = "/sdcard/Android/data/$mainPackage"
+    Assert-True `
+        -Condition (-not (Test-G2CleanupPathAbsent `
+            -ExitCode 0 `
+            -Output $path `
+            -Path $path)) `
+        -Message "Current filesystem path was treated as absent."
+}
+
+Invoke-Case "CLEANUP-AUDIO-FOCUS-IGNORES-HISTORY" {
+    $dump = @"
+Audio Focus stack entries (last is top of stack):
+
+Notified focus events:
+  event:GAIN source=historic clientId=$mainPackage
+"@
+    Assert-True `
+        -Condition (-not (Test-G2CurrentAudioFocusPresent `
+            -Dump $dump `
+            -PackageName $mainPackage)) `
+        -Message "Historical audio focus event was counted as current."
+}
+
+Invoke-Case "CLEANUP-AUDIO-FOCUS-DETECTS-CURRENT" {
+    $dump = @"
+Audio Focus stack entries (last is top of stack):
+  source:binder clientId=$mainPackage gainRequest:3
+
+Notified focus events:
+  event:GAIN source=current clientId=$mainPackage
+"@
+    Assert-True `
+        -Condition (Test-G2CurrentAudioFocusPresent `
+            -Dump $dump `
+            -PackageName $mainPackage) `
+        -Message "Current audio focus owner was not detected."
+}
+
+Invoke-Case "CLEANUP-NO-SESSION-IGNORES-UNRELATED-LOGCAT" {
+    $processes = @(
+        [pscustomobject]@{
+            ProcessId = 4321
+            CommandLine = (
+                "adb.exe -s other-device logcat -v threadtime,year"
+            )
+        }
+    )
+    $orphans = Get-G2HostLogcatOrphanCount `
+        -Session $null `
+        -Processes $processes `
+        -Serial "43af8627"
+    Assert-Equal `
+        -Actual $orphans `
+        -Expected 0 `
+        -Message "Unrelated logcat process was counted as this session."
+}
+
+Invoke-Case "CLEANUP-LIVE-SESSION-LOGCAT-IS-ORPHAN" {
+    $processes = @(
+        [pscustomobject]@{
+            ProcessId = 4321
+            CommandLine = (
+                "adb.exe -s 43af8627 logcat -v threadtime,year"
+            )
+        }
+    )
+    $session = [pscustomobject]@{
+        hostLogcatProcessId = 4321
+        hostLogcatProcessStopped = $false
+    }
+    $orphans = Get-G2HostLogcatOrphanCount `
+        -Session $session `
+        -Processes $processes `
+        -Serial "43af8627"
+    Assert-Equal `
+        -Actual $orphans `
+        -Expected 1 `
+        -Message "Live session logcat process was not detected."
+}
+
+Invoke-Case "CLEANUP-SUCCESS-RELEASES-AND-REREADS-LOCK" {
+    $lockPath = Join-Path `
+        $testsRoot `
+        (".cleanup-lock-" + [Guid]::NewGuid().ToString("N") + ".json")
+    try {
+        Write-G2CleanupJson -Path $lockPath -Value ([pscustomobject]@{
+            schema = "aurorama.g2-device-lock.v1"
+            deviceRole = "Pad"
+            serial = "43af8627"
+            state = "ACTIVE_COUNT_1"
+            activeCount = 1
+            attemptNumber = 1
+            releasedAt = $null
+        })
+        $occupancy = Complete-G2CleanupDeviceLock `
+            -Path $lockPath `
+            -AllOtherChecksPassed $true `
+            -DeviceRole Pad `
+            -Serial "43af8627"
+        Assert-Equal `
+            -Actual $occupancy.state `
+            -Expected "RELEASED_ACTIVE_0" `
+            -Message "Returned lock state"
+        Assert-Equal `
+            -Actual $occupancy.activeCount `
+            -Expected 0 `
+            -Message "Returned active count"
+        $external = Read-Json $lockPath
+        Assert-Equal `
+            -Actual $external.state `
+            -Expected "RELEASED_ACTIVE_0" `
+            -Message "External lock state"
+        Assert-Equal `
+            -Actual $external.activeCount `
+            -Expected 0 `
+            -Message "External active count"
+    } finally {
+        if (Test-Path -LiteralPath $lockPath) {
+            Remove-Item -LiteralPath $lockPath -Force
+        }
+    }
+}
+
+Invoke-Case "CLEANUP-TRUE-ACTIVE-LOCK-STILL-FAILS" {
+    $lockPath = Join-Path `
+        $testsRoot `
+        (".cleanup-lock-" + [Guid]::NewGuid().ToString("N") + ".json")
+    try {
+        Write-G2CleanupJson -Path $lockPath -Value ([pscustomobject]@{
+            schema = "aurorama.g2-device-lock.v1"
+            deviceRole = "Pad"
+            serial = "43af8627"
+            state = "ACTIVE_COUNT_1"
+            activeCount = 1
+            attemptNumber = 1
+            releasedAt = $null
+        })
+        $occupancy = Complete-G2CleanupDeviceLock `
+            -Path $lockPath `
+            -AllOtherChecksPassed $false `
+            -DeviceRole Pad `
+            -Serial "43af8627"
+        $observed = $cleanupFixture |
+            ConvertTo-Json -Depth 20 |
+            ConvertFrom-Json
+        $observed.deviceLockState = $occupancy.state
+        $observed.deviceLockActiveCount = $occupancy.activeCount
+        $result = New-G2CleanupResult -InputObject $observed
+        Assert-Equal `
+            -Actual $result.status `
+            -Expected "FAIL" `
+            -Message "True ACTIVE lock"
+    } finally {
+        if (Test-Path -LiteralPath $lockPath) {
+            Remove-Item -LiteralPath $lockPath -Force
+        }
+    }
+}
+
 Invoke-Case "CLEANUP-FILTERS-NONCANDIDATE-DUMPS" {
     $dump = @"
 NotificationRecord(0x1: pkg=dev.aurorama.kokoro.harness text=candidate-state)
@@ -934,7 +1134,7 @@ Write-Output (
     "SUMMARY PASS={0} FAIL={1} NEGATIVE_CASES={2}" -f
     $script:passed,
     $script:failed,
-    33
+    37
 )
 
 if ($script:failed -gt 0) {

@@ -4849,7 +4849,7 @@ if ($EmitPrompt) {
     if ($isPostQaDeferredPhase) {
         Write-Output "NEXT_PROMPT_PATH=docs/V2_PLAN.md#ACTIVE"
         Write-Output "NEXT_PROMPT_BEGIN"
-        Write-Output "RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；G2_RUNTIME_CONTRACT_PACKAGE_READY；PAD_RUNTIME_QA_BLOCKED_RUNTIME_TOOL_PATH_BINDING；TOOL_REPAIR_REQUIRED；K60_GATED_LOCKED；V2-D210；当前合同没有可派发 QA prompt；旧 handoff 契约继续 activePrompt=none。首次 Pad QA 在工具 Validate 阶段停止，窗口未开始、候选未安装、锁已释放、K60 零接触；下一步只允许另一全新 runtime tool repair owner，修复与 fresh audit PASS 后才可另派 Pad QA。"
+        Write-Output "WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR；RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；G2_RUNTIME_CONTRACT_PACKAGE_READY；PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT；K60_GATED_LOCKED；V2-D210；当前合同没有可派发 QA prompt；旧 handoff 契约继续 activePrompt=none。首次 Pad QA 因路径绑定停止；repair owner 已修复并做到 57/57 工具回归、37 negative，设备命令为 0。用户要求暂停等待后续通知，恢复前不得派发 repair audit、Pad 或 K60 QA。"
         Write-Output "NEXT_PROMPT_END"
     }
     else {

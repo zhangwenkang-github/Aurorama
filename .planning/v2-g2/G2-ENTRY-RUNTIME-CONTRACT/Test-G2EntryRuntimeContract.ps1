@@ -139,7 +139,7 @@ Assert-True `
 Assert-True `
     -Condition (
         $contract.status -ceq
-        "PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA"
+        "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT"
     ) `
     -Name "CONTRACT-STATUS"
 Assert-True `
@@ -159,8 +159,9 @@ Assert-True `
     -Name "EVIDENCE-ROOT"
 Assert-True `
     -Condition (
-        $contract.authorization.qaDispatchable -eq $true -and
-        $contract.authorization.activePrompt -ceq "G2_PAD_QA_READY_PENDING_FRESH_QA_OWNER" -and
+        $contract.authorization.qaDispatchable -eq $false -and
+        $contract.authorization.activePrompt -ceq
+            "G2_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT_OWNER" -and
         $contract.authorization.deviceExecution -ceq
             "AUTHORIZED_PAD_FIRST_K60_GATED"
     ) `

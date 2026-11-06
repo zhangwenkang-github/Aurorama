@@ -73,13 +73,15 @@
   `G2_RUNTIME_CONTRACT_OWNER` 已建立
   `G2_RUNTIME_CONTRACT_PACKAGE_READY`，合同根为
   `.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/`。用户以 `V2-D210` 确认设备执行：
-  `PAD_RUNTIME_QA_BLOCKED_RUNTIME_TOOL_PATH_BINDING / TOOL_REPAIR_REQUIRED /
-  K60_GATED_LOCKED`。全新 `G2_PAD_QA_OWNER_2026_11_06` 在工具 Validate 阶段因仓库相对路径
-  二次绑定而停止；窗口未开始、候选未安装、设备锁已释放、K60 零接触，产品 P0–P3 仍
-  `NOT_ASSESSED`。下一阶段只能由另一全新 runtime tool repair owner 修复路径绑定与 cleanup
-  假阳性；修复提交并由新 audit PASS 后，才可另派全新 Pad QA。D210 不授权产品代码、G2
-  实现、Release 或 L2/L3。设备授权不是 QA / runtime / G1 PASS；settlement 合同回归保持
-  `104/104 PASS`。
+  `WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR /
+  PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED`。首次 Pad QA
+  在工具 Validate 阶段被仓库相对路径二次绑定阻断，窗口未开始、候选未安装、锁释放、K60
+  零接触，产品 P0–P3 仍 `NOT_ASSESSED`。全新 repair owner 已修复路径基准与 6 项 cleanup
+  假阳性，TDD 扩为 `57/57 PASS / 37 negative`，保留真实残留 fail-closed。下一阶段只能由
+  全新只读 repair audit 核验；PASS 并提交 clean 后才可另派全新 Pad QA。用户现已要求
+  暂停等待后续通知，`activePrompt=none`；在用户恢复前不得创建 repair audit、Pad/K60 QA。
+  D210 不授权产品代码、G2 实现、Release 或 L2/L3。设备授权不是 QA / runtime / G1 PASS；
+  settlement 合同回归保持 `104/104 PASS`。
 - 负责人只做交付 / 集成编排、范围、白名单、压缩报告与关键 diff 审查、集成决策和交接，不亲自
   实现、修工具、写产品代码或跑真机 QA，也不批量读取 raw 证据。实现、工具修复、文档协议、
   集成审查、Pad QA、K60 QA 各用全新专业子代理；每个 fresh agent 只做一阶段，禁止 followup

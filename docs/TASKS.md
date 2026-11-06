@@ -18,13 +18,15 @@
 > cleanup / restore PASS、锁 `ACTIVE=0`，K60 `8e875894` 未登记。当前无 QA role、无
 > `activePrompt` 可执行 prompt；`V2-D209` 已批准
 > `G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS /
-> G2_RUNTIME_CONTRACT_PACKAGE_READY / PAD_RUNTIME_QA_BLOCKED_RUNTIME_TOOL_PATH_BINDING /
-> TOOL_REPAIR_REQUIRED / K60_GATED_LOCKED`。全新
+> WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR /
+> G2_RUNTIME_CONTRACT_PACKAGE_READY / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT /
+> K60_GATED_LOCKED`。全新
 > `G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06` 已建立独立合同根、候选身份、13 个产品门、
 > report schema 与合同校验器；没有执行 QA、adb、设备、网络、产品实现、Release 或服务器写。
-> 用户以 `V2-D210` 确认下一步；全新 tool owner 已完成三件工具与 `48/48` 静态自测。首次 Pad
-> QA 在 collector Validate 的路径二次绑定处停止，窗口未开始、候选未安装、锁已释放、K60
-> 零接触。下一阶段只能由全新 repair owner 修复。当前不是 QA / runtime / G1 PASS，延期不是
+> 用户以 `V2-D210` 确认下一步；首次 Pad QA 在 collector Validate 的路径二次绑定处停止，
+> 窗口未开始、候选未安装、锁已释放、K60 零接触。全新 repair owner 已修复路径与 cleanup
+> 假阳性，静态回归 `57/57 PASS / 37 negative`。用户已要求暂停等待后续通知；`activePrompt=none`，
+> 在用户恢复前不得派发 audit / Pad / K60。当前不是 QA / runtime / G1 PASS，延期不是
 > `PASS_WITH_GAPS`。
 >
 > 历史 `ROUND9_READONLY_INTEGRATION_REVIEW_OWNER`、
@@ -36,7 +38,7 @@
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-| `V2-SOLUTION-BASELINE / V2-G2-ENTRY-CONTRACT` | G1→G2 入口 runtime 工具修复 | 首次全新 Pad QA 在 collector Validate 暴露仓库相对路径二次绑定；cleanup verifier 有 6 项假阳性。窗口未开始，候选未安装，锁已释放、K60 零接触。下一阶段只允许全新 runtime tool repair owner | ①不复用该 Pad QA owner 或 qa-v9；②不运行设备窗口、不安装包、不接触 K60；③不写产品代码、G2 实现、Release；不关闭 Q03、不冻结 profile/voice、不接受 P2 | `V2-D210`；qa-pad-v1/blocker.json + cleanup 证据；runtime-tools manifest；contract / receipt；状态 `PAD_RUNTIME_QA_BLOCKED_RUNTIME_TOOL_PATH_BINDING / TOOL_REPAIR_REQUIRED / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | repair owner 先只读复现路径重复绑定与 cleanup 假阳性；修复后用 fixture/静态测试证明；`48+` 工具测试、contract validator、handoff `104/104`、UTF8/JSON/AST/diff 全 PASS；提交 clean 并 fresh audit PASS 后才可重派 Pad QA | 重复失败、对象漂移、需设备 / 网络 / 产品代码 / 证据篡改 / 白名单外写入或新范围决策时停止 |
+| `V2-SOLUTION-BASELINE / V2-G2-ENTRY-CONTRACT` | G1→G2 入口 runtime 工具修复 checkpoint；用户暂停 | repair owner 已完成路径与 cleanup 假阳性修复，`57/57 PASS / 37 negative`；当前等待用户后续通知，不派发下一角色 | ①用户恢复前不得派发 repair audit / Pad / K60；②不运行设备、不安装包、不写产品代码/G2 实现/Release；③不复用 qa-v9 或失败 QA owner，不关闭 Q03、不冻结 profile/voice、不接受 P2 | `V2-D210`；qa-pad-v1/blocker；repair diff；runtime-tools manifest；contract / receipt；状态 `WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR / PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 文档记录 57/57、37 negative、contract validator、handoff 104/104、SHA、UTF8/JSON/AST/diff；提交 clean、`activePrompt=none`、设备锁 RELEASED、K60 未登记；用户恢复后才可指定 fresh audit / QA | 用户未恢复却派发、SHA / owner / scope 漂移、设备 / 网络 / 产品代码 / 证据篡改 / G2 根外写入时停止 |
 | `V2-G1-L1-EVIDENCE` | G1 L1 证据与静态收口 | 保留 qa-v8/qa-v9 历史证据与全部 fail-closed 回归，只允许补可离线复核的 G1 静态缺口 / G2 planning 输入 | ①不下载 MOSS、不触发新网络域；②不关闭 Q03、不冻结 profile / voice、不接受 Pad P2；③不用旧 30 分钟、stop-only、安装、cleanup、partial AudioTrack 或工具阻塞替代产品证据 | main `427,009,671 B / 252a3a15f637b05e874d9b2ad2aa0c48076d2babb83f66c5ec18683dc533e161`；peer `12,696 B / 61c79aa1b56b9fc921ce23199394d342f4badad31389b842f38c1d5c3a4bebab`；tools 31/2984/digest `69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`；QA-v8 tools 冻结 | `qa-v9/report.json` 为 `BLOCKED_TOOL_NONCONVERGENCE / BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED`；`CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / K60_LOCKED`；cleanup PASS；历史 `auditReceipt` 与 transitionPaths 保留，当前 post-QA 集合并列校验；ACTIVE=1 / TASKS=3 | 复用 QA / audit owner、改旧 report 或 raw 证据、digest / manifest / APK 漂移、证据根删除 / 移动、产品过度声明、设备 / 网络 / 生产写或越界时停止 |
 | `V2-G1-L1-KOKORO-EXACT` | G1 L1→L3 scoped 子任务；runtime 部分延期 | 把完整 Pad/K60 10 分钟 runtime matrix 延期到 G2 入口门；G1 只保留 qa-v9 partial 证据和静态 planning 输入 | 不做 QA 重试、Pad/K60 设备动作、P2 接受、生产代码、Q03、G2 实现或 Release；不把 qa-v9 start-only、cleanup、旧 K60 v5 或 Pad v6/v7 结果扩写为完整门 | v5 输入基线、`qa-v9/report.json`、`qa-v8/report.json` 摘要、`qa-v8/tools` digest、G1-S6 checkpoint；`ACTIVE=1 / TASKS=3` | 当前 `POST_QA_RUNTIME_DEFERRED`、auditReceipt 历史 PASS、`QA_DISPATCHABLE=DEFERRED_TO_G2`、padQa retired / dispatchable=false、K60 `8e875894` 未登记、锁 `ACTIVE=0`、产品 P0–P3 `NOT_ASSESSED` 一致 | QA / runtime PASS 过度声明、QA 重试、设备 / 首动作 / hash / path / owner / role writeScope 漂移、K60 提前、需产品代码或新范围决策时停止 |
 

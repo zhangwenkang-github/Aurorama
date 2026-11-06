@@ -291,7 +291,7 @@ function Get-G2CleanupContext {
         $contract.contractId -cne
             "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06" -or
         $contract.status -cne
-            "PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA" -or
+            "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT" -or
         $contract.tools.cleanupVerifier.roleId -cne $toolOwnerRole -or
         $contract.tools.cleanupVerifier.status -cne
             "READY_SELF_TESTED_STATIC_ONLY"
@@ -368,6 +368,202 @@ function Select-G2CleanupCandidateText {
                 }).Count -gt 0
             }
     ) -join "`n"
+}
+
+function Get-G2CurrentAudioFocusStack {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Dump)
+    $captured = [System.Collections.Generic.List[string]]::new()
+    $inStack = $false
+    foreach ($line in @($Dump -split "\r?\n")) {
+        if (-not $inStack) {
+            if ($line -match "^\s*Audio Focus stack entries\b") {
+                $inStack = $true
+                $captured.Add($line)
+            }
+            continue
+        }
+        if ($line -match "^\S") {
+            break
+        }
+        $captured.Add($line)
+    }
+    return ($captured -join "`n").TrimEnd()
+}
+
+function Test-G2CurrentAudioFocusPresent {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Dump,
+        [Parameter(Mandatory)][string]$PackageName
+    )
+    $stack = Get-G2CurrentAudioFocusStack -Dump $Dump
+    return (
+        -not [string]::IsNullOrWhiteSpace($stack) -and
+        $stack.Contains($PackageName, [System.StringComparison]::Ordinal)
+    )
+}
+
+function Test-G2CleanupPathAbsent {
+    param(
+        [Parameter(Mandatory)][int]$ExitCode,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Output,
+        [Parameter(Mandatory)][string]$Path
+    )
+    if ($ExitCode -eq 0) {
+        return $false
+    }
+    $escapedPath = [regex]::Escape($Path)
+    return (
+        $Output -match (
+            "(?im)^\s*(?:ls|/system/bin/ls):\s+" +
+            $escapedPath +
+            ":\s+No such file or directory\s*$"
+        )
+    )
+}
+
+function Get-G2HostLogcatProcessInventory {
+    try {
+        return @(
+            Get-CimInstance `
+                -ClassName Win32_Process `
+                -Filter "Name = 'adb.exe'" `
+                -ErrorAction Stop |
+                ForEach-Object {
+                    [pscustomobject]@{
+                        ProcessId = [int]$_.ProcessId
+                        CommandLine = [string]$_.CommandLine
+                    }
+                }
+        )
+    } catch {
+        throw "HOST_LOGCAT_INVENTORY_FAILED $($_.Exception.Message)"
+    }
+}
+
+function Get-G2HostLogcatOrphanCount {
+    param(
+        [AllowNull()]$Session,
+        [Parameter(Mandatory)][AllowEmptyCollection()]$Processes,
+        [Parameter(Mandatory)][string]$Serial
+    )
+    if ($null -eq $Session) {
+        return 0
+    }
+    $pidProperty = $Session.PSObject.Properties["hostLogcatProcessId"]
+    if ($null -eq $pidProperty) {
+        throw "COLLECTOR_SESSION_LOGCAT_PID_MISSING"
+    }
+    $sessionProcessId = 0
+    if (-not [int]::TryParse([string]$pidProperty.Value, [ref]$sessionProcessId)) {
+        throw "COLLECTOR_SESSION_LOGCAT_PID_INVALID"
+    }
+    if ($sessionProcessId -le 0) {
+        return 0
+    }
+    $serialPattern = [regex]::Escape($Serial)
+    foreach ($process in @($Processes)) {
+        if ($null -eq $process) {
+            continue
+        }
+        $processIdProperty = $process.PSObject.Properties["ProcessId"]
+        $commandLineProperty = $process.PSObject.Properties["CommandLine"]
+        if ($null -eq $processIdProperty -or $null -eq $commandLineProperty) {
+            continue
+        }
+        if ([int]$processIdProperty.Value -ne $sessionProcessId) {
+            continue
+        }
+        $commandLine = [string]$commandLineProperty.Value
+        if (
+            $commandLine -match "(?i)(?:^|\s)logcat(?:\s|$)" -and
+            $commandLine -match (
+                "(?i)(?:^|\s)-s\s+`"?${serialPattern}`"?(?:\s|$)"
+            )
+        ) {
+            return 1
+        }
+    }
+    return 0
+}
+
+function Get-G2CleanupDeviceLockOccupancy {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [AllowNull()][string]$DeviceRole,
+        [AllowNull()][string]$Serial
+    )
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return [pscustomobject]@{
+            state = "RELEASED_ACTIVE_0"
+            activeCount = 0
+            attemptNumber = 1
+        }
+    }
+    $lock = Read-G2CleanupJsonStrict $Path
+    $state = [string]$lock.state
+    $activeCount = [int]$lock.activeCount
+    $validState = (
+        ($state -ceq "ACTIVE_COUNT_1" -and $activeCount -eq 1) -or
+        ($state -ceq "RELEASED_ACTIVE_0" -and $activeCount -eq 0)
+    )
+    if (
+        [string]$lock.schema -cne "aurorama.g2-device-lock.v1" -or
+        -not $validState -or
+        (-not [string]::IsNullOrWhiteSpace($DeviceRole) -and
+            [string]$lock.deviceRole -cne $DeviceRole) -or
+        (-not [string]::IsNullOrWhiteSpace($Serial) -and
+            [string]$lock.serial -cne $Serial)
+    ) {
+        throw "CLEANUP_DEVICE_LOCK_INVALID"
+    }
+    return [pscustomobject]@{
+        state = $state
+        activeCount = $activeCount
+        attemptNumber = [int]$lock.attemptNumber
+    }
+}
+
+function Complete-G2CleanupDeviceLock {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][bool]$AllOtherChecksPassed,
+        [Parameter(Mandatory)][ValidateSet("Pad", "K60")][string]$DeviceRole,
+        [Parameter(Mandatory)][string]$Serial
+    )
+    if (-not $AllOtherChecksPassed) {
+        return Get-G2CleanupDeviceLockOccupancy `
+            -Path $Path `
+            -DeviceRole $DeviceRole `
+            -Serial $Serial
+    }
+    $attemptNumber = 1
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        $current = Get-G2CleanupDeviceLockOccupancy `
+            -Path $Path `
+            -DeviceRole $DeviceRole `
+            -Serial $Serial
+        $attemptNumber = $current.attemptNumber
+    }
+    Write-G2CleanupJson -Path $Path -Value ([pscustomobject]@{
+        schema = "aurorama.g2-device-lock.v1"
+        deviceRole = $DeviceRole
+        serial = $Serial
+        state = "RELEASED_ACTIVE_0"
+        activeCount = 0
+        attemptNumber = $attemptNumber
+        releasedAt = [DateTimeOffset]::Now.ToString("o")
+    })
+    $occupancy = Get-G2CleanupDeviceLockOccupancy `
+        -Path $Path `
+        -DeviceRole $DeviceRole `
+        -Serial $Serial
+    if (
+        $occupancy.state -cne "RELEASED_ACTIVE_0" -or
+        $occupancy.activeCount -ne 0
+    ) {
+        throw "CLEANUP_DEVICE_LOCK_RELEASE_NOT_OBSERVED"
+    }
+    return $occupancy
 }
 
 function New-G2CleanupResult {
@@ -558,8 +754,9 @@ function Get-G2CleanupSnapshot {
     $filteredMediaSession = Select-G2CleanupCandidateText `
         -Text $mediaSession `
         -Packages $candidatePackages
+    $currentAudioFocusStack = Get-G2CurrentAudioFocusStack -Dump $audio
     $filteredAudio = Select-G2CleanupCandidateText `
-        -Text $audio `
+        -Text $currentAudioFocusStack `
         -Packages $candidatePackages
     $mediaStackMatch = [regex]::Match(
         $mediaSession,
@@ -581,21 +778,23 @@ function Get-G2CleanupSnapshot {
                 -Key ([string]$setting[1])
         }
     )
+    $externalDataPath = "/sdcard/Android/data/$mainPackage"
     $externalResult = Invoke-G2CleanupAdb `
         -Serial $Serial `
         -Arguments @(
             "shell",
             "ls",
             "-d",
-            "/sdcard/Android/data/$mainPackage"
+            $externalDataPath
         ) -AllowFailure
+    $internalDataPath = "/data/data/$mainPackage"
     $internalResult = Invoke-G2CleanupAdb `
         -Serial $Serial `
         -Arguments @(
             "shell",
             "ls",
             "-d",
-            "/data/data/$mainPackage"
+            $internalDataPath
         ) -AllowFailure
     return [pscustomobject]@{
         schema = "aurorama.g2-cleanup-snapshot.v1"
@@ -614,9 +813,14 @@ function Get-G2CleanupSnapshot {
         notificationDump = $filteredNotification
         mediaSessionDump = $safeMediaSessionDump
         audioDump = $filteredAudio
+        audioFocusStackDetected = (
+            -not [string]::IsNullOrWhiteSpace($currentAudioFocusStack)
+        )
         settings = $settings
+        externalDataPath = $externalDataPath
         externalDataListing = $externalResult.Output
         externalDataExitCode = $externalResult.ExitCode
+        internalDataPath = $internalDataPath
         internalDataListing = $internalResult.Output
         internalDataExitCode = $internalResult.ExitCode
         candidateMainPackage = $mainPackage
@@ -749,14 +953,21 @@ function Invoke-G2CleanupVerification {
         -NotificationDump ([string]$after.notificationDump) `
         -MediaSessionDump ([string]$after.mediaSessionDump)
     $sessionPath = Join-Path $Context.Evidence.FullPath "collector-session.json"
-    $hostOrphans = 1
+    $session = $null
     if (Test-Path -LiteralPath $sessionPath -PathType Leaf) {
         $session = Read-G2CleanupJsonStrict $sessionPath
-        $hostOrphans = if (
-            [bool]$session.hostLogcatProcessStopped
-        ) { 0 } else { 1 }
     }
+    $hostProcesses = if ($null -eq $session) {
+        @()
+    } else {
+        @(Get-G2HostLogcatProcessInventory)
+    }
+    $hostOrphans = Get-G2HostLogcatOrphanCount `
+        -Session $session `
+        -Processes $hostProcesses `
+        -Serial $serial
     $audioFocusReleased = (
+        [bool]$after.audioFocusStackDetected -and
         -not [string]$after.audioDump.Contains(
             $mainPackage,
             [System.StringComparison]::Ordinal
@@ -794,6 +1005,34 @@ function Invoke-G2CleanupVerification {
     $userSettingsRestored = Compare-G2SettingSnapshots `
         -Before @($before.settings) `
         -After @($after.settings)
+    $externalDataAbsent = Test-G2CleanupPathAbsent `
+        -ExitCode ([int]$after.externalDataExitCode) `
+        -Output ([string](@($after.externalDataListing) -join "`n")) `
+        -Path ([string]$after.externalDataPath)
+    $internalDataAbsent = Test-G2CleanupPathAbsent `
+        -ExitCode ([int]$after.internalDataExitCode) `
+        -Output ([string](@($after.internalDataListing) -join "`n")) `
+        -Path ([string]$after.internalDataPath)
+    $allOtherChecksPassed = (
+        [bool]$residuals.packagesAbsent -and
+        [bool]$residuals.pidsAbsent -and
+        [bool]$residuals.serviceRecordsAbsent -and
+        [bool]$residuals.activeNotificationRecordsAbsent -and
+        [bool]$residuals.activeMediaSessionsAbsent -and
+        $audioFocusReleased -and
+        $externalDataAbsent -and
+        $internalDataAbsent -and
+        $hostOrphans -eq 0 -and
+        $networkRestored -and
+        $userSettingsRestored -and
+        $productionPackageMatch
+    )
+    $lockPath = Join-Path $Context.Evidence.FullPath "device-lock.json"
+    $lockOccupancy = Complete-G2CleanupDeviceLock `
+        -Path $lockPath `
+        -AllOtherChecksPassed $allOtherChecksPassed `
+        -DeviceRole $DeviceRole `
+        -Serial $serial
     $failClosed = [pscustomobject]@{
         packagesAbsent = [bool]$residuals.packagesAbsent
         pidsAbsent = [bool]$residuals.pidsAbsent
@@ -803,20 +1042,14 @@ function Invoke-G2CleanupVerification {
         activeMediaSessionsAbsent =
             [bool]$residuals.activeMediaSessionsAbsent
         audioFocusReleased = $audioFocusReleased
-        externalDataAbsent = -not (
-            [string]$after.externalDataListing -match
-                [regex]::Escape($mainPackage)
-        )
-        internalDataAbsent = -not (
-            [string]$after.internalDataListing -match
-                [regex]::Escape($mainPackage)
-        )
+        externalDataAbsent = $externalDataAbsent
+        internalDataAbsent = $internalDataAbsent
         hostLogcatOrphans = $hostOrphans
         networkRestored = $networkRestored
         userSettingsRestored = $userSettingsRestored
         productionPackageMatch = $productionPackageMatch
-        deviceLockState = "ACTIVE_COUNT_1"
-        deviceLockActiveCount = 1
+        deviceLockState = [string]$lockOccupancy.state
+        deviceLockActiveCount = [int]$lockOccupancy.activeCount
         evidence = @(
             "cleanup-before.json",
             "cleanup-after.json"
@@ -824,29 +1057,33 @@ function Invoke-G2CleanupVerification {
     }
     $cleanupAfterPath = Join-Path $Context.Evidence.FullPath "cleanup-after.json"
     Write-G2CleanupJson -Path $cleanupAfterPath -Value $after
-    $provisional = New-G2CleanupResult -InputObject $failClosed
-    $lockReleased = $provisional.status -eq "PASS"
-    if ($lockReleased) {
-        $failClosed.deviceLockState = "RELEASED_ACTIVE_0"
-        $failClosed.deviceLockActiveCount = 0
-    }
     $result = New-G2CleanupResult -InputObject $failClosed
+    $lockReleased = $result.status -eq "PASS"
     $resultPath = Join-Path $Context.Evidence.FullPath "cleanup.json"
     Write-G2CleanupJson -Path $resultPath -Value $result
-    $lockPath = Join-Path $Context.Evidence.FullPath "device-lock.json"
     Write-G2CleanupJson -Path $lockPath -Value ([pscustomobject]@{
         schema = "aurorama.g2-device-lock.v1"
         deviceRole = $DeviceRole
         serial = $serial
         state = [string]$result.deviceLockState
         activeCount = [int]$result.deviceLockActiveCount
-        attemptNumber = 1
+        attemptNumber = [int]$lockOccupancy.attemptNumber
         releasedAt = if ($lockReleased) {
             [DateTimeOffset]::Now.ToString("o")
         } else {
             $null
         }
     })
+    $externalLock = Get-G2CleanupDeviceLockOccupancy `
+        -Path $lockPath `
+        -DeviceRole $DeviceRole `
+        -Serial $serial
+    if (
+        $externalLock.state -cne [string]$result.deviceLockState -or
+        $externalLock.activeCount -ne [int]$result.deviceLockActiveCount
+    ) {
+        throw "CLEANUP_DEVICE_LOCK_EXTERNAL_STATE_MISMATCH"
+    }
     Write-Output "VERIFIED G2_CLEANUP_RESTORE"
     Write-Output "CLEANUP_STATUS=$($result.status)"
     Write-Output "FAILURES=$(@($result.failures).Count)"

@@ -299,7 +299,7 @@ function Get-G2FinalizerContext {
         $contract.contractId -cne
             "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06" -or
         $contract.status -cne
-            "PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA" -or
+            "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT" -or
         $contract.owner.roleId -cne
             "G2_RUNTIME_CONTRACT_OWNER_AURORAMA_2026_11_06" -or
         $contract.tools.runtimeFinalizer.roleId -cne $toolOwnerRole -or

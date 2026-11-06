@@ -586,6 +586,14 @@ QA、runtime、production 或 G1 PASS。
 `NOT_ASSESSED`，设备锁已释放、K60 零接触。cleanup verifier 另有 6 项假阳性。该结果是工具
 阻断，不是产品 FAIL / PASS；下一角色改为全新 runtime tool repair owner。
 
+repair owner 已修复路径基准和 cleanup 假阳性，工具回归扩为 `57/57 PASS / 37 negative`，
+真实 current residual 仍 fail-closed。当前 `PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT /
+qaDispatchable=false`；下一角色只能是全新只读 repair audit，工具修复不是产品结论。
+
+用户随后要求暂停并等待后续通知；当前外层状态为
+`WAITING_USER_NOTIFICATION_AFTER_G2_TOOL_REPAIR / activePrompt=none`。未派发 repair audit
+或 Pad/K60 QA，后续必须由用户恢复后才可继续。
+
 证据入口：`.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json`、
 `contract.json`、`report.schema.json`；`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；
 `docs/TASKS.md` In Progress。设备授权不是 QA / runtime / G1 PASS。

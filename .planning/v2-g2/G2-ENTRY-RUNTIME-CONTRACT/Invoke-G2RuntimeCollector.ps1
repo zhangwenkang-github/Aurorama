@@ -391,7 +391,7 @@ function Get-G2ContractContext {
         throw "CONTRACT_ID_MISMATCH"
     }
     if ($contract.status -cne
-        "PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA") {
+        "PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT") {
         throw "CONTRACT_STATUS_MISMATCH"
     }
     if ($contract.owner.roleId -cne
@@ -433,7 +433,7 @@ function Get-G2ContractContext {
     )) {
         $tool = $contract.tools.$toolName
         $toolPath = Resolve-G2BoundedPath `
-            -Root $contractRoot `
+            -Root $repositoryRoot `
             -RelativePath ([string]$tool.path)
         if ((Get-G2FileSha256 $toolPath) -cne [string]$tool.sha256) {
             throw "RUNTIME_TOOL_SHA_MISMATCH $toolName"
