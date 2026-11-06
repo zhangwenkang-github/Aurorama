@@ -1,0 +1,4 @@
+IDENT: uid=10315 set=DEFAULT tag=0x0 rb=1000 tb=10
+IDENT: uid=10315 set=FOREGROUND tag=0x0 rb=2000 tb=20
+IDENT: uid=10315 set=BACKGROUND tag=0x0 rb=4000 tb=40
+IDENT: uid=10316 set=DEFAULT tag=0x0 rb=9900 tb=99

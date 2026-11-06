@@ -1,0 +1,115 @@
+{
+  "schema": "aurorama.g2-runtime-tools.v1",
+  "contractId": "G2-ENTRY-RUNTIME-CONTRACT-2026-11-06",
+  "ownerRole": "G2_RUNTIME_TOOL_OWNER_2026_11_06",
+  "status": "READY_SELF_TESTED_STATIC_ONLY",
+  "createdAt": "2026-11-06T13:11:25.0690822+08:00",
+  "freshness": "ONE_TIME_ONLY",
+  "reuse": "FORBIDDEN",
+  "qaV9ReuseCount": 0,
+  "deviceCommandsExecutedInSelfTest": 0,
+  "adbCallsInSelfTest": 0,
+  "networkCallsInSelfTest": 0,
+  "gradleCallsInSelfTest": 0,
+  "fixtureModeCannotProducePass": true,
+  "devicePolicy": {
+    "allowedSerials": [
+      "43af8627",
+      "8e875894"
+    ],
+    "padFirst": true,
+    "k60RequiresPadFullPassAndReleasedLock": true,
+    "attemptsPerDevice": 1,
+    "windowSeconds": 600,
+    "extensionAllowed": false,
+    "retryAllowed": false
+  },
+  "capabilities": {
+    "runtimeCollector": [
+      "contract-candidate-authorization-schema-binding",
+      "path-boundary-and-evidence-root-enforcement",
+      "fresh-install-identity-readback",
+      "filtered-host-logcat-capture",
+      "real-audiotrack-start-completion-voice-mapping",
+      "zf_001-zm_010-reconciliation",
+      "head-middle-tail-snapshots",
+      "maximum-audio-gap",
+      "fgs-mediasession-notification-ui-system-snapshots",
+      "audio-focus-and-single-owner-logs",
+      "crash-anr-inputtimeout-exit-info-capture",
+      "ui-cancel-control-capture",
+      "process-death-restore",
+      "app-uid-all-partition-network-delta",
+      "cleanup-observation-entry"
+    ],
+    "runtimeFinalizer": [
+      "strict-report-schema-generation",
+      "missing-field-fail-closed",
+      "core-not-run-cannot-pass",
+      "fixture-cannot-produce-pass",
+      "thirteen-product-gate-recomputation"
+    ],
+    "cleanupVerifier": [
+      "packages",
+      "pids",
+      "service-records",
+      "active-notification-records",
+      "active-mediasessions",
+      "audio-focus",
+      "external-and-internal-data",
+      "host-logcat-orphans",
+      "network",
+      "user-settings",
+      "production-package-set",
+      "device-lock-released-active-0"
+    ]
+  },
+  "files": [
+    {
+      "path": "Invoke-G2RuntimeCollector.ps1",
+      "sha256": "b40a11358d3e451e81bdeddcec71c2256dc926c39350daf661b3c0f5059c2720",
+      "kind": "tool"
+    },
+    {
+      "path": "Finalize-G2RuntimeReport.ps1",
+      "sha256": "c81aab0fa93e8b917a997e9388b7d52384e7c338e66a73dfa9e3b8707ff5e42e",
+      "kind": "tool"
+    },
+    {
+      "path": "Test-G2CleanupRestore.ps1",
+      "sha256": "4718ff2f20b364b83e31391be174e23e01970f0cc45945972c3e0365d43ac20a",
+      "kind": "tool"
+    },
+    {
+      "path": "tests/Test-G2RuntimeTools.ps1",
+      "sha256": "4fcdbda70a56e3b90732b25a555c44c1e67330da942b694672c8a1bdb348bc76",
+      "kind": "test"
+    },
+    {
+      "path": "tests/fixtures/netstats-before.txt",
+      "sha256": "3c226961c4a54583629521a79015195f5b706ae802d13c45a1783751f0eebf34",
+      "kind": "fixture"
+    },
+    {
+      "path": "tests/fixtures/netstats-after.txt",
+      "sha256": "8a6e7fadbe828801b909fc9c1fe7885276801bb6b7203b6bc2599641dff88bfe",
+      "kind": "fixture"
+    },
+    {
+      "path": "tests/fixtures/runtime-log-happy.log",
+      "sha256": "bb4857956bbdfe9b6a3284c3e8930a7ccb38c5d21a9ad37c831ab5f920ad6dbd",
+      "kind": "fixture"
+    },
+    {
+      "path": "tests/fixtures/observations-complete.json",
+      "sha256": "c45c55c77ae41452369dfa9d72aa69d51f2ccdb2f032c198934a794ee50e11fb",
+      "kind": "fixture"
+    },
+    {
+      "path": "tests/fixtures/cleanup-complete.json",
+      "sha256": "15ea3df61cb5c15cee8551b7b4918e9cdee0fc7918eaf57112be268c05f00633",
+      "kind": "fixture"
+    }
+  ],
+  "toolsDigestSha256": "df4d2425054c27f6f1bc5fc4d19029dfa03aeffb3b7ed5f57a8928d2adee6267"
+}

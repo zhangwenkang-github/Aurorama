@@ -577,6 +577,10 @@ QA、runtime、production 或 G1 PASS。
    Open，exact profile / voice 保持 Open，Pad P2 未接受，G1 `NOT_PASSED`，runtime
    `UNVERIFIED`。
 
+当前执行状态：全新 runtime tool owner 已完成 collector / finalizer / cleanup verifier 与
+`48/48` 静态自测；`PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA / K60_GATED_LOCKED`。
+工具就绪不是 runtime PASS，下一角色必须是另一全新 Pad QA owner。
+
 证据入口：`.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/authorization-receipt.json`、
 `contract.json`、`report.schema.json`；`docs/V2_PLAN.md` §6、§10、§12 ACTIVE、§13；
 `docs/TASKS.md` In Progress。设备授权不是 QA / runtime / G1 PASS。

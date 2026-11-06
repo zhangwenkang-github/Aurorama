@@ -4849,7 +4849,7 @@ if ($EmitPrompt) {
     if ($isPostQaDeferredPhase) {
         Write-Output "NEXT_PROMPT_PATH=docs/V2_PLAN.md#ACTIVE"
         Write-Output "NEXT_PROMPT_BEGIN"
-        Write-Output "RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；G2_RUNTIME_CONTRACT_PACKAGE_READY；PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING；K60_GATED_LOCKED；V2-D210；当前合同没有可派发 QA prompt；旧 handoff 契约继续 activePrompt=none。下一步只允许全新 runtime tool owner 创建 / 自测工具，之后另派全新 Pad owner；K60 必须等待 Pad 全 PASS 且锁释放，不得写产品代码或启动 G2 实现 / Release。"
+        Write-Output "RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；G2_RUNTIME_CONTRACT_PACKAGE_READY；PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA；K60_GATED_LOCKED；V2-D210；当前合同没有可派发 QA prompt；旧 handoff 契约继续 activePrompt=none。全新 runtime tool owner 已完成 48/48 静态工具自测；下一步只允许另一全新 Pad QA owner，K60 必须等待 Pad 全 PASS 且锁释放，不得写产品代码或启动 G2 实现 / Release。"
         Write-Output "NEXT_PROMPT_END"
     }
     else {

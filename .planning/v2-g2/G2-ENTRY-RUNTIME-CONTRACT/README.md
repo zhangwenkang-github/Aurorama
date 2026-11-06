@@ -1,6 +1,6 @@
 # Aurorama G2 入口 Runtime 合同
 
-状态：`PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING / K60_GATED_LOCKED`
+状态：`PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA / K60_GATED_LOCKED`
 
 本目录是全新的 G2 runtime 合同与证据边界。用户已通过 `V2-D210` 授权本合同下的运行时
 工具建设和设备 QA。Pad 可先执行；K60 必须等待 Pad 全核心 PASS 且锁释放后另派全新 owner。
@@ -41,9 +41,31 @@
 AudioTrack 事件、连续性、系统表面、focus、稳定性、UI cancel、恢复、零网络、
 P0-P3、未覆盖、cleanup、最终 verdict。
 
+## Runtime 工具
+
+状态：`PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA /
+READY_SELF_TESTED_STATIC_ONLY / DEVICE_QA_NOT_RUN`。
+
+- Collector：`Invoke-G2RuntimeCollector.ps1`，
+  `b40a11358d3e451e81bdeddcec71c2256dc926c39350daf661b3c0f5059c2720`。
+- Finalizer：`Finalize-G2RuntimeReport.ps1`，
+  `c81aab0fa93e8b917a997e9388b7d52384e7c338e66a73dfa9e3b8707ff5e42e`。
+- Cleanup verifier：`Test-G2CleanupRestore.ps1`，
+  `4718ff2f20b364b83e31391be174e23e01970f0cc45945972c3e0365d43ac20a`。
+- Tool manifest：`runtime-tools.manifest.json`，
+  `88ef952eb7f87a3eb03bd1896a948e955a564d24ce744582b9d9c9b84e3c48bb`。
+- Tools digest：
+  `df4d2425054c27f6f1bc5fc4d19029dfa03aeffb3b7ed5f57a8928d2adee6267`。
+- Tests：`tests/Test-G2RuntimeTools.ps1`，`48/48 PASS`，含 33 个负例。
+
+工具自测只使用静态 fixture、AST / JSON 和三份脚本的 `StaticSelfTest`；未调用 adb、
+设备、网络或 Gradle。Collector 仅对接本合同的 Pad/K60 evidence root；K60 仍必须取得
+Pad 全核心 PASS、Pad 锁 `RELEASED_ACTIVE_0` 和 `V2-D210` receipt 后才能登记。
+
 ## 本地验证
 
 ```powershell
+pwsh -NoProfile -File '.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/tests/Test-G2RuntimeTools.ps1'
 pwsh -NoProfile -File '.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/Test-G2EntryRuntimeContract.ps1'
 pwsh -NoProfile -File 'tools/v2-handoff/Invoke-HandoffPreflight.ps1' -EmitPrompt
 ```
@@ -53,5 +75,5 @@ pwsh -NoProfile -File 'tools/v2-handoff/Invoke-HandoffPreflight.ps1' -EmitPrompt
 ## 当前禁止项
 
 Q03 保持 Open，exact profile / voice 保持 Open，Pad P2 未接受，G1 `NOT_PASSED`，
-runtime `UNVERIFIED`，L2/L3 `LOCKED`。当前只可先建设全新 runtime 工具；随后由另一个
-全新 Pad owner 执行。K60 保持锁定，不得安装、运行或提前登记。G2 实现与 Release 仍未授权。
+runtime `UNVERIFIED`，L2/L3 `LOCKED`。工具已静态自测完成；随后必须由另一个全新 Pad owner
+执行。K60 保持锁定，不得安装、运行或提前登记。G2 实现与 Release 仍未授权。

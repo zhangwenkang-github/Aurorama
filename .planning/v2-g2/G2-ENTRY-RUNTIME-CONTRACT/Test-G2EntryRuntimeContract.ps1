@@ -17,6 +17,9 @@ $contractPath = Join-Path $evidenceRoot "contract.json"
 $candidatePath = Join-Path $evidenceRoot "candidate.json"
 $authorizationPath = Join-Path $evidenceRoot "authorization-receipt.json"
 $schemaPath = Join-Path $evidenceRoot "report.schema.json"
+$runtimeToolsManifestPath = Join-Path `
+    $evidenceRoot `
+    "runtime-tools.manifest.json"
 $aapt2 = "F:\Develop\Android\AndroidSDK\build-tools\37.0.0\aapt2.exe"
 $apksigner =
     "F:\Develop\Android\AndroidSDK\build-tools\37.0.0\apksigner.bat"
@@ -83,11 +86,39 @@ function Get-FileSha256 {
         ToLowerInvariant()
 }
 
+function Resolve-ContractRelativePath {
+    param([Parameter(Mandatory)][string]$RelativePath)
+    if (
+        [System.IO.Path]::IsPathRooted($RelativePath) -or
+        $RelativePath -match "^[A-Za-z]:" -or
+        $RelativePath.StartsWith("\\", [System.StringComparison]::Ordinal)
+    ) {
+        throw "ASSERT-FAILED MANIFEST-PATH-ABSOLUTE"
+    }
+    if (@($RelativePath -split "[\\/]") -contains "..") {
+        throw "ASSERT-FAILED MANIFEST-PATH-TRAVERSAL"
+    }
+    $fullPath = [System.IO.Path]::GetFullPath(
+        (Join-Path $evidenceRoot $RelativePath)
+    )
+    $rootPrefix = $evidenceRoot.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar
+    ) + [System.IO.Path]::DirectorySeparatorChar
+    Assert-True `
+        -Condition $fullPath.StartsWith(
+            $rootPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase
+        ) `
+        -Name "MANIFEST-PATH-INSIDE-ROOT"
+    return $fullPath
+}
+
 foreach ($requiredPath in @(
     $contractPath,
     $candidatePath,
     $authorizationPath,
     $schemaPath,
+    $runtimeToolsManifestPath,
     $aapt2,
     $apksigner
 )) {
@@ -100,6 +131,7 @@ $contract = Read-JsonStrict $contractPath
 $candidate = Read-JsonStrict $candidatePath
 $authorization = Read-JsonStrict $authorizationPath
 [void](Read-JsonStrict $schemaPath)
+$runtimeToolsManifest = Read-JsonStrict $runtimeToolsManifestPath
 
 Assert-True `
     -Condition ($contract.schema -ceq "aurorama.g2-entry-runtime-contract.v1") `
@@ -107,7 +139,7 @@ Assert-True `
 Assert-True `
     -Condition (
         $contract.status -ceq
-        "PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING"
+        "PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA"
     ) `
     -Name "CONTRACT-STATUS"
 Assert-True `
@@ -128,7 +160,7 @@ Assert-True `
 Assert-True `
     -Condition (
         $contract.authorization.qaDispatchable -eq $true -and
-        $contract.authorization.activePrompt -ceq "G2_PAD_QA_PENDING_FRESH_TOOL_OWNER" -and
+        $contract.authorization.activePrompt -ceq "G2_PAD_QA_READY_PENDING_FRESH_QA_OWNER" -and
         $contract.authorization.deviceExecution -ceq
             "AUTHORIZED_PAD_FIRST_K60_GATED"
     ) `
@@ -191,19 +223,167 @@ Assert-True `
     -Name "GATE-COVERAGE"
 Assert-True `
     -Condition (
+        $contract.tools.runtimeCollector.roleId -ceq
+            "G2_RUNTIME_TOOL_OWNER_2026_11_06" -and
+        $contract.tools.runtimeFinalizer.roleId -ceq
+            "G2_RUNTIME_TOOL_OWNER_2026_11_06" -and
+        $contract.tools.cleanupVerifier.roleId -ceq
+            "G2_RUNTIME_TOOL_OWNER_2026_11_06" -and
         $contract.tools.runtimeCollector.status -ceq
-        "NOT_CREATED_AUTHORIZED_PENDING_TOOL_OWNER"
+            "READY_SELF_TESTED_STATIC_ONLY" -and
+        $contract.tools.runtimeFinalizer.status -ceq
+            "READY_SELF_TESTED_STATIC_ONLY" -and
+        $contract.tools.cleanupVerifier.status -ceq
+            "READY_SELF_TESTED_STATIC_ONLY" -and
+        $contract.tools.runtimeCollector.deviceAccess -ceq
+            "STATIC_SELF_TEST_ONLY_THIS_PHASE" -and
+        $contract.tools.runtimeFinalizer.deviceAccess -ceq
+            "STATIC_SELF_TEST_ONLY_THIS_PHASE" -and
+        $contract.tools.cleanupVerifier.deviceAccess -ceq
+            "STATIC_SELF_TEST_ONLY_THIS_PHASE" -and
+        $contract.tools.runtimeCollector.networkAccess -ceq "FORBIDDEN" -and
+        $contract.tools.runtimeFinalizer.networkAccess -ceq "FORBIDDEN" -and
+        $contract.tools.cleanupVerifier.networkAccess -ceq "FORBIDDEN"
     ) `
-    -Name "NO-RUNTIME-COLLECTOR"
+    -Name "RUNTIME-TOOLS-READY-STATIC-ONLY"
+Assert-True `
+    -Condition (
+        $runtimeToolsManifest.schema -ceq
+            "aurorama.g2-runtime-tools.v1" -and
+        $runtimeToolsManifest.contractId -ceq $contract.contractId -and
+        $runtimeToolsManifest.ownerRole -ceq
+            "G2_RUNTIME_TOOL_OWNER_2026_11_06" -and
+        $runtimeToolsManifest.status -ceq
+            "READY_SELF_TESTED_STATIC_ONLY" -and
+        [int]$runtimeToolsManifest.qaV9ReuseCount -eq 0 -and
+        [int]$runtimeToolsManifest.deviceCommandsExecutedInSelfTest -eq 0 -and
+        [int]$runtimeToolsManifest.adbCallsInSelfTest -eq 0 -and
+        [int]$runtimeToolsManifest.networkCallsInSelfTest -eq 0 -and
+        [int]$runtimeToolsManifest.gradleCallsInSelfTest -eq 0 -and
+        $runtimeToolsManifest.fixtureModeCannotProducePass -eq $true
+    ) `
+    -Name "RUNTIME-TOOLS-MANIFEST-IDENTITY"
+Assert-True `
+    -Condition (
+        @($runtimeToolsManifest.devicePolicy.allowedSerials).Count -eq 2 -and
+        @($runtimeToolsManifest.devicePolicy.allowedSerials) -contains
+            "43af8627" -and
+        @($runtimeToolsManifest.devicePolicy.allowedSerials) -contains
+            "8e875894" -and
+        $runtimeToolsManifest.devicePolicy.padFirst -eq $true -and
+        $runtimeToolsManifest.devicePolicy.
+            k60RequiresPadFullPassAndReleasedLock -eq $true -and
+        [int]$runtimeToolsManifest.devicePolicy.attemptsPerDevice -eq 1 -and
+        [int]$runtimeToolsManifest.devicePolicy.windowSeconds -eq 600 -and
+        $runtimeToolsManifest.devicePolicy.extensionAllowed -eq $false -and
+        $runtimeToolsManifest.devicePolicy.retryAllowed -eq $false
+    ) `
+    -Name "RUNTIME-TOOLS-DEVICE-POLICY"
+$runtimeToolFiles = [System.Collections.Generic.List[string]]::new()
+$runtimeToolPathSet = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::Ordinal
+)
+foreach ($manifestEntry in @($runtimeToolsManifest.files)) {
+    $manifestEntryPath = Resolve-ContractRelativePath `
+        ([string]$manifestEntry.path)
+    Assert-True `
+        -Condition (Test-Path -LiteralPath $manifestEntryPath -PathType Leaf) `
+        -Name ("RUNTIME-TOOL-FILE-EXISTS-" + $manifestEntry.path)
+    Assert-True `
+        -Condition $runtimeToolPathSet.Add([string]$manifestEntry.path) `
+        -Name ("RUNTIME-TOOL-FILE-DUPLICATE-" + $manifestEntry.path)
+    Assert-True `
+        -Condition (
+            (Get-FileSha256 $manifestEntryPath) -ceq
+            [string]$manifestEntry.sha256
+        ) `
+        -Name ("RUNTIME-TOOL-FILE-SHA-" + $manifestEntry.path)
+    $runtimeToolFiles.Add([string]$manifestEntry.path)
+}
+foreach ($requiredRuntimeTool in @(
+    "Invoke-G2RuntimeCollector.ps1",
+    "Finalize-G2RuntimeReport.ps1",
+    "Test-G2CleanupRestore.ps1",
+    "tests/Test-G2RuntimeTools.ps1"
+)) {
+    Assert-True `
+        -Condition $runtimeToolPathSet.Contains($requiredRuntimeTool) `
+        -Name ("RUNTIME-TOOL-MANIFEST-MISSING-" + $requiredRuntimeTool)
+}
+$runtimeToolDigestBuilder = [System.Text.StringBuilder]::new()
+foreach ($fileName in @(
+    "Finalize-G2RuntimeReport.ps1",
+    "Invoke-G2RuntimeCollector.ps1",
+    "Test-G2CleanupRestore.ps1"
+) | Sort-Object) {
+    $runtimeToolPath = Join-Path $evidenceRoot $fileName
+    [void]$runtimeToolDigestBuilder.Append(
+        (Get-FileSha256 $runtimeToolPath) + "  " + $fileName + "`n"
+    )
+}
+$runtimeToolsDigest = [Convert]::ToHexString(
+    [System.Security.Cryptography.SHA256]::HashData(
+        [System.Text.Encoding]::UTF8.GetBytes(
+            $runtimeToolDigestBuilder.ToString()
+        )
+    )
+).ToLowerInvariant()
+Assert-True `
+    -Condition (
+        $runtimeToolsDigest -ceq $contract.tools.digestSha256 -and
+        $runtimeToolsManifest.toolsDigestSha256 -ceq
+            $contract.tools.digestSha256
+    ) `
+    -Name "RUNTIME-TOOLS-DIGEST"
+foreach ($fileName in @(
+    "Invoke-G2RuntimeCollector.ps1",
+    "Finalize-G2RuntimeReport.ps1",
+    "Test-G2CleanupRestore.ps1"
+)) {
+    $runtimeToolPath = Join-Path $evidenceRoot $fileName
+    $runtimeToolText = [System.IO.File]::ReadAllText(
+        $runtimeToolPath,
+        $utf8Strict
+    )
+    Assert-True `
+        -Condition (-not $runtimeToolText.Contains(
+            "qa-v9",
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) `
+        -Name ("RUNTIME-TOOL-HISTORICAL-REFERENCE-" + $fileName)
+    foreach ($forbiddenToken in @(
+        "资源.txt",
+        "Authorization:",
+        "password=",
+        "accessToken",
+        "clientSecret"
+    )) {
+        Assert-True `
+            -Condition (-not $runtimeToolText.Contains(
+                $forbiddenToken,
+                [System.StringComparison]::OrdinalIgnoreCase
+            )) `
+            -Name (
+                "RUNTIME-TOOL-SENSITIVE-TOKEN-" +
+                $fileName +
+                "-" +
+                $forbiddenToken
+            )
+    }
+}
 $builderPath = Resolve-EvidencePath $contract.tools.candidateBuilder.path
 $validatorPath = Resolve-EvidencePath $contract.tools.contractValidator.path
 $schemaContractPath = Resolve-EvidencePath $contract.evidence.reportSchemaPath
+$runtimeManifestPath = Resolve-EvidencePath `
+    $contract.tools.runtimeManifest.path
 Assert-True `
     -Condition (
         (Get-FileSha256 $builderPath) -ceq
         $contract.tools.candidateBuilder.sha256 -and
         (Get-FileSha256 $validatorPath) -ceq
         $contract.tools.contractValidator.sha256 -and
+        (Get-FileSha256 $runtimeManifestPath) -ceq
+            $contract.tools.runtimeManifest.sha256 -and
         (Get-FileSha256 $schemaContractPath) -ceq
         $contract.evidence.reportSchemaSha256
     ) `

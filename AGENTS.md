@@ -73,9 +73,9 @@
   `G2_RUNTIME_CONTRACT_OWNER` 已建立
   `G2_RUNTIME_CONTRACT_PACKAGE_READY`，合同根为
   `.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/`。用户以 `V2-D210` 确认设备执行：
-  `PAD_RUNTIME_QA_AUTHORIZED_TOOLS_PENDING / K60_GATED_LOCKED`。下一阶段先用全新
-  `G2_RUNTIME_TOOL_OWNER_2026_11_06` 创建并自测专用工具，再由另一全新
-  `G2_PAD_QA_OWNER_2026_11_06` 执行 Pad；K60 必须等待 Pad 全 PASS 且锁释放。D210 不授权
+  `PAD_RUNTIME_TOOLS_READY_PENDING_INDEPENDENT_QA / K60_GATED_LOCKED`。全新
+  `G2_RUNTIME_TOOL_OWNER_2026_11_06` 已完成三件专用工具与 `48/48` 静态自测。下一阶段只能由
+  另一全新 `G2_PAD_QA_OWNER_2026_11_06` 执行 Pad；K60 必须等待 Pad 全 PASS 且锁释放。D210 不授权
   产品代码、G2 实现、Release 或 L2/L3。settlement 合同回归基线为 `104/104 PASS`；设备授权
   不是 QA / runtime / G1 PASS。
 - 负责人只做交付 / 集成编排、范围、白名单、压缩报告与关键 diff 审查、集成决策和交接，不亲自

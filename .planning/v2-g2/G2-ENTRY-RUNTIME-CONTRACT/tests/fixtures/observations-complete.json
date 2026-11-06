@@ -1,0 +1,285 @@
+{
+  "schema": "aurorama.g2-runtime-observations.v1",
+  "fixtureOnly": true,
+  "ownerRole": "G2_PAD_QA_OWNER_2026_11_06",
+  "evidenceRoot": ".planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/qa-pad-v1",
+  "device": {
+    "order": "Pad",
+    "role": "G2_PAD_QA_OWNER_2026_11_06",
+    "serial": "43af8627",
+    "model": "21051182C",
+    "sdk": 33,
+    "abi": "arm64-v8a",
+    "user": 0,
+    "lockStateAtStart": "ACTIVE_COUNT_1"
+  },
+  "predecessor": null,
+  "execution": {
+    "windowMinutes": 10,
+    "windowSeconds": 600,
+    "attemptNumber": 1,
+    "extended": false,
+    "retry": false,
+    "continuous": true,
+    "startedAt": "2026-11-06T12:00:00.000+08:00",
+    "completedAt": "2026-11-06T12:10:00.000+08:00",
+    "freshInstall": true,
+    "candidateIdentityVerified": true
+  },
+  "audioTrackEvents": [
+    {
+      "kind": "START",
+      "timestamp": "2026-11-06T12:00:01.000+08:00",
+      "voiceId": "zf_001",
+      "sentenceRequestId": "zf_001:0:1",
+      "trackSessionId": "TTS:1",
+      "observedPid": 2000,
+      "evidence": "raw/runtime.log"
+    },
+    {
+      "kind": "COMPLETION",
+      "timestamp": "2026-11-06T12:00:03.000+08:00",
+      "voiceId": "zf_001",
+      "sentenceRequestId": "zf_001:0:1",
+      "trackSessionId": "TTS:1",
+      "observedPid": 2000,
+      "evidence": "raw/runtime.log"
+    },
+    {
+      "kind": "START",
+      "timestamp": "2026-11-06T12:00:04.000+08:00",
+      "voiceId": "zf_001",
+      "sentenceRequestId": "zf_001:1:2",
+      "trackSessionId": "TTS:2",
+      "observedPid": 2000,
+      "evidence": "raw/runtime.log"
+    },
+    {
+      "kind": "COMPLETION",
+      "timestamp": "2026-11-06T12:00:06.000+08:00",
+      "voiceId": "zf_001",
+      "sentenceRequestId": "zf_001:1:2",
+      "trackSessionId": "TTS:2",
+      "observedPid": 2000,
+      "evidence": "raw/runtime.log"
+    },
+    {
+      "kind": "START",
+      "timestamp": "2026-11-06T12:05:01.000+08:00",
+      "voiceId": "zm_010",
+      "sentenceRequestId": "zm_010:3:3",
+      "trackSessionId": "TTS:3",
+      "observedPid": 2000,
+      "evidence": "raw/runtime.log"
+    },
+    {
+      "kind": "COMPLETION",
+      "timestamp": "2026-11-06T12:05:03.000+08:00",
+      "voiceId": "zm_010",
+      "sentenceRequestId": "zm_010:3:3",
+      "trackSessionId": "TTS:3",
+      "observedPid": 2000,
+      "evidence": "raw/runtime.log"
+    }
+  ],
+  "continuity": {
+    "head": {
+      "timestamp": "2026-11-06T12:00:01.000+08:00",
+      "voiceId": "zf_001",
+      "audioTrackStarted": true,
+      "audioTrackCompleted": true,
+      "evidence": [
+        "raw/runtime.log"
+      ]
+    },
+    "middle": {
+      "timestamp": "2026-11-06T12:05:01.000+08:00",
+      "voiceId": "zm_010",
+      "audioTrackStarted": true,
+      "audioTrackCompleted": true,
+      "evidence": [
+        "raw/runtime.log"
+      ]
+    },
+    "tail": {
+      "timestamp": "2026-11-06T12:08:30.000+08:00",
+      "voiceId": "zm_010",
+      "audioTrackStarted": true,
+      "audioTrackCompleted": true,
+      "evidence": [
+        "raw/runtime.log"
+      ]
+    },
+    "maximumAudioGapSeconds": 1
+  },
+  "systemSurfaces": {
+    "foregroundService": {
+      "status": "PASS",
+      "evidence": [
+        "raw/snapshots/head/service.txt"
+      ]
+    },
+    "mediaSession": {
+      "status": "PASS",
+      "evidence": [
+        "raw/snapshots/head/media-session.txt"
+      ]
+    },
+    "notification": {
+      "status": "PASS",
+      "evidence": [
+        "raw/snapshots/head/notification.txt"
+      ]
+    },
+    "ui": {
+      "status": "PASS",
+      "evidence": [
+        "raw/snapshots/head/ui.xml"
+      ]
+    },
+    "systemControls": {
+      "status": "PASS",
+      "evidence": [
+        "raw/snapshots/head/notification.txt"
+      ]
+    },
+    "stateEquality": {
+      "status": "PASS",
+      "evidence": [
+        "observations/state-equality.json"
+      ]
+    }
+  },
+  "audioFocus": {
+    "status": "PASS",
+    "singleOwner": true,
+    "ownerPids": [
+      2000
+    ],
+    "focusRequest": {
+      "status": "PASS",
+      "evidence": [
+        "raw/runtime.log"
+      ]
+    },
+    "focusLoss": {
+      "status": "PASS",
+      "evidence": [
+        "raw/peer.log"
+      ]
+    },
+    "focusGain": {
+      "status": "PASS",
+      "evidence": [
+        "raw/peer.log"
+      ]
+    },
+    "evidence": [
+      "raw/runtime.log",
+      "raw/peer.log"
+    ]
+  },
+  "stability": {
+    "nativeCrash": {
+      "status": "PASS",
+      "evidence": [
+        "raw/crash.log"
+      ]
+    },
+    "javaFatal": {
+      "status": "PASS",
+      "evidence": [
+        "raw/crash.log"
+      ]
+    },
+    "anr": {
+      "status": "PASS",
+      "evidence": [
+        "raw/crash.log"
+      ]
+    },
+    "inputTimeout": {
+      "status": "PASS",
+      "evidence": [
+        "raw/crash.log"
+      ]
+    },
+    "applicationExitInfo": {
+      "status": "PASS",
+      "evidence": [
+        "raw/exit-info.txt"
+      ]
+    },
+    "evidence": [
+      "raw/crash.log",
+      "raw/exit-info.txt"
+    ]
+  },
+  "uiCancel": {
+    "status": "PASS",
+    "cancelObserved": true,
+    "pidConverged": true,
+    "serviceConverged": true,
+    "notificationConverged": true,
+    "mediaSessionConverged": true,
+    "focusConverged": true,
+    "evidence": [
+      "raw/snapshots/cancel"
+    ]
+  },
+  "processRecovery": {
+    "processKilled": true,
+    "recoveryMode": "PAUSED_AT_LAST_STABLE_SENTENCE",
+    "autoPlaybackAfterDeath": false,
+    "lastStableSentenceRestored": true,
+    "packWhitelistVerified": true,
+    "serviceOwnerAfterRestart": {
+      "status": "PASS",
+      "evidence": [
+        "raw/snapshots/recovery/service.txt"
+      ]
+    },
+    "evidence": [
+      "raw/snapshots/recovery"
+    ]
+  },
+  "zeroNetwork": {
+    "status": "PASS",
+    "uid": 10315,
+    "allPartitionsAccounted": true,
+    "windowBytesDelta": 0,
+    "nonzeroAttribution": [],
+    "evidence": [
+      "raw/netstats-before.txt",
+      "raw/netstats-after.txt"
+    ]
+  },
+  "productFindings": {
+    "P0": "NOT_ASSESSED",
+    "P1": "NOT_ASSESSED",
+    "P2": "NOT_ASSESSED",
+    "P3": "NOT_ASSESSED",
+    "summary": "Static fixture only; no product assessment."
+  },
+  "uncovered": [],
+  "cleanupAndRestore": {
+    "status": "PASS",
+    "packagesAbsent": true,
+    "pidsAbsent": true,
+    "serviceRecordsAbsent": true,
+    "activeNotificationRecordsAbsent": true,
+    "activeMediaSessionsAbsent": true,
+    "audioFocusReleased": true,
+    "externalDataAbsent": true,
+    "internalDataAbsent": true,
+    "hostLogcatOrphans": 0,
+    "networkRestored": true,
+    "userSettingsRestored": true,
+    "productionPackageMatch": true,
+    "deviceLockState": "RELEASED_ACTIVE_0",
+    "deviceLockActiveCount": 0,
+    "evidence": [
+      "cleanup.json"
+    ]
+  }
+}
