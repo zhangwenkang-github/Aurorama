@@ -1,12 +1,13 @@
 # Cinefin · 项目总览与协作规程
 
-> **2026-11-07 当前 WIP**：`PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`。
+> **2026-11-07 当前状态**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
+> SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
+> CLEAN_PREFLIGHT_PASS`。下方 `PENDING_FRESH_REVIEW` 文案只作 pre-review 证据。
 > 用户已选择方案 A：receipt / contract / policy / schema 的 `currentTransitions=64`
 > 是不可变 audit-time snapshot；root settlement 提交后的 canonical preflight 可观测到
-> 不同 live transition count（当前推导 65），该值只记录、不与 64 比较。committed HEAD
-> 仍是 settlement 前 `6b51800b…`，当前 receipt/prompt 是不可执行 WIP；fresh review PASS
-> 前不得 root commit，root commit clean 与 canonical preflight PASS 前不得派 Pad/K60 QA。
-> 其他 live 对象漂移仍 fail-closed；产品 P0–P3 仍 `NOT_ASSESSED`，下一步仅 fresh review。
+> 不同 live transition count（已实测 65），该值只记录、不与 64 比较。fresh review 已 PASS；
+> settlement commit `241b8b35` 已 clean，canonical preflight 已 PASS；Pad QA 具备派发条件但
+> 尚未派发。其他 live 对象漂移仍 fail-closed；产品 P0–P3 仍 `NOT_ASSESSED`，K60 锁定。
 
 > **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-11-07　集成分支 `codex/v2-integration`
 > 项目级状态、任务线地图、协作规程都在本文件；单个任务线内部的需求 / 进度 / 决策写各自的线文档。

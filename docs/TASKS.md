@@ -4,13 +4,14 @@
 
 ## In Progress
 
-> **2026-11-07 当前 WIP**：`PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`。
+> **2026-11-07 当前状态**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
+> SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
+> CLEAN_PREFLIGHT_PASS`。下方 `PENDING_FRESH_REVIEW` 文案只作 pre-review 证据。
 > 用户已选择方案 A：receipt / contract / policy / schema 的 `currentTransitions=64`
 > 是不可变 audit-time snapshot；root settlement 提交后的 canonical preflight 可记录不同
-> live transition count（当前推导 65），该值只观测、不与 64 比较。QA-ready receipt/prompt
-> 仍是未提交 WIP，committed HEAD 仍是 `6b51800b…`。fresh review PASS 前不得 root commit；
-> root commit clean 与 canonical preflight PASS 前不得派 Pad/K60 QA；其他 live 对象漂移
-> 仍 fail-closed。产品 P0–P3 仍 `NOT_ASSESSED`。
+> live transition count（已实测 65），该值只观测、不与 64 比较。fresh review 已 PASS，
+> settlement commit `241b8b35` 已 clean，canonical preflight 已 PASS；Pad QA 具备派发条件
+> 但尚未派发。其他 live 对象漂移仍 fail-closed。产品 P0–P3 仍 `NOT_ASSESSED`，K60 锁定。
 
 > 当前覆盖状态（2026-11-07）：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA /
 > AUDIT_RECEIPT_PASS / qaDispatchable=true /

@@ -1,12 +1,14 @@
 # Aurorama G2 入口 Runtime 合同
 
-> **2026-11-07 当前 WIP**：`PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`。
+> **2026-11-07 当前状态**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
+> SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
+> CLEAN_PREFLIGHT_PASS`。下方 `PENDING_FRESH_REVIEW` 文案只作 pre-review 证据。
 > 用户已选择方案 A：receipt / contract / policy / schema 的 `currentTransitions=64`
 > 是不可变 audit-time snapshot；root settlement 提交后的 canonical preflight 可记录不同
-> live transition count（当前推导 65），该值只作 observation，不与 64 比较。下方
-> qa-ready contract / receipt / prompt 仍是未提交 WIP；fresh review PASS 前不得 root
-> commit，root commit clean 与 canonical preflight PASS 前不得 Pad/K60 QA。其他 live
-> branch / HEAD / dirty / candidate / tool / manifest / lock / receipt 漂移仍 fail-closed。
+> live transition count（已实测 65），该值只作 observation，不与 64 比较。fresh review
+> 已 PASS，settlement commit `241b8b35` 已 clean，canonical preflight 已 PASS；Pad QA
+> 具备派发条件但尚未派发。其他 live branch / HEAD / dirty / candidate / tool / manifest /
+> lock / receipt 漂移仍 fail-closed；K60 锁定。
 
 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA /
 qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 /

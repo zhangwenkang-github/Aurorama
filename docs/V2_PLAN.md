@@ -7,7 +7,9 @@
 > dispatch 状态；当前执行权由 clean settlement + canonical preflight PASS 后的
 > `contract.authorization.qaDispatch.promptText` 决定。
 > 当前阶段：开发前置·G1→G2 入口 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / auditedSourceCommit=96e19ca2606d851ecbe1c4ed15188767207f9f64 / receiptSha256=c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d / contractSha256=70d3b869cfb33f34f372c7de9e13cb5198f5e8502dc6c07383bb559e9f91bad0 / qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 / promptSha256=5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172 / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / HISTORICAL_GATE=validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / HISTORICAL_GATE=QA_DISPATCHABLE=DEFERRED_TO_G2 / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。独立 full audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 audited source/provenance `96e19ca2` PASS：G2 tools `116/0/188`、handoff `108/0 + TEMP_CLEANUP=PASS`、manifest `11/11`、clean witness、候选与历史证据均通过。`head/headExpectation` 只绑定 audited source/provenance；clean settlement 后 QA live HEAD 取 canonical preflight 现场值，历史 emitted `NEXT_PROMPT_BEGIN` 不覆盖 settlement 后 G2 dispatch。方案 A 已把 audit-time `currentTransitions=64` 与 live preflight transition observation 分离；当前 patch 仍待 fresh review，QA 尚未执行。真实机器合同仍为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / qaDispatchable=true`，当前不是 review、QA、runtime 或 G1 PASS。
-> **当前 WIP（2026-11-07）**：`PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`。
+> **当前状态（2026-11-07）**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
+> SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
+> CLEAN_PREFLIGHT_PASS`。下方 `PENDING_FRESH_REVIEW` 文案只作 pre-review 证据。
 > 当前是未提交 settlement WIP，不是 committed HEAD 的授权；receipt / contract / policy /
 > schema 的 `currentTransitions=64` 仅是不可变 audit snapshot，root settlement 提交后
 > canonical preflight 可观测到不同的 live count（当前推导 65），该值只记录、不与 64 比较。
@@ -3430,16 +3432,17 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW（2026-11-07）
+### ACTIVE：PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / PLAN_A_STATE_MODEL_REVIEW_PASS / CLEAN_PREFLIGHT_PASS（2026-11-07）
 
-**2026-11-07 方案 A 状态模型修补**：用户已选择方案 A。receipt / contract / policy /
+**2026-11-07 方案 A 状态模型已收口**：用户已选择方案 A。receipt / contract / policy /
 schema 的 `currentTransitions=64` 是不可变 audit-time snapshot，继续 exact 绑定；
-root settlement 提交后的 canonical preflight 可返回不同的 live transition count
-（当前推导为 65）。live 值只作为 observation 记录，不与 64 比较，也不能否定 clean
-settlement commit；其他 live branch / HEAD / dirty / candidate / tool / manifest / lock /
-receipt 漂移仍 fail-closed。当前仍是未提交 WIP，committed HEAD 为 settlement 前
-`6b51800b…`；fresh review PASS 前不得提交，root commit clean 与 canonical preflight PASS
-前不得 QA 或任何设备动作。该状态不是 review、QA、runtime 或 G1 PASS。
+root settlement 提交后的 canonical preflight 返回 live transition count `65`。live 值只
+作为 observation 记录，不与 64 比较，也不能否定 clean settlement commit；其他 live
+branch / HEAD / dirty / candidate / tool / manifest / lock / receipt 漂移仍 fail-closed。
+fresh review 已 `PASS / 0 findings`；settlement commit
+`241b8b356e2aab4d1ef43016639dc0203eb10f7d` 已创建且 clean，canonical preflight 对该
+HEAD 返回 `PASS / dirty=0 / currentTransitions=65`。Pad QA 已具备派发条件但尚未派发；
+K60 继续锁定。该状态不是 QA、runtime 或 G1 PASS。
 
 **G2 tool contract audit settlement（2026-11-07，PASS）**
 
@@ -6307,3 +6310,12 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`；本轮不宣称 review PASS。
   下一步仅由全新 fresh reviewer 只读复核，首动作 `git status --short`、随后
   `git diff --stat`；发现漂移即停止。
+- **2026-11-07 — Plan A 审查 PASS、settlement 提交与 clean preflight 收口**：全新
+  `G2_PLAN_A_STATE_MODEL_REVIEWER_2026_11_07` 对 receipt / contract / prompt / state
+  docs 返回 `PASS / P0-P3=0/0/0/0`。root 创建 settlement commit
+  `241b8b356e2aab4d1ef43016639dc0203eb10f7d`，9 文件、
+  `+689/-195`，未 push。canonical preflight 返回
+  `PASS HANDOFF_BOOTSTRAP_V2 phase=POST_QA_RUNTIME_DEFERRED ... head=241b8b35...
+  dirty=0 ... currentTransitions=65 ... lock=RELEASED`。这实测验证了方案 A：`64` 是
+  audit snapshot，`65` 是 clean settlement live observation，不作为 receipt drift。
+  Pad QA 尚未派发，产品 P0–P3 仍 `NOT_ASSESSED`，K60 仍锁定。

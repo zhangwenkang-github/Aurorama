@@ -4,18 +4,20 @@
 
 ## Aurorama 2.0 交接启动硬门（2026-11-06，优先于下方通用开工顺序）
 
-- **当前 WIP 状态（2026-11-07）**：`PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`。
+- **当前状态（2026-11-07）**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
+  SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
+  CLEAN_PREFLIGHT_PASS`。
   用户已选择方案 A：receipt / contract / policy / schema 的 `currentTransitions=64` 是
   audit-time immutable snapshot，必须继续 exact 绑定；root settlement 提交后的 canonical
-  preflight 可返回不同的 live transition count（当前推导为 65）。该 live 值只作为观测记录，
+  preflight 可返回不同的 live transition count（已实测为 65）。该 live 值只作为观测记录，
   不得与 receipt / contract 的 64 比较，也不得据此否定 clean settlement commit。
 - QA 的 live gate 固定为：preflight PASS，且现场 branch / HEAD / dirty / candidate / tool /
   manifest / lock / receipt 均匹配 clean settlement dispatch object；
-  `LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND`，仅记录、不比 64。当前仍是未提交
-  settlement WIP，committed HEAD 为 settlement 前
-  `6b51800b…`；在 fresh review PASS、root 提交 clean、canonical preflight PASS 三者全部完成
-  前，禁止派 Pad/K60 QA，也不得把工作区中的 `qaDispatchable=true` 当执行授权。产品 P0–P3
-  仍为 `NOT_ASSESSED`。
+  `LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND`，仅记录、不比 64。
+  **2026-11-07 已满足此门**：fresh review `PASS / 0 findings`，settlement commit
+  `241b8b35` 已创建且 clean，canonical preflight 对
+  `head=241b8b356e2aab4d1ef43016639dc0203eb10f7d / dirty=0 / currentTransitions=65`
+  返回 PASS。Pad QA 尚未派发；K60 继续锁定。产品 P0–P3 仍为 `NOT_ASSESSED`。
 
 - 已提交且 clean 的常规新会话第一条只读动作必须实际运行
   `pwsh -NoProfile -File 'F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\v2-handoff\Invoke-HandoffPreflight.ps1' -EmitPrompt`。
@@ -99,7 +101,8 @@
 - 当前 G2 settlement 机器合同为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA /
   AUDIT_RECEIPT_PASS / qaDispatchable=true /
   activePrompt=G2_PAD_QA_OWNER_2026_11_06 / PAD_QA_NOT_EXECUTED`；WIP 文档状态为
-  `PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW`。`V2-D209` 的
+  `PLAN_A_STATE_MODEL_REVIEW_PASS / SETTLEMENT_COMMIT=241b8b35 /
+  CLEAN_PREFLIGHT_PASS`；旧 `PENDING_FRESH_REVIEW` 文案只作 pre-review 证据。`V2-D209` 的
   `G2_RUNTIME_CONTRACT_OWNER` 已建立
   `.planning/v2-g2/G2-ENTRY-RUNTIME-CONTRACT/`，`V2-D210` 已授权 `Pad->K60` 条件执行；
   当前 K60 仍锁定，Pad QA 未派发、未执行。
