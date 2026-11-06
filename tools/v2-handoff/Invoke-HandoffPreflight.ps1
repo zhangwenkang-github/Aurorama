@@ -4852,7 +4852,7 @@ if ($EmitPrompt) {
     if ($isPostQaDeferredPhase) {
         Write-Output "NEXT_PROMPT_PATH=docs/V2_PLAN.md#ACTIVE"
         Write-Output "NEXT_PROMPT_BEGIN"
-        Write-Output "R2_WIP_REPAIR_R3_IN_PROGRESS；qaDispatchable=false；RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；PAD_RUNTIME_ATTEMPT_SCOPE_V2；K60_GATED_LOCKED；V2-D210；当前合同没有可派发 QA prompt；activePrompt=none。首次 Pad QA 因路径绑定停止，qa-pad-v1 的 NOT_STARTED blocker、cleanup 快照与自持锁保持原字节；新 attempt 仅使用 qa-pad-v2 / qa-k60-v2，并绑定外部权威锁 RELEASED_ACTIVE_0、registration/session 与 finalizer released lock。R2 WIP 未验收；R3 只完成实现侧修复，不声称 ready。下一步由 root 决定 fresh scoped review；review 第一条只读动作必须是 git status --short，随后 git diff --stat。"
+        Write-Output "G2_TOOL_CONTRACT_AUDIT_PASS_PENDING_SETTLEMENT；CONTRACT_STATUS_R2_WIP_REPAIR_R3_IN_PROGRESS；auditedCommit=96e19ca2606d851ecbe1c4ed15188767207f9f64；qaDispatchable=false；RUNTIME_QA_DEFERRED_TO_G2；G1_STATIC_CLOSURE_IN_PROGRESS；G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS；PAD_RUNTIME_ATTEMPT_SCOPE_V2；K60_GATED_LOCKED；V2-D210；当前合同没有可派发 QA prompt；activePrompt=none。独立 full audit 已 PASS：G2 tools 116/0/188、handoff 108/0、manifest HEAD 11/11、clean witness 33/33。真实合同仍 PRE、无 repair-audit-receipt、qaDispatch=null；qa-pad-v1 历史五文件保持不变，新 scope 仅 qa-pad-v2 / qa-k60-v2。下一步只做 fresh settlement，不再扩工具门；新会话先跑 canonical preflight，随后 git status --short 与 git diff --stat；settlement 提交 clean 后才可另派全新 Pad QA。"
         Write-Output "NEXT_PROMPT_END"
     }
     else {

@@ -469,3 +469,27 @@
   拦截；fixture SHA / size 在 ignore 调整前后必须完全不变。
 - **来源**：2026-11-07 G2 manifest fixture persistence P1；工作区 1219 B /
   `bb4857956bbdfe9b6a3284c3e8930a7ccb38c5d21a9ad37c831ab5f920ad6dbd`。
+
+## L038 工具协议修复必须有收敛预算，audit PASS 后停止扩锁
+
+- **现象**：一个 collector 路径绑定错误在连续多轮中继续暴露 cleanup、attempt 状态、
+  receipt、字段大小写、精确计数、repo-relative / evidence-relative、reparse、LF checkout、
+  manifest fixture persistence 等问题。每轮 review 都发现新的真实边角，修复又扩大
+  policy / schema / tests / docs；最终上下文超过 50 万 token，耗时远超一次 Pad QA。
+- **根因**：把“工具合同尽可能完备”当成无上限目标，没有在任务开始时规定协议修复轮次、
+  必须覆盖的产品风险、可接受残余风险与停止点。review 一次只交付一个 finding，修复后
+  又产生新的 exact oracle，形成“审计越细 → 新字段越多 → 再新增审计”的循环。
+- **对策**：
+  1. 每个工具合同先冻结 3–5 个用户风险不变量；只有能直接导致错机型、越权、伪 PASS、
+     不可复现或丢证据的问题才进入 P1。
+  2. 同一不变量最多经历“修复 → scoped review → 一次定点补丁”两轮；第三轮直接停止并
+     重新设计状态模型，不再逐 finding 叠加。
+  3. review findings 必须批量交付；同一 owner 一次修完，不能“一条 finding 一个 agent”。
+  4. 独立 audit PASS 后立即冻结 audited commit，下一步只允许 receipt settlement 或 QA；
+     没有真实 QA 失败或对象漂移时，禁止继续增加工具门。
+  5. 上下文到 25/30/35 万时分别记录水位、触发 checkpoint 和交接；工具协议循环也必须
+     受同一阈值约束，不能因“马上修完”继续。
+- **应用判据**：若连续两次修复后仍有新的协议边角，先停下来判断它是否属于用户承诺或
+  真实越权；纯理论完备性、可无限精确化的统计字段和自洽摘要优化一律延后。
+- **来源**：2026-11-07 G2 runtime 工具从一次路径错误扩展到多轮状态机修复；本 lesson
+  用于后续 QA、下载、播放器与本项目其他高风险工具链。

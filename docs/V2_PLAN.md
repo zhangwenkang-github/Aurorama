@@ -1,7 +1,7 @@
 # Aurorama 2.0 权威需求与交付计划
 
-> 状态：`R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / SETTLED_COMPATIBILITY_READY_PENDING_FINAL_AUDIT / PENDING_SETTLEMENT_FINAL_AUDIT / NO_REPAIR_AUDIT_RECEIPT / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64 / CONTRACT_REGRESSION_108_PENDING_FINAL_AUDIT / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
-> 当前阶段：开发前置·G1→G2 入口 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / SETTLED_COMPATIBILITY_READY_PENDING_FINAL_AUDIT / PENDING_SETTLEMENT_FINAL_AUDIT / no receipt / RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。首次 Pad QA 在 collector Validate 路径二次绑定处停止，窗口未开始、候选未安装、外部权威锁释放、K60 零接触；其 `qa-pad-v1` 历史 blockers、cleanup 快照与自持锁字节保持不变。本轮将历史 `PRE_WINDOW_TOOL_BLOCK` 与新一次 attempt 分离：新 scope 为 `qa-pad-v2` / `qa-k60-v2`，只有历史窗口 `NOT_STARTED`、`freshInstall=NOT_RUN` 且外部权威锁 `RELEASED_ACTIVE_0` 时才允许开户。R2 WIP 尚未被接受；R3–R10 只修当前 findings，`currentTransitions=64` 在 contract、receipt 与 schema 三层 exact，现场 G2 工具实现侧为 `116/0/188`，完整 handoff 基线 `108` 待 final audit。当前真实合同仍 PRE、`qaDispatch=null`、无 receipt / executable prompt；settled 兼容只在 temp fixture 中成立。当前不是 QA、runtime、产品 FAIL 或 G1 PASS。
+> 状态：`G2_TOOL_CONTRACT_AUDIT_PASS_PENDING_SETTLEMENT / R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / NO_REPAIR_AUDIT_RECEIPT / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / PRE_HANDOFF_AUDIT_PASS=PASS / QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64 / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`
+> 当前阶段：开发前置·G1→G2 入口 `G2_TOOL_CONTRACT_AUDIT_PASS_PENDING_SETTLEMENT / CONTRACT_STATUS_R2_WIP_REPAIR_R3_IN_PROGRESS / auditedCommit=96e19ca2606d851ecbe1c4ed15188767207f9f64 / qaDispatchable=false / no receipt / RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。独立 full audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 `96e19ca2` PASS：preflight/clean、G2 tools `116/0/188`、handoff `108/0`、manifest HEAD `11/11`、clean witness、候选与历史证据均通过。真实合同仍保持 PRE，因为按 L028 尚未生成 `repair-audit-receipt.json`、未切换 contract/ACTIVE/TASKS。下一次只做 settlement：用该 audited commit/count/hash 生成唯一 receipt 与 Pad QA descriptor，再提交 clean；不得继续扩工具门，也不得在 receipt 前执行 Register 或 QA。产品 P0–P3 仍 `NOT_ASSESSED`，当前不是 QA、runtime 或 G1 PASS。
 > 当前集成分支：`codex/v2-integration`
 > 最后更新：2026-11-07
 > 本文件是 2.0 需求的唯一权威账本；外部原始需求只读，当前实现证据仍以代码、构建和 QA 报告为准。
@@ -6132,3 +6132,17 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   真实合同仍 PRE、无 receipt、`qaDispatchable=false`；未 adb、设备、网络、Gradle、Memory、
   产品源码、服务器写、stage、commit、audit、QA 或 graphify。下一步由 root 组织 fresh scoped
   review；首条只读动作 `git status --short`，随后 `git diff --stat`。
+- **2026-11-07 — G2 tool contract 最终 audit PASS / 主动交接 settlement**：HEAD
+  `96e19ca2606d851ecbe1c4ed15188767207f9f64`，parent `ebe5dc59`；全新
+  `G2_FINAL_AUDIT_OWNER_2026_11_06` 独立 PASS。preflight clean，G2 tools
+  `116/0/188`，contract validator、Collector Validate、三份 StaticSelfTest、handoff
+  `108/0 + TEMP_CLEANUP=PASS`；runtime manifest 在 HEAD 与 clean checkout 均为
+  `11/11`，fixture `runtime-log-happy.log` 已 tracked；clean witness 33/33。
+  candidate main `1b3aedb1…` / peer `d1387ed5…`、authorization 与 qa-pad-v1 五 SHA
+  均不变，external lock `RELEASED_ACTIVE_0`，K60 未登记。真实 contract 仍为
+  `R2_WIP_REPAIR_R3_IN_PROGRESS / PENDING_SETTLEMENT_FINAL_AUDIT`、无 receipt、
+  `qaDispatchable=false`、`activePrompt=none`；future settled fixture 已支持严格后继
+  receipt、Pad QA descriptor 与 prompt SHA。用户指出本轮工具协议反复扩张消耗过高，
+  已记录 `LESSONS L038`：同一不变量最多两轮修复/复审，audit PASS 后冻结并只做
+  settlement/QA。当前上下文实测 `505,725 / 1,048,576`（48.2%），已超过 35 万交接线；
+  本线程到此停止扩项，下一步由全新会话执行 settlement，之后再派全新 Pad QA。

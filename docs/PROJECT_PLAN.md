@@ -34,7 +34,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / SETTLED_COMPATIBILITY_READY_PENDING_FINAL_AUDIT / PENDING_SETTLEMENT_FINAL_AUDIT / no receipt / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 当前实现侧 `Test-G2RuntimeTools=116/0/188 dynamic negative`；current preflight `roles=22 / tasks=3 / gates=6 / currentTransitions=64`；完整 handoff 基线 `108/108` 尚未执行，待 final audit。真实合同仍 PRE、无 `repair-audit-receipt.json`、`authorization.qaDispatch=null`、`qaDispatchable=false`、`activePrompt=none`，K60 保持锁定。future temp fixture 已严格支持 audit PASS 后的 executable Pad QA prompt / descriptor / SHA-256，不等于真实 prompt 已生成或 QA 已授权。下一步由 root 启动 fresh scoped review；首条只读动作 `git status --short`，随后 `git diff --stat`。产品 P0–P3 仍 `NOT_ASSESSED`，这不是 QA / runtime / G1 PASS。 |
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `G2_TOOL_CONTRACT_AUDIT_PASS_PENDING_SETTLEMENT / CONTRACT_STATUS_R2_WIP_REPAIR_R3_IN_PROGRESS / qaDispatchable=false / NO_REPAIR_AUDIT_RECEIPT / K60_GATED_LOCKED / PRODUCT_P0_P3_NOT_ASSESSED` | 独立 audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 committed HEAD `96e19ca2606d851ecbe1c4ed15188767207f9f64` PASS：G2 tools `116/0/188`、handoff `108/0`、manifest HEAD `11/11`、clean witness `33/33`、preflight clean。真实合同仍 PRE、无 receipt、`qaDispatch=null`、`activePrompt=none`，K60 锁定。下一会话只做 settlement：用该 audited commit 创建 schema 合法 receipt 与 Pad QA descriptor，提交 clean 后另派全新 Pad QA；不得继续扩工具门或执行设备。产品 P0–P3 仍 `NOT_ASSESSED`。 |
 > `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；当前唯一末态是
 > `POST_QA_RUNTIME_DEFERRED`，`PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，
 > 不是 QA / runtime / G1 PASS。`V2-D208` 之后不再有可执行 QA role。

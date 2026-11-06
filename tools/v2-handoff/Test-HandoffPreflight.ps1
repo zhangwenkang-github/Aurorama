@@ -1325,6 +1325,14 @@ try {
                 [System.StringComparison]::Ordinal
             ) -and
             $deferredEmitText.Contains(
+                "G2_TOOL_CONTRACT_AUDIT_PASS_PENDING_SETTLEMENT",
+                [System.StringComparison]::Ordinal
+            ) -and
+            $deferredEmitText.Contains(
+                "auditedCommit=96e19ca2606d851ecbe1c4ed15188767207f9f64",
+                [System.StringComparison]::Ordinal
+            ) -and
+            $deferredEmitText.Contains(
                 "qaDispatchable=false",
                 [System.StringComparison]::Ordinal
             ) -and
