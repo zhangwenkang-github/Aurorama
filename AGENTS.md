@@ -23,6 +23,17 @@
   不信任上游自报；FAIL 时停止并回报 failure code。
 - **同一 docs 提交不得写自身最终 SHA**：candidate / base / required ancestors / failed candidate 的稳定
   SHA 放在 `V2_HANDOFF_OBJECT_BEGIN/END`；当前 candidate HEAD 只由 manager 通过 `-ExpectedHead` 外部 pin。
+- **Selector 机械门**：含 `--tests` 的真实命令只放 QA test matrix；空引号、裸选项、空等号或
+  下一参数仍是选项均 FAIL。命令在 ACTIVE / QA_READY 的 matrix 外出现也 FAIL。
+  `TEST_SELECTOR_VERIFIED=PASS` 必须附带 `TEST_SELECTOR_EVIDENCE=<absolute nonempty file>`；
+  `NO_MATCHING_TESTS` / `EQUIVALENT` 必须由 `Test-Evidence` 校验现有非空证据。Owner 自报不算证据。
+- **对象、scope、role 与 memory 机械门**：HANDOFF_OBJECT 空白、必需 token 缺失或任一 scope token
+  非法时，linter 在 ancestry / diff 前 FAIL。`REQUIRED_ANCESTOR` 与 `FAILED_CANDIDATE` 用显式
+  `NONE` 表达空集合；`BASE_HEAD` 不接受 `NONE`。`ALLOWED_PATH` 只接受唯一、canonical、
+  repo-relative POSIX 路径。Handoff 始终检查 NEXT_ROLE / MANUAL_OWNER 唯一、精确相等且不命中
+  `RETIRED_ROLE`；MEMORY index 和 pointer 从 store 起的每个路径组件均拒绝 reparse point，
+  且不读取逃逸目标。上述均由 linter 机械执行；稳定文档是否应物理去重、历史文案是否可读以及
+  是否接受剩余 P2 由人工 owner 决策，不能替代机械 PASS。
 - **红线**：实现与独立 QA 分权；实现 owner 不派 QA、不 merge-prep、不 push / tag / Release。生产服务器
   只读；设备、网络、Release 与产品代码均需本次任务卡明确授权。控制面工具 PASS 不等于产品 QA、A0、
   architecture seam、W1 或 Release PASS。

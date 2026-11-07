@@ -152,8 +152,10 @@ function Get-TasksText {
         [string]$QaOverride = '',
         [string]$TestCommand = 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1',
         [string]$SelectorStatus = 'NOT_APPLICABLE',
+        [string]$SelectorEvidence = '',
         [string]$EquivalentEvidence = '',
-        [string]$P1Green = 'qa-green.txt'
+        [string]$P1Green = 'qa-green.txt',
+        [string[]]$RetiredRoles = @('AURORAMA_V2_W1B_1B_OWNER_2026_11_07')
     )
 
     $handoffEvidence = Join-Path $EvidenceRoot 'handoff.txt'
@@ -181,6 +183,11 @@ function Get-TasksText {
     $lines.Add('- EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN')
     $lines.Add('- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md > docs/TASKS.md')
     $lines.Add('- NEXT_ROLE=FRESH_INDEPENDENT_QA_OWNER')
+    foreach ($retiredRole in $RetiredRoles) {
+        if (-not [string]::IsNullOrWhiteSpace($retiredRole)) {
+            $lines.Add("- RETIRED_ROLE=$retiredRole")
+        }
+    }
     $lines.Add('- NEXT_PATH=tools/architecture/v2-handoff-lint.tests.ps1')
     $lines.Add('- STOP_CONDITION=Any contract drift stops dispatch.')
     $lines.Add('- SCOPE=Fixture validation only.')
@@ -224,7 +231,13 @@ function Get-TasksText {
     $lines.Add('<!-- V2_QA_TEST_MATRIX_BEGIN -->')
     $lines.Add('| Test ID | Target | Command | Selector status | Equivalent evidence |')
     $lines.Add('|---|---|---|---|---|')
-    $lines.Add("| TEST-001 | tools/architecture/v2-handoff-lint.tests.ps1 | $TestCommand | $SelectorStatus | $EquivalentEvidence |")
+    $selectorCell = if ([string]::IsNullOrWhiteSpace($SelectorEvidence)) {
+        $SelectorStatus
+    }
+    else {
+        "$SelectorStatus;TEST_SELECTOR_EVIDENCE=$SelectorEvidence"
+    }
+    $lines.Add("| TEST-001 | tools/architecture/v2-handoff-lint.tests.ps1 | $TestCommand | $selectorCell | $EquivalentEvidence |")
     $lines.Add('<!-- V2_QA_TEST_MATRIX_END -->')
     $lines.Add('')
     $lines.Add('<!-- V2_QA_P1_MATRIX_BEGIN -->')
@@ -252,6 +265,8 @@ function New-Fixture {
     Write-Utf8File -Path (Join-Path $evidenceRoot 'handoff.txt') -Text "HANDOFF evidence`n"
     Write-Utf8File -Path (Join-Path $evidenceRoot 'qa-red.txt') -Text "RED evidence`n"
     Write-Utf8File -Path (Join-Path $evidenceRoot 'qa-green.txt') -Text "GREEN evidence`n"
+    Write-Utf8File -Path (Join-Path $evidenceRoot 'qa-selector.txt') -Text "SELECTOR evidence`n"
+    Write-Utf8File -Path (Join-Path $evidenceRoot 'qa-equivalent.txt') -Text "EQUIVALENT evidence`n"
     Write-Utf8File -Path (Join-Path $memoryRoot 'project-note.md') -Text "Fixture project note.`n"
     $safeMemory = Join-Path $memoryRoot 'MEMORY.md'
     Write-Utf8File -Path $safeMemory -Text @'
@@ -339,6 +354,19 @@ function Remove-Fixture {
         throw "Refusing to remove unexpected fixture path: $resolved"
     }
     Remove-Item -LiteralPath $resolved -Recurse -Force
+}
+
+function Remove-ReparsePointFixture {
+    param([Parameter(Mandatory)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+    $item = Get-Item -LiteralPath $Path -Force
+    if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0) {
+        throw "Refusing to remove a non-reparse fixture path: $Path"
+    }
+    Remove-Item -LiteralPath $Path -Force
 }
 
 Invoke-FixtureTest -Name 'positive fixture passes Handoff and QaReady' -Body {
@@ -655,6 +683,626 @@ Invoke-FixtureTest -Name 'memory project traversal pointer fails Handoff' -Body 
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
         Assert-ExitCode -Result $result -Expected 2
         Assert-ContainsToken -Result $result -Token 'FAIL:MEMORY_PROJECT_UNSAFE_POINTER:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'quoted empty selector with verified claim fails QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests ""' `
+            -SelectorStatus 'TEST_SELECTOR_VERIFIED=PASS' `
+            -SelectorEvidence (Join-Path $fixture.EvidenceRoot 'qa-selector.txt')
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_SELECTOR_INVALID:TEST-001'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'trailing selector with verified claim fails QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests' `
+            -SelectorStatus 'TEST_SELECTOR_VERIFIED=PASS' `
+            -SelectorEvidence (Join-Path $fixture.EvidenceRoot 'qa-selector.txt')
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_SELECTOR_INVALID:TEST-001'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'empty equals selector with verified claim fails QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests=' `
+            -SelectorStatus 'TEST_SELECTOR_VERIFIED=PASS' `
+            -SelectorEvidence (Join-Path $fixture.EvidenceRoot 'qa-selector.txt')
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_SELECTOR_INVALID:TEST-001'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'whitespace-only selector with verified claim fails QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests "   "' `
+            -SelectorStatus 'TEST_SELECTOR_VERIFIED=PASS' `
+            -SelectorEvidence (Join-Path $fixture.EvidenceRoot 'qa-selector.txt')
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_SELECTOR_INVALID:TEST-001'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'selector followed by another option fails QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests --filter NoSuchTest' `
+            -SelectorStatus 'TEST_SELECTOR_VERIFIED=PASS' `
+            -SelectorEvidence (Join-Path $fixture.EvidenceRoot 'qa-selector.txt')
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_SELECTOR_INVALID:TEST-001'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'verified selector requires locator evidence' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests NoSuchTest' `
+            -SelectorStatus 'TEST_SELECTOR_VERIFIED=PASS'
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_SELECTOR_EVIDENCE_MISSING:TEST-001'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'verified selector rejects nonexistent locator evidence' -Body {
+    $fixture = New-Fixture
+    try {
+        $missing = Join-Path $fixture.EvidenceRoot 'missing-selector.txt'
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests NoSuchTest' `
+            -SelectorStatus 'TEST_SELECTOR_VERIFIED=PASS' -SelectorEvidence $missing
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_SELECTOR_EVIDENCE_MISSING:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'verified selector with existing locator evidence passes QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $selectorEvidence = Join-Path $fixture.EvidenceRoot 'qa-selector.txt'
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests NoSuchTest' `
+            -SelectorStatus 'TEST_SELECTOR_VERIFIED=PASS' -SelectorEvidence $selectorEvidence
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'QA_READY_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'no matching selectors rejects nonexistent equivalent evidence' -Body {
+    $fixture = New-Fixture
+    try {
+        $missing = Join-Path $fixture.EvidenceRoot 'missing-equivalent.txt'
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests NoMatch' `
+            -SelectorStatus 'NO_MATCHING_TESTS' -EquivalentEvidence $missing
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_EQUIVALENT_EVIDENCE_MISSING:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'no matching selectors with existing equivalent evidence passes QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $equivalent = Join-Path $fixture.EvidenceRoot 'qa-equivalent.txt'
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests NoMatch' `
+            -SelectorStatus 'NO_MATCHING_TESTS' -EquivalentEvidence $equivalent
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'QA_READY_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'selector command outside QA test matrix fails QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -ActiveExtra '- EXTRA_TEST_COMMAND=pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests NoSuchTest'
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_SELECTOR_OUTSIDE_MATRIX:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'memory project pointer through parent junction fails QaReady' -Body {
+    $fixture = New-Fixture
+    $junction = Join-Path $fixture.MemoryRoot 'escape'
+    try {
+        $outside = Join-Path $fixture.Parent 'outside-memory'
+        New-Item -ItemType Directory -Path $outside -Force | Out-Null
+        Write-Utf8File -Path (Join-Path $outside 'outside.md') -Text "outside`n"
+        try {
+            New-Item -ItemType Junction -Path $junction -Target $outside -ErrorAction Stop | Out-Null
+        }
+        catch {
+            throw "JUNCTION_FIXTURE_UNAVAILABLE: $($_.Exception.Message)"
+        }
+        Write-Utf8File -Path $fixture.SafeMemoryIndex -Text @'
+# Memory Index
+
+## project
+- [Escape](escape/outside.md) - unsafe
+'@
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:MEMORY_PROJECT_UNSAFE_POINTER:'
+    }
+    finally {
+        Remove-ReparsePointFixture -Path $junction
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'memory index under ancestor junction fails Handoff' -Body {
+    $fixture = New-Fixture
+    $linkedStore = Join-Path $fixture.Parent 'memory-link'
+    try {
+        try {
+            New-Item -ItemType Junction -Path $linkedStore -Target $fixture.MemoryRoot -ErrorAction Stop | Out-Null
+        }
+        catch {
+            throw "JUNCTION_FIXTURE_UNAVAILABLE: $($_.Exception.Message)"
+        }
+        $linkedIndex = Join-Path $linkedStore 'MEMORY.md'
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $fixture.CandidateHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $linkedIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:MEMORY_INDEX_UNSAFE_REPARSE:'
+    }
+    finally {
+        Remove-ReparsePointFixture -Path $linkedStore
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'memory project absolute pointer fails QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $outside = Join-Path $fixture.Parent 'outside.md'
+        Write-Utf8File -Path $outside -Text "outside`n"
+        Write-Utf8File -Path $fixture.SafeMemoryIndex -Text @"
+# Memory Index
+
+## project
+- [Escape]($outside) - unsafe
+"@
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:MEMORY_PROJECT_UNSAFE_POINTER:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'memory project file URI pointer fails QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $outside = Join-Path $fixture.Parent 'outside.md'
+        Write-Utf8File -Path $outside -Text "outside`n"
+        $uri = 'file:///' + ($outside.Replace('\', '/'))
+        Write-Utf8File -Path $fixture.SafeMemoryIndex -Text @"
+# Memory Index
+
+## project
+- [Escape]($uri) - unsafe
+"@
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:MEMORY_PROJECT_UNSAFE_POINTER:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'empty HANDOFF_OBJECT block fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = [regex]::Replace(
+            $fixture.TasksText,
+            '(?s)(<!-- V2_HANDOFF_OBJECT_BEGIN -->).*?(<!-- V2_HANDOFF_OBJECT_END -->)',
+            '$1$2'
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:HANDOFF_OBJECT_EMPTY:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'missing REQUIRED_ANCESTOR token fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = [regex]::Replace($fixture.TasksText, '(?m)^- REQUIRED_ANCESTOR=.*\r?\n?', '')
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:REQUIRED_ANCESTOR_TOKEN_MISSING:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'missing FAILED_CANDIDATE token fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = [regex]::Replace($fixture.TasksText, '(?m)^- FAILED_CANDIDATE=.*\r?\n?', '')
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:OBJECT_TOKEN_MISSING:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'NONE sentinels for optional object sets pass Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            "- REQUIRED_ANCESTOR=$($fixture.BaseHead)",
+            '- REQUIRED_ANCESTOR=NONE'
+        ).Replace(
+            "- FAILED_CANDIDATE=$($fixture.FailedHead)",
+            '- FAILED_CANDIDATE=NONE'
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'mixed REQUIRED_ANCESTOR NONE token fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            "- REQUIRED_ANCESTOR=$($fixture.BaseHead)",
+            "- REQUIRED_ANCESTOR=NONE`n- REQUIRED_ANCESTOR=$($fixture.BaseHead)"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:REQUIRED_ANCESTOR_NONE_MIXED:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'invalid BASE_HEAD fails before changed-path diff' -Body {
+    $fixture = New-Fixture
+    try {
+        Write-Utf8File -Path (Join-Path $fixture.Root 'docs/SEVENTH.md') -Text "seventh`n"
+        $mutated = $fixture.TasksText.Replace(
+            "- BASE_HEAD=$($fixture.BaseHead)",
+            '- BASE_HEAD=NONE'
+        )
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $newHead = Commit-AllAndGetHead -Fixture $fixture
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:BASE_HEAD_INVALID:NONE'
+        Assert-True -Condition (-not $result.Raw.Contains('CHANGED_PATH_LIMIT:', [System.StringComparison]::Ordinal)) `
+            -Message "Invalid base must not enter changed-path diff. $($result.Raw)"
+        Assert-True -Condition (-not $result.Raw.Contains('PATH_OUTSIDE_SCOPE:', [System.StringComparison]::Ordinal)) `
+            -Message "Invalid base must not enter scope diff. $($result.Raw)"
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'retired NEXT_ROLE fails Handoff even when owner matches' -Body {
+    $fixture = New-Fixture
+    try {
+        $retired = 'AURORAMA_V2_W1B_1B_OWNER_2026_11_07'
+        $mutated = $fixture.TasksText.Replace(
+            '- NEXT_ROLE=FRESH_INDEPENDENT_QA_OWNER',
+            "- NEXT_ROLE=$retired"
+        ).Replace(
+            '- MANUAL_OWNER=FRESH_INDEPENDENT_QA_OWNER',
+            "- MANUAL_OWNER=$retired"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token "FAIL:ACTIVE_ROLE_RETIRED:$retired"
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'retired NEXT_ROLE fails Handoff without QA block' -Body {
+    $fixture = New-Fixture
+    try {
+        $retired = 'AURORAMA_V2_W1B_1B_OWNER_2026_11_07'
+        $mutated = [regex]::Replace(
+            $fixture.TasksText,
+            '(?s)<!-- V2_QA_READY_BEGIN -->.*?<!-- V2_QA_READY_END -->',
+            ''
+        ).Replace(
+            '- NEXT_ROLE=FRESH_INDEPENDENT_QA_OWNER',
+            "- NEXT_ROLE=$retired"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token "FAIL:ACTIVE_ROLE_RETIRED:$retired"
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'MANUAL_OWNER mismatch fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            '- MANUAL_OWNER=FRESH_INDEPENDENT_QA_OWNER',
+            '- MANUAL_OWNER=OTHER_QA_OWNER'
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:QA_MANUAL_OWNER_MISMATCH:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'MANUAL_OWNER mismatch fails QaReady' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            '- MANUAL_OWNER=FRESH_INDEPENDENT_QA_OWNER',
+            '- MANUAL_OWNER=OTHER_QA_OWNER'
+        )
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:QA_MANUAL_OWNER_MISMATCH:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'duplicate MANUAL_OWNER fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            '- MANUAL_OWNER=FRESH_INDEPENDENT_QA_OWNER',
+            "- MANUAL_OWNER=FRESH_INDEPENDENT_QA_OWNER`n- MANUAL_OWNER=FRESH_INDEPENDENT_QA_OWNER"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:QA_TOKEN_DUPLICATE:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'ALLOWED_PATH dot fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            '- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1',
+            "- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1`n- ALLOWED_PATH=."
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ALLOWED_PATH_INVALID:.'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'ALLOWED_PATH backslash fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            '- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1',
+            "- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1`n- ALLOWED_PATH=docs\LESSONS.md"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ALLOWED_PATH_INVALID:docs\LESSONS.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'ALLOWED_PATH repeated slash fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            '- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1',
+            "- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1`n- ALLOWED_PATH=docs//LESSONS.md"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ALLOWED_PATH_INVALID:docs//LESSONS.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'ALLOWED_PATH trailing slash fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            '- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1',
+            "- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1`n- ALLOWED_PATH=docs/LESSONS.md/"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ALLOWED_PATH_INVALID:docs/LESSONS.md/'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'ALLOWED_PATH dot segment fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            '- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1',
+            "- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1`n- ALLOWED_PATH=./AGENTS.md"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ALLOWED_PATH_INVALID:./AGENTS.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'duplicate canonical ALLOWED_PATH fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            '- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1',
+            "- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1`n- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ALLOWED_PATH_DUPLICATE:'
     }
     finally {
         Remove-Fixture -Fixture $fixture

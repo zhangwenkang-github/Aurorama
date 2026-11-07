@@ -567,23 +567,41 @@
   `TASKS`，旧 HEAD / owner / next role 可能继续被当作派单事实；含 `--tests` 的测试过滤
   可能零匹配却仍被写成通过；QA 前置只写在 prose，派发前没人机械复核；一个微小文档或
   harness 修复又会重开整轮 audit；规则虽写了命令，但没有固定入口、failure code 和证据门。
+  进一步对抗 fixture 还证明：verified 只写一句自报、等效证据只写不存在路径、selector 命令
+  藏在 test matrix 外都能通过；memory 只查最终文件会漏父目录 junction；HANDOFF_OBJECT
+  markers 空白或缺字段会跳过对象门；旧 NEXT_ROLE 值不改字段名仍可继续派单。
 - **根因**：动态状态没有唯一写者；文档试图记录自身提交 SHA，产生自引用和过期副本；测试 /
-  QA 结论依赖人工自报；控制面修改与 fresh audit 之间缺少一次性事务边界。
+  QA 结论依赖人工自报；空 block 与空 token collection 被当成“未配置”而不是失败；词法路径
+  检查不能证明没有 reparse 祖先；role 检查只盯字段名而未校验值、retirement 与 owner 等式；
+  控制面修改与 fresh audit 之间缺少一次性事务边界。
 - **对策**：
   1. `docs/TASKS.md` 的唯一 `V2_HANDOFF_ACTIVE_BEGIN/END` 是唯一动态状态源；稳定文档只留
      决策 / 里程碑与 `TASKS` 指针。旧 current-looking 副本必须标 `HISTORICAL`，获授权后清理。
   2. candidate / base / required ancestors / failed candidate 放 `V2_HANDOFF_OBJECT_BEGIN/END`；
      同一 docs 提交不写自身 SHA，当前 candidate 由 manager 在提交后用 `-ExpectedHead` 外部 pin。
+     Marker block 必须非空，全部对象 token 先通过结构 / 存在性 / canonical scope 校验，之后才做
+     ancestry / diff；`REQUIRED_ANCESTOR` 与 `FAILED_CANDIDATE` 的显式 `NONE` 表达空集合，
+     `BASE_HEAD=NONE` 非法，`ALLOWED_PATH` 只接受唯一 canonical POSIX repo-relative 路径。
   3. 新会话 / 交接 run `tools/architecture/v2-handoff-lint.ps1 -Mode Handoff`；QA 派发前与 QA
      owner 首动作 run `-Mode QaReady`。只接受 `HANDOFF_LINT=PASS` / `QA_READY_LINT=PASS`，
      失败必须输出 `FAIL:<CODE>:<path>` 并非零。
-  4. 每个 `--tests` 命令必须有同行 `TEST_SELECTOR_VERIFIED=PASS`，或
-     `NO_MATCHING_TESTS / EQUIVALENT` 加非空等效证据；P1 必须有 RED / GREEN / 绝对证据路径。
+  4. 含 `--tests` 的真实命令只能出现在 QA test matrix。Selector 必须非空；
+     `TEST_SELECTOR_VERIFIED=PASS` 必须附绝对、存在、非空 `TEST_SELECTOR_EVIDENCE`；
+     `NO_MATCHING_TESTS / EQUIVALENT` 必须附实际存在且非空的等效证据。ACTIVE / QA_READY
+     的 matrix 外命令直接 FAIL；P1 必须有 RED / GREEN / 绝对证据路径。
   5. FAIL 由同一 docs / implementation owner 在 5–10 分钟内修正并重跑；同一门最多两轮修复、
      一次全长回归，PASS 后只做一次 fresh pre-handoff audit，不再为每个小修重开审计。
+  6. `RETIRED_ROLE=<id>` 是显式退役清单；Handoff 始终检查 ACTIVE NEXT_ROLE 不命中退役值，
+     QA `MANUAL_OWNER` 与 NEXT_ROLE 唯一且精确相等，不以 QA block 是否存在决定 retirement。
+     MEMORY index 与 project pointer 从 store 起的每个组件都查 reparse，命中即停止，不读取目标。
+     上述 selector / object / scope / role / memory 规则由 linter **机械执行**；是否物理清理
+     稳定文档旧副本、是否接受已披露文案 P2 属于**人工 owner** 判断，不能替代机械 PASS。
 - **验证判据**：positive fixture 两模式 PASS；clean / HEAD / branch / unique ACTIVE / 旧 HEAD /
-  越界路径 / 第 N+1 文件 / 空证据 / QA_READY 缺失 / 空测试过滤 / P1 缺 RED/GREEN / memory
-  越限或逃逸指针均有明确非零负例。
-- **来源**：2026-11-08 `V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08` 实现候选；
+  越界或别名路径 / 第 N+1 文件 / 空证据 / QA_READY 缺失 / selector 四种空值与 matrix 外命令 /
+  locator 或 equivalent 证据缺失 / 空 HANDOFF_OBJECT / 缺对象 token / `NONE` sentinel 误用 /
+  旧 role / owner mismatch / junction 祖先均有明确非零负例。Repair R1 完整 suite `50/0`。
+- **来源**：2026-11-08 `V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08` 实现候选及 QA R1
+  `FAIL` 后的 repair R1；
   命令见 `AGENTS.md`、`R036/R037`、`docs/TASKS.md` 的可执行调用点，证据见
-  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08`。
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-2026-11-08` 与
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08`。

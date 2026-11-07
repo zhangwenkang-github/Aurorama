@@ -98,6 +98,44 @@ function Test-PathWithin {
     )
 }
 
+function Get-PathComponentStatus {
+    param(
+        [Parameter(Mandatory)][string]$BasePath,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$RelativePath
+    )
+
+    $cursor = [System.IO.Path]::GetFullPath($BasePath)
+    try {
+        $baseItem = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+    }
+    catch {
+        return [pscustomobject]@{ Status = 'MISSING'; Path = $cursor }
+    }
+    if ($baseItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+        return [pscustomobject]@{ Status = 'REPARSE'; Path = $cursor }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($RelativePath)) {
+        return [pscustomobject]@{ Status = 'SAFE'; Path = $cursor }
+    }
+    foreach ($segment in ($RelativePath.Replace('\', '/').Split('/'))) {
+        if ([string]::IsNullOrWhiteSpace($segment) -or $segment -eq '.' -or $segment -eq '..') {
+            return [pscustomobject]@{ Status = 'INVALID'; Path = $cursor }
+        }
+        $cursor = Join-Path $cursor $segment
+        try {
+            $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
+        }
+        catch {
+            return [pscustomobject]@{ Status = 'MISSING'; Path = $cursor }
+        }
+        if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+            return [pscustomobject]@{ Status = 'REPARSE'; Path = $cursor }
+        }
+    }
+    return [pscustomobject]@{ Status = 'SAFE'; Path = $cursor }
+}
+
 function Normalize-RelativePath {
     param([Parameter(Mandatory)][string]$Path)
     return $Path.Replace('\', '/')
@@ -144,7 +182,29 @@ function Get-MarkedBlock {
         return ''
     }
     $start += $BeginMarker.Length
-    return $Text.Substring($start, $end - $start)
+    $content = $Text.Substring($start, $end - $start)
+    if ([string]::IsNullOrWhiteSpace($content)) {
+        Add-Failure -Code "${Label}_EMPTY" -Subject $Subject
+    }
+    return $content
+}
+
+function Get-OptionalMarkedBlock {
+    param(
+        [Parameter(Mandatory)][string]$Text,
+        [Parameter(Mandatory)][string]$BeginMarker,
+        [Parameter(Mandatory)][string]$EndMarker,
+        [Parameter(Mandatory)][string]$Label,
+        [Parameter(Mandatory)][string]$Subject
+    )
+
+    $beginCount = Get-MarkerCount -Text $Text -Marker $BeginMarker
+    $endCount = Get-MarkerCount -Text $Text -Marker $EndMarker
+    if ($beginCount -eq 0 -and $endCount -eq 0) {
+        return ''
+    }
+    return Get-MarkedBlock -Text $Text -BeginMarker $BeginMarker -EndMarker $EndMarker `
+        -Label $Label -Subject $Subject
 }
 
 function Get-TokenValues {
@@ -189,6 +249,140 @@ function Get-SingleToken {
         return ''
     }
     return $values[0]
+}
+
+function Test-CanonicalRepoRelativePath {
+    param([AllowEmptyString()][string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or
+        $Path.Contains('\') -or
+        $Path.StartsWith('/') -or
+        $Path.EndsWith('/') -or
+        $Path.Contains('//') -or
+        $Path.Contains(':') -or
+        [System.IO.Path]::IsPathRooted($Path)) {
+        return $false
+    }
+    foreach ($segment in $Path.Split('/')) {
+        if ([string]::IsNullOrWhiteSpace($segment) -or $segment -eq '.' -or $segment -eq '..') {
+            return $false
+        }
+    }
+    return $true
+}
+
+function Get-TestSelectorFacts {
+    param([AllowEmptyString()][string]$Command)
+
+    $selectorPattern = '(?i)(?<![A-Za-z0-9_-])--tests(?=$|[=\s])'
+    $matches = [regex]::Matches($Command, $selectorPattern)
+    if ($matches.Count -eq 0) {
+        return [pscustomobject]@{ HasSelector = $false; Invalid = $false }
+    }
+
+    foreach ($match in $matches) {
+        $cursor = $match.Index + $match.Length
+        if ($cursor -lt $Command.Length -and $Command[$cursor] -eq '=') {
+            $cursor++
+        }
+        else {
+            while ($cursor -lt $Command.Length -and [char]::IsWhiteSpace($Command[$cursor])) {
+                $cursor++
+            }
+        }
+
+        if ($cursor -ge $Command.Length) {
+            return [pscustomobject]@{ HasSelector = $true; Invalid = $true }
+        }
+
+        $first = $Command[$cursor]
+        if ($first -eq '"' -or $first -eq "'") {
+            if ($cursor + 1 -ge $Command.Length -or $Command[$cursor + 1] -eq $first) {
+                return [pscustomobject]@{ HasSelector = $true; Invalid = $true }
+            }
+            $closing = $Command.IndexOf($first, $cursor + 1)
+            if ($closing -lt 0) {
+                return [pscustomobject]@{ HasSelector = $true; Invalid = $true }
+            }
+            $quotedSelector = $Command.Substring($cursor + 1, $closing - $cursor - 1)
+            if ([string]::IsNullOrWhiteSpace($quotedSelector)) {
+                return [pscustomobject]@{ HasSelector = $true; Invalid = $true }
+            }
+            continue
+        }
+
+        if ($first -eq '-' -or [char]::IsWhiteSpace($first)) {
+            return [pscustomobject]@{ HasSelector = $true; Invalid = $true }
+        }
+    }
+    return [pscustomobject]@{ HasSelector = $true; Invalid = $false }
+}
+
+function Get-NamedTokenValues {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory)][string]$Key
+    )
+
+    $pattern = '(?i)(?<![A-Za-z0-9_])' + [regex]::Escape($Key) +
+        '[ \t]*=[ \t]*(?:"([^"]+)"|''([^'']+)''|([^;\s|]+))'
+    $values = [System.Collections.Generic.List[string]]::new()
+    foreach ($match in [regex]::Matches($Text, $pattern)) {
+        $value = if (-not [string]::IsNullOrWhiteSpace($match.Groups[1].Value)) {
+            $match.Groups[1].Value
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($match.Groups[2].Value)) {
+            $match.Groups[2].Value
+        }
+        else {
+            $match.Groups[3].Value
+        }
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $values.Add($value.Trim())
+        }
+    }
+    return @($values)
+}
+
+function Test-WorkflowRoleContract {
+    param(
+        [AllowEmptyString()][string]$ActiveNextRole,
+        [AllowEmptyString()][string]$QaBlock,
+        [AllowEmptyString()][string]$RoleText,
+        [Parameter(Mandatory)][string]$Subject
+    )
+
+    $manualOwner = ''
+    if (-not [string]::IsNullOrWhiteSpace($QaBlock)) {
+        $manualOwner = Get-SingleToken -Text $QaBlock -Key 'MANUAL_OWNER' -Label 'QA' `
+            -Subject $Subject -Required
+        if (-not [string]::IsNullOrWhiteSpace($ActiveNextRole) -and
+            -not [string]::IsNullOrWhiteSpace($manualOwner) -and
+            $ActiveNextRole -cne $manualOwner) {
+            Add-Failure -Code 'QA_MANUAL_OWNER_MISMATCH' -Subject $manualOwner `
+                -Detail "ACTIVE_NEXT_ROLE=$ActiveNextRole"
+        }
+    }
+
+    $retiredRoles = [System.Collections.Generic.List[string]]::new()
+    foreach ($retiredValue in @(Get-TokenValues -Text $RoleText -Key 'RETIRED_ROLE')) {
+        foreach ($role in ($retiredValue -split '[;,]')) {
+            $trimmed = $role.Trim()
+            if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+                $retiredRoles.Add($trimmed)
+            }
+        }
+    }
+    foreach ($retiredRole in $retiredRoles) {
+        if (-not [string]::IsNullOrWhiteSpace($ActiveNextRole) -and
+            $ActiveNextRole.Equals($retiredRole, [System.StringComparison]::Ordinal)) {
+            Add-Failure -Code 'ACTIVE_ROLE_RETIRED' -Subject $retiredRole
+        }
+        if (-not [string]::IsNullOrWhiteSpace($manualOwner) -and
+            $manualOwner.Equals($retiredRole, [System.StringComparison]::Ordinal)) {
+            Add-Failure -Code 'QA_ROLE_RETIRED' -Subject $retiredRole
+        }
+    }
 }
 
 function Invoke-GitProcess {
@@ -325,7 +519,12 @@ function Test-Handoff {
         -BeginMarker '<!-- V2_HANDOFF_OBJECT_BEGIN -->' `
         -EndMarker '<!-- V2_HANDOFF_OBJECT_END -->' `
         -Label 'HANDOFF_OBJECT' -Subject $TasksFile
+    $qaForRoles = Get-OptionalMarkedBlock -Text $Text `
+        -BeginMarker '<!-- V2_QA_READY_BEGIN -->' `
+        -EndMarker '<!-- V2_QA_READY_END -->' `
+        -Label 'QA' -Subject $TasksFile
 
+    $activeNextRole = ''
     if (-not [string]::IsNullOrWhiteSpace($active)) {
         foreach ($key in @(
             'TASK_ID',
@@ -341,7 +540,11 @@ function Test-Handoff {
             'P1',
             'P2'
         )) {
-            Get-SingleToken -Text $active -Key $key -Label 'ACTIVE' -Subject $TasksFile -Required | Out-Null
+            $tokenValue = Get-SingleToken -Text $active -Key $key -Label 'ACTIVE' `
+                -Subject $TasksFile -Required
+            if ($key -eq 'NEXT_ROLE') {
+                $activeNextRole = $tokenValue
+            }
         }
         $activeEvidence = @(Get-TokenValues -Text $active -Key 'EVIDENCE')
         Test-Evidence -Values $activeEvidence -Label 'EVIDENCE'
@@ -373,6 +576,8 @@ function Test-Handoff {
                 -Detail 'ACTIVE contains legacy owner/status residue'
         }
     }
+    Test-WorkflowRoleContract -ActiveNextRole $activeNextRole -QaBlock $qaForRoles `
+        -RoleText ($active + "`n" + $qaForRoles) -Subject $TasksFile
 
     $currentHead = Get-CurrentHead -Root $Root
     if ([string]::IsNullOrWhiteSpace($currentHead)) {
@@ -452,89 +657,138 @@ function Test-Handoff {
             Add-Failure -Code 'MAX_CHANGED_PATHS_INVALID' -Subject $maxChangedText
         }
         $allowedPaths = @(Get-TokenValues -Text $object -Key 'ALLOWED_PATH')
+        $requiredAncestors = @(Get-TokenValues -Text $object -Key 'REQUIRED_ANCESTOR')
+        $failedCandidateToken = Get-SingleToken -Text $object -Key 'FAILED_CANDIDATE' -Label 'OBJECT' `
+            -Subject $TasksFile -Required
+
+        $objectShapeValid = $true
+        if ([string]::IsNullOrWhiteSpace($baseHead)) {
+            $objectShapeValid = $false
+        }
+        elseif ($baseHead -notmatch '^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$') {
+            Add-Failure -Code 'BASE_HEAD_INVALID' -Subject $baseHead
+            $objectShapeValid = $false
+        }
+        if (-not [int]::TryParse($maxChangedText, [ref]$maxChangedPaths) -or $maxChangedPaths -le 0) {
+            $objectShapeValid = $false
+        }
         if ($allowedPaths.Count -eq 0) {
             Add-Failure -Code 'ALLOWED_PATHS_MISSING' -Subject $TasksFile
+            $objectShapeValid = $false
         }
         $normalizedAllowed = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
         foreach ($allowedPathValue in $allowedPaths) {
-            if ([string]::IsNullOrWhiteSpace($allowedPathValue) -or
-                [System.IO.Path]::IsPathRooted($allowedPathValue)) {
+            if (-not (Test-CanonicalRepoRelativePath -Path $allowedPathValue)) {
                 Add-Failure -Code 'ALLOWED_PATH_INVALID' -Subject $allowedPathValue
+                $objectShapeValid = $false
                 continue
             }
-            $normalizedPath = Normalize-RelativePath -Path $allowedPathValue
-            if (@($normalizedPath.Split('/')) -contains '..' -or $normalizedPath.StartsWith('../')) {
-                Add-Failure -Code 'ALLOWED_PATH_INVALID' -Subject $allowedPathValue
-                continue
-            }
-            $normalizedAllowed.Add($normalizedPath) | Out-Null
-        }
-        $requiredAncestors = @(Get-TokenValues -Text $object -Key 'REQUIRED_ANCESTOR')
-        $failedCandidate = Get-SingleToken -Text $object -Key 'FAILED_CANDIDATE' -Label 'OBJECT' `
-            -Subject $TasksFile
-
-        if ($baseHead -notmatch '^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$') {
-            Add-Failure -Code 'BASE_HEAD_INVALID' -Subject $baseHead
-        }
-        elseif (-not (Test-CommitObject -Root $Root -Commit $baseHead)) {
-            Add-Failure -Code 'BASE_HEAD_MISSING' -Subject $baseHead
-        }
-        elseif (-not [string]::IsNullOrWhiteSpace($currentHead) -and
-            -not (Test-Ancestor -Root $Root -Ancestor $baseHead -Descendant $currentHead)) {
-            Add-Failure -Code 'BASE_NOT_ANCESTOR' -Subject $baseHead `
-                -Detail "candidate=$currentHead"
-        }
-
-        foreach ($ancestor in $requiredAncestors) {
-            if ($ancestor -notmatch '^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$') {
-                Add-Failure -Code 'REQUIRED_ANCESTOR_INVALID' -Subject $ancestor
-                continue
-            }
-            if (-not (Test-CommitObject -Root $Root -Commit $ancestor)) {
-                Add-Failure -Code 'REQUIRED_ANCESTOR_MISSING' -Subject $ancestor
-                continue
-            }
-            if (-not [string]::IsNullOrWhiteSpace($currentHead) -and
-                -not (Test-Ancestor -Root $Root -Ancestor $ancestor -Descendant $currentHead)) {
-                Add-Failure -Code 'REQUIRED_ANCESTOR_NOT_ANCESTOR' -Subject $ancestor
+            if (-not $normalizedAllowed.Add($allowedPathValue)) {
+                Add-Failure -Code 'ALLOWED_PATH_DUPLICATE' -Subject $allowedPathValue
+                $objectShapeValid = $false
             }
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($failedCandidate)) {
-            if ($failedCandidate -notmatch '^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$') {
-                Add-Failure -Code 'FAILED_CANDIDATE_INVALID' -Subject $failedCandidate
-            }
-            elseif (-not (Test-CommitObject -Root $Root -Commit $failedCandidate)) {
-                Add-Failure -Code 'FAILED_CANDIDATE_MISSING' -Subject $failedCandidate
-            }
-            elseif ($failedCandidate -eq $currentHead) {
-                Add-Failure -Code 'FAILED_CANDIDATE_IS_CURRENT' -Subject $failedCandidate
-            }
+        if ($requiredAncestors.Count -eq 0) {
+            Add-Failure -Code 'REQUIRED_ANCESTOR_TOKEN_MISSING' -Subject $TasksFile
+            $objectShapeValid = $false
         }
-
-        if (-not [string]::IsNullOrWhiteSpace($baseHead) -and
-            -not [string]::IsNullOrWhiteSpace($currentHead) -and
-            $baseHead -match '^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$' -and
-            (Test-CommitObject -Root $Root -Commit $baseHead) -and
-            (Test-CommitObject -Root $Root -Commit $currentHead)) {
-            $diffResult = Invoke-GitProcess -Root $Root -Arguments @('diff', '--name-only', "$baseHead..$currentHead")
-            if ($diffResult.ExitCode -ne 0) {
-                Add-Failure -Code 'CHANGED_PATHS_UNAVAILABLE' -Subject $TasksFile
+        else {
+            $noneAncestors = @($requiredAncestors | Where-Object {
+                $_.Equals('NONE', [System.StringComparison]::OrdinalIgnoreCase)
+            })
+            if ($noneAncestors.Count -gt 0) {
+                if ($noneAncestors.Count -ne 1 -or $requiredAncestors.Count -ne 1) {
+                    Add-Failure -Code 'REQUIRED_ANCESTOR_NONE_MIXED' -Subject $TasksFile
+                    $objectShapeValid = $false
+                }
             }
             else {
-                $changedPaths = @($diffResult.Lines |
-                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-                    ForEach-Object { Normalize-RelativePath -Path $_.Trim() })
-                if ($changedPaths.Count -eq 0) {
-                    Add-Failure -Code 'CHANGED_PATHS_EMPTY' -Subject $baseHead
+                foreach ($ancestor in $requiredAncestors) {
+                    if ($ancestor -notmatch '^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$') {
+                        Add-Failure -Code 'REQUIRED_ANCESTOR_INVALID' -Subject $ancestor
+                        $objectShapeValid = $false
+                    }
                 }
-                if ($maxChangedPaths -gt 0 -and $changedPaths.Count -gt $maxChangedPaths) {
-                    Add-Failure -Code 'CHANGED_PATH_LIMIT' -Subject ([string]$changedPaths.Count) `
-                        -Detail "max=$maxChangedPaths"
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($failedCandidateToken)) {
+            $objectShapeValid = $false
+        }
+        elseif ($failedCandidateToken.Equals('NONE', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $failedCandidate = ''
+        }
+        elseif ($failedCandidateToken -notmatch '^(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$') {
+            Add-Failure -Code 'FAILED_CANDIDATE_INVALID' -Subject $failedCandidateToken
+            $objectShapeValid = $false
+        }
+        else {
+            $failedCandidate = $failedCandidateToken
+        }
+
+        if ($objectShapeValid) {
+            $objectObjectsValid = $true
+            if (-not (Test-CommitObject -Root $Root -Commit $baseHead)) {
+                Add-Failure -Code 'BASE_HEAD_MISSING' -Subject $baseHead
+                $objectObjectsValid = $false
+            }
+            $nonNoneAncestors = @($requiredAncestors | Where-Object {
+                -not $_.Equals('NONE', [System.StringComparison]::OrdinalIgnoreCase)
+            })
+            foreach ($ancestor in $nonNoneAncestors) {
+                if (-not (Test-CommitObject -Root $Root -Commit $ancestor)) {
+                    Add-Failure -Code 'REQUIRED_ANCESTOR_MISSING' -Subject $ancestor
+                    $objectObjectsValid = $false
                 }
-                foreach ($changedPath in $changedPaths) {
-                    if (-not $normalizedAllowed.Contains($changedPath)) {
-                        Add-Failure -Code 'PATH_OUTSIDE_SCOPE' -Subject $changedPath
+            }
+            if (-not [string]::IsNullOrWhiteSpace($failedCandidate) -and
+                -not (Test-CommitObject -Root $Root -Commit $failedCandidate)) {
+                Add-Failure -Code 'FAILED_CANDIDATE_MISSING' -Subject $failedCandidate
+                $objectObjectsValid = $false
+            }
+
+            $objectRelationsValid = $objectObjectsValid
+            if ($objectObjectsValid -and -not [string]::IsNullOrWhiteSpace($currentHead)) {
+                if (-not (Test-Ancestor -Root $Root -Ancestor $baseHead -Descendant $currentHead)) {
+                    Add-Failure -Code 'BASE_NOT_ANCESTOR' -Subject $baseHead `
+                        -Detail "candidate=$currentHead"
+                    $objectRelationsValid = $false
+                }
+                foreach ($ancestor in $nonNoneAncestors) {
+                    if (-not (Test-Ancestor -Root $Root -Ancestor $ancestor -Descendant $currentHead)) {
+                        Add-Failure -Code 'REQUIRED_ANCESTOR_NOT_ANCESTOR' -Subject $ancestor
+                        $objectRelationsValid = $false
+                    }
+                }
+                if (-not [string]::IsNullOrWhiteSpace($failedCandidate) -and
+                    $failedCandidate -eq $currentHead) {
+                    Add-Failure -Code 'FAILED_CANDIDATE_IS_CURRENT' -Subject $failedCandidate
+                    $objectRelationsValid = $false
+                }
+            }
+
+            if ($objectRelationsValid -and -not [string]::IsNullOrWhiteSpace($currentHead) -and
+                (Test-CommitObject -Root $Root -Commit $currentHead)) {
+                $diffResult = Invoke-GitProcess -Root $Root -Arguments @('diff', '--name-only', "$baseHead..$currentHead")
+                if ($diffResult.ExitCode -ne 0) {
+                    Add-Failure -Code 'CHANGED_PATHS_UNAVAILABLE' -Subject $TasksFile
+                }
+                else {
+                    $changedPaths = @($diffResult.Lines |
+                        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                        ForEach-Object { Normalize-RelativePath -Path $_.Trim() })
+                    if ($changedPaths.Count -eq 0) {
+                        Add-Failure -Code 'CHANGED_PATHS_EMPTY' -Subject $baseHead
+                    }
+                    if ($changedPaths.Count -gt $maxChangedPaths) {
+                        Add-Failure -Code 'CHANGED_PATH_LIMIT' -Subject ([string]$changedPaths.Count) `
+                            -Detail "max=$maxChangedPaths"
+                    }
+                    foreach ($changedPath in $changedPaths) {
+                        if (-not $normalizedAllowed.Contains($changedPath)) {
+                            Add-Failure -Code 'PATH_OUTSIDE_SCOPE' -Subject $changedPath
+                        }
                     }
                 }
             }
@@ -553,20 +807,38 @@ function Test-MemoryIndex {
         Add-Failure -Code 'MEMORY_INDEX_NOT_ABSOLUTE' -Subject $Path
         return
     }
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+    $indexFull = [System.IO.Path]::GetFullPath($Path)
+    $store = Split-Path -Parent $indexFull
+    $storePrefix = $store.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $indexFull.StartsWith($storePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Add-Failure -Code 'MEMORY_INDEX_NOT_ABSOLUTE' -Subject $Path
+        return
+    }
+    $indexRelative = $indexFull.Substring($storePrefix.Length)
+    $indexComponents = Get-PathComponentStatus -BasePath $store -RelativePath $indexRelative
+    if ($indexComponents.Status -eq 'REPARSE') {
+        Add-Failure -Code 'MEMORY_INDEX_UNSAFE_REPARSE' -Subject $indexComponents.Path
+        return
+    }
+    if ($indexComponents.Status -ne 'SAFE') {
+        Add-Failure -Code 'MEMORY_INDEX_MISSING' -Subject $Path
+        return
+    }
+    $indexItem = Get-Item -LiteralPath $indexComponents.Path -Force
+    if ($indexItem.PSIsContainer) {
         Add-Failure -Code 'MEMORY_INDEX_MISSING' -Subject $Path
         return
     }
     try {
-        $text = [System.IO.File]::ReadAllText($Path, $utf8Strict)
+        $text = [System.IO.File]::ReadAllText($indexComponents.Path, $utf8Strict)
     }
     catch {
         Add-Failure -Code 'MEMORY_INDEX_UTF8' -Subject $Path -Detail $_.Exception.Message
         return
     }
 
-    $lines = [System.IO.File]::ReadAllLines($Path, $utf8Strict)
-    $bytes = (Get-Item -LiteralPath $Path).Length
+    $lines = [System.IO.File]::ReadAllLines($indexComponents.Path, $utf8Strict)
+    $bytes = $indexItem.Length
     if ($lines.Count -gt 200 -or $bytes -gt 25600) {
         Add-Failure -Code 'MEMORY_INDEX_HARD_LINE_LIMIT' -Subject $Path `
             -Detail "lines=$($lines.Count) bytes=$bytes"
@@ -585,7 +857,6 @@ function Test-MemoryIndex {
         return
     }
 
-    $store = Split-Path -Parent ([System.IO.Path]::GetFullPath($Path))
     $links = [regex]::Matches($projectMatch.Groups[1].Value, '\[[^\]]*\]\(([^)]+)\)')
     if ($links.Count -eq 0) {
         Add-Failure -Code 'MEMORY_PROJECT_POINTER_MISSING' -Subject $Path
@@ -609,9 +880,12 @@ function Test-MemoryIndex {
             continue
         }
         $normalized = $pathPart.Replace('\', '/')
-        if (@($normalized.Split('/')) -contains '..') {
+        $invalidSegments = @($normalized.Split('/') | Where-Object {
+            [string]::IsNullOrWhiteSpace($_) -or $_ -eq '.' -or $_ -eq '..'
+        })
+        if ($invalidSegments.Count -gt 0) {
             Add-Failure -Code 'MEMORY_PROJECT_UNSAFE_POINTER' -Subject $pointer `
-                -Detail 'traversal'
+                -Detail 'invalid path component'
             continue
         }
         $candidate = [System.IO.Path]::GetFullPath((Join-Path $store $pathPart.Replace('/', '\')))
@@ -620,14 +894,19 @@ function Test-MemoryIndex {
                 -Detail 'escape'
             continue
         }
-        if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+        $componentStatus = Get-PathComponentStatus -BasePath $store -RelativePath $normalized
+        if ($componentStatus.Status -eq 'REPARSE') {
+            Add-Failure -Code 'MEMORY_PROJECT_UNSAFE_POINTER' -Subject $pointer `
+                -Detail "reparse-point=$($componentStatus.Path)"
+            continue
+        }
+        if ($componentStatus.Status -ne 'SAFE') {
             Add-Failure -Code 'MEMORY_PROJECT_POINTER_MISSING' -Subject $pointer
             continue
         }
-        $item = Get-Item -LiteralPath $candidate -Force
-        if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
-            Add-Failure -Code 'MEMORY_PROJECT_UNSAFE_POINTER' -Subject $pointer `
-                -Detail 'reparse-point'
+        $item = Get-Item -LiteralPath $componentStatus.Path -Force
+        if ($item.PSIsContainer) {
+            Add-Failure -Code 'MEMORY_PROJECT_POINTER_MISSING' -Subject $pointer
             continue
         }
         $validPointers++
@@ -727,8 +1006,15 @@ function Test-QaReady {
     if ([string]::IsNullOrWhiteSpace($stopCondition) -and -not [string]::IsNullOrWhiteSpace($active)) {
         Get-SingleToken -Text $active -Key 'STOP_CONDITION' -Label 'QA' -Subject $TasksFile -Required | Out-Null
     }
-    Get-SingleToken -Text $qa -Key 'MANUAL_OWNER' -Label 'QA' -Subject $TasksFile -Required | Out-Null
     Get-SingleToken -Text $qa -Key 'MANUAL_LIMITATION' -Label 'QA' -Subject $TasksFile -Required | Out-Null
+    $activeNextRole = if (-not [string]::IsNullOrWhiteSpace($active)) {
+        Get-SingleToken -Text $active -Key 'NEXT_ROLE' -Label 'ACTIVE' -Subject $TasksFile -Required
+    }
+    else {
+        ''
+    }
+    Test-WorkflowRoleContract -ActiveNextRole $activeNextRole -QaBlock $qa `
+        -RoleText ($active + "`n" + $qa) -Subject $TasksFile
 
     $invariantRows = @(Get-MatrixRows -Text $qa `
         -BeginMarker '<!-- V2_QA_INVARIANT_MATRIX_BEGIN -->' `
@@ -765,6 +1051,20 @@ function Test-QaReady {
     if ($testRows.Count -eq 0) {
         Add-Failure -Code 'QA_TEST_MATRIX_EMPTY' -Subject $TasksFile
     }
+    $qaOutsideMatrix = [regex]::Replace(
+        $qa,
+        '(?s)<!-- V2_QA_TEST_MATRIX_BEGIN -->.*?<!-- V2_QA_TEST_MATRIX_END -->',
+        ''
+    )
+    $selectorScanText = $active + "`n" + $qaOutsideMatrix
+    $selectorScanLine = 0
+    foreach ($line in ($selectorScanText -split "`n")) {
+        $selectorScanLine++
+        $scanFacts = Get-TestSelectorFacts -Command $line
+        if ($scanFacts.HasSelector) {
+            Add-Failure -Code 'TEST_SELECTOR_OUTSIDE_MATRIX' -Subject "line=$selectorScanLine"
+        }
+    }
     foreach ($row in $testRows) {
         $cells = @($row.Cells)
         $testId = $cells[0]
@@ -785,11 +1085,31 @@ function Test-QaReady {
         if ([string]::IsNullOrWhiteSpace($command)) {
             Add-Failure -Code 'QA_TEST_COMMAND_EMPTY' -Subject $testId
         }
-        if ($command -match '(?i)--tests(?:\s+|=)') {
-            $verified = $selectorStatus -match '(?i)TEST_SELECTOR_VERIFIED[ \t]*=[ \t]*PASS|^PASS$'
-            $equivalent = $selectorStatus -match '(?i)NO_MATCHING_TESTS|EQUIVALENT'
-            if (-not $verified -and -not ($equivalent -and -not [string]::IsNullOrWhiteSpace($equivalentEvidence))) {
-                Add-Failure -Code 'TEST_SELECTOR_UNVERIFIED' -Subject $testId
+        elseif (-not [string]::IsNullOrWhiteSpace($command)) {
+            $selectorFacts = Get-TestSelectorFacts -Command $command
+            if ($selectorFacts.HasSelector) {
+                if ($selectorFacts.Invalid) {
+                    Add-Failure -Code 'TEST_SELECTOR_INVALID' -Subject $testId
+                }
+                $verified = $selectorStatus -match '(?i)(?:^|;)[ \t]*(?:TEST_SELECTOR_VERIFIED[ \t]*=[ \t]*PASS|PASS)(?:[ \t]*;|$)'
+                $equivalent = $selectorStatus -match '(?i)(?:^|;)[ \t]*(?:NO_MATCHING_TESTS|EQUIVALENT)(?:[ \t]*;|$)'
+                if ($verified) {
+                    $selectorEvidence = @(Get-NamedTokenValues `
+                        -Text ($selectorStatus + ';' + $equivalentEvidence) `
+                        -Key 'TEST_SELECTOR_EVIDENCE')
+                    if ($selectorEvidence.Count -eq 0) {
+                        Add-Failure -Code 'TEST_SELECTOR_EVIDENCE_MISSING' -Subject $testId
+                    }
+                    else {
+                        Test-Evidence -Values $selectorEvidence -Label 'TEST_SELECTOR_EVIDENCE'
+                    }
+                }
+                elseif ($equivalent) {
+                    Test-Evidence -Values @($equivalentEvidence) -Label 'TEST_EQUIVALENT_EVIDENCE'
+                }
+                else {
+                    Add-Failure -Code 'TEST_SELECTOR_UNVERIFIED' -Subject $testId
+                }
             }
         }
     }
