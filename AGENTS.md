@@ -13,31 +13,47 @@
   FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES /
   ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
   ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-  A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
-  TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、
-  QA / runtime / G1 PASS。本次架构 seam 规划从 clean integration
-  `fee63165f966a52318e332abe1ad7b184592a88a` 创建独立 docs candidate；失败现场归档在本地分支
-  `codex/g2-prewindow-blocked-20261107`，commit
-  `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），含 9 个 settlement
-  文件与 `qa-pad-v2` 三文件，只读保留，不合入，不 push，不 tag。旧 G2 合同与 QA evidence
-  冻结；不得重入 64/65 transition、exact count 或旧 handoff 修复循环，不得跳过 handoff
-  直接派 Pad/K60 QA。`docs/ARCHITECTURE.md` v2.0 已确认；A0 guard source
-  `a787b683c89389491099ea7acb069422190327c3` 已经独立 QA `PASS`、merge-prep `PASS`，
-  并以 source/final stable patch-id MATCH 集成到 clean integration HEAD
-  `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
-  全量产品代码重构仍 `NOT_PROVEN`，contracts seam / 消费者迁移未落地；A0 guard 不是
-  architecture progress。当前长期关键路径先进入
-  `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的 implementation planning/implementation；W1–W5
-  的功能波只有对应 `PREREQUISITE_SEAMS` 达到 `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED`
-  后才可开工。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 状态为
-  `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`，可独立派发但不挡
-  架构主线、不得计作 seam 进度；仍仅两文件，无缺陷即 `NO_DEFECT_REPRODUCED` 停止。
+  A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
+  IDENTITY_CATALOG_W1A=INTEGRATED_WITH_P3_CLEANUP /
+  W1A_MERGE_PREP=9fde82c0a1728bcd04f98d57dd66eb51d932d025 / W1A_FILES=14 /
+  QA_R3=PASS / P0-P3=0/0/0/3 / W1A_P3_OPEN=2 /
+  W1A_P3_DOC_STATE_SYNC=CLOSED_IN_HANDOFF /
+  PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
+  V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES /
+  NO_W1B_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
+- **当前交接对象**：`HANDOFF_BASE_HEAD=3607a2fdc1691b42bb638b984a16097f9c3cc563`，
+  branch=`codex/v2-integration`；接手时工作区必须 clean，并以 `git rev-parse HEAD`
+  复核 root 集成本 docs candidate 后的精确 SHA。W1A slice 已以 source/final
+  patch-id `ae25f915ae7821bae2bd81fd0dd9e832c3f83e5a` MATCH 集成，14 文件；独立 QA R3
+  为 `PASS / P0-P3=0/0/0/3`。`W1A-P3-COMPLETED-MARKER` 与
+  `W1A-P3-LOCAL-ONLY-REGRESSION` 仍 open，`W1A-P3-DOC-STATE-SYNC` 已在当前状态写回修正。
+  父 seam `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 仍为
+  `CONTRACT_FROZEN / IN_PROGRESS`；本 slice PASS 不是完整 seam、W1、G1、Q03、产品 QA、
+  runtime 或 Release PASS。
   `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
   V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
   V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-  `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> W1 功能波`；
-  `last_evidence=fee63165 clean integration + A0 integration ab917404 +
-  docs/ARCHITECTURE.md §0.1/§0.8 + docs/TASKS.md Architecture Critical Path`。
+  `NEXT_CRITICAL_PATH=W1A-P3 cleanup -> ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；
+  `last_evidence=docs/TASKS.md W1A P3 cleanup ledger + 独立 QA R3 PASS /
+  P0-P3=0/0/0/3 + merge-prep 9fde82c0a1728bcd04f98d57dd66eb51d932d025 /
+  source-final patch-id MATCH`。
+- **下一会话角色与首动作**：全新
+  `AURORAMA_V2_IDENTITY_CATALOG_W1A_P3_CLEANUP_OWNER_2026_11_07`；第一条只读动作必须为
+  `git status --short` / `git rev-parse HEAD`。执行卡只维护在
+  `docs/TASKS.md` 的 `W1A P3 cleanup 交接任务卡`；预计写域仅
+  `SearchViewModel.kt`、`SearchViewModelTest.kt`、`SearchSessionTest.kt` 中实际所需文件。
+  白名单越界、需改 data contract / auth / preferences / schema / Gradle，或出现新
+  P0–P2 时立即停止。清理两项 P3 后，下一入口才是
+  `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`，另派全新 owner。
+- **交接水位**：产生本交接的旧会话为
+  `648,477 / 1,048,576（61.8%），请求 1331`；已超过 35 万硬交接线，本会话必须交接，
+  不得继续在该旧上下文扩项。W1–W5 功能波仍只有对应 `PREREQUISITE_SEAMS` 达到
+  `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 后才可开工；A0 guard 与 W1A slice
+  都不是全量 architecture progress。
+- **HISTORY**：旧 G2 失败现场归档在本地只读分支
+  `codex/g2-prewindow-blocked-20261107`，commit `c5a5ac0a`（parent `de6dd31e`），含
+  9 个 settlement 文件与 `qa-pad-v2` 三文件；不合入、不 push、不 tag。旧 G2 合同与 QA
+  evidence 冻结，不得重入 64/65 transition、exact count 或旧 handoff 修复循环。
 
 > 下方旧 G2 条目原样保留用于审计追溯；其中“当前 / 下一步 / 必须 / ACTIVE”等措辞只描述
 > 对应历史时点，不能作为当前执行指令。当前非 TTS 主线不运行旧 handoff 循环。

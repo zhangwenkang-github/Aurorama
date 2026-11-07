@@ -6,19 +6,27 @@
 > PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
 > ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 > ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
+> A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
+> IDENTITY_CATALOG_W1A=INTEGRATED_WITH_P3_CLEANUP /
+> PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS / V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、QA /
-> runtime / G1 PASS。本次 seam 规划从 clean integration
+> runtime / G1 PASS。**HISTORY（旧 seam 规划起点 / 失败现场；非当前状态）**：seam 规划从 clean integration
 > `fee63165f966a52318e332abe1ad7b184592a88a` 创建 docs candidate；失败现场只读归档在本地分支
 > `codex/g2-prewindow-blocked-20261107`，commit
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 保持冻结，
 > 非 TTS 六波已批准；V2 架构审计已完成，
 > `ARCHITECTURE.md` 已升级为 v2.0 并由用户确认；A0 架构守卫 source `a787b683` 已通过
 > 独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`，全量产品重构仍
-> `NOT_PROVEN`。当前架构主线由全新 `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 先冻结
-> `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡，再在边界内实现；W1–W5 功能波只在对应
+> `NOT_PROVEN`。W1A search slice 已以 `9fde82c0` 集成，14 文件，独立 QA R3
+> `PASS / P0-P3=0/0/0/3`；`W1A-P3-COMPLETED-MARKER` 与
+> `W1A-P3-LOCAL-ONLY-REGRESSION` 仍 open，`W1A-P3-DOC-STATE-SYNC` 已在当前交接关闭。
+> 父 seam `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 保持 `CONTRACT_FROZEN / IN_PROGRESS`，
+> `V2-NON-TTS-W1` 保持 `BLOCKED_BY_PREREQUISITES`。当前唯一路线为
+> `W1A-P3 cleanup -> ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；W1–W5 功能波只在对应
 > `PREREQUISITE_SEAMS` 达到完整 DoD 后放行。W0 仅是可独立执行的隔离探针，不挡主线、不计
-> architecture progress，仅两文件且无缺陷即停止。设备、QA、Release 仍需用户单独批准。
+> architecture progress，仅两文件且无缺陷即停止。产生本交接的旧会话上下文为
+> `648,477 / 1,048,576（61.8%），请求 1331`，已过 35 万硬交接线，必须新建会话。
+> 设备、QA、Release 仍需用户单独批准。
 > 产品 P0–P3 仍 `NOT_ASSESSED`，K60 锁定；旧 G2 审计事实只在
 > `V2_PLAN.md` §12 HISTORY 追溯。
 
@@ -56,7 +64,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / ARCH_SEAM_DELIVERY_ACTIVE / W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED / PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / PRODUCT_P0_P3_NOT_ASSESSED` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。`ARCHITECTURE.md` v2.0 已确认，20 类矩阵 `7/9/3/1`；A0 guard source `a787b683` 已通过独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`，但 A0 guard 不是架构重构。当前长期关键路径先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；W1–W5 由 `PREREQUISITE_SEAMS` 硬门控制。W0 仅 `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`。既有 G1-S1 债务仍 P1 7 / P2 3 / P3 1，contracts seam 与消费者迁移未实现。`D211/D213` 不授权设备 QA / Release。 |
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / ARCH_SEAM_DELIVERY_ACTIVE / W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED / PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / IDENTITY_CATALOG_W1A=INTEGRATED_WITH_P3_CLEANUP / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS / V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / PRODUCT_P0_P3_NOT_ASSESSED` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。`ARCHITECTURE.md` v2.0 已确认，20 类矩阵 `7/9/3/1`；A0 guard source `a787b683` 已通过独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`，但 A0 guard 不是架构重构。W1A search slice `9fde82c0` 已集成，14 文件；QA R3 `PASS / P0-P3=0/0/0/3`，两项 P3 cleanup 仍 open。当前路线是 `W1A-P3 cleanup -> ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；W1–W5 由 `PREREQUISITE_SEAMS` 硬门控制。W0 仅 `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`。既有 G1-S1 债务仍 P1 7 / P2 3 / P3 1，完整 contracts seam 与消费者迁移未实现。`D211/D213` 不授权 W1B、设备 QA 或 Release。 |
 > `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；旧 handoff-bootstrap 的
 > 唯一历史末态是
 > `POST_QA_RUNTIME_DEFERRED` 作为 handoff-bootstrap 历史措辞保留，
@@ -319,9 +327,15 @@ adb shell uiautomator dump /sdcard/u.xml; adb shell cat /sdcard/u.xml | Select-S
 - [ ] 当前 2.0 先读 `V2_PLAN.md` 的 `ARCH_SEAM_DELIVERY_ACTIVE` ACTIVE、
   `TASKS.md` 的 `Architecture Critical Path / 长期计划账本` 与 `docs/ARCHITECTURE.md` v2.0；
   核对 `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`
-- [ ] 架构主线由全新 `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 先冻结
-  `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡，再在边界内实现；W0 仅可作两文件隔离探针，
-  功能波在 `PREREQUISITE_SEAMS` 完整 DoD 前不得开工
+- [ ] 当前唯一入口由全新
+  `AURORAMA_V2_IDENTITY_CATALOG_W1A_P3_CLEANUP_OWNER_2026_11_07` 读取 `TASKS.md` 的
+  `W1A P3 cleanup 交接任务卡`，第一条只读动作 `git status --short` / `git rev-parse HEAD`；
+  预计只写 `SearchViewModel.kt`、`SearchViewModelTest.kt`、`SearchSessionTest.kt` 中实际
+  所需者。白名单越界、需改 data contract / auth / preferences / schema / Gradle 或出现新
+  P0–P2 即停止
+- [ ] W1A slice 已在 `9fde82c0` 集成，父 seam 仍 `CONTRACT_FROZEN / IN_PROGRESS`；
+  两项 P3 关闭后才进入 `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`。W0 仅可作两文件隔离
+  探针，功能波在 `PREREQUISITE_SEAMS` 完整 DoD 前不得开工
 - [ ] 非 2.0 工作读本文件（§1–§5）+ 目标任务线文档
 - [ ] **读 `PLAYER_PLAN.md` §11**（2026-09-28 新增：播放页 UI/UX 改造待办，含自动选字幕/自动播放两个 bug 的线索）
 - [ ] `git log --oneline -10` + `git status --porcelain | Select-String "<任务线关键词>"`

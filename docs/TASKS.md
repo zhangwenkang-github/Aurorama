@@ -11,34 +11,44 @@
 > ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
 > FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS /
 > USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
+> A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
+> IDENTITY_CATALOG_W1A=INTEGRATED_WITH_P3_CLEANUP / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
+> W1A_MERGE_PREP=9fde82c0 / W1A_FILES=14 / QA_R3=PASS / P0-P3=0/0/0/3 /
+> W1A_P3_OPEN=2 / V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成删除、已交付、QA / runtime /
-> G1 PASS。本次规划从 clean `codex/v2-integration` /
-> `fee63165f966a52318e332abe1ad7b184592a88a` 建 docs worktree；旧 G2 合同 / QA evidence
+> G1 PASS。当前交接控制面为 clean `codex/v2-integration` /
+> `3607a2fdc1691b42bb638b984a16097f9c3cc563`；旧 G2 合同 / QA evidence
 > 冻结，不得恢复 64/65、exact count 或 handoff 修复循环。
 >
 > `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-> `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
-> `last_evidence=W1A integrated at 9fde82c0 + source/final patch-id MATCH
-> + final HEAD 865 tests / assemble / ktfmt / A0 PASS + P3 cleanup pending`。
+> `NEXT_CRITICAL_PATH=W1A-P3 cleanup -> ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；
+> `last_evidence=docs/TASKS.md W1A P3 cleanup ledger + 独立 QA R3 PASS /
+> P0-P3=0/0/0/3 + merge-prep 9fde82c0 / source-final patch-id MATCH`。
 >
-> 当前 W1A 已集成，状态为
-> `SLICE_W1A_INTEGRATED_WITH_P3_CLEANUP / PARENT_SEAM_IN_PROGRESS`。merge-prep candidate
-> `9fde82c0` 已 fast-forward 到正式 integration；fresh QA R3 为 `PASS / P0-P3=0/0/0/3`。
-> 剩余 P3 已登记，必须先 cleanup 再进入 W1B。首轮实现 candidate
+> W1A slice 已在 `9fde82c0a1728bcd04f98d57dd66eb51d932d025` 集成，14 文件，
+> source/final patch-id `ae25f915ae7821bae2bd81fd0dd9e832c3f83e5a` MATCH；fresh QA R3
+> 为 `PASS / P0-P3=0/0/0/3`。`W1A-P3-COMPLETED-MARKER` 与
+> `W1A-P3-LOCAL-ONLY-REGRESSION` 仍 open，`W1A-P3-DOC-STATE-SYNC` 已在当前交接关闭；
+> 必须先 cleanup 两项 P3 再进入 W1B。首轮实现 candidate
 > `16e19571c482b1af6958c4fc39ae58d84af42a0d` 与 test-compat
 > `693eff11dd8cf43837ac090770cc6f3b37bace8b` 已通过实现自测、组合 build 与 A0 guard；
 > 首轮 QA 为 `0/1/3/0`；repair chain
 > `4da3a981 -> 0bb5c720 -> 012efb9c -> e05ba14c -> 120a011a` 全部机器门 PASS。
-> QA R3 已关闭 P0-P2；独立 merge-prep `9fde82c0` 已完成 integration。W1A 父 seam 仍未完成。
+> QA R3 已关闭 P0-P2；W1A 父 seam 仍为 `CONTRACT_FROZEN / IN_PROGRESS`。
 > DI 选择点位于 `:data` 的 `CatalogReadModule`，
 > `core/RepositoryModule.kt` 保持原样。`V2-NON-TTS-W1` 仍保持
 > `BLOCKED_BY_PREREQUISITES`，直到完整 seam DoD 通过。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
 > 可作独立探针，但状态为
 > `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`；仅两文件，无缺陷即
-> `NO_DEFECT_REPRODUCED` 停止，不挡架构主线，也不计作 seam 进度。
+> `NO_DEFECT_REPRODUCED` 停止，不挡架构主线，也不计作 seam 进度。产生本交接的旧会话上下文为
+> `648,477 / 1,048,576（61.8%），请求 1331`，已超过 35 万硬交接线，必须新建会话。
+
+- [ ] `W1A-P3-CLEANUP`：由全新
+  `AURORAMA_V2_IDENTITY_CATALOG_W1A_P3_CLEANUP_OWNER_2026_11_07` 关闭
+  `W1A-P3-COMPLETED-MARKER` 并补回 `W1A-P3-LOCAL-ONLY-REGRESSION` 直接测试；执行卡见
+  `W1A P3 cleanup 交接任务卡`。这是当前唯一代码入口。
 
 ## Architecture Critical Path / 长期计划账本
 
@@ -48,7 +58,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_INTEGRATED_WITH_P3_CLEANUP / PARENT_SEAM_IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | W1A P3 cleanup -> `ICS-W1B` | W1A slice 已 integrated；P3=2 项代码/测试 cleanup 未关闭，父 seam 仍 `CONTRACT_FROZEN / IN_PROGRESS` |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_INTEGRATED_WITH_P3_CLEANUP / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | W1A P3 cleanup -> `ICS-W1B` | W1A slice 已 integrated；P3=2 项代码/测试 cleanup 未关闭，父 seam 仍 `CONTRACT_FROZEN / IN_PROGRESS` |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -76,11 +86,13 @@ DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
 ### `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 冻结任务卡
 
 - ID：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`
-- 状态：`SLICE_W1A_INTEGRATED_WITH_P3_CLEANUP / PARENT_SEAM_IN_PROGRESS`
-- 冻结基线：root acceptance clean `codex/v2-integration` /
-  `8865b0c8e0e57aa1dd790300e21515f92eb3c580`；前置 accepted candidate
-  `310fdfdb7d5e41bdc1ce8ce63385c2f2d0e27a4f`（parent `d85f695b`）。本 DI scope correction
-  仍是 docs-only candidate，root 集成并重新钉住 SHA 前不得派 implementation。
+- 状态：`SLICE_W1A_INTEGRATED_WITH_P3_CLEANUP / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS`
+- 当前集成基线：W1A merge-prep / integration
+  `9fde82c0a1728bcd04f98d57dd66eb51d932d025`，clean control handoff base
+  `3607a2fdc1691b42bb638b984a16097f9c3cc563`。任务卡曾在 clean
+  `8865b0c8e0e57aa1dd790300e21515f92eb3c580` 接受，前置 candidate
+  `310fdfdb`（parent `d85f695b`）；这些只作为历史冻结输入。docs handoff 由 root
+  集成后，下一 owner 必须从 root 钉住的新 clean integration SHA 建独立 worktree。
 - 约束：`V2-D213`、`R035`、`L041`；
   `ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO`
 - `PREREQUISITE_SEAMS=NONE`。`G1-S3`、`G1-BASE-001`、`G1-BASE-003` 是静态输入合同，
@@ -262,29 +274,33 @@ materialization 的 base URL / access token 也必须来自该绑定，不得从
 
 | 状态 | 父 seam 通过条件 | 首个切片 `ICS-W1A` 的边界 |
 |---|---|---|
-| `CONTRACT_FROZEN` | root 已接受本卡、FQCN、字段、白名单与停止门 | 已接受；W1A QA FAIL 后修复中，父 seam 不得前进 |
-| `ADAPTER_IMPLEMENTED` | online / offline adapter 与 read-side scope/generation 检查落地 | 可形成 slice-local 证据，不能覆盖 auth / settings 写入与其他 catalog consumers |
-| `TARGET_CONSUMERS_MIGRATED` | auth / preference / DB namespace / cache 与全部声明目录消费者迁移 | 本切片只迁移 SearchViewModel / SearchSession |
-| `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH` | 全局旧身份推断、旧搜索路径与跨账号双真源移除 | 本切片只要求删除 search 旧路径；其他旧路径仍存在 |
-| `CONTRACT/NEGATIVE/REGRESSION TESTS PASS` | 全 seam 合同、负例、回归均在同一候选执行 | 本切片只允许 `SLICE_W1A_TESTS_PASS` 局部标签 |
-| `DEBT_COUNT_DECREASED` | A0 debt ratchet 证明目标违规真实下降 | 本切片预期不改变 11 违规计数，不能通过此状态 |
-| `INDEPENDENT_QA PASS` | 与实现者不同的全新 QA 在候选包执行 | 本任务与首个实现 owner 均不得自派 QA |
-| `INTEGRATED_GATE PASS` | 另一个 merge-prep / integrated owner 证明候选祖先与集成门 | 本切片不得进入 merge-prep |
+| `CONTRACT_FROZEN` | root 已接受本卡、FQCN、字段、白名单与停止门 | 已接受；父 seam 保持 `CONTRACT_FROZEN / IN_PROGRESS` |
+| `ADAPTER_IMPLEMENTED` | online / offline adapter 与 read-side scope/generation 检查落地 | W1A search adapter 已集成；auth / settings 写入与其他 catalog consumers 未完成 |
+| `TARGET_CONSUMERS_MIGRATED` | auth / preference / DB namespace / cache 与全部声明目录消费者迁移 | W1A 只迁移 `SearchViewModel` / `SearchSession`；全局状态仍 `IN_PROGRESS` |
+| `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH` | 全局旧身份推断、旧搜索路径与跨账号双真源移除 | W1A search 旧路径已删除并验证 0 命中；其他旧路径仍存在 |
+| `CONTRACT/NEGATIVE/REGRESSION TESTS PASS` | 全 seam 合同、负例、回归均在同一候选执行 | W1A slice 机器门与 QA R3 通过；父 seam 全合同仍未完成 |
+| `DEBT_COUNT_DECREASED` | A0 debt ratchet 证明目标违规真实下降 | W1A 未改变 11 违规计数，父 seam 未通过此状态 |
+| `INDEPENDENT_QA PASS` | 与实现者不同的全新 QA 在候选包执行 | W1A slice 的 QA R3=`PASS / P0-P3=0/0/0/3`；父 seam 全量 QA 未执行 |
+| `INTEGRATED_GATE PASS` | 另一个 merge-prep / integrated owner 证明候选祖先与集成门 | W1A merge-prep `9fde82c0` 已集成；父 seam 全局 integrated gate 未通过 |
 
 首个切片只计划推进到：
 
 ```text
-SLICE_W1A = CONTRACT_FROZEN (root review 后)
+SLICE_W1A = CONTRACT_FROZEN
           -> ADAPTER_IMPLEMENTED
           -> SEARCH_CONSUMERS_MIGRATED
           -> SEARCH_OLD_PATH_REMOVED
           -> SLICE_W1A_TESTS_PASS
+          -> INDEPENDENT_QA_R3_PASS
+          -> MERGE_PREP_PASS
+          -> INTEGRATED_WITH_P3_CLEANUP
 ```
 
-父 seam 在首个切片后最多保持 `IN_PROGRESS / CONTRACT_FROZEN`，不得据 slice-local 测试
-推进到完整 `TARGET_CONSUMERS_MIGRATED`、`DEBT_COUNT_DECREASED`、QA 或集成 PASS。
+父 seam 在首个切片集成后仍保持 `CONTRACT_FROZEN / IN_PROGRESS`，不得据 slice-local
+QA / integration 推进到全局 `TARGET_CONSUMERS_MIGRATED`、`DEBT_COUNT_DECREASED` 或完整
+seam PASS。
 
-#### Independent QA FAIL（2026-11-07；repair required）
+#### HISTORY：首轮 Independent QA FAIL（2026-11-07；已被 R3 PASS / integration 取代）
 
 candidate `693eff11dd8cf43837ac090770cc6f3b37bace8b` 由不同全新
 `AURORAMA_V2_IDENTITY_CATALOG_W1A_INDEPENDENT_QA_OWNER_2026_11_07` 独立执行，结果为
@@ -323,15 +339,62 @@ fresh QA R3 对 scope-race repair `120a011a` 独立重跑 data `296/296`、film 
 app `416/416`、assemble、root ktfmt、A0 7/7 与 direct guard，判
 `INDEPENDENT_QA_R3=PASS / P0-P3=0/0/0/3`。P3 cleanup 必须保留：
 
-- `W1A-P3-COMPLETED-MARKER`：A 请求经历一次跨 scope 失败重触发后，completed marker 未清除；
-  scope 回到 A 再同 query 时可能 early-return 保留失败态。无跨账号泄漏，`Retry(force)` 可恢复。
-- `W1A-P3-LOCAL-ONLY-REGRESSION`：server-only failure 保留 local 结果的既有显式测试被替换，
-  当前缺少直接单测；实现路径仍在。
-- `W1A-P3-DOC-STATE-SYNC`：ACTIVE 后段/§0.10 的旧 QA FAIL 文案已在本轮修正；后续每次
-  QA 状态变化必须同步所有当前态指针。
+- `W1A-P3-COMPLETED-MARKER`（OPEN）：A 请求经历一次跨 scope 失败重触发后，completed
+  marker 未清除；scope 回到 A 再同 query 时可能 early-return 保留失败态。无跨账号泄漏，
+  `Retry(force)` 可恢复，但正常同 query 重触发必须能重新搜索。
+- `W1A-P3-LOCAL-ONLY-REGRESSION`（OPEN）：server-only failure 保留 local 结果的既有显式
+  测试被替换，当前缺少直接单测；实现路径仍在，必须补回行为级回归。
+- `W1A-P3-DOC-STATE-SYNC`（CLOSED_IN_THIS_HANDOFF）：原第三项 P3 指 ACTIVE 后段 /
+  §0.10 的旧 QA FAIL 文案未同步；本 docs-only 交接已统一当前态。QA R3 的原始计数仍是
+  `0/0/0/3`，不得把第三项已关闭改写成当时计数。
 
-W1A 可进入独立 merge-prep，但不得把 P3 cleanup 写成已关闭；父 seam 仍不得因 W1A PASS
-进入完整 `TARGET_CONSUMERS_MIGRATED`、`DEBT_COUNT_DECREASED` 或最终 seam PASS。
+#### 当前唯一代码入口：W1A P3 cleanup 交接任务卡（2026-11-07）
+
+- 专业身份：全新
+  `AURORAMA_V2_IDENTITY_CATALOG_W1A_P3_CLEANUP_OWNER_2026_11_07`；不派子代理，不自行
+  开启独立 QA、merge-prep、Release 或 W1B。
+- 前置与基线：root 已把本 docs-only handoff candidate 集成到 clean
+  `codex/v2-integration`；owner 不得使用本卡的旧 control base 代替现场。开始时必须
+  `git status --short` 为 0 行且 `git rev-parse HEAD` 与 root 派单钉住的 clean integration
+  SHA 完全一致。
+- 工具约束：所有终端命令使用 `pwsh`，仓库/worktree 路径与 Git 操作使用绝对路径；禁止
+  Windows PowerShell 5.1，不运行 ADB、设备、网络、生产服务器、产品 QA 或 Release。
+- 目标：关闭 `W1A-P3-COMPLETED-MARKER`，使跨 scope 失败重触发清除 completed marker，
+  回到原 scope 的普通同 query 搜索不会错误 early-return；补回
+  `W1A-P3-LOCAL-ONLY-REGRESSION`，由直接单测证明 server-only failure 只标记
+  `serverFailed`、保留 local 结果且不把 `localFailed` 置真。
+- 非目标：不实现 W1B 身份入口 / 单 writer；不改 canonical data contract、auth、
+  preferences、schema、Gradle、导航、下载或播放；不关闭父 seam、W1、G1、Q03、产品 QA、
+  runtime 或 Release；不顺手重构白名单外代码。
+- 预计写域：仅下列文件中实际所需者。若可用更少文件完成只改更少；需要其他文件即停止。
+  1. `modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchViewModel.kt`
+  2. `app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/search/SearchViewModelTest.kt`
+  3. `modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt`
+- 精确读序：`AGENTS.md` 顶部当前硬门 / 退出契约 → 本任务卡与 Architecture Critical Path
+  → `docs/V2_PLAN.md` §10、§12 ACTIVE、§13 最新 W1A 日志 → `docs/ARCHITECTURE.md`
+  §0.1 / §0.6 / §0.8 / §0.10 → `docs/PROJECT_PLAN.md` 当前 V2 段 → 上述三文件。
+- 执行顺序：先增加两个 RED 回归并确认失败原因是当前行为，再做最小 GREEN；禁止先改实现
+  或用弱化断言制造假绿。固定测试 ID 为
+  `W1A-P3-COMPLETED-MARKER` / `W1A-P3-LOCAL-ONLY-REGRESSION`，测试显示名可直接使用
+  该 ID。
+- 验收：
+  1. A scope 成功完成一次搜索 → 发生一次跨 scope 失败重触发 → scope 回到 A 后同 query
+     普通触发必须重新执行搜索，不因旧 completed marker early-return 保留失败态；A 旧结果
+     不得进入 B scope。
+  2. server-only failure 的直接测试断言 local 命中仍存在、`serverFailed=true`、
+     `localFailed=false`；不得只测“两侧均失败”。
+  3. 先跑定向 `:modes:film:testDebugUnitTest --tests
+     'com.zhangwenkang.cinefin.film.presentation.search.SearchSessionTest'` 与
+     `:app:phone:testDebugUnitTest --tests
+     'com.zhangwenkang.cinefin.presentation.search.SearchViewModelTest'`，再跑 film / app
+     全量单测、`:app:phone:assembleDebug`、root `ktfmtCheck`、A0 guard 与 `git diff --check`。
+  4. 报告精确 commit、changed files、RED/GREEN、executed 数、P0–P3 与证据；父 seam 最多
+     保持 `CONTRACT_FROZEN / IN_PROGRESS`。实现 owner 不得自宣独立 QA 或 integrated PASS。
+- 停止条件：白名单越界；需改 data contract / auth / preferences / schema / Gradle；出现
+  新 P0–P2；无法证明跨账号隔离；需要 W1B、设备、网络服务器或 Release 授权。命中即停止并
+  报告 `BLOCKED`，不得扩卡。
+- 后继：root 接收 P3 cleanup 报告后另派不同全新代理做必要独立复核；P3 关闭才进入
+  `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`。本卡不授权 W1B 直接开工。
 
 #### 测试命令、层级与负例
 
@@ -425,7 +488,7 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 
 | 子波 | 交付物 | 前置 |
 |---|---|---|
-| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A` 完成并 review |
+| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A` integrated + 两项 P3 cleanup 关闭 + root 接受 |
 | `ICS-W1C-CATALOG-READERS` | views / items / detail / home / paging 等 catalog readers 共用 canonical scope 与 snapshot | `ICS-W1B` |
 | `ICS-W1D-OFFLINE-NAMESPACE` | saved offline account、无账号、image cache / DB namespace / offline projection 收敛 | `ICS-W1B` |
 | `ICS-W1E-FRESHNESS-PERMISSIONS` | 完整 freshness / stale reason、401/403、durable fence、跨进程与损坏策略 | `ICS-W1A`–`W1D` |
@@ -481,7 +544,7 @@ git -C $repoRoot diff --check
 
 前两条预期无命中；若保留 test helper 名称，也必须不以生产方式暴露。
 
-#### 首个 implementation owner 执行门
+#### HISTORY（当时）：首个 implementation owner 执行门（W1A 已集成，非当前任务）
 
 - 专业身份：全新
   `AURORAMA_V2_IDENTITY_CATALOG_W1A_IMPLEMENTATION_OWNER_2026_11_07`
