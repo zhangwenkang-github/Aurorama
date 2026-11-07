@@ -4,7 +4,7 @@
 
 ## Aurorama 2.0 交接启动硬门（2026-11-06，优先于下方通用开工顺序）
 
-- **当前状态（2026-11-07，优先于下方旧 G2 控制面条目）**：`TTS_G2_DEFERRED /
+- **当前状态（2026-11-07 ACTIVE，优先于下方旧 G2 控制面条目）**：`TTS_G2_DEFERRED /
   DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
   SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / DO_NOT_RESUME_OLD_HANDOFF_LOOP /
   ARCH_SEAM_DELIVERY_ACTIVE / W0_ISOLATED_PROBE_ALLOWED /
@@ -14,42 +14,58 @@
   ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
   ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
   A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
-  IDENTITY_CATALOG_W1A=INTEGRATED_WITH_P3_CLEANUP /
-  W1A_MERGE_PREP=9fde82c0a1728bcd04f98d57dd66eb51d932d025 / W1A_FILES=14 /
-  QA_R3=PASS / P0-P3=0/0/0/3 / W1A_P3_OPEN=2 /
-  W1A_P3_DOC_STATE_SYNC=CLOSED_IN_HANDOFF /
+  IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
+  CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57 /
+  W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
+  W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES / W1A_P3_OPEN=0 /
+  W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
+  W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 /
   PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
   V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES /
   NO_W1B_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
-- **当前交接对象**：`HANDOFF_BASE_HEAD=3607a2fdc1691b42bb638b984a16097f9c3cc563`，
-  branch=`codex/v2-integration`；接手时工作区必须 clean，并以 `git rev-parse HEAD`
-  复核 root 集成本 docs candidate 后的精确 SHA。W1A slice 已以 source/final
-  patch-id `ae25f915ae7821bae2bd81fd0dd9e832c3f83e5a` MATCH 集成，14 文件；独立 QA R3
-  为 `PASS / P0-P3=0/0/0/3`。`W1A-P3-COMPLETED-MARKER` 与
-  `W1A-P3-LOCAL-ONLY-REGRESSION` 仍 open，`W1A-P3-DOC-STATE-SYNC` 已在当前状态写回修正。
-  父 seam `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 仍为
-  `CONTRACT_FROZEN / IN_PROGRESS`；本 slice PASS 不是完整 seam、W1、G1、Q03、产品 QA、
+- **W1A cleanup 事实**：实现、source 与 merge-prep 均为
+  `faa910827d2db557d4e17970105047a205f77a57`，parent 为
+  `432616b6d27e8dce62753f97b3ebf3184b8f67b5`，只改
+  `SearchViewModel.kt`、`SearchViewModelTest.kt`、`SearchSessionTest.kt` 3 文件；
+  `W1A-P3-COMPLETED-MARKER` 与 `W1A-P3-LOCAL-ONLY-REGRESSION` 均标 `CLOSED`。
+  独立 QA R2 对 cleanup 结果判 `PASS / P0-P3=0/0/0/0`：film 定向 `15/0/0/0`、
+  app 定向 `7/0/0/0`、film 全量 `154/0/0/0`、app 全量 `417/0/0/0`，assemble / ktfmt
+  PASS，A0 7/7 + direct guard PASS。merge-prep 的 source/final 均为上述 SHA，3 文件
+  blob / patch-id MATCH；目标态 `288/288` tasks executed，A0 internal `19/19`、external
+  `8/8`，cycles / FQCN ambiguity / debt-ratchet failure / findings 均为 0。随后以 ff-only
+  集成为五文件同步时的 `CODE_INTEGRATION_HEAD`；父 seam
+  `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 仍为
+  `CONTRACT_FROZEN / IN_PROGRESS`。本 slice cleanup 不是完整 seam、W1、G1、Q03、产品 QA、
   runtime 或 Release PASS。
+- **当前交接对象**：`HANDOFF_BASE_HEAD=faa910827d2db557d4e17970105047a205f77a57`，
+  branch=`codex/v2-integration`。root 集成本 docs candidate 后，以 root 最终钉住 /
+  新会话简报中的精确 HEAD 复核；第一条只读动作仍为
+  `git status --short --untracked-files=all` 和 `git rev-parse HEAD`。唯一 ACTIVE handoff
+  的 `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence` 必须与
+  `docs/V2_PLAN.md` §12 和 `docs/TASKS.md` 当前段一致。
   `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
   V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
   V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-  `NEXT_CRITICAL_PATH=W1A-P3 cleanup -> ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；
-  `last_evidence=docs/TASKS.md W1A P3 cleanup ledger + 独立 QA R3 PASS /
-  P0-P3=0/0/0/3 + merge-prep 9fde82c0a1728bcd04f98d57dd66eb51d932d025 /
-  source-final patch-id MATCH`。
-- **下一会话角色与首动作**：全新
-  `AURORAMA_V2_IDENTITY_CATALOG_W1A_P3_CLEANUP_OWNER_2026_11_07`；第一条只读动作必须为
-  `git status --short` / `git rev-parse HEAD`。执行卡只维护在
-  `docs/TASKS.md` 的 `W1A P3 cleanup 交接任务卡`；预计写域仅
-  `SearchViewModel.kt`、`SearchViewModelTest.kt`、`SearchSessionTest.kt` 中实际所需文件。
-  白名单越界、需改 data contract / auth / preferences / schema / Gradle，或出现新
-  P0–P2 时立即停止。清理两项 P3 后，下一入口才是
-  `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`，另派全新 owner。
-- **交接水位**：产生本交接的旧会话为
-  `648,477 / 1,048,576（61.8%），请求 1331`；已超过 35 万硬交接线，本会话必须交接，
-  不得继续在该旧上下文扩项。W1–W5 功能波仍只有对应 `PREREQUISITE_SEAMS` 达到
-  `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 后才可开工；A0 guard 与 W1A slice
-  都不是全量 architecture progress。
+  `NEXT_CRITICAL_PATH=ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；
+  `last_evidence=docs/TASKS.md W1A P3 cleanup ledger + cleanup 独立 QA R2 PASS /
+  P0-P3=0/0/0/0 + merge-prep faa910827 / source-final MATCH + ff-only integration`。
+- **下一会话角色与首动作**：用户另行授权后，下一会话必须是全新
+  `AURORAMA_V2_W1B_DELIVERY_LEAD_INTEGRATION_ORCHESTRATOR_2026_11_07`，身份固定为
+  **交付负责人 / 技术集成编排者**；只做范围、风险、角色拆单、只读白名单、压缩报告 /
+  关键 diff 审查、集成决策和文档。实现、诊断、scoped review、独立 QA、merge-prep 与
+  Release 必须由该负责人另派的对应全新专业子代理承担，负责人不得亲自替代。第一条只读动作
+  必须是核对 clean control `status=0`、branch/HEAD 与本交接即 root 集成本 docs candidate 后
+  钉住的对象。当前 W1B 只有下一入口登记，**没有实现授权**；不得自动创建 W1B 代码分支。
+- **交接水位**：本 docs/handoff owner 查询时为
+  `145,228 / 1,048,576（13.9%），请求 341`；后续以 Git / 文档现场为准。W1–W5 功能波
+  仍只有对应 `PREREQUISITE_SEAMS` 达到
+  `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 后才可开工；A0 guard 与 W1A slice 都不是
+  全量 architecture progress。
+- **HISTORY（2026-11-07 W1A P3 cleanup 前；已被本 ACTIVE 取代）**：当时控制面
+  `3607a2fd`，状态为 `IDENTITY_CATALOG_W1A=INTEGRATED_WITH_P3_CLEANUP /
+  W1A_P3_OPEN=2`；下一角色为
+  `AURORAMA_V2_IDENTITY_CATALOG_W1A_P3_CLEANUP_OWNER_2026_11_07`。产生该旧交接的会话为
+  `648,477 / 1,048,576（61.8%），请求 1331`。这些只作历史，不得作为当前派单源。
 - **HISTORY**：旧 G2 失败现场归档在本地只读分支
   `codex/g2-prewindow-blocked-20261107`，commit `c5a5ac0a`（parent `de6dd31e`），含
   9 个 settlement 文件与 `qa-pad-v2` 三文件；不合入、不 push、不 tag。旧 G2 合同与 QA
