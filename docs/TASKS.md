@@ -24,10 +24,12 @@
 > `last_evidence=8865b0c8 clean integration + A0 integration ab917404 +
 > docs/TASKS.md W1 accepted task card + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
 >
-> 当前没有已启动的产品实现任务。`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的自包含任务卡已接受为
-> `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`；实现前 DI scope correction 已把首切片选择点
-> 收敛到 `:data` 的 `CatalogReadModule`，`core/RepositoryModule.kt` 保持不变。实现必须由 root
-> 在 correction 集成后另行派全新 implementation owner，当前尚未写产品代码。`V2-NON-TTS-W1` 仍保持
+> 当前 W1A 实现候选已形成，状态为
+> `SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA`。实现 candidate
+> `16e19571c482b1af6958c4fc39ae58d84af42a0d` 与 test-compat
+> `693eff11dd8cf43837ac090770cc6f3b37bace8b` 已通过实现自测、组合 build 与 A0 guard；
+> 独立 QA 尚未执行。DI 选择点位于 `:data` 的 `CatalogReadModule`，
+> `core/RepositoryModule.kt` 保持原样。`V2-NON-TTS-W1` 仍保持
 > `BLOCKED_BY_PREREQUISITES`，直到完整 seam DoD 通过。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
 > 可作独立探针，但状态为
 > `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`；仅两文件，无缺陷即
@@ -41,7 +43,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `CONTRACT_FROZEN` -> `ADAPTER_IMPLEMENTED` | 任务卡已由 root 接受；尚无产品源码、契约执行、回归测试、QA 或集成证据 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `INDEPENDENT_QA` | W1A candidate 已完成实现自测/构建/A0 guard；尚无独立 QA、完整父 seam 或 integration 证据 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -69,7 +71,7 @@ DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
 ### `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 冻结任务卡
 
 - ID：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`
-- 状态：`TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`
+- 状态：`SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA`
 - 冻结基线：root acceptance clean `codex/v2-integration` /
   `8865b0c8e0e57aa1dd790300e21515f92eb3c580`；前置 accepted candidate
   `310fdfdb7d5e41bdc1ce8ce63385c2f2d0e27a4f`（parent `d85f695b`）。本 DI scope correction
@@ -234,13 +236,14 @@ materialization 的 base URL / access token 也必须来自该绑定，不得从
 7. `modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSession.kt`
 8. `modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchViewModel.kt`
 
-对应测试（5）：
+对应测试（6）：
 
 1. `data/src/test/java/com/zhangwenkang/cinefin/repository/CatalogReadPortContractTest.kt`（新建）
 2. `data/src/test/java/com/zhangwenkang/cinefin/repository/JellyfinRepositorySearchItemsDispatcherTest.kt`
 3. `data/src/test/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwrTest.kt`
 4. `modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt`
 5. `modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchCatalogConsumerTest.kt`（新建）
+6. `app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/search/SearchViewModelTest.kt`
 
 白名单外即停止。尤其禁止修改 `settings.gradle.kts`、根 build、依赖目录、
 `NavigationRoot.kt`、`CinefinCard.kt`、theme/token、Room schema、Downloader / Worker、
@@ -254,7 +257,7 @@ materialization 的 base URL / access token 也必须来自该绑定，不得从
 
 | 状态 | 父 seam 通过条件 | 首个切片 `ICS-W1A` 的边界 |
 |---|---|---|
-| `CONTRACT_FROZEN` | root 已接受本卡、FQCN、字段、白名单与停止门 | 已接受；等待独立 implementation owner |
+| `CONTRACT_FROZEN` | root 已接受本卡、FQCN、字段、白名单与停止门 | 已接受；W1A 实现候选等待独立 QA |
 | `ADAPTER_IMPLEMENTED` | online / offline adapter 与 read-side scope/generation 检查落地 | 可形成 slice-local 证据，不能覆盖 auth / settings 写入与其他 catalog consumers |
 | `TARGET_CONSUMERS_MIGRATED` | auth / preference / DB namespace / cache 与全部声明目录消费者迁移 | 本切片只迁移 SearchViewModel / SearchSession |
 | `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH` | 全局旧身份推断、旧搜索路径与跨账号双真源移除 | 本切片只要求删除 search 旧路径；其他旧路径仍存在 |
@@ -293,8 +296,11 @@ $env:JAVA_HOME = 'F:\Develop\Android\Android Studio\jbr'
   --tests 'com.zhangwenkang.cinefin.film.presentation.search.SearchSessionTest' `
   --tests 'com.zhangwenkang.cinefin.film.presentation.search.SearchCatalogConsumerTest' `
   --console=plain
+& "$repoRoot\gradlew.bat" :app:phone:testDebugUnitTest `
+  --tests 'com.zhangwenkang.cinefin.presentation.search.SearchViewModelTest' `
+  --console=plain
 & "$repoRoot\gradlew.bat" :data:testDebugUnitTest :modes:film:testDebugUnitTest `
-  :app:phone:assembleDebug --console=plain
+  :app:phone:testDebugUnitTest :app:phone:assembleDebug --console=plain
 pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $repoRoot
 ```
 
@@ -302,8 +308,8 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 
 - contract / pure rules：scope 校验、query 形状、freshness 枚举、`IdentityUnavailable`。
 - adapter unit：online cache / snapshot / SWR 复用与 stale marker；offline scope 过滤。
-- DI / Hilt：`CatalogReadModule` 的选择行为与绑定测试归 `:data`；只使用既有 5 个 data / film
-  测试文件，至少覆盖 offline preference 的 true / false 选择，并由
+- DI / Hilt：`CatalogReadModule` 的选择行为与绑定测试归 `:data`；使用 6 个 data / film /
+  app 测试文件，至少覆盖 offline preference 的 true / false 选择，并由
   `:app:phone:assembleDebug` 证明 Hilt graph 可在不修改 `core/RepositoryModule.kt` 的情况下
   完成。不得新增第六个测试文件，也不得在 core DI 中塞入测试 seam。
 - consumer unit：`SearchViewModel` / `SearchSessionGuard` 只接受返回 snapshot 的同一 scope。
@@ -402,7 +408,8 @@ $allowedFiles = @(
   'modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSession.kt',
   'modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchViewModel.kt',
   'modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchCatalogConsumerTest.kt',
-  'modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt'
+  'modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt',
+  'app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/search/SearchViewModelTest.kt'
 )
 $changedFiles = @(git -C $repoRoot diff --name-only "$baseSha...HEAD")
 $unexpectedFiles = @($changedFiles | Where-Object { $_ -notin $allowedFiles })
@@ -440,7 +447,7 @@ git -C $repoRoot diff --check
      `freshness-state-machine.json`；
   7. 白名单内 8 个源码与 5 个测试现场；graphify 仅辅助，源码/Git 为事实。
 - 首动作后先写 RED 合同测试，再实现最小 GREEN；不得先重构宽仓库。
-- 写域：仅上面 8 源码 + 5 测试文件。`docs/TASKS.md` / `V2_PLAN.md` /
+- 写域：仅上面 8 源码 + 6 测试文件。`docs/TASKS.md` / `V2_PLAN.md` /
   `ARCHITECTURE.md` 只按实现报告规则回写，不由实现 owner 自行扩卡。
 - 必须执行上面的 data / film 单测、全量相关单测、`:app:phone:assembleDebug`、
   `git diff --check`、changed-file 白名单与旧 token 检查。

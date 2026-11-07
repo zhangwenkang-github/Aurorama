@@ -7,7 +7,7 @@
 > PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
 > FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 > ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> IDENTITY_CATALOG_TASK_CARD=TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION /
+> IDENTITY_CATALOG_W1A=IMPLEMENTATION_PENDING_INDEPENDENT_QA /
 > A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 > G0_PASSED / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 > PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
@@ -23,8 +23,8 @@
 > 并以 source/final stable patch-id MATCH 集成到 clean integration HEAD
 > `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
 > 实际产品架构重构仍为 `NOT_PROVEN`，contracts seam / 消费者迁移未落地。当前长期关键路径
-> 先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；其自包含任务卡已接受为
-> `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`，实现前 DI scope correction 把首切片选择点
+> 先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；W1A implementation candidate 已形成为
+> `IMPLEMENTATION_PENDING_INDEPENDENT_QA`。DI scope correction 把首切片选择点
 > 收敛到 `:data` 的 `CatalogReadModule`，`core/RepositoryModule.kt` 保持不变，尚无产品源码
 > 实现证据。W1–W5 功能波在对应 `PREREQUISITE_SEAMS` 达到
 > `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 前不得开工。
@@ -3489,7 +3489,7 @@ W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED /
 PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
 FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-IDENTITY_CATALOG_TASK_CARD=TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION /
+IDENTITY_CATALOG_W1A=IMPLEMENTATION_PENDING_INDEPENDENT_QA /
 A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 W0=ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED /
 DO_NOT_RESUME_OLD_HANDOFF_LOOP / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
@@ -3522,11 +3522,11 @@ contracts seam 与消费者迁移仍未落地；A0 owner guard / debt ratchet �
 candidate `310fdfdb` 并集成到 clean `8865b0c8`。实现前 DI scope correction 将首切片
 `CatalogReadPort` 选择点从 core `RepositoryModule` 改为 `:data` 的 `CatalogReadModule`：
 读取既有 `AppPreferences.offlineMode`，复用 core 已提供的两个 repository implementation
-singleton，不重复创建，`core/RepositoryModule.kt` 保持不变。该 correction 本身仍为
-docs-only candidate；root 集成并钉住 SHA 前不得派 implementation。当前状态仍为
-`TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`；本轮没有写产品源码、测试、Gradle、
-QA evidence 或 Memory。`V2-NON-TTS-W1` 仍 `BLOCKED_BY_PREREQUISITES`。W0 仅作独立探针；
-guard 集成不代表产品重构完成。
+singleton，不重复创建，`core/RepositoryModule.kt` 保持不变。该 correction 已集成；W1A
+implementation + app test-compat 候选已通过自身 TDD、data/film/app 单测、assemble 与 A0
+guard，但尚无独立 QA。当前状态为
+`SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA`；`V2-NON-TTS-W1` 仍
+`BLOCKED_BY_PREREQUISITES`。W0 仅作独立探针；guard 集成不代表产品重构完成。
 
 **A0 integration 事实**：source
 `a787b683c89389491099ea7acb069422190327c3`（parent
@@ -3566,7 +3566,7 @@ membership / 560 条边；外部 `445` source、`376` MVP 子项、D203 addendum
 
 | Seam ID | 状态 | 必须先于 |
 |---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION` | W1 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA` | W1 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | W2 |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | W3 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | W4 正文实现 |
@@ -3786,17 +3786,18 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
   立即拆卡并停止；任何 TTS/G2 需求出现即退出本波。
 - TTS 关系：无。
 
-**当前唯一架构主线入口**：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的任务卡已冻结为
-`TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`；完整内容只维护在
+**当前唯一架构主线入口**：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的 W1A implementation candidate
+已形成为 `SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA`；完整内容只维护在
 `docs/TASKS.md` 的 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1 冻结任务卡`，本文不复抄白名单。
 首个纵向切片为 `ICS-W1A-SCOPED-SEARCH-SNAPSHOT`，只覆盖搜索目录读、online / offline
 adapter、SWR freshness 与 Search consumer；账号 / preference 写入单 writer、其他
 catalog readers、offline namespace、权限与 durable fence 留给后续子波。
 
-本 DI scope correction 集成并重新钉住 clean integration SHA 前不得派实现。之后 root 另行创建全新
-`AURORAMA_V2_IDENTITY_CATALOG_W1A_IMPLEMENTATION_OWNER_2026_11_07`，首条只读动作固定为
-`git status --short` / `git rev-parse HEAD`；实现 owner 只做自身 TDD、构建与实现报告，
-不得自开 QA 或 merge-prep。
+实现候选为 implementation `16e19571c482b1af6958c4fc39ae58d84af42a0d`（parent
+`62a6d2c9`）+ test-compat
+`693eff11dd8cf43837ac090770cc6f3b37bace8b`，相对 `62a6d2c9` 共 8 源码 + 6 测试。
+下一步只能由 root 另派与实现者不同的全新独立 QA，固定上述 candidate；首条只读动作
+`git status --short` / `git rev-parse HEAD`。独立 QA PASS 前不得 merge-prep 或集成。
 
 首切片 DI 选择点固定为 `data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt`
 （新建，`@Module @InstallIn(SingletonComponent::class)`）：读取既有
@@ -6862,3 +6863,19 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `docs/ARCHITECTURE.md`、`docs/V2_PLAN.md`，未写产品源码 / tests / Gradle / tools / Memory /
   QA evidence，未运行 Gradle / ADB / 设备 / 网络 / 服务器 / 产品 QA / runtime / Release，
   未 push / tag / fetch，未移动 integration；这不构成 seam 实现、测试或 QA PASS。
+- **2026-11-07 — Identity/Catalog W1A 实现候选完成 / 等待独立 QA**：全新
+  `AURORAMA_V2_IDENTITY_CATALOG_W1A_IMPLEMENTATION_OWNER_2026_11_07` 从 `62a6d2c9` 生成
+  implementation candidate `16e19571c482b1af6958c4fc39ae58d84af42a0d`；随后负责人发现
+  app 旧 `SearchViewModelTest` 仍按旧构造与 `getSearchItems` 编写，另派全新
+  `AURORAMA_V2_IDENTITY_CATALOG_W1A_TEST_COMPATIBILITY_OWNER_2026_11_07` 修复并生成
+  test-compat candidate `693eff11dd8cf43837ac090770cc6f3b37bace8b`。最终候选相对
+  `62a6d2c9` 为 8 源码 + 6 测试，共 14 文件。实现 owner 实际取得 RED 后 GREEN；
+  data 定向 `20/20`、film 定向 `17/17`、全 data `291/291`、全 film `151/151`、全 app
+  `412/412`，`:app:phone:assembleDebug`、`ktfmtCheck` 与 A0 guard 均 PASS。guard 保持
+  内部边 `19/19`、外部边 `8/8`、cycles/FQCN ambiguity/debt-ratchet failure/findings=`0`；
+  baseline SHA 未变，`core/RepositoryModule.kt` 无 diff，11 违规仍 P1/P2/P3=`7/3/1`。
+  生产搜索目录旧 `getSearchItems` / `SearchNamespace` / `AppPreferences` / `getUserId`
+  路径为 0 命中。当前状态为
+  `SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA`；父 seam 仍 `CONTRACT_FROZEN`，
+  `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。候选未集成；下一步只能由 root 另派与实现者
+  不同的全新独立 QA，禁止实现 owner 自派或直接 merge-prep。
