@@ -16,13 +16,23 @@
   A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
   IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
   CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57 /
+  CONTROL_PLANE_HEAD_INPUT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+  HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+  DOCS_CANDIDATE_PARENT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
   W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
   W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES / W1A_P3_OPEN=0 /
   W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
   W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 /
+  W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
+  W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION /
+  W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY /
+  USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY /
+  W1B_1A=READY_FOR_IMPLEMENTATION_OWNER / W1B_1B=BLOCKED_BY_W1B_1A /
+  W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
+  OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
   PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
   V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES /
-  NO_W1B_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
+  RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO`。
 - **W1A cleanup 事实**：实现、source 与 merge-prep 均为
   `faa910827d2db557d4e17970105047a205f77a57`，parent 为
   `432616b6d27e8dce62753f97b3ebf3184b8f67b5`，只改
@@ -37,28 +47,39 @@
   `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 仍为
   `CONTRACT_FROZEN / IN_PROGRESS`。本 slice cleanup 不是完整 seam、W1、G1、Q03、产品 QA、
   runtime 或 Release PASS。
-- **当前交接对象**：`HANDOFF_BASE_HEAD=faa910827d2db557d4e17970105047a205f77a57`，
-  branch=`codex/v2-integration`。root 集成本 docs candidate 后，以 root 最终钉住 /
-  新会话简报中的精确 HEAD 复核；第一条只读动作仍为
+- **当前交接对象**：`HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd`，
+  branch=`codex/v2-integration`；`CODE_INTEGRATION_HEAD` 仍为
+  `faa910827d2db557d4e17970105047a205f77a57`，二者不得混写。docs candidate 的 parent
+  固定为 `cbfcb1f3`，最终 docs candidate SHA 由本次 amend 产生、由 root 最终钉住；
+  同一 docs commit 不记录自身 SHA。root 集成后，以 root 最终钉住 / 新会话简报中的精确
+  HEAD 复核；第一条只读动作仍为
   `git status --short --untracked-files=all` 和 `git rev-parse HEAD`。唯一 ACTIVE handoff
   的 `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence` 必须与
   `docs/V2_PLAN.md` §12 和 `docs/TASKS.md` 当前段一致。
   `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
   V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
   V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-  `NEXT_CRITICAL_PATH=ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；
-  `last_evidence=docs/TASKS.md W1A P3 cleanup ledger + cleanup 独立 QA R2 PASS /
-  P0-P3=0/0/0/0 + merge-prep faa910827 / source-final MATCH + ff-only integration`。
-- **下一会话角色与首动作**：用户另行授权后，下一会话必须是全新
+  `NEXT_CRITICAL_PATH=W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`；
+  `last_evidence=docs/TASKS.md ICS-W1B task card ACCEPTED + root scope W1B_1A_ONLY /
+  W1A cleanup QA R2 + source-final MATCH + ff-only integration`。
+- **W1B 任务卡与下一会话角色**：用户于 2026-11-07 以“继续下一步”接受
+  `W1B_TASK_CARD=ACCEPTED`，但授权范围只有
+  `W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY`；不等于 W1B 已实现、已 QA
+  或父 seam 已推进。1B / 1C / 2 必须分别等待前置 stack integrated + fresh QA /
+  merge-prep，不得由一个 owner 连续执行。下一会话必须是全新
   `AURORAMA_V2_W1B_DELIVERY_LEAD_INTEGRATION_ORCHESTRATOR_2026_11_07`，身份固定为
   **交付负责人 / 技术集成编排者**；只做范围、风险、角色拆单、只读白名单、压缩报告 /
   关键 diff 审查、集成决策和文档。实现、诊断、scoped review、独立 QA、merge-prep 与
   Release 必须由该负责人另派的对应全新专业子代理承担，负责人不得亲自替代。第一条只读动作
-  必须是核对 clean control `status=0`、branch/HEAD 与本交接即 root 集成本 docs candidate 后
-  钉住的对象。当前 W1B 只有下一入口登记，**没有实现授权**；不得自动创建 W1B 代码分支。
-- **交接水位**：本 docs/handoff owner 查询时为
-  `145,228 / 1,048,576（13.9%），请求 341`；后续以 Git / 文档现场为准。W1–W5 功能波
-  仍只有对应 `PREREQUISITE_SEAMS` 达到
+  必须是核对 root 最终 HEAD 与 clean control `status=0`，再读本交接 / task card；
+  release、device、network 仍未授权。W1B-1 固定拆为顺序子波
+  `W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`、
+  `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`、
+  `W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE`；后置
+  `W1B-2-STARTUP-HYDRATION-AND-RECOVERY` 只能在 W1B-1A/B/C 全部 integrated 并完成
+  W1B-1 组合门后派单。每波使用不同 fresh owner，禁止同一 owner 连做或 manager 兼任。
+  当前只授权先派 `W1B-1A`；不得自动创建 W1B-1B/1C/2 代码分支。W1–W5 功能波仍只有对应
+  `PREREQUISITE_SEAMS` 达到
   `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 后才可开工；A0 guard 与 W1A slice 都不是
   全量 architecture progress。
 - **HISTORY（2026-11-07 W1A P3 cleanup 前；已被本 ACTIVE 取代）**：当时控制面

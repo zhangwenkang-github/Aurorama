@@ -9,8 +9,18 @@
 > ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
 > IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
 > CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57 /
+> CONTROL_PLANE_HEAD_INPUT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+> HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+> DOCS_CANDIDATE_PARENT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
 > W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
 > W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES /
+> W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
+> W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION /
+> W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY /
+> USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY /
+> W1B_1A=READY_FOR_IMPLEMENTATION_OWNER / W1B_1B=BLOCKED_BY_W1B_1A /
+> W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
+> OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
 > PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
 > V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES /
 > A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
@@ -18,7 +28,7 @@
 > PRODUCT_P0_P3_NOT_ASSESSED / W1A_P3_OPEN=0 /
 > W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
 > W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 /
-> NO_W1B_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
+> RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序已延期；不得写成需求删除、已交付、
 > QA / runtime / G1 PASS。**HISTORY（旧 seam 规划起点 / 失败现场；非当前状态）**：seam
 > 规划从 clean integration
@@ -53,15 +63,23 @@
 > `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-> `NEXT_CRITICAL_PATH=ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；
-> `last_evidence=docs/TASKS.md W1A P3 cleanup ledger + cleanup 独立 QA R2 PASS /
-> P0-P3=0/0/0/0 + merge-prep faa910827 / source-final MATCH + ff-only integration`。
-> `ICS-W1B` 当前只有下一入口登记，没有实现授权；不得自动创建 W1B 代码分支。本 docs/handoff
-> owner 查询上下文为 `145,228 / 1,048,576（13.9%），请求 341`。
-> 获授权后的下一会话必须是全新
+> `NEXT_CRITICAL_PATH=W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`；
+> `last_evidence=docs/TASKS.md ICS-W1B task card ACCEPTED + root scope W1B_1A_ONLY /
+> W1A cleanup QA R2 + source-final MATCH + ff-only integration`。
+> 用户于 2026-11-07 以“继续下一步”接受任务卡；`ICS-W1B` 当前为
+> `W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION`，
+> `W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY`。
+> W1B-1 已按一 owner 小波上限拆为 `1A -> 1B -> 1C`：1A contract/store/coordinator/DI +
+> Servers current-server 选择，1B auth/Quick Connect/saved-user/Add Server/candidate API
+> ingress，1C offline/settings UI + W1A identity generation/routing。每波独立 fresh
+> owner、QA 与 merge-prep；1C 后另派 combined QA/merge-prep，root 集成完整 W1B-1 后才
+> 允许后置 W1B-2。下一会话必须是全新
 > `AURORAMA_V2_W1B_DELIVERY_LEAD_INTEGRATION_ORCHESTRATOR_2026_11_07`，身份固定为
 > **交付负责人 / 技术集成编排者**；只做范围、拆单、压缩报告 / 关键 diff 审查、集成决策和
-> 文档，实现、诊断、独立 QA、merge-prep、Release 均派给全新专业子代理。
+> 文档，首动作只读核对 root 最终 HEAD 与 clean；实现、诊断、独立 QA、merge-prep、
+> Release 均派给全新专业子代理。旧 W1B “只有
+> 下一入口登记”文案已转为 HISTORY；当前只允许 manager 先派 `W1B-1A` fresh owner，
+> 不得创建 1B/1C/2 implementation 分支。
 > **HISTORY（2026-11-07 P3 cleanup 前；已被本 ACTIVE 取代）**：当时 clean base 为
 > `3607a2fdc1691b42bb638b984a16097f9c3cc563`，W1A 为
 > `INTEGRATED_WITH_P3_CLEANUP / W1A_P3_OPEN=2`；旧会话为
@@ -3509,7 +3527,7 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：ARCH_SEAM_DELIVERY_ACTIVE / W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED（2026-11-07）
+### ACTIVE：ARCH_SEAM_DELIVERY_ACTIVE / W1A_P3_CLEANUP_COMPLETE / W1B_TASK_CARD_ACCEPTED / W1B_1A_READY / W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED（2026-11-07）
 
 **当前状态**：`TTS_G2=DEFERRED_BLOCKED_CONTROL_PLANE /
 SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / ARCH_SEAM_DELIVERY_ACTIVE /
@@ -3519,17 +3537,27 @@ FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS / USER_CONFIRMED
 ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
 IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
 CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57 /
+CONTROL_PLANE_HEAD_INPUT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+DOCS_CANDIDATE_PARENT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
 W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
 W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES /
 W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
 W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 / W1A_P3_OPEN=0 /
+W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
+W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION /
+W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY /
+USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY /
+W1B_1A=READY_FOR_IMPLEMENTATION_OWNER / W1B_1B=BLOCKED_BY_W1B_1A /
+W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
+OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
 PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
 V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES /
 A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 W0=ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED /
 DO_NOT_RESUME_OLD_HANDOFF_LOOP / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 PRODUCT_P0_P3_NOT_ASSESSED /
-NO_W1B_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。用户以
+RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO`。用户以
 `V2-D211` 决定先推进其他
 非 TTS 的 2.0 core 功能，TTS/G2 runtime 的问题留到后期由新方案或更强 owner 解决。
 TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；当前只延期交付顺序，绝不
@@ -3538,18 +3566,28 @@ TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；�
 `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
 V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-`NEXT_CRITICAL_PATH=ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；
-`last_evidence=docs/TASKS.md W1A P3 cleanup ledger + cleanup 独立 QA R2 PASS /
-P0-P3=0/0/0/0 + merge-prep faa910827 / source-final MATCH + ff-only integration`。
+`NEXT_CRITICAL_PATH=W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`；
+`last_evidence=docs/TASKS.md ICS-W1B task card ACCEPTED + root scope W1B_1A_ONLY /
+W1A cleanup QA R2 + source-final MATCH + ff-only integration`。
 本 ACTIVE 的 code integration HEAD 为
 `faa910827d2db557d4e17970105047a205f77a57`；docs handoff 由 root 集成后以其最终钉住的
 HEAD 为准。W1A cleanup 的 parent 为
-`432616b6d27e8dce62753f97b3ebf3184b8f67b5`。本 docs/handoff owner 查询上下文为
-`145,228 / 1,048,576（13.9%），请求 341`。`ICS-W1B` 只有下一入口登记，当前没有实现
-授权，不得自动开工或创建 W1B 代码分支。获授权后的下一会话必须是全新
+`432616b6d27e8dce62753f97b3ebf3184b8f67b5`。`CONTROL_PLANE_HEAD_INPUT` 与
+`HANDOFF_BASE_HEAD` 均为 `cbfcb1f307899748093ef5bfe0ab2d941683bddd`，
+`DOCS_CANDIDATE_PARENT` 同值；最终 candidate SHA 由本次 amend 产生并由 root 最终钉住。
+`ICS-W1B` 已由全新 planning owner 收敛为
+`W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION`，
+`W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY`：
+`W1B-1A/B/C` 三个顺序实现子波与后置 W1B-2，逐波 `6/4`、`7/4`、`6/5`、`4/2`
+production/test 白名单、独立 QA / merge-prep、TDD / 负例 / 回归矩阵和停止门见
+`docs/TASKS.md`。1A/1B/1C 中间态均不得写 `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH`；只有三波
+全部进入 stack、combined QA / merge-prep PASS 且 root 集成完整 W1B-1 后才可派 W1B-2。
+当前 manager 只能先派 fresh `W1B-1A` owner；不得创建 1B/1C/2 implementation 分支。
+下一会话必须是全新
 `AURORAMA_V2_W1B_DELIVERY_LEAD_INTEGRATION_ORCHESTRATOR_2026_11_07`，身份固定为
 **交付负责人 / 技术集成编排者**；只做范围、拆单、报告 / 关键 diff 审查、集成决策和文档，
-重活必须派对应全新专业子代理。**HISTORY（2026-11-07 P3 cleanup 前）**：旧
+首动作只读核对 root 最终 HEAD 与 clean。重活必须派对应全新专业子代理。
+**HISTORY（2026-11-07 P3 cleanup 前）**：旧
 ACTIVE 控制面为 `3607a2fdc1691b42bb638b984a16097f9c3cc563`，状态为
 `INTEGRATED_WITH_P3_CLEANUP / W1A_P3_OPEN=2`，旧会话为
 `648,477 / 1,048,576（61.8%），请求 1331`。
@@ -3623,7 +3661,7 @@ membership / 560 条边；外部 `445` source、`376` MVP 子项、D203 addendum
 
 | Seam ID | 状态 | 必须先于 |
 |---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | W1 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A_READY / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | W1 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | W2 |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | W3 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | W4 正文实现 |
@@ -7039,3 +7077,36 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`，当前无实现授权。获授权后的下一会话必须是
   全新“交付负责人 / 技术集成编排者”，只做范围、拆单、报告 / 关键 diff 审查、集成决策和
   文档；实现、诊断、独立 QA、merge-prep、Release 均派给全新专业子代理。
+- **2026-11-07 — W1B task-card planning PASS（docs-only）**：全新一次性
+  `AURORAMA_V2_W1B_IDENTITY_INGRESS_TASK_CARD_OWNER_2026_11_07` 从 clean control
+  `cbfcb1f307899748093ef5bfe0ab2d941683bddd` / `codex/v2-integration` 创建独立 docs
+  worktree `codex/v2-w1b-identity-task-card`，只读核对 status=0、branch / HEAD 与
+  parent `faa910827`。调查限定于 auth / preferences / server / user / token / Quick
+  Connect / offline 切换 writer、启动 hydration、DB / cache namespace 与 W1A
+  `CatalogScope` 消费边界；graphify 高层查询只作导航，当前 W1A port 以源码为准。
+  负责人 review 后，本次同一 planning candidate 的最小小波 amend 将 W1B-1 收紧为
+  `W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`（6 production / 4 test）→
+  `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`（7 / 4）→
+  `W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE`（6 / 5），后置
+  `W1B-2-STARTUP-HYDRATION-AND-RECOVERY`（4 / 2）。每波不同 fresh owner，并各自经过
+  独立 QA / merge-prep；1C 后另派 W1B-1 combined QA / merge-prep，root 集成完整 W1B-1
+  后才允许 W1B-2。中间波不得宣告
+  `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH`、W1B-1 PASS 或父 seam PASS。不需要 schema、
+  Gradle、设备、网络或 Release。任务卡状态为
+  `W1B_TASK_CARD_PLANNED / ROOT_REVIEW_REQUIRED / IMPLEMENTATION_NOT_AUTHORIZED`，
+  `W1B_TASK_CARD=PASS`。本波不运行 Gradle / ADB / 网络 / 设备，不实现 W1B，不改
+  tests / contracts / tools / Memory，不 commit 产品代码；W1A cleanup 语义、
+  `PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` 与
+  `V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES` 均保持。下一步仅 root review 本次 docs
+  candidate；PASS 后才创建全新 W1B 交付负责人会话。
+- **2026-11-07 — W1B task card ACCEPTED / W1B-1A-only authorization（docs-only）**：
+  负责人 review 结论为 `W1B_TASK_CARD=ACCEPTED`。用户同日“继续下一步”的授权范围严格
+  限定为 `W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY`；只允许下一 manager
+  先派 fresh `W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR` owner。
+  `W1B_1B=BLOCKED_BY_W1B_1A`、`W1B_1C=BLOCKED_BY_W1B_1B`、
+  `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`，且 `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH` 仍为
+  `NOT_SATISFIED`。下一 manager 保持
+  `AURORAMA_V2_W1B_DELIVERY_LEAD_INTEGRATION_ORCHESTRATOR_2026_11_07` 身份，只做编排、
+  审查、集成决策与文档，首动作只读核对 root 最终 HEAD 与 clean，重活另派 fresh 子代理。
+  release / device / network 均未授权；本 amend 不实现代码、不跑 Gradle / ADB / 网络 /
+  设备、不写 Memory。

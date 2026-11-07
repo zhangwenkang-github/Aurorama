@@ -14,13 +14,23 @@
 > A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 > IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
 > CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57 /
+> CONTROL_PLANE_HEAD_INPUT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+> HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+> DOCS_CANDIDATE_PARENT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
 > W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
 > W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES / W1A_P3_OPEN=0 /
 > W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
 > W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 /
+> W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
+> W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION /
+> W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY /
+> USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY /
+> W1B_1A=READY_FOR_IMPLEMENTATION_OWNER / W1B_1B=BLOCKED_BY_W1B_1A /
+> W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
+> OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
 > PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
 > V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES /
-> NO_W1B_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
+> RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成删除、已交付、QA / runtime /
 > G1 PASS。当前产品代码集成基线为
 > `CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57`，branch
@@ -40,9 +50,9 @@
 > `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-> `NEXT_CRITICAL_PATH=ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；
-> `last_evidence=docs/TASKS.md W1A P3 cleanup ledger + cleanup 独立 QA R2 PASS /
-> P0-P3=0/0/0/0 + merge-prep faa910827 / source-final MATCH + ff-only integration`。
+> `NEXT_CRITICAL_PATH=W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`；
+> `last_evidence=docs/TASKS.md ICS-W1B task card ACCEPTED + root scope W1B_1A_ONLY /
+> W1A cleanup QA R2 + source-final MATCH + ff-only integration`。
 >
 > `W1A-P3-COMPLETED-MARKER` / `W1A-P3-LOCAL-ONLY-REGRESSION` 均 `CLOSED`；
 > `W1A_P3_OPEN=0`。原独立 QA R3 `PASS / P0-P3=0/0/0/3` 作为历史证据保留，不追溯改写；
@@ -55,8 +65,11 @@
 > 可作独立探针，但状态为
 > `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`；仅两文件，无缺陷即
 > `NO_DEFECT_REPRODUCED` 停止，不挡架构主线，也不计作 seam 进度。下一入口仅为
-> `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 登记，当前没有 W1B 实现授权。本 docs/handoff
-> owner 查询上下文为 `145,228 / 1,048,576（13.9%），请求 341`。
+> `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`。用户于 2026-11-07 以“继续下一步”接受任务卡，
+> 当前状态为 `ACCEPTED / READY_FOR_IMPLEMENTATION`，实现授权严格限定
+> `SCOPE=W1B_1A_ONLY`；1B / 1C / 2 分别阻塞。`HANDOFF_BASE_HEAD` 与
+> `DOCS_CANDIDATE_PARENT` 均为 `cbfcb1f3`，`CODE_INTEGRATION_HEAD` 仍为
+> `faa910827`，最终 docs candidate SHA 由本次 amend 产生并由 root 最终钉住。
 >
 > **HISTORY（2026-11-07 P3 cleanup 前；已被本 ACTIVE 取代）**：当时控制面
 > `3607a2fdc1691b42bb638b984a16097f9c3cc563`，W1A 为
@@ -66,7 +79,13 @@
 
 - [x] `W1A-P3-CLEANUP`：`CLOSED / INTEGRATED`。实现与 cleanup 独立 QA R2 证据绑定
   `faa910827d2db557d4e17970105047a205f77a57`；原 cleanup 任务卡已转为 HISTORY。
-  当前无已授权 W1B 实现任务，也禁止从本 docs 收口自动创建 W1B 代码分支。
+  当前只授权 `W1B-1A` 实现任务；1B/1C/2 仍未授权，禁止从本 docs 收口自行创建后续分支。
+- [x] `W1B-TASK-CARD-PLANNING`：`W1B_TASK_CARD=ACCEPTED / READY_FOR_IMPLEMENTATION`。
+  自包含卡、W1B-1A/B/C 三顺序实现子波与后置 W1B-2、逐波精确白名单、独立 QA /
+  merge-prep、TDD / 负例 / 回归矩阵和停止门已写入下方；只证明可执行计划存在，不证明
+  实现、QA、父 seam 或 W1 完成。
+- [ ] `W1B-1A-IMPLEMENTATION`：`AUTHORIZED / READY_FOR_FRESH_OWNER`。下一 manager 只能先派
+  fresh `W1B-1A` owner；1B / 1C / 2 未获授权，必须等待各自前置。
 
 ## Architecture Critical Path / 长期计划账本
 
@@ -76,7 +95,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `ICS-W1B` 任务卡授权 / 派单 | W1A cleanup 与 QA R2 已关闭且 integrated；W1B–W1G、父 seam 全量 DoD 仍未完成，父 seam 保持 `CONTRACT_FROZEN / IN_PROGRESS` |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A_READY / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice dependency satisfied | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | 下一 manager 派 fresh `W1B-1A` owner | W1A cleanup 与 QA R2 已关闭且 integrated；W1B card 已接受且只授权 1A，尚未实现；W1B–W1G、父 seam 全量 DoD 仍未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -528,7 +547,7 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 
 | 子波 | 交付物 | 前置 |
 |---|---|---|
-| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A` P3 cleanup complete / integrated；当前仍需用户实现授权、root 派单与全新交付负责人拆单 |
+| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A` P3 cleanup complete / integrated；`W1B_TASK_CARD=ACCEPTED`，只授权 fresh `W1B-1A` owner；1B/1C/2 阻塞 |
 | `ICS-W1C-CATALOG-READERS` | views / items / detail / home / paging 等 catalog readers 共用 canonical scope 与 snapshot | `ICS-W1B` |
 | `ICS-W1D-OFFLINE-NAMESPACE` | saved offline account、无账号、image cache / DB namespace / offline projection 收敛 | `ICS-W1B` |
 | `ICS-W1E-FRESHNESS-PERMISSIONS` | 完整 freshness / stale reason、401/403、durable fence、跨进程与损坏策略 | `ICS-W1A`–`W1D` |
@@ -583,6 +602,395 @@ git -C $repoRoot diff --check
 ```
 
 前两条预期无命中；若保留 test helper 名称，也必须不以生产方式暴露。
+
+### `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 自包含任务卡
+
+- ID：`ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`
+- 状态：`W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION`；
+  `W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY`
+- 授权边界：`USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY`；
+  `RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO`。
+- 卡片裁决：`W1B_TASK_CARD=ACCEPTED`。用户 2026-11-07 “继续下一步”只授权先派 fresh
+  `W1B-1A` owner；不是 1B/1C/2、实现完成、独立 QA、merge-prep、父 seam、W1、产品、
+  runtime 或 Release PASS。
+- `PREREQUISITE_SEAMS=NONE`；依赖
+  `ICS-W1A-SCOPED-SEARCH-SNAPSHOT=P3_CLEANUP_COMPLETE / INTEGRATED`。
+- 输入基线：
+  `CONTROL_PLANE_HEAD_INPUT=cbfcb1f307899748093ef5bfe0ab2d941683bddd`，
+  `HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd`，
+  `DOCS_CANDIDATE_PARENT=cbfcb1f307899748093ef5bfe0ab2d941683bddd`，
+  `CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57`。
+  candidate SHA 由本次 amend commit 产生，并由 root 最终钉住；不得把 candidate 自身
+  SHA 写进同一 commit。
+- 当前门：`W1B-1A_IMPLEMENTATION_DISPATCH`。必须创建全新
+  `AURORAMA_V2_W1B_DELIVERY_LEAD_INTEGRATION_ORCHESTRATOR_2026_11_07` 会话；manager
+  首动作只读核对 root 最终 HEAD 与 clean，然后只编排并另派 fresh `W1B-1A` 实现、
+  诊断、独立 QA 与 merge-prep。manager 不得亲自实现或 QA。
+- 永续边界：本卡不提升父 seam 的 `CONTRACT_FROZEN / IN_PROGRESS`，不提升
+  `V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`；W1A P3 cleanup 的两项 CLOSED 语义不得回退。
+- 当前子波 tokens：`W1B_1A=READY_FOR_IMPLEMENTATION_OWNER`、
+  `W1B_1B=BLOCKED_BY_W1B_1A`、`W1B_1C=BLOCKED_BY_W1B_1B`、
+  `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；
+  `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED`。
+- 集成模型：1A → 1B → 1C 顺序进入同一 W1B-1 stack；每波独立 QA / merge-prep，
+  但任一中间波都不得进入 control-plane integration 或自宣 W1B-1 PASS。1C 后另派全新
+  W1B-1 combined QA / merge-prep，root 集成完整 stack 后才允许 W1B-2。
+
+#### 用户可观察不变量
+
+1. **单 writer**：server / address / saved user / auth token projection / offline mode
+   的权威切换只经一个 `IdentityWritePort`；UI、ViewModel、Setup repository 不得分别写
+   `AppPreferences.currentServer`、`AppPreferences.offlineMode` 或全局 `JellyfinApi`。
+2. **原子 generation**：一次被接受的切换只产生一个递增
+   `identityGeneration`；server、user、address、principal context 与 generation 在同一
+   canonical 快照中发布。无变化命令幂等且不推进 generation。
+3. **启动 hydration**：进程重启后先恢复并校验 canonical 快照，再向 API / app shell /
+   W1A catalog consumer 暴露身份。损坏、缺失或不自洽状态返回无身份，不回退到上次内存
+   token、匿名账号或另一 server/user。
+4. **旧结果失效**：任何基于旧 identity generation 的迟到的登录、server/user/address
+   切换、目录结果或缓存写入都不得提交。W1A 搜索在切号、切地址、online/offline context
+   或 generation 变化后必须拒绝旧 snapshot / completed marker。
+5. **无跨账号独立双真源**：canonical identity snapshot 是逻辑真源；
+   `pref_current_server` / `pref_offline_mode` 仅作为兼容投影，由同一 SharedPreferences
+   editor 与 canonical key 原子写入。其他 direct readers 的迁移仍由 W1C/W1D 负责，本卡
+   不宣称完整父 seam 已无双表示。
+6. **失败可恢复**：候选认证 / 探测使用隔离 API client，失败时 canonical、全局 API 与
+   当前 DB projection 保持不变；canonical 已发布后的 projection 失败进入 `RECOVERING`，
+   目标消费者 fail closed，下一次 hydrate / retry 幂等收敛，不能暴露新旧混合身份。
+7. **W1A 不回退**：搜索继续只通过 `CatalogReadPort`；不得恢复
+   `getSearchItems`、`SearchNamespace`、`AppPreferences.currentServer` 或
+   `JellyfinRepository.getUserId()` 作为搜索身份推断。
+
+#### 真实源码调查结论
+
+| 现场 | 当前事实 | W1B 处置 |
+|---|---|---|
+| preference 写入 | `ServersViewModel.kt`、`AddServerViewModel.kt` 直接写 `currentServer`；`SettingsViewModel.kt`、`OfflineModeViewModel.kt`、`UsersViewModel.kt` 可写 `offlineMode` | 全部改为调用唯一 writer；`currentServer` / `offlineMode` 只保留兼容投影 |
+| server / user DB 写入 | `SetupRepositoryImpl.kt` 分步 `insertUser`、`updateServerCurrentUser`、`updateServer`、`deleteUser` | 由 writer 统一执行；失败可重放，旧身份不续写 |
+| 全局 API projection | `ApiModule.kt`、`SetupRepositoryImpl.kt`、UI 离线退出路径会更新 / 依赖 singleton `JellyfinApi.userId` 与 `api.accessToken/baseUrl` | 只允许 writer 在提交点更新；添加、登录、Quick Connect、saved-user 激活使用隔离 candidate client |
+| auth / Quick Connect | `SetupRepositoryImpl.login*`、`authenticate()` 先改全局 token 验证，失败才回滚；回滚不是并发原子 | 改为 candidate client 验证，成功后才原子发布；旧 attempt 以 intent generation 失效 |
+| 启动 hydration | `ApiModule.provideJellyfinApi()` 在 DI 内 `runBlocking` 读取 `currentServer + DB`，无 readiness / generation / recovery 状态 | 建立 hydrate gate；在该门完成前 `IdentityUnavailable`，work / consumer 不得获取旧 token |
+| W1A scope | `CatalogScopeResolver` 每次直接读 `currentServer + servers.currentUserId/address`；`CatalogScope` 只有 origin + principal context | resolver 改读 canonical snapshot；`CatalogScope` 增加 `identityGeneration` |
+| catalog 端口选择 | `CatalogReadModule` 按首次注入时 `offlineMode` 选择 online / offline singleton | 改为每次操作按 canonical principal context 路由，不重建 repository singleton |
+| DB namespace | `DatabaseModule` 固定打开单库 `"servers"`；account scoping 依赖行内 `serverId/userId`，不是每账号物理 DB | 本卡不改 schema / migration / physical DB；W1D 继续负责 offline namespace |
+| cache / derived state | `MetadataNamespace` 已按 serverId + userId 隔离；管理员缓存按 user id 成对保存 | W1B 只提供 generation fence；不得改 SWR/disk envelope 或 durable freshness |
+| scoped clients | `SyncWorker`、`JellyfinRepositoryImpl.bindOrigin()`、地址探测 client 使用独立 client | 它们不是 canonical identity writer；不得借机重构下载 / 播放 / 阅读 |
+
+调查未发现可以让 W1B 直接完成的单一“auth service”；当前风险来自多个入口共同写
+preference、Room projection 与 mutable singleton。因此白名单必须同时覆盖状态核心、
+入口 adapter、W1A scope 和 app shell hydration。
+
+#### 冻结 public ports / contract
+
+全部新增 identity public types 位于 `:data`；settings 只声明反向依赖的窄接口，不得让
+`:settings` 依赖 `:data`。
+
+| FQCN / 文件 | 冻结语义 |
+|---|---|
+| `com.zhangwenkang.cinefin.identity.IdentitySelection` | 可空 `serverId` / `userId` / `addressId` + `offlineMode`；不存 token 值 |
+| `com.zhangwenkang.cinefin.identity.IdentitySnapshot` | `selection`、单调 `identityGeneration: Long`、`READY/RECOVERING` 状态；不暴露 DAO / SDK / prefs |
+| `com.zhangwenkang.cinefin.identity.IdentityReadPort` | `suspend fun hydrate(): IdentitySnapshot`、`suspend fun current(): IdentitySnapshot` |
+| `com.zhangwenkang.cinefin.identity.IdentityWritePort` | server / address / saved-user / authenticated-user / offline / delete transitions；全部经同一 Mutex 与 CAS / intent generation |
+| `com.zhangwenkang.cinefin.identity.IdentityTransitionResult` | `APPLIED / NO_OP / STALE_DISCARDED / RECOVERING / FAILED`；`FAILED` 才允许 UI 展示普通失败 |
+| `com.zhangwenkang.cinefin.settings.domain.OfflineModeWritePort` | 仅 `suspend fun setOfflineMode(enabled)`；由 `:data` adapter 实现，供 settings / app 使用 |
+| `com.zhangwenkang.cinefin.repository.catalog.CatalogScope` | 保留 `origin + principalContext`，增加 `identityGeneration: Long`；server/user/address/context/generation 任一差异均不相等 |
+
+`IdentitySelection` 必须复用既有 `JellyfinOrigin` 概念生成 `CatalogScope`，不得另造第二份
+server/user DTO。canonical preference key 使用独立 `pref_identity_state_v1`（UTF-8
+版本化字符串）；旧 key 只在同一 editor 写兼容投影。generation 必须持久化并在重启后保持
+单调，不得只存在 ViewModel 或 `JellyfinApi` 内存字段。
+
+#### 提交与恢复顺序
+
+实现 owner 必须按以下顺序建立可测试状态机：
+
+1. 候选 discover / login / Quick Connect / saved-user validation 使用隔离
+   `JellyfinApiFactory` client；此时不得改全局 API，也不得发布 canonical。
+2. writer 为 attempt 分配单调 intent token；若更新 intent 已开始，旧 attempt 的结果只能
+   `STALE_DISCARDED`。
+3. 通过校验后生成 candidate identity；在同一 SharedPreferences editor 中写 canonical
+   `RECOVERING` 快照、`currentServer` 与 `offlineMode` 兼容投影并一次 `commit()`。
+4. 应用 Room current-user/address projection 与全局 `JellyfinApi` baseUrl/accessToken/userId；
+   失败时不回退到上一账号，目标消费者保持 `RECOVERING / IdentityUnavailable`。
+5. projection 全部成功后将同一 canonical snapshot 标为 `READY`；重复执行必须幂等。
+6. hydrate 遇到 `RECOVERING`、投影不一致或中途进程死亡时重放同一 candidate；引用已失效
+   时降级为无身份并保留可诊断错误，不得猜测另一账号。
+7. canonical commit 成功即推进 generation 一次；重试 projection 不重复推进。
+
+“同一次 editor commit”至少包含 canonical key、兼容 `currentServer` 与兼容
+`offlineMode`。不得以多个 `setValue()` 调用模拟原子切换。
+
+#### 子波拆分与冻结写域
+
+W1B-1 被拆为三个顺序小波。每个小波由不同 fresh implementation owner 完成，production
+写域不超过 8、test 写域不超过 5；每波收口后分别派 fresh independent QA 与 merge-prep。
+1A / 1B / 1C 只进入 W1B-1 stack，不直接进入 control-plane integration；任何中间波都
+不得写 `W1B integrated`、父 seam `PASS` 或 `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH`。
+
+##### `W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`
+
+- 前置：`PREREQUISITE_SEAMS=NONE`；W1A cleanup integrated；`W1B_TASK_CARD=ACCEPTED`。
+- 独立用户可观察结果：用户在 Servers 页切换 server 后，canonical snapshot 只出现一份
+  selected server / 一个 generation；无身份保持无身份；迟到的旧 server attempt 为
+  `STALE_DISCARDED`。Auth / Quick Connect / settings offline / W1A generation 仍明确
+  `NOT_MIGRATED`，不得在本波宣称全局单 writer。
+- 收口边界：`W1B_1A=PASS_PENDING_STACK_INTEGRATION` -> fresh QA -> PASS 后 fresh
+  merge-prep -> 进入 W1B-1 stack；不得自宣 W1B-1 / 父 seam PASS。
+
+生产文件（6，全部精确）：
+
+1. `settings/src/main/java/com/zhangwenkang/cinefin/settings/domain/AppPreferences.kt`
+2. `data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityContract.kt`（新建）
+3. `data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityStateStore.kt`（新建）
+4. `data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinator.kt`（新建）
+5. `data/src/main/java/com/zhangwenkang/cinefin/di/IdentityModule.kt`（新建）
+6. `setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/servers/ServersViewModel.kt`
+
+测试（4，全部精确）：
+
+1. `data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityContractTest.kt`（新建）
+2. `data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityStateStoreTest.kt`（新建）
+3. `data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinatorTest.kt`（新建）
+4. `app/phone/src/test/java/com/zhangwenkang/cinefin/setup/ServersViewModelIdentityTest.kt`（新建）
+
+只允许迁移 Servers 页的 current-server 选择；禁止修改 auth / Add Server、settings
+offline、catalog contract、global API candidate factory、Room 或 app shell。
+
+##### `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`
+
+- 前置：`W1B_1A=STACK_INTEGRATED`；不得与 1A 合并为一个 owner。
+- 独立用户可观察结果：用户切 server / address、选择 saved user、密码登录或 Quick
+  Connect 时只产生一个 identity generation；旧认证 / 旧用户请求晚到时不得覆盖后发起的
+  切换；认证失败不改变当前在线身份或全局 API token。
+- 收口边界：`W1B_1B=PASS_PENDING_STACK_INTEGRATION` -> fresh QA -> PASS 后 fresh
+  merge-prep -> 进入 W1B-1 stack。此时 settings / offline UI 和 W1A generation fence
+  仍未迁移，`OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED`。
+
+生产文件（7，全部精确）：
+
+1. `data/src/main/java/com/zhangwenkang/cinefin/api/JellyfinApiFactory.kt`（新建）
+2. `setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/SetupRepository.kt`
+3. `setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt`
+4. `setup/src/main/java/com/zhangwenkang/cinefin/setup/data/di/SetupDataModule.kt`
+5. `setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/OfflineIdentity.kt`
+6. `setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/addserver/AddServerViewModel.kt`
+7. `setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/users/UsersViewModel.kt`
+
+测试（4，全部精确）：
+
+1. `app/phone/src/test/java/com/zhangwenkang/cinefin/setup/IdentityIngressContractTest.kt`（新建）
+2. `app/phone/src/test/java/com/zhangwenkang/cinefin/setup/OfflineIdentityCoordinatorTest.kt`
+3. `app/phone/src/test/java/com/zhangwenkang/cinefin/setup/UserSessionSelectionTest.kt`
+4. `app/phone/src/test/java/com/zhangwenkang/cinefin/setup/ServerBootstrapTest.kt`
+
+`SetupRepositoryImpl.kt` 中不得再直接更新全局 `jellyfinApi` token/baseUrl/userId；candidate
+client 失败不得改变 canonical 或全局 API。`IdentityIngressContractTest` 必须先用 RED
+复现“旧 Quick Connect 晚到覆盖新 user”或等价旧 attempt 覆盖，再 GREEN。
+
+##### `W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE`
+
+- 前置：`W1B_1B=STACK_INTEGRATED`；不得与 1B 合并为一个 owner。
+- 独立用户可观察结果：用户在设置页切 online / offline 或重新选择账号后，W1A 搜索只能
+  使用新 principal context / identity generation；旧 snapshot 和 completed marker 不
+  落地；settings / offline UI 不再直接写 preference。
+- 收口边界：`W1B_1C=PASS_PENDING_STACK_INTEGRATION` -> fresh QA -> PASS 后 fresh
+  merge-prep -> 进入 W1B-1 stack。1C 之后仍不得自宣 W1B-1 PASS，必须另派 combined QA。
+
+生产文件（6，全部精确）：
+
+1. `settings/src/main/java/com/zhangwenkang/cinefin/settings/domain/OfflineModeWritePort.kt`（新建）
+2. `data/src/main/java/com/zhangwenkang/cinefin/di/OfflineIdentityModule.kt`（新建）
+3. `settings/src/main/java/com/zhangwenkang/cinefin/settings/presentation/settings/SettingsViewModel.kt`
+4. `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/offline/OfflineModeViewModel.kt`
+5. `data/src/main/java/com/zhangwenkang/cinefin/repository/catalog/CatalogReadPort.kt`
+6. `data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt`
+
+测试（5，全部精确）：
+
+1. `data/src/test/java/com/zhangwenkang/cinefin/repository/CatalogReadPortContractTest.kt`
+2. `data/src/test/java/com/zhangwenkang/cinefin/repository/JellyfinRepositorySearchItemsDispatcherTest.kt`
+3. `modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchCatalogConsumerTest.kt`
+4. `modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt`
+5. `app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/search/SearchViewModelTest.kt`
+
+不写 `JellyfinRepositoryImpl.kt` / `JellyfinRepositoryOfflineImpl.kt`。两类 reader 通过
+`CatalogScopeResolver` 读取 canonical snapshot 的 identity generation；不得顺手改其余
+repository 方法、SWR / disk envelope 或其他 catalog consumers。
+
+##### `W1B-1` 组合门
+
+1A/1B/1C 各自 QA + merge-prep 并进入 W1B-1 stack 后，manager 必须另派全新 combined
+independent QA，复核三波祖先关系、逐波白名单、全局 source gates 与真实 executed。
+只有该 gate PASS 后，另派 fresh merge-prep 形成完整 W1B-1 candidate；root 集成后才写
+`W1B_1=PASS / INTEGRATED`。此时只在 W1B-1 slice scope 写
+`OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=PASS`，仍不能写父 seam QA / integrated PASS。
+
+1A / 1B / 1C 不复写同一 production 文件：1A 输出 contract / DI 与 Servers 迁移，1B 从已
+集成接口继续 Setup ingress，1C 通过新的 `OfflineIdentityModule.kt` 绑定窄 port。允许复用
+已集成 contracts / adapters，但不得由后一波重写前一波已通过 QA 的语义。
+
+| 中间态 | 已迁移 | 仍未迁移 | 允许声明 | 禁止声明 |
+|---|---|---|---|---|
+| 1A stack | canonical contract / store / coordinator / DI + Servers current-server selection | auth / Add Server / offline UI、catalog generation、API candidate、旧 Setup selection method | `W1B_1A=STACK_INTEGRATED` | W1B-1 integrated、global single writer complete |
+| 1B stack | Setup server / auth / Quick Connect / saved-user ingress | settings / offline UI、W1A scope generation | `W1B_1B=STACK_INTEGRATED` | `OLD_PATH...=PASS`、W1B-1 PASS |
+| 1C stack | offline / settings ingress + W1A generation fence | app startup hydration / shell / drawer | `W1B_1C=STACK_INTEGRATED` | W1B-1 PASS before combined QA |
+| W1B-1 closeout | 1A + 1B + 1C + combined QA / merge-prep / root integration | W1B-2 startup recovery | `W1B_1=PASS / INTEGRATED`；slice `OLD_PATH...=PASS` | 父 seam / W1 / 产品 PASS |
+
+##### `W1B-2-STARTUP-HYDRATION-AND-RECOVERY`
+
+- 前置：`W1B_1=PASS / INTEGRATED`。W1B-1A/B/C 任一未完成、未 QA、未 merge-prep 或
+  未 root integrated 时，不得创建 W1B-2 implementation owner。
+- 独立用户可观察结果：杀进程重启后只恢复 canonical 身份；缺失 / 部分 / 损坏状态一律
+  无身份，旧内存 token 不复活；app shell / drawer 与 W1A `currentScope()` 同源。
+- 收口边界：W1B-2 implementation report -> fresh independent QA -> PASS 后 fresh
+  merge-prep -> root integration；仍有内容后置项时 `W1B_2=PASS_WITH_GAPS`，不得用
+  `PASS_WITH_GAPS` 覆盖未执行的身份核心场景。
+
+生产文件（4，全部精确）：
+
+1. `core/src/main/java/com/zhangwenkang/cinefin/di/ApiModule.kt`
+2. `app/phone/src/main/java/com/zhangwenkang/cinefin/BaseApplication.kt`
+3. `core/src/main/java/com/zhangwenkang/cinefin/viewmodels/MainViewModel.kt`
+4. `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/navigation/DrawerViewModel.kt`
+
+测试（2，全部精确）：
+
+1. `data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityHydrationTest.kt`（新建）
+2. `app/phone/src/test/java/com/zhangwenkang/cinefin/viewmodels/MainViewModelIdentityTest.kt`（新建）
+
+W1B-2 只能修改已集成 contracts 的消费方式；若必须重写 `IdentityStateStore.kt` /
+`IdentityWriteCoordinator.kt` / `IdentityModule.kt` 的生产语义、Room schema、Gradle 或
+`core/RepositoryModule.kt`，停止并重新做任务卡审查。
+
+#### TDD 顺序与证据矩阵
+
+| 子波 | RED 先证 | 必须覆盖 | 最小 GREEN |
+|---|---|---|---|
+| `1A` | `IdentityContractTest` / `IdentityStateStoreTest` | canonical encode/decode、无身份、单调 generation、no-op、legacy 完整/不一致迁移 | 状态 DTO / codec / store |
+| `1A` | `IdentityWriteCoordinatorTest` | 切号期间旧 attempt 晚到、第二个更新 intent、单 writer、同 editor 原子投影 | Mutex + intent token + canonical commit |
+| `1A` | `IdentityWriteCoordinatorTest` | projection 失败进入 RECOVERING；retry 不重复 gen；失败不提交旧 / 混合状态 | writer 提交 / recovery 状态机 |
+| `1B` | `IdentityIngressContractTest` | 旧 Quick Connect / saved-user attempt 晚到不得覆盖后发切换 | candidate auth intent fence |
+| `1B` | `OfflineIdentityCoordinatorTest` | saved-user 成功只提交一个在线身份；401 / network failure 保持离线且不切 API | auth candidate + one transition |
+| `1C` | `CatalogReadPortContractTest` | online/offline 动态路由、切 mode 不重建 singleton、缺 server/user/address/token fail closed | canonical resolver + routing adapter |
+| `1C` | `SearchCatalogConsumerTest` / `SearchSessionTest` / `SearchViewModelTest` | server/user/address/offline/generation 变化使旧 snapshot 与 completed marker 失效 | W1A generation equality |
+| `2` | `IdentityHydrationTest` | 新进程恢复 READY；RECOVERING 重放；损坏 / 部分 / dangling 引用无身份；旧内存 token 不复活 | hydrate gate |
+| `2` | `MainViewModelIdentityTest` | app shell flags 与 `CatalogReadPort.currentScope()` 同源；无身份不露出旧 server/user | shell 只读 `IdentityReadPort` |
+
+额外可执行源门：
+
+```powershell
+$repoRoot = '<root-pinned W1B worktree>'
+rg -n 'setValue\(appPreferences\.(currentServer|offlineMode)' `
+  "$repoRoot\setup" "$repoRoot\settings" "$repoRoot\app"
+rg -n 'jellyfinApi\.(api\.update|userId\s*=)' `
+  "$repoRoot\setup\src\main\java\com\zhangwenkang\cinefin\setup\data\SetupRepositoryImpl.kt"
+rg -n 'AppPreferences|currentServer|getUserId\(|getSearchItems' `
+  "$repoRoot\modes\film\src\main\java\com\zhangwenkang\cinefin\film\presentation\search"
+```
+
+1A / 1B 中间态必须记录这些命令的剩余命中，标 `KNOWN_UNMIGRATED / NOT_PASS`，不得把
+尚未迁移的入口写进完成项。只有 1C stack integrated 且 W1B-1 combined QA PASS 后，三条
+才必须均为 0 命中。允许的唯一 selection writer 位于 `IdentityWriteCoordinator.kt`；
+`SyncWorker`、`bindOrigin` 与地址探测的 scoped client 不属于全局 identity writer，也不得
+被本卡顺手重构。
+
+#### 可执行验收门
+
+每个实现 owner 必须由自身 TDD / 编译 / 本波自测停在实现报告，仍不得自行 QA /
+merge-prep：
+
+1. `git status --short --untracked-files=all` clean 起始 / 结束，branch / HEAD 等于 manager
+   pin；`git diff --name-only <base>...HEAD` 严格落在本波白名单。
+2. `git diff --check` PASS。
+3. 1A：只运行 data identity 定向测试；不得以 1A 单测证明任何生产入口已迁移。
+4. 1B：运行 data / app 的 Setup identity ingress、offline coordinator、saved-user 与
+   server bootstrap 定向测试；settings / catalog generation 仍为 `NOT_MIGRATED`。
+5. 1C：运行 data / film / app 的 catalog generation、dynamic routing、search consumer
+   与 offline preference 定向测试；仍不得自宣 W1B-1 PASS。
+6. W1B-2：identity hydration、app `MainViewModelIdentityTest`、相关 search 回归实际
+   executed 且 0 failed。
+7. `.\gradlew.bat :app:phone:assembleDebug --console=plain`、
+   `.\gradlew.bat ktfmtCheck --console=plain` PASS。
+8. `pwsh -NoProfile -File tools/architecture/v2-owner-gate.ps1` 与
+   `pwsh -NoProfile -File tools/architecture/v2-owner-gate.tests.ps1` PASS；不得修改 baseline、
+   tools 或通过 inline FQCN 绕过。
+9. 报告实际 executed 数、P0–P3、未覆盖项、changed files 与 evidence pointers；不得用
+   exit 0 代替执行证据。
+10. 每波独立 QA、merge-prep 必须由 manager 在实现收口后另派全新代理；1A/1B/1C 各自
+    QA FAIL 时另派 fresh repair owner。1C 后的 combined QA / merge-prep 也必须是全新
+    代理，implementation owner 只能停在实现报告。
+
+不得运行 ADB、网络服务器、设备、Release；不得在生产 Jellyfin 上制造登录 / 用户 / server
+写入证据。本卡的 auth / switch 证据全部使用 fake / fixture 与本地单测。
+
+#### 下一实现角色 / 读序 / 交接
+
+- W1B-1A 专业身份：全新
+  `AURORAMA_V2_W1B_1A_IDENTITY_CONTRACT_AND_COORDINATOR_IMPLEMENTATION_OWNER_2026_11_07`。
+- 第一条只读动作：在 manager 创建的独立 clean W1B worktree 执行
+  `git status --short --untracked-files=all`、`git branch --show-current`、
+  `git rev-parse HEAD`；必须 clean、branch / HEAD 等于 manager pin，且
+  `W1B_TASK_CARD=ACCEPTED / SCOPE=W1B_1A_ONLY`。任何漂移停止。
+- 必读上限：5 个文档入口（`AGENTS.md` 顶部、本卡、`V2_PLAN` §12/§13、
+  `ARCHITECTURE` §0.1/§0.6/§0.8/§0.10、`PROJECT_PLAN` V2 段）+
+  1A 白名单 6 生产 + 4 测试。需要这 10 个文件之外的第 11 个文件时必须停止，不得以
+  “熟悉项目”通读 player / reader / download。
+- 计划与执行：先在同一回合给出目标、非目标、RED 清单、预计上下文与停止条件，然后直接
+  执行；不得以计划结束。一个 owner 只做 1A，禁止顺手改 Setup / settings / catalog。
+- 交接点：1A 实现报告 -> manager 派全新独立 QA -> PASS 后另派 fresh merge-prep ->
+  进入 W1B-1 stack。1A QA FAIL 时另派 fresh repair owner，不复用原实现 owner。
+- W1B-1B 专业身份：全新
+  `AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07`；
+  只读上限为 5 文档入口 + 1A 已集成 contracts + 1B 白名单 7 生产 + 4 测试。
+- W1B-1C 专业身份：全新
+  `AURORAMA_V2_W1B_1C_OFFLINE_UI_CATALOG_GENERATION_FENCE_IMPLEMENTATION_OWNER_2026_11_07`；
+  只读上限为 5 文档入口 + 1A/1B 已集成 contracts + 1C 白名单 6 生产 + 5 测试。
+- 1B / 1C 各自必须独立 QA / merge-prep；不得由同一 owner 连续执行 1A→1B→1C。1C 完成后
+  manager 另派全新 W1B-1 combined QA / merge-prep，root 集成完整 stack 后才可派 W1B-2。
+- W1B-2 专业身份：全新
+  `AURORAMA_V2_W1B_STARTUP_HYDRATION_AND_RECOVERY_IMPLEMENTATION_OWNER_2026_11_07`；
+  只读上限为 5 文档入口 + W1B-1 已集成 contracts + W1B-2 4 生产 + 2 测试文件；该角色
+  在 `W1B_1=PASS / INTEGRATED` 前不存在派单资格。
+- 本 manager 按 fresh owner 逐波编排 1A、1B、1C、2，不得把 1A–1C 塞给一个 owner；
+  每波实现收口或 QA / merge-prep 结束都是交接点。30 万准备交接、35 万若仍有已授权可执行
+  工作则完成最小收口与 fresh pre-handoff audit 后创建具体后继。不得复用任何实现 / QA /
+  merge-prep 代理。
+
+#### 非目标
+
+1. 不实现 W1C catalog reader 全迁移、W1D offline namespace、W1E durable freshness /
+   401/403、W1F debt closeout 或 W1G full-seam QA。
+2. 不重构下载、播放、阅读器、通知、Worker、媒体库分页、theme、导航视觉或公共 UI。
+3. 不修改 Room schema / migration、数据库文件名、snapshot envelope、sidecar、Gradle、
+   settings / root build、工具或 A0 baseline。
+4. 不做设备、ADB、生产服务器登录 / 写、runtime、Release、截图或发布材料。
+5. 不把 `currentUserIsAdministrator*`、image cache、download provenance 或 user-state
+   write 并入本卡；它们是 user-keyed derived cache 或后续 seam。
+6. 不把 W1B 完成写成父 seam、W1、G1、Q03、产品 QA 或 Release PASS。
+7. 不让一个 implementation owner 连续完成 1A→1B→1C，不让 manager 兼任实现 / QA /
+   merge-prep，也不让任一子波 production > 8 或 test > 5 后继续硬塞。
+8. 不在 1A / 1B / 1C 中间态宣告 `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH`、W1B-1 PASS、
+   父 seam PASS 或 W1B-2 dispatchability。
+
+#### 停止 / BLOCKED 判据
+
+- 控制器、worktree、branch、HEAD、parent、dirty 或 root pin 任一漂移。
+- 需要白名单外 production write，尤其 `JellyfinApi.kt`、`DatabaseModule.kt`、Room
+  entity / schema、Gradle、`core/RepositoryModule.kt`、`NavigationRoot.kt` 或公共 UI。
+- 无法在不修改全局 singleton 的前提下完成 login / Quick Connect / saved-user candidate
+  validation；或 Hilt 出现 data / settings / core 循环。
+- 无法用现有 SharedPreferences + DAO 表达 atomic-visible state / RECOVERING；必须新增
+  schema、依赖或跨进程设施才能继续。
+- 发现第二个 identity selection writer、第二份 server/user DTO，或 W1A search 重新出现
+  direct preference / `getUserId()` / `getSearchItems`。
+- 需要实施 W1C/W1D reader 全迁移才能满足某条子波验收；应停止并把发现登记给下一 seam，
+  不得扩本卡。
+- 新 P0–P2、无法区分的跨账号陈旧结果、A0 新 violation、真实 auth 失败不能归因，或
+  派单范围不是 `W1B_TASK_CARD=ACCEPTED / SCOPE=W1B_1A_ONLY`。
+- 任一子波超过 production 8 / test 5、同 owner 连做、manager 自任实现 / QA，或中间波
+  自宣 `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH` / W1B-1 PASS / W1B-2 ready。
+- 单个本地 harness / script 的已知、局部、可逆失败由同 owner 在 5–10 分钟内修一次并受控
+  重试；第二轮仍 P1、对象漂移或范围扩大即 `BLOCKED`，不拆 scanner / exact-count 循环。
 
 #### HISTORY（当时）：首个 implementation owner 执行门（W1A 已集成，非当前任务）
 
