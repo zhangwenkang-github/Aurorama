@@ -155,20 +155,20 @@ function Get-TasksText {
         [string]$SelectorEvidence = '',
         [string]$EquivalentEvidence = '',
         [string]$P1Green = 'qa-green.txt',
-        [string[]]$RetiredRoles = @('AURORAMA_V2_W1B_1B_OWNER_2026_11_07')
+        [string[]]$RetiredRoles = @('AURORAMA_V2_W1B_1B_OWNER_2026_11_07'),
+        [string[]]$AllowedPaths = @(
+            'AGENTS.md'
+            'docs/LESSONS.md'
+            'docs/PROJECT_RULES.md'
+            'docs/TASKS.md'
+            'tools/architecture/v2-handoff-lint.ps1'
+            'tools/architecture/v2-handoff-lint.tests.ps1'
+        )
     )
 
     $handoffEvidence = Join-Path $EvidenceRoot 'handoff.txt'
     $redEvidence = Join-Path $EvidenceRoot 'qa-red.txt'
     $greenEvidence = Join-Path $EvidenceRoot $P1Green
-    $allowedPaths = @(
-        'AGENTS.md'
-        'docs/LESSONS.md'
-        'docs/PROJECT_RULES.md'
-        'docs/TASKS.md'
-        'tools/architecture/v2-handoff-lint.ps1'
-        'tools/architecture/v2-handoff-lint.tests.ps1'
-    )
 
     $lines = [System.Collections.Generic.List[string]]::new()
     $lines.Add('# Fixture tasks')
@@ -206,7 +206,7 @@ function Get-TasksText {
     $lines.Add("- REQUIRED_ANCESTOR=$BaseHead")
     $lines.Add("- FAILED_CANDIDATE=$FailedHead")
     $lines.Add('- MAX_CHANGED_PATHS=6')
-    foreach ($allowedPath in $allowedPaths) {
+    foreach ($allowedPath in $AllowedPaths) {
         $lines.Add("- ALLOWED_PATH=$allowedPath")
     }
     if (-not [string]::IsNullOrWhiteSpace($ObjectExtra)) {
@@ -253,7 +253,32 @@ function Get-TasksText {
     return ($lines -join "`n")
 }
 
+function Get-StableDocText {
+    param([Parameter(Mandatory)][string]$RelativePath)
+
+    return @"
+# Fixture $RelativePath
+
+<!-- V2_STABLE_DOC_STATE_POINTER_BEGIN -->
+- DYNAMIC_STATE_SOURCE=docs/TASKS.md
+- CURRENT_STATE_IN_THIS_FILE=NONE
+<!-- V2_STABLE_DOC_STATE_POINTER_END -->
+
+This file retains stable decisions and historical facts only. Current worktree, branch, gates,
+P1/P2, next role/path and stop condition are owned by docs/TASKS.md.
+
+## HISTORY
+
+- Stable fixture fact.
+"@
+}
+
 function New-Fixture {
+    param(
+        [ValidateSet('Legacy', 'Stable')]
+        [string]$PathSet = 'Legacy'
+    )
+
     $fixtureParent = Join-Path ([System.IO.Path]::GetTempPath()) ("v2-handoff-lint-" + [guid]::NewGuid().ToString('N'))
     $fixtureRoot = Join-Path $fixtureParent 'repo'
     $evidenceRoot = Join-Path $fixtureParent 'evidence'
@@ -282,13 +307,22 @@ function New-Fixture {
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('config', 'core.autocrlf', 'false') | Out-Null
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('config', 'core.eol', 'lf') | Out-Null
 
+    $stableDocPaths = @(
+        'docs/PROJECT_PLAN.md'
+        'docs/V2_PLAN.md'
+        'docs/ARCHITECTURE.md'
+    )
+    foreach ($stableDocPath in $stableDocPaths) {
+        Write-Utf8File -Path (Join-Path $fixtureRoot $stableDocPath) `
+            -Text (Get-StableDocText -RelativePath $stableDocPath)
+    }
     Write-Utf8File -Path (Join-Path $fixtureRoot 'seed.txt') -Text "seed`n"
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('add', '-A') | Out-Null
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('commit', '-q', '-m', 'base') | Out-Null
     $baseHead = [string](Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1)
     $baseHead = $baseHead.Trim()
 
-    $allowedFixturePaths = @(
+    $legacyAllowedPaths = @(
         'AGENTS.md'
         'docs/LESSONS.md'
         'docs/PROJECT_RULES.md'
@@ -296,6 +330,20 @@ function New-Fixture {
         'tools/architecture/v2-handoff-lint.ps1'
         'tools/architecture/v2-handoff-lint.tests.ps1'
     )
+    $stableAllowedPaths = @(
+        'docs/PROJECT_PLAN.md'
+        'docs/V2_PLAN.md'
+        'docs/ARCHITECTURE.md'
+        'docs/TASKS.md'
+        'tools/architecture/v2-handoff-lint.ps1'
+        'tools/architecture/v2-handoff-lint.tests.ps1'
+    )
+    $allowedFixturePaths = if ($PathSet -eq 'Stable') {
+        $stableAllowedPaths
+    }
+    else {
+        $legacyAllowedPaths
+    }
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('checkout', '-q', '-b', 'failed-candidate') | Out-Null
     foreach ($relativePath in $allowedFixturePaths) {
         Write-Utf8File -Path (Join-Path $fixtureRoot $relativePath) -Text "failed candidate $relativePath`n"
@@ -309,13 +357,19 @@ function New-Fixture {
     ) | Out-Null
 
     $tasksPath = 'docs/TASKS.md'
-    $tasksText = Get-TasksText -FixtureRoot $fixtureRoot -BaseHead $baseHead -FailedHead $failedHead -EvidenceRoot $evidenceRoot
+    $tasksText = Get-TasksText -FixtureRoot $fixtureRoot -BaseHead $baseHead -FailedHead $failedHead `
+        -EvidenceRoot $evidenceRoot -AllowedPaths $allowedFixturePaths
     Write-Utf8File -Path (Join-Path $fixtureRoot 'docs/TASKS.md') -Text $tasksText
-    Write-Utf8File -Path (Join-Path $fixtureRoot 'AGENTS.md') -Text "fixture agents`n"
-    Write-Utf8File -Path (Join-Path $fixtureRoot 'docs/PROJECT_RULES.md') -Text "fixture rules`n"
-    Write-Utf8File -Path (Join-Path $fixtureRoot 'docs/LESSONS.md') -Text "fixture lessons`n"
-    Write-Utf8File -Path (Join-Path $fixtureRoot 'tools/architecture/v2-handoff-lint.ps1') -Text "fixture linter`n"
-    Write-Utf8File -Path (Join-Path $fixtureRoot 'tools/architecture/v2-handoff-lint.tests.ps1') -Text "fixture tests`n"
+    foreach ($relativePath in $allowedFixturePaths) {
+        if ($relativePath -eq 'docs/TASKS.md') {
+            continue
+        }
+        Write-Utf8File -Path (Join-Path $fixtureRoot $relativePath) -Text "fixture $relativePath`n"
+    }
+    foreach ($stableDocPath in $stableDocPaths) {
+        Write-Utf8File -Path (Join-Path $fixtureRoot $stableDocPath) `
+            -Text (Get-StableDocText -RelativePath $stableDocPath)
+    }
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('add', '-A') | Out-Null
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('commit', '-q', '-m', 'candidate') | Out-Null
     $candidateHead = [string](Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1)
@@ -339,6 +393,7 @@ function New-Fixture {
         TasksPath = $tasksPath
         TasksFile = (Join-Path $fixtureRoot $tasksPath)
         TasksText = $tasksText
+        AllowedPaths = $allowedFixturePaths
         EvidenceRoot = $evidenceRoot
         SafeMemoryIndex = $safeMemory
         MemoryRoot = $memoryRoot
@@ -361,6 +416,19 @@ function Commit-AllAndGetHead {
     param([Parameter(Mandatory)]$Fixture)
     Invoke-Git -FixtureRoot $Fixture.Root -Arguments @('add', '-A') | Out-Null
     Invoke-Git -FixtureRoot $Fixture.Root -Arguments @('commit', '-q', '-m', 'mutation') | Out-Null
+    return [string](Invoke-Git -FixtureRoot $Fixture.Root -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1)
+}
+
+function Update-RepoFileAndCommit {
+    param(
+        [Parameter(Mandatory)]$Fixture,
+        [Parameter(Mandatory)][string]$RelativePath,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text
+    )
+
+    Write-Utf8File -Path (Join-Path $Fixture.Root $RelativePath) -Text $Text
+    Invoke-Git -FixtureRoot $Fixture.Root -Arguments @('add', '--', $RelativePath) | Out-Null
+    Invoke-Git -FixtureRoot $Fixture.Root -Arguments @('commit', '-q', '-m', 'stable doc mutation') | Out-Null
     return [string](Invoke-Git -FixtureRoot $Fixture.Root -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1)
 }
 
@@ -402,6 +470,183 @@ Invoke-FixtureTest -Name 'positive fixture passes Handoff and QaReady' -Body {
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
         Assert-ExitCode -Result $qa -Expected 0
         Assert-ContainsToken -Result $qa -Token 'QA_READY_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc PROJECT_PLAN missing pointer fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text "# Missing pointer`n"
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_POINTER_MISSING:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc V2_PLAN missing pointer fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/V2_PLAN.md' -Text "# Missing pointer`n"
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_POINTER_MISSING:docs/V2_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc ARCHITECTURE missing pointer fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/ARCHITECTURE.md' -Text "# Missing pointer`n"
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_POINTER_MISSING:docs/ARCHITECTURE.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc duplicate pointer fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $valid = Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md'
+        $mutated = $valid + "`n<!-- V2_STABLE_DOC_STATE_POINTER_BEGIN -->`n- duplicate`n<!-- V2_STABLE_DOC_STATE_POINTER_END -->`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_POINTER_MULTIPLE:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc empty pointer fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = @"
+# Empty pointer
+
+<!-- V2_STABLE_DOC_STATE_POINTER_BEGIN -->
+
+<!-- V2_STABLE_DOC_STATE_POINTER_END -->
+"@
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_POINTER_EMPTY:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc pointer missing required token fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md').Replace(
+            '- CURRENT_STATE_IN_THIS_FILE=NONE',
+            '- CURRENT_STATE_IN_THIS_FILE=PRESENT'
+        )
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_POINTER_TOKEN_INVALID:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc pointer SHA fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md').Replace(
+            '- CURRENT_STATE_IN_THIS_FILE=NONE',
+            "- CURRENT_STATE_IN_THIS_FILE=NONE`n- CODE_INTEGRATION_HEAD=$($fixture.BaseHead)"
+        )
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc pointer NEXT_ROLE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md').Replace(
+            '- CURRENT_STATE_IN_THIS_FILE=NONE',
+            "- CURRENT_STATE_IN_THIS_FILE=NONE`n- NEXT_ROLE=STALE_OWNER"
+        )
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc handoff ACTIVE marker fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n<!-- V2_HANDOFF_ACTIVE_BEGIN -->`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_MARKER_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc unlabeled ACTIVE heading fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md').Replace(
+            '## HISTORY',
+            '## ACTIVE - stale current snapshot'
+        )
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
     }
     finally {
         Remove-Fixture -Fixture $fixture

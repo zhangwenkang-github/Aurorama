@@ -1,71 +1,44 @@
 # Aurorama 架构设计（ARCHITECTURE）
 
-| 项 | 值 |
-|----|----|
-| 文档版本 | v2.0（2026-11-07：V2 架构符合性、低耦合、逻辑 seam、守卫与并行基线） |
-| 状态 | `V2_EXECUTABLE_BASELINE / USER_CONFIRMED_2026_11_07 / ARCH_GATE_PASS / ARCH_SEAM_DELIVERY_ACTIVE / BROAD_FEATURE_WAVES_SEAM_GATED / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_STATUS=ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1A_SOURCE_HEAD=efd277ded8c0673ad73f951b33b56833dff8639a / W1B_1A_CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca / SOURCE_FINAL_PATCH_ID=80f77fb77bbc44c3fcff81fa76183f49354f2503 / MATCH / PATH_SET_MATCH=YES / BLOB_MATCH=13/13 / W1B_1A_QA=PASS / P0-P3=0/0/0/0 / W1B_1A_REPAIR=COMPLETE / INTEGRATED / W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0 / W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY / W1B_1B_BASE_HEAD=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a / W1B_1B_PREVIOUS_OWNER=INTERRUPTED_BEFORE_EDIT / NO_CHANGES / W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT / NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS / NEXT_ROLE=AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07 / CONTEXT_WATERMARK=416429/1048576 39.7% / HANDOFF_REQUIRED=YES / COMPACTION_COUNT=0 / CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca / CONTROL_PLANE_HEAD_INPUT=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a / HANDOFF_BASE_HEAD=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a / DOCS_CANDIDATE_PARENT=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a / OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS / V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES / A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO` |
-| 作者会话 | `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07`；`AURORAMA_V2_ARCH_OWNER_GUARD_W1P_INTEGRATION_DOCS_OWNER_2026_11_07`（integration sync）；`AURORAMA_V2_ARCH_SEAM_DELIVERY_PLANNING_OWNER_2026_11_07`（seam delivery planning）；`AURORAMA_V2_IDENTITY_CATALOG_SEAM_TASK_CARD_OWNER_2026_11_07`（W1 task card）；`AURORAMA_V2_IDENTITY_CATALOG_TASK_CARD_DI_CORRECTION_OWNER_2026_11_07`（DI scope correction）；`AURORAMA_V2_IDENTITY_CATALOG_W1A_HANDOFF_DOCS_OWNER_2026_11_07`（P3 cleanup handoff）；`AURORAMA_V2_IDENTITY_CATALOG_W1A_P3_DOCS_HANDOFF_OWNER_2026_11_07`（cleanup integration docs sync）；`AURORAMA_V2_W1B_IDENTITY_INGRESS_TASK_CARD_OWNER_2026_11_07`（W1B task card）；`AURORAMA_V2_W1B_1A_BLOCKED_DOCS_AND_HANDOFF_OWNER_2026_11_07`（1A QA FAIL docs sync）；`AURORAMA_V2_W1B_1A_REPAIR_SCOPE_DOCS_AND_HANDOFF_OWNER_2026_11_07`（P1/P2 repair scope / handoff）；`AURORAMA_V2_W1B_1A_INTEGRATED_DOCS_AND_HANDOFF_OWNER_2026_11_07`（1A integrated docs / handoff） |
-| W1B-1B 交接 owner | `AURORAMA_V2_W1B_1B_HANDOFF_DOCS_OWNER_2026_11_07`（资深 Android 技术文档 / 唯一 ACTIVE 交接） |
-| 上游依据 | 外部原始文档第 154–286 行；`V2-REQ-ARCH-001～072`；`V2-D010～D020`、`D198`、`D211～D213`；`R035`；`L041`；G1-S1 / G1-S6 静态证据 |
-| 适用对象 | V2 需求、架构、实现、独立 QA、merge-prep、Release 与多会话编排 |
-| 维护规则 | 架构变更先改本文并通知受影响任务；不新增零散架构说明文件；实现事实仍以代码、Gradle、测试和候选证据为准 |
+<!-- V2_STABLE_DOC_STATE_POINTER_BEGIN -->
+- DYNAMIC_STATE_SOURCE=docs/TASKS.md
+- CURRENT_STATE_IN_THIS_FILE=NONE
+<!-- V2_STABLE_DOC_STATE_POINTER_END -->
 
+| 项 | 稳定内容 |
+|---|---|
+| 文档版本 | v2.0 可执行架构基线（稳定规则与历史证据） |
+| 稳定结论 | 架构方向已接受，G1 静态 seam 已冻结；局部纵向切片已实现；全量产品重构仍未证明 |
+| 架构守卫 | A0 owner guard / debt ratchet 是新增债务护栏，不是 seam、消费者迁移或重构完成 |
+| 上游依据 | 外部原始文档第 154–286 行；`V2-REQ-ARCH-001～072`；`D010～D020`、`D198`、`D211～D213`；`R035` |
+| 适用对象 | V2 需求、合同、实现、独立 QA、merge-prep、Release 与多会话编排 |
+| 维护规则 | 架构变更先改本文；不新增零散说明文件；实现事实仍以代码、Gradle、测试与证据现场为准 |
+
+> 当前 worktree、branch、HEAD、gate evidence、P1/P2、next role/path 与 stop condition
+> 只在 `docs/TASKS.md` 的唯一 ACTIVE。当前切片、owner、候选计数和交接对象也不得从本文复制。
+>
 > 本文区分“架构方向已接受”“静态 seam 已冻结”“局部重构已完成”和“产品代码已全量重构”。
-> 当前只满足前两项和有限的第三项；不得把本文存在、需求接受或静态审计通过表述为 V2 产品代码重构完成。
+> 只有前两项和有限局部项成立；不得把本文存在、需求接受或静态审计通过表述为 V2 产品重构完成。
+> 稳定文档修订于 2026-11-08。
 
 ---
 
 ## 0. V2 可执行架构基线（2026-11-07）
 
-### 0.1 审计裁决与现场
+### 0.1 稳定审计裁决
 
-| 字段 | 当前值 | 证据 |
+| 字段 | 稳定结论 | 证据入口 |
 |---|---|---|
-| 审计基线（HISTORY） | `6d76936253787dbb0c07ef939f8b936fe2e761cb`，`codex/v2-integration`，当时 clean | 架构审计时的 `git status --short`、`git rev-parse HEAD` |
-| 架构需求 | `ARCH_REQUIREMENTS_ACCEPTED=YES`；72 条归一为 69 `MUST` / 3 `SHOULD` | `V2_PLAN.md` §5.2.2、§5.2.5 |
-| 静态边界 | 8 个目标模块、19 条 direct project 边、19 条可解析 import 边、模块级环 0 | `.planning/v2-g1/G1-S1/report.json` |
-| 稳定违规 | 11 条：P1 7 / P2 3 / P3 1 | 同上 `violations` / `priorities` |
-| 生产树变更 | 架构审计当时相对 G1-S1 为 0；后续 W1A 导入 14 文件搜索目录切片，父 seam 仍未完成 | 审计现场；W1A `git show --name-status 9fde82c0` |
-| 架构守卫 | A0 owner guard / debt ratchet 已独立 QA + merge-prep `PASS` 并集成；尚未接入 CI / Gradle 常规任务门 | source `a787b683`、`tools/architecture/**` 3 文件、integration `ab917404`；独立 QA 7/7、direct guard `19/19 + 8/8` |
-| W1A 当前切片 | P3 cleanup `faa910827` 已 ff-only 集成，parent `432616b6`，3 文件；cleanup QA R2 `PASS / P0-P3=0/0/0/0`；`W1A_P3_OPEN=0`；原 QA R3 `PASS / P0-P3=0/0/0/3` 保留为历史 | `docs/TASKS.md` W1A P3 ledger / `docs/V2_PLAN.md` §13 |
-| W1B-1A 当前切片 | `W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1A_REPAIR=COMPLETE / INTEGRATED / W1B_1A_QA=PASS / P0-P3=0/0/0/0`；source `efd277d`、integration `7a2f1716`、patch-id MATCH、`PATH_SET_MATCH=YES / BLOB_MATCH=13/13 / TARGET_DELTA_DOCS=0`；只完成 contract/store/coordinator/DI + Servers current-server | `docs/TASKS.md` W1B card / `docs/V2_PLAN.md` §13；QA、merge-prep、implementation evidence roots |
-| 全量 V2 重构 | `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` | A0 只固化既有边界与债务 ratchet；W1A search contracts seam / adapter / consumer 已落地，其余 contracts seam、adapter / consumer 迁移与完整候选架构门仍未实现 |
-| 本文状态 | `ARCH_CONFORMANCE_AUDIT=PASS / USER_CONFIRMED_2026_11_07 / ARCH_GATE=PASS / A0_INTEGRATED / ARCH_SEAM_DELIVERY_ACTIVE / IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1=NOT_COMPLETE / W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0 / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | cleanup `faa910827` 与 W1B-1A `7a2f1716` 已集成；W0 仅为 `ISOLATED_PROBE / NOT_STARTED`；W1B-1B worktree clean，1B 可另派 fresh implementation owner，1C/2 继续按顺序锁定 |
+| 架构需求 | 72 条归一为 69 `MUST` / 3 `SHOULD`，用户已接受 | `V2_PLAN.md` §5.2.2、§5.2.5 |
+| G1 静态边界 | 目标模块、direct edges、FQCN owner 与稳定违规集合已冻结 | `.planning/v2-g1/G1-S1/report.json` |
+| 架构守卫 | A0 guard / debt ratchet 已集成，只防止新增债务；既有违规仍需 seam 赎回 | `tools/architecture/**`；`docs/TASKS.md` HISTORY |
+| 局部切片 | W1A search contracts slice 与 W1B-1A identity slice 已完成各自当时门 | `docs/TASKS.md` 任务卡 / 历史证据 |
+| 父 seam | Identity/Catalog 仍不完整，旧路径、其他消费者与 durable generation 未闭合 | `docs/TASKS.md` Architecture ledger |
+| 全量 V2 重构 | `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`；局部成立不等于全量完成 | 代码、Gradle、测试与候选证据 |
+| 动态状态 | worktree / branch / HEAD / evidence / P1/P2 / next / stop 只读 `docs/TASKS.md` | 唯一 ACTIVE |
 
 “审计 PASS”只表示本基线足以指导后续实现并明确未证明项，不是产品架构完成、G1、
 QA、runtime 或 Release PASS。
-
-**当前交接账本**：`OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
-V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
-V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-`NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`；
-`last_evidence=W1B-1A source efd277ded8c0673ad73f951b33b56833dff8639a /
-merge-prep 7a2f1716a7325cf22dd8d923741c37d317ab97ca / patch-id MATCH / 13/13 BLOB /
-independent QA PASS / P0-P3=0/0/0/0 / ff-only integrated`。
-
-**W1B-1B 唯一当前交接**：
-
-- `W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`；
-  `W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY`。
-- `W1B_1B_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\Aurorama`；
-  `W1B_1B_BRANCH=codex/v2-w1b-1b-setup-auth-api-candidate-ingress`；
-  `W1B_1B_BASE_HEAD=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`。
-- `W1B_1B_PREVIOUS_OWNER=INTERRUPTED_BEFORE_EDIT / NO_CHANGES`；
-  `CONTROL_PLANE_HEAD_INPUT=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`；
-  `CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca`；
-  `HANDOFF_BASE_HEAD=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`；
-  docs candidate parent=`c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`。
-- `NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`；
-  `NEXT_ROLE=AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07`，
-  必须在 fresh session / agent 中执行。
-- `CONTEXT_WATERMARK=416429/1048576 39.7% / HANDOFF_REQUIRED=YES / COMPACTION_COUNT=0`。
-- 第一条只读动作：核对最终 control clean HEAD（docs commit 后由 manager pin）、
-  W1B-1B worktree clean / HEAD `c72fcce6`、branch、任务卡与 1A QA / merge evidence。
-  `STOP` 条件：任一漂移、需要第 12 文件、改 1A files、schema / migration /
-  production dependency / network / device / Release，或新 P0–P2。
-- 新实现 owner 只做自身 TDD / build / 边界内最小自测，停在 implementation candidate；
-  不得启动 QA / merge / integration，也不得启动 1C 或 W1B-2。W1B-1B 写域仍为
-  production 7 / test 4，精确路径以 `docs/TASKS.md` 1B 段为准。
 
 ### 0.2 重构层级：到底重构了什么
 
@@ -115,25 +88,20 @@ PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
 | 19 | 原始材料取舍与吸收 | 072 | `COMPLIANT` | 72 条已归一、分级、逐条回链；外部原文只读；不机械复制文档结构 | 后续变化先登记决策 |
 | 20 | 当前阶段截图 / Release 材料 | R013、V2 核心链路门 | `N/A` | 当前没有候选包核心旅程 PASS；按 `R013` 禁止制作发布材料 | 实现、独立 QA、候选旅程后另行授权 |
 
-### 0.4 文档开头工作流符合性
+### 0.4 文档开头工作流稳定要求
 
-| 阶段 | 状态 | 事实 |
+| 阶段 | 稳定要求 | 证据边界 |
 |---|---|---|
-| 开场只读与初始化声明 | `PARTIAL` | 本轮按派单读取 `AGENTS`、V2 指定段、规则、决策、任务、项目地图、G1 与外部 1–286 行；首条回复未按要求输出“N 规则 / M 教训 / K 任务”计数声明，后续以精确读序和证据补足，不影响未开始编码 |
-| 需求澄清 | `SATISFIED` | G0 完成；架构 72 条有来源、可观察验收、依赖、非目标和用户确认 |
-| 架构与契约 | `PARTIALLY_SATISFIED_RECOVERED` | 需求已接受；本文补齐 V2 执行版；逻辑 seam 仍在代码侧未实现 |
-| 用户确认架构 | `SATISFIED` | 用户于 2026-11-07 明确确认并指示执行下一步；架构门 PASS。W0 仅为隔离探针 |
-| 任务卡 | `W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0 / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | W0 有精确两文件；W1A cleanup 与 W1B-1A 已关闭各自切片门；W1B-1A/B/C 与后置 W1B-2 保持逐波 `6/4`、`7/4`、`6/5`、`4/2` production/test 白名单；1B worktree clean，1C/2 锁定 |
-| 实现 | `W1A_SLICE_IMPLEMENTED / W1A_P3_CLEANUP_IMPLEMENTED / W1B_1A_IMPLEMENTED` | W1A 首个切片 14 文件、cleanup 3 文件；W1B-1A 只完成 contract/store/coordinator/DI + Servers current-server；完整 Identity/Catalog、W1B–W1G 未实现 |
-| 自检 | `W1A_SLICE_MACHINE_GATES_PASS / CLEANUP_DIRECTED_AND_FULL_PASS / W1B_1A_MACHINE_GATES_PASS` | W1B-1A data identity `21/0/0/0`、app setup `28/0/0/0`、并发协调器 `12/0/0/0`，assemble / ktfmt、A0 7/7 与 direct guard PASS |
-| 独立 QA | `W1A_P3_CLEANUP_QA_R2_PASS / W1B_1A_QA_R2_PASS` | 两项均 `PASS / P0-P3=0/0/0/0`；W1A 原 R3 `0/0/0/3` 仅作历史；父 seam 全量 QA 未执行 |
-| merge-prep | `W1A_P3_CLEANUP_MERGE_PREP_PASS / W1B_1A_MERGE_PREP_PASS` | W1B-1A source/final patch-id `80f77fb7` MATCH、13/13 BLOB、JUnit `51/0/0/0`；test-only MockK 已集成 |
-| 集成分支门 | `W1A_P3_CLEANUP_INTEGRATED / W1B_1A_INTEGRATED` | `7a2f1716` 已 ff-only 集成 `codex/v2-integration`，保留合法三提交链；不代表完整 seam / W1 / 产品候选包 PASS |
+| 开场只读 | 先读入口规则、唯一 ACTIVE、稳定决策与指定任务线 | Git 现场与 `docs/TASKS.md` |
+| 需求澄清 | 来源、可观察验收、依赖、非目标与用户确认必须可追溯 | `V2_PLAN.md` 需求矩阵 |
+| 架构与契约 | 公共合同、单一 writer、影响面与回滚必须先定义 | 本文 §0.5–§0.7 |
+| 任务卡 | worktree、写域、TDD、RED/GREEN、证据、停止门与人工边界完整 | `docs/TASKS.md` 唯一 ACTIVE |
+| 实现与自检 | 实现 owner 只完成自身 TDD、构建和边界内自测 | implementation evidence |
+| 独立 QA | 必须由不同 fresh owner 在实现收口后执行 | QA evidence |
+| merge-prep / integration | 独立角色完成后由 delivery lead 决策 | source/final candidate evidence |
 
-流程上的历史缺陷是“架构确认置于首卡批准之后”。用户已于 2026-11-07 确认本文；当前不再
-要求重复确认方向。修复方式是把 W0 限定为隔离探针，并让所有功能波通过 Identity/Catalog
-起始的 seam 账本与完整 DoD 放行，而不是降低门禁或写 `PASS_WITH_GAPS`。
-
+历史缺陷是“架构确认曾置于首卡批准之后”。稳定修复是按 seam 账本与完整 DoD 放行，
+不得降低门禁或写 `PASS_WITH_GAPS`。
 ### 0.5 低耦合规则（新代码强制）
 
 1. **模块 owner 真源**：owner 只由 Gradle module 路径 + source owner 推导；不得用
@@ -156,65 +124,39 @@ PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
 本轮采用 `V2-D198` 的逻辑 contracts seam，不建全量物理 Gradle 拆分。物理拆模块只有在
 单个 seam 的构建、DI / KSP、Room、instrumentation、APK 和回滚成本均证明收益后才重新提报。
 
-| Seam | 唯一对外合同 | 隐藏实现 | 唯一 writer / 不变量 | 当前状态 |
-|---|---|---|---|---|
-| Scope / Identity | canonical scope + stable identity DTO + identity generation | auth、preferences、DB namespace | 单 writer；切号、离线、缓存、下载、通知、队列不串身份 | `CONTRACT_FROZEN / IN_PROGRESS / W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0` |
-| Catalog read | immutable snapshot + stale / generation | API、DAO、SWR、TTL | 页面只读投影；data 统一刷新 | `PARTIAL / W1A_SEARCH_SLICE_INTEGRATED / OTHER_READERS_IN_PROGRESS` |
-| User-state write | intent → accepted → confirmed / denied | SDK 写、回读、重试 | data 写网关是唯一 writer；403 不重试 | `NOT_IMPLEMENTED` |
-| Download control | command + immutable task / hierarchy projection | WorkManager、Room、sidecar、文件、通知 | 下载控制实现单一写状态；页面 / 角标 / 通知同源 | `PARTIAL` |
-| PlaybackSession | session command / state / owner generation | ExoPlayer、mpv、MediaSession、ViewModel 内部 | 单活动逻辑会话、单 MediaSession；旧 owner 不写新状态 | `PARTIAL` |
-| Reader source | source-scoped book identity + progress / locator | Readium、PDF、SAF、Range | source-scoped bookId；内容指纹与进度分离 | `PARTIAL` |
-| Music library / queue | stable queue snapshot + command | playlist store、ExoPlayer、具体 controller | 当前 / Next Up / 恢复序用稳定身份 | `PARTIAL` |
-
-当前现有锚点包括 `JellyfinRepository`、`ReaderRepository`、`Downloader`、
+| Seam | 唯一对外合同 | 隐藏实现 | 唯一 writer / 不变量 |
+|---|---|---|---|
+| Scope / Identity | canonical scope + stable identity DTO + identity generation | auth、preferences、DB namespace | 单 writer；切号、离线、缓存、下载、通知、队列不串身份 |
+| Catalog read | immutable snapshot + stale / generation | API、DAO、SWR、TTL | 页面只读投影；data 统一刷新 |
+| User-state write | intent → accepted → confirmed / denied | SDK 写、回读、重试 | data 写网关是唯一 writer；403 不重试 |
+| Download control | command + immutable task / hierarchy projection | WorkManager、Room、sidecar、文件、通知 | 下载控制实现单一写状态；页面 / 角标 / 通知同源 |
+| PlaybackSession | session command / state / owner generation | ExoPlayer、mpv、MediaSession、ViewModel 内部 | 单活动逻辑会话、单 MediaSession；旧 owner 不写新状态 |
+| Reader source | source-scoped book identity + progress / locator | Readium、PDF、SAF、Range | source-scoped bookId；内容指纹与进度分离 |
+| Music library / queue | stable queue snapshot + command | playlist store、ExoPlayer、具体 controller | 当前 / Next Up / 恢复序用稳定身份 |
+稳定合同锚点包括 `JellyfinRepository`、`ReaderRepository`、`Downloader`、
 `DownloadTask` / `DownloadAction`、`PlaybackCoordinator`、`MusicPlaybackController`。
 这些是“可演进合同”，不是已经完成的严格 seam；合同不得泄漏 DAO、SDK、Worker、
 `PlayerHolder` 或 `MPVPlayer`。
 
-**Identity/Catalog W1 冻结方向**：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的任务卡、
-首个切片、精确白名单和执行门只维护在
-`docs/TASKS.md#v2-arch-seam-identity-catalog-w1-冻结任务卡`。摘要如下：
+**Identity/Catalog seam 稳定合同决策**：任务卡、当前审批、切片状态与证据只维护在
+`docs/TASKS.md`。
 
-- public port：`com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort`，位于 `:data`；
+- public port：`com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort`，位于 `:data`。
 - snapshot contract：`CatalogSnapshot<T>` 携带 `CatalogScope`、content generation、
   `CatalogFreshness` 与 observed time；scope 复用既有
-  `com.zhangwenkang.cinefin.repository.JellyfinOrigin`；
-- implementation：`JellyfinRepositoryImpl` / `JellyfinRepositoryOfflineImpl`；由 `:data` 的
-  `CatalogReadModule`（`@Module @InstallIn(SingletonComponent::class)`）按既有
-  `AppPreferences.offlineMode` 选择 `CatalogReadPort`，复用 core `RepositoryModule` 已提供的
-  implementation singleton，不重复创建，`core/RepositoryModule.kt` 保持不变；
-- 第一个消费者：`SearchViewModel` / `SearchSession`；
-- A0 预期：W1A 不改 `core/RepositoryModule.kt`，`coreToDataImports=130` 与 11 违规
-  P1/P2/P3=`7/3/1` 保持不变；不得用 FQCN inline import 规避扫描，也不得修改 baseline；
-- 首个切片 `ICS-W1A-SCOPED-SEARCH-SNAPSHOT` **不是完整 seam**：首轮 integration、两项
-  P3 cleanup、cleanup 后独立 QA R2 与 ff-only integration 已完成，但账号 / preference
-  单 writer、其他 catalog readers、offline namespace、401/403 与 durable fence 仍未实现；
-- `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 的 `W1B-1A` 已完成 identity
-  contract/store/coordinator/DI + Servers current-server：source
-  `efd277ded8c0673ad73f951b33b56833dff8639a`，integration
-  `7a2f1716a7325cf22dd8d923741c37d317ab97ca`，patch-id
-  `80f77fb77bbc44c3fcff81fa76183f49354f2503` MATCH、13/13 BLOB，independent QA
-  `PASS / P0-P3=0/0/0/0`。合法 parent chain 为
-  `f91095ee -> 50f92341 -> 9817bc12 -> 7a2f1716`；`f91095ee` 仅为 target baseline，
-  不能要求为 direct parent；
-- `W1B_1A_REPAIR=COMPLETE / INTEGRATED`，
-  `W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`，
-  `W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY`；下一角色必须是 fresh
-  session / agent 中的 W1B-1B implementation owner，先核对最终 control clean HEAD、
-  W1B-1B worktree clean / branch / HEAD `c72fcce6`、任务卡与 1A QA / merge evidence。
-  `W1B_1C=BLOCKED_BY_W1B_1B`、
-  `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；每波必须由不同 fresh owner 实现，并各自经过
-  fresh 独立 QA / merge-prep；
-- `V2-NON-TTS-W1` 仍 `BLOCKED_BY_PREREQUISITES`，`ARCH_IMPLEMENTATION_REFACTORED` 仍
-  `NOT_PROVEN`。
-
-**长期计划执行账本**：canonical seam 关键路径维护在
-`docs/TASKS.md` 的 `Architecture Critical Path / 长期计划账本`。当前 open ID 为
-`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`、`V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2`、
-`V2-ARCH-SEAM-PLAYBACK-SESSION-W3`、`V2-ARCH-SEAM-READER-SOURCE-W4`、
-`V2-ARCH-SEAM-USER-WRITE-W5`。功能波派单前必须核对 `PREREQUISITE_SEAMS`；交接必须列出
-`OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`。
-
+  `com.zhangwenkang.cinefin.repository.JellyfinOrigin`。
+- implementation：`JellyfinRepositoryImpl` / `JellyfinRepositoryOfflineImpl`；`:data` 的
+  `CatalogReadModule` 按既有 `AppPreferences.offlineMode` 选择 `CatalogReadPort`，复用 core
+  `RepositoryModule` 已提供的 singleton，不重复创建，`core/RepositoryModule.kt` 保持字节不变。
+- 首个消费者：`SearchViewModel` / `SearchSession`；搜索目录读切片不证明其他 catalog readers。
+- W1A 只证明 scoped search snapshot、SWR freshness、origin-bound request 与单消费者迁移；
+  账号 / preference 单 writer、其他 readers、401/403 与 durable fence 仍未完成。
+- 父 seam 只有在完整 DoD 全部满足后才可关闭；局部集成不得写成父 seam、W1 或产品 PASS。
+- 每个子波必须使用不同 fresh owner、独立 QA 与 merge-prep；当前子波、白名单、source / final /
+  integration 对象和候选计数只读 `docs/TASKS.md`。
+**长期计划执行账本**：稳定 ID、状态、`PREREQUISITE_SEAMS`、交付物、可观察验收、证据门与
+当前未完成原因只维护在 `docs/TASKS.md` 的 `Architecture Critical Path / 长期计划账本`。
+功能波派单前必须核对该账本；交接必须从同一 ACTIVE 读取动态 next / evidence，不得复制本文。
 seam 的 Definition of Done 统一为：
 
 ```text
@@ -256,7 +198,7 @@ DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
 最多一次全长回归。第二轮仍有 P1 时冻结当前实现，改用 G1-S1 JSON 基线与现有 Gradle /
 graphify 输出的只读检查；不得继续扩 gate、字段或 exact count。
 
-**A0 落地事实（2026-11-07）**：source
+**HISTORY — A0 落地事实（2026-11-07；settled）**：source
 `a787b683c89389491099ea7acb069422190327c3`（parent `c56ffdc3`）与旧 target
 `d6b431764e6a7d088ec4e8187af30b5b80223289` 的 scoped diff 均只新增
 `tools/architecture/v2-owner-baseline.json`、`v2-owner-gate.ps1`、
@@ -276,168 +218,70 @@ singleton；`core/RepositoryModule.kt` 不在 W1A 写域内。预期 `coreToData
 
 ### 0.8 共享文件锁与可并行候选
 
-所有 seam / 功能任务必须从当次已提交、clean 的 integration SHA 单独创建 worktree；禁止从
-另一功能分支派生再合入。本文审计时 integration SHA 为
-`6d76936253787dbb0c07ef939f8b936fe2e761cb`；随后 A0 guard 已独立 QA / merge-prep 并集成到
-`ab9174043db9cb9e637054210cfee580d06f2965`。2026-11-07 seam 规划基线为 clean
-`fee63165f966a52318e332abe1ad7b184592a88a`；W1 任务卡冻结基线为 clean
-`d85f695b9ba1a220d85d529388769a7ad81b76e8`。W1A P3 cleanup
-`faa910827d2db557d4e17970105047a205f77a57` 已 ff-only 集成为五文件同步时的
-`CODE_INTEGRATION_HEAD`。W1B-1A source
-`efd277ded8c0673ad73f951b33b56833dff8639a` 经 merge-prep 形成
-`7a2f1716a7325cf22dd8d923741c37d317ab97ca`，合法保留三提交链
-`f91095ee -> 50f92341 -> 9817bc12 -> 7a2f1716`，并以 ff-only 集成。
-`CONTROL_PLANE_HEAD`、`CODE_INTEGRATION_HEAD`、`HANDOFF_BASE_HEAD` 与
-`DOCS_CANDIDATE_PARENT` 当前均为 `7a2f1716`；本次 docs commit SHA 由 root 最终钉住。
-W1B-1B 从该 clean integration SHA 单独创建 worktree，1B/1C 依次从已验证且 integrated
-的 W1B-1 stack head 派生，
-不得由同一 owner 连做，也不得从审计 SHA、A0 integration SHA、W1A candidate 或任一
-sibling feature branch 派生。1B/1C 在 combined closeout 前不得自宣
-`OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH`。
+所有 seam / 功能任务必须从 `docs/TASKS.md` 指定的已提交、clean integration 基线单独创建
+worktree；禁止从另一功能分支派生再合入。当前基线、branch、HEAD、owner、warm state 与证据
+不得复制到本文。共享合同、构建注册、下载真相、导航、公共 UI 与身份配置由任务卡指定单 owner
+串行；其他 owner 只能消费已集成合同。
 
-| 串行咽喉 | 锁范围 | 规则 |
+| 串行咽喉 | 锁范围 | 稳定规则 |
 |---|---|---|
 | 构建注册 | `settings.gradle.kts`、根 `build.gradle.kts`、`gradle/libs.versions.toml` | 单 owner；新增模块 / 仓库 / 依赖必须先批准 |
-| 公共架构合同 | `CatalogReadPort.kt`、`JellyfinRepository.kt`、`Downloader.kt`、`PlaybackCoordinator.kt`、`CinefinPlaybackService.kt` | W1A search port / snapshot DTO 已集成；后续合同变更仍需单 owner，其他 owner 只迁移消费者 |
-| Catalog cache / SWR | `MetadataCache.kt`、`MetadataSnapshotSwr.kt`、`MetadataSnapshotStore.kt`、`MetadataSnapshotCodec.kt` | W1A search slice 已释放锁；后续与 `G2-PERSISTENT-SWR-W1P` 串行，不得并行改 generation / stale 语义 |
-| 下载真相 | `DownloaderImpl.kt`、`DownloadTask.kt`、`DownloadControlPlane.kt`、Worker / Job、sidecar、Room、通知、`DownloadsViewModel.kt` | 同一波串行；禁止 UI 与 Worker 并行改状态语义 |
-| 导航 | `NavigationRoot.kt`、`DownloadsScreen.kt`、导航宿主回调 | 单 owner；W0 默认不进入 |
-| 公共 UI / token | `CinefinCard.kt`、theme / token、跨 feature 组件 | UI foundation 单 owner；W0 不得顺手改 |
-| 身份 / 配置 | `AppPreferences.kt`、`IdentityModule.kt`、auth、账号选择、离线 scope、`IdentityWriteCoordinator.kt` | W1B 单 owner；canonical writer 只允许一个；其他 owner 等待已集成合同 |
+| 公共架构合同 | `CatalogReadPort.kt`、`JellyfinRepository.kt`、`Downloader.kt`、`PlaybackCoordinator.kt`、`CinefinPlaybackService.kt` | 合同单 owner；其他 owner 只迁移消费者 |
+| Catalog cache / SWR | `MetadataCache.kt`、`MetadataSnapshotSwr.kt`、`MetadataSnapshotStore.kt`、`MetadataSnapshotCodec.kt` | generation / stale / corruption 语义串行 |
+| 下载真相 | `DownloaderImpl.kt`、`DownloadTask.kt`、`DownloadControlPlane.kt`、Worker / Job、sidecar、Room、通知、`DownloadsViewModel.kt` | 同一波串行；禁止 UI 与 Worker 并行改状态 |
+| 导航 | `NavigationRoot.kt`、`DownloadsScreen.kt`、导航宿主回调 | 单 owner |
+| 公共 UI / token | `CinefinCard.kt`、theme / token、跨 feature 组件 | UI foundation 单 owner |
+| 身份 / 配置 | `AppPreferences.kt`、`IdentityModule.kt`、auth、账号选择、离线 scope、`IdentityWriteCoordinator.kt` | canonical writer 只允许一个 |
 
-预留 seam / 构建变更的影响：根 build 或依赖目录变化会阻塞全部四个候选；公共
-`JellyfinRepository` / search port 冻结会影响 Search、SWR、Reader 与 Write；下载真相
-会同时影响 W0 UI、W2、通知与离线投影；PlaybackSession 会影响 W3、音乐 / 视频和后续
-TTS；`NavigationRoot` / `DownloadsScreen` 或共享 UI 会影响 W0、W1 与导航任务。依赖这些
-咽喉的候选不得与新合同实现并行，只能在合同提交后从新 integration SHA 重建。
+**稳定并行候选边界**（授权、状态、基线、白名单与 evidence 只读 `docs/TASKS.md`）：
 
-**并行任务（A0 已集成；其余候选尚未授权实现）**
+| 候选 | 稳定目标 | 默认文件边界 |
+|---|---|---|
+| `V2-ARCH-OWNER-GUARD-W1P` | G1-S1 owner / debt ratchet 只读守护 | `tools/architecture/v2-owner-gate.ps1`、`v2-owner-baseline.json`、`v2-owner-gate.tests.ps1` |
+| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` | 先证明当前候选是否仍有完成卡点击缺陷；有 RED 才最小修复 | `DownloadRows.kt`、`DownloadRowAccessibilityContractTest.kt` |
+| `G2-UPDATE-TRUST-W1P` | 固定更新包信任判断与负例 | data/update 的 downloader、verifier 与对应测试 |
+| `G2-PERSISTENT-SWR-W1P` | 固定持久快照 generation / 损坏恢复 | `MetadataSnapshotStore.kt`、`MetadataSnapshotCodec.kt` 与对应测试 |
 
-| 候选 | 目标 / 单一可观察结果 | 文件白名单 | 为什么可并行 |
-|---|---|---|---|
-| `V2-ARCH-OWNER-GUARD-W1P` | 已集成（`ab917404`）：把 G1-S1 的 19 边 / 11 违规快照落成只读 owner guard 与负例 | `tools/architecture/v2-owner-gate.ps1`、`tools/architecture/v2-owner-baseline.json`、`tools/architecture/v2-owner-gate.tests.ps1` | 只读工具目录；不碰产品或 Gradle |
-| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` | 先证明当前候选是否仍有完成卡点击缺陷；有则最小修复，无则停止 | `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/downloads/DownloadRows.kt`、`app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/film/downloads/DownloadRowAccessibilityContractTest.kt` | app 下载行 UI 与测试；不碰 data、player、构建或契约 |
-| `G2-UPDATE-TRUST-W1P` | 固定更新包信任判断的纯逻辑与负例 | `data/src/main/java/com/zhangwenkang/cinefin/update/UpdateHttpDownloader.kt`、`data/src/main/java/com/zhangwenkang/cinefin/update/UpdateTrustVerifier.kt`、`data/src/test/java/com/zhangwenkang/cinefin/update/UpdateHttpDownloaderTest.kt` | data/update 独立子树；不碰下载 UI、导航或 Room |
-| `G2-PERSISTENT-SWR-W1P` | 固定持久快照 codec / store 的 generation 与损坏恢复逻辑 | `data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotStore.kt`、`data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotCodec.kt`、`data/src/test/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwrTest.kt`、`data/src/test/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotStoreTest.kt` | data/repository 的独立快照文件；不碰 app UI、下载、播放 |
+任一任务若需要构建注册、共享合同、下载真相、导航宿主或公共 UI，必须停止并按
+`docs/TASKS.md` 串行排队；静态 PASS 不能替代独立 QA 与 integrated gate。
+### 0.9 W0 隔离探针稳定约束
 
-四组白名单两两无交集。任一任务若需要 `settings.gradle.kts`、根 build、
-`JellyfinRepository.kt`、下载真相、导航宿主或公共 UI，必须停止并排队串行，不得自行扩锁。
+`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 是 `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`，
+不是 seam，也不能作为功能波前置证明。执行前必须从 `docs/TASKS.md` 读取任务卡、当前基线、
+授权状态与证据门。
 
-`ICS-W1A-SCOPED-SEARCH-SNAPSHOT` 不属于上述可并行四组：它曾串行占用
-`CatalogReadPort` / `JellyfinRepository` search contract、`MetadataSnapshotSwr`、
-`:data` 的 `CatalogReadModule` 与 Search consumer 锁；与 `G2-PERSISTENT-SWR-W1P` 的
-`MetadataSnapshotSwrTest.kt` 重叠。W1A 已集成并释放该切片锁；后续 `G2-PERSISTENT-SWR-W1P`
-仍须从新 clean integration 派生并由 root 单独授权。
-`core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt` 不在 W1A 写域内，
-必须保持字节不变，以维持 `coreToDataImports=130`。
+稳定放行条件：
 
-### 0.9 W0 隔离探针约束与 D212 lineage
+1. 先绑定 `V2-FIX-DOWNLOAD-001` / `V2-REG-DOWNLOAD-001`，在当前 clean 对象上执行最小复现。
+2. 默认文件面只有 `DownloadRows.kt` 与 `DownloadRowAccessibilityContractTest.kt`。
+3. 无缺陷即记录 `NO_DEFECT_REPRODUCED` 并停止，不为建立 lineage 制造代码改动。
+4. 需要 `DownloadsScreen.kt`、`NavigationRoot.kt`、`DownloadsViewModel.kt`、`CinefinCard.kt`、
+   下载状态机、通知、schema 或迁移时必须重新拆卡。
+5. 修复后仍需另一全新独立 QA 在真实候选包验证；静态测试或历史祖先不能单独证明保持。
 
-`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 是
-`ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`，不是 seam，也不能作为后续功能波的前置证明。
-其静态审计结果：
-
-```text
-HISTORICAL_FIX=61c04a38a037dbc5fa450c9e809d2277fcd33151
-ANCESTOR_OF_V1_4=YES
-ANCESTOR_OF_CURRENT_HEAD=YES
-CURRENT_STATIC_IMPLEMENTATION_PRESENT=YES
-CURRENT_DEFECT_REPRO=NOT_PROVEN
-CANDIDATE_REAL_ENTRY_REGRESSION=NOT_RUN
-LINEAGE_STATUS=UNPROVEN
-```
-
-`61c04a38` 已把 `CinefinCard` 的整卡 click / long-click 置空，把内容区交互与尾部任务动作
-拆成兄弟范围，并新增 `DownloadRowAccessibilityContractTest`。当前代码的完成叶行仍通过
-`DownloadAction.OpenEntry` → `resolveEntryItem` → `Host.onItemClick` 打开目标。因此该探针不能
-默认“尚未修复”：实现 owner 必须先做当前对象的最小复现；无缺陷时返回
-`NO_DEFECT_REPRODUCED` 并停止。
-
-W0 隔离探针放行条件：
-
-1. 用户已于 2026-11-07 确认本 V2 架构方向；执行仍需遵守 seam gate，但不重复询问方向。
-2. 集成 owner 提交文档并确认 clean integration SHA；实现 owner 从该 SHA 单独 worktree。
-3. 默认白名单只有 `DownloadRows.kt` 与 `DownloadRowAccessibilityContractTest.kt`。
-4. 先绑定 `V2-FIX-DOWNLOAD-001` / `V2-REG-DOWNLOAD-001`，记录当前 RED 或明确无缺陷。
-5. 若需要 `DownloadsScreen.kt`、`NavigationRoot.kt`、`DownloadsViewModel.kt`、`CinefinCard.kt`、
-   下载状态机、通知、schema 或迁移，停止并拆新卡；不得扩项。
-6. 修复后必须另有独立候选包场景；静态测试、历史 v1.4 通过或 `61c04a38` 祖先都不能单独
-   证明当前候选 `FIXED_IN_CANDIDATE`。
-7. 该探针可独立派发，但不得阻挡 Identity/Catalog seam，也不得计入
-   `CONTRACT_FROZEN` 之后的任一 seam 状态。
+**HISTORY — 2026-11-07 静态探针基线**：历史修复
+`61c04a38a037dbc5fa450c9e809d2277fcd33151` 已拆分下载行内容区与尾部动作，并新增
+`DownloadRowAccessibilityContractTest`；该事实只证明历史修复存在，不证明随后候选始终无缺陷。
 
 ### 0.10 未证明项与确认门
 
-- 产品代码只完成 W1A search contracts seam / adapter / single-consumer migration，以及
-  W1B-1A identity contract/store/coordinator/DI + Servers current-server；完整 V2 seam
-  与全量 consumer migration 未完成。
-- A0 owner guard / debt ratchet 已落盘并 integrated：source `a787b683`、旧 target
-  `d6b43176`、integration `ab917404`，只新增 `tools/architecture/**` 3 文件，source/final
-  stable patch-id MATCH；独立 QA `PASS` 7/7、merge-prep `PASS`，integration worktree 复跑
-  7/7，direct guard 内部边 `19/19`、外部边 `8/8`、cycles `0`、FQCN ambiguity `0`、
-  debt-ratchet failure `0`，既有 11 违规仍 P1/P2/P3=`7/3/1`，A0 findings
-  P0–P3=`0/0/0/0`。该门禁只固定既有边界，尚未接入 CI / Gradle 常规门。
-- W1A 之外的 contracts seam、adapter / consumer migration 与产品全量架构重构仍
-  `NOT_PROVEN`；guard 集成和 W1A slice 集成都不等于产品架构重构完成。
+- 产品代码只完成局部 contracts seam / adapter / consumer 迁移；完整 V2 seam 与全量 consumer
+  migration 未完成，`ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
+- A0 owner guard / debt ratchet 只固定既有边界，不能替代 contracts seam、消费者迁移或产品重构。
 - 模块级无环不等于包级、类型级或调用级低耦合。
-- `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的 W1A P3 cleanup `faa910827` 已 ff-only 集成，
-  cleanup 后独立 QA R2 为 `PASS / P0-P3=0/0/0/0`，状态为
-  `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED /
-  PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS`；`W1A_P3_OPEN=0`。原独立 QA R3
-  `PASS / P0-P3=0/0/0/3` 与两项当时 OPEN 的 P3 描述保留为历史，不追溯改写；父 seam
-  仍未完成。W1–W5 功能波在各自
-  `PREREQUISITE_SEAMS` 达到完整 DoD 前保持 `BLOCKED_BY_PREREQUISITES`。
-- 首个切片 `ICS-W1A-SCOPED-SEARCH-SNAPSHOT` 已证明搜索目录读、SWR freshness、
-  origin-bound request、Search consumer 同 scope、首轮 QA / merge-prep / integration、
-  两项 P3 cleanup、cleanup QA R2 与 ff-only integration；身份写入原子性、其他 catalog
-  consumers、401/403、durable generation 与跨进程语义仍未证明。
-- `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 的 `W1B-1A` 当前为
-  `INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`，source
-  `efd277ded8c0673ad73f951b33b56833dff8639a`，integration
-  `7a2f1716a7325cf22dd8d923741c37d317ab97ca`；source/final stable patch-id
-  `80f77fb77bbc44c3fcff81fa76183f49354f2503` MATCH，`PATH_SET_MATCH=YES`，
-  `BLOB_MATCH=13/13`，`TARGET_DELTA_DOCS=0`。merge-prep 合法保留 3 个源语义提交，
-  链为 `f91095ee -> 50f92341 -> 9817bc12 -> 7a2f1716`；`f91095ee` 仅为 target
-  baseline / 祖先，不是 direct parent。
-- W1B-1A independent QA R2 为
-  `INDEPENDENT_QA_PASS / W1B_1A_QA_PASS / P0-P3=0/0/0/0`：data identity
-  `21/0/0/0`、app setup `28/0/0/0`、并发协调器 `12/0/0/0` 均独立重跑 2 次；
-  assemble `242 PASS`、ktfmt `34 PASS`；A0 direct internal `19/19`、external `8/8`，
-  cycles / FQCN / debt / findings 均 `0`，A0 tests `7/7`；W1A 两项 P3 定向各
-  `1/0/0/0`。merge-prep final gates：JUnit `51/0/0/0`，assemble、ktfmt、A0、
-  diff-check PASS；test-only MockK `1.13.16` 已集成，未联网。
-- W1B-1A 只证明 Servers current-server 切片的 identity contract / store / coordinator /
-  DI 路径；auth / Quick Connect / Add Server / settings offline / app startup hydration /
-  Room-global API unified coordinator / `CatalogScope` generation fence 仍
-  `NOT_MIGRATED`。`W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`；
-  `W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY`；
-  `W1B_1C=BLOCKED_BY_W1B_1B`；`W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`。已知非阻塞历史 P3
-  为 `SearchViewModelTest` 全类不稳定，本波未修复、未扩跑，不能写成候选引入或已关闭。
-- W1B-1A evidence：
-  `F:\Develop\code_data\qa\v2-w1b-1a-qa-repair-r2-independent-verification-20261107`、
-  `F:\Develop\code_data\qa\v2-w1b-1a-qa-repair-r2-merge-prep-20261107`、
-  `F:\Develop\code_data\qa\v2-w1b-1a-qa-repair-r2-implementation-20261107-final`。
+- Identity/Catalog 父 seam 仍未完成：身份写入原子性、其他 catalog consumers、401/403、
+  durable generation、跨进程语义与旧路径删除都必须由 `docs/TASKS.md` 的 DoD 逐项关闭。
 - `DatabaseModule.kt:25` 的破坏性 fallback 仍是 P0 发布阻断，归
   `G2-ARCH-CONTRACTS-MIGRATION`，不得由 W0 下载卡修复夹带。
-- W0 隔离探针所示缺陷已有历史修复，但当前候选复现、独立 QA 和真实入口回归未执行。
-- W1A slice 已到达实现、自检、独立 QA、merge-prep、P3 cleanup、cleanup QA R2 与
-  integrated gate；完整 2.0
-  实现、W1、核心候选旅程、产品 P0–P3、runtime 与 Release 仍未到达。
+- W0 只有在 `docs/TASKS.md` 明确授权后才能执行；当前缺陷复现、独立 QA 和真实入口回归
+  不得从历史修复倒推为完成。
+- 完整 2.0 实现、核心候选旅程、产品 P0–P3、runtime 与 Release 仍未到达；动态状态与证据只读
+  `docs/TASKS.md`。
 
-用户已于 2026-11-07 确认本文件，关闭“架构规范与并行编排门”。W1A 两项 P3 cleanup 已
-关闭并集成；`ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 的 1A 已
-`INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`，`W1B_1A_REPAIR=COMPLETE /
-INTEGRATED`，`W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`，
-`W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY`。下一实现角色必须在新会话 /
-agent 中派 fresh
-`AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07`；
-首动作核对最终 control clean HEAD、W1B-1B worktree clean / branch / HEAD `c72fcce6`、
-W1B 任务卡与 W1B-1A QA / merge evidence；任一漂移、需要第 12 文件、改 1A files、
-schema / migration / production dependency / network / device / Release，或新 P0–P2
-即 `STOP`。实现 owner 只做自身 TDD / build / 边界内最小自测并停在 candidate，不得开启
-QA / merge / integration。
-W1B-1C/2 继续锁定；1C 后还需 combined QA / merge-prep，完整 W1B-1 收口后才允许
-W1B-2。W0 只能作为独立隔离探针，release / device / network / 独立 QA 仍不自动批准。
+**HISTORY — Identity/Catalog 已结算里程碑**：A0 guard、W1A P3 cleanup 与 W1B-1A identity
+slice 分别在当时完成 QA / merge-prep / integration；W1B-1B failed candidate 与无法在允许写域
+闭环的原子 generation fence 保留为产品 HISTORY。精确 SHA、测试计数、证据根、当前下一门与角色
+只从 `docs/TASKS.md` 及其 HISTORY 读取。
 
 ---
 

@@ -1,81 +1,19 @@
 # Cinefin · 项目总览与协作规程
 
-> **2026-11-07 ACTIVE 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
-> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / ARCH_SEAM_DELIVERY_ACTIVE /
-> W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED /
-> PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
-> ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
-> ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
-> IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
-> CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57 /
-> CONTROL_PLANE_HEAD_INPUT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
-> HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
-> DOCS_CANDIDATE_PARENT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
-> W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
-> W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES / W1A_P3_OPEN=0 /
-> W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
-> W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 /
-> W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
-> W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION /
-> W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY /
-> USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY /
-> W1B_1A=READY_FOR_IMPLEMENTATION_OWNER / W1B_1B=BLOCKED_BY_W1B_1A /
-> W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
-> OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
-> PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
-> V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES /
-> RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO`。
-> TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、QA /
-> runtime / G1 PASS。**HISTORY（旧 seam 规划起点 / 失败现场；非当前状态）**：seam 规划从 clean integration
-> `fee63165f966a52318e332abe1ad7b184592a88a` 创建 docs candidate；失败现场只读归档在本地分支
-> `codex/g2-prewindow-blocked-20261107`，commit
-> `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 保持冻结。
-> **当前架构事实（ACTIVE）**：非 TTS 六波已批准；V2 架构审计已完成，
-> `ARCHITECTURE.md` 已升级为 v2.0 并由用户确认；A0 架构守卫 source `a787b683` 已通过
-> 独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`，全量产品重构仍
-> `NOT_PROVEN`。W1A P3 cleanup 的 source/final/merge-prep 均为
-> `faa910827d2db557d4e17970105047a205f77a57`；五文件同步时的
-> `CODE_INTEGRATION_HEAD` 也是该 SHA。root 集成 docs candidate 后，`codex/v2-integration`
-> 的实际 HEAD 以其最终钉住值为准；W1A cleanup 的 parent 为
-> `432616b6d27e8dce62753f97b3ebf3184b8f67b5`，只改 3 个搜索实现 / 测试文件；
-> `W1A-P3-COMPLETED-MARKER` 与 `W1A-P3-LOCAL-ONLY-REGRESSION` 均 `CLOSED`。原独立
-> QA R3 `PASS / P0-P3=0/0/0/3` 保留为历史，cleanup 后独立 QA R2 为
-> `PASS / P0-P3=0/0/0/0`；merge-prep source/final MATCH，`288/288` tasks executed，
-> A0 internal `19/19`、external `8/8`，cycles / FQCN / debt / findings 均为 0，随后
-> ff-only 集成为五文件同步时的 `CODE_INTEGRATION_HEAD`。
-> 父 seam `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 保持 `CONTRACT_FROZEN / IN_PROGRESS`，
-> `V2-NON-TTS-W1` 保持 `BLOCKED_BY_PREREQUISITES`。用户先授权 W1B task-card planning，
-> 又于 2026-11-07 以“继续下一步”接受 `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`
-> task card；当前为
-> `W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION`，
-> `W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY`。
-> 已冻结 `W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR` →
-> `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS` →
-> `W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE` 三个顺序子波，以及后置
-> `W1B-2-STARTUP-HYDRATION-AND-RECOVERY`、逐波精确白名单和 fail-closed 门。每波必须由
-> 不同 fresh owner 完成并独立 QA / merge-prep；W1B-1 三波全部集成并经过 combined QA /
-> merge-prep 后才允许 W1B-2。当前只授权先派 fresh `W1B-1A` owner，1B/1C/2 仍阻塞。
-> W1–W5 功能波只在对应
-> `PREREQUISITE_SEAMS` 达到完整 DoD 后放行。
-> W0 仅是可独立执行的隔离探针，不挡主线、不计 architecture progress，仅两文件且无缺陷
-> 即停止。
-> 设备、QA、Release 仍需用户单独批准。
-> 产品 P0–P3 仍 `NOT_ASSESSED`，K60 锁定；旧 G2 审计事实只在
-> `V2_PLAN.md` §12 HISTORY 追溯。
->
-> `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
-> V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
-> V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-> `NEXT_CRITICAL_PATH=W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`；
-> `last_evidence=docs/TASKS.md ICS-W1B task card ACCEPTED + root scope W1B_1A_ONLY /
-> W1A cleanup QA R2 + source-final MATCH + ff-only integration`。
-> **HISTORY（2026-11-07 P3 cleanup 前；已被本 ACTIVE 取代）**：当时 W1A 为
-> `INTEGRATED_WITH_P3_CLEANUP / W1A_P3_OPEN=2`，路线为
-> `W1A-P3 cleanup -> ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`；旧会话为
-> `648,477 / 1,048,576（61.8%），请求 1331`。
+<!-- V2_STABLE_DOC_STATE_POINTER_BEGIN -->
+- DYNAMIC_STATE_SOURCE=docs/TASKS.md
+- CURRENT_STATE_IN_THIS_FILE=NONE
+<!-- V2_STABLE_DOC_STATE_POINTER_END -->
 
-> **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-11-07　集成分支 `codex/v2-integration`
+> 当前 worktree、branch、HEAD、gate evidence、P1/P2、next role/path 与 stop condition
+> 只在 `docs/TASKS.md` 的唯一 ACTIVE。本文件仅保留稳定项目地图、已确认决策、里程碑和历史；
+> 标为 HISTORY 的旧状态不得作为派单事实。
+>
+> Aurorama 2.0 的稳定需求、架构方向与决策入口是 `docs/V2_PLAN.md`、
+> `docs/ARCHITECTURE.md` 与 `docs/DECISIONS.md`；动态任务只读 `docs/TASKS.md`。
+> 稳定文档修订于 2026-11-08。
+>
+> **新会话第一步读这里**：先读 `docs/TASKS.md` 的唯一 ACTIVE，再读对应任务线文档。
 > 项目级状态、任务线地图、协作规程都在本文件；单个任务线内部的需求 / 进度 / 决策写各自的线文档。
 > **Aurorama 2.0 正在做开发前置收敛**：需求与交付入口是 `docs/V2_PLAN.md`；外部原始需求只读分片读取，禁止整篇通读。
 
@@ -107,57 +45,22 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 ## 3. 任务线（一条线 = 一个文档 = 一个会话）
 
-| 线 | 文档 | 状态 | 当前焦点 |
-|----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / ARCH_SEAM_DELIVERY_ACTIVE / W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED / PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1A_P3_OPEN=0 / W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY / W1B_1A=READY_FOR_IMPLEMENTATION_OWNER / W1B_1B=BLOCKED_BY_W1B_1A / W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT / OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS / V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / PRODUCT_P0_P3_NOT_ASSESSED / RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。`ARCHITECTURE.md` v2.0 已确认，20 类矩阵 `7/9/3/1`；A0 guard source `a787b683` 已通过独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`，但 A0 guard 不是架构重构。W1A cleanup `faa910827`（parent `432616b6`）已 ff-only 集成，3 文件；cleanup QA R2 `PASS / P0-P3=0/0/0/0`，原 QA R3 `PASS / P0-P3=0/0/0/3` 仅作历史。`ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 已 `ACCEPTED / READY_FOR_IMPLEMENTATION`，但只授权 1A；W1B-1 已拆为 1A→1B→1C，各自 fresh owner + 独立 QA / merge-prep，combined QA 后才允许 W1B-2。W1–W5 由 `PREREQUISITE_SEAMS` 硬门控制。W0 仅 `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`。既有 G1-S1 债务仍 P1 7 / P2 3 / P3 1，完整 contracts seam 与消费者迁移未实现。`D211/D213` 不授权 release/device/network/设备 QA。 |
-> `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；旧 handoff-bootstrap 的
-> 唯一历史末态是
-> `POST_QA_RUNTIME_DEFERRED` 作为 handoff-bootstrap 历史措辞保留，
-> `PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，不是 QA / runtime / G1 PASS。
-> canonical preflight 的 exit / PASS 仍是机械门，但其 emitted `NEXT_PROMPT_BEGIN` 中的
-> `activePrompt=none` / 只接 settlement 文案是历史措辞；G2 settlement 提交 clean 且 preflight
-> PASS 后，真正可执行下一角色只由 `contract.authorization.qaDispatch.promptText` 决定。
-> **HISTORY（非当前状态）**：`G2_RUNTIME_CONTRACT_PACKAGE_READY /
-> PAD_RUNTIME_TOOLS_REPAIRED_PENDING_FRESH_AUDIT / 57/57 PASS / 37 negative` 已被
-> R2 WIP repair 的 R3–R9 与当前 exact counts 取代，不得作为当前状态或验收结论。
-> 连续性 anchor（非状态提升）：`RUNTIME_QA_DEFERRED_TO_G2 /
-> G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS /
-> V2-D208 / V2-D209 / G2_RUNTIME_CONTRACT_OWNER / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / K60_LOCKED /
-> ROUND8-P1-01 / ROUND7-P1-01 / ROUND6-P1-01 / QA tools 25/25 / B10 86/86 /
-> 合同历史 96/96 / c4a2d2a1 /
-> 69a723ab58b0a8425887b2b71b1993c110d56a319dac7ca9286a9411189d89f4`。
-| **维护 / 缺陷修复**（v1.1.0，18 条 + 小增强） | `docs/FIX_PLAN.md`（W73 建线） | 🟢 v1.1.0 已发布（2026-10-07，tag + Release + 双 APK）；B9/B10/B11 修复已随版闭环 | W73–W75 全部合并（896/0）→ **W76**：B8 日志脱敏合并（master `f25f1d4`、合并态门禁 **899/0**）；`1.1.0 (2)` release 已构建签名（universal 163.2 MB / arm64 74.0 MB、指纹 `e449c4aa…e155ff`）；回归 = R2（Pad 5 核心，0 FATAL·ANR）+ R1（K60 发布面：覆盖升级 ✅ / SAF ✅ / mpv 兜底 ✅ / Quick Connect ✅ / 真实下载 ❌）；新发现 B9（P1 · 新装首次下载失败，根因已夹逼、建议随 1.1.0 修）/ B10（P2）/ B11（P3）——见 `FIX_PLAN` §6、`TEST_PLAN` §7.7；**v1.1.0 已发布（2026-10-07）；1.2.0 = W77 阅读流式波（见阅读器线）；2026-10-17 第二批 W78–W83（#22–#39）见 §3 追加段** |
-| **Aurorama 1.4.0（W84–W89）** | `docs/FIX_PLAN.md` §2.4 / §3 / §4 + `docs/PLAYER_PLAN.md` §41 / §43 / §44 / §45 | 🔴 W89-C 独立 QA 通过静态 / Pad 安装门；跨客户端音乐 P1 阻断用户验收 | W84–W89-B 已合并且代码 commit 三路 CI 绿。W89-C 代码候选 `d18ed56` 仅将版本 bump 到 1.4.0(5)；双 APK 契约、223 XML / 1505 JVM、安全 26/26、格式、debug 与 Pad 同签名覆盖安装均通过。Jellyfin Web、Pad 1.4、K60 1.3 测试多首音乐均失败；Web 提示客户端不支持媒体，K60 实捕 HTTP 404。故障已超出单一 Android 客户端，首要检查 Jellyfin 12.3.0 服务端媒体文件 / 格式、转码后端与反代音频路由。正式用户验收与 K60 升级阻断。Pad 登录内容保留、真实应用内下载 / 系统确认、用户全验、tag / Release 仍未验证；既有 P2/P3、全局 BLOCKED=2 与 349 首快照偏差保留。 |
-| **Aurorama 1.4.0 W90 验收整改** | `docs/FIX_PLAN.md` W90 / `docs/PLAYER_PLAN.md` §46–§47 | 🟢 音乐身份批次已合并且 push / CI 三绿；用户验收与发布待定 | 下载子批候选 `3a92061f` 已独立 QA 并为 P0/P1/P2/P3=`0/0/0/2`、merge-prep PASS。音乐 final fix `fe2dbacc` / `024235b4` 区分三阶段失败、用 revision + requestId 守护选择恢复、收敛 Play all 单点击层并保留 Loading 无障碍状态。身份残留 `27b82f57`、独立 QA 与 merge-prep PASS；接受 W89-C `Versions.kt` 1.4.0(5) 后 ff-only 合并到 `36ca73c1`，最终 push `fe746fe6`，Build / Unit / Format 同 SHA 三绿。设备未覆盖项、两项下载 P3 与 W89-C 未发布状态继续保留；tag / Release / workflow 未执行。 |
-
-**2026-10-24 W88-A 项目级推进**：W88-A 已 ff-only / push `841d1615..86130dfb`，无 merge commit；22 文件白名单、独立 QA、11 模块 JVM **1297/0/0/0**、11 模块 debug `384/384`；同代码 commit CI Build `40070789391` / Unit Tests `40070789409` / Format `40070789384` 三绿。W88-A P0/P1/P2/P3=`0/0/0/2`，两项 P3 与 W87 两项 BLOCKED / 累计 P3 原样保留。下一卡 = W88-B canonical identity 与去重；之后 W88-C 持久化 SWR；不得自动进入 W89。
-
-**2026-10-24 W88-B 能力门 BLOCKED**：W88-A 文档收口 `d2076bee` 为实查基线。W88-B 隔离分支只读矩阵确认服务器 / 用户身份未进入搜索模型、本地搜索丢弃 libraryId，且持久下载 sidecar/source 无法证明 server/user provenance；完整下载折叠命中用户预设“真源改造先停止”条件。生产代码 / 测试 / schema 零修改，工作树 clean，未占设备。能力评估 P0/P1/P2/P3=`0/0/2/1`，W88-B BLOCKED=1；累计开放 P3 由 5 增至 6。待用户裁决 A（版本化 sidecar / 等价真源，不扩 Room schema）或 B（拆分先 ship server/user + localLibrary 身份）；未裁决不进入 TDD，W88-C / W89 不得自动开工。
-
-**2026-10-24 W88-B 方案 A 获准**：用户批准版本化 sidecar / 等价下载真源，不扩 Room schema；旧记录标来源未知。实现子代理不得自行开启或派发 QA，独立 QA 只能由负责人于实现收口后另派。W88-B 从 `ba1c96d7` 进入 TDD，Pad 5 仅做最小实现自测；W88-C / W89 继续排队。
-
-**2026-10-24 W88-B 首版负责人复核 → 定向修复**：首版 `6e3b3366` 已落地 sidecar v2 / canonical identity / fold，目标 JVM 296/0/0/0、phone 264/264 executed，Pad 最小冒烟通过但完成态折叠受生产媒体 404 限制。负责人复核又发现 query/scope 未过滤下载、显式其他 namespace 未隔离、无 namespace 丢 localHits、书籍下载无 provenance、完成态未绑定 source、切号竞态未落地前复核。已派第二个全新实现代理做 TDD 修复；独立 QA 仍未开启，负责人控制下一门。
-
-**2026-10-24 W88-B 实现收口 → 独立 QA**：fix `359b66b2` 修复六项语义，随后负责人又抓到“显式异源缺 sourceId”边界，RED-04 三条失败后以 `016e4a0f` 修复。最终实现目标门禁 core/data/film JVM 306/0/0/0、phone 242/242 executed，film 定向 92/0/0/0；格式 / diff / graphify 通过。负责人复核通过后才显式开启全新独立 QA，Pad 5 独占、K60 零接触；QA 结果与 P0–P3 尚未产出。
-
-**2026-10-24 W88-B 独立 QA PASS**：QA readiness=Yes，P0/P1/P2/P3=`0/0/1/4`；候选 `016e4a0f` 独立重建 APK，core/data/film JVM 312/0/0/0、phone 242/242、格式 34/34 executed；Pad 四 scope、来源标签、查询、失败下载状态与恢复均过。P2 = 唯一书籍 GET 404，完成下载后的真机 provenance / 折叠标签未验证；P3 保留 Room 单键、真实账号 A/B、APK 非字节稳定与进程内锁。Pad 原包 / 登录 data 已恢复，K60 零接触。仅放行 merge-prep，不放行 1.4.0 发布。
-
-**2026-10-24 W88-B 35 万交接检查点**：QA docs `89c30bac` 为当前 master；代码候选 `016e4a0f`；merge-prep worktree 已建且 clean，但代理在报告 / 证据前被中断，尚未 rebase 或跑全量门禁。下一负责人重启全新 merge-prep，完成全量门禁后才考虑 ff-only；W88-C / W89 不得自动开工。
-
-**2026-10-24 W88-B 已合并并三绿（收口）**：全新 merge-prep 代理从 `016e4a0f` 机械 rebase 到母版，负责人复核 3 个 patch-id、28 文件白名单与禁改项后，ff-only / push `221db313..13a59a84`，无 merge commit。全量 11 模块 JVM **1328/0/0/0**（280 tasks executed / 201 XML）、11 模块 debug `384/384`、格式 `34/34`、diff / graphify 通过；CI Build `40081584607` / Unit Tests `40081584581` / Format `40081584573` 均钉在 `13a59a84` 且 success。W88-B P0/P1/P2/P3=`0/0/1/4` 原样保留，P2 的真机完成下载链路仍未覆盖；W87-C 两项 BLOCKED、W87-B / W88-A / W87-C 的既有 P3 与 349 首队列快照偏差均不清除。W88-B 只放行合并，不放行 1.4.0 发布；W88-C / W89 尚未开工，禁止自动进入。
-| **播放器**（含手势、字幕渲染、双内核） | `docs/PLAYER_PLAN.md` | 🟡 进行中 | §11 D 已修复（`ce30a03`）；稳定性专项（`9b18b0f`）；§11 A–C/E 播放页改造（`deb73ef`）；**W9–W19 已合并**；**W19-PLAYER（已合并 master `93c72e9`）** 见 §22；**W27-PLAYER（已合并 master `e465a83`）：外挂字幕导入（双内核 libass）+ 字幕语言优先级 + 播放结束行为（自动下一集 / 停在结束帧）+ `PlayerDebugOverlay`，见 §24**；**W20-PLAYER（已合并 master `8d5a383`）：①进度写入 Jellyfin UserData（实测会话上报不落库 → 新增 `PlaybackPositionWriter` 直写 + 常驻上报 + 暂停/切集/退出落盘，退出 / 杀进程 / 切集 / 双内核取证）；②片头尾提示条读设置时长 + 修「控制层淡出把提示条藏掉」缺陷 + 播放面板补档位；③Trickplay 改按需拉当前精灵图 + LRU + 失败降级（纯函数 + 6 单测），见 §23**；待做：§15.5 / §16.5 / §20.5 / §21.5 / §22.5 / §23.5 / §24.5 遗留（Compact 自由窗口取证、mpv stall 不报错、回退档位按会话保留的语义取舍、服务器无 segments/trickplay 数据的真实回归、end-帧 OFF 档服务器缓流复验）+ 许可证 NOTICE（libass/ass-kt，release 前）；遗留：libc++ 覆盖构建补丁需在依赖升级后复核 |
-| **浏览体验**（首页 / 媒体库 / 详情 / 搜索） | 暂无独立文档（已完成主体，见 §4 M3） | ✅ 主体完成 | 打磨项按需开线 |
-| **连接层**（HTTP(S) / 自签证书 / Quick Connect / 多用户） | 暂无独立文档（设计记入 `docs/ARCHITECTURE.md` §5.4） | 🟢 W31-CONN 已合并 master `9738877`；**K60 真机联调完成** | 自签证书 TOFU（指纹确认 / 记住 / 清除）与多用户（切换 / 删除顺延 / 当前标记）全流程在 K60 验证（见 ARCHITECTURE §5.4.1）；真机发现并修复「清除信任后 TLS 会话复用绕过校验」→ 分支 `fix/w31-trust-session-reuse`（待合并）。遗留：WebView 控制台 / `ImagesDownloaderWorker` 未接信任 |
-| **Web 控制台**（内置 WebView + 影阁皮肤） | `docs/web-console-skin.css`（唯一权威副本，改后同步 `app/phone/src/main/res/raw/web_console_skin.css` 与服务器自定义 CSS） | ✅ 基本完成 | 跟随 App 令牌与配色 |
-| **下载 / 离线** | `docs/DOWNLOAD_PLAN.md`（W32 建线） | 🟢 W32 + W34 + W36 + W37 + W39 均已合并 master `0449140`（W38 品牌资源覆盖同一代码基线） | W32：K60 真机验收（断网/force-stop 续传、批量暂停删除、存储占用）+ sidecar 修复；未触发项（FAILED 重试 / 空间不足 / reboot）待故障窗口补验；W34：**下载层级化**（视频 节目→季→剧集 / 音乐 专辑→曲目 / 书籍封面 + 媒体筛选 + 容器删除），Pad 5 真机通过；W36：**离线闭环**（离线媒体库 + 每项「允许离线观看」+ 登录页离线入口，双机真机 8 组）；W37：**本地媒体库**（SAF 建库 / 多文件夹独立层级·平铺 / 视频+音乐+书籍打开链路 / 音乐来源融合，428 项单测、双机装机）；**W39 媒体库总览改版 + 音乐空态/下拉刷新**（437 项单测、双机真机验收） | 后续：整专辑下载、未触发项补验、W37 遗留（视频首帧与书籍首页封面、CBZ 大包顺序流、本地条目并入搜索（计划 W42，范围=「媒体库与本地」，用户 2026-10-03 确认）、本地优先去重、旧书籍占位名） |
-| **投屏 / 同步观看** | 无 | ⛔ 未开始 | `:player:cast` 模块尚未创建 |
-| **稳定性 / 性能 / 发布**（崩溃兜底、体积、GPL 合规） | `docs/RELEASE_PLAN.md`（W71 建线） | 🟢 v1.0.0 / v1.1.0 / v1.2.0 / v1.3.0 均已发布（GitHub Releases；最新 v1.3.0，2026-10-18） | release 构建 + 签名接线 + 关于页 + README/PRIVACY/NOTICE + 双机冒烟已完成；1.3.0 发布闭环见 `RELEASE_PLAN` §7/§8 |
-| **扩展项目**（阅读器 / 音乐 / UI 重设计 / 测试） | `docs/ROADMAP.md`（阶段）+ `docs/PARALLEL_PLAN.md`（波次）+ `docs/SESSION_BRIEFS.md`（会话模板）+ `docs/ROLE_SKILLS.md`（角色 skill）+ `docs/UI_DESIGN_SYSTEM.md`（S4 设计系统 v1.0） | 🟢 W0–W56 全部完成（W50 自研下载引擎已合并，496 项单测全绿、CI 双绿）：W50 引擎 = OkHttp Range 真断点续传（暂停保片 / If-Range / 416 / 忽略 Range 安全重下）+ WorkManager 前台服务通知 + 失败分类与退避 + 存储预检 + 速度/ETA + Room v12（六列只追加；旧进行中任务「已取消，需重新下载」、已完成继续识别）+ 三项设置（仅 Wi-Fi 默认开 / 并发默认 2 / 完成通知默认开）；真机 8 项通过（暂停续传 / force-stop / reboot（MIUI 自启动限制记录）/ 飞行模式恢复 / 通知 / 三设置 / 旧动作 / v12 迁移）+ 真机修复 3 处；W49 遗留清理（对图判定重试 / 非黑帧 / CBZ 自然序 / 滑杆语义+零宽回归）；W48 SAF PDF 内存（Native 1.59GB→≤54MB）；W47 全量回归（M4A ✅ / reboot ✅ / 空间不足跳过 / FAILED 部分覆盖）；W46–W38 导航/封面/音乐/搜索/设置/品牌 | **W53 视频入口已交付、真机验收通过**（分支 `feature/w53-video-entry`，提交 `fcc7067`（rebase W50 `8f3ba0e`），505 项单测，含真机修复「离线模式仍走服务器仓库」）（NavEntryKey.Video 门控 / 手机底栏 首页·视频·音乐·书架 / 视频页两显示方式（库卡默认/聚合）/ 侧栏显示与视频显示方式设置）；**W52 下载界面改版已合并**（大海报 / 大条目 / 平板两列 / 容器聚合速度与剩余时间 / 旧组件重绘 / 多任务通知进下载页，master `82fd04b`，516 项单测）；**W51 下载粒度/动作排/提示/角标/三设置 UI 已交付**（分支 `feature/w51-download-granularity`，起点 `ce58847`，见 §3 W51 更新段）。全部完成 → **用户最终功能 / 界面全检合格后进入发布准备**（libass / ass-kt NOTICE、libc++ 复核、签名 / 体积 / GPL、商店图、字体兜底、继承译文、服务器 CSS 重贴）；发布后 backlog：投屏 / 同步观看（`:player:cast`）、真交叉淡化 |
-| **阅读器**（EPUB / PDF / CBZ） | `docs/READER_PLAN.md`（R1 维护） | 🟢 W9/W15/W22 已合并 master；**W26-READER（已合并 master `a3dfc01`）：双栏「横版整页独占」+ 带纸边对图裁剪合并，`modes:book` 57 → 77 项单测；真机 12/12 命中（4 条纸边裁剪）+ W22 8/8 回归 + 0 误拼 + RTL/progression 不回归，见 READER_PLAN §2 D21 / §7.11**；**W29（已合并 master `e465a83`）：PDF 搜索（PdfBox-Android 2.0.27.0）+ 本地高亮/备注批注，`modes:book` 101 项单测；Pad 5 真机验收完成**；**W33-READER-PERF（分支 `fix/w33-spread-scan-memory`，已推送未合并）：双栏版式扫描改 PdfBox 页树元数据（修复 3649 页 PDF 进双栏 Native 748 MB 不回收），真机 Native 55–57 MB / PSS 286–299 MB 且能回落，W22 判定 8/8 + 横版独占 + 0 误拼不回归，book 106 项单测，见 READER_PLAN §7.14**；**W77 阅读流式波（2026-10-07）：W77-1/2/3/4C/5 全部合并（EPUB/CBZ 远端流式首开 + 三态状态 + PDF 封面修复），候选抽验 7/7 → v1.2.0 已发布** | W4 已交付 PDF 分页懒加载 / CBZ 自研导航 / 三档模式；后续：金田一本体大文档扫描耗时实测、RTL 封面单张、Room 迁移、BC 瘦身复核 |
-| **音乐**（播放 / 队列 / 歌词 / 离线） | `docs/MUSIC_PLAN.md`（R2 维护） | 🟢 **W23 交付（已合并 master `c5eca4d`；A `74214e7` / B `0124828` / C `65c6095` / D `179df99`）** + **W24 UI 细化（已合并 master `21a97d0`）** + **W25 扩展（已合并 master `ae8d0bd`）**：内嵌歌词只读探测（结论=服务器已覆盖，不做客户端解析）；本机歌词编辑 / 导入 LRC（UTF-8/GBK）/ 清除覆盖（来源链最高优先级，不写服务器）；悬浮窗「保持显示时长」2/3/5/10 秒 + 常显；设置页接 `pref_music_resume_queue` 开关；真机拦下并修复 K60 竖屏「词」面板半展开裁切；music **86** 项单测 + K60 真机 9 组（MUSIC_PLAN §5.8）；**W28 逐字歌词 + 提示行清理 + 编辑时间轴（已合并 master `e465a83`）；W30 音乐音效 EQ / ReplayGain / 交叉淡化（已合并 master `9738877`；K60 真机 13 组，MUSIC_PLAN §5.10）；W35-MUSIC-EXTRAS（已合并 master `2aad6fd`）：M4A/MP4 ReplayGain 标签 + 本机增益覆盖入口 + 真交叉双 deck 调研（结论=不实施，三阶段方案见 MUSIC_PLAN §4.6/D52）；K60 真机验收完成（RG 副本 -8.47 dB→0.38x、原曲 NONE、覆盖 -6/+6/清除回落、重启持久化、歌词·悬浮窗·队列·自然衔接、0 FATAL；真机拦下的"回读失败进负缓存"缺陷已修复并复验）；W39 音乐来源空态文案 + 四 tab 真实下拉刷新（分支 `feature/w39-media-library-polish`，music 104 项单测 + Pad 5/K60 真机，见 MUSIC_PLAN D55/§5.12，已推送待合并）** | 后续：离线本地文件取内嵌歌词（如需）；M4A 设备端样本待补（本库 0 个 m4a/mp4，解析由 12 项单测覆盖）；真交叉排期需 8–12 人日（方案已就绪） |
-| **UI 重塑**（设计系统落地） | `docs/UI_PLAN.md`（R3 维护） | 🟢 W8 完成（2026-10-01，master `f99af8d`；W7-R3 已并入 `c545eb9`） | W8-R3（用户复测反馈，D29–D31）：①三页顶栏统一为 `CinefinPageTopBar`（56dp + `statusBarsPadding()`；修复音乐汉堡被状态栏挡、书架顶层去返回箭头与库名「书籍」、媒体库按钮与标题同栏）；②媒体库库卡改版（类型图标磁贴 + 项目数 + A 配色层次，服务器 `ItemFields.CHILD_COUNT`）；③侧栏「媒体库」**默认收起并移到音乐、书架之后**（覆盖 W7 的排布）；④W7 行为不回归（抽屉、侧柜常驻 Lumen、控制台胶囊与选中态）；遗留：spacings 桥接收敛、左缘滑出抽屉在系统手势导航下未验；**W39 媒体库总览两段式改版（`UI_PLAN` D39，分支 `feature/w39-media-library-polish`，437 项单测 + 双机真机验收，已推送待合并）** |
-| **测试与验收**（真机矩阵 / 回归 / 性能） | `docs/TEST_PLAN.md`（R4 维护） | 🟢 W2 基线 + **W47 全量回归（`feature/w47-full-regression`，§7）** + **W47-B 补验（`feature/w47b-b-verification`，§7.5）** + **W47-C reboot 续传（`feature/w47c-reboot-resume`，§7.3/§7.5）** + **W61 发布前全量回归（`test/w61-full-regression`，§7.6）** | W47 A 组 6 项通过 / 部分通过；**D-W47-1（本地 SAF PDF 双栏逐页回退 → Native 1.59GB → 被 MIUI 杀进程，P1，W48 修复中）**、D-W47-2（冷启动中位 1322ms 超阈值，待拍板）；W47-B：**M4A ReplayGain 全部通过**；**下载 = 设备侧断网为系统自愈续传（不产生 FAILED，应用层重试仍未触发）**；**reboot 续传 ✅ 通过**（系统自行续传 + 本地文件播放校验）；空间不足 = 跳过（用户确认）；**W61（纯验证无代码提交）**：9 组回归完成（全链路冒烟 / 播放 / 阅读 / 音乐 / 离线 / 下载 / 性能 / 稳定性），Pad 5 冷启动中位 **1394 ms**（+5.4% vs W47 接受基线，未超阈）/ PSS **268,511 kB**（+8.4%）/ 音乐滚动 **1.07% janky**（较 W47 改善）；双机 0 App FATAL·ANR；缺陷仅服务器侧 `ChildCount` 随机（F1，非 App）+ 3 条 P3 观察（F2–F4）；未覆盖清单见 §7.6.3 |
-
+| 线 | 文档 | 稳定范围 |
+|---|---|---|
+| **Aurorama 2.0 · V2 需求与架构** | `docs/V2_PLAN.md`、`docs/ARCHITECTURE.md` | 需求、稳定架构规则、seam DoD、长期计划身份；动态状态见 `docs/TASKS.md` |
+| **维护 / 历史版本闭环** | `docs/FIX_PLAN.md`、`docs/RELEASE_PLAN.md`、`docs/PLAYER_PLAN.md` | v1.1.0–v1.4.0 的已发布、合并与遗留事实只作历史追溯 |
+| **播放器** | `docs/PLAYER_PLAN.md` | 双内核、手势、字幕、音轨、进度、Trickplay 与播放器踩坑 |
+| **浏览体验** | 项目文档与现状代码 | 首页、媒体库、详情、搜索与响应式导航的稳定能力边界 |
+| **连接层** | `docs/ARCHITECTURE.md` §5.4 | HTTPS / 自签证书 / Quick Connect / 多用户的稳定设计与历史验证 |
+| **Web 控制台** | `docs/web-console-skin.css` | 控制台皮肤唯一权威源及资源同步约束 |
+| **下载 / 离线** | `docs/DOWNLOAD_PLAN.md` | 下载真相、离线投影、文件生命周期与历史验收 |
+| **投屏 / 同步观看** | 待立项文档 | 尚未进入实现；不得从其他任务线顺手夹带 |
+| **稳定性 / 性能 / 发布** | `docs/RELEASE_PLAN.md`、`docs/TEST_PLAN.md` | 发布门、GPL / 许可证、双机冒烟、性能与回归口径 |
+| **扩展项目** | `docs/ROADMAP.md`、`docs/PARALLEL_PLAN.md`、`docs/SESSION_BRIEFS.md` | 阶段计划、并行边界与角色模板；动态派单只读 `docs/TASKS.md` |
+| **阅读器** | `docs/READER_PLAN.md` | EPUB / PDF / CBZ、source-scoped locator、进度、持久化与性能 |
+| **音乐** | `docs/MUSIC_PLAN.md` | 队列、歌词、音效、离线缓存与播放系统集成 |
+| **UI 重塑** | `docs/UI_PLAN.md`、`docs/UI_DESIGN_SYSTEM.md` | 设计系统、响应式、主题与组件稳定规则 |
+| **测试与验收** | `docs/TEST_PLAN.md` | 自动化、真机矩阵、性能、证据与人工验收边界 |
 ### 3.1 执行顺序（用户 2026-09-28 批准）
 
 1. ✅ **播放器 · 字幕面板补全**（`PLAYER_PLAN.md` §1.1）——延迟 / 双语 / 外观（2026-09-28 完成，真机验证通过）
@@ -368,28 +271,13 @@ adb shell uiautomator dump /sdcard/u.xml; adb shell cat /sdcard/u.xml | Select-S
 
 ## 7. 新会话交接清单
 
-- [ ] **HISTORY / TTS-G2 only**：旧入口曾要求先运行 `tools/v2-handoff/Invoke-HandoffPreflight.ps1`；该命令不再属于当前非 TTS 主线，禁止据旧回归恢复 handoff 修复或设备派发
-- [ ] 当前 2.0 先读 `V2_PLAN.md` 的 `ARCH_SEAM_DELIVERY_ACTIVE` ACTIVE、
-  `TASKS.md` 的 `Architecture Critical Path / 长期计划账本` 与 `docs/ARCHITECTURE.md` v2.0；
-  核对 `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`
-- [x] W1A P3 cleanup 已以 `faa910827d2db557d4e17970105047a205f77a57` 集成，parent
-  `432616b6d27e8dce62753f97b3ebf3184b8f67b5`，3 文件；`W1A_P3_OPEN=0`。
-  cleanup 后独立 QA R2 `PASS / P0-P3=0/0/0/0`，原 QA R3 `0/0/0/3` 仅作历史。
-  父 seam 仍 `CONTRACT_FROZEN / IN_PROGRESS`
-- [x] `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` task-card planning 已以
-  `W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION` 落档；W1B-1A/B/C
-  三顺序子波、后置 W1B-2、逐波精确写入白名单、独立 QA / merge-prep、TDD / 负例 /
-  回归矩阵与停止条件见 `docs/TASKS.md`。
-- [ ] 当前只授权 `W1B_1A_ONLY`；1B/1C/2 仍阻塞。下一会话必须是全新
-  `AURORAMA_V2_W1B_DELIVERY_LEAD_INTEGRATION_ORCHESTRATOR_2026_11_07`，身份为
-  “交付负责人 / 技术集成编排者”，只做范围、拆单、压缩报告 / 关键 diff 审查、集成决策和
-  文档；实现、诊断、独立 QA、merge-prep、Release 分别派给全新专业子代理。第一条只读动作
-  是核对 root 最终 HEAD 与 clean control
-  `git status --short --untracked-files=all`、branch 与 `git rev-parse HEAD`；漂移即停止。
-  W0 仅可作两文件隔离探针，功能波在 `PREREQUISITE_SEAMS` 完整 DoD 前不得开工
-- [ ] 非 2.0 工作读本文件（§1–§5）+ 目标任务线文档
-- [ ] **读 `PLAYER_PLAN.md` §11**（2026-09-28 新增：播放页 UI/UX 改造待办，含自动选字幕/自动播放两个 bug 的线索）
-- [ ] `git log --oneline -10` + `git status --porcelain | Select-String "<任务线关键词>"`
-- [ ] 设备项只在对应授权阶段核验实际 serial；2.0 起始 preflight 禁止 `adb`，无关设备离线不得制造假阻塞
-- [ ] 从任务线文档的任务清单里挑一条（P0 优先），动手前先写一句"本轮做什么"
-- [ ] 完成后：勾进度 → 写日志 → `git commit` → 需要时更新本文件 §3
+- [ ] 先读 `AGENTS.md`、`docs/PROJECT_RULES.md`、`docs/TASKS.md` 的唯一 ACTIVE，再读目标任务线文档和指定课程。
+- [ ] 动态 worktree、branch、HEAD、manager 外部 pin、gate evidence、P1/P2、next role/path 与 stop condition 只从
+  `docs/TASKS.md` 读取；不得复制本文件或其他 stable docs 的旧快照。
+- [ ] 2.0 稳定需求与架构方向读 `docs/V2_PLAN.md` 与 `docs/ARCHITECTURE.md`；决策索引读 `docs/DECISIONS.md`。
+- [ ] 任务卡必须写明工作树、写域、非目标、RED/GREEN/evidence、停止条件与人工 owner 边界。
+- [ ] 实现、独立 QA、merge-prep 与 Release 使用不同 fresh 专业角色；实现 owner 不派 QA，不自行 merge / push / tag / Release。
+- [ ] 开工与收口都用实际 `git status --short --untracked-files=all`、`git branch --show-current`、`git rev-parse HEAD` 核验对象。
+- [ ] 设备、网络、生产服务器写与发布只在任务卡明确授权时使用；Jellyfin 生产服务器永久只读。
+- [ ] 完成后把进度、未覆盖项和证据指针写回对应任务线及 `docs/TASKS.md`；不新建零散说明文件。
+- [ ] 非 2.0 工作仍读本文件 §1–§5 与目标任务线；2.0 的动态入口只有 `docs/TASKS.md`。

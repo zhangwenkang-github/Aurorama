@@ -26,6 +26,12 @@ function Write-Usage {
     Write-Output '  Handoff success: HANDOFF_LINT=PASS'
     Write-Output '  QaReady success: QA_READY_LINT=PASS'
     Write-Output '  Failure: FAIL:<CODE>:<path>, nonzero exit'
+    Write-Output 'TEST SUITE: 64 cases (54 existing + 10 stable-document regression cases).'
+    Write-Output 'STABLE DOCS (Handoff):'
+    Write-Output '  PROJECT_PLAN.md / V2_PLAN.md / ARCHITECTURE.md require one nonempty stable-state pointer block.'
+    Write-Output '  Pointer codes: STABLE_DOC_POINTER_MISSING, _MULTIPLE, _EMPTY, _TOKEN_MISSING, _TOKEN_INVALID, _TOKEN_DUPLICATE.'
+    Write-Output '  Current-state codes: STABLE_DOC_CURRENT_STATE_TOKEN, ACTIVE_MARKER_OUTSIDE_TASKS, ACTIVE_HEADING_OUTSIDE_TASKS.'
+    Write-Output '  Manual owner: natural-language current-looking prose outside the mechanical checks remains a human review item.'
 }
 
 if ($Help) {
@@ -503,6 +509,116 @@ function Test-Evidence {
     }
 }
 
+function Test-StableDocuments {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$TasksFile
+    )
+
+    $beginMarker = '<!-- V2_STABLE_DOC_STATE_POINTER_BEGIN -->'
+    $endMarker = '<!-- V2_STABLE_DOC_STATE_POINTER_END -->'
+    $stableDocuments = @(
+        'docs/PROJECT_PLAN.md'
+        'docs/V2_PLAN.md'
+        'docs/ARCHITECTURE.md'
+    )
+    $requiredPointers = [ordered]@{
+        DYNAMIC_STATE_SOURCE = 'docs/TASKS.md'
+        CURRENT_STATE_IN_THIS_FILE = 'NONE'
+    }
+
+    foreach ($relativePath in $stableDocuments) {
+        $documentPath = Join-Path $Root $relativePath
+        if (-not (Test-Path -LiteralPath $documentPath -PathType Leaf)) {
+            Add-Failure -Code 'STABLE_DOC_MISSING' -Subject $relativePath
+            continue
+        }
+        try {
+            $text = Read-Utf8Text -Path $documentPath
+        }
+        catch {
+            Add-Failure -Code 'STABLE_DOC_UTF8' -Subject $relativePath `
+                -Detail $_.Exception.Message
+            continue
+        }
+
+        if ($text.IndexOf('V2_HANDOFF_ACTIVE', [System.StringComparison]::Ordinal) -ge 0) {
+            Add-Failure -Code 'ACTIVE_MARKER_OUTSIDE_TASKS' -Subject $relativePath `
+                -Detail 'V2_HANDOFF_ACTIVE markers are allowed only in docs/TASKS.md'
+        }
+
+        foreach ($heading in [regex]::Matches($text, '(?im)^#{1,6}[ \t]+[^\r\n]*\bACTIVE\b[^\r\n]*$')) {
+            if ($heading.Value -notmatch '(?i)\bHISTORY\b') {
+                Add-Failure -Code 'ACTIVE_HEADING_OUTSIDE_TASKS' -Subject $relativePath `
+                    -Detail $heading.Value
+            }
+        }
+
+        $beginCount = Get-MarkerCount -Text $text -Marker $beginMarker
+        $endCount = Get-MarkerCount -Text $text -Marker $endMarker
+        if ($beginCount -eq 0 -and $endCount -eq 0) {
+            Add-Failure -Code 'STABLE_DOC_POINTER_MISSING' -Subject $relativePath
+            continue
+        }
+        if ($beginCount -gt 1 -or $endCount -gt 1) {
+            Add-Failure -Code 'STABLE_DOC_POINTER_MULTIPLE' -Subject $relativePath `
+                -Detail "begin=$beginCount end=$endCount"
+            continue
+        }
+        if ($beginCount -ne 1 -or $endCount -ne 1) {
+            Add-Failure -Code 'STABLE_DOC_POINTER_MALFORMED' -Subject $relativePath `
+                -Detail "begin=$beginCount end=$endCount"
+            continue
+        }
+
+        $start = $text.IndexOf($beginMarker, [System.StringComparison]::Ordinal)
+        $end = $text.IndexOf($endMarker, [System.StringComparison]::Ordinal)
+        if ($start -lt 0 -or $end -lt $start) {
+            Add-Failure -Code 'STABLE_DOC_POINTER_MALFORMED' -Subject $relativePath
+            continue
+        }
+        $blockStart = $start + $beginMarker.Length
+        $pointerBlock = $text.Substring($blockStart, $end - $blockStart)
+        if ([string]::IsNullOrWhiteSpace($pointerBlock)) {
+            Add-Failure -Code 'STABLE_DOC_POINTER_EMPTY' -Subject $relativePath
+            continue
+        }
+
+        foreach ($key in $requiredPointers.Keys) {
+            $values = @(Get-TokenValues -Text $pointerBlock -Key $key)
+            if ($values.Count -eq 0) {
+                Add-Failure -Code 'STABLE_DOC_POINTER_TOKEN_MISSING' -Subject $relativePath `
+                    -Detail $key
+            }
+            elseif ($values.Count -gt 1) {
+                Add-Failure -Code 'STABLE_DOC_POINTER_TOKEN_DUPLICATE' -Subject $relativePath `
+                    -Detail $key
+            }
+            elseif ($values[0] -cne $requiredPointers[$key]) {
+                Add-Failure -Code 'STABLE_DOC_POINTER_TOKEN_INVALID' -Subject $relativePath `
+                    -Detail "$key=$($values[0])"
+            }
+        }
+
+        $forbiddenAssignments = [regex]::Matches(
+            $pointerBlock,
+            '(?im)^[ \t]*(?:>[ \t]*)?(?:[-*][ \t]+)?(?:NEXT_ROLE|NEXT_PATH|CONTEXT_WATERMARK|CODE_INTEGRATION_HEAD|CONTROL_PLANE_HEAD_INPUT)[ \t]*='
+        )
+        if ($forbiddenAssignments.Count -gt 0) {
+            Add-Failure -Code 'STABLE_DOC_CURRENT_STATE_TOKEN' -Subject $relativePath `
+                -Detail (($forbiddenAssignments | ForEach-Object { $_.Value.Trim() }) -join '; ')
+        }
+        $shaMatches = [regex]::Matches(
+            $pointerBlock,
+            '(?i)(?<![0-9a-f])(?:[0-9a-f]{64}|[0-9a-f]{40})(?![0-9a-f])'
+        )
+        if ($shaMatches.Count -gt 0) {
+            Add-Failure -Code 'STABLE_DOC_CURRENT_STATE_TOKEN' -Subject $relativePath `
+                -Detail 'pointer block contains a 40/64-hex SHA'
+        }
+    }
+}
+
 function Test-Handoff {
     param(
         [Parameter(Mandatory)][string]$Root,
@@ -510,6 +626,8 @@ function Test-Handoff {
         [Parameter(Mandatory)][string]$Text,
         [AllowNull()][string]$MemoryFile
     )
+
+    Test-StableDocuments -Root $Root -TasksFile $TasksFile
 
     $active = Get-MarkedBlock -Text $Text `
         -BeginMarker '<!-- V2_HANDOFF_ACTIVE_BEGIN -->' `

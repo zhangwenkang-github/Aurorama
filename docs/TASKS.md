@@ -5,16 +5,17 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08
+### ACTIVE — V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
 
-- TASK_ID=V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08
-- TASK_STAGE=INDEPENDENT_QA_R3_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / DOCS_SYNC_THIS_COMMIT
+- TASK_ID=V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
+- TASK_STAGE=IMPLEMENTATION_CANDIDATE / SELF_TEST_GREEN / PENDING_INDEPENDENT_QA
 - WORKTREE_POLICY=EXACT_ABSOLUTE
-- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
-- CANONICAL_BRANCH=codex/v2-integration
+- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama
+- CANONICAL_BRANCH=codex/v2-stable-doc-state-cleanup
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md > docs/TASKS.md ACTIVE / W1B history / Architecture ledger > docs/LESSONS.md L028/L038/L039/L042 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_P2_001_DOCS_CLEANUP
+- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R033/R036/R037 > docs/TASKS.md ACTIVE / P2-001 / Architecture ledger > docs/LESSONS.md L028/L038/L039/L042 > docs/PROJECT_PLAN.md / docs/V2_PLAN.md / docs/ARCHITECTURE.md stable sections > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
+- NEXT_ROLE=AURORAMA_V2_STABLE_DOC_STATE_CLEANUP_INDEPENDENT_QA_OWNER_2026_11_08
+- RETIRED_ROLE=USER_DECISION_REQUIRED_FOR_P2_001_DOCS_CLEANUP
 - RETIRED_ROLE=AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07
 - RETIRED_ROLE=AURORAMA_V2_W1B_1B_OWNER_2026_11_07
 - RETIRED_ROLE=AURORAMA_V2_EXECUTABLE_WORKFLOW_HARDENING_INDEPENDENT_QA_OWNER_2026_11_08
@@ -23,62 +24,63 @@
 - RETIRED_ROLE=AURORAMA_V2_EXECUTABLE_WORKFLOW_HARDENING_REPAIR_OWNER_R2_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_EXECUTABLE_WORKFLOW_HARDENING_INDEPENDENT_QA_OWNER_R3_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_EXECUTABLE_WORKFLOW_HARDENING_MERGE_PREP_OWNER_2026_11_08
-- NEXT_PATH=docs/ARCHITECTURE.md
-- STOP_CONDITION=STOP on worktree/branch/manager pin drift, post-integration dirty/mixed paths, unauthorized edit to ARCHITECTURE/V2_PLAN/PROJECT_PLAN, network/device/Release/push, or any attempt to claim P2-001 physically cleaned before a separately authorized docs cleanup.
-- SCOPE=Exactly six paths: two architecture lint scripts, AGENTS.md, PROJECT_RULES.md, TASKS.md, LESSONS.md. No product implementation and no W1B-1B resume.
-- INDEPENDENT_QA_R3=PASS
-- MERGE_PREP=PASS / SOURCE_FINAL_SAME=YES / STABLE_PATCH_ID=f5927e338d7321184f93107edbd54a7fd39a69b3 / BLOB_MATCH=6/6
-- INTEGRATION_MODE=LOCAL_FF_ONLY / INTEGRATED_CANDIDATE=77b6721f850bec208961ffc5cc03d5dffba635d0 / PUSH=NO / TAG=NO / RELEASE=NO
-- MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -ExpectedHead "<external-pinned post-docs-sync HEAD>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- MANAGER_FINAL_GATE_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08\manager-final-gates.txt
-- CONTEXT_AT_CLOSE=266084/1048576
-- DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / PUSH=NO / TAG=NO / RELEASE=NO
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\red-selector-handoff-memory.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\green-full-tests.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\a0-owner-gate.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\format-ast-scope-precommit.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-2026-11-08\INDEPENDENT_QA_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-r2-2026-11-08\INDEPENDENT_QA_R2_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\red-scope-rename.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\red-failed-ancestry.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\red-empty-equivalent.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\green-scope-rename.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\green-failed-ancestry.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\green-empty-equivalent.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\green-full-tests.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\a0-owner-gate.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-r3-2026-11-08\INDEPENDENT_QA_R3_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-merge-prep-2026-11-08\MERGE_PREP_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08\manager-final-gates.txt
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08\docs-copy-audit.txt
-- P1=P1-001:selector and selector-evidence self-report bypass;P1-002:memory parent reparse escape;P1-003:empty or incomplete HANDOFF_OBJECT false-pass;P1-004:retired NEXT_ROLE and owner mismatch false-pass;P1-005:scope rename hid outside source;P1-006:non-ancestor failed candidate false-pass
-- P2=P2-001:PROJECT_PLAN/V2_PLAN/ARCHITECTURE still contain current-looking copies; authorized docs cleanup is deferred and required
+- NEXT_PATH=docs/TASKS.md
+- STOP_CONDITION=STOP on worktree / branch / base-ancestor drift, any seventh changed path, non-UTF8 or non-LF source, self SHA, unauthorized product / Gradle / memory / rules / lessons / decisions edit, network / device / server write / push / tag / Release, or any attempt to claim independent QA / merge-prep from this implementation owner.
+- SCOPE=Exactly six paths: docs/PROJECT_PLAN.md, docs/V2_PLAN.md, docs/ARCHITECTURE.md, docs/TASKS.md, tools/architecture/v2-handoff-lint.ps1, tools/architecture/v2-handoff-lint.tests.ps1. Documentation state cleanup and linter regression only.
+- BASE_HEAD=1b8b3d3f3c4a996452e8a17f022bc9b6e876e2e9
+- REQUIRED_ANCESTOR=1b8b3d3f3c4a996452e8a17f022bc9b6e876e2e9
+- FAILED_CANDIDATE=NONE
+- MAX_CHANGED_PATHS=6
+- DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_AUTHORIZED=NO
+- MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -ExpectedHead "<external-pinned candidate HEAD>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+- MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+- CONTEXT_AT_CLOSE=319869/1048576
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\baseline-old-suite.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\red-stable-docs.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\green-stable-docs-focused.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\green-full-tests-final.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\precommit-gates.txt
+- P1=P1-007:stable docs had no exact-one TASKS pointer gate, allowed current-state tokens / handoff ACTIVE markers in stable docs, and could not mechanically reject an unlabeled ACTIVE heading
+- P2=P2-001:CANDIDATE_READY_FOR_QA
+- P2_001=CANDIDATE_READY_FOR_QA
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08
-- last_evidence=independent QA R3 PASS 24+44 adversarial + repair suite 54/0 + A0 PASS + merge-prep source/final MATCH + local ff-only integration PASS
+- NEXT_CRITICAL_PATH=V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
+- last_evidence=base suite 54/0; focused RED 0/10 on old linter; focused GREEN 10/0; final complete suite 64/0; six-path / UTF8 / LF / AST / pointer / ACTIVE precommit gates recorded
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=fe2f4e29aa0fa1729d8defa6e73de2984ea4f18d
-- REQUIRED_ANCESTOR=fe2f4e29aa0fa1729d8defa6e73de2984ea4f18d
-- REQUIRED_ANCESTOR=88fb6b8a46f3ae18eed141a9a70ec88527e8e309
-- FAILED_CANDIDATE=1b7198111ee63dfd8d9bd642f214139bbfaaeddc
+- BASE_HEAD=1b8b3d3f3c4a996452e8a17f022bc9b6e876e2e9
+- REQUIRED_ANCESTOR=1b8b3d3f3c4a996452e8a17f022bc9b6e876e2e9
+- FAILED_CANDIDATE=NONE
 - MAX_CHANGED_PATHS=6
-- ALLOWED_PATH=AGENTS.md
-- ALLOWED_PATH=docs/LESSONS.md
-- ALLOWED_PATH=docs/PROJECT_RULES.md
+- ALLOWED_PATH=docs/PROJECT_PLAN.md
+- ALLOWED_PATH=docs/V2_PLAN.md
+- ALLOWED_PATH=docs/ARCHITECTURE.md
 - ALLOWED_PATH=docs/TASKS.md
 - ALLOWED_PATH=tools/architecture/v2-handoff-lint.ps1
 - ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1
 <!-- V2_HANDOFF_OBJECT_END -->
+
+### HISTORY — V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08（已收口）
+
+- 旧 ACTIVE 的独立 QA R3、merge-prep 与本地 ff-only integration 均 PASS；当时 repair suite
+  `54/0`，P1-001–P1-006 已关闭，P2-001 明确 deferred。
+- 2026-11-08 用户授权继续下一步，`P2-001` 从 deferred 进入新 ACTIVE
+  `V2-STABLE-DOC-STATE-CLEANUP-2026-11-08` 的 implementation。
+- 旧 QA / merge-prep / integration 证据根：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-r3-2026-11-08`、
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-merge-prep-2026-11-08`、
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08`。
+- 本 HISTORY 只证明前一波控制面工作流已结算，不证明当前 docs cleanup、独立 QA、merge-prep、
+  产品或 Release PASS。
 
 ### 可执行调用点
 
 提交 docs checkpoint 内容后、由 manager 外部 pin HEAD，然后运行：
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama" -ExpectedHead "<manager pin>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -ExpectedHead "<manager pin>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 ```
 
 未提交 working tree 若只因 dirty 报 `WORKTREE_DIRTY`，该次不是交接 PASS。任何 `FAIL:<CODE>:<path>` 由同一
@@ -87,7 +89,7 @@ docs / implementation owner 修正并重跑；出现 `HANDOFF_LINT=PASS` 后才�
 派 QA 前及 QA owner 第一条动作：
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 ```
 
 只有 `QA_READY_LINT=PASS` 才能派发或开始独立 QA；上游自报不能替代 QA owner 自己的首条命令。
@@ -177,41 +179,32 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=YES
-- UNCOVERED=Independent QA R3 and merge-prep PASS, and local ff-only integration is complete. Push, product tests, device/runtime and Release are not executed. PROJECT_PLAN/V2_PLAN/ARCHITECTURE still contain current-looking top copies because this six-file phase is forbidden to edit them; those copies are HISTORICAL and require a later authorized docs cleanup. W1B-1B remains blocked history.
-- STOP_CONDITION=Any nonzero lint, missing evidence, >6 changed path, untracked file, non-LF / non-UTF8 script, stale ACTIVE contradiction, or attempt to dispatch QA before this block passes.
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_P2_001_DOCS_CLEANUP
-- MANUAL_LIMITATION=Human judgment is limited to whether stable-document historical labeling is understandable; all executable gates are covered by fixture tests. Real product behavior and device facts are outside this control-plane candidate.
-- P2_OPEN=P2-001:PROJECT_PLAN/V2_PLAN/ARCHITECTURE current-looking copies require a separately authorized docs cleanup; the linter's historical-label mitigation is mechanical, the cleanup decision is the human owner.
+- UNCOVERED=Implementation self-check only. Independent QA, product build, runtime, device, network, server write, merge-prep, push, tag and Release are not executed. Natural-language current-looking prose outside the documented mechanical heading checks remains a manual review item.
+- STOP_CONDITION=Any nonzero Handoff or QaReady lint, pointer count other than one, forbidden current-state token, ACTIVE marker outside docs/TASKS.md, unlabeled ACTIVE heading, changed path beyond six, missing evidence, non-UTF8 / non-LF source, self SHA, dirty final candidate, or unauthorized QA / merge / product / device / Release action.
+- MANUAL_OWNER=AURORAMA_V2_STABLE_DOC_STATE_CLEANUP_INDEPENDENT_QA_OWNER_2026_11_08
+- MANUAL_LIMITATION=Mechanical coverage is exact-one pointer blocks, required pointer tokens, forbidden pointer tokens / SHAs, V2_HANDOFF_ACTIVE absence outside TASKS, and ACTIVE headings without HISTORY. Human review is required for ambiguous natural-language current-looking prose and whether retained HISTORY is readable and non-authoritative.
+- P2_001=CANDIDATE_READY_FOR_QA
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
 |---|---|---|---|---|---|
-| INV-ACTIVE-01 | docs/TASKS.md | Run Handoff lint | Exactly one ACTIVE and required tokens are accepted; duplicates / old state fail | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
-| INV-GIT-01 | fixed worktree | Run Handoff lint | clean branch / external pin / base ancestry are checked; drift fails nonzero | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
-| INV-A0-01 | tools/architecture/v2-owner-baseline.json | Run canonical A0 owner gate | baseline verdict PASS, 19/19 internal, 8/8 external, zero findings; static-input limits remain | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\a0-owner-gate.txt | N/A:control-plane static gate only |
-| INV-OBJECT-01 | V2_HANDOFF_OBJECT | Run Handoff lint | blank object and missing base / max / allowed paths / required ancestors / failed candidate fail before ancestry or diff; explicit NONE is accepted only by the allowed set fields | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
-| INV-SCOPE-01 | V2_HANDOFF_OBJECT | Run Handoff lint | allowed paths are unique canonical POSIX repo-relative paths; alias forms and seventh actual paths fail | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
-| INV-EVIDENCE-01 | ACTIVE EVIDENCE | Run Handoff lint | every declared evidence file is absolute, present and nonempty | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
-| INV-QA-01 | QA_READY block | Run QaReady | selector blanks fail; verified selectors require nonempty locator evidence; equivalent evidence exists; selector commands outside the QA test matrix fail | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
-| INV-ROLE-01 | ACTIVE and QA_READY | Run Handoff and QaReady | NEXT_ROLE is unique and not retired; MANUAL_OWNER equals NEXT_ROLE exactly | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
-| INV-MEMORY-01 | MEMORY.md | Run Handoff / QaReady with -MemoryIndex | hard cap and every store/pointer path component are checked for reparse points without reading an escaped target | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
+| INV-STABLE-01 | docs/PROJECT_PLAN.md, docs/V2_PLAN.md, docs/ARCHITECTURE.md | Run Handoff lint and stable scan | Each file has exactly one nonempty pointer block with DYNAMIC_STATE_SOURCE=docs/TASKS.md and CURRENT_STATE_IN_THIS_FILE=NONE | tools/architecture/v2-handoff-lint.tests.ps1; F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\green-full-tests-final.txt | N/A:static documentation control plane only |
+| INV-DYNAMIC-01 | three stable docs | Run Handoff lint | No V2_HANDOFF_ACTIVE marker outside TASKS, no forbidden pointer SHA / dynamic token, and no ACTIVE heading without HISTORY | tools/architecture/v2-handoff-lint.tests.ps1; F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\green-stable-docs-focused.txt | N/A:static documentation control plane only |
+| INV-REGRESSION-01 | complete linter suite | Run all fixture tests | Original 54 cases and 10 new stable-doc cases all pass in one suite | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\baseline-old-suite.txt; F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\green-full-tests-final.txt | N/A:offline fixture suite only |
+| INV-SCOPE-01 | Git diff and TASKS OBJECT | Run Handoff and diff checks | Exactly the six allowed paths change; seventh path, invalid scope or non-ancestor base fails | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
+| INV-ENCODING-01 | six changed files | Run UTF8 / BOM / LF / AST checks | Source is valid UTF-8 without BOM and LF; PowerShell parses with zero AST errors | evidence final static gate log | N/A:static documentation control plane only |
 <!-- V2_QA_INVARIANT_MATRIX_END -->
 
 <!-- V2_QA_TEST_MATRIX_BEGIN -->
 | Test ID | Target | Command | Selector status | Equivalent evidence |
 |---|---|---|---|---|
-| TEST-LINT | tools/architecture/v2-handoff-lint.tests.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.tests.ps1" | NOT_APPLICABLE |  |
+| TEST-LINT-FULL | tools/architecture/v2-handoff-lint.tests.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.tests.ps1" | NOT_APPLICABLE |  |
 <!-- V2_QA_TEST_MATRIX_END -->
 
 <!-- V2_QA_P1_MATRIX_BEGIN -->
 | P1 ID | RED | GREEN | Evidence |
 |---|---|---|---|
-| P1-001 | R1 allowed selector blanks, locator-free verification, nonexistent equivalent evidence and matrix-external selector commands | All selector forms return explicit failures; verified locator and equivalent positive fixtures pass; complete suite is 50/0 | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-2026-11-08\INDEPENDENT_QA_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\red-selector-handoff-memory.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\red-whitespace-selector.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\green-full-tests.txt |
-| P1-002 | R1 allowed a store-local parent junction to escape to a non-reparse final file | MEMORY index ancestors and each project-pointer component fail on reparse without reading the target; absolute, traversal and file-URI pointers remain unsafe | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-2026-11-08\INDEPENDENT_QA_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\red-selector-handoff-memory.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\green-full-tests.txt |
-| P1-003 | R1 allowed a blank object and missing required-ancestor / failed-candidate fields to skip all object checks | Blank objects fail before ancestry or diff; every required object field is checked; explicit NONE is limited to required ancestors and failed candidate and is never a commit | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-2026-11-08\INDEPENDENT_QA_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\red-selector-handoff-memory.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\green-full-tests.txt |
-| P1-004 | R1 allowed a retired NEXT_ROLE and did not compare ACTIVE next role with QA manual owner | Handoff always checks retirement; NEXT_ROLE and MANUAL_OWNER are unique, exact-equal and excluded from RETIRED_ROLE values | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-2026-11-08\INDEPENDENT_QA_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\red-selector-handoff-memory.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\green-full-tests.txt |
-| P1-005 | QA R2 proved default rename detection hid a scope-outside source when it moved to an allowed destination | Handoff lists source and destination with `git diff --no-renames --name-only`; outside source fails and allowed-to-allowed rename passes; complete repair R2 suite is 54/0 | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-r2-2026-11-08\INDEPENDENT_QA_R2_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\red-scope-rename.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\green-scope-rename.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\green-full-tests.txt |
-| P1-006 | QA R2 proved a sibling failed candidate could pass because ancestry was never checked | Every non-NONE failed candidate is checked with `git merge-base --is-ancestor`; the positive fixture is a real ancestor and sibling not-ancestor fails; failed==current and missing objects remain failures | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-r2-2026-11-08\INDEPENDENT_QA_R2_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\red-failed-ancestry.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\green-failed-ancestry.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r2-2026-11-08\green-full-tests.txt |
+| P1-007 | Old linter accepted all ten stable-doc defects: missing / duplicate / empty pointer, invalid token, pointer SHA, pointer NEXT_ROLE, handoff ACTIVE marker outside TASKS, and unlabeled ACTIVE heading all returned exit 0 | Exact failure codes now fail Handoff for all ten negations; focused suite 10/0 and complete suite 64/0; three current stable docs pass the new pointer and ACTIVE checks | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\red-stable-docs.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\green-stable-docs-focused.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-2026-11-08\green-full-tests-final.txt |
 <!-- V2_QA_P1_MATRIX_END -->
 <!-- V2_QA_READY_END -->
 
