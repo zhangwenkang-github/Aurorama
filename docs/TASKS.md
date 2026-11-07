@@ -32,6 +32,8 @@
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -ExpectedHead "<external-pinned post-docs-sync HEAD>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_FINAL_GATE_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08\manager-final-gates.txt
+- CONTEXT_AT_CLOSE=266084/1048576
+- DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / PUSH=NO / TAG=NO / RELEASE=NO
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\red-selector-handoff-memory.txt
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\green-full-tests.txt
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08\a0-owner-gate.txt
