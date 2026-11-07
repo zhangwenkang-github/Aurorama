@@ -7,7 +7,7 @@
 > PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
 > FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 > ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> IDENTITY_CATALOG_W1A=QA_R2_FAIL_P2_PATCH_REQUIRED /
+> IDENTITY_CATALOG_W1A=SCOPE_RACE_REPAIRED_PENDING_QA_R3 /
 > A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 > G0_PASSED / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 > PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
@@ -23,8 +23,8 @@
 > 并以 source/final stable patch-id MATCH 集成到 clean integration HEAD
 > `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
 > 实际产品架构重构仍为 `NOT_PROVEN`，contracts seam / 消费者迁移未落地。当前长期关键路径
-> 先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；W1A repair candidate `e05ba14c` 的 fresh
-> QA R2 为 `FAIL / P0-P3=0/0/1/0`，状态为 `QA_R2_FAIL_P2_PATCH_REQUIRED`。DI scope correction 把首切片选择点
+> 先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；QA R2 的唯一 P2 已由 repair `120a011a`
+> 修复，状态为 `SCOPE_RACE_REPAIRED_PENDING_QA_R3`。DI scope correction 把首切片选择点
 > 收敛到 `:data` 的 `CatalogReadModule`，`core/RepositoryModule.kt` 保持不变，尚无产品源码
 > 实现证据。W1–W5 功能波在对应 `PREREQUISITE_SEAMS` 达到
 > `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 前不得开工。
@@ -3489,7 +3489,7 @@ W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED /
 PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
 FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-IDENTITY_CATALOG_W1A=QA_R2_FAIL_P2_PATCH_REQUIRED /
+IDENTITY_CATALOG_W1A=SCOPE_RACE_REPAIRED_PENDING_QA_R3 /
 A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 W0=ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED /
 DO_NOT_RESUME_OLD_HANDOFF_LOOP / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
@@ -3525,7 +3525,7 @@ candidate `310fdfdb` 并集成到 clean `8865b0c8`。实现前 DI scope correcti
 singleton，不重复创建，`core/RepositoryModule.kt` 保持不变。该 correction 已集成；W1A
 implementation + app test-compat 候选已通过自身 TDD、data/film/app 单测、assemble 与 A0
 guard，但尚无独立 QA。当前状态为
-`SLICE_W1A_QA_R2_FAIL_P2_PATCH_REQUIRED`；`V2-NON-TTS-W1` 仍
+`SLICE_W1A_SCOPE_RACE_REPAIRED_PENDING_QA_R3`；`V2-NON-TTS-W1` 仍
 `BLOCKED_BY_PREREQUISITES`。W0 仅作独立探针；guard 集成不代表产品重构完成。
 
 **A0 integration 事实**：source
@@ -3566,7 +3566,7 @@ membership / 560 条边；外部 `445` source、`376` MVP 子项、D203 addendum
 
 | Seam ID | 状态 | 必须先于 |
 |---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_QA_R2_FAIL_P2_PATCH_REQUIRED` | W1 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_SCOPE_RACE_REPAIRED_PENDING_QA_R3` | W1 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | W2 |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | W3 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | W4 正文实现 |
@@ -6910,3 +6910,12 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `SLICE_W1A_QA_R2_FAIL_P2_PATCH_REQUIRED`；下一步只能由 root 另派全新 repair owner，
   在同一 8 源码 + 6 测试白名单内修复，再由另一个全新 QA R3 复核。当前禁止 integration /
   merge-prep / Release。
+- **2026-11-07 — Identity/Catalog W1A QA R2 scope race 修复候选**：全新
+  `AURORAMA_V2_IDENTITY_CATALOG_W1A_SCOPE_RACE_REPAIR_OWNER_2026_11_07` 从 `e05ba14c`
+  只改 `SearchViewModel.kt` 与 `SearchViewModelTest.kt`，将 completed-request 早返回移到
+  requested/current non-null equality guard 之后；新增 RED/GREEN 覆盖 A→B 双 scope 读取间
+  切号。candidate `120a011a5220d88cd93199532716bc0d0bad9143` 自身
+  data `296/296`、film `153/153`、app `416/416`、assemble、root `ktfmtCheck`、A0 7/7
+  与 direct guard 均 PASS；相对 `62a6d2c9` 仍 14 files，旧路径 0。状态改为
+  `SLICE_W1A_SCOPE_RACE_REPAIRED_PENDING_QA_R3`，下一步只能另派全新 QA R3，禁止自证或
+  merge-prep/integration。
