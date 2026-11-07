@@ -21,12 +21,13 @@
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
 > `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
-> `last_evidence=d85f695b clean integration + A0 integration ab917404 +
-> docs/TASKS.md W1 冻结任务卡 + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
+> `last_evidence=8865b0c8 clean integration + A0 integration ab917404 +
+> docs/TASKS.md W1 accepted task card + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
 >
-> 当前没有已启动的产品实现任务。`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的自包含任务卡已冻结为
-> `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`；实现必须由 root 另行派全新 implementation
-> owner，当前尚未写产品代码。`V2-NON-TTS-W1` 仍保持
+> 当前没有已启动的产品实现任务。`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的自包含任务卡已接受为
+> `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`；实现前 DI scope correction 已把首切片选择点
+> 收敛到 `:data` 的 `CatalogReadModule`，`core/RepositoryModule.kt` 保持不变。实现必须由 root
+> 在 correction 集成后另行派全新 implementation owner，当前尚未写产品代码。`V2-NON-TTS-W1` 仍保持
 > `BLOCKED_BY_PREREQUISITES`，直到完整 seam DoD 通过。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
 > 可作独立探针，但状态为
 > `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`；仅两文件，无缺陷即
@@ -69,8 +70,10 @@ DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
 
 - ID：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`
 - 状态：`TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`
-- 冻结基线：clean `codex/v2-integration` /
-  `d85f695b9ba1a220d85d529388769a7ad81b76e8`
+- 冻结基线：root acceptance clean `codex/v2-integration` /
+  `8865b0c8e0e57aa1dd790300e21515f92eb3c580`；前置 accepted candidate
+  `310fdfdb7d5e41bdc1ce8ce63385c2f2d0e27a4f`（parent `d85f695b`）。本 DI scope correction
+  仍是 docs-only candidate，root 集成并重新钉住 SHA 前不得派 implementation。
 - 约束：`V2-D213`、`R035`、`L041`；
   `ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO`
 - `PREREQUISITE_SEAMS=NONE`。`G1-S3`、`G1-BASE-001`、`G1-BASE-003` 是静态输入合同，
@@ -175,8 +178,16 @@ graphify 定向证据（只作导航，不作实现证据）：`JellyfinReposito
 | online implementation | `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt` | 实现 `CatalogReadPort`；先解析并校验 canonical origin，再用既有 `bindOrigin` 的 origin-bound client 抓取；复用 `MetadataCache` + `MetadataSnapshotSwr` |
 | offline implementation | `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryOfflineImpl.kt` | 实现 `CatalogReadPort`；按保存的 current server/user 解析 scope，按 `SearchScope` 过滤 Room 结果，显式使用 scope.userId 映射 userData |
 | support / resolver | `data/src/main/java/com/zhangwenkang/cinefin/repository/catalog/CatalogReadPort.kt` | 可在同文件放 internal scope resolver；不得另建匿名 namespace |
-| DI selection | `core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt` | 按既有 `AppPreferences.offlineMode` 选择 online / offline port；不改服务定位或全局 build |
+| DI selection | `data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt`（新建） | `@Module @InstallIn(SingletonComponent::class)`；按既有 `AppPreferences.offlineMode` 选择 online / offline port；复用 core `RepositoryModule` 已提供的 `JellyfinRepositoryImpl` / `JellyfinRepositoryOfflineImpl` singleton，不重复创建；`core/RepositoryModule.kt` 不变 |
 | 旧接口 | `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepository.kt` | 删除 `getSearchItems` 声明；其他方法不迁移 |
+
+`CatalogReadModule` 使用 `:data` 既有 `:settings` 依赖读取 `AppPreferences.offlineMode`，并仅为
+`CatalogReadPort` 提供选择绑定；不得再次 `@Provides` 两个 repository implementation，也不得
+直接 `new` / 手工构造替代既有 singleton。core 的
+`RepositoryModule.provideJellyfinRepositoryImpl` /
+`provideJellyfinRepositoryOfflineImpl` 保持原样。若 Hilt graph 无法在该数据模块内解析上述既有
+singleton，或必须修改 core DI、增加 Gradle 依赖或改用其它 builder，停止并报告 `BLOCKED`；
+不得把绑定退回 core。
 
 online search 必须使用由 `JellyfinOrigin` 解析出的 DB user/address/token 建立或复用
 origin-bound client；不得在抓取 lambda 内再次读取当前 singleton `jellyfinApi.userId`。
@@ -219,7 +230,7 @@ materialization 的 base URL / access token 也必须来自该绑定，不得从
 3. `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt`
 4. `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryOfflineImpl.kt`
 5. `data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwr.kt`
-6. `core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt`
+6. `data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt`（新建）
 7. `modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSession.kt`
 8. `modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchViewModel.kt`
 
@@ -233,8 +244,9 @@ materialization 的 base URL / access token 也必须来自该绑定，不得从
 
 白名单外即停止。尤其禁止修改 `settings.gradle.kts`、根 build、依赖目录、
 `NavigationRoot.kt`、`CinefinCard.kt`、theme/token、Room schema、Downloader / Worker、
-`AppPreferences.kt`、`JellyfinApi.kt`、`ApiModule.kt`、`SetupRepositoryImpl.kt`、
-`SearchQueryRules.kt` 或其他 `MetadataNamespace` 消费者。
+`AppPreferences.kt`、`JellyfinApi.kt`、`ApiModule.kt`、
+`core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt`、
+`SetupRepositoryImpl.kt`、`SearchQueryRules.kt` 或其他 `MetadataNamespace` 消费者。
 
 #### 八状态 DoD 与父 seam 边界
 
@@ -290,6 +302,10 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 
 - contract / pure rules：scope 校验、query 形状、freshness 枚举、`IdentityUnavailable`。
 - adapter unit：online cache / snapshot / SWR 复用与 stale marker；offline scope 过滤。
+- DI / Hilt：`CatalogReadModule` 的选择行为与绑定测试归 `:data`；只使用既有 5 个 data / film
+  测试文件，至少覆盖 offline preference 的 true / false 选择，并由
+  `:app:phone:assembleDebug` 证明 Hilt graph 可在不修改 `core/RepositoryModule.kt` 的情况下
+  完成。不得新增第六个测试文件，也不得在 core DI 中塞入测试 seam。
 - consumer unit：`SearchViewModel` / `SearchSessionGuard` 只接受返回 snapshot 的同一 scope。
 - regression：既有搜索 dispatcher、snapshot corruption / mismatch、repo build 与 A0 guard。
 - 不运行 ADB、设备、网络、生产服务器、产品 QA、runtime 或 Release。
@@ -315,8 +331,10 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 - 预期定性下降：`SearchViewModel` 不再分别依赖 settings 身份字段与宽
   `JellyfinRepository` 搜索；旧 `getSearchItems` search path 删除；搜索读写只在
   `CatalogReadPort` 一个入口。
-- 已冻结 11 违规基线不变：P1/P2/P3=`7/3/1`。本切片不得声称
-  `DEBT_COUNT_DECREASED`，不得修改 A0 baseline 来制造下降。
+- A0 预期：`coreToDataImports=130` 与 11 违规 P1/P2/P3=`7/3/1` 均保持不变。
+  `CatalogReadModule` 必须留在 `:data`，`core/RepositoryModule.kt` 不得新增 import；
+  不得用 FQCN inline import 规避扫描，不得修改 `tools/architecture/v2-owner-baseline.json`
+  或制造 baseline 下降。本切片不得声称 `DEBT_COUNT_DECREASED`。
 - `ARCH_IMPLEMENTATION_REFACTORED` 在完整父 seam QA / integration 前保持
   `NOT_PROVEN`。
 
@@ -331,13 +349,15 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
   online scope 使用；离线不读该 disk snapshot。跨进程与 durable 语义继续 Open。
 - 风险 4：stale marker 在首个切片只到 consumer 边界，不新增 UI badge；不得写 BASE-003
   runtime / product PASS。
-- 回滚：删除新 port 文件、恢复 `getSearchItems` 与 consumer 注入；不涉及 schema、磁盘
-  envelope 或 build，现有 snapshot 文件无需迁移。任何已写 cache 失败现场只按既有
-  namespace 删除/隔离，不跨账号复用。
+- 回滚：删除新 `CatalogReadModule` 与 port 文件、恢复 `getSearchItems` 与 consumer 注入；
+  `core/RepositoryModule.kt` 仍保持原样，不涉及 schema、磁盘 envelope 或 build，现有
+  snapshot 文件无需迁移。任何已写 cache 失败现场只按既有 namespace 删除/隔离，不跨账号复用。
 - 立即停止：dirty / branch / HEAD 不符；root review 未批准；白名单越界；需要改 auth /
   preferences / API singleton 写入顺序、DB schema、build、Gradle、导航、公共 UI；
+  `core/RepositoryModule.kt` 需要改动；
   需要设备 / 网络服务器 / QA / merge-prep；发现第二个生产搜索消费者；保留双搜索路径；
-  或无法用 fixture 证明切号后旧结果不可提交。
+  用 FQCN inline import 规避 owner 扫描、修改 A0 baseline，或无法用 fixture 证明切号后旧
+  结果不可提交。
 - 工具失败收敛：本地测试 harness 的已定位单点问题最多一次修复后受控重试；第二轮仍 P1
   即停止，不扩 scanner / exact-count / 新 harness。
 
@@ -370,7 +390,7 @@ rg -n 'getSearchItems|class SearchNamespace|AppPreferences|getUserId\(' `
 rg -n 'getSearchItems' "$repoRoot\data\src\main" "$repoRoot\modes" "$repoRoot\app"
 $baseSha = '<root-pinned-integration-sha>'
 $allowedFiles = @(
-  'core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt',
+  'data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt',
   'data/src/main/java/com/zhangwenkang/cinefin/repository/catalog/CatalogReadPort.kt',
   'data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepository.kt',
   'data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt',
@@ -388,6 +408,12 @@ $changedFiles = @(git -C $repoRoot diff --name-only "$baseSha...HEAD")
 $unexpectedFiles = @($changedFiles | Where-Object { $_ -notin $allowedFiles })
 if ($changedFiles.Count -eq 0 -or $unexpectedFiles.Count -gt 0) {
   throw "changed-file whitelist failed: $($unexpectedFiles -join ', ')"
+}
+if ($allowedFiles -contains 'core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt') {
+  throw 'core RepositoryModule must remain outside the W1A write scope'
+}
+if ($allowedFiles -notcontains 'data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt') {
+  throw 'data CatalogReadModule is missing from the W1A write scope'
 }
 git -C $repoRoot diff --check
 ```

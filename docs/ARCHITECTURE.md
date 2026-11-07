@@ -4,7 +4,7 @@
 |----|----|
 | 文档版本 | v2.0（2026-11-07：V2 架构符合性、低耦合、逻辑 seam、守卫与并行基线） |
 | 状态 | `V2_EXECUTABLE_BASELINE / USER_CONFIRMED_2026_11_07 / ARCH_GATE_PASS / ARCH_SEAM_DELIVERY_ACTIVE / BROAD_FEATURE_WAVES_SEAM_GATED / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / IDENTITY_CATALOG_TASK_CARD=TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION / A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` |
-| 作者会话 | `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07`；`AURORAMA_V2_ARCH_OWNER_GUARD_W1P_INTEGRATION_DOCS_OWNER_2026_11_07`（integration sync）；`AURORAMA_V2_ARCH_SEAM_DELIVERY_PLANNING_OWNER_2026_11_07`（seam delivery planning）；`AURORAMA_V2_IDENTITY_CATALOG_SEAM_TASK_CARD_OWNER_2026_11_07`（W1 task card） |
+| 作者会话 | `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07`；`AURORAMA_V2_ARCH_OWNER_GUARD_W1P_INTEGRATION_DOCS_OWNER_2026_11_07`（integration sync）；`AURORAMA_V2_ARCH_SEAM_DELIVERY_PLANNING_OWNER_2026_11_07`（seam delivery planning）；`AURORAMA_V2_IDENTITY_CATALOG_SEAM_TASK_CARD_OWNER_2026_11_07`（W1 task card）；`AURORAMA_V2_IDENTITY_CATALOG_TASK_CARD_DI_CORRECTION_OWNER_2026_11_07`（DI scope correction） |
 | 上游依据 | 外部原始文档第 154–286 行；`V2-REQ-ARCH-001～072`；`V2-D010～D020`、`D198`、`D211～D213`；`R035`；`L041`；G1-S1 / G1-S6 静态证据 |
 | 适用对象 | V2 需求、架构、实现、独立 QA、merge-prep、Release 与多会话编排 |
 | 维护规则 | 架构变更先改本文并通知受影响任务；不新增零散架构说明文件；实现事实仍以代码、Gradle、测试和候选证据为准 |
@@ -144,9 +144,13 @@ PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
 - snapshot contract：`CatalogSnapshot<T>` 携带 `CatalogScope`、content generation、
   `CatalogFreshness` 与 observed time；scope 复用既有
   `com.zhangwenkang.cinefin.repository.JellyfinOrigin`；
-- implementation：`JellyfinRepositoryImpl` / `JellyfinRepositoryOfflineImpl`，由
-  `RepositoryModule` 按既有 offline preference 选择；
+- implementation：`JellyfinRepositoryImpl` / `JellyfinRepositoryOfflineImpl`；由 `:data` 的
+  `CatalogReadModule`（`@Module @InstallIn(SingletonComponent::class)`）按既有
+  `AppPreferences.offlineMode` 选择 `CatalogReadPort`，复用 core `RepositoryModule` 已提供的
+  implementation singleton，不重复创建，`core/RepositoryModule.kt` 保持不变；
 - 第一个消费者：`SearchViewModel` / `SearchSession`；
+- A0 预期：W1A 不改 `core/RepositoryModule.kt`，`coreToDataImports=130` 与 11 违规
+  P1/P2/P3=`7/3/1` 保持不变；不得用 FQCN inline import 规避扫描，也不得修改 baseline；
 - 首个切片 `ICS-W1A-SCOPED-SEARCH-SNAPSHOT` **不是完整 seam**：账号 / preference 单 writer、
   其他 catalog readers、offline namespace、401/403、durable fence 与独立 QA / integration
   均未实现；
@@ -212,6 +216,13 @@ integration worktree 复跑 `passed=7 failed=0 total=7`。direct guard 内部边
 外部边 `8/8`、cycles `0`、FQCN ambiguity `0`、debt-ratchet failure `0`；既有 11 违规仍为
 P1/P2/P3=`7/3/1`。A0 findings P0–P3=`0/0/0/0`。该门禁只冻结继承基线，不证明产品重构。
 
+**W1A DI scope correction（2026-11-07）**：`CatalogReadModule` 属于 `:data`，通过既有
+`:settings` 依赖读取 `AppPreferences.offlineMode`，只选择 core `RepositoryModule` 已提供的
+`JellyfinRepositoryImpl` / `JellyfinRepositoryOfflineImpl` singleton。它不得重复提供这两个
+singleton；`core/RepositoryModule.kt` 不在 W1A 写域内。预期 `coreToDataImports=130` 不增、
+11 违规 P1/P2/P3=`7/3/1` 不变；若实现只能靠 core import、FQCN inline 规避扫描或 baseline
+修改才能成立，必须停止并报告 `BLOCKED`，不得把 DI 退回 core。
+
 ### 0.8 共享文件锁与可并行候选
 
 所有 seam / 功能任务必须从当次已提交、clean 的 integration SHA 单独创建 worktree；禁止从
@@ -253,8 +264,10 @@ TTS；`NavigationRoot` / `DownloadsScreen` 或共享 UI 会影响 W0、W1 与导
 
 `ICS-W1A-SCOPED-SEARCH-SNAPSHOT` 不属于上述可并行四组：它串行占用
 `CatalogReadPort` / `JellyfinRepository` search contract、`MetadataSnapshotSwr`、
-`RepositoryModule` 与 Search consumer 锁；与 `G2-PERSISTENT-SWR-W1P` 的
+`:data` 的 `CatalogReadModule` 与 Search consumer 锁；与 `G2-PERSISTENT-SWR-W1P` 的
 `MetadataSnapshotSwrTest.kt` 重叠，必须先完成一项并重新从新 integration 派生另一项。
+`core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt` 不在 W1A 写域内，
+必须保持字节不变，以维持 `coreToDataImports=130`。
 
 ### 0.9 W0 隔离探针约束与 D212 lineage
 

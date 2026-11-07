@@ -23,8 +23,10 @@
 > 并以 source/final stable patch-id MATCH 集成到 clean integration HEAD
 > `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
 > 实际产品架构重构仍为 `NOT_PROVEN`，contracts seam / 消费者迁移未落地。当前长期关键路径
-> 先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；其自包含任务卡已冻结待 root review，
-> 尚无产品源码实现证据。W1–W5 功能波在对应 `PREREQUISITE_SEAMS` 达到
+> 先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；其自包含任务卡已接受为
+> `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`，实现前 DI scope correction 把首切片选择点
+> 收敛到 `:data` 的 `CatalogReadModule`，`core/RepositoryModule.kt` 保持不变，尚无产品源码
+> 实现证据。W1–W5 功能波在对应 `PREREQUISITE_SEAMS` 达到
 > `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 前不得开工。
 > `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 仅为
 > `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`，可独立派发但不挡主线、不计 seam 进度，
@@ -33,8 +35,9 @@
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
 > `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
-> `last_evidence=d85f695b clean integration + A0 integration ab917404 +
-> docs/TASKS.md W1 冻结任务卡 + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
+> `last_evidence=8865b0c8 clean integration + A0 integration ab917404 +
+> docs/TASKS.md W1 accepted task card + data CatalogReadModule DI correction +
+> docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
 > 下方 `PAD_RUNTIME...` 与 64/65 段只作旧 G2 控制面 HISTORY，不得恢复执行循环。
 >
 > **HISTORY（2026-11-07 前；非当前状态）** 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / PAD_QA_PROMPT_DESCRIPTOR_READY_PENDING_FRESH_REVIEW / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / HISTORICAL_PRE_HANDOFF_AUDIT_PASS=PASS / HISTORICAL_OUTER_HANDOFF_QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64=AUDIT_SNAPSHOT_ONLY / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`。其中
@@ -3500,8 +3503,9 @@ TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；�
 V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
 `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
-`last_evidence=d85f695b clean integration + A0 integration ab917404 +
-docs/TASKS.md W1 冻结任务卡 + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
+`last_evidence=8865b0c8 clean integration + A0 integration ab917404 +
+docs/TASKS.md W1 accepted task card + data CatalogReadModule DI correction +
+docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
 
 **架构执行事实**：外部架构原始材料第 154–286 行已归一为
 `V2-REQ-ARCH-001～072`，并已由用户接受；G1-S1 冻结了 19 条 project 边、0 个模块级环、
@@ -3514,11 +3518,15 @@ ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`；模块级无环不等于低耦合�
 contracts seam 与消费者迁移仍未落地；A0 owner guard / debt ratchet 已落地，但不消除
 既有违规。用户已于 2026-11-07 确认 v2.0 基线和架构优先方向；`V2-D213` / `R035` 把
 “按 seam 纵向闭环再扩功能”固定为硬门。一次性任务卡 owner 已在 clean
-`d85f695b` 上冻结 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的自包含任务卡，当前状态为
-`TASK_CARD_FROZEN_PENDING_ROOT_REVIEW`；本轮没有写产品源码、测试、Gradle、QA evidence
-或 Memory。下一步只能由 root review 任务卡，再另行派全新 implementation owner；
-`V2-NON-TTS-W1` 仍 `BLOCKED_BY_PREREQUISITES`。W0 仅作独立探针；guard 集成不代表产品
-重构完成。
+`d85f695b` 上冻结 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的自包含任务卡；root review 已接受
+candidate `310fdfdb` 并集成到 clean `8865b0c8`。实现前 DI scope correction 将首切片
+`CatalogReadPort` 选择点从 core `RepositoryModule` 改为 `:data` 的 `CatalogReadModule`：
+读取既有 `AppPreferences.offlineMode`，复用 core 已提供的两个 repository implementation
+singleton，不重复创建，`core/RepositoryModule.kt` 保持不变。该 correction 本身仍为
+docs-only candidate；root 集成并钉住 SHA 前不得派 implementation。当前状态仍为
+`TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`；本轮没有写产品源码、测试、Gradle、
+QA evidence 或 Memory。`V2-NON-TTS-W1` 仍 `BLOCKED_BY_PREREQUISITES`。W0 仅作独立探针；
+guard 集成不代表产品重构完成。
 
 **A0 integration 事实**：source
 `a787b683c89389491099ea7acb069422190327c3`（parent
@@ -3785,10 +3793,18 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
 adapter、SWR freshness 与 Search consumer；账号 / preference 写入单 writer、其他
 catalog readers、offline namespace、权限与 durable fence 留给后续子波。
 
-root review 前不得派实现。review PASS 后，root 另行创建全新
+本 DI scope correction 集成并重新钉住 clean integration SHA 前不得派实现。之后 root 另行创建全新
 `AURORAMA_V2_IDENTITY_CATALOG_W1A_IMPLEMENTATION_OWNER_2026_11_07`，首条只读动作固定为
 `git status --short` / `git rev-parse HEAD`；实现 owner 只做自身 TDD、构建与实现报告，
 不得自开 QA 或 merge-prep。
+
+首切片 DI 选择点固定为 `data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt`
+（新建，`@Module @InstallIn(SingletonComponent::class)`）：读取既有
+`AppPreferences.offlineMode`，选择 core `RepositoryModule` 已提供的
+`JellyfinRepositoryImpl` / `JellyfinRepositoryOfflineImpl` singleton，不重复创建；
+`core/RepositoryModule.kt` 不在写域内。A0 预期 `coreToDataImports=130`、11 违规
+P1/P2/P3=`7/3/1` 均不变；禁止 FQCN inline import 规避扫描或修改 baseline。若 Hilt 在
+`:data` 既有依赖内无法解析既有 singleton，停止并报告 `BLOCKED`，不得改回 core DI。
 
 Identity/Catalog seam 必须先完成 `CONTRACT_FROZEN -> ADAPTER_IMPLEMENTED ->
 TARGET_CONSUMERS_MIGRATED -> OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH ->
@@ -6828,3 +6844,21 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`。尚未写产品源码、运行测试、执行 QA 或
   完成 seam；`V2-NON-TTS-W1` 仍 `BLOCKED_BY_PREREQUISITES`，下一步由 root 另派全新
   implementation owner，从其固定 clean integration SHA 开始。
+- **2026-11-07 — Identity/Catalog W1 task-card DI scope correction**：全新一次性
+  `AURORAMA_V2_IDENTITY_CATALOG_TASK_CARD_DI_CORRECTION_OWNER_2026_11_07` 从 root acceptance
+  clean integration `8865b0c8e0e57aa1dd790300e21515f92eb3c580` 创建 docs-only candidate。
+  root 复核发现首切片把 DI 选择放在 core `RepositoryModule.kt` 会给该 core 文件新增
+  `CatalogReadPort` import，使 `coreToDataImports` 从 130 增至 131 并触发 `DEBT_RATCHET`。
+  修正将 8 源码白名单中的该文件替换为 `data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt`
+  （新建）：`@Module @InstallIn(SingletonComponent::class)`，读取既有
+  `AppPreferences.offlineMode`，复用 core 已提供的 `JellyfinRepositoryImpl` /
+  `JellyfinRepositoryOfflineImpl` singleton，不重复创建；`core/RepositoryModule.kt` 保持不变。
+  A0 guard 复跑为 `PASS`：内部边 `19/19`、外部边 `8/8`、cycles / FQCN ambiguity /
+  debt-ratchet failure / findings 均为 `0`，baseline SHA-256
+  `dbaa3ce96597538abb25538fc77553eb62feba859ac03094cd48fcb84a49b8ac` 未变。生产源码未改，
+  `coreToDataImports=130` 与 11 违规 P1/P2/P3=`7/3/1` 保持；禁止 FQCN inline import 规避
+  扫描或修改 baseline。任务卡状态保持
+  `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`。本轮只改 `docs/TASKS.md`、
+  `docs/ARCHITECTURE.md`、`docs/V2_PLAN.md`，未写产品源码 / tests / Gradle / tools / Memory /
+  QA evidence，未运行 Gradle / ADB / 设备 / 网络 / 服务器 / 产品 QA / runtime / Release，
+  未 push / tag / fetch，未移动 integration；这不构成 seam 实现、测试或 QA PASS。
