@@ -21,14 +21,16 @@
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
 > `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
-> `last_evidence=03f64a82 clean docs control + W1A candidate 693eff11 independent QA FAIL
-> P0-P3=0/1/3/0 + A0 integration ab917404`。
+> `last_evidence=4124d47c clean QA-fail docs + W1A repair candidate e05ba14c self-gates PASS
+> + prior independent QA FAIL P0-P3=0/1/3/0 + A0 integration ab917404`。
 >
-> 当前 W1A 实现候选独立 QA 为 `FAIL`，状态为
-> `SLICE_W1A_INDEPENDENT_QA_FAIL / PATCH_REQUIRED`。实现 candidate
+> 当前 W1A repair candidate 已形成，状态为
+> `SLICE_W1A_QA_REPAIR_CANDIDATE_PENDING_FRESH_QA`。首轮实现 candidate
 > `16e19571c482b1af6958c4fc39ae58d84af42a0d` 与 test-compat
 > `693eff11dd8cf43837ac090770cc6f3b37bace8b` 已通过实现自测、组合 build 与 A0 guard；
-> 不同全新独立 QA 实测 P0/P1/P2/P3=`0/1/3/0`，当前禁止 merge-prep/integration。
+> 不同全新独立 QA 实测 P0/P1/P2/P3=`0/1/3/0`；repair chain 现为
+> `4da3a981 -> 0bb5c720 -> 012efb9c -> e05ba14c`，四个 finding 的修复/全量自测声称 PASS，
+> 但仍禁止 merge-prep/integration，必须等待另一个全新 QA。
 > DI 选择点位于 `:data` 的 `CatalogReadModule`，
 > `core/RepositoryModule.kt` 保持原样。`V2-NON-TTS-W1` 仍保持
 > `BLOCKED_BY_PREREQUISITES`，直到完整 seam DoD 通过。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
@@ -44,7 +46,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_INDEPENDENT_QA_FAIL / PATCH_REQUIRED` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `REPAIR` -> fresh `INDEPENDENT_QA` | candidate `693eff11` QA FAIL：P1 null-scope fail-open；P2 frozen-scope 未传入、unknown download provenance、blank token |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_QA_REPAIR_CANDIDATE_PENDING_FRESH_QA` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | fresh `INDEPENDENT_QA` | repair candidate `e05ba14c` 已含四项修复与完整自测；首轮 QA FAIL 未被复审关闭 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -72,7 +74,7 @@ DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
 ### `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 冻结任务卡
 
 - ID：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`
-- 状态：`SLICE_W1A_INDEPENDENT_QA_FAIL / PATCH_REQUIRED`
+- 状态：`SLICE_W1A_QA_REPAIR_CANDIDATE_PENDING_FRESH_QA`
 - 冻结基线：root acceptance clean `codex/v2-integration` /
   `8865b0c8e0e57aa1dd790300e21515f92eb3c580`；前置 accepted candidate
   `310fdfdb7d5e41bdc1ce8ce63385c2f2d0e27a4f`（parent `d85f695b`）。本 DI scope correction
@@ -300,6 +302,12 @@ candidate `693eff11dd8cf43837ac090770cc6f3b37bace8b` 由不同全新
 
 独立 QA 同时实测 build/unit/A0 全绿，这不抵消语义 P1/P2。修复必须由另一个全新
 repair owner 在同一 8 源码 + 6 测试白名单内完成；旧实现 owner / QA owner 均不得复用。
+
+repair chain 已形成：`4da3a981`（四项 patch + 首次 harness BLOCKED）→
+`0bb5c720`（fake 自递归修复）→ `012efb9c`（3 个 data test 机械格式）→
+`e05ba14c`（`SearchSession.kt` 机械格式）。`e05ba14c` 自身报告 data/film/app
+`296/153/414` 全绿、assemble、root ktfmt、A0 7/7 与 direct guard PASS；但这些尚未由独立
+QA 复核，状态保持 `SLICE_W1A_QA_REPAIR_CANDIDATE_PENDING_FRESH_QA`。
 
 #### 测试命令、层级与负例
 
