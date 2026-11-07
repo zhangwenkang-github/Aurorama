@@ -5,13 +5,12 @@ import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import java.util.Collections
 import java.util.concurrent.CopyOnWriteArraySet
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class IdentityStateStoreTest {
     @Test
-    fun missingCanonicalStateStaysEmptyAndDoesNotInferLegacyProjection() {
+    fun legacyProjectionWithoutCanonicalStateFailsClosed() {
         val sharedPreferences = IdentityTestSharedPreferences()
         sharedPreferences
             .edit()
@@ -24,7 +23,7 @@ class IdentityStateStoreTest {
             IdentitySnapshot(
                 selection = IdentitySelection(),
                 identityGeneration = 0L,
-                status = IdentityStateStatus.READY,
+                status = IdentityStateStatus.RECOVERING,
             ),
             store.read(),
         )
@@ -46,7 +45,10 @@ class IdentityStateStoreTest {
                 status = IdentityStateStatus.READY,
             )
 
-        assertTrue(IdentityStateStore(AppPreferences(sharedPreferences)).write(expected))
+        assertEquals(
+            IdentityWriteOutcome.COMMITTED,
+            IdentityStateStore(AppPreferences(sharedPreferences)).write(expected),
+        )
         assertEquals(
             expected,
             IdentityStateStore(AppPreferences(sharedPreferences)).read(),
@@ -72,7 +74,7 @@ class IdentityStateStoreTest {
                 status = IdentityStateStatus.RECOVERING,
             )
 
-        assertTrue(store.write(expected))
+        assertEquals(IdentityWriteOutcome.COMMITTED, store.write(expected))
 
         assertEquals(1, sharedPreferences.editorCreations)
         assertEquals(1, sharedPreferences.commitCalls)
@@ -85,7 +87,7 @@ class IdentityStateStoreTest {
     }
 
     @Test
-    fun failedCommitLeavesCanonicalAndProjectionAtTheirPreviousValues() {
+    fun uncertainCommitQuarantinesNewCanonicalAndProjectionBeforeLaterSuccess() {
         val sharedPreferences = IdentityTestSharedPreferences()
         val store = IdentityStateStore(AppPreferences(sharedPreferences))
         val oldSnapshot =
@@ -100,10 +102,10 @@ class IdentityStateStoreTest {
                 identityGeneration = 12L,
                 status = IdentityStateStatus.READY,
             )
-        assertTrue(store.write(oldSnapshot))
+        assertEquals(IdentityWriteOutcome.COMMITTED, store.write(oldSnapshot))
         sharedPreferences.failNextCommit = true
 
-        val committed =
+        val uncertain =
             store.write(
                 IdentitySnapshot(
                     selection =
@@ -118,14 +120,27 @@ class IdentityStateStoreTest {
                 )
             )
 
-        assertFalse(committed)
-        assertEquals(oldSnapshot, store.read())
-        assertEquals("server-old", sharedPreferences.getString("pref_current_server", null))
-        assertFalse(sharedPreferences.getBoolean("pref_offline_mode", true))
+        assertEquals(IdentityWriteOutcome.UNCERTAIN, uncertain)
+        assertEquals(
+            IdentitySnapshot(
+                selection = IdentitySelection(),
+                identityGeneration = oldSnapshot.identityGeneration,
+                status = IdentityStateStatus.RECOVERING,
+            ),
+            store.read(),
+        )
+        assertEquals("server-new", sharedPreferences.getString("pref_current_server", null))
+        assertTrue(sharedPreferences.getBoolean("pref_offline_mode", false))
+
+        assertEquals(
+            IdentityWriteOutcome.COMMITTED,
+            store.write(oldSnapshot.copy(identityGeneration = 13L)),
+        )
+        assertEquals(oldSnapshot.copy(identityGeneration = 13L), store.read())
     }
 
     @Test
-    fun corruptCanonicalStateFailsClosedWithoutMutatingLegacyProjection() {
+    fun corruptCanonicalStateFailsClosedWithoutInferringLegacyProjection() {
         val sharedPreferences = IdentityTestSharedPreferences()
         sharedPreferences
             .edit()
@@ -138,9 +153,38 @@ class IdentityStateStoreTest {
 
         assertEquals(IdentitySelection(), snapshot.selection)
         assertEquals(0L, snapshot.identityGeneration)
-        assertEquals(IdentityStateStatus.READY, snapshot.status)
+        assertEquals(IdentityStateStatus.RECOVERING, snapshot.status)
         assertEquals("legacy-server", sharedPreferences.getString("pref_current_server", null))
         assertTrue(sharedPreferences.getBoolean("pref_offline_mode", false))
+    }
+
+    @Test
+    fun readySnapshotWithCompatibilityMismatchFailsClosed() {
+        val sharedPreferences = IdentityTestSharedPreferences()
+        val canonical =
+            IdentitySnapshot(
+                selection =
+                    IdentitySelection(
+                        serverId = "canonical-server",
+                        userId = "canonical-user",
+                        addressId = "canonical-address",
+                        offlineMode = false,
+                    ),
+                identityGeneration = 21L,
+                status = IdentityStateStatus.READY,
+            )
+        sharedPreferences
+            .edit()
+            .putString(IDENTITY_STATE_PREFERENCE_KEY, IdentityStateCodec.encode(canonical))
+            .putString("pref_current_server", "different-server")
+            .putBoolean("pref_offline_mode", false)
+            .commit()
+
+        val snapshot = IdentityStateStore(AppPreferences(sharedPreferences)).read()
+
+        assertEquals(IdentitySelection(), snapshot.selection)
+        assertEquals(canonical.identityGeneration, snapshot.identityGeneration)
+        assertEquals(IdentityStateStatus.RECOVERING, snapshot.status)
     }
 }
 
@@ -150,6 +194,7 @@ internal class IdentityTestSharedPreferences : SharedPreferences {
         CopyOnWriteArraySet<SharedPreferences.OnSharedPreferenceChangeListener>()
 
     var failNextCommit = false
+    var failCommitOnCall: Int? = null
     var editorCreations = 0
         private set
 
@@ -159,10 +204,14 @@ internal class IdentityTestSharedPreferences : SharedPreferences {
     var lastCommittedKeys: Set<String> = emptySet()
         private set
 
+    val committedSnapshots = mutableListOf<IdentitySnapshot>()
+
     fun resetWriteCounts() {
         editorCreations = 0
         commitCalls = 0
         lastCommittedKeys = emptySet()
+        failCommitOnCall = null
+        committedSnapshots.clear()
     }
 
     override fun getAll(): MutableMap<String, *> = Collections.unmodifiableMap(values.toMap())
@@ -243,12 +292,15 @@ internal class IdentityTestSharedPreferences : SharedPreferences {
         override fun commit(): Boolean {
             commitCalls += 1
             lastCommittedKeys = (updates.keys + removals).toSet()
-            if (failNextCommit) {
-                failNextCommit = false
-                return false
-            }
             applyChanges()
-            return true
+            return when {
+                failNextCommit -> {
+                    failNextCommit = false
+                    false
+                }
+                failCommitOnCall == commitCalls -> false
+                else -> true
+            }
         }
 
         override fun apply() {
@@ -268,6 +320,9 @@ internal class IdentityTestSharedPreferences : SharedPreferences {
                 if (values[key] != value) changed += key
                 values[key] = value
             }
+            (values[IDENTITY_STATE_PREFERENCE_KEY] as? String)
+                ?.let(IdentityStateCodec::decode)
+                ?.let(committedSnapshots::add)
             changed.forEach { key ->
                 listeners.forEach {
                     it.onSharedPreferenceChanged(this@IdentityTestSharedPreferences, key)

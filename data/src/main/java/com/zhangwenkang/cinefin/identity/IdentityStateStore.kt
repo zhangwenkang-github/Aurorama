@@ -10,27 +10,42 @@ import kotlinx.serialization.json.Json
 
 internal const val IDENTITY_STATE_PREFERENCE_KEY = "pref_identity_state_v1"
 
+internal enum class IdentityWriteOutcome {
+    COMMITTED,
+    NOT_COMMITTED,
+    UNCERTAIN,
+}
+
 class IdentityStateStore @Inject constructor(private val appPreferences: AppPreferences) {
     @Volatile private var highestObservedGeneration = 0L
+    private var lastKnownSafeSnapshot = EMPTY_IDENTITY_SNAPSHOT
+    private var quarantined = false
+    private var quarantineGeneration = 0L
 
     @Synchronized
     fun read(): IdentitySnapshot {
-        val encoded = runCatching {
-            appPreferences.sharedPreferences.getString(IDENTITY_STATE_PREFERENCE_KEY, null)
-        }
-            .getOrNull()
-        val snapshot = IdentityStateCodec.decode(encoded) ?: EMPTY_IDENTITY_SNAPSHOT
+        val persisted = readPersistedState()
+        val snapshot = persisted.snapshot
         highestObservedGeneration = maxOf(highestObservedGeneration, snapshot.identityGeneration)
-        return snapshot
+        if (!persisted.projectionMatches) {
+            beginQuarantine(snapshot.identityGeneration)
+        } else if (!quarantined) {
+            lastKnownSafeSnapshot = snapshot
+        }
+        return if (quarantined) unavailableSnapshot() else snapshot
     }
 
     @Synchronized
-    fun write(snapshot: IdentitySnapshot): Boolean {
+    internal fun write(snapshot: IdentitySnapshot): IdentityWriteOutcome {
+        val persistedBefore = readPersistedState()
+        if (!quarantined && persistedBefore.projectionMatches) {
+            lastKnownSafeSnapshot = persistedBefore.snapshot
+        }
         val encoded = runCatching {
             IdentityStateCodec.encode(snapshot)
         }
             .getOrElse {
-                return false
+                return IdentityWriteOutcome.NOT_COMMITTED
             }
         val committed =
             try {
@@ -47,13 +62,30 @@ class IdentityStateStore @Inject constructor(private val appPreferences: AppPref
                     )
                     .commit()
             } catch (_: Exception) {
-                false
+                beginQuarantine(lastKnownSafeSnapshot.identityGeneration)
+                highestObservedGeneration =
+                    maxOf(highestObservedGeneration, snapshot.identityGeneration)
+                return IdentityWriteOutcome.UNCERTAIN
             }
-        if (committed) {
+        if (!committed) {
+            beginQuarantine(lastKnownSafeSnapshot.identityGeneration)
             highestObservedGeneration =
                 maxOf(highestObservedGeneration, snapshot.identityGeneration)
+            return IdentityWriteOutcome.UNCERTAIN
         }
-        return committed
+
+        val persistedAfter = readPersistedState()
+        if (!persistedAfter.projectionMatches || persistedAfter.snapshot != snapshot) {
+            beginQuarantine(lastKnownSafeSnapshot.identityGeneration)
+            highestObservedGeneration =
+                maxOf(highestObservedGeneration, snapshot.identityGeneration)
+            return IdentityWriteOutcome.UNCERTAIN
+        }
+
+        highestObservedGeneration = maxOf(highestObservedGeneration, snapshot.identityGeneration)
+        lastKnownSafeSnapshot = snapshot
+        quarantined = false
+        return IdentityWriteOutcome.COMMITTED
     }
 
     @Synchronized
@@ -61,15 +93,74 @@ class IdentityStateStore @Inject constructor(private val appPreferences: AppPref
         selection: IdentitySelection,
         status: IdentityStateStatus,
     ): IdentitySnapshot {
-        val current = read()
+        val current = readPersistedState().snapshot
         val previous = maxOf(current.identityGeneration, highestObservedGeneration)
         check(previous < Long.MAX_VALUE) { "Identity generation exhausted" }
+        highestObservedGeneration = previous
         return IdentitySnapshot(
             selection = selection,
             identityGeneration = previous + 1L,
             status = status,
         )
     }
+
+    @Synchronized
+    internal fun persistedForTransition(): IdentitySnapshot {
+        val persisted = readPersistedState()
+        highestObservedGeneration =
+            maxOf(highestObservedGeneration, persisted.snapshot.identityGeneration)
+        if (!persisted.projectionMatches) {
+            beginQuarantine(persisted.snapshot.identityGeneration)
+        }
+        return persisted.snapshot
+    }
+
+    @Synchronized internal fun isQuarantined(): Boolean = quarantined
+
+    private fun readPersistedState(): PersistedIdentityState {
+        val encoded = runCatching {
+            appPreferences.sharedPreferences.getString(IDENTITY_STATE_PREFERENCE_KEY, null)
+        }
+            .getOrNull()
+        val snapshot = IdentityStateCodec.decode(encoded) ?: EMPTY_IDENTITY_SNAPSHOT
+        val projectedServer = runCatching {
+            appPreferences.sharedPreferences.getString(
+                appPreferences.currentServer.backendName,
+                null,
+            )
+        }
+            .getOrNull()
+        val projectedOfflineMode = runCatching {
+            appPreferences.sharedPreferences.getBoolean(
+                appPreferences.offlineMode.backendName,
+                false,
+            )
+        }
+            .getOrNull()
+        return PersistedIdentityState(
+            snapshot = snapshot,
+            projectionMatches =
+                projectedServer == snapshot.selection.serverId &&
+                    projectedOfflineMode == snapshot.selection.offlineMode,
+        )
+    }
+
+    private fun beginQuarantine(generation: Long) {
+        quarantineGeneration = generation
+        quarantined = true
+    }
+
+    private fun unavailableSnapshot(): IdentitySnapshot =
+        IdentitySnapshot(
+            selection = IdentitySelection(),
+            identityGeneration = quarantineGeneration,
+            status = IdentityStateStatus.RECOVERING,
+        )
+
+    private data class PersistedIdentityState(
+        val snapshot: IdentitySnapshot,
+        val projectionMatches: Boolean,
+    )
 
     internal companion object {
         val EMPTY_IDENTITY_SNAPSHOT =

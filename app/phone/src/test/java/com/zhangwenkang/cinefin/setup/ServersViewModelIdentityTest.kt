@@ -22,14 +22,18 @@ import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
@@ -117,6 +121,53 @@ class ServersViewModelIdentityTest {
                     .contains(AppPreferences::class.java)
             )
         }
+
+    @Test
+    fun recoveringProjectionDoesNotEmitServerChanged() =
+        runTest(dispatcher) {
+            val serverId = "server-a"
+            val addressId = UUID.randomUUID()
+            val server =
+                ServerWithAddresses(
+                    server =
+                        Server(
+                            id = serverId,
+                            name = "Server A",
+                            currentServerAddressId = addressId,
+                            currentUserId = null,
+                        ),
+                    addresses =
+                        listOf(
+                            ServerAddress(
+                                id = addressId,
+                                serverId = serverId,
+                                address = "https://server-a.example",
+                            )
+                        ),
+                    user = null,
+                )
+            val repository = RecordingSetupRepository(server)
+            val reader =
+                FixedIdentityReadPort(
+                    IdentitySnapshot(
+                        selection = IdentitySelection(offlineMode = true),
+                        identityGeneration = 4L,
+                        status = IdentityStateStatus.READY,
+                    )
+                )
+            val writer = RecordingIdentityWriter(IdentityTransitionResult.RECOVERING)
+            val viewModel = ServersViewModel(repository.repository, reader, writer)
+            val event = async { withTimeoutOrNull(1_000) { viewModel.events.first() } }
+
+            viewModel.loadServers()
+            advanceUntilIdle()
+            viewModel.onAction(ServersAction.OnServerClick(serverId))
+            advanceUntilIdle()
+
+            assertNull(event.await())
+            assertEquals(1, writer.projectionCalls)
+            assertEquals(1, repository.setCurrentServerCalls)
+        }
 }
 
 private class FixedIdentityReadPort(private val snapshot: IdentitySnapshot) : IdentityReadPort {
@@ -125,7 +176,9 @@ private class FixedIdentityReadPort(private val snapshot: IdentitySnapshot) : Id
     override suspend fun current(): IdentitySnapshot = snapshot
 }
 
-private class RecordingIdentityWriter : IdentityWritePort {
+private class RecordingIdentityWriter(
+    private val result: IdentityTransitionResult = IdentityTransitionResult.APPLIED
+) : IdentityWritePort {
     var serverCalls = 0
         private set
 
@@ -149,7 +202,7 @@ private class RecordingIdentityWriter : IdentityWritePort {
                 status = IdentityStateStatus.READY,
             )
         )
-        return IdentityTransitionResult.APPLIED
+        return result
     }
 
     override suspend fun selectAddress(

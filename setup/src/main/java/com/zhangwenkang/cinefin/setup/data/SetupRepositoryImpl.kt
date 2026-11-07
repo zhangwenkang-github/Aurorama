@@ -125,14 +125,27 @@ class SetupRepositoryImpl(
         }
 
     override suspend fun setCurrentServer(serverId: String) {
-        val serverWithAddressAndUser = database.getServerWithAddressAndUser(serverId) ?: return
-        val serverAddress = serverWithAddressAndUser.address ?: return
+        val serverWithAddressAndUser =
+            database.getServerWithAddressAndUser(serverId)
+                ?: throw IllegalStateException("Cannot select server $serverId: server is missing")
+        val serverAddress =
+            serverWithAddressAndUser.address
+                ?: throw IllegalStateException(
+                    "Cannot select server $serverId: current address is missing"
+                )
         val user = serverWithAddressAndUser.user
 
         jellyfinApi.apply {
             api.update(baseUrl = serverAddress.address, accessToken = user?.accessToken)
             userId = user?.id
         }
+        check(jellyfinApi.api.baseUrl == serverAddress.address) {
+            "Server projection baseUrl mismatch for $serverId"
+        }
+        check(jellyfinApi.api.accessToken == user?.accessToken) {
+            "Server projection accessToken mismatch for $serverId"
+        }
+        check(jellyfinApi.userId == user?.id) { "Server projection userId mismatch for $serverId" }
     }
 
     override suspend fun addServer(address: String): Server {

@@ -15,12 +15,16 @@ class IdentityWriteCoordinator @Inject constructor(private val store: IdentitySt
     private val intentSequence = AtomicLong(0L)
 
     @Volatile private var cachedSnapshot: IdentitySnapshot? = null
+    @Volatile private var quarantinedSnapshot: IdentitySnapshot? = null
 
     override suspend fun hydrate(): IdentitySnapshot = transitionMutex.withLock {
-        store.read().also { snapshot -> cachedSnapshot = snapshot }
+        val snapshot = quarantinedSnapshot ?: store.read()
+        cachedSnapshot = snapshot
+        snapshot
     }
 
-    override suspend fun current(): IdentitySnapshot = cachedSnapshot ?: hydrate()
+    override suspend fun current(): IdentitySnapshot =
+        quarantinedSnapshot ?: cachedSnapshot ?: hydrate()
 
     override suspend fun selectServer(
         selection: IdentitySelection,
@@ -87,17 +91,26 @@ class IdentityWriteCoordinator @Inject constructor(private val store: IdentitySt
                 return@withLock IdentityTransitionResult.STALE_DISCARDED
             }
 
-            val persisted = store.read().also { cachedSnapshot = it }
-            when {
-                persisted.status == IdentityStateStatus.READY &&
-                    persisted.selection == selection -> {
-                    return@withLock IdentityTransitionResult.NO_OP
-                }
-                persisted.status == IdentityStateStatus.RECOVERING &&
-                    persisted.selection == selection -> {
-                    // Retry the projection without advancing generation.
-                }
-                else -> {
+            val previousVisible = store.read().also { cachedSnapshot = it }
+            val wasQuarantined = store.isQuarantined()
+            if (wasQuarantined && quarantinedSnapshot == null) {
+                quarantinedSnapshot = previousVisible
+            }
+            val persisted = store.persistedForTransition()
+            val sameSelection = persisted.selection == selection
+            val readyNoOp =
+                !wasQuarantined &&
+                    quarantinedSnapshot == null &&
+                    sameSelection &&
+                    persisted.status == IdentityStateStatus.READY
+            if (readyNoOp && projection === IdentityProjection.None) {
+                return@withLock IdentityTransitionResult.NO_OP
+            }
+
+            val candidate =
+                if (sameSelection) {
+                    persisted
+                } else {
                     val recovering = runCatching {
                         store.nextSnapshot(
                             selection = selection,
@@ -105,14 +118,25 @@ class IdentityWriteCoordinator @Inject constructor(private val store: IdentitySt
                         )
                     }
                         .getOrNull()
-                    if (recovering == null || !store.write(recovering)) {
+                    if (recovering == null) {
                         cachedSnapshot = store.read()
                         return@withLock IdentityTransitionResult.FAILED
                     }
-                    cachedSnapshot = recovering
+                    when (store.write(recovering)) {
+                        IdentityWriteOutcome.COMMITTED -> {
+                            store.persistedForTransition().also { cachedSnapshot = it }
+                        }
+                        IdentityWriteOutcome.NOT_COMMITTED -> {
+                            cachedSnapshot = store.read()
+                            return@withLock IdentityTransitionResult.FAILED
+                        }
+                        IdentityWriteOutcome.UNCERTAIN -> {
+                            enterProcessQuarantine(store.read())
+                            return@withLock IdentityTransitionResult.RECOVERING
+                        }
+                    }
                 }
-            }
-            val candidate = store.read().also { cachedSnapshot = it }
+            cachedSnapshot = candidate
             if (intent != intentSequence.get()) {
                 return@withLock IdentityTransitionResult.STALE_DISCARDED
             }
@@ -125,31 +149,57 @@ class IdentityWriteCoordinator @Inject constructor(private val store: IdentitySt
                 if (intent != intentSequence.get()) {
                     return@withLock IdentityTransitionResult.STALE_DISCARDED
                 }
-                cachedSnapshot = candidate
+                if (candidate.status == IdentityStateStatus.READY) {
+                    val recovery = candidate.copy(status = IdentityStateStatus.RECOVERING)
+                    when (store.write(recovery)) {
+                        IdentityWriteOutcome.COMMITTED -> cachedSnapshot = recovery
+                        IdentityWriteOutcome.NOT_COMMITTED,
+                        IdentityWriteOutcome.UNCERTAIN -> {
+                            enterProcessQuarantine(previousVisible)
+                        }
+                    }
+                } else {
+                    refreshVisibleSnapshot(candidate)
+                }
                 return@withLock IdentityTransitionResult.RECOVERING
             }
             if (intent != intentSequence.get()) {
                 return@withLock IdentityTransitionResult.STALE_DISCARDED
             }
 
-            val persistedBeforeReady = store.read()
-            if (
-                persistedBeforeReady.status != IdentityStateStatus.RECOVERING ||
-                    persistedBeforeReady.identityGeneration != candidate.identityGeneration ||
-                    persistedBeforeReady.selection != candidate.selection
-            ) {
-                cachedSnapshot = persistedBeforeReady
-                return@withLock IdentityTransitionResult.STALE_DISCARDED
+            if (readyNoOp) {
+                cachedSnapshot = candidate
+                return@withLock IdentityTransitionResult.NO_OP
             }
 
-            val ready = persistedBeforeReady.copy(status = IdentityStateStatus.READY)
-            if (store.write(ready)) {
-                cachedSnapshot = ready
-                IdentityTransitionResult.APPLIED
-            } else {
-                cachedSnapshot = persistedBeforeReady
-                IdentityTransitionResult.RECOVERING
+            val ready = candidate.copy(status = IdentityStateStatus.READY)
+            when (store.write(ready)) {
+                IdentityWriteOutcome.COMMITTED -> {
+                    quarantinedSnapshot = null
+                    cachedSnapshot = ready
+                    IdentityTransitionResult.APPLIED
+                }
+                IdentityWriteOutcome.NOT_COMMITTED,
+                IdentityWriteOutcome.UNCERTAIN -> {
+                    enterProcessQuarantine(store.read())
+                    IdentityTransitionResult.RECOVERING
+                }
             }
         }
+    }
+
+    private fun refreshVisibleSnapshot(snapshot: IdentitySnapshot) {
+        cachedSnapshot = quarantinedSnapshot ?: snapshot
+    }
+
+    private fun enterProcessQuarantine(base: IdentitySnapshot) {
+        val unavailable =
+            IdentitySnapshot(
+                selection = IdentitySelection(),
+                identityGeneration = base.identityGeneration,
+                status = IdentityStateStatus.RECOVERING,
+            )
+        quarantinedSnapshot = unavailable
+        cachedSnapshot = unavailable
     }
 }
