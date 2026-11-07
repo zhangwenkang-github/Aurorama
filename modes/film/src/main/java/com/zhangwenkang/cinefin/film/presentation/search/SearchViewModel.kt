@@ -59,9 +59,7 @@ constructor(
         catalogGuard.invalidate()
         currentJob = viewModelScope.launch {
             if (query.isBlank()) {
-                completedRequest = null
-                completedScope = null
-                completedScopeResolved = false
+                clearCompletedRequest()
                 _state.emit(SearchState(loading = false, scope = scope))
                 return@launch
             }
@@ -71,6 +69,7 @@ constructor(
                 val currentAtStart = catalogReadPort.currentScope()
                 if (catalogGuard.start(requestGeneration, requestedScope, currentAtStart).not()) {
                     if (catalogGuard.isCurrent(requestGeneration)) {
+                        clearCompletedRequest()
                         _state.emit(
                             SearchState(
                                 loading = false,
@@ -84,6 +83,7 @@ constructor(
                     return@launch
                 }
                 if (!catalogGuard.isScopeStarted(requestGeneration)) {
+                    clearCompletedRequest()
                     _state.emit(
                         SearchState(
                             loading = false,
@@ -98,6 +98,7 @@ constructor(
                 val frozenScope =
                     requestedScope
                         ?: run {
+                            clearCompletedRequest()
                             _state.emit(
                                 SearchState(
                                     loading = false,
@@ -150,6 +151,7 @@ constructor(
                         currentScope,
                     )
                 ) {
+                    clearCompletedRequest()
                     _state.emit(
                         SearchState(
                             loading = false,
@@ -161,6 +163,13 @@ constructor(
                     )
                     return@launch
                 }
+                if (outcome.serverFailed && outcome.localFailed) {
+                    clearCompletedRequest()
+                } else {
+                    completedRequest = request
+                    completedScope = frozenScope
+                    completedScopeResolved = true
+                }
                 _state.emit(
                     SearchState(
                         results = outcome.results,
@@ -171,12 +180,10 @@ constructor(
                         localFailed = outcome.localFailed,
                     )
                 )
-                completedRequest = request
-                completedScope = frozenScope
-                completedScopeResolved = true
             } catch (_: CancellationException) {} catch (_: Exception) {
                 if (!catalogGuard.isCurrent(requestGeneration)) return@launch
                 if (!catalogGuard.isScopeStarted(requestGeneration)) {
+                    clearCompletedRequest()
                     _state.emit(
                         SearchState(
                             loading = false,
@@ -190,6 +197,7 @@ constructor(
                 }
                 val currentScope = runCatching { catalogReadPort.currentScope() }.getOrNull()
                 if (!catalogGuard.accepts(requestGeneration, null, currentScope)) {
+                    clearCompletedRequest()
                     _state.emit(
                         SearchState(
                             loading = false,
@@ -201,6 +209,7 @@ constructor(
                     )
                     return@launch
                 }
+                clearCompletedRequest()
                 _state.emit(
                     SearchState(
                         loading = false,
@@ -220,9 +229,7 @@ constructor(
                 if (action.query == _state.value.query) return
                 currentJob?.cancel()
                 catalogGuard.invalidate()
-                completedRequest = null
-                completedScope = null
-                completedScopeResolved = false
+                clearCompletedRequest()
                 savedStateHandle[SEARCH_QUERY_KEY] = action.query
                 _state.value =
                     _state.value.copy(
@@ -237,9 +244,7 @@ constructor(
                 if (action.scope == _state.value.scope) return
                 currentJob?.cancel()
                 catalogGuard.invalidate()
-                completedRequest = null
-                completedScope = null
-                completedScopeResolved = false
+                clearCompletedRequest()
                 savedStateHandle[SEARCH_SCOPE_KEY] = action.scope.name
                 _state.value =
                     _state.value.copy(
@@ -257,6 +262,12 @@ constructor(
                 search(query = _state.value.query, scope = _state.value.scope, force = true)
             else -> Unit
         }
+    }
+
+    private fun clearCompletedRequest() {
+        completedRequest = null
+        completedScope = null
+        completedScopeResolved = false
     }
 
     private companion object {

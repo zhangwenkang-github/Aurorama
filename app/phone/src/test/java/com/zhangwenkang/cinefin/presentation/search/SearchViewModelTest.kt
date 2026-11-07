@@ -245,6 +245,77 @@ class SearchViewModelTest {
         }
 
     @Test
+    fun `W1A-P3-COMPLETED-MARKER 跨 scope 失败后返回原 scope 必须重新搜索`() =
+        runTest(mainDispatcher.scheduler) {
+            val queuedScopes = mutableListOf<CatalogScope>()
+            var scopeReads = 0
+            var serverSearchCalls = 0
+            var localSearchCalls = 0
+            var downloadCalls = 0
+            val viewModel =
+                viewModel(
+                    currentScope = {
+                        scopeReads += 1
+                        if (queuedScopes.isNotEmpty()) {
+                            queuedScopes.removeAt(0)
+                        } else {
+                            ALICE_SCOPE
+                        }
+                    },
+                    onServerSearch = {
+                        serverSearchCalls += 1
+                        available(listOf(folder("sample-server")))
+                    },
+                    onLocalSearch = {
+                        localSearchCalls += 1
+                        listOf(localHit("sample-local"))
+                    },
+                    onDownloads = {
+                        downloadCalls += 1
+                        listOf(downloadRecord("sample-download"))
+                    },
+                )
+
+            viewModel.onAction(SearchAction.UpdateQuery("sample"))
+            viewModel.onAction(SearchAction.Search("sample"))
+            viewModel.state.first { it.query == "sample" && !it.loading && it.results.size == 3 }
+            viewModel.currentJob?.join()
+
+            queuedScopes += ALICE_SCOPE
+            queuedScopes += BOB_SCOPE
+            viewModel.onAction(SearchAction.Search("sample"))
+            viewModel.currentJob?.join()
+            val crossScopeFailure = viewModel.state.value
+
+            assertEquals(5, scopeReads)
+            assertEquals(1, serverSearchCalls)
+            assertEquals(1, localSearchCalls)
+            assertEquals(1, downloadCalls)
+            assertTrue(crossScopeFailure.serverFailed)
+            assertTrue(crossScopeFailure.localFailed)
+            assertTrue(crossScopeFailure.results.isEmpty())
+
+            viewModel.onAction(SearchAction.Search("sample"))
+            viewModel.currentJob?.join()
+            val recoveredState = viewModel.state.value
+
+            assertEquals(8, scopeReads)
+            assertEquals(2, serverSearchCalls)
+            assertEquals(2, localSearchCalls)
+            assertEquals(2, downloadCalls)
+            assertFalse(recoveredState.serverFailed)
+            assertFalse(recoveredState.localFailed)
+            assertEquals(
+                listOf("sample-server"),
+                recoveredState.serverItems.map { it.name },
+            )
+            assertEquals(
+                listOf("sample-local"),
+                recoveredState.localItems.map { it.entry.name },
+            )
+        }
+
+    @Test
     fun `同 scope 同 query 完成态重触发仍走 early return`() =
         runTest(mainDispatcher.scheduler) {
             var scopeReads = 0

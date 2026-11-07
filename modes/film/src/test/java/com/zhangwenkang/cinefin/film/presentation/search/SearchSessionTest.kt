@@ -27,6 +27,31 @@ import org.junit.Test
 class SearchSessionTest {
 
     @Test
+    fun `W1A-P3-LOCAL-ONLY-REGRESSION 服务器失败只标记 serverFailed 并保留本地结果`() = runBlocking {
+        val local = hit("sample.mp3", LocalMediaKind.MUSIC)
+        var received: SearchRequest? = null
+
+        val outcome =
+            executeSearch(
+                SearchRequest(query = "sample", scope = SearchScope.MUSIC),
+                serverSearch = { throw IllegalStateException("server down") },
+                localSearch = {
+                    received = it
+                    listOf(local)
+                },
+                scope = ALICE_SCOPE,
+            )
+
+        assertTrue(outcome.serverFailed)
+        assertFalse(outcome.localFailed)
+        assertEquals(emptyList<FindroidItem>(), outcome.serverItems)
+        assertEquals(listOf(local), outcome.localItems)
+        assertEquals(1, outcome.results.size)
+        assertTrue(outcome.results.single() is SearchResult.LocalLibrary)
+        assertEquals(SearchRequest("sample", SearchScope.MUSIC), received)
+    }
+
+    @Test
     fun `服务器身份不可用时本地和下载结果都不落地`() = runBlocking {
         val local = hit("sample.mp3", LocalMediaKind.MUSIC)
         val download = downloadRecord(name = "sample.flac", kind = DownloadMediaKind.MUSIC)
