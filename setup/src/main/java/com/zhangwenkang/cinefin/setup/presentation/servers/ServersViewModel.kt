@@ -2,7 +2,10 @@ package com.zhangwenkang.cinefin.setup.presentation.servers
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.identity.IdentityReadPort
+import com.zhangwenkang.cinefin.identity.IdentitySelection
+import com.zhangwenkang.cinefin.identity.IdentityTransitionResult
+import com.zhangwenkang.cinefin.identity.IdentityWritePort
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -16,8 +19,11 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class ServersViewModel
 @Inject
-constructor(private val repository: SetupRepository, private val appPreferences: AppPreferences) :
-    ViewModel() {
+constructor(
+    private val repository: SetupRepository,
+    private val identityReadPort: IdentityReadPort,
+    private val identityWritePort: IdentityWritePort,
+) : ViewModel() {
     private val _state = MutableStateFlow(ServersState())
     val state = _state.asStateFlow()
 
@@ -47,11 +53,27 @@ constructor(private val repository: SetupRepository, private val appPreferences:
 
     private fun setCurrentServer(serverId: String) {
         viewModelScope.launch {
-            repository.setCurrentServer(serverId)
-
-            appPreferences.setValue(appPreferences.currentServer, serverId)
-
-            eventsChannel.send(ServersEvent.ServerChanged)
+            val server =
+                _state.value.servers.firstOrNull { server -> server.server.id == serverId }
+                    ?: return@launch
+            val currentIdentity = identityReadPort.current()
+            val selection =
+                IdentitySelection(
+                    serverId = serverId,
+                    userId = server.user?.id?.toString(),
+                    addressId =
+                        (server.server.currentServerAddressId ?: server.addresses.firstOrNull()?.id)
+                            ?.toString(),
+                    offlineMode = currentIdentity.selection.offlineMode,
+                )
+            val result =
+                identityWritePort.selectServer(selection) { repository.setCurrentServer(serverId) }
+            if (
+                result == IdentityTransitionResult.APPLIED ||
+                    result == IdentityTransitionResult.NO_OP
+            ) {
+                eventsChannel.send(ServersEvent.ServerChanged)
+            }
         }
     }
 

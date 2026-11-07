@@ -548,3 +548,7 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
         editor.apply()
     }
 }
+
+interface OfflineModeWritePort {
+    suspend fun setOfflineMode(enabled: Boolean)
+}
