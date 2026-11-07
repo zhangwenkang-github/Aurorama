@@ -7,6 +7,7 @@
 > PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
 > FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 > ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
+> IDENTITY_CATALOG_TASK_CARD=TASK_CARD_FROZEN_PENDING_ROOT_REVIEW /
 > A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 > G0_PASSED / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 > PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
@@ -22,8 +23,9 @@
 > 并以 source/final stable patch-id MATCH 集成到 clean integration HEAD
 > `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
 > 实际产品架构重构仍为 `NOT_PROVEN`，contracts seam / 消费者迁移未落地。当前长期关键路径
-> 先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；W1–W5 功能波在对应 `PREREQUISITE_SEAMS`
-> 达到 `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 前不得开工。
+> 先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；其自包含任务卡已冻结待 root review，
+> 尚无产品源码实现证据。W1–W5 功能波在对应 `PREREQUISITE_SEAMS` 达到
+> `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 前不得开工。
 > `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 仅为
 > `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`，可独立派发但不挡主线、不计 seam 进度，
 > 仅两文件且无缺陷即停止。设备、独立 QA 与 Release 仍需单独批准。
@@ -31,8 +33,8 @@
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
 > `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
-> `last_evidence=fee63165 clean integration + A0 integration ab917404 +
-> docs/ARCHITECTURE.md §0.1/§0.8 + docs/TASKS.md Architecture Critical Path`。
+> `last_evidence=d85f695b clean integration + A0 integration ab917404 +
+> docs/TASKS.md W1 冻结任务卡 + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
 > 下方 `PAD_RUNTIME...` 与 64/65 段只作旧 G2 控制面 HISTORY，不得恢复执行循环。
 >
 > **HISTORY（2026-11-07 前；非当前状态）** 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / PAD_QA_PROMPT_DESCRIPTOR_READY_PENDING_FRESH_REVIEW / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / HISTORICAL_PRE_HANDOFF_AUDIT_PASS=PASS / HISTORICAL_OUTER_HANDOFF_QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64=AUDIT_SNAPSHOT_ONLY / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`。其中
@@ -3484,6 +3486,7 @@ W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED /
 PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
 FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
+IDENTITY_CATALOG_TASK_CARD=TASK_CARD_FROZEN_PENDING_ROOT_REVIEW /
 A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 W0=ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED /
 DO_NOT_RESUME_OLD_HANDOFF_LOOP / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
@@ -3497,8 +3500,8 @@ TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；�
 V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
 `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
-`last_evidence=fee63165 clean integration + A0 integration ab917404 +
-docs/ARCHITECTURE.md §0.1/§0.8 + docs/TASKS.md Architecture Critical Path`。
+`last_evidence=d85f695b clean integration + A0 integration ab917404 +
+docs/TASKS.md W1 冻结任务卡 + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
 
 **架构执行事实**：外部架构原始材料第 154–286 行已归一为
 `V2-REQ-ARCH-001～072`，并已由用户接受；G1-S1 冻结了 19 条 project 边、0 个模块级环、
@@ -3510,10 +3513,12 @@ docs/ARCHITECTURE.md §0.1/§0.8 + docs/TASKS.md Architecture Critical Path`。
 ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`；模块级无环不等于低耦合，7 个 P1 违规、
 contracts seam 与消费者迁移仍未落地；A0 owner guard / debt ratchet 已落地，但不消除
 既有违规。用户已于 2026-11-07 确认 v2.0 基线和架构优先方向；`V2-D213` / `R035` 把
-“按 seam 纵向闭环再扩功能”固定为硬门。下一步不是直接派 W1 功能波，而是先派全新
-`ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 冻结
-`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡并在同一 owner 边界内实现。W0 仅作独立探针；
-guard 集成不代表产品重构完成。
+“按 seam 纵向闭环再扩功能”固定为硬门。一次性任务卡 owner 已在 clean
+`d85f695b` 上冻结 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的自包含任务卡，当前状态为
+`TASK_CARD_FROZEN_PENDING_ROOT_REVIEW`；本轮没有写产品源码、测试、Gradle、QA evidence
+或 Memory。下一步只能由 root review 任务卡，再另行派全新 implementation owner；
+`V2-NON-TTS-W1` 仍 `BLOCKED_BY_PREREQUISITES`。W0 仅作独立探针；guard 集成不代表产品
+重构完成。
 
 **A0 integration 事实**：source
 `a787b683c89389491099ea7acb069422190327c3`（parent
@@ -3553,7 +3558,7 @@ membership / 560 条边；外部 `445` source、`376` MVP 子项、D203 addendum
 
 | Seam ID | 状态 | 必须先于 |
 |---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `NEXT_PLANNED` | W1 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW` | W1 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | W2 |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | W3 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | W4 正文实现 |
@@ -3773,13 +3778,17 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
   立即拆卡并停止；任何 TTS/G2 需求出现即退出本波。
 - TTS 关系：无。
 
-**当前唯一架构主线入口**：root 派全新
-`ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 承接
-`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`。该 owner 首条只读动作固定为
-`git status --short` / `git rev-parse HEAD`；随后从冻结的 clean integration SHA 建立
-独立 worktree，先产出包含目标、至少两项非目标、精确文件 / 接口白名单、依赖、
-可观察验收、完整 seam DoD、测试命令、风险与停止条件的自包含 seam 任务卡。用户已批准
-架构优先方向，owner 不需要重复询问方向；任务卡冻结后，同一 owner 可在边界内进入实现。
+**当前唯一架构主线入口**：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的任务卡已冻结为
+`TASK_CARD_FROZEN_PENDING_ROOT_REVIEW`；完整内容只维护在
+`docs/TASKS.md` 的 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1 冻结任务卡`，本文不复抄白名单。
+首个纵向切片为 `ICS-W1A-SCOPED-SEARCH-SNAPSHOT`，只覆盖搜索目录读、online / offline
+adapter、SWR freshness 与 Search consumer；账号 / preference 写入单 writer、其他
+catalog readers、offline namespace、权限与 durable fence 留给后续子波。
+
+root review 前不得派实现。review PASS 后，root 另行创建全新
+`AURORAMA_V2_IDENTITY_CATALOG_W1A_IMPLEMENTATION_OWNER_2026_11_07`，首条只读动作固定为
+`git status --short` / `git rev-parse HEAD`；实现 owner 只做自身 TDD、构建与实现报告，
+不得自开 QA 或 merge-prep。
 
 Identity/Catalog seam 必须先完成 `CONTRACT_FROZEN -> ADAPTER_IMPLEMENTED ->
 TARGET_CONSUMERS_MIGRATED -> OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH ->
@@ -6771,7 +6780,8 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   下一步由 root 决定是否派全新实现 owner，其首动作仍为固定 clean SHA 上的当前复现，
   无缺陷即 `NO_DEFECT_REPRODUCED` 停止。A0 guard 集成不等于产品架构重构、G1、Q03、
   产品 QA、runtime 或 Release PASS。
-- **2026-11-07 — 架构 seam 关键路径 / 长期执行账本 / 派单交接门固化**：全新一次性
+- **HISTORY（已被下条 W1 任务卡冻结取代）— 2026-11-07 — 架构 seam 关键路径 /
+  长期执行账本 / 派单交接门固化**：全新一次性
   `AURORAMA_V2_ARCH_SEAM_DELIVERY_PLANNING_OWNER_2026_11_07` 从 clean integration
   `fee63165f966a52318e332abe1ad7b184592a88a` 创建 docs-only candidate。用户确认架构优先，
   但不是“功能开发时顺便重构”：新增 `V2-D213`、`R035`、`L041`，把 Identity/Catalog、
@@ -6781,11 +6791,33 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   seam Done 统一为八状态链；交接固定列出
   `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`。W0 改为
   `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`，仅两文件、无缺陷即停止，不挡 W1 主线。
-  当前唯一架构入口改为全新 `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 先冻结
-  `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡，任务卡冻结后同一 owner 可在边界内实现。
+  当时唯一架构入口为全新 `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 先冻结
+  `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡；该“同一 owner 冻结后实现”语义已由下条
+  当前状态取代，现为 root review 后另派 fresh implementation owner。
   本轮只改 `AGENTS.md` 与七个既有权威 docs；未写产品 / tests / tools / Gradle / Memory /
   QA evidence，未运行 Gradle / ADB / 设备 / 网络 / 服务器 / 产品 QA / runtime / Release，
   未 push / tag / fetch，未移动正式 integration。产品源码自 G1-S1
   `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc` 至 `fee63165` 变化仍为 0，11 违规
   P1/P2/P3=`7/3/1`、`ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`、pipeline/runtime/Release
   状态均未提升；产品 P0–P3 未因 docs gate 评估。
+- **2026-11-07 — Identity/Catalog W1 自包含任务卡冻结待 root review**：全新一次性
+  `AURORAMA_V2_IDENTITY_CATALOG_SEAM_TASK_CARD_OWNER_2026_11_07` 从 clean integration
+  `d85f695b9ba1a220d85d529388769a7ad81b76e8` 创建 docs-only worktree。静态诊断用
+  graphify `query` / `explain` / `path` 与定向 `rg` 确认：`JellyfinRepository`、
+  `MetadataCache` / `MetadataSnapshotSwr` / `MetadataSnapshotStore`、`SearchScope`、
+  `AppPreferences` 与 `JellyfinApi.userId` 当前分别承担部分身份、generation、stale 与
+  catalog 读取职责；生产 `getSearchItems` 只有 `SearchViewModel` 一个消费者，offline
+  版本还忽略 `SearchScope`。因此首个纵向切片冻结为
+  `ICS-W1A-SCOPED-SEARCH-SNAPSHOT`，复用既有 `JellyfinOrigin` 与 snapshot store，只迁移
+  搜索目录读、online / offline adapter、SWR freshness 与 Search consumer；账号切换写入、
+  其他 metadata / image / music 消费者、offline namespace、权限与 durable fence 明确留在
+  后续子波。
+  完整目标、至少五项非目标、精确 8 源码 + 5 测试白名单、contract / port FQCN、目标消费者、
+  八状态父 DoD、slice-local 退出、负例、测试命令、风险、回滚、停止条件、双路径删除证据与
+  首个 implementation owner 读序均写入 `docs/TASKS.md`。当前状态固定为
+  `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW`；父 W1 无实现证据，
+  `V2-NON-TTS-W1` 仍 `BLOCKED_BY_PREREQUISITES`，11 违规 P1/P2/P3=`7/3/1` 与
+  `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` 不变。
+  本轮只改 `docs/TASKS.md`、`docs/V2_PLAN.md`、`docs/ARCHITECTURE.md`，未写产品源码 /
+  tests / Gradle / settings / tools / Memory / QA evidence，未运行 Gradle / ADB / 设备 /
+  网络 / 服务器 / 产品 QA / runtime / Release，未 push / tag / fetch，未移动 integration。

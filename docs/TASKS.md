@@ -21,12 +21,13 @@
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
 > `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
-> `last_evidence=fee63165 clean integration + A0 integration ab917404 +
-> docs/ARCHITECTURE.md §0.1/§0.8 + 本账本`。
+> `last_evidence=d85f695b clean integration + A0 integration ab917404 +
+> docs/TASKS.md W1 冻结任务卡 + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
 >
-> 当前没有已启动的产品实现任务。下一步由全新
-> `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 先冻结 W1 Identity/Catalog 任务卡，再在
-> 同一 owner 的边界内实现。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 可作独立探针，但状态为
+> 当前没有已启动的产品实现任务。`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的自包含任务卡已冻结为
+> `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW`；root review 前不得实现。`V2-NON-TTS-W1` 仍保持
+> `BLOCKED_BY_PREREQUISITES`，直到完整 seam DoD 通过。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
+> 可作独立探针，但状态为
 > `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`；仅两文件，无缺陷即
 > `NO_DEFECT_REPRODUCED` 停止，不挡架构主线，也不计作 seam 进度。
 
@@ -38,7 +39,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `NEXT_PLANNED` | 无 | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `CONTRACT_FROZEN`；任务卡冻结后启动 | 架构方向已确认，但尚无自包含 seam 任务卡、源码、契约 / 回归测试、QA 或集成证据 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `ROOT_REVIEW_TASK_CARD` -> `CONTRACT_FROZEN` | 任务卡已冻结待 root review；尚无产品源码、契约执行、回归测试、QA 或集成证据 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -62,6 +63,364 @@ DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
 | `V2-NON-TTS-W3` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`、`V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2`、`V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` |
 | `V2-NON-TTS-W4` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`、`V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2`、`V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` |
 | `V2-NON-TTS-W5` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`、`V2-ARCH-SEAM-USER-WRITE-W5` | `BLOCKED_BY_PREREQUISITES` |
+
+### `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 冻结任务卡
+
+- ID：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`
+- 状态：`TASK_CARD_FROZEN_PENDING_ROOT_REVIEW`
+- 冻结基线：clean `codex/v2-integration` /
+  `d85f695b9ba1a220d85d529388769a7ad81b76e8`
+- 约束：`V2-D213`、`R035`、`L041`；
+  `ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO`
+- `PREREQUISITE_SEAMS=NONE`。`G1-S3`、`G1-BASE-001`、`G1-BASE-003` 是静态输入合同，
+  不是 seam 完成证据；A0 guard 只防债务。
+- 本任务卡只冻结边界与执行卡；`V2-NON-TTS-W1` 继续保持 `BLOCKED_BY_PREREQUISITES`，
+  直到父 seam 八状态 DoD 全部通过。当前不得宣告实现完成、父 seam 收口、QA `PASS` 或
+  integrated `PASS`。
+
+#### 目标与用户可观察不变量
+
+父 seam 目标：把当前分散的 server / user / auth / preference / DB namespace / cache
+身份收敛到 canonical `Scope / Identity` 合同；让目标消费者只依赖声明的 public port；
+身份变化、离线、缓存 generation 与 stale snapshot 均不能把另一账号内容投到当前界面。
+
+首个切片必须满足：
+
+1. 一次在线搜索只绑定一个 `CatalogScope`：同一请求中的服务器、用户、凭据、请求资源、
+   in-memory cache、disk snapshot 与返回快照必须属于该 scope。
+2. 同一 server/user/context/query/scope 的重复读取可使用同一缓存；server、user、
+   principal context、查询域或 generation 任一不同都不得复用。
+3. 请求期间当前 scope 改变时，旧结果不得提交、不得覆盖新 generation，也不得由
+   `SearchViewModel` 发到界面。
+4. 在线 cache / disk hit 是陈旧但可容纳的数据时，public port 必须返回显式 `STALE`；
+   网络成功或无陈旧数据的本地查询不得伪装为 `STALE`。
+5. 离线目录读只能使用保存的当前账号身份和当前范围；没有完整身份时
+   `IDENTITY_UNAVAILABLE`，不得回退到匿名、另一 server 或另一 user。
+6. `SearchViewModel` 不再分别读取 `AppPreferences.currentServer` 与
+   `JellyfinRepository.getUserId()` 猜测身份；旧 `getSearchItems` 搜索路径必须删除。
+
+#### 非目标
+
+1. 不重构 `JellyfinRepository` 全部方法，不把所有 metadata / image / music / download /
+   reader / playback 消费者一次迁移到新 seam。
+2. 不改 Room schema、数据迁移、下载 sidecar、Worker、通知、导航宿主、公共 UI、theme、
+   `settings.gradle.kts`、根 build 或依赖目录。
+3. 不实现跨进程 durable generation、304/ETag、完整 10 状态 freshness 机、401/403
+   stale-if-error、eviction / pin / prefetch 策略或完整 BASE-003 运行时验收。
+4. 不改账号切换写入事务；首个切片只在读侧 fail-closed，身份写入单写者留给 `ICS-W1B`。
+5. 不做搜索排序、跨源混排、视觉、设备、网络服务器或 Release 工作；本切片不产生
+   UI 截图或 runtime 证据。
+
+#### 首个纵向切片
+
+- ID：`ICS-W1A-SCOPED-SEARCH-SNAPSHOT`
+- 名称：`Scoped Search Catalog Snapshot`
+- 目的：只迁移服务器搜索这一条真实读路径，使 online / offline adapter、
+  `MetadataCache`、`MetadataSnapshotStore` / SWR 与 `SearchViewModel` 通过同一
+  `CatalogScope` 和显式 generation 闭环。
+- 为什么先做：静态调用图显示生产 `getSearchItems` 只有
+  `SearchViewModel` 一个调用方；底层已有 search cache key、snapshot store、SWR 与
+  origin-bound client 锚点。爆炸半径小于首页、详情、图片、下载或播放，并能真实证明
+  “同 scope 读取、切号拒绝旧结果、离线不跨域”。
+- 复用既有 canonical 身份 DTO：`com.zhangwenkang.cinefin.repository.JellyfinOrigin`
+  已表达 serverId + UUID userId，并已有 `OriginScopedJellyfinRepository` 使用先例；
+  本切片不得另造与之等价的第二份 server/user DTO。
+
+#### 当前身份 / 缓存 / 目录静态事实
+
+| 维度 | 当前锚点 | 已识别缺口 |
+|---|---|---|
+| 当前 server | `AppPreferences.currentServer` | 与 user/auth 分步写入，不是原子 scope |
+| 当前 user | `JellyfinApi.userId`；DB `servers.currentUserId` 指向 saved user | 读取路径混用内存 API 与 DB current user |
+| auth / address | `JellyfinApi.api.accessToken/baseUrl`；DB user / address | singleton 可变；搜索当前没有显式绑定 origin client |
+| canonical origin 锚点 | `JellyfinOrigin` + `bindOrigin` | 现有消费主要是下载 origin，搜索尚未使用 |
+| cache namespace | `MetadataNamespace(serverId, userId.toString())` | 由 `AppPreferences` 与 `JellyfinApi.userId` 动态拼接 |
+| cache generation | `MetadataFence.contentGeneration`；`invalidateAll` 只递增当前 namespace | generation 是进程内 `HashMap`，不是 durable fence |
+| disk snapshot | `MetadataSnapshotStore` envelope 含 server/user/key/generation/timestamps/payload | 未含 principal context、完整 BASE-003 query shape 或外部 freshness |
+| SWR | `MetadataSnapshotSwr` memory -> disk -> network，stale 可先返回并后台刷新 | 当前返回值只有 payload，没有向调用方暴露 `FRESH/STALE` |
+| search key | `search:<SearchScope>:<trim/lowercase term>` | 对当前 endpoint 已区分域，但不是完整 BASE-003 canonical key |
+| online search | `JellyfinRepositoryImpl.getSearchItems` -> `MetadataCache` / `MetadataSnapshotSwr` | 抓取使用 singleton `jellyfinApi.userId`；没有 origin-bound request |
+| offline search | `JellyfinRepositoryOfflineImpl.getSearchItems` 按 serverId 查 Room | 忽略 `SearchScope`；userData 使用当前 singleton `jellyfinApi.userId` |
+| consumer identity | `SearchNamespace` + `SearchNamespaceGuard` | 复制 server/user DTO；server 与 user 分两次读取 |
+
+graphify 定向证据（只作导航，不作实现证据）：`JellyfinRepository` 为 175 度节点；
+`AppPreferences -> JellyfinRepositoryImpl -> MetadataCache` 为 2 hop；
+`MetadataCache -> MetadataSnapshotSwr -> MetadataSnapshotStore` 为 2 hop；
+`SearchViewModel -> JellyfinRepository` 为 1 hop。
+
+#### Contract / public port
+
+全部位于 `:data` 模块。首个切片语义冻结如下；root review 后实现 owner 才可创建符号：
+
+| 符号 | 真实 FQCN | 冻结字段 / 语义 |
+|---|---|---|
+| scope DTO | `com.zhangwenkang.cinefin.repository.JellyfinOrigin` | 既有 `serverId: String + userId: UUID`；非空 serverId；不得复制 |
+| scope | `com.zhangwenkang.cinefin.repository.catalog.CatalogScope` | `origin: JellyfinOrigin` + `principalContext: CatalogPrincipalContext` |
+| principal context | `com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext` | `ONLINE_ACCOUNT` / `SAVED_OFFLINE_ACCOUNT`；无名回退禁止 |
+| query | `com.zhangwenkang.cinefin.repository.catalog.CatalogSearchQuery` | `term: String` + `scope: SearchScope` |
+| freshness | `com.zhangwenkang.cinefin.repository.catalog.CatalogFreshness` | `FRESH` / `STALE` / `LOCAL_QUERY`；不得把本地查询标成服务器新鲜 |
+| snapshot | `com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot<T>` | `scope`、`contentGeneration: Long`、`freshness`、`observedAtEpochMs: Long`、`value: T` |
+| outcome | `com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome<T>` | `Available(snapshot)` / `IdentityUnavailable`；其他异常继续显式失败 |
+| public port | `com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort` | `suspend fun currentScope(): CatalogScope?`；`suspend fun search(query): CatalogReadOutcome<List<FindroidItem>>` |
+
+`CatalogSnapshot.scope` 与 snapshot 内容必须是同一冻结 scope；port 不得暴露
+`JellyfinApi`、DAO、Room entity、`MetadataNamespace`、`MetadataFence` 或 snapshot store
+内部类型。`MetadataNamespace` 只作为 data 内部 cache adapter 细节。
+
+#### Adapter / implementation 与依赖注入
+
+| 角色 | 真实目标 | 约束 |
+|---|---|---|
+| online implementation | `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt` | 实现 `CatalogReadPort`；先解析并校验 canonical origin，再用既有 `bindOrigin` 的 origin-bound client 抓取；复用 `MetadataCache` + `MetadataSnapshotSwr` |
+| offline implementation | `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryOfflineImpl.kt` | 实现 `CatalogReadPort`；按保存的 current server/user 解析 scope，按 `SearchScope` 过滤 Room 结果，显式使用 scope.userId 映射 userData |
+| support / resolver | `data/src/main/java/com/zhangwenkang/cinefin/repository/catalog/CatalogReadPort.kt` | 可在同文件放 internal scope resolver；不得另建匿名 namespace |
+| DI selection | `core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt` | 按既有 `AppPreferences.offlineMode` 选择 online / offline port；不改服务定位或全局 build |
+| 旧接口 | `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepository.kt` | 删除 `getSearchItems` 声明；其他方法不迁移 |
+
+online search 必须使用由 `JellyfinOrigin` 解析出的 DB user/address/token 建立或复用
+origin-bound client；不得在抓取 lambda 内再次读取当前 singleton `jellyfinApi.userId`。
+materialization 的 base URL / access token 也必须来自该绑定，不得从可变 singleton
+重新猜测。
+
+进入 cache / disk / network 前必须验证
+`MetadataFence.namespace == MetadataNamespace(origin.serverId, origin.userId.toString())`；
+不等即 `IdentityUnavailable`，禁止 lookup、join、prefetch 或 write。抓取与 materialize
+结束后还必须再次验证同一 `CatalogScope` 与 fence；任一变化按 fenced failure 丢弃。
+
+#### 目标消费者与旧路径
+
+| 目标消费者 | 当前旧路径 | 本切片目标 | 旧路径删除证据 |
+|---|---|---|---|
+| `modes/film/.../SearchViewModel.kt` | `JellyfinRepository.getSearchItems`；分别读 `AppPreferences.currentServer` 与 `repository.getUserId()` | 只注入 `CatalogReadPort`；用 `currentScope()` 开始 guard，用返回 snapshot 的 scope/generation 结束 guard | 生产搜索目录中无 `getSearchItems`、`getUserId()`、`AppPreferences.currentServer` |
+| `modes/film/.../SearchSession.kt` | 本地 `SearchNamespace(serverId, userId)` | 直接使用 public `CatalogScope`；guard 同时检查 request generation、scope 与 snapshot content generation | 无 `data class SearchNamespace`、无第二份 server/user DTO |
+| `JellyfinRepository.kt` | public `getSearchItems(query, scope)` | `CatalogReadPort.search(CatalogSearchQuery)` | interface / online / offline 均无 `getSearchItems` |
+| `JellyfinRepositoryImpl.kt` | singleton-user search | origin-bound `CatalogReadPort` | 旧 override 删除，port 是唯一生产搜索入口 |
+| `JellyfinRepositoryOfflineImpl.kt` | server-only Room search，忽略 scope | scope-filtered offline search | 旧 override 删除；`MUSIC/BOOK` 当前离线索引不可表达时返回空，不跨域借用视频 |
+
+明确留在后续子波、不得在本切片顺手改的消费者：
+
+- `MetadataNamespace` 的其他用户：`ImageCacheRules`、`ImageCacheStore`、`OfflineMediaRepository`、
+  `MusicRepository`、`ServerPlaylistCardCache`、download / image worker 与既有测试。
+- `SetupRepositoryImpl`、`ServersViewModel`、`AddServerViewModel`、`ApiModule` 的账号 / server /
+  preference / auth 写入顺序。
+- `ReaderRepositoryImpl`、`JellyfinRepository` 其余元数据方法、Downloader / Worker、
+  Playback、User-state write、导航与全部公共 UI。
+
+这表示 `ICS-W1A` 完成后父 seam 仍有双表示与身份写入风险；不得把搜索单路径迁移写成
+全仓 Identity/Catalog 完成。
+
+#### 首个实现精确文件白名单
+
+源码（8）：
+
+1. `data/src/main/java/com/zhangwenkang/cinefin/repository/catalog/CatalogReadPort.kt`（新建）
+2. `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepository.kt`
+3. `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt`
+4. `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryOfflineImpl.kt`
+5. `data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwr.kt`
+6. `core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt`
+7. `modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSession.kt`
+8. `modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchViewModel.kt`
+
+对应测试（5）：
+
+1. `data/src/test/java/com/zhangwenkang/cinefin/repository/CatalogReadPortContractTest.kt`（新建）
+2. `data/src/test/java/com/zhangwenkang/cinefin/repository/JellyfinRepositorySearchItemsDispatcherTest.kt`
+3. `data/src/test/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwrTest.kt`
+4. `modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt`
+5. `modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchCatalogConsumerTest.kt`（新建）
+
+白名单外即停止。尤其禁止修改 `settings.gradle.kts`、根 build、依赖目录、
+`NavigationRoot.kt`、`CinefinCard.kt`、theme/token、Room schema、Downloader / Worker、
+`AppPreferences.kt`、`JellyfinApi.kt`、`ApiModule.kt`、`SetupRepositoryImpl.kt`、
+`SearchQueryRules.kt` 或其他 `MetadataNamespace` 消费者。
+
+#### 八状态 DoD 与父 seam 边界
+
+父 seam 的八状态是整条 Identity/Catalog 的完成门，不是首个切片的自动完成声明：
+
+| 状态 | 父 seam 通过条件 | 首个切片 `ICS-W1A` 的边界 |
+|---|---|---|
+| `CONTRACT_FROZEN` | root review 接受本卡、FQCN、字段、白名单与停止门 | 当前仅 `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW` |
+| `ADAPTER_IMPLEMENTED` | online / offline adapter 与 read-side scope/generation 检查落地 | 可形成 slice-local 证据，不能覆盖 auth / settings 写入与其他 catalog consumers |
+| `TARGET_CONSUMERS_MIGRATED` | auth / preference / DB namespace / cache 与全部声明目录消费者迁移 | 本切片只迁移 SearchViewModel / SearchSession |
+| `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH` | 全局旧身份推断、旧搜索路径与跨账号双真源移除 | 本切片只要求删除 search 旧路径；其他旧路径仍存在 |
+| `CONTRACT/NEGATIVE/REGRESSION TESTS PASS` | 全 seam 合同、负例、回归均在同一候选执行 | 本切片只允许 `SLICE_W1A_TESTS_PASS` 局部标签 |
+| `DEBT_COUNT_DECREASED` | A0 debt ratchet 证明目标违规真实下降 | 本切片预期不改变 11 违规计数，不能通过此状态 |
+| `INDEPENDENT_QA PASS` | 与实现者不同的全新 QA 在候选包执行 | 本任务与首个实现 owner 均不得自派 QA |
+| `INTEGRATED_GATE PASS` | 另一个 merge-prep / integrated owner 证明候选祖先与集成门 | 本切片不得进入 merge-prep |
+
+首个切片只计划推进到：
+
+```text
+SLICE_W1A = CONTRACT_FROZEN (root review 后)
+          -> ADAPTER_IMPLEMENTED
+          -> SEARCH_CONSUMERS_MIGRATED
+          -> SEARCH_OLD_PATH_REMOVED
+          -> SLICE_W1A_TESTS_PASS
+```
+
+父 seam 在首个切片后最多保持 `IN_PROGRESS / CONTRACT_FROZEN`，不得据 slice-local 测试
+推进到完整 `TARGET_CONSUMERS_MIGRATED`、`DEBT_COUNT_DECREASED`、QA 或集成 PASS。
+
+#### 测试命令、层级与负例
+
+实现 owner 从自身 clean implementation worktree 以 `pwsh` 执行；`$repoRoot` 必须是该
+worktree 的绝对路径：
+
+```powershell
+$repoRoot = '<implementation-worktree-absolute-path>'
+$env:JAVA_HOME = 'F:\Develop\Android\Android Studio\jbr'
+& "$repoRoot\gradlew.bat" :data:testDebugUnitTest `
+  --tests 'com.zhangwenkang.cinefin.repository.CatalogReadPortContractTest' `
+  --tests 'com.zhangwenkang.cinefin.repository.JellyfinRepositorySearchItemsDispatcherTest' `
+  --tests 'com.zhangwenkang.cinefin.repository.MetadataSnapshotSwrTest' `
+  --console=plain
+& "$repoRoot\gradlew.bat" :modes:film:testDebugUnitTest `
+  --tests 'com.zhangwenkang.cinefin.film.presentation.search.SearchSessionTest' `
+  --tests 'com.zhangwenkang.cinefin.film.presentation.search.SearchCatalogConsumerTest' `
+  --console=plain
+& "$repoRoot\gradlew.bat" :data:testDebugUnitTest :modes:film:testDebugUnitTest `
+  :app:phone:assembleDebug --console=plain
+pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $repoRoot
+```
+
+测试层级：
+
+- contract / pure rules：scope 校验、query 形状、freshness 枚举、`IdentityUnavailable`。
+- adapter unit：online cache / snapshot / SWR 复用与 stale marker；offline scope 过滤。
+- consumer unit：`SearchViewModel` / `SearchSessionGuard` 只接受返回 snapshot 的同一 scope。
+- regression：既有搜索 dispatcher、snapshot corruption / mismatch、repo build 与 A0 guard。
+- 不运行 ADB、设备、网络、生产服务器、产品 QA、runtime 或 Release。
+
+首个切片必测负例：
+
+1. 切号：A 请求在 B 成为当前 scope 后不得提交、不得写入 A/B cache，也不得由 consumer emit。
+2. server / user 不同：同一 term/scope 在 server A/user A、server A/user B、server B/user A
+   三组中 key 与 snapshot 均不同；不得仅按 term 命中。
+3. cache generation：用户失效/内容刷新后，旧 generation 的 fetch 完成不得覆盖新值。
+4. stale snapshot：当前 scope 的 disk snapshot 过 soft TTL 时返回 `STALE`，后台只启动一个
+   刷新；刷新失败不把 stale 改成 fresh。
+5. 离线 / 无身份：saved offline scope 只读该 server/user；缺 server、user 或 origin 时
+   `IdentityUnavailable`；离线 `MUSIC/BOOK` 不可表达时返回空，不借用视频结果。
+6. 并发：同 scope/key 单飞；不同 scope/key 不共享 deferred，旧请求 finish 不删除新请求。
+7. 损坏 / 错身份：既有 `MetadataSnapshotStoreTest` 的 schema、checksum、server/user mismatch
+   保持 PASS；跨账号 payload 只 miss / quarantine，不投影。
+8. 权限：本切片只证明身份变化后 fail-closed；401/403 stale-if-error 明确未覆盖，必须由
+   `ICS-W1E` 补，不得写 permission PASS。
+
+#### 架构债务预期
+
+- 预期定性下降：`SearchViewModel` 不再分别依赖 settings 身份字段与宽
+  `JellyfinRepository` 搜索；旧 `getSearchItems` search path 删除；搜索读写只在
+  `CatalogReadPort` 一个入口。
+- 已冻结 11 违规基线不变：P1/P2/P3=`7/3/1`。本切片不得声称
+  `DEBT_COUNT_DECREASED`，不得修改 A0 baseline 来制造下降。
+- `ARCH_IMPLEMENTATION_REFACTORED` 在完整父 seam QA / integration 前保持
+  `NOT_PROVEN`。
+
+#### 风险、回滚与停止条件
+
+- 风险 1：server / user / token / preferences 当前分步写入。本切片用 canonical DB
+  current user + origin-bound client + read-time revalidation 限制串号，但不修写入原子性；
+  若实现需要改切换写入顺序，停止并转 `ICS-W1B`。
+- 风险 2：`JellyfinApi` singleton 仍被其他消费者使用。搜索 materialization 必须使用
+  origin-bound client / scoped view；不得临时改写 singleton 再“恢复”。
+- 风险 3：disk snapshot 没有 principal context / durable fence。在线搜索只按已验证
+  online scope 使用；离线不读该 disk snapshot。跨进程与 durable 语义继续 Open。
+- 风险 4：stale marker 在首个切片只到 consumer 边界，不新增 UI badge；不得写 BASE-003
+  runtime / product PASS。
+- 回滚：删除新 port 文件、恢复 `getSearchItems` 与 consumer 注入；不涉及 schema、磁盘
+  envelope 或 build，现有 snapshot 文件无需迁移。任何已写 cache 失败现场只按既有
+  namespace 删除/隔离，不跨账号复用。
+- 立即停止：dirty / branch / HEAD 不符；root review 未批准；白名单越界；需要改 auth /
+  preferences / API singleton 写入顺序、DB schema、build、Gradle、导航、公共 UI；
+  需要设备 / 网络服务器 / QA / merge-prep；发现第二个生产搜索消费者；保留双搜索路径；
+  或无法用 fixture 证明切号后旧结果不可提交。
+- 工具失败收敛：本地测试 harness 的已定位单点问题最多一次修复后受控重试；第二轮仍 P1
+  即停止，不扩 scanner / exact-count / 新 harness。
+
+#### 后续子波（父 seam 不得被首个切片误判完成）
+
+| 子波 | 交付物 | 前置 |
+|---|---|---|
+| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A` 完成并 review |
+| `ICS-W1C-CATALOG-READERS` | views / items / detail / home / paging 等 catalog readers 共用 canonical scope 与 snapshot | `ICS-W1B` |
+| `ICS-W1D-OFFLINE-NAMESPACE` | saved offline account、无账号、image cache / DB namespace / offline projection 收敛 | `ICS-W1B` |
+| `ICS-W1E-FRESHNESS-PERMISSIONS` | 完整 freshness / stale reason、401/403、durable fence、跨进程与损坏策略 | `ICS-W1A`–`W1D` |
+| `ICS-W1F-TARGET-MIGRATION-DEBT` | 所有声明消费者迁移、旧路径删除、debt ratchet 实际下降、回归 | `ICS-W1C`–`W1E` |
+| `ICS-W1G-FULL-SEAM-CLOSEOUT` | 独立 QA、integrated gate、父八状态证据闭环 | `ICS-W1F`；root 另派 QA / merge-prep |
+
+#### 同一切片禁止双路径
+
+- `CatalogReadPort` 是 search 的唯一生产入口；不得在新 port 内调用旧
+  `getSearchItems`，也不得保留 deprecated fallback。
+- `SearchViewModel` 完成后不得 import `JellyfinRepository` 或
+  `AppPreferences.currentServer`。只允许 import public catalog port / DTO、本地搜索与
+  downloader 的既有关注点。
+- `SearchNamespace` 删除；不得保留与 `CatalogScope` 等价的数据类或字符串拼接 key。
+- search cache / snapshot 仍使用既有 `MetadataCache` 与 `MetadataSnapshotStore`；
+  不得新增第二套 search cache、第二套 snapshot store 或“先查旧缓存再查新 port”。
+- 证明命令必须在实现候选执行：
+
+```powershell
+rg -n 'getSearchItems|class SearchNamespace|AppPreferences|getUserId\(' `
+  "$repoRoot\modes\film\src\main\java\com\zhangwenkang\cinefin\film\presentation\search"
+rg -n 'getSearchItems' "$repoRoot\data\src\main" "$repoRoot\modes" "$repoRoot\app"
+$baseSha = '<root-pinned-integration-sha>'
+$allowedFiles = @(
+  'core/src/main/java/com/zhangwenkang/cinefin/di/RepositoryModule.kt',
+  'data/src/main/java/com/zhangwenkang/cinefin/repository/catalog/CatalogReadPort.kt',
+  'data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepository.kt',
+  'data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt',
+  'data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryOfflineImpl.kt',
+  'data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwr.kt',
+  'data/src/test/java/com/zhangwenkang/cinefin/repository/CatalogReadPortContractTest.kt',
+  'data/src/test/java/com/zhangwenkang/cinefin/repository/JellyfinRepositorySearchItemsDispatcherTest.kt',
+  'data/src/test/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwrTest.kt',
+  'modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSession.kt',
+  'modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/search/SearchViewModel.kt',
+  'modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchCatalogConsumerTest.kt',
+  'modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt'
+)
+$changedFiles = @(git -C $repoRoot diff --name-only "$baseSha...HEAD")
+$unexpectedFiles = @($changedFiles | Where-Object { $_ -notin $allowedFiles })
+if ($changedFiles.Count -eq 0 -or $unexpectedFiles.Count -gt 0) {
+  throw "changed-file whitelist failed: $($unexpectedFiles -join ', ')"
+}
+git -C $repoRoot diff --check
+```
+
+前两条预期无命中；若保留 test helper 名称，也必须不以生产方式暴露。
+
+#### 首个 implementation owner 执行门
+
+- 专业身份：全新
+  `AURORAMA_V2_IDENTITY_CATALOG_W1A_IMPLEMENTATION_OWNER_2026_11_07`
+- 首条只读动作：`git status --short`；随后 `git branch --show-current`、
+  `git rev-parse HEAD`；必须 clean 且等于 root 派单钉住的已集成 SHA。
+- 精确读序：
+  1. `AGENTS.md` 顶部当前硬门、R035、负责人退出契约；
+  2. 本任务卡与 Architecture Critical Path / `V2-NON-TTS-W1` 行；
+  3. `docs/V2_PLAN.md` §10、§12 ACTIVE、§13 最新相关日志；
+  4. `docs/ARCHITECTURE.md` §0.5–§0.8、§0.10；
+  5. `docs/DECISIONS.md` `V2-D213`、`docs/PROJECT_RULES.md` `R035`、
+     `docs/LESSONS.md` `L041`；
+  6. `G1-S3/contracts.json` 搜索/SWR局部；
+     `G1-BASE-001-SEARCH-ROUTE-CONTRACT/scope-query-matrix.json`、
+     `stable-identity-matrix.json`；
+     `G1-BASE-003-PERSISTENT-SWR/cache-identity-matrix.json`、
+     `freshness-state-machine.json`；
+  7. 白名单内 8 个源码与 5 个测试现场；graphify 仅辅助，源码/Git 为事实。
+- 首动作后先写 RED 合同测试，再实现最小 GREEN；不得先重构宽仓库。
+- 写域：仅上面 8 源码 + 5 测试文件。`docs/TASKS.md` / `V2_PLAN.md` /
+  `ARCHITECTURE.md` 只按实现报告规则回写，不由实现 owner 自行扩卡。
+- 必须执行上面的 data / film 单测、全量相关单测、`:app:phone:assembleDebug`、
+  `git diff --check`、changed-file 白名单与旧 token 检查。
+- 停止：任何白名单越界、root review 未 PASS、需要 schema / build / auth 写入 /
+  导航 / 公共 UI / 设备 / 网络服务器 / QA / merge-prep，或无法证明切号后旧结果不提交。
+- 收口：最多写 `SLICE_W1A_TESTS_PASS` 与父 seam `IN_PROGRESS`；不得自行开启独立 QA，
+  不得进入 merge-prep，不得宣告父 seam 收口。
 
 ## HISTORY — G2 / TTS 控制面失败现场（非当前入口）
 
