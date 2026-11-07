@@ -16,6 +16,14 @@ if ($null -eq $gitCommand) {
 $gitPath = $gitCommand.Source
 $script:passed = 0
 $script:failed = 0
+$currentHandoffHeading = -join ([int[]]@(
+    0x5F53
+    0x524D
+    0x4EA4
+    0x63A5
+    0x72B6
+    0x6001
+) | ForEach-Object { [char]$_ })
 
 function Write-Utf8File {
     param(
@@ -647,6 +655,195 @@ Invoke-FixtureTest -Name 'stable doc unlabeled ACTIVE heading fails Handoff' -Bo
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
         Assert-ExitCode -Result $result -Expected 2
         Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc plain current handoff block fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $block = @"
+
+## $currentHandoffHeading
+- NEXT_ROLE=STALE_CURRENT_OWNER
+- NEXT_PATH=docs/TASKS.md
+- CODE_INTEGRATION_HEAD=$($fixture.BaseHead)
+- CONTROL_PLANE_HEAD_INPUT=$($fixture.BaseHead)
+- CONTEXT_WATERMARK=100000/1048576
+"@
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') + $block
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_OUTSIDE_HISTORY:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc CURRENT_STATE heading token fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n## CURRENT_STATE`n- NEXT_PATH=docs/TASKS.md`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_OUTSIDE_HISTORY:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc ACTIVE heading token fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n## ACTIVE - stale snapshot`n- NEXT_ROLE=STALE_ACTIVE_OWNER`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_OUTSIDE_HISTORY:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc all controlled tokens in ordinary section fail Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        foreach ($token in @(
+            'NEXT_ROLE'
+            'NEXT_PATH'
+            'CODE_INTEGRATION_HEAD'
+            'CONTROL_PLANE_HEAD_INPUT'
+            'CONTEXT_WATERMARK'
+        )) {
+            $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+                "`n## Operational notes`n- $token=STALE_VALUE`n"
+            $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+                -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+            $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+                -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+            Assert-ExitCode -Result $result -Expected 2
+            Assert-ContainsToken -Result $result `
+                -Token 'FAIL:STABLE_DOC_CURRENT_STATE_OUTSIDE_HISTORY:docs/PROJECT_PLAN.md'
+            Assert-ContainsToken -Result $result -Token "token=$token"
+        }
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc pointer controlled tokens all fail Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        foreach ($token in @(
+            'NEXT_ROLE'
+            'NEXT_PATH'
+            'CODE_INTEGRATION_HEAD'
+            'CONTROL_PLANE_HEAD_INPUT'
+            'CONTEXT_WATERMARK'
+        )) {
+            $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md').Replace(
+                '- CURRENT_STATE_IN_THIS_FILE=NONE',
+                "- CURRENT_STATE_IN_THIS_FILE=NONE`n- $token=STALE_VALUE"
+            )
+            $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+                -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+            $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+                -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+            Assert-ExitCode -Result $result -Expected 2
+            Assert-ContainsToken -Result $result `
+                -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+            Assert-ContainsToken -Result $result -Token $token
+        }
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc HISTORY fixed tokens and SHA pass Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $block = @"
+
+## HISTORY - 2026-10-01 fixed snapshot
+- NEXT_ROLE=HISTORICAL_OWNER
+- NEXT_PATH=docs/TASKS.md
+- CODE_INTEGRATION_HEAD=$($fixture.BaseHead)
+- CONTROL_PLANE_HEAD_INPUT=$($fixture.BaseHead)
+- CONTEXT_WATERMARK=100000/1048576
+"@
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') + $block
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc explicit audit block tokens pass Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $block = @'
+
+## Audit examples
+
+```text AUDIT_STABLE_DOC_STATE
+- NEXT_ROLE=AUDIT_OWNER
+- NEXT_PATH=docs/TASKS.md
+- CODE_INTEGRATION_HEAD=1111111111111111111111111111111111111111
+- CONTROL_PLANE_HEAD_INPUT=2222222222222222222222222222222222222222
+- CONTEXT_WATERMARK=100000/1048576
+```
+'@
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') + $block
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc ordinary fixed SHA passes Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n## Stable evidence`n- Fixed audit object $($fixture.BaseHead)`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
     }
     finally {
         Remove-Fixture -Fixture $fixture
