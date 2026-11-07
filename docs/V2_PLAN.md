@@ -3,7 +3,8 @@
 > **当前状态（2026-11-07）**：`TTS_G2_DEFERRED / DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE /
 > DEFERRED_BLOCKED_CONTROL_PLANE /
 > SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
-> ARCH_CONFORMANCE_GATE_REQUIRED / NON_TTS_IMPLEMENTATION_PAUSED /
+> ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
+> ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / FIRST_CARD_IN_PROGRESS /
 > DO_NOT_RESUME_OLD_HANDOFF_LOOP / G0_PASSED / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 > PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序已延期；不得写成需求删除、已交付、
@@ -12,9 +13,10 @@
 > `codex/g2-prewindow-blocked-20261107`，commit
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），含 9 个 settlement
 > 文件与 `qa-pad-v2` 三文件，不合入、不 push、不 tag。旧 G2 合同与 QA evidence 冻结；
-> 非 TTS 2.0 功能波次与首张任务卡已规划且用户已批准；但实际产品架构重构尚未开始，
-> `docs/ARCHITECTURE.md` 仍是待审查 v1.1。当前先做 V2 架构符合性、低耦合与并行拆分审计；
-> 审计通过前不开始产品实现。设备、QA 与 Release 仍需单独批准。
+> 非 TTS 2.0 功能波次与首张任务卡已规划且用户已批准；用户于 2026-11-07 确认
+> `docs/ARCHITECTURE.md` v2.0，架构门 PASS，首卡进入 In Progress。实际产品架构重构仍为
+> `NOT_PROVEN`；首卡所示下载点击问题已有历史修复 `61c04a38` 且进入 v1.4.0 / 当前
+> integration，仍须先在当前对象复现，候选回归未证明。设备、独立 QA 与 Release 仍需单独批准。
 > 下方 `PAD_RUNTIME...` 与 64/65 段只作旧 G2 控制面 HISTORY，不得恢复执行循环。
 >
 > **HISTORY（2026-11-07 前；非当前状态）** 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / PAD_QA_PROMPT_DESCRIPTOR_READY_PENDING_FRESH_REVIEW / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / HISTORICAL_PRE_HANDOFF_AUDIT_PASS=PASS / HISTORICAL_OUTER_HANDOFF_QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64=AUDIT_SNAPSHOT_ONLY / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`。其中
@@ -3449,11 +3451,12 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：TTS_G2_DEFERRED_AFTER_2_0_CORE / FIRST_CARD_APPROVED / ARCH_CONFORMANCE_GATE（2026-11-07）
+### ACTIVE：TTS_G2_DEFERRED_AFTER_2_0_CORE / ARCH_CONFORMANCE_PASS / FIRST_CARD_IN_PROGRESS（2026-11-07）
 
 **当前状态**：`TTS_G2=DEFERRED_BLOCKED_CONTROL_PLANE /
 SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
-ARCH_CONFORMANCE_GATE_REQUIRED / NON_TTS_IMPLEMENTATION_PAUSED /
+ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
+ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / FIRST_CARD_IN_PROGRESS /
 DO_NOT_RESUME_OLD_HANDOFF_LOOP / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 PRODUCT_P0_P3_NOT_ASSESSED / NO_RELEASE_AUTHORIZATION`。用户以 `V2-D211` 决定先推进其他
 非 TTS 的 2.0 core 功能，TTS/G2 runtime 的问题留到后期由新方案或更强 owner 解决。
@@ -3463,11 +3466,13 @@ TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；�
 **架构执行事实**：外部架构原始材料第 154–286 行已归一为
 `V2-REQ-ARCH-001～072`，并已由用户接受；G1-S1 冻结了 19 条 project 边、0 个模块级环、
 11 个稳定违规 ID 与“逻辑 contracts seam + FQCN / owner allowlist + debt ratchet”方向
-（`V2-D198`）。但这些是设计与静态审计，不是产品代码重构完成。当前
-`docs/ARCHITECTURE.md` 仍是 v1.1（2026-10-17，待负责人审查），尚未形成 V2 执行版；
-无证据证明第 154–286 行的低耦合、唯一所有权、架构守护、影响面分析、并行白名单和
-“架构/契约确认后才编码”已在真实产品树逐项落地。因此
-`ARCH_REQUIREMENTS_ACCEPTED=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
+（`V2-D198`）。全新架构审计 owner 已把 `docs/ARCHITECTURE.md` 升级为 v2.0 可执行基线：
+包含 20 类覆盖矩阵（`7 COMPLIANT / 9 GAP / 3 NOT_PROVEN / 1 N/A`）、标准工作流门、
+低耦合规则、逻辑 seam、守卫、共享文件锁、四组可并行候选和首卡约束。结论仍为
+`ARCH_REQUIREMENTS_ACCEPTED=YES / ARCH_CONFORMANCE_AUDIT=PASS / ARCH_GATE=PASS /
+ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`；模块级无环不等于低耦合，7 个 P1 违规、
+contracts seam、owner guard、debt ratchet 与消费者迁移均未落地。架构门剩余动作是用户
+已于 2026-11-07 确认 v2.0 基线，当前只放行首卡实现；不代表产品重构完成。
 
 **冻结与可恢复性**：本轮规划开工时 integration HEAD 为
 `a18362f85a4e03c089cf1aca2b583d0a53173113`；失败现场只读归档在本地分支
@@ -3506,15 +3511,18 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
    - 非目标：不改下载 12 状态机、Worker、schema、通知或删除 receipt；不做下载页重设计；
      不把历史 P3 写成已关闭。
    - 风险：Compose 命中层级、长按与尾部动作可能互相吞事件；无障碍语义可能仍把整卡/操作
-     混成一个节点。当前规划未上机，不能预判当前代码一定复现。
+     混成一个节点。当前静态代码已包含 `61c04a38` 的内容区 / 尾部动作拆分，但未上机，
+     不能把历史修复倒推为当前候选仍可复现或已经保持。
    - 可观察验收：在一条已完成下载上，点击卡片中央/普通区域进入正确详情或本地内容；
      暂停/删除/更多等显式动作仍独立触发；Compose 语义与视觉热区一致；修复 commit、
      `V2-REG-DOWNLOAD-001` 与候选场景绑定同一 lineage。
-   - 文件面：`app/phone` 下载行呈现与导航测试；`modes/film` 下载 UI 状态/测试；只有复用
-     共享组件确有必要时才进入 `core` presentation。禁止 `data` / Worker / Room / schema。
+   - 文件面：仅 `app/phone` 的 `DownloadRows.kt` 与对应
+     `DownloadRowAccessibilityContractTest.kt`；若需要 `modes/film`、导航宿主、共享组件、
+     `data`、Worker、Room 或 schema，或上述两个文件之外的任何路径，停止拆卡并重新批准。
    - TTS 关系：无；不触 TTS、voice-pack、audio-owner 或 G2。
-   - 为什么先做：爆炸半径最小、用户可直接感知、可一屏验证，并能在真实产品修复上建立
-     回归 lineage，而不是再建一套控制面。
+   - 为什么仍作为首个验证卡：爆炸半径最小、用户可直接感知、可一屏验证，适合先验证
+     D212 / R034 和“有历史 fix 时先复现、不重复修”的流程；若当前无缺陷，本卡以
+     `NO_DEFECT_REPRODUCED` 收口，不为建立 lineage 制造代码改动。
 
 2. `V2-NON-TTS-W1 读路径信任与共享 UI 基座`
    - 目标：交付搜索正/空/错/离线与返回恢复、持久 SWR 身份与失效、应用内更新信任，以及
@@ -3617,6 +3625,11 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
   `7b69e531fa0536379d66a5203736fd5ac43a5568`。本轮 sampled fix / candidate
   `fe2dbacc`、`024235b4`、`27b82f57`、`005639a6`、`a8bfd836` 均为 `v1.4.0` 与当前
   `codex/v2-integration` 的祖先；`005639a6..v1.4.0` 只增加 `docs/PLAYER_PLAN.md`。
+- 架构审计定向补充：`61c04a38a037dbc5fa450c9e809d2277fcd33151`
+  `fix(download): scope accessibility actions to task state` 同时修改
+  `DownloadRows.kt` 并新增 `DownloadRowAccessibilityContractTest`，是 `v1.4.0` 与当前
+  integration 的祖先。它是 `V2-FIX-DOWNLOAD-001` 的历史 fix candidate，不是当前候选
+  `FIXED_IN_CANDIDATE` 证明。
 - 当前流程已有 Git/tag、候选祖先、patch-id、CI、签名 APK 与候选 QA 文档；没有“每个用户
   bug → fix commit → test ID → 候选包场景”的强制台账。`publish.yaml` 仍为 disabled /
   workflow_dispatch，tag 本身不会执行祖先或 bug 回归门。
@@ -3626,9 +3639,9 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
   在实现候选上执行绑定测试，并记录 commit/test/candidate 三项；若未来出现具体复发，再用
   最后已知好 tag 与首个坏候选做定向比较或 `git bisect`，不做全仓泛化扫描。
 
-**首张任务卡（仅规划，待用户批准）**
+**首张任务卡（已批准，等待用户架构确认与当前复现）**
 
-本轮没有打开产品源码或设备，因此“当前 v1.4/v2 分支仍可复现”尚未证明。在两个同属下载
+规划阶段没有打开产品源码或设备，因此“当前 v1.4/v2 分支仍可复现”尚未证明。在两个同属下载
 UI、且都可用一屏验证的候选之间做规划选择：
 
 - 候选 A：`L14-15` 完成下载卡中央 / 普通点击目标不完整；证据直接写明了
@@ -3641,8 +3654,11 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
 只读证据回到用户 / 负责人重新批准。
 
 - ID：`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
-- 状态：`PLANNED_PENDING_USER_APPROVAL`
+- 状态：`IN_PROGRESS / CURRENT_REPRO_REQUIRED`
 - Bug / fix lineage：`V2-FIX-DOWNLOAD-001`，source `L14-15`
+- 历史静态 lineage：`61c04a38a037dbc5fa450c9e809d2277fcd33151` 已将下载行内容点击与
+  尾部动作拆分，且是 `v1.4.0` 与当前 integration 的祖先；当前代码仍保留该实现与
+  `DownloadRowAccessibilityContractTest`。这只说明“历史上曾修复”，不证明当前候选仍无缺陷。
 - 后续专业角色：全新 `ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER`；实现收口后由用户另行
   授权不同全新独立 QA，不由实现者自派。
 - 目标：修复完成下载卡中央/普通点击区域被进度布局拦截或目标不完整；从卡片可进入正确
@@ -3651,13 +3667,18 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
   不新增分享、批量或服务器动作；③不触 TTS / voice-pack / audio-owner / G2。
 - 依赖：`L14-15`、`S6-P-DOWNLOAD-041`、`G2-DOWNLOAD-STATE-W2` 窄切片、
   `docs/V2_PLAN.md` §9 旧债边界、D212、R034。
-- 文件 / 接口边界（实现时按实际源码实例化）：`app/phone` 下载行 presentation /
-  navigation test；`modes/film` 下载 UI state / test；必要时才改 `core` 共享
-  presentation component。禁止 `data`、`core Downloader`、Worker、Room、schema、
-  notification 与服务器。
-- 验收：①先写 RED，复现“完成卡中央区域不可打开或触发错误目标”；②GREEN 后卡片普通/
-  中央区域进入正确详情或本地内容；③暂停/删除/更多动作仍独立触发且不穿透；④语义节点与
-  视觉热区一致，至少覆盖完成态和一种进行中态回归；⑤独立 QA 在真实候选包执行同一 bug 场景；
+- 文件 / 接口边界（默认窄白名单）：
+  `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/downloads/DownloadRows.kt`
+  与
+  `app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/film/downloads/DownloadRowAccessibilityContractTest.kt`。
+  只消费既有 `DownloadAction.OpenEntry` / immutable entry projection 与宿主导航回调；
+  不改合同。若必须进入 `DownloadsScreen.kt`、`NavigationRoot.kt`、`DownloadsViewModel.kt`、
+  `modes/film`、`CinefinCard.kt`、data、Downloader / Worker、Room / schema、通知或迁移，
+  停止并拆卡串行。
+- 验收：①先在当前固定 SHA 上执行既有回归并尝试最小复现；若无缺陷，记录
+  `NO_DEFECT_REPRODUCED` 并停止；②仅在有真实 RED 时修 GREEN，使卡片普通/中央区域进入
+  正确详情或本地内容；③暂停/删除/更多动作仍独立触发且不穿透；④语义节点与视觉热区
+  一致，至少覆盖完成态和一种进行中态回归；⑤独立 QA 在真实候选包执行同一 bug 场景；
   ⑥确认 fix commit 是候选祖先，测试 ID=`V2-REG-DOWNLOAD-001`；缺任一项标 `UNPROVEN`。
 - 证据与命令：实现 owner 首条只读动作 `git status --short`，随后 `git rev-parse HEAD`；
   只读定位 `DownloadRows.kt` 对应行与现有下载 UI 测试，再跑最小 RED/GREEN；不先跑全仓。
@@ -3667,12 +3688,12 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
   立即拆卡并停止；任何 TTS/G2 需求出现即退出本波。
 - TTS 关系：无。
 
-**当前唯一入口**：`V2-ARCH-CONFORMANCE-AND-PARALLELIZATION`。先只读核对原作第 154–286
-行、文件开头工作流、`docs/ARCHITECTURE.md`、G1-S1 证据与真实模块边界，输出 V2 架构符合性
-报告、必要的最小 seam / 守卫计划、可并行波次与共享文件锁；用户确认后才可派
-`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 实现。该卡现已批准但不得越过架构门。如果工作转入 TTS/G2，
-必须先建立新任务、新方案和新验收，并重新取得用户授权；旧 QA attempt / evidence 只能作
-历史输入，不能复用为 PASS。
+**当前唯一入口**：`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`。架构审计、文档写回与用户确认均已
+完成；集成 owner 提交文档并锁定 clean integration SHA 后，为全新实现 owner 创建独立
+worktree。实现 owner 必须先验证当前对象是否仍可复现；无缺陷时停止，不得为历史 P3 凑代码
+改动；独立 QA 仍须在实现收口后另行授权。
+如果工作转入 TTS/G2，必须先建立新任务、新方案和新验收，并重新取得用户授权；旧 QA
+attempt / evidence 只能作历史输入，不能复用为 PASS。
 
 ### HISTORY：G2 FINAL AUDIT / PLAN A CLEANUP CONTROL-PLANE（旧 ACTIVE；已被 TTS_G2_DEFERRED_AFTER_2_0_CORE 取代）
 
@@ -6599,3 +6620,22 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `FIRST_CARD_APPROVED / ARCH_CONFORMANCE_GATE_REQUIRED / NON_TTS_IMPLEMENTATION_PAUSED`，
   当前入口为 `V2-ARCH-CONFORMANCE-AND-PARALLELIZATION`：先逐项核对原始架构要求、文件开头
   工作流、真实模块边界和并行文件锁，再回写 V2 架构；架构门 PASS 后才可派首卡实现。
+- **2026-11-07 — V2 架构符合性审计完成 / 用户确认待办**：全新一次性
+  `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07` 在 clean
+  `6d76936253787dbb0c07ef939f8b936fe2e761cb` 完成有界静态审计。`docs/ARCHITECTURE.md`
+  升级为 v2.0：20 类覆盖矩阵为 `7 COMPLIANT / 9 GAP / 3 NOT_PROVEN / 1 N/A`；
+  明确“架构方向已接受 + G1 静态 seam 已冻结 + 局部重构存在，但全量产品代码未重构”，
+  模块 DAG 无环不等于低耦合，7 个 P1 / 3 个 P2 / 1 个 P3 违规仍开放。工作流缺陷为
+  “首卡批准早于架构规范确认”，因未开始代码仍可恢复。首卡定向核对发现历史修复
+  `61c04a38` 已在同一下载行交互面拆分内容区 / 尾部动作，且是 `v1.4.0` 与当前
+  integration 的祖先；这可作为历史 fix candidate，但当前复现与候选真实入口回归未证明，
+  lineage 保持 `UNPROVEN`。本轮只改既有文档，无产品源码、Gradle、G2 合同 / 工具、设备、
+  QA、网络、服务器、Release 或 commit；下一步是用户确认 v2.0 架构基线，确认后才可提交
+  文档并从新的 clean integration SHA 派首卡复现 / 最小实现。
+- **2026-11-07 — 用户确认 V2 架构门 / 首卡进入 In Progress**：用户明确确认执行下一步，
+  `ARCH_CONFORMANCE_PASS / USER_CONFIRMED / ARCH_GATE=PASS`，但
+  `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` 不变。首卡
+  `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 进入 `IN_PROGRESS / CURRENT_REPRO_REQUIRED`；
+  先提交架构文档并锁定新的 clean integration SHA，再由全新实现 owner 在独立 worktree
+  执行最小复现。若当前无缺陷则 `NO_DEFECT_REPRODUCED` 停止，不重复实现历史 fix；独立
+  QA、设备与 Release 仍未授权。

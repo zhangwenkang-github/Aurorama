@@ -8,7 +8,8 @@
   DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE /
   DEFERRED_BLOCKED_CONTROL_PLANE / SOLVE_AFTER_OTHER_2_0_CORE_FEATURES /
   DO_NOT_RESUME_OLD_HANDOFF_LOOP / FIRST_CARD_APPROVED /
-  ARCH_CONFORMANCE_GATE_REQUIRED / NON_TTS_IMPLEMENTATION_PAUSED`。
+  ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
+  ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / FIRST_CARD_IN_PROGRESS`。
   TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、
   QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
   `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场归档在本地分支
@@ -17,10 +18,13 @@
   文件与 `qa-pad-v2` 三文件，只读保留，不合入，不 push，不 tag。旧 G2 合同与 QA evidence
   冻结；不得重入 64/65 transition、exact count 或旧 handoff 修复循环，不得跳过 handoff
   直接派 Pad/K60 QA。非 TTS 六波与首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 已规划且
-  用户已批准；但实际 V2 产品架构重构尚未完成，`docs/ARCHITECTURE.md` 仍是待审查的
-  v1.1 基线。当前唯一入口是先做架构符合性 / 低耦合 / 并行拆分审计并回写 V2 架构，
-  审计通过前不得开始首卡编码。产品实现、设备、QA 与 Release 仍需单独授权。日后再启
-  TTS 必须新任务、新方案、新验收和全新 owner，旧 QA attempt 不可作为 PASS。
+  用户已批准。`docs/ARCHITECTURE.md` v2.0 已由用户确认，架构门 PASS；全量产品代码重构
+  仍为 `NOT_PROVEN`，模块级无环不等于低耦合，contracts seam / owner guard / debt ratchet
+  尚未落地。当前唯一入口是首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`：集成 owner 提交
+  文档并从新的 clean integration SHA 派全新实现 owner，独立 worktree 中必须先复现；
+  历史修复 `61c04a38`（`v1.4.0` / 当前 integration 祖先）存在，若无缺陷则
+  `NO_DEFECT_REPRODUCED` 停止，不得重复改码。设备、独立 QA 与 Release 仍需单独授权。
+  日后再启 TTS 必须新任务、新方案、新验收和全新 owner，旧 QA attempt 不可作为 PASS。
 
 > 下方旧 G2 条目原样保留用于审计追溯；其中“当前 / 下一步 / 必须 / ACTIVE”等措辞只描述
 > 对应历史时点，不能作为当前执行指令。当前非 TTS 主线不运行旧 handoff 循环。

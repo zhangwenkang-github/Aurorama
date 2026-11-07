@@ -6,21 +6,23 @@
 
 > **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
 > SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
-> ARCH_CONFORMANCE_GATE_REQUIRED / NON_TTS_IMPLEMENTATION_PAUSED /
+> ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
+> ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / FIRST_CARD_IN_PROGRESS /
 > DO_NOT_RESUME_OLD_HANDOFF_LOOP`。TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；
 > 不得写成删除、已交付、QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
 > `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场只读归档在
 > `codex/g2-prewindow-blocked-20261107` /
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 冻结，不得恢复
-> 64/65、exact count 或 handoff 修复循环。首卡已由用户批准，但实际产品架构重构尚未开始，
-> 当前先做 V2 架构符合性与并行拆分审计；架构门关闭前不得开始首卡编码。
+> 64/65、exact count 或 handoff 修复循环。V2 架构审计已完成，`ARCHITECTURE.md` 已升级为
+> v2.0 且用户已确认，首卡进入 In Progress；全量产品重构仍 `NOT_PROVEN`。首卡所示下载
+> 点击问题已有历史修复 `61c04a38`（`v1.4.0` / 当前 integration 祖先），当前复现与候选
+> 真实入口回归均未证明，必须先复现；无缺陷则停止，不得直接重复改码。
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-| `V2-ARCH-CONFORMANCE-AND-PARALLELIZATION` | 2.0 架构执行门；外部原始第 154–286 行 + 文档开头工作流 | 核对已接受架构需求、G1-S1 基线与真实产品树；输出 V2 架构符合性、低耦合/所有权/架构守卫最小整改、可并行任务契约与共享文件锁；只规划与静态验证 | ①不开始产品代码、设备、QA、Release；②不重写全部架构或建 bespoke 审计系统；③不复活 TTS/G2 控制面 | `V2-D010/D012/D019/D020/D198`；`V2-REQ-ARCH-001～072`；`docs/ARCHITECTURE.md`；`G1-S1/report.json`；`V2-D211/D212` | 每个 154–286 归一要求有 PASS/GAP/N/A 证据；明确 `V2-PLAN-READY` / `IMPLEMENTATION-READY` 差距；首卡与后续 3 条任务文件/契约白名单无重叠，共享咽喉文件串行；用户确认后才放行实现 | 需要大规模源码重构、产品实现、设备/QA、新的架构协议或修改已接受产品语义；无法把首卡放到冻结 seam 中 |
+| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`IN_PROGRESS / CURRENT_REPRO_REQUIRED`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | 在用户确认后的 clean integration 独立 worktree 先执行现有回归并尝试最小复现；仅在有真实 RED 时修复完成下载卡中央 / 普通点击缺陷 | ①不改下载状态机、Worker、通知、Room / schema 或迁移；②不进入导航宿主、共享 UI 或第二功能；③不触 TTS/G2、设备、独立 QA、merge / Release | `ARCHITECTURE.md` v2.0 用户确认；D212 / R034；`S6-P-DOWNLOAD-041`；精确白名单 `DownloadRows.kt` + `DownloadRowAccessibilityContractTest.kt` | 记录当前对象复现结果；无缺陷则 `NO_DEFECT_REPRODUCED`；有缺陷则最小 RED/GREEN、动作不穿透、现有回归与 `V2-REG-DOWNLOAD-001` 绑定 | 无缺陷；需要两个白名单文件之外的路径；需设备 / QA；新 P0–P2；历史 fix 已足够且无法证明复发 |
 
-首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 位于 `Todo / Deferred`，状态
-`APPROVED_WAITING_ARCH_CONFORMANCE`；架构门关闭前不得派实现或 QA。
+首卡只允许全新实现 owner 执行；独立 QA 必须在实现收口后由负责人另行授权。
 
 ## HISTORY — G2 / TTS 控制面失败现场（非当前入口）
 
@@ -151,7 +153,6 @@
 
 | ID | 需求域 | 目标 | 依赖 | 退出条件 |
 |---|---|---|---|---|
-| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`APPROVED_WAITING_ARCH_CONFORMANCE`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | 修复完成下载卡中央 / 普通点击被进度布局拦截或目标不完整；卡片可进入正确详情 / 本地内容，显式动作保持独立；绑定回归 ID `V2-REG-DOWNLOAD-001` | 用户已批准；`V2-ARCH-CONFORMANCE-AND-PARALLELIZATION` PASS；D212 / R034；`S6-P-DOWNLOAD-041`；`G2-DOWNLOAD-STATE-W2` 窄切片；详见 `V2_PLAN.md` §12 首卡 | 架构门 + 最小 RED/GREEN + 候选祖先 + 独立候选 QA 场景均绑定同一 fix；重做下载状态机 / 通知 / schema / 设备 / TTS/G2 即停止拆卡 |
 | `V2-TTS-G2-SPECIAL-SOLVE` | TTS / G2 runtime 后期专项（Deferred） | 在其他非 TTS 的 2.0 core 功能之后，以新任务、新方案、新验收解决离线 TTS、G2 runtime、handoff 与设备闭环；保留当前失败现场作为历史输入 | `V2-D211`；用户重新授权；新 owner / 新合同 / 新验收；旧分支 `codex/g2-prewindow-blocked-20261107` 与 G2 evidence 只读 | 新方案明确产品可观察承诺、最便宜可信证据、设备/安全/数据边界、两轮止损预算和恢复入口，并经用户批准；旧 QA attempt 不得作为 PASS，且不得复活 64/65 / exact-count / handoff 循环 |
 | `V2-IMPLEMENTATION-PLAN` | G2 开发门 | 交付波次、完整任务卡、QA/集成顺序和用户开工批准 | G1 完整收口 + 用户明确解除 E 门；当前不得启动 | 用户批准开始实现 |
 
@@ -159,6 +160,7 @@
 
 | ID | 成果 | 证据 |
 |---|---|---|
+| `V2-ARCH-CONFORMANCE-AND-PARALLELIZATION` | `ARCHITECTURE.md` 升级为 v2.0；完成 20 类矩阵、工作流、低耦合、逻辑 seam、守卫、共享文件锁、四组无交集并行候选与首卡复现门；用户于 2026-11-07 确认架构门 | `docs/ARCHITECTURE.md` §0；`docs/V2_PLAN.md` §12 ACTIVE、§13；`.planning/v2-g1/G1-S1/report.json`；架构门不开产品重构或 QA / Release PASS |
 | `V2-CORE-NON-TTS-DELIVERY-PLANNING` | 非 TTS 2.0 六波、依赖、风险、可观察验收、文件面、TTS 排除边界与首张任务卡已规划；新增轻量历史修复 lineage 机制；未开始产品实现 / QA / 设备 / Release | `docs/V2_PLAN.md` §12 ACTIVE、§13；`docs/DECISIONS.md` `V2-D212`；`docs/PROJECT_RULES.md` `R034`；`docs/LESSONS.md` `L040`；Git 只读证据为 `v1.4.0` 目标 `7b69e531` 与 sampled fix/candidate 均进入当前集成分支 |
 | `V2-P0-01` | 第零章、8 项根决策、资源边界、权威文档和 ADR 基线；基线提交 `ee7ff239` 已本地进入集成分支 | `docs/V2_PLAN.md`、`PROJECT_RULES`、`LESSONS`、`DECISIONS`、ADR-0003～0005 |
 | `V2-REQ-ARCH` | 引言 + 第一章 72 条需求完成归一与分级：69 `MUST` / 3 `SHOULD` / 0 `LATER` / `0 OUT`；11 组决策全部确认 | 收口提交 `426e5c01`；`docs/V2_PLAN.md` §5.2、§12、§13；`DECISIONS` `V2-D010`～`D020`；ADR-0003/0004/0006 |

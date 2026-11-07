@@ -1,19 +1,254 @@
-# Cinefin 架构设计（ARCHITECTURE）
+# Aurorama 架构设计（ARCHITECTURE）
 
 | 项 | 值 |
 |----|----|
-| 文档版本 | v1.1（2026-10-17：§1.1 / §1.2 基线校准 + §1.3 结构审计） |
-| 状态 | 已定稿，待项目负责人审查 |
-| 作者会话 | S2 · 架构与规范 |
-| 上游依据 | `docs/REQUIREMENTS.md` v1.0；`docs/design/s1-decision.md`；S2 代码走查与联网调查（见 §9） |
-| 适用对象 | 阅读器线（R1）、音乐线（R2）、UI 落地线（R3）、测试线（R4）、计划线（S3） |
-| 维护规则 | 架构变更必须先改本文并通知相关任务线；实现细节写各自任务线文档，不另建零散 md |
+| 文档版本 | v2.0（2026-11-07：V2 架构符合性、低耦合、逻辑 seam、守卫与并行基线） |
+| 状态 | `V2_EXECUTABLE_BASELINE / USER_CONFIRMED_2026_11_07 / ARCH_GATE_PASS / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` |
+| 作者会话 | `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07` |
+| 上游依据 | 外部原始文档第 154–286 行；`V2-REQ-ARCH-001～072`；`V2-D010～D020`、`D198`、`D211`、`D212`；G1-S1 / G1-S6 静态证据 |
+| 适用对象 | V2 需求、架构、实现、独立 QA、merge-prep、Release 与多会话编排 |
+| 维护规则 | 架构变更先改本文并通知受影响任务；不新增零散架构说明文件；实现事实仍以代码、Gradle、测试和候选证据为准 |
 
-> 本文只定义**目标架构、模块边界、接口形态与并行约束**，不写具体实现代码。文中所有"待验证"项必须在对应任务线实现时用真机 / 服务器实测确认，并把结论回写本文或任务线文档。
+> 本文区分“架构方向已接受”“静态 seam 已冻结”“局部重构已完成”和“产品代码已全量重构”。
+> 当前只满足前两项和有限的第三项；不得把本文存在、需求接受或静态审计通过表述为 V2 产品代码重构完成。
 
 ---
 
-## 1. 现状基线（as-is）
+## 0. V2 可执行架构基线（2026-11-07）
+
+### 0.1 审计裁决与现场
+
+| 字段 | 当前值 | 证据 |
+|---|---|---|
+| 审计基线 | `6d76936253787dbb0c07ef939f8b936fe2e761cb`，`codex/v2-integration`，开始时 clean | 本轮 `git status --short`、`git rev-parse HEAD` |
+| 架构需求 | `ARCH_REQUIREMENTS_ACCEPTED=YES`；72 条归一为 69 `MUST` / 3 `SHOULD` | `V2_PLAN.md` §5.2.2、§5.2.5 |
+| 静态边界 | 8 个目标模块、19 条 direct project 边、19 条可解析 import 边、模块级环 0 | `.planning/v2-g1/G1-S1/report.json` |
+| 稳定违规 | 11 条：P1 7 / P2 3 / P3 1 | 同上 `violations` / `priorities` |
+| 当前生产树漂移 | G1-S1 基线 `00f4bfb3…` 到当前 HEAD，`app/core/data/player/modes/settings/setup` 的生产源码与 Gradle 文件变化 0 | `git diff --name-only 00f4bfb3..HEAD -- 'app/**' 'core/**' 'data/**' 'player/**' 'modes/**' 'settings/**' 'setup/**'` |
+| 架构守卫 | 生产化实例 `NOT_FOUND`；G1-S1 只有一次性 inline 原型，未进入 CI / Gradle / 常规任务门 | G1-S1 `allowlistPrototype.productionization`；本轮全仓定向检索 |
+| 全量 V2 重构 | `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` | 无 contracts seam、owner allowlist、debt ratchet 或候选迁移实现提交 |
+| 本文状态 | `ARCH_CONFORMANCE_AUDIT=PASS / USER_CONFIRMED_2026_11_07 / ARCH_GATE=PASS` | 用户确认记录；首卡可进入实现，但必须先复现 |
+
+“审计 PASS”只表示本基线足以指导后续实现并明确未证明项，不是产品架构完成、G1、
+QA、runtime 或 Release PASS。
+
+### 0.2 重构层级：到底重构了什么
+
+| 层级 | 结论 | 事实边界 |
+|---|---|---|
+| 已接受的架构方向 / 契约 | 已接受 | `V2-D010`～`D020` 强约束、`V2-D198` 逻辑 seam / FQCN owner allowlist / debt ratchet、`D212` 修复 lineage |
+| G1 静态 seam、allowlist、违规基线 | 已冻结为审计输入 | 19 条 direct edges、0 模块级环、11 个稳定违规 ID、45 条 package-only owner 歧义；不是运行时代码 |
+| 已完成的局部重构 | 有，但不是 V2 全量重构 | ①W83 设计系统收敛到 `core/presentation/theme`；②`PlaybackCoordinator` 统一播放起播仲裁；③`61c04a38` 将下载行内容点击与尾部任务动作拆分，并有 `DownloadRowAccessibilityContractTest` |
+| 尚未执行的产品代码重构 | 未执行 | contracts seam、adapter / consumer 迁移、owner allowlist、debt ratchet、Gradle 物理拆分、跨层依赖清零、候选架构门均未落地 |
+
+因此正确状态是：
+
+```text
+ARCH_DIRECTION_ACCEPTED=YES
+ARCH_STATIC_BASELINE_FROZEN=YES
+LOCAL_REFACTORS_PRESENT=YES
+ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN
+PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
+```
+
+### 0.3 原始第 154–286 行符合性矩阵
+
+矩阵按 72 条归一需求逐类覆盖。状态只使用 `COMPLIANT / GAP / N/A / NOT_PROVEN`；
+每行给出证据与下一步。汇总：
+`7 COMPLIANT / 9 GAP / 3 NOT_PROVEN / 1 N/A`。
+
+| # | 类别 | 覆盖需求 | 状态 | 证据与边界 | 收敛动作 |
+|---:|---|---|---|---|---|
+| 1 | 交付目标、证据、阶段汇报 | 002、004、009 | `COMPLIANT` | `AGENTS.md` 最终格式、`R025`、`V2_PLAN` 门禁均要求实际执行 / 未覆盖 / 风险 / 证据 | 后续报告继续机械执行 |
+| 2 | 需求澄清、用户故事、非目标、风险 | 003、020、029 | `COMPLIANT` | G0/G1 需求门、任务卡非目标、用户确认记录 | 新需求仍走同一门 |
+| 3 | 编码前架构规范及用户确认 | 010、021、055、071 | `GAP` | 本文已升级为 v2.0；用户尚未确认，先前出现“首卡先批准、架构后补审”的次序倒置 | 用户确认本文后才放行首卡实现 |
+| 4 | ADR、已确认决策复用 | 011、051 | `COMPLIANT` | `DECISIONS` + ADR、D198 / D211 / D212 可定位 | 不在后续会话重复争论 |
+| 5 | 契约先行、必要接口、可测试边界 | 012、056、062 | `GAP` | 逻辑 seam 只有候选锚点；UI 仍可看到 data / player-local 具体实现 | 先建最小 public port + adapter 试点 |
+| 6 | 依赖方向、无循环 / 反向 / 跨层 | 013、057 | `GAP` | 模块级环 0，但 7 个 P1 跨层 / 共享包违规仍在 | debt ratchet 禁新增，逐 seam 收敛 |
+| 7 | 单一数据所有权 | 058 | `GAP` | `models` 49 文件跨 core/data、`utils` 39 文件跨 app/core/data；下载与播放状态仍有跨界面推导风险 | 在建 seam 时写明唯一 writer 与派生投影 |
+| 8 | 显式依赖、全局 / 单例边界 | 059 | `NOT_PROVEN` | 现有 Hilt 构造注入较多，但 G1-S1 未做字段 / 方法级全局状态图 | 只对新增链路做构造 / owner 审查，不扩全仓 bespoke 扫描 |
+| 9 | 公共层治理、影响面分析 | 014、060、064 | `GAP` | 规则存在；首卡原文件面仍写“按实际源码实例化”，共享层审批没有机械门 | 每卡冻结精确白名单和影响矩阵 |
+| 10 | 统一失败、重试、超时、降级、日志 | 061 | `NOT_PROVEN` | 下载已有多个纯规则和测试，但尚无全链路统一错误合同 | 首卡不扩到这里；由对应下载 / 写 / 搜索波验证 |
+| 11 | 文档单一权威与同步 | 016–019、047 | `COMPLIANT` | README / ARCHITECTURE / DECISIONS+ADR / V2_PLAN / TASKS / TEST_PLAN / RELEASE_PLAN 映射已确认；禁建零散 md | Release notes 到候选门再更新 |
+| 12 | 任务卡、正交拆分、分支基线、文件边界 | 017、022、030、031、035、036、066 | `GAP` | 任务卡字段和分支规则存在；首卡尚未冻结精确文件白名单，当前无功能分支 | 本文 §0.8 / §0.9 先冻结；实现时每卡单独 worktree |
+| 13 | 专业角色、独立 QA、子代理报告 | 005、015、025、026、032、034、052、067 | `COMPLIANT` | `AGENTS.md`、`R004`、`R012`、`R030` 明确实现 / QA / review / merge-prep 分权 | 未执行阶段只写 NOT_REACHED |
+| 14 | 标准工作流顺序 | 001、006–008、023–029、033、037–039 | `GAP` | 需求门已完成；首卡批准早于 V2 架构确认；实现尚未开始，因此可恢复 | 先补用户架构确认，再按任务→RED→自检→QA→merge-prep 顺序推进 |
+| 15 | 自检、独立 QA、merge-prep、集成态证据 | 024、027、037–039、041–044、046、063、065、069 | `NOT_PROVEN` | 当前没有 2.0 实现候选、executed、QA 报告、祖先矩阵或集成态门禁 | 首卡架构确认后才进入该链 |
+| 16 | Token / 读序 / 停止错误方向 | 050、053、054 | `COMPLIANT` | 本轮只读指定段与原子报告；错误次序被记录为 GAP；无全篇加载 | 后续复用同一白名单策略 |
+| 17 | P0/P1、测试、构建、迁移、配置、回滚、发布门 | 040–049、069 | `GAP` | 规则已配置，但当前 `DatabaseModule.kt:25` 仍有 `fallbackToDestructiveMigration(dropAllTables = true)`，发布门未满足；无 2.0 候选 | P0 迁移门必须在候选前关闭；当前不释放发布 |
+| 18 | 架构守护、发布图门 | 068、070 | `GAP` | G1-S1 的 allowlist 只在一次性 inline 原型中运行；CI 无 architecture / owner / contract drift job | 建单一只读 guard + JSON 基线，禁新增债务 |
+| 19 | 原始材料取舍与吸收 | 072 | `COMPLIANT` | 72 条已归一、分级、逐条回链；外部原文只读；不机械复制文档结构 | 后续变化先登记决策 |
+| 20 | 当前阶段截图 / Release 材料 | R013、V2 核心链路门 | `N/A` | 当前没有候选包核心旅程 PASS；按 `R013` 禁止制作发布材料 | 实现、独立 QA、候选旅程后另行授权 |
+
+### 0.4 文档开头工作流符合性
+
+| 阶段 | 状态 | 事实 |
+|---|---|---|
+| 开场只读与初始化声明 | `PARTIAL` | 本轮按派单读取 `AGENTS`、V2 指定段、规则、决策、任务、项目地图、G1 与外部 1–286 行；首条回复未按要求输出“N 规则 / M 教训 / K 任务”计数声明，后续以精确读序和证据补足，不影响未开始编码 |
+| 需求澄清 | `SATISFIED` | G0 完成；架构 72 条有来源、可观察验收、依赖、非目标和用户确认 |
+| 架构与契约 | `PARTIALLY_SATISFIED_RECOVERED` | 需求已接受；本文补齐 V2 执行版；逻辑 seam 仍在代码侧未实现 |
+| 用户确认架构 | `SATISFIED` | 用户于 2026-11-07 明确确认并指示执行下一步；架构门 PASS，首卡进入 In Progress |
+| 任务卡 | `PARTIAL_SATISFIED` | 首卡已批准，但原来的文件边界不够精确；本文已给出可执行窄白名单 |
+| 实现 | `NOT_REACHED` | 无产品代码修改 |
+| 自检 | `NOT_REACHED` | 无 RED / GREEN / 构建 / 定向回归 |
+| 独立 QA | `NOT_REACHED` | 未派发，不能用历史 W90 / 1.4 证据替代 |
+| merge-prep | `NOT_REACHED` | 无功能分支、无 source/target/final 审计 |
+| 集成分支门 | `NOT_REACHED` | 无祖先矩阵、集成态构建、核心回归或候选包 |
+
+流程上的实际缺陷是“架构确认置于首卡批准之后”。由于没有开始编码，风险仍可恢复；
+修复方式是由用户确认本文后才放行实现，而不是降低门禁或写 `PASS_WITH_GAPS`。
+
+### 0.5 低耦合规则（新代码强制）
+
+1. **模块 owner 真源**：owner 只由 Gradle module 路径 + source owner 推导；不得用
+   namespace、最长 package 前缀或手写包清单猜 owner。
+2. **FQCN 唯一解析**：跨模块 import 必须解析到唯一 FQCN；歧义进入 `QUARANTINE`，不得
+   按声明顺序猜测。
+3. **只依赖直接声明的 public port**：禁止通过 transitive project dependency 导入实现。
+4. **UI / feature 禁止直连实现**：presentation / ViewModel / Activity / Service 不得新导入
+   `JellyfinApi`、DAO、repository impl、`DownloaderImpl`、`PlayerHolder`、`MPVPlayer`、
+   `PlayerViewModel` 或 Worker 内部类型。
+5. **共享包冻结**：`com.zhangwenkang.cinefin.models`、`utils`、`update` 的现有多 owner
+   存量只减不增；不得继续把新内部类型塞入共享包。
+6. **公共层改前说明影响面**：模块、契约、数据、配置、公共 UI、测试、回归点、回滚对象
+   必须写入任务卡；共享 UI / token / 导航由单一 owner 串行修改。
+7. **实现与证据分层**：静态 seam PASS 不能替代编译、契约回归、候选包真实入口、独立 QA
+   或 Release 证据。
+
+### 0.6 逻辑 seam 与数据所有权
+
+本轮采用 `V2-D198` 的逻辑 contracts seam，不建全量物理 Gradle 拆分。物理拆模块只有在
+单个 seam 的构建、DI / KSP、Room、instrumentation、APK 和回滚成本均证明收益后才重新提报。
+
+| Seam | 唯一对外合同 | 隐藏实现 | 唯一 writer / 不变量 | 当前状态 |
+|---|---|---|---|---|
+| Scope / Identity | canonical scope + stable identity DTO | auth、preferences、DB namespace | 切号、离线、缓存、下载、通知、队列不串身份 | `PARTIAL_ANCHORS` |
+| Catalog read | immutable snapshot + stale / generation | API、DAO、SWR、TTL | 页面只读投影；data 统一刷新 | `PARTIAL` |
+| User-state write | intent → accepted → confirmed / denied | SDK 写、回读、重试 | data 写网关是唯一 writer；403 不重试 | `NOT_IMPLEMENTED` |
+| Download control | command + immutable task / hierarchy projection | WorkManager、Room、sidecar、文件、通知 | 下载控制实现单一写状态；页面 / 角标 / 通知同源 | `PARTIAL` |
+| PlaybackSession | session command / state / owner generation | ExoPlayer、mpv、MediaSession、ViewModel 内部 | 单活动逻辑会话、单 MediaSession；旧 owner 不写新状态 | `PARTIAL` |
+| Reader source | source-scoped book identity + progress / locator | Readium、PDF、SAF、Range | source-scoped bookId；内容指纹与进度分离 | `PARTIAL` |
+| Music library / queue | stable queue snapshot + command | playlist store、ExoPlayer、具体 controller | 当前 / Next Up / 恢复序用稳定身份 | `PARTIAL` |
+
+当前现有锚点包括 `JellyfinRepository`、`ReaderRepository`、`Downloader`、
+`DownloadTask` / `DownloadAction`、`PlaybackCoordinator`、`MusicPlaybackController`。
+这些是“可演进合同”，不是已经完成的严格 seam；合同不得泄漏 DAO、SDK、Worker、
+`PlayerHolder` 或 `MPVPlayer`。
+
+### 0.7 架构守护与 debt ratchet
+
+初始 guard 必须以 G1-S1 为唯一债务快照，禁止重新设计第二套 bespoke 协议。
+
+**P1 冻结 ID**：
+
+- `G1-S1-V-f3f117c921f7`：`models` 跨 core/data
+- `G1-S1-V-1d0658ad88d4`：`utils` 跨 app/core/data
+- `G1-S1-V-d0a87242164d`：app presentation → data implementation
+- `G1-S1-V-d8a9ce2529bf`：core 层塌缩
+- `G1-S1-V-ba7ffc6c9bfe`：player/local presentation → data implementation
+- `G1-S1-V-17dbbcd423d6`：music → player/local concrete
+- `G1-S1-V-434beb5c4623`：app → player/local concrete
+
+**P2**：`67c5e05b0c29`、`d6b630851ba5`、`3a750bb14da2`。
+**P3**：`56f941f5ffea`。
+
+最小 guard 每次输出并校验：
+
+1. Gradle module DAG 与 19 条 exact direct edges；unexpected edge / cycle 必须为 0。
+2. source path → module owner registry；跨模块 FQCN 唯一；歧义 quarantine 必须为 0。
+3. 新增代码不得命中 UI→data impl、feature/app→player-local concrete、共享包扩散。
+4. 既有 11 个违规 ID 只能数量持平或下降；不得用换路径、改包名或拆行隐藏债务。
+5. 合同漂移与公共层改动必须绑定任务卡批准记录。
+
+执行预算遵守 `R033`：guard 任务开工前声明 10–15 分钟静态验证时间盒；同一问题最多两轮修复、
+最多一次全长回归。第二轮仍有 P1 时冻结当前实现，改用 G1-S1 JSON 基线与现有 Gradle /
+graphify 输出的只读检查；不得继续扩 gate、字段或 exact count。
+
+### 0.8 共享文件锁与可并行候选
+
+所有功能任务必须从用户确认后、提交完成的 integration SHA 单独创建 worktree；禁止从另一
+功能分支派生再合入。本审计时 integration SHA 为
+`6d76936253787dbb0c07ef939f8b936fe2e761cb`，但文档 WIP 未提交；实现前须先由集成 owner
+完成文档提交，再从新的 clean integration SHA 派出。
+
+| 串行咽喉 | 锁范围 | 规则 |
+|---|---|---|
+| 构建注册 | `settings.gradle.kts`、根 `build.gradle.kts`、`gradle/libs.versions.toml` | 单 owner；新增模块 / 仓库 / 依赖必须先批准 |
+| 公共架构合同 | `JellyfinRepository.kt`、`Downloader.kt`、`PlaybackCoordinator.kt`、`CinefinPlaybackService.kt` | 单 owner 冻结；消费者只迁移，不各自改合同 |
+| 下载真相 | `DownloaderImpl.kt`、`DownloadTask.kt`、`DownloadControlPlane.kt`、Worker / Job、sidecar、Room、通知、`DownloadsViewModel.kt` | 同一波串行；禁止 UI 与 Worker 并行改状态语义 |
+| 导航 | `NavigationRoot.kt`、`DownloadsScreen.kt`、导航宿主回调 | 单 owner；W0 默认不进入 |
+| 公共 UI / token | `CinefinCard.kt`、theme / token、跨 feature 组件 | UI foundation 单 owner；W0 不得顺手改 |
+| 身份 / 配置 | `AppPreferences.kt`、auth、账号选择、离线 scope | Identity seam 单 owner；所有依赖方等待合同 |
+
+预留 seam / 构建变更的影响：根 build 或依赖目录变化会阻塞全部四个候选；公共
+`JellyfinRepository` / search port 冻结会影响 Search、SWR、Reader 与 Write；下载真相
+会同时影响 W0 UI、W2、通知与离线投影；PlaybackSession 会影响 W3、音乐 / 视频和后续
+TTS；`NavigationRoot` / `DownloadsScreen` 或共享 UI 会影响 W0、W1 与导航任务。依赖这些
+咽喉的候选不得与新合同实现并行，只能在合同提交后从新 integration SHA 重建。
+
+**可并行候选（尚未授权实现）**
+
+| 候选 | 目标 / 单一可观察结果 | 文件白名单 | 为什么可并行 |
+|---|---|---|---|
+| `V2-ARCH-OWNER-GUARD-W1P` | 把 G1-S1 的 19 边 / 11 违规快照落成只读 owner guard 与负例 | `tools/architecture/v2-owner-gate.ps1`、`tools/architecture/v2-owner-baseline.json`、`tools/architecture/v2-owner-gate.tests.ps1` | 只读工具目录；不碰产品或 Gradle |
+| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` | 先证明当前候选是否仍有完成卡点击缺陷；有则最小修复，无则停止 | `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/downloads/DownloadRows.kt`、`app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/film/downloads/DownloadRowAccessibilityContractTest.kt` | app 下载行 UI 与测试；不碰 data、player、构建或契约 |
+| `G2-UPDATE-TRUST-W1P` | 固定更新包信任判断的纯逻辑与负例 | `data/src/main/java/com/zhangwenkang/cinefin/update/UpdateHttpDownloader.kt`、`data/src/main/java/com/zhangwenkang/cinefin/update/UpdateTrustVerifier.kt`、`data/src/test/java/com/zhangwenkang/cinefin/update/UpdateHttpDownloaderTest.kt` | data/update 独立子树；不碰下载 UI、导航或 Room |
+| `G2-PERSISTENT-SWR-W1P` | 固定持久快照 codec / store 的 generation 与损坏恢复逻辑 | `data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotStore.kt`、`data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotCodec.kt`、`data/src/test/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwrTest.kt`、`data/src/test/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotStoreTest.kt` | data/repository 的独立快照文件；不碰 app UI、下载、播放 |
+
+四组白名单两两无交集。任一任务若需要 `settings.gradle.kts`、根 build、
+`JellyfinRepository.kt`、下载真相、导航宿主或公共 UI，必须停止并排队串行，不得自行扩锁。
+
+### 0.9 首卡约束与 D212 lineage
+
+首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 静态审计结果：
+
+```text
+HISTORICAL_FIX=61c04a38a037dbc5fa450c9e809d2277fcd33151
+ANCESTOR_OF_V1_4=YES
+ANCESTOR_OF_CURRENT_HEAD=YES
+CURRENT_STATIC_IMPLEMENTATION_PRESENT=YES
+CURRENT_DEFECT_REPRO=NOT_PROVEN
+CANDIDATE_REAL_ENTRY_REGRESSION=NOT_RUN
+LINEAGE_STATUS=UNPROVEN
+```
+
+`61c04a38` 已把 `CinefinCard` 的整卡 click / long-click 置空，把内容区交互与尾部任务动作
+拆成兄弟范围，并新增 `DownloadRowAccessibilityContractTest`。当前代码的完成叶行仍通过
+`DownloadAction.OpenEntry` → `resolveEntryItem` → `Host.onItemClick` 打开目标。因此首卡不能
+默认“尚未修复”：实现 owner 必须先做当前对象的最小复现；无缺陷时返回
+`NO_DEFECT_REPRODUCED` 并停止。
+
+首卡放行条件：
+
+1. 用户确认本 V2 架构基线。
+2. 集成 owner 提交文档并确认 clean integration SHA；实现 owner 从该 SHA 单独 worktree。
+3. 默认白名单只有 `DownloadRows.kt` 与 `DownloadRowAccessibilityContractTest.kt`。
+4. 先绑定 `V2-FIX-DOWNLOAD-001` / `V2-REG-DOWNLOAD-001`，记录当前 RED 或明确无缺陷。
+5. 若需要 `DownloadsScreen.kt`、`NavigationRoot.kt`、`DownloadsViewModel.kt`、`CinefinCard.kt`、
+   下载状态机、通知、schema 或迁移，停止并拆新卡；不得扩项。
+6. 修复后必须另有独立候选包场景；静态测试、历史 v1.4 通过或 `61c04a38` 祖先都不能单独
+   证明当前候选 `FIXED_IN_CANDIDATE`。
+
+### 0.10 未证明项与确认门
+
+- 产品代码尚未完成 V2 contracts seam / adapter / consumer migration。
+- owner allowlist、debt ratchet、架构守护与 CI 门尚未实现。
+- 模块级无环不等于包级、类型级或调用级低耦合。
+- `DatabaseModule.kt:25` 的破坏性 fallback 仍是 P0 发布阻断，归
+  `G2-ARCH-CONTRACTS-MIGRATION`，不得由 W0 下载卡修复夹带。
+- 首卡所示缺陷已有历史修复，但当前候选复现、独立 QA 和真实入口回归未执行。
+- 2.0 实现、自检、独立 QA、merge-prep、核心候选旅程、P0–P3 与 Release 均未到达。
+
+用户已于 2026-11-07 确认本文件，关闭“架构规范与并行编排门”；首卡可按批准范围进入实现，
+但仍不自动批准设备、独立 QA 或 Release。
+
+---
+
+## 1. 1.4 历史现状基线（as-is，非 V2 完成声明）
+
+> 本节至 §9 保留 2026-10-17 前后的 1.4 实施、阅读器 / 音乐设计与历史验证细节，供追溯和
+> 局部复用。模块版本、数据库 schema、CI、任务状态等易漂移事实不得从本节直接当作当前
+> 真值；若与 §0 冲突，以 §0、Gradle、代码、Git 和候选证据为准。
 
 ### 1.1 模块与依赖（`settings.gradle.kts` 实测）
 
@@ -46,9 +281,11 @@
 
 ---
 
-### 1.3 结构审计与重构候选（2026-10-17）
+### 1.3 结构审计与重构候选（2026-10-17 历史结论）
 
-结论：**依赖图健康**（11 模块、无循环依赖，§2.3 五条规则未被违反）。拖慢修复的不是循环依赖，而是 —— ①**模块只拆了一半**：影视 UI 留在 `app/phone/presentation/film`（73 文件 / 1.3 万行），`modes/film` 只剩 ViewModel，`app` 模块 177 文件 / 3.66 万行；②**咽喉大文件**：`PlayerControlOverlay` 3861 行 / `PlayerViewModel` 2821 行 / `NavigationRoot` 2140 行（B4 已登记）；③**CI 不跑单测**（975 个 JVM 单测仅本地门禁；无 Robolectric / `androidTest`，Compose 层不可单测）。
+历史结论：**模块级依赖图无环**（11 模块、无循环依赖）。该结论只描述 Gradle 声明图，
+不等于低耦合：G1-S1 已证明 UI→data 实现、app/music→具体播放器、共享 models/utils 包和
+core 层塌缩仍存在。当前 V2 判断见 §0.1、§0.5、§0.7，本节不再作为“依赖图健康”依据。
 
 重构候选（按执行策略分档；政策见 `FIX_PLAN` D-F17，重构目标 = **更大灵活度、支撑后续新增需求**）：
 
