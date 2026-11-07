@@ -560,3 +560,30 @@
 - **来源**：2026-11-07 用户指出长期事项落档后仍常被忘记；对
   `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc..fee63165f966a52318e332abe1ad7b184592a88a`
   的生产源码只读比较未见变化；执行规则见 D213 / R035。
+
+## L042 动态状态必须单源、提交外 pin、并由可执行门校验
+
+- **现象**：同一当前状态被复制在 `AGENTS`、`PROJECT_PLAN`、`V2_PLAN`、`ARCHITECTURE` 与
+  `TASKS`，旧 HEAD / owner / next role 可能继续被当作派单事实；含 `--tests` 的测试过滤
+  可能零匹配却仍被写成通过；QA 前置只写在 prose，派发前没人机械复核；一个微小文档或
+  harness 修复又会重开整轮 audit；规则虽写了命令，但没有固定入口、failure code 和证据门。
+- **根因**：动态状态没有唯一写者；文档试图记录自身提交 SHA，产生自引用和过期副本；测试 /
+  QA 结论依赖人工自报；控制面修改与 fresh audit 之间缺少一次性事务边界。
+- **对策**：
+  1. `docs/TASKS.md` 的唯一 `V2_HANDOFF_ACTIVE_BEGIN/END` 是唯一动态状态源；稳定文档只留
+     决策 / 里程碑与 `TASKS` 指针。旧 current-looking 副本必须标 `HISTORICAL`，获授权后清理。
+  2. candidate / base / required ancestors / failed candidate 放 `V2_HANDOFF_OBJECT_BEGIN/END`；
+     同一 docs 提交不写自身 SHA，当前 candidate 由 manager 在提交后用 `-ExpectedHead` 外部 pin。
+  3. 新会话 / 交接 run `tools/architecture/v2-handoff-lint.ps1 -Mode Handoff`；QA 派发前与 QA
+     owner 首动作 run `-Mode QaReady`。只接受 `HANDOFF_LINT=PASS` / `QA_READY_LINT=PASS`，
+     失败必须输出 `FAIL:<CODE>:<path>` 并非零。
+  4. 每个 `--tests` 命令必须有同行 `TEST_SELECTOR_VERIFIED=PASS`，或
+     `NO_MATCHING_TESTS / EQUIVALENT` 加非空等效证据；P1 必须有 RED / GREEN / 绝对证据路径。
+  5. FAIL 由同一 docs / implementation owner 在 5–10 分钟内修正并重跑；同一门最多两轮修复、
+     一次全长回归，PASS 后只做一次 fresh pre-handoff audit，不再为每个小修重开审计。
+- **验证判据**：positive fixture 两模式 PASS；clean / HEAD / branch / unique ACTIVE / 旧 HEAD /
+  越界路径 / 第 N+1 文件 / 空证据 / QA_READY 缺失 / 空测试过滤 / P1 缺 RED/GREEN / memory
+  越限或逃逸指针均有明确非零负例。
+- **来源**：2026-11-08 `V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08` 实现候选；
+  命令见 `AGENTS.md`、`R036/R037`、`docs/TASKS.md` 的可执行调用点，证据见
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08`。

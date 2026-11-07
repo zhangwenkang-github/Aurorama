@@ -4,155 +4,109 @@
 
 ## In Progress
 
-> **2026-11-07 ACTIVE 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
-> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / DO_NOT_RESUME_OLD_HANDOFF_LOOP /
-> ARCH_SEAM_DELIVERY_ACTIVE / W0_ISOLATED_PROBE_ALLOWED /
-> BROAD_FEATURE_WAVES_SEAM_GATED / PLAN_CONTINUITY_LEDGER=REQUIRED /
-> ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
-> FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS /
-> USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
-> IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
-> CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca /
-> CONTROL_PLANE_HEAD_INPUT=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a /
-> HANDOFF_BASE_HEAD=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a /
-> DOCS_CANDIDATE_PARENT=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a /
-> W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
-> W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES / W1A_P3_OPEN=0 /
-> W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
-> W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 /
-> W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
-> W1B_TASK_CARD_STATUS=ACCEPTED /
-> W1B_1A_SOURCE_HEAD=efd277ded8c0673ad73f951b33b56833dff8639a /
-> W1B_1A_CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca /
-> W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> SOURCE_FINAL_PATCH_ID=80f77fb77bbc44c3fcff81fa76183f49354f2503 / MATCH /
-> PATH_SET_MATCH=YES / BLOB_MATCH=13/13 / TARGET_DELTA_DOCS=0 /
-> W1B_1A_QA=PASS / P0-P3=0/0/0/0 /
-> W1B_1A_REPAIR=COMPLETE / INTEGRATED /
-> W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0 /
-> W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY /
-> W1B_1B_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\Aurorama /
-> W1B_1B_BRANCH=codex/v2-w1b-1b-setup-auth-api-candidate-ingress /
-> W1B_1B_BASE_HEAD=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a /
-> W1B_1B_PREVIOUS_OWNER=INTERRUPTED_BEFORE_EDIT / NO_CHANGES /
-> W1B_1=NOT_COMPLETE / W1B_1C=BLOCKED_BY_W1B_1B /
-> W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
-> NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS /
-> NEXT_ROLE=AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07 /
-> CONTEXT_WATERMARK=416429/1048576 39.7% / HANDOFF_REQUIRED=YES / COMPACTION_COUNT=0 /
-> OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
-> PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
-> V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES /
-> RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO`。
-> TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成删除、已交付、QA / runtime /
-> G1 PASS。W1B-1A 的代码集成基线仍为
-> `CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca`，branch
-> `codex/v2-integration`；本 docs 交接的 control clean 输入为
-> `CONTROL_PLANE_HEAD_INPUT=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`。旧 G2 合同 / QA evidence
-> 继续冻结，不得恢复 64/65、exact count 或 handoff 修复循环。
->
-> W1A cleanup 的 source / final / merge-prep 均为
-> `faa910827d2db557d4e17970105047a205f77a57`，parent
-> `432616b6d27e8dce62753f97b3ebf3184b8f67b5`，只改 3 个搜索实现 / 测试文件。cleanup
-> 独立 QA R2 为 `PASS / P0-P3=0/0/0/0`：film 定向 `15/0/0/0`、app 定向 `7/0/0/0`、
-> film 全量 `154/0/0/0`、app 全量 `417/0/0/0`，assemble / ktfmt PASS，A0 7/7 +
-> direct guard PASS。merge-prep source/final 相同，3 文件 blob / patch-id MATCH；目标态
-> `288/288` tasks executed，A0 internal `19/19`、external `8/8`，cycles / FQCN ambiguity /
-> debt-ratchet failure / findings 均为 0，随后 ff-only 集成控制面。
->
-> `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
-> V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
-> V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-> `NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`；
-> `last_evidence=W1B-1A source efd277ded8c0673ad73f951b33b56833dff8639a /
-> merge-prep 7a2f1716a7325cf22dd8d923741c37d317ab97ca / patch-id MATCH / 13/13 BLOB /
-> independent QA PASS / P0-P3=0/0/0/0 / ff-only integrated`。
->
-> W1B-1A source candidate 为
-> `efd277ded8c0673ad73f951b33b56833dff8639a`；source/final stable patch-id
-> `80f77fb77bbc44c3fcff81fa76183f49354f2503` MATCH，`PATH_SET_MATCH=YES`，
-> `BLOB_MATCH=13/13`，`TARGET_DELTA_DOCS=0`。merge-prep final
-> `7a2f1716a7325cf22dd8d923741c37d317ab97ca` 保留 3 个源语义提交，合法链为
-> `f91095ee -> 50f92341 -> 9817bc12 -> 7a2f1716`；`f91095ee` 只是 target baseline /
-> 祖先，不能要求为直接 parent。随后以 ff-only 集成 clean `codex/v2-integration`。
->
-> 独立 QA R2 为 `INDEPENDENT_QA_PASS / W1B_1A_QA_PASS / P0-P3=0/0/0/0`：data identity
-> `21/0/0/0`、app setup `28/0/0/0`、并发协调器 `12/0/0/0` 均独立重跑 2 次；
-> assemble `242 PASS`、ktfmt `34 PASS`；A0 direct internal `19/19`、external `8/8`，
-> cycles / FQCN / debt / findings 均 `0`，A0 tests `7/7`；W1A 两项 P3 定向各
-> `1/0/0/0`。merge-prep final gates 另为 JUnit `51/0/0/0`，assemble、ktfmt、A0、
-> diff-check PASS。test-only MockK `1.13.16` 已集成，未联网。
->
-> 本结果只覆盖 Identity contract/store/coordinator/DI + Servers current-server。
-> auth / Quick Connect / Add Server / settings offline / app startup hydration /
-> Room-global API unified coordinator / `CatalogScope` generation fence 仍
-> `NOT_MIGRATED`；`OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED`，
-> `PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS`，W1B-1 与产品均未 PASS。已知非阻塞历史
-> P3 为 `SearchViewModelTest` 全类不稳定，本波未修复、未扩跑，不能写成候选引入或已关闭。
->
-> 下一角色固定为新会话中的 fresh
-> `AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07`；
-> 第一条只读动作是核对最终 control clean HEAD（docs commit 后由 manager pin）、
-> W1B-1B worktree clean / HEAD `c72fcce6`、branch、W1B 任务卡与 1A QA / merge evidence。
-> 本 docs 会话不创建 1B owner 或分支。
->
-> `W1A-P3-COMPLETED-MARKER` / `W1A-P3-LOCAL-ONLY-REGRESSION` 均 `CLOSED`；
-> `W1A_P3_OPEN=0`。原独立 QA R3 `PASS / P0-P3=0/0/0/3` 作为历史证据保留，不追溯改写；
-> cleanup 后的独立 QA R2 `PASS / P0-P3=0/0/0/0` 作为新增证据。W1A slice 已
-> `P3_CLEANUP_COMPLETE / INTEGRATED`，但父 seam 仍是
-> `CONTRACT_FROZEN / IN_PROGRESS`。
-> DI 选择点位于 `:data` 的 `CatalogReadModule`，
-> `core/RepositoryModule.kt` 保持原样。`V2-NON-TTS-W1` 仍保持
-> `BLOCKED_BY_PREREQUISITES`，直到完整 seam DoD 通过。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
-> 可作独立探针，但状态为
-> `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`；仅两文件，无缺陷即
-> `NO_DEFECT_REPRODUCED` 停止，不挡架构主线，也不计作 seam 进度。W1B-1A 已完成
-> independent QA、merge-prep 与 ff-only integration；下一入口为
-> `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`。`HANDOFF_BASE_HEAD` 与
-> `DOCS_CANDIDATE_PARENT` 均为
-> `c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`；本次 docs commit SHA 由 root / manager
-> 提交后外部钉住，不写入同一提交。W1B-1B 为
-> `HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`，
-> `W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY`；1C / 2 仍按顺序阻塞。
->
-> W1B-1B 独立 worktree 为
-> `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\Aurorama`，
-> branch 为 `codex/v2-w1b-1b-setup-auth-api-candidate-ingress`，base HEAD
-> `c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`，当前 clean 且无 commit / 部分文件。
-> `W1B_1B_PREVIOUS_OWNER=INTERRUPTED_BEFORE_EDIT / NO_CHANGES`。上下文
-> `CONTEXT_WATERMARK=416429/1048576 39.7% / HANDOFF_REQUIRED=YES / COMPACTION_COUNT=0`。
-> 该交接只证明可开始 1B，不证明实现、QA、merge、integration 或全局单 writer。
-> 新实现 owner 只做自身 TDD / build / 边界内最小自测，停在 implementation candidate；
-> 不得开启 QA / merge / integration，不得启动 1C 或 W1B-2。若不匹配、需要第 12 文件、
-> 改 1A files、需要 schema / migration / production dependency / network / device /
-> Release，或出现新 P0–P2，必须 `STOP`。
->
-> **HISTORY（2026-11-07 P3 cleanup 前；已被本 ACTIVE 取代）**：当时控制面
-> `3607a2fdc1691b42bb638b984a16097f9c3cc563`，W1A 为
-> `INTEGRATED_WITH_P3_CLEANUP / W1A_P3_OPEN=2`；旧会话为
-> `648,477 / 1,048,576（61.8%），请求 1331`。旧 G2 合同 / QA evidence 继续冻结，
-> 不得恢复 64/65、exact count 或 handoff 修复循环。
+<!-- V2_HANDOFF_ACTIVE_BEGIN -->
+### ACTIVE — V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08
 
-- [x] `W1A-P3-CLEANUP`：`CLOSED / INTEGRATED`。实现与 cleanup 独立 QA R2 证据绑定
-  `faa910827d2db557d4e17970105047a205f77a57`；原 cleanup 任务卡已转为 HISTORY。
-  `W1B-1A` 已完成独立 QA、merge-prep 与 ff-only integration；1B 现为
-  `HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`，1C/2 仍按顺序锁定，
-  禁止从本 docs 收口自行创建 1B/1C/2 owner / branch。
-- [x] `W1B-TASK-CARD-PLANNING`：`W1B_TASK_CARD=ACCEPTED`；原计划态
-  `READY_FOR_IMPLEMENTATION` 仅作 HISTORY。
-  自包含卡、W1B-1A/B/C 三顺序实现子波与后置 W1B-2、逐波精确白名单、独立 QA /
-  merge-prep、TDD / 负例 / 回归矩阵和停止门已写入下方；只证明可执行计划存在，不证明
-  实现、QA、父 seam 或 W1 完成。
-- [x] `W1B-1A`: `INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`。source
+- TASK_ID=V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08
+- TASK_STAGE=IMPLEMENTATION_SELF_TEST_PASS / QA_READY / INDEPENDENT_QA_NOT_STARTED
+- WORKTREE_POLICY=EXACT_ABSOLUTE
+- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama
+- CANONICAL_BRANCH=codex/v2-executable-workflow-hardening
+- EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
+- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md > docs/TASKS.md ACTIVE / W1B history / Architecture ledger > docs/LESSONS.md L028/L038/L039/L042 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
+- NEXT_ROLE=AURORAMA_V2_EXECUTABLE_WORKFLOW_HARDENING_INDEPENDENT_QA_OWNER_2026_11_08
+- NEXT_PATH=tools/architecture/v2-handoff-lint.ps1
+- STOP_CONDITION=STOP on worktree/branch/manager pin drift, >6 changed paths, product code or protected docs edit, network/device/Gradle except offline, independent QA/merge-prep/integration attempt, new P0-P2, or any lint failure not fixed by the same implementation owner.
+- SCOPE=Exactly six paths: two architecture lint scripts, AGENTS.md, PROJECT_RULES.md, TASKS.md, LESSONS.md. No product implementation and no W1B-1B resume.
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08\red-initial.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08\green-full-tests.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08\docs-copy-audit.txt
+- P1=P1-001:dynamic-state drift can dispatch a stale owner;P1-002:QA_READY or an empty --tests selector can false-pass
+- P2=P2-001:PROJECT_PLAN/V2_PLAN/ARCHITECTURE still contain current-looking copies; authorized docs cleanup is deferred and required
+- OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
+- NEXT_CRITICAL_PATH=V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08
+- last_evidence=tools/architecture/v2-handoff-lint.tests.ps1 + evidence-v2-executable-workflow-hardening-2026-11-08
+<!-- V2_HANDOFF_ACTIVE_END -->
+
+<!-- V2_HANDOFF_OBJECT_BEGIN -->
+- BASE_HEAD=fe2f4e29aa0fa1729d8defa6e73de2984ea4f18d
+- REQUIRED_ANCESTOR=fe2f4e29aa0fa1729d8defa6e73de2984ea4f18d
+- FAILED_CANDIDATE=e70b4f10e3844e0de427516f50d7b698ee930a34
+- MAX_CHANGED_PATHS=6
+- ALLOWED_PATH=AGENTS.md
+- ALLOWED_PATH=docs/LESSONS.md
+- ALLOWED_PATH=docs/PROJECT_RULES.md
+- ALLOWED_PATH=docs/TASKS.md
+- ALLOWED_PATH=tools/architecture/v2-handoff-lint.ps1
+- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1
+<!-- V2_HANDOFF_OBJECT_END -->
+
+### 可执行调用点
+
+提交 docs checkpoint 内容后、由 manager 外部 pin HEAD，然后运行：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama" -ExpectedHead "<manager pin>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+```
+
+未提交 working tree 若只因 dirty 报 `WORKTREE_DIRTY`，该次不是交接 PASS。任何 `FAIL:<CODE>:<path>` 由同一
+docs / implementation owner 修正并重跑；出现 `HANDOFF_LINT=PASS` 后才做一次 fresh pre-handoff audit。
+
+派 QA 前及 QA owner 第一条动作：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+```
+
+只有 `QA_READY_LINT=PASS` 才能派发或开始独立 QA；上游自报不能替代 QA owner 自己的首条命令。
+
+### HISTORY — 2026-11-07 旧 ACTIVE / W1B-1B 交接
+
+- 2026-11-07 旧 ACTIVE、旧 current HEAD / control-plane HEAD、旧 W1B 可派单 owner 和旧 candidate 测试计数
+  已不再是派单事实。W1A / W1B 的完整冻结任务卡、白名单和历史证据仍从本文件下方稳定条目读取。
+- `PRODUCT_W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`；source
   `efd277ded8c0673ad73f951b33b56833dff8639a`，integration
-  `7a2f1716a7325cf22dd8d923741c37d317ab97ca`；patch-id MATCH、13/13 BLOB、
-  `P0-P3=0/0/0/0`。仅完成合同/store/coordinator/DI + Servers current-server。
-- [ ] `W1B-1B`: `HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`。
-  `W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY`。下一会话派 fresh
-  implementation owner，先只读核对最终 control clean HEAD、W1B-1B worktree / branch /
-  HEAD `c72fcce6`、任务卡与 1A QA / merge evidence；本会话不创建 owner / branch。
-  1C / 2 继续分别由 1B / W1B-1 closeout 阻塞。
+  `7a2f1716a7325cf22dd8d923741c37d317ab97ca`；这是稳定历史指针，不表示当前 HEAD。
+- `PRODUCT_W1B_1B=BLOCKED_HISTORY / FAILED_CANDIDATE / NOT_RESTORED`；failed candidate
+  `e70b4f10e3844e0de427516f50d7b698ee930a34` 只做对象存在 / 非当前事实校验。原子 generation fence
+  仍需用户 / delivery lead 决策；本任务不实现、不修复、不 QA、不恢复 W1B-1B。
+- `PRODUCT_W1B_1=NOT_COMPLETE / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
+  V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`。本次控制面硬化不代表产品 1B、父 seam、A0、产品 QA 或 Release。
+- 旧 W1B-1B worktree / branch / review evidence 只作稳定追溯指针；禁止从本 HISTORY 重新派发产品实现。
+
+### QA_READY — 控制面候选
+
+<!-- V2_QA_READY_BEGIN -->
+- QA_READY=YES
+- UNCOVERED=Independent QA, merge-prep, push, integration, product tests, A0, device/runtime and Release are not executed. PROJECT_PLAN/V2_PLAN/ARCHITECTURE still contain current-looking top copies because this six-file phase is forbidden to edit them; those copies are HISTORICAL and require a later authorized docs cleanup. W1B-1B remains blocked history.
+- STOP_CONDITION=Any nonzero lint, missing evidence, >6 changed path, untracked file, non-LF / non-UTF8 script, stale ACTIVE contradiction, or attempt to dispatch QA before this block passes.
+- MANUAL_OWNER=AURORAMA_V2_EXECUTABLE_WORKFLOW_HARDENING_INDEPENDENT_QA_OWNER_2026_11_08
+- MANUAL_LIMITATION=Human judgment is limited to whether stable-document historical labeling is understandable; all executable gates are covered by fixture tests. Real product behavior and device facts are outside this control-plane candidate.
+
+<!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
+| Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
+|---|---|---|---|---|---|
+| INV-ACTIVE-01 | docs/TASKS.md | Run Handoff lint | Exactly one ACTIVE and required tokens are accepted; duplicates / old state fail | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
+| INV-GIT-01 | fixed worktree | Run Handoff lint | clean branch / external pin / base ancestry are checked; drift fails nonzero | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
+| INV-SCOPE-01 | V2_HANDOFF_OBJECT | Run Handoff lint | changed paths stay within six approved paths; seventh / out-of-scope fails | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
+| INV-EVIDENCE-01 | ACTIVE EVIDENCE | Run Handoff lint | every declared evidence file is absolute, present and nonempty | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
+| INV-QA-01 | QA_READY block | Run QaReady | invariant / test / P1 matrices are nonempty; unverified --tests fails | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
+| INV-MEMORY-01 | MEMORY.md | Run Handoff / QaReady with -MemoryIndex | hard cap and safe store-local project pointers are checked read-only | tools/architecture/v2-handoff-lint.tests.ps1 | N/A:control-plane fixture only |
+<!-- V2_QA_INVARIANT_MATRIX_END -->
+
+<!-- V2_QA_TEST_MATRIX_BEGIN -->
+| Test ID | Target | Command | Selector status | Equivalent evidence |
+|---|---|---|---|---|
+| TEST-LINT | tools/architecture/v2-handoff-lint.tests.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama\tools\architecture\v2-handoff-lint.tests.ps1" | NOT_APPLICABLE |  |
+<!-- V2_QA_TEST_MATRIX_END -->
+
+<!-- V2_QA_P1_MATRIX_BEGIN -->
+| P1 ID | RED | GREEN | Evidence |
+|---|---|---|---|
+| P1-001 | Missing linter made both positive modes fail; legacy dynamic state / pin / scope negatives are required | Positive fixture passes both modes; all dynamic-state and Git negatives return explicit codes | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08\red-initial.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08\green-full-tests.txt |
+| P1-002 | QA_READY and test-selector contract initially absent | Positive QA_READY matrix passes; missing QA block and unverified --tests fail nonzero | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08\red-initial.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-2026-11-08\green-full-tests.txt |
+<!-- V2_QA_P1_MATRIX_END -->
+<!-- V2_QA_READY_END -->
 
 ## Architecture Critical Path / 长期计划账本
 
@@ -162,7 +116,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0 / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice 与 W1B-1A 均已独立 QA + merge-prep + integrated；W1B-1B worktree clean，授权只限 1B | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | fresh W1B-1B implementation owner | W1B-1A 只完成 contract/store/coordinator/DI + Servers current-server；1B 尚未开始；auth / Quick Connect / Add Server / settings offline / startup hydration / Room-global API / CatalogScope generation fence 仍 `NOT_MIGRATED`；父 seam 未完成 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice 与 W1B-1A 已独立 QA + merge-prep + integrated；W1B-1B failed candidate / atomic-fence blocker 仅作 HISTORY，当前不派产品实现 | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | 用户 / delivery lead 先决定 `IdentityWriteCoordinator` 原子 generation fence 授权或等效方案 | W1B-1A 只完成 contract/store/coordinator/DI + Servers current-server；W1B-1B 已因原子 generation fence 阻塞并保留 HISTORY，本控制面硬化不恢复；auth / Quick Connect / Add Server / settings offline / startup hydration / Room-global API / CatalogScope generation fence 仍 `NOT_MIGRATED`；父 seam 未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -614,7 +568,7 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 
 | 子波 | 交付物 | 前置 |
 |---|---|---|
-| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A` 与 `W1B-1A` 均 integrated；`W1B_TASK_CARD=ACCEPTED`，`W1B-1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`，实现授权仅限 1B；1C/2 按顺序阻塞 |
+| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A` 与 `W1B-1A` 均 integrated；`W1B_TASK_CARD=ACCEPTED`，`W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED`，原子 fence 决策前不派实现；1C/2 按顺序阻塞 |
 | `ICS-W1C-CATALOG-READERS` | views / items / detail / home / paging 等 catalog readers 共用 canonical scope 与 snapshot | `ICS-W1B` |
 | `ICS-W1D-OFFLINE-NAMESPACE` | saved offline account、无账号、image cache / DB namespace / offline projection 收敛 | `ICS-W1B` |
 | `ICS-W1E-FRESHNESS-PERMISSIONS` | 完整 freshness / stale reason、401/403、durable fence、跨进程与损坏策略 | `ICS-W1A`–`W1D` |
@@ -670,12 +624,11 @@ git -C $repoRoot diff --check
 
 前两条预期无命中；若保留 test helper 名称，也必须不以生产方式暴露。
 
-### `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 自包含任务卡
+### HISTORY — `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 冻结任务卡（产品未恢复）
 
 - ID：`ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`
-- 状态：`W1B_TASK_CARD_STATUS=ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS /
-  MERGE_PREP_PASS / INTEGRATED / W1B_1B=HANDOFF_READY /
-  IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0 /
+- 状态：`HISTORY / W1B_TASK_CARD_STATUS=ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS /
+  MERGE_PREP_PASS / INTEGRATED / W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED /
   W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`
 - 原始授权记录（HISTORY）：`W1B_IMPLEMENTATION_AUTHORIZED=YES /
   SCOPE=W1B_1A_ONLY`；该授权已用于生成 1A implementation candidate，不自动授权 repair。
@@ -700,14 +653,14 @@ git -C $repoRoot diff --check
   `W1B_1B_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\Aurorama`，
   `W1B_1B_BRANCH=codex/v2-w1b-1b-setup-auth-api-candidate-ingress`，
   `W1B_1B_BASE_HEAD=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`，
-  `W1B_1B_PREVIOUS_OWNER=INTERRUPTED_BEFORE_EDIT / NO_CHANGES`。本次 docs commit
+  `W1B_1B_PREVIOUS_OWNER_HISTORY=INTERRUPTED_BEFORE_EDIT / NO_CHANGES`。本次 docs commit
   不记录自身 SHA，由 root / manager 提交后最终钉住。
-- 当前门：`W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`。`W1B_1A` 已独立 QA PASS、
-  merge-prep PASS、ff-only integrated；`W1B_1B=HANDOFF_READY /
-  IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`，
-  `W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY`。下一会话必须派 fresh
-  implementation owner，不得复用 1A 实现 / QA / repair / merge-prep owner；本 docs
-  会话不创建 1B owner / branch。
+- HISTORY gate：`W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS` 曾在 2026-11-07 形成交接；
+  后续 failed candidate / atomic generation fence 使产品状态变为
+  `W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED`。旧
+  `W1B_1B_IMPLEMENTATION_AUTHORIZATION_HISTORY=YES / SCOPE=W1B_1B_ONLY` 不得复用；必须先由
+  用户 / delivery lead 决定 `IdentityWriteCoordinator` 原子 generation fence 授权或等效方案。
+  本控制面硬化不创建 1B owner / branch，也不恢复产品实现。
 - 当前 QA 事实：W1B-1A source
   `efd277ded8c0673ad73f951b33b56833dff8639a`，merge-prep final / integration
   `7a2f1716a7325cf22dd8d923741c37d317ab97ca`，parent chain
@@ -778,7 +731,7 @@ git -C $repoRoot diff --check
 - 永续边界：本卡不提升父 seam 的 `CONTRACT_FROZEN / IN_PROGRESS`，不提升
   `V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`；W1A P3 cleanup 的两项 CLOSED 语义不得回退。
 - 当前子波 tokens：`W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`、
-  `W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`、
+  `W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED`、
   `W1B_1C=BLOCKED_BY_W1B_1B`、`W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；
   `W1B_1A_REPAIR=COMPLETE / INTEGRATED`、`W1B_1=NOT_COMPLETE`、
   `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED`。
@@ -894,7 +847,7 @@ W1B-1 被拆为三个顺序小波。每个小波由不同 fresh implementation o
   `STALE_DISCARDED`。Auth / Quick Connect / settings offline / W1A generation 仍明确
   `NOT_MIGRATED`，不得在本波宣称全局单 writer。
 - 收口边界：`W1B_1A_REPAIR=COMPLETE / INTEGRATED`，W1B-1A 前置已满足；
-  `W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`。
+  `W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED`。
   本结果只完成 contract/store/coordinator/DI + Servers current-server；不等于全局单
   writer、W1B-1、父 seam、产品或 Release PASS。`W1B_1C=BLOCKED_BY_W1B_1B`，
   `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`。
@@ -918,12 +871,12 @@ HISTORY：本波已执行的 tests（4，全部精确）：
 只允许迁移 Servers 页的 current-server 选择；禁止修改 auth / Add Server、settings
 offline、catalog contract、global API candidate factory、Room 或 app shell。
 
-##### `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`
+##### HISTORY — `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`（产品阻塞，未恢复）
 
-- 前置：`W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`；当前实际状态为
-  `W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`，
-  `W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY`。下一会话派 fresh owner；
-  本 docs 会话不得创建 owner / branch，也不得与 1A 合并为一个 owner。
+- 前置：`W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`。产品尝试后的当前事实为
+  `W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED`；旧
+  `W1B_1B_IMPLEMENTATION_AUTHORIZATION_HISTORY=YES / SCOPE=W1B_1B_ONLY` 只作追溯。
+  原子 generation fence 决策前不得创建 owner / branch，也不得与 1A 合并为一个 owner。
 - 独立用户可观察结果：用户切 server / address、选择 saved user、密码登录或 Quick
   Connect 时只产生一个 identity generation；旧认证 / 旧用户请求晚到时不得覆盖后发起的
   切换；认证失败不改变当前在线身份或全局 API token。
@@ -999,7 +952,7 @@ W1B-1 stack 后，manager 必须另派全新 combined independent QA，复核三
 | 中间态 | 已迁移 | 仍未迁移 | 允许声明 | 禁止声明 |
 |---|---|---|---|---|
 | 1A 已集成 | canonical contract / store / coordinator / DI + Servers current-server selection | auth / Add Server / offline UI、catalog generation、API candidate、旧 Setup selection method | `W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED` | W1B-1 integrated、global single writer complete |
-| 1B 当前入口 | 尚未开始；目标为 Setup server / auth / Quick Connect / saved-user ingress | settings / offline UI、W1A scope generation | `W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`；`W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY` | 实现已开始 / QA PASS、`OLD_PATH...=PASS`、W1B-1 PASS |
+| 1B HISTORY | failed candidate 后的产品阻塞；目标白名单只作冻结追溯 | settings / offline UI、W1A scope generation | `W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED`；等待原子 fence 决策 | 当前派单、实现、QA PASS、`OLD_PATH...=PASS`、W1B-1 PASS |
 | 1C 后续 | offline / settings ingress + W1A generation fence | app startup hydration / shell / drawer | `W1B_1C=BLOCKED_BY_W1B_1B` | 在 1B integrated 前创建 owner / branch |
 | W1B-1 closeout | 1A + 1B + 1C + combined QA / merge-prep / root integration | W1B-2 startup recovery | `W1B_1=PASS / INTEGRATED`；slice `OLD_PATH...=PASS` | 父 seam / W1 / 产品 PASS |
 
@@ -1155,30 +1108,29 @@ P2 真实 SharedPreferences failure 语义未覆盖、P3 `SearchViewModelTest` �
   `PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS`；W1B-1 与父 seam 未 PASS。
 - 已知非阻塞历史 P3：`SearchViewModelTest` 全类不稳定。本波未修复、未扩跑，不能写成
   本候选引入或已关闭。
-- 当前转态：`W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`，
-  `W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`，
+- HISTORY 转态：`W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`，
+  `W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED`，
   `W1B_1C=BLOCKED_BY_W1B_1B`，`W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；
-  `NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`。release / device /
+  `PRODUCT_NEXT_GATE=USER_OR_DELIVERY_LEAD_ATOMIC_FENCE_DECISION`。release / device /
   network 仍未授权。
 
-#### 角色历史与当前 W1B-1B 交接
+#### HISTORY — W1B-1B 角色与产品阻塞（非当前派单）
 
-- 当前下一步是创建新会话中的 fresh W1B-1B implementation owner；不是 repair、QA、
-  merge-prep 或本 docs owner 兼任。固定专业身份为
+- 旧交接曾计划创建 fresh W1B-1B implementation owner；该计划已因 failed candidate /
+  atomic generation fence 阻塞而停止，不能作为当前下一步。旧专业身份为
   `AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07`。
 - W1B-1B 唯一现场：worktree
   `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\Aurorama`，
   branch `codex/v2-w1b-1b-setup-auth-api-candidate-ingress`，base HEAD
   `c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`，当前 clean；
-  `W1B_1B_PREVIOUS_OWNER=INTERRUPTED_BEFORE_EDIT / NO_CHANGES`。
+  `W1B_1B_PREVIOUS_OWNER_HISTORY=INTERRUPTED_BEFORE_EDIT / NO_CHANGES`。
   `CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca` 仍只指 W1B-1A；
   `CONTROL_PLANE_HEAD_INPUT` / `HANDOFF_BASE_HEAD` / `DOCS_CANDIDATE_PARENT` 均为
   `c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`。docs commit 后由 manager pin 最终
   control HEAD。
-- W1B-1B 第一条只读动作：核对最终 control clean HEAD、worktree clean / branch / HEAD
-  `c72fcce6`、本任务卡与 W1B-1A QA / merge evidence。随后只按本段 7 production + 4
-  test 精确白名单工作；实现 owner 只做自身 TDD / build / 边界内最小自测，停在
-  implementation candidate，不得开启 QA / merge / integration，也不得启动 1C。
+- 旧 W1B-1B 第一条只读动作只作历史：核对当时 control clean HEAD、worktree clean /
+  branch / HEAD `c72fcce6`、本任务卡与 W1B-1A QA / merge evidence。该动作不再授权实现，
+  也不得从本 HISTORY 恢复 7 production + 4 test 写域。
 - W1B-1B 停止条件：control / worktree / branch / HEAD / clean / task card / 1A evidence
   任一漂移；需要第 12 文件、第 8 个 production 或第 5 个 test 文件；修改 1A files；
   需要 schema / migration、production dependency、网络、设备或 Release；出现新 P0–P2；
@@ -1247,9 +1199,9 @@ P2 真实 SharedPreferences failure 语义未覆盖、P3 `SearchViewModelTest` �
   不得扩本卡。
 - 新 P0–P2、无法区分的跨账号陈旧结果、A0 新 violation、真实 auth 失败不能归因，或
   派单范围不是 `W1B_TASK_CARD_STATUS=ACCEPTED /
-  NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS /
-  W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0 /
-  W1B_1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ONLY` 且 control 不是
+  PRODUCT_NEXT_GATE=USER_OR_DELIVERY_LEAD_ATOMIC_FENCE_DECISION /
+  W1B_1B_PRODUCT=BLOCKED_HISTORY / NOT_RESTORED /
+  W1B_1B_IMPLEMENTATION_AUTHORIZATION_HISTORY=YES / SCOPE=W1B_1B_ONLY` 且 control 不是
   clean HEAD `c72fcce6`。
 - 任一子波超过 production 8 / test 5、同 owner 连做、manager 自任实现 / QA，或中间波
   自宣 `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH` / W1B-1 PASS / W1B-2 ready。

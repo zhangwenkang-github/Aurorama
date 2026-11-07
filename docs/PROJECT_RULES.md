@@ -4,7 +4,7 @@
 
 | ID | 规则 | 触发条件 | 违反后果 |
 |---|---|---|---|
-| `R001` | 每个 2.0 会话按 `V2_PLAN` 交接段读入口、规则、教训索引、活跃任务、决策和本次需求白名单；外部需求只读指定行段 | 任一 2.0 需求、设计、实现、QA、集成或发布会话 | 停止决策与实现，补齐读取声明后重来 |
+| `R001` | 每个 2.0 会话按 `AGENTS` 入口、`PROJECT_RULES`、`TASKS` 唯一 `ACTIVE` / 任务卡和指定教训读取；稳定需求、架构与历史只读 `V2_PLAN` / `ARCHITECTURE` / `PROJECT_PLAN` 的指定段，外部需求只读指定行段 | 任一 2.0 需求、设计、实现、QA、集成或发布会话 | 停止决策与实现，补齐读取声明后重来；不得把稳定文档中的 current-looking 副本当派单事实源 |
 | `R002` | 未形成来源、解读、验收、分类和依赖的需求不得进入任务卡或实现 | 新增/修改需求、发现隐含范围 | 退回需求门，不得以“先做再补”开工 |
 | `R003` | 澄清轮次无总上限；每轮只问当前前沿，事实由团队调查，不把可查证问题推给用户 | 需求存在歧义、冲突或未知事实 | 停止落档；不得用“最多三问”或自行假设跳过关键分支 |
 | `R004` | 任务卡必须包含目标、非目标至少两项、接口 / 文件边界、依赖、验收、适用规则、测试命令 / 证据、风险、分支和停止条件 | 任何实现/诊断/QA/Release 任务派单 | 不派单；已派单则撤回 |
@@ -24,7 +24,7 @@
 | `R018` | 任一时刻每个设备只能有一个 ACTIVE 锁；使用捕获取值和恢复原值，禁止硬编码恢复 | adb、真机、模拟点击、安装或设备设置修改 | 不执行设备任务；现锁释放并记录漂移 |
 | `R019` | 所有终端、脚本、ADB 包装和取证一律使用 PowerShell 7，UTF-8 XML/JSON 显式按 UTF-8 读取 | 任何命令或脚本 | PowerShell 5.1 结果作废，重跑或停止 |
 | `R020` | 上下文到 30 万停止扩项并完成当前最小收口 / 完整检查点；到 35 万只有在存在已授权、具体、可立即执行的后继任务且 R028 PASS 时创建新负责人会话。若只剩等待用户、设备解锁或外部状态，写检查点后停止，用户恢复后再创建 | 长需求、实现、QA、诊断或交接 | 停止扩项；不得为空闲会话或无具体动作创建 / 保留后继 |
-| `R021` | 每个需求域和交付波实时更新 `V2_PLAN` / `TASKS` / `DECISIONS`；新坑经确认后写 `LESSONS`；跨项目经验才进 Engramory | 决策、进度、踩坑、任务状态变化 | 阶段不得收口 |
+| `R021` | 动态状态只实时更新 `TASKS` 唯一 `ACTIVE` / 任务卡；稳定决策和里程碑仅在获授权时更新 `V2_PLAN` / `DECISIONS`，新坑经确认后写 `LESSONS`，跨项目经验才进 Engramory | 决策、进度、踩坑、任务状态变化 | 阶段不得收口；同一动态事实多副本或未标 HISTORY 即停 |
 | `R022` | 外部 push、tag、GitHub Release、上传资产和正式发布必须单独获得用户明确授权 | 任一远端或发布动作 | 视为越权；停止并报告影响 |
 | `R023` | 除已规定权威文件外，不新建零散说明文档；临时分析进入对话、任务报告或对应需求域 | 需要记录设计、进度、复盘或交接 | 合并到权威文件，临时文档不得作为交付证据 |
 | `R024` | 阻塞必须说明对象、复现、已尝试的可逆动作、根因边界和下一步；单点 harness 失败可在 5–10 分钟内由同一 owner 做一次受控重试 | 工具失败、环境失败、证据不足 | 不得机械判 BLOCKED，也不得无限重试或为每个小修复新建代理 |
@@ -40,6 +40,8 @@
 | `R033` | 工具 / 门禁任务必须在开工前声明时间盒、最大往返次数和中止后备选路径。同一控制面问题最多经历两轮修复，并最多执行一次全长回归；第二轮仍出现 P1 时默认冻结当前方案，改走隔离 fixture、简化门禁、成熟开源 / 标准工具、后置或明确延期，不得继续堆字段、gate 或 exact count。若考虑放宽 / 跳过某门，必须写明风险、补偿证据与用户批准边界，且只可涉及非产品、非安全、非数据完整性的流程门 | 任何工具、harness、审计协议、状态机或交接门禁任务 | 未声明预算不得开工；第二轮仍 P1 仍继续修补即停止；跳过产品 P0/P1、设备授权、生产写或数据迁移安全即判越权 |
 | `R034` | 每个用户 bug 使用稳定 `V2-FIX-<AREA>-NNN` lineage，并保留既有 `L14-*` / issue 关联；同一行记录 fix commit、回归 test / fixture ID、用户场景与候选验证。进入 integration / release candidate、并行集成、cherry-pick 或打 tag 前，用 `git merge-base --is-ancestor` 证明 fix 是候选祖先，或记录负责人批准的 `EQUIVALENT` 与等价证据；并在同一候选 commit / 包上执行绑定回归，核心或用户直接可见 bug 至少一条真实入口场景。缺任一项标 `UNPROVEN`，禁止写 fixed / closed / PASS；矩阵只放既有任务线文档，复用 Git、现有测试和候选 QA，不新建 harness / 状态机 / exact-count | 任一用户 bug 修复收口、候选 / 并行集成、cherry-pick、tag 或 Release 前 | 仅合并、仅 CI、仅单测、仅 patch-id、历史版本通过或分支 HEAD 存在都不能证明该 bug 保持；无法给祖先 / EQUIVALENT + 候选回归证据时停止发布声明并标 `UNPROVEN` |
 | `R035` | 每个长期计划必须在 `docs/TASKS.md` 的 `Architecture Critical Path / 长期计划账本` 拥有稳定 ID、状态、`PREREQUISITE_SEAMS`、交付物、可观察验收、证据门、下一门与当前未完成原因。任何功能波派单前必须从 `TASKS` 找到并核对 `PREREQUISITE_SEAMS`；前置 seam 未达到 `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 时不得开工。seam 的统一 DoD 固定为 `CONTRACT_FROZEN -> ADAPTER_IMPLEMENTED -> TARGET_CONSUMERS_MIGRATED -> OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH -> CONTRACT/NEGATIVE/REGRESSION TESTS PASS -> DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS`；上述前置门只有在完整 DoD 全部满足后才成立，缺少任一状态都不得标 Done，也不得用“抽象已规划”“A0 guard 通过”或历史证据代替。每次派单 / 会话交接必须列出 `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`；长期计划不得因移入 Done、上下文切换或新波次开始而丢失。长期计划 / seam 进入 Done 必须有代码、契约 / 负例 / 回归测试、独立 QA 与集成证据，不能只有文档 | 建立或推进长期计划、seam 任务、功能波派单、状态收口、Done、上下文切换或交接 | 缺稳定 ID / 账本字段 / 前置 seam / 完整 DoD / evidence pointer 时停止派单；前置 seam 未到三项门时不得开工；Done 只有文档、计划、抽象、A0 guard 或历史证据时退回 `NOT_PROVEN`，不得以功能卡夹带 seam 重构 |
+| `R036` | `docs/TASKS.md` 的 `V2_HANDOFF_ACTIVE_BEGIN/END` 是唯一动态状态源；唯一 `ACTIVE` 只记录当前 worktree/branch policy、manager 外部 pin、gate evidence、P1/P2、next role/path 与 stop condition。`AGENTS.md` 顶部只保留入口指针与强制命令；`ARCHITECTURE` / `V2_PLAN` / `PROJECT_PLAN` 只保留稳定决策、里程碑和指向 `TASKS` 的指针。三份稳定文档现存 current-looking 顶部副本在其获授权 docs cleanup 前一律视为 `HISTORICAL`，不得派单。candidate/base/required ancestors/failed candidate 放 `V2_HANDOFF_OBJECT_BEGIN/END`；同一 docs 提交不得写自身最终 SHA，当前 HEAD 由 manager 在提交后用 `-ExpectedHead` 外部 pin | 任一交接、新会话、任务派单、文档状态同步或 docs checkpoint | 唯一 ACTIVE、动态源或历史边界不清即停止；同一提交写自身 SHA、复制 current SHA / 测试计数 / next role，或把稳定文档旧副本当事实源时不得交接或派单 |
+| `R037` | 新会话/交接的 docs checkpoint 提交后，由 manager pin HEAD 并运行绝对路径命令 `pwsh -NoProfile -ExecutionPolicy Bypass -File "<repo>/tools/architecture/v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "<repo>" -ExpectedHead "<manager pin>" -TasksPath "docs/TASKS.md" -MemoryIndex "<memory>/MEMORY.md"`；只有 clean、pin 匹配且 `HANDOFF_LINT=PASS` 才可进行一次 fresh pre-handoff audit。实现 owner / 负责人派 QA 前运行 `-Mode QaReady`；QA owner 第一条动作必须自行重跑，只有 `QA_READY_LINT=PASS` 才可开始 QA。未提交 working tree 的内容检查若报 `WORKTREE_DIRTY`，该次不是交接 PASS。任何 `FAIL:<CODE>:<path>` 由同一 docs / implementation owner 修正并重跑；含 `--tests` 的测试命令必须有同行 `TEST_SELECTOR_VERIFIED=PASS` 或非空 `NO_MATCHING_TESTS / EQUIVALENT` 证据 | Handoff、QA 派发、QA owner 开工、种子测试命令、记忆索引或证据门校验 | 非零 / 无 PASS token 时不得交接或派 QA；空过滤、缺 RED/GREEN/证据、QA 与 `MERGE_PREP_AUTHORIZED=YES` 并存、越界路径或逃逸记忆指针一律停止 |
 
 > **HISTORY（2026-11-07）**：上述 round9 review、`PRE_HANDOFF_AUDIT_OWNER` 角色链以及
 > `R029` / `R029A` / `R032` 的旧 G2 handoff 流程只适用于冻结合同的历史追溯，不再触发
