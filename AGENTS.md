@@ -16,18 +16,21 @@
   A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
   IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
   CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57 /
-  CONTROL_PLANE_HEAD_INPUT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
-  HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
-  DOCS_CANDIDATE_PARENT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+  CONTROL_PLANE_HEAD_INPUT=bfcff47ce2623437fb10a402400cd096adc08704 /
+  HANDOFF_BASE_HEAD=bfcff47ce2623437fb10a402400cd096adc08704 /
+  DOCS_CANDIDATE_PARENT=bfcff47ce2623437fb10a402400cd096adc08704 /
   W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
   W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES / W1A_P3_OPEN=0 /
   W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
   W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 /
   W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
-  W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION /
-  W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY /
-  USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY /
-  W1B_1A=READY_FOR_IMPLEMENTATION_OWNER / W1B_1B=BLOCKED_BY_W1B_1A /
+  W1B_TASK_CARD_STATUS=ACCEPTED /
+  W1B_1A_IMPLEMENTATION_AUTHORIZATION=HISTORY_YES / SCOPE=W1B_1A_ONLY /
+  W1B_1A_CANDIDATE_HEAD=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+  W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
+  CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+  INDEPENDENT_QA=FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1 / QA_Q6=NOT_PROVEN /
+  REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED / W1B_1B=BLOCKED_BY_W1B_1A /
   W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
   OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
   PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
@@ -47,10 +50,11 @@
   `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 仍为
   `CONTRACT_FROZEN / IN_PROGRESS`。本 slice cleanup 不是完整 seam、W1、G1、Q03、产品 QA、
   runtime 或 Release PASS。
-- **当前交接对象**：`HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd`，
+- **当前交接对象**：`HANDOFF_BASE_HEAD=bfcff47ce2623437fb10a402400cd096adc08704`，
   branch=`codex/v2-integration`；`CODE_INTEGRATION_HEAD` 仍为
   `faa910827d2db557d4e17970105047a205f77a57`，二者不得混写。docs candidate 的 parent
-  固定为 `cbfcb1f3`，最终 docs candidate SHA 由本次 amend 产生、由 root 最终钉住；
+  固定为 `bfcff47c`（其 parent 为 `cbfcb1f3`），最终 docs candidate SHA 由本次提交
+  产生、由 root 最终钉住；
   同一 docs commit 不记录自身 SHA。root 集成后，以 root 最终钉住 / 新会话简报中的精确
   HEAD 复核；第一条只读动作仍为
   `git status --short --untracked-files=all` 和 `git rev-parse HEAD`。唯一 ACTIVE handoff
@@ -59,26 +63,44 @@
   `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
   V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
   V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-  `NEXT_CRITICAL_PATH=W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`；
-  `last_evidence=docs/TASKS.md ICS-W1B task card ACCEPTED + root scope W1B_1A_ONLY /
-  W1A cleanup QA R2 + source-final MATCH + ff-only integration`。
-- **W1B 任务卡与下一会话角色**：用户于 2026-11-07 以“继续下一步”接受
-  `W1B_TASK_CARD=ACCEPTED`，但授权范围只有
-  `W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY`；不等于 W1B 已实现、已 QA
-  或父 seam 已推进。1B / 1C / 2 必须分别等待前置 stack integrated + fresh QA /
-  merge-prep，不得由一个 owner 连续执行。下一会话必须是全新
-  `AURORAMA_V2_W1B_DELIVERY_LEAD_INTEGRATION_ORCHESTRATOR_2026_11_07`，身份固定为
-  **交付负责人 / 技术集成编排者**；只做范围、风险、角色拆单、只读白名单、压缩报告 /
-  关键 diff 审查、集成决策和文档。实现、诊断、scoped review、独立 QA、merge-prep 与
-  Release 必须由该负责人另派的对应全新专业子代理承担，负责人不得亲自替代。第一条只读动作
-  必须是核对 root 最终 HEAD 与 clean control `status=0`，再读本交接 / task card；
-  release、device、network 仍未授权。W1B-1 固定拆为顺序子波
+  `NEXT_CRITICAL_PATH=W1B-1A-INDEPENDENT-QA-P1-P2-REPAIR-SCOPE-DECISION`；
+  `last_evidence=W1B-1A candidate 2375960b06302cc246518fb4e6d5f742f9b4db40 /
+  independent QA FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1 / Q6 NOT_PROVEN`。
+- **W1B-1A QA 阻塞事实**：实现候选 `2375960b06302cc246518fb4e6d5f742f9b4db40` 的
+  parent 为 `bfcff47ce2623437fb10a402400cd096adc08704`，来自 clean branch
+  `codex/v2-w1b-1a-identity-contract`、恰好 10 文件；候选自检 PASS：data identity
+  `14/0/0/0`、app Servers `1/0/0/0`、assemble、ktfmt retry、A0 direct guard、A0 tests
+  `7/7`、diff-check PASS。全新独立 QA 结论为 `FAIL / PASS_PENDING_REPAIR /
+  QA_P0-P3=0/1/1/1`，候选 `NOT_INTEGRATED`，未 merge-prep。P1：production Servers
+  projection 可在 DB current-user/address 缺失时静默 early-return，coordinator 仍可能
+  发布 B `READY/APPLIED`，而 global API 保持旧身份；证据为 QA worktree
+  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1a-identity-contract-qa\Aurorama`
+  下 `ServersViewModel.kt:70`、`SetupRepositoryImpl.kt:127`、
+  `IdentityWriteCoordinator.kt:121`。P2：真实 SharedPreferences `commit()` 先改内存再
+  尝试磁盘，返回 false 不保证 canonical / projection 旧值保留；现有 fake 的
+  `failNextCommit` 未模拟该语义，证据为 `IdentityStateStore.kt:28`、
+  `IdentityStateStoreTest.kt:243` 与 Android 37
+  `android/app/SharedPreferencesImpl.java:605`。P3：`SearchViewModelTest` 两次全类运行
+  为 `7/0/0/0` 与 `7 tests / 1 failed`，失败语义不属于本波核心；保留稳定性治理。
+  Q6 旧投影失败 / 取消 / 异步晚提交下的中间 generation / 兼容键仍 `NOT_PROVEN`。
+  硬停止：未获明确 repair scope 前不得修 finding、不得扩第 11 文件、不得猜测
+  `SetupRepository` 接口或真实存储事务策略，也不得 merge-prep / integration。
+- **W1B 任务卡与下一角色**：用户于 2026-11-07 以“继续下一步”接受
+  `W1B_TASK_CARD=ACCEPTED`，当时的实现授权只有 `SCOPE=W1B_1A_ONLY`；该授权已消耗为
+  本次候选，并不授权 repair、后续子波或集成。`W1B_1A` 现为
+  `BLOCKED_INDEPENDENT_QA_P1_P2`，`W1B_1B=BLOCKED_BY_W1B_1A`、
+  `W1B_1C=BLOCKED_BY_W1B_1B`、`W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`。下一步必须由
+  用户 / 负责人先明确 `W1B-1A` repair scope；获批后才可另派与实现、QA 均不同的全新
+  repair owner。新角色第一条只读动作是核对 control-plane clean HEAD 与 candidate / QA
+  evidence，然后只读 P1/P2 及上述相关文件；不得先改代码。停止条件：未获用户明确
+  repair scope、需要第 11 文件 / `SetupRepository` 接口变更 / 真实存储事务策略，或出现
+  新 P0–P2。W1B-1 固定拆为顺序子波
   `W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`、
   `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`、
   `W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE`；后置
   `W1B-2-STARTUP-HYDRATION-AND-RECOVERY` 只能在 W1B-1A/B/C 全部 integrated 并完成
   W1B-1 组合门后派单。每波使用不同 fresh owner，禁止同一 owner 连做或 manager 兼任。
-  当前只授权先派 `W1B-1A`；不得自动创建 W1B-1B/1C/2 代码分支。W1–W5 功能波仍只有对应
+  当前 1A repair scope 尚未决定；不得自动创建 W1B-1B/1C/2 代码分支。W1–W5 功能波仍只有对应
   `PREREQUISITE_SEAMS` 达到
   `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 后才可开工；A0 guard 与 W1A slice 都不是
   全量 architecture progress。

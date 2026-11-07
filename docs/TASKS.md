@@ -14,18 +14,21 @@
 > A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 > IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
 > CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57 /
-> CONTROL_PLANE_HEAD_INPUT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
-> HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
-> DOCS_CANDIDATE_PARENT=cbfcb1f307899748093ef5bfe0ab2d941683bddd /
+> CONTROL_PLANE_HEAD_INPUT=bfcff47ce2623437fb10a402400cd096adc08704 /
+> HANDOFF_BASE_HEAD=bfcff47ce2623437fb10a402400cd096adc08704 /
+> DOCS_CANDIDATE_PARENT=bfcff47ce2623437fb10a402400cd096adc08704 /
 > W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
 > W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES / W1A_P3_OPEN=0 /
 > W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
 > W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 /
 > W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
-> W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION /
-> W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY /
-> USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY /
-> W1B_1A=READY_FOR_IMPLEMENTATION_OWNER / W1B_1B=BLOCKED_BY_W1B_1A /
+> W1B_TASK_CARD_STATUS=ACCEPTED /
+> W1B_1A_IMPLEMENTATION_AUTHORIZATION=HISTORY_YES / SCOPE=W1B_1A_ONLY /
+> W1B_1A_CANDIDATE_HEAD=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+> W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
+> CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+> INDEPENDENT_QA=FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1 / QA_Q6=NOT_PROVEN /
+> REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED / W1B_1B=BLOCKED_BY_W1B_1A /
 > W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
 > OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
 > PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
@@ -50,9 +53,22 @@
 > `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-> `NEXT_CRITICAL_PATH=W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`；
-> `last_evidence=docs/TASKS.md ICS-W1B task card ACCEPTED + root scope W1B_1A_ONLY /
-> W1A cleanup QA R2 + source-final MATCH + ff-only integration`。
+> `NEXT_CRITICAL_PATH=W1B-1A-INDEPENDENT-QA-P1-P2-REPAIR-SCOPE-DECISION`；
+> `last_evidence=W1B-1A candidate 2375960b06302cc246518fb4e6d5f742f9b4db40 /
+> independent QA FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1 / Q6 NOT_PROVEN`。
+>
+> W1B-1A implementation candidate
+> `2375960b06302cc246518fb4e6d5f742f9b4db40` 的 parent 为
+> `bfcff47ce2623437fb10a402400cd096adc08704`，来自 clean
+> `codex/v2-w1b-1a-identity-contract`，恰好 10 文件，当前 `NOT_INTEGRATED`。候选自检
+> PASS：data identity `14/0/0/0`、app Servers `1/0/0/0`、assemble、ktfmt retry、
+> A0 direct guard、A0 tests `7/7`、diff-check PASS。全新独立 QA 判
+> `FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1`。P1 是 production Servers
+> projection 可在 DB current-user/address 缺失时直接返回，coordinator 仍可能发布 B
+> `READY/APPLIED`，而 global API 仍为旧身份；P2 是真实 SharedPreferences `commit()`
+> 先改内存再尝试磁盘，返回 false 不保证 canonical / projection 旧值保留，而 fake 未模拟
+> 该语义。Q6 交错追加测试仍 `NOT_PROVEN`。未获明确 repair scope 前不得修复、扩第 11
+> 文件、猜 `SetupRepository` 接口或真实存储事务策略，也不得 merge-prep / integration。
 >
 > `W1A-P3-COMPLETED-MARKER` / `W1A-P3-LOCAL-ONLY-REGRESSION` 均 `CLOSED`；
 > `W1A_P3_OPEN=0`。原独立 QA R3 `PASS / P0-P3=0/0/0/3` 作为历史证据保留，不追溯改写；
@@ -66,10 +82,12 @@
 > `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`；仅两文件，无缺陷即
 > `NO_DEFECT_REPRODUCED` 停止，不挡架构主线，也不计作 seam 进度。下一入口仅为
 > `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`。用户于 2026-11-07 以“继续下一步”接受任务卡，
-> 当前状态为 `ACCEPTED / READY_FOR_IMPLEMENTATION`，实现授权严格限定
-> `SCOPE=W1B_1A_ONLY`；1B / 1C / 2 分别阻塞。`HANDOFF_BASE_HEAD` 与
-> `DOCS_CANDIDATE_PARENT` 均为 `cbfcb1f3`，`CODE_INTEGRATION_HEAD` 仍为
-> `faa910827`，最终 docs candidate SHA 由本次 amend 产生并由 root 最终钉住。
+> 其原始卡片状态为 `HISTORY：ACCEPTED / READY_FOR_IMPLEMENTATION`；当时实现授权严格限定
+> `SCOPE=W1B_1A_ONLY`，该授权已用于本次候选，不自动授权 repair；1B / 1C / 2 分别
+> 阻塞。`HANDOFF_BASE_HEAD` 与
+> `DOCS_CANDIDATE_PARENT` 均为 `bfcff47c`（其 parent 为 `cbfcb1f3`），
+> `CODE_INTEGRATION_HEAD` 仍为
+> `faa910827`，最终 docs candidate SHA 由本次 docs commit 产生并由 root 最终钉住。
 >
 > **HISTORY（2026-11-07 P3 cleanup 前；已被本 ACTIVE 取代）**：当时控制面
 > `3607a2fdc1691b42bb638b984a16097f9c3cc563`，W1A 为
@@ -79,13 +97,18 @@
 
 - [x] `W1A-P3-CLEANUP`：`CLOSED / INTEGRATED`。实现与 cleanup 独立 QA R2 证据绑定
   `faa910827d2db557d4e17970105047a205f77a57`；原 cleanup 任务卡已转为 HISTORY。
-  当前只授权 `W1B-1A` 实现任务；1B/1C/2 仍未授权，禁止从本 docs 收口自行创建后续分支。
-- [x] `W1B-TASK-CARD-PLANNING`：`W1B_TASK_CARD=ACCEPTED / READY_FOR_IMPLEMENTATION`。
+  `W1B-1A` 实现授权已消耗为 QA FAIL candidate；当前 repair scope 未决，1B/1C/2 仍锁定，
+  禁止从本 docs 收口自行创建后续分支。
+- [x] `W1B-TASK-CARD-PLANNING`：`W1B_TASK_CARD=ACCEPTED`；原计划态
+  `READY_FOR_IMPLEMENTATION` 仅作 HISTORY。
   自包含卡、W1B-1A/B/C 三顺序实现子波与后置 W1B-2、逐波精确白名单、独立 QA /
   merge-prep、TDD / 负例 / 回归矩阵和停止门已写入下方；只证明可执行计划存在，不证明
   实现、QA、父 seam 或 W1 完成。
-- [ ] `W1B-1A-IMPLEMENTATION`：`AUTHORIZED / READY_FOR_FRESH_OWNER`。下一 manager 只能先派
-  fresh `W1B-1A` owner；1B / 1C / 2 未获授权，必须等待各自前置。
+- [ ] `W1B-1A-IMPLEMENTATION`：候选
+  `2375960b06302cc246518fb4e6d5f742f9b4db40` 已完成实现自检但独立 QA
+  `FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1`，状态
+  `BLOCKED_INDEPENDENT_QA_P1_P2 / NOT_INTEGRATED`。下一步只能先由用户 / 负责人明确
+  repair scope；1B / 1C / 2 保持阻塞。
 
 ## Architecture Critical Path / 长期计划账本
 
@@ -95,7 +118,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A_READY / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice dependency satisfied | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | 下一 manager 派 fresh `W1B-1A` owner | W1A cleanup 与 QA R2 已关闭且 integrated；W1B card 已接受且只授权 1A，尚未实现；W1B–W1G、父 seam 全量 DoD 仍未完成 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 / CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED / REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice dependency satisfied；1A candidate 未集成 | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | 用户 / 负责人明确 1A P1/P2 repair scope | W1A cleanup 已集成；1A 实现候选 10 文件但独立 QA `FAIL / P0-P3=0/1/1/1`，Q6 `NOT_PROVEN`，不得 merge-prep；W1B–W1G、父 seam 全量 DoD 仍未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -606,31 +629,54 @@ git -C $repoRoot diff --check
 ### `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 自包含任务卡
 
 - ID：`ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`
-- 状态：`W1B_TASK_CARD_STATUS=ACCEPTED / READY_FOR_IMPLEMENTATION`；
-  `W1B_IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1A_ONLY`
-- 授权边界：`USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY`；
+- 状态：`W1B_TASK_CARD_STATUS=ACCEPTED / W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
+  CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+  REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED`
+- 原始授权记录（HISTORY）：`W1B_IMPLEMENTATION_AUTHORIZED=YES /
+  SCOPE=W1B_1A_ONLY`；该授权已用于生成 1A implementation candidate，不自动授权 repair。
+- 授权边界：`USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY`（HISTORY）；
   `RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO`。
-- 卡片裁决：`W1B_TASK_CARD=ACCEPTED`。用户 2026-11-07 “继续下一步”只授权先派 fresh
+- 卡片裁决：`W1B_TASK_CARD=ACCEPTED`。用户 2026-11-07 “继续下一步”当时只授权先派 fresh
   `W1B-1A` owner；不是 1B/1C/2、实现完成、独立 QA、merge-prep、父 seam、W1、产品、
   runtime 或 Release PASS。
 - `PREREQUISITE_SEAMS=NONE`；依赖
   `ICS-W1A-SCOPED-SEARCH-SNAPSHOT=P3_CLEANUP_COMPLETE / INTEGRATED`。
 - 输入基线：
-  `CONTROL_PLANE_HEAD_INPUT=cbfcb1f307899748093ef5bfe0ab2d941683bddd`，
-  `HANDOFF_BASE_HEAD=cbfcb1f307899748093ef5bfe0ab2d941683bddd`，
-  `DOCS_CANDIDATE_PARENT=cbfcb1f307899748093ef5bfe0ab2d941683bddd`，
+  `CONTROL_PLANE_HEAD_INPUT=bfcff47ce2623437fb10a402400cd096adc08704`，
+  `HANDOFF_BASE_HEAD=bfcff47ce2623437fb10a402400cd096adc08704`，
+  `DOCS_CANDIDATE_PARENT=bfcff47ce2623437fb10a402400cd096adc08704`，
   `CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57`。
-  candidate SHA 由本次 amend commit 产生，并由 root 最终钉住；不得把 candidate 自身
+  candidate SHA 由本次 docs commit 产生，并由 root 最终钉住；不得把 candidate 自身
   SHA 写进同一 commit。
-- 当前门：`W1B-1A_IMPLEMENTATION_DISPATCH`。必须创建全新
-  `AURORAMA_V2_W1B_DELIVERY_LEAD_INTEGRATION_ORCHESTRATOR_2026_11_07` 会话；manager
-  首动作只读核对 root 最终 HEAD 与 clean，然后只编排并另派 fresh `W1B-1A` 实现、
-  诊断、独立 QA 与 merge-prep。manager 不得亲自实现或 QA。
+- 当前门：`W1B-1A-INDEPENDENT-QA-P1-P2-REPAIR-SCOPE-DECISION`。1A implementation /
+  independent QA 已发生并停在 QA FAIL；用户 / 负责人必须先明确修复范围、允许文件集与
+  存储语义。未获明确 scope 前不得派 repair，也不得进入 merge-prep / integration。
+- 当前 QA 事实：candidate
+  `2375960b06302cc246518fb4e6d5f742f9b4db40`，parent
+  `bfcff47ce2623437fb10a402400cd096adc08704`，branch
+  `codex/v2-w1b-1a-identity-contract` clean 且恰好 10 文件。候选自检 PASS：
+  data identity `14/0/0/0`、app Servers `1/0/0/0`、assemble、ktfmt retry、
+  A0 direct guard、A0 tests `7/7`、diff-check PASS。独立 QA
+  `FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1`；候选 `NOT_INTEGRATED`。
+  P1 evidence：
+  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1a-identity-contract-qa\Aurorama\setup\src\main\java\com\zhangwenkang\cinefin\setup\presentation\servers\ServersViewModel.kt:70`、
+  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1a-identity-contract-qa\Aurorama\setup\src\main\java\com\zhangwenkang\cinefin\setup\data\SetupRepositoryImpl.kt:127`、
+  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1a-identity-contract-qa\Aurorama\data\src\main\java\com\zhangwenkang\cinefin\identity\IdentityWriteCoordinator.kt:121`。
+  P2 evidence：
+  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1a-identity-contract-qa\Aurorama\data\src\main\java\com\zhangwenkang\cinefin\identity\IdentityStateStore.kt:28`、
+  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1a-identity-contract-qa\Aurorama\data\src\test\java\com\zhangwenkang\cinefin\identity\IdentityStateStoreTest.kt:243`、
+  `F:\Develop\Android\AndroidSDK\sources\android-37.0\android\app\SharedPreferencesImpl.java:605`。
+  P3：`SearchViewModelTest` 两次全类运行分别为 `7/0/0/0` 与
+  `7 tests / 1 failed`，失败在“新查询取消旧查询后旧结果不会覆盖新状态”，与 W1A 两项 P3
+  定向语义不同；候选不改该文件，保留稳定性治理。Q6 旧投影失败 / 取消 / 异步晚提交下的
+  中间 generation / 兼容键仍 `NOT_PROVEN`。硬停止：新 P0–P2、需要第 11 文件、
+  `SetupRepository` 接口变更、真实存储事务策略，或未获用户明确 repair scope。
 - 永续边界：本卡不提升父 seam 的 `CONTRACT_FROZEN / IN_PROGRESS`，不提升
   `V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`；W1A P3 cleanup 的两项 CLOSED 语义不得回退。
-- 当前子波 tokens：`W1B_1A=READY_FOR_IMPLEMENTATION_OWNER`、
-  `W1B_1B=BLOCKED_BY_W1B_1A`、`W1B_1C=BLOCKED_BY_W1B_1B`、
-  `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；
+- 当前子波 tokens：`W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
+  CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+  REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED`、`W1B_1B=BLOCKED_BY_W1B_1A`、
+  `W1B_1C=BLOCKED_BY_W1B_1B`、`W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；
   `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED`。
 - 集成模型：1A → 1B → 1C 顺序进入同一 W1B-1 stack；每波独立 QA / merge-prep，
   但任一中间波都不得进入 control-plane integration 或自宣 W1B-1 PASS。1C 后另派全新
@@ -730,12 +776,23 @@ W1B-1 被拆为三个顺序小波。每个小波由不同 fresh implementation o
 ##### `W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`
 
 - 前置：`PREREQUISITE_SEAMS=NONE`；W1A cleanup integrated；`W1B_TASK_CARD=ACCEPTED`。
+- 当前实现 / QA：candidate
+  `2375960b06302cc246518fb4e6d5f742f9b4db40`；parent
+  `bfcff47ce2623437fb10a402400cd096adc08704`；10 文件；branch clean；
+  `NOT_INTEGRATED`。实现自检 PASS，但 fresh independent QA
+  `FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1`。P1 为 Servers projection 静默成功风险，
+  P2 为 SharedPreferences commit 真实失败语义未被 fake 覆盖，P3 为 `SearchViewModelTest`
+  不稳定；Q6 中间 generation / 兼容键仍 `NOT_PROVEN`。当前不得 merge-prep。
 - 独立用户可观察结果：用户在 Servers 页切换 server 后，canonical snapshot 只出现一份
   selected server / 一个 generation；无身份保持无身份；迟到的旧 server attempt 为
   `STALE_DISCARDED`。Auth / Quick Connect / settings offline / W1A generation 仍明确
   `NOT_MIGRATED`，不得在本波宣称全局单 writer。
-- 收口边界：`W1B_1A=PASS_PENDING_STACK_INTEGRATION` -> fresh QA -> PASS 后 fresh
-  merge-prep -> 进入 W1B-1 stack；不得自宣 W1B-1 / 父 seam PASS。
+- 当前收口边界：`W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
+  CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+  REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED`。只有用户 / 负责人明确 repair scope
+  后，才能派与实现、QA 均不同的 fresh repair owner；repair 后仍需 fresh QA。原计划路径
+  `PASS_PENDING_STACK_INTEGRATION -> fresh QA -> merge-prep -> W1B-1 stack` 仅作
+  HISTORY，当前不可进入。
 
 生产文件（6，全部精确）：
 
@@ -758,7 +815,8 @@ offline、catalog contract、global API candidate factory、Room 或 app shell�
 
 ##### `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`
 
-- 前置：`W1B_1A=STACK_INTEGRATED`；不得与 1A 合并为一个 owner。
+- 前置：`W1B_1A=STACK_INTEGRATED`；当前实际状态为
+  `W1B_1B=BLOCKED_BY_W1B_1A`，不得创建 owner / branch，也不得与 1A 合并为一个 owner。
 - 独立用户可观察结果：用户切 server / address、选择 saved user、密码登录或 Quick
   Connect 时只产生一个 identity generation；旧认证 / 旧用户请求晚到时不得覆盖后发起的
   切换；认证失败不改变当前在线身份或全局 API token。
@@ -789,7 +847,8 @@ client 失败不得改变 canonical 或全局 API。`IdentityIngressContractTest
 
 ##### `W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE`
 
-- 前置：`W1B_1B=STACK_INTEGRATED`；不得与 1B 合并为一个 owner。
+- 前置：`W1B_1B=STACK_INTEGRATED`；当前实际状态为
+  `W1B_1C=BLOCKED_BY_W1B_1B`，不得创建 owner / branch，也不得与 1B 合并为一个 owner。
 - 独立用户可观察结果：用户在设置页切 online / offline 或重新选择账号后，W1A 搜索只能
   使用新 principal context / identity generation；旧 snapshot 和 completed marker 不
   落地；settings / offline UI 不再直接写 preference。
@@ -839,7 +898,8 @@ independent QA，复核三波祖先关系、逐波白名单、全局 source gate
 ##### `W1B-2-STARTUP-HYDRATION-AND-RECOVERY`
 
 - 前置：`W1B_1=PASS / INTEGRATED`。W1B-1A/B/C 任一未完成、未 QA、未 merge-prep 或
-  未 root integrated 时，不得创建 W1B-2 implementation owner。
+  未 root integrated 时，不得创建 W1B-2 implementation owner；当前
+  `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`，1A QA FAIL 已使该门继续锁定。
 - 独立用户可观察结果：杀进程重启后只恢复 canonical 身份；缺失 / 部分 / 损坏状态一律
   无身份，旧内存 token 不复活；app shell / drawer 与 W1A `currentScope()` 同源。
 - 收口边界：W1B-2 implementation report -> fresh independent QA -> PASS 后 fresh
@@ -923,11 +983,39 @@ merge-prep：
 不得运行 ADB、网络服务器、设备、Release；不得在生产 Jellyfin 上制造登录 / 用户 / server
 写入证据。本卡的 auth / switch 证据全部使用 fake / fixture 与本地单测。
 
-#### 下一实现角色 / 读序 / 交接
+**2026-11-07 W1B-1A executed / QA result**：实现 self-check PASS 为 data identity
+`14/0/0/0`、app Servers `1/0/0/0`、assemble、ktfmt retry、A0 direct guard、A0 tests
+`7/7`、diff-check PASS。独立 QA executed 并判
+`FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1`；P1 Servers projection 静默成功、
+P2 真实 SharedPreferences failure 语义未覆盖、P3 `SearchViewModelTest` 不稳定，Q6
+交错追加状态仍 `NOT_PROVEN`。candidate 10 文件、`NOT_INTEGRATED`；在明确 repair scope
+前不得运行 merge-prep 或 integration。
 
-- W1B-1A 专业身份：全新
+#### 2026-11-07 进度记录：W1B-1A QA FAIL / BLOCKED
+
+- `W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
+  CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+  REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED`。
+- 实现自检 PASS 只证明候选自身门禁；它不抵消 P1/P2 语义失败，也不构成独立 QA PASS、
+  merge-prep、栈集成、W1B-1、父 seam、W1、产品 QA 或 Release PASS。
+- `NEXT_CRITICAL_PATH=W1B-1A-INDEPENDENT-QA-P1-P2-REPAIR-SCOPE-DECISION`；
+  `W1B_1B=BLOCKED_BY_W1B_1A`、`W1B_1C=BLOCKED_BY_W1B_1B`、
+  `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`。下一步先由用户 / 负责人作 scope decision。
+
+#### 角色历史与当前 repair 交接
+
+- 当前下一步不是创建 1B，也不是复用原实现 / QA owner。用户 / 负责人必须先明确
+  `W1B-1A-INDEPENDENT-QA-P1-P2-REPAIR-SCOPE-DECISION`，尤其确认 P2 是否允许修改存储
+  事务表达，以及修复是否严格限于现有 10 文件。
+- 获批后的专业身份必须是与原实现、独立 QA 均不同的全新
+  `AURORAMA_V2_W1B_1A_QA_REPAIR_OWNER_2026_11_07`。第一条只读动作：核对 control-plane
+  clean HEAD 与 candidate / QA evidence，然后只读 P1/P2 finding 及相关文件；不得先写
+  代码。停止条件：未获用户明确 repair scope、需要第 11 文件 /
+  `SetupRepository` 接口变更 / 真实存储事务策略，或出现新 P0–P2。
+
+- W1B-1A 原实现专业身份（HISTORY）：全新
   `AURORAMA_V2_W1B_1A_IDENTITY_CONTRACT_AND_COORDINATOR_IMPLEMENTATION_OWNER_2026_11_07`。
-- 第一条只读动作：在 manager 创建的独立 clean W1B worktree 执行
+- 原第一条只读动作（HISTORY）：在 manager 创建的独立 clean W1B worktree 执行
   `git status --short --untracked-files=all`、`git branch --show-current`、
   `git rev-parse HEAD`；必须 clean、branch / HEAD 等于 manager pin，且
   `W1B_TASK_CARD=ACCEPTED / SCOPE=W1B_1A_ONLY`。任何漂移停止。
@@ -937,12 +1025,13 @@ merge-prep：
   “熟悉项目”通读 player / reader / download。
 - 计划与执行：先在同一回合给出目标、非目标、RED 清单、预计上下文与停止条件，然后直接
   执行；不得以计划结束。一个 owner 只做 1A，禁止顺手改 Setup / settings / catalog。
-- 交接点：1A 实现报告 -> manager 派全新独立 QA -> PASS 后另派 fresh merge-prep ->
-  进入 W1B-1 stack。1A QA FAIL 时另派 fresh repair owner，不复用原实现 owner。
-- W1B-1B 专业身份：全新
+- 交接点（HISTORY）：1A 实现报告 -> manager 派全新独立 QA -> PASS 后另派 fresh
+  merge-prep -> 进入 W1B-1 stack。本次 QA FAIL，实际停在 repair scope decision；不得
+  merge-prep。
+- W1B-1B 原计划专业身份（当前锁定）：全新
   `AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07`；
   只读上限为 5 文档入口 + 1A 已集成 contracts + 1B 白名单 7 生产 + 4 测试。
-- W1B-1C 专业身份：全新
+- W1B-1C 原计划专业身份（当前锁定）：全新
   `AURORAMA_V2_W1B_1C_OFFLINE_UI_CATALOG_GENERATION_FENCE_IMPLEMENTATION_OWNER_2026_11_07`；
   只读上限为 5 文档入口 + 1A/1B 已集成 contracts + 1C 白名单 6 生产 + 5 测试。
 - 1B / 1C 各自必须独立 QA / merge-prep；不得由同一 owner 连续执行 1A→1B→1C。1C 完成后
