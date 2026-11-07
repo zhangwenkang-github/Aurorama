@@ -21,14 +21,15 @@
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
 > `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
-> `last_evidence=8865b0c8 clean integration + A0 integration ab917404 +
-> docs/TASKS.md W1 accepted task card + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
+> `last_evidence=03f64a82 clean docs control + W1A candidate 693eff11 independent QA FAIL
+> P0-P3=0/1/3/0 + A0 integration ab917404`。
 >
-> 当前 W1A 实现候选已形成，状态为
-> `SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA`。实现 candidate
+> 当前 W1A 实现候选独立 QA 为 `FAIL`，状态为
+> `SLICE_W1A_INDEPENDENT_QA_FAIL / PATCH_REQUIRED`。实现 candidate
 > `16e19571c482b1af6958c4fc39ae58d84af42a0d` 与 test-compat
 > `693eff11dd8cf43837ac090770cc6f3b37bace8b` 已通过实现自测、组合 build 与 A0 guard；
-> 独立 QA 尚未执行。DI 选择点位于 `:data` 的 `CatalogReadModule`，
+> 不同全新独立 QA 实测 P0/P1/P2/P3=`0/1/3/0`，当前禁止 merge-prep/integration。
+> DI 选择点位于 `:data` 的 `CatalogReadModule`，
 > `core/RepositoryModule.kt` 保持原样。`V2-NON-TTS-W1` 仍保持
 > `BLOCKED_BY_PREREQUISITES`，直到完整 seam DoD 通过。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
 > 可作独立探针，但状态为
@@ -43,7 +44,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `INDEPENDENT_QA` | W1A candidate 已完成实现自测/构建/A0 guard；尚无独立 QA、完整父 seam 或 integration 证据 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_INDEPENDENT_QA_FAIL / PATCH_REQUIRED` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `REPAIR` -> fresh `INDEPENDENT_QA` | candidate `693eff11` QA FAIL：P1 null-scope fail-open；P2 frozen-scope 未传入、unknown download provenance、blank token |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -71,7 +72,7 @@ DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
 ### `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 冻结任务卡
 
 - ID：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`
-- 状态：`SLICE_W1A_IMPLEMENTATION_PENDING_INDEPENDENT_QA`
+- 状态：`SLICE_W1A_INDEPENDENT_QA_FAIL / PATCH_REQUIRED`
 - 冻结基线：root acceptance clean `codex/v2-integration` /
   `8865b0c8e0e57aa1dd790300e21515f92eb3c580`；前置 accepted candidate
   `310fdfdb7d5e41bdc1ce8ce63385c2f2d0e27a4f`（parent `d85f695b`）。本 DI scope correction
@@ -257,7 +258,7 @@ materialization 的 base URL / access token 也必须来自该绑定，不得从
 
 | 状态 | 父 seam 通过条件 | 首个切片 `ICS-W1A` 的边界 |
 |---|---|---|
-| `CONTRACT_FROZEN` | root 已接受本卡、FQCN、字段、白名单与停止门 | 已接受；W1A 实现候选等待独立 QA |
+| `CONTRACT_FROZEN` | root 已接受本卡、FQCN、字段、白名单与停止门 | 已接受；W1A QA FAIL 后修复中，父 seam 不得前进 |
 | `ADAPTER_IMPLEMENTED` | online / offline adapter 与 read-side scope/generation 检查落地 | 可形成 slice-local 证据，不能覆盖 auth / settings 写入与其他 catalog consumers |
 | `TARGET_CONSUMERS_MIGRATED` | auth / preference / DB namespace / cache 与全部声明目录消费者迁移 | 本切片只迁移 SearchViewModel / SearchSession |
 | `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH` | 全局旧身份推断、旧搜索路径与跨账号双真源移除 | 本切片只要求删除 search 旧路径；其他旧路径仍存在 |
@@ -278,6 +279,27 @@ SLICE_W1A = CONTRACT_FROZEN (root review 后)
 
 父 seam 在首个切片后最多保持 `IN_PROGRESS / CONTRACT_FROZEN`，不得据 slice-local 测试
 推进到完整 `TARGET_CONSUMERS_MIGRATED`、`DEBT_COUNT_DECREASED`、QA 或集成 PASS。
+
+#### Independent QA FAIL（2026-11-07；repair required）
+
+candidate `693eff11dd8cf43837ac090770cc6f3b37bace8b` 由不同全新
+`AURORAMA_V2_IDENTITY_CATALOG_W1A_INDEPENDENT_QA_OWNER_2026_11_07` 独立执行，结果为
+`FAIL / P0-P3=0/1/3/0`，禁止 merge-prep / integration：
+
+- `P1-01`：`SearchCatalogGuard` 对 `requested=null && current=null` 误判为合法，随后
+  snapshot=null 也放行，导致无身份时 local/download 结果仍可能 emit；必须全链路
+  `IDENTITY_UNAVAILABLE` fail-closed。
+- `P2-01`：请求开始时解析的 frozen `CatalogScope` 未传给 `CatalogReadPort.search`；data 层
+  执行时重新解析，切号竞态可为新 scope 抓取/写 cache。必须把冻结 scope 绑定到 query/port，
+  并在读取、抓取、materialize、cache write 前再次校验。
+- `P2-02`：`DownloadSearchRules` 对未知/缺失 provenance 或无法解析 userId 的记录 fail-open；
+  必须隔离未知记录，不能猜测属于当前 scope。
+- `P2-03`：online scope 只验证 server/user，不验证 token / address；空 token 仍可绑定
+  client 并发起请求。必须在 scope resolve 或 adapter 入口显式 `IdentityUnavailable`，
+  不得匿名回退。
+
+独立 QA 同时实测 build/unit/A0 全绿，这不抵消语义 P1/P2。修复必须由另一个全新
+repair owner 在同一 8 源码 + 6 测试白名单内完成；旧实现 owner / QA owner 均不得复用。
 
 #### 测试命令、层级与负例
 
