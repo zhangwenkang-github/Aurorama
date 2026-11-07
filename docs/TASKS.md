@@ -7,22 +7,23 @@
 > **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
 > SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
 > ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
-> ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / FIRST_CARD_IN_PROGRESS /
+> ARCH_GUARD_A0_IMPLEMENTED_PENDING_QA / CONTEXT_HANDOFF_REQUIRED /
+> ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 > DO_NOT_RESUME_OLD_HANDOFF_LOOP`。TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；
 > 不得写成删除、已交付、QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
 > `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场只读归档在
 > `codex/g2-prewindow-blocked-20261107` /
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 冻结，不得恢复
 > 64/65、exact count 或 handoff 修复循环。V2 架构审计已完成，`ARCHITECTURE.md` 已升级为
-> v2.0 且用户已确认，首卡进入 In Progress；全量产品重构仍 `NOT_PROVEN`。首卡所示下载
-> 点击问题已有历史修复 `61c04a38`（`v1.4.0` / 当前 integration 祖先），当前复现与候选
-> 真实入口回归均未证明，必须先复现；无缺陷则停止，不得直接重复改码。
+> v2.0 且用户已确认；A0 架构守卫已实现并通过 7/7 自测，等待全新独立 QA，全量产品重构
+> 仍 `NOT_PROVEN`。当前会话已过 35 万交接线，首卡等待 A0 QA / integration 后再派。
+> 首卡历史修复 `61c04a38` 存在，未来必须先复现；无缺陷则停止，不得重复改码。
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`IN_PROGRESS / CURRENT_REPRO_REQUIRED`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | 在用户确认后的 clean integration 独立 worktree 先执行现有回归并尝试最小复现；仅在有真实 RED 时修复完成下载卡中央 / 普通点击缺陷 | ①不改下载状态机、Worker、通知、Room / schema 或迁移；②不进入导航宿主、共享 UI 或第二功能；③不触 TTS/G2、设备、独立 QA、merge / Release | `ARCHITECTURE.md` v2.0 用户确认；D212 / R034；`S6-P-DOWNLOAD-041`；精确白名单 `DownloadRows.kt` + `DownloadRowAccessibilityContractTest.kt` | 记录当前对象复现结果；无缺陷则 `NO_DEFECT_REPRODUCED`；有缺陷则最小 RED/GREEN、动作不穿透、现有回归与 `V2-REG-DOWNLOAD-001` 绑定 | 无缺陷；需要两个白名单文件之外的路径；需设备 / QA；新 P0–P2；历史 fix 已足够且无法证明复发 |
+| `V2-ARCH-OWNER-GUARD-W1P`（`IMPLEMENTED_PENDING_INDEPENDENT_QA`） | A0 架构守卫 / debt ratchet | 固定实现 branch `codex/v2-arch-owner-guard-w1p` / commit `a787b683c89389491099ea7acb069422190327c3`，等待不同全新 QA owner 独立复核与 integration | ①QA 不改代码 / commit；②不跑 Gradle / 设备 / 网络；③不把 guard PASS 扩写为产品架构重构或 Release PASS | G1-S1 baseline；`tools/architecture/**` 3 files；实现自测 7/7 PASS；分支 clean | QA 重跑 7/7，核验 19 边 / 11 违规基线、越界文件与 static input limits；PASS 后另派 merge-prep | 任一测试 FAIL、架构语义漂移、越界文件、需要新产品实现或 R033 轮次再突破 |
 
-首卡只允许全新实现 owner 执行；独立 QA 必须在实现收口后由负责人另行授权。
+当前会话已过 35 万交接线，A0 QA 不在本会话启动；首卡 worktree 已存在但未派实现。
 
 ## HISTORY — G2 / TTS 控制面失败现场（非当前入口）
 
@@ -153,6 +154,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 退出条件 |
 |---|---|---|---|---|
+| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`QUEUED_WAITING_ARCH_GUARD_QA / CURRENT_REPRO_REQUIRED`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | A0 guard QA + integration PASS 后，由全新实现 owner 在独立 worktree 先复现；仅真实 RED 时最小修复 | `ARCHITECTURE.md` v2.0；A0 guard integrated；D212 / R034；精确白名单 `DownloadRows.kt` + `DownloadRowAccessibilityContractTest.kt`；worktree `F:\Develop\code_data\work_tree\Aurorama\v2-non-tts-w0-download-card-action\Aurorama` 已建但未派 | 当前对象有 RED，或 `NO_DEFECT_REPRODUCED`；触碰导航 / 状态机 / 通知 / schema / 设备 / TTS/G2 即停止 |
 | `V2-TTS-G2-SPECIAL-SOLVE` | TTS / G2 runtime 后期专项（Deferred） | 在其他非 TTS 的 2.0 core 功能之后，以新任务、新方案、新验收解决离线 TTS、G2 runtime、handoff 与设备闭环；保留当前失败现场作为历史输入 | `V2-D211`；用户重新授权；新 owner / 新合同 / 新验收；旧分支 `codex/g2-prewindow-blocked-20261107` 与 G2 evidence 只读 | 新方案明确产品可观察承诺、最便宜可信证据、设备/安全/数据边界、两轮止损预算和恢复入口，并经用户批准；旧 QA attempt 不得作为 PASS，且不得复活 64/65 / exact-count / handoff 循环 |
 | `V2-IMPLEMENTATION-PLAN` | G2 开发门 | 交付波次、完整任务卡、QA/集成顺序和用户开工批准 | G1 完整收口 + 用户明确解除 E 门；当前不得启动 | 用户批准开始实现 |
 
