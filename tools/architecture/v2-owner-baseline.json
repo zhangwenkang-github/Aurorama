@@ -1,0 +1,319 @@
+{
+  "schemaVersion": "1.0",
+  "source": {
+    "taskId": "G1-S1",
+    "report": ".planning/v2-g1/G1-S1/report.json",
+    "baseHead": "00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc"
+  },
+  "ownerModules": [
+    "app/phone",
+    "app/tv",
+    "core",
+    "data",
+    "player/core",
+    "player/local",
+    "setup",
+    "modes/film",
+    "modes/book",
+    "modes/music",
+    "settings"
+  ],
+  "governedModules": [
+    "app/phone",
+    "core",
+    "data",
+    "player/core",
+    "player/local",
+    "modes/book",
+    "modes/film",
+    "modes/music"
+  ],
+  "fqcnOwnerModules": [
+    "app/phone",
+    "core",
+    "data",
+    "player/core",
+    "player/local",
+    "setup",
+    "modes/film",
+    "modes/book",
+    "modes/music",
+    "settings"
+  ],
+  "moduleEdges": [
+    {
+      "id": "G1-S1-E-APP-CORE",
+      "from": "app/phone",
+      "to": "core"
+    },
+    {
+      "id": "G1-S1-E-APP-DATA",
+      "from": "app/phone",
+      "to": "data"
+    },
+    {
+      "id": "G1-S1-E-APP-PLAYER-CORE",
+      "from": "app/phone",
+      "to": "player/core"
+    },
+    {
+      "id": "G1-S1-E-APP-PLAYER-LOCAL",
+      "from": "app/phone",
+      "to": "player/local"
+    },
+    {
+      "id": "G1-S1-E-APP-BOOK",
+      "from": "app/phone",
+      "to": "modes/book"
+    },
+    {
+      "id": "G1-S1-E-APP-FILM",
+      "from": "app/phone",
+      "to": "modes/film"
+    },
+    {
+      "id": "G1-S1-E-APP-MUSIC",
+      "from": "app/phone",
+      "to": "modes/music"
+    },
+    {
+      "id": "G1-S1-E-CORE-DATA",
+      "from": "core",
+      "to": "data"
+    },
+    {
+      "id": "G1-S1-E-CORE-PLAYER-CORE",
+      "from": "core",
+      "to": "player/core"
+    },
+    {
+      "id": "G1-S1-E-PLAYER-LOCAL-PLAYER-CORE",
+      "from": "player/local",
+      "to": "player/core"
+    },
+    {
+      "id": "G1-S1-E-PLAYER-LOCAL-DATA",
+      "from": "player/local",
+      "to": "data"
+    },
+    {
+      "id": "G1-S1-E-BOOK-CORE",
+      "from": "modes/book",
+      "to": "core"
+    },
+    {
+      "id": "G1-S1-E-BOOK-DATA",
+      "from": "modes/book",
+      "to": "data"
+    },
+    {
+      "id": "G1-S1-E-FILM-CORE",
+      "from": "modes/film",
+      "to": "core"
+    },
+    {
+      "id": "G1-S1-E-FILM-DATA",
+      "from": "modes/film",
+      "to": "data"
+    },
+    {
+      "id": "G1-S1-E-MUSIC-CORE",
+      "from": "modes/music",
+      "to": "core"
+    },
+    {
+      "id": "G1-S1-E-MUSIC-DATA",
+      "from": "modes/music",
+      "to": "data"
+    },
+    {
+      "id": "G1-S1-E-MUSIC-PLAYER-CORE",
+      "from": "modes/music",
+      "to": "player/core"
+    },
+    {
+      "id": "G1-S1-E-MUSIC-PLAYER-LOCAL",
+      "from": "modes/music",
+      "to": "player/local"
+    }
+  ],
+  "externalEdges": [
+    {
+      "from": "app/phone",
+      "to": "setup"
+    },
+    {
+      "from": "app/phone",
+      "to": "settings"
+    },
+    {
+      "from": "core",
+      "to": "settings"
+    },
+    {
+      "from": "data",
+      "to": "settings"
+    },
+    {
+      "from": "player/local",
+      "to": "settings"
+    },
+    {
+      "from": "modes/book",
+      "to": "settings"
+    },
+    {
+      "from": "modes/film",
+      "to": "settings"
+    },
+    {
+      "from": "modes/music",
+      "to": "settings"
+    }
+  ],
+  "rules": {
+    "sourceOwner": "exact physical module/src/main root; namespace and longest package prefix are forbidden",
+    "fqcnOwner": "declared top-level type; multiple module owners are quarantined",
+    "dataImplementationImportPrefixes": [
+      "com.zhangwenkang.cinefin.api.",
+      "com.zhangwenkang.cinefin.database.",
+      "com.zhangwenkang.cinefin.network.",
+      "com.zhangwenkang.cinefin.repository."
+    ],
+    "dataImplementationImportAllowlist": [
+      "com.zhangwenkang.cinefin.repository.SearchScope"
+    ],
+    "playerLocalAppPrefix": "com.zhangwenkang.cinefin.player.local.",
+    "musicControllerImport": "com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController",
+    "musicAudioImportPrefix": "com.zhangwenkang.cinefin.player.local.audio.",
+    "filmPresentationImportPrefix": "com.zhangwenkang.cinefin.film.presentation.",
+    "languageMatcherImport": "com.zhangwenkang.cinefin.language.LanguageMatcher",
+    "sharedPackages": {
+      "models": "com.zhangwenkang.cinefin.models",
+      "utils": "com.zhangwenkang.cinefin.utils",
+      "update": "com.zhangwenkang.cinefin.update"
+    }
+  },
+  "violations": [
+    {
+      "id": "G1-S1-V-f3f117c921f7",
+      "severity": "P1",
+      "kind": "SHARED_PACKAGE_OWNERSHIP",
+      "detector": "shared-models",
+      "limits": {
+        "coreFiles": 7,
+        "dataFiles": 42,
+        "totalFiles": 49
+      }
+    },
+    {
+      "id": "G1-S1-V-1d0658ad88d4",
+      "severity": "P1",
+      "kind": "SHARED_PACKAGE_OWNERSHIP",
+      "detector": "shared-utils",
+      "limits": {
+        "appFiles": 4,
+        "coreFiles": 32,
+        "dataFiles": 3,
+        "totalFiles": 39
+      }
+    },
+    {
+      "id": "G1-S1-V-67c5e05b0c29",
+      "severity": "P2",
+      "kind": "SHARED_PACKAGE_OWNERSHIP",
+      "detector": "shared-update",
+      "limits": {
+        "coreFiles": 1,
+        "dataFiles": 12,
+        "totalFiles": 13
+      }
+    },
+    {
+      "id": "G1-S1-V-d0a87242164d",
+      "severity": "P1",
+      "kind": "PRESENTATION_TO_DATA_IMPLEMENTATION",
+      "detector": "app-data-impl",
+      "limits": {
+        "imports": 20,
+        "files": 12
+      }
+    },
+    {
+      "id": "G1-S1-V-d8a9ce2529bf",
+      "severity": "P1",
+      "kind": "LAYER_COLLAPSE",
+      "detector": "core-layer-collapse",
+      "limits": {
+        "coreToDataImports": 130,
+        "coreToPlayerCoreImports": 1,
+        "coreSourceFiles": 106,
+        "coreSourceLines": 18076
+      }
+    },
+    {
+      "id": "G1-S1-V-ba7ffc6c9bfe",
+      "severity": "P1",
+      "kind": "PRESENTATION_TO_DATA_IMPLEMENTATION",
+      "detector": "player-local-data-impl",
+      "limits": {
+        "imports": 2,
+        "files": 1,
+        "playerLocalSourceFiles": 61,
+        "playerLocalSourceLines": 15512
+      }
+    },
+    {
+      "id": "G1-S1-V-17dbbcd423d6",
+      "severity": "P1",
+      "kind": "FEATURE_TO_CONCRETE_PLAYER_IMPLEMENTATION",
+      "detector": "music-player-local",
+      "limits": {
+        "controllerImports": 6,
+        "controllerFiles": 6,
+        "audioImplementationImports": 12,
+        "audioFiles": 2,
+        "totalImports": 18
+      }
+    },
+    {
+      "id": "G1-S1-V-434beb5c4623",
+      "severity": "P1",
+      "kind": "APP_TO_CONCRETE_PLAYER_IMPLEMENTATION",
+      "detector": "app-player-local",
+      "limits": {
+        "imports": 62,
+        "files": 19
+      }
+    },
+    {
+      "id": "G1-S1-V-d6b630851ba5",
+      "severity": "P2",
+      "kind": "FEATURE_UI_OWNERSHIP_SPLIT",
+      "detector": "film-ui-split",
+      "limits": {
+        "imports": 96,
+        "appFiles": 24
+      }
+    },
+    {
+      "id": "G1-S1-V-3a750bb14da2",
+      "severity": "P2",
+      "kind": "PACKAGE_NAMESPACE_SHADOWING",
+      "detector": "language-shadowing",
+      "limits": {
+        "imports": 7,
+        "files": 7
+      }
+    },
+    {
+      "id": "G1-S1-V-56f941f5ffea",
+      "severity": "P3",
+      "kind": "DUPLICATE_BUILD_DEPENDENCY",
+      "detector": "duplicate-build-dependency",
+      "limits": {
+        "declarations": 2
+      }
+    }
+  ]
+}
