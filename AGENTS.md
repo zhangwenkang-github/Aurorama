@@ -7,7 +7,8 @@
 - **当前状态（2026-11-07，优先于下方旧 G2 控制面条目）**：`TTS_G2_DEFERRED /
   DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE /
   DEFERRED_BLOCKED_CONTROL_PLANE / SOLVE_AFTER_OTHER_2_0_CORE_FEATURES /
-  DO_NOT_RESUME_OLD_HANDOFF_LOOP / NON_TTS_PLAN_READY_PENDING_USER_APPROVAL`。
+  DO_NOT_RESUME_OLD_HANDOFF_LOOP / FIRST_CARD_APPROVED /
+  ARCH_CONFORMANCE_GATE_REQUIRED / NON_TTS_IMPLEMENTATION_PAUSED`。
   TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、
   QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
   `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场归档在本地分支
@@ -15,8 +16,10 @@
   `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），含 9 个 settlement
   文件与 `qa-pad-v2` 三文件，只读保留，不合入，不 push，不 tag。旧 G2 合同与 QA evidence
   冻结；不得重入 64/65 transition、exact count 或旧 handoff 修复循环，不得跳过 handoff
-  直接派 Pad/K60 QA。非 TTS 六波与首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 已规划，
-  当前唯一入口是用户批准该首卡；产品实现、设备、QA 与 Release 仍需单独授权。日后再启
+  直接派 Pad/K60 QA。非 TTS 六波与首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 已规划且
+  用户已批准；但实际 V2 产品架构重构尚未完成，`docs/ARCHITECTURE.md` 仍是待审查的
+  v1.1 基线。当前唯一入口是先做架构符合性 / 低耦合 / 并行拆分审计并回写 V2 架构，
+  审计通过前不得开始首卡编码。产品实现、设备、QA 与 Release 仍需单独授权。日后再启
   TTS 必须新任务、新方案、新验收和全新 owner，旧 QA attempt 不可作为 PASS。
 
 > 下方旧 G2 条目原样保留用于审计追溯；其中“当前 / 下一步 / 必须 / ACTIVE”等措辞只描述

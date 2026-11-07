@@ -1,14 +1,17 @@
 # Cinefin · 项目总览与协作规程
 
 > **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
-> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_PLAN_READY_PENDING_USER_APPROVAL`。
+> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
+> ARCH_CONFORMANCE_GATE_REQUIRED / NON_TTS_IMPLEMENTATION_PAUSED`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、QA /
 > runtime / G1 PASS。本轮规划开工时 integration HEAD
 > `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场只读归档在本地分支
 > `codex/g2-prewindow-blocked-20261107`，commit
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 保持冻结，
-> 非 TTS 六波与首张下载卡修复任务已规划，入口等待用户批准；实现、设备、QA、Release 仍需
-> 用户单独批准。产品 P0–P3 仍 `NOT_ASSESSED`，K60 锁定；旧 G2 审计事实只在
+> 非 TTS 六波与首张下载卡修复任务已规划且用户批准，但实际 V2 架构重构尚未开始，
+> `ARCHITECTURE.md` 仍是待审查 v1.1。当前先做架构符合性 / 低耦合 / 并行拆分审计，
+> 关闭架构门后才可开始首卡实现；设备、QA、Release 仍需用户单独批准。产品 P0–P3 仍
+> `NOT_ASSESSED`，K60 锁定；旧 G2 审计事实只在
 > `V2_PLAN.md` §12 HISTORY 追溯。
 
 > **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-11-07　集成分支 `codex/v2-integration`
@@ -45,7 +48,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE / SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_PLAN_READY_PENDING_USER_APPROVAL / PRODUCT_P0_P3_NOT_ASSESSED` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。失败现场在本地归档分支 `codex/g2-prewindow-blocked-20261107`，commit `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），只读保留 9 个 settlement 文件与 `qa-pad-v2` 三文件，不合入、不 push、不 tag。非 TTS 六波与首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 已规划，当前仅等待用户批准；D212/R034/L040 固定“稳定 bug ID + fix commit + 候选回归”门，含 TTS 混合成员的 Reader Core / Q03 卡不得整卡复用。`V2-D211` 只解除“TTS 先完成才能规划其他功能”的顺序阻塞，不授权产品实现、设备 QA 或 Release。旧 G2 audit / 64/65 / handoff 记录统一放入 `docs/V2_PLAN.md` §12 HISTORY，禁止恢复旧控制面循环。 |
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / FIRST_CARD_APPROVED / ARCH_CONFORMANCE_GATE_REQUIRED / NON_TTS_IMPLEMENTATION_PAUSED / PRODUCT_P0_P3_NOT_ASSESSED` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。失败现场在本地归档分支 `codex/g2-prewindow-blocked-20261107`，commit `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），只读保留 9 个 settlement 文件与 `qa-pad-v2` 三文件，不合入、不 push、不 tag。非 TTS 六波与首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 已规划且用户批准；但真实产品架构重构尚未开始，`ARCHITECTURE.md` 仍是 v1.1 待审。当前先做 `V2-ARCH-CONFORMANCE-AND-PARALLELIZATION`，核对外部第 154–286 行、文档开头工作流、低耦合、唯一所有权、架构守卫和并行文件锁；架构门关闭前不实现首卡。D212/R034/L040 固定“稳定 bug ID + fix commit + 候选回归”门。`V2-D211` 只解除 TTS 顺序阻塞，不授权产品实现、设备 QA 或 Release。 |
 > `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；当前唯一末态是
 > `POST_QA_RUNTIME_DEFERRED` 作为 handoff-bootstrap 历史措辞保留，
 > `PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，不是 QA / runtime / G1 PASS。

@@ -5,19 +5,22 @@
 ## In Progress
 
 > **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
-> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / NON_TTS_PLAN_READY_PENDING_USER_APPROVAL /
+> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
+> ARCH_CONFORMANCE_GATE_REQUIRED / NON_TTS_IMPLEMENTATION_PAUSED /
 > DO_NOT_RESUME_OLD_HANDOFF_LOOP`。TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；
 > 不得写成删除、已交付、QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
 > `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场只读归档在
 > `codex/g2-prewindow-blocked-20261107` /
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 冻结，不得恢复
-> 64/65、exact count 或 handoff 修复循环。非 TTS 六波与首卡已规划；产品实现、设备、QA
-> 与 Release 仍需单独批准。
+> 64/65、exact count 或 handoff 修复循环。首卡已由用户批准，但实际产品架构重构尚未开始，
+> 当前先做 V2 架构符合性与并行拆分审计；架构门关闭前不得开始首卡编码。
 
 | ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
 |---|---|---|---|---|---|---|
-当前无 `In Progress` 产品任务。首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 只位于
-`Todo / Deferred`，状态 `PLANNED_PENDING_USER_APPROVAL`；用户批准前不得派实现或 QA。
+| `V2-ARCH-CONFORMANCE-AND-PARALLELIZATION` | 2.0 架构执行门；外部原始第 154–286 行 + 文档开头工作流 | 核对已接受架构需求、G1-S1 基线与真实产品树；输出 V2 架构符合性、低耦合/所有权/架构守卫最小整改、可并行任务契约与共享文件锁；只规划与静态验证 | ①不开始产品代码、设备、QA、Release；②不重写全部架构或建 bespoke 审计系统；③不复活 TTS/G2 控制面 | `V2-D010/D012/D019/D020/D198`；`V2-REQ-ARCH-001～072`；`docs/ARCHITECTURE.md`；`G1-S1/report.json`；`V2-D211/D212` | 每个 154–286 归一要求有 PASS/GAP/N/A 证据；明确 `V2-PLAN-READY` / `IMPLEMENTATION-READY` 差距；首卡与后续 3 条任务文件/契约白名单无重叠，共享咽喉文件串行；用户确认后才放行实现 | 需要大规模源码重构、产品实现、设备/QA、新的架构协议或修改已接受产品语义；无法把首卡放到冻结 seam 中 |
+
+首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 位于 `Todo / Deferred`，状态
+`APPROVED_WAITING_ARCH_CONFORMANCE`；架构门关闭前不得派实现或 QA。
 
 ## HISTORY — G2 / TTS 控制面失败现场（非当前入口）
 
@@ -148,7 +151,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 退出条件 |
 |---|---|---|---|---|
-| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`PLANNED_PENDING_USER_APPROVAL`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | 修复完成下载卡中央 / 普通点击被进度布局拦截或目标不完整；卡片可进入正确详情 / 本地内容，显式动作保持独立；绑定回归 ID `V2-REG-DOWNLOAD-001` | 用户批准首卡；D212 / R034；`S6-P-DOWNLOAD-041`；`G2-DOWNLOAD-STATE-W2` 窄切片；详见 `V2_PLAN.md` §12 首卡 | 最小 RED/GREEN + 候选祖先 + 独立候选 QA 场景均绑定同一 fix；重做下载状态机 / 通知 / schema / 设备 / TTS/G2 即停止拆卡 |
+| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`APPROVED_WAITING_ARCH_CONFORMANCE`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | 修复完成下载卡中央 / 普通点击被进度布局拦截或目标不完整；卡片可进入正确详情 / 本地内容，显式动作保持独立；绑定回归 ID `V2-REG-DOWNLOAD-001` | 用户已批准；`V2-ARCH-CONFORMANCE-AND-PARALLELIZATION` PASS；D212 / R034；`S6-P-DOWNLOAD-041`；`G2-DOWNLOAD-STATE-W2` 窄切片；详见 `V2_PLAN.md` §12 首卡 | 架构门 + 最小 RED/GREEN + 候选祖先 + 独立候选 QA 场景均绑定同一 fix；重做下载状态机 / 通知 / schema / 设备 / TTS/G2 即停止拆卡 |
 | `V2-TTS-G2-SPECIAL-SOLVE` | TTS / G2 runtime 后期专项（Deferred） | 在其他非 TTS 的 2.0 core 功能之后，以新任务、新方案、新验收解决离线 TTS、G2 runtime、handoff 与设备闭环；保留当前失败现场作为历史输入 | `V2-D211`；用户重新授权；新 owner / 新合同 / 新验收；旧分支 `codex/g2-prewindow-blocked-20261107` 与 G2 evidence 只读 | 新方案明确产品可观察承诺、最便宜可信证据、设备/安全/数据边界、两轮止损预算和恢复入口，并经用户批准；旧 QA attempt 不得作为 PASS，且不得复活 64/65 / exact-count / handoff 循环 |
 | `V2-IMPLEMENTATION-PLAN` | G2 开发门 | 交付波次、完整任务卡、QA/集成顺序和用户开工批准 | G1 完整收口 + 用户明确解除 E 门；当前不得启动 | 用户批准开始实现 |
 
