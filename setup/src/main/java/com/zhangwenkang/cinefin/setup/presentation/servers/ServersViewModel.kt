@@ -67,7 +67,9 @@ constructor(
                     offlineMode = currentIdentity.selection.offlineMode,
                 )
             val result =
-                identityWritePort.selectServer(selection) { repository.setCurrentServer(serverId) }
+                identityWritePort.selectServer(selection) { _, permit ->
+                    permit.commit { repository.setCurrentServer(serverId) }
+                }
             if (
                 result == IdentityTransitionResult.APPLIED ||
                     result == IdentityTransitionResult.NO_OP

@@ -33,11 +33,15 @@ interface IdentityReadPort {
     suspend fun current(): IdentitySnapshot
 }
 
+interface IdentityProjectionPermit {
+    suspend fun commit(effect: suspend () -> Unit): Boolean
+}
+
 fun interface IdentityProjection {
-    suspend fun project(snapshot: IdentitySnapshot)
+    suspend fun project(snapshot: IdentitySnapshot, permit: IdentityProjectionPermit)
 
     companion object {
-        val None = IdentityProjection {}
+        val None = IdentityProjection { _, _ -> }
     }
 }
 

@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.setup
 
 import com.zhangwenkang.cinefin.identity.IdentityProjection
+import com.zhangwenkang.cinefin.identity.IdentityProjectionPermit
 import com.zhangwenkang.cinefin.identity.IdentityReadPort
 import com.zhangwenkang.cinefin.identity.IdentitySelection
 import com.zhangwenkang.cinefin.identity.IdentitySnapshot
@@ -168,6 +169,57 @@ class ServersViewModelIdentityTest {
             assertEquals(1, writer.projectionCalls)
             assertEquals(1, repository.setCurrentServerCalls)
         }
+
+    @Test
+    fun stalePermitCannotRunProductionServerProjectionSideEffect() =
+        runTest(dispatcher) {
+            val serverId = "server-a"
+            val addressId = UUID.randomUUID()
+            val server =
+                ServerWithAddresses(
+                    server =
+                        Server(
+                            id = serverId,
+                            name = "Server A",
+                            currentServerAddressId = addressId,
+                            currentUserId = null,
+                        ),
+                    addresses =
+                        listOf(
+                            ServerAddress(
+                                id = addressId,
+                                serverId = serverId,
+                                address = "https://server-a.example",
+                            )
+                        ),
+                    user = null,
+                )
+            val repository = RecordingSetupRepository(server)
+            val reader =
+                FixedIdentityReadPort(
+                    IdentitySnapshot(
+                        selection = IdentitySelection(offlineMode = true),
+                        identityGeneration = 4L,
+                        status = IdentityStateStatus.READY,
+                    )
+                )
+            val writer =
+                RecordingIdentityWriter(
+                    result = IdentityTransitionResult.STALE_DISCARDED,
+                    permitCommits = false,
+                )
+            val viewModel = ServersViewModel(repository.repository, reader, writer)
+            val event = async { withTimeoutOrNull(1_000) { viewModel.events.first() } }
+
+            viewModel.loadServers()
+            advanceUntilIdle()
+            viewModel.onAction(ServersAction.OnServerClick(serverId))
+            advanceUntilIdle()
+
+            assertNull(event.await())
+            assertEquals(1, writer.projectionCalls)
+            assertEquals(0, repository.setCurrentServerCalls)
+        }
 }
 
 private class FixedIdentityReadPort(private val snapshot: IdentitySnapshot) : IdentityReadPort {
@@ -177,7 +229,8 @@ private class FixedIdentityReadPort(private val snapshot: IdentitySnapshot) : Id
 }
 
 private class RecordingIdentityWriter(
-    private val result: IdentityTransitionResult = IdentityTransitionResult.APPLIED
+    private val result: IdentityTransitionResult = IdentityTransitionResult.APPLIED,
+    private val permitCommits: Boolean = true,
 ) : IdentityWritePort {
     var serverCalls = 0
         private set
@@ -200,7 +253,8 @@ private class RecordingIdentityWriter(
                 selection = selection,
                 identityGeneration = 5L,
                 status = IdentityStateStatus.READY,
-            )
+            ),
+            RecordingProjectionPermit(permitCommits),
         )
         return result
     }
@@ -229,6 +283,18 @@ private class RecordingIdentityWriter(
         selection: IdentitySelection,
         projection: IdentityProjection,
     ): IdentityTransitionResult = IdentityTransitionResult.NO_OP
+}
+
+private class RecordingProjectionPermit(private val commits: Boolean) : IdentityProjectionPermit {
+    var commitCalls = 0
+        private set
+
+    override suspend fun commit(effect: suspend () -> Unit): Boolean {
+        commitCalls += 1
+        if (!commits || commitCalls > 1) return false
+        effect()
+        return true
+    }
 }
 
 private class RecordingSetupRepository(server: ServerWithAddresses) {

@@ -78,8 +78,8 @@ class SetupRepositoryImplIdentityProjectionTest {
         fixture.updateCalls = 0
         val (result, current) =
             runBlocking {
-                coordinator.selectServer(selection()) {
-                    fixture.repository.setCurrentServer(SERVER_ID)
+                coordinator.selectServer(selection()) { _, permit ->
+                    assertTrue(permit.commit { fixture.repository.setCurrentServer(SERVER_ID) })
                 } to coordinator.current()
             }
         assertEquals(IdentityTransitionResult.RECOVERING, result)

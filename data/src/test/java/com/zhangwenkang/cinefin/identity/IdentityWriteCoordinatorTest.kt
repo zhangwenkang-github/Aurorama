@@ -3,10 +3,11 @@ package com.zhangwenkang.cinefin.identity
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -48,22 +49,25 @@ class IdentityWriteCoordinatorTest {
         val coordinator = IdentityWriteCoordinator(store)
         val oldProjectionStarted = CompletableDeferred<Unit>()
         val releaseOldProjection = CompletableDeferred<Unit>()
-        val oldSelection = IdentitySelection(serverId = "server-old")
-        val newSelection = IdentitySelection(serverId = "server-new")
+        var oldSideEffects = 0
+        val oldSelection = IdentitySelection(serverId = "server-old", offlineMode = true)
+        val newSelection = IdentitySelection(serverId = "server-new", offlineMode = true)
 
         val oldAttempt = async {
-            coordinator.selectServer(oldSelection) {
+            coordinator.selectServer(oldSelection) { _, permit ->
                 oldProjectionStarted.complete(Unit)
                 releaseOldProjection.await()
+                permit.commit { oldSideEffects += 1 }
             }
         }
         oldProjectionStarted.await()
 
-        val newAttempt = async { coordinator.selectServer(newSelection) }
-        yield()
+        val newAttempt =
+            async(start = CoroutineStart.UNDISPATCHED) { coordinator.selectServer(newSelection) }
 
         releaseOldProjection.complete(Unit)
         assertEquals(IdentityTransitionResult.STALE_DISCARDED, oldAttempt.await())
+        assertEquals(0, oldSideEffects)
         assertEquals(IdentityTransitionResult.APPLIED, newAttempt.await())
         val accepted = coordinator.current()
         assertEquals(newSelection, accepted.selection)
@@ -77,6 +81,13 @@ class IdentityWriteCoordinatorTest {
                 null,
             ),
         )
+        assertEquals(
+            true,
+            sharedPreferences.getBoolean(
+                AppPreferences(sharedPreferences).offlineMode.backendName,
+                false,
+            ),
+        )
         assertNoReadySnapshotFor(sharedPreferences, oldSelection)
     }
 
@@ -87,26 +98,45 @@ class IdentityWriteCoordinatorTest {
         val coordinator = IdentityWriteCoordinator(store)
         val oldProjectionStarted = CompletableDeferred<Unit>()
         val releaseOldProjection = CompletableDeferred<Unit>()
-        val oldSelection = IdentitySelection(serverId = "server-old")
-        val newSelection = IdentitySelection(serverId = "server-new")
+        var oldSideEffects = 0
+        val oldSelection = IdentitySelection(serverId = "server-old", offlineMode = true)
+        val newSelection = IdentitySelection(serverId = "server-new", offlineMode = true)
 
         val oldAttempt = async {
-            coordinator.selectServer(oldSelection) {
+            coordinator.selectServer(oldSelection) { _, permit ->
                 oldProjectionStarted.complete(Unit)
                 releaseOldProjection.await()
+                permit.commit { oldSideEffects += 1 }
                 error("old projection failed")
             }
         }
         oldProjectionStarted.await()
-        val newAttempt = async { coordinator.selectServer(newSelection) }
-        yield()
+        val newAttempt =
+            async(start = CoroutineStart.UNDISPATCHED) { coordinator.selectServer(newSelection) }
 
         releaseOldProjection.complete(Unit)
         assertEquals(IdentityTransitionResult.STALE_DISCARDED, oldAttempt.await())
+        assertEquals(0, oldSideEffects)
         assertEquals(IdentityTransitionResult.APPLIED, newAttempt.await())
         assertEquals(newSelection, coordinator.current().selection)
         assertEquals(IdentityStateStatus.READY, coordinator.current().status)
         assertEquals(2L, coordinator.current().identityGeneration)
+        assertEquals(newSelection, store.read().selection)
+        assertEquals(2L, store.read().identityGeneration)
+        assertEquals(
+            "server-new",
+            sharedPreferences.getString(
+                AppPreferences(sharedPreferences).currentServer.backendName,
+                null,
+            ),
+        )
+        assertEquals(
+            true,
+            sharedPreferences.getBoolean(
+                AppPreferences(sharedPreferences).offlineMode.backendName,
+                false,
+            ),
+        )
         assertNoReadySnapshotFor(sharedPreferences, oldSelection)
     }
 
@@ -117,26 +147,45 @@ class IdentityWriteCoordinatorTest {
         val coordinator = IdentityWriteCoordinator(store)
         val oldProjectionStarted = CompletableDeferred<Unit>()
         val releaseOldProjection = CompletableDeferred<Unit>()
-        val oldSelection = IdentitySelection(serverId = "server-old")
-        val newSelection = IdentitySelection(serverId = "server-new")
+        var oldSideEffects = 0
+        val oldSelection = IdentitySelection(serverId = "server-old", offlineMode = true)
+        val newSelection = IdentitySelection(serverId = "server-new", offlineMode = true)
 
         val oldAttempt = async {
-            coordinator.selectServer(oldSelection) {
+            coordinator.selectServer(oldSelection) { _, permit ->
                 oldProjectionStarted.complete(Unit)
                 releaseOldProjection.await()
+                permit.commit { oldSideEffects += 1 }
                 throw CancellationException("old projection cancelled")
             }
         }
         oldProjectionStarted.await()
-        val newAttempt = async { coordinator.selectServer(newSelection) }
-        yield()
+        val newAttempt =
+            async(start = CoroutineStart.UNDISPATCHED) { coordinator.selectServer(newSelection) }
 
         releaseOldProjection.complete(Unit)
         assertThrows(CancellationException::class.java) { runBlocking { oldAttempt.await() } }
+        assertEquals(0, oldSideEffects)
         assertEquals(IdentityTransitionResult.APPLIED, newAttempt.await())
         assertEquals(newSelection, coordinator.current().selection)
         assertEquals(IdentityStateStatus.READY, coordinator.current().status)
         assertEquals(2L, coordinator.current().identityGeneration)
+        assertEquals(newSelection, store.read().selection)
+        assertEquals(2L, store.read().identityGeneration)
+        assertEquals(
+            "server-new",
+            sharedPreferences.getString(
+                AppPreferences(sharedPreferences).currentServer.backendName,
+                null,
+            ),
+        )
+        assertEquals(
+            true,
+            sharedPreferences.getBoolean(
+                AppPreferences(sharedPreferences).offlineMode.backendName,
+                false,
+            ),
+        )
         assertNoReadySnapshotFor(sharedPreferences, oldSelection)
     }
 
@@ -171,7 +220,7 @@ class IdentityWriteCoordinatorTest {
 
         assertEquals(
             IdentityTransitionResult.RECOVERING,
-            coordinator.selectServer(selection) { error("projection failed") },
+            coordinator.selectServer(selection) { _, _ -> error("projection failed") },
         )
         val recovering = coordinator.current()
         assertEquals(IdentityStateStatus.RECOVERING, recovering.status)
@@ -243,7 +292,7 @@ class IdentityWriteCoordinatorTest {
 
         assertEquals(
             IdentityTransitionResult.RECOVERING,
-            coordinator.selectServer(newSelection) { projectionCalls += 1 },
+            coordinator.selectServer(newSelection) { _, _ -> projectionCalls += 1 },
         )
         assertEquals(1, projectionCalls)
         assertEquals(IdentitySelection(), coordinator.current().selection)
@@ -252,7 +301,7 @@ class IdentityWriteCoordinatorTest {
 
         assertEquals(
             IdentityTransitionResult.APPLIED,
-            coordinator.selectServer(newSelection) { projectionCalls += 1 },
+            coordinator.selectServer(newSelection) { _, _ -> projectionCalls += 1 },
         )
         assertEquals(2, projectionCalls)
         assertEquals(newSelection, coordinator.current().selection)
@@ -276,7 +325,9 @@ class IdentityWriteCoordinatorTest {
         var successfulProjectionCalls = 0
         assertEquals(
             IdentityTransitionResult.NO_OP,
-            coordinator.selectServer(selection) { successfulProjectionCalls += 1 },
+            coordinator.selectServer(selection) { _, permit ->
+                permit.commit { successfulProjectionCalls += 1 }
+            },
         )
         assertEquals(1, successfulProjectionCalls)
         assertEquals(IdentityStateStatus.READY, coordinator.current().status)
@@ -285,7 +336,7 @@ class IdentityWriteCoordinatorTest {
         var failingProjectionCalls = 0
         assertEquals(
             IdentityTransitionResult.RECOVERING,
-            coordinator.selectServer(selection) {
+            coordinator.selectServer(selection) { _, _ ->
                 failingProjectionCalls += 1
                 error("projection now fails")
             },
@@ -294,6 +345,89 @@ class IdentityWriteCoordinatorTest {
         assertEquals(selection, coordinator.current().selection)
         assertEquals(IdentityStateStatus.RECOVERING, coordinator.current().status)
         assertEquals(generation, coordinator.current().identityGeneration)
+    }
+
+    @Test
+    fun staleReadyNoOpProjectionReturnsStaleWithoutMutatingGenerationOrStatus() = runBlocking {
+        val sharedPreferences = IdentityTestSharedPreferences()
+        val store = IdentityStateStore(AppPreferences(sharedPreferences))
+        val coordinator = IdentityWriteCoordinator(store)
+        val readySelection = IdentitySelection(serverId = "server-ready", offlineMode = true)
+        val newSelection = IdentitySelection(serverId = "server-new", offlineMode = true)
+        assertEquals(IdentityTransitionResult.APPLIED, coordinator.selectServer(readySelection))
+        val readyGeneration = coordinator.current().identityGeneration
+        val oldProjectionStarted = CompletableDeferred<Unit>()
+        val releaseOldProjection = CompletableDeferred<Unit>()
+        var oldSideEffects = 0
+
+        val oldAttempt = async {
+            coordinator.selectServer(readySelection) { _, permit ->
+                oldProjectionStarted.complete(Unit)
+                releaseOldProjection.await()
+                permit.commit { oldSideEffects += 1 }
+            }
+        }
+        oldProjectionStarted.await()
+        val newAttempt =
+            async(start = CoroutineStart.UNDISPATCHED) { coordinator.selectServer(newSelection) }
+
+        releaseOldProjection.complete(Unit)
+        assertEquals(IdentityTransitionResult.STALE_DISCARDED, oldAttempt.await())
+        assertEquals(0, oldSideEffects)
+        assertEquals(IdentityTransitionResult.APPLIED, newAttempt.await())
+        assertEquals(newSelection, store.read().selection)
+        assertEquals(IdentityStateStatus.READY, store.read().status)
+        assertEquals(readyGeneration + 1L, store.read().identityGeneration)
+    }
+
+    @Test
+    fun permitCommitBeforeNewIntentRegistrationOrdersEffectBeforeNewProjection() = runBlocking {
+        val sharedPreferences = IdentityTestSharedPreferences()
+        val store = IdentityStateStore(AppPreferences(sharedPreferences))
+        val coordinator = IdentityWriteCoordinator(store)
+        val oldSelection = IdentitySelection(serverId = "server-old")
+        val newSelection = IdentitySelection(serverId = "server-new")
+        val permitAcquired = CompletableDeferred<Unit>()
+        val releaseEffect = CompletableDeferred<Unit>()
+        val newProjectionStarted = CompletableDeferred<Unit>()
+        val events = mutableListOf<String>()
+
+        val oldAttempt = async {
+            coordinator.selectServer(oldSelection) { _, permit ->
+                assertTrue(
+                    permit.commit {
+                        events += "old-effect-start"
+                        permitAcquired.complete(Unit)
+                        releaseEffect.await()
+                        events += "old-effect-end"
+                    }
+                )
+                var repeatedEffectRan = false
+                assertFalse(permit.commit { repeatedEffectRan = true })
+                assertFalse(repeatedEffectRan)
+                newProjectionStarted.await()
+            }
+        }
+        permitAcquired.await()
+        val newAttempt =
+            async(start = CoroutineStart.UNDISPATCHED) {
+                coordinator.selectServer(newSelection) { _, _ ->
+                    events += "new-projection"
+                    newProjectionStarted.complete(Unit)
+                }
+            }
+
+        assertTrue(!newAttempt.isCompleted)
+        releaseEffect.complete(Unit)
+        assertEquals(IdentityTransitionResult.STALE_DISCARDED, oldAttempt.await())
+        assertEquals(IdentityTransitionResult.APPLIED, newAttempt.await())
+        assertTrue(
+            "new projection started before old effect completed: $events",
+            events.indexOf("old-effect-end") < events.indexOf("new-projection"),
+        )
+        assertEquals(newSelection, store.read().selection)
+        assertEquals(IdentityStateStatus.READY, store.read().status)
+        assertEquals(2L, store.read().identityGeneration)
     }
 
     @Test

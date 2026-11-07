@@ -5,8 +5,10 @@ import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 @Singleton
 class IdentityWriteCoordinator @Inject constructor(private val store: IdentityStateStore) :
@@ -85,10 +87,10 @@ class IdentityWriteCoordinator @Inject constructor(private val store: IdentitySt
         selection: IdentitySelection,
         projection: IdentityProjection,
     ): IdentityTransitionResult {
-        val intent = intentSequence.incrementAndGet()
-        return transitionMutex.withLock {
+        val intent = transitionMutex.withLock { intentSequence.incrementAndGet() }
+        val prepared = transitionMutex.withLock {
             if (intent != intentSequence.get()) {
-                return@withLock IdentityTransitionResult.STALE_DISCARDED
+                return@withLock Preparation.Complete(IdentityTransitionResult.STALE_DISCARDED)
             }
 
             val previousVisible = store.read().also { cachedSnapshot = it }
@@ -104,7 +106,7 @@ class IdentityWriteCoordinator @Inject constructor(private val store: IdentitySt
                     sameSelection &&
                     persisted.status == IdentityStateStatus.READY
             if (readyNoOp && projection === IdentityProjection.None) {
-                return@withLock IdentityTransitionResult.NO_OP
+                return@withLock Preparation.Complete(IdentityTransitionResult.NO_OP)
             }
 
             val candidate =
@@ -120,7 +122,7 @@ class IdentityWriteCoordinator @Inject constructor(private val store: IdentitySt
                         .getOrNull()
                     if (recovering == null) {
                         cachedSnapshot = store.read()
-                        return@withLock IdentityTransitionResult.FAILED
+                        return@withLock Preparation.Complete(IdentityTransitionResult.FAILED)
                     }
                     when (store.write(recovering)) {
                         IdentityWriteOutcome.COMMITTED -> {
@@ -128,51 +130,69 @@ class IdentityWriteCoordinator @Inject constructor(private val store: IdentitySt
                         }
                         IdentityWriteOutcome.NOT_COMMITTED -> {
                             cachedSnapshot = store.read()
-                            return@withLock IdentityTransitionResult.FAILED
+                            return@withLock Preparation.Complete(IdentityTransitionResult.FAILED)
                         }
                         IdentityWriteOutcome.UNCERTAIN -> {
                             enterProcessQuarantine(store.read())
-                            return@withLock IdentityTransitionResult.RECOVERING
+                            return@withLock Preparation.Complete(
+                                IdentityTransitionResult.RECOVERING
+                            )
                         }
                     }
                 }
             cachedSnapshot = candidate
+            Preparation.Project(
+                previousVisible = previousVisible,
+                candidate = candidate,
+                readyNoOp = readyNoOp,
+            )
+        }
+
+        when (prepared) {
+            is Preparation.Complete -> return prepared.result
+            is Preparation.Project -> Unit
+        }
+
+        val permit = OneShotProjectionPermit(intent)
+        val projectionFailure =
+            try {
+                projection.project(prepared.candidate, permit)
+                null
+            } catch (cancelled: CancellationException) {
+                withContext(NonCancellable) { transitionMutex.withLock { permit.close() } }
+                throw cancelled
+            } catch (error: Exception) {
+                error
+            }
+
+        return transitionMutex.withLock {
+            permit.close()
             if (intent != intentSequence.get()) {
                 return@withLock IdentityTransitionResult.STALE_DISCARDED
             }
 
-            try {
-                projection.project(candidate)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                if (intent != intentSequence.get()) {
-                    return@withLock IdentityTransitionResult.STALE_DISCARDED
-                }
-                if (candidate.status == IdentityStateStatus.READY) {
-                    val recovery = candidate.copy(status = IdentityStateStatus.RECOVERING)
+            if (projectionFailure != null) {
+                if (prepared.candidate.status == IdentityStateStatus.READY) {
+                    val recovery = prepared.candidate.copy(status = IdentityStateStatus.RECOVERING)
                     when (store.write(recovery)) {
                         IdentityWriteOutcome.COMMITTED -> cachedSnapshot = recovery
                         IdentityWriteOutcome.NOT_COMMITTED,
                         IdentityWriteOutcome.UNCERTAIN -> {
-                            enterProcessQuarantine(previousVisible)
+                            enterProcessQuarantine(prepared.previousVisible)
                         }
                     }
                 } else {
-                    refreshVisibleSnapshot(candidate)
+                    refreshVisibleSnapshot(prepared.candidate)
                 }
                 return@withLock IdentityTransitionResult.RECOVERING
             }
-            if (intent != intentSequence.get()) {
-                return@withLock IdentityTransitionResult.STALE_DISCARDED
-            }
 
-            if (readyNoOp) {
-                cachedSnapshot = candidate
+            if (prepared.readyNoOp) {
+                cachedSnapshot = prepared.candidate
                 return@withLock IdentityTransitionResult.NO_OP
             }
 
-            val ready = candidate.copy(status = IdentityStateStatus.READY)
+            val ready = prepared.candidate.copy(status = IdentityStateStatus.READY)
             when (store.write(ready)) {
                 IdentityWriteOutcome.COMMITTED -> {
                     quarantinedSnapshot = null
@@ -186,6 +206,36 @@ class IdentityWriteCoordinator @Inject constructor(private val store: IdentitySt
                 }
             }
         }
+    }
+
+    private inner class OneShotProjectionPermit(private val intent: Long) :
+        IdentityProjectionPermit {
+        private var consumed = false
+        private var closed = false
+
+        override suspend fun commit(effect: suspend () -> Unit): Boolean =
+            transitionMutex.withLock {
+                if (closed || consumed || intent != intentSequence.get()) {
+                    return@withLock false
+                }
+                consumed = true
+                effect()
+                true
+            }
+
+        fun close() {
+            closed = true
+        }
+    }
+
+    private sealed interface Preparation {
+        data class Complete(val result: IdentityTransitionResult) : Preparation
+
+        data class Project(
+            val previousVisible: IdentitySnapshot,
+            val candidate: IdentitySnapshot,
+            val readyNoOp: Boolean,
+        ) : Preparation
     }
 
     private fun refreshVisibleSnapshot(snapshot: IdentitySnapshot) {
