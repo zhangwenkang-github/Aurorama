@@ -17,8 +17,12 @@
   `pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama" -ExpectedHead "<manager pin>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"`。
   只有 clean、pin 匹配且 stdout 出现 `HANDOFF_LINT=PASS` 才可进入 fresh pre-handoff audit；任何
   `FAIL:<CODE>:<path>` 由同一 docs / implementation owner 修正并重跑，PASS 后只做一次 fresh audit。
-- **QA 派发机械门**：实现 owner / 负责人派 QA 前运行同一脚本
-  `-Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"`；
+- **QA 派发机械门**：实现 owner / 负责人派 QA 前运行：
+
+  ```powershell
+  pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-executable-workflow-hardening\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+  ```
+
   只有 `QA_READY_LINT=PASS` 才可派发 fresh independent QA。QA owner 第一条动作必须自行重跑该命令，
   不信任上游自报；FAIL 时停止并回报 failure code。
 - **同一 docs 提交不得写自身最终 SHA**：candidate / base / required ancestors / failed candidate 的稳定

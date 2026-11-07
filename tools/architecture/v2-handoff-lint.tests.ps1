@@ -288,13 +288,25 @@ function New-Fixture {
     $baseHead = [string](Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1)
     $baseHead = $baseHead.Trim()
 
+    $allowedFixturePaths = @(
+        'AGENTS.md'
+        'docs/LESSONS.md'
+        'docs/PROJECT_RULES.md'
+        'docs/TASKS.md'
+        'tools/architecture/v2-handoff-lint.ps1'
+        'tools/architecture/v2-handoff-lint.tests.ps1'
+    )
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('checkout', '-q', '-b', 'failed-candidate') | Out-Null
-    Write-Utf8File -Path (Join-Path $fixtureRoot 'failed.txt') -Text "failed candidate`n"
+    foreach ($relativePath in $allowedFixturePaths) {
+        Write-Utf8File -Path (Join-Path $fixtureRoot $relativePath) -Text "failed candidate $relativePath`n"
+    }
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('add', '-A') | Out-Null
     Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('commit', '-q', '-m', 'failed candidate') | Out-Null
     $failedHead = [string](Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1)
     $failedHead = $failedHead.Trim()
-    Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('checkout', '-q', 'codex/v2-executable-workflow-hardening') | Out-Null
+    Invoke-Git -FixtureRoot $fixtureRoot -Arguments @(
+        'checkout', '-q', '-B', 'codex/v2-executable-workflow-hardening', $failedHead
+    ) | Out-Null
 
     $tasksPath = 'docs/TASKS.md'
     $tasksText = Get-TasksText -FixtureRoot $fixtureRoot -BaseHead $baseHead -FailedHead $failedHead -EvidenceRoot $evidenceRoot
@@ -309,11 +321,20 @@ function New-Fixture {
     $candidateHead = [string](Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1)
     $candidateHead = $candidateHead.Trim()
 
+    Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('checkout', '-q', '-B', 'non-ancestor', $baseHead) | Out-Null
+    Write-Utf8File -Path (Join-Path $fixtureRoot 'sibling.txt') -Text "sibling candidate`n"
+    Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('add', '-A') | Out-Null
+    Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('commit', '-q', '-m', 'non-ancestor sibling') | Out-Null
+    $siblingHead = [string](Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1)
+    $siblingHead = $siblingHead.Trim()
+    Invoke-Git -FixtureRoot $fixtureRoot -Arguments @('checkout', '-q', 'codex/v2-executable-workflow-hardening') | Out-Null
+
     return [pscustomobject]@{
         Parent = $fixtureParent
         Root = $fixtureRoot
         BaseHead = $baseHead
         FailedHead = $failedHead
+        SiblingHead = $siblingHead
         CandidateHead = $candidateHead
         TasksPath = $tasksPath
         TasksFile = (Join-Path $fixtureRoot $tasksPath)
@@ -499,6 +520,40 @@ Invoke-FixtureTest -Name 'out-of-scope path fails Handoff' -Body {
     }
 }
 
+Invoke-FixtureTest -Name 'scope rename from outside source fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        Invoke-Git -FixtureRoot $fixture.Root -Arguments @(
+            'mv', '-f', 'seed.txt', 'tools/architecture/v2-handoff-lint.ps1'
+        ) | Out-Null
+        $newHead = Commit-AllAndGetHead -Fixture $fixture
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:PATH_OUTSIDE_SCOPE:seed.txt'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'scope rename between allowed paths passes Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        Invoke-Git -FixtureRoot $fixture.Root -Arguments @(
+            'mv', '-f', 'docs/LESSONS.md', 'AGENTS.md'
+        ) | Out-Null
+        $newHead = Commit-AllAndGetHead -Fixture $fixture
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
 Invoke-FixtureTest -Name 'seventh changed path fails Handoff' -Body {
     $fixture = New-Fixture
     try {
@@ -519,13 +574,31 @@ Invoke-FixtureTest -Name 'base not ancestor of candidate fails Handoff' -Body {
     try {
         $mutated = $fixture.TasksText.Replace(
             "- BASE_HEAD=$($fixture.BaseHead)",
-            "- BASE_HEAD=$($fixture.FailedHead)"
+            "- BASE_HEAD=$($fixture.SiblingHead)"
         )
         $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
         $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
         Assert-ExitCode -Result $result -Expected 2
         Assert-ContainsToken -Result $result -Token 'FAIL:BASE_NOT_ANCESTOR:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'FAILED_CANDIDATE non-ancestor fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace(
+            "- FAILED_CANDIDATE=$($fixture.FailedHead)",
+            "- FAILED_CANDIDATE=$($fixture.SiblingHead)"
+        )
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token "FAIL:FAILED_CANDIDATE_NOT_ANCESTOR:$($fixture.SiblingHead)"
     }
     finally {
         Remove-Fixture -Fixture $fixture
@@ -853,6 +926,26 @@ Invoke-FixtureTest -Name 'no matching selectors rejects nonexistent equivalent e
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
         Assert-ExitCode -Result $result -Expected 2
         Assert-ContainsToken -Result $result -Token 'FAIL:TEST_EQUIVALENT_EVIDENCE_MISSING:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'no matching selectors rejects empty equivalent evidence explicitly' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = Get-TasksText -FixtureRoot $fixture.Root -BaseHead $fixture.BaseHead `
+            -FailedHead $fixture.FailedHead -EvidenceRoot $fixture.EvidenceRoot `
+            -TestCommand 'pwsh -NoProfile -File tools/architecture/v2-handoff-lint.tests.ps1 --tests NoMatch' `
+            -SelectorStatus 'NO_MATCHING_TESTS' -EquivalentEvidence ''
+        Write-Utf8File -Path $fixture.TasksFile -Text $mutated
+        $result = Invoke-Linter -Mode QaReady -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:TEST_EQUIVALENT_EVIDENCE_MISSING:TEST-001'
+        Assert-True -Condition (-not $result.Raw.Contains('UNEXPECTED_ERROR', [System.StringComparison]::Ordinal)) `
+            -Message "Empty equivalent evidence must use its explicit failure code. $($result.Raw)"
     }
     finally {
         Remove-Fixture -Fixture $fixture

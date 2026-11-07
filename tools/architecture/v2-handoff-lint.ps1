@@ -761,16 +761,24 @@ function Test-Handoff {
                         $objectRelationsValid = $false
                     }
                 }
-                if (-not [string]::IsNullOrWhiteSpace($failedCandidate) -and
-                    $failedCandidate -eq $currentHead) {
-                    Add-Failure -Code 'FAILED_CANDIDATE_IS_CURRENT' -Subject $failedCandidate
-                    $objectRelationsValid = $false
+                if (-not [string]::IsNullOrWhiteSpace($failedCandidate)) {
+                    if (-not (Test-Ancestor -Root $Root -Ancestor $failedCandidate -Descendant $currentHead)) {
+                        Add-Failure -Code 'FAILED_CANDIDATE_NOT_ANCESTOR' -Subject $failedCandidate `
+                            -Detail "candidate=$currentHead"
+                        $objectRelationsValid = $false
+                    }
+                    if ($failedCandidate -eq $currentHead) {
+                        Add-Failure -Code 'FAILED_CANDIDATE_IS_CURRENT' -Subject $failedCandidate
+                        $objectRelationsValid = $false
+                    }
                 }
             }
 
             if ($objectRelationsValid -and -not [string]::IsNullOrWhiteSpace($currentHead) -and
                 (Test-CommitObject -Root $Root -Commit $currentHead)) {
-                $diffResult = Invoke-GitProcess -Root $Root -Arguments @('diff', '--name-only', "$baseHead..$currentHead")
+                $diffResult = Invoke-GitProcess -Root $Root -Arguments @(
+                    'diff', '--no-renames', '--name-only', "$baseHead..$currentHead"
+                )
                 if ($diffResult.ExitCode -ne 0) {
                     Add-Failure -Code 'CHANGED_PATHS_UNAVAILABLE' -Subject $TasksFile
                 }
@@ -1105,7 +1113,12 @@ function Test-QaReady {
                     }
                 }
                 elseif ($equivalent) {
-                    Test-Evidence -Values @($equivalentEvidence) -Label 'TEST_EQUIVALENT_EVIDENCE'
+                    if ([string]::IsNullOrWhiteSpace($equivalentEvidence)) {
+                        Add-Failure -Code 'TEST_EQUIVALENT_EVIDENCE_MISSING' -Subject $testId
+                    }
+                    else {
+                        Test-Evidence -Values @($equivalentEvidence) -Label 'TEST_EQUIVALENT_EVIDENCE'
+                    }
                 }
                 else {
                     Add-Failure -Code 'TEST_SELECTOR_UNVERIFIED' -Subject $testId
