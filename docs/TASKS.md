@@ -24,11 +24,14 @@
 > W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
 > W1B_TASK_CARD_STATUS=ACCEPTED /
 > W1B_1A_IMPLEMENTATION_AUTHORIZATION=HISTORY_YES / SCOPE=W1B_1A_ONLY /
-> W1B_1A_CANDIDATE_HEAD=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
-> W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
-> CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+> W1B_1A_CANDIDATE_HEAD=2375960b06302cc246518fb4e6d5f742f9b4db40 /
+> FAILED_INDEPENDENT_QA / NOT_INTEGRATED /
+> W1B_1A=REPAIR_IN_PROGRESS / NOT_YET_REVIEWED /
+> CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 /
+> FAILED_INDEPENDENT_QA / NOT_INTEGRATED /
 > INDEPENDENT_QA=FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1 / QA_Q6=NOT_PROVEN /
-> REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED / W1B_1B=BLOCKED_BY_W1B_1A /
+> W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS / TEST_ONLY_MOCKK /
+> W1B_1A_REPAIR=IN_PROGRESS / NOT_YET_REVIEWED / W1B_1B=BLOCKED_BY_W1B_1A /
 > W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
 > OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
 > PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
@@ -53,11 +56,12 @@
 > `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
 > V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
 > V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-> `NEXT_CRITICAL_PATH=W1B-1A-INDEPENDENT-QA-P1-P2-REPAIR-SCOPE-DECISION`；
-> `last_evidence=W1B-1A candidate 2375960b06302cc246518fb4e6d5f742f9b4db40 /
-> independent QA FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1 / Q6 NOT_PROVEN`。
+> `NEXT_CRITICAL_PATH=W1B-1A-QA-REPAIR-INDEPENDENT-QA`；
+> `last_evidence=W1B-1A failed candidate 2375960b06302cc246518fb4e6d5f742f9b4db40 /
+> independent QA FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1 / Q6 NOT_PROVEN /
+> repair IN_PROGRESS / NOT_YET_REVIEWED`。
 >
-> W1B-1A implementation candidate
+> W1B-1A failed implementation candidate
 > `2375960b06302cc246518fb4e6d5f742f9b4db40` 的 parent 为
 > `bfcff47ce2623437fb10a402400cd096adc08704`，来自 clean
 > `codex/v2-w1b-1a-identity-contract`，恰好 10 文件，当前 `NOT_INTEGRATED`。候选自检
@@ -67,8 +71,13 @@
 > projection 可在 DB current-user/address 缺失时直接返回，coordinator 仍可能发布 B
 > `READY/APPLIED`，而 global API 仍为旧身份；P2 是真实 SharedPreferences `commit()`
 > 先改内存再尝试磁盘，返回 false 不保证 canonical / projection 旧值保留，而 fake 未模拟
-> 该语义。Q6 交错追加测试仍 `NOT_PROVEN`。未获明确 repair scope 前不得修复、扩第 11
-> 文件、猜 `SetupRepository` 接口或真实存储事务策略，也不得 merge-prep / integration。
+> 该语义。Q6 交错追加测试仍 `NOT_PROVEN`。2026-11-07 manager 已批准
+> `W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS / TEST_ONLY_MOCKK /
+> W1B_1A_REPAIR=IN_PROGRESS`：repair branch
+> `codex/v2-w1b-1a-qa-repair` 从 failed candidate 派生，状态
+> `IN_PROGRESS / NOT_YET_REVIEWED`；精确 8 文件 delta，最终相对原 base 最多 13 文件。
+> P3 `SearchViewModelTest` 排除，Q6 仍需补证明。独立 QA PASS 前不得 merge-prep、
+> integration 或启动 1B。
 >
 > `W1A-P3-COMPLETED-MARKER` / `W1A-P3-LOCAL-ONLY-REGRESSION` 均 `CLOSED`；
 > `W1A_P3_OPEN=0`。原独立 QA R3 `PASS / P0-P3=0/0/0/3` 作为历史证据保留，不追溯改写；
@@ -97,18 +106,22 @@
 
 - [x] `W1A-P3-CLEANUP`：`CLOSED / INTEGRATED`。实现与 cleanup 独立 QA R2 证据绑定
   `faa910827d2db557d4e17970105047a205f77a57`；原 cleanup 任务卡已转为 HISTORY。
-  `W1B-1A` 实现授权已消耗为 QA FAIL candidate；当前 repair scope 未决，1B/1C/2 仍锁定，
-  禁止从本 docs 收口自行创建后续分支。
+  `W1B-1A` 实现授权已消耗为 QA FAIL failed candidate；manager 随后批准 P1/P2 repair，
+  当前 `W1B_1A=REPAIR_IN_PROGRESS / NOT_YET_REVIEWED`，1B/1C/2 仍锁定，禁止从本 docs
+  收口自行创建后续分支。
 - [x] `W1B-TASK-CARD-PLANNING`：`W1B_TASK_CARD=ACCEPTED`；原计划态
   `READY_FOR_IMPLEMENTATION` 仅作 HISTORY。
   自包含卡、W1B-1A/B/C 三顺序实现子波与后置 W1B-2、逐波精确白名单、独立 QA /
   merge-prep、TDD / 负例 / 回归矩阵和停止门已写入下方；只证明可执行计划存在，不证明
   实现、QA、父 seam 或 W1 完成。
-- [ ] `W1B-1A-IMPLEMENTATION`：候选
-  `2375960b06302cc246518fb4e6d5f742f9b4db40` 已完成实现自检但独立 QA
+- [x] `W1B-1A-IMPLEMENTATION`：failed candidate
+  `2375960b06302cc246518fb4e6d5f742f9b4db40` 已完成实现自检，但独立 QA
   `FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1`，状态
-  `BLOCKED_INDEPENDENT_QA_P1_P2 / NOT_INTEGRATED`。下一步只能先由用户 / 负责人明确
-  repair scope；1B / 1C / 2 保持阻塞。
+  `FAILED_INDEPENDENT_QA / NOT_INTEGRATED`。
+- [ ] `W1B-1A-QA-REPAIR`：`W1B_1A_REPAIR_AUTHORIZATION=YES /
+  REPAIR_SCOPE=13_PATHS / TEST_ONLY_MOCKK / W1B_1A_REPAIR=IN_PROGRESS /
+  NOT_YET_REVIEWED`。P1/P2 修复后先由 repair owner 自检收口，再另派全新独立 QA；
+  1B / 1C / 2 保持阻塞。
 
 ## Architecture Critical Path / 长期计划账本
 
@@ -118,7 +131,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 / CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED / REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice dependency satisfied；1A candidate 未集成 | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | 用户 / 负责人明确 1A P1/P2 repair scope | W1A cleanup 已集成；1A 实现候选 10 文件但独立 QA `FAIL / P0-P3=0/1/1/1`，Q6 `NOT_PROVEN`，不得 merge-prep；W1B–W1G、父 seam 全量 DoD 仍未完成 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=REPAIR_IN_PROGRESS / NOT_YET_REVIEWED / FAILED_CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED / W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS / TEST_ONLY_MOCKK / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice dependency satisfied；1A failed candidate 未集成，repair 未复核 | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | repair owner 自检收口后，全新独立 QA | W1A cleanup 已集成；1A 修复进行中；原 failed candidate QA `FAIL / P0-P3=0/1/1/1`，Q6 `NOT_PROVEN`；不得 merge-prep；W1B–W1G、父 seam 全量 DoD 仍未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -570,7 +583,7 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 
 | 子波 | 交付物 | 前置 |
 |---|---|---|
-| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A` P3 cleanup complete / integrated；`W1B_TASK_CARD=ACCEPTED`，只授权 fresh `W1B-1A` owner；1B/1C/2 阻塞 |
+| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A` P3 cleanup complete / integrated；`W1B_TASK_CARD=ACCEPTED`，`W1B-1A` P1/P2 repair authorized / `IN_PROGRESS`；1B/1C/2 阻塞 |
 | `ICS-W1C-CATALOG-READERS` | views / items / detail / home / paging 等 catalog readers 共用 canonical scope 与 snapshot | `ICS-W1B` |
 | `ICS-W1D-OFFLINE-NAMESPACE` | saved offline account、无账号、image cache / DB namespace / offline projection 收敛 | `ICS-W1B` |
 | `ICS-W1E-FRESHNESS-PERMISSIONS` | 完整 freshness / stale reason、401/403、durable fence、跨进程与损坏策略 | `ICS-W1A`–`W1D` |
@@ -629,11 +642,18 @@ git -C $repoRoot diff --check
 ### `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` 自包含任务卡
 
 - ID：`ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER`
-- 状态：`W1B_TASK_CARD_STATUS=ACCEPTED / W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
-  CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
-  REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED`
+- 状态：`W1B_TASK_CARD_STATUS=ACCEPTED / W1B_1A=REPAIR_IN_PROGRESS /
+  NOT_YET_REVIEWED / FAILED_CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 /
+  NOT_INTEGRATED / W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS /
+  TEST_ONLY_MOCKK`
 - 原始授权记录（HISTORY）：`W1B_IMPLEMENTATION_AUTHORIZED=YES /
   SCOPE=W1B_1A_ONLY`；该授权已用于生成 1A implementation candidate，不自动授权 repair。
+- Repair 授权（2026-11-07 manager 决定）：
+  `W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS / TEST_ONLY_MOCKK /
+  W1B_1A_REPAIR=IN_PROGRESS / NOT_YET_REVIEWED`。repair branch
+  `codex/v2-w1b-1a-qa-repair` 以 failed candidate
+  `2375960b06302cc246518fb4e6d5f742f9b4db40` 为 base；相对增量精确 8 文件，最终候选
+  相对原 base 最多 13 文件。第 9 个 repair-delta 或第 14 个最终文件即 STOP。
 - 授权边界：`USER_AUTHORIZATION_2026_11_07=W1B_1A_ONLY`（HISTORY）；
   `RELEASE_AUTHORIZATION=NO / DEVICE_AUTHORIZATION=NO / NETWORK_AUTHORIZATION=NO`。
 - 卡片裁决：`W1B_TASK_CARD=ACCEPTED`。用户 2026-11-07 “继续下一步”当时只授权先派 fresh
@@ -648,9 +668,10 @@ git -C $repoRoot diff --check
   `CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57`。
   candidate SHA 由本次 docs commit 产生，并由 root 最终钉住；不得把 candidate 自身
   SHA 写进同一 commit。
-- 当前门：`W1B-1A-INDEPENDENT-QA-P1-P2-REPAIR-SCOPE-DECISION`。1A implementation /
-  independent QA 已发生并停在 QA FAIL；用户 / 负责人必须先明确修复范围、允许文件集与
-  存储语义。未获明确 scope 前不得派 repair，也不得进入 merge-prep / integration。
+- 当前门：`W1B-1A-QA-REPAIR-INDEPENDENT-QA`。repair scope 已由 manager 于 2026-11-07
+  批准，repair 当前为 `IN_PROGRESS / NOT_YET_REVIEWED`；只有 repair owner 自检收口后，
+  才能另派与实现、原 QA、repair 均不同的全新独立 QA。独立 QA PASS 前不得进入
+  merge-prep / integration 或启动 1B。
 - 当前 QA 事实：candidate
   `2375960b06302cc246518fb4e6d5f742f9b4db40`，parent
   `bfcff47ce2623437fb10a402400cd096adc08704`，branch
@@ -668,14 +689,56 @@ git -C $repoRoot diff --check
   `F:\Develop\Android\AndroidSDK\sources\android-37.0\android\app\SharedPreferencesImpl.java:605`。
   P3：`SearchViewModelTest` 两次全类运行分别为 `7/0/0/0` 与
   `7 tests / 1 failed`，失败在“新查询取消旧查询后旧结果不会覆盖新状态”，与 W1A 两项 P3
-  定向语义不同；候选不改该文件，保留稳定性治理。Q6 旧投影失败 / 取消 / 异步晚提交下的
-  中间 generation / 兼容键仍 `NOT_PROVEN`。硬停止：新 P0–P2、需要第 11 文件、
-  `SetupRepository` 接口变更、真实存储事务策略，或未获用户明确 repair scope。
+  定向语义不同；P3 明确不在本次 repair 范围，单独保留稳定性治理。Q6 旧投影失败 /
+  取消 / 异步晚提交下的中间 generation / 兼容键仍 `NOT_PROVEN`，repair 与后续独立 QA
+  必须补证明，不得沿用 fake 的单一成功路径。
+- 2026-11-07 manager repair scope decision：
+  - repair worktree：`F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1a-qa-repair\Aurorama`；
+    branch `codex/v2-w1b-1a-qa-repair`，base candidate
+    `2375960b06302cc246518fb4e6d5f742f9b4db40`。
+  - 相对 repair delta（8，精确）：
+    1. `data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityStateStore.kt`
+    2. `data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinator.kt`
+    3. `setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt`
+    4. `data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityStateStoreTest.kt`
+    5. `data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinatorTest.kt`
+    6. `app/phone/src/test/java/com/zhangwenkang/cinefin/setup/ServersViewModelIdentityTest.kt`
+    7. `app/phone/src/test/java/com/zhangwenkang/cinefin/setup/SetupRepositoryImplIdentityProjectionTest.kt`
+       （新建）
+    8. `app/phone/build.gradle.kts`
+  - 最终候选相对原 base `bfcff47ce2623437fb10a402400cd096adc08704` 的写域并集（最多 13）：
+    1. `settings/src/main/java/com/zhangwenkang/cinefin/settings/domain/AppPreferences.kt`
+    2. `data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityContract.kt`
+    3. `data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityStateStore.kt`
+    4. `data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinator.kt`
+    5. `data/src/main/java/com/zhangwenkang/cinefin/di/IdentityModule.kt`
+    6. `setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/servers/ServersViewModel.kt`
+    7. `setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt`
+    8. `data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityContractTest.kt`
+    9. `data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityStateStoreTest.kt`
+    10. `data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinatorTest.kt`
+    11. `app/phone/src/test/java/com/zhangwenkang/cinefin/setup/ServersViewModelIdentityTest.kt`
+    12. `app/phone/src/test/java/com/zhangwenkang/cinefin/setup/SetupRepositoryImplIdentityProjectionTest.kt`
+        （新建）
+    13. `app/phone/build.gradle.kts`
+  - P1/P2 方案：SharedPreferences 不新增 key、依赖或存储框架；采用 process quarantine，
+    `commit()` 返回 false 或抛异常后 `IdentityReadPort` fail closed / `RECOVERING`，只有完整
+    tuple `commit == true` 并回读一致才清 quarantine；hydrate / read 同时校验 canonical 与
+    兼容投影；`READY` 同 selection 带 projection 时重验证但不推进 generation。
+    `SetupRepositoryImpl` 在 server / current address 缺失或 API postcondition 不一致时抛异常，
+    不吞 `CancellationException`；不改 `SetupRepository` public 接口。
+  - 测试依赖只允许 `testImplementation("io.mockk:mockk:1.13.16")`，本地缓存已确认；所有
+    Gradle 命令加 `--offline`。网络仍未授权。不得触碰 `SetupRepository` 接口、Room /
+    schema / DB、`JellyfinApi` 文件或 production dependency。
+  - P3 `SearchViewModelTest` 不在 repair 范围；Q6 仍需 repair 测试与后续独立 QA 补足证明。
+  - 硬停止：新 P0–P2、第 9 个 repair delta、第 14 个最终文件、需要接口 / Room / schema /
+    DB / `JellyfinApi` / production dependency 变更，或网络授权。
 - 永续边界：本卡不提升父 seam 的 `CONTRACT_FROZEN / IN_PROGRESS`，不提升
   `V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`；W1A P3 cleanup 的两项 CLOSED 语义不得回退。
-- 当前子波 tokens：`W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
-  CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
-  REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED`、`W1B_1B=BLOCKED_BY_W1B_1A`、
+- 当前子波 tokens：`W1B_1A=REPAIR_IN_PROGRESS / NOT_YET_REVIEWED /
+  FAILED_CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+  W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS / TEST_ONLY_MOCKK /
+  W1B_1A_REPAIR=IN_PROGRESS`、`W1B_1B=BLOCKED_BY_W1B_1A`、
   `W1B_1C=BLOCKED_BY_W1B_1B`、`W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；
   `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED`。
 - 集成模型：1A → 1B → 1C 顺序进入同一 W1B-1 stack；每波独立 QA / merge-prep，
@@ -776,21 +839,24 @@ W1B-1 被拆为三个顺序小波。每个小波由不同 fresh implementation o
 ##### `W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`
 
 - 前置：`PREREQUISITE_SEAMS=NONE`；W1A cleanup integrated；`W1B_TASK_CARD=ACCEPTED`。
-- 当前实现 / QA：candidate
+- 当前实现 / QA：failed candidate
   `2375960b06302cc246518fb4e6d5f742f9b4db40`；parent
   `bfcff47ce2623437fb10a402400cd096adc08704`；10 文件；branch clean；
   `NOT_INTEGRATED`。实现自检 PASS，但 fresh independent QA
   `FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1`。P1 为 Servers projection 静默成功风险，
   P2 为 SharedPreferences commit 真实失败语义未被 fake 覆盖，P3 为 `SearchViewModelTest`
-  不稳定；Q6 中间 generation / 兼容键仍 `NOT_PROVEN`。当前不得 merge-prep。
+  不稳定且已排除出本次 repair；Q6 中间 generation / 兼容键仍 `NOT_PROVEN`，修复后仍需
+  fresh 独立 QA 补证。当前不得 merge-prep。
 - 独立用户可观察结果：用户在 Servers 页切换 server 后，canonical snapshot 只出现一份
   selected server / 一个 generation；无身份保持无身份；迟到的旧 server attempt 为
   `STALE_DISCARDED`。Auth / Quick Connect / settings offline / W1A generation 仍明确
   `NOT_MIGRATED`，不得在本波宣称全局单 writer。
-- 当前收口边界：`W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
-  CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
-  REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED`。只有用户 / 负责人明确 repair scope
-  后，才能派与实现、QA 均不同的 fresh repair owner；repair 后仍需 fresh QA。原计划路径
+- 当前收口边界：`W1B_1A=REPAIR_IN_PROGRESS / NOT_YET_REVIEWED /
+  FAILED_CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
+  W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS / TEST_ONLY_MOCKK /
+  W1B_1A_REPAIR=IN_PROGRESS`。repair owner 只可在上述精确 8 文件 delta 内工作；最终
+  候选相对原 base 不得超过 13 文件。自检收口后必须由另一全新独立 QA 复核，PASS 前禁止
+  merge-prep / integration。原计划路径
   `PASS_PENDING_STACK_INTEGRATION -> fresh QA -> merge-prep -> W1B-1 stack` 仅作
   HISTORY，当前不可进入。
 
@@ -991,7 +1057,7 @@ P2 真实 SharedPreferences failure 语义未覆盖、P3 `SearchViewModelTest` �
 交错追加状态仍 `NOT_PROVEN`。candidate 10 文件、`NOT_INTEGRATED`；在明确 repair scope
 前不得运行 merge-prep 或 integration。
 
-#### 2026-11-07 进度记录：W1B-1A QA FAIL / BLOCKED
+#### 2026-11-07 进度记录：W1B-1A QA FAIL / BLOCKED（HISTORY，已被 repair scope decision 取代）
 
 - `W1B_1A=BLOCKED_INDEPENDENT_QA_P1_P2 /
   CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 / NOT_INTEGRATED /
@@ -1002,16 +1068,35 @@ P2 真实 SharedPreferences failure 语义未覆盖、P3 `SearchViewModelTest` �
   `W1B_1B=BLOCKED_BY_W1B_1A`、`W1B_1C=BLOCKED_BY_W1B_1B`、
   `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`。下一步先由用户 / 负责人作 scope decision。
 
+#### 2026-11-07 进度记录：W1B-1A P1/P2 repair scope authorized
+
+- manager 决定：`W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS /
+  TEST_ONLY_MOCKK / W1B_1A_REPAIR=IN_PROGRESS / NOT_YET_REVIEWED`。failed candidate
+  `2375960b06302cc246518fb4e6d5f742f9b4db40` 仍 `NOT_INTEGRATED`，独立 QA 仍为
+  `FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1`；没有 repaired candidate 或 QA PASS。
+- repair 相对 delta 精确 8 文件，最终候选相对原 base
+  `bfcff47ce2623437fb10a402400cd096adc08704` 最多 13 文件；第 9 个 delta 或第 14 个最终
+  文件 STOP。P1/P2 方案、完整双清单与禁止项见上方任务卡。
+- MockK 仅允许 `testImplementation("io.mockk:mockk:1.13.16")`，Gradle 全部 `--offline`；
+  网络、production dependency 与 `SetupRepository` public 接口均未授权修改。
+- P3 `SearchViewModelTest` 明确不在本次 repair 范围；Q6 旧投影失败 / 取消 / 异步晚提交
+  仍需补证明。后续独立 QA 必须覆盖，不能以 repair owner 自检或原 QA 结果替代。
+- `NEXT_CRITICAL_PATH=W1B-1A-QA-REPAIR-INDEPENDENT-QA`；
+  `W1B_1B=BLOCKED_BY_W1B_1A`、`W1B_1C=BLOCKED_BY_W1B_1B`、
+  `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；repair 自检收口后另派全新独立 QA，PASS 前不得
+  merge-prep、integration 或启动 1B。
+
 #### 角色历史与当前 repair 交接
 
-- 当前下一步不是创建 1B，也不是复用原实现 / QA owner。用户 / 负责人必须先明确
-  `W1B-1A-INDEPENDENT-QA-P1-P2-REPAIR-SCOPE-DECISION`，尤其确认 P2 是否允许修改存储
-  事务表达，以及修复是否严格限于现有 10 文件。
-- 获批后的专业身份必须是与原实现、独立 QA 均不同的全新
+- 当前下一步不是创建 1B，也不是复用原实现 / QA owner。repair scope 已批准；repair
+  owner 完成自检后，下一门为 `W1B-1A-QA-REPAIR-INDEPENDENT-QA`，必须另派与实现、原 QA、
+  repair 均不同的全新独立 QA。
+- 当前 repair 专业身份是与原实现、独立 QA 均不同的全新
   `AURORAMA_V2_W1B_1A_QA_REPAIR_OWNER_2026_11_07`。第一条只读动作：核对 control-plane
-  clean HEAD 与 candidate / QA evidence，然后只读 P1/P2 finding 及相关文件；不得先写
-  代码。停止条件：未获用户明确 repair scope、需要第 11 文件 /
-  `SetupRepository` 接口变更 / 真实存储事务策略，或出现新 P0–P2。
+  clean HEAD、repair worktree / branch / base candidate 与 P1/P2 evidence，然后只读
+  精确 8 文件与最终 13 路径并集；不得先扩白名单。停止条件：第 9 个 repair delta、第 14
+  个最终文件、需要 `SetupRepository` 接口 / Room / schema / DB / `JellyfinApi` /
+  production dependency 变更、网络，或出现新 P0–P2。
 
 - W1B-1A 原实现专业身份（HISTORY）：全新
   `AURORAMA_V2_W1B_1A_IDENTITY_CONTRACT_AND_COORDINATOR_IMPLEMENTATION_OWNER_2026_11_07`。
