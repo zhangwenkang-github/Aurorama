@@ -7,7 +7,7 @@
 > **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
 > SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
 > ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
-> ARCH_GUARD_A0_IMPLEMENTED_PENDING_QA / CONTEXT_HANDOFF_REQUIRED /
+> ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
 > ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 > DO_NOT_RESUME_OLD_HANDOFF_LOOP`。TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；
 > 不得写成删除、已交付、QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
@@ -15,15 +15,14 @@
 > `codex/g2-prewindow-blocked-20261107` /
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 冻结，不得恢复
 > 64/65、exact count 或 handoff 修复循环。V2 架构审计已完成，`ARCHITECTURE.md` 已升级为
-> v2.0 且用户已确认；A0 架构守卫已实现并通过 7/7 自测，等待全新独立 QA，全量产品重构
-> 仍 `NOT_PROVEN`。当前会话已过 35 万交接线，首卡等待 A0 QA / integration 后再派。
-> 首卡历史修复 `61c04a38` 存在，未来必须先复现；无缺陷则停止，不得重复改码。
+> v2.0 且用户已确认；A0 owner guard / debt ratchet source `a787b683` 已通过独立 QA
+> `PASS`、merge-prep `PASS`，并以 source/final stable patch-id MATCH 集成到
+> `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
+> 全量产品重构仍 `NOT_PROVEN`。首卡状态为
+> `READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED`，尚未派发，由
+> root 决定是否派全新实现 owner；该 owner 必须先复现当前候选，无缺陷则停止。
 
-| ID | 需求域 / 关系 | 目标 | 非目标（≥2） | 依赖 | 验收判据 | 停止条件 |
-|---|---|---|---|---|---|---|
-| `V2-ARCH-OWNER-GUARD-W1P`（`IMPLEMENTED_PENDING_INDEPENDENT_QA`） | A0 架构守卫 / debt ratchet | 固定实现 branch `codex/v2-arch-owner-guard-w1p` / commit `a787b683c89389491099ea7acb069422190327c3`，等待不同全新 QA owner 独立复核与 integration | ①QA 不改代码 / commit；②不跑 Gradle / 设备 / 网络；③不把 guard PASS 扩写为产品架构重构或 Release PASS | G1-S1 baseline；`tools/architecture/**` 3 files；实现自测 7/7 PASS；分支 clean | QA 重跑 7/7，核验 19 边 / 11 违规基线、越界文件与 static input limits；PASS 后另派 merge-prep | 任一测试 FAIL、架构语义漂移、越界文件、需要新产品实现或 R033 轮次再突破 |
-
-当前会话已过 35 万交接线，A0 QA 不在本会话启动；首卡 worktree 已存在但未派实现。
+当前没有已启动的实现任务；首卡 worktree 已存在但未派实现。
 
 ## HISTORY — G2 / TTS 控制面失败现场（非当前入口）
 
@@ -154,7 +153,7 @@
 
 | ID | 需求域 | 目标 | 依赖 | 退出条件 |
 |---|---|---|---|---|
-| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`QUEUED_WAITING_ARCH_GUARD_QA / CURRENT_REPRO_REQUIRED`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | A0 guard QA + integration PASS 后，由全新实现 owner 在独立 worktree 先复现；仅真实 RED 时最小修复 | `ARCHITECTURE.md` v2.0；A0 guard integrated；D212 / R034；精确白名单 `DownloadRows.kt` + `DownloadRowAccessibilityContractTest.kt`；worktree `F:\Develop\code_data\work_tree\Aurorama\v2-non-tts-w0-download-card-action\Aurorama` 已建但未派 | 当前对象有 RED，或 `NO_DEFECT_REPRODUCED`；触碰导航 / 状态机 / 通知 / schema / 设备 / TTS/G2 即停止 |
+| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED / NOT_STARTED`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | 由 root 决定是否派全新 `ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER`；该 owner 从 root 确认的固定 clean integration SHA 建独立 worktree，首条只读动作 `git status --short` / `git rev-parse HEAD`，随后先复现当前对象；仅真实 RED 时最小修复 | `ARCHITECTURE.md` v2.0；A0 guard integrated；D212 / R034；精确白名单 `DownloadRows.kt` + `DownloadRowAccessibilityContractTest.kt`；原 worktree `F:\Develop\code_data\work_tree\Aurorama\v2-non-tts-w0-download-card-action\Aurorama` 已建但未派，派单前必须复核 branch / HEAD / dirty | 当前对象有 RED 并在同一 lineage 修复，或 `NO_DEFECT_REPRODUCED`；触碰导航 / 状态机 / 通知 / schema / 设备 / TTS/G2 即停止 |
 | `V2-TTS-G2-SPECIAL-SOLVE` | TTS / G2 runtime 后期专项（Deferred） | 在其他非 TTS 的 2.0 core 功能之后，以新任务、新方案、新验收解决离线 TTS、G2 runtime、handoff 与设备闭环；保留当前失败现场作为历史输入 | `V2-D211`；用户重新授权；新 owner / 新合同 / 新验收；旧分支 `codex/g2-prewindow-blocked-20261107` 与 G2 evidence 只读 | 新方案明确产品可观察承诺、最便宜可信证据、设备/安全/数据边界、两轮止损预算和恢复入口，并经用户批准；旧 QA attempt 不得作为 PASS，且不得复活 64/65 / exact-count / handoff 循环 |
 | `V2-IMPLEMENTATION-PLAN` | G2 开发门 | 交付波次、完整任务卡、QA/集成顺序和用户开工批准 | G1 完整收口 + 用户明确解除 E 门；当前不得启动 | 用户批准开始实现 |
 
@@ -162,6 +161,7 @@
 
 | ID | 成果 | 证据 |
 |---|---|---|
+| `V2-ARCH-OWNER-GUARD-W1P` | A0 owner guard / debt ratchet 已集成；把 G1-S1 的 19 条内部边、8 条外部边、11 个违规基线与 static-input limits 固化为只读门禁 | source `a787b683c89389491099ea7acb069422190327c3`（parent `c56ffdc31b3d254e5993f5c4ca5e1d576d235620`）；旧 target `d6b431764e6a7d088ec4e8187af30b5b80223289`；integration `ab9174043db9cb9e637054210cfee580d06f2965`；source/final stable patch-id `eaf42d616966c3cea0b8274ec9e659075f6e48bd` MATCH；仅新增 `tools/architecture/v2-owner-baseline.json`、`v2-owner-gate.ps1`、`v2-owner-gate.tests.ps1`；独立 QA `PASS` 7/7，A0 findings P0–P3=`0/0/0/0`；merge-prep `PASS`；integration worktree 复跑 `passed=7 failed=0 total=7`；direct guard 内部边 19/19、外部边 8/8、cycles 0、FQCN ambiguity 0、debt-ratchet failure 0，既有 11 违规仍 P1/P2/P3=`7/3/1`；static-input limits 保持 Gradle include 字面量、顶层函数/属性非完整 FQCN、import owner 限制、无方法/字段级图；不证明 contracts seam / 消费者迁移 / 产品全量架构重构 / G1 / Q03 / 产品 QA / runtime / Release PASS |
 | `V2-ARCH-CONFORMANCE-AND-PARALLELIZATION` | `ARCHITECTURE.md` 升级为 v2.0；完成 20 类矩阵、工作流、低耦合、逻辑 seam、守卫、共享文件锁、四组无交集并行候选与首卡复现门；用户于 2026-11-07 确认架构门 | `docs/ARCHITECTURE.md` §0；`docs/V2_PLAN.md` §12 ACTIVE、§13；`.planning/v2-g1/G1-S1/report.json`；架构门不开产品重构或 QA / Release PASS |
 | `V2-CORE-NON-TTS-DELIVERY-PLANNING` | 非 TTS 2.0 六波、依赖、风险、可观察验收、文件面、TTS 排除边界与首张任务卡已规划；新增轻量历史修复 lineage 机制；未开始产品实现 / QA / 设备 / Release | `docs/V2_PLAN.md` §12 ACTIVE、§13；`docs/DECISIONS.md` `V2-D212`；`docs/PROJECT_RULES.md` `R034`；`docs/LESSONS.md` `L040`；Git 只读证据为 `v1.4.0` 目标 `7b69e531` 与 sampled fix/candidate 均进入当前集成分支 |
 | `V2-P0-01` | 第零章、8 项根决策、资源边界、权威文档和 ADR 基线；基线提交 `ee7ff239` 已本地进入集成分支 | `docs/V2_PLAN.md`、`PROJECT_RULES`、`LESSONS`、`DECISIONS`、ADR-0003～0005 |

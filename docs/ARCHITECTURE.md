@@ -3,8 +3,8 @@
 | 项 | 值 |
 |----|----|
 | 文档版本 | v2.0（2026-11-07：V2 架构符合性、低耦合、逻辑 seam、守卫与并行基线） |
-| 状态 | `V2_EXECUTABLE_BASELINE / USER_CONFIRMED_2026_11_07 / ARCH_GATE_PASS / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` |
-| 作者会话 | `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07` |
+| 状态 | `V2_EXECUTABLE_BASELINE / USER_CONFIRMED_2026_11_07 / ARCH_GATE_PASS / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` |
+| 作者会话 | `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07`；`AURORAMA_V2_ARCH_OWNER_GUARD_W1P_INTEGRATION_DOCS_OWNER_2026_11_07`（2026-11-07 integration sync） |
 | 上游依据 | 外部原始文档第 154–286 行；`V2-REQ-ARCH-001～072`；`V2-D010～D020`、`D198`、`D211`、`D212`；G1-S1 / G1-S6 静态证据 |
 | 适用对象 | V2 需求、架构、实现、独立 QA、merge-prep、Release 与多会话编排 |
 | 维护规则 | 架构变更先改本文并通知受影响任务；不新增零散架构说明文件；实现事实仍以代码、Gradle、测试和候选证据为准 |
@@ -25,9 +25,9 @@
 | 静态边界 | 8 个目标模块、19 条 direct project 边、19 条可解析 import 边、模块级环 0 | `.planning/v2-g1/G1-S1/report.json` |
 | 稳定违规 | 11 条：P1 7 / P2 3 / P3 1 | 同上 `violations` / `priorities` |
 | 当前生产树漂移 | G1-S1 基线 `00f4bfb3…` 到当前 HEAD，`app/core/data/player/modes/settings/setup` 的生产源码与 Gradle 文件变化 0 | `git diff --name-only 00f4bfb3..HEAD -- 'app/**' 'core/**' 'data/**' 'player/**' 'modes/**' 'settings/**' 'setup/**'` |
-| 架构守卫 | 生产化实例 `NOT_FOUND`；G1-S1 只有一次性 inline 原型，未进入 CI / Gradle / 常规任务门 | G1-S1 `allowlistPrototype.productionization`；本轮全仓定向检索 |
-| 全量 V2 重构 | `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` | 无 contracts seam、owner allowlist、debt ratchet 或候选迁移实现提交 |
-| 本文状态 | `ARCH_CONFORMANCE_AUDIT=PASS / USER_CONFIRMED_2026_11_07 / ARCH_GATE=PASS` | 用户确认记录；首卡可进入实现，但必须先复现 |
+| 架构守卫 | A0 owner guard / debt ratchet 已独立 QA + merge-prep `PASS` 并集成；尚未接入 CI / Gradle 常规任务门 | source `a787b683`、`tools/architecture/**` 3 文件、integration `ab917404`；独立 QA 7/7、direct guard `19/19 + 8/8` |
+| 全量 V2 重构 | `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` | A0 只固化既有边界与债务 ratchet；contracts seam、adapter / consumer 迁移与候选架构门仍未实现 |
+| 本文状态 | `ARCH_CONFORMANCE_AUDIT=PASS / USER_CONFIRMED_2026_11_07 / ARCH_GATE=PASS / A0_INTEGRATED` | 用户确认记录；首卡 `READY / NOT_STARTED`，由 root 决定派发且必须先复现 |
 
 “审计 PASS”只表示本基线足以指导后续实现并明确未证明项，不是产品架构完成、G1、
 QA、runtime 或 Release PASS。
@@ -39,7 +39,7 @@ QA、runtime 或 Release PASS。
 | 已接受的架构方向 / 契约 | 已接受 | `V2-D010`～`D020` 强约束、`V2-D198` 逻辑 seam / FQCN owner allowlist / debt ratchet、`D212` 修复 lineage |
 | G1 静态 seam、allowlist、违规基线 | 已冻结为审计输入 | 19 条 direct edges、0 模块级环、11 个稳定违规 ID、45 条 package-only owner 歧义；不是运行时代码 |
 | 已完成的局部重构 | 有，但不是 V2 全量重构 | ①W83 设计系统收敛到 `core/presentation/theme`；②`PlaybackCoordinator` 统一播放起播仲裁；③`61c04a38` 将下载行内容点击与尾部任务动作拆分，并有 `DownloadRowAccessibilityContractTest` |
-| 尚未执行的产品代码重构 | 未执行 | contracts seam、adapter / consumer 迁移、owner allowlist、debt ratchet、Gradle 物理拆分、跨层依赖清零、候选架构门均未落地 |
+| 尚未执行的产品代码重构 | 未执行 | contracts seam、adapter / consumer 迁移、Gradle 物理拆分、跨层依赖清零、候选架构门均未落地；A0 owner guard / debt ratchet 已集成，但不消除既有 11 个违规 |
 
 因此正确状态是：
 
@@ -164,6 +164,17 @@ PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
 最多一次全长回归。第二轮仍有 P1 时冻结当前实现，改用 G1-S1 JSON 基线与现有 Gradle /
 graphify 输出的只读检查；不得继续扩 gate、字段或 exact count。
 
+**A0 落地事实（2026-11-07）**：source
+`a787b683c89389491099ea7acb069422190327c3`（parent `c56ffdc3`）与旧 target
+`d6b431764e6a7d088ec4e8187af30b5b80223289` 的 scoped diff 均只新增
+`tools/architecture/v2-owner-baseline.json`、`v2-owner-gate.ps1`、
+`v2-owner-gate.tests.ps1`；source/final stable patch-id
+`eaf42d616966c3cea0b8274ec9e659075f6e48bd` MATCH，integration
+`ab9174043db9cb9e637054210cfee580d06f2965`。独立 QA `PASS` 7/7、merge-prep `PASS`；
+integration worktree 复跑 `passed=7 failed=0 total=7`。direct guard 内部边 `19/19`、
+外部边 `8/8`、cycles `0`、FQCN ambiguity `0`、debt-ratchet failure `0`；既有 11 违规仍为
+P1/P2/P3=`7/3/1`。A0 findings P0–P3=`0/0/0/0`。该门禁只冻结继承基线，不证明产品重构。
+
 ### 0.8 共享文件锁与可并行候选
 
 所有功能任务必须从用户确认后、提交完成的 integration SHA 单独创建 worktree；禁止从另一
@@ -186,11 +197,11 @@ graphify 输出的只读检查；不得继续扩 gate、字段或 exact count。
 TTS；`NavigationRoot` / `DownloadsScreen` 或共享 UI 会影响 W0、W1 与导航任务。依赖这些
 咽喉的候选不得与新合同实现并行，只能在合同提交后从新 integration SHA 重建。
 
-**可并行候选（尚未授权实现）**
+**并行任务（A0 已集成；其余候选尚未授权实现）**
 
 | 候选 | 目标 / 单一可观察结果 | 文件白名单 | 为什么可并行 |
 |---|---|---|---|
-| `V2-ARCH-OWNER-GUARD-W1P` | 把 G1-S1 的 19 边 / 11 违规快照落成只读 owner guard 与负例 | `tools/architecture/v2-owner-gate.ps1`、`tools/architecture/v2-owner-baseline.json`、`tools/architecture/v2-owner-gate.tests.ps1` | 只读工具目录；不碰产品或 Gradle |
+| `V2-ARCH-OWNER-GUARD-W1P` | 已集成（`ab917404`）：把 G1-S1 的 19 边 / 11 违规快照落成只读 owner guard 与负例 | `tools/architecture/v2-owner-gate.ps1`、`tools/architecture/v2-owner-baseline.json`、`tools/architecture/v2-owner-gate.tests.ps1` | 只读工具目录；不碰产品或 Gradle |
 | `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` | 先证明当前候选是否仍有完成卡点击缺陷；有则最小修复，无则停止 | `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/downloads/DownloadRows.kt`、`app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/film/downloads/DownloadRowAccessibilityContractTest.kt` | app 下载行 UI 与测试；不碰 data、player、构建或契约 |
 | `G2-UPDATE-TRUST-W1P` | 固定更新包信任判断的纯逻辑与负例 | `data/src/main/java/com/zhangwenkang/cinefin/update/UpdateHttpDownloader.kt`、`data/src/main/java/com/zhangwenkang/cinefin/update/UpdateTrustVerifier.kt`、`data/src/test/java/com/zhangwenkang/cinefin/update/UpdateHttpDownloaderTest.kt` | data/update 独立子树；不碰下载 UI、导航或 Room |
 | `G2-PERSISTENT-SWR-W1P` | 固定持久快照 codec / store 的 generation 与损坏恢复逻辑 | `data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotStore.kt`、`data/src/main/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotCodec.kt`、`data/src/test/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotSwrTest.kt`、`data/src/test/java/com/zhangwenkang/cinefin/repository/MetadataSnapshotStoreTest.kt` | data/repository 的独立快照文件；不碰 app UI、下载、播放 |
@@ -232,7 +243,14 @@ LINEAGE_STATUS=UNPROVEN
 ### 0.10 未证明项与确认门
 
 - 产品代码尚未完成 V2 contracts seam / adapter / consumer migration。
-- owner allowlist、debt ratchet、架构守护与 CI 门尚未实现。
+- A0 owner guard / debt ratchet 已落盘并 integrated：source `a787b683`、旧 target
+  `d6b43176`、integration `ab917404`，只新增 `tools/architecture/**` 3 文件，source/final
+  stable patch-id MATCH；独立 QA `PASS` 7/7、merge-prep `PASS`，integration worktree 复跑
+  7/7，direct guard 内部边 `19/19`、外部边 `8/8`、cycles `0`、FQCN ambiguity `0`、
+  debt-ratchet failure `0`，既有 11 违规仍 P1/P2/P3=`7/3/1`，A0 findings
+  P0–P3=`0/0/0/0`。该门禁只固定既有边界，尚未接入 CI / Gradle 常规门。
+- contracts seam、adapter / consumer migration 与产品全量架构重构仍 `NOT_PROVEN`；
+  guard 集成不等于产品架构重构完成。
 - 模块级无环不等于包级、类型级或调用级低耦合。
 - `DatabaseModule.kt:25` 的破坏性 fallback 仍是 P0 发布阻断，归
   `G2-ARCH-CONTRACTS-MIGRATION`，不得由 W0 下载卡修复夹带。

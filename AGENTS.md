@@ -9,7 +9,7 @@
   DEFERRED_BLOCKED_CONTROL_PLANE / SOLVE_AFTER_OTHER_2_0_CORE_FEATURES /
   DO_NOT_RESUME_OLD_HANDOFF_LOOP / FIRST_CARD_APPROVED /
   ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
-  ARCH_GUARD_A0_IMPLEMENTED_PENDING_QA / CONTEXT_HANDOFF_REQUIRED /
+  ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
   ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
   TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、
   QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
@@ -19,13 +19,16 @@
   文件与 `qa-pad-v2` 三文件，只读保留，不合入，不 push，不 tag。旧 G2 合同与 QA evidence
   冻结；不得重入 64/65 transition、exact count 或旧 handoff 修复循环，不得跳过 handoff
   直接派 Pad/K60 QA。非 TTS 六波与首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 已规划且
-  用户已批准。`docs/ARCHITECTURE.md` v2.0 已确认；A0 guard 已在
-  `codex/v2-arch-owner-guard-w1p` 实现并 7/7 自测，等待不同全新独立 QA。全量产品代码
-  重构仍 `NOT_PROVEN`，contracts seam / 消费者迁移未落地。当前会话已过 35 万交接线，
-  停止扩展；新会话先独立 QA A0，固定 commit
-  `a787b683c89389491099ea7acb069422190327c3`，PASS 后另派 merge-prep。首卡 worktree
-  已建但未派，A0 integration 后必须先复现；历史修复 `61c04a38` 存在，无缺陷则
-  `NO_DEFECT_REPRODUCED` 停止。设备、QA 与 Release 仍需单独授权。
+  用户已批准。`docs/ARCHITECTURE.md` v2.0 已确认；A0 guard source
+  `a787b683c89389491099ea7acb069422190327c3` 已经独立 QA `PASS`、merge-prep `PASS`，
+  并以 source/final stable patch-id MATCH 集成到 clean integration HEAD
+  `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
+  全量产品代码重构仍 `NOT_PROVEN`，contracts seam / 消费者迁移未落地。首卡
+  `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 状态为
+  `READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED`，尚未派发；由
+  root 决定是否派全新 `ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER`。该 owner 必须从固定的
+  clean integration SHA 先复现，历史修复 `61c04a38` 只能在当前候选复现后作为 lineage
+  输入；无缺陷则 `NO_DEFECT_REPRODUCED` 停止。设备、QA 与 Release 仍需单独授权。
 
 > 下方旧 G2 条目原样保留用于审计追溯；其中“当前 / 下一步 / 必须 / ACTIVE”等措辞只描述
 > 对应历史时点，不能作为当前执行指令。当前非 TTS 主线不运行旧 handoff 循环。

@@ -3,7 +3,7 @@
 > **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
 > SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
 > ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
-> ARCH_GUARD_A0_IMPLEMENTED_PENDING_QA / CONTEXT_HANDOFF_REQUIRED /
+> ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
 > ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、QA /
 > runtime / G1 PASS。本轮规划开工时 integration HEAD
@@ -11,10 +11,10 @@
 > `codex/g2-prewindow-blocked-20261107`，commit
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 保持冻结，
 > 非 TTS 六波与首张下载卡修复任务已规划且用户批准；V2 架构审计已完成，
-> `ARCHITECTURE.md` 已升级为 v2.0 并由用户确认；A0 架构守卫已实现、7/7 自测，等待独立
-> QA，全量产品重构仍 `NOT_PROVEN`。当前会话已过 35 万交接线，首卡等待 A0 QA / integration
-> 后再派。首卡已有历史修复 `61c04a38`，未来必须先复现，无缺陷则停止；设备、QA、Release
-> 仍需用户单独批准。产品 P0–P3 仍
+> `ARCHITECTURE.md` 已升级为 v2.0 并由用户确认；A0 架构守卫 source `a787b683` 已通过
+> 独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`，全量产品重构仍
+> `NOT_PROVEN`。首卡已就绪但尚未派发，由 root 决定是否派全新实现 owner；实现 owner
+> 必须先复现当前候选，无缺陷则停止；设备、QA、Release 仍需用户单独批准。产品 P0–P3 仍
 > `NOT_ASSESSED`，K60 锁定；旧 G2 审计事实只在
 > `V2_PLAN.md` §12 HISTORY 追溯。
 
@@ -52,7 +52,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0_IMPLEMENTED_PENDING_QA / CONTEXT_HANDOFF_REQUIRED / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / PRODUCT_P0_P3_NOT_ASSESSED` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。非 TTS 六波与首卡已规划且用户批准。`ARCHITECTURE.md` v2.0 已确认，20 类矩阵 `7/9/3/1`；A0 guard 已在 `codex/v2-arch-owner-guard-w1p` / `a787b683` 实现并 7/7 自测，等待不同全新独立 QA。当前会话已过 35 万交接线，停止扩展；首卡 worktree 已建但未派，需 A0 QA + integration 后先复现。既有 G1-S1 债务仍 P1 7 / P2 3 / P3 1，contracts seam 与消费者迁移未实现。`D211` 不授权设备 QA / Release。 |
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / PRODUCT_P0_P3_NOT_ASSESSED` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。非 TTS 六波与首卡已规划且用户批准。`ARCHITECTURE.md` v2.0 已确认，20 类矩阵 `7/9/3/1`；A0 guard source `a787b683` 已通过独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`；首卡 `READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED`，尚未派发，由 root 决定。既有 G1-S1 债务仍 P1 7 / P2 3 / P3 1，contracts seam 与消费者迁移未实现。`D211` 不授权设备 QA / Release。 |
 > `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；当前唯一末态是
 > `POST_QA_RUNTIME_DEFERRED` 作为 handoff-bootstrap 历史措辞保留，
 > `PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，不是 QA / runtime / G1 PASS。

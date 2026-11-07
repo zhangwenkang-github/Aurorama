@@ -4,7 +4,7 @@
 > DEFERRED_BLOCKED_CONTROL_PLANE /
 > SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
 > ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
-> ARCH_GUARD_A0_IMPLEMENTED_PENDING_QA / CONTEXT_HANDOFF_REQUIRED /
+> ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
 > ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 > DO_NOT_RESUME_OLD_HANDOFF_LOOP / G0_PASSED / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 > PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
@@ -15,10 +15,13 @@
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），含 9 个 settlement
 > 文件与 `qa-pad-v2` 三文件，不合入、不 push、不 tag。旧 G2 合同与 QA evidence 冻结；
 > 非 TTS 2.0 功能波次与首张任务卡已规划且用户已批准；用户于 2026-11-07 确认
-> `docs/ARCHITECTURE.md` v2.0，架构门 PASS。A0 架构守卫已在独立分支实现并 7/7
-> 自测，但独立 QA 未执行；当前会话已过 35 万交接线，停止扩展。实际产品架构重构仍为
-> `NOT_PROVEN`；首卡等待 A0 QA / integration 后另行派发。设备、独立 QA 与 Release 仍需
-> 单独批准。
+> `docs/ARCHITECTURE.md` v2.0，架构门 PASS。A0 owner guard / debt ratchet source
+> `a787b683c89389491099ea7acb069422190327c3` 已通过独立 QA `7/7` 与 merge-prep，
+> 并以 source/final stable patch-id MATCH 集成到 clean integration HEAD
+> `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
+> 实际产品架构重构仍为 `NOT_PROVEN`，contracts seam / 消费者迁移未落地；首卡状态为
+> `READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED`，尚未派发，
+> 由 root 决定是否派全新实现 owner。设备、独立 QA 与 Release 仍需单独批准。
 > 下方 `PAD_RUNTIME...` 与 64/65 段只作旧 G2 控制面 HISTORY，不得恢复执行循环。
 >
 > **HISTORY（2026-11-07 前；非当前状态）** 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / PAD_QA_PROMPT_DESCRIPTOR_READY_PENDING_FRESH_REVIEW / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / HISTORICAL_PRE_HANDOFF_AUDIT_PASS=PASS / HISTORICAL_OUTER_HANDOFF_QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64=AUDIT_SNAPSHOT_ONLY / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`。其中
@@ -3453,15 +3456,17 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：TTS_G2_DEFERRED_AFTER_2_0_CORE / A0_GUARD_PENDING_QA / CONTEXT_HANDOFF（2026-11-07）
+### ACTIVE：TTS_G2_DEFERRED_AFTER_2_0_CORE / A0_GUARD_INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED（2026-11-07）
 
 **当前状态**：`TTS_G2=DEFERRED_BLOCKED_CONTROL_PLANE /
 SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
 ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
-ARCH_GUARD_A0_IMPLEMENTED_PENDING_QA / CONTEXT_HANDOFF_REQUIRED /
+ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
+FIRST_CARD=READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED / NOT_STARTED /
 ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
 DO_NOT_RESUME_OLD_HANDOFF_LOOP / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
-PRODUCT_P0_P3_NOT_ASSESSED / NO_RELEASE_AUTHORIZATION`。用户以 `V2-D211` 决定先推进其他
+PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。用户以
+`V2-D211` 决定先推进其他
 非 TTS 的 2.0 core 功能，TTS/G2 runtime 的问题留到后期由新方案或更强 owner 解决。
 TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；当前只延期交付顺序，绝不
 代表 TTS、QA、runtime 或 G1 PASS。
@@ -3474,8 +3479,24 @@ TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；�
 低耦合规则、逻辑 seam、守卫、共享文件锁、四组可并行候选和首卡约束。结论仍为
 `ARCH_REQUIREMENTS_ACCEPTED=YES / ARCH_CONFORMANCE_AUDIT=PASS / ARCH_GATE=PASS /
 ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`；模块级无环不等于低耦合，7 个 P1 违规、
-contracts seam、owner guard、debt ratchet 与消费者迁移均未落地。架构门剩余动作是用户
-已于 2026-11-07 确认 v2.0 基线，当前只放行首卡实现；不代表产品重构完成。
+contracts seam 与消费者迁移仍未落地；A0 owner guard / debt ratchet 已落地，但不消除
+既有违规。用户已于 2026-11-07 确认 v2.0 基线并放行首卡，派发实现仍需 root 决定；
+guard 集成不代表产品重构完成。
+
+**A0 integration 事实**：source
+`a787b683c89389491099ea7acb069422190327c3`（parent
+`c56ffdc31b3d254e5993f5c4ca5e1d576d235620`），旧 target
+`d6b431764e6a7d088ec4e8187af30b5b80223289`，正式 integration
+`ab9174043db9cb9e637054210cfee580d06f2965`。source/final stable patch-id
+`eaf42d616966c3cea0b8274ec9e659075f6e48bd` MATCH；两侧 scoped diff 均只新增
+`tools/architecture/v2-owner-baseline.json`、`v2-owner-gate.ps1`、
+`v2-owner-gate.tests.ps1` 3 文件。独立 QA `PASS` 7/7、merge-prep `PASS`；integration
+worktree 复跑 `passed=7 failed=0 total=7`。direct guard 内部边 `19/19`、外部边 `8/8`、
+cycles `0`、FQCN ambiguity `0`、debt-ratchet failure `0`；既有 11 违规仍为
+P1/P2/P3=`7/3/1`，A0 findings P0–P3=`0/0/0/0`。static-input limits 原样保留：
+Gradle include 字面量、顶层函数/属性非完整 FQCN、import owner 限制、无方法/字段级图。
+该结果只证明 A0 guard 与其负例已集成，不证明 contracts seam、消费者迁移、G1、Q03、
+产品 QA、runtime 或 Release PASS。
 
 **冻结与可恢复性**：本轮规划开工时 integration HEAD 为
 `a18362f85a4e03c089cf1aca2b583d0a53173113`；失败现场只读归档在本地分支
@@ -3642,7 +3663,7 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
   在实现候选上执行绑定测试，并记录 commit/test/candidate 三项；若未来出现具体复发，再用
   最后已知好 tag 与首个坏候选做定向比较或 `git bisect`，不做全仓泛化扫描。
 
-**首张任务卡（已批准，等待用户架构确认与当前复现）**
+**首张任务卡（已批准，A0 已集成，等待 root 决定派发）**
 
 规划阶段没有打开产品源码或设备，因此“当前 v1.4/v2 分支仍可复现”尚未证明。在两个同属下载
 UI、且都可用一屏验证的候选之间做规划选择：
@@ -3657,7 +3678,8 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
 只读证据回到用户 / 负责人重新批准。
 
 - ID：`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
-- 状态：`QUEUED_WAITING_ARCH_GUARD_QA / CURRENT_REPRO_REQUIRED`；未派实现 owner。
+- 状态：`READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED /
+  NOT_STARTED`；未派实现 owner。
 - Bug / fix lineage：`V2-FIX-DOWNLOAD-001`，source `L14-15`
 - 历史静态 lineage：`61c04a38a037dbc5fa450c9e809d2277fcd33151` 已将下载行内容点击与
   尾部动作拆分，且是 `v1.4.0` 与当前 integration 的祖先；当前代码仍保留该实现与
@@ -3691,11 +3713,16 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
   立即拆卡并停止；任何 TTS/G2 需求出现即退出本波。
 - TTS 关系：无。
 
-**当前唯一入口**：`V2-ARCH-OWNER-GUARD-W1P` 的全新独立 QA。固定 branch
-`codex/v2-arch-owner-guard-w1p` / commit
-`a787b683c89389491099ea7acb069422190327c3`，工作树 clean，自测 7/7 PASS，尚未进入
-integration。当前会话已过 35 万交接线，必须由新会话启动不同 QA owner；A0 QA / integration
-PASS 后再决定 W0 派发。W0 仍须先复现，无缺陷即停止。
+**当前唯一入口**：由 root 决定是否派全新
+`ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER` 承接
+`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`。A0 code integration 已固定在
+`ab9174043db9cb9e637054210cfee580d06f2965`；root 收口本 docs candidate 后，应锁定新的
+clean integration SHA 再派发。实现 owner 首条只读动作是 `git status --short`，随后
+`git rev-parse HEAD`，必须在该固定 clean SHA 上先执行既有回归与最小复现；若当前无缺陷，
+记录 `NO_DEFECT_REPRODUCED` 并停止，不得为建立 lineage 制造代码改动。
+若复现实为 RED，只允许在精确两个文件白名单内按 TDD 最小修复；任何导航、下载状态机、
+通知、schema、设备、TTS/G2 或白名单外需求出现即停止。独立 QA、设备与 Release 仍需
+用户另行授权。
 如果工作转入 TTS/G2，必须先建立新任务、新方案和新验收，并重新取得用户授权；旧 QA
 attempt / evidence 只能作历史输入，不能复用为 PASS。
 
@@ -6643,7 +6670,7 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   先提交架构文档并锁定新的 clean integration SHA，再由全新实现 owner 在独立 worktree
   执行最小复现。若当前无缺陷则 `NO_DEFECT_REPRODUCED` 停止，不重复实现历史 fix；独立
   QA、设备与 Release 仍未授权。
-- **2026-11-07 — A0 架构守卫实现 / 独立 QA 前上下文交接**：全新
+- **HISTORY（独立 QA 前实现交接；已被下条 A0 集成日志取代）— 2026-11-07 — A0 架构守卫实现**：全新
   `AURORAMA_V2_ARCHITECTURE_GUARD_IMPLEMENTATION_OWNER_2026_11_07` 在
   `codex/v2-arch-owner-guard-w1p` 从 clean `c56ffdc3` 实现
   `tools/architecture/v2-owner-gate.ps1`、baseline JSON 与 tests。首轮遇到两个已定位本地
@@ -6652,3 +6679,22 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `tools/architecture/**`，未 push。独立 QA、integration、产品源码与首卡实现均未开始。
   当前会话实测 521,362 / 1,048,576（49.7%），已过 35 万交接线，停止扩展；下一步由新会话
   派与实现 owner 不同的独立 QA，固定上述 commit，首条只读动作 `git status --short`。
+- **2026-11-07 — A0 独立 QA / merge-prep / integration / 文档同步完成**：source
+  `a787b683c89389491099ea7acb069422190327c3` 的独立 QA 为 `PASS` 7/7，A0 findings
+  P0–P3=`0/0/0/0`；merge-prep 为 `PASS`。旧 target
+  `d6b431764e6a7d088ec4e8187af30b5b80223289`、source/final stable patch-id
+  `eaf42d616966c3cea0b8274ec9e659075f6e48bd` MATCH，正式 integration 以 fast-forward
+  到 `ab9174043db9cb9e637054210cfee580d06f2965`；scoped diff 只新增
+  `tools/architecture/v2-owner-baseline.json`、`v2-owner-gate.ps1`、
+  `v2-owner-gate.tests.ps1` 3 文件。integration worktree 复跑
+  `passed=7 failed=0 total=7`；direct guard 内部边 `19/19`、外部边 `8/8`、cycles `0`、
+  FQCN ambiguity `0`、debt-ratchet failure `0`；既有 11 违规仍为 P1/P2/P3=`7/3/1`。
+  static-input limits 原样保留：Gradle include 字面量、顶层函数/属性非完整 FQCN、
+  import owner 限制、无方法/字段级图。一次性
+  `AURORAMA_V2_ARCH_OWNER_GUARD_W1P_INTEGRATION_DOCS_OWNER_2026_11_07` 只同步权威文档与
+  交接，不改 tool / 产品源码 / Gradle，不运行 Gradle / ADB / 设备 / 网络 / 服务器 /
+  产品 QA / runtime / Release，不 push / tag / fetch，不移动正式 integration。W0 首卡状态改为
+  `READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED / NOT_STARTED`；
+  下一步由 root 决定是否派全新实现 owner，其首动作仍为固定 clean SHA 上的当前复现，
+  无缺陷即 `NO_DEFECT_REPRODUCED` 停止。A0 guard 集成不等于产品架构重构、G1、Q03、
+  产品 QA、runtime 或 Release PASS。
