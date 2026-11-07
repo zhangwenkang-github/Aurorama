@@ -15,26 +15,26 @@
   ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
   A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
   IDENTITY_CATALOG_W1A=P3_CLEANUP_COMPLETE / INTEGRATED /
-  CODE_INTEGRATION_HEAD=faa910827d2db557d4e17970105047a205f77a57 /
-  CONTROL_PLANE_HEAD_INPUT=bfcff47ce2623437fb10a402400cd096adc08704 /
-  HANDOFF_BASE_HEAD=bfcff47ce2623437fb10a402400cd096adc08704 /
-  DOCS_CANDIDATE_PARENT=bfcff47ce2623437fb10a402400cd096adc08704 /
+  CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca /
+  CONTROL_PLANE_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca /
+  HANDOFF_BASE_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca /
+  DOCS_CANDIDATE_PARENT=7a2f1716a7325cf22dd8d923741c37d317ab97ca /
   W1A_MERGE_PREP=faa910827d2db557d4e17970105047a205f77a57 /
   W1A_SOURCE_FINAL_MATCH=YES / W1A_FF_ONLY=YES / W1A_P3_OPEN=0 /
   W1A_QA_R3_HISTORY=PASS / P0-P3=0/0/0/3 /
   W1A_P3_CLEANUP_QA_R2=PASS / P0-P3=0/0/0/0 /
   W1B_TASK_CARD_PLANNING_AUTHORIZED=YES / W1B_TASK_CARD_PLANNED=YES /
   W1B_TASK_CARD_STATUS=ACCEPTED /
-  W1B_1A_IMPLEMENTATION_AUTHORIZATION=HISTORY_YES / SCOPE=W1B_1A_ONLY /
-  W1B_1A_CANDIDATE_HEAD=2375960b06302cc246518fb4e6d5f742f9b4db40 /
-  FAILED_INDEPENDENT_QA / NOT_INTEGRATED /
-  W1B_1A=REPAIR_IN_PROGRESS / NOT_YET_REVIEWED /
-  CANDIDATE=2375960b06302cc246518fb4e6d5f742f9b4db40 /
-  FAILED_INDEPENDENT_QA / NOT_INTEGRATED /
-  INDEPENDENT_QA=FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1 / QA_Q6=NOT_PROVEN /
-  W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS / TEST_ONLY_MOCKK /
-  W1B_1A_REPAIR=IN_PROGRESS / NOT_YET_REVIEWED / W1B_1B=BLOCKED_BY_W1B_1A /
+  W1B_1A_SOURCE_HEAD=efd277ded8c0673ad73f951b33b56833dff8639a /
+  W1B_1A_CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca /
+  W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
+  SOURCE_FINAL_PATCH_ID=80f77fb77bbc44c3fcff81fa76183f49354f2503 / MATCH /
+  PATH_SET_MATCH=YES / BLOB_MATCH=13/13 / TARGET_DELTA_DOCS=0 /
+  W1B_1A_QA=PASS / P0-P3=0/0/0/0 /
+  W1B_1A_REPAIR=COMPLETE / INTEGRATED /
+  W1B_1B=READY_FOR_IMPLEMENTATION_OWNER / NOT_STARTED /
   W1B_1C=BLOCKED_BY_W1B_1B / W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT /
+  NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS /
   OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED /
   PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS /
   V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES /
@@ -53,69 +53,72 @@
   `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 仍为
   `CONTRACT_FROZEN / IN_PROGRESS`。本 slice cleanup 不是完整 seam、W1、G1、Q03、产品 QA、
   runtime 或 Release PASS。
-- **当前交接对象**：`HANDOFF_BASE_HEAD=bfcff47ce2623437fb10a402400cd096adc08704`，
-  branch=`codex/v2-integration`；`CODE_INTEGRATION_HEAD` 仍为
-  `faa910827d2db557d4e17970105047a205f77a57`，二者不得混写。docs candidate 的 parent
-  固定为 `bfcff47c`（其 parent 为 `cbfcb1f3`），最终 docs candidate SHA 由本次提交
-  产生、由 root 最终钉住；
-  同一 docs commit 不记录自身 SHA。root 集成后，以 root 最终钉住 / 新会话简报中的精确
-  HEAD 复核；第一条只读动作仍为
+- **当前交接对象**：`CONTROL_PLANE_HEAD`、`CODE_INTEGRATION_HEAD` 与
+  `HANDOFF_BASE_HEAD` 均为
+  `7a2f1716a7325cf22dd8d923741c37d317ab97ca`，branch=`codex/v2-integration`，worktree
+  clean。`7a2f1716` 的直接 parent 是 `9817bc1293924ab350389a703b87514d7720fb69`；
+  合法 merge-prep 保留 3 个源语义提交后的链为
+  `f91095ee4301faa32e34ba24d60b8a984dc36f9f -> 50f923419774a4d8f3a773b759f6bdb49f459023
+  -> 9817bc1293924ab350389a703b87514d7720fb69 -> 7a2f1716a7325cf22dd8d923741c37d317ab97ca`。
+  `f91095ee` 是 target baseline / 祖先，不是直接 parent。docs candidate parent 固定为
+  `7a2f1716`，本次 docs commit 不记录自身 SHA。第一条只读动作仍为
   `git status --short --untracked-files=all` 和 `git rev-parse HEAD`。唯一 ACTIVE handoff
   的 `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence` 必须与
   `docs/V2_PLAN.md` §12 和 `docs/TASKS.md` 当前段一致。
   `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
   V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
   V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
-  `NEXT_CRITICAL_PATH=W1B-1A-QA-REPAIR-INDEPENDENT-QA`；
-  `last_evidence=W1B-1A failed candidate 2375960b06302cc246518fb4e6d5f742f9b4db40 /
-  independent QA FAIL / PASS_PENDING_REPAIR / QA_P0-P3=0/1/1/1 / Q6 NOT_PROVEN /
-  repair IN_PROGRESS / NOT_YET_REVIEWED`。
-- **W1B-1A QA 阻塞事实**：实现候选 `2375960b06302cc246518fb4e6d5f742f9b4db40` 的
-  parent 为 `bfcff47ce2623437fb10a402400cd096adc08704`，来自 clean branch
-  `codex/v2-w1b-1a-identity-contract`、恰好 10 文件；候选自检 PASS：data identity
-  `14/0/0/0`、app Servers `1/0/0/0`、assemble、ktfmt retry、A0 direct guard、A0 tests
-  `7/7`、diff-check PASS。全新独立 QA 结论为 `FAIL / PASS_PENDING_REPAIR /
-  QA_P0-P3=0/1/1/1`，候选 `NOT_INTEGRATED`，未 merge-prep。P1：production Servers
-  projection 可在 DB current-user/address 缺失时静默 early-return，coordinator 仍可能
-  发布 B `READY/APPLIED`，而 global API 保持旧身份；证据为 QA worktree
-  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1a-identity-contract-qa\Aurorama`
-  下 `ServersViewModel.kt:70`、`SetupRepositoryImpl.kt:127`、
-  `IdentityWriteCoordinator.kt:121`。P2：真实 SharedPreferences `commit()` 先改内存再
-  尝试磁盘，返回 false 不保证 canonical / projection 旧值保留；现有 fake 的
-  `failNextCommit` 未模拟该语义，证据为 `IdentityStateStore.kt:28`、
-  `IdentityStateStoreTest.kt:243` 与 Android 37
-  `android/app/SharedPreferencesImpl.java:605`。P3：`SearchViewModelTest` 两次全类运行
-  为 `7/0/0/0` 与 `7 tests / 1 failed`，失败语义不属于本波核心；保留稳定性治理。
-  Q6 旧投影失败 / 取消 / 异步晚提交下的中间 generation / 兼容键仍 `NOT_PROVEN`。
-  manager 已批准 `W1B_1A_REPAIR_AUTHORIZATION=YES / REPAIR_SCOPE=13_PATHS /
-  TEST_ONLY_MOCKK / W1B_1A_REPAIR=IN_PROGRESS`：repair 相对 failed candidate 精确
-  8 文件增量，最终候选相对原 base 最多 13 文件；第 9 个 repair-delta / 第 14 个最终
-  文件即停止。P1/P2 在既有 SharedPreferences 与流程内修复，不新增 key、依赖或存储框架；
-  `app/phone/build.gradle.kts` 只增加 `testImplementation("io.mockk:mockk:1.13.16")`，
-  全部 Gradle 使用 `--offline`。不得触碰 `SetupRepository` public 接口、Room / schema /
-  DB、`JellyfinApi` 文件、production dependency 或网络。
-- **W1B 任务卡与下一角色**：用户于 2026-11-07 以“继续下一步”接受
-  `W1B_TASK_CARD=ACCEPTED`，当时的实现授权只有 `SCOPE=W1B_1A_ONLY`；该授权已消耗为
-  本次 failed candidate。manager 现已单独批准 W1B-1A P1/P2 repair scope；
-  `W1B_1A=REPAIR_IN_PROGRESS / NOT_YET_REVIEWED`，`W1B_1B=BLOCKED_BY_W1B_1A`、
-  `W1B_1C=BLOCKED_BY_W1B_1B`、`W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`。下一步必须由
-  与实现、QA 均不同的 fresh repair owner 完成自检收口，随后另派全新独立 QA；
-  `NEXT_CRITICAL_PATH=W1B-1A-QA-REPAIR-INDEPENDENT-QA`。在独立 QA PASS 前不得
-  merge-prep、integration 或启动 1B。repair owner 已固定 repair worktree
-  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1a-qa-repair\Aurorama`、branch
-  `codex/v2-w1b-1a-qa-repair` 与 base candidate `2375960b...`，状态只可写
-  `IN_PROGRESS / NOT_YET_REVIEWED`。P3 `SearchViewModelTest` 明确排除出本 repair；
-  Q6 旧投影失败 / 取消 / 异步晚提交仍须补证明。W1B-1 固定拆为顺序子波
+  `NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`；
+  `last_evidence=W1B-1A source efd277ded8c0673ad73f951b33b56833dff8639a /
+  merge-prep 7a2f1716a7325cf22dd8d923741c37d317ab97ca / patch-id MATCH / 13/13 BLOB /
+  independent QA PASS / P0-P3=0/0/0/0 / ff-only integrated`。
+- **W1B-1A 集成事实**：source candidate
+  `efd277ded8c0673ad73f951b33b56833dff8639a`，merge-prep final / code integration
+  head `7a2f1716a7325cf22dd8d923741c37d317ab97ca`；original base
+  `bfcff47ce2623437fb10a402400cd096adc08704`，target before integration
+  `f91095ee4301faa32e34ba24d60b8a984dc36f9f`。source/final stable patch-id
+  `80f77fb77bbc44c3fcff81fa76183f49354f2503` MATCH，`PATH_SET_MATCH=YES`，
+  `BLOB_MATCH=13/13`，`TARGET_DELTA_DOCS=0`；merge-prep 保留 3 个源语义提交并以
+  ff-only `f91095ee -> 7a2f1716` 进入 clean `codex/v2-integration`。
+- **W1B-1A QA / gates**：独立 QA R2
+  `INDEPENDENT_QA_PASS / W1B_1A_QA_PASS / P0-P3=0/0/0/0`。data identity
+  `21/0/0/0`、app setup `28/0/0/0`、并发协调器 `12/0/0/0` 均由独立 QA 重跑 2 次；
+  assemble `242 PASS`、ktfmt `34 PASS`；A0 direct internal `19/19`、external `8/8`，
+  cycles / FQCN / debt / findings 均 `0`，A0 tests `7/7`；W1A 两项 P3 定向各
+  `1/0/0/0`。merge-prep final gates 另为 JUnit `51/0/0/0`，assemble、ktfmt、A0、
+  diff-check PASS。test-only MockK `1.13.16` 已集成，未联网。
+- **W1B-1A 结果边界**：只完成 identity contract/store/coordinator/DI + Servers
+  current-server；auth / Quick Connect / Add Server / settings offline / app startup
+  hydration / Room-global API unified coordinator / `CatalogScope` generation fence 仍
+  `NOT_MIGRATED`。`OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED`，
+  `PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS`，
+  `V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`，`W1B_1=NOT_COMPLETE`；W1B-1、父 seam、
+  产品与 Release 均未 PASS。已知非阻塞历史 P3 为 `SearchViewModelTest` 全类不稳定；
+  本波未修复、未扩跑，不能写成该候选引入或已关闭。
+- **W1B 任务卡与下一角色**：`W1B_TASK_CARD_STATUS=ACCEPTED` 保持不变。
+  `W1B_1B=READY_FOR_IMPLEMENTATION_OWNER / NOT_STARTED`，
+  `W1B_1C=BLOCKED_BY_W1B_1B`，`W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`。下一角色固定为
+  新会话中的 fresh
+  `AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07`；
+  本 docs 会话不得创建该 owner / branch。其第一条只读动作是核对 control worktree clean
+  HEAD `7a2f1716`、W1B 任务卡与 W1B-1A 集成证据；任务卡 / HEAD / evidence 任一漂移、
+  或把 repair authorization / old path 当作当前状态时停止。W1B-1 固定拆为顺序子波
   `W1B-1A-IDENTITY-CONTRACT-AND-COORDINATOR`、
   `W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`、
   `W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE`；后置
   `W1B-2-STARTUP-HYDRATION-AND-RECOVERY` 只能在 W1B-1A/B/C 全部 integrated 并完成
   W1B-1 组合门后派单。每波使用不同 fresh owner，禁止同一 owner 连做或 manager 兼任。
-  当前 1A repair scope 已决定且 repair 进行中；不得自动创建 W1B-1B/1C/2 代码分支。
+  W1B-1A 已完成独立 QA、merge-prep 与集成；W1B-1B 虽 ready，仍未启动，也不得由本
+  docs 会话自动创建 1B/1C/2 代码分支。
   W1–W5 功能波仍只有对应
   `PREREQUISITE_SEAMS` 达到
-  `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 后才可开工；A0 guard 与 W1A slice 都不是
-  全量 architecture progress。
+  `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 后才可开工；A0 guard、W1A search slice
+  与 W1B-1A identity slice 都不是全量 architecture progress。
+- **HISTORY（W1B-1A repair cycle；已被 integrated ACTIVE 取代）**：failed candidate
+  `2375960b06302cc246518fb4e6d5f742f9b4db40` 的 `FAIL / PASS_PENDING_REPAIR`、repair
+  authorization、R1/R2 repair 与 `REPAIR_IN_PROGRESS / NOT_YET_REVIEWED` 仅为历史。
+  后续 source candidate `efd277ded8c0673ad73f951b33b56833dff8639a` 已独立 QA PASS，
+  经 merge-prep 与 ff-only integration 收口。repair authorization 不再是当前门。
 - **HISTORY（2026-11-07 W1A P3 cleanup 前；已被本 ACTIVE 取代）**：当时控制面
   `3607a2fd`，状态为 `IDENTITY_CATALOG_W1A=INTEGRATED_WITH_P3_CLEANUP /
   W1A_P3_OPEN=2`；下一角色为
