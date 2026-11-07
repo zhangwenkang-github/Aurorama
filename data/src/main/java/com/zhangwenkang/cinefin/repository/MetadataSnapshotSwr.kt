@@ -39,6 +39,20 @@ internal data class MetadataSnapshotTtlPolicy(
     }
 }
 
+internal enum class MetadataSnapshotFreshness {
+    FRESH,
+    STALE,
+}
+
+internal data class MetadataSnapshotRead<T>(
+    val value: T,
+    val freshness: MetadataSnapshotFreshness,
+    val observedAtEpochMs: Long,
+)
+
+internal class MetadataSnapshotFenceChangedException :
+    CancellationException("metadata fence changed")
+
 internal object MetadataSnapshotStoreLimits {
     const val maxFiles: Int = 4096
     const val maxBytes: Long = 256L * 1024L * 1024L
@@ -66,36 +80,90 @@ internal class MetadataSnapshotSwr(
         decodeSnapshot: (Any) -> P?,
         fetch: suspend () -> P,
         materialize: suspend (P) -> T,
-    ): T {
-        requireCurrent(fence)
+    ): T =
+        readWithMetadata(
+                fence = fence,
+                key = key,
+                policy = policy,
+                decodeSnapshot = decodeSnapshot,
+                fetch = fetch,
+                materialize = materialize,
+            )
+            .value
+
+    suspend fun <P : Any, T> readWithMetadata(
+        fence: MetadataFence,
+        key: String,
+        policy: MetadataSnapshotTtlPolicy,
+        decodeSnapshot: (Any) -> P?,
+        fetch: suspend () -> P,
+        materialize: suspend (P) -> T,
+        validateFence: (suspend (MetadataFence) -> Boolean)? = null,
+    ): MetadataSnapshotRead<T> {
+        requireCurrent(fence, validateFence)
         val now = cache.now()
         cache.get<P>(fence, key)?.let { entry ->
-            if (!MetadataCacheRules.isFresh(entry.fetchedAtMs, now, policy.softTtlMs)) {
-                scheduleRefresh(fence, key, fetch)
+            val freshness =
+                if (MetadataCacheRules.isFresh(entry.fetchedAtMs, now, policy.softTtlMs)) {
+                    MetadataSnapshotFreshness.FRESH
+                } else {
+                    MetadataSnapshotFreshness.STALE
+                }
+            if (freshness == MetadataSnapshotFreshness.STALE) {
+                scheduleRefresh(fence, key, fetch, validateFence)
             }
-            return materializeCurrent(fence, entry.value, materialize)
+            return MetadataSnapshotRead(
+                value = materializeCurrent(fence, entry.value, materialize, validateFence),
+                freshness = freshness,
+                observedAtEpochMs = entry.fetchedAtMs,
+            )
         }
 
         val diskResult =
             withContext(ioDispatcher) { store.read(fence, key, maxAgeMs = policy.maxAgeMs) }
         if (diskResult is MetadataSnapshotReadResult.Hit) {
             val value = decodeSnapshot(diskResult.value)
-            if (value != null && cache.putIfCurrent(fence, key, value, diskResult.savedAtEpochMs)) {
-                if (
-                    !MetadataCacheRules.isFresh(
-                        diskResult.savedAtEpochMs,
-                        now,
-                        policy.softTtlMs,
+            if (value != null) {
+                requireCurrent(fence, validateFence)
+                if (cache.putIfCurrent(fence, key, value, diskResult.savedAtEpochMs)) {
+                    val freshness =
+                        if (
+                            MetadataCacheRules.isFresh(
+                                diskResult.savedAtEpochMs,
+                                now,
+                                policy.softTtlMs,
+                            )
+                        ) {
+                            MetadataSnapshotFreshness.FRESH
+                        } else {
+                            MetadataSnapshotFreshness.STALE
+                        }
+                    if (freshness == MetadataSnapshotFreshness.STALE) {
+                        scheduleRefresh(fence, key, fetch, validateFence)
+                    }
+                    return MetadataSnapshotRead(
+                        value = materializeCurrent(fence, value, materialize, validateFence),
+                        freshness = freshness,
+                        observedAtEpochMs = diskResult.savedAtEpochMs,
                     )
-                ) {
-                    scheduleRefresh(fence, key, fetch)
                 }
-                return materializeCurrent(fence, value, materialize)
             }
         }
 
-        val value = fetchForeground(fence, key, allowJoin = true, fetch = fetch)
-        return materializeCurrent(fence, value, materialize)
+        val value =
+            fetchForeground(
+                fence = fence,
+                key = key,
+                allowJoin = true,
+                fetch = fetch,
+                validateFence = validateFence,
+            )
+        val observedAtEpochMs = cache.get<P>(fence, key)?.fetchedAtMs ?: cache.now()
+        return MetadataSnapshotRead(
+            value = materializeCurrent(fence, value, materialize, validateFence),
+            freshness = MetadataSnapshotFreshness.FRESH,
+            observedAtEpochMs = observedAtEpochMs,
+        )
     }
 
     fun invalidateAll() {
@@ -104,11 +172,13 @@ internal class MetadataSnapshotSwr(
         store.invalidateNamespace(fence.namespace)
     }
 
-    private fun <P : Any> scheduleRefresh(
+    private suspend fun <P : Any> scheduleRefresh(
         fence: MetadataFence,
         key: String,
         fetch: suspend () -> P,
+        validateFence: (suspend (MetadataFence) -> Boolean)?,
     ) {
+        requireCurrent(fence, validateFence)
         val now = cache.now()
         if (!cache.canStartFetch(key, now)) return
         val (deferred, owner) = coordinator.join(fence, key)
@@ -116,7 +186,7 @@ internal class MetadataSnapshotSwr(
 
         backgroundScope.launch {
             try {
-                executeOwner(fence, key, deferred, fetch)
+                executeOwner(fence, key, deferred, fetch, validateFence)
             } catch (cancellation: CancellationException) {
                 if (deferred.isActive) deferred.completeExceptionally(cancellation)
             } catch (_: Throwable) {
@@ -136,8 +206,9 @@ internal class MetadataSnapshotSwr(
         key: String,
         allowJoin: Boolean,
         fetch: suspend () -> P,
+        validateFence: (suspend (MetadataFence) -> Boolean)?,
     ): P {
-        requireCurrent(fence)
+        requireCurrent(fence, validateFence)
         if (allowJoin) {
             val (deferred, owner) = coordinator.join(fence, key)
             if (!owner) {
@@ -148,13 +219,19 @@ internal class MetadataSnapshotSwr(
                     throw cancellation
                 } catch (_: Throwable) {
                     if (!cache.isCurrent(fence)) {
-                        throw CancellationException("metadata fence changed after owner failure")
+                        throw MetadataSnapshotFenceChangedException()
                     }
-                    fetchForeground(fence, key, allowJoin = false, fetch = fetch)
+                    fetchForeground(
+                        fence = fence,
+                        key = key,
+                        allowJoin = false,
+                        fetch = fetch,
+                        validateFence = validateFence,
+                    )
                 }
             }
             return try {
-                executeOwner(fence, key, deferred, fetch)
+                executeOwner(fence, key, deferred, fetch, validateFence)
             } finally {
                 coordinator.finish(fence, key, deferred)
             }
@@ -162,8 +239,8 @@ internal class MetadataSnapshotSwr(
 
         cache.markFetchStarted(key, cache.now())
         val value = fetch()
-        if (!commit(fence, key, value)) {
-            throw CancellationException("metadata fence changed before commit")
+        if (!commit(fence, key, value, validateFence)) {
+            throw MetadataSnapshotFenceChangedException()
         }
         return value
     }
@@ -173,8 +250,9 @@ internal class MetadataSnapshotSwr(
         key: String,
         deferred: CompletableDeferred<Any?>,
         fetch: suspend () -> P,
+        validateFence: (suspend (MetadataFence) -> Boolean)?,
     ): P {
-        requireCurrent(fence)
+        requireCurrent(fence, validateFence)
         cache.markFetchStarted(key, cache.now())
         val value =
             try {
@@ -183,8 +261,8 @@ internal class MetadataSnapshotSwr(
                 if (deferred.isActive) deferred.completeExceptionally(throwable)
                 throw throwable
             }
-        if (!commit(fence, key, value)) {
-            throw CancellationException("metadata fence changed before commit")
+        if (!commit(fence, key, value, validateFence)) {
+            throw MetadataSnapshotFenceChangedException()
         }
         deferred.complete(value)
         return value
@@ -194,10 +272,11 @@ internal class MetadataSnapshotSwr(
         fence: MetadataFence,
         key: String,
         value: P,
+        validateFence: (suspend (MetadataFence) -> Boolean)?,
     ): Boolean {
-        if (!cache.isCurrent(fence)) return false
+        if (!cache.isCurrent(fence) || validateFence?.invoke(fence) == false) return false
         withContext(ioDispatcher) { store.write(fence, key, value) }
-        if (!cache.isCurrent(fence)) return false
+        if (!cache.isCurrent(fence) || validateFence?.invoke(fence) == false) return false
         return cache.putIfCurrent(fence, key, value)
     }
 
@@ -205,15 +284,20 @@ internal class MetadataSnapshotSwr(
         fence: MetadataFence,
         value: T,
         materialize: suspend (T) -> R,
+        validateFence: (suspend (MetadataFence) -> Boolean)?,
     ): R {
+        requireCurrent(fence, validateFence)
         val result = materialize(value)
-        requireCurrent(fence)
+        requireCurrent(fence, validateFence)
         return result
     }
 
-    private fun requireCurrent(fence: MetadataFence) {
-        if (!cache.isCurrent(fence)) {
-            throw CancellationException("metadata fence changed")
+    private suspend fun requireCurrent(
+        fence: MetadataFence,
+        validateFence: (suspend (MetadataFence) -> Boolean)?,
+    ) {
+        if (!cache.isCurrent(fence) || validateFence?.invoke(fence) == false) {
+            throw MetadataSnapshotFenceChangedException()
         }
     }
 }

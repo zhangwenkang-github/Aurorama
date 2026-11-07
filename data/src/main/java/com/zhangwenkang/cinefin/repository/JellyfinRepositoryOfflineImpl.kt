@@ -8,12 +8,15 @@ import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidMovieDto
 import com.zhangwenkang.cinefin.models.FindroidPerson
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.models.FindroidShow
+import com.zhangwenkang.cinefin.models.FindroidShowDto
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidTag
 import com.zhangwenkang.cinefin.models.SortBy
@@ -24,6 +27,14 @@ import com.zhangwenkang.cinefin.models.toFindroidSeason
 import com.zhangwenkang.cinefin.models.toFindroidSegment
 import com.zhangwenkang.cinefin.models.toFindroidShow
 import com.zhangwenkang.cinefin.models.toFindroidSource
+import com.zhangwenkang.cinefin.repository.catalog.CatalogFreshness
+import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
+import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
+import com.zhangwenkang.cinefin.repository.catalog.CatalogScopeResolver
+import com.zhangwenkang.cinefin.repository.catalog.CatalogSearchQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import java.io.File
 import java.util.UUID
@@ -44,7 +55,47 @@ class JellyfinRepositoryOfflineImpl(
     private val appPreferences: AppPreferences,
     /** W37：本地媒体库（离线模式同样可播本机文件夹里的媒体）。 */
     private val localLibrary: LocalLibraryRepository,
-) : JellyfinRepository {
+) : JellyfinRepository, CatalogReadPort {
+    private var offlineMovieMapper: suspend (FindroidMovieDto, UUID) -> FindroidMovie =
+        { dto, userId ->
+            dto.toFindroidMovie(database, userId)
+        }
+    private var offlineShowMapper: suspend (FindroidShowDto, UUID) -> FindroidShow =
+        { dto, userId ->
+            dto.toFindroidShow(database, userId)
+        }
+    private var offlineEpisodeMapper: suspend (FindroidEpisodeDto, UUID) -> FindroidEpisode =
+        { dto, userId ->
+            dto.toFindroidEpisode(database, userId)
+        }
+
+    private val catalogScopeResolver =
+        CatalogScopeResolver(
+            appPreferences = appPreferences,
+            database = database,
+            principalContext = CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT,
+        )
+
+    internal constructor(
+        context: Context,
+        jellyfinApi: JellyfinApi,
+        database: ServerDatabaseDao,
+        appPreferences: AppPreferences,
+        localLibrary: LocalLibraryRepository,
+        offlineMovieMapper: suspend (FindroidMovieDto, UUID) -> FindroidMovie,
+        offlineShowMapper: suspend (FindroidShowDto, UUID) -> FindroidShow,
+        offlineEpisodeMapper: suspend (FindroidEpisodeDto, UUID) -> FindroidEpisode,
+    ) : this(
+        context = context,
+        jellyfinApi = jellyfinApi,
+        database = database,
+        appPreferences = appPreferences,
+        localLibrary = localLibrary,
+    ) {
+        this.offlineMovieMapper = offlineMovieMapper
+        this.offlineShowMapper = offlineShowMapper
+        this.offlineEpisodeMapper = offlineEpisodeMapper
+    }
 
     override suspend fun getPublicSystemInfo(): PublicSystemInfo {
         throw Exception("System info not available in offline mode")
@@ -164,28 +215,50 @@ class JellyfinRepositoryOfflineImpl(
         sortOrder: SortOrder,
     ): List<FindroidItem> = emptyList()
 
-    override suspend fun getSearchItems(
-        query: String,
-        scope: SearchScope,
-    ): List<FindroidItem> {
+    override suspend fun currentScope(): CatalogScope? = catalogScopeResolver.resolve()
+
+    override suspend fun search(query: CatalogSearchQuery): CatalogReadOutcome<List<FindroidItem>> {
+        val scope = query.frozenScope
+        if (currentScope() != scope) return CatalogReadOutcome.IdentityUnavailable
+        if (query.scope == SearchScope.MUSIC || query.scope == SearchScope.BOOK) {
+            return CatalogReadOutcome.Available(
+                CatalogSnapshot(
+                    scope = scope,
+                    contentGeneration = 0L,
+                    freshness = CatalogFreshness.LOCAL_QUERY,
+                    observedAtEpochMs = System.currentTimeMillis(),
+                    value = emptyList(),
+                )
+            )
+        }
         return withContext(Dispatchers.IO) {
-            // W36：无账号（无当前服务器）时搜索返回空表，不抛异常。
-            val serverId =
-                appPreferences.getValue(appPreferences.currentServer)
-                    ?: return@withContext emptyList()
-            val movies =
-                database.searchMovies(serverId, query).map {
-                    it.toFindroidMovie(database, jellyfinApi.userId)
-                }
-            val shows =
-                database.searchShows(serverId, query).map {
-                    it.toFindroidShow(database, jellyfinApi.userId)
-                }
-            val episodes =
-                database.searchEpisodes(serverId, query).map {
-                    it.toFindroidEpisode(database, jellyfinApi.userId)
-                }
-            movies + shows + episodes
+            if (currentScope() != scope) {
+                return@withContext CatalogReadOutcome.IdentityUnavailable
+            }
+            val serverId = scope.origin.serverId
+            val userId = scope.origin.userId
+            val movies = database.searchMovies(serverId, query.term)
+            val shows = database.searchShows(serverId, query.term)
+            val episodes = database.searchEpisodes(serverId, query.term)
+            if (currentScope() != scope) {
+                return@withContext CatalogReadOutcome.IdentityUnavailable
+            }
+            val value =
+                movies.map { offlineMovieMapper(it, userId) } +
+                    shows.map { offlineShowMapper(it, userId) } +
+                    episodes.map { offlineEpisodeMapper(it, userId) }
+            if (currentScope() != scope) {
+                return@withContext CatalogReadOutcome.IdentityUnavailable
+            }
+            CatalogReadOutcome.Available(
+                CatalogSnapshot(
+                    scope = scope,
+                    contentGeneration = 0L,
+                    freshness = CatalogFreshness.LOCAL_QUERY,
+                    observedAtEpochMs = System.currentTimeMillis(),
+                    value = value,
+                )
+            )
         }
     }
 

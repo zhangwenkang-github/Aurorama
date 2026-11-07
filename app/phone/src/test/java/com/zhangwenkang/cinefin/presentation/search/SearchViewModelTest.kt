@@ -1,23 +1,31 @@
 package com.zhangwenkang.cinefin.presentation.search
 
-import android.content.SharedPreferences
 import androidx.lifecycle.SavedStateHandle
 import com.zhangwenkang.cinefin.film.presentation.search.SearchAction
+import com.zhangwenkang.cinefin.film.presentation.search.SearchResult
 import com.zhangwenkang.cinefin.film.presentation.search.SearchViewModel
+import com.zhangwenkang.cinefin.local.LocalLibraryEntry
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
+import com.zhangwenkang.cinefin.local.LocalMediaKind
 import com.zhangwenkang.cinefin.local.LocalSearchHit
 import com.zhangwenkang.cinefin.models.FindroidFolder
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
-import com.zhangwenkang.cinefin.repository.JellyfinRepository
-import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.repository.JellyfinOrigin
+import com.zhangwenkang.cinefin.repository.catalog.CatalogFreshness
+import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
+import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
+import com.zhangwenkang.cinefin.repository.catalog.CatalogSearchQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
+import com.zhangwenkang.cinefin.utils.DownloadMediaKind
+import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import com.zhangwenkang.cinefin.utils.Downloader
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import java.util.UUID
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
-import kotlin.coroutines.resume
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,6 +40,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -57,10 +66,9 @@ class SearchViewModelTest {
             val localThread = CompletableDeferred<String>()
             val viewModel =
                 viewModel(
-                    onServerSearch = { query, continuation ->
+                    onServerSearch = { query ->
                         serverThread.complete(Thread.currentThread().name)
-                        continuation.resume(listOf(folder(query)))
-                        COROUTINE_SUSPENDED
+                        available(listOf(folder(query.term)))
                     },
                     onLocalSearch = {
                         localThread.complete(Thread.currentThread().name)
@@ -84,16 +92,24 @@ class SearchViewModelTest {
     @Test
     fun `新查询取消旧查询后旧结果不会覆盖新状态`() =
         runTest(mainDispatcher.scheduler) {
-            val firstCall = CompletableDeferred<Continuation<List<FindroidItem>>>()
-            val secondCall = CompletableDeferred<Continuation<List<FindroidItem>>>()
+            val firstStarted = CompletableDeferred<Unit>()
+            val secondStarted = CompletableDeferred<Unit>()
+            val firstResponse = CompletableDeferred<CatalogReadOutcome<List<FindroidItem>>>()
+            val secondResponse = CompletableDeferred<CatalogReadOutcome<List<FindroidItem>>>()
             val viewModel =
                 viewModel(
-                    onServerSearch = { query, continuation ->
-                        when (query) {
-                            "first" -> firstCall.complete(continuation)
-                            "second" -> secondCall.complete(continuation)
+                    onServerSearch = { query ->
+                        when (query.term) {
+                            "first" -> {
+                                firstStarted.complete(Unit)
+                                firstResponse.await()
+                            }
+                            "second" -> {
+                                secondStarted.complete(Unit)
+                                secondResponse.await()
+                            }
+                            else -> error("unexpected query: ${query.term}")
                         }
-                        COROUTINE_SUSPENDED
                     }
                 )
             val acceptedSequences = mutableListOf<List<String>>()
@@ -108,13 +124,13 @@ class SearchViewModelTest {
 
             viewModel.onAction(SearchAction.UpdateQuery("first"))
             viewModel.onAction(SearchAction.Search("first"))
-            val pendingFirst = firstCall.await()
+            firstStarted.await()
             viewModel.onAction(SearchAction.UpdateQuery("second"))
             viewModel.onAction(SearchAction.Search("second"))
-            val pendingSecond = secondCall.await()
+            secondStarted.await()
 
-            pendingFirst.resume(listOf(folder("first")))
-            pendingSecond.resume(listOf(folder("second")))
+            firstResponse.complete(available(listOf(folder("first")), contentGeneration = 1L))
+            secondResponse.complete(available(listOf(folder("second")), contentGeneration = 2L))
             val finalState =
                 viewModel.state.first {
                     it.query == "second" && !it.loading && it.results.isNotEmpty()
@@ -124,40 +140,196 @@ class SearchViewModelTest {
 
             assertEquals(listOf("second"), finalState.serverItems.map { it.name })
             assertEquals(listOf(listOf("second")), acceptedSequences)
-            println("nonLoadingAcceptedSequences=$acceptedSequences")
             assertFalse(
                 "first must never enter a non-loading accepted sequence: $acceptedSequences",
                 acceptedSequences.any { sequence -> sequence.contains("first") },
             )
         }
 
+    @Test
+    fun `请求开始后切号时冻结 scope 不改变且 consumer 不提交结果`() =
+        runTest(mainDispatcher.scheduler) {
+            val currentScope = AtomicReference<CatalogScope?>(ALICE_SCOPE)
+            val requestStarted = CompletableDeferred<Unit>()
+            val response = CompletableDeferred<CatalogReadOutcome<List<FindroidItem>>>()
+            var frozenScope: CatalogScope? = null
+            val viewModel =
+                viewModel(
+                    currentScope = currentScope::get,
+                    onServerSearch = { query ->
+                        frozenScope = query.frozenScope
+                        requestStarted.complete(Unit)
+                        response.await()
+                    },
+                )
+            viewModel.onAction(SearchAction.UpdateQuery("sample"))
+            viewModel.onAction(SearchAction.Search("sample"))
+            requestStarted.await()
+            currentScope.set(BOB_SCOPE)
+            response.complete(available(listOf(folder("alice-result"))))
+            val finalState =
+                viewModel.state.first { it.query == "sample" && !it.loading && it.serverFailed }
+
+            assertEquals(ALICE_SCOPE, frozenScope)
+            assertTrue(finalState.serverItems.isEmpty())
+            assertTrue(finalState.results.isEmpty())
+        }
+
+    @Test
+    fun `同 query 完成态重触发跨 scope 读取时失败并清空旧结果`() =
+        runTest(mainDispatcher.scheduler) {
+            val queuedScopes = mutableListOf<CatalogScope?>()
+            var useQueuedScopes = false
+            var scopeReads = 0
+            var serverSearchCalls = 0
+            var localSearchCalls = 0
+            var downloadCalls = 0
+            val viewModel =
+                viewModel(
+                    currentScope = {
+                        scopeReads += 1
+                        if (useQueuedScopes) queuedScopes.removeAt(0) else ALICE_SCOPE
+                    },
+                    onServerSearch = {
+                        serverSearchCalls += 1
+                        available(listOf(folder("sample-server")))
+                    },
+                    onLocalSearch = {
+                        localSearchCalls += 1
+                        listOf(localHit("sample-local"))
+                    },
+                    onDownloads = {
+                        downloadCalls += 1
+                        listOf(downloadRecord("sample-download"))
+                    },
+                )
+
+            viewModel.onAction(SearchAction.UpdateQuery("sample"))
+            viewModel.onAction(SearchAction.Search("sample"))
+            val completedState =
+                viewModel.state.first {
+                    it.query == "sample" && !it.loading && it.results.size == 3
+                }
+            viewModel.currentJob?.join()
+
+            assertEquals(
+                listOf("sample-server"),
+                completedState.serverItems.map { it.name },
+            )
+            assertEquals(
+                listOf("sample-local"),
+                completedState.localItems.map { it.entry.name },
+            )
+            assertEquals(
+                1,
+                completedState.results.filterIsInstance<SearchResult.Download>().size,
+            )
+
+            queuedScopes += ALICE_SCOPE
+            queuedScopes += BOB_SCOPE
+            useQueuedScopes = true
+            viewModel.onAction(SearchAction.Search("sample"))
+            viewModel.currentJob?.join()
+            val finalState = viewModel.state.value
+
+            assertEquals(5, scopeReads)
+            assertEquals(1, serverSearchCalls)
+            assertEquals(1, localSearchCalls)
+            assertEquals(1, downloadCalls)
+            assertTrue(finalState.serverItems.isEmpty())
+            assertTrue(finalState.localItems.isEmpty())
+            assertTrue(finalState.results.filterIsInstance<SearchResult.Download>().isEmpty())
+            assertTrue(finalState.results.isEmpty())
+            assertTrue(finalState.serverFailed)
+            assertTrue(finalState.localFailed)
+        }
+
+    @Test
+    fun `同 scope 同 query 完成态重触发仍走 early return`() =
+        runTest(mainDispatcher.scheduler) {
+            var scopeReads = 0
+            var serverSearchCalls = 0
+            var localSearchCalls = 0
+            var downloadCalls = 0
+            val viewModel =
+                viewModel(
+                    currentScope = {
+                        scopeReads += 1
+                        ALICE_SCOPE
+                    },
+                    onServerSearch = {
+                        serverSearchCalls += 1
+                        available(listOf(folder("sample-server")))
+                    },
+                    onLocalSearch = {
+                        localSearchCalls += 1
+                        emptyList()
+                    },
+                    onDownloads = {
+                        downloadCalls += 1
+                        emptyList()
+                    },
+                )
+
+            viewModel.onAction(SearchAction.UpdateQuery("sample"))
+            viewModel.onAction(SearchAction.Search("sample"))
+            viewModel.state.first { it.query == "sample" && !it.loading && it.results.isNotEmpty() }
+            viewModel.currentJob?.join()
+
+            viewModel.onAction(SearchAction.Search("sample"))
+            viewModel.currentJob?.join()
+
+            assertEquals(5, scopeReads)
+            assertEquals(1, serverSearchCalls)
+            assertEquals(1, localSearchCalls)
+            assertEquals(1, downloadCalls)
+            assertEquals(
+                listOf("sample-server"),
+                viewModel.state.value.serverItems.map { it.name },
+            )
+        }
+
+    @Test
+    fun `无身份时不得发起搜索并以可解释失败结束`() =
+        runTest(mainDispatcher.scheduler) {
+            var searchCalls = 0
+            val viewModel =
+                viewModel(
+                    scope = null,
+                    onServerSearch = {
+                        searchCalls += 1
+                        available(emptyList())
+                    },
+                )
+
+            viewModel.onAction(SearchAction.UpdateQuery("sample"))
+            viewModel.onAction(SearchAction.Search("sample"))
+            val state =
+                viewModel.state.first {
+                    it.query == "sample" && !it.loading && it.serverFailed && it.localFailed
+                }
+
+            assertEquals(0, searchCalls)
+            assertTrue(state.serverFailed)
+            assertTrue(state.localFailed)
+            assertTrue(state.results.isEmpty())
+        }
+
     private fun viewModel(
-        onServerSearch:
-            (
-                query: String,
-                continuation: Continuation<List<FindroidItem>>,
-            ) -> Any? =
-            { _, continuation ->
-                continuation.resume(emptyList())
-                COROUTINE_SUSPENDED
-            },
+        scope: CatalogScope? = ALICE_SCOPE,
+        currentScope: () -> CatalogScope? = { scope },
+        onServerSearch: suspend (CatalogSearchQuery) -> CatalogReadOutcome<List<FindroidItem>> = {
+            available(emptyList())
+        },
         onLocalSearch: () -> List<LocalSearchHit> = { emptyList() },
+        onDownloads: () -> List<DownloadMediaRecord> = { emptyList() },
     ): SearchViewModel =
         SearchViewModel(
-            repository =
-                proxy(JellyfinRepository::class.java) { method, args ->
-                    when (method.name) {
-                        "getUserId" -> USER_ID
-                        "getSearchItems" -> {
-                            @Suppress("UNCHECKED_CAST")
-                            onServerSearch(
-                                args.first() as String,
-                                args.last() as Continuation<List<FindroidItem>>,
-                            )
-                        }
-                        else -> defaultValue(method.returnType)
-                    }
-                },
+            catalogReadPort =
+                FakeCatalogReadPort(
+                    resolveCurrentScope = currentScope,
+                    onSearch = onServerSearch,
+                ),
             localLibraryRepository =
                 proxy(LocalLibraryRepository::class.java) { method, _ ->
                     when (method.name) {
@@ -168,23 +340,53 @@ class SearchViewModelTest {
             downloader =
                 proxy(Downloader::class.java) { method, _ ->
                     when (method.name) {
-                        "downloadedMediaRecords" -> emptyList<Any>()
+                        "downloadedMediaRecords" -> onDownloads()
                         else -> defaultValue(method.returnType)
                     }
                 },
-            appPreferences = AppPreferences(sharedPreferences()),
             savedStateHandle = SavedStateHandle(),
         )
 
-    private fun sharedPreferences(): SharedPreferences =
-        proxy(SharedPreferences::class.java) { method, args ->
-            when (method.name) {
-                "getString" ->
-                    if (args.firstOrNull() == "pref_current_server") SERVER_ID
-                    else args.getOrNull(1)
-                else -> defaultValue(method.returnType)
-            }
-        }
+    private fun available(
+        items: List<FindroidItem>,
+        contentGeneration: Long = 1L,
+    ): CatalogReadOutcome<List<FindroidItem>> =
+        CatalogReadOutcome.Available(
+            CatalogSnapshot(
+                scope = ALICE_SCOPE,
+                contentGeneration = contentGeneration,
+                freshness = CatalogFreshness.FRESH,
+                observedAtEpochMs = 1L,
+                value = items,
+            )
+        )
+
+    private fun localHit(name: String): LocalSearchHit =
+        LocalSearchHit(
+            entry =
+                LocalLibraryEntry(
+                    itemId = UUID.nameUUIDFromBytes(name.toByteArray()),
+                    folderId = 1L,
+                    name = name,
+                    kind = LocalMediaKind.VIDEO,
+                    documentUri = "content://test/$name",
+                    relativePath = name,
+                    sizeBytes = 1L,
+                    lastModified = 0L,
+                ),
+            folderLabel = "Test",
+            libraryId = 1L,
+        )
+
+    private fun downloadRecord(name: String): DownloadMediaRecord =
+        DownloadMediaRecord(
+            itemId = UUID.nameUUIDFromBytes(name.toByteArray()).toString(),
+            kind = DownloadMediaKind.VIDEO,
+            serverId = SERVER_ID,
+            userId = USER_ID.toString(),
+            sourceId = "source-a",
+            displayName = name,
+        )
 
     private fun folder(name: String): FindroidFolder =
         FindroidFolder(
@@ -223,8 +425,34 @@ class SearchViewModelTest {
             else -> null
         }
 
+    private class FakeCatalogReadPort(
+        private val resolveCurrentScope: () -> CatalogScope?,
+        private val onSearch:
+            suspend (CatalogSearchQuery) -> CatalogReadOutcome<List<FindroidItem>>,
+    ) : CatalogReadPort {
+        override suspend fun currentScope(): CatalogScope? = resolveCurrentScope()
+
+        override suspend fun search(
+            query: CatalogSearchQuery
+        ): CatalogReadOutcome<List<FindroidItem>> = onSearch(query)
+    }
+
     private companion object {
         const val SERVER_ID = "server-a"
         val USER_ID: UUID = UUID.fromString("22222222-2222-4222-8222-222222222222")
+        val ALICE_SCOPE =
+            CatalogScope(
+                origin = JellyfinOrigin(SERVER_ID, USER_ID),
+                principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+            )
+        val BOB_SCOPE =
+            CatalogScope(
+                origin =
+                    JellyfinOrigin(
+                        SERVER_ID,
+                        UUID.fromString("44444444-4444-4444-8444-444444444444"),
+                    ),
+                principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+            )
     }
 }

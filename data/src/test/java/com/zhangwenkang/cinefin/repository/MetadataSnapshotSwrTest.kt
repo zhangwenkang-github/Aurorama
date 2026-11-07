@@ -66,6 +66,34 @@ class MetadataSnapshotSwrTest {
     }
 
     @Test
+    fun `different keys do not share an in-flight refresh`() = runBlocking {
+        withSwr { fixture ->
+            val staleAt = fixture.now - 11 * 60 * 1000L
+            fixture.seedSnapshot("views", "old-views", staleAt)
+            fixture.seedSnapshot("suggestions", "old-suggestions", staleAt)
+            val viewsNetwork = CompletableDeferred<String>()
+            val suggestionsNetwork = CompletableDeferred<String>()
+
+            assertEquals(
+                "old-views",
+                fixture.read("views") { viewsNetwork.await() },
+            )
+            assertEquals(
+                "old-suggestions",
+                fixture.read("suggestions") { suggestionsNetwork.await() },
+            )
+            waitUntil { fixture.coordinator.size() == 2 }
+
+            viewsNetwork.complete("new-views")
+            waitUntil { fixture.cache.get<String>("views")?.value == "new-views" }
+            assertEquals("old-suggestions", fixture.cache.get<String>("suggestions")?.value)
+
+            suggestionsNetwork.complete("new-suggestions")
+            waitUntil { fixture.cache.get<String>("suggestions")?.value == "new-suggestions" }
+        }
+    }
+
+    @Test
     fun `failed background refresh keeps stale snapshot available`() = runBlocking {
         withSwr { fixture ->
             fixture.seedSnapshot("views", "old", fixture.now - 11 * 60 * 1000L)
@@ -94,6 +122,85 @@ class MetadataSnapshotSwrTest {
             assertEquals("network", value)
             assertEquals(1, fetchCalls)
             assertEquals("network", fixture.cache.get<String>("views")?.value)
+        }
+    }
+
+    @Test
+    fun `fresh and stale reads expose explicit snapshot freshness and observed time`() =
+        runBlocking {
+            withSwr { fixture ->
+                fixture.seedSnapshot("views", "fresh", fixture.now)
+                val fresh = fixture.readWithMetadata("views") { error("fresh hit must not fetch") }
+
+                val staleAt = fixture.now - 11 * 60 * 1000L
+                fixture.seedSnapshot("search:sample", "old", staleAt)
+                val refresh = CompletableDeferred<String>()
+                val stale = fixture.readWithMetadata("search:sample") { refresh.await() }
+
+                assertEquals(MetadataSnapshotFreshness.FRESH, fresh.freshness)
+                assertEquals(fixture.now, fresh.observedAtEpochMs)
+                assertEquals(MetadataSnapshotFreshness.STALE, stale.freshness)
+                assertEquals(staleAt, stale.observedAtEpochMs)
+
+                refresh.complete("new")
+                waitUntil { fixture.cache.get<String>("search:sample")?.value == "new" }
+            }
+        }
+
+    @Test
+    fun `scope validator prevents a late refresh from committing after switch`() = runBlocking {
+        withSwr { fixture ->
+            fixture.seedSnapshot("views", "old", fixture.now - 11 * 60 * 1000L)
+            var scopeCurrent = true
+            val network = CompletableDeferred<String>()
+
+            val read =
+                fixture.readWithMetadata(
+                    key = "views",
+                    validateFence = { scopeCurrent },
+                ) {
+                    network.await()
+                }
+
+            assertEquals(MetadataSnapshotFreshness.STALE, read.freshness)
+            waitUntil { fixture.coordinator.size() == 1 }
+            scopeCurrent = false
+            network.complete("late-old-scope")
+            waitUntil { fixture.coordinator.size() == 0 }
+
+            assertEquals("old", fixture.cache.get<String>("views")?.value)
+        }
+    }
+
+    @Test
+    fun `scope validator runs before memory snapshot materialization`() = runBlocking {
+        withSwr { fixture ->
+            val fence = fixture.cache.currentFence()!!
+            assertTrue(fixture.cache.putIfCurrent(fence, "views", "cached"))
+            var validationCalls = 0
+            var materializeCalls = 0
+
+            val failure = runCatching {
+                fixture.swr.readWithMetadata(
+                    fence = fence,
+                    key = "views",
+                    policy = MetadataSnapshotTtlPolicy.forKey("views"),
+                    decodeSnapshot = { it as? String },
+                    fetch = { error("fresh snapshot must not fetch") },
+                    materialize = { value ->
+                        materializeCalls += 1
+                        value
+                    },
+                    validateFence = {
+                        validationCalls += 1
+                        validationCalls == 1
+                    },
+                )
+            }
+                .exceptionOrNull()
+
+            assertTrue(failure is MetadataSnapshotFenceChangedException)
+            assertEquals(0, materializeCalls)
         }
     }
 
@@ -219,6 +326,23 @@ class MetadataSnapshotSwrTest {
                 decodeSnapshot = { it as? String },
                 fetch = fetch,
                 materialize = { it },
+            )
+        }
+
+        suspend fun readWithMetadata(
+            key: String,
+            validateFence: (suspend (MetadataFence) -> Boolean)? = null,
+            fetch: suspend () -> String,
+        ): MetadataSnapshotRead<String> {
+            val fence = cache.currentFence()!!
+            return swr.readWithMetadata(
+                fence = fence,
+                key = key,
+                policy = MetadataSnapshotTtlPolicy.forKey(key),
+                decodeSnapshot = { it as? String },
+                fetch = fetch,
+                materialize = { it },
+                validateFence = validateFence,
             )
         }
     }

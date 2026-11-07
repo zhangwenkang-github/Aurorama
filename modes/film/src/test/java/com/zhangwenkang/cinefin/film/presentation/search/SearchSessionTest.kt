@@ -6,7 +6,13 @@ import com.zhangwenkang.cinefin.local.LocalSearchHit
 import com.zhangwenkang.cinefin.models.FindroidFolder
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.repository.JellyfinOrigin
 import com.zhangwenkang.cinefin.repository.SearchScope
+import com.zhangwenkang.cinefin.repository.catalog.CatalogFreshness
+import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
+import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
+import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import java.util.UUID
@@ -21,25 +27,24 @@ import org.junit.Test
 class SearchSessionTest {
 
     @Test
-    fun `服务器失败只标记 serverFailed 并保留本地结果`() = runBlocking {
+    fun `服务器身份不可用时本地和下载结果都不落地`() = runBlocking {
         val local = hit("sample.mp3", LocalMediaKind.MUSIC)
-        var received: SearchRequest? = null
+        val download = downloadRecord(name = "sample.flac", kind = DownloadMediaKind.MUSIC)
 
         val outcome =
             executeSearch(
                 SearchRequest(query = "sample", scope = SearchScope.MUSIC),
-                serverSearch = { throw IllegalStateException("server down") },
-                localSearch = {
-                    received = it
-                    listOf(local)
-                },
+                serverSearch = { CatalogReadOutcome.IdentityUnavailable },
+                localSearch = { listOf(local) },
+                scope = ALICE_SCOPE,
+                downloads = listOf(download),
             )
 
         assertTrue(outcome.serverFailed)
-        assertFalse(outcome.localFailed)
+        assertTrue(outcome.localFailed)
         assertEquals(emptyList<FindroidItem>(), outcome.serverItems)
-        assertEquals(listOf(local), outcome.localItems)
-        assertEquals(SearchRequest("sample", SearchScope.MUSIC), received)
+        assertEquals(emptyList<LocalSearchHit>(), outcome.localItems)
+        assertTrue(outcome.results.isEmpty())
     }
 
     @Test
@@ -49,8 +54,9 @@ class SearchSessionTest {
         val outcome =
             executeSearch(
                 SearchRequest(query = "sample", scope = SearchScope.VIDEO),
-                serverSearch = { listOf(server) },
+                serverSearch = { available(listOf(server), ALICE_SCOPE) },
                 localSearch = { throw IllegalStateException("local db down") },
+                scope = ALICE_SCOPE,
             )
 
         assertFalse(outcome.serverFailed)
@@ -60,12 +66,13 @@ class SearchSessionTest {
     }
 
     @Test
-    fun `两侧失败互相独立且取消不被吞掉`() = runBlocking {
+    fun `原始来源失败独立且取消不被吞掉`() = runBlocking {
         val both =
             executeSearch(
                 SearchRequest(query = "sample", scope = SearchScope.ALL),
                 serverSearch = { throw IllegalStateException("server down") },
                 localSearch = { throw IllegalStateException("local db down") },
+                scope = ALICE_SCOPE,
             )
 
         assertTrue(both.serverFailed)
@@ -78,6 +85,7 @@ class SearchSessionTest {
                 SearchRequest(query = "sample", scope = SearchScope.ALL),
                 serverSearch = { throw CancellationException("cancelled") },
                 localSearch = { emptyList() },
+                scope = ALICE_SCOPE,
             )
         }
             .exceptionOrNull()
@@ -94,12 +102,13 @@ class SearchSessionTest {
             SearchRequest(query = "sample", scope = SearchScope.VIDEO),
             serverSearch = {
                 serverThread = Thread.currentThread()
-                listOf(folder("sample"))
+                available(listOf(folder("sample")), ALICE_SCOPE)
             },
             localSearch = {
                 localThread = Thread.currentThread()
                 emptyList()
             },
+            scope = ALICE_SCOPE,
         )
 
         assertNotEquals(callerThread, serverThread)
@@ -120,16 +129,15 @@ class SearchSessionTest {
     }
 
     @Test
-    fun `搜索会话冻结 namespace 并只折叠完整同源下载`() = runBlocking {
+    fun `搜索会话冻结 canonical scope 并只折叠完整同源下载`() = runBlocking {
         val itemId = UUID.fromString("11111111-1111-4111-8111-111111111111")
-        val userId = UUID.fromString("22222222-2222-4222-8222-222222222222")
         val serverItem = folder("sample").copy(id = itemId, kind = "BOOK")
         val record =
             DownloadMediaRecord(
                 itemId = itemId.toString(),
                 kind = DownloadMediaKind.BOOK,
-                serverId = "server-a",
-                userId = userId.toString(),
+                serverId = ALICE_SCOPE.origin.serverId,
+                userId = ALICE.toString(),
                 sourceId = null,
                 displayName = "sample",
             )
@@ -137,9 +145,9 @@ class SearchSessionTest {
         val outcome =
             executeSearch(
                 SearchRequest(query = "sample", scope = SearchScope.BOOK),
-                serverSearch = { listOf(serverItem) },
+                serverSearch = { available(listOf(serverItem), ALICE_SCOPE) },
                 localSearch = { emptyList() },
-                namespace = SearchNamespace("server-a", userId),
+                scope = ALICE_SCOPE,
                 downloads = listOf(record),
             )
 
@@ -150,29 +158,24 @@ class SearchSessionTest {
     }
 
     @Test
-    fun `无 userId 的缓存服务器结果保留展示但绝不与下载折叠`() = runBlocking {
-        val itemId = UUID.fromString("11111111-1111-4111-8111-111111111111")
-        val record =
-            DownloadMediaRecord(
-                itemId = itemId.toString(),
-                kind = DownloadMediaKind.BOOK,
-                serverId = "server-a",
-                userId = UUID.randomUUID().toString(),
-                displayName = "sample",
-            )
+    fun `无身份时服务器本地和下载结果都不落地`() = runBlocking {
+        val local = hit("only-this.mp4", LocalMediaKind.VIDEO)
+        val download = downloadRecord(name = "only-this", serverId = "server-a", userId = ALICE)
 
         val outcome =
             executeSearch(
-                SearchRequest(query = "sample", scope = SearchScope.BOOK),
-                serverSearch = { listOf(folder("sample").copy(id = itemId, kind = "BOOK")) },
-                localSearch = { emptyList() },
-                namespace = null,
-                downloads = listOf(record),
+                SearchRequest(query = "only-this", scope = SearchScope.VIDEO),
+                serverSearch = { available(listOf(folder("only-this")), ALICE_SCOPE) },
+                localSearch = { listOf(local) },
+                scope = null,
+                downloads = listOf(download),
             )
 
-        assertEquals(2, outcome.results.size)
-        assertTrue(outcome.results.first() is SearchResult.UnidentifiedServer)
-        assertEquals(SearchSource.DOWNLOADED, outcome.results.last().sources.single())
+        assertTrue(outcome.serverFailed)
+        assertTrue(outcome.localFailed)
+        assertTrue(outcome.serverItems.isEmpty())
+        assertTrue(outcome.localItems.isEmpty())
+        assertTrue(outcome.results.isEmpty())
     }
 
     @Test
@@ -189,7 +192,7 @@ class SearchSessionTest {
         val filtered =
             DownloadSearchRules.filter(
                 request = SearchRequest("only-this", SearchScope.MUSIC),
-                namespace = null,
+                scope = ALICE_SCOPE,
                 downloads = listOf(matching, unrelated, wrongScope),
             )
 
@@ -197,8 +200,7 @@ class SearchSessionTest {
     }
 
     @Test
-    fun `显式其他 server 或 user 的下载隐藏而未知来源保留`() {
-        val namespace = SearchNamespace("server-a", ALICE)
+    fun `显式其他 server 或 user 与未知来源的下载都隐藏`() {
         val matching = downloadRecord(name = "same", serverId = "server-a", userId = ALICE)
         val otherServer = downloadRecord(name = "same", serverId = "server-b", userId = ALICE)
         val otherUser = downloadRecord(name = "same", serverId = "server-a", userId = BOB)
@@ -207,31 +209,11 @@ class SearchSessionTest {
         val filtered =
             DownloadSearchRules.filter(
                 request = SearchRequest("same", SearchScope.VIDEO),
-                namespace = namespace,
+                scope = ALICE_SCOPE,
                 downloads = listOf(otherServer, matching, otherUser, unknown),
             )
 
-        assertEquals(listOf(matching, unknown), filtered)
-    }
-
-    @Test
-    fun `显式其他 server 与 user 的部分视频下载在当前 namespace 隐藏`() {
-        val record =
-            downloadRecord(
-                name = "same",
-                serverId = "server-b",
-                userId = BOB,
-                sourceId = null,
-            )
-
-        val filtered =
-            DownloadSearchRules.filter(
-                request = SearchRequest("same", SearchScope.VIDEO),
-                namespace = SearchNamespace("server-a", ALICE),
-                downloads = listOf(record),
-            )
-
-        assertTrue(filtered.isEmpty())
+        assertEquals(listOf(matching), filtered)
     }
 
     @Test
@@ -249,9 +231,11 @@ class SearchSessionTest {
         val outcome =
             executeSearch(
                 SearchRequest(query = "sample", scope = SearchScope.VIDEO),
-                serverSearch = { listOf(folder("sample").copy(id = itemId)) },
+                serverSearch = {
+                    available(listOf(folder("sample").copy(id = itemId)), ALICE_SCOPE)
+                },
                 localSearch = { emptyList() },
-                namespace = SearchNamespace("server-a", ALICE),
+                scope = ALICE_SCOPE,
                 downloads = listOf(record),
             )
 
@@ -262,28 +246,15 @@ class SearchSessionTest {
     }
 
     @Test
-    fun `只有其他 server 的部分视频下载在当前 namespace 隐藏`() {
-        val record =
+    fun `只有其他 server 或 user 的部分下载在当前 scope 隐藏`() {
+        val otherServer =
             downloadRecord(
                 name = "same",
                 serverId = "server-b",
                 userId = null,
                 sourceId = null,
             )
-
-        val filtered =
-            DownloadSearchRules.filter(
-                request = SearchRequest("same", SearchScope.VIDEO),
-                namespace = SearchNamespace("server-a", ALICE),
-                downloads = listOf(record),
-            )
-
-        assertTrue(filtered.isEmpty())
-    }
-
-    @Test
-    fun `只有其他 user 的部分视频下载在当前 namespace 隐藏`() {
-        val record =
+        val otherUser =
             downloadRecord(
                 name = "same",
                 serverId = null,
@@ -294,15 +265,15 @@ class SearchSessionTest {
         val filtered =
             DownloadSearchRules.filter(
                 request = SearchRequest("same", SearchScope.VIDEO),
-                namespace = SearchNamespace("server-a", ALICE),
-                downloads = listOf(record),
+                scope = ALICE_SCOPE,
+                downloads = listOf(otherServer, otherUser),
             )
 
         assertTrue(filtered.isEmpty())
     }
 
     @Test
-    fun `身份缺失或损坏的部分下载保持来源未知可见`() {
+    fun `身份缺失或损坏的部分下载不得跨身份可见`() {
         val missing =
             downloadRecord(
                 name = "same",
@@ -323,102 +294,66 @@ class SearchSessionTest {
         val filtered =
             DownloadSearchRules.filter(
                 request = SearchRequest("same", SearchScope.VIDEO),
-                namespace = SearchNamespace("server-a", ALICE),
+                scope = ALICE_SCOPE,
                 downloads = listOf(missing, corrupt),
             )
 
-        assertEquals(listOf(missing, corrupt), filtered)
+        assertTrue(filtered.isEmpty())
     }
 
     @Test
-    fun `namespace 过滤前仍遵守 query 与 scope`() {
-        val matching =
-            downloadRecord(
-                name = "keep",
-                serverId = "server-a",
-                userId = ALICE,
-                sourceId = null,
-            )
-        val wrongQuery =
-            downloadRecord(
-                name = "drop",
-                serverId = "server-a",
-                userId = ALICE,
-                sourceId = null,
-            )
-        val wrongScope =
-            downloadRecord(
-                name = "keep",
-                kind = DownloadMediaKind.MUSIC,
-                serverId = "server-a",
-                userId = ALICE,
-                sourceId = null,
-            )
+    fun `current scope 缺失时所有下载都拒绝`() {
+        val matching = downloadRecord(name = "same", serverId = "server-a", userId = ALICE)
 
         val filtered =
             DownloadSearchRules.filter(
-                request = SearchRequest("keep", SearchScope.VIDEO),
-                namespace = SearchNamespace("server-a", ALICE),
-                downloads = listOf(matching, wrongQuery, wrongScope),
+                request = SearchRequest("same", SearchScope.VIDEO),
+                scope = null,
+                downloads = listOf(matching),
             )
 
-        assertEquals(listOf(matching), filtered)
+        assertTrue(filtered.isEmpty())
     }
 
     @Test
-    fun `无 namespace 时仍显示 query 命中的本地库结果`() = runBlocking {
-        val local = hit("only-this.mp4", LocalMediaKind.VIDEO)
+    fun `scope guard 同时检查请求、scope 与 snapshot content generation`() {
+        val guard = SearchCatalogGuard()
+        val generation = guard.begin(requested = ALICE_SCOPE, current = ALICE_SCOPE)
+        val currentSnapshot = snapshot(listOf(folder("sample")), ALICE_SCOPE, generation = 5L)
+        val oldSnapshot = snapshot(listOf(folder("old")), ALICE_SCOPE, generation = 4L)
+        val wrongScopeSnapshot = snapshot(listOf(folder("other")), BOB_SCOPE, generation = 6L)
 
-        val outcome =
-            executeSearch(
-                SearchRequest(query = "only-this", scope = SearchScope.VIDEO),
-                serverSearch = { emptyList() },
-                localSearch = { listOf(local) },
-                namespace = null,
-            )
+        assertTrue(guard.accepts(generation, currentSnapshot, ALICE_SCOPE))
+        assertFalse(guard.accepts(generation, oldSnapshot, ALICE_SCOPE))
+        assertFalse(guard.accepts(generation, wrongScopeSnapshot, ALICE_SCOPE))
+        assertFalse(guard.accepts(generation, currentSnapshot, BOB_SCOPE))
 
-        assertEquals(listOf(local), outcome.localItems)
-        assertEquals(
-            listOf(
-                SearchResult.LocalLibrary(LocalLibraryItemIdentity(1L, local.entry.itemId), local)
-            ),
-            outcome.results,
-        )
+        val newerRequest = guard.begin(requested = ALICE_SCOPE, current = ALICE_SCOPE)
+        assertFalse(guard.accepts(generation, currentSnapshot, ALICE_SCOPE))
+        assertTrue(guard.accepts(newerRequest, currentSnapshot, ALICE_SCOPE))
     }
 
-    @Test
-    fun `namespace generation 在切号或新请求后拒绝旧结果`() {
-        val guard = SearchNamespaceGuard()
-        val generation =
-            guard.begin(
-                requested = SearchNamespace("server-a", ALICE),
-                current = SearchNamespace("server-a", ALICE),
-            )
+    private fun available(
+        items: List<FindroidItem>,
+        scope: CatalogScope,
+        generation: Long = 1L,
+        freshness: CatalogFreshness = CatalogFreshness.FRESH,
+    ): CatalogReadOutcome<List<FindroidItem>> =
+        CatalogReadOutcome.Available(snapshot = snapshot(items, scope, generation, freshness))
 
-        assertTrue(
-            guard.accepts(
-                generation,
-                current = SearchNamespace("server-a", ALICE),
-            )
+    private fun snapshot(
+        items: List<FindroidItem>,
+        scope: CatalogScope,
+        generation: Long,
+        freshness: CatalogFreshness = CatalogFreshness.FRESH,
+    ): CatalogSnapshot<List<FindroidItem>> =
+        CatalogSnapshot(
+            scope = scope,
+            contentGeneration = generation,
+            freshness = freshness,
+            observedAtEpochMs = 1L,
+            value = items,
         )
-        assertFalse(
-            guard.accepts(
-                generation,
-                current = SearchNamespace("server-b", ALICE),
-            )
-        )
-        assertFalse(
-            guard.accepts(
-                generation,
-                current = SearchNamespace("server-a", BOB),
-            )
-        )
-
-        val current = SearchNamespace("server-a", ALICE)
-        val stale = guard.begin(requested = current, current = current)
-        guard.begin(requested = current, current = current)
-        assertFalse(guard.accepts(stale, current = current))
-    }
 
     private fun hit(name: String, kind: LocalMediaKind): LocalSearchHit =
         LocalSearchHit(
@@ -469,5 +404,15 @@ class SearchSessionTest {
     private companion object {
         val ALICE: UUID = UUID.fromString("22222222-2222-4222-8222-222222222222")
         val BOB: UUID = UUID.fromString("44444444-4444-4444-8444-444444444444")
+        val ALICE_SCOPE =
+            CatalogScope(
+                origin = JellyfinOrigin("server-a", ALICE),
+                principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+            )
+        val BOB_SCOPE =
+            CatalogScope(
+                origin = JellyfinOrigin("server-a", BOB),
+                principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+            )
     }
 }

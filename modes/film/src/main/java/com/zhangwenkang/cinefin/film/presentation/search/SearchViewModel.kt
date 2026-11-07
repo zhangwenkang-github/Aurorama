@@ -4,9 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
-import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.SearchScope
-import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
+import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
+import com.zhangwenkang.cinefin.repository.catalog.CatalogSearchQuery
 import com.zhangwenkang.cinefin.utils.Downloader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -22,11 +23,10 @@ import kotlinx.coroutines.withContext
 class SearchViewModel
 @Inject
 constructor(
-    private val repository: JellyfinRepository,
+    private val catalogReadPort: CatalogReadPort,
     /** W43：本地媒体库并入搜索（服务器 + 本地两来源并行查询）。 */
     private val localLibraryRepository: LocalLibraryRepository,
     private val downloader: Downloader,
-    private val appPreferences: AppPreferences,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val _state =
@@ -45,8 +45,9 @@ constructor(
 
     /** 已完成请求：返回搜索结果页时 `LaunchedEffect(query)` 会再触发一次，这里跳过重复请求。 */
     private var completedRequest: SearchRequest? = null
-    private var completedNamespace: SearchNamespace? = null
-    private val namespaceGuard = SearchNamespaceGuard()
+    private var completedScope: CatalogScope? = null
+    private var completedScopeResolved = false
+    private val catalogGuard = SearchCatalogGuard()
 
     private fun search(
         query: String,
@@ -54,24 +55,66 @@ constructor(
         force: Boolean = false,
     ) {
         val request = SearchRequest(query = query, scope = scope)
-        val namespace = currentNamespace()
-        if (
-            !force &&
-                request == completedRequest &&
-                namespace == completedNamespace &&
-                currentJob?.isActive != true
-        ) {
-            return
-        }
         currentJob?.cancel()
-        val generation = namespaceGuard.begin(requested = namespace, current = currentNamespace())
+        catalogGuard.invalidate()
         currentJob = viewModelScope.launch {
+            if (query.isBlank()) {
+                completedRequest = null
+                completedScope = null
+                completedScopeResolved = false
+                _state.emit(SearchState(loading = false, scope = scope))
+                return@launch
+            }
+            val requestGeneration = catalogGuard.beginPending()
             try {
-                if (query.isBlank()) {
-                    namespaceGuard.invalidate()
-                    completedRequest = null
-                    completedNamespace = null
-                    _state.emit(SearchState(loading = false, scope = scope))
+                val requestedScope = catalogReadPort.currentScope()
+                val currentAtStart = catalogReadPort.currentScope()
+                if (catalogGuard.start(requestGeneration, requestedScope, currentAtStart).not()) {
+                    if (catalogGuard.isCurrent(requestGeneration)) {
+                        _state.emit(
+                            SearchState(
+                                loading = false,
+                                query = query,
+                                scope = scope,
+                                serverFailed = true,
+                                localFailed = true,
+                            )
+                        )
+                    }
+                    return@launch
+                }
+                if (!catalogGuard.isScopeStarted(requestGeneration)) {
+                    _state.emit(
+                        SearchState(
+                            loading = false,
+                            query = query,
+                            scope = scope,
+                            serverFailed = true,
+                            localFailed = true,
+                        )
+                    )
+                    return@launch
+                }
+                val frozenScope =
+                    requestedScope
+                        ?: run {
+                            _state.emit(
+                                SearchState(
+                                    loading = false,
+                                    query = query,
+                                    scope = scope,
+                                    serverFailed = true,
+                                    localFailed = true,
+                                )
+                            )
+                            return@launch
+                        }
+                if (
+                    !force &&
+                        request == completedRequest &&
+                        completedScopeResolved &&
+                        frozenScope == completedScope
+                ) {
                     return@launch
                 }
 
@@ -85,15 +128,37 @@ constructor(
                 val outcome =
                     executeSearch(
                         request = request,
-                        serverSearch = { repository.getSearchItems(it.query, it.scope) },
+                        serverSearch = {
+                            catalogReadPort.search(
+                                CatalogSearchQuery(
+                                    term = it.query,
+                                    scope = it.scope,
+                                    frozenScope = frozenScope,
+                                )
+                            )
+                        },
                         localSearch = { localLibraryRepository.search(it.query, it.scope) },
-                        namespace = namespace,
+                        scope = frozenScope,
                         downloads = downloadRecords,
                     )
-                if (!namespaceGuard.isCurrent(generation)) return@launch
-                val currentNamespace = currentNamespace()
-                if (!namespaceGuard.accepts(generation, currentNamespace)) {
-                    _state.emit(SearchState(loading = false, query = query, scope = scope))
+                if (!catalogGuard.isCurrent(requestGeneration)) return@launch
+                val currentScope = catalogReadPort.currentScope()
+                if (
+                    !catalogGuard.accepts(
+                        requestGeneration,
+                        outcome.serverSnapshot,
+                        currentScope,
+                    )
+                ) {
+                    _state.emit(
+                        SearchState(
+                            loading = false,
+                            query = query,
+                            scope = scope,
+                            serverFailed = true,
+                            localFailed = true,
+                        )
+                    )
                     return@launch
                 }
                 _state.emit(
@@ -107,11 +172,33 @@ constructor(
                     )
                 )
                 completedRequest = request
-                completedNamespace = namespace
+                completedScope = frozenScope
+                completedScopeResolved = true
             } catch (_: CancellationException) {} catch (_: Exception) {
-                if (!namespaceGuard.isCurrent(generation)) return@launch
-                if (!namespaceGuard.accepts(generation, currentNamespace())) {
-                    _state.emit(SearchState(loading = false, query = query, scope = scope))
+                if (!catalogGuard.isCurrent(requestGeneration)) return@launch
+                if (!catalogGuard.isScopeStarted(requestGeneration)) {
+                    _state.emit(
+                        SearchState(
+                            loading = false,
+                            query = query,
+                            scope = scope,
+                            serverFailed = true,
+                            localFailed = true,
+                        )
+                    )
+                    return@launch
+                }
+                val currentScope = runCatching { catalogReadPort.currentScope() }.getOrNull()
+                if (!catalogGuard.accepts(requestGeneration, null, currentScope)) {
+                    _state.emit(
+                        SearchState(
+                            loading = false,
+                            query = query,
+                            scope = scope,
+                            serverFailed = true,
+                            localFailed = true,
+                        )
+                    )
                     return@launch
                 }
                 _state.emit(
@@ -132,9 +219,10 @@ constructor(
             is SearchAction.UpdateQuery -> {
                 if (action.query == _state.value.query) return
                 currentJob?.cancel()
-                namespaceGuard.invalidate()
+                catalogGuard.invalidate()
                 completedRequest = null
-                completedNamespace = null
+                completedScope = null
+                completedScopeResolved = false
                 savedStateHandle[SEARCH_QUERY_KEY] = action.query
                 _state.value =
                     _state.value.copy(
@@ -148,9 +236,10 @@ constructor(
             is SearchAction.ChangeScope -> {
                 if (action.scope == _state.value.scope) return
                 currentJob?.cancel()
-                namespaceGuard.invalidate()
+                catalogGuard.invalidate()
                 completedRequest = null
-                completedNamespace = null
+                completedScope = null
+                completedScopeResolved = false
                 savedStateHandle[SEARCH_SCOPE_KEY] = action.scope.name
                 _state.value =
                     _state.value.copy(
@@ -169,17 +258,6 @@ constructor(
             else -> Unit
         }
     }
-
-    private fun currentNamespace(): SearchNamespace? =
-        appPreferences.getValue(appPreferences.currentServer)?.let { serverId ->
-            runCatching {
-                SearchNamespace(
-                    serverId = serverId,
-                    userId = repository.getUserId(),
-                )
-            }
-                .getOrNull()
-        }
 
     private companion object {
         const val SEARCH_QUERY_KEY = "search_query"

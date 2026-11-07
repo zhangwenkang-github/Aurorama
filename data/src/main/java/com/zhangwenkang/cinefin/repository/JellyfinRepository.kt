@@ -125,11 +125,6 @@ interface JellyfinRepository {
         sortOrder: SortOrder = SortOrder.DESCENDING,
     ): List<FindroidItem>
 
-    suspend fun getSearchItems(
-        query: String,
-        scope: SearchScope = SearchScope.ALL,
-    ): List<FindroidItem>
-
     suspend fun getSuggestions(): List<FindroidItem>
 
     /**

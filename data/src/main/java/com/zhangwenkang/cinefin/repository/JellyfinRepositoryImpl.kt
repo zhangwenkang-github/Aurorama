@@ -31,6 +31,14 @@ import com.zhangwenkang.cinefin.models.toFindroidSegment
 import com.zhangwenkang.cinefin.models.toFindroidShow
 import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.models.toOfficialDownloadSource
+import com.zhangwenkang.cinefin.repository.catalog.CatalogFreshness
+import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
+import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
+import com.zhangwenkang.cinefin.repository.catalog.CatalogScopeResolver
+import com.zhangwenkang.cinefin.repository.catalog.CatalogSearchQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
@@ -82,7 +90,7 @@ class JellyfinRepositoryImpl(
     /** W37：本地媒体库（合成 LOCAL 源，播放链路零改动复用）。 */
     private val localLibrary: LocalLibraryRepository,
     metadataSnapshotStore: MetadataSnapshotStore,
-) : JellyfinRepository, OriginScopedJellyfinRepository {
+) : JellyfinRepository, OriginScopedJellyfinRepository, CatalogReadPort {
     private var searchItemsIoDispatcher: CoroutineDispatcher = Dispatchers.IO
     private var searchItemsFetch: suspend (JellyfinApi, String, SearchScope) -> List<BaseItemDto> =
         { api, query, scope ->
@@ -105,7 +113,9 @@ class JellyfinRepositoryImpl(
             materialize(items)
         }
     private var searchItemsCacheRead:
-        suspend (suspend () -> List<FindroidItem>) -> List<FindroidItem> =
+        suspend (suspend () -> CatalogReadOutcome<List<FindroidItem>>) -> CatalogReadOutcome<
+                List<FindroidItem>
+            > =
         { read ->
             read()
         }
@@ -127,7 +137,11 @@ class JellyfinRepositoryImpl(
                 List<BaseItemDto>,
                 suspend (List<BaseItemDto>) -> List<FindroidItem>,
             ) -> List<FindroidItem>,
-        searchItemsCacheRead: suspend (suspend () -> List<FindroidItem>) -> List<FindroidItem>,
+        searchItemsCacheRead:
+            suspend (suspend () -> CatalogReadOutcome<List<FindroidItem>>) -> CatalogReadOutcome<
+                    List<FindroidItem>
+                >,
+        originApiFactory: ((JellyfinOrigin) -> JellyfinApi)? = null,
     ) : this(
         context = context,
         jellyfinApi = jellyfinApi,
@@ -140,6 +154,7 @@ class JellyfinRepositoryImpl(
         this.searchItemsFetch = searchItemsFetch
         this.searchItemsMaterialize = searchItemsMaterialize
         this.searchItemsCacheRead = searchItemsCacheRead
+        this.originApiFactory = originApiFactory
     }
 
     /** W34：下载页轮询会重复取同一批封面 / 专辑元数据，用短 TTL 缓存避免每轮都打服务器。 */
@@ -150,6 +165,12 @@ class JellyfinRepositoryImpl(
     private val musicTrackCacheAt = java.util.concurrent.atomic.AtomicLong(0L)
     private val originApis = java.util.concurrent.ConcurrentHashMap<JellyfinOrigin, JellyfinApi>()
     private var originApiFactory: ((JellyfinOrigin) -> JellyfinApi)? = null
+    private val catalogScopeResolver =
+        CatalogScopeResolver(
+            appPreferences = appPreferences,
+            database = database,
+            principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+        )
 
     internal constructor(
         context: Context,
@@ -177,6 +198,19 @@ class JellyfinRepositoryImpl(
         val userId: UUID,
     )
 
+    private class BoundCatalogRepository(
+        private val delegate: JellyfinRepository,
+        private val baseUrl: String,
+        private val accessToken: String?,
+        private val userId: UUID,
+    ) : JellyfinRepository by delegate {
+        override fun getBaseUrl(): String = baseUrl
+
+        override fun getAccessToken(): String? = accessToken
+
+        override fun getUserId(): UUID = userId
+    }
+
     private suspend fun bindOrigin(origin: JellyfinOrigin): BoundOriginClient =
         withContext(Dispatchers.IO) {
             val user =
@@ -185,6 +219,12 @@ class JellyfinRepositoryImpl(
             val address =
                 database.getServerCurrentAddress(origin.serverId)
                     ?: error("origin server 缺少可用地址：${origin.serverId}")
+            val accessToken =
+                user.accessToken?.takeIf { it.isNotBlank() }
+                    ?: error("origin user 缺少 access token：${origin.userId}")
+            val baseUrl =
+                address.address.takeIf { it.isNotBlank() }
+                    ?: error("origin server 地址为空：${origin.serverId}")
             val api =
                 originApis[origin]
                     ?: originApiFactory?.invoke(origin)
@@ -196,14 +236,14 @@ class JellyfinRepositoryImpl(
                         )
                         .also { originApis[origin] = it }
             api.api.update(
-                baseUrl = address.address,
-                accessToken = user.accessToken,
+                baseUrl = baseUrl,
+                accessToken = accessToken,
             )
             api.userId = user.id
             BoundOriginClient(
                 api = api,
-                baseUrl = address.address,
-                accessToken = user.accessToken,
+                baseUrl = baseUrl,
+                accessToken = accessToken,
                 userId = user.id,
             )
         }
@@ -426,10 +466,10 @@ class JellyfinRepositoryImpl(
         return values.map { it as BaseItemDto }
     }
 
-    private suspend fun List<BaseItemDto>.toFindroidItems(): List<FindroidItem> =
-        withContext(Dispatchers.IO) {
-            mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
-        }
+    private suspend fun List<BaseItemDto>.toFindroidItems(
+        repository: JellyfinRepository = this@JellyfinRepositoryImpl
+    ): List<FindroidItem> =
+        withContext(Dispatchers.IO) { mapNotNull { it.toFindroidItem(repository, database) } }
 
     private suspend fun List<BaseItemDto>.toFindroidTags(): List<FindroidTag> = mapNotNull { dto ->
         val name = dto.name ?: return@mapNotNull null
@@ -442,6 +482,10 @@ class JellyfinRepositoryImpl(
      */
     private suspend fun BaseItemDto.withCurrentRoomUserData(): BaseItemDto {
         val userId = jellyfinApi.userId ?: return this
+        return withRoomUserData(userId)
+    }
+
+    private suspend fun BaseItemDto.withRoomUserData(userId: UUID): BaseItemDto {
         val local = database.getUserData(id, userId) ?: return this
         val current =
             userData?.copy(
@@ -907,19 +951,93 @@ class JellyfinRepositoryImpl(
             materialize = { it.toFindroidItems() },
         )
 
-    override suspend fun getSearchItems(
-        query: String,
-        scope: SearchScope,
-    ): List<FindroidItem> =
+    override suspend fun currentScope(): CatalogScope? = catalogScopeResolver.resolve()
+
+    override suspend fun search(query: CatalogSearchQuery): CatalogReadOutcome<List<FindroidItem>> =
         withContext(searchItemsIoDispatcher) {
-            searchItemsCacheRead {
-                cachedDtoList(
-                    key = MetadataCacheKeys.search(query, scope),
-                    fetch = { searchItemsFetch(jellyfinApi, query, scope) },
-                    materialize = { items ->
-                        searchItemsMaterialize(items) { dtos -> dtos.toFindroidItems() }
-                    },
-                )
+            try {
+                searchItemsCacheRead {
+                    val scope = query.frozenScope
+                    if (currentScope() != scope) {
+                        return@searchItemsCacheRead CatalogReadOutcome.IdentityUnavailable
+                    }
+                    val expectedNamespace =
+                        MetadataNamespace(
+                            serverId = scope.origin.serverId,
+                            userId = scope.origin.userId.toString(),
+                        )
+                    val fence =
+                        metadataCache.currentFence()?.takeIf { it.namespace == expectedNamespace }
+                            ?: return@searchItemsCacheRead CatalogReadOutcome.IdentityUnavailable
+                    val bound =
+                        try {
+                            bindOrigin(scope.origin)
+                        } catch (_: IllegalStateException) {
+                            return@searchItemsCacheRead CatalogReadOutcome.IdentityUnavailable
+                        }
+                    if (bound.userId != scope.origin.userId) {
+                        return@searchItemsCacheRead CatalogReadOutcome.IdentityUnavailable
+                    }
+                    if (currentScope() != scope) {
+                        return@searchItemsCacheRead CatalogReadOutcome.IdentityUnavailable
+                    }
+                    val validateFence: suspend (MetadataFence) -> Boolean = { candidate ->
+                        candidate == fence && currentScope() == scope
+                    }
+                    val cacheKey = MetadataCacheKeys.search(query.term, query.scope)
+                    val read =
+                        metadataSnapshotSwr.readWithMetadata(
+                            fence = fence,
+                            key = cacheKey,
+                            policy = MetadataSnapshotTtlPolicy.forKey(cacheKey),
+                            decodeSnapshot = { value -> value.asBaseItemDtoList() },
+                            fetch = {
+                                val items =
+                                    searchItemsFetch(
+                                        bound.api,
+                                        query.term,
+                                        query.scope,
+                                    )
+                                if (currentScope() != scope) {
+                                    throw MetadataSnapshotFenceChangedException()
+                                }
+                                items
+                            },
+                            materialize = { items ->
+                                val scopedRepository =
+                                    BoundCatalogRepository(
+                                        delegate = this@JellyfinRepositoryImpl,
+                                        baseUrl = bound.baseUrl,
+                                        accessToken = bound.accessToken,
+                                        userId = bound.userId,
+                                    )
+                                searchItemsMaterialize(
+                                    items.map { dto -> dto.withRoomUserData(scope.origin.userId) }
+                                ) { dtos ->
+                                    dtos.toFindroidItems(scopedRepository)
+                                }
+                            },
+                            validateFence = validateFence,
+                        )
+                    if (currentScope() != scope || metadataCache.currentFence() != fence) {
+                        return@searchItemsCacheRead CatalogReadOutcome.IdentityUnavailable
+                    }
+                    CatalogReadOutcome.Available(
+                        CatalogSnapshot(
+                            scope = scope,
+                            contentGeneration = fence.contentGeneration,
+                            freshness =
+                                when (read.freshness) {
+                                    MetadataSnapshotFreshness.FRESH -> CatalogFreshness.FRESH
+                                    MetadataSnapshotFreshness.STALE -> CatalogFreshness.STALE
+                                },
+                            observedAtEpochMs = read.observedAtEpochMs,
+                            value = read.value,
+                        )
+                    )
+                }
+            } catch (_: MetadataSnapshotFenceChangedException) {
+                CatalogReadOutcome.IdentityUnavailable
             }
         }
 

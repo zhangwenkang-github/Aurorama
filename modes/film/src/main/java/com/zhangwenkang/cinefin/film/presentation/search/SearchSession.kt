@@ -3,6 +3,9 @@ package com.zhangwenkang.cinefin.film.presentation.search
 import com.zhangwenkang.cinefin.local.LocalSearchHit
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.repository.SearchScope
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
+import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
+import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
 import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -14,47 +17,101 @@ import timber.log.Timber
 
 data class SearchRequest(val query: String, val scope: SearchScope)
 
-/** 一次搜索固定使用的服务器 / 用户 namespace；不得在结果返回后再从当前会话改写。 */
-data class SearchNamespace(val serverId: String, val userId: UUID)
-
 /**
- * 搜索结果落地前的 namespace 守卫。
+ * 搜索结果落地前的 canonical scope 守卫。
  *
- * generation 防止旧请求覆盖新请求；requested==current 防止搜索途中切 server/user 后把旧域结果 emit 到新会话。
+ * request generation 防止旧请求覆盖新请求；scope 防止搜索途中切号；snapshot content generation 防止已被新内容代际替换的旧快照进入界面。
  */
-internal class SearchNamespaceGuard {
+internal class SearchCatalogGuard {
     private var generation = 0L
-    private var activeNamespace: SearchNamespace? = null
-    private var startedInNamespace = false
+    private var activeScope: CatalogScope? = null
+    private var startedInScope = false
+    private var acceptedGenerationScope: CatalogScope? = null
+    private var acceptedContentGeneration: Long? = null
 
-    fun begin(requested: SearchNamespace?, current: SearchNamespace?): Long {
+    fun beginPending(): Long {
         generation += 1
-        activeNamespace = requested
-        startedInNamespace = requested == current
+        activeScope = null
+        startedInScope = false
+        acceptedGenerationScope = null
+        acceptedContentGeneration = null
         return generation
     }
 
+    fun start(
+        generation: Long,
+        requested: CatalogScope?,
+        current: CatalogScope?,
+    ): Boolean {
+        if (!isCurrent(generation)) return false
+        if (requested == null || current == null || requested != current) {
+            activeScope = null
+            startedInScope = false
+            acceptedGenerationScope = null
+            acceptedContentGeneration = null
+            return false
+        }
+        activeScope = requested
+        startedInScope = true
+        acceptedGenerationScope = requested
+        acceptedContentGeneration = null
+        return true
+    }
+
+    fun begin(requested: CatalogScope?, current: CatalogScope?): Long =
+        beginPending().also { generation -> start(generation, requested, current) }
+
     fun invalidate() {
         generation += 1
-        activeNamespace = null
-        startedInNamespace = false
+        activeScope = null
+        startedInScope = false
+        acceptedGenerationScope = null
+        acceptedContentGeneration = null
     }
 
     fun isCurrent(generation: Long): Boolean = generation == this.generation
 
-    fun accepts(generation: Long, current: SearchNamespace?): Boolean =
-        isCurrent(generation) && startedInNamespace && activeNamespace == current
+    fun isScopeStarted(generation: Long): Boolean = isCurrent(generation) && startedInScope
+
+    fun accepts(
+        generation: Long,
+        snapshot: CatalogSnapshot<*>?,
+        current: CatalogScope?,
+    ): Boolean {
+        val active = activeScope
+        if (
+            !isCurrent(generation) ||
+                !startedInScope ||
+                active == null ||
+                current == null ||
+                active != current
+        ) {
+            return false
+        }
+        if (snapshot == null) return true
+        if (snapshot.scope != active || snapshot.scope != current) return false
+        if (snapshot.contentGeneration < 0L) return false
+        if (acceptedGenerationScope == snapshot.scope) {
+            val accepted = acceptedContentGeneration
+            if (accepted != null && snapshot.contentGeneration < accepted) return false
+            acceptedContentGeneration = maxOf(accepted ?: 0L, snapshot.contentGeneration)
+        } else {
+            acceptedGenerationScope = snapshot.scope
+            acceptedContentGeneration = snapshot.contentGeneration
+        }
+        return true
+    }
 }
 
-/** 下载项先按 query / scope / namespace 过滤，再参与搜索折叠。 */
+/** 下载项先按 query / scope / canonical scope 过滤，再参与搜索折叠。 */
 internal object DownloadSearchRules {
     fun filter(
         request: SearchRequest,
-        namespace: SearchNamespace?,
+        scope: CatalogScope?,
         downloads: List<DownloadMediaRecord>,
     ): List<DownloadMediaRecord> {
         return downloads.filter { record ->
-            record.matches(request.scope, request.query) && record.matchesNamespace(namespace)
+            record.matches(request.scope, request.query) && record.matchesScope(scope)
         }
     }
 
@@ -77,14 +134,13 @@ internal object DownloadSearchRules {
         }
     }
 
-    private fun DownloadMediaRecord.matchesNamespace(namespace: SearchNamespace?): Boolean {
-        if (namespace == null) return true
-        val explicitServerId = serverId?.takeIf { it.isNotBlank() }
-        if (explicitServerId != null && explicitServerId != namespace.serverId) return false
-        val explicitUserId = userId?.let { value ->
-            runCatching { UUID.fromString(value) }.getOrNull()
-        }
-        return explicitUserId == null || explicitUserId == namespace.userId
+    private fun DownloadMediaRecord.matchesScope(scope: CatalogScope?): Boolean {
+        if (scope == null) return false
+        val explicitServerId = serverId?.takeIf { it.isNotBlank() } ?: return false
+        val explicitUserId =
+            userId?.let { value -> runCatching { UUID.fromString(value) }.getOrNull() }
+                ?: return false
+        return explicitServerId == scope.origin.serverId && explicitUserId == scope.origin.userId
     }
 }
 
@@ -94,30 +150,51 @@ data class SearchOutcome(
     val results: List<SearchResult> = emptyList(),
     val serverFailed: Boolean,
     val localFailed: Boolean,
+    val serverSnapshot: CatalogSnapshot<List<FindroidItem>>? = null,
 )
 
 /** 两类来源并行执行，但成功和失败严格按来源归因。取消必须继续上抛，不能被当成用户可见的普通失败。 */
 internal suspend fun executeSearch(
     request: SearchRequest,
-    serverSearch: suspend (SearchRequest) -> List<FindroidItem>,
+    serverSearch: suspend (SearchRequest) -> CatalogReadOutcome<List<FindroidItem>>,
     localSearch: suspend (SearchRequest) -> List<LocalSearchHit>,
-    namespace: SearchNamespace? = null,
+    scope: CatalogScope? = null,
     downloads: List<DownloadMediaRecord> = emptyList(),
-): SearchOutcome =
-    withContext(Dispatchers.Default) {
+): SearchOutcome {
+    if (scope == null) {
+        return SearchOutcome(
+            serverItems = emptyList(),
+            localItems = emptyList(),
+            results = emptyList(),
+            serverFailed = true,
+            localFailed = true,
+        )
+    }
+    return withContext(Dispatchers.Default) {
         coroutineScope {
-            val filteredDownloads = DownloadSearchRules.filter(request, namespace, downloads)
-            val server = async { captureSource("server search") { serverSearch(request) } }
+            val filteredDownloads = DownloadSearchRules.filter(request, scope, downloads)
+            val server = async { captureCatalogSource(scope) { serverSearch(request) } }
             val local = async { captureSource("local search") { localSearch(request) } }
             val serverResult = server.await()
             val localResult = local.await()
-            val serverCandidates = namespace?.let { fixedNamespace ->
-                serverResult.items.map { item ->
+            if (serverResult.identityUnavailable) {
+                return@coroutineScope SearchOutcome(
+                    serverItems = emptyList(),
+                    localItems = emptyList(),
+                    results = emptyList(),
+                    serverFailed = true,
+                    localFailed = true,
+                )
+            }
+            val serverSnapshot = serverResult.snapshot
+            val serverItems = serverSnapshot?.value.orEmpty()
+            val serverCandidates = scope?.let { fixedScope ->
+                serverItems.map { item ->
                     ServerSearchCandidate(
                         identity =
                             ServerItemIdentity(
-                                serverId = fixedNamespace.serverId,
-                                userId = fixedNamespace.userId,
+                                serverId = fixedScope.origin.serverId,
+                                userId = fixedScope.origin.userId,
                                 itemId = item.id,
                             ),
                         item = item,
@@ -134,32 +211,74 @@ internal suspend fun executeSearch(
                         downloads = filteredDownloads,
                     )
                 }
-                    ?: serverResult.items
-                        .distinctBy { it.id }
-                        .map { SearchResult.UnidentifiedServer(it) } +
-                        dedupedLocal.map { hit ->
-                            SearchResult.LocalLibrary(
-                                identity =
-                                    LocalLibraryItemIdentity(hit.libraryId, hit.entry.itemId),
-                                hit = hit,
-                            )
-                        } +
+                    ?: dedupedLocal.map { hit ->
+                        SearchResult.LocalLibrary(
+                            identity = LocalLibraryItemIdentity(hit.libraryId, hit.entry.itemId),
+                            hit = hit,
+                        )
+                    } +
                         filteredDownloads
                             .distinctBy { SearchResult.Download(it).stableKey }
                             .map { SearchResult.Download(it) }
             SearchOutcome(
-                serverItems =
-                    dedupedServerCandidates?.map { it.item }
-                        ?: SearchResultRules.dedupeServer(serverResult.items),
+                serverItems = dedupedServerCandidates?.map { it.item } ?: emptyList(),
                 localItems = dedupedLocal,
                 results = folded,
                 serverFailed = serverResult.failed,
                 localFailed = localResult.failed,
+                serverSnapshot = serverSnapshot,
             )
         }
     }
+}
 
 private data class SourceResult<T>(val items: List<T>, val failed: Boolean)
+
+private data class CatalogSourceResult(
+    val snapshot: CatalogSnapshot<List<FindroidItem>>?,
+    val failed: Boolean,
+    val identityUnavailable: Boolean,
+)
+
+private suspend fun captureCatalogSource(
+    expectedScope: CatalogScope?,
+    block: suspend () -> CatalogReadOutcome<List<FindroidItem>>,
+): CatalogSourceResult =
+    try {
+        when (val outcome = block()) {
+            is CatalogReadOutcome.Available -> {
+                val snapshot = outcome.snapshot
+                if (expectedScope != null && snapshot.scope == expectedScope) {
+                    CatalogSourceResult(
+                        snapshot = snapshot,
+                        failed = false,
+                        identityUnavailable = false,
+                    )
+                } else {
+                    CatalogSourceResult(
+                        snapshot = null,
+                        failed = true,
+                        identityUnavailable = true,
+                    )
+                }
+            }
+            CatalogReadOutcome.IdentityUnavailable ->
+                CatalogSourceResult(
+                    snapshot = null,
+                    failed = true,
+                    identityUnavailable = true,
+                )
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Timber.e(e, "server catalog search failed")
+        CatalogSourceResult(
+            snapshot = null,
+            failed = true,
+            identityUnavailable = false,
+        )
+    }
 
 private suspend fun <T> captureSource(
     label: String,
