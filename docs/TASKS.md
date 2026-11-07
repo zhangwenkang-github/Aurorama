@@ -5,24 +5,63 @@
 ## In Progress
 
 > **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
-> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
-> ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
-> ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
-> DO_NOT_RESUME_OLD_HANDOFF_LOOP`。TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；
-> 不得写成删除、已交付、QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
-> `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场只读归档在
-> `codex/g2-prewindow-blocked-20261107` /
-> `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 冻结，不得恢复
-> 64/65、exact count 或 handoff 修复循环。V2 架构审计已完成，`ARCHITECTURE.md` 已升级为
-> v2.0 且用户已确认；A0 owner guard / debt ratchet source `a787b683` 已通过独立 QA
-> `PASS`、merge-prep `PASS`，并以 source/final stable patch-id MATCH 集成到
-> `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
-> 全量产品重构仍 `NOT_PROVEN`。首卡状态为
-> `READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED`，尚未派发，由
-> root 决定是否派全新实现 owner；该 owner 必须先复现当前候选，无缺陷则停止。
+> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / DO_NOT_RESUME_OLD_HANDOFF_LOOP /
+> ARCH_SEAM_DELIVERY_ACTIVE / W0_ISOLATED_PROBE_ALLOWED /
+> BROAD_FEATURE_WAVES_SEAM_GATED / PLAN_CONTINUITY_LEDGER=REQUIRED /
+> ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
+> FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS /
+> USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
+> A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
+> TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成删除、已交付、QA / runtime /
+> G1 PASS。本次规划从 clean `codex/v2-integration` /
+> `fee63165f966a52318e332abe1ad7b184592a88a` 建 docs worktree；旧 G2 合同 / QA evidence
+> 冻结，不得恢复 64/65、exact count 或 handoff 修复循环。
+>
+> `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
+> V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
+> V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
+> `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
+> `last_evidence=fee63165 clean integration + A0 integration ab917404 +
+> docs/ARCHITECTURE.md §0.1/§0.8 + 本账本`。
+>
+> 当前没有已启动的产品实现任务。下一步由全新
+> `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 先冻结 W1 Identity/Catalog 任务卡，再在
+> 同一 owner 的边界内实现。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 可作独立探针，但状态为
+> `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`；仅两文件，无缺陷即
+> `NO_DEFECT_REPRODUCED` 停止，不挡架构主线，也不计作 seam 进度。
 
-当前没有已启动的实现任务；首卡 worktree 已存在但未派实现。
+## Architecture Critical Path / 长期计划账本
+
+> 这是长期计划与 seam 派单的权威账本。功能波必须在 `PREREQUISITE_SEAMS` 达到
+> `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 后才能开工；该压缩门只有在下列完整 seam
+> DoD 全部满足后才成立。
+
+| ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
+|---|---|---|---|---|---|---|---|
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `NEXT_PLANNED` | 无 | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `CONTRACT_FROZEN`；任务卡冻结后启动 | 架构方向已确认，但尚无自包含 seam 任务卡、源码、契约 / 回归测试、QA 或集成证据 |
+| `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
+| `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
+| `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
+| `V2-ARCH-SEAM-USER-WRITE-W5` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog seams | `V2-NON-TTS-W5` | user-state write intent → accepted → confirmed / denied 合同落地；data 写网关为唯一 writer；403 不重试；部分失败 / 回读 / 冲突负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | 两项前置未完成，写 seam 当前 `NOT_IMPLEMENTED` |
+
+**统一 seam Definition of Done**：
+
+```text
+CONTRACT_FROZEN -> ADAPTER_IMPLEMENTED -> TARGET_CONSUMERS_MIGRATED ->
+OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH -> CONTRACT/NEGATIVE/REGRESSION TESTS PASS ->
+DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
+```
+
+缺少任一状态不得标 Done，不得用“抽象已规划”“guard 通过”或历史 evidence 代替。
+
+| 功能波 | PREREQUISITE_SEAMS | 当前门 |
+|---|---|---|
+| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` | `NONE（ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS）` | 可独立派发；仅 `DownloadRows.kt` + `DownloadRowAccessibilityContractTest.kt`，无缺陷即停止，不挡架构主线 |
+| `V2-NON-TTS-W1` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `BLOCKED_BY_PREREQUISITES`；seam 未到三项压缩门前不得开工 |
+| `V2-NON-TTS-W2` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`、`V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_PREREQUISITES` |
+| `V2-NON-TTS-W3` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`、`V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2`、`V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` |
+| `V2-NON-TTS-W4` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`、`V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2`、`V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` |
+| `V2-NON-TTS-W5` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`、`V2-ARCH-SEAM-USER-WRITE-W5` | `BLOCKED_BY_PREREQUISITES` |
 
 ## HISTORY — G2 / TTS 控制面失败现场（非当前入口）
 
@@ -153,9 +192,14 @@
 
 | ID | 需求域 | 目标 | 依赖 | 退出条件 |
 |---|---|---|---|---|
-| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED / NOT_STARTED`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | 由 root 决定是否派全新 `ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER`；该 owner 从 root 确认的固定 clean integration SHA 建独立 worktree，首条只读动作 `git status --short` / `git rev-parse HEAD`，随后先复现当前对象；仅真实 RED 时最小修复 | `ARCHITECTURE.md` v2.0；A0 guard integrated；D212 / R034；精确白名单 `DownloadRows.kt` + `DownloadRowAccessibilityContractTest.kt`；原 worktree `F:\Develop\code_data\work_tree\Aurorama\v2-non-tts-w0-download-card-action\Aurorama` 已建但未派，派单前必须复核 branch / HEAD / dirty | 当前对象有 RED 并在同一 lineage 修复，或 `NO_DEFECT_REPRODUCED`；触碰导航 / 状态机 / 通知 / schema / 设备 / TTS/G2 即停止 |
+| `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`（`ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED / NOT_STARTED`） | 下载完成项可达性；`V2-FIX-DOWNLOAD-001` / `L14-15` | 由 root 决定是否派全新 `ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER`；该 owner 从固定 clean integration SHA 建独立 worktree，首条只读动作 `git status --short` / `git rev-parse HEAD`，随后先复现当前对象；仅真实 RED 时最小修复 | `PREREQUISITE_SEAMS=NONE`；`ARCHITECTURE.md` v2.0；A0 guard integrated，但不作为 seam progress；D212 / R034；精确白名单仅 `DownloadRows.kt` + `DownloadRowAccessibilityContractTest.kt`；原 worktree 已建但未派，派单前必须复核 branch / HEAD / dirty | 当前对象有 RED 并在同一 lineage 修复，或 `NO_DEFECT_REPRODUCED`；无缺陷即停止；触碰导航 / 状态机 / 通知 / schema / 设备 / TTS/G2 或第三文件即停止；不得计作架构进度，不得挡 W1 seam |
+| `V2-NON-TTS-W1`（`BLOCKED_BY_PREREQUISITES`） | 读路径信任与共享 UI 基座 | 搜索正 / 空 / 错 / 离线与返回恢复、持久 SWR、更新信任、R1 共享 UI 在 seam 迁移后形成可验证切片 | `PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；该 seam 达到 `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 前不得开工 | 前置 seam 完整 DoD + 独立 QA + integrated gate；本波自身真实入口 QA 另行授权 |
+| `V2-NON-TTS-W2`（`BLOCKED_BY_PREREQUISITES`） | 下载真相、离线投影与迁移 | 由同一下载控制投影驱动 UI / 通知 / 文件 / sidecar / Room / 离线与恢复；不得以 W0 探针替代 | `PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2`；两项未到三项压缩门前不得开工 | 两项前置 seam 完整 DoD + 独立 QA + integrated gate；真实任务 / 暂停恢复取消删除 / 重启另授权 |
+| `V2-NON-TTS-W3`（`BLOCKED_BY_PREREQUISITES`） | 音乐 / 视频连续性与身份收敛 | 在 seam 迁移后交付单活动播放会话、队列 / Next Up / 恢复、切号原子清场与本地歌单切片 | `PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3`；前置门未全过时不得开工 | 三项前置 seam 完整 DoD + 独立 QA + integrated gate；不触 TTS |
+| `V2-NON-TTS-W4`（`BLOCKED_BY_PREREQUISITES`） | 非 TTS 阅读核心切片 | 在 source-scoped identity / locator seam 迁移后交付 EPUB / CBZ / 现有 PDF、本地持久化与非 TTS 恢复切片 | `PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-READER-SOURCE-W4`；正文实现前必须全过 | 三项前置 seam 完整 DoD + 独立 QA + integrated gate；父 TTS promise 保持 `PARTIAL_NON_TTS / UNVERIFIED` |
+| `V2-NON-TTS-W5`（`BLOCKED_BY_PREREQUISITES`） | 受控写操作 | 在唯一写网关与身份 seam 迁移后交付 intent / accepted / confirmed / denied、权限、回读、冲突与部分失败 | `PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-USER-WRITE-W5`；写功能派单前必须全过 | 两项前置 seam 完整 DoD + 独立 QA + integrated gate；独立测试写服务器与真实写 QA 另行授权 |
 | `V2-TTS-G2-SPECIAL-SOLVE` | TTS / G2 runtime 后期专项（Deferred） | 在其他非 TTS 的 2.0 core 功能之后，以新任务、新方案、新验收解决离线 TTS、G2 runtime、handoff 与设备闭环；保留当前失败现场作为历史输入 | `V2-D211`；用户重新授权；新 owner / 新合同 / 新验收；旧分支 `codex/g2-prewindow-blocked-20261107` 与 G2 evidence 只读 | 新方案明确产品可观察承诺、最便宜可信证据、设备/安全/数据边界、两轮止损预算和恢复入口，并经用户批准；旧 QA attempt 不得作为 PASS，且不得复活 64/65 / exact-count / handoff 循环 |
-| `V2-IMPLEMENTATION-PLAN` | G2 开发门 | 交付波次、完整任务卡、QA/集成顺序和用户开工批准 | G1 完整收口 + 用户明确解除 E 门；当前不得启动 | 用户批准开始实现 |
+| `V2-IMPLEMENTATION-PLAN`（`RETIRED / 2026-11-07`） | 历史 G2 开发门占位 | 当前由 `V2-D213` / `R035` 的长期 seam 账本、W1–W5 `PREREQUISITE_SEAMS` 与唯一架构主线入口取代 | 不再是当前派单门；不得据此重新询问用户确认已批准的架构方向 | 只作历史占位，未迁移到新账本前不得重新启用 |
 
 ## Done
 

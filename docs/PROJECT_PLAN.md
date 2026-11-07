@@ -1,21 +1,25 @@
 # Cinefin · 项目总览与协作规程
 
 > **2026-11-07 当前状态**：`TTS_G2_DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
-> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
+> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / ARCH_SEAM_DELIVERY_ACTIVE /
+> W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED /
+> PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
 > ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 > ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
+> A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、QA /
-> runtime / G1 PASS。本轮规划开工时 integration HEAD
-> `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场只读归档在本地分支
+> runtime / G1 PASS。本次 seam 规划从 clean integration
+> `fee63165f966a52318e332abe1ad7b184592a88a` 创建 docs candidate；失败现场只读归档在本地分支
 > `codex/g2-prewindow-blocked-20261107`，commit
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`。旧 G2 合同 / QA evidence 保持冻结，
-> 非 TTS 六波与首张下载卡修复任务已规划且用户批准；V2 架构审计已完成，
+> 非 TTS 六波已批准；V2 架构审计已完成，
 > `ARCHITECTURE.md` 已升级为 v2.0 并由用户确认；A0 架构守卫 source `a787b683` 已通过
 > 独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`，全量产品重构仍
-> `NOT_PROVEN`。首卡已就绪但尚未派发，由 root 决定是否派全新实现 owner；实现 owner
-> 必须先复现当前候选，无缺陷则停止；设备、QA、Release 仍需用户单独批准。产品 P0–P3 仍
-> `NOT_ASSESSED`，K60 锁定；旧 G2 审计事实只在
+> `NOT_PROVEN`。当前架构主线由全新 `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 先冻结
+> `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡，再在边界内实现；W1–W5 功能波只在对应
+> `PREREQUISITE_SEAMS` 达到完整 DoD 后放行。W0 仅是可独立执行的隔离探针，不挡主线、不计
+> architecture progress，仅两文件且无缺陷即停止。设备、QA、Release 仍需用户单独批准。
+> 产品 P0–P3 仍 `NOT_ASSESSED`，K60 锁定；旧 G2 审计事实只在
 > `V2_PLAN.md` §12 HISTORY 追溯。
 
 > **新会话第一步读这里**，再读对应任务线文档。最后更新：2026-11-07　集成分支 `codex/v2-integration`
@@ -52,8 +56,9 @@ Cinefin = 基于 **Findroid**（GPL-3.0，上游 `a28ac9e`）改造的**自用 J
 
 | 线 | 文档 | 状态 | 当前焦点 |
 |----|------|------|---------|
-| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / PRODUCT_P0_P3_NOT_ASSESSED` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。非 TTS 六波与首卡已规划且用户批准。`ARCHITECTURE.md` v2.0 已确认，20 类矩阵 `7/9/3/1`；A0 guard source `a787b683` 已通过独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`；首卡 `READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED`，尚未派发，由 root 决定。既有 G1-S1 债务仍 P1 7 / P2 3 / P3 1，contracts seam 与消费者迁移未实现。`D211` 不授权设备 QA / Release。 |
-> `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；当前唯一末态是
+| **Aurorama 2.0 · V2 前置需求与重构** | `docs/V2_PLAN.md` | 🔴 `TTS_G2_DEFERRED_AFTER_2_0_CORE / ARCH_SEAM_DELIVERY_ACTIVE / W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED / PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN / PRODUCT_P0_P3_NOT_ASSESSED` | TTS/G2 当前冻结，需求不删除、不宣布 shipped / QA / runtime / G1 PASS。`ARCHITECTURE.md` v2.0 已确认，20 类矩阵 `7/9/3/1`；A0 guard source `a787b683` 已通过独立 QA / merge-prep，并以 patch-id MATCH 集成到 `ab917404`，但 A0 guard 不是架构重构。当前长期关键路径先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；W1–W5 由 `PREREQUISITE_SEAMS` 硬门控制。W0 仅 `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`。既有 G1-S1 债务仍 P1 7 / P2 3 / P3 1，contracts seam 与消费者迁移未实现。`D211/D213` 不授权设备 QA / Release。 |
+> `HANDOFF_BOOTSTRAP_V2` 的历史 PRE/POST 状态与失败回归全部保留；旧 handoff-bootstrap 的
+> 唯一历史末态是
 > `POST_QA_RUNTIME_DEFERRED` 作为 handoff-bootstrap 历史措辞保留，
 > `PRE_HANDOFF_AUDIT_PASS=PASS` 只证明历史 audit receipt，不是 QA / runtime / G1 PASS。
 > canonical preflight 的 exit / PASS 仍是机械门，但其 emitted `NEXT_PROMPT_BEGIN` 中的
@@ -311,7 +316,12 @@ adb shell uiautomator dump /sdcard/u.xml; adb shell cat /sdcard/u.xml | Select-S
 ## 7. 新会话交接清单
 
 - [ ] **HISTORY / TTS-G2 only**：旧入口曾要求先运行 `tools/v2-handoff/Invoke-HandoffPreflight.ps1`；该命令不再属于当前非 TTS 主线，禁止据旧回归恢复 handoff 修复或设备派发
-- [ ] 当前 2.0 先读 `V2_PLAN.md` 的 `ARCH_CONFORMANCE_PASS / FIRST_CARD_IN_PROGRESS` ACTIVE、`TASKS.md` 的首卡与 `docs/ARCHITECTURE.md` v2.0；只允许首卡白名单内的全新实现 owner
+- [ ] 当前 2.0 先读 `V2_PLAN.md` 的 `ARCH_SEAM_DELIVERY_ACTIVE` ACTIVE、
+  `TASKS.md` 的 `Architecture Critical Path / 长期计划账本` 与 `docs/ARCHITECTURE.md` v2.0；
+  核对 `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`
+- [ ] 架构主线由全新 `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 先冻结
+  `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡，再在边界内实现；W0 仅可作两文件隔离探针，
+  功能波在 `PREREQUISITE_SEAMS` 完整 DoD 前不得开工
 - [ ] 非 2.0 工作读本文件（§1–§5）+ 目标任务线文档
 - [ ] **读 `PLAYER_PLAN.md` §11**（2026-09-28 新增：播放页 UI/UX 改造待办，含自动选字幕/自动播放两个 bug 的线索）
 - [ ] `git log --oneline -10` + `git status --porcelain | Select-String "<任务线关键词>"`

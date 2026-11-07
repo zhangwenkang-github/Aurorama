@@ -684,3 +684,48 @@ TTS/G2 runtime、handoff 与特殊工具问题留到后期，由新方案或更�
 日志；`docs/PROJECT_RULES.md` `R034`；`docs/LESSONS.md` `L040`；release tags
 `v1.0.0`～`v1.4.0` 与当前 `codex/v2-integration` Git 现场。本决定只约束修复可追溯性与候选
 回归，不构成产品、TTS、QA、runtime、G1 或 Release PASS。
+
+### `V2-D213` 架构 seam 是功能波硬前置，长期计划必须进入执行账本（2026-11-07，Accepted）
+
+用户同意“架构优先、按 seam 纵向闭环再扩功能面”，并指出长期事项落档后仍常被忘记。
+本决定固定以下执行语义：
+
+```text
+ARCH_SEAM_FIRST=YES
+INCIDENTAL_REFACTOR=NO
+FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES
+PLAN_CONTINUITY_LEDGER=REQUIRED
+A0_GUARD_IS_NOT_ARCH_REFACTOR=YES
+```
+
+1. 架构 seam 不是“功能开发时顺便重构”。每个功能波必须在 `docs/TASKS.md` 声明
+   `PREREQUISITE_SEAMS`；只有每个前置 seam 达到
+   `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED`，功能波才可开工。功能实现只作为 seam
+   迁移后的验证切片，不得在任意功能卡内顺手改 seam、扩展抽象或保留双真源。
+2. 长期计划必须以稳定任务 ID 进入 `Architecture Critical Path / 长期计划账本`，持续记录
+   状态、`PREREQUISITE_SEAMS`、交付物、可观察验收、证据门、下一门与当前未完成原因。计划不能
+   只存在于架构文档、历史聊天或某个已完成功能卡的说明里。
+3. 每次派单与会话交接必须列出 `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH /
+   last_evidence`。任务移入 Done、上下文切换或新功能波开始后，原计划仍须可追踪。
+4. seam 的统一 Done 顺序固定为：
+   `CONTRACT_FROZEN -> ADAPTER_IMPLEMENTED -> TARGET_CONSUMERS_MIGRATED ->
+   OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH -> CONTRACT/NEGATIVE/REGRESSION TESTS PASS ->
+   DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS`。
+   缺少任一状态不得标 Done；“抽象已规划”“guard 通过”或历史 1.4 证据都不能替代。
+5. `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 保留为可执行隔离探针，状态补充
+   `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`；仅两文件，无缺陷即停止。它可以独立派发，
+   但不得阻挡架构主线，也不得计入任何 seam 进度。
+6. 当前生产源码自 G1-S1 `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc` 至架构规划基线
+   `fee63165f966a52318e332abe1ad7b184592a88a` 的变化为 0；11 个既有违规仍为
+   P1/P2/P3=`7/3/1`。A0 owner guard 已独立 QA / merge-prep 并集成，但只防新增债务，
+   不消除既有违规，也不证明 contracts seam、消费者迁移或产品架构重构完成。
+7. 下一专业角色为全新 `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER`。该 owner 先为
+   `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 产出自包含 seam 任务卡，不需要用户重复确认已批准的
+   架构方向；任务卡冻结后，同一 owner 可在边界内进入实现。首条只读动作为
+   `git status --short` / `git rev-parse HEAD`。
+
+证据入口：`docs/TASKS.md` `Architecture Critical Path / 长期计划账本`、
+`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`～`V2-ARCH-SEAM-USER-WRITE-W5`；`docs/ARCHITECTURE.md`
+§0.1、§0.6、§0.8、§0.10；`docs/PROJECT_RULES.md` `R035`；`docs/LESSONS.md` `L041`；
+`docs/V2_PLAN.md` §10、§12 ACTIVE、§13。本决定不构成实现、测试、QA、G1、runtime、Release
+或产品架构重构完成声明。

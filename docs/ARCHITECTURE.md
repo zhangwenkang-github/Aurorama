@@ -3,9 +3,9 @@
 | 项 | 值 |
 |----|----|
 | 文档版本 | v2.0（2026-11-07：V2 架构符合性、低耦合、逻辑 seam、守卫与并行基线） |
-| 状态 | `V2_EXECUTABLE_BASELINE / USER_CONFIRMED_2026_11_07 / ARCH_GATE_PASS / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` |
-| 作者会话 | `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07`；`AURORAMA_V2_ARCH_OWNER_GUARD_W1P_INTEGRATION_DOCS_OWNER_2026_11_07`（2026-11-07 integration sync） |
-| 上游依据 | 外部原始文档第 154–286 行；`V2-REQ-ARCH-001～072`；`V2-D010～D020`、`D198`、`D211`、`D212`；G1-S1 / G1-S6 静态证据 |
+| 状态 | `V2_EXECUTABLE_BASELINE / USER_CONFIRMED_2026_11_07 / ARCH_GATE_PASS / ARCH_SEAM_DELIVERY_ACTIVE / BROAD_FEATURE_WAVES_SEAM_GATED / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` |
+| 作者会话 | `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07`；`AURORAMA_V2_ARCH_OWNER_GUARD_W1P_INTEGRATION_DOCS_OWNER_2026_11_07`（integration sync）；`AURORAMA_V2_ARCH_SEAM_DELIVERY_PLANNING_OWNER_2026_11_07`（seam delivery planning） |
+| 上游依据 | 外部原始文档第 154–286 行；`V2-REQ-ARCH-001～072`；`V2-D010～D020`、`D198`、`D211～D213`；`R035`；`L041`；G1-S1 / G1-S6 静态证据 |
 | 适用对象 | V2 需求、架构、实现、独立 QA、merge-prep、Release 与多会话编排 |
 | 维护规则 | 架构变更先改本文并通知受影响任务；不新增零散架构说明文件；实现事实仍以代码、Gradle、测试和候选证据为准 |
 
@@ -27,7 +27,7 @@
 | 当前生产树漂移 | G1-S1 基线 `00f4bfb3…` 到当前 HEAD，`app/core/data/player/modes/settings/setup` 的生产源码与 Gradle 文件变化 0 | `git diff --name-only 00f4bfb3..HEAD -- 'app/**' 'core/**' 'data/**' 'player/**' 'modes/**' 'settings/**' 'setup/**'` |
 | 架构守卫 | A0 owner guard / debt ratchet 已独立 QA + merge-prep `PASS` 并集成；尚未接入 CI / Gradle 常规任务门 | source `a787b683`、`tools/architecture/**` 3 文件、integration `ab917404`；独立 QA 7/7、direct guard `19/19 + 8/8` |
 | 全量 V2 重构 | `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` | A0 只固化既有边界与债务 ratchet；contracts seam、adapter / consumer 迁移与候选架构门仍未实现 |
-| 本文状态 | `ARCH_CONFORMANCE_AUDIT=PASS / USER_CONFIRMED_2026_11_07 / ARCH_GATE=PASS / A0_INTEGRATED` | 用户确认记录；首卡 `READY / NOT_STARTED`，由 root 决定派发且必须先复现 |
+| 本文状态 | `ARCH_CONFORMANCE_AUDIT=PASS / USER_CONFIRMED_2026_11_07 / ARCH_GATE=PASS / A0_INTEGRATED / ARCH_SEAM_DELIVERY_ACTIVE` | 用户确认记录；下一架构主线为 Identity/Catalog seam 任务卡，W0 仅为 `ISOLATED_PROBE / NOT_STARTED` |
 
 “审计 PASS”只表示本基线足以指导后续实现并明确未证明项，不是产品架构完成、G1、
 QA、runtime 或 Release PASS。
@@ -61,22 +61,22 @@ PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
 |---:|---|---|---|---|---|
 | 1 | 交付目标、证据、阶段汇报 | 002、004、009 | `COMPLIANT` | `AGENTS.md` 最终格式、`R025`、`V2_PLAN` 门禁均要求实际执行 / 未覆盖 / 风险 / 证据 | 后续报告继续机械执行 |
 | 2 | 需求澄清、用户故事、非目标、风险 | 003、020、029 | `COMPLIANT` | G0/G1 需求门、任务卡非目标、用户确认记录 | 新需求仍走同一门 |
-| 3 | 编码前架构规范及用户确认 | 010、021、055、071 | `GAP` | 本文已升级为 v2.0；用户尚未确认，先前出现“首卡先批准、架构后补审”的次序倒置 | 用户确认本文后才放行首卡实现 |
-| 4 | ADR、已确认决策复用 | 011、051 | `COMPLIANT` | `DECISIONS` + ADR、D198 / D211 / D212 可定位 | 不在后续会话重复争论 |
+| 3 | 编码前架构规范及用户确认 | 010、021、055、071 | `GAP` | 本文 v2.0 已由用户于 2026-11-07 确认；审计时曾有“首卡先批准、架构后补审”的次序倒置。当前不再要求重复确认方向，但 contracts seam / consumer migration 仍未实现，功能波必须按 seam gate 放行 | 以 D213 / R035 的长期计划账本和完整 seam DoD 放行，不以“架构已确认”代替实现 |
+| 4 | ADR、已确认决策复用 | 011、051 | `COMPLIANT` | `DECISIONS` + ADR、D198 / D211～D213 可定位 | 不在后续会话重复争论 |
 | 5 | 契约先行、必要接口、可测试边界 | 012、056、062 | `GAP` | 逻辑 seam 只有候选锚点；UI 仍可看到 data / player-local 具体实现 | 先建最小 public port + adapter 试点 |
 | 6 | 依赖方向、无循环 / 反向 / 跨层 | 013、057 | `GAP` | 模块级环 0，但 7 个 P1 跨层 / 共享包违规仍在 | debt ratchet 禁新增，逐 seam 收敛 |
 | 7 | 单一数据所有权 | 058 | `GAP` | `models` 49 文件跨 core/data、`utils` 39 文件跨 app/core/data；下载与播放状态仍有跨界面推导风险 | 在建 seam 时写明唯一 writer 与派生投影 |
 | 8 | 显式依赖、全局 / 单例边界 | 059 | `NOT_PROVEN` | 现有 Hilt 构造注入较多，但 G1-S1 未做字段 / 方法级全局状态图 | 只对新增链路做构造 / owner 审查，不扩全仓 bespoke 扫描 |
-| 9 | 公共层治理、影响面分析 | 014、060、064 | `GAP` | 规则存在；首卡原文件面仍写“按实际源码实例化”，共享层审批没有机械门 | 每卡冻结精确白名单和影响矩阵 |
-| 10 | 统一失败、重试、超时、降级、日志 | 061 | `NOT_PROVEN` | 下载已有多个纯规则和测试，但尚无全链路统一错误合同 | 首卡不扩到这里；由对应下载 / 写 / 搜索波验证 |
+| 9 | 公共层治理、影响面分析 | 014、060、064 | `GAP` | 低耦合与公共层规则存在；W0 隔离探针已冻结精确两文件，但 seam 任务卡尚未创建，公共合同 / adapter / consumer 影响面仍无实现证据 | 每个 seam / 功能卡冻结精确白名单和影响矩阵，并进入 TASKS 账本 |
+| 10 | 统一失败、重试、超时、降级、日志 | 061 | `NOT_PROVEN` | 下载已有多个纯规则和测试，但尚无全链路统一错误合同 | W0 不扩到这里；由对应下载 / 写 / 搜索波的 seam 与功能切片验证 |
 | 11 | 文档单一权威与同步 | 016–019、047 | `COMPLIANT` | README / ARCHITECTURE / DECISIONS+ADR / V2_PLAN / TASKS / TEST_PLAN / RELEASE_PLAN 映射已确认；禁建零散 md | Release notes 到候选门再更新 |
-| 12 | 任务卡、正交拆分、分支基线、文件边界 | 017、022、030、031、035、036、066 | `GAP` | 任务卡字段和分支规则存在；首卡尚未冻结精确文件白名单，当前无功能分支 | 本文 §0.8 / §0.9 先冻结；实现时每卡单独 worktree |
+| 12 | 任务卡、正交拆分、分支基线、文件边界 | 017、022、030、031、035、036、066 | `GAP` | 任务卡字段和分支规则存在；W0 隔离探针已冻结精确两文件，W1 Identity/Catalog seam 任务卡尚未创建，当前无产品功能分支 | 每个 seam 先冻结自包含卡、worktree 与文件边界；实现时从当次 clean integration 建独立 worktree |
 | 13 | 专业角色、独立 QA、子代理报告 | 005、015、025、026、032、034、052、067 | `COMPLIANT` | `AGENTS.md`、`R004`、`R012`、`R030` 明确实现 / QA / review / merge-prep 分权 | 未执行阶段只写 NOT_REACHED |
-| 14 | 标准工作流顺序 | 001、006–008、023–029、033、037–039 | `GAP` | 需求门已完成；首卡批准早于 V2 架构确认；实现尚未开始，因此可恢复 | 先补用户架构确认，再按任务→RED→自检→QA→merge-prep 顺序推进 |
-| 15 | 自检、独立 QA、merge-prep、集成态证据 | 024、027、037–039、041–044、046、063、065、069 | `NOT_PROVEN` | 当前没有 2.0 实现候选、executed、QA 报告、祖先矩阵或集成态门禁 | 首卡架构确认后才进入该链 |
+| 14 | 标准工作流顺序 | 001、006–008、023–029、033、037–039 | `GAP` | 需求与架构方向均已确认；审计时“首卡先于架构确认”的次序缺陷已记录，当前尚未开始产品实现。正确恢复顺序不是直接扩功能，而是先冻结 Identity/Catalog seam 任务卡并按 seam DoD 纵向闭环 | 任务卡 → seam 合同 / adapter / 消费者迁移 → RED / GREEN / 回归 → 独立 QA → merge-prep / integrated gate |
+| 15 | 自检、独立 QA、merge-prep、集成态证据 | 024、027、037–039、041–044、046、063、065、069 | `NOT_PROVEN` | 当前没有 2.0 seam / 功能实现候选、executed、独立 QA、祖先矩阵或 integrated gate；W0 只是隔离探针，A0 guard 只是债务门 | Identity/Catalog seam 完整 DoD 后才为 W1 功能波提供前置证据 |
 | 16 | Token / 读序 / 停止错误方向 | 050、053、054 | `COMPLIANT` | 本轮只读指定段与原子报告；错误次序被记录为 GAP；无全篇加载 | 后续复用同一白名单策略 |
 | 17 | P0/P1、测试、构建、迁移、配置、回滚、发布门 | 040–049、069 | `GAP` | 规则已配置，但当前 `DatabaseModule.kt:25` 仍有 `fallbackToDestructiveMigration(dropAllTables = true)`，发布门未满足；无 2.0 候选 | P0 迁移门必须在候选前关闭；当前不释放发布 |
-| 18 | 架构守护、发布图门 | 068、070 | `GAP` | G1-S1 的 allowlist 只在一次性 inline 原型中运行；CI 无 architecture / owner / contract drift job | 建单一只读 guard + JSON 基线，禁新增债务 |
+| 18 | 架构守护、发布图门 | 068、070 | `GAP` | A0 owner guard / debt ratchet 已独立 QA、merge-prep 并集成到 `ab917404`，direct guard 与 11 违规 ratchet 可运行；CI / Gradle 常规 architecture / owner / contract drift 接线仍 pending。A0 只防新增债务，不是 seam 或产品重构 | 保留单一只读 guard + JSON 基线并补 CI 接线；后续 seam 以合同 / 消费者迁移 / 测试闭环，不继续扩 bespoke scanner |
 | 19 | 原始材料取舍与吸收 | 072 | `COMPLIANT` | 72 条已归一、分级、逐条回链；外部原文只读；不机械复制文档结构 | 后续变化先登记决策 |
 | 20 | 当前阶段截图 / Release 材料 | R013、V2 核心链路门 | `N/A` | 当前没有候选包核心旅程 PASS；按 `R013` 禁止制作发布材料 | 实现、独立 QA、候选旅程后另行授权 |
 
@@ -87,16 +87,17 @@ PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
 | 开场只读与初始化声明 | `PARTIAL` | 本轮按派单读取 `AGENTS`、V2 指定段、规则、决策、任务、项目地图、G1 与外部 1–286 行；首条回复未按要求输出“N 规则 / M 教训 / K 任务”计数声明，后续以精确读序和证据补足，不影响未开始编码 |
 | 需求澄清 | `SATISFIED` | G0 完成；架构 72 条有来源、可观察验收、依赖、非目标和用户确认 |
 | 架构与契约 | `PARTIALLY_SATISFIED_RECOVERED` | 需求已接受；本文补齐 V2 执行版；逻辑 seam 仍在代码侧未实现 |
-| 用户确认架构 | `SATISFIED` | 用户于 2026-11-07 明确确认并指示执行下一步；架构门 PASS，首卡进入 In Progress |
-| 任务卡 | `PARTIAL_SATISFIED` | 首卡已批准，但原来的文件边界不够精确；本文已给出可执行窄白名单 |
+| 用户确认架构 | `SATISFIED` | 用户于 2026-11-07 明确确认并指示执行下一步；架构门 PASS。W0 仅为隔离探针，架构主线下一门是 Identity/Catalog seam 任务卡冻结 |
+| 任务卡 | `PARTIAL_SATISFIED` | W0 隔离探针已有精确两文件白名单；Identity/Catalog seam 自包含任务卡尚未创建，其他功能波不得据本文直接开工 |
 | 实现 | `NOT_REACHED` | 无产品代码修改 |
 | 自检 | `NOT_REACHED` | 无 RED / GREEN / 构建 / 定向回归 |
 | 独立 QA | `NOT_REACHED` | 未派发，不能用历史 W90 / 1.4 证据替代 |
 | merge-prep | `NOT_REACHED` | 无功能分支、无 source/target/final 审计 |
 | 集成分支门 | `NOT_REACHED` | 无祖先矩阵、集成态构建、核心回归或候选包 |
 
-流程上的实际缺陷是“架构确认置于首卡批准之后”。由于没有开始编码，风险仍可恢复；
-修复方式是由用户确认本文后才放行实现，而不是降低门禁或写 `PASS_WITH_GAPS`。
+流程上的历史缺陷是“架构确认置于首卡批准之后”。用户已于 2026-11-07 确认本文；当前不再
+要求重复确认方向。修复方式是把 W0 限定为隔离探针，并让所有功能波通过 Identity/Catalog
+起始的 seam 账本与完整 DoD 放行，而不是降低门禁或写 `PASS_WITH_GAPS`。
 
 ### 0.5 低耦合规则（新代码强制）
 
@@ -134,6 +135,25 @@ PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
 `DownloadTask` / `DownloadAction`、`PlaybackCoordinator`、`MusicPlaybackController`。
 这些是“可演进合同”，不是已经完成的严格 seam；合同不得泄漏 DAO、SDK、Worker、
 `PlayerHolder` 或 `MPVPlayer`。
+
+**长期计划执行账本**：canonical seam 关键路径维护在
+`docs/TASKS.md` 的 `Architecture Critical Path / 长期计划账本`。当前 open ID 为
+`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`、`V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2`、
+`V2-ARCH-SEAM-PLAYBACK-SESSION-W3`、`V2-ARCH-SEAM-READER-SOURCE-W4`、
+`V2-ARCH-SEAM-USER-WRITE-W5`。功能波派单前必须核对 `PREREQUISITE_SEAMS`；交接必须列出
+`OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`。
+
+seam 的 Definition of Done 统一为：
+
+```text
+CONTRACT_FROZEN -> ADAPTER_IMPLEMENTED -> TARGET_CONSUMERS_MIGRATED ->
+OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH -> CONTRACT/NEGATIVE/REGRESSION TESTS PASS ->
+DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
+```
+
+上述 `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 是功能波前置门的压缩表示，只有在完整
+八状态全部满足后才成立。缺少任一状态不得标 Done，不得用“抽象已规划”“guard 通过”或历史
+1.4 证据代替。功能只作为 seam 迁移后的验证切片，禁止在任意功能卡内顺手重构。
 
 ### 0.7 架构守护与 debt ratchet
 
@@ -177,10 +197,13 @@ P1/P2/P3=`7/3/1`。A0 findings P0–P3=`0/0/0/0`。该门禁只冻结继承基�
 
 ### 0.8 共享文件锁与可并行候选
 
-所有功能任务必须从用户确认后、提交完成的 integration SHA 单独创建 worktree；禁止从另一
-功能分支派生再合入。本审计时 integration SHA 为
-`6d76936253787dbb0c07ef939f8b936fe2e761cb`，但文档 WIP 未提交；实现前须先由集成 owner
-完成文档提交，再从新的 clean integration SHA 派出。
+所有 seam / 功能任务必须从当次已提交、clean 的 integration SHA 单独创建 worktree；禁止从
+另一功能分支派生再合入。本文审计时 integration SHA 为
+`6d76936253787dbb0c07ef939f8b936fe2e761cb`；随后 A0 guard 已独立 QA / merge-prep 并集成到
+`ab9174043db9cb9e637054210cfee580d06f2965`。2026-11-07 seam 规划基线为 clean
+`fee63165f966a52318e332abe1ad7b184592a88a`。后续 docs candidate 集成后，Identity/Catalog
+seam worktree 必须从当次新的 clean integration 创建，不得继续从审计 SHA、A0 integration
+SHA 或任一 sibling feature branch 派生。
 
 | 串行咽喉 | 锁范围 | 规则 |
 |---|---|---|
@@ -209,9 +232,11 @@ TTS；`NavigationRoot` / `DownloadsScreen` 或共享 UI 会影响 W0、W1 与导
 四组白名单两两无交集。任一任务若需要 `settings.gradle.kts`、根 build、
 `JellyfinRepository.kt`、下载真相、导航宿主或公共 UI，必须停止并排队串行，不得自行扩锁。
 
-### 0.9 首卡约束与 D212 lineage
+### 0.9 W0 隔离探针约束与 D212 lineage
 
-首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 静态审计结果：
+`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 是
+`ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`，不是 seam，也不能作为后续功能波的前置证明。
+其静态审计结果：
 
 ```text
 HISTORICAL_FIX=61c04a38a037dbc5fa450c9e809d2277fcd33151
@@ -225,13 +250,13 @@ LINEAGE_STATUS=UNPROVEN
 
 `61c04a38` 已把 `CinefinCard` 的整卡 click / long-click 置空，把内容区交互与尾部任务动作
 拆成兄弟范围，并新增 `DownloadRowAccessibilityContractTest`。当前代码的完成叶行仍通过
-`DownloadAction.OpenEntry` → `resolveEntryItem` → `Host.onItemClick` 打开目标。因此首卡不能
+`DownloadAction.OpenEntry` → `resolveEntryItem` → `Host.onItemClick` 打开目标。因此该探针不能
 默认“尚未修复”：实现 owner 必须先做当前对象的最小复现；无缺陷时返回
 `NO_DEFECT_REPRODUCED` 并停止。
 
-首卡放行条件：
+W0 隔离探针放行条件：
 
-1. 用户确认本 V2 架构基线。
+1. 用户已于 2026-11-07 确认本 V2 架构方向；执行仍需遵守 seam gate，但不重复询问方向。
 2. 集成 owner 提交文档并确认 clean integration SHA；实现 owner 从该 SHA 单独 worktree。
 3. 默认白名单只有 `DownloadRows.kt` 与 `DownloadRowAccessibilityContractTest.kt`。
 4. 先绑定 `V2-FIX-DOWNLOAD-001` / `V2-REG-DOWNLOAD-001`，记录当前 RED 或明确无缺陷。
@@ -239,6 +264,8 @@ LINEAGE_STATUS=UNPROVEN
    下载状态机、通知、schema 或迁移，停止并拆新卡；不得扩项。
 6. 修复后必须另有独立候选包场景；静态测试、历史 v1.4 通过或 `61c04a38` 祖先都不能单独
    证明当前候选 `FIXED_IN_CANDIDATE`。
+7. 该探针可独立派发，但不得阻挡 Identity/Catalog seam，也不得计入
+   `CONTRACT_FROZEN` 之后的任一 seam 状态。
 
 ### 0.10 未证明项与确认门
 
@@ -252,13 +279,16 @@ LINEAGE_STATUS=UNPROVEN
 - contracts seam、adapter / consumer migration 与产品全量架构重构仍 `NOT_PROVEN`；
   guard 集成不等于产品架构重构完成。
 - 模块级无环不等于包级、类型级或调用级低耦合。
+- 当前长期关键路径先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的任务卡冻结与实现；W1–W5
+  功能波在各自 `PREREQUISITE_SEAMS` 达到完整 DoD 前保持 `BLOCKED_BY_PREREQUISITES`。
 - `DatabaseModule.kt:25` 的破坏性 fallback 仍是 P0 发布阻断，归
   `G2-ARCH-CONTRACTS-MIGRATION`，不得由 W0 下载卡修复夹带。
-- 首卡所示缺陷已有历史修复，但当前候选复现、独立 QA 和真实入口回归未执行。
+- W0 隔离探针所示缺陷已有历史修复，但当前候选复现、独立 QA 和真实入口回归未执行。
 - 2.0 实现、自检、独立 QA、merge-prep、核心候选旅程、P0–P3 与 Release 均未到达。
 
-用户已于 2026-11-07 确认本文件，关闭“架构规范与并行编排门”；首卡可按批准范围进入实现，
-但仍不自动批准设备、独立 QA 或 Release。
+用户已于 2026-11-07 确认本文件，关闭“架构规范与并行编排门”。当前唯一架构主线入口是
+`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的 implementation planning/implementation；W0 只能作为
+独立隔离探针，仍不自动批准设备、独立 QA 或 Release。
 
 ---
 

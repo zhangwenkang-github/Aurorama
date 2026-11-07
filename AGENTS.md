@@ -5,30 +5,39 @@
 ## Aurorama 2.0 交接启动硬门（2026-11-06，优先于下方通用开工顺序）
 
 - **当前状态（2026-11-07，优先于下方旧 G2 控制面条目）**：`TTS_G2_DEFERRED /
-  DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE /
-  DEFERRED_BLOCKED_CONTROL_PLANE / SOLVE_AFTER_OTHER_2_0_CORE_FEATURES /
-  DO_NOT_RESUME_OLD_HANDOFF_LOOP / FIRST_CARD_APPROVED /
+  DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE / DEFERRED_BLOCKED_CONTROL_PLANE /
+  SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / DO_NOT_RESUME_OLD_HANDOFF_LOOP /
+  ARCH_SEAM_DELIVERY_ACTIVE / W0_ISOLATED_PROBE_ALLOWED /
+  BROAD_FEATURE_WAVES_SEAM_GATED / PLAN_CONTINUITY_LEDGER=REQUIRED /
+  ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
+  FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES /
   ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
   ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-  ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
+  A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`。
   TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序延期；不得写成需求删除、已交付、
-  QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
-  `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场归档在本地分支
+  QA / runtime / G1 PASS。本次架构 seam 规划从 clean integration
+  `fee63165f966a52318e332abe1ad7b184592a88a` 创建独立 docs candidate；失败现场归档在本地分支
   `codex/g2-prewindow-blocked-20261107`，commit
   `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），含 9 个 settlement
   文件与 `qa-pad-v2` 三文件，只读保留，不合入，不 push，不 tag。旧 G2 合同与 QA evidence
   冻结；不得重入 64/65 transition、exact count 或旧 handoff 修复循环，不得跳过 handoff
-  直接派 Pad/K60 QA。非 TTS 六波与首卡 `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 已规划且
-  用户已批准。`docs/ARCHITECTURE.md` v2.0 已确认；A0 guard source
+  直接派 Pad/K60 QA。`docs/ARCHITECTURE.md` v2.0 已确认；A0 guard source
   `a787b683c89389491099ea7acb069422190327c3` 已经独立 QA `PASS`、merge-prep `PASS`，
   并以 source/final stable patch-id MATCH 集成到 clean integration HEAD
   `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
-  全量产品代码重构仍 `NOT_PROVEN`，contracts seam / 消费者迁移未落地。首卡
-  `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 状态为
-  `READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED`，尚未派发；由
-  root 决定是否派全新 `ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER`。该 owner 必须从固定的
-  clean integration SHA 先复现，历史修复 `61c04a38` 只能在当前候选复现后作为 lineage
-  输入；无缺陷则 `NO_DEFECT_REPRODUCED` 停止。设备、QA 与 Release 仍需单独授权。
+  全量产品代码重构仍 `NOT_PROVEN`，contracts seam / 消费者迁移未落地；A0 guard 不是
+  architecture progress。当前长期关键路径先进入
+  `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的 implementation planning/implementation；W1–W5
+  的功能波只有对应 `PREREQUISITE_SEAMS` 达到 `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED`
+  后才可开工。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 状态为
+  `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`，可独立派发但不挡
+  架构主线、不得计作 seam 进度；仍仅两文件，无缺陷即 `NO_DEFECT_REPRODUCED` 停止。
+  `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
+  V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
+  V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
+  `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> W1 功能波`；
+  `last_evidence=fee63165 clean integration + A0 integration ab917404 +
+  docs/ARCHITECTURE.md §0.1/§0.8 + docs/TASKS.md Architecture Critical Path`。
 
 > 下方旧 G2 条目原样保留用于审计追溯；其中“当前 / 下一步 / 必须 / ACTIVE”等措辞只描述
 > 对应历史时点，不能作为当前执行指令。当前非 TTS 主线不运行旧 handoff 循环。
@@ -173,7 +182,8 @@
 - **实现 / QA 分权（2026-10-24，强制）**：实现子代理只做自身 TDD、构建、边界内最小真机自测和实现报告；**禁止自行开启、派发或撰写独立 QA，禁止自行进入 QA 阶段或 merge-prep**。独立 QA 必须由负责人在实现收口后显式启动，且使用与实现不同的全新代理。
 - **负责人退出契约（2026-10-24，强制）**：阶段或任务收口时，以下项目必须全部完成，缺一项不得宣告结束：
   1. 把完成 / 未完成 / BLOCKED、决策、实际门禁与证据指针写回对应任务线文档；
-  2. 更新唯一 `ACTIVE` handoff，含当前 commit、分支、设备 / 锁、未覆盖项、下一步入口与实际上下文水位，旧状态标 `HISTORY`；
+  2. 更新唯一 `ACTIVE` handoff，含当前 commit、分支、设备 / 锁、未覆盖项、下一步入口、
+     `OPEN_LONG_TERM_PLAN_IDS`、`NEXT_CRITICAL_PATH`、`last_evidence` 与实际上下文水位，旧状态标 `HISTORY`；
   3. 执行一次 Engramory 收尾判断，并在最终回复报告 `added / updated / archived / skipped`、索引行数 / 字节与 validator 结果；
   4. 明确写出下一步由什么角色做什么、第一条只读动作、停止条件；没有下一步时写“无”；
   5. **交接时机与硬门（2026-11-05 修订）**：到 30 万停止扩项并写完整检查点；到 35 万若仍有已授权可执行工作，按固定顺序“完成当前最小收口 → 写回任务线 / 任务板 / 决策 / 日志 / 证据与唯一 `ACTIVE` → 提交并确认 clean → Engramory sync + checker/doctor → 旧会话 fresh read-only pre-handoff audit PASS”后创建具体后继。**可交接硬门**：当前波次已收口或明确 `BLOCKED`；无运行中的实现 / QA / 审查代理；设备锁已释放或明确移交；下一任务已授权、具体、可立即执行且无需旧会话补材料；首条 prompt 自包含（专业身份、精确读序、当前事实、非目标 / 红线、第一步与停止条件）。设备在线 / keyguard 只审计下一任务实际需要的设备，无关设备离线不得阻塞。若只剩等用户 / 等设备解锁 / 等外部状态，留在当前线程写检查点并停止，不创建空闲会话；用户恢复且出现具体动作后再交接。新会话做 startup gate 与最小对象 spot-check 后直接执行第一项实际任务，不得等待前任补文档；旧会话创建后继后不得再改实质工作树。禁止为满足 35 万数字制造空会话，thread id 不作为后继门；

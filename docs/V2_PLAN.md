@@ -1,36 +1,47 @@
 # Aurorama 2.0 权威需求与交付计划
 
 > **当前状态（2026-11-07）**：`TTS_G2_DEFERRED / DELIVERY_ORDER=DEFERRED_AFTER_2_0_CORE /
-> DEFERRED_BLOCKED_CONTROL_PLANE /
-> SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
-> ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
+> DEFERRED_BLOCKED_CONTROL_PLANE / SOLVE_AFTER_OTHER_2_0_CORE_FEATURES /
+> DO_NOT_RESUME_OLD_HANDOFF_LOOP / ARCH_SEAM_DELIVERY_ACTIVE /
+> W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED /
+> PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
+> FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 > ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-> ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
-> DO_NOT_RESUME_OLD_HANDOFF_LOOP / G0_PASSED / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
+> A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
+> G0_PASSED / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 > PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。
 > TTS 仍是 2.0 `MUST` 历史基线，但当前交付顺序已延期；不得写成需求删除、已交付、
-> QA / runtime / G1 PASS。本轮规划开工时 integration HEAD
-> `a18362f85a4e03c089cf1aca2b583d0a53173113` 为 clean；失败现场在本地只读归档分支
+> QA / runtime / G1 PASS。本次 seam 规划从 clean integration
+> `fee63165f966a52318e332abe1ad7b184592a88a` 创建独立 docs candidate；失败现场在本地只读归档分支
 > `codex/g2-prewindow-blocked-20261107`，commit
 > `c5a5ac0a1ff10d3e8a88dca30e4e461a8d932fe0`（parent `de6dd31e`），含 9 个 settlement
 > 文件与 `qa-pad-v2` 三文件，不合入、不 push、不 tag。旧 G2 合同与 QA evidence 冻结；
-> 非 TTS 2.0 功能波次与首张任务卡已规划且用户已批准；用户于 2026-11-07 确认
+> 非 TTS 2.0 功能波次已批准；用户于 2026-11-07 确认
 > `docs/ARCHITECTURE.md` v2.0，架构门 PASS。A0 owner guard / debt ratchet source
 > `a787b683c89389491099ea7acb069422190327c3` 已通过独立 QA `7/7` 与 merge-prep，
 > 并以 source/final stable patch-id MATCH 集成到 clean integration HEAD
 > `ab9174043db9cb9e637054210cfee580d06f2965`，只新增 `tools/architecture/**` 3 文件。
-> 实际产品架构重构仍为 `NOT_PROVEN`，contracts seam / 消费者迁移未落地；首卡状态为
-> `READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED`，尚未派发，
-> 由 root 决定是否派全新实现 owner。设备、独立 QA 与 Release 仍需单独批准。
+> 实际产品架构重构仍为 `NOT_PROVEN`，contracts seam / 消费者迁移未落地。当前长期关键路径
+> 先进入 `V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；W1–W5 功能波在对应 `PREREQUISITE_SEAMS`
+> 达到 `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 前不得开工。
+> `V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 仅为
+> `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`，可独立派发但不挡主线、不计 seam 进度，
+> 仅两文件且无缺陷即停止。设备、独立 QA 与 Release 仍需单独批准。
+> `OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
+> V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
+> V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
+> `NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
+> `last_evidence=fee63165 clean integration + A0 integration ab917404 +
+> docs/ARCHITECTURE.md §0.1/§0.8 + docs/TASKS.md Architecture Critical Path`。
 > 下方 `PAD_RUNTIME...` 与 64/65 段只作旧 G2 控制面 HISTORY，不得恢复执行循环。
 >
 > **HISTORY（2026-11-07 前；非当前状态）** 状态：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / AUDIT_RECEIPT_PASS / qaDispatchable=true / PAD_QA_PROMPT_DESCRIPTOR_READY_PENDING_FRESH_REVIEW / PAD_QA_NOT_EXECUTED / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / AUDIT_SNAPSHOT_CURRENT_TRANSITIONS_EXACT_64 / LIVE_PREFLIGHT_TRANSITIONS=OBSERVED_NOT_RECEIPT_BOUND / G0_PASSED / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / D202_D210_ACCEPTED / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / D206_KOKORO_RUNTIME_EXECUTED / D207_KOKORO_AUDITION_ACCEPTED / PAD_QA_V6_BASELINE_FAIL / PAD_STOP_QA_V7_PASS / QA_V8_TOOL_NONCONVERGENCE_HISTORY / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / ROUND1_TO_ROUND9_HISTORY_RETAINED / HISTORICAL_PRE_HANDOFF_AUDIT_PASS=PASS / HISTORICAL_OUTER_HANDOFF_QA_DISPATCHABLE=DEFERRED_TO_G2 / G2_TOOLS_116_0_188 / CURRENT_TRANSITIONS_EXACT_64=AUDIT_SNAPSHOT_ONLY / CONTRACT_REGRESSION_108_PASS / PRODUCT_P0_P3_NOT_ASSESSED / KOKORO_LICENSE_PARTIAL / C1_EXPRESSIVE_ENGINE_PROFILE_OPEN / Q03_OPEN / L2_L3_LOCKED / G1_NOT_PASSED / GLOBAL_RUNTIME_UNVERIFIED`。其中
 > `RUNTIME_QA_DEFERRED_TO_G2 / validation.handoffPhase=POST_QA_RUNTIME_DEFERRED /
 > QA_DISPATCHABLE=DEFERRED_TO_G2 / activePrompt=none` 仅保留既有
 > `HANDOFF_BOOTSTRAP_V2` outer-handoff anchor 与 emitted prompt 的历史语义，不是当前 G2
-> dispatch 状态；当前执行权由 clean settlement + canonical preflight PASS 后的
+> dispatch 状态；该历史现场的执行权由 clean settlement + canonical preflight PASS 后的
 > `contract.authorization.qaDispatch.promptText` 决定。
-> 当前阶段：开发前置·G1→G2 入口 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / auditedSourceCommit=96e19ca2606d851ecbe1c4ed15188767207f9f64 / receiptSha256=c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d / contractSha256=70d3b869cfb33f34f372c7de9e13cb5198f5e8502dc6c07383bb559e9f91bad0 / qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 / promptSha256=5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172 / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / HISTORICAL_GATE=validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / HISTORICAL_GATE=QA_DISPATCHABLE=DEFERRED_TO_G2 / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。独立 full audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 audited source/provenance `96e19ca2` PASS：G2 tools `116/0/188`、handoff `108/0 + TEMP_CLEANUP=PASS`、manifest `11/11`、clean witness、候选与历史证据均通过。`head/headExpectation` 只绑定 audited source/provenance；clean settlement 后 QA live HEAD 取 canonical preflight 现场值，历史 emitted `NEXT_PROMPT_BEGIN` 不覆盖 settlement 后 G2 dispatch。方案 A 已把 audit-time `currentTransitions=64` 与 live preflight transition observation 分离；当前 patch 仍待 fresh review，QA 尚未执行。真实机器合同仍为 `PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / qaDispatchable=true`，当前不是 review、QA、runtime 或 G1 PASS。
+> **HISTORY（2026-11-07 前；非当前状态）— 开发前置·G1→G2 入口**：`PAD_RUNTIME_TOOLS_AUDIT_PASS_PENDING_FRESH_PAD_QA / auditedSourceCommit=96e19ca2606d851ecbe1c4ed15188767207f9f64 / receiptSha256=c7d9005143231e6cc2661c9476380d4194f8d6dab90fdd8d61c5e8e9c3219a9d / contractSha256=70d3b869cfb33f34f372c7de9e13cb5198f5e8502dc6c07383bb559e9f91bad0 / qaDispatchable=true / activePrompt=G2_PAD_QA_OWNER_2026_11_06 / promptSha256=5216b3d0e401aa9a67136762e155505a636300ccb27c715abe5e06a1a29d7172 / WIP=PLAN_A_STATE_MODEL_REDESIGN_PATCHED_PENDING_FRESH_REVIEW / HISTORICAL_OUTER_HANDOFF=RUNTIME_QA_DEFERRED_TO_G2 / G1_STATIC_CLOSURE_IN_PROGRESS / G2_ENTRY_AUTHORIZED_RUNTIME_CONTRACT_IN_PROGRESS / HISTORICAL_GATE=validation.handoffPhase=POST_QA_RUNTIME_DEFERRED / HISTORICAL_GATE=QA_DISPATCHABLE=DEFERRED_TO_G2 / PAD_RUNTIME_ATTEMPT_SCOPE_V2 / K60_GATED_LOCKED / QA_V9_BLOCKED_TOOL_NONCONVERGENCE / CORE_STEPS_1 / PAD_10_MIN_PARTIAL_TOOL_BLOCKED / PRODUCT_P0_P3_NOT_ASSESSED / ACTIVE=0`。独立 full audit `G2_FINAL_AUDIT_OWNER_2026_11_06` 已在 audited source/provenance `96e19ca2` PASS：G2 tools `116/0/188`、handoff `108/0 + TEMP_CLEANUP=PASS`、manifest `11/11`、clean witness、候选与历史证据均通过。`head/headExpectation` 只绑定 audited source/provenance；clean settlement 后 QA live HEAD 取 canonical preflight 现场值，历史 emitted `NEXT_PROMPT_BEGIN` 不覆盖 settlement 后 G2 dispatch。方案 A 已把 audit-time `currentTransitions=64` 与 live preflight transition observation 分离；该 patch / QA 现场只作历史，不得恢复。当前不是 review、QA、runtime 或 G1 PASS。
 > **HISTORY（旧 G2 settlement 收口；非当前）**：`PLAN_A_STATE_MODEL_REVIEW_PASS /
 > SETTLEMENT_COMMIT=241b8b356e2aab4d1ef43016639dc0203eb10f7d /
 > CLEAN_PREFLIGHT_PASS`。下方 `PENDING_FRESH_REVIEW` 文案只作 pre-review 证据。
@@ -3038,8 +3049,8 @@ Book direct Download 已可实现 200/206，但完整远程 range 仍需真实�
 
 **G1/1 首波结论（历史快照）**：S1–S3 已形成可冻结的证据与决策输入，但没有任何真实服务器、
 设备、迁移、协议或候选包 PASS；首波结束时 `V2-Q-G1-03/04` 尚等待 S4/S5。后续 S4/S5、
-`V2-D201` 与 §12 ACTIVE 已取代该下一步入口；当前唯一入口是 §12 的残余门审计与用户授权
-准备，禁止从本快照恢复旧计划。
+`V2-D201`、`V2-D211～D213` 与当前 §12 ACTIVE 已取代该入口；本快照只作审计追溯，禁止从
+此恢复旧计划、残余门审计或派单。
 
 #### 5.11.10 G1-S4-A runtime closure / 许可证据（2026-11-03）
 
@@ -3435,6 +3446,15 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 - 独立 QA 使用与实现者不同的全新代理，可在隔离测试环境通过真实 UI 点击、`adb` 文本取证、fixture 和自动化执行核心旅程。
 - merge-prep 使用另一个独立角色，核对 target 漂移、白名单、source/final patch-id、目标态门禁和承诺祖先。
 - `Done` 表示已进入集成分支并通过集成态门禁；外部 push、tag、GitHub Release 和正式资产上传必须另行获得用户授权。
+- 长期 seam / 计划进入 `Done` 还必须满足统一 DoD：
+  `CONTRACT_FROZEN -> ADAPTER_IMPLEMENTED -> TARGET_CONSUMERS_MIGRATED ->
+  OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH -> CONTRACT/NEGATIVE/REGRESSION TESTS PASS ->
+  DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS`。缺任一状态时保持
+  `BLOCKED` / `IN_PROGRESS`，不得只因文档落档、抽象已规划、A0 guard 通过或功能卡结束而 Done。
+- 功能波派单前从 `docs/TASKS.md` 的 `Architecture Critical Path / 长期计划账本` 读取
+  `PREREQUISITE_SEAMS`；所有前置 seam 达到 `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED`
+  （即完整八状态 DoD）后才可开工。交接固定列出
+  `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`。
 - 任务分支在本地进入集成分支且不再需要后可删除；远端分支仅在用户批准 push 后按集成结果清理。
 - `RUNTIME_QA_DEFERRED_TO_G2` 是 G1 静态收口的终态事实，不是 QA 执行授权：不得恢复 QA-v9
   重试、派发 Pad/K60、把旧证据冒充新产品门，或把延期写成 `PASS_WITH_GAPS`。完整 runtime
@@ -3456,14 +3476,16 @@ Nocturne 圆角 12→8dp；UI 升级为 V2 R1 权威。S5 仍不关闭 Q03 的 T
 
 ## 12. 下一需求域交接
 
-### ACTIVE：TTS_G2_DEFERRED_AFTER_2_0_CORE / A0_GUARD_INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED（2026-11-07）
+### ACTIVE：ARCH_SEAM_DELIVERY_ACTIVE / W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED（2026-11-07）
 
 **当前状态**：`TTS_G2=DEFERRED_BLOCKED_CONTROL_PLANE /
-SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / FIRST_CARD_APPROVED /
-ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
+SOLVE_AFTER_OTHER_2_0_CORE_FEATURES / ARCH_SEAM_DELIVERY_ACTIVE /
+W0_ISOLATED_PROBE_ALLOWED / BROAD_FEATURE_WAVES_SEAM_GATED /
+PLAN_CONTINUITY_LEDGER=REQUIRED / ARCH_SEAM_FIRST=YES / INCIDENTAL_REFACTOR=NO /
+FEATURE_WAVE_GATED_BY_REQUIRED_SEAM=YES / ARCH_CONFORMANCE_PASS / USER_CONFIRMED_2026_11_07 /
 ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED /
-FIRST_CARD=READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED / NOT_STARTED /
-ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
+A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN /
+W0=ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED /
 DO_NOT_RESUME_OLD_HANDOFF_LOOP / G1_NOT_PASSED / TTS_RUNTIME_UNVERIFIED /
 PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。用户以
 `V2-D211` 决定先推进其他
@@ -3471,16 +3493,26 @@ PRODUCT_P0_P3_NOT_ASSESSED / NO_IMPLEMENTATION_OR_RELEASE_AUTHORIZATION`。用�
 TTS 需求仍是 2.0 `MUST` 历史基线，不是删除、降级或 shipped；当前只延期交付顺序，绝不
 代表 TTS、QA、runtime 或 G1 PASS。
 
+`OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
+V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,
+V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5`；
+`NEXT_CRITICAL_PATH=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 -> V2-NON-TTS-W1`；
+`last_evidence=fee63165 clean integration + A0 integration ab917404 +
+docs/ARCHITECTURE.md §0.1/§0.8 + docs/TASKS.md Architecture Critical Path`。
+
 **架构执行事实**：外部架构原始材料第 154–286 行已归一为
 `V2-REQ-ARCH-001～072`，并已由用户接受；G1-S1 冻结了 19 条 project 边、0 个模块级环、
 11 个稳定违规 ID 与“逻辑 contracts seam + FQCN / owner allowlist + debt ratchet”方向
 （`V2-D198`）。全新架构审计 owner 已把 `docs/ARCHITECTURE.md` 升级为 v2.0 可执行基线：
 包含 20 类覆盖矩阵（`7 COMPLIANT / 9 GAP / 3 NOT_PROVEN / 1 N/A`）、标准工作流门、
-低耦合规则、逻辑 seam、守卫、共享文件锁、四组可并行候选和首卡约束。结论仍为
+低耦合规则、逻辑 seam、守卫、共享文件锁、四组可并行候选与 W0 隔离探针约束。结论仍为
 `ARCH_REQUIREMENTS_ACCEPTED=YES / ARCH_CONFORMANCE_AUDIT=PASS / ARCH_GATE=PASS /
 ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`；模块级无环不等于低耦合，7 个 P1 违规、
 contracts seam 与消费者迁移仍未落地；A0 owner guard / debt ratchet 已落地，但不消除
-既有违规。用户已于 2026-11-07 确认 v2.0 基线并放行首卡，派发实现仍需 root 决定；
+既有违规。用户已于 2026-11-07 确认 v2.0 基线和架构优先方向；`V2-D213` / `R035` 把
+“按 seam 纵向闭环再扩功能”固定为硬门。下一步不是直接派 W1 功能波，而是先派全新
+`ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 冻结
+`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡并在同一 owner 边界内实现。W0 仅作独立探针；
 guard 集成不代表产品重构完成。
 
 **A0 integration 事实**：source
@@ -3517,6 +3549,20 @@ membership / 560 条边；外部 `445` source、`376` MVP 子项、D203 addendum
 `V2-REQ-BASE-001～005` 五个 MUST 组保持原语义。以下候选波次只重排交付顺序，不重算需求、
 不改变等级，也不把静态合同、计划或历史 1.4 证据升级为 2.0 产品结果。
 
+**长期 seam 关键路径摘要**（完整判据 / 证据门 / 未完成原因见 `TASKS.md` 权威账本）：
+
+| Seam ID | 状态 | 必须先于 |
+|---|---|---|
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `NEXT_PLANNED` | W1 |
+| `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | W2 |
+| `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | W3 |
+| `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | W4 正文实现 |
+| `V2-ARCH-SEAM-USER-WRITE-W5` | `BLOCKED_BY_PREREQUISITES` | W5 |
+
+每个功能波派单前必须核对 `PREREQUISITE_SEAMS`，全部达到
+`CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 后才能开工；该压缩门只有完整 seam DoD
+八状态全部满足后才成立。W0 不算架构进度。
+
 **TTS / G2 排除边界**：本次不纳入 `G2-READER-TTS-GATED` 的 6 个 wave，不纳入旧 G2
 runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些能力的任务。
 `G2-READER-CORE-W1/W2/W4` 与 `G2-Q03-SUPPLY-CHAIN-GATED-W1/W2` 含 TTS 混合成员
@@ -3527,11 +3573,11 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
 
 **候选波次与顺序**
 
-1. `V2-NON-TTS-W0 回归护栏与下载完成项可达性`
-   - 目标：修复 `L14-15` 的完成下载卡中央/整卡点击目标不完整，建立第一条
-     `V2-FIX-DOWNLOAD-001` lineage；以最小真实修复验证 D212 / R034 可执行。
-   - 成员与依赖：`G2-DOWNLOAD-STATE-W2` 的窄切片、`S6-P-DOWNLOAD-041`、
-     `L14-15`、D212、R034；不依赖架构迁移、通知重写或服务器。
+1. `V2-NON-TTS-W0 回归护栏与下载完成项可达性（ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS）`
+   - 目标：作为隔离探针复核 `L14-15` 的完成下载卡中央/整卡点击目标问题，建立第一条
+     `V2-FIX-DOWNLOAD-001` lineage；无缺陷即停止。它不是架构 seam，也不是外部功能波前置。
+   - 成员与依赖：`PREREQUISITE_SEAMS=NONE`；仅消费 `G2-DOWNLOAD-STATE-W2` 的窄切片、
+     `S6-P-DOWNLOAD-041`、`L14-15`、D212、R034；不触架构迁移、通知重写或服务器。
    - 非目标：不改下载 12 状态机、Worker、schema、通知或删除 receipt；不做下载页重设计；
      不把历史 P3 写成已关闭。
    - 风险：Compose 命中层级、长按与尾部动作可能互相吞事件；无障碍语义可能仍把整卡/操作
@@ -3544,14 +3590,17 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
      `DownloadRowAccessibilityContractTest.kt`；若需要 `modes/film`、导航宿主、共享组件、
      `data`、Worker、Room 或 schema，或上述两个文件之外的任何路径，停止拆卡并重新批准。
    - TTS 关系：无；不触 TTS、voice-pack、audio-owner 或 G2。
-   - 为什么仍作为首个验证卡：爆炸半径最小、用户可直接感知、可一屏验证，适合先验证
-     D212 / R034 和“有历史 fix 时先复现、不重复修”的流程；若当前无缺陷，本卡以
-     `NO_DEFECT_REPRODUCED` 收口，不为建立 lineage 制造代码改动。
+   - 执行定位：可独立派发、爆炸半径最小、用户可直接感知、可一屏验证，适合验证 D212 /
+     R034 和“有历史 fix 时先复现、不重复修”的流程；但不得挡 Identity/Catalog seam，也不得
+     计入 `CONTRACT_FROZEN` 之后任一 seam 状态。若当前无缺陷，以 `NO_DEFECT_REPRODUCED`
+     收口，不为建立 lineage 制造代码改动。
 
 2. `V2-NON-TTS-W1 读路径信任与共享 UI 基座`
    - 目标：交付搜索正/空/错/离线与返回恢复、持久 SWR 身份与失效、应用内更新信任，以及
      R1 token / RWD / 状态 / 48dp / 200% / Reduce Motion 的共同基座。
-   - 成员与依赖：`G2-SEARCH-W1/W2`、`G2-PERSISTENT-SWR-W1/W2`、
+   - 成员与依赖：`PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1`；该 seam 达到
+     `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 前本波 `BLOCKED_BY_PREREQUISITES`。
+     `G2-SEARCH-W1/W2`、`G2-PERSISTENT-SWR-W1/W2`、
      `G2-UPDATE-TRUST-W1/W2`、`G2-UI-R1-FOUNDATION-W1/W2/W3`、
      `G2-NAV-IDENTITY-W1`；依赖 BASE-001/002/003 静态合同、D202-E1/F1、既有路由与
      持久存储。搜索排序/跨源呈现若仍需用户选择，本波先停在该决策门前。
@@ -3572,7 +3621,9 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
    - 目标：把 PENDING / RUNNING / PAUSED / COMPLETED / FAILED 等状态、canonical
      provenance、暂停/恢复/取消/删除、通知、文件、sidecar、Room、离线投影和 1.4→2.0
      前置迁移收敛到同一可重放事实。
-   - 成员与依赖：`G2-DOWNLOAD-STATE-W1/W2/W3`、
+   - 成员与依赖：`PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
+     V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2`；两项都达到三项压缩门前本波
+     `BLOCKED_BY_PREREQUISITES`。`G2-DOWNLOAD-STATE-W1/W2/W3`、
      `G2-ARCH-CONTRACTS-MIGRATION-W2/W3` 的下载相关窄切片；依赖 W1 的身份/UI、现有
      BASE-003、可丢弃 profile 迁移计划与显式测试数据授权。
    - 非目标：不删除服务器媒体、不伪造进度、不承诺 OEM 自启、不做破坏性 DB fallback；
@@ -3591,7 +3642,10 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
 4. `V2-NON-TTS-W3 音乐 / 视频连续性与身份收敛`
    - 目标：交付音乐单 ExoPlayer / 单 MediaSession、队列/Next Up/恢复/懒补，视频统一
      PlaybackEngine 与会话恢复，本地歌单 CRUD/交换，以及切号时旧身份播放原子清场。
-   - 成员与依赖：`G2-MUSIC-CORE-W1～W5`、`G2-VIDEO-CORE-W1～W4`、
+   - 成员与依赖：`PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
+     V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3`；三项都达到
+     三项压缩门前本波 `BLOCKED_BY_PREREQUISITES`。`G2-MUSIC-CORE-W1～W5`、
+     `G2-VIDEO-CORE-W1～W4`、
      `G2-LOCAL-PLAYLIST-W1/W2`、`G2-NAV-IDENTITY-W2`；依赖 W1 UI/身份、W2 下载/离线
      provenance 与 BASE-004/005。
    - 非目标：不做 TTS、voice-pack、TTS audio owner、SyncPlay、服务器歌单写或第二播放器；
@@ -3610,9 +3664,10 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
 5. `V2-NON-TTS-W4 非 TTS 阅读核心切片`
    - 目标：交付 Publication/BookDocument、source-scoped locator、分页/滚动、书签、批注、
      搜索降级、本地持久化和大书/弱网/强停恢复的非 TTS 子集。
-   - 成员与依赖：`G2-READER-CORE-W1～W4` 中显式剔除 TTS 子句后的切片；依赖 W1 UI、
-     W2 下载/离线 source identity。PDF 本轮继续保守使用现有能力，PDFium 替换与 Q03
-     供应链后置。
+   - 成员与依赖：`PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
+     V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-READER-SOURCE-W4`；三项都达到三项压缩门
+     前本波正文实现 `BLOCKED_BY_PREREQUISITES`。成员为 `G2-READER-CORE-W1～W4` 中显式剔除
+     TTS 子句后的切片；PDF 本轮继续保守使用现有能力，PDFium 替换与 Q03 供应链后置。
    - 非目标：不做 TTS / 朗读音色 / 后台锁屏语音 / voice-pack / audio owner；不以 PDFium
      gated 卡阻塞非 TTS 阅读计划；不把含 TTS 子句的父 promise 整体标完成。
    - 风险：source-scoped bookId、position/WAL、大书内存、排版重排、书签/批注迁移和
@@ -3629,8 +3684,10 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
 6. `V2-NON-TTS-W5 受控写操作`
    - 目标：在独立可写测试服务器上交付当前用户级收藏、已看、播放/阅读进度与服务器歌单写的
      身份、权限、确认、回读、冲突、离线 intent 和部分失败语义。
-   - 成员与依赖：`G2-SERVER-WRITE-W1/W2`；依赖 W1 身份、W3 媒体/本地歌单、独立测试写入
-     服务器、明确任务卡和凭据位置。
+   - 成员与依赖：`PREREQUISITE_SEAMS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,
+     V2-ARCH-SEAM-USER-WRITE-W5`；两项都达到三项压缩门前本波
+     `BLOCKED_BY_PREREQUISITES`。成员为 `G2-SERVER-WRITE-W1/W2`；业务验证还依赖 W3
+     媒体/本地歌单，真实写另需独立测试写入服务器、明确任务卡和凭据位置。
    - 非目标：不写生产 `jellyfins.zhangwenkang.com`；不做管理式媒体删除、用户权限管理、
      远程会话管理或 SyncPlay；403 不重试，不以本地成功冒充服务器成功。
    - 风险：鉴权/权限、403、409、重复提交、部分批次、回读漂移、离线 intent 和服务器清理
@@ -3659,11 +3716,12 @@ runtime、handoff、voice-pack、audio-owner 专项，也不纳入依赖这些�
   workflow_dispatch，tag 本身不会执行祖先或 bug 回归门。
 - 因此“可能是未测试或未合并”只能判 `CAUSE_NOT_PROVEN`：现有证据能证明被抽样的修复提交
   已进入 1.4 发布与当前集成分支，不能证明每个历史 bug 都在后续候选包执行过，也不能证明
-  目录、测试或单测数量代表用户场景保持。下一步最小取证只限首卡 `V2-FIX-DOWNLOAD-001`：
+  目录、测试或单测数量代表用户场景保持。下一步最小取证只限 W0 隔离探针
+  `V2-FIX-DOWNLOAD-001`：
   在实现候选上执行绑定测试，并记录 commit/test/candidate 三项；若未来出现具体复发，再用
   最后已知好 tag 与首个坏候选做定向比较或 `git bisect`，不做全仓泛化扫描。
 
-**首张任务卡（已批准，A0 已集成，等待 root 决定派发）**
+**W0 隔离探针任务卡（可独立派发，不是架构主线）**
 
 规划阶段没有打开产品源码或设备，因此“当前 v1.4/v2 分支仍可复现”尚未证明。在两个同属下载
 UI、且都可用一屏验证的候选之间做规划选择：
@@ -3678,8 +3736,9 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
 只读证据回到用户 / 负责人重新批准。
 
 - ID：`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
-- 状态：`READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED /
-  NOT_STARTED`；未派实现 owner。
+- 状态：`ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS /
+  READY_FOR_INDEPENDENT_IMPLEMENTATION_OWNER / CURRENT_REPRO_REQUIRED / NOT_STARTED`；
+  未派实现 owner；不挡架构主线，不计 seam 进度。
 - Bug / fix lineage：`V2-FIX-DOWNLOAD-001`，source `L14-15`
 - 历史静态 lineage：`61c04a38a037dbc5fa450c9e809d2277fcd33151` 已将下载行内容点击与
   尾部动作拆分，且是 `v1.4.0` 与当前 integration 的祖先；当前代码仍保留该实现与
@@ -3690,7 +3749,8 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
   详情/本地内容，显式动作仍独立可用。
 - 非目标：①不改下载状态机、Worker、Room、sidecar、通知、账号或迁移；②不重做下载页 /
   不新增分享、批量或服务器动作；③不触 TTS / voice-pack / audio-owner / G2。
-- 依赖：`L14-15`、`S6-P-DOWNLOAD-041`、`G2-DOWNLOAD-STATE-W2` 窄切片、
+- 依赖：`PREREQUISITE_SEAMS=NONE`；`L14-15`、`S6-P-DOWNLOAD-041`、
+  `G2-DOWNLOAD-STATE-W2` 窄切片、
   `docs/V2_PLAN.md` §9 旧债边界、D212、R034。
 - 文件 / 接口边界（默认窄白名单）：
   `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/downloads/DownloadRows.kt`
@@ -3713,16 +3773,29 @@ lineage。若实现 owner 定向复核后不能复现 A，不得在本卡内静�
   立即拆卡并停止；任何 TTS/G2 需求出现即退出本波。
 - TTS 关系：无。
 
-**当前唯一入口**：由 root 决定是否派全新
-`ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER` 承接
-`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`。A0 code integration 已固定在
-`ab9174043db9cb9e637054210cfee580d06f2965`；root 收口本 docs candidate 后，应锁定新的
-clean integration SHA 再派发。实现 owner 首条只读动作是 `git status --short`，随后
-`git rev-parse HEAD`，必须在该固定 clean SHA 上先执行既有回归与最小复现；若当前无缺陷，
-记录 `NO_DEFECT_REPRODUCED` 并停止，不得为建立 lineage 制造代码改动。
-若复现实为 RED，只允许在精确两个文件白名单内按 TDD 最小修复；任何导航、下载状态机、
-通知、schema、设备、TTS/G2 或白名单外需求出现即停止。独立 QA、设备与 Release 仍需
-用户另行授权。
+**当前唯一架构主线入口**：root 派全新
+`ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 承接
+`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`。该 owner 首条只读动作固定为
+`git status --short` / `git rev-parse HEAD`；随后从冻结的 clean integration SHA 建立
+独立 worktree，先产出包含目标、至少两项非目标、精确文件 / 接口白名单、依赖、
+可观察验收、完整 seam DoD、测试命令、风险与停止条件的自包含 seam 任务卡。用户已批准
+架构优先方向，owner 不需要重复询问方向；任务卡冻结后，同一 owner 可在边界内进入实现。
+
+Identity/Catalog seam 必须先完成 `CONTRACT_FROZEN -> ADAPTER_IMPLEMENTED ->
+TARGET_CONSUMERS_MIGRATED -> OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH ->
+CONTRACT/NEGATIVE/REGRESSION TESTS PASS -> DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS ->
+INTEGRATED_GATE PASS`，之后 W1 功能波才可按新派单启动。缺任一状态保持
+`IN_PROGRESS / BLOCKED`，不得用 A0 guard、架构文档或抽象接口替代。
+
+停止条件：文件白名单越界；保留双路径 / 双真源；目标消费者未迁移；新增 P1；需要扩大用户
+需求、产品等级或文件面；需要设备、网络、服务器、Gradle 之外的未授权环境；或当前
+`git status --short` / `git rev-parse HEAD` 与 root 固定对象不符。独立 QA、设备与 Release
+仍需用户另行授权。
+
+`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION` 仍可由 root 另行派全新
+`ANDROID_DOWNLOAD_UI_IMPLEMENTATION_OWNER` 作为隔离探针；它从固定 clean integration SHA
+先复现，无缺陷则 `NO_DEFECT_REPRODUCED` 停止。若 RED，只允许两文件白名单内 TDD 最小修复；
+不得为建立 lineage 制造代码改动，不得挡 W1 seam，也不得计作 architecture progress。
 如果工作转入 TTS/G2，必须先建立新任务、新方案和新验收，并重新取得用户授权；旧 QA
 attempt / evidence 只能作历史输入，不能复用为 PASS。
 
@@ -6698,3 +6771,21 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   下一步由 root 决定是否派全新实现 owner，其首动作仍为固定 clean SHA 上的当前复现，
   无缺陷即 `NO_DEFECT_REPRODUCED` 停止。A0 guard 集成不等于产品架构重构、G1、Q03、
   产品 QA、runtime 或 Release PASS。
+- **2026-11-07 — 架构 seam 关键路径 / 长期执行账本 / 派单交接门固化**：全新一次性
+  `AURORAMA_V2_ARCH_SEAM_DELIVERY_PLANNING_OWNER_2026_11_07` 从 clean integration
+  `fee63165f966a52318e332abe1ad7b184592a88a` 创建 docs-only candidate。用户确认架构优先，
+  但不是“功能开发时顺便重构”：新增 `V2-D213`、`R035`、`L041`，把 Identity/Catalog、
+  Download control、PlaybackSession、Reader source、User-state write 五个长期 seam 以稳定
+  ID 写入 `TASKS.md` 的 `Architecture Critical Path / 长期计划账本`，W1–W5 功能波均声明
+  `PREREQUISITE_SEAMS`，前置未达 `CONSUMER_MIGRATED + TESTS_PASS + INTEGRATED` 时不得开工。
+  seam Done 统一为八状态链；交接固定列出
+  `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`。W0 改为
+  `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS`，仅两文件、无缺陷即停止，不挡 W1 主线。
+  当前唯一架构入口改为全新 `ANDROID_ARCHITECTURE_SEAM_IMPLEMENTATION_OWNER` 先冻结
+  `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡，任务卡冻结后同一 owner 可在边界内实现。
+  本轮只改 `AGENTS.md` 与七个既有权威 docs；未写产品 / tests / tools / Gradle / Memory /
+  QA evidence，未运行 Gradle / ADB / 设备 / 网络 / 服务器 / 产品 QA / runtime / Release，
+  未 push / tag / fetch，未移动正式 integration。产品源码自 G1-S1
+  `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc` 至 `fee63165` 变化仍为 0，11 违规
+  P1/P2/P3=`7/3/1`、`ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN`、pipeline/runtime/Release
+  状态均未提升；产品 P0–P3 未因 docs gate 评估。

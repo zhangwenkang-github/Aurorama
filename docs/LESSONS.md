@@ -537,3 +537,26 @@
   与相关 test / fix，必要时才 `git bisect`。
 - **来源**：2026-11-07 非 TTS 2.0 规划时对 release tags、v1.4 候选 lineage、W90 已知债与
   当前 G1-S6 矩阵的只读审计；执行规则见 D212 / R034。
+
+## L041 长期计划不是执行证据，必须以稳定 ID 进入派单与交接门
+
+- **现象**：架构重构方向、长期计划和风险已经写入文档，但后续功能波仍可绕过它继续开发；
+  过一段时间只剩“计划曾存在”的文字，没有可执行状态、前置 seam 或下一步门。
+- **根因**：文档记录与任务账本、派单检查、交接检查相互分离；Done 只看某个功能卡是否结束，
+  不看原长期计划是否仍有稳定 ID、前置依赖和证据。A0 guard 这类防新增债务的工具也会被误当
+  架构重构本身。
+- **对策**：
+  1. 长期计划和 seam 在 `TASKS.md` 使用稳定 ID，持续记录状态、前置 seam、可观察完成判据、
+     证据门和当前未完成原因，不随功能 Done 或上下文切换消失。
+  2. 功能波派单前机械查找 `PREREQUISITE_SEAMS`；前置 seam 未完成完整 DoD 时不得开工，
+     功能只能作为 seam 迁移后的验证切片。
+  3. 交接固定列出 `OPEN_LONG_TERM_PLAN_IDS / NEXT_CRITICAL_PATH / last_evidence`；Done 必须有
+     代码、测试、独立 QA 与集成证据。
+- **Why:** 架构方向落档只证明团队达成过共识，不能证明代码已迁移；若不把计划变成带状态和
+  责任门的执行账本，后续波次会再次用局部补丁制造双路径和返工。
+- **How to apply:** 每次派单 / 交接先读 `TASKS.md` 的 Architecture Critical Path，核对所有
+  `PREREQUISITE_SEAMS` 的完整 DoD 和 `last_evidence`；前置未过就保持 `BLOCKED_BY_PREREQUISITES`，
+  不得在普通功能卡内顺手重构，也不得把 A0 guard integrated 写成 architecture progress。
+- **来源**：2026-11-07 用户指出长期事项落档后仍常被忘记；对
+  `00f4bfb3cc8c2de426a518ae9cd56ffb57f06bfc..fee63165f966a52318e332abe1ad7b184592a88a`
+  的生产源码只读比较未见变化；执行规则见 D213 / R035。
