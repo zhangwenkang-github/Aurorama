@@ -3,7 +3,7 @@
 | 项 | 值 |
 |----|----|
 | 文档版本 | v2.0（2026-11-07：V2 架构符合性、低耦合、逻辑 seam、守卫与并行基线） |
-| 状态 | `V2_EXECUTABLE_BASELINE / USER_CONFIRMED_2026_11_07 / ARCH_GATE_PASS / ARCH_SEAM_DELIVERY_ACTIVE / BROAD_FEATURE_WAVES_SEAM_GATED / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / IDENTITY_CATALOG_TASK_CARD=TASK_CARD_FROZEN_PENDING_ROOT_REVIEW / A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` |
+| 状态 | `V2_EXECUTABLE_BASELINE / USER_CONFIRMED_2026_11_07 / ARCH_GATE_PASS / ARCH_SEAM_DELIVERY_ACTIVE / BROAD_FEATURE_WAVES_SEAM_GATED / ARCH_GUARD_A0=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / IDENTITY_CATALOG_TASK_CARD=TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION / A0_GUARD_IS_NOT_ARCH_REFACTOR=YES / ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` |
 | 作者会话 | `AURORAMA_V2_ARCHITECTURE_CONFORMANCE_OWNER_2026_11_07`；`AURORAMA_V2_ARCH_OWNER_GUARD_W1P_INTEGRATION_DOCS_OWNER_2026_11_07`（integration sync）；`AURORAMA_V2_ARCH_SEAM_DELIVERY_PLANNING_OWNER_2026_11_07`（seam delivery planning）；`AURORAMA_V2_IDENTITY_CATALOG_SEAM_TASK_CARD_OWNER_2026_11_07`（W1 task card） |
 | 上游依据 | 外部原始文档第 154–286 行；`V2-REQ-ARCH-001～072`；`V2-D010～D020`、`D198`、`D211～D213`；`R035`；`L041`；G1-S1 / G1-S6 静态证据 |
 | 适用对象 | V2 需求、架构、实现、独立 QA、merge-prep、Release 与多会话编排 |
@@ -27,7 +27,7 @@
 | 当前生产树漂移 | G1-S1 基线 `00f4bfb3…` 到当前 HEAD，`app/core/data/player/modes/settings/setup` 的生产源码与 Gradle 文件变化 0 | `git diff --name-only 00f4bfb3..HEAD -- 'app/**' 'core/**' 'data/**' 'player/**' 'modes/**' 'settings/**' 'setup/**'` |
 | 架构守卫 | A0 owner guard / debt ratchet 已独立 QA + merge-prep `PASS` 并集成；尚未接入 CI / Gradle 常规任务门 | source `a787b683`、`tools/architecture/**` 3 文件、integration `ab917404`；独立 QA 7/7、direct guard `19/19 + 8/8` |
 | 全量 V2 重构 | `ARCH_IMPLEMENTATION_REFACTORED=NOT_PROVEN` | A0 只固化既有边界与债务 ratchet；contracts seam、adapter / consumer 迁移与候选架构门仍未实现 |
-| 本文状态 | `ARCH_CONFORMANCE_AUDIT=PASS / USER_CONFIRMED_2026_11_07 / ARCH_GATE=PASS / A0_INTEGRATED / ARCH_SEAM_DELIVERY_ACTIVE / IDENTITY_CATALOG_TASK_CARD=TASK_CARD_FROZEN_PENDING_ROOT_REVIEW` | 任务卡从 clean `d85f695b` 冻结；W0 仅为 `ISOLATED_PROBE / NOT_STARTED` |
+| 本文状态 | `ARCH_CONFORMANCE_AUDIT=PASS / USER_CONFIRMED_2026_11_07 / ARCH_GATE=PASS / A0_INTEGRATED / ARCH_SEAM_DELIVERY_ACTIVE / IDENTITY_CATALOG_TASK_CARD=TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION` | 任务卡已接受；W0 仅为 `ISOLATED_PROBE / NOT_STARTED` |
 
 “审计 PASS”只表示本基线足以指导后续实现并明确未证明项，不是产品架构完成、G1、
 QA、runtime 或 Release PASS。
@@ -88,7 +88,7 @@ PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
 | 需求澄清 | `SATISFIED` | G0 完成；架构 72 条有来源、可观察验收、依赖、非目标和用户确认 |
 | 架构与契约 | `PARTIALLY_SATISFIED_RECOVERED` | 需求已接受；本文补齐 V2 执行版；逻辑 seam 仍在代码侧未实现 |
 | 用户确认架构 | `SATISFIED` | 用户于 2026-11-07 明确确认并指示执行下一步；架构门 PASS。W0 仅为隔离探针 |
-| 任务卡 | `SATISFIED_PENDING_ROOT_REVIEW` | W0 有精确两文件；Identity/Catalog W1 有自包含任务卡、public port FQCN、8 源码 + 5 测试白名单与停止门，状态 `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW` |
+| 任务卡 | `SATISFIED_ACCEPTED` | W0 有精确两文件；Identity/Catalog W1 有自包含任务卡、public port FQCN、8 源码 + 5 测试白名单与停止门，状态 `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION` |
 | 实现 | `NOT_REACHED` | 无产品代码修改 |
 | 自检 | `NOT_REACHED` | 无 RED / GREEN / 构建 / 定向回归 |
 | 独立 QA | `NOT_REACHED` | 未派发，不能用历史 W90 / 1.4 证据替代 |
@@ -123,7 +123,7 @@ PHYSICAL_MODULE_SPLIT=NOT_EXECUTED
 
 | Seam | 唯一对外合同 | 隐藏实现 | 唯一 writer / 不变量 | 当前状态 |
 |---|---|---|---|---|
-| Scope / Identity | canonical scope + stable identity DTO | auth、preferences、DB namespace | 切号、离线、缓存、下载、通知、队列不串身份 | `PARTIAL_ANCHORS / W1_TASK_CARD_FROZEN_PENDING_ROOT_REVIEW` |
+| Scope / Identity | canonical scope + stable identity DTO | auth、preferences、DB namespace | 切号、离线、缓存、下载、通知、队列不串身份 | `PARTIAL_ANCHORS / W1_TASK_CARD_ACCEPTED_READY_FOR_IMPLEMENTATION` |
 | Catalog read | immutable snapshot + stale / generation | API、DAO、SWR、TTL | 页面只读投影；data 统一刷新 | `PARTIAL / W1A_SEARCH_SLICE_PLANNED` |
 | User-state write | intent → accepted → confirmed / denied | SDK 写、回读、重试 | data 写网关是唯一 writer；403 不重试 | `NOT_IMPLEMENTED` |
 | Download control | command + immutable task / hierarchy projection | WorkManager、Room、sidecar、文件、通知 | 下载控制实现单一写状态；页面 / 角标 / 通知同源 | `PARTIAL` |
@@ -304,7 +304,7 @@ W0 隔离探针放行条件：
   guard 集成不等于产品架构重构完成。
 - 模块级无环不等于包级、类型级或调用级低耦合。
 - `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 任务卡已冻结为
-  `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW`；尚无实现、测试、QA 或集成证据。W1–W5 功能波
+  `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`；尚无实现、测试、QA 或集成证据。W1–W5 功能波
   在各自 `PREREQUISITE_SEAMS` 达到完整 DoD 前保持 `BLOCKED_BY_PREREQUISITES`。
 - 首个切片 `ICS-W1A-SCOPED-SEARCH-SNAPSHOT` 只计划证明搜索目录读、SWR freshness、
   origin-bound request 与 Search consumer 的同 scope；身份写入原子性、其他 catalog

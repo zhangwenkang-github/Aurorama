@@ -25,7 +25,8 @@
 > docs/TASKS.md W1 冻结任务卡 + docs/ARCHITECTURE.md §0.1/§0.6/§0.8`。
 >
 > 当前没有已启动的产品实现任务。`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 的自包含任务卡已冻结为
-> `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW`；root review 前不得实现。`V2-NON-TTS-W1` 仍保持
+> `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`；实现必须由 root 另行派全新 implementation
+> owner，当前尚未写产品代码。`V2-NON-TTS-W1` 仍保持
 > `BLOCKED_BY_PREREQUISITES`，直到完整 seam DoD 通过。`V2-NON-TTS-W0-DOWNLOAD-CARD-ACTION`
 > 可作独立探针，但状态为
 > `ISOLATED_PROBE / NOT_ARCHITECTURE_PROGRESS / CURRENT_REPRO_REQUIRED`；仅两文件，无缺陷即
@@ -39,7 +40,7 @@
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `ROOT_REVIEW_TASK_CARD` -> `CONTRACT_FROZEN` | 任务卡已冻结待 root review；尚无产品源码、契约执行、回归测试、QA 或集成证据 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION` | `PREREQUISITE_SEAMS=NONE` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | `CONTRACT_FROZEN` -> `ADAPTER_IMPLEMENTED` | 任务卡已由 root 接受；尚无产品源码、契约执行、回归测试、QA 或集成证据 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -67,7 +68,7 @@ DEBT_COUNT_DECREASED -> INDEPENDENT_QA PASS -> INTEGRATED_GATE PASS
 ### `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 冻结任务卡
 
 - ID：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1`
-- 状态：`TASK_CARD_FROZEN_PENDING_ROOT_REVIEW`
+- 状态：`TASK_CARD_ACCEPTED / READY_FOR_IMPLEMENTATION`
 - 冻结基线：clean `codex/v2-integration` /
   `d85f695b9ba1a220d85d529388769a7ad81b76e8`
 - 约束：`V2-D213`、`R035`、`L041`；
@@ -241,7 +242,7 @@ materialization 的 base URL / access token 也必须来自该绑定，不得从
 
 | 状态 | 父 seam 通过条件 | 首个切片 `ICS-W1A` 的边界 |
 |---|---|---|
-| `CONTRACT_FROZEN` | root review 接受本卡、FQCN、字段、白名单与停止门 | 当前仅 `TASK_CARD_FROZEN_PENDING_ROOT_REVIEW` |
+| `CONTRACT_FROZEN` | root 已接受本卡、FQCN、字段、白名单与停止门 | 已接受；等待独立 implementation owner |
 | `ADAPTER_IMPLEMENTED` | online / offline adapter 与 read-side scope/generation 检查落地 | 可形成 slice-local 证据，不能覆盖 auth / settings 写入与其他 catalog consumers |
 | `TARGET_CONSUMERS_MIGRATED` | auth / preference / DB namespace / cache 与全部声明目录消费者迁移 | 本切片只迁移 SearchViewModel / SearchSession |
 | `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH` | 全局旧身份推断、旧搜索路径与跨账号双真源移除 | 本切片只要求删除 search 旧路径；其他旧路径仍存在 |
