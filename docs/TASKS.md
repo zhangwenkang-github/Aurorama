@@ -8,13 +8,14 @@
 ### ACTIVE — V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
 
 - TASK_ID=V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
-- TASK_STAGE=INDEPENDENT_QA_R5_PASS / MERGE_PREP_READY / DOCS_SYNC_THIS_COMMIT
+- TASK_STAGE=INDEPENDENT_QA_R5_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / DOCS_SYNC_THIS_COMMIT
 - WORKTREE_POLICY=EXACT_ABSOLUTE
-- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama
-- CANONICAL_BRANCH=codex/v2-stable-doc-state-cleanup
+- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+- CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R033/R036/R037 > docs/TASKS.md ACTIVE / P2-001 / Architecture ledger > docs/LESSONS.md L028/L038/L039/L042 > docs/PROJECT_PLAN.md / docs/V2_PLAN.md / docs/ARCHITECTURE.md stable sections > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_STABLE_DOC_STATE_CLEANUP_MERGE_PREP_OWNER_2026_11_08
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1B_1B_OR_NEXT_2_0_WAVE
+- RETIRED_ROLE=AURORAMA_V2_STABLE_DOC_STATE_CLEANUP_MERGE_PREP_OWNER_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_STABLE_DOC_STATE_CLEANUP_INDEPENDENT_QA_OWNER_R5_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_STABLE_DOC_STATE_CLEANUP_INDEPENDENT_QA_OWNER_R4_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_STABLE_DOC_STATE_CLEANUP_INDEPENDENT_QA_OWNER_R3_2026_11_08
@@ -32,17 +33,17 @@
 - RETIRED_ROLE=AURORAMA_V2_EXECUTABLE_WORKFLOW_HARDENING_MERGE_PREP_OWNER_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_STABLE_DOC_STATE_CLEANUP_INDEPENDENT_QA_OWNER_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=STOP on worktree / branch / base-ancestor drift, any seventh changed path, non-UTF8 or non-LF source, self SHA, any listed fixed dynamic-token assignment anywhere in the three stable documents including pointer, HISTORY, audit or heading text, unauthorized product / Gradle / memory / rules / lessons / decisions edit, network / device / server write / push / tag / Release, or any attempt to claim independent QA / merge-prep from this implementation owner.
+- STOP_CONDITION=STOP on worktree / branch / manager pin drift, post-integration dirty or mixed paths, authenticated product change without a new task card, push / tag / Release, or any attempt to reopen P2-001 without a new concrete defect.
 - SCOPE=Exactly six paths: docs/PROJECT_PLAN.md, docs/V2_PLAN.md, docs/ARCHITECTURE.md, docs/TASKS.md, tools/architecture/v2-handoff-lint.ps1, tools/architecture/v2-handoff-lint.tests.ps1. Documentation state cleanup and linter regression only.
 - BASE_HEAD=1b8b3d3f3c4a996452e8a17f022bc9b6e876e2e9
 - REQUIRED_ANCESTOR=1b8b3d3f3c4a996452e8a17f022bc9b6e876e2e9
 - FAILED_CANDIDATE=844eeaa3d4bb9b73205cf371fc212787a80cb845
 - MAX_CHANGED_PATHS=6
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -ExpectedHead "<external-pinned candidate HEAD>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=240631/1048576 (22.9%) / REQUESTS=1370 / 2026-11-08 / SOURCE=LOCAL_STATUSZ_OFFLINE
+- CONTEXT_AT_CLOSE=RECORDED_IN_FINAL_MANAGER_REPORT / 2026-11-08
 - INDEPENDENT_QA_R1=FAIL / P2-001_NOT_CLOSED / P1=2
 - REPAIR_R1=SUPERSEDED / QA_R2=FAIL / P1-002_NOT_CLOSED
 - INDEPENDENT_QA_R2=FAIL / P2-001_NOT_CLOSED / P1=1
@@ -51,6 +52,8 @@
 - INDEPENDENT_QA_R4=FAIL / P2-001_NOT_CLOSED / P1=1 / P3=0 / P1-R4-001=OPEN
 - REPAIR_R4=SELF_TEST_GREEN / PENDING_INDEPENDENT_QA_R5 / NOT_INDEPENDENT_QA
 - INDEPENDENT_QA_R5=PASS / P0-P3=0/0/0/0 / P2-001=CLOSED
+- MERGE_PREP=PASS / SOURCE_FINAL_SAME=YES / STABLE_PATCH_ID=07c8a022eb1dcc4fd6b9b232ac8d55c212efb979 / BLOB_MATCH=6/6
+- INTEGRATION_MODE=LOCAL_FF_ONLY / INTEGRATED_CANDIDATE=f8fe7eec1e217fcb3b7d0e3f1f28068611839a8a / PUSH=NO / TAG=NO / RELEASE=NO
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-independent-qa-2026-11-08\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-independent-qa-2026-11-08\15-p1-findings-and-linter-gap.txt
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r1-2026-11-08\red-plain-current-handoff.txt
@@ -104,8 +107,8 @@
 - P2_001=CLOSED_BY_QA_R5
 - P3=P3-R3-001:CLOSED_BY_QA_R4
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=V2-STABLE-DOC-STATE-CLEANUP-MERGE-PREP
-- last_evidence=Independent QA R5 PASS P0-P3=0/0/0/0; QaReady/Handoff PASS; suite 99/0; A0 direct 19/19 + external 8/8 + tests 7/7; renderer-backed heading controls 13/13; P2-001 CLOSED
+- NEXT_CRITICAL_PATH=USER_DECISION_FOR_W1B_1B_OR_NEXT_2_0_WAVE
+- last_evidence=Independent QA R5 PASS + merge-prep source/final patch-id MATCH + local ff-only integration to f8fe7eec; P2-001 CLOSED / INTEGRATED
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
@@ -160,6 +163,19 @@
   `tools/architecture/v2-handoff-lint.ps1`、`tools/architecture/v2-handoff-lint.tests.ps1`、
   `docs/TASKS.md` 本 HISTORY 与 repair R4 证据根：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r4-2026-11-08`。
+
+### HISTORY — Merge-prep PASS / local ff-only integrated（2026-11-08）
+
+- `MERGE_PREP=PASS`。Source/final 同为 `f8fe7eec1e217fcb3b7d0e3f1f28068611839a8a`；
+  combined stable patch-id `07c8a022eb1dcc4fd6b9b232ac8d55c212efb979` MATCH，
+  path/blob `6/6 MATCH`；final full suite `99/0`，A0 direct `19/19 + 8/8`、A0 tests
+  `7/7`，Handoff/QaReady PASS。
+- Delivery lead 在 clean `codex/v2-integration` 上把目标从
+  `1b8b3d3f3c4a996452e8a17f022bc9b6e876e2e9` 本地 ff-only fast-forward 到
+  `f8fe7eec1e217fcb3b7d0e3f1f28068611839a8a`；累计 diff 恰为六路径。未 push、tag 或
+  Release。最终 docs closeout 提交 SHA 只由 manager 在提交后外部 pin。
+- merge-prep 证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-merge-prep-2026-11-08\MERGE_PREP_REPORT.md`。
 
 ### HISTORY — V2-EXECUTABLE-WORKFLOW-HARDENING-2026-11-08（已收口）
 
@@ -313,12 +329,12 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=YES
-- UNCOVERED=P2-001 stable-doc cleanup has independent QA R5 PASS. Merge-prep, integration, product build, runtime, device, network, server write, push, tag and Release are not executed by this checkpoint. Human review remains required only for ordinary non-heading prose that has no rendered h1-h6 structure.
+- UNCOVERED=P2-001 stable-doc cleanup has independent QA R5 PASS, merge-prep PASS and local ff-only integration. Product build, runtime, device, network, server write, push, tag, Release and any new W1B/2.0 wave remain unexecuted and require a new task card. Human review remains required only for ordinary non-heading prose that has no rendered h1-h6 structure.
 - STOP_CONDITION=Any nonzero Handoff or QaReady lint, pointer count other than one, any of the 15 listed fixed dynamic-token assignments anywhere in the three stable documents including pointer / HISTORY / audit / heading text, V2_HANDOFF_ACTIVE marker outside docs/TASKS.md, non-HISTORY ACTIVE heading in rendered HTML h1-h6, renderer unavailable/error, changed path beyond six, missing evidence, non-UTF8 / non-LF source, self SHA, dirty final candidate, or unauthorized QA / merge / product / device / Release action.
-- MANUAL_OWNER=AURORAMA_V2_STABLE_DOC_STATE_CLEANUP_MERGE_PREP_OWNER_2026_11_08
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_W1B_1B_OR_NEXT_2_0_WAVE
 - MANUAL_LIMITATION=Mechanical coverage is exactly one nonempty pointer block per stable document with the two canonical pointer values; all 15 fixed dynamic-token assignments anywhere in full text with no HISTORY or audit exception; V2_HANDOFF_ACTIVE marker exclusion; and full-document ConvertFrom-Markdown rendering followed by extraction of actual HTML h1-h6, including standard ATX, setext, list, blockquote, mixed/nested containers and raw HTML. Renderer absence/error fails closed. HISTORY / HISTORICAL headings are allowed. Fenced and four-space-indented code are not headings. Only ordinary prose with no rendered heading structure remains manual review. ACTIVE_HEADING_REVIEW=RENDERER_BACKED / NON_HEADING_NATURAL_LANGUAGE_REVIEW=MANUAL.
 - P1_R4_001=REPAIRED_PENDING_QA_R5
-- P2_001_STATUS=CLOSED_BY_INDEPENDENT_QA_R5 / P0-P3=0/0/0/0
+- P2_001_STATUS=CLOSED_BY_INDEPENDENT_QA_R5 / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / P0-P3=0/0/0/0
 - P3_R3_001=CLOSED_BY_QA_R4
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
