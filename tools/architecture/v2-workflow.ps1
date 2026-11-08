@@ -556,9 +556,10 @@ function Invoke-GatePlan {
         Write-Output 'STATE_EFFECT_MATRIX=NOT_REQUIRED_CONTROL_PLANE'
     }
 
+    $workflowPath = Join-Path $script:repositoryPath 'tools\architecture\v2-workflow.ps1'
     $workflowTests = Join-Path $script:repositoryPath 'tools\architecture\v2-workflow.tests.ps1'
     $handoffTests = Join-Path $script:repositoryPath 'tools\architecture\v2-handoff-lint.tests.ps1'
-    $snapshot = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$script:pwshPath`" -Mode Snapshot -RepoRoot `"$script:repositoryPath`""
+    $snapshot = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$workflowPath`" -Mode Snapshot -RepoRoot `"$script:repositoryPath`""
     $workflowGateTests = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$workflowTests`" -Filter `"GatePlan*`""
     $workflowFullTests = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$workflowTests`""
     $handoffFullTests = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$handoffTests`""

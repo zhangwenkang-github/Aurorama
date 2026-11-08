@@ -8,7 +8,7 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-WORKFLOW-EFFICIENCY-2026-11-08
-- TASK_STAGE=IMPLEMENTATION_SELF_TEST_GREEN_PENDING_MANAGER_REVIEW
+- TASK_STAGE=REPAIR_R1_SELF_TEST_GREEN_PENDING_MANAGER_REVIEW
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama
 - CANONICAL_BRANCH=codex/v2-workflow-efficiency-2026-11-08
@@ -25,7 +25,7 @@
 - FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -ExpectedHead "<external-pinned-control-head>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=262607_OF_1048576 / 25.0_PERCENT / BELOW_350000_HARD_HANDOFF / 2026-11-08
+- CONTEXT_AT_CLOSE=177116_OF_1048576 / 16.9_PERCENT / BELOW_350000_HARD_HANDOFF / 2026-11-08
 - P0=0
 - P1=0
 - P2=0
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=MANAGER_REVIEW_V2_WORKFLOW_IMPLEMENTATION_CANDIDATE
-- last_evidence=IMPLEMENTATION_SELF_TEST_GREEN_PENDING_MANAGER_REVIEW; RED=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\red-workflow-tests.txt exit=1 target-wrapper-missing; GREEN=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\green-workflow-tests.txt exit=0 SUMMARY passed=30 failed=0; HANDOFF_TESTS=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\green-handoff-lint-tests.txt exit=0 SUMMARY passed=99 failed=0; EXACT_SIX=AGENTS.md,docs/PROJECT_RULES.md,docs/LESSONS.md,docs/TASKS.md,tools/architecture/v2-workflow.ps1,tools/architecture/v2-workflow.tests.ps1; WRAPPER_SMOKE=AST/Help PASS, Snapshot PASS, GatePlan FAST/CANDIDATE/FULL PASS, delegation exit passthrough PASS, UpdateState temp fixtures PASS, Closeout real checker/doctor and failure/clean/HEAD gates PASS; UNCOVERED=independent QA not run, committed-pin Handoff/QaReady not claimed, GRAPHIFY_NOT_AVAILABLE
+- NEXT_CRITICAL_PATH=MANAGER_REVIEW_V2_WORKFLOW_EFFICIENCY_REPAIR_R1_CANDIDATE
+- last_evidence=REPAIR_R1_SELF_TEST_GREEN_PENDING_MANAGER_REVIEW; RED=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\red-repair-r1.txt exit=1 SUMMARY passed=31 failed=1; GREEN=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\green-workflow-tests.txt exit=0 SUMMARY passed=32 failed=0; HANDOFF_TESTS=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\green-handoff-lint-tests.txt exit=0 SUMMARY passed=99 failed=0; GATEPLAN_TARGETS=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\gateplan-command-targets.txt GATE_COMMAND_TARGETS=PASS; FAST_SNAPSHOT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\executed-fast-snapshot.txt exit=0 WORKTREE/HEAD/CLEAN emitted; R040_CODES=WORKFLOW_GATE_PLAN_EMPTY,WORKFLOW_GATE_PATH_DUPLICATE fixture GREEN; UNCOVERED=manager review, independent QA, merge-prep, device/network/product/Release not run
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -167,6 +167,28 @@
 - ALLOWED_PATH=tools/architecture/v2-workflow.ps1
 - ALLOWED_PATH=tools/architecture/v2-workflow.tests.ps1
 <!-- V2_HANDOFF_OBJECT_END -->
+
+### HISTORY — Manager review repair R1（2026-11-08）
+
+- `P1-MGR-REVIEW-01`：GatePlan 的 FAST Snapshot 命令把 `$script:pwshPath` 放在 `-File`
+  后，直接执行时 PowerShell 拒绝把 `pwsh.exe` 当作脚本；旧测试复制同一错误字符串，故只证明
+  自洽而不证明可执行。repair R1 把命令入口改为 workflow wrapper 的绝对路径。
+- `REPAIR_R1=SELF_TEST_GREEN / PENDING_MANAGER_REVIEW / NOT_INDEPENDENT_QA`。坏实现上的
+  RED 为 `passed=31 failed=1 exit=1`，唯一失败是 FAST Snapshot 子进程执行错误入口；修复后
+  workflow suite 为 `passed=32 failed=0 exit=0`，既有 handoff-lint suite 为
+  `passed=99 failed=0 exit=0`。
+- GatePlan 测试现在把输出的 FAST Snapshot 命令实际交给 PowerShell 子进程，在已提交入口的
+  fixture 上断言 exit 0、`WORKTREE`、`HEAD`、`CLEAN` 与 fixture root；FAST/CANDIDATE/FULL
+  的所有 `-File` 目标均静态校验为存在且非 `pwsh.exe` 的 `.ps1`。FULL 仅校验 Gradle 命令
+  形状与 `gradlew.bat` 存在，不执行 Gradle。
+- R040 稳定失败码已有真实 fixture：空 changed-path 集合返回
+  `WORKFLOW_GATE_PLAN_EMPTY`，重复路径返回 `WORKFLOW_GATE_PATH_DUPLICATE`；两者均为
+  exit 2，现行实现无需扩展状态机。
+- 真实仓库上从 FAST GatePlan 输出提取并执行 Snapshot，命令 exit 0 且输出
+  `WORKTREE=`、`HEAD=`、`CLEAN=`；未运行产品、Gradle、设备、ADB、网络、QA、
+  merge-prep、push、tag 或 Release。
+- Repair R1 证据根：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08`。
 
 ### HISTORY — Independent QA R4 FAIL / repair R4（2026-11-08）
 

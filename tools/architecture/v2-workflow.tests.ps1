@@ -71,6 +71,20 @@ function Invoke-Workflow {
     }
 }
 
+function Invoke-DisplayedCommand {
+    param(
+        [Parameter(Mandatory)][string]$Command
+    )
+
+    $output = & $pwshPath -NoProfile -Command $Command 2>&1
+    $exitCode = $LASTEXITCODE
+    return [pscustomobject]@{
+        ExitCode = $exitCode
+        Lines = @($output | ForEach-Object { [string]$_ })
+        Raw = ($output -join "`n")
+    }
+}
+
 function Assert-True {
     param(
         [Parameter(Mandatory)][bool]$Condition,
@@ -113,6 +127,55 @@ function Assert-NotContains {
     Assert-True -Condition (-not $Result.Raw.Contains($Token, [System.StringComparison]::Ordinal)) -Message (
         "Unexpected token '$Token'. $($Result.Raw)"
     )
+}
+
+function Get-GateCommand {
+    param(
+        [Parameter(Mandatory)]$Result,
+        [Parameter(Mandatory)][string]$Lane,
+        [Parameter(Mandatory)][int]$Index
+    )
+
+    $prefix = "GATE_COMMAND=${Lane}:${Index}="
+    $matches = @($Result.Lines | Where-Object {
+        $_.StartsWith($prefix, [System.StringComparison]::Ordinal)
+    })
+    Assert-True -Condition ($matches.Count -eq 1) -Message (
+        "Expected one command for $Lane`:$Index, got $($matches.Count). $($Result.Raw)"
+    )
+    return $matches[0].Substring($prefix.Length)
+}
+
+function Assert-GateCommandFileTargets {
+    param(
+        [Parameter(Mandatory)]$Result
+    )
+
+    $commands = @($Result.Lines | Where-Object {
+        $_.StartsWith('GATE_COMMAND=', [System.StringComparison]::Ordinal)
+    })
+    Assert-True -Condition ($commands.Count -gt 0) -Message "GatePlan emitted no commands. $($Result.Raw)"
+
+    foreach ($line in $commands) {
+        $command = $line.Substring('GATE_COMMAND='.Length)
+        $fileMatches = [regex]::Matches($command, '-File\s+"(?<path>[^"]+)"')
+        if ($command -match '(^|\s)-File(\s|$)' -and $fileMatches.Count -eq 0) {
+            throw "Command has an unparseable -File target: $command"
+        }
+        foreach ($match in $fileMatches) {
+            $target = $match.Groups['path'].Value
+            $leaf = Split-Path -Leaf $target
+            Assert-True -Condition (Test-Path -LiteralPath $target -PathType Leaf) -Message (
+                "Gate command target does not exist: $target"
+            )
+            Assert-True -Condition ([System.IO.Path]::GetExtension($target) -ieq '.ps1') -Message (
+                "Gate command -File target is not a .ps1 script: $target"
+            )
+            Assert-True -Condition ($leaf -ine 'pwsh.exe') -Message (
+                "Gate command passes the PowerShell executable to -File: $target"
+            )
+        }
+    }
 }
 
 function Assert-NoBomLf {
@@ -228,6 +291,30 @@ function New-Fixture {
         TasksFile = $tasksFile
         TasksText = $tasksText
     }
+}
+
+function Install-GatePlanEntrypoints {
+    param(
+        [Parameter(Mandatory)]$Fixture
+    )
+
+    $toolNames = @(
+        'v2-workflow.ps1'
+        'v2-workflow.tests.ps1'
+        'v2-handoff-lint.ps1'
+        'v2-handoff-lint.tests.ps1'
+    )
+    $toolDirectory = Join-Path $Fixture.Root 'tools/architecture'
+    New-Item -ItemType Directory -Path $toolDirectory -Force | Out-Null
+    foreach ($toolName in $toolNames) {
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot $toolName) -Destination $toolDirectory
+    }
+    Write-Utf8File -Path (Join-Path $Fixture.Root 'gradlew.bat') -Text "@echo off`n"
+    Invoke-Git -FixtureRoot $Fixture.Root -Arguments @('add', '-A') | Out-Null
+    Invoke-Git -FixtureRoot $Fixture.Root -Arguments @('commit', '-q', '-m', 'workflow entrypoints') | Out-Null
+    $head = [string](Invoke-Git -FixtureRoot $Fixture.Root -Arguments @('rev-parse', 'HEAD') | Select-Object -First 1)
+    $Fixture.Head = $head.Trim()
+    return $Fixture
 }
 
 function Set-FixtureTasks {
@@ -647,9 +734,10 @@ Invoke-FixtureTest -Name 'UpdateState rejects duplicate marker' -Body {
     }
 }
 
-Invoke-FixtureTest -Name 'GatePlan maps docs to FAST with exact commands' -Body {
+Invoke-FixtureTest -Name 'GatePlan FAST Snapshot command executes against fixture' -Body {
     $fixture = New-Fixture
     try {
+        $fixture = Install-GatePlanEntrypoints -Fixture $fixture
         $result = Invoke-Workflow -Arguments @(
             '-Mode', 'GatePlan',
             '-RepoRoot', $fixture.Root,
@@ -657,11 +745,17 @@ Invoke-FixtureTest -Name 'GatePlan maps docs to FAST with exact commands' -Body 
         )
         Assert-ExitCode -Result $result -Expected 0
         Assert-Contains -Result $result -Token 'GATE_LANE=FAST'
-        $workflowTests = Join-Path $fixture.Root 'tools\architecture\v2-workflow.tests.ps1'
-        $expectedFast = "GATE_COMMAND=FAST:1=pwsh -NoProfile -ExecutionPolicy Bypass -File `"$workflowTests`" -Filter `"GatePlan*`""
-        $expectedSnapshot = "GATE_COMMAND=FAST:2=pwsh -NoProfile -ExecutionPolicy Bypass -File `"$pwshPath`" -Mode Snapshot -RepoRoot `"$($fixture.Root)`""
-        Assert-Contains -Result $result -Token $expectedFast
-        Assert-Contains -Result $result -Token $expectedSnapshot
+        $workflowTests = Get-GateCommand -Result $result -Lane 'FAST' -Index 1
+        $snapshotCommand = Get-GateCommand -Result $result -Lane 'FAST' -Index 2
+        $snapshot = Invoke-DisplayedCommand -Command $snapshotCommand
+        Assert-ExitCode -Result $snapshot -Expected 0
+        Assert-Contains -Result $snapshot -Token "WORKTREE=$($fixture.Root)"
+        Assert-Contains -Result $snapshot -Token "HEAD=$($fixture.Head)"
+        Assert-Contains -Result $snapshot -Token 'CLEAN=YES'
+        $workflowWrapper = Join-Path $fixture.Root 'tools\architecture\v2-workflow.ps1'
+        Assert-True -Condition ($workflowTests.Contains((Join-Path $fixture.Root 'tools\architecture\v2-workflow.tests.ps1'))) -Message $workflowTests
+        Assert-True -Condition ($snapshotCommand.Contains("-File `"$workflowWrapper`"")) -Message $snapshotCommand
+        Assert-GateCommandFileTargets -Result $result
     }
     finally {
         Remove-Fixture -Fixture $fixture
@@ -671,6 +765,7 @@ Invoke-FixtureTest -Name 'GatePlan maps docs to FAST with exact commands' -Body 
 Invoke-FixtureTest -Name 'GatePlan maps control-plane scripts to CANDIDATE' -Body {
     $fixture = New-Fixture
     try {
+        $fixture = Install-GatePlanEntrypoints -Fixture $fixture
         $result = Invoke-Workflow -Arguments @(
             '-Mode', 'GatePlan',
             '-RepoRoot', $fixture.Root,
@@ -680,8 +775,9 @@ Invoke-FixtureTest -Name 'GatePlan maps control-plane scripts to CANDIDATE' -Bod
         Assert-Contains -Result $result -Token 'GATE_LANE=CANDIDATE'
         $workflowTests = Join-Path $fixture.Root 'tools\architecture\v2-workflow.tests.ps1'
         $handoffTests = Join-Path $fixture.Root 'tools\architecture\v2-handoff-lint.tests.ps1'
-        Assert-Contains -Result $result -Token "GATE_COMMAND=CANDIDATE:1=pwsh -NoProfile -ExecutionPolicy Bypass -File `"$workflowTests`""
-        Assert-Contains -Result $result -Token "GATE_COMMAND=CANDIDATE:2=pwsh -NoProfile -ExecutionPolicy Bypass -File `"$handoffTests`""
+        Assert-True -Condition ((Get-GateCommand -Result $result -Lane 'CANDIDATE' -Index 1).Contains($workflowTests)) -Message $result.Raw
+        Assert-True -Condition ((Get-GateCommand -Result $result -Lane 'CANDIDATE' -Index 2).Contains($handoffTests)) -Message $result.Raw
+        Assert-GateCommandFileTargets -Result $result
     }
     finally {
         Remove-Fixture -Fixture $fixture
@@ -691,6 +787,7 @@ Invoke-FixtureTest -Name 'GatePlan maps control-plane scripts to CANDIDATE' -Bod
 Invoke-FixtureTest -Name 'GatePlan maps product paths to FULL with state-effect matrix' -Body {
     $fixture = New-Fixture
     try {
+        $fixture = Install-GatePlanEntrypoints -Fixture $fixture
         $matrix = Join-Path $fixture.Parent 'state-effect-matrix.txt'
         $matrixText = @"
 SUCCESS=success is observable
@@ -711,8 +808,13 @@ RESTART_RECOVERY=restart recovery is observable
         Assert-ExitCode -Result $result -Expected 0
         Assert-Contains -Result $result -Token 'GATE_LANE=FULL'
         Assert-Contains -Result $result -Token "STATE_EFFECT_MATRIX=PASS:$matrix"
-        Assert-Contains -Result $result -Token 'GATE_COMMAND=FULL:3='
-        Assert-Contains -Result $result -Token 'gradlew.bat'
+        Assert-GateCommandFileTargets -Result $result
+        $gradleCommand = Get-GateCommand -Result $result -Lane 'FULL' -Index 3
+        Assert-True -Condition $gradleCommand.Contains('pwsh -NoProfile -ExecutionPolicy Bypass -Command') -Message $gradleCommand
+        Assert-True -Condition $gradleCommand.Contains('gradlew.bat') -Message $gradleCommand
+        Assert-True -Condition $gradleCommand.Contains(':app:phone:assembleDebug') -Message $gradleCommand
+        Assert-True -Condition $gradleCommand.Contains('--console=plain') -Message $gradleCommand
+        Assert-True -Condition (Test-Path -LiteralPath (Join-Path $fixture.Root 'gradlew.bat') -PathType Leaf) -Message $gradleCommand
     }
     finally {
         Remove-Fixture -Fixture $fixture
@@ -729,6 +831,38 @@ Invoke-FixtureTest -Name 'GatePlan fails closed on unknown path' -Body {
         )
         Assert-ExitCode -Result $result -Expected 2
         Assert-Contains -Result $result -Token 'FAIL:WORKFLOW_GATE_PATH_UNMAPPED:unknown/control-plane.ps1'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'GatePlan rejects empty changed-path set' -Body {
+    $fixture = New-Fixture
+    try {
+        $result = Invoke-Workflow -Arguments @(
+            '-Mode', 'GatePlan',
+            '-RepoRoot', $fixture.Root,
+            '-BaseHead', $fixture.Head
+        )
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-Contains -Result $result -Token 'FAIL:WORKFLOW_GATE_PLAN_EMPTY:'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'GatePlan rejects duplicate changed paths' -Body {
+    $fixture = New-Fixture
+    try {
+        $result = Invoke-Workflow -Arguments @(
+            '-Mode', 'GatePlan',
+            '-RepoRoot', $fixture.Root,
+            '-ChangedPath', 'docs/PROJECT_RULES.md||docs/PROJECT_RULES.md'
+        )
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-Contains -Result $result -Token 'FAIL:WORKFLOW_GATE_PATH_DUPLICATE:docs/PROJECT_RULES.md'
     }
     finally {
         Remove-Fixture -Fixture $fixture
