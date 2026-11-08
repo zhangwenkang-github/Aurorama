@@ -8,34 +8,34 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-WORKFLOW-EFFICIENCY-2026-11-08
-- TASK_STAGE=REPAIR_R1_SELF_TEST_GREEN_PENDING_MANAGER_REVIEW
+- TASK_STAGE=MANAGER_REVIEW_PASS / FRESH_INDEPENDENT_QA_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama
 - CANONICAL_BRANCH=codex/v2-workflow-efficiency-2026-11-08
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_DELIVERY_MANAGER_REVIEW_2026_11_08
+- NEXT_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_INDEPENDENT_QA_OWNER_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Manager review must remain read-only and stop on scope drift, a seventh path, product-code change, missing RED/GREEN evidence, unknown GatePlan mapping, or any request for independent QA, merge-prep, device, network, integration, push, tag, or Release.
+- STOP_CONDITION=Independent QA must stop on QaReady failure, worktree or six-path drift, product/device/network use, missing evidence, unknown GatePlan mapping, or any request to edit code, commit, merge, push, tag, Release, or expand product scope.
 - SCOPE=V2_WORKFLOW_EFFICIENCY_SCRIPT_AND_RULES
 - AUTHORIZATION=USER_APPROVED_RECOMMENDED_WORKFLOW_PLAN_2026_11_08
-- IMPLEMENTATION_AUTHORIZED=YES / MAX_CHANGED_PATHS=6
+- IMPLEMENTATION_AUTHORIZED=NO / QA_READ_ONLY / MAX_CHANGED_PATHS=6
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
 - FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -ExpectedHead "<external-pinned-control-head>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=177116_OF_1048576 / 16.9_PERCENT / BELOW_350000_HARD_HANDOFF / 2026-11-08
+- CONTEXT_AT_CLOSE=219376_OF_1048576 / 20.9_PERCENT / BELOW_250000_CHECKPOINT / 2026-11-08
 - P0=0
-- P1=0
+- P1=P1-MGR-REVIEW-01
 - P2=0
 - P3=0
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\task_plan.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=MANAGER_REVIEW_V2_WORKFLOW_EFFICIENCY_REPAIR_R1_CANDIDATE
-- last_evidence=REPAIR_R1_SELF_TEST_GREEN_PENDING_MANAGER_REVIEW; RED=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\red-repair-r1.txt exit=1 SUMMARY passed=31 failed=1; GREEN=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\green-workflow-tests.txt exit=0 SUMMARY passed=32 failed=0; HANDOFF_TESTS=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\green-handoff-lint-tests.txt exit=0 SUMMARY passed=99 failed=0; GATEPLAN_TARGETS=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\gateplan-command-targets.txt GATE_COMMAND_TARGETS=PASS; FAST_SNAPSHOT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\executed-fast-snapshot.txt exit=0 WORKTREE/HEAD/CLEAN emitted; R040_CODES=WORKFLOW_GATE_PLAN_EMPTY,WORKFLOW_GATE_PATH_DUPLICATE fixture GREEN; UNCOVERED=manager review, independent QA, merge-prep, device/network/product/Release not run
+- NEXT_CRITICAL_PATH=INDEPENDENT_QA_V2_WORKFLOW_EFFICIENCY
+- last_evidence=MANAGER_REVIEW=PASS; CANDIDATE=df16366b874c5b4c66e3d381f60c058e70855831; P1-MGR-REVIEW-01=CLOSED_SELF_TEST; RED=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\red-repair-r1.txt exit=1 31/1; GREEN=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\green-workflow-tests.txt exit=0 32/0; HANDOFF_TESTS=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\green-handoff-lint-tests.txt exit=0 99/0; FAST_SNAPSHOT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\executed-fast-snapshot-postcommit.txt exit=0; GATE_TARGETS=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\gateplan-command-targets.txt PASS; HANDOFF=PASS; UNCOVERED=independent QA
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -394,11 +394,37 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=NO
-- UNCOVERED=No independent QA, product QA, integration, Release, device or network validation has run. QA_READY remains NO; committed-pin Handoff/QaReady is manager-only; graphify-out/graph.json is unavailable.
-- STOP_CONDITION=Do not dispatch QA or change product scope from this self-test candidate; manager review must reject any seventh path, missing evidence, unknown GatePlan mapping, or control-plane PASS expanded into product-QA, integration or Release PASS.
-- MANUAL_LIMITATION=The implementation owner may change only the six allowed paths and may not treat repository-external planning files as product evidence.
-- MANUAL_OWNER=AURORAMA_V2_WORKFLOW_EFFICIENCY_DELIVERY_MANAGER_REVIEW_2026_11_08
+- QA_READY=YES
+- UNCOVERED=Independent QA is pending. Product runtime, device, ADB, network, server, Gradle, integration and Release are not authorized. graphify-out/graph.json is unavailable.
+- STOP_CONDITION=QA owner must first rerun QaReady; then execute the listed control-plane tests read-only. Stop on any QaReady failure, missing evidence, executable-command mismatch, UpdateState isolation/encoding/role failure, Handoff or Closeout false-green, seventh path, product change, or unauthorized action.
+- MANUAL_LIMITATION=Fresh QA may create repository-external evidence only. It may not edit source, docs or tests, commit, merge, push, tag, Release, use device/ADB/network/production, or expand beyond the six-path control-plane candidate.
+- MANUAL_OWNER=AURORAMA_V2_WORKFLOW_EFFICIENCY_INDEPENDENT_QA_OWNER_2026_11_08
+
+<!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
+| Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
+|---|---|---|---|---|---|
+| INV-WORKFLOW-01 | tools/architecture/v2-workflow.ps1 -Mode Snapshot | Run against the exact worktree | Unique ACTIVE, QA and HANDOFF_OBJECT markers; branch, HEAD, clean state, tokens and changed paths are reported | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\executed-fast-snapshot-postcommit.txt | N/A:static control-plane only |
+| INV-WORKFLOW-02 | tools/architecture/v2-workflow.ps1 -Mode UpdateState | Exercise unique, missing, duplicate, empty, CR, BOM and role cases | Only the selected ACTIVE or QA block changes; LF/no BOM is preserved; all invalid cases exit nonzero without partial writes | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\green-workflow-tests.txt | N/A:static control-plane only |
+| INV-WORKFLOW-03 | tools/architecture/v2-workflow.ps1 -Mode GatePlan | Map FAST, CANDIDATE, FULL, empty, duplicate and unknown paths | Lane is highest mapped lane; every command points to an existing script; empty, duplicate and unknown inputs fail closed | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\gateplan-command-targets.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\red-repair-r1.txt | N/A:static control-plane only |
+| INV-WORKFLOW-04 | tools/architecture/v2-workflow.ps1 -Mode Handoff or QaReady | Delegate to the existing linter and inject child failure | PASS tokens and child nonzero exit codes are preserved without reinterpretation | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\green-workflow-tests.txt | N/A:static control-plane only |
+| INV-WORKFLOW-05 | tools/architecture/v2-workflow.ps1 -Mode Closeout | Run Handoff, Engramory checker, doctor and final clean gate | Steps run in order; any child failure stops with its stable code; success is explicitly control-plane only | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\closeout-real-engramory-smoke.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\green-workflow-tests.txt | N/A:static control-plane only |
+| INV-WORKFLOW-06 | AGENTS.md, docs/PROJECT_RULES.md and docs/LESSONS.md | Review R038-R040, L043 and the three high-frequency commands | Every rule names its trigger, executable entry, failure codes and stop condition; AGENTS exposes exactly Snapshot, UpdateState and Closeout examples | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\static-validations.txt | N/A:manual document review only |
+<!-- V2_QA_INVARIANT_MATRIX_END -->
+
+<!-- V2_QA_TEST_MATRIX_BEGIN -->
+| Test ID | Target | Command | Selector status | Equivalent evidence |
+|---|---|---|---|---|
+| TEST-WORKFLOW-SUITE | tools/architecture/v2-workflow.tests.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-workflow.tests.ps1 | NOT_APPLICABLE | N/A:full-suite invocation has no test selector |
+| TEST-HANDOFF-SUITE | tools/architecture/v2-handoff-lint.tests.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.tests.ps1 | NOT_APPLICABLE | N/A:full-suite invocation has no test selector |
+| TEST-QA-READY | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-workflow.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md | NOT_APPLICABLE | N/A:wrapper delegation has no test selector |
+| TEST-HANDOFF | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-workflow.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama -ExpectedHead <manager-pin> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md | NOT_APPLICABLE | N/A:wrapper delegation has no test selector |
+<!-- V2_QA_TEST_MATRIX_END -->
+
+<!-- V2_QA_P1_MATRIX_BEGIN -->
+| P1 ID | RED | GREEN | Evidence |
+|---|---|---|---|
+| P1-MGR-REVIEW-01 | FAST Snapshot emitted pwsh.exe as the -File target and exited 64 | GatePlan emits the workflow wrapper; the displayed Snapshot command executes with exit 0; repair suite is 32/0 | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\red-repair-r1.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\executed-fast-snapshot-postcommit.txt |
+<!-- V2_QA_P1_MATRIX_END -->
 <!-- V2_QA_READY_END -->
 
 <!-- HISTORY_QA_READY_SNAPSHOT_BEGIN -->
