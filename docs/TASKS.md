@@ -8,21 +8,21 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-W1B-2-STARTUP-HYDRATION-AND-RECOVERY-2026-11-09
-- TASK_STAGE=W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2_IMPLEMENTATION_AUTHORIZED
+- TASK_STAGE=W1B_2_IMPLEMENTATION_COMPLETE_PENDING_INDEPENDENT_QA
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_W1B_2_STARTUP_HYDRATION_AND_RECOVERY_IMPLEMENTATION_OWNER_2026_11_09
+- NEXT_ROLE=AURORAMA_V2_W1B_2_STARTUP_HYDRATION_AND_RECOVERY_INDEPENDENT_QA_OWNER_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Implement only W1B-2 four production and two test paths. No device, network, push, tag or Release. Stop on path expansion, new P0-P2, object drift or required schema/contract change.
-- SCOPE=W1B_2_STARTUP_HYDRATION_AND_RECOVERY
-- AUTHORIZATION=USER_CONTINUE_2026_11_09_W1B_2_ONLY
-- IMPLEMENTATION_AUTHORIZED=YES / W1B_2_ONLY
+- STOP_CONDITION=Independent QA only. Verify candidate 9ce66f24, six paths, RED/GREEN, full data/app/core suites, assemble, ktfmt, A0 and GatePlan. Do not modify code/docs/matrix or use devices/network/merge. Stop on drift, new P0-P2 or path expansion.
+- SCOPE=W1B_2_INDEPENDENT_QA
+- AUTHORIZATION=W1B_2_IMPLEMENTATION_COMPLETE_2026_11_09_QA_ONLY
+- IMPLEMENTATION_AUTHORIZED=NO / QA_ONLY
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=YES_AFTER_IMPLEMENTATION / MERGE_PREP_READY=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_08
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=W1B_2_IMPLEMENTATION
-- last_evidence=W1B_1_COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED; CODE_HEAD=2e227cbdf448579451c15e42fe9bca48448b3f64; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1-combined-merge-prep-2026-11-09\COMBINED_MERGE_PREP_REPORT.md
+- NEXT_CRITICAL_PATH=W1B_2_INDEPENDENT_QA
+- last_evidence=W1B_2_IMPLEMENTATION_COMPLETE_PENDING_QA; FINAL_HEAD=9ce66f24ac44505544d6a88e38b7b0c66006f774; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-implementation-2026-11-09\IMPLEMENTATION_REPORT.md
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -646,34 +646,33 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=NO
-- UNCOVERED=W1B-1 is combined-QA PASS, combined merge-prep PASS and integrated. W1B-2 is implementation-authorized but not started; parent seam, runtime, devices and Release remain unassessed.
-- STOP_CONDITION=Do not start QA until W1B-2 implementation is closed and QaReady lint PASS. Devices, network, integration and Release require separate authorization.
-- MANUAL_LIMITATION=W1B-2 implementation is authorized; no QA or runtime claim is made at this checkpoint.
-- MANUAL_OWNER=AURORAMA_V2_W1B_2_STARTUP_HYDRATION_AND_RECOVERY_IMPLEMENTATION_OWNER_2026_11_09
+- QA_READY=YES
+- UNCOVERED=W1B-2 implementation is complete pending independent QA on six paths. W1B-1 is integrated; runtime/device kill-relaunch, parent seam and Release remain unassessed.
+- STOP_CONDITION=QA may read and execute the frozen W1B-2 candidate only. Any object, QaReady, test, build, A0 or GatePlan failure stops; no code modification, device, network, merge-prep or Release.
+- MANUAL_LIMITATION=W1B-2 QA is local JVM/static verification; real Android kill/relaunch and device runtime are N/A under this task card.
+- MANUAL_OWNER=AURORAMA_V2_W1B_2_STARTUP_HYDRATION_AND_RECOVERY_INDEPENDENT_QA_OWNER_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
 |---|---|---|---|---|---|
-| INV-W1C-OFFLINE-PORT | SettingsViewModel / OfflineModeViewModel | Toggle offline mode through settings and app UI | Both call the existing `OfflineModeWritePort`; no direct `appPreferences.offlineMode` write remains | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-implementation-r2-2026-11-08\06-green-app-targeted.log | N/A:no device/runtime in W1B-1C |
-| INV-W1C-GENERATION | CatalogScope / CatalogReadPort | Compare the same origin/principal under different identity generations | Generation is part of scope equality; old scope cannot equal the new canonical scope | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-implementation-r2-2026-11-08\04-green-data-targeted.log | N/A:local unit contract |
-| INV-W1C-DYNAMIC-ROUTING | CatalogReadModule / CatalogReadPort | Switch online/offline or identity snapshot between calls | Every call selects the current online/offline reader from canonical snapshot; no singleton is bound to the first preference read | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-implementation-r2-2026-11-08\04-green-data-targeted.log | N/A:local unit contract |
-| INV-W1C-STALE-FENCE | SearchCatalogConsumer / SearchSession / SearchViewModel | Complete a search, then change server/user/address/online/offline/generation | Old snapshot and completed marker are rejected and do not overwrite the new search state | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-implementation-r2-2026-11-08\05-green-film-targeted.log;F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-implementation-r2-2026-11-08\06-green-app-targeted.log | N/A:local unit contract |
-| INV-W1C-FAIL-CLOSED | CatalogScopeResolver / CatalogReadPort | Remove server, user, address, token or canonical generation | Returns no scope / IdentityUnavailable; local offline reader is never guessed as a fallback | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-implementation-r2-2026-11-08\04-green-data-targeted.log | N/A:local unit contract |
-| INV-W1C-SCOPE | all nine changed paths | Audit final `target..HEAD` path set | Exactly four production and five test paths; pre-existing port/binding not rewritten | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-implementation-r2-2026-11-08\15-final-state.txt | N/A:static Git scope |
+| INV-W1B2-HYDRATE | ApiModule / BaseApplication | Start a new process with a canonical READY snapshot | Hydrate gate publishes only the canonical snapshot; no legacy `currentServer + DB` token inference | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-implementation-2026-11-09\03-green-data-identity-hydration.log;F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-implementation-2026-11-09\04-green-app-main-identity.log | N/A:local JVM startup fixture |
+| INV-W1B2-FAIL-CLOSED | ApiModule / IdentityHydrationTest | Start with missing, partial, corrupt, dangling or RECOVERING state | No identity is exposed, no old memory token revives, and recovery is explicit | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-implementation-2026-11-09\03-green-data-identity-hydration.log | N/A:local JVM startup fixture |
+| INV-W1B2-SHELL-SOURCE | BaseApplication / MainViewModel / DrawerViewModel / CatalogReadPort | Compare app shell/drawer flags with W1A `currentScope()` | Both use the same canonical identity snapshot; no old server/user appears when unavailable | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-implementation-2026-11-09\04-green-app-main-identity.log | N/A:local JVM unit contract |
+| INV-W1B2-API-PROJECTION | ApiModule | Hydrate a valid Room identity | Global Jellyfin API projection occurs only after canonical and Room validation; failed validation leaves no stale token | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-implementation-2026-11-09\03-green-data-identity-hydration.log | N/A:local JVM startup fixture |
+| INV-W1B2-SCOPE | six changed paths | Audit final `base..HEAD` path set | Exactly four production and two test paths; no W1B-1 schema/contract rewrite | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-implementation-2026-11-09\13-final-state-postcommit.txt | N/A:static Git scope |
 <!-- V2_QA_INVARIANT_MATRIX_END -->
 
 <!-- V2_QA_TEST_MATRIX_BEGIN -->
 | Test ID | Target | Command | Selector status | Equivalent evidence |
 |---|---|---|---|---|
-| TEST-W1C-DATA | data/src/test/java/com/zhangwenkang/cinefin/repository/CatalogReadPortContractTest.kt | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1c-offline-ui-catalog-generation-fence-r2-2026-11-08\Aurorama\gradlew.bat" ":data:testDebugUnitTest" "--offline" "--console=plain"' | NO_SELECTOR | N/A:full module suite has no test selector |
-| TEST-W1C-FILM | modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1c-offline-ui-catalog-generation-fence-r2-2026-11-08\Aurorama\gradlew.bat" ":modes:film:testDebugUnitTest" "--offline" "--console=plain"' | NO_SELECTOR | N/A:full module suite has no test selector |
-| TEST-W1C-APP | app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/search/SearchViewModelTest.kt | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1c-offline-ui-catalog-generation-fence-r2-2026-11-08\Aurorama\gradlew.bat" ":app:phone:testDebugUnitTest" "--offline" "--console=plain"' | NO_SELECTOR | N/A:full module suite has no test selector |
-| TEST-W1C-ASSEMBLE | app/phone/build.gradle.kts | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1c-offline-ui-catalog-generation-fence-r2-2026-11-08\Aurorama\gradlew.bat" ":app:phone:assembleDebug" "--offline" "--console=plain"' | NO_SELECTOR | N/A:build task has no test selector |
-| TEST-W1C-KTFMT | build.gradle.kts | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1c-offline-ui-catalog-generation-fence-r2-2026-11-08\Aurorama\gradlew.bat" "ktfmtCheck" "--offline" "--console=plain"' | NO_SELECTOR | N/A:format gate has no test selector |
-| TEST-W1C-A0 | tools/architecture/v2-owner-gate.ps1 | pwsh -NoProfile -File "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1c-offline-ui-catalog-generation-fence-r2-2026-11-08\Aurorama\tools\architecture\v2-owner-gate.ps1" | NO_SELECTOR | N/A:A0 gate has no test selector |
-| TEST-W1C-A0-TESTS | tools/architecture/v2-owner-gate.tests.ps1 | pwsh -NoProfile -File "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1c-offline-ui-catalog-generation-fence-r2-2026-11-08\Aurorama\tools\architecture\v2-owner-gate.tests.ps1" | NO_SELECTOR | N/A:fixture suite has no test selector |
-| TEST-W1C-GATEPLAN | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -Command '$paths=@("settings/src/main/java/com/zhangwenkang/cinefin/settings/presentation/settings/SettingsViewModel.kt","app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/offline/OfflineModeViewModel.kt","data/src/main/java/com/zhangwenkang/cinefin/repository/catalog/CatalogReadPort.kt","data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt","data/src/test/java/com/zhangwenkang/cinefin/repository/CatalogReadPortContractTest.kt","data/src/test/java/com/zhangwenkang/cinefin/repository/JellyfinRepositorySearchItemsDispatcherTest.kt","modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchCatalogConsumerTest.kt","modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt","app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/search/SearchViewModelTest.kt"); & "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1c-offline-ui-catalog-generation-fence-r2-2026-11-08\Aurorama\tools\architecture\v2-workflow.ps1" -Mode GatePlan -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1c-offline-ui-catalog-generation-fence-r2-2026-11-08\Aurorama" -ChangedPath $paths -StateEffectMatrixPath "F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\W1B_1B_STATE_EFFECT_MATRIX.md"' | NO_SELECTOR | N/A:GatePlan uses explicit paths |
+| TEST-W1B2-DATA | data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityHydrationTest.kt | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-2-startup-hydration-and-recovery-2026-11-09\Aurorama\gradlew.bat" ":data:testDebugUnitTest" "--offline" "--console=plain"' | NO_SELECTOR | N/A:full module suite has no test selector |
+| TEST-W1B2-APP | app/phone/src/test/java/com/zhangwenkang/cinefin/viewmodels/MainViewModelIdentityTest.kt | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-2-startup-hydration-and-recovery-2026-11-09\Aurorama\gradlew.bat" ":app:phone:testDebugUnitTest" "--offline" "--console=plain"' | NO_SELECTOR | N/A:full module suite has no test selector |
+| TEST-W1B2-CORE | core/build.gradle.kts | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-2-startup-hydration-and-recovery-2026-11-09\Aurorama\gradlew.bat" ":core:testDebugUnitTest" "--offline" "--console=plain"' | NO_SELECTOR | N/A:full module suite has no test selector |
+| TEST-W1B2-ASSEMBLE | app/phone/build.gradle.kts | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-2-startup-hydration-and-recovery-2026-11-09\Aurorama\gradlew.bat" ":app:phone:assembleDebug" "--offline" "--console=plain"' | NO_SELECTOR | N/A:build task has no test selector |
+| TEST-W1B2-KTFMT | build.gradle.kts | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-2-startup-hydration-and-recovery-2026-11-09\Aurorama\gradlew.bat" "ktfmtCheck" "--offline" "--console=plain"' | NO_SELECTOR | N/A:format gate has no test selector |
+| TEST-W1B2-A0 | tools/architecture/v2-owner-gate.ps1 | pwsh -NoProfile -File "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-2-startup-hydration-and-recovery-2026-11-09\Aurorama\tools\architecture\v2-owner-gate.ps1" | NO_SELECTOR | N/A:A0 gate has no test selector |
+| TEST-W1B2-A0-TESTS | tools/architecture/v2-owner-gate.tests.ps1 | pwsh -NoProfile -File "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-2-startup-hydration-and-recovery-2026-11-09\Aurorama\tools\architecture\v2-owner-gate.tests.ps1" | NO_SELECTOR | N/A:fixture suite has no test selector |
+| TEST-W1B2-GATEPLAN | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -Command '$paths=@("core/src/main/java/com/zhangwenkang/cinefin/di/ApiModule.kt","app/phone/src/main/java/com/zhangwenkang/cinefin/BaseApplication.kt","core/src/main/java/com/zhangwenkang/cinefin/viewmodels/MainViewModel.kt","app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/navigation/DrawerViewModel.kt","data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityHydrationTest.kt","app/phone/src/test/java/com/zhangwenkang/cinefin/viewmodels/MainViewModelIdentityTest.kt"); & "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-2-startup-hydration-and-recovery-2026-11-09\Aurorama\tools\architecture\v2-workflow.ps1" -Mode GatePlan -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-2-startup-hydration-and-recovery-2026-11-09\Aurorama" -ChangedPath $paths -StateEffectMatrixPath "F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\W1B_1B_STATE_EFFECT_MATRIX.md"' | NO_SELECTOR | N/A:GatePlan uses explicit paths |
 <!-- V2_QA_TEST_MATRIX_END -->
 
 <!-- V2_QA_P1_MATRIX_BEGIN -->
