@@ -17,7 +17,7 @@
 - NEXT_ROLE=USER_DECISION_REQUIRED_FOR_IDENTITY_CATALOG_W1C_OR_NEXT_2_0_WAVE
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=W1B-1 and W1B-2 are locally integrated. Do not start W1C parent-seam work, W1D-W1G, W1 product wave, devices, network, push, tag or Release without separate user authorization. Stop on drift or new P0-P2.
+- STOP_CONDITION=Next action: user chooses W1C parent-seam continuation or another 2.0 wave. If W1C is selected, create a fresh delivery lead to read the W1B-2 merge report, current ACTIVE and W1C task card, then define implementation scope before dispatch. Stop until that decision; do not start W1C, devices, network, push, tag or Release without separate authorization.
 - SCOPE=W1B_2_CLOSEOUT
 - AUTHORIZATION=W1B_2_QA_AND_MERGE_PREP_PASS_2026_11_09
 - IMPLEMENTATION_AUTHORIZED=NO / W1B_COMPLETE
@@ -657,7 +657,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
 - UNCOVERED=W1B-1 and W1B-2 are integrated. W1B-2 has accepted P3-QA-W1B2-01 for test composition depth; real device kill/relaunch, WorkManager timing, parent seam, runtime, product and Release remain unassessed.
-- STOP_CONDITION=Do not start more implementation or QA. User decision is required for W1C parent-seam work or another 2.0 wave.
+- STOP_CONDITION=No further QA is authorized. Next action requires a user decision on W1C parent-seam continuation or another 2.0 wave; device, network, integration and Release need separate authorization.
 - MANUAL_LIMITATION=W1B-2 PASS_WITH_GAPS is limited to local JVM/static startup hydration and recovery; device/runtime evidence remains N/A.
 - MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_IDENTITY_CATALOG_W1C_OR_NEXT_2_0_WAVE
 
