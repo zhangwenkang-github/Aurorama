@@ -5,7 +5,41 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
+### ACTIVE — V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
+
+- TASK_ID=V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
+- TASK_STAGE=ROUTE_A_USER_APPROVED / IMPLEMENTATION_NOT_STARTED
+- WORKTREE_POLICY=EXACT_ABSOLUTE
+- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+- CANONICAL_BRANCH=codex/v2-integration
+- EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
+- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R035/R036/R037 > docs/TASKS.md ACTIVE / Architecture ledger / W1B task card > docs/LESSONS.md L028/L038/L039/L042 > IdentityContract.kt > IdentityWriteCoordinator.kt > W1B-1B frozen paths > R2 blocker evidence
+- NEXT_ROLE=AURORAMA_V2_W1B_1B_ATOMIC_GENERATION_CONDITIONAL_IMPLEMENTATION_OWNER_2026_11_08
+- RETIRED_ROLE=AURORAMA_V2_W1B_1B_NEXT_STEP_DIAGNOSTIC_OWNER_2026_11_08
+- NEXT_PATH=docs/TASKS.md
+- STOP_CONDITION=STOP on worktree or manager-pin drift, a 17th changed path, any staged/schema/Gradle/network/device/Release requirement, external permit implementation remains possible, any check remains outside coordinator generation registration, DAO or global API remains outside permit commit, new P0-P2, or implementation/QA/merge-prep role reuse.
+- SCOPE=W1B_1B_ATOMIC_GENERATION_CONDITIONAL_ROUTE_A
+- AUTHORIZATION=USER_APPROVED_ROUTE_A_2026_11_08
+- IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ATOMIC_GENERATION_CONDITIONAL
+- IMPLEMENTATION_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-atomic-generation-conditional-2026-11-08\Aurorama
+- IMPLEMENTATION_BRANCH=codex/v2-w1b-1b-atomic-generation-conditional-2026-11-08
+- DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
+- MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -ExpectedHead "<external-pinned-control-head>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+- MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+- CONTEXT_AT_CLOSE=RECORDED_IN_MANAGER_REPORT / 2026-11-08
+- P1=W1B-1B:P1-01,P1-02:OPEN
+- P2=NONE
+- P3=NONE
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\evidence-repair-r2-w1b-1b-2026-11-08\02-blocker-analysis.log
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\evidence-repair-r2-w1b-1b-2026-11-08\01-r2-red-TEST-com.zhangwenkang.cinefin.setup.IdentityIngressContractTest.xml
+- OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
+- NEXT_CRITICAL_PATH=W1B_1B_ATOMIC_GENERATION_CONDITIONAL_IMPLEMENTATION
+- last_evidence=R2 deterministic RED 14/3 proves external generation, unconsumed permit and external permit implementation; Route A explicitly approved by user on 2026-11-08.
+<!-- V2_HANDOFF_ACTIVE_END -->
+
+<!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
+### HISTORY — V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
 
 - TASK_ID=V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
 - TASK_STAGE=INDEPENDENT_QA_R5_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / DOCS_SYNC_THIS_COMMIT
@@ -109,19 +143,29 @@
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
 - NEXT_CRITICAL_PATH=USER_DECISION_FOR_W1B_1B_OR_NEXT_2_0_WAVE
 - last_evidence=Independent QA R5 PASS + merge-prep source/final patch-id MATCH + local ff-only integration to f8fe7eec; P2-001 CLOSED / INTEGRATED
-<!-- V2_HANDOFF_ACTIVE_END -->
+<!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=1b8b3d3f3c4a996452e8a17f022bc9b6e876e2e9
-- REQUIRED_ANCESTOR=1b8b3d3f3c4a996452e8a17f022bc9b6e876e2e9
-- FAILED_CANDIDATE=844eeaa3d4bb9b73205cf371fc212787a80cb845
-- MAX_CHANGED_PATHS=6
-- ALLOWED_PATH=docs/PROJECT_PLAN.md
-- ALLOWED_PATH=docs/V2_PLAN.md
-- ALLOWED_PATH=docs/ARCHITECTURE.md
+- BASE_HEAD=f4a1e1a5ef4986dea36c584d78a8fab9f606f047
+- REQUIRED_ANCESTOR=f4a1e1a5ef4986dea36c584d78a8fab9f606f047
+- FAILED_CANDIDATE=NONE
+- MAX_CHANGED_PATHS=16
 - ALLOWED_PATH=docs/TASKS.md
-- ALLOWED_PATH=tools/architecture/v2-handoff-lint.ps1
-- ALLOWED_PATH=tools/architecture/v2-handoff-lint.tests.ps1
+- ALLOWED_PATH=data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityContract.kt
+- ALLOWED_PATH=data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinator.kt
+- ALLOWED_PATH=data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityContractTest.kt
+- ALLOWED_PATH=data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinatorTest.kt
+- ALLOWED_PATH=data/src/main/java/com/zhangwenkang/cinefin/api/JellyfinApiFactory.kt
+- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/SetupRepository.kt
+- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt
+- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/data/di/SetupDataModule.kt
+- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/OfflineIdentity.kt
+- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/addserver/AddServerViewModel.kt
+- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/users/UsersViewModel.kt
+- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/setup/IdentityIngressContractTest.kt
+- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/setup/OfflineIdentityCoordinatorTest.kt
+- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/setup/UserSessionSelectionTest.kt
+- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/setup/ServerBootstrapTest.kt
 <!-- V2_HANDOFF_OBJECT_END -->
 
 ### HISTORY — Independent QA R4 FAIL / repair R4（2026-11-08）
@@ -328,6 +372,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
+<!-- V2_QA_READY_END -->
+
+<!-- HISTORY_QA_READY_SNAPSHOT_BEGIN -->
 - QA_READY=YES
 - UNCOVERED=P2-001 stable-doc cleanup has independent QA R5 PASS, merge-prep PASS and local ff-only integration. Product build, runtime, device, network, server write, push, tag, Release and any new W1B/2.0 wave remain unexecuted and require a new task card. Human review remains required only for ordinary non-heading prose that has no rendered h1-h6 structure.
 - STOP_CONDITION=Any nonzero Handoff or QaReady lint, pointer count other than one, any of the 15 listed fixed dynamic-token assignments anywhere in the three stable documents including pointer / HISTORY / audit / heading text, V2_HANDOFF_ACTIVE marker outside docs/TASKS.md, non-HISTORY ACTIVE heading in rendered HTML h1-h6, renderer unavailable/error, changed path beyond six, missing evidence, non-UTF8 / non-LF source, self SHA, dirty final candidate, or unauthorized QA / merge / product / device / Release action.
@@ -363,7 +410,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 | P1-R3-001 | Independent QA R3 reproduced three non-HISTORY ACTIVE heading pseudo-passes: setext, two-space-indented ATX and blockquote ATX; repair R3 also established HTML, blockquote-setext, list-marker and HISTORICAL RED controls | Repair R3 temporarily used a deterministic manual heading normalizer, then Independent QA R4 found standard container gaps; repair R4 retired that parser and replaced it with renderer-backed HTML h1-h6 extraction | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-independent-qa-r3-2026-11-08\INDEPENDENT_QA_R3_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\red-heading-variants.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\green-heading-variants.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\green-full-suite.txt |
 | P1-R4-001 | Independent QA R4 reproduced ordered-list, list-then-blockquote and nested-list ATX ACTIVE pseudo-passes; repair R4 also established nested blockquote/ordered composite and renderer fail-closed RED controls | Handoff now renders the full stable document with ConvertFrom-Markdown and extracts actual HTML h1-h6; manual blockquote/list/fence/ATX/setext state is removed; renderer unavailable/error fail closed; renderer GREEN 9/0, structural controls 10/0, full suite 99/0 | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-independent-qa-r4-2026-11-08\INDEPENDENT_QA_R4_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-independent-qa-r4-2026-11-08\09b-independent-structural-fixture-matrix-final.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r4-2026-11-08\red-renderer-backed-headings.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r4-2026-11-08\green-renderer-backed-headings.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r4-2026-11-08\green-structural-controls.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r4-2026-11-08\green-full-suite.txt |
 <!-- V2_QA_P1_MATRIX_END -->
-<!-- V2_QA_READY_END -->
+<!-- HISTORY_QA_READY_SNAPSHOT_END -->
 
 ## Architecture Critical Path / 长期计划账本
 
