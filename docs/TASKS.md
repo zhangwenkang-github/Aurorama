@@ -8,7 +8,7 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
-- TASK_STAGE=INDEPENDENT_QA_R2_PASS / MERGE_PREP_PENDING
+- TASK_STAGE=MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / DOCS_SYNC_THIS_COMMIT
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -22,7 +22,7 @@
 - AUTHORIZATION=QA_FAIL_P2_GATEPLAN_QA_READY_COMMAND_REPAIR_2026_11_08
 - IMPLEMENTATION_AUTHORIZED=NO / NEXT_STAGE_ORCHESTRATION_ONLY
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=296465_OF_1048576 / 28.3_PERCENT / MERGE_PREP_PREPARE_HANDOFF / 2026_11_08
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=DISPATCH_FRESH_GATEPLAN_RECOVERY_MERGE_PREP
-- last_evidence=INDEPENDENT_QA_R2_PASS; CANONICAL=83d2558abb217065cc1c55c4c8ef990e602cc451; CANDIDATE=7ff7eb7ea309faabfc422358dcf8a92805ed6b60; MATRIX_SHA256=5BE04FD5D0C7486D9CEF2AAD2B66197CBC7F8902AF0668CCACFF24AB9FAC556B; QA_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-independent-qa-r2-2026-11-08\INDEPENDENT_QA_R2_REPORT.md
+- NEXT_CRITICAL_PATH=W1B_1B_CLOSEOUT_AND_W1B_1C_ENTRY_DECISION
+- last_evidence=MERGE_PREP_R2_PASS; FINAL_HEAD=6c7014cb44ae20aa52031f7e803b429d75b4ef03; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-merge-prep-r2-2026-11-08\MERGE_PREP_R2_REPORT.md
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -250,6 +250,25 @@
 - 该 PASS 只证明控制面恢复候选与 QA_READY 命令；不证明 W1B 源、产品、父 seam、
   runtime、integration 或 Release。下一步仅允许全新 delivery lead 派发 fresh
   control-plane merge-prep owner；merge-prep 前不得修改候选或矩阵。
+
+### HISTORY — GatePlan control-plane recovery merge-prep R2 PASS / local ff-only integrated（2026-11-08）
+
+- 全新 R2 merge-prep owner 复核 R1 final candidate
+  `6c7014cb44ae20aa52031f7e803b429d75b4ef03`：父提交为 canonical
+  `d3c2b45e2c6142bd1a60ca07cae6ae935f720a84`；`target..final` 仅 wrapper / tests
+  两路径；逐 blob、`tools/architecture` tree 与 patch-id 均与 source
+  `7ff7eb7ea309faabfc422358dcf8a92805ed6b60` MATCH。
+- `QaReady` 按 `QA_READY=NO / FRESH_INDEPENDENT_QA_REQUIRED=NO` 判
+  `NOT_APPLICABLE`；canonical-bound `HANDOFF_LINT=PASS`。CANDIDATE GatePlan exit 0；
+  wrapper suite `37/0`、handoff suite `99/0`；真实 W1B 14 路径 GatePlan 为
+  `STATE_EFFECT_MATRIX=PASS / GATE_LANE=FULL / 14 GATE_PATH / exit 0`。FULL 仅证明
+  派单映射，不证明 W1B、产品、runtime 或 Release。
+- 首次 R1 的 QaReady 适用性误判已由用户授权 R2 修正；一次只读 balance API 流程偏差
+  已由用户接受。R2 `GATE_PATH_COUNT` 汇总 token 缺失经 manager 裁为报告摘要问题，
+  不作为 wrapper 或候选缺陷。
+- Delivery lead 已执行本地 `git merge --ff-only`，canonical 前进到
+  `6c7014cb44ae20aa52031f7e803b429d75b4ef03`；未 push、tag 或 Release。证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-merge-prep-r2-2026-11-08\MERGE_PREP_R2_REPORT.md`。
 
 ### HISTORY — Workflow efficiency local integration（2026-11-08）
 
