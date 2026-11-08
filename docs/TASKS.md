@@ -372,6 +372,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
+- QA_READY=NO
+- UNCOVERED=W1B-1B atomic generation conditional implementation candidate has not been produced; independent QA is not dispatchable.
+- STOP_CONDITION=Do not dispatch QA before a committed implementation report, exact-path verification and QaReady lint PASS.
+- MANUAL_OWNER=AURORAMA_V2_W1B_1B_ATOMIC_GENERATION_CONDITIONAL_IMPLEMENTATION_OWNER_2026_11_08
 <!-- V2_QA_READY_END -->
 
 <!-- HISTORY_QA_READY_SNAPSHOT_BEGIN -->
