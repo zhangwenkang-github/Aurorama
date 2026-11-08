@@ -8,24 +8,24 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-WORKFLOW-EFFICIENCY-2026-11-08
-- TASK_STAGE=MERGE_PREP_STATE_CORRECTION / RECHECK_READY
+- TASK_STAGE=INTEGRATED / CONTROL_PLANE_CLOSEOUT
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama
 - CANONICAL_BRANCH=codex/v2-workflow-efficiency-2026-11-08
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_MERGE_PREP_OWNER_2026_11_08
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1B_1B_OR_NEXT_2_0_WAVE
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Merge-prep recheck is read-only and must stop on HEAD or six-path drift, dirty worktree, missing QA evidence, test regression, merge/push/tag/Release, product/device/network use, or any file edit.
+- STOP_CONDITION=Integrated control plane is closed; stop on any HEAD or six-path drift, dirty worktree, failed final Handoff/Closeout, product/runtime claim expansion, or unauthorized push/tag/Release.
 - SCOPE=V2_WORKFLOW_EFFICIENCY_SCRIPT_AND_RULES
 - AUTHORIZATION=USER_APPROVED_RECOMMENDED_WORKFLOW_PLAN_2026_11_08
-- IMPLEMENTATION_AUTHORIZED=NO / MERGE_PREP_ONLY / MAX_CHANGED_PATHS=6
+- IMPLEMENTATION_AUTHORIZED=NO / INTEGRATED
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -ExpectedHead "<external-pinned-control-head>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=298098_OF_1048576 / 28.4_PERCENT / ABOVE_250000_CHECKPOINT / APPROACHING_300000_HANDOFF_PREP / 2026-11-08
+- CONTEXT_AT_CLOSE=322205_OF_1048576 / 30.7_PERCENT / ABOVE_300000_HANDOFF_PREP / BELOW_350000_HARD_HANDOFF / 2026-11-08
 - P0=0
 - P1=P1-QA-INDEP-01
 - P2=0
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=MERGE_PREP_RECHECK_AFTER_STATE_CORRECTION
-- last_evidence=MERGE_PREP_ATTEMPT_1=BLOCKED_BY_MANAGER_STATE; P2-MERGE-PREP-01=POST_QA_QA_READY_NONZERO; ROOT_CAUSE=QA_READY_NO_AND_P1_ZERO_AFTER_QA_PASS; RESOLUTION=SET_QA_READY_YES_AND_CLOSED_P1_LINEAGE_THEN_RECHECK; QA_R2=PASS; NEXT=merge-prep recheck
+- NEXT_CRITICAL_PATH=USER_DECISION_RESTORE_W1B_1B_OR_NEXT_2_0_WAVE
+- last_evidence=FF_ONLY_INTEGRATED=TARGET_2f5f8a0556d444957b5cf356c68dfaced430e79f; MERGE_PREP_RECHECK=PASS; INDEPENDENT_QA_R2=PASS; WORKFLOW_SUITE=35/0; HANDOFF_SUITE=99/0; P1-QA-INDEP-01=CLOSED; FINAL_CLOSEOUT=EVIDENCE_F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-final-integration-2026-11-08\closeout-final.txt; UNCOVERED=product/runtime/W1B/Release
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -167,6 +167,22 @@
 - ALLOWED_PATH=tools/architecture/v2-workflow.ps1
 - ALLOWED_PATH=tools/architecture/v2-workflow.tests.ps1
 <!-- V2_HANDOFF_OBJECT_END -->
+
+### HISTORY — Workflow efficiency local integration（2026-11-08）
+
+- Delivery manager 在 clean `codex/v2-integration` worktree 核验 target HEAD
+  `c26c2f66eb2de5299f314a5266b8b203a5848a7f` 是最终候选
+  `2f5f8a0556d444957b5cf356c68dfaced430e79f` 的祖先，并以
+  `git merge --ff-only` 完成本地集成；未 push、tag 或 Release。
+- 最终候选祖先链包含 implementation / repair R1/R2、Independent QA R2 与 merge-prep
+  recheck；`base..candidate` 仍精确六路径。产品、runtime、W1B、integration product
+  behavior 与 Release 均为 `NOT_ASSESSED`。
+- 本 checkpoint 由集成 worktree 自己的 `v2-workflow.ps1 -Mode UpdateState` 写入
+  `INTEGRATED / CONTROL_PLANE_CLOSEOUT`，最终 clean、Handoff、Engramory checker/doctor
+  与 Closeout 以提交后 HEAD 外部 pin 执行。证据根：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-final-integration-2026-11-08`。
+- 后续只能由用户决定是否恢复 W1B-1B merge-prep/下一产品阶段；不得把本控制面集成扩写为
+  产品或 Release PASS。
 
 ### HISTORY — Merge-prep R1 state correction（2026-11-08）
 
@@ -471,10 +487,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=YES
-- UNCOVERED=Independent QA R2 PASS is limited to the control plane. Product/runtime/W1B/integration/Release remain NOT_ASSESSED. P3-QA-PROCESS-01 remains disclosed only.
-- STOP_CONDITION=QA is complete; do not dispatch more QA until a new defect or candidate change. Merge-prep may only audit and invoke gates.
-- MANUAL_LIMITATION=Merge-prep is read-only: no edits, commit, merge, push, tag, Release, device/network/product or scope expansion.
-- MANUAL_OWNER=AURORAMA_V2_WORKFLOW_EFFICIENCY_MERGE_PREP_OWNER_2026_11_08
+- UNCOVERED=Independent QA R2 and merge-prep PASS cover the control plane only. Product/runtime/W1B/integration-product behavior/Release remain NOT_ASSESSED. P3-QA-PROCESS-01 is disclosed only.
+- STOP_CONDITION=No further QA dispatch unless a new candidate change or defect occurs. User decision is required before restoring W1B-1B or starting another 2.0 wave.
+- MANUAL_LIMITATION=Final control-plane state is integrated locally only. No push, tag, Release, device/network/product validation or W1B resume is authorized.
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_W1B_1B_OR_NEXT_2_0_WAVE
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
