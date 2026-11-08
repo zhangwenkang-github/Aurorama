@@ -8,24 +8,24 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
-- TASK_STAGE=USER_APPROVED_RESTORE / POST_WORKFLOW_HANDOFF_READY
+- TASK_STAGE=BLOCKED_GATEPLAN_ENTRY_AND_MATRIX / MERGE_PREP_NOT_DISPATCHED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_POST_WORKFLOW_W1B_RESUME_DELIVERY_LEAD_2026_11_08
+- NEXT_ROLE=AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_SCOPE_OWNER_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
-- NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Next delivery lead must first verify the exact W1B source candidate and clean object, then dispatch a fresh professional merge-prep owner through the new wrapper and GatePlan. Stop on source candidate drift, missing QA R4 evidence, new P0-P2, direct implementation without stage decision, missing execution entry, or any product/W1B/parent-seam/Runtime/Release overclaim.
-- SCOPE=V2_WORKFLOW_EFFICIENCY_SCRIPT_AND_RULES
+- NEXT_PATH=tools/architecture/v2-workflow.ps1
+- STOP_CONDITION=Do not dispatch merge-prep or product work. First obtain user decision for a fresh control-plane recovery owner to map W1B setup paths to FULL and freeze a GatePlan-valid state-effect matrix; keep the source candidate untouched.
+- SCOPE=W1B_1B_GATEPLAN_ENTRY_AND_MATRIX_RECOVERY
 - AUTHORIZATION=USER_APPROVED_RECOMMENDED_WORKFLOW_PLAN_2026_11_08
 - IMPLEMENTATION_AUTHORIZED=NO / NEXT_STAGE_DECISION_ONLY
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=340682_OF_1048576 / 32.5_PERCENT / ABOVE_300000_HANDOFF_PREP / BELOW_350000_HARD_HANDOFF / 2026-11-08
+- CONTEXT_AT_CLOSE=155214_OF_1048576 / 14.8_PERCENT / BELOW_250000 / 2026_11_08
 - P0=0
 - P1=P1-W1B1B-04:CLOSED_BY_QA_R4
 - P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=VERIFY_W1B_1B_SOURCE_AND_DISPATCH_FRESH_MERGE_PREP
-- last_evidence=USER_APPROVED_RESTORE_2026-11-08; WORKFLOW_EFFICIENCY=INTEGRATED; W1B_SOURCE_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-atomic-generation-conditional-qa-r3-repair-followup-2026-11-08\Aurorama; W1B_SOURCE_HEAD=96b0c10603a50c82ae2ec95a639e51366503c7b1; W1B_QA_R4_COMPOSITE=PASS; GAP-QA-R4-01=CLOSED; EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-atomic-generation-conditional-independent-qa-r4-gap-closure-2026-11-08\QA_R4_GAP_CLOSURE_REPORT.md; NEXT=fresh merge-prep
+- NEXT_CRITICAL_PATH=REPAIR_GATEPLAN_MAPPING_AND_FREEZE_STATE_EFFECT_MATRIX
+- last_evidence=GATEPLAN_PATH_UNMAPPED=setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt; GATEPLAN_MATRIX_MISSING=data/src/main/java/com/zhangwenkang/cinefin/api/JellyfinApiFactory.kt; SCRIPT=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-workflow.ps1; SOURCE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-atomic-generation-conditional-qa-r3-repair-followup-2026-11-08\Aurorama; SOURCE_HEAD=96b0c10603a50c82ae2ec95a639e51366503c7b1; QA_R4_COMBINED=PASS
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -182,6 +182,30 @@
 - W1B QA R4 gap closure 证据：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-atomic-generation-conditional-independent-qa-r4-gap-closure-2026-11-08\QA_R4_GAP_CLOSURE_REPORT.md`。
   下一步只由 `AURORAMA_V2_POST_WORKFLOW_W1B_RESUME_DELIVERY_LEAD_2026_11_08` 读取并拆单。
+
+### HISTORY — Post-workflow W1B GatePlan blocked（2026-11-08）
+
+- Delivery lead 已用集成 worktree 的 `v2-workflow.ps1` 完成开工 Snapshot 与 Handoff：
+  `CLEAN=YES`、branch / external pin 匹配、`HANDOFF_LINT=PASS`。
+- 独立只读核验 W1B 源候选：
+  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-atomic-generation-conditional-qa-r3-repair-followup-2026-11-08\Aurorama`
+  clean，branch
+  `codex/v2-w1b-1b-atomic-generation-conditional-qa-r3-repair-followup-2026-11-08`，
+  HEAD `96b0c10603a50c82ae2ec95a639e51366503c7b1`。对象 `BASE_HEAD=f4a1e1a5...`
+  是祖先；实际 changed paths `14/16`，outside allowed `0`，另有 2 条允许路径未改；
+  QA 固定对象 `9eac62af...`、code candidate `6b553c1a...` 与 logical base
+  `c26c2f66...` 均为当前 HEAD 祖先，QA 之后仅改 `docs/TASKS.md`。
+- QA R4 composite 与 gap closure 证据现场为 PASS；报告明确不证明 merge-prep、
+  integration、W1B-1、父 seam、runtime、产品或 Release PASS。
+- `GatePlan` 真实 14 路径调用 FAIL：
+  `WORKFLOW_GATE_PATH_UNMAPPED:setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt`。
+  产品路径单独调用 FAIL：`WORKFLOW_STATE_EFFECT_MATRIX_MISSING`；W1B / 相邻控制面
+  证据中未找到可由 wrapper 消费的七类状态×效果矩阵文件。
+- 因入口与矩阵均缺失，按用户红线立即 STOP：未创建 merge-prep owner，未修改源候选，
+  未实现、QA、merge、integration、设备、网络、push、tag 或 Release。
+- 当前阻塞与下一步 scope 决策只读本文件唯一 ACTIVE。恢复前必须先由用户授权的全新
+  control-plane recovery owner 为 `setup/**` 等 W1B 产品路径提供真实 FULL 映射，
+  冻结 GatePlan-valid 状态×效果矩阵，并完成对应 RED/GREEN；不得只补规则文本。
 
 ### HISTORY — Workflow efficiency local integration（2026-11-08）
 
@@ -506,10 +530,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Workflow efficiency control plane is integrated. W1B_1B QA R4 composite is the current source result, but merge-prep, integration, W1B-1C, parent seam, runtime and Release are not complete.
-- STOP_CONDITION=Do not dispatch QA or implementation from this handoff. First verify the W1B source object and dispatch fresh merge-prep with its own stage decision and exact scope.
+- UNCOVERED=W1B source object and QA R4 composite evidence were verified; GatePlan is blocked by setup path mapping and a missing state-effect matrix, so merge-prep was not dispatched.
+- STOP_CONDITION=Keep merge-prep and product work stopped until a fresh control-plane recovery owner fixes the executable GatePlan entry and the user authorizes the recovery scope.
 - MANUAL_LIMITATION=This is a delivery-manager handoff only. No product implementation, QA, merge, device/network or Release action is authorized by this checkpoint.
-- MANUAL_OWNER=AURORAMA_V2_POST_WORKFLOW_W1B_RESUME_DELIVERY_LEAD_2026_11_08
+- MANUAL_OWNER=AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_SCOPE_OWNER_2026_11_08
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
