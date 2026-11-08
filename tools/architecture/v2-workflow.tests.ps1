@@ -514,6 +514,76 @@ Invoke-FixtureTest -Name 'UpdateState rejects duplicate key' -Body {
     }
 }
 
+Invoke-FixtureTest -Name 'UpdateState rejects duplicate non-target ACTIVE key without writing' -Body {
+    $fixture = New-Fixture
+    try {
+        Set-FixtureTasks -Fixture $fixture -Text $fixture.TasksText.Replace(
+            '- TASK_ID=FIXTURE-001',
+            "- TASK_ID=FIXTURE-001`n- TASK_ID=FIXTURE-002"
+        )
+        $before = [System.IO.File]::ReadAllBytes($fixture.TasksFile)
+        $result = Invoke-Workflow -Arguments @(
+            '-Mode', 'UpdateState',
+            '-RepoRoot', $fixture.Root,
+            '-StateUpdate', 'ACTIVE:TASK_STAGE=AFTER'
+        )
+        $after = [System.IO.File]::ReadAllBytes($fixture.TasksFile)
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-Contains -Result $result -Token 'FAIL:STATE_KEY_DUPLICATE:ACTIVE:TASK_ID'
+        Assert-True -Condition ([Convert]::ToBase64String($before) -ceq [Convert]::ToBase64String($after)) -Message 'Duplicate ACTIVE key fixture was modified'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'UpdateState rejects duplicate non-target QA key without writing' -Body {
+    $fixture = New-Fixture
+    try {
+        Set-FixtureTasks -Fixture $fixture -Text $fixture.TasksText.Replace(
+            '- UNCOVERED=Fixture QA has not run.',
+            "- UNCOVERED=Fixture QA has not run.`n- UNCOVERED=Fixture QA remains uncovered."
+        )
+        $before = [System.IO.File]::ReadAllBytes($fixture.TasksFile)
+        $result = Invoke-Workflow -Arguments @(
+            '-Mode', 'UpdateState',
+            '-RepoRoot', $fixture.Root,
+            '-StateUpdate', 'ACTIVE:TASK_STAGE=AFTER'
+        )
+        $after = [System.IO.File]::ReadAllBytes($fixture.TasksFile)
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-Contains -Result $result -Token 'FAIL:STATE_KEY_DUPLICATE:QA:UNCOVERED'
+        Assert-True -Condition ([Convert]::ToBase64String($before) -ceq [Convert]::ToBase64String($after)) -Message 'Duplicate QA key fixture was modified'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'UpdateState allows duplicate EVIDENCE and RETIRED_ROLE keys' -Body {
+    $fixture = New-Fixture
+    try {
+        Set-FixtureTasks -Fixture $fixture -Text $fixture.TasksText.Replace(
+            '- RETIRED_ROLE=RETIRED_OWNER',
+            "- EVIDENCE=fixture/evidence-one.txt`n- EVIDENCE=fixture/evidence-two.txt`n- RETIRED_ROLE=RETIRED_OWNER`n- RETIRED_ROLE=OLDER_OWNER"
+        )
+        $result = Invoke-Workflow -Arguments @(
+            '-Mode', 'UpdateState',
+            '-RepoRoot', $fixture.Root,
+            '-StateUpdate', 'ACTIVE:TASK_STAGE=AFTER'
+        )
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-Contains -Result $result -Token 'STATE_UPDATE=PASS'
+        $text = [System.IO.File]::ReadAllText($fixture.TasksFile, [System.Text.UTF8Encoding]::new($false, $true))
+        Assert-True -Condition (([regex]::Matches($text, '(?m)^- TASK_STAGE=AFTER$').Count) -eq 1) -Message $text
+        Assert-True -Condition (([regex]::Matches($text, '(?m)^- EVIDENCE=fixture/evidence-(one|two)\.txt$').Count) -eq 2) -Message $text
+        Assert-True -Condition (([regex]::Matches($text, '(?m)^- RETIRED_ROLE=(RETIRED_OWNER|OLDER_OWNER)$').Count) -eq 2) -Message $text
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
 Invoke-FixtureTest -Name 'UpdateState isolates ACTIVE QA and HISTORY blocks' -Body {
     $fixture = New-Fixture
     try {

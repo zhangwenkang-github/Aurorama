@@ -333,6 +333,23 @@ function Test-RoleValue {
     }
 }
 
+function Assert-UniqueSingleTokenKeys {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Block,
+        [Parameter(Mandatory)][string]$BlockName
+    )
+
+    $seenKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($entry in @(Get-TokenEntries -Text $Block)) {
+        if ($entry.Key -ceq 'EVIDENCE' -or $entry.Key -ceq 'RETIRED_ROLE') {
+            continue
+        }
+        if (-not $seenKeys.Add($entry.Key)) {
+            Write-Failure -Code 'STATE_KEY_DUPLICATE' -Subject "$BlockName`:$($entry.Key)"
+        }
+    }
+}
+
 function Invoke-UpdateState {
     Initialize-Repository
     if ($script:options.StateUpdate.Count -eq 0) {
@@ -352,6 +369,9 @@ function Invoke-UpdateState {
         ACTIVE = $active.Content
         QA = $qa.Content
     }
+    Assert-UniqueSingleTokenKeys -Block $blocks['ACTIVE'] -BlockName 'ACTIVE'
+    Assert-UniqueSingleTokenKeys -Block $blocks['QA'] -BlockName 'QA'
+
     $seenUpdates = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $roleKeys = @('NEXT_ROLE', 'MANUAL_OWNER', 'RETIRED_ROLE')
 
