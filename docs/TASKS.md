@@ -8,34 +8,34 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-WORKFLOW-EFFICIENCY-2026-11-08
-- TASK_STAGE=REPAIR_R2_MANAGER_REVIEW_PASS / FRESH_INDEPENDENT_QA_R2_READY
+- TASK_STAGE=INDEPENDENT_QA_R2_PASS / MERGE_PREP_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama
 - CANONICAL_BRANCH=codex/v2-workflow-efficiency-2026-11-08
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_INDEPENDENT_QA_OWNER_R2_2026_11_08
+- NEXT_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_MERGE_PREP_OWNER_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Repair R2 may only fix P1-QA-INDEPEND-01 through TDD on the six-path control surface. Stop on worktree drift, seventh path, product/device/network use, missing RED/GREEN, a second failure, independent QA, merge-prep or integration.
+- STOP_CONDITION=Merge-prep must be read-only and stop on HEAD or six-path drift, dirty worktree, missing QA evidence, test regression, merge/push/tag/Release, product/device/network use, or any file edit.
 - SCOPE=V2_WORKFLOW_EFFICIENCY_SCRIPT_AND_RULES
 - AUTHORIZATION=USER_APPROVED_RECOMMENDED_WORKFLOW_PLAN_2026_11_08
-- IMPLEMENTATION_AUTHORIZED=YES_REPAIR_ONLY / MAX_CHANGED_PATHS=6
+- IMPLEMENTATION_AUTHORIZED=NO / MERGE_PREP_ONLY / MAX_CHANGED_PATHS=6
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -ExpectedHead "<external-pinned-control-head>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=279664_OF_1048576 / 26.7_PERCENT / ABOVE_250000_CHECKPOINT / BELOW_300000_HANDOFF_PREP / 2026-11-08
+- CONTEXT_AT_CLOSE=298098_OF_1048576 / 28.4_PERCENT / ABOVE_250000_CHECKPOINT / APPROACHING_300000_HANDOFF_PREP / 2026-11-08
 - P0=0
-- P1=P1-QA-INDEP-01
+- P1=0
 - P2=0
 - P3=P3-QA-PROCESS-01
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\task_plan.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=INDEPENDENT_RE_QA_REPAIR_R2
-- last_evidence=MANAGER_REVIEW_R2=PASS; CANDIDATE=39e30369f25e6def8478d14dc9d11df533ecb10e; P1-QA-INDEP-01=REPAIRED_PENDING_INDEPENDENT_QA; RED=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r2-2026-11-08\red-full-suite.txt 33/2; GREEN=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r2-2026-11-08\green-full-suite.txt 35/0; HANDOFF_TESTS=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r2-2026-11-08\green-handoff-lint-suite.txt 99/0; HANDOFF=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r2-2026-11-08\handoff-postcommit.txt PASS; P3-QA-INDEP-01=CLOSED_BY_EXTERNAL_PLAN_SYNC; NEXT=QA R2
+- NEXT_CRITICAL_PATH=MERGE_PREP_V2_WORKFLOW_EFFICIENCY
+- last_evidence=INDEPENDENT_QA_R2=PASS; QA_HEAD=6a6c62e95bf5cd49fff971667c6e65e4e5cd8980; REPAIR_CANDIDATE=39e30369f25e6def8478d14dc9d11df533ecb10e; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-independent-qa-r2-2026-11-08\INDEPENDENT_QA_R2_REPORT.md; WORKFLOW_SUITE=35/0; HANDOFF_SUITE=99/0; UPDATE_STATE=10/10; HANDOFF=PASS; CLOSEOUT=PASS; STATIC=PASS; P1-QA-INDEP-01=CLOSED; NEXT=merge-prep
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -167,6 +167,21 @@
 - ALLOWED_PATH=tools/architecture/v2-workflow.ps1
 - ALLOWED_PATH=tools/architecture/v2-workflow.tests.ps1
 <!-- V2_HANDOFF_OBJECT_END -->
+
+### HISTORY — Independent QA R2 PASS（2026-11-08）
+
+- 全新 `AURORAMA_V2_WORKFLOW_EFFICIENCY_INDEPENDENT_QA_OWNER_R2_2026_11_08`
+  首动作自行 QaReady PASS；对象 HEAD `6a6c62e95bf5cd49fff971667c6e65e4e5cd8980`、
+  branch 与六路径未漂移，仓库未被 QA 修改。
+- 独立执行 workflow `35/0`、handoff-lint `99/0`、UpdateState 仓库外矩阵 `10/10`；
+  ACTIVE 非目标重复 `TASK_ID`、QA 非目标重复 `UNCOVERED` 与目标重复 key 均零写入拒绝，
+  合法重复 `EVIDENCE` / `RETIRED_ROLE` 保留。Snapshot、GatePlan 正负例、真实 Handoff、
+  Closeout 成功/失败链与静态规则全部通过。
+- `P1-QA-INDEP-01=CLOSED_BY_INDEPENDENT_QA_R2`；`P3-QA-INDEP-01` 已由外部计划同步关闭；
+  `P3-QA-PROCESS-01` 仅保留首轮 QA 联网 status 的流程披露，不是候选代码缺陷。
+- 报告：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-independent-qa-r2-2026-11-08\INDEPENDENT_QA_R2_REPORT.md`。
+- 产品、runtime、W1B、integration、Release 仍 `NOT_ASSESSED`。下一步仅 fresh merge-prep。
 
 ### HISTORY — Manager review R2 PASS（2026-11-08）
 
@@ -443,11 +458,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=YES
-- UNCOVERED=Fresh independent re-QA is pending for P1-QA-INDEP-01 closure. External plan P3 is manager-synced; process P3 remains disclosed. Product/device/network/Gradle/integration/Release are not assessed.
-- STOP_CONDITION=Fresh QA owner must first rerun QaReady, then verify the repaired singleton-key uniqueness and all prior control-plane matrices read-only. Stop on any failure, drift, seventh path, evidence mismatch, or unauthorized action.
-- MANUAL_LIMITATION=Fresh QA R2 may create repository-external evidence only and may not edit source/docs/tests, commit, merge, push, tag, Release, or use network/device/ADB/production.
-- MANUAL_OWNER=AURORAMA_V2_WORKFLOW_EFFICIENCY_INDEPENDENT_QA_OWNER_R2_2026_11_08
+- QA_READY=NO
+- UNCOVERED=Independent QA R2 PASS is limited to the control plane. Product/runtime/W1B/integration/Release remain NOT_ASSESSED. P3-QA-PROCESS-01 remains disclosed only.
+- STOP_CONDITION=QA is complete; do not dispatch more QA until a new defect or candidate change. Merge-prep may only audit and invoke gates.
+- MANUAL_LIMITATION=Merge-prep is read-only: no edits, commit, merge, push, tag, Release, device/network/product or scope expansion.
+- MANUAL_OWNER=AURORAMA_V2_WORKFLOW_EFFICIENCY_MERGE_PREP_OWNER_2026_11_08
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
