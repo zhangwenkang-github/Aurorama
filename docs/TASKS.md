@@ -5,40 +5,50 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
+### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
-- TASK_ID=V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
-- TASK_STAGE=ROUTE_A_USER_APPROVED / IMPLEMENTATION_NOT_STARTED
+- TASK_ID=V2-WORKFLOW-EFFICIENCY-2026-11-08
+- TASK_STAGE=DESIGN_APPROVED / IMPLEMENTATION_NOT_STARTED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
-- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
-- CANONICAL_BRANCH=codex/v2-integration
+- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama
+- CANONICAL_BRANCH=codex/v2-workflow-efficiency-2026-11-08
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R035/R036/R037 > docs/TASKS.md ACTIVE / Architecture ledger / W1B task card > docs/LESSONS.md L028/L038/L039/L042 > IdentityContract.kt > IdentityWriteCoordinator.kt > W1B-1B frozen paths > R2 blocker evidence
-- NEXT_ROLE=AURORAMA_V2_W1B_1B_ATOMIC_GENERATION_CONDITIONAL_IMPLEMENTATION_OWNER_2026_11_08
-- RETIRED_ROLE=AURORAMA_V2_W1B_1B_NEXT_STEP_DIAGNOSTIC_OWNER_2026_11_08
+- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
+- NEXT_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_IMPLEMENTATION_OWNER_2026_11_08
+- RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=STOP on worktree or manager-pin drift, a 17th changed path, any staged/schema/Gradle/network/device/Release requirement, external permit implementation remains possible, any check remains outside coordinator generation registration, DAO or global API remains outside permit commit, new P0-P2, or implementation/QA/merge-prep role reuse.
-- SCOPE=W1B_1B_ATOMIC_GENERATION_CONDITIONAL_ROUTE_A
-- AUTHORIZATION=USER_APPROVED_ROUTE_A_2026_11_08
-- IMPLEMENTATION_AUTHORIZED=YES / SCOPE=W1B_1B_ATOMIC_GENERATION_CONDITIONAL
-- IMPLEMENTATION_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-atomic-generation-conditional-2026-11-08\Aurorama
-- IMPLEMENTATION_BRANCH=codex/v2-w1b-1b-atomic-generation-conditional-2026-11-08
+- STOP_CONDITION=STOP on worktree/branch/pin drift, a seventh changed path, product file change, new P0-P2, missing RED/GREEN evidence, non-executable rule without a command/test/stop condition, merge-prep/integration/device/network/push/tag/Release, or direct QA without a committed implementation report and QaReady PASS.
+- SCOPE=V2_WORKFLOW_EFFICIENCY_SCRIPT_AND_RULES
+- AUTHORIZATION=USER_APPROVED_RECOMMENDED_WORKFLOW_PLAN_2026_11_08
+- IMPLEMENTATION_AUTHORIZED=YES / MAX_CHANGED_PATHS=6
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
 - FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
-- MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -ExpectedHead "<external-pinned-control-head>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=RECORDED_IN_MANAGER_REPORT / 2026-11-08
-- P1=W1B-1B:P1-01,P1-02:OPEN
-- P2=NONE
-- P3=NONE
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\evidence-repair-r2-w1b-1b-2026-11-08\02-blocker-analysis.log
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\evidence-repair-r2-w1b-1b-2026-11-08\01-r2-red-TEST-com.zhangwenkang.cinefin.setup.IdentityIngressContractTest.xml
+- MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -ExpectedHead "<external-pinned-control-head>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+- MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+- CONTEXT_AT_CLOSE=429380_OF_1048576 / 40.9_PERCENT / ABOVE_350000_HARD_HANDOFF / 2026-11-08
+- P0=0
+- P1=0
+- P2=0
+- P3=0
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\task_plan.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=W1B_1B_ATOMIC_GENERATION_CONDITIONAL_IMPLEMENTATION
-- last_evidence=R2 deterministic RED 14/3 proves external generation, unconsumed permit and external permit implementation; Route A explicitly approved by user on 2026-11-08.
+- NEXT_CRITICAL_PATH=IMPLEMENT_V2_WORKFLOW_SCRIPT_TESTS_AND_RULES
+- last_evidence=User approved the recommended bounded workflow plan on 2026-11-08; audit shows 16 commits, 11 docs commits, TASKS changed 12 times and 9 fresh owners; implementation has not started.
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
+### HISTORY — V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08（base snapshot superseded）
+
+- TASK_STAGE=SUPERSEDED_BY_V2_WORKFLOW_EFFICIENCY_ON_WORKFLOW_BRANCH
+- CANONICAL_BRANCH=codex/v2-integration
+- NEXT_ROLE=AURORAMA_V2_W1B_1B_ATOMIC_GENERATION_CONDITIONAL_IMPLEMENTATION_OWNER_2026_11_08
+- SCOPE=W1B_1B_ATOMIC_GENERATION_CONDITIONAL_ROUTE_A
+- P1=W1B-1B:P1-01,P1-02:OPEN_AT_THIS_BASE_SNAPSHOT
+- NEXT_CRITICAL_PATH=W1B_LATER_PRODUCT_RECOVERY_AFTER_WORKFLOW_EFFICIENCY
+- last_evidence=This is the stale base snapshot. The live W1B result is on its dedicated follow-up branch and must be re-read there; this workflow branch does not overwrite or re-score it.
+
 ### HISTORY — V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
 
 - TASK_ID=V2-STABLE-DOC-STATE-CLEANUP-2026-11-08
@@ -146,26 +156,16 @@
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=f4a1e1a5ef4986dea36c584d78a8fab9f606f047
-- REQUIRED_ANCESTOR=f4a1e1a5ef4986dea36c584d78a8fab9f606f047
+- BASE_HEAD=c26c2f66eb2de5299f314a5266b8b203a5848a7f
+- REQUIRED_ANCESTOR=c26c2f66eb2de5299f314a5266b8b203a5848a7f
 - FAILED_CANDIDATE=NONE
-- MAX_CHANGED_PATHS=16
+- MAX_CHANGED_PATHS=6
+- ALLOWED_PATH=AGENTS.md
+- ALLOWED_PATH=docs/PROJECT_RULES.md
+- ALLOWED_PATH=docs/LESSONS.md
 - ALLOWED_PATH=docs/TASKS.md
-- ALLOWED_PATH=data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityContract.kt
-- ALLOWED_PATH=data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinator.kt
-- ALLOWED_PATH=data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityContractTest.kt
-- ALLOWED_PATH=data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinatorTest.kt
-- ALLOWED_PATH=data/src/main/java/com/zhangwenkang/cinefin/api/JellyfinApiFactory.kt
-- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/SetupRepository.kt
-- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt
-- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/data/di/SetupDataModule.kt
-- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/OfflineIdentity.kt
-- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/addserver/AddServerViewModel.kt
-- ALLOWED_PATH=setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/users/UsersViewModel.kt
-- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/setup/IdentityIngressContractTest.kt
-- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/setup/OfflineIdentityCoordinatorTest.kt
-- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/setup/UserSessionSelectionTest.kt
-- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/setup/ServerBootstrapTest.kt
+- ALLOWED_PATH=tools/architecture/v2-workflow.ps1
+- ALLOWED_PATH=tools/architecture/v2-workflow.tests.ps1
 <!-- V2_HANDOFF_OBJECT_END -->
 
 ### HISTORY — Independent QA R4 FAIL / repair R4（2026-11-08）
@@ -373,9 +373,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=W1B-1B atomic generation conditional implementation candidate has not been produced; independent QA is not dispatchable.
-- STOP_CONDITION=Do not dispatch QA before a committed implementation report, exact-path verification and QaReady lint PASS.
-- MANUAL_OWNER=AURORAMA_V2_W1B_1B_ATOMIC_GENERATION_CONDITIONAL_IMPLEMENTATION_OWNER_2026_11_08
+- UNCOVERED=The workflow wrapper, state updater, tests, and rule updates have not been implemented; independent QA is not dispatchable.
+- STOP_CONDITION=Do not dispatch QA before RED/GREEN script tests, wrapper smoke, exact six-path verification, rule-entry audit and QaReady lint PASS.
+- MANUAL_LIMITATION=The implementation owner may change only the six allowed paths and may not treat repository-external planning files as product evidence.
+- MANUAL_OWNER=AURORAMA_V2_WORKFLOW_EFFICIENCY_IMPLEMENTATION_OWNER_2026_11_08
 <!-- V2_QA_READY_END -->
 
 <!-- HISTORY_QA_READY_SNAPSHOT_BEGIN -->
