@@ -7,22 +7,22 @@
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
-- TASK_ID=V2-W1B-2-STARTUP-HYDRATION-AND-RECOVERY-2026-11-09
-- TASK_STAGE=W1B_1=INDEPENDENT_QA_PASS / COMBINED_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED
+- TASK_ID=V2-W1C-CATALOG-READERS-SCOPE-2026-11-09
+- TASK_STAGE=W1B_COMPLETE / W1C_SCOPE_HANDOFF_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_IDENTITY_CATALOG_W1C_OR_NEXT_2_0_WAVE
+- NEXT_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Next action: user chooses W1C parent-seam continuation or another 2.0 wave. If W1C is selected, create a fresh delivery lead to read the W1B-2 merge report, current ACTIVE and W1C task card, then define implementation scope before dispatch. Stop until that decision; do not start W1C, devices, network, push, tag or Release without separate authorization.
-- SCOPE=W1B_2_CLOSEOUT
-- AUTHORIZATION=W1B_2_QA_AND_MERGE_PREP_PASS_2026_11_09
-- IMPLEMENTATION_AUTHORIZED=NO / W1B_COMPLETE
+- STOP_CONDITION=Next action: fresh W1C delivery lead must read the W1B-2 merge report, current ACTIVE, W1C task placeholder, Architecture Identity/Catalog sections and graphify query; freeze a W1C catalog-readers task card with exact production/test paths, state-effect matrix and gates, then dispatch a fresh implementation owner. Do not write product code before the card is frozen. Stop on path expansion, missing prerequisite, new P0-P2, device/network or Release.
+- SCOPE=W1C_CATALOG_READERS_SCOPE
+- AUTHORIZATION=USER_CONTINUE_2026_11_09_W1C_SCOPE_ONLY
+- IMPLEMENTATION_AUTHORIZED=NO / SCOPING_ONLY
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=YES
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_08
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_DECISION_W1C_OR_PARENT_SEAM_NEXT
-- last_evidence=W1B_2_MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED; FINAL_HEAD=5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-merge-prep-2026-11-09\MERGE_PREP_REPORT.md
+- NEXT_CRITICAL_PATH=W1C_CATALOG_READERS_SCOPE_THEN_IMPLEMENTATION
+- last_evidence=W1B_2_PASS_WITH_GAPS_AND_LOCAL_INTEGRATION; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-merge-prep-2026-11-09\MERGE_PREP_REPORT.md
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -230,6 +230,16 @@
   `PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED`；真实 Android kill/relaunch、
   WorkManager 真机时序、runtime、父 seam、产品与 Release 仍未验证。证据：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-merge-prep-2026-11-09\MERGE_PREP_REPORT.md`。
+
+### HISTORY — W1C catalog-readers scope handoff authorized（2026-11-09）
+
+- 用户明确要求继续下一步并交接。当前选择不是跳过父 seam，也不是直接写产品代码，而是
+  创建全新 `AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09`。
+- 该负责人第一步只读复核 W1B-2 merge 报告、唯一 ACTIVE、W1C catalog-readers 任务占位、
+  Architecture Identity/Catalog 段与 graphify 查询结果；必须先冻结精确 production/test
+  写域、state×effect 矩阵、全量/定向测试、A0 与独立 QA / merge-prep 门。
+- 任务卡冻结前禁止产品实现。冻结后只能由另一 fresh implementation owner 执行；负责人
+  只做范围、风险、压缩报告、集成决策与文档。不得使用设备/网络，不 push/tag/Release。
 
 ### HISTORY — Post-workflow W1B resume approved（2026-11-08）
 
@@ -656,10 +666,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=W1B-1 and W1B-2 are integrated. W1B-2 has accepted P3-QA-W1B2-01 for test composition depth; real device kill/relaunch, WorkManager timing, parent seam, runtime, product and Release remain unassessed.
-- STOP_CONDITION=No further QA is authorized. Next action requires a user decision on W1C parent-seam continuation or another 2.0 wave; device, network, integration and Release need separate authorization.
-- MANUAL_LIMITATION=W1B-2 PASS_WITH_GAPS is limited to local JVM/static startup hydration and recovery; device/runtime evidence remains N/A.
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_IDENTITY_CATALOG_W1C_OR_NEXT_2_0_WAVE
+- UNCOVERED=W1C catalog readers scoping has not started. W1B-2 remains PASS_WITH_GAPS; device kill/relaunch, WorkManager timing, parent seam and Release remain unassessed.
+- STOP_CONDITION=No QA is authorized. Next action is W1C scoping and task-card freeze only; implementation, QA, devices, network and Release require the next explicit handoff.
+- MANUAL_LIMITATION=This checkpoint hands off W1C scoping, not W1C implementation or QA.
+- MANUAL_OWNER=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -739,7 +749,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C、W1B-1 全栈与 W1B-2 已各自完成 QA + merge-prep + local integration；父 seam 下一 impl 入口为 W1C readers | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | User decision for W1C catalog readers or next 2.0 wave | W1C/W1D/W1E/W1F/W1G 未完成；真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED / W1C=SCOPE_HANDOFF_READY / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C、W1B-1 全栈与 W1B-2 已各自完成 QA + merge-prep + local integration；父 seam 下一入口为 W1C catalog readers scoping | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | W1C task-card freeze -> fresh implementation -> QA -> merge-prep | W1C/W1D/W1E/W1F/W1G 未完成；真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
