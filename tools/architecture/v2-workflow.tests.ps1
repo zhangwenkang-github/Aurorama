@@ -891,6 +891,109 @@ RESTART_RECOVERY=restart recovery is observable
     }
 }
 
+Invoke-FixtureTest -Name 'GatePlan maps exact W1B product paths to FULL with state-effect matrix' -Body {
+    $fixture = New-Fixture
+    try {
+        $fixture = Install-GatePlanEntrypoints -Fixture $fixture
+        $matrix = Join-Path $fixture.Parent 'state-effect-matrix-w1b.txt'
+        $matrixText = @"
+SUCCESS=success is observable
+EMPTY_RESULT=empty result is observable
+PERMISSION=permission denial is observable
+TIMEOUT_ERROR=timeout and exception are observable
+CANCEL=cancel restores the prior state
+RETRY_DUPLICATE=retry is idempotent
+RESTART_RECOVERY=restart recovery is observable
+"@
+        Write-Utf8File -Path $matrix -Text $matrixText
+        $w1bPaths = @(
+            'app/phone/src/test/java/com/zhangwenkang/cinefin/setup/IdentityIngressContractTest.kt'
+            'app/phone/src/test/java/com/zhangwenkang/cinefin/setup/OfflineIdentityCoordinatorTest.kt'
+            'data/src/main/java/com/zhangwenkang/cinefin/api/JellyfinApiFactory.kt'
+            'data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityContract.kt'
+            'data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinator.kt'
+            'data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityContractTest.kt'
+            'data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinatorTest.kt'
+            'docs/TASKS.md'
+            'setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt'
+            'setup/src/main/java/com/zhangwenkang/cinefin/setup/data/di/SetupDataModule.kt'
+            'setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/OfflineIdentity.kt'
+            'setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/SetupRepository.kt'
+            'setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/addserver/AddServerViewModel.kt'
+            'setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/users/UsersViewModel.kt'
+        )
+        $result = Invoke-Workflow -Arguments @(
+            '-Mode', 'GatePlan',
+            '-RepoRoot', $fixture.Root,
+            '-ChangedPath', ($w1bPaths -join '||'),
+            '-StateEffectMatrixPath', $matrix
+        )
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-Contains -Result $result -Token 'GATE_LANE=FULL'
+        Assert-Contains -Result $result -Token "STATE_EFFECT_MATRIX=PASS:$matrix"
+        foreach ($path in $w1bPaths) {
+            Assert-Contains -Result $result -Token "GATE_PATH=$path"
+        }
+        Assert-GateCommandFileTargets -Result $result
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'GatePlan maps W1B adjacent modules without broad prefix aliases' -Body {
+    $fixture = New-Fixture
+    try {
+        $fixture = Install-GatePlanEntrypoints -Fixture $fixture
+        $matrix = Join-Path $fixture.Parent 'state-effect-matrix-adjacent.txt'
+        $matrixText = @"
+SUCCESS=success is observable
+EMPTY_RESULT=empty result is observable
+PERMISSION=permission denial is observable
+TIMEOUT_ERROR=timeout and exception are observable
+CANCEL=cancel restores the prior state
+RETRY_DUPLICATE=retry is idempotent
+RESTART_RECOVERY=restart recovery is observable
+"@
+        Write-Utf8File -Path $matrix -Text $matrixText
+        $modulePaths = @(
+            'docs/TASKS.md'
+            'tools/architecture/v2-workflow.ps1'
+            'settings/src/main/java/com/zhangwenkang/cinefin/settings/presentation/settings/SettingsViewModel.kt'
+            'modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchCatalogConsumerTest.kt'
+        )
+        $result = Invoke-Workflow -Arguments @(
+            '-Mode', 'GatePlan',
+            '-RepoRoot', $fixture.Root,
+            '-ChangedPath', ($modulePaths -join '||'),
+            '-StateEffectMatrixPath', $matrix
+        )
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-Contains -Result $result -Token 'GATE_LANE=FULL'
+        foreach ($path in $modulePaths) {
+            Assert-Contains -Result $result -Token "GATE_PATH=$path"
+        }
+        Assert-GateCommandFileTargets -Result $result
+
+        foreach ($nearMiss in @(
+            'setups/src/main/kotlin/Unknown.kt'
+            'settings2/src/main/kotlin/Unknown.kt'
+            'modes-extra/src/main/kotlin/Unknown.kt'
+        )) {
+            $nearMissResult = Invoke-Workflow -Arguments @(
+                '-Mode', 'GatePlan',
+                '-RepoRoot', $fixture.Root,
+                '-ChangedPath', $nearMiss
+            )
+            Assert-ExitCode -Result $nearMissResult -Expected 2
+            Assert-Contains -Result $nearMissResult -Token "FAIL:WORKFLOW_GATE_PATH_UNMAPPED:$nearMiss"
+        }
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
 Invoke-FixtureTest -Name 'GatePlan fails closed on unknown path' -Body {
     $fixture = New-Fixture
     try {

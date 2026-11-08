@@ -535,6 +535,18 @@ function Invoke-GatePlan {
 
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $lane = 'FAST'
+    $productModuleRoots = @(
+        'app'
+        'core'
+        'feature'
+        'domain'
+        'data'
+        'setup'
+        'settings'
+        'modes'
+        'build-logic'
+        'gradle'
+    )
     foreach ($path in $paths) {
         if (-not (Test-CanonicalRelativePath -Path $path)) {
             Write-Failure -Code 'WORKFLOW_GATE_PATH_UNMAPPED' -Subject $path
@@ -550,7 +562,14 @@ function Invoke-GatePlan {
             'tools/architecture/v2-handoff-lint.ps1'
             'tools/architecture/v2-handoff-lint.tests.ps1'
         )
-        $isFull = $path -cmatch '^(app|core|feature|domain|data|build-logic|gradle)/' -or
+        $isProductModule = $false
+        foreach ($moduleRoot in $productModuleRoots) {
+            if ($path.StartsWith("$moduleRoot/", [System.StringComparison]::Ordinal)) {
+                $isProductModule = $true
+                break
+            }
+        }
+        $isFull = $isProductModule -or
             $path -cin @('build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts', 'gradle.properties')
 
         if ($isFull) {
