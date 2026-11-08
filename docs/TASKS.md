@@ -8,34 +8,34 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-W1B-2-STARTUP-HYDRATION-AND-RECOVERY-2026-11-09
-- TASK_STAGE=W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PENDING
+- TASK_STAGE=W1B_1=INDEPENDENT_QA_PASS / COMBINED_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_W1B_2_STARTUP_HYDRATION_AND_RECOVERY_MERGE_PREP_OWNER_2026_11_09
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_IDENTITY_CATALOG_W1C_OR_NEXT_2_0_WAVE
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Merge-prep only. Apply the six validated W1B-2 blobs on canonical 54df4f8d, run final gates and produce a ff-only descendant candidate. Do not modify source semantics, docs, matrix, W1B-1, devices, network, merge into canonical, push, tag or Release. Stop on drift, path expansion or new P0-P2.
-- SCOPE=W1B_2_MERGE_PREP
-- AUTHORIZATION=W1B_2_INDEPENDENT_QA_PASS_2026_11_09_MERGE_PREP_ONLY
-- IMPLEMENTATION_AUTHORIZED=NO / MERGE_PREP_ONLY
+- STOP_CONDITION=W1B-1 and W1B-2 are locally integrated. Do not start W1C parent-seam work, W1D-W1G, W1 product wave, devices, network, push, tag or Release without separate user authorization. Stop on drift or new P0-P2.
+- SCOPE=W1B_2_CLOSEOUT
+- AUTHORIZATION=W1B_2_QA_AND_MERGE_PREP_PASS_2026_11_09
+- IMPLEMENTATION_AUTHORIZED=NO / W1B_COMPLETE
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_08
 - P0=0
 - P1=P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
 - P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
-- P3=P3-W1B1B-PUBLIC-PERMIT-MARKER:ACCEPTED;P3-W1B1B-READ-LEASE-PUBLIC-EFFECT-REENTRANCY:ACCEPTED_CURRENT_CALL_GRAPH_NO_REENTRY;P3-W1B1-COMBINED-QA-HARNESS:ACCEPTED;P3-QA-W1B2-01:ACCEPTED
+- P3=P3-W1B1B-PUBLIC-PERMIT-MARKER:ACCEPTED;P3-W1B1B-READ-LEASE-PUBLIC-EFFECT-REENTRANCY:ACCEPTED_CURRENT_CALL_GRAPH_NO_REENTRY;P3-W1B1-COMBINED-QA-HARNESS:ACCEPTED;P3-QA-W1B2-01:ACCEPTED_TEST_DEPTH_GAP
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\task_plan.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=W1B_2_MERGE_PREP
-- last_evidence=W1B_2_INDEPENDENT_QA_PASS; CANDIDATE=9ce66f24ac44505544d6a88e38b7b0c66006f774; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
+- NEXT_CRITICAL_PATH=USER_DECISION_W1C_OR_PARENT_SEAM_NEXT
+- last_evidence=W1B_2_MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED; FINAL_HEAD=5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-merge-prep-2026-11-09\MERGE_PREP_REPORT.md
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -156,17 +156,11 @@
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=2e227cbdf448579451c15e42fe9bca48448b3f64
-- REQUIRED_ANCESTOR=2e227cbdf448579451c15e42fe9bca48448b3f64
+- BASE_HEAD=5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6
+- REQUIRED_ANCESTOR=5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6
 - FAILED_CANDIDATE=NONE
-- MAX_CHANGED_PATHS=7
+- MAX_CHANGED_PATHS=1
 - ALLOWED_PATH=docs/TASKS.md
-- ALLOWED_PATH=core/src/main/java/com/zhangwenkang/cinefin/di/ApiModule.kt
-- ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/BaseApplication.kt
-- ALLOWED_PATH=core/src/main/java/com/zhangwenkang/cinefin/viewmodels/MainViewModel.kt
-- ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/navigation/DrawerViewModel.kt
-- ALLOWED_PATH=data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityHydrationTest.kt
-- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/viewmodels/MainViewModelIdentityTest.kt
 <!-- V2_HANDOFF_OBJECT_END -->
 
 ### HISTORY — W1B-1B product merge-prep PASS / local ff-only integrated（2026-11-08）
@@ -221,6 +215,21 @@
   `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1-combined-merge-prep-2026-11-09\COMBINED_MERGE_PREP_REPORT.md`。
 - 下一步只授权 fresh W1B-2 implementation；写域严格为四 production + 两 test，
   不改 W1B-1 已集成语义、schema、Gradle、设备、网络或 Release。
+
+### HISTORY — W1B-2 independent QA PASS / merge-prep PASS / PASS_WITH_GAPS / locally integrated（2026-11-09）
+
+- W1B-2 implementation candidate `9ce66f24ac44505544d6a88e38b7b0c66006f774` 在四
+  production + 两 test 白名单内通过 implementation；fresh independent QA 判
+  `INDEPENDENT_QA_STATUS=PASS / P0-P3=0/0/0/1`，唯一 P3 为已接受的
+  `P3-QA-W1B2-01` 测试组合深度缺口。
+- merge-prep 从 canonical checkpoint 生成
+  `5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6`；target 为直接父提交，target..final
+  恰好 6 paths，6/6 blob/patch-id MATCH；GatePlan FULL、data `331/0`、app/phone
+  `457/0`、core `396/0`、assemble、ktfmt、A0 与 diff-check 均 PASS。
+- Delivery lead 已本地 `ff-only` 接入 canonical。W1B-2 结论为
+  `PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED`；真实 Android kill/relaunch、
+  WorkManager 真机时序、runtime、父 seam、产品与 Release 仍未验证。证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-merge-prep-2026-11-09\MERGE_PREP_REPORT.md`。
 
 ### HISTORY — Post-workflow W1B resume approved（2026-11-08）
 
@@ -647,10 +656,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=W1B-2 independent QA PASS covers six-path local JVM/static startup hydration and recovery only. Real Android kill/relaunch, WorkManager runtime, parent seam and Release remain unassessed.
-- STOP_CONDITION=Do not restart implementation or QA. Next stage is fresh W1B-2 merge-prep only; no device, network, canonical merge or Release.
-- MANUAL_LIMITATION=W1B-2 QA passed under local JVM/static gates; device/runtime evidence remains N/A.
-- MANUAL_OWNER=AURORAMA_V2_W1B_2_STARTUP_HYDRATION_AND_RECOVERY_MERGE_PREP_OWNER_2026_11_09
+- UNCOVERED=W1B-1 and W1B-2 are integrated. W1B-2 has accepted P3-QA-W1B2-01 for test composition depth; real device kill/relaunch, WorkManager timing, parent seam, runtime, product and Release remain unassessed.
+- STOP_CONDITION=Do not start more implementation or QA. User decision is required for W1C parent-seam work or another 2.0 wave.
+- MANUAL_LIMITATION=W1B-2 PASS_WITH_GAPS is limited to local JVM/static startup hydration and recovery; device/runtime evidence remains N/A.
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_IDENTITY_CATALOG_W1C_OR_NEXT_2_0_WAVE
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -730,7 +739,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PENDING / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C 与 W1B-1 全栈已独立 QA + merge-prep + integrated；W1B-2 QA PASS，等待 merge-prep | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | W1B-2 merge-prep -> root integration -> W1B parent seam next gate | W1B-2 merge-prep/root integration、真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C、W1B-1 全栈与 W1B-2 已各自完成 QA + merge-prep + local integration；父 seam 下一 impl 入口为 W1C readers | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | User decision for W1C catalog readers or next 2.0 wave | W1C/W1D/W1E/W1F/W1G 未完成；真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -1348,7 +1357,7 @@ git -C $repoRoot diff --check
   `W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED`、
   `W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED`、
   `W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED`、
-  `W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PENDING`；
+  `W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED`；
   `W1B_1A_REPAIR=COMPLETE / INTEGRATED`、`W1B_1=NOT_COMPLETE`、
   `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED`。
 - 集成模型：1A → 1B → 1C 顺序进入 W1B-1 stack。1A 已以三源提交链
@@ -1573,10 +1582,9 @@ W1B-1 stack 后，manager 必须另派全新 combined independent QA，复核三
 
 ##### `W1B-2-STARTUP-HYDRATION-AND-RECOVERY`
 
-- 前置：`W1B_1=PASS / INTEGRATED`。W1B-1A/B/C 任一未完成、未 QA、未 merge-prep 或
-  未 root integrated 时，不得创建 W1B-2 implementation owner；当前 `W1B_1=PASS /
-  INTEGRATED`，W1B-2 implementation 与 fresh independent QA 均已完成，当前
-  `W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PENDING`。
+- 前置：`W1B_1=PASS / INTEGRATED`。W1B-2 implementation、fresh independent QA、
+  merge-prep 与 local ff-only integration 均已完成；当前
+  `W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED`。
 - 独立用户可观察结果：杀进程重启后只恢复 canonical 身份；缺失 / 部分 / 损坏状态一律
   无身份，旧内存 token 不复活；app shell / drawer 与 W1A `currentScope()` 同源。
 - 收口边界：W1B-2 implementation report -> fresh independent QA -> PASS 后 fresh
