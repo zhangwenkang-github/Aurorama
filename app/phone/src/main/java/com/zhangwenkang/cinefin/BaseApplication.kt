@@ -23,6 +23,14 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.google.android.material.color.DynamicColors
+import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.di.IdentityHydrationGate
+import com.zhangwenkang.cinefin.identity.IdentityReadLeasePort
+import com.zhangwenkang.cinefin.identity.IdentityReadPort
+import com.zhangwenkang.cinefin.identity.IdentitySelection
+import com.zhangwenkang.cinefin.identity.IdentitySnapshot
+import com.zhangwenkang.cinefin.identity.IdentityStateStatus
 import com.zhangwenkang.cinefin.network.SharedPreferencesCertificateTrustStore
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.presentation.update.launchAutomaticUpdateCheck
@@ -32,13 +40,22 @@ import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.work.MpvCleanupWorker
 import com.zhangwenkang.cinefin.work.ReaderProgressSyncWorker
 import com.zhangwenkang.cinefin.work.SyncWorker
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
 import dagger.hilt.android.HiltAndroidApp
+import dagger.hilt.components.SingletonComponent
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
 import timber.log.Timber
@@ -46,6 +63,8 @@ import timber.log.Timber
 @HiltAndroidApp
 class BaseApplication : Application(), Configuration.Provider, SingletonImageLoader.Factory {
     @Inject lateinit var appPreferences: AppPreferences
+
+    @Inject lateinit var identityStartupProjector: IdentityStartupProjector
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
 
@@ -80,8 +99,16 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
 
         val workManager = WorkManager.getInstance(applicationContext)
 
-        scheduleUserDataSync(workManager)
-        scheduleReaderProgressSync(workManager)
+        CoroutineScope(Dispatchers.IO).launch {
+            val snapshot = identityStartupProjector.hydrate()
+            if (
+                snapshot.status == IdentityStateStatus.READY &&
+                    !snapshot.selection.serverId.isNullOrBlank()
+            ) {
+                scheduleUserDataSync(workManager)
+                scheduleReaderProgressSync(workManager)
+            }
+        }
         launchAutomaticUpdateCheck(CoroutineScope(Dispatchers.IO), updateWorkScheduler).start()
 
         // W50 下载引擎启动恢复：旧引擎进行中任务标记「需重下」；自研引擎中断任务从残片继续。
@@ -183,5 +210,191 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
             existingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP,
             request = periodicRequest,
         )
+    }
+}
+
+fun interface StartupIdentityPublisher {
+    fun publish(baseUrl: String?, accessToken: String?, userId: UUID?)
+}
+
+@Singleton
+class JellyfinStartupIdentityPublisher @Inject constructor(private val jellyfinApi: JellyfinApi) :
+    StartupIdentityPublisher {
+    override fun publish(baseUrl: String?, accessToken: String?, userId: UUID?) {
+        jellyfinApi.api.update(baseUrl = baseUrl.orEmpty(), accessToken = accessToken)
+        jellyfinApi.userId = userId
+        check(jellyfinApi.userId == userId) { "Published identity userId mismatch" }
+        if (baseUrl != null) {
+            check(jellyfinApi.api.baseUrl == baseUrl) { "Published identity baseUrl mismatch" }
+            check(jellyfinApi.api.accessToken == accessToken) {
+                "Published identity accessToken mismatch"
+            }
+        }
+    }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+object StartupIdentityModule {
+    @Singleton
+    @Provides
+    fun provideStartupIdentityPublisher(
+        publisher: JellyfinStartupIdentityPublisher
+    ): StartupIdentityPublisher = publisher
+}
+
+/**
+ * Validates the canonical READY snapshot against Room before publishing the global API identity.
+ */
+@Singleton
+class IdentityStartupProjector
+@Inject
+constructor(
+    private val gate: IdentityHydrationGate,
+    private val identityReadPort: IdentityReadPort,
+    private val database: ServerDatabaseDao,
+    private val apiPublisher: StartupIdentityPublisher,
+) {
+    private val mutex = Mutex()
+
+    suspend fun hydrate(): IdentitySnapshot = mutex.withLock { evaluate() }
+
+    private suspend fun evaluate(): IdentitySnapshot {
+        var snapshot =
+            try {
+                gate.hydrate()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                clearPublishedIdentity()
+                return unavailableSnapshot(0L)
+            }
+
+        repeat(2) {
+            when (val resolution = resolve(snapshot)) {
+                Resolution.Valid -> return snapshot
+                is Resolution.Unavailable -> {
+                    clearPublishedIdentity()
+                    return unavailableSnapshot(resolution.generation)
+                }
+                Resolution.Stale -> {
+                    snapshot =
+                        try {
+                            gate.current()
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            clearPublishedIdentity()
+                            return unavailableSnapshot(snapshot.identityGeneration)
+                        }
+                }
+            }
+        }
+
+        clearPublishedIdentity()
+        return unavailableSnapshot(snapshot.identityGeneration)
+    }
+
+    private suspend fun resolve(snapshot: IdentitySnapshot): Resolution {
+        if (snapshot.status != IdentityStateStatus.READY) {
+            return Resolution.Unavailable(snapshot.identityGeneration)
+        }
+        val selection = snapshot.selection
+        if (selection.serverId == null) {
+            clearPublishedIdentity()
+            return Resolution.Valid
+        }
+        parseUserId(selection) ?: return Resolution.Unavailable(snapshot.identityGeneration)
+        parseAddressId(selection) ?: return Resolution.Unavailable(snapshot.identityGeneration)
+
+        val leasePort = identityReadPort as? IdentityReadLeasePort
+        if (leasePort != null) {
+            val lease =
+                try {
+                    leasePort.acquireReadyLease()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                } ?: return Resolution.Stale
+            return leasePort.withReadyLease(lease) { liveSelection ->
+                if (liveSelection != selection) Resolution.Stale else validateAndPublish(snapshot)
+            } ?: Resolution.Stale
+        }
+
+        val resolution = validateAndPublish(snapshot)
+        if (resolution != Resolution.Valid) return resolution
+        val current =
+            try {
+                identityReadPort.current()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                return Resolution.Unavailable(snapshot.identityGeneration)
+            }
+        return if (current == snapshot) Resolution.Valid else Resolution.Stale
+    }
+
+    private suspend fun validateAndPublish(snapshot: IdentitySnapshot): Resolution {
+        val selection = snapshot.selection
+        val serverId =
+            selection.serverId ?: return Resolution.Unavailable(snapshot.identityGeneration)
+        val userId =
+            parseUserId(selection) ?: return Resolution.Unavailable(snapshot.identityGeneration)
+        val addressId =
+            parseAddressId(selection) ?: return Resolution.Unavailable(snapshot.identityGeneration)
+        val relation =
+            try {
+                database.getServerWithAddressAndUser(serverId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            } ?: return Resolution.Unavailable(snapshot.identityGeneration)
+        val address = relation.address ?: return Resolution.Unavailable(snapshot.identityGeneration)
+        val user = relation.user ?: return Resolution.Unavailable(snapshot.identityGeneration)
+        val valid =
+            relation.server.id == serverId &&
+                relation.server.currentServerAddressId == addressId &&
+                relation.server.currentUserId == userId &&
+                address.id == addressId &&
+                address.serverId == serverId &&
+                address.address.isNotBlank() &&
+                user.id == userId &&
+                user.serverId == serverId &&
+                !user.accessToken.isNullOrBlank()
+        if (!valid) return Resolution.Unavailable(snapshot.identityGeneration)
+
+        if (selection.offlineMode) {
+            clearPublishedIdentity()
+        } else {
+            apiPublisher.publish(address.address, user.accessToken, user.id)
+        }
+        return Resolution.Valid
+    }
+
+    private fun parseUserId(selection: IdentitySelection): UUID? =
+        selection.userId?.let { value -> runCatching { UUID.fromString(value) }.getOrNull() }
+
+    private fun parseAddressId(selection: IdentitySelection): UUID? =
+        selection.addressId?.let { value -> runCatching { UUID.fromString(value) }.getOrNull() }
+
+    private fun clearPublishedIdentity() {
+        apiPublisher.publish(null, null, null)
+    }
+
+    private fun unavailableSnapshot(generation: Long): IdentitySnapshot =
+        IdentitySnapshot(
+            selection = IdentitySelection(),
+            identityGeneration = generation,
+            status = IdentityStateStatus.RECOVERING,
+        )
+
+    private sealed interface Resolution {
+        data object Valid : Resolution
+
+        data object Stale : Resolution
+
+        data class Unavailable(val generation: Long) : Resolution
     }
 }

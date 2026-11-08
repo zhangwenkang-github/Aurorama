@@ -3,16 +3,21 @@ package com.zhangwenkang.cinefin.presentation.navigation
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.di.IdentityHydrationGate
+import com.zhangwenkang.cinefin.identity.IdentitySelection
+import com.zhangwenkang.cinefin.identity.IdentitySnapshot
+import com.zhangwenkang.cinefin.identity.IdentityStateStatus
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.models.CatalogLibrary
 import com.zhangwenkang.cinefin.settings.domain.models.LibraryCatalog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -52,7 +57,7 @@ data class DrawerState(
 class DrawerViewModel
 @Inject
 constructor(
-    private val database: ServerDatabaseDao,
+    private val database: com.zhangwenkang.cinefin.database.ServerDatabaseDao,
     private val appPreferences: AppPreferences,
     /** W53B：侧栏「本地媒体库」子分组的只读数据源（本机 Room 索引，不依赖服务器）。 */
     private val localLibraryRepository: LocalLibraryRepository,
@@ -61,6 +66,8 @@ constructor(
      * 离线实现，切回在线后侧轨库列表能立刻回来（内容页仍在下一次启动完全切换）。
      */
     private val repositoryProvider: Provider<JellyfinRepository>,
+    private val identityHydrationGate: IdentityHydrationGate,
+    private val catalogReadPort: CatalogReadPort,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DrawerState())
     val state = _state.asStateFlow()
@@ -108,8 +115,13 @@ constructor(
      */
     private fun seedAdministratorFromCache() {
         viewModelScope.launch {
-            val serverId = appPreferences.getValue(appPreferences.currentServer) ?: return@launch
-            val userId = currentUserId(serverId)
+            val canonical = resolveCanonicalIdentity()
+            if (canonical == null) {
+                resolvedUserId = null
+                _state.value = clearServerIdentity(_state.value)
+                return@launch
+            }
+            val userId = canonical.selection.userId
             resolvedUserId = userId
             val cached = cachedAdministratorFlag(userId)
             if (cached && !_state.value.isAdministrator) {
@@ -126,8 +138,13 @@ constructor(
      */
     fun refreshAccount() {
         viewModelScope.launch {
-            val serverId = appPreferences.getValue(appPreferences.currentServer) ?: return@launch
-            val userId = currentUserId(serverId)
+            val canonical = resolveCanonicalIdentity()
+            if (canonical == null) {
+                resolvedUserId = null
+                _state.value = clearServerIdentity(_state.value)
+                return@launch
+            }
+            val userId = canonical.selection.userId
             val cached = cachedAdministratorFlag(userId)
             val switched = userId != resolvedUserId
             resolvedUserId = userId
@@ -143,11 +160,6 @@ constructor(
             }
         }
     }
-
-    private suspend fun currentUserId(serverId: String): String? = runCatching {
-        database.getServerCurrentUser(serverId)?.id?.toString()
-    }
-        .getOrNull()
 
     private fun cachedAdministratorFlag(userId: String?): Boolean =
         sidebarAdministratorFlag(
@@ -167,28 +179,56 @@ constructor(
         // W53B：本地库属于本机索引，先刷新（离线 / 未选服务器时也要显示）；服务器数据随后覆盖其余字段。
         refreshLocalLibraries()
         viewModelScope.launch {
+            val canonical =
+                resolveCanonicalIdentity()
+                    ?: run {
+                        resolvedUserId = null
+                        _state.value = clearServerIdentity(_state.value)
+                        return@launch
+                    }
             runCatching {
-                val serverId =
-                    appPreferences.getValue(appPreferences.currentServer) ?: return@launch
+                val snapshot = canonical.snapshot
+                val selection = snapshot.selection
+                val serverId = selection.serverId ?: return@launch
                 val server = runCatching { database.getServer(serverId) }.getOrNull()
                 val address = runCatching { database.getServerCurrentAddress(serverId) }.getOrNull()
                 val user = runCatching { database.getServerCurrentUser(serverId) }.getOrNull()
-                resolvedUserId = user?.id?.toString()
+                if (server == null || address == null || user == null) {
+                    resolvedUserId = null
+                    _state.value = clearServerIdentity(_state.value)
+                    return@launch
+                }
+                val matchesCanonical =
+                    server.id == serverId &&
+                        address.id.toString() == selection.addressId &&
+                        user.id.toString() == selection.userId
+                if (!matchesCanonical) {
+                    resolvedUserId = null
+                    _state.value = clearServerIdentity(_state.value)
+                    return@launch
+                }
+                resolvedUserId = selection.userId
                 val repository = repositoryProvider.get()
                 val isAdministrator = runCatching {
                     repository.isCurrentUserAdministrator()
                 }
                     .getOrDefault(false)
                 val libraries = runCatching { repository.getLibraries() }.getOrNull()
+                val stillCanonical = resolveCanonicalIdentity()
+                if (stillCanonical?.matches(canonical) != true) {
+                    resolvedUserId = null
+                    _state.value = clearServerIdentity(_state.value)
+                    return@launch
+                }
                 // 媒体库目录缓存：设置模块不能依赖 data 层，设置页的「使用哪个媒体库」读这份缓存。
                 // 拉取失败（离线 / 服务器不可达）时保留上一次缓存，不写空值。
                 libraries?.let(::publishLibraryCatalog)
                 // 用 copy 而不是新建：只覆盖服务器相关字段，保留 refreshLocalLibraries() 刚写入的本地库行。
                 _state.value =
                     _state.value.copy(
-                        serverName = server?.name,
-                        serverAddress = address?.address,
-                        userName = user?.name,
+                        serverName = server.name,
+                        serverAddress = address.address,
+                        userName = user.name,
                         isAdministrator = isAdministrator,
                         // W73 #16：拉取失败（无会话 / 网络）时保留上一次成功列表，不把侧栏库行清空。
                         libraries = libraries ?: _state.value.libraries,
@@ -208,8 +248,21 @@ constructor(
      */
     fun refreshServerLibraries() {
         viewModelScope.launch {
-            val libraries =
-                runCatching { repositoryProvider.get().getLibraries() }.getOrNull() ?: return@launch
+            val canonical =
+                resolveCanonicalIdentity()
+                    ?: run {
+                        resolvedUserId = null
+                        _state.value = clearServerIdentity(_state.value)
+                        return@launch
+                    }
+            val libraries = runCatching { repositoryProvider.get().getLibraries() }.getOrNull()
+            val stillCanonical = resolveCanonicalIdentity()
+            if (stillCanonical?.matches(canonical) != true) {
+                resolvedUserId = null
+                _state.value = clearServerIdentity(_state.value)
+                return@launch
+            }
+            if (libraries == null) return@launch
             publishLibraryCatalog(libraries)
             _state.value = _state.value.copy(libraries = libraries)
         }
@@ -259,6 +312,62 @@ constructor(
             console = appPreferences.getValue(appPreferences.uiSidebarShowConsole),
             metadata = appPreferences.getValue(appPreferences.uiSidebarShowMetadata),
         )
+
+    private suspend fun resolveCanonicalIdentity(): CanonicalDrawerIdentity? {
+        val snapshot =
+            try {
+                identityHydrationGate.hydrate()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                return null
+            }
+        if (snapshot.status != IdentityStateStatus.READY) return null
+        val selection = snapshot.selection
+        val serverId = selection.serverId ?: return null
+        val scope =
+            try {
+                catalogReadPort.currentScope()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                return null
+            } ?: return null
+        if (
+            scope.origin.serverId != serverId || scope.origin.userId.toString() != selection.userId
+        ) {
+            return null
+        }
+        return CanonicalDrawerIdentity(
+            snapshot = snapshot,
+            selection = selection,
+            identityGeneration = scope.identityGeneration,
+            serverId = scope.origin.serverId,
+            userId = scope.origin.userId.toString(),
+        )
+    }
+
+    private fun clearServerIdentity(state: DrawerState): DrawerState =
+        state.copy(
+            serverName = null,
+            serverAddress = null,
+            userName = null,
+            isAdministrator = false,
+            libraries = emptyList(),
+        )
+
+    private data class CanonicalDrawerIdentity(
+        val snapshot: IdentitySnapshot,
+        val selection: IdentitySelection,
+        val identityGeneration: Long,
+        val serverId: String,
+        val userId: String,
+    ) {
+        fun matches(other: CanonicalDrawerIdentity): Boolean =
+            identityGeneration == other.identityGeneration &&
+                serverId == other.serverId &&
+                userId == other.userId
+    }
 
     private companion object {
         const val SIDEBAR_PREF_PREFIX = "pref_ui_sidebar_"
