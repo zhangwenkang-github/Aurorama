@@ -10,8 +10,8 @@
 - TASK_ID=V2-WORKFLOW-EFFICIENCY-2026-11-08
 - TASK_STAGE=INTEGRATED / CONTROL_PLANE_CLOSEOUT
 - WORKTREE_POLICY=EXACT_ABSOLUTE
-- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama
-- CANONICAL_BRANCH=codex/v2-workflow-efficiency-2026-11-08
+- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+- CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
 - NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1B_1B_OR_NEXT_2_0_WAVE
@@ -23,9 +23,9 @@
 - IMPLEMENTATION_AUTHORIZED=NO / INTEGRATED
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=YES
-- MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -ExpectedHead "<external-pinned-control-head>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=322205_OF_1048576 / 30.7_PERCENT / ABOVE_300000_HANDOFF_PREP / BELOW_350000_HARD_HANDOFF / 2026-11-08
+- MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
+- MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
+- CONTEXT_AT_CLOSE=330522_OF_1048576 / 31.5_PERCENT / ABOVE_300000_HANDOFF_PREP / BELOW_350000_HARD_HANDOFF / 2026-11-08
 - P0=0
 - P1=P1-QA-INDEP-01
 - P2=0
@@ -35,7 +35,7 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
 - NEXT_CRITICAL_PATH=USER_DECISION_RESTORE_W1B_1B_OR_NEXT_2_0_WAVE
-- last_evidence=FF_ONLY_INTEGRATED=TARGET_2f5f8a0556d444957b5cf356c68dfaced430e79f; MERGE_PREP_RECHECK=PASS; INDEPENDENT_QA_R2=PASS; WORKFLOW_SUITE=35/0; HANDOFF_SUITE=99/0; P1-QA-INDEP-01=CLOSED; FINAL_CLOSEOUT=EVIDENCE_F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-final-integration-2026-11-08\closeout-final.txt; UNCOVERED=product/runtime/W1B/Release
+- last_evidence=FF_ONLY_INTEGRATED; FIRST_CLOSEOUT=STOPPED_BY_SOURCE_CANONICAL_OBJECT; CORRECTION=MIGRATE_CANONICAL_WORKTREE_BRANCH_AND_COMMANDS_TO_INTEGRATION; INDEPENDENT_QA_R2=PASS; MERGE_PREP_RECHECK=PASS; WORKFLOW_SUITE=35/0; HANDOFF_SUITE=99/0; P1-QA-INDEP-01=CLOSED; NEXT=FINAL_CLOSEOUT
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -181,6 +181,10 @@
   `INTEGRATED / CONTROL_PLANE_CLOSEOUT`，最终 clean、Handoff、Engramory checker/doctor
   与 Closeout 以提交后 HEAD 外部 pin 执行。证据根：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-final-integration-2026-11-08`。
+- 第一次 final Closeout 正确 stop：canonical worktree/branch 仍为源候选，Handoff 报
+  `WORKTREE_MISMATCH / BRANCH_MISMATCH`。已通过 wrapper 将 canonical 对象与
+  Handoff/QaReady 命令迁到 `F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`
+  / `codex/v2-integration`，然后提交最终 checkpoint 再重跑 Closeout。
 - 后续只能由用户决定是否恢复 W1B-1B merge-prep/下一产品阶段；不得把本控制面集成扩写为
   产品或 Release PASS。
 
