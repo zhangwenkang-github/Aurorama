@@ -8,7 +8,7 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-WORKFLOW-EFFICIENCY-2026-11-08
-- TASK_STAGE=INDEPENDENT_QA_R2_PASS / MERGE_PREP_READY
+- TASK_STAGE=MERGE_PREP_STATE_CORRECTION / RECHECK_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama
 - CANONICAL_BRANCH=codex/v2-workflow-efficiency-2026-11-08
@@ -17,7 +17,7 @@
 - NEXT_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_MERGE_PREP_OWNER_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Merge-prep must be read-only and stop on HEAD or six-path drift, dirty worktree, missing QA evidence, test regression, merge/push/tag/Release, product/device/network use, or any file edit.
+- STOP_CONDITION=Merge-prep recheck is read-only and must stop on HEAD or six-path drift, dirty worktree, missing QA evidence, test regression, merge/push/tag/Release, product/device/network use, or any file edit.
 - SCOPE=V2_WORKFLOW_EFFICIENCY_SCRIPT_AND_RULES
 - AUTHORIZATION=USER_APPROVED_RECOMMENDED_WORKFLOW_PLAN_2026_11_08
 - IMPLEMENTATION_AUTHORIZED=NO / MERGE_PREP_ONLY / MAX_CHANGED_PATHS=6
@@ -27,15 +27,15 @@
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - CONTEXT_AT_CLOSE=298098_OF_1048576 / 28.4_PERCENT / ABOVE_250000_CHECKPOINT / APPROACHING_300000_HANDOFF_PREP / 2026-11-08
 - P0=0
-- P1=0
+- P1=P1-QA-INDEP-01
 - P2=0
 - P3=P3-QA-PROCESS-01
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\task_plan.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=MERGE_PREP_V2_WORKFLOW_EFFICIENCY
-- last_evidence=INDEPENDENT_QA_R2=PASS; QA_HEAD=6a6c62e95bf5cd49fff971667c6e65e4e5cd8980; REPAIR_CANDIDATE=39e30369f25e6def8478d14dc9d11df533ecb10e; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-independent-qa-r2-2026-11-08\INDEPENDENT_QA_R2_REPORT.md; WORKFLOW_SUITE=35/0; HANDOFF_SUITE=99/0; UPDATE_STATE=10/10; HANDOFF=PASS; CLOSEOUT=PASS; STATIC=PASS; P1-QA-INDEP-01=CLOSED; NEXT=merge-prep
+- NEXT_CRITICAL_PATH=MERGE_PREP_RECHECK_AFTER_STATE_CORRECTION
+- last_evidence=MERGE_PREP_ATTEMPT_1=BLOCKED_BY_MANAGER_STATE; P2-MERGE-PREP-01=POST_QA_QA_READY_NONZERO; ROOT_CAUSE=QA_READY_NO_AND_P1_ZERO_AFTER_QA_PASS; RESOLUTION=SET_QA_READY_YES_AND_CLOSED_P1_LINEAGE_THEN_RECHECK; QA_R2=PASS; NEXT=merge-prep recheck
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -167,6 +167,18 @@
 - ALLOWED_PATH=tools/architecture/v2-workflow.ps1
 - ALLOWED_PATH=tools/architecture/v2-workflow.tests.ps1
 <!-- V2_HANDOFF_OBJECT_END -->
+
+### HISTORY — Merge-prep R1 state correction（2026-11-08）
+
+- Fresh merge-prep R1 的 scope/ancestry、workflow `35/0`、handoff `99/0`、Snapshot 与
+  Handoff 均 PASS；唯一阻断是负责人把 QA 完成后的 `QA_READY` 置为 `NO` 且 `P1=0`，
+  导致 post-checkpoint QaReady 报 `QA_READY_NOT_YES / QA_P1_ID_MISSING`。
+- 这是 manager 状态编排错误，不是候选代码缺陷。按既定派单语义恢复 `QA_READY=YES`，
+  并用已关闭 lineage `P1-QA-INDEP-01` 对应现有矩阵行；同一边界内不得修改代码或测试。
+- 该阻断记为 `P2-MERGE-PREP-01=POST_QA_QA_READY_NONZERO / RESOLVED_BY_STATE_CORRECTION`；
+  下一步仍由同一 fresh merge-prep owner 做最小只读复验。
+- 证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-merge-prep-2026-11-08\MERGE_PREP_REPORT.md`。
 
 ### HISTORY — Independent QA R2 PASS（2026-11-08）
 
@@ -458,7 +470,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=NO
+- QA_READY=YES
 - UNCOVERED=Independent QA R2 PASS is limited to the control plane. Product/runtime/W1B/integration/Release remain NOT_ASSESSED. P3-QA-PROCESS-01 remains disclosed only.
 - STOP_CONDITION=QA is complete; do not dispatch more QA until a new defect or candidate change. Merge-prep may only audit and invoke gates.
 - MANUAL_LIMITATION=Merge-prep is read-only: no edits, commit, merge, push, tag, Release, device/network/product or scope expansion.
