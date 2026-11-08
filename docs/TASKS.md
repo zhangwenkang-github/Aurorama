@@ -8,24 +8,24 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
-- TASK_STAGE=BLOCKED_GATEPLAN_ENTRY_AND_MATRIX / MERGE_PREP_NOT_DISPATCHED
+- TASK_STAGE=GATE_ENTRY_AND_MATRIX_RECOVERY_AUTHORIZED / IMPLEMENTATION_PENDING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_SCOPE_OWNER_2026_11_08
+- NEXT_ROLE=AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_OWNER_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=tools/architecture/v2-workflow.ps1
-- STOP_CONDITION=Do not dispatch merge-prep or product work. First obtain user decision for a fresh control-plane recovery owner to map W1B setup paths to FULL and freeze a GatePlan-valid state-effect matrix; keep the source candidate untouched.
+- STOP_CONDITION=Control-plane only. Repair GatePlan W1B path mapping and freeze a GatePlan-valid state-effect matrix with RED/GREEN evidence. Do not touch the W1B source candidate, product code, QA, merge-prep, integration, device, network, push, tag, or Release. Stop on source drift, new P0-P2, scope expansion, or a second harness failure.
 - SCOPE=W1B_1B_GATEPLAN_ENTRY_AND_MATRIX_RECOVERY
-- AUTHORIZATION=USER_APPROVED_RECOMMENDED_WORKFLOW_PLAN_2026_11_08
-- IMPLEMENTATION_AUTHORIZED=NO / NEXT_STAGE_DECISION_ONLY
+- AUTHORIZATION=USER_APPROVED_CONTROL_PLANE_RECOVERY_2026_11_08
+- IMPLEMENTATION_AUTHORIZED=YES / CONTROL_PLANE_ONLY / PRODUCT=NO
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=182145_OF_1048576 / 17.4_PERCENT / BELOW_250000 / 2026_11_08
+- CONTEXT_AT_CLOSE=210842_OF_1048576 / 20.1_PERCENT / BELOW_250000 / 2026_11_08
 - P0=0
 - P1=P1-W1B1B-04:CLOSED_BY_QA_R4
 - P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=REPAIR_GATEPLAN_MAPPING_AND_FREEZE_STATE_EFFECT_MATRIX
-- last_evidence=GATEPLAN_PATH_UNMAPPED=setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt; GATEPLAN_MATRIX_MISSING=data/src/main/java/com/zhangwenkang/cinefin/api/JellyfinApiFactory.kt; SCRIPT=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-workflow.ps1; SOURCE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-atomic-generation-conditional-qa-r3-repair-followup-2026-11-08\Aurorama; SOURCE_HEAD=96b0c10603a50c82ae2ec95a639e51366503c7b1; QA_R4_COMBINED=PASS
+- NEXT_CRITICAL_PATH=DISPATCH_FRESH_GATEPLAN_RECOVERY_OWNER
+- last_evidence=USER_APPROVED_CONTROL_PLANE_RECOVERY_2026_11_08; REPAIR=GATEPLAN_SETUP_PATH_TO_FULL_AND_STATE_EFFECT_MATRIX; SOURCE=UNCHANGED; MERGE_PREP=NOT_DISPATCHED
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -206,6 +206,29 @@
 - 当前阻塞与下一步 scope 决策只读本文件唯一 ACTIVE。恢复前必须先由用户授权的全新
   control-plane recovery owner 为 `setup/**` 等 W1B 产品路径提供真实 FULL 映射，
   冻结 GatePlan-valid 状态×效果矩阵，并完成对应 RED/GREEN；不得只补规则文本。
+
+### HISTORY — W1B GatePlan control-plane recovery authorized（2026-11-08）
+
+- 用户已明确授权“进行下一步”：范围严格限定为修复 GatePlan 的 W1B 路径映射与冻结
+  GatePlan-valid 状态×效果矩阵，不包含 W1B 产品代码、独立 QA、merge-prep、integration、
+  设备、网络、push、tag 或 Release。
+- 控制面计划路径固定为 `tools/architecture/v2-workflow.ps1`、
+  `tools/architecture/v2-workflow.tests.ps1`；`GatePlan` 实际输出
+  `GATE_LANE=CANDIDATE`，CANDIDATE 命令为 wrapper tests 与 handoff-linter tests。
+- 隔离候选固定为 worktree
+  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama`
+  和 branch `codex/v2-w1b-1b-gateplan-entry-recovery-2026-11-08`，从授权 docs
+  checkpoint 的 clean 外部 pin 创建；不得复用或修改 W1B 源候选。
+- 证据根固定为
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08`。
+  状态×效果矩阵必须覆盖 `SUCCESS / EMPTY_RESULT / PERMISSION / TIMEOUT_ERROR / CANCEL /
+  RETRY_DUPLICATE / RESTART_RECOVERY`，逐项记录入口、操作、可观察结果、
+  自动化 / fixture 证据与真机证据；不适用项写显式 `N/A:<原因>`。矩阵必须能通过
+  `GatePlan -StateEffectMatrixPath`，但矩阵或 fixture PASS 不得扩写为产品 PASS。
+- 新 owner 身份、模型和边界固定为
+  `AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_OWNER_2026_11_08` /
+  `deepseek-flash / reasoning_effort=max / fork_turns=none`。实现 owner 停在自身
+  RED/GREEN、CANDIDATE 命令与实现报告，不得自派 QA 或进入 merge-prep。
 
 ### HISTORY — Workflow efficiency local integration（2026-11-08）
 
@@ -530,10 +553,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=W1B source object and QA R4 composite evidence were verified; GatePlan is blocked by setup path mapping and a missing state-effect matrix, so merge-prep was not dispatched.
-- STOP_CONDITION=Keep merge-prep and product work stopped until a fresh control-plane recovery owner fixes the executable GatePlan entry and the user authorizes the recovery scope.
+- UNCOVERED=Control-plane recovery is authorized; implementation and independent QA are not started while the W1B source candidate remains untouched.
+- STOP_CONDITION=Keep QA_READY=NO until a fresh control-plane implementation owner completes GatePlan mapping and matrix RED/GREEN evidence and exits at its implementation report.
 - MANUAL_LIMITATION=This is a delivery-manager handoff only. No product implementation, QA, merge, device/network or Release action is authorized by this checkpoint.
-- MANUAL_OWNER=AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_SCOPE_OWNER_2026_11_08
+- MANUAL_OWNER=AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_OWNER_2026_11_08
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
