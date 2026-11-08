@@ -704,6 +704,176 @@ Invoke-FixtureTest -Name 'stable doc unlabeled ACTIVE heading fails Handoff' -Bo
     }
 }
 
+Invoke-FixtureTest -Name 'stable doc structural three-space indented ATX ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n   ### ACTIVE - stale three-space ATX`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc structural nested blockquote ATX ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n> >   #### ACTIVE - stale nested blockquote ATX`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc structural setext ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n   ACTIVE - stale three-space setext`n   ---`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc structural blockquote setext ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n> >   ACTIVE - stale blockquote setext`n> >   ===`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc structural HTML ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n<H2>ACTIVE - stale HTML heading</H2>`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc structural list-marker ATX ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n- ## ACTIVE - stale list heading`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc structural ordinary ACTIVE prose passes Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`nACTIVE 状态只读 TASKS。`n`n> ACTIVE 状态只读 TASKS，这是普通 blockquote 正文。`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc structural HISTORICAL ACTIVE heading passes Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n## ACTIVE - HISTORICAL stale snapshot`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc structural four-space code text ACTIVE passes Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n    ## ACTIVE - indented code text`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc structural fenced ATX text ACTIVE passes Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n``````markdown`n## ACTIVE - fenced code example`n```````n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
 Invoke-FixtureTest -Name 'stable doc plain current handoff block fails Handoff' -Body {
     $fixture = New-Fixture -PathSet Stable
     try {

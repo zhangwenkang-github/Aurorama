@@ -20,17 +20,23 @@ $script:evidence = [System.Collections.Generic.List[string]]::new()
 
 function Write-Usage {
     Write-Output 'USAGE:'
+    Write-Output '  pwsh -NoProfile -File <repo>/tools/architecture/v2-handoff-lint.ps1 -Help'
     Write-Output '  pwsh -NoProfile -File <repo>/tools/architecture/v2-handoff-lint.ps1 -Mode Handoff -RepoRoot <absolute-repo> -ExpectedHead <40-or-64-hex> [-TasksPath docs/TASKS.md] [-MemoryIndex <absolute-MEMORY.md>]'
     Write-Output '  pwsh -NoProfile -File <repo>/tools/architecture/v2-handoff-lint.ps1 -Mode QaReady -RepoRoot <absolute-repo> [-TasksPath docs/TASKS.md] [-MemoryIndex <absolute-MEMORY.md>]'
     Write-Output 'OUTPUT:'
     Write-Output '  Handoff success: HANDOFF_LINT=PASS'
     Write-Output '  QaReady success: QA_READY_LINT=PASS'
     Write-Output '  Failure: FAIL:<CODE>:<path>, nonzero exit'
-    Write-Output 'TEST SUITE: 64 cases (54 existing + 10 stable-document regression cases).'
+    Write-Output 'EXIT CODES:'
+    Write-Output '  0 success or -Help; 2 lint/gate failure; 3 unexpected error; 64 required argument or validation error.'
+    Write-Output 'TEST SUITE:'
+    Write-Output '  Run tools/architecture/v2-handoff-lint.tests.ps1; its SUMMARY passed/failed counts are authoritative.'
     Write-Output 'STABLE DOCS (Handoff):'
     Write-Output '  PROJECT_PLAN.md / V2_PLAN.md / ARCHITECTURE.md require one nonempty stable-state pointer block.'
-    Write-Output '  Pointer codes: STABLE_DOC_POINTER_MISSING, _MULTIPLE, _EMPTY, _TOKEN_MISSING, _TOKEN_INVALID, _TOKEN_DUPLICATE.'
+    Write-Output '  Pointer codes: STABLE_DOC_MISSING, _UTF8, STABLE_DOC_POINTER_MISSING, _MULTIPLE, _MALFORMED, _EMPTY, _TOKEN_MISSING, _TOKEN_INVALID, _TOKEN_DUPLICATE.'
     Write-Output '  Current-state codes: STABLE_DOC_CURRENT_STATE_TOKEN, ACTIVE_MARKER_OUTSIDE_TASKS, ACTIVE_HEADING_OUTSIDE_TASKS.'
+    Write-Output '  ACTIVE headings cover ATX (0-3 spaces, blockquote/list wrappers), setext (0-3 spaces, blockquote wrappers), and simple single-line HTML h1-h6.'
+    Write-Output '  HISTORY / HISTORICAL ACTIVE headings are allowed; fenced and four-space-indented code text is not classified as a heading.'
     Write-Output '  Manual owner: natural-language current-looking prose outside the mechanical checks remains a human review item.'
 }
 
@@ -509,6 +515,113 @@ function Test-Evidence {
     }
 }
 
+function Remove-MarkdownBlockquotePrefix {
+    param([AllowEmptyString()][string]$Line)
+
+    $candidate = $Line
+    while ($candidate -match '^ {0,3}>[ \t]?') {
+        $candidate = $candidate.Substring($Matches[0].Length)
+    }
+    return $candidate
+}
+
+function Remove-MarkdownListMarker {
+    param([AllowEmptyString()][string]$Line)
+
+    if ($Line -match '^ {0,3}[-+*][ \t]+') {
+        return $Line.Substring($Matches[0].Length)
+    }
+    return $Line
+}
+
+function Get-MarkdownHeadings {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Text)
+
+    $lines = [regex]::Split($Text, '\r?\n')
+    $headings = [System.Collections.Generic.List[object]]::new()
+    $fenceCharacter = [char]0
+    $fenceLength = 0
+
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        $line = $lines[$lineIndex]
+        $blockquoteCandidate = Remove-MarkdownBlockquotePrefix -Line $line
+        $structuralCandidate = Remove-MarkdownListMarker -Line $blockquoteCandidate
+
+        if ($fenceCharacter -ne [char]0) {
+            $closingFence = [regex]::Match(
+                $blockquoteCandidate,
+                '^ {0,3}(?<fence>`{3,}|~{3,})[ \t]*$'
+            )
+            if ($closingFence.Success) {
+                $closingMarkers = $closingFence.Groups['fence'].Value
+                if ($closingMarkers[0] -eq $fenceCharacter -and $closingMarkers.Length -ge $fenceLength) {
+                    $fenceCharacter = [char]0
+                    $fenceLength = 0
+                }
+            }
+            continue
+        }
+
+        $openingFence = [regex]::Match(
+            $structuralCandidate,
+            '^ {0,3}(?<fence>`{3,}|~{3,})(?<info>.*)$'
+        )
+        if ($openingFence.Success) {
+            $fenceMarkers = $openingFence.Groups['fence'].Value
+            $fenceInfo = $openingFence.Groups['info'].Value
+            if ($fenceMarkers[0] -ne '`' -or -not $fenceInfo.Contains('`')) {
+                $fenceCharacter = $fenceMarkers[0]
+                $fenceLength = $fenceMarkers.Length
+                continue
+            }
+        }
+
+        $atx = [regex]::Match($structuralCandidate, '^ {0,3}#{1,6}[ \t]+(?<text>.*)$')
+        if ($atx.Success) {
+            $headingText = ($atx.Groups['text'].Value -replace '[ \t]+#+[ \t]*$', '').Trim()
+            $headings.Add([pscustomobject]@{
+                LineNumber = $lineIndex + 1
+                Text = $headingText
+                Kind = 'ATX'
+            })
+            continue
+        }
+
+        $html = [regex]::Match(
+            $structuralCandidate,
+            '^<h[1-6](?:\s+[^>]*)?>(?<text>.*?)(?:</h[1-6]>)?[ \t]*$',
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+        )
+        if ($html.Success) {
+            $headingText = [regex]::Replace($html.Groups['text'].Value, '<[^>]+>', '').Trim()
+            $headings.Add([pscustomobject]@{
+                LineNumber = $lineIndex + 1
+                Text = $headingText
+                Kind = 'HTML'
+            })
+            continue
+        }
+
+        $setextUnderline = [regex]::Match($blockquoteCandidate, '^ {0,3}(?:=+|-+)[ \t]*$')
+        if (-not $setextUnderline.Success -or $lineIndex -eq 0) {
+            continue
+        }
+
+        $setextSource = Remove-MarkdownBlockquotePrefix -Line $lines[$lineIndex - 1]
+        $setextSource = Remove-MarkdownListMarker -Line $setextSource
+        $setextText = [regex]::Match($setextSource, '^ {0,3}(?<text>\S.*)$')
+        if ($setextText.Success) {
+            $headings.Add([pscustomobject]@{
+                LineNumber = $lineIndex
+                Text = $setextText.Groups['text'].Value.Trim()
+                Kind = 'Setext'
+            })
+        }
+    }
+
+    return $headings
+}
+
 function Test-StableDocuments {
     param(
         [Parameter(Mandatory)][string]$Root,
@@ -551,10 +664,11 @@ function Test-StableDocuments {
                 -Detail 'V2_HANDOFF_ACTIVE markers are allowed only in docs/TASKS.md'
         }
 
-        foreach ($heading in [regex]::Matches($text, '(?im)^#{1,6}[ \t]+[^\r\n]*\bACTIVE\b[^\r\n]*$')) {
-            if ($heading.Value -notmatch '(?i)\bHISTORY\b') {
+        foreach ($heading in @(Get-MarkdownHeadings -Text $text)) {
+            if ($heading.Text -match '(?i)\bACTIVE\b' -and
+                $heading.Text -notmatch '(?i)\bHISTOR(?:Y|ICAL)\b') {
                 Add-Failure -Code 'ACTIVE_HEADING_OUTSIDE_TASKS' -Subject $relativePath `
-                    -Detail $heading.Value
+                    -Detail "line=$($heading.LineNumber) kind=$($heading.Kind) text=$($heading.Text)"
             }
         }
 
