@@ -8,34 +8,34 @@
 ### ACTIVE — V2-W1C-CATALOG-READERS-SCOPE-2026-11-09
 
 - TASK_ID=V2-W1C-CATALOG-READERS-SCOPE-2026-11-09
-- TASK_STAGE=W1B_COMPLETE / W1C_SCOPE_HANDOFF_READY
+- TASK_STAGE=W1B_COMPLETE / W1C_1_TASK_CARD_FROZEN / IMPLEMENTATION_NOT_AUTHORIZED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=W1B-2 merge report > docs/TASKS.md ACTIVE > ICS-W1C placeholder + W1B subwave table > docs/ARCHITECTURE.md Identity and Catalog stable contract > graphify query W1C catalog readers > relevant source and tests > AGENTS.md and PROJECT_RULES > docs/LESSONS.md L038-L043
-- NEXT_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
+- READ_ORDER=docs/TASKS.md W1C-1 frozen card + external state-effect matrix > W1B-2 merge report > docs/ARCHITECTURE.md Identity and Catalog stable contract > exact source/tests > AGENTS.md and PROJECT_RULES > docs/LESSONS.md L038-L043
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1C_IMPLEMENTATION_AUTHORIZATION
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
+- RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Next action: fresh W1C delivery lead must read the W1B-2 merge report, current ACTIVE, W1C task placeholder, Architecture Identity/Catalog sections and graphify query; freeze a W1C catalog-readers task card with exact production/test paths, state-effect matrix and gates, then dispatch a fresh implementation owner. Do not write product code before the card is frozen. Stop on path expansion, missing prerequisite, new P0-P2, device/network or Release.
-- SCOPE=W1C_CATALOG_READERS_SCOPE
-- AUTHORIZATION=USER_CONTINUE_2026_11_09_W1C_SCOPE_ONLY
-- IMPLEMENTATION_AUTHORIZED=NO / SCOPING_ONLY
+- STOP_CONDITION=W1C-1 task card is frozen; stop and wait for explicit user authorization to dispatch a fresh implementation owner. Do not implement, run independent QA, merge-prep, integrate, use devices/ADB/network, push, tag or Release. Stop on path expansion, prerequisite/task-card/matrix drift, missing source path, new P0-P2, Gradle/schema change or any request outside W1C-1.
+- SCOPE=W1C_1_HOME_VIDEO_AGGREGATE_MOVIE_DETAIL_SCOPE_FROZEN
+- AUTHORIZATION=USER_CONTINUE_2026_11_09_W1C_SCOPE_ONLY / TASK_CARD_FROZEN
+- IMPLEMENTATION_AUTHORIZED=NO / AWAITING_NEW_USER_DECISION
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO_UNTIL_IMPLEMENTATION_CANDIDATE / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_09 / W1C_SCOPING_HANDOFF
+- CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_09 / W1C_1_TASK_CARD_FROZEN
 - P0=0
 - P1=P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
 - P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
 - P3=P3-W1B1B-PUBLIC-PERMIT-MARKER:ACCEPTED;P3-W1B1B-READ-LEASE-PUBLIC-EFFECT-REENTRANCY:ACCEPTED_CURRENT_CALL_GRAPH_NO_REENTRY;P3-W1B1-COMBINED-QA-HARNESS:ACCEPTED;P3-QA-W1B2-01:ACCEPTED_TEST_DEPTH_GAP
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\task_plan.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\SCOPE_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=W1C_CATALOG_READERS_SCOPE_THEN_IMPLEMENTATION
-- last_evidence=W1B_2_PASS_WITH_GAPS_AND_LOCAL_INTEGRATION; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-2-startup-hydration-and-recovery-merge-prep-2026-11-09\MERGE_PREP_REPORT.md
+- NEXT_CRITICAL_PATH=USER_AUTHORIZATION_FOR_W1C_1_IMPLEMENTATION
+- last_evidence=W1C_1_TASK_CARD_FROZEN; MATRIX=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md; PRIOR=W1B_2_PASS_WITH_GAPS_AND_LOCAL_INTEGRATION
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -665,14 +665,14 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   本地集成证据：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08\manager-final-gates.txt`。
 
-### QA_READY — 控制面候选
+### QA_READY — W1C implementation not started
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=W1C catalog readers scoping has not started. W1B-2 remains PASS_WITH_GAPS; device kill/relaunch, WorkManager timing, parent seam and Release remain unassessed.
-- STOP_CONDITION=No QA is authorized. Next action is W1C scoping and task-card freeze only; implementation, QA, devices, network and Release require the next explicit handoff.
-- MANUAL_LIMITATION=This checkpoint hands off W1C scoping, not W1C implementation or QA.
-- MANUAL_OWNER=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
+- UNCOVERED=W1C-1 task card and state-effect matrix are frozen, but no product/test implementation exists. Independent QA, merge-prep, integration, Android runtime, parent seam, product and Release remain unassessed.
+- STOP_CONDITION=No QA is authorized. Wait for a new explicit user decision and a fresh implementation owner; QA can start only after a separate implementation report and fixed candidate.
+- MANUAL_LIMITATION=The W1C-1 matrix is a planned GatePlan input, not executed QA evidence.
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_W1C_IMPLEMENTATION_AUTHORIZATION
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -752,7 +752,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED / W1C=SCOPE_HANDOFF_READY / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C、W1B-1 全栈与 W1B-2 已各自完成 QA + merge-prep + local integration；父 seam 下一入口为 W1C catalog readers scoping | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | W1C task-card freeze -> fresh implementation -> QA -> merge-prep | W1C/W1D/W1E/W1F/W1G 未完成；真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED / W1C_1=TASK_CARD_FROZEN / IMPLEMENTATION_NOT_AUTHORIZED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C、W1B-1 全栈与 W1B-2 已各自完成 QA + merge-prep + local integration；W1C-1 卡已冻结，等待用户授权实现 | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | user authorization -> fresh W1C-1 implementation -> independent QA -> merge-prep | W1C-1 尚未实现；W1C-2、W1D/W1E/W1F/W1G、真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -1205,11 +1205,323 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 | 子波 | 交付物 | 前置 |
 |---|---|---|
 | `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A`、W1B-1A/B/C、W1B-1 combined 与 W1B-2 均已完成 QA / merge-prep / local integration；下一实现入口为 W1C catalog readers |
-| `ICS-W1C-CATALOG-READERS` | views / items / detail / home / paging 等 catalog readers 共用 canonical scope 与 snapshot | `ICS-W1B` |
+| `ICS-W1C-CATALOG-READERS` | views / items / detail / home / paging 等 catalog readers 共用 canonical scope 与 snapshot。已冻结 W1C-1 纵向切片：Home + Video 聚合分页 + Movie 详情；实现尚未授权。其余 LibraryScreen、Show/Season/Episode、音乐/书籍等 reader 留给后续 W1C 子波 | `ICS-W1B`；W1C-1 task card frozen；implementation awaiting user authorization |
 | `ICS-W1D-OFFLINE-NAMESPACE` | saved offline account、无账号、image cache / DB namespace / offline projection 收敛 | `ICS-W1B` |
 | `ICS-W1E-FRESHNESS-PERMISSIONS` | 完整 freshness / stale reason、401/403、durable fence、跨进程与损坏策略 | `ICS-W1A`–`W1D` |
 | `ICS-W1F-TARGET-MIGRATION-DEBT` | 所有声明消费者迁移、旧路径删除、debt ratchet 实际下降、回归 | `ICS-W1C`–`W1E` |
 | `ICS-W1G-FULL-SEAM-CLOSEOUT` | 独立 QA、integrated gate、父八状态证据闭环 | `ICS-W1F`；root 另派 QA / merge-prep |
+
+#### `ICS-W1C-CATALOG-READERS` W1C-1 冻结任务卡
+
+- 子切片 ID：`ICS-W1C-1-HOME-VIDEO-AGGREGATE-MOVIE-DETAIL`。
+- 状态：任务卡已冻结；产品/测试实现、独立 QA、merge-prep 与 integration 均未授权。
+- 前置：`W1B_1=PASS / INTEGRATED`；`W1B_2=PASS_WITH_GAPS /
+  LOCALLY_FF_ONLY_INTEGRATED`，唯一接受项为 `P3-QA-W1B2-01`；W1A `CatalogScope` /
+  `CatalogReadOutcome` / `CatalogSnapshot` 与 W1B `IdentityReadPort` / `IdentitySnapshot`
+  / `identityGeneration` 已集成。
+- 输入事实：W1B-2 merge report 为 `MERGE_PREP_STATUS=PASS`、`FINAL_HEAD=
+  5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6`；本轮已确认它是 canonical HEAD 祖先。
+- 任务卡冻结期间的外部输入 pin 只用于定位本轮 scoping；真正的 implementation / QA /
+  merge-prep 基线必须由对应 manager 在派单时重新外部 pin，不得从本文推断当前 HEAD。
+- 用户可观察状态×效果矩阵：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md`。
+  该矩阵已由 `v2-workflow.ps1 -Mode GatePlan` 在完整 15 路径上机械校验为
+  `STATE_EFFECT_MATRIX=PASS / GATE_LANE=FULL`；只证明派单输入有效，不证明实现或 QA。
+
+##### 目标与纵向链路
+
+W1C-1 只迁移一条真实纵向链路：
+
+```text
+HomeViewModel
+  -> user views / latest media / suggestions / resume / next up
+  -> VideoViewModel 视频库目录
+  -> VideoAggregatePagingSource 多库聚合分页
+  -> MovieViewModel 电影详情
+```
+
+四个入口都先从同一 `CatalogReadPort.currentScope()` 取得 canonical `CatalogScope`，再把该
+冻结 scope 显式传给 port。成功结果的 `CatalogSnapshot.scope` 必须与冻结 scope 相等；
+server、user、address、online/offline 或 `identityGeneration` 任一变化后，旧结果、旧
+completed marker 与旧 page key 均不得提交。
+
+reader 迁移边界：
+
+| Reader | 当前旧路径 | W1C-1 目标 |
+|---|---|---|
+| home | `HomeViewModel` 直接持有 `JellyfinRepository`，分别调用 `getUserViews` / `getLatestMedia` / `getSuggestions` / `getResumeItems` / `getNextUp` | 只调用 `CatalogReadPort.home(query)`；home 的全部已启用走廊在一次冻结 scope 内读取并作为一个 snapshot 原子发布 |
+| views / items | `VideoViewModel.getLibraries()` | 调用 `CatalogReadPort.libraries(query)`；库列表、空态和错误都由 snapshot scope 决定 |
+| paging | `VideoAggregatePagingSource` 直接调用 `JellyfinRepository.getItems()` | 每页调用 `CatalogReadPort.itemsPage(query)`；同一 aggregate `load` 内不得混用不同 scope 或 content generation |
+| detail | `MovieViewModel.repository.getMovie()` | 调用 `CatalogReadPort.movie(query)`；favorite / played 写入仍走既有写端口与 `JellyfinRepository`，不属于本切片 catalog read |
+
+###### 非目标
+
+1. 不迁移 `LibraryViewModel` / `LibraryScreen`、Show / Season / Episode 详情、
+   `CollectionViewModel`、`MediaViewModel`、`BookshelfViewModel`、`DrawerViewModel`、
+   `MediaBatchViewModel`、音乐库、书籍库或其他 catalog readers。
+2. 不修改 W1A `search` 语义，不重写 `IdentityStateStore`、`IdentityWriteCoordinator`、
+   `IdentityProjectionPermit`、identity write / lease / generation 合同。
+3. 不修改 `MetadataPreloader`；W1C-1 的 Home 在迁移后不得再从 Home consumer 触发旧详情
+   预取。后续 W1C 子波统一迁移预取时再恢复，不得在 W1C-1 内新建第二套预取缓存。
+4. 不改 download、playback、reader、TTS、通知、Worker、DB schema / migration、
+   `AppPreferences.kt`、`JellyfinApi.kt`、Gradle、manifest、依赖目录、导航或 Release。
+5. 不做 401/403 stale-if-error、durable freshness / fence、跨进程 cache 或 eviction；
+   完整权限与 freshness 策略仍属 W1E。
+6. 不使用设备、ADB、emulator、真实网络或生产服务器；不自行 QA、merge、push、tag、
+   Release 或 integration。
+
+##### 冻结 public contract
+
+以下类型继续放在 `com.zhangwenkang.cinefin.repository.catalog`，并在
+`CatalogReadPort.kt` 内定义；不得另建等价 scope / snapshot / server-user DTO。
+
+| 符号 | 冻结字段 / 语义 |
+|---|---|
+| `CatalogHomeQuery` | `frozenScope: CatalogScope`；六个 include 开关分别控制 suggestions、continue watching、continue reading、continue listening、next up、user views；`forceRefresh: Boolean` |
+| `CatalogView` | `id: UUID`、`name: String`、`type: CollectionType`；不得把 SDK `BaseItemDto` 泄漏到 Home consumer |
+| `CatalogViewItems` | `view: CatalogView` + `latestMedia: List<FindroidItem>` |
+| `CatalogHomeData` | `suggestions`、`resumeWatching`、`resumeReading`、`resumeListening`、`nextUp`、`views`；禁用项返回空集合 |
+| `CatalogLibrariesQuery` | `frozenScope: CatalogScope`；`forceRefresh: Boolean` |
+| `CatalogItemsPageQuery` | `frozenScope` + 当前 `getItems` 的 parent/include/filter/sort/genre/studio 语义 + 非空 `startIndex` / `limit` |
+| `CatalogMovieQuery` | `itemId: UUID` + `frozenScope: CatalogScope` |
+| 新 port 方法 | `home(query): CatalogReadOutcome<CatalogHomeData>`；`libraries(query): CatalogReadOutcome<List<FindroidCollection>>`；`itemsPage(query): CatalogReadOutcome<List<FindroidItem>>`；`movie(query): CatalogReadOutcome<FindroidMovie>` |
+
+`currentScope()` 与 W1A `search(query)` 签名和语义保持不变。新方法只把
+`IdentityUnavailable` 用作可预期 identity fail-closed 结果；权限拒绝、超时、网络或其他
+异常继续显式抛出并由 consumer 映射为 reader-local error，不得降级成匿名 / 旧账号结果。
+
+冻结快照语义：
+
+1. `CatalogScope` 必须复用既有 `JellyfinOrigin(serverId, userId)`、
+   `principalContext` 与 `identityGeneration`，不得新增第二份 server/user 表示。
+2. online `contentGeneration` 使用既有 `MetadataFence.contentGeneration`；offline
+   local query 固定 `0L`。
+3. composite home 必须只对应一个 fence；任一组成项为 `STALE` 时整体 freshness 为
+   `STALE`，否则为 `FRESH`；`observedAtEpochMs` 取实际参与快照项的最早观察时间。
+4. 合法空 home / 空 libraries / 空 page / missing movie 必须返回
+   `Available(snapshot)`，不得伪装为 `IdentityUnavailable`；无完整 READY identity
+   只能返回 `IdentityUnavailable`。
+5. `forceRefresh` 只可失效当前已校验 namespace 的既有 metadata cache，并在同一 canonical
+   scope 下取得新 content generation；不得清其他 server/user 的 cache。
+
+##### Adapter 与防双真源
+
+- `DynamicCatalogReadPort` 先以 `IdentityReadPort.current()` 解析完整 READY snapshot，
+  按 `selection.offlineMode` 选择 online/offline adapter；内层 `currentScope()`、
+  canonical snapshot 连续两次读取与最终 snapshot scope 都必须相等。
+- online adapter 在每次读取前用 `CatalogScopeResolver` 验证 server/user/address/token，
+  再以 `bindOrigin(scope.origin)` 取得 origin-bound API；fetch 与 materialize 期间不得读取
+  全局 `jellyfinApi.userId` 来猜身份。
+- cache 只复用既有 `MetadataCache` / `MetadataSnapshotSwr` / `MetadataSnapshotStore`；
+  读写前要求 `MetadataFence.namespace == MetadataNamespace(serverId, userId)`。scope、
+  identity generation 或 content generation 任一变化都不得 lookup、join、prefetch 或 write。
+- offline adapter 的 userData / mapper 必须显式使用 `scope.origin.userId`；不得使用
+  singleton `jellyfinApi.userId`。没有完整 saved identity 时 fail closed。
+- `HomeViewModel`、`VideoViewModel`、`VideoAggregatePagingSource`、`MovieViewModel` 的
+  catalog read 不得保留“先调用新 port，失败再回退旧 repository”的双路径。
+- `VideoViewModel` 的 cache reuse / completed marker 必须同时记录 `CatalogScope`；仅比较
+  online/offline source、TTL 或临时库 id 不足以复用。scope 不等时清空 libraries、
+  aggregate flow 与 loaded marker。
+- `MovieViewModel` 的 catalog read 只认 snapshot；旧 movie、旧错误或旧 loaded scope 不能
+  跨 user/server/address/generation 残留。
+
+旧路径删除与保留边界：
+
+- 删除 `JellyfinRepository.getUserViews`、`getSuggestions`、`getResumeItems`、
+  `getLatestMedia` 的接口声明及 online/offline override；这四条在迁移后只能由
+  `CatalogReadPort.home` 生产实现使用。
+- `getLibraries`、`getItems`、`getNextUp`、`getMovie` 等方法仍被本切片外
+  `DrawerViewModel`、`LibraryViewModel`、`ShowViewModel`、`MediaBatchViewModel` 或
+  `MetadataPreloader` 使用，本切片明确保留，但 W1C-1 的四个目标 consumer 不得调用。
+- 旧方法与新 port 可复用同一 DTO materializer / cache key helper，但不得复制 refresh、
+  scope resolution 或 snapshot store；迁移完成后父 seam 仍保持 `IN_PROGRESS`。
+
+##### 精确 production / test 写域
+
+Production（9，必须全部存在；白名单外即停止）：
+
+1. `data/src/main/java/com/zhangwenkang/cinefin/repository/catalog/CatalogReadPort.kt`
+2. `data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt`
+3. `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepository.kt`
+4. `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryImpl.kt`
+5. `data/src/main/java/com/zhangwenkang/cinefin/repository/JellyfinRepositoryOfflineImpl.kt`
+6. `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/video/VideoAggregatePaging.kt`
+7. `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/video/VideoViewModel.kt`
+8. `modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/home/HomeViewModel.kt`
+9. `modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/movie/MovieViewModel.kt`
+
+Test（6，必须全部修改或新建；白名单外即停止）：
+
+1. `data/src/test/java/com/zhangwenkang/cinefin/repository/CatalogReadPortContractTest.kt`
+2. `data/src/test/java/com/zhangwenkang/cinefin/repository/CatalogReadersContractTest.kt`
+3. `modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/home/HomeCatalogConsumerTest.kt`
+4. `modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/movie/MovieCatalogConsumerTest.kt`
+5. `app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/video/VideoViewModelTest.kt`
+6. `app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/video/VideoCatalogConsumerTest.kt`
+
+Docs control path（只允许进度 / 决策 / 证据回写，不计入 product/test diff）：
+
+- `docs/TASKS.md`
+
+任何 schema、Gradle、manifest、architecture contract、W1A search、W1B identity、其他
+README / markdown、设备或 Release 路径变化都视为 scope expansion。`MetadataPreloader.kt`
+也不在写域内；迁移后的 Home 必须停止从 Home consumer 触发它。
+
+##### 用户可观察不变量
+
+1. home、video libraries、aggregate page、movie detail 的 `CatalogSnapshot.scope` 与同一
+   时刻 W1A `CatalogReadPort.currentScope()` 相等；不得按两个 singleton 分别拼接身份。
+2. 无 READY 身份、缺 user/address/token、`RECOVERING` 或 Room canonical 校验失败时，
+   四个 reader 均 fail closed；不显示匿名、上一账号或另一 server 的内容。
+3. server、user、address、online/offline 或 identity generation 改变后，旧 home 走廊、
+   旧 video library、旧 page、旧 movie、旧 loaded / completed marker 不落地。
+4. 同一 identity scope 内 content generation 改变时，旧 page / snapshot 不得覆盖新代；
+   aggregate pagination 不得把两代 page 拼进一个结果。
+5. composite home 必须原子发布；任一已启用 reader 失败或 scope 变化时，不得留下
+   “一半旧账号、一半新账号”的首页。
+6. `EMPTY_RESULT` 与 `IdentityUnavailable` 可区分；合法空内容可以清空上一轮同 reader
+   内容，无身份只返回 fail-closed。
+7. cancellation 保持 `CancellationException` 类型，不能改写成权限 / 空结果；取消后
+   completed marker、cache 和新 UI snapshot 均不推进。
+8. retry 与 duplicate load 同 scope 幂等；新 content generation 的结果优先；旧 completion
+   token 不得覆盖新请求。
+
+##### 状态 × 效果矩阵
+
+完整入口 / 操作 / 可观察结果 / fixture / 设备字段见外部冻结矩阵；本表是 GatePlan 摘要。
+
+| 类别 | W1C-1 必测效果 |
+|---|---|
+| `SUCCESS` | 四个 reader 的 snapshot scope 等于 `currentScope()`；home 同代原子发布；page content generation 一致 |
+| `EMPTY_RESULT` | 合法空 home / 空库 / 空页 / missing movie 为 `Available`；无身份为 `IdentityUnavailable` |
+| `PERMISSION` | 401/403 等价失败不投影旧 snapshot；完整 stale-if-error 留 W1E |
+| `TIMEOUT_ERROR` | 超时 / 异常不写 cache、不发旧 UI；home 不留半提交 |
+| `CANCEL` | 保留取消类型；不更新 cache、completed marker 或 UI |
+| `RETRY_DUPLICATE` | 同 scope 可重试；不重复 append；新 content generation 覆盖旧请求 |
+| `RESTART_RECOVERY` | 新 ViewModel 只从 W1B-2 hydrate 后 READY scope 开始；旧 loaded scope 不复活 |
+
+scope 变化子矩阵还必须逐项覆盖 server、user、address、online/offline 与
+generation-only 改变；address 变化按 W1B 合同必须伴随 identity generation 推进。
+
+##### RED / GREEN
+
+实现 owner 必须按以下顺序留证：
+
+1. RED：先新增 / 更新六个测试文件。在新 port 方法或 consumer 迁移缺失时，至少一项 targeted
+   命令必须真实失败；记录命令、exit code、失败测试或编译错误和旧 `JellyfinRepository`
+   调用命中。
+2. RED：对四个目标 consumer 记录迁移前旧路径命中：
+
+```powershell
+rg -n 'JellyfinRepository|getUserViews|getSuggestions|getResumeItems|getLatestMedia|getNextUp|getLibraries|getItems\(|getMovie\(' `
+  "$repoRoot\modes\film\src\main\java\com\zhangwenkang\cinefin\film\presentation\home\HomeViewModel.kt" `
+  "$repoRoot\modes\film\src\main\java\com\zhangwenkang\cinefin\film\presentation\movie\MovieViewModel.kt" `
+  "$repoRoot\app\phone\src\main\java\com\zhangwenkang\cinefin\presentation\video\VideoViewModel.kt" `
+  "$repoRoot\app\phone\src\main\java\com\zhangwenkang\cinefin\presentation\video\VideoAggregatePaging.kt"
+```
+
+3. GREEN：完成 contract -> dynamic wrapper -> online/offline adapter -> paging source ->
+   consumers -> 删除四条 Home 旧接口；每一步使用同一 owner 的 targeted test 收敛，不新建
+   每个小步骤的 fresh 子代理。
+4. GREEN：四个目标 consumer 的 catalog-read grep 只允许：
+   `HomeViewModel` / `VideoViewModel` / `VideoAggregatePagingSource` 为 0 个旧 repository
+   read；`MovieViewModel` 只允许写动作继续使用 `JellyfinRepository`，不得再出现
+   `getMovie(`。
+5. 最终 candidate 必须保留 RED、GREEN、executed XML、命令 log、scope diff 与
+   `git diff --check` 证据。
+
+##### 定向测试、FULL GatePlan、构建与 ktfmt
+
+固定测试选择器如下；selector 必须真实匹配并在 XML 中证明 executed 数 > 0。
+
+```powershell
+$repoRoot = 'F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama'
+$env:JAVA_HOME = 'F:\Develop\Android\Android Studio\jbr'
+
+& "$repoRoot\gradlew.bat" :data:testDebugUnitTest --offline --console=plain `
+  --tests 'com.zhangwenkang.cinefin.repository.CatalogReadPortContractTest' `
+  --tests 'com.zhangwenkang.cinefin.repository.CatalogReadersContractTest'
+
+& "$repoRoot\gradlew.bat" :modes:film:testDebugUnitTest --offline --console=plain `
+  --tests 'com.zhangwenkang.cinefin.film.presentation.home.HomeCatalogConsumerTest' `
+  --tests 'com.zhangwenkang.cinefin.film.presentation.movie.MovieCatalogConsumerTest'
+
+& "$repoRoot\gradlew.bat" :app:phone:testDebugUnitTest --offline --console=plain `
+  --tests 'com.zhangwenkang.cinefin.presentation.video.VideoViewModelTest' `
+  --tests 'com.zhangwenkang.cinefin.presentation.video.VideoCatalogConsumerTest'
+```
+
+FULL GatePlan 输入为上述 9 production + 6 test 的 15 个 exact path，并必须附冻结矩阵：
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass `
+  -File "$repoRoot\tools\architecture\v2-workflow.ps1" `
+  -Mode GatePlan -RepoRoot "$repoRoot" `
+  -ChangedPath '<15 exact paths joined by ||>' `
+  -StateEffectMatrixPath 'F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md'
+```
+
+实现与独立 QA 还要实际执行：
+
+1. emitted FULL GatePlan 的 `v2-workflow.tests.ps1` 与 `v2-handoff-lint.tests.ps1`；
+2. `:data:testDebugUnitTest`、`:modes:film:testDebugUnitTest`、
+   `:app:phone:testDebugUnitTest` 三个完整 JVM suite；
+3. `:app:phone:assembleDebug`；
+4. `ktfmtCheck`；
+5. `git diff --check` 与 exact-path scope audit。
+
+FULL GatePlan 的通用 build command 只是最低门，不得替代上述三个模块 suite；模块 suite
+真实 executed、XML 计数、exit code 与 candidate commit 必须回写。
+
+##### A0 / debt guard
+
+- 实际执行：
+  `pwsh -NoProfile -ExecutionPolicy Bypass -File
+  F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-owner-gate.ps1
+  -Root F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama`。
+- 同时执行 `v2-owner-gate.tests.ps1`。
+- W1C-1 要求 A0 `PASS` 且不得新增 debt / allowlist / static-input 例外。父 seam 的
+  `DEBT_COUNT_DECREASED` 由 W1F/W1G 最终收口；不得把本切片 A0 PASS 写成父 seam 完成。
+- A0 出现新 finding、需要扩 scanner / baseline 或第二轮仍 P1 时停止，不得继续叠门。
+
+##### 独立 QA
+
+只有在 implementation owner 完成 self-check、固定 candidate、写回实现报告与证据后，才可由
+负责人创建另一个全新且与实现不同的 QA owner。QA 不得修改候选，必须：
+
+1. 从 manager 外部 pin 的 detached candidate 验证 branch / clean / 15 path scope；
+2. 重跑三个 targeted selector 与三个模块完整 suite、build、ktfmt、A0、FULL GatePlan、
+   workflow / handoff tests；
+3. 用同一冻结矩阵覆盖七类状态与六个 scope-change 行，重点证明旧 snapshot、page、
+   loaded / completed marker 不跨 server/user/address/offline/generation；
+4. 核对 W1A search 与 W1B identity 语义未被改写；
+5. 报告 `P0/P1/P2` 必须为 0；任何 P3 只能由负责人 / 用户明确接受；
+6. 不执行设备、网络、生产写、merge、push、tag、Release 或 integration。
+
+##### Merge-prep 与 integration 门
+
+1. Independent QA PASS 后，另派全新 merge-prep owner，不从 QA / implementation owner 复用。
+2. source/final 必须对 15 个 code/test path 做 mode、blob、patch-id 与 tree diff MATCH；
+   docs control path 单独审计，不得混入 product/test equivalence。
+3. final 只可包含 15 个 code/test path 和 `docs/TASKS.md` 的进度 / 证据 delta；任何额外
+   path、W1A search / W1B identity 改写或 Gradle/schema 变化即 FAIL。
+4. final 必须 clean、parent 为目标 HEAD、`FINAL_HEAD` 可由 canonical `ff-only` 接收；
+   merge-prep 不执行 merge。
+5. 再由 root / delivery lead 本地 `ff-only` integration；integrated gate 至少重跑 FULL
+   GatePlan 的 build、三个模块 suite、ktfmt、A0、workflow / handoff tests 与 Snapshot。
+6. 集成后只可写
+   `W1C_1=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`；父 seam 仍
+   `CONTRACT_FROZEN / IN_PROGRESS`，W1C-2/W1D–W1G、runtime、产品与 Release 未完成。
+
+##### 停止条件与下一门
+
+以下任一出现即停止并保留现场：对象 / branch / HEAD / clean 漂移；W1B 前置或唯一 accepted
+P3 漂移；15 path 外扩张；contract 需要改 W1A/W1B 语义；出现新 P0–P2；需要 Gradle、
+schema、manifest、设备、ADB、网络、生产写、Release；测试 harness 在同一问题第二轮仍 P1；
+任何人要求越过 implementation -> independent QA -> merge-prep -> integration 顺序。
+
+任务卡冻结后的唯一下一步是用户决定是否授权 fresh W1C-1 implementation owner。未获新授权前，
+不得创建实现、QA、merge-prep 或 integration owner，也不得修改产品代码。
 
 #### 同一切片禁止双路径
 
