@@ -7,35 +7,35 @@
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
-- TASK_ID=V2-WORKFLOW-EFFICIENCY-2026-11-08
-- TASK_STAGE=INTEGRATED / CONTROL_PLANE_CLOSEOUT
+- TASK_ID=V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
+- TASK_STAGE=USER_APPROVED_RESTORE / POST_WORKFLOW_HANDOFF_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1B_1B_OR_NEXT_2_0_WAVE
+- NEXT_ROLE=AURORAMA_V2_POST_WORKFLOW_W1B_RESUME_DELIVERY_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Integrated control plane is closed; stop on any HEAD or six-path drift, dirty worktree, failed final Handoff/Closeout, product/runtime claim expansion, or unauthorized push/tag/Release.
+- STOP_CONDITION=Next delivery lead must first verify the exact W1B source candidate and clean object, then dispatch a fresh professional merge-prep owner through the new wrapper and GatePlan. Stop on source candidate drift, missing QA R4 evidence, new P0-P2, direct implementation without stage decision, missing execution entry, or any product/W1B/parent-seam/Runtime/Release overclaim.
 - SCOPE=V2_WORKFLOW_EFFICIENCY_SCRIPT_AND_RULES
 - AUTHORIZATION=USER_APPROVED_RECOMMENDED_WORKFLOW_PLAN_2026_11_08
-- IMPLEMENTATION_AUTHORIZED=NO / INTEGRATED
+- IMPLEMENTATION_AUTHORIZED=NO / NEXT_STAGE_DECISION_ONLY
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=YES
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=330522_OF_1048576 / 31.5_PERCENT / ABOVE_300000_HANDOFF_PREP / BELOW_350000_HARD_HANDOFF / 2026-11-08
+- CONTEXT_AT_CLOSE=340682_OF_1048576 / 32.5_PERCENT / ABOVE_300000_HANDOFF_PREP / BELOW_350000_HARD_HANDOFF / 2026-11-08
 - P0=0
-- P1=P1-QA-INDEP-01
-- P2=0
-- P3=P3-QA-PROCESS-01
+- P1=P1-W1B1B-04:CLOSED_BY_QA_R4
+- P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE
+- P3=P3-W1B1B-PUBLIC-PERMIT-MARKER:ACCEPTED;P3-W1B1B-READ-LEASE-PUBLIC-EFFECT-REENTRANCY:ACCEPTED_CURRENT_CALL_GRAPH_NO_REENTRY
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\task_plan.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_DECISION_RESTORE_W1B_1B_OR_NEXT_2_0_WAVE
-- last_evidence=FF_ONLY_INTEGRATED; FIRST_CLOSEOUT=STOPPED_BY_SOURCE_CANONICAL_OBJECT; CORRECTION=MIGRATE_CANONICAL_WORKTREE_BRANCH_AND_COMMANDS_TO_INTEGRATION; INDEPENDENT_QA_R2=PASS; MERGE_PREP_RECHECK=PASS; WORKFLOW_SUITE=35/0; HANDOFF_SUITE=99/0; P1-QA-INDEP-01=CLOSED; NEXT=FINAL_CLOSEOUT
+- NEXT_CRITICAL_PATH=VERIFY_W1B_1B_SOURCE_AND_DISPATCH_FRESH_MERGE_PREP
+- last_evidence=USER_APPROVED_RESTORE_2026-11-08; WORKFLOW_EFFICIENCY=INTEGRATED; W1B_SOURCE_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-atomic-generation-conditional-qa-r3-repair-followup-2026-11-08\Aurorama; W1B_SOURCE_HEAD=96b0c10603a50c82ae2ec95a639e51366503c7b1; W1B_QA_R4_COMPOSITE=PASS; GAP-QA-R4-01=CLOSED; EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-atomic-generation-conditional-independent-qa-r4-gap-closure-2026-11-08\QA_R4_GAP_CLOSURE_REPORT.md; NEXT=fresh merge-prep
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -167,6 +167,21 @@
 - ALLOWED_PATH=tools/architecture/v2-workflow.ps1
 - ALLOWED_PATH=tools/architecture/v2-workflow.tests.ps1
 <!-- V2_HANDOFF_OBJECT_END -->
+
+### HISTORY — Post-workflow W1B resume approved（2026-11-08）
+
+- 用户明确批准恢复 W1B-1B，并强调上下文/交接规范及“流程落档必须有执行入口”。
+- 当前可恢复源不是旧 `BLOCKED_HISTORY`：权威候选 worktree 为
+  `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-atomic-generation-conditional-qa-r3-repair-followup-2026-11-08\Aurorama`，
+  branch `codex/v2-w1b-1b-atomic-generation-conditional-qa-r3-repair-followup-2026-11-08`，
+  clean HEAD `96b0c10603a50c82ae2ec95a639e51366503c7b1`。其 ACTIVE 记录
+  `QA_R4_COMPOSITE_PASS / GAP-QA-R4-01_CLOSED`，不是 merge-prep、W1B-1、父 seam 或产品 PASS。
+- 新负责人必须先用集成分支上的 `tools/architecture/v2-workflow.ps1` 执行 Snapshot，
+  验证该源候选与证据，再经 GatePlan 的产品/跨层路径进入 `FULL` 车道，创建全新
+  merge-prep owner；不得在本交接中直接实现、QA、merge 或把文档当执行证据。
+- W1B QA R4 gap closure 证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-atomic-generation-conditional-independent-qa-r4-gap-closure-2026-11-08\QA_R4_GAP_CLOSURE_REPORT.md`。
+  下一步只由 `AURORAMA_V2_POST_WORKFLOW_W1B_RESUME_DELIVERY_LEAD_2026_11_08` 读取并拆单。
 
 ### HISTORY — Workflow efficiency local integration（2026-11-08）
 
@@ -490,11 +505,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=YES
-- UNCOVERED=Independent QA R2 and merge-prep PASS cover the control plane only. Product/runtime/W1B/integration-product behavior/Release remain NOT_ASSESSED. P3-QA-PROCESS-01 is disclosed only.
-- STOP_CONDITION=No further QA dispatch unless a new candidate change or defect occurs. User decision is required before restoring W1B-1B or starting another 2.0 wave.
-- MANUAL_LIMITATION=Final control-plane state is integrated locally only. No push, tag, Release, device/network/product validation or W1B resume is authorized.
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_W1B_1B_OR_NEXT_2_0_WAVE
+- QA_READY=NO
+- UNCOVERED=Workflow efficiency control plane is integrated. W1B_1B QA R4 composite is the current source result, but merge-prep, integration, W1B-1C, parent seam, runtime and Release are not complete.
+- STOP_CONDITION=Do not dispatch QA or implementation from this handoff. First verify the W1B source object and dispatch fresh merge-prep with its own stage decision and exact scope.
+- MANUAL_LIMITATION=This is a delivery-manager handoff only. No product implementation, QA, merge, device/network or Release action is authorized by this checkpoint.
+- MANUAL_OWNER=AURORAMA_V2_POST_WORKFLOW_W1B_RESUME_DELIVERY_LEAD_2026_11_08
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
