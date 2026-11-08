@@ -106,6 +106,30 @@ function Assert-True {
     }
 }
 
+function Get-LinterFunctionAstText {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $tokens = $null
+    $parseErrors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+        $linterPath,
+        [ref]$tokens,
+        [ref]$parseErrors
+    )
+    if ($parseErrors.Count -gt 0) {
+        throw "Linter parse errors: $($parseErrors -join '; ')"
+    }
+    $functions = @($ast.FindAll({
+        param($node)
+        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $node.Name -eq $Name
+    }, $true))
+    if ($functions.Count -ne 1) {
+        throw "Expected one function '$Name', found $($functions.Count)"
+    }
+    return $functions[0].Extent.Text
+}
+
 function Assert-ExitCode {
     param(
         [Parameter(Mandatory)]$Result,
@@ -125,6 +149,23 @@ function Assert-ContainsToken {
 
     Assert-True -Condition ($Result.Raw.Contains($Token, [System.StringComparison]::Ordinal)) -Message (
         "Missing token '$Token'. $($Result.Raw)"
+    )
+}
+
+function Assert-TokenCount {
+    param(
+        [Parameter(Mandatory)]$Result,
+        [Parameter(Mandatory)][string]$Token,
+        [Parameter(Mandatory)][int]$Expected
+    )
+
+    $actual = [regex]::Matches(
+        $Result.Raw,
+        [regex]::Escape($Token),
+        [System.Text.RegularExpressions.RegexOptions]::None
+    ).Count
+    Assert-True -Condition ($actual -eq $Expected) -Message (
+        "Expected token '$Token' $Expected times, got $actual. $($Result.Raw)"
     )
 }
 
@@ -806,6 +847,170 @@ Invoke-FixtureTest -Name 'stable doc structural list-marker ATX ACTIVE fails Han
     }
 }
 
+Invoke-FixtureTest -Name 'stable doc renderer ordered-list marker ATX ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n1. ### ACTIVE - stale ordered-list marker heading`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc renderer list-then-blockquote ATX ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n- > ### ACTIVE - stale list-then-blockquote heading`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc renderer nested-list marker ATX ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n- - ### ACTIVE - stale nested-list marker heading`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc renderer nested blockquote ordered-list composite ATX ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n> > 1. ### ACTIVE - stale nested composite heading`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc renderer ATX zero through three spaces ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n### ACTIVE - stale ATX zero`n" +
+            "`n ### ACTIVE - stale ATX one`n" +
+            "`n  ### ACTIVE - stale ATX two`n" +
+            "`n   ### ACTIVE - stale ATX three`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-TokenCount -Result $result `
+            -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md' -Expected 4
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc renderer case-insensitive attributed HTML h1 through h6 ACTIVE fails Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n<H1 data-fixture=`"one`">ACTIVE - stale HTML H1</H1>`n" +
+            "`n<h2 class=`"fixture`">ACTIVE - stale HTML h2</h2>`n" +
+            "`n<H3 id=`"fixture-three`">ACTIVE - stale HTML H3</H3>`n" +
+            "`n<h4 data-fixture=`"four`">ACTIVE - stale HTML h4</h4>`n" +
+            "`n<H5>ACTIVE - stale HTML H5</H5>`n" +
+            "`n<h6 class=`"fixture-six`">ACTIVE - stale HTML h6</h6>`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-TokenCount -Result $result `
+            -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md' -Expected 6
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc renderer HISTORY ACTIVE heading passes Handoff' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n`n## ACTIVE - HISTORY stale snapshot`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc renderer unavailable helper fails closed' -Body {
+    $helperText = Get-LinterFunctionAstText -Name 'Get-RenderedMarkdownHeadings'
+    Invoke-Expression $helperText
+    $rendererFailure = $null
+    try {
+        Get-RenderedMarkdownHeadings -Text '' -RendererCommand $null | Out-Null
+    }
+    catch {
+        $rendererFailure = $_
+    }
+    Assert-True -Condition ($null -ne $rendererFailure) `
+        -Message 'Expected null renderer command to fail closed.'
+    Assert-True -Condition (
+        $rendererFailure.Exception.Data['Code'] -eq 'MARKDOWN_RENDERER_UNAVAILABLE'
+    ) -Message "Unexpected renderer failure: $rendererFailure"
+}
+
+Invoke-FixtureTest -Name 'stable doc renderer error helper fails closed' -Body {
+    $helperText = Get-LinterFunctionAstText -Name 'Get-RenderedMarkdownHeadings'
+    Invoke-Expression $helperText
+    $rendererFailure = $null
+    try {
+        Get-RenderedMarkdownHeadings -Text '## ACTIVE' `
+            -RendererCommand (Get-Command Write-Output -CommandType Cmdlet) | Out-Null
+    }
+    catch {
+        $rendererFailure = $_
+    }
+    Assert-True -Condition ($null -ne $rendererFailure) `
+        -Message 'Expected a renderer without Html output to fail closed.'
+    Assert-True -Condition (
+        $rendererFailure.Exception.Data['Code'] -eq 'MARKDOWN_RENDER_ERROR'
+    ) -Message "Unexpected renderer failure: $rendererFailure"
+}
+
 Invoke-FixtureTest -Name 'stable doc structural ordinary ACTIVE prose passes Handoff' -Body {
     $fixture = New-Fixture -PathSet Stable
     try {
@@ -844,7 +1049,7 @@ Invoke-FixtureTest -Name 'stable doc structural four-space code text ACTIVE pass
     $fixture = New-Fixture -PathSet Stable
     try {
         $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
-            "`n`n    ## ACTIVE - indented code text`n"
+            "`n`nTop-level code-control prose.`n`n    ## ACTIVE - indented code text`n"
         $newHead = Update-RepoFileAndCommit -Fixture $fixture `
             -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
         $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `

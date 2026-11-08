@@ -35,8 +35,9 @@ function Write-Usage {
     Write-Output '  PROJECT_PLAN.md / V2_PLAN.md / ARCHITECTURE.md require one nonempty stable-state pointer block.'
     Write-Output '  Pointer codes: STABLE_DOC_MISSING, _UTF8, STABLE_DOC_POINTER_MISSING, _MULTIPLE, _MALFORMED, _EMPTY, _TOKEN_MISSING, _TOKEN_INVALID, _TOKEN_DUPLICATE.'
     Write-Output '  Current-state codes: STABLE_DOC_CURRENT_STATE_TOKEN, ACTIVE_MARKER_OUTSIDE_TASKS, ACTIVE_HEADING_OUTSIDE_TASKS.'
-    Write-Output '  ACTIVE headings cover ATX (0-3 spaces, blockquote/list wrappers), setext (0-3 spaces, blockquote wrappers), and simple single-line HTML h1-h6.'
-    Write-Output '  HISTORY / HISTORICAL ACTIVE headings are allowed; fenced and four-space-indented code text is not classified as a heading.'
+    Write-Output '  ACTIVE headings are extracted from actual ConvertFrom-Markdown HTML h1-h6 output, including standard list / blockquote / ATX / setext / HTML containers.'
+    Write-Output '  Renderer absence fails MARKDOWN_RENDERER_UNAVAILABLE; renderer errors fail MARKDOWN_RENDER_ERROR. Fenced and four-space-indented code text is not a heading.'
+    Write-Output '  HISTORY / HISTORICAL ACTIVE headings are allowed.'
     Write-Output '  Manual owner: natural-language current-looking prose outside the mechanical checks remains a human review item.'
 }
 
@@ -515,110 +516,51 @@ function Test-Evidence {
     }
 }
 
-function Remove-MarkdownBlockquotePrefix {
-    param([AllowEmptyString()][string]$Line)
+function Get-RenderedMarkdownHeadings {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
+        [AllowNull()][System.Management.Automation.CommandInfo]$RendererCommand
+    )
 
-    $candidate = $Line
-    while ($candidate -match '^ {0,3}>[ \t]?') {
-        $candidate = $candidate.Substring($Matches[0].Length)
+    if ($null -eq $RendererCommand) {
+        $unavailable = [System.InvalidOperationException]::new('MARKDOWN_RENDERER_UNAVAILABLE')
+        $unavailable.Data['Code'] = 'MARKDOWN_RENDERER_UNAVAILABLE'
+        throw $unavailable
     }
-    return $candidate
-}
 
-function Remove-MarkdownListMarker {
-    param([AllowEmptyString()][string]$Line)
-
-    if ($Line -match '^ {0,3}[-+*][ \t]+') {
-        return $Line.Substring($Matches[0].Length)
+    try {
+        $rendered = @(& $RendererCommand -InputObject $Text)
+        $html = @($rendered |
+            ForEach-Object { $_.Html } |
+            Where-Object { $null -ne $_ } |
+            Select-Object -First 1)
+        if ($html.Count -eq 0) {
+            throw 'renderer returned no Html value'
+        }
     }
-    return $Line
-}
+    catch {
+        $renderError = [System.InvalidOperationException]::new(
+            "MARKDOWN_RENDER_ERROR: $($_.Exception.Message)",
+            $_.Exception
+        )
+        $renderError.Data['Code'] = 'MARKDOWN_RENDER_ERROR'
+        throw $renderError
+    }
 
-function Get-MarkdownHeadings {
-    param([Parameter(Mandatory)][AllowEmptyString()][string]$Text)
-
-    $lines = [regex]::Split($Text, '\r?\n')
     $headings = [System.Collections.Generic.List[object]]::new()
-    $fenceCharacter = [char]0
-    $fenceLength = 0
-
-    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
-        $line = $lines[$lineIndex]
-        $blockquoteCandidate = Remove-MarkdownBlockquotePrefix -Line $line
-        $structuralCandidate = Remove-MarkdownListMarker -Line $blockquoteCandidate
-
-        if ($fenceCharacter -ne [char]0) {
-            $closingFence = [regex]::Match(
-                $blockquoteCandidate,
-                '^ {0,3}(?<fence>`{3,}|~{3,})[ \t]*$'
-            )
-            if ($closingFence.Success) {
-                $closingMarkers = $closingFence.Groups['fence'].Value
-                if ($closingMarkers[0] -eq $fenceCharacter -and $closingMarkers.Length -ge $fenceLength) {
-                    $fenceCharacter = [char]0
-                    $fenceLength = 0
-                }
-            }
-            continue
-        }
-
-        $openingFence = [regex]::Match(
-            $structuralCandidate,
-            '^ {0,3}(?<fence>`{3,}|~{3,})(?<info>.*)$'
-        )
-        if ($openingFence.Success) {
-            $fenceMarkers = $openingFence.Groups['fence'].Value
-            $fenceInfo = $openingFence.Groups['info'].Value
-            if ($fenceMarkers[0] -ne '`' -or -not $fenceInfo.Contains('`')) {
-                $fenceCharacter = $fenceMarkers[0]
-                $fenceLength = $fenceMarkers.Length
-                continue
-            }
-        }
-
-        $atx = [regex]::Match($structuralCandidate, '^ {0,3}#{1,6}[ \t]+(?<text>.*)$')
-        if ($atx.Success) {
-            $headingText = ($atx.Groups['text'].Value -replace '[ \t]+#+[ \t]*$', '').Trim()
-            $headings.Add([pscustomobject]@{
-                LineNumber = $lineIndex + 1
-                Text = $headingText
-                Kind = 'ATX'
-            })
-            continue
-        }
-
-        $html = [regex]::Match(
-            $structuralCandidate,
-            '^<h[1-6](?:\s+[^>]*)?>(?<text>.*?)(?:</h[1-6]>)?[ \t]*$',
-            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
-        )
-        if ($html.Success) {
-            $headingText = [regex]::Replace($html.Groups['text'].Value, '<[^>]+>', '').Trim()
-            $headings.Add([pscustomobject]@{
-                LineNumber = $lineIndex + 1
-                Text = $headingText
-                Kind = 'HTML'
-            })
-            continue
-        }
-
-        $setextUnderline = [regex]::Match($blockquoteCandidate, '^ {0,3}(?:=+|-+)[ \t]*$')
-        if (-not $setextUnderline.Success -or $lineIndex -eq 0) {
-            continue
-        }
-
-        $setextSource = Remove-MarkdownBlockquotePrefix -Line $lines[$lineIndex - 1]
-        $setextSource = Remove-MarkdownListMarker -Line $setextSource
-        $setextText = [regex]::Match($setextSource, '^ {0,3}(?<text>\S.*)$')
-        if ($setextText.Success) {
-            $headings.Add([pscustomobject]@{
-                LineNumber = $lineIndex
-                Text = $setextText.Groups['text'].Value.Trim()
-                Kind = 'Setext'
-            })
-        }
+    $headingPattern = '(?is)<h(?<level>[1-6])(?:\s+[^>]*)?>(?<text>.*?)</h\k<level>\s*>'
+    $ordinal = 0
+    foreach ($match in [regex]::Matches([string]$html[0], $headingPattern)) {
+        $ordinal++
+        $decoded = [System.Net.WebUtility]::HtmlDecode($match.Groups['text'].Value)
+        $headingText = [regex]::Replace($decoded, '<[^>]+>', '').Trim()
+        $headings.Add([pscustomobject]@{
+            Ordinal = $ordinal
+            Level = [int]$match.Groups['level'].Value
+            Text = $headingText
+            Kind = 'RenderedHtml'
+        })
     }
-
     return $headings
 }
 
@@ -643,6 +585,25 @@ function Test-StableDocuments {
     # document, including headings, HISTORY, fenced examples and pointer blocks. Ordinary prose
     # without such an assignment remains a manual review case and is not semantically classified.
     $fixedDynamicAssignmentPattern = '(?i)(?<token>CURRENT_HEAD|DOCS_COMMIT|HANDOFF_BASE_HEAD|DOCS_CANDIDATE_PARENT|CONTROL_PLANE_HEAD_INPUT|CODE_INTEGRATION_HEAD|NEXT_ROLE|NEXT_PATH|NEXT_CRITICAL_PATH|CONTEXT_WATERMARK|CANDIDATE_SIZE|CANDIDATE_TEST_COUNT|CANDIDATE_TEST_RESULTS|HANDOFF_REQUIRED|COMPACTION_COUNT)[ \t]*='
+    $rendererCommand = $null
+    $rendererLookupError = ''
+    try {
+        $rendererCommand = Get-Command ConvertFrom-Markdown -CommandType Cmdlet `
+            -ErrorAction SilentlyContinue | Select-Object -First 1
+    }
+    catch {
+        $rendererLookupError = ($_.Exception.Message -replace '\r?\n', ' ')
+    }
+    if ($null -eq $rendererCommand) {
+        $rendererDetail = if ([string]::IsNullOrWhiteSpace($rendererLookupError)) {
+            'Get-Command ConvertFrom-Markdown returned no cmdlet'
+        }
+        else {
+            $rendererLookupError
+        }
+        Add-Failure -Code 'MARKDOWN_RENDERER_UNAVAILABLE' -Subject 'ConvertFrom-Markdown' `
+            -Detail $rendererDetail
+    }
 
     foreach ($relativePath in $stableDocuments) {
         $documentPath = Join-Path $Root $relativePath
@@ -664,11 +625,28 @@ function Test-StableDocuments {
                 -Detail 'V2_HANDOFF_ACTIVE markers are allowed only in docs/TASKS.md'
         }
 
-        foreach ($heading in @(Get-MarkdownHeadings -Text $text)) {
+        $headings = @()
+        if ($null -ne $rendererCommand) {
+            try {
+                $headings = @(Get-RenderedMarkdownHeadings -Text $text `
+                    -RendererCommand $rendererCommand)
+            }
+            catch {
+                $renderFailureCode = [string]$_.Exception.Data['Code']
+                if ($renderFailureCode -ne 'MARKDOWN_RENDER_ERROR') {
+                    $renderFailureCode = 'MARKDOWN_RENDER_ERROR'
+                }
+                $renderFailureDetail = ($_.Exception.Message -replace '\r?\n', ' ')
+                Add-Failure -Code $renderFailureCode -Subject $relativePath `
+                    -Detail $renderFailureDetail
+            }
+        }
+
+        foreach ($heading in $headings) {
             if ($heading.Text -match '(?i)\bACTIVE\b' -and
                 $heading.Text -notmatch '(?i)\bHISTOR(?:Y|ICAL)\b') {
                 Add-Failure -Code 'ACTIVE_HEADING_OUTSIDE_TASKS' -Subject $relativePath `
-                    -Detail "line=$($heading.LineNumber) kind=$($heading.Kind) text=$($heading.Text)"
+                    -Detail "heading=$($heading.Ordinal) level=$($heading.Level) kind=$($heading.Kind) text=$($heading.Text)"
             }
         }
 
