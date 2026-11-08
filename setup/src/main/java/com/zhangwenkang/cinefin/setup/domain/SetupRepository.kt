@@ -34,6 +34,8 @@ interface SetupRepository : SavedUserAuthenticator {
 
     suspend fun loginWithSecret(secret: String)
 
+    suspend fun activateSavedUser(userId: UUID): SavedUserActivationResult
+
     suspend fun getUsers(serverId: String): List<User>
 
     suspend fun getPublicUsers(serverId: String): List<User>

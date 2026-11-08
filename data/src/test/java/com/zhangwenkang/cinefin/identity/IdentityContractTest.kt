@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.identity
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
@@ -91,5 +92,26 @@ class IdentityContractTest {
                         !field.name.contains("secret", ignoreCase = true),
                 )
             }
+    }
+
+    @Test
+    fun conditionalIngressContractKeepsIssuanceAndProjectionScopeInsideData() {
+        val source = findContractSource().readText(Charsets.UTF_8).replace("\r\n", "\n")
+
+        assertTrue(source.contains("interface IdentityConditionalWritePort"))
+        assertTrue(source.contains("class IdentityIngressAttempt\ninternal constructor("))
+        assertTrue(source.contains("object IdentityProjectionScope"))
+        assertTrue(source.contains("private class IdentityProjectionContextElement"))
+    }
+
+    private fun findContractSource(): File {
+        val relative = "data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityContract.kt"
+        var directory: File? = File(requireNotNull(System.getProperty("user.dir"))).absoluteFile
+        repeat(8) {
+            val candidate = directory?.resolve(relative)
+            if (candidate?.isFile == true) return candidate
+            directory = directory?.parentFile
+        }
+        error("IdentityContract.kt not found from ${System.getProperty("user.dir")}")
     }
 }

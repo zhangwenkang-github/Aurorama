@@ -1,8 +1,22 @@
 package com.zhangwenkang.cinefin.setup.data
 
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.api.JellyfinApiCandidate
+import com.zhangwenkang.cinefin.api.JellyfinApiFactory
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.identity.IdentityConditionalWritePort
+import com.zhangwenkang.cinefin.identity.IdentityIngressAttempt
+import com.zhangwenkang.cinefin.identity.IdentityProjectionScope
+import com.zhangwenkang.cinefin.identity.IdentityReadLease
+import com.zhangwenkang.cinefin.identity.IdentityReadLeasePort
+import com.zhangwenkang.cinefin.identity.IdentityReadPort
+import com.zhangwenkang.cinefin.identity.IdentitySelection
+import com.zhangwenkang.cinefin.identity.IdentitySnapshot
+import com.zhangwenkang.cinefin.identity.IdentityStateStore
+import com.zhangwenkang.cinefin.identity.IdentityTransitionResult
+import com.zhangwenkang.cinefin.identity.IdentityWriteCoordinator
+import com.zhangwenkang.cinefin.identity.IdentityWritePort
 import com.zhangwenkang.cinefin.models.ExceptionUiText
 import com.zhangwenkang.cinefin.models.ExceptionUiTexts
 import com.zhangwenkang.cinefin.models.Server
@@ -16,11 +30,15 @@ import com.zhangwenkang.cinefin.network.fingerprintsMatch
 import com.zhangwenkang.cinefin.network.httpsTargetOf
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.setup.R as SetupR
+import com.zhangwenkang.cinefin.setup.domain.IdentityAttemptStaleException
+import com.zhangwenkang.cinefin.setup.domain.IdentityTransitionFailedException
 import com.zhangwenkang.cinefin.setup.domain.SavedUserActivationFailure
+import com.zhangwenkang.cinefin.setup.domain.SavedUserActivationResult
 import com.zhangwenkang.cinefin.setup.domain.SavedUserAuthenticationException
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
 import com.zhangwenkang.cinefin.setup.domain.classifySavedUserAuthenticationError
 import com.zhangwenkang.cinefin.setup.domain.nextCurrentUserIdAfterDelete
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -88,19 +106,58 @@ class SetupRepositoryImpl(
     private val jellyfinApi: JellyfinApi,
     private val database: ServerDatabaseDao,
     private val appPreferences: AppPreferences,
+    private val apiFactory: JellyfinApiFactory =
+        JellyfinApiFactory(jellyfinApi) {
+            error("An isolated candidate API factory is required for setup identity ingress")
+        },
+    private val identityReadPort: IdentityReadPort? = null,
+    private val identityReadLeasePort: IdentityReadLeasePort? = null,
+    private val identityWritePort: IdentityWritePort? = null,
+    private val identityConditionalWritePort: IdentityConditionalWritePort? = null,
 ) : SetupRepository {
-    override fun discoverServers(): Flow<ServerDiscoveryInfo> {
-        return jellyfinApi.jellyfin.discovery.discoverLocalServers()
-    }
-
-    override suspend fun getServers(): List<ServerWithAddresses> {
-        return database.getServersWithAddresses()
-    }
-
-    override suspend fun getCurrentServer(): Server? {
-        return appPreferences.getValue(appPreferences.currentServer)?.let { id ->
-            database.getServer(id)
+    private val fallbackCoordinator by
+        lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+            IdentityWriteCoordinator(IdentityStateStore(appPreferences))
         }
+
+    private data class ServerContext(
+        val server: Server,
+        val address: ServerAddress,
+        val user: User?,
+    )
+
+    private data class SavedUserContext(
+        val context: ServerContext,
+        val user: User,
+    )
+
+    private data class LeasedRead<T>(
+        val port: IdentityReadLeasePort,
+        val lease: IdentityReadLease,
+        val value: T,
+    )
+
+    private data class PersistedServer(
+        val server: Server,
+        val address: ServerAddress,
+    )
+
+    private data class ServerPersistencePlan(
+        val server: Server,
+        val address: ServerAddress,
+        val insertServer: Boolean,
+        val insertAddress: Boolean,
+        val updateServer: Boolean,
+    )
+
+    override fun discoverServers(): Flow<ServerDiscoveryInfo> =
+        apiFactory.create().api.jellyfin.discovery.discoverLocalServers()
+
+    override suspend fun getServers(): List<ServerWithAddresses> =
+        database.getServersWithAddresses()
+
+    override suspend fun getCurrentServer(): Server? = withReadyLease { selection ->
+        selection.serverId?.let { selectedServerId -> database.getServer(selectedServerId) }
     }
 
     override suspend fun deleteServer(serverId: String) {
@@ -108,80 +165,141 @@ class SetupRepositoryImpl(
     }
 
     override suspend fun getIsQuickConnectEnabled(): Boolean =
-        withContext(Dispatchers.IO) { jellyfinApi.quickConnectApi.getQuickConnectEnabled().content }
+        withContext(Dispatchers.IO) {
+            val outcome =
+                withVerifiedReadyContext { context ->
+                    val candidate = apiFactory.create(baseUrl = context.address.address)
+                    try {
+                        Result.success(
+                            candidate.api.quickConnectApi.getQuickConnectEnabled().content
+                        )
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        Result.failure(error)
+                    }
+                } ?: return@withContext false
+            outcome.exceptionOrNull()?.let { error ->
+                throw certificateTrustRequiredForCurrentServer() ?: error
+            }
+            outcome.getOrThrow()
+        }
 
     override suspend fun initiateQuickConnect(): QuickConnectResult =
         withContext(Dispatchers.IO) {
-            try {
-                jellyfinApi.quickConnectApi.initiateQuickConnect().content
-            } catch (e: Exception) {
-                throw certificateTrustRequiredForCurrentServer() ?: e
+            val outcome =
+                withVerifiedReadyContext { context ->
+                    val candidate = apiFactory.create(baseUrl = context.address.address)
+                    try {
+                        Result.success(candidate.api.quickConnectApi.initiateQuickConnect().content)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        Result.failure(error)
+                    }
+                } ?: recoveringIdentityFailure()
+            outcome.exceptionOrNull()?.let { error ->
+                throw certificateTrustRequiredForCurrentServer() ?: error
             }
+            outcome.getOrThrow()
         }
 
     override suspend fun getQuickConnectState(secret: String): QuickConnectResult =
         withContext(Dispatchers.IO) {
-            jellyfinApi.quickConnectApi.getQuickConnectState(secret).content
+            withVerifiedReadyContext { context ->
+                val candidate = apiFactory.create(baseUrl = context.address.address)
+                candidate.api.quickConnectApi.getQuickConnectState(secret).content
+            } ?: recoveringIdentityFailure()
         }
 
     override suspend fun setCurrentServer(serverId: String) {
-        val serverWithAddressAndUser =
+        val activeSnapshot = IdentityProjectionScope.currentSnapshot()
+        if (activeSnapshot != null) {
+            applyServerProjection(serverId, activeSnapshot)
+            return
+        }
+
+        val read = readUnderReadyLease { it } ?: recoveringIdentityFailure()
+        check(identityConditionalWritePort == null) {
+            "Selecting a server requires an identity projection permit commit"
+        }
+        val attempt = read.port.beginIngressForLease(read.lease) ?: recoveringIdentityFailure()
+        val relation =
             database.getServerWithAddressAndUser(serverId)
                 ?: throw IllegalStateException("Cannot select server $serverId: server is missing")
-        val serverAddress =
-            serverWithAddressAndUser.address
+        val address =
+            relation.address
                 ?: throw IllegalStateException(
                     "Cannot select server $serverId: current address is missing"
                 )
-        val user = serverWithAddressAndUser.user
-
-        jellyfinApi.apply {
-            api.update(baseUrl = serverAddress.address, accessToken = user?.accessToken)
-            userId = user?.id
+        ensureIngressCurrent(attempt)
+        val selection =
+            IdentitySelection(
+                serverId = relation.server.id,
+                userId = relation.user?.id?.toString(),
+                addressId = address.id.toString(),
+                offlineMode = read.value.offlineMode,
+            )
+        commitServerSelection(attempt, selection) { snapshot ->
+            applyServerProjection(serverId, snapshot)
+            relation.server
         }
-        check(jellyfinApi.api.baseUrl == serverAddress.address) {
-            "Server projection baseUrl mismatch for $serverId"
-        }
-        check(jellyfinApi.api.accessToken == user?.accessToken) {
-            "Server projection accessToken mismatch for $serverId"
-        }
-        check(jellyfinApi.userId == user?.id) { "Server projection userId mismatch for $serverId" }
     }
 
     override suspend fun addServer(address: String): Server {
-        // Check if address is not blank
         if (address.isBlank()) {
             throw ExceptionUiText(
                 UiText.StringResource(SetupR.string.add_server_error_empty_address)
             )
         }
 
-        val candidates = jellyfinApi.jellyfin.discovery.getAddressCandidates(address)
+        val read = readUnderReadyLease { it } ?: recoveringIdentityFailure()
+        val attempt = read.port.beginIngressForLease(read.lease) ?: recoveringIdentityFailure()
+        val currentSelection = read.value
+        val candidate = apiFactory.create()
+        val candidates =
+            try {
+                candidate.api.jellyfin.discovery.getAddressCandidates(address)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                rethrowIfStale(attempt, error)
+                throw error
+            }
         val bootstrap =
             resolveServerBootstrap(
                 address = address,
                 candidates = candidates,
                 loadPublicInfo = { baseUrl ->
                     withContext(Dispatchers.IO) {
-                        jellyfinApi.api.update(baseUrl = baseUrl)
-                        val systemInfo by jellyfinApi.systemApi.getPublicSystemInfo()
+                        val probe = apiFactory.create(baseUrl = baseUrl)
+                        val systemInfo by probe.api.systemApi.getPublicSystemInfo()
                         systemInfo
                     }
                 },
                 loadRecommendedServers = {
                     try {
-                        jellyfinApi.jellyfin.discovery.getRecommendedServers(
+                        candidate.api.jellyfin.discovery.getRecommendedServers(
                             candidates,
                             RecommendedServerInfoScore.OK,
                         )
-                    } catch (e: Exception) {
-                        throw certificateTrustRequired(candidates) ?: e
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        rethrowIfStale(attempt, error)
+                        throw certificateTrustRequiredForAttempt(attempt, candidates) ?: error
                     }
                 },
             )
+        ensureIngressCurrent(attempt)
 
         if (bootstrap is ServerBootstrapResult.Explicit) {
-            return saveServerInDatabase(bootstrap.systemInfo, bootstrap.address)
+            return persistAndCommitServer(
+                attempt,
+                bootstrap.systemInfo,
+                bootstrap.address,
+                currentSelection.offlineMode,
+            )
         }
         val recommended = (bootstrap as ServerBootstrapResult.Discovered).servers
         val goodServers = mutableListOf<RecommendedServerInfo>()
@@ -190,7 +308,11 @@ class SetupRepositoryImpl(
         for (recommendedServerInfo in recommended) {
             when (recommendedServerInfo.score) {
                 RecommendedServerInfoScore.GREAT -> {
-                    return saveServerInDatabase(recommendedServerInfo)
+                    return persistAndCommitServer(
+                        attempt,
+                        recommendedServerInfo,
+                        currentSelection.offlineMode,
+                    )
                 }
                 RecommendedServerInfoScore.GOOD -> goodServers.add(recommendedServerInfo)
                 RecommendedServerInfoScore.OK -> okServers.add(recommendedServerInfo)
@@ -200,14 +322,18 @@ class SetupRepositoryImpl(
 
         when {
             goodServers.isNotEmpty() -> {
-                return saveServerInDatabase(goodServers.first())
+                return persistAndCommitServer(
+                    attempt,
+                    goodServers.first(),
+                    currentSelection.offlineMode,
+                )
             }
             okServers.isNotEmpty() -> {
                 val okServer = okServers.first()
                 throw ExceptionUiTexts(createIssuesString(okServer))
             }
             else -> {
-                throw (certificateTrustRequired(candidates)
+                throw (certificateTrustRequiredForAttempt(attempt, candidates)
                     ?: ExceptionUiText(
                         UiText.StringResource(SetupR.string.add_server_error_not_found)
                     ))
@@ -215,74 +341,158 @@ class SetupRepositoryImpl(
         }
     }
 
-    private suspend fun saveServerInDatabase(recommendedServerInfo: RecommendedServerInfo): Server {
+    private suspend fun persistAndCommitServer(
+        attempt: IdentityIngressAttempt,
+        recommendedServerInfo: RecommendedServerInfo,
+        offlineMode: Boolean,
+    ): Server {
         val serverInfo =
             recommendedServerInfo.systemInfo.getOrNull()
                 ?: throw ExceptionUiText(
                     UiText.StringResource(SetupR.string.add_server_error_no_id)
                 )
-        return saveServerInDatabase(serverInfo, recommendedServerInfo.address)
+        return persistAndCommitServer(
+            attempt,
+            serverInfo,
+            recommendedServerInfo.address,
+            offlineMode,
+        )
     }
 
-    private suspend fun saveServerInDatabase(
+    private suspend fun persistAndCommitServer(
+        attempt: IdentityIngressAttempt,
         serverInfo: PublicSystemInfo,
         address: String,
+        offlineMode: Boolean,
     ): Server {
-        Timber.d("Connecting to server: ${serverInfo.serverName}")
+        val serverId = requireNotNull(serverInfo.id)
+        val addressId = stableAddressId(serverId, address)
+        val initialPlan = planServerPersistence(serverInfo, address, addressId)
+        val selectionUser = currentUserFor(initialPlan.server)
+        val selection =
+            IdentitySelection(
+                serverId = initialPlan.server.id,
+                userId = selectionUser?.id?.toString(),
+                addressId = initialPlan.address.id.toString(),
+                offlineMode = offlineMode,
+            )
 
-        val serverInDatabase = database.getServer(serverInfo.id!!)
-
-        // Check if server is already in the database
-        // If so only add a new address to that server if it's different
-        val server =
-            if (serverInDatabase != null) {
-                val addresses = database.getServerWithAddresses(serverInDatabase.id).addresses
-                // If address is not in database, add it
-                if (addresses.none { it.address == address }) {
-                    val serverAddress =
-                        ServerAddress(
-                            id = UUID.randomUUID(),
-                            serverId = serverInDatabase.id,
-                            address = address,
-                        )
-
-                    database.insertServerAddress(serverAddress)
-                }
-                serverInDatabase
-            } else {
-                val serverAddress =
-                    ServerAddress(
-                        id = UUID.randomUUID(),
-                        serverId = serverInfo.id!!,
-                        address = address,
-                    )
-
-                val server =
-                    Server(
-                        id = serverInfo.id!!,
-                        name = serverInfo.serverName!!,
-                        currentServerAddressId = serverAddress.id,
-                        currentUserId = null,
-                    )
-
-                database.insertServer(server)
-                database.insertServerAddress(serverAddress)
-                server
-            }
-
-        jellyfinApi.apply { api.update(baseUrl = address, accessToken = null) }
-
-        return server
+        return commitServerSelection(attempt, selection) { snapshot ->
+            val latestPlan = planServerPersistence(serverInfo, address, addressId)
+            val latestUser = currentUserFor(latestPlan.server)
+            requireProjectionSelection(
+                snapshot = snapshot,
+                serverId = latestPlan.server.id,
+                addressId = latestPlan.address.id,
+                userId = latestUser?.id,
+            )
+            val persisted = applyServerPersistence(latestPlan)
+            publishGlobalIdentity(
+                baseUrl = persisted.address.address,
+                accessToken = latestUser?.accessToken,
+                userId = latestUser?.id,
+            )
+            persisted.server
+        }
     }
 
-    /**
-     * Create a presentable string of issues with a server
-     *
-     * @param server The server with issues
-     * @return A presentable string of issues separated with \n
-     */
-    private fun createIssuesString(server: RecommendedServerInfo): Collection<UiText> {
-        return server.issues.map {
+    private suspend fun commitServerSelection(
+        attempt: IdentityIngressAttempt,
+        selection: IdentitySelection,
+        effect: suspend (IdentitySnapshot) -> Server,
+    ): Server {
+        var projectionFailure: Exception? = null
+        var persisted: Server? = null
+        val result =
+            requireConditionalWriter().selectServerIfGeneration(attempt, selection) {
+                snapshot,
+                permit ->
+                if (
+                    !permit.commit {
+                        try {
+                            persisted = effect(snapshot)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            projectionFailure = error
+                            throw error
+                        }
+                    }
+                ) {
+                    throw IdentityAttemptStaleException()
+                }
+            }
+
+        projectionFailure?.let { throw it }
+        requireApplied(result)
+        return requireNotNull(persisted)
+    }
+
+    private suspend fun planServerPersistence(
+        serverInfo: PublicSystemInfo,
+        address: String,
+        addressId: UUID,
+    ): ServerPersistencePlan {
+        Timber.d("Connecting to server: ${serverInfo.serverName}")
+        val serverId = requireNotNull(serverInfo.id)
+        val serverInDatabase = database.getServer(serverId)
+
+        if (serverInDatabase != null) {
+            val addresses = database.getServerWithAddresses(serverId).addresses
+            val existingAddress = addresses.firstOrNull { it.address == address }
+            val selectedAddress =
+                existingAddress
+                    ?: ServerAddress(
+                        id = addressId,
+                        serverId = serverId,
+                        address = address,
+                    )
+            return ServerPersistencePlan(
+                server = serverInDatabase.copy(currentServerAddressId = selectedAddress.id),
+                address = selectedAddress,
+                insertServer = false,
+                insertAddress = existingAddress == null,
+                updateServer = true,
+            )
+        }
+
+        val serverAddress =
+            ServerAddress(
+                id = addressId,
+                serverId = serverId,
+                address = address,
+            )
+        val server =
+            Server(
+                id = serverId,
+                name = requireNotNull(serverInfo.serverName),
+                currentServerAddressId = serverAddress.id,
+                currentUserId = null,
+            )
+        return ServerPersistencePlan(
+            server = server,
+            address = serverAddress,
+            insertServer = true,
+            insertAddress = true,
+            updateServer = false,
+        )
+    }
+
+    private suspend fun applyServerPersistence(plan: ServerPersistencePlan): PersistedServer {
+        if (plan.insertServer) {
+            database.insertServer(plan.server)
+        }
+        if (plan.insertAddress) {
+            database.insertServerAddress(plan.address)
+        }
+        if (plan.updateServer) {
+            database.updateServer(plan.server)
+        }
+        return PersistedServer(server = plan.server, address = plan.address)
+    }
+
+    private fun createIssuesString(server: RecommendedServerInfo): Collection<UiText> =
+        server.issues.map {
             when (it) {
                 is RecommendedServerIssue.OutdatedServerVersion -> {
                     UiText.StringResource(SetupR.string.add_server_error_outdated, it.version)
@@ -299,180 +509,454 @@ class SetupRepositoryImpl(
                 is RecommendedServerIssue.SlowResponse -> {
                     UiText.StringResource(SetupR.string.add_server_error_slow, it.responseTime)
                 }
-                else -> {
-                    UiText.StringResource(CoreR.string.unknown_error)
-                }
+                else -> UiText.StringResource(CoreR.string.unknown_error)
             }
         }
-    }
 
     override suspend fun loadDisclaimer(): String? =
         withContext(Dispatchers.IO) {
-            jellyfinApi.brandingApi.getBrandingOptions().content.loginDisclaimer
+            withVerifiedReadyContext { context ->
+                val candidate = apiFactory.create(baseUrl = context.address.address)
+                candidate.api.brandingApi.getBrandingOptions().content.loginDisclaimer
+            }
         }
 
     override suspend fun login(username: String, password: String) {
         withContext(Dispatchers.IO) {
+            val read =
+                readUnderReadyLease { selection -> loadCurrentServerContext(selection) }
+                    ?: recoveringIdentityFailure()
+            val context = read.value ?: recoveringIdentityFailure()
+            val attempt = read.port.beginIngressForLease(read.lease) ?: recoveringIdentityFailure()
+            val candidate = apiFactory.create(baseUrl = context.address.address)
             val authenticationResult =
                 try {
-                    val result by
-                        jellyfinApi.userApi.authenticateUserByName(
-                            data = AuthenticateUserByName(username = username, pw = password)
+                    candidate.api.userApi
+                        .authenticateUserByName(
+                            AuthenticateUserByName(username = username, pw = password)
                         )
-                    result
-                } catch (e: Exception) {
-                    throw certificateTrustRequiredForCurrentServer() ?: e
+                        .content
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    rethrowIfStale(attempt, error)
+                    throw certificateTrustRequiredForCurrentServer() ?: error
                 }
 
-            saveAuthenticationResult(authenticationResult)
+            commitAuthenticatedUser(
+                attempt = attempt,
+                context = context,
+                authenticationResult = authenticationResult,
+            )
         }
     }
 
     override suspend fun loginWithSecret(secret: String) {
         withContext(Dispatchers.IO) {
+            val read =
+                readUnderReadyLease { selection -> loadCurrentServerContext(selection) }
+                    ?: recoveringIdentityFailure()
+            val context = read.value ?: recoveringIdentityFailure()
+            val attempt = read.port.beginIngressForLease(read.lease) ?: recoveringIdentityFailure()
+            val candidate = apiFactory.create(baseUrl = context.address.address)
             val authenticationResult =
                 try {
-                    val result by
-                        jellyfinApi.userApi.authenticateWithQuickConnect(
-                            data = QuickConnectDto(secret = secret)
-                        )
-                    result
-                } catch (e: Exception) {
-                    throw certificateTrustRequiredForCurrentServer() ?: e
+                    candidate.api.userApi
+                        .authenticateWithQuickConnect(QuickConnectDto(secret = secret))
+                        .content
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    rethrowIfStale(attempt, error)
+                    throw certificateTrustRequiredForCurrentServer() ?: error
                 }
 
-            saveAuthenticationResult(authenticationResult)
+            commitAuthenticatedUser(
+                attempt = attempt,
+                context = context,
+                authenticationResult = authenticationResult,
+            )
         }
     }
 
-    private suspend fun saveAuthenticationResult(authenticationResult: AuthenticationResult) {
+    private suspend fun commitAuthenticatedUser(
+        attempt: IdentityIngressAttempt,
+        context: ServerContext,
+        authenticationResult: AuthenticationResult,
+    ) {
+        val authenticatedUser =
+            authenticationResult.user
+                ?: throw SavedUserAuthenticationException(
+                    SavedUserActivationFailure.USER_UNAVAILABLE
+                )
+        val serverId =
+            authenticationResult.serverId
+                ?: throw SavedUserAuthenticationException(
+                    SavedUserActivationFailure.USER_UNAVAILABLE
+                )
+        require(serverId == context.server.id) { "Authenticated server does not match selection" }
         val user =
             User(
-                id = authenticationResult.user!!.id,
-                name = authenticationResult.user!!.name!!,
-                serverId = authenticationResult.serverId!!,
-                accessToken = authenticationResult.accessToken!!,
+                id = authenticatedUser.id,
+                name = requireNotNull(authenticatedUser.name),
+                serverId = serverId,
+                accessToken = requireNotNull(authenticationResult.accessToken),
             )
-
-        database.insertUser(user)
-        database.updateServerCurrentUser(authenticationResult.serverId!!, user.id)
-
-        jellyfinApi.apply {
-            api.update(accessToken = authenticationResult.accessToken)
-            userId = authenticationResult.user?.id
-        }
+        val selection =
+            IdentitySelection(
+                serverId = user.serverId,
+                userId = user.id.toString(),
+                addressId = context.address.id.toString(),
+                offlineMode = false,
+            )
+        var projectionFailure: Exception? = null
+        val result =
+            requireConditionalWriter().selectAuthenticatedUserIfGeneration(attempt, selection) {
+                snapshot,
+                permit ->
+                if (
+                    !permit.commit {
+                        try {
+                            requireProjectionSelection(
+                                snapshot = snapshot,
+                                serverId = serverId,
+                                addressId = context.address.id,
+                                userId = user.id,
+                            )
+                            database.insertUser(user)
+                            database.updateServerCurrentUser(serverId, user.id)
+                            publishGlobalIdentity(
+                                baseUrl = context.address.address,
+                                accessToken = user.accessToken,
+                                userId = user.id,
+                            )
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            projectionFailure = error
+                            throw error
+                        }
+                    }
+                ) {
+                    throw IdentityAttemptStaleException()
+                }
+            }
+        projectionFailure?.let { throw it }
+        requireApplied(result)
     }
 
-    override suspend fun getUsers(serverId: String): List<User> {
-        return database.getUsers(serverId)
-    }
+    override suspend fun getUsers(serverId: String): List<User> = database.getUsers(serverId)
 
     override suspend fun getPublicUsers(serverId: String): List<User> =
         withContext(Dispatchers.IO) {
-            jellyfinApi.userApi.getPublicUsers().content.mapNotNull {
-                User(id = it.id, name = it.name ?: return@mapNotNull null, serverId = serverId)
-            }
+            withVerifiedReadyContext(serverId) { context ->
+                val candidate = apiFactory.create(baseUrl = context.address.address)
+                candidate.api.userApi.getPublicUsers().content.mapNotNull {
+                    User(
+                        id = it.id,
+                        name = it.name ?: return@mapNotNull null,
+                        serverId = serverId,
+                    )
+                }
+            } ?: emptyList()
         }
 
-    override suspend fun getCurrentUser(): User? {
-        val currentServer = getCurrentServer() ?: return null
-        return database.getServerCurrentUser(currentServer.id)
+    override suspend fun getCurrentUser(): User? = withReadyLease { selection ->
+        selection.serverId?.let { database.getServerCurrentUser(it) }
     }
 
     override suspend fun authenticate(userId: UUID): User =
         withContext(Dispatchers.IO) {
-            val server =
-                getCurrentServer()
-                    ?: throw SavedUserAuthenticationException(
-                        SavedUserActivationFailure.USER_UNAVAILABLE
-                    )
-            val user =
-                database.getUser(userId)
-                    ?: throw SavedUserAuthenticationException(
-                        SavedUserActivationFailure.USER_UNAVAILABLE
-                    )
-            if (user.serverId != server.id) {
-                throw SavedUserAuthenticationException(SavedUserActivationFailure.USER_UNAVAILABLE)
-            }
-            val accessToken =
-                user.accessToken?.takeIf { it.isNotBlank() }
-                    ?: throw SavedUserAuthenticationException(
-                        SavedUserActivationFailure.TOKEN_EXPIRED
-                    )
+            val read =
+                readUnderReadyLease { canonicalSelection ->
+                    loadSavedUserContext(canonicalSelection, userId)
+                } ?: recoveringIdentityFailure()
+            val saved = read.value ?: recoveringIdentityFailure()
+            val attempt = read.port.beginIngressForLease(read.lease) ?: recoveringIdentityFailure()
+            authenticateCandidate(attempt, saved.context, saved.user)
+            saved.user
+        }
 
-            val previousAccessToken = jellyfinApi.api.accessToken
-            val previousUserId = jellyfinApi.userId
-            jellyfinApi.api.update(accessToken = accessToken)
-            jellyfinApi.userId = user.id
+    override suspend fun activateSavedUser(userId: UUID): SavedUserActivationResult =
+        withContext(Dispatchers.IO) {
+            val read =
+                try {
+                    readUnderReadyLease { canonicalSelection ->
+                        loadSavedUserContext(canonicalSelection, userId)
+                    } ?: recoveringIdentityFailure()
+                } catch (error: SavedUserAuthenticationException) {
+                    return@withContext SavedUserActivationResult.Rejected(error.failure)
+                }
+            val (context, user) =
+                read.value
+                    ?: return@withContext SavedUserActivationResult.Rejected(
+                        SavedUserActivationFailure.USER_UNAVAILABLE
+                    )
+            val attempt = read.port.beginIngressForLease(read.lease) ?: recoveringIdentityFailure()
 
             try {
-                val remoteUser = jellyfinApi.userApi.getCurrentUser().content
-                if (remoteUser.id != user.id) {
-                    throw SavedUserAuthenticationException(
-                        SavedUserActivationFailure.USER_UNAVAILABLE
-                    )
-                }
-                database.updateServerCurrentUser(server.id, user.id)
-                user
+                authenticateCandidate(attempt, context, user)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: SavedUserAuthenticationException) {
+                return@withContext SavedUserActivationResult.Rejected(error.failure)
             } catch (error: Exception) {
-                jellyfinApi.api.update(accessToken = previousAccessToken)
-                jellyfinApi.userId = previousUserId
-                if (error is SavedUserAuthenticationException) throw error
-                throw SavedUserAuthenticationException(
-                    classifySavedUserAuthenticationError(error),
-                    error,
+                rethrowIfStale(attempt, error)
+                return@withContext SavedUserActivationResult.Rejected(
+                    classifySavedUserAuthenticationError(error)
                 )
+            }
+
+            val selection =
+                IdentitySelection(
+                    serverId = user.serverId,
+                    userId = user.id.toString(),
+                    addressId = context.address.id.toString(),
+                    offlineMode = false,
+                )
+            var projectionFailure: Exception? = null
+            val result =
+                requireConditionalWriter().selectSavedUserIfGeneration(attempt, selection) {
+                    snapshot,
+                    permit ->
+                    if (
+                        !permit.commit {
+                            try {
+                                requireProjectionSelection(
+                                    snapshot = snapshot,
+                                    serverId = user.serverId,
+                                    addressId = context.address.id,
+                                    userId = user.id,
+                                )
+                                database.updateServerCurrentUser(user.serverId, user.id)
+                                publishGlobalIdentity(
+                                    baseUrl = context.address.address,
+                                    accessToken = user.accessToken,
+                                    userId = user.id,
+                                )
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                projectionFailure = error
+                                throw error
+                            }
+                        }
+                    ) {
+                        throw IdentityAttemptStaleException()
+                    }
+                }
+            projectionFailure?.let { throw it }
+            when (result) {
+                IdentityTransitionResult.APPLIED,
+                IdentityTransitionResult.NO_OP -> SavedUserActivationResult.Activated(user)
+                IdentityTransitionResult.STALE_DISCARDED -> throw IdentityAttemptStaleException()
+                IdentityTransitionResult.RECOVERING,
+                IdentityTransitionResult.FAILED -> throw IdentityTransitionFailedException(result)
             }
         }
 
-    override suspend fun deleteUser(userId: UUID) {
-        val user = database.getUser(userId) ?: return
-        val server = database.getServer(user.serverId)
-        database.deleteUser(userId)
-
-        // 删除的就是当前用户时不能让 servers.currentUserId 悬空：有其它用户就顺延到第一个，
-        // 没有就清空令牌（用户页会回到「添加用户」状态，而不是下次启动拿空令牌卡住）。
-        if (server?.currentUserId != userId) return
-
-        val remainingUsers = database.getUsers(server.id)
-        val nextUser =
-            nextCurrentUserIdAfterDelete(remainingUsers, userId, server.currentUserId)?.let {
-                database.getUser(it)
+    private suspend fun authenticateCandidate(
+        attempt: IdentityIngressAttempt,
+        context: ServerContext,
+        user: User,
+    ) {
+        val accessToken =
+            user.accessToken?.takeIf { it.isNotBlank() }
+                ?: throw SavedUserAuthenticationException(SavedUserActivationFailure.TOKEN_EXPIRED)
+        val candidate =
+            apiFactory.create(
+                baseUrl = context.address.address,
+                accessToken = accessToken,
+                userId = user.id,
+            )
+        val remoteUser =
+            try {
+                candidate.api.userApi.getCurrentUser().content
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                rethrowIfStale(attempt, error)
+                throw error
             }
-
-        server.currentUserId = nextUser?.id
-        database.updateServer(server)
-
-        if (appPreferences.getValue(appPreferences.currentServer) == server.id) {
-            jellyfinApi.apply {
-                api.update(accessToken = nextUser?.accessToken)
-                this.userId = nextUser?.id
-            }
+        ensureIngressCurrent(attempt)
+        if (remoteUser.id != user.id) {
+            throw SavedUserAuthenticationException(SavedUserActivationFailure.USER_UNAVAILABLE)
         }
     }
 
-    override suspend fun setCurrentUser(userId: UUID) {
-        val server = getCurrentServer() ?: return
+    override suspend fun deleteUser(userId: UUID) {
+        val readPort = resolveReadLeasePort()
+        val lease = readPort?.acquireReadyLease() ?: return
+        val attempt = readPort.beginIngressForLease(lease) ?: return
+        val currentSelection = lease.selection
         val user = database.getUser(userId) ?: return
-        if (user.serverId != server.id) return
-        server.currentUserId = user.id
-        database.updateServer(server)
+        val server = database.getServer(user.serverId)
+        val context =
+            server
+                ?.takeIf { currentSelection.serverId == it.id }
+                ?.let { loadCurrentServerContext(currentSelection, it.id) }
+        val nextUser =
+            if (
+                server != null &&
+                    currentSelection.serverId == server.id &&
+                    server.currentUserId == userId
+            ) {
+                val remainingUsers = database.getUsers(server.id)
+                nextCurrentUserIdAfterDelete(
+                        remainingUsers,
+                        userId,
+                        server.currentUserId,
+                    )
+                    ?.let { database.getUser(it) }
+            } else {
+                null
+            }
+        ensureIngressCurrent(attempt)
+        if (server == null) {
+            val result =
+                requireConditionalWriter().deleteSelectionIfGeneration(attempt, currentSelection) {
+                    _,
+                    permit ->
+                    permit.commit { database.deleteUser(userId) }
+                }
+            requireApplied(result)
+            return
+        }
 
-        jellyfinApi.apply {
-            api.update(accessToken = user.accessToken)
-            this.userId = user.id
+        if (server.currentUserId != userId) {
+            val result =
+                requireConditionalWriter().deleteSelectionIfGeneration(attempt, currentSelection) {
+                    _,
+                    permit ->
+                    permit.commit { database.deleteUser(userId) }
+                }
+            requireApplied(result)
+            return
+        }
+
+        if (currentSelection.serverId != server.id) {
+            val result =
+                requireConditionalWriter().deleteSelectionIfGeneration(attempt, currentSelection) {
+                    _,
+                    permit ->
+                    permit.commit {
+                        server.currentUserId = null
+                        database.updateServer(server)
+                        database.deleteUser(userId)
+                    }
+                }
+            requireApplied(result)
+            return
+        }
+
+        val currentContext = context ?: return
+        val selection =
+            IdentitySelection(
+                serverId = server.id,
+                userId = nextUser?.id?.toString(),
+                addressId = currentContext.address.id.toString(),
+                offlineMode = currentSelection.offlineMode,
+            )
+        var projectionFailure: Exception? = null
+        val result =
+            requireConditionalWriter().deleteSelectionIfGeneration(attempt, selection) {
+                snapshot,
+                permit ->
+                if (
+                    !permit.commit {
+                        try {
+                            requireProjectionSelection(
+                                snapshot = snapshot,
+                                serverId = server.id,
+                                addressId = currentContext.address.id,
+                                userId = nextUser?.id,
+                            )
+                            database.deleteUser(userId)
+                            server.currentUserId = nextUser?.id
+                            database.updateServer(server)
+                            publishGlobalIdentity(
+                                baseUrl = currentContext.address.address,
+                                accessToken = nextUser?.accessToken,
+                                userId = nextUser?.id,
+                            )
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            projectionFailure = error
+                            throw error
+                        }
+                    }
+                ) {
+                    throw IdentityAttemptStaleException()
+                }
+            }
+        projectionFailure?.let { throw it }
+        requireApplied(result)
+    }
+
+    override suspend fun setCurrentUser(userId: UUID) {
+        when (val result = activateSavedUser(userId)) {
+            is SavedUserActivationResult.Activated -> Unit
+            is SavedUserActivationResult.Rejected -> {
+                throw SavedUserAuthenticationException(result.failure)
+            }
         }
     }
 
     override suspend fun setCurrentAddress(addressId: UUID) {
-        val server = getCurrentServer() ?: return
-        val address = database.getAddress(id = addressId)
-        if (address.serverId != server.id) {
-            return
-        }
-        server.currentServerAddressId = address.id
-        database.updateServer(server)
-        jellyfinApi.apply { api.update(baseUrl = address.address) }
+        val read =
+            readUnderReadyLease { currentSelection ->
+                val context =
+                    loadCurrentServerContext(currentSelection) ?: return@readUnderReadyLease null
+                val address =
+                    runCatching { database.getAddress(addressId) }.getOrNull()
+                        ?: return@readUnderReadyLease null
+                if (address.serverId != context.server.id) return@readUnderReadyLease null
+                Triple(currentSelection, context, address)
+            } ?: return
+        val (currentSelection, context, address) = read.value ?: return
+        val attempt = read.port.beginIngressForLease(read.lease) ?: return
+        val selection =
+            IdentitySelection(
+                serverId = context.server.id,
+                userId = context.user?.id?.toString(),
+                addressId = address.id.toString(),
+                offlineMode = currentSelection.offlineMode,
+            )
+        var projectionFailure: Exception? = null
+        val result =
+            requireConditionalWriter().selectAddressIfGeneration(attempt, selection) {
+                snapshot,
+                permit ->
+                if (
+                    !permit.commit {
+                        try {
+                            requireProjectionSelection(
+                                snapshot = snapshot,
+                                serverId = context.server.id,
+                                addressId = address.id,
+                                userId = context.user?.id,
+                            )
+                            context.server.currentServerAddressId = address.id
+                            database.updateServer(context.server)
+                            publishGlobalIdentity(
+                                baseUrl = address.address,
+                                accessToken = context.user?.accessToken,
+                                userId = context.user?.id,
+                            )
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (error: Exception) {
+                            projectionFailure = error
+                            throw error
+                        }
+                    }
+                ) {
+                    throw IdentityAttemptStaleException()
+                }
+            }
+        projectionFailure?.let { throw it }
+        requireApplied(result)
     }
 
     override suspend fun trustCertificate(trustKey: String, fingerprint: String) {
@@ -480,18 +964,222 @@ class SetupRepositoryImpl(
     }
 
     override suspend fun getTrustedCertificates(): List<TrustedCertificate> =
-        jellyfinApi.certificateTrustStore.trustedCertificates()
+        withReadyLease { jellyfinApi.certificateTrustStore.trustedCertificates() } ?: emptyList()
 
     override suspend fun clearTrustedCertificate(trustKey: String) {
         jellyfinApi.certificateTrustStore.clear(trustKey)
     }
 
-    /**
-     * 发现流程失败时判断原因是否是「证书不受系统信任」：
-     *
-     * 只读探测候选地址里的 https 端点（不做任何应用层请求），命中一张系统不信任的证书就返回可让用户确认指纹的异常； 否则返回 null，由调用方按原错误处理（服务器离线、不是
-     * Jellyfin 等）。
-     */
+    private suspend fun ensureIngressCurrent(attempt: IdentityIngressAttempt) {
+        if (!requireConditionalWriter().isIngressCurrent(attempt)) {
+            throw IdentityAttemptStaleException()
+        }
+    }
+
+    private suspend fun rethrowIfStale(
+        attempt: IdentityIngressAttempt,
+        cause: Throwable,
+    ) {
+        try {
+            ensureIngressCurrent(attempt)
+        } catch (stale: IdentityAttemptStaleException) {
+            stale.initCause(cause)
+            throw stale
+        }
+    }
+
+    private suspend fun certificateTrustRequiredForAttempt(
+        attempt: IdentityIngressAttempt,
+        candidates: Collection<String>,
+    ): CertificateTrustRequiredException? {
+        val certificateTrust =
+            try {
+                certificateTrustRequired(candidates)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                rethrowIfStale(attempt, error)
+                throw error
+            }
+        ensureIngressCurrent(attempt)
+        return certificateTrust
+    }
+
+    private suspend fun currentUserFor(server: Server): User? =
+        server.currentUserId?.let { database.getUser(it) }
+            ?: database.getServerCurrentUser(server.id)
+
+    private suspend fun loadCurrentServerContext(
+        canonicalSelection: IdentitySelection,
+        serverId: String? = null,
+    ): ServerContext? {
+        val selectedServerId = serverId ?: canonicalSelection.serverId ?: return null
+        val server =
+            database.getServer(selectedServerId)
+                ?: throw IllegalStateException(
+                    "Cannot resolve setup identity: server $selectedServerId is missing"
+                )
+        val canonicalAddress =
+            canonicalSelection
+                .takeIf { serverId == null && it.serverId == server.id }
+                ?.addressId
+                ?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+                ?.let { runCatching { database.getAddress(it) }.getOrNull() }
+                ?.takeIf { it.serverId == server.id }
+        val address =
+            canonicalAddress
+                ?: server.currentServerAddressId?.let {
+                    runCatching { database.getAddress(it) }.getOrNull()
+                }
+                ?: throw IllegalStateException(
+                    "Cannot resolve setup identity: current address missing for ${server.id}"
+                )
+        return ServerContext(
+            server = server,
+            address = address,
+            user = currentUserFor(server),
+        )
+    }
+
+    private suspend fun loadSavedUserContext(
+        canonicalSelection: IdentitySelection,
+        userId: UUID,
+    ): SavedUserContext? {
+        val context = loadCurrentServerContext(canonicalSelection) ?: return null
+        val user =
+            database.getUser(userId)
+                ?: throw SavedUserAuthenticationException(
+                    SavedUserActivationFailure.USER_UNAVAILABLE
+                )
+        if (user.serverId != context.server.id) {
+            throw SavedUserAuthenticationException(SavedUserActivationFailure.USER_UNAVAILABLE)
+        }
+        return SavedUserContext(context = context, user = user)
+    }
+
+    private suspend fun <T> withReadyLease(effect: suspend (IdentitySelection) -> T): T? {
+        val port = resolveReadLeasePort() ?: return null
+        val lease = port.acquireReadyLease() ?: return null
+        return port.withReadyLease(lease, effect)
+    }
+
+    private suspend fun <T> readUnderReadyLease(
+        effect: suspend (IdentitySelection) -> T
+    ): LeasedRead<T>? {
+        val port = resolveReadLeasePort() ?: return null
+        val lease = port.acquireReadyLease() ?: return null
+        val value = port.withReadyLease(lease, effect) ?: return null
+        return LeasedRead(port = port, lease = lease, value = value)
+    }
+
+    private suspend fun <T> withVerifiedReadyContext(
+        serverId: String? = null,
+        effect: suspend (ServerContext) -> T,
+    ): T? {
+        val read =
+            readUnderReadyLease { canonicalSelection ->
+                loadCurrentServerContext(canonicalSelection, serverId)
+            } ?: return null
+        val context = read.value ?: return null
+        val result =
+            try {
+                effect(context)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                if (!read.port.isReadyLeaseCurrent(read.lease)) {
+                    throw IdentityAttemptStaleException().apply { initCause(error) }
+                }
+                throw error
+            }
+        return result.takeIf { read.port.isReadyLeaseCurrent(read.lease) }
+    }
+
+    private fun recoveringIdentityFailure(): Nothing =
+        throw IdentityTransitionFailedException(IdentityTransitionResult.RECOVERING)
+
+    private suspend fun applyServerProjection(
+        serverId: String,
+        snapshot: IdentitySnapshot,
+    ): Unit =
+        withContext(Dispatchers.IO) {
+            val relation =
+                database.getServerWithAddressAndUser(serverId)
+                    ?: throw IllegalStateException(
+                        "Cannot select server $serverId: server is missing"
+                    )
+            val address =
+                relation.address
+                    ?: throw IllegalStateException(
+                        "Cannot select server $serverId: current address is missing"
+                    )
+            val user = relation.user
+            requireProjectionSelection(
+                snapshot = snapshot,
+                serverId = serverId,
+                addressId = address.id,
+                userId = user?.id,
+            )
+            publishGlobalIdentity(
+                baseUrl = address.address,
+                accessToken = user?.accessToken,
+                userId = user?.id,
+            )
+        }
+
+    private fun requireProjectionSelection(
+        snapshot: IdentitySnapshot,
+        serverId: String,
+        addressId: UUID,
+        userId: UUID?,
+    ) {
+        check(snapshot.selection.serverId == serverId) {
+            "Projection permit server does not match server $serverId"
+        }
+        check(snapshot.selection.addressId == addressId.toString()) {
+            "Projection permit address does not match address $addressId"
+        }
+        check(snapshot.selection.userId == userId?.toString()) {
+            "Projection permit user does not match user $userId"
+        }
+    }
+
+    private fun publishGlobalIdentity(baseUrl: String, accessToken: String?, userId: UUID?) {
+        apiFactory.publish(
+            JellyfinApiCandidate(
+                api = jellyfinApi,
+                baseUrl = baseUrl,
+                accessToken = accessToken,
+                userId = userId,
+            )
+        )
+    }
+
+    private fun resolveReadLeasePort(): IdentityReadLeasePort? =
+        when {
+            identityReadLeasePort != null -> identityReadLeasePort
+            identityReadPort != null -> identityReadPort as? IdentityReadLeasePort
+            identityConditionalWritePort != null ->
+                identityConditionalWritePort as? IdentityReadLeasePort
+            else -> fallbackCoordinator
+        }
+
+    private fun requireConditionalWriter(): IdentityConditionalWritePort =
+        identityConditionalWritePort ?: fallbackCoordinator
+
+    private fun requireApplied(result: IdentityTransitionResult) {
+        when (result) {
+            IdentityTransitionResult.APPLIED,
+            IdentityTransitionResult.NO_OP -> Unit
+            IdentityTransitionResult.STALE_DISCARDED -> throw IdentityAttemptStaleException()
+            IdentityTransitionResult.RECOVERING,
+            IdentityTransitionResult.FAILED -> throw IdentityTransitionFailedException(result)
+        }
+    }
+
+    private fun stableAddressId(serverId: String, address: String): UUID =
+        UUID.nameUUIDFromBytes("$serverId\u0000$address".toByteArray(StandardCharsets.UTF_8))
+
     private suspend fun certificateTrustRequired(
         candidates: Collection<String>
     ): CertificateTrustRequiredException? =
@@ -508,7 +1196,6 @@ class SetupRepositoryImpl(
                     val previous =
                         jellyfinApi.certificateTrustStore.trustedFingerprint(info.trustKey)
                     if (previous != null && fingerprintsMatch(previous, info.fingerprint)) {
-                        // 指纹已信任还连不上：问题不在证书，交给调用方按原错误处理。
                         return@mapNotNull null
                     }
 
@@ -522,12 +1209,20 @@ class SetupRepositoryImpl(
                 .firstOrNull()
         }
 
-    /** 登录等「已保存服务器」的连接失败时，用当前服务器地址做同样的证书探测。 */
     private suspend fun certificateTrustRequiredForCurrentServer():
         CertificateTrustRequiredException? {
-        val serverId = appPreferences.getValue(appPreferences.currentServer) ?: return null
-        val address =
-            database.getServerWithAddressAndUser(serverId)?.address?.address ?: return null
-        return certificateTrustRequired(listOf(address))
+        val read =
+            readUnderReadyLease { selection ->
+                selection.serverId?.let { serverId ->
+                    runCatching {
+                        database.getServerWithAddressAndUser(serverId)?.address?.address
+                    }
+                        .getOrNull()
+                }
+            } ?: return null
+        val address = read.value ?: return null
+        return certificateTrustRequired(listOf(address)).takeIf {
+            read.port.isReadyLeaseCurrent(read.lease)
+        }
     }
 }

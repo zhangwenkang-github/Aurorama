@@ -1,13 +1,23 @@
 package com.zhangwenkang.cinefin.identity
 
+import android.content.SharedPreferences
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -187,6 +197,50 @@ class IdentityWriteCoordinatorTest {
             ),
         )
         assertNoReadySnapshotFor(sharedPreferences, oldSelection)
+    }
+
+    @Test
+    fun cancellationDuringFinalPermitCloseInvalidatesCapturedPermit() = runBlocking {
+        val sharedPreferences = BlockingIdentitySharedPreferences()
+        val store = IdentityStateStore(AppPreferences(sharedPreferences))
+        val coordinator = IdentityWriteCoordinator(store)
+        val selection = IdentitySelection(serverId = "server-cancelled")
+        val projectionStarted = CompletableDeferred<Unit>()
+        val allowProjectionReturn = CompletableDeferred<Unit>()
+        var capturedPermit: IdentityProjectionPermit? = null
+
+        val transition = async {
+            coordinator.selectServer(selection) { _, permit ->
+                capturedPermit = permit
+                projectionStarted.complete(Unit)
+                allowProjectionReturn.await()
+                currentCoroutineContext().job.cancel()
+            }
+        }
+        boundedStage("projection-started") { projectionStarted.await() }
+
+        sharedPreferences.armBlock()
+        val blocker = async(Dispatchers.Default) { coordinator.hydrate() }
+        sharedPreferences.awaitBlocked()
+        allowProjectionReturn.complete(Unit)
+
+        val cancellation =
+            boundedStage("transition-cancellation") {
+                runCatching { transition.await() }.exceptionOrNull()
+            }
+        assertTrue("expected transition cancellation", cancellation is CancellationException)
+
+        sharedPreferences.releaseBlock()
+        boundedStage("blocked-hydrate") { blocker.await() }
+
+        var effects = 0
+        val permit = checkNotNull(capturedPermit)
+        val committed = boundedStage("late-permit-commit") { permit.commit { effects += 1 } }
+        assertFalse(
+            "cancelled transition permit must be closed; committed=$committed effects=$effects",
+            committed,
+        )
+        assertEquals(0, effects)
     }
 
     @Test
@@ -431,6 +485,185 @@ class IdentityWriteCoordinatorTest {
     }
 
     @Test
+    fun conditionalTransitionDiscardsAttemptAfterExternalGenerationAdvance() = runBlocking {
+        val coordinator = coordinator()
+        val attempt = coordinator.beginIngress()
+        val externalSelection = IdentitySelection(serverId = "server-external")
+        val oldSelection = IdentitySelection(serverId = "server-old")
+        var oldProjectionEffects = 0
+
+        assertEquals(
+            IdentityTransitionResult.APPLIED,
+            coordinator.selectServer(externalSelection),
+        )
+        assertEquals(
+            IdentityTransitionResult.STALE_DISCARDED,
+            coordinator.selectServerIfGeneration(attempt, oldSelection) { _, permit ->
+                permit.commit { oldProjectionEffects += 1 }
+            },
+        )
+
+        assertEquals(0, oldProjectionEffects)
+        assertEquals(1L, coordinator.current().identityGeneration)
+        assertEquals(externalSelection, coordinator.current().selection)
+    }
+
+    @Test
+    fun conditionalRetryReusesRecoveringGenerationWhenSelectionIsUnchanged() = runBlocking {
+        val coordinator = coordinator()
+        val selection = IdentitySelection(serverId = "server-a", userId = "user-a")
+        val firstAttempt = coordinator.beginIngress()
+
+        assertEquals(
+            IdentityTransitionResult.RECOVERING,
+            coordinator.selectServerIfGeneration(firstAttempt, selection) { _, _ ->
+                error("projection failed")
+            },
+        )
+        val recovering = coordinator.current()
+        assertEquals(IdentityStateStatus.RECOVERING, recovering.status)
+        assertEquals(1L, recovering.identityGeneration)
+
+        val retryAttempt = coordinator.beginIngress()
+        var committed = false
+        assertEquals(
+            IdentityTransitionResult.APPLIED,
+            coordinator.selectServerIfGeneration(retryAttempt, selection) { snapshot, permit ->
+                assertEquals(selection, snapshot.selection)
+                assertTrue(
+                    permit.commit {
+                        assertEquals(snapshot, IdentityProjectionScope.currentSnapshot())
+                        committed = true
+                    }
+                )
+            },
+        )
+
+        assertTrue(committed)
+        assertNull(IdentityProjectionScope.currentSnapshot())
+        assertEquals(1L, coordinator.current().identityGeneration)
+        assertEquals(IdentityStateStatus.READY, coordinator.current().status)
+    }
+
+    @Test
+    fun oneIssuedAttemptCanCommitOnlyOneConcurrentConditionalTransition() = runBlocking {
+        val coordinator = coordinator()
+        val attempt = coordinator.beginIngress()
+        val first = async { coordinator.selectServerIfGeneration(attempt, server("a")) }
+        val second = async { coordinator.selectServerIfGeneration(attempt, server("b")) }
+
+        val results = listOf(first.await(), second.await())
+        assertEquals(1, results.count { it == IdentityTransitionResult.APPLIED })
+        assertEquals(1, results.count { it == IdentityTransitionResult.STALE_DISCARDED })
+        assertEquals(1L, coordinator.current().identityGeneration)
+    }
+
+    @Test
+    fun externalPermitImplementationCannotMintProjectionScope() = runBlocking {
+        var fabricatedEffects = 0
+        val fabricated =
+            object : IdentityProjectionPermit {
+                override suspend fun commit(effect: suspend () -> Unit): Boolean {
+                    effect()
+                    return true
+                }
+            }
+
+        assertTrue(fabricated.commit { fabricatedEffects += 1 })
+        assertEquals(1, fabricatedEffects)
+        assertNull(IdentityProjectionScope.currentSnapshot())
+    }
+
+    @Test
+    fun readLeaseRejectsReadyRecoveringReadyAbaAndSkipsEffect() = runBlocking {
+        val coordinator = coordinator()
+        val selection = IdentitySelection(serverId = "server-a")
+        assertEquals(IdentityTransitionResult.APPLIED, coordinator.selectServer(selection))
+        val lease = checkNotNull(coordinator.acquireReadyLease())
+        assertTrue(coordinator.isReadyLeaseCurrent(lease))
+
+        assertEquals(
+            IdentityTransitionResult.RECOVERING,
+            coordinator.selectServer(selection) { _, _ -> error("projection failed") },
+        )
+        assertEquals(IdentityStateStatus.RECOVERING, coordinator.current().status)
+        assertEquals(
+            IdentityTransitionResult.APPLIED,
+            coordinator.selectServer(selection),
+        )
+        assertEquals(IdentityStateStatus.READY, coordinator.current().status)
+        assertEquals(1L, coordinator.current().identityGeneration)
+
+        var effects = 0
+        assertFalse(coordinator.isReadyLeaseCurrent(lease))
+        assertNull(
+            coordinator.withReadyLease(lease) {
+                effects += 1
+                selection
+            }
+        )
+        assertEquals(0, effects)
+    }
+
+    @Test
+    fun readyLeaseIssuesIngressAttemptAndRemainsSerializedWithHydrate() = runBlocking {
+        val coordinator = coordinator()
+        val selection = IdentitySelection(serverId = "server-a")
+        assertEquals(IdentityTransitionResult.APPLIED, coordinator.selectServer(selection))
+        val lease = checkNotNull(coordinator.acquireReadyLease())
+        val effectEntered = CompletableDeferred<Unit>()
+        val releaseEffect = CompletableDeferred<Unit>()
+        var hydrated = false
+
+        val leasedEffect = async {
+            coordinator.withReadyLease(lease) {
+                effectEntered.complete(Unit)
+                releaseEffect.await()
+                assertEquals(selection, coordinator.current().selection)
+                selection
+            }
+        }
+        boundedStage("lease-effect-entered") { effectEntered.await() }
+        val hydrate = async { coordinator.hydrate().also { hydrated = true } }
+        assertFalse(hydrate.isCompleted)
+        releaseEffect.complete(Unit)
+
+        assertEquals(selection, boundedStage("leased-effect") { leasedEffect.await() })
+        assertEquals(
+            selection,
+            boundedStage("hydrate-after-lease") { hydrate.await().selection },
+        )
+        assertTrue(hydrated)
+
+        val freshLease = checkNotNull(coordinator.acquireReadyLease())
+        val attempt = checkNotNull(coordinator.beginIngressForLease(freshLease))
+        assertTrue(coordinator.isIngressCurrent(attempt))
+        assertEquals(
+            IdentityTransitionResult.APPLIED,
+            coordinator.selectServerIfGeneration(
+                attempt,
+                IdentitySelection(serverId = "server-b"),
+            ),
+        )
+        assertEquals("server-b", coordinator.current().selection.serverId)
+    }
+
+    @Test
+    fun staleReadyLeaseCannotRegisterIngressAttempt() = runBlocking {
+        val coordinator = coordinator()
+        val selection = IdentitySelection(serverId = "server-a")
+        assertEquals(IdentityTransitionResult.APPLIED, coordinator.selectServer(selection))
+        val lease = checkNotNull(coordinator.acquireReadyLease())
+        assertEquals(
+            IdentityTransitionResult.APPLIED,
+            coordinator.selectServer(IdentitySelection(serverId = "server-b")),
+        )
+
+        assertFalse(coordinator.isReadyLeaseCurrent(lease))
+        assertNull(coordinator.beginIngressForLease(lease))
+    }
+
+    @Test
     fun offlineTransitionAndFrozenWriteEntriesAreAvailable() = runBlocking {
         val coordinator = coordinator()
         val base =
@@ -470,6 +703,8 @@ class IdentityWriteCoordinatorTest {
             IdentityStateStore(AppPreferences(IdentityTestSharedPreferences()))
         )
 
+    private fun server(suffix: String) = IdentitySelection(serverId = "server-$suffix")
+
     private fun assertNoReadySnapshotFor(
         sharedPreferences: IdentityTestSharedPreferences,
         selection: IdentitySelection,
@@ -481,4 +716,67 @@ class IdentityWriteCoordinatorTest {
             )
         }
     }
+
+    private suspend fun <T> boundedStage(name: String, block: suspend () -> T): T =
+        try {
+            withTimeout(10_000L) { block() }
+        } catch (timeout: TimeoutCancellationException) {
+            throw AssertionError("TIMEOUT_STAGE=$name", timeout)
+        }
+}
+
+private class BlockingIdentitySharedPreferences(
+    private val delegate: IdentityTestSharedPreferences = IdentityTestSharedPreferences()
+) : SharedPreferences {
+    private val armBlock = AtomicBoolean(false)
+    private val blocked = CompletableFuture<Unit>()
+    private val release = CompletableFuture<Unit>()
+
+    fun armBlock() {
+        armBlock.set(true)
+    }
+
+    fun awaitBlocked() {
+        check(blocked.get(10, TimeUnit.SECONDS) == Unit) { "blocker did not enter read" }
+    }
+
+    fun releaseBlock() {
+        release.complete(Unit)
+    }
+
+    override fun getAll(): MutableMap<String, *> = delegate.getAll()
+
+    override fun getString(key: String, defValue: String?): String? {
+        if (armBlock.compareAndSet(true, false)) {
+            blocked.complete(Unit)
+            check(release.get(10, TimeUnit.SECONDS) == Unit) { "blocker release timed out" }
+        }
+        return delegate.getString(key, defValue)
+    }
+
+    override fun getStringSet(
+        key: String,
+        defValues: MutableSet<String>?,
+    ): MutableSet<String>? = delegate.getStringSet(key, defValues)
+
+    override fun getInt(key: String, defValue: Int): Int = delegate.getInt(key, defValue)
+
+    override fun getLong(key: String, defValue: Long): Long = delegate.getLong(key, defValue)
+
+    override fun getFloat(key: String, defValue: Float): Float = delegate.getFloat(key, defValue)
+
+    override fun getBoolean(key: String, defValue: Boolean): Boolean =
+        delegate.getBoolean(key, defValue)
+
+    override fun contains(key: String): Boolean = delegate.contains(key)
+
+    override fun edit(): SharedPreferences.Editor = delegate.edit()
+
+    override fun registerOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener?
+    ) = delegate.registerOnSharedPreferenceChangeListener(listener)
+
+    override fun unregisterOnSharedPreferenceChangeListener(
+        listener: SharedPreferences.OnSharedPreferenceChangeListener?
+    ) = delegate.unregisterOnSharedPreferenceChangeListener(listener)
 }

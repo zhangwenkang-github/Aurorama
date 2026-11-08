@@ -14,6 +14,7 @@ import java.io.IOException
 import java.net.ConnectException
 import java.net.UnknownHostException
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.jellyfin.sdk.api.client.exception.ApiClientException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
@@ -208,5 +209,26 @@ class OfflineIdentityCoordinatorTest {
                 ApiClientException("business failure", IllegalArgumentException("invalid"))
             ),
         )
+    }
+
+    @Test
+    fun `认证取消保持 CancellationException 且不清除离线标志`() {
+        var offlineWrites = 0
+        val coordinator =
+            OfflineIdentityCoordinator(
+                authenticator = { throw CancellationException("cancelled") },
+                offlineModeController = { offlineWrites += 1 },
+            )
+
+        val cancellation =
+            try {
+                runBlocking { coordinator.activateSavedUser(userId) }
+                null
+            } catch (error: CancellationException) {
+                error
+            }
+
+        assertEquals("cancelled", cancellation?.message)
+        assertEquals(0, offlineWrites)
     }
 }

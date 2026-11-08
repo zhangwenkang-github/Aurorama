@@ -2,7 +2,7 @@ package com.zhangwenkang.cinefin.setup.presentation.users
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.setup.domain.IdentityAttemptStaleException
 import com.zhangwenkang.cinefin.setup.domain.OfflineIdentityCoordinator
 import com.zhangwenkang.cinefin.setup.domain.SavedUserActivationResult
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
@@ -16,12 +16,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class UsersViewModel
-@Inject
-constructor(
-    private val repository: SetupRepository,
-    appPreferences: AppPreferences,
-) : ViewModel() {
+class UsersViewModel @Inject constructor(private val repository: SetupRepository) : ViewModel() {
     private val _state = MutableStateFlow(UsersState())
     val state = _state.asStateFlow()
 
@@ -29,12 +24,7 @@ constructor(
     val events = eventsChannel.receiveAsFlow()
 
     private val offlineIdentityCoordinator =
-        OfflineIdentityCoordinator(
-            authenticator = repository,
-            offlineModeController = { enabled ->
-                appPreferences.setValue(appPreferences.offlineMode, enabled)
-            },
-        )
+        OfflineIdentityCoordinator(repository::activateSavedUser)
 
     fun loadUsers() {
         viewModelScope.launch {
@@ -83,7 +73,14 @@ constructor(
                     activationFailure = null,
                 )
             )
-            when (val result = offlineIdentityCoordinator.activateSavedUser(userId)) {
+            val result =
+                try {
+                    offlineIdentityCoordinator.activateSavedUser(userId)
+                } catch (_: IdentityAttemptStaleException) {
+                    _state.emit(_state.value.copy(activatingUserId = null))
+                    return@launch
+                }
+            when (result) {
                 is SavedUserActivationResult.Activated -> {
                     _state.emit(
                         _state.value.copy(

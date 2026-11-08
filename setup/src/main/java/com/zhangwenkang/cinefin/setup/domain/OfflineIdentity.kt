@@ -1,9 +1,11 @@
 package com.zhangwenkang.cinefin.setup.domain
 
+import com.zhangwenkang.cinefin.identity.IdentityTransitionResult
 import com.zhangwenkang.cinefin.models.User
 import com.zhangwenkang.cinefin.network.CertificateTrustRequiredException
 import java.io.IOException
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
 
 /** 设置页身份真源：离线访问模式优先于数据库中记住的用户。 */
@@ -109,23 +111,42 @@ fun interface OfflineModeController {
     fun setOfflineMode(enabled: Boolean)
 }
 
+fun interface SavedUserActivator {
+    suspend fun activate(userId: UUID): SavedUserActivationResult
+}
+
+class IdentityAttemptStaleException : CancellationException("Identity attempt is stale") {
+    val result: IdentityTransitionResult = IdentityTransitionResult.STALE_DISCARDED
+}
+
+class IdentityTransitionFailedException(val result: IdentityTransitionResult) :
+    IllegalStateException("Identity transition was not applied: $result")
+
 /**
  * 已保存用户的在线激活协调器。
  *
  * 认证必须先完成；只有认证成功才允许清除离线标志。失败时保持调用前的模式不变，由调用方展示原因。
  */
-class OfflineIdentityCoordinator(
-    private val authenticator: SavedUserAuthenticator,
-    private val offlineModeController: OfflineModeController,
-) {
-    suspend fun activateSavedUser(userId: UUID): SavedUserActivationResult =
-        try {
-            val user = authenticator.authenticate(userId)
-            offlineModeController.setOfflineMode(false)
-            SavedUserActivationResult.Activated(user)
-        } catch (error: SavedUserAuthenticationException) {
-            SavedUserActivationResult.Rejected(error.failure)
-        } catch (_: Exception) {
-            SavedUserActivationResult.Rejected(SavedUserActivationFailure.UNKNOWN)
+class OfflineIdentityCoordinator(private val activator: SavedUserActivator) {
+    constructor(
+        authenticator: SavedUserAuthenticator,
+        offlineModeController: OfflineModeController,
+    ) : this(
+        SavedUserActivator { userId ->
+            try {
+                val user = authenticator.authenticate(userId)
+                offlineModeController.setOfflineMode(false)
+                SavedUserActivationResult.Activated(user)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: SavedUserAuthenticationException) {
+                SavedUserActivationResult.Rejected(error.failure)
+            } catch (_: Exception) {
+                SavedUserActivationResult.Rejected(SavedUserActivationFailure.UNKNOWN)
+            }
         }
+    )
+
+    suspend fun activateSavedUser(userId: UUID): SavedUserActivationResult =
+        activator.activate(userId)
 }

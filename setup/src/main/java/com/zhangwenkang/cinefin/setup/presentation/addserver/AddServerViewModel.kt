@@ -8,7 +8,6 @@ import com.zhangwenkang.cinefin.models.ExceptionUiText
 import com.zhangwenkang.cinefin.models.ExceptionUiTexts
 import com.zhangwenkang.cinefin.models.UiText
 import com.zhangwenkang.cinefin.network.CertificateTrustRequiredException
-import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.setup.domain.SetupRepository
 import com.zhangwenkang.cinefin.setup.presentation.certificate.toPrompt
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,9 +20,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class AddServerViewModel
-@Inject
-constructor(private val repository: SetupRepository, private val appPreferences: AppPreferences) :
+class AddServerViewModel @Inject constructor(private val repository: SetupRepository) :
     ViewModel() {
     private val _state = MutableStateFlow(AddServerState())
     val state = _state.asStateFlow()
@@ -63,11 +60,12 @@ constructor(private val repository: SetupRepository, private val appPreferences:
             )
 
             try {
-                val server = repository.addServer(address)
-                appPreferences.setValue(appPreferences.currentServer, server.id)
+                repository.addServer(address)
                 _state.emit(_state.value.copy(isLoading = false, error = null))
                 eventsChannel.send(AddServerEvent.Success)
-            } catch (_: CancellationException) {} catch (e: CertificateTrustRequiredException) {
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: CertificateTrustRequiredException) {
                 _state.emit(_state.value.copy(isLoading = false, certificatePrompt = e.toPrompt()))
             } catch (e: ExceptionUiText) {
                 _state.emit(_state.value.copy(isLoading = false, error = listOf(e.uiText)))
