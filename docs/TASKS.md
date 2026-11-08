@@ -40,7 +40,7 @@
 - FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_AUTHORIZED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -ExpectedHead "<external-pinned candidate HEAD>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=PENDING_REPAIR_R3_SELF_TEST
+- CONTEXT_AT_CLOSE=225478/1048576 (21.5%) / REQUESTS=1169 / 2026-11-08 / SOURCE=LOCAL_SESSIONS_JSON_OFFLINE
 - INDEPENDENT_QA_R1=FAIL / P2-001_NOT_CLOSED / P1=2
 - REPAIR_R1=SUPERSEDED / QA_R2=FAIL / P1-002_NOT_CLOSED
 - INDEPENDENT_QA_R2=FAIL / P2-001_NOT_CLOSED / P1=1
@@ -73,13 +73,20 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\green-heading-variants.txt
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\green-full-suite.txt
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\help-metadata.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\a0-owner-gate.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\a0-owner-gate-tests.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\precommit-gates.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\handoff-self-check.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\qaready-self-check.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\postcommit-gates.txt
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-stable-doc-state-cleanup-repair-r3-2026-11-08\graphify-update.txt
 - P1=P1-001:CLOSED;P1-002:CLOSED_FOR_INDEPENDENT_QA_R3;P1-R3-001:REPAIRED_PENDING_QA_R4
 - P2=P2-001:REPAIRED_PENDING_INDEPENDENT_QA_R4
 - P2_001=REPAIRED_PENDING_INDEPENDENT_QA_R4
 - P3=P3-R3-001:HELP_METADATA_REPAIRED_PENDING_QA_R4
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
 - NEXT_CRITICAL_PATH=V2-STABLE-DOC-STATE-CLEANUP-REPAIR-R3-PENDING-QA-R4
-- last_evidence=Independent QA R3 FAIL / P1-R3-001 structural ACTIVE heading pseudo-passes / P3-R3-001 stale Help count; repair R3 structural RED 2/7 and fenced control RED 0/1; focused GREEN 10/0; full suite 90/0; post-commit gates pending
+- last_evidence=Independent QA R3 FAIL / P1-R3-001 structural ACTIVE heading pseudo-passes / P3-R3-001 stale Help count; repair R3 structural RED 2/7 and fenced control RED 0/1; focused GREEN 10/0; full suite 90/0; A0 direct 19/19 + external 8/8 + tests 7/7; intermediate Handoff / QaReady PASS; final six-path / encoding / AST / self-SHA evidence in repair-r3
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
