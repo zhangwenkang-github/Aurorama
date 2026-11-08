@@ -40,7 +40,7 @@
 - FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_AUTHORIZED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -ExpectedHead "<external-pinned candidate HEAD>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-stable-doc-state-cleanup\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=225478/1048576 (21.5%) / REQUESTS=1169 / 2026-11-08 / SOURCE=LOCAL_SESSIONS_JSON_OFFLINE
+- CONTEXT_AT_CLOSE=242192/1048576 (23.1%) / REQUESTS=1180 / 2026-11-08 / SOURCE=LOCAL_SESSIONS_JSON_OFFLINE
 - INDEPENDENT_QA_R1=FAIL / P2-001_NOT_CLOSED / P1=2
 - REPAIR_R1=SUPERSEDED / QA_R2=FAIL / P1-002_NOT_CLOSED
 - INDEPENDENT_QA_R2=FAIL / P2-001_NOT_CLOSED / P1=1
