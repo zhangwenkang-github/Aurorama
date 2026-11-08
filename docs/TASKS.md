@@ -5,7 +5,7 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
+### ACTIVE — V2-W1C-CATALOG-READERS-SCOPE-2026-11-09
 
 - TASK_ID=V2-W1C-CATALOG-READERS-SCOPE-2026-11-09
 - TASK_STAGE=W1B_COMPLETE / W1C_SCOPE_HANDOFF_READY
@@ -13,7 +13,7 @@
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
+- READ_ORDER=W1B-2 merge report > docs/TASKS.md ACTIVE > ICS-W1C placeholder + W1B subwave table > docs/ARCHITECTURE.md Identity and Catalog stable contract > graphify query W1C catalog readers > relevant source and tests > AGENTS.md and PROJECT_RULES > docs/LESSONS.md L038-L043
 - NEXT_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
@@ -25,7 +25,7 @@
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_08
+- CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_09 / W1C_SCOPING_HANDOFF
 - P0=0
 - P1=P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
 - P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
@@ -159,8 +159,9 @@
 - BASE_HEAD=5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6
 - REQUIRED_ANCESTOR=5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6
 - FAILED_CANDIDATE=NONE
-- MAX_CHANGED_PATHS=1
+- MAX_CHANGED_PATHS=2
 - ALLOWED_PATH=docs/TASKS.md
+- ALLOWED_PATH=docs/ARCHITECTURE.md
 <!-- V2_HANDOFF_OBJECT_END -->
 
 ### HISTORY — W1B-1B product merge-prep PASS / local ff-only integrated（2026-11-08）
@@ -240,6 +241,8 @@
   写域、state×effect 矩阵、全量/定向测试、A0 与独立 QA / merge-prep 门。
 - 任务卡冻结前禁止产品实现。冻结后只能由另一 fresh implementation owner 执行；负责人
   只做范围、风险、压缩报告、集成决策与文档。不得使用设备/网络，不 push/tag/Release。
+- 首次 pre-handoff audit 的 P3 陈旧辅助文案已关闭：ACTIVE 标题、READ_ORDER、
+  CONTEXT_AT_CLOSE、W1C 前置说明与 ARCHITECTURE 旧 W1B-1B current-looking 文案均已修正。
 
 ### HISTORY — Post-workflow W1B resume approved（2026-11-08）
 
@@ -1201,7 +1204,7 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 
 | 子波 | 交付物 | 前置 |
 |---|---|---|
-| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A`、`W1B-1A` 与 `W1B-1B` 均已完成 QA / merge-prep / local integration；下一实现为 `W1B-1C`，W1B-2 仍按顺序阻塞 |
+| `ICS-W1B-IDENTITY-INGRESS-SINGLE-WRITER` | auth / preferences / server / user 切换的单 writer、启动 hydration、identity generation 与失效时机 | `ICS-W1A`、W1B-1A/B/C、W1B-1 combined 与 W1B-2 均已完成 QA / merge-prep / local integration；下一实现入口为 W1C catalog readers |
 | `ICS-W1C-CATALOG-READERS` | views / items / detail / home / paging 等 catalog readers 共用 canonical scope 与 snapshot | `ICS-W1B` |
 | `ICS-W1D-OFFLINE-NAMESPACE` | saved offline account、无账号、image cache / DB namespace / offline projection 收敛 | `ICS-W1B` |
 | `ICS-W1E-FRESHNESS-PERMISSIONS` | 完整 freshness / stale reason、401/403、durable fence、跨进程与损坏策略 | `ICS-W1A`–`W1D` |
