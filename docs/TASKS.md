@@ -8,34 +8,34 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
-- TASK_STAGE=REPAIR_CANDIDATE_READY_FOR_FRESH_INDEPENDENT_QA_R2
+- TASK_STAGE=INDEPENDENT_QA_R2_PASS / MERGE_PREP_PENDING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_W1B_1B_GATEPLAN_ENTRY_RECOVERY_INDEPENDENT_QA_R2_OWNER_2026_11_08
+- NEXT_ROLE=AURORAMA_V2_W1B_1B_GATEPLAN_ENTRY_RECOVERY_DELIVERY_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Fresh independent QA R2 only. Verify canonical commit clean, candidate HEAD and hashes unchanged, corrected TEST-CANDIDATE-GATEPLAN returns GATE_LANE=CANDIDATE exit 0, then execute the full QA matrix. Do not modify any repository file, self-fix, merge-prep, integrate, use devices/network, push, tag, or Release. Stop on object drift, hash drift, nonzero gate, new P0-P2, or scope expansion.
+- STOP_CONDITION=Next delivery lead must read the QA R2 report, verify canonical and candidate objects, then dispatch a fresh professional merge-prep owner for the control-plane recovery candidate. Do not touch W1B source/product, dispatch QA, merge, integrate, use devices/network, push, tag, or Release. Stop on drift, new P0-P2, or scope expansion.
 - SCOPE=W1B_1B_GATEPLAN_QA_READY_DOC_REPAIR
 - AUTHORIZATION=QA_FAIL_P2_GATEPLAN_QA_READY_COMMAND_REPAIR_2026_11_08
-- IMPLEMENTATION_AUTHORIZED=NO / DOCS_REPAIR_ONLY
+- IMPLEMENTATION_AUTHORIZED=NO / NEXT_STAGE_ORCHESTRATION_ONLY
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=97119_OF_1048576 / 9.3_PERCENT / MEASURED_LOCAL_STATUSZ_2026_11_08
+- CONTEXT_AT_CLOSE=296465_OF_1048576 / 28.3_PERCENT / MERGE_PREP_PREPARE_HANDOFF / 2026_11_08
 - P0=0
 - P1=P1-W1B1B-04:CLOSED_BY_QA_R4
-- P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:REPAIRED_PENDING_FRESH_QA
+- P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
 - P3=P3-W1B1B-PUBLIC-PERMIT-MARKER:ACCEPTED;P3-W1B1B-READ-LEASE-PUBLIC-EFFECT-REENTRANCY:ACCEPTED_CURRENT_CALL_GRAPH_NO_REENTRY
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\task_plan.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_INDEPENDENT_QA_R2_ON_QA_READY_DOC_COMMAND_REPAIR
-- last_evidence=CANDIDATE=7ff7eb7ea309faabfc422358dcf8a92805ed6b60; MATRIX_SHA256=5BE04FD5D0C7486D9CEF2AAD2B66197CBC7F8902AF0668CCACFF24AB9FAC556B; REPAIR_ROOT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-qa-ready-repair-2026-11-08; RED=EXIT_1_PARAMETER_BINDING; GREEN=EXIT_0_GATE_LANE_CANDIDATE; CHANGED_PATH=docs/TASKS.md
+- NEXT_CRITICAL_PATH=DISPATCH_FRESH_GATEPLAN_RECOVERY_MERGE_PREP
+- last_evidence=INDEPENDENT_QA_R2_PASS; CANONICAL=83d2558abb217065cc1c55c4c8ef990e602cc451; CANDIDATE=7ff7eb7ea309faabfc422358dcf8a92805ed6b60; MATRIX_SHA256=5BE04FD5D0C7486D9CEF2AAD2B66197CBC7F8902AF0668CCACFF24AB9FAC556B; QA_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-independent-qa-r2-2026-11-08\INDEPENDENT_QA_R2_REPORT.md
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -229,6 +229,27 @@
   `AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_OWNER_2026_11_08` /
   `deepseek-flash / reasoning_effort=max / fork_turns=none`。实现 owner 停在自身
   RED/GREEN、CANDIDATE 命令与实现报告，不得自派 QA 或进入 merge-prep。
+
+### HISTORY — GatePlan control-plane recovery independent QA R2 PASS（2026-11-08）
+
+- 全新 R2 independent QA 在 canonical
+  `83d2558abb217065cc1c55c4c8ef990e602cc451` 与 candidate
+  `7ff7eb7ea309faabfc422358dcf8a92805ed6b60` 上判定
+  `INDEPENDENT_QA_R2_PASS`。canonical 相对 repair base 仅 `docs/TASKS.md`，
+  candidate 相对 base 仅 wrapper / tests 两文件，两个 worktree 最终 clean。
+- canonical `QaReady` 与 `Handoff` 均 PASS；QA_READY 的
+  `TEST-CANDIDATE-GATEPLAN` 已从文档原样执行并返回 `GATE_LANE=CANDIDATE`、exit 0，
+  `P2-GATEPLAN-QA-READY-COMMAND=CLOSED`。
+- 实际 executed：wrapper suite `37/0`、handoff-lint suite `99/0`；真实 W1B 14 路径
+  GatePlan 两次均为 `STATE_EFFECT_MATRIX=PASS / GATE_LANE=FULL`；FAST / CANDIDATE
+  回归与 9/9 核心负例 PASS。Matrix SHA-256
+  `5BE04FD5D0C7486D9CEF2AAD2B66197CBC7F8902AF0668CCACFF24AB9FAC556B`，
+  七类 / 六列 / 0 空单元格，`PRODUCT/W1B/RELEASE=NOT_CLAIMED`。
+- QA R2 证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-independent-qa-r2-2026-11-08\INDEPENDENT_QA_R2_REPORT.md`。
+- 该 PASS 只证明控制面恢复候选与 QA_READY 命令；不证明 W1B 源、产品、父 seam、
+  runtime、integration 或 Release。下一步仅允许全新 delivery lead 派发 fresh
+  control-plane merge-prep owner；merge-prep 前不得修改候选或矩阵。
 
 ### HISTORY — Workflow efficiency local integration（2026-11-08）
 
@@ -552,11 +573,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=YES
-- UNCOVERED=This R2 QA covers the GatePlan setup/settings/modes mapping, state-effect matrix recovery, and canonical QA_READY TEST-CANDIDATE-GATEPLAN executable-command repair. W1B product, source candidate, runtime, integration, parent seam and Release remain unassessed.
-- STOP_CONDITION=Stop on canonical/candidate object drift, candidate hash drift, dirty final state, corrected TEST-CANDIDATE-GATEPLAN failing to return GATE_LANE=CANDIDATE with exit 0, QaReady or Handoff not PASS, changed path beyond docs/TASKS.md in this repair, new P0-P2, or any need for code/product/device/network/merge-prep/integration/push/tag/Release. Do not self-fix findings.
-- MANUAL_LIMITATION=Do not self-fix findings and do not start merge-prep, integration, device, network, push, tag or Release. Report FAIL/PASS with exact executed evidence.
-- MANUAL_OWNER=AURORAMA_V2_W1B_1B_GATEPLAN_ENTRY_RECOVERY_INDEPENDENT_QA_R2_OWNER_2026_11_08
+- QA_READY=NO
+- UNCOVERED=Independent QA R2 passed the control-plane recovery candidate and closed the canonical command P2. W1B product, source candidate, runtime, integration, parent seam and Release remain unassessed; merge-prep is pending.
+- STOP_CONDITION=Do not restart QA or implement. Next stage is fresh control-plane merge-prep only after the next delivery lead verifies the frozen QA R2 objects.
+- MANUAL_LIMITATION=This checkpoint is control-plane only. It does not authorize product QA, device/network, merge, integration or Release.
+- MANUAL_OWNER=AURORAMA_V2_W1B_1B_GATEPLAN_ENTRY_RECOVERY_DELIVERY_LEAD_2026_11_08
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
