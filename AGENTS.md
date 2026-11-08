@@ -7,6 +7,17 @@
 > `docs/TASKS.md` 的唯一 ACTIVE 是唯一动态状态源。`AGENTS.md` 只保留入口指针、读取顺序和强制命令，
 > 不复制当前 SHA、测试计数、当前 owner 或 next role。
 
+- **唯一高效入口**：`tools/architecture/v2-workflow.ps1` 提供 `Snapshot`、`UpdateState`、`GatePlan`、
+  `Handoff`、`QaReady`、`Closeout`。动态 ACTIVE / QA token 只走 `UpdateState`；测试派单只走
+  `GatePlan`；`Handoff` / `QaReady` 只委派现有 `v2-handoff-lint.ps1` 并原样保留其机械 PASS / FAIL
+  token 与退出码；`Closeout` 只证明控制面收口，不证明产品 QA、集成或 Release。
+
+  ```powershell
+  pwsh -NoProfile -ExecutionPolicy Bypass -File "<repo>/tools/architecture/v2-workflow.ps1" -Mode Snapshot -RepoRoot "<repo>"
+  pwsh -NoProfile -ExecutionPolicy Bypass -File "<repo>/tools/architecture/v2-workflow.ps1" -Mode UpdateState -RepoRoot "<repo>" -StateUpdate "ACTIVE:TASK_STAGE=<stage>"
+  pwsh -NoProfile -ExecutionPolicy Bypass -File "<repo>/tools/architecture/v2-workflow.ps1" -Mode Closeout -RepoRoot "<repo>" -ExpectedHead "<manager-pin>" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
+  ```
+
 - **读序**：`AGENTS.md` → `docs/PROJECT_RULES.md` → `docs/TASKS.md` 唯一 ACTIVE / W1B 历史边界 /
   Architecture Critical Path → `docs/LESSONS.md` L028、L038、L039、L042 → 本次任务卡。
   `PROJECT_PLAN.md`、`V2_PLAN.md`、`ARCHITECTURE.md` 只读稳定决策、里程碑和历史；其中现存的

@@ -605,3 +605,22 @@
   命令见 `AGENTS.md`、`R036/R037`、`docs/TASKS.md` 的可执行调用点，证据见
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-independent-qa-2026-11-08` 与
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-repair-r1-2026-11-08`。
+
+## L043 W1B-1B 的返工主要来自缺失状态×效果矩阵与手工动态状态
+
+- **现象**：W1B-1B 收口横跨 16 个提交、11 个 docs 提交与 9 个 fresh owner；
+  `docs/TASKS.md` 被修改 12 次，但最终只落在 5 个唯一代码文件。逐轮 repair 暴露的
+  4 个 P1 / 2 个 P2 本可由首轮成功、空结果、权限、异常、取消、重试与恢复矩阵预防；
+  QA R4 的 certificate stale-probe gap 又因 blocking latch 没有真正进入目标调用点而变成
+  harness 自阻塞，追加一个 gap-closure owner 后才关闭。
+- **根因**：实现派单按调用点逐洞修补，没有在开工前冻结“状态×效果”不变量；ACTIVE / QA
+  动态 token 依赖手工 patch，产生多个纯文档提交与重复 Handoff / QaReady；测试选择没有固定
+  分车道，单个 harness 失败又容易触发新建 owner 和全长回归，放大上下文与协调成本。
+- **对策**：用户可观察状态变化必须走 R038 矩阵并由 GatePlan FULL 机械校验；动态状态只走
+  R039 `UpdateState` 原子入口；测试派单只走 R040 `FAST / CANDIDATE / FULL` 车道，未知路径
+  fail closed，单点可逆失败仅同一 owner 修正并重试一次；Handoff / QaReady / Closeout 用
+  `v2-workflow.ps1` 委派现有机械门，控制面 PASS 不得冒充产品、QA、集成或 Release PASS。
+- **来源**：2026-11-08 W1B-1B 提交 / docs / owner 成本审计、QA R4 与 certificate gap-closure
+  证据；仓库外审计计划为
+  `F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08`，执行规则见
+  R038–R040。

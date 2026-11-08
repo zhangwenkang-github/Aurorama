@@ -8,16 +8,16 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-WORKFLOW-EFFICIENCY-2026-11-08
-- TASK_STAGE=DESIGN_APPROVED / IMPLEMENTATION_NOT_STARTED
+- TASK_STAGE=IMPLEMENTATION_SELF_TEST_GREEN_PENDING_MANAGER_REVIEW
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama
 - CANONICAL_BRANCH=codex/v2-workflow-efficiency-2026-11-08
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_IMPLEMENTATION_OWNER_2026_11_08
+- READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
+- NEXT_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_DELIVERY_MANAGER_REVIEW_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=STOP on worktree/branch/pin drift, a seventh changed path, product file change, new P0-P2, missing RED/GREEN evidence, non-executable rule without a command/test/stop condition, merge-prep/integration/device/network/push/tag/Release, or direct QA without a committed implementation report and QaReady PASS.
+- STOP_CONDITION=Manager review must remain read-only and stop on scope drift, a seventh path, product-code change, missing RED/GREEN evidence, unknown GatePlan mapping, or any request for independent QA, merge-prep, device, network, integration, push, tag, or Release.
 - SCOPE=V2_WORKFLOW_EFFICIENCY_SCRIPT_AND_RULES
 - AUTHORIZATION=USER_APPROVED_RECOMMENDED_WORKFLOW_PLAN_2026_11_08
 - IMPLEMENTATION_AUTHORIZED=YES / MAX_CHANGED_PATHS=6
@@ -25,7 +25,7 @@
 - FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode Handoff -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -ExpectedHead "<external-pinned-control-head>" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama" -TasksPath "docs/TASKS.md" -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md"
-- CONTEXT_AT_CLOSE=429380_OF_1048576 / 40.9_PERCENT / ABOVE_350000_HARD_HANDOFF / 2026-11-08
+- CONTEXT_AT_CLOSE=262607_OF_1048576 / 25.0_PERCENT / BELOW_350000_HARD_HANDOFF / 2026-11-08
 - P0=0
 - P1=0
 - P2=0
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=IMPLEMENT_V2_WORKFLOW_SCRIPT_TESTS_AND_RULES
-- last_evidence=User approved the recommended bounded workflow plan on 2026-11-08; audit shows 16 commits, 11 docs commits, TASKS changed 12 times and 9 fresh owners; implementation has not started.
+- NEXT_CRITICAL_PATH=MANAGER_REVIEW_V2_WORKFLOW_IMPLEMENTATION_CANDIDATE
+- last_evidence=IMPLEMENTATION_SELF_TEST_GREEN_PENDING_MANAGER_REVIEW; RED=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\red-workflow-tests.txt exit=1 target-wrapper-missing; GREEN=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\green-workflow-tests.txt exit=0 SUMMARY passed=30 failed=0; HANDOFF_TESTS=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\green-handoff-lint-tests.txt exit=0 SUMMARY passed=99 failed=0; EXACT_SIX=AGENTS.md,docs/PROJECT_RULES.md,docs/LESSONS.md,docs/TASKS.md,tools/architecture/v2-workflow.ps1,tools/architecture/v2-workflow.tests.ps1; WRAPPER_SMOKE=AST/Help PASS, Snapshot PASS, GatePlan FAST/CANDIDATE/FULL PASS, delegation exit passthrough PASS, UpdateState temp fixtures PASS, Closeout real checker/doctor and failure/clean/HEAD gates PASS; UNCOVERED=independent QA not run, committed-pin Handoff/QaReady not claimed, GRAPHIFY_NOT_AVAILABLE
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -373,10 +373,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=The workflow wrapper, state updater, tests, and rule updates have not been implemented; independent QA is not dispatchable.
-- STOP_CONDITION=Do not dispatch QA before RED/GREEN script tests, wrapper smoke, exact six-path verification, rule-entry audit and QaReady lint PASS.
+- UNCOVERED=No independent QA, product QA, integration, Release, device or network validation has run. QA_READY remains NO; committed-pin Handoff/QaReady is manager-only; graphify-out/graph.json is unavailable.
+- STOP_CONDITION=Do not dispatch QA or change product scope from this self-test candidate; manager review must reject any seventh path, missing evidence, unknown GatePlan mapping, or control-plane PASS expanded into product-QA, integration or Release PASS.
 - MANUAL_LIMITATION=The implementation owner may change only the six allowed paths and may not treat repository-external planning files as product evidence.
-- MANUAL_OWNER=AURORAMA_V2_WORKFLOW_EFFICIENCY_IMPLEMENTATION_OWNER_2026_11_08
+- MANUAL_OWNER=AURORAMA_V2_WORKFLOW_EFFICIENCY_DELIVERY_MANAGER_REVIEW_2026_11_08
 <!-- V2_QA_READY_END -->
 
 <!-- HISTORY_QA_READY_SNAPSHOT_BEGIN -->
