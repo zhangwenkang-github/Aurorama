@@ -66,6 +66,28 @@ class SearchCatalogConsumerTest {
     }
 
     @Test
+    fun `snapshot from an older identity generation is rejected before projection`() = runBlocking {
+        val nextScope = ALICE_SCOPE.copy(identityGeneration = 2L)
+        val outcome =
+            executeSearch(
+                request = SearchRequest("sample", SearchScope.VIDEO),
+                serverSearch = {
+                    available(
+                        value = listOf(folder("stale-generation")),
+                        scope = ALICE_SCOPE,
+                    )
+                },
+                localSearch = { emptyList<LocalSearchHit>() },
+                scope = nextScope,
+            )
+
+        assertTrue(outcome.serverFailed)
+        assertTrue(outcome.serverItems.isEmpty())
+        assertTrue(outcome.results.isEmpty())
+        assertNull(outcome.serverSnapshot)
+    }
+
+    @Test
     fun `consumer guard rejects switched scope and superseded content generation`() {
         val guard = SearchCatalogGuard()
         val requestGeneration = guard.begin(requested = ALICE_SCOPE, current = ALICE_SCOPE)
@@ -154,11 +176,13 @@ class SearchCatalogConsumerTest {
             CatalogScope(
                 origin = JellyfinOrigin("server-a", ALICE),
                 principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                identityGeneration = 1L,
             )
         val BOB_SCOPE =
             CatalogScope(
                 origin = JellyfinOrigin("server-a", BOB),
                 principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                identityGeneration = 2L,
             )
     }
 }

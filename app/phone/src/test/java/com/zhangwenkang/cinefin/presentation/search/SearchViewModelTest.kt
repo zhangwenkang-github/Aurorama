@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.presentation.search
 
+import android.content.ContextWrapper
+import android.content.SharedPreferences
 import androidx.lifecycle.SavedStateHandle
 import com.zhangwenkang.cinefin.film.presentation.search.SearchAction
 import com.zhangwenkang.cinefin.film.presentation.search.SearchResult
@@ -11,6 +13,7 @@ import com.zhangwenkang.cinefin.local.LocalSearchHit
 import com.zhangwenkang.cinefin.models.FindroidFolder
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.presentation.offline.OfflineModeViewModel
 import com.zhangwenkang.cinefin.repository.JellyfinOrigin
 import com.zhangwenkang.cinefin.repository.catalog.CatalogFreshness
 import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
@@ -19,6 +22,11 @@ import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
 import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
 import com.zhangwenkang.cinefin.repository.catalog.CatalogSearchQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.OfflineModeWritePort
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSwitch
+import com.zhangwenkang.cinefin.settings.presentation.settings.SettingsAction
+import com.zhangwenkang.cinefin.settings.presentation.settings.SettingsViewModel
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import com.zhangwenkang.cinefin.utils.Downloader
@@ -245,6 +253,93 @@ class SearchViewModelTest {
         }
 
     @Test
+    fun `completed marker includes identity generation`() =
+        runTest(mainDispatcher.scheduler) {
+            var scope = ALICE_SCOPE
+            var serverSearchCalls = 0
+            val viewModel =
+                viewModel(
+                    currentScope = { scope },
+                    onServerSearch = {
+                        serverSearchCalls += 1
+                        available(
+                            items = listOf(folder("generation-${scope.identityGeneration}")),
+                            scope = scope,
+                        )
+                    },
+                )
+
+            viewModel.onAction(SearchAction.UpdateQuery("sample"))
+            viewModel.onAction(SearchAction.Search("sample"))
+            viewModel.state.first { it.query == "sample" && !it.loading && it.results.isNotEmpty() }
+            viewModel.currentJob?.join()
+
+            scope = ALICE_SCOPE.copy(identityGeneration = 2L)
+            viewModel.onAction(SearchAction.Search("sample"))
+            viewModel.currentJob?.join()
+
+            assertEquals(2, serverSearchCalls)
+            assertEquals(
+                listOf("generation-2"),
+                viewModel.state.value.serverItems.map { it.name },
+            )
+        }
+
+    @Test
+    fun `settings and offline UI write offline preference only through the port`() =
+        runTest(mainDispatcher.scheduler) {
+            val writes = mutableListOf<Boolean>()
+            val writePort =
+                object : OfflineModeWritePort {
+                    override suspend fun setOfflineMode(enabled: Boolean) {
+                        writes += enabled
+                    }
+                }
+            var editCalls = 0
+            val rawPreferences =
+                Proxy.newProxyInstance(
+                    SharedPreferences::class.java.classLoader,
+                    arrayOf(SharedPreferences::class.java),
+                ) { _, method, _ ->
+                    when (method.name) {
+                        "getString" -> null
+                        "getBoolean" -> false
+                        "edit" -> {
+                            editCalls += 1
+                            editorProxy()
+                        }
+                        else -> defaultValue(method.returnType)
+                    }
+                } as SharedPreferences
+            val appPreferences = AppPreferences(rawPreferences)
+
+            val offlineViewModel = OfflineModeViewModel(writePort)
+            offlineViewModel.enterOfflineMode()
+            offlineViewModel.exitOfflineMode()
+
+            val settingsViewModel =
+                SettingsViewModel(
+                    appPreferences = appPreferences,
+                    context = ContextWrapper(null),
+                    offlineModeWritePort = writePort,
+                )
+            editCalls = 0
+            settingsViewModel.onAction(
+                SettingsAction.OnUpdate(
+                    PreferenceSwitch(
+                        nameStringResource = 0,
+                        backendPreference = appPreferences.offlineMode,
+                        value = true,
+                    )
+                )
+            )
+            mainDispatcher.scheduler.runCurrent()
+
+            assertEquals(listOf(true, false, true), writes)
+            assertEquals(0, editCalls)
+        }
+
+    @Test
     fun `W1A-P3-COMPLETED-MARKER 跨 scope 失败后返回原 scope 必须重新搜索`() =
         runTest(mainDispatcher.scheduler) {
             val queuedScopes = mutableListOf<CatalogScope>()
@@ -421,10 +516,11 @@ class SearchViewModelTest {
     private fun available(
         items: List<FindroidItem>,
         contentGeneration: Long = 1L,
+        scope: CatalogScope = ALICE_SCOPE,
     ): CatalogReadOutcome<List<FindroidItem>> =
         CatalogReadOutcome.Available(
             CatalogSnapshot(
-                scope = ALICE_SCOPE,
+                scope = scope,
                 contentGeneration = contentGeneration,
                 freshness = CatalogFreshness.FRESH,
                 observedAtEpochMs = 1L,
@@ -496,6 +592,22 @@ class SearchViewModelTest {
             else -> null
         }
 
+    private fun editorProxy(): SharedPreferences.Editor {
+        lateinit var editor: SharedPreferences.Editor
+        editor =
+            Proxy.newProxyInstance(
+                SharedPreferences.Editor::class.java.classLoader,
+                arrayOf(SharedPreferences.Editor::class.java),
+            ) { _, method, _ ->
+                if (method.returnType.isAssignableFrom(SharedPreferences.Editor::class.java)) {
+                    editor
+                } else {
+                    defaultValue(method.returnType)
+                }
+            } as SharedPreferences.Editor
+        return editor
+    }
+
     private class FakeCatalogReadPort(
         private val resolveCurrentScope: () -> CatalogScope?,
         private val onSearch:
@@ -515,6 +627,7 @@ class SearchViewModelTest {
             CatalogScope(
                 origin = JellyfinOrigin(SERVER_ID, USER_ID),
                 principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                identityGeneration = 1L,
             )
         val BOB_SCOPE =
             CatalogScope(
@@ -524,6 +637,7 @@ class SearchViewModelTest {
                         UUID.fromString("44444444-4444-4444-8444-444444444444"),
                     ),
                 principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                identityGeneration = 2L,
             )
     }
 }

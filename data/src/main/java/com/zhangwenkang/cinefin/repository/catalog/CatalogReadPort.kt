@@ -1,10 +1,15 @@
 package com.zhangwenkang.cinefin.repository.catalog
 
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.identity.IdentityReadPort
+import com.zhangwenkang.cinefin.identity.IdentitySnapshot
+import com.zhangwenkang.cinefin.identity.IdentityStateStatus
+import com.zhangwenkang.cinefin.identity.IdentityStateStore
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.repository.JellyfinOrigin
 import com.zhangwenkang.cinefin.repository.SearchScope
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import java.util.UUID
 
 enum class CatalogPrincipalContext {
     ONLINE_ACCOUNT,
@@ -14,6 +19,7 @@ enum class CatalogPrincipalContext {
 data class CatalogScope(
     val origin: JellyfinOrigin,
     val principalContext: CatalogPrincipalContext,
+    val identityGeneration: Long,
 )
 
 data class CatalogSearchQuery(
@@ -48,26 +54,72 @@ interface CatalogReadPort {
     suspend fun search(query: CatalogSearchQuery): CatalogReadOutcome<List<FindroidItem>>
 }
 
-internal class CatalogScopeResolver(
-    private val appPreferences: AppPreferences,
+internal class CatalogScopeResolver
+private constructor(
     private val database: ServerDatabaseDao,
     private val principalContext: CatalogPrincipalContext,
+    private val canonicalReader: IdentityReadPort,
 ) {
+    internal constructor(
+        appPreferences: AppPreferences,
+        database: ServerDatabaseDao,
+        principalContext: CatalogPrincipalContext,
+    ) : this(
+        database = database,
+        principalContext = principalContext,
+        canonicalReader = PersistedIdentityReadPort(appPreferences),
+    )
+
+    internal constructor(
+        identityReadPort: IdentityReadPort,
+        database: ServerDatabaseDao,
+        principalContext: CatalogPrincipalContext,
+    ) : this(
+        database = database,
+        principalContext = principalContext,
+        canonicalReader = identityReadPort,
+    )
+
     suspend fun resolve(): CatalogScope? {
+        val snapshot = runCatching { canonicalReader.current() }.getOrNull() ?: return null
+        if (snapshot.status != IdentityStateStatus.READY || snapshot.identityGeneration <= 0L) {
+            return null
+        }
+        val selection = snapshot.selection
+        if (
+            selection.offlineMode !=
+                (principalContext == CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT)
+        ) {
+            return null
+        }
         val serverId =
-            appPreferences.getValue(appPreferences.currentServer)?.takeIf {
-                it.isNotBlank() && '\u0000' !in it
-            } ?: return null
+            selection.serverId?.takeIf { it.isNotBlank() && '\u0000' !in it } ?: return null
+        val userId =
+            selection.userId?.let { value -> runCatching { UUID.fromString(value) }.getOrNull() }
+                ?: return null
+        val addressId =
+            selection.addressId?.let { value -> runCatching { UUID.fromString(value) }.getOrNull() }
+                ?: return null
         val user = database.getServerCurrentUser(serverId) ?: return null
-        if (user.serverId != serverId) return null
-        if (principalContext == CatalogPrincipalContext.ONLINE_ACCOUNT) {
-            if (user.accessToken.isNullOrBlank()) return null
-            val address = database.getServerCurrentAddress(serverId) ?: return null
-            if (address.serverId != serverId || address.address.isBlank()) return null
+        if (user.serverId != serverId || user.id != userId || user.accessToken.isNullOrBlank()) {
+            return null
+        }
+        val address = database.getServerCurrentAddress(serverId) ?: return null
+        if (address.serverId != serverId || address.id != addressId || address.address.isBlank()) {
+            return null
         }
         return CatalogScope(
-            origin = JellyfinOrigin(serverId = serverId, userId = user.id),
+            origin = JellyfinOrigin(serverId = serverId, userId = userId),
             principalContext = principalContext,
+            identityGeneration = snapshot.identityGeneration,
         )
     }
+}
+
+private class PersistedIdentityReadPort(appPreferences: AppPreferences) : IdentityReadPort {
+    private val store = IdentityStateStore(appPreferences)
+
+    override suspend fun hydrate(): IdentitySnapshot = store.read()
+
+    override suspend fun current(): IdentitySnapshot = store.read()
 }

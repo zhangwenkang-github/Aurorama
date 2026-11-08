@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.settings.R
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.OfflineModeWritePort
 import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
 import com.zhangwenkang.cinefin.settings.domain.models.HomeLibrarySettings
 import com.zhangwenkang.cinefin.settings.domain.models.LibraryCatalog
@@ -45,6 +46,7 @@ class SettingsViewModel
 constructor(
     private val appPreferences: AppPreferences,
     @param:ApplicationContext private val context: Context,
+    private val offlineModeWritePort: OfflineModeWritePort,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SettingsState())
     val state = _state.asStateFlow()
@@ -53,8 +55,9 @@ constructor(
     val events = eventsChannel.receiveAsFlow()
 
     /** 「首选语言」下拉的候选值域：与 `R.array.languages_values` 同一份（ISO 639-2 与 BCP-47 混合） */
-    private val languageOptionValues =
+    private val languageOptionValues by lazy {
         context.resources.getStringArray(R.array.languages_values).toList()
+    }
 
     /**
      * 由语言优先级列表的首项推导下拉显示值（W74 U7）。
@@ -1525,12 +1528,16 @@ constructor(
         when (action) {
             is SettingsAction.OnUpdate -> {
                 when (action.preference) {
-                    is PreferenceSwitch ->
-                        appPreferences.setValue(
-                            action.preference.backendPreference,
+                    is PreferenceSwitch -> {
+                        val value =
                             if (action.preference.negateValue) !action.preference.value
-                            else action.preference.value,
-                        )
+                            else action.preference.value
+                        if (action.preference.backendPreference == appPreferences.offlineMode) {
+                            viewModelScope.launch { offlineModeWritePort.setOfflineMode(value) }
+                        } else {
+                            appPreferences.setValue(action.preference.backendPreference, value)
+                        }
+                    }
                     is PreferenceIntSelect ->
                         appPreferences.setValue(
                             action.preference.backendPreference,

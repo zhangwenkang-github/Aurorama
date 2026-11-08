@@ -358,6 +358,28 @@ class SearchSessionTest {
         assertTrue(guard.accepts(newerRequest, currentSnapshot, ALICE_SCOPE))
     }
 
+    @Test
+    fun `scope guard rejects same origin after identity generation changes`() {
+        val guard = SearchCatalogGuard()
+        val nextScope = ALICE_SCOPE.copy(identityGeneration = 2L)
+        val requestGeneration = guard.begin(requested = nextScope, current = nextScope)
+
+        assertFalse(
+            guard.accepts(
+                requestGeneration,
+                snapshot(listOf(folder("old-generation")), ALICE_SCOPE, generation = 1L),
+                nextScope,
+            )
+        )
+        assertTrue(
+            guard.accepts(
+                requestGeneration,
+                snapshot(listOf(folder("new-generation")), nextScope, generation = 1L),
+                nextScope,
+            )
+        )
+    }
+
     private fun available(
         items: List<FindroidItem>,
         scope: CatalogScope,
@@ -433,11 +455,13 @@ class SearchSessionTest {
             CatalogScope(
                 origin = JellyfinOrigin("server-a", ALICE),
                 principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                identityGeneration = 1L,
             )
         val BOB_SCOPE =
             CatalogScope(
                 origin = JellyfinOrigin("server-a", BOB),
                 principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                identityGeneration = 2L,
             )
     }
 }

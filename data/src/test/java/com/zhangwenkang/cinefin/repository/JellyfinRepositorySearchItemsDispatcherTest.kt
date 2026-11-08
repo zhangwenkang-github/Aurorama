@@ -4,6 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
+import com.zhangwenkang.cinefin.identity.IDENTITY_STATE_PREFERENCE_KEY
+import com.zhangwenkang.cinefin.identity.IdentitySelection
+import com.zhangwenkang.cinefin.identity.IdentitySnapshot
+import com.zhangwenkang.cinefin.identity.IdentityStateCodec
+import com.zhangwenkang.cinefin.identity.IdentityStateStatus
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.ServerAddress
@@ -170,10 +175,25 @@ class JellyfinRepositorySearchItemsDispatcherTest {
         try {
             var currentServer = SERVER_ID
             var currentUserId = USER_ID
+            var identityGeneration = 1L
             var singletonUserId = USER_ID
             var fetchCalls = 0
             val preferences = mockk<SharedPreferences>(relaxed = true)
-            every { preferences.getString(any(), any()) } answers { currentServer }
+            every { preferences.getString(any(), any()) } answers
+                {
+                    if (firstArg<String>() == IDENTITY_STATE_PREFERENCE_KEY) {
+                        IdentityStateCodec.encode(
+                            identity(
+                                serverId = currentServer,
+                                userId = currentUserId,
+                                generation = identityGeneration,
+                            )
+                        )
+                    } else {
+                        currentServer
+                    }
+                }
+            every { preferences.getBoolean(any(), any()) } returns false
             val database =
                 mockk<ServerDatabaseDao>(relaxed = true).apply {
                     coEvery { getServerCurrentUser(any()) } answers
@@ -222,7 +242,7 @@ class JellyfinRepositorySearchItemsDispatcherTest {
                     CatalogSearchQuery(
                         term = "same",
                         scope = SearchScope.VIDEO,
-                        frozenScope = catalogScope(USER_ID, SERVER_ID),
+                        frozenScope = catalogScope(USER_ID, SERVER_ID, identityGeneration),
                     )
                 ) as CatalogReadOutcome.Available
             val music =
@@ -230,26 +250,29 @@ class JellyfinRepositorySearchItemsDispatcherTest {
                     CatalogSearchQuery(
                         term = "same",
                         scope = SearchScope.MUSIC,
-                        frozenScope = catalogScope(USER_ID, SERVER_ID),
+                        frozenScope = catalogScope(USER_ID, SERVER_ID, identityGeneration),
                     )
                 ) as CatalogReadOutcome.Available
             currentUserId = OTHER_USER_ID
+            identityGeneration = 2L
             singletonUserId = OTHER_USER_ID
             val otherUser =
                 repository.search(
                     CatalogSearchQuery(
                         term = "same",
                         scope = SearchScope.VIDEO,
-                        frozenScope = catalogScope(OTHER_USER_ID, SERVER_ID),
+                        frozenScope = catalogScope(OTHER_USER_ID, SERVER_ID, identityGeneration),
                     )
                 ) as CatalogReadOutcome.Available
             currentServer = "server-b"
+            identityGeneration = 3L
             val otherServer =
                 repository.search(
                     CatalogSearchQuery(
                         term = "same",
                         scope = SearchScope.VIDEO,
-                        frozenScope = catalogScope(OTHER_USER_ID, currentServer),
+                        frozenScope =
+                            catalogScope(OTHER_USER_ID, currentServer, identityGeneration),
                     )
                 ) as CatalogReadOutcome.Available
 
@@ -428,18 +451,51 @@ class JellyfinRepositorySearchItemsDispatcherTest {
     private fun catalogScope(
         userId: UUID,
         serverId: String,
+        generation: Long = 1L,
     ): CatalogScope =
         CatalogScope(
             origin = JellyfinOrigin(serverId, userId),
             principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+            identityGeneration = generation,
         )
 
     private fun preferences(): AppPreferences {
         val preferences = mockk<SharedPreferences>(relaxed = true)
-        every { preferences.getString(any(), any()) } returns SERVER_ID
+        val encodedIdentity =
+            IdentityStateCodec.encode(
+                identity(
+                    serverId = SERVER_ID,
+                    userId = USER_ID,
+                    generation = 1L,
+                )
+            )
+        every { preferences.getString(any(), any()) } answers
+            {
+                if (firstArg<String>() == IDENTITY_STATE_PREFERENCE_KEY) encodedIdentity
+                else SERVER_ID
+            }
         every { preferences.getInt(any(), any()) } answers { secondArg() }
+        every { preferences.getBoolean(any(), any()) } returns false
         return AppPreferences(preferences)
     }
+
+    private fun identity(
+        serverId: String,
+        userId: UUID,
+        generation: Long,
+        offlineMode: Boolean = false,
+    ): IdentitySnapshot =
+        IdentitySnapshot(
+            selection =
+                IdentitySelection(
+                    serverId = serverId,
+                    userId = userId.toString(),
+                    addressId = ADDRESS_ID.toString(),
+                    offlineMode = offlineMode,
+                ),
+            identityGeneration = generation,
+            status = IdentityStateStatus.READY,
+        )
 
     private companion object {
         const val SERVER_ID = "server-a"
@@ -451,6 +507,7 @@ class JellyfinRepositorySearchItemsDispatcherTest {
             CatalogScope(
                 origin = JellyfinOrigin(SERVER_ID, USER_ID),
                 principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                identityGeneration = 1L,
             )
     }
 

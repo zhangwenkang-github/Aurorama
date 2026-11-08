@@ -5,6 +5,12 @@ import android.content.SharedPreferences
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.di.CatalogReadModule
+import com.zhangwenkang.cinefin.identity.IDENTITY_STATE_PREFERENCE_KEY
+import com.zhangwenkang.cinefin.identity.IdentityReadPort
+import com.zhangwenkang.cinefin.identity.IdentitySelection
+import com.zhangwenkang.cinefin.identity.IdentitySnapshot
+import com.zhangwenkang.cinefin.identity.IdentityStateCodec
+import com.zhangwenkang.cinefin.identity.IdentityStateStatus
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
@@ -28,8 +34,8 @@ import io.mockk.mockk
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -40,6 +46,7 @@ class CatalogReadPortContractTest {
             CatalogScope(
                 origin = JellyfinOrigin(SERVER_ID, USER_ID),
                 principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                identityGeneration = 3L,
             )
         val snapshot =
             CatalogSnapshot(
@@ -51,6 +58,8 @@ class CatalogReadPortContractTest {
             )
 
         assertEquals(JellyfinOrigin(SERVER_ID, USER_ID), scope.origin)
+        assertEquals(3L, scope.identityGeneration)
+        assertNotEquals(scope, scope.copy(identityGeneration = 2L))
         assertEquals(7L, snapshot.contentGeneration)
         assertEquals(CatalogFreshness.STALE, snapshot.freshness)
         val query =
@@ -67,9 +76,18 @@ class CatalogReadPortContractTest {
     fun `scope resolver uses saved server current user as canonical identity`() = runBlocking {
         val database = mockk<ServerDatabaseDao>(relaxed = true)
         coEvery { database.getServerCurrentUser(SERVER_ID) } returns user(USER_ID)
+        coEvery { database.getServerCurrentAddress(SERVER_ID) } returns address("https://server")
         val resolver =
             CatalogScopeResolver(
-                appPreferences = preferences(SERVER_ID),
+                identityReadPort =
+                    identityPort(
+                        identity(
+                            serverId = SERVER_ID,
+                            userId = USER_ID,
+                            offlineMode = true,
+                            generation = 9L,
+                        )
+                    ),
                 database = database,
                 principalContext = CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT,
             )
@@ -79,26 +97,60 @@ class CatalogReadPortContractTest {
         assertEquals(SERVER_ID, scope?.origin?.serverId)
         assertEquals(USER_ID, scope?.origin?.userId)
         assertEquals(CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT, scope?.principalContext)
+        assertEquals(9L, scope?.identityGeneration)
     }
 
     @Test
     fun `scope resolver fails closed without a complete saved identity`() = runBlocking {
         val database = mockk<ServerDatabaseDao>(relaxed = true)
-        val missingServer =
+        val recovering =
             CatalogScopeResolver(
-                appPreferences = preferences(null),
+                identityReadPort =
+                    identityPort(
+                        identity(
+                                serverId = SERVER_ID,
+                                userId = USER_ID,
+                                offlineMode = true,
+                                generation = 9L,
+                            )
+                            .copy(status = IdentityStateStatus.RECOVERING)
+                    ),
                 database = database,
                 principalContext = CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT,
             )
         val missingUser =
             CatalogScopeResolver(
-                appPreferences = preferences(SERVER_ID),
+                identityReadPort =
+                    identityPort(
+                        identity(
+                            serverId = SERVER_ID,
+                            userId = null,
+                            offlineMode = true,
+                            generation = 9L,
+                        )
+                    ),
                 database = database,
-                principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                principalContext = CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT,
+            )
+        val missingAddress =
+            CatalogScopeResolver(
+                identityReadPort =
+                    identityPort(
+                        identity(
+                            serverId = SERVER_ID,
+                            userId = USER_ID,
+                            addressId = null,
+                            offlineMode = true,
+                            generation = 9L,
+                        )
+                    ),
+                database = database,
+                principalContext = CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT,
             )
 
-        assertNull(missingServer.resolve())
+        assertNull(recovering.resolve())
         assertNull(missingUser.resolve())
+        assertNull(missingAddress.resolve())
     }
 
     @Test
@@ -106,7 +158,15 @@ class CatalogReadPortContractTest {
         val database = mockk<ServerDatabaseDao>(relaxed = true)
         val resolver =
             CatalogScopeResolver(
-                appPreferences = preferences(SERVER_ID),
+                identityReadPort =
+                    identityPort(
+                        identity(
+                            serverId = SERVER_ID,
+                            userId = USER_ID,
+                            offlineMode = false,
+                            generation = 9L,
+                        )
+                    ),
                 database = database,
                 principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
             )
@@ -123,40 +183,92 @@ class CatalogReadPortContractTest {
     }
 
     @Test
-    fun `catalog module selects the port for both offline preference values`() {
-        val online = fakePort()
-        val offline = fakePort()
+    fun `catalog module dynamically routes every operation and rejects stale search results`() =
+        runBlocking {
+            val onlineScope =
+                CatalogScope(
+                    origin = JellyfinOrigin(SERVER_ID, USER_ID),
+                    principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                    identityGeneration = 1L,
+                )
+            val offlineScope =
+                CatalogScope(
+                    origin = JellyfinOrigin(SERVER_ID, USER_ID),
+                    principalContext = CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT,
+                    identityGeneration = 2L,
+                )
+            var snapshot =
+                identity(
+                    serverId = SERVER_ID,
+                    userId = USER_ID,
+                    offlineMode = false,
+                    generation = 1L,
+                )
+            var onlineSearches = 0
+            val online =
+                fakePort(currentScope = { onlineScope }) {
+                    onlineSearches += 1
+                    available(onlineScope)
+                }
+            val offline =
+                fakePort(currentScope = { offlineScope }) {
+                    snapshot =
+                        identity(
+                            serverId = SERVER_ID,
+                            userId = USER_ID,
+                            offlineMode = true,
+                            generation = 3L,
+                        )
+                    available(offlineScope)
+                }
+            val port =
+                CatalogReadModule.dynamicCatalogReadPort(
+                    online = online,
+                    offline = offline,
+                    identityReadPort = identityPort { snapshot },
+                )
 
-        assertSame(
-            online,
-            CatalogReadModule.selectCatalogReadPort(false, online, offline),
-        )
-        assertSame(
-            offline,
-            CatalogReadModule.selectCatalogReadPort(true, online, offline),
-        )
-    }
+            assertEquals(onlineScope, port.currentScope())
+            assertTrue(port.search(searchQuery(onlineScope)) is CatalogReadOutcome.Available)
+            assertEquals(1, onlineSearches)
+
+            snapshot =
+                identity(
+                    serverId = SERVER_ID,
+                    userId = USER_ID,
+                    offlineMode = true,
+                    generation = 2L,
+                )
+            assertEquals(offlineScope, port.currentScope())
+            assertTrue(
+                port.search(searchQuery(onlineScope)) is CatalogReadOutcome.IdentityUnavailable
+            )
+            assertTrue(
+                port.search(searchQuery(offlineScope)) is CatalogReadOutcome.IdentityUnavailable
+            )
+        }
 
     @Test
-    fun `catalog module provider reads offline preference for both branches`() {
-        val online = mockk<JellyfinRepositoryImpl>(relaxed = true)
-        val offline = mockk<JellyfinRepositoryOfflineImpl>(relaxed = true)
+    fun `catalog module fails closed when canonical identity is unavailable`() = runBlocking {
+        val port =
+            CatalogReadModule.dynamicCatalogReadPort(
+                online = fakePort(currentScope = { null }),
+                offline = fakePort(currentScope = { null }),
+                identityReadPort =
+                    identityPort(
+                        identity(
+                                serverId = SERVER_ID,
+                                userId = USER_ID,
+                                offlineMode = false,
+                                generation = 1L,
+                            )
+                            .copy(status = IdentityStateStatus.RECOVERING)
+                    ),
+            )
 
-        assertSame(
-            online,
-            CatalogReadModule.provideCatalogReadPort(
-                online = online,
-                offline = offline,
-                appPreferences = preferencesWithOffline(false),
-            ),
-        )
-        assertSame(
-            offline,
-            CatalogReadModule.provideCatalogReadPort(
-                online = online,
-                offline = offline,
-                appPreferences = preferencesWithOffline(true),
-            ),
+        assertNull(port.currentScope())
+        assertTrue(
+            port.search(searchQuery(OFFLINE_SCOPE)) is CatalogReadOutcome.IdentityUnavailable
         )
     }
 
@@ -165,6 +277,7 @@ class CatalogReadPortContractTest {
         val database =
             mockk<ServerDatabaseDao>(relaxed = true).apply {
                 coEvery { getServerCurrentUser(SERVER_ID) } returns user(USER_ID)
+                coEvery { getServerCurrentAddress(SERVER_ID) } returns address("https://server")
                 coEvery { searchMovies(SERVER_ID, "sample") } returns
                     listOf(movieDto(name = "sample"))
                 coEvery { searchShows(SERVER_ID, "sample") } returns emptyList()
@@ -178,7 +291,7 @@ class CatalogReadPortContractTest {
                 context = mockk<Context>(relaxed = true),
                 jellyfinApi = api,
                 database = database,
-                appPreferences = preferences(SERVER_ID),
+                appPreferences = preferences(SERVER_ID, offline = true),
                 localLibrary = mockk<LocalLibraryRepository>(relaxed = true),
                 offlineMovieMapper = { dto, userId ->
                     mappedUserId = userId
@@ -216,13 +329,14 @@ class CatalogReadPortContractTest {
         val database =
             mockk<ServerDatabaseDao>(relaxed = true).apply {
                 coEvery { getServerCurrentUser(SERVER_ID) } returns user(USER_ID)
+                coEvery { getServerCurrentAddress(SERVER_ID) } returns address("https://server")
             }
         val repository =
             JellyfinRepositoryOfflineImpl(
                 context = mockk<Context>(relaxed = true),
                 jellyfinApi = mockk<JellyfinApi>(relaxed = true),
                 database = database,
-                appPreferences = preferences(SERVER_ID),
+                appPreferences = preferences(SERVER_ID, offline = true),
                 localLibrary = mockk<LocalLibraryRepository>(relaxed = true),
             )
 
@@ -276,13 +390,14 @@ class CatalogReadPortContractTest {
         val database =
             mockk<ServerDatabaseDao>(relaxed = true).apply {
                 coEvery { getServerCurrentUser(SERVER_ID) } returns user(OTHER_USER_ID)
+                coEvery { getServerCurrentAddress(SERVER_ID) } returns address("https://server")
             }
         val repository =
             JellyfinRepositoryOfflineImpl(
                 context = mockk<Context>(relaxed = true),
                 jellyfinApi = mockk<JellyfinApi>(relaxed = true),
                 database = database,
-                appPreferences = preferences(SERVER_ID),
+                appPreferences = preferences(SERVER_ID, offline = true),
                 localLibrary = mockk<LocalLibraryRepository>(relaxed = true),
             )
 
@@ -301,25 +416,107 @@ class CatalogReadPortContractTest {
         coVerify(exactly = 0) { database.searchEpisodes(any(), any()) }
     }
 
-    private fun fakePort(): CatalogReadPort =
+    private fun fakePort(
+        currentScope: suspend () -> CatalogScope?,
+        onSearch: suspend (CatalogSearchQuery) -> CatalogReadOutcome<List<FindroidItem>> = {
+            CatalogReadOutcome.IdentityUnavailable
+        },
+    ): CatalogReadPort =
         object : CatalogReadPort {
-            override suspend fun currentScope(): CatalogScope? = null
+            override suspend fun currentScope(): CatalogScope? = currentScope()
 
             override suspend fun search(
                 query: CatalogSearchQuery
-            ): CatalogReadOutcome<List<FindroidItem>> = CatalogReadOutcome.IdentityUnavailable
+            ): CatalogReadOutcome<List<FindroidItem>> = onSearch(query)
         }
 
-    private fun preferences(serverId: String?): AppPreferences {
-        val preferences = mockk<SharedPreferences>(relaxed = true)
-        every { preferences.getString(any(), any()) } returns serverId
-        return AppPreferences(preferences)
-    }
+    private fun identityPort(snapshot: IdentitySnapshot): IdentityReadPort =
+        object : IdentityReadPort {
+            override suspend fun hydrate(): IdentitySnapshot = snapshot
 
-    private fun preferencesWithOffline(offline: Boolean): AppPreferences {
+            override suspend fun current(): IdentitySnapshot = snapshot
+        }
+
+    private fun identityPort(snapshot: () -> IdentitySnapshot): IdentityReadPort =
+        object : IdentityReadPort {
+            override suspend fun hydrate(): IdentitySnapshot = snapshot()
+
+            override suspend fun current(): IdentitySnapshot = snapshot()
+        }
+
+    private fun identity(
+        serverId: String?,
+        userId: UUID?,
+        addressId: String? = ADDRESS_ID.toString(),
+        offlineMode: Boolean,
+        generation: Long,
+    ): IdentitySnapshot =
+        IdentitySnapshot(
+            selection =
+                IdentitySelection(
+                    serverId = serverId,
+                    userId = userId?.toString(),
+                    addressId = addressId,
+                    offlineMode = offlineMode,
+                ),
+            identityGeneration = generation,
+            status = IdentityStateStatus.READY,
+        )
+
+    private fun searchQuery(scope: CatalogScope): CatalogSearchQuery =
+        CatalogSearchQuery(
+            term = "sample",
+            scope = SearchScope.VIDEO,
+            frozenScope = scope,
+        )
+
+    private fun available(scope: CatalogScope): CatalogReadOutcome<List<FindroidItem>> =
+        CatalogReadOutcome.Available(
+            CatalogSnapshot(
+                scope = scope,
+                contentGeneration = 1L,
+                freshness = CatalogFreshness.FRESH,
+                observedAtEpochMs = 1L,
+                value = emptyList(),
+            )
+        )
+
+    private fun preferences(
+        serverId: String?,
+        userId: UUID = USER_ID,
+        offline: Boolean = false,
+        generation: Long = 1L,
+    ): AppPreferences {
         val preferences = mockk<SharedPreferences>(relaxed = true)
-        every { preferences.getBoolean(any(), any()) } returns offline
-        return AppPreferences(preferences)
+        val appPreferences = AppPreferences(preferences)
+        val encodedIdentity =
+            IdentityStateCodec.encode(
+                if (serverId == null) {
+                    IdentitySnapshot(
+                        selection = IdentitySelection(),
+                        identityGeneration = 0L,
+                        status = IdentityStateStatus.READY,
+                    )
+                } else {
+                    identity(
+                        serverId = serverId,
+                        userId = userId,
+                        offlineMode = offline,
+                        generation = generation,
+                    )
+                }
+            )
+        every { preferences.getString(any(), any()) } answers
+            {
+                if (firstArg<String>() == IDENTITY_STATE_PREFERENCE_KEY) encodedIdentity
+                else serverId
+            }
+        every { preferences.getBoolean(any(), any()) } answers
+            {
+                if (firstArg<String>() == appPreferences.offlineMode.backendName) offline
+                else secondArg()
+            }
+        return appPreferences
     }
 
     private fun user(
@@ -394,6 +591,7 @@ class CatalogReadPortContractTest {
             CatalogScope(
                 origin = JellyfinOrigin(SERVER_ID, USER_ID),
                 principalContext = CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT,
+                identityGeneration = 1L,
             )
     }
 }
