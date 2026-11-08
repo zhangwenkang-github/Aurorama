@@ -8,19 +8,19 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-W1B-1B-ATOMIC-GENERATION-CONDITIONAL-2026-11-08
-- TASK_STAGE=GATE_ENTRY_AND_MATRIX_RECOVERY_AUTHORIZED / IMPLEMENTATION_PENDING
+- TASK_STAGE=CONTROL_PLANE_IMPLEMENTATION_CLOSED / QA_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_OWNER_2026_11_08
+- NEXT_ROLE=AURORAMA_V2_W1B_1B_GATEPLAN_ENTRY_RECOVERY_INDEPENDENT_QA_OWNER_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
-- NEXT_PATH=tools/architecture/v2-workflow.ps1
-- STOP_CONDITION=Control-plane only. Repair GatePlan W1B path mapping and freeze a GatePlan-valid state-effect matrix with RED/GREEN evidence. Do not touch the W1B source candidate, product code, QA, merge-prep, integration, device, network, push, tag, or Release. Stop on source drift, new P0-P2, scope expansion, or a second harness failure.
+- NEXT_PATH=tools/architecture/v2-workflow.tests.ps1
+- STOP_CONDITION=Independent QA only. Verify the exact recovery candidate object, clean state, base ancestry, two code paths, matrix truthfulness, CANDIDATE regressions, and real W1B FULL GatePlan. Do not modify code, docs, W1B source, product, devices, network, merge-prep, integration, push, tag, or Release. Stop on object drift, dirty state, new P0-P2, false GREEN, or scope expansion.
 - SCOPE=W1B_1B_GATEPLAN_ENTRY_AND_MATRIX_RECOVERY
 - AUTHORIZATION=USER_APPROVED_CONTROL_PLANE_RECOVERY_2026_11_08
-- IMPLEMENTATION_AUTHORIZED=YES / CONTROL_PLANE_ONLY / PRODUCT=NO
+- IMPLEMENTATION_AUTHORIZED=NO / QA_ONLY
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
 - FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=DISPATCH_FRESH_GATEPLAN_RECOVERY_OWNER
-- last_evidence=USER_APPROVED_CONTROL_PLANE_RECOVERY_2026_11_08; REPAIR=GATEPLAN_SETUP_PATH_TO_FULL_AND_STATE_EFFECT_MATRIX; SOURCE=UNCHANGED; MERGE_PREP=NOT_DISPATCHED
+- NEXT_CRITICAL_PATH=FRESH_INDEPENDENT_QA_ON_GATEPLAN_RECOVERY_CANDIDATE
+- last_evidence=CANDIDATE=7ff7eb7ea309faabfc422358dcf8a92805ed6b60; WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama; EXACT_CODE_PATHS=2; MATRIX=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\W1B_1B_STATE_EFFECT_MATRIX.md; SELF_TEST=37_0_AND_99_0; FULL_GATEPLAN=PASS; CANDIDATE_GATEPLAN=PASS; SOURCE=UNCHANGED
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -552,37 +552,36 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=NO
-- UNCOVERED=Control-plane recovery is authorized; implementation and independent QA are not started while the W1B source candidate remains untouched.
-- STOP_CONDITION=Keep QA_READY=NO until a fresh control-plane implementation owner completes GatePlan mapping and matrix RED/GREEN evidence and exits at its implementation report.
-- MANUAL_LIMITATION=This is a delivery-manager handoff only. No product implementation, QA, merge, device/network or Release action is authorized by this checkpoint.
-- MANUAL_OWNER=AURORAMA_V2_W1B_1B_GATE_ENTRY_RECOVERY_OWNER_2026_11_08
+- QA_READY=YES
+- UNCOVERED=This QA covers only the GatePlan setup/settings/modes mapping and state-effect matrix recovery. W1B product, source candidate, runtime, integration, parent seam and Release remain unassessed.
+- STOP_CONDITION=Stop on candidate object drift, dirty worktree, changed paths outside the two tools, hollow or dishonest matrix evidence, failing GatePlan lanes, new P0-P2, or any need to modify code/docs/product/device/network.
+- MANUAL_LIMITATION=Do not self-fix findings and do not start merge-prep, integration, device, network, push, tag or Release. Report FAIL/PASS with exact executed evidence.
+- MANUAL_OWNER=AURORAMA_V2_W1B_1B_GATEPLAN_ENTRY_RECOVERY_INDEPENDENT_QA_OWNER_2026_11_08
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
 |---|---|---|---|---|---|
-| INV-WORKFLOW-01 | tools/architecture/v2-workflow.ps1 -Mode Snapshot | Run against the exact worktree | Unique ACTIVE, QA and HANDOFF_OBJECT markers; branch, HEAD, clean state, tokens and changed paths are reported | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\executed-fast-snapshot-postcommit.txt | N/A:static control-plane only |
-| INV-WORKFLOW-02 | tools/architecture/v2-workflow.ps1 -Mode UpdateState | Exercise unique, missing, duplicate, empty, CR, BOM and role cases | Only the selected ACTIVE or QA block changes; LF/no BOM is preserved; all invalid cases exit nonzero without partial writes | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\green-workflow-tests.txt | N/A:static control-plane only |
-| INV-WORKFLOW-03 | tools/architecture/v2-workflow.ps1 -Mode GatePlan | Map FAST, CANDIDATE, FULL, empty, duplicate and unknown paths | Lane is highest mapped lane; every command points to an existing script; empty, duplicate and unknown inputs fail closed | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\gateplan-command-targets.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\red-repair-r1.txt | N/A:static control-plane only |
-| INV-WORKFLOW-04 | tools/architecture/v2-workflow.ps1 -Mode Handoff or QaReady | Delegate to the existing linter and inject child failure | PASS tokens and child nonzero exit codes are preserved without reinterpretation | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\green-workflow-tests.txt | N/A:static control-plane only |
-| INV-WORKFLOW-05 | tools/architecture/v2-workflow.ps1 -Mode Closeout | Run Handoff, Engramory checker, doctor and final clean gate | Steps run in order; any child failure stops with its stable code; success is explicitly control-plane only | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\closeout-real-engramory-smoke.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\green-workflow-tests.txt | N/A:static control-plane only |
-| INV-WORKFLOW-06 | AGENTS.md, docs/PROJECT_RULES.md and docs/LESSONS.md | Review R038-R040, L043 and the three high-frequency commands | Every rule names its trigger, executable entry, failure codes and stop condition; AGENTS exposes exactly Snapshot, UpdateState and Closeout examples | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-implementation-2026-11-08\static-validations.txt | N/A:manual document review only |
+| INV-GATEPLAN-W1B | tools/architecture/v2-workflow.ps1 -Mode GatePlan | Pass the exact 14 W1B paths and the frozen state-effect matrix | `GATE_LANE=FULL`, the matrix validates, and every emitted command targets the recovery candidate | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\14-final-real-14-full.log | N/A:static control-plane only |
+| INV-GATEPLAN-NEAR-MISS | tools/architecture/v2-workflow.ps1 -Mode GatePlan | Pass near-miss product roots such as setups2, settings2 and modes-extra | Unknown paths remain `WORKFLOW_GATE_PATH_UNMAPPED`; no broad prefix alias is accepted | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\03-red-counterexamples.log;F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\09-candidate-v2-workflow-tests.log | N/A:static control-plane only |
+| INV-GATEPLAN-MATRIX | W1B_1B_STATE_EFFECT_MATRIX.md and wrapper matrix parser | Verify seven categories, complete row semantics and explicit N/A reasons | Matrix is not a seven-line placeholder; FULL GatePlan accepts it and no product scope is claimed | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\W1B_1B_STATE_EFFECT_MATRIX.md;F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\08-matrix-validator.log | N/A:static control-plane only |
+| INV-GATEPLAN-EXISTING-LANES | tools/architecture/v2-workflow.tests.ps1 | Run the full wrapper suite and inspect FAST/CANDIDATE/unknown regressions | Existing lanes remain unchanged, highest-lane merge is preserved, and unknown paths fail closed | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\09-candidate-v2-workflow-tests.log | N/A:static control-plane only |
 <!-- V2_QA_INVARIANT_MATRIX_END -->
 
 <!-- V2_QA_TEST_MATRIX_BEGIN -->
 | Test ID | Target | Command | Selector status | Equivalent evidence |
 |---|---|---|---|---|
-| TEST-WORKFLOW-SUITE | tools/architecture/v2-workflow.tests.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-workflow.tests.ps1 | NOT_APPLICABLE | N/A:full-suite invocation has no test selector |
-| TEST-HANDOFF-SUITE | tools/architecture/v2-handoff-lint.tests.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.tests.ps1 | NOT_APPLICABLE | N/A:full-suite invocation has no test selector |
-| TEST-QA-READY | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-workflow.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md | NOT_APPLICABLE | N/A:wrapper delegation has no test selector |
-| TEST-HANDOFF | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama\tools\architecture\v2-workflow.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-workflow-efficiency-2026-11-08\Aurorama -ExpectedHead <manager-pin> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md | NOT_APPLICABLE | N/A:wrapper delegation has no test selector |
+| TEST-WORKFLOW-SUITE | tools/architecture/v2-workflow.tests.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama\tools\architecture\v2-workflow.tests.ps1" | NO_SELECTOR | N/A:full-suite invocation has no test selector |
+| TEST-HANDOFF-SUITE | tools/architecture/v2-handoff-lint.tests.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama\tools\architecture\v2-handoff-lint.tests.ps1" | NO_SELECTOR | N/A:full-suite invocation has no test selector |
+| TEST-QA-READY | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-workflow.ps1" -Mode QaReady -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -TasksPath docs/TASKS.md -MemoryIndex "F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md" | NO_SELECTOR | N/A:wrapper delegation has no test selector |
+| TEST-FULL-GATEPLAN | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -Command '$paths=@("app/phone/src/test/java/com/zhangwenkang/cinefin/setup/IdentityIngressContractTest.kt","app/phone/src/test/java/com/zhangwenkang/cinefin/setup/OfflineIdentityCoordinatorTest.kt","data/src/main/java/com/zhangwenkang/cinefin/api/JellyfinApiFactory.kt","data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityContract.kt","data/src/main/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinator.kt","data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityContractTest.kt","data/src/test/java/com/zhangwenkang/cinefin/identity/IdentityWriteCoordinatorTest.kt","docs/TASKS.md","setup/src/main/java/com/zhangwenkang/cinefin/setup/data/SetupRepositoryImpl.kt","setup/src/main/java/com/zhangwenkang/cinefin/setup/data/di/SetupDataModule.kt","setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/OfflineIdentity.kt","setup/src/main/java/com/zhangwenkang/cinefin/setup/domain/SetupRepository.kt","setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/addserver/AddServerViewModel.kt","setup/src/main/java/com/zhangwenkang/cinefin/setup/presentation/users/UsersViewModel.kt"); & "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama\tools\architecture\v2-workflow.ps1" -Mode GatePlan -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama" -ChangedPath $paths -StateEffectMatrixPath "F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-gateplan-entry-recovery-2026-11-08\W1B_1B_STATE_EFFECT_MATRIX.md"' | NO_SELECTOR | N/A:GatePlan uses an explicit path array |
+| TEST-CANDIDATE-GATEPLAN | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama\tools\architecture\v2-workflow.ps1" -Mode GatePlan -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama" -ChangedPath "tools/architecture/v2-workflow.ps1" -ChangedPath "tools/architecture/v2-workflow.tests.ps1" | NO_SELECTOR | N/A:control-plane path list is explicit |
+| TEST-OBJECT-ANCESTRY | docs/TASKS.md | pwsh -NoProfile -Command 'git -C "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama" status --porcelain=v1 --untracked-files=all; git -C "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama" merge-base --is-ancestor ab580afa9aa3b97ec1a98d70ef1da95f5716242d HEAD; git -C "F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-gateplan-entry-recovery-2026-11-08\Aurorama" diff --name-only ab580afa9aa3b97ec1a98d70ef1da95f5716242d...HEAD' | NO_SELECTOR | N/A:object checks are full Git commands |
 <!-- V2_QA_TEST_MATRIX_END -->
 
 <!-- V2_QA_P1_MATRIX_BEGIN -->
 | P1 ID | RED | GREEN | Evidence |
 |---|---|---|---|
-| P1-MGR-REVIEW-01 | FAST Snapshot emitted pwsh.exe as the -File target and exited 64 | GatePlan emits the workflow wrapper; the displayed Snapshot command executes with exit 0; repair suite is 32/0 | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\red-repair-r1.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r1-2026-11-08\executed-fast-snapshot-postcommit.txt |
-| P1-QA-INDEP-01 | ACTIVE non-target duplicate `TASK_ID` and QA non-target duplicate `UNCOVERED` were both accepted with `STATE_UPDATE=PASS / exit 0`; full suite was 33/2 exit 1 | Pre-write ACTIVE/QA single-value key scan rejects the actual block/key with `STATE_KEY_DUPLICATE` and zero writes; legal duplicate `EVIDENCE` / `RETIRED_ROLE` controls pass; full suite is 35/0 and handoff-lint suite is 99/0 | F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r2-2026-11-08\red-full-suite.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r2-2026-11-08\green-full-suite.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v2-workflow-efficiency-repair-r2-2026-11-08\green-handoff-lint-suite.txt |
+| P1-W1B1B-04 | QA R3 reproduced delayed READY snapshot crossing into RECOVERING and stale long-call errors escaping | Coordinator read lease and post-call validation reject stale success/failure/exception/cancellation; QA R4 independently closed the P1 | F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-atomic-generation-conditional-independent-qa-r4-2026-11-08\INDEPENDENT_QA_R4_REPORT.md |
 <!-- V2_QA_P1_MATRIX_END -->
 <!-- V2_QA_READY_END -->
 
