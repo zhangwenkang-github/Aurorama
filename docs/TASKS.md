@@ -7,22 +7,22 @@
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
-- TASK_ID=V2-W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE-2026-11-08
-- TASK_STAGE=W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PENDING
+- TASK_ID=V2-W1B-1-COMBINED-QA-2026-11-09
+- TASK_STAGE=W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1_COMBINED_QA_PENDING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_W1B_1C_OFFLINE_UI_CATALOG_GENERATION_FENCE_MERGE_PREP_OWNER_2026_11_08
+- NEXT_ROLE=AURORAMA_V2_W1B_1_COMBINED_INDEPENDENT_QA_OWNER_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Merge-prep only. Apply the nine validated W1B-1C blobs on canonical 9538dc55, run product gates and produce a ff-only descendant candidate. Do not modify source semantics, docs, matrix, W1B-1B, devices, network, merge into canonical, push, tag or Release. Stop on drift, path expansion or new P0-P2.
-- SCOPE=W1B_1C_MERGE_PREP
-- AUTHORIZATION=W1B_1C_INDEPENDENT_QA_PASS_2026_11_08_MERGE_PREP_ONLY
-- IMPLEMENTATION_AUTHORIZED=NO / MERGE_PREP_ONLY
+- STOP_CONDITION=Combined QA only. Verify W1B-1A/B/C ancestry and the integrated W1B-1 slice on canonical 2e227cbd. Do not modify code/docs/matrix, devices, network, merge-prep or Release. Stop on ancestry/path drift, new P0-P2 or missing evidence.
+- SCOPE=W1B_1_COMBINED_INDEPENDENT_QA
+- AUTHORIZATION=W1B_1_STACK_READY_2026_11_09_COMBINED_QA_ONLY
+- IMPLEMENTATION_AUTHORIZED=NO / COMBINED_QA_ONLY
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_08
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=W1B_1C_MERGE_PREP
-- last_evidence=W1B_1C_INDEPENDENT_QA_PASS; CANDIDATE=00b3360fe1d938299e88ca1ec7128f3f289d95d6; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-independent-qa-2026-11-08\INDEPENDENT_QA_REPORT.md
+- NEXT_CRITICAL_PATH=W1B_1_COMBINED_INDEPENDENT_QA
+- last_evidence=W1B_1C_MERGE_PREP_PASS_AND_LOCAL_INTEGRATED; FINAL_HEAD=2e227cbdf448579451c15e42fe9bca48448b3f64; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-merge-prep-2026-11-08\MERGE_PREP_REPORT.md
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -156,20 +156,11 @@
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=3bcf3027521b3d9431cf8802d02d466a7af50679
-- REQUIRED_ANCESTOR=3bcf3027521b3d9431cf8802d02d466a7af50679
+- BASE_HEAD=2e227cbdf448579451c15e42fe9bca48448b3f64
+- REQUIRED_ANCESTOR=2e227cbdf448579451c15e42fe9bca48448b3f64
 - FAILED_CANDIDATE=NONE
-- MAX_CHANGED_PATHS=10
+- MAX_CHANGED_PATHS=1
 - ALLOWED_PATH=docs/TASKS.md
-- ALLOWED_PATH=settings/src/main/java/com/zhangwenkang/cinefin/settings/presentation/settings/SettingsViewModel.kt
-- ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/offline/OfflineModeViewModel.kt
-- ALLOWED_PATH=data/src/main/java/com/zhangwenkang/cinefin/repository/catalog/CatalogReadPort.kt
-- ALLOWED_PATH=data/src/main/java/com/zhangwenkang/cinefin/di/CatalogReadModule.kt
-- ALLOWED_PATH=data/src/test/java/com/zhangwenkang/cinefin/repository/CatalogReadPortContractTest.kt
-- ALLOWED_PATH=data/src/test/java/com/zhangwenkang/cinefin/repository/JellyfinRepositorySearchItemsDispatcherTest.kt
-- ALLOWED_PATH=modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchCatalogConsumerTest.kt
-- ALLOWED_PATH=modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/search/SearchSessionTest.kt
-- ALLOWED_PATH=app/phone/src/test/java/com/zhangwenkang/cinefin/presentation/search/SearchViewModelTest.kt
 <!-- V2_HANDOFF_OBJECT_END -->
 
 ### HISTORY — W1B-1B product merge-prep PASS / local ff-only integrated（2026-11-08）
@@ -192,6 +183,20 @@
   `IdentityModule` binding 已在 1B 集成，不重建。1C 不授权 W1B-2、设备、网络、独立 QA、
   merge-prep、integration 或 Release。证据：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1b-atomic-generation-conditional-merge-prep-2026-11-08\MERGE_PREP_REPORT.md`。
+
+### HISTORY — W1B-1C independent QA PASS / merge-prep PASS / local ff-only integrated（2026-11-08）
+
+- W1B-1C implementation `00b3360fe1d938299e88ca1ec7128f3f289d95d6` 在 de-duplicated
+  4 production + 5 test 白名单上通过 implementation；fresh independent QA 判
+  `INDEPENDENT_QA_STATUS=PASS`，P0–P3 `0/0/0/0`。source 旧 docs 未覆盖 canonical。
+- merge-prep 从 canonical checkpoint 生成 `2e227cbdf448579451c15e42fe9bca48448b3f64`，
+  target 为直接父提交；target..final 恰好 9 paths，9/9 blob 与 patch-id MATCH；
+  GatePlan FULL、data `326/0`、film `156/0`、app/phone `451/0`、assemble、ktfmt、
+  A0 与 diff-check 均 PASS。
+- Delivery lead 已本地 `ff-only` 接入 canonical；这证明
+  `W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED`，
+  不证明 W1B-1、父 seam、runtime、产品或 Release PASS。证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-merge-prep-2026-11-08\MERGE_PREP_REPORT.md`。
 
 ### HISTORY — Post-workflow W1B resume approved（2026-11-08）
 
@@ -617,11 +622,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=NO
-- UNCOVERED=W1B-1C independent QA PASS covers the nine-path static unit candidate only. W1B-1 combined gate, W1B-2, parent seam, runtime, devices and Release remain unassessed.
-- STOP_CONDITION=Do not restart implementation or QA. Next stage is fresh W1B-1C merge-prep only; no device, network, canonical merge or Release.
-- MANUAL_LIMITATION=W1B-1C QA passed under local JVM/static gates; device/runtime evidence remains N/A.
-- MANUAL_OWNER=AURORAMA_V2_W1B_1C_OFFLINE_UI_CATALOG_GENERATION_FENCE_MERGE_PREP_OWNER_2026_11_08
+- QA_READY=YES
+- UNCOVERED=W1B-1A/B/C are integrated but W1B-1 combined QA and combined merge gate are pending. W1B-2, parent seam, runtime, devices and Release remain unassessed.
+- STOP_CONDITION=Combined QA may read and execute canonical W1B-1 stack only. Any ancestry, path, suite, build, A0 or GatePlan failure stops. Do not modify code/docs/matrix, devices, network, merge-prep or Release.
+- MANUAL_LIMITATION=Combined W1B-1 QA is local static/JVM verification; device/runtime evidence is N/A under the task card.
+- MANUAL_OWNER=AURORAMA_V2_W1B_1_COMBINED_INDEPENDENT_QA_OWNER_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -702,7 +707,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=IMPLEMENTATION_R2_AUTHORIZED / OBJECT_CARD_DEDUPLICATED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A 与 W1B-1B 已独立 QA + merge-prep + integrated；下一 implementation 入口为 W1B-1C R2（9 paths） | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | W1B-1C R2 implementation -> fresh independent QA -> fresh merge-prep -> W1B-1 combined gate | W1B-1A/B 已完成；1C 的 settings/offline 写入口与 CatalogScope generation fence 未实现；W1B-2 startup hydration、Room-global API 与父 seam 仍未完成 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1_COMBINED_QA_PENDING / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C 均已各自独立 QA + merge-prep + integrated；下一门为全新 combined QA | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | W1B-1 combined QA -> combined merge-prep -> final W1B-1 gate | 1A/B/C 已集成；combined QA、W1B-1 全栈门、W1B-2 startup hydration、Room-global API 与父 seam 仍未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -1318,7 +1323,8 @@ git -C $repoRoot diff --check
   `V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`；W1A P3 cleanup 的两项 CLOSED 语义不得回退。
 - 当前子波 tokens：`W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED`、
   `W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED`、
-  `W1B_1C=IMPLEMENTATION_R2_AUTHORIZED / OBJECT_CARD_DEDUPLICATED`、
+  `W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED`、
+  `W1B_1=COMBINED_QA_PENDING`、
   `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；
   `W1B_1A_REPAIR=COMPLETE / INTEGRATED`、`W1B_1=NOT_COMPLETE`、
   `OLD_PATH_REMOVED_OR_NO_DUAL_TRUTH=NOT_SATISFIED`。
@@ -1495,8 +1501,8 @@ client 失败不得改变 canonical 或全局 API。`IdentityIngressContractTest
 ##### `W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE`
 
 - 前置：`W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS /
-  LOCALLY_FF_ONLY_INTEGRATED`；当前状态为 `W1B_1C=IMPLEMENTATION_R2_AUTHORIZED /
-  OBJECT_CARD_DEDUPLICATED`。只能创建独立 fresh 1C R2 owner / branch，不得与 1B 合并为一个 owner。
+  LOCALLY_FF_ONLY_INTEGRATED`；当前状态为 `W1B_1C=INDEPENDENT_QA_PASS /
+  MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED`。下一门为 full W1B-1 combined QA。
 - 独立用户可观察结果：用户在设置页切 online / offline 或重新选择账号后，W1A 搜索只能
   使用新 principal context / identity generation；旧 snapshot 和 completed marker 不
   落地；settings / offline UI 不再直接写 preference。
@@ -1539,7 +1545,7 @@ W1B-1 stack 后，manager 必须另派全新 combined independent QA，复核三
 |---|---|---|---|---|
 | 1A 已集成 | canonical contract / store / coordinator / DI + Servers current-server selection | auth / Add Server / offline UI、catalog generation、API candidate、旧 Setup selection method | `W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED` | W1B-1 integrated、global single writer complete |
 | 1B 已集成 | Setup auth / candidate ingress / saved-user / server bootstrap + identity generation fence | settings / offline UI、W1A catalog generation | `W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED` | W1B-1、父 seam、runtime、产品或 Release PASS |
-| 1C 当前 | offline / settings ingress + W1A generation fence；复用已集成的 port / binding | app startup hydration / shell / drawer | `W1B_1C=IMPLEMENTATION_R2_AUTHORIZED / OBJECT_CARD_DEDUPLICATED` | implementation PASS、QA PASS、W1B-1 PASS |
+| 1C 已集成 | offline / settings ingress + W1A generation fence；复用已集成的 port / binding | app startup hydration / shell / drawer | `W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED` | W1B-1 combined gate、父 seam、runtime、产品或 Release PASS |
 | W1B-1 closeout | 1A + 1B + 1C + combined QA / merge-prep / root integration | W1B-2 startup recovery | `W1B_1=PASS / INTEGRATED`；slice `OLD_PATH...=PASS` | 父 seam / W1 / 产品 PASS |
 
 ##### `W1B-2-STARTUP-HYDRATION-AND-RECOVERY`
