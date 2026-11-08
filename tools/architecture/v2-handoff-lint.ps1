@@ -526,13 +526,10 @@ function Test-StableDocuments {
         DYNAMIC_STATE_SOURCE = 'docs/TASKS.md'
         CURRENT_STATE_IN_THIS_FILE = 'NONE'
     }
-    $controlledAssignmentPattern = '(?i)\b(?<token>NEXT_ROLE|NEXT_PATH|CODE_INTEGRATION_HEAD|CONTROL_PLANE_HEAD_INPUT|CONTEXT_WATERMARK)\s*='
-    $currentHeadingPattern = '(?i)\b(?:CURRENT(?:_|\s+)?STATE|ACTIVE)\b'
-    $datedHistoryPattern = '(?i)^\s*20\d{2}-\d{2}-\d{2}\b.*\b(?:HISTORY|SNAPSHOT|AUDIT)\b'
-    $historyLabel = -join ([int[]]@(0x5386, 0x53F2) | ForEach-Object { [char]$_ })
-    $progressLogLabel = -join ([int[]]@(0x8FDB, 0x5EA6, 0x65E5, 0x5FD7) | ForEach-Object { [char]$_ })
-    $currentLabel = -join ([int[]]@(0x5F53, 0x524D) | ForEach-Object { [char]$_ })
-    $auditFencePattern = '(?i)^(?:text[ \t]+)?AUDIT_STABLE_DOC_STATE$'
+    # Mechanical scope is any exact listed dynamic token followed by '=' anywhere in a stable
+    # document, including headings, HISTORY, fenced examples and pointer blocks. Ordinary prose
+    # without such an assignment remains a manual review case and is not semantically classified.
+    $fixedDynamicAssignmentPattern = '(?i)(?<token>CURRENT_HEAD|DOCS_COMMIT|HANDOFF_BASE_HEAD|DOCS_CANDIDATE_PARENT|CONTROL_PLANE_HEAD_INPUT|CODE_INTEGRATION_HEAD|NEXT_ROLE|NEXT_PATH|NEXT_CRITICAL_PATH|CONTEXT_WATERMARK|CANDIDATE_SIZE|CANDIDATE_TEST_COUNT|CANDIDATE_TEST_RESULTS|HANDOFF_REQUIRED|COMPACTION_COUNT)[ \t]*='
 
     foreach ($relativePath in $stableDocuments) {
         $documentPath = Join-Path $Root $relativePath
@@ -559,6 +556,13 @@ function Test-StableDocuments {
                 Add-Failure -Code 'ACTIVE_HEADING_OUTSIDE_TASKS' -Subject $relativePath `
                     -Detail $heading.Value
             }
+        }
+
+        foreach ($assignment in [regex]::Matches($text, $fixedDynamicAssignmentPattern)) {
+            $tokenName = $assignment.Groups['token'].Value.ToUpperInvariant()
+            $lineNumber = ($text.Substring(0, $assignment.Index) -split "`n").Count
+            Add-Failure -Code 'STABLE_DOC_CURRENT_STATE_TOKEN' `
+                -Subject $relativePath -Detail "line=$lineNumber token=$tokenName"
         }
 
         $beginCount = Get-MarkerCount -Text $text -Marker $beginMarker
@@ -607,14 +611,6 @@ function Test-StableDocuments {
             }
         }
 
-        $forbiddenAssignments = [regex]::Matches(
-            $pointerBlock,
-            '(?im)^[ \t]*(?:>[ \t]*)?(?:[-*][ \t]+)?(?:NEXT_ROLE|NEXT_PATH|CONTEXT_WATERMARK|CODE_INTEGRATION_HEAD|CONTROL_PLANE_HEAD_INPUT)[ \t]*='
-        )
-        if ($forbiddenAssignments.Count -gt 0) {
-            Add-Failure -Code 'STABLE_DOC_CURRENT_STATE_TOKEN' -Subject $relativePath `
-                -Detail (($forbiddenAssignments | ForEach-Object { $_.Value.Trim() }) -join '; ')
-        }
         $shaMatches = [regex]::Matches(
             $pointerBlock,
             '(?i)(?<![0-9a-f])(?:[0-9a-f]{64}|[0-9a-f]{40})(?![0-9a-f])'
@@ -624,101 +620,6 @@ function Test-StableDocuments {
                 -Detail 'pointer block contains a 40/64-hex SHA'
         }
 
-        $lineNumber = 0
-        $headingStack = [System.Collections.Generic.List[string]]::new()
-        $inPointerBlock = $false
-        $fenceCharacter = ''
-        $fenceLength = 0
-        $auditFence = $false
-        foreach ($line in ($text -split "`n")) {
-            $lineNumber++
-            if ($line.Contains($beginMarker)) {
-                $inPointerBlock = $true
-                continue
-            }
-            if ($line.Contains($endMarker)) {
-                $inPointerBlock = $false
-                continue
-            }
-            if ($inPointerBlock) {
-                continue
-            }
-
-            if ($fenceCharacter -ne '') {
-                $trimmedLine = $line.Trim()
-                $closePattern = '^' + [regex]::Escape($fenceCharacter) +
-                    '{' + $fenceLength + ',}$'
-                if ($trimmedLine -match $closePattern) {
-                    $fenceCharacter = ''
-                    $fenceLength = 0
-                    $auditFence = $false
-                    continue
-                }
-            }
-            else {
-                $fenceMatch = [regex]::Match(
-                    $line,
-                    '^[ \t]*(?<fence>`{3,}|~{3,})(?<info>.*)$'
-                )
-                if ($fenceMatch.Success) {
-                    $fenceRun = $fenceMatch.Groups['fence'].Value
-                    $fenceCharacter = $fenceRun.Substring(0, 1)
-                    $fenceLength = $fenceRun.Length
-                    $auditFence = $fenceMatch.Groups['info'].Value.Trim() -match $auditFencePattern
-                    continue
-                }
-
-                $headingMatch = [regex]::Match(
-                    $line,
-                    '^(?<marks>#{1,6})[ \t]+(?<title>.+?)[ \t]*#*[ \t]*$'
-                )
-                if ($headingMatch.Success) {
-                    $level = $headingMatch.Groups['marks'].Value.Length
-                    while ($headingStack.Count -ge $level) {
-                        $headingStack.RemoveAt($headingStack.Count - 1)
-                    }
-                    while ($headingStack.Count -lt ($level - 1)) {
-                        $headingStack.Add('')
-                    }
-                    $headingStack.Add($headingMatch.Groups['title'].Value.Trim())
-                    continue
-                }
-            }
-
-            if ($line -notmatch $controlledAssignmentPattern) {
-                continue
-            }
-
-            $historyContext = $false
-            $currentContext = $false
-            foreach ($headingText in $headingStack) {
-                if ([string]::IsNullOrWhiteSpace($headingText)) {
-                    continue
-                }
-                if ($headingText -match '(?i)\bHISTORY\b' -or
-                    $headingText.Contains($historyLabel, [System.StringComparison]::Ordinal) -or
-                    $headingText.Contains($progressLogLabel, [System.StringComparison]::Ordinal) -or
-                    $headingText -match $datedHistoryPattern) {
-                    $historyContext = $true
-                }
-                elseif ($headingText -match $currentHeadingPattern -or
-                    $headingText.Contains($currentLabel, [System.StringComparison]::Ordinal)) {
-                    $currentContext = $true
-                }
-            }
-
-            if ($auditFence -and -not $currentContext) {
-                continue
-            }
-            if ($historyContext -and -not $currentContext) {
-                continue
-            }
-
-            $assignment = [regex]::Match($line, $controlledAssignmentPattern)
-            $tokenName = $assignment.Groups['token'].Value.ToUpperInvariant()
-            Add-Failure -Code 'STABLE_DOC_CURRENT_STATE_OUTSIDE_HISTORY' `
-                -Subject $relativePath -Detail "line=$lineNumber token=$tokenName"
-        }
     }
 }
 

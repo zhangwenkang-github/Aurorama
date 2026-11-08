@@ -6661,8 +6661,7 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   REPAIR_AUTHORIZATION=NO_SCOPE_DECISION_REQUIRED`；
   当时 1B 因 1A 未收口而锁定，1C/2 依次锁定。父 seam 保持
   `CONTRACT_FROZEN / IN_PROGRESS`，`V2-NON-TTS-W1=BLOCKED_BY_PREREQUISITES`。
-  `NEXT_CRITICAL_PATH=W1B-1A-INDEPENDENT-QA-P1-P2-REPAIR-SCOPE-DECISION`；下一步必须
-  先由用户 / 负责人明确 repair scope。未获 scope 前不得修复、扩第 11 文件、猜
+  当时的下一步是等待用户 / 负责人明确 repair scope；未获 scope 前不得修复、扩第 11 文件、猜
   `SetupRepository` 接口或真实存储事务策略，也不得 merge-prep / integration。本波只改
   文档，不运行 Gradle / ADB / 网络 / 设备 / QA，不触碰生产源码、Gradle、baseline、
   DECISIONS、PROJECT_PLAN 或 Release。
@@ -6682,8 +6681,8 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `testImplementation("io.mockk:mockk:1.13.16")`，全部 Gradle `--offline`；网络未授权。
   P3 `SearchViewModelTest` 明确排除出本次 repair，保留独立稳定性治理；Q6 旧投影失败 /
   取消 / 异步晚提交下的中间 generation / 兼容键仍 `NOT_PROVEN`，必须由 repair 测试与后续
-  独立 QA 补证。`NEXT_CRITICAL_PATH=W1B-1A-QA-REPAIR-INDEPENDENT-QA`；repair owner
-  自检收口后另派全新独立 QA，PASS 前不得 merge-prep、integration 或启动 1B。
+  独立 QA 补证。repair owner 自检收口后另派全新独立 QA，PASS 前不得 merge-prep、
+  integration 或启动 1B；精确动态状态见 `docs/TASKS.md` HISTORY、Git 与 evidence。
   当时 1B/1C/2 依次锁定。本波只改文档，不运行 Gradle / ADB / 网络 / 设备 / QA，
   不触碰生产源码、Gradle、baseline、DECISIONS、PROJECT_PLAN 或 Release。
 - **2026-11-07 — W1B-1A independent QA PASS / merge-prep PASS / ff-only integrated
@@ -6709,8 +6708,8 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `W1B_1A_REPAIR=COMPLETE / INTEGRATED`、
   `W1B_1B=HANDOFF_READY / IMPLEMENTATION_NOT_STARTED / CODE_DELTA=0`、
   `W1B_1C=BLOCKED_BY_W1B_1B`、`W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`；
-  `NEXT_CRITICAL_PATH=W1B-1B-SETUP-AUTH-API-CANDIDATE-INGRESS`。下一角色为 fresh
-  session / agent 中的
+  当时下一实现入口为 W1B-1B setup / auth / API candidate ingress；精确角色、路径与
+  动态状态见 `docs/TASKS.md` HISTORY、Git 与 evidence。下一角色为 fresh session / agent 中的
   `AURORAMA_V2_W1B_1B_SETUP_AUTH_API_CANDIDATE_INGRESS_IMPLEMENTATION_OWNER_2026_11_07`；
   第一条只读动作核对最终 control clean HEAD、W1B-1B worktree / branch / HEAD
   `c72fcce6`、W1B 任务卡与 1A QA / merge evidence。
@@ -6729,13 +6728,10 @@ QA、服务器写或发布；下载需求未整包确认前不得报收口。
   `F:\Develop\code_data\work_tree\Aurorama\v2-w1b-1b-setup-auth-api-candidate-ingress\Aurorama`
   的 branch `codex/v2-w1b-1b-setup-auth-api-candidate-ingress` 与 base
   `c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a` 已只读核对 clean；
-  `W1B_1B_PREVIOUS_OWNER=INTERRUPTED_BEFORE_EDIT / NO_CHANGES`。
-  `CONTROL_PLANE_HEAD_INPUT=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`，
-  `CODE_INTEGRATION_HEAD=7a2f1716a7325cf22dd8d923741c37d317ab97ca`，
-  `HANDOFF_BASE_HEAD=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`，
-  `DOCS_CANDIDATE_PARENT=c72fcce6d28d511d3f1cde2c90392a9cf51b0a3a`。
-  `CONTEXT_WATERMARK=416429/1048576 39.7% / HANDOFF_REQUIRED=YES /
-  COMPACTION_COUNT=0`。W1B-1B 冻结写域仍为 production 7 / test 4，精确路径见
+  `W1B_1B_PREVIOUS_OWNER=INTERRUPTED_BEFORE_EDIT / NO_CHANGES`。当时的控制面、
+  integration、handoff、candidate parent、上下文水位与 compaction 细节只作审计输入；
+  精确 SHA、状态、路径与交给下一角色的值见 `docs/TASKS.md` HISTORY、Git 与 evidence，
+  本稳定文档不再复制赋值。W1B-1B 冻结写域仍为 production 7 / test 4，精确路径见
   `docs/TASKS.md`；`W1B_1C=BLOCKED_BY_W1B_1B`，
   `W1B_2=BLOCKED_BY_W1B_1_CLOSEOUT`，父 seam 仍
   `CONTRACT_FROZEN / IN_PROGRESS`。本交接不表示 1B 已开始、QA、integrated 或

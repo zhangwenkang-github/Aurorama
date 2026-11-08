@@ -281,6 +281,26 @@ P1/P2, next role/path and stop condition are owned by docs/TASKS.md.
 "@
 }
 
+function Get-DynamicStateTokenNames {
+    return @(
+        'CURRENT_HEAD'
+        'DOCS_COMMIT'
+        'HANDOFF_BASE_HEAD'
+        'DOCS_CANDIDATE_PARENT'
+        'CONTROL_PLANE_HEAD_INPUT'
+        'CODE_INTEGRATION_HEAD'
+        'NEXT_ROLE'
+        'NEXT_PATH'
+        'NEXT_CRITICAL_PATH'
+        'CONTEXT_WATERMARK'
+        'CANDIDATE_SIZE'
+        'CANDIDATE_TEST_COUNT'
+        'CANDIDATE_TEST_RESULTS'
+        'HANDOFF_REQUIRED'
+        'COMPACTION_COUNT'
+    )
+}
+
 function New-Fixture {
     param(
         [ValidateSet('Legacy', 'Stable')]
@@ -466,6 +486,10 @@ function Remove-ReparsePointFixture {
     Remove-Item -LiteralPath $Path -Force
 }
 
+# Fixed dynamic-token assignments are mechanical everywhere in a stable document: headings,
+# blockquotes, HISTORY, audit fences and pointer blocks receive no exception. Ordinary prose
+# that carries no listed assignment remains a manual review case and is not semantically
+# classified by these fixtures.
 Invoke-FixtureTest -Name 'positive fixture passes Handoff and QaReady' -Body {
     $fixture = New-Fixture
     try {
@@ -493,6 +517,25 @@ Invoke-FixtureTest -Name 'stable doc PROJECT_PLAN missing pointer fails Handoff'
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
         Assert-ExitCode -Result $result -Expected 2
         Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_POINTER_MISSING:docs/PROJECT_PLAN.md'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc deterministic token reported when pointer missing' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = "# Missing pointer`n- NEXT_ROLE=STALE_OWNER`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:STABLE_DOC_POINTER_MISSING:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_ROLE'
     }
     finally {
         Remove-Fixture -Fixture $fixture
@@ -680,7 +723,7 @@ Invoke-FixtureTest -Name 'stable doc plain current handoff block fails Handoff' 
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
         Assert-ExitCode -Result $result -Expected 2
         Assert-ContainsToken -Result $result `
-            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_OUTSIDE_HISTORY:docs/PROJECT_PLAN.md'
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
     }
     finally {
         Remove-Fixture -Fixture $fixture
@@ -698,7 +741,7 @@ Invoke-FixtureTest -Name 'stable doc CURRENT_STATE heading token fails Handoff' 
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
         Assert-ExitCode -Result $result -Expected 2
         Assert-ContainsToken -Result $result `
-            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_OUTSIDE_HISTORY:docs/PROJECT_PLAN.md'
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
     }
     finally {
         Remove-Fixture -Fixture $fixture
@@ -717,23 +760,17 @@ Invoke-FixtureTest -Name 'stable doc ACTIVE heading token fails Handoff' -Body {
         Assert-ExitCode -Result $result -Expected 2
         Assert-ContainsToken -Result $result -Token 'FAIL:ACTIVE_HEADING_OUTSIDE_TASKS:docs/PROJECT_PLAN.md'
         Assert-ContainsToken -Result $result `
-            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_OUTSIDE_HISTORY:docs/PROJECT_PLAN.md'
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
     }
     finally {
         Remove-Fixture -Fixture $fixture
     }
 }
 
-Invoke-FixtureTest -Name 'stable doc all controlled tokens in ordinary section fail Handoff' -Body {
+Invoke-FixtureTest -Name 'stable doc all fixed dynamic assignments in ordinary section fail Handoff' -Body {
     $fixture = New-Fixture -PathSet Stable
     try {
-        foreach ($token in @(
-            'NEXT_ROLE'
-            'NEXT_PATH'
-            'CODE_INTEGRATION_HEAD'
-            'CONTROL_PLANE_HEAD_INPUT'
-            'CONTEXT_WATERMARK'
-        )) {
+        foreach ($token in (Get-DynamicStateTokenNames)) {
             $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
                 "`n## Operational notes`n- $token=STALE_VALUE`n"
             $newHead = Update-RepoFileAndCommit -Fixture $fixture `
@@ -742,7 +779,7 @@ Invoke-FixtureTest -Name 'stable doc all controlled tokens in ordinary section f
                 -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
             Assert-ExitCode -Result $result -Expected 2
             Assert-ContainsToken -Result $result `
-                -Token 'FAIL:STABLE_DOC_CURRENT_STATE_OUTSIDE_HISTORY:docs/PROJECT_PLAN.md'
+                -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
             Assert-ContainsToken -Result $result -Token "token=$token"
         }
     }
@@ -751,16 +788,10 @@ Invoke-FixtureTest -Name 'stable doc all controlled tokens in ordinary section f
     }
 }
 
-Invoke-FixtureTest -Name 'stable doc pointer controlled tokens all fail Handoff' -Body {
+Invoke-FixtureTest -Name 'stable doc pointer fixed dynamic assignments all fail Handoff' -Body {
     $fixture = New-Fixture -PathSet Stable
     try {
-        foreach ($token in @(
-            'NEXT_ROLE'
-            'NEXT_PATH'
-            'CODE_INTEGRATION_HEAD'
-            'CONTROL_PLANE_HEAD_INPUT'
-            'CONTEXT_WATERMARK'
-        )) {
+        foreach ($token in (Get-DynamicStateTokenNames)) {
             $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md').Replace(
                 '- CURRENT_STATE_IN_THIS_FILE=NONE',
                 "- CURRENT_STATE_IN_THIS_FILE=NONE`n- $token=STALE_VALUE"
@@ -780,7 +811,7 @@ Invoke-FixtureTest -Name 'stable doc pointer controlled tokens all fail Handoff'
     }
 }
 
-Invoke-FixtureTest -Name 'stable doc HISTORY fixed tokens and SHA pass Handoff' -Body {
+Invoke-FixtureTest -Name 'stable doc HISTORY fixed dynamic assignments fail Handoff' -Body {
     $fixture = New-Fixture -PathSet Stable
     try {
         $block = @"
@@ -797,15 +828,17 @@ Invoke-FixtureTest -Name 'stable doc HISTORY fixed tokens and SHA pass Handoff' 
             -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
         $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
-        Assert-ExitCode -Result $result -Expected 0
-        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_ROLE'
     }
     finally {
         Remove-Fixture -Fixture $fixture
     }
 }
 
-Invoke-FixtureTest -Name 'stable doc explicit audit block tokens pass Handoff' -Body {
+Invoke-FixtureTest -Name 'stable doc explicit audit block assignments fail Handoff' -Body {
     $fixture = New-Fixture -PathSet Stable
     try {
         $block = @'
@@ -825,8 +858,179 @@ Invoke-FixtureTest -Name 'stable doc explicit audit block tokens pass Handoff' -
             -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
         $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
-        Assert-ExitCode -Result $result -Expected 0
-        Assert-ContainsToken -Result $result -Token 'HANDOFF_LINT=PASS'
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_ROLE'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc deterministic token detects same-line current heading assignment' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n## CURRENT_STATE NEXT_ROLE=STALE_CURRENT_OWNER`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_ROLE'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc deterministic token detects setext heading assignment' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $block = @'
+
+CURRENT_STATE
+=============
+
+```text AUDIT_STABLE_DOC_STATE
+NEXT_ROLE=STALE_SETEXT_OWNER
+```
+'@
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') + $block
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_ROLE'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc deterministic token detects indented heading assignment' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $block = @'
+
+  ## CURRENT_STATE
+
+```text AUDIT_STABLE_DOC_STATE
+NEXT_ROLE=STALE_INDENTED_OWNER
+```
+'@
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') + $block
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_ROLE'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc deterministic token detects blockquote heading assignment' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $block = @'
+
+> ## CURRENT_STATE
+
+```text AUDIT_STABLE_DOC_STATE
+NEXT_ROLE=STALE_BLOCKQUOTE_OWNER
+```
+'@
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') + $block
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_ROLE'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc deterministic token detects CURRENT_STATE synthetic heading assignment' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $block = @'
+
+## CURRENT_STATE_SYNTHETIC
+
+```text AUDIT_STABLE_DOC_STATE
+NEXT_ROLE=STALE_CURRENT_SYNTHETIC_OWNER
+```
+'@
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') + $block
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_ROLE'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc deterministic token detects PRE_ACTIVE synthetic heading assignment' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $block = @'
+
+## PRE_ACTIVE_SYNTHETIC
+
+```text AUDIT_STABLE_DOC_STATE
+NEXT_ROLE=STALE_PRE_ACTIVE_SYNTHETIC_OWNER
+```
+'@
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') + $block
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_ROLE'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'stable doc deterministic token detects mixed-case prefixed assignment' -Body {
+    $fixture = New-Fixture -PathSet Stable
+    try {
+        $mutated = (Get-StableDocText -RelativePath 'docs/PROJECT_PLAN.md') +
+            "`n## Stable notes`n- PREFIX_nExT_cRiTiCaL_pAtH   =   STALE_VALUE_SUFFIX`n"
+        $newHead = Update-RepoFileAndCommit -Fixture $fixture `
+            -RelativePath 'docs/PROJECT_PLAN.md' -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result `
+            -Token 'FAIL:STABLE_DOC_CURRENT_STATE_TOKEN:docs/PROJECT_PLAN.md'
+        Assert-ContainsToken -Result $result -Token 'token=NEXT_CRITICAL_PATH'
     }
     finally {
         Remove-Fixture -Fixture $fixture
