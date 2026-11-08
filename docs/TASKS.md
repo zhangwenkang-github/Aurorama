@@ -8,21 +8,21 @@
 ### ACTIVE — V2-WORKFLOW-EFFICIENCY-2026-11-08
 
 - TASK_ID=V2-W1B-1C-OFFLINE-UI-CATALOG-GENERATION-FENCE-2026-11-08
-- TASK_STAGE=W1B_1C_IMPLEMENTATION_PASS_PENDING_INDEPENDENT_QA
+- TASK_STAGE=W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PENDING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS.md > docs/PROJECT_RULES.md R020/R028/R033/R034/R035/R036/R037/R038/R039/R040 > docs/TASKS.md ACTIVE > docs/LESSONS.md L028/L038/L039/L040/L041/L042/L043 > repository-external plan workflow-efficiency-2026-11-08 > tools/architecture/v2-workflow.ps1 > tools/architecture/v2-workflow.tests.ps1 > tools/architecture/v2-handoff-lint.ps1 > tools/architecture/v2-handoff-lint.tests.ps1
-- NEXT_ROLE=AURORAMA_V2_W1B_1C_OFFLINE_UI_CATALOG_GENERATION_FENCE_INDEPENDENT_QA_OWNER_2026_11_08
+- NEXT_ROLE=AURORAMA_V2_W1B_1C_OFFLINE_UI_CATALOG_GENERATION_FENCE_MERGE_PREP_OWNER_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=Independent QA only. Do not modify code, docs product semantics or matrix. Verify candidate 00b3360fe1d938299e88ca1ec7128f3f289d95d6, 9 paths, RED/GREEN and all gates. Stop on drift, path expansion, new P0-P2, device/network, merge-prep or Release.
-- SCOPE=W1B_1C_INDEPENDENT_QA
-- AUTHORIZATION=W1B_1C_IMPLEMENTATION_PASS_2026_11_08_QA_ONLY
-- IMPLEMENTATION_AUTHORIZED=NO / QA_ONLY
+- STOP_CONDITION=Merge-prep only. Apply the nine validated W1B-1C blobs on canonical 9538dc55, run product gates and produce a ff-only descendant candidate. Do not modify source semantics, docs, matrix, W1B-1B, devices, network, merge into canonical, push, tag or Release. Stop on drift, path expansion or new P0-P2.
+- SCOPE=W1B_1C_MERGE_PREP
+- AUTHORIZATION=W1B_1C_INDEPENDENT_QA_PASS_2026_11_08_MERGE_PREP_ONLY
+- IMPLEMENTATION_AUTHORIZED=NO / MERGE_PREP_ONLY
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_08
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\findings.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\.planning\workflow-efficiency-2026-11-08\progress.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=W1B_1C_INDEPENDENT_QA
-- last_evidence=W1B_1C_IMPLEMENTATION_PASS_PENDING_QA; FINAL_HEAD=00b3360fe1d938299e88ca1ec7128f3f289d95d6; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-implementation-r2-2026-11-08\IMPLEMENTATION_REPORT.md
+- NEXT_CRITICAL_PATH=W1B_1C_MERGE_PREP
+- last_evidence=W1B_1C_INDEPENDENT_QA_PASS; CANDIDATE=00b3360fe1d938299e88ca1ec7128f3f289d95d6; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-w1b-1c-offline-ui-catalog-generation-fence-independent-qa-2026-11-08\INDEPENDENT_QA_REPORT.md
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -617,11 +617,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### QA_READY — 控制面候选
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=YES
-- UNCOVERED=W1B-1C implementation candidate is ready for independent QA on nine paths. W1B-1B is integrated; W1B-1 combined gate, W1B-2, parent seam, runtime, devices and Release remain unassessed.
-- STOP_CONDITION=QA may read and execute the frozen W1B-1C candidate only. Any nonzero object, QaReady, RED/GREEN, full suite, assemble, ktfmt, A0 or GatePlan gate stops. Do not modify code, docs, matrix, W1B-1B semantics, devices, network, merge-prep or Release.
-- MANUAL_LIMITATION=W1B-1C QA is local static/unit verification only; device/runtime evidence is N/A because this task card does not authorize devices.
-- MANUAL_OWNER=AURORAMA_V2_W1B_1C_OFFLINE_UI_CATALOG_GENERATION_FENCE_INDEPENDENT_QA_OWNER_2026_11_08
+- QA_READY=NO
+- UNCOVERED=W1B-1C independent QA PASS covers the nine-path static unit candidate only. W1B-1 combined gate, W1B-2, parent seam, runtime, devices and Release remain unassessed.
+- STOP_CONDITION=Do not restart implementation or QA. Next stage is fresh W1B-1C merge-prep only; no device, network, canonical merge or Release.
+- MANUAL_LIMITATION=W1B-1C QA passed under local JVM/static gates; device/runtime evidence remains N/A.
+- MANUAL_OWNER=AURORAMA_V2_W1B_1C_OFFLINE_UI_CATALOG_GENERATION_FENCE_MERGE_PREP_OWNER_2026_11_08
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
