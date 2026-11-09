@@ -5419,3 +5419,47 @@ K60 `8e875894` 零针对性命令；截图 0 / `view_image` 未使用。
 和 independent QA R2。R2 仍不能执行适用核心行、或再次出现同一安装 harness 失败时，停止
 自动化安装尝试并交用户处理设备“USB 安装”身份门；不得 merge-prep、integration、Release
 或把本地全绿写成用户旅程 PASS。
+
+### 52.15 A 簇 independent QA R2 安全停止（2026-11-10）
+
+**状态**：`QA_INSTALL_HARNESS_REPAIR_R1=PASS / CANDIDATE_DEBUG_INSTALLED=YES /`
+`INDEPENDENT_QA_R2=FAIL / PLAYER_CORE_MATRIX_RESULT=FAIL /`
+`BLOCKED_SECURITY_STOP_AFTER_SECRET_VALUE_IN_TOOL_STREAM / CORE_NOT_COMPLETE`。
+
+harness repair R1 只修复 QA evidence 根内的 MIUI `AdbInstallActivity` bounds 解析：四个坐标
+先转换为整数再计算中心。无设备 fixture、真实安装一次和安装后对象门均 PASS；候选 debug APK
+SHA `30241F412EC305E7ACD2BE71CA3E0AB2CD650E3444B0351E89967899FA362B68`
+与 Pad 侧 installed base SHA MATCH，App 未启动。该结论只关闭安装 harness 阻塞，不是产品 QA。
+
+fresh QA R2 首动作自行通过 QaReady，并独立重跑对象、targeted、player-local、phone、
+assemble、ktfmt、A0、GatePlan、workflow 与 handoff 门，全部 PASS。唯一 Pad 核心窗从
+`2026-11-10 04:57:14.303 +08:00` 开始，真实进入 DirectPlay/Exo 与 HLS/mpv；在
+`176.711 s` 时实时日志命令回显出现测试媒体 API key 查询参数。QA 按安全停止条件立即结束，
+未延长或重开 600 秒窗口，也未把局部起播写成核心 PASS：
+
+```text
+PC-01/02/03/04/05/11/12=NOT_RUN
+PC-06-10=NOT_APPLICABLE_SCOPED_A_CLUSTER
+PRODUCT_OPEN_P0-P3=0/2/2/0_UNCHANGED
+QA_NEW_P0-P3=0/1/0/0
+P1-QA-R2-SECURITY-01=OPEN_SECRET_VALUE_IN_TOOL_STREAM
+NOOP=CAUSE_NOT_PROVEN / NOT_ASSESSED
+K60_ACTIVE_ITEM_1_TO_3=OPEN
+```
+
+QA owner 已停止 App、删除 39 个被判为 secret-bearing 的原始证据文件和设备临时 dump、
+清理 PID / services / MediaSession / 活动通知，settings mismatch 0、users 仅 user0、
+锁 `ACTIVE=0`、K60 命令 0、截图 0。保留的 R2 报告与 manifest 不复述 secret；当前 manifest
+44/44 MATCH。报告、事件、脱敏时间线与清理证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r2-2026-11-10\INDEPENDENT_QA_R2_REPORT.md`
+  （SHA-256 `601B37F021DB9BEB066D8B72243FCE01B7B382A87A57E2825DD36A33A2D26DBE`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `13B39605B3973050E3C0862BF87B2C14A4CD87E9B49D020723121CB117F8F38F`）
+- `...\device\security-incident.txt`
+- `...\device\CORE-REDACTED-TIMELINE.txt`
+- `...\device\post-cleanup-and-settings.txt`
+
+这是硬安全停止，不是产品 runtime 回归结论。test media API key 已经进入工具流，无法通过删除
+本地证据完全撤回；在用户确认该测试访问凭据已轮换/失效，或明确接受残余风险并批准新的脱敏
+日志策略前，禁止重开 QA、产品修复、merge-prep、integration、K60 或 Release。

@@ -8,29 +8,29 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=HANDOFF_TO_A_CLUSTER_DELIVERY_LEAD_R3 / INDEPENDENT_QA_R1_FAIL_BEFORE_CORE / QA_INSTALL_HARNESS_REPAIR_PENDING
+- TASK_STAGE=INDEPENDENT_QA_R2_FAIL / SECURITY_STOP_AFTER_SECRET_VALUE_IN_TOOL_STREAM / PLAYER_CORE_MATRIX_FAIL / CORE_NOT_COMPLETE / BLOCKED_SECURITY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R3_2026_11_10
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_QA_R2_SECURITY_INCIDENT
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\INDEPENDENT_QA_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r2-2026-11-10\INDEPENDENT_QA_R2_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
-- STOP_CONDITION=Preserve production read-only, metadata immutability, system settings, and schema safety. Use fresh one-stage agents and bounded repair budgets. Stop only for data/security safety, object drift, unknown P0/P1, or an unavoidable external identity/service gate; do not wait for routine user approvals.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/DIRECTPLAY_EXO_VS_HLS_MPV_SPLIT/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/INDEPENDENT_QA_R1_FAIL/CORE_NOT_RUN/PAD_INSTALL_HARNESS_BLOCKED
+- STOP_CONDITION=Security stop is active because a test media API key was exposed in the live tool stream and cannot be undone by local evidence deletion. Do not reopen QA, repair product code, merge-prep, integrate, use K60, or release until the user confirms the test-media access credential is rotated or invalidated, or explicitly accepts residual risk and authorizes a sanitized logging harness plus a different fresh QA round.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/DIRECTPLAY_EXO_VS_HLS_MPV_SPLIT/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_INSTALL_HARNESS_REPAIR_PASS/CANDIDATE_DEBUG_INSTALLED/INDEPENDENT_QA_R2_FAIL/SECURITY_STOP/CORE_NOT_COMPLETE
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=YES / PRODUCT_CANDIDATE_FROZEN / QA_INSTALL_HARNESS_REPAIR_ONLY / NO_PRODUCT_REPAIR_BEFORE_QA_R2
+- IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / SECURITY_STOP / NO_PRODUCT_REPAIR / NO_QA_REOPEN_BEFORE_USER_SECURITY_DECISION
 - DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_FINAL_V140 / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / TEST_SERVER_NETWORK_USED=YES
-- FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / BLOCKED_SECURITY_SECRET_VALUE_IN_TOOL_STREAM / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=351243/1048576/33.5%/35W_HANDOFF_TRIGGERED
 - P0=0
-- P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001
+- P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001;P1-QA-R2-SECURITY-01=OPEN_SECRET_VALUE_IN_TOOL_STREAM
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
 - P3=0
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=BOUNDED_QA_INSTALL_HARNESS_REPAIR_THEN_FRESH_INDEPENDENT_QA_R2_THEN_MERGE_PREP
-- last_evidence=CANDIDATE=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf;A0_OWNER_GATE=PASS;P1_CLOSURE_REVIEW=PASS;INDEPENDENT_QA_R1=FAIL/CORE_NOT_RUN;BLOCKED=DEBUG_CANDIDATE_INSTALL_TWICE_USER_RESTRICTED;LOCAL_GATES=PASS;PLAYER_CORE_MATRIX_RESULT=NOT_RUN;LOCK_RELEASED=YES;PUSH/TAG/RELEASE=NO
+- NEXT_CRITICAL_PATH=USER_SECURITY_DECISION_FOR_TEST_MEDIA_CREDENTIAL_THEN_SANITIZED_QA_LOGGING_HARNESS_THEN_FRESH_QA_R3
+- last_evidence=QA_INSTALL_HARNESS_REPAIR_R1=PASS;INDEPENDENT_QA_R2=FAIL/SECURITY_STOP;PLAYER_CORE_MATRIX_RESULT=FAIL;QA_R2_REPORT_SHA=601B37F021DB9BEB066D8B72243FCE01B7B382A87A57E2825DD36A33A2D26DBE;QA_R2_MANIFEST=44/44;BLOCKED=SECRET_VALUE_IN_TOOL_STREAM;LOCK_RELEASED=YES;K60_COMMANDS=0;PUSH/TAG/RELEASE=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -117,6 +117,16 @@
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\INDEPENDENT_QA_REPORT.md`。
 - 下一轮最多做一次 bounded QA install-harness repair，随后必须由另一个 fresh independent
   QA R2 执行；不得把本轮安装阻断写成候选功能 FAIL，也不得直接 merge-prep / integration。
+- 2026-11-10 harness repair R1 已修复 evidence 根内 MIUI bounds 中心计算；唯一一次真实安装
+  exit 0 / `Success`，Pad installed base SHA 与候选 APK MATCH。随后 fresh QA R2 首动作
+  QaReady PASS，并独立通过对象、targeted、player-local、phone、assemble、ktfmt、A0、
+  GatePlan、workflow/handoff 门；但唯一核心窗在 `176.711 s` 因工具流出现测试媒体 API key
+  查询参数而安全停止。适用核心行仍 `NOT_RUN`，因此
+  `INDEPENDENT_QA_R2=FAIL / PLAYER_CORE_MATRIX_RESULT=FAIL`，并新增
+  `P1-QA-R2-SECURITY-01=OPEN_SECRET_VALUE_IN_TOOL_STREAM`；产品既有 P1/P2 未关闭。
+  原始 secret-bearing 文件已删除，R2 报告 / manifest 不复述值，设备清理与锁释放 PASS。
+  在用户确认测试媒体访问凭据已轮换/失效或明确接受残余风险前，禁止继续 QA、
+  merge-prep、integration、K60 或 Release。证据见 `docs/PLAYER_PLAN.md` §52.15。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -913,10 +923,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Independent QA R1 executed all listed local gates and they passed, but the candidate debug APK never installed on Pad. Both install attempts hit INSTALL_FAILED_USER_RESTRICTED, the second because the MIUI approval harness generated invalid bounds. Candidate UI and every applicable A-cluster runtime row remain NOT_RUN. Next lead may perform at most one bounded QA install-harness repair outside product code, then must dispatch a different fresh QA R2.
-- STOP_CONDITION=Preserve QA R1 FAIL and the install blocker. Do not modify the frozen product candidate for an install harness issue. Stop after a second install-harness failure, object or A0 drift, unknown P0/P1, need for system settings or identity changes, or any merge-prep, integration, Release, K60 or runtime PASS claim without executed core rows.
-- MANUAL_LIMITATION=Independent QA R1 is FAIL because CORE_NOT_RUN, not because a candidate behavior was proven broken. The debug candidate did not start on Pad; release and user data were unchanged and the lock is released. Local JVM, build, A0 and GatePlan PASS cannot substitute for the A-cluster real user journey.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R3_2026_11_10
+- UNCOVERED=Independent QA R2 passed the local gates and entered both DirectPlay/Exo and HLS/mpv, but stopped after 176.711 seconds because a test media API key appeared in the live log command output. Applicable A-cluster rows PC-01 through PC-05, PC-11 and PC-12 are NOT_RUN; preserved report and manifest do not repeat the value, while 39 source files were deleted as secret-bearing. No further QA is authorized before a user security decision.
+- STOP_CONDITION=Hard security stop. Do not read or reproduce the exposed value, reopen the device window, dispatch QA, modify the product, run merge-prep, integrate, use K60, or release until the user confirms the test-media credential is rotated or invalidated, or explicitly accepts residual risk and a sanitized logging strategy.
+- MANUAL_LIMITATION=QA R2 is FAIL because the security stop prevented complete core execution, not because a new product runtime defect was proven. Local gates and partial DirectPlay/Exo plus HLS/mpv startup observations cannot substitute for PC-01 through PC-05, PC-11 and PC-12.
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_QA_R2_SECURITY_INCIDENT
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -954,6 +964,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 | P1-SR-A01 | Original scoped review R1 failed because URI-only or StartTimeTicks-only replacement under the same item/mediaSourceId did not isolate old deadline, terminal or retry; original FAIL remains historical | Fresh read-only closure review confirmed actual source fingerprint, same-source retention, new-epoch reset, stale callback isolation, one-shot retry and A0 unchanged | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scoped-review-2026-11-10\SCOPED_REVIEW_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-p1-closure-review-2026-11-10\P1_CLOSURE_REVIEW_REPORT.md |
 | P1-PLAYER-SEEK-001 | Pad R2 and K60 history show HLS/mpv seek can remain BUFFERING with invalid engine position; DirectPlay/Exo is not evidence for that path | Candidate implementation adds source epoch and confirmed-vs-target projection; independent QA must execute fresh candidate seek, retry and MediaSession paths before this can close | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pad-upgrade-ab-r2-2026-11-09\PAD_UPGRADE_AB_R2_TRIAGE_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md |
 | P1-PLAYER-PROGRESS-001 | Pad R2 shows target/effective position and UI/MediaSession divergence on HLS/mpv; K60 active item 1-to-3 remains open | Candidate implementation unifies progress reading and EOS authority; independent QA must prove same-item seek/source replacement does not advance the queue | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pad-upgrade-ab-r2-2026-11-09\PAD_UPGRADE_AB_R2_TRIAGE_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md |
+| P1-QA-R2-SECURITY-01 | Independent QA R2 live log command output exposed a test media API key query parameter; the window stopped at 176.711 seconds and applicable core rows remained NOT_RUN | Pending user confirmation that the test-media access credential is rotated or invalidated, plus a fresh sanitized logging harness and a different fresh QA round; no GREEN is claimed by report/manifest deletion alone | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r2-2026-11-10\device\security-incident.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r2-2026-11-10\INDEPENDENT_QA_R2_REPORT.md |
 <!-- V2_QA_P1_MATRIX_END -->
 <!-- V2_QA_READY_END -->
 
