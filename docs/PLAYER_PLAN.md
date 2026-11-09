@@ -4856,16 +4856,17 @@ A_CLUSTER_STATIC_TRIAGE=COMPLETE
 DESIGN_FROZEN=YES
 A_CLUSTER_RUNTIME_ENV=AUTHORIZED_WRITABLE_TEST_SERVER
 A_CLUSTER_RUNTIME_AB=PAD_V130_TO_V140_COMPLETE_2026_11_09
-BUGFIX_IMPLEMENTATION_AUTHORIZED=NO_USER_DECISION_REQUIRED
+BUGFIX_IMPLEMENTATION_AUTHORIZED=YES_USER_DELEGATED_AUTONOMOUS_2026_11_09
 DEVICE_DIAGNOSTICS=K60_READ_ONLY_HISTORY / PAD_43af8627_FINAL_V140 / LOCKS_RELEASED
 ONEPLUS_SYSTEM_MODIFICATION=FORBIDDEN
 PUSH=NO / TAG=NO / RELEASE=NO
 P0-P3=0/2/2/0 / NOOP_NOT_ASSESSED
 ```
 
-Pad A/B 已完成。下一门是由用户决定是否授权基于精确 1.4.0 产品等价源做 A 簇最小实现；
-未获实现授权前不得修改产品代码。HLS/mpv 的 P1/P2 已成立，Direct Exo 在 Pad 上未复现
-K60 历史的近片尾 timeout / `1→3` 伪换集，两者必须在实现卡中分别保留。
+Pad A/B 已完成，用户已把后续阶段及常规决策全部授权给交付负责人。下一门是由 fresh
+implementation delivery lead 基于精确 1.4.0 产品等价源冻结并执行 A 簇最小实现。
+HLS/mpv 的 P1/P2 已成立，Direct Exo 在 Pad 上未复现 K60 历史的近片尾 timeout /
+`1→3` 伪换集，两者必须在实现卡中分别保留。
 
 ### 52.8 A 簇静态 triage 结果（2026-11-09）
 
@@ -4988,6 +4989,7 @@ P0-P3=0/2/2/0 / NOOP_NOT_ASSESSED
 - Manifest SHA-256：`82052EAE38615F08A3AFDD139543FE7729348DEF933578DCDBE97519AC7DF2D9`
 - Manifest：303/303 MATCH
 
-下一门：等待用户决定是否授权 fresh implementation owner 从精确 v1.4.0 产品等价源建立
-A 簇最小修复卡。实现前必须冻结状态×效果矩阵，并分别覆盖 DirectPlay/Exo 与 HLS/mpv；
-不得以 Pad Direct Exo 正常覆盖 HLS/mpv 失败，也不得整模块回退 1.3.0。
+下一门：fresh implementation delivery lead 从精确 v1.4.0 产品等价源
+`005639a69679609661e3845344d3c6eec0e40f52` 建立 A 簇最小修复卡并派 fresh
+implementation owner。实现前必须冻结状态×效果矩阵，并分别覆盖 DirectPlay/Exo 与
+HLS/mpv；不得以 Pad Direct Exo 正常覆盖 HLS/mpv 失败，也不得整模块回退 1.3.0。
