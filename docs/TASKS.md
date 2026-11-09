@@ -78,6 +78,23 @@
   只读 runtime triage owner，在可写测试环境完成 A 簇真实复现和 v1.3.0/v1.4.0 A/B，
   之后才决定实现范围；不得直接把静态结论写成已复现或已修复。
 
+### FROZEN — 2026-11-09 A 簇实现范围合同
+
+- 稳定需求：`V1.4.0-PLAYER-STABILITY-CONTAINMENT`；v1.4 产品等价源固定为
+  `005639a69679609661e3845344d3c6eec0e40f52`，product tree 固定为
+  `19bcf30828969fcb5743f2f108c51ef8742ed146`；v1.4 tag commit 固定为
+  `7b69e531fa0536379d66a5203736fd5ac43a5568`。
+- 合同：`docs/PLAYER_PLAN.md` §52.11；状态×效果矩阵：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-scope-contract-2026-11-09\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX.md`。
+- 只允许 5 个产品 / 3 个测试路径，逐项原因、禁止项、RED / GREEN、时间盒和停止条件只读 §52.11。
+  实现必须从精确 v1.4 产品源建立独立稳定性工作面，不得以 canonical / W1C 后续代码作为产品源。
+- GatePlan 矩阵机械校验已 PASS；`app/phone/.../PlayerControlOverlay.kt` 为 `FULL`，但 7 个
+  `player/local/**` 路径均因 wrapper `productModuleRoots` 未包含 `player` 返回
+  `WORKFLOW_GATE_PATH_UNMAPPED`。在该映射门由负责人在合同内修正并受控重跑前，实现派单 BLOCKED。
+- 本卡只表示合同冻结；实现、独立 QA、merge-prep、integration、运行时、产品与 Release 均未开始。
+  当前 `P0-P3=0/2/2/0`、`NOOP=CAUSE_NOT_PROVEN / NOT_ASSESSED`、
+  `PLAYER_CORE_MATRIX_RESULT=NOT_RUN`，K60 历史 `active item 1→3` 继续开放。
+
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
 - 用户原话：“现在我在使用本项目app 1.4.0时发现严重问题，这个版本的app每一个需求都

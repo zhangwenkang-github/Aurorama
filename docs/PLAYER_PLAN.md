@@ -4993,3 +4993,158 @@ P0-P3=0/2/2/0 / NOOP_NOT_ASSESSED
 `005639a69679609661e3845344d3c6eec0e40f52` 建立 A 簇最小修复卡并派 fresh
 implementation owner。实现前必须冻结状态×效果矩阵，并分别覆盖 DirectPlay/Exo 与
 HLS/mpv；不得以 Pad Direct Exo 正常覆盖 HLS/mpv 失败，也不得整模块回退 1.3.0。
+
+### 52.11 A 簇最小实现合同冻结（2026-11-09）
+
+**状态**：`A_CLUSTER_IMPLEMENTATION_SCOPE_CONTRACT=FROZEN`；
+`IMPLEMENTATION=NOT_STARTED / INDEPENDENT_QA=NOT_STARTED / PRODUCT_PASS=NO`。
+
+**对象**：
+
+```text
+V140_TAG_COMMIT=7b69e531fa0536379d66a5203736fd5ac43a5568
+V140_APK_BUILD_SOURCE=005639a69679609661e3845344d3c6eec0e40f52
+V140_PRODUCT_TREE=19bcf30828969fcb5743f2f108c51ef8742ed146
+SOURCE_READ_RULE=git show 005639a...:<path> / git grep <pattern> 005639a... -- <restricted-path>
+CONTRACT_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-scope-contract-2026-11-09\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX.md
+```
+
+当前 canonical / W1C 只用于控制面与诊断参照，不能作为 1.4.0 产品等价源。1.3.0 只提供行为
+基线；本卡不授权整文件、整模块或整提交回退。
+
+#### 52.11.1 用户承诺矩阵
+
+| ID | 用户承诺 | 入口 / 操作 | 可观察结果 | 自动化 / fixture | 真机证据 | 未覆盖 |
+|---|---|---|---|---|---|---|
+| `V2-FIX-PLAYER-SEEK-001` | seek 到可确认的引擎位置；连续拖动收敛最后目标；失败可恢复且不阻断正常播放 | 进度条 60%、连续拖动、近片尾、通知 / 锁屏；DirectPlay+Exo / HLS+mpv | `Seeking` 可短暂显示 target；`Confirmed` 显示 engine position；`Failed` 不把 target 当实际位置；不同 item 不得 retry | `SeekStateReducerTest`、`SeekRequestCoordinatorTest`、`PlaybackSessionRulesTest`；fake 不替真实引擎作证 | Pad v1.4 HLS+mpv 60% seek 后 26 秒仍 `BUFFERING / position=-1`；DirectPlay+Exo 60% / 连续 / 近片尾正常 | HLS+mpv 确认与恢复未获得；mpv 近片尾 retry 未执行 |
+| `V2-FIX-PLAYER-LOADING-001` | 只有一个 loading，加载中意图可切换，后台继续加载 | 起播 / 缓冲点击；HOME / 回前台 | `playWhenReady` 是动作和加载意图真源；`playWhenReady=true && !isPlaying` 仍保持单一 loading；暂停后恢复不重复 `play()` | `PlaybackSessionRulesTest` 覆盖动作、surface、重复点击；真实 QA 覆盖 Compose | v1.4 mpv spinner 消失但仍不可播；Exo 初缓冲单 spinner；HOME 后 BUFFERING | 双 loading 未复现；release 内部字段不可见 |
+| `V2-FIX-PLAYER-STALL-001` | 普通缓冲和停滞可区分；持续无进展可重试 / 切换；恢复原位置 | HLS+mpv 起播、seek 后等待、异常无进展 | 20 秒无可证明进展才进入 `PLAYBACK_PROGRESS_TIMEOUT`；之前始终单一 loading；恢复动作走现有 `retryPlayback` | `PlaybackSessionRulesTest` 阈值前 / 后、进度复位、暂停、latch | HLS+mpv v1.3 / v1.4 共见；v1.4 mpv 等待 `77.105276s`，无恢复动作 | 无断网 / 字节统计；恢复原位置只能在候选 QA 验证 |
+| `V2-FIX-PLAYER-NOOP-001` | 不允许无 loading、无错误、不播放的静默悬挂 | 无进展窗口；PLAYING + invalid position | 保持 `CAUSE_NOT_PROVEN`；只增加跨层可观察 terminality 和通用重试，不伪造根因 | `PlaybackSessionRulesTest`：READY/IDLE + intent true + no progress -> `PROGRESS_UNCONFIRMED` | v1.4 观察到 spinner=0、PLAYING、position/buffered=-1、speed=0、active item=-1、error=null；随后底层仍 buffering | 未确定 NOOP 复现；不得写关闭 |
+| `V2-FIX-PLAYER-PROGRESS-001` | UI、引擎、MediaSession、EOS、队列一致；只有真实 EOS 换集 | 播放、暂停、seek、缓冲、片尾、自动下一集 | UI / MediaSession 读同一 player；target 仅用于 Seeking；Failed 用有效位置；END reason 之外不换集 | reducer / coordinator / session rules；PC-03 / PC-04 真机 | DirectPlay+Exo EOS 正常；v1.3 UI E4 / MediaSession E3 分叉；v1.4 target / effective 分叉 | mpv EOS 被长缓冲阻断；K60 `1→3` 仍开放 |
+
+#### 52.11.2 R038 状态×效果矩阵
+
+| 状态 / 效果 | SEEK-001 | LOADING-001 | STALL-001 | NOOP-001 | PROGRESS-001 |
+|---|---|---|---|---|---|
+| `SUCCESS` | target -> accepted -> ready / restart 在容差内；UI / MediaSession 读 engine position | intent true -> 唯一 loading / 可切换 -> 恢复；后台不取消 | 有进展即复位计时，恢复后继续 | 仅记录可观察 snapshot，不声明根因 | item/token 一致，真实 EOS 才推进 |
+| `EMPTY_RESULT` | `N/A:seek 必须已有媒体项` | `N/A:准备窗口由 loading 表达` | `N/A:持续状态不是空响应` | `N/A:NOOP 由跨层快照分类` | `N/A:位置缺失表示 unknown` |
+| `PERMISSION` | `N/A:不新增运行时权限` | `N/A:不修改通知/媒体权限模型` | `N/A:恢复动作不新增权限` | `N/A:诊断不新增权限` | `N/A:MediaSession 权限不变` |
+| `TIMEOUT_ERROR` | 4s / 6s / 35s 策略失败 -> 可重试；显示有效位置或 unknown 0，绝不以 target 冒充完成 | 20s 无进展升级成单一可恢复错误面 | 20s 无可证进展 -> `PLAYBACK_PROGRESS_TIMEOUT`，重试/切换可见 | 20s 无进展 -> `PROGRESS_UNCONFIRMED`，不伪造原因 | timeout/source transition 不是 EOS |
+| `CANCEL` | 新 generation / pause / leave 取消旧 UI work；旧 callback 不改变当前 | intent=false 隐藏 loading，不自动重开 | intent=false 取消待触发；恢复后重新计时 | 暂停 / 退出取消 terminal 监视 | source / 非 END reason 取消旧 EOS action |
+| `RETRY_DUPLICATE` | 一次失败只发一个 generation；旧 callback 和同 target 重复合并 | 连续点击只执行最新 intent | 每 terminal 只发一次恢复动作 | latch 去重，恢复后重布防 | EOS / transition 只消费一次，不得跳两级 `1→3` |
+| `RESTART_RECOVERY` | 从最近有效引擎或持久位置恢复；旧 generation 失效 | 恢复实际 `playWhenReady`，起播窗口不被旧值覆写 | 重启后重新采样，不持久化旧 stall | 重启不自动出声，20s 可再 terminal | 不把旧 EOS token 用于新会话；K60 保持开放保护 |
+
+#### 52.11.3 Backend 分层与可观察真源
+
+| backend | 范围 | seek request | accepted | effective engine position | timeout / UI / MediaSession / EOS |
+|---|---|---|---|---|---|
+| `DirectPlay+Exo` | 必须保护；Pad v1.3/v1.4 正常 | 控件或 `MediaSessionSeekPlayer` -> `PlaybackSeekSink` -> coordinator | `onPositionDiscontinuity(SEEK)` | `Player.currentPosition`；确认时 `readyPositionMs` | direct Exo 4s；UI / MediaSession 共用 Player；仅 `END_OF_MEDIA_ITEM` 为 EOS 驱动 |
+| `HLS+mpv` | 修复主路径 | 同一 sink；mpv 处理 HLS cache / seek | `MPV_EVENT_SEEK` -> `onMpvSeekAccepted`（无 position） | mpv `time-pos`；未知保持 `C.TIME_UNSET`，不得回填 target | 6s / 2s tolerance；UI 用 intent 规则；MediaSession 转发 Player；`eof-reached` 才结束 |
+| `HLS+Exo` | 相邻真实路径，不扩题 | 同一 sink | `DISCONTINUITY_REASON_SEEK` | 同一 `Player.currentPosition` | 现有 35s 转码策略、session restart / debounce / cap 保留 |
+| `DirectPlay+mpv` | 真实能力路径，本次未专测 | 同一 sink | mpv seek event | mpv `time-pos` | 6s；共享规则适用，必须做边界回归 |
+
+Planner 不得把 HLS/mpv 失败扩写成所有 DirectPlay 必现。MediaSession 只转发同一 Player，不建立第二位置真源。
+
+#### 52.11.4 最小产品与测试文件白名单
+
+产品文件：
+
+1. `player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/SeekStateReducer.kt`
+   - 必须：Failed 不显示 target；同 item 源替换可 retry，不同 item 清 terminal；迟到恢复不 confirm。
+   - 禁止：改 timeout、generation/sourceEpoch/identity 合同、EOS / queue 语义。
+2. `player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/SeekRequestCoordinator.kt`
+   - 必须：不同 item transition 清理 stale dispatch/retry；同 item HLS restart 保持。
+   - 禁止：重写 coordinator、删除 callback correlation、引入协议 fake。
+3. `player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRules.kt`（新）
+   - 必须：纯函数 / 小型状态机，负责 intent-based action、单一 loading、20s stall/noop terminal、retry latch、权威 EOS reason。
+   - 禁止：协议、网络、mpv / Exo 映射、持久化和 Compose 组件。
+4. `player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt`
+   - 必须：在现有 `playerError` / `retryPlayback` 上接入 terminal；有效进展 / 暂停 / 恢复清自身状态；不改现有网络错误 / fallback / EOS。
+   - 禁止：catalog、subtitle、music、PlaybackInfo、server progress 与 EOS 队列决策。
+5. `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt`
+   - 必须：按钮消费 `playWhenReady`；准备 / 缓冲保持唯一 loading；seek 失败非模态重试，不遮住中心控制。
+   - 禁止：视觉体系、其他面板、MediaSession service。
+
+测试文件：
+
+6. `player/local/src/test/java/com/zhangwenkang/cinefin/player/local/domain/SeekStateReducerTest.kt`
+7. `player/local/src/test/java/com/zhangwenkang/cinefin/player/local/domain/SeekRequestCoordinatorTest.kt`
+8. `player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt`（新）
+
+白名单外停止。禁止改 `MPVPlayer.kt`、`CinefinPlaybackService.kt`、catalog/subtitle/music、
+媒体分页、W1C、Gradle、schema、设备或系统配置。
+
+#### 52.11.5 RED / GREEN
+
+| RED ID | 精确位置 | 被违反不变量 / 现有缺口 | GREEN |
+|---|---|---|---|
+| `A-RED-SEEK-01` | `SeekStateReducerTest` | 旧测试 `engine failure keeps request target...` 在 engine=0 时仍断言 target 70s | Failed 显示 engine position；unknown 显示 0，不显示 target |
+| `A-RED-SEEK-02` | `SeekRequestCoordinatorTest` | source change retry 未区分同 item 转码重建与不同 item transition | 同 item retry 保留；不同 item 清 failed 且 no retry / no stale callback |
+| `A-RED-LOADING-01` | `PlaybackSessionRulesTest` | `isPlaying` 误代 `playWhenReady`；mpv ready-but-not-playing 无 loading | intent=true/isPlaying=false 点击暂停；intent=false 隐藏 loading；始终唯一 surface |
+| `A-RED-STALL-01` | `PlaybackSessionRulesTest` | 普通 BUFFERING / mpv cache 无通用终态 | 19,999ms 不报；20,000ms 无进展才 terminal；进展 / 暂停 / item 变化复位 |
+| `A-RED-NOOP-01` | `PlaybackSessionRulesTest` | 无错误悬挂无用户可操作终态 | intent true + READY/IDLE + 无进展 + invalid position -> `PROGRESS_UNCONFIRMED`，无根因伪造 |
+| `A-RED-PROGRESS-01` | `SeekRequestCoordinatorTest` / `PlaybackSessionRulesTest` | terminal、source、EOS reason 无单次消费边界 | source change 清旧 terminal；非 END reason 不换集；每 token 只消费一次 |
+| `A-RED-RETRY-01` | `PlaybackSessionRulesTest` | 无 retry latch / duplicate 断言 | 每 terminal 只发一次 retry；重复点击合并；恢复后重新布防 |
+
+`SeekPlayerEventListenerTest` 和 `PlaybackSeekSinkTest` 只能证明 callback/reducer 映射；后者
+FakePlayer 的 `isPlaying` 直接由 `STATE_READY` 推导，不能证明真实 mpv/HLS、UI 或 EOS。
+
+#### 52.11.6 实现顺序与 1.4.0 能力保留
+
+1. 先写 RED，确认旧代码按预期失败；不在 RED 前改生产文件。
+2. 修 `SeekStateReducer` / `SeekRequestCoordinator`：target/effective position、item identity、
+   source transition、late recovery、retry duplicate。保留 request generation、source epoch、
+   HLS transcode restart/debounce/window cap。
+3. 新建 `PlaybackSessionRules` 并测试：`playWhenReady` 动作、单一 loading、20s stall/noop、
+   retry latch、仅 END reason 为权威 EOS。
+4. 在 `PlayerViewModel` 接入已在使用的 `playerError` / `retryPlayback`，不新增第二错误系统；
+   网络 / fallback / EOS 现有分支保持。
+5. 最后改 `PlayerControlOverlay`：唯一 spinner、intent 按钮、非模态 seek retry；保持控制层、
+   面板、字幕、队列、PiP、后台和 MediaSession 行为。
+6. 不触碰 `MPVPlayer`、`CinefinPlaybackService` 或协议层；1.4 的 MediaSessionSeekPlayer 单一入口、
+   HLS 转码会话重开、当前流快照、EOS 自动下一集、mpv 缓存状态上报全部保留。
+
+#### 52.11.7 DirectPlay / K60 保护与 NOOP 边界
+
+- DirectPlay+Exo 的 60% seek、连续拖动、近片尾、自然 EOS、自动下一集是保护回归；共享代码变化
+  不得改变其结果。
+- Pad `NOT_REPRODUCED` 不等于 K60 历史 `active item 1→3` 关闭。不同 item transition 后旧 Failed
+  retry 必须失效；同一 item 的 HLS 源重建仍允许收敛。
+- NOOP 只能增加可观察 terminality / 诊断字段；`V2-FIX-PLAYER-NOOP-001` 继续
+  `CAUSE_NOT_PROVEN / NOT_ASSESSED`，不得声明原因或关闭。
+
+#### 52.11.8 时间盒、预算与停止条件
+
+```text
+IMPLEMENTATION_OWNER_ROUNDS=1
+IMPLEMENTATION_TIMEBOX=90_MINUTES
+SCOPED_REVIEW_OWNER_ROUNDS=1
+SCOPED_REVIEW_TIMEBOX=45_MINUTES
+NECESSARY_PATCH_ROUNDS=1
+PATCH_TIMEBOX=30_MINUTES
+MAX_CHANGED_CODE_TEST_PATHS=8
+MAX_FULL_GATEPLAN_RUNS=1
+MAX_MATRIX_EXTRA_EXPLORATION=0
+```
+
+停止条件：同一 P1 在必要补丁后仍存在；需要白名单外文件或改变状态模型；出现真实 P0/P1；
+产品源 / HEAD / ACTIVE / HANDOFF 对象漂移；需要设备设置、生产写、schema 或媒体元数据变更；
+GatePlan 非 FULL / 非零；实现、review、QA 独立性与 R042 冲突。达到第二个同 P1 时停止打补丁，
+回到状态模型重新设计，不以更多阈值或字段掩盖。
+
+#### 52.11.9 GatePlan
+
+以下每个白名单路径都必须以最终矩阵文件运行一次 `-Mode GatePlan`；只记录 `PATH -> FULL`，
+不在本阶段执行产品测试：
+
+```text
+StateEffectMatrixPath=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-scope-contract-2026-11-09\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX.md
+GATEPLAN_APP_PHONE_PATH=FULL / STATE_EFFECT_MATRIX=PASS
+GATEPLAN_PLAYER_LOCAL_PATHS=BLOCKED / WORKFLOW_GATE_PATH_UNMAPPED: productModuleRoots omits `player`
+GATEPLAN_MATRIX_MECHANICS=PASS
+GATEPLAN_PRODUCT_TESTS=NOT_EXECUTED
+```
+
+路径未映射是当前 wrapper 的机械事实，不由本阶段修改工具绕过。实现派单前必须由交付负责人决定：
+在同一合同范围内修复 GatePlan 的 `player` 产品根映射并做一次受控重跑，或正式 `BLOCKED`；不得把
+`player/local/**` 伪写成 `FULL`。
