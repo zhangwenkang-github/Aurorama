@@ -33,17 +33,14 @@
 - P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
 - P3=0
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\SCOPE_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-2026-11-09\IMPLEMENTATION_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\MANAGER_HANDOFF_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\QA_HANDOFF_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\INDEPENDENT_QA_DISPATCH_PROMPT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\DELIVERY_LEAD_DISPATCH_PROMPT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-handoff-2026-11-09\REPAIR_DELIVERY_LEAD_DISPATCH_PROMPT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
-- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\a0-closure\A0_CLOSURE_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scoped-review-2026-11-10\SCOPED_REVIEW_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\p1-source-epoch-repair\P1_SOURCE_EPOCH_REPAIR_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-p1-closure-review-2026-11-10\P1_CLOSURE_REVIEW_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\INDEPENDENT_QA_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
 - NEXT_CRITICAL_PATH=BOUNDED_QA_INSTALL_HARNESS_REPAIR_THEN_FRESH_INDEPENDENT_QA_R2_THEN_MERGE_PREP
 - last_evidence=CANDIDATE=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf;A0_OWNER_GATE=PASS;P1_CLOSURE_REVIEW=PASS;INDEPENDENT_QA_R1=FAIL/CORE_NOT_RUN;BLOCKED=DEBUG_CANDIDATE_INSTALL_TWICE_USER_RESTRICTED;LOCAL_GATES=PASS;PLAYER_CORE_MATRIX_RESULT=NOT_RUN;LOCK_RELEASED=YES;PUSH/TAG/RELEASE=NO
@@ -906,6 +903,13 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08\manager-final-gates.txt`。
 
 ### HISTORY — W1C-1 repair independent QA PASS / merge-prep authorized（已由后续 W1C-1 integration 取代）
+
+- 旧 ACTIVE 中属于 W1C 的证据指针已迁入本 HISTORY；历史 evidence 根为
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09`、
+  `...\evidence-v2-w1c-1-catalog-readers-implementation-2026-11-09`、
+  `...\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09`、
+  `...\evidence-v2-w1c-1-catalog-readers-repair-handoff-2026-11-09`、
+  `...\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09`。
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
