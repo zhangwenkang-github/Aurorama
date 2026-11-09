@@ -5463,3 +5463,15 @@ QA owner 已停止 App、删除 39 个被判为 secret-bearing 的原始证据�
 这是硬安全停止，不是产品 runtime 回归结论。test media API key 已经进入工具流，无法通过删除
 本地证据完全撤回；在用户确认该测试访问凭据已轮换/失效，或明确接受残余风险并批准新的脱敏
 日志策略前，禁止重开 QA、产品修复、merge-prep、integration、K60 或 Release。
+
+用户于 2026-11-10 明确接受该测试媒体 API key 的残余风险，说明该 key 仅供测试使用、不是敏感
+信息，并批准新的脱敏日志策略。因此安全阻断转为“先完成离线 sanitized logging harness”：
+`P1-QA-R2-SECURITY-01=RISK_ACCEPTED_BY_USER / SANITIZED_PIPELINE_PENDING`。QA R2 的
+`FAIL / CORE_NOT_COMPLETE` 仍保留，不得因风险接受写成产品通过。
+
+首个 QA logging redaction harness repair R1 在开工时误把 Snapshot 的
+`CHANGED_PATHS_COUNT=4 / CHANGED_PATH=...`（HANDOFF_OBJECT 相对 base 的路径清单）当成
+`git status` dirty；实际工作树当时只有 `docs/TASKS.md` 一处 ACTIVE checkpoint 更新。该 owner
+按停止条件未实现 harness、未启动 ADB、未写产品，只留下停机报告。后继 owner 必须同时检查
+Snapshot 与 `git status --porcelain`，并以后者是否有输出判定工作树 dirty；不得只凭
+`CHANGED_PATH` 停机。
