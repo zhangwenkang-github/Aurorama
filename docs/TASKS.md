@@ -8,27 +8,27 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=INDEPENDENT_QA_READY / FRESH_QA_DISPATCH_PENDING
+- TASK_STAGE=HANDOFF_TO_A_CLUSTER_DELIVERY_LEAD_R3 / INDEPENDENT_QA_R1_FAIL_BEFORE_CORE / QA_INSTALL_HARNESS_REPAIR_PENDING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_IMPLEMENTATION_DELIVERY_LEAD_R2_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R3_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-p1-closure-review-2026-11-10\P1_CLOSURE_REVIEW_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\INDEPENDENT_QA_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
 - STOP_CONDITION=Preserve production read-only, metadata immutability, system settings, and schema safety. Use fresh one-stage agents and bounded repair budgets. Stop only for data/security safety, object drift, unknown P0/P1, or an unavoidable external identity/service gate; do not wait for routine user approvals.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/DIRECTPLAY_EXO_VS_HLS_MPV_SPLIT/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/SOURCE_EPOCH_CLOSED/QA_READY_PENDING_DISPATCH
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/DIRECTPLAY_EXO_VS_HLS_MPV_SPLIT/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/INDEPENDENT_QA_R1_FAIL/CORE_NOT_RUN/PAD_INSTALL_HARNESS_BLOCKED
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=YES / CANDIDATE_FROZEN_AT_CLOSURE_REVIEW / BOUNDED_REPAIR_ONLY_AFTER_FRESH_QA_FAIL
+- IMPLEMENTATION_AUTHORIZED=YES / PRODUCT_CANDIDATE_FROZEN / QA_INSTALL_HARNESS_REPAIR_ONLY / NO_PRODUCT_REPAIR_BEFORE_QA_R2
 - DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_FINAL_V140 / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / TEST_SERVER_NETWORK_USED=YES
 - FRESH_INDEPENDENT_QA_REQUIRED=YES / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=298434/1048576/300K_CHECKPOINT/HANDOFF_PREP
+- CONTEXT_AT_CLOSE=351243/1048576/33.5%/35W_HANDOFF_TRIGGERED
 - P0=0
 - P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
@@ -45,8 +45,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_INDEPENDENT_QA_THEN_BOUNDED_REPAIR_IF_FAILED_THEN_MERGE_PREP
-- last_evidence=CANDIDATE=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf;A0_OWNER_GATE=PASS;SCOPED_REVIEW_R1=FAIL/P1-SR-A01_PRESERVED;P1_CLOSURE_REVIEW=PASS;P1-SR-A01=CLOSED_BY_FRESH_REVIEW;PRODUCT_P0-P3=0/2/2/0;QA=QA_READY_PENDING_DISPATCH;PUSH/TAG/RELEASE=NO
+- NEXT_CRITICAL_PATH=BOUNDED_QA_INSTALL_HARNESS_REPAIR_THEN_FRESH_INDEPENDENT_QA_R2_THEN_MERGE_PREP
+- last_evidence=CANDIDATE=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf;A0_OWNER_GATE=PASS;P1_CLOSURE_REVIEW=PASS;INDEPENDENT_QA_R1=FAIL/CORE_NOT_RUN;BLOCKED=DEBUG_CANDIDATE_INSTALL_TWICE_USER_RESTRICTED;LOCAL_GATES=PASS;PLAYER_CORE_MATRIX_RESULT=NOT_RUN;LOCK_RELEASED=YES;PUSH/TAG/RELEASE=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -111,6 +111,15 @@
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-p1-closure-review-2026-11-10\P1_CLOSURE_REVIEW_REPORT.md`。
 - 当前进入 independent QA ready；仍不是 QA / 产品 / runtime / merge-prep / integration /
   Release PASS。证据见 `PLAYER_PLAN` §52.13 与 implementation / closure review evidence。
+- fresh independent QA R1 已实际执行本地对象、targeted、player-local、phone、assemble、
+  ktfmt、A0、GatePlan、workflow 与 handoff 门，全部 PASS；但 candidate debug APK 在 Pad
+  `43af8627` 首次安装报 `INSTALL_FAILED_USER_RESTRICTED`，唯一一次受控 MIUI 安装重试因
+  harness 把实时 bounds 拼成非法坐标而再次失败。QA 按第二轮失败停止，未启动候选 App，
+  A 簇真实核心行全部 `NOT_RUN`，因此本轮固定 `INDEPENDENT_QA_STATUS=FAIL`。
+  设备锁已释放为 `ACTIVE=0`，release/data/settings 未变，K60 零命令；证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\INDEPENDENT_QA_REPORT.md`。
+- 下一轮最多做一次 bounded QA install-harness repair，随后必须由另一个 fresh independent
+  QA R2 执行；不得把本轮安装阻断写成候选功能 FAIL，也不得直接 merge-prep / integration。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -899,11 +908,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 ### HISTORY — W1C-1 repair independent QA PASS / merge-prep authorized（已由后续 W1C-1 integration 取代）
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=YES
-- UNCOVERED=Source-epoch P1 is closed by fresh read-only review, but independent QA has not started. QA must execute correction matrix and map PLAYER_CORE_RELEASE_MATRIX without PASS_WITH_GAPS; real HLS/mpv and DirectPlay/Exo candidate runtime, mpv EOS and near-EOS retry, network fault, release-internal playWhenReady and isPlaying, notification and lockscreen seek, 20s background boundary, K60 1-to-3 history, media-session progress parity and full PC-01-PC-12 remain unexecuted.
-- STOP_CONDITION=Object or A0 drift, path outside frozen union, original P1 recurrence, core matrix NOT_RUN or fail, same-P1 second patch, production or metadata write, settings or schema change, unknown P0 or P1, or treating scoped review as product pass stops the task.
-- MANUAL_LIMITATION=Fresh closure review only closes P1-SR-A01 source epoch; original scoped review R1 FAIL remains historical. Candidate 60ebe5e8 is source-reviewed only. DirectPlay/Exo and HLS/mpv remain separate; PLAYER_CORE_MATRIX_RESULT is NOT_RUN and no product or release pass is claimed.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_IMPLEMENTATION_DELIVERY_LEAD_R2_2026_11_10
+- QA_READY=NO
+- UNCOVERED=Independent QA R1 executed all listed local gates and they passed, but the candidate debug APK never installed on Pad. Both install attempts hit INSTALL_FAILED_USER_RESTRICTED, the second because the MIUI approval harness generated invalid bounds. Candidate UI and every applicable A-cluster runtime row remain NOT_RUN. Next lead may perform at most one bounded QA install-harness repair outside product code, then must dispatch a different fresh QA R2.
+- STOP_CONDITION=Preserve QA R1 FAIL and the install blocker. Do not modify the frozen product candidate for an install harness issue. Stop after a second install-harness failure, object or A0 drift, unknown P0/P1, need for system settings or identity changes, or any merge-prep, integration, Release, K60 or runtime PASS claim without executed core rows.
+- MANUAL_LIMITATION=Independent QA R1 is FAIL because CORE_NOT_RUN, not because a candidate behavior was proven broken. The debug candidate did not start on Pad; release and user data were unchanged and the lock is released. Local JVM, build, A0 and GatePlan PASS cannot substitute for the A-cluster real user journey.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R3_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

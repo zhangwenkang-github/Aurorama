@@ -4751,7 +4751,7 @@ Context / 交接：
 - **2026-11-02 Post-merge Gate `MERGE_STATE_GATE_PASS`：** 与主仓集成 owner 不同的 fresh Post-merge Gate 在精确 `5d0b3216 / ee7c49d5` clean worktree 实测：CI 8-task JVM `247/247 executed`、280 XML / `1,999/0/0/0`；全仓 assemble `384/384`、phone assemble `242/242`、ktfmt `34/34`；两路 diff-check exit 0；graphify AST-only `15,347 nodes / 48,751 edges / 480 communities` exit 0。docs-only 外产品路径 diff exit 0；arm64 debug APK `150,290,331 B / 20ECD05F…62DB1`、`1.4.0(5)`、arm64-v8a、v2 debug 证书 `a645eac5…e910d6` 完全 MATCH。新增产品 P0–P3=`0/0/0/0`、BLOCKED=0；历史搜索 P1 `ACCEPTED_RESIDUAL` 与既有 Release P3 保持。report `FC4A9B27…5B79`、manifest `54D79562…36B0`、SUMS `292/292 MATCH`，证据根 `F:\Develop\code_data\qa\w90a2-post-merge-gate-20261102`。未 push / CI / tag / Release、未接设备 / 生产。负责人实际水位 `301,372 / 1,048,576（28.7%）`，按 30 万门禁停止新增任务并准备交接；下一角色处理 push / CI 前必须先只读复核 `5d0b3216`、origin `61c04a38`、12+5+2 与两包证据。
 - **2026-11-02 推送与三工作流 CI `PUSH_AND_CI_PASS`：** fresh Release 推送 / CI owner 预核证据后仅执行一次普通 `git push origin master`，exit 0，远端由 `61c04a38` 快进到 `a8bfd83646ab8753e5a4586e0718522b76dcc228`；本地与 origin ahead/behind=`0/0`，无 force / tag / Release。Build `41345414878`、Unit Tests `41345414805`、Format `41345414828` 均与 pushed SHA 精确关联并 `completed/success`。primary 仍保留 `12 tracked dirty + 5 untracked + 2 stash`、0 staged/unmerged；新增产品 P0–P3=`0/0/0/0`、BLOCKED=0；搜索 P1 `ACCEPTED_RESIDUAL` 与既有 P3 保持。report `AA32802B…9442`、manifest `6CF76540…9C1F`、SUMS `3C4135EE…64C4`，证据根 `F:\Develop\code_data\qa\w90a2-push-ci-20261102`。CI 不替代用户终验；下一门 = 当前任务线汇总结提交经普通 push 后复核，以及 Release 资产 / 用户验收决策。
 
-## 52. Aurorama 1.4.0 播放稳定性集束（2026-11-09，USER_REPORTED / DESIGN_FROZEN / RUNTIME_TEST_ENV_AUTHORIZED / IMPLEMENTATION_CANDIDATE / A0_PASS / P1_CLOSURE_REVIEW_PASS / INDEPENDENT_QA_PENDING）
+## 52. Aurorama 1.4.0 播放稳定性集束（2026-11-09，USER_REPORTED / DESIGN_FROZEN / RUNTIME_TEST_ENV_AUTHORIZED / IMPLEMENTATION_CANDIDATE / A0_PASS / P1_CLOSURE_REVIEW_PASS / INDEPENDENT_QA_R1_FAIL_BEFORE_CORE / HANDOFF）
 
 **需求 ID**：`V1.4.0-PLAYER-STABILITY-CONTAINMENT`
 
@@ -5348,3 +5348,74 @@ FAIL 历史保留，新增的只是 fresh closure review PASS。
 - `...\a0-closure\`
 - `...\p1-source-epoch-repair\`
 - `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scoped-review-2026-11-10\SCOPED_REVIEW_REPORT.md`
+
+### 52.14 A 簇 independent QA R1 安装阻断与后继门（2026-11-10）
+
+**状态**：`INDEPENDENT_QA_R1=FAIL / CORE_NOT_RUN / PAD_DEBUG_INSTALL_HARNESS_BLOCKED /
+HANDOFF_TO_DELIVERY_LEAD_R3`。
+
+候选对象保持不变：
+
+```text
+CANDIDATE=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf
+CANDIDATE_TREE=0fca8a6cf425261e9109be49846aaa981048bba0
+AUTHORITY_CONTROL_PIN=e8acaa3499a5c08159abad4b99e90e66cb42f824
+```
+
+fresh independent QA R1 首动作重跑 QaReady 并 PASS。随后实际执行并 PASS：
+
+```text
+TARGETED=52/0/0/0
+PLAYER_LOCAL_FULL=42 XML / 301/0/0/0
+PHONE_FULL=62 XML / 412/0/0/0
+ASSEMBLE_DEBUG=PASS
+KTFMT=PASS
+A0_TESTS=7/0
+A0_OWNER_GATE=PASS
+GATEPLAN=FULL / 8 GATE_PATH / 0 UNMAPPED / 3 FULL commands
+WORKFLOW_TESTS=39/0
+HANDOFF_TESTS=99/0
+A0_BASELINE_SHA_MATCH=YES / 62 / 61 / 15491 <= 15512
+```
+
+QA 构建 candidate debug APK
+`30241F412EC305E7ACD2BE71CA3E0AB2CD650E3444B0351E89967899FA362B68` 后，在 Pad
+`43af8627` 上首次安装返回 `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user`。
+同一 owner 按既有 MIUI 经验做唯一一次受控重试，正确命中
+`AdbInstallActivity`，但安装辅助 harness 将 dump 的实时 bounds 数字拼接成非法坐标
+`4730634,4695521`，点击没有命中“继续安装”，原安装再次失败。按“同一 harness 第二次失败”
+停止继续修补。
+
+因此 candidate debug 包未创建，A 簇适用真实核心行
+`PC-01`–`PC-05`、`PC-11`、`PC-12` 全部 `NOT_RUN`；其他 `PC-06`–`PC-10`
+按 scoped 边界为 `NOT_APPLICABLE_SCOPED_A_CLUSTER`。这只证明本轮 QA 无法进入核心，
+不证明候选功能失败，也不关闭任何既有产品 P1/P2：
+
+```text
+INDEPENDENT_QA_STATUS=FAIL
+BLOCKED=DEBUG_CANDIDATE_INSTALL_TWICE_USER_RESTRICTED
+STATIC_NEW_PRODUCT_P0=0
+RUNTIME_P0-P3=NOT_ASSESSED
+PRODUCT_P0-P3=0/2/2/0
+PLAYER_CORE_MATRIX_RESULT=NOT_RUN
+NOOP=CAUSE_NOT_PROVEN / NOT_ASSESSED
+K60_ACTIVE_ITEM_1_TO_3=OPEN
+```
+
+设备清理：debug 包未创建；release 1.4 base SHA、first/last update、dataDir 与 CE inode
+保持；debug/release PID 为空；settings mismatch 0；user0 不变；锁 `ACTIVE=0`；
+K60 `8e875894` 零针对性命令；截图 0 / `view_image` 未使用。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\INDEPENDENT_QA_REPORT.md`
+  （SHA-256 `770DD6D0CEC99D27A2A83C35442C469BCD69734B07F6B5A5C42E2A84F6EAF6CB`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `A5D65C93F339670F94737691A5300354348358BB5560C324CE43FAEC4D57F219`，149/149 MATCH）
+- `...\device\debug-install-controlled-retry.txt`
+
+后继门：QA R1 FAIL 只允许一次 bounded QA install-harness repair；修复不得改候选产品代码，
+只能修正 MiUI 安装辅助与证据，并以一个新的、与 QA R1 不同的 fresh owner 重新执行 QaReady
+和 independent QA R2。R2 仍不能执行适用核心行、或再次出现同一安装 harness 失败时，停止
+自动化安装尝试并交用户处理设备“USB 安装”身份门；不得 merge-prep、integration、Release
+或把本地全绿写成用户旅程 PASS。
