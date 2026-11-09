@@ -5,29 +5,29 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V2-W1C-1-REPAIR-INDEPENDENT-QA-2026-11-09
+### ACTIVE — V2-W1C-1-LOCAL-FF-ONLY-INTEGRATION-2026-11-09
 
-- TASK_ID=V2-W1C-1-REPAIR-MERGE-PREP-HANDOFF-2026-11-09
-- TASK_STAGE=W1C_1_INDEPENDENT_QA_PASS / W1C_1_REPAIR_MERGE_PREP=PASS / MERGE_PREP_READY=YES / INTEGRATION_AUTHORIZED=NO / INTEGRATED=NO / DELIVERY_LEAD_REVIEW_REQUIRED
+- TASK_ID=V2-W1C-1-LOCAL-FF-ONLY-INTEGRATION-2026-11-09
+- TASK_STAGE=W1C_1_INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=REPAIR_MERGE_PREP_DELIVERY_LEAD_PROMPT + repair QA report > W1C-1 task card + QA PASS history > exact 17 code/test paths + docs control > AGENTS.md / PROJECT_RULES / LESSONS
-- NEXT_ROLE=AURORAMA_V2_W1C_1_REPAIR_MERGE_PREP_DELIVERY_LEAD_2026_11_09
+- READ_ORDER=W1C-1 integration task card > integration report > merge-prep report + delivery lead review > W1C-1 task card / QA evidence > exact 17 code/test paths > AGENTS.md / PROJECT_RULES / LESSONS
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1C_1_NEXT_WAVE_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-handoff-2026-11-09\REPAIR_MERGE_PREP_DELIVERY_LEAD_PROMPT.md
-- NEXT_REQUIREMENT=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 / ICS-W1C-1-HOME-VIDEO-AGGREGATE-MOVIE-DETAIL / canonical scope + fail-closed + no stale cross-scope or cross-generation Home/Video/paging/Movie results
-- STOP_CONDITION=Deliver merge-prep report and isolated final to delivery lead for review. Stop at user integration decision; do not merge, integrate, push, tag, Release, or claim runtime/product/parent seam PASS.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-2026-11-09\INTEGRATION_REPORT.md
+- NEXT_REQUIREMENT=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 / ICS-W1C-1-HOME-VIDEO-AGGREGATE-MOVIE-DETAIL / LOCALLY_FF_ONLY_INTEGRATED / USER_DECISION_REQUIRED_BEFORE_NEXT_WAVE
+- STOP_CONDITION=Wait for the user to decide the next requirement wave. Do not auto-start W1C-2, W1D-W1G, W1E, parent seam or Release; push, tag and Release remain unauthorized.
 - SCOPE=W1C_1_HOME_VIDEO_AGGREGATE_MOVIE_DETAIL_SCOPE_FROZEN
-- AUTHORIZATION=USER_REPAIR_AUTHORIZED_2026_11_09 / MERGE_PREP_AUTHORIZED_2026_11_09 / NO_INTEGRATION_AUTHORIZATION
-- IMPLEMENTATION_AUTHORIZED=NO / REPAIR_CANDIDATE_INDEPENDENT_QA_PASS / REPAIR_MERGE_PREP_PASS
+- AUTHORIZATION=USER_LOCAL_FF_ONLY_INTEGRATION_AUTHORIZED_2026_11_09 / PUSH_NOT_AUTHORIZED / TAG_NOT_AUTHORIZED / RELEASE_NOT_AUTHORIZED
+- IMPLEMENTATION_AUTHORIZED=NO / REPAIR_CANDIDATE_INDEPENDENT_QA_PASS / REPAIR_MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / MERGE_PREP_AUTHORIZED=YES / INTEGRATION_AUTHORIZED=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / MERGE_PREP_AUTHORIZED=YES / INTEGRATION_AUTHORIZED=YES_LOCAL_FF_ONLY / INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=2026-11-09 / MERGE_PREP_PASS / DELIVERY_LEAD_REVIEW_REQUIRED / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
+- CONTEXT_AT_CLOSE=2026-11-09 / W1C_1_LOCALLY_FF_ONLY_INTEGRATED / AWAITING_USER_NEXT_WAVE_DECISION / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
 - P0=0
 - P1=P1-W1C1-01:CLOSED_BY_REPAIR_QA;P1-W1C1-02:CLOSED_BY_REPAIR_QA;P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
 - P2=P2-W1C1-03:CLOSED_BY_REPAIR_QA;P2-W1C1-04:CLOSED_BY_REPAIR_QA;P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
@@ -44,9 +44,46 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=W1C_1_REPAIR_MERGE_PREP_PASS / DELIVERY_LEAD_REVIEW / USER_INTEGRATION_DECISION
-- last_evidence=INDEPENDENT_QA=PASS; W1C_1_REPAIR_MERGE_PREP=PASS; P0-P3=0/0/0/0; SOURCE=10b904d45cad4117cdc20b701d7ee9aabfefce74; TARGET=ed2314cb3e577ecce8fc2b115ac312e5d5130508; CODE_TEST_EQUIVALENCE=17/17; GATES=PASS; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-2026-11-09\MERGE_PREP_REPORT.md
+- NEXT_CRITICAL_PATH=USER_DECISION_FOR_NEXT_W1C_SLICE_OR_OTHER_2_0_WAVE
+- last_evidence=INDEPENDENT_QA=PASS; MERGE_PREP=PASS; W1C_1=LOCALLY_FF_ONLY_INTEGRATED; INTEGRATED_CODE_HEAD=cb170b5e510132fb0b82972086127e69fc1faae9; INTEGRATION_DOCS_HEAD=EXTERNAL_PIN_AFTER_COMMIT; INTEGRATION_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-2026-11-09\INTEGRATION_REPORT.md; PUSH=NO; TAG=NO; RELEASE=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
+
+### HISTORY — 2026-11-09 W1C-1 local ff-only integrated
+
+- 用户于 2026-11-09 在 merge-prep PASS 后明确授权“进入下一步”；该授权只解释为
+  `LOCAL_FF_ONLY_INTEGRATION_AUTHORIZED=YES`。`PUSH_AUTHORIZED=NO`、
+  `TAG_AUTHORIZED=NO`、`RELEASE_AUTHORIZED=NO`，设备与网络均未使用。
+- fresh
+  `AURORAMA_V2_W1C_1_CATALOG_READERS_REPAIR_INTEGRATION_OWNER_2026_11_09`
+  在 canonical `codex/v2-integration` 上将 target
+  `ed2314cb3e577ecce8fc2b115ac312e5d5130508` 一次 `git merge --ff-only` 到 candidate
+  `cb170b5e510132fb0b82972086127e69fc1faae9`；未使用 autostash、rebase、force、squash
+  或 merge commit。
+- 集成代码对象：
+
+```text
+W1C_1=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED
+INTEGRATED=YES
+LOCAL_UNPUSHED=YES
+INTEGRATED_CODE_HEAD=cb170b5e510132fb0b82972086127e69fc1faae9
+INTEGRATED_CODE_TREE=91a36f5722c9bbb47cdb95ad4216431a15e127db
+PUSH=NO / TAG=NO / RELEASE=NO
+```
+
+- `INTEGRATION_DOCS_HEAD=EXTERNAL_PIN_AFTER_COMMIT`，不得在本提交内写自身 SHA。
+- 需求：`V2-ARCH-SEAM-IDENTITY-CATALOG-W1` / 切片：
+  `ICS-W1C-1-HOME-VIDEO-AGGREGATE-MOVIE-DETAIL`。用户承诺为 Home、Video libraries /
+  aggregate paging、Movie detail 的 catalog read 绑定同一 canonical `CatalogScope` /
+  `IdentitySnapshot`；无完整 READY identity fail closed；server、user、address、
+  online/offline、identity generation 或 content generation 改变后，旧 snapshot、page、
+  loaded/completed marker 不得进入新 scope。
+- 本轮集成没有新增 P0–P3 或接受新 P3；详细 post-integration executed、exit、XML、
+  diff-check、17/17 object audit、clean 与 first-parent evidence 只写外部
+  `INTEGRATION_REPORT.md` 及证据目录。
+- 未覆盖 / 未证明：Android runtime、kill/relaunch、WorkManager、设备、ADB、emulator、
+  真实网络、生产 Jellyfin、push、tag、Release、W1C-2、W1D–W1G、W1E、父 seam、产品与
+  Release。`REMOTE_DRIFT_CHECK=NOT_RUN_NETWORK_DISABLED`。
+- 下一门是用户决定下一需求波次；不得自动开工 W1C-2、W1D–W1G、W1E、父 seam 或 Release。
 
 ### HISTORY — 2026-11-09 W1C-1 repair merge-prep PASS
 
@@ -267,8 +304,8 @@
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=129c7b8f9d27949fdf0a06e4ae9d65c2121097fc
-- REQUIRED_ANCESTOR=129c7b8f9d27949fdf0a06e4ae9d65c2121097fc
+- BASE_HEAD=cb170b5e510132fb0b82972086127e69fc1faae9
+- REQUIRED_ANCESTOR=cb170b5e510132fb0b82972086127e69fc1faae9
 - FAILED_CANDIDATE=NONE
 - MAX_CHANGED_PATHS=1
 - ALLOWED_PATH=docs/TASKS.md
@@ -779,10 +816,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=W1C-1 repair merge-prep is PASS for the isolated 17-path candidate only. Merge, integration, push, tag, Release, Android runtime/device/network, W1E, W1C-2, parent seam, product and Release remain unexecuted or unproven.
-- STOP_CONDITION=Merge-prep PASS permits delivery lead review and user integration decision only; no merge, integration, push, tag, Release or product/runtime claim.
-- MANUAL_LIMITATION=This PASS covers exact source/final equivalence, local JVM/static gates, clean/parent/ff-only mechanics only; not merge, integration, Android runtime, device/network, parent seam, product or Release.
-- MANUAL_OWNER=AURORAMA_V2_W1C_1_REPAIR_MERGE_PREP_DELIVERY_LEAD_2026_11_09
+- UNCOVERED=Local ff-only integration is complete. Push, tag, Release, Android runtime/device/network, W1E, W1C-2, W1D-W1G, parent seam, product and Release remain unexecuted or unproven.
+- STOP_CONDITION=Wait for the user to decide the next requirement wave. Do not auto-start W1C-2, W1D-W1G, W1E, parent seam or Release.
+- MANUAL_LIMITATION=W1C-1 PASS covers local JVM/static gates and canonical ff-only integration only; it does not prove Android runtime, device/network, W1E, parent seam, product or Release.
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_W1C_1_NEXT_WAVE_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
