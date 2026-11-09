@@ -4756,7 +4756,8 @@ Context / 交接：
 **需求 ID**：`V1.4.0-PLAYER-STABILITY-CONTAINMENT`
 
 **状态**：用户报告 11 项真实体验问题；事实调查完成；1.4.1 稳定性修复方向与播放器核心
-发布门已冻结；运行时候选诊断、实现、独立 QA 与 Release 均未开始。
+发布门已冻结；A 簇静态 triage 完成；安全真实 A/B 环境未满足；实现、独立 QA 与 Release
+均未开始。
 
 ### 52.1 对象与版本边界
 
@@ -4851,14 +4852,68 @@ Video/Home/Movie 的部分路径，不覆盖 `MediaViewModel` 的 60 秒非空�
 
 ```text
 FACT_FINDER=COMPLETE
+A_CLUSTER_STATIC_TRIAGE=COMPLETE
 DESIGN_FROZEN=YES
-BUGFIX_IMPLEMENTATION_AUTHORIZED=NO
-DEVICE_DIAGNOSTICS_AUTHORIZED=USER_SUPPORTED_READ_ONLY
+A_CLUSTER_RUNTIME_AB=BLOCKED_READ_ONLY_ENVIRONMENT
+BUGFIX_IMPLEMENTATION_AUTHORIZED=NO_PENDING_SAFE_RUNTIME_EVIDENCE_DECISION
+DEVICE_DIAGNOSTICS=K60_READ_ONLY_CHECK_ONLY / LOCK_RELEASED
 ONEPLUS_SYSTEM_MODIFICATION=FORBIDDEN
 PUSH=NO / TAG=NO / RELEASE=NO
 P0-P3=NOT_ASSESSED
 ```
 
-下一角色应为全新、只读的 `AURORAMA_140_PLAYER_REGRESSION_TRIAGE_OWNER_2026_11_09`。第一条
-只读动作是核对唯一 ACTIVE、本节、1.4.0 Release lineage、`TEST_PLAN` §8 与当前
-`code/device-lock`；产物为 A 簇 `BUG_TRIAGE_REPORT.md`，不得改代码、不得改日常手机底层。
+下一门为用户选择安全运行时证据环境：允许正常播放会话 / 进度写、提供独立可写测试环境，
+或接受先按静态合同 TDD 实现、把真实 A/B 留在独立 QA。未作决定前不得派实现，也不得把
+静态缺陷写成 `REPRODUCED`。
+
+### 52.8 A 簇静态 triage 结果（2026-11-09）
+
+只读 triage owner 仅检查 K60 `8e875894` 的包身份、本地文件清单与 schema；device lock
+已于 2026-11-09 20:29:33 释放。未安装、未启动 App、未发起播放、无生产写、截图 0。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-0-player-session-triage-2026-11-09\BUG_TRIAGE_REPORT.md`
+- 报告 SHA-256：`E559F0448C5A9F9A889AD7AAE5980DAA75881BB8C29FABA21D46A17940607A2C`
+
+阻塞事实：
+
+```text
+K60_LOCAL_VIDEO_PRESENT=NO
+K60_LOCAL_MUSIC_DOWNLOAD_COUNT=4
+INSTALLED_RELEASE=1.4.0(5)
+INSTALLED_DEBUG=1.4.0(5)
+V140_SCHEMA=17
+V130_SCHEMA=12
+SAFE_130_BASELINE_PRESENT=NO
+HIGH_TO_LOW_SCHEMA_DOWNGRADE=FORBIDDEN
+INSTALL_RUN=NO
+APP_LAUNCHED=NO
+PLAYBACK_RUN=NO
+SERVER_WRITE=NO
+```
+
+静态结论：
+
+| ID | 静态状态 | 结论 |
+|---|---|---|
+| `V2-FIX-PLAYER-SEEK-001` | `STATIC_HIGH_CONFIDENCE / RUNTIME_NOT_RUN` | 超时只把 UI 置为 `Failed(TIMEOUT)`，不暂停 / 回滚引擎；`seekDisplayPositionMs()` 在失败态继续显示请求目标，可形成“超时但视频继续”与 UI / 引擎位置分叉 |
+| `V2-FIX-PLAYER-LOADING-001` | `STATIC_CONTRACT_DEFECT / RUNTIME_NOT_RUN` | 缓冲时 `isPlaying=false`，播放键按 `if (isPlaying) pause else play` 会再次下发 `play()`；`playWhenReady` 才是用户意图真源。双动画第二来源未证 |
+| `V2-FIX-PLAYER-STALL-001` | `STATIC_CAPABILITY_GAP / RUNTIME_NOT_RUN` | 只有 HLS/Exo 转码 seek watchdog；普通 BUFFERING、起播悬挂与 mpv `paused-for-cache` 没有通用 stall terminality |
+| `V2-FIX-PLAYER-NOOP-001` | `CAUSE_NOT_PROVEN` | 缺少 `playWhenReady=true + isPlaying=false + long BUFFERING/IDLE + no error` 的跨层快照；不能与 STALL 可靠拆分 |
+| `V2-FIX-PLAYER-PROGRESS-001` | `STATIC_HIGH_CONFIDENCE / RUNTIME_NOT_RUN` | 失败态目标位置会持续覆盖引擎位置；EOS 路径缺独立 current-item generation / terminal token，伪 EOS 与中途换集仍为高风险候选 |
+
+额外 A 簇风险：
+
+1. 拖动期间每个 pointer move 都可能创建新 seek generation，旧回调与最终目标存在错配风险。
+2. seek 超时后的目标位置可能永久覆盖真实引擎位置。
+3. 普通 buffering 与转码 seek watchdog 口径不一致。
+4. `onMediaItemTransition` 未按 transition reason 分流副作用。
+5. 续播位置存在 Intent、savedState、条目持久位置三类来源，暂无跨层等式验证。
+6. 现有测试偏 reducer / fake callback，缺少真实缓冲暂停意图与 EOS 时间线。
+
+当前安全选项：
+
+1. 用户明确允许在只读服务器上执行普通 App 播放与会话 / 进度上报，并提供真实视频样本。
+2. 使用独立可写测试环境和可丢弃测试账号 / 数据。
+3. 用户接受先做静态合同 TDD 实现，再把 1.3.0/1.4.0 真实 A/B 留给独立设备 QA；此选项不能提前宣称产品修复。

@@ -8,22 +8,22 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=USER_REPORTED_11_PLAYER_BUGS / FACT_FINDER_COMPLETE / DESIGN_FROZEN / IMPLEMENTATION_NOT_STARTED / TRIAGE_NEXT
+- TASK_STAGE=A_CLUSTER_STATIC_TRIAGE_COMPLETE / RUNTIME_AB_BLOCKED_READ_ONLY_ENVIRONMENT / DESIGN_FROZEN / IMPLEMENTATION_NOT_STARTED / USER_DECISION_REQUIRED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R042 > LESSONS L044 > GLOSSARY playback terms > R034/R038-R040 > v1.4.0 release lineage and evidence
-- NEXT_ROLE=AURORAMA_140_PLAYER_REGRESSION_TRIAGE_OWNER_2026_11_09
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_1_4_1_PLAYER_RUNTIME_EVIDENCE
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\docs\PLAYER_PLAN.md
-- NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / 1.4.1 stability repair / reproduce the 11 user reports on exact v1.4.0 and v1.3.0 baselines before code changes
-- STOP_CONDITION=Triage only: do not implement or repair before exact v1.4.0 reproduction and v1.3.0 A/B. Freeze W1C and feature expansion. Do not restore whole 1.3 files. Never modify the daily OnePlus system settings or internals. Stop on object drift, missing logs that require unauthorized writes, a new P0/P1 requiring user decision, or any attempt to hide errors instead of proving behavior.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-0-player-session-triage-2026-11-09\BUG_TRIAGE_REPORT.md
+- NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / choose a safe runtime evidence environment before A-cluster implementation and real 1.3.0-vs-1.4.0 playback A/B
+- STOP_CONDITION=Do not implement before the user chooses safe runtime evidence: normal playback/session progress on read-only server, an isolated writable test environment, or explicit acceptance of static-contract TDD with real A/B deferred. Never modify daily OnePlus internals or downgrade schema 17 to 12 on real data.
 - SCOPE=1.4.1_PLAYER_STABILITY / bug families A playback-session B catalog-scope C subtitle-pipeline D music-runtime / media paging deferred / implementation not started
-- AUTHORIZATION=USER_CONFIRMED_PLAYER_STABILITY_PLAN_2026_11_09 / USER_SUPPORTED_READ_ONLY_DEVICE_DIAGNOSTICS / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_MODIFICATIONS / NO_BUGFIX_IMPLEMENTATION_AUTHORIZATION / NO_PUSH_TAG_RELEASE
-- IMPLEMENTATION_AUTHORIZED=NO / TRIAGE_AND_REPRODUCTION_ONLY
-- DEVICE_ACCESS=USER_SUPPORTED_READ_ONLY_DIAGNOSTICS / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / NETWORK_NOT_USED
+- AUTHORIZATION=USER_CONFIRMED_PLAYER_STABILITY_PLAN_2026_11_09 / NO_SAFE_RUNTIME_AB_ENVIRONMENT / K60_READ_ONLY_CHECK_ONLY / ONEPLUS_NOT_USED / NO_PUSH_TAG_RELEASE
+- IMPLEMENTATION_AUTHORIZED=NO / SAFE_RUNTIME_EVIDENCE_DECISION_REQUIRED
+- DEVICE_ACCESS=K60_READ_ONLY_CHECK_ONLY / DEVICE_LOCK_RELEASED / ONEPLUS_NOT_USED / NO_INSTALL / NO_APP_LAUNCH / NO_PLAYBACK / NETWORK_NOT_USED
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
@@ -45,7 +45,7 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
 - NEXT_CRITICAL_PATH=1_4_1_PLAYER_SESSION_TRIAGE_THEN_CATALOG_SUBTITLE_MUSIC_AND_CORE_RELEASE_GATE
-- last_evidence=PLAYER_PLAN §52 design frozen; TEST_PLAN §8 required; PROJECT_RULES R042; LESSONS L044; ADR 0008; v1.4.0 tag commit 7b69e531fa0536379d66a5203736fd5ac43a5568; P0-P3 not assessed; implementation not authorized; push/tag/release NO
+- last_evidence=A_CLUSTER_STATIC_TRIAGE_COMPLETE; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-0-player-session-triage-2026-11-09\BUG_TRIAGE_REPORT.md; SHA256=E559F0448C5A9F9A889AD7AAE5980DAA75881BB8C29FABA21D46A17940607A2C; RUNTIME_AB=NOT_RUN; P0-P3=NOT_ASSESSED; IMPLEMENTATION=NO; PUSH/TAG/RELEASE=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -62,6 +62,12 @@
 - 当前仅完成设计、事实调查和文档收口；未改播放器代码，未使用设备 / ADB / 网络 / 生产写，
   未实现 / QA / merge / integration / push / tag / Release。下一角色为 fresh 只读
   `AURORAMA_140_PLAYER_REGRESSION_TRIAGE_OWNER_2026_11_09`。
+- A 簇 triage 已在 K60 `8e875894` 完成只读边界检查并释放锁：没有可证明的本地视频；现有
+  1.4.0 schema 17 不能安全降级到 v1.3.0 schema 12。未安装、未启动、未播放、无生产写。
+  报告为
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-0-player-session-triage-2026-11-09\BUG_TRIAGE_REPORT.md`，
+  SHA-256 `E559F0448C5A9F9A889AD7AAE5980DAA75881BB8C29FABA21D46A17940607A2C`。
+  当前 `RUNTIME_AB=NOT_RUN`，P0–P3 仍 `NOT_ASSESSED`，等待用户选择安全证据环境。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -848,10 +854,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=All 11 user reports require exact v1.4.0 real-entry reproduction and v1.3.0 A/B where regression is claimed. No player stability candidate implementation, runtime QA, subtitle render proof, account-switch proof or ColorOS music proof exists yet.
-- STOP_CONDITION=Do not dispatch implementation or release QA until read-only triage produces stable bug IDs, severity, exact lineage and reproducible evidence. Daily OnePlus device must not have system settings or internals modified.
-- MANUAL_LIMITATION=Fact finding covered source and release history only. No device, ADB, network, production Jellyfin, build, test, or runtime evidence was produced; known-existing versus suspected-regression classifications are not final severity decisions.
-- MANUAL_OWNER=AURORAMA_140_PLAYER_REGRESSION_TRIAGE_OWNER_2026_11_09
+- UNCOVERED=A-cluster static triage is complete, but K60 has no safe local video and real data schema 17 cannot be downgraded to v1.3.0 schema 12. No install, app launch, playback, seek, resume, stall, EOS, account switch, Exo/mpv or direct/HLS runtime evidence exists.
+- STOP_CONDITION=Do not dispatch implementation or product QA until safe runtime evidence is chosen and frozen. Static defects must remain STATIC_* / CAUSE_NOT_PROVEN until exact-candidate reproduction is possible.
+- MANUAL_LIMITATION=The triage report proves static code paths and device preconditions only. It does not prove user-visible reproduction, runtime severity, 1.3.0 regression status, or any product fix.
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_1_4_1_PLAYER_RUNTIME_EVIDENCE
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
