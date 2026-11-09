@@ -4751,7 +4751,7 @@ Context / 交接：
 - **2026-11-02 Post-merge Gate `MERGE_STATE_GATE_PASS`：** 与主仓集成 owner 不同的 fresh Post-merge Gate 在精确 `5d0b3216 / ee7c49d5` clean worktree 实测：CI 8-task JVM `247/247 executed`、280 XML / `1,999/0/0/0`；全仓 assemble `384/384`、phone assemble `242/242`、ktfmt `34/34`；两路 diff-check exit 0；graphify AST-only `15,347 nodes / 48,751 edges / 480 communities` exit 0。docs-only 外产品路径 diff exit 0；arm64 debug APK `150,290,331 B / 20ECD05F…62DB1`、`1.4.0(5)`、arm64-v8a、v2 debug 证书 `a645eac5…e910d6` 完全 MATCH。新增产品 P0–P3=`0/0/0/0`、BLOCKED=0；历史搜索 P1 `ACCEPTED_RESIDUAL` 与既有 Release P3 保持。report `FC4A9B27…5B79`、manifest `54D79562…36B0`、SUMS `292/292 MATCH`，证据根 `F:\Develop\code_data\qa\w90a2-post-merge-gate-20261102`。未 push / CI / tag / Release、未接设备 / 生产。负责人实际水位 `301,372 / 1,048,576（28.7%）`，按 30 万门禁停止新增任务并准备交接；下一角色处理 push / CI 前必须先只读复核 `5d0b3216`、origin `61c04a38`、12+5+2 与两包证据。
 - **2026-11-02 推送与三工作流 CI `PUSH_AND_CI_PASS`：** fresh Release 推送 / CI owner 预核证据后仅执行一次普通 `git push origin master`，exit 0，远端由 `61c04a38` 快进到 `a8bfd83646ab8753e5a4586e0718522b76dcc228`；本地与 origin ahead/behind=`0/0`，无 force / tag / Release。Build `41345414878`、Unit Tests `41345414805`、Format `41345414828` 均与 pushed SHA 精确关联并 `completed/success`。primary 仍保留 `12 tracked dirty + 5 untracked + 2 stash`、0 staged/unmerged；新增产品 P0–P3=`0/0/0/0`、BLOCKED=0；搜索 P1 `ACCEPTED_RESIDUAL` 与既有 P3 保持。report `AA32802B…9442`、manifest `6CF76540…9C1F`、SUMS `3C4135EE…64C4`，证据根 `F:\Develop\code_data\qa\w90a2-push-ci-20261102`。CI 不替代用户终验；下一门 = 当前任务线汇总结提交经普通 push 后复核，以及 Release 资产 / 用户验收决策。
 
-## 52. Aurorama 1.4.0 播放稳定性集束（2026-11-09，USER_REPORTED / DESIGN_FROZEN / RUNTIME_TEST_ENV_AUTHORIZED / IMPLEMENTATION_CANDIDATE / A0_PASS / P1_REPAIR_PENDING_REVIEW）
+## 52. Aurorama 1.4.0 播放稳定性集束（2026-11-09，USER_REPORTED / DESIGN_FROZEN / RUNTIME_TEST_ENV_AUTHORIZED / IMPLEMENTATION_CANDIDATE / A0_PASS / P1_CLOSURE_REVIEW_PASS / INDEPENDENT_QA_PENDING）
 
 **需求 ID**：`V1.4.0-PLAYER-STABILITY-CONTAINMENT`
 
@@ -5283,7 +5283,7 @@ STATE_EFFECT_MATRIX=PASS / 8 GATE_PATH / 0 UNMAPPED / 3 FULL commands`。GatePla
 
 ### 52.13 A 簇实现与 source epoch 收敛（2026-11-10）
 
-**状态**：`IMPLEMENTATION_CANDIDATE + A0_PASS + SCOPED_REVIEW_P1_REPAIRED / RE_REVIEW_PENDING`。
+**状态**：`IMPLEMENTATION_CANDIDATE + A0_PASS + P1_CLOSURE_REVIEW_PASS / INDEPENDENT_QA_PENDING`。
 
 实现从精确 v1.4 产品等价源 `005639a69679609661e3845344d3c6eec0e40f52` 建立独立
 `codex/v141-player-a-cluster-fix` worktree。最终候选：
@@ -5325,9 +5325,20 @@ itemId|mediaSourceId|snapshotGeneration|sourceFingerprint
 
 权威 RED 为 URI-only / `StartTimeTicks`-only / 新 source epoch 三例
 `16 tests / 3 failures`；随后 targeted `16/0`、player-local `301/0` 且 A0 仍 PASS。
-必须由另一个 fresh read-only reviewer 复核该 P1 已关闭；通过前不得派 independent QA。
+另一 fresh read-only closure reviewer 已独立复核实际 URI fingerprint、同源保持、新 epoch
+清理旧 deadline/terminal/retry、单次消费和 A0 不变，结论为
+`P1_CLOSURE_REVIEW=PASS / P1-SR-A01=CLOSED_BY_FRESH_REVIEW`。原始 scoped review R1
+`FAIL / P1-SR-A01` 继续作为历史保留，不得改写。
 
-事实边界：本段不是 scoped review PASS、independent QA、产品、runtime、集成或 Release PASS。
+closure review 证据：
+
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-p1-closure-review-2026-11-10\P1_CLOSURE_REVIEW_REPORT.md`
+
+该 PASS 只关闭 source epoch scoped review，不关闭开放产品 P1/P2，不证明 independent QA、
+候选真实 runtime、merge-prep、integration 或 Release。
+
+事实边界：本段不是 independent QA、产品、runtime、集成或 Release PASS；原 scoped review
+FAIL 历史保留，新增的只是 fresh closure review PASS。
 `PRODUCT_P0-P3=0/2/2/0` 保持，`NOOP=CAUSE_NOT_PROVEN / NOT_ASSESSED`，K60
 `active item 1→3` 仍开放，`PLAYER_CORE_MATRIX_RESULT=NOT_RUN`。
 
