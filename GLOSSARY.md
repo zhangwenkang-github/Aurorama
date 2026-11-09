@@ -96,6 +96,42 @@ _Avoid_: 最新 master, 任意集成分支
 A candidate that has passed the approved release gates but has not necessarily received authorization for push, tag, Release, or asset publication.
 _Avoid_: 已发布, 可自动发布
 
+**播放会话 (Playback session)**:
+A continuous playback attempt for one media source, from start until terminal completion, source replacement, or user exit.
+_Avoid_: 播放页面, 播放队列
+
+**播放位置 (Playback position)**:
+The current media timestamp reported by the active playback engine; it is neither a requested seek target nor a persisted resume point.
+_Avoid_: 目标位置, 进度条值
+
+**定位请求 (Seek request)**:
+A user's requested playback position that has not yet been confirmed by the active playback backend.
+_Avoid_: 已跳转, 播放位置
+
+**定位确认 (Seek confirmation)**:
+The active playback backend's acknowledgement that a seek request established a new playable position.
+_Avoid_: 按钮已响应, 目标位置已显示
+
+**续播 (Resume)**:
+Starting a new playback session at the last persisted user playback position.
+_Avoid_: 拖动进度, 回到开头
+
+**缓冲 (Buffering)**:
+A temporary playback state in which playable media data is not yet available.
+_Avoid_: 播放失败, 缓冲停滞
+
+**缓冲停滞 (Playback stall)**:
+A sustained buffering condition without progress or a terminal error that requires an observable recovery path.
+_Avoid_: 普通加载, 永久失败
+
+**媒体库作用域 (Catalog scope)**:
+The server identity, authenticated user identity, and access mode that own a visible media collection.
+_Avoid_: 当前页面, 全局媒体库
+
+**字幕上屏 (Subtitle rendered)**:
+The state in which the selected subtitle content is visibly drawn in the playback canvas; selecting a track alone does not establish it.
+_Avoid_: 字幕已选择, 字幕下载成功
+
 **生产服务器**:
 The user's normal Jellyfin server whose content and user state are read-only during development and QA.
 _Avoid_: 测试服务器, 通用服务器

@@ -832,6 +832,26 @@ Invoke-FixtureTest -Name 'GatePlan FAST Snapshot command executes against fixtur
     }
 }
 
+Invoke-FixtureTest -Name 'GatePlan maps root glossary documents to FAST' -Body {
+    $fixture = New-Fixture
+    try {
+        $fixture = Install-GatePlanEntrypoints -Fixture $fixture
+        $result = Invoke-Workflow -Arguments @(
+            '-Mode', 'GatePlan',
+            '-RepoRoot', $fixture.Root,
+            '-ChangedPath', 'GLOSSARY.md||GLOSSARY-MAP.md'
+        )
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-Contains -Result $result -Token 'GATE_LANE=FAST'
+        Assert-Contains -Result $result -Token 'GATE_PATH=GLOSSARY.md'
+        Assert-Contains -Result $result -Token 'GATE_PATH=GLOSSARY-MAP.md'
+        Assert-GateCommandFileTargets -Result $result
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
 Invoke-FixtureTest -Name 'GatePlan maps control-plane scripts to CANDIDATE' -Body {
     $fixture = New-Fixture
     try {

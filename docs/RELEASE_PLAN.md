@@ -3,6 +3,11 @@
 > 建线：W71（2026-10-05）｜维护：发布负责人｜适用：1.0.0 起的 GitHub Releases 署名 APK
 > 路线（用户 2026-10-05 拍板）：**自用为主 + GitHub 开源发布**；国内商店 / Google Play 后续再议，本波不做商店材料。
 
+> **播放器核心发布门（2026-11-09，强制）**：候选包含播放器、媒体目录、字幕或音乐播放变化时，
+> 必须先按 `docs/TEST_PLAN.md` §8 执行 `PLAYER_CORE_RELEASE_MATRIX` 并满足
+> `docs/PROJECT_RULES.md` `R042`。任一行 `NOT_RUN`、任一开放 P1 或高频主流程 P2 时不得制作
+> Release notes、截图、资产或进入用户最终验收；`PASS_WITH_GAPS` 不覆盖播放器核心。
+
 ---
 
 ## 1. 发布物

@@ -62,6 +62,12 @@
 
 - **开工顺序**：先读 `docs/PROJECT_RULES.md` → `docs/TASKS.md` 唯一 `ACTIVE` 与任务卡 → 所在任务线稳定文档；
   播放器线稳定需求 / 验收见 `docs/PLAYER_PLAN.md`。项目总览和架构文档只提供稳定背景。
+- **播放器必读门（2026-11-09，强制）**：任何播放器、媒体目录、字幕、音乐播放修复或
+  1.4.x / 2.0 Release 任务，除 `docs/PLAYER_PLAN.md` 外还必须读 `docs/TEST_PLAN.md` §8
+  `PLAYER_CORE_RELEASE_MATRIX`、`docs/PROJECT_RULES.md` `R042`、`docs/LESSONS.md` `L044`
+  与 `GLOSSARY.md` 的播放会话 / 定位请求 / 定位确认 / 播放位置 / 缓冲停滞 / 媒体库作用域
+  术语。派单、实现收口、独立 QA 和 Release 报告都必须引用实际矩阵结果；没有真实候选链路
+  证据不得写播放器 PASS。
 - **Aurorama 2.0 权威入口**：动态派单事实只读 `docs/TASKS.md`；`docs/V2_PLAN.md` 只提供稳定需求、
   外部原始需求白名单与历史，`docs/PROJECT_RULES.md` 提供执行规则，`docs/DECISIONS.md` 提供稳定决策，
   `docs/LESSONS.md` 提供踩坑。外部原始需求永久只读。
@@ -82,6 +88,10 @@
 - 不要新建零散的 `.md` 说明文件；新需求、新决策、新进度一律写进对应任务线文档。
 - 构建命令：`$env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'; .\gradlew.bat :app:phone:assembleDebug --console=plain`（2026-10-06 工具链迁至 F 盘）。
 - 测试服务器 `jellyfins.zhangwenkang.com` 为生产环境，**只读**，禁止任何写入/删除调用。2.0 的服务器写测试只允许使用用户指定的独立可写测试服务器；地址和凭据位置见 `PROJECT_RULES`，不得把凭据值写入仓库、日志、报告或记忆。
+- **播放器恢复与日常设备边界（2026-11-09，强制）**：1.3.0 只能提供行为基线，恢复必须
+  路径级最小化并证明保留 1.4.0 新功能，禁止整文件 / 整模块 / 整提交覆盖。日常使用的一加
+  ColorOS 手机只允许普通安装、应用内操作和只读取证；禁止改系统底层设置、开发者选项、
+  网络策略、权限数据库、代理或任何设备配置。需要底层修改时必须停止并改为用户协助测试。
 - **上下文预算（硬约束）**：模型单次请求纯文本 ≤ 880KB、含内联图片 ≤ 48MiB。
   - 不要把截图或大图塞进对话；本地图片用文件链接给出，不要 inline 渲染。
   - 工具输出必须裁剪：只取 `-Last N`、`Select-String` 命中行，禁止整文件回显。

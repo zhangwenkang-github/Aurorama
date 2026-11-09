@@ -4750,3 +4750,115 @@ Context / 交接：
 - **2026-11-02 主仓本地集成 `LOCAL_FF_OK`：** fresh 主仓集成 owner 在隔离 worktree 用 base `61c04a38` / primary dirty `PLAYER_PLAN` / candidate `005639a6` 做三方无损合成，形成 candidate 单父 docs-only `5d0b3216df7af905a148d7bb185d57cb83c1b2e9 / tree ee7c49d5de703db00b6f729a832583deabd6edc3`。常规 `git merge --ff-only` 在 dirty overlap 下被 Git 拒绝并 exact-byte 恢复；随后在 detached worktree 复刻 13+5 状态，验证 `update-index --cacheinfo + read-tree -m -u + old-value update-ref` two-tree bridge 的 99/99 target entry、17/17 保留路径 MATCH，才对 primary 执行。master 前进到 final；`005639a6..HEAD` 仅 `docs/PLAYER_PLAN.md`；用户既有 dirty 由 13→12（唯一重叠的 `PLAYER_PLAN` 已无损吸收并 clean）、5 untracked / 2 stash / 0 staged / 0 unmerged 保持；origin 仍 `61c04a38`。报告 `C0844365…7A36`、SUMS `11/11`，证据根 `F:\Develop\code_data\qa\w90a2-main-integration-20261102`。未 push / CI / tag / Release。
 - **2026-11-02 Post-merge Gate `MERGE_STATE_GATE_PASS`：** 与主仓集成 owner 不同的 fresh Post-merge Gate 在精确 `5d0b3216 / ee7c49d5` clean worktree 实测：CI 8-task JVM `247/247 executed`、280 XML / `1,999/0/0/0`；全仓 assemble `384/384`、phone assemble `242/242`、ktfmt `34/34`；两路 diff-check exit 0；graphify AST-only `15,347 nodes / 48,751 edges / 480 communities` exit 0。docs-only 外产品路径 diff exit 0；arm64 debug APK `150,290,331 B / 20ECD05F…62DB1`、`1.4.0(5)`、arm64-v8a、v2 debug 证书 `a645eac5…e910d6` 完全 MATCH。新增产品 P0–P3=`0/0/0/0`、BLOCKED=0；历史搜索 P1 `ACCEPTED_RESIDUAL` 与既有 Release P3 保持。report `FC4A9B27…5B79`、manifest `54D79562…36B0`、SUMS `292/292 MATCH`，证据根 `F:\Develop\code_data\qa\w90a2-post-merge-gate-20261102`。未 push / CI / tag / Release、未接设备 / 生产。负责人实际水位 `301,372 / 1,048,576（28.7%）`，按 30 万门禁停止新增任务并准备交接；下一角色处理 push / CI 前必须先只读复核 `5d0b3216`、origin `61c04a38`、12+5+2 与两包证据。
 - **2026-11-02 推送与三工作流 CI `PUSH_AND_CI_PASS`：** fresh Release 推送 / CI owner 预核证据后仅执行一次普通 `git push origin master`，exit 0，远端由 `61c04a38` 快进到 `a8bfd83646ab8753e5a4586e0718522b76dcc228`；本地与 origin ahead/behind=`0/0`，无 force / tag / Release。Build `41345414878`、Unit Tests `41345414805`、Format `41345414828` 均与 pushed SHA 精确关联并 `completed/success`。primary 仍保留 `12 tracked dirty + 5 untracked + 2 stash`、0 staged/unmerged；新增产品 P0–P3=`0/0/0/0`、BLOCKED=0；搜索 P1 `ACCEPTED_RESIDUAL` 与既有 P3 保持。report `AA32802B…9442`、manifest `6CF76540…9C1F`、SUMS `3C4135EE…64C4`，证据根 `F:\Develop\code_data\qa\w90a2-push-ci-20261102`。CI 不替代用户终验；下一门 = 当前任务线汇总结提交经普通 push 后复核，以及 Release 资产 / 用户验收决策。
+
+## 52. Aurorama 1.4.0 播放稳定性集束（2026-11-09，USER_REPORTED / DESIGN_FROZEN / IMPLEMENTATION_NOT_STARTED）
+
+**需求 ID**：`V1.4.0-PLAYER-STABILITY-CONTAINMENT`
+
+**状态**：用户报告 11 项真实体验问题；事实调查完成；1.4.1 稳定性修复方向与播放器核心
+发布门已冻结；运行时候选诊断、实现、独立 QA 与 Release 均未开始。
+
+### 52.1 对象与版本边界
+
+```text
+RELEASE_BASELINE=v1.4.0
+V140_TAG_OBJECT=491a535279eb46639b29b70b5f2be7ebcd534bb6
+V140_TAG_COMMIT=7b69e531fa0536379d66a5203736fd5ac43a5568
+V140_APK_BUILD_SOURCE=005639a69679609661e3845344d3c6eec0e40f52
+V140_APK_BUILD_TREE=19bcf30828969fcb5743f2f108c51ef8742ed146
+PREVIOUS_KNOWN_GOOD_BASELINE=v1.3.0
+TARGET_RELEASE=1.4.1
+CANONICAL_CURRENT_AT_FACT_CHECK=2b097f6c30bc1ac8442f7812183f7acdd5015633
+```
+
+1.4.1 必须从精确 1.4.0 产品等价源建立独立稳定性分支，不能把当前 W1C / canonical 架构
+切片当作 1.4.0 已修复。W1C / canonical 只能提供诊断参照或经单独批准的局部候选。
+
+1.3.0 只提供行为基线和最小补丁依据。禁止整文件、整模块、整提交覆盖 1.4.0；每个恢复补丁
+必须列出保留的 1.4.0 新能力，并由对象审计、回归测试和真实候选入口共同证明。
+
+### 52.2 用户报告与证据状态
+
+用户原话要点见 2026-11-09 会话；以下保留稳定 intake ID。严重度暂为 `NOT_ASSESSED`，
+因为尚无同片源完整运行时证据。
+
+| ID | 用户现象 | 事实状态 | 故障簇 |
+|---|---|---|---|
+| `V2-FIX-PLAYER-SEEK-001` | 定位超时但视频继续；拖动不跳；起播不续播 | `REGRESSION_SUSPECTED` | 播放会话 |
+| `V2-FIX-CATALOG-SCOPE-001` | 切账号后视频页仍是旧账号库；主动刷新不可用 | `KNOWN_EXISTING` | 目录作用域 |
+| `V2-REQ-MEDIA-PAGING-001` | 媒体页面应分页 / 增量加载 | `DEFERRED_FEATURE` | 后续功能版本 |
+| `V2-FIX-NAV-RESTORE-001` | 长播后返回节目页黑屏、重载、回顶 | `KNOWN_EXISTING`；黑屏直接根因未证 | 目录作用域 |
+| `V2-FIX-MUSIC-PLAYBACK-001` | 一加 ColorOS 16.0.10 音乐一直“已暂停” | `NEW_REPORT_CAUSE_UNKNOWN` | 音乐运行环境 |
+| `V2-FIX-PLAYER-LOADING-001` | 双加载动画；加载中点击不能暂停 / 继续 | `REGRESSION_SUSPECTED` | 播放会话 |
+| `V2-FIX-PLAYER-STALL-001` | 官方端可播，本 App 偶发几乎无流量长期加载，重启恢复 | `KNOWN_EXISTING`；普通 BUFFERING 无 stall watchdog | 播放会话 |
+| `V2-FIX-SUBTITLE-LOAD-001` | 字幕不自动加载 / 只能作次字幕；重启偶恢复；设置布局乱 | `KNOWN_EXISTING` | 字幕链路 |
+| `V2-FIX-PLAYER-NOOP-001` | 无加载、无暂停、无报错但不播放，单次出现 | `NEW_REPORT_CAUSE_UNKNOWN` | 播放会话 |
+| `V2-FIX-PLAYER-PROGRESS-001` | 进度条与实际不一致；拖动后不立即跳；概率一直加载；偶发中途下一集 | `REGRESSION_SUSPECTED` | 播放会话 |
+| `V2-FIX-SUBTITLE-RENDER-001` | 选定字幕不显示，转码后才显示 | `KNOWN_EXISTING` | 字幕链路 |
+
+事实调查未发现 `ALREADY_FIX_IN_LATER_COMMIT`。账号 / 目录相关当前 canonical 变更只覆盖
+Video/Home/Movie 的部分路径，不覆盖 `MediaViewModel` 的 60 秒非空早退，也不证明节目页
+恢复问题已修。
+
+### 52.3 1.4.0 改动热点
+
+- W86-A 媒体源 / 当前流快照：`8244b617`、`1044ed56`、`0474adc7`、`2e10bade`。
+- W86-B 字幕单片作用域：`79dd3c1d`、`accaa67c`、`dca744ca`、`57b57549`。
+- W86-C seek 状态机：`799932d6`、`da8fe4b3`、`69341cbc`、`37426292`、
+  `7bf1ff5a`、`da13f8c7`、`91bc6794`。
+- W86-D MediaSession 统一 seek：`ee1c042f`、`6414f5f1`。
+- W87 音乐队列 / 恢复：`86bfe09b`、`e578a63a`。
+- W88 账号缓存 namespace：`b50422c4`、`320c4929`、`09bf51ea`、`610cabe4`、
+  `f37105ea`、`ebdfded6`、`cd0cd5da`。
+- W90 音乐交互 / 队列：`45e2de77`、`4c764525`、`e2fdfdcf`、`36faf7dd`、
+  `fe2dbacc`、`024235b4`、`27b82f57`、`f863af64`。
+
+这些提交只证明改动位置，不证明当前 11 项问题均由它们引入。
+
+### 52.4 已冻结的交付决策
+
+1. 当前进入 1.4.1 紧急稳定性修复线；W1C-2、W1D–W1G、W1E、父 seam 与新功能冻结。
+2. 第 1、2、4、5、6、7、8、9、10、11 项进入紧急修复范围；第 3 项分页进入后续功能版本。
+3. 先建立真实候选和 1.3.0/1.4.0 A/B，再修代码；禁止先猜根因后补测试。
+4. 播放器核心不得以 `PASS_WITH_GAPS` 覆盖未执行链路；开放 P1 或高频主流程 P2 阻断发布。
+5. 定位失败只做内部状态恢复和可重试行内反馈；正常播放中不再弹通用“未确认定位”阻断弹窗。
+6. 经验执行入口固定为 `TEST_PLAN` §8、`PROJECT_RULES` `R042`、`LESSONS` `L044`、
+   ADR `0008` 与 `AGENTS` 播放器必读门。
+7. 每簇最多一轮实现、一次定向复审、一次必要补丁；第二轮仍为同一 P1 时重做状态模型。
+8. 一加手机为日常设备，只允许普通安装、应用内操作和只读取证；禁止任何系统底层修改。
+
+### 52.5 故障簇与额外隐患
+
+| 簇 | 范围 | 必修不变量 | 额外风险必须验证 |
+|---|---|---|---|
+| A 播放会话 | seek、续播、进度、换集、加载、暂停、停滞、无错误悬挂 | 播放位置、定位请求、定位确认、EOS 与 `playWhenReady` 各有唯一可观察真源 | seek 超时后播放继续但 UI 分叉；`isPlaying` 误代 `playWhenReady`；普通 BUFFERING 无 watchdog；MediaSession / mpv / HLS 组合 |
+| B 目录作用域 | 切账号、视频页刷新、节目页返回 | server + user + access mode 改变后，旧列表 / 滚动 / 缓存不得继续作为当前首帧 | `MediaViewModel` 非空 TTL 早退；`ShowScreen RESUMED` 无条件重取；旧 scope 延迟回调 |
+| C 字幕链路 | 自动加载、主 / 次字幕、直放 / 转码、Exo / mpv、设置布局 | 选中的字幕源必须经真实交付 / 解析 / 选中 / 上屏四段证据 | mpv 内嵌字幕存在时跳过服务端注入；图形字幕按语言匹配不到时取首轨；下载成功但 0 cue / 未绘制 |
+| D 音乐运行环境 | 一加 ColorOS 16、音频焦点、MediaSession、FGS、通知 | 真实引擎位置变化与所有系统媒体表面一致 | 永久“已暂停”、声音 device、FGS、通知动作和焦点抢占 |
+| E 媒体分页 | 各媒体页面增量加载 | 只在后续功能版本冻结，不阻塞 1.4.1 | 当前部分页面已有 Paging，其余页面不能凭一个入口概括 |
+
+### 52.6 诊断顺序
+
+1. `A` 播放会话只读诊断：同一用户、同一条目、同一服务器，执行 1.3.0/1.4.0 A/B；记录
+   backend、直放 / HLS、起播位置、seek 请求 / 确认 / 超时、真实引擎位置、EOS 与换集。
+2. `B` 目录作用域诊断：同一进程账号 A→B，观察视频页、媒体库、首页和节目页返回。
+3. `C` 字幕矩阵：Direct/HLS × Exo/mpv × 内嵌 / 外挂 / 侧载，记录 DeliveryUrl、HTTP、
+   cues / ASS、主次轨、实际绘制。
+4. `D` 音乐兼容：用户协助的一加普通安装与只读 `dumpsys` / logcat，不修改任何系统设置。
+5. `E` 分页：保持延期，不进入 1.4.1 修复白名单。
+
+### 52.7 当前门与下一步
+
+```text
+FACT_FINDER=COMPLETE
+DESIGN_FROZEN=YES
+BUGFIX_IMPLEMENTATION_AUTHORIZED=NO
+DEVICE_DIAGNOSTICS_AUTHORIZED=USER_SUPPORTED_READ_ONLY
+ONEPLUS_SYSTEM_MODIFICATION=FORBIDDEN
+PUSH=NO / TAG=NO / RELEASE=NO
+P0-P3=NOT_ASSESSED
+```
+
+下一角色应为全新、只读的 `AURORAMA_140_PLAYER_REGRESSION_TRIAGE_OWNER_2026_11_09`。第一条
+只读动作是核对唯一 ACTIVE、本节、1.4.0 Release lineage、`TEST_PLAN` §8 与当前
+`code/device-lock`；产物为 A 簇 `BUG_TRIAGE_REPORT.md`，不得改代码、不得改日常手机底层。

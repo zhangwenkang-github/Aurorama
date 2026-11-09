@@ -555,7 +555,11 @@ function Invoke-GatePlan {
             Write-Failure -Code 'WORKFLOW_GATE_PATH_DUPLICATE' -Subject $path
         }
 
-        $isFast = $path -ceq 'AGENTS.md' -or $path -cmatch '^docs/.+\.md$'
+        $isFast = $path -cin @(
+            'AGENTS.md'
+            'GLOSSARY.md'
+            'GLOSSARY-MAP.md'
+        ) -or $path -cmatch '^docs/.+\.md$'
         $isCandidate = $path -cin @(
             'tools/architecture/v2-workflow.ps1'
             'tools/architecture/v2-workflow.tests.ps1'

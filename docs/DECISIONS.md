@@ -729,3 +729,27 @@ A0_GUARD_IS_NOT_ARCH_REFACTOR=YES
 §0.1、§0.6、§0.8、§0.10；`docs/PROJECT_RULES.md` `R035`；`docs/LESSONS.md` `L041`；
 `docs/V2_PLAN.md` §10、§12 ACTIVE、§13。本决定不构成实现、测试、QA、G1、runtime、Release
 或产品架构重构完成声明。
+
+### `V2-D214` 播放器核心以精确候选真实链路作为发布门（2026-11-09，Accepted）
+
+用户接受将 1.4.0 播放体验事故作为独立稳定性修复线：冻结架构扩张，1.4.1 从精确 1.4.0
+产品等价源建立；seek、续播、账号隔离、返回页面恢复、音乐跨设备、加载状态、普通缓冲停滞、
+字幕与进度一致性必须在真实签名候选入口执行。1.3.0 只提供行为基线，恢复仅允许路径级最小
+补丁并保留全部 1.4.0 新能力；禁止整文件、整模块或整提交覆盖。日常一加手机只做普通安装、
+应用层操作与只读取证，禁止修改系统底层设置。
+
+固定语义：
+
+```text
+PLAYER_CORE_RELEASE_MATRIX=REQUIRED
+PASS_WITH_GAPS_CANNOT_COVER_PLAYER_CORE=YES
+PLAYER_REGRESSION_REQUIRES_V130_V140_AB=YES
+V130_RESTORE=BEHAVIOR_LEVEL_ONLY
+V140_NEW_FEATURES_MUST_BE_PRESERVED=YES
+DAILY_DEVICE_SYSTEM_MODIFICATIONS=FORBIDDEN
+PLAYER_FIX_ROUNDS_MAX=2
+```
+
+权威执行入口为 `docs/TEST_PLAN.md` §8、`docs/PROJECT_RULES.md` `R042`、
+`docs/LESSONS.md` `L044` 与 `docs/adr/0008-player-core-release-gate.md`。本决定不表示任何
+1.4.0 bug 已修复、runtime PASS、1.4.1 ready、W1C 完成或 Release 授权。

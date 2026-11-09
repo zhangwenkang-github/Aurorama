@@ -5,33 +5,33 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V2-W1C-1-LOCAL-FF-ONLY-INTEGRATION-2026-11-09
+### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
-- TASK_ID=V2-W1C-1-POST-INTEGRATION-BUG-TRIAGE-HANDOFF-2026-11-09
-- TASK_STAGE=W1C_1_LOCALLY_FF_ONLY_INTEGRATED / USER_AUTHORIZED_W1C_NEXT_SLICE / USER_REPORTED_1_4_0_SEVERE_BUGS / BUG_TRIAGE_REQUIRED / LEAD_HANDOFF_READY
+- TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
+- TASK_STAGE=USER_REPORTED_11_PLAYER_BUGS / FACT_FINDER_COMPLETE / DESIGN_FROZEN / IMPLEMENTATION_NOT_STARTED / TRIAGE_NEXT
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_PROMPT > TASKS ACTIVE + 1.4.0 bug report history + W1C-1 integrated evidence > FIX_PLAN + PLAYER_PLAN + RELEASE_PLAN > AGENTS.md / PROJECT_RULES / LESSONS
-- NEXT_ROLE=AURORAMA_140_BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_2026_11_09
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R042 > LESSONS L044 > GLOSSARY playback terms > R034/R038-R040 > v1.4.0 release lineage and evidence
+- NEXT_ROLE=AURORAMA_140_PLAYER_REGRESSION_TRIAGE_OWNER_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-post-integration-bug-triage-handoff-2026-11-09\BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_PROMPT.md
-- NEXT_REQUIREMENT=V1.4.0-BUG-CONTAINMENT / W1C_NEXT_SLICE_AUTHORIZED_SCOPE_NOT_FROZEN / severe user-observed 1.4.0 bugs must be reproduced on exact release lineage and triaged before W1C expansion
-- STOP_CONDITION=Successor must collect concrete 1.4.0 bug reports and triage severity before code changes. Do not mix fixes into W1C; no bugfix, device, network, push, tag or Release without new explicit authorization.
-- SCOPE=W1C_1_HOME_VIDEO_AGGREGATE_MOVIE_DETAIL_SCOPE_FROZEN
-- AUTHORIZATION=USER_W1C_NEXT_SLICE_AUTHORIZED_2026_11_09 / USER_REPORTED_1_4_0_SEVERE_BUGS_2026_11_09 / NO_BUGFIX_IMPLEMENTATION_AUTHORIZATION / PUSH_NOT_AUTHORIZED / TAG_NOT_AUTHORIZED / RELEASE_NOT_AUTHORIZED
-- IMPLEMENTATION_AUTHORIZED=NO / W1C_1_LOCALLY_FF_ONLY_INTEGRATED / W1C_NEXT_PAUSED_PENDING_BUG_TRIAGE
-- DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO_CURRENT_BUG_TRIAGE / INTEGRATED=YES / LOCAL_UNPUSHED=YES
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\docs\PLAYER_PLAN.md
+- NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / 1.4.1 stability repair / reproduce the 11 user reports on exact v1.4.0 and v1.3.0 baselines before code changes
+- STOP_CONDITION=Triage only: do not implement or repair before exact v1.4.0 reproduction and v1.3.0 A/B. Freeze W1C and feature expansion. Do not restore whole 1.3 files. Never modify the daily OnePlus system settings or internals. Stop on object drift, missing logs that require unauthorized writes, a new P0/P1 requiring user decision, or any attempt to hide errors instead of proving behavior.
+- SCOPE=1.4.1_PLAYER_STABILITY / bug families A playback-session B catalog-scope C subtitle-pipeline D music-runtime / media paging deferred / implementation not started
+- AUTHORIZATION=USER_CONFIRMED_PLAYER_STABILITY_PLAN_2026_11_09 / USER_SUPPORTED_READ_ONLY_DEVICE_DIAGNOSTICS / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_MODIFICATIONS / NO_BUGFIX_IMPLEMENTATION_AUTHORIZATION / NO_PUSH_TAG_RELEASE
+- IMPLEMENTATION_AUTHORIZED=NO / TRIAGE_AND_REPRODUCTION_ONLY
+- DEVICE_ACCESS=USER_SUPPORTED_READ_ONLY_DIAGNOSTICS / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / NETWORK_NOT_USED
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=2026-11-09 / W1C_1_LOCALLY_FF_ONLY_INTEGRATED / BUG_TRIAGE_HANDOFF / CONTEXT_OVER_250K / DEVICE_NOT_USED / NETWORK_NOT_USED
-- P0=0
-- P1=P1-W1C1-01:CLOSED_BY_REPAIR_QA;P1-W1C1-02:CLOSED_BY_REPAIR_QA;P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
-- P2=P2-W1C1-03:CLOSED_BY_REPAIR_QA;P2-W1C1-04:CLOSED_BY_REPAIR_QA;P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
-- P3=P3-W1C1-05:CLOSED_BY_REPAIR_QA;P3-W1B1B-PUBLIC-PERMIT-MARKER:ACCEPTED;P3-W1B1B-READ-LEASE-PUBLIC-EFFECT-REENTRANCY:ACCEPTED_CURRENT_CALL_GRAPH_NO_REENTRY;P3-W1B1-COMBINED-QA-HARNESS:ACCEPTED;P3-QA-W1B2-01:ACCEPTED_TEST_DEPTH_GAP
+- P0=NOT_ASSESSED
+- P1=NOT_ASSESSED_USER_REPORTED_PLAYER_BUGS
+- P2=NOT_ASSESSED_USER_REPORTED_PLAYER_BUGS
+- P3=NOT_ASSESSED_USER_REPORTED_PLAYER_BUGS
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\SCOPE_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-2026-11-09\IMPLEMENTATION_REPORT.md
@@ -44,9 +44,24 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=1_4_0_BUG_TRIAGE_THEN_W1C_NEXT_SLICE_OR_RELEASE_HOTFIX_DECISION
-- last_evidence=W1C_1=LOCALLY_FF_ONLY_INTEGRATED; INTEGRATED_CODE_HEAD=cb170b5e510132fb0b82972086127e69fc1faae9; USER_REPORTED_1_4_0_SEVERE_BUGS_2026_11_09; BUG_DETAILS_NOT_YET_SUPPLIED; W1C_NEXT_SLICE_AUTHORIZED_SCOPE_NOT_FROZEN; NEXT_PROMPT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-post-integration-bug-triage-handoff-2026-11-09\BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_PROMPT.md; PUSH=NO; TAG=NO; RELEASE=NO
+- NEXT_CRITICAL_PATH=1_4_1_PLAYER_SESSION_TRIAGE_THEN_CATALOG_SUBTITLE_MUSIC_AND_CORE_RELEASE_GATE
+- last_evidence=PLAYER_PLAN §52 design frozen; TEST_PLAN §8 required; PROJECT_RULES R042; LESSONS L044; ADR 0008; v1.4.0 tag commit 7b69e531fa0536379d66a5203736fd5ac43a5568; P0-P3 not assessed; implementation not authorized; push/tag/release NO
 <!-- V2_HANDOFF_ACTIVE_END -->
+
+### HISTORY — 2026-11-09 1.4.0 player stability design frozen
+
+- 用户提供 11 项 1.4.0 播放体验报告并同意：进入独立 1.4.1 稳定性修复线；冻结 W1C 与新功能；
+  修复前先做精确 v1.4.0 复现和 v1.3.0 A/B；媒体分页作为后续功能版本，不混入稳定性修复。
+- 事实调查确认 11 项并非全部为 1.4.0 新回归：seek / 加载控件 / 进度换集为强回归嫌疑；
+  账号目录、节目页回顶、普通 stall、mpv 字幕注入、图形字幕选轨有既有代码证据；ColorOS
+  与“无错误但不播放”仍无运行时根因。
+- 已冻结 `PLAYER_PLAN` §52、`TEST_PLAN` §8、`PROJECT_RULES` `R042`、`LESSONS` `L044`、
+  ADR `0008`、`DECISIONS` `V2-D214` 与 `AGENTS` 播放器必读门。
+- 一加手机是日常设备：只允许普通安装、应用内操作与只读取证；禁止修改系统底层设置、开发者
+  选项、网络策略、权限数据库、代理或任何设备配置。
+- 当前仅完成设计、事实调查和文档收口；未改播放器代码，未使用设备 / ADB / 网络 / 生产写，
+  未实现 / QA / merge / integration / push / tag / Release。下一角色为 fresh 只读
+  `AURORAMA_140_PLAYER_REGRESSION_TRIAGE_OWNER_2026_11_09`。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -833,10 +848,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=User reports severe 1.4.0 bugs without concrete reproduction details. No bug triage, implementation, device QA, W1C next slice or Release has started.
-- STOP_CONDITION=Successor must first obtain concrete 1.4.0 bug details and reproduce on the exact release lineage. P0/P1 freeze W1C expansion and require a separate hotfix line; do not mix fixes into W1C.
-- MANUAL_LIMITATION=W1C-1 integration evidence only covers its local JVM/static gate. It does not prove 1.4.0 runtime quality or absence of user-visible bugs.
-- MANUAL_OWNER=AURORAMA_140_BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_2026_11_09
+- UNCOVERED=All 11 user reports require exact v1.4.0 real-entry reproduction and v1.3.0 A/B where regression is claimed. No player stability candidate implementation, runtime QA, subtitle render proof, account-switch proof or ColorOS music proof exists yet.
+- STOP_CONDITION=Do not dispatch implementation or release QA until read-only triage produces stable bug IDs, severity, exact lineage and reproducible evidence. Daily OnePlus device must not have system settings or internals modified.
+- MANUAL_LIMITATION=Fact finding covered source and release history only. No device, ADB, network, production Jellyfin, build, test, or runtime evidence was produced; known-existing versus suspected-regression classifications are not final severity decisions.
+- MANUAL_OWNER=AURORAMA_140_PLAYER_REGRESSION_TRIAGE_OWNER_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
