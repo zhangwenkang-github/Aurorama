@@ -5,28 +5,28 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V2-W1C-CATALOG-READERS-SCOPE-2026-11-09
+### ACTIVE — V2-W1C-1-CATALOG-READERS-IMPLEMENTATION-2026-11-09
 
-- TASK_ID=V2-W1C-CATALOG-READERS-SCOPE-2026-11-09
-- TASK_STAGE=W1B_COMPLETE / W1C_1_TASK_CARD_FROZEN / IMPLEMENTATION_NOT_AUTHORIZED
+- TASK_ID=V2-W1C-1-CATALOG-READERS-IMPLEMENTATION-2026-11-09
+- TASK_STAGE=W1B_COMPLETE / W1C_1_IMPLEMENTATION_AUTHORIZED / READY_TO_DISPATCH
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=docs/TASKS.md W1C-1 frozen card + external state-effect matrix > W1B-2 merge report > docs/ARCHITECTURE.md Identity and Catalog stable contract > exact source/tests > AGENTS.md and PROJECT_RULES > docs/LESSONS.md L038-L043
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1C_IMPLEMENTATION_AUTHORIZATION
+- READ_ORDER=docs/TASKS.md W1C-1 frozen card + 15 exact paths + external matrix > current source/tests > W1B-2 merge report > AGENTS.md / PROJECT_RULES / LESSONS L038-L043
+- NEXT_ROLE=AURORAMA_V2_W1C_1_CATALOG_READERS_IMPLEMENTATION_OWNER_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - NEXT_PATH=docs/TASKS.md
-- STOP_CONDITION=W1C-1 task card is frozen; stop and wait for explicit user authorization to dispatch a fresh implementation owner. Do not implement, run independent QA, merge-prep, integrate, use devices/ADB/network, push, tag or Release. Stop on path expansion, prerequisite/task-card/matrix drift, missing source path, new P0-P2, Gradle/schema change or any request outside W1C-1.
+- STOP_CONDITION=fresh implementation owner must complete TDD within the 15 code/test paths, execute self-check, write implementation report and stop; do not create independent QA, merge-prep, integration, device/network or Release work. Stop on path expansion, prerequisite/matrix drift, missing source path, new P0-P2 or Gradle/schema change.
 - SCOPE=W1C_1_HOME_VIDEO_AGGREGATE_MOVIE_DETAIL_SCOPE_FROZEN
-- AUTHORIZATION=USER_CONTINUE_2026_11_09_W1C_SCOPE_ONLY / TASK_CARD_FROZEN
-- IMPLEMENTATION_AUTHORIZED=NO / AWAITING_NEW_USER_DECISION
+- AUTHORIZATION=USER_CONTINUE_2026_11_09_W1C_1_IMPLEMENTATION
+- IMPLEMENTATION_AUTHORIZED=YES / FRESH_IMPLEMENTATION_OWNER_DISPATCH
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO_UNTIL_IMPLEMENTATION_CANDIDATE / MERGE_PREP_READY=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=YES_AFTER_IMPLEMENTATION_REPORT / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_09 / W1C_1_TASK_CARD_FROZEN
+- CONTEXT_AT_CLOSE=NOT_RECORDED / NETWORK_NOT_USED / 2026_11_09 / W1C_1_IMPLEMENTATION_DISPATCH
 - P0=0
 - P1=P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
 - P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
@@ -34,8 +34,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\SCOPE_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_AUTHORIZATION_FOR_W1C_1_IMPLEMENTATION
-- last_evidence=W1C_1_TASK_CARD_FROZEN; MATRIX=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md; PRIOR=W1B_2_PASS_WITH_GAPS_AND_LOCAL_INTEGRATION
+- NEXT_CRITICAL_PATH=W1C_1_IMPLEMENTATION_RED_GREEN
+- last_evidence=W1C_1_IMPLEMENTATION_AUTHORIZED; CARD=docs/TASKS.md; MATRIX=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_BEGIN -->
@@ -665,14 +665,14 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   本地集成证据：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08\manager-final-gates.txt`。
 
-### QA_READY — W1C implementation not started
+### QA_READY — W1C implementation authorized / QA not ready
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=W1C-1 task card and state-effect matrix are frozen, but no product/test implementation exists. Independent QA, merge-prep, integration, Android runtime, parent seam, product and Release remain unassessed.
-- STOP_CONDITION=No QA is authorized. Wait for a new explicit user decision and a fresh implementation owner; QA can start only after a separate implementation report and fixed candidate.
-- MANUAL_LIMITATION=The W1C-1 matrix is a planned GatePlan input, not executed QA evidence.
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_W1C_IMPLEMENTATION_AUTHORIZATION
+- UNCOVERED=No W1C-1 implementation candidate exists yet. Independent QA, merge-prep, integration, Android runtime, parent seam, product and Release remain unassessed.
+- STOP_CONDITION=No independent QA is authorized until the fresh implementation owner completes a separate implementation report and fixes the candidate. QA must use a different fresh owner.
+- MANUAL_LIMITATION=W1C-1 implementation is the next authorized gate; the frozen matrix is not executed QA evidence.
+- MANUAL_OWNER=AURORAMA_V2_W1C_1_CATALOG_READERS_IMPLEMENTATION_OWNER_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -752,7 +752,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED / W1C_1=TASK_CARD_FROZEN / IMPLEMENTATION_NOT_AUTHORIZED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C、W1B-1 全栈与 W1B-2 已各自完成 QA + merge-prep + local integration；W1C-1 卡已冻结，等待用户授权实现 | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | user authorization -> fresh W1C-1 implementation -> independent QA -> merge-prep | W1C-1 尚未实现；W1C-2、W1D/W1E/W1F/W1G、真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED / W1C_1=IMPLEMENTATION_AUTHORIZED / READY_TO_DISPATCH / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C、W1B-1 全栈与 W1B-2 已各自完成 QA + merge-prep + local integration；W1C-1 卡已冻结，用户已授权 fresh implementation owner | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | fresh W1C-1 implementation -> implementation report -> independent QA -> merge-prep | W1C-1 尚未实现；W1C-2、W1D/W1E/W1F/W1G、真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |
@@ -1214,7 +1214,7 @@ pwsh -NoProfile -File "$repoRoot\tools\architecture\v2-owner-gate.ps1" -Root $re
 #### `ICS-W1C-CATALOG-READERS` W1C-1 冻结任务卡
 
 - 子切片 ID：`ICS-W1C-1-HOME-VIDEO-AGGREGATE-MOVIE-DETAIL`。
-- 状态：任务卡已冻结；产品/测试实现、独立 QA、merge-prep 与 integration 均未授权。
+- 状态：边界已冻结；当前 implementation / QA / merge-prep 授权状态只读唯一 ACTIVE。
 - 前置：`W1B_1=PASS / INTEGRATED`；`W1B_2=PASS_WITH_GAPS /
   LOCALLY_FF_ONLY_INTEGRATED`，唯一接受项为 `P3-QA-W1B2-01`；W1A `CatalogScope` /
   `CatalogReadOutcome` / `CatalogSnapshot` 与 W1B `IdentityReadPort` / `IdentitySnapshot`
@@ -1520,8 +1520,8 @@ P3 漂移；15 path 外扩张；contract 需要改 W1A/W1B 语义；出现新 P0
 schema、manifest、设备、ADB、网络、生产写、Release；测试 harness 在同一问题第二轮仍 P1；
 任何人要求越过 implementation -> independent QA -> merge-prep -> integration 顺序。
 
-任务卡冻结后的唯一下一步是用户决定是否授权 fresh W1C-1 implementation owner。未获新授权前，
-不得创建实现、QA、merge-prep 或 integration owner，也不得修改产品代码。
+任务卡冻结后的下一门固定为 fresh W1C-1 implementation owner；当前是否获授权只读唯一
+ACTIVE。实现收口前不得创建独立 QA、merge-prep 或 integration owner。
 
 #### 同一切片禁止双路径
 
