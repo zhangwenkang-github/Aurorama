@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.player.local.presentation
 
+import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -7,464 +8,218 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackSessionRulesTest {
-
-    private val key =
-        PlaybackSessionKey(
-            itemId = "item-a",
-            sourceGeneration = 1L,
-            sessionGeneration = 1L,
-        )
+    private val key = "item-a|source-a|1|1"
 
     @Test
-    fun `play action follows playWhenReady intent while buffering`() {
-        val update =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot = snapshot(playWhenReady = true, isPlaying = false, isBuffering = true),
-                nowElapsedMs = 0L,
-            )
-
-        assertEquals(PlaybackAction.PAUSE, update.projection.playPauseAction)
-        assertEquals(
-            PlaybackSessionClassification.BUFFERING_OR_LOADING,
-            update.projection.classification,
-        )
-        assertTrue(update.projection.loading)
-        assertNull(update.projection.terminal)
-
-        val resumed =
-            PlaybackSessionRules.advance(
-                state = update.state,
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isPlaying = false,
-                        isBuffering = false,
-                        isReady = true,
-                    ),
-                nowElapsedMs = 1_000L,
-            )
-        assertEquals(PlaybackAction.PAUSE, resumed.projection.playPauseAction)
-        assertTrue(resumed.projection.loading)
+    fun `play action follows intent while loading`() {
+        val loading = advance(input(isPlaying = false, isBuffering = true), 0L)
+        assertTrue(loading.second.loading)
+        assertTrue(loading.second.pauseWhenReady)
+        assertNull(loading.second.terminal)
     }
 
     @Test
     fun `explicit pause wins and cancels deadline`() {
-        val loading =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot = snapshot(playWhenReady = true, isPlaying = false, isBuffering = true),
-                nowElapsedMs = 0L,
-            )
+        val loading = advance(input(isPlaying = false, isBuffering = true), 0L)
         val paused =
-            PlaybackSessionRules.advance(
-                state = loading.state,
-                snapshot = snapshot(playWhenReady = false, isPlaying = false, isBuffering = true),
-                nowElapsedMs = 10_000L,
+            advance(
+                input(playWhenReady = false, isPlaying = false, isBuffering = true),
+                10_000L,
+                loading.first,
             )
-
-        assertEquals(PlaybackSessionClassification.EXPLICIT_PAUSE, paused.projection.classification)
-        assertEquals(PlaybackAction.PLAY, paused.projection.playPauseAction)
-        assertFalse(paused.projection.loading)
-        assertNull(paused.state.lastProgressAtMs)
-        assertNull(paused.state.terminal)
-
-        val afterDeadline =
+        assertFalse(paused.second.pauseWhenReady)
+        assertFalse(paused.second.loading)
+        assertNull(paused.first.lastProgressAtMs)
+        assertNull(
             PlaybackSessionRules.advance(
-                state = paused.state,
-                snapshot = snapshot(playWhenReady = false, isPlaying = false, isBuffering = true),
-                nowElapsedMs = PlaybackSessionRules.STALL_TIMEOUT_MS,
-            )
-        assertNull(afterDeadline.projection.terminal)
+                    paused.first,
+                    input(playWhenReady = false, isPlaying = false, isBuffering = true),
+                    PlaybackSessionRules.STALL_TIMEOUT_MS,
+                )
+                .terminal
+        )
     }
 
     @Test
-    fun `stall boundary is exclusive before twenty seconds and terminal at twenty seconds`() {
-        val initial =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot = snapshot(playWhenReady = true, isPlaying = false, isBuffering = true),
-                nowElapsedMs = 0L,
-            )
+    fun `stall boundary is exclusive before twenty seconds`() {
+        val initial = advance(input(isPlaying = false, isBuffering = true), 0L)
         val before =
-            PlaybackSessionRules.advance(
-                state = initial.state,
-                snapshot = snapshot(playWhenReady = true, isPlaying = false, isBuffering = true),
-                nowElapsedMs = PlaybackSessionRules.STALL_TIMEOUT_MS - 1L,
+            advance(
+                input(isPlaying = false, isBuffering = true),
+                PlaybackSessionRules.STALL_TIMEOUT_MS - 1L,
+                initial.first,
             )
-        assertNull(before.projection.terminal)
+        assertNull(before.second.terminal)
 
-        val atBoundary =
-            PlaybackSessionRules.advance(
-                state = before.state,
-                snapshot = snapshot(playWhenReady = true, isPlaying = false, isBuffering = true),
-                nowElapsedMs = PlaybackSessionRules.STALL_TIMEOUT_MS,
+        val terminal =
+            advance(
+                input(isPlaying = false, isBuffering = true),
+                PlaybackSessionRules.STALL_TIMEOUT_MS,
+                before.first,
             )
+        assertEquals("PLAYBACK_PROGRESS_TIMEOUT", terminal.second.terminal?.kind)
         assertEquals(
-            PlaybackSessionClassification.PLAYBACK_PROGRESS_TIMEOUT,
-            atBoundary.projection.classification,
+            PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
+            terminal.second.terminal?.positionSource,
         )
-        assertEquals(
-            PlaybackSessionClassification.PLAYBACK_PROGRESS_TIMEOUT,
-            atBoundary.projection.terminal?.classification,
-        )
-        assertEquals(
-            PlaybackRetryPositionSource.ENGINE_POSITION,
-            atBoundary.projection.terminal?.retryPosition?.source,
-        )
-        assertFalse(atBoundary.projection.loading)
+        assertFalse(terminal.second.loading)
     }
 
     @Test
-    fun `noop-like invalid position produces only progress unconfirmed at deadline`() {
-        val initial =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isPlaying = false,
-                        isBuffering = false,
-                        isReady = false,
-                        enginePositionMs = null,
-                        bufferedPositionMs = null,
-                    ),
-                nowElapsedMs = 0L,
+    fun `noop-like input only yields progress unconfirmed`() {
+        val input =
+            input(
+                isPlaying = false,
+                isBuffering = false,
+                isReady = false,
+                enginePositionMs = null,
+                bufferedPositionMs = null,
             )
-        assertNull(initial.projection.terminal)
-        val terminal =
-            PlaybackSessionRules.advance(
-                state = initial.state,
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isPlaying = false,
-                        isBuffering = false,
-                        isReady = false,
-                        enginePositionMs = null,
-                        bufferedPositionMs = null,
-                    ),
-                nowElapsedMs = PlaybackSessionRules.STALL_TIMEOUT_MS,
-            )
-
-        assertEquals(
-            PlaybackSessionClassification.PROGRESS_UNCONFIRMED,
-            terminal.projection.classification,
-        )
-        assertEquals(
-            PlaybackSessionClassification.PROGRESS_UNCONFIRMED,
-            terminal.projection.terminal?.classification,
-        )
-        assertNull(terminal.projection.terminal?.cause)
+        val initial = advance(input, 0L)
+        assertNull(initial.second.terminal)
+        val terminal = advance(input, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
+        assertEquals("PROGRESS_UNCONFIRMED", terminal.second.terminal?.kind)
+        assertNull(terminal.second.terminal?.cause)
     }
 
     @Test
     fun `engine position change resets deadline`() {
-        val initial =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isPlaying = true,
-                        isBuffering = false,
-                        isReady = true,
-                        enginePositionMs = 1_000L,
-                        bufferedPositionMs = 10_000L,
-                    ),
-                nowElapsedMs = 0L,
-            )
-        val progressed =
-            PlaybackSessionRules.advance(
-                state = initial.state,
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isPlaying = true,
-                        isBuffering = false,
-                        isReady = true,
-                        enginePositionMs = 11_000L,
-                        bufferedPositionMs = 10_000L,
-                    ),
-                nowElapsedMs = 10_000L,
-            )
+        val ready = input(isPlaying = true, isBuffering = false, isReady = true)
+        val initial = advance(ready.copy(enginePositionMs = 1_000L), 0L)
+        val progressed = advance(ready.copy(enginePositionMs = 11_000L), 10_000L, initial.first)
         val beforeNewDeadline =
-            PlaybackSessionRules.advance(
-                state = progressed.state,
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isPlaying = true,
-                        isBuffering = false,
-                        isReady = true,
-                        enginePositionMs = 11_000L,
-                        bufferedPositionMs = 10_000L,
-                    ),
-                nowElapsedMs = 29_999L,
-            )
-
-        assertEquals(10_000L, progressed.state.lastProgressAtMs)
-        assertEquals(11_000L, progressed.state.lastEnginePositionMs)
-        assertNull(beforeNewDeadline.projection.terminal)
+            advance(ready.copy(enginePositionMs = 11_000L), 29_999L, progressed.first)
+        assertEquals(10_000L, progressed.first.lastProgressAtMs)
+        assertEquals(11_000L, progressed.first.lastEnginePositionMs)
+        assertNull(beforeNewDeadline.second.terminal)
     }
 
     @Test
     fun `buffered position change resets deadline`() {
-        val initial =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot = snapshot(bufferedPositionMs = 1_000L),
-                nowElapsedMs = 0L,
-            )
-        val progressed =
-            PlaybackSessionRules.advance(
-                state = initial.state,
-                snapshot = snapshot(bufferedPositionMs = 2_000L),
-                nowElapsedMs = 10_000L,
-            )
+        val initial = advance(input(bufferedPositionMs = 1_000L), 0L)
+        val progressed = advance(input(bufferedPositionMs = 2_000L), 10_000L, initial.first)
         val beforeNewDeadline =
-            PlaybackSessionRules.advance(
-                state = progressed.state,
-                snapshot = snapshot(bufferedPositionMs = 2_000L),
-                nowElapsedMs = 29_999L,
-            )
-
-        assertEquals(10_000L, progressed.state.lastProgressAtMs)
-        assertEquals(2_000L, progressed.state.lastBufferedPositionMs)
-        assertNull(beforeNewDeadline.projection.terminal)
+            advance(input(bufferedPositionMs = 2_000L), 29_999L, progressed.first)
+        assertEquals(10_000L, progressed.first.lastProgressAtMs)
+        assertEquals(2_000L, progressed.first.lastBufferedPositionMs)
+        assertNull(beforeNewDeadline.second.terminal)
     }
 
     @Test
     fun `loading to ready transition resets deadline`() {
-        val loading =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot = snapshot(playWhenReady = true, isPlaying = false, isBuffering = true),
-                nowElapsedMs = 0L,
-            )
-        val ready =
-            PlaybackSessionRules.advance(
-                state = loading.state,
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isPlaying = true,
-                        isBuffering = false,
-                        isReady = true,
-                    ),
-                nowElapsedMs = 10_000L,
-            )
-        val beforeNewDeadline =
-            PlaybackSessionRules.advance(
-                state = ready.state,
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isPlaying = true,
-                        isBuffering = false,
-                        isReady = true,
-                    ),
-                nowElapsedMs = 29_999L,
-            )
-
-        assertEquals(PlaybackSessionClassification.READY, ready.projection.classification)
-        assertFalse(ready.projection.loading)
-        assertEquals(10_000L, ready.state.lastProgressAtMs)
-        assertNull(beforeNewDeadline.projection.terminal)
+        val loading = advance(input(isPlaying = false, isBuffering = true), 0L)
+        val readyInput = input(isPlaying = true, isBuffering = false, isReady = true)
+        val ready = advance(readyInput, 10_000L, loading.first)
+        val beforeNewDeadline = advance(readyInput, 29_999L, ready.first)
+        assertFalse(ready.second.loading)
+        assertEquals(10_000L, ready.first.lastProgressAtMs)
+        assertNull(beforeNewDeadline.second.terminal)
     }
 
     @Test
     fun `generation change clears terminal and retry token`() {
-        val initial =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot = snapshot(playWhenReady = true, isPlaying = false, isBuffering = true),
-                nowElapsedMs = 0L,
-            )
-        val terminal =
-            PlaybackSessionRules.advance(
-                state = initial.state,
-                snapshot = snapshot(playWhenReady = true, isPlaying = false, isBuffering = true),
-                nowElapsedMs = PlaybackSessionRules.STALL_TIMEOUT_MS,
-            )
-        assertTrue(terminal.projection.terminal != null)
-
-        val nextKey =
-            key.copy(
-                itemId = "item-b",
-                sourceGeneration = 2L,
-                sessionGeneration = 2L,
-            )
+        val input = input(isPlaying = false, isBuffering = true)
+        val initial = advance(input, 0L)
+        val terminal = advance(input, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
+        assertTrue(terminal.second.terminal != null)
         val changed =
-            PlaybackSessionRules.advance(
-                state = terminal.state,
-                snapshot = snapshot(key = nextKey, playWhenReady = true, isBuffering = true),
-                nowElapsedMs = PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+            advance(
+                input.copy(key = "item-b|source-b|2|2"),
+                PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+                terminal.first,
             )
-
-        assertNull(changed.projection.terminal)
-        assertNull(changed.state.terminal)
-        assertFalse(changed.state.retryConsumed)
-        assertNull(PlaybackSessionRules.consumeRetry(changed.state).intent)
+        assertNull(changed.second.terminal)
+        assertNull(changed.first.terminal)
+        assertFalse(changed.first.retryConsumed)
+        assertNull(PlaybackSessionRules.consumeRetry(changed.first))
     }
 
     @Test
-    fun `same terminal retry intent is consumed once`() {
+    fun `same terminal retry is consumed once`() {
         val terminal = terminalAtDeadline(enginePositionMs = 5_000L)
-
-        val first = PlaybackSessionRules.consumeRetry(terminal.state)
-        assertEquals(5_000L, first.intent?.positionMs)
-        assertEquals(PlaybackRetryPositionSource.ENGINE_POSITION, first.intent?.source)
-        assertTrue(first.state.retryConsumed)
-
-        val duplicate = PlaybackSessionRules.consumeRetry(first.state)
-        assertNull(duplicate.intent)
+        val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(terminal.first))
+        assertEquals(5_000L, terminal.second.terminal?.positionMs)
+        assertTrue(consumed.retryConsumed)
+        assertNull(
+            PlaybackSessionRules.project(consumed, input(isPlaying = false, isBuffering = true))
+                .terminal
+        )
+        assertNull(PlaybackSessionRules.consumeRetry(consumed))
     }
 
     @Test
     fun `retry position follows frozen source priority`() {
+        fun source(
+            engine: Long?,
+            explicit: Long?,
+            persisted: Long?,
+        ): PlayerViewModel.PlaybackRetryPositionSource? =
+            terminalAtDeadline(engine, explicit, persisted).second.terminal?.positionSource
+
         assertEquals(
-            PlaybackRetryPositionSource.ENGINE_POSITION,
-            terminalAtDeadline(
-                    enginePositionMs = 5_000L,
-                    explicitSeekTargetMs = 7_000L,
-                    persistedResumeMs = 8_000L,
-                )
-                .projection
-                .terminal
-                ?.retryPosition
-                ?.source,
+            PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
+            source(5_000L, 7_000L, 8_000L),
         )
         assertEquals(
-            PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST,
-            terminalAtDeadline(
-                    enginePositionMs = null,
-                    explicitSeekTargetMs = 7_000L,
-                    persistedResumeMs = 8_000L,
-                )
-                .projection
-                .terminal
-                ?.retryPosition
-                ?.source,
+            PlayerViewModel.PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST,
+            source(null, 7_000L, 8_000L),
         )
         assertEquals(
-            PlaybackRetryPositionSource.PERSISTED_RESUME,
-            terminalAtDeadline(
-                    enginePositionMs = null,
-                    explicitSeekTargetMs = null,
-                    persistedResumeMs = 8_000L,
-                )
-                .projection
-                .terminal
-                ?.retryPosition
-                ?.source,
+            PlayerViewModel.PlaybackRetryPositionSource.PERSISTED_RESUME,
+            source(null, null, 8_000L),
         )
         assertEquals(
-            PlaybackRetryPositionSource.START_ZERO,
-            terminalAtDeadline(
-                    enginePositionMs = null,
-                    explicitSeekTargetMs = null,
-                    persistedResumeMs = null,
-                )
-                .projection
-                .terminal
-                ?.retryPosition
-                ?.source,
+            PlayerViewModel.PlaybackRetryPositionSource.START_ZERO,
+            source(null, null, null),
         )
     }
 
     @Test
-    fun `classification precedence is explicit pause then real error then seek failure`() {
-        val paused =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot =
-                    snapshot(
+    fun `classification precedence is pause then error then seek failure`() {
+        assertEquals(
+            false,
+            advance(
+                    input(
                         playWhenReady = false,
                         hasPlayerError = true,
                         hasSeekFailure = true,
                     ),
-                nowElapsedMs = 0L,
-            )
-        assertEquals(PlaybackSessionClassification.EXPLICIT_PAUSE, paused.projection.classification)
-
-        val error =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        hasPlayerError = true,
-                        hasSeekFailure = true,
-                    ),
-                nowElapsedMs = 0L,
-            )
-        assertEquals(
-            PlaybackSessionClassification.REAL_PLAYER_ERROR,
-            error.projection.classification,
+                    0L,
+                )
+                .second
+                .pauseWhenReady,
         )
-        assertFalse(error.projection.loading)
-
-        val seekFailed =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isBuffering = true,
-                        hasSeekFailure = true,
-                    ),
-                nowElapsedMs = 0L,
-            )
-        assertEquals(
-            PlaybackSessionClassification.SEEK_FAILED,
-            seekFailed.projection.classification,
+        assertTrue(
+            advance(input(hasPlayerError = true, hasSeekFailure = true), 0L).second.showPlayerError
         )
-        assertFalse(seekFailed.projection.loading)
+        assertTrue(advance(input(hasSeekFailure = true), 0L).second.showSeekFailure)
     }
 
     @Test
-    fun `only authoritative end reason advances existing eos path`() {
-        assertTrue(PlaybackSessionRules.advancesToNextItem(PlaybackEndSignal.END_OF_MEDIA_ITEM))
-        assertFalse(PlaybackSessionRules.advancesToNextItem(PlaybackEndSignal.OTHER))
-    }
-
-    private fun terminalAtDeadline(
-        enginePositionMs: Long?,
-        explicitSeekTargetMs: Long? = null,
-        persistedResumeMs: Long? = null,
-    ): PlaybackSessionUpdate {
-        val initial =
-            PlaybackSessionRules.advance(
-                state = PlaybackSessionState(),
-                snapshot =
-                    snapshot(
-                        playWhenReady = true,
-                        isPlaying = false,
-                        isBuffering = true,
-                        enginePositionMs = enginePositionMs,
-                        explicitSeekTargetMs = explicitSeekTargetMs,
-                        persistedResumeMs = persistedResumeMs,
-                    ),
-                nowElapsedMs = 0L,
+    fun `only authoritative end reason advances eos path`() {
+        assertTrue(
+            PlaybackSessionRules.advancesToNextItem(
+                Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM
             )
-        return PlaybackSessionRules.advance(
-            state = initial.state,
-            snapshot =
-                snapshot(
-                    playWhenReady = true,
-                    isPlaying = false,
-                    isBuffering = true,
-                    enginePositionMs = enginePositionMs,
-                    explicitSeekTargetMs = explicitSeekTargetMs,
-                    persistedResumeMs = persistedResumeMs,
-                ),
-            nowElapsedMs = PlaybackSessionRules.STALL_TIMEOUT_MS,
+        )
+        assertFalse(
+            PlaybackSessionRules.advancesToNextItem(
+                Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST
+            )
         )
     }
 
-    private fun snapshot(
-        key: PlaybackSessionKey = this.key,
+    private fun advance(
+        input: PlaybackSessionInput,
+        now: Long,
+        state: PlaybackSessionState = PlaybackSessionState(),
+    ): Pair<PlaybackSessionState, PlayerViewModel.PlaybackSessionUi> {
+        val next = PlaybackSessionRules.advance(state, input, now)
+        return next to PlaybackSessionRules.project(next, input)
+    }
+
+    private fun input(
+        key: String = this.key,
         playWhenReady: Boolean = true,
         isPlaying: Boolean = false,
         isBuffering: Boolean = true,
@@ -475,8 +230,8 @@ class PlaybackSessionRulesTest {
         hasSeekFailure: Boolean = false,
         explicitSeekTargetMs: Long? = null,
         persistedResumeMs: Long? = null,
-    ): PlaybackSessionSnapshot =
-        PlaybackSessionSnapshot(
+    ) =
+        PlaybackSessionInput(
             key = key,
             playWhenReady = playWhenReady,
             isPlaying = isPlaying,
@@ -489,4 +244,19 @@ class PlaybackSessionRulesTest {
             explicitSeekTargetMs = explicitSeekTargetMs,
             persistedResumeMs = persistedResumeMs,
         )
+
+    private fun terminalAtDeadline(
+        enginePositionMs: Long?,
+        explicitSeekTargetMs: Long? = null,
+        persistedResumeMs: Long? = null,
+    ): Pair<PlaybackSessionState, PlayerViewModel.PlaybackSessionUi> {
+        val input =
+            input(
+                enginePositionMs = enginePositionMs,
+                explicitSeekTargetMs = explicitSeekTargetMs,
+                persistedResumeMs = persistedResumeMs,
+            )
+        val initial = advance(input, 0L)
+        return advance(input, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
+    }
 }

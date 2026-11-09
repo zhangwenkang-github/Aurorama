@@ -126,9 +126,6 @@ import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.playerMediaInfoSections
 import com.zhangwenkang.cinefin.player.local.domain.seekDisplayPositionMs
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
-import com.zhangwenkang.cinefin.player.local.presentation.PlaybackAction
-import com.zhangwenkang.cinefin.player.local.presentation.PlaybackSessionClassification
-import com.zhangwenkang.cinefin.player.local.presentation.PlaybackSessionTerminal
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
@@ -739,14 +736,10 @@ fun PlayerControlOverlay(
         )
     val playbackSession = uiState.playbackSession
     val seekFailed =
-        (uiState.seekState as? SeekState.Failed)?.takeIf {
-            playbackSession.classification == PlaybackSessionClassification.SEEK_FAILED
-        }
+        (uiState.seekState as? SeekState.Failed)?.takeIf { playbackSession.showSeekFailure }
     val progressTerminal = playbackSession.terminal
-    val showPlayerError =
-        uiState.playerError != null &&
-            playbackSession.classification == PlaybackSessionClassification.REAL_PLAYER_ERROR
-    val pausesPlayback = playbackSession.playPauseAction == PlaybackAction.PAUSE
+    val showPlayerError = uiState.playerError != null && playbackSession.showPlayerError
+    val pausesPlayback = playbackSession.pauseWhenReady
     val seekPending = uiState.seekState is SeekState.Seeking
     /*
      * W67 补充：预计结束时刻。播放中每秒推进「当前时钟」→ 结束时刻稳定跟随播放推进；暂停后时钟冻结在暂停点
@@ -1897,15 +1890,13 @@ private fun PlayerToolCluster(
 
 @Composable
 private fun PlaybackProgressRecoveryAction(
-    terminal: PlaybackSessionTerminal,
+    terminal: PlayerViewModel.PlaybackRecovery,
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PlaybackRecoveryBar(
-        title = terminal.classification.name,
-        detail =
-            "${terminal.retryPosition.source.name} · " +
-                formatTime(terminal.retryPosition.positionMs),
+        title = terminal.kind,
+        detail = "${terminal.positionSource.name} · " + formatTime(terminal.positionMs),
         onRetry = onRetry,
         modifier = modifier,
     )

@@ -97,10 +97,6 @@ class SeekStateReducer {
     val sourceMediaIdentity: SeekMediaIdentity?
         get() = currentSourceMediaIdentity
 
-    /**
-     * An observation may initialize the cursor, but it can never move an already initialized
-     * cursor. Authoritative player transitions use [onSourceReplaced].
-     */
     fun observeSource(mediaIdentity: SeekMediaIdentity): Boolean {
         if (currentSourceMediaIdentity != null) return false
         currentSourceEpoch = 1L
@@ -309,7 +305,7 @@ class SeekStateReducer {
     fun onDispatched(requestGeneration: Long, nowElapsedMs: Long) {
         val seeking = state as? SeekState.Seeking ?: return
         if (seeking.requestGeneration != requestGeneration) return
-        // Media3 can deliver SEEK_ACCEPTED synchronously before the engine call returns.
+        // Media3 can emit acceptance before dispatch returns.
         state = seeking.copy(requestedAtMs = nowElapsedMs)
     }
 

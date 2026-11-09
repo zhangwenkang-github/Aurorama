@@ -15,10 +15,6 @@ private const val MPV_SEEK_TOLERANCE_MS = 2_000L
 private const val TRANSCODE_SEEK_TOLERANCE_MS = 2_000L
 private const val SEEK_TARGET_DISPLAY_MIN_MS = 300L
 
-/**
- * Policy belongs to the target item's source, not whichever item happens to be current when a
- * cross-item command is queued.
- */
 fun seekConfirmationPolicyForTarget(
     engine: SeekEngine,
     mediaSourceUri: String,
@@ -46,10 +42,6 @@ fun seekConfirmationPolicyForTarget(
     }
 }
 
-/**
- * Stable source identity for dispatch correlation; mutable playback position is intentionally
- * absent.
- */
 fun seekMediaIdentityFor(
     itemId: String,
     mediaSourceId: String,
@@ -61,14 +53,6 @@ fun seekMediaIdentityFor(
         sourceFingerprint = Integer.toHexString("$mediaSourceUri|$mediaSourceId".hashCode()),
     )
 
-/**
- * Correlates callback-only engine events with the seek dispatch that caused them.
- *
- * Media3 and mpv do not attach a seek request id to their callbacks. An observation is accepted
- * only when its engine, media identity, target position and policy tolerance match. Same-target
- * dispatches are coalesced because engines may merge consecutive seeks; only the current reducer
- * generation may change visible state.
- */
 class SeekRequestCoordinator {
     private val reducer = SeekStateReducer()
 
@@ -240,12 +224,6 @@ class SeekRequestCoordinator {
         return reducer.state is SeekState.Confirmed
     }
 
-    /**
-     * Engine errors have no request id. They are only eligible after an accepted anchor from the
-     * same dispatch; an older accepted dispatch consumes the error first, so it cannot be
-     * re-labelled as the current request. Errors before any anchor are left to the playback error
-     * path and ultimately the deadline.
-     */
     fun onEngineError(
         engine: SeekEngine,
         mediaIdentity: SeekMediaIdentity,
@@ -418,8 +396,7 @@ class SeekRequestCoordinator {
                     state.reason == SeekFailureReason.TIMEOUT
             }
         if (timedOut && dispatchingGeneration != null) {
-            // A timed-out dispatch can never accept later evidence. Retire it together with all
-            // older unresolved dispatches so a same-target retry starts with a clean queue.
+            // Retire timed-out and older dispatches before a same-target retry.
             dispatches.removeAll { it.requestGeneration <= dispatchingGeneration }
         }
     }
