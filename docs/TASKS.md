@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=SCOPE_AND_GATE_REPAIR_COMPLETE / FRESH_READ_ONLY_REVIEW_REQUIRED
+- TASK_STAGE=SCOPE_GATE_REPAIR_REVIEW_PASS / IMPLEMENTATION_DISPATCH_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -18,7 +18,7 @@
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\REPAIR_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-review-2026-11-10\SCOPED_REVIEW_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
 - STOP_CONDITION=Preserve production read-only, metadata immutability, system settings, and schema safety. Use fresh one-stage agents and bounded repair budgets. Stop only for data/security safety, object drift, unknown P0/P1, or an unavoidable external identity/service gate; do not wait for routine user approvals.
 - SCOPE=1.4.1_PLAYER_STABILITY / A_CLUSTER_AB_COMPLETE / DIRECTPLAY_EXO_VS_HLS_MPV_SPLIT / bug families B catalog-scope C subtitle-pipeline D music-runtime / media paging deferred / implementation not started
@@ -45,8 +45,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_READ_ONLY_A_CLUSTER_SCOPE_GATE_REPAIR_REVIEW_THEN_IMPLEMENTATION_DISPATCH
-- last_evidence=REPAIR_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\REPAIR_REPORT.md;REPAIRED_MATRIX=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX_CORRECTION.md;MAPPING_TEST=12_PASS_0_FAIL;GATEPLAN_8_PATH=FULL_MATRIX_PASS_0_UNMAPPED;P0-P3=0/2/2/0;IMPLEMENTATION=NO;QA=NOT_STARTED;PRODUCT_PASS=NO;PUSH/TAG/RELEASE=NO
+- NEXT_CRITICAL_PATH=FRESH_A_CLUSTER_IMPLEMENTATION_FROM_005639A_IN_ISOLATED_WORKTREE
+- last_evidence=SCOPE_GATE_REVIEW=PASS;REVIEW_SHA256=917E2FFDC8CE76068F04B9C30F9A052A804893BBB600074CA4CCA8A36019E717;PRODUCT_P0-P3=0/2/2/0;IMPLEMENTATION=NOT_STARTED;QA=NOT_STARTED;PUSH/TAG/RELEASE=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
