@@ -159,6 +159,8 @@ constructor(
         /** W20：同一集「停止上报」的去重窗口（自然播完已报过 stop，换集回调不要再报一次） */
         private const val STOP_REPORT_DEDUPE_MS = 15_000L
 
+        private const val PLAYBACK_SESSION_SAMPLE_INTERVAL_MS = 1_000L
+
         /** W73（#8）：网络类播放错误的原地重试窗口 / 次数上限（超过则交给错误卡片，不换内核、不重启页面）。 */
         private const val NETWORK_RETRY_WINDOW_MS = 30_000L
         private const val NETWORK_RETRY_MIN_INTERVAL_MS = 3_000L
@@ -182,6 +184,10 @@ constructor(
 
     private var playbackSnapshots = PlaybackSnapshotState()
     private var activePlaybackToken: PlaybackRequestToken? = null
+    private var playbackSessionState = PlaybackSessionState()
+    private var playbackSessionGeneration = 0L
+    private var playbackSessionIdentityKey: String? = null
+    private var playbackSessionJob: Job? = null
 
     /** W55 睡眠定时状态（统一状态源）：播放器睡眠键激活态与睡眠面板消费。 */
     val sleepTimerState = sleepTimerController.state
@@ -234,6 +240,13 @@ constructor(
         val playerError: PlayerErrorInfo? = null,
         /** W86-C：seek 请求的唯一状态；UI 不再根据单次位置采样猜测完成。 */
         val seekState: SeekState = SeekState.Idle,
+        /** 播放页 session 的唯一 loading / terminal / play-pause 投影。 */
+        val playbackSession: PlaybackSessionProjection =
+            PlaybackSessionProjection(
+                classification = PlaybackSessionClassification.BUFFERING_OR_LOADING,
+                playPauseAction = PlaybackAction.PAUSE,
+                loading = true,
+            ),
     )
 
     /** 播放错误：给控制层的错误卡片用（阶段 1.3） */
@@ -422,6 +435,7 @@ constructor(
      * 保证「退出播放 / 切集 / 被杀后」服务端都能恢复到正确位置。
      */
     private var lastProgressItemId: UUID? = null
+    private var lastProgressMediaSourceId: String? = null
     private var lastProgressPositionMs: Long = 0L
     private var lastProgressDurationMs: Long = 0L
     private var lastStopReportedItemId: UUID? = null
@@ -447,8 +461,17 @@ constructor(
         get() = playerHolder.backend
 
     init {
+        playbackSessionJob = viewModelScope.launch {
+            while (isActive) {
+                refreshPlaybackSession()
+                delay(PLAYBACK_SESSION_SAMPLE_INTERVAL_MS)
+            }
+        }
         viewModelScope.launch {
-            seekSink.stateFlow.collect { state -> _uiState.update { it.copy(seekState = state) } }
+            seekSink.stateFlow.collect { state ->
+                _uiState.update { it.copy(seekState = state) }
+                refreshPlaybackSession()
+            }
         }
         migrateEndBehaviorPreferences()
         segmentsSkipButton = appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButton)
@@ -498,6 +521,89 @@ constructor(
      *   表示按服务端记录续播。
      * @param queueEntries W58b 视频多选批量播放：非空 = 显式播放队列（电影 / 单集）， [itemId] 只用于在队列里找起播项（回退重启后仍指向实际播放条目）。
      */
+    private fun refreshPlaybackSession(nowElapsedMs: Long = SystemClock.elapsedRealtime()) {
+        val active = playerHolder.existingPlayer
+        val key = currentPlaybackSessionKey(active)
+        val mediaItem = active?.currentMediaItem
+        val currentSourceId =
+            mediaItem?.mediaMetadata?.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
+        val seekState = _uiState.value.seekState
+        val snapshot =
+            PlaybackSessionSnapshot(
+                key = key,
+                playWhenReady =
+                    if (startupInProgress) playWhenReady
+                    else active?.playWhenReady ?: playWhenReady,
+                isPlaying = active?.isPlaying == true,
+                isBuffering =
+                    startupInProgress ||
+                        active == null ||
+                        active.mediaItemCount == 0 ||
+                        active.playbackState == Player.STATE_BUFFERING,
+                isReady = active?.playbackState == Player.STATE_READY,
+                enginePositionMs = validPlaybackPosition(active?.currentPosition),
+                bufferedPositionMs = validPlaybackPosition(active?.bufferedPosition),
+                hasPlayerError = _uiState.value.playerError != null,
+                hasSeekFailure = seekState is SeekState.Failed,
+                explicitSeekTargetMs =
+                    when (seekState) {
+                        is SeekState.Seeking -> seekState.targetMs
+                        is SeekState.Failed -> seekState.targetMs
+                        else -> null
+                    },
+                persistedResumeMs =
+                    persistedResumePositionMs(
+                        itemId = key?.itemId,
+                        mediaSourceId = currentSourceId,
+                    ),
+            )
+        val update =
+            PlaybackSessionRules.advance(
+                state = playbackSessionState,
+                snapshot = snapshot,
+                nowElapsedMs = nowElapsedMs,
+            )
+        playbackSessionState = update.state
+        _uiState.update { it.copy(playbackSession = update.projection) }
+    }
+
+    private fun currentPlaybackSessionKey(active: Player?): PlaybackSessionKey? {
+        val mediaItem = active?.currentMediaItem ?: return null
+        val itemId = mediaItem.mediaId.takeIf { it.isNotBlank() } ?: return null
+        val mediaSourceId =
+            mediaItem.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID).orEmpty()
+        val identityKey = "$itemId|$mediaSourceId|${playbackSnapshots.generation}"
+        if (identityKey != playbackSessionIdentityKey) {
+            playbackSessionIdentityKey = identityKey
+            playbackSessionGeneration += 1L
+        }
+        return PlaybackSessionKey(
+            itemId = itemId,
+            sourceGeneration = playbackSnapshots.generation,
+            sessionGeneration = playbackSessionGeneration,
+        )
+    }
+
+    private fun persistedResumePositionMs(
+        itemId: String?,
+        mediaSourceId: String?,
+    ): Long? {
+        val currentItemId =
+            itemId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() } ?: return null
+        if (
+            currentItemId != lastProgressItemId ||
+                mediaSourceId != lastProgressMediaSourceId ||
+                lastProgressPositionMs <= 0L
+        ) {
+            return null
+        }
+        return lastProgressPositionMs
+    }
+
+    private fun validPlaybackPosition(positionMs: Long?): Long? = positionMs?.takeIf {
+        it >= 0L && it != C.TIME_UNSET
+    }
+
     private fun publishPlaybackSnapshots() {
         val snapshots = playbackSnapshots
         _uiState.update {
@@ -508,6 +614,7 @@ constructor(
                 playbackRequestGeneration = snapshots.generation,
             )
         }
+        refreshPlaybackSession()
     }
 
     /** 新请求开始：清空 source / current，并返回单调递增的代次。 */
@@ -1023,6 +1130,12 @@ constructor(
     /** 记录「已知的当前条目位置」，供切集 / 退出时给上一条补停止上报（W20） */
     private fun recordProgressSnapshot(itemId: UUID, positionMs: Long, durationMs: Long) {
         lastProgressItemId = itemId
+        lastProgressMediaSourceId =
+            playerHolder.existingPlayer
+                ?.currentMediaItem
+                ?.mediaMetadata
+                ?.extras
+                ?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
         lastProgressPositionMs = positionMs
         lastProgressDurationMs = durationMs
     }
@@ -1161,6 +1274,7 @@ constructor(
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
         // 条目 / 媒体源一变化先清空旧快照；后续只有同一 identity 的结果能重新填入。
         refreshUiStateFromPlayer()
+        refreshPlaybackSession()
         // #9：倍速是「播放会话内状态」——同一剧集队列里切集（含自动下一集）后必须保持。
         // mpv 换集走 prepareMediaItem → resetInternalState 会把 playbackParameters 复位为 1×，
         // ExoPlayer 本身会继承，但这里统一重放一次会话倍速，两个内核都得到一致的面板读数与媒体会话速度。
@@ -1275,12 +1389,20 @@ constructor(
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        if (!startupInProgress) this.playWhenReady = playWhenReady
+        refreshPlaybackSession()
         if (playWhenReady || startupInProgress) return
         /*
          * W20（§1.11）：暂停（通知栏 / 耳机拔出 / 音频焦点丢失 / 手动）立刻落一次进度，
          * 不等 5 秒轮询，也不等退出播放页——「被杀」前最后的状态因此总是最新的。
          */
-        if (reason != Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+        val endSignal =
+            if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+                PlaybackEndSignal.END_OF_MEDIA_ITEM
+            } else {
+                PlaybackEndSignal.OTHER
+            }
+        if (!PlaybackSessionRules.advancesToNextItem(endSignal)) {
             updatePlaybackProgress()
             return
         }
@@ -1448,6 +1570,7 @@ constructor(
             }
         }
         Timber.d("Changed player state to $stateString")
+        refreshPlaybackSession()
     }
 
     /**
@@ -1484,6 +1607,7 @@ constructor(
                     )
             )
         }
+        refreshPlaybackSession()
     }
 
     /**
@@ -1767,6 +1891,8 @@ constructor(
     override fun onCleared() {
         super.onCleared()
         Timber.d("Clearing Player ViewModel")
+        playbackSessionJob?.cancel()
+        playbackSessionJob = null
         releasePlayer()
     }
 
@@ -2844,14 +2970,28 @@ constructor(
      * ExoPlayer 出错后停在 STATE_IDLE，重新 prepare 即重新拉流； mpv 的 prepare 会重新 loadfile 并回到片头，所以这里统一把位置挪回去。
      */
     fun retryPlayback(positionOverrideMs: Long? = null) {
-        val position = positionOverrideMs ?: currentResumePositionMs()
+        val terminalRetry =
+            if (positionOverrideMs == null) {
+                val update = PlaybackSessionRules.consumeRetry(playbackSessionState)
+                if (playbackSessionState.terminal != null && update.intent == null) return
+                playbackSessionState = update.state
+                update.intent
+            } else {
+                null
+            }
+        val position = positionOverrideMs ?: terminalRetry?.positionMs ?: currentResumePositionMs()
         Timber.d("Retrying playback on backend=$playerBackend from position=$position")
         _uiState.update { it.copy(playerError = null) }
         player.prepare()
         if (position > 0L) {
-            player.seekTo(position)
+            if (terminalRetry?.source == PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST) {
+                seekSink.requestSeek(position, "progress-recovery-user-target")
+            } else {
+                player.seekTo(position)
+            }
         }
         player.play()
+        refreshPlaybackSession()
     }
 
     /**
@@ -2866,7 +3006,17 @@ constructor(
             player.currentMediaItem?.mediaId?.let { raw ->
                 runCatching { UUID.fromString(raw) }.getOrNull()
             }
-        return if (mediaId != null && mediaId == lastProgressItemId) lastProgressPositionMs else 0L
+        val mediaSourceId =
+            player.currentMediaItem?.mediaMetadata?.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
+        return if (
+            mediaId != null &&
+                mediaId == lastProgressItemId &&
+                mediaSourceId == lastProgressMediaSourceId
+        ) {
+            lastProgressPositionMs
+        } else {
+            0L
+        }
     }
 
     /**
@@ -3246,6 +3396,7 @@ constructor(
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         super.onIsPlayingChanged(isPlaying)
         eventsChannel.trySend(PlayerEvents.IsPlayingChanged(isPlaying))
+        refreshPlaybackSession()
     }
 }
 

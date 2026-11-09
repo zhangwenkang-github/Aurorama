@@ -138,6 +138,7 @@ class SeekStateReducer {
             requireNotNull(currentSourceMediaIdentity) {
                 "A seek retry requires an observed media source"
             }
+        if (failed.mediaIdentity?.itemId != mediaIdentity.itemId) return null
         val generation = nextGeneration()
         state =
             SeekState.Seeking(
@@ -239,6 +240,7 @@ class SeekStateReducer {
     fun onSourceReplaced(
         mediaIdentity: SeekMediaIdentity,
         acceptedPositionMs: Long? = null,
+        preserveRequestAcrossItemChange: Boolean = false,
     ): Boolean {
         if (currentSourceMediaIdentity == mediaIdentity) {
             val seeking = state as? SeekState.Seeking
@@ -246,17 +248,31 @@ class SeekStateReducer {
             state = seeking.copy(acceptedPositionMs = acceptedPositionMs)
             return true
         }
+        val itemChanged =
+            currentSourceMediaIdentity?.itemId != null &&
+                currentSourceMediaIdentity?.itemId != mediaIdentity.itemId
         currentSourceEpoch += 1L
         currentSourceMediaIdentity = mediaIdentity
-        val seeking = state as? SeekState.Seeking
-        if (seeking != null) {
-            state =
-                seeking.copy(
-                    sourceEpoch = currentSourceEpoch,
-                    mediaIdentity = mediaIdentity,
-                    acceptedPositionMs = acceptedPositionMs,
-                )
+        if (itemChanged && !preserveRequestAcrossItemChange) {
+            state = SeekState.Idle
+            return true
         }
+        state =
+            when (val current = state) {
+                is SeekState.Seeking ->
+                    current.copy(
+                        sourceEpoch = currentSourceEpoch,
+                        mediaIdentity = mediaIdentity,
+                        acceptedPositionMs = acceptedPositionMs,
+                    )
+                is SeekState.Failed ->
+                    current.copy(
+                        sourceEpoch = currentSourceEpoch,
+                        mediaIdentity = mediaIdentity,
+                    )
+                is SeekState.Confirmed -> SeekState.Idle
+                SeekState.Idle -> SeekState.Idle
+            }
         return true
     }
 
@@ -322,7 +338,7 @@ fun seekDisplayPositionMs(
 ): Long =
     when (state) {
         is SeekState.Seeking -> state.targetMs
-        is SeekState.Failed -> state.targetMs
+        is SeekState.Failed -> enginePositionMs.coerceAtLeast(0L)
         is SeekState.Confirmed ->
             if (nowElapsedMs < state.requestedAtMs + state.policy.minimumTargetDisplayMs) {
                 state.targetMs

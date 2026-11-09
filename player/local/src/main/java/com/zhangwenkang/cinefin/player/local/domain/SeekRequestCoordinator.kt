@@ -284,6 +284,37 @@ class SeekRequestCoordinator {
             dispatches.firstOrNull { it.requestGeneration == state.requestGeneration }
         }
         val expectedIdentity = currentDispatch?.expectedMediaIdentity ?: seeking?.mediaIdentity
+        val expectedItemMatches = expectedIdentity?.itemId == mediaIdentity.itemId
+        val currentItemMatches = reducer.sourceMediaIdentity?.itemId == mediaIdentity.itemId
+        if (seeking != null && !expectedItemMatches && !currentItemMatches) {
+            dispatches.clear()
+            reducer.onSourceReplaced(mediaIdentity)
+            return true
+        }
+        if (seeking != null && expectedIdentity != mediaIdentity && expectedItemMatches) {
+            dispatches.removeAll {
+                it.completed ||
+                    (it.requestGeneration < seeking.requestGeneration &&
+                        it.expectedMediaIdentity != mediaIdentity)
+            }
+            reducer.onSourceReplaced(mediaIdentity)
+            val transitioned = reducer.state as? SeekState.Seeking
+            if (transitioned != null) {
+                val index = dispatches.indexOfLast {
+                    it.requestGeneration == transitioned.requestGeneration
+                }
+                if (index >= 0) {
+                    dispatches[index] =
+                        dispatches[index].copy(
+                            sourceEpoch = transitioned.sourceEpoch,
+                            expectedMediaIdentity = mediaIdentity,
+                            accepted = false,
+                            acceptedPositionMs = null,
+                        )
+                }
+            }
+            return true
+        }
         if (seeking != null && expectedIdentity != mediaIdentity) {
             dispatches.removeAll { it.requestGeneration <= seeking.requestGeneration }
             reducer.onSourceReplaced(mediaIdentity)
@@ -303,7 +334,13 @@ class SeekRequestCoordinator {
             currentDispatch
                 ?.takeIf { it.expectedMediaIdentity == mediaIdentity && it.accepted }
                 ?.acceptedPositionMs
-        val changed = reducer.onSourceReplaced(mediaIdentity, acceptedPositionMs)
+        val changed =
+            reducer.onSourceReplaced(
+                mediaIdentity = mediaIdentity,
+                acceptedPositionMs = acceptedPositionMs,
+                preserveRequestAcrossItemChange =
+                    seeking != null && expectedIdentity == mediaIdentity,
+            )
         dispatches.removeAll { it.completed || it.expectedMediaIdentity != mediaIdentity }
         return changed
     }
@@ -331,6 +368,7 @@ class SeekRequestCoordinator {
         mediaIdentity: SeekMediaIdentity,
     ): Boolean {
         if (!isCurrent(lease)) return false
+        if (lease.mediaIdentity.itemId != mediaIdentity.itemId) return false
         val changed = reducer.onSourceReplaced(mediaIdentity)
         val seeking = reducer.state as? SeekState.Seeking ?: return changed
         val index = dispatches.indexOfLast {
