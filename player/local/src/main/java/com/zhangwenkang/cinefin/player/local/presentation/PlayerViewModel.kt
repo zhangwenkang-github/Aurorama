@@ -524,13 +524,10 @@ constructor(
         }
     }
 
-    private fun currentPlaybackSessionKey(mediaItem: MediaItem?): String? {
-        mediaItem ?: return null
-        val itemId = mediaItem.mediaId.takeIf { it.isNotBlank() } ?: return null
-        val mediaSourceId =
-            mediaItem.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID).orEmpty()
-        return "$itemId|$mediaSourceId|${playbackSnapshots.generation}"
-    }
+    private fun currentPlaybackSessionKey(mediaItem: MediaItem?): String? =
+        mediaItem?.let(::seekMediaIdentityFromItem)?.let {
+            playbackSessionKeyFor(it, playbackSnapshots.generation)
+        }
 
     private fun persistedResumePositionMs(
         itemId: String?,
@@ -3056,6 +3053,13 @@ constructor(
         eventsChannel.trySend(PlayerEvents.IsPlayingChanged(isPlaying))
         refreshPlaybackSession()
     }
+}
+
+internal fun playbackSessionKeyFor(
+    mediaIdentity: SeekMediaIdentity,
+    snapshotGeneration: Long,
+): String {
+    return with(mediaIdentity) { "$itemId|$mediaSourceId|$snapshotGeneration|$sourceFingerprint" }
 }
 
 internal data class PlaybackSessionInput(

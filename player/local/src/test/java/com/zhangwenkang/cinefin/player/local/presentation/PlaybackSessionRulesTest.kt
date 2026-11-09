@@ -1,8 +1,10 @@
 package com.zhangwenkang.cinefin.player.local.presentation
 
 import androidx.media3.common.Player
+import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -135,6 +137,88 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `uri-only source replacement changes session key`() {
+        val source = sourceIdentity("https://media.example/video/master-a.m3u8?StartTimeTicks=0")
+        val replaced = sourceIdentity("https://media.example/video/master-b.m3u8?StartTimeTicks=0")
+
+        assertNotEquals(source.sourceFingerprint, replaced.sourceFingerprint)
+        assertNotEquals(playbackSessionKeyFor(source, 9L), playbackSessionKeyFor(replaced, 9L))
+    }
+
+    @Test
+    fun `start-time-only source replacement changes session key`() {
+        val source = sourceIdentity("https://media.example/video/master.m3u8?StartTimeTicks=0")
+        val replaced =
+            sourceIdentity("https://media.example/video/master.m3u8?StartTimeTicks=450000000")
+
+        assertNotEquals(source.sourceFingerprint, replaced.sourceFingerprint)
+        assertNotEquals(playbackSessionKeyFor(source, 9L), playbackSessionKeyFor(replaced, 9L))
+    }
+
+    @Test
+    fun `same source fingerprint keeps terminal and retry token`() {
+        val source =
+            sourceIdentity("https://media.example/video/master.m3u8?StartTimeTicks=450000000")
+        val sameSource =
+            sourceIdentity("https://media.example/video/master.m3u8?StartTimeTicks=450000000")
+        val key = playbackSessionKeyFor(source, 9L)
+        assertEquals(key, playbackSessionKeyFor(sameSource, 9L))
+
+        val initial = advance(input(key = key), 0L)
+        val terminal =
+            advance(input(key = key), PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
+        val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(terminal.first))
+        val sameSourceState =
+            advance(
+                input(key = key),
+                PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+                consumed,
+            )
+
+        assertEquals(terminal.first.terminal, sameSourceState.first.terminal)
+        assertTrue(sameSourceState.first.retryConsumed)
+    }
+
+    @Test
+    fun `new source epoch can produce one new terminal`() {
+        val source = sourceIdentity("https://media.example/video/master-a.m3u8?StartTimeTicks=0")
+        val replaced = sourceIdentity("https://media.example/video/master-b.m3u8?StartTimeTicks=0")
+        val oldKey = playbackSessionKeyFor(source, 9L)
+        val newKey = playbackSessionKeyFor(replaced, 9L)
+        val initial = advance(input(key = oldKey), 0L)
+        val oldTerminal =
+            advance(input(key = oldKey), PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
+        assertTrue(oldTerminal.second.terminal != null)
+
+        val switched =
+            advance(
+                input(key = newKey),
+                PlaybackSessionRules.STALL_TIMEOUT_MS,
+                oldTerminal.first,
+            )
+        assertNull(switched.second.terminal)
+        assertNull(switched.first.terminal)
+        assertFalse(switched.first.retryConsumed)
+
+        val beforeNewTerminal =
+            advance(
+                input(key = newKey),
+                PlaybackSessionRules.STALL_TIMEOUT_MS * 2L - 1L,
+                switched.first,
+            )
+        assertNull(beforeNewTerminal.second.terminal)
+        val newTerminal =
+            advance(
+                input(key = newKey),
+                PlaybackSessionRules.STALL_TIMEOUT_MS * 2L,
+                beforeNewTerminal.first,
+            )
+        assertTrue(newTerminal.second.terminal != null)
+        val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(newTerminal.first))
+        assertNull(PlaybackSessionRules.consumeRetry(consumed))
+    }
+
+    @Test
     fun `same terminal retry is consumed once`() {
         val terminal = terminalAtDeadline(enginePositionMs = 5_000L)
         val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(terminal.first))
@@ -259,4 +343,11 @@ class PlaybackSessionRulesTest {
         val initial = advance(input, 0L)
         return advance(input, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
     }
+
+    private fun sourceIdentity(uri: String) =
+        seekMediaIdentityFor(
+            itemId = "item-a",
+            mediaSourceId = "source-a",
+            mediaSourceUri = uri,
+        )
 }
