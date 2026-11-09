@@ -4751,13 +4751,13 @@ Context / 交接：
 - **2026-11-02 Post-merge Gate `MERGE_STATE_GATE_PASS`：** 与主仓集成 owner 不同的 fresh Post-merge Gate 在精确 `5d0b3216 / ee7c49d5` clean worktree 实测：CI 8-task JVM `247/247 executed`、280 XML / `1,999/0/0/0`；全仓 assemble `384/384`、phone assemble `242/242`、ktfmt `34/34`；两路 diff-check exit 0；graphify AST-only `15,347 nodes / 48,751 edges / 480 communities` exit 0。docs-only 外产品路径 diff exit 0；arm64 debug APK `150,290,331 B / 20ECD05F…62DB1`、`1.4.0(5)`、arm64-v8a、v2 debug 证书 `a645eac5…e910d6` 完全 MATCH。新增产品 P0–P3=`0/0/0/0`、BLOCKED=0；历史搜索 P1 `ACCEPTED_RESIDUAL` 与既有 Release P3 保持。report `FC4A9B27…5B79`、manifest `54D79562…36B0`、SUMS `292/292 MATCH`，证据根 `F:\Develop\code_data\qa\w90a2-post-merge-gate-20261102`。未 push / CI / tag / Release、未接设备 / 生产。负责人实际水位 `301,372 / 1,048,576（28.7%）`，按 30 万门禁停止新增任务并准备交接；下一角色处理 push / CI 前必须先只读复核 `5d0b3216`、origin `61c04a38`、12+5+2 与两包证据。
 - **2026-11-02 推送与三工作流 CI `PUSH_AND_CI_PASS`：** fresh Release 推送 / CI owner 预核证据后仅执行一次普通 `git push origin master`，exit 0，远端由 `61c04a38` 快进到 `a8bfd83646ab8753e5a4586e0718522b76dcc228`；本地与 origin ahead/behind=`0/0`，无 force / tag / Release。Build `41345414878`、Unit Tests `41345414805`、Format `41345414828` 均与 pushed SHA 精确关联并 `completed/success`。primary 仍保留 `12 tracked dirty + 5 untracked + 2 stash`、0 staged/unmerged；新增产品 P0–P3=`0/0/0/0`、BLOCKED=0；搜索 P1 `ACCEPTED_RESIDUAL` 与既有 P3 保持。report `AA32802B…9442`、manifest `6CF76540…9C1F`、SUMS `3C4135EE…64C4`，证据根 `F:\Develop\code_data\qa\w90a2-push-ci-20261102`。CI 不替代用户终验；下一门 = 当前任务线汇总结提交经普通 push 后复核，以及 Release 资产 / 用户验收决策。
 
-## 52. Aurorama 1.4.0 播放稳定性集束（2026-11-09，USER_REPORTED / DESIGN_FROZEN / IMPLEMENTATION_NOT_STARTED）
+## 52. Aurorama 1.4.0 播放稳定性集束（2026-11-09，USER_REPORTED / DESIGN_FROZEN / RUNTIME_TEST_ENV_AUTHORIZED / IMPLEMENTATION_NOT_STARTED）
 
 **需求 ID**：`V1.4.0-PLAYER-STABILITY-CONTAINMENT`
 
 **状态**：用户报告 11 项真实体验问题；事实调查完成；1.4.1 稳定性修复方向与播放器核心
-发布门已冻结；A 簇静态 triage 完成；安全真实 A/B 环境未满足；实现、独立 QA 与 Release
-均未开始。
+发布门已冻结；A 簇静态 triage 完成；用户已授权使用可写测试服务器和在线媒体完成真实
+A/B；实现、独立 QA 与 Release 均未开始。
 
 ### 52.1 对象与版本边界
 
@@ -4854,17 +4854,17 @@ Video/Home/Movie 的部分路径，不覆盖 `MediaViewModel` 的 60 秒非空�
 FACT_FINDER=COMPLETE
 A_CLUSTER_STATIC_TRIAGE=COMPLETE
 DESIGN_FROZEN=YES
-A_CLUSTER_RUNTIME_AB=BLOCKED_READ_ONLY_ENVIRONMENT
-BUGFIX_IMPLEMENTATION_AUTHORIZED=NO_PENDING_SAFE_RUNTIME_EVIDENCE_DECISION
+A_CLUSTER_RUNTIME_ENV=AUTHORIZED_WRITABLE_TEST_SERVER
+A_CLUSTER_RUNTIME_AB=PENDING_FRESH_TRIAGE
+BUGFIX_IMPLEMENTATION_AUTHORIZED=NO_UNTIL_RUNTIME_TRIAGE_FREEZES_FIX_SCOPE
 DEVICE_DIAGNOSTICS=K60_READ_ONLY_CHECK_ONLY / LOCK_RELEASED
 ONEPLUS_SYSTEM_MODIFICATION=FORBIDDEN
 PUSH=NO / TAG=NO / RELEASE=NO
 P0-P3=NOT_ASSESSED
 ```
 
-下一门为用户选择安全运行时证据环境：允许正常播放会话 / 进度写、提供独立可写测试环境，
-或接受先按静态合同 TDD 实现、把真实 A/B 留在独立 QA。未作决定前不得派实现，也不得把
-静态缺陷写成 `REPRODUCED`。
+下一门是全新 runtime triage：使用可写测试服务器和在线媒体执行 A 簇真实复现与
+1.3.0/1.4.0 A/B。未取得真实证据前不得派实现，也不得把静态缺陷写成 `REPRODUCED`。
 
 ### 52.8 A 簇静态 triage 结果（2026-11-09）
 
@@ -4912,8 +4912,29 @@ SERVER_WRITE=NO
 5. 续播位置存在 Intent、savedState、条目持久位置三类来源，暂无跨层等式验证。
 6. 现有测试偏 reducer / fake callback，缺少真实缓冲暂停意图与 EOS 时间线。
 
-当前安全选项：
+用户随后选择方案 2：使用 `F:\Develop\codex_work\Documents\Codex\资源.txt` 中记录的
+可写测试环境。该文件全部资源值均获授权使用，但只能按需读取；地址、账号、密码、Token 和
+其他值不得复制到仓库、日志、报告、记忆或聊天。
 
-1. 用户明确允许在只读服务器上执行普通 App 播放与会话 / 进度上报，并提供真实视频样本。
-2. 使用独立可写测试环境和可丢弃测试账号 / 数据。
-3. 用户接受先做静态合同 TDD 实现，再把 1.3.0/1.4.0 真实 A/B 留给独立设备 QA；此选项不能提前宣称产品修复。
+### 52.9 可写测试环境契约（2026-11-09）
+
+```text
+TEST_ENV_RESOURCE_POINTER=F:\Develop\codex_work\Documents\Codex\资源.txt
+TEST_MEDIA_SOURCE=ONLINE_TEST_SERVER
+LOCAL_MEDIA_REQUIREMENT=NO
+METADATA_MUTATION=FORBIDDEN
+POSTER_RATING_OVERVIEW_EDIT=FORBIDDEN
+PLAYBACK_PROGRESS_SIDE_EFFECT=ALLOWED
+FAVORITE_SIDE_EFFECT=ALLOWED
+SERVER_LOG_SIDE_EFFECT=ALLOWED
+PRODUCTION_SERVER_WRITE=FORBIDDEN
+DAILY_DEVICE_SYSTEM_MODIFICATION=FORBIDDEN
+```
+
+- 测试数据由生产数据硬链接而来，默认按内容真源处理：不主动修改图片、评分、简介、标题、
+  文件、库结构或其他元数据。
+- 播放进度、收藏和服务器日志副作用允许出现；执行前记录测试账号 / 用户作用域，完成后只做
+  必要的可逆恢复，不删除或重写真实媒体。
+- 优先使用在线服务器媒体，不再要求设备存在本地视频样本。
+- 资源文件中的值只允许测试 owner 按需读取，不得进入命令行回显、证据 manifest、日志、
+  Git、Engramory 或交接 prompt。

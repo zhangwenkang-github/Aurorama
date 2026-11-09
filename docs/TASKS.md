@@ -8,26 +8,26 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=A_CLUSTER_STATIC_TRIAGE_COMPLETE / RUNTIME_AB_BLOCKED_READ_ONLY_ENVIRONMENT / DESIGN_FROZEN / IMPLEMENTATION_NOT_STARTED / USER_DECISION_REQUIRED
+- TASK_STAGE=RUNTIME_TEST_ENV_AUTHORIZED / A_CLUSTER_STATIC_TRIAGE_COMPLETE / DESIGN_FROZEN / HANDOFF_PREPARATION / IMPLEMENTATION_NOT_STARTED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R042 > LESSONS L044 > GLOSSARY playback terms > R034/R038-R040 > v1.4.0 release lineage and evidence
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_1_4_1_PLAYER_RUNTIME_EVIDENCE
+- NEXT_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-0-player-session-triage-2026-11-09\BUG_TRIAGE_REPORT.md
-- NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / choose a safe runtime evidence environment before A-cluster implementation and real 1.3.0-vs-1.4.0 playback A/B
-- STOP_CONDITION=Do not implement before the user chooses safe runtime evidence: normal playback/session progress on read-only server, an isolated writable test environment, or explicit acceptance of static-contract TDD with real A/B deferred. Never modify daily OnePlus internals or downgrade schema 17 to 12 on real data.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-0-player-stability-handoff-2026-11-09\PLAYER_STABILITY_DELIVERY_LEAD_PROMPT.md
+- NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / use the authorized writable test server and online media to reproduce A-cluster bugs and run v1.3.0-vs-v1.4.0 A/B before implementation
+- STOP_CONDITION=Successor delivery lead must run startup gate, then create a fresh read-only runtime triage owner. Use the writable test server only through the approved resource pointer; never expose resource values. Do not mutate poster, rating, overview, title, media files, library structure or other metadata. Playback progress, favorites and logs may change. Use online server media. Never modify daily OnePlus system internals or downgrade schema 17 to 12 on real data. No implementation before runtime triage; no push/tag/Release.
 - SCOPE=1.4.1_PLAYER_STABILITY / bug families A playback-session B catalog-scope C subtitle-pipeline D music-runtime / media paging deferred / implementation not started
-- AUTHORIZATION=USER_CONFIRMED_PLAYER_STABILITY_PLAN_2026_11_09 / NO_SAFE_RUNTIME_AB_ENVIRONMENT / K60_READ_ONLY_CHECK_ONLY / ONEPLUS_NOT_USED / NO_PUSH_TAG_RELEASE
-- IMPLEMENTATION_AUTHORIZED=NO / SAFE_RUNTIME_EVIDENCE_DECISION_REQUIRED
-- DEVICE_ACCESS=K60_READ_ONLY_CHECK_ONLY / DEVICE_LOCK_RELEASED / ONEPLUS_NOT_USED / NO_INSTALL / NO_APP_LAUNCH / NO_PLAYBACK / NETWORK_NOT_USED
+- AUTHORIZATION=USER_AUTHORIZED_ALL_RESOURCE_FILE_CONTENT_2026_11_09 / WRITABLE_TEST_SERVER / ONLINE_MEDIA / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN / NO_PUSH_TAG_RELEASE
+- IMPLEMENTATION_AUTHORIZED=NO / FRESH_RUNTIME_TRIAGE_FIRST
+- DEVICE_ACCESS=K60_8e875894_ONLINE / OTHER_DEVICES_NOT_CHECKED / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / NETWORK_NOT_USED_CURRENT_SESSION
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=2026-11-09 / W1C_1_LOCALLY_FF_ONLY_INTEGRATED / BUG_TRIAGE_HANDOFF / CONTEXT_OVER_250K / DEVICE_NOT_USED / NETWORK_NOT_USED
+- CONTEXT_AT_CLOSE=2026-11-09 / USER_CONFIRMED_OVER_HANDOFF_LINE / PLAYER_STABILITY_HANDOFF / DEVICE_READ_ONLY_CHECK_ONLY
 - P0=NOT_ASSESSED
 - P1=NOT_ASSESSED_USER_REPORTED_PLAYER_BUGS
 - P2=NOT_ASSESSED_USER_REPORTED_PLAYER_BUGS
@@ -44,8 +44,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=1_4_1_PLAYER_SESSION_TRIAGE_THEN_CATALOG_SUBTITLE_MUSIC_AND_CORE_RELEASE_GATE
-- last_evidence=A_CLUSTER_STATIC_TRIAGE_COMPLETE; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-0-player-session-triage-2026-11-09\BUG_TRIAGE_REPORT.md; SHA256=E559F0448C5A9F9A889AD7AAE5980DAA75881BB8C29FABA21D46A17940607A2C; RUNTIME_AB=NOT_RUN; P0-P3=NOT_ASSESSED; IMPLEMENTATION=NO; PUSH/TAG/RELEASE=NO
+- NEXT_CRITICAL_PATH=FRESH_A_CLUSTER_RUNTIME_TRIAGE_ON_WRITABLE_TEST_SERVER_THEN_V140_V130_AB_AND_IMPLEMENTATION_DECISION
+- last_evidence=USER_AUTHORIZED_WRITABLE_TEST_SERVER_AND_ALL_RESOURCE_FILE_CONTENT_2026_11_09; ONLINE_MEDIA_REQUIRED; METADATA_MUTATION_FORBIDDEN; PROGRESS_FAVORITE_LOG_SIDE_EFFECTS_ALLOWED; A_CLUSTER_STATIC_TRIAGE_REPORT=E559F0448C5A9F9A889AD7AAE5980DAA75881BB8C29FABA21D46A17940607A2C; IMPLEMENTATION=NO; PUSH/TAG/RELEASE=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -68,6 +68,14 @@
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-0-player-session-triage-2026-11-09\BUG_TRIAGE_REPORT.md`，
   SHA-256 `E559F0448C5A9F9A889AD7AAE5980DAA75881BB8C29FABA21D46A17940607A2C`。
   当前 `RUNTIME_AB=NOT_RUN`，P0–P3 仍 `NOT_ASSESSED`，等待用户选择安全证据环境。
+- 用户随后授权 `F:\Develop\codex_work\Documents\Codex\资源.txt` 中记录的全部测试资源，
+  包括可写服务器、账号与在线媒体。测试内容由生产数据硬链接而来：不得主动修改图片、评分、
+  简介、标题、文件或库结构；播放进度、收藏和日志副作用允许。凭据值只按需读取，禁止进入
+  仓库、证据、日志、记忆或聊天。
+- 当前停在负责人交接门：下一角色为
+  `AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09`。后继必须先创建 fresh、
+  只读 runtime triage owner，在可写测试环境完成 A 簇真实复现和 v1.3.0/v1.4.0 A/B，
+  之后才决定实现范围；不得直接把静态结论写成已复现或已修复。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -854,10 +862,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=A-cluster static triage is complete, but K60 has no safe local video and real data schema 17 cannot be downgraded to v1.3.0 schema 12. No install, app launch, playback, seek, resume, stall, EOS, account switch, Exo/mpv or direct/HLS runtime evidence exists.
-- STOP_CONDITION=Do not dispatch implementation or product QA until safe runtime evidence is chosen and frozen. Static defects must remain STATIC_* / CAUSE_NOT_PROVEN until exact-candidate reproduction is possible.
-- MANUAL_LIMITATION=The triage report proves static code paths and device preconditions only. It does not prove user-visible reproduction, runtime severity, 1.3.0 regression status, or any product fix.
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_1_4_1_PLAYER_RUNTIME_EVIDENCE
+- UNCOVERED=Runtime A-cluster reproduction and v1.3.0/v1.4.0 A/B are not executed. The new writable test server authorization resolves the online-media path but does not yet provide runtime evidence for seek, loading pause, stall, noop, progress, EOS or episode transition.
+- STOP_CONDITION=Successor must create a fresh runtime triage owner after startup gate. Do not dispatch implementation until exact v1.4.0 behavior, v1.3.0 A/B, severity and safe test-environment evidence are frozen. Metadata writes, credential leakage, system changes or high-to-low schema downgrade stop the task.
+- MANUAL_LIMITATION=Current evidence is static and device-precondition only. The writable test server is authorized, but no runtime request, playback or A/B has been executed in this session.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
