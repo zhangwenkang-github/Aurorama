@@ -32,6 +32,11 @@ import com.zhangwenkang.cinefin.models.toFindroidShow
 import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.models.toOfficialDownloadSource
 import com.zhangwenkang.cinefin.repository.catalog.CatalogFreshness
+import com.zhangwenkang.cinefin.repository.catalog.CatalogHomeData
+import com.zhangwenkang.cinefin.repository.catalog.CatalogHomeQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogItemsPageQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogLibrariesQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogMovieQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
@@ -39,12 +44,15 @@ import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
 import com.zhangwenkang.cinefin.repository.catalog.CatalogScopeResolver
 import com.zhangwenkang.cinefin.repository.catalog.CatalogSearchQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
+import com.zhangwenkang.cinefin.repository.catalog.CatalogView
+import com.zhangwenkang.cinefin.repository.catalog.CatalogViewItems
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -516,17 +524,6 @@ class JellyfinRepositoryImpl(
 
     override suspend fun getPublicSystemInfo(): PublicSystemInfo =
         withContext(Dispatchers.IO) { jellyfinApi.systemApi.getPublicSystemInfo().content }
-
-    override suspend fun getUserViews(): List<BaseItemDto> =
-        cachedDtoList(
-            key = MetadataCacheKeys.VIEWS,
-            fetch = {
-                withContext(Dispatchers.IO) {
-                    jellyfinApi.viewsApi.getUserViews(jellyfinApi.userId!!).content.items
-                }
-            },
-            materialize = { it },
-        )
 
     override suspend fun getEpisode(itemId: UUID): FindroidEpisode =
         cachedDto(
@@ -1041,55 +1038,578 @@ class JellyfinRepositoryImpl(
             }
         }
 
-    override suspend fun getSuggestions(): List<FindroidItem> =
-        cachedDtoList(
-            key = MetadataCacheKeys.SUGGESTIONS,
-            fetch = {
-                jellyfinApi.suggestionsApi
-                    .getSuggestions(
-                        jellyfinApi.userId!!,
-                        limit = 6,
-                        type = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
+    override suspend fun home(query: CatalogHomeQuery): CatalogReadOutcome<CatalogHomeData> =
+        withContext(Dispatchers.IO) {
+            val context =
+                beginOnlineCatalogRead(query.frozenScope, query.forceRefresh)
+                    ?: return@withContext CatalogReadOutcome.IdentityUnavailable
+            try {
+                val reads = coroutineScope {
+                    val suggestions =
+                        if (query.includeSuggestions) {
+                            async {
+                                readCatalogItemList(
+                                    context = context,
+                                    key = MetadataCacheKeys.SUGGESTIONS,
+                                    fetch = { bound ->
+                                        bound.api.suggestionsApi
+                                            .getSuggestions(
+                                                bound.userId,
+                                                limit = 6,
+                                                type =
+                                                    listOf(
+                                                        BaseItemKind.MOVIE,
+                                                        BaseItemKind.SERIES,
+                                                    ),
+                                            )
+                                            .content
+                                            .items
+                                    },
+                                )
+                            }
+                        } else {
+                            null
+                        }
+                    val continueWatching =
+                        if (query.includeContinueWatching) {
+                            async {
+                                readResumeItems(
+                                    context,
+                                    listOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE),
+                                )
+                            }
+                        } else {
+                            null
+                        }
+                    val continueReading =
+                        if (query.includeContinueReading) {
+                            async { readResumeItems(context, listOf(BaseItemKind.BOOK)) }
+                        } else {
+                            null
+                        }
+                    val continueListening =
+                        if (query.includeContinueListening) {
+                            async { readResumeItems(context, listOf(BaseItemKind.AUDIO)) }
+                        } else {
+                            null
+                        }
+                    val nextUp =
+                        if (query.includeNextUp) {
+                            async {
+                                readCatalogDtoList(
+                                    context = context,
+                                    key = MetadataCacheKeys.nextUp(null),
+                                    fetch = { bound ->
+                                        bound.api.showsApi
+                                            .getNextUp(
+                                                bound.userId,
+                                                limit = 24,
+                                                seriesId = null,
+                                                enableResumable = false,
+                                            )
+                                            .content
+                                            .items
+                                    },
+                                    materialize = { dtos, repository ->
+                                        val episodes: List<FindroidItem> = dtos.mapNotNull {
+                                            it.toFindroidEpisode(repository)
+                                        }
+                                        episodes
+                                    },
+                                )
+                            }
+                        } else {
+                            null
+                        }
+                    val views =
+                        if (query.includeUserViews) {
+                            async { readHomeViews(context) }
+                        } else {
+                            null
+                        }
+                    HomeReads(
+                        suggestions = suggestions?.await(),
+                        continueWatching = continueWatching?.await(),
+                        continueReading = continueReading?.await(),
+                        continueListening = continueListening?.await(),
+                        nextUp = nextUp?.await(),
+                        views = views?.await(),
                     )
-                    .content
-                    .items
-            },
-            materialize = { it.toFindroidItems() },
+                }
+                val allReads =
+                    listOfNotNull(
+                        reads.suggestions,
+                        reads.continueWatching,
+                        reads.continueReading,
+                        reads.continueListening,
+                        reads.nextUp,
+                        reads.views?.metadata,
+                    ) + reads.views?.latest.orEmpty()
+                val freshness =
+                    if (allReads.any { it.freshness == MetadataSnapshotFreshness.STALE }) {
+                        CatalogFreshness.STALE
+                    } else {
+                        CatalogFreshness.FRESH
+                    }
+                val observedAtEpochMs =
+                    allReads.minOfOrNull(MetadataSnapshotRead<*>::observedAtEpochMs)
+                        ?: metadataCache.now()
+                CatalogReadOutcome.Available(
+                    CatalogSnapshot(
+                        scope = context.scope,
+                        contentGeneration = context.fence.contentGeneration,
+                        freshness = freshness,
+                        observedAtEpochMs = observedAtEpochMs,
+                        value =
+                            CatalogHomeData(
+                                suggestions = reads.suggestions?.value.orEmpty(),
+                                resumeWatching = reads.continueWatching?.value.orEmpty(),
+                                resumeReading = reads.continueReading?.value.orEmpty(),
+                                resumeListening = reads.continueListening?.value.orEmpty(),
+                                nextUp = reads.nextUp?.value.orEmpty(),
+                                views = reads.views?.views.orEmpty(),
+                            ),
+                    )
+                )
+            } catch (_: MetadataSnapshotFenceChangedException) {
+                CatalogReadOutcome.IdentityUnavailable
+            }
+        }
+
+    override suspend fun libraries(
+        query: CatalogLibrariesQuery
+    ): CatalogReadOutcome<List<FindroidCollection>> =
+        withContext(Dispatchers.IO) {
+            val context =
+                beginOnlineCatalogRead(query.frozenScope, query.forceRefresh)
+                    ?: return@withContext CatalogReadOutcome.IdentityUnavailable
+            try {
+                catalogAvailable(context, readCatalogLibraries(context))
+            } catch (_: MetadataSnapshotFenceChangedException) {
+                CatalogReadOutcome.IdentityUnavailable
+            }
+        }
+
+    override suspend fun itemsPage(
+        query: CatalogItemsPageQuery
+    ): CatalogReadOutcome<List<FindroidItem>> =
+        withContext(Dispatchers.IO) {
+            val context =
+                beginOnlineCatalogRead(query.frozenScope, forceRefresh = false)
+                    ?: return@withContext CatalogReadOutcome.IdentityUnavailable
+            val cacheKey =
+                MetadataCacheKeys.items(
+                    parentId = query.parentId,
+                    includeTypes = query.includeTypes,
+                    recursive = query.recursive,
+                    sortBy = query.sortBy,
+                    sortOrder = query.sortOrder,
+                    startIndex = query.startIndex,
+                    limit = query.limit,
+                    filters = query.filters,
+                    genres = query.genres,
+                    studios = query.studios,
+                )
+            try {
+                val read =
+                    readCatalogItemList(
+                        context = context,
+                        key = cacheKey,
+                        fetch = { bound ->
+                            bound.api.itemsApi
+                                .getItems(
+                                    bound.userId,
+                                    parentId = query.parentId,
+                                    includeItemTypes = query.includeTypes,
+                                    recursive = query.recursive,
+                                    sortBy = listOf(ItemSortBy.fromName(query.sortBy.sortString)),
+                                    sortOrder =
+                                        listOf(ItemSortOrder.fromName(query.sortOrder.sortString)),
+                                    startIndex = query.startIndex,
+                                    limit = query.limit,
+                                    filters = query.filters,
+                                    genres = query.genres,
+                                    studios = query.studios,
+                                    fields = listOf(ItemFields.PATH),
+                                )
+                                .content
+                                .items
+                        },
+                    )
+                catalogAvailable(context, read)
+            } catch (_: MetadataSnapshotFenceChangedException) {
+                CatalogReadOutcome.IdentityUnavailable
+            }
+        }
+
+    override suspend fun movie(query: CatalogMovieQuery): CatalogReadOutcome<FindroidMovie> =
+        withContext(Dispatchers.IO) {
+            val context =
+                beginOnlineCatalogRead(query.frozenScope, forceRefresh = false)
+                    ?: return@withContext CatalogReadOutcome.IdentityUnavailable
+            localLibrary.syntheticMovie(query.itemId)?.let { local ->
+                if (!context.isCurrent()) return@withContext CatalogReadOutcome.IdentityUnavailable
+                return@withContext CatalogReadOutcome.Available(
+                    CatalogSnapshot(
+                        scope = context.scope,
+                        contentGeneration = context.fence.contentGeneration,
+                        freshness = CatalogFreshness.FRESH,
+                        observedAtEpochMs = metadataCache.now(),
+                        value = local,
+                    )
+                )
+            }
+            try {
+                val read =
+                    readCatalogDto(
+                        context = context,
+                        key = MetadataCacheKeys.movie(query.itemId),
+                        fetch = { bound ->
+                            bound.api.userLibraryApi.getItem(query.itemId, bound.userId).content
+                        },
+                        materialize = { dto, repository ->
+                            dto.toFindroidMovie(repository, database)
+                        },
+                    )
+                catalogAvailable(context, read)
+            } catch (_: MetadataSnapshotFenceChangedException) {
+                CatalogReadOutcome.IdentityUnavailable
+            }
+        }
+
+    private data class OnlineCatalogReadContext(
+        val scope: CatalogScope,
+        val fence: MetadataFence,
+        val bound: BoundOriginClient,
+    )
+
+    private data class HomeViewsRead(
+        val views: List<CatalogViewItems>,
+        val metadata: MetadataSnapshotRead<List<BaseItemDto>>,
+        val latest: List<MetadataSnapshotRead<List<FindroidItem>>>,
+    )
+
+    private data class HomeReads(
+        val suggestions: MetadataSnapshotRead<List<FindroidItem>>?,
+        val continueWatching: MetadataSnapshotRead<List<FindroidItem>>?,
+        val continueReading: MetadataSnapshotRead<List<FindroidItem>>?,
+        val continueListening: MetadataSnapshotRead<List<FindroidItem>>?,
+        val nextUp: MetadataSnapshotRead<List<FindroidItem>>?,
+        val views: HomeViewsRead?,
+    )
+
+    private suspend fun beginOnlineCatalogRead(
+        expectedScope: CatalogScope,
+        forceRefresh: Boolean,
+    ): OnlineCatalogReadContext? {
+        if (currentScope() != expectedScope) return null
+        val expectedNamespace =
+            MetadataNamespace(
+                serverId = expectedScope.origin.serverId,
+                userId = expectedScope.origin.userId.toString(),
+            )
+        val expectedFence =
+            metadataCache.currentFence()?.takeIf { it.namespace == expectedNamespace }
+                ?: return null
+        val bound =
+            try {
+                bindOrigin(expectedScope.origin)
+            } catch (_: IllegalStateException) {
+                return null
+            }
+        if (bound.userId != expectedScope.origin.userId || currentScope() != expectedScope) {
+            return null
+        }
+        if (forceRefresh) {
+            if (!metadataSnapshotSwr.invalidateAll(expectedFence)) return null
+        }
+        val fence =
+            metadataCache.currentFence()?.takeIf { it.namespace == expectedNamespace }
+                ?: return null
+        if (currentScope() != expectedScope) return null
+        return OnlineCatalogReadContext(
+            scope = expectedScope,
+            fence = fence,
+            bound = bound,
+        )
+    }
+
+    private suspend fun OnlineCatalogReadContext.isCurrent(): Boolean =
+        currentScope() == scope && metadataCache.currentFence() == fence
+
+    private fun OnlineCatalogReadContext.scopedRepository(): JellyfinRepository =
+        BoundCatalogRepository(
+            delegate = this@JellyfinRepositoryImpl,
+            baseUrl = bound.baseUrl,
+            accessToken = bound.accessToken,
+            userId = bound.userId,
         )
 
-    override suspend fun getResumeItems(includeItemTypes: List<BaseItemKind>): List<FindroidItem> =
-        cachedDtoList(
+    private suspend fun readResumeItems(
+        context: OnlineCatalogReadContext,
+        includeItemTypes: List<BaseItemKind>,
+    ): MetadataSnapshotRead<List<FindroidItem>> =
+        readCatalogItemList(
+            context = context,
             key = MetadataCacheKeys.resume(includeItemTypes),
-            fetch = {
-                jellyfinApi.itemsApi
+            fetch = { bound ->
+                bound.api.itemsApi
                     .getResumeItems(
-                        jellyfinApi.userId!!,
+                        bound.userId,
                         limit = 12,
                         includeItemTypes = includeItemTypes,
-                        // W77-5：首页「继续阅读」书籍卡零请求判断远端 PDF 用。
                         fields = listOf(ItemFields.PATH),
                     )
                     .content
                     .items
             },
-            materialize = { it.toFindroidItems() },
         )
 
-    override suspend fun getLatestMedia(parentId: UUID): List<FindroidItem> =
-        cachedDtoList(
-            key = MetadataCacheKeys.latestMedia(parentId),
-            fetch = {
-                jellyfinApi.userLibraryApi
-                    .getLatestMedia(
-                        jellyfinApi.userId!!,
-                        parentId = parentId,
-                        limit = 16,
-                        // W77-5：首页「最新 · 书籍」走廊零请求判断远端 PDF 用。
-                        fields = listOf(ItemFields.PATH),
-                    )
-                    .content
+    private suspend fun readHomeViews(context: OnlineCatalogReadContext): HomeViewsRead {
+        val metadata =
+            readCatalogDtoList(
+                context = context,
+                key = MetadataCacheKeys.VIEWS,
+                fetch = { bound -> bound.api.viewsApi.getUserViews(bound.userId).content.items },
+                materialize = { dtos, _ -> dtos },
+            )
+        val repository = context.scopedRepository()
+        val views = mutableListOf<CatalogViewItems>()
+        val latestReads = mutableListOf<MetadataSnapshotRead<List<FindroidItem>>>()
+        for (dto in metadata.value) {
+            val collection =
+                withContext(Dispatchers.IO) { dto.toFindroidCollection(repository) } ?: continue
+            val view =
+                CatalogView(
+                    id = collection.id,
+                    name = collection.name,
+                    type = collection.type,
+                )
+            val latest =
+                readCatalogItemList(
+                    context = context,
+                    key = MetadataCacheKeys.latestMedia(view.id),
+                    fetch = { bound ->
+                        bound.api.userLibraryApi
+                            .getLatestMedia(
+                                bound.userId,
+                                parentId = view.id,
+                                limit = 16,
+                                fields = listOf(ItemFields.PATH),
+                            )
+                            .content
+                    },
+                )
+            latestReads += latest
+            if (latest.value.isNotEmpty()) {
+                views += CatalogViewItems(view = view, latestMedia = latest.value)
+            }
+        }
+        return HomeViewsRead(
+            views = views,
+            metadata = metadata,
+            latest = latestReads,
+        )
+    }
+
+    private suspend fun readCatalogLibraries(
+        context: OnlineCatalogReadContext
+    ): MetadataSnapshotRead<List<FindroidCollection>> =
+        readCatalogDtoList(
+            context = context,
+            key = MetadataCacheKeys.LIBRARIES,
+            fetch = { bound ->
+                coroutineScope {
+                    val libraries =
+                        bound.api.itemsApi
+                            .getItems(
+                                bound.userId,
+                                fields = listOf(ItemFields.CHILD_COUNT),
+                            )
+                            .content
+                            .items
+                    val counts =
+                        libraries
+                            .map { library ->
+                                async {
+                                    libraryItemCountForCatalog(context, library.id)?.let {
+                                        library.id to it
+                                    }
+                                }
+                            }
+                            .awaitAll()
+                            .filterNotNull()
+                            .toMap()
+                    libraries.map { library ->
+                        library.copy(
+                            childCount =
+                                stableLibraryItemCount(
+                                    counts[library.id],
+                                    library.childCount,
+                                )
+                        )
+                    }
+                }
             },
-            materialize = { it.toFindroidItems() },
+            materialize = { dtos, repository ->
+                dtos.mapNotNull { it.toFindroidCollection(repository) }
+            },
+        )
+
+    private suspend fun libraryItemCountForCatalog(
+        context: OnlineCatalogReadContext,
+        libraryId: UUID,
+    ): Int? =
+        try {
+            readCatalogInt(
+                    context = context,
+                    key = MetadataCacheKeys.libraryItemCount(libraryId),
+                    fetch = { bound ->
+                        bound.api.itemsApi
+                            .getItems(
+                                bound.userId,
+                                parentId = libraryId,
+                                recursive = false,
+                                limit = 1,
+                            )
+                            .content
+                            .totalRecordCount
+                    },
+                )
+                .value
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (throwable: Throwable) {
+            Timber.w(throwable, "读取库 %s 的稳定条目数失败，回退 ChildCount", libraryId)
+            null
+        }
+
+    private suspend fun readCatalogItemList(
+        context: OnlineCatalogReadContext,
+        key: String,
+        fetch: suspend (BoundOriginClient) -> List<BaseItemDto>,
+    ): MetadataSnapshotRead<List<FindroidItem>> =
+        readCatalogDtoList(
+            context = context,
+            key = key,
+            fetch = fetch,
+            materialize = { dtos, repository -> dtos.toFindroidItems(repository) },
+        )
+
+    private suspend fun <T> readCatalogDtoList(
+        context: OnlineCatalogReadContext,
+        key: String,
+        fetch: suspend (BoundOriginClient) -> List<BaseItemDto>,
+        materialize: suspend (List<BaseItemDto>, JellyfinRepository) -> T,
+    ): MetadataSnapshotRead<T> =
+        metadataSnapshotSwr.readWithMetadata(
+            fence = context.fence,
+            key = key,
+            policy = MetadataSnapshotTtlPolicy.forKey(key),
+            decodeSnapshot = { value -> value.asBaseItemDtoList() },
+            fetch = {
+                val value = fetch(context.bound)
+                if (!context.isCurrent()) {
+                    throw MetadataSnapshotFenceChangedException()
+                }
+                value
+            },
+            materialize = { dtos ->
+                val repository = context.scopedRepository()
+                val current =
+                    withContext(Dispatchers.IO) {
+                        dtos.map { it.withRoomUserData(context.scope.origin.userId) }
+                    }
+                if (!context.isCurrent()) {
+                    throw MetadataSnapshotFenceChangedException()
+                }
+                val result = materialize(current, repository)
+                if (!context.isCurrent()) {
+                    throw MetadataSnapshotFenceChangedException()
+                }
+                result
+            },
+            validateFence = { candidate -> candidate == context.fence && context.isCurrent() },
+        )
+
+    private suspend fun <T> readCatalogDto(
+        context: OnlineCatalogReadContext,
+        key: String,
+        fetch: suspend (BoundOriginClient) -> BaseItemDto,
+        materialize: suspend (BaseItemDto, JellyfinRepository) -> T,
+    ): MetadataSnapshotRead<T> =
+        metadataSnapshotSwr.readWithMetadata(
+            fence = context.fence,
+            key = key,
+            policy = MetadataSnapshotTtlPolicy.forKey(key),
+            decodeSnapshot = { value -> value as? BaseItemDto },
+            fetch = {
+                val value = fetch(context.bound)
+                if (!context.isCurrent()) {
+                    throw MetadataSnapshotFenceChangedException()
+                }
+                value
+            },
+            materialize = { dto ->
+                val repository = context.scopedRepository()
+                val current =
+                    withContext(Dispatchers.IO) {
+                        dto.withRoomUserData(context.scope.origin.userId)
+                    }
+                if (!context.isCurrent()) {
+                    throw MetadataSnapshotFenceChangedException()
+                }
+                val result = materialize(current, repository)
+                if (!context.isCurrent()) {
+                    throw MetadataSnapshotFenceChangedException()
+                }
+                result
+            },
+            validateFence = { candidate -> candidate == context.fence && context.isCurrent() },
+        )
+
+    private suspend fun readCatalogInt(
+        context: OnlineCatalogReadContext,
+        key: String,
+        fetch: suspend (BoundOriginClient) -> Int,
+    ): MetadataSnapshotRead<Int> =
+        metadataSnapshotSwr.readWithMetadata(
+            fence = context.fence,
+            key = key,
+            policy = MetadataSnapshotTtlPolicy.forKey(key),
+            decodeSnapshot = { value -> value as? Int },
+            fetch = {
+                val value = fetch(context.bound)
+                if (!context.isCurrent()) {
+                    throw MetadataSnapshotFenceChangedException()
+                }
+                value
+            },
+            materialize = { value ->
+                if (!context.isCurrent()) {
+                    throw MetadataSnapshotFenceChangedException()
+                }
+                value
+            },
+            validateFence = { candidate -> candidate == context.fence && context.isCurrent() },
+        )
+
+    private fun <T> catalogAvailable(
+        context: OnlineCatalogReadContext,
+        read: MetadataSnapshotRead<T>,
+    ): CatalogReadOutcome<T> =
+        CatalogReadOutcome.Available(
+            CatalogSnapshot(
+                scope = context.scope,
+                contentGeneration = context.fence.contentGeneration,
+                freshness =
+                    when (read.freshness) {
+                        MetadataSnapshotFreshness.FRESH -> CatalogFreshness.FRESH
+                        MetadataSnapshotFreshness.STALE -> CatalogFreshness.STALE
+                    },
+                observedAtEpochMs = read.observedAtEpochMs,
+                value = read.value,
+            )
         )
 
     override suspend fun getSeasons(seriesId: UUID, offline: Boolean): List<FindroidSeason> {

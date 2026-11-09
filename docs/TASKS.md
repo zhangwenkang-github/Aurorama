@@ -8,7 +8,7 @@
 ### ACTIVE — V2-W1C-1-REPAIR-INDEPENDENT-QA-2026-11-09
 
 - TASK_ID=V2-W1C-1-REPAIR-MERGE-PREP-HANDOFF-2026-11-09
-- TASK_STAGE=W1C_1_INDEPENDENT_QA_PASS / USER_MERGE_PREP_AUTHORIZED / LEAD_HANDOFF_READY
+- TASK_STAGE=W1C_1_INDEPENDENT_QA_PASS / W1C_1_REPAIR_MERGE_PREP=PASS / MERGE_PREP_READY=YES / INTEGRATION_AUTHORIZED=NO / INTEGRATED=NO / DELIVERY_LEAD_REVIEW_REQUIRED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -19,15 +19,15 @@
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-handoff-2026-11-09\REPAIR_MERGE_PREP_DELIVERY_LEAD_PROMPT.md
 - NEXT_REQUIREMENT=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 / ICS-W1C-1-HOME-VIDEO-AGGREGATE-MOVIE-DETAIL / canonical scope + fail-closed + no stale cross-scope or cross-generation Home/Video/paging/Movie results
-- STOP_CONDITION=Create only the successor W1C-1 repair merge-prep delivery lead session under projectId 47419ac7-1d78-47fe-9988-c1789362d705 and verify it is not Pinned. The successor lead must dispatch a fresh merge-prep owner; the current owner must not merge-prep, merge, integrate, push, tag or Release. Stop on QA/candidate/path drift or any attempt to bypass the fresh merge-prep gate.
+- STOP_CONDITION=Deliver merge-prep report and isolated final to delivery lead for review. Stop at user integration decision; do not merge, integrate, push, tag, Release, or claim runtime/product/parent seam PASS.
 - SCOPE=W1C_1_HOME_VIDEO_AGGREGATE_MOVIE_DETAIL_SCOPE_FROZEN
 - AUTHORIZATION=USER_REPAIR_AUTHORIZED_2026_11_09 / MERGE_PREP_AUTHORIZED_2026_11_09 / NO_INTEGRATION_AUTHORIZATION
-- IMPLEMENTATION_AUTHORIZED=NO / REPAIR_CANDIDATE_INDEPENDENT_QA_PASS / MERGE_PREP_AUTHORIZED
+- IMPLEMENTATION_AUTHORIZED=NO / REPAIR_CANDIDATE_INDEPENDENT_QA_PASS / REPAIR_MERGE_PREP_PASS
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / MERGE_PREP_AUTHORIZED=YES / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / MERGE_PREP_AUTHORIZED=YES / INTEGRATION_AUTHORIZED=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=2026-11-09 / USER_MERGE_PREP_AUTHORIZED / LEAD_HANDOFF / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
+- CONTEXT_AT_CLOSE=2026-11-09 / MERGE_PREP_PASS / DELIVERY_LEAD_REVIEW_REQUIRED / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
 - P0=0
 - P1=P1-W1C1-01:CLOSED_BY_REPAIR_QA;P1-W1C1-02:CLOSED_BY_REPAIR_QA;P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
 - P2=P2-W1C1-03:CLOSED_BY_REPAIR_QA;P2-W1C1-04:CLOSED_BY_REPAIR_QA;P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
@@ -44,9 +44,28 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_W1C_1_REPAIR_MERGE_PREP_THEN_USER_INTEGRATION_DECISION
-- last_evidence=INDEPENDENT_QA=PASS; P0-P3=0/0/0/0; FINAL=10b904d45cad4117cdc20b701d7ee9aabfefce74; TREE=0c7c8f0227ebb290017e955e629b4bfe6b29b9fb; USER_MERGE_PREP_AUTHORIZED=2026-11-09; QA_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md; QA_SHA256=9E90A03A8436366F62A9EF68C1A57BE4881A30F147AEDEA5D979799A82753362
+- NEXT_CRITICAL_PATH=W1C_1_REPAIR_MERGE_PREP_PASS / DELIVERY_LEAD_REVIEW / USER_INTEGRATION_DECISION
+- last_evidence=INDEPENDENT_QA=PASS; W1C_1_REPAIR_MERGE_PREP=PASS; P0-P3=0/0/0/0; SOURCE=10b904d45cad4117cdc20b701d7ee9aabfefce74; TARGET=ed2314cb3e577ecce8fc2b115ac312e5d5130508; CODE_TEST_EQUIVALENCE=17/17; GATES=PASS; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-2026-11-09\MERGE_PREP_REPORT.md
 <!-- V2_HANDOFF_ACTIVE_END -->
+
+### HISTORY — 2026-11-09 W1C-1 repair merge-prep PASS
+
+- Fresh `AURORAMA_V2_W1C_1_CATALOG_READERS_REPAIR_MERGE_PREP_OWNER_2026_11_09`
+  在 target pin `ed2314cb3e577ecce8fc2b115ac312e5d5130508` 上创建隔离分支
+  `codex/v2-w1c-1-catalog-readers-repair-merge-prep-2026-11-09` 与 fresh worktree。
+- Source candidate、parent、tree 精确为
+  `10b904d45cad4117cdc20b701d7ee9aabfefce74` /
+  `9757492ef5f2adfa95814566f80a360b7dd5eff3` /
+  `0c7c8f0227ebb290017e955e629b4bfe6b29b9fb`；17 个 code/test path 的 mode、blob、
+  stable patch-id 与 tree-entry 均 17/17 MATCH，missing/extra 均为 0。
+- `docs/TASKS.md` 独立控制：未机械覆盖 source docs，仅记录本 merge-prep 的 ACTIVE / QA 状态、
+  evidence、未覆盖与下一门；docs 未混入 product/test equivalence。
+- GatePlan FULL、workflow `37/0`、handoff `99/0`、data `343/0/0/0`、film `167/0/0/0`、
+  phone `463/0/0/0`、assemble、ktfmt、A0 `PASS`、A0 tests `7/0` 与 diff-check 均实际通过。
+- 本历史段不写 final 自身 SHA；外部 pin、clean、parent、ancestor 与 ff-only 可接收证据见
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-2026-11-09\MERGE_PREP_REPORT.md`。
+- 下一步只能是 delivery lead 复核与用户 integration 决策；本 owner 未 merge、integration、
+  push、tag、Release、QA、设备或网络动作。
 
 ### HISTORY — 2026-11-09 user authorized W1C-1 repair merge-prep handoff
 
@@ -760,9 +779,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Fresh merge-prep has not started. Integration, runtime, device/network, W1E, parent seam, product and Release remain unexecuted or unproven.
-- STOP_CONDITION=QA is PASS and the user authorized the next merge-prep step only. The successor lead must dispatch a different fresh merge-prep owner; no direct merge, integration, push, tag or Release.
-- MANUAL_LIMITATION=Independent QA PASS covers only the local JVM/static W1C-1 repair candidate. User authorization currently covers fresh merge-prep only, not integration or Release.
+- UNCOVERED=W1C-1 repair merge-prep is PASS for the isolated 17-path candidate only. Merge, integration, push, tag, Release, Android runtime/device/network, W1E, W1C-2, parent seam, product and Release remain unexecuted or unproven.
+- STOP_CONDITION=Merge-prep PASS permits delivery lead review and user integration decision only; no merge, integration, push, tag, Release or product/runtime claim.
+- MANUAL_LIMITATION=This PASS covers exact source/final equivalence, local JVM/static gates, clean/parent/ff-only mechanics only; not merge, integration, Android runtime, device/network, parent seam, product or Release.
 - MANUAL_OWNER=AURORAMA_V2_W1C_1_REPAIR_MERGE_PREP_DELIVERY_LEAD_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
@@ -853,7 +872,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 | ID | 状态 | PREREQUISITE_SEAMS / 依赖 | 必须先于 | 交付物 / 可观察完成判据 | 证据门 | 下一门 | 当前未完成原因 |
 |---|---|---|---|---|---|---|---|
-| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED / W1C_1=INDEPENDENT_QA_FAIL / P0-P3=0/2/2/1 / USER_SELECTED_REPAIR / DELIVERY_HANDOFF_READY / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C、W1B-1 全栈与 W1B-2 已各自完成 QA + merge-prep + local integration；W1C-1 independent QA FAIL 已被用户接受，用户选择 fresh repair | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | fresh repair delivery lead -> fresh repair -> different fresh QA -> merge-prep | W1C-1 P1/P2 未修复；merge-prep、integration、W1C-2、W1D/W1E/W1F/W1G、真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
+| `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` | `SLICE_W1A_P3_CLEANUP_COMPLETE / INTEGRATED / W1B_TASK_CARD_ACCEPTED / W1B_1A=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / INTEGRATED / W1B_1B=INDEPENDENT_QA_R4_COMBINED_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1C=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED / W1B_1=COMBINED_QA_PASS / COMBINED_MERGE_PREP_PASS / INTEGRATED / W1B_2=INDEPENDENT_QA_PASS / MERGE_PREP_PASS / PASS_WITH_GAPS / LOCALLY_FF_ONLY_INTEGRATED / W1C_1=INDEPENDENT_QA_PASS / REPAIR_MERGE_PREP=PASS / INTEGRATION_PENDING / P0-P3=0/0/0/0 / USER_INTEGRATION_DECISION_REQUIRED / PARENT_SEAM=CONTRACT_FROZEN / IN_PROGRESS` | `PREREQUISITE_SEAMS=NONE`；W1A slice、W1B-1A/B/C、W1B-1 全栈与 W1B-2 已各自完成 QA + merge-prep + local integration；W1C-1 repair independent QA PASS，17/17 source/final merge-prep equivalence 与 FULL gates PASS，`INTEGRATED=NO` | `V2-NON-TTS-W1` | canonical `Scope / Identity` 合同与 adapter 落地；目标 auth / preference / DB namespace / cache 消费者迁移；旧身份推断与跨账号双真源移除；切号 / 离线 / 缓存负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | delivery lead review -> user integration decision | W1C-1 repair merge-prep PASS，但尚未 integration；W1C-2、W1D/W1E/W1F/W1G、真实 runtime kill/relaunch、Room-global API 与父 seam 仍未完成 |
 | `V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2` | `BLOCKED_BY_IDENTITY_CATALOG` | `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` 及所需 Catalog anchors | `V2-NON-TTS-W2` | command + immutable task / hierarchy projection 成为唯一下载真相；UI、通知、文件、sidecar、Room、离线投影消费同一投影；暂停 / 恢复 / 取消 / 删除 / 重启负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog 完整 DoD | Identity/Catalog 前置未完成，当前只有 partial anchors；A0 guard 不是 seam |
 | `V2-ARCH-SEAM-PLAYBACK-SESSION-W3` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W3` | `PlaybackSession` command / state / owner generation 落地；单活动逻辑会话与单 MediaSession；UI / service / notification 消费同一状态；旧 owner 不写新状态 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；播放器仍为 partial session / coordinator 锚点 |
 | `V2-ARCH-SEAM-READER-SOURCE-W4` | `BLOCKED_BY_PREREQUISITES` | Identity/Catalog + Download-control seams | `V2-NON-TTS-W4` 正文实现 | source-scoped book identity + progress / locator 合同落地；Readium / PDF / SAF / Range 消费者迁移；内容指纹与进度分离；错书 / 离线 / 强停恢复负例通过 | 完整 seam DoD；独立 QA `PASS` + integrated gate `PASS` | Identity/Catalog + Download 完整 DoD | 两项前置未完成；Reader 仅有 partial source anchors，非 TTS 切片尚未实现 |

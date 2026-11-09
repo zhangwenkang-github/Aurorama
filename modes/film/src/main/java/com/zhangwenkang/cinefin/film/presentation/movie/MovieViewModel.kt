@@ -6,11 +6,19 @@ import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
 import com.zhangwenkang.cinefin.film.domain.selectSourceForMetadata
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.models.VideoMetadata
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.catalog.CatalogMovieQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
+import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,63 +28,152 @@ import org.jellyfin.sdk.model.api.PersonKind
 
 @HiltViewModel
 class MovieViewModel
-@Inject
-constructor(
+private constructor(
+    private val catalogReadPort: CatalogReadPort,
     private val repository: JellyfinRepository,
     private val appPreferences: AppPreferences,
-    private val videoMetadataParser: VideoMetadataParser,
+    private val parseVideoMetadata: suspend (FindroidSource) -> VideoMetadata,
+    private val peopleDispatcher: CoroutineDispatcher,
+    @Suppress("UNUSED_PARAMETER") constructorMarker: Unit,
 ) : ViewModel() {
+    @Inject
+    constructor(
+        catalogReadPort: CatalogReadPort,
+        repository: JellyfinRepository,
+        appPreferences: AppPreferences,
+        videoMetadataParser: VideoMetadataParser,
+    ) : this(
+        catalogReadPort = catalogReadPort,
+        repository = repository,
+        appPreferences = appPreferences,
+        parseVideoMetadata = videoMetadataParser::parse,
+        peopleDispatcher = Dispatchers.Default,
+        constructorMarker = Unit,
+    )
+
+    internal constructor(
+        catalogReadPort: CatalogReadPort,
+        repository: JellyfinRepository,
+        appPreferences: AppPreferences,
+        parseVideoMetadata: suspend (FindroidSource) -> VideoMetadata,
+        peopleDispatcher: CoroutineDispatcher,
+    ) : this(
+        catalogReadPort = catalogReadPort,
+        repository = repository,
+        appPreferences = appPreferences,
+        parseVideoMetadata = parseVideoMetadata,
+        peopleDispatcher = peopleDispatcher,
+        constructorMarker = Unit,
+    )
+
     private val _state = MutableStateFlow(MovieState())
     val state = _state.asStateFlow()
 
     lateinit var movieId: UUID
+        private set
+
+    private var loadSerial = 0L
+    private var loadedScope: CatalogScope? = null
+    private var loadedMovieId: UUID? = null
 
     fun loadMovie(movieId: UUID, preferredMediaSourceId: String? = null) {
         this.movieId = movieId
+        val requestSerial = ++loadSerial
         viewModelScope.launch {
             try {
-                val movie = repository.getMovie(movieId)
-                val videoMetadata =
-                    selectSourceForMetadata(movie.sources, preferredMediaSourceId)?.let { source ->
-                        videoMetadataParser.parse(source)
+                val scope = catalogReadPort.currentScope()
+                if (scope == null) {
+                    loadedScope = null
+                    loadedMovieId = null
+                    if (requestSerial == loadSerial) {
+                        _state.value = _state.value.clearCatalog()
                     }
-                val actors = getActors(movie)
-                val director = getDirector(movie)
-                val writers = getWriters(movie)
-                val displayExtraInfo = appPreferences.getValue(appPreferences.displayExtraInfo)
-                _state.emit(
-                    _state.value.copy(
-                        movie = movie,
-                        videoMetadata = videoMetadata,
-                        actors = actors,
-                        director = director,
-                        writers = writers,
-                        displayExtraInfo = displayExtraInfo,
-                    )
-                )
-            } catch (e: Exception) {
-                _state.emit(_state.value.copy(error = e))
+                    return@launch
+                }
+                if (loadedScope != scope || loadedMovieId != movieId) {
+                    loadedScope = null
+                    loadedMovieId = null
+                    _state.value = _state.value.clearCatalog()
+                }
+                val outcome =
+                    catalogReadPort.movie(CatalogMovieQuery(itemId = movieId, frozenScope = scope))
+                if (requestSerial != loadSerial) return@launch
+                when (outcome) {
+                    CatalogReadOutcome.IdentityUnavailable -> {
+                        loadedScope = null
+                        loadedMovieId = null
+                        _state.value = _state.value.clearCatalog()
+                    }
+                    is CatalogReadOutcome.Available -> {
+                        val token =
+                            MovieCatalogRequestToken(
+                                serial = requestSerial,
+                                movieId = movieId,
+                                scope = scope,
+                            )
+                        val movie = outcome.snapshot.value
+                        val videoMetadata =
+                            selectSourceForMetadata(
+                                    movie.sources,
+                                    preferredMediaSourceId,
+                                )
+                                ?.let { source -> parseVideoMetadata(source) }
+                        val actors = getActors(movie)
+                        val director = getDirector(movie)
+                        val writers = getWriters(movie)
+                        val currentScope = catalogReadPort.currentScope()
+                        if (
+                            !isMovieCatalogResultCurrent(
+                                request = token,
+                                currentSerial = loadSerial,
+                                currentMovieId = this@MovieViewModel.movieId,
+                                frozenScope = scope,
+                                currentScope = currentScope,
+                                snapshotScope = outcome.snapshot.scope,
+                            )
+                        ) {
+                            if (requestSerial != loadSerial) return@launch
+                            loadedScope = null
+                            loadedMovieId = null
+                            _state.value = _state.value.clearCatalog()
+                            return@launch
+                        }
+                        val displayExtraInfo =
+                            appPreferences.getValue(appPreferences.displayExtraInfo)
+                        _state.value =
+                            _state.value.withCatalogMovie(
+                                movie = movie,
+                                videoMetadata = videoMetadata,
+                                actors = actors,
+                                director = director,
+                                writers = writers,
+                                displayExtraInfo = displayExtraInfo,
+                            )
+                        loadedScope = scope
+                        loadedMovieId = movieId
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                if (requestSerial == loadSerial) {
+                    if (loadedScope == null || loadedMovieId != movieId) {
+                        _state.value = _state.value.clearCatalog()
+                    }
+                    _state.value = _state.value.copy(error = error)
+                }
             }
         }
     }
 
-    private suspend fun getActors(item: FindroidMovie): List<FindroidItemPerson> {
-        return withContext(Dispatchers.Default) {
-            item.people.filter { it.type == PersonKind.ACTOR }
-        }
-    }
+    private suspend fun getActors(item: FindroidMovie): List<FindroidItemPerson> =
+        withContext(peopleDispatcher) { item.people.filter { it.type == PersonKind.ACTOR } }
 
-    private suspend fun getDirector(item: FindroidMovie): FindroidItemPerson? {
-        return withContext(Dispatchers.Default) {
-            item.people.firstOrNull { it.type == PersonKind.DIRECTOR }
-        }
-    }
+    private suspend fun getDirector(item: FindroidMovie): FindroidItemPerson? =
+        withContext(peopleDispatcher) { item.people.firstOrNull { it.type == PersonKind.DIRECTOR } }
 
-    private suspend fun getWriters(item: FindroidMovie): List<FindroidItemPerson> {
-        return withContext(Dispatchers.Default) {
-            item.people.filter { it.type == PersonKind.WRITER }
-        }
-    }
+    private suspend fun getWriters(item: FindroidMovie): List<FindroidItemPerson> =
+        withContext(peopleDispatcher) { item.people.filter { it.type == PersonKind.WRITER } }
 
     fun onAction(action: MovieAction) {
         when (action) {
@@ -108,3 +205,51 @@ constructor(
         }
     }
 }
+
+internal data class MovieCatalogRequestToken(
+    val serial: Long,
+    val movieId: UUID,
+    val scope: CatalogScope,
+)
+
+internal fun isMovieCatalogResultCurrent(
+    request: MovieCatalogRequestToken,
+    currentSerial: Long,
+    currentMovieId: UUID?,
+    frozenScope: CatalogScope,
+    currentScope: CatalogScope?,
+    snapshotScope: CatalogScope,
+): Boolean =
+    request.serial == currentSerial &&
+        request.movieId == currentMovieId &&
+        request.scope == frozenScope &&
+        currentScope == frozenScope &&
+        snapshotScope == frozenScope
+
+internal fun MovieState.clearCatalog(): MovieState =
+    copy(
+        movie = null,
+        videoMetadata = null,
+        actors = emptyList(),
+        director = null,
+        writers = emptyList(),
+        error = null,
+    )
+
+internal fun MovieState.withCatalogMovie(
+    movie: FindroidMovie,
+    videoMetadata: VideoMetadata?,
+    actors: List<FindroidItemPerson>,
+    director: FindroidItemPerson?,
+    writers: List<FindroidItemPerson>,
+    displayExtraInfo: Boolean = this.displayExtraInfo,
+): MovieState =
+    copy(
+        movie = movie,
+        videoMetadata = videoMetadata,
+        actors = actors,
+        director = director,
+        writers = writers,
+        displayExtraInfo = displayExtraInfo,
+        error = null,
+    )

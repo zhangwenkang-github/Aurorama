@@ -172,19 +172,25 @@ class MetadataCache(
 
     /** 失效当前 namespace 的全部内容并递增 generation；其他 namespace 不受影响。 */
     fun invalidateAll() {
-        val activeNamespace = currentFence()?.namespace ?: return
+        val expectedFence = currentFence() ?: return
+        invalidateAll(expectedFence)
+    }
+
+    /**
+     * 仅当 [expectedFence] 仍是当前 fence 时失效其 namespace，并在同一把锁内推进 generation。 身份已切到其他 namespace 时 fail
+     * closed，绝不清理“新的当前账号”。
+     */
+    fun invalidateAll(expectedFence: MetadataFence): Boolean =
         synchronized(lock) {
-            if (
-                namespace()?.takeIf { it.serverId.isNotBlank() && it.userId.isNotBlank() } !=
-                    activeNamespace
-            ) {
-                return@synchronized
+            if (currentFenceLocked() != expectedFence) {
+                return@synchronized false
             }
-            generations[activeNamespace] = (generations[activeNamespace] ?: 0L) + 1L
+            val activeNamespace = expectedFence.namespace
+            generations[activeNamespace] = expectedFence.contentGeneration + 1L
             entries.keys.removeAll { it.namespace == activeNamespace }
             lastFetchAttemptAt.keys.removeAll { it.namespace == activeNamespace }
+            true
         }
-    }
 
     /** W69b：冷却窗口内是否仍可发起请求（无记录 = 可以）。 */
     fun canStartFetch(

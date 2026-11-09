@@ -7,17 +7,12 @@ import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
-import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.catalog.*
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import org.jellyfin.sdk.model.api.BaseItemKind
 
-/**
- * 视频模式页的库门控（W53；W73 #16 扩到全部「视频类」库）。
- *
- * 与 `temporaryLibraryKindOf` 的 `TemporaryLibraryKind.Video` 保持同一集合口径——movies / tvshows /
- * homevideos（其他）/ 混合库都进视频页：侧栏 / 媒体库页点这些库同样落到视频页临时库视图，「侧栏 / 媒体页库卡 / 库选择器」三处集合一致。 音乐 / 书籍 /
- * 播放列表等不属于视频域，仍走各自页面。
- */
+/** 视频模式页的库门控（W53；W73 #16 扩到全部「视频类」库）。 */
 internal fun pickVideoLibraries(libraries: List<FindroidCollection>): List<FindroidCollection> =
     libraries.filter {
         it.type == CollectionType.Movies ||
@@ -26,54 +21,56 @@ internal fun pickVideoLibraries(libraries: List<FindroidCollection>): List<Findr
             it.type == CollectionType.Mixed
     }
 
-/**
- * 聚合列表的条目类型：电影 + 剧集 + 家庭视频（`Video`）。
- *
- * W73 #16：homevideos 库（如「其他」）的条目是 `Video` 类型，聚合与临时库视图都要能取到，否则该库点开是空网格。
- */
+/** 聚合列表的条目类型：电影 + 剧集 + 家庭视频（`Video`）。 */
 internal val VIDEO_AGGREGATE_TYPES: List<BaseItemKind> =
     listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.VIDEO)
 
 /**
- * 聚合列表游标：[libraryIndex] = 当前库在视频库列表里的下标，[startIndex] = 该库内的偏移。
- *
- * 聚合列表把全部视频库的条目按「库顺序」拼接，每个库内部按「最近添加」（DateCreated 倒序）排列—— Jellyfin
- * 没有"一次查询多个媒体库"的接口，跨库全局排序需要服务器端祖先过滤，本波不做（见 UI_PLAN D53）。
+ * 聚合列表游标：[libraryIndex] = 当前库在视频库列表里的下标，[startIndex] = 该库内的偏移。 [contentGeneration] binds every page
+ * in one aggregate traversal to one catalog fence.
  */
-internal data class VideoAggregateCursor(val libraryIndex: Int, val startIndex: Int)
+internal data class VideoAggregateCursor(
+    val libraryIndex: Int,
+    val startIndex: Int,
+    val contentGeneration: Long? = null,
+)
 
-/**
- * 游标推进（纯逻辑，单测覆盖）：
- *
- * - 本次返回条数 < 请求条数（含返回 0 条）= 这个库已经取完 → 换下一个库，偏移归零；
- * - 否则同一库内继续往后取。
- */
 internal fun advanceVideoAggregateCursor(
     cursor: VideoAggregateCursor,
     fetched: Int,
     requested: Int,
 ): VideoAggregateCursor =
     if (fetched < requested) {
-        VideoAggregateCursor(libraryIndex = cursor.libraryIndex + 1, startIndex = 0)
+        VideoAggregateCursor(
+            libraryIndex = cursor.libraryIndex + 1,
+            startIndex = 0,
+            contentGeneration = cursor.contentGeneration,
+        )
     } else {
         VideoAggregateCursor(
             libraryIndex = cursor.libraryIndex,
             startIndex = cursor.startIndex + fetched,
+            contentGeneration = cursor.contentGeneration,
         )
     }
 
-/** 游标是否已经走过最后一个视频库（聚合列表取完）。 */
 internal fun isVideoAggregateFinished(cursor: VideoAggregateCursor, libraryCount: Int): Boolean =
     cursor.libraryIndex >= libraryCount
 
+internal class CatalogIdentityChangedException : IllegalStateException("catalog scope changed")
+
+internal class ContentGenerationChangedException :
+    IllegalStateException("catalog content generation changed")
+
 /**
- * 视频模式页「聚合列表」分页源（W53）：
+ * 按库顺序拼接每个视频库的「电影 + 剧集 + 家庭视频」。
  *
- * 按库顺序拼接每个视频库的「电影 + 剧集」（每库内 `DateCreated` 倒序）；一次 [load] 会把 `params.loadSize` 填满，中途遇到的空库 /
- * 已取完的库直接跳过，不会让列表提前结束。
+ * 同一 [load] 与后续 append 都绑定同一冻结 scope 和 content generation；任何漂移都返回
+ * [PagingSource.LoadResult.Error]，绝不把两代页面拼接上屏。
  */
 internal class VideoAggregatePagingSource(
-    private val repository: JellyfinRepository,
+    private val catalogReadPort: CatalogReadPort,
+    private val frozenScope: CatalogScope,
     private val libraryIds: List<UUID>,
 ) : PagingSource<VideoAggregateCursor, FindroidItem>() {
 
@@ -86,32 +83,66 @@ internal class VideoAggregatePagingSource(
             while (
                 items.size < params.loadSize && !isVideoAggregateFinished(cursor, libraryIds.size)
             ) {
+                if (catalogReadPort.currentScope() != frozenScope) {
+                    throw CatalogIdentityChangedException()
+                }
                 val limit = params.loadSize - items.size
-                val page =
-                    repository.getItems(
-                        parentId = libraryIds[cursor.libraryIndex],
-                        includeTypes = VIDEO_AGGREGATE_TYPES,
-                        recursive = true,
-                        sortBy = SortBy.DATE_ADDED,
-                        sortOrder = SortOrder.DESCENDING,
-                        startIndex = cursor.startIndex,
-                        limit = limit,
+                val outcome =
+                    catalogReadPort.itemsPage(
+                        CatalogItemsPageQuery(
+                            frozenScope = frozenScope,
+                            parentId = libraryIds[cursor.libraryIndex],
+                            includeTypes = VIDEO_AGGREGATE_TYPES,
+                            recursive = true,
+                            sortBy = SortBy.DATE_ADDED,
+                            sortOrder = SortOrder.DESCENDING,
+                            startIndex = cursor.startIndex,
+                            limit = limit,
+                            filters = null,
+                            genres = null,
+                            studios = null,
+                        )
                     )
+                if (catalogReadPort.currentScope() != frozenScope) {
+                    throw CatalogIdentityChangedException()
+                }
+                val snapshot =
+                    when (outcome) {
+                        CatalogReadOutcome.IdentityUnavailable ->
+                            throw CatalogIdentityChangedException()
+                        is CatalogReadOutcome.Available -> outcome.snapshot
+                    }
+                if (snapshot.scope != frozenScope) {
+                    throw CatalogIdentityChangedException()
+                }
+                val establishedGeneration = cursor.contentGeneration
+                if (
+                    establishedGeneration != null &&
+                        establishedGeneration != snapshot.contentGeneration
+                ) {
+                    throw ContentGenerationChangedException()
+                }
+                val page = snapshot.value
                 items += page
-                cursor = advanceVideoAggregateCursor(cursor, fetched = page.size, requested = limit)
+                cursor =
+                    advanceVideoAggregateCursor(
+                        cursor = cursor.copy(contentGeneration = snapshot.contentGeneration),
+                        fetched = page.size,
+                        requested = limit,
+                    )
             }
-        } catch (e: Exception) {
-            return LoadResult.Error(e)
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            return LoadResult.Error(error)
         }
         return LoadResult.Page(
             data = items,
-            // 只向后翻：回到顶部即从头刷新。
             prevKey = null,
             nextKey = cursor.takeUnless { isVideoAggregateFinished(it, libraryIds.size) },
         )
     }
 
-    /** 刷新（下拉 / 库列表变化）从头开始取，不做锚点恢复。 */
     override fun getRefreshKey(
         state: PagingState<VideoAggregateCursor, FindroidItem>
     ): VideoAggregateCursor? = null

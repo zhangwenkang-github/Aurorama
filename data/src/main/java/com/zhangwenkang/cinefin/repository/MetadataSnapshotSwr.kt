@@ -167,9 +167,15 @@ internal class MetadataSnapshotSwr(
     }
 
     fun invalidateAll() {
-        val fence = cache.currentFence() ?: return
-        cache.invalidateAll()
-        store.invalidateNamespace(fence.namespace)
+        val expectedFence = cache.currentFence() ?: return
+        invalidateAll(expectedFence)
+    }
+
+    /** Invalidate the explicitly bound fence, never re-reading a potentially newer namespace. */
+    fun invalidateAll(expectedFence: MetadataFence): Boolean {
+        if (!cache.invalidateAll(expectedFence)) return false
+        store.invalidateNamespace(expectedFence.namespace)
+        return true
     }
 
     private suspend fun <P : Any> scheduleRefresh(

@@ -11,14 +11,14 @@ import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.presentation.utils.storedLibraryIdValue
-import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.MetadataCacheRules
+import com.zhangwenkang.cinefin.repository.catalog.*
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
-import javax.inject.Provider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,11 +32,17 @@ enum class VideoLibrarySource {
     Offline,
 }
 
-internal data class VideoLoadRequest(val serial: Long, val source: VideoLibrarySource)
+internal data class VideoLoadedMarker(
+    val scope: CatalogScope,
+    val contentGeneration: Long,
+)
+
+internal data class VideoLoadRequest(val serial: Long, val scope: CatalogScope)
 
 internal fun shouldReuseVideoCache(
-    cachedSource: VideoLibrarySource,
-    requestedSource: VideoLibrarySource,
+    cachedMarker: VideoLoadedMarker?,
+    requestedScope: CatalogScope,
+    requestedContentGeneration: Long,
     loaded: Boolean,
     sameTemporaryLibrary: Boolean,
     force: Boolean,
@@ -45,85 +51,59 @@ internal fun shouldReuseVideoCache(
 ): Boolean =
     !force &&
         loaded &&
-        cachedSource == requestedSource &&
+        cachedMarker?.scope == requestedScope &&
+        cachedMarker.contentGeneration == requestedContentGeneration &&
         sameTemporaryLibrary &&
         MetadataCacheRules.isFresh(loadedAtMs, nowMs)
 
 internal fun isCurrentVideoLoad(
     request: VideoLoadRequest,
     currentSerial: Long,
-    currentSource: VideoLibrarySource,
-): Boolean = request.serial == currentSerial && request.source == currentSource
+    currentScope: CatalogScope?,
+): Boolean = request.serial == currentSerial && request.scope == currentScope
 
-/**
- * 视频模式页（W53）状态。
- *
- * - [allLibraries]：服务器上的全部视频库（movies + tvshows），顺序与服务器返回一致——「库选择」菜单的来源；
- * - [libraries]：当前显示（过滤后）的库：库卡网格与聚合流都用它；[selectedLibraryId] 非空时它是单元素列表；
- * - [loaded]：库列表是否成功加载过一次（false 时显示加载骨架，而不是"没有视频库"空态）；
- * - [displayMode]：库卡列表 / 聚合列表，来自「客户端设置 → 媒体库 → 视频显示方式」；
- * - [aggregateItems]：聚合列表分页流；库列表为空时为 [PagingData.empty]。
- */
+/** 视频模式页（W53）状态。 */
 data class VideoState(
-    /** 进程内缓存来源键；缓存与请求代际都按它隔离，不落盘。 */
     val source: VideoLibrarySource = VideoLibrarySource.Online,
     val allLibraries: List<FindroidCollection> = emptyList(),
     val libraries: List<FindroidCollection> = emptyList(),
-    /**
-     * 顶栏「库选择」（W54-C）：null = 全部库；服务器上找不到该库时同样回落 null。
-     *
-     * D-F7：库卡模式下恒为 null（选中具体库 = 直达内容）；聚合模式下 = 所选库。
-     */
     val selectedLibraryId: UUID? = null,
     val isLoading: Boolean = false,
     val loaded: Boolean = false,
     val error: Exception? = null,
     val displayMode: VideoDisplayMode = VideoDisplayMode.defaultValue,
     val aggregateItems: Flow<PagingData<FindroidItem>> = flowOf(PagingData.empty()),
-    /** W69：最近一次成功加载库列表的时间（epoch ms）；TTL 内重进页面不重建聚合分页流。 */
     val loadedAtMs: Long = 0L,
-    /**
-     * 临时库视图（W53 追加）：非空 = 侧栏点进来的某个视频库——顶栏显示「库名 + 类型 + 项目数」、 内容直显该库条目网格；返回键 / 「返回默认 ×」回默认视频页。不写偏好。
-     */
     val temporaryLibrary: FindroidCollection? = null,
 )
 
-/**
- * 视频模式页数据源：解析视频库 + 维护聚合列表分页流。
- *
- * 显示方式是「客户端设置」里的全局偏好，切换后不重启 Activity——挂 SharedPreferences 监听即时生效（与侧栏开关同一机制）。
- */
+/** 视频模式页数据源：从 canonical catalog scope 解析视频库，并以同一 scope 维护聚合分页流。 */
 @HiltViewModel
 class VideoViewModel
 private constructor(
-    /**
-     * 离线开关不重启 Activity（W6-R6N），所以这里按需取仓库：每次 load() 都按**当前**偏好解析 在线 / 离线实现 （踩坑 33）——离线模式下
-     * `getLibraries()` 返回空列表，视频页给空态，而不是继续拉服务器内容。
-     */
-    private val repositoryProvider: Provider<JellyfinRepository>,
+    private val catalogReadPort: CatalogReadPort,
     private val appPreferences: AppPreferences,
     initialSleepTimerState: StateFlow<SleepTimerController.State>,
     private val selectSleepTimerAction: (Int?) -> Unit,
 ) : ViewModel() {
     @Inject
     constructor(
-        repositoryProvider: Provider<JellyfinRepository>,
+        catalogReadPort: CatalogReadPort,
         appPreferences: AppPreferences,
-        /** W55 睡眠定时统一：视频页顶栏入口与播放器 / 音乐共享同一状态源。 */
         sleepTimerController: SleepTimerController,
     ) : this(
-        repositoryProvider = repositoryProvider,
+        catalogReadPort = catalogReadPort,
         appPreferences = appPreferences,
         initialSleepTimerState = sleepTimerController.state,
         selectSleepTimerAction = sleepTimerController::select,
     )
 
     internal constructor(
-        repositoryProvider: Provider<JellyfinRepository>,
+        catalogReadPort: CatalogReadPort,
         appPreferences: AppPreferences,
         sleepTimerState: StateFlow<SleepTimerController.State>,
     ) : this(
-        repositoryProvider = repositoryProvider,
+        catalogReadPort = catalogReadPort,
         appPreferences = appPreferences,
         initialSleepTimerState = sleepTimerState,
         selectSleepTimerAction = {},
@@ -132,16 +112,17 @@ private constructor(
     private val _state = MutableStateFlow(VideoState())
     val state = _state.asStateFlow()
     private var loadSerial = 0L
+    private var loadedMarker: VideoLoadedMarker? = null
 
-    /** W55 睡眠定时状态（视频页顶栏图标激活态 + 对话框）。 */
+    internal val loadedCatalogMarker: VideoLoadedMarker?
+        get() = loadedMarker
+
     val sleepTimerState = initialSleepTimerState
 
-    /** W55：选择睡眠定时分钟；null = 取消。 */
     fun selectSleepTimer(minutes: Int?) = selectSleepTimerAction(minutes)
 
     private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
-            // D-F7：显示方式变化同样要重算可见库（聚合 ↔ 库卡的选择语义不同）。
             appPreferences.uiVideoDisplayMode.backendName,
             appPreferences.uiVideoLibraryId.backendName -> applyCurrentSelection()
             appPreferences.offlineMode.backendName -> load()
@@ -161,104 +142,132 @@ private constructor(
         super.onCleared()
     }
 
-    /**
-     * 加载 / 复用视频库与聚合列表。
-     *
-     * W69（缓存优先 + 静默刷新）：库列表与聚合分页流都留在 ViewModel 内，TTL（[MetadataCacheRules.DEFAULT_TTL_MS]）
-     * 内再次进入页面（例如从剧集 / 季详情返回）**不重建分页流**——`LazyPagingItems` 的 `cachedIn` 数据原样复用， 网格不闪空、骨架不盖海报；[force]
-     * = 用户主动刷新（重试 / 下拉）时才失效缓存并重取。
-     */
     fun load(temporaryLibraryId: String? = null, force: Boolean = false) {
-        val source = readSource()
-        val current = _state.value
-        val sameTemporaryLibrary = current.temporaryLibrary?.id?.toString() == temporaryLibraryId
-        if (
-            shouldReuseVideoCache(
-                cachedSource = current.source,
-                requestedSource = source,
-                loaded = current.loaded,
-                sameTemporaryLibrary = sameTemporaryLibrary,
-                force = force,
-                loadedAtMs = current.loadedAtMs,
-                nowMs = System.currentTimeMillis(),
-            )
-        )
-            return
-
-        val request = VideoLoadRequest(serial = ++loadSerial, source = source)
-        val sourceChanged = current.source != source
-        _state.value =
-            current.copy(
-                source = source,
-                allLibraries = if (sourceChanged) emptyList() else current.allLibraries,
-                libraries = if (sourceChanged) emptyList() else current.libraries,
-                selectedLibraryId = if (sourceChanged) null else current.selectedLibraryId,
-                temporaryLibrary = if (sourceChanged) null else current.temporaryLibrary,
-                isLoading = true,
-                loaded = if (sourceChanged) false else current.loaded,
-                error = null,
-                displayMode = readDisplayMode(),
-                aggregateItems =
-                    if (sourceChanged) flowOf(PagingData.empty()) else current.aggregateItems,
-                loadedAtMs = if (sourceChanged) 0L else current.loadedAtMs,
-            )
-
+        val requestSerial = ++loadSerial
         viewModelScope.launch {
-            val repository = repositoryProvider.get()
-            if (force) repository.invalidateMetadataCache()
-            if (!isCurrentVideoLoad(request, loadSerial, readSource())) return@launch
-            runCatching { pickVideoLibraries(repository.getLibraries()) }
-                .onSuccess { libraries ->
-                    if (!isCurrentVideoLoad(request, loadSerial, readSource())) return@onSuccess
-                    val temporaryLibrary = temporaryLibraryId?.let { id ->
-                        libraries.firstOrNull { it.id.toString() == id }
-                    }
-                    val selection =
-                        resolveVideoLibrariesForMode(
-                            readDisplayMode(),
-                            libraries,
-                            readStoredLibraryId(),
+            val scope = catalogReadPort.currentScope()
+            if (scope == null) {
+                if (requestSerial == loadSerial) clearCatalog()
+                return@launch
+            }
+            val current = _state.value
+            val source = scope.librarySource()
+            val sameTemporaryLibrary =
+                current.temporaryLibrary?.id?.toString() == temporaryLibraryId
+            val request = VideoLoadRequest(serial = requestSerial, scope = scope)
+            val scopeChanged = loadedMarker?.scope != scope
+            if (scopeChanged) loadedMarker = null
+            _state.value =
+                current.copy(
+                    source = source,
+                    allLibraries = if (scopeChanged) emptyList() else current.allLibraries,
+                    libraries = if (scopeChanged) emptyList() else current.libraries,
+                    selectedLibraryId = if (scopeChanged) null else current.selectedLibraryId,
+                    temporaryLibrary = if (scopeChanged) null else current.temporaryLibrary,
+                    isLoading = true,
+                    loaded = if (scopeChanged) false else current.loaded,
+                    error = null,
+                    displayMode = readDisplayMode(),
+                    aggregateItems =
+                        if (scopeChanged) flowOf(PagingData.empty()) else current.aggregateItems,
+                    loadedAtMs = if (scopeChanged) 0L else current.loadedAtMs,
+                )
+            try {
+                val outcome =
+                    catalogReadPort.libraries(
+                        CatalogLibrariesQuery(
+                            frozenScope = scope,
+                            forceRefresh = force,
                         )
-                    // 临时库视图只加载该库；库在服务器上找不到（被删 / 重建）时回落默认视图。
-                    val visibleLibraries = temporaryLibrary?.let { listOf(it) } ?: selection.visible
-                    _state.value =
-                        _state.value.copy(
-                            allLibraries = libraries,
-                            libraries = visibleLibraries,
-                            selectedLibraryId = selection.selectedId,
-                            temporaryLibrary = temporaryLibrary,
-                            loaded = true,
-                            isLoading = false,
-                            error = null,
-                            aggregateItems = aggregateFlow(repository, visibleLibraries),
-                            loadedAtMs = System.currentTimeMillis(),
-                        )
+                    )
+                if (!isCurrentVideoLoad(request, loadSerial, catalogReadPort.currentScope())) {
+                    return@launch
                 }
-                .onFailure { throwable ->
-                    if (!isCurrentVideoLoad(request, loadSerial, readSource())) return@onFailure
+                when (outcome) {
+                    CatalogReadOutcome.IdentityUnavailable -> {
+                        if (requestSerial == loadSerial) clearCatalog()
+                    }
+                    is CatalogReadOutcome.Available -> {
+                        if (outcome.snapshot.scope != scope) {
+                            if (requestSerial == loadSerial) clearCatalog()
+                            return@launch
+                        }
+                        val nowMs = System.currentTimeMillis()
+                        if (
+                            shouldReuseVideoCache(
+                                cachedMarker = loadedMarker,
+                                requestedScope = scope,
+                                requestedContentGeneration = outcome.snapshot.contentGeneration,
+                                loaded = _state.value.loaded,
+                                sameTemporaryLibrary = sameTemporaryLibrary,
+                                force = force,
+                                loadedAtMs = _state.value.loadedAtMs,
+                                nowMs = nowMs,
+                            )
+                        ) {
+                            _state.value = _state.value.copy(isLoading = false)
+                            return@launch
+                        }
+                        val libraries = pickVideoLibraries(outcome.snapshot.value)
+                        val temporaryLibrary = temporaryLibraryId?.let { id ->
+                            libraries.firstOrNull { it.id.toString() == id }
+                        }
+                        val selection =
+                            resolveVideoLibrariesForMode(
+                                readDisplayMode(),
+                                libraries,
+                                readStoredLibraryId(),
+                            )
+                        val visibleLibraries =
+                            temporaryLibrary?.let { listOf(it) } ?: selection.visible
+                        _state.value =
+                            _state.value.copy(
+                                allLibraries = libraries,
+                                libraries = visibleLibraries,
+                                selectedLibraryId = selection.selectedId,
+                                temporaryLibrary = temporaryLibrary,
+                                loaded = true,
+                                isLoading = false,
+                                error = null,
+                                aggregateItems = aggregateFlow(scope, visibleLibraries),
+                                loadedAtMs = nowMs,
+                            )
+                        loadedMarker =
+                            VideoLoadedMarker(
+                                scope = scope,
+                                contentGeneration = outcome.snapshot.contentGeneration,
+                            )
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (throwable: Exception) {
+                if (requestSerial == loadSerial) {
                     Timber.w(throwable, "读取视频库失败")
-                    // 拉取失败时保留上一次成功加载的库列表，只提示错误（不清空页面）。
+                    if (loadedMarker?.scope != scope) {
+                        _state.value =
+                            _state.value.copy(
+                                allLibraries = emptyList(),
+                                libraries = emptyList(),
+                                aggregateItems = flowOf(PagingData.empty()),
+                                loaded = false,
+                                loadedAtMs = 0L,
+                            )
+                    }
                     _state.value =
                         _state.value.copy(
                             isLoading = false,
                             error = throwable.toExceptionOrNull(),
                         )
                 }
+            }
         }
     }
 
-    /**
-     * 顶栏「库选择」（W54-C）：null = 全部库。先落盘（跨页面 / 重启保留）再即时生效。
-     *
-     * D-F7：库卡模式下选中具体库改走「直达该库内容」的导航回调，不再调用本方法；聚合模式保持原语义。
-     */
     fun selectLibrary(libraryId: UUID?) {
-        // 写偏好会触发监听器即时重算（与「视频显示方式」同一机制）；写入同样的值不会触发回调，
-        // 页面本来也没有变化。
         appPreferences.setValue(appPreferences.uiVideoLibraryId, storedLibraryIdValue(libraryId))
     }
 
-    /** 偏好变化（显示方式 / 库选择）共用的解析（不重新请求服务器）：更新可见库与聚合流。 */
     private fun applyCurrentSelection() {
         val current = _state.value
         val displayMode = readDisplayMode()
@@ -268,7 +277,6 @@ private constructor(
                 current.allLibraries,
                 readStoredLibraryId(),
             )
-        // 临时库视图只显示那一个库；选择仍照常解析（退出临时视图后按选择显示）。
         if (current.temporaryLibrary != null) {
             _state.value =
                 current.copy(
@@ -277,19 +285,23 @@ private constructor(
                 )
             return
         }
+        val scope = loadedMarker?.scope
         _state.value =
             current.copy(
                 displayMode = displayMode,
                 selectedLibraryId = selection.selectedId,
                 libraries = selection.visible,
                 aggregateItems =
-                    if (selection.visible.isEmpty()) flowOf(PagingData.empty())
-                    else aggregateFlow(repositoryProvider.get(), selection.visible),
+                    if (scope == null || selection.visible.isEmpty()) {
+                        flowOf(PagingData.empty())
+                    } else {
+                        aggregateFlow(scope, selection.visible)
+                    },
             )
     }
 
     private fun aggregateFlow(
-        repository: JellyfinRepository,
+        scope: CatalogScope,
         libraries: List<FindroidCollection>,
     ): Flow<PagingData<FindroidItem>> {
         if (libraries.isEmpty()) return flowOf(PagingData.empty())
@@ -297,7 +309,8 @@ private constructor(
                 config = PagingConfig(pageSize = AGGREGATE_PAGE_SIZE, enablePlaceholders = false),
                 pagingSourceFactory = {
                     VideoAggregatePagingSource(
-                        repository = repository,
+                        catalogReadPort = catalogReadPort,
+                        frozenScope = scope,
                         libraryIds = libraries.map { it.id },
                     )
                 },
@@ -306,12 +319,24 @@ private constructor(
             .cachedIn(viewModelScope)
     }
 
+    private fun clearCatalog() {
+        loadedMarker = null
+        _state.value =
+            _state.value.copy(
+                allLibraries = emptyList(),
+                libraries = emptyList(),
+                selectedLibraryId = null,
+                temporaryLibrary = null,
+                isLoading = false,
+                loaded = false,
+                error = null,
+                aggregateItems = flowOf(PagingData.empty()),
+                loadedAtMs = 0L,
+            )
+    }
+
     private fun readDisplayMode(): VideoDisplayMode =
         VideoDisplayMode.fromString(appPreferences.getValue(appPreferences.uiVideoDisplayMode))
-
-    private fun readSource(): VideoLibrarySource =
-        if (appPreferences.getValue(appPreferences.offlineMode)) VideoLibrarySource.Offline
-        else VideoLibrarySource.Online
 
     private fun readStoredLibraryId(): String? =
         appPreferences.getValue(appPreferences.uiVideoLibraryId)
@@ -320,5 +345,12 @@ private constructor(
         const val AGGREGATE_PAGE_SIZE = 30
     }
 }
+
+private fun CatalogScope.librarySource(): VideoLibrarySource =
+    if (principalContext == CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT) {
+        VideoLibrarySource.Offline
+    } else {
+        VideoLibrarySource.Online
+    }
 
 private fun Throwable.toExceptionOrNull(): Exception = this as? Exception ?: Exception(this)

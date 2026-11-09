@@ -3,9 +3,16 @@ package com.zhangwenkang.cinefin.di
 import com.zhangwenkang.cinefin.identity.IdentityReadPort
 import com.zhangwenkang.cinefin.identity.IdentitySnapshot
 import com.zhangwenkang.cinefin.identity.IdentityStateStatus
+import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryImpl
 import com.zhangwenkang.cinefin.repository.JellyfinRepositoryOfflineImpl
+import com.zhangwenkang.cinefin.repository.catalog.CatalogHomeData
+import com.zhangwenkang.cinefin.repository.catalog.CatalogHomeQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogItemsPageQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogLibrariesQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogMovieQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
@@ -16,6 +23,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -67,20 +75,68 @@ private class DynamicCatalogReadPort(
         }
     }
 
+    override suspend fun home(query: CatalogHomeQuery): CatalogReadOutcome<CatalogHomeData> =
+        readFrozen(query.frozenScope) { port -> port.home(query) }
+
+    override suspend fun libraries(
+        query: CatalogLibrariesQuery
+    ): CatalogReadOutcome<List<FindroidCollection>> =
+        readFrozen(query.frozenScope) { port -> port.libraries(query) }
+
+    override suspend fun itemsPage(
+        query: CatalogItemsPageQuery
+    ): CatalogReadOutcome<List<FindroidItem>> =
+        readFrozen(query.frozenScope) { port -> port.itemsPage(query) }
+
+    override suspend fun movie(query: CatalogMovieQuery): CatalogReadOutcome<FindroidMovie> =
+        readFrozen(query.frozenScope) { port -> port.movie(query) }
+
+    private suspend fun <T> readFrozen(
+        frozenScope: CatalogScope,
+        read: suspend (CatalogReadPort) -> CatalogReadOutcome<T>,
+    ): CatalogReadOutcome<T> {
+        val before = resolveCurrent() ?: return CatalogReadOutcome.IdentityUnavailable
+        if (frozenScope != before.scope) return CatalogReadOutcome.IdentityUnavailable
+        val outcome = read(before.port)
+        val after = resolveCurrent() ?: return CatalogReadOutcome.IdentityUnavailable
+        if (after.scope != before.scope) return CatalogReadOutcome.IdentityUnavailable
+        return when (outcome) {
+            CatalogReadOutcome.IdentityUnavailable -> CatalogReadOutcome.IdentityUnavailable
+            is CatalogReadOutcome.Available ->
+                if (outcome.snapshot.scope == before.scope) {
+                    outcome
+                } else {
+                    CatalogReadOutcome.IdentityUnavailable
+                }
+        }
+    }
+
     private suspend fun resolveCurrent(): Resolution? {
         val before = canonicalSnapshot() ?: return null
         val port = if (before.selection.offlineMode) offline else online
-        val scope = runCatching { port.currentScope() }.getOrNull() ?: return null
+        val scope =
+            try {
+                port.currentScope()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Throwable) {
+                null
+            } ?: return null
         val after = canonicalSnapshot() ?: return null
         if (before != after || !scope.matches(before)) return null
         return Resolution(scope = scope, port = port)
     }
 
-    private suspend fun canonicalSnapshot(): IdentitySnapshot? = runCatching {
-        identityReadPort.current()
-    }
-        .getOrNull()
-        ?.takeIf { snapshot ->
+    private suspend fun canonicalSnapshot(): IdentitySnapshot? {
+        val snapshot =
+            try {
+                identityReadPort.current()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (_: Throwable) {
+                return null
+            }
+        return snapshot.takeIf {
             val selection = snapshot.selection
             snapshot.status == IdentityStateStatus.READY &&
                 snapshot.identityGeneration > 0L &&
@@ -92,6 +148,7 @@ private class DynamicCatalogReadPort(
                     runCatching { UUID.fromString(value) }.isSuccess
                 } == true
         }
+    }
 
     private fun CatalogScope.matches(snapshot: IdentitySnapshot): Boolean {
         val selection = snapshot.selection

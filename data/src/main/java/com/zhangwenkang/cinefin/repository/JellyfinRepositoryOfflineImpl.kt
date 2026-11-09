@@ -28,6 +28,11 @@ import com.zhangwenkang.cinefin.models.toFindroidSegment
 import com.zhangwenkang.cinefin.models.toFindroidShow
 import com.zhangwenkang.cinefin.models.toFindroidSource
 import com.zhangwenkang.cinefin.repository.catalog.CatalogFreshness
+import com.zhangwenkang.cinefin.repository.catalog.CatalogHomeData
+import com.zhangwenkang.cinefin.repository.catalog.CatalogHomeQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogItemsPageQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogLibrariesQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogMovieQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
@@ -41,7 +46,6 @@ import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
@@ -99,10 +103,6 @@ class JellyfinRepositoryOfflineImpl(
 
     override suspend fun getPublicSystemInfo(): PublicSystemInfo {
         throw Exception("System info not available in offline mode")
-    }
-
-    override suspend fun getUserViews(): List<BaseItemDto> {
-        return emptyList()
     }
 
     override suspend fun getMovie(itemId: UUID): FindroidMovie =
@@ -262,33 +262,76 @@ class JellyfinRepositoryOfflineImpl(
         }
     }
 
-    override suspend fun getSuggestions(): List<FindroidItem> {
-        return emptyList()
-    }
-
-    override suspend fun getResumeItems(includeItemTypes: List<BaseItemKind>): List<FindroidItem> {
-        // 离线首页是独立的 OfflineHomeScreen，本实现只保留旧口径（电影 + 单集）。
-        return withContext(Dispatchers.IO) {
-            val serverId =
-                appPreferences.getValue(appPreferences.currentServer)
-                    ?: return@withContext emptyList()
-            val movies =
-                database
-                    .getMoviesByServerId(serverId)
-                    .map { it.toFindroidMovie(database, jellyfinApi.userId) }
-                    .filter { it.playbackPositionTicks > 0 }
-            val episodes =
-                database
-                    .getEpisodesByServerId(serverId)
-                    .map { it.toFindroidEpisode(database, jellyfinApi.userId) }
-                    .filter { it.playbackPositionTicks > 0 }
-            movies + episodes
+    override suspend fun home(query: CatalogHomeQuery): CatalogReadOutcome<CatalogHomeData> =
+        withContext(Dispatchers.IO) {
+            val scope = query.frozenScope
+            if (currentScope() != scope) return@withContext CatalogReadOutcome.IdentityUnavailable
+            val resumeWatching =
+                if (query.includeContinueWatching) {
+                    val movies =
+                        database
+                            .getMoviesByServerId(scope.origin.serverId)
+                            .map { offlineMovieMapper(it, scope.origin.userId) }
+                            .filter { it.playbackPositionTicks > 0L }
+                    val episodes =
+                        database
+                            .getEpisodesByServerId(scope.origin.serverId)
+                            .map { offlineEpisodeMapper(it, scope.origin.userId) }
+                            .filter { it.playbackPositionTicks > 0L }
+                    movies + episodes
+                } else {
+                    emptyList()
+                }
+            if (currentScope() != scope) return@withContext CatalogReadOutcome.IdentityUnavailable
+            offlineAvailable(
+                scope = scope,
+                value = CatalogHomeData(resumeWatching = resumeWatching),
+            )
         }
+
+    override suspend fun libraries(
+        query: CatalogLibrariesQuery
+    ): CatalogReadOutcome<List<FindroidCollection>> {
+        val scope = query.frozenScope
+        if (currentScope() != scope) return CatalogReadOutcome.IdentityUnavailable
+        return offlineAvailable(scope = scope, value = emptyList())
     }
 
-    override suspend fun getLatestMedia(parentId: UUID): List<FindroidItem> {
-        return emptyList()
+    override suspend fun itemsPage(
+        query: CatalogItemsPageQuery
+    ): CatalogReadOutcome<List<FindroidItem>> {
+        val scope = query.frozenScope
+        if (currentScope() != scope) return CatalogReadOutcome.IdentityUnavailable
+        return offlineAvailable(scope = scope, value = emptyList())
     }
+
+    override suspend fun movie(query: CatalogMovieQuery): CatalogReadOutcome<FindroidMovie> =
+        withContext(Dispatchers.IO) {
+            val scope = query.frozenScope
+            if (currentScope() != scope) return@withContext CatalogReadOutcome.IdentityUnavailable
+            val movie =
+                localLibrary.syntheticMovie(query.itemId)
+                    ?: offlineMovieMapper(
+                        database.getMovie(query.itemId),
+                        scope.origin.userId,
+                    )
+            if (currentScope() != scope) return@withContext CatalogReadOutcome.IdentityUnavailable
+            offlineAvailable(scope = scope, value = movie)
+        }
+
+    private fun <T> offlineAvailable(
+        scope: CatalogScope,
+        value: T,
+    ): CatalogReadOutcome<T> =
+        CatalogReadOutcome.Available(
+            CatalogSnapshot(
+                scope = scope,
+                contentGeneration = 0L,
+                freshness = CatalogFreshness.LOCAL_QUERY,
+                observedAtEpochMs = System.currentTimeMillis(),
+                value = value,
+            )
+        )
 
     override suspend fun getSeasons(seriesId: UUID, offline: Boolean): List<FindroidSeason> =
         withContext(Dispatchers.IO) {

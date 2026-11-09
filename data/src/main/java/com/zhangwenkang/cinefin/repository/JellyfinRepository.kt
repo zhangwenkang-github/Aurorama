@@ -16,7 +16,6 @@ import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
-import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
@@ -25,8 +24,6 @@ import org.jellyfin.sdk.model.api.UserConfiguration
 
 interface JellyfinRepository {
     suspend fun getPublicSystemInfo(): PublicSystemInfo
-
-    suspend fun getUserViews(): List<BaseItemDto>
 
     suspend fun getEpisode(itemId: UUID): FindroidEpisode
 
@@ -124,19 +121,6 @@ interface JellyfinRepository {
         sortBy: SortBy = SortBy.DATE_ADDED,
         sortOrder: SortOrder = SortOrder.DESCENDING,
     ): List<FindroidItem>
-
-    suspend fun getSuggestions(): List<FindroidItem>
-
-    /**
-     * 继续观看 / 阅读 / 收听的数据源（W54-D 起支持按类型取）。
-     *
-     * 默认与旧行为一致（电影 + 单集 = 继续观看）；首页「继续阅读 / 继续收听」分别传 `BOOK` / `AUDIO`。服务器没有对应续播数据时返回空列表，由首页自行隐藏走廊。
-     */
-    suspend fun getResumeItems(
-        includeItemTypes: List<BaseItemKind> = listOf(BaseItemKind.MOVIE, BaseItemKind.EPISODE)
-    ): List<FindroidItem>
-
-    suspend fun getLatestMedia(parentId: UUID): List<FindroidItem>
 
     suspend fun getSeasons(seriesId: UUID, offline: Boolean = false): List<FindroidSeason>
 

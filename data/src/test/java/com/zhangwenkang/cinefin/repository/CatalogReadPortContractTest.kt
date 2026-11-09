@@ -12,13 +12,22 @@ import com.zhangwenkang.cinefin.identity.IdentitySnapshot
 import com.zhangwenkang.cinefin.identity.IdentityStateCodec
 import com.zhangwenkang.cinefin.identity.IdentityStateStatus
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
+import com.zhangwenkang.cinefin.models.CollectionType
+import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidMovieDto
 import com.zhangwenkang.cinefin.models.ServerAddress
+import com.zhangwenkang.cinefin.models.SortBy
+import com.zhangwenkang.cinefin.models.SortOrder
 import com.zhangwenkang.cinefin.models.User
 import com.zhangwenkang.cinefin.repository.catalog.CatalogFreshness
+import com.zhangwenkang.cinefin.repository.catalog.CatalogHomeData
+import com.zhangwenkang.cinefin.repository.catalog.CatalogHomeQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogItemsPageQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogLibrariesQuery
+import com.zhangwenkang.cinefin.repository.catalog.CatalogMovieQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadOutcome
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
@@ -26,17 +35,21 @@ import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
 import com.zhangwenkang.cinefin.repository.catalog.CatalogScopeResolver
 import com.zhangwenkang.cinefin.repository.catalog.CatalogSearchQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
+import com.zhangwenkang.cinefin.repository.catalog.CatalogView
+import com.zhangwenkang.cinefin.repository.catalog.CatalogViewItems
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class CatalogReadPortContractTest {
@@ -70,6 +83,53 @@ class CatalogReadPortContractTest {
             )
         assertEquals(SearchScope.VIDEO, query.scope)
         assertEquals(scope, query.frozenScope)
+    }
+
+    @Test
+    fun `catalog reader DTOs keep scope and collection semantics inside the frozen contract`() {
+        val scope =
+            CatalogScope(
+                origin = JellyfinOrigin(SERVER_ID, USER_ID),
+                principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+                identityGeneration = 3L,
+            )
+        val view = CatalogView(id = ITEM_ID, name = "Movies", type = CollectionType.Movies)
+        val viewItems = CatalogViewItems(view = view, latestMedia = listOf(collection("latest")))
+        val home = CatalogHomeData(views = listOf(viewItems))
+        val homeQuery =
+            CatalogHomeQuery(
+                frozenScope = scope,
+                includeSuggestions = true,
+                includeContinueWatching = true,
+                includeContinueReading = false,
+                includeContinueListening = false,
+                includeNextUp = true,
+                includeUserViews = true,
+                forceRefresh = true,
+            )
+        val libraries = CatalogLibrariesQuery(frozenScope = scope, forceRefresh = false)
+        val page =
+            CatalogItemsPageQuery(
+                frozenScope = scope,
+                parentId = ITEM_ID,
+                includeTypes = null,
+                recursive = true,
+                sortBy = SortBy.DATE_ADDED,
+                sortOrder = SortOrder.DESCENDING,
+                startIndex = 30,
+                limit = 30,
+                filters = null,
+                genres = null,
+                studios = null,
+            )
+        val movie = CatalogMovieQuery(itemId = ITEM_ID, frozenScope = scope)
+
+        assertEquals(scope, homeQuery.frozenScope)
+        assertEquals(view, home.views.single().view)
+        assertEquals(scope, libraries.frozenScope)
+        assertEquals(30, page.startIndex)
+        assertEquals(30, page.limit)
+        assertEquals(scope, movie.frozenScope)
     }
 
     @Test
@@ -151,6 +211,30 @@ class CatalogReadPortContractTest {
         assertNull(recovering.resolve())
         assertNull(missingUser.resolve())
         assertNull(missingAddress.resolve())
+    }
+
+    @Test
+    fun `scope resolver preserves cancellation from the canonical identity reader`() = runBlocking {
+        val cancellation = CancellationException("canonical identity cancelled")
+        val resolver =
+            CatalogScopeResolver(
+                identityReadPort =
+                    object : IdentityReadPort {
+                        override suspend fun hydrate(): IdentitySnapshot =
+                            error("hydrate must not run")
+
+                        override suspend fun current(): IdentitySnapshot = throw cancellation
+                    },
+                database = mockk<ServerDatabaseDao>(relaxed = true),
+                principalContext = CatalogPrincipalContext.ONLINE_ACCOUNT,
+            )
+
+        try {
+            resolver.resolve()
+            fail("expected CancellationException")
+        } catch (thrown: CancellationException) {
+            assertEquals(cancellation.message, thrown.message)
+        }
     }
 
     @Test
@@ -428,6 +512,22 @@ class CatalogReadPortContractTest {
             override suspend fun search(
                 query: CatalogSearchQuery
             ): CatalogReadOutcome<List<FindroidItem>> = onSearch(query)
+
+            override suspend fun home(
+                query: CatalogHomeQuery
+            ): CatalogReadOutcome<CatalogHomeData> = CatalogReadOutcome.IdentityUnavailable
+
+            override suspend fun libraries(
+                query: CatalogLibrariesQuery
+            ): CatalogReadOutcome<List<FindroidCollection>> = CatalogReadOutcome.IdentityUnavailable
+
+            override suspend fun itemsPage(
+                query: CatalogItemsPageQuery
+            ): CatalogReadOutcome<List<FindroidItem>> = CatalogReadOutcome.IdentityUnavailable
+
+            override suspend fun movie(
+                query: CatalogMovieQuery
+            ): CatalogReadOutcome<FindroidMovie> = CatalogReadOutcome.IdentityUnavailable
         }
 
     private fun identityPort(snapshot: IdentitySnapshot): IdentityReadPort =
@@ -552,6 +652,14 @@ class CatalogReadPortContractTest {
             productionYear = null,
             endDate = null,
             chapters = null,
+        )
+
+    private fun collection(name: String): FindroidCollection =
+        FindroidCollection(
+            id = UUID.nameUUIDFromBytes(name.toByteArray()),
+            name = name,
+            type = CollectionType.Movies,
+            images = FindroidImages(),
         )
 
     private fun movie(dto: FindroidMovieDto): FindroidMovie =
