@@ -7,26 +7,27 @@
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
 ### ACTIVE — V2-W1C-1-REPAIR-INDEPENDENT-QA-2026-11-09
 
-- TASK_ID=V2-W1C-1-REPAIR-MERGE-PREP-DECISION-2026-11-09
-- TASK_STAGE=W1C_1_REPAIR_INDEPENDENT_QA_PASS / MERGE_PREP_AUTHORIZATION_REQUIRED
+- TASK_ID=V2-W1C-1-REPAIR-MERGE-PREP-HANDOFF-2026-11-09
+- TASK_STAGE=W1C_1_INDEPENDENT_QA_PASS / USER_MERGE_PREP_AUTHORIZED / LEAD_HANDOFF_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=repair independent QA report + repair candidate scope > USER merge-prep decision > AGENTS.md / PROJECT_RULES / LESSONS
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1C_1_MERGE_PREP_2026_11_09
+- READ_ORDER=REPAIR_MERGE_PREP_DELIVERY_LEAD_PROMPT + repair QA report > W1C-1 task card + QA PASS history > exact 17 code/test paths + docs control > AGENTS.md / PROJECT_RULES / LESSONS
+- NEXT_ROLE=AURORAMA_V2_W1C_1_REPAIR_MERGE_PREP_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
-- STOP_CONDITION=Independent repair QA is PASS with P0-P3=0/0/0/0, but merge-prep is not authorized. Do not create a merge-prep owner, merge, integrate, push, tag or Release until the user explicitly authorizes W1C-1 merge-prep. Stop on candidate/path drift or any attempt to bypass the user decision gate.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-handoff-2026-11-09\REPAIR_MERGE_PREP_DELIVERY_LEAD_PROMPT.md
+- NEXT_REQUIREMENT=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 / ICS-W1C-1-HOME-VIDEO-AGGREGATE-MOVIE-DETAIL / canonical scope + fail-closed + no stale cross-scope or cross-generation Home/Video/paging/Movie results
+- STOP_CONDITION=Create only the successor W1C-1 repair merge-prep delivery lead session under projectId 47419ac7-1d78-47fe-9988-c1789362d705 and verify it is not Pinned. The successor lead must dispatch a fresh merge-prep owner; the current owner must not merge-prep, merge, integrate, push, tag or Release. Stop on QA/candidate/path drift or any attempt to bypass the fresh merge-prep gate.
 - SCOPE=W1C_1_HOME_VIDEO_AGGREGATE_MOVIE_DETAIL_SCOPE_FROZEN
-- AUTHORIZATION=USER_REPAIR_AUTHORIZED_2026_11_09 / NO_MERGE_PREP_AUTHORIZATION
-- IMPLEMENTATION_AUTHORIZED=NO / REPAIR_CANDIDATE_INDEPENDENT_QA_PASS
+- AUTHORIZATION=USER_REPAIR_AUTHORIZED_2026_11_09 / MERGE_PREP_AUTHORIZED_2026_11_09 / NO_INTEGRATION_AUTHORIZATION
+- IMPLEMENTATION_AUTHORIZED=NO / REPAIR_CANDIDATE_INDEPENDENT_QA_PASS / MERGE_PREP_AUTHORIZED
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / MERGE_PREP_AUTHORIZED=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / MERGE_PREP_AUTHORIZED=YES / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=2026-11-09 / REPAIR_QA_PASS / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
+- CONTEXT_AT_CLOSE=2026-11-09 / USER_MERGE_PREP_AUTHORIZED / LEAD_HANDOFF / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
 - P0=0
 - P1=P1-W1C1-01:CLOSED_BY_REPAIR_QA;P1-W1C1-02:CLOSED_BY_REPAIR_QA;P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
 - P2=P2-W1C1-03:CLOSED_BY_REPAIR_QA;P2-W1C1-04:CLOSED_BY_REPAIR_QA;P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
@@ -43,9 +44,31 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_DECISION_FOR_W1C_1_MERGE_PREP
-- last_evidence=INDEPENDENT_QA=PASS; P0-P3=0/0/0/0; FINAL=10b904d45cad4117cdc20b701d7ee9aabfefce74; TREE=0c7c8f0227ebb290017e955e629b4bfe6b29b9fb; QA_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md; QA_SHA256=9E90A03A8436366F62A9EF68C1A57BE4881A30F147AEDEA5D979799A82753362
+- NEXT_CRITICAL_PATH=FRESH_W1C_1_REPAIR_MERGE_PREP_THEN_USER_INTEGRATION_DECISION
+- last_evidence=INDEPENDENT_QA=PASS; P0-P3=0/0/0/0; FINAL=10b904d45cad4117cdc20b701d7ee9aabfefce74; TREE=0c7c8f0227ebb290017e955e629b4bfe6b29b9fb; USER_MERGE_PREP_AUTHORIZED=2026-11-09; QA_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md; QA_SHA256=9E90A03A8436366F62A9EF68C1A57BE4881A30F147AEDEA5D979799A82753362
 <!-- V2_HANDOFF_ACTIVE_END -->
+
+### HISTORY — 2026-11-09 user authorized W1C-1 repair merge-prep handoff
+
+- 用户于 2026-11-09 明确授权“下一步”，当前只授权 fresh W1C-1 repair merge-prep；
+  `INTEGRATION_AUTHORIZED=NO`，不得把该授权扩写为 merge、integration、push、tag 或 Release。
+- 下一步任务需求：
+  `V2-ARCH-SEAM-IDENTITY-CATALOG-W1` /
+  `ICS-W1C-1-HOME-VIDEO-AGGREGATE-MOVIE-DETAIL`。对应用户承诺是 Home、Video libraries /
+  aggregate paging、Movie detail 的 catalog read 统一绑定 canonical `CatalogScope` /
+  `IdentitySnapshot`，无完整 READY identity fail closed，且旧 scope / generation 结果不得
+  落入新账号、server、address、offline/online 或 content generation。
+- 用户要求以后所有报告中的“下一步”额外写明需求 ID / 切片 / 用户承诺，而不只写角色和动作。
+- repair QA PASS 候选为 `10b904d45cad4117cdc20b701d7ee9aabfefce74`，tree
+  `0c7c8f0227ebb290017e955e629b4bfe6b29b9fb`；QA 报告 SHA-256
+  `9E90A03A8436366F62A9EF68C1A57BE4881A30F147AEDEA5D979799A82753362`。
+- 上下文已到交接边界；当前负责人只完成后继交付负责人交接，不亲自 merge-prep。
+  后继必须是全新
+  `AURORAMA_V2_W1C_1_REPAIR_MERGE_PREP_DELIVERY_LEAD_2026_11_09`，再由其创建另一个
+  fresh merge-prep owner。交接派单：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-handoff-2026-11-09\REPAIR_MERGE_PREP_DELIVERY_LEAD_PROMPT.md`。
+- merge-prep PASS 后仍停在用户 integration 决策门；merge-prep 只能产出 candidate / report，
+  不得自行 merge / integration / push / tag / Release。
 
 ### HISTORY — 2026-11-09 W1C-1 repair independent QA PASS
 
@@ -733,14 +756,14 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   本地集成证据：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08\manager-final-gates.txt`。
 
-### QA_READY — W1C-1 repair independent QA PASS / merge-prep decision
+### QA_READY — W1C-1 repair independent QA PASS / merge-prep authorized
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Independent QA for repair candidate is PASS with P0-P3=0/0/0/0. Merge-prep, integration, Android runtime, device/network, W1E, parent seam, product and Release remain unexecuted or unproven.
-- STOP_CONDITION=Do not create a merge-prep owner or run merge/integration before explicit user authorization. The only next decision is whether to authorize fresh W1C-1 merge-prep.
-- MANUAL_LIMITATION=QA PASS is limited to the local JVM/static repair candidate and its frozen scope. It does not authorize merge-prep, integration, device, network, runtime or Release.
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_W1C_1_MERGE_PREP_2026_11_09
+- UNCOVERED=Fresh merge-prep has not started. Integration, runtime, device/network, W1E, parent seam, product and Release remain unexecuted or unproven.
+- STOP_CONDITION=QA is PASS and the user authorized the next merge-prep step only. The successor lead must dispatch a different fresh merge-prep owner; no direct merge, integration, push, tag or Release.
+- MANUAL_LIMITATION=Independent QA PASS covers only the local JVM/static W1C-1 repair candidate. User authorization currently covers fresh merge-prep only, not integration or Release.
+- MANUAL_OWNER=AURORAMA_V2_W1C_1_REPAIR_MERGE_PREP_DELIVERY_LEAD_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
