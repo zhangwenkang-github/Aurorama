@@ -21,7 +21,7 @@
 - NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\p1-source-epoch-repair\P1_SOURCE_EPOCH_REPAIR_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
 - STOP_CONDITION=Preserve production read-only, metadata immutability, system settings, and schema safety. Use fresh one-stage agents and bounded repair budgets. Stop only for data/security safety, object drift, unknown P0/P1, or an unavoidable external identity/service gate; do not wait for routine user approvals.
-- SCOPE=1.4.1_PLAYER_STABILITY / A_CLUSTER_AB_COMPLETE / DIRECTPLAY_EXO_VS_HLS_MPV_SPLIT / bug families B catalog-scope C subtitle-pipeline D music-runtime / media paging deferred / implementation not started
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/DIRECTPLAY_EXO_VS_HLS_MPV_SPLIT/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/SCOPED_REVIEW_P1_REPAIRED_RE_REVIEW_PENDING/QA_NOT_STARTED
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=YES / USER_DELEGATED / FRESH_IMPLEMENTATION_DELIVERY_LEAD_REQUIRED
 - DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_FINAL_V140 / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / TEST_SERVER_NETWORK_USED=YES
@@ -898,9 +898,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Pad A/B executed; remaining gaps: mpv natural EOS, mpv near-EOS retry, real network fault injection, release-internal playWhenReady/isPlaying, and full PC-01-PC-12 matrix. Implementation and independent QA are not started.
+- UNCOVERED=Implementation candidate exists with A0 PASS; scoped review R1 P1-SR-A01 repaired and awaiting fresh closure review. Remaining gaps: P1 closure review, independent QA, mpv natural EOS, mpv near-EOS retry, real network fault injection, release-internal playWhenReady/isPlaying, notification/lockscreen seek, 20s background boundary, and full PC-01-PC-12 matrix.
 - STOP_CONDITION=Require frozen state-effect matrix, independent QA after implementation, and bounded repair. No production write, metadata write, settings write, schema regression, or unbounded retry.
-- MANUAL_LIMITATION=Runtime A/B is complete but no implementation candidate exists yet. DirectPlay/Exo and HLS/mpv must remain separate; PLAYER_CORE_MATRIX_RESULT is NOT_RUN.
+- MANUAL_LIMITATION=Implementation candidate 60ebe5e8 exists but scoped review R1 FAIL remains on record; P1-SR-A01 repair is self-checked only and awaits fresh closure review. DirectPlay/Exo and HLS/mpv remain separate; PLAYER_CORE_MATRIX_RESULT is NOT_RUN.
 - MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_IMPLEMENTATION_DELIVERY_LEAD_R2_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
