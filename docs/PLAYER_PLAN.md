@@ -5513,3 +5513,61 @@ P0-P3=0/0/0/0/harness-only
 后续 fresh independent QA R3 必须固定 candidate/APK/serial/evidence root，并且只通过该 wrapper
 采集日志；不得直接使用裸 `adb logcat`，不得把 raw stdout 导入终端、evidence 或聊天。harness
 PASS 不证明产品、runtime、merge-prep、integration 或 Release。
+
+### 52.17 A 簇 independent QA R3 wrapper 失败（2026-11-10）
+
+**状态**：`INDEPENDENT_QA_R3=FAIL / PLAYER_CORE_MATRIX_RESULT=FAIL /`
+`BLOCKED=SANITIZED_WRAPPER_EXIT_22_REDACTION_FAIL_CLOSED / CORE_ROWS_VALID_EXECUTED=0/7`。
+
+R3 首动作 QaReady PASS，对象、APK、历史 manifest 与本地门均 PASS：
+
+```text
+TARGETED=52/0/0/0
+PLAYER_LOCAL_FULL=42 XML / 301/0/0/0
+PHONE_FULL=62 XML / 412/0/0/0
+ASSEMBLE_DEBUG_OFFLINE=PASS
+KTFMT_CHECK_OFFLINE=PASS
+A0_TESTS=7/0
+A0_OWNER_GATE=PASS
+GATEPLAN=FULL / 8 GATE_PATH / 0 UNMAPPED
+WORKFLOW_TESTS=39/0
+HANDOFF_TESTS=99/0
+MANIFEST=152/152 MATCH
+```
+
+唯一 runtime wrapper 在 `2026-11-10 07:45:58.227 +08:00` 启动，约 `8.179 s` 后以 exit 22
+`REDACTION_FAIL_CLOSED` 停止。wrapper 只输出 sanitized evidence，没有裸 `adb logcat` 或 raw
+stdout；但 R3 owner 未在启动 App 前再次确认 wrapper 存活，后续 145.707 秒设备操作没有合格
+日志覆盖。适用核心行均不得据此判 PASS：
+
+```text
+PC-01=NOT_RUN
+PC-02=FAIL_OUTSIDE_VALID_SANITIZED_WINDOW / 合格矩阵计 NOT_RUN
+PC-03/04/05/11/12=NOT_RUN
+PC-06-10=NOT_APPLICABLE_SCOPED_A_CLUSTER
+```
+
+wrapper 失效后的 DirectPlay 观察为：初始缓冲暂停/继续可达；HOME 8 秒后及回前台再等 5 秒仍为
+`PAUSED / position=-1 / buffered=-1`。这只形成
+`P1-PLAYER-LOADING-BACKGROUND-CONTINUE=OPEN_UNLOGGED_RERUN_REQUIRED` 候选，必须由后续合格
+sanitized 窗口复核，不能据此直接关产品项。
+
+根因证据表明当前 wrapper 捕获整机 logcat，8 秒输出约 40,675 行，包含大量 WiFi、蓝牙与系统
+服务日志；在一条系统网络日志形态上触发 fail-closed。下一步只做一次简化 harness repair：
+
+1. 以 debug App UID 过滤 `logcat`，不再采集整机系统日志；
+2. 启动后写 ready marker，并输出不带原文的 failure reason class；
+3. QA 在第一次 App 操作前必须检查 ready marker 与 child 未退出；
+4. 仍保留 URL/query/token/password/Authorization/Cookie fail-closed 脱敏与核心诊断字段。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r3-2026-11-10\INDEPENDENT_QA_R3_REPORT.md`
+  （SHA-256 `5960579F44587071BF8A7061B06105AC90830E1CE4B4B1177921E236AD70FC68`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `A94C1AB7B7B5E82E174427A98B1D6116F4324886C14CF887768211DDECBDD962`，152/152 MATCH）
+- `...\runtime\core-window-summary.txt`
+- `...\sanitized\wrapper-stdout.txt`
+
+设备锁已释放，debug/release PID、debug services、MediaSession、通知与 wrapper child 均清空；
+settings mismatch 0、users 仅 user0、K60 命令 0、截图 0。R3 FAIL 与 `P1-QA-R3-01` 必须保留。
