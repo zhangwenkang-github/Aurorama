@@ -4855,16 +4855,17 @@ FACT_FINDER=COMPLETE
 A_CLUSTER_STATIC_TRIAGE=COMPLETE
 DESIGN_FROZEN=YES
 A_CLUSTER_RUNTIME_ENV=AUTHORIZED_WRITABLE_TEST_SERVER
-A_CLUSTER_RUNTIME_AB=PENDING_FRESH_TRIAGE
-BUGFIX_IMPLEMENTATION_AUTHORIZED=NO_UNTIL_RUNTIME_TRIAGE_FREEZES_FIX_SCOPE
-DEVICE_DIAGNOSTICS=K60_READ_ONLY_CHECK_ONLY / LOCK_RELEASED
+A_CLUSTER_RUNTIME_AB=PAD_V130_TO_V140_COMPLETE_2026_11_09
+BUGFIX_IMPLEMENTATION_AUTHORIZED=NO_USER_DECISION_REQUIRED
+DEVICE_DIAGNOSTICS=K60_READ_ONLY_HISTORY / PAD_43af8627_FINAL_V140 / LOCKS_RELEASED
 ONEPLUS_SYSTEM_MODIFICATION=FORBIDDEN
 PUSH=NO / TAG=NO / RELEASE=NO
-P0-P3=NOT_ASSESSED
+P0-P3=0/2/2/0 / NOOP_NOT_ASSESSED
 ```
 
-下一门是全新 runtime triage：使用可写测试服务器和在线媒体执行 A 簇真实复现与
-1.3.0/1.4.0 A/B。未取得真实证据前不得派实现，也不得把静态缺陷写成 `REPRODUCED`。
+Pad A/B 已完成。下一门是由用户决定是否授权基于精确 1.4.0 产品等价源做 A 簇最小实现；
+未获实现授权前不得修改产品代码。HLS/mpv 的 P1/P2 已成立，Direct Exo 在 Pad 上未复现
+K60 历史的近片尾 timeout / `1→3` 伪换集，两者必须在实现卡中分别保留。
 
 ### 52.8 A 簇静态 triage 结果（2026-11-09）
 
@@ -4938,3 +4939,55 @@ DAILY_DEVICE_SYSTEM_MODIFICATION=FORBIDDEN
 - 优先使用在线服务器媒体，不再要求设备存在本地视频样本。
 - 资源文件中的值只允许测试 owner 按需读取，不得进入命令行回显、证据 manifest、日志、
   Git、Engramory 或交接 prompt。
+
+### 52.10 Pad v1.3→v1.4 A/B runtime 结果（2026-11-09）
+
+结论：`PAD_AB_COMPLETE / IMPLEMENTATION_DECISION_PENDING`。同机 `user0` 先执行精确
+v1.3.0 基线，再单次前向升级到 v1.4.0(5)；最终保留 v1.4.0。Pad `43af8627` 的 settings
+前后 `MISMATCH_COUNT=0`，未执行 `settings put/delete/reset`、`wm size/density` 或锁屏配置
+写入；App force-stop 后 PID / MediaSession 为空，设备锁已释放。
+
+```text
+V130_BASELINE=EXECUTED
+V140_FORWARD_UPGRADE=SUCCESS_ONCE
+FINAL_VERSION=1.4.0(5)
+FINAL_BASE_SHA_MATCH=YES
+USERS_FINAL=USER0_ONLY
+UNINSTALL=NO / PM_CLEAR=NO / SCHEMA_DOWNGRADE=NO
+PRODUCTION_WRITE=NO / METADATA_WRITE=NO
+SETTINGS_WRITE=0 / SETTINGS_MISMATCH=0
+REGRESSION_CONFIRMED=NO
+PRODUCT_PASS=NO / PLAYER_CORE_MATRIX_RESULT=NOT_RUN
+P0-P3=0/2/2/0 / NOOP_NOT_ASSESSED
+```
+
+同设备、账号、在线媒体与 backend 分层结果：
+
+| ID | DirectPlay / Exo | HLS / mpv | 最终状态 | P |
+|---|---|---|---|---:|
+| `V2-FIX-PLAYER-SEEK-001` | v1.3/v1.4 的 60%、连续拖动、近片尾均正常 | 两版 seek 后均可长期 `BUFFERING / position=-1` | `PARTIAL` | P1 |
+| `V2-FIX-PLAYER-LOADING-001` | 单 spinner、缓冲中不可点击 | v1.4 mpv 长缓冲时 spinner 可消失，暂停意图仍无法确认 | `PARTIAL` | P2 |
+| `V2-FIX-PLAYER-STALL-001` | 普通慢缓冲有位置推进 | mpv 等待约 72–77 秒且无恢复动作 | `REPRODUCED` | P2 |
+| `V2-FIX-PLAYER-NOOP-001` | release 内部字段不可见 | 出现无 spinner、无 error、PLAYING 但位置无效的窗口 | `CAUSE_NOT_PROVEN` | `NOT_ASSESSED` |
+| `V2-FIX-PLAYER-PROGRESS-001` | 自然 EOS / 自动下一集在 Pad 正确 | v1.3 补充样本出现 UI E4 / MediaSession E3 分叉；v1.4 目标与有效位置分叉 | `PARTIAL` | P1 |
+
+事实边界：
+
+- `HLS+mpv` 的长缓冲是 v1.3/v1.4 共见问题，不能仅凭 Pad A/B 写成 1.4.0 新回归。
+- Pad `DirectPlay+Exo` 未复现 K60 历史的近片尾 timeout 后 active item `1→3`；不得把 K60
+  历史缺陷写成已在 Pad 关闭。
+- `mpv` 自然 EOS、mpv 近片尾 retry 专项、真实断网注入与 release 内部
+  `playWhenReady/isPlaying` 仍 `NOT_RUN / NOT_OBSERVABLE`。
+- 用户于本轮后明确将测试资源数值输出门降级为非阻断；可保留测试服务器 / 账号标签及媒体
+  身份用于证据，但生产服务器仍只读，密码 / Token / API key 不应进入 Git 或 Engramory。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pad-upgrade-ab-r2-2026-11-09\PAD_UPGRADE_AB_R2_TRIAGE_REPORT.md`
+- 报告 SHA-256：`871FDE32D6B9722892ADC274B7FA349E85C0447235B7A5D8D67311648F0A75AA`
+- Manifest SHA-256：`82052EAE38615F08A3AFDD139543FE7729348DEF933578DCDBE97519AC7DF2D9`
+- Manifest：303/303 MATCH
+
+下一门：等待用户决定是否授权 fresh implementation owner 从精确 v1.4.0 产品等价源建立
+A 簇最小修复卡。实现前必须冻结状态×效果矩阵，并分别覆盖 DirectPlay/Exo 与 HLS/mpv；
+不得以 Pad Direct Exo 正常覆盖 HLS/mpv 失败，也不得整模块回退 1.3.0。
