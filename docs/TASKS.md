@@ -894,7 +894,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   本地集成证据：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08\manager-final-gates.txt`。
 
-### QA_READY — W1C-1 repair independent QA PASS / merge-prep authorized
+### HISTORY — W1C-1 repair independent QA PASS / merge-prep authorized（已由后续 W1C-1 integration 取代）
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
