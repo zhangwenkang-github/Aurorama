@@ -7,27 +7,27 @@
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
 ### ACTIVE — V2-W1C-1-LOCAL-FF-ONLY-INTEGRATION-2026-11-09
 
-- TASK_ID=V2-W1C-1-LOCAL-FF-ONLY-INTEGRATION-2026-11-09
-- TASK_STAGE=W1C_1_INDEPENDENT_QA_PASS / MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED
+- TASK_ID=V2-W1C-1-POST-INTEGRATION-BUG-TRIAGE-HANDOFF-2026-11-09
+- TASK_STAGE=W1C_1_LOCALLY_FF_ONLY_INTEGRATED / USER_AUTHORIZED_W1C_NEXT_SLICE / USER_REPORTED_1_4_0_SEVERE_BUGS / BUG_TRIAGE_REQUIRED / LEAD_HANDOFF_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=W1C-1 integration task card > integration report > merge-prep report + delivery lead review > W1C-1 task card / QA evidence > exact 17 code/test paths > AGENTS.md / PROJECT_RULES / LESSONS
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1C_1_NEXT_WAVE_2026_11_09
+- READ_ORDER=BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_PROMPT > TASKS ACTIVE + 1.4.0 bug report history + W1C-1 integrated evidence > FIX_PLAN + PLAYER_PLAN + RELEASE_PLAN > AGENTS.md / PROJECT_RULES / LESSONS
+- NEXT_ROLE=AURORAMA_140_BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-2026-11-09\INTEGRATION_REPORT.md
-- NEXT_REQUIREMENT=V2-ARCH-SEAM-IDENTITY-CATALOG-W1 / ICS-W1C-1-HOME-VIDEO-AGGREGATE-MOVIE-DETAIL / LOCALLY_FF_ONLY_INTEGRATED / USER_DECISION_REQUIRED_BEFORE_NEXT_WAVE
-- STOP_CONDITION=Wait for the user to decide the next requirement wave. Do not auto-start W1C-2, W1D-W1G, W1E, parent seam or Release; push, tag and Release remain unauthorized.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-post-integration-bug-triage-handoff-2026-11-09\BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_PROMPT.md
+- NEXT_REQUIREMENT=V1.4.0-BUG-CONTAINMENT / W1C_NEXT_SLICE_AUTHORIZED_SCOPE_NOT_FROZEN / severe user-observed 1.4.0 bugs must be reproduced on exact release lineage and triaged before W1C expansion
+- STOP_CONDITION=Successor must collect concrete 1.4.0 bug reports and triage severity before code changes. Do not mix fixes into W1C; no bugfix, device, network, push, tag or Release without new explicit authorization.
 - SCOPE=W1C_1_HOME_VIDEO_AGGREGATE_MOVIE_DETAIL_SCOPE_FROZEN
-- AUTHORIZATION=USER_LOCAL_FF_ONLY_INTEGRATION_AUTHORIZED_2026_11_09 / PUSH_NOT_AUTHORIZED / TAG_NOT_AUTHORIZED / RELEASE_NOT_AUTHORIZED
-- IMPLEMENTATION_AUTHORIZED=NO / REPAIR_CANDIDATE_INDEPENDENT_QA_PASS / REPAIR_MERGE_PREP_PASS / LOCALLY_FF_ONLY_INTEGRATED
+- AUTHORIZATION=USER_W1C_NEXT_SLICE_AUTHORIZED_2026_11_09 / USER_REPORTED_1_4_0_SEVERE_BUGS_2026_11_09 / NO_BUGFIX_IMPLEMENTATION_AUTHORIZATION / PUSH_NOT_AUTHORIZED / TAG_NOT_AUTHORIZED / RELEASE_NOT_AUTHORIZED
+- IMPLEMENTATION_AUTHORIZED=NO / W1C_1_LOCALLY_FF_ONLY_INTEGRATED / W1C_NEXT_PAUSED_PENDING_BUG_TRIAGE
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / MERGE_PREP_AUTHORIZED=YES / INTEGRATION_AUTHORIZED=YES_LOCAL_FF_ONLY / INTEGRATED=YES / LOCAL_UNPUSHED=YES
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO_CURRENT_BUG_TRIAGE / INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=2026-11-09 / W1C_1_LOCALLY_FF_ONLY_INTEGRATED / AWAITING_USER_NEXT_WAVE_DECISION / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
+- CONTEXT_AT_CLOSE=2026-11-09 / W1C_1_LOCALLY_FF_ONLY_INTEGRATED / BUG_TRIAGE_HANDOFF / CONTEXT_OVER_250K / DEVICE_NOT_USED / NETWORK_NOT_USED
 - P0=0
 - P1=P1-W1C1-01:CLOSED_BY_REPAIR_QA;P1-W1C1-02:CLOSED_BY_REPAIR_QA;P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
 - P2=P2-W1C1-03:CLOSED_BY_REPAIR_QA;P2-W1C1-04:CLOSED_BY_REPAIR_QA;P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
@@ -44,9 +44,26 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_DECISION_FOR_NEXT_W1C_SLICE_OR_OTHER_2_0_WAVE
-- last_evidence=INDEPENDENT_QA=PASS; MERGE_PREP=PASS; W1C_1=LOCALLY_FF_ONLY_INTEGRATED; INTEGRATED_CODE_HEAD=cb170b5e510132fb0b82972086127e69fc1faae9; INTEGRATION_DOCS_HEAD=EXTERNAL_PIN_AFTER_COMMIT; INTEGRATION_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-merge-prep-2026-11-09\INTEGRATION_REPORT.md; PUSH=NO; TAG=NO; RELEASE=NO
+- NEXT_CRITICAL_PATH=1_4_0_BUG_TRIAGE_THEN_W1C_NEXT_SLICE_OR_RELEASE_HOTFIX_DECISION
+- last_evidence=W1C_1=LOCALLY_FF_ONLY_INTEGRATED; INTEGRATED_CODE_HEAD=cb170b5e510132fb0b82972086127e69fc1faae9; USER_REPORTED_1_4_0_SEVERE_BUGS_2026_11_09; BUG_DETAILS_NOT_YET_SUPPLIED; W1C_NEXT_SLICE_AUTHORIZED_SCOPE_NOT_FROZEN; NEXT_PROMPT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-post-integration-bug-triage-handoff-2026-11-09\BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_PROMPT.md; PUSH=NO; TAG=NO; RELEASE=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
+
+### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
+
+- 用户原话：“现在我在使用本项目app 1.4.0时发现严重问题，这个版本的app每一个需求都
+  反复测试、修改过很多次但是bug反而更多、更严重了。要以此为戒，不要再重复出现这类事情。”
+  当前解释为 `1.4.0_BUG_REPORT=SEVERE_USER_OBSERVED / DETAILS_NOT_YET_SUPPLIED`，不得在缺少
+  精确版本、入口、复现与期望 / 实际时直接归因 W1C-1 或开始改代码。
+- 用户同时授权 W1C 后续切片，但该授权不要求立即开工；当前固定
+  `W1C_NEXT_SLICE_AUTHORIZED=YES / SLICE_NOT_FROZEN / W1C_NEXT_IMPLEMENTATION=PAUSED_BY_BUG_TRIAGE`。
+- 决策：1.4.0 bug 必须作为独立 containment / hotfix 线处理，不得混入 W1C 当前或后续架构切片。
+  先在精确 1.4.0 release lineage 建立稳定 bug ID 并复现分级；P0/P1 立即冻结 W1C 扩张并走独立
+  hotfix，P2 由用户按频率 / 阻断性决定热修或下版本，P3 进后续版本。
+- 当前没有 bug 详情，因此本波未诊断、未实现、未修复、未使用设备 / 网络 / 生产写。下一门固定为
+  用户提供 3–5 个最严重 bug 的最短复现；无复现则保持 `USER_BUG_DETAILS_REQUIRED`。
+- 交接 prompt：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-post-integration-bug-triage-handoff-2026-11-09\BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_PROMPT.md`，
+  SHA-256 `4F0976346758711B413936ECB395F98661DA4D9FEC58D53822C1346265255985`。
 
 ### HISTORY — 2026-11-09 W1C-1 local ff-only integrated
 
@@ -816,10 +833,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Local ff-only integration is complete. Push, tag, Release, Android runtime/device/network, W1E, W1C-2, W1D-W1G, parent seam, product and Release remain unexecuted or unproven.
-- STOP_CONDITION=Wait for the user to decide the next requirement wave. Do not auto-start W1C-2, W1D-W1G, W1E, parent seam or Release.
-- MANUAL_LIMITATION=W1C-1 PASS covers local JVM/static gates and canonical ff-only integration only; it does not prove Android runtime, device/network, W1E, parent seam, product or Release.
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_W1C_1_NEXT_WAVE_2026_11_09
+- UNCOVERED=User reports severe 1.4.0 bugs without concrete reproduction details. No bug triage, implementation, device QA, W1C next slice or Release has started.
+- STOP_CONDITION=Successor must first obtain concrete 1.4.0 bug details and reproduce on the exact release lineage. P0/P1 freeze W1C expansion and require a separate hotfix line; do not mix fixes into W1C.
+- MANUAL_LIMITATION=W1C-1 integration evidence only covers its local JVM/static gate. It does not prove 1.4.0 runtime quality or absence of user-visible bugs.
+- MANUAL_OWNER=AURORAMA_140_BUG_TRIAGE_AND_W1C_NEXT_DELIVERY_LEAD_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
