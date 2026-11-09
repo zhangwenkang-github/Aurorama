@@ -7,30 +7,30 @@
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
 ### ACTIVE — V2-W1C-1-REPAIR-INDEPENDENT-QA-2026-11-09
 
-- TASK_ID=V2-W1C-1-REPAIR-INDEPENDENT-QA-2026-11-09
-- TASK_STAGE=W1C_1_REPAIR_SELF_CHECK_PASS / FRESH_INDEPENDENT_QA_AUTHORIZED / QA_READY
+- TASK_ID=V2-W1C-1-REPAIR-MERGE-PREP-DECISION-2026-11-09
+- TASK_STAGE=W1C_1_REPAIR_INDEPENDENT_QA_PASS / MERGE_PREP_AUTHORIZATION_REQUIRED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=repair implementation report + QA FAIL + state matrix > repair candidate 18-path diff > exact P1/P2 source/tests > INDEPENDENT_QA_DISPATCH_PROMPT > AGENTS.md / PROJECT_RULES / LESSONS
-- NEXT_ROLE=AURORAMA_V2_W1C_1_CATALOG_READERS_REPAIR_INDEPENDENT_QA_OWNER_2026_11_09
+- READ_ORDER=repair independent QA report + repair candidate scope > USER merge-prep decision > AGENTS.md / PROJECT_RULES / LESSONS
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_W1C_1_MERGE_PREP_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-independent-qa-2026-11-09\INDEPENDENT_QA_DISPATCH_PROMPT.md
-- STOP_CONDITION=Fresh independent QA must stay read-only in detached worktree at 10b904d45cad4117cdc20b701d7ee9aabfefce74, rerun the frozen matrix and repair boundaries, and report P0-P3. No candidate edits, repair, merge-prep, merge, integration, device/network or Release. Stop on object/path/clean/selector/XML drift, new P0-P2, P3 self-acceptance or scope expansion.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
+- STOP_CONDITION=Independent repair QA is PASS with P0-P3=0/0/0/0, but merge-prep is not authorized. Do not create a merge-prep owner, merge, integrate, push, tag or Release until the user explicitly authorizes W1C-1 merge-prep. Stop on candidate/path drift or any attempt to bypass the user decision gate.
 - SCOPE=W1C_1_HOME_VIDEO_AGGREGATE_MOVIE_DETAIL_SCOPE_FROZEN
-- AUTHORIZATION=USER_REPAIR_AUTHORIZED_2026_11_09 / FRESH_QA_REQUIRED_AFTER_REPAIR
-- IMPLEMENTATION_AUTHORIZED=NO / REPAIR_CANDIDATE_SELF_CHECK_PASS
+- AUTHORIZATION=USER_REPAIR_AUTHORIZED_2026_11_09 / NO_MERGE_PREP_AUTHORIZATION
+- IMPLEMENTATION_AUTHORIZED=NO / REPAIR_CANDIDATE_INDEPENDENT_QA_PASS
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=YES_NOW / MERGE_PREP_READY=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=YES / MERGE_PREP_AUTHORIZED=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=2026-11-09 / REPAIR_QA_DISPATCH / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
+- CONTEXT_AT_CLOSE=2026-11-09 / REPAIR_QA_PASS / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
 - P0=0
-- P1=P1-W1C1-01:REPAIRED_PENDING_FRESH_QA;P1-W1C1-02:REPAIRED_PENDING_FRESH_QA;P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
-- P2=P2-W1C1-03:REPAIRED_PENDING_FRESH_QA;P2-W1C1-04:REPAIRED_PENDING_FRESH_QA;P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
-- P3=P3-W1C1-05:REPAIRED_PENDING_FRESH_QA;P3-W1B1B-PUBLIC-PERMIT-MARKER:ACCEPTED;P3-W1B1B-READ-LEASE-PUBLIC-EFFECT-REENTRANCY:ACCEPTED_CURRENT_CALL_GRAPH_NO_REENTRY;P3-W1B1-COMBINED-QA-HARNESS:ACCEPTED;P3-QA-W1B2-01:ACCEPTED_TEST_DEPTH_GAP
+- P1=P1-W1C1-01:CLOSED_BY_REPAIR_QA;P1-W1C1-02:CLOSED_BY_REPAIR_QA;P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
+- P2=P2-W1C1-03:CLOSED_BY_REPAIR_QA;P2-W1C1-04:CLOSED_BY_REPAIR_QA;P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
+- P3=P3-W1C1-05:CLOSED_BY_REPAIR_QA;P3-W1B1B-PUBLIC-PERMIT-MARKER:ACCEPTED;P3-W1B1B-READ-LEASE-PUBLIC-EFFECT-REENTRANCY:ACCEPTED_CURRENT_CALL_GRAPH_NO_REENTRY;P3-W1B1-COMBINED-QA-HARNESS:ACCEPTED;P3-QA-W1B2-01:ACCEPTED_TEST_DEPTH_GAP
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\W1C_STATE_EFFECT_MATRIX.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-catalog-readers-scope-2026-11-09\SCOPE_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-2026-11-09\IMPLEMENTATION_REPORT.md
@@ -43,9 +43,35 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_W1C_1_REPAIR_INDEPENDENT_QA
-- last_evidence=REPAIR_SELF_CHECK_PASS; FINAL=10b904d45cad4117cdc20b701d7ee9aabfefce74; PARENT=9757492ef5f2adfa95814566f80a360b7dd5eff3; OLD_QA_FAIL=0/2/2/1; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-2026-11-09\REPAIR_IMPLEMENTATION_REPORT.md
+- NEXT_CRITICAL_PATH=USER_DECISION_FOR_W1C_1_MERGE_PREP
+- last_evidence=INDEPENDENT_QA=PASS; P0-P3=0/0/0/0; FINAL=10b904d45cad4117cdc20b701d7ee9aabfefce74; TREE=0c7c8f0227ebb290017e955e629b4bfe6b29b9fb; QA_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md; QA_SHA256=9E90A03A8436366F62A9EF68C1A57BE4881A30F147AEDEA5D979799A82753362
 <!-- V2_HANDOFF_ACTIVE_END -->
+
+### HISTORY — 2026-11-09 W1C-1 repair independent QA PASS
+
+- Fresh independent QA owner（与 repair / implementation / manager 不同）在 detached candidate
+  `10b904d45cad4117cdc20b701d7ee9aabfefce74` 上完成重跑，结论为
+  `INDEPENDENT_QA_STATUS=PASS / P0-P3=0/0/0/0 / MERGE_PREP_READY=YES`；
+  candidate parent=`9757492ef5f2adfa95814566f80a360b7dd5eff3`、tree=
+  `0c7c8f0227ebb290017e955e629b4bfe6b29b9fb`，QA worktree detached、clean。
+- 原 QA FAIL 仍保留为 `0/2/2/1`；`P1-QA-W1C1-01/02`、`P2-QA-W1C1-03/04`、
+  `P3-QA-W1C1-05` 均由本次独立 QA 判 `CLOSED`。QA 未自行接受任何新 P3。
+- 实际 executed：6 targeted suites / `45/0/0/0`；data `343/0/0/0`、film `167/0/0/0`、
+  phone `463/0/0/0`，合计 139 XML / 973 tests；assemble、ktfmt、GatePlan FULL 17 路径、
+  workflow `37/0`、handoff `99/0`、A0 `PASS`、A0 tests `7/0` 与 two-view path audit 全 PASS。
+- Repair delta 为 13 paths（7 production + 5 changed test + docs）；original base→candidate
+  cumulative 为 18 paths（11 production + 6 test + docs）。相对原 15 code/test 只新增
+  `MetadataCache.kt` 与 `MetadataSnapshotSwr.kt`；无 forbidden path。
+- 未覆盖：merge-prep、integration、Android runtime / kill-relaunch、设备、ADB、真实网络、
+  W1E 完整 401/403 / durable freshness / 跨进程 cache、父 seam、产品与 Release。
+  `BLOCKED=NONE`。
+- 报告 SHA-256：
+  `9E90A03A8436366F62A9EF68C1A57BE4881A30F147AEDEA5D979799A82753362`；
+  证据根：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-repair-independent-qa-2026-11-09`。
+- 当前停在 `USER_DECISION_REQUIRED_FOR_W1C_1_MERGE_PREP_2026_11_09`：
+  `MERGE_PREP_READY=YES`，但未获用户授权；不得创建 merge-prep、merge、integration、
+  push、tag 或 Release。
 
 ### HISTORY — 2026-11-09 W1C-1 implementation candidate ready
 
@@ -707,14 +733,14 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   本地集成证据：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-executable-workflow-hardening-final-2026-11-08\manager-final-gates.txt`。
 
-### QA_READY — W1C-1 repair independent QA authorized
+### QA_READY — W1C-1 repair independent QA PASS / merge-prep decision
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=YES
-- UNCOVERED=Fresh independent QA for repair candidate 10b904d45cad4117cdc20b701d7ee9aabfefce74 has not started. Merge-prep, integration, runtime, device/network, parent seam, product and Release remain unassessed.
-- STOP_CONDITION=Do not start merge-prep or integration. QA must be read-only at the detached repair candidate, rerun the frozen matrix and repair-specific boundaries, and leave old QA FAIL intact. Any new P0-P2 blocks merge-prep.
-- MANUAL_LIMITATION=Existing independent QA FAIL remains valid and cannot be overwritten. Repair self-check is not QA. This QA is limited to the local JVM/static W1C-1 repair candidate; device, network, runtime and Release are not authorized.
-- MANUAL_OWNER=AURORAMA_V2_W1C_1_CATALOG_READERS_REPAIR_INDEPENDENT_QA_OWNER_2026_11_09
+- QA_READY=NO
+- UNCOVERED=Independent QA for repair candidate is PASS with P0-P3=0/0/0/0. Merge-prep, integration, Android runtime, device/network, W1E, parent seam, product and Release remain unexecuted or unproven.
+- STOP_CONDITION=Do not create a merge-prep owner or run merge/integration before explicit user authorization. The only next decision is whether to authorize fresh W1C-1 merge-prep.
+- MANUAL_LIMITATION=QA PASS is limited to the local JVM/static repair candidate and its frozen scope. It does not authorize merge-prep, integration, device, network, runtime or Release.
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_W1C_1_MERGE_PREP_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
