@@ -5279,3 +5279,60 @@ FAKE_PLAYER_AS_HLS_MPV_PROTOCOL_PROOF=PROHIBITED
 组合调用 GatePlan，并传本节权威矩阵绝对路径。期望 `GATE_LANE=FULL /
 STATE_EFFECT_MATRIX=PASS / 8 GATE_PATH / 0 UNMAPPED / 3 FULL commands`。GatePlan PASS
 只证明派单映射和矩阵结构，不证明产品测试、实现、QA、集成、runtime 或 Release。
+
+### 52.13 A 簇实现与 source epoch 收敛（2026-11-10）
+
+**状态**：`IMPLEMENTATION_CANDIDATE + A0_PASS + SCOPED_REVIEW_P1_REPAIRED / RE_REVIEW_PENDING`。
+
+实现从精确 v1.4 产品等价源 `005639a69679609661e3845344d3c6eec0e40f52` 建立独立
+`codex/v141-player-a-cluster-fix` worktree。最终候选：
+
+```text
+CANDIDATE=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf
+CANDIDATE_TREE=0fca8a6cf425261e9109be49846aaa981048bba0
+IMPLEMENTATION_COMMIT=40b61a08b1b7c5375343feb68c38c578c54864e2
+A0_CLOSURE_COMMIT=abdc327b5bee2d9870b8fdd86bbdb3247ebf3f8c
+FINAL_CHANGED_PATHS=7
+OUTSIDE_FROZEN_8_PATH_UNION=0
+```
+
+A0 debt ratchet 不允许新增生产文件。因此 `PlaybackSessionRules.kt` 的纯规则与投影最终内聚
+到现有 `PlayerViewModel.kt`，产品文件数未增加；§52.12 中“必须新增产品文件”的布局被本段
+取代，语义合同不变。A0 baseline、gate 和 scanner 均未修改：
+
+```text
+A0_OWNER_GATE=PASS
+A0_TESTS=7/0
+APP_TO_PLAYER_LOCAL_IMPORTS=62 <= 62
+PLAYER_LOCAL_SOURCE_FILES=61 <= 61
+PLAYER_LOCAL_SOURCE_LINES=15491 <= 15512
+DEBT_RATCHET_FAILURES=0
+```
+
+实现自检已实际执行：`player:local:testDebugUnitTest --rerun-tasks` 42 XML / 301 tests /
+0 failures / 0 errors / 0 skipped；`:app:phone:assembleDebug`、根 `ktfmtCheck`、A0 tests /
+owner gate 均 PASS。GatePlan 对原 8-path 并集为 `FULL / MATRIX PASS / 0 UNMAPPED`。
+
+fresh scoped review R1 判定 `FAIL / P1-SR-A01`：session key 仅含
+`itemId|mediaSourceId|snapshotGeneration`，同 item/media source 下 URI 或
+`StartTimeTicks` 变化时旧 deadline、terminal、retry 未被确定性隔离。一次必要补丁复用既有
+seek source identity，将 key 改为：
+
+```text
+itemId|mediaSourceId|snapshotGeneration|sourceFingerprint
+```
+
+权威 RED 为 URI-only / `StartTimeTicks`-only / 新 source epoch 三例
+`16 tests / 3 failures`；随后 targeted `16/0`、player-local `301/0` 且 A0 仍 PASS。
+必须由另一个 fresh read-only reviewer 复核该 P1 已关闭；通过前不得派 independent QA。
+
+事实边界：本段不是 scoped review PASS、independent QA、产品、runtime、集成或 Release PASS。
+`PRODUCT_P0-P3=0/2/2/0` 保持，`NOOP=CAUSE_NOT_PROVEN / NOT_ASSESSED`，K60
+`active item 1→3` 仍开放，`PLAYER_CORE_MATRIX_RESULT=NOT_RUN`。
+
+证据根：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\`
+- `...\a0-closure\`
+- `...\p1-source-epoch-repair\`
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scoped-review-2026-11-10\SCOPED_REVIEW_REPORT.md`

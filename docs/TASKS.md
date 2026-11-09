@@ -8,17 +8,17 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=SCOPE_GATE_REPAIR_REVIEW_PASS / IMPLEMENTATION_DISPATCH_READY
+- TASK_STAGE=HANDOFF_TO_A_CLUSTER_DELIVERY_LEAD_R2 / P1_REPAIR_CANDIDATE_READY / RE_REVIEW_PENDING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_IMPLEMENTATION_DELIVERY_LEAD_2026_11_09
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_IMPLEMENTATION_DELIVERY_LEAD_R2_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-review-2026-11-10\SCOPED_REVIEW_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\p1-source-epoch-repair\P1_SOURCE_EPOCH_REPAIR_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
 - STOP_CONDITION=Preserve production read-only, metadata immutability, system settings, and schema safety. Use fresh one-stage agents and bounded repair budgets. Stop only for data/security safety, object drift, unknown P0/P1, or an unavoidable external identity/service gate; do not wait for routine user approvals.
 - SCOPE=1.4.1_PLAYER_STABILITY / A_CLUSTER_AB_COMPLETE / DIRECTPLAY_EXO_VS_HLS_MPV_SPLIT / bug families B catalog-scope C subtitle-pipeline D music-runtime / media paging deferred / implementation not started
@@ -28,7 +28,7 @@
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=348636 / 1048576 / USER_REQUESTED_PROACTIVE_HANDOFF / R020_R028_HANDOFF
+- CONTEXT_AT_CLOSE=298434/1048576/300K_CHECKPOINT/HANDOFF_PREP
 - P0=0
 - P1=2_OPEN_SEEK_AND_PROGRESS_HLS_MPV_DIRECTPLAY_EXO_NOT_REPRODUCED_ON_PAD
 - P2=2_OPEN_LOADING_AND_STALL_HLS_MPV
@@ -45,8 +45,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_A_CLUSTER_IMPLEMENTATION_FROM_005639A_IN_ISOLATED_WORKTREE
-- last_evidence=SCOPE_GATE_REVIEW=PASS;REVIEW_SHA256=917E2FFDC8CE76068F04B9C30F9A052A804893BBB600074CA4CCA8A36019E717;PRODUCT_P0-P3=0/2/2/0;IMPLEMENTATION=NOT_STARTED;QA=NOT_STARTED;PUSH/TAG/RELEASE=NO
+- NEXT_CRITICAL_PATH=FRESH_P1_SOURCE_EPOCH_CLOSURE_REVIEW_THEN_INDEPENDENT_QA
+- last_evidence=CANDIDATE=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf;A0_OWNER_GATE=PASS;SCOPED_REVIEW_R1=FAIL/P1-SR-A01;P1_REPAIR=SELF_CHECK_PASS/RE_REVIEW_PENDING;PRODUCT_P0-P3=0/2/2/0;QA=NOT_STARTED;PUSH/TAG/RELEASE=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -100,6 +100,15 @@
 - 本卡只表示合同冻结；实现、独立 QA、merge-prep、integration、运行时、产品与 Release 均未开始。
   当前 `P0-P3=0/2/2/0`、`NOOP=CAUSE_NOT_PROVEN / NOT_ASSESSED`、
   `PLAYER_CORE_MATRIX_RESULT=NOT_RUN`，K60 历史 `active item 1→3` 继续开放。
+- 2026-11-10 实现候选已从精确源 `005639a69679609661e3845344d3c6eec0e40f52` 收口为
+  `60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf`（branch `codex/v141-player-a-cluster-fix`，
+  clean）；A0 owner gate PASS，最终 7 路径均在冻结 8-path 并集内，生产文件数未增加。
+- fresh scoped review R1 发现并记录 `P1-SR-A01`（同 item/media source 的 URI /
+  `StartTimeTicks` 换源未隔离旧 session terminal/retry）；一次必要补丁已复用既有 seek
+  source identity 的 `sourceFingerprint`，RED/GREEN 与 A0 均 PASS。该 P1 尚待另一 fresh
+  read-only reviewer 复核，复核 PASS 前不得派 independent QA。
+- 当前不是 review / QA / 产品 / runtime / integration / Release PASS；证据见 `PLAYER_PLAN`
+  §52.13 与 `evidence-v1-4-1-player-a-cluster-implementation-2026-11-10`。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -892,7 +901,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=Pad A/B executed; remaining gaps: mpv natural EOS, mpv near-EOS retry, real network fault injection, release-internal playWhenReady/isPlaying, and full PC-01-PC-12 matrix. Implementation and independent QA are not started.
 - STOP_CONDITION=Require frozen state-effect matrix, independent QA after implementation, and bounded repair. No production write, metadata write, settings write, schema regression, or unbounded retry.
 - MANUAL_LIMITATION=Runtime A/B is complete but no implementation candidate exists yet. DirectPlay/Exo and HLS/mpv must remain separate; PLAYER_CORE_MATRIX_RESULT is NOT_RUN.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_IMPLEMENTATION_DELIVERY_LEAD_2026_11_09
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_IMPLEMENTATION_DELIVERY_LEAD_R2_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
