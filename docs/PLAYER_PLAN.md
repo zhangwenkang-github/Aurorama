@@ -5148,3 +5148,134 @@ GATEPLAN_PRODUCT_TESTS=NOT_EXECUTED
 路径未映射是当前 wrapper 的机械事实，不由本阶段修改工具绕过。实现派单前必须由交付负责人决定：
 在同一合同范围内修复 GatePlan 的 `player` 产品根映射并做一次受控重跑，或正式 `BLOCKED`；不得把
 `player/local/**` 伪写成 `FULL`。
+
+### 52.12 A 簇范围合同修复（2026-11-10）
+
+**状态**：`A_CLUSTER_IMPLEMENTATION_SCOPE_CONTRACT=FROZEN_REPAIRED / IMPLEMENTATION=NOT_STARTED`。
+本节取代 §52.11 初版中关于 20 秒动作、session 状态 owner、STALL/NOOP 并发 terminal、
+retry 位置与 RED 类型的旧文案；§52.11 正文及初版 evidence 原样保留为 manager FAIL 历史，
+不得删除或据旧文案派实现。当前权威状态×效果矩阵固定为：
+
+```text
+REPAIRED_MATRIX=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX_CORRECTION.md
+V140_APK_BUILD_SOURCE=005639a69679609661e3845344d3c6eec0e40f52
+V140_PRODUCT_TREE=19bcf30828969fcb5743f2f108c51ef8742ed146
+PRODUCT_FILES=5 / TEST_FILES=3
+P0-P3=0/2/2/0
+NOOP=CAUSE_NOT_PROVEN / NOT_ASSESSED
+PRODUCT_TEST_EXECUTION=NOT_RUN
+INDEPENDENT_QA=NOT_STARTED
+```
+
+#### 52.12.1 唯一 owner 与 lifecycle
+
+```text
+PAGE_SESSION_OWNER=PlayerViewModel
+PROGRESS_DEADLINE_OWNER=PlayerViewModel
+TERMINAL_LATCH_OWNER=PlayerViewModel
+PROGRESS_SESSION_GENERATION_OWNER=PlayerViewModel
+TERMINAL_RETRY_TOKEN_OWNER=PlayerViewModel
+MONITOR_SCOPE=PLAYER_VIEWMODEL_LIVE_PAGE_SESSION_INCLUDING_HOME
+MONITOR_AFTER_USER_EXIT=NONE
+PROCESS_SCOPED_POST_EXIT_MONITORING=OUT_OF_SLICE
+```
+
+- `PlayerViewModel` 在其存活期间是播放页 session 的唯一 owner，唯一持有本切片 progress
+  deadline、terminal latch、session generation 与 retry token。
+- 既有 `PlaybackSeekSink` / `SeekRequestCoordinator` 只保持既有 seek request
+  generation/source epoch/确认/失败/HLS 重开职责；不得另建 stall/noop deadline、第二
+  retry token 或推进新 terminal。
+- `PlaybackSessionRules.kt` 只能是纯规则、投影与 transition 计算，不持 timer、latch、
+  generation 或持久化；`PlayerControlOverlay.kt` 只渲染和发 intent，不得自持 stall timer
+  或 retry latch。
+- HOME 期间只要 ViewModel 仍存活，可继续采样并在回到播放页时显示恢复面。用户退出播放页
+  导致 ViewModel 清除后立即取消 timer/latch/token。退出后的 process-scoped 监控不属于本
+  切片，禁止修改 `CinefinPlaybackService.kt` 或创建第二 owner。
+
+#### 52.12.2 20 秒动作、进展与分类
+
+```text
+STALL_TIMEOUT_MS=20000
+STALL_TIMEOUT_ACTION=SHOW_RECOVERABLE_ACTION_ONLY
+AUTO_RETRY=NO
+RETRY_TRIGGER=USER_CLICK_ONLY
+ENGINE_MUTATION_AT_TIMEOUT=NO
+PLAYWHENREADY_MUTATION_AT_TIMEOUT=NO
+RECOVERY_SURFACE=VISIBLE_NON_MODAL_ACTION
+```
+
+阈值只对播放页 session 内 `playWhenReady=true`、当前 media item/source generation 有效、
+无真实 player error 且持续采样“无可证明进展”的窗口生效。暂停、用户退出、item/source
+变化或真实 error 清 timer。20 秒到达时不得 prepare、seek、play、pause、切源或重启引擎；
+只出现非模态可操作恢复面，用户点击后才可执行一次 retry。
+
+进展真源只有：
+
+1. 有效 engine position 相对上一有效采样发生变化；
+2. 有效 buffered position 相对上一有效采样发生变化；
+3. 可观察 state 从 buffering/loading 变为 playing/ready。
+
+seek target、持久位置、loading 动画和重复相同采样都不算进展。单次 invalid/unknown
+position 不等于自动失败；必须继续持续采样并结合当前可见状态。HOME 8–10 秒样本不得替代
+`20s boundary in background=NOT_RUN`。
+
+唯一优先级冻结为：
+
+```text
+EXPLICIT_PAUSE_INTENT > REAL_PLAYER_ERROR > SEEK_FAILED > PROGRESS_TIMEOUT_OR_PROGRESS_UNCONFIRMED > BUFFERING_OR_LOADING > READY
+```
+
+同一快照只产生一个 classification。deadline 命中时，最新状态明确为 buffering/loading
+则取 `PLAYBACK_PROGRESS_TIMEOUT`；否则取 `PROGRESS_UNCONFIRMED`。二者互斥，不得让 STALL
+与 NOOP 各推一次 terminal。NOOP 仍为 `CAUSE_NOT_PROVEN / NOT_ASSESSED`。
+
+#### 52.12.3 用户 retry 位置
+
+```text
+RETRY_POSITION_PRIORITY=CURRENT_VALID_ENGINE_POSITION > USER_EXPLICIT_SEEK_TARGET_AS_NEW_REQUEST > RECENT_PERSISTED_POSITION_FOR_CURRENT_ITEM > ZERO
+RETRY_POSITION_SOURCE_MUST_BE_VISIBLE=YES
+OLD_SEEK_TARGET_REUSED_AS_CONFIRMED_POSITION=PROHIBITED
+```
+
+| 优先级 | 来源 | 语义 |
+|---:|---|---|
+| 1 | `ENGINE_POSITION` | 当前有效 engine position |
+| 2 | `USER_SEEK_TARGET_NEW_REQUEST` | 用户明确目标，作为新的 seek request，不冒充旧确认 |
+| 3 | `PERSISTED_RESUME` | 当前 item/source 的最近持久位置 |
+| 4 | `START_ZERO` | 从头开始 |
+
+retry 只由用户点击触发，并标明来源；同一 terminal token 只消费一次，重复点击合并且不重复
+prepare/seek/play。generation 变化清旧 terminal 与 retry；暂停清 timer；恢复并出现有效进展
+后重新布防。
+
+#### 52.12.4 RED 与生产 wiring
+
+```text
+A-RED-SEEK-01/02=ASSERTION_RED_EXISTING_BEHAVIOR
+A-RED-PROGRESS-01_SOURCE_CHANGE=ASSERTION_RED_EXISTING_BEHAVIOR
+A-RED-PROGRESS-01_EOS_RULES=COMPILE_RED_FIRST_MISSING_TYPE
+A-RED-LOADING-01/STALL-01/NOOP-01/RETRY-01=COMPILE_RED_FIRST_MISSING_TYPE
+NEW_RULES_AFTER_MINIMAL_TYPE_SHELL=ASSERTION_RED_REQUIRED
+PRODUCTION_WIRING_AUDIT=REQUIRED_IN_IMPLEMENTATION_REPORT
+FAKE_PLAYER_AS_HLS_MPV_PROTOCOL_PROOF=PROHIBITED
+```
+
+新 `PlaybackSessionRules.kt` 不存在时的首跑只能记 compile RED；建立最小类型壳后必须取得
+规定 assertion RED，再写逻辑。实现报告必须审计 rules/projection 被 `PlayerViewModel`
+与 `PlayerControlOverlay` 实际消费；只有 rules 单测通过不能证明生产链路。
+
+测试至少冻结以下不变量：同快照只产生一个 classification；暂停取消 timer；generation
+改变清旧 terminal/retry；重复点击只消费一次；NOOP 只标 `PROGRESS_UNCONFIRMED` 且不声称
+根因；三种有效进展复位 deadline；invalid/unknown 不立即失败；retry 位置来源和优先级
+可见；只有真实 END reason 推进既有 EOS。
+
+#### 52.12.5 GatePlan
+
+`productModuleRoots` 以顶层 `player` 修复 7 个 `player/local/**` 路径，不逐路径特判。
+`players/**`、`player-extra/**` 必须继续 `WORKFLOW_GATE_PATH_UNMAPPED`；player 产品路径
+缺 `-StateEffectMatrixPath` 必须 `WORKFLOW_STATE_EFFECT_MATRIX_MISSING`。
+
+后续实现只允许将上述 7 个 player 路径加 `PlayerControlOverlay.kt` 作为一次 8-path
+组合调用 GatePlan，并传本节权威矩阵绝对路径。期望 `GATE_LANE=FULL /
+STATE_EFFECT_MATRIX=PASS / 8 GATE_PATH / 0 UNMAPPED / 3 FULL commands`。GatePlan PASS
+只证明派单映射和矩阵结构，不证明产品测试、实现、QA、集成、runtime 或 Release。

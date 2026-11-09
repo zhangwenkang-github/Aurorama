@@ -961,6 +961,78 @@ RESTART_RECOVERY=restart recovery is observable
     }
 }
 
+Invoke-FixtureTest -Name 'GatePlan maps exact player paths to FULL and keeps adjacent roots unmapped' -Body {
+    $fixture = New-Fixture
+    try {
+        $fixture = Install-GatePlanEntrypoints -Fixture $fixture
+        $matrix = Join-Path $fixture.Parent 'state-effect-matrix-player.txt'
+        $matrixText = @"
+SUCCESS=success is observable
+EMPTY_RESULT=empty result is observable
+PERMISSION=permission denial is observable
+TIMEOUT_ERROR=timeout and exception are observable
+CANCEL=cancel restores the prior state
+RETRY_DUPLICATE=retry is idempotent
+RESTART_RECOVERY=restart recovery is observable
+"@
+        Write-Utf8File -Path $matrix -Text $matrixText
+        $playerPaths = @(
+            'player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/SeekStateReducer.kt'
+            'player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/SeekRequestCoordinator.kt'
+            'player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRules.kt'
+            'player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt'
+            'player/local/src/test/java/com/zhangwenkang/cinefin/player/local/domain/SeekStateReducerTest.kt'
+            'player/local/src/test/java/com/zhangwenkang/cinefin/player/local/domain/SeekRequestCoordinatorTest.kt'
+            'player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt'
+            'app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt'
+        )
+        $result = Invoke-Workflow -Arguments @(
+            '-Mode', 'GatePlan',
+            '-RepoRoot', $fixture.Root,
+            '-ChangedPath', ($playerPaths -join '||'),
+            '-StateEffectMatrixPath', $matrix
+        )
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-Contains -Result $result -Token 'GATE_LANE=FULL'
+        Assert-Contains -Result $result -Token "STATE_EFFECT_MATRIX=PASS:$matrix"
+        foreach ($path in $playerPaths) {
+            Assert-Contains -Result $result -Token "GATE_PATH=$path"
+        }
+        $gatePathCount =
+            @($result.Raw -split "\r?\n" | Where-Object { $_ -like 'GATE_PATH=*' }).Count
+        $fullCommandCount =
+            @($result.Raw -split "\r?\n" | Where-Object { $_ -like 'GATE_COMMAND=FULL:*' }).Count
+        Assert-True -Condition ($gatePathCount -eq 8) -Message $result.Raw
+        Assert-True -Condition ($fullCommandCount -eq 3) -Message $result.Raw
+        Assert-True -Condition (-not $result.Raw.Contains('WORKFLOW_GATE_PATH_UNMAPPED')) -Message $result.Raw
+        Assert-GateCommandFileTargets -Result $result
+
+        $missingMatrixResult = Invoke-Workflow -Arguments @(
+            '-Mode', 'GatePlan',
+            '-RepoRoot', $fixture.Root,
+            '-ChangedPath', $playerPaths[0]
+        )
+        Assert-ExitCode -Result $missingMatrixResult -Expected 2
+        Assert-Contains -Result $missingMatrixResult -Token 'FAIL:WORKFLOW_STATE_EFFECT_MATRIX_MISSING:'
+
+        foreach ($nearMiss in @(
+            'players/src/main/kotlin/Unknown.kt'
+            'player-extra/src/main/kotlin/Unknown.kt'
+        )) {
+            $nearMissResult = Invoke-Workflow -Arguments @(
+                '-Mode', 'GatePlan',
+                '-RepoRoot', $fixture.Root,
+                '-ChangedPath', $nearMiss
+            )
+            Assert-ExitCode -Result $nearMissResult -Expected 2
+            Assert-Contains -Result $nearMissResult -Token "FAIL:WORKFLOW_GATE_PATH_UNMAPPED:$nearMiss"
+        }
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
 Invoke-FixtureTest -Name 'GatePlan maps W1B adjacent modules without broad prefix aliases' -Body {
     $fixture = New-Fixture
     try {

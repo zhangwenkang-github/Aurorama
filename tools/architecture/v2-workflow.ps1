@@ -544,6 +544,7 @@ function Invoke-GatePlan {
         'setup'
         'settings'
         'modes'
+        'player'
         'build-logic'
         'gradle'
     )

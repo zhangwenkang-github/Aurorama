@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=HANDOFF_TO_A_CLUSTER_IMPLEMENTATION_DELIVERY_LEAD / PAD_AB_COMPLETE / USER_AUTHORIZED_AUTONOMOUS_CONTINUATION
+- TASK_STAGE=SCOPE_AND_GATE_REPAIR_COMPLETE / FRESH_READ_ONLY_REVIEW_REQUIRED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -18,7 +18,7 @@
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pad-upgrade-ab-r2-2026-11-09\PAD_UPGRADE_AB_R2_TRIAGE_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\REPAIR_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
 - STOP_CONDITION=Preserve production read-only, metadata immutability, system settings, and schema safety. Use fresh one-stage agents and bounded repair budgets. Stop only for data/security safety, object drift, unknown P0/P1, or an unavoidable external identity/service gate; do not wait for routine user approvals.
 - SCOPE=1.4.1_PLAYER_STABILITY / A_CLUSTER_AB_COMPLETE / DIRECTPLAY_EXO_VS_HLS_MPV_SPLIT / bug families B catalog-scope C subtitle-pipeline D music-runtime / media paging deferred / implementation not started
@@ -45,8 +45,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09\INDEPENDENT_QA_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\PRE_HANDOFF_AUDIT_R3_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=SUCCESSOR_STARTUP_THEN_FRESH_A_CLUSTER_IMPLEMENTATION_FROM_EXACT_V140_SOURCE
-- last_evidence=PAD_AB_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pad-upgrade-ab-r2-2026-11-09\PAD_UPGRADE_AB_R2_TRIAGE_REPORT.md;REPORT_SHA256=871FDE32D6B9722892ADC274B7FA349E85C0447235B7A5D8D67311648F0A75AA;MANIFEST_SHA256=82052EAE38615F08A3AFDD139543FE7729348DEF933578DCDBE97519AC7DF2D9;P0-P3=0/2/2/0;NOOP=CAUSE_NOT_PROVEN;DIRECTPLAY_EXO_NOT_REPRODUCED_ON_PAD;HLS_MPV_P1_P2_OPEN;FINAL_V140=YES;IMPLEMENTATION=NO;PUSH/TAG/RELEASE=NO
+- NEXT_CRITICAL_PATH=FRESH_READ_ONLY_A_CLUSTER_SCOPE_GATE_REPAIR_REVIEW_THEN_IMPLEMENTATION_DISPATCH
+- last_evidence=REPAIR_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\REPAIR_REPORT.md;REPAIRED_MATRIX=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX_CORRECTION.md;MAPPING_TEST=12_PASS_0_FAIL;GATEPLAN_8_PATH=FULL_MATRIX_PASS_0_UNMAPPED;P0-P3=0/2/2/0;IMPLEMENTATION=NO;QA=NOT_STARTED;PRODUCT_PASS=NO;PUSH/TAG/RELEASE=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -78,19 +78,25 @@
   只读 runtime triage owner，在可写测试环境完成 A 簇真实复现和 v1.3.0/v1.4.0 A/B，
   之后才决定实现范围；不得直接把静态结论写成已复现或已修复。
 
-### FROZEN — 2026-11-09 A 簇实现范围合同
+### FROZEN — 2026-11-10 A 簇实现范围合同（repair authoritative；含 2026-11-09 初版历史）
 
 - 稳定需求：`V1.4.0-PLAYER-STABILITY-CONTAINMENT`；v1.4 产品等价源固定为
   `005639a69679609661e3845344d3c6eec0e40f52`，product tree 固定为
   `19bcf30828969fcb5743f2f108c51ef8742ed146`；v1.4 tag commit 固定为
   `7b69e531fa0536379d66a5203736fd5ac43a5568`。
-- 合同：`docs/PLAYER_PLAN.md` §52.11；状态×效果矩阵：
+- 初版合同与 manager FAIL 历史仍为 `docs/PLAYER_PLAN.md` §52.11；初版状态×效果矩阵原样保留：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-scope-contract-2026-11-09\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX.md`。
-- 只允许 5 个产品 / 3 个测试路径，逐项原因、禁止项、RED / GREEN、时间盒和停止条件只读 §52.11。
+- 当前权威合同为 `docs/PLAYER_PLAN.md` §52.12；当前权威 correction matrix：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX_CORRECTION.md`。
+- 只允许 5 个产品 / 3 个测试路径，逐项原因、禁止项、RED / GREEN、时间盒和停止条件只读 §52.12。
   实现必须从精确 v1.4 产品源建立独立稳定性工作面，不得以 canonical / W1C 后续代码作为产品源。
-- GatePlan 矩阵机械校验已 PASS；`app/phone/.../PlayerControlOverlay.kt` 为 `FULL`，但 7 个
-  `player/local/**` 路径均因 wrapper `productModuleRoots` 未包含 `player` 返回
-  `WORKFLOW_GATE_PATH_UNMAPPED`。在该映射门由负责人在合同内修正并受控重跑前，实现派单 BLOCKED。
+- §52.12 取代 §52.11 的 20 秒动作、session owner、STALL/NOOP 并发 terminal、retry 位置与
+  RED 类型旧文案：`PlayerViewModel` 为播放页 session 唯一 owner；20 秒只显示非模态恢复面，
+  `AUTO_RETRY=NO`；用户点击才 retry，位置按 engine > 新 seek request > persisted > 0；
+  同一快照只取一个 classification；退出后的 process-scoped 监控明确 `OUT_OF_SLICE`。
+- GatePlan repair 只把顶层 `player` 加入既有 `productModuleRoots`，不扩产品 lane 或第二映射
+  协议。mapping fixture 覆盖 7 个 `player/local/**` + `PlayerControlOverlay.kt` 一次 8-path
+  组合、`players/**` / `player-extra/**` near-miss 与 player 产品路径缺矩阵负例。
 - 本卡只表示合同冻结；实现、独立 QA、merge-prep、integration、运行时、产品与 Release 均未开始。
   当前 `P0-P3=0/2/2/0`、`NOOP=CAUSE_NOT_PROVEN / NOT_ASSESSED`、
   `PLAYER_CORE_MATRIX_RESULT=NOT_RUN`，K60 历史 `active item 1→3` 继续开放。
@@ -368,12 +374,14 @@ PUSH=NO / TAG=NO / RELEASE=NO
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=230d51934c449ef66687f70e548050d9ddf8b11f
-- REQUIRED_ANCESTOR=230d51934c449ef66687f70e548050d9ddf8b11f
+- BASE_HEAD=2f0b3274209aa33e999565534dbf8375d57d0a11
+- REQUIRED_ANCESTOR=2f0b3274209aa33e999565534dbf8375d57d0a11
 - FAILED_CANDIDATE=NONE
-- MAX_CHANGED_PATHS=2
+- MAX_CHANGED_PATHS=4
 - ALLOWED_PATH=docs/TASKS.md
 - ALLOWED_PATH=docs/PLAYER_PLAN.md
+- ALLOWED_PATH=tools/architecture/v2-workflow.ps1
+- ALLOWED_PATH=tools/architecture/v2-workflow.tests.ps1
 <!-- V2_HANDOFF_OBJECT_END -->
 
 ### HISTORY — W1B-1B product merge-prep PASS / local ff-only integrated（2026-11-08）
