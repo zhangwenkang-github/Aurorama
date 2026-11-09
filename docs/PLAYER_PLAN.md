@@ -5475,3 +5475,41 @@ QA owner 已停止 App、删除 39 个被判为 secret-bearing 的原始证据�
 按停止条件未实现 harness、未启动 ADB、未写产品，只留下停机报告。后继 owner 必须同时检查
 Snapshot 与 `git status --porcelain`，并以后者是否有输出判定工作树 dirty；不得只凭
 `CHANGED_PATH` 停机。
+
+### 52.16 QA sanitized logging harness R2 PASS（2026-11-10）
+
+**状态**：`QA_LOGGING_REDACTION_HARNESS_REPAIR_R2=PASS / DEVICE_USED=NO /`
+`INDEPENDENT_QA_R3=PENDING`。
+
+全新 R2 owner 在 canonical `5604c167a682773d38c4df54c07349e3c08e4d4e` 上以
+`git status --porcelain=0` 确认 clean，且未把 Snapshot 的 4 个 HANDOFF_OBJECT base-diff 路径
+误判为 dirty。候选仍为 `60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf` / tree
+`0fca8a6cf425261e9109be49846aaa981048bba0`，APK SHA
+`30241F412EC305E7ACD2BE71CA3E0AB2CD650E3444B0351E89967899FA362B68`。
+
+离线 harness 实际交付 `Redact-LogLine`、逐行内存脱敏的
+`Invoke-SanitizedLogcat.ps1`、fixture 与总运行器。最终 fixture `26/26 PASS`，覆盖正常
+Exo/mpv 字段保留、HLS MIME/demuxer、query/userinfo/fragment、JSON credential、
+Authorization/Bearer/Cookie、畸形 URL、大小写、多 key、超长行和规则异常 fail closed。
+测试 stdout/stderr、audit、sanitized output 与非-fixture evidence 的合成 secret 泄漏均为 0。
+
+```text
+QA_LOGGING_REDACTION_HARNESS_REPAIR_STATUS=PASS
+TOOL_STREAM_SECRET_LEAK_IN_FIXTURE=NO
+DEVICE_USED=NO
+MANIFEST=23/23 MATCH
+P0-P3=0/0/0/0/harness-only
+```
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-qa-logging-redaction-harness-repair-r2-2026-11-10\QA_LOGGING_REDACTION_HARNESS_REPAIR_REPORT.md`
+  （SHA-256 `378CF1E238E534BDED5516890CA40E804B209349A0022124C835A10017B538F4`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `E38B7E4CFAE09C8FA51932D8185F6ECF7E477BBB96C3F36248A396FE8ACA5308`）
+- `...\tools\Invoke-SanitizedLogcat.ps1`
+- `...\results\fixture-run-summary.json`
+
+后续 fresh independent QA R3 必须固定 candidate/APK/serial/evidence root，并且只通过该 wrapper
+采集日志；不得直接使用裸 `adb logcat`，不得把 raw stdout 导入终端、evidence 或聊天。harness
+PASS 不证明产品、runtime、merge-prep、integration 或 Release。
