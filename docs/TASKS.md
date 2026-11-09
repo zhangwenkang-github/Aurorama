@@ -5,28 +5,28 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V2-W1C-1-CATALOG-READERS-IMPLEMENTATION-2026-11-09
+### ACTIVE — V2-W1C-1-QA-DELIVERY-HANDOFF-2026-11-09
 
-- TASK_ID=V2-W1C-1-CATALOG-READERS-IMPLEMENTATION-2026-11-09
-- TASK_STAGE=W1C_1_INDEPENDENT_QA_AUTHORIZED / QA_READY
+- TASK_ID=V2-W1C-1-QA-DELIVERY-HANDOFF-2026-11-09
+- TASK_STAGE=W1C_1_QA_DELIVERY_HANDOFF_READY / INDEPENDENT_QA_NOT_STARTED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=docs/TASKS.md W1C-1 QA matrix + implementation report > frozen state-effect matrix > exact candidate source/tests > AGENTS.md / PROJECT_RULES / LESSONS L038-L043
-- NEXT_ROLE=AURORAMA_V2_W1C_1_CATALOG_READERS_INDEPENDENT_QA_OWNER_2026_11_09
+- READ_ORDER=AGENTS.md “交接”语义 + R028/R041 > docs/TASKS.md QA handoff > QA dispatch prompt > exact candidate > QA_READY matrix > PROJECT_RULES / LESSONS
+- NEXT_ROLE=AURORAMA_V2_W1C_1_QA_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-2026-11-09\IMPLEMENTATION_REPORT.md
-- STOP_CONDITION=Fresh independent QA must stay read-only in a detached worktree at final candidate 9757492ef5f2adfa95814566f80a360b7dd5eff3, rerun the QA matrix and report P0-P3. Do not modify candidate, merge, integration, push, tag, Release, use devices/network or start merge-prep. Stop on candidate/clean/path/matrix drift, new P0-P2 or scope expansion.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\DELIVERY_LEAD_DISPATCH_PROMPT.md
+- STOP_CONDITION=Create only the successor W1C-1 QA delivery lead session under the Aurorama project and verify it is not Pinned. The successor lead must first run QaReady + Snapshot, then dispatch a fresh QA subagent; the lead must not perform QA itself. Do not start merge-prep or integration. Stop on object/candidate/scope drift, new P0-P2, device/network/Release, or another direct executor handoff.
 - SCOPE=W1C_1_HOME_VIDEO_AGGREGATE_MOVIE_DETAIL_SCOPE_FROZEN
-- AUTHORIZATION=USER_CONTINUE_2026_11_09_W1C_1_INDEPENDENT_QA
-- IMPLEMENTATION_AUTHORIZED=NO / IMPLEMENTATION_CANDIDATE_FIXED
+- AUTHORIZATION=USER_CONTINUE_2026_11_09_W1C_1_QA_DELIVERY_HANDOFF
+- IMPLEMENTATION_AUTHORIZED=NO / CANDIDATE_FIXED
 - DEVICE_ACCESS=NOT_USED / LOCKS_HELD=NONE / NETWORK=NOT_USED / PUSH=NO / TAG=NO / RELEASE=NO
-- FRESH_INDEPENDENT_QA_REQUIRED=YES_NOW / MERGE_PREP_READY=NO / INTEGRATED=NO
+- FRESH_INDEPENDENT_QA_REQUIRED=YES_VIA_SUCCESSOR_LEAD / MERGE_PREP_READY=NO / INTEGRATED=NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=514601 / 1048576 / 49.1% / ACTIVE_HANDOFF_TO_FRESH_QA_2026_11_09 / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
+- CONTEXT_AT_CLOSE=514601+ / 1048576 / >49% / LEAD_HANDOFF_REQUIRED_2026_11_09 / NO_COMPACTION / DEVICE_NOT_USED / NETWORK_NOT_USED
 - P0=0
 - P1=P1-W1B1B-04:CLOSED_BY_QA_R4;P1-MERGE-PREP-NETWORK-BOUNDARY:ACCEPTED_BY_USER_2026_11_08;P1-W1B1C-01:CLOSED_BY_MANAGER_OBJECT_CARD_DEDUP
 - P2=P2-W1B1B-05:CLOSED_BY_QA_R4;P2-W1B1B-06:CLOSED_BY_QA_R4_COMPOSITE;P2-GATEPLAN-QA-READY-COMMAND:CLOSED_BY_QA_R2
@@ -38,9 +38,10 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\MANAGER_HANDOFF_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\QA_HANDOFF_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\INDEPENDENT_QA_DISPATCH_PROMPT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-handoff-2026-11-09\DELIVERY_LEAD_DISPATCH_PROMPT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_W1C_1_INDEPENDENT_QA
-- last_evidence=W1C_1_INDEPENDENT_QA_AUTHORIZED; FINAL=9757492ef5f2adfa95814566f80a360b7dd5eff3; CODE=336297568bd5b6014e309889887a8a7b41216e25; REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-2026-11-09\IMPLEMENTATION_REPORT.md
+- NEXT_CRITICAL_PATH=FRESH_W1C_1_QA_DELIVERY_LEAD_THEN_QA_SUBAGENT
+- last_evidence=W1C_1_QA_DELIVERY_HANDOFF_READY; FINAL=9757492ef5f2adfa95814566f80a360b7dd5eff3; QA_READY_LINT=PASS; HANDOFF_PROMPT=DELIVERY_LEAD_DISPATCH_PROMPT.md
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 W1C-1 implementation candidate ready
@@ -62,6 +63,9 @@
   错算进当前 handoff；manager 已将 HANDOFF_OBJECT base 收敛到
   `28b40704453bf59fce05970e07dfbb6e71512051`，MAX_CHANGED_PATHS 收敛为 1，当前唯一
   allowed path 为 `docs/TASKS.md`。旧 audit PASS/FAIL 不再作为派单输入。
+- 用户随后纠正“交接”语义：误建的直接 QA-owner 会话已归档，且已取消错误 Pinned 展示；
+  正确后继必须是 W1C-1 QA 交付负责人，由该负责人开工后再派 fresh QA 子代理。新规则已写入
+  `AGENTS.md` R041 与 Engramory handoff feedback。
 - 证据根：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-2026-11-09`；
   实现报告 SHA-256
@@ -185,10 +189,12 @@
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=28b40704453bf59fce05970e07dfbb6e71512051
-- REQUIRED_ANCESTOR=28b40704453bf59fce05970e07dfbb6e71512051
+- BASE_HEAD=5f4a4a4c390c6f600a5583de07f2936676a9aca9
+- REQUIRED_ANCESTOR=5f4a4a4c390c6f600a5583de07f2936676a9aca9
 - FAILED_CANDIDATE=NONE
-- MAX_CHANGED_PATHS=1
+- MAX_CHANGED_PATHS=3
+- ALLOWED_PATH=AGENTS.md
+- ALLOWED_PATH=docs/PROJECT_RULES.md
 - ALLOWED_PATH=docs/TASKS.md
 <!-- V2_HANDOFF_OBJECT_END -->
 
@@ -698,9 +704,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=YES
 - UNCOVERED=W1C-1 independent QA has not started. merge-prep, integration, runtime, device/network, parent seam, product and Release remain unassessed.
-- STOP_CONDITION=Fresh QA must stay read-only in a detached worktree at final candidate 9757492ef5f2adfa95814566f80a360b7dd5eff3. Stop on candidate/clean/path/matrix drift, new P0-P2, attempts to modify candidate, merge/integration, device/network or Release.
-- MANUAL_LIMITATION=Independent QA may prove only the frozen W1C-1 candidate scope; implementation self-check and manager review are prior evidence, not QA substitutes.
-- MANUAL_OWNER=AURORAMA_V2_W1C_1_CATALOG_READERS_INDEPENDENT_QA_OWNER_2026_11_09
+- STOP_CONDITION=Successor lead must run QaReady and Snapshot, then create a distinct fresh independent QA subagent. Incorrect direct QA-owner session was archived and unpinned. No merge/integration/device/network.
+- MANUAL_LIMITATION=This QA_READY matrix authorizes the successor lead to dispatch QA; it does not authorize the current lead or successor lead to perform QA directly.
+- MANUAL_OWNER=AURORAMA_V2_W1C_1_QA_DELIVERY_LEAD_2026_11_09
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

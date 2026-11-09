@@ -22,6 +22,13 @@
   Architecture Critical Path → `docs/LESSONS.md` L028、L038、L039、L042 → 本次任务卡。
   `PROJECT_PLAN.md`、`V2_PLAN.md`、`ARCHITECTURE.md` 只读稳定决策、里程碑和历史；其中现存的
   current-looking 顶部状态在获授权 docs cleanup 前一律视为 `HISTORICAL`，不得作为派单事实源。
+- **“交接”的固定语义（2026-11-09 用户纠偏，强制）**：用户说“交接”一律指按 R028 / R036 / R037
+  交接**负责人自己的工作**：收口当前负责人波次、写回唯一 ACTIVE / 证据 / 未覆盖 / 下一步，提交
+  clean，完成记忆与 fresh pre-handoff audit，然后创建后继**负责人会话**。不得把“交接”解释成
+  派发子代理、转交子代理任务或创建一个直接执行下游 QA / 实现的新会话；子代理派发是后继负责人
+  开工后的独立动作。创建后继会话必须使用本项目 `projectId`，创建后复核
+  `list_threads`：`projectId` 正确且 `pinnedThreads` 不包含该会话；若被自动 pin，先取消 pin
+  再报告交接完成。不得把 Pinned 视同项目分组。
 - **交接机械门（提交 docs checkpoint 内容后、新会话或交接前）**：唯一 ACTIVE 的内容检查可以先在
   working tree 运行；它若仅因尚未提交而报 `WORKTREE_DIRTY`，该次结果不是交接 PASS。提交 docs
   checkpoint 后，由 manager 在提交外部 pin HEAD，再运行：
