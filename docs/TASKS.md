@@ -58,6 +58,10 @@
   runtime、设备、网络、父 seam、产品与 Release 均未执行。
 - 用户随后通知继续，并为控制上下文要求正式交接；W1C-1 已推进到 fresh independent QA，
   但 QA 尚未启动，merge / integration 仍不得执行。
+- QA pre-handoff audit 曾以 `5c49e01f...` 为 base，把更早的 `docs/ARCHITECTURE.md`
+  错算进当前 handoff；manager 已将 HANDOFF_OBJECT base 收敛到
+  `28b40704453bf59fce05970e07dfbb6e71512051`，MAX_CHANGED_PATHS 收敛为 1，当前唯一
+  allowed path 为 `docs/TASKS.md`。旧 audit PASS/FAIL 不再作为派单输入。
 - 证据根：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v2-w1c-1-catalog-readers-implementation-2026-11-09`；
   实现报告 SHA-256
@@ -181,12 +185,11 @@
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6
-- REQUIRED_ANCESTOR=5c49e01f823f7b0d0db3f5fd05dc6b737aabdee6
+- BASE_HEAD=28b40704453bf59fce05970e07dfbb6e71512051
+- REQUIRED_ANCESTOR=28b40704453bf59fce05970e07dfbb6e71512051
 - FAILED_CANDIDATE=NONE
-- MAX_CHANGED_PATHS=2
+- MAX_CHANGED_PATHS=1
 - ALLOWED_PATH=docs/TASKS.md
-- ALLOWED_PATH=docs/ARCHITECTURE.md
 <!-- V2_HANDOFF_OBJECT_END -->
 
 ### HISTORY — W1B-1B product merge-prep PASS / local ff-only integrated（2026-11-08）
