@@ -7224,8 +7224,8 @@ targeted/player-local/phone/assemble/KTFMT/A0/GatePlan。Review 必须由不同 
 
 ### 52.51 Progress source-identity / retry-priority R7 任务卡（2026-11-11）
 
-**状态**：`R7_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
-`R6_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+**状态**：`R7_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R8_REQUIRED /`
+`QA_READY=NO`。
 
 R7 从 R6 candidate `caa92a239297625c02cbb335b15aa334f4e7beae` / tree
 `4405f62042f2196c351f410da36288d9ee675562` 隔离建立，保留 R6 已通过的
@@ -7240,6 +7240,14 @@ assertion-only；GREEN 为 targeted `3 suites / 52`、player-local `42 suites / 
 phone `62 suites / 412`，assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为
 `15508/15512`、headroom 4。负责人已核验 report/manifest/RED 哈希、关键 diff 与对象边界，
 并派出不同 fresh R7 scoped reviewer；review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
+
+**进度（2026-11-11，R7 scoped review FAIL）**：fresh reviewer 独立复核对象、RED、GREEN、
+A0、GatePlan、command fail-closed、PLAYING fixture 与 R6 回归均 PASS。唯一阻断是
+START_FILE ownership FIFO 假设每个旧 token 都有事件：若旧 ownership 从未收到事件，新 source
+首个真实 START_FILE 会先弹出旧 token，自己的快照不发布并继续滞留；当前测试只覆盖“旧事件
+先到”。Review SHA-256
+`5D2223299B7CD6037843E91D6B6116AAE0DF0FE23FE59B2C260D99B56BD7741A`，
+manifest `D12C2169EA2119C7BEC9CC9E7740B1BD9096E5ABDE1599DD42A492073F7223E6`。
 
 1. **P2 START_FILE source/command ownership**
    - START_FILE 初始化命令必须在 source/command ownership 建立时绑定显式 token，不得在 native
@@ -7283,3 +7291,45 @@ release，以及设备/ADB/截图/生产写。实现 owner 必须先在既有 te
 RED，并保留原始 XML/stdout/stderr/exit；随后做最小实现并运行规定门禁。Review 必须由与 R7
 implementation owner 不同的 fresh reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，
 K60 仍禁止。任何 R7 review FAIL 自动另立 R8，不得在 R7 内继续补丁。
+
+### 52.52 Progress source-identity / retry-priority R8 任务卡（2026-11-11）
+
+**状态**：`R8_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+`R7_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+
+R8 从 R7 candidate `49eeb76dcc5541b1d97b4793205e50e489ff0a9d` / tree
+`207d11471b6f8474d2416d1b4ce6e40801f97b19` 隔离建立，保留 command fail-closed、
+真实 PLAYING fixture、same-identity preserve、合法 batch/range 顺序与 property epoch gate。
+唯一冻结目标是 `P2-R6-START-FILE-TOKEN-NOT-SOURCE-BOUND-01` 的可恢复 ownership：
+
+1. 同一条 START_FILE 归属必须同时满足两个反例：
+   - 旧 source 的 event 在 mutation 后才到达：只能处理旧 ownership 并 fail closed，绝不发布
+     新 source 快照。
+   - 旧 ownership 永远没有 event，而新 source 的首个真实 START_FILE 先到：必须最终发布当前
+     source 快照一次，不得只弹出旧 token 后继续滞留或等待一个合同不保证的额外事件。
+2. ownership 必须携带足够状态表达“待确认旧事件 / 当前 source 快照 / stale”。若 native event
+   本身仍无法唯一归属，必须选择可恢复的 fail-closed 路径：丢弃歧义快照并重新绑定/重放当前
+   source 初始化，不得猜测后静默错配，也不得死锁。
+3. 连续多次 replacement、多个 stale owner、ownership 为空、claim 后 handler 前再次 mutation、
+   当前 source 只出现一个真实 START_FILE 都必须有确定结果；当前 source 初始化最多发布一次，
+   不允许重复 sub-add / 重复初始化。
+4. 在既有 test path 增加 production 入口断言，至少覆盖 reviewer 的精确反例
+   `owners=[E1,E2], current=E2, initialCommands=B, first actual START_FILE belongs to B`，
+   以及“旧事件先到”原反例。RED 必须在 R7 base 上实际失败，并在 R8 实现后 GREEN。
+
+允许五路径与 R7 相同：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、Service、schema/settings/metadata、A0 baseline/version/signing/
+release，以及设备/ADB/截图/生产写。必须保留 R8 正式 RED XML/stdout/stderr/exit、GREEN
+targeted/player-local/phone/assemble/KTFMT/A0/GatePlan、reproducible assemble transcript 与
+manifest；A0 baseline `15,512`，当前 headroom `4`。Review 必须由与 R8 implementation owner
+不同的 fresh reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。
+任何 R8 review FAIL 自动另立 R9，不得在 R8 内继续补丁。
