@@ -872,7 +872,7 @@ class PlayerActivity : BasePlayerActivity() {
         val session = viewModel.uiState.value.playbackSession
         return PlayerViewModel.confirmedPosition(viewModel.player)
             ?: session.lastConfirmedPositionMs?.takeIf { viewModel.player !is MPVPlayer }
-            ?: C.TIME_UNSET
+            ?: androidx.media3.common.C.TIME_UNSET
     }
 
     private fun switchBackendAndRestart(target: String) {
