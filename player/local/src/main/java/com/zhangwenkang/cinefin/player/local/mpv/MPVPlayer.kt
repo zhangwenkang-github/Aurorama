@@ -141,6 +141,7 @@ class MPVPlayer(
     private var audioFocusCallback: () -> Unit = {}
     private lateinit var audioFocusRequest: AudioFocusRequestCompat
     private val handler: Handler = Handler(context.mainLooper)
+    private var eventPoster: (Runnable) -> Unit = handler::post
 
     /** 同步 `loadfile` 等命令必须串行留在专用线程，避免主线程 ANR；libmpv 保证提交顺序。 */
     private val commandThread: HandlerThread = HandlerThread("mpv-command").apply { start() }
@@ -427,7 +428,11 @@ class MPVPlayer(
     private var preparePreservedSourceOnPrepare = false
     private var currentDurationMs: Long? = null
     private var initialCommands = mutableListOf<Array<String>>()
-    private val initialCommandOwners = ArrayDeque<Long>()
+    private val initialCommandOwners = ArrayDeque<Pair<Long, String>>()
+    private var initialCommandRecoveryEpoch: Long? = null
+    private var initialCommandSourceUri: () -> String? = {
+        runCatching { mpvLib.getPropertyString("path") }.getOrNull()
+    }
     private var initialIndex: Int = 0
     private var initialSeekTo: Long = 0L
     private var oldMediaItem: MediaItem? = null
@@ -607,15 +612,22 @@ class MPVPlayer(
     }
 
     override fun event(eventId: Int) {
-        val claim = if (eventId == MpvEvent.MPV_EVENT_START_FILE) takeInitialCommands() else null
+        val claim =
+            if (eventId == MpvEvent.MPV_EVENT_START_FILE) {
+                takeInitialCommands(initialCommandSourceUri())
+            } else null
         val epoch = claim?.first ?: sourceEpoch.get()
         val initialCommands = claim?.second
-        handler.post {
+        eventPoster post@{
             // release 之后主线程队列里可能还排着事件回调：此时 mpv 可能正在销毁，必须短路
             if (released || epoch != sourceEpoch.get()) return@post
             when (eventId) {
                 MpvEvent.MPV_EVENT_START_FILE ->
-                    if (!isPlayerReady) initialCommands?.forEach { postCommand(it) }
+                    if (claim != null && initialCommands == null) {
+                        replayInitialCommands(epoch)
+                    } else if (!isPlayerReady) {
+                        initialCommands?.forEach { postCommand(it) }
+                    }
                 MpvEvent.MPV_EVENT_FILE_LOADED -> {
                     isSeekable = mpvLib.getPropertyBoolean("seekable") == true
                     // 新文件已经解析成功：旧文件的 END_FILE 预算作废（避免吞掉之后的真实失败）
@@ -689,22 +701,53 @@ class MPVPlayer(
         }
     }
 
-    private fun takeInitialCommands(): Pair<Long, List<Array<String>>?>? =
+    private fun takeInitialCommands(sourceUri: String?): Pair<Long, List<Array<String>>?>? =
         synchronized(initialCommands) {
-            val ownerEpoch = initialCommandOwners.removeFirstOrNull() ?: return null
-            val commands =
-                if (ownerEpoch == sourceEpoch.get()) {
-                    initialCommands.map { it.copyOf() }.also { initialCommands.clear() }
-                } else null
-            ownerEpoch to commands
+            if (initialCommandOwners.isEmpty()) return@synchronized null
+            val currentEpoch = sourceEpoch.get()
+            val ownerIndex = initialCommandOwners.indexOfFirst { it.second == sourceUri }
+            if (ownerIndex < 0) {
+                initialCommandOwners.removeAll { it.first != currentEpoch }
+                if (initialCommandOwners.isEmpty()) return@synchronized null
+                return@synchronized currentEpoch to null
+            }
+            val ownerEpoch = initialCommandOwners.removeAt(ownerIndex).first
+            if (ownerEpoch != currentEpoch) return@synchronized ownerEpoch to null
+            initialCommandOwners.removeAll { it.first != currentEpoch }
+            initialCommandRecoveryEpoch = null
+            ownerEpoch to initialCommands.map { it.copyOf() }.also { initialCommands.clear() }
         }
 
-    private fun replaceInitialCommands(commands: List<Array<String>>) {
+    private fun replayInitialCommands(epoch: Long) {
+        synchronized(initialCommands) {
+            if (
+                epoch != sourceEpoch.get() ||
+                    initialCommandRecoveryEpoch == epoch ||
+                    initialCommandOwners.none { it.first == epoch }
+            ) {
+                return
+            }
+            initialCommandRecoveryEpoch = epoch
+            postCommand(arrayOf("playlist-play-index", "$currentMediaItemIndex"))
+        }
+    }
+
+    private fun replaceInitialCommands(
+        commands: List<Array<String>>,
+        sourceUri: String? = null,
+    ) {
         synchronized(initialCommands) {
             val copiedCommands = commands.map { it.copyOf() }
+            val ownerUri =
+                sourceUri
+                    ?: internalMediaItems
+                        .getOrNull(currentMediaItemIndex)
+                        ?.let(::mediaUri)
+                        ?.toString()
             initialCommands.clear()
             initialCommands.addAll(copiedCommands)
-            initialCommandOwners.addLast(sourceEpoch.get())
+            if (ownerUri != null) initialCommandOwners.addLast(sourceEpoch.get() to ownerUri)
+            initialCommandRecoveryEpoch = null
         }
     }
 
@@ -1245,7 +1288,6 @@ class MPVPlayer(
 
     // OnAudioFocusChangeListener implementation.
 
-    /** Applies the existing mpv audio-focus policy. */
     override fun onAudioFocusChange(focusChange: Int) {
         if (released) return
         when (focusChange) {
@@ -1660,7 +1702,7 @@ class MPVPlayer(
                         /* lang= */ "${subtitle.language}",
                     )
                 }
-            replaceInitialCommands(subtitleCommands)
+            replaceInitialCommands(subtitleCommands, mediaUri(mediaItem).toString())
             if (currentMediaItemIndex != index) {
                 postCommand(arrayOf("playlist-play-index", "$index"))
             }
@@ -1810,7 +1852,6 @@ class MPVPlayer(
         return timeline
     }
 
-    /** Returns the index of the period currently being played. */
     override fun getCurrentPeriodIndex(): Int {
         return currentMediaItemIndex
     }
@@ -1865,87 +1906,46 @@ class MPVPlayer(
         return bufferedPosition
     }
 
-    /** Returns whether the player is currently playing an ad. */
     override fun isPlayingAd(): Boolean {
         return false
     }
 
-    /**
-     * If [.isPlayingAd] returns true, returns the index of the ad group in the period currently
-     * being played. Returns [C.INDEX_UNSET] otherwise.
-     */
     override fun getCurrentAdGroupIndex(): Int {
         return C.INDEX_UNSET
     }
 
-    /**
-     * If [.isPlayingAd] returns true, returns the index of the ad in its ad group. Returns
-     * [C.INDEX_UNSET] otherwise.
-     */
     override fun getCurrentAdIndexInAdGroup(): Int {
         return C.INDEX_UNSET
     }
 
-    /**
-     * If [.isPlayingAd] returns `true`, returns the content position that will be played once all
-     * ads in the ad group have finished playing, in milliseconds. If there is no ad playing, the
-     * returned position is the same as that returned by [.getCurrentPosition].
-     */
     override fun getContentPosition(): Long {
         return currentPosition
     }
 
-    /**
-     * If [.isPlayingAd] returns `true`, returns an estimate of the content position in the current
-     * content window up to which data is buffered, in milliseconds. If there is no ad playing, the
-     * returned position is the same as that returned by [.getBufferedPosition].
-     */
     override fun getContentBufferedPosition(): Long {
         return bufferedPosition
     }
 
-    /** Returns the attributes for audio playback. */
     override fun getAudioAttributes(): AudioAttributes {
         return AudioAttributes.DEFAULT
     }
 
-    /**
-     * Sets the audio volume, with 0 being silence and 1 being unity gain (signal unchanged).
-     *
-     * @param audioVolume Linear output gain to apply to all audio channels.
-     */
     override fun setVolume(audioVolume: Float) {
         TODO("Not yet implemented")
     }
 
-    /**
-     * Returns the audio volume, with 0 being silence and 1 being unity gain (signal unchanged).
-     *
-     * @return The linear gain applied to all audio channels.
-     */
     override fun getVolume(): Float {
         return mpvLib.getPropertyInt("volume")?.div(100f) ?: 0f
     }
 
-    /**
-     * Clears any [Surface], [SurfaceHolder], [SurfaceView] or [TextureView] currently set on the
-     * player.
-     */
     override fun clearVideoSurface() {
         TODO("Not yet implemented")
     }
 
-    /**
-     * Clears the [Surface] onto which video is being rendered if it matches the one passed. Else
-     * does nothing.
-     *
-     * @param surface The surface to clear.
-     */
     override fun clearVideoSurface(surface: Surface?) {
         TODO("Not yet implemented")
     }
 
-    /** Raw surface output is unused; typed surface setters own the lifecycle. */
     override fun setVideoSurface(surface: Surface?) {
         TODO("Not yet implemented")
     }

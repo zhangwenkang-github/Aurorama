@@ -1482,7 +1482,7 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
-    fun `START_FILE arriving after source mutation cannot consume new source initial commands`() {
+    fun `old START_FILE arriving after source mutation cannot consume current source initial commands`() {
         val epoch = 53L
         val player =
             allocatedMpvPlayer(
@@ -1491,7 +1491,6 @@ class PlaybackSessionRulesTest {
                 currentIndex = 0,
                 sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
             )
-        setField(player, "handler", Handler())
         setField(player, "isPlayerReady", false)
         val oldCommands = mutableListOf(arrayOf("sub-add", "old.srt", "auto", "old", "zh"))
         val newCommands = mutableListOf(arrayOf("sub-add", "new.srt", "auto", "new", "zh"))
@@ -1507,22 +1506,215 @@ class PlaybackSessionRulesTest {
         val newEpoch = player.currentSourceEpoch()
         assertTrue("source mutation 必须推进 epoch", newEpoch > epoch)
         replaceInitialCommands(player, newCommands)
+        val callbacks = captureEventCallbacks(player)
+        setInitialCommandSource(player, "https://media.example/item-a")
 
         player.event(MpvEvent.MPV_EVENT_START_FILE)
-        assertTrue(
-            "旧 START_FILE 不得消费属于新 source 的待发布快照",
-            (getField(player, "initialCommands") as MutableList<*>).isNotEmpty(),
-        )
-        invokeEventCallback(player, epoch, MpvEvent.MPV_EVENT_START_FILE, oldCommands)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
         assertTrue("旧 START_FILE 不得消费并发送新 source 的 initialCommands", commands.isEmpty())
 
+        setInitialCommandSource(player, "https://media.example/item-b")
         player.event(MpvEvent.MPV_EVENT_START_FILE)
-        invokeEventCallback(player, newEpoch, MpvEvent.MPV_EVENT_START_FILE, newCommands)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
         assertEquals(
             "新 source 的真实 START_FILE 必须取得自己的快照",
             newCommands.map { it.toList() },
             commands,
         )
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertEquals("当前 source 初始化不得重复发布", newCommands.map { it.toList() }, commands)
+    }
+
+    @Test
+    fun `reviewer stale owner without event cannot consume first current START_FILE`() {
+        val epoch = 61L
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val newCommands = listOf(arrayOf("sub-add", "new.srt", "auto", "new", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "old.srt", "auto", "old", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, newCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+        setInitialCommandSource(player, "https://media.example/item-b")
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+
+        assertEquals(
+            "旧 ownership 无事件时首个新 source START_FILE 必须发布当前快照且仅一次",
+            newCommands.map { it.toList() },
+            commands,
+        )
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertEquals("当前 source 快照不得重复发布", newCommands.map { it.toList() }, commands)
+    }
+
+    @Test
+    fun `repeated replacements with only final START_FILE publish final snapshot once`() {
+        val epoch = 67L
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val finalCommands = listOf(arrayOf("sub-add", "final.srt", "auto", "final", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "a.srt", "auto", "a", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "b.srt", "auto", "b", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-c", "https://media.example/item-c")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "c.srt", "auto", "c", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-d", "https://media.example/item-d")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, finalCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+        setInitialCommandSource(player, "https://media.example/item-d")
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+
+        assertEquals(
+            "多个 stale owner 不得挡住且不得重复发布最终 source 快照",
+            finalCommands.map { it.toList() },
+            commands,
+        )
+    }
+
+    @Test
+    fun `empty initial command ownership never publishes or replays`() {
+        val epoch = 71L
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+        setInitialCommandSource(player, "https://media.example/item-a")
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+
+        assertTrue("ownership 为空时不得发布快照或重放初始化", commands.isEmpty())
+    }
+
+    @Test
+    fun `claimed START_FILE is rejected when source mutates before posted handler`() {
+        val epoch = 73L
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val initialCommands = listOf(arrayOf("sub-add", "a.srt", "auto", "a", "zh"))
+        val nextCommands = listOf(arrayOf("sub-add", "c.srt", "auto", "c", "zh"))
+
+        replaceInitialCommands(player, initialCommands)
+        val callbacks = captureEventCallbacks(player)
+        setInitialCommandSource(player, "https://media.example/item-a")
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-c", "https://media.example/item-c")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, nextCommands)
+        commands.clear()
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        assertTrue("claim 后 mutation 必须让旧 posted handler fail closed", commands.isEmpty())
+
+        setInitialCommandSource(player, "https://media.example/item-c")
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertEquals("新 source 快照必须随后发布一次", nextCommands.map { it.toList() }, commands)
+    }
+
+    @Test
+    fun `ambiguous START_FILE replays current source once before publishing`() {
+        val epoch = 79L
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val newCommands = listOf(arrayOf("sub-add", "new.srt", "auto", "new", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "old.srt", "auto", "old", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, newCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+        setInitialCommandSource(player, null)
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+
+        assertEquals(
+            "无法唯一归属时必须 fail closed 并恰好重放当前 source 一次",
+            listOf(listOf("playlist-play-index", "0")),
+            commands,
+        )
+
+        commands.clear()
+        setInitialCommandSource(player, "https://media.example/item-b")
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertEquals("重放后的当前 START_FILE 必须发布快照一次", newCommands.map { it.toList() }, commands)
     }
 
     @Test
@@ -1685,7 +1877,10 @@ class PlaybackSessionRulesTest {
         setField(player, "internalMediaItems", mediaItems)
         setField(player, "currentMediaItemIndex", currentIndex)
         setField(player, "initialCommands", mutableListOf<Array<String>>())
-        trySetField(player, "initialCommandOwners", ArrayDeque<Long>())
+        trySetField(player, "handler", Handler())
+        trySetField(player, "initialCommandOwners", ArrayDeque<Any>())
+        trySetField(player, "eventPoster", { _: Runnable -> })
+        trySetField(player, "initialCommandSourceUri", { null })
         return player
     }
 
@@ -1745,26 +1940,25 @@ class PlaybackSessionRulesTest {
         invokeStaticCallback(method, player, property, value, epoch)
     }
 
-    private fun invokeEventCallback(
-        player: MPVPlayer,
-        epoch: Long,
-        eventId: Int,
-        initialCommands: List<Array<String>>,
-    ) {
-        val method =
-            MPVPlayer::class.java.declaredMethods.single {
-                it.name.startsWith("event\$lambda\$") &&
-                    it.parameterTypes.any { type -> type == Int::class.javaPrimitiveType } &&
-                    it.parameterTypes.any { type -> type == Long::class.javaPrimitiveType }
-            }
-        invokeStaticCallback(method, player, eventId, epoch, initialCommands)
+    private fun replaceInitialCommands(player: MPVPlayer, commands: List<Array<String>>) {
+        val methods =
+            MPVPlayer::class.java.declaredMethods.filter { it.name == "replaceInitialCommands" }
+        val method = methods.firstOrNull { it.parameterCount == 2 } ?: methods.single()
+        method.isAccessible = true
+        if (method.parameterCount == 2) method.invoke(player, commands, null)
+        else method.invoke(player, commands)
     }
 
-    private fun replaceInitialCommands(player: MPVPlayer, commands: List<Array<String>>) {
-        val method =
-            MPVPlayer::class.java.declaredMethods.single { it.name == "replaceInitialCommands" }
-        method.isAccessible = true
-        method.invoke(player, commands)
+    private fun captureEventCallbacks(player: MPVPlayer): MutableList<Runnable> {
+        val callbacks = mutableListOf<Runnable>()
+        val poster: (Runnable) -> Unit = callbacks::add
+        trySetField(player, "eventPoster", poster)
+        return callbacks
+    }
+
+    private fun setInitialCommandSource(player: MPVPlayer, sourceUri: String?) {
+        val sourceReader: () -> String? = { sourceUri }
+        trySetField(player, "initialCommandSourceUri", sourceReader)
     }
 
     private fun invokeStaticCallback(method: java.lang.reflect.Method, vararg values: Any) {
