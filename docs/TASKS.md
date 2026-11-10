@@ -13,7 +13,7 @@
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.34-§52.37 > R2 implementation report > R1 review report > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > candidate 46761d47f3d7a3d4d75b8842547c70d3843a4a51
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.34-§52.38 > R2 implementation report > R1 review report > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > candidate 46761d47f3d7a3d4d75b8842547c70d3843a4a51
 - NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_PRE_HANDOFF_EVIDENCE_AUDITOR_R14_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
@@ -28,7 +28,7 @@
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / SCOPED_REVIEW_R2_REQUIRED=YES_AFTER_STARTUP_PASS / PRODUCT_P1_OPEN / QA_READY:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=435563/1048576/41.5%/35W_HANDOFF_R6_TO_R7
+- CONTEXT_AT_CLOSE=164320/1048576/15.7%/BLOCKED_HISTORY_R14_RECEIPT_MISSING
 - P0=0
 - P1=P1-STARTUP-R14-01:OPEN_MISSING_RECEIPT;P1-PLAYER-PROGRESS-001:OPEN_AWAITING_STARTUP_THEN_SCOPED_REVIEW_R2;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
