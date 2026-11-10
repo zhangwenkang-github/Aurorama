@@ -8,29 +8,29 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=BLOCKED_HISTORY / STARTUP_R14_RECEIPT_MISSING / SCOPED_REVIEW_R2_NOT_DISPATCHED
+- TASK_STAGE=R14_RECEIPT_PASS / STARTUP_RECHECK_R15_PASS / SCOPED_REVIEW_R2_REQUIRED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.34-§52.38 > R2 implementation report > R1 review report > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > candidate 46761d47f3d7a3d4d75b8842547c70d3843a4a51
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_PRE_HANDOFF_EVIDENCE_AUDITOR_R14_2026_11_10
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.34-§52.39 > R2 implementation report > R1 review report > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > candidate 46761d47f3d7a3d4d75b8842547c70d3843a4a51
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_PROGRESS_P1_SCOPED_REVIEWER_R2_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\docs\PLAYER_PLAN.md
-- NEXT_REQUIREMENT=Reconstruct and persist an R14 pre-handoff audit PASS receipt against current clean control history, then require a different fresh startup pass before any R2 scoped review dispatch.
-- STOP_CONDITION=STARTUP_R14_RECEIPT_MISSING. Do not dispatch scoped review R2, QA, device work, merge-prep, integration or Release until a persisted R14 PASS receipt is verified by a fresh startup gate. Stop on object drift, product or test scope expansion, Service/schema/settings/metadata writes, K60, secret exposure, production write, or unknown new P0/P1.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/PROGRESS_P1_STATE_MODEL_REDESIGN/STARTUP_R14_RECEIPT_MISSING/BLOCKED_HISTORY/CANDIDATE_46761D47F3D7A3D4D75B8842547C70D3843A4A51/SCOPED_REVIEW_R2_NOT_DISPATCHED/QA_NOT_READY
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-p1-scoped-review-r2-2026-11-10\SCOPED_REVIEW_REPORT.md
+- NEXT_REQUIREMENT=Fresh scoped review R2 must independently review base 60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf to candidate 46761d47f3d7a3d4d75b8842547c70d3843a4a51, verify all R1 blockers and evidence, and return PASS/PASS_WITH_GAPS/FAIL/BLOCKED without editing code.
+- STOP_CONDITION=R2 scoped review FAIL means BLOCKED_HISTORY with no third implementation round. Stop before review on object or evidence drift. Review must not use target/UI cache/fake callbacks, request devices, change code, add paths, modify Service/schema/settings/metadata, touch K60, or enter QA/merge-prep/integration/Release.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/PROGRESS_P1_STATE_MODEL_REDESIGN/R14_RECEIPT_PASS/STARTUP_R15_PASS/SCOPED_REVIEW_R2_REQUIRED/CANDIDATE_46761D47F3D7A3D4D75B8842547C70D3843A4A51/QA_NOT_READY
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_APPROVED_SCOPE_EXPANSION_2026_11_10 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO_PENDING_STARTUP_R14_RECEIPT_THEN_SCOPED_REVIEW_R2
+- IMPLEMENTATION_AUTHORIZED=NO_PENDING_SCOPED_REVIEW_R2
 - DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / SCOPED_REVIEW_R2_REQUIRED=YES_AFTER_STARTUP_PASS / PRODUCT_P1_OPEN / QA_READY:NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / SCOPED_REVIEW_R2_REQUIRED=YES / PRODUCT_P1_OPEN / QA_READY:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=164320/1048576/15.7%/BLOCKED_HISTORY_R14_RECEIPT_MISSING
+- CONTEXT_AT_CLOSE=208714/1048576/19.9%/SCOPED_REVIEW_R2_REQUIRED
 - P0=0
-- P1=P1-STARTUP-R14-01:OPEN_MISSING_RECEIPT;P1-PLAYER-PROGRESS-001:OPEN_AWAITING_STARTUP_THEN_SCOPED_REVIEW_R2;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
+- P1=P1-STARTUP-R14-01:CLOSED_BY_R15;P1-PLAYER-PROGRESS-001:OPEN_PENDING_SCOPED_REVIEW_R2;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
 - P3=0
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=RECONSTRUCT_R14_RECEIPT_THEN_FRESH_STARTUP_RECHECK_THEN_SCOPED_REVIEW_R2
-- last_evidence=STARTUP_CHECK=FAIL;STARTUP_P1=P1-STARTUP-R14-01;R14_RECEIPT=NOT_FOUND;CONTROL=8466d468456495546b066d2cecaa70977f5c9e71;CANDIDATE=46761d47f3d7a3d4d75b8842547c70d3843a4a51;HANDOFF_LINT=PASS;SCOPED_REVIEW_R2=NOT_DISPATCHED;LOCK_ACTIVE=0
+- NEXT_CRITICAL_PATH=SCOPED_REVIEW_R2_THEN_FRESH_QA
+- last_evidence=R14_AUDIT=PASS;R14_REPORT_SHA=AA1E4CCD21981D1F458D14D2BAE1C0C165A33BD81ECE2FFAA45EAC315854F9FC;R14_MANIFEST_SHA=C5BA2AB650B0AB6D4D540F9BB2486A25F278FFAF93440FCE2032416981712EF8;STARTUP_R15=PASS;CONTROL=0fa4dfe014dd58153258daa44934244c0b998fb5;CANDIDATE=46761d47f3d7a3d4d75b8842547c70d3843a4a51;P1-PLAYER-PROGRESS-001=OPEN;SCOPED_REVIEW_R2=REQUIRED;LOCK_ACTIVE=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -997,10 +997,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Startup R14 receipt is missing, so scoped review R2 and QA are not dispatched. P1-PLAYER-PROGRESS-001 remains open; real mpv HLS ordering, MediaSession binder progress/buffered/loading, retry tap, process recovery, Compose race, A-cluster device matrix, DirectPlay+Exo regression, merge-prep, integration and Release remain uncovered.
-- STOP_CONDITION=No scoped review R2 or QA until a persisted R14 pre-handoff PASS receipt is independently verified on the current clean control object. Do not use the implementation GREEN or the verbal R14 claim as product closure. R2 scoped review FAIL after dispatch means BLOCKED_HISTORY with no third implementation round.
-- MANUAL_LIMITATION=R2 implementation GREEN, Handoff lint PASS and snapshot clean do not replace the missing R14 receipt; product P1 remains open and no QA pass exists.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_PRE_HANDOFF_EVIDENCE_AUDITOR_R14_2026_11_10
+- UNCOVERED=R14 and R15 control gates PASS, but P1-PLAYER-PROGRESS-001 remains open pending fresh scoped review R2; real mpv HLS ordering, MediaSession binder position/buffered/loading, retry tap, process recovery timing, Compose click races, PC-01/03/04/05/11/12, DirectPlay+Exo regression, device QA, independent QA, merge-prep, integration and Release remain uncovered.
+- STOP_CONDITION=No device lock or QaReady before fresh scoped review R2 PASS. Review FAIL means BLOCKED_HISTORY and no third implementation round. Object, source, evidence, path, device, production-write or lock drift requires STOP.
+- MANUAL_LIMITATION=R14 PASS and R15 startup PASS prove control-plane integrity only; implementation GREEN is not product P1 closure, independent QA, integration or Release PASS.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_PROGRESS_P1_SCOPED_REVIEWER_R2_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
