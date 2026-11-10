@@ -536,9 +536,11 @@ private class PlayerRuntime {
     var canShuffle by mutableStateOf(false)
 
     fun sync(player: Player) {
-        position = player.currentPosition
+        val confirmedPosition = PlayerViewModel.confirmedPosition(player)
+        position = confirmedPosition ?: C.TIME_UNSET
         duration = player.duration.let { if (it > 0L) it else 0L }
-        buffered = player.bufferedPosition
+        buffered =
+            PlayerViewModel.confirmedBufferedPosition(player, confirmedPosition) ?: C.TIME_UNSET
         isPlaying = player.isPlaying
         /*
          * W76-B11b：除了「正在缓冲」，**还没有任何可播条目的准备窗口**也算加载中。

@@ -133,6 +133,22 @@ constructor(
         const val DECODE_MODE_HARDWARE = "hardware"
         const val DECODE_MODE_SOFTWARE = "software"
 
+        fun confirmedPosition(player: Player?): Long? =
+            (player as? MPVPlayer)?.confirmedPosition()
+                ?: player?.let {
+                    confirmedEnginePosition(
+                        it.currentMediaItem,
+                        it.currentTimeline.isEmpty,
+                        it.playbackState,
+                        it.currentPosition,
+                    )
+                }
+
+        fun confirmedBufferedPosition(player: Player?, currentPositionMs: Long?): Long? =
+            currentPositionMs?.let {
+                boundedBufferedPosition(it, player?.bufferedPosition ?: C.TIME_UNSET)
+            }
+
         /** 单次队列补片最多新增条数：超大剧集（库里有 370 集的）不一次拉满，避免长时间占用网络与播放器时间线 */
         private const val MAX_QUEUE_FILL_ITEMS = 150
 
@@ -498,9 +514,10 @@ constructor(
         val currentSourceId =
             mediaItem?.mediaMetadata?.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
         val seekState = _uiState.value.seekState
+        val enginePositionMs = confirmedPosition(active)
         val input =
             PlaybackSessionInput(
-                key = currentPlaybackSessionKey(mediaItem),
+                key = currentPlaybackSessionKey(active, mediaItem),
                 playWhenReady =
                     if (startupInProgress) playWhenReady
                     else active?.playWhenReady ?: playWhenReady,
@@ -511,8 +528,8 @@ constructor(
                         active.mediaItemCount == 0 ||
                         active.playbackState == Player.STATE_BUFFERING,
                 isReady = active?.playbackState == Player.STATE_READY,
-                enginePositionMs = normalizeEnginePosition(active?.currentPosition),
-                bufferedPositionMs = normalizeEnginePosition(active?.bufferedPosition),
+                enginePositionMs = enginePositionMs,
+                bufferedPositionMs = confirmedBufferedPosition(active, enginePositionMs),
                 hasPlayerError = _uiState.value.playerError != null,
                 hasSeekFailure = seekState is SeekState.Failed,
                 explicitSeekTargetMs = (seekState as? SeekState.Seeking)?.targetMs,
@@ -525,9 +542,13 @@ constructor(
         }
     }
 
-    private fun currentPlaybackSessionKey(mediaItem: MediaItem?): String? =
+    private fun currentPlaybackSessionKey(player: Player?, mediaItem: MediaItem?): String? =
         mediaItem?.let(::seekMediaIdentityFromItem)?.let {
-            playbackSessionKeyFor(it, playbackSnapshots.generation)
+            playbackSessionKeyFor(
+                it,
+                playbackSnapshots.generation,
+                (player as? MPVPlayer)?.currentSourceEpoch(),
+            )
         }
 
     private fun persistedResumePositionMs(
@@ -933,9 +954,10 @@ constructor(
     @OptIn(DelicateCoroutinesApi::class)
     private fun releasePlayer() {
         // Capture and send the final progress synchronously before process exit.
+        refreshPlaybackSession()
         val activePlayer = playerHolder.existingPlayer
         val mediaId = activePlayer?.currentMediaItem?.mediaId
-        val position = normalizeEnginePosition(activePlayer?.currentPosition)
+        val position = playbackSessionState.lastEnginePositionMs
         val duration = activePlayer?.duration ?: C.TIME_UNSET
         val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
         // Only the page-owned session reports a stop; attached music remains music-owned.
@@ -971,9 +993,7 @@ constructor(
         val backgroundAudioEnabled = appPreferences.getValue(appPreferences.playerBackgroundAudio)
         if (!shouldReleasePlayerOnExit(playerHolder.musicSessionActive, backgroundAudioEnabled)) {
             // Background playback keeps the instance alive; persist only the position.
-            normalizeEnginePosition(player.currentPosition)?.let {
-                savedStateHandle["position"] = it
-            }
+            position?.let { savedStateHandle["position"] = it }
         } else {
             playerHolder.release()
         }
@@ -2692,7 +2712,7 @@ constructor(
 
     // Use live position first, then the matching persisted item/source position.
     private fun currentResumePositionMs(): Long {
-        val livePosition = player.currentPosition
+        val livePosition = confirmedPosition(player) ?: C.TIME_UNSET
         if (livePosition > 0L) return livePosition
         val mediaId =
             player.currentMediaItem?.mediaId?.let { raw ->
@@ -3066,8 +3086,11 @@ constructor(
 internal fun playbackSessionKeyFor(
     mediaIdentity: SeekMediaIdentity,
     snapshotGeneration: Long,
+    engineEpoch: Long? = null,
 ): String {
-    return with(mediaIdentity) { "$itemId|$mediaSourceId|$snapshotGeneration|$sourceFingerprint" }
+    return with(mediaIdentity) {
+        "$itemId|$mediaSourceId|$snapshotGeneration|$sourceFingerprint|${engineEpoch ?: "x"}"
+    }
 }
 
 internal data class PlaybackSessionInput(
@@ -3132,13 +3155,9 @@ internal object PlaybackSessionRules {
         }
         val loading = isLoading(input)
         val progressed =
-            input.enginePositionMs != null &&
-                next.lastEnginePositionMs != null &&
-                input.enginePositionMs != next.lastEnginePositionMs ||
-                input.bufferedPositionMs != null &&
-                    next.lastBufferedPositionMs != null &&
-                    input.bufferedPositionMs != next.lastBufferedPositionMs ||
-                next.wasLoading && !loading && (input.isPlaying || input.isReady)
+            input.enginePositionMs?.let { engine ->
+                next.lastEnginePositionMs?.let { engine > it } == true
+            } == true || next.wasLoading && !loading && input.isPlaying && input.isReady
         val progressAtMs = if (progressed) nowElapsedMs else next.lastProgressAtMs ?: nowElapsedMs
         next =
             next.copy(
@@ -3217,6 +3236,27 @@ internal object PlaybackSessionRules {
 internal fun normalizeEnginePosition(positionMs: Long?): Long? = positionMs?.takeIf {
     it >= 0L && it != C.TIME_UNSET
 }
+
+internal fun confirmedEnginePosition(
+    mediaItem: MediaItem?,
+    timelineEmpty: Boolean,
+    playbackState: Int,
+    currentPositionMs: Long,
+): Long? =
+    if (
+        mediaItem == null ||
+            timelineEmpty ||
+            (playbackState != Player.STATE_READY && playbackState != Player.STATE_ENDED)
+    ) {
+        null
+    } else {
+        normalizeEnginePosition(currentPositionMs)
+    }
+
+internal fun boundedBufferedPosition(currentPositionMs: Long?, buffered: Long): Long? =
+    currentPositionMs?.let { current ->
+        (normalizeEnginePosition(buffered) ?: current).coerceAtLeast(current)
+    }
 
 internal fun PlayerItem.toMediaItem(application: Application): MediaItem {
     val streamUrl = mediaSourceUri

@@ -55,6 +55,7 @@ import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.ln
 import org.json.JSONArray
 import org.json.JSONException
@@ -65,6 +66,59 @@ interface MpvSeekEventListener {
     fun onMpvSeekAccepted()
 
     fun onMpvPlaybackRestarted(positionMs: Long)
+}
+
+internal data class MpvSourcePositionState(
+    val sourceEpoch: Long = 0L,
+    val positionMs: Long? = null,
+    val cacheEndMs: Long? = null,
+    val pendingDiscontinuityFromMs: Long? = null,
+    val isAnchored: Boolean = false,
+) {
+    val bufferedPositionMs: Long?
+        get() =
+            positionMs
+                ?.takeIf { isAnchored }
+                ?.let { position -> cacheEndMs?.takeIf { it > position } ?: position }
+
+    fun replaceSource(epoch: Long): MpvSourcePositionState = MpvSourcePositionState(epoch)
+
+    fun acceptPosition(epoch: Long, positionMs: Long): MpvSourcePositionState? = takeIf {
+        sourceEpoch == epoch && isAnchored
+    }
+        ?.let { normalizeEnginePosition(positionMs)?.let(::copyPosition) }
+
+    fun acceptCache(epoch: Long, cacheEndMs: Long): MpvSourcePositionState? = takeIf {
+        sourceEpoch == epoch && isAnchored && positionMs != null
+    }
+        ?.let { normalizeEnginePosition(cacheEndMs)?.let { copy(cacheEndMs = it) } }
+
+    fun seekStarted(epoch: Long): MpvSourcePositionState? = takeIf {
+        sourceEpoch == epoch
+    }
+        ?.copy(cacheEndMs = null, pendingDiscontinuityFromMs = positionMs)
+
+    fun restart(epoch: Long, positionMs: Long): MpvSourcePositionState? = takeIf {
+        sourceEpoch == epoch
+    }
+        ?.let { normalizeEnginePosition(positionMs)?.let(::copyRestart) }
+
+    fun consumeDiscontinuity(epoch: Long): Pair<MpvSourcePositionState, Long>? {
+        if (sourceEpoch != epoch) return null
+        val from = pendingDiscontinuityFromMs ?: return null
+        return copy(pendingDiscontinuityFromMs = null) to from
+    }
+
+    private fun copyPosition(positionMs: Long): MpvSourcePositionState =
+        copy(positionMs = positionMs)
+
+    private fun copyRestart(positionMs: Long): MpvSourcePositionState =
+        copy(
+            positionMs = positionMs,
+            cacheEndMs = null,
+            pendingDiscontinuityFromMs = this.positionMs ?: positionMs,
+            isAnchored = true,
+        )
 }
 
 class MPVPlayer(
@@ -375,11 +429,9 @@ class MPVPlayer(
     private var isPlayerReady: Boolean = false
     private var isSeekable: Boolean = false
     private var currentMediaItemIndex: Int = 0
-    private var currentPositionMs: Long? = null
-    private var pendingPositionDiscontinuity = false
-    private var discontinuityFromPositionMs: Long? = null
+    private val sourceEpoch = AtomicLong()
+    private var sourcePosition = MpvSourcePositionState()
     private var currentDurationMs: Long? = null
-    private var currentCacheDurationMs: Long? = null
     private var initialCommands = mutableListOf<Array<String>>()
     private var initialIndex: Int = 0
     private var initialSeekTo: Long = 0L
@@ -490,9 +542,13 @@ class MPVPlayer(
     }
 
     override fun eventProperty(property: String, value: Long) {
+        val epoch =
+            if (property == "playlist-current-pos") sourceEpoch.incrementAndGet()
+            else sourceEpoch.get()
         handler.post {
+            if (epoch != sourceEpoch.get()) return@post
             when (property) {
-                "time-pos" -> updateEnginePosition(value * C.MILLIS_PER_SECOND)
+                "time-pos" -> updateEnginePosition(epoch, value * C.MILLIS_PER_SECOND)
                 "duration" -> {
                     val newDuration = value * C.MILLIS_PER_SECOND
                     if (currentDurationMs != newDuration) {
@@ -500,9 +556,9 @@ class MPVPlayer(
                     }
                 }
                 "demuxer-cache-time" ->
-                    currentCacheDurationMs =
-                        normalizeEnginePosition(value * C.MILLIS_PER_SECOND)
-                            ?: currentCacheDurationMs
+                    sourcePosition =
+                        sourcePosition.acceptCache(epoch, value * C.MILLIS_PER_SECOND)
+                            ?: sourcePosition
                 "playlist-count" -> {
                     listeners.sendEvent(EVENT_TIMELINE_CHANGED) { listener ->
                         listener.onTimelineChanged(
@@ -515,6 +571,7 @@ class MPVPlayer(
                     if (value < 0) {
                         return@post
                     }
+                    sourcePosition = sourcePosition.replaceSource(epoch)
                     currentMediaItemIndex = value.toInt()
                     val newMediaItem = currentMediaItem
                     if (oldMediaItem?.mediaId != newMediaItem?.mediaId) {
@@ -547,6 +604,7 @@ class MPVPlayer(
     }
 
     override fun event(eventId: Int) {
+        val epoch = sourceEpoch.get()
         handler.post {
             // release 之后主线程队列里可能还排着事件回调：此时 mpv 可能正在销毁，必须短路
             if (released) return@post
@@ -568,21 +626,18 @@ class MPVPlayer(
                     maybeAddServerSubtitles()
                 }
                 MpvEvent.MPV_EVENT_SEEK -> {
-                    discontinuityFromPositionMs = currentPositionMs
+                    sourcePosition = sourcePosition.seekStarted(epoch) ?: return@post
                     setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
                     seekEventRelay.onSeekEvent()
                 }
                 MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
                     val restartedPositionMs =
-                        normalizeEnginePosition(
-                            mpvLib
-                                .getPropertyDouble("time-pos")
-                                ?.times(C.MILLIS_PER_SECOND)
-                                ?.toLong()
-                        )
-                    discontinuityFromPositionMs = discontinuityFromPositionMs ?: currentPositionMs
-                    pendingPositionDiscontinuity = true
-                    updateEnginePosition(restartedPositionMs)
+                        mpvLib.getPropertyDouble("time-pos")?.times(C.MILLIS_PER_SECOND)?.toLong()
+                            ?: sourcePosition.positionMs
+                            ?: return@post
+                    sourcePosition =
+                        sourcePosition.restart(epoch, restartedPositionMs) ?: return@post
+                    publishPositionDiscontinuity(epoch)
                     if (!isPlayerReady) {
                         isPlayerReady = true
                         seekTo(C.TIME_UNSET)
@@ -596,7 +651,7 @@ class MPVPlayer(
                     } else {
                         setPlayerStateAndNotifyIfChanged(playbackState = STATE_READY)
                     }
-                    restartedPositionMs?.let(seekEventRelay::onPlaybackRestartedEvent)
+                    seekEventRelay.onPlaybackRestartedEvent(restartedPositionMs)
                 }
                 /* 非 EOF 且不在主动操作预算内的 END_FILE 走 Player.Listener.onPlayerError 回退链。 */
                 MpvEvent.MPV_EVENT_END_FILE -> {
@@ -634,19 +689,21 @@ class MPVPlayer(
         }
     }
 
-    private fun updateEnginePosition(positionMs: Long?) {
-        val validPosition = normalizeEnginePosition(positionMs) ?: return
-        currentPositionMs = validPosition
-        if (!pendingPositionDiscontinuity) return
-        pendingPositionDiscontinuity = false
+    private fun updateEnginePosition(epoch: Long, positionMs: Long) {
+        sourcePosition = sourcePosition.acceptPosition(epoch, positionMs) ?: return
+    }
+
+    private fun publishPositionDiscontinuity(epoch: Long) {
+        val (next, fromPositionMs) = sourcePosition.consumeDiscontinuity(epoch) ?: return
+        sourcePosition = next
+        val positionMs = next.positionMs ?: return
         listeners.sendEvent(EVENT_POSITION_DISCONTINUITY) { listener ->
             listener.onPositionDiscontinuity(
-                positionInfo(discontinuityFromPositionMs ?: C.TIME_UNSET),
-                positionInfo(validPosition),
+                positionInfo(fromPositionMs),
+                positionInfo(positionMs),
                 DISCONTINUITY_REASON_SEEK,
             )
         }
-        discontinuityFromPositionMs = null
     }
 
     private fun positionInfo(positionMs: Long) =
@@ -1145,15 +1202,7 @@ class MPVPlayer(
                 return internalMediaItems.size
             }
 
-            /**
-             * Populates a [Timeline.Window] with data for the window at the specified index.
-             *
-             * @param windowIndex The index of the window.
-             * @param window The [Timeline.Window] to populate. Must not be null.
-             * @param defaultPositionProjectionUs A duration into the future that the populated
-             *   window's default start position should be projected.
-             * @return The populated [Timeline.Window], for convenience.
-             */
+            // Window projection for the current mpv playlist item.
             override fun getWindow(
                 windowIndex: Int,
                 window: Window,
@@ -1184,16 +1233,7 @@ class MPVPlayer(
                 return internalMediaItems.size
             }
 
-            /**
-             * Populates a [Timeline.Period] with data for the period at the specified index.
-             *
-             * @param periodIndex The index of the period.
-             * @param period The [Timeline.Period] to populate. Must not be null.
-             * @param setIds Whether [Timeline.Period.id] and [Timeline.Period.uid] should be
-             *   populated. If false, the fields will be set to null. The caller should pass false
-             *   for efficiency reasons unless the fields are required.
-             * @return The populated [Timeline.Period], for convenience.
-             */
+            // Period projection mirrors the mpv playlist item.
             override fun getPeriod(periodIndex: Int, period: Period, setIds: Boolean): Period {
                 return period.set(
                     periodIndex,
@@ -1206,23 +1246,12 @@ class MPVPlayer(
                 )
             }
 
-            /**
-             * Returns the index of the period identified by its unique [Timeline.Period.uid], or
-             * [ ][C.INDEX_UNSET] if the period is not in the timeline.
-             *
-             * @param uid A unique identifier for a period.
-             * @return The index of the period, or [C.INDEX_UNSET] if the period was not found.
-             */
+            /** Maps the playlist uid back to its index. */
             override fun getIndexOfPeriod(uid: Any): Int {
                 return uid as Int
             }
 
-            /**
-             * Returns the unique id of the period identified by its index in the timeline.
-             *
-             * @param periodIndex The index of the period.
-             * @return The unique id of the period.
-             */
+            /** Uses the playlist index as the period uid. */
             override fun getUidOfPeriod(periodIndex: Int): Any {
                 return periodIndex
             }
@@ -1230,18 +1259,7 @@ class MPVPlayer(
 
     // OnAudioFocusChangeListener implementation.
 
-    /**
-     * Called on the listener to notify it the audio focus for this listener has been changed. The
-     * focusChange value indicates whether the focus was gained, whether the focus was lost, and
-     * whether that loss is transient, or whether the new focus holder will hold it for an unknown
-     * amount of time. When losing focus, listeners can use the focus change information to decide
-     * what behavior to adopt when losing focus. A music player could for instance elect to lower
-     * the volume of its music stream (duck) for transient focus losses, and pause otherwise.
-     *
-     * @param focusChange the type of focus change, one of [AudioManager.AUDIOFOCUS_GAIN],
-     *   [AudioManager.AUDIOFOCUS_LOSS], [AudioManager.AUDIOFOCUS_LOSS_TRANSIENT] and
-     *   [AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK].
-     */
+    /** Applies the existing mpv audio-focus policy. */
     override fun onAudioFocusChange(focusChange: Int) {
         if (released) return
         when (focusChange) {
@@ -1274,43 +1292,24 @@ class MPVPlayer(
 
     // Player implementation.
 
-    /**
-     * Returns the [Looper] associated with the application thread that's used to access the player
-     * and on which player events are received.
-     */
+    /** Player callbacks run on the main looper. */
     override fun getApplicationLooper(): Looper {
         return handler.looper
     }
 
-    /**
-     * Registers a listener to receive all events from the player.
-     *
-     * @param listener The listener to register.
-     */
+    /** Registers both Media3 and first-frame listeners. */
     override fun addListener(listener: Player.Listener) {
         listeners.add(listener)
         videoListeners.add(listener)
     }
 
-    /**
-     * Unregister a listener registered through [.addListener]. The listener will no longer receive
-     * events.
-     *
-     * @param listener The listener to unregister.
-     */
+    /** Removes a Media3 and first-frame listener. */
     override fun removeListener(listener: Player.Listener) {
         listeners.remove(listener)
         videoListeners.remove(listener)
     }
 
-    /**
-     * Clears the playlist and adds the specified [MediaItems][MediaItem].
-     *
-     * @param mediaItems The new [MediaItems][MediaItem].
-     * @param resetPosition Whether the playback position should be reset to the default position in
-     *   the first [Timeline.Window]. If false, playback will start from the position defined by
-     *   [.getCurrentWindowIndex] and [.getCurrentPosition].
-     */
+    /** Replaces the playlist without starting playback. */
     override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
         // 自己发起的换片：接下来非 EOF 的 END_FILE 不算播放失败
         markIntentionalEndFile(count = 2)
@@ -1319,19 +1318,7 @@ class MPVPlayer(
         internalMediaItems = mediaItems
     }
 
-    /**
-     * Clears the playlist and adds the specified [MediaItems][MediaItem].
-     *
-     * @param mediaItems The new [MediaItems][MediaItem].
-     * @param startWindowIndex The window index to start playback from. If [C.INDEX_UNSET] is
-     *   passed, the current position is not reset.
-     * @param startPositionMs The position in milliseconds to start playback from. If
-     *   [ ][C.TIME_UNSET] is passed, the default position of the given window is used. In any case,
-     *   if `startWindowIndex` is set to [C.INDEX_UNSET], this parameter is ignored and the position
-     *   is not reset at all.
-     * @throws androidx.media3.common.IllegalSeekPositionException If the provided
-     *   `startWindowIndex` is not within the bounds of the list of media items.
-     */
+    /** Replaces the playlist and remembers the requested start item and position. */
     override fun setMediaItems(
         mediaItems: MutableList<MediaItem>,
         startWindowIndex: Int,
@@ -1492,11 +1479,8 @@ class MPVPlayer(
         isSeekable = false
         playbackState = STATE_IDLE
         currentPlayWhenReady = false
-        currentPositionMs = null
-        pendingPositionDiscontinuity = false
-        discontinuityFromPositionMs = null
+        sourcePosition = sourcePosition.replaceSource(sourceEpoch.incrementAndGet())
         currentDurationMs = null
-        currentCacheDurationMs = null
         currentTracks = Tracks.EMPTY
         externalSubtitleTrackIds.clear()
         pendingSideloadedSubtitleAdds.clear()
@@ -1645,17 +1629,7 @@ class MPVPlayer(
     /** mpv 的 buffering 状态就是 Media3 与 MediaSession 共享的 loading 锚点。 */
     override fun isLoading(): Boolean = playbackState == STATE_BUFFERING
 
-    /**
-     * Seeks to a position specified in milliseconds in the specified window.
-     *
-     * @param mediaItemIndex The index of the window.
-     * @param positionMs The seek position in the specified window, or [C.TIME_UNSET] to seek to the
-     *   window's default position.
-     * @param seekCommand The {@link Player.Command} used to trigger the seek.
-     * @param isRepeatingCurrentItem Whether this seeks repeats the current item.
-     * @throws androidx.media3.common.IllegalSeekPositionException If the player has a non-empty
-     *   timeline and the provided `windowIndex` is not within the bounds of the current timeline.
-     */
+    /** Routes seeks through the current mpv item or starts the requested item. */
     override fun seekTo(
         mediaItemIndex: Int,
         positionMs: Long,
@@ -1666,6 +1640,7 @@ class MPVPlayer(
             val seekTo = if (positionMs != C.TIME_UNSET) positionMs else initialSeekTo
             initialSeekTo =
                 if (isPlayerReady) {
+                    sourcePosition = sourcePosition.seekStarted(sourceEpoch.get()) ?: sourcePosition
                     postCommand(
                         arrayOf("seek", "${seekTo.toDouble().div(C.MILLIS_PER_SECOND)}", "absolute")
                     )
@@ -1889,7 +1864,7 @@ class MPVPlayer(
      * prospective position in milliseconds if the [current timeline][.getCurrentTimeline] is empty.
      */
     override fun getCurrentPosition(): Long {
-        return currentPositionMs ?: C.TIME_UNSET
+        return confirmedPosition() ?: C.TIME_UNSET
     }
 
     /**
@@ -1897,8 +1872,22 @@ class MPVPlayer(
      * buffered, in milliseconds.
      */
     override fun getBufferedPosition(): Long {
-        return currentCacheDurationMs ?: contentPosition
+        return confirmedBufferedPosition() ?: C.TIME_UNSET
     }
+
+    fun confirmedPosition(): Long? =
+        sourcePosition.positionMs?.takeIf {
+            sourcePosition.isAnchored &&
+                sourcePosition.sourceEpoch == sourceEpoch.get() &&
+                currentMediaItem != null
+        }
+
+    fun confirmedBufferedPosition(): Long? =
+        sourcePosition.bufferedPositionMs?.takeIf {
+            sourcePosition.sourceEpoch == sourceEpoch.get() && currentMediaItem != null
+        }
+
+    fun currentSourceEpoch(): Long = sourceEpoch.get()
 
     /**
      * Returns an estimate of the total buffered duration from the current position, in
@@ -1988,18 +1977,7 @@ class MPVPlayer(
         TODO("Not yet implemented")
     }
 
-    /**
-     * Sets the [Surface] onto which video will be rendered. The caller is responsible for tracking
-     * the lifecycle of the surface, and must clear the surface by calling `setVideoSurface(null)`
-     * if the surface is destroyed.
-     *
-     * If the surface is held by a [SurfaceView], [TextureView] or [ ] then it's recommended to use
-     * [.setVideoSurfaceView], [ ][.setVideoTextureView] or [.setVideoSurfaceHolder] rather than
-     * this method, since passing the holder allows the player to track the lifecycle of the surface
-     * automatically.
-     *
-     * @param surface The [Surface].
-     */
+    /** Raw surface output is unused; typed surface setters own the lifecycle. */
     override fun setVideoSurface(surface: Surface?) {
         TODO("Not yet implemented")
     }
@@ -2112,17 +2090,7 @@ class MPVPlayer(
             .build()
     }
 
-    /**
-     * Gets the current volume of the device.
-     *
-     * For devices with [local playback][DeviceInfo.PLAYBACK_TYPE_LOCAL], the volume returned by
-     * this method varies according to the current [stream type][C.StreamType]. The stream type is
-     * determined by [AudioAttributes.usage] which can be converted to stream type with
-     * [Util.getStreamTypeForAudioUsage].
-     *
-     * For devices with [remote playback][DeviceInfo.PLAYBACK_TYPE_REMOTE], the volume of the remote
-     * device is returned.
-     */
+    /** Maps the player volume API to mpv's volume property. */
     override fun getDeviceVolume(): Int {
         return mpvLib.getPropertyInt("volume") ?: 0
     }
@@ -2333,16 +2301,7 @@ class MPVPlayer(
                 mpvLib.setOptionString("vo", videoOutput)
             }
 
-            /**
-             * This is called immediately after any structural changes (format or size) have been
-             * made to the surface. You should at this point update the imagery in the surface. This
-             * method is always called at least once, after [.surfaceCreated].
-             *
-             * @param holder The SurfaceHolder whose surface has changed.
-             * @param format The new [android.graphics.PixelFormat] of the surface.
-             * @param width The new width of the surface.
-             * @param height The new height of the surface.
-             */
+            /** Forwards the current surface size to mpv. */
             override fun surfaceChanged(
                 holder: SurfaceHolder,
                 format: Int,
@@ -2353,14 +2312,7 @@ class MPVPlayer(
                 mpvLib.setPropertyString("android-surface-size", "${width}x$height")
             }
 
-            /**
-             * This is called immediately before a surface is being destroyed. After returning from
-             * this call, you should no longer try to access this surface. If you have a rendering
-             * thread that directly accesses the surface, you must ensure that thread is no longer
-             * touching the Surface before returning from this function.
-             *
-             * @param holder The SurfaceHolder whose surface is being destroyed.
-             */
+            /** Detaches mpv before the surface is destroyed. */
             override fun surfaceDestroyed(holder: SurfaceHolder) {
                 if (released) return
                 mpvLib.setOptionString("vo", "null")
@@ -2373,12 +2325,7 @@ class MPVPlayer(
         /** Fraction to which audio volume is ducked on loss of audio focus */
         private const val AUDIO_FOCUS_DUCKING = 0.5f
 
-        /**
-         * W18：END_FILE 错误抑制窗口（毫秒）。
-         *
-         * `stop` / 换片 / 切集 / 清队列后，mpv 会为旧文件立刻发一次非 EOF 的 END_FILE；窗口内的这类事件
-         * 属于「自己发起」，不能报成播放失败。正常播放失败（打开失败 / 流中断 / 解码失败）不会紧跟在 这些操作之后。
-         */
+        /** Suppresses the short non-EOF END_FILE burst caused by our own source operations. */
         private const val END_FILE_SUPPRESS_WINDOW_MS = 3_000L
 
         private val permanentAvailableCommands: Commands =

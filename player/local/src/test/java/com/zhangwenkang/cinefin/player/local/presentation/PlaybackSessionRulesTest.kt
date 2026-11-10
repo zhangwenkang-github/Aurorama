@@ -1,7 +1,10 @@
 package com.zhangwenkang.cinefin.player.local.presentation
 
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
+import com.zhangwenkang.cinefin.player.local.mpv.MpvSourcePositionState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -97,14 +100,25 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
-    fun `buffered position change resets deadline`() {
+    fun `buffered position change does not reset deadline`() {
         val initial = advance(input(bufferedPositionMs = 1_000L), 0L)
         val progressed = advance(input(bufferedPositionMs = 2_000L), 10_000L, initial.first)
         val beforeNewDeadline =
-            advance(input(bufferedPositionMs = 2_000L), 29_999L, progressed.first)
-        assertEquals(10_000L, progressed.first.lastProgressAtMs)
+            advance(
+                input(bufferedPositionMs = 2_000L),
+                PlaybackSessionRules.STALL_TIMEOUT_MS - 1L,
+                progressed.first,
+            )
+        val atOriginalDeadline =
+            advance(
+                input(bufferedPositionMs = 2_000L),
+                PlaybackSessionRules.STALL_TIMEOUT_MS,
+                progressed.first,
+            )
+        assertEquals(0L, progressed.first.lastProgressAtMs)
         assertEquals(2_000L, progressed.first.lastBufferedPositionMs)
         assertNull(beforeNewDeadline.second.terminal)
+        assertTrue(atOriginalDeadline.second.terminal != null)
     }
 
     @Test
@@ -281,6 +295,171 @@ class PlaybackSessionRulesTest {
             terminal.second.terminal?.positionSource,
         )
         assertEquals(0L, terminal.second.terminal?.positionMs)
+    }
+
+    @Test
+    fun `confirmed zero needs current item timeline and ready anchor`() {
+        val item = MediaItem.Builder().setMediaId("item-a").build()
+
+        assertNull(
+            confirmedEnginePosition(
+                mediaItem = null,
+                timelineEmpty = false,
+                playbackState = Player.STATE_READY,
+                currentPositionMs = 0L,
+            )
+        )
+        assertNull(
+            confirmedEnginePosition(
+                mediaItem = item,
+                timelineEmpty = true,
+                playbackState = Player.STATE_READY,
+                currentPositionMs = 0L,
+            )
+        )
+        assertNull(
+            confirmedEnginePosition(
+                mediaItem = item,
+                timelineEmpty = false,
+                playbackState = Player.STATE_BUFFERING,
+                currentPositionMs = 0L,
+            )
+        )
+        assertEquals(
+            0L,
+            confirmedEnginePosition(
+                mediaItem = item,
+                timelineEmpty = false,
+                playbackState = Player.STATE_READY,
+                currentPositionMs = 0L,
+            ),
+        )
+        assertEquals(
+            PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
+            terminalAtDeadline(enginePositionMs = 0L).second.terminal?.positionSource,
+        )
+    }
+
+    @Test
+    fun `external buffered position is never below confirmed current`() {
+        assertEquals(7_000L, boundedBufferedPosition(currentPositionMs = 7_000L, buffered = 4_000L))
+        assertEquals(
+            7_000L,
+            boundedBufferedPosition(currentPositionMs = 7_000L, buffered = C.TIME_UNSET),
+        )
+        assertNull(boundedBufferedPosition(currentPositionMs = null, buffered = 4_000L))
+    }
+
+    @Test
+    fun `mpv source epoch replacement invalidates position cache and pending discontinuity`() {
+        val old =
+            MpvSourcePositionState(
+                sourceEpoch = 1L,
+                positionMs = 5_000L,
+                cacheEndMs = 9_000L,
+                pendingDiscontinuityFromMs = 2_000L,
+                isAnchored = true,
+            )
+        val switched = old.replaceSource(2L)
+
+        assertNull(switched.positionMs)
+        assertNull(switched.cacheEndMs)
+        assertNull(switched.pendingDiscontinuityFromMs)
+        assertNull(switched.acceptPosition(epoch = 1L, positionMs = 8_000L))
+        assertNull(switched.acceptCache(epoch = 1L, cacheEndMs = 12_000L))
+        assertNull(switched.restart(epoch = 1L, positionMs = 8_000L))
+        assertNull(switched.consumeDiscontinuity(epoch = 1L))
+        assertNull(switched.acceptPosition(epoch = 2L, positionMs = 0L))
+        val anchored = requireNotNull(switched.restart(epoch = 2L, positionMs = 0L))
+        assertEquals(0L, anchored.positionMs)
+        assertEquals(1_000L, anchored.acceptPosition(epoch = 2L, positionMs = 1_000L)?.positionMs)
+    }
+
+    @Test
+    fun `mpv source epoch is part of playback session key`() {
+        val source = sourceIdentity("https://media.example/video/master.m3u8?StartTimeTicks=0")
+
+        assertNotEquals(
+            playbackSessionKeyFor(source, 9L, 3L),
+            playbackSessionKeyFor(source, 9L, 4L),
+        )
+    }
+
+    @Test
+    fun `mpv seek clears stale cache but keeps a legal current buffered bound`() {
+        val confirmed =
+            MpvSourcePositionState(
+                sourceEpoch = 4L,
+                positionMs = 5_000L,
+                cacheEndMs = 9_000L,
+                isAnchored = true,
+            )
+        val seek = requireNotNull(confirmed.seekStarted(epoch = 4L))
+
+        assertNull(seek.cacheEndMs)
+        assertEquals(5_000L, seek.bufferedPositionMs)
+        val lowerLateCache = requireNotNull(seek.acceptCache(epoch = 4L, cacheEndMs = 3_000L))
+        assertEquals(5_000L, lowerLateCache.bufferedPositionMs)
+    }
+
+    @Test
+    fun `buffered growth alone does not retire progress terminal`() {
+        val loading =
+            input(
+                isPlaying = false,
+                isBuffering = true,
+                enginePositionMs = 5_000L,
+                bufferedPositionMs = 6_000L,
+            )
+        val initial = advance(loading, 0L)
+        val terminal = advance(loading, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
+        assertTrue(terminal.second.terminal != null)
+
+        val bufferedGrowth =
+            advance(
+                loading.copy(bufferedPositionMs = 9_000L),
+                PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+                terminal.first,
+            )
+        assertTrue(bufferedGrowth.second.terminal != null)
+        assertEquals(0L, bufferedGrowth.first.lastProgressAtMs)
+    }
+
+    @Test
+    fun `confirmed engine advance retires progress terminal`() {
+        val terminal = terminalAtDeadline(enginePositionMs = 5_000L)
+        val advanced =
+            advance(
+                input(
+                    isPlaying = true,
+                    isBuffering = false,
+                    isReady = true,
+                    enginePositionMs = 6_000L,
+                ),
+                PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+                terminal.first,
+            )
+
+        assertNull(advanced.second.terminal)
+    }
+
+    @Test
+    fun `ready recovery retires progress terminal without cache growth`() {
+        val terminal = terminalAtDeadline(enginePositionMs = 0L)
+        val recovered =
+            advance(
+                input(
+                    isPlaying = true,
+                    isBuffering = false,
+                    isReady = true,
+                    enginePositionMs = 0L,
+                    bufferedPositionMs = 0L,
+                ),
+                PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+                terminal.first,
+            )
+
+        assertNull(recovered.second.terminal)
     }
 
     @Test
