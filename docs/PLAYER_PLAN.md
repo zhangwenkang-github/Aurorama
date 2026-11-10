@@ -5793,3 +5793,41 @@ K60 命令 0、截图 0、锁 `ACTIVE=0`。
 2. 明确授权一个新的 instrumentation scope（需要说明是否允许第二次 corrected fixture）。
 
 在用户给出上述决策前，本任务保持暂停。
+
+### 52.23 Context handoff to delivery lead R4（2026-11-10）
+
+**状态**：`HANDOFF_TO_A_CLUSTER_DELIVERY_LEAD_R4 / CONTEXT_BUDGET_TRIGGERED /`
+`BACKGROUND_CONTINUE=INCONCLUSIVE / PRODUCT_REPAIR=NOT_STARTED`。
+
+用户恢复会话并要求“继续，注意上下文，交接规范”。本地代理最后记录到本会话
+`493802/1048576` tokens（`47.1%`），已超过 35 万硬交接线；当前 `gpt-5.6-terra`
+请求未被代理计量，因此不能把空值当成未超线。按 R020 / R028 / R041，旧会话停止扩项并交接
+负责人工作，不在本会话继续 instrumentation、产品修复或 QA。
+
+当前事实：
+
+- canonical `922710b7421e94d37b2fc82dd544d0f4211c99c3`，branch
+  `codex/v2-integration`，clean；
+- candidate `60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf`，tree
+  `0fca8a6cf425261e9109be49846aaa981048bba0`，clean；本波没有产品改动；
+- R5 合格 sanitized 窗口确认 HLS/mpv HOME 序列中的暂停现象，但回前台走了新播放请求；
+  diagnosis 为 `ROOT_CAUSE=CONFLICTING`；
+- instrumentation R1 `SEQUENCE_NOT_EQUIVALENT`，corrected R2 `INCONCLUSIVE`；
+  R2 wrapper `READY=PASS / EXIT_CODE=0 / FLUSH_OK=YES`，但目标 App 事件 0；
+- 当前 `pref_player_background_audio=ABSENT`，源码默认 false；
+- 无运行中的子代理；设备锁已释放；K60 命令、截图、settings 写均为 0。
+
+后继 `AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R4_2026_11_10` 必须：
+
+1. 先做 Snapshot、exact-pin Handoff、clean/ACTIVE 与对象 spot-check；
+2. 读本段、§52.20–§52.22、R5 report、diagnosis report、instrumentation R1/R2 report；
+3. 作为交付负责人决定：接受 `INCONCLUSIVE` 并调整 A 簇验证范围，或基于现有证据明确启动
+   一个新的 bounded instrumentation scope；不得把 R2 本地 runner 失败当成产品结果；
+4. 任何新 instrumentation / 实现 / review / QA 继续使用全新 `deepseek-flash / max /
+   fork_turns=none` 单阶段代理；不得复用旧 owner；
+5. 若判断当前后台音频默认 false 使“HOME 暂停”属于预期行为，应把状态改为
+   `P1_NOT_REPRODUCED_UNDER_DEFAULT_PREF` 并记录用户承诺解释，不得为了关闭 P1 改代码；
+6. 不得跳过用户承诺与真实候选矩阵，不得 merge-prep、integration、K60 或 Release。
+
+交接后旧负责人不再修改实质工作树。后继第一条只读命令仍为 canonical Snapshot；首个证据入口：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-instrumentation-r2-2026-11-10\BACKGROUND_CONTINUE_INSTRUMENTATION_R2_REPORT.md`。

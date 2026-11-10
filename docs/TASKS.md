@@ -8,27 +8,27 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=PAUSED_BY_USER_AFTER_BACKGROUND_INSTRUMENTATION_R2_INCONCLUSIVE / AWAITING_USER_NOTIFICATION
+- TASK_STAGE=HANDOFF_TO_A_CLUSTER_DELIVERY_LEAD_R4 / CONTEXT_493802_OVER_35W / BACKGROUND_CONTINUE_INCONCLUSIVE / PRODUCT_REPAIR_NOT_STARTED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R3_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R4_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
 - NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-instrumentation-r2-2026-11-10\BACKGROUND_CONTINUE_INSTRUMENTATION_R2_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
-- STOP_CONDITION=User requested a full pause after the current subagent completed. Do not dispatch agents, use devices, run tests, modify product/docs, or continue diagnosis/instrumentation/QA/merge-prep/integration/Release until the user explicitly notifies to resume and states the next scope.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_HARNESSES_PASS/INDEPENDENT_QA_R5_FAIL/BACKGROUND_CONTINUE_DIAGNOSIS_CONFLICTING/INSTRUMENTATION_R1_SEQUENCE_NOT_EQUIVALENT/INSTRUMENTATION_R2_INCONCLUSIVE/PAUSED_BY_USER
+- STOP_CONDITION=Successor delivery lead must do startup Snapshot/exact-pin Handoff, read PLAYER_PLAN 52.20-52.23 and R2/diagnosis evidence, then decide whether the default background-audio-off behavior is expected or authorize one new bounded instrumentation scope. Do not inherit R2 runner failure as a product result, do not reuse owners, and do not merge-prep/integrate/K60/Release without a complete user-journey matrix.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_HARNESSES_PASS/INDEPENDENT_QA_R5_FAIL/BACKGROUND_CONTINUE_DIAGNOSIS_CONFLICTING/INSTRUMENTATION_R1_SEQUENCE_NOT_EQUIVALENT/INSTRUMENTATION_R2_INCONCLUSIVE/HANDOFF_TO_DELIVERY_LEAD_R4
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / PAUSED_BY_USER / NO_PRODUCT_REPAIR / NO_FURTHER_INSTRUMENTATION
+- IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / HANDOFF_TO_DELIVERY_LEAD_R4 / NO_PRODUCT_REPAIR / SUCCESSOR_DECIDES_NEXT_SCOPE
 - DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_FINAL_V140 / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / TEST_SERVER_NETWORK_USED=YES
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / PAUSED_BY_USER / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / BACKGROUND_CONTINUE_INCONCLUSIVE / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=351243/1048576/33.5%/35W_HANDOFF_TRIGGERED
+- CONTEXT_AT_CLOSE=493802/1048576/47.1%/35W_HANDOFF_TRIGGERED
 - P0=0
 - P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01=CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;P1-QA-R3-01=CLOSED_BY_QA_R5_REAL_DEVICE_PROOF;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001;P1-PLAYER-LOADING-BACKGROUND-CONTINUE=OPEN_REVALIDATION_REQUIRED
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=PAUSED_AWAITING_USER_NOTIFICATION_AND_NEXT_SCOPE
-- last_evidence=INDEPENDENT_QA_R5=FAIL;BACKGROUND_CONTINUE_DIAGNOSIS=CONFLICTING;INSTRUMENTATION_R2=INCONCLUSIVE;TARGET_APP_EVENTS_R2=0;SECOND_FIXTURE=NOT_RUN;R2_REPORT_SHA=4D5EBD063160C37768BC7A636B857D3650F4075548144AC60B4AE2C3216CCDE9;R2_MANIFEST=21/21;PRODUCT_CHANGE=NO;LOCK_RELEASED=YES;K60_COMMANDS=0;SCREENSHOTS=0
+- NEXT_CRITICAL_PATH=FRESH_PRE_HANDOFF_AUDIT_THEN_DELIVERY_LEAD_R4_BACKGROUND_SCOPE_DECISION
+- last_evidence=CONTEXT_493802_OVER_35W;INDEPENDENT_QA_R5=FAIL;BACKGROUND_CONTINUE_DIAGNOSIS=CONFLICTING;INSTRUMENTATION_R1=SEQUENCE_NOT_EQUIVALENT;INSTRUMENTATION_R2=INCONCLUSIVE;R2_REPORT_SHA=4D5EBD063160C37768BC7A636B857D3650F4075548144AC60B4AE2C3216CCDE9;R2_MANIFEST=21/21;PRODUCT_CHANGE=NO;LOCK_RELEASED=YES;K60_COMMANDS=0;SCREENSHOTS=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -178,6 +178,12 @@
   同 task 返回均未执行，未重开第二 fixture。设备清理 PASS、锁 `ACTIVE=0`。用户明确要求当前
   子代理完成后暂停任务、写文档并等待通知。当前为 `PAUSED_BY_USER`；P1 未复验，无产品修复。
   证据见 `docs/PLAYER_PLAN.md` §52.22。
+- 2026-11-10 用户恢复并要求继续，同时提醒上下文与交接规范。代理最后记录本会话
+  `493802/1048576` tokens，已超过 35 万硬交接线；当前模型未被代理计量。当前事实、
+  R5/diagnosis/R1/R2 证据、未覆盖项和后继读取顺序已写入 `docs/PLAYER_PLAN.md` §52.23。
+  旧会话停止扩项；下一角色为
+  `AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R4_2026_11_10`，必须由 fresh
+  pre-handoff audit PASS 后创建后继负责人会话。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -974,10 +980,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=The task is paused at the user request. QA R5 proved one HLS/mpv behavior sequence but diagnosis found the foreground step was not a same-session return. Instrumentation R1 and corrected R2 did not execute the target App/HOME path because local runner failures occurred before target events. P1 remains not revalidated and no product repair has started.
-- STOP_CONDITION=PAUSED_BY_USER. No agent dispatch, device use, tests, edits, diagnostics, QA, merge-prep, integration, K60 or Release until the user resumes and states whether to accept INCONCLUSIVE or authorize a new bounded instrumentation scope.
-- MANUAL_LIMITATION=Current evidence is inconclusive for same-session background continuation. The current debug-app preference key is ABSENT and source default false, but the target HLS/mpv same-task fixture did not execute. Do not infer a product fix or PASS from R5, diagnosis, R1/R2 instrumentation, or local gates.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R3_2026_11_10
+- UNCOVERED=Context handoff is due to the 493802-token session watermark. R5 showed HLS/mpv pause after HOME but not same-session return; diagnosis is conflicting and both instrumentation retries were inconclusive or non-equivalent. The successor must decide whether default background-audio-off makes pause expected or authorize one newly bounded scope. No product result is established.
+- STOP_CONDITION=Successor-only handoff state. Do not continue QA, instrumentation, repair, merge-prep, integration, K60 or Release in the old delivery-lead session. A fresh pre-handoff audit must pass before creating R4; R4 must then independently decide and dispatch professional one-stage agents.
+- MANUAL_LIMITATION=R5, diagnosis, and R1/R2 instrumentation cannot prove a same-session background-continuation defect. The preference key is ABSENT with source default false. A fix based only on R5 would conflate a new playback request or expected background-audio-off pause with the original P1.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R4_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
