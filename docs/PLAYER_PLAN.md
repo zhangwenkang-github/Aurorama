@@ -6169,3 +6169,93 @@ review 只写
 `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-r7-scoped-review-r1-2026-11-10\`
 报告与 manifest。停止条件：需要设备 / ADB / 网络、产品修改、settings 写、未知新 P0/P1、
 secret 输出、对象或 R7 evidence 漂移、merge-prep/integration/K60/Release。
+
+### 52.29 QA R7 只读归因完成：进入进度状态模型重设计（2026-11-10）
+
+**状态**：`R7_SCOPED_REVIEW_R1=COMPLETE /`
+`FINAL_RECOMMENDATION=STATE_MODEL_REDESIGN / PRODUCT_CHANGE=NO / DEVICE_USED=NO`。
+
+fresh read-only review 核验 R7 报告 / `25/25` manifest、Authority / candidate / APK 和源码，
+未访问设备、ADB、网络或生产服务器。review 报告与 manifest 均 MATCH；新增产品
+`P0/P1/P2/P3=0/0/0/0`。逐项分类固定为：
+
+```text
+PC01_NONZERO_RESUME=CONFIRMED
+PC01_REAL_PLAYBACK_STALL=CONFIRMED_PRODUCT
+PC01_UI_MEDIASESSION_DIVERGENCE=CONFIRMED_PRODUCT
+PC01_FIXED_15S_ASSERTION=HARNESS_GAP
+PC11_PLAYING_FORCE_STOP=NOT_RUN
+PC12_RETRY_METHOD_HIT=EVIDENCE_INSUFFICIENT
+PC12_MEDIASESSION_POSITION=CONFIRMED_PRODUCT
+SETTINGS_EVIDENCE=CLEANUP_EVIDENCE_INSUFFICIENT
+```
+
+关键归因：
+
+- `PC-01` 的非零续播成立，但 mpv 在等待期连续出现 `31–40 s` 的真实缓冲段。该长缓冲映射既有
+  `P2-PLAYER-STALL-001`；UI / engine 与 MediaSession 的分叉映射既有
+  `P1-PLAYER-PROGRESS-001`。固定“连续 15 秒”不是 PC-01 产品 SLA，后继 QA 应把 resume 与
+  liveness / stall 分栏，不能继续用单一硬编码等待替代逐层判别。
+- `PC-11` 的 buffering force-stop 保持 `NOT_RUN`。`Posting progress 304 s` 是写入方法入口，
+  不证明持久化完成；后继播放中分支必须先证明同 item/source 的非零持久基线，再以
+  READY/playing 的 UI + engine 同步样本触发 force-stop。
+- `PC-12` 的 retry token / one-shot 源码与测试存在，正式标记为
+  `Retrying playback`；R7 在 terminal 已清除后才点击，且没有命中该标记，因此“实际命中一次
+  retry / 消费 token”只能判证据不足，不是新产品缺陷。
+- mpv adapter 的普通 `time-pos` 只更新位置字段，未形成 Media3 可消费的位置事件；
+  MediaSession 与 UI 绑定同一 Player，但 UI 主动轮询而 MediaSession 依赖事件，造成持续
+  `-1/-1`。这是 backend → Player → Media3 / MediaSession 的位置事件投影缺口，直接确认既有
+  `P1-PLAYER-PROGRESS-001`；不得以目标位置、UI 缓存或 fake callback 回填。
+- R7 只有 settings 聚合哈希，没有 baseline / final 逐 key snapshot，固定
+  `CLEANUP_EVIDENCE_INSUFFICIENT / SETTINGS_CLEAN=UNKNOWN`。后继设备 QA 只能使用
+  namespace / key / value 内存哈希或预注册非敏感 key 比较，任何非易变 key 变化仍阻塞。
+
+按 R042 / ADR 0008 的同 P1 止损规则，候选状态模型已经无法把真实 mpv 位置投影到 MediaSession；
+继续在 `PlayerViewModel` 增加阈值、字段或日志属于重复补丁。下一步固定为 fresh 只读
+`AURORAMA_141_PLAYER_A_CLUSTER_PROGRESS_STATE_MODEL_REDESIGN_OWNER_R1_2026_11_10`，先产出
+位置 / session 事件合同、最小写域、RED 测试与迁移 / 回滚方案，不直接改产品代码。
+
+read-only review 证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-r7-scoped-review-r1-2026-11-10\SCOPED_REVIEW_R1_REPORT.md`
+  （SHA-256 `B573183FE7E7427DA016A2DFBD2822E27F902FE59C755CC93A2F93274BD436CB`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `0628D5D9588CB3709AFCB98BD9E86D6DC7E1B56ED8FC08394946F809AB724E48`，
+  1/1 MATCH）
+
+### 52.30 进度状态模型重设计 scope（2026-11-10）
+
+**状态**：`PROGRESS_STATE_MODEL_REDESIGN_SCOPE=FROZEN / READ_ONLY_DESIGN /`
+`PRODUCT_CHANGE=NO / DEVICE_ACCESS=NONE`。
+
+全新
+`AURORAMA_141_PLAYER_A_CLUSTER_PROGRESS_STATE_MODEL_REDESIGN_OWNER_R1_2026_11_10`
+固定 `deepseek-flash / reasoning_effort=max / fork_turns=none`，只做一阶段设计，不派子代理、
+不实现、不 QA、review 下游、merge-prep、integration、Release 或文档负责人工作。
+
+只读入口与必须回答：
+
+1. `MPVPlayer.kt` 的 `time-pos` / demuxer cache / Player state / position events；
+2. `PlayerViewModel.kt` 的 session sampling、terminal、retry token 与 progress truth；
+3. `CinefinPlaybackService.kt` 的 MediaSession binding；
+4. `PlayerControlOverlay.kt` 的 UI polling 与 retry control lifecycle；
+5. `PlaybackSessionRules.kt` 与现有 tests 的合同和缺口。
+
+设计必须给出：
+
+- 单一位置事件合同的输入（backend PTS、engine position、duration、buffered、source epoch、
+  playing / buffering / terminal）、消费者（UI、MediaSession、persist）和禁止回填项；
+- mpv 普通 `time-pos` 如何在不伪造 seek / EOS 的情况下驱动 Media3 / MediaSession 可消费事件；
+- retry token 与 terminal 生命周期如何被真实 UI 点击命中并可审计；
+- 先失败的 RED test / fixture、最小 production 写域、A0 影响、回滚与 fresh QA 矩阵；
+- resume、stall、progress timeout 三者分开验收，不再用固定 15 秒混成一个 PC-01 结论。
+
+设计 owner 必须明确判定方案是否能在现有 5 个 product paths 内完成。若需要改
+`MPVPlayer.kt`、`CinefinPlaybackService.kt` 或其他白名单外产品路径，只写
+`SCOPE_EXPANSION_REQUIRED=<paths+reason>` 并停止，不获得实施授权。设计报告只写
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-state-model-redesign-2026-11-10\`
+及其 manifest。
+
+停止条件：需要设备 / ADB / 网络 / secret / 生产；需要实施而非设计；方案依赖 fake callback、
+UI 缓存、目标位置伪回填；无法收敛到单一位置 / 事件合同；出现未知新 P0/P1；对象漂移；
+或尝试扩到 PC-03/04/05、DirectPlay+Exo、K60、merge-prep、integration、Release。
