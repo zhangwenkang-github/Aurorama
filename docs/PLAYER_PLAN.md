@@ -6393,3 +6393,30 @@ P1-R12-02=GATEPLAN_ENTRY_NOT_SELF_CONTAINED
 - `...\MANIFEST.sha256`
   （SHA-256 `191E3E8976444A93CB9118DCF5E7F008D67520A2B7ACA11EF49FE3DE7C42EC45`，
   1/1 MATCH）
+
+### 52.34 Pre-handoff audit R13 PASS 与 R6 交接（2026-11-10）
+
+**状态**：`PRE_HANDOFF_AUDIT_R13=PASS / CREATE_DELIVERY_LEAD_R6_AUTHORIZED=YES /`
+`HANDOFF_TO_DELIVERY_LEAD_R6 / IMPLEMENTATION_NOT_STARTED`。
+
+与 R12 不同的 fresh auditor 已重跑 Authority Snapshot、exact-pin Handoff、R12/R13 证据、
+9-path GatePlan、candidate/APK、设备锁、active agents、memory 与下一步可执行性。R12 两个
+contract P1 均关闭，`BLOCKED=NONE`。
+
+```text
+R13_REPORT_SHA256=11E02D0E3B9E1AA7519DCCB78D38C2708E30E248765A6CFD695F94C9925DEC65
+R13_MANIFEST_SHA256=6A26D94EFB123C1FBF936CEB8EF17ABFE64EA0E232C2391450C3ACAC89134DC3
+R13_MANIFEST=1/1 MATCH
+GATEPLAN=FULL / 9 PATH / MATRIX PASS / 0 UNMAPPED
+```
+
+本负责人 R5 会话到此停止实质扩张。R6 是后继**负责人**，不是实现或 QA owner；R6 启动后只做
+最小 spot-check，再派全新 implementation owner。首读 `PROGRESS_STATE_MODEL_REDESIGN_REPORT.md`
+§0、§8.5、§9、§11，随后原样运行 `TASKS` 的 `TEST-A-GATEPLAN`，以既有三个 test paths 做
+RED→GREEN。实现、scoped review、fresh QA 必须是不同 owner。
+
+需求映射：`V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09 / A 簇 progress P1` → 用户承诺
+“UI / engine / MediaSession 使用同一真实播放位置，retry 可见且一次点击可审计” → R6 编排实现。
+第一条只读动作：复核 R13 audit receipt 与当前唯一 ACTIVE。停止条件：R13 对象漂移、GatePlan
+非 FULL、需要新路径、schema/settings/metadata/生产写、K60、未知新 P0/P1，或跳过 RED/GREEN、
+A0、不同 fresh review、不同 fresh QA 及后续门。
