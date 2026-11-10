@@ -6496,3 +6496,71 @@ P2=0_NEW / P3=0_NEW
 pending discontinuity 并拒绝旧 epoch；seek 清 cache、保证 buffered 合法；terminal retire 绑定真实
 engine 推进或明确 READY 恢复，不被 cache 增长掩盖；合法片头 `0` 仍需保留。关键负例只能装入
 既有三个 test paths；若必须新增 test path，停止并报告 `TEST_SCOPE_EXPANSION_REQUIRED`。
+
+### 52.37 Progress P1 implementation R2 GREEN，等待不同 fresh scoped review R2（2026-11-10）
+
+**状态**：`PROGRESS_P1_IMPLEMENTATION_R2=GREEN / SCOPED_REVIEW_R2=REQUIRED /`
+`P1-PLAYER-PROGRESS-001=OPEN / QA_READY=NO / HANDOFF_AT_35W`。
+
+R1 review FAIL 后，另一名 fresh implementation owner 在批准的九路径内完成了本任务线的
+**第二次实现**。R2 从 R1 candidate `7d7e07139d0ff2216890793d58a9417d5aac5020`
+前进到 candidate `46761d47f3d7a3d4d75b8842547c70d3843a4a51`，candidate tree 为
+`0a96235b1f275683d4ac96bc12430569e6671db8`，parent 为
+`7d7e07139d0ff2216890793d58a9417d5aac5020`，branch
+`codex/v141-player-a-cluster-fix`，worktree clean。
+
+```text
+IMPLEMENTATION_R2=GREEN
+PRODUCT_OR_QA_PASS=NO
+GATEPLAN_PRE=FULL / 9 PATH / 6 PRODUCTION + 3 TEST / MATRIX PASS / 0 UNMAPPED
+GATEPLAN_POST_NINE=FULL / MATRIX PASS / 9 PATH / 0 UNMAPPED
+GATEPLAN_POST_ACTUAL=FULL / MATRIX PASS / 5 CHANGED PATH / 0 UNMAPPED
+OUTSIDE_APPROVED_NINE=0
+RED=26 EXECUTED / 5 EXPECTED FAILURES / 0 ERRORS / 0 SKIPPED / 0 COMPILE_OR_PATH_ERRORS
+GREEN=104 SUITES / 724 TESTS / 0 FAILURES / 0 ERRORS / 0 SKIPPED
+TARGETED_THREE_FILES=3 SUITES / 63 TESTS / 0 FAILURES / 0 ERRORS / 0 SKIPPED
+ASSEMBLE=BUILD SUCCESSFUL / KTFMT=PASS
+A0_OWNER_GATE=PASS / FIXTURES=7/7 / LINE_HEADROOM=15
+DEBT_RATCHET_FAILURES=0 / DEPENDENCY_CYCLES=0 / NEW_FILES=0
+```
+
+R2 implementation report：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-p1-implementation-r2-2026-11-10\IMPLEMENTATION_REPORT.md`
+（SHA-256 `73216493C121F0D1C21F777A678279D1DFFF8B6FD3814ECBBC6C66C54AAA8C0B`）。
+
+三个 R1 review 阻断的 RED→GREEN 合同如下：
+
+- **P1-A / Exo prospective zero**：无当前 item、timeline 为空或状态未到与当前 item 对应的
+  `READY|ENDED` 时，prospective raw `0` 必须投影为 UNKNOWN，不得生成 `ENGINE_POSITION`
+  terminal；当前 item 在 `READY|ENDED` 的合法片头 `0` 仍须保留为已确认 engine zero。
+- **P1-B / mpv source epoch**：`playlist-current-pos` 换源必须原子推进 source epoch，并同步清空
+  position、cache 与 pending discontinuity；position/cache/seek/restart/discontinuity 的迟到
+  callback 若 capture epoch 不匹配必须拒绝，playback session key 也必须包含 source epoch。
+- **P1-C / buffered 与 progress terminal**：seek/source transition 清 stale cache；对外
+  buffered 由 confirmed current 下界约束，UNKNOWN 不写 0；cache 增长只能更新 buffered snapshot，
+  不得撤销 recovery terminal。terminal 只由 confirmed engine 推进或明确的 playing `READY`
+  recovery 撤销。
+
+实际五路径：
+
+- `app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt`
+- `app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt`
+- `player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt`
+- `player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt`
+- `player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt`
+
+R2 在 P0–P3 上为 `P0=0 / P1=0_NEW + P1-PLAYER-PROGRESS-001_OPEN / P2=0_NEW / P3=0_NEW`；
+既有 `P2-PLAYER-LOADING-001` 与 `P2-PLAYER-STALL-001` 未在本轮重新评估。实现 GREEN 只关闭
+自动化层面的 R1 代码阻断，不关闭产品 P1，也不证明独立 QA、merge-prep、integration 或 Release。
+
+未覆盖仍包括真实 mpv HLS `time-pos` / cache / seek / restart ordering、真实 source transition
+竞争、Android MediaSession binder 的 position/buffered/loading、通知栏 / 锁屏一次真实 retry
+tap、process kill / force-stop 后持久化时序、Compose 点击竞争、PC-01/03/04/05/11/12、
+DirectPlay+Exo 回归、设备 / ADB / 截图 / K60、fresh independent QA、merge-prep、integration
+与 Release。当前没有设备锁；R2 review PASS 前不得申请新设备锁或 `QaReady`。
+
+下一步由 `AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R7_2026_11_10` 先做 startup
+spot-check，再派一名与 R1 reviewer、R1/R2 implementers 均不同的 fresh scoped review R2。
+reviewer 首条只读动作是核对 candidate commit/tree、R2 report SHA、三组 RED/GREEN/门禁证据
+与五路径；只有 review PASS 才能申请新设备锁和 `QaReady`。若 R2 review 仍 FAIL，立即进入
+`BLOCKED_HISTORY` 并停止本任务线，不得第三轮实现或补救。
