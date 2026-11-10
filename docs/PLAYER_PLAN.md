@@ -7077,3 +7077,39 @@ retry 选择入口，不得用 fake callback、target、UI cache 或 persist hin
 assemble/KTFMT/A0/GatePlan → commit 不 push → different fresh scoped review R5。Review PASS 后才
 申请 Pad `43af8627` 新锁与 `QaReady`；K60 继续禁止。Review PASS 后另派 fresh QA，只验证本 P1
 核心矩阵与 settings per-key hash，唯一 600 秒窗口只跑一次。Review FAIL 时自动另立新任务卡。
+
+### 52.48 Progress source-identity / retry-priority R5 实现 R1 GREEN（2026-11-11）
+
+**状态**：`R5_IMPLEMENTATION_R1=GREEN / R5_SCOPED_REVIEW=REQUIRED /`
+`P1-PLAYER-PROGRESS-001=OPEN / QA_READY=NO`。
+
+fresh R5 implementation owner 从 `c6fff176` 起只改三条既有批准路径，取得正式 assertion-only RED
+`37/3/0/0`，三个失败分别对应 same-identity native 保留、seek binding epoch/generation 与
+`SeekState.Failed` target 生命周期。最终候选：
+
+```text
+HEAD=52967e20dd8c6e5e6973d9847fbb92ba3e57244f
+TREE=09fa94049ca906938003b8adc41fc0fd46d44649
+PARENT=c6fff17602c4e4c0eebf54710e733a982303d5ab
+WORKTREE_CLEAN=YES
+CHANGED_PATHS=3
+NEW_PRODUCTION_OR_TEST_FILES=0
+```
+
+实现用 production `commandExecutor` 捕获真实命令计划：same identity 不再发 `playlist-clear` /
+`playlist-remove current`，只删除/重插非当前项，并设置一次性 `preserveSourceOnPrepare`；binding
+在同 generation/旧 epoch 时清旧 target 且不复活，新 generation 可重建；`SeekState.Failed` 继续
+向 retry 暴露 explicit target，failure UI 仍压制 loading/terminal。
+
+GREEN：targeted `42/0/0/0`、player-local `42 suites / 322/0/0/0`、phone
+`62 suites / 412/0/0/0`、assemble、KTFMT、A0 与 GatePlan PASS；A0 `15503/15512`，余量 9。
+
+```text
+F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r5-implementation-r1-2026-11-10\IMPLEMENTATION_REPORT.md
+SHA256=0F08E19DD78C809F82177381C1FFC0D0FF4FCDEA1B420D7DA12B71460113A1A2
+MANIFEST_SHA256=69F94EB66CF3D845012770D4C0339FB2A537D4015B81D686A5A71788A8657061
+```
+
+本状态不是产品、review 或 QA PASS。下一步由不同 fresh read-only scoped review R5 独立核对
+`c6fff176..52967e20` 三路径 diff、三缺口生产链、RED/GREEN 与全部门禁；review PASS 前不得申请
+设备锁或 `QaReady`。
