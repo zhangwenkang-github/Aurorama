@@ -18,7 +18,7 @@
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-context-handoff-audit-r12-2026-11-10\PRE_HANDOFF_AUDIT_R12_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-context-handoff-audit-r13-2026-11-10\PRE_HANDOFF_AUDIT_R13_REPORT.md
 - NEXT_REQUIREMENT=R6 successor must run a minimal startup spot-check, then dispatch a new fresh implementation owner. First implementation gate: read design report sections 0, 8.5, 9, 11; run the TASKS TEST-A-GATEPLAN command from Authority root over exactly nine actual paths and obtain FULL; then execute RED-GREEN using only the existing three test paths. After implementation use a different fresh scoped review and later a different fresh QA.
 - STOP_CONDITION=Stop if R13 receipt/object/hash/clean/role/lock drift; if the nine-path GatePlan does not return FULL; if a new production or test path is needed; if schema/settings/metadata/production-server writes, K60, secret exposure, unknown new P0/P1, or skipped RED/GREEN/A0/review/QA gates occur. P1-PLAYER-PROGRESS-001 remains open until fresh candidate evidence passes.
 - SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/PROGRESS_P1_STATE_MODEL_REDESIGN/R13_AUDIT_PASS/PRODUCT_SCOPE_APPROVED_ADD_MPVPLAYER+PLAYERACTIVITY/TEST_PATHS_EXISTING_3/GATEPLAN_9_PATHS/IMPLEMENTATION_NOT_STARTED
