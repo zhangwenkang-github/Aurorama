@@ -5727,3 +5727,28 @@ PlayerActivity；采集 lifecycle、surface detach/attach、audio focus、MediaS
 position/buffered 与是否出现新的 `initializePlayer`。默认不改变 app/system 设置；若当前偏好
 关闭，必须把 R5 的“PAUSED”视为偏好符合行为而不是产品修复依据。该 fixture 不改产品代码，
 不进入 merge-prep 或完整 QA。
+
+首个 instrumentation R1 未取得等价序列：
+
+```text
+BACKGROUND_CONTINUE_INSTRUMENTATION_STATUS=SEQUENCE_NOT_EQUIVALENT
+CURRENT_BACKGROUND_AUDIO_PREF=ABSENT_EQUIVALENT_FALSE
+FIRST_APP_ENTRY=EXOPLAYER_NOT_HLS_MPV
+RUNNER_FAILURE=UNEXPECTED_EXCEPTION_BEFORE_HOME
+HOME_AND_SAME_TASK_RETURN=NOT_EXECUTED
+SECOND_FIXTURE_IN_R1=NO
+```
+
+该 R1 未改产品或 canonical/docs；wrapper ready/exit 正常，只是测试入口和 runner 未建立目标
+HLS/mpv 序列。按单点 harness 收敛，允许一次 corrected instrumentation retry：播放器 UI 内的
+720p / 6 Mbps 与 mpv 选择属于测试操作，不是系统设置写；仍禁止修改持久后台音频偏好或任何
+system settings。新 owner 必须先在自身 evidence 根修正 runner 异常并做本地 smoke，再执行
+一次同 task fixture；若仍不能建立 HLS/mpv 的同一 PID/task/PlayerActivity/item/source 序列，
+停止 instrumentation，不得继续迭代或猜产品补丁。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-instrumentation-2026-11-10\BACKGROUND_CONTINUE_INSTRUMENTATION_REPORT.md`
+  （SHA-256 `214C03F4E0C0D96183D9DD977E93CB61791D8C7DF9260F52CD330B86BF5A721F`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `C0D3D8DD35FEBF0F0A885527EAE8A5DFC23BD839BD90D7C85D725F6ABBCCCFED`，15/15 MATCH）
