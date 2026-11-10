@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.player.local.presentation
 
+import android.net.Uri
 import android.os.Handler
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -12,10 +13,16 @@ import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.mpv.MpvSourcePositionState
 import dev.jdtech.mpv.MPVLib.MpvEvent
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.lang.invoke.MethodHandles
+import java.lang.reflect.Constructor
+import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import javax.tools.ToolProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -1081,10 +1088,10 @@ class PlaybackSessionRulesTest {
     fun `same identity preserves current native entry for every playback state`() {
         val cases =
             listOf(
-                SameIdentityCase("idle unknown", Player.STATE_IDLE, false, false),
-                SameIdentityCase("buffering unknown", Player.STATE_BUFFERING, false, false),
-                SameIdentityCase("playing unknown", Player.STATE_READY, true, false),
-                SameIdentityCase("known position", Player.STATE_READY, true, true),
+                SameIdentityCase("idle unknown", Player.STATE_IDLE, false, false, false),
+                SameIdentityCase("buffering unknown", Player.STATE_BUFFERING, false, false, false),
+                SameIdentityCase("playing unknown", Player.STATE_READY, true, true, false),
+                SameIdentityCase("known position", Player.STATE_READY, true, true, true),
             )
 
         cases.forEach { case ->
@@ -1109,7 +1116,13 @@ class PlaybackSessionRulesTest {
                 )
             setField(player, "playbackState", case.playbackState)
             setField(player, "isPlayerReady", case.isPlayerReady)
+            setField(player, "currentPlayWhenReady", case.playWhenReady)
             val commands = captureCommands(player)
+            assertEquals(
+                "${case.name}: fixture 的可观察 playing 必须与 playWhenReady/state 一致",
+                case.playWhenReady,
+                player.isPlaying,
+            )
 
             player.setMediaItems(
                 mutableListOf(
@@ -1254,41 +1267,177 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `addMediaItems accepts request metadata media uri without local configuration`() {
+        val epoch = 42L
+        val first = mediaItem("item-a", "https://media.example/item-a")
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(first),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        val commands = captureCommands(player)
+        val requestOnlyUri = "https://media.example/item-b"
+
+        player.addMediaItems(
+            1,
+            mutableListOf(requestUriMediaItem("item-b", requestOnlyUri)),
+        )
+
+        assertEquals(
+            listOf("loadfile", requestOnlyUri, "insert-at", "1"),
+            commands.single(),
+        )
+        assertEquals(listOf("item-a", "item-b"), itemIds(player))
+    }
+
+    @Test
     fun `range move command plan preserves candidate order`() {
         val epoch = 43L
         val items =
             listOf("a", "b", "c", "d", "e", "f").map { id ->
                 mediaItem("item-$id", "https://media.example/item-$id")
             }
+        val cases =
+            listOf(
+                RangeMoveCase(1, 4, 4, listOf("a", "e", "f", "b", "c", "d")),
+                RangeMoveCase(3, 6, 0, listOf("d", "e", "f", "a", "b", "c")),
+            )
+
+        cases.forEachIndexed { caseIndex, case ->
+            val player =
+                allocatedMpvPlayer(
+                    sourceEpoch = epoch,
+                    mediaItems = items.toMutableList(),
+                    currentIndex = 4,
+                    sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+                )
+            setField(player, "handler", Handler())
+            val commands = captureCommands(player)
+
+            player.moveMediaItems(case.fromIndex, case.toIndex, case.newIndex)
+
+            val prefix = "case $caseIndex"
+            assertEquals(
+                "$prefix: candidate order",
+                case.expectedIds.map { "item-$it" },
+                itemIds(player),
+            )
+            assertEquals("$prefix: source epoch", epoch, player.currentSourceEpoch())
+            assertEquals("$prefix: current index", 1, player.currentMediaItemIndex)
+            val nativeOrder = items.map(MediaItem::mediaId).toMutableList()
+            commands.forEach { command ->
+                assertEquals("$prefix: command", "playlist-move", command.first())
+                val moved = nativeOrder.removeAt(command[1].toInt())
+                nativeOrder.add(command[2].toInt(), moved)
+            }
+            assertEquals(
+                "$prefix: production range move 命令应用后必须等于 candidate order",
+                case.expectedIds.map { "item-$it" },
+                nativeOrder,
+            )
+        }
+    }
+
+    @Test
+    fun `moveMediaItems rejects negative new index before state or native mutation`() {
+        val epoch = 44L
+        val items =
+            listOf("a", "b", "c").map { id ->
+                mediaItem("item-$id", "https://media.example/item-$id")
+            }
         val player =
             allocatedMpvPlayer(
                 sourceEpoch = epoch,
                 mediaItems = items.toMutableList(),
-                currentIndex = 4,
+                currentIndex = 1,
                 sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
             )
-        setField(player, "handler", Handler())
         val commands = captureCommands(player)
+        val before = itemIds(player)
 
-        player.moveMediaItems(1, 4, 4)
+        val outcome = runCatching { player.moveMediaItems(0, 1, -1) }
 
-        assertEquals(
-            listOf("item-a", "item-e", "item-f", "item-b", "item-c", "item-d"),
-            itemIds(player),
+        assertTrue(
+            "负 newIndex 必须以 IllegalArgumentException 拒绝: ${outcome.exceptionOrNull()}",
+            outcome.exceptionOrNull() is IllegalArgumentException,
         )
-        assertEquals(epoch, player.currentSourceEpoch())
-        assertEquals(1, player.currentMediaItemIndex)
-        val nativeOrder = items.map(MediaItem::mediaId).toMutableList()
-        commands.forEach { command ->
-            assertEquals("playlist-move", command.first())
-            val moved = nativeOrder.removeAt(command[1].toInt())
-            nativeOrder.add(command[2].toInt(), moved)
+        assertEquals("internal playlist 不得变化", before, itemIds(player))
+        assertEquals("current index 不得变化", 1, player.currentMediaItemIndex)
+        assertEquals("source epoch 不得变化", epoch, player.currentSourceEpoch())
+        assertTrue("拒绝前不得产生 native command", commands.isEmpty())
+    }
+
+    @Test
+    fun `addMediaItems rejects missing media uri atomically`() {
+        val epoch = 45L
+        val items =
+            listOf("a", "b").map { id -> mediaItem("item-$id", "https://media.example/item-$id") }
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = items.toMutableList(),
+                currentIndex = 1,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        val commands = captureCommands(player)
+        val before = itemIds(player)
+
+        val outcome = runCatching {
+            player.addMediaItems(
+                1,
+                mutableListOf(
+                    mediaItem("item-valid", "https://media.example/item-valid"),
+                    MediaItem.Builder().setMediaId("item-missing").build(),
+                ),
+            )
         }
-        assertEquals(
-            "production range move 命令应用后必须等于 candidate order",
-            listOf("item-a", "item-e", "item-f", "item-b", "item-c", "item-d"),
-            nativeOrder,
+
+        assertTrue(
+            "无 URI item 必须以 IllegalArgumentException 拒绝: ${outcome.exceptionOrNull()}",
+            outcome.exceptionOrNull() is IllegalArgumentException,
         )
+        assertEquals("批量 add 必须原子拒绝", before, itemIds(player))
+        assertEquals("current index 不得变化", 1, player.currentMediaItemIndex)
+        assertEquals("source epoch 不得变化", epoch, player.currentSourceEpoch())
+        assertTrue("原子拒绝前不得产生 native command", commands.isEmpty())
+    }
+
+    @Test
+    fun `setMediaItems rejects missing media uri before replacement state`() {
+        val epoch = 46L
+        val items =
+            listOf("a", "b").map { id -> mediaItem("item-$id", "https://media.example/item-$id") }
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = items.toMutableList(),
+                currentIndex = 1,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        val commands = captureCommands(player)
+        val before = itemIds(player)
+
+        val outcome = runCatching {
+            player.setMediaItems(
+                mutableListOf(
+                    mediaItem("item-valid", "https://media.example/item-valid"),
+                    MediaItem.Builder().setMediaId("item-missing").build(),
+                ),
+                0,
+                0L,
+            )
+        }
+
+        assertTrue(
+            "replacement 无 URI item 必须以 IllegalArgumentException 拒绝: ${outcome.exceptionOrNull()}",
+            outcome.exceptionOrNull() is IllegalArgumentException,
+        )
+        assertEquals("replacement 必须原子拒绝", before, itemIds(player))
+        assertEquals("current index 不得变化", 1, player.currentMediaItemIndex)
+        assertEquals("source epoch 不得变化", epoch, player.currentSourceEpoch())
+        assertTrue("原子拒绝前不得产生 native command", commands.isEmpty())
     }
 
     @Test
@@ -1333,7 +1482,7 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
-    fun `stale START_FILE callback cannot post another source initial commands`() {
+    fun `START_FILE arriving after source mutation cannot consume new source initial commands`() {
         val epoch = 53L
         val player =
             allocatedMpvPlayer(
@@ -1346,16 +1495,34 @@ class PlaybackSessionRulesTest {
         setField(player, "isPlayerReady", false)
         val oldCommands = mutableListOf(arrayOf("sub-add", "old.srt", "auto", "old", "zh"))
         val newCommands = mutableListOf(arrayOf("sub-add", "new.srt", "auto", "new", "zh"))
-        setField(player, "initialCommands", oldCommands)
         val commands = captureCommands(player)
 
+        replaceInitialCommands(player, oldCommands)
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        commands.clear()
+        val newEpoch = player.currentSourceEpoch()
+        assertTrue("source mutation 必须推进 epoch", newEpoch > epoch)
+        replaceInitialCommands(player, newCommands)
+
         player.event(MpvEvent.MPV_EVENT_START_FILE)
-        setField(player, "sourceEpoch", AtomicLong(epoch + 1L))
-        setField(player, "initialCommands", newCommands)
-
+        assertTrue(
+            "旧 START_FILE 不得消费属于新 source 的待发布快照",
+            (getField(player, "initialCommands") as MutableList<*>).isNotEmpty(),
+        )
         invokeEventCallback(player, epoch, MpvEvent.MPV_EVENT_START_FILE, oldCommands)
+        assertTrue("旧 START_FILE 不得消费并发送新 source 的 initialCommands", commands.isEmpty())
 
-        assertTrue("旧 START_FILE 不得读取并发送新 source 的 initialCommands", commands.isEmpty())
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        invokeEventCallback(player, newEpoch, MpvEvent.MPV_EVENT_START_FILE, newCommands)
+        assertEquals(
+            "新 source 的真实 START_FILE 必须取得自己的快照",
+            newCommands.map { it.toList() },
+            commands,
+        )
     }
 
     @Test
@@ -1471,8 +1638,22 @@ class PlaybackSessionRulesTest {
             mediaSourceUri = uri,
         )
 
-    private fun mediaItem(mediaId: String, uri: String): MediaItem =
-        MediaItem.Builder().setMediaId(mediaId).setUri(uri).build()
+    private fun mediaItem(mediaId: String, uri: String): MediaItem {
+        val mediaUri = TestUriFactory.uri(uri)
+        return MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setUri(mediaUri)
+            .setRequestMetadata(MediaItem.RequestMetadata.Builder().setMediaUri(mediaUri).build())
+            .build()
+    }
+
+    private fun requestUriMediaItem(mediaId: String, uri: String): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setRequestMetadata(
+                MediaItem.RequestMetadata.Builder().setMediaUri(TestUriFactory.uri(uri)).build()
+            )
+            .build()
 
     private fun sessionKey(item: MediaItem, engineEpoch: Long) =
         playbackSessionKeyFor(
@@ -1503,6 +1684,8 @@ class PlaybackSessionRulesTest {
         setField(player, "sourcePosition", sourcePosition)
         setField(player, "internalMediaItems", mediaItems)
         setField(player, "currentMediaItemIndex", currentIndex)
+        setField(player, "initialCommands", mutableListOf<Array<String>>())
+        trySetField(player, "initialCommandOwners", ArrayDeque<Long>())
         return player
     }
 
@@ -1566,7 +1749,7 @@ class PlaybackSessionRulesTest {
         player: MPVPlayer,
         epoch: Long,
         eventId: Int,
-        initialCommands: MutableList<Array<String>>,
+        initialCommands: List<Array<String>>,
     ) {
         val method =
             MPVPlayer::class.java.declaredMethods.single {
@@ -1575,6 +1758,13 @@ class PlaybackSessionRulesTest {
                     it.parameterTypes.any { type -> type == Long::class.javaPrimitiveType }
             }
         invokeStaticCallback(method, player, eventId, epoch, initialCommands)
+    }
+
+    private fun replaceInitialCommands(player: MPVPlayer, commands: List<Array<String>>) {
+        val method =
+            MPVPlayer::class.java.declaredMethods.single { it.name == "replaceInitialCommands" }
+        method.isAccessible = true
+        method.invoke(player, commands)
     }
 
     private fun invokeStaticCallback(method: java.lang.reflect.Method, vararg values: Any) {
@@ -1613,10 +1803,99 @@ class PlaybackSessionRulesTest {
     private fun getField(target: Any, name: String): Any? =
         target.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(target)
 
+    private object TestUriFactory {
+        private val constructor: Constructor<Uri> by lazy {
+            val source =
+                """
+                package android.net;
+
+                import android.os.Parcel;
+                import java.util.Collections;
+                import java.util.List;
+
+                public final class TestUri extends Uri {
+                    private final String value;
+
+                    public TestUri(String value) {
+                        this.value = value;
+                    }
+
+                    @Override public Builder buildUpon() { throw new UnsupportedOperationException(); }
+                    @Override public String getAuthority() { return null; }
+                    @Override public String getEncodedAuthority() { return null; }
+                    @Override public String getEncodedFragment() { return null; }
+                    @Override public String getEncodedPath() { return null; }
+                    @Override public String getEncodedQuery() { return null; }
+                    @Override public String getEncodedSchemeSpecificPart() { return value; }
+                    @Override public String getEncodedUserInfo() { return null; }
+                    @Override public String getFragment() { return null; }
+                    @Override public String getHost() { return null; }
+                    @Override public String getLastPathSegment() { return null; }
+                    @Override public String getPath() { return null; }
+                    @Override public List<String> getPathSegments() { return Collections.emptyList(); }
+                    @Override public int getPort() { return -1; }
+                    @Override public String getQuery() { return null; }
+                    @Override public String getScheme() { return null; }
+                    @Override public String getSchemeSpecificPart() { return value; }
+                    @Override public String getUserInfo() { return null; }
+                    @Override public boolean isHierarchical() { return true; }
+                    @Override public boolean isRelative() { return false; }
+                    @Override public String toString() { return value; }
+                    @Override public int describeContents() { return 0; }
+                    @Override public void writeToParcel(Parcel parcel, int flags) {}
+                }
+                """
+                    .trimIndent()
+            val root = Files.createTempDirectory("player-test-uri").toFile()
+            val sourceFile =
+                File(root, "android/net/TestUri.java").apply {
+                    parentFile.mkdirs()
+                    writeText(source)
+                }
+            val classes = File(root, "classes").apply { mkdirs() }
+            val diagnostics = ByteArrayOutputStream()
+            val compiler = checkNotNull(ToolProvider.getSystemJavaCompiler())
+            val result =
+                compiler.run(
+                    null,
+                    null,
+                    diagnostics,
+                    "-classpath",
+                    File(Uri::class.java.protectionDomain.codeSource.location.toURI()).path,
+                    "-d",
+                    classes.path,
+                    sourceFile.path,
+                )
+            check(result == 0) { "真实 MediaItem Uri 测试夹具编译失败：${diagnostics.toString("UTF-8")}" }
+            val lookup = MethodHandles.privateLookupIn(Uri::class.java, MethodHandles.lookup())
+            val defineClass =
+                lookup.javaClass.getDeclaredMethod("defineClass", ByteArray::class.java).apply {
+                    isAccessible = true
+                }
+            val type =
+                defineClass.invoke(
+                    lookup,
+                    File(classes, "android/net/TestUri.class").readBytes(),
+                ) as Class<*>
+            @Suppress("UNCHECKED_CAST")
+            type.getDeclaredConstructor(String::class.java) as Constructor<Uri>
+        }
+
+        fun uri(value: String): Uri = constructor.newInstance(value)
+    }
+
     private data class SameIdentityCase(
         val name: String,
         val playbackState: Int,
         val isPlayerReady: Boolean,
+        val playWhenReady: Boolean,
         val hasPosition: Boolean,
+    )
+
+    private data class RangeMoveCase(
+        val fromIndex: Int,
+        val toIndex: Int,
+        val newIndex: Int,
+        val expectedIds: List<String>,
     )
 }

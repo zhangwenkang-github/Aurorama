@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.player.local.mpv
 import android.content.Context
 import android.graphics.SurfaceTexture
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
@@ -426,7 +427,7 @@ class MPVPlayer(
     private var preparePreservedSourceOnPrepare = false
     private var currentDurationMs: Long? = null
     private var initialCommands = mutableListOf<Array<String>>()
-    private var initialCommandGeneration = 0L
+    private val initialCommandOwners = ArrayDeque<Long>()
     private var initialIndex: Int = 0
     private var initialSeekTo: Long = 0L
     private var oldMediaItem: MediaItem? = null
@@ -606,9 +607,9 @@ class MPVPlayer(
     }
 
     override fun event(eventId: Int) {
-        val epoch = sourceEpoch.get()
-        val initialCommands =
-            if (eventId == MpvEvent.MPV_EVENT_START_FILE) takeInitialCommands(epoch) else null
+        val claim = if (eventId == MpvEvent.MPV_EVENT_START_FILE) takeInitialCommands() else null
+        val epoch = claim?.first ?: sourceEpoch.get()
+        val initialCommands = claim?.second
         handler.post {
             // release 之后主线程队列里可能还排着事件回调：此时 mpv 可能正在销毁，必须短路
             if (released || epoch != sourceEpoch.get()) return@post
@@ -688,22 +689,22 @@ class MPVPlayer(
         }
     }
 
-    private fun takeInitialCommands(epoch: Long): List<Array<String>>? =
+    private fun takeInitialCommands(): Pair<Long, List<Array<String>>?>? =
         synchronized(initialCommands) {
-            val generation = initialCommandGeneration
-            if (epoch != sourceEpoch.get()) return null
-            val commands = initialCommands.map { it.copyOf() }
-            if (epoch != sourceEpoch.get() || generation != initialCommandGeneration) return null
-            initialCommands.clear()
-            initialCommandGeneration = generation + 1
-            commands
+            val ownerEpoch = initialCommandOwners.removeFirstOrNull() ?: return null
+            val commands =
+                if (ownerEpoch == sourceEpoch.get()) {
+                    initialCommands.map { it.copyOf() }.also { initialCommands.clear() }
+                } else null
+            ownerEpoch to commands
         }
 
     private fun replaceInitialCommands(commands: List<Array<String>>) {
         synchronized(initialCommands) {
+            val copiedCommands = commands.map { it.copyOf() }
             initialCommands.clear()
-            initialCommands.addAll(commands)
-            initialCommandGeneration++
+            initialCommands.addAll(copiedCommands)
+            initialCommandOwners.addLast(sourceEpoch.get())
         }
     }
 
@@ -1318,6 +1319,7 @@ class MPVPlayer(
         nextIndex: Int,
         startPositionMs: Long?,
     ) {
+        mediaItems.forEach { mediaUri(it) }
         val oldItems = internalMediaItems
         val oldIndex = currentMediaItemIndex
         val preserveSource =
@@ -1338,7 +1340,7 @@ class MPVPlayer(
                     postCommand(
                         arrayOf(
                             "loadfile",
-                            "${item.localConfiguration?.uri ?: item.requestMetadata.mediaUri}",
+                            mediaUri(item).toString(),
                             "insert-at",
                             "$index",
                         )
@@ -1361,6 +1363,7 @@ class MPVPlayer(
      * @param mediaItems The [MediaItems][MediaItem] to add.
      */
     override fun addMediaItems(index: Int, mediaItems: MutableList<MediaItem>) {
+        mediaItems.forEach { mediaUri(it) }
         val safeIndex = if (index in 0..internalMediaItems.size) index else internalMediaItems.size
         val activeItem = internalMediaItems.getOrNull(currentMediaItemIndex)
         val nextItems = internalMediaItems.toMutableList()
@@ -1373,7 +1376,7 @@ class MPVPlayer(
             postCommand(
                 arrayOf(
                     "loadfile",
-                    "${mediaItem.localConfiguration?.uri ?: mediaItem.requestMetadata.mediaUri}",
+                    mediaUri(mediaItem).toString(),
                     "insert-at",
                     (safeIndex + offset).toString(),
                 )
@@ -1382,6 +1385,7 @@ class MPVPlayer(
     }
 
     override fun moveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int) {
+        require(newIndex >= 0) { "newIndex must be non-negative: $newIndex" }
         val size = internalMediaItems.size
         if (fromIndex !in 0 until size || toIndex <= fromIndex) return
         val from = fromIndex
@@ -1440,6 +1444,11 @@ class MPVPlayer(
         items.getOrNull(index)?.let {
             "${it.mediaId}|${it.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)}|" +
                 (it.localConfiguration?.uri ?: it.requestMetadata.mediaUri)
+        }
+
+    private fun mediaUri(item: MediaItem): Uri =
+        requireNotNull(item.localConfiguration?.uri ?: item.requestMetadata.mediaUri) {
+            "MediaItem ${item.mediaId} has no localConfiguration.uri or requestMetadata.mediaUri"
         }
 
     private fun commitPlaylistState(
@@ -1510,7 +1519,6 @@ class MPVPlayer(
         externalSubtitleTrackIds.clear()
         pendingSideloadedSubtitleAdds.clear()
         playbackParameters = PlaybackParameters.DEFAULT
-        replaceInitialCommands(emptyList())
     }
 
     private fun advanceSourceEpoch(): Long {
@@ -1533,7 +1541,7 @@ class MPVPlayer(
             postCommand(
                 arrayOf(
                     "loadfile",
-                    "${mediaItem.localConfiguration?.uri}",
+                    mediaUri(mediaItem).toString(),
                     if (index == 0) "replace" else "append",
                 )
             )
