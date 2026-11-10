@@ -428,10 +428,20 @@ class MPVPlayer(
     private var preparePreservedSourceOnPrepare = false
     private var currentDurationMs: Long? = null
     private var initialCommands = mutableListOf<Array<String>>()
-    private val initialCommandOwners = ArrayDeque<Pair<Long, String>>()
+
+    private data class InitialCommandOwner(
+        val epoch: Long,
+        val sourceUri: String,
+        val token: String,
+    )
+
+    private val initialCommandOwners = ArrayDeque<InitialCommandOwner>()
     private var initialCommandRecoveryEpoch: Long? = null
     private var initialCommandSourceUri: () -> String? = {
         runCatching { mpvLib.getPropertyString("path") }.getOrNull()
+    }
+    private var initialCommandEventToken: () -> String? = {
+        runCatching { mpvLib.getPropertyString("force-media-title") }.getOrNull()
     }
     private var initialIndex: Int = 0
     private var initialSeekTo: Long = 0L
@@ -614,7 +624,7 @@ class MPVPlayer(
     override fun event(eventId: Int) {
         val claim =
             if (eventId == MpvEvent.MPV_EVENT_START_FILE) {
-                takeInitialCommands(initialCommandSourceUri())
+                takeInitialCommands(initialCommandSourceUri(), initialCommandEventToken())
             } else null
         val epoch = claim?.first ?: sourceEpoch.get()
         val initialCommands = claim?.second
@@ -701,29 +711,53 @@ class MPVPlayer(
         }
     }
 
-    private fun takeInitialCommands(sourceUri: String?): Pair<Long, List<Array<String>>?>? {
+    private fun takeInitialCommands(
+        sourceUri: String?,
+        eventToken: String?,
+    ): Pair<Long, List<Array<String>>?>? {
         synchronized(initialCommands) {
             if (initialCommandOwners.isEmpty()) return null
             val currentEpoch = sourceEpoch.get()
+            if (eventToken != null) {
+                val ownerIndex =
+                    initialCommandOwners.indexOfFirst { it.token == eventToken }.takeIf { it >= 0 }
+                        ?: return null
+                val owner = initialCommandOwners[ownerIndex]
+                if (owner.epoch != currentEpoch) {
+                    initialCommandOwners.removeAt(ownerIndex)
+                    return owner.epoch to null
+                }
+                val currentOwner =
+                    initialCommandOwners.firstOrNull { it.epoch == currentEpoch } ?: return null
+                val sourceKey = canonicalSource(sourceUri)
+                val currentKey = canonicalSource(currentOwner.sourceUri)
+                if (
+                    sourceUri != null &&
+                        (sourceKey == null || currentKey == null || sourceKey != currentKey)
+                ) {
+                    return currentEpoch to null
+                }
+                return currentEpoch to claimInitialCommands()
+            }
             val sourceKey = canonicalSource(sourceUri)
             val currentOwner =
-                initialCommandOwners.firstOrNull { it.first == currentEpoch }
-                    ?: return initialCommandOwners.removeFirst().let { it.first to null }
-            val currentKey = canonicalSource(currentOwner.second)
+                initialCommandOwners.firstOrNull { it.epoch == currentEpoch }
+                    ?: return initialCommandOwners.removeFirst().let { it.epoch to null }
+            val currentKey = canonicalSource(currentOwner.sourceUri)
             val staleOwnerIndex = initialCommandOwners.indexOfFirst {
-                it.first != currentEpoch &&
-                    (sourceKey == null || canonicalSource(it.second) == sourceKey)
+                it.epoch != currentEpoch &&
+                    (sourceKey == null || canonicalSource(it.sourceUri) == sourceKey)
             }
             if (staleOwnerIndex >= 0) {
                 val staleOwner = initialCommandOwners.removeAt(staleOwnerIndex)
                 val ambiguousCurrent = sourceKey == null || sourceKey == currentKey
                 if (ambiguousCurrent) initialCommandRecoveryEpoch = null
-                return (if (ambiguousCurrent) currentEpoch else staleOwner.first) to null
+                return (if (ambiguousCurrent) currentEpoch else staleOwner.epoch) to null
             }
             if (sourceKey != null && sourceKey == currentKey) {
                 return currentEpoch to claimInitialCommands()
             }
-            val remainingStaleIndex = initialCommandOwners.indexOfFirst { it.first != currentEpoch }
+            val remainingStaleIndex = initialCommandOwners.indexOfFirst { it.epoch != currentEpoch }
             if (remainingStaleIndex >= 0) initialCommandOwners.removeAt(remainingStaleIndex)
             if (initialCommandRecoveryEpoch == currentEpoch && remainingStaleIndex < 0) {
                 return currentEpoch to claimInitialCommands()
@@ -745,33 +779,74 @@ class MPVPlayer(
             val parsed = java.net.URI(raw.replace(" ", "%20"))
             val scheme = parsed.scheme?.lowercase()
             val host = parsed.host?.lowercase()
-            val path = decodeSource(parsed.rawPath.orEmpty())
-            val query = parsed.rawQuery?.let(::decodeSource)?.let { "?$it" }.orEmpty()
+            val path = canonicalSourceComponent(parsed.rawPath.orEmpty())
+            val query = parsed.rawQuery?.let(::canonicalSourceComponent)?.let { "?$it" }.orEmpty()
             when {
                 scheme == null || scheme == "file" -> File(path).normalize().path
                 host != null ->
                     buildString {
                         append(scheme).append("://")
-                        parsed.userInfo?.let { append(it).append('@') }
+                        parsed.rawUserInfo?.let { append(it).append('@') }
                         append(host)
                         if (parsed.port >= 0) append(':').append(parsed.port)
                         append(path).append(query)
                     }
-                else -> "$scheme:${decodeSource(parsed.schemeSpecificPart)}$query"
+                else -> "$scheme:${canonicalSourceComponent(parsed.rawSchemeSpecificPart)}$query"
             }
         }
-            .getOrElse { raw }
+            .getOrNull()
     }
 
-    private fun decodeSource(raw: String): String =
-        java.net.URLDecoder.decode(raw.replace("+", "%2B"), "UTF-8")
+    private fun canonicalSourceComponent(raw: String): String {
+        val output = StringBuilder(raw.length)
+        var index = 0
+        while (index < raw.length) {
+            if (raw[index] != '%' || index + 2 >= raw.length) {
+                output.append(raw[index++])
+                continue
+            }
+            val bytes = mutableListOf<Byte>()
+            val encoded = StringBuilder()
+            while (index + 2 < raw.length && raw[index] == '%') {
+                val value = raw.substring(index + 1, index + 3).toIntOrNull(16) ?: break
+                bytes += value.toByte()
+                encoded.append('%').append(raw.substring(index + 1, index + 3).uppercase())
+                index += 3
+            }
+            if (bytes.isEmpty()) {
+                output.append(raw[index++])
+                continue
+            }
+            val decoded =
+                java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                    .runCatching {
+                        decode(java.nio.ByteBuffer.wrap(bytes.toByteArray())).toString()
+                    }
+                    .getOrNull()
+            if (
+                decoded != null &&
+                    decoded.all { char ->
+                        char.code >= 0x80 && !char.isISOControl() ||
+                            char.isLetterOrDigit() ||
+                            char in "-._~ "
+                    }
+            ) {
+                output.append(decoded)
+            } else {
+                output.append(encoded)
+            }
+        }
+        return output.toString()
+    }
 
     private fun replayInitialCommands(epoch: Long) {
         synchronized(initialCommands) {
             if (
                 epoch != sourceEpoch.get() ||
                     initialCommandRecoveryEpoch == epoch ||
-                    initialCommandOwners.none { it.first == epoch }
+                    initialCommandOwners.none { it.epoch == epoch }
             ) {
                 return
             }
@@ -783,6 +858,7 @@ class MPVPlayer(
     private fun replaceInitialCommands(
         commands: List<Array<String>>,
         sourceUri: String? = null,
+        eventToken: String? = null,
     ) {
         synchronized(initialCommands) {
             val copiedCommands = commands.map { it.copyOf() }
@@ -795,11 +871,17 @@ class MPVPlayer(
             val epoch = sourceEpoch.get()
             initialCommands.clear()
             initialCommands.addAll(copiedCommands)
-            initialCommandOwners.removeAll { it.first == epoch }
-            if (ownerUri != null) initialCommandOwners.addLast(epoch to ownerUri)
+            initialCommandOwners.removeAll { it.epoch == epoch }
+            if (ownerUri != null) {
+                initialCommandOwners.addLast(
+                    InitialCommandOwner(epoch, ownerUri, eventToken ?: sourceToken(epoch))
+                )
+            }
             initialCommandRecoveryEpoch = null
         }
     }
+
+    private fun sourceToken(epoch: Long): String = "aurorama-source-v1-$epoch"
 
     private fun updateEnginePosition(epoch: Long, positionMs: Long) {
         sourcePosition = sourcePosition.acceptPosition(epoch, positionMs) ?: return
@@ -968,15 +1050,6 @@ class MPVPlayer(
         )
     }
 
-    /**
-     * App 侧 libass 是否接管主字幕。
-     *
-     * 双字幕 + 文本主字幕时，主字幕和次字幕必须共用同一套可见边界几何；mpv 的 `sub-pos` 百分比既拿不到原生字幕的实际 包围盒，也无法与 Compose 的
-     * `videoRect` 对齐（手机 / 平板视频区高度不同，误差直接变成重叠或过大间距）。 因此接管期间临时把原生字幕整体隐藏，退出双字幕 / 离开播放页时恢复进入前的
-     * `sub-visibility`。
-     *
-     * 同一句绝不会出现「原生 + App」两份：接管请求先于 libass 首帧生效，次字幕也会等主字幕就绪后才绘制。
-     */
     fun applyNativePrimarySubtitleVisible(visible: Boolean) {
         if (released) return
         if (!visible) {
@@ -1004,12 +1077,6 @@ class MPVPlayer(
         mpvLib.setPropertyDouble("sub-pos", position.coerceIn(0.0, 100.0))
     }
 
-    /**
-     * 字幕模式的自动选轨联动（App 侧字幕后端之间的桥）： `enabled=false` → `sid=no`（关闭字幕）；`enabled=true` → `sid=auto`（按
-     * slang / 默认轨重选）。
-     *
-     * 命令投到命令线程，与 sub-add 保序执行，避免刚注入的轨又被旧 sid 覆盖。
-     */
     fun setSubtitleAutoSelect(enabled: Boolean) {
         subtitleAutoSelect = enabled
         postCommand(arrayOf("set", "sid", if (enabled) "auto" else "no"))
@@ -1081,12 +1148,6 @@ class MPVPlayer(
         pendingSideloadedSubtitleAdds.removeAll(parsed.keys)
     }
 
-    /**
-     * 容器解析完成后的服务端字幕注入。
-     *
-     * 规则：容器里已经有内嵌字幕轨（DirectPlay mkv）→ 保持现状，让 mpv 直接读容器字幕； 容器里没有（典型是服务器转码 HLS）→ 把 Jellyfin
-     * 交付的独立文本字幕文件 sub-add 给 mpv， 由 mpv 内置的 libass 渲染 ASS/SSA 特效（定位 / 字体 / 动画）。
-     */
     private fun maybeAddServerSubtitles() {
         val pending = pendingServerSubtitles ?: return
         // 每个媒体只处理一次：无论是否注入，都清掉待处理标记，避免 track-list 抖动反复触发
@@ -1139,14 +1200,6 @@ class MPVPlayer(
     // ---------- 画面调整：旋转 / 镜像 / 裁剪 / 去黑边（§1.6） ----------
     // mpv 侧全部走原生属性，immediate 生效；两个内核的差异只在实现方式（ExoPlayer 走视图变换）。
 
-    /**
-     * 画面几何变换（mpv 内核）。
-     *
-     * @param rotationDegrees 0 / 90 / 180 / 270（mpv `video-rotate`）
-     * @param mirror 0 关 / 1 水平 / 2 垂直（`video-scale-x|y` 取负值即镜像，gpu-next 支持）
-     * @param cropPercent 四边各裁掉的百分比（0–20）：`video-zoom = log2(1/(1-2p))`
-     * @param fillScale 去黑边的填满倍数（由播放页按「画面区比例 / 视频比例」算好传入；1 = 不放大）
-     */
     fun applyVideoTransform(
         rotationDegrees: Int,
         mirror: Int,
@@ -1181,11 +1234,6 @@ class MPVPlayer(
             .onFailure { Timber.w(it, "mpv 画面变换应用失败") }
     }
 
-    /**
-     * mpv 硬件解码（`hwdec`）可以播放中切换：面板改「解码」组时立即生效。
-     *
-     * 取值：`mediacodec`（默认硬解）/ `no`（软解）。
-     */
     fun applyHwDec(hwDec: String) {
         if (released) return
         runCatching { mpvLib.setPropertyString("hwdec", hwDec) }
@@ -1194,11 +1242,6 @@ class MPVPlayer(
 
     // ---------- 播放信息面板用的内核侧快照（§1.8） ----------
 
-    /**
-     * 读 mpv 的媒体参数（容器 / 编码 / 分辨率 / 帧率 / 码率 / HDR / 音频）。
-     *
-     * 全部字段按「取不到就是 null」处理，调用方负责降级显示「—」； 必须在主线程之外调用（部分属性会走到 mpv core），UI 侧用 IO 调度。
-     */
     fun queryMediaInfo(): PlayerMediaInfo? {
         if (released) return null
         return runCatching {
@@ -1227,11 +1270,6 @@ class MPVPlayer(
             .getOrNull()
     }
 
-    /**
-     * W27 PlayerDebugOverlay 需要的 mpv 实时数值（硬件解码器 / 丢帧 / 缓冲）。
-     *
-     * 取不到一律 null，调用方显示「—」；和 [queryMediaInfo] 一样必须在主线程之外调用。
-     */
     data class MpvDebugStats(
         /** 当前生效的硬件解码方式（mediacodec / no / auto-safe…） */
         val hwdec: String?,
@@ -1276,12 +1314,10 @@ class MPVPlayer(
     // Timeline wrapper
     private val timeline: Timeline =
         object : Timeline() {
-            /** Returns the number of windows in the timeline. */
             override fun getWindowCount(): Int {
                 return internalMediaItems.size
             }
 
-            // Window projection for the current mpv playlist item.
             override fun getWindow(
                 windowIndex: Int,
                 window: Window,
@@ -1307,12 +1343,10 @@ class MPVPlayer(
                 )
             }
 
-            /** Returns the number of periods in the timeline. */
             override fun getPeriodCount(): Int {
                 return internalMediaItems.size
             }
 
-            // Period projection mirrors the mpv playlist item.
             override fun getPeriod(periodIndex: Int, period: Period, setIds: Boolean): Period {
                 return period.set(
                     periodIndex,
@@ -1325,12 +1359,10 @@ class MPVPlayer(
                 )
             }
 
-            /** Maps the playlist uid back to its index. */
             override fun getIndexOfPeriod(uid: Any): Int {
                 return uid as Int
             }
 
-            /** Uses the playlist index as the period uid. */
             override fun getUidOfPeriod(periodIndex: Int): Any {
                 return periodIndex
             }
@@ -1447,13 +1479,6 @@ class MPVPlayer(
         initialSeekTo = startPositionMs ?: initialSeekTo
     }
 
-    /**
-     * Adds a list of media items at the given index of the playlist.
-     *
-     * @param index The index at which to add the media items. If the index is larger than the size
-     *   of the playlist, the media items are added to the end of the playlist.
-     * @param mediaItems The [MediaItems][MediaItem] to add.
-     */
     override fun addMediaItems(index: Int, mediaItems: MutableList<MediaItem>) {
         mediaItems.forEach { mediaUri(it) }
         val safeIndex = if (index in 0..internalMediaItems.size) index else internalMediaItems.size
@@ -1629,16 +1654,21 @@ class MPVPlayer(
             preparePreservedSourceOnPrepare = false
             return
         }
+        prepareMediaItem(initialIndex, postSelection = false)
+        val token = sourceToken(sourceEpoch.get())
         internalMediaItems.forEachIndexed { index, mediaItem ->
             postCommand(
-                arrayOf(
-                    "loadfile",
-                    mediaUri(mediaItem).toString(),
-                    if (index == 0) "replace" else "append",
+                loadFileCommand(
+                    mediaItem = mediaItem,
+                    flags = if (index == 0) "replace" else "append",
+                    eventToken = token.takeIf { index == initialIndex },
                 )
             )
         }
-        prepareMediaItem(initialIndex)
+        if (currentMediaItemIndex != initialIndex) {
+            postCommand(arrayOf("set", "force-media-title", token))
+            postCommand(arrayOf("playlist-play-index", "$initialIndex"))
+        }
     }
 
     override fun getPlaybackState(): Int {
@@ -1736,7 +1766,7 @@ class MPVPlayer(
         }
     }
 
-    private fun prepareMediaItem(index: Int) {
+    private fun prepareMediaItem(index: Int, postSelection: Boolean = true) {
         internalMediaItems.getOrNull(index)?.let { mediaItem ->
             // 主动切集 / 重载：旧文件随即产生的非 EOF END_FILE 不算播放失败
             markIntentionalEndFile()
@@ -1753,12 +1783,32 @@ class MPVPlayer(
                     )
                 }
             replaceInitialCommands(subtitleCommands, mediaUri(mediaItem).toString())
-            if (currentMediaItemIndex != index) {
+            if (postSelection && currentMediaItemIndex != index) {
+                postCommand(arrayOf("set", "force-media-title", sourceToken(sourceEpoch.get())))
                 postCommand(arrayOf("playlist-play-index", "$index"))
             }
             setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
         }
     }
+
+    private fun loadFileCommand(
+        mediaItem: MediaItem,
+        flags: String,
+        index: Int? = null,
+        eventToken: String? = null,
+    ): Array<String> =
+        if (eventToken == null) {
+            if (index == null) arrayOf("loadfile", mediaUri(mediaItem).toString(), flags)
+            else arrayOf("loadfile", mediaUri(mediaItem).toString(), flags, "$index")
+        } else {
+            arrayOf(
+                "loadfile",
+                mediaUri(mediaItem).toString(),
+                flags,
+                index?.toString() ?: "-1",
+                "force-media-title=$eventToken",
+            )
+        }
 
     override fun getSeekBackIncrement(): Long {
         return seekBackIncrement
@@ -1768,13 +1818,6 @@ class MPVPlayer(
         return seekForwardIncrement
     }
 
-    /**
-     * W74 U6：更新 seek 步进（设置页改完立即生效）。
-     *
-     * Media3 的 `ExoPlayer` 有 `setSeekBackIncrementMs` / `setSeekForwardIncrementMs`， mpv
-     * 这个自研实现原先只在构造期注入一次， 通知栏 / 媒体会话的 ± 命令会一直用旧步进；这里补一个运行期入口，由 `PlayerHolder.applySeekIncrements()`
-     * 统一推送。
-     */
     fun setSeekIncrements(
         backMs: Long,
         forwardMs: Long,
@@ -1979,22 +2022,10 @@ class MPVPlayer(
         surfaceView?.holder?.addCallback(surfaceHolder)
     }
 
-    /**
-     * Clears the [SurfaceView] onto which video is being rendered if it matches the one passed.
-     * Else does nothing.
-     *
-     * @param surfaceView The texture view to clear.
-     */
     override fun clearVideoSurfaceView(surfaceView: SurfaceView?) {
         surfaceView?.holder?.removeCallback(surfaceHolder)
     }
 
-    /**
-     * Sets the [TextureView] onto which video will be rendered. The player will track the lifecycle
-     * of the surface automatically.
-     *
-     * @param textureView The texture view.
-     */
     override fun setVideoTextureView(textureView: TextureView?) {
         if (textureView == null) {
             detachTextureSurface()
@@ -2008,25 +2039,11 @@ class MPVPlayer(
         }
     }
 
-    /**
-     * Clears the [TextureView] onto which video is being rendered if it matches the one passed.
-     * Else does nothing.
-     *
-     * @param textureView The texture view to clear.
-     */
     override fun clearVideoTextureView(textureView: TextureView?) {
         textureView?.surfaceTextureListener = null
         detachTextureSurface()
     }
 
-    /**
-     * Gets the size of the video.
-     *
-     * The video's width and height are `0` if there is no video or its size has not been determined
-     * yet.
-     *
-     * @see Player.Listener.onVideoSizeChanged
-     */
     override fun getVideoSize(): VideoSize {
         val width = mpvLib.getPropertyInt("width")
         val height = mpvLib.getPropertyInt("height")
@@ -2216,13 +2233,6 @@ class MPVPlayer(
         surface.release()
     }
 
-    /**
-     * TextureView 版的画面输出。
-     *
-     * 播放页控制层改 Compose 后，视频输出从 SurfaceView 换成了 TextureView（避免被控件层遮挡变黑）， 而 mpv 这个后端原来只实现了
-     * SurfaceView，一挂载就 NotImplementedError 崩掉。 这里按 SurfaceView 的同一套接法补上，差别只是 Surface 来自
-     * SurfaceTexture。
-     */
     private val surfaceTextureListener =
         object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(
@@ -2253,14 +2263,6 @@ class MPVPlayer(
 
     private val surfaceHolder: SurfaceHolder.Callback =
         object : SurfaceHolder.Callback {
-            /**
-             * This is called immediately after the surface is first created. Implementations of
-             * this should start up whatever rendering code they desire. Note that only one thread
-             * can ever draw into a [Surface], so you should not draw into the Surface here if your
-             * normal rendering will be in another thread.
-             *
-             * @param holder The SurfaceHolder whose surface is being created.
-             */
             override fun surfaceCreated(holder: SurfaceHolder) {
                 if (released) return
                 mpvLib.attachSurface(holder.surface)
@@ -2268,7 +2270,6 @@ class MPVPlayer(
                 mpvLib.setOptionString("vo", videoOutput)
             }
 
-            /** Forwards the current surface size to mpv. */
             override fun surfaceChanged(
                 holder: SurfaceHolder,
                 format: Int,
@@ -2279,7 +2280,6 @@ class MPVPlayer(
                 mpvLib.setPropertyString("android-surface-size", "${width}x$height")
             }
 
-            /** Detaches mpv before the surface is destroyed. */
             override fun surfaceDestroyed(holder: SurfaceHolder) {
                 if (released) return
                 mpvLib.setOptionString("vo", "null")
@@ -2289,7 +2289,6 @@ class MPVPlayer(
         }
 
     companion object {
-        /** Fraction to which audio volume is ducked on loss of audio focus */
         private const val AUDIO_FOCUS_DUCKING = 0.5f
 
         /** Suppresses the short non-EOF END_FILE burst caused by our own source operations. */

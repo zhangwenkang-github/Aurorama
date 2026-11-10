@@ -6,6 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
+import androidx.media3.common.util.ListenerSet
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
@@ -1913,6 +1914,261 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `three owner same URI current START_FILE publishes final commands exactly once`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 131L)
+        val commands = captureCommands(player)
+        val currentCommands = listOf(arrayOf("sub-add", "a3.srt", "auto", "a3", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "a1.srt", "auto", "a1", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "b2.srt", "auto", "b2", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, currentCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+
+        deliverStartFile(
+            player,
+            callbacks,
+            path = "https://media.example/item-a",
+            token = sourceToken(player.currentSourceEpoch()),
+        )
+        assertEquals(
+            "唯一 current 同 URI event 必须一次发布 A3",
+            currentCommands.map { it.toList() },
+            commands,
+        )
+
+        deliverStartFile(
+            player,
+            callbacks,
+            path = "https://media.example/item-a",
+            token = sourceToken(player.currentSourceEpoch()),
+        )
+        assertEquals(
+            "额外 current START_FILE 不得重复发布 A3",
+            currentCommands.map { it.toList() },
+            commands,
+        )
+    }
+
+    @Test
+    fun `repeated stale same URI START_FILE events publish no current commands`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 137L)
+        val commands = captureCommands(player)
+        val currentCommands = listOf(arrayOf("sub-add", "a3.srt", "auto", "a3", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "a1.srt", "auto", "a1", "zh")))
+        val staleEpoch = player.currentSourceEpoch()
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "b2.srt", "auto", "b2", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, currentCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+
+        repeat(2) {
+            deliverStartFile(
+                player,
+                callbacks,
+                path = "https://media.example/item-a",
+                token = sourceToken(staleEpoch),
+            )
+            assertFalse(
+                "延迟旧 E1/A event #$it 不得发布 current A3: $commands",
+                commands.any { it == currentCommands.single().toList() },
+            )
+        }
+    }
+
+    @Test
+    fun `all same URI stale events before the unique current START_FILE cannot claim A3`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 139L)
+        val commands = captureCommands(player)
+        val currentCommands = listOf(arrayOf("sub-add", "a3.srt", "auto", "a3", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "a1.srt", "auto", "a1", "zh")))
+        val staleA = player.currentSourceEpoch()
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "b2.srt", "auto", "b2", "zh")))
+        val staleB = player.currentSourceEpoch()
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, currentCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+
+        repeat(2) {
+            deliverStartFile(
+                player,
+                callbacks,
+                path = "https://media.example/item-a",
+                token = sourceToken(staleA),
+            )
+            deliverStartFile(
+                player,
+                callbacks,
+                path = "https://media.example/item-b",
+                token = sourceToken(staleB),
+            )
+        }
+        assertFalse(
+            "全部 stale events 先到不得发布 A3: $commands",
+            commands.any { it == currentCommands.single().toList() },
+        )
+
+        commands.clear()
+        deliverStartFile(
+            player,
+            callbacks,
+            path = "https://media.example/item-a",
+            token = sourceToken(player.currentSourceEpoch()),
+        )
+        assertEquals("唯一 current event 随后必须发布 A3 一次", currentCommands.map { it.toList() }, commands)
+    }
+
+    @Test
+    fun `five owner ABA BA sequence publishes only the final source exactly once`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 149L)
+        val commands = captureCommands(player)
+        val currentCommands = listOf(arrayOf("sub-add", "a5.srt", "auto", "a5", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "a1.srt", "auto", "a1", "zh")))
+        for ((source, suffix) in listOf("b" to "b2", "a" to "a3", "b" to "b4")) {
+            player.setMediaItems(
+                mutableListOf(
+                    mediaItem("item-$source-$suffix", "https://media.example/item-$source")
+                ),
+                0,
+                0L,
+            )
+            replaceInitialCommands(
+                player,
+                listOf(arrayOf("sub-add", "$suffix.srt", "auto", "$suffix", "zh")),
+            )
+        }
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-a-final", "https://media.example/item-a")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, currentCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+
+        deliverStartFile(
+            player,
+            callbacks,
+            path = "https://media.example/item-a",
+            token = sourceToken(player.currentSourceEpoch()),
+        )
+        assertEquals(
+            "A/B/A/B/A 只有最终 current event 发布 A5",
+            currentCommands.map { it.toList() },
+            commands,
+        )
+    }
+
+    @Test
+    fun `encoded slash never claims a different literal path`() {
+        assertEncodedSourceDoesNotClaim(
+            owner = "https://media.example/a%2Fb.mkv",
+            event = "https://media.example/a/b.mkv",
+        )
+    }
+
+    @Test
+    fun `encoded question mark never claims a literal query boundary`() {
+        assertEncodedSourceDoesNotClaim(
+            owner = "https://media.example/p%3Fx",
+            event = "https://media.example/p?x",
+        )
+    }
+
+    @Test
+    fun `encoded ampersand never claims a literal query separator`() {
+        assertEncodedSourceDoesNotClaim(
+            owner = "https://media.example/q?x=%26",
+            event = "https://media.example/q?x=&",
+        )
+    }
+
+    @Test
+    fun `public prepare installs owner before loadfile can deliver START_FILE`() {
+        val media =
+            mediaItemWithSubtitle(
+                mediaId = "item-prepare",
+                uri = "https://media.example/item-prepare",
+                subtitle = "https://media.example/prepare.srt",
+            )
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = 157L,
+                mediaItems = mutableListOf(media),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = 157L),
+            )
+        setField(player, "isPlayerReady", false)
+        setField(player, "commandsClosed", AtomicBoolean(false))
+        val commands = mutableListOf<List<String>>()
+        setField(
+            player,
+            "commandExecutor",
+            { command: Array<String> ->
+                commands += command.toList()
+                if (command.firstOrNull() == "loadfile") {
+                    setInitialCommandSource(player, "https://media.example/item-prepare")
+                    setInitialCommandEventToken(player, tokenFromLoadCommand(command))
+                    player.event(MpvEvent.MPV_EVENT_START_FILE)
+                }
+            },
+        )
+        val callbacks = captureEventCallbacks(player)
+
+        player.prepare()
+        callbacks.forEach(Runnable::run)
+
+        val expected =
+            listOf(
+                listOf(
+                    "sub-add",
+                    "https://media.example/prepare.srt",
+                    "auto",
+                    "test-subtitle",
+                    "zh",
+                )
+            )
+        assertEquals(
+            "public prepare 必须先建立 owner，早到 START_FILE 仍发布初始化快照一次",
+            expected,
+            commands.filter { it.firstOrNull() == "sub-add" },
+        )
+    }
+
+    @Test
     fun `source change invalidates the current terminal before retry`() {
         val terminal = terminalAtDeadline(enginePositionMs = 5_000L)
         assertTrue(terminal.first.terminal != null)
@@ -2034,6 +2290,29 @@ class PlaybackSessionRulesTest {
             .build()
     }
 
+    private fun mediaItemWithSubtitle(
+        mediaId: String,
+        uri: String,
+        subtitle: String,
+    ): MediaItem {
+        val mediaUri = TestUriFactory.uri(uri)
+        val subtitleUri = TestUriFactory.uri(subtitle)
+        return MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setUri(mediaUri)
+            .setSubtitleConfigurations(
+                listOf(
+                    MediaItem.SubtitleConfiguration.Builder(subtitleUri)
+                        .setMimeType("application/x-subrip")
+                        .setLanguage("zh")
+                        .setLabel("test-subtitle")
+                        .build()
+                )
+            )
+            .setRequestMetadata(MediaItem.RequestMetadata.Builder().setMediaUri(mediaUri).build())
+            .build()
+    }
+
     private fun requestUriMediaItem(mediaId: String, uri: String): MediaItem =
         MediaItem.Builder()
             .setMediaId(mediaId)
@@ -2072,12 +2351,28 @@ class PlaybackSessionRulesTest {
         setField(player, "internalMediaItems", mediaItems)
         setField(player, "currentMediaItemIndex", currentIndex)
         setField(player, "initialCommands", mutableListOf<Array<String>>())
+        setField(player, "externalSubtitleTrackIds", ConcurrentHashMap<String, Int>())
+        setField(player, "pendingSideloadedSubtitleAdds", CopyOnWriteArraySet<String>())
+        setField(player, "currentTracks", Tracks.EMPTY)
+        setField(player, "playbackState", Player.STATE_IDLE)
+        setField(player, "listeners", testListeners())
         trySetField(player, "handler", Handler())
         trySetField(player, "initialCommandOwners", ArrayDeque<Any>())
         trySetField(player, "eventPoster", { _: Runnable -> })
         trySetField(player, "initialCommandSourceUri", { null })
+        trySetField(player, "initialCommandEventToken", { null })
         return player
     }
+
+    private fun allocatedMpvPlayerForStartFile(epoch: Long): MPVPlayer =
+        allocatedMpvPlayer(
+            sourceEpoch = epoch,
+            mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+            currentIndex = 0,
+            sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+        )
+
+    private fun testListeners(): ListenerSet<Player.Listener> = ListenerSet(Thread.currentThread())
 
     private fun sourcePosition(player: MPVPlayer): MpvSourcePositionState =
         getField(player, "sourcePosition") as MpvSourcePositionState
@@ -2138,10 +2433,11 @@ class PlaybackSessionRulesTest {
     private fun replaceInitialCommands(player: MPVPlayer, commands: List<Array<String>>) {
         val methods =
             MPVPlayer::class.java.declaredMethods.filter { it.name == "replaceInitialCommands" }
-        val method = methods.firstOrNull { it.parameterCount == 2 } ?: methods.single()
+        val method = methods.maxBy { it.parameterCount }
         method.isAccessible = true
-        if (method.parameterCount == 2) method.invoke(player, commands, null)
-        else method.invoke(player, commands)
+        val arguments =
+            mutableListOf<Any?>(commands).apply { repeat(method.parameterCount - 1) { add(null) } }
+        method.invoke(player, *arguments.toTypedArray())
     }
 
     private fun captureEventCallbacks(player: MPVPlayer): MutableList<Runnable> {
@@ -2155,6 +2451,61 @@ class PlaybackSessionRulesTest {
         val sourceReader: () -> String? = { sourceUri }
         trySetField(player, "initialCommandSourceUri", sourceReader)
     }
+
+    private fun setInitialCommandEventToken(player: MPVPlayer, token: String?) {
+        val tokenReader: () -> String? = { token }
+        trySetField(player, "initialCommandEventToken", tokenReader)
+    }
+
+    private fun deliverStartFile(
+        player: MPVPlayer,
+        callbacks: MutableList<Runnable>,
+        path: String?,
+        token: String?,
+    ) {
+        callbacks.clear()
+        setInitialCommandSource(player, path)
+        setInitialCommandEventToken(player, token)
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+    }
+
+    private fun assertEncodedSourceDoesNotClaim(
+        owner: String,
+        event: String,
+    ) {
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = 163L,
+                mediaItems = mutableListOf(mediaItem("item-encoded", owner)),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = 163L),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val currentCommands = listOf(arrayOf("sub-add", "current.srt", "auto", "current", "zh"))
+        replaceInitialCommands(player, currentCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+
+        deliverStartFile(
+            player,
+            callbacks,
+            path = event,
+            token = sourceToken(player.currentSourceEpoch()),
+        )
+
+        assertFalse(
+            "不同 encoded source 不得领取 current commands: owner=$owner event=$event commands=$commands",
+            commands.any { it == currentCommands.single().toList() },
+        )
+    }
+
+    private fun sourceToken(epoch: Long): String = "aurorama-source-v1-$epoch"
+
+    private fun tokenFromLoadCommand(command: Array<String>): String? =
+        command.firstOrNull { it.startsWith("force-media-title=") }?.substringAfter('=')
 
     private fun invokeStaticCallback(method: java.lang.reflect.Method, vararg values: Any) {
         val remaining = values.toMutableList()
