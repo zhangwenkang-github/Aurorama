@@ -17,6 +17,11 @@
 - R6_BASE_TREE=09fa94049ca906938003b8adc41fc0fd46d44649
 - R6_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r6-2026-11-11\Aurorama
 - R6_BRANCH=codex/v141-player-progress-source-retry-r6
+- R6_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+- R6_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+- R6_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+- R6_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+- R6_ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.49-§52.50 > scoped review R5 report > candidate 52967e20dd8c6e5e6973d9847fbb92ba3e57244f
 - NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11

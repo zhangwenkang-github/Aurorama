@@ -7179,8 +7179,19 @@ known-position same-identity 修复，只冻结以下范围：
      `initialCommands`。测试加入“旧 epoch callback 在 mutation 后到达”的边界断言。
 4. **P3 evidence**：重新生成可复现的 assemble command transcript，更新 implementation manifest。
 
-写域仍为批准五路径；禁止新 production/test file、Service、schema/settings/metadata、
-A0 baseline/version/signing/release，以及设备/ADB/截图/生产写。实现 owner 必须先取得保留的
-assertion-only RED，再 GREEN 并跑 targeted/player-local/phone/assemble/KTFMT/A0/GatePlan。
-review 必须由不同 fresh R6 reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，
-K60 仍禁止。Review FAIL 自动另立新任务卡。
+允许五路径逐项固定为：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、Service、schema/settings/metadata、A0 baseline/version/signing/
+release，以及设备/ADB/截图/生产写。实现 owner 必须先在上述既有 test path 实际执行行为断言并
+取得 assertion-only RED，必须把该轮原始 test XML、stdout、stderr 与 exit code 保留在 R6
+implementation evidence 根；报告摘要或编译失败不替代 RED。随后做最小实现，再运行
+targeted/player-local/phone/assemble/KTFMT/A0/GatePlan。Review 必须由不同 fresh R6 reviewer
+执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。Review FAIL 自动另立新任务卡。
