@@ -8,24 +8,24 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=INDEPENDENT_QA_R6_COMPLETE / PC02_BOTH_BRANCHES_PASS / CORE_NOT_RUN / HANDOFF_TO_DELIVERY_LEAD_R5
+- TASK_STAGE=INDEPENDENT_QA_R7_DISPATCH_READY / PC01_PC11_PC12_SCOPE_FROZEN / PC02_EXCLUDED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R5_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_R7_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r6-2026-11-10\INDEPENDENT_QA_R6_REPORT.md
-- NEXT_REQUIREMENT=Successor R5 must read R6 evidence and split the remaining A-cluster core rows into new minimal QA scopes that fit one 600-second device window each; do not repeat PC-02 or background instrumentation
-- STOP_CONDITION=Stop expansion at the 30W checkpoint and hand off. Successor must not merge-prep, integrate, use K60, Release, or modify product until every applicable A-cluster core row has fresh PASS evidence; no window extension or retry
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_CANDIDATE_60ebe5e8/PC02_PASS_BOTH_BRANCHES/QA_R6_FAIL_CORE_NOT_RUN/NO_PRODUCT_REPAIR/HANDOFF_TO_DELIVERY_LEAD_R5
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r7-2026-11-10\INDEPENDENT_QA_R7_REPORT.md
+- NEXT_REQUIREMENT=Fresh QA R7 must execute one 600-second Pad window for PLAYER_PLAN 52.26 only: PC-01 HLS+mpv cold-start resume, PC-11 force-stop/cold-restart recovery, PC-12 natural timeout visible retry; PC-02 and PC-03/04/05 are excluded.
+- STOP_CONDITION=Stop on QaReady/lock/device/APK/UID/wrapper/ready drift, wrapper exit 21-24, raw or secret leakage, window over 600 seconds, second window, unknown P0/P1, product/schema/settings/metadata/production write, scope expansion, or any scoped NOT_RUN. No merge-prep/integration/K60/Release until all applicable core rows have fresh PASS.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/R7_PC01_HLS_MPV_RESUME+PC11_FORCE_STOP_COLD_RESTART+PC12_NATURAL_TIMEOUT_RETRY/NO_PC02/NO_PC03_04_05/NO_PRODUCT_CHANGE
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / PC02_CLOSED_BY_QA_R6 / CORE_ROWS_REMAIN_NOT_RUN / NO_PRODUCT_REPAIR
-- DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_USED_BY_QA_R6_CLEAN / LOCKS_HELD:NONE / TEST_SERVER_NETWORK_USED:YES
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / R6_FAIL_CORE_NOT_RUN / P1_BACKGROUND_CLOSED_BY_PC02 / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / PLAYER_STABILITY_INTEGRATED:NO / W1C_1_LOCALLY_INTEGRATED:YES / LOCAL_UNPUSHED:YES
+- DEVICE_ACCESS=PAD_43af8627_ASSIGNED_TO_QA_R7 / LOCKS_HELD:NONE / K60_8e875894_FORBIDDEN / K60_COMMANDS:0
+- FRESH_INDEPENDENT_QA_REQUIRED=YES / QA_R7_DISPATCH_READY / PC02_CLOSED_BY_QA_R6 / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / K60_AUTHORIZED:NO / RELEASE_AUTHORIZED:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=301762/1048576/28.8%/30W_FULL_CHECKPOINT_HANDOFF
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=HANDOFF_TO_DELIVERY_LEAD_R5_THEN_BOUNDED_REMAINING_ROW_QA
-- last_evidence=QA_R6:FAIL_CORE_NOT_RUN;PC02_BOTH_BRANCHES:PASS;PC01_03_04_05_11_12:NOT_RUN;R6_REPORT:F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r6-2026-11-10\INDEPENDENT_QA_R6_REPORT.md;R6_REPORT_SHA:F8EC12DBCB115202ACD9D722B7BFB96CEBB3FFBF93AD56C6544742CE8A0C64DE;R6_MANIFEST_SHA:FD0CD7ED3BA98A1A69AEA4403EFF6E1831E872DAB85780B2F96A9CEA88E22F7B;CLEANUP:PASS;LOCK_RELEASED:YES;PRODUCT_CHANGE:NO
+- NEXT_CRITICAL_PATH=FRESH_QA_R7_SCOPED_WINDOW_THEN_TASKS_PLAYER_PLAN_WRITEBACK_THEN_NEXT_FRESH_QA_SCOPE
+- last_evidence=R6_REPORT:F8EC12DBCB115202ACD9D722B7BFB96CEBB3FFBF93AD56C6544742CE8A0C64DE;R11_AUDIT:802D8B7271BC534761677A85BA81DF96E1A9981DE3927FB8A464DE88BB9CF10E;SCOPE_FREEZE=docs_PLAYER_PLAN_52.26;CANDIDATE=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf;APK=30241F412EC305E7ACD2BE71CA3E0AB2CD650E3444B0351E89967899FA362B68;LOCK_ACTIVE=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -996,11 +996,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   `...\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09`。
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=NO
-- UNCOVERED=PC-01 cold-start resume; PC-03 real seek, continuous drag, near-EOS and retry; PC-04 UI-engine-MediaSession consistency, real EOS and next item; PC-05 exact 20-second boundary, AUTO_RETRY=NO and recovery position; PC-11 force-stop, cold restart and exit-return; PC-12 retry hit, cause and success path; DirectPlay-plus-Exo final candidate regression. PC-02 background branches are closed and must not be repeated.
-- STOP_CONDITION=Current QA R6 is complete with FAIL and CORE_NOT_RUN. Do not launch another device window from this over-25W delivery session. Successor R5 must design new minimal scopes, use a different fresh QA owner per scope, acquire a new lock, rerun QaReady, and keep each window at 600 seconds with no extension or retry.
-- MANUAL_LIMITATION=R6 FAIL means the 600-second window exhausted before six applicable core rows; it is not proof of a new product P0/P1. PC-02 passed both default-off expected pause and explicit-on same-task continuation. No PASS or PASS_WITH_GAPS may cover NOT_RUN rows.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R5_2026_11_10
+- QA_READY=YES
+- UNCOVERED=R7 scoped: PC-01 HLS+mpv cold-start resume; PC-11 force-stop/cold-restart recovery; PC-12 natural HLS+mpv PLAYBACK_PROGRESS_TIMEOUT visible cause and one user retry. Still deferred: full PC-01 from-start and DirectPlay+Exo, full PC-11 buffering restart/network recovery, PC-03, PC-04, PC-05, DirectPlay+Exo final regression. PC-02 is closed and must not be rerun.
+- STOP_CONDITION=Execute one and only one 600-second QA R7 window on Pad 43af8627. Stop on any readiness, object, APK, UID, wrapper, lock or secret failure; stop if the window reaches 600 seconds; do not extend, reopen, retry the window, install, or broaden scope. Mark any scoped but unexecuted promise NOT_RUN and the scoped QA FAIL.
+- MANUAL_LIMITATION=QA R7 PASS may cover only the three scoped promises in PLAYER_PLAN 52.26. It does not prove full PC-01/PC-11/PC-12 matrix, PC-03/PC-04/PC-05, DirectPlay+Exo regression, product PASS, merge-prep, integration, K60 or Release.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_R7_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

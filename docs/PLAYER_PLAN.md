@@ -5966,3 +5966,106 @@ PC-02 / background instrumentation，也不得直接 merge-prep；先读本段�
 拆成新的、可在一轮 600 秒内完成的最小 QA scoped 波次，每个 QA owner 仍必须是全新代理且每
 设备窗口只跑一次、不延长、不重试。核心未全 PASS 前禁止 merge-prep、integration、K60、
 Release 与发布材料。
+
+### 52.26 A 簇 QA R7 首波：续播 / 异常恢复 / 失败重试（2026-11-10）
+
+**状态**：`QA_R7_SCOPE=FROZEN / QA_NOT_STARTED / PRODUCT_CHANGE=NO /`
+`PC-02_AND_BACKGROUND_INSTRUMENTATION=EXCLUDED`。
+
+交付负责人 R5 将剩余核心行拆为多个单窗 scopes；首波只由全新
+`AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_R7_2026_11_10` 执行一次
+`PC-01 + PC-11 + PC-12` 的窄分支。该 owner 固定
+`deepseek-flash / reasoning_effort=max / fork_turns=none`，不派子代理，不接实现、诊断、
+review、merge-prep、integration、Release 或后续 QA 阶段。
+
+固定对象：
+
+```text
+AUTHORITY=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+AUTHORITY_BRANCH=codex/v2-integration
+CANDIDATE=F:\Develop\code_data\work_tree\Aurorama\v141-player-a-cluster-implementation-2026-11-10\Aurorama
+CANDIDATE_BRANCH=codex/v141-player-a-cluster-fix
+CANDIDATE_HEAD=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf
+CANDIDATE_TREE=0fca8a6cf425261e9109be49846aaa981048bba0
+CANDIDATE_PARENT=abdc327b5bee2d9870b8fdd86bbdb3247ebf3f8c
+APK_SHA256=30241F412EC305E7ACD2BE71CA3E0AB2CD650E3444B0351E89967899FA362B68
+DEVICE=PAD_43af8627
+DEVICE_WINDOW_SECONDS=600
+WINDOW_COUNT=1
+WINDOW_EXTENDED=NO
+WINDOW_REOPENED=NO
+SCREENSHOTS=0
+```
+
+证据根固定为
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r7-2026-11-10\`。
+设备锁、临时 UI dump、wrapper ready / output / stop 和 QA 报告只能写该根或现有共享设备锁台账。
+QA 不得改 Authority / candidate 产品、测试、schema、A0 基线、metadata、图片、标题、
+简介、评分、文件、库结构、系统设置、网络、代理或权限库。
+
+**单屏级固定入口与后端**
+
+- 测试账号 / 服务器只按 `F:\Develop\codex_work\Documents\Codex\资源.txt` 的指针使用；
+  secret 值不得进入命令回显、日志、证据、manifest、文件名、Git、记忆或聊天。
+- 媒体固定为已用样本 `UN-GO` 的 `S1:E0 - Un-Go`；播放页标题、itemId 和 mediaSourceId
+  必须由本次真实运行重新采集，不继承 R6 的运行时值。
+- 后端固定为 HLS + mpv，码率固定为播放器内 `720p · 6 Mbps`。必须由 UI 选择或只读确认该
+  组合，并由 sanitized 日志再次证明 `mpv` 与 HLS 容器；不得用 DirectPlay 或 fake callback
+  代替。
+- App 固定为已安装 candidate debug 包。QA 从包管理器重新查询纯数字 UID；不得重装、卸载、
+  `pm clear`、清 debug/release 数据或改正式 release。
+- 日志只允许既有 R3 UID-filtered sanitized wrapper；先启动 wrapper、记录 PID，再以
+  `Wait-SanitizedLogcatReady.ps1` 取得 ready PASS 与 liveness PASS，之后才允许首次 App 操作。
+  禁止裸 `adb logcat`、raw stdout、stderr 正文和 secret-bearing line 进入工具流或证据。
+
+**唯一 600 秒动作顺序**
+
+1. `00:00–03:30 / PC-01`：冷启 App，从真实 UI 打开 `S1:E0 - Un-Go`，只读确认
+   HLS+mpv+720p/6 Mbps。等待有效播放位置连续增长至少 15 秒；暂停后通过 UI 退出播放器并等待
+   一次持久化窗口。以显式 serial 执行 `am force-stop`，再从桌面冷启 App，经首页 / 详情页的
+   `继续播放` 或同一媒体真实入口重进。采集持久位置来源、首帧前后的 UI 位置、MediaSession
+   position/buffered、引擎位置与 `START_ZERO / PERSISTED_RESUME / ENGINE_POSITION` 证据。
+   只有非零续播位置与采集到的持久位置相符、且未从零抢占时才可关闭
+   `PC01_HLS_MPV_COLD_START_RESUME`。
+2. `03:30–06:00 / PC-11`：在 HLS+mpv 有效 playing 且位置增长后以显式 serial
+   `am force-stop`；立即核对 App PID、PlayerActivity、MediaSession 与音频输出不自动恢复。
+   冷启 App 后再次进入同一媒体，核对 UI / MediaSession / 引擎位置可解释且从非零持久位置恢复。
+   只有“force-stop 后不自动出声 + 冷启后状态可解释 + 再进入非零恢复”三项都实际通过，才可
+   关闭 `PC11_FORCE_STOP_COLD_RESTART`。
+3. `06:00–09:30 / PC-12`：继续保持同一 HLS+mpv 720p/6 Mbps source，在播放位置停止增长时
+   只读等待非模态恢复面；不得 seek、改网络、改系统设置、杀内核或触发真实数据清理。若出现
+   `PLAYBACK_PROGRESS_TIMEOUT` / 可见失败原因，先证明等待期内 `AUTO_RETRY=NO`，再点击唯一
+   `重试` 恰好一次，核对 token 消费、重试 source、恢复位置和 UI / MediaSession / 引擎结果。
+   只有失败可见、自动重试为 NO、一次用户重试实际命中且恢复结果可解释时，才可关闭
+   `PC12_VISIBLE_TIMEOUT_RETRY`。
+4. `09:30–10:00`：写 stop 文件并等待 wrapper `EXIT_CODE=0 / FLUSH_OK=YES`；只接受存在 child
+   PID、sanitized 输出和零 raw / secret 扫描。由此开始 cleanup，不可借 cleanup 延长设备窗口。
+
+第一波硬约束：
+
+```text
+PC-02=EXCLUDED_DO_NOT_RERUN
+PC-03=OUT_OF_SCOPE_NEXT_FRESH_QA
+PC-04=OUT_OF_SCOPE_NEXT_FRESH_QA
+PC-05=OUT_OF_SCOPE_NEXT_FRESH_QA
+DIRECTPLAY_EXO=OUT_OF_SCOPE_NEXT_FRESH_QA
+FROM_START=NOT_REQUIRED_FOR_PC01_SCOPED_PROMISE
+BUFFERING_RESTART=OUT_OF_SCOPE_PC11_SCOPED_PROMISE
+NETWORK_RECOVERY=OUT_OF_SCOPE_NO_SYSTEM_NETWORK_CHANGE
+```
+
+“最小 scope PASS”只表示上述三个已执行窄承诺 PASS；它不表示完整 `PC-01 / PC-11 / PC-12`
+已覆盖全部矩阵分支，也不表示产品、merge-prep、integration、K60 或 Release PASS。任一 scoped
+核心项未执行必须写 `NOT_RUN`；任何 `NOT_RUN` 都令 `QA_R7_SCOPE_STATUS=FAIL`。只有三项均实际
+执行并满足各自断言才可写 `QA_R7_SCOPE_STATUS=PASS`。若 `PC-12` 在 240 秒内没有自然可见失败，
+不得伪造触发，固定 `PC-12=NOT_RUN` 并停在该行。
+
+设备停止门保持：pending `QaReady`、新锁、APK / UID / wrapper ready、显式 serial 任一未过即
+不启动 App；wrapper exit 21–24、raw / secret 泄漏、对象漂移、窗口超 600 秒、第二窗口、新
+P0/P1、需要产品 / schema / settings / metadata / 生产写或范围扩大时立即停止。结束时必须
+force-stop debug、清理临时 dump 与 wrapper child、只读比较 settings、确认 users 仅 user0、
+K60 零命令、截图 0，并释放唯一设备锁。
+
+QA 报告必须分列“已实际执行 / 未覆盖 / 未执行推断 / P0–P3 / BLOCKED / 证据指针”，记录
+candidate、APK、设备、窗口耗时、wrapper、各 scoped promise 的逐项断言、cleanup、lock、
+secret scan 与最终 `QA_R7_SCOPE_STATUS`。不得复用本段或 R6 的形成 PASS。
