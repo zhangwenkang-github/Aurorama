@@ -7412,13 +7412,22 @@ Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R9 review FAIL 自动�
 
 ### 52.54 Progress source-identity / retry-priority R10 任务卡（2026-11-11）
 
-**状态**：`R10_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+**状态**：`R10_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
 `R9_SCOPED_REVIEW=FAIL / QA_READY=NO`。
 
 R10 从 R9 candidate `f5339becd4b101e1ce3f0e0e190bc09466ff4c04` / tree
 `dfc626dbc3747a3814e3280af6f5c29304173101` 隔离建立，保留 R9 已通过的 distinct URI、
 延迟同 URI 双事件、持续 null 双事件、command fail-closed、preserve/order/property/PLAYING
 回归。只冻结 R9 review 的四个子合同，要求它们同时成立：
+
+**进度（2026-11-11，implementation 收口）**：fresh R10 implementation owner 已提交
+`4513a1e3991d1e447e46efe57a29b1d3695e9659`（tree
+`70e46c41ed47d36708acca403bd873d62aa823cb`），只改 `MPVPlayer.kt` 与既有测试，
+worktree clean、未 push。正式 RED 为 `64/8/0/0` assertion-only；GREEN 为 targeted
+`1 suite / 64`、player-local `42 suites / 349`、phone `62 suites / 412`，
+assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为 `15506/15512`、headroom 6。负责人已核验
+report/manifest/RED 哈希、关键 diff 与对象边界，并派出不同 fresh R10 scoped reviewer；
+review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
 
 1. **唯一 current 同 URI event 一次发布**
    - `owners=[(E1,A),(E2,B),(E3,A)]`, current E3, commands A3；旧 owner 都无 event、唯一真实

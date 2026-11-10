@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R10-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R10-2026-11-11
-- TASK_STAGE=R10_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING
+- TASK_STAGE=R10_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -25,10 +25,10 @@
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.50-§52.54 > R9 scoped review > candidate f5339becd4b101e1ce3f0e0e190bc09466ff4c04
 - NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
-- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R10_2026_11_11
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R10_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R9_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R9_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r9-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r10-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - NEXT_REQUIREMENT=R10 must close the four R9 subconditions: unique current same-URI event publishes once, repeated stale same-URI events publish nothing, canonicalization preserves encoded delimiters/query boundaries, and public prepare installs owner before loadfile can emit START_FILE.
 - STOP_CONDITION=R10 must stop on new paths, Service/schema/settings/metadata/version/signing/release, current zero/duplicate publication, repeated stale same-URI publishing current, canonical collisions, loadfile/owner ordering loss, missing production-entry RED, unknown new P0-P2, or unauthorized device/QA. Any R10 review FAIL requires R11, not an in-card patch.
 - SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R10_UNIQUE_CURRENT_SOURCE_TOKEN_AND_PREPARE_ORDER/CONTRACT_FROZEN/QA_NOT_READY
