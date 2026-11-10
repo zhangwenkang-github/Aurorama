@@ -5906,3 +5906,63 @@ P1，停止打补丁并转播放会话状态模型；若 PASS，再由负责人�
 
 证据：
 `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-scope-decision-r4-2026-11-10\BACKGROUND_CONTINUE_SCOPE_DECISION_R4_REPORT.md`。
+
+### 52.25 A 簇 independent QA R6：PC-02 PASS / 核心窗口耗尽（2026-11-10）
+
+**状态**：`INDEPENDENT_QA_R6_STATUS=FAIL / PLAYER_CORE_MATRIX_RESULT=FAIL /`
+`STOP_REASON=DEVICE_RUNTIME_WINDOW_EXHAUSTED_WITH_CORE_ROWS_NOT_RUN`。
+
+全新 QA R6 固定在 candidate `60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf`、tree
+`0fca8a6cf425261e9109be49846aaa981048bba0`、APK SHA-256
+`30241F412EC305E7ACD2BE71CA3E0AB2CD650E3444B0351E89967899FA362B68` 与 Pad
+`43af8627`。全部本地门 PASS，唯一设备窗口 `559.291 / 600` 秒，wrapper `exit 0 /
+flush PASS / stderr 0`，未延长或重开窗口。
+
+PC-02 两个分支均 PASS：
+
+- 默认 `pref_player_background_audio=ABSENT`（等价 false）时，HLS+mpv 缓冲中暂停 / 继续
+  可用，HOME 4 秒后 `PAUSED/state=2` 符合预期；
+- 通过应用内 UI 显式开启后台播放后，HOME 后保持 `state=3`；回原 task `2338` 后保持
+  同 PID `18156`、同 PlayerActivity、同 item / mediaSource / generation，返回区间
+  `initializePlayer=0` 且位置未归零；
+- cleanup 已通过应用内 UI 恢复后台播放为关闭，最终偏好等价 `false`。
+
+其余适用行未在窗口内完成：
+
+```text
+PC-01=NOT_RUN
+PC-03=NOT_RUN
+PC-04=NOT_RUN
+PC-05=NOT_RUN
+PC-11=NOT_RUN
+PC-12=NOT_RUN
+```
+
+PC-03 尝试时 SeekBar 节点不可用，未发送真实 seek；PC-05 / PC-12 只观察到局部
+`PLAYBACK_PROGRESS_TIMEOUT` 与 `重试` 面，未完成阈值、AUTO_RETRY、点击命中与恢复位置断言。
+因此 QA R6 固定 `FAIL / CORE_NOT_RUN`，不是产品 PASS，也不新增产品 P0–P3。
+
+本轮关闭
+`P1-PLAYER-LOADING-BACKGROUND-CONTINUE=CLOSED_BY_QA_R6_PC02_BOTH_BRANCHES_PASS`；
+`P1-PLAYER-SEEK-001`、`P1-PLAYER-PROGRESS-001`、
+`P2-PLAYER-LOADING-001`、`P2-PLAYER-STALL-001` 保持未关闭。
+
+设备 cleanup PASS：debug/release PID、services、MediaSession、通知与 wrapper child 均为空，
+settings mismatch 0、settings write 0、users 仅 user0、K60 命令 0、截图 0、锁
+`ACTIVE=0`。本轮没有运行中的实现或 QA 代理。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r6-2026-11-10\INDEPENDENT_QA_R6_REPORT.md`
+  （SHA-256 `F8EC12DBCB115202ACD9D722B7BFB96CEBB3FFBF93AD56C6544742CE8A0C64DE`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `FD0CD7ED3BA98A1A69AEA4403EFF6E1831E872DAB85780B2F96A9CEA88E22F7B`，203/203 MATCH）
+- `...\runtime\branch-b-window-summary.txt`
+- `...\runtime\source-session-proof.txt`
+- `...\cleanup\final-cleanup.txt`
+
+下一角色为全新 `AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R5_2026_11_10`。它不得重复
+PC-02 / background instrumentation，也不得直接 merge-prep；先读本段与 R6 报告，再把剩余六行
+拆成新的、可在一轮 600 秒内完成的最小 QA scoped 波次，每个 QA owner 仍必须是全新代理且每
+设备窗口只跑一次、不延长、不重试。核心未全 PASS 前禁止 merge-prep、integration、K60、
+Release 与发布材料。
