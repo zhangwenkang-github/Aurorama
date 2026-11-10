@@ -7294,13 +7294,22 @@ K60 仍禁止。任何 R7 review FAIL 自动另立 R8，不得在 R7 内继续�
 
 ### 52.52 Progress source-identity / retry-priority R8 任务卡（2026-11-11）
 
-**状态**：`R8_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+**状态**：`R8_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
 `R7_SCOPED_REVIEW=FAIL / QA_READY=NO`。
 
 R8 从 R7 candidate `49eeb76dcc5541b1d97b4793205e50e489ff0a9d` / tree
 `207d11471b6f8474d2416d1b4ce6e40801f97b19` 隔离建立，保留 command fail-closed、
 真实 PLAYING fixture、same-identity preserve、合法 batch/range 顺序与 property epoch gate。
 唯一冻结目标是 `P2-R6-START-FILE-TOKEN-NOT-SOURCE-BOUND-01` 的可恢复 ownership：
+
+**进度（2026-11-11，implementation 收口）**：fresh R8 implementation owner 已提交
+`c5ef569aa18d33d485d05a4707909f856ed0e4f0`（tree
+`5fd3645f8974c540130d43860c7003e8e0f70224`），只改 `MPVPlayer.kt` 与既有测试，
+worktree clean、未 push。正式 RED 为 `52/5/0/0` assertion-only；GREEN 为 targeted
+`3 suites / 57`、player-local `42 suites / 337`、phone `62 suites / 412`，
+assemble/KTFMT/A0/GatePlan 均 exit 0；A0 保持 `15508/15512`、headroom 4。负责人已核验
+report/manifest/RED 哈希、关键 diff 与对象边界，并派出不同 fresh R8 scoped reviewer；
+review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
 
 1. 同一条 START_FILE 归属必须同时满足两个反例：
    - 旧 source 的 event 在 mutation 后才到达：只能处理旧 ownership 并 fail closed，绝不发布

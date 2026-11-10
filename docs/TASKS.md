@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R8-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R8-2026-11-11
-- TASK_STAGE=R8_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING
+- TASK_STAGE=R8_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -25,10 +25,10 @@
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.50-§52.52 > R7 scoped review > candidate 49eeb76dcc5541b1d97b4793205e50e489ff0a9d
 - NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
-- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R8_2026_11_11
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R8_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R7_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R7_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r7-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r8-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - NEXT_REQUIREMENT=R8 must make START_FILE initial-command ownership recoverable when a stale ownership has no event, while preserving delayed-old-event rejection, current-source snapshot delivery, all closed command fail-closed and R6/R7 regressions.
 - STOP_CONDITION=R8 must stop on new paths, Service/schema/settings/metadata/version/signing/release, stale ownership starving the current snapshot, old START_FILE consuming new commands, duplicate current-source initialization, loss of command fail-closed/PLAYING/batch-range/property/preserve gates, missing formal RED, unknown new P0-P2, or unauthorized device/QA. Any R8 review FAIL requires R9, not an in-card patch.
 - SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R8_START_FILE_STALE_OWNERSHIP_RECOVERY/CONTRACT_FROZEN/QA_NOT_READY
