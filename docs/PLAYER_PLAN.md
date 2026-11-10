@@ -7034,3 +7034,46 @@ MANIFEST_SHA256=670CCB0930FE6DC4741D831E7EA98007A511D589DBBBF905E709FEFBA3FE8F81
 按冻结合同，本任务卡立即停止：不得追加机械补丁、申请设备锁或 `QaReady`，也不得进入独立 QA、
 K60、merge-prep、integration 或 Release。下一步必须由用户 / 架构层决定是否新建独立任务卡，明确
 same-identity native playlist 保留策略与 failed-seek pending 生命周期；当前没有可执行后继实现。
+
+### 52.47 Progress source-identity / retry-priority R5 修复任务卡获批（2026-11-10）
+
+**状态**：`USER_APPROVED_ALL_RECOMMENDED / CONTRACT_FROZEN / R5_IMPLEMENTATION_READY /`
+`P1-PLAYER-PROGRESS-001=OPEN / QA_READY=NO`。
+
+用户明确授权后续任务自行推进、所有推荐选择视为已批准。R4 的失败不通过原任务卡机械补丁处理，
+而另建：
+
+```text
+TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R5-2026-11-10
+BASE=c6fff17602c4e4c0eebf54710e733a982303d5ab
+TREE=8c0f6e53a5b0195d26888a290631937c6d9b9e41
+BRANCH=codex/v141-player-progress-source-retry-r5
+WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r5-2026-11-10\Aurorama
+```
+
+R5 保留 R4 已经通过的 stable identity 比较与四级 retry priority，只处理以下三个已定位缺口：
+
+1. **P1 same-identity native preservation**
+   - `setMediaItems` 在 active stable identity 未变时，不得提交 `playlist-clear` 或删除 current
+     native file；应以现有 mpv 命令完成非当前项增删/重排，保持 current source、epoch、position、
+     cache 与 pending 连续。
+   - same-identity 测试必须执行真实 `postCommand()` 命令计划，不得再用 `commandsClosed=true`
+     证明 native 保留；允许在既有 test path 内捕获 production 命令计划并断言。
+   - `prepare()` / reset 只能在真实 source replacement 时清 source truth；same-identity set 后不得
+     无条件重载并推进 epoch。
+2. **P2 binding negatives**
+   - 既有测试路径必须直接覆盖：同一 seek generation 但 `explicitSeekSourceEpoch` 改变时 pending
+     target 立即失效；新 generation 可重建 target；session key 改变仍拒绝旧 token。
+3. **P3 failed-seek lifecycle**
+   - 推荐且冻结：`SeekState.Failed` 携带的 explicit target 在 retry 用途上继续保留，因为失败不是
+     确认完成、明确取消、新 seek/source 取代；seek failure UI 仍显示失败并压制 progress terminal。
+   - target 只能由确认完成、明确取消、新 seek generation/source epoch/session source 改变清除。
+
+写域仍为原批准五路径；不得新增 production/test file、Service、schema/settings/metadata、A0
+baseline、版本/签名/Release。RED 必须实际执行并保留 XML/log；测试必须经生产 mutation、命令计划与
+retry 选择入口，不得用 fake callback、target、UI cache 或 persist hint 伪造 engine position。
+
+执行顺序：fresh R5 implementation owner 短计划 → RED→GREEN → targeted/player-local/phone/
+assemble/KTFMT/A0/GatePlan → commit 不 push → different fresh scoped review R5。Review PASS 后才
+申请 Pad `43af8627` 新锁与 `QaReady`；K60 继续禁止。Review PASS 后另派 fresh QA，只验证本 P1
+核心矩阵与 settings per-key hash，唯一 600 秒窗口只跑一次。Review FAIL 时自动另立新任务卡。
