@@ -8,29 +8,29 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=HANDOFF_TO_A_CLUSTER_DELIVERY_LEAD_R4 / R8_DOC_FINDINGS_REPAIRED / FRESH_AUDIT_R9_PENDING / CONTEXT_493802_OVER_35W
+- TASK_STAGE=BACKGROUND_CONTINUE_SCOPE_DECISION_RECORDED / INDEPENDENT_QA_R6_DISPATCH_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R4_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_R6_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-instrumentation-r2-2026-11-10\BACKGROUND_CONTINUE_INSTRUMENTATION_R2_REPORT.md
-- NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
-- STOP_CONDITION=Successor delivery lead must do startup Snapshot/exact-pin Handoff, read PLAYER_PLAN 52.20-52.23 and R2/diagnosis evidence, then decide whether the default background-audio-off behavior is expected or authorize one new bounded instrumentation scope. Do not inherit R2 runner failure as a product result, do not reuse owners, and do not merge-prep/integrate/K60/Release without a complete user-journey matrix.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_HARNESSES_PASS/INDEPENDENT_QA_R5_FAIL/BACKGROUND_CONTINUE_DIAGNOSIS_CONFLICTING/INSTRUMENTATION_R1_SEQUENCE_NOT_EQUIVALENT/INSTRUMENTATION_R2_INCONCLUSIVE/HANDOFF_TO_DELIVERY_LEAD_R4
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-scope-decision-r4-2026-11-10\BACKGROUND_CONTINUE_SCOPE_DECISION_R4_REPORT.md
+- NEXT_REQUIREMENT=Independent QA R6 on frozen A-cluster candidate with default background-audio-off expected-pause semantics and one explicit in-app background-audio-on same-session validation
+- STOP_CONDITION=Stop on object or lock drift, sanitized-wrapper failure, a P1 under background-audio-on, same default-pref P1 regression, K60, screenshots, merge-prep, integration, Release, or any product change; otherwise complete the applicable A-cluster matrix without inheriting R5 NOT_RUN rows
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_CANDIDATE_60ebe5e8/P1_BACKGROUND:NOT_REPRODUCED_UNDER_DEFAULT_PREF/NO_PRODUCT_REPAIR/INDEPENDENT_QA_R6_REQUIRED
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / HANDOFF_TO_DELIVERY_LEAD_R4 / NO_PRODUCT_REPAIR / SUCCESSOR_DECIDES_NEXT_SCOPE
-- DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_FINAL_V140 / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / TEST_SERVER_NETWORK_USED=YES
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / BACKGROUND_CONTINUE_INCONCLUSIVE / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
+- IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / P1_DEFAULT_BACKGROUND_SCOPE_DECISION_COMPLETE / NO_PRODUCT_REPAIR / INDEPENDENT_QA_R6_AUTHORIZED
+- DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_CANDIDATE_QA_ONLY / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD:NONE / TEST_SERVER_NETWORK_USED:NO_NOW
+- FRESH_INDEPENDENT_QA_REQUIRED=YES / P1_BACKGROUND:NOT_REPRODUCED_UNDER_DEFAULT_PREF / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / PLAYER_STABILITY_INTEGRATED:NO / W1C_1_LOCALLY_INTEGRATED:YES / LOCAL_UNPUSHED:YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=493802/1048576/47.1%/35W_HANDOFF_TRIGGERED
+- CONTEXT_AT_CLOSE=238513/1048576/22.7%/R4_SCOPE_DECISION_CHECKPOINT
 - P0=0
-- P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01=CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;P1-QA-R3-01=CLOSED_BY_QA_R5_REAL_DEVICE_PROOF;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001;P1-PLAYER-LOADING-BACKGROUND-CONTINUE=OPEN_REVALIDATION_REQUIRED
+- P1=P1-SR-A01:CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01:CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;P1-QA-R3-01:CLOSED_BY_QA_R5_REAL_DEVICE_PROOF;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:NOT_REPRODUCED_UNDER_DEFAULT_PREF;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
 - P3=0
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_PRE_HANDOFF_AUDIT_R9_THEN_DELIVERY_LEAD_R4_BACKGROUND_SCOPE_DECISION
-- last_evidence=CONTEXT_493802_OVER_35W;PRE_HANDOFF_AUDIT_R8=FAIL/2_P2_DOC_ONLY;R8_REPORT_SHA=8845D65EBB77F296611FE9442855293147BCAC7CFB55676BE7203ABF191BC2D1;R8_MANIFEST_SHA=66E1D20CD2508D32C05305E4FBF969697D81AF379EBEDBA358B780EE595EE161;R8_DOC_FIX=READY;R9_AUDIT=PENDING;PRODUCT_CHANGE=NO;LOCK_RELEASED=YES
+- NEXT_CRITICAL_PATH=INDEPENDENT_QA_R6_THEN_A_CLUSTER_CLOSURE_DECISION
+- last_evidence=BACKGROUND_CONTINUE_SCOPE_DECISION:P1_NOT_REPRODUCED_UNDER_DEFAULT_PREF;R4_DECISION_REPORT:F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-scope-decision-r4-2026-11-10\BACKGROUND_CONTINUE_SCOPE_DECISION_R4_REPORT.md;CANDIDATE:60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf;APK_SHA:30241F412EC305E7ACD2BE71CA3E0AB2CD650E3444B0351E89967899FA362B68;PRODUCT_CHANGE:NO;DEVICE_USED:NO;LOCK_RELEASED:YES
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -188,6 +188,11 @@
   以及 R2 等价事实未写为精确 `TARGET_APP_LAUNCHED=NO`。已仅补文档规范化 token、未覆盖清单
   和 R8 FAIL 历史；未改 R2 evidence、candidate、产品、设备或锁。下一步必须由另一个 fresh
   audit R9 重跑，PASS 后才可创建 R4 负责人会话。
+- 2026-11-10 R4 负责人完成 Startup Snapshot / exact-pin Handoff 与 `V2-D160` 源码复核，判定
+  默认后台音频关闭时 HOME 暂停属于预期行为：
+  `P1-PLAYER-LOADING-BACKGROUND-CONTINUE=NOT_REPRODUCED_UNDER_DEFAULT_PREF`。R5 FAIL 与
+  两次 instrumentation 历史原样保留；不补产品。下一步由 fresh independent QA R6 先验证
+  默认暂停，再通过应用内开关验证后台继续同一会话并恢复偏好。证据见 `PLAYER_PLAN` §52.24。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -983,11 +988,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   `...\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09`。
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=NO
-- UNCOVERED=Context handoff is due to the 493802-token session watermark. R5 showed HLS/mpv pause after HOME but not same-session return; diagnosis is conflicting and both instrumentation retries were inconclusive or non-equivalent. The successor must decide whether default background-audio-off makes pause expected or authorize one newly bounded scope. No product result is established.
-- STOP_CONDITION=Successor-only handoff state. Do not continue QA, instrumentation, repair, merge-prep, integration, K60 or Release in the old delivery-lead session. A fresh pre-handoff audit must pass before creating R4; R4 must then independently decide and dispatch professional one-stage agents.
-- MANUAL_LIMITATION=R5, diagnosis, and R1/R2 instrumentation cannot prove a same-session background-continuation defect. The preference key is ABSENT with source default false. A fix based only on R5 would conflate a new playback request or expected background-audio-off pause with the original P1.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R4_2026_11_10
+- QA_READY=YES
+- UNCOVERED=QA R6 must re-execute the applicable A-cluster core matrix on the frozen candidate. Default background-audio-off HOME pause is expected and is not a defect. Enable background audio once through App UI, verify same-task/session continuation, then restore the absent/false preference. PC-01, PC-03 through PC-05, PC-11 and PC-12 remain unexecuted until QA R6.
+- STOP_CONDITION=QaReady PASS is the first command. Stop on candidate, APK, serial, lock, wrapper, evidence identity or preference-restore drift; stop on a same P1 under background-audio-on; do not modify product, use settings put/delete/reset, touch K60, take screenshots, start merge-prep or integration, or claim PASS for NOT_RUN rows.
+- MANUAL_LIMITATION=R5 PAUSED observation is reclassified through explicit V2-D160 and source evidence as expected with default background audio off. R5 foreground reload was a new playback Intent and does not prove same-session failure. R1/R2 instrumentation failures remain non-product evidence; their corrected retry budget is exhausted and is not being reopened.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_R6_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

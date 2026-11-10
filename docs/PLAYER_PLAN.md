@@ -5863,3 +5863,46 @@ fresh pre-handoff audit R8 判定
   （SHA-256 `8845D65EBB77F296611FE9442855293147BCAC7CFB55676BE7203ABF191BC2D1`）
 - `...\MANIFEST.sha256`
   （SHA-256 `66E1D20CD2508D32C05305E4FBF969697D81AF379EBEDBA358B780EE595EE161`）
+
+### 52.24 Background-continue 范围决策与 QA R6（2026-11-10）
+
+**状态**：`BACKGROUND_CONTINUE_SCOPE_DECISION=P1_NOT_REPRODUCED_UNDER_DEFAULT_PREF /`
+`PRODUCT_REPAIR=NO / NEXT_STAGE=FRESH_INDEPENDENT_QA_R6`。
+
+交付负责人复核 `V2-D160`、候选源码、R5、诊断与 R1/R2 instrumentation 后确认：当前
+`pref_player_background_audio` 缺失，产品默认 `false`；普通视频未启用后台播放时，
+`BasePlayerActivity.onPause()` 写 `playWhenReady=false` 并停止播放服务。R5 的 HOME 后
+`PAUSED` 符合该设置，不能作为产品 P1。R5 的“回前台重载 / 位置重置”已由诊断证明是带
+`itemId` 的新播放 Intent，不是同一会话返回证据。
+
+用户承诺解释固定为：
+
+- 默认后台播放关闭：按 HOME 后视频 / 音频暂停是预期行为；
+- 用户显式开启“后台播放”后：HOME 后继续播放 / 加载，回前台由同一播放会话接管；
+- R5 原记录与 FAIL 原样保留，但不再作为默认偏好下的产品失败；
+- 不为预期暂停改产品，也不把 instrumentation runner failure 当产品结果。
+
+范围决策：
+
+```text
+P1-PLAYER-LOADING-BACKGROUND-CONTINUE=NOT_REPRODUCED_UNDER_DEFAULT_PREF
+DEFAULT_BACKGROUND_AUDIO=false
+PRODUCT_CHANGE=NO
+NEW_INSTRUMENTATION_SCOPE=NO
+NEXT_STAGE=FRESH_INDEPENDENT_QA_R6
+```
+
+下一阶段只派全新
+`AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_R6_2026_11_10`，固定 candidate
+`60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf`、tree
+`0fca8a6cf425261e9109be49846aaa981048bba0`、APK SHA-256
+`30241F412EC305E7ACD2BE71CA3E0AB2CD650E3444B0351E89967899FA362B68` 与 Pad
+`43af8627`。QA 必须先验证默认关闭的预期暂停，再通过应用内“后台播放”开关做一次同 task
+验证并在 cleanup 恢复键缺失 / `false` 语义；禁止 `settings put/delete/reset`、K60、截图和
+Release。
+
+QA R6 仍须重新执行完整适用 A 簇核心行，不能继承 R5 的未执行行。若开启后台播放后仍出现同一
+P1，停止打补丁并转播放会话状态模型；若 PASS，再由负责人另派 fresh merge-prep。
+
+证据：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-scope-decision-r4-2026-11-10\BACKGROUND_CONTINUE_SCOPE_DECISION_R4_REPORT.md`。
