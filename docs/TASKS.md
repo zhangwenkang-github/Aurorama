@@ -5,42 +5,42 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R5-2026-11-10
+### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R6-2026-11-11
 
-- TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R5-2026-11-10
-- TASK_STAGE=USER_APPROVED / CONTRACT_FROZEN / R5_IMPLEMENTATION_GREEN / R5_SCOPED_REVIEW_REQUIRED
+- TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R6-2026-11-11
+- TASK_STAGE=USER_APPROVED / R6_CONTRACT_FROZEN / HANDOFF_TO_DELIVERY_LEAD_R2
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
-- R5_BASE_HEAD=c6fff17602c4e4c0eebf54710e733a982303d5ab
-- R5_BASE_TREE=8c0f6e53a5b0195d26888a290631937c6d9b9e41
-- R5_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r5-2026-11-10\Aurorama
-- R5_BRANCH=codex/v141-player-progress-source-retry-r5
-- R5_IMPLEMENTATION_HEAD=52967e20dd8c6e5e6973d9847fbb92ba3e57244f
-- R5_IMPLEMENTATION_TREE=09fa94049ca906938003b8adc41fc0fd46d44649
+- R5_REVIEW=FAIL / HEAD=52967e20dd8c6e5e6973d9847fbb92ba3e57244f
+- R6_BASE_HEAD=52967e20dd8c6e5e6973d9847fbb92ba3e57244f
+- R6_BASE_TREE=09fa94049ca906938003b8adc41fc0fd46d44649
+- R6_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r6-2026-11-11\Aurorama
+- R6_BRANCH=codex/v141-player-progress-source-retry-r6
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.46-§52.47 > scoped review R4 report > candidate c6fff17602c4e4c0eebf54710e733a982303d5ab
-- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_RETRY_SOURCE_CONTRACT_DELIVERY_LEAD_R1_2026_11_10
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.49-§52.50 > scoped review R5 report > candidate 52967e20dd8c6e5e6973d9847fbb92ba3e57244f
+- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
+- RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_RETRY_SOURCE_CONTRACT_DELIVERY_LEAD_R1_2026_11_10
 - CURRENT_DELEGATED_ROLE=NONE
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\docs\PLAYER_PLAN.md
-- NEXT_REQUIREMENT=Different fresh read-only scoped review R5 must independently verify c6fff176..52967e20, the three R4 closure targets, production command plan, finalized RED/GREEN, A0 and GatePlan. The reviewer must not implement or run QA.
-- STOP_CONDITION=Stop only on object/report SHA drift, paths outside the approved five, frozen-contract deviation, same-identity native current removal, binding revival/stale-token acceptance, Failed target loss, RED evidence failure, unknown new P0-P2, or device/QA work. Review FAIL requires a new task card, not an in-card mechanical patch.
-- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R5_NATIVE_PRESERVE_AND_PENDING_LIFECYCLE/CONTRACT_FROZEN/IMPLEMENTATION_GREEN/R5_SCOPED_REVIEW_REQUIRED/QA_NOT_READY
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r5-scoped-review-2026-11-11\SCOPED_REVIEW_REPORT.md
+- NEXT_REQUIREMENT=Successor delivery lead R2 must minimal-startup-check this ACTIVE, create an isolated R6 worktree from 52967e20, and dispatch exactly one fresh R6 implementation owner for idle/UNKNOWN same-identity preserve, batch/range command plans, and unified callback epoch gates.
+- STOP_CONDITION=R6 implementation must stop on new paths, Service/schema/settings/metadata/version/signing/release, frozen-contract deviation, same-identity current removal, missing command-plan/RED evidence, unknown new P0-P2, or unauthorized device/QA. An R6 review FAIL requires another new task card, not an in-card patch.
+- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R6_IDLE_NATIVE_PRESERVE_AND_CALLBACK_GATES/CONTRACT_FROZEN/HANDOFF_TO_DELIVERY_LEAD_R2/QA_NOT_READY
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_APPROVED_SCOPE_EXPANSION_2026_11_10 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO / R5_IMPLEMENTATION_COMPLETE
+- IMPLEMENTATION_AUTHORIZED=YES_SCOPED_ONLY_FOR_FRESH_R6_IMPLEMENTATION_OWNER_AFTER_SUCCESSOR_STARTUP_PASS
 - DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / R5_SCOPED_REVIEW_REQUIRED_AFTER_IMPLEMENTATION / PRODUCT_P1_OPEN / QA_READY:NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / R6_SCOPED_REVIEW_REQUIRED_AFTER_IMPLEMENTATION / PRODUCT_P1_OPEN / QA_READY:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=230500/1048576/22.0%/R5_TASK_CARD_OPEN
-- CONTEXT_WATER_TIME=2026-11-10 23:37:31 Asia/Shanghai
+- CONTEXT_AT_CLOSE=296923/1048576/28.3%/HANDOFF_TO_R6_DELIVERY_LEAD
+- CONTEXT_WATER_TIME=2026-11-11 00:42:52 Asia/Shanghai
 - P0=0
-- P1=P1-PLAYER-PROGRESS-001:OPEN;P1-R4-SET-SAME-NATIVE-CLEAR-01:OPEN_BLOCKED_REVIEW_FAIL;P1-PROGRESS-R2-A:CLOSED_BY_RESHAPE_IMPLEMENTATION_BUT_PRODUCT_OPEN;P1-PROGRESS-R2-B:CONTRACT_IMPLEMENTED_BUT_PRODUCT_OPEN;P1-PROGRESS-R3-SEEK-PRIORITY:CONTRACT_IMPLEMENTED_BUT_PRODUCT_OPEN;P1-STARTUP-R14-01:CLOSED_BY_R15;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
-- P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001;P2-R4-PENDING-BINDING-NO-DIRECT-NEGATIVE:OPEN_TEST_GAP
-- P3=P3-R4-FAILED-SEEK-CLEARS-SESSION-PENDING:OPEN_CONTRACT_BOUNDARY
+- P1=P1-PLAYER-PROGRESS-001:OPEN;P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01:OPEN_BLOCKING_R6;P1-R4-SET-SAME-NATIVE-CLEAR-01:R5_KNOWN_STATE_GREEN_IDLE_RESIDUAL;P1-PROGRESS-R2-A:CLOSED_BY_RESHAPE_IMPLEMENTATION_BUT_PRODUCT_OPEN;P1-PROGRESS-R2-B:CONTRACT_IMPLEMENTED_BUT_PRODUCT_OPEN;P1-PROGRESS-R3-SEEK-PRIORITY:CONTRACT_IMPLEMENTED_BUT_PRODUCT_OPEN;P1-STARTUP-R14-01:CLOSED_BY_R15;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
+- P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001;P2-R5-MULTI-ITEM-NATIVE-ORDER-NOT-PROVEN-01:OPEN_R6;P2-R5-EVENTID-STRING-BOOLEAN-EPOCH-GATE-01:OPEN_R6;P2-R4-PENDING-BINDING-NO-DIRECT-NEGATIVE:CLOSED_BY_R5_REVIEW
+- P3=P3-R5-ASSEMBLE-COMMAND-TRANSCRIPT-01:OPEN_R6;P3-R4-FAILED-SEEK-CLEARS-SESSION-PENDING:CLOSED_BY_R5_REVIEW
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\a0-closure\A0_CLOSURE_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scoped-review-2026-11-10\SCOPED_REVIEW_REPORT.md
@@ -55,9 +55,11 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-contract-scoped-review-r4-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r5-implementation-r1-2026-11-10\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r5-implementation-r1-2026-11-10\MANIFEST.sha256
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r5-scoped-review-2026-11-11\SCOPED_REVIEW_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r5-scoped-review-2026-11-11\MANIFEST.sha256
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=R5_SCOPED_REVIEW_THEN_IF_PASS_PAD_QA
-- last_evidence=R5_IMPLEMENTATION=GREEN;HEAD=52967e20dd8c6e5e6973d9847fbb92ba3e57244f;REPORT_SHA=0F08E19DD78C809F82177381C1FFC0D0FF4FCDEA1B420D7DA12B71460113A1A2;MANIFEST_SHA=69F94EB66CF3D845012770D4C0339FB2A537D4015B81D686A5A71788A8657061;RED=37/3/0/0;DEVICE=NONE;LOCK_ACTIVE=0
+- NEXT_CRITICAL_PATH=HANDOFF_PASS_THEN_R6_IMPLEMENTATION_THEN_R6_REVIEW_THEN_PAD_QA
+- last_evidence=SCOPED_REVIEW_R5=FAIL;FAIL_REASON=SAME_IDENTITY_IDLE_OR_UNKNOWN_STILL_CLEARS_NATIVE_CURRENT;REVIEW_SHA=5CF6E6ED7E927A60F04459742EA1AA02C33F900DECD864E2E157D9E7C677B435;REVIEW_MANIFEST_SHA=CBD6E42257C2367D18B8DEFD43EA45AE437851737A27E887E0B13661C3F83F9C;DEVICE=NONE;LOCK_ACTIVE=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -1011,10 +1013,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Contract is frozen but no new implementation has run. Add/move playlist identity remap and explicit-seek retry priority remain open; device, MediaSession, native ordering, merge-prep, integration and Release remain uncovered.
-- STOP_CONDITION=Do not request device lock or QaReady before fresh implementation and different fresh scoped review PASS. No implementation by delivery lead, no same-card patch after review FAIL.
-- MANUAL_LIMITATION=The frozen contract and existing GREEN gates are not product closure; no QA has run.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_RETRY_SOURCE_CONTRACT_DELIVERY_LEAD_R1_2026_11_10
+- UNCOVERED=R5 review failed on same-identity IDLE/UNKNOWN native preserve and recorded batch/range and callback epoch gaps. R6 implementation, review, device, MediaSession, native ordering, merge-prep, integration and Release remain uncovered.
+- STOP_CONDITION=Do not request device lock or QaReady before fresh R6 implementation and different fresh R6 scoped review PASS. No delivery-lead implementation and no same-card patch after review FAIL.
+- MANUAL_LIMITATION=The frozen contract and GREEN gates are not product closure; no QA has run.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

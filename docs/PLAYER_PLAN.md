@@ -7113,3 +7113,74 @@ MANIFEST_SHA256=69F94EB66CF3D845012770D4C0339FB2A537D4015B81D686A5A71788A8657061
 本状态不是产品、review 或 QA PASS。下一步由不同 fresh read-only scoped review R5 独立核对
 `c6fff176..52967e20` 三路径 diff、三缺口生产链、RED/GREEN 与全部门禁；review PASS 前不得申请
 设备锁或 `QaReady`。
+
+### 52.49 Progress source-identity / retry-priority R5 scoped review FAIL（2026-11-11）
+
+**状态**：`SCOPED_REVIEW_R5=FAIL / BLOCKED_HISTORY / R6_REQUIRED /`
+`P1-PLAYER-PROGRESS-001=OPEN / QA_READY=NO`。
+
+fresh R5 reviewer 独立确认 R5 已关闭 R4 的直接 binding 负向测试与 failed-seek target 生命周期：
+
+```text
+P2-R4-PENDING-BINDING-NO-DIRECT-NEGATIVE=CLOSED_BY_R5_REVIEW
+P3-R4-FAILED-SEEK-CLEARS-SESSION-PENDING=CLOSED_BY_R5_REVIEW
+RED=37/3/0/0 ASSERTION_ONLY
+TARGETED=42/0/0/0
+PLAYER_LOCAL=42 SUITES/322/0/0/0
+PHONE=62 SUITES/412/0/0/0
+A0=15503/15512 HEADROOM=9
+GATEPLAN=FULL / MATRIX PASS / 3 PATHS
+```
+
+但对象/门禁 PASS 不能掩盖以下残留：
+
+```text
+P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01
+P2-R5-MULTI-ITEM-NATIVE-ORDER-NOT-PROVEN-01
+P2-R5-EVENTID-STRING-BOOLEAN-EPOCH-GATE-01
+P3-R5-ASSEMBLE-COMMAND-TRANSCRIPT-01
+```
+
+P1 来自 `preserveSource` 仍要求 `position != null || playbackState >= BUFFERING`：same active
+identity 在 IDLE + position/cache UNKNOWN 时仍 clear/remove current，直接违反“任何 playback
+state 均保留 current”。P2 分别为 batch `insert-at` 固定索引顺序未证明、eventId/String/Boolean
+回调未统一 epoch gate；P3 是 assemble 命令 transcript 丢失 `$env:JAVA_HOME` 变量名。
+
+```text
+F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r5-scoped-review-2026-11-11\SCOPED_REVIEW_REPORT.md
+SHA256=5CF6E6ED7E927A60F04459742EA1AA02C33F900DECD864E2E157D9E7C677B435
+MANIFEST_SHA256=CBD6E42257C2367D18B8DEFD43EA45AE437851737A27E887E0B13661C3F83F9C
+```
+
+### 52.50 Progress source-identity / retry-priority R6 任务卡（2026-11-11）
+
+**状态**：`USER_APPROVED / R6_CONTRACT_FROZEN / HANDOFF_TO_DELIVERY_LEAD_R2 /`
+`R6_IMPLEMENTATION_READY_AFTER_SUCCESSOR_STARTUP / QA_READY=NO`。
+
+R6 从 R5 candidate `52967e20dd8c6e5e6973d9847fbb92ba3e57244f` / tree
+`09fa94049ca906938003b8adc41fc0fd46d44649` 隔离建立，保留已通过的 pending/failed-seek 与
+known-position same-identity 修复，只冻结以下范围：
+
+1. **P1 idle/UNKNOWN native preserve**
+   - playlist/current preservation 只由 active stable identity 是否相等决定，不得由 position、
+     cache 或 playbackState 决定。
+   - same identity 在任何状态都保留 current native entry；若 IDLE/UNKNOWN 需要启动 source，必须
+     通过明确的 current-source prepare 机制完成，不得先 clear/remove current。
+   - `prepare()` 是否启动/重载与是否保留 current 分开建模；测试覆盖 IDLE+UNKNOWN、BUFFERING、
+     PLAYING、known-position，以及 set 未立即 prepare、随后 prepare、随后真实换源的命令计划。
+2. **P2 batch/range native order**
+   - 多 item `addMediaItems` 的 `insert-at` 必须与 candidate order 一致；range move 必须有
+     production command-plan fixture，不能只验证 singleton。
+   - 若某 caller 无法安全表达，必须 fail closed，不能把内部列表顺序当 native 顺序证据。
+3. **P2 callback epoch gate**
+   - 所有可能修改 source-facing state 的 eventId posted callback 必须捕获并复核 epoch；
+     `eventProperty(String/Boolean)` 路径同样需要 gate。
+   - 需要跨 source 的 START_FILE 初始化命令使用显式 source/command token，不得读取共享
+     `initialCommands`。测试加入“旧 epoch callback 在 mutation 后到达”的边界断言。
+4. **P3 evidence**：重新生成可复现的 assemble command transcript，更新 implementation manifest。
+
+写域仍为批准五路径；禁止新 production/test file、Service、schema/settings/metadata、
+A0 baseline/version/signing/release，以及设备/ADB/截图/生产写。实现 owner 必须先取得保留的
+assertion-only RED，再 GREEN 并跑 targeted/player-local/phone/assemble/KTFMT/A0/GatePlan。
+review 必须由不同 fresh R6 reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，
+K60 仍禁止。Review FAIL 自动另立新任务卡。
