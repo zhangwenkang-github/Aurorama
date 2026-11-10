@@ -516,9 +516,9 @@ class PlayerControlsState {
 /** 播放中的易变状态：位置 / 缓冲 / 播放中 / 轨道 / 队列，统一在这里聚合 */
 @Stable
 private class PlayerRuntime {
-    var position by mutableLongStateOf(0L)
+    var position by mutableLongStateOf(C.TIME_UNSET)
     var duration by mutableLongStateOf(0L)
-    var buffered by mutableLongStateOf(0L)
+    var buffered by mutableLongStateOf(C.TIME_UNSET)
     var isPlaying by mutableStateOf(false)
     var isBuffering by mutableStateOf(false)
     var speed by mutableFloatStateOf(1f)
@@ -536,9 +536,9 @@ private class PlayerRuntime {
     var canShuffle by mutableStateOf(false)
 
     fun sync(player: Player) {
-        position = player.currentPosition.coerceAtLeast(0L)
+        position = player.currentPosition
         duration = player.duration.let { if (it > 0L) it else 0L }
-        buffered = player.bufferedPosition.coerceAtLeast(0L)
+        buffered = player.bufferedPosition
         isPlaying = player.isPlaying
         /*
          * W76-B11b：除了「正在缓冲」，**还没有任何可播条目的准备窗口**也算加载中。
@@ -682,6 +682,8 @@ fun PlayerControlOverlay(
     debugStatsProvider: suspend () -> PlayerDebugStats = { PlayerDebugStats() },
     /** 播放失败后的「重试」：清错误并从当前进度重新拉流 */
     onRetry: () -> Unit,
+    /** 进度恢复面点击：原样交回当前 UI terminal token */
+    onRetryProgress: (String) -> Unit,
     /** 「换内核」：ExoPlayer ⇄ mpv（由 Activity 写偏好并重启播放页生效） */
     onSwitchBackend: (String) -> Unit,
     /**
@@ -729,11 +731,13 @@ fun PlayerControlOverlay(
 ) {
     val runtime = rememberPlayerRuntime(player)
     val displayPositionMs =
-        seekDisplayPositionMs(
-            uiState.seekState,
-            runtime.position,
-            SystemClock.elapsedRealtime(),
-        )
+        if (runtime.position < 0L && uiState.seekState !is SeekState.Seeking) C.TIME_UNSET
+        else
+            seekDisplayPositionMs(
+                uiState.seekState,
+                runtime.position,
+                SystemClock.elapsedRealtime(),
+            )
     val playbackSession = uiState.playbackSession
     val seekFailed =
         (uiState.seekState as? SeekState.Failed)?.takeIf { playbackSession.showSeekFailure }
@@ -762,7 +766,7 @@ fun PlayerControlOverlay(
             )
         }
     val endTimeText =
-        if (runtime.duration > 0L) {
+        if (runtime.duration > 0L && displayPositionMs >= 0L) {
             stringResource(
                 AppR.string.player_end_time_label,
                 formatClockTime(
@@ -1189,7 +1193,7 @@ fun PlayerControlOverlay(
                 } else if (progressTerminal != null && controls.visible) {
                     PlaybackProgressRecoveryAction(
                         terminal = progressTerminal,
-                        onRetry = onRetry,
+                        onRetry = { onRetryProgress(progressTerminal.token) },
                         modifier =
                             Modifier.align(Alignment.BottomCenter)
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -3028,6 +3032,7 @@ private fun LockedOverlay(
 // ---------- 工具 ----------
 
 internal fun formatTime(millis: Long): String {
+    if (millis < 0L) return "—"
     val totalSeconds = (millis / 1000L).coerceAtLeast(0L)
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60

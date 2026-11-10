@@ -133,7 +133,7 @@ class PlaybackSessionRulesTest {
         assertNull(changed.second.terminal)
         assertNull(changed.first.terminal)
         assertFalse(changed.first.retryConsumed)
-        assertNull(PlaybackSessionRules.consumeRetry(changed.first))
+        assertNull(PlaybackSessionRules.consumeRetry(changed.first, "stale"))
     }
 
     @Test
@@ -167,7 +167,8 @@ class PlaybackSessionRulesTest {
         val initial = advance(input(key = key), 0L)
         val terminal =
             advance(input(key = key), PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
-        val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(terminal.first))
+        val token = requireNotNull(terminal.first.terminal).token
+        val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(terminal.first, token))
         val sameSourceState =
             advance(
                 input(key = key),
@@ -214,21 +215,25 @@ class PlaybackSessionRulesTest {
                 beforeNewTerminal.first,
             )
         assertTrue(newTerminal.second.terminal != null)
-        val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(newTerminal.first))
-        assertNull(PlaybackSessionRules.consumeRetry(consumed))
+        val token = requireNotNull(newTerminal.first.terminal).token
+        val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(newTerminal.first, token))
+        assertNull(PlaybackSessionRules.consumeRetry(consumed, token))
     }
 
     @Test
     fun `same terminal retry is consumed once`() {
         val terminal = terminalAtDeadline(enginePositionMs = 5_000L)
-        val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(terminal.first))
+        val token = requireNotNull(terminal.first.terminal).token
+        assertTrue(token.isNotBlank())
+        assertNull(PlaybackSessionRules.consumeRetry(terminal.first, "other-terminal"))
+        val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(terminal.first, token))
         assertEquals(5_000L, terminal.second.terminal?.positionMs)
         assertTrue(consumed.retryConsumed)
         assertNull(
             PlaybackSessionRules.project(consumed, input(isPlaying = false, isBuffering = true))
                 .terminal
         )
-        assertNull(PlaybackSessionRules.consumeRetry(consumed))
+        assertNull(PlaybackSessionRules.consumeRetry(consumed, token))
     }
 
     @Test
@@ -256,6 +261,63 @@ class PlaybackSessionRulesTest {
             PlayerViewModel.PlaybackRetryPositionSource.START_ZERO,
             source(null, null, null),
         )
+    }
+
+    @Test
+    fun `invalid engine sample never becomes a fake zero position`() {
+        val invalid =
+            input(
+                isPlaying = false,
+                isBuffering = true,
+                enginePositionMs = androidx.media3.common.C.TIME_UNSET,
+                bufferedPositionMs = null,
+            )
+        val initial = advance(invalid, 0L)
+        assertNull(initial.first.lastEnginePositionMs)
+
+        val terminal = advance(invalid, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
+        assertEquals(
+            PlayerViewModel.PlaybackRetryPositionSource.START_ZERO,
+            terminal.second.terminal?.positionSource,
+        )
+        assertEquals(0L, terminal.second.terminal?.positionMs)
+    }
+
+    @Test
+    fun `buffering keeps the last valid engine position`() {
+        val ready = input(isPlaying = true, isBuffering = false, isReady = true)
+        val initial = advance(ready.copy(enginePositionMs = 5_000L), 0L)
+        val buffering =
+            advance(
+                ready.copy(
+                    isPlaying = false,
+                    isBuffering = true,
+                    isReady = false,
+                    enginePositionMs = androidx.media3.common.C.TIME_UNSET,
+                    bufferedPositionMs = androidx.media3.common.C.TIME_UNSET,
+                ),
+                1_000L,
+                initial.first,
+            )
+
+        assertEquals(5_000L, buffering.first.lastEnginePositionMs)
+        assertNull(buffering.second.terminal)
+    }
+
+    @Test
+    fun `source change invalidates the current terminal before retry`() {
+        val terminal = terminalAtDeadline(enginePositionMs = 5_000L)
+        assertTrue(terminal.first.terminal != null)
+        val token = requireNotNull(terminal.first.terminal).token
+        val changed =
+            advance(
+                input(key = "item-b|source-b|2|2"),
+                PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+                terminal.first,
+            )
+
+        assertNull(changed.second.terminal)
+        assertNull(PlaybackSessionRules.consumeRetry(changed.first, token))
     }
 
     @Test

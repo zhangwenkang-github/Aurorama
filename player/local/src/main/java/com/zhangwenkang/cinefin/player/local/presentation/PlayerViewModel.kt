@@ -227,6 +227,7 @@ constructor(
         val kind: String,
         val positionMs: Long,
         val positionSource: PlaybackRetryPositionSource,
+        val token: String,
         val cause: String? = null,
     )
 
@@ -510,8 +511,8 @@ constructor(
                         active.mediaItemCount == 0 ||
                         active.playbackState == Player.STATE_BUFFERING,
                 isReady = active?.playbackState == Player.STATE_READY,
-                enginePositionMs = validPlaybackPosition(active?.currentPosition),
-                bufferedPositionMs = validPlaybackPosition(active?.bufferedPosition),
+                enginePositionMs = normalizeEnginePosition(active?.currentPosition),
+                bufferedPositionMs = normalizeEnginePosition(active?.bufferedPosition),
                 hasPlayerError = _uiState.value.playerError != null,
                 hasSeekFailure = seekState is SeekState.Failed,
                 explicitSeekTargetMs = (seekState as? SeekState.Seeking)?.targetMs,
@@ -543,10 +544,6 @@ constructor(
             return null
         }
         return lastProgressPositionMs
-    }
-
-    private fun validPlaybackPosition(positionMs: Long?): Long? = positionMs?.takeIf {
-        it >= 0L && it != C.TIME_UNSET
     }
 
     private fun publishPlaybackSnapshots() {
@@ -938,13 +935,14 @@ constructor(
         // Capture and send the final progress synchronously before process exit.
         val activePlayer = playerHolder.existingPlayer
         val mediaId = activePlayer?.currentMediaItem?.mediaId
-        val position = (activePlayer?.currentPosition ?: 0L).coerceAtLeast(0L)
+        val position = normalizeEnginePosition(activePlayer?.currentPosition)
         val duration = activePlayer?.duration ?: C.TIME_UNSET
         val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
         // Only the page-owned session reports a stop; attached music remains music-owned.
         if (
             shouldReportStopOnPlayerExit(playerHolder.isCurrentItemMusic) &&
                 itemId != null &&
+                position != null &&
                 duration != C.TIME_UNSET
         ) {
             markStopReported(itemId)
@@ -973,7 +971,9 @@ constructor(
         val backgroundAudioEnabled = appPreferences.getValue(appPreferences.playerBackgroundAudio)
         if (!shouldReleasePlayerOnExit(playerHolder.musicSessionActive, backgroundAudioEnabled)) {
             // Background playback keeps the instance alive; persist only the position.
-            savedStateHandle["position"] = player.currentPosition
+            normalizeEnginePosition(player.currentPosition)?.let {
+                savedStateHandle["position"] = it
+            }
         } else {
             playerHolder.release()
         }
@@ -983,7 +983,8 @@ constructor(
         val player = playerHolder.existingPlayer ?: return
         val mediaItem = player.currentMediaItem ?: return
         val itemId = runCatching { UUID.fromString(mediaItem.mediaId) }.getOrNull() ?: return
-        val position = player.currentPosition.coerceAtLeast(0L)
+        refreshPlaybackSession()
+        val position = playbackSessionState.lastEnginePositionMs ?: return
         val duration = player.duration
         savedStateHandle["position"] = position
         recordProgressSnapshot(itemId, position, duration)
@@ -1262,10 +1263,10 @@ constructor(
         )
         viewModelScope.launch {
             val mediaId = player.currentMediaItem?.mediaId
-            val position = player.currentPosition
+            val position = playbackSessionState.lastEnginePositionMs
             val duration = player.duration
             val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
-            if (itemId != null) {
+            if (itemId != null && position != null) {
                 markStopReported(itemId)
                 recordProgressSnapshot(itemId, position, duration)
                 try {
@@ -1464,7 +1465,7 @@ constructor(
                 networkRetryAttempts,
                 position,
             )
-            retryPlayback(position)
+            retryPlaybackAt(position)
         }
         return true
     }
@@ -2651,28 +2652,35 @@ constructor(
         playbackSpeed = speed
     }
 
-    // Retry from the current terminal position and consume its token once.
-    fun retryPlayback(positionOverrideMs: Long? = null) {
-        val retryTerminal =
-            if (positionOverrideMs == null) {
-                val terminal = playbackSessionState.terminal
-                if (terminal != null) {
-                    playbackSessionState =
-                        PlaybackSessionRules.consumeRetry(playbackSessionState) ?: return
-                }
-                terminal
-            } else {
-                null
-            }
-        val position = positionOverrideMs ?: retryTerminal?.positionMs ?: currentResumePositionMs()
-        Timber.d("Retrying playback on backend=$playerBackend from position=$position")
+    fun retryPlayback(terminalToken: String) {
+        val terminal = playbackSessionState.terminal
+        if (terminal?.token != terminalToken || playbackSessionState.retryConsumed) {
+            Timber.d("Ignoring stale playback retry terminal=%s", terminalToken)
+            return
+        }
+        playbackSessionState =
+            PlaybackSessionRules.consumeRetry(playbackSessionState, terminalToken) ?: return
+        Timber.d(
+            "Retrying playback terminal=%s backend=$playerBackend from position=%d",
+            terminalToken,
+            terminal.positionMs,
+        )
+        retryPlaybackAt(terminal.positionMs, terminal.positionSource)
+    }
+
+    fun retryPlayerError() {
+        Timber.d("Retrying player error on backend=$playerBackend")
+        retryPlaybackAt(currentResumePositionMs())
+    }
+
+    private fun retryPlaybackAt(
+        position: Long,
+        positionSource: PlaybackRetryPositionSource? = null,
+    ) {
         _uiState.update { it.copy(playerError = null) }
         player.prepare()
         if (position > 0L) {
-            if (
-                retryTerminal?.positionSource ==
-                    PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST
-            ) {
+            if (positionSource == PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST) {
                 seekSink.requestSeek(position, "progress-recovery-user-target")
             } else {
                 player.seekTo(position)
@@ -3094,6 +3102,11 @@ internal object PlaybackSessionRules {
         input: PlaybackSessionInput,
         nowElapsedMs: Long,
     ): PlaybackSessionState {
+        val input =
+            input.copy(
+                enginePositionMs = normalizeEnginePosition(input.enginePositionMs),
+                bufferedPositionMs = normalizeEnginePosition(input.bufferedPositionMs),
+            )
         val key = input.key ?: return PlaybackSessionState()
         var next =
             if (state.key == key) {
@@ -3147,17 +3160,17 @@ internal object PlaybackSessionRules {
                             kind = kind,
                             positionMs = positionMs,
                             positionSource = source,
+                            token = "${next.key}:$nowElapsedMs:$kind",
                         )
                 )
         }
         return next
     }
 
-    fun consumeRetry(state: PlaybackSessionState): PlaybackSessionState? {
-        val terminal = state.terminal ?: return null
-        if (state.retryConsumed) return null
-        return state.copy(retryConsumed = true)
-    }
+    fun consumeRetry(state: PlaybackSessionState, token: String): PlaybackSessionState? =
+        state
+            .takeIf { !it.retryConsumed && it.terminal?.token == token }
+            ?.copy(retryConsumed = true)
 
     fun project(
         state: PlaybackSessionState,
@@ -3199,6 +3212,10 @@ internal object PlaybackSessionRules {
                     PlayerViewModel.PlaybackRetryPositionSource.PERSISTED_RESUME
             else -> 0L to PlayerViewModel.PlaybackRetryPositionSource.START_ZERO
         }
+}
+
+internal fun normalizeEnginePosition(positionMs: Long?): Long? = positionMs?.takeIf {
+    it >= 0L && it != C.TIME_UNSET
 }
 
 internal fun PlayerItem.toMediaItem(application: Application): MediaItem {

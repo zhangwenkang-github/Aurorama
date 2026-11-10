@@ -46,6 +46,7 @@ import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
 import com.zhangwenkang.cinefin.player.local.domain.mpvResizeProperties
 import com.zhangwenkang.cinefin.player.local.presentation.mpvMediaInfo
+import com.zhangwenkang.cinefin.player.local.presentation.normalizeEnginePosition
 import dev.jdtech.mpv.MPVLib
 import dev.jdtech.mpv.MPVLib.MpvEvent
 import dev.jdtech.mpv.MPVLib.MpvFormat
@@ -85,15 +86,7 @@ class MPVPlayer(
     private lateinit var audioFocusRequest: AudioFocusRequestCompat
     private val handler: Handler = Handler(context.mainLooper)
 
-    /**
-     * mpv 命令专用线程（ANR 修复）。
-     *
-     * [MPVLib.command] 是同步调用：`loadfile` 需要打开 / 探测网络流，单条就可能阻塞几十到几百毫秒。 播放页补全整季队列时每集一条
-     * loadfile，原先这些调用全部压在主线程上，真机复测出现过 `Waited 5000ms for MotionEvent` 的 ANR（dropbox 栈：addMediaItems
-     * ← fillQueueInBackground）。
-     *
-     * 这里把所有 command 调用按提交顺序串行放到专用线程，主线程只做轻量状态维护。 libmpv 允许从任意线程调用 API，命令之间的先后顺序由本队列保证。
-     */
+    /** 同步 `loadfile` 等命令必须串行留在专用线程，避免主线程 ANR；libmpv 保证提交顺序。 */
     private val commandThread: HandlerThread = HandlerThread("mpv-command").apply { start() }
     private val commandHandler: Handler = Handler(commandThread.looper)
     private val commandsClosed = AtomicBoolean(false)
@@ -383,6 +376,8 @@ class MPVPlayer(
     private var isSeekable: Boolean = false
     private var currentMediaItemIndex: Int = 0
     private var currentPositionMs: Long? = null
+    private var pendingPositionDiscontinuity = false
+    private var discontinuityFromPositionMs: Long? = null
     private var currentDurationMs: Long? = null
     private var currentCacheDurationMs: Long? = null
     private var initialCommands = mutableListOf<Array<String>>()
@@ -390,26 +385,13 @@ class MPVPlayer(
     private var initialSeekTo: Long = 0L
     private var oldMediaItem: MediaItem? = null
 
-    /**
-     * 当前媒体可以注入 mpv 的服务端字幕（[PlayerSubtitleSource]），在 prepareMediaItem 时随条目刷新。
-     *
-     * 只在「容器里没有内嵌字幕轨」时使用（服务器转码 / HLS 场景容器内没有字幕）， 容器自带内嵌字幕（DirectPlay mkv）时让 mpv 直接读，避免出现重复轨道。
-     */
+    /** 仅在没有内嵌字幕轨时注入服务端字幕，避免 DirectPlay 出现重复轨道。 */
     private var pendingServerSubtitles: List<PlayerSubtitleSource>? = null
 
-    /**
-     * W27 侧载字幕：本机文件路径 → mpv track id。
-     *
-     * track-list 每次变化时重解析（`eventProperty("track-list", …)`），面板据此把侧载轨标出来、 移除时按路径找到 track id 再
-     * `sub-remove`。只在主线程读写（property 回调与 UI 都在主线程）。
-     */
+    /** 侧载字幕路径到 mpv track id 的映射，仅在主线程随 track-list 重解析。 */
     private val externalSubtitleTrackIds = ConcurrentHashMap<String, Int>()
 
-    /**
-     * W27：已提交 `sub-add` 但 track-list 还没回来的侧载字幕路径。
-     *
-     * 没有它时，track-list 回包前连续的轨道回调会重复 `sub-add` 同一条字幕（真机实测一次变成 3 条）。
-     */
+    /** 防止 track-list 回包前重复 `sub-add` 同一条侧载字幕。 */
     private val pendingSideloadedSubtitleAdds = CopyOnWriteArraySet<String>()
 
     /** App 字幕模式的自动选轨意图：true = sid=auto（按 slang / 默认轨选），false = sid=no */
@@ -428,21 +410,11 @@ class MPVPlayer(
     /** 当前是否正在为 Compose 次字幕预留主字幕位置；改字号 / 位置时沿用。 */
     private var subtitleReservation: Float? = null
 
-    /**
-     * W18：错误上报的抑制预算。
-     *
-     * mpv 的 `MPV_EVENT_END_FILE` 只带事件 id、拿不到 reason，所以用三条规则区分「正常结束」与「播放失败」： ① `eof-reached == true`
-     * = 正常播完（含队列换集）；② 我们主动 `stop` / 换片 / 切集 / 删条目时，mpv 会为**旧文件** 立刻发一次非 EOF 的
-     * END_FILE——按「自己发起的条数」计数抵消，不能把它之后的**新文件打开失败**一起吞掉； ③ 预算只在时间窗内有效，超时作废（防漏掉事件后一直吞错误）。
-     */
+    /** 用 EOF、主动操作计数和时间窗共同区分正常换源与真实播放失败。 */
     private var intentionalEndFileBudget: Int = 0
     private var suppressEndFileErrorUntilMs: Long = 0L
 
-    /**
-     * 记一次「自己发起的 END_FILE」。
-     *
-     * @param count 这一次操作预计产生的 END_FILE 条数（`playlist-clear` + `playlist-remove current` 可能是 2）
-     */
+    /** 记录主动操作预计产生的 END_FILE 条数。 */
     private fun markIntentionalEndFile(count: Int = 1) {
         // 只有「当前已经有文件在播」时才会有旧文件的 END_FILE 需要抵消；
         // 起播阶段（还没加载任何文件）不留预算，否则会把首个文件的打开失败一起吞掉
@@ -520,14 +492,17 @@ class MPVPlayer(
     override fun eventProperty(property: String, value: Long) {
         handler.post {
             when (property) {
-                "time-pos" -> currentPositionMs = value * C.MILLIS_PER_SECOND
+                "time-pos" -> updateEnginePosition(value * C.MILLIS_PER_SECOND)
                 "duration" -> {
                     val newDuration = value * C.MILLIS_PER_SECOND
                     if (currentDurationMs != newDuration) {
                         currentDurationMs = newDuration
                     }
                 }
-                "demuxer-cache-time" -> currentCacheDurationMs = value * C.MILLIS_PER_SECOND
+                "demuxer-cache-time" ->
+                    currentCacheDurationMs =
+                        normalizeEnginePosition(value * C.MILLIS_PER_SECOND)
+                            ?: currentCacheDurationMs
                 "playlist-count" -> {
                     listeners.sendEvent(EVENT_TIMELINE_CHANGED) { listener ->
                         listener.onTimelineChanged(
@@ -593,10 +568,21 @@ class MPVPlayer(
                     maybeAddServerSubtitles()
                 }
                 MpvEvent.MPV_EVENT_SEEK -> {
+                    discontinuityFromPositionMs = currentPositionMs
                     setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
                     seekEventRelay.onSeekEvent()
                 }
                 MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
+                    val restartedPositionMs =
+                        normalizeEnginePosition(
+                            mpvLib
+                                .getPropertyDouble("time-pos")
+                                ?.times(C.MILLIS_PER_SECOND)
+                                ?.toLong()
+                        )
+                    discontinuityFromPositionMs = discontinuityFromPositionMs ?: currentPositionMs
+                    pendingPositionDiscontinuity = true
+                    updateEnginePosition(restartedPositionMs)
                     if (!isPlayerReady) {
                         isPlayerReady = true
                         seekTo(C.TIME_UNSET)
@@ -610,22 +596,9 @@ class MPVPlayer(
                     } else {
                         setPlayerStateAndNotifyIfChanged(playbackState = STATE_READY)
                     }
-                    val restartedPositionMs =
-                        mpvLib.getPropertyDouble("time-pos")?.times(C.MILLIS_PER_SECOND)?.toLong()
-                            ?: currentPositionMs
-                            ?: 0L
-                    seekEventRelay.onPlaybackRestartedEvent(restartedPositionMs)
+                    restartedPositionMs?.let(seekEventRelay::onPlaybackRestartedEvent)
                 }
-                /*
-                 * W18：mpv 的播放失败上报。
-                 *
-                 * MPVLib 的事件回调只给事件 id（拿不到 END_FILE 的 reason），所以判定用三条规则：
-                 * ① `eof-reached == true` → 正常播完（队列换集也走这里），不上报；
-                 * ② 我们主动 stop / 切集 / 释放引起的**旧文件**非 EOF END_FILE，按预算逐条抵消；
-                 * ③ 预算超时作废，保证新文件的打开失败不会被一起吞掉。
-                 * 其余 = 打开失败 / 流中断 / 解码失败 → 交给 [Player.Listener.onPlayerError]，
-                 * ViewModel 据此走「本地硬解 → 服务器转码 → 本地软解」的同一套回退链。
-                 */
+                /* 非 EOF 且不在主动操作预算内的 END_FILE 走 Player.Listener.onPlayerError 回退链。 */
                 MpvEvent.MPV_EVENT_END_FILE -> {
                     val eofReached = mpvLib.getPropertyBoolean("eof-reached") == true
                     val withinWindow = SystemClock.elapsedRealtime() < suppressEndFileErrorUntilMs
@@ -661,12 +634,41 @@ class MPVPlayer(
         }
     }
 
+    private fun updateEnginePosition(positionMs: Long?) {
+        val validPosition = normalizeEnginePosition(positionMs) ?: return
+        currentPositionMs = validPosition
+        if (!pendingPositionDiscontinuity) return
+        pendingPositionDiscontinuity = false
+        listeners.sendEvent(EVENT_POSITION_DISCONTINUITY) { listener ->
+            listener.onPositionDiscontinuity(
+                positionInfo(discontinuityFromPositionMs ?: C.TIME_UNSET),
+                positionInfo(validPosition),
+                DISCONTINUITY_REASON_SEEK,
+            )
+        }
+        discontinuityFromPositionMs = null
+    }
+
+    private fun positionInfo(positionMs: Long) =
+        Player.PositionInfo(
+            null,
+            currentMediaItemIndex,
+            currentMediaItem ?: MediaItem.EMPTY,
+            null,
+            currentMediaItemIndex,
+            positionMs,
+            positionMs,
+            C.INDEX_UNSET,
+            C.INDEX_UNSET,
+        )
+
     private fun setPlayerStateAndNotifyIfChanged(
         playWhenReady: Boolean = getPlayWhenReady(),
         @Player.PlayWhenReadyChangeReason
         playWhenReadyChangeReason: Int = PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST,
         @Player.State playbackState: Int = getPlaybackState(),
     ) {
+        val wasLoading = isLoading()
         var playerStateChanged = false
         val wasPlaying = isPlaying
         if (playbackState != getPlaybackState()) {
@@ -675,6 +677,11 @@ class MPVPlayer(
                 listener.onPlaybackStateChanged(playbackState)
             }
             playerStateChanged = true
+        }
+        if (wasLoading != isLoading()) {
+            listeners.queueEvent(EVENT_IS_LOADING_CHANGED) { listener ->
+                listener.onIsLoadingChanged(isLoading())
+            }
         }
         if (playWhenReady != getPlayWhenReady()) {
             this.currentPlayWhenReady = playWhenReady
@@ -1486,6 +1493,8 @@ class MPVPlayer(
         playbackState = STATE_IDLE
         currentPlayWhenReady = false
         currentPositionMs = null
+        pendingPositionDiscontinuity = false
+        discontinuityFromPositionMs = null
         currentDurationMs = null
         currentCacheDurationMs = null
         currentTracks = Tracks.EMPTY
@@ -1633,15 +1642,8 @@ class MPVPlayer(
         return false
     }
 
-    /**
-     * Whether the player is currently loading the source.
-     *
-     * @return Whether the player is currently loading the source.
-     * @see Player.Listener.onIsLoadingChanged
-     */
-    override fun isLoading(): Boolean {
-        return false
-    }
+    /** mpv 的 buffering 状态就是 Media3 与 MediaSession 共享的 loading 锚点。 */
+    override fun isLoading(): Boolean = playbackState == STATE_BUFFERING
 
     /**
      * Seeks to a position specified in milliseconds in the specified window.
