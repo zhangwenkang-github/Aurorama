@@ -423,8 +423,10 @@ class MPVPlayer(
     private var sourcePosition = MpvSourcePositionState()
     private var pendingPlaylistRemap = false
     private var preserveSourceOnPrepare = false
+    private var preparePreservedSourceOnPrepare = false
     private var currentDurationMs: Long? = null
     private var initialCommands = mutableListOf<Array<String>>()
+    private var initialCommandGeneration = 0L
     private var initialIndex: Int = 0
     private var initialSeekTo: Long = 0L
     private var oldMediaItem: MediaItem? = null
@@ -471,7 +473,9 @@ class MPVPlayer(
     override fun eventProperty(property: String) {}
 
     override fun eventProperty(property: String, value: String) {
+        val epoch = sourceEpoch.get()
         handler.post {
+            if (epoch != sourceEpoch.get()) return@post
             when (property) {
                 "track-list" -> {
                     val newTracks = getTracks(value)
@@ -486,7 +490,9 @@ class MPVPlayer(
     }
 
     override fun eventProperty(property: String, value: Boolean) {
+        val epoch = sourceEpoch.get()
         handler.post {
+            if (epoch != sourceEpoch.get()) return@post
             when (property) {
                 "eof-reached" -> {
                     if (value && isPlayerReady) {
@@ -601,17 +607,14 @@ class MPVPlayer(
 
     override fun event(eventId: Int) {
         val epoch = sourceEpoch.get()
+        val initialCommands =
+            if (eventId == MpvEvent.MPV_EVENT_START_FILE) takeInitialCommands(epoch) else null
         handler.post {
             // release 之后主线程队列里可能还排着事件回调：此时 mpv 可能正在销毁，必须短路
-            if (released) return@post
+            if (released || epoch != sourceEpoch.get()) return@post
             when (eventId) {
-                MpvEvent.MPV_EVENT_START_FILE -> {
-                    if (!isPlayerReady) {
-                        for (command in initialCommands) {
-                            postCommand(command)
-                        }
-                    }
-                }
+                MpvEvent.MPV_EVENT_START_FILE ->
+                    if (!isPlayerReady) initialCommands?.forEach { postCommand(it) }
                 MpvEvent.MPV_EVENT_FILE_LOADED -> {
                     isSeekable = mpvLib.getPropertyBoolean("seekable") == true
                     // 新文件已经解析成功：旧文件的 END_FILE 预算作废（避免吞掉之后的真实失败）
@@ -682,6 +685,25 @@ class MPVPlayer(
                 }
                 else -> Unit
             }
+        }
+    }
+
+    private fun takeInitialCommands(epoch: Long): List<Array<String>>? =
+        synchronized(initialCommands) {
+            val generation = initialCommandGeneration
+            if (epoch != sourceEpoch.get()) return null
+            val commands = initialCommands.map { it.copyOf() }
+            if (epoch != sourceEpoch.get() || generation != initialCommandGeneration) return null
+            initialCommands.clear()
+            initialCommandGeneration = generation + 1
+            commands
+        }
+
+    private fun replaceInitialCommands(commands: List<Array<String>>) {
+        synchronized(initialCommands) {
+            initialCommands.clear()
+            initialCommands.addAll(commands)
+            initialCommandGeneration++
         }
     }
 
@@ -1300,11 +1322,11 @@ class MPVPlayer(
         val oldIndex = currentMediaItemIndex
         val preserveSource =
             sourceIdentity(oldItems, oldIndex)?.let {
-                it == sourceIdentity(mediaItems, nextIndex) &&
-                    (sourcePosition.positionMs != null || playbackState >= STATE_BUFFERING)
+                it == sourceIdentity(mediaItems, nextIndex)
             } == true
         commitPlaylistState(mediaItems, nextIndex)
         preserveSourceOnPrepare = preserveSource
+        preparePreservedSourceOnPrepare = preserveSource && playbackState == STATE_IDLE
         if (preserveSource) {
             (oldItems.lastIndex downTo 0)
                 .filter { it != oldIndex }
@@ -1339,11 +1361,6 @@ class MPVPlayer(
      * @param mediaItems The [MediaItems][MediaItem] to add.
      */
     override fun addMediaItems(index: Int, mediaItems: MutableList<MediaItem>) {
-        /*
-         * 下标可能来自 BasePlayer 的封装（C.INDEX_UNSET 或已越界的值），
-         * 直接 addAll 会抛 IndexOutOfBoundsException 把播放页整个打崩（真机实测），
-         * 这里统一收敛到 [0, size]：越界一律当作"追加到末尾"。
-         */
         val safeIndex = if (index in 0..internalMediaItems.size) index else internalMediaItems.size
         val activeItem = internalMediaItems.getOrNull(currentMediaItemIndex)
         val nextItems = internalMediaItems.toMutableList()
@@ -1352,33 +1369,19 @@ class MPVPlayer(
             nextItems.indexOfFirst { it === activeItem }.takeIf { it >= 0 }
                 ?: safeIndex.coerceAtMost((nextItems.size - 1).coerceAtLeast(0))
         commitPlaylistState(nextItems, nextIndex)
-        mediaItems.forEach { mediaItem ->
+        mediaItems.forEachIndexed { offset, mediaItem ->
             postCommand(
                 arrayOf(
                     "loadfile",
-                    "${mediaItem.localConfiguration?.uri}",
+                    "${mediaItem.localConfiguration?.uri ?: mediaItem.requestMetadata.mediaUri}",
                     "insert-at",
-                    safeIndex.toString(),
+                    (safeIndex + offset).toString(),
                 )
             )
         }
     }
 
-    /**
-     * Moves the media item range to the new index.
-     *
-     * @param fromIndex The start of the range to move.
-     * @param toIndex The first item not to be included in the range (exclusive).
-     * @param newIndex The new index of the first media item of the range. If the new index is
-     *   larger than the size of the remaining playlist after removing the range, the range is moved
-     *   to the end of the playlist.
-     */
     override fun moveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int) {
-        /*
-         * 队列管理（§1.7）用到的单条移动：mpv `playlist-move <index> <newIndex>`
-         * 语义与 Media3 一致（把 fromIndex 的条目移到 newIndex 的位置）。
-         * 面板只做单条拖拽，这里也按逐条移动实现，保持下标语义可控。
-         */
         val size = internalMediaItems.size
         if (fromIndex !in 0 until size || toIndex <= fromIndex) return
         val from = fromIndex
@@ -1394,9 +1397,11 @@ class MPVPlayer(
             nextItems.indexOfFirst { it === activeItem }.takeIf { it >= 0 }
                 ?: target.coerceIn(0, (nextItems.size - 1).coerceAtLeast(0))
         commitPlaylistState(nextItems, nextIndex)
-        // 单条移动 == 一条 playlist-move；多条时从后往前发，避免中途下标漂移
-        for (offset in moved.indices.reversed()) {
-            postCommand(arrayOf("playlist-move", (from + offset).toString(), target.toString()))
+        val offsets = if (target < from) moved.indices else moved.indices.reversed()
+        for (offset in offsets) {
+            postCommand(
+                arrayOf("playlist-move", (from + offset).toString(), (target + offset).toString())
+            )
         }
         notifyTimelineChanged()
     }
@@ -1409,13 +1414,6 @@ class MPVPlayer(
         TODO("Not yet implemented")
     }
 
-    /**
-     * Removes a range of media items from the playlist.
-     *
-     * @param fromIndex The index at which to start removing media items.
-     * @param toIndex The index of the first item to be kept (exclusive). If the index is larger
-     *   than the size of the playlist, media items to the end of the playlist are removed.
-     */
     override fun removeMediaItems(fromIndex: Int, toIndex: Int) {
         val size = internalMediaItems.size
         val from = fromIndex.coerceIn(0, size)
@@ -1456,6 +1454,7 @@ class MPVPlayer(
         if (identityChanged) {
             advanceSourceEpoch()
             preserveSourceOnPrepare = false
+            preparePreservedSourceOnPrepare = false
         }
         internalMediaItems = items
         currentMediaItemIndex = index
@@ -1500,6 +1499,7 @@ class MPVPlayer(
 
     private fun resetInternalState() {
         preserveSourceOnPrepare = false
+        preparePreservedSourceOnPrepare = false
         isPlayerReady = false
         isSeekable = false
         playbackState = STATE_IDLE
@@ -1510,7 +1510,7 @@ class MPVPlayer(
         externalSubtitleTrackIds.clear()
         pendingSideloadedSubtitleAdds.clear()
         playbackParameters = PlaybackParameters.DEFAULT
-        initialCommands.clear()
+        replaceInitialCommands(emptyList())
     }
 
     private fun advanceSourceEpoch(): Long {
@@ -1523,6 +1523,10 @@ class MPVPlayer(
     override fun prepare() {
         if (preserveSourceOnPrepare) {
             preserveSourceOnPrepare = false
+            if (preparePreservedSourceOnPrepare) {
+                postCommand(arrayOf("playlist-play-index", "$currentMediaItemIndex"))
+            }
+            preparePreservedSourceOnPrepare = false
             return
         }
         internalMediaItems.forEachIndexed { index, mediaItem ->
@@ -1637,10 +1641,9 @@ class MPVPlayer(
             // 主动切集 / 重载：旧文件随即产生的非 EOF END_FILE 不算播放失败
             markIntentionalEndFile()
             resetInternalState()
-            // 每个条目自带 Jellyfin 字幕清单：转码（容器无内嵌字幕）时由 mpv 侧补 sub-add
             pendingServerSubtitles = mediaItem.serverSubtitleSources()
-            mediaItem.localConfiguration?.subtitleConfigurations?.forEach { subtitle ->
-                initialCommands.add(
+            val subtitleCommands =
+                mediaItem.localConfiguration?.subtitleConfigurations.orEmpty().map { subtitle ->
                     arrayOf(
                         /* command= */ "sub-add",
                         /* url= */ "${subtitle.uri}",
@@ -1648,14 +1651,8 @@ class MPVPlayer(
                         /* title= */ "${subtitle.label}",
                         /* lang= */ "${subtitle.language}",
                     )
-                )
-            }
-            // Only set the playlist index when the index is not the currently playing item.
-            // Otherwise
-            // playback will be restarted.
-            // This is a problem on initial load when the first item is still loading causing
-            // duplicate
-            // external subtitle entries.
+                }
+            replaceInitialCommands(subtitleCommands)
             if (currentMediaItemIndex != index) {
                 postCommand(arrayOf("playlist-play-index", "$index"))
             }
