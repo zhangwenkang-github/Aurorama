@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R9-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R9-2026-11-11
-- TASK_STAGE=R9_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING
+- TASK_STAGE=R9_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -25,10 +25,10 @@
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.50-§52.53 > R8 scoped review > candidate c5ef569aa18d33d485d05a4707909f856ed0e4f0
 - NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
-- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R9_2026_11_11
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R9_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R8_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R8_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r8-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r9-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - NEXT_REQUIREMENT=R9 must close same-URI owner reuse and persistent path/null mismatch recovery so the current source initializes exactly once, while delayed same-URI/mismatched events cannot publish other-source commands.
 - STOP_CONDITION=R9 must stop on new paths, Service/schema/settings/metadata/version/signing/release, same-URI A-to-B-to-A current initialization zero/duplicate, persistent mismatch dead-end, old owner consuming current commands, loss of distinct-URI/command fail-closed/preserve/order/property/PLAYING gates, missing formal RED, unknown new P0-P2, or unauthorized device/QA. Any R9 review FAIL requires R10, not an in-card patch.
 - SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R9_SAME_URI_OWNER_REUSE_AND_PERSISTENT_MISMATCH_RECOVERY/CONTRACT_FROZEN/QA_NOT_READY

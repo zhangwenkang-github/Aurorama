@@ -7352,13 +7352,22 @@ manifest；A0 baseline `15,512`，当前 headroom `4`。Review 必须由与 R8 i
 
 ### 52.53 Progress source-identity / retry-priority R9 任务卡（2026-11-11）
 
-**状态**：`R9_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+**状态**：`R9_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
 `R8_SCOPED_REVIEW=FAIL / QA_READY=NO`。
 
 R9 从 R8 candidate `c5ef569aa18d33d485d05a4707909f856ed0e4f0` / tree
 `5fd3645f8974c540130d43860c7003e8e0f70224` 隔离建立，保留 R8 已通过的 distinct-URI
 ownership、旧事件 posted epoch gate、command fail-closed、same-identity preserve、合法
 batch/range 顺序、property epoch gate 与真实 PLAYING fixture。只冻结两个剩余反例：
+
+**进度（2026-11-11，implementation 收口）**：fresh R9 implementation owner 已提交
+`f5339becd4b101e1ce3f0e0e190bc09466ff4c04`（tree
+`dfc626dbc3747a3814e3280af6f5c29304173101`），只改 `MPVPlayer.kt` 与既有测试，
+worktree clean、未 push。正式 RED 为 `56/4/0/0` assertion-only；GREEN 为 targeted
+`3 suites / 61`、player-local `42 suites / 341`、phone `62 suites / 412`，
+assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为 `15507/15512`、headroom 5。负责人已核验
+report/manifest/RED 哈希、关键 diff 与对象边界，并派出不同 fresh R9 scoped reviewer；
+review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
 
 1. **同 URI 重载 `A→B→A`**
    - owners 可为 `[(E1,A),(E2,B),(E3,A)]`，current=`E3`，initialCommands=`A3`，且旧 owner
