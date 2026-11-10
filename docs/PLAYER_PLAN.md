@@ -7294,8 +7294,8 @@ K60 仍禁止。任何 R7 review FAIL 自动另立 R8，不得在 R7 内继续�
 
 ### 52.52 Progress source-identity / retry-priority R8 任务卡（2026-11-11）
 
-**状态**：`R8_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
-`R7_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+**状态**：`R8_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R9_REQUIRED /`
+`QA_READY=NO`。
 
 R8 从 R7 candidate `49eeb76dcc5541b1d97b4793205e50e489ff0a9d` / tree
 `207d11471b6f8474d2416d1b4ce6e40801f97b19` 隔离建立，保留 command fail-closed、
@@ -7310,6 +7310,13 @@ worktree clean、未 push。正式 RED 为 `52/5/0/0` assertion-only；GREEN 为
 assemble/KTFMT/A0/GatePlan 均 exit 0；A0 保持 `15508/15512`、headroom 4。负责人已核验
 report/manifest/RED 哈希、关键 diff 与对象边界，并派出不同 fresh R8 scoped reviewer；
 review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
+
+**进度（2026-11-11，R8 scoped review FAIL）**：fresh reviewer 独立复核可见门禁全部 PASS，
+但抓到两个 ownership 阻断：`A→B→A` 复用 URI 时 `indexOfFirst` 命中旧 E1/A，当前唯一真实
+A START_FILE 被 stale gate 丢弃；mpv path 持续为 null 或与 URI 字符串不等价时，只重放一次
+`playlist-play-index`，recovery 去重后当前 commands 永久不发布。Review SHA-256
+`556169B4FCC793BF6DEB250D93FFAA1854B927718E25B739D9E0C2EFDFFDF8B6`，manifest
+`E19D1694F9B68BEA2A4C0F59DC6B4E034FAD571199A51D22EFF7BAD58230DB97`。
 
 1. 同一条 START_FILE 归属必须同时满足两个反例：
    - 旧 source 的 event 在 mutation 后才到达：只能处理旧 ownership 并 fail closed，绝不发布
@@ -7342,3 +7349,47 @@ targeted/player-local/phone/assemble/KTFMT/A0/GatePlan、reproducible assemble t
 manifest；A0 baseline `15,512`，当前 headroom `4`。Review 必须由与 R8 implementation owner
 不同的 fresh reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。
 任何 R8 review FAIL 自动另立 R9，不得在 R8 内继续补丁。
+
+### 52.53 Progress source-identity / retry-priority R9 任务卡（2026-11-11）
+
+**状态**：`R9_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+`R8_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+
+R9 从 R8 candidate `c5ef569aa18d33d485d05a4707909f856ed0e4f0` / tree
+`5fd3645f8974c540130d43860c7003e8e0f70224` 隔离建立，保留 R8 已通过的 distinct-URI
+ownership、旧事件 posted epoch gate、command fail-closed、same-identity preserve、合法
+batch/range 顺序、property epoch gate 与真实 PLAYING fixture。只冻结两个剩余反例：
+
+1. **同 URI 重载 `A→B→A`**
+   - owners 可为 `[(E1,A),(E2,B),(E3,A)]`，current=`E3`，initialCommands=`A3`，且旧 owner
+     均未收到事件；唯一真实 START_FILE path=`A` 属于当前 E3。
+   - 当前 source 的 A3 必须最终发布恰好一次；不得由旧 E1/A 先领取后被 stale gate 吞掉，
+     也不得等待一个合同不保证的额外 START_FILE。
+   - 若延迟旧 A 事件确实先到，仍不得发布当前 A3；实现需要能区分/恢复同 URI 的旧与当前归属，
+     不允许用“path 相同就直接发布”掩盖旧事件。
+2. **path 持续 null / 语义等价但字符串不等价**
+   - owner URI 与 mpv path 可能因百分号编码、大小写、本地 file URI/path、查询参数或 redirect
+     不同；至少必须处理 null/持续 no-match 和一种真实等价表示，不能只验证一次 exact 后假设。
+   - 无法唯一归属时可选择可恢复 fail-closed：例如丢弃歧义 snapshot 并重新绑定/重放当前
+     source，但后续持续 null/不等价事件仍必须让当前 commands 最终发布一次；不能只停在
+     `playlist-play-index`，也不能重复发布。
+   - 旧事件跨 source 后的 posted epoch gate 仍必须保持；任何跨 source 命令发布都 FAIL。
+3. 必须保留 current-source 初始化“最终恰好一次”的统一不变量，并覆盖同 URI 重载、多个
+   stale owner、current 唯一事件、持续 mismatch、claim 后 mutation、额外重复 START_FILE。
+
+允许五路径与 R8 相同：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、Service、schema/settings/metadata、A0 baseline/version/signing/
+release，以及设备/ADB/截图/生产写。先在既有 test path 对上述两个精确反例取得 assertion-only
+RED，保留原始 XML/stdout/stderr/exit；再做最小实现并运行 targeted/player-local/phone/
+assemble/KTFMT/A0/GatePlan，重生成可复现 assemble transcript 与 manifest。A0 baseline
+`15,512`，当前 `15,508` / headroom 4。Review 必须由不同 fresh reviewer 执行；PASS 后才申请
+Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R9 review FAIL 自动另立 R10，不得在 R9 内补丁。
