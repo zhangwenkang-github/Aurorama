@@ -701,22 +701,70 @@ class MPVPlayer(
         }
     }
 
-    private fun takeInitialCommands(sourceUri: String?): Pair<Long, List<Array<String>>?>? =
+    private fun takeInitialCommands(sourceUri: String?): Pair<Long, List<Array<String>>?>? {
         synchronized(initialCommands) {
-            if (initialCommandOwners.isEmpty()) return@synchronized null
+            if (initialCommandOwners.isEmpty()) return null
             val currentEpoch = sourceEpoch.get()
-            val ownerIndex = initialCommandOwners.indexOfFirst { it.second == sourceUri }
-            if (ownerIndex < 0) {
-                initialCommandOwners.removeAll { it.first != currentEpoch }
-                if (initialCommandOwners.isEmpty()) return@synchronized null
-                return@synchronized currentEpoch to null
+            val sourceKey = canonicalSource(sourceUri)
+            val currentOwner =
+                initialCommandOwners.firstOrNull { it.first == currentEpoch }
+                    ?: return initialCommandOwners.removeFirst().let { it.first to null }
+            val currentKey = canonicalSource(currentOwner.second)
+            val staleOwnerIndex = initialCommandOwners.indexOfFirst {
+                it.first != currentEpoch &&
+                    (sourceKey == null || canonicalSource(it.second) == sourceKey)
             }
-            val ownerEpoch = initialCommandOwners.removeAt(ownerIndex).first
-            if (ownerEpoch != currentEpoch) return@synchronized ownerEpoch to null
-            initialCommandOwners.removeAll { it.first != currentEpoch }
+            if (staleOwnerIndex >= 0) {
+                val staleOwner = initialCommandOwners.removeAt(staleOwnerIndex)
+                val ambiguousCurrent = sourceKey == null || sourceKey == currentKey
+                if (ambiguousCurrent) initialCommandRecoveryEpoch = null
+                return (if (ambiguousCurrent) currentEpoch else staleOwner.first) to null
+            }
+            if (sourceKey != null && sourceKey == currentKey) {
+                return currentEpoch to claimInitialCommands()
+            }
+            val remainingStaleIndex = initialCommandOwners.indexOfFirst { it.first != currentEpoch }
+            if (remainingStaleIndex >= 0) initialCommandOwners.removeAt(remainingStaleIndex)
+            if (initialCommandRecoveryEpoch == currentEpoch && remainingStaleIndex < 0) {
+                return currentEpoch to claimInitialCommands()
+            }
             initialCommandRecoveryEpoch = null
-            ownerEpoch to initialCommands.map { it.copyOf() }.also { initialCommands.clear() }
+            return currentEpoch to null
         }
+    }
+
+    private fun claimInitialCommands(): List<Array<String>> {
+        initialCommandOwners.clear()
+        initialCommandRecoveryEpoch = null
+        return initialCommands.map { it.copyOf() }.also { initialCommands.clear() }
+    }
+
+    private fun canonicalSource(uri: String?): String? {
+        val raw = uri?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        return runCatching {
+            val parsed = java.net.URI(raw.replace(" ", "%20"))
+            val scheme = parsed.scheme?.lowercase()
+            val host = parsed.host?.lowercase()
+            val path = decodeSource(parsed.rawPath.orEmpty())
+            val query = parsed.rawQuery?.let(::decodeSource)?.let { "?$it" }.orEmpty()
+            when {
+                scheme == null || scheme == "file" -> File(path).normalize().path
+                host != null ->
+                    buildString {
+                        append(scheme).append("://")
+                        parsed.userInfo?.let { append(it).append('@') }
+                        append(host)
+                        if (parsed.port >= 0) append(':').append(parsed.port)
+                        append(path).append(query)
+                    }
+                else -> "$scheme:${decodeSource(parsed.schemeSpecificPart)}$query"
+            }
+        }
+            .getOrElse { raw }
+    }
+
+    private fun decodeSource(raw: String): String =
+        java.net.URLDecoder.decode(raw.replace("+", "%2B"), "UTF-8")
 
     private fun replayInitialCommands(epoch: Long) {
         synchronized(initialCommands) {
@@ -744,9 +792,11 @@ class MPVPlayer(
                         .getOrNull(currentMediaItemIndex)
                         ?.let(::mediaUri)
                         ?.toString()
+            val epoch = sourceEpoch.get()
             initialCommands.clear()
             initialCommands.addAll(copiedCommands)
-            if (ownerUri != null) initialCommandOwners.addLast(sourceEpoch.get() to ownerUri)
+            initialCommandOwners.removeAll { it.first == epoch }
+            if (ownerUri != null) initialCommandOwners.addLast(epoch to ownerUri)
             initialCommandRecoveryEpoch = null
         }
     }
@@ -1757,10 +1807,6 @@ class MPVPlayer(
         postCommand(arrayOf("stop", "keep-playlist"))
     }
 
-    /**
-     * Releases the player. This method must be called when the player is no longer required. The
-     * player must not be used after calling this method.
-     */
     override fun release() {
         if (released) return
         seekEventListeners.clear()
@@ -1797,11 +1843,9 @@ class MPVPlayer(
     override fun setTrackSelectionParameters(parameters: TrackSelectionParameters) {
         trackSelectionParameters = parameters
 
-        // Disabled track types
         val disabledTrackTypes =
             parameters.disabledTrackTypes.map { MPVTrackType.fromMedia3TrackType(it) }
 
-        // Overrides
         val notOverriddenTypes =
             mutableSetOf(MPVTrackType.VIDEO, MPVTrackType.AUDIO, MPVTrackType.SUBTITLE)
         for (override in parameters.overrides) {
@@ -1820,12 +1864,6 @@ class MPVPlayer(
         }
     }
 
-    /**
-     * Returns the current combined [MediaMetadata], or [MediaMetadata.EMPTY] if not supported.
-     *
-     * This [MediaMetadata] is a combination of the [MediaItem.mediaMetadata] and the static and
-     * dynamic metadata sourced from [Player.Listener.onMediaMetadataChanged].
-     */
     override fun getMediaMetadata(): MediaMetadata {
         /*
          * mpv 内核没有独立的元数据来源：直接用当前媒体项上带的信息（标题 + 季集号）。
@@ -1843,11 +1881,6 @@ class MPVPlayer(
         TODO("Not yet implemented")
     }
 
-    /**
-     * Returns the current [Timeline]. Never null, but may be empty.
-     *
-     * @see Player.Listener.onTimelineChanged
-     */
     override fun getCurrentTimeline(): Timeline {
         return timeline
     }
@@ -1860,26 +1893,14 @@ class MPVPlayer(
         return currentMediaItemIndex
     }
 
-    /**
-     * Returns the duration of the current content window or ad in milliseconds, or
-     * [ ][C.TIME_UNSET] if the duration is not known.
-     */
     override fun getDuration(): Long {
         return timeline.getWindow(currentMediaItemIndex, window).durationMs
     }
 
-    /**
-     * Returns the playback position in the current content window or ad, in milliseconds, or the
-     * prospective position in milliseconds if the [current timeline][.getCurrentTimeline] is empty.
-     */
     override fun getCurrentPosition(): Long {
         return confirmedPosition() ?: C.TIME_UNSET
     }
 
-    /**
-     * Returns an estimate of the position in the current content window or ad up to which data is
-     * buffered, in milliseconds.
-     */
     override fun getBufferedPosition(): Long {
         return confirmedBufferedPosition() ?: C.TIME_UNSET
     }
@@ -1898,10 +1919,6 @@ class MPVPlayer(
 
     fun currentSourceEpoch(): Long = sourceEpoch.get()
 
-    /**
-     * Returns an estimate of the total buffered duration from the current position, in
-     * milliseconds. This includes pre-buffered data for subsequent ads and windows.
-     */
     override fun getTotalBufferedDuration(): Long {
         return bufferedPosition
     }
@@ -1950,32 +1967,14 @@ class MPVPlayer(
         TODO("Not yet implemented")
     }
 
-    /**
-     * Sets the [SurfaceHolder] that holds the [Surface] onto which video will be rendered. The
-     * player will track the lifecycle of the surface automatically.
-     *
-     * @param surfaceHolder The surface holder.
-     */
     override fun setVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) {
         TODO("Not yet implemented")
     }
 
-    /**
-     * Clears the [SurfaceHolder] that holds the [Surface] onto which video is being rendered if it
-     * matches the one passed. Else does nothing.
-     *
-     * @param surfaceHolder The surface holder to clear.
-     */
     override fun clearVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) {
         TODO("Not yet implemented")
     }
 
-    /**
-     * Sets the [SurfaceView] onto which video will be rendered. The player will track the lifecycle
-     * of the surface automatically.
-     *
-     * @param surfaceView The surface view.
-     */
     override fun setVideoSurfaceView(surfaceView: SurfaceView?) {
         surfaceView?.holder?.addCallback(surfaceHolder)
     }

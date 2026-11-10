@@ -1718,6 +1718,201 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `same URI reload recovers current source from stale owner without duplicate`() {
+        val epoch = 83L
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val currentCommands = listOf(arrayOf("sub-add", "current-a.srt", "auto", "a3", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "old-a.srt", "auto", "a1", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(
+            player,
+            listOf(arrayOf("sub-add", "middle-b.srt", "auto", "b2", "zh")),
+        )
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, currentCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+        setInitialCommandSource(player, "https://media.example/item-a")
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        assertEquals(
+            "同 URI 旧 owner 无事件时必须进入当前 source recovery",
+            listOf(listOf("playlist-play-index", "0")),
+            commands,
+        )
+
+        commands.clear()
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        assertEquals("恢复后的当前 A3 必须发布恰好一次", currentCommands.map { it.toList() }, commands)
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertEquals("当前 A3 不得因额外 START_FILE 重复发布", currentCommands.map { it.toList() }, commands)
+    }
+
+    @Test
+    fun `delayed same URI stale START_FILE never publishes current source commands`() {
+        val epoch = 89L
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val currentCommands = listOf(arrayOf("sub-add", "current-a.srt", "auto", "a3", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "old-a.srt", "auto", "a1", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(
+            player,
+            listOf(arrayOf("sub-add", "middle-b.srt", "auto", "b2", "zh")),
+        )
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, currentCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+        setInitialCommandSource(player, "https://media.example/item-a")
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        assertEquals(
+            "延迟旧 A event 只能触发 recovery，不能发布当前 A3",
+            listOf(listOf("playlist-play-index", "0")),
+            commands,
+        )
+
+        commands.clear()
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        assertEquals("恢复后的真实当前 A event 才可发布 A3", currentCommands.map { it.toList() }, commands)
+    }
+
+    @Test
+    fun `persistent null START_FILE eventually publishes current commands exactly once`() {
+        val epoch = 97L
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val currentCommands = listOf(arrayOf("sub-add", "current-b.srt", "auto", "b2", "zh"))
+
+        replaceInitialCommands(player, listOf(arrayOf("sub-add", "old-a.srt", "auto", "a1", "zh")))
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
+            0,
+            0L,
+        )
+        replaceInitialCommands(player, currentCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+        setInitialCommandSource(player, null)
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        assertEquals(
+            "首次 null path 必须 fail closed 并重放当前 source",
+            listOf(listOf("playlist-play-index", "0")),
+            commands,
+        )
+
+        commands.clear()
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        assertEquals(
+            "持续 null path 仍须最终发布当前 commands",
+            currentCommands.map { it.toList() },
+            commands,
+        )
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertEquals(
+            "持续 null path 不得重复发布当前 commands",
+            currentCommands.map { it.toList() },
+            commands,
+        )
+    }
+
+    @Test
+    fun `percent encoded source accepts equivalent path and exact replay once`() {
+        val epoch = 101L
+        val encoded = "https://media.example/My%20File.mkv"
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(mediaItem("item-encoded", encoded)),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val currentCommands = listOf(arrayOf("sub-add", "encoded.srt", "auto", "encoded", "zh"))
+        replaceInitialCommands(player, currentCommands)
+        commands.clear()
+        val callbacks = captureEventCallbacks(player)
+
+        setInitialCommandSource(player, "https://media.example/My File.mkv")
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertEquals(
+            "percent encoding 等价 path 必须直接归属当前 source",
+            currentCommands.map { it.toList() },
+            commands,
+        )
+
+        callbacks.clear()
+        setInitialCommandSource(player, encoded)
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertEquals(
+            "等价 path 之后回到 exact path 不得重复发布",
+            currentCommands.map { it.toList() },
+            commands,
+        )
+    }
+
+    @Test
     fun `source change invalidates the current terminal before retry`() {
         val terminal = terminalAtDeadline(enginePositionMs = 5_000L)
         assertTrue(terminal.first.terminal != null)
