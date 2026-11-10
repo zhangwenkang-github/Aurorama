@@ -5752,3 +5752,44 @@ system settings。新 owner 必须先在自身 evidence 根修正 runner 异常�
   （SHA-256 `214C03F4E0C0D96183D9DD977E93CB61791D8C7DF9260F52CD330B86BF5A721F`）
 - `...\MANIFEST.sha256`
   （SHA-256 `C0D3D8DD35FEBF0F0A885527EAE8A5DFC23BD839BD90D7C85D725F6ABBCCCFED`，15/15 MATCH）
+
+### 52.22 Background instrumentation R2 与用户暂停（2026-11-10）
+
+**状态**：`PAUSED_BY_USER / BACKGROUND_CONTINUE_INSTRUMENTATION_R2=INCONCLUSIVE /`
+`P1_PRODUCT_CONCLUSION=NOT_ASSESSED / PRODUCT_REPAIR=NOT_STARTED`。
+
+用户要求等当前子代理完成后暂停任务、写文档，等待下一次明确通知再继续。R2 是最后一次
+corrected fixture：R3 UID-filtered wrapper 本身 `READY=PASS / EXIT_CODE=0 / FLUSH_OK=YES`，
+但 R2 本地 runner 在首次目标 App 动作前抛出 `UNEXPECTED_EXCEPTION`，且 cleanup 次生异常未
+持久化展开的异常类型 / 行号。09:18 wrapper 窗口内目标 App 事件为 0，因此：
+
+```text
+TARGET_APP_LAUNCHED=NO
+HLS_MPV_TARGET=NOT_RUN
+HOME_4S=NOT_RUN
+SAME_TASK_RETURN=NOT_RUN
+SECOND_FIXTURE=NOT_RUN
+P1-PLAYER-LOADING-BACKGROUND-CONTINUE=UNCHANGED / NOT_REVALIDATED
+```
+
+post-stop 只读偏好仍为 `pref_player_background_audio=ABSENT`，源码默认 false。未修改产品、
+app/server 数据或系统设置。设备 cleanup PASS：debug/release PID、debug services、活动
+MediaSession、App 通知、wrapper child、临时 dump 均清空；settings hash MATCH、users 仅 user0、
+K60 命令 0、截图 0、锁 `ACTIVE=0`。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-instrumentation-r2-2026-11-10\BACKGROUND_CONTINUE_INSTRUMENTATION_R2_REPORT.md`
+  （SHA-256 `4D5EBD063160C37768BC7A636B857D3650F4075548144AC60B4AE2C3216CCDE9`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `ACB4EEBCE5E4AEFDE0010D4C690F9663F0C21DCA328915EE6A7A9BAB4C42C8C7`，21/21 MATCH）
+- `...\runtime\status.txt`
+- `...\cleanup\final-cleanup.txt`
+
+下一次恢复前不得自动重跑 instrumentation、修改产品、进入 QA/merge-prep/integration/K60/Release。
+收到用户通知后，第一步只读核对本报告与 R2 runner 失败证据，再由用户决定：
+
+1. 接受 `INCONCLUSIVE` 并明确新的验证 / 交付范围；或
+2. 明确授权一个新的 instrumentation scope（需要说明是否允许第二次 corrected fixture）。
+
+在用户给出上述决策前，本任务保持暂停。
