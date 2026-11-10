@@ -6259,3 +6259,62 @@ read-only review 证据：
 停止条件：需要设备 / ADB / 网络 / secret / 生产；需要实施而非设计；方案依赖 fake callback、
 UI 缓存、目标位置伪回填；无法收敛到单一位置 / 事件合同；出现未知新 P0/P1；对象漂移；
 或尝试扩到 PC-03/04/05、DirectPlay+Exo、K60、merge-prep、integration、Release。
+
+### 52.31 进度状态模型设计完成：精确 scope expansion 待用户决定（2026-11-10）
+
+**状态**：`PROGRESS_STATE_MODEL_REDESIGN=COMPLETE /`
+`DESIGN_RESULT=SCOPE_EXPANSION_REQUIRED / IMPLEMENTATION_AUTHORIZED=NO /`
+`EXTERNAL_BLOCKED=NONE`。
+
+fresh read-only design owner 核验 Authority / candidate / R7 evidence，复习 Media3 1.11.1 位置
+接口与候选真实调用链，并对 candidate 执行只读 A0 snapshot。当前 A0 为
+`A0_OWNER_GATE=PASS / PLAYER_LOCAL_MAIN_FILES=61/61 / SOURCE_LINES=15491/15512 /`
+`LINE_HEADROOM=21 / NEW_PRODUCTION_FILES=0 / app-to-player-local imports=62/62`。
+
+设计结论：
+
+```text
+CLASSIFICATION=SCOPE_EXPANSION_REQUIRED
+SCOPE_EXPANSION_REQUIRED=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt;app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+NEW_PRODUCTION_FILES=0
+SERVICE_CHANGE_REQUIRED=NO
+CAPABILITY_BLOCKED=NONE
+IMPLEMENTATION_GATE=BLOCKED_PENDING_USER_SCOPE_DECISION
+```
+
+唯一位置合同固定为一个 active engine snapshot。mpv `time-pos` 只更新当前位置；真实 seek /
+restart 才允许形成 discontinuity；buffering 由 loading / state 表达并保留最后有效位置；
+`UNKNOWN` 不得回填 0；persist / retry hint 不得冒充当前 engine position。UI、MediaSession 和
+persist 都只消费这一快照。
+
+路径扩域原因：
+
+1. `MPVPlayer.kt` 是唯一拥有 mpv `time-pos`、demuxer cache、`PLAYBACK_RESTART` 和 state event
+   的 adapter。当前普通 tick 不发 Media3 可消费位置事件，且 `isLoading()` 固定 false；
+   不修改该文件无法让 MediaSession 在不伪造 seek/discontinuity 的前提下周期读取真实位置。
+2. `PlayerActivity.kt` 当前 retry call site 是无参 `viewModel.retryPlayback()`。UI 显示的
+   terminal token 无法随点击传入，正是 R7“点击一次但方法未命中 / token 未证明”的根因。
+   需把当前显示 token 原样传给 ViewModel，旧 terminal / 旧 epoch 必须失效。
+
+既有冻结路径中的 `PlayerViewModel.kt` 与 `PlayerControlOverlay.kt` 继续负责 snapshot owner、
+retry token 和 UI binding；`SeekRequestCoordinator.kt` / `SeekStateReducer.kt` 不另建状态机，
+`CinefinPlaybackService.kt` 保持绑定同一 Player。不得新增 `PlaybackSessionRules.kt` 或其他
+production 文件，A0 21 行余量必须满足。
+
+RED / GREEN 设计已冻结 14 个合同断言：无位置不得为 0；普通 tick 不发 discontinuity；
+buffering 保持最后有效位置；source epoch 拒绝旧 sample / terminal / token；UI / MediaSession /
+persist 消费同一 snapshot；同一 retry token 只成功一次、stale token no-op；resume / stall /
+timeout 分栏。首跑必须先实际 RED；GREEN 后 fresh QA 才验证真实 MediaSession、playing 前置
+force-stop、terminal 可见时真实 retry 和 settings 逐 key。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-state-model-redesign-2026-11-10\PROGRESS_STATE_MODEL_REDESIGN_REPORT.md`
+  （SHA-256 `0D5E4237D7B423596B47AC708372A869220DD609537ACBCC6939E17645AEF4BA`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `AAF1F190174132F1A09F8B201AF97814770B5157E169972AEF8488C7978F0DD5`，
+  1/1 MATCH）
+
+当前无外部阻塞，唯一阻塞是产品实现写域从既有 5-path 白名单扩展到 7-path。未经用户明确批准，
+不得派实现 owner、修改 `MPVPlayer.kt` / `PlayerActivity.kt`、进入 QA / merge-prep / integration /
+K60 / Release。

@@ -8,27 +8,27 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=R7_SCOPED_REVIEW_COMPLETE / STATE_MODEL_REDESIGN_REQUIRED / DESIGN_DISPATCH_READY
+- TASK_STAGE=PROGRESS_STATE_MODEL_REDESIGN_COMPLETE / SCOPE_EXPANSION_REQUIRED / BLOCKED_PENDING_USER_SCOPE_DECISION
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_PROGRESS_STATE_MODEL_REDESIGN_OWNER_R1_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R5_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
 - NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-state-model-redesign-2026-11-10\PROGRESS_STATE_MODEL_REDESIGN_REPORT.md
-- NEXT_REQUIREMENT=Fresh read-only design owner must define a single backend-to-Player-to-MediaSession position event contract, retry token lifecycle, minimal write paths, RED tests and fresh QA matrix. It must explicitly report SCOPE_EXPANSION_REQUIRED if MPVPlayer.kt, CinefinPlaybackService.kt or any other path outside the frozen five product paths is needed. No implementation in this stage.
-- STOP_CONDITION=Stop design on device/ADB/network/secret/production need, implementation attempt, fake callback or target-position backfill, inability to converge on one position/event contract, unknown new P0/P1, object drift, path expansion requiring approval, or entry into QA/merge-prep/integration/K60/Release.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/R7_PROGRESS_P1_STATE_MODEL_REDESIGN/READ_ONLY_DESIGN/PC01_STALL_CONFIRMED/PC11_NOT_RUN/PC12_RETRY_EVIDENCE_GAP/SETTINGS_EVIDENCE_GAP/NO_PRODUCT_CHANGE
+- NEXT_REQUIREMENT=USER_DECISION_REQUIRED: approve adding exactly MPVPlayer.kt and PlayerActivity.kt to the frozen product implementation write set. No implementation owner may start before that approval. On approval, use a new fresh implementation owner and GatePlan FULL for the seven-path union.
+- STOP_CONDITION=Stop at the product write-scope approval gate. Do not modify MPVPlayer.kt or PlayerActivity.kt, launch implementation/QA, expand schema/settings/metadata, use K60, or enter merge-prep/integration/Release until the user explicitly approves the two-path expansion.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/PROGRESS_P1_STATE_MODEL_DESIGN_COMPLETE/5_TO_7_PATH_SCOPE_EXPANSION_REQUIRED/MPVPLAYER+PLAYERACTIVITY/NEW_PRODUCTION_FILES:0/A0_HEADROOM:21/IMPLEMENTATION_AUTHORIZED:NO
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / PC02_CLOSED_BY_QA_R6 / CORE_ROWS_REMAIN_NOT_RUN / NO_PRODUCT_REPAIR
-- DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / DEVICE_ACCESS_FOR_DESIGN:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / R7_SCOPED_QA_FAIL / SCOPED_REVIEW_COMPLETE / STATE_MODEL_REDESIGN_REQUIRED / IMPLEMENTATION_AUTHORIZED:NO / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / K60_AUTHORIZED:NO / RELEASE_AUTHORIZED:NO
+- DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / DESIGN_COMPLETE / USER_SCOPE_DECISION_REQUIRED / IMPLEMENTATION_AUTHORIZED:NO / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / K60_AUTHORIZED:NO / RELEASE_AUTHORIZED:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=301762/1048576/28.8%/30W_FULL_CHECKPOINT_HANDOFF
+- CONTEXT_AT_CLOSE=332759/1048576/31.7%/30W_FULL_CHECKPOINT_SCOPE_EXPANSION_GATE
 - P0=0
 - P1=P1-SR-A01:CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01:CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;P1-QA-R3-01:CLOSED_BY_QA_R5_REAL_DEVICE_PROOF;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED_BY_QA_R6_PC02_BOTH_BRANCHES_PASS;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=READ_ONLY_PROGRESS_STATE_MODEL_REDESIGN_THEN_SCOPE_DECISION_ON_RED_TESTS_AND_MINIMAL_IMPLEMENTATION
-- last_evidence=R7_REVIEW:F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-r7-scoped-review-r1-2026-11-10\SCOPED_REVIEW_R1_REPORT.md;R7_REVIEW_SHA:B573183FE7E7427DA016A2DFBD2822E27F902FE59C755CC93A2F93274BD436CB;R7_REVIEW_MANIFEST_SHA:0628D5D9588CB3709AFCB98BD9E86D6DC7E1B56ED8FC08394946F809AB724E48;R7_REVIEW_MANIFEST=1/1_MATCH;PC01_STALL=CONFIRMED_P2;PC01_MEDIASESSION=CONFIRMED_P1;PC11=NOT_RUN;PC12_RETRY=EVIDENCE_INSUFFICIENT;SETTINGS=CLEANUP_EVIDENCE_INSUFFICIENT;NEW_P0-P3=0/0/0/0;LOCK_ACTIVE=0
+- NEXT_CRITICAL_PATH=USER_APPROVAL_OF_TWO_PRODUCT_PATHS_THEN_FRESH_IMPLEMENTATION_RED_GREEN_THEN_REVIEW_AND_FRESH_QA
+- last_evidence=DESIGN_REPORT:F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-state-model-redesign-2026-11-10\PROGRESS_STATE_MODEL_REDESIGN_REPORT.md;DESIGN_SHA:0D5E4237D7B423596B47AC708372A869220DD609537ACBCC6939E17645AEF4BA;DESIGN_MANIFEST_SHA:AAF1F190174132F1A09F8B201AF97814770B5157E169972AEF8488C7978F0DD5;DESIGN_MANIFEST=1/1_MATCH;CLASSIFICATION=SCOPE_EXPANSION_REQUIRED;EXPAND=MPVPlayer.kt,PlayerActivity.kt;NEW_PRODUCTION_FILES=0;A0_HEADROOM=21;P1_PROGRESS=OPEN;P2_STALL=OPEN;LOCK_ACTIVE=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -997,10 +997,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=R7 scope failed and is closed. PC01 resume succeeded but continuous playback is blocked by confirmed HLS/mpv buffering mapped to P2-PLAYER-STALL-001; UI/MediaSession divergence maps P1-PLAYER-PROGRESS-001. PC11 playing force-stop remains NOT_RUN. PC12 retry method hit and token consumption remain evidence-insufficient. Settings baseline/final per-key evidence is missing. Full PC01 including DirectPlay+Exo and from-start, PC03, PC04, PC05, full PC11 buffering restart/network recovery, DirectPlay+Exo regression, K60, merge-prep, integration and Release remain uncovered.
-- STOP_CONDITION=Do not launch any QA or implementation while progress state model redesign is read-only and unresolved. Any new device validation requires a later fresh QA with its own lock and QaReady after design and required scope decision.
-- MANUAL_LIMITATION=R7 review PASS does not exist; it completed diagnosis with confirmed P1 progress projection, confirmed P2 stall, PC11 NOT_RUN, retry evidence-insufficient and settings evidence-insufficient. No partial observation may be promoted to player or release PASS.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_PROGRESS_STATE_MODEL_REDESIGN_OWNER_R1_2026_11_10
+- UNCOVERED=Progress state-model implementation, RED/GREEN, build, KTFMT, A0 modification gate, scoped review, fresh media QA, PC-11 playing force-stop, PC-12 real retry method hit and token consumption, settings per-key cleanup proof, full PC-01 DirectPlay+Exo and from-start, PC-03, PC-04, PC-05, K60, merge-prep, integration and Release. Current blocker is user approval to add MPVPlayer.kt and PlayerActivity.kt to the implementation write set.
+- STOP_CONDITION=Do not launch implementation or QA at this scope-expansion gate. Only after explicit user approval may a separate fresh implementation owner run GatePlan FULL against the approved seven-path union; later QA remains a distinct fresh owner with new lock and QaReady.
+- MANUAL_LIMITATION=Design completion is not implementation, review or QA PASS. The only position contract is an engine snapshot; no target position, UI cache or fake callback may be used as engine or MediaSession truth.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R5_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
