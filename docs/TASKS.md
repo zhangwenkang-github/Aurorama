@@ -28,7 +28,7 @@
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / R6_FAIL_CORE_NOT_RUN / P1_BACKGROUND_CLOSED_BY_PC02 / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / PLAYER_STABILITY_INTEGRATED:NO / W1C_1_LOCALLY_INTEGRATED:YES / LOCAL_UNPUSHED:YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=269083/1048576/25.7%/R6_CORE_NOT_RUN_HANDOFF
+- CONTEXT_AT_CLOSE=301762/1048576/28.8%/30W_FULL_CHECKPOINT_HANDOFF
 - P0=0
 - P1=P1-SR-A01:CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01:CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;P1-QA-R3-01:CLOSED_BY_QA_R5_REAL_DEVICE_PROOF;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED_BY_QA_R6_PC02_BOTH_BRANCHES_PASS;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
