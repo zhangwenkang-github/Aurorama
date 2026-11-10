@@ -8,29 +8,29 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=INDEPENDENT_QA_R5_FAIL_BACKGROUND_CONTINUE_P1 / P1-QA-R3-01_CLOSED / READ_ONLY_PRODUCT_DIAGNOSIS_PENDING / CORE_NOT_COMPLETE
+- TASK_STAGE=BACKGROUND_CONTINUE_DIAGNOSIS_NEEDS_INSTRUMENTATION / ROOT_CAUSE_CONFLICTING / MINIMAL_SAME_SESSION_FIXTURE_PENDING / PRODUCT_REPAIR_NOT_STARTED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_BACKGROUND_CONTINUE_DIAGNOSIS_OWNER_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_BACKGROUND_CONTINUE_INSTRUMENTATION_OWNER_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r5-2026-11-10\INDEPENDENT_QA_R5_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-diagnosis-2026-11-10\BACKGROUND_CONTINUE_DIAGNOSIS_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
-- STOP_CONDITION=Allow only fresh read-only diagnosis of P1-PLAYER-LOADING-BACKGROUND-CONTINUE on the fixed candidate and R5 sanitized evidence. No product edit, device, network, schema, A0, metadata, docs, merge-prep or integration. Stop if the cause cannot be tied to the frozen player slice or requires a second repair round.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_INSTALL_HARNESS_REPAIR_PASS/QA_LOGGING_REDACTION_HARNESS_R3_PASS/INDEPENDENT_QA_R3_FAIL/INDEPENDENT_QA_R4_STOPPED_EVIDENCE_SHA_TYPO/INDEPENDENT_QA_R5_FAIL/BACKGROUND_CONTINUE_P1_CONFIRMED/READ_ONLY_DIAGNOSIS_PENDING
+- STOP_CONDITION=Allow one minimal Pad instrumentation fixture only: read the current debug-app background-audio preference, HOME for four seconds during HLS/mpv, then return the same task to the same PlayerActivity and capture lifecycle, surface, audio focus, MediaSession, position/buffered, itemId and initializePlayer. Do not change product code or app/system settings. Stop if same-task return requires product changes, if more than one fixture is needed, or if any object/device/harness drift occurs.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_HARNESSES_PASS/INDEPENDENT_QA_R5_FAIL/BACKGROUND_CONTINUE_DIAGNOSIS_CONFLICTING/MINIMAL_SAME_SESSION_INSTRUMENTATION_PENDING/PRODUCT_REPAIR_NOT_STARTED
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / READ_ONLY_DIAGNOSIS_ONLY / SINGLE_PRODUCT_REPAIR_AFTER_DIAGNOSIS / NO_A0_OR_SCHEMA_CHANGE
+- IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / INSTRUMENTATION_ONLY / NO_APP_OR_SYSTEM_SETTING_CHANGE / SINGLE_REPAIR_AFTER_ROOT_CAUSE
 - DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_FINAL_V140 / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / TEST_SERVER_NETWORK_USED=YES
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / P1_PLAYER_BACKGROUND_CONTINUE_CONFIRMED / READ_ONLY_DIAGNOSIS_PENDING / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / BACKGROUND_CONTINUE_INSTRUMENTATION_PENDING / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=351243/1048576/33.5%/35W_HANDOFF_TRIGGERED
 - P0=0
-- P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01=CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;P1-QA-R3-01=CLOSED_BY_QA_R5_REAL_DEVICE_PROOF;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001;P1-PLAYER-LOADING-BACKGROUND-CONTINUE=CONFIRMED_OPEN
+- P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01=CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;P1-QA-R3-01=CLOSED_BY_QA_R5_REAL_DEVICE_PROOF;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001;P1-PLAYER-LOADING-BACKGROUND-CONTINUE=OPEN_REVALIDATION_REQUIRED
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
 - P3=0
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=READ_ONLY_BACKGROUND_CONTINUE_DIAGNOSIS_THEN_ONE_BOUNDED_PRODUCT_REPAIR_THEN_FRESH_QA_R6
-- last_evidence=INDEPENDENT_QA_R5=FAIL;PLAYER_CORE_MATRIX_RESULT=FAIL;P1-PLAYER-LOADING-BACKGROUND-CONTINUE=CONFIRMED_OPEN;P1-QA-R3-01=CLOSED;WRAPPER_EXIT=0;SANITIZED_WINDOW=402.871/600;QA_R5_REPORT_SHA=8233A95D10DC7BD69DD5D60CD25E7B5EFFA1D6BC4F0DB1F09CB91158497A8461;QA_R5_MANIFEST=39/39;LOCK_RELEASED=YES;K60_COMMANDS=0
+- NEXT_CRITICAL_PATH=MINIMAL_SAME_SESSION_BACKGROUND_INSTRUMENTATION_THEN_ROOT_CAUSE_DECISION_THEN_ONE_BOUNDED_PRODUCT_REPAIR
+- last_evidence=INDEPENDENT_QA_R5=FAIL;BACKGROUND_CONTINUE_DIAGNOSIS=NEEDS_MINIMAL_INSTRUMENTATION/ROOT_CAUSE_CONFLICTING;DIAGNOSIS_REPORT_SHA=31E2135F6A8414A57DBF2B254733413EE6027670F973E475EFF65A84B127A1B7;DIAGNOSIS_MANIFEST_SHA=FBFE0F9F063AF0F27DF2A25393274307AF6B2CDA11F1258203B7B4BCA350FB24;PRODUCT_CHANGE=NO;LOCK_RELEASED=YES;K60_COMMANDS=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -161,6 +161,12 @@
   `NOT_RUN`。下一步仅派 fresh read-only 诊断，再派不同 fresh implementation owner 做一轮
   边界内修复，随后 fresh review 与 fresh QA R6；R6 同一 P1 再失败则停止补丁并重做状态模型。
   证据见 `docs/PLAYER_PLAN.md` §52.20。
+- 2026-11-10 fresh background-continue 诊断结论为
+  `NEEDS_MINIMAL_INSTRUMENTATION / ROOT_CAUSE=CONFLICTING`：HOME 后 PAUSED 与后台音频关闭时
+  `BasePlayerActivity.onPause()` 路径吻合，但 R5 未记录偏好/lifecycle/focus，且回前台是新
+  `initializePlayer`，不是已证的同会话重建；position=-1 也在 HOME 前已存在。当前未改产品代码。
+  下一步只做一次同 task 回原 PlayerActivity 的最小 instrumentation，读取偏好、lifecycle、
+  surface、audio focus、MediaSession 与 initializePlayer。证据见 `docs/PLAYER_PLAN.md` §52.21。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -957,10 +963,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=QA R5 produced a valid 402.871-second UID-filtered sanitized window and confirmed P1-PLAYER-LOADING-BACKGROUND-CONTINUE: HLS+mpv became PAUSED / -1 / -1 after HOME 4 seconds and reset on foreground return. PC-01, PC-03 through PC-05, PC-11 and PC-12 remain NOT_RUN because QA stopped at the first applicable FAIL.
-- STOP_CONDITION=Do not reopen QA or merge-prep until a fresh read-only diagnosis identifies a bounded cause and a different fresh implementation owner completes one minimal repair in the frozen player slice. A second attempted patch for the same P1 is prohibited; then a fresh scoped review and fresh QA R6 are required.
-- MANUAL_LIMITATION=The valid R5 window proves one HLS+mpv background-continuation failure, but it does not prove the other unexecuted rows failed or passed. Local JVM/A0/GatePlan PASS and the sanitized harness do not substitute for the remaining core matrix.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_BACKGROUND_CONTINUE_DIAGNOSIS_OWNER_2026_11_10
+- UNCOVERED=R5 produced a valid sanitized window, but diagnosis found its foreground return created a new initializePlayer rather than proving same-session recovery. The current background-audio preference, lifecycle callbacks, surface reattach and audio focus are unknown. One minimal same-task instrumentation fixture is required before any product fix or QA R6.
+- STOP_CONDITION=No product repair or reopened QA before the single same-session instrumentation clarifies whether background-audio-off intentionally pauses or a true same-session continuation defect exists. Stop on object/device/harness drift, need to change settings, or need for more than one fixture.
+- MANUAL_LIMITATION=R5 still proves HLS/mpv behavior in its actual sequence, but its foreground sequence was not equivalent to returning to the same PlayerActivity. The P1 remains open for revalidation rather than a confirmed code-repair target.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_BACKGROUND_CONTINUE_INSTRUMENTATION_OWNER_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

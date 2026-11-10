@@ -5690,3 +5690,40 @@ K60_ACTIVE_ITEM_1_TO_3=OPEN
 一轮最小产品修复。诊断/实现不得扩出冻结 8-path 并集，不得改 A0、schema、设置或 metadata；
 修复后必须 fresh scoped review 与另一 fresh QA R6。若 R6 同一 P1 仍失败，停止打补丁并重做
 playback session/backend 状态模型。
+
+### 52.21 background-continue 诊断与最小 instrumentation（2026-11-10）
+
+**状态**：`BACKGROUND_CONTINUE_DIAGNOSIS_STATUS=NEEDS_MINIMAL_INSTRUMENTATION /`
+`ROOT_CAUSE=CONFLICTING / PROPOSED_FILES=0 / PRODUCT_REPAIR=NOT_STARTED`。
+
+fresh read-only 诊断 owner 复核 R5 时间窗、sanitized log 与现有 player/Activity/Holder 调用链后
+确认：
+
+- 用户暂停/继续经 `playWhenReady` 与 mpv `pause` 生效；
+- HOME 后 `PAUSED` 与 `BasePlayerActivity.onPause()` 在“后台播放关闭”时写
+  `playWhenReady=false` 的路径吻合，但 R5 未记录实际偏好值、lifecycle callback 或音频焦点；
+- R5 回前台实际产生了新的 `initializePlayer`，没有“Clearing Player ViewModel”，因此不能证明
+  HOME 销毁并重建了原会话；
+- `position=-1 / buffered=-1` 在 HOME 前已存在，不能把 HOME 写成位置归零根因；
+- HLS+mpv 与 DirectPlay+Exo 共用主要 Activity/ViewModel/Holder 生命周期路径。
+
+```text
+BACKGROUND_CONTINUE_DIAGNOSIS_STATUS=NEEDS_MINIMAL_INSTRUMENTATION
+ROOT_CAUSE=CONFLICTING
+PROPOSED_FILES=0
+DEVICE_USED=NO / PRODUCT_CHANGE=NO
+```
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-diagnosis-2026-11-10\BACKGROUND_CONTINUE_DIAGNOSIS_REPORT.md`
+  （SHA-256 `31E2135F6A8414A57DBF2B254733413EE6027670F973E475EFF65A84B127A1B7`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `FBFE0F9F063AF0F27DF2A25393274307AF6B2CDA11F1258203B7B4BCA350FB24`）
+
+下一步只允许 fresh instrumentation owner 在 Pad 上做一次最小同会话 fixture：读当前
+`pref_player_background_audio`，从 HLS/mpv 播放页 HOME 4 秒，再用同一 task 回到原
+PlayerActivity；采集 lifecycle、surface detach/attach、audio focus、MediaSession、itemId、
+position/buffered 与是否出现新的 `initializePlayer`。默认不改变 app/system 设置；若当前偏好
+关闭，必须把 R5 的“PAUSED”视为偏好符合行为而不是产品修复依据。该 fixture 不改产品代码，
+不进入 merge-prep 或完整 QA。
