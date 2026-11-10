@@ -6459,3 +6459,40 @@ PASS 后才能申请新设备锁与 `QaReady`。
 兑现该承诺。第一条只读动作：从实现报告与候选 commit 检查 RED/GREEN、九路径和关键 diff；
 停止条件：对象漂移、越权路径、RED 非预期、快照仍可被 0/target/cache 回填、retry token 非
 one-shot、MediaSession 断层未解，或需要扩大产品 / test scope。
+
+### 52.36 Progress P1 scoped review R1 FAIL，进入一轮受控修复（2026-11-10）
+
+**状态**：`PROGRESS_P1_SCOPED_REVIEW_R1=FAIL / REMEDIATION_R2_REQUIRED / QA_NOT_READY`。
+
+不同 fresh reviewer 独立核对实现提交
+`7d7e07139d0ff2216890793d58a9417d5aac5020`、实际五路径、RED/GREEN、Media3 合同与关键代码
+后判定 FAIL。`P1-PLAYER-PROGRESS-001` 保持 OPEN；在 review 重新 PASS 前不得申请设备锁或
+`QaReady`。
+
+```text
+REVIEW=FAIL
+PROJECTION=FAIL / UNKNOWN=FAIL / MEDIA_SESSION=FAIL
+SOURCE_GENERATION=FAIL / PERSIST=FAIL
+MPV_DISCONTINUITY=PASS / RETRY_TOKEN=PASS / SCOPE_GUARD=PASS / A0=PASS
+P1=1_OPEN_PRODUCT:P1-PLAYER-PROGRESS-001
+P2=0_NEW / P3=0_NEW
+```
+
+三个阻断均为代码级、无需设备即可证明：
+
+- Exo timeline 为空时的 prospective `0` 被当作已确认 engine 位置；no-source / startup 仍可能显示
+  `00:00` 并产生 `ENGINE_POSITION` terminal。
+- mpv `time-pos` / `demuxer-cache-time` 与 `playlist-current-pos` 未绑定 source epoch；换源时旧位置、
+  旧 cache 与 pending discontinuity 未同步失效，迟到 callback 可串入新 key。
+- seek 不清旧 cache，且 buffered/cache 增长被算作 progress；可能对外暴露
+  `bufferedPosition < currentPosition`，并提前撤销 progress recovery terminal。
+
+证据：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-p1-scoped-review-r1-2026-11-10\SCOPED_REVIEW_REPORT.md`
+（SHA-256 `D676005CCACDD5D6C4A8B36D2591EAD86F4F6A76CCF193CFE52355A56C773EEA`）。
+
+下一步只允许不同 fresh implementation owner 在既有批准九路径内做一次 RED→GREEN remediation：
+以 media item + source epoch + confirmed engine anchor 判定位置有效；换源原子失效 position/cache/
+pending discontinuity 并拒绝旧 epoch；seek 清 cache、保证 buffered 合法；terminal retire 绑定真实
+engine 推进或明确 READY 恢复，不被 cache 增长掩盖；合法片头 `0` 仍需保留。关键负例只能装入
+既有三个 test paths；若必须新增 test path，停止并报告 `TEST_SCOPE_EXPANSION_REQUIRED`。
