@@ -8,27 +8,27 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=USER_APPROVED_7_PATH_PRODUCT_SCOPE / HANDOFF_TO_DELIVERY_LEAD_R6 / IMPLEMENTATION_NOT_STARTED
+- TASK_STAGE=PRE_HANDOFF_AUDIT_R12_FAIL / R12_CONTRACT_REPAIR_COMPLETE / R13_AUDIT_REQUIRED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R6_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R5_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-state-model-redesign-2026-11-10\PROGRESS_STATE_MODEL_REDESIGN_REPORT.md
-- NEXT_REQUIREMENT=R6 is the successor delivery lead. It must run its own startup gate and dispatch a new fresh implementation owner to execute RED/GREEN for P1-PLAYER-PROGRESS-001 using the approved product scope: existing allowlist plus exactly MPVPlayer.kt and PlayerActivity.kt, with no new production files. Default test scope remains the existing three test paths; stop if a new test path is necessary. First implementation read: design report sections 0, 8.5, 9, 11, then GatePlan FULL for the approved union.
-- STOP_CONDITION=Stop R6 if the approved seven-path product union or three-test-path scope drifts, needs a new production/test path, schema/settings/metadata write, K60, secret exposure, unknown new P0/P1, or an attempt to skip RED/GREEN, A0, independent review, fresh QA, merge-prep, integration or Release gates. Current P1-PLAYER-PROGRESS-001 remains open until candidate evidence passes.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/PROGRESS_P1_STATE_MODEL_REDESIGN/PRODUCT_SCOPE_APPROVED_ADD_MPVPLAYER+PLAYERACTIVITY/TEST_SCOPE_UNCHANGED/NEW_PRODUCTION_FILES:0/A0_HEADROOM:21/IMPLEMENTATION_NOT_STARTED
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-context-handoff-audit-r12-2026-11-10\PRE_HANDOFF_AUDIT_R12_REPORT.md
+- NEXT_REQUIREMENT=Fresh read-only pre-handoff audit R13 must verify the R12 contract repair: tests remain in exactly the existing three test paths, GatePlan is self-contained at Authority root with exactly nine actual allowed paths, Handoff is clean, and the next action is a successor delivery lead R6. R13 is not implementation or QA.
+- STOP_CONDITION=Do not create R6, modify more docs/product, launch implementation or QA, or enter merge-prep/integration/K60/Release unless a different fresh R13 auditor returns PRE_HANDOFF_AUDIT=PASS. Current context is over 35W and requires handoff after R13.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/R12_AUDIT_CONTRACT_REPAIR_DOCS_ONLY/TEST_PATHS_UNCHANGED_3/GATEPLAN_AUTHORITY_ROOT_9_PATHS/PRODUCT_SCOPE_APPROVED_PRODUCT_CODE_UNCHANGED
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_APPROVED_SCOPE_EXPANSION_2026_11_10 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=YES_SCOPED_TO_APPROVED_PRODUCT_UNION / ADD_MPVPLAYER+PLAYERACTIVITY / NO_NEW_PRODUCTION_FILES / TEST_SCOPE_UNCHANGED / PRODUCT_CODE_NOT_YET_CHANGED
-- DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / DEVICE_ACCESS_NEXT_IMPLEMENTATION:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / IMPLEMENTATION_REQUIRED / P1_PROGRESS_OPEN / P2_STALL_OPEN / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / K60_AUTHORIZED:NO / RELEASE_AUTHORIZED:NO
+- DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / R13_PRE_HANDOFF_AUDIT_REQUIRED / IMPLEMENTATION_NOT_STARTED / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / K60_AUTHORIZED:NO / RELEASE_AUTHORIZED:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=332759/1048576/31.7%/30W_FULL_CHECKPOINT_SCOPE_EXPANSION_GATE
+- CONTEXT_AT_CLOSE=382583/1048576/36.5%/35W_FULL_HANDOFF_R13_AUDIT
 - P0=0
 - P1=P1-SR-A01:CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01:CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;P1-QA-R3-01:CLOSED_BY_QA_R5_REAL_DEVICE_PROOF;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED_BY_QA_R6_PC02_BOTH_BRANCHES_PASS;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=HANDOFF_TO_R6_THEN_FRESH_IMPLEMENTATION_RED_GREEN_THEN_FRESH_REVIEW_THEN_FRESH_QA
-- last_evidence=USER_APPROVAL=2026-11-10_SCOPE_EXPANSION_APPROVED;DESIGN_REPORT:F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-state-model-redesign-2026-11-10\PROGRESS_STATE_MODEL_REDESIGN_REPORT.md;DESIGN_SHA:0D5E4237D7B423596B47AC708372A869220DD609537ACBCC6939E17645AEF4BA;DESIGN_MANIFEST=1/1_MATCH;ADD=MPVPlayer.kt,PlayerActivity.kt;NEW_PRODUCTION_FILES=0;A0_HEADROOM=21;P1_PROGRESS=OPEN;P2_STALL=OPEN;LOCK_ACTIVE=0
+- NEXT_CRITICAL_PATH=R13_AUDIT_PASS_THEN_CREATE_DELIVERY_LEAD_R6_THEN_FRESH_IMPLEMENTATION_RED_GREEN
+- last_evidence=R12_AUDIT=FAIL;R12_REPORT:F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-context-handoff-audit-r12-2026-11-10\PRE_HANDOFF_AUDIT_R12_REPORT.md;R12_REPORT_SHA:29F4785560E86D764F7B44B3AAA67D5E8E63A364AB8CE61A20EDC61B86FFE3BD;R12_REPAIR=TEST_SCOPE_3_ONLY+GATEPLAN_AUTHORITY_ROOT_9_PATHS;GATEPLAN_9_PATH_FULL_VERIFIED=YES;STATE_EFFECT_MATRIX=PASS;PRODUCT_CODE_NOT_CHANGED;P1_PROGRESS=OPEN;P2_STALL=OPEN;LOCK_ACTIVE=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -997,10 +997,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Implementation has not started. A fresh implementation owner must first run GatePlan FULL and RED/GREEN for approved product paths only. Then a different fresh scoped review and a different fresh QA must validate real MediaSession progress, retry token identity, PC-11 playing force-stop, settings per-key cleanup, full PC-01, PC-03, PC-04, PC-05, DirectPlay+Exo, and later K60. No merge-prep/integration/Release.
-- STOP_CONDITION=Do not dispatch QA until implementation and independent scoped review complete. Any QA later requires its own fresh owner, new device lock and QaReady. New test path, new production path, schema/settings/metadata write, K60, or scope beyond the approved seven product paths is STOP.
-- MANUAL_LIMITATION=User approval is for two production paths only. It is not a test-path expansion, product PASS, QA PASS or permission to modify CinefinPlaybackService.kt, schema, settings, metadata, A0 or release artifacts.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R6_2026_11_10
+- UNCOVERED=R12 found and this checkpoint repaired two contract issues only. New test files remain forbidden; GatePlan must be run from Authority root over exactly four existing production paths, three existing test paths and two approved new production paths. Implementation, RED/GREEN, scoped review, fresh QA, PC-11 playing branch, MediaSession progress runtime, retry token runtime, settings per-key proof, PC-03/04/05, DirectPlay+Exo, K60 and Release remain uncovered.
+- STOP_CONDITION=R13 must pass before creating R6. No QA, implementation, additional path expansion, schema/settings/metadata write, K60, merge-prep, integration or Release is authorized in this checkpoint.
+- MANUAL_LIMITATION=R12 failure is a handoff-contract failure, not product fail or QA result. The user-approved expansion is exactly MPVPlayer.kt plus PlayerActivity.kt production paths; it does not approve new test files or CinefinPlaybackService.kt.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_DELIVERY_LEAD_R5_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -1028,7 +1028,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 | TEST-A-KTFMT | build.gradle.kts | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v141-player-a-cluster-implementation-2026-11-10\Aurorama\gradlew.bat" "ktfmtCheck" "--offline" "--console=plain"' | NO_SELECTOR | N/A:format gate has no selector |
 | TEST-A-A0-TESTS | tools/architecture/v2-owner-gate.tests.ps1 | pwsh -NoProfile -File "F:\Develop\code_data\work_tree\Aurorama\v141-player-a-cluster-implementation-2026-11-10\Aurorama\tools\architecture\v2-owner-gate.tests.ps1" | NO_SELECTOR | N/A:A0 fixture suite has no selector |
 | TEST-A-A0-GATE | tools/architecture/v2-owner-gate.ps1 | pwsh -NoProfile -File "F:\Develop\code_data\work_tree\Aurorama\v141-player-a-cluster-implementation-2026-11-10\Aurorama\tools\architecture\v2-owner-gate.ps1" -Root "F:\Develop\code_data\work_tree\Aurorama\v141-player-a-cluster-implementation-2026-11-10\Aurorama" | NO_SELECTOR | N/A:A0 gate has no selector |
-| TEST-A-GATEPLAN | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-workflow.ps1" -Mode GatePlan -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v141-player-a-cluster-implementation-2026-11-10\Aurorama" -ChangedPath "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt","player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/SeekRequestCoordinator.kt","player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/SeekStateReducer.kt","player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt","player/local/src/test/java/com/zhangwenkang/cinefin/player/local/domain/SeekRequestCoordinatorTest.kt","player/local/src/test/java/com/zhangwenkang/cinefin/player/local/domain/SeekStateReducerTest.kt","player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt","player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRules.kt" -StateEffectMatrixPath "F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX_CORRECTION.md"' | NO_SELECTOR | N/A:GatePlan uses explicit frozen union paths |
+| TEST-A-GATEPLAN | tools/architecture/v2-workflow.ps1 | pwsh -NoProfile -ExecutionPolicy Bypass -Command '& "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-workflow.ps1" -Mode GatePlan -RepoRoot "F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama" -ChangedPath "app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt","player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/SeekRequestCoordinator.kt","player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/SeekStateReducer.kt","player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt","player/local/src/test/java/com/zhangwenkang/cinefin/player/local/domain/SeekRequestCoordinatorTest.kt","player/local/src/test/java/com/zhangwenkang/cinefin/player/local/domain/SeekStateReducerTest.kt","player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt","player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt","app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt" -StateEffectMatrixPath "F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-scope-gate-repair-2026-11-10\PLAYER_A_CLUSTER_STATE_EFFECT_MATRIX_CORRECTION.md"' | NO_SELECTOR | N/A:GatePlan uses explicit frozen union plus two approved production paths |
 | TEST-A-SCOPE | player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt | git -C "F:\Develop\code_data\work_tree\Aurorama\v141-player-a-cluster-implementation-2026-11-10\Aurorama" diff --name-status 005639a69679609661e3845344d3c6eec0e40f52..HEAD | NO_SELECTOR | N/A:Git scope audit has no test selector |
 <!-- V2_QA_TEST_MATRIX_END -->
 

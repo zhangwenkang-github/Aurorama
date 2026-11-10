@@ -6351,3 +6351,45 @@ NEW_PRODUCTION_FILES=0
 然后派全新的 implementation owner；首个实现前置是读取设计报告 §0、§8.5、§9、§11，并针对
 批准后路径并集执行 `GatePlan=FULL`。设备仍不预取，K60、merge-prep、integration、Release 继续
 禁止。
+
+### 52.33 Pre-handoff audit R12 FAIL 的 scoped contract 修复（2026-11-10）
+
+**状态**：`PRE_HANDOFF_AUDIT_R12=FAIL / CREATE_DELIVERY_LEAD_R6_AUTHORIZED=NO /`
+`R12_REPAIR_DOCS_ONLY / PRODUCT_CHANGE=NO / DEVICE_USED=NO`。
+
+R12 fresh auditor 核验对象、Handoff、APK、三组证据 manifest、设备锁与 memory 均通过，但发现
+两个交接 contract P1：
+
+```text
+P1-R12-01=TEST_SCOPE_EXPANSION_REQUIRED
+P1-R12-02=GATEPLAN_ENTRY_NOT_SELF_CONTAINED
+```
+
+修复决策：
+
+1. 用户只批准新增 `MPVPlayer.kt` 与 `PlayerActivity.kt` 两个 production paths，未批准新 test
+   path。设计报告 §8.4 / §9 中的 `MpvPositionProjectionPolicyTest.kt`、
+   `PlaybackRetryTokenBindingTest.kt` 等只能视为测试逻辑标签，不是可创建文件。实现 owner
+   必须把全部 RED 断言放入既有三个 test paths：
+   `SeekRequestCoordinatorTest.kt`、`SeekStateReducerTest.kt`、`PlaybackSessionRulesTest.kt`。
+   若某个核心断言无法放入这些文件，停止并报告 `TEST_SCOPE_EXPANSION_REQUIRED`，不得新建 test
+   path。
+2. `TEST-A-GATEPLAN` 改为 Authority 根执行，避免 candidate 缺 `docs/TASKS.md` 的
+   `TASKS_PATH_MISSING`。`ChangedPath` 固定为 9 个实际允许路径：4 个既有 production、
+   3 个既有 test、2 个新批准 production；不包含不计划创建的
+   `PlaybackSessionRules.kt` 或其他路径。该命令必须实际输出 `GATE_LANE=FULL`。
+
+本轮已实际执行修正后的矩阵命令：`STATE_EFFECT_MATRIX=PASS`、`GATE_LANE=FULL`、
+`GATE_PATH_COUNT=9`、`UNMAPPED=0`，退出码 0。该结果可作为 R13 的输入 baseline，但不代表
+实现后门禁已执行。
+
+本节修复只改文档与 QA matrix，不改产品、测试、证据、设备、schema、settings、metadata、A0
+或 Release。修复提交后必须由另一个全新只读 auditor 重跑，只有 R13 PASS 才可创建 R6 负责人会话。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-context-handoff-audit-r12-2026-11-10\PRE_HANDOFF_AUDIT_R12_REPORT.md`
+  （SHA-256 `29F4785560E86D764F7B44B3AAA67D5E8E63A364AB8CE61A20EDC61B86FFE3BD`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `191E3E8976444A93CB9118DCF5E7F008D67520A2B7ACA11EF49FE3DE7C42EC45`，
+  1/1 MATCH）
