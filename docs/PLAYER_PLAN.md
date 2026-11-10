@@ -7412,8 +7412,8 @@ Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R9 review FAIL 自动�
 
 ### 52.54 Progress source-identity / retry-priority R10 任务卡（2026-11-11）
 
-**状态**：`R10_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
-`R9_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+**状态**：`R10_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R11_REQUIRED /`
+`QA_READY=NO`。
 
 R10 从 R9 candidate `f5339becd4b101e1ce3f0e0e190bc09466ff4c04` / tree
 `dfc626dbc3747a3814e3280af6f5c29304173101` 隔离建立，保留 R9 已通过的 distinct URI、
@@ -7428,6 +7428,14 @@ worktree clean、未 push。正式 RED 为 `64/8/0/0` assertion-only；GREEN 为
 assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为 `15506/15512`、headroom 6。负责人已核验
 report/manifest/RED 哈希、关键 diff 与对象边界，并派出不同 fresh R10 scoped reviewer；
 review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
+
+**进度（2026-11-11，R10 scoped review FAIL）**：fresh reviewer 确认对象、RED/GREEN、canonical
+delimiter、owner-before-loadfile 均 PASS，但 `force-media-title` token 实际改写 mpv
+`media-title` 且 claim 后不恢复；START_FILE callback 读取的是 mutable 当前属性而非 event
+payload，延迟事件可读到后来文件的 token；current token + redirect/non-equivalent path 只
+replay 一次后永久 pending。Review SHA-256
+`17E9FAC9313DB41E728FDE80F9A497242A815C83175508D6A529A38E2C3C20B7`，manifest
+`654CA10FD6FC7C83D91C94F91A99D30B881125BDB1A77CA2E76DE97EA4F368E7`。
 
 1. **唯一 current 同 URI event 一次发布**
    - `owners=[(E1,A),(E2,B),(E3,A)]`, current E3, commands A3；旧 owner 都无 event、唯一真实
@@ -7470,3 +7478,54 @@ RED，保留原始 XML/stdout/stderr/exit；再做最小实现并运行 targeted
 assemble/KTFMT/A0/GatePlan，重生成 transcript 与 manifest。A0 baseline `15,512`，当前
 `15,507` / headroom 5。Review 必须由不同 fresh reviewer 执行；PASS 后才申请 Pad
 `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R10 review FAIL 自动另立 R11，不得在 R10 内补丁。
+
+### 52.55 Progress source-identity / retry-priority R11 任务卡（2026-11-11）
+
+**状态**：`R11_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+`R10_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+
+R11 从 R10 candidate `4513a1e3991d1e447e46efe57a29b1d3695e9659` / tree
+`70e46c41ed47d36708acca403bd873d62aa823cb` 隔离建立，保留 canonical delimiter、
+owner-before-loadfile 与 R6–R10 已通过回归；冻结以下三项：
+
+1. **非用户可见 source ownership**
+   - 不得写 `force-media-title`、`media-title`、MediaMetadata、通知标题或任何用户可见 metadata
+     作为 token。现有 `force-media-title` 用法必须移除。
+   - token/ownership 必须是非用户可见且可审计的事件归属；不可由测试注入掩盖真实 native
+     timing。
+2. **event-specific 或等价序列化**
+   - START_FILE callback 不得读取 mutable “当前 token/path 属性”后假定它属于该 event。
+   - 若 native event 无 token payload，必须通过显式命令/事件序列化、原子 load 命令或等价协议，
+     保证旧 START_FILE 不借用后来 source 的 token；无法唯一归属时 fail closed，且当前 source
+     仍能通过可证明的后续动作最终初始化一次。
+   - 测试覆盖：E1 event 已排队 → E3 token/source 已安装 → E1 callback 才到达；必须绑定 E1，
+     不能领 E3。
+3. **redirect/non-equivalent path 不得饥饿**
+   - 一旦 token/ownership 唯一证明 current source，START_FILE path 即使是 redirect/CDN 后的
+     不同 URI，也必须最终发布当前 initial commands 恰好一次；不得 replay 一次后永久 pending。
+   - 增加 `owner URI=origin/start`、`START_FILE path=cdn/final`、current token 的 production
+     event 断言；旧/stale/nonequivalent event 仍不得发布 current。
+
+必须保留 current source 初始化“最终恰好一次”、canonical `%2F/%3F/%26` 不折叠、重复 stale
+零发布、A/B/A/B/A 唯一 final、public prepare owner before loadfile、command fail-closed、
+same-identity preserve/separate prepare、合法 batch/range、String/Boolean/eventId gate 与真实
+PLAYING fixture。若只能通过不写用户可见 metadata的序列化方案实现，应显式记录命令/事件屏障与
+停止条件。
+
+允许五路径与 R10 相同：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、Service、schema/settings/metadata、A0 baseline/version/signing/
+release，以及设备/ADB/截图/生产写。先在 R10 base 上对 title 污染、event/token 交错、redirect
+non-equivalent path 三项取得 production-entry assertion-only RED，保留原始 XML/stdout/stderr/
+exit；再做最小实现并运行 targeted/player-local/phone/assemble/KTFMT/A0/GatePlan，重生成
+transcript 与 manifest。A0 baseline `15,512`，当前 `15,506` / headroom 6。Review 必须由
+不同 fresh reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何
+R11 review FAIL 自动另立 R12，不得在 R11 内补丁。
