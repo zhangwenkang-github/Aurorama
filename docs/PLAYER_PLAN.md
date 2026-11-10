@@ -6810,3 +6810,49 @@ fresh scoped review 未 PASS 前不申请设备锁、不进入 QA。
 停止条件：需要新路径、Service/schema/settings/metadata、设备或生产写；修复依赖 UI cache/target/fake
 callback；无法在 mutation 当刻失效旧 source；A0 余量不足；实现后 targeted/full gate FAIL 且同 owner
 一次受控修复仍失败；或出现未知新 P0/P1。
+
+### 52.42 Progress state reshape 实现 R1 GREEN（2026-11-10）
+
+**状态**：`IMPLEMENTATION_R1=GREEN / SCOPED_REVIEW_R3=REQUIRED /`
+`P1-PLAYER-PROGRESS-001=OPEN / QA_READY=NO`。
+
+新独立 worktree `v141-player-progress-state-reshape-2026-11-10` 从 `46761d47...` 起，
+branch `codex/v141-player-progress-state-reshape`。实现 owner 先取得真实 RED，只修改批准五路径；
+最终提交：
+
+```text
+HEAD=bb95e3aeba1645af755a318e725f101bfce7628c
+TREE=00d1effd59058c7e0733012d183dd980a99e7422
+PARENT=22b4a6272e0595ea73ddc965d85e7c28b50ace09
+BASE=46761d47f3d7a3d4d75b8842547c70d3843a4a51
+WORKTREE_CLEAN=YES
+NEW_PRODUCTION_OR_TEST_FILES=0
+```
+
+原始实现第一次收口在 `22b4a627...` 产生 A/B 行为 GREEN，但 `PlayerActivity.kt:875`
+有单一 `Unresolved reference 'C'` 编译阻断。按工具失败收敛规则，另派短生命周期 compile-repair
+owner 将引用改为等价完全限定名；没有功能重设计或新增源码行。失败 compile 为 RED，随后：
+
+```text
+COMPILE_REPAIR=PASS
+TARGETED=3 SUITES / 34 TESTS / 0/0/0
+PLAYER_LOCAL=42 SUITES / 314 TESTS / 0/0/0
+PHONE_LIBRE=62 SUITES / 412 TESTS / 0/0/0
+ASSEMBLE=PASS / KTFMT=PASS
+A0=PASS / RAW 15511/15512 / HEADROOM 1
+GATEPLAN=FULL / 5 PATHS / MATRIX PASS / 0 UNMAPPED
+```
+
+行为目标：Exo READY→BUFFERING 后 UI/restart/backend switch/retry 保留最后 confirmed position，
+no-source/raw 0 不伪造；mpv App playlist mutation 当刻推进 epoch 并清 position/cache/pending，
+旧 callback/retry 立即失效。实现报告：
+
+```text
+F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-state-reshape-implementation-r1-2026-11-10\IMPLEMENTATION_REPORT.md
+SHA256=06AB5D42503BE1AD5786714C59C7BF4C7DF60496CA56A4F36E5591402F71C6C5
+MANIFEST_SHA256=274B30D6AE4A0552D1FB0580BC206D1CFFD88F82FB846A156AB636501BEF9A4A
+```
+
+`IMPLEMENTATION_R1=GREEN` 不是产品 PASS。下一步只允许不同 fresh scoped review R3 检查
+`46761d47...bb95e3ae` 的实际 diff、生产调用链、测试真实性和五路径；review PASS 前不得申请
+设备锁或 `QaReady`。Review FAIL 回到新的架构决策，不再追加同轮机械补丁。

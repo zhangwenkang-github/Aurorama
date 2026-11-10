@@ -8,29 +8,29 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-STATE-RESHAPE-2026-11-10
-- TASK_STAGE=SCOPE_FROZEN / IMPLEMENTATION_R1_REQUIRED / IMPLEMENTATION_OWNER_DISPATCH
+- TASK_STAGE=IMPLEMENTATION_R1_GREEN / SCOPED_REVIEW_R3_REQUIRED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.40-§52.41 > R2 scoped review report > candidate 46761d47f3d7a3d4d75b8842547c70d3843a4a51
-- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_STATE_RESHAPE_IMPLEMENTATION_OWNER_R1_2026_11_10
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.40-§52.42 > reshape implementation report > R2 scoped review report > candidate bb95e3aeba1645af755a318e725f101bfce7628c
+- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_STATE_RESHAPE_SCOPED_REVIEWER_R3_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-state-reshape-implementation-r1-2026-11-10\IMPLEMENTATION_REPORT.md
-- NEXT_REQUIREMENT=Implement only the two R2 review residuals in the frozen existing paths: Exo BUFFERING last-confirmed position propagation, and atomic mpv source epoch invalidation at App playlist mutation. Use one implementation owner with short plan then RED-GREEN; no separate design agent.
-- STOP_CONDITION=Stop on new paths, Service/schema/settings/metadata, device or production write, target/UI-cache/fake-callback truth, inability to invalidate source synchronously, A0 headroom failure, unknown new P0/P1, or two failed gate attempts. Fresh scoped review PASS is required before any device lock or QA.
-- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_STATE_MODEL_RESHAPE/SCOPE_FROZEN/IMPLEMENTATION_R1_REQUIRED/TWO_REVIEW_RESIDUALS/NO_SEPARATE_DESIGN/QA_NOT_READY
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-state-reshape-scoped-review-r3-2026-11-10\SCOPED_REVIEW_REPORT.md
+- NEXT_REQUIREMENT=Fresh scoped review R3 must review base 46761d47f3d7a3d4d75b8842547c70d3843a4a51 to candidate bb95e3aeba1645af755a318e725f101bfce7628c, independently verify Exo BUFFERING last-confirmed propagation and atomic mpv playlist mutation invalidation plus all implementation evidence, without editing code or using devices.
+- STOP_CONDITION=Review FAIL returns to a new architecture decision and no same-round mechanical patch. Stop on object/evidence drift, new paths, Service/schema/settings/metadata, device/QA or production write. Review PASS is required before device lock or QaReady.
+- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_STATE_MODEL_RESHAPE/IMPLEMENTATION_R1_GREEN/SCOPED_REVIEW_R3_REQUIRED/PRODUCT_P1_OPEN/QA_NOT_READY
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_APPROVED_SCOPE_EXPANSION_2026_11_10 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=YES_SCOPED_IMPLEMENTATION_R1
+- IMPLEMENTATION_AUTHORIZED=NO_PENDING_SCOPED_REVIEW_R3
 - DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / SCOPED_REVIEW_R3_REQUIRED_AFTER_IMPLEMENTATION / PRODUCT_P1_OPEN / QA_READY:NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / SCOPED_REVIEW_R3_REQUIRED=YES / PRODUCT_P1_OPEN / QA_READY:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=248245/1048576/23.7%/RESHAPE_IMPLEMENTATION_READY
+- CONTEXT_AT_CLOSE=284449/1048576/27.1%/IMPLEMENTATION_R1_GREEN_REVIEW_R3_REQUIRED
 - P0=0
-- P1=P1-PLAYER-PROGRESS-001:OPEN;P1-PROGRESS-R2-A:OPEN_EXO_BUFFERING_LAST_POSITION;P1-PROGRESS-R2-B:OPEN_MPV_PLAYLIST_EPOCH_WINDOW;P1-STARTUP-R14-01:CLOSED_BY_R15;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
+- P1=P1-PLAYER-PROGRESS-001:OPEN_PENDING_REVIEW_R3;P1-PROGRESS-R2-A:IMPLEMENTATION_R1_GREEN;P1-PROGRESS-R2-B:IMPLEMENTATION_R1_GREEN;P1-STARTUP-R14-01:CLOSED_BY_R15;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
 - P3=0
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=IMPLEMENTATION_R1_THEN_FRESH_SCOPED_REVIEW_R3_THEN_PAD_QA
-- last_evidence=USER_CHOICE=CREATE_NEW_INDEPENDENT_RESHAPE_TASK;BASE_CANDIDATE=46761d47f3d7a3d4d75b8842547c70d3843a4a51;SOURCE_REVIEW_SHA=117741057940DFCB98E91D6DFB7B1EDFFABB0691FAFFDB037E5CDA9BC6C598F2;SCOPE=EXISTING_NINE_PATH_UNION;NO_SEPARATE_DESIGN=YES;DEVICE=NONE;LOCK_ACTIVE=0
+- NEXT_CRITICAL_PATH=SCOPED_REVIEW_R3_THEN_PAD_QA
+- last_evidence=IMPLEMENTATION_R1=GREEN;REPORT_SHA=06AB5D42503BE1AD5786714C59C7BF4C7DF60496CA56A4F36E5591402F71C6C5;MANIFEST_SHA=274B30D6AE4A0552D1FB0580BC206D1CFFD88F82FB846A156AB636501BEF9A4A;CANDIDATE=bb95e3aeba1645af755a318e725f101bfce7628c;TREE=00d1effd59058c7e0733012d183dd980a99e7422;TARGETED=34/0/0/0;PLAYER_LOCAL=314/0/0/0;PHONE=412/0/0/0;ASSEMBLE=PASS;A0_HEADROOM=1;GATEPLAN=FULL;SCOPED_REVIEW_R3=REQUIRED;LOCK_ACTIVE=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -997,10 +997,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=New independent reshape task is frozen but implementation has not started. Exo BUFFERING last-position propagation and atomic mpv playlist mutation invalidation remain open; no fresh review, device QA, merge-prep, integration or Release has run.
-- STOP_CONDITION=No device lock or QaReady before reshape implementation GREEN and a different fresh scoped review PASS. Stop on scope expansion, source truth from UI/target/fake callbacks, object drift, or unknown new P0/P1.
-- MANUAL_LIMITATION=The new task card authorizes implementation only; it does not close P1-PLAYER-PROGRESS-001 or permit QA directly.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_STATE_RESHAPE_IMPLEMENTATION_OWNER_R1_2026_11_10
+- UNCOVERED=Reshape implementation is GREEN but product P1 remains open pending fresh scoped review R3; real mpv ordering, MediaSession binder, retry tap, process recovery, Compose race, device Pad QA, merge-prep, integration and Release remain uncovered.
+- STOP_CONDITION=No device lock or QaReady before fresh scoped review R3 PASS. Review FAIL requires a new architecture decision, not another patch. Object, source, evidence, path or lock drift requires STOP.
+- MANUAL_LIMITATION=Implementation and automation GREEN do not prove device behavior or close P1; R3 is a code review, not QA.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_STATE_RESHAPE_SCOPED_REVIEWER_R3_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
