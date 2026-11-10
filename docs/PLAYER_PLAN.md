@@ -7481,8 +7481,8 @@ assemble/KTFMT/A0/GatePlan，重生成 transcript 与 manifest。A0 baseline `15
 
 ### 52.55 Progress source-identity / retry-priority R11 任务卡（2026-11-11）
 
-**状态**：`R11_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
-`R10_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+**状态**：`R11_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R12_REQUIRED /`
+`QA_READY=NO`。
 
 R11 从 R10 candidate `4513a1e3991d1e447e46efe57a29b1d3695e9659` / tree
 `70e46c41ed47d36708acca403bd873d62aa823cb` 隔离建立，保留 canonical delimiter、
@@ -7496,6 +7496,14 @@ worktree clean、未 push。正式 RED 为 `67/3/0/0` assertion-only；GREEN 为
 assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为 `15505/15512`、headroom 7。负责人已核验
 report/manifest/RED 哈希、关键 diff 与对象边界，并派出不同 fresh R11 scoped reviewer；
 review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
+
+**进度（2026-11-11，R11 scoped review FAIL）**：fresh reviewer 确认 title token 已移除、
+E1/E3 冻结 attempt、redirect path、canonical、public prepare 与全部 R11/R6–R10 回归均 PASS。
+剩余两个 P2：已有 A 播放时切 B，旧 A `END_FILE` 会无条件释放已登记但尚未 START 的 B attempt，
+B 首个真实 START_FILE 零发布；`FILE_LOADED` resolve 出 E3 next command 后、handler 前安装
+E4，epoch gate 拦截事件体但 `nextSourceStart` 仍在 gate 外投递。Review SHA-256
+`917FA4EFCB037CE539C9A36CA530B3AD803F7E65719F0CDCB6E8B04BC102E9AE`，manifest
+`20B10F948AD97A5293C9E7B947B4C05CB4E35E7DC6D8E4CC7608F1D5EAB64B1C`。
 
 1. **非用户可见 source ownership**
    - 不得写 `force-media-title`、`media-title`、MediaMetadata、通知标题或任何用户可见 metadata
@@ -7538,3 +7546,46 @@ exit；再做最小实现并运行 targeted/player-local/phone/assemble/KTFMT/A0
 transcript 与 manifest。A0 baseline `15,512`，当前 `15,506` / headroom 6。Review 必须由
 不同 fresh reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何
 R11 review FAIL 自动另立 R12，不得在 R11 内补丁。
+
+### 52.56 Progress source-identity / retry-priority R12 任务卡（2026-11-11）
+
+**状态**：`R12_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+`R11_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+
+R12 从 R11 candidate `c2d69a2d43c406d1f9998553330c88b6ed8831df` / tree
+`de7d4cc5954d5ef81e7b0603c2ceffd34bf116e2` 隔离建立，保留 titleless serialized attempt、
+redirect path、canonical、public prepare、R10/R9 同 URI 与全部 R6–R10 回归。只冻结两个协议缺口：
+
+1. **旧 END_FILE 不得释放新 attempt**
+   - A 已播放，用户切 B；`prepareMediaItem(B)` 安装 B owner 并登记 B in-flight 后，native 顺序
+     `END_FILE(A) -> START_FILE(B) -> FILE_LOADED(B)` 必须让 B 的 initial commands 恰好发布一次。
+   - 不能无条件把 END_FILE 当作新 attempt 的 terminal。只有能证明 END_FILE 属于当前 attempt
+     时才释放；旧 file END_FILE 必须 fail closed 并保留 B attempt。
+   - B 自身失败/END_FILE 若可证明属于 B，仍须释放 barrier，避免永久阻塞 pending；覆盖仅
+     FILE_LOADED、仅当前 attempt END_FILE、B event 缺失、C pending 等边界。
+2. **next source-start 必须整体处于 epoch/released gate**
+   - `FILE_LOADED(E1)` 选出 pending E3 后、main handler 执行前安装 E4：E3 source-start 命令发布
+     数必须为 0；不得在 `if (!released && epoch == sourceEpoch.get())` 之外投递 next command。
+   - E3 未发生 mutation 时仍必须串行发布一次；E4 成为最新 pending 时只允许 E4 后续合法推进。
+3. 必须保留 current source 初始化最终恰好一次、titleless/non-visible ownership、redirect/
+   non-equivalent path、E1 不领 E3、canonical `%2F/%3F/%26`、`%20`、同 URI A/B/A/stale、
+   public prepare owner-before-loadfile、command fail-closed、same-identity preserve/separate
+   prepare、合法 batch/range、String/Boolean/eventId gate 与真实 PLAYING。
+
+允许五路径与 R11 相同：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、Service、schema/settings/metadata、A0 baseline/version/signing/
+release，以及设备/ADB/截图/生产写。先在既有 test path 对旧 END_FILE 与 next-command 两项精确
+反例取得 production-entry assertion-only RED，保留 XML/stdout/stderr/exit；再做最小实现并运行
+targeted/player-local/phone/assemble/KTFMT/A0/GatePlan，重生成 transcript 与 manifest。
+A0 baseline `15,512`，当前 `15,505` / headroom 7。Review 必须由不同 fresh reviewer 执行；
+PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R12 review FAIL 自动另立 R13，
+不得在 R12 内补丁。
