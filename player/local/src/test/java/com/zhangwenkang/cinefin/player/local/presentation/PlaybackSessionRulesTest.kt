@@ -4,6 +4,8 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
+import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
+import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.mpv.MpvSourcePositionState
@@ -12,6 +14,7 @@ import java.util.concurrent.atomic.AtomicLong
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -347,6 +350,108 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `pending seek binding invalidates on epoch change and renews by generation`() {
+        val generation = 41L
+        val oldEpoch = 7L
+        val initial =
+            input(
+                enginePositionMs = 5_000L,
+                explicitSeekTargetMs = 60_000L,
+                explicitSeekRequestGeneration = generation,
+                explicitSeekSourceEpoch = oldEpoch,
+            )
+        val bound = advance(initial, 0L).first
+        assertEquals(60_000L, bound.pendingSeekTargetMs)
+
+        val changedEpoch =
+            initial.copy(
+                key = "item-a|source-a|1|1",
+                explicitSeekSourceEpoch = oldEpoch + 1L,
+            )
+        val invalidated = advance(changedEpoch, 100L, bound)
+        assertNull(invalidated.first.pendingSeekTargetMs)
+        assertNull(invalidated.first.pendingSeekBinding)
+
+        val terminal =
+            advance(
+                changedEpoch,
+                PlaybackSessionRules.STALL_TIMEOUT_MS + 100L,
+                invalidated.first,
+            )
+        assertEquals(5_000L, terminal.second.terminal?.positionMs)
+        assertEquals(
+            PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
+            terminal.second.terminal?.positionSource,
+        )
+
+        val renewed =
+            changedEpoch.copy(
+                explicitSeekTargetMs = 75_000L,
+                explicitSeekRequestGeneration = generation + 1L,
+            )
+        val renewedState = advance(renewed, 200L, invalidated.first).first
+        assertEquals(75_000L, renewedState.pendingSeekTargetMs)
+        assertEquals(generation + 1L, renewedState.pendingSeekGeneration)
+
+        val renewedTerminal =
+            advance(
+                    renewed,
+                    PlaybackSessionRules.STALL_TIMEOUT_MS + 200L,
+                    renewedState,
+                )
+                .first
+        assertNotNull(renewedTerminal.terminal)
+        val otherSessionKey = "item-b|source-b|1|1"
+        assertFalse(PlaybackSessionRules.retrySourceIsCurrent(renewedTerminal, otherSessionKey))
+    }
+
+    @Test
+    fun `failed seek keeps explicit retry target while failure UI suppresses terminal`() {
+        val targetMs = 64_000L
+        val generation = 91L
+        val sourceEpoch = 12L
+        val failedState =
+            SeekState.Failed(
+                targetMs = targetMs,
+                requestGeneration = generation,
+                sourceEpoch = sourceEpoch,
+                mediaIdentity = sourceIdentity("https://media.example/item-a"),
+                reason = SeekFailureReason.TIMEOUT,
+                retryable = true,
+                policy =
+                    com.zhangwenkang.cinefin.player.local.domain.SeekConfirmationPolicy(
+                        completionTimeoutMs = 1_000L,
+                        positionToleranceMs = 500L,
+                        minimumTargetDisplayMs = 0L,
+                    ),
+            )
+        val fields = failedState.explicitSeekFields()
+        assertNotNull("SeekState.Failed 必须保留 explicit target 映射", fields)
+        assertEquals(targetMs, fields?.first)
+        assertEquals(generation, fields?.second)
+        assertEquals(sourceEpoch, fields?.third)
+
+        val failedInput =
+            input(
+                enginePositionMs = 5_000L,
+                hasSeekFailure = true,
+                explicitSeekTargetMs = fields?.first,
+                explicitSeekRequestGeneration = fields?.second,
+                explicitSeekSourceEpoch = fields?.third,
+                persistedResumeMs = 8_000L,
+            )
+        val failed =
+            advance(
+                failedInput,
+                PlaybackSessionRules.STALL_TIMEOUT_MS,
+            )
+        assertEquals(targetMs, failed.first.pendingSeekTargetMs)
+        assertTrue(failed.second.showSeekFailure)
+        assertFalse(failed.second.loading)
+        assertNull(failed.second.terminal)
+    }
+
+    @Test
     fun `invalid engine sample never becomes a fake zero position`() {
         val invalid =
             input(
@@ -611,6 +716,16 @@ class PlaybackSessionRulesTest {
             playerResult.isSuccess,
         )
         val player = requireNotNull(playerResult.getOrNull())
+        val commands = mutableListOf<List<String>>()
+        assertTrue(
+            "MPVPlayer 必须暴露可捕获的 postCommand 执行入口",
+            trySetField(player, "commandsClosed", AtomicBoolean(false)),
+        )
+        val commandExecutor: (Array<String>) -> Unit = { command -> commands += command.toList() }
+        assertTrue(
+            "MPVPlayer 必须暴露可捕获的 postCommand 执行入口",
+            trySetField(player, "commandExecutor", commandExecutor),
+        )
         val oldSessionKey =
             playbackSessionKeyFor(
                 seekMediaIdentityFor(
@@ -634,6 +749,13 @@ class PlaybackSessionRulesTest {
         val outcome = runCatching { player.setMediaItems(mutableListOf(newItem), true) }
 
         assertTrue("setMediaItems 生产入口失败: ${outcome.exceptionOrNull()}", outcome.isSuccess)
+        assertEquals(
+            listOf(
+                listOf("playlist-clear"),
+                listOf("playlist-remove", "current"),
+            ),
+            commands,
+        )
         val currentEpoch = player.currentSourceEpoch()
         assertTrue(currentEpoch > oldEpoch)
         assertNull(player.confirmedPosition())
@@ -871,10 +993,11 @@ class PlaybackSessionRulesTest {
         val oldEpoch = 23L
         val replacedNeighbor = mediaItem("item-a", "https://media.example/item-a")
         val current = mediaItem("item-b", "https://media.example/item-b")
+        val removedTail = mediaItem("item-c", "https://media.example/item-c")
         val player =
             allocatedMpvPlayer(
                 sourceEpoch = oldEpoch,
-                mediaItems = mutableListOf(replacedNeighbor, current),
+                mediaItems = mutableListOf(replacedNeighbor, current, removedTail),
                 currentIndex = 1,
                 sourcePosition =
                     MpvSourcePositionState(
@@ -885,6 +1008,16 @@ class PlaybackSessionRulesTest {
                         isAnchored = true,
                     ),
             )
+        val commands = mutableListOf<List<String>>()
+        assertTrue(
+            "MPVPlayer 必须暴露可捕获的 postCommand 执行入口",
+            trySetField(player, "commandsClosed", AtomicBoolean(false)),
+        )
+        val commandExecutor: (Array<String>) -> Unit = { command -> commands += command.toList() }
+        assertTrue(
+            "MPVPlayer 必须暴露可捕获的 postCommand 执行入口",
+            trySetField(player, "commandExecutor", commandExecutor),
+        )
         val oldKey = sessionKey(current, oldEpoch)
         val oldTerminal =
             advance(
@@ -895,9 +1028,19 @@ class PlaybackSessionRulesTest {
                 .first
         val token = requireNotNull(oldTerminal.terminal).token
         val replacement = mediaItem("item-x", "https://media.example/item-x")
+        val appended = mediaItem("item-y", "https://media.example/item-y")
 
-        player.setMediaItems(mutableListOf(replacement, current), 1, 7_000L)
+        player.setMediaItems(mutableListOf(replacement, current, appended), 1, 7_000L)
 
+        assertEquals(4, commands.size)
+        assertEquals(listOf("playlist-remove", "2"), commands[0])
+        assertEquals(listOf("playlist-remove", "0"), commands[1])
+        assertEquals("loadfile", commands[2].first())
+        assertEquals(listOf("insert-at", "0"), commands[2].drop(2))
+        assertEquals("loadfile", commands[3].first())
+        assertEquals(listOf("insert-at", "2"), commands[3].drop(2))
+        assertFalse(commands.any { it == listOf("playlist-clear") })
+        assertFalse(commands.any { it == listOf("playlist-remove", "current") })
         assertEquals(oldEpoch, player.currentSourceEpoch())
         assertEquals(1, player.currentMediaItemIndex)
         assertEquals("item-b", itemAt(player, player.currentMediaItemIndex).mediaId)
@@ -914,6 +1057,17 @@ class PlaybackSessionRulesTest {
             )
         )
         requireNotNull(PlaybackSessionRules.consumeRetry(oldTerminal, token))
+
+        val prepareOutcome = runCatching { player.prepare() }
+        assertTrue(
+            "same-identity prepare 失败: ${prepareOutcome.exceptionOrNull()}",
+            prepareOutcome.isSuccess,
+        )
+        assertEquals(4, commands.size)
+        assertEquals(oldEpoch, player.currentSourceEpoch())
+        assertEquals(7_000L, sourcePosition(player).positionMs)
+        assertEquals(11_000L, sourcePosition(player).cacheEndMs)
+        assertEquals(4_000L, sourcePosition(player).pendingDiscontinuityFromMs)
     }
 
     @Test
@@ -987,6 +1141,8 @@ class PlaybackSessionRulesTest {
         hasPlayerError: Boolean = false,
         hasSeekFailure: Boolean = false,
         explicitSeekTargetMs: Long? = null,
+        explicitSeekRequestGeneration: Long? = null,
+        explicitSeekSourceEpoch: Long? = null,
         persistedResumeMs: Long? = null,
     ) =
         PlaybackSessionInput(
@@ -1000,6 +1156,8 @@ class PlaybackSessionRulesTest {
             hasPlayerError = hasPlayerError,
             hasSeekFailure = hasSeekFailure,
             explicitSeekTargetMs = explicitSeekTargetMs,
+            explicitSeekRequestGeneration = explicitSeekRequestGeneration,
+            explicitSeekSourceEpoch = explicitSeekSourceEpoch,
             persistedResumeMs = persistedResumeMs,
         )
 
@@ -1066,6 +1224,11 @@ class PlaybackSessionRulesTest {
     private fun itemAt(player: MPVPlayer, index: Int): MediaItem =
         @Suppress("UNCHECKED_CAST")
         (getField(player, "internalMediaItems") as MutableList<MediaItem>)[index]
+
+    private fun trySetField(target: Any, name: String, value: Any): Boolean = runCatching {
+        setField(target, name, value)
+    }
+        .isSuccess
 
     private fun setField(target: Any, name: String, value: Any) {
         target.javaClass.getDeclaredField(name).apply {

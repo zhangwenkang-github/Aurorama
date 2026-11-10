@@ -508,7 +508,7 @@ constructor(
         val currentSourceId =
             mediaItem?.mediaMetadata?.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
         val seekState = _uiState.value.seekState
-        val seeking = seekState as? SeekState.Seeking
+        val explicitSeek = seekState.explicitSeekFields()
         val enginePositionMs = confirmedPosition(active)
         val input =
             PlaybackSessionInput(
@@ -527,9 +527,9 @@ constructor(
                 bufferedPositionMs = confirmedBufferedPosition(active, enginePositionMs),
                 hasPlayerError = _uiState.value.playerError != null,
                 hasSeekFailure = seekState is SeekState.Failed,
-                explicitSeekTargetMs = seeking?.targetMs,
-                explicitSeekRequestGeneration = seeking?.requestGeneration,
-                explicitSeekSourceEpoch = seeking?.sourceEpoch,
+                explicitSeekTargetMs = explicitSeek?.first,
+                explicitSeekRequestGeneration = explicitSeek?.second,
+                explicitSeekSourceEpoch = explicitSeek?.third,
                 persistedResumeMs = persistedResumePositionMs(mediaItem?.mediaId, currentSourceId),
             )
         playbackSessionState =
@@ -3085,6 +3085,12 @@ constructor(
     }
 }
 
+internal fun SeekState.explicitSeekFields() =
+    (this as? SeekState.Seeking)?.let { Triple(it.targetMs, it.requestGeneration, it.sourceEpoch) }
+        ?: (this as? SeekState.Failed)?.let {
+            Triple(it.targetMs, it.requestGeneration, it.sourceEpoch)
+        }
+
 internal fun playbackSessionKeyFor(
     mediaIdentity: SeekMediaIdentity,
     snapshotGeneration: Long,
@@ -3143,19 +3149,15 @@ internal object PlaybackSessionRules {
             input.explicitSeekTargetMs?.let {
                 "$explicitGeneration|${input.explicitSeekSourceEpoch}|$key"
             }
+        val sameGeneration = state.pendingSeekGeneration == explicitGeneration
         val pendingTarget =
-            if (explicitBinding == null) null
-            else if (state.pendingSeekGeneration == explicitGeneration) {
-                input.explicitSeekTargetMs.takeIf { state.pendingSeekBinding == explicitBinding }
-            } else {
-                input.explicitSeekTargetMs
+            when {
+                explicitBinding == null -> null
+                !sameGeneration -> input.explicitSeekTargetMs
+                state.pendingSeekBinding == explicitBinding -> input.explicitSeekTargetMs
+                else -> null
             }
-        val pendingBinding =
-            if (pendingTarget != null) explicitBinding
-            else
-                state.pendingSeekBinding.takeIf {
-                    state.pendingSeekGeneration == explicitGeneration
-                }
+        val pendingBinding = pendingTarget?.let { explicitBinding }
         var next =
             if (state.key == key) {
                 state

@@ -239,7 +239,6 @@ class MPVPlayer(
         mpvLib =
             MPVLib.create(context) ?: throw IllegalStateException("MPVLib.create() returned null")
 
-        // General
         mpvLib.setOptionString("config", "yes")
         mpvLib.setOptionString("config-dir", configDir.path)
         for (opt in arrayOf("gpu-shader-cache-dir", "icc-cache-dir")) mpvLib.setOptionString(
@@ -258,10 +257,8 @@ class MPVPlayer(
         // W17 验收：把实际生效的 hwdec 打进日志（回退链第 3 档必须看到 hwdec=no）
         Timber.i("MPVPlayer hwdec=%s vo=%s", hwDec, videoOutput)
 
-        // TLS
         mpvLib.setOptionString("tls-verify", "no")
 
-        // Cache
         mpvLib.setOptionString("cache", "yes")
         mpvLib.setOptionString("cache-pause-initial", "yes")
         mpvLib.setOptionString("demuxer-max-bytes", "64MiB")
@@ -331,18 +328,17 @@ class MPVPlayer(
         }
     }
 
-    /**
-     * 把 mpv 命令投递到专用线程，调用方（主线程）不再同步等待 mpv core。
-     *
-     * 命令按提交顺序串行执行；[release] 之后提交的命令会被丢弃。
-     */
-    private fun postCommand(command: Array<String>) {
-        if (commandsClosed.get()) return
+    private var commandExecutor: (Array<String>) -> Unit = { command ->
         commandHandler.post {
             if (commandsClosed.get()) return@post
             runCatching { mpvLib.command(command) }
                 .onFailure { Timber.w(it, "mpv 命令执行失败：%s", command.firstOrNull()) }
         }
+    }
+
+    private fun postCommand(command: Array<String>) {
+        if (commandsClosed.get()) return
+        commandExecutor(command)
     }
 
     private fun setupDirectories(context: Context, configDir: File, cacheDir: File) {
@@ -417,13 +413,6 @@ class MPVPlayer(
     private var currentTracks: Tracks = Tracks.EMPTY
     private var playbackParameters: PlaybackParameters = PlaybackParameters.DEFAULT
 
-    /**
-     * mpv `speed` 属性的当前值（本端最近一次写入，或 mpv 上报的变化）。
-     *
-     * 与 [playbackParameters] 分开维护：mpv 换集（loadfile）不会重置 `speed` 属性，而 [resetInternalState] 只把
-     * [playbackParameters] 复位成 1×——若只按 [playbackParameters] 判定要不要写属性，就会出现「字段已是 1×、mpv
-     * 仍停在旧速度」时被漏写（#9：面板读数 / 媒体会话速度与实际播放不一致，新会话回落 1× 不生效）。
-     */
     private var mpvSpeed: Float = 1f
 
     // MPV Custom
@@ -433,6 +422,7 @@ class MPVPlayer(
     private val sourceEpoch = AtomicLong()
     private var sourcePosition = MpvSourcePositionState()
     private var pendingPlaylistRemap = false
+    private var preserveSourceOnPrepare = false
     private var currentDurationMs: Long? = null
     private var initialCommands = mutableListOf<Array<String>>()
     private var initialIndex: Int = 0
@@ -478,9 +468,7 @@ class MPVPlayer(
     }
 
     // mpv events
-    override fun eventProperty(property: String) {
-        // Nothing to do...
-    }
+    override fun eventProperty(property: String) {}
 
     override fun eventProperty(property: String, value: String) {
         handler.post {
@@ -768,20 +756,9 @@ class MPVPlayer(
         listeners.flushEvents()
     }
 
-    /**
-     * Select a Track or disable a [MPVTrackType] in the current player.
-     *
-     * @param trackType The [MPVTrackType]
-     * @param id Id to select or [C.INDEX_UNSET] to disable [MPVTrackType]
-     * @return true if the track is or was already selected
-     */
     private fun selectTrack(trackType: MPVTrackType, id: String) {
         mpvLib.setPropertyString(trackType.type, id)
     }
-
-    // ---------- 字幕：延迟 / 双语 / 外观（§1.1） ----------
-    // mpv 原生支持这些能力，和 ExoPlayer 的自研字幕渲染共用同一套面板，
-    // 差异只在底层实现：这里把面板设置翻译成 mpv 属性。
 
     /** 音轨延迟（毫秒）；正 = 声音延后（§1.2） */
     fun setAudioDelay(delayMs: Long) {
@@ -810,12 +787,6 @@ class MPVPlayer(
         logSubtitleState()
     }
 
-    /**
-     * 当前 `sid` 的原始值（数字 / `no` / `auto`）；读不到返回 null。
-     *
-     * 与 [getCurrentTracks] 的 `selected` 快照不同，`sid` 是同步属性：刚写完立刻能读回新值， 可供渲染层在 `track-list`
-     * 异步回调之前判断主字幕是否已经切换。
-     */
     fun currentSubtitleSelection(): String? = runCatching {
         mpvLib.getPropertyString("sid")
     }
@@ -837,11 +808,6 @@ class MPVPlayer(
         )
     }
 
-    /**
-     * 次字幕（mpv 的 track id 字符串）。
-     *
-     * 传 null 关闭。注意必须用 mpv 的 id（见 [getCurrentTracks] 里 Format.id）， 不是字幕数组下标。
-     */
     fun setSecondarySubtitle(trackId: String?) {
         val value = trackId?.takeIf { it.isNotBlank() } ?: "no"
         mpvLib.setPropertyString("secondary-sid", value)
@@ -863,17 +829,6 @@ class MPVPlayer(
         applyMpvSubtitlePosition(reservedFraction = subtitleReservation)
     }
 
-    /**
-     * 为 Compose 次字幕预留一条主字幕上方的安全区。
-     *
-     * [reservedFraction] = 次字幕可见顶边到安全底边的距离 + 4dp 间隙占视频高度的比例；null = 退出双字幕，恢复面板位置。
-     *
-     * 双字幕期间临时使用 `sub-ass-override=strip` 去掉 ASS 原生 `\pos`，否则固定坐标可以越过 App 的统一安全区；主字幕仍保留文本内容与面板颜色 /
-     * 描边。单字幕时立即恢复进入双字幕前的 ASS override，不改变原有特效路径。
-     *
-     * 文本主字幕进入双字幕后由 App 侧 libass 接管（见 [applyNativePrimarySubtitleVisible]），不再走这条百分比兜底； 只有图形字幕等无法交给
-     * libass 的主字幕才继续按 [reservedFraction] 预留。
-     */
     fun applySecondarySubtitleReservation(reservedFraction: Float?) {
         if (released) return
         // 原生次字幕轨已由 Compose 次字幕接管，避免同一句出现两次。
@@ -1319,11 +1274,11 @@ class MPVPlayer(
 
     /** Replaces the playlist without starting playback. */
     override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
-        val nextIndex = currentMediaItemIndex.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
-        commitPlaylistState(mediaItems, nextIndex)
-        markIntentionalEndFile(count = 2)
-        postCommand(arrayOf("playlist-clear"))
-        postCommand(arrayOf("playlist-remove", "current"))
+        val activeIdentity = sourceIdentity(internalMediaItems, currentMediaItemIndex)
+        val nextIndex =
+            mediaItems.indices.firstOrNull { sourceIdentity(mediaItems, it) == activeIdentity }
+                ?: currentMediaItemIndex.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
+        replaceMediaItems(mediaItems, nextIndex, startPositionMs = null)
     }
 
     /** Replaces the playlist and remembers the requested start item and position. */
@@ -1333,12 +1288,47 @@ class MPVPlayer(
         startPositionMs: Long,
     ) {
         val nextIndex = startWindowIndex.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
+        replaceMediaItems(mediaItems, nextIndex, startPositionMs)
+    }
+
+    private fun replaceMediaItems(
+        mediaItems: MutableList<MediaItem>,
+        nextIndex: Int,
+        startPositionMs: Long?,
+    ) {
+        val oldItems = internalMediaItems
+        val oldIndex = currentMediaItemIndex
+        val preserveSource =
+            sourceIdentity(oldItems, oldIndex)?.let {
+                it == sourceIdentity(mediaItems, nextIndex) &&
+                    (sourcePosition.positionMs != null || playbackState >= STATE_BUFFERING)
+            } == true
         commitPlaylistState(mediaItems, nextIndex)
-        markIntentionalEndFile(count = 2)
-        postCommand(arrayOf("playlist-clear"))
-        postCommand(arrayOf("playlist-remove", "current"))
+        preserveSourceOnPrepare = preserveSource
+        if (preserveSource) {
+            (oldItems.lastIndex downTo 0)
+                .filter { it != oldIndex }
+                .forEach { postCommand(arrayOf("playlist-remove", "$it")) }
+            mediaItems.indices
+                .filter { it != nextIndex }
+                .forEach { index ->
+                    val item = mediaItems[index]
+                    postCommand(
+                        arrayOf(
+                            "loadfile",
+                            "${item.localConfiguration?.uri ?: item.requestMetadata.mediaUri}",
+                            "insert-at",
+                            "$index",
+                        )
+                    )
+                }
+        } else {
+            markIntentionalEndFile(count = 2)
+            postCommand(arrayOf("playlist-clear"))
+            postCommand(arrayOf("playlist-remove", "current"))
+        }
         initialIndex = nextIndex
-        initialSeekTo = startPositionMs
+        initialSeekTo = startPositionMs ?: initialSeekTo
     }
 
     /**
@@ -1463,7 +1453,10 @@ class MPVPlayer(
             sourceIdentity(internalMediaItems, currentMediaItemIndex) !=
                 sourceIdentity(items, index)
         val indexChanged = currentMediaItemIndex != index
-        if (identityChanged) advanceSourceEpoch()
+        if (identityChanged) {
+            advanceSourceEpoch()
+            preserveSourceOnPrepare = false
+        }
         internalMediaItems = items
         currentMediaItemIndex = index
         if (remapPending) pendingPlaylistRemap = !identityChanged && indexChanged
@@ -1506,6 +1499,7 @@ class MPVPlayer(
     }
 
     private fun resetInternalState() {
+        preserveSourceOnPrepare = false
         isPlayerReady = false
         isSeekable = false
         playbackState = STATE_IDLE
@@ -1527,6 +1521,10 @@ class MPVPlayer(
 
     /** Prepares the player. */
     override fun prepare() {
+        if (preserveSourceOnPrepare) {
+            preserveSourceOnPrepare = false
+            return
+        }
         internalMediaItems.forEachIndexed { index, mediaItem ->
             postCommand(
                 arrayOf(
