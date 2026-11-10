@@ -508,6 +508,7 @@ constructor(
         val currentSourceId =
             mediaItem?.mediaMetadata?.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
         val seekState = _uiState.value.seekState
+        val seeking = seekState as? SeekState.Seeking
         val enginePositionMs = confirmedPosition(active)
         val input =
             PlaybackSessionInput(
@@ -526,7 +527,9 @@ constructor(
                 bufferedPositionMs = confirmedBufferedPosition(active, enginePositionMs),
                 hasPlayerError = _uiState.value.playerError != null,
                 hasSeekFailure = seekState is SeekState.Failed,
-                explicitSeekTargetMs = (seekState as? SeekState.Seeking)?.targetMs,
+                explicitSeekTargetMs = seeking?.targetMs,
+                explicitSeekRequestGeneration = seeking?.requestGeneration,
+                explicitSeekSourceEpoch = seeking?.sourceEpoch,
                 persistedResumeMs = persistedResumePositionMs(mediaItem?.mediaId, currentSourceId),
             )
         playbackSessionState =
@@ -3103,6 +3106,8 @@ internal data class PlaybackSessionInput(
     val hasPlayerError: Boolean,
     val hasSeekFailure: Boolean,
     val explicitSeekTargetMs: Long? = null,
+    val explicitSeekRequestGeneration: Long? = null,
+    val explicitSeekSourceEpoch: Long? = null,
     val persistedResumeMs: Long? = null,
 )
 
@@ -3114,6 +3119,9 @@ internal data class PlaybackSessionState(
     val wasLoading: Boolean = false,
     val terminal: PlayerViewModel.PlaybackRecovery? = null,
     val retryConsumed: Boolean = false,
+    val pendingSeekTargetMs: Long? = null,
+    val pendingSeekGeneration: Long? = null,
+    val pendingSeekBinding: String? = null,
 )
 
 internal object PlaybackSessionRules {
@@ -3130,6 +3138,24 @@ internal object PlaybackSessionRules {
                 bufferedPositionMs = normalizeEnginePosition(input.bufferedPositionMs),
             )
         val key = input.key ?: return PlaybackSessionState()
+        val explicitGeneration = input.explicitSeekRequestGeneration ?: input.explicitSeekTargetMs
+        val explicitBinding =
+            input.explicitSeekTargetMs?.let {
+                "$explicitGeneration|${input.explicitSeekSourceEpoch}|$key"
+            }
+        val pendingTarget =
+            if (explicitBinding == null) null
+            else if (state.pendingSeekGeneration == explicitGeneration) {
+                input.explicitSeekTargetMs.takeIf { state.pendingSeekBinding == explicitBinding }
+            } else {
+                input.explicitSeekTargetMs
+            }
+        val pendingBinding =
+            if (pendingTarget != null) explicitBinding
+            else
+                state.pendingSeekBinding.takeIf {
+                    state.pendingSeekGeneration == explicitGeneration
+                }
         var next =
             if (state.key == key) {
                 state
@@ -3142,6 +3168,12 @@ internal object PlaybackSessionRules {
                     wasLoading = isLoading(input),
                 )
             }
+        next =
+            next.copy(
+                pendingSeekTargetMs = pendingTarget,
+                pendingSeekGeneration = explicitGeneration,
+                pendingSeekBinding = pendingBinding,
+            )
         if (!input.playWhenReady || input.hasPlayerError || input.hasSeekFailure) {
             return next.copy(
                 lastEnginePositionMs = input.enginePositionMs ?: next.lastEnginePositionMs,
@@ -3170,7 +3202,12 @@ internal object PlaybackSessionRules {
         if (next.terminal == null && nowElapsedMs - progressAtMs >= STALL_TIMEOUT_MS) {
             val kind =
                 if (input.isBuffering) "PLAYBACK_PROGRESS_TIMEOUT" else "PROGRESS_UNCONFIRMED"
-            val (positionMs, source) = retryPosition(input, next.lastEnginePositionMs)
+            val (positionMs, source) =
+                retryPosition(
+                    next.pendingSeekTargetMs,
+                    next.lastEnginePositionMs,
+                    input.persistedResumeMs,
+                )
             next =
                 next.copy(
                     terminal =
@@ -3220,22 +3257,19 @@ internal object PlaybackSessionRules {
             (input.isBuffering || !input.isPlaying)
 
     private fun retryPosition(
-        input: PlaybackSessionInput,
+        pendingSeekTargetMs: Long?,
         lastConfirmedPositionMs: Long?,
+        persistedResumeMs: Long?,
     ): Pair<Long, PlayerViewModel.PlaybackRetryPositionSource> =
         when {
-            input.enginePositionMs != null ->
-                input.enginePositionMs.coerceAtLeast(0L) to
-                    PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION
+            pendingSeekTargetMs != null ->
+                pendingSeekTargetMs.coerceAtLeast(0L) to
+                    PlayerViewModel.PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST
             lastConfirmedPositionMs != null ->
                 lastConfirmedPositionMs.coerceAtLeast(0L) to
                     PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION
-            input.explicitSeekTargetMs != null ->
-                input.explicitSeekTargetMs.coerceAtLeast(0L) to
-                    PlayerViewModel.PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST
-            input.persistedResumeMs != null && input.persistedResumeMs > 0L ->
-                input.persistedResumeMs to
-                    PlayerViewModel.PlaybackRetryPositionSource.PERSISTED_RESUME
+            persistedResumeMs != null && persistedResumeMs > 0L ->
+                persistedResumeMs to PlayerViewModel.PlaybackRetryPositionSource.PERSISTED_RESUME
             else -> 0L to PlayerViewModel.PlaybackRetryPositionSource.START_ZERO
         }
 }

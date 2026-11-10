@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.player.local.presentation
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.mpv.MpvSourcePositionState
@@ -264,8 +265,12 @@ class PlaybackSessionRulesTest {
             terminalAtDeadline(engine, explicit, persisted).second.terminal?.positionSource
 
         assertEquals(
-            PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
+            PlayerViewModel.PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST,
             source(5_000L, 7_000L, 8_000L),
+        )
+        assertEquals(
+            PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
+            source(5_000L, null, 8_000L),
         )
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST,
@@ -278,6 +283,66 @@ class PlaybackSessionRulesTest {
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.START_ZERO,
             source(null, null, null),
+        )
+    }
+
+    @Test
+    fun `pending explicit seek survives buffering and remains ahead of confirmed position`() {
+        val ready = input(isPlaying = true, isBuffering = false, isReady = true)
+        val buffering =
+            input(
+                isPlaying = false,
+                isBuffering = true,
+                isReady = false,
+                enginePositionMs = null,
+                bufferedPositionMs = null,
+                explicitSeekTargetMs = 60_000L,
+                persistedResumeMs = 8_000L,
+            )
+        val atReady =
+            advance(ready.copy(enginePositionMs = 5_000L, explicitSeekTargetMs = 60_000L), 0L)
+        val stillBuffering = advance(buffering, 1_000L, atReady.first)
+        val terminal =
+            advance(buffering, PlaybackSessionRules.STALL_TIMEOUT_MS, stillBuffering.first)
+
+        assertEquals(60_000L, terminal.second.terminal?.positionMs)
+        assertEquals(
+            PlayerViewModel.PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST,
+            terminal.second.terminal?.positionSource,
+        )
+        assertEquals(
+            5_000L,
+            terminalAtDeadline(enginePositionMs = 5_000L, persistedResumeMs = 8_000L)
+                .second
+                .terminal
+                ?.positionMs,
+        )
+    }
+
+    @Test
+    fun `source change invalidates a pending target already bound to the old source`() {
+        val oldInput = input(enginePositionMs = 5_000L, explicitSeekTargetMs = 60_000L)
+        val oldState = advance(oldInput, 0L).first
+        val changedSource =
+            input(
+                key = "item-b|source-b|1|2",
+                enginePositionMs = null,
+                bufferedPositionMs = null,
+                explicitSeekTargetMs = 60_000L,
+                persistedResumeMs = 8_000L,
+            )
+        val switched = advance(changedSource, 0L, oldState)
+        val terminal =
+            advance(
+                changedSource,
+                PlaybackSessionRules.STALL_TIMEOUT_MS,
+                switched.first,
+            )
+
+        assertEquals(8_000L, terminal.second.terminal?.positionMs)
+        assertEquals(
+            PlayerViewModel.PlaybackRetryPositionSource.PERSISTED_RESUME,
+            terminal.second.terminal?.positionSource,
         )
     }
 
@@ -593,7 +658,7 @@ class PlaybackSessionRulesTest {
                 currentEpoch,
             )
         assertFalse(PlaybackSessionRules.retrySourceIsCurrent(terminal, currentKey))
-        assertEquals(token, terminal.terminal?.token)
+        assertEquals(token, terminal.terminal.token)
     }
 
     @Test
@@ -667,7 +732,188 @@ class PlaybackSessionRulesTest {
                 currentEpoch,
             )
         assertFalse(PlaybackSessionRules.retrySourceIsCurrent(terminal, currentKey))
-        assertEquals(token, terminal.terminal?.token)
+        assertEquals(token, terminal.terminal.token)
+    }
+
+    @Test
+    fun `addMediaItems before current remaps its index and preserves source truth`() {
+        val oldEpoch = 13L
+        val inserted = mediaItem("item-z", "https://media.example/item-z")
+        val before = mediaItem("item-a", "https://media.example/item-a")
+        val current = mediaItem("item-b", "https://media.example/item-b")
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = oldEpoch,
+                mediaItems = mutableListOf(before, current),
+                currentIndex = 1,
+                sourcePosition =
+                    MpvSourcePositionState(
+                        sourceEpoch = oldEpoch,
+                        positionMs = 5_000L,
+                        cacheEndMs = 9_000L,
+                        pendingDiscontinuityFromMs = 2_000L,
+                        isAnchored = true,
+                    ),
+            )
+        val oldKey = sessionKey(current, oldEpoch)
+        val oldTerminal =
+            advance(
+                    input(key = oldKey),
+                    PlaybackSessionRules.STALL_TIMEOUT_MS,
+                    advance(input(key = oldKey), 0L).first,
+                )
+                .first
+        val token = requireNotNull(oldTerminal.terminal).token
+
+        player.addMediaItems(0, mutableListOf(inserted))
+
+        assertEquals(oldEpoch, player.currentSourceEpoch())
+        assertEquals(2, player.currentMediaItemIndex)
+        assertEquals("item-b", itemAt(player, player.currentMediaItemIndex).mediaId)
+        assertEquals(5_000L, sourcePosition(player).positionMs)
+        assertEquals(9_000L, sourcePosition(player).cacheEndMs)
+        assertEquals(2_000L, sourcePosition(player).pendingDiscontinuityFromMs)
+        assertTrue(
+            PlaybackSessionRules.retrySourceIsCurrent(
+                oldTerminal,
+                sessionKey(
+                    itemAt(player, player.currentMediaItemIndex),
+                    player.currentSourceEpoch(),
+                ),
+            )
+        )
+        requireNotNull(PlaybackSessionRules.consumeRetry(oldTerminal, token))
+    }
+
+    @Test
+    fun `moveMediaItems remaps the active item without advancing source`() {
+        val oldEpoch = 17L
+        val first = mediaItem("item-a", "https://media.example/item-a")
+        val current = mediaItem("item-b", "https://media.example/item-b")
+        val last = mediaItem("item-c", "https://media.example/item-c")
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = oldEpoch,
+                mediaItems = mutableListOf(first, current, last),
+                currentIndex = 1,
+                sourcePosition =
+                    MpvSourcePositionState(
+                        sourceEpoch = oldEpoch,
+                        positionMs = 4_000L,
+                        cacheEndMs = 8_000L,
+                        pendingDiscontinuityFromMs = 1_000L,
+                        isAnchored = true,
+                    ),
+            )
+        val oldKey = sessionKey(current, oldEpoch)
+        val oldTerminal =
+            advance(
+                    input(key = oldKey),
+                    PlaybackSessionRules.STALL_TIMEOUT_MS,
+                    advance(input(key = oldKey), 0L).first,
+                )
+                .first
+        val token = requireNotNull(oldTerminal.terminal).token
+
+        player.moveMediaItems(1, 2, 2)
+
+        assertEquals(oldEpoch, player.currentSourceEpoch())
+        assertEquals(2, player.currentMediaItemIndex)
+        assertEquals("item-b", itemAt(player, player.currentMediaItemIndex).mediaId)
+        assertEquals(4_000L, sourcePosition(player).positionMs)
+        assertEquals(8_000L, sourcePosition(player).cacheEndMs)
+        assertEquals(1_000L, sourcePosition(player).pendingDiscontinuityFromMs)
+        assertTrue(
+            PlaybackSessionRules.retrySourceIsCurrent(
+                oldTerminal,
+                sessionKey(
+                    itemAt(player, player.currentMediaItemIndex),
+                    player.currentSourceEpoch(),
+                ),
+            )
+        )
+        requireNotNull(PlaybackSessionRules.consumeRetry(oldTerminal, token))
+    }
+
+    @Test
+    fun `removeMediaItems before current remaps its index and preserves source truth`() {
+        val oldEpoch = 19L
+        val first = mediaItem("item-a", "https://media.example/item-a")
+        val current = mediaItem("item-b", "https://media.example/item-b")
+        val last = mediaItem("item-c", "https://media.example/item-c")
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = oldEpoch,
+                mediaItems = mutableListOf(first, current, last),
+                currentIndex = 2,
+                sourcePosition =
+                    MpvSourcePositionState(
+                        sourceEpoch = oldEpoch,
+                        positionMs = 6_000L,
+                        cacheEndMs = 10_000L,
+                        pendingDiscontinuityFromMs = 3_000L,
+                        isAnchored = true,
+                    ),
+            )
+
+        player.removeMediaItems(0, 2)
+
+        assertEquals(oldEpoch, player.currentSourceEpoch())
+        assertEquals(0, player.currentMediaItemIndex)
+        assertEquals("item-c", itemAt(player, player.currentMediaItemIndex).mediaId)
+        assertEquals(6_000L, sourcePosition(player).positionMs)
+        assertEquals(10_000L, sourcePosition(player).cacheEndMs)
+        assertEquals(3_000L, sourcePosition(player).pendingDiscontinuityFromMs)
+    }
+
+    @Test
+    fun `setMediaItems with the same active identity preserves source truth and retry token`() {
+        val oldEpoch = 23L
+        val replacedNeighbor = mediaItem("item-a", "https://media.example/item-a")
+        val current = mediaItem("item-b", "https://media.example/item-b")
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = oldEpoch,
+                mediaItems = mutableListOf(replacedNeighbor, current),
+                currentIndex = 1,
+                sourcePosition =
+                    MpvSourcePositionState(
+                        sourceEpoch = oldEpoch,
+                        positionMs = 7_000L,
+                        cacheEndMs = 11_000L,
+                        pendingDiscontinuityFromMs = 4_000L,
+                        isAnchored = true,
+                    ),
+            )
+        val oldKey = sessionKey(current, oldEpoch)
+        val oldTerminal =
+            advance(
+                    input(key = oldKey),
+                    PlaybackSessionRules.STALL_TIMEOUT_MS,
+                    advance(input(key = oldKey), 0L).first,
+                )
+                .first
+        val token = requireNotNull(oldTerminal.terminal).token
+        val replacement = mediaItem("item-x", "https://media.example/item-x")
+
+        player.setMediaItems(mutableListOf(replacement, current), 1, 7_000L)
+
+        assertEquals(oldEpoch, player.currentSourceEpoch())
+        assertEquals(1, player.currentMediaItemIndex)
+        assertEquals("item-b", itemAt(player, player.currentMediaItemIndex).mediaId)
+        assertEquals(7_000L, sourcePosition(player).positionMs)
+        assertEquals(11_000L, sourcePosition(player).cacheEndMs)
+        assertEquals(4_000L, sourcePosition(player).pendingDiscontinuityFromMs)
+        assertTrue(
+            PlaybackSessionRules.retrySourceIsCurrent(
+                oldTerminal,
+                sessionKey(
+                    itemAt(player, player.currentMediaItemIndex),
+                    player.currentSourceEpoch(),
+                ),
+            )
+        )
+        requireNotNull(PlaybackSessionRules.consumeRetry(oldTerminal, token))
     }
 
     @Test
@@ -782,6 +1028,20 @@ class PlaybackSessionRulesTest {
     private fun mediaItem(mediaId: String, uri: String): MediaItem =
         MediaItem.Builder().setMediaId(mediaId).setUri(uri).build()
 
+    private fun sessionKey(item: MediaItem, engineEpoch: Long) =
+        playbackSessionKeyFor(
+            seekMediaIdentityFor(
+                itemId = item.mediaId,
+                mediaSourceId =
+                    item.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID).orEmpty(),
+                mediaSourceUri =
+                    item.localConfiguration?.uri?.toString()
+                        ?: item.requestMetadata.mediaUri?.toString().orEmpty(),
+            ),
+            9L,
+            engineEpoch,
+        )
+
     private fun allocatedMpvPlayer(
         sourceEpoch: Long,
         mediaItems: MutableList<MediaItem>,
@@ -802,6 +1062,10 @@ class PlaybackSessionRulesTest {
 
     private fun sourcePosition(player: MPVPlayer): MpvSourcePositionState =
         getField(player, "sourcePosition") as MpvSourcePositionState
+
+    private fun itemAt(player: MPVPlayer, index: Int): MediaItem =
+        @Suppress("UNCHECKED_CAST")
+        (getField(player, "internalMediaItems") as MutableList<MediaItem>)[index]
 
     private fun setField(target: Any, name: String, value: Any) {
         target.javaClass.getDeclaredField(name).apply {

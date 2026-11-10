@@ -37,6 +37,7 @@ import androidx.media3.common.util.Clock
 import androidx.media3.common.util.ListenerSet
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.Util
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SUBTITLE_SOURCES
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
@@ -431,6 +432,7 @@ class MPVPlayer(
     private var currentMediaItemIndex: Int = 0
     private val sourceEpoch = AtomicLong()
     private var sourcePosition = MpvSourcePositionState()
+    private var pendingPlaylistRemap = false
     private var currentDurationMs: Long? = null
     private var initialCommands = mutableListOf<Array<String>>()
     private var initialIndex: Int = 0
@@ -542,9 +544,7 @@ class MPVPlayer(
     }
 
     override fun eventProperty(property: String, value: Long) {
-        val epoch =
-            if (property == "playlist-current-pos") sourceEpoch.incrementAndGet()
-            else sourceEpoch.get()
+        val epoch = sourceEpoch.get()
         handler.post {
             if (epoch != sourceEpoch.get()) return@post
             when (property) {
@@ -571,8 +571,16 @@ class MPVPlayer(
                     if (value < 0) {
                         return@post
                     }
-                    sourcePosition = sourcePosition.replaceSource(epoch)
-                    currentMediaItemIndex = value.toInt()
+                    val nextIndex = value.toInt()
+                    if (
+                        pendingPlaylistRemap &&
+                            sourceIdentity(internalMediaItems, nextIndex) !=
+                                sourceIdentity(internalMediaItems, currentMediaItemIndex)
+                    ) {
+                        return@post
+                    }
+                    pendingPlaylistRemap = false
+                    commitPlaylistState(internalMediaItems, nextIndex, remapPending = false)
                     val newMediaItem = currentMediaItem
                     if (oldMediaItem?.mediaId != newMediaItem?.mediaId) {
                         oldMediaItem = newMediaItem
@@ -1311,11 +1319,11 @@ class MPVPlayer(
 
     /** Replaces the playlist without starting playback. */
     override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
-        advanceSourceEpoch()
+        val nextIndex = currentMediaItemIndex.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
+        commitPlaylistState(mediaItems, nextIndex)
         markIntentionalEndFile(count = 2)
         postCommand(arrayOf("playlist-clear"))
         postCommand(arrayOf("playlist-remove", "current"))
-        internalMediaItems = mediaItems
     }
 
     /** Replaces the playlist and remembers the requested start item and position. */
@@ -1324,12 +1332,12 @@ class MPVPlayer(
         startWindowIndex: Int,
         startPositionMs: Long,
     ) {
-        advanceSourceEpoch()
+        val nextIndex = startWindowIndex.coerceIn(0, (mediaItems.size - 1).coerceAtLeast(0))
+        commitPlaylistState(mediaItems, nextIndex)
         markIntentionalEndFile(count = 2)
         postCommand(arrayOf("playlist-clear"))
         postCommand(arrayOf("playlist-remove", "current"))
-        internalMediaItems = mediaItems
-        initialIndex = startWindowIndex
+        initialIndex = nextIndex
         initialSeekTo = startPositionMs
     }
 
@@ -1347,7 +1355,13 @@ class MPVPlayer(
          * 这里统一收敛到 [0, size]：越界一律当作"追加到末尾"。
          */
         val safeIndex = if (index in 0..internalMediaItems.size) index else internalMediaItems.size
-        internalMediaItems.addAll(safeIndex, mediaItems)
+        val activeItem = internalMediaItems.getOrNull(currentMediaItemIndex)
+        val nextItems = internalMediaItems.toMutableList()
+        nextItems.addAll(safeIndex, mediaItems)
+        val nextIndex =
+            nextItems.indexOfFirst { it === activeItem }.takeIf { it >= 0 }
+                ?: safeIndex.coerceAtMost((nextItems.size - 1).coerceAtLeast(0))
+        commitPlaylistState(nextItems, nextIndex)
         mediaItems.forEach { mediaItem ->
             postCommand(
                 arrayOf(
@@ -1381,9 +1395,15 @@ class MPVPlayer(
         val to = toIndex.coerceAtMost(size)
         val target = newIndex.coerceIn(0, size - (to - from))
 
+        val activeItem = internalMediaItems.getOrNull(currentMediaItemIndex)
         val moved = internalMediaItems.subList(from, to).toList()
-        internalMediaItems.subList(from, to).clear()
-        internalMediaItems.addAll(target.coerceAtMost(internalMediaItems.size), moved)
+        val nextItems = internalMediaItems.toMutableList()
+        nextItems.subList(from, to).clear()
+        nextItems.addAll(target.coerceAtMost(nextItems.size), moved)
+        val nextIndex =
+            nextItems.indexOfFirst { it === activeItem }.takeIf { it >= 0 }
+                ?: target.coerceIn(0, (nextItems.size - 1).coerceAtLeast(0))
+        commitPlaylistState(nextItems, nextIndex)
         // 单条移动 == 一条 playlist-move；多条时从后往前发，避免中途下标漂移
         for (offset in moved.indices.reversed()) {
             postCommand(arrayOf("playlist-move", (from + offset).toString(), target.toString()))
@@ -1412,14 +1432,41 @@ class MPVPlayer(
         val to = toIndex.coerceIn(from, size)
         if (from >= to) return
 
-        if (currentMediaItemIndex in from until to) advanceSourceEpoch()
-        internalMediaItems.subList(from, to).clear()
-        if (currentMediaItemIndex in from until to) markIntentionalEndFile()
+        val activeItem = internalMediaItems.getOrNull(currentMediaItemIndex)
+        val nextItems = internalMediaItems.toMutableList()
+        nextItems.subList(from, to).clear()
+        val currentRemoved = activeItem != null && nextItems.none { it === activeItem }
+        val nextIndex =
+            nextItems.indexOfFirst { it === activeItem }.takeIf { it >= 0 }
+                ?: from.coerceIn(0, (nextItems.size - 1).coerceAtLeast(0))
+        commitPlaylistState(nextItems, nextIndex)
+        if (currentRemoved) markIntentionalEndFile()
         // 从后往前删：先删大下标，前面的下标不会漂移
         for (index in (to - 1) downTo from) {
             postCommand(arrayOf("playlist-remove", index.toString()))
         }
         notifyTimelineChanged()
+    }
+
+    private fun sourceIdentity(items: List<MediaItem>, index: Int): String? =
+        items.getOrNull(index)?.let {
+            "${it.mediaId}|${it.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)}|" +
+                (it.localConfiguration?.uri ?: it.requestMetadata.mediaUri)
+        }
+
+    private fun commitPlaylistState(
+        items: MutableList<MediaItem>,
+        index: Int,
+        remapPending: Boolean = true,
+    ) {
+        val identityChanged =
+            sourceIdentity(internalMediaItems, currentMediaItemIndex) !=
+                sourceIdentity(items, index)
+        val indexChanged = currentMediaItemIndex != index
+        if (identityChanged) advanceSourceEpoch()
+        internalMediaItems = items
+        currentMediaItemIndex = index
+        if (remapPending) pendingPlaylistRemap = !identityChanged && indexChanged
     }
 
     private fun notifyTimelineChanged() {
@@ -1431,23 +1478,6 @@ class MPVPlayer(
         }
     }
 
-    /**
-     * Returns the player's currently available [Commands].
-     *
-     * The returned [Commands] are not updated when available commands change. Use
-     * [ ][Player.Listener.onAvailableCommandsChanged] to get an update when the available commands
-     * change.
-     *
-     * Executing a command that is not available (for example, calling [.next] if
-     * [ ][.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM] is unavailable) will neither throw an exception nor
-     * generate a [.getPlayerError] player error}.
-     *
-     * [.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM] and [.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM] are unavailable
-     * if there is no such [MediaItem].
-     *
-     * @return The currently available [Commands].
-     * @see Player.Listener.onAvailableCommandsChanged
-     */
     override fun getAvailableCommands(): Commands {
         return Commands.Builder()
             .addAll(permanentAvailableCommands)
@@ -1509,48 +1539,18 @@ class MPVPlayer(
         prepareMediaItem(initialIndex)
     }
 
-    /**
-     * Returns the current [playback state][Player.State] of the player.
-     *
-     * @return The current [playback state][Player.State].
-     * @see Player.Listener.onPlaybackStateChanged
-     */
     override fun getPlaybackState(): Int {
         return playbackState
     }
 
-    /**
-     * Returns the reason why playback is suppressed even though [.getPlayWhenReady] is `true`, or
-     * [.PLAYBACK_SUPPRESSION_REASON_NONE] if playback is not suppressed.
-     *
-     * @return The current [playback suppression reason][Player.PlaybackSuppressionReason].
-     * @see Player.Listener.onPlaybackSuppressionReasonChanged
-     */
     override fun getPlaybackSuppressionReason(): Int {
         return PLAYBACK_SUPPRESSION_REASON_NONE
     }
 
-    /**
-     * Returns the error that caused playback to fail. This is the same error that will have been
-     * reported via [Player.Listener.onPlayerError] at the time of failure. It can be queried using
-     * this method until the player is re-prepared.
-     *
-     * Note that this method will always return `null` if [.getPlaybackState] is not [.STATE_IDLE].
-     *
-     * @return The error, or `null`.
-     * @see Player.Listener.onPlayerError
-     */
     override fun getPlayerError(): PlaybackException? {
         return null
     }
 
-    /**
-     * Sets whether playback should proceed when [.getPlaybackState] == [.STATE_READY].
-     *
-     * If the player is already in the ready state then this method pauses and resumes playback.
-     *
-     * @param playWhenReady Whether playback should proceed when ready.
-     */
     override fun setPlayWhenReady(playWhenReady: Boolean) {
         if (currentPlayWhenReady != playWhenReady) {
             setPlayerStateAndNotifyIfChanged(
@@ -1573,21 +1573,10 @@ class MPVPlayer(
         }
     }
 
-    /**
-     * Whether playback will proceed when [.getPlaybackState] == [.STATE_READY].
-     *
-     * @return Whether playback will proceed when ready.
-     * @see Player.Listener.onPlayWhenReadyChanged
-     */
     override fun getPlayWhenReady(): Boolean {
         return currentPlayWhenReady
     }
 
-    /**
-     * Sets the [Player.RepeatMode] to be used for playback.
-     *
-     * @param repeatMode The repeat mode.
-     */
     override fun setRepeatMode(repeatMode: Int) {
         when (repeatMode) {
             REPEAT_MODE_OFF -> {
@@ -1605,30 +1594,14 @@ class MPVPlayer(
         }
     }
 
-    /**
-     * Returns the current [Player.RepeatMode] used for playback.
-     *
-     * @return The current repeat mode.
-     * @see Player.Listener.onRepeatModeChanged
-     */
     override fun getRepeatMode(): Int {
         return repeatMode
     }
 
-    /**
-     * Sets whether shuffling of windows is enabled.
-     *
-     * @param shuffleModeEnabled Whether shuffling is enabled.
-     */
     override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
         TODO("Not yet implemented")
     }
 
-    /**
-     * Returns whether shuffling of windows is enabled.
-     *
-     * @see Player.Listener.onShuffleModeEnabledChanged
-     */
     override fun getShuffleModeEnabled(): Boolean {
         return false
     }
@@ -1719,16 +1692,6 @@ class MPVPlayer(
         return C.DEFAULT_MAX_SEEK_TO_PREVIOUS_POSITION_MS
     }
 
-    /**
-     * Attempts to set the playback parameters. Passing [PlaybackParameters.DEFAULT] resets the
-     * player to the default, which means there is no speed or pitch adjustment.
-     *
-     * Playback parameters changes may cause the player to buffer.
-     * [ ][Player.Listener.onPlaybackParametersChanged] will be called whenever the currently active
-     * playback parameters change.
-     *
-     * @param playbackParameters The playback parameters.
-     */
     override fun setPlaybackParameters(playbackParameters: PlaybackParameters) {
         // #9：内部字段与 mpv 属性一起同步。是否写属性按 [mpvSpeed]（mpv 一侧的真实值）判定，
         // 不能按 [playbackParameters]——换集后它会被 resetInternalState 复位成 1×，与 mpv 实际速度脱节。
@@ -1740,11 +1703,6 @@ class MPVPlayer(
         }
     }
 
-    /**
-     * Returns the currently active playback parameters.
-     *
-     * @see Player.Listener.onPlaybackParametersChanged
-     */
     override fun getPlaybackParameters(): PlaybackParameters {
         return playbackParameters
     }
