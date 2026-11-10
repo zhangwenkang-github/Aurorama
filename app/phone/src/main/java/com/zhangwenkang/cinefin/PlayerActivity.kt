@@ -41,7 +41,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
@@ -869,8 +868,15 @@ class PlayerActivity : BasePlayerActivity() {
      *
      * 注意顺序：先读当前位置，再写偏好——写完后 [PlayerViewModel.player] 会按新偏好重建实例， 后读位置会拿到 0。
      */
+    private fun currentConfirmedPosition(): Long {
+        val session = viewModel.uiState.value.playbackSession
+        return PlayerViewModel.confirmedPosition(viewModel.player)
+            ?: session.lastConfirmedPositionMs?.takeIf { viewModel.player !is MPVPlayer }
+            ?: C.TIME_UNSET
+    }
+
     private fun switchBackendAndRestart(target: String) {
-        val position = PlayerViewModel.confirmedPosition(viewModel.player) ?: C.TIME_UNSET
+        val position = currentConfirmedPosition()
         // W19：重启目标必须在写偏好之前取——偏好一变，PlayerHolder 会立刻按新偏好重建空实例
         val restartTarget = currentRestartTarget()
         viewModel.setBackend(target)
@@ -888,7 +894,7 @@ class PlayerActivity : BasePlayerActivity() {
      * mpv，toggle 会误判成「切回 ExoPlayer」（W17 根因）。
      */
     private fun switchBackendForFallback(target: String) {
-        val position = PlayerViewModel.confirmedPosition(viewModel.player) ?: C.TIME_UNSET
+        val position = currentConfirmedPosition()
         val restartTarget = currentRestartTarget()
         viewModel.setBackend(target)
         Timber.d("Restart player with backend=$target from position=$position (fallback)")
@@ -1147,7 +1153,7 @@ class PlayerActivity : BasePlayerActivity() {
 
     /** 重启播放页并从当前位置续播：清 ViewModel（连着旧 player）后 recreate，Intent 里带上位置 */
     private fun restartPlaybackKeepingPosition(reason: String) {
-        val position = PlayerViewModel.confirmedPosition(viewModel.player) ?: C.TIME_UNSET
+        val position = currentConfirmedPosition()
         Timber.d("Restart player (%s) from position=%d", reason, position)
         restartPlaybackFromPosition(position)
     }

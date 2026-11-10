@@ -59,6 +59,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -535,8 +536,8 @@ private class PlayerRuntime {
     /** 当前播放核心能不能被随机播放：mpv 后端的 setShuffleModeEnabled 还是 TODO，不能碰 */
     var canShuffle by mutableStateOf(false)
 
-    fun sync(player: Player) {
-        val confirmedPosition = PlayerViewModel.confirmedPosition(player)
+    fun sync(player: Player, lastConfirmedPositionMs: Long?) {
+        val confirmedPosition = PlayerViewModel.confirmedPosition(player) ?: lastConfirmedPositionMs
         position = confirmedPosition ?: C.TIME_UNSET
         duration = player.duration.let { if (it > 0L) it else 0L }
         buffered =
@@ -579,22 +580,26 @@ private class PlayerRuntime {
 }
 
 @Composable
-private fun rememberPlayerRuntime(player: Player): PlayerRuntime {
+private fun rememberPlayerRuntime(
+    player: Player,
+    lastConfirmedPositionMs: Long?,
+): PlayerRuntime {
     val runtime = remember { PlayerRuntime() }
+    val latestLastConfirmedPositionMs = rememberUpdatedState(lastConfirmedPositionMs)
     DisposableEffect(player) {
         val listener =
             object : Player.Listener {
                 override fun onEvents(p: Player, events: Player.Events) {
-                    runtime.sync(p)
+                    runtime.sync(p, latestLastConfirmedPositionMs.value)
                 }
             }
         player.addListener(listener)
-        runtime.sync(player)
+        runtime.sync(player, latestLastConfirmedPositionMs.value)
         onDispose { player.removeListener(listener) }
     }
     LaunchedEffect(player) {
         while (true) {
-            runtime.sync(player)
+            runtime.sync(player, latestLastConfirmedPositionMs.value)
             delay(if (runtime.isPlaying) 500L else 1000L)
         }
     }
@@ -731,7 +736,12 @@ fun PlayerControlOverlay(
     onSelectMediaItem: (Int) -> Unit = {},
     onRetrySeek: () -> Unit = {},
 ) {
-    val runtime = rememberPlayerRuntime(player)
+    val playbackSession = uiState.playbackSession
+    val runtime =
+        rememberPlayerRuntime(
+            player,
+            playbackSession.lastConfirmedPositionMs?.takeIf { player !is MPVPlayer },
+        )
     val displayPositionMs =
         if (runtime.position < 0L && uiState.seekState !is SeekState.Seeking) C.TIME_UNSET
         else
@@ -740,7 +750,6 @@ fun PlayerControlOverlay(
                 runtime.position,
                 SystemClock.elapsedRealtime(),
             )
-    val playbackSession = uiState.playbackSession
     val seekFailed =
         (uiState.seekState as? SeekState.Failed)?.takeIf { playbackSession.showSeekFailure }
     val progressTerminal = playbackSession.terminal

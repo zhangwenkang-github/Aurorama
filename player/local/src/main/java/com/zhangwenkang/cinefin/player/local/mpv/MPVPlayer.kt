@@ -1311,7 +1311,7 @@ class MPVPlayer(
 
     /** Replaces the playlist without starting playback. */
     override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
-        // 自己发起的换片：接下来非 EOF 的 END_FILE 不算播放失败
+        advanceSourceEpoch()
         markIntentionalEndFile(count = 2)
         postCommand(arrayOf("playlist-clear"))
         postCommand(arrayOf("playlist-remove", "current"))
@@ -1324,6 +1324,7 @@ class MPVPlayer(
         startWindowIndex: Int,
         startPositionMs: Long,
     ) {
+        advanceSourceEpoch()
         markIntentionalEndFile(count = 2)
         postCommand(arrayOf("playlist-clear"))
         postCommand(arrayOf("playlist-remove", "current"))
@@ -1411,8 +1412,8 @@ class MPVPlayer(
         val to = toIndex.coerceIn(from, size)
         if (from >= to) return
 
+        if (currentMediaItemIndex in from until to) advanceSourceEpoch()
         internalMediaItems.subList(from, to).clear()
-        // 可能删到正在播的条目（如清空队列）：接下来的非 EOF END_FILE 属自己发起
         if (currentMediaItemIndex in from until to) markIntentionalEndFile()
         // 从后往前删：先删大下标，前面的下标不会漂移
         for (index in (to - 1) downTo from) {
@@ -1421,8 +1422,8 @@ class MPVPlayer(
         notifyTimelineChanged()
     }
 
-    /** 时间线变化通知（队列增删 / 重排后刷新控制层的队列快照） */
     private fun notifyTimelineChanged() {
+        if (commandsClosed.get()) return
         handler.post {
             listeners.sendEvent(EVENT_TIMELINE_CHANGED) { listener ->
                 listener.onTimelineChanged(timeline, TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED)
@@ -1479,13 +1480,19 @@ class MPVPlayer(
         isSeekable = false
         playbackState = STATE_IDLE
         currentPlayWhenReady = false
-        sourcePosition = sourcePosition.replaceSource(sourceEpoch.incrementAndGet())
+        advanceSourceEpoch()
         currentDurationMs = null
         currentTracks = Tracks.EMPTY
         externalSubtitleTrackIds.clear()
         pendingSideloadedSubtitleAdds.clear()
         playbackParameters = PlaybackParameters.DEFAULT
         initialCommands.clear()
+    }
+
+    private fun advanceSourceEpoch(): Long {
+        val nextEpoch = sourceEpoch.incrementAndGet()
+        sourcePosition = sourcePosition.replaceSource(nextEpoch)
+        return nextEpoch
     }
 
     /** Prepares the player. */

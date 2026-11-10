@@ -108,10 +108,8 @@ class PlayerViewModel
 constructor(
     private val application: Application,
     private val repository: JellyfinRepository,
-    // Progress is persisted directly as well as through the playback session.
     private val playbackPositionWriter: PlaybackPositionWriter,
     private val appPreferences: AppPreferences,
-    /** 播放器实例由进程级单例持有：播放页关闭后通知栏 / 后台播放仍要能控制它（阶段 4.1） */
     private val playerHolder: PlayerHolder,
     private val savedStateHandle: SavedStateHandle,
     /** W55 睡眠定时统一：进程级状态源（音乐 / 视频共用同一计时器）。 */
@@ -189,7 +187,6 @@ constructor(
     private var playbackSessionState = PlaybackSessionState()
     private var playbackSessionJob: Job? = null
 
-    /** W55 睡眠定时状态（统一状态源）：播放器睡眠键激活态与睡眠面板消费。 */
     val sleepTimerState = sleepTimerController.state
 
     /** W55：选择睡眠定时分钟；null = 取消。 */
@@ -199,7 +196,6 @@ constructor(
     private val eventsChannel = Channel<PlayerEvents>(capacity = Channel.BUFFERED)
     val eventsChannelFlow = eventsChannel.receiveAsFlow()
 
-    /** W18：上一次被回退链接管的失败（内核:档位 + 时间），用于吞掉同一次失败的重复上报 */
     private var lastFailureHandledKey: String? = null
     private var lastFailureHandledAtMs: Long = 0L
 
@@ -217,13 +213,11 @@ constructor(
         val currentSkipButtonStringRes: Int,
         // Trickplay frames are loaded on demand.
         val trickplayIntervalMs: Int = 0,
-        /** W20：每加载好一张精灵图 +1；Compose 用它触发重组，把新到位的预览图刷出来 */
         val trickplayVersion: Int = 0,
         val currentChapters: List<PlayerChapter>,
         val fileLoaded: Boolean,
         // Segment-chip duration comes from the live preference.
         val skipChipDurationMs: Long = 5_000L,
-        /** 播放失败时的错误信息；非空时控制层显示错误卡片 */
         val playerError: PlayerErrorInfo? = null,
         /** W86-C：seek 请求的唯一状态；UI 不再根据单次位置采样猜测完成。 */
         val seekState: SeekState = SeekState.Idle,
@@ -237,6 +231,7 @@ constructor(
         val showSeekFailure: Boolean = false,
         val loading: Boolean = true,
         val terminal: PlaybackRecovery? = null,
+        val lastConfirmedPositionMs: Long? = null,
     )
 
     data class PlaybackRecovery(
@@ -507,7 +502,6 @@ constructor(
         }
     }
 
-    // Samples playback intent, loading, progress and terminal state.
     private fun refreshPlaybackSession(nowElapsedMs: Long = SystemClock.elapsedRealtime()) {
         val active = playerHolder.existingPlayer
         val mediaItem = active?.currentMediaItem
@@ -2678,6 +2672,11 @@ constructor(
             Timber.d("Ignoring stale playback retry terminal=%s", terminalToken)
             return
         }
+        val active = playerHolder.existingPlayer
+        val currentKey = currentPlaybackSessionKey(active, active?.currentMediaItem)
+        if (!PlaybackSessionRules.retrySourceIsCurrent(playbackSessionState, currentKey)) {
+            return refreshPlaybackSession()
+        }
         playbackSessionState =
             PlaybackSessionRules.consumeRetry(playbackSessionState, terminalToken) ?: return
         Timber.d(
@@ -2710,9 +2709,10 @@ constructor(
         refreshPlaybackSession()
     }
 
-    // Use live position first, then the matching persisted item/source position.
     private fun currentResumePositionMs(): Long {
-        val livePosition = confirmedPosition(player) ?: C.TIME_UNSET
+        refreshPlaybackSession()
+        val livePosition =
+            confirmedPosition(player) ?: playbackSessionState.lastEnginePositionMs ?: C.TIME_UNSET
         if (livePosition > 0L) return livePosition
         val mediaId =
             player.currentMediaItem?.mediaId?.let { raw ->
@@ -2731,7 +2731,6 @@ constructor(
         }
     }
 
-    // Persist the next backend; the caller restarts the page and session.
     fun switchBackend(): String {
         val next =
             if (playerBackend == PLAYER_BACKEND_MPV) PLAYER_BACKEND_EXOPLAYER
@@ -3171,7 +3170,7 @@ internal object PlaybackSessionRules {
         if (next.terminal == null && nowElapsedMs - progressAtMs >= STALL_TIMEOUT_MS) {
             val kind =
                 if (input.isBuffering) "PLAYBACK_PROGRESS_TIMEOUT" else "PROGRESS_UNCONFIRMED"
-            val (positionMs, source) = retryPosition(input)
+            val (positionMs, source) = retryPosition(input, next.lastEnginePositionMs)
             next =
                 next.copy(
                     terminal =
@@ -3185,6 +3184,9 @@ internal object PlaybackSessionRules {
         }
         return next
     }
+
+    fun retrySourceIsCurrent(state: PlaybackSessionState, currentSessionKey: String?): Boolean =
+        state.key == currentSessionKey
 
     fun consumeRetry(state: PlaybackSessionState, token: String): PlaybackSessionState? =
         state
@@ -3204,6 +3206,7 @@ internal object PlaybackSessionRules {
             showSeekFailure = showSeekFailure,
             loading = terminal == null && !showError && !showSeekFailure && isLoading(input),
             terminal = terminal,
+            lastConfirmedPositionMs = state.lastEnginePositionMs,
         )
     }
 
@@ -3217,11 +3220,15 @@ internal object PlaybackSessionRules {
             (input.isBuffering || !input.isPlaying)
 
     private fun retryPosition(
-        input: PlaybackSessionInput
+        input: PlaybackSessionInput,
+        lastConfirmedPositionMs: Long?,
     ): Pair<Long, PlayerViewModel.PlaybackRetryPositionSource> =
         when {
             input.enginePositionMs != null ->
                 input.enginePositionMs.coerceAtLeast(0L) to
+                    PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION
+            lastConfirmedPositionMs != null ->
+                lastConfirmedPositionMs.coerceAtLeast(0L) to
                     PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION
             input.explicitSeekTargetMs != null ->
                 input.explicitSeekTargetMs.coerceAtLeast(0L) to
