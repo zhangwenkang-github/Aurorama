@@ -6757,3 +6757,56 @@ merge-prep、integration 与 Release。** 真实设备未执行不是本次 FAIL
 
 下一步不再是实现动作，而是用户 / 架构层决策：是否新建独立的 Progress state-model reshape
 任务线（推荐），或正式延期 / retire 当前 P1；两者都必须新建任务卡，不能复用本轮做第三次补丁。
+
+### 52.41 独立 Progress state-model reshape 任务卡获批（2026-11-10）
+
+**状态**：`USER_DECISION=CREATE_NEW_INDEPENDENT_TASK /`
+`TASK_ID=V1.4.1-PLAYER-PROGRESS-STATE-RESHAPE-2026-11-10 /`
+`SCOPE_FROZEN / IMPLEMENTATION_REQUIRED / NO_SEPARATE_DESIGN_OWNER`。
+
+用户于 2026-11-10 明确选择推荐方案 1：从已 `BLOCKED_HISTORY` 的旧任务线另起独立 reshape
+任务卡，并要求尽可能简化流程、减少 token。新任务不再补第三次“最小补丁”，而是以 R2 review
+的两个生产调用链断层为唯一修复目标：
+
+```text
+P1-PROGRESS-R2-A
+Exo BUFFERING 不得丢失最后 confirmed position；UI / backend switch / Activity restart /
+progress retry 必须消费同一 last-confirmed truth。
+
+P1-PROGRESS-R2-B
+mpv 任何会替换当前 playlist/source 的 App mutation 必须在 mutation 当刻原子推进 source epoch，
+并清 position/cache/pending；旧 callback、旧 position/cache 与旧 retry terminal 必须立即失效。
+```
+
+实现写域固定为旧任务已批准九路径并集内，实际预期仍为原来五路径：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+流程压缩为一个实现 owner：先给出短计划，再 RED→GREEN；不另派 design owner，不重复已通过的
+R14/R15 或旧 724 全量，只在修复后运行 targeted、player-local、phone、assemble、KTFMT、A0、
+GatePlan。实现报告后必须由不同 fresh scoped review 复核，再单独决定 Pad QA。
+
+非目标：新 production/test file、`CinefinPlaybackService.kt`、schema/settings/metadata/A0 baseline、
+版本/签名/release、P1-PLAYER-SEEK-001、P2 loading/stall、PC-03/04/05、DirectPlay+Exo 全矩阵、
+网络恢复、K60、设备预取、截图、merge-prep、integration 与 Release。
+
+验收：
+
+```text
+RED 必须先在既有 test path 实际失败，failure 为行为断言而非编译/路径错误；
+Exo READY(5000)->BUFFERING 后 UI/restart/retry 仍消费 5000，no-source/BUFFERING raw 0 仍为 UNKNOWN；
+mpv setMediaItems/removeMediaItems 等当前 source mutation 当刻使 old epoch position/cache/retry 全部失效；
+targeted + player-local + phone GREEN；assemble/KTFMT/A0/GatePlan PASS；
+无新文件、无越权路径；
+fresh scoped review 未 PASS 前不申请设备锁、不进入 QA。
+```
+
+停止条件：需要新路径、Service/schema/settings/metadata、设备或生产写；修复依赖 UI cache/target/fake
+callback；无法在 mutation 当刻失效旧 source；A0 余量不足；实现后 targeted/full gate FAIL 且同 owner
+一次受控修复仍失败；或出现未知新 P0/P1。
