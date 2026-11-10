@@ -7352,8 +7352,8 @@ manifest；A0 baseline `15,512`，当前 headroom `4`。Review 必须由与 R8 i
 
 ### 52.53 Progress source-identity / retry-priority R9 任务卡（2026-11-11）
 
-**状态**：`R9_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
-`R8_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+**状态**：`R9_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R10_REQUIRED /`
+`QA_READY=NO`。
 
 R9 从 R8 candidate `c5ef569aa18d33d485d05a4707909f856ed0e4f0` / tree
 `5fd3645f8974c540130d43860c7003e8e0f70224` 隔离建立，保留 R8 已通过的 distinct-URI
@@ -7368,6 +7368,13 @@ worktree clean、未 push。正式 RED 为 `56/4/0/0` assertion-only；GREEN 为
 assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为 `15507/15512`、headroom 5。负责人已核验
 report/manifest/RED 哈希、关键 diff 与对象边界，并派出不同 fresh R9 scoped reviewer；
 review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
+
+**进度（2026-11-11，R9 scoped review FAIL）**：fresh reviewer 确认 visible 门禁全部 PASS，
+但冻结合同仍有四个 P2 子项：唯一 current 同 URI event 仍依赖第二个 START_FILE；重复旧同 URI
+event 可被 path equality 当作 current；canonicalSource 将 `%2F/%3F/%26` 折叠成不同 source；
+public `prepare()` 先 post loadfile，owner 后安装，存在早到 event 零发布竞态。Review SHA-256
+`4608FD511F0A7EB4D2828617C5E4728BB45B2176AC984586C85134C8BF562CAA`，manifest
+`5B60C35EE6BC939FB159C1C1DE20A1F28559766684FA72456C36DB972D9FF2B2`。
 
 1. **同 URI 重载 `A→B→A`**
    - owners 可为 `[(E1,A),(E2,B),(E3,A)]`，current=`E3`，initialCommands=`A3`，且旧 owner
@@ -7402,3 +7409,55 @@ RED，保留原始 XML/stdout/stderr/exit；再做最小实现并运行 targeted
 assemble/KTFMT/A0/GatePlan，重生成可复现 assemble transcript 与 manifest。A0 baseline
 `15,512`，当前 `15,508` / headroom 4。Review 必须由不同 fresh reviewer 执行；PASS 后才申请
 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R9 review FAIL 自动另立 R10，不得在 R9 内补丁。
+
+### 52.54 Progress source-identity / retry-priority R10 任务卡（2026-11-11）
+
+**状态**：`R10_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+`R9_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+
+R10 从 R9 candidate `f5339becd4b101e1ce3f0e0e190bc09466ff4c04` / tree
+`dfc626dbc3747a3814e3280af6f5c29304173101` 隔离建立，保留 R9 已通过的 distinct URI、
+延迟同 URI 双事件、持续 null 双事件、command fail-closed、preserve/order/property/PLAYING
+回归。只冻结 R9 review 的四个子合同，要求它们同时成立：
+
+1. **唯一 current 同 URI event 一次发布**
+   - `owners=[(E1,A),(E2,B),(E3,A)]`, current E3, commands A3；旧 owner 都无 event、唯一真实
+     current A event 到达时必须直接发布 A3 恰好一次，不得只 replay 后等待合同不保证的第二个
+     START_FILE。
+2. **重复旧同 URI event 零发布**
+   - current E3 尚未启动时，连续两个 delayed E1/A event 都必须被拒绝；不得仅因 path/canonical
+     key 等于 current A 就在第二个旧 event 发布 A3。
+   - 实现必须提供 event-specific/ownership-progress token 或等价机制，证明旧、current 事件
+     可区分；不能用“同 URI 就直接领取”掩盖。
+3. **canonicalization 不折叠不同 source**
+   - `/a%2Fb` 与 `/a/b`、`/p%3Fx` 与 `/p?x`、query encoded `%26` 与 literal `&` 必须保持不同
+     source key；只有安全等价（如 `%20` 与空格、scheme/host case）可归一。
+   - 增加相应 production canonical/ownership 边界测试；无法安全归一时 fail closed，不得合并。
+4. **public prepare 顺序**
+   - public `prepare()` 必须先建立 current owner（或其等价 command token）再把 `loadfile` 投递
+     到独立 command thread；真实 START_FILE 早于 `prepareMediaItem` 不得丢 owner、零发布或领取
+     旧 source。
+   - 测试必须经 public `prepare()` 与 production event 入口覆盖该顺序，不得只反射 private
+     `replaceInitialCommands`。
+
+R10 必须保留 current source 初始化“最终恰好一次”的统一不变量，并覆盖 A/B/A/B/A、多 stale
+同 URI、extra START_FILE、claim 后 mutation、ownership 空、持续 null/非等价 path。若架构仍无法
+在五路径内由 native event 唯一归属，应采用原子的 load/owner 顺序或可证明的 fail-closed 恢复，
+不得零发布、重复发布或跨 source。
+
+允许五路径与 R9 相同：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、Service、schema/settings/metadata、A0 baseline/version/signing/
+release，以及设备/ADB/截图/生产写。必须先在当前 R9 base 上对四个反例取得 assertion-only
+RED，保留原始 XML/stdout/stderr/exit；再做最小实现并运行 targeted/player-local/phone/
+assemble/KTFMT/A0/GatePlan，重生成 transcript 与 manifest。A0 baseline `15,512`，当前
+`15,507` / headroom 5。Review 必须由不同 fresh reviewer 执行；PASS 后才申请 Pad
+`43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R10 review FAIL 自动另立 R11，不得在 R10 内补丁。
