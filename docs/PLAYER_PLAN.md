@@ -7481,12 +7481,21 @@ assemble/KTFMT/A0/GatePlan，重生成 transcript 与 manifest。A0 baseline `15
 
 ### 52.55 Progress source-identity / retry-priority R11 任务卡（2026-11-11）
 
-**状态**：`R11_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+**状态**：`R11_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
 `R10_SCOPED_REVIEW=FAIL / QA_READY=NO`。
 
 R11 从 R10 candidate `4513a1e3991d1e447e46efe57a29b1d3695e9659` / tree
 `70e46c41ed47d36708acca403bd873d62aa823cb` 隔离建立，保留 canonical delimiter、
 owner-before-loadfile 与 R6–R10 已通过回归；冻结以下三项：
+
+**进度（2026-11-11，implementation 收口）**：fresh R11 implementation owner 已提交
+`c2d69a2d43c406d1f9998553330c88b6ed8831df`（tree
+`de7d4cc5954d5ef81e7b0603c2ceffd34bf116e2`），只改 `MPVPlayer.kt` 与既有测试，
+worktree clean、未 push。正式 RED 为 `67/3/0/0` assertion-only；GREEN 为 targeted
+`1 suite / 67`、player-local `42 suites / 352`、phone `62 suites / 412`，
+assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为 `15505/15512`、headroom 7。负责人已核验
+report/manifest/RED 哈希、关键 diff 与对象边界，并派出不同 fresh R11 scoped reviewer；
+review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
 
 1. **非用户可见 source ownership**
    - 不得写 `force-media-title`、`media-title`、MediaMetadata、通知标题或任何用户可见 metadata

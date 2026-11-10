@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R11-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R11-2026-11-11
-- TASK_STAGE=R11_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING
+- TASK_STAGE=R11_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -25,10 +25,10 @@
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.50-§52.55 > R10 scoped review > candidate 4513a1e3991d1e447e46efe57a29b1d3695e9659
 - NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
-- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R11_2026_11_11
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R11_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R10_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R10_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r10-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r11-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - NEXT_REQUIREMENT=R11 must replace user-visible mutable-title token polling with non-user-visible event ownership or provably serialized command/event ownership, prevent delayed events from borrowing later tokens, and publish current commands once even when the START_FILE path is a redirect/non-equivalent URI.
 - STOP_CONDITION=R11 must stop on new paths, Service/schema/settings/metadata/version/signing/release, media-title/metadata pollution, delayed event reading later token/source, tokenless non-equivalent path zero/duplicate publication, old owner consuming current, loss of canonical delimiter/prepare/R6-R10 regressions, missing production RED, unknown new P0-P2, or unauthorized device/QA. Any R11 review FAIL requires R12, not an in-card patch.
 - SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R11_NONVISIBLE_EVENT_OWNERSHIP_AND_REDIRECT_RECOVERY/CONTRACT_FROZEN/QA_NOT_READY
