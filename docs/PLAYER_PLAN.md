@@ -5571,3 +5571,43 @@ sanitized 窗口复核，不能据此直接关产品项。
 
 设备锁已释放，debug/release PID、debug services、MediaSession、通知与 wrapper child 均清空；
 settings mismatch 0、users 仅 user0、K60 命令 0、截图 0。R3 FAIL 与 `P1-QA-R3-01` 必须保留。
+
+### 52.18 QA sanitized logging harness R3 PASS（2026-11-10）
+
+**状态**：`QA_LOGGING_REDACTION_HARNESS_REPAIR_R3=PASS / UID_FILTERED=YES /`
+`READY_MARKER=PASS / FAILURE_REASON_SAFE=YES / DEVICE_USED=NO / INDEPENDENT_QA_R4=PENDING`。
+
+全新 R3 harness owner 在 canonical `2e135c48fe61405fdac006a0de54b2e16a7ac11d`、candidate
+`60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf` / tree
+`0fca8a6cf425261e9109be49846aaa981048bba0` 上完成最后的简化修复。未扩张既有脱敏规则：
+
+- wrapper 必填 `-AppUid`，child 参数固定包含 `logcat` 与 `--uid=<numeric>`，不再采集整机日志；
+- 必填 `-ReadyFilePath`，child 启动后原子写只含 serial / uid / readyAtUtc / readyToken 的 marker；
+- `Wait-SanitizedLogcatReady.ps1` 同时验证 marker、wrapper PID、serial / UID、新鲜度和 token；
+- failure reason 使用安全 code，不带 raw line、URL、exception message 或系统网络标识；
+- `CHILD_PID / EXIT_CODE / FLUSH_OK` 与 exit 21–24 语义保持。
+
+```text
+OFFLINE_HARNESS=39/39 PASS
+AST_PARSE_ERRORS=0
+UTF8_LF_FILES=65 / BAD=0
+MANIFEST=64/64 MATCH
+FIXTURE_EXTERNAL_SECRET_HITS=0
+R2_EVIDENCE=UNCHANGED / 23/23 MATCH
+```
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-qa-logging-redaction-harness-repair-r3-2026-11-10\QA_LOGGING_REDACTION_HARNESS_REPAIR_REPORT.md`
+  （SHA-256 `2934942136F2B2E687DD11F5C6B2291538D05A4E3874A9BAF83543A74878A2`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `69E1A1297DCEC228FB71CA7830161B1A2B0CA034C2374FA17A8EE67FE799381A`）
+- `...\tools\Invoke-SanitizedLogcat.ps1`
+- `...\tools\Wait-SanitizedLogcatReady.ps1`
+- `...\results\wrapper-uid-normal-adb-args.txt`
+- `...\results\wait-alive.stdout.txt`
+
+QA R4 必须先自行 QaReady，固定 candidate/APK/serial/evidence root，取得唯一 Pad 锁，启动
+UID-filtered wrapper 并调用 waiter PASS 后才允许第一次 App 操作。若真实 Android 上再次出现
+ready 失败、wrapper exit 21–24 或 UID 过滤不可用，停止自动化且不得继续堆修 harness。R3 harness
+PASS 不关闭 `P1-QA-R3-01`；只有 R4 真实窗口证明 wrapper 存活并取得合格日志后才可关闭工具项。
