@@ -6856,3 +6856,51 @@ MANIFEST_SHA256=274B30D6AE4A0552D1FB0580BC206D1CFFD88F82FB846A156AB636501BEF9A4A
 `IMPLEMENTATION_R1=GREEN` 不是产品 PASS。下一步只允许不同 fresh scoped review R3 检查
 `46761d47...bb95e3ae` 的实际 diff、生产调用链、测试真实性和五路径；review PASS 前不得申请
 设备锁或 `QaReady`。Review FAIL 回到新的架构决策，不再追加同轮机械补丁。
+
+### 52.43 Progress state reshape scoped review R3 FAIL（2026-11-10）
+
+**状态**：`SCOPED_REVIEW_R3=FAIL / BLOCKED_HISTORY /`
+`ARCHITECTURE_DECISION_REQUIRED / P1-PLAYER-PROGRESS-001=OPEN / QA_READY=NO`。
+
+与所有历史 implementer / reviewer 不同的 fresh R3 reviewer 核验 candidate
+`bb95e3aeba1645af755a318e725f101bfce7628c`、tree
+`00d1effd59058c7e0733012d183dd980a99e7422`、parent
+`22b4a6272e0595ea73ddc965d85e7c28b50ace09`、五路径、RED/GREEN/assemble/A0/GatePlan 后判定：
+
+```text
+SCOPED_REVIEW=FAIL
+CODE_REVIEW_PASS=NO
+PRODUCT_OR_QA_PASS=NO
+P1-PROGRESS-R2-B=FAIL_RESIDUAL_ADD_MOVE
+P1-PROGRESS-R3-SEEK-PRIORITY=OPEN
+P0=0
+P1=1_PRODUCT_OPEN
+P2=0_NEW_PRODUCT + TEST_ENTRY_R3_01
+P3=EVIDENCE_R3_01
+```
+
+两个代码级残留：
+
+1. `setMediaItems` 与删除当前项已正确推进 epoch，但 `addMediaItems` / `moveMediaItems`
+   可改变 current item 索引投影，却未同步推进 epoch、清 position/cache/pending。队列补片、
+   previous-item 插入和拖拽排序会经过这些生产入口。
+2. READY(5000)→BUFFERING 的基础 last-confirmed 路径已闭合，但 retry 现在优先使用旧 confirmed
+   position，而不是仍在等待的 explicit seek target。已有位置后 seek 到新位置并长缓冲，会重试回
+   旧位置。
+
+P3：4 条 RED 报告记载 assertion failures，但 evidence 目录未保留 RED XML/log，无法独立复算；
+这是证据缺口，不改变上述源码级 FAIL。GREEN、phone 412、player-local 314、assemble、KTFMT、
+A0 15511/15512 headroom 1 和 GatePlan FULL 均由 reviewer 独立核验。
+
+```text
+F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-state-reshape-scoped-review-r3-2026-11-10\SCOPED_REVIEW_REPORT.md
+SHA256=02013EBFF7E394C1E564C795ABE58C6D675DF5C462577FABB15A8DCC8F41BC22
+MANIFEST_SHA256=0C8F498BD93D858DE093D7B9B0C0F652FC202B7CE0FA11EE464788E112BD20A6
+```
+
+决策：本独立 reshape 任务的第一实现后 review 仍 FAIL，停止 `BLOCKED_HISTORY`，不得在同一轮
+继续追加实现或 patch。没有设备 / ADB / QA / K60 / merge-prep / integration / Release。
+
+下一步必须由用户 / 架构层重新定两件事：playlist index remap 与 source epoch 的统一规则；以及
+explicit seek target、last confirmed position、persisted hint 在 retry 中的优先级。只有形成新的
+可验证状态合同后，才能另立新任务卡。
