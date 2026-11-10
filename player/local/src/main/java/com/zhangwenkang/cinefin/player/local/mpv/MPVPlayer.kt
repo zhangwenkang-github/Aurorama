@@ -253,7 +253,6 @@ class MPVPlayer(
         mpvLib.setOptionString("gpu-context", "android")
         mpvLib.setOptionString("opengl-es", "yes")
 
-        // Hardware video decoding
         mpvLib.setOptionString("hwdec", hwDec)
         mpvLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
         // W17 验收：把实际生效的 hwdec 打进日志（回退链第 3 档必须看到 hwdec=no）
@@ -266,7 +265,6 @@ class MPVPlayer(
         mpvLib.setOptionString("demuxer-max-bytes", "64MiB")
         mpvLib.setOptionString("demuxer-max-back-bytes", "32MiB")
 
-        // Subs
         mpvLib.setOptionString("sub-scale-with-window", "yes")
         mpvLib.setOptionString("sub-use-margins", "no")
 
@@ -284,7 +282,6 @@ class MPVPlayer(
             .takeIf { it.isNotEmpty() }
             ?.let { mpvLib.setOptionString("slang", it.joinToString(",")) }
 
-        // Other options
         mpvLib.setOptionString("force-window", "no")
         mpvLib.setOptionString("keep-open", "always")
         mpvLib.setOptionString("save-position-on-quit", "no")
@@ -295,7 +292,6 @@ class MPVPlayer(
 
         mpvLib.addObserver(this)
 
-        // Observe properties
         data class Property(val name: String, val format: Int)
         arrayOf(
                 Property("track-list", MpvFormat.MPV_FORMAT_STRING),
@@ -397,27 +393,19 @@ class MPVPlayer(
         }
     }
 
-    // Listeners and notification.
     private val listeners: ListenerSet<Player.Listener> =
         ListenerSet(context.mainLooper, Clock.DEFAULT) { listener: Player.Listener, flags: FlagSet
             ->
             listener.onEvents(this, Player.Events(flags))
         }
     private val videoListeners = CopyOnWriteArraySet<Player.Listener>()
-
-    // Internal state.
     private var internalMediaItems = mutableListOf<MediaItem>()
-
     @Player.State private var playbackState: Int = STATE_IDLE
     private var currentPlayWhenReady: Boolean = false
-
     @Player.RepeatMode private val repeatMode: Int = REPEAT_MODE_OFF
     private var currentTracks: Tracks = Tracks.EMPTY
     private var playbackParameters: PlaybackParameters = PlaybackParameters.DEFAULT
-
     private var mpvSpeed: Float = 1f
-
-    // MPV Custom
     private var isPlayerReady: Boolean = false
     private var isSeekable: Boolean = false
     private var currentMediaItemIndex: Int = 0
@@ -432,46 +420,49 @@ class MPVPlayer(
     private data class InitialCommandOwner(
         val epoch: Long,
         val sourceUri: String,
-        val token: String,
+        val sourceIndex: Int,
     )
 
     private val initialCommandOwners = ArrayDeque<InitialCommandOwner>()
+
+    private data class SourceStartAttempt(
+        val epoch: Long,
+        val sourceUri: String,
+        val sourceIndex: Int,
+        val command: Array<String>,
+        var startObserved: Boolean = false,
+    )
+
+    private data class SourceEventResolution(
+        val epoch: Long,
+        val claim: List<Array<String>>? = null,
+        val nextCommand: Array<String>? = null,
+        val replay: Boolean = false,
+    )
+
+    private var sourceStartInFlight: SourceStartAttempt? = null
+    private var pendingSourceStart: SourceStartAttempt? = null
     private var initialCommandRecoveryEpoch: Long? = null
-    private var initialCommandSourceUri: () -> String? = {
-        runCatching { mpvLib.getPropertyString("path") }.getOrNull()
-    }
-    private var initialCommandEventToken: () -> String? = {
-        runCatching { mpvLib.getPropertyString("force-media-title") }.getOrNull()
-    }
     private var initialIndex: Int = 0
     private var initialSeekTo: Long = 0L
     private var oldMediaItem: MediaItem? = null
-
     /** 仅在没有内嵌字幕轨时注入服务端字幕，避免 DirectPlay 出现重复轨道。 */
     private var pendingServerSubtitles: List<PlayerSubtitleSource>? = null
-
     /** 侧载字幕路径到 mpv track id 的映射，仅在主线程随 track-list 重解析。 */
     private val externalSubtitleTrackIds = ConcurrentHashMap<String, Int>()
-
     /** 防止 track-list 回包前重复 `sub-add` 同一条侧载字幕。 */
     private val pendingSideloadedSubtitleAdds = CopyOnWriteArraySet<String>()
-
     /** App 字幕模式的自动选轨意图：true = sid=auto（按 slang / 默认轨选），false = sid=no */
     private var subtitleAutoSelect: Boolean = true
-
     /** 最近一次落地的字幕外观；双字幕预留区按它重新计算 `sub-pos`。 */
     private var appliedSubtitleStyle: SubtitleStyle = SubtitleStyle()
     private var appliedSubtitleLayout: SubtitleLayout = SubtitleLayout()
-
     /** 进入双字幕前 mpv 的 `sub-ass-override`，退出双字幕时原样恢复。 */
     private var savedSubAssOverride: String? = null
-
     /** App 侧 libass 接管主字幕前 mpv 的 `sub-visibility`；null = 当前没有接管。 */
     private var savedNativeSubVisibility: String? = null
-
     /** 当前是否正在为 Compose 次字幕预留主字幕位置；改字号 / 位置时沿用。 */
     private var subtitleReservation: Float? = null
-
     /** 用 EOF、主动操作计数和时间窗共同区分正常换源与真实播放失败。 */
     private var intentionalEndFileBudget: Int = 0
     private var suppressEndFileErrorUntilMs: Long = 0L
@@ -485,7 +476,6 @@ class MPVPlayer(
         suppressEndFileErrorUntilMs = SystemClock.elapsedRealtime() + END_FILE_SUPPRESS_WINDOW_MS
     }
 
-    // mpv events
     override fun eventProperty(property: String) {}
 
     override fun eventProperty(property: String, value: String) {
@@ -622,152 +612,166 @@ class MPVPlayer(
     }
 
     override fun event(eventId: Int) {
-        val claim =
-            if (eventId == MpvEvent.MPV_EVENT_START_FILE) {
-                takeInitialCommands(initialCommandSourceUri(), initialCommandEventToken())
-            } else null
-        val epoch = claim?.first ?: sourceEpoch.get()
-        val initialCommands = claim?.second
+        val resolution =
+            when (eventId) {
+                MpvEvent.MPV_EVENT_START_FILE,
+                MpvEvent.MPV_EVENT_FILE_LOADED -> resolveSourceStartEvent(eventId)
+                MpvEvent.MPV_EVENT_END_FILE -> releaseSourceStart()
+                else -> null
+            }
+        val initialCommands = resolution?.claim
+        val epoch = resolution?.epoch ?: sourceEpoch.get()
+        val nextSourceStart = resolution?.nextCommand
         eventPoster post@{
             // release 之后主线程队列里可能还排着事件回调：此时 mpv 可能正在销毁，必须短路
-            if (released || epoch != sourceEpoch.get()) return@post
-            when (eventId) {
-                MpvEvent.MPV_EVENT_START_FILE ->
-                    if (claim != null && initialCommands == null) {
-                        replayInitialCommands(epoch)
-                    } else if (!isPlayerReady) {
-                        initialCommands?.forEach { postCommand(it) }
-                    }
-                MpvEvent.MPV_EVENT_FILE_LOADED -> {
-                    isSeekable = mpvLib.getPropertyBoolean("seekable") == true
-                    // 新文件已经解析成功：旧文件的 END_FILE 预算作废（避免吞掉之后的真实失败）
-                    intentionalEndFileBudget = 0
-                    currentDurationMs =
-                        (mpvLib.getPropertyDouble("duration")?.times(C.MILLIS_PER_SECOND))?.toLong()
-                    // 容器解析完成：此时 track-list 是完整的，按「有无内嵌字幕」决定是否注入服务端字幕
-                    maybeAddServerSubtitles()
-                }
-                MpvEvent.MPV_EVENT_SEEK -> {
-                    sourcePosition = sourcePosition.seekStarted(epoch) ?: return@post
-                    setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
-                    seekEventRelay.onSeekEvent()
-                }
-                MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
-                    val restartedPositionMs =
-                        mpvLib.getPropertyDouble("time-pos")?.times(C.MILLIS_PER_SECOND)?.toLong()
-                            ?: sourcePosition.positionMs
-                            ?: return@post
-                    sourcePosition =
-                        sourcePosition.restart(epoch, restartedPositionMs) ?: return@post
-                    publishPositionDiscontinuity(epoch)
-                    if (!isPlayerReady) {
-                        isPlayerReady = true
-                        seekTo(C.TIME_UNSET)
-                        if (playWhenReady) {
-                            Timber.d("Starting playback...")
-                            mpvLib.setPropertyBoolean("pause", false)
-                        }
-                        for (videoListener in videoListeners) {
-                            videoListener.onRenderedFirstFrame()
-                        }
-                    } else {
-                        setPlayerStateAndNotifyIfChanged(playbackState = STATE_READY)
-                    }
-                    seekEventRelay.onPlaybackRestartedEvent(restartedPositionMs)
-                }
-                /* 非 EOF 且不在主动操作预算内的 END_FILE 走 Player.Listener.onPlayerError 回退链。 */
-                MpvEvent.MPV_EVENT_END_FILE -> {
-                    val eofReached = mpvLib.getPropertyBoolean("eof-reached") == true
-                    val withinWindow = SystemClock.elapsedRealtime() < suppressEndFileErrorUntilMs
-                    if (!withinWindow) intentionalEndFileBudget = 0
-                    val intentional =
-                        released ||
-                            commandsClosed.get() ||
-                            (withinWindow && intentionalEndFileBudget > 0)
-                    if (intentional && withinWindow && intentionalEndFileBudget > 0) {
-                        intentionalEndFileBudget--
-                    }
-                    val suppressed = released || commandsClosed.get() || intentional
-                    if (!eofReached && !suppressed) {
-                        val error =
-                            PlaybackException(
-                                "mpv 播放失败：文件提前结束（eof-reached=false）",
-                                null,
-                                PlaybackException.ERROR_CODE_UNSPECIFIED,
-                            )
-                        Timber.e("MPVPlayer 播放失败：END_FILE 未到文件末尾（eof-reached=false），上报回退链")
-                        listeners.sendEvent(EVENT_PLAYER_ERROR) { listener ->
-                            listener.onPlayerError(error)
-                        }
-                        setPlayerStateAndNotifyIfChanged(
-                            playWhenReady = false,
-                            playWhenReadyChangeReason = PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST,
-                            playbackState = STATE_IDLE,
-                        )
-                    }
-                }
-                else -> Unit
-            }
-        }
-    }
-
-    private fun takeInitialCommands(
-        sourceUri: String?,
-        eventToken: String?,
-    ): Pair<Long, List<Array<String>>?>? {
-        synchronized(initialCommands) {
-            if (initialCommandOwners.isEmpty()) return null
-            val currentEpoch = sourceEpoch.get()
-            if (eventToken != null) {
-                val ownerIndex =
-                    initialCommandOwners.indexOfFirst { it.token == eventToken }.takeIf { it >= 0 }
-                        ?: return null
-                val owner = initialCommandOwners[ownerIndex]
-                if (owner.epoch != currentEpoch) {
-                    initialCommandOwners.removeAt(ownerIndex)
-                    return owner.epoch to null
-                }
-                val currentOwner =
-                    initialCommandOwners.firstOrNull { it.epoch == currentEpoch } ?: return null
-                val sourceKey = canonicalSource(sourceUri)
-                val currentKey = canonicalSource(currentOwner.sourceUri)
+            if (!released && epoch == sourceEpoch.get())
                 if (
-                    sourceUri != null &&
-                        (sourceKey == null || currentKey == null || sourceKey != currentKey)
+                    (eventId == MpvEvent.MPV_EVENT_START_FILE ||
+                        eventId == MpvEvent.MPV_EVENT_FILE_LOADED) && !isPlayerReady
                 ) {
-                    return currentEpoch to null
+                    initialCommands?.forEach { postCommand(it) }
                 }
-                return currentEpoch to claimInitialCommands()
-            }
-            val sourceKey = canonicalSource(sourceUri)
-            val currentOwner =
-                initialCommandOwners.firstOrNull { it.epoch == currentEpoch }
-                    ?: return initialCommandOwners.removeFirst().let { it.epoch to null }
-            val currentKey = canonicalSource(currentOwner.sourceUri)
-            val staleOwnerIndex = initialCommandOwners.indexOfFirst {
-                it.epoch != currentEpoch &&
-                    (sourceKey == null || canonicalSource(it.sourceUri) == sourceKey)
-            }
-            if (staleOwnerIndex >= 0) {
-                val staleOwner = initialCommandOwners.removeAt(staleOwnerIndex)
-                val ambiguousCurrent = sourceKey == null || sourceKey == currentKey
-                if (ambiguousCurrent) initialCommandRecoveryEpoch = null
-                return (if (ambiguousCurrent) currentEpoch else staleOwner.epoch) to null
-            }
-            if (sourceKey != null && sourceKey == currentKey) {
-                return currentEpoch to claimInitialCommands()
-            }
-            val remainingStaleIndex = initialCommandOwners.indexOfFirst { it.epoch != currentEpoch }
-            if (remainingStaleIndex >= 0) initialCommandOwners.removeAt(remainingStaleIndex)
-            if (initialCommandRecoveryEpoch == currentEpoch && remainingStaleIndex < 0) {
-                return currentEpoch to claimInitialCommands()
-            }
-            initialCommandRecoveryEpoch = null
-            return currentEpoch to null
+            if (!released && epoch == sourceEpoch.get())
+                when (eventId) {
+                    MpvEvent.MPV_EVENT_START_FILE ->
+                        if (resolution?.replay == true) replayInitialCommands(epoch)
+                    MpvEvent.MPV_EVENT_FILE_LOADED -> {
+                        isSeekable = mpvLib.getPropertyBoolean("seekable") == true
+                        // 新文件已经解析成功：旧文件的 END_FILE 预算作废（避免吞掉之后的真实失败）
+                        intentionalEndFileBudget = 0
+                        currentDurationMs =
+                            (mpvLib.getPropertyDouble("duration")?.times(C.MILLIS_PER_SECOND))
+                                ?.toLong()
+                        // 容器解析完成：此时 track-list 是完整的，按「有无内嵌字幕」决定是否注入服务端字幕
+                        maybeAddServerSubtitles()
+                    }
+                    MpvEvent.MPV_EVENT_SEEK -> {
+                        sourcePosition = sourcePosition.seekStarted(epoch) ?: return@post
+                        setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
+                        seekEventRelay.onSeekEvent()
+                    }
+                    MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
+                        val restartedPositionMs =
+                            mpvLib
+                                .getPropertyDouble("time-pos")
+                                ?.times(C.MILLIS_PER_SECOND)
+                                ?.toLong() ?: sourcePosition.positionMs ?: return@post
+                        sourcePosition =
+                            sourcePosition.restart(epoch, restartedPositionMs) ?: return@post
+                        publishPositionDiscontinuity(epoch)
+                        if (!isPlayerReady) {
+                            isPlayerReady = true
+                            seekTo(C.TIME_UNSET)
+                            if (playWhenReady) {
+                                Timber.d("Starting playback...")
+                                mpvLib.setPropertyBoolean("pause", false)
+                            }
+                            for (videoListener in videoListeners) {
+                                videoListener.onRenderedFirstFrame()
+                            }
+                        } else {
+                            setPlayerStateAndNotifyIfChanged(playbackState = STATE_READY)
+                        }
+                        seekEventRelay.onPlaybackRestartedEvent(restartedPositionMs)
+                    }
+                    /* 非 EOF 且不在主动操作预算内的 END_FILE 走 Player.Listener.onPlayerError 回退链。 */
+                    MpvEvent.MPV_EVENT_END_FILE -> {
+                        val eofReached = mpvLib.getPropertyBoolean("eof-reached") == true
+                        val withinWindow =
+                            SystemClock.elapsedRealtime() < suppressEndFileErrorUntilMs
+                        if (!withinWindow) intentionalEndFileBudget = 0
+                        val intentional =
+                            released ||
+                                commandsClosed.get() ||
+                                (withinWindow && intentionalEndFileBudget > 0)
+                        if (intentional && withinWindow && intentionalEndFileBudget > 0) {
+                            intentionalEndFileBudget--
+                        }
+                        val suppressed = released || commandsClosed.get() || intentional
+                        if (!eofReached && !suppressed) {
+                            val error =
+                                PlaybackException(
+                                    "mpv 播放失败：文件提前结束（eof-reached=false）",
+                                    null,
+                                    PlaybackException.ERROR_CODE_UNSPECIFIED,
+                                )
+                            Timber.e("MPVPlayer 播放失败：END_FILE 未到文件末尾（eof-reached=false），上报回退链")
+                            listeners.sendEvent(EVENT_PLAYER_ERROR) { listener ->
+                                listener.onPlayerError(error)
+                            }
+                            setPlayerStateAndNotifyIfChanged(
+                                playWhenReady = false,
+                                playWhenReadyChangeReason =
+                                    PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST,
+                                playbackState = STATE_IDLE,
+                            )
+                        }
+                    }
+                    else -> Unit
+                }
+            nextSourceStart?.let(::postCommand)
         }
     }
 
-    private fun claimInitialCommands(): List<Array<String>> {
+    /** 同一时刻只允许一个 source-start 命令在途，START_FILE/FILE_LOADED 归属该冻结 attempt。 */
+    private fun resolveSourceStartEvent(eventId: Int): SourceEventResolution? =
+        synchronized(initialCommands) {
+            val attempt = sourceStartInFlight
+            if (attempt == null) {
+                val currentEpoch = sourceEpoch.get()
+                return@synchronized SourceEventResolution(
+                    epoch = currentEpoch,
+                    replay =
+                        eventId == MpvEvent.MPV_EVENT_START_FILE &&
+                            initialCommandOwners.any { it.epoch == currentEpoch },
+                )
+            }
+            if (eventId == MpvEvent.MPV_EVENT_START_FILE && attempt.startObserved) {
+                return@synchronized SourceEventResolution(attempt.epoch)
+            }
+            val claim =
+                if (!attempt.startObserved) {
+                    attempt.startObserved = true
+                    takeInitialCommandsLocked(attempt)
+                } else {
+                    null
+                }
+            if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) {
+                SourceEventResolution(attempt.epoch, claim, releaseSourceStartLocked(attempt))
+            } else {
+                SourceEventResolution(attempt.epoch, claim)
+            }
+        }
+
+    private fun releaseSourceStart(): SourceEventResolution? =
+        synchronized(initialCommands) {
+            sourceStartInFlight?.let { attempt ->
+                SourceEventResolution(
+                    attempt.epoch,
+                    nextCommand = releaseSourceStartLocked(attempt),
+                )
+            }
+        }
+
+    private fun takeInitialCommandsLocked(attempt: SourceStartAttempt): List<Array<String>>? {
+        if (initialCommandOwners.isEmpty()) return null
+        val currentEpoch = sourceEpoch.get()
+        val currentOwner = initialCommandOwners.lastOrNull { it.epoch == currentEpoch }
+        val attemptKey = canonicalSource(attempt.sourceUri)
+        val ownerKey = canonicalSource(currentOwner?.sourceUri)
+        val matches =
+            currentEpoch == attempt.epoch &&
+                currentOwner?.sourceIndex == attempt.sourceIndex &&
+                attemptKey != null &&
+                attemptKey == ownerKey
+        if (!matches) {
+            initialCommandOwners.removeAll {
+                it.epoch == attempt.epoch &&
+                    it.sourceIndex == attempt.sourceIndex &&
+                    (attemptKey == null || canonicalSource(it.sourceUri) == attemptKey)
+            }
+            return null
+        }
         initialCommandOwners.clear()
         initialCommandRecoveryEpoch = null
         return initialCommands.map { it.copyOf() }.also { initialCommands.clear() }
@@ -842,23 +846,32 @@ class MPVPlayer(
     }
 
     private fun replayInitialCommands(epoch: Long) {
-        synchronized(initialCommands) {
-            if (
-                epoch != sourceEpoch.get() ||
-                    initialCommandRecoveryEpoch == epoch ||
-                    initialCommandOwners.none { it.epoch == epoch }
-            ) {
-                return
+        val replay =
+            synchronized(initialCommands) {
+                if (
+                    epoch != sourceEpoch.get() ||
+                        initialCommandRecoveryEpoch == epoch ||
+                        sourceStartInFlight != null ||
+                        initialCommandOwners.none { it.epoch == epoch }
+                ) {
+                    false
+                } else {
+                    initialCommandRecoveryEpoch = epoch
+                    true
+                }
             }
-            initialCommandRecoveryEpoch = epoch
-            postCommand(arrayOf("playlist-play-index", "$currentMediaItemIndex"))
+        if (replay) {
+            postSourceStartCommand(
+                arrayOf("playlist-play-index", "$currentMediaItemIndex"),
+                currentMediaItemIndex,
+            )
         }
     }
 
     private fun replaceInitialCommands(
         commands: List<Array<String>>,
         sourceUri: String? = null,
-        eventToken: String? = null,
+        sourceIndex: Int = currentMediaItemIndex,
     ) {
         synchronized(initialCommands) {
             val copiedCommands = commands.map { it.copyOf() }
@@ -873,15 +886,51 @@ class MPVPlayer(
             initialCommands.addAll(copiedCommands)
             initialCommandOwners.removeAll { it.epoch == epoch }
             if (ownerUri != null) {
-                initialCommandOwners.addLast(
-                    InitialCommandOwner(epoch, ownerUri, eventToken ?: sourceToken(epoch))
-                )
+                initialCommandOwners.addLast(InitialCommandOwner(epoch, ownerUri, sourceIndex))
             }
             initialCommandRecoveryEpoch = null
         }
     }
 
-    private fun sourceToken(epoch: Long): String = "aurorama-source-v1-$epoch"
+    private fun postSourceStartCommand(
+        command: Array<String>,
+        sourceIndex: Int = currentMediaItemIndex,
+        sourceUri: String? = null,
+    ) {
+        if (commandsClosed.get()) return
+        val ownerUri =
+            sourceUri
+                ?: internalMediaItems.getOrNull(sourceIndex)?.let(::mediaUri)?.toString()
+                ?: return
+        val attempt = SourceStartAttempt(sourceEpoch.get(), ownerUri, sourceIndex, command.copyOf())
+        val dispatch =
+            synchronized(initialCommands) {
+                if (sourceStartInFlight == null) {
+                    sourceStartInFlight = attempt
+                    true
+                } else {
+                    pendingSourceStart = attempt
+                    false
+                }
+            }
+        if (dispatch) postCommand(command)
+    }
+
+    private fun releaseSourceStartLocked(attempt: SourceStartAttempt): Array<String>? {
+        if (sourceStartInFlight !== attempt) return null
+        sourceStartInFlight = null
+        val next = pendingSourceStart
+        pendingSourceStart = null
+        if (next == null || next.epoch != sourceEpoch.get()) return null
+        val owner = initialCommandOwners.lastOrNull { it.epoch == next.epoch } ?: return null
+        val nextKey = canonicalSource(next.sourceUri)
+        val ownerKey = canonicalSource(owner.sourceUri)
+        if (owner.sourceIndex != next.sourceIndex || nextKey == null || nextKey != ownerKey) {
+            return null
+        }
+        sourceStartInFlight = next.copy(startObserved = false)
+        return next.command.copyOf()
+    }
 
     private fun updateEnginePosition(epoch: Long, positionMs: Long) {
         sourcePosition = sourcePosition.acceptPosition(epoch, positionMs) ?: return
@@ -958,7 +1007,6 @@ class MPVPlayer(
         mpvLib.setPropertyString(trackType.type, id)
     }
 
-    /** 音轨延迟（毫秒）；正 = 声音延后（§1.2） */
     fun setAudioDelay(delayMs: Long) {
         Timber.d("mpv 音频延迟 = %d ms", delayMs)
         mpvLib.setPropertyDouble("audio-delay", delayMs / 1000.0)
@@ -972,14 +1020,12 @@ class MPVPlayer(
         seekEventListeners.remove(listener)
     }
 
-    /** 字幕延迟（毫秒）；正 = 字幕延后出现 */
     fun setSubtitleDelay(delayMs: Long) {
         Timber.d("mpv 字幕延迟 = %d ms", delayMs)
         mpvLib.setPropertyDouble("sub-delay", delayMs / 1000.0)
         logSubtitleState()
     }
 
-    /** 选主字幕（mpv track id，见 [getCurrentTracks] 的 Format.id）；null = 关闭 */
     fun selectSubtitleTrack(trackId: Int?) {
         mpvLib.setPropertyString("sid", trackId?.toString() ?: "no")
         logSubtitleState()
@@ -991,7 +1037,6 @@ class MPVPlayer(
         .getOrNull()
         ?.trim()
 
-    /** 排障：打印 mpv 眼里的字幕状态（sid / 可见性 / 延迟 / 当前文本） */
     fun logSubtitleState() {
         val sid = mpvLib.getPropertyString("sid")
         val visibility = mpvLib.getPropertyBoolean("sub-visibility")
@@ -1011,25 +1056,21 @@ class MPVPlayer(
         mpvLib.setPropertyString("secondary-sid", value)
     }
 
-    /** 把面板的字幕外观（单字幕原生路径）翻译成 mpv 的 sub-* 属性 */
     fun applySubtitleStyle(
         style: SubtitleStyle,
         layout: SubtitleLayout = SubtitleLayout(),
     ) {
         appliedSubtitleStyle = style
         appliedSubtitleLayout = layout
-        // 字号：mpv 默认 55；直接按倍率缩放
         mpvLib.setPropertyDouble("sub-font-size", 55.0 * style.textScale)
         mpvLib.setPropertyString("sub-color", style.textColor.toMpvColor())
         mpvLib.setPropertyString("sub-back-color", style.backgroundArgb.toMpvColor())
         mpvLib.setPropertyDouble("sub-border-size", style.edgeWidthDp.toDouble())
-        // sub-pos 是「距底部百分比」的互补值：100 = 贴底，65 = 靠上
         applyMpvSubtitlePosition(reservedFraction = subtitleReservation)
     }
 
     fun applySecondarySubtitleReservation(reservedFraction: Float?) {
         if (released) return
-        // 原生次字幕轨已由 Compose 次字幕接管，避免同一句出现两次。
         mpvLib.setPropertyString("secondary-sid", "no")
         if (reservedFraction == null) {
             subtitleReservation = null
@@ -1086,16 +1127,14 @@ class MPVPlayer(
     // ---------- 侧载字幕（W27） ----------
 
     /**
-     * 把一条本机侧载字幕 sub-add 给 mpv（mpv 内置 libass 渲染，ASS/SSA 特效生效）。
-     *
-     * [select] = true 时立即选中（用户刚导入的预期就是「马上显示」）；重进条目时用 false， 仍按 slang / 默认轨自动选，避免覆盖用户的自动选轨偏好。
+     * 把一条本机侧载字幕 sub-add 给 mpv（mpv 内置 libass 渲染，ASS/SSA 特效生效）。 [select] = true
+     * 时立即选中（用户刚导入的预期就是「马上显示」）；重进条目时用 false， 仍按 slang / 默认轨自动选，避免覆盖用户的自动选轨偏好。
      */
     fun addSubtitleFile(
         path: String,
         select: Boolean,
     ) {
         if (released) return
-        // 已经有这条轨 / 已经提交过注入：不重复 sub-add
         if (
             externalSubtitleTrackIds.containsKey(path) || !pendingSideloadedSubtitleAdds.add(path)
         ) {
@@ -1105,11 +1144,9 @@ class MPVPlayer(
         Timber.d("mpv 注入侧载字幕：%s（select=%b）", path, select)
     }
 
-    /** 这条本机字幕是否已经注入（含「已提交、track-list 还没回来」的窗口） */
     fun isSubtitleFileAttached(path: String): Boolean =
         externalSubtitleTrackIds.containsKey(path) || pendingSideloadedSubtitleAdds.contains(path)
 
-    /** 移除一条侧载字幕（按路径找 track id → `sub-remove`） */
     fun removeSubtitleFile(path: String) {
         if (released) return
         pendingSideloadedSubtitleAdds.remove(path)
@@ -1127,10 +1164,8 @@ class MPVPlayer(
         }
     }
 
-    /** 某条本机字幕文件的 mpv track id（没注入时返回 null） */
     fun subtitleTrackIdForPath(path: String): Int? = externalSubtitleTrackIds[path]
 
-    /** 反向查找：mpv track id → 本机字幕文件路径（只对侧载轨有效） */
     fun subtitleTrackPath(trackId: Int): String? =
         externalSubtitleTrackIds.entries.firstOrNull { it.value == trackId }?.key
 
@@ -1150,7 +1185,6 @@ class MPVPlayer(
 
     private fun maybeAddServerSubtitles() {
         val pending = pendingServerSubtitles ?: return
-        // 每个媒体只处理一次：无论是否注入，都清掉待处理标记，避免 track-list 抖动反复触发
         pendingServerSubtitles = null
         val injectable = selectServerSubtitlesToInject(pending)
         if (injectable.isEmpty()) return
@@ -1180,11 +1214,9 @@ class MPVPlayer(
                 source.codec,
             )
         }
-        // 注入完成后按 App 的字幕模式重新选轨（auto = 交给 slang / 默认轨，no = 保持关闭）
         postCommand(arrayOf("set", "sid", if (subtitleAutoSelect) "auto" else "no"))
     }
 
-    /** 读取随 MediaItem 一起下发的 Jellyfin 字幕清单（可能为空） */
     private fun MediaItem.serverSubtitleSources(): List<PlayerSubtitleSource> {
         @Suppress("DEPRECATION")
         val sources =
@@ -1219,7 +1251,6 @@ class MPVPlayer(
                 "video-scale-y",
                 if (mirror == VideoMirrorMode.VERTICAL) -1.0 else 1.0,
             )
-            // mpv 的 video-zoom 以 2 为底：zoom = log2(裁剪放大 × 填满倍数)
             val zoom = if (zoomScale <= 1f) 0.0 else ln(zoomScale.toDouble()) / ln(2.0)
             mpvLib.setPropertyDouble("video-zoom", zoom)
             // 排障 / 验收证据：真机走查用文本核对实际写进 mpv 的属性值
@@ -1402,24 +1433,20 @@ class MPVPlayer(
 
     // Player implementation.
 
-    /** Player callbacks run on the main looper. */
     override fun getApplicationLooper(): Looper {
         return handler.looper
     }
 
-    /** Registers both Media3 and first-frame listeners. */
     override fun addListener(listener: Player.Listener) {
         listeners.add(listener)
         videoListeners.add(listener)
     }
 
-    /** Removes a Media3 and first-frame listener. */
     override fun removeListener(listener: Player.Listener) {
         listeners.remove(listener)
         videoListeners.remove(listener)
     }
 
-    /** Replaces the playlist without starting playback. */
     override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
         val activeIdentity = sourceIdentity(internalMediaItems, currentMediaItemIndex)
         val nextIndex =
@@ -1428,7 +1455,6 @@ class MPVPlayer(
         replaceMediaItems(mediaItems, nextIndex, startPositionMs = null)
     }
 
-    /** Replaces the playlist and remembers the requested start item and position. */
     override fun setMediaItems(
         mediaItems: MutableList<MediaItem>,
         startWindowIndex: Int,
@@ -1644,30 +1670,33 @@ class MPVPlayer(
         return nextEpoch
     }
 
-    /** Prepares the player. */
     override fun prepare() {
         if (preserveSourceOnPrepare) {
             preserveSourceOnPrepare = false
             if (preparePreservedSourceOnPrepare) {
-                postCommand(arrayOf("playlist-play-index", "$currentMediaItemIndex"))
+                postSourceStartCommand(
+                    arrayOf("playlist-play-index", "$currentMediaItemIndex"),
+                    currentMediaItemIndex,
+                )
             }
             preparePreservedSourceOnPrepare = false
             return
         }
         prepareMediaItem(initialIndex, postSelection = false)
-        val token = sourceToken(sourceEpoch.get())
-        internalMediaItems.forEachIndexed { index, mediaItem ->
-            postCommand(
-                loadFileCommand(
-                    mediaItem = mediaItem,
-                    flags = if (index == 0) "replace" else "append",
-                    eventToken = token.takeIf { index == initialIndex },
-                )
-            )
+        val first = internalMediaItems.firstOrNull() ?: return
+        postSourceStartCommand(
+            loadFileCommand(first, "replace"),
+            sourceIndex = 0,
+            sourceUri = mediaUri(first).toString(),
+        )
+        internalMediaItems.drop(1).forEach { mediaItem ->
+            postCommand(loadFileCommand(mediaItem, "append"))
         }
-        if (currentMediaItemIndex != initialIndex) {
-            postCommand(arrayOf("set", "force-media-title", token))
-            postCommand(arrayOf("playlist-play-index", "$initialIndex"))
+        if (initialIndex != 0) {
+            postSourceStartCommand(
+                arrayOf("playlist-play-index", "$initialIndex"),
+                initialIndex,
+            )
         }
     }
 
@@ -1690,7 +1719,6 @@ class MPVPlayer(
                 playWhenReadyChangeReason = PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST,
             )
             if (isPlayerReady) {
-                // Request audio focus when starting playback
                 if (handleAudioFocus && playWhenReady) {
                     val res = AudioManagerCompat.requestAudioFocus(audioManager, audioFocusRequest)
                     if (res != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
@@ -1738,10 +1766,8 @@ class MPVPlayer(
         return false
     }
 
-    /** mpv 的 buffering 状态就是 Media3 与 MediaSession 共享的 loading 锚点。 */
     override fun isLoading(): Boolean = playbackState == STATE_BUFFERING
 
-    /** Routes seeks through the current mpv item or starts the requested item. */
     override fun seekTo(
         mediaItemIndex: Int,
         positionMs: Long,
@@ -1782,10 +1808,12 @@ class MPVPlayer(
                         /* lang= */ "${subtitle.language}",
                     )
                 }
-            replaceInitialCommands(subtitleCommands, mediaUri(mediaItem).toString())
+            replaceInitialCommands(subtitleCommands, mediaUri(mediaItem).toString(), index)
             if (postSelection && currentMediaItemIndex != index) {
-                postCommand(arrayOf("set", "force-media-title", sourceToken(sourceEpoch.get())))
-                postCommand(arrayOf("playlist-play-index", "$index"))
+                postSourceStartCommand(
+                    arrayOf("playlist-play-index", "$index"),
+                    index,
+                )
             }
             setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
         }
@@ -1794,21 +1822,7 @@ class MPVPlayer(
     private fun loadFileCommand(
         mediaItem: MediaItem,
         flags: String,
-        index: Int? = null,
-        eventToken: String? = null,
-    ): Array<String> =
-        if (eventToken == null) {
-            if (index == null) arrayOf("loadfile", mediaUri(mediaItem).toString(), flags)
-            else arrayOf("loadfile", mediaUri(mediaItem).toString(), flags, "$index")
-        } else {
-            arrayOf(
-                "loadfile",
-                mediaUri(mediaItem).toString(),
-                flags,
-                index?.toString() ?: "-1",
-                "force-media-title=$eventToken",
-            )
-        }
+    ): Array<String> = arrayOf("loadfile", mediaUri(mediaItem).toString(), flags)
 
     override fun getSeekBackIncrement(): Long {
         return seekBackIncrement
@@ -2061,12 +2075,10 @@ class MPVPlayer(
         }
     }
 
-    /** Returns the current [CueGroup]. This list may be empty. */
     override fun getCurrentCues(): CueGroup {
         return CueGroup(emptyList(), 0)
     }
 
-    /** Gets the device information. */
     override fun getDeviceInfo(): DeviceInfo {
         return DeviceInfo.Builder(DeviceInfo.PLAYBACK_TYPE_LOCAL)
             .setMaxVolume(0)
@@ -2074,21 +2086,14 @@ class MPVPlayer(
             .build()
     }
 
-    /** Maps the player volume API to mpv's volume property. */
     override fun getDeviceVolume(): Int {
         return mpvLib.getPropertyInt("volume") ?: 0
     }
 
-    /** Gets whether the device is muted or not. */
     override fun isDeviceMuted(): Boolean {
         return mpvLib.getPropertyBoolean("mute") ?: false
     }
 
-    /**
-     * Sets the volume of the device.
-     *
-     * @param volume The volume to set.
-     */
     @Deprecated("Deprecated in Java")
     override fun setDeviceVolume(volume: Int) {
         throw IllegalArgumentException(
@@ -2100,7 +2105,6 @@ class MPVPlayer(
         mpvLib.setPropertyInt("volume", volume)
     }
 
-    /** Increases the volume of the device. */
     @Deprecated("Deprecated in Java")
     override fun increaseDeviceVolume() {
         throw IllegalArgumentException(
@@ -2114,7 +2118,6 @@ class MPVPlayer(
         )
     }
 
-    /** Decreases the volume of the device. */
     @Deprecated("Deprecated in Java")
     override fun decreaseDeviceVolume() {
         throw IllegalArgumentException(
@@ -2128,7 +2131,6 @@ class MPVPlayer(
         )
     }
 
-    /** Sets the mute state of the device. */
     @Deprecated("Deprecated in Java")
     override fun setDeviceMuted(muted: Boolean) {
         throw IllegalArgumentException(
@@ -2153,11 +2155,9 @@ class MPVPlayer(
     }
 
     /**
-     * 画面比例（mpv 内核）：适应 / 裁剪填满 / 拉伸填满。
-     *
-     * mpv 不读 Media3 的 `resizeMode`，比例必须落到它自己的原生属性上：`keepaspect` 控制是否等比、 `panscan`
-     * 控制等比铺满时是否裁掉溢出。两个属性都用 property 优先、option 兜底写入（libmpv 运行时只接受有对应 property 的 option），保证「切档位 / 切内核
-     * / 退出重进」都不会残留旧值。
+     * 画面比例（mpv 内核）：适应 / 裁剪填满 / 拉伸填满。 mpv 不读 Media3 的 `resizeMode`，比例必须落到它自己的原生属性上：`keepaspect`
+     * 控制是否等比、 `panscan` 控制等比铺满时是否裁掉溢出。两个属性都用 property 优先、option 兜底写入（libmpv 运行时只接受有对应 property 的
+     * option），保证「切档位 / 切内核 / 退出重进」都不会残留旧值。
      */
     fun applyResizeMode(resizeMode: Int) {
         if (released) return
@@ -2204,7 +2204,6 @@ class MPVPlayer(
     private var released: Boolean = false
 
     private fun attachTextureSurface(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
-        // Surface 生命周期与 mpv 的 attachSurface 都必须在主线程；命令线程只承接 command()
         check(Looper.myLooper() == handler.looper) { "mpv surface 操作必须在主线程" }
         if (released) return
         if (textureSurface != null) return
