@@ -6683,3 +6683,77 @@ GatePlan/KTFMT/A0、单一位置投影、retry one-shot、source generation、se
 停止条件：对象/哈希漂移、review PASS 前申请设备锁或 `QaReady`、任何测试 fake 替代生产映射、
 新增 production/test path、修改 Service/schema/settings/metadata、K60/secret/生产写，或需要
 第三轮实现。Review FAIL 即 `BLOCKED_HISTORY`，不得自动第三次补丁。
+
+### 52.40 Progress P1 scoped review R2 FAIL：进入 BLOCKED_HISTORY（2026-11-10）
+
+**状态**：`SCOPED_REVIEW_R2=FAIL / P1-PLAYER-PROGRESS-001=OPEN /`
+`THIRD_IMPLEMENTATION=FORBIDDEN / FRESH_QA=FORBIDDEN / BLOCKED_HISTORY`。
+
+全新、与 R1 reviewer、R1/R2 implementers、R7 startup checker、R14 auditor、R15 startup
+rechecker 均不同的 `AURORAMA_141_PLAYER_A_CLUSTER_PROGRESS_P1_SCOPED_REVIEWER_R2_2026_11_10`
+实际只读审查了 base `60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf` → candidate
+`46761d47f3d7a3d4d75b8842547c70d3843a4a51` 的 5 个实际 changed paths，并独立核对
+RED/GREEN、GatePlan、KTFMT、A0、单一位置投影、retry token、source epoch、seek/cache、
+lifecycle 与 Compose 边界。对象、五路径和实现门证据均为 MATCH，未越权修改
+`CinefinPlaybackService.kt`、schema/settings/metadata/A0/version/signing/release。
+
+```text
+SCOPED_REVIEW=FAIL
+CODE_REVIEW_PASS=NO
+PRODUCT_OR_QA_PASS=NO
+P1_R1_BLOCKERS=A_PASS;B_FAIL;C_PASS
+RED=26 EXECUTED / 5 EXPECTED FAILURES / 0 ERRORS / 0 SKIPPED
+GREEN=104 SUITES / 724 TESTS / 0 FAILURES / 0 ERRORS / 0 SKIPPED
+TARGETED_THREE_FILES=63 TESTS / 0 FAILURES / 0 ERRORS
+GATEPLAN=FULL / 9->9->5 PATH / 0 UNMAPPED
+KTFMT=PASS / A0_HEADROOM=15 / DEBT=0
+```
+
+**R1 P1-A = CLOSED**：Exo prospective/no-source `0` 由 current item + 非空 timeline +
+`READY|ENDED` anchor 判定，no-source 不再成为有效位置；合法片头 zero 保留。
+
+**R1 P1-C = CLOSED**：seek/source reset 清 cache；buffered 对外不低于 confirmed current；
+UNKNOWN 不写 0；cache-only growth 不撤销 recovery terminal；terminal 只由 confirmed engine
+advance 或明确 playing `READY` recovery 撤销。
+
+**R1 P1-B = FAIL / residual OPEN**：mpv native callback 已有 epoch capture + stale callback
+拒绝，但 App 侧 `setMediaItems` / `removeMediaItems` 直接改 playlist，未同步推进 epoch，也没有
+立即清 sourcePosition；在 native callback 之前，新 item 可搭配旧 epoch position/cache。
+新增 negative 只直接测 `replaceSource()`，没有经过 `setMediaItems` / 当前项删除等生产入口。
+
+**P1-PROGRESS-R2-A（新增代码级 P1 残留）**：Exo 从 READY 进入 BUFFERING 后，state 保留
+`lastEnginePositionMs`，但 UI、后端切换 / Activity restart 与 retry 重新调用只接受
+`READY|ENDED` 的 `confirmedPosition()`，得到 `UNKNOWN`，可能退到 persisted hint 或 START_ZERO，
+破坏 UI / MediaSession / persist / restart 的同一位置等式。
+
+**P1-PROGRESS-R2-B（同一 P1 的 source 残留）**：mpv playlist API mutation 到 native
+`playlist-current-pos` callback / prepare 之间，旧 source position/cache 仍可能回填新 item；
+旧 retry terminal 在 1 秒采样窗口内也可能未被 source epoch 立即拒绝。
+
+R2 review report / manifest：
+
+```text
+F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-p1-scoped-review-r2-2026-11-10\SCOPED_REVIEW_REPORT.md
+SHA256=117741057940DFCB98E91D6DFB7B1EDFFABB0691FAFFDB037E5CDA9BC6C598F2
+
+...\MANIFEST.sha256
+SHA256=5CE0485A728CB2B0F6B45AF11DCBA5A901259C4165A3F33065E9E820A9DE7CCD
+```
+
+P0–P3：
+
+```text
+P0=0
+P1=1_OPEN_PRODUCT:P1-PLAYER-PROGRESS-001
+P1_CODE_RESIDUALS=P1-PROGRESS-R2-A;P1-PROGRESS-R2-B
+P2=2_EXISTING:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
+P3=0
+```
+
+决策：本 P1 已在同一任务线上完成两次实现，第二次 fresh scoped review 仍 FAIL；按契约立即
+`BLOCKED_HISTORY`。**禁止第三轮实现补救、设备锁、QaReady、fresh QA、PC 矩阵、K60、
+merge-prep、integration 与 Release。** 真实设备未执行不是本次 FAIL 的解释；两条残留均由代码与
+生产调用链直接证明。
+
+下一步不再是实现动作，而是用户 / 架构层决策：是否新建独立的 Progress state-model reshape
+任务线（推荐），或正式延期 / retire 当前 P1；两者都必须新建任务卡，不能复用本轮做第三次补丁。

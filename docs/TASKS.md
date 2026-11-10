@@ -8,29 +8,29 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=R14_RECEIPT_PASS / STARTUP_RECHECK_R15_PASS / SCOPED_REVIEW_R2_REQUIRED
+- TASK_STAGE=BLOCKED_HISTORY / SCOPED_REVIEW_R2_FAIL / NO_THIRD_IMPLEMENTATION / PRODUCT_P1_OPEN
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.34-§52.39 > R2 implementation report > R1 review report > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > candidate 46761d47f3d7a3d4d75b8842547c70d3843a4a51
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_PROGRESS_P1_SCOPED_REVIEWER_R2_2026_11_10
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.36-§52.40 > R2 scoped review report > R2 implementation report > R1 review report > candidate 46761d47f3d7a3d4d75b8842547c70d3843a4a51
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_PROGRESS_P1_REDESIGN_OR_RETIRE_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-p1-scoped-review-r2-2026-11-10\SCOPED_REVIEW_REPORT.md
-- NEXT_REQUIREMENT=Fresh scoped review R2 must independently review base 60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf to candidate 46761d47f3d7a3d4d75b8842547c70d3843a4a51, verify all R1 blockers and evidence, and return PASS/PASS_WITH_GAPS/FAIL/BLOCKED without editing code.
-- STOP_CONDITION=R2 scoped review FAIL means BLOCKED_HISTORY with no third implementation round. Stop before review on object or evidence drift. Review must not use target/UI cache/fake callbacks, request devices, change code, add paths, modify Service/schema/settings/metadata, touch K60, or enter QA/merge-prep/integration/Release.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/PROGRESS_P1_STATE_MODEL_REDESIGN/R14_RECEIPT_PASS/STARTUP_R15_PASS/SCOPED_REVIEW_R2_REQUIRED/CANDIDATE_46761D47F3D7A3D4D75B8842547C70D3843A4A51/QA_NOT_READY
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\docs\PLAYER_PLAN.md
+- NEXT_REQUIREMENT=User or architecture decision is required: create a new independent Progress state-model reshape task card, recommended, or explicitly defer/retire P1-PLAYER-PROGRESS-001. No third implementation patch on this task line.
+- STOP_CONDITION=BLOCKED_HISTORY after second implementation and FAIL scoped review. Do not implement a third patch, request a device lock, QaReady, QA, PC matrix, K60, merge-prep, integration or Release without a new user-authorized task card and architecture decision.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/PROGRESS_P1_STATE_MODEL_REDESIGN/SCOPED_REVIEW_R2_FAIL/BLOCKED_HISTORY/NO_THIRD_IMPLEMENTATION/PRODUCT_P1_OPEN/QA_NOT_READY
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_APPROVED_SCOPE_EXPANSION_2026_11_10 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO_PENDING_SCOPED_REVIEW_R2
+- IMPLEMENTATION_AUTHORIZED=NO
 - DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / SCOPED_REVIEW_R2_REQUIRED=YES / PRODUCT_P1_OPEN / QA_READY:NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / SCOPED_REVIEW_R2=FAIL / PRODUCT_P1_OPEN / QA_READY:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=208714/1048576/19.9%/SCOPED_REVIEW_R2_REQUIRED
+- CONTEXT_AT_CLOSE=226005/1048576/21.6%/BLOCKED_HISTORY_SCOPED_REVIEW_R2_FAIL
 - P0=0
-- P1=P1-STARTUP-R14-01:CLOSED_BY_R15;P1-PLAYER-PROGRESS-001:OPEN_PENDING_SCOPED_REVIEW_R2;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
+- P1=P1-PLAYER-PROGRESS-001:OPEN;P1-PROGRESS-R2-A:OPEN_EXO_BUFFERING_LAST_POSITION;P1-PROGRESS-R2-B:OPEN_MPV_PLAYLIST_EPOCH_WINDOW;P1-STARTUP-R14-01:CLOSED_BY_R15;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
 - P3=0
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=SCOPED_REVIEW_R2_THEN_FRESH_QA
-- last_evidence=R14_AUDIT=PASS;R14_REPORT_SHA=AA1E4CCD21981D1F458D14D2BAE1C0C165A33BD81ECE2FFAA45EAC315854F9FC;R14_MANIFEST_SHA=C5BA2AB650B0AB6D4D540F9BB2486A25F278FFAF93440FCE2032416981712EF8;STARTUP_R15=PASS;CONTROL=0fa4dfe014dd58153258daa44934244c0b998fb5;CANDIDATE=46761d47f3d7a3d4d75b8842547c70d3843a4a51;P1-PLAYER-PROGRESS-001=OPEN;SCOPED_REVIEW_R2=REQUIRED;LOCK_ACTIVE=0
+- NEXT_CRITICAL_PATH=USER_ARCHITECTURE_DECISION_FOR_NEW_STATE_MODEL_SLICE_OR_DEFER_RETIRE
+- last_evidence=SCOPED_REVIEW_R2=FAIL;R2_REVIEW_REPORT_SHA=117741057940DFCB98E91D6DFB7B1EDFFABB0691FAFFDB037E5CDA9BC6C598F2;R2_REVIEW_MANIFEST_SHA=5CE0485A728CB2B0F6B45AF11DCBA5A901259C4165A3F33065E9E820A9DE7CCD;P1_R1_BLOCKERS=A_PASS;B_FAIL;C_PASS;P0=0;P1=OPEN;P2=2_EXISTING;P3=0;QA=NOT_DISPATCHED;LOCK_ACTIVE=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -997,10 +997,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=R14 and R15 control gates PASS, but P1-PLAYER-PROGRESS-001 remains open pending fresh scoped review R2; real mpv HLS ordering, MediaSession binder position/buffered/loading, retry tap, process recovery timing, Compose click races, PC-01/03/04/05/11/12, DirectPlay+Exo regression, device QA, independent QA, merge-prep, integration and Release remain uncovered.
-- STOP_CONDITION=No device lock or QaReady before fresh scoped review R2 PASS. Review FAIL means BLOCKED_HISTORY and no third implementation round. Object, source, evidence, path, device, production-write or lock drift requires STOP.
-- MANUAL_LIMITATION=R14 PASS and R15 startup PASS prove control-plane integrity only; implementation GREEN is not product P1 closure, independent QA, integration or Release PASS.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_PROGRESS_P1_SCOPED_REVIEWER_R2_2026_11_10
+- UNCOVERED=Scoped review R2 FAIL is code-based and closes the task line to BLOCKED_HISTORY. P1-PLAYER-PROGRESS-001 remains open with P1-PROGRESS-R2-A Exo buffering last-position loss and P1-PROGRESS-R2-B mpv playlist mutation epoch window. No fresh QA, device lock, PC matrix, K60, merge-prep, integration or Release is permitted without a new user-authorized task card and architecture decision.
+- STOP_CONDITION=Do not dispatch QA or devices. A new independent state-model reshape task line is recommended; otherwise explicitly defer or retire the P1. No third implementation on this task line.
+- MANUAL_LIMITATION=The FAIL is proven from production call chains and review evidence, not from missing device coverage. R2 implementation GREEN and 724 tests do not close the two residual P1s.
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_PROGRESS_P1_REDESIGN_OR_RETIRE_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
