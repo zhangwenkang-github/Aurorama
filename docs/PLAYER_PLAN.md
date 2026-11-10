@@ -7224,13 +7224,22 @@ targeted/player-local/phone/assemble/KTFMT/A0/GatePlan。Review 必须由不同 
 
 ### 52.51 Progress source-identity / retry-priority R7 任务卡（2026-11-11）
 
-**状态**：`R7_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+**状态**：`R7_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
 `R6_SCOPED_REVIEW=FAIL / QA_READY=NO`。
 
 R7 从 R6 candidate `caa92a239297625c02cbb335b15aa334f4e7beae` / tree
 `4405f62042f2196c351f410da36288d9ee675562` 隔离建立，保留 R6 已通过的
 same-identity IDLE/UNKNOWN native current、合法 batch add/range move 顺序、
 String/Boolean property epoch gate 与 assemble transcript，只冻结以下增量：
+
+**进度（2026-11-11，implementation 收口）**：fresh R7 implementation owner 已提交
+`49eeb76dcc5541b1d97b4793205e50e489ff0a9d`（tree
+`207d11471b6f8474d2416d1b4ce6e40801f97b19`），只改 `MPVPlayer.kt` 与
+`PlaybackSessionRulesTest.kt`，worktree clean、未 push。正式 RED 为 `47/4/0/0`
+assertion-only；GREEN 为 targeted `3 suites / 52`、player-local `42 suites / 332`、
+phone `62 suites / 412`，assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为
+`15508/15512`、headroom 4。负责人已核验 report/manifest/RED 哈希、关键 diff 与对象边界，
+并派出不同 fresh R7 scoped reviewer；review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
 
 1. **P2 START_FILE source/command ownership**
    - START_FILE 初始化命令必须在 source/command ownership 建立时绑定显式 token，不得在 native
