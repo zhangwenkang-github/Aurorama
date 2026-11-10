@@ -6949,3 +6949,42 @@ scoped review → review PASS 后才申请 Pad 锁和 QA。Review FAIL 即停止
 R7 在本任务只完成合同冻结、TASKS/ACTIVE、记忆和 fresh pre-handoff audit；不实现、不 review、
 不碰设备。后继负责人身份：
 `AURORAMA_141_PLAYER_PROGRESS_RETRY_SOURCE_CONTRACT_DELIVERY_LEAD_R1_2026_11_10`。
+
+### 52.45 Progress source-identity / retry-priority 实现 R1 GREEN（2026-11-10）
+
+**状态**：`IMPLEMENTATION_R1=GREEN / SCOPED_REVIEW_R4=REQUIRED /`
+`P1-PLAYER-PROGRESS-001=OPEN / QA_READY=NO`。
+
+交付负责人从精确 R3 candidate
+`bb95e3aeba1645af755a318e725f101bfce7628c` 建立隔离 branch
+`codex/v141-player-progress-source-retry-contract`，并只派一个 fresh implementation owner。
+实现先取得 assertion-only RED，再完成 source identity / playlist remap 与 retry priority：
+
+```text
+HEAD=c6fff17602c4e4c0eebf54710e733a982303d5ab
+TREE=8c0f6e53a5b0195d26888a290631937c6d9b9e41
+PARENT=bb95e3aeba1645af755a318e725f101bfce7628c
+WORKTREE_CLEAN=YES
+CHANGED_PATHS=3
+NEW_PRODUCTION_OR_TEST_FILES=0
+```
+
+实际只改 `MPVPlayer.kt`、`PlayerViewModel.kt` 与既有 `PlaybackSessionRulesTest.kt`。四条 playlist
+mutation 经 `commitPlaylistState()` 比较 `mediaId + mediaSourceId + source uri`：identity 未变只
+remap index，identity 改变则在发布新列表前推进 source epoch 并清旧 source truth。Retry terminal
+严格使用 `EXPLICIT_PENDING_SEEK_TARGET > LAST_CONFIRMED_ENGINE_POSITION > PERSISTED_HINT >
+START_ZERO`，pending target 绑定 seek generation、source epoch 与 session key。
+
+RED 原始件保留：`35 executed / 7 failures / 0 errors / 0 skipped`，失败均为行为 assertion。
+GREEN：targeted `40/0/0/0`、player-local `42 suites / 320/0/0/0`、phone
+`62 suites / 412/0/0/0`、assemble、KTFMT、A0 与 GatePlan PASS；A0 `15503/15512`，余量 9 行。
+
+```text
+F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-contract-implementation-r1-2026-11-10\IMPLEMENTATION_REPORT.md
+SHA256=15BD989DDAFF46111A2C8DF78744C7E17159E7BE9AFC97AD7F599C97619217BD
+MANIFEST_SHA256=064BBE737EF2F327A033BB77711F3021DBEB481F0CB0BDEBB556AD2A8FCD55B1
+```
+
+本状态不是产品、review 或 QA PASS。下一步必须由不同 fresh read-only scoped review R4 独立核对
+`bb95e3ae..c6fff176` 三路径 diff、生产调用链、RED/GREEN 与全部门禁；review PASS 前不得申请
+Pad 锁或 `QaReady`。Review FAIL 即停止本任务卡，不得追加机械补丁。
