@@ -7154,7 +7154,7 @@ MANIFEST_SHA256=CBD6E42257C2367D18B8DEFD43EA45AE437851737A27E887E0B13661C3F83F9C
 
 ### 52.50 Progress source-identity / retry-priority R6 任务卡（2026-11-11）
 
-**状态**：`R6_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+**状态**：`R6_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
 `QA_READY=NO`。
 
 **进度（2026-11-11）**：delivery lead R2 已完成最小 startup gate；Control、R5 base、
@@ -7163,6 +7163,15 @@ R5 review / manifest / pre-handoff audit SHA 与设备锁均 MATCH。R6 branch
 `52967e20dd8c6e5e6973d9847fbb92ba3e57244f` 建立并核验 clean。已恰好派出一名 fresh
 implementation owner（`deepseek-flash / max / fork=none`），要求同回合短计划后执行正式
 assertion-only RED→GREEN；尚未进入 review、设备锁、QaReady 或 QA。
+
+**进度（2026-11-11，implementation 收口）**：fresh implementation owner 已在 R6 worktree
+提交 `caa92a239297625c02cbb335b15aa334f4e7beae`（tree
+`4405f62042f2196c351f410da36288d9ee675562`），仅修改 `MPVPlayer.kt` 与
+`PlaybackSessionRulesTest.kt`，worktree clean、未 push。正式 RED 为 `43/6/0/0` assertion-only；
+GREEN 为 targeted `3 suites / 48`、player-local `42 suites / 328`、phone `62 suites / 412`，
+assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为 `15500/15512`、headroom 12。负责人已核验实现
+报告/manifest/RED 哈希、关键 diff 与对象边界。现已派出与实现 owner 不同的一名 fresh scoped
+reviewer；review PASS 前仍禁止设备锁、QaReady 与 QA，K60 继续禁止。
 
 R6 从 R5 candidate `52967e20dd8c6e5e6973d9847fbb92ba3e57244f` / tree
 `09fa94049ca906938003b8adc41fc0fd46d44649` 隔离建立，保留已通过的 pending/failed-seek 与

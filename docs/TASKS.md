@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R6-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R6-2026-11-11
-- TASK_STAGE=R6_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING
+- TASK_STAGE=R6_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -26,11 +26,11 @@
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.49-§52.50 > scoped review R5 report > candidate 52967e20dd8c6e5e6973d9847fbb92ba3e57244f
 - NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_RETRY_SOURCE_CONTRACT_DELIVERY_LEAD_R1_2026_11_10
-- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R6_2026_11_11
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R6_2026_11_11
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r5-scoped-review-2026-11-11\SCOPED_REVIEW_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r6-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - NEXT_REQUIREMENT=Successor delivery lead R2 must minimal-startup-check this ACTIVE, create an isolated R6 worktree from 52967e20, and dispatch exactly one fresh R6 implementation owner for idle/UNKNOWN same-identity preserve, batch/range command plans, and unified callback epoch gates.
 - STOP_CONDITION=R6 implementation must stop on new paths, Service/schema/settings/metadata/version/signing/release, frozen-contract deviation, same-identity current removal, missing command-plan/RED evidence, unknown new P0-P2, or unauthorized device/QA. An R6 review FAIL requires another new task card, not an in-card patch.
 - SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R6_IDLE_NATIVE_PRESERVE_AND_CALLBACK_GATES/CONTRACT_FROZEN/HANDOFF_TO_DELIVERY_LEAD_R2/QA_NOT_READY
