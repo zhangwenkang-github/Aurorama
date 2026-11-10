@@ -6069,3 +6069,103 @@ K60 零命令、截图 0，并释放唯一设备锁。
 QA 报告必须分列“已实际执行 / 未覆盖 / 未执行推断 / P0–P3 / BLOCKED / 证据指针”，记录
 candidate、APK、设备、窗口耗时、wrapper、各 scoped promise 的逐项断言、cleanup、lock、
 secret scan 与最终 `QA_R7_SCOPE_STATUS`。不得复用本段或 R6 的形成 PASS。
+
+### 52.27 A 簇 QA R7 结果：三项窄承诺未闭环（2026-11-10）
+
+**状态**：`INDEPENDENT_QA_R7=FAIL / QA_R7_SCOPE_STATUS=FAIL /`
+`PC01=FAIL / PC11=NOT_RUN / PC12=FAIL / NEXT_STAGE=SCOPED_REVIEW_OR_DIAGNOSIS`。
+
+全新 QA R7 在唯一实际窗口 `583.720 / 600 s` 内执行了 §52.26。对象、R6 manifest
+`203/203`、candidate / APK、wrapper ready / liveness 与 secret scan 均核验通过；wrapper
+`EXIT_CODE=0 / FLUSH_OK=YES / CHILD_PID=40176 / stderr 0`，sanitized 7754 行 / 443 次
+脱敏，窗口没有延长或重开。该通过只证明采集和对象门，不是产品 PASS。
+
+逐项结果：
+
+```text
+PC01_HLS_MPV_COLD_START_RESUME=FAIL
+PC11_FORCE_STOP_COLD_RESTART=NOT_RUN
+PC12_VISIBLE_TIMEOUT_RETRY=FAIL
+QA_R7_SCOPE_STATUS=FAIL
+```
+
+- `PC-01`：实际建立 HLS+mpv / 720p 6 Mbps；持久位置 `287 s`，冷启后由 mpv
+  `hr-seek` 到有效 `286.995 s`，UI 显示 `04:52`，非零恢复子断言 PASS。但等待期 UI 仅
+  `04:24 → 04:24 → 04:26 → 04:26`，MediaSession 持续 buffering / `-1`，未形成合同要求的
+  连续 15 秒有效增长，因此 `PC01_RESUME_PARTIAL=PASS` 仍不能关闭 scoped 承诺。
+- `PC-11`：QA 原报告试图执行 force-stop；设备侧确实得到 PID EMPTY / launcher /
+  MediaSession stack 0，但执行时刻为 `BUFFERING`，不是冻结合同要求的“有效 playing”分支。
+  后继冷启重进观察到 `00:00 / 0`，只能作为越界观察，不能作为播放中 force-stop 的产品 FAIL。
+  因此负责人把该项规范化为 `NOT_RUN`，保留原报告 FAIL 历史与原始证据，不把 buffering
+  restart 混入 scoped PASS / FAIL。
+- `PC-12`：同一 HLS+mpv source 自然出现可见 `PLAYBACK_PROGRESS_TIMEOUT`；等待期
+  `AUTO_RETRY=NO`，唯一 `重试` 实际点击一次，item / mediaSource / HLS / mpv 均保持，UI 与
+  engine 位置有推进。但 MediaSession 采样仍为 buffering / paused 且 position `-1`，retry
+  token 消费没有运行时显式证据，故完整 scoped 承诺 FAIL。
+
+cleanup 状态：
+
+```text
+CLEANUP_APPS_SERVICES_WRAPPER=PASS
+LOCK_RELEASED=YES / ACTIVE=0
+SETTINGS_WRITE_COMMANDS=0
+SETTINGS_BASELINE_LINES=1218
+SETTINGS_FINAL_LINES=1218
+SETTINGS_MISMATCH_COUNT=1
+CLEANUP_SETTINGS_COMPARISON=FAIL
+```
+
+baseline / final / recheck 聚合哈希均不同；R7 未保留可逐 key 定位的 settings diff，也没有执行
+任何 settings 写。不得写 `SETTINGS_CLEAN=YES`，该差异必须由 fresh read-only review 判断是
+系统易变字段、采集方式问题还是真实设备状态漂移。其余 cleanup 项 PASS：debug/release PID
+与 services / MediaSession / 通知 / wrapper child 为空，包 base SHA MATCH，users 仅 user0，
+K60、截图与 settings 写均 0。
+
+R7 没有新增产品 P0–P3；既有 `P1-PLAYER-SEEK-001`、`P1-PLAYER-PROGRESS-001`、
+`P2-PLAYER-LOADING-001`、`P2-PLAYER-STALL-001` 保持开放。`PC-01` 的“非零恢复但无连续
+增长”、`PC-12` 的 UI / engine 与 MediaSession 断层仍需只读归因；不得直接补代码、重开 QA
+或进入 merge-prep。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r7-2026-11-10\INDEPENDENT_QA_R7_REPORT.md`
+  （SHA-256 `4A3B4B156120136730E086B7C99A04B01D75D16098AA7C83A7A39755CDA444B9`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `91132C59C44B2F541BE9830FD4E606BDF9C35FC595D1941C9BA285F7F27E34F5`，
+  25/25 MATCH）
+- `...\runtime\17-retry-click.txt`
+- `...\runtime\20-postretry-samples.txt`
+- `...\runtime\21-pc01-pause-exit-coldstart.txt`
+- `...\runtime\30-pc11-force-stop.txt`
+- `...\cleanup\settings-comparison.txt`
+
+### 52.28 QA R7 失败只读归因 scope（2026-11-10）
+
+**状态**：`R7_SCOPED_REVIEW_R1_SCOPE=FROZEN / DEVICE_ACCESS=NONE / PRODUCT_CHANGE=NO /`
+`IMPLEMENTATION=NOT_AUTHORIZED_UNTIL_REVIEW`。
+
+下一阶段由全新
+`AURORAMA_141_PLAYER_A_CLUSTER_R7_SCOPED_REVIEW_R1_2026_11_10` 执行。该 owner 固定
+`deepseek-flash / reasoning_effort=max / fork_turns=none`，只做只读 scoped review /
+diagnosis，不派子代理，不实现、QA、review 下游、merge-prep、integration、Release 或
+文档负责人工作，不访问设备 / ADB / 网络，不改产品或证据。
+
+只读问题：
+
+1. `PC-01` 的持久恢复已成功，但 UI / MediaSession buffering 与 mpv 播放是否在等待期真正
+   停滞？需从 R7 sanitized 时间线和源码确认 `PC01_CONTINUOUS_15S` 是产品行为、测试前置或
+   现有 loading / stall 缺陷中的哪一类。
+2. `PC-11` 的 buffering force-stop 必须固定 `NOT_RUN`；另判断冷启重进 `0` 是否与 force-stop
+   前未确认 / 未持久化一致。不得把该观察升级为播放中分支产品结论。
+3. `PC-12` 的唯一 retry 是否在源码中存在可观测 token / one-shot 路径；MediaSession `-1`
+   是 mpv source 的正常能力边界、MediaSession 投影缺陷，还是现有 progress P1 的直接证据。
+4. settings 聚合哈希漂移是否有可恢复的逐 key 证据；若 R7 未保留 baseline / final 原始内容，
+   只能判 `CLEANUP_EVIDENCE_INSUFFICIENT`，不得在 review 中自行读设备或写 settings。
+5. 输出每项固定分类
+   `CONFIRMED_PRODUCT / HARNESS_GAP / EVIDENCE_INSUFFICIENT / NOT_REPRODUCED / NOT_RUN`，
+   映射既有 P0–P3 或提出精确 severity 建议；给出最小下一步，不得在 review 内实施。
+
+review 只写
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-r7-scoped-review-r1-2026-11-10\`
+报告与 manifest。停止条件：需要设备 / ADB / 网络、产品修改、settings 写、未知新 P0/P1、
+secret 输出、对象或 R7 evidence 漂移、merge-prep/integration/K60/Release。

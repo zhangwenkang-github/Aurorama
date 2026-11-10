@@ -8,24 +8,24 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=INDEPENDENT_QA_R7_DISPATCH_READY / PC01_PC11_PC12_SCOPE_FROZEN / PC02_EXCLUDED
+- TASK_STAGE=INDEPENDENT_QA_R7_COMPLETE / FAIL / PC01_FAIL_PC11_NOT_RUN_PC12_FAIL / SCOPED_REVIEW_REQUIRED
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_R7_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_R7_SCOPED_REVIEW_R1_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r7-2026-11-10\INDEPENDENT_QA_R7_REPORT.md
-- NEXT_REQUIREMENT=Fresh QA R7 must execute one 600-second Pad window for PLAYER_PLAN 52.26 only: PC-01 HLS+mpv cold-start resume, PC-11 force-stop/cold-restart recovery, PC-12 natural timeout visible retry; PC-02 and PC-03/04/05 are excluded.
-- STOP_CONDITION=Stop on QaReady/lock/device/APK/UID/wrapper/ready drift, wrapper exit 21-24, raw or secret leakage, window over 600 seconds, second window, unknown P0/P1, product/schema/settings/metadata/production write, scope expansion, or any scoped NOT_RUN. No merge-prep/integration/K60/Release until all applicable core rows have fresh PASS.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/R7_PC01_HLS_MPV_RESUME+PC11_FORCE_STOP_COLD_RESTART+PC12_NATURAL_TIMEOUT_RETRY/NO_PC02/NO_PC03_04_05/NO_PRODUCT_CHANGE
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-r7-scoped-review-r1-2026-11-10\SCOPED_REVIEW_R1_REPORT.md
+- NEXT_REQUIREMENT=Fresh read-only scoped review must classify R7 PC01 continuous-progress failure, keep PC11 buffering force-stop as NOT_RUN, investigate PC12 retry token and MediaSession -1, and resolve or bound the settings comparison evidence gap without device or product change.
+- STOP_CONDITION=Stop review on device/ADB/network requirement, product or settings write, unknown new P0/P1, secret exposure, object or R7 evidence drift, or attempt to enter QA/merge-prep/integration/K60/Release. No product repair until review maps each scoped failure to confirmed product, harness gap, evidence insufficiency, not reproduced, or not run.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER/R7_RESULT_FAIL/PC01_CONTINUOUS_PROGRESS_FAIL/PC11_NOT_RUN_BUFFERING_PRECONDITION/PC12_MEDIASESSION_AND_TOKEN_UNPROVEN/SETTINGS_COMPARISON_FAIL/READ_ONLY_REVIEW_REQUIRED
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / PC02_CLOSED_BY_QA_R6 / CORE_ROWS_REMAIN_NOT_RUN / NO_PRODUCT_REPAIR
-- DEVICE_ACCESS=PAD_43af8627_ASSIGNED_TO_QA_R7 / LOCKS_HELD:NONE / K60_8e875894_FORBIDDEN / K60_COMMANDS:0
-- FRESH_INDEPENDENT_QA_REQUIRED=YES / QA_R7_DISPATCH_READY / PC02_CLOSED_BY_QA_R6 / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / K60_AUTHORIZED:NO / RELEASE_AUTHORIZED:NO
+- DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / K60_8e875894_FORBIDDEN / K60_COMMANDS:0
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / R7_SCOPED_QA_FAIL / SCOPED_REVIEW_REQUIRED / IMPLEMENTATION_AUTHORIZED:NO / MERGE_PREP_READY:NO / MERGE_PREP_AUTHORIZED:NO / INTEGRATION_AUTHORIZED:NO / K60_AUTHORIZED:NO / RELEASE_AUTHORIZED:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=301762/1048576/28.8%/30W_FULL_CHECKPOINT_HANDOFF
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_QA_R7_SCOPED_WINDOW_THEN_TASKS_PLAYER_PLAN_WRITEBACK_THEN_NEXT_FRESH_QA_SCOPE
-- last_evidence=R6_REPORT:F8EC12DBCB115202ACD9D722B7BFB96CEBB3FFBF93AD56C6544742CE8A0C64DE;R11_AUDIT:802D8B7271BC534761677A85BA81DF96E1A9981DE3927FB8A464DE88BB9CF10E;SCOPE_FREEZE=docs_PLAYER_PLAN_52.26;CANDIDATE=60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf;APK=30241F412EC305E7ACD2BE71CA3E0AB2CD650E3444B0351E89967899FA362B68;LOCK_ACTIVE=0
+- NEXT_CRITICAL_PATH=READ_ONLY_R7_SCOPED_REVIEW_THEN_DECISION_ON_DIAGNOSIS_HARNESS_OR_IMPLEMENTATION
+- last_evidence=R7_REPORT:F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r7-2026-11-10\INDEPENDENT_QA_R7_REPORT.md;R7_REPORT_SHA:4A3B4B156120136730E086B7C99A04B01D75D16098AA7C83A7A39755CDA444B9;R7_MANIFEST_SHA:91132C59C44B2F541BE9830FD4E606BDF9C35FC595D1941C9BA285F7F27E34F5;R7_MANIFEST=25/25_MATCH;WINDOW=583.720/600;PC01=FAIL;PC11=NOT_RUN;PC12=FAIL;SETTINGS_COMPARISON=FAIL;LOCK_ACTIVE=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -996,11 +996,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   `...\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09`。
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=YES
-- UNCOVERED=R7 scoped: PC-01 HLS+mpv cold-start resume; PC-11 force-stop/cold-restart recovery; PC-12 natural HLS+mpv PLAYBACK_PROGRESS_TIMEOUT visible cause and one user retry. Still deferred: full PC-01 from-start and DirectPlay+Exo, full PC-11 buffering restart/network recovery, PC-03, PC-04, PC-05, DirectPlay+Exo final regression. PC-02 is closed and must not be rerun.
-- STOP_CONDITION=Execute one and only one 600-second QA R7 window on Pad 43af8627. Stop on any readiness, object, APK, UID, wrapper, lock or secret failure; stop if the window reaches 600 seconds; do not extend, reopen, retry the window, install, or broaden scope. Mark any scoped but unexecuted promise NOT_RUN and the scoped QA FAIL.
-- MANUAL_LIMITATION=QA R7 PASS may cover only the three scoped promises in PLAYER_PLAN 52.26. It does not prove full PC-01/PC-11/PC-12 matrix, PC-03/PC-04/PC-05, DirectPlay+Exo regression, product PASS, merge-prep, integration, K60 or Release.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_R7_2026_11_10
+- QA_READY=NO
+- UNCOVERED=PC01 scoped continuous-progress precondition failed after nonzero resume; PC11 playing force-stop branch was NOT_RUN because force-stop occurred in BUFFERING; PC12 visible timeout and one retry occurred but retry-token consumption and consistent MediaSession position remain unproven; Full PC01 including DirectPlay+Exo and from-start, PC03, PC04, PC05, full PC11 buffering restart/network recovery, DirectPlay+Exo regression, K60, merge-prep, integration and Release remain uncovered. Settings baseline/final/recheck aggregate hashes differ and no per-key diff was retained.
+- STOP_CONDITION=QA R7 is closed with FAIL. Do not reopen the 600-second device window, rerun PC-02, repair product, or enter merge-prep/integration/K60/Release before a fresh read-only scoped review classifies the R7 failures and settings evidence gap.
+- MANUAL_LIMITATION=R7 nonzero resume, visible timeout, no-auto-retry and one retry click are partial observations only. PC11 buffering force-stop is not a playing-branch product result. No PASS_WITH_GAPS may cover the failed or not-run scoped assertions.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_R7_SCOPED_REVIEW_R1_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
