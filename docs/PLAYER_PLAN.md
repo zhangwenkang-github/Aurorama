@@ -6318,3 +6318,36 @@ force-stop、terminal 可见时真实 retry 和 settings 逐 key。
 当前无外部阻塞，唯一阻塞是产品实现写域从既有 5-path 白名单扩展到 7-path。未经用户明确批准，
 不得派实现 owner、修改 `MPVPlayer.kt` / `PlayerActivity.kt`、进入 QA / merge-prep / integration /
 K60 / Release。
+
+### 52.32 用户批准精确两路径扩展并交接 R6 负责人（2026-11-10）
+
+**状态**：`USER_DECISION=SCOPE_EXPANSION_APPROVED /`
+`IMPLEMENTATION_AUTHORIZED=YES_SCOPED / PRODUCT_CHANGE=NOT_STARTED /`
+`NEXT_STAGE=HANDOFF_TO_DELIVERY_LEAD_R6`。
+
+用户于 2026-11-10 明确批准 §52.31 的精确产品写域扩展。批准只新增以下两个 production paths，
+其余冻结路径和红线保持不变：
+
+```text
+APPROVED_PRODUCT_PATH_ADDITION=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+APPROVED_PRODUCT_PATH_ADDITION=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+NEW_PRODUCTION_FILES=0
+```
+
+批准语义：
+
+- 允许后的 fresh implementation owner 只在原冻结 product allowlist 加上述两路径的并集内实施；
+  仍不得修改 `CinefinPlaybackService.kt`，不得创建新的 production file，不得扩 schema、settings、
+  metadata、A0 baseline、版本、签名或发布文件。
+- 原三个 test paths 继续是默认测试写域。若设计必须创建新的 test file，实施 owner 必须先停下并
+  报告 `TEST_SCOPE_EXPANSION_REQUIRED`；负责人不得把产品路径批准自动外推为测试路径批准。
+- 实施顺序固定为 RED → GREEN → targeted/full gates → A0 → 独立 review → fresh QA；实现 owner
+  不得自派 QA、review、merge-prep 或 Release。
+- `P1-PLAYER-PROGRESS-001` 仍是当前主修复目标；`P2-PLAYER-STALL-001` 继续独立保留，不得用
+  MediaSession 修复冒充 stall 闭环。`P1-PLAYER-SEEK-001`、`P2-PLAYER-LOADING-001` 不因本批准
+  自动关闭。
+
+本负责人波次到此收口，不再实施或扩项。后继负责人的第一步是独立 startup gate 和只读对象核验，
+然后派全新的 implementation owner；首个实现前置是读取设计报告 §0、§8.5、§9、§11，并针对
+批准后路径并集执行 `GatePlan=FULL`。设备仍不预取，K60、merge-prep、integration、Release 继续
+禁止。
