@@ -8,29 +8,29 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=INDEPENDENT_QA_R5_READY / QA_R4_STOPPED_EVIDENCE_SHA_TYPO / HARNESS_R3_SHA_CORRECTED_64_HEX / CORE_NOT_COMPLETE
+- TASK_STAGE=INDEPENDENT_QA_R5_FAIL_BACKGROUND_CONTINUE_P1 / P1-QA-R3-01_CLOSED / READ_ONLY_PRODUCT_DIAGNOSIS_PENDING / CORE_NOT_COMPLETE
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_OWNER_R5_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_BACKGROUND_CONTINUE_DIAGNOSIS_OWNER_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r4-2026-11-10\INDEPENDENT_QA_R4_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r5-2026-11-10\INDEPENDENT_QA_R5_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
-- STOP_CONDITION=QA R5 must verify the corrected 64-hex harness SHA, resolve the debug App UID, launch only the R3 UID-filtered wrapper, and pass Wait-SanitizedLogcatReady before the first App action. Stop on ready/liveness failure, wrapper exit 21-24, raw output, object/APK drift, device identity or lock conflict, applicable core FAIL/NOT_RUN, unknown P0/P1, K60 before Pad PASS, system/product writes, or any further harness repair before this single QA window.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_INSTALL_HARNESS_REPAIR_PASS/QA_LOGGING_REDACTION_HARNESS_R2_PASS/QA_LOGGING_REDACTION_HARNESS_R3_PASS/INDEPENDENT_QA_R3_FAIL/INDEPENDENT_QA_R4_STOPPED_EVIDENCE_SHA_TYPO/INDEPENDENT_QA_R5_PENDING/CORE_NOT_COMPLETE
+- STOP_CONDITION=Allow only fresh read-only diagnosis of P1-PLAYER-LOADING-BACKGROUND-CONTINUE on the fixed candidate and R5 sanitized evidence. No product edit, device, network, schema, A0, metadata, docs, merge-prep or integration. Stop if the cause cannot be tied to the frozen player slice or requires a second repair round.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_INSTALL_HARNESS_REPAIR_PASS/QA_LOGGING_REDACTION_HARNESS_R3_PASS/INDEPENDENT_QA_R3_FAIL/INDEPENDENT_QA_R4_STOPPED_EVIDENCE_SHA_TYPO/INDEPENDENT_QA_R5_FAIL/BACKGROUND_CONTINUE_P1_CONFIRMED/READ_ONLY_DIAGNOSIS_PENDING
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / UID_FILTERED_SANITIZED_LOGGING_WRAPPER_READY / READY_WAITER_REQUIRED / NO_PRODUCT_REPAIR
+- IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / READ_ONLY_DIAGNOSIS_ONLY / SINGLE_PRODUCT_REPAIR_AFTER_DIAGNOSIS / NO_A0_OR_SCHEMA_CHANGE
 - DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_FINAL_V140 / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / TEST_SERVER_NETWORK_USED=YES
-- FRESH_INDEPENDENT_QA_REQUIRED=YES / UID_FILTERED_LOGGING_REQUIRED / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / P1_PLAYER_BACKGROUND_CONTINUE_CONFIRMED / READ_ONLY_DIAGNOSIS_PENDING / MERGE_PREP_READY=NO / MERGE_PREP_AUTHORIZED=NO / INTEGRATION_AUTHORIZED=NO / PLAYER_STABILITY_INTEGRATED=NO / W1C_1_LOCALLY_INTEGRATED=YES / LOCAL_UNPUSHED=YES
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - CONTEXT_AT_CLOSE=351243/1048576/33.5%/35W_HANDOFF_TRIGGERED
 - P0=0
-- P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01=CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001;P1-PLAYER-LOADING-BACKGROUND-CONTINUE=OPEN_UNLOGGED_RERUN_REQUIRED;P1-QA-R3-01=OFFLINE_HARNESS_R3_PASS_DEVICE_PROOF_PENDING
+- P1=P1-SR-A01=CLOSED_BY_FRESH_REVIEW;P1-QA-R2-SECURITY-01=CLOSED_BY_USER_ACCEPTANCE_AND_HARNESS_R2_PASS;P1-QA-R3-01=CLOSED_BY_QA_R5_REAL_DEVICE_PROOF;2_OPEN_PRODUCT:P1-PLAYER-SEEK-001,P1-PLAYER-PROGRESS-001;P1-PLAYER-LOADING-BACKGROUND-CONTINUE=CONFIRMED_OPEN
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
 - P3=0
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_QA_R5_UID_FILTERED_A_CLUSTER_CORE_THEN_MERGE_PREP
-- last_evidence=QA_LOGGING_REDACTION_HARNESS_R3=PASS;FIXTURE=39/39;MANIFEST=64/64;HARNESS_R3_REPORT_SHA=2934942136F2B2E687DD11F5C6B2291538D05A4E3874A9BAFAF83543A74878A2;HARNESS_R3_MANIFEST_SHA=69E1A1297DCEC228FB71CA7830161B1A2B0CA034C2374FA17A8EE67FE799381A;QA_R3=FAIL/CORE_NOT_COMPLETE;QA_R4=STOPPED_EVIDENCE_SHA_TYPO;QA_R4_REPORT_SHA=DB5B2E27A0797E97102CE8F3739222E1ED21D8DA0D4220BC6FC34079B140903A;LOCK_RELEASED=YES;K60_COMMANDS=0
+- NEXT_CRITICAL_PATH=READ_ONLY_BACKGROUND_CONTINUE_DIAGNOSIS_THEN_ONE_BOUNDED_PRODUCT_REPAIR_THEN_FRESH_QA_R6
+- last_evidence=INDEPENDENT_QA_R5=FAIL;PLAYER_CORE_MATRIX_RESULT=FAIL;P1-PLAYER-LOADING-BACKGROUND-CONTINUE=CONFIRMED_OPEN;P1-QA-R3-01=CLOSED;WRAPPER_EXIT=0;SANITIZED_WINDOW=402.871/600;QA_R5_REPORT_SHA=8233A95D10DC7BD69DD5D60CD25E7B5EFFA1D6BC4F0DB1F09CB91158497A8461;QA_R5_MANIFEST=39/39;LOCK_RELEASED=YES;K60_COMMANDS=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -154,6 +154,13 @@
   `2934942136F2B2E687DD11F5C6B2291538D05A4E3874A9BAFAF83543A74878A2`，由文件哈希和
   R3 manifest 双重确认。R4 历史保留；下一步由不同 fresh QA R5 使用修正值执行 §52.18 合同。
   证据见 `docs/PLAYER_PLAN.md` §52.19。
+- 2026-11-10 fresh QA R5 的 UID-filtered sanitized window PASS：wrapper `EXIT_CODE=0`、
+  `402.871 s`、4210 sanitized lines / 318 redactions，工具 `P1-QA-R3-01` 关闭。但 HLS+mpv
+  在 HOME 4 秒后进入 `PAUSED / -1 / -1`，回前台重载并重置位置，确认
+  `P1-PLAYER-LOADING-BACKGROUND-CONTINUE=CONFIRMED_OPEN`；QA R5 因此 FAIL，其余核心行
+  `NOT_RUN`。下一步仅派 fresh read-only 诊断，再派不同 fresh implementation owner 做一轮
+  边界内修复，随后 fresh review 与 fresh QA R6；R6 同一 P1 再失败则停止补丁并重做状态模型。
+  证据见 `docs/PLAYER_PLAN.md` §52.20。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -949,11 +956,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   `...\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09`。
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=YES
-- UNCOVERED=Independent QA R5 has not run. QA R4 stopped before device use because the manager handoff contained a 62-hex typo for the R3 harness report; the corrected value is the 64-hex hash recorded in ACTIVE. QA R3 remains FAIL/CORE_NOT_COMPLETE. R5 must use the R3 UID-filtered wrapper and ready waiter before any App action.
-- STOP_CONDITION=Use only the corrected 64-hex harness identity and R3 UID-filtered wrapper. Stop on ready/liveness failure, wrapper exit 21-24, raw output, object/APK drift, identity or lock conflict, applicable core FAIL/NOT_RUN, unknown P0/P1, system/product writes, K60 before Pad PASS, or any second harness-repair path before this QA window.
-- MANUAL_LIMITATION=Harness R3 PASS and QA R3 local gates do not prove product behavior. QA R3 has zero valid core rows and QA R4 performed no device work; the PC-02 HOME/background anomaly remains a candidate until QA R5 reproduces it under a live UID-filtered stream.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_OWNER_R5_2026_11_10
+- QA_READY=NO
+- UNCOVERED=QA R5 produced a valid 402.871-second UID-filtered sanitized window and confirmed P1-PLAYER-LOADING-BACKGROUND-CONTINUE: HLS+mpv became PAUSED / -1 / -1 after HOME 4 seconds and reset on foreground return. PC-01, PC-03 through PC-05, PC-11 and PC-12 remain NOT_RUN because QA stopped at the first applicable FAIL.
+- STOP_CONDITION=Do not reopen QA or merge-prep until a fresh read-only diagnosis identifies a bounded cause and a different fresh implementation owner completes one minimal repair in the frozen player slice. A second attempted patch for the same P1 is prohibited; then a fresh scoped review and fresh QA R6 are required.
+- MANUAL_LIMITATION=The valid R5 window proves one HLS+mpv background-continuation failure, but it does not prove the other unexecuted rows failed or passed. Local JVM/A0/GatePlan PASS and the sanitized harness do not substitute for the remaining core matrix.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_BACKGROUND_CONTINUE_DIAGNOSIS_OWNER_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -992,7 +999,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 | P1-PLAYER-SEEK-001 | Pad R2 and K60 history show HLS/mpv seek can remain BUFFERING with invalid engine position; DirectPlay/Exo is not evidence for that path | Candidate implementation adds source epoch and confirmed-vs-target projection; independent QA must execute fresh candidate seek, retry and MediaSession paths before this can close | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pad-upgrade-ab-r2-2026-11-09\PAD_UPGRADE_AB_R2_TRIAGE_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md |
 | P1-PLAYER-PROGRESS-001 | Pad R2 shows target/effective position and UI/MediaSession divergence on HLS/mpv; K60 active item 1-to-3 remains open | Candidate implementation unifies progress reading and EOS authority; independent QA must prove same-item seek/source replacement does not advance the queue | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pad-upgrade-ab-r2-2026-11-09\PAD_UPGRADE_AB_R2_TRIAGE_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-implementation-2026-11-10\IMPLEMENTATION_REPORT.md |
 | P1-QA-R2-SECURITY-01 | Independent QA R2 live log command output exposed a test media API key query parameter; the window stopped at 176.711 seconds and applicable core rows remained NOT_RUN | CLOSED_BY_USER_RISK_ACCEPTANCE + QA_LOGGING_REDACTION_HARNESS_R2_PASS: the user accepted the test-only key risk, and an offline harness proved raw values do not enter stdout/evidence across 26 cases. QA R2 remains FAIL/CORE_NOT_COMPLETE; a different fresh QA R3 must still execute the product matrix | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r2-2026-11-10\device\security-incident.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-qa-logging-redaction-harness-repair-r2-2026-11-10\QA_LOGGING_REDACTION_HARNESS_REPAIR_REPORT.md |
-| P1-QA-R3-01 | Sanitized wrapper captured whole-device logcat and exited 22 after 8.179 seconds; QA R3 continued device actions for 145.707 seconds without a live sanitized stream | OFFLINE_HARNESS_R3_PASS: 39/39 fixture proves numeric App UID filtering, ready marker, waiter/liveness fail-closed and safe reason codes. The item remains open for real-device proof until a different fresh QA R4 starts the UID-filtered wrapper, passes waiter, and completes under a live sanitized stream | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r3-2026-11-10\INDEPENDENT_QA_R3_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-qa-logging-redaction-harness-repair-r3-2026-11-10\QA_LOGGING_REDACTION_HARNESS_REPAIR_REPORT.md |
+| P1-QA-R3-01 | Sanitized wrapper captured whole-device logcat and exited 22 after 8.179 seconds; QA R3 continued device actions for 145.707 seconds without a live sanitized stream | CLOSED_BY_QA_R5_REAL_DEVICE_PROOF: UID-filtered wrapper ready PASS, wrapper alive through the 402.871-second core window, EXIT_CODE=0, FLUSH_OK=YES, 4210 sanitized lines and 318 redactions; no raw stderr | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r3-2026-11-10\INDEPENDENT_QA_R3_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r5-2026-11-10\sanitized\wrapper-stdout.txt |
 | P1-PLAYER-LOADING-BACKGROUND-CONTINUE | R3 DirectPlay observation showed PAUSED / position=-1 / buffered=-1 after HOME 8 seconds and foreground return plus 5 seconds | Not eligible yet: the sanitized wrapper had exited before this observation. A fresh QA R4 must reproduce under a live valid sanitized window before this becomes confirmed product P1 | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r3-2026-11-10\runtime\pc02-direct-background.txt;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r3-2026-11-10\INDEPENDENT_QA_R3_REPORT.md |
 <!-- V2_QA_P1_MATRIX_END -->
 <!-- V2_QA_READY_END -->

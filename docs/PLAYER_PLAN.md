@@ -5642,3 +5642,51 @@ HARNESS_R3_MANIFEST_SHA256=
 QA R4 的 FAIL 历史保留。下一步必须由不同 fresh QA R5 重新 QaReady，核对本修正后的 64 位
 SHA 和 manifest，再按 §52.18 的 UID-filtered wrapper + ready waiter 合同执行真机核心；
 不得把本次抄写修正写成 harness、产品或 runtime PASS。
+
+### 52.20 A 簇 QA R5 合格窗口与 background-continue P1（2026-11-10）
+
+**状态**：`INDEPENDENT_QA_R5=FAIL / PLAYER_CORE_MATRIX_RESULT=FAIL /`
+`P1-QA-R3-01=CLOSED / P1-PLAYER-LOADING-BACKGROUND-CONTINUE=CONFIRMED_OPEN`。
+
+R5 首动作 QaReady PASS，candidate/APK/对象均匹配。R3 UID-filtered wrapper 在真实 Pad
+窗口内 ready PASS，wrapper PID `36592`，child PID `7436`；窗口 `402.871 s / 600 s`，
+wrapper `EXIT_CODE=0 / FLUSH_OK=YES / FAILURE=NONE`，sanitized `4210` 行 / `318` redactions，
+stderr 0。工具项 `P1-QA-R3-01` 因此关闭。
+
+真实 HLS+mpv 观察：
+
+- 初缓冲唯一 loading；暂停后 `PAUSED`，继续后 `BUFFERING`；
+- 按 HOME 4 秒后变为 `PAUSED / position=-1 / buffered=-1`；
+- 回前台重新进入加载并重置位置，未继续原可播放会话。
+
+该窗口直接确认 `P1-PLAYER-LOADING-BACKGROUND-CONTINUE`。QA 按“适用核心行 FAIL 即停”没有
+继续 PC-01、PC-03–PC-05、PC-11、PC-12，因此这些行仍 `NOT_RUN`；PC-06–PC-10 不适用。
+
+```text
+NEW_P0-P3=0/1/0/0
+P1-QA-R3-01=CLOSED
+P1-PLAYER-LOADING-BACKGROUND-CONTINUE=CONFIRMED_OPEN
+P1-PLAYER-SEEK-001=UNCHANGED
+P1-PLAYER-PROGRESS-001=UNCHANGED
+P2-PLAYER-LOADING-001=UNCHANGED
+P2-PLAYER-STALL-001=UNCHANGED
+K60_ACTIVE_ITEM_1_TO_3=OPEN
+```
+
+设备 cleanup PASS，debug/release PID、services、MediaSession、通知、wrapper child 与临时 dump
+均为空；settings mismatch 0、users 仅 user0、K60 命令 0、截图 0、锁 `ACTIVE=0`。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r5-2026-11-10\INDEPENDENT_QA_R5_REPORT.md`
+  （SHA-256 `8233A95D10DC7BD69DD5D60CD25E7B5EFFA1D6BC4F0DB1F09CB91158497A8461`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `AAC1221BC787C5565C7D9CFF90B31FDA5D7A962689C17FF359E4CBB9CDF708A0`，39/39 MATCH）
+- `...\sanitized\r5-core-sanitized.log`
+- `...\sanitized\wrapper-stdout.txt`
+- `...\runtime\pc02-and-backend-summary.txt`
+
+按单故障簇预算，下一步只允许 fresh read-only 诊断，再交另一个 fresh implementation owner 做
+一轮最小产品修复。诊断/实现不得扩出冻结 8-path 并集，不得改 A0、schema、设置或 metadata；
+修复后必须 fresh scoped review 与另一 fresh QA R6。若 R6 同一 P1 仍失败，停止打补丁并重做
+playback session/backend 状态模型。
