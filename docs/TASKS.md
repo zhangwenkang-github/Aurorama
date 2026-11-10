@@ -7,28 +7,28 @@
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
-- TASK_ID=V1.4.1-PLAYER-PROGRESS-STATE-RESHAPE-2026-11-10
-- TASK_STAGE=BLOCKED_HISTORY / SCOPED_REVIEW_R3_FAIL / ARCHITECTURE_DECISION_REQUIRED / PRODUCT_P1_OPEN
+- TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-CONTRACT-2026-11-10
+- TASK_STAGE=USER_CONTRACT_APPROVED / CONTRACT_FROZEN / HANDOFF_TO_DELIVERY_LEAD_R1
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.40-§52.43 > R3 scoped review report > reshape implementation report > prior R2 review report > candidate bb95e3aeba1645af755a318e725f101bfce7628c
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_PROGRESS_STATE_CONTRACT_2026_11_10
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.40-§52.44 > R3 scoped review report > reshape implementation report > candidate bb95e3aeba1645af755a318e725f101bfce7628c
+- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_RETRY_SOURCE_CONTRACT_DELIVERY_LEAD_R1_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
 - NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\docs\PLAYER_PLAN.md
-- NEXT_REQUIREMENT=User or architecture decision must define playlist index-remap versus source-epoch rules and the retry priority among explicit seek target, last confirmed position, and persisted hint before any new implementation task card.
-- STOP_CONDITION=R3 review FAIL closes this reshape task to BLOCKED_HISTORY. Do not add another same-round implementation patch, request device lock, QaReady, QA or merge work without a new architecture contract and user-authorized task card.
-- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_STATE_MODEL_RESHAPE/SCOPED_REVIEW_R3_FAIL/BLOCKED_HISTORY/ARCHITECTURE_DECISION_REQUIRED/PRODUCT_P1_OPEN/QA_NOT_READY
+- NEXT_REQUIREMENT=Read the frozen source-identity and retry-priority contract, create a fresh worktree from bb95e3aeba1645af755a318e725f101bfce7628c, then dispatch exactly one fresh implementation owner. The delivery lead must not implement, review or run QA.
+- STOP_CONDITION=Handoff only after fresh pre-handoff audit PASS. The successor must stop on new paths, Service/schema/settings/metadata, device or production write, frozen-contract deviation, missing retained RED evidence, or review FAIL. Review PASS is required before any device lock or QaReady.
+- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/CONTRACT_FROZEN/HANDOFF_TO_DELIVERY_LEAD_R1/IMPLEMENTATION_NOT_STARTED/QA_NOT_READY
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_APPROVED_SCOPE_EXPANSION_2026_11_10 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO
+- IMPLEMENTATION_AUTHORIZED=YES_SCOPED_ONLY_FOR_FRESH_IMPLEMENTATION_OWNER
 - DEVICE_ACCESS=LOCKS_HELD:NONE / R7_LOCK_RELEASED / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / SCOPED_REVIEW_R3=FAIL / PRODUCT_P1_OPEN / QA_READY:NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / SCOPED_REVIEW_R4_REQUIRED_AFTER_IMPLEMENTATION / PRODUCT_P1_OPEN / QA_READY:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
-- CONTEXT_AT_CLOSE=302215/1048576/28.8%/BLOCKED_HISTORY_REVIEW_R3_FAIL
+- CONTEXT_AT_CLOSE=316809/1048576/30.2%/HANDOFF_TO_RETRY_SOURCE_LEAD
 - P0=0
 - P1=P1-PLAYER-PROGRESS-001:OPEN;P1-PROGRESS-R2-A:CLOSED_BY_RESHAPE_IMPLEMENTATION_BUT_PRODUCT_OPEN;P1-PROGRESS-R2-B:FAIL_RESIDUAL_ADD_MOVE;P1-PROGRESS-R3-SEEK-PRIORITY:OPEN;P1-STARTUP-R14-01:CLOSED_BY_R15;P1-SR-A01:CLOSED;P1-QA-R2-SECURITY-01:CLOSED;P1-QA-R3-01:CLOSED;P1-PLAYER-LOADING-BACKGROUND-CONTINUE:CLOSED
 - P2=2_OPEN_PRODUCT:P2-PLAYER-LOADING-001,P2-PLAYER-STALL-001
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_ARCHITECTURE_CONTRACT_FOR_PLAYLIST_EPOCH_AND_SEEK_RETRY_PRIORITY
-- last_evidence=SCOPED_REVIEW_R3=FAIL;REPORT_SHA=02013EBFF7E394C1E564C795ABE58C6D675DF5C462577FABB15A8DCC8F41BC22;MANIFEST_SHA=0C8F498BD93D858DE093D7B9B0C0F652FC202B7CE0FA11EE464788E112BD20A6;CANDIDATE=bb95e3aeba1645af755a318e725f101bfce7628c;P1_RESIDUALS=ADD_MOVE_EPOCH,SEEK_RETRY_PRIORITY;P0=0;P2=0_NEW_PRODUCT;TEST_ENTRY_R3_01=OPEN;P3=EVIDENCE_R3_01;QA=NOT_DISPATCHED;LOCK_ACTIVE=0
+- NEXT_CRITICAL_PATH=HANDOFF_PASS_THEN_FRESH_IMPLEMENTATION_R2_THEN_SCOPED_REVIEW_R4_THEN_PAD_QA
+- last_evidence=USER_CONTRACT_APPROVED=YES;CONTRACT=SOURCE_IDENTITY_ATOMIC_REMAP_THEN_RETRY_PRIORITY;BASE_CANDIDATE=bb95e3aeba1645af755a318e725f101bfce7628c;SOURCE_REVIEW_SHA=02013EBFF7E394C1E564C795ABE58C6D675DF5C462577FABB15A8DCC8F41BC22;IMPLEMENTATION_REPORT_SHA=06AB5D42503BE1AD5786714C59C7BF4C7DF60496CA56A4F36E5591402F71C6C5;DEVICE=NONE;LOCK_ACTIVE=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -997,10 +997,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=Scoped review R3 FAIL leaves add/move playlist epoch remap and explicit-seek retry priority unresolved. No device, QA, merge-prep, integration or Release is permitted without a new architecture contract and user-authorized task card.
-- STOP_CONDITION=Do not dispatch QA or devices. Architecture decision is required; no same-round patch.
-- MANUAL_LIMITATION=Implementation gates and 412 phone tests do not close the two review residuals or product P1.
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_PROGRESS_STATE_CONTRACT_2026_11_10
+- UNCOVERED=Contract is frozen but no new implementation has run. Add/move playlist identity remap and explicit-seek retry priority remain open; device, MediaSession, native ordering, merge-prep, integration and Release remain uncovered.
+- STOP_CONDITION=Do not request device lock or QaReady before fresh implementation and different fresh scoped review PASS. No implementation by delivery lead, no same-card patch after review FAIL.
+- MANUAL_LIMITATION=The frozen contract and existing GREEN gates are not product closure; no QA has run.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_RETRY_SOURCE_CONTRACT_DELIVERY_LEAD_R1_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

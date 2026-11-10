@@ -6904,3 +6904,48 @@ MANIFEST_SHA256=0C8F498BD93D858DE093D7B9B0C0F652FC202B7CE0FA11EE464788E112BD20A6
 下一步必须由用户 / 架构层重新定两件事：playlist index remap 与 source epoch 的统一规则；以及
 explicit seek target、last confirmed position、persisted hint 在 retry 中的优先级。只有形成新的
 可验证状态合同后，才能另立新任务卡。
+
+### 52.44 Progress source-identity / retry-priority 合同冻结与交接（2026-11-10）
+
+**状态**：`USER_CONTRACT_APPROVED / CONTRACT_FROZEN /`
+`NEW_TASK_CARD=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-CONTRACT-2026-11-10 /`
+`HANDOFF_TO_NEXT_DELIVERY_LEAD / NO_IMPLEMENTATION_IN_R7`.
+
+用户在 R3 review FAIL 后要求“继续下一步，按交接规范交接”，接受 §52.43 推荐的状态合同。
+新任务直接以 R3 candidate `bb95e3aeba1645af755a318e725f101bfce7628c` 为产品起点，避免丢弃
+已经通过的 Exo BUFFERING 基础修复；新 branch 必须从该提交隔离创建。
+
+冻结规则：
+
+1. **Source identity / playlist remap**
+   - active source 身份不得用 playlist index 表示；playlist mutation 前先捕获旧 active identity，
+     mutation 后计算新 active identity。
+   - `setMediaItems`、`addMediaItems`、`moveMediaItems`、`removeMediaItems` 及同文件其它实际改变
+     current playlist / active item 的现有 mutation 必须经过同一原子 transition 入口。
+   - identity 未变、只有 index remap：原子更新 current index，保留 position/cache/pending，不推进
+     epoch。
+   - active identity 改变：在 mutation 对外可观察前同步推进 source epoch，并清 position/cache/
+     pending discontinuity；旧 callback / 旧 retry terminal 必须立即拒绝。
+   - 不得等待 native callback 或 1 秒 session sampling 才失效。
+2. **Retry position priority**
+   - `EXPLICIT_PENDING_SEEK_TARGET > LAST_CONFIRMED_ENGINE_POSITION > PERSISTED_HINT > START_ZERO`。
+   - pending seek target 必须绑定 source epoch + seek generation；source change 立即失效。
+   - target 仅在该 seek 被确认完成、明确取消，或被新的 seek/source 语义取代时清除。
+   - BUFFERING 不擦除 pending target 或 last confirmed；retry 不得用旧 confirmed position 覆盖仍在
+     等待的 explicit target。
+3. **Evidence**
+   - RED 必须在既有 test path 实际执行并保留 XML/log；至少经 `addMediaItems` / `moveMediaItems`
+     生产入口与 retry 选择生产入口。
+   - 不允许 target/UI cache/persist hint/fake callback 伪造 engine position。
+
+写域沿用现批准九路径并集，实际预期仍为五路径；禁止新 production/test file、Service、schema/
+settings/metadata/A0 baseline/version/signing/release。非目标仍是 seek/loading/stall 其它 P1/P2、
+DirectPlay+Exo 全矩阵、K60、设备预取、截图、merge-prep、integration、Release。
+
+新任务唯一执行顺序：fresh implementation owner → full gates + retained RED → different fresh
+scoped review → review PASS 后才申请 Pad 锁和 QA。Review FAIL 即停止并要求新的架构决策，不得
+在同一任务卡追加第三/第四轮机械补丁。
+
+R7 在本任务只完成合同冻结、TASKS/ACTIVE、记忆和 fresh pre-handoff audit；不实现、不 review、
+不碰设备。后继负责人身份：
+`AURORAMA_141_PLAYER_PROGRESS_RETRY_SOURCE_CONTRACT_DELIVERY_LEAD_R1_2026_11_10`。
