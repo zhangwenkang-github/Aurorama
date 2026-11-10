@@ -7154,7 +7154,7 @@ MANIFEST_SHA256=CBD6E42257C2367D18B8DEFD43EA45AE437851737A27E887E0B13661C3F83F9C
 
 ### 52.50 Progress source-identity / retry-priority R6 任务卡（2026-11-11）
 
-**状态**：`R6_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
+**状态**：`R6_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R7_REQUIRED /`
 `QA_READY=NO`。
 
 **进度（2026-11-11）**：delivery lead R2 已完成最小 startup gate；Control、R5 base、
@@ -7172,6 +7172,16 @@ GREEN 为 targeted `3 suites / 48`、player-local `42 suites / 328`、phone `62 
 assemble/KTFMT/A0/GatePlan 均 exit 0；A0 为 `15500/15512`、headroom 12。负责人已核验实现
 报告/manifest/RED 哈希、关键 diff 与对象边界。现已派出与实现 owner 不同的一名 fresh scoped
 reviewer；review PASS 前仍禁止设备锁、QaReady 与 QA，K60 继续禁止。
+
+**进度（2026-11-11，R6 scoped review FAIL）**：fresh reviewer 独立复核对象、RED、GREEN、
+A0 与 GatePlan 均 PASS，并确认 same-identity preserve、合法 batch/range 顺序、
+String/Boolean property epoch gate 与 assemble transcript 已关闭。Review 仍 FAIL：
+START_FILE 只在事件到达时读取当前 epoch/generation，未绑定产生它的 source/command；
+旧 START_FILE 可消费新 source commands。负 `newIndex` 被静默夹到 0，缺 URI 仍生成
+`loadfile null`，均未 fail closed。另有 named PLAYING fixture 实际未置 playWhenReady 的 P3。
+Review SHA-256
+`E66B34E252568E82093710061E4A7C0B795CA1DE8FEFEA48246C9810455F14A8`，
+manifest `92B0B2A6F629CEC4CB8F9F6B18092A7F472A77DB020CA0CDAD23D479E48FDE1F`。
 
 R6 从 R5 candidate `52967e20dd8c6e5e6973d9847fbb92ba3e57244f` / tree
 `09fa94049ca906938003b8adc41fc0fd46d44649` 隔离建立，保留已通过的 pending/failed-seek 与
@@ -7211,3 +7221,56 @@ release，以及设备/ADB/截图/生产写。实现 owner 必须先在上述既
 implementation evidence 根；报告摘要或编译失败不替代 RED。随后做最小实现，再运行
 targeted/player-local/phone/assemble/KTFMT/A0/GatePlan。Review 必须由不同 fresh R6 reviewer
 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。Review FAIL 自动另立新任务卡。
+
+### 52.51 Progress source-identity / retry-priority R7 任务卡（2026-11-11）
+
+**状态**：`R7_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+`R6_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+
+R7 从 R6 candidate `caa92a239297625c02cbb335b15aa334f4e7beae` / tree
+`4405f62042f2196c351f410da36288d9ee675562` 隔离建立，保留 R6 已通过的
+same-identity IDLE/UNKNOWN native current、合法 batch add/range move 顺序、
+String/Boolean property epoch gate 与 assemble transcript，只冻结以下增量：
+
+1. **P2 START_FILE source/command ownership**
+   - START_FILE 初始化命令必须在 source/command ownership 建立时绑定显式 token，不得在 native
+     event 到达时读取“当前” epoch/generation。
+   - 只有与产生该 START_FILE 的 load/source action 同一 token 的初始化快照可被消费和发布；
+     旧 START_FILE 在 mutation 后到达不得消费新 source commands，新 source 的真实 START_FILE
+     仍须拿到自己的快照。
+   - 若 native callback 无法建立唯一归属，pending command ownership 必须 fail closed（丢弃该轮
+     初始化发布），不得猜测当前 source。测试必须覆盖“旧 source 已在队列中 → mutation 安装新
+     commands → 旧 START_FILE 此时才到达”的真实交错。
+2. **P2 command inputs fail closed**
+   - `moveMediaItems` 的负 `newIndex` 必须在任何 internal state commit 或 native command 前拒绝，
+     与 Media3/Exo 的非法参数语义一致；不得静默夹到 0。
+   - `addMediaItems` / replacement 中无法取得 `localConfiguration.uri` 或
+     `requestMetadata.mediaUri` 的 item 必须 fail closed，不得提交 `loadfile null`；批量输入
+     必须原子拒绝，不能先改 internal playlist 或先发部分命令。
+   - 合法多 item add 与双向 range move 的 production command-plan fixture 必须保留并通过。
+3. **P3 PLAYING fixture truth**
+   - named PLAYING case 必须真实置为可观察 playing（至少 `playWhenReady` /
+     `currentPlayWhenReady` 与 state 一致），并断言 fixture 本身确实报告 playing；不得用仅
+     `STATE_READY` 冒充 PLAYING。
+4. **回归与证据**
+   - R6 的 P1 same-identity 矩阵、合法 batch/range 顺序、String/Boolean/eventId posted epoch
+     gate 必须继续通过。
+   - 重新生成 R7 正式 RED 原始 XML/stdout/stderr/exit code、GREEN 的
+     targeted/player-local/phone/assemble/KTFMT/A0/GatePlan 证据、可复现 assemble transcript
+     与 manifest；A0 不得超过 `15,512`，当前 headroom 为 12。
+
+允许五路径与 R6 相同：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、Service、schema/settings/metadata、A0 baseline/version/signing/
+release，以及设备/ADB/截图/生产写。实现 owner 必须先在既有 test path 实际取得 assertion-only
+RED，并保留原始 XML/stdout/stderr/exit；随后做最小实现并运行规定门禁。Review 必须由与 R7
+implementation owner 不同的 fresh reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，
+K60 仍禁止。任何 R7 review FAIL 自动另立 R8，不得在 R7 内继续补丁。

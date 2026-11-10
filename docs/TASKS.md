@@ -5,7 +5,67 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R6-2026-11-11
+### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R7-2026-11-11
+
+- TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R7-2026-11-11
+- TASK_STAGE=R7_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING
+- WORKTREE_POLICY=EXACT_ABSOLUTE
+- CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
+- CANONICAL_BRANCH=codex/v2-integration
+- R6_REVIEW=FAIL / HEAD=caa92a239297625c02cbb335b15aa334f4e7beae
+- R7_BASE_HEAD=caa92a239297625c02cbb335b15aa334f4e7beae
+- R7_BASE_TREE=4405f62042f2196c351f410da36288d9ee675562
+- R7_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r7-2026-11-11\Aurorama
+- R7_BRANCH=codex/v141-player-progress-source-retry-r7
+- R7_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+- R7_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+- R7_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+- R7_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+- R7_ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+- EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.50-§52.51 > R6 scoped review > candidate caa92a239297625c02cbb335b15aa334f4e7beae
+- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R7_2026_11_11
+- RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R6_2026_11_11
+- RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R6_2026_11_11
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r6-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
+- NEXT_REQUIREMENT=R7 must close START_FILE source/command ownership, command-input fail-closed gaps, and the non-playing PLAYING fixture while preserving R6 same-identity preserve, legal batch/range order, and callback epoch gates.
+- STOP_CONDITION=R7 must stop on new paths, Service/schema/settings/metadata/version/signing/release, old START_FILE consuming new-source commands, ambiguous ownership not fail closed, negative move silently rewritten, missing URI producing loadfile null, loss of R6 preserve/order/property gates, missing formal RED, unknown new P0-P2, or unauthorized device/QA. Any R7 review FAIL requires R8, not an in-card patch.
+- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R7_START_FILE_OWNERSHIP_AND_COMMAND_FAIL_CLOSED/CONTRACT_FROZEN/QA_NOT_READY
+- AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTOMATIC_R7_AFTER_R6_REVIEW_FAIL / AUTONOMOUS_CONTINUATION / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
+- IMPLEMENTATION_AUTHORIZED=YES_SCOPED_ONLY_FOR_FRESH_R7_IMPLEMENTATION_OWNER
+- DEVICE_ACCESS=LOCKS_HELD:NONE / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / R7_SCOPED_REVIEW_REQUIRED_AFTER_IMPLEMENTATION / PRODUCT_P1_OPEN / QA_READY:NO
+- MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
+- MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
+- P0=0
+- P1=P1-PLAYER-PROGRESS-001:OPEN_PRODUCT;P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01:CLOSED_BY_R6_SCOPED_REVIEW
+- P2=P2-PLAYER-LOADING-001:OPEN_PRODUCT;P2-PLAYER-STALL-001:OPEN_PRODUCT;P2-R6-START-FILE-TOKEN-NOT-SOURCE-BOUND-01:OPEN_BLOCKING_R7;P2-R6-COMMAND-INPUT-NOT-FAIL-CLOSED-01:OPEN_BLOCKING_R7;P2-R5-MULTI-ITEM-NATIVE-ORDER-NOT-PROVEN-01:LEGAL_ORDER_PASS_INVALID_INPUT_SPLIT
+- P3=P3-R6-PLAYING-FIXTURE-NOT-ACTUALLY-PLAYING-01:OPEN_R7;P3-R5-ASSEMBLE-COMMAND-TRANSCRIPT-01:CLOSED_BY_R6_SCOPED_REVIEW
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r6-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r6-implementation-r1-2026-11-11\MANIFEST.sha256
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r6-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r6-scoped-review-r1-2026-11-11\MANIFEST.sha256
+- OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
+- NEXT_CRITICAL_PATH=R7_IMPLEMENTATION_THEN_R7_REVIEW_THEN_PAD_QA
+- last_evidence=SCOPED_REVIEW_R6=FAIL;FAIL_REASON=START_FILE_NOT_SOURCE_COMMAND_BOUND;INVALID_COMMAND_INPUTS_NOT_FAIL_CLOSED;REVIEW_SHA=E66B34E252568E82093710061E4A7C0B795CA1DE8FEFEA48246C9810455F14A8;REVIEW_MANIFEST_SHA=92B0B2A6F629CEC4CB8F9F6B18092A7F472A77DB020CA0CDAD23D479E48FDE1F;DEVICE=NONE;LOCK_ACTIVE=0
+<!-- V2_HANDOFF_ACTIVE_END -->
+
+### HISTORY — V1.4.1 Progress source retry R6 scoped review FAIL
+
+- R6 candidate `caa92a239297625c02cbb335b15aa334f4e7beae` / tree
+  `4405f62042f2196c351f410da36288d9ee675562` 已由 fresh reviewer 判定
+  `SCOPED_REVIEW=FAIL`。same-identity IDLE/UNKNOWN retain、合法 batch/range 顺序、
+  String/Boolean epoch gate 与 assemble transcript 已通过；新增阻断为 START_FILE 未绑定
+  发起 source/command token，以及非法 move/缺失 URI 未 fail closed；PLAYING fixture 状态
+  不真实是 P3。按冻结合同不得在 R6 内补丁，已由 R7 接棒。
+- R6 review 证据 SHA-256
+  `E66B34E252568E82093710061E4A7C0B795CA1DE8FEFEA48246C9810455F14A8`，
+  manifest `92B0B2A6F629CEC4CB8F9F6B18092A7F472A77DB020CA0CDAD23D479E48FDE1F`；
+  R6 未执行设备、ADB、截图、QA、merge-prep、integration 或 Release。
+
+<!-- HISTORICAL_R6_ACTIVE_SNAPSHOT_BEGIN -->
+### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R6-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R6-2026-11-11
 - TASK_STAGE=R6_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING
@@ -65,7 +125,7 @@
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
 - NEXT_CRITICAL_PATH=HANDOFF_PASS_THEN_R6_IMPLEMENTATION_THEN_R6_REVIEW_THEN_PAD_QA
 - last_evidence=SCOPED_REVIEW_R5=FAIL;FAIL_REASON=SAME_IDENTITY_IDLE_OR_UNKNOWN_STILL_CLEARS_NATIVE_CURRENT;REVIEW_SHA=5CF6E6ED7E927A60F04459742EA1AA02C33F900DECD864E2E157D9E7C677B435;REVIEW_MANIFEST_SHA=CBD6E42257C2367D18B8DEFD43EA45AE437851737A27E887E0B13661C3F83F9C;DEVICE=NONE;LOCK_ACTIVE=0
-<!-- V2_HANDOFF_ACTIVE_END -->
+<!-- HISTORICAL_R6_ACTIVE_SNAPSHOT_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
 
