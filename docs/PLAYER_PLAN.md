@@ -5831,3 +5831,35 @@ K60 命令 0、截图 0、锁 `ACTIVE=0`。
 
 交接后旧负责人不再修改实质工作树。后继第一条只读命令仍为 canonical Snapshot；首个证据入口：
 `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-instrumentation-r2-2026-11-10\BACKGROUND_CONTINUE_INSTRUMENTATION_R2_REPORT.md`。
+
+R2 evidence 已冻结，不修改其报告或 manifest；交接段统一使用以下精确规范化 token：
+
+```text
+TARGET_APP_LAUNCHED=NO
+TARGET_APP_LAUNCHED_IN_R2=NO
+HLS_MPV_TARGET=NOT_RUN
+HOME_4S=NOT_RUN
+SAME_TASK_RETURN=NOT_RUN
+SECOND_FIXTURE=NOT_RUN
+```
+
+**未覆盖清单**
+
+- HLS+mpv 目标 backend 的真实建立；
+- 同一顺序下的 pre-HOME PID / taskId / PlayerActivity / itemId / source generation；
+- HOME 1 秒、4 秒与回原 task 后 1 秒、5 秒采样；
+- surface detach / attach、audio focus、playWhenReady 与 MediaSession position / buffered；
+- `pref_player_background_audio=false/ABSENT(default false)` 下，后台暂停是否属于用户承诺内行为；
+- DirectPlay+Exo 的同会话 background 回归；
+- PC-01、PC-03–PC-05、PC-11、PC-12，以及任何产品修复、scoped review、QA R6、merge-prep、
+  integration、K60 或 Release。
+
+fresh pre-handoff audit R8 判定
+`PRE_HANDOFF_AUDIT=FAIL / CREATE_R4_AUTHORIZED=NO`，P2 为上述“未覆盖缺失”和
+“target-launch 精确 token 缺失”；R9 必须在这次仅文档修复提交后由另一个 fresh owner 重跑。
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-context-handoff-audit-r8-2026-11-10\PRE_HANDOFF_AUDIT_R8_REPORT.md`
+  （SHA-256 `8845D65EBB77F296611FE9442855293147BCAC7CFB55676BE7203ABF191BC2D1`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `66E1D20CD2508D32C05305E4FBF969697D81AF379EBEDBA358B780EE595EE161`）
