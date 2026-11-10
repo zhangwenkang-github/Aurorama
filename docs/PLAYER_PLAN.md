@@ -6988,3 +6988,49 @@ MANIFEST_SHA256=064BBE737EF2F327A033BB77711F3021DBEB481F0CB0BDEBB556AD2A8FCD55B1
 本状态不是产品、review 或 QA PASS。下一步必须由不同 fresh read-only scoped review R4 独立核对
 `bb95e3ae..c6fff176` 三路径 diff、生产调用链、RED/GREEN 与全部门禁；review PASS 前不得申请
 Pad 锁或 `QaReady`。Review FAIL 即停止本任务卡，不得追加机械补丁。
+
+### 52.46 Progress source-identity / retry-priority scoped review R4 FAIL（2026-11-10）
+
+**状态**：`SCOPED_REVIEW_R4=FAIL / BLOCKED_HISTORY / USER_DECISION_REQUIRED /`
+`P1-PLAYER-PROGRESS-001=OPEN / QA_READY=NO`。
+
+与所有历史 owner 不同的 fresh read-only reviewer 核验 candidate
+`c6fff17602c4e4c0eebf54710e733a982303d5ab`、tree
+`8c0f6e53a5b0195d26888a290631937c6d9b9e41`、parent
+`bb95e3aeba1645af755a318e725f101bfce7628c` 后判定：
+
+```text
+SCOPED_REVIEW=FAIL
+CODE_REVIEW_PASS=NO
+PRODUCT_OR_QA_PASS=NO
+P0=0
+P1=1_NEW_CODE:P1-R4-SET-SAME-NATIVE-CLEAR-01
+P2=1_TEST_GAP:P2-R4-PENDING-BINDING-NO-DIRECT-NEGATIVE
+P3=1_RESIDUAL:P3-R4-FAILED-SEEK-CLEARS-SESSION-PENDING
+RED=35/7/0/0 ASSERTION_ONLY
+TARGETED=40/0/0/0
+PLAYER_LOCAL=42 SUITES/320/0/0/0
+PHONE=62 SUITES/412/0/0/0
+A0=15503/15512 HEADROOM=9
+GATEPLAN=FULL / STATE_EFFECT_MATRIX=PASS / 3 PATHS
+```
+
+对象的 tree/parent/clean、批准三路径、RED/GREEN、A0、GatePlan 与全部重跑门禁均 MATCH。FAIL 的
+唯一核心原因是 `setMediaItems` 在 active stable identity 未变时只保留本地 epoch/position/cache/
+pending，却仍无条件提交 `playlist-clear` 与 `playlist-remove current`；调用方随后 `prepare()` 会再次
+`resetInternalState()` / `advanceSourceEpoch()`，native current source 实际没有保留。
+
+同 identity GREEN 测试因 helper 设置 `commandsClosed=true`，`postCommand()` 直接返回，没有执行真实
+native 命令链；因此 GREEN 只证明本地字段保留。reviewer 同时记录 P2：新增 seek generation / source
+epoch binding 字段没有被直接负向测试；P3：`SeekState.Failed` 会清空 session pending，与“target 仅在
+确认 / 取消 / 新 seek / source 取代时清除”的字面合同仍需架构确认。
+
+```text
+F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-contract-scoped-review-r4-2026-11-10\SCOPED_REVIEW_REPORT.md
+SHA256=C96FCAEC17367080FB987768B01BF4B19D57E417D84930C00DB6D5475D4B9B9C
+MANIFEST_SHA256=670CCB0930FE6DC4741D831E7EA98007A511D589DBBBF905E709FEFBA3FE8F81
+```
+
+按冻结合同，本任务卡立即停止：不得追加机械补丁、申请设备锁或 `QaReady`，也不得进入独立 QA、
+K60、merge-prep、integration 或 Release。下一步必须由用户 / 架构层决定是否新建独立任务卡，明确
+same-identity native playlist 保留策略与 failed-seek pending 生命周期；当前没有可执行后继实现。
