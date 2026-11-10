@@ -6420,3 +6420,42 @@ RED→GREEN。实现、scoped review、fresh QA 必须是不同 owner。
 第一条只读动作：复核 R13 audit receipt 与当前唯一 ACTIVE。停止条件：R13 对象漂移、GatePlan
 非 FULL、需要新路径、schema/settings/metadata/生产写、K60、未知新 P0/P1，或跳过 RED/GREEN、
 A0、不同 fresh review、不同 fresh QA 及后续门。
+
+### 52.35 Progress P1 实现 R1 GREEN，待不同 fresh scoped review（2026-11-10）
+
+**状态**：`PROGRESS_P1_IMPLEMENTATION_R1=GREEN / SCOPED_REVIEW=PENDING / PRODUCT_P1=OPEN`。
+
+全新 implementation owner 在批准九路径内完成 RED→GREEN。实现提交从
+`60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf` 前进到
+`7d7e07139d0ff2216890793d58a9417d5aac5020`，只改 5 个授权路径；未修改
+`CinefinPlaybackService.kt`、schema/settings/metadata、A0 baseline、版本、签名或 release
+artifacts，未新增 production/test 文件。
+
+```text
+GATEPLAN_PRE=FULL / 9 PATH / 6 PRODUCTION + 3 TEST / MATRIX PASS / 0 UNMAPPED
+GATEPLAN_POST_NINE=FULL / MATRIX PASS / 0 UNMAPPED
+RED=19 TESTS / 3 EXPECTED ASSERTION FAILURES / EXIT 1 / 0 COMPILE-OR-PATH ERRORS
+GREEN=716 TESTS / 0 FAILURES / 0 ERRORS / 0 SKIPPED
+BUILD=BUILD SUCCESSFUL
+APK_SHA256=B059D67D42C6C6869348A425920657D4B3F73A855423AE2FBAA8AFD071535312
+KTFMT=PASS
+A0_OWNER_GATE=PASS / FIXTURE 7/7 / debtRatchetFailures=0 / MAIN 61 FILES 15510/15512 / HEADROOM 2
+```
+
+实现引入 engine snapshot / UI / persist 的位置规范化，保留最后有效位置；普通 `time-pos`
+只更新 snapshot，真实 seek/restart 才发 discontinuity；进度恢复 terminal 带 token，UI 原样回传，
+ViewModel 以 token + one-shot 状态拒绝 stale / duplicate。RED 证据、GREEN JUnit 摘要、build、
+KTFMT 与 A0 报告入口：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-progress-p1-implementation-r1-2026-11-10\IMPLEMENTATION_REPORT.md`
+（SHA-256 `026E746B46922BCB8CFE8424E3CD370A23665FB943D62D2264BDF1E422AF9B29`）。
+
+未覆盖真实 mpv HLS callback 时序、MediaSession binder 位置 / buffered / loading、真实 retry tap、
+进程恢复、Compose 点击竞争、PC-01/03/04/05/11/12、DirectPlay+Exo、设备与独立 QA。实现 GREEN
+不是产品 PASS；下一步必须由不同 fresh scoped reviewer 复核关键 diff、状态机边界和证据，review
+PASS 后才能申请新设备锁与 `QaReady`。
+
+需求映射：`P1-PLAYER-PROGRESS-001` → 用户承诺“UI / engine / MediaSession / persist 使用同一真实
+播放位置，retry 绑定当前 terminal 且一次点击可审计” → fresh scoped review 核对实现是否完整
+兑现该承诺。第一条只读动作：从实现报告与候选 commit 检查 RED/GREEN、九路径和关键 diff；
+停止条件：对象漂移、越权路径、RED 非预期、快照仍可被 0/target/cache 回填、retry token 非
+one-shot、MediaSession 断层未解，或需要扩大产品 / test scope。
