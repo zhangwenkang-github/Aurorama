@@ -8,20 +8,20 @@
 ### ACTIVE — V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
 
 - TASK_ID=V1.4.0-PLAYER-STABILITY-CONTAINMENT-2026-11-09
-- TASK_STAGE=INDEPENDENT_QA_R4_READY / QA_LOGGING_REDACTION_HARNESS_R3_PASS / UID_FILTERED_WRAPPER_READY / READY_WAITER_REQUIRED / CORE_NOT_COMPLETE
+- TASK_STAGE=INDEPENDENT_QA_R5_READY / QA_R4_STOPPED_EVIDENCE_SHA_TYPO / HARNESS_R3_SHA_CORRECTED_64_HEX / CORE_NOT_COMPLETE
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.10 > TEST_PLAN §8 PLAYER_CORE_RELEASE_MATRIX > PROJECT_RULES R038-R042 + R041 > LESSONS L038-L044 > GLOSSARY playback terms > ADR 0008 > Pad R2 runtime report + manifest > exact v1.4 APK source 005639a69679609661e3845344d3c6eec0e40f52
-- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_OWNER_R4_2026_11_10
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_OWNER_R5_2026_11_10
 - RETIRED_ROLE=AURORAMA_V2_WORKFLOW_EFFICIENCY_BRAINSTORM_AND_HANDOFF_LEAD_2026_11_08
 - RETIRED_ROLE=AURORAMA_V2_IDENTITY_CATALOG_W1C_DELIVERY_LEAD_2026_11_09
 - RETIRED_ROLE=AURORAMA_141_PLAYER_STABILITY_DELIVERY_LEAD_2026_11_09
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-qa-logging-redaction-harness-repair-r3-2026-11-10\QA_LOGGING_REDACTION_HARNESS_REPAIR_REPORT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r4-2026-11-10\INDEPENDENT_QA_R4_REPORT.md
 - NEXT_REQUIREMENT=V1.4.0-PLAYER-STABILITY-CONTAINMENT / autonomously deliver A-cluster minimal fix through implementation, independent QA, merge-prep, integration and runtime validation; DirectPlay/Exo is healthy while HLS/mpv has open P1/P2
-- STOP_CONDITION=QA R4 must launch the UID-filtered wrapper and pass Wait-SanitizedLogcatReady before the first App operation. Stop immediately on ready/liveness failure, wrapper exit 21-24, raw log output, object/APK drift, device identity or lock conflict, applicable core FAIL/NOT_RUN, unknown P0/P1, K60 before Pad PASS, product/system changes, or any further harness repair attempt before this single QA R4 window.
-- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_INSTALL_HARNESS_REPAIR_PASS/QA_LOGGING_REDACTION_HARNESS_R2_PASS/QA_LOGGING_REDACTION_HARNESS_R3_PASS/INDEPENDENT_QA_R3_FAIL/INDEPENDENT_QA_R4_PENDING/CORE_NOT_COMPLETE
+- STOP_CONDITION=QA R5 must verify the corrected 64-hex harness SHA, resolve the debug App UID, launch only the R3 UID-filtered wrapper, and pass Wait-SanitizedLogcatReady before the first App action. Stop on ready/liveness failure, wrapper exit 21-24, raw output, object/APK drift, device identity or lock conflict, applicable core FAIL/NOT_RUN, unknown P0/P1, K60 before Pad PASS, system/product writes, or any further harness repair before this single QA window.
+- SCOPE=1.4.1_PLAYER_STABILITY/A_CLUSTER_AB_COMPLETE/IMPLEMENTATION_CANDIDATE_60ebe5e8/A0_PASS/P1_CLOSURE_REVIEW_PASS/QA_INSTALL_HARNESS_REPAIR_PASS/QA_LOGGING_REDACTION_HARNESS_R2_PASS/QA_LOGGING_REDACTION_HARNESS_R3_PASS/INDEPENDENT_QA_R3_FAIL/INDEPENDENT_QA_R4_STOPPED_EVIDENCE_SHA_TYPO/INDEPENDENT_QA_R5_PENDING/CORE_NOT_COMPLETE
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTONOMOUS_CONTINUATION / WRITABLE_TEST_SERVER / ONLINE_MEDIA / TEST_RESOURCE_VALUE_OUTPUT_RELAXED / PLAYBACK_PROGRESS_FAVORITE_LOGS_ALLOWED / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=NO / PRODUCT_CANDIDATE_FROZEN / UID_FILTERED_SANITIZED_LOGGING_WRAPPER_READY / READY_WAITER_REQUIRED / NO_PRODUCT_REPAIR
 - DEVICE_ACCESS=K60_8e875894_ONLINE / PAD_43af8627_FINAL_V140 / ONEPLUS_DAILY_DEVICE_NO_SYSTEM_CHANGES / LOCKS_HELD=NONE / TEST_SERVER_NETWORK_USED=YES
@@ -42,8 +42,8 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-2026-11-10\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-pre-handoff-audit-r6-2026-11-10\PRE_HANDOFF_AUDIT_R6_REPORT.md
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=FRESH_QA_R4_UID_FILTERED_A_CLUSTER_CORE_THEN_MERGE_PREP
-- last_evidence=QA_LOGGING_REDACTION_HARNESS_R3=PASS;FIXTURE=39/39;MANIFEST=64/64;UID_FILTERED=YES;READY_MARKER=PASS;FAILURE_REASON_SAFE=YES;HARNESS_R3_REPORT_SHA=2934942136F2B2E687DD11F5C6B2291538D05A4E3874A9BAF83543A74878A2;HARNESS_R3_MANIFEST_SHA=69E1A1297DCEC228FB71CA7830161B1A2B0CA034C2374FA17A8EE67FE799381A;QA_R3=FAIL/CORE_NOT_COMPLETE;LOCK_RELEASED=YES;K60_COMMANDS=0
+- NEXT_CRITICAL_PATH=FRESH_QA_R5_UID_FILTERED_A_CLUSTER_CORE_THEN_MERGE_PREP
+- last_evidence=QA_LOGGING_REDACTION_HARNESS_R3=PASS;FIXTURE=39/39;MANIFEST=64/64;HARNESS_R3_REPORT_SHA=2934942136F2B2E687DD11F5C6B2291538D05A4E3874A9BAFAF83543A74878A2;HARNESS_R3_MANIFEST_SHA=69E1A1297DCEC228FB71CA7830161B1A2B0CA034C2374FA17A8EE67FE799381A;QA_R3=FAIL/CORE_NOT_COMPLETE;QA_R4=STOPPED_EVIDENCE_SHA_TYPO;QA_R4_REPORT_SHA=DB5B2E27A0797E97102CE8F3739222E1ED21D8DA0D4220BC6FC34079B140903A;LOCK_RELEASED=YES;K60_COMMANDS=0
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — 2026-11-09 1.4.0 player stability design frozen
@@ -149,6 +149,11 @@
   reason 均通过；未使用真实 ADB。下一步由 fresh QA R4 先启动 UID-filtered wrapper 并调用
   waiter，首次 App 操作只能在 ready PASS 后发生。若真实 wrapper 再失败，停止 harness 堆修，
   不得 merge-prep。证据见 `docs/PLAYER_PLAN.md` §52.18。
+- 2026-11-10 QA R4 在设备动作前发现负责人派单把 R3 harness 报告 SHA 少抄两位，按证据漂移门
+  正确停止；未取 Pad 锁、未执行 ADB。实际 64 位 SHA 为
+  `2934942136F2B2E687DD11F5C6B2291538D05A4E3874A9BAFAF83543A74878A2`，由文件哈希和
+  R3 manifest 双重确认。R4 历史保留；下一步由不同 fresh QA R5 使用修正值执行 §52.18 合同。
+  证据见 `docs/PLAYER_PLAN.md` §52.19。
 
 ### HISTORY — 2026-11-09 1.4.0 severe bug report / post-integration triage handoff
 
@@ -945,10 +950,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=YES
-- UNCOVERED=Independent QA R4 has not run. QA R3 remains FAIL/CORE_NOT_COMPLETE because its whole-device wrapper exited 22 after 8.179 seconds. R4 must resolve the debug App UID, launch the R3 UID-filtered wrapper, pass the ready/liveness waiter before any App action, use one bounded 10-minute Pad window, and execute all applicable A-cluster rows.
-- STOP_CONDITION=Use only the R3 UID-filtered wrapper and its ready waiter. Stop on ready/liveness failure, wrapper exit 21-24, raw secret output, object/APK drift, identity or lock conflict, applicable core FAIL/NOT_RUN, unknown P0/P1, system/product writes, K60 before Pad PASS, or any second harness-repair path before this QA window.
-- MANUAL_LIMITATION=Harness R2/R3 PASS and local gates do not prove product behavior. QA R3 still has zero valid core rows; the PC-02 HOME/background anomaly is a candidate that requires R4 reproduction under a live UID-filtered sanitized stream.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_OWNER_R4_2026_11_10
+- UNCOVERED=Independent QA R5 has not run. QA R4 stopped before device use because the manager handoff contained a 62-hex typo for the R3 harness report; the corrected value is the 64-hex hash recorded in ACTIVE. QA R3 remains FAIL/CORE_NOT_COMPLETE. R5 must use the R3 UID-filtered wrapper and ready waiter before any App action.
+- STOP_CONDITION=Use only the corrected 64-hex harness identity and R3 UID-filtered wrapper. Stop on ready/liveness failure, wrapper exit 21-24, raw output, object/APK drift, identity or lock conflict, applicable core FAIL/NOT_RUN, unknown P0/P1, system/product writes, K60 before Pad PASS, or any second harness-repair path before this QA window.
+- MANUAL_LIMITATION=Harness R3 PASS and QA R3 local gates do not prove product behavior. QA R3 has zero valid core rows and QA R4 performed no device work; the PC-02 HOME/background anomaly remains a candidate until QA R5 reproduces it under a live UID-filtered stream.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_OWNER_R5_2026_11_10
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

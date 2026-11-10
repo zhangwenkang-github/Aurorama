@@ -5599,7 +5599,7 @@ R2_EVIDENCE=UNCHANGED / 23/23 MATCH
 证据：
 
 - `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-qa-logging-redaction-harness-repair-r3-2026-11-10\QA_LOGGING_REDACTION_HARNESS_REPAIR_REPORT.md`
-  （SHA-256 `2934942136F2B2E687DD11F5C6B2291538D05A4E3874A9BAF83543A74878A2`）
+  （SHA-256 `2934942136F2B2E687DD11F5C6B2291538D05A4E3874A9BAFAF83543A74878A2`）
 - `...\MANIFEST.sha256`
   （SHA-256 `69E1A1297DCEC228FB71CA7830161B1A2B0CA034C2374FA17A8EE67FE799381A`）
 - `...\tools\Invoke-SanitizedLogcat.ps1`
@@ -5611,3 +5611,34 @@ QA R4 必须先自行 QaReady，固定 candidate/APK/serial/evidence root，取�
 UID-filtered wrapper 并调用 waiter PASS 后才允许第一次 App 操作。若真实 Android 上再次出现
 ready 失败、wrapper exit 21–24 或 UID 过滤不可用，停止自动化且不得继续堆修 harness。R3 harness
 PASS 不关闭 `P1-QA-R3-01`；只有 R4 真实窗口证明 wrapper 存活并取得合格日志后才可关闭工具项。
+
+### 52.19 QA R4 evidence identity stop（2026-11-10）
+
+**状态**：`INDEPENDENT_QA_R4=STOPPED_EVIDENCE_IDENTITY_MISMATCH / DEVICE_USED=NO /`
+`INDEPENDENT_QA_R5=READY`。
+
+QA R4 首动作 QaReady PASS，authority `87c913e389a173683bc853eaa133f3dfdf3f135e`、candidate
+`60ebe5e886845f3ae1dc26e321e6f5f8fe151cbf` 与 tree 均匹配；但它发现派单中的 harness R3
+报告 SHA 少抄了两位，并在设备动作前按证据漂移门正确停止。实际 64 位值为：
+
+```text
+QA_LOGGING_REDACTION_HARNESS_REPAIR_REPORT_SHA256=
+2934942136F2B2E687DD11F5C6B2291538D05A4E3874A9BAFAF83543A74878A2
+HARNESS_R3_MANIFEST_SHA256=
+69E1A1297DCEC228FB71CA7830161B1A2B0CA034C2374FA17A8EE67FE799381A
+```
+
+该值由 `Get-FileHash` 与 R3 manifest 条目双重确认，长度为 64。先前派单 / ACTIVE 中的
+62 位值属于负责人抄写错误；R3 harness 本身和 evidence 未漂移。QA R4 未获取 Pad 锁、
+未执行 ADB、未启动 App/wrapper、未开始 10 分钟窗口；K60、截图和 settings 写均为 0。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r4-2026-11-10\INDEPENDENT_QA_R4_REPORT.md`
+  （SHA-256 `DB5B2E27A0797E97102CE8F3739222E1ED21D8DA0D4220BC6FC34079B140903A`）
+- `...\MANIFEST.sha256`
+  （SHA-256 `6D95F91D03BF20B0E504F09B5EF03C0611B0938D56716886681580A02E441368`，4/4 MATCH）
+
+QA R4 的 FAIL 历史保留。下一步必须由不同 fresh QA R5 重新 QaReady，核对本修正后的 64 位
+SHA 和 manifest，再按 §52.18 的 UID-filtered wrapper + ready waiter 合同执行真机核心；
+不得把本次抄写修正写成 harness、产品或 runtime PASS。
