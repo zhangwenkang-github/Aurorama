@@ -8378,3 +8378,34 @@ artifact path、manifest、旧证据 hash、AST/UTF-8/LF、Control/candidate cle
 **停止条件**：R2 verifier 已 FAIL 且残余 P1 仍 OPEN，不得自动 R3；由 R4 显式决定是否另立
 新授权范围。产品/schema/Gradle/设备/网络/真实资源值、旧证据漂移、真实 secret 输出、
 未知 P0/P1 或写域扩大均停止。
+
+### 52.66 R19 QA allowlist-only event protocol R1（2026-11-12）
+
+**状态**：`P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN / USER_SELECTED_ALLOWLIST_ONLY /
+QA_ALLOWLIST_PROTOCOL_READY / PRODUCT_READ_ONLY / QA_READY=NO / DEVICE_ACCESS=NONE`。
+
+**用户决策（2026-11-12）**：R2 verifier 的残余绕过证明继续扩展通用 URI detector 会陷入
+编码 / ANSI 边界竞赛；用户选择改用 allowlist-only QA 事件协议。后续 QA 只输出固定
+`eventType`、`state`、布尔 / 有限数值 / 严格 ID 字段；原始 stdout/stderr、任意日志文本、
+命令参数、异常消息和 input-derived 文件名一律不进入可见输出。未知事件 / 字段 / enum /
+malformed record 丢弃或固定 fail-closed，不尝试打印原值。
+
+**范围**：只在新证据根实现离线可复用的 allowlist output projection、log parser、command
+display、artifact path 和 replay tests；产品、测试、schema、Gradle、settings、网络、设备与
+旧证据只读。不得重放 R19 QA，不得申请 Pad/K60，不得改产品或写 Engramory。
+
+**必需 RED / GREEN**：合成数据先在真实输出边界复现完整 URI、scheme+host、ANSI SGR 前缀、
+单字母 scheme、ANSI 吞冒号、stderr/exception、未知 JSON 字段和跨 write 泄漏；allowlist
+projection 后所有 payload 在 stdout / stderr / evidence / manifest / 文件名 / report 中为 0。
+valid records 必须正确 round-trip；R1/R2 官方与对抗矩阵只读复跑；AST / UTF-8 / LF、R1/R2/
+R19 冻结 hash、Control/candidate clean 与锁 `ACTIVE=0` 全 PASS。
+
+**任务卡**：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-allowlist-protocol-r1-2026-11-12\QA_ALLOWLIST_PROTOCOL_CARD.md`。
+
+**角色**：fresh `AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_ALLOWLIST_PROTOCOL_OWNER_R1_2026_11_12`
+只做实现与自测；完成后必须由不同 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_ALLOWLIST_PROTOCOL_VERIFIER_R1_2026_11_12`
+独立复跑。若 verifier FAIL，停下回报负责人，不自动下轮、不申请设备、不派 QA。
+
+**停止条件**：需要产品 / 测试 / schema / Gradle、真实资源值、设备 / 网络、旧证据写、真实
+secret 输出、未知 P0/P1、对象漂移，或协议需要透传任意原始文本。

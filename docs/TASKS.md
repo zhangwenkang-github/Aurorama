@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
-- TASK_STAGE=R19_QA_HARNESS_SECURITY_VERIFIER_R2_FAIL / RESIDUAL_P1_USER_DECISION_REQUIRED / QA_READY:NO
+- TASK_STAGE=R19_QA_HARNESS_RESIDUAL_P1 / USER_SELECTED_ALLOWLIST_ONLY / QA_ALLOWLIST_PROTOCOL_READY
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -31,11 +31,11 @@
 - R19_AUTHORIZED_NATIVE_SEAM=player/mpv-binding/**;gradle/libs.versions.toml;settings.gradle.kts;player/local/build.gradle.kts;player/local/src/test/java/**/mpv/**
 - R19_NATIVE_SCOPE=Inherited R17 seam only. Add command-bound source-event ownership barrier or equivalent new-entry/drain protocol; deterministically reject post-snapshot/pre-arm stale same-entry START. No unrelated native/dependency upgrade.
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.63-§52.65 > R1 security verifier report > R1 repair report > QA_HARNESS_REPAIR_R2_CARD
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_RESIDUAL_QA_HARNESS_P1_R3_OR_ALTERNATIVE
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.63-§52.66 > verifier R2 report > QA_ALLOWLIST_PROTOCOL_CARD > R1/R2 repair evidence
+- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_ALLOWLIST_PROTOCOL_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_REPAIR_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
-- CURRENT_DELEGATED_ROLE=NONE
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_ALLOWLIST_PROTOCOL_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_REPAIR_OWNER_R2_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_INDEPENDENT_QA_R19_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R19_S1_2026_11_11
@@ -52,19 +52,19 @@
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R13_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R12_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R12_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-verifier-r2-2026-11-12\SECURITY_VERIFIER_R2_REPORT.md
-- NEXT_REQUIREMENT=User must explicitly choose a delivery path for residual P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01: authorize one new minimal R3 detector repair, switch to a narrower allowlist-only QA event protocol, or stop the 1.4.1 release chain. No new owner, device, QaReady, QA, product, merge or Release is authorized before that decision.
-- STOP_CONDITION=Stop on automatic R3, new owner or device dispatch, Pad/K60, QaReady, QA, product/schema/Gradle write, real resource value, old-evidence drift, object drift, or any merge/integration/Release before explicit user decision.
-- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R19_QA_HARNESS_ANSI_PREFIX_REPAIR_R2
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-allowlist-protocol-r1-2026-11-12\QA_ALLOWLIST_PROTOCOL_CARD.md
+- NEXT_REQUIREMENT=Fresh allowlist protocol owner must implement a fixed-schema QA event projection in the new evidence root, prove raw URI/ANSI/command/stderr/free-text payloads never reach visible output, pass all offline gates and stop before device, verifier, QA, product, merge or Release.
+- STOP_CONDITION=Stop on product/test/schema/Gradle need, real resource value, device/network need, prior-evidence modification, real secret output, unknown P0/P1, object drift, need to pass arbitrary raw text, or any QA/merge/Release action.
+- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R19_QA_ALLOWLIST_ONLY_EVENT_PROTOCOL
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_AUTHORIZED_NATIVE_SEAM_2026_11_11 / USER_PRIORITIZED_FAST_1_4_1_RELEASE / AUTONOMOUS_HANDOFF_AND_QA / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO_R3_PENDING_USER_DECISION
+- IMPLEMENTATION_AUTHORIZED=YES_QA_ALLOWLIST_EVIDENCE_ONLY / PRODUCT_CODE_FROZEN / ONE_IMPLEMENTATION_ITERATION
 - DEVICE_ACCESS=NONE / LOCK_RELEASED / ACTIVE=0 / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / QA_READY:NO / BLOCKED_RESIDUAL_QA_HARNESS_P1
+- FRESH_INDEPENDENT_QA_REQUIRED=NO_UNTIL_ALLOWLIST_VERIFIER_PASS / QA_READY:NO
 - USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - P0=0
-- P1=P1-PLAYER-PROGRESS-001:OPEN_PRODUCT_UNCHANGED_NOT_ASSESSED;P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01:OPEN_RESIDUAL_SINGLE_LETTER_SCHEME_AND_ANSI_CONSUMED_STRUCTURE_R3_NOT_AUTHORIZED;P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01:CLOSED_BY_R6_AND_R7_REVIEW;P1-R18-POST-SNAPSHOT-PRE-ARM-SAME-ENTRY-START-CAN-CLAIM-SUCCESSOR:CLOSED_BY_R19_REVIEW;P1-R15-BOUNDED-RECOVERY-DEAD-ENDS-WITH-STARVED-CURRENT:CLOSED_BY_R17_REVIEW
+- P1=P1-PLAYER-PROGRESS-001:OPEN_PRODUCT_UNCHANGED_NOT_ASSESSED;P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01:OPEN_ALLOWLIST_PROTOCOL_IMPLEMENTATION_PENDING;P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01:CLOSED_BY_R6_AND_R7_REVIEW;P1-R18-POST-SNAPSHOT-PRE-ARM-SAME-ENTRY-START-CAN-CLAIM-SUCCESSOR:CLOSED_BY_R19_REVIEW;P1-R15-BOUNDED-RECOVERY-DEAD-ENDS-WITH-STARVED-CURRENT:CLOSED_BY_R17_REVIEW
 - P2=P2-PLAYER-LOADING-001:OPEN_PRODUCT;P2-PLAYER-STALL-001:OPEN_PRODUCT;CODE_P2=0;P2-R18-FORMAL-SEAM-MISSES-POST-RETURN-PRE-ARM-INGRESS:CLOSED_BY_R19_REVIEW;P2-R18-EVENT-INT-ONLY-START-FORMALLY-COVERED:CLOSED_BY_R19_REVIEW;P2-R9-NO-EVENT-STALE-OWNER-BLOCKS-UNIQUE-CURRENT-START-01:CLOSED_BY_R17_REVIEW;P2-R13-MARKER-IO-FAILURE-CAN-STARVE-CURRENT:CLOSED_BY_R17_MARKER_REMOVAL;P2-R15-FORMAL-INVALID-INDEX-TEST-FILTERS-SOURCE-COMMANDS:CLOSED_BY_R17_REVIEW
 - P3=P3-R12-A0-HEADROOM-15:MAINTENANCE_RISK;P3-R17-REAL-LIBMPV-DEVICE-ORDER:DEFERRED_TO_PAD_QA;P3-R11-TERMINAL-INTERLEAVING-TEST_COVERAGE:CLOSED_FOR_SPECIFIED_ORDERED_SEQUENCE;P3-R19-HARNESS-REAL-WRAPPER-INTEGRATION:NOT_RUN;P3-R19-HARNESS-FRESH-VERIFIER-R2:FAIL_RESIDUAL_P1
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r12-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
@@ -112,11 +112,12 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r2-2026-11-12\results\POST_SCAN.txt
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-verifier-r2-2026-11-12\SECURITY_VERIFIER_R2_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-verifier-r2-2026-11-12\MANIFEST.sha256
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-allowlist-protocol-r1-2026-11-12\QA_ALLOWLIST_PROTOCOL_CARD.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\MANIFEST.sha256
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_DECISION_R3_DETECTOR_OR_ALLOWLIST_ONLY_QA_OR_STOP_THEN_NEW_SECURITY_VERIFICATION_THEN_NEW_PAD_LOCK_QA_READY_QA_S2
-- HANDOFF_REASON=R2_VERIFIER_FAIL_RESIDUAL_SINGLE_LETTER_SCHEME_AND_ANSI_CONSUMED_STRUCTURE / R3_NOT_AUTHORIZED
+- NEXT_CRITICAL_PATH=ALLOWLIST_PROTOCOL_IMPLEMENTATION_THEN_FRESH_VERIFIER_R1_THEN_NEW_PAD_LOCK_QA_READY_QA_S2_THEN_REMAINING_CORE_JOURNEYS_THEN_INTEGRATION_RELEASE
+- HANDOFF_REASON=USER_SELECTED_ALLOWLIST_ONLY_QA_EVENT_PROTOCOL_AFTER_R2_VERIFIER_FAIL
 - HANDOFF_AT_CONTEXT=496560/1048576/47.4%
 - HANDOFF_MEASURED_AT=2026-11-11 23:50:46 Asia/Shanghai
 - CONTEXT_WATERMARK=277236/1048576/26.4% / 2026-11-12 01:13:21 Asia/Shanghai
@@ -1606,9 +1607,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - QA_READY=NO
 - QA_RESULT=R19_QA_HARNESS_SECURITY_REPAIR_R2_COMPLETE / FRESH_VERIFIER_R2_REQUIRED / P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN_REPAIRED / R19_QA_REMAINS_FAIL_BLOCKED_SECRET_OUTPUT_RESOURCE_URL
 - UNCOVERED=R2 owner reproduced five ANSI-prefix leaks, replayed them against the frozen R1 boundary, and passed R1 owner 18/18, R1 verifier 16/16 and R2 28/28 with URL-like and ANSI/control post-scan 0; manifest 25/25, static 7/7 and frozen inputs 68/68 match. A different fresh verifier R2 has not run. Real QA wrapper integration, ADB log capture, product runtime, PLAYER_CORE_RELEASE_MATRIX and Release remain NOT_RUN.
-- STOP_CONDITION=Stop until the user explicitly chooses a residual-P1 delivery path. Automatic R3, new device lock, QaReady, QA, product patch, merge, integration or Release is forbidden.
-- MANUAL_LIMITATION=The one R19 QA window is consumed. R1 and R2 offline harness repairs both failed independent security verification. A fresh QA cannot be authorized until the user chooses a new minimal path and a different fresh verifier proves it.
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_RESIDUAL_QA_HARNESS_P1_R3_OR_ALTERNATIVE
+- STOP_CONDITION=Stop until the allowlist-only QA event protocol is implemented and a different fresh verifier PASS. No URI-detector R3, raw log output, device, QaReady, QA, merge, integration or Release before that verification.
+- MANUAL_LIMITATION=QA_READY remains NO. The user selected an allowlist-only QA event protocol after R1/R2 detector verification failures. The protocol must eliminate arbitrary text output rather than attempt to redact it.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_ALLOWLIST_PROTOCOL_OWNER_R1_2026_11_12
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
