@@ -1749,7 +1749,7 @@ class PlaybackSessionRulesTest {
         commands.clear()
         val callbacks = captureEventCallbacks(player)
 
-        deliverStartFile(player, callbacks)
+        deliverStaleStartFile(player, callbacks)
         assertEquals(
             "同 URI 旧 owner 无事件时必须进入当前 source recovery",
             listOf(listOf("playlist-play-index", "0")),
@@ -1798,7 +1798,7 @@ class PlaybackSessionRulesTest {
         commands.clear()
         val callbacks = captureEventCallbacks(player)
 
-        deliverStartFile(player, callbacks)
+        deliverStaleStartFile(player, callbacks)
         assertEquals(
             "延迟旧 A event 只能触发 recovery，不能发布当前 A3",
             listOf(listOf("playlist-play-index", "0")),
@@ -2297,6 +2297,283 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `old END_FILE before restart cannot release the next source attempt`() {
+        val mediaA = mediaItem("item-a", "https://media.example/transition-a")
+        val mediaB =
+            mediaItemWithSubtitle(
+                mediaId = "item-b",
+                uri = "https://media.example/transition-b",
+                subtitle = "https://media.example/transition-b.srt",
+            )
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = 191L,
+                mediaItems = mutableListOf(mediaA),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = 191L),
+            )
+        setField(player, "isPlayerReady", true)
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+
+        player.setMediaItems(mutableListOf(mediaB), 0, 0L)
+        player.prepare()
+        commands.clear()
+
+        setField(player, "released", true)
+        player.event(MpvEvent.MPV_EVENT_END_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        setField(player, "released", false)
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        setField(player, "released", true)
+        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        callbacks.forEach(Runnable::run)
+        setField(player, "released", false)
+
+        assertEquals(
+            "旧 A END_FILE 不得释放 B attempt；B START_FILE 必须发布初始化命令恰好一次",
+            listOf(
+                listOf(
+                    "sub-add",
+                    "https://media.example/transition-b.srt",
+                    "auto",
+                    "test-subtitle",
+                    "zh",
+                )
+            ),
+            commands.filter { command -> command.firstOrNull() == "sub-add" },
+        )
+    }
+
+    @Test
+    fun `current START_FILE END_FILE releases pending source without duplicate END bypass`() {
+        val mediaB =
+            mediaItemWithSubtitle(
+                mediaId = "item-b",
+                uri = "https://media.example/terminal-b",
+                subtitle = "https://media.example/terminal-b.srt",
+            )
+        val mediaC =
+            mediaItemWithSubtitle(
+                mediaId = "item-c",
+                uri = "https://media.example/terminal-c",
+                subtitle = "https://media.example/terminal-c.srt",
+            )
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = 193L,
+                mediaItems = mutableListOf(mediaB, mediaC),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = 193L),
+            )
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+
+        player.prepare()
+        player.seekTo(1, 0L)
+        commands.clear()
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        player.event(MpvEvent.MPV_EVENT_END_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        assertEquals(
+            "B 的 START_FILE 后 END_FILE 必须释放 barrier 并推进 pending C 一次",
+            listOf(listOf("playlist-play-index", "1")),
+            commands,
+        )
+
+        setField(player, "released", true)
+        player.event(MpvEvent.MPV_EVENT_END_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        setField(player, "released", false)
+        assertEquals("重复 END_FILE 不得释放尚未 START 的 C", 1, commands.size)
+
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        val cSubtitleCommands = commands.filter { command -> command.firstOrNull() == "sub-add" }
+        assertEquals(
+            "C 只在其自己的 START_FILE 后发布初始化命令一次",
+            listOf(
+                listOf(
+                    "sub-add",
+                    "https://media.example/terminal-c.srt",
+                    "auto",
+                    "test-subtitle",
+                    "zh",
+                )
+            ),
+            cSubtitleCommands,
+        )
+    }
+
+    @Test
+    fun `FILE_LOADED without START_FILE releases barrier and advances pending source`() {
+        val mediaB =
+            mediaItemWithSubtitle(
+                mediaId = "item-b",
+                uri = "https://media.example/file-loaded-b",
+                subtitle = "https://media.example/file-loaded-b.srt",
+            )
+        val mediaC =
+            mediaItemWithSubtitle(
+                mediaId = "item-c",
+                uri = "https://media.example/file-loaded-c",
+                subtitle = "https://media.example/file-loaded-c.srt",
+            )
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = 197L,
+                mediaItems = mutableListOf(mediaB, mediaC),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = 197L),
+            )
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+
+        player.prepare()
+        player.seekTo(1, 0L)
+        commands.clear()
+        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        callbacks.forEach(Runnable::run)
+
+        assertEquals(
+            "B 仅 FILE_LOADED 时必须释放 barrier 并推进 pending C 一次",
+            listOf(listOf("playlist-play-index", "1")),
+            commands,
+        )
+    }
+
+    @Test
+    fun `source attempt with no terminal keeps pending source fail closed`() {
+        val mediaB =
+            mediaItemWithSubtitle(
+                mediaId = "item-b",
+                uri = "https://media.example/no-event-b",
+                subtitle = "https://media.example/no-event-b.srt",
+            )
+        val mediaC =
+            mediaItemWithSubtitle(
+                mediaId = "item-c",
+                uri = "https://media.example/no-event-c",
+                subtitle = "https://media.example/no-event-c.srt",
+            )
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = 199L,
+                mediaItems = mutableListOf(mediaB, mediaC),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = 199L),
+            )
+        val commands = captureCommands(player)
+
+        player.prepare()
+        player.seekTo(1, 0L)
+        commands.clear()
+
+        assertTrue("B 无任何 event 时不得猜测 terminal 或发布 C", commands.isEmpty())
+    }
+
+    @Test
+    fun `FILE_LOADED serializes pending source start exactly once when epoch is current`() {
+        val mediaE1 =
+            mediaItemWithSubtitle(
+                mediaId = "item-e1",
+                uri = "https://media.example/epoch-e1",
+                subtitle = "https://media.example/epoch-e1.srt",
+            )
+        val mediaE3 =
+            mediaItemWithSubtitle(
+                mediaId = "item-e3",
+                uri = "https://media.example/epoch-e3",
+                subtitle = "https://media.example/epoch-e3.srt",
+            )
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = 211L,
+                mediaItems = mutableListOf(mediaE1),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = 211L),
+            )
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+
+        player.prepare()
+        player.setMediaItems(mutableListOf(mediaE3), 0, 0L)
+        player.prepare()
+        commands.clear()
+
+        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        callbacks.forEach(Runnable::run)
+
+        assertEquals(
+            "无新 mutation 时 E3 source-start 必须串行发布一次",
+            listOf(listOf("loadfile", "https://media.example/epoch-e3", "replace")),
+            commands,
+        )
+    }
+
+    @Test
+    fun `pending source start cannot escape captured epoch before handler mutation`() {
+        val mediaE1 =
+            mediaItemWithSubtitle(
+                mediaId = "item-e1",
+                uri = "https://media.example/mutate-e1",
+                subtitle = "https://media.example/mutate-e1.srt",
+            )
+        val mediaE3 =
+            mediaItemWithSubtitle(
+                mediaId = "item-e3",
+                uri = "https://media.example/mutate-e3",
+                subtitle = "https://media.example/mutate-e3.srt",
+            )
+        val mediaE4 =
+            mediaItemWithSubtitle(
+                mediaId = "item-e4",
+                uri = "https://media.example/mutate-e4",
+                subtitle = "https://media.example/mutate-e4.srt",
+            )
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = 223L,
+                mediaItems = mutableListOf(mediaE1),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = 223L),
+            )
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+
+        player.prepare()
+        player.setMediaItems(mutableListOf(mediaE3), 0, 0L)
+        player.prepare()
+        callbacks.clear()
+
+        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        assertTrue("测试必须捕获 handler 前的 E1 回调", callbacks.isNotEmpty())
+
+        player.setMediaItems(mutableListOf(mediaE4), 0, 0L)
+        player.prepare()
+        commands.clear()
+        callbacks.forEach(Runnable::run)
+
+        val e3SourceStarts = commands.count { command ->
+            command == listOf("loadfile", "https://media.example/mutate-e3", "replace")
+        }
+        val e4SourceStarts = commands.count { command ->
+            command == listOf("loadfile", "https://media.example/mutate-e4", "replace")
+        }
+        assertEquals("handler 前安装 E4 后 E3 source-start 必须为 0: $commands", 0, e3SourceStarts)
+        assertEquals("E4 成为最新 pending 后必须只发布 E4 一次: $commands", 1, e4SourceStarts)
+    }
+
+    @Test
     fun `source change invalidates the current terminal before retry`() {
         val terminal = terminalAtDeadline(enginePositionMs = 5_000L)
         assertTrue(terminal.first.terminal != null)
@@ -2610,6 +2887,19 @@ class PlaybackSessionRulesTest {
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", false)
+    }
+
+    private fun deliverStaleStartFile(
+        player: MPVPlayer,
+        callbacks: MutableList<Runnable>,
+    ) {
+        callbacks.clear()
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
     }
 
     private fun assertEncodedSourceDoesNotClaim(

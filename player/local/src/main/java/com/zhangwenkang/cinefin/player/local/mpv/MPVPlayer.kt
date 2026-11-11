@@ -436,8 +436,9 @@ class MPVPlayer(
     private data class SourceEventResolution(
         val epoch: Long,
         val claim: List<Array<String>>? = null,
-        val nextCommand: Array<String>? = null,
+        val nextAttempt: SourceStartAttempt? = null,
         val replay: Boolean = false,
+        val ignoreBody: Boolean = false,
     )
 
     private var sourceStartInFlight: SourceStartAttempt? = null
@@ -454,14 +455,12 @@ class MPVPlayer(
     private val pendingSideloadedSubtitleAdds = CopyOnWriteArraySet<String>()
     /** App 字幕模式的自动选轨意图：true = sid=auto（按 slang / 默认轨选），false = sid=no */
     private var subtitleAutoSelect: Boolean = true
-    /** 最近一次落地的字幕外观；双字幕预留区按它重新计算 `sub-pos`。 */
     private var appliedSubtitleStyle: SubtitleStyle = SubtitleStyle()
     private var appliedSubtitleLayout: SubtitleLayout = SubtitleLayout()
     /** 进入双字幕前 mpv 的 `sub-ass-override`，退出双字幕时原样恢复。 */
     private var savedSubAssOverride: String? = null
     /** App 侧 libass 接管主字幕前 mpv 的 `sub-visibility`；null = 当前没有接管。 */
     private var savedNativeSubVisibility: String? = null
-    /** 当前是否正在为 Compose 次字幕预留主字幕位置；改字号 / 位置时沿用。 */
     private var subtitleReservation: Float? = null
     /** 用 EOF、主动操作计数和时间窗共同区分正常换源与真实播放失败。 */
     private var intentionalEndFileBudget: Int = 0
@@ -469,8 +468,7 @@ class MPVPlayer(
 
     /** 记录主动操作预计产生的 END_FILE 条数。 */
     private fun markIntentionalEndFile(count: Int = 1) {
-        // 只有「当前已经有文件在播」时才会有旧文件的 END_FILE 需要抵消；
-        // 起播阶段（还没加载任何文件）不留预算，否则会把首个文件的打开失败一起吞掉
+        // 起播阶段不留预算，否则会把首个文件的打开失败一起吞掉
         if (!isPlayerReady) return
         intentionalEndFileBudget += count
         suppressEndFileErrorUntilMs = SystemClock.elapsedRealtime() + END_FILE_SUPPRESS_WINDOW_MS
@@ -621,17 +619,15 @@ class MPVPlayer(
             }
         val initialCommands = resolution?.claim
         val epoch = resolution?.epoch ?: sourceEpoch.get()
-        val nextSourceStart = resolution?.nextCommand
         eventPoster post@{
             // release 之后主线程队列里可能还排着事件回调：此时 mpv 可能正在销毁，必须短路
-            if (!released && epoch == sourceEpoch.get())
+            if (resolution?.ignoreBody != true && !released && epoch == sourceEpoch.get()) {
                 if (
                     (eventId == MpvEvent.MPV_EVENT_START_FILE ||
                         eventId == MpvEvent.MPV_EVENT_FILE_LOADED) && !isPlayerReady
                 ) {
                     initialCommands?.forEach { postCommand(it) }
                 }
-            if (!released && epoch == sourceEpoch.get())
                 when (eventId) {
                     MpvEvent.MPV_EVENT_START_FILE ->
                         if (resolution?.replay == true) replayInitialCommands(epoch)
@@ -709,7 +705,8 @@ class MPVPlayer(
                     }
                     else -> Unit
                 }
-            nextSourceStart?.let(::postCommand)
+            }
+            if (!released) resolution?.nextAttempt?.let(::dispatchSourceStart)?.let(::postCommand)
         }
     }
 
@@ -748,23 +745,17 @@ class MPVPlayer(
             sourceStartInFlight?.let { attempt ->
                 SourceEventResolution(
                     attempt.epoch,
-                    nextCommand = releaseSourceStartLocked(attempt),
+                    nextAttempt =
+                        if (attempt.startObserved) releaseSourceStartLocked(attempt) else null,
+                    ignoreBody = !attempt.startObserved,
                 )
             }
         }
 
     private fun takeInitialCommandsLocked(attempt: SourceStartAttempt): List<Array<String>>? {
         if (initialCommandOwners.isEmpty()) return null
-        val currentEpoch = sourceEpoch.get()
-        val currentOwner = initialCommandOwners.lastOrNull { it.epoch == currentEpoch }
         val attemptKey = canonicalSource(attempt.sourceUri)
-        val ownerKey = canonicalSource(currentOwner?.sourceUri)
-        val matches =
-            currentEpoch == attempt.epoch &&
-                currentOwner?.sourceIndex == attempt.sourceIndex &&
-                attemptKey != null &&
-                attemptKey == ownerKey
-        if (!matches) {
+        if (!attemptOwnsCurrentCommandsLocked(attempt)) {
             initialCommandOwners.removeAll {
                 it.epoch == attempt.epoch &&
                     it.sourceIndex == attempt.sourceIndex &&
@@ -775,6 +766,14 @@ class MPVPlayer(
         initialCommandOwners.clear()
         initialCommandRecoveryEpoch = null
         return initialCommands.map { it.copyOf() }.also { initialCommands.clear() }
+    }
+
+    private fun attemptOwnsCurrentCommandsLocked(attempt: SourceStartAttempt): Boolean {
+        if (attempt.epoch != sourceEpoch.get()) return false
+        val owner = initialCommandOwners.lastOrNull { it.epoch == attempt.epoch } ?: return false
+        val attemptKey = canonicalSource(attempt.sourceUri) ?: return false
+        return owner.sourceIndex == attempt.sourceIndex &&
+            canonicalSource(owner.sourceUri) == attemptKey
     }
 
     private fun canonicalSource(uri: String?): String? {
@@ -916,21 +915,27 @@ class MPVPlayer(
         if (dispatch) postCommand(command)
     }
 
-    private fun releaseSourceStartLocked(attempt: SourceStartAttempt): Array<String>? {
+    private fun releaseSourceStartLocked(attempt: SourceStartAttempt): SourceStartAttempt? =
+        if (attempt.startObserved) dropSourceStartLocked(attempt) else null
+
+    private fun dropSourceStartLocked(attempt: SourceStartAttempt): SourceStartAttempt? {
         if (sourceStartInFlight !== attempt) return null
         sourceStartInFlight = null
         val next = pendingSourceStart
         pendingSourceStart = null
-        if (next == null || next.epoch != sourceEpoch.get()) return null
-        val owner = initialCommandOwners.lastOrNull { it.epoch == next.epoch } ?: return null
-        val nextKey = canonicalSource(next.sourceUri)
-        val ownerKey = canonicalSource(owner.sourceUri)
-        if (owner.sourceIndex != next.sourceIndex || nextKey == null || nextKey != ownerKey) {
-            return null
-        }
-        sourceStartInFlight = next.copy(startObserved = false)
-        return next.command.copyOf()
+        if (next == null || !attemptOwnsCurrentCommandsLocked(next)) return null
+        return next.copy(startObserved = false).also { sourceStartInFlight = it }
     }
+
+    private fun dispatchSourceStart(attempt: SourceStartAttempt): Array<String>? =
+        synchronized(initialCommands) {
+            if (released || sourceStartInFlight !== attempt) return@synchronized null
+            val current =
+                attempt.takeIf {
+                    pendingSourceStart == null && attemptOwnsCurrentCommandsLocked(it)
+                } ?: dropSourceStartLocked(attempt)
+            current?.command?.copyOf()
+        }
 
     private fun updateEnginePosition(epoch: Long, positionMs: Long) {
         sourcePosition = sourcePosition.acceptPosition(epoch, positionMs) ?: return
