@@ -8187,8 +8187,8 @@ R19 implementation 由 fresh owner 完成，再由不同 fresh reviewer 审查�
 
 ### 52.64 R19 QA harness resource-output security repair R1（2026-11-12）
 
-**状态**：`QA_HARNESS_SECURITY_REPAIR_COMPLETE / FRESH_VERIFIER_REQUIRED /
-P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=REPAIRED_PENDING_FRESH_VERIFIER /
+**状态**：`QA_HARNESS_SECURITY_VERIFIER=FAIL /
+P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN_CONFIRMED_BY_VERIFIER_ANSI_PREFIX_BYPASS /
 QA_READY=NO / PRODUCT_SCOPE=READ_ONLY / DEVICE_ACCESS=NONE / DEVICE_LOCK_ACTIVE=0`。
 
 **进度（2026-11-12，独立 QA 安全止损 / 最小修复卡）**：唯一 R19 Pad QA 在
@@ -8226,6 +8226,33 @@ clean；R19 candidate 未修改。未 ADB、未使用设备 / 网络 / 真实资
 verifier PASS 前 `QA_READY=NO`，不得申请 Pad / K60、运行 QA、改产品、merge 或 Release。
 已完成：一次合成 RED、最小 harness、GREEN、fail-closed、证据和 docs checkpoint。距发布剩余：
 fresh verifier → 新锁 / QaReady / 全新 QA → 剩余核心用户旅程 → integration / Release。
+
+**进度（2026-11-12，fresh QA harness security verifier FAIL / ANSI 前缀绕过）**：不同 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_VERIFIER_R1_2026_11_12`
+只做离线 verifier，不重放 QA。Control `c787837b...` clean，R19 candidate
+`1487fa2cd9f3634635b5e82702c40bba4fc4d519` / tree `310f076f...` / parent `d429b949...`
+clean，设备锁 `ACTIVE=0`。独立复算 owner report SHA
+`07459A65...C6408FB` 与 manifest SHA `2D98020D...49E729CC` 均匹配；GREEN 独立退出 `0`、
+`18/18 PASS`、URL-like leak `0`；修复证据根 16 files 扫描 `0/0/0`；5/5 AST、UTF-8 无 BOM、LF；
+冻结输入 `10/10 MATCH`；owner manifest `15/15 MATCH` 且无未列文件。
+
+verifier 另建 16 项对抗矩阵，12 PASS / 4 FAIL。合成 URI 紧贴 ANSI SGR `ESC[31m` 时，
+共享 detector 因 scheme 前一个字符为字母 `m` 而未命中；Echo stdout、Echo stderr、Filter preview
+和跨 write Stream 均退出 `0`、无 `[REDACTED_URI]` 且完整合成 URI 直出。mixed-case、
+单层 / 双层 encoding、userinfo、IPv4、IPv6、query / fragment、未知 scheme、普通 control prefix、
+cross chunk、pending、liveness、malformed encoding fail-closed 与 command echo 其余行 PASS。
+这是 `P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01:OPEN_CONFIRMED_BY_VERIFIER`，不是产品结论；
+本次不修实现、不 ADB、不设备、不网络、不读取真实资源值，也不进入 QA / product review /
+merge / integration / Release。
+
+verifier report
+`evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-verifier-r1-2026-11-12\SECURITY_VERIFIER_REPORT.md`
+SHA-256 `F3C57567B1E738B34B3B52244ED922089C5D2163698F9ED08117D6CCDC574C83`，manifest `15/15 MATCH` / SHA-256
+`1CF5C2AD36AD57588667AF336E4C1F905A0DA9C6963513FCF58E4607D0BF13AF`。下一步固定路由
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R4_2026_11_11`：另立全新 R19 QA
+harness security repair R2 最小卡，先与实现 owner 分离复现 ANSI 边界，再由另一 fresh verifier
+复跑；不得申请 Pad / K60 锁或派 QA。已完成：离线 verifier 与 P1 定位；距发布剩余：R2 最小修复
+→ fresh verifier → 新 Pad 锁 / QaReady / 全新 R19 QA → 剩余核心用户旅程 → integration / Release。
 
 **任务卡**：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\QA_HARNESS_REPAIR_CARD.md`。
 
