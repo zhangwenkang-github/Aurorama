@@ -7777,7 +7777,7 @@ fresh owner 完成，再由不同 fresh reviewer 独立 review；review PASS 后
 
 ### 52.59 Progress source-identity / retry-priority R15 任务卡（2026-11-11）
 
-**状态**：`R15_IMPLEMENTATION_GREEN / R15_SCOPED_REVIEW_IN_PROGRESS / QA_READY=NO`。
+**状态**：`R15_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R16_REQUIRED / QA_READY=NO`。
 
 **进度（2026-11-11，用户通知继续 / R15 scoped review 启动）**：用户明确要求继续并尽快推进
 1.4.1 发布，HOLD 已解除。已派与 R15 implementation owner 不同的 fresh reviewer
@@ -7786,6 +7786,16 @@ fresh owner 完成，再由不同 fresh reviewer 独立 review；review PASS 后
 其余 player-local/phone/assemble/KTFMT/A0/GatePlan/workflow/handoff/Control assemble
 核对现有 XML/exit/JSON/transcript 和 manifest；出现矛盾才重跑对应门。Review PASS 后才申请
 Pad `43af8627` 锁与 `QaReady`；设备与 QA 仍未启动。
+
+**进度（2026-11-11，R15 scoped review FAIL / R16 required）**：fresh reviewer 独立复跑
+targeted `84/0/0/0`，并核对其余既有门禁与 manifest 后判定 `R15_SCOPED_REVIEW=FAIL`。两个
+P1：① old no-token event 在旧 barrier 已删除后仍可落到 successor 并领取 initial commands；
+② START 后 terminal 丢失、pending recovery 与旧 owner 终态交错、marker/drain 重试耗尽时仍会
+保留 barrier 并永久 starvation。P2：invalid-index formal test 过滤 source marker，不能证明
+全 native command 为 0。Review report SHA-256
+`3E3DD19535BCCDE7C166724ABA628847D87AA19A83810B4544613091EDFF09B2`，manifest
+`35B98A1A4EE13D2BC6776068C1F4565070497D0DB9A89E0486D82D44AC947391`。R15 保持
+`FAIL / BLOCKED_HISTORY`，未申请设备锁、未 QaReady、未 QA。
 
 **进度（2026-11-11，R15 implementation 启动）**：R14 review FAIL 证据已核验为 report SHA-256
 `37399C4A53BD6A5882340E62800DAF0CCD68800A88E9345553C2E307C3862706` / manifest
@@ -7882,3 +7892,44 @@ version/signing/workflow/release，以及设备/ADB/截图/生产写。A0 baseli
 implementation 必须由 fresh owner 完成，再由不同 fresh reviewer 独立 review；review PASS 后
 才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R15 review FAIL 自动另立 R16，不得在
 R15 内补丁。
+
+### 52.60 Progress source-identity / retry-priority R16 任务卡（2026-11-11）
+
+**状态**：`R16_TASK_CARD_READY / R16_IMPLEMENTATION_REQUIRED / QA_READY=NO`。
+
+R16 从 R15 candidate `dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45` / tree
+`2b9a1bd1195c7657a198413beba6f32ae07b5288` 隔离建立。用户要求压缩 1.4.1 关键路径，因此 R16
+不再叠加 marker 特例，而是允许删除/简化 R15 的 attempt/recovery 机制，收敛为更小的
+“latest-intent + terminal drain/quarantine + bounded convergence”状态机：
+
+1. **old no-token event 不得 claim successor**
+   - 维护唯一 latest desired source intent；只有与当前 intent 对应且 barrier 尚未 drop 的
+     action 可以消费 initial commands。
+   - 旧 attempt 的 barrier 被 FILE_LOADED/END 删除后，迟到或重复 START/FILE_LOADED/END 必须
+     在 successor dispatch 前被隔离；不得把 successor 标成 startObserved 或领取其 commands。
+   - 覆盖旧 START 后无 terminal、旧 barrier drop 后重复/迟到 START、A/B/A 同 URI 与旧 END
+     跨 successor。
+2. **任何 recovery 都不得 dead-end**
+   - START 后 terminal 丢失时必须 drain；pending marker recovery 与旧 owner terminal 交错时
+     必须重新安排或迁移；marker/source/drain 任一重试耗尽必须释放旧 barrier、产生明确 fail
+     closed 状态并允许 latest current 以新 generation 重发。
+   - 不允许保留 `sourceStartInFlight/pendingSourceStart` 后无 deadline、无 callback、无下一动作。
+   - 测试覆盖旧 START 无 terminal、pending marker 已到但旧 owner 后终止、marker 耗尽、source
+     重试耗尽、drain 重试耗尽；每种情况最终都必须是 current 收敛或显式 error，不得静默 starvation。
+3. **formal evidence**
+   - invalid-index 测试必须捕获所有 commands（含 source marker/source command），不得过滤后
+     用空列表作证；RED 时刻测试快照/SHA 与最终 GREEN 必须字节一致。
+   - formal test 继续经 public `setMediaItems()` / `prepare()`、production executor 与 public
+     callback；不得 reflection 注入 token/ownership、预置 attempt 或 private release helper。
+4. **保留回归**
+   - R12 old END/next-gate、非零 initial window、titleless/redirect/canonical、同 URI A/B/A、
+     public prepare、same-identity、合法 batch/range、String/Boolean/eventId、真实 PLAYING；
+     source-start 与 initial commands 仍须 user-observable 地恰好一次。
+
+允许五路径与 R15 相同。禁止新 production/test file、`CinefinPlaybackService.kt`、
+schema/settings/metadata/A0 baseline/version/signing/workflow/release，以及设备/ADB/截图/生产写。
+A0 baseline `15,512`，R15 当前 `15,494` / headroom 18，R16 不得增长。若五路径内仍无法证明
+stale no-token event 不会落 successor 或 recovery 会收敛，必须返回 `IMPLEMENTATION_BLOCKED`
+并给出架构边界，不得继续用测试假绿。R16 implementation 必须由 fresh owner 完成，再由不同
+fresh reviewer 独立 review；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`。任何 R16 review
+FAIL 自动另立 R17。
