@@ -7965,7 +7965,7 @@ FAIL 自动另立 R17。
 
 ### 52.61 Progress source-identity / retry-priority R17 native identity 任务卡（2026-11-11）
 
-**状态**：`R17_IMPLEMENTATION_GREEN / R17_SCOPED_REVIEW_IN_PROGRESS / QA_READY=NO`。
+**状态**：`R17_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R18_REQUIRED / QA_READY=NO`。
 
 **进度（2026-11-11，R17 implementation 启动）**：用户已授权 native seam。R17 worktree 从
 R15 candidate `dc5c47c9...` 建立且 clean。已派 fresh implementation owner
@@ -7984,6 +7984,16 @@ GREEN targeted `83`、player-local `368`、phone `412`、4 ABI assemble/全门�
 `15,497/15,512`。implementation evidence `180/180 MATCH`。已派 fresh R17 reviewer，仅独立
 复跑 seam+targeted，其余证据核对；PASS 前设备/QA 仍禁止。已完成：native identity + convergence
 + tests；距发布剩余：review、Pad QA、其余核心 QA、集成/Release。
+
+**进度（2026-11-11，R17 scoped review FAIL / R18 required）**：fresh reviewer 确认
+`mpv_command_ret.playlist_entry_id`、START/END payload、seam gate、并发/收敛、4 ABI、
+provenance/license 与 83 项独立测试通过，但判 `R17_SCOPED_REVIEW=FAIL`：`commandForSource`
+在命令发出前读取 native generation baseline；旧同 entry START 可在命令期间推进 generation
+并阻塞在 lock，随后被新 actionGeneration arm 接收，造成 stale START 重标成 successor。
+当前 seam test 未穿过 production `commandForSource/eventWithIdentity` 交错。Review report
+SHA-256 `51E9850D0F679B3C48AA836217C88EF38B29331FACDFFD415C27CAC8608B9200`，manifest
+`4F4A32D1167DC2E34D91BA730BE15779F82646DA3A30E1B59A3CAF8919A28AF0`。R17 保持
+`FAIL / BLOCKED_HISTORY`，未申请设备锁、未 QaReady、未 QA。
 
 R17 从 R15 candidate `dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45` / tree
 `2b9a1bd1195c7657a198413beba6f32ae07b5288` 建立。用户授权的最小新增写域为：
@@ -8024,3 +8034,32 @@ R17 一次完成以下用户承诺：
    - 当前先完成 progress/source identity；B/C/D 与 Release 剩余范围另列在总任务线，不在 R17
      偷偷扩项。任何 R17 review FAIL 自动 R18；若 native payload仍无 identity，必须再次 BLOCKED，
      不得假绿。
+
+### 52.62 Progress source-identity / retry-priority R18 same-entry rearm 任务卡（2026-11-11）
+
+**状态**：`R18_TASK_CARD_READY / SAME_ENTRY_REARM_RACE_FIX_REQUIRED / QA_READY=NO`。
+
+R18 从 R17 candidate `22a8a57678e643068071fb3fcdec8d5291984fad` / tree
+`c8ed7b1d4414f105d00432ea1747ecaf5235bb09` 建立。继承 native seam 授权和全部 R17 路径；
+不升级 libmpv、不重做 seam，只关闭一个 P1 与一个 P2：
+
+1. **atomic same-entry rearm**
+   - 消除“command 前 baseline -> 命令期间 stale START 推进 generation -> arm 接受”的窗口。
+     baseline/native barrier 必须在与 command 结果相同的原子边界取得，或 native seam 返回
+     command-bound post-generation；不得仅把 floor +1、增加 quarantine、固定丢事件数或时间窗。
+   - Pre-command stale same-entry START 绝不能获得 successor actionGeneration；合法的 post-arm
+     current START 不得丢失，若无法即时识别必须由 bounded recovery 收敛。
+2. **formal production-seam integration**
+   - 新测试必须穿过 production `commandForSource -> native generation -> eventWithIdentity ->
+     sourceEventLock/gate -> playbackEvent/MPVPlayer` 映射，重放 review §4 的精确交错：旧 START
+     在 baseline 读取后、arm 前阻塞；test 再释放 lock，断言 successor initial commands 不得被
+     领取。另测合法 current START 在 arm 后仍一次成功。
+   - 直接 source-event `event(int)` fail-closed 需要正式断言。
+3. 保留 R17 全部 native/ABI/license、seam、R15 convergence、R12 回归、非零窗口、invalid-index
+   全命令捕获。RED 测试源码冻结 SHA，GREEN 必须一致。
+4. A0 baseline 15,512，R17 当前 15,497；R18 不得增长。门禁继续使用 targeted/seam、player-local、
+   phone、assemble、KTFMT、A0、GatePlan、workflow/handoff、Control assemble。
+
+R18 implementation 由 fresh owner 完成，再由不同 fresh reviewer 审查；PASS 后才申请 Pad
+`43af8627` 锁和 QaReady。任何 R18 review FAIL 自动 R19。已完成：native seam + convergence；
+距发布剩余：R18 race 修复/review、Pad QA、剩余核心 QA、集成/Release。
