@@ -7678,7 +7678,7 @@ FAIL 自动另立 R14，不得在 R13 内补丁。
 
 ### 52.58 Progress source-identity / retry-priority R14 任务卡（2026-11-11）
 
-**状态**：`R14_IMPLEMENTATION_IN_PROGRESS / FRESH_OWNER_TDD_RED_THEN_GREEN / QA_READY=NO`。
+**状态**：`R14_IMPLEMENTATION_GREEN / R14_SCOPED_REVIEW_IN_PROGRESS / QA_READY=NO`。
 
 **进度（2026-11-11，R14 implementation 启动）**：R13 review FAIL 证据已核验为 report SHA-256
 `A7F82C54A1B3FEDE9F617F96C0859021ABA77D10CCA880733E487D437CF320ED` / manifest
@@ -7692,6 +7692,21 @@ implementation owner
 （`deepseek-flash / max / fork=none`），要求先取得 production-input assertion-only RED，再实现
 真实 action/event-bound ownership、current source-start command 恰好一次、marker I/O 恢复与
 不可注入假绿，并跑完整静态门禁。尚无 R14 candidate/report；设备与 QA 继续禁止。
+
+**进度（2026-11-11，R14 implementation GREEN / scoped review in progress）**：fresh R14
+implementation owner 已提交 `de7efbcdd9eb2e3d93aafda7b919754dac0e3469`（tree
+`53d95a77d3b97d91b05bc423bd3de954a1be44c9`，parent
+`4f46ab0904b9c899c8c68ed3c8e2797903641b5a`），仅改 `MPVPlayer.kt` 与既有测试，clean、未 push。
+正式 RED 为 `78/4/0/0` assertion-only；GREEN targeted `78`、player-local `42 suites / 363`、
+phone `62 suites / 412`，assemble/KTFMT/A0/GatePlan/workflow/handoff/Control assemble 均 exit 0；
+A0 `15,512/15,512`、headroom 0。实现声称以 `eventProperty` 的 marker value 绑定 source action，
+pending marker 确认后发布同份 source command，并移除 R13 反射 token reader；report SHA-256
+`B6B87717C32A873D195C405FE5171D346470488B9CC1A9403E8FF7FDD18685A4`，manifest SHA-256
+`1131A757346E50CA8952A8BCE7E6CA44FED3435D530961ACE736413CD1E82B38`、`196/196 MATCH`。
+负责人已核对压缩报告、对象边界与关键 diff，并派出与 implementation owner 不同的 fresh R14
+scoped reviewer `AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R14_S1_2026_11_11`
+（`deepseek-flash / max / fork=none`）。review 结论尚未生成；PASS 前禁止 Pad 锁、QaReady、
+QA/设备，FAIL 必须另立 R15。
 
 R14 从 R13 candidate `4f46ab0904b9c899c8c68ed3c8e2797903641b5a` / tree
 `93c70fc1b6ec0e574824537976c1550792c37dc4` 隔离建立，保留 R13 已通过的 R12
