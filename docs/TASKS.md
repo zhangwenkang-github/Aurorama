@@ -5,57 +5,77 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R13-2026-11-11
+### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R14-2026-11-11
 
-- TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R13-2026-11-11
-- TASK_STAGE=R13_IMPLEMENTATION_GREEN / HANDOFF_TO_DELIVERY_LEAD_R3 / R13_SCOPED_REVIEW_NOT_STARTED
+- TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R14-2026-11-11
+- TASK_STAGE=R14_TASK_CARD_READY / R14_IMPLEMENTATION_NOT_STARTED / QA_READY:NO
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
 - R12_REVIEW=FAIL / HEAD=47617712f4c91ace9acf07066e04ce04c917841b
-- R13_BASE_HEAD=47617712f4c91ace9acf07066e04ce04c917841b
-- R13_BASE_TREE=b0af3fa21433d2ddf96155cbdec92174d918a2b1
-- R13_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r13-2026-11-11\Aurorama
-- R13_BRANCH=codex/v141-player-progress-source-retry-r13
-- R13_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
-- R13_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
-- R13_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
-- R13_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
-- R13_ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+- R13_REVIEW=FAIL / HEAD=4f46ab0904b9c899c8c68ed3c8e2797903641b5a / R14_REQUIRED
+- R14_BASE_HEAD=4f46ab0904b9c899c8c68ed3c8e2797903641b5a
+- R14_BASE_TREE=93c70fc1b6ec0e574824537976c1550792c37dc4
+- R14_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r14-2026-11-11\Aurorama
+- R14_BRANCH=codex/v141-player-progress-source-retry-r14
+- R14_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+- R14_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+- R14_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+- R14_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+- R14_ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.50-§52.57 > R13 implementation report > candidate 4f46ab0904b9c899c8c68ed3c8e2797903641b5a > R12 scoped review
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.57-§52.58 > R13 scoped review > R13 candidate 4f46ab0904b9c899c8c68ed3c8e2797903641b5a
 - NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R3_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
 - CURRENT_DELEGATED_ROLE=NONE
+- RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R13_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R12_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R12_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r13-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
-- NEXT_REQUIREMENT=Successor delivery lead R3 must minimal-startup-check this ACTIVE and immediately dispatch one fresh R13 scoped reviewer for candidate 4f46ab0904b9c899c8c68ed3c8e2797903641b5a; if review PASS then request Pad 43af8627 lock and QaReady, if FAIL create R14. No QA/device before review PASS.
-- STOP_CONDITION=R13 must stop on new paths, Service/schema/settings/metadata/version/signing/release, old no-event attempt swallowing unique current START, extra-second-START dependency, current zero/duplicate/cross-source publication, loss of old-END/next-gate/titleless/redirect/canonical/R6-R12 gates, missing production RED, unknown new P0-P2, or unauthorized device/QA. Any R13 review FAIL requires R14, not an in-card patch.
-- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R13_NO_EVENT_STALE_OWNER_CURRENT_START_RECOVERY/CONTRACT_FROZEN/QA_NOT_READY
-- AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTOMATIC_R13_AFTER_R12_REVIEW_FAIL / AUTONOMOUS_CONTINUATION / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO_CURRENT_IMPLEMENTATION_OWNER_COMPLETE / SUCCESSOR_FRESH_REVIEW_ONLY
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r13-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
+- NEXT_REQUIREMENT=R14 fresh implementation owner must replace R13 global marker-at-event-time ownership with a real source-action/event-bound non-visible protocol, preserve or republish the exact current source-start command once, remove reflection/command-filter false-green paths, and recover marker I/O failure without starving current. Fresh R14 scoped review must PASS before any Pad lock, QaReady or QA.
+- STOP_CONDITION=R14 must stop on new paths, Service/schema/settings/metadata/version/signing/release, a second START/FILE_LOADED dependency, global latest-token event inference, zero/duplicate/cross-source source-start command, test-only token injection or marker filtering, marker I/O failure starvation, loss of R12 old-END/next-gate/titleless/redirect/canonical/R6-R12 gates, unknown new P0-P2, or unauthorized device/QA. Any R14 review FAIL requires R15, not an in-card patch.
+- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R14_ACTION_EVENT_BOUND_NO_EVENT_OWNER_RECOVERY/CONTRACT_FROZEN/QA_NOT_READY
+- AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTOMATIC_R14_AFTER_R13_REVIEW_FAIL / AUTONOMOUS_CONTINUATION / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
+- IMPLEMENTATION_AUTHORIZED=YES_SCOPED_ONLY_FOR_FRESH_R14_IMPLEMENTATION_OWNER
 - DEVICE_ACCESS=LOCKS_HELD:NONE / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / R13_SCOPED_REVIEW_REQUIRED_BY_SUCCESSOR / PRODUCT_P1_OPEN / QA_READY:NO
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / R14_IMPLEMENTATION_REQUIRED / R14_SCOPED_REVIEW_REQUIRED_AFTER_IMPLEMENTATION / PRODUCT_P1_OPEN / QA_READY:NO
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - P0=0
-- P1=P1-PLAYER-PROGRESS-001:OPEN_PRODUCT;P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01:CLOSED_BY_R6_AND_R7_REVIEW
-- P2=P2-PLAYER-LOADING-001:OPEN_PRODUCT;P2-PLAYER-STALL-001:OPEN_PRODUCT;P2-R9-NO-EVENT-STALE-OWNER-BLOCKS-UNIQUE-CURRENT-START-01:OPEN_BLOCKING_R13;P2-R6-COMMAND-INPUT-NOT-FAIL-CLOSED-01:CLOSED_BY_R7_SCOPED_REVIEW;P2-R5-MULTI-ITEM-NATIVE-ORDER-NOT-PROVEN-01:CLOSED_BY_R7_SCOPED_REVIEW
-- P3=P3-R12-A0-HEADROOM-2-AND-UNRELATED-KDOC-COMPRESSION:MAINTENANCE_RISK;P3-R11-TERMINAL-INTERLEAVING-TEST-COVERAGE:CLOSED_FOR_SPECIFIED_ORDERED_SEQUENCE
+- P1=P1-PLAYER-PROGRESS-001:OPEN_PRODUCT;P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01:CLOSED_BY_R6_AND_R7_REVIEW;P1-R13-EVENT-TOKEN-NOT-EVENT-BOUND:OPEN_BLOCKING_R14;P1-R13-PENDING-CURRENT-SOURCE-COMMAND-ZERO-PUBLISH:OPEN_BLOCKING_R14;P1-R13-GREEN-INJECTION-MASKS-NATIVE-OWNERSHIP:OPEN_BLOCKING_R14
+- P2=P2-PLAYER-LOADING-001:OPEN_PRODUCT;P2-PLAYER-STALL-001:OPEN_PRODUCT;P2-R9-NO-EVENT-STALE-OWNER-BLOCKS-UNIQUE-CURRENT-START-01:OPEN_BLOCKING_R14;P2-R13-MARKER-IO-FAILURE-CAN-STARVE-CURRENT:OPEN_BLOCKING_R14;P2-R6-COMMAND-INPUT-NOT-FAIL-CLOSED-01:CLOSED_BY_R7_SCOPED_REVIEW;P2-R5-MULTI-ITEM-NATIVE-ORDER-NOT-PROVEN-01:CLOSED_BY_R7_SCOPED_REVIEW
+- P3=P3-R12-A0-HEADROOM-2-AND-UNRELATED-KDOC-COMPRESSION:MAINTENANCE_RISK;P3-R13-MARKER-SERIALIZATION-NOT-ASSERTED:OPEN_R14;P3-R11-TERMINAL-INTERLEAVING-TEST-COVERAGE:CLOSED_FOR_SPECIFIED_ORDERED_SEQUENCE
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r12-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r12-implementation-r1-2026-11-11\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r12-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r12-scoped-review-r1-2026-11-11\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r13-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r13-implementation-r1-2026-11-11\MANIFEST.sha256
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r13-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r13-scoped-review-r1-2026-11-11\MANIFEST.sha256
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=HANDOFF_PASS_THEN_R13_REVIEW_THEN_PAD_QA
+- NEXT_CRITICAL_PATH=R14_IMPLEMENTATION_THEN_R14_REVIEW_THEN_PAD_QA
 - HANDOFF_REASON=CONTEXT_OVER_350K / 570370_OF_1048576_54.4_PERCENT
 - HANDOFF_AT_CONTEXT=570370/1048576/54.4%
 - HANDOFF_MEASURED_AT=2026-11-11 12:00:47 Asia/Shanghai
 - last_evidence=R13_IMPLEMENTATION_GREEN=R4;HEAD=4f46ab0904b9c899c8c68ed3c8e2797903641b5a;TREE=93c70fc1b6ec0e574824537976c1550792c37dc4;RED=74/1/0/0;GREEN_TARGETED=75;PLAYER_LOCAL=360;PHONE=412;A0=15510/15512;REPORT_SHA=1DC8B4B2CA7AB2B967A172457B661D1860747907687C8299B251E2BB436D751E;MANIFEST_SHA=8BC202C838EBFDE9E8458956937D601E5E655D71268004BE55F20C5583A12F20;MANIFEST=199/199_MATCH;DEVICE=NONE;LOCK_ACTIVE=0
+- R13_REVIEW_RESULT=FAIL;REVIEW_SHA=A7F82C54A1B3FEDE9F617F96C0859021ABA77D10CCA880733E487D437CF320ED;REVIEW_MANIFEST_SHA=F81B2F21548E772C07ED5063B0530B74C0DCC322EB2CF4966463B255E9FD955C;P1=EVENT_TOKEN_NOT_EVENT_BOUND,PENDING_CURRENT_SOURCE_COMMAND_ZERO_PUBLISH,GREEN_INJECTION_MASKS_NATIVE_OWNERSHIP;P2=MARKER_IO_FAILURE_CAN_STARVE_CURRENT;DEVICE=NONE;LOCK_ACTIVE=0;QA_READY=NO
 <!-- V2_HANDOFF_ACTIVE_END -->
+
+<!-- HISTORICAL_R13_ACTIVE_SNAPSHOT_BEGIN -->
+### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R13-2026-11-11
+
+- R13 candidate `4f46ab0904b9c899c8c68ed3c8e2797903641b5a` / tree
+  `93c70fc1b6ec0e574824537976c1550792c37dc4` 已由 fresh reviewer 判定
+  `R13_SCOPED_REVIEW=FAIL`。静态门禁均通过，但 event-time global `user-data` marker 不绑定事件；
+  唯一旧 START 可错领 A3，pending 晋升未重发 A3 source-start command，GREEN 反射注入并过滤
+  marker command，掩盖 native ownership。
+- Review evidence report SHA-256
+  `A7F82C54A1B3FEDE9F617F96C0859021ABA77D10CCA880733E487D437CF320ED`，manifest
+  `F81B2F21548E772C07ED5063B0530B74C0DCC322EB2CF4966463B255E9FD955C`。
+- R13 保持 `FAIL / BLOCKED_HISTORY / R14_REQUIRED`，不得在 R13 内补丁；未申请设备锁、
+  `QaReady` 或 QA。
+<!-- HISTORICAL_R13_ACTIVE_SNAPSHOT_END -->
 
 <!-- HISTORICAL_R12_ACTIVE_SNAPSHOT_BEGIN -->
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R12-2026-11-11

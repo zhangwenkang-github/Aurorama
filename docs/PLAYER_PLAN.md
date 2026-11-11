@@ -7607,8 +7607,8 @@ PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R12 r
 
 ### 52.57 Progress source-identity / retry-priority R13 任务卡（2026-11-11）
 
-**状态**：`R13_IMPLEMENTATION_GREEN / HANDOFF_TO_DELIVERY_LEAD_R3 /`
-`R13_SCOPED_REVIEW_NOT_STARTED / QA_READY=NO`。
+**状态**：`R13_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R14_REQUIRED /`
+`QA_READY=NO`。
 
 R13 从 R12 candidate `47617712f4c91ace9acf07066e04ce04c917841b` / tree
 `b0af3fa21433d2ddf96155cbdec92174d918a2b1` 隔离建立，保留 R12 旧 END/next-gate 修复与
@@ -7624,6 +7624,19 @@ A0 为 `15510/15512`、headroom 2。实现证据为 199 条 manifest、`199/199 
 本负责人实测上下文 `570370/1048576/54.4%`，按 35 万硬线停止实质推进并完成交接。
 R13 scoped review、QA、设备与 merge/Release 均尚未启动；后继 delivery lead R3 首项任务是派
 fresh R13 reviewer，review PASS 后才申请 Pad `43af8627` 锁与 `QaReady`。
+
+**进度（2026-11-11，R13 scoped review FAIL / R14 required）**：delivery lead R3 的 startup
+spot-check PASS；fresh reviewer 独立复核对象、targeted 75、player-local 360、phone 412、
+assemble/KTFMT/A0/GatePlan 与 implementation manifest `199/199 MATCH`，但判定
+`R13_SCOPED_REVIEW=FAIL`。三个 P1 为：① START_FILE/FILE_LOADED 到达时读取全局最新
+`user-data` marker，旧事件可错领 A3，token 不绑定产生事件的实际 source action；② A3 pending
+被晋升后只发布 initial commands，A3 原 `loadfile` / `playlist-play-index` 为 0；③ GREEN 通过
+反射注入 `sourceEventTokenReader` 并过滤 marker command，绕开 production set/get/native 顺序，
+形成假绿。P2 为 marker set/get 失败可回退 R12 并继续饿死 current；P3 为 marker/source command
+顺序未断言。Review report SHA-256
+`A7F82C54A1B3FEDE9F617F96C0859021ABA77D10CCA880733E487D437CF320ED`，manifest
+`F81B2F21548E772C07ED5063B0530B74C0DCC322EB2CF4966463B255E9FD955C`。R13 保持
+`FAIL / BLOCKED_HISTORY`，不得同卡补丁；未申请 Pad 锁、未 QaReady、未 QA。
 
 1. **无事件 stale owner 的 unique current START**
    - public 序列 `setMediaItems(A1)->prepare`、`setMediaItems(B)->prepare`、
@@ -7662,3 +7675,59 @@ A0/GatePlan 与 workflow/handoff/Control assemble，更新 transcript/manifest�
 `15,512`，当前 `15,510` / headroom 2，不得增长；必要时只做同路径无损压缩。Review 必须由不同
 fresh reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R13 review
 FAIL 自动另立 R14，不得在 R13 内补丁。
+
+### 52.58 Progress source-identity / retry-priority R14 任务卡（2026-11-11）
+
+**状态**：`R14_TASK_CARD_READY / R14_IMPLEMENTATION_REQUIRED / QA_READY=NO`。
+
+R14 从 R13 candidate `4f46ab0904b9c899c8c68ed3c8e2797903641b5a` / tree
+`93c70fc1b6ec0e574824537976c1550792c37dc4` 隔离建立，保留 R13 已通过的 R12
+旧 END/next-gate、titleless/redirect/canonical、public prepare、command fail-closed、
+same-identity、batch/range、property/eventId gate 与真实 PLAYING 回归。R14 的唯一目标是关闭
+R13 review 的三个 P1、一个 P2 与一个 P3：
+
+1. **action/event-bound ownership**
+   - 禁止在 START_FILE/FILE_LOADED 到达后读取全局“最新”marker 再猜该事件属于当前 source。
+   - ownership 必须在发出 source-start action 时绑定该 action 的非用户可见 token/id；事件若不能
+     携带或恢复该绑定，必须通过可证明的序列化/屏障让它与准确 action 对应，无法唯一归属时
+     fail closed。
+   - 旧 in-flight 无事件时，唯一 current START 必须淘汰 stale owner 并完成 current；延迟旧事件
+     必须被拒绝，不得读到后来 current token、发布 current 或永久饿死 current。
+2. **current source-start command 恰好一次**
+   - `A1.prepare -> B.prepare -> A3.prepare` 且 A1/B 零事件、唯一 A3 START 时，A3 原
+     `loadfile` / `playlist-play-index` source-start command 必须发布恰好一次；不能只发布
+     `sub-add` initial command。
+   - pending 晋升后不得丢弃原 pending command；额外第二 START/FILE_LOADED 仍不得导致重复。
+3. **禁止测试注入假绿**
+   - 正式 GREEN 必须经过 production public `setMediaItems()` / `prepare()` 和可观察 command
+     queue/native callback 契约；不得用反射写 `sourceEventTokenReader`、预置 event token、过滤
+     token command 或直接 private release helper 改变事件输入来造 GREEN。
+   - marker/source command 的顺序、set/get 失败、token 缺失、重入、claim 后 mutation 必须有
+     production-entry 断言。marker I/O 失败时不得静默回退到已知会 starve 的旧 barrier；必须
+     fail closed 且有可恢复 current 路径。
+4. **回归与证据**
+   - 保留 R12 old `END_FILE(A)->START_FILE(B)->FILE_LOADED(B)` barrier；FILE_LOADED resolve
+     E3 后 handler 前 E4：E3=0、E4=1。
+   - 保留 titleless/redirect/non-visible、canonical `%2F/%3F/%26` 不折叠与 `%20` 等价、
+     同 URI A/B/A、多/重复 stale、public prepare owner-before-loadfile、负 index/missing URI/
+     requestMetadata-only command gate、same-identity IDLE/UNKNOWN/BUFFERING/PLAYING、
+     合法 batch/range、String/Boolean/eventId gate 与真实 PLAYING fixture。
+   - 先在 R13 base 的既有 test path 取得 assertion-only RED 原件；RED/GREEN 必须保持同一
+     production 输入路径。随后运行 targeted/player-local/phone/assemble/KTFMT/A0/GatePlan 与
+     workflow/handoff/Control assemble，生成可复现 transcript、implementation report/manifest。
+
+允许五路径固定为：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、`CinefinPlaybackService.kt`、schema/settings/metadata/A0 baseline/
+version/signing/workflow/release，以及设备/ADB/截图/生产写。A0 baseline `15,512`，R13 当前
+`15,510` / headroom 2，R14 不得增长；必要时只做同路径无损压缩。R14 implementation 必须由
+fresh owner 完成，再由不同 fresh reviewer 独立 review；review PASS 后才申请 Pad `43af8627`
+锁与 `QaReady`，K60 仍禁止。任何 R14 review FAIL 自动另立 R15，不得在 R14 内补丁。
