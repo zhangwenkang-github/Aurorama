@@ -8126,6 +8126,19 @@ P2=0 / P3=2`。Review report SHA-256
 startup check 后申请 Pad `43af8627` 唯一锁、运行 QaReady、派 fresh QA 单窗口 ≤600 秒。已完成：
 source bind/retry 静态链路与独立 review。距发布剩余：Pad 真机 QA、剩余核心 QA、集成/Release。
 
+**进度（2026-11-12，R4 startup PASS / Pad QA dispatch）**：R4 最小只读 startup spot-check
+PASS：Control `codex/v2-integration` @ `c0f45a9a...` 与 R19 candidate
+`1487fa2c...` / tree `310f076f...` / parent `d429b949...` 均 clean；唯一 ACTIVE 指向 R4，
+QA 段 owner 为 R4；review report / manifest / pre-handoff audit SHA 匹配，review manifest
+`6/6 MATCH`；设备锁 `ACTIVE=0`。已按锁流程为 Pad `43af8627` 建立唯一 ACTIVE QA 锁，锁条目
+`AURORAMA-141-PLAYER-PROGRESS-SOURCE-RETRY-R19-INDEPENDENT-QA-43af8627-20261112-0005`；
+QA 段已从 `NO` 翻转为 `YES`，owner 路由到 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_INDEPENDENT_QA_R19_S1_2026_11_11`。QA 只允许
+Pad `43af8627`、单窗口 `<=600 s`、0 截图、生产只读、禁止 K60 / 实现 / review / merge。
+R4 当前上下文 `141,210/1,048,576（13.5%）`。已完成：startup、唯一 Pad 锁、QA dispatch
+控制面。距发布剩余：canonical QaReady PASS → fresh Pad QA → 剩余核心用户旅程 →
+integration / Release。
+
 R19 从 R18 candidate `d429b949bad8b065c8b32a6377dae9ec486efbd8` / tree
 `d6c1b1684582e4748886388cfd9db9b16dd15d81` 建立，继承 native seam 授权。只关闭 R18 review
 一个 P1 与 P2：
