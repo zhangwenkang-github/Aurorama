@@ -8184,3 +8184,41 @@ R19 从 R18 candidate `d429b949bad8b065c8b32a6377dae9ec486efbd8` / tree
 R19 implementation 由 fresh owner 完成，再由不同 fresh reviewer 审查；PASS 后才申请 Pad
 `43af8627` 锁和 QaReady。任何 R19 review FAIL 自动 R20。已完成：native seam + 双 floor；
 距发布剩余：R19 barrier/review、Pad QA、剩余核心 QA、集成/Release。
+
+### 52.64 R19 QA harness resource-output security repair R1（2026-11-12）
+
+**状态**：`R19_INDEPENDENT_QA_FAIL / P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN /
+QA_HARNESS_SECURITY_REPAIR=READY / PRODUCT_SCOPE=READ_ONLY / DEVICE_ACCESS=NONE`。
+
+**进度（2026-11-12，独立 QA 安全止损 / 最小修复卡）**：唯一 R19 Pad QA 在
+`125.978 / 600 s` 内因 QA 自身选定日志过滤的命令回显测试服务器 URI 立即止损；真实播放、
+progress truth、same identity、playlist remap、seek、retry、stale-source rejection 与真实
+libmpv order 均为 `NOT_RUN`，不得写产品 PASS。QA owner 未做产品 review / repair，wrapper 与
+设备已完整 cleanup，17/17 系统 settings 与 28/28 App preference key/value 匹配，锁已
+`RELEASED / ACTIVE=0`。报告 SHA-256
+`9D715076EE3F02CDD30E322AB80917423BA57CA0A02B207CFA7CCF381047DB7E`，manifest
+`35/35` / SHA-256 `E68C98D974004E528850CEB8A1061AEC130FD28025A575C6D4951D44A8ACC02C`。
+已完成：一次独立 QA、安全止损、cleanup、锁释放。距发布剩余：QA harness URI 输出门禁最小修复
+→ fresh verifier → 新锁 / QaReady / 全新 QA → 剩余核心旅程 → integration/Release。
+
+**任务卡**：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\QA_HARNESS_REPAIR_CARD.md`。
+
+**范围**：只修 QA 命令回显 / 过滤预览 / streaming output 的资源 URI 脱敏边界。允许在新 repair
+证据根实现并测试最小 harness；产品、测试、schema、Gradle、settings、网络、代理、权限库、设备
+和旧证据均只读。不得申请 Pad，不得 ADB，不得重放 R19 QA。
+
+**必需 RED**：使用合成值复现完整 URL、scheme+host-only、异常 / stderr、userinfo / port /
+IPv4 / IPv6、path / query / fragment、mixed-case / percent-encoded、未知 URL-like 输入与
+跨 write 分段 URI；RED 必须发生在实际输出边界。
+
+**必需 GREEN**：在命令回显和首次预览前统一脱敏；完整 URI 结构不进入 stdout / stderr /
+report / filename / manifest；未知 URL-like 输入 deny-by-default；解析、encoding、stream
+失败 fail closed；提供 liveness/flush 上限防止半截 URI 泄漏；不读取真实资源值、不发网络。
+
+**门禁**：synthetic RED/GREEN、全证据根 URL-like 扫描 0、PowerShell 7 parse、UTF-8/LF、
+旧 QA 证据 hash 不变、Control/R19 clean。实现 owner 只能自测；完成后再派不同 fresh verifier
+复跑同一 fixtures 与证据检查。verifier PASS 前 `QA_READY=NO`、无设备锁、无新 QA。
+
+**停止条件**：需要产品 / 测试 / schema / Gradle 改动、真实资源值、设备、网络播放、修改旧
+证据、真实 secret 输出、未知 P0/P1，或第二次最小修复迭代；新增测试路径或扩大写域必须先回
+负责人决策。
