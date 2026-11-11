@@ -8423,6 +8423,14 @@ clean 与锁 `ACTIVE=0`，随后复跑 GREEN、对抗、旧矩阵、静态、冻
 距发布剩余：fresh allowlist verifier → 新 Pad 锁 / QaReady / fresh QA S2 → 剩余核心旅程
 → integration → Release。
 
+**交接（2026-11-12，R4 → R5）**：allowlist owner 已提交 `585ab6be...`，Control / R19
+candidate clean、设备锁 `ACTIVE=0`、owner 自测与 `HANDOFF_LINT=PASS`。本轮负责人上下文实测
+`303,418/1,048,576（28.9%）`，按 30 万准备交接规则停止扩项；R4 路由到
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R5_2026_11_12`。R5 第一实际任务是
+派不同 fresh `...ALLOWLIST_PROTOCOL_VERIFIER_R1...`，不直接派 QA；仅在 verifier PASS 后另立
+QA S2 卡、新 Pad 锁与 QaReady。当前 `QA_READY=NO`、无设备、无 verifier 运行。已完成：本波协议
+与控制面；距发布剩余：R5 接手 → allowlist verifier → 新 QA S2 → 核心旅程/Release。
+
 **范围**：只在新证据根实现离线可复用的 allowlist output projection、log parser、command
 display、artifact path 和 replay tests；产品、测试、schema、Gradle、settings、网络、设备与
 旧证据只读。不得重放 R19 QA，不得申请 Pad/K60，不得改产品或写 Engramory。
