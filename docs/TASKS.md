@@ -5,10 +5,10 @@
 ## In Progress
 
 <!-- V2_HANDOFF_ACTIVE_BEGIN -->
-### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R16-2026-11-11
+### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R17-2026-11-11
 
-- TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R16-2026-11-11
-- TASK_STAGE=R16_IMPLEMENTATION_BLOCKED / SOURCE_BOUND_EVENT_IDENTITY_AUTHORIZATION_REQUIRED / QA_READY:NO
+- TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R17-2026-11-11
+- TASK_STAGE=R17_TASK_CARD_READY / NATIVE_SOURCE_EVENT_IDENTITY_AUTHORIZED / QA_READY:NO
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -16,18 +16,21 @@
 - R13_REVIEW=FAIL / HEAD=4f46ab0904b9c899c8c68ed3c8e2797903641b5a / R14_REQUIRED
 - R14_REVIEW=FAIL / HEAD=de7efbcdd9eb2e3d93aafda7b919754dac0e3469 / R15_REQUIRED
 - R15_REVIEW=FAIL / HEAD=dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45 / R16_REQUIRED
-- R16_BASE_HEAD=dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45
-- R16_BASE_TREE=2b9a1bd1195c7657a198413beba6f32ae07b5288
-- R16_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r16-2026-11-11\Aurorama
-- R16_BRANCH=codex/v141-player-progress-source-retry-r16
-- R16_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
-- R16_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
-- R16_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
-- R16_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
-- R16_ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+- R16_IMPLEMENTATION_BLOCKED=NO_SOURCE_BOUND_NATIVE_EVENT_IDENTITY / EVIDENCE=evidence-v1-4-1-player-progress-source-retry-r16-implementation-r1-2026-11-11
+- R17_BASE_HEAD=dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45
+- R17_BASE_TREE=2b9a1bd1195c7657a198413beba6f32ae07b5288
+- R17_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r17-2026-11-11\Aurorama
+- R17_BRANCH=codex/v141-player-progress-source-retry-r17
+- R17_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+- R17_ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+- R17_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+- R17_ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+- R17_ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+- R17_AUTHORIZED_NATIVE_SEAM=player/mpv-binding/**;gradle/libs.versions.toml;settings.gradle.kts;player/local/build.gradle.kts;player/local/src/test/java/**/mpv/**
+- R17_NATIVE_SCOPE=A source-bound playback event identity seam only: expose playlist_entry_id/actionId/source generation on START_FILE/FILE_LOADED/END_FILE or reject old-generation events before MPVPlayer. Vendor/patch minimal upstream binding/JNI plus needed build/dependency wiring and tests. No unrelated native upgrades.
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.59-§52.60 > R15 scoped review > R15 candidate dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_SOURCE_BOUND_NATIVE_EVENT_IDENTITY_WRITE_SCOPE
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.60-§52.61 > R16 implementation report/API boundary > R15 scoped review > R15 candidate dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45
+- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R3_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
 - CURRENT_DELEGATED_ROLE=NONE
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R16_2026_11_11
@@ -38,19 +41,19 @@
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R13_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R12_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R12_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r15-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
-- NEXT_REQUIREMENT=User must authorize a source-bound native event identity seam outside the current five paths. The minimal seam must expose actionId/source generation/playlist-entry identity on START_FILE/FILE_LOADED/END_FILE or reject old-generation events before MPVPlayer. Without this authority R16 cannot prove stale no-token events do not claim a successor.
-- STOP_CONDITION=R16 must stop on new paths, Service/schema/settings/metadata/version/signing/release, stale no-token event claiming successor, any retry/drain limit that leaves current source starved, filtered formal commands, loss of frozen regressions, unknown new P0-P2, or unauthorized device/QA. Any R16 review FAIL requires R17, not an in-card patch.
-- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R16_LATEST_INTENT_TERMINAL_DRAIN_CONVERGENCE/CONTRACT_FROZEN/QA_NOT_READY
-- AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTOMATIC_R16_AFTER_R15_REVIEW_FAIL / USER_PRIORITIZED_FAST_1_4_1_RELEASE / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO_BLOCKED_PENDING_USER_SCOPE_DECISION_FOR_SOURCE_BOUND_EVENT_IDENTITY
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r16-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
+- NEXT_REQUIREMENT=Fresh R17 implementation owner must deliver the authorized source-bound native event identity seam and simplify MPVPlayer convergence in one card: stale old START/FILE_LOADED/END must be rejected before or at MPVPlayer, retry/drain exhaustion must always converge or fail explicitly, nonzero initial window remains exactly once, and invalid-index formal evidence includes all commands.
+- STOP_CONDITION=R17 must stop on source identity still inferred from global marker, unrelated native upgrade, new Service/schema/settings/metadata/version/signing/release, stale event claiming successor, unbounded starvation, filtered formal commands, loss of frozen regressions, unknown new P0-P2, or unauthorized device/QA. Any R17 review FAIL requires R18.
+- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R17_SOURCE_BOUND_NATIVE_EVENT_IDENTITY_AND_CONVERGENCE/CONTRACT_FROZEN/QA_NOT_READY
+- AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_AUTHORIZED_NATIVE_SEAM_2026_11_11 / USER_PRIORITIZED_FAST_1_4_1_RELEASE / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
+- IMPLEMENTATION_AUTHORIZED=YES_SCOPED_ONLY_FOR_FRESH_R17_IMPLEMENTATION_OWNER_AND_AUTHORIZED_NATIVE_SEAM
 - DEVICE_ACCESS=LOCKS_HELD:NONE / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / USER_DECISION_REQUIRED_FOR_R17_SOURCE_BOUND_EVENT_IDENTITY / PRODUCT_P1_OPEN / QA_READY:NO
-- USER_DECISION_REQUIRED=AUTHORIZE_SOURCE_BOUND_NATIVE_EVENT_IDENTITY_SEAM_AND_REQUIRED_NEW_PATHS
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / R17_IMPLEMENTATION_REQUIRED / R17_SCOPED_REVIEW_REQUIRED_AFTER_IMPLEMENTATION / PRODUCT_P1_OPEN / QA_READY:NO
+- USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - P0=0
-- P1=P1-PLAYER-PROGRESS-001:OPEN_PRODUCT;P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01:CLOSED_BY_R6_AND_R7_REVIEW;P1-R15-STALE-NO-TOKEN-EVENT-CAN-CLAIM-SUCCESSOR-AFTER-BARRIER-DROP:OPEN_ARCHITECTURE_BLOCKER_R17;P1-R15-BOUNDED-RECOVERY-DEAD-ENDS-WITH-STARVED-CURRENT:OPEN_IMPLEMENTATION_BLOCKER_R17
+- P1=P1-PLAYER-PROGRESS-001:OPEN_PRODUCT;P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01:CLOSED_BY_R6_AND_R7_REVIEW;P1-R15-STALE-NO-TOKEN-EVENT-CAN-CLAIM-SUCCESSOR-AFTER-BARRIER-DROP:OPEN_ACTIVE_R17_NATIVE_SEAM;P1-R15-BOUNDED-RECOVERY-DEAD-ENDS-WITH-STARVED-CURRENT:OPEN_ACTIVE_R17_CONVERGENCE
 - P2=P2-PLAYER-LOADING-001:OPEN_PRODUCT;P2-PLAYER-STALL-001:OPEN_PRODUCT;P2-R9-NO-EVENT-STALE-OWNER-BLOCKS-UNIQUE-CURRENT-START-01:OPEN_BLOCKING_R17;P2-R13-MARKER-IO-FAILURE-CAN-STARVE-CURRENT:OPEN_BLOCKING_R17;P2-R15-FORMAL-INVALID-INDEX-TEST-FILTERS-SOURCE-COMMANDS:CONFIRMED_RED_EVIDENCE_PENDING_R17;P2-R6-COMMAND-INPUT-NOT-FAIL-CLOSED-01:CLOSED_BY_R7_SCOPED_REVIEW;P2-R5-MULTI-ITEM-NATIVE-ORDER-NOT-PROVEN-01:CLOSED_BY_R7_SCOPED_REVIEW
 - P3=P3-R12-A0-HEADROOM-2-AND-UNRELATED-KDOC-COMPRESSION:MAINTENANCE_RISK;P3-R14-A0-HEADROOM-0:CLOSED_IMPLEMENTATION_HEADROOM_18;P3-R15-REAL-LIBMPV-COMMAND-REPLY-AND-EVENT-ORDER-UNVERIFIED:DEFERRED_TO_R16_REVIEW_OR_PAD_QA;P3-R11-TERMINAL-INTERLEAVING-TEST-COVERAGE:CLOSED_FOR_SPECIFIED_ORDERED_SEQUENCE
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r12-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
@@ -71,8 +74,9 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r15-scoped-review-r1-2026-11-11\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r16-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r16-implementation-r1-2026-11-11\MANIFEST.sha256
+- EXPECTED_IMPLEMENTATION_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r17-implementation-r1-2026-11-11
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_SCOPE_DECISION_THEN_R17_SOURCE_EVENT_IDENTITY
+- NEXT_CRITICAL_PATH=R17_IMPLEMENTATION_THEN_R17_REVIEW_THEN_PAD_QA
 - HANDOFF_REASON=CONTEXT_OVER_350K / 570370_OF_1048576_54.4_PERCENT
 - HANDOFF_AT_CONTEXT=570370/1048576/54.4%
 - HANDOFF_MEASURED_AT=2026-11-11 12:00:47 Asia/Shanghai
@@ -84,7 +88,21 @@
 - R15_REVIEW_RESULT=FAIL;REVIEW_SHA=3E3DD19535BCCDE7C166724ABA628847D87AA19A83810B4544613091EDFF09B2;REVIEW_MANIFEST_SHA=35B98A1A4EE13D2BC6776068C1F4565070497D0DB9A89E0486D82D44AC947391;P1=STALE_NO_TOKEN_EVENT_CLAIMS_SUCCESSOR,BOUNDED_RECOVERY_STARVES_CURRENT;P2=FORMAL_INVALID_INDEX_FILTERS_COMMANDS;DEVICE=NONE;LOCK_ACTIVE=0;QA_READY=NO
 - R16_TASK_CARD=READY;BASE=dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45;WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r16-2026-11-11\Aurorama;BRANCH=codex/v141-player-progress-source-retry-r16;STATUS=CLEAN
 - R16_IMPLEMENTATION_BLOCKED=NO_SOURCE_BOUND_NATIVE_EVENT_IDENTITY_IN_FIVE_PATHS;RED=88/4/0/0;RED_SHA=E6A90E298BCB262D52C32B1336A9F38719BA0105B644C9248E29C92273A63837;REPORT_SHA=12E11EEA32BB40DB733BE69D692039A554E27D0870810DD816655B4F7C014923;MANIFEST_SHA=71A582690263A99438BD3D9AB1E0E98DE1C75C855B7990AC436CCA40D308FA5D;MANIFEST=15/15_MATCH;CANDIDATE=NONE;DEVICE=NONE;LOCK_ACTIVE=0;QA_READY=NO
+- R17_TASK_CARD=READY;BASE=dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45;WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r17-2026-11-11\Aurorama;BRANCH=codex/v141-player-progress-source-retry-r17;STATUS=CLEAN;NATIVE_SEAM=AUTHORIZED
 <!-- V2_HANDOFF_ACTIVE_END -->
+
+<!-- HISTORICAL_R16_ACTIVE_SNAPSHOT_BEGIN -->
+### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R16-2026-11-11
+
+- R16 在五路径内取得正式 RED `88/4/0/0`，但判定 `IMPLEMENTATION_BLOCKED /`
+  `NO_SOURCE_BOUND_NATIVE_EVENT_IDENTITY`。外部 MPVLib AAR 只暴露 `event(int)`；
+  START_FILE/FILE_LOADED/END_FILE 无 actionId、source generation、loadfile 回执或
+  playlist-entry identity，marker/quarantine 无法证明旧事件不落同 URI successor。
+- 用户于 2026-11-11 明确授权 native seam。R16 未提交候选、未申请设备/QA；证据 report
+  SHA-256 `12E11EEA32BB40DB733BE69D692039A554E27D0870810DD816655B4F7C014923`，manifest
+  `71A582690263A99438BD3D9AB1E0E98DE1C75C855B7990AC436CCA40D308FA5D`、`15/15 MATCH`。
+- R16 保持 `BLOCKED_HISTORY / R17_AUTHORIZED`。
+<!-- HISTORICAL_R16_ACTIVE_SNAPSHOT_END -->
 
 <!-- HISTORICAL_R15_ACTIVE_SNAPSHOT_BEGIN -->
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R15-2026-11-11

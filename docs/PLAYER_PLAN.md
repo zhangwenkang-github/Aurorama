@@ -7895,8 +7895,7 @@ R15 内补丁。
 
 ### 52.60 Progress source-identity / retry-priority R16 任务卡（2026-11-11）
 
-**状态**：`R16_IMPLEMENTATION_BLOCKED / SOURCE_BOUND_EVENT_IDENTITY_AUTHORIZATION_REQUIRED /`
-`QA_READY=NO`。
+**状态**：`R16_IMPLEMENTATION_BLOCKED / BLOCKED_HISTORY / R17_AUTHORIZED / QA_READY=NO`。
 
 **进度（2026-11-11，R16 implementation 启动）**：R15 review FAIL 证据已核验为 report SHA-256
 `3E3DD19535BCCDE7C166724ABA628847D87AA19A83810B4544613091EDFF09B2` / manifest
@@ -7921,6 +7920,11 @@ R16 evidence 的 RED SHA-256
 下一步必须由用户授权 source-bound native event identity seam 的新写域（修改/替换 MPVLib
 binding/JNI 或新增等价 source-event adapter）；未授权前停止，不进入 review、Pad/QaReady、QA、
 merge/integration/Release。
+
+**进度（2026-11-11，用户授权 native seam）**：用户明确回复“授权 native seam”，允许在现五路径
+之外增加 source-bound playback event identity 所需的最小 binding/JNI、adapter、测试和
+Gradle dependency wiring；不授权 Service、schema/settings/metadata、version/signing/workflow/
+release。R17 将从 R15 candidate `dc5c47c9...` 建立，R16 保持 BLOCKED_HISTORY。
 
 R16 从 R15 candidate `dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45` / tree
 `2b9a1bd1195c7657a198413beba6f32ae07b5288` 隔离建立。用户要求压缩 1.4.1 关键路径，因此 R16
@@ -7958,3 +7962,47 @@ stale no-token event 不会落 successor 或 recovery 会收敛，必须返回 `
 并给出架构边界，不得继续用测试假绿。R16 implementation 必须由 fresh owner 完成，再由不同
 fresh reviewer 独立 review；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`。任何 R16 review
 FAIL 自动另立 R17。
+
+### 52.61 Progress source-identity / retry-priority R17 native identity 任务卡（2026-11-11）
+
+**状态**：`R17_TASK_CARD_READY / NATIVE_SOURCE_EVENT_IDENTITY_AUTHORIZED / QA_READY=NO`。
+
+R17 从 R15 candidate `dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45` / tree
+`2b9a1bd1195c7657a198413beba6f32ae07b5288` 建立。用户授权的最小新增写域为：
+
+```text
+player/mpv-binding/**                 # vendored/patch binding、JNI、必要 license/readme
+gradle/libs.versions.toml
+settings.gradle.kts
+player/local/build.gradle.kts
+player/local/src/test/java/**/mpv/**  # seam contract tests
+```
+
+原五产品/测试路径继续允许；不得触碰 Service、schema/settings/metadata/A0 baseline、
+version/signing/workflow/release。不得借机升级无关 native/media 依赖。
+
+R17 一次完成以下用户承诺：
+
+1. **source-bound native identity**
+   - 优先使用 libmpv event payload 的 `playlist_entry_id`（或等价 `actionId/source generation`）
+     将 START_FILE/FILE_LOADED/END_FILE 与 loadfile/playlist action 唯一关联；Java callback 必须在
+     进入 `MPVPlayer` 前携带 identity，或 wrapper 必须能拒绝旧 generation。
+   - 禁止继续用全局 marker、有限 quarantine、固定丢事件数或时间窗推断事件归属。
+   - old event 在 barrier drop 后必须被 wrapper/identity seam 拒绝；同 URI successor、C/D
+     pending、旧 END、重复 START 不得错领 initial commands 或提前释放 barrier。
+2. **收敛状态机**
+   - `MPVPlayer` 只消费 identity 匹配的事件；latest desired source 成为唯一 successor。
+   - START 后 terminal 丢失、pending marker/action 交错、重试耗尽必须 drain、replace 或显式
+     fail closed，不能保留 barrier 后无 deadline/callback 的 starvation。
+3. **正式验证**
+   - 新增 seam contract test，证明 native identity 透传/非法旧 generation 拒绝；旧五路径 targeted
+     测试保留 R16 四组 RED 语义，invalid-index 捕获全部 commands。
+   - 旧五路径 targeted；新增模块测试；player-local/phone、assemble、KTFMT、A0 owner/line、
+     GatePlan、workflow/handoff tests、Control assemble。
+   - A0 baseline 15,512，R16/R15 当前 15,494，R17 不得增长。
+4. **发布路径**
+   - R17 implementation 由 fresh owner 完成，R17 scoped review 由不同 fresh reviewer 完成；
+     review PASS 后立即申请 Pad `43af8627` 锁与 QaReady，再由 fresh QA 执行真实链。
+   - 当前先完成 progress/source identity；B/C/D 与 Release 剩余范围另列在总任务线，不在 R17
+     偷偷扩项。任何 R17 review FAIL 自动 R18；若 native payload仍无 identity，必须再次 BLOCKED，
+     不得假绿。
