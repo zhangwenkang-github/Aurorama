@@ -8187,8 +8187,9 @@ R19 implementation 由 fresh owner 完成，再由不同 fresh reviewer 审查�
 
 ### 52.64 R19 QA harness resource-output security repair R1（2026-11-12）
 
-**状态**：`R19_INDEPENDENT_QA_FAIL / P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN /
-QA_HARNESS_SECURITY_REPAIR=READY / PRODUCT_SCOPE=READ_ONLY / DEVICE_ACCESS=NONE`。
+**状态**：`QA_HARNESS_SECURITY_REPAIR_COMPLETE / FRESH_VERIFIER_REQUIRED /
+P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=REPAIRED_PENDING_FRESH_VERIFIER /
+QA_READY=NO / PRODUCT_SCOPE=READ_ONLY / DEVICE_ACCESS=NONE / DEVICE_LOCK_ACTIVE=0`。
 
 **进度（2026-11-12，独立 QA 安全止损 / 最小修复卡）**：唯一 R19 Pad QA 在
 `125.978 / 600 s` 内因 QA 自身选定日志过滤的命令回显测试服务器 URI 立即止损；真实播放、
@@ -8200,6 +8201,31 @@ libmpv order 均为 `NOT_RUN`，不得写产品 PASS。QA owner 未做产品 rev
 `35/35` / SHA-256 `E68C98D974004E528850CEB8A1061AEC130FD28025A575C6D4951D44A8ACC02C`。
 已完成：一次独立 QA、安全止损、cleanup、锁释放。距发布剩余：QA harness URI 输出门禁最小修复
 → fresh verifier → 新锁 / QaReady / 全新 QA → 剩余核心旅程 → integration/Release。
+
+**进度（2026-11-12，QA harness 安全修复 R1 owner 自测完成）**：fresh owner
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_REPAIR_OWNER_R1_2026_11_12`
+只在新 repair 证据根完成离线最小修复。TDD 先在真实旧子进程输出边界用运行时合成分段复现
+`10/10` 泄漏；随后同一矩阵 GREEN `18/18`，覆盖完整定位符、仅 scheme 与 host、stdout / stderr、
+userinfo / port / IPv4 / IPv6、path / query / fragment、mixed-case、percent-encoded、未知 scheme、
+malformed encoding、跨 write、liveness 与 pending 上限。统一替换边界会把命中的定位符整体替换为
+`[REDACTED_URI]`，不保留 host；parser / encoding / stream 失败只输出固定 fail-closed marker。
+
+全修复证据根 URL-like 扫描 `0`；新脚本 PowerShell 7 AST parse `5/5`、UTF-8 无 BOM、LF-only；
+R19 report / manifest / incident / scripts 与 prior harness 冻结输入 `10/10 MATCH`；manifest
+`15/15 MATCH`。Report SHA-256
+`07459A65270DFCBCC008D03AE83E12F81CF9BB6C8D6920BB75FDB93B1C6408FB`，manifest SHA-256
+`2D98020D5A147903397A8B289EF980A6B0B7C3E06E24044679C7FB2D49E729CC`。Control 输入
+`3c34225a...` clean，R19 candidate `1487fa2c...` / tree `310f076f...` / parent `d429b949...`
+clean；R19 candidate 未修改。未 ADB、未使用设备 / 网络 / 真实资源值、未截图、未写旧证据。
+
+证据入口：`evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\IMPLEMENTATION_REPORT.md`、同根 `MANIFEST.sha256`、`tools\QaSafeOutput.psm1`、
+`tools\Invoke-SafeQaOutput.ps1`、`tests\Invoke-QaSecurityFixtures.ps1`。该 owner 自测不能关闭 P1；
+下一角色必须是不同 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_VERIFIER_R1_2026_11_12`，第一条只读动作
+是复核对象 / 锁 / P1，再独立复跑 GREEN、全证据 URL-like 扫描、静态编码、冻结 hash 与 manifest。
+verifier PASS 前 `QA_READY=NO`，不得申请 Pad / K60、运行 QA、改产品、merge 或 Release。
+已完成：一次合成 RED、最小 harness、GREEN、fail-closed、证据和 docs checkpoint。距发布剩余：
+fresh verifier → 新锁 / QaReady / 全新 QA → 剩余核心用户旅程 → integration / Release。
 
 **任务卡**：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\QA_HARNESS_REPAIR_CARD.md`。
 
