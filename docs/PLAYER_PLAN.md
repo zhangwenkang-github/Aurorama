@@ -8305,15 +8305,17 @@ R1 owner `18/18`、R1 verifier `16/16`、R2 ANSI/control `28/28` 合计 `62/62 P
 四类可见输出与跨 write stream 无 URI/host/path/query，decorated artifact path 被拒绝。
 全 R2 根 post-scan 为 URL-like `0` / ANSI-control `0` / encoding `0` / unsafe path `0`；
 7 个脚本 AST `0` error、UTF-8 无 BOM、LF-only；R1 repair、R1 verifier 与 R19 QA 共
-`68/68` 冻结 hash MATCH；manifest `24/24 MATCH`。Control 输入 `aa1d34d0...` 与 R19 candidate
+`68/68` 冻结 hash MATCH；manifest `25/25 MATCH`。同一 R2 fixture 还以只读
+`-BoundaryPath` 指向冻结 R1 boundary 重放，再次得到五项 RED 泄漏，便于 fresh verifier
+不依赖历史 transcript 独立复现。Control 输入 `aa1d34d0...` 与 R19 candidate
 `1487fa2c...` / tree `310f076f...` / parent `d429b949...` 均 clean，设备锁 `ACTIVE=0`。
 未 ADB、未使用设备/网络/真实资源值、未改产品或旧证据、未写 Engramory。
 
 R2 根
 `evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r2-2026-11-12`
 supersedes R1 harness；R1 根只保留冻结与 RED 来源。Report SHA-256
-`8756E4AC9038EC9085A973B499F4FBC140F8EFA7CC89D4E3180F7BAC16AFDAA1`，manifest SHA-256
-`C5D9AA931D9C67BAA86B67D5665FD17B5D0A2C8276575A29988A02BB8A2E4AAF`。该 owner 自测不能关闭
+`E1FC6EA9CB7FCA9D57497443043E3AE6758694B41E4CF96F36251A84244D0E73`，manifest SHA-256
+`CF60EDF7BF7495116596DCCDF25D1D7AC46545D6599A3685F07508E0F18C71EB`。该 owner 自测不能关闭
 P1；下一角色必须是不同 fresh
 `AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_VERIFIER_R2_2026_11_12`，
 第一只读动作是核对 R2 report/manifest、R1 verifier 双 SHA、固定对象与锁，再独立复跑
