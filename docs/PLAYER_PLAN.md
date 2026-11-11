@@ -8476,3 +8476,31 @@ R19 冻结 hash、Control/candidate clean 与锁 `ACTIVE=0` 全 PASS。
 
 **停止条件**：需要产品 / 测试 / schema / Gradle、真实资源值、设备 / 网络、旧证据写、真实
 secret 输出、未知 P0/P1、对象漂移，或协议需要透传任意原始文本。
+
+**进度（2026-11-12，R19 independent QA S2 FAIL / playback process crash）**：不同 fresh
+QA 自行运行 canonical QaReady PASS；Control `8972bb1d...` clean、candidate
+`1487fa2c... / tree 310f076f... / parent d429b949...` clean，allowlist verifier 双 SHA、
+`164/164` 与唯一 Pad `43af8627` 锁匹配。exact arm64 debug APK SHA
+`3345E9B4E24464FB57655BC90AFEED2A91BF137DF4558B49FF128B192AEEA0FD`，设备已安装 base
+与候选一致，无需重装；QA 输出使用 QA 证据根内与 verifier 脚本逐字节一致的 allowlist
+projection 镜像，原始 stdout/stderr、任意 logcat、命令和资源值均未持久化。
+
+唯一窗口运行 `488.420 / 600 s`。App 启动、视频导航、搜索结果与详情入口通过；播放启动尝试
+后固定事件缓冲出现 `am_crash` 与 `am_proc_died`，debug PID 消失并回到系统桌面。因此真实
+progress truth、same identity IDLE/UNKNOWN、add/move remap、seek、retry、stale source 和
+真实 libmpv command/source/marker/event 顺序均 `NOT_RUN`；`PC-01/02/03/04/05/11=NOT_RUN`，
+`PC-12=FAIL`，`PLAYER_CORE_MATRIX_RESULT=FAIL`。新增
+`P1-R19-S2-PLAYBACK-PROCESS-CRASH-01:OPEN_CAUSE_NOT_PROVEN`；既有产品 P1/P2 保持未评估。
+
+cleanup PASS：QA child `0`、debug/release PID `0`、debug service/session/active notification
+均 `0`，两份安装与 App data 保留，临时 UI dump 删除。系统 settings `17/17 MATCH`；App
+preference `27/28 MATCH`，失败播放链路改变
+`pref_player_decode_fallback_session`，故 `S2-SETTINGS=FAIL`。唯一设备锁已
+`RELEASED / ACTIVE=0`，但持锁总时长越过 30 分钟，新增
+`P2-QA-R19-S2-LOCK-OVER-30-MIN:OPEN_GOVERNANCE`，不得掩盖。QA report SHA-256
+`18AFDBFEC06D30C7394D6957A968BBACF3B60695F4212799A73A6599B7C5E3FA`，manifest
+`33/33` / SHA-256 `ABCE74244D7ACAA22412A5AAF5C075EE7870694B8A0706DEBA00CE0D4FDF4635`。
+
+R5 下一角色只负责据本 FAIL 另立新的最小 P1 diagnosis 卡；本 QA owner 不补丁、不重开窗口、
+不接后续阶段。距发布剩余：P1 diagnosis / repair / fresh verifier 与新 fresh QA、其余核心
+用户旅程、integration 与 Release。
