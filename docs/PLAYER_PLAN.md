@@ -8278,8 +8278,9 @@ report / filename / manifest；未知 URL-like 输入 deny-by-default；解析�
 
 ### 52.65 R19 QA harness ANSI-prefix security repair R2（2026-11-12）
 
-**状态**：`QA_HARNESS_SECURITY_VERIFIER_FAIL / P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=
-OPEN_ANSI_PREFIX_BYPASS / QA_READY=NO / DEVICE_ACCESS=NONE / REPAIR_R2_READY`。
+**状态**：`QA_HARNESS_SECURITY_REPAIR_R2_COMPLETE / FRESH_VERIFIER_R2_REQUIRED /`
+`P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN_REPAIRED / QA_READY=NO /`
+`DEVICE_ACCESS=NONE / DEVICE_LOCK_ACTIVE=0`。
 
 **进度（2026-11-12，fresh verifier FAIL / R2 最小卡）**：不同 fresh verifier 独立复跑
 R1 owner GREEN `18/18`、manifest `15/15`、全证据扫描与冻结 hash 后，追加 16 个对抗用例，得到
@@ -8291,6 +8292,34 @@ SHA-256 `F3C57567B1E738B34B3B52244ED922089C5D2163698F9ED08117D6CCDC574C83`，man
 R1 实现 owner 不被复用于修复；P1 保持 OPEN。已完成：独立 fail、根因定位、cleanup 不受影响。
 距发布剩余：R2 ANSI/control 边界修复 → 全新 R2 verifier → 新 lock / QaReady / QA S2 →
 剩余核心旅程 → integration/Release。
+
+**进度（2026-11-12，R2 owner self-test complete / fresh verifier required）**：fresh R2 owner
+先把 R1 harness 复制到新证据根；在未修改 detector 的真实子进程边界独立复现
+`ESC[31m` 紧贴运行时合成 URI 的五项泄漏：command echo、stdout、stderr、filter preview 与
+cross-write stream 均退出 `0`，URL-like / ANSI-control leak 均为 `YES`。随后 R2 只用共享
+normalization scan：解析并去除 ANSI/control 后做主检测，替换后的 residual fail-closed 再调用同一
+scan；CSI/OSC/ST、SGR/reset/cursor、BEL/control、percent/double encoding、跨 chunk、pending、
+malformed/overlong ANSI 与 malformed encoding 均进入固定 marker 合同。
+
+R1 owner `18/18`、R1 verifier `16/16`、R2 ANSI/control `28/28` 合计 `62/62 PASS`；
+四类可见输出与跨 write stream 无 URI/host/path/query，decorated artifact path 被拒绝。
+全 R2 根 post-scan 为 URL-like `0` / ANSI-control `0` / encoding `0` / unsafe path `0`；
+7 个脚本 AST `0` error、UTF-8 无 BOM、LF-only；R1 repair、R1 verifier 与 R19 QA 共
+`68/68` 冻结 hash MATCH；manifest `24/24 MATCH`。Control 输入 `aa1d34d0...` 与 R19 candidate
+`1487fa2c...` / tree `310f076f...` / parent `d429b949...` 均 clean，设备锁 `ACTIVE=0`。
+未 ADB、未使用设备/网络/真实资源值、未改产品或旧证据、未写 Engramory。
+
+R2 根
+`evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r2-2026-11-12`
+supersedes R1 harness；R1 根只保留冻结与 RED 来源。Report SHA-256
+`8756E4AC9038EC9085A973B499F4FBC140F8EFA7CC89D4E3180F7BAC16AFDAA1`，manifest SHA-256
+`C5D9AA931D9C67BAA86B67D5665FD17B5D0A2C8276575A29988A02BB8A2E4AAF`。该 owner 自测不能关闭
+P1；下一角色必须是不同 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_VERIFIER_R2_2026_11_12`，
+第一只读动作是核对 R2 report/manifest、R1 verifier 双 SHA、固定对象与锁，再独立复跑
+RED 语义、62 项 GREEN、post-scan、static、frozen 与 manifest。若 verifier R2 仍 FAIL，不自动 R3。
+已完成：R2 RED→GREEN、共享归一化与 residual、fail-closed、证据和 docs checkpoint。距发布剩余：
+fresh verifier R2 → 新 Pad lock / QaReady / fresh QA S2 → 剩余核心旅程 → integration / Release。
 
 **任务卡**：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r2-2026-11-12\QA_HARNESS_REPAIR_R2_CARD.md`。
 
