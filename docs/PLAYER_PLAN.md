@@ -7549,8 +7549,8 @@ R11 review FAIL 自动另立 R12，不得在 R11 内补丁。
 
 ### 52.56 Progress source-identity / retry-priority R12 任务卡（2026-11-11）
 
-**状态**：`R12_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
-`R11_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+**状态**：`R12_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R13_REQUIRED /`
+`QA_READY=NO`。
 
 R12 从 R11 candidate `c2d69a2d43c406d1f9998553330c88b6ed8831df` / tree
 `de7d4cc5954d5ef81e7b0603c2ceffd34bf116e2` 隔离建立，保留 titleless serialized attempt、
@@ -7563,6 +7563,13 @@ worktree clean、未 push。正式 RED 为 `73/3/0/0` assertion-only；GREEN tar
 `73`、player-local `358`、phone `412`，assemble/KTFMT/A0/GatePlan 均 exit 0；A0
 `15510/15512`、headroom 2。负责人已核验 report/manifest/RED 哈希、关键 diff 与对象边界，
 并派出不同 fresh R12 scoped reviewer；review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
+
+**进度（2026-11-11，R12 scoped review FAIL）**：fresh reviewer 确认旧 A END 不释放 B、
+B/C terminal、handler 前 E3→E4 与全部 R6–R11 回归 PASS。唯一新增阻断是
+`A1.prepare -> B.prepare -> A3.prepare` 后旧 attempts 均无事件，唯一 current START_FILE
+被冻结的 A1 attempt 消费但 claim 失配，A3 命令零发布且无 START 分支 release。Review SHA-256
+`6048935DB70F4F2DE54C0F5617059E119C01DEB7256FD2FE264308D9F9E19087`，manifest
+`1B32CABC83D91D599A418242A8F63B87C7285DB8A881587487BAE8C1C0A38B61`。
 
 1. **旧 END_FILE 不得释放新 attempt**
    - A 已播放，用户切 B；`prepareMediaItem(B)` 安装 B owner 并登记 B in-flight 后，native 顺序
@@ -7597,3 +7604,50 @@ targeted/player-local/phone/assemble/KTFMT/A0/GatePlan，重生成 transcript �
 A0 baseline `15,512`，当前 `15,505` / headroom 7。Review 必须由不同 fresh reviewer 执行；
 PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R12 review FAIL 自动另立 R13，
 不得在 R12 内补丁。
+
+### 52.57 Progress source-identity / retry-priority R13 任务卡（2026-11-11）
+
+**状态**：`R13_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+`R12_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+
+R13 从 R12 candidate `47617712f4c91ace9acf07066e04ce04c917841b` / tree
+`b0af3fa21433d2ddf96155cbdec92174d918a2b1` 隔离建立，保留 R12 旧 END/next-gate 修复与
+R6–R11 全部回归。唯一冻结阻断：
+
+1. **无事件 stale owner 的 unique current START**
+   - public 序列 `setMediaItems(A1)->prepare`、`setMediaItems(B)->prepare`、
+     `setMediaItems(A3)->prepare`；A1/B 均完全不产生 native event，只出现一个 A3 current
+     START_FILE。
+   - 当前 in-flight A1 attempt 不得吞掉该事件后零发布；A3 initial commands 必须在该唯一 current
+     START_FILE 路径最终发布恰好一次，不得依赖合同不保证的额外 START/FILE_LOADED。
+   - 若无法从无 payload event 直接证明 A3，必须建立 titleless、非用户可见、可恢复的
+     attempt/owner协议，使 stale in-flight 被安全淘汰并让 current attempt 在该事件入口完成一次
+     收口；不得猜错或跨 source 发布。
+2. **保留 R12 的两个已关闭项**
+   - `END_FILE(A)->START_FILE(B)->FILE_LOADED(B)` 中旧 END 不释放 B；
+   - FILE_LOADED resolve E3 后 handler 前 E4 mutation，E3 发布 0、E4 发布 1。
+3. 保留 titleless/redirect/non-visible、E1 不领 E3、canonical `%2F/%3F/%26`、`%20`、
+   同 URI A/B/A/stale、public prepare owner-before-loadfile、command fail-closed、
+   same-identity preserve/separate prepare、合法 batch/range、String/Boolean/eventId gate、
+   真实 PLAYING；current source 初始化最终恰好一次。
+
+测试必须经 production public `setMediaItems()` / `prepare()` / `event(START_FILE)` 与 captured
+handler，不得用额外第二 START_FILE 或直接 private release helper 伪造 GREEN。先补该唯一反例的
+assertion-only RED，再做最小实现和全门禁。
+
+允许五路径与 R12 相同：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、Service、schema/settings/metadata、A0 baseline/version/signing/
+release，以及设备/ADB/截图/生产写。GREEN 必须跑 targeted/player-local/phone/assemble/KTFMT/
+A0/GatePlan 与 workflow/handoff/Control assemble，更新 transcript/manifest。A0 baseline
+`15,512`，当前 `15,510` / headroom 2，不得增长；必要时只做同路径无损压缩。Review 必须由不同
+fresh reviewer 执行；PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R13 review
+FAIL 自动另立 R14，不得在 R13 内补丁。
