@@ -8275,3 +8275,37 @@ report / filename / manifest；未知 URL-like 输入 deny-by-default；解析�
 **停止条件**：需要产品 / 测试 / schema / Gradle 改动、真实资源值、设备、网络播放、修改旧
 证据、真实 secret 输出、未知 P0/P1，或第二次最小修复迭代；新增测试路径或扩大写域必须先回
 负责人决策。
+
+### 52.65 R19 QA harness ANSI-prefix security repair R2（2026-11-12）
+
+**状态**：`QA_HARNESS_SECURITY_VERIFIER_FAIL / P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=
+OPEN_ANSI_PREFIX_BYPASS / QA_READY=NO / DEVICE_ACCESS=NONE / REPAIR_R2_READY`。
+
+**进度（2026-11-12，fresh verifier FAIL / R2 最小卡）**：不同 fresh verifier 独立复跑
+R1 owner GREEN `18/18`、manifest `15/15`、全证据扫描与冻结 hash 后，追加 16 个对抗用例，得到
+`12 PASS / 4 FAIL`。当 ANSI SGR `ESC[31m` 紧贴合成 URI 时，共享 detector 未命中；stdout、
+stderr、filter preview 与跨 write stream 均可泄漏且退出 0。根因是 R1 scheme 检测的字母数字
+负向后顾被 ANSI 末尾 `m` 绕过，residual fail-closed 检查又复用同一模型。verifier report
+SHA-256 `F3C57567B1E738B34B3B52244ED922089C5D2163698F9ED08117D6CCDC574C83`，manifest
+`15/15` / SHA-256 `1CF5C2AD36AD57588667AF336E4C1F905A0DA9C6963513FCF58E4607D0BF13AF`。
+R1 实现 owner 不被复用于修复；P1 保持 OPEN。已完成：独立 fail、根因定位、cleanup 不受影响。
+距发布剩余：R2 ANSI/control 边界修复 → 全新 R2 verifier → 新 lock / QaReady / QA S2 →
+剩余核心旅程 → integration/Release。
+
+**任务卡**：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r2-2026-11-12\QA_HARNESS_REPAIR_R2_CARD.md`。
+
+**范围**：复制 R1 harness 到新 R2 证据根，只修 ANSI/control 装饰与 URI detector 之间的边界；
+主检测与 residual fail-closed 必须共享同一归一化模型。R1 repair / verifier、R19 QA 与所有旧证据
+只读；不得改产品 / 测试 / schema / Gradle / settings / 网络 / proxy / permissions / device。
+
+**必需 RED**：`ESC[31m` 紧贴完整合成 URI 在 command echo、stdout、stderr、filter preview、
+cross-write stream 全部可复现旧泄漏；ANSI reset / cursor / OSC / BEL 与 mixed-case / percent /
+double-encoded 变体加入矩阵；residual scan 不得假清。
+
+**必需 GREEN**：装饰语义归一后再检测，实际输出仍保持脱敏；首字节前无 URI/host/path/query；
+malformed/overlong ANSI/encoding fail closed；R1 18 + verifier 16 + R2 ANSI/control 变体全过；
+artifact path、manifest、旧证据 hash、AST/UTF-8/LF、Control/candidate clean 与锁 `ACTIVE=0`
+全部 PASS。owner 自测后必须由不同 fresh verifier R2 复跑。
+
+**停止条件**：R2 verifier 仍 FAIL 时不得自动 R3，停止回报负责人决定；除此外，产品/schema/
+Gradle/设备/网络/真实资源值、旧证据漂移、真实 secret 输出、未知 P0/P1 或写域扩大均停止。
