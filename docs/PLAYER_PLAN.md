@@ -8381,14 +8381,47 @@ artifact path、manifest、旧证据 hash、AST/UTF-8/LF、Control/candidate cle
 
 ### 52.66 R19 QA allowlist-only event protocol R1（2026-11-12）
 
-**状态**：`P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN / USER_SELECTED_ALLOWLIST_ONLY /
-QA_ALLOWLIST_PROTOCOL_READY / PRODUCT_READ_ONLY / QA_READY=NO / DEVICE_ACCESS=NONE`。
+**状态**：`QA_ALLOWLIST_PROTOCOL_COMPLETE / FRESH_ALLOWLIST_VERIFIER_R1_REQUIRED /
+P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN_PENDING_FRESH_VERIFIER / PRODUCT_READ_ONLY /
+QA_READY=NO / DEVICE_ACCESS=NONE / DEVICE_LOCK_ACTIVE=0`。
 
 **用户决策（2026-11-12）**：R2 verifier 的残余绕过证明继续扩展通用 URI detector 会陷入
 编码 / ANSI 边界竞赛；用户选择改用 allowlist-only QA 事件协议。后续 QA 只输出固定
 `eventType`、`state`、布尔 / 有限数值 / 严格 ID 字段；原始 stdout/stderr、任意日志文本、
 命令参数、异常消息和 input-derived 文件名一律不进入可见输出。未知事件 / 字段 / enum /
 malformed record 丢弃或固定 fail-closed，不尝试打印原值。
+
+**进度（2026-11-12，allowlist protocol R1 owner 自测完成）**：新证据根已实现固定
+JSONL schema + 固定 human view。`eventType`、`state`、`operationId` 均为 closed enum；
+字段仅允许 boolean、finite bounded number、严格 `src/ses/tok` ID；未知 / duplicate /
+event 不适用字段、malformed / oversize / encoding / stream / order / stderr / child exit
+失败只输出固定 error code。child stdout/stderr 仅存在内存缓冲，artifact basename 固定为
+`qa-events.jsonl` / `qa-events.txt`，不从输入派生。非法 operation ID 也由脚本内 closed
+enum 判定，不让 PowerShell 参数绑定回显原值。
+
+真实子进程 RED 先复现 `8/8` legacy raw leak，覆盖完整资源结构、scheme+host、ANSI SGR、
+单字母 scheme、ANSI 吞冒号、stderr exception、未知 JSON 字段和跨 write partial。
+GREEN `14/14`、对抗 `23/23`；每个对抗 case 均 exit `23`、仅一个
+`FAIL_CLOSED/FAULT` 记录，stdout/stderr/artifacts/filename 中 payload、ANSI/control 与
+command detail 均为 0。旧矩阵只读复跑仍为 R1 owner `18/18`、R1 verifier `16/16`、
+R2 `28/28`，verifier R2 精确复现 `17 PASS / 6 FAIL / exit 1`。
+
+静态 `12/12` AST / UTF-8 no BOM / LF；五旧证据根 `109/109` 冻结 MATCH，历史 manifest
+`5/5 PASS / 104 entries`；全新证据根 URL-like `0`、ANSI/control `0`、encoding failure
+`0`、unsafe path `0`；Control 输入 `77453497...` clean、candidate
+`1487fa2c... / tree 310f076f... / parent d429b949...` clean、设备锁 `ACTIVE=0`。
+证据入口为同根 `IMPLEMENTATION_REPORT.md`、`MANIFEST.sha256`、`tools\QaAllowlistProtocol.psm1`、
+`tools\Invoke-QaAllowlistProjection.ps1` 与 `results\` 下 RED/GREEN/对抗/静态/冻结/扫描。
+
+该 owner 自测不能关闭 P1。下一角色固定为不同 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_ALLOWLIST_PROTOCOL_VERIFIER_R1_2026_11_12`，
+首条只读动作是核对 report / manifest、ACTIVE、verifier R2 双 SHA、Control / candidate
+clean 与锁 `ACTIVE=0`，随后复跑 GREEN、对抗、旧矩阵、静态、冻结、全根扫描和 manifest，
+并追加自己的合成绕过探针。verifier 未 PASS 前 `QA_READY=NO`，不得申请 Pad/K60、
+运行 QaReady、派 QA、改产品、merge、integration 或 Release；verifier FAIL 后停止回报，
+不自动下一轮。已完成：allowlist RED→GREEN、对抗、静态、冻结、扫描、对象门与 manifest；
+距发布剩余：fresh allowlist verifier → 新 Pad 锁 / QaReady / fresh QA S2 → 剩余核心旅程
+→ integration → Release。
 
 **范围**：只在新证据根实现离线可复用的 allowlist output projection、log parser、command
 display、artifact path 和 replay tests；产品、测试、schema、Gradle、settings、网络、设备与
