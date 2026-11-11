@@ -7607,12 +7607,21 @@ PASS 后才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R12 r
 
 ### 52.57 Progress source-identity / retry-priority R13 任务卡（2026-11-11）
 
-**状态**：`R13_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
-`R12_SCOPED_REVIEW=FAIL / QA_READY=NO`。
+**状态**：`R13_IMPLEMENTATION_GREEN / USER_HOLD_AWAITING_NOTIFICATION /`
+`R13_SCOPED_REVIEW_NOT_STARTED / QA_READY=NO`。
 
 R13 从 R12 candidate `47617712f4c91ace9acf07066e04ce04c917841b` / tree
 `b0af3fa21433d2ddf96155cbdec92174d918a2b1` 隔离建立，保留 R12 旧 END/next-gate 修复与
 R6–R11 全部回归。唯一冻结阻断：
+
+**进度（2026-11-11，implementation 收口 / 用户暂停）**：fresh R13 implementation owner 已提交
+`4f46ab0904b9c899c8c68ed3c8e2797903641b5a`（tree
+`93c70fc1b6ec0e574824537976c1550792c37dc4`），仅改 `MPVPlayer.kt` 与既有测试，
+worktree clean、未 push。正式 RED 为 `74/1/0/0` assertion-only；GREEN targeted `75`、
+player-local `42 suites / 360`、phone `62 suites / 412`，assemble/KTFMT/A0/GatePlan 均 exit 0；
+A0 为 `15510/15512`、headroom 2。实现证据为 199 条 manifest、`199/199 MATCH`，report SHA-256
+`1DC8B4B2CA7AB2B967A172457B661D1860747907687C8299B251E2BB436D751E`。用户已明确要求暂停，
+R13 scoped review、QA、设备与 merge/Release 均尚未启动；收到用户通知后才派新的 R13 reviewer。
 
 1. **无事件 stale owner 的 unique current START**
    - public 序列 `setMediaItems(A1)->prepare`、`setMediaItems(B)->prepare`、
