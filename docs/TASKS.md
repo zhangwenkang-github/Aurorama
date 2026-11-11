@@ -1431,7 +1431,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=R5 review failed on same-identity IDLE/UNKNOWN native preserve and recorded batch/range and callback epoch gaps. R6 implementation, review, device, MediaSession, native ordering, merge-prep, integration and Release remain uncovered.
 - STOP_CONDITION=Do not request device lock or QaReady before fresh R6 implementation and different fresh R6 scoped review PASS. No delivery-lead implementation and no same-card patch after review FAIL.
 - MANUAL_LIMITATION=The frozen contract and GREEN gates are not product closure; no QA has run.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
+- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R3_2026_11_11
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
