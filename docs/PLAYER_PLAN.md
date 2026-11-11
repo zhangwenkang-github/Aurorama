@@ -8037,7 +8037,7 @@ R17 一次完成以下用户承诺：
 
 ### 52.62 Progress source-identity / retry-priority R18 same-entry rearm 任务卡（2026-11-11）
 
-**状态**：`R18_IMPLEMENTATION_GREEN / R18_SCOPED_REVIEW_IN_PROGRESS / QA_READY=NO`。
+**状态**：`R18_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R19_REQUIRED / QA_READY=NO`。
 
 **进度（2026-11-11，R18 implementation 启动）**：R17 review FAIL 证据已核验为 report SHA-256
 `51E9850D0F679B3C48AA836217C88EF38B29331FACDFFD415C27CAC8608B9200` / manifest
@@ -8058,6 +8058,15 @@ targeted `86/0`、player-local `371/0`、phone `412/0`、assemble/KTFMT/A0/GateP
 handoff/Control assemble 均通过；A0 `15,497/15,512`；evidence `219/219 MATCH`。已派 fresh R18
 reviewer，只复跑 3 个新 seam tests + targeted。已完成：race fix + production-seam TDD；距发布
 剩余：R18 review、Pad QA、其余核心 QA、集成/Release。
+
+**进度（2026-11-11，R18 scoped review FAIL / R19 required）**：fresh reviewer 独立复跑
+production seam `3/0` 与 targeted `86/0`，确认 post-command generation/ingress cutoff 修复了
+reviewed order，但仍判 FAIL：旧 same-entry START 可在 native snapshot 后、Java ingress cutoff
+采样后登记 ingress，arm 后仍取得 successor actionGeneration。formal seam 未覆盖
+post-return/pre-arm ingress，event(int) 仅正式覆盖 START。Review report SHA-256
+`8EE20F7A081DE57A1098D04C4D27FF15D424F8639C859D22140C3E09C3550A9A`，manifest
+`7CA7D8727BF2D16F8ECEEB760E30290FDF162BBA055E5DCF6EAF6385D9CFA375`。R18 保持
+`FAIL / BLOCKED_HISTORY`，未申请设备锁、未 QaReady、未 QA。
 
 R18 从 R17 candidate `22a8a57678e643068071fb3fcdec8d5291984fad` / tree
 `c8ed7b1d4414f105d00432ea1747ecaf5235bb09` 建立。继承 native seam 授权和全部 R17 路径；
@@ -8083,3 +8092,32 @@ R18 从 R17 candidate `22a8a57678e643068071fb3fcdec8d5291984fad` / tree
 R18 implementation 由 fresh owner 完成，再由不同 fresh reviewer 审查；PASS 后才申请 Pad
 `43af8627` 锁和 QaReady。任何 R18 review FAIL 自动 R19。已完成：native seam + convergence；
 距发布剩余：R18 race 修复/review、Pad QA、剩余核心 QA、集成/Release。
+
+### 52.63 Progress source-identity / retry-priority R19 command-bound barrier 任务卡（2026-11-11）
+
+**状态**：`R19_TASK_CARD_READY / COMMAND_BOUND_EVENT_BARRIER_REQUIRED / QA_READY=NO`。
+
+R19 从 R18 candidate `d429b949bad8b065c8b32a6377dae9ec486efbd8` / tree
+`d6c1b1684582e4748886388cfd9db9b16dd15d81` 建立，继承 native seam 授权。只关闭 R18 review
+一个 P1 与 P2：
+
+1. **command-bound event ownership barrier**
+   - 消除 `post-native snapshot -> ingress cutoff sample -> arm` 之间的窗口。floor/cutoff 采样
+     不是 barrier；必须使用 command-bound native event barrier，或等价“先完整 drain/停止旧
+     same-entry，再以新 entry/新 generation 发布 successor”的确定性协议。
+   - Pre-command、post-snapshot/pre-arm 的旧 same-entry START 绝不能取得 successor
+     actionGeneration。Arm 后合法 START 必须一次成功；arm 前合法 START 若被拒绝必须由 bounded
+     recovery 收敛。
+2. **formal seam**
+   - 测试穿过 production `commandForSource -> native event barrier/generation ->
+     eventWithIdentity -> sourceEventLock/gate -> playbackEvent/MPVPlayer`，重放
+     post-snapshot/pre-arm ingress；覆盖 event(int) START/FILE_LOADED/END 全 fail closed。
+   - 不直接预置 gate ownership/actionGeneration，不以固定丢事件数或时间窗制造 GREEN。
+3. 保留 R17/R18 native provenance/ABI/license、R15 convergence、R12 回归、非零窗口与
+   invalid-index 全命令捕获；RED/GREEN 测试源码 SHA 一致。
+4. 门禁：seam+targeted、player-local、phone、assemble、KTFMT、A0、GatePlan、workflow/handoff、
+   Control assemble。A0 baseline 15,512，R18 当前 15,497。
+
+R19 implementation 由 fresh owner 完成，再由不同 fresh reviewer 审查；PASS 后才申请 Pad
+`43af8627` 锁和 QaReady。任何 R19 review FAIL 自动 R20。已完成：native seam + 双 floor；
+距发布剩余：R19 barrier/review、Pad QA、剩余核心 QA、集成/Release。
