@@ -8351,6 +8351,15 @@ wrapper 或设备 QA 结论。按 R2 冻结卡不得自动 R3，也不得申请 
 冻结证据；距发布剩余：R4 对残余 P1 的决策与后续授权 → 新安全证据验证 → 新 Pad lock /
 QaReady / QA S2 → 剩余核心旅程 → integration / Release。
 
+**交付门（2026-11-12，R4 STOP / USER_DECISION_REQUIRED）**：R2 是冻结卡授权的最后一次
+离线修复迭代；fresh verifier R2 再次 FAIL，故 P1
+`P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01` 保持 OPEN，R4 不得自动创建 R3、不得申请
+Pad/K60、不得运行 QaReady、不得派 QA 或进入 merge/integration/Release。当前唯一合法角色是
+`USER_DECISION_REQUIRED_FOR_RESIDUAL_QA_HARNESS_P1_R3_OR_ALTERNATIVE`：用户需要选择是否
+授权一次新的最小 R3 detector 修复，或改为更窄的 allowlist-only QA 事件协议，或停止 1.4.1
+发布链。产品 / runtime / `PLAYER_CORE_RELEASE_MATRIX` 仍未由本轮评估。已完成：R2 独立
+verifier fail 与停止门；距发布剩余：等待用户对残余 P1 的显式交付决策。
+
 **任务卡**：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r2-2026-11-12\QA_HARNESS_REPAIR_R2_CARD.md`。
 
 **范围**：复制 R1 harness 到新 R2 证据根，只修 ANSI/control 装饰与 URI detector 之间的边界；
