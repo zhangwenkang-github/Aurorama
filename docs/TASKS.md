@@ -1583,10 +1583,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- UNCOVERED=R13 implementation is GREEN but R13 scoped review has not started. R13 review, Pad QA, real libmpv event/property ordering, MediaSession, process kill, merge-prep, integration and Release remain uncovered.
-- STOP_CONDITION=Do not request the Pad lock or QaReady before a fresh R13 scoped reviewer PASSes candidate 4f46ab0904b9c899c8c68ed3c8e2797903641b5a. On review FAIL, create R14 and do not patch R13. No delivery-lead implementation and no device before review PASS.
-- MANUAL_LIMITATION=The frozen contract and implementation GREEN gates are not product closure; no R13 review or QA has run.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R3_2026_11_11
+- UNCOVERED=R19 scoped review PASS on candidate 1487fa2cd9f3634635b5e82702c40bba4fc4d519, but Pad QA, real libmpv barrier/event ordering, MediaSession position/buffered/loading, retry/method hit, settings per-key hash, remaining core QA, merge-prep, integration and Release remain uncovered.
+- STOP_CONDITION=Delivery lead R4 must first minimal-startup-check Control/R19 review evidence, hold only Pad 43af8627, run QaReady, then dispatch one fresh QA for a single <=600 second window. Stop on object drift, missing lock, QaReady failure, reused QA owner, K60, screenshot, production write, core NOT_RUN/fail or any new P0-P2.
+- MANUAL_LIMITATION=R19 static review PASS is not product/QA PASS. The candidate freezes source ownership and recovery logic, but no device QA or Release journey has run.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R4_2026_11_11
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
