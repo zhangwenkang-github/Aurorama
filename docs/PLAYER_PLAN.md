@@ -7777,7 +7777,15 @@ fresh owner 完成，再由不同 fresh reviewer 独立 review；review PASS 后
 
 ### 52.59 Progress source-identity / retry-priority R15 任务卡（2026-11-11）
 
-**状态**：`R15_IMPLEMENTATION_GREEN / USER_HOLD_BEFORE_R15_SCOPED_REVIEW / QA_READY=NO`。
+**状态**：`R15_IMPLEMENTATION_GREEN / R15_SCOPED_REVIEW_IN_PROGRESS / QA_READY=NO`。
+
+**进度（2026-11-11，用户通知继续 / R15 scoped review 启动）**：用户明确要求继续并尽快推进
+1.4.1 发布，HOLD 已解除。已派与 R15 implementation owner 不同的 fresh reviewer
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R15_S1_2026_11_11`
+（`deepseek-flash / max / fork=none`）。为缩短关键路径，reviewer 只独立复跑 targeted，
+其余 player-local/phone/assemble/KTFMT/A0/GatePlan/workflow/handoff/Control assemble
+核对现有 XML/exit/JSON/transcript 和 manifest；出现矛盾才重跑对应门。Review PASS 后才申请
+Pad `43af8627` 锁与 `QaReady`；设备与 QA 仍未启动。
 
 **进度（2026-11-11，R15 implementation 启动）**：R14 review FAIL 证据已核验为 report SHA-256
 `37399C4A53BD6A5882340E62800DAF0CCD68800A88E9345553C2E307C3862706` / manifest

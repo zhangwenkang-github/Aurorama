@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R15-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R15-2026-11-11
-- TASK_STAGE=R15_IMPLEMENTATION_GREEN / USER_HOLD_BEFORE_R15_SCOPED_REVIEW / QA_READY:NO
+- TASK_STAGE=R15_IMPLEMENTATION_GREEN / R15_SCOPED_REVIEW_IN_PROGRESS / QA_READY:NO
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -29,9 +29,9 @@
 - R15_ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.58-§52.59 > R14 scoped review > R14 candidate de7efbcdd9eb2e3d93aafda7b919754dac0e3469
-- NEXT_ROLE=USER_NOTIFICATION_GATE_THEN_FRESH_R15_SCOPED_REVIEW
+- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R3_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
-- CURRENT_DELEGATED_ROLE=NONE
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R15_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R15_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R14_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R14_2026_11_11
@@ -39,14 +39,14 @@
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R12_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R12_2026_11_11
 - NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r14-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
-- NEXT_REQUIREMENT=R15 implementation is GREEN and user requested a stop after this agent. Do not dispatch R15 scoped reviewer until the user explicitly notifies continuation. After notification, use a different fresh R15 scoped reviewer for candidate dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45; review PASS is required before Pad lock, QaReady or QA.
+- NEXT_REQUIREMENT=Fresh R15 scoped reviewer is auditing candidate dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45. Independently rerun targeted only and verify other existing gate evidence without duplicate full suites. Review PASS is required before Pad lock, QaReady or QA.
 - STOP_CONDITION=R15 must stop on new paths, Service/schema/settings/metadata/version/signing/release, any stale no-token event able to claim current initial commands/barrier, unacknowledged source command with no bounded recovery, non-zero initial window zero/duplicate source command, unlocked or racy command dispatch, invalid-index clamp/no-op for add/remove/move, missing RED source snapshot, loss of frozen regressions, unknown new P0-P2, or unauthorized device/QA. Any R15 review FAIL requires R16, not an in-card patch.
 - SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R15_NATIVE_EVENT_OWNERSHIP_COMMAND_ACK_AND_NONZERO_WINDOW/CONTRACT_FROZEN/QA_NOT_READY
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / AUTOMATIC_R15_AFTER_R14_REVIEW_FAIL / AUTONOMOUS_CONTINUATION / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=NO_CURRENT_IMPLEMENTATION_OWNER_COMPLETE / USER_HOLD_BEFORE_R15_SCOPED_REVIEW
 - DEVICE_ACCESS=LOCKS_HELD:NONE / DEVICE_ACCESS:NONE / K60_8e875894_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=NO / USER_HOLD_BEFORE_R15_SCOPED_REVIEW / R15_SCOPED_REVIEW_REQUIRED_AFTER_USER_NOTIFICATION / PRODUCT_P1_OPEN / QA_READY:NO
-- USER_HOLD=ACTIVE_UNTIL_USER_NOTIFICATION
+- FRESH_INDEPENDENT_QA_REQUIRED=NO / R15_SCOPED_REVIEW_IN_PROGRESS / PRODUCT_P1_OPEN / QA_READY:NO
+- USER_HOLD=RELEASED_BY_USER_NOTIFICATION_2026_11_11
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - P0=0
@@ -67,8 +67,9 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r14-scoped-review-r1-2026-11-11\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r15-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r15-implementation-r1-2026-11-11\MANIFEST.sha256
+- EXPECTED_REVIEW_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r15-scoped-review-r1-2026-11-11
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_NOTIFICATION_THEN_R15_SCOPED_REVIEW_THEN_PAD_QA
+- NEXT_CRITICAL_PATH=R15_SCOPED_REVIEW_IN_PROGRESS_THEN_PAD_QA
 - HANDOFF_REASON=CONTEXT_OVER_350K / 570370_OF_1048576_54.4_PERCENT
 - HANDOFF_AT_CONTEXT=570370/1048576/54.4%
 - HANDOFF_MEASURED_AT=2026-11-11 12:00:47 Asia/Shanghai
