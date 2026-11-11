@@ -7549,12 +7549,20 @@ R11 review FAIL 自动另立 R12，不得在 R11 内补丁。
 
 ### 52.56 Progress source-identity / retry-priority R12 任务卡（2026-11-11）
 
-**状态**：`R12_IMPLEMENTATION_IN_PROGRESS / FRESH_IMPLEMENTATION_OWNER_RUNNING /`
+**状态**：`R12_IMPLEMENTATION_GREEN / FRESH_SCOPED_REVIEWER_RUNNING /`
 `R11_SCOPED_REVIEW=FAIL / QA_READY=NO`。
 
 R12 从 R11 candidate `c2d69a2d43c406d1f9998553330c88b6ed8831df` / tree
 `de7d4cc5954d5ef81e7b0603c2ceffd34bf116e2` 隔离建立，保留 titleless serialized attempt、
 redirect path、canonical、public prepare、R10/R9 同 URI 与全部 R6–R10 回归。只冻结两个协议缺口：
+
+**进度（2026-11-11，implementation 收口）**：fresh R12 implementation owner 已提交
+`47617712f4c91ace9acf07066e04ce04c917841b`（tree
+`b0af3fa21433d2ddf96155cbdec92174d918a2b1`），只改 `MPVPlayer.kt` 与既有测试，
+worktree clean、未 push。正式 RED 为 `73/3/0/0` assertion-only；GREEN targeted
+`73`、player-local `358`、phone `412`，assemble/KTFMT/A0/GatePlan 均 exit 0；A0
+`15510/15512`、headroom 2。负责人已核验 report/manifest/RED 哈希、关键 diff 与对象边界，
+并派出不同 fresh R12 scoped reviewer；review PASS 前仍禁止设备锁、QaReady、QA 与 K60。
 
 1. **旧 END_FILE 不得释放新 attempt**
    - A 已播放，用户切 B；`prepareMediaItem(B)` 安装 B owner 并登记 B in-flight 后，native 顺序
