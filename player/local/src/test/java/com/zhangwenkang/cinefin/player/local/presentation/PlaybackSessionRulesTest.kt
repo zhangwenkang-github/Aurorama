@@ -1567,6 +1567,126 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `unique current START publishes after two stale owners never emit events`() {
+        val epoch = 251L
+        val player = allocatedMpvPlayerForStartFile(epoch)
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+        val a1 =
+            mediaItemWithSubtitle(
+                mediaId = "item-a1",
+                uri = "https://media.example/item-a",
+                subtitle = "https://media.example/a1.srt",
+            )
+        val b =
+            mediaItemWithSubtitle(
+                mediaId = "item-b",
+                uri = "https://media.example/item-b",
+                subtitle = "https://media.example/b2.srt",
+            )
+        val a3 =
+            mediaItemWithSubtitle(
+                mediaId = "item-a3",
+                uri = "https://media.example/item-a",
+                subtitle = "https://media.example/a3.srt",
+            )
+
+        player.setMediaItems(mutableListOf(a1), 0, 0L)
+        player.prepare()
+        player.setMediaItems(mutableListOf(b), 0, 0L)
+        player.prepare()
+        player.setMediaItems(mutableListOf(a3), 0, 0L)
+        player.prepare()
+        val currentToken = sourceAttemptToken(player, "pendingSourceStart")
+        if (currentToken != null) {
+            trySetField(player, "sourceEventTokenReader", { currentToken })
+        }
+
+        commands.clear()
+        callbacks.clear()
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+
+        assertEquals(
+            "唯一 current START_FILE 必须淘汰无事件 stale owner 并发布 A3 恰好一次",
+            listOf(
+                listOf(
+                    "sub-add",
+                    "https://media.example/a3.srt",
+                    "auto",
+                    "test-subtitle",
+                    "zh",
+                )
+            ),
+            commands,
+        )
+    }
+
+    @Test
+    fun `stale source token cannot publish current source after two no-event owners`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 257L)
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+        val a1 =
+            mediaItemWithSubtitle(
+                mediaId = "item-a1",
+                uri = "https://media.example/item-a",
+                subtitle = "https://media.example/a1.srt",
+            )
+        val b =
+            mediaItemWithSubtitle(
+                mediaId = "item-b",
+                uri = "https://media.example/item-b",
+                subtitle = "https://media.example/b2.srt",
+            )
+        val a3 =
+            mediaItemWithSubtitle(
+                mediaId = "item-a3",
+                uri = "https://media.example/item-a",
+                subtitle = "https://media.example/a3.srt",
+            )
+        player.setMediaItems(mutableListOf(a1), 0, 0L)
+        player.prepare()
+        player.setMediaItems(mutableListOf(b), 0, 0L)
+        player.prepare()
+        player.setMediaItems(mutableListOf(a3), 0, 0L)
+        player.prepare()
+        val staleToken = checkNotNull(sourceAttemptToken(player, "sourceStartInFlight"))
+        val currentToken = checkNotNull(sourceAttemptToken(player, "pendingSourceStart"))
+
+        commands.clear()
+        callbacks.clear()
+        trySetField(player, "sourceEventTokenReader", { staleToken })
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertTrue(
+            "stale token 必须 fail closed，不得发布 current commands: $commands",
+            commands.isEmpty(),
+        )
+
+        commands.clear()
+        callbacks.clear()
+        trySetField(player, "sourceEventTokenReader", { currentToken })
+        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        assertEquals(
+            "current token 必须淘汰 stale in-flight 并只发布 A3 一次",
+            listOf(
+                listOf(
+                    "sub-add",
+                    "https://media.example/a3.srt",
+                    "auto",
+                    "test-subtitle",
+                    "zh",
+                )
+            ),
+            commands,
+        )
+    }
+
+    @Test
     fun `repeated replacements with only final START_FILE publish final snapshot once`() {
         val epoch = 67L
         val player =
@@ -2752,6 +2872,7 @@ class PlaybackSessionRulesTest {
         val player = unsafe.allocateInstance(MPVPlayer::class.java) as MPVPlayer
         setField(player, "commandsClosed", AtomicBoolean(true))
         setField(player, "sourceEpoch", AtomicLong(sourceEpoch))
+        trySetField(player, "sourceStartAttemptSequence", AtomicLong())
         setField(player, "sourcePosition", sourcePosition)
         setField(player, "internalMediaItems", mediaItems)
         setField(player, "currentMediaItemIndex", currentIndex)
@@ -2795,9 +2916,17 @@ class PlaybackSessionRulesTest {
             trySetField(player, "commandsClosed", AtomicBoolean(false)),
         )
         val commandExecutor: (Array<String>) -> Unit = { command -> commands += command.toList() }
+        val filteredExecutor: (Array<String>) -> Unit = { command ->
+            if (
+                command.getOrNull(0) != "set" ||
+                    command.getOrNull(1) != "user-data/cinefin-source-attempt"
+            ) {
+                commandExecutor(command)
+            }
+        }
         assertTrue(
             "MPVPlayer 必须暴露可捕获的 postCommand 执行入口",
-            trySetField(player, "commandExecutor", commandExecutor),
+            trySetField(player, "commandExecutor", filteredExecutor),
         )
         return commands
     }
@@ -2949,6 +3078,18 @@ class PlaybackSessionRulesTest {
         method.isAccessible = true
         method.invoke(null, *arguments)
     }
+
+    private fun sourceAttemptToken(
+        player: MPVPlayer,
+        fieldName: String,
+    ): String? = runCatching {
+        val attempt = getField(player, fieldName) ?: return@runCatching null
+        attempt.javaClass.getDeclaredField("nativeToken").run {
+            isAccessible = true
+            get(attempt) as String?
+        }
+    }
+        .getOrNull()
 
     private fun trySetField(target: Any, name: String, value: Any): Boolean = runCatching {
         setField(target, name, value)
