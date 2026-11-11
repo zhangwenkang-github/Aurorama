@@ -8504,3 +8504,17 @@ preference `27/28 MATCH`，失败播放链路改变
 R5 下一角色只负责据本 FAIL 另立新的最小 P1 diagnosis 卡；本 QA owner 不补丁、不重开窗口、
 不接后续阶段。距发布剩余：P1 diagnosis / repair / fresh verifier 与新 fresh QA、其余核心
 用户旅程、integration 与 Release。
+
+**进度（2026-11-12，R5 启动 R19 playback crash diagnosis R1）**：用户已明确回复“继续下一步”。
+R5 只做控制面编排，另立 read-only 最小诊断卡
+`evidence-v1-4-1-player-progress-source-retry-r19-playback-crash-diagnosis-r1-2026-11-12\R19_PLAYBACK_CRASH_DIAGNOSIS_CARD.md`，
+并路由全新
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_CRASH_DIAGNOSIS_OWNER_R1_2026_11_12`
+（`deepseek-flash / max / fork=none`）。该角色只分析 QA S2 fixed crash signals、exact
+candidate diff、APK/native packaging 与源码 lineage；禁止 ADB、设备、网络、真实资源值、raw
+log、产品 / 测试 / schema / Gradle / settings 写、QA 重放和 merge/integration/Release。
+
+诊断必须给出 `CAUSE_PROVEN|MULTI_CAUSE|CAUSE_NOT_PROVEN|NEEDS_DEVICE_EVIDENCE`、
+候选引入 / 继承 / 环境分类、假设与反证矩阵和最小下一步；能用静态/离线证据证明才可声称根因，
+单一崩溃信号或代码气味不得冒充证明。已完成：QA S2 失败收口与诊断卡路由；距发布剩余：
+crash diagnosis R1 → 最小修复决策 → 新复审/QA → 剩余核心旅程 → integration → Release。

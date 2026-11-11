@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
-- TASK_STAGE=R19_INDEPENDENT_QA_S2_FAIL / PLAYBACK_PROCESS_CRASH_OPEN / R5_DIAGNOSIS_REQUIRED / QA_READY:NO
+- TASK_STAGE=R19_INDEPENDENT_QA_S2_FAIL / PLAYBACK_PROCESS_CRASH_DIAGNOSIS_R1_READY / QA_READY:NO
 - WORKTREE_POLICY=EXACT_ABSOLUTE
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama
 - CANONICAL_BRANCH=codex/v2-integration
@@ -31,12 +31,13 @@
 - R19_AUTHORIZED_NATIVE_SEAM=player/mpv-binding/**;gradle/libs.versions.toml;settings.gradle.kts;player/local/build.gradle.kts;player/local/src/test/java/**/mpv/**
 - R19_NATIVE_SCOPE=Inherited R17 seam only. Add command-bound source-event ownership barrier or equivalent new-entry/drain protocol; deterministically reject post-snapshot/pre-arm stale same-entry START. No unrelated native/dependency upgrade.
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.63-§52.66 > verifier R2 report > QA_ALLOWLIST_PROTOCOL_CARD > R1/R2 repair evidence
-- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R5_2026_11_12
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.63-§52.66 > QA S2 fail report > R19 crash diagnosis card > exact candidate diff/APK
+- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_CRASH_DIAGNOSIS_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_REPAIR_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R4_2026_11_11
-- CURRENT_DELEGATED_ROLE=NONE
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_CRASH_DIAGNOSIS_OWNER_R1_2026_11_12
+- RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_INDEPENDENT_QA_R19_S2_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_ALLOWLIST_PROTOCOL_VERIFIER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_REPAIR_OWNER_R2_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_INDEPENDENT_QA_R19_S1_2026_11_11
@@ -54,21 +55,21 @@
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R13_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R12_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R12_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-independent-qa-s2-2026-11-12\INDEPENDENT_QA_R19_S2_REPORT.md
-- NEXT_REQUIREMENT=R5 must consume the QA S2 FAIL report and scope a new minimal diagnosis card for P1-R19-S2-PLAYBACK-PROCESS-CRASH-01. Do not reuse this QA owner, reopen the consumed window, patch product in place, or jump to merge/integration/Release.
-- STOP_CONDITION=Stop on any attempt to replay the consumed runtime window, raw resource/log/command output, same-owner repair, merge/integration/Release, or work without a new minimal R5 card and fresh role separation.
-- SCOPE=1.4.1_PLAYER_STABILITY/PROGRESS_SOURCE_IDENTITY_RETRY_PRIORITY/R19_QA_S2_ALLOWLIST_REAL_DEVICE
-- AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_AUTHORIZED_NATIVE_SEAM_2026_11_11 / USER_PRIORITIZED_FAST_1_4_1_RELEASE / AUTONOMOUS_HANDOFF_AND_QA / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO_R5_DIAGNOSIS_CARD_REQUIRED
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-playback-crash-diagnosis-r1-2026-11-12\R19_PLAYBACK_CRASH_DIAGNOSIS_CARD.md
+- NEXT_REQUIREMENT=Fresh read-only diagnosis owner must classify the exact R19 `am_crash + am_proc_died` at the playback attempt, using only sanitized QA evidence, candidate/APK/source analysis and offline checks. It must not touch a device, raw logs, product code or tests, and must return either a proven/partial cause or NEEDS_DEVICE_EVIDENCE with the smallest safe next action.
+- STOP_CONDITION=Stop on ADB/device/network, raw resource or log output, product/test/schema/Gradle/settings write, old-evidence drift, QA replay, speculative cause without evidence, scope expansion, merge/integration/Release, or a new blocking P0-P2.
+- SCOPE=1.4.1_PLAYER_STABILITY/R19_PLAYBACK_PROCESS_CRASH_READ_ONLY_DIAGNOSIS
+- AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_AUTHORIZED_NATIVE_SEAM_2026_11_11 / USER_PRIORITIZED_FAST_1_4_1_RELEASE / USER_CONTINUE_NEXT_STEP_2026_11_12 / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
+- IMPLEMENTATION_AUTHORIZED=NO_DIAGNOSIS_ONLY
 - DEVICE_ACCESS=LOCKS_HELD:NONE / DEVICE_ACCESS:NONE / LOCK_ACTIVE=0 / K60_8e875894_FORBIDDEN
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / R19_INDEPENDENT_QA_R19_S2=FAIL / QA_READY:NO
-- USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11
+- USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11 / CONTINUE_NEXT_STEP_2026_11_12
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - P0=0
 - P1=P1-R19-S2-PLAYBACK-PROCESS-CRASH-01:OPEN_CAUSE_NOT_PROVEN;P1-PLAYER-PROGRESS-001:OPEN_PRODUCT_NOT_ASSESSED;P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01:CLOSED_BY_FRESH_ALLOWLIST_VERIFIER_PASS;P1-R5-SAME-IDENTITY-IDLE-UNKNOWN-CLEAR-01:CLOSED_BY_R6_AND_R7_REVIEW;P1-R18-POST-SNAPSHOT-PRE-ARM-SAME-ENTRY-START-CAN-CLAIM-SUCCESSOR:CLOSED_BY_R19_REVIEW;P1-R15-BOUNDED-RECOVERY-DEAD-ENDS-WITH-STARVED-CURRENT:CLOSED_BY_R17_REVIEW
 - P2=P2-QA-R19-S2-LOCK-OVER-30-MIN:OPEN_GOVERNANCE;P2-PLAYER-LOADING-001:OPEN_PRODUCT_NOT_ASSESSED;P2-PLAYER-STALL-001:OPEN_PRODUCT_NOT_ASSESSED;CODE_P2=0;P2-R18-FORMAL-SEAM-MISSES-POST-RETURN-PRE-ARM-INGRESS:CLOSED_BY_R19_REVIEW;P2-R18-EVENT-INT-ONLY-START-FORMALLY-COVERED:CLOSED_BY_R19_REVIEW;P2-R9-NO-EVENT-STALE-OWNER-BLOCKS-UNIQUE-CURRENT-START-01:CLOSED_BY_R17_REVIEW;P2-R13-MARKER-IO-FAILURE-CAN-STARVE-CURRENT:CLOSED_BY_R17_MARKER_REMOVAL;P2-R15-FORMAL-INVALID-INDEX-TEST-FILTERS-SOURCE-COMMANDS:CLOSED_BY_R17_REVIEW
-- P3=P3-QA-R19-S2-APP-PREF-DRIFT-01:OPEN_HYGIENE;P3-QA-R19-S2-PROTOCOL-ROOT-FAIL-CLOSED-01:ACCEPTED_BOUNDARY;P3-R12-A0-HEADROOM-15:MAINTENANCE_RISK;P3-R17-REAL-LIBMPV-DEVICE-ORDER:NOT_RUN_AFTER_PLAYBACK_CRASH;P3-R11-TERMINAL-INTERLEAVING-TEST_COVERAGE:CLOSED_FOR_SPECIFIED_ORDERED_SEQUENCE;P3-R19-ALLOWLIST-FRESH-VERIFIER-R1:CLOSED_PASS;P3-R19-QA-S2:FAIL
+- P3=P3-R19-CRASH-DIAGNOSIS-R1:RUNNING_READ_ONLY;P3-QA-R19-S2-APP-PREF-DRIFT-01:OPEN_HYGIENE;P3-QA-R19-S2-PROTOCOL-ROOT-FAIL-CLOSED-01:ACCEPTED_BOUNDARY;P3-R12-A0-HEADROOM-15:MAINTENANCE_RISK;P3-R17-REAL-LIBMPV-DEVICE-ORDER:NOT_RUN_AFTER_PLAYBACK_CRASH;P3-R11-TERMINAL-INTERLEAVING-TEST_COVERAGE:CLOSED_FOR_SPECIFIED_ORDERED_SEQUENCE;P3-R19-ALLOWLIST-FRESH-VERIFIER-R1:CLOSED_PASS;P3-R19-QA-S2:FAIL
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r12-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r12-implementation-r1-2026-11-11\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r12-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md
@@ -122,18 +123,22 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-independent-qa-s2-2026-11-12\QA_S2_CARD.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-independent-qa-s2-2026-11-12\QA_S2_DISPATCH_PREFLIGHT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-independent-qa-s2-2026-11-12\PRE_DISPATCH_MANIFEST.sha256
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-independent-qa-s2-2026-11-12\INDEPENDENT_QA_R19_S2_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-independent-qa-s2-2026-11-12\MANIFEST.sha256
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-playback-crash-diagnosis-r1-2026-11-12\R19_PLAYBACK_CRASH_DIAGNOSIS_CARD.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-playback-crash-diagnosis-r1-2026-11-12\PRE_DISPATCH_MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\MANIFEST.sha256
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=R5_MINIMAL_PLAYBACK_CRASH_DIAGNOSIS_THEN_REMAINING_CORE_JOURNEYS_THEN_INTEGRATION_RELEASE
-- HANDOFF_REASON=NONE_CURRENT_OWNER_STOPPED_ON_NEW_P1
+- NEXT_CRITICAL_PATH=FRESH_R19_PLAYBACK_CRASH_DIAGNOSIS_R1_THEN_MINIMAL_FIX_DECISION_THEN_NEW_QA_THEN_INTEGRATION_RELEASE
+- HANDOFF_REASON=NONE_CURRENT_OWNER_CONTINUING_NEXT_MINIMAL_DIAGNOSIS
 - HANDOFF_AT_CONTEXT=N/A
 - HANDOFF_MEASURED_AT=2026-11-12 02:23:24 Asia/Shanghai
 - CONTEXT_WATERMARK=230663/1048576/22.0% / 2026-11-12 03:41:03 Asia/Shanghai
 - R19_QA_HARNESS_SECURITY_REPAIR_R2_RESULT=OWNER_SELF_TEST_PASS;RED=5/5_LEAK_OBSERVED;RED_REPLAY=5/5_LEAK_OBSERVED;GREEN=62/62;SCAN=0/0;STATIC=7/7;FROZEN_INPUTS=68/68_MATCH;MANIFEST=25/25_MATCH;P1=OPEN_REPAIRED_AWAITING_FRESH_VERIFIER_R2;REPORT_SHA=E1FC6EA9CB7FCA9D57497443043E3AE6758694B41E4CF96F36251A84244D0E73;MANIFEST_SHA=CF60EDF7BF7495116596DCCDF25D1D7AC46545D6599A3685F07508E0F18C71EB;DEVICE=NONE;LOCK_ACTIVE=0;QA_READY=NO
 - R19_QA_ALLOWLIST_VERIFIER_R1_RESULT=PASS;REPORT_SHA=48BD8BD9CB6518B0522498B6080319684A436960CB388CAA239BA66D6F927DDA;MANIFEST_SHA=09997FE6F603D50BDE65468CDDE0FC1DCF2F6237847B600C051DFE97865CF286;MANIFEST=164/164_MATCH;SYNTHETIC=47/47;HISTORICAL_VERIFIER_R2=17_PASS_6_FAIL;P0=0;P1=0;P2=0;P3=2
 - R19_QA_S2_LAST_EVIDENCE=FAIL;P1_NEW=PLAYBACK_PROCESS_CRASH;P1_CAUSE=NOT_PROVEN;RUNTIME=488.420/600;WINDOW=1;SCREENSHOTS=0;SETTINGS=17/17;APP_PREFS=27/28;CLEANUP=PASS;LOCK_RELEASED=YES;LOCK_OVER_30_MIN=YES;QA_READY=NO;INDEPENDENT_QA_R19_S2=FAIL
-- last_evidence=R19_QA_S2=FAIL;PLAYER_CORE=FAIL;RUNTIME=488.420/600;P1=P1-R19-S2-PLAYBACK-PROCESS-CRASH-01:OPEN_CAUSE_NOT_PROVEN;P2=P2-QA-R19-S2-LOCK-OVER-30-MIN:OPEN_GOVERNANCE;CRASH_SIGNATURE=AM_CRASH+AM_PROC_DIED;PC12=FAIL;DEVICE=PAD_43af8627;LOCK_ACTIVE=0;QA_READY=NO;REPORT_SHA=18AFDBFEC06D30C7394D6957A968BBACF3B60695F4212799A73A6599B7C5E3FA;MANIFEST=33/33;MANIFEST_SHA=ABCE74244D7ACAA22412A5AAF5C075EE7870694B8A0706DEBA00CE0D4FDF4635;NEXT=STOPPED_FOR_USER_DECISION_ON_NEW_P1
+- last_evidence=R19_QA_S2=FAIL;PLAYER_CORE=FAIL;RUNTIME=488.420/600;P1=P1-R19-S2-PLAYBACK-PROCESS-CRASH-01:OPEN_CAUSE_NOT_PROVEN;P2=P2-QA-R19-S2-LOCK-OVER-30-MIN:OPEN_GOVERNANCE;CRASH_SIGNATURE=AM_CRASH+AM_PROC_DIED;PC12=FAIL;DEVICE=PAD_43af8627;LOCK_ACTIVE=0;QA_READY=NO;REPORT_SHA=18AFDBFEC06D30C7394D6957A968BBACF3B60695F4212799A73A6599B7C5E3FA;MANIFEST=33/33;MANIFEST_SHA=ABCE74244D7ACAA22412A5AAF5C075EE7870694B8A0706DEBA00CE0D4FDF4635;NEXT=FRESH_R19_CRASH_DIAGNOSIS_R1
 - R13_REVIEW_RESULT=FAIL;REVIEW_SHA=A7F82C54A1B3FEDE9F617F96C0859021ABA77D10CCA880733E487D437CF320ED;REVIEW_MANIFEST_SHA=F81B2F21548E772C07ED5063B0530B74C0DCC322EB2CF4966463B255E9FD955C;P1=EVENT_TOKEN_NOT_EVENT_BOUND,PENDING_CURRENT_SOURCE_COMMAND_ZERO_PUBLISH,GREEN_INJECTION_MASKS_NATIVE_OWNERSHIP;P2=MARKER_IO_FAILURE_CAN_STARVE_CURRENT;DEVICE=NONE;LOCK_ACTIVE=0;QA_READY=NO
 - R14_REVIEW_RESULT=FAIL;REVIEW_SHA=37399C4A53BD6A5882340E62800DAF0CCD68800A88E9345553C2E307C3862706;REVIEW_MANIFEST_SHA=F63DCA55B8ACE27B1F62E0A6414876571782FA7585586019C01A486832AB9D31;P1=STALE_START_AFTER_CURRENT_MARKER,MARKER_ACK_AND_SOURCE_RETRY_NOT_FAIL_CLOSED,PREPARE_NONZERO_WINDOW_ZERO_SOURCE_COMMAND,COMMAND_DISPATCH_UNLOCKED_RACE;P2=INVALID_INDEX_NOT_ATOMIC,RED_GREEN_SOURCE_PROVENANCE_GAP;DEVICE=NONE;LOCK_ACTIVE=0;QA_READY=NO
 - R15_TASK_CARD=READY;BASE=de7efbcdd9eb2e3d93aafda7b919754dac0e3469;WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-source-retry-r15-2026-11-11\Aurorama;BRANCH=codex/v141-player-progress-source-retry-r15;STATUS=CLEAN
@@ -1621,18 +1626,18 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - QA_READY=NO
 - QA_RESULT=R19_INDEPENDENT_QA_S2=FAIL / PLAYER_CORE_MATRIX_RESULT=FAIL / P1-R19-S2-PLAYBACK-PROCESS-CRASH-01=OPEN_CAUSE_NOT_PROVEN / LOCK_DURATION_OVER_30_MIN=FAIL
 - UNCOVERED=Stable playback; UI/engine/MediaSession progress truth; same-identity IDLE/UNKNOWN; add/move remap; seek across BUFFERING; retry method/token; stale-source rejection; real libmpv command/source/marker/event order; PC-01/02/03/04/05/11; remaining core journeys; integration; Release.
-- STOP_CONDITION=Consumed QA S2 window must not be reopened or reused. Stop on same-owner repair, raw output, ADB/device work without a new lock and card, merge/integration/Release, or any attempt to treat this FAIL as product PASS.
-- MANUAL_LIMITATION=Allowlist output safety and cleanup passed, but real playback crashed the debug process. The one runtime window was consumed; no second window is authorized. App preference `pref_player_decode_fallback_session` did not match pre/post, so `S2-SETTINGS=FAIL`.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R5_2026_11_12
+- STOP_CONDITION=Consumed QA S2 window must not be reopened or reused. The current step is read-only crash diagnosis only; stop on ADB/device/network, raw logs or resources, product/test writes, QA replay, or merge/integration/Release.
+- MANUAL_LIMITATION=Allowlist output safety and cleanup passed, but real playback crashed the debug process. The one runtime window was consumed; no second window is authorized. The exact APK, candidate and R19 diff are now frozen for read-only diagnosis.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_CRASH_DIAGNOSIS_OWNER_R1_2026_11_12
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
 |---|---|---|---|---|---|
-| INV-R19-SOURCE-BIND | MPVLib native command/event seam | Load A, B, A; retry/drain same playlist entry; inject old START after command snapshot | Old playlist-entry/generation cannot claim successor; current START is consumed exactly once | evidence-v1-4-1-player-progress-source-retry-r19-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md; evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | Pad must verify real libmpv FIFO and same-URI switch |
-| INV-R19-PROGRESS-TRUTH | PlayerActivity / PlayerViewModel / MediaSession | Normal play, seek crossing BUFFERING, add/move remap, retry | UI/engine/MediaSession position, buffered and loading agree; target survives BUFFERING | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | NOT_RUN until fresh Pad QA |
-| INV-R19-SAME-IDENTITY | MPVPlayer / PlaybackSessionRulesTest | same identity IDLE/UNKNOWN preserve source; different identity changes source | Single source owner; no clear/remove for same identity; stale source callback rejected | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | NOT_RUN until fresh Pad QA |
-| INV-R19-RETRY | Playback recovery and MPVPlayer drain | Invoke one-click retry twice; source changes between terminals | One token/method hit; stale token rejected; current source converges or explicit error | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | NOT_RUN until fresh Pad QA |
-| INV-R19-SETTINGS | Settings snapshot / QA cleanup | Hash each key before/after QA | Per-key hash unchanged except explicitly exercised setting | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | NOT_RUN until fresh Pad QA |
+| INV-R19-SOURCE-BIND | MPVLib native command/event seam | Load A, B, A; retry/drain same playlist entry; inject old START after command snapshot | Old playlist-entry/generation cannot claim successor; current START is consumed exactly once | evidence-v1-4-1-player-progress-source-retry-r19-implementation-r1-2026-11-11\IMPLEMENTATION_REPORT.md; evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | QA S2 FAIL: playback process crashed before evidence |
+| INV-R19-PROGRESS-TRUTH | PlayerActivity / PlayerViewModel / MediaSession | Normal play, seek crossing BUFFERING, add/move remap, retry | UI/engine/MediaSession position, buffered and loading agree; target survives BUFFERING | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | QA S2 FAIL: stable playback NOT_RUN |
+| INV-R19-SAME-IDENTITY | MPVPlayer / PlaybackSessionRulesTest | same identity IDLE/UNKNOWN preserve source; different identity changes source | Single source owner; no clear/remove for same identity; stale source callback rejected | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | QA S2 FAIL: source lifecycle NOT_RUN |
+| INV-R19-RETRY | Playback recovery and MPVPlayer drain | Invoke one-click retry twice; source changes between terminals | One token/method hit; stale token rejected; current source converges or explicit error | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | QA S2 FAIL: retry NOT_RUN |
+| INV-R19-SETTINGS | Settings snapshot / QA cleanup | Hash each key before/after QA | Per-key hash unchanged except explicitly exercised setting | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | QA S2 FAIL: App prefs 27/28; one playback-chain drift |
 | INV-R19-SCOPE-A0 | Candidate object, seven authorized paths and A0 | Audit base..candidate, path union, A0 baseline | Seven unique authorized paths; zero outside union; A0 15497/15512 | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | N/A:static Git and A0 only |
 <!-- V2_QA_INVARIANT_MATRIX_END -->
 
