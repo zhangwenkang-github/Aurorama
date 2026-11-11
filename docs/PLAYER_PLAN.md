@@ -7965,8 +7965,7 @@ FAIL 自动另立 R17。
 
 ### 52.61 Progress source-identity / retry-priority R17 native identity 任务卡（2026-11-11）
 
-**状态**：`R17_IMPLEMENTATION_IN_PROGRESS / NATIVE_SOURCE_EVENT_IDENTITY_AUTHORIZED /`
-`QA_READY=NO`。
+**状态**：`R17_IMPLEMENTATION_GREEN / R17_SCOPED_REVIEW_IN_PROGRESS / QA_READY=NO`。
 
 **进度（2026-11-11，R17 implementation 启动）**：用户已授权 native seam。R17 worktree 从
 R15 candidate `dc5c47c9...` 建立且 clean。已派 fresh implementation owner
@@ -7974,6 +7973,17 @@ R15 candidate `dc5c47c9...` 建立且 clean。已派 fresh implementation owner
 （`deepseek-flash / max / fork=none`），先做 20–30 分钟上游 source/JNI/`playlist_entry_id`
 可构建性 spike；确认可行后以正式 RED 实现 seam + MPVPlayer 收敛。当前已完成：R16 API 边界与
 RED 证据；距发布剩余：R17 GREEN、R17 review、Pad QA、其余核心 QA/集成/Release。
+
+**进度（2026-11-11，R17 implementation GREEN / scoped review in progress）**：fresh owner
+已完成 vendored `player/mpv-binding` native seam：`loadfile` 使用
+`mpv_command_ret.playlist_entry_id`，START/END 使用 native event playlist-entry id，Java
+`MpvSourceEventGate` 在进入 `MPVPlayer` 前拒绝旧 generation/错误 id/duplicate/乱序，source
+events 不再回落 `event(int)`。candidate `22a8a576...` / tree
+`c8ed7b1d...`，58 路径全在用户授权范围，clean、未 push。RED seam `5/5`、targeted `4/4`；
+GREEN targeted `83`、player-local `368`、phone `412`、4 ABI assemble/全门禁通过；A0
+`15,497/15,512`。implementation evidence `180/180 MATCH`。已派 fresh R17 reviewer，仅独立
+复跑 seam+targeted，其余证据核对；PASS 前设备/QA 仍禁止。已完成：native identity + convergence
++ tests；距发布剩余：review、Pad QA、其余核心 QA、集成/Release。
 
 R17 从 R15 candidate `dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45` / tree
 `2b9a1bd1195c7657a198413beba6f32ae07b5288` 建立。用户授权的最小新增写域为：
