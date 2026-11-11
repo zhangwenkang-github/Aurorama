@@ -8095,8 +8095,7 @@ R18 implementation 由 fresh owner 完成，再由不同 fresh reviewer 审查�
 
 ### 52.63 Progress source-identity / retry-priority R19 command-bound barrier 任务卡（2026-11-11）
 
-**状态**：`R19_IMPLEMENTATION_IN_PROGRESS / COMMAND_BOUND_EVENT_BARRIER_REQUIRED /`
-`QA_READY=NO`。
+**状态**：`R19_IMPLEMENTATION_GREEN / R19_SCOPED_REVIEW_IN_PROGRESS / QA_READY=NO`。
 
 **进度（2026-11-11，R19 implementation 启动）**：R18 review FAIL 证据已核验为 report SHA-256
 `8EE20F7A081DE57A1098D04C4D27FF15D424F8639C859D22140C3E09C3550A9A` / manifest
@@ -8105,6 +8104,15 @@ candidate `d429b949...` 建立且 clean。已派 fresh owner
 `AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R19_2026_11_11`
 （`deepseek-flash / max / fork=none`），只实现 command-bound barrier/等价 drain-new-entry 协议。
 已完成：native seam + 双 floor；距发布剩余：R19 barrier/review、Pad QA、剩余核心 QA、集成/Release。
+
+**进度（2026-11-11，R19 implementation GREEN / scoped review in progress）**：fresh owner
+已实现 command-bound native FIFO barrier：command 前关闭 source dispatch 并等待已进入 Java 的
+dispatch 归零；command 后用 `mpv_get_property_async` marker 排空事件队列，再在 ingress/lock
+内发布 arm generation。candidate `1487fa2c...` / tree `310f076f...`，7 个授权路径，clean、
+未 push。RED `1/1`、formal seam `4/0`、targeted `87/0`、player-local `372/0`、phone `412/0`、
+assemble/KTFMT/A0/GatePlan/workflow/handoff/Control assemble 均通过；A0 `15,497/15,512`；
+manifest `164/164 MATCH`。已派 fresh R19 reviewer，只复跑 4 formal seam+targeted。已完成：
+deterministic barrier + TDD；距发布剩余：R19 review、Pad QA、剩余核心 QA、集成/Release。
 
 R19 从 R18 candidate `d429b949bad8b065c8b32a6377dae9ec486efbd8` / tree
 `d6c1b1684582e4748886388cfd9db9b16dd15d81` 建立，继承 native seam 授权。只关闭 R18 review
