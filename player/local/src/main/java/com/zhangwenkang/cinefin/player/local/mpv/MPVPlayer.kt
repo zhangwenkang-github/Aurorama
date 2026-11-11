@@ -142,7 +142,6 @@ class MPVPlayer(
     private lateinit var audioFocusRequest: AudioFocusRequestCompat
     private val handler: Handler = Handler(context.mainLooper)
     private var eventPoster: (Runnable) -> Unit = handler::post
-
     private val commandThread: HandlerThread = HandlerThread("mpv-command").apply { start() }
     private val commandHandler: Handler = Handler(commandThread.looper)
     private val commandsClosed = AtomicBoolean(false)
@@ -234,12 +233,9 @@ class MPVPlayer(
     init {
         val configDir = File(context.filesDir, "mpv")
         val cacheDir = File(context.cacheDir, "mpv")
-
         setupDirectories(context, configDir, cacheDir)
-
         mpvLib =
             MPVLib.create(context) ?: throw IllegalStateException("MPVLib.create() returned null")
-
         mpvLib.setOptionString("config", "yes")
         mpvLib.setOptionString("config-dir", configDir.path)
         for (opt in arrayOf("gpu-shader-cache-dir", "icc-cache-dir")) mpvLib.setOptionString(
@@ -251,39 +247,29 @@ class MPVPlayer(
         mpvLib.setOptionString("ao", audioOutput)
         mpvLib.setOptionString("gpu-context", "android")
         mpvLib.setOptionString("opengl-es", "yes")
-
         mpvLib.setOptionString("hwdec", hwDec)
         mpvLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
         Timber.i("MPVPlayer hwdec=%s vo=%s", hwDec, videoOutput)
-
         mpvLib.setOptionString("tls-verify", "no")
-
         mpvLib.setOptionString("cache", "yes")
         mpvLib.setOptionString("cache-pause-initial", "yes")
         mpvLib.setOptionString("demuxer-max-bytes", "64MiB")
         mpvLib.setOptionString("demuxer-max-back-bytes", "32MiB")
-
         mpvLib.setOptionString("sub-scale-with-window", "yes")
         mpvLib.setOptionString("sub-use-margins", "no")
-
-        /* alang/slang 原样传全量优先级，避免把 zh-Hans 截断成 Hans。 */
         trackSelectionParameters.preferredAudioLanguages
             .takeIf { it.isNotEmpty() }
             ?.let { mpvLib.setOptionString("alang", it.joinToString(",")) }
         trackSelectionParameters.preferredTextLanguages
             .takeIf { it.isNotEmpty() }
             ?.let { mpvLib.setOptionString("slang", it.joinToString(",")) }
-
         mpvLib.setOptionString("force-window", "no")
         mpvLib.setOptionString("keep-open", "always")
         mpvLib.setOptionString("save-position-on-quit", "no")
         mpvLib.setOptionString("ytdl", "no")
         mpvLib.setOptionString("audio-set-media-role", "yes")
-
         mpvLib.init()
-
         mpvLib.addObserver(this)
-
         data class Property(val name: String, val format: Int)
         arrayOf(
                 Property("track-list", MpvFormat.MPV_FORMAT_STRING),
@@ -299,13 +285,11 @@ class MPVPlayer(
                 Property("playlist-current-pos", MpvFormat.MPV_FORMAT_INT64),
             )
             .forEach { (name, format) -> mpvLib.observeProperty(name, format) }
-
         val audioSessionId = audioManager.generateAudioSessionId()
         if (audioSessionId != AudioManager.ERROR) {
             mpvLib.setPropertyInt("audiotrack-session-id", audioSessionId)
             mpvLib.setPropertyInt("aaudio-session-id", audioSessionId)
         }
-
         if (handleAudioFocus) {
             audioFocusRequest =
                 AudioFocusRequestCompat.Builder(AudioManagerCompat.AUDIOFOCUS_GAIN)
@@ -319,51 +303,67 @@ class MPVPlayer(
         }
     }
 
-    private var commandExecutor: (Array<String>) -> Unit = { command ->
-        commandHandler.post {
-            if (commandsClosed.get()) return@post
-            runCatching { mpvLib.command(command) }
-                .onFailure { Timber.w(it, "mpv 命令执行失败：%s", command.firstOrNull()) }
+    private var commandExecutor: (Array<String>, (Boolean) -> Unit) -> Unit = { command, done ->
+        val posted = commandHandler.post {
+            if (commandsClosed.get()) {
+                done(false)
+                return@post
+            }
+            done(
+                runCatching { mpvLib.command(command) }
+                    .onFailure { Timber.w(it, "mpv 命令执行失败：%s", command.firstOrNull()) }
+                    .isSuccess
+            )
         }
+        if (!posted) done(false)
+    }
+    private var recoveryScheduler: (Long, () -> Unit) -> Unit = { delayMs, action ->
+        if (!commandHandler.postDelayed(action, delayMs)) action()
     }
 
-    private fun postCommand(command: Array<String>): Boolean {
-        if (commandsClosed.get()) return false
-        return runCatching { commandExecutor(command) }
-            .onFailure { Timber.w(it, "mpv 命令执行失败：%s", command.firstOrNull()) }
+    private fun postCommand(
+        command: Array<String>,
+        onComplete: ((Boolean) -> Unit)? = null,
+    ): Boolean {
+        if (commandsClosed.get()) {
+            onComplete?.invoke(false)
+            return false
+        }
+        val completed = AtomicBoolean(false)
+        fun complete(success: Boolean) {
+            if (completed.compareAndSet(false, true)) onComplete?.invoke(success)
+        }
+        return runCatching { commandExecutor(command, ::complete) }
+            .onFailure {
+                Timber.w(it, "mpv 命令执行失败：%s", command.firstOrNull())
+                complete(false)
+            }
             .isSuccess
     }
 
     private fun setupDirectories(context: Context, configDir: File, cacheDir: File) {
         Timber.i("mpv config dir: $configDir")
         Timber.i("mpv cache dir: $cacheDir")
-
         if (!configDir.exists()) configDir.mkdirs()
         if (!cacheDir.exists()) cacheDir.mkdirs()
-
         writeFontsConf(context, configDir)
     }
 
     private fun writeFontsConf(context: Context, configDir: File) {
         val configFile = File(configDir, "fonts.conf")
         if (configFile.exists()) return
-
         val cacheDir = File(context.cacheDir, "fontconfig")
         if (!cacheDir.exists()) cacheDir.mkdirs()
-
         val config =
             """
             <fontconfig>
                 <dir>/system/fonts/</dir>
                 <dir>/product/fonts/</dir>
-
                 <cachedir>${cacheDir.path}</cachedir>
-
                 <alias>
                     <family>serif</family>
                     <prefer><family>Noto Serif</family></prefer>
                 </alias>
-
                 <alias>
                     <family>sans-serif</family>
                     <prefer>
@@ -371,16 +371,13 @@ class MPVPlayer(
                         <family>Noto Sans</family>
                     </prefer>
                 </alias>
-
                 <alias>
                     <family>monospace</family>
                     <prefer><family>Droid Sans Mono</family></prefer>
                 </alias>
-
             </fontconfig>
         """
                 .trimIndent()
-
         try {
             configFile.writeText(config)
         } catch (e: IOException) {
@@ -427,9 +424,18 @@ class MPVPlayer(
         val sourceIndex: Int,
         val command: Array<String>,
         val nativeToken: String,
+        val bootstrap: Boolean = false,
+        val followUpCommands: List<Array<String>> = emptyList(),
         var startObserved: Boolean = false,
         var markerObserved: Boolean = false,
+        var markerExecuted: Boolean = false,
+        var commandEntered: Boolean = false,
         var commandDispatched: Boolean = false,
+        var markerAttempts: Int = 0,
+        var commandAttempts: Int = 0,
+        var drainAttempts: Int = 0,
+        var drainInFlight: Boolean = false,
+        var deadlineGeneration: Long = 0L,
     )
 
     private data class SourceEventResolution(
@@ -467,7 +473,7 @@ class MPVPlayer(
     override fun eventProperty(property: String) {}
 
     override fun eventProperty(property: String, value: String) {
-        if (property == "user-data/cinefin-source-attempt") {
+        if (property == SOURCE_ATTEMPT_PROPERTY) {
             resolveSourceMarker(value)
         }
         val epoch = sourceEpoch.get()
@@ -611,6 +617,7 @@ class MPVPlayer(
                 else -> null
             }
         val initialCommands = resolution?.claim
+        val publishInitialCommands = AtomicBoolean(initialCommands != null)
         val epoch = resolution?.epoch ?: sourceEpoch.get()
         eventPoster post@{
             if (resolution?.ignoreBody != true && !released && epoch == sourceEpoch.get()) {
@@ -618,7 +625,9 @@ class MPVPlayer(
                     (eventId == MpvEvent.MPV_EVENT_START_FILE ||
                         eventId == MpvEvent.MPV_EVENT_FILE_LOADED) && !isPlayerReady
                 ) {
-                    initialCommands?.forEach { postCommand(it) }
+                    if (publishInitialCommands.compareAndSet(true, false)) {
+                        initialCommands?.forEach { postCommand(it) }
+                    }
                 }
                 when (eventId) {
                     MpvEvent.MPV_EVENT_START_FILE ->
@@ -695,94 +704,99 @@ class MPVPlayer(
                     else -> Unit
                 }
             }
-            if (!released) resolution?.nextAttempt?.let(::dispatchSourceStart)?.let(::postCommand)
+            if (!released) resolution?.nextAttempt?.let(::requestSourceCommand)
         }
     }
 
-    /** 同一时刻只允许一个 source-start 命令在途，START_FILE/FILE_LOADED 归属该冻结 attempt。 */
     private fun resolveSourceStartEvent(eventId: Int): SourceEventResolution? =
         synchronized(initialCommands) {
-            val inFlight = sourceStartInFlight
-            if (inFlight == null) {
-                val currentEpoch = sourceEpoch.get()
+            val attempt = sourceStartInFlight
+            if (attempt == null) {
+                val epoch = sourceEpoch.get()
                 return@synchronized SourceEventResolution(
-                    epoch = currentEpoch,
+                    epoch,
                     replay =
                         eventId == MpvEvent.MPV_EVENT_START_FILE &&
                             pendingSourceStart == null &&
-                            initialCommandOwners.any { it.epoch == currentEpoch },
+                            initialCommandOwners.any { it.epoch == epoch },
                 )
             }
-            if (!inFlight.commandDispatched || inFlight.epoch != sourceEpoch.get()) {
-                return@synchronized SourceEventResolution(inFlight.epoch, ignoreBody = true)
+            if (!attempt.commandEntered && !attempt.commandDispatched) {
+                return@synchronized SourceEventResolution(attempt.epoch, ignoreBody = true)
             }
-            if (!attemptMatchesCurrentSourceLocked(inFlight)) {
-                inFlight.startObserved = true
+            val current =
+                attempt.epoch == sourceEpoch.get() && attemptMatchesCurrentSourceLocked(attempt)
+            if (!current || attempt.bootstrap) {
+                when (eventId) {
+                    MpvEvent.MPV_EVENT_START_FILE,
+                    MpvEvent.MPV_EVENT_FILE_LOADED -> attempt.startObserved = true
+                }
                 val next =
                     if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) {
-                        releaseSourceStartLocked(inFlight)
+                        dropSourceStartLocked(attempt)
                     } else {
                         null
                     }
                 return@synchronized SourceEventResolution(
-                    inFlight.epoch,
-                    nextAttempt = next,
+                    attempt.epoch,
+                    nextAttempt = attemptReadyLocked(next),
                     ignoreBody = true,
                 )
             }
-            if (eventId == MpvEvent.MPV_EVENT_START_FILE && inFlight.startObserved) {
-                return@synchronized SourceEventResolution(inFlight.epoch)
+            if (eventId == MpvEvent.MPV_EVENT_START_FILE && attempt.startObserved) {
+                return@synchronized SourceEventResolution(attempt.epoch)
             }
             val claim =
-                if (!inFlight.startObserved) {
-                    inFlight.startObserved = true
-                    takeInitialCommandsLocked(inFlight)
+                if (!attempt.startObserved) {
+                    attempt.startObserved = true
+                    takeInitialCommandsLocked(attempt)
                 } else {
                     null
                 }
             if (eventId == MpvEvent.MPV_EVENT_FILE_LOADED) {
-                SourceEventResolution(inFlight.epoch, claim, releaseSourceStartLocked(inFlight))
+                SourceEventResolution(
+                    attempt.epoch,
+                    claim,
+                    nextAttempt = dropSourceStartLocked(attempt),
+                )
             } else {
-                SourceEventResolution(inFlight.epoch, claim)
+                SourceEventResolution(attempt.epoch, claim)
             }
         }
 
     private fun resolveSourceMarker(sourceToken: String) {
         if (sourceToken.isBlank()) return
-        val command =
-            synchronized(initialCommands) {
-                val pending = pendingSourceStart
-                val inFlight = sourceStartInFlight
-                when {
-                    pending?.nativeToken == sourceToken &&
-                        attemptMatchesCurrentSourceLocked(pending) -> {
-                        pending.markerObserved = true
-                        if (inFlight == null || inFlight.epoch != sourceEpoch.get()) {
-                            sourceStartInFlight = pending
-                            pendingSourceStart = null
-                            dispatchSourceStartLocked(pending)
-                        } else {
-                            null
-                        }
+        var ready: SourceStartAttempt? = null
+        synchronized(initialCommands) {
+            val attempts = listOfNotNull(sourceStartInFlight, pendingSourceStart)
+            val matched = attempts.firstOrNull { it.nativeToken == sourceToken }
+            matched?.markerObserved = true
+            val pending = pendingSourceStart
+            if (pending?.nativeToken == sourceToken) {
+                sourceStartInFlight
+                    ?.takeIf {
+                        !it.commandEntered &&
+                            it.epoch != sourceEpoch.get() &&
+                            (!it.commandDispatched || it.startObserved)
                     }
-                    inFlight?.nativeToken == sourceToken &&
-                        attemptMatchesCurrentSourceLocked(inFlight) -> {
-                        inFlight.markerObserved = true
-                        dispatchSourceStartLocked(inFlight)
-                    }
-                    else -> null
+                    ?.let(::dropSourceStartLocked)
+                if (sourceStartInFlight == null && attemptReadyLocked(pending) != null) {
+                    pendingSourceStart = null
+                    sourceStartInFlight = pending
                 }
             }
-        command?.let(::postCommand)
+            ready = attempts.firstOrNull { attemptReadyLocked(it) != null }
+        }
+        ready?.let(::requestSourceCommand)
     }
 
     private fun releaseSourceStart(): SourceEventResolution? =
         synchronized(initialCommands) {
             sourceStartInFlight?.let { attempt ->
+                val next = if (attempt.startObserved) dropSourceStartLocked(attempt) else null
                 SourceEventResolution(
                     attempt.epoch,
-                    nextAttempt =
-                        if (attempt.startObserved) releaseSourceStartLocked(attempt) else null,
+                    nextAttempt = attemptReadyLocked(next),
                     ignoreBody = !attempt.startObserved,
                 )
             }
@@ -814,6 +828,10 @@ class MPVPlayer(
 
     private fun attemptMatchesCurrentSourceLocked(attempt: SourceStartAttempt): Boolean {
         if (attempt.epoch != sourceEpoch.get()) return false
+        if (attempt.bootstrap) {
+            val uri = internalMediaItems.getOrNull(attempt.sourceIndex)?.let(::mediaUri)?.toString()
+            return canonicalSource(uri) == canonicalSource(attempt.sourceUri)
+        }
         val owner = initialCommandOwners.lastOrNull { it.epoch == attempt.epoch }
         if (owner != null) {
             return owner.sourceIndex == attempt.sourceIndex &&
@@ -895,26 +913,21 @@ class MPVPlayer(
     }
 
     private fun replayInitialCommands(epoch: Long) {
-        val replay =
-            synchronized(initialCommands) {
-                if (
-                    epoch != sourceEpoch.get() ||
-                        initialCommandRecoveryEpoch == epoch ||
-                        sourceStartInFlight != null ||
-                        initialCommandOwners.none { it.epoch == epoch }
-                ) {
-                    false
-                } else {
-                    initialCommandRecoveryEpoch = epoch
-                    true
-                }
+        synchronized(initialCommands) {
+            if (
+                epoch != sourceEpoch.get() ||
+                    initialCommandRecoveryEpoch == epoch ||
+                    sourceStartInFlight != null ||
+                    initialCommandOwners.none { it.epoch == epoch }
+            ) {
+                return
             }
-        if (replay) {
-            postSourceStartCommand(
-                arrayOf("playlist-play-index", "$currentMediaItemIndex"),
-                currentMediaItemIndex,
-            )
+            initialCommandRecoveryEpoch = epoch
         }
+        postSourceStartCommand(
+            arrayOf("playlist-play-index", "$currentMediaItemIndex"),
+            currentMediaItemIndex,
+        )
     }
 
     private fun replaceInitialCommands(
@@ -945,61 +958,219 @@ class MPVPlayer(
         command: Array<String>,
         sourceIndex: Int = currentMediaItemIndex,
         sourceUri: String? = null,
+    ) = enqueueSourceStart(command, sourceIndex, sourceUri)
+
+    private fun enqueueSourceStart(
+        command: Array<String>,
+        sourceIndex: Int,
+        sourceUri: String?,
+        bootstrap: Boolean = false,
+        followUpCommands: List<Array<String>> = emptyList(),
     ) {
         if (commandsClosed.get()) return
         val ownerUri =
             sourceUri
                 ?: internalMediaItems.getOrNull(sourceIndex)?.let(::mediaUri)?.toString()
                 ?: return
-        val token = "${sourceEpoch.get()}-${sourceStartAttemptSequence.incrementAndGet()}"
         val attempt =
-            SourceStartAttempt(sourceEpoch.get(), ownerUri, sourceIndex, command.copyOf(), token)
-        val dispatch =
             synchronized(initialCommands) {
-                if (sourceStartInFlight == null) {
-                    sourceStartInFlight = attempt
-                    true
-                } else {
-                    pendingSourceStart = attempt
-                    false
-                }
+                val token = "${sourceEpoch.get()}-${sourceStartAttemptSequence.incrementAndGet()}"
+                SourceStartAttempt(
+                        sourceEpoch.get(),
+                        ownerUri,
+                        sourceIndex,
+                        command.copyOf(),
+                        token,
+                        bootstrap,
+                        followUpCommands.map { it.copyOf() },
+                    )
+                    .also { it ->
+                        if (sourceStartInFlight == null) {
+                            sourceStartInFlight = it
+                            pendingSourceStart = null
+                        } else {
+                            pendingSourceStart = it
+                        }
+                    }
             }
-        val marker = arrayOf("set", "user-data/cinefin-source-attempt", token)
-        if (!postCommand(marker) && !commandsClosed.get()) postCommand(marker)
-        if (dispatch) dispatchSourceStartLocked(attempt)?.let(::postCommand)
+        postSourceMarker(attempt)
     }
-
-    private fun releaseSourceStartLocked(attempt: SourceStartAttempt): SourceStartAttempt? =
-        if (attempt.startObserved) dropSourceStartLocked(attempt) else null
 
     private fun dropSourceStartLocked(attempt: SourceStartAttempt): SourceStartAttempt? {
         if (sourceStartInFlight !== attempt) return null
         sourceStartInFlight = null
         val next = pendingSourceStart
-        if (next == null || !next.markerObserved || !attemptMatchesCurrentSourceLocked(next)) {
-            return null
-        }
+        if (next == null || attemptReadyLocked(next) == null) return null
         pendingSourceStart = null
-        return next.copy(startObserved = false).also { sourceStartInFlight = it }
+        next.startObserved = false
+        sourceStartInFlight = next
+        return next
     }
 
-    private fun dispatchSourceStartLocked(attempt: SourceStartAttempt): Array<String>? {
+    private fun attemptReadyLocked(attempt: SourceStartAttempt?): SourceStartAttempt? =
+        attempt?.takeIf {
+            it.markerObserved &&
+                it.markerExecuted &&
+                it.epoch == sourceEpoch.get() &&
+                attemptMatchesCurrentSourceLocked(it)
+        }
+
+    private fun scheduleSourceRecovery(attempt: SourceStartAttempt) {
+        val generation =
+            synchronized(initialCommands) {
+                if (sourceStartInFlight !== attempt && pendingSourceStart !== attempt) return
+                ++attempt.deadlineGeneration
+            }
+        runCatching {
+            recoveryScheduler(SOURCE_RECOVERY_RETRY_MS) { retrySource(attempt, generation) }
+        }
+            .onFailure { Timber.w(it, "source recovery scheduling failed") }
+    }
+
+    private fun retrySource(attempt: SourceStartAttempt, generation: Long) {
+        val action =
+            synchronized(initialCommands) {
+                if (
+                    generation != attempt.deadlineGeneration ||
+                        (sourceStartInFlight !== attempt && pendingSourceStart !== attempt) ||
+                        attempt.startObserved ||
+                        (pendingSourceStart === attempt && sourceStartInFlight != null)
+                ) {
+                    return
+                }
+                when {
+                    !attempt.markerExecuted || !attempt.markerObserved -> {
+                        if (attempt.markerAttempts++ >= SOURCE_RECOVERY_LIMIT) 0 else 1
+                    }
+                    attempt.commandEntered || attempt.commandDispatched -> 2
+                    else -> {
+                        if (attempt.commandAttempts == 0) attempt.commandAttempts++
+                        3
+                    }
+                }
+            }
+        when (action) {
+            1 -> postSourceMarker(attempt)
+            2 -> beginSourceDrain(attempt)
+            3 -> requestSourceCommand(attempt, recovery = true)
+        }
+    }
+
+    private fun postSourceMarker(attempt: SourceStartAttempt) {
+        if (commandsClosed.get()) return
+        val marker = arrayOf("set", SOURCE_ATTEMPT_PROPERTY, attempt.nativeToken)
+        val completed = AtomicBoolean(false)
+        val posted =
+            postCommand(marker) { success ->
+                completed.set(true)
+                synchronized(initialCommands) {
+                    if (success) {
+                        attempt.markerExecuted = true
+                        if (sourceStartInFlight === attempt && pendingSourceStart == null) {
+                            attempt.markerObserved = true
+                        }
+                    } else attempt.markerExecuted = false
+                }
+                if (success) requestSourceCommand(attempt) else scheduleSourceRecovery(attempt)
+            }
+        if (!completed.get()) scheduleSourceRecovery(attempt)
         if (
-            sourceStartInFlight !== attempt ||
-                attempt.commandDispatched ||
-                !attemptMatchesCurrentSourceLocked(attempt)
+            !posted &&
+                synchronized(initialCommands) { attempt.markerAttempts++ < SOURCE_RECOVERY_LIMIT }
         ) {
-            return null
+            postSourceMarker(attempt)
         }
-        attempt.commandDispatched = true
-        return attempt.command.copyOf()
     }
 
-    private fun dispatchSourceStart(attempt: SourceStartAttempt): Array<String>? =
+    private fun requestSourceCommand(attempt: SourceStartAttempt, recovery: Boolean = false) {
+        val command =
+            synchronized(initialCommands) {
+                if (
+                    released ||
+                        attempt.drainInFlight ||
+                        attempt.commandEntered ||
+                        (attempt.commandAttempts > 0 && !attempt.commandDispatched && !recovery) ||
+                        !attemptReadyLocked(attempt).let { it != null }
+                ) {
+                    return@synchronized null
+                }
+                if (attempt.commandDispatched) return@synchronized null
+                if (sourceStartInFlight == null && pendingSourceStart === attempt) {
+                    pendingSourceStart = null
+                    sourceStartInFlight = attempt
+                }
+                if (sourceStartInFlight !== attempt) return@synchronized null
+                attempt.commandEntered = true
+                attempt.commandAttempts++
+                attempt.command.copyOf()
+            } ?: return
+        scheduleSourceRecovery(attempt)
+        postCommand(command) { success -> onSourceCommandComplete(attempt, success) }
+    }
+
+    private fun onSourceCommandComplete(attempt: SourceStartAttempt, success: Boolean) {
+        var drain = false
+        var followUps: List<Array<String>>? = null
         synchronized(initialCommands) {
-            if (released || sourceStartInFlight !== attempt) return@synchronized null
-            dispatchSourceStartLocked(attempt)
+            if (sourceStartInFlight !== attempt) return
+            attempt.commandEntered = false
+            if (success || attempt.startObserved) {
+                attempt.commandDispatched = true
+                attempt.markerAttempts = 0
+                if (attempt.followUpCommands.isNotEmpty()) {
+                    followUps = attempt.followUpCommands
+                }
+            } else if (attempt.commandAttempts >= SOURCE_RECOVERY_LIMIT) {
+                drain = true
+            }
         }
+        followUps?.forEach(::postCommand)
+        if (drain) beginSourceDrain(attempt)
+    }
+
+    private fun beginSourceDrain(attempt: SourceStartAttempt) {
+        val run: Boolean =
+            synchronized(initialCommands) {
+                if (
+                    released ||
+                        attempt.drainInFlight ||
+                        sourceStartInFlight !== attempt ||
+                        attempt.drainAttempts >= SOURCE_RECOVERY_LIMIT
+                ) {
+                    return
+                }
+                attempt.drainInFlight = true
+                attempt.drainAttempts++
+                true
+            }
+        if (!run) return
+        scheduleSourceRecovery(attempt)
+        postCommand(arrayOf("stop")) { success ->
+            synchronized(initialCommands) { attempt.drainInFlight = false }
+            if (success) finishSourceDrain(attempt) else scheduleSourceRecovery(attempt)
+        }
+    }
+
+    private fun finishSourceDrain(attempt: SourceStartAttempt) {
+        val replacement =
+            synchronized(initialCommands) {
+                if (sourceStartInFlight !== attempt) return
+                attempt.deadlineGeneration++
+                sourceStartInFlight = null
+                (attemptReadyLocked(pendingSourceStart)?.also { pendingSourceStart = null }
+                        ?: SourceStartAttempt(
+                                attempt.epoch,
+                                attempt.sourceUri,
+                                attempt.sourceIndex,
+                                attempt.command.copyOf(),
+                                "${attempt.epoch}-${sourceStartAttemptSequence.incrementAndGet()}",
+                                markerAttempts = 1,
+                            )
+                            .takeIf { attempt.epoch == sourceEpoch.get() && !attempt.bootstrap })
+                    ?.also { sourceStartInFlight = it }
+            }
+        replacement?.let(::postSourceMarker)
+    }
 
     private fun updateEnginePosition(epoch: Long, positionMs: Long) {
         sourcePosition = sourcePosition.acceptPosition(epoch, positionMs) ?: return
@@ -1072,25 +1243,17 @@ class MPVPlayer(
         listeners.flushEvents()
     }
 
-    private fun selectTrack(trackType: MPVTrackType, id: String) {
+    private fun selectTrack(trackType: MPVTrackType, id: String) =
         mpvLib.setPropertyString(trackType.type, id)
-    }
 
-    fun setAudioDelay(delayMs: Long) {
-        Timber.d("mpv 音频延迟 = %d ms", delayMs)
-        mpvLib.setPropertyDouble("audio-delay", delayMs / 1000.0)
-    }
+    fun setAudioDelay(delayMs: Long) = mpvLib.setPropertyDouble("audio-delay", delayMs / 1000.0)
 
-    fun addSeekEventListener(listener: MpvSeekEventListener) {
-        seekEventListeners.add(listener)
-    }
+    fun addSeekEventListener(listener: MpvSeekEventListener) = seekEventListeners.add(listener)
 
-    fun removeSeekEventListener(listener: MpvSeekEventListener) {
+    fun removeSeekEventListener(listener: MpvSeekEventListener) =
         seekEventListeners.remove(listener)
-    }
 
     fun setSubtitleDelay(delayMs: Long) {
-        Timber.d("mpv 字幕延迟 = %d ms", delayMs)
         mpvLib.setPropertyDouble("sub-delay", delayMs / 1000.0)
         logSubtitleState()
     }
@@ -1203,7 +1366,6 @@ class MPVPlayer(
             return
         }
         postCommand(arrayOf("sub-add", path, if (select) "select" else "auto"))
-        Timber.d("mpv 注入侧载字幕：%s（select=%b）", path, select)
     }
 
     fun isSubtitleFileAttached(path: String): Boolean =
@@ -1219,7 +1381,6 @@ class MPVPlayer(
                 }
                 externalSubtitleTrackIds[path]?.let { id ->
                     postCommand(arrayOf("sub-remove", id.toString()))
-                    Timber.d("mpv 移除侧载字幕：%s（track id=%d）", path, id)
                 }
             }
                 .onFailure { Timber.w(it, "mpv 移除侧载字幕失败") }
@@ -1255,26 +1416,10 @@ class MPVPlayer(
         }
             .getOrDefault(false)
         if (hasInternal) {
-            Timber.d("mpv 容器已含内嵌字幕，跳过服务端字幕注入（候选 %d 条）", injectable.size)
             return
         }
-        Timber.i("mpv 容器无内嵌字幕（转码等），注入 %d 条服务端文本字幕", injectable.size)
         injectable.forEach { source ->
-            postCommand(
-                arrayOf(
-                    /* command= */ "sub-add",
-                    /* url= */ source.uri,
-                    /* flags= */ "auto",
-                    /* title= */ source.title,
-                    /* lang= */ source.language,
-                )
-            )
-            Timber.d(
-                "mpv 注入字幕：%s（%s / %s）",
-                source.title,
-                source.language,
-                source.codec,
-            )
+            postCommand(arrayOf("sub-add", source.uri, "auto", source.title, source.language))
         }
         postCommand(arrayOf("set", "sid", if (subtitleAutoSelect) "auto" else "no"))
     }
@@ -1311,13 +1456,6 @@ class MPVPlayer(
             )
             val zoom = if (zoomScale <= 1f) 0.0 else ln(zoomScale.toDouble()) / ln(2.0)
             mpvLib.setPropertyDouble("video-zoom", zoom)
-            Timber.d(
-                "mpv 画面变换: video-rotate=%d video-scale-x=%.1f video-scale-y=%.1f video-zoom=%.4f",
-                rotate,
-                if (mirror == VideoMirrorMode.HORIZONTAL) -1.0 else 1.0,
-                if (mirror == VideoMirrorMode.VERTICAL) -1.0 else 1.0,
-                zoom,
-            )
         }
             .onFailure { Timber.w(it, "mpv 画面变换应用失败") }
     }
@@ -1480,9 +1618,7 @@ class MPVPlayer(
         }
     }
 
-    override fun getApplicationLooper(): Looper {
-        return handler.looper
-    }
+    override fun getApplicationLooper(): Looper = handler.looper
 
     override fun addListener(listener: Player.Listener) {
         listeners.add(listener)
@@ -1493,6 +1629,34 @@ class MPVPlayer(
         listeners.remove(listener)
         videoListeners.remove(listener)
     }
+
+    override fun replaceMediaItems(
+        fromIndex: Int,
+        toIndex: Int,
+        mediaItems: MutableList<MediaItem>,
+    ) = TODO("Not yet implemented")
+
+    override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) = TODO("Not yet implemented")
+
+    override fun setPlaylistMetadata(mediaMetadata: MediaMetadata) = TODO("Not yet implemented")
+
+    override fun setVolume(audioVolume: Float) = TODO("Not yet implemented")
+
+    override fun clearVideoSurface() = TODO("Not yet implemented")
+
+    override fun clearVideoSurface(surface: Surface?) = TODO("Not yet implemented")
+
+    override fun setVideoSurface(surface: Surface?) = TODO("Not yet implemented")
+
+    override fun setVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) = TODO("Not yet implemented")
+
+    override fun clearVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) =
+        TODO("Not yet implemented")
+
+    override fun setAudioAttributes(
+        audioAttributes: AudioAttributes,
+        handleAudioFocus: Boolean,
+    ) = TODO("Not yet implemented")
 
     override fun setMediaItems(mediaItems: MutableList<MediaItem>, resetPosition: Boolean) {
         val activeIdentity = sourceIdentity(internalMediaItems, currentMediaItemIndex)
@@ -1553,14 +1717,14 @@ class MPVPlayer(
     }
 
     override fun addMediaItems(index: Int, mediaItems: MutableList<MediaItem>) {
+        require(index in 0..internalMediaItems.size) { "index out of range: $index" }
         mediaItems.forEach { mediaUri(it) }
-        val safeIndex = if (index in 0..internalMediaItems.size) index else internalMediaItems.size
         val activeItem = internalMediaItems.getOrNull(currentMediaItemIndex)
         val nextItems = internalMediaItems.toMutableList()
-        nextItems.addAll(safeIndex, mediaItems)
+        nextItems.addAll(index, mediaItems)
         val nextIndex =
             nextItems.indexOfFirst { it === activeItem }.takeIf { it >= 0 }
-                ?: safeIndex.coerceAtMost((nextItems.size - 1).coerceAtLeast(0))
+                ?: index.coerceAtMost((nextItems.size - 1).coerceAtLeast(0))
         commitPlaylistState(nextItems, nextIndex)
         mediaItems.forEachIndexed { offset, mediaItem ->
             postCommand(
@@ -1568,62 +1732,55 @@ class MPVPlayer(
                     "loadfile",
                     mediaUri(mediaItem).toString(),
                     "insert-at",
-                    (safeIndex + offset).toString(),
+                    (index + offset).toString(),
                 )
             )
         }
     }
 
     override fun moveMediaItems(fromIndex: Int, toIndex: Int, newIndex: Int) {
-        require(newIndex >= 0) { "newIndex must be non-negative: $newIndex" }
         val size = internalMediaItems.size
-        if (fromIndex !in 0 until size || toIndex <= fromIndex) return
-        val from = fromIndex
-        val to = toIndex.coerceAtMost(size)
-        val target = newIndex.coerceIn(0, size - (to - from))
-
+        require(fromIndex in 0 until size) { "fromIndex out of range: $fromIndex" }
+        require(toIndex in (fromIndex + 1)..size) { "toIndex out of range: $toIndex" }
+        require(newIndex in 0..size) { "newIndex out of range: $newIndex" }
+        require(fromIndex != 0 || toIndex != newIndex) { "illegal no-op forward range" }
+        val target = newIndex.coerceAtMost(size - (toIndex - fromIndex))
         val activeItem = internalMediaItems.getOrNull(currentMediaItemIndex)
-        val moved = internalMediaItems.subList(from, to).toList()
+        val moved = internalMediaItems.subList(fromIndex, toIndex).toList()
         val nextItems = internalMediaItems.toMutableList()
-        nextItems.subList(from, to).clear()
+        nextItems.subList(fromIndex, toIndex).clear()
         nextItems.addAll(target.coerceAtMost(nextItems.size), moved)
         val nextIndex =
             nextItems.indexOfFirst { it === activeItem }.takeIf { it >= 0 }
                 ?: target.coerceIn(0, (nextItems.size - 1).coerceAtLeast(0))
         commitPlaylistState(nextItems, nextIndex)
-        val offsets = if (target < from) moved.indices else moved.indices.reversed()
+        val offsets = if (target < fromIndex) moved.indices else moved.indices.reversed()
         for (offset in offsets) {
             postCommand(
-                arrayOf("playlist-move", (from + offset).toString(), (target + offset).toString())
+                arrayOf(
+                    "playlist-move",
+                    (fromIndex + offset).toString(),
+                    (target + offset).toString(),
+                )
             )
         }
         notifyTimelineChanged()
     }
 
-    override fun replaceMediaItems(
-        fromIndex: Int,
-        toIndex: Int,
-        mediaItems: MutableList<MediaItem>,
-    ) {
-        TODO("Not yet implemented")
-    }
-
     override fun removeMediaItems(fromIndex: Int, toIndex: Int) {
         val size = internalMediaItems.size
-        val from = fromIndex.coerceIn(0, size)
-        val to = toIndex.coerceIn(from, size)
-        if (from >= to) return
-
+        require(fromIndex in 0 until size) { "fromIndex out of range: $fromIndex" }
+        require(toIndex in (fromIndex + 1)..size) { "toIndex out of range: $toIndex" }
         val activeItem = internalMediaItems.getOrNull(currentMediaItemIndex)
         val nextItems = internalMediaItems.toMutableList()
-        nextItems.subList(from, to).clear()
+        nextItems.subList(fromIndex, toIndex).clear()
         val currentRemoved = activeItem != null && nextItems.none { it === activeItem }
         val nextIndex =
             nextItems.indexOfFirst { it === activeItem }.takeIf { it >= 0 }
-                ?: from.coerceIn(0, (nextItems.size - 1).coerceAtLeast(0))
+                ?: fromIndex.coerceIn(0, (nextItems.size - 1).coerceAtLeast(0))
         commitPlaylistState(nextItems, nextIndex)
         if (currentRemoved) markIntentionalEndFile()
-        for (index in (to - 1) downTo from) {
+        for (index in (toIndex - 1) downTo fromIndex) {
             postCommand(arrayOf("playlist-remove", index.toString()))
         }
         notifyTimelineChanged()
@@ -1730,33 +1887,31 @@ class MPVPlayer(
         }
         prepareMediaItem(initialIndex, postSelection = false)
         val first = internalMediaItems.firstOrNull() ?: return
-        postSourceStartCommand(
-            loadFileCommand(first, "replace"),
-            sourceIndex = 0,
-            sourceUri = mediaUri(first).toString(),
-        )
-        internalMediaItems.drop(1).forEach { mediaItem ->
-            postCommand(loadFileCommand(mediaItem, "append"))
-        }
-        if (initialIndex != 0) {
-            postSourceStartCommand(
-                arrayOf("playlist-play-index", "$initialIndex"),
-                initialIndex,
+        val followUps = internalMediaItems.drop(1).map { loadFileCommand(it, "append") }
+        if (initialIndex == 0) {
+            enqueueSourceStart(
+                command = loadFileCommand(first, "replace"),
+                sourceIndex = 0,
+                sourceUri = mediaUri(first).toString(),
+                followUpCommands = followUps,
             )
+        } else {
+            enqueueSourceStart(
+                command = loadFileCommand(first, "replace"),
+                sourceIndex = 0,
+                sourceUri = mediaUri(first).toString(),
+                bootstrap = true,
+                followUpCommands = followUps,
+            )
+            postSourceStartCommand(arrayOf("playlist-play-index", "$initialIndex"), initialIndex)
         }
     }
 
-    override fun getPlaybackState(): Int {
-        return playbackState
-    }
+    override fun getPlaybackState(): Int = playbackState
 
-    override fun getPlaybackSuppressionReason(): Int {
-        return PLAYBACK_SUPPRESSION_REASON_NONE
-    }
+    override fun getPlaybackSuppressionReason(): Int = PLAYBACK_SUPPRESSION_REASON_NONE
 
-    override fun getPlayerError(): PlaybackException? {
-        return null
-    }
+    override fun getPlayerError(): PlaybackException? = null
 
     override fun setPlayWhenReady(playWhenReady: Boolean) {
         if (currentPlayWhenReady != playWhenReady) {
@@ -1779,38 +1934,22 @@ class MPVPlayer(
         }
     }
 
-    override fun getPlayWhenReady(): Boolean {
-        return currentPlayWhenReady
-    }
+    override fun getPlayWhenReady(): Boolean = currentPlayWhenReady
 
     override fun setRepeatMode(repeatMode: Int) {
-        when (repeatMode) {
-            REPEAT_MODE_OFF -> {
-                mpvLib.setOptionString("loop-file", "no")
-                mpvLib.setOptionString("loop-playlist", "no")
+        val (file, playlist) =
+            when (repeatMode) {
+                REPEAT_MODE_ONE -> "inf" to "no"
+                REPEAT_MODE_ALL -> "no" to "inf"
+                else -> "no" to "no"
             }
-            REPEAT_MODE_ONE -> {
-                mpvLib.setOptionString("loop-file", "inf")
-                mpvLib.setOptionString("loop-playlist", "no")
-            }
-            REPEAT_MODE_ALL -> {
-                mpvLib.setOptionString("loop-file", "no")
-                mpvLib.setOptionString("loop-playlist", "inf")
-            }
-        }
+        mpvLib.setOptionString("loop-file", file)
+        mpvLib.setOptionString("loop-playlist", playlist)
     }
 
-    override fun getRepeatMode(): Int {
-        return repeatMode
-    }
+    override fun getRepeatMode(): Int = repeatMode
 
-    override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
-        TODO("Not yet implemented")
-    }
-
-    override fun getShuffleModeEnabled(): Boolean {
-        return false
-    }
+    override fun getShuffleModeEnabled(): Boolean = false
 
     override fun isLoading(): Boolean = playbackState == STATE_BUFFERING
 
@@ -1846,11 +1985,11 @@ class MPVPlayer(
             val subtitleCommands =
                 mediaItem.localConfiguration?.subtitleConfigurations.orEmpty().map { subtitle ->
                     arrayOf(
-                        /* command= */ "sub-add",
-                        /* url= */ "${subtitle.uri}",
-                        /* flags= */ "auto",
-                        /* title= */ "${subtitle.label}",
-                        /* lang= */ "${subtitle.language}",
+                        "sub-add",
+                        subtitle.uri.toString(),
+                        "auto",
+                        subtitle.label.orEmpty(),
+                        subtitle.language.orEmpty(),
                     )
                 }
             replaceInitialCommands(subtitleCommands, mediaUri(mediaItem).toString(), index)
@@ -1869,25 +2008,18 @@ class MPVPlayer(
         flags: String,
     ): Array<String> = arrayOf("loadfile", mediaUri(mediaItem).toString(), flags)
 
-    override fun getSeekBackIncrement(): Long {
-        return seekBackIncrement
-    }
+    override fun getSeekBackIncrement(): Long = seekBackIncrement
 
-    override fun getSeekForwardIncrement(): Long {
-        return seekForwardIncrement
-    }
+    override fun getSeekForwardIncrement(): Long = seekForwardIncrement
 
     fun setSeekIncrements(
         backMs: Long,
         forwardMs: Long,
     ) {
-        seekBackIncrement = backMs
-        seekForwardIncrement = forwardMs
+        seekBackIncrement = backMs.also { seekForwardIncrement = forwardMs }
     }
 
-    override fun getMaxSeekToPreviousPosition(): Long {
-        return C.DEFAULT_MAX_SEEK_TO_PREVIOUS_POSITION_MS
-    }
+    override fun getMaxSeekToPreviousPosition(): Long = C.DEFAULT_MAX_SEEK_TO_PREVIOUS_POSITION_MS
 
     override fun setPlaybackParameters(playbackParameters: PlaybackParameters) {
         this.playbackParameters = playbackParameters
@@ -1898,9 +2030,7 @@ class MPVPlayer(
         }
     }
 
-    override fun getPlaybackParameters(): PlaybackParameters {
-        return playbackParameters
-    }
+    override fun getPlaybackParameters(): PlaybackParameters = playbackParameters
 
     override fun stop() {
         markIntentionalEndFile()
@@ -1910,7 +2040,6 @@ class MPVPlayer(
     override fun release() {
         if (released) return
         seekEventListeners.clear()
-        // 先 detach surface，再置 released，避免回调碰已销毁的 mpvLib。
         runCatching { detachTextureSurface() }
         released = true
         if (handleAudioFocus) {
@@ -1918,7 +2047,6 @@ class MPVPlayer(
         }
         resetInternalState()
         runCatching { mpvLib.removeObserver(this) }
-        // 先关闸，再在命令线程销毁 mpv，避免与最后一条命令并发。
         commandsClosed.set(true)
         commandHandler.removeCallbacksAndMessages(null)
         commandHandler.post {
@@ -1927,27 +2055,20 @@ class MPVPlayer(
         }
     }
 
-    override fun getCurrentTracks(): Tracks {
-        return currentTracks
-    }
+    override fun getCurrentTracks(): Tracks = currentTracks
 
-    override fun getTrackSelectionParameters(): TrackSelectionParameters {
-        return trackSelectionParameters
-    }
+    override fun getTrackSelectionParameters(): TrackSelectionParameters = trackSelectionParameters
 
     override fun setTrackSelectionParameters(parameters: TrackSelectionParameters) {
         trackSelectionParameters = parameters
-
         val disabledTrackTypes =
             parameters.disabledTrackTypes.map { MPVTrackType.fromMedia3TrackType(it) }
-
         val notOverriddenTypes =
             mutableSetOf(MPVTrackType.VIDEO, MPVTrackType.AUDIO, MPVTrackType.SUBTITLE)
         for (override in parameters.overrides) {
             val trackType = MPVTrackType.fromMedia3TrackType(override.key.type)
             notOverriddenTypes.remove(trackType)
             val id = override.key.getFormat(0).id ?: continue
-
             selectTrack(trackType, id)
         }
         for (notOverriddenType in notOverriddenTypes) {
@@ -1959,43 +2080,22 @@ class MPVPlayer(
         }
     }
 
-    override fun getMediaMetadata(): MediaMetadata {
-        // 通知栏 / 锁屏直接读当前媒体项标题与季集号，不能返回无标题 EMPTY。
-        return internalMediaItems.getOrNull(currentMediaItemIndex)?.mediaMetadata
-            ?: MediaMetadata.EMPTY
-    }
+    override fun getMediaMetadata(): MediaMetadata =
+        internalMediaItems.getOrNull(currentMediaItemIndex)?.mediaMetadata ?: MediaMetadata.EMPTY
 
-    override fun getPlaylistMetadata(): MediaMetadata {
-        return MediaMetadata.EMPTY
-    }
+    override fun getPlaylistMetadata(): MediaMetadata = MediaMetadata.EMPTY
 
-    override fun setPlaylistMetadata(mediaMetadata: MediaMetadata) {
-        TODO("Not yet implemented")
-    }
+    override fun getCurrentTimeline(): Timeline = timeline
 
-    override fun getCurrentTimeline(): Timeline {
-        return timeline
-    }
+    override fun getCurrentPeriodIndex(): Int = currentMediaItemIndex
 
-    override fun getCurrentPeriodIndex(): Int {
-        return currentMediaItemIndex
-    }
+    override fun getCurrentMediaItemIndex(): Int = currentMediaItemIndex
 
-    override fun getCurrentMediaItemIndex(): Int {
-        return currentMediaItemIndex
-    }
+    override fun getDuration(): Long = timeline.getWindow(currentMediaItemIndex, window).durationMs
 
-    override fun getDuration(): Long {
-        return timeline.getWindow(currentMediaItemIndex, window).durationMs
-    }
+    override fun getCurrentPosition(): Long = confirmedPosition() ?: C.TIME_UNSET
 
-    override fun getCurrentPosition(): Long {
-        return confirmedPosition() ?: C.TIME_UNSET
-    }
-
-    override fun getBufferedPosition(): Long {
-        return confirmedBufferedPosition() ?: C.TIME_UNSET
-    }
+    override fun getBufferedPosition(): Long = confirmedBufferedPosition() ?: C.TIME_UNSET
 
     fun confirmedPosition(): Long? =
         sourcePosition.positionMs?.takeIf {
@@ -2011,69 +2111,27 @@ class MPVPlayer(
 
     fun currentSourceEpoch(): Long = sourceEpoch.get()
 
-    override fun getTotalBufferedDuration(): Long {
-        return bufferedPosition
-    }
+    override fun getTotalBufferedDuration(): Long = bufferedPosition
 
-    override fun isPlayingAd(): Boolean {
-        return false
-    }
+    override fun isPlayingAd(): Boolean = false
 
-    override fun getCurrentAdGroupIndex(): Int {
-        return C.INDEX_UNSET
-    }
+    override fun getCurrentAdGroupIndex(): Int = C.INDEX_UNSET
 
-    override fun getCurrentAdIndexInAdGroup(): Int {
-        return C.INDEX_UNSET
-    }
+    override fun getCurrentAdIndexInAdGroup(): Int = C.INDEX_UNSET
 
-    override fun getContentPosition(): Long {
-        return currentPosition
-    }
+    override fun getContentPosition(): Long = currentPosition
 
-    override fun getContentBufferedPosition(): Long {
-        return bufferedPosition
-    }
+    override fun getContentBufferedPosition(): Long = bufferedPosition
 
-    override fun getAudioAttributes(): AudioAttributes {
-        return AudioAttributes.DEFAULT
-    }
+    override fun getAudioAttributes(): AudioAttributes = AudioAttributes.DEFAULT
 
-    override fun setVolume(audioVolume: Float) {
-        TODO("Not yet implemented")
-    }
+    override fun getVolume(): Float = mpvLib.getPropertyInt("volume")?.div(100f) ?: 0f
 
-    override fun getVolume(): Float {
-        return mpvLib.getPropertyInt("volume")?.div(100f) ?: 0f
-    }
+    override fun setVideoSurfaceView(surfaceView: SurfaceView?) =
+        surfaceView?.holder?.addCallback(surfaceHolder) ?: Unit
 
-    override fun clearVideoSurface() {
-        TODO("Not yet implemented")
-    }
-
-    override fun clearVideoSurface(surface: Surface?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setVideoSurface(surface: Surface?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun clearVideoSurfaceHolder(surfaceHolder: SurfaceHolder?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setVideoSurfaceView(surfaceView: SurfaceView?) {
-        surfaceView?.holder?.addCallback(surfaceHolder)
-    }
-
-    override fun clearVideoSurfaceView(surfaceView: SurfaceView?) {
-        surfaceView?.holder?.removeCallback(surfaceHolder)
-    }
+    override fun clearVideoSurfaceView(surfaceView: SurfaceView?) =
+        surfaceView?.holder?.removeCallback(surfaceHolder) ?: Unit
 
     override fun setVideoTextureView(textureView: TextureView?) {
         if (textureView == null) {
@@ -2087,46 +2145,30 @@ class MPVPlayer(
         }
     }
 
-    override fun clearVideoTextureView(textureView: TextureView?) {
-        textureView?.surfaceTextureListener = null
-        detachTextureSurface()
-    }
+    override fun clearVideoTextureView(textureView: TextureView?) =
+        textureView?.also { it.surfaceTextureListener = null }.let { detachTextureSurface() }
 
     override fun getVideoSize(): VideoSize {
         val width = mpvLib.getPropertyInt("width")
         val height = mpvLib.getPropertyInt("height")
-        if (width == null || height == null) return VideoSize.UNKNOWN
-        return VideoSize(width, height)
+        return if (width != null && height != null) VideoSize(width, height) else VideoSize.UNKNOWN
     }
 
     override fun getSurfaceSize(): Size {
         val mpvSize =
             mpvLib.getPropertyString("android-surface-size")?.split("x") ?: return Size.UNKNOWN
-        return try {
-            Size(mpvSize[0].toInt(), mpvSize[1].toInt())
-        } catch (_: IndexOutOfBoundsException) {
-            Size.UNKNOWN
-        }
+        return runCatching { Size(mpvSize[0].toInt(), mpvSize[1].toInt()) }
+            .getOrDefault(Size.UNKNOWN)
     }
 
-    override fun getCurrentCues(): CueGroup {
-        return CueGroup(emptyList(), 0)
-    }
+    override fun getCurrentCues(): CueGroup = CueGroup(emptyList(), 0)
 
-    override fun getDeviceInfo(): DeviceInfo {
-        return DeviceInfo.Builder(DeviceInfo.PLAYBACK_TYPE_LOCAL)
-            .setMaxVolume(0)
-            .setMaxVolume(100)
-            .build()
-    }
+    override fun getDeviceInfo(): DeviceInfo =
+        DeviceInfo.Builder(DeviceInfo.PLAYBACK_TYPE_LOCAL).setMaxVolume(100).build()
 
-    override fun getDeviceVolume(): Int {
-        return mpvLib.getPropertyInt("volume") ?: 0
-    }
+    override fun getDeviceVolume(): Int = mpvLib.getPropertyInt("volume") ?: 0
 
-    override fun isDeviceMuted(): Boolean {
-        return mpvLib.getPropertyBoolean("mute") ?: false
-    }
+    override fun isDeviceMuted(): Boolean = mpvLib.getPropertyBoolean("mute") ?: false
 
     @Deprecated("Deprecated in Java")
     override fun setDeviceVolume(volume: Int) {
@@ -2135,60 +2177,33 @@ class MPVPlayer(
         )
     }
 
-    override fun setDeviceVolume(volume: Int, flags: Int) {
-        mpvLib.setPropertyInt("volume", volume)
-    }
+    override fun setDeviceVolume(volume: Int, flags: Int) = mpvLib.setPropertyInt("volume", volume)
 
     @Deprecated("Deprecated in Java")
-    override fun increaseDeviceVolume() {
-        throw IllegalArgumentException(
-            "You should use global volume controls. Check out AUDIO_SERVICE."
-        )
-    }
+    override fun increaseDeviceVolume() = unsupportedVolumeControls()
 
-    override fun increaseDeviceVolume(flags: Int) {
-        throw IllegalArgumentException(
-            "You should use global volume controls. Check out AUDIO_SERVICE."
-        )
-    }
+    override fun increaseDeviceVolume(flags: Int) = unsupportedVolumeControls()
 
     @Deprecated("Deprecated in Java")
-    override fun decreaseDeviceVolume() {
-        throw IllegalArgumentException(
-            "You should use global volume controls. Check out AUDIO_SERVICE."
-        )
-    }
+    override fun decreaseDeviceVolume() = unsupportedVolumeControls()
 
-    override fun decreaseDeviceVolume(flags: Int) {
-        throw IllegalArgumentException(
-            "You should use global volume controls. Check out AUDIO_SERVICE."
-        )
-    }
+    override fun decreaseDeviceVolume(flags: Int) = unsupportedVolumeControls()
 
     @Deprecated("Deprecated in Java")
-    override fun setDeviceMuted(muted: Boolean) {
+    override fun setDeviceMuted(muted: Boolean) = unsupportedVolumeControls()
+
+    override fun setDeviceMuted(muted: Boolean, flags: Int) =
+        mpvLib.setPropertyBoolean("mute", muted)
+
+    override fun mute() = mpvLib.setPropertyBoolean("mute", true)
+
+    override fun unmute() = mpvLib.setPropertyBoolean("mute", false)
+
+    private fun unsupportedVolumeControls(): Nothing =
         throw IllegalArgumentException(
             "You should use global volume controls. Check out AUDIO_SERVICE."
         )
-    }
 
-    override fun setDeviceMuted(muted: Boolean, flags: Int) {
-        return mpvLib.setPropertyBoolean("mute", muted)
-    }
-
-    override fun mute() {
-        mpvLib.setPropertyBoolean("mute", true)
-    }
-
-    override fun unmute() {
-        mpvLib.setPropertyBoolean("mute", false)
-    }
-
-    override fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) {
-        TODO("Not yet implemented")
-    }
-
-    /** mpv 不读 Media3 resizeMode；keepaspect/panscan 走原生属性并 option 兜底。 */
     fun applyResizeMode(resizeMode: Int) {
         if (released) return
         val props = mpvResizeProperties(resizeMode)
@@ -2200,13 +2215,6 @@ class MPVPlayer(
             val margins = if (props.panscan) "yes" else "no"
             setMpvString("sub-use-margins", margins)
             setMpvString("sub-ass-force-margins", margins)
-            Timber.d(
-                "mpv 画面比例: resizeMode=%d keepaspect=%s panscan=%s video-zoom=%s",
-                resizeMode,
-                readMpvString("keepaspect") ?: keepAspect,
-                readMpvString("panscan") ?: panscan,
-                readMpvString("video-zoom") ?: "—",
-            )
         }
             .onFailure { Timber.w(it, "mpv 画面比例应用失败") }
     }
@@ -2221,9 +2229,7 @@ class MPVPlayer(
     }
         .getOrNull()
 
-    /** 当前挂在 mpv 上的 TextureView 对应 Surface；null 表示没接 */
     private var textureSurface: Surface? = null
-
     private var released: Boolean = false
 
     private fun attachTextureSurface(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
@@ -2260,27 +2266,21 @@ class MPVPlayer(
                 surfaceTexture: SurfaceTexture,
                 width: Int,
                 height: Int,
-            ) {
-                attachTextureSurface(surfaceTexture, width, height)
-            }
+            ) = attachTextureSurface(surfaceTexture, width, height)
 
             override fun onSurfaceTextureSizeChanged(
                 surfaceTexture: SurfaceTexture,
                 width: Int,
                 height: Int,
-            ) {
-                if (released) return
-                mpvLib.setPropertyString("android-surface-size", "${width}x$height")
-            }
+            ) =
+                if (released) Unit
+                else mpvLib.setPropertyString("android-surface-size", "${width}x$height")
 
-            override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture): Boolean {
-                detachTextureSurface()
-                return true
-            }
+            override fun onSurfaceTextureDestroyed(surfaceTexture: SurfaceTexture): Boolean =
+                detachTextureSurface().let { true }
 
             override fun onSurfaceTextureUpdated(surfaceTexture: SurfaceTexture) = Unit
         }
-
     private val surfaceHolder: SurfaceHolder.Callback =
         object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
@@ -2295,10 +2295,9 @@ class MPVPlayer(
                 format: Int,
                 width: Int,
                 height: Int,
-            ) {
-                if (released) return
-                mpvLib.setPropertyString("android-surface-size", "${width}x$height")
-            }
+            ) =
+                if (released) Unit
+                else mpvLib.setPropertyString("android-surface-size", "${width}x$height")
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
                 if (released) return
@@ -2310,9 +2309,10 @@ class MPVPlayer(
 
     companion object {
         private const val AUDIO_FOCUS_DUCKING = 0.5f
-
         private const val END_FILE_SUPPRESS_WINDOW_MS = 3_000L
-
+        private const val SOURCE_ATTEMPT_PROPERTY = "user-data/cinefin-source-attempt"
+        private const val SOURCE_RECOVERY_LIMIT = 3
+        private const val SOURCE_RECOVERY_RETRY_MS = 250L
         private val permanentAvailableCommands: Commands =
             Commands.Builder()
                 .addAll(
@@ -2327,25 +2327,14 @@ class MPVPlayer(
                 )
                 .build()
 
-        private fun JSONObject.optNullableString(name: String): String? {
-            return if (this.has(name) && !this.isNull(name)) {
-                this.getString(name)
-            } else {
-                null
-            }
-        }
+        private fun JSONObject.optNullableString(name: String): String? =
+            if (has(name) && !isNull(name)) getString(name) else null
 
-        private fun JSONObject.optNullableDouble(name: String): Double? {
-            return if (this.has(name) && !this.isNull(name)) {
-                this.getDouble(name)
-            } else {
-                null
-            }
-        }
+        private fun JSONObject.optNullableDouble(name: String): Double? =
+            if (has(name) && !isNull(name)) getDouble(name) else null
 
         private fun createTracksGroupfromMpvJson(json: JSONObject): Tracks.Group {
             val trackType = MPVTrackType.entries.first { it.type == json.optString("type") }
-
             val baseFormat =
                 Format.Builder()
                     .setId(json.optInt("id"))
@@ -2356,7 +2345,6 @@ class MPVPlayer(
                     )
                     .setCodecs(json.optNullableString("codec"))
                     .build()
-
             val format =
                 when (trackType) {
                     MPVTrackType.VIDEO -> {
@@ -2370,7 +2358,6 @@ class MPVPlayer(
                             )
                             .build()
                     }
-
                     MPVTrackType.AUDIO -> {
                         baseFormat
                             .buildUpon()
@@ -2379,7 +2366,6 @@ class MPVPlayer(
                             .setSampleRate(json.optInt("demux-samplerate", Format.NO_VALUE))
                             .build()
                     }
-
                     MPVTrackType.SUBTITLE -> {
                         baseFormat
                             .buildUpon()
@@ -2387,9 +2373,7 @@ class MPVPlayer(
                             .build()
                     }
                 }
-
             val trackGroup = TrackGroup(format)
-
             return Tracks.Group(
                 trackGroup,
                 false,
@@ -2417,7 +2401,6 @@ class MPVPlayer(
     }
 }
 
-/** 仅挑选需 sub-add 的独立文本字幕；转码 ASS/SSA 也在此保留 libass 特效。 */
 internal fun selectServerSubtitlesToInject(
     sources: List<PlayerSubtitleSource>
 ): List<PlayerSubtitleSource> = sources.filter { it.isTextBased && !it.isExternal }
@@ -2428,7 +2411,6 @@ internal data class MpvSubtitleTrackInfo(
     val fileName: String? = null,
 )
 
-/** external=false 的 sub 轨才算容器内嵌，外挂 sub-add 轨不计入。 */
 internal fun hasInternalSubtitleTrack(tracks: List<MpvSubtitleTrackInfo>): Boolean = tracks.any {
     !it.external
 }
