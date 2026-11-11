@@ -8037,8 +8037,7 @@ R17 一次完成以下用户承诺：
 
 ### 52.62 Progress source-identity / retry-priority R18 same-entry rearm 任务卡（2026-11-11）
 
-**状态**：`R18_IMPLEMENTATION_IN_PROGRESS / SAME_ENTRY_REARM_RACE_FIX_REQUIRED /`
-`QA_READY=NO`。
+**状态**：`R18_IMPLEMENTATION_GREEN / R18_SCOPED_REVIEW_IN_PROGRESS / QA_READY=NO`。
 
 **进度（2026-11-11，R18 implementation 启动）**：R17 review FAIL 证据已核验为 report SHA-256
 `51E9850D0F679B3C48AA836217C88EF38B29331FACDFFD415C27CAC8608B9200` / manifest
@@ -8048,6 +8047,17 @@ R17 一次完成以下用户承诺：
 （`deepseek-flash / max / fork=none`），只修 same-entry baseline/arm race 并补 production
 seam 交错测试，不重编无关 native。已完成：native seam/convergence；距发布剩余：R18 fix/review、
 Pad QA、其余核心 QA、集成/Release。
+
+**进度（2026-11-11，R18 implementation GREEN / scoped review in progress）**：fresh owner
+已完成 same-entry rearm 修复：native `commandForSource` 返回
+`[playlistEntryId, nativeGenerationAfterCommand]`，Java 在持有 source lock 时同时记录 callback
+ingress cutoff 后 arm gate；arm 前进入的 same-entry stale START 因 generation/ingress 双 floor
+被拒绝，arm 后合法 START 一次成功，pre-arm 合法 START 由既有 bounded drain/rearm 收敛。
+candidate `d429b949...` / tree `d6c1b168...`，4 个授权路径，clean、未 push。RED `3/2`、
+targeted `86/0`、player-local `371/0`、phone `412/0`、assemble/KTFMT/A0/GatePlan/workflow/
+handoff/Control assemble 均通过；A0 `15,497/15,512`；evidence `219/219 MATCH`。已派 fresh R18
+reviewer，只复跑 3 个新 seam tests + targeted。已完成：race fix + production-seam TDD；距发布
+剩余：R18 review、Pad QA、其余核心 QA、集成/Release。
 
 R18 从 R17 candidate `22a8a57678e643068071fb3fcdec8d5291984fad` / tree
 `c8ed7b1d4414f105d00432ea1747ecaf5235bb09` 建立。继承 native seam 授权和全部 R17 路径；
