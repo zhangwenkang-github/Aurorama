@@ -7895,7 +7895,8 @@ R15 内补丁。
 
 ### 52.60 Progress source-identity / retry-priority R16 任务卡（2026-11-11）
 
-**状态**：`R16_IMPLEMENTATION_IN_PROGRESS / FRESH_OWNER_TDD_RED_THEN_GREEN / QA_READY=NO`。
+**状态**：`R16_IMPLEMENTATION_BLOCKED / SOURCE_BOUND_EVENT_IDENTITY_AUTHORIZATION_REQUIRED /`
+`QA_READY=NO`。
 
 **进度（2026-11-11，R16 implementation 启动）**：R15 review FAIL 证据已核验为 report SHA-256
 `3E3DD19535BCCDE7C166724ABA628847D87AA19A83810B4544613091EDFF09B2` / manifest
@@ -7906,6 +7907,20 @@ R15 内补丁。
 `AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R16_2026_11_11`
 （`deepseek-flash / max / fork=none`），要求先 RED old-event overlap 与 recovery exhaustion，
 再简化 latest-intent/terminal-drain 状态机；若五路径内无法证明收敛则快速返回 BLOCKED。
+
+**进度（2026-11-11，R16 implementation BLOCKED / 需范围授权）**：fresh owner 在现有测试路径
+取得正式 RED `88/4/0/0`（4 个均为 assertion-only），覆盖 late START 错领、旧 owner 无 terminal、
+marker 耗尽与 source/drain 耗尽；随后恢复测试源码，未提交候选。API 边界已由 `javap` 原样证明：
+当前 `MPVLib.EventObserver` 只有 `event(int)`，`START_FILE/FILE_LOADED/END_FILE` 不携带 actionId、
+source generation、loadfile 回执或 playlist-entry identity，五路径内的 marker/quarantine/replay
+无法证明 barrier drop 后旧事件不落 successor，继续实现只会制造某一种测试顺序的假绿。
+R16 evidence 的 RED SHA-256
+`E6A90E298BCB262D52C32B1336A9F38719BA0105B644C9248E29C92273A63837`，report
+`12E11EEA32BB40DB733BE69D692039A554E27D0870810DD816655B4F7C014923`，manifest
+`71A582690263A99438BD3D9AB1E0E98DE1C75C855B7990AC436CCA40D308FA5D`、`15/15 MATCH`。
+下一步必须由用户授权 source-bound native event identity seam 的新写域（修改/替换 MPVLib
+binding/JNI 或新增等价 source-event adapter）；未授权前停止，不进入 review、Pad/QaReady、QA、
+merge/integration/Release。
 
 R16 从 R15 candidate `dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45` / tree
 `2b9a1bd1195c7657a198413beba6f32ae07b5288` 隔离建立。用户要求压缩 1.4.1 关键路径，因此 R16
