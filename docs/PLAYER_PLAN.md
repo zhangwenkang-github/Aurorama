@@ -8278,8 +8278,8 @@ report / filename / manifest；未知 URL-like 输入 deny-by-default；解析�
 
 ### 52.65 R19 QA harness ANSI-prefix security repair R2（2026-11-12）
 
-**状态**：`QA_HARNESS_SECURITY_REPAIR_R2_COMPLETE / FRESH_VERIFIER_R2_REQUIRED /`
-`P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN_REPAIRED / QA_READY=NO /`
+**状态**：`QA_HARNESS_SECURITY_VERIFIER_R2=FAIL / DELIVERY_LEAD_R4_DECISION_REQUIRED /`
+`P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=OPEN_CONFIRMED_RESIDUAL / QA_READY=NO /`
 `DEVICE_ACCESS=NONE / DEVICE_LOCK_ACTIVE=0`。
 
 **进度（2026-11-12，fresh verifier FAIL / R2 最小卡）**：不同 fresh verifier 独立复跑
@@ -8323,6 +8323,34 @@ RED 语义、62 项 GREEN、post-scan、static、frozen 与 manifest。若 verif
 已完成：R2 RED→GREEN、共享归一化与 residual、fail-closed、证据和 docs checkpoint。距发布剩余：
 fresh verifier R2 → 新 Pad lock / QaReady / fresh QA S2 → 剩余核心旅程 → integration / Release。
 
+**进度（2026-11-12，fresh verifier R2 FAIL / P1 残余绕过）**：不同 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_VERIFIER_R2_2026_11_12`
+只做离线 verifier。Control `50aa0d04...` clean，R19 candidate
+`1487fa2c...` / tree `310f076f...` / parent `d429b949...` clean，设备锁 `ACTIVE=0`。
+R2 report / manifest 双 SHA 精确匹配；R2 manifest `25/25`、R1 owner `18/18`、R1 verifier
+`16/16`、R2 `28/28`，合计 `62/62 PASS`。冻结 R1 boundary 的 initial RED 与 replay 均复现
+五边界泄漏 `5/5`，不是假 RED。R2 根扫描 URL-like `0`、ANSI/control `0`、encoding `0`、
+unsafe path `0`；R2 `7/7` AST、UTF-8 无 BOM、LF-only；冻结 R1/R19 输入 `68/68 MATCH`。
+
+verifier 追加 23 项真实子进程对抗矩阵，得到 `17 PASS / 6 FAIL`。用户点名的 SGR 紧贴 URI、
+CSI cursor、OSC hyperlink BEL/ST、BEL/control、跨 chunk、mixed-case、双层 encoding、
+malformed/overlong ANSI 与失败消息不携带原文均 PASS；但 URI 语法允许的单字母 scheme
+在 stdout / stderr / filter / cross-write stream 与共享 detector 上均退出 `0` 并泄漏完整
+合成 host/path/query/fragment；ANSI ESC 吞掉 scheme 冒号后也会留下可读 host/path/query。
+根因是该共享归一化模型仍对单字母 scheme 一律返回不匹配，且 detector 依赖 scheme 冒号在
+归一化后保留；AST 已证明 primary、residual、test、path/filter/CLI 共享调用链，问题不是第二套
+detector，而是共享 URL-like 语义不完整。
+
+因此 `P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01` 保持 `OPEN`，不是产品、真实 logcat、
+wrapper 或设备 QA 结论。按 R2 冻结卡不得自动 R3，也不得申请 Pad/K60 锁、运行 QaReady、
+派 QA、做产品 review / merge / integration / Release。verifier report SHA-256
+`FA32983DE874FC18A8C0825A613330D439C7CF72745AE66D0B2B5A85F50F2D99`，manifest
+`14/14` / SHA-256 `A0D6E68EAAD3043158762A072704A2F10E363007FE34D8F6BFC06C2DD0C8197D`。
+路由回 `AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R4_2026_11_11` 做显式交付
+决策。已完成：独立对象/hash、RED 复现、官方矩阵、对抗矩阵、共享语义 AST、扫描、静态与
+冻结证据；距发布剩余：R4 对残余 P1 的决策与后续授权 → 新安全证据验证 → 新 Pad lock /
+QaReady / QA S2 → 剩余核心旅程 → integration / Release。
+
 **任务卡**：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r2-2026-11-12\QA_HARNESS_REPAIR_R2_CARD.md`。
 
 **范围**：复制 R1 harness 到新 R2 证据根，只修 ANSI/control 装饰与 URI detector 之间的边界；
@@ -8338,5 +8366,6 @@ malformed/overlong ANSI/encoding fail closed；R1 18 + verifier 16 + R2 ANSI/con
 artifact path、manifest、旧证据 hash、AST/UTF-8/LF、Control/candidate clean 与锁 `ACTIVE=0`
 全部 PASS。owner 自测后必须由不同 fresh verifier R2 复跑。
 
-**停止条件**：R2 verifier 仍 FAIL 时不得自动 R3，停止回报负责人决定；除此外，产品/schema/
-Gradle/设备/网络/真实资源值、旧证据漂移、真实 secret 输出、未知 P0/P1 或写域扩大均停止。
+**停止条件**：R2 verifier 已 FAIL 且残余 P1 仍 OPEN，不得自动 R3；由 R4 显式决定是否另立
+新授权范围。产品/schema/Gradle/设备/网络/真实资源值、旧证据漂移、真实 secret 输出、
+未知 P0/P1 或写域扩大均停止。
