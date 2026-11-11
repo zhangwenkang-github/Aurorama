@@ -52,6 +52,7 @@ import com.zhangwenkang.cinefin.player.local.presentation.normalizeEnginePositio
 import dev.jdtech.mpv.MPVLib
 import dev.jdtech.mpv.MPVLib.MpvEvent
 import dev.jdtech.mpv.MPVLib.MpvFormat
+import dev.jdtech.mpv.binding.MpvPlaybackEvent
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
@@ -280,7 +281,6 @@ class MPVPlayer(
                 Property("duration", MpvFormat.MPV_FORMAT_INT64),
                 Property("demuxer-cache-time", MpvFormat.MPV_FORMAT_INT64),
                 Property("speed", MpvFormat.MPV_FORMAT_DOUBLE),
-                Property("user-data/cinefin-source-attempt", MpvFormat.MPV_FORMAT_STRING),
                 Property("playlist-count", MpvFormat.MPV_FORMAT_INT64),
                 Property("playlist-current-pos", MpvFormat.MPV_FORMAT_INT64),
             )
@@ -317,6 +317,21 @@ class MPVPlayer(
         }
         if (!posted) done(false)
     }
+    private var sourceCommandExecutor: ((Array<String>, Long, (Boolean) -> Unit) -> Unit)? =
+        { command, actionGeneration, done ->
+            val posted = commandHandler.post {
+                if (commandsClosed.get()) {
+                    done(false)
+                    return@post
+                }
+                done(
+                    runCatching { mpvLib.commandForSource(command, actionGeneration).accepted }
+                        .onFailure { Timber.w(it, "mpv source 命令执行失败：%s", command.firstOrNull()) }
+                        .getOrDefault(false)
+                )
+            }
+            if (!posted) done(false)
+        }
     private var recoveryScheduler: (Long, () -> Unit) -> Unit = { delayMs, action ->
         if (!commandHandler.postDelayed(action, delayMs)) action()
     }
@@ -336,6 +351,29 @@ class MPVPlayer(
         return runCatching { commandExecutor(command, ::complete) }
             .onFailure {
                 Timber.w(it, "mpv 命令执行失败：%s", command.firstOrNull())
+                complete(false)
+            }
+            .isSuccess
+    }
+
+    private fun postSourceCommand(
+        command: Array<String>,
+        actionGeneration: Long,
+        onComplete: (Boolean) -> Unit,
+    ): Boolean {
+        if (commandsClosed.get()) {
+            onComplete(false)
+            return false
+        }
+        val completed = AtomicBoolean(false)
+        fun complete(success: Boolean) {
+            if (completed.compareAndSet(false, true)) onComplete(success)
+        }
+        val executor = sourceCommandExecutor
+        if (executor == null) return postCommand(command, ::complete)
+        return runCatching { executor(command, actionGeneration, ::complete) }
+            .onFailure {
+                Timber.w(it, "mpv source 命令执行失败：%s", command.firstOrNull())
                 complete(false)
             }
             .isSuccess
@@ -423,15 +461,12 @@ class MPVPlayer(
         val sourceUri: String,
         val sourceIndex: Int,
         val command: Array<String>,
-        val nativeToken: String,
+        val actionGeneration: Long,
         val bootstrap: Boolean = false,
         val followUpCommands: List<Array<String>> = emptyList(),
         var startObserved: Boolean = false,
-        var markerObserved: Boolean = false,
-        var markerExecuted: Boolean = false,
         var commandEntered: Boolean = false,
         var commandDispatched: Boolean = false,
-        var markerAttempts: Int = 0,
         var commandAttempts: Int = 0,
         var drainAttempts: Int = 0,
         var drainInFlight: Boolean = false,
@@ -473,9 +508,6 @@ class MPVPlayer(
     override fun eventProperty(property: String) {}
 
     override fun eventProperty(property: String, value: String) {
-        if (property == SOURCE_ATTEMPT_PROPERTY) {
-            resolveSourceMarker(value)
-        }
         val epoch = sourceEpoch.get()
         handler.post {
             if (epoch != sourceEpoch.get()) return@post
@@ -609,13 +641,30 @@ class MPVPlayer(
     }
 
     override fun event(eventId: Int) {
+        if (
+            eventId == MpvEvent.MPV_EVENT_START_FILE ||
+                eventId == MpvEvent.MPV_EVENT_FILE_LOADED ||
+                eventId == MpvEvent.MPV_EVENT_END_FILE
+        ) {
+            return
+        }
+        handleEvent(eventId, resolution = null)
+    }
+
+    override fun playbackEvent(event: MpvPlaybackEvent) {
         val resolution =
-            when (eventId) {
+            when (event.eventId) {
                 MpvEvent.MPV_EVENT_START_FILE,
-                MpvEvent.MPV_EVENT_FILE_LOADED -> resolveSourceStartEvent(eventId)
-                MpvEvent.MPV_EVENT_END_FILE -> releaseSourceStart()
-                else -> null
+                MpvEvent.MPV_EVENT_FILE_LOADED ->
+                    resolveSourceStartEvent(event.eventId, event.actionGeneration)
+                MpvEvent.MPV_EVENT_END_FILE -> releaseSourceStart(event.actionGeneration)
+                else -> return handleEvent(event.eventId, resolution = null)
             }
+        resolution ?: return
+        handleEvent(event.eventId, resolution)
+    }
+
+    private fun handleEvent(eventId: Int, resolution: SourceEventResolution?) {
         val initialCommands = resolution?.claim
         val publishInitialCommands = AtomicBoolean(initialCommands != null)
         val epoch = resolution?.epoch ?: sourceEpoch.get()
@@ -704,23 +753,18 @@ class MPVPlayer(
                     else -> Unit
                 }
             }
-            if (!released) resolution?.nextAttempt?.let(::requestSourceCommand)
+            resolution?.nextAttempt?.let(::requestSourceCommand)
         }
     }
 
-    private fun resolveSourceStartEvent(eventId: Int): SourceEventResolution? =
+    private fun resolveSourceStartEvent(
+        eventId: Int,
+        actionGeneration: Long,
+    ): SourceEventResolution? =
         synchronized(initialCommands) {
-            val attempt = sourceStartInFlight
-            if (attempt == null) {
-                val epoch = sourceEpoch.get()
-                return@synchronized SourceEventResolution(
-                    epoch,
-                    replay =
-                        eventId == MpvEvent.MPV_EVENT_START_FILE &&
-                            pendingSourceStart == null &&
-                            initialCommandOwners.any { it.epoch == epoch },
-                )
-            }
+            val attempt =
+                sourceStartInFlight?.takeIf { it.actionGeneration == actionGeneration }
+                    ?: return@synchronized null
             if (!attempt.commandEntered && !attempt.commandDispatched) {
                 return@synchronized SourceEventResolution(attempt.epoch, ignoreBody = true)
             }
@@ -764,42 +808,18 @@ class MPVPlayer(
             }
         }
 
-    private fun resolveSourceMarker(sourceToken: String) {
-        if (sourceToken.isBlank()) return
-        var ready: SourceStartAttempt? = null
+    private fun releaseSourceStart(actionGeneration: Long): SourceEventResolution? =
         synchronized(initialCommands) {
-            val attempts = listOfNotNull(sourceStartInFlight, pendingSourceStart)
-            val matched = attempts.firstOrNull { it.nativeToken == sourceToken }
-            matched?.markerObserved = true
-            val pending = pendingSourceStart
-            if (pending?.nativeToken == sourceToken) {
-                sourceStartInFlight
-                    ?.takeIf {
-                        !it.commandEntered &&
-                            it.epoch != sourceEpoch.get() &&
-                            (!it.commandDispatched || it.startObserved)
-                    }
-                    ?.let(::dropSourceStartLocked)
-                if (sourceStartInFlight == null && attemptReadyLocked(pending) != null) {
-                    pendingSourceStart = null
-                    sourceStartInFlight = pending
+            sourceStartInFlight
+                ?.takeIf { it.actionGeneration == actionGeneration }
+                ?.let { attempt ->
+                    val next = if (attempt.startObserved) dropSourceStartLocked(attempt) else null
+                    SourceEventResolution(
+                        attempt.epoch,
+                        nextAttempt = attemptReadyLocked(next),
+                        ignoreBody = !attempt.startObserved,
+                    )
                 }
-            }
-            ready = attempts.firstOrNull { attemptReadyLocked(it) != null }
-        }
-        ready?.let(::requestSourceCommand)
-    }
-
-    private fun releaseSourceStart(): SourceEventResolution? =
-        synchronized(initialCommands) {
-            sourceStartInFlight?.let { attempt ->
-                val next = if (attempt.startObserved) dropSourceStartLocked(attempt) else null
-                SourceEventResolution(
-                    attempt.epoch,
-                    nextAttempt = attemptReadyLocked(next),
-                    ignoreBody = !attempt.startObserved,
-                )
-            }
         }
 
     private fun takeInitialCommandsLocked(attempt: SourceStartAttempt): List<Array<String>>? {
@@ -974,13 +994,12 @@ class MPVPlayer(
                 ?: return
         val attempt =
             synchronized(initialCommands) {
-                val token = "${sourceEpoch.get()}-${sourceStartAttemptSequence.incrementAndGet()}"
                 SourceStartAttempt(
                         sourceEpoch.get(),
                         ownerUri,
                         sourceIndex,
                         command.copyOf(),
-                        token,
+                        sourceStartAttemptSequence.incrementAndGet(),
                         bootstrap,
                         followUpCommands.map { it.copyOf() },
                     )
@@ -993,7 +1012,7 @@ class MPVPlayer(
                         }
                     }
             }
-        postSourceMarker(attempt)
+        requestSourceCommand(attempt)
     }
 
     private fun dropSourceStartLocked(attempt: SourceStartAttempt): SourceStartAttempt? {
@@ -1009,10 +1028,7 @@ class MPVPlayer(
 
     private fun attemptReadyLocked(attempt: SourceStartAttempt?): SourceStartAttempt? =
         attempt?.takeIf {
-            it.markerObserved &&
-                it.markerExecuted &&
-                it.epoch == sourceEpoch.get() &&
-                attemptMatchesCurrentSourceLocked(it)
+            it.epoch == sourceEpoch.get() && attemptMatchesCurrentSourceLocked(it)
         }
 
     private fun scheduleSourceRecovery(attempt: SourceStartAttempt) {
@@ -1028,21 +1044,22 @@ class MPVPlayer(
     }
 
     private fun retrySource(attempt: SourceStartAttempt, generation: Long) {
+        var activeToDrain: SourceStartAttempt? = null
         val action =
             synchronized(initialCommands) {
                 if (
                     generation != attempt.deadlineGeneration ||
-                        (sourceStartInFlight !== attempt && pendingSourceStart !== attempt) ||
-                        attempt.startObserved ||
-                        (pendingSourceStart === attempt && sourceStartInFlight != null)
+                        (sourceStartInFlight !== attempt && pendingSourceStart !== attempt)
                 ) {
                     return
                 }
+                if (pendingSourceStart === attempt && sourceStartInFlight != null) {
+                    activeToDrain = sourceStartInFlight
+                    return@synchronized 4
+                }
                 when {
-                    !attempt.markerExecuted || !attempt.markerObserved -> {
-                        if (attempt.markerAttempts++ >= SOURCE_RECOVERY_LIMIT) 0 else 1
-                    }
-                    attempt.commandEntered || attempt.commandDispatched -> 2
+                    attempt.startObserved || attempt.commandEntered || attempt.commandDispatched ->
+                        2
                     else -> {
                         if (attempt.commandAttempts == 0) attempt.commandAttempts++
                         3
@@ -1050,35 +1067,9 @@ class MPVPlayer(
                 }
             }
         when (action) {
-            1 -> postSourceMarker(attempt)
             2 -> beginSourceDrain(attempt)
             3 -> requestSourceCommand(attempt, recovery = true)
-        }
-    }
-
-    private fun postSourceMarker(attempt: SourceStartAttempt) {
-        if (commandsClosed.get()) return
-        val marker = arrayOf("set", SOURCE_ATTEMPT_PROPERTY, attempt.nativeToken)
-        val completed = AtomicBoolean(false)
-        val posted =
-            postCommand(marker) { success ->
-                completed.set(true)
-                synchronized(initialCommands) {
-                    if (success) {
-                        attempt.markerExecuted = true
-                        if (sourceStartInFlight === attempt && pendingSourceStart == null) {
-                            attempt.markerObserved = true
-                        }
-                    } else attempt.markerExecuted = false
-                }
-                if (success) requestSourceCommand(attempt) else scheduleSourceRecovery(attempt)
-            }
-        if (!completed.get()) scheduleSourceRecovery(attempt)
-        if (
-            !posted &&
-                synchronized(initialCommands) { attempt.markerAttempts++ < SOURCE_RECOVERY_LIMIT }
-        ) {
-            postSourceMarker(attempt)
+            4 -> activeToDrain?.let(::beginSourceDrain) ?: finishSourceDrain(attempt)
         }
     }
 
@@ -1086,8 +1077,7 @@ class MPVPlayer(
         val command =
             synchronized(initialCommands) {
                 if (
-                    released ||
-                        attempt.drainInFlight ||
+                    attempt.drainInFlight ||
                         attempt.commandEntered ||
                         (attempt.commandAttempts > 0 && !attempt.commandDispatched && !recovery) ||
                         !attemptReadyLocked(attempt).let { it != null }
@@ -1105,7 +1095,9 @@ class MPVPlayer(
                 attempt.command.copyOf()
             } ?: return
         scheduleSourceRecovery(attempt)
-        postCommand(command) { success -> onSourceCommandComplete(attempt, success) }
+        postSourceCommand(command, attempt.actionGeneration) { success ->
+            onSourceCommandComplete(attempt, success)
+        }
     }
 
     private fun onSourceCommandComplete(attempt: SourceStartAttempt, success: Boolean) {
@@ -1116,7 +1108,6 @@ class MPVPlayer(
             attempt.commandEntered = false
             if (success || attempt.startObserved) {
                 attempt.commandDispatched = true
-                attempt.markerAttempts = 0
                 if (attempt.followUpCommands.isNotEmpty()) {
                     followUps = attempt.followUpCommands
                 }
@@ -1129,20 +1120,24 @@ class MPVPlayer(
     }
 
     private fun beginSourceDrain(attempt: SourceStartAttempt) {
+        var exhausted = false
         val run: Boolean =
             synchronized(initialCommands) {
-                if (
-                    released ||
-                        attempt.drainInFlight ||
-                        sourceStartInFlight !== attempt ||
-                        attempt.drainAttempts >= SOURCE_RECOVERY_LIMIT
-                ) {
+                if (released || attempt.drainInFlight || sourceStartInFlight !== attempt) {
                     return
+                }
+                if (attempt.drainAttempts >= SOURCE_RECOVERY_LIMIT) {
+                    exhausted = true
+                    return@synchronized false
                 }
                 attempt.drainInFlight = true
                 attempt.drainAttempts++
                 true
             }
+        if (exhausted) {
+            finishSourceDrain(attempt)
+            return
+        }
         if (!run) return
         scheduleSourceRecovery(attempt)
         postCommand(arrayOf("stop")) { success ->
@@ -1157,19 +1152,27 @@ class MPVPlayer(
                 if (sourceStartInFlight !== attempt) return
                 attempt.deadlineGeneration++
                 sourceStartInFlight = null
-                (attemptReadyLocked(pendingSourceStart)?.also { pendingSourceStart = null }
+                val pending =
+                    pendingSourceStart
+                        ?.takeIf { it.epoch == sourceEpoch.get() }
+                        ?.also {
+                            pendingSourceStart = null
+                            it.startObserved = false
+                        }
+                (pending
                         ?: SourceStartAttempt(
                                 attempt.epoch,
                                 attempt.sourceUri,
                                 attempt.sourceIndex,
                                 attempt.command.copyOf(),
-                                "${attempt.epoch}-${sourceStartAttemptSequence.incrementAndGet()}",
-                                markerAttempts = 1,
+                                sourceStartAttemptSequence.incrementAndGet(),
+                                bootstrap = attempt.bootstrap,
+                                followUpCommands = attempt.followUpCommands.map { it.copyOf() },
                             )
-                            .takeIf { attempt.epoch == sourceEpoch.get() && !attempt.bootstrap })
+                            .takeIf { attempt.epoch == sourceEpoch.get() })
                     ?.also { sourceStartInFlight = it }
             }
-        replacement?.let(::postSourceMarker)
+        replacement?.let(::requestSourceCommand)
     }
 
     private fun updateEnginePosition(epoch: Long, positionMs: Long) {
@@ -2046,6 +2049,7 @@ class MPVPlayer(
             AudioManagerCompat.abandonAudioFocusRequest(audioManager, audioFocusRequest)
         }
         resetInternalState()
+        runCatching { mpvLib.resetSourceEvents() }
         runCatching { mpvLib.removeObserver(this) }
         commandsClosed.set(true)
         commandHandler.removeCallbacksAndMessages(null)
@@ -2310,7 +2314,6 @@ class MPVPlayer(
     companion object {
         private const val AUDIO_FOCUS_DUCKING = 0.5f
         private const val END_FILE_SUPPRESS_WINDOW_MS = 3_000L
-        private const val SOURCE_ATTEMPT_PROPERTY = "user-data/cinefin-source-attempt"
         private const val SOURCE_RECOVERY_LIMIT = 3
         private const val SOURCE_RECOVERY_RETRY_MS = 250L
         private val permanentAvailableCommands: Commands =

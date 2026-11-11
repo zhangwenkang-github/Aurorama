@@ -9,8 +9,17 @@ android {
     namespace = "com.zhangwenkang.cinefin.player.local"
     compileSdk = Versions.COMPILE_SDK
     buildToolsVersion = Versions.BUILD_TOOLS
+    ndkVersion = "29.0.14206865"
 
-    defaultConfig { minSdk = Versions.MIN_SDK }
+    defaultConfig {
+        minSdk = Versions.MIN_SDK
+        externalNativeBuild {
+            cmake {
+                arguments += "-DANDROID_STL=c++_shared"
+                cppFlags += "-std=c++11"
+            }
+        }
+    }
 
     buildTypes {
         named("release") { isMinifyEnabled = false }
@@ -20,6 +29,21 @@ android {
     compileOptions {
         sourceCompatibility = Versions.JAVA
         targetCompatibility = Versions.JAVA
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("../mpv-binding/src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
+    sourceSets {
+        getByName("main") {
+            kotlin.srcDir("../mpv-binding/src/main/java")
+            jniLibs.srcDir("../mpv-binding/src/main/jniLibs")
+        }
+        getByName("test").kotlin.srcDir("../mpv-binding/src/test/java")
     }
 
     testOptions { unitTests.isReturnDefaultValues = true }
@@ -36,12 +60,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)
-    /*
-     * W16：libmpv 与 ass-kt（libass）各带一份 libc++_shared.so，app 侧用 packaging.pickFirsts 去重，
-     * **声明顺序决定保留哪一份**：libmpv 的是新 NDK libc++（含 __from_chars_floating_point），
-     * ass-kt 的是旧版（真机实测会让 libmpv.so dlopen 失败），所以 libmpv 必须写在前面。
-     */
-    implementation(libs.libmpv)
+    // mpv-binding 在 player/core 之后、ass-kt 之前提供新版 libc++_shared.so。
     implementation(libs.ass.kt)
     implementation(libs.timber)
 

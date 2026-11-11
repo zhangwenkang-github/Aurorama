@@ -14,6 +14,7 @@ import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.mpv.MpvSourcePositionState
 import dev.jdtech.mpv.MPVLib.MpvEvent
+import dev.jdtech.mpv.binding.MpvPlaybackEvent
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.lang.invoke.MethodHandles
@@ -21,15 +22,9 @@ import java.lang.reflect.Constructor
 import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.CyclicBarrier
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.atomic.AtomicReference
 import javax.tools.ToolProvider
 import kotlin.jvm.functions.Function0
 import kotlin.jvm.functions.Function1
@@ -44,7 +39,6 @@ import sun.misc.Unsafe
 
 class PlaybackSessionRulesTest {
     private val key = "item-a|source-a|1|1"
-    private val sourceAttemptProperty = "user-data/cinefin-source-attempt"
     private val capturedSourceMarkers = mutableMapOf<MPVPlayer, MutableList<String>>()
     private val capturedRecoveries = mutableMapOf<MPVPlayer, MutableList<ScheduledRecovery>>()
 
@@ -1534,7 +1528,7 @@ class PlaybackSessionRulesTest {
             commands,
         )
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         assertEquals("当前 source 初始化不得重复发布", newCommands.map { it.toList() }, commands)
     }
@@ -1574,289 +1568,142 @@ class PlaybackSessionRulesTest {
             newCommands.map { it.toList() },
             commands,
         )
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         assertEquals("当前 source 快照不得重复发布", newCommands.map { it.toList() }, commands)
     }
 
     @Test
-    fun `production source marker binds unique current start and initial commands once`() {
-        val epoch = 251L
-        val player = allocatedMpvPlayerForStartFile(epoch)
+    fun `late start after dropped old barrier cannot claim successor initial commands`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 401L)
         setField(player, "isPlayerReady", false)
-        val commands =
-            captureCommands(
-                player,
-                includeSourceMarkers = true,
-                deliverSourceMarkers = false,
-            )
+        val commands = captureCommands(player)
         val callbacks = captureEventCallbacks(player)
         val a1 =
             mediaItemWithSubtitle(
                 mediaId = "item-a1",
-                uri = "https://media.example/item-a",
-                subtitle = "https://media.example/a1.srt",
-            )
-        val b =
-            mediaItemWithSubtitle(
-                mediaId = "item-b",
-                uri = "https://media.example/item-b",
-                subtitle = "https://media.example/b2.srt",
+                uri = "https://media.example/r17-late-a",
+                subtitle = "https://media.example/r17-late-a1.srt",
             )
         val a3 =
             mediaItemWithSubtitle(
                 mediaId = "item-a3",
-                uri = "https://media.example/item-a",
-                subtitle = "https://media.example/a3.srt",
+                uri = "https://media.example/r17-late-a",
+                subtitle = "https://media.example/r17-late-a3.srt",
             )
 
         player.setMediaItems(mutableListOf(a1), 0, 0L)
-        commands.clear()
         player.prepare()
-        val a1Token = sourceMarkerToken(commands)
-        player.setMediaItems(mutableListOf(b), 0, 0L)
-        commands.clear()
-        player.prepare()
+        val a1Generation = sourceActionGeneration(player)
+        assertEquals(
+            1,
+            commands.count { it == loadFileCommand("https://media.example/r17-late-a") },
+        )
+
         player.setMediaItems(mutableListOf(a3), 0, 0L)
-        commands.clear()
         player.prepare()
-        val currentToken = sourceMarkerToken(commands)
-        val currentMarkerIndex = commands.indexOfFirst { it == sourceMarkerCommand(currentToken) }
+        val a3Generation = sourceActionGeneration(player, pending = true)
 
-        callbacks.clear()
-        player.eventProperty(sourceAttemptProperty, a1Token)
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        player.playbackEvent(sourceEvent(MpvEvent.MPV_EVENT_START_FILE, 100L, 1L, a1Generation))
         callbacks.forEach(Runnable::run)
-        assertFalse(
-            "旧 marker 或旧 START 不得领取 A3 source-start: $commands",
-            commands.any { it == loadFileCommand("https://media.example/item-a") },
-        )
-
-        player.eventProperty(sourceAttemptProperty, currentToken)
-        val currentLoadIndex = commands.indexOf(loadFileCommand("https://media.example/item-a"))
+        callbacks.clear()
+        player.playbackEvent(sourceEvent(MpvEvent.MPV_EVENT_END_FILE, 100L, 1L, a1Generation))
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
         assertEquals(
-            "A3 原 source-start command 必须发布恰好一次: $commands",
-            1,
-            commands.count { it == loadFileCommand("https://media.example/item-a") },
+            "旧 generation 的 barrier 变化不得改变 A3 source 发布",
+            2,
+            commands.count { it == loadFileCommand("https://media.example/r17-late-a") },
         )
-        assertTrue(
-            "A3 marker 必须先于 source-start command: $commands",
-            currentMarkerIndex < currentLoadIndex,
-        )
+        commands.clear()
 
-        callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        player.playbackEvent(sourceEvent(MpvEvent.MPV_EVENT_START_FILE, 100L, 1L, a1Generation))
         callbacks.forEach(Runnable::run)
-        assertEquals("A3 initial commands 必须恰好一次: $commands", 1, subtitleCommandCount(commands))
         callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
-        assertEquals("额外 START_FILE 不得重复 command: $commands", 1, subtitleCommandCount(commands))
         assertEquals(
-            "额外 START_FILE 不得重复 source-start command: $commands",
-            1,
-            commands.count { it == loadFileCommand("https://media.example/item-a") },
-        )
-    }
-
-    @Test
-    fun `stale source events before current marker confirmation cannot claim later action`() {
-        val player = allocatedMpvPlayerForStartFile(epoch = 257L)
-        setField(player, "isPlayerReady", false)
-        val commands =
-            captureCommands(
-                player,
-                includeSourceMarkers = true,
-                deliverSourceMarkers = false,
-            )
-        val callbacks = captureEventCallbacks(player)
-        val a1 =
-            mediaItemWithSubtitle(
-                mediaId = "item-a1",
-                uri = "https://media.example/item-a",
-                subtitle = "https://media.example/a1.srt",
-            )
-        val b =
-            mediaItemWithSubtitle(
-                mediaId = "item-b",
-                uri = "https://media.example/item-b",
-                subtitle = "https://media.example/b2.srt",
-            )
-        val a3 =
-            mediaItemWithSubtitle(
-                mediaId = "item-a3",
-                uri = "https://media.example/item-a",
-                subtitle = "https://media.example/a3.srt",
-            )
-        player.setMediaItems(mutableListOf(a1), 0, 0L)
-        commands.clear()
-        player.prepare()
-        player.setMediaItems(mutableListOf(b), 0, 0L)
-        commands.clear()
-        player.prepare()
-        player.setMediaItems(mutableListOf(a3), 0, 0L)
-        commands.clear()
-        player.prepare()
-        val currentToken = sourceMarkerToken(commands)
-
-        callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
-        setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
-        callbacks.forEach(Runnable::run)
-        setField(player, "released", false)
-        assertTrue(
-            "current marker 确认前的 stale source events 必须 fail closed: $commands",
-            commands.none {
-                it == loadFileCommand("https://media.example/item-a") ||
-                    it.firstOrNull() == "sub-add"
-            },
-        )
-
-        player.eventProperty(sourceAttemptProperty, currentToken)
-        assertEquals(
-            "current marker 确认后 A3 source-start command 必须恰好一次: $commands",
-            1,
-            commands.count { it == loadFileCommand("https://media.example/item-a") },
-        )
-        callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
-        assertEquals("A3 initial commands 必须恰好一次: $commands", 1, subtitleCommandCount(commands))
-    }
-
-    @Test
-    fun `source marker failure retries without starving current source start`() {
-        val player = allocatedMpvPlayerForStartFile(epoch = 263L)
-        setField(player, "isPlayerReady", false)
-        setField(player, "commandsClosed", AtomicBoolean(false))
-        val commands = mutableListOf<List<String>>()
-        var markerFailureRemaining = 1
-        installCommandExecutor(player) { captured ->
-            if (captured.arguments.isSourceMarker() && markerFailureRemaining-- > 0) {
-                error("synthetic marker I/O failure")
-            }
-            commands += captured.arguments
-            captured.complete()
-        }
-        val callbacks = captureEventCallbacks(player)
-        player.setMediaItems(
-            mutableListOf(
-                mediaItemWithSubtitle(
-                    mediaId = "item-a3",
-                    uri = "https://media.example/item-a",
-                    subtitle = "https://media.example/a3.srt",
-                )
-            ),
+            "旧 generation 的迟到 START 不得领取 A3 initial commands",
             0,
-            0L,
-        )
-        commands.clear()
-
-        val prepared = runCatching { player.prepare() }
-
-        assertTrue("marker I/O 单点失败必须由 production 入口受控重试: $prepared", prepared.isSuccess)
-        val currentToken = sourceMarkerToken(commands)
-        player.eventProperty(sourceAttemptProperty, currentToken)
-        assertEquals(
-            "marker 重试后 current source-start command 必须恰好一次: $commands",
-            1,
-            commands.count { it == loadFileCommand("https://media.example/item-a") },
-        )
-        callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
-        assertEquals(
-            "marker 恢复后 initial commands 必须恰好一次: $commands",
-            1,
             subtitleCommandCount(commands),
         )
+
+        player.playbackEvent(sourceEvent(MpvEvent.MPV_EVENT_START_FILE, 200L, 2L, a3Generation))
+        callbacks.forEach(Runnable::run)
+        assertEquals("A3 真 START 必须领取 initial commands 恰好一次", 1, subtitleCommandCount(commands))
     }
 
     @Test
-    fun `missing source marker token fails closed and a valid token recovers current`() {
-        val player = allocatedMpvPlayerForStartFile(epoch = 269L)
+    fun `old owner late start without terminal drains pending current source`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 409L)
         setField(player, "isPlayerReady", false)
-        val commands =
-            captureCommands(
-                player,
-                includeSourceMarkers = true,
-                deliverSourceMarkers = false,
-            )
+        val commands = captureCommands(player)
         val callbacks = captureEventCallbacks(player)
-        player.setMediaItems(
-            mutableListOf(
-                mediaItemWithSubtitle(
-                    mediaId = "item-a1",
-                    uri = "https://media.example/item-a",
-                    subtitle = "https://media.example/a1.srt",
-                )
-            ),
-            0,
-            0L,
-        )
-        commands.clear()
-        player.prepare()
-        player.setMediaItems(
-            mutableListOf(
-                mediaItemWithSubtitle(
-                    mediaId = "item-a3",
-                    uri = "https://media.example/item-a",
-                    subtitle = "https://media.example/a3.srt",
-                )
-            ),
-            0,
-            0L,
-        )
-        commands.clear()
-        player.prepare()
-        val currentToken = sourceMarkerToken(commands)
-        commands.clear()
+        val a1 =
+            mediaItemWithSubtitle(
+                mediaId = "item-a1",
+                uri = "https://media.example/r17-drain-a",
+                subtitle = "https://media.example/r17-drain-a1.srt",
+            )
+        val a3 =
+            mediaItemWithSubtitle(
+                mediaId = "item-a3",
+                uri = "https://media.example/r17-drain-a",
+                subtitle = "https://media.example/r17-drain-a3.srt",
+            )
 
-        player.eventProperty(sourceAttemptProperty, "")
-        player.eventProperty(sourceAttemptProperty, "missing-token")
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
-        assertTrue("缺失或未知 token 必须 fail closed: $commands", commands.isEmpty())
-
-        player.eventProperty(sourceAttemptProperty, currentToken)
+        player.setMediaItems(mutableListOf(a1), 0, 0L)
+        player.prepare()
+        val a1Generation = sourceActionGeneration(player)
         assertEquals(
-            "有效 current token 必须恢复 source-start command 恰好一次: $commands",
             1,
-            commands.count { it == loadFileCommand("https://media.example/item-a") },
+            commands.count { it == loadFileCommand("https://media.example/r17-drain-a") },
         )
-        callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        player.setMediaItems(mutableListOf(a3), 0, 0L)
+        player.prepare()
+        commands.clear()
+
+        player.playbackEvent(sourceEvent(MpvEvent.MPV_EVENT_START_FILE, 300L, 3L, a1Generation))
         callbacks.forEach(Runnable::run)
-        assertEquals("恢复后 initial commands 必须恰好一次: $commands", 1, subtitleCommandCount(commands))
+        callbacks.clear()
+        var steps = 0
+        while (
+            commands.none { it == loadFileCommand("https://media.example/r17-drain-a") } &&
+                steps < 8 &&
+                runNextRecovery(player)
+        ) {
+            steps++
+        }
+        assertEquals(
+            "旧 owner START 后无 terminal 时必须 drain 并收敛 latest A3: steps=$steps commands=$commands",
+            1,
+            commands.count { it == loadFileCommand("https://media.example/r17-drain-a") },
+        )
     }
 
     @Test
-    fun `reentrant source marker callback neither deadlocks nor duplicates current start`() {
-        val player = allocatedMpvPlayerForStartFile(epoch = 271L)
+    fun `source retry exhaustion replaces barrier and converges latest current`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 419L)
         setField(player, "isPlayerReady", false)
         setField(player, "commandsClosed", AtomicBoolean(false))
         val commands = mutableListOf<List<String>>()
-        val markerObserved = AtomicBoolean(false)
+        var sourceFailuresRemaining = 4
+        val successfulSources = mutableListOf<List<String>>()
         installCommandExecutor(player) { captured ->
             val command = captured.arguments
             commands += command
-            if (command.isSourceMarker() && markerObserved.compareAndSet(false, true)) {
-                player.eventProperty(sourceAttemptProperty, checkNotNull(command.getOrNull(2)))
+            if (command.firstOrNull() == "loadfile" && sourceFailuresRemaining-- > 0) {
+                captured.complete(false)
+            } else {
+                captured.complete()
+                if (command.firstOrNull() == "loadfile") successfulSources += command
             }
-            if (command.firstOrNull() == "loadfile") {
-                player.event(MpvEvent.MPV_EVENT_START_FILE)
-            }
-            captured.complete()
         }
         val callbacks = captureEventCallbacks(player)
         player.setMediaItems(
             mutableListOf(
                 mediaItemWithSubtitle(
-                    mediaId = "item-a3",
-                    uri = "https://media.example/item-a",
-                    subtitle = "https://media.example/a3.srt",
+                    mediaId = "item-marker-exhausted",
+                    uri = "https://media.example/r17-marker-exhausted",
+                    subtitle = "https://media.example/r17-marker-exhausted.srt",
                 )
             ),
             0,
@@ -1864,92 +1711,88 @@ class PlaybackSessionRulesTest {
         )
         commands.clear()
 
-        val prepared = runCatching { player.prepare() }
-        callbacks.forEach(Runnable::run)
-
-        assertTrue("marker callback 重入不得死锁或失败: $prepared", prepared.isSuccess)
-        assertEquals(
-            "重入后 source-start command 必须恰好一次: $commands",
-            1,
-            commands.count { it == loadFileCommand("https://media.example/item-a") },
-        )
-        assertEquals("重入后 initial commands 必须恰好一次: $commands", 1, subtitleCommandCount(commands))
+        player.prepare()
+        var steps = 0
+        while (successfulSources.isEmpty() && steps < 12 && runNextRecovery(player)) {
+            steps++
+        }
         assertTrue(
-            "marker 必须先于 source-start command: $commands",
-            commands.indexOfFirst { it.isSourceMarker() } <
-                commands.indexOfFirst { it.firstOrNull() == "loadfile" },
+            "source 重试必须由 source identity 收敛，不得写 marker 命令: $commands",
+            commands.none { it.firstOrNull() == "set" },
         )
+        assertEquals(
+            "source 重试耗尽后必须替换 barrier 并继续 latest current: steps=$steps commands=$commands",
+            1,
+            successfulSources.count {
+                it == loadFileCommand("https://media.example/r17-marker-exhausted")
+            },
+        )
+        val generation = sourceActionGeneration(player)
+        player.playbackEvent(sourceEvent(MpvEvent.MPV_EVENT_START_FILE, 400L, 4L, generation))
+        callbacks.forEach(Runnable::run)
+        assertEquals("source 替换后 initial commands 必须恰好一次", 1, subtitleCommandCount(commands))
     }
 
     @Test
-    fun `late no token old events after current marker cannot claim replacement source`() {
-        val player = allocatedMpvPlayerForStartFile(epoch = 281L)
+    fun `source and drain retry exhaustion cannot leave latest current starved`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 421L)
         setField(player, "isPlayerReady", false)
-        val commands = captureCommands(player, includeSourceMarkers = true)
+        setField(player, "commandsClosed", AtomicBoolean(false))
+        val commands = mutableListOf<List<String>>()
+        var drainFailuresRemaining = 3
+        installCommandExecutor(player) { captured ->
+            val command = captured.arguments
+            commands += command
+            when {
+                command.firstOrNull() == "stop" && drainFailuresRemaining-- > 0 ->
+                    captured.complete(false)
+                else -> captured.complete()
+            }
+        }
         val callbacks = captureEventCallbacks(player)
-        val a1 =
-            mediaItemWithSubtitle(
-                mediaId = "item-a1",
-                uri = "https://media.example/late-a",
-                subtitle = "https://media.example/late-a1.srt",
-            )
-        val b =
-            mediaItemWithSubtitle(
-                mediaId = "item-b",
-                uri = "https://media.example/late-b",
-                subtitle = "https://media.example/late-b.srt",
-            )
-        val a3 =
-            mediaItemWithSubtitle(
-                mediaId = "item-a3",
-                uri = "https://media.example/late-a",
-                subtitle = "https://media.example/late-a3.srt",
-            )
-
-        player.setMediaItems(mutableListOf(a1), 0, 0L)
+        player.setMediaItems(
+            mutableListOf(
+                mediaItemWithSubtitle(
+                    mediaId = "item-drain-a1",
+                    uri = "https://media.example/r17-drain-exhaust-a",
+                    subtitle = "https://media.example/r17-drain-exhaust-a1.srt",
+                )
+            ),
+            0,
+            0L,
+        )
         player.prepare()
-        player.setMediaItems(mutableListOf(b), 0, 0L)
-        player.prepare()
-        player.setMediaItems(mutableListOf(a3), 0, 0L)
+        player.setMediaItems(
+            mutableListOf(
+                mediaItemWithSubtitle(
+                    mediaId = "item-drain-a3",
+                    uri = "https://media.example/r17-drain-exhaust-b",
+                    subtitle = "https://media.example/r17-drain-exhaust-a3.srt",
+                )
+            ),
+            0,
+            0L,
+        )
         player.prepare()
         commands.clear()
 
-        player.event(MpvEvent.MPV_EVENT_END_FILE)
-        callbacks.forEach(Runnable::run)
-        assertTrue("未观察到 START 的旧 END_FILE 必须保持隔离: $commands", commands.isEmpty())
-
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
-        assertTrue(
-            "current marker 后迟到的旧 START_FILE 不得领取 A3 ownership: $commands",
-            commands.none { command ->
-                command.firstOrNull() == "sub-add" ||
-                    command == loadFileCommand("https://media.example/late-a")
-            },
-        )
-
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
-        callbacks.forEach(Runnable::run)
+        var steps = 0
+        while (
+            commands.none { it == loadFileCommand("https://media.example/r17-drain-exhaust-b") } &&
+                steps < 16 &&
+                runNextRecovery(player)
+        ) {
+            steps++
+        }
         assertEquals(
-            "旧 source terminal 后 A3 source-start 必须恰好一次: $commands",
+            "drain 重试耗尽后必须释放旧 barrier 并收敛 latest current: steps=$steps commands=$commands",
             1,
-            commands.count { it == loadFileCommand("https://media.example/late-a") },
+            commands.count { it == loadFileCommand("https://media.example/r17-drain-exhaust-b") },
         )
-        assertTrue(
-            "旧 FILE_LOADED 不得提前发布 A3 initial commands: $commands",
-            subtitleCommandCount(commands) == 0,
-        )
-
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        val generation = sourceActionGeneration(player)
+        player.playbackEvent(sourceEvent(MpvEvent.MPV_EVENT_START_FILE, 500L, 5L, generation))
         callbacks.forEach(Runnable::run)
-        assertEquals(
-            "A3 真实 START_FILE 必须领取 initial commands 恰好一次",
-            1,
-            subtitleCommandCount(commands),
-        )
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
-        assertEquals("A3 额外 START_FILE 不得重复 initial commands", 1, subtitleCommandCount(commands))
+        assertEquals("drain 耗尽恢复后 initial commands 必须恰好一次", 1, subtitleCommandCount(commands))
     }
 
     @Test
@@ -2002,9 +1845,9 @@ class PlaybackSessionRulesTest {
             },
         )
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
         assertEquals(
             "bootstrap terminal 后目标 playlist index 必须恰好一次: $commands",
@@ -2012,10 +1855,10 @@ class PlaybackSessionRulesTest {
             commands.count { it == listOf("playlist-play-index", "2") },
         )
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         assertEquals("目标 source initial commands 必须恰好一次", 1, subtitleCommandCount(commands))
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         assertEquals("目标 source 额外 START 不得重复", 1, subtitleCommandCount(commands))
         assertEquals(
@@ -2023,85 +1866,6 @@ class PlaybackSessionRulesTest {
             1,
             commands.count { it == listOf("playlist-play-index", "2") },
         )
-    }
-
-    @Test
-    fun `async marker and source failures recover current within bounded generations`() {
-        val player = allocatedMpvPlayerForStartFile(epoch = 293L)
-        setField(player, "isPlayerReady", false)
-        setField(player, "commandsClosed", AtomicBoolean(false))
-        val commands = CopyOnWriteArrayList<List<String>>()
-        var markerFailuresRemaining = 2
-        var sourceFailuresRemaining = 1
-        installCommandExecutor(player) { captured ->
-            val command = captured.arguments
-            commands += command
-            when {
-                command.isSourceMarker() -> {
-                    if (markerFailuresRemaining-- > 0) {
-                        captured.complete(false)
-                    } else {
-                        captured.complete()
-                        player.eventProperty(
-                            sourceAttemptProperty,
-                            checkNotNull(command.getOrNull(2)),
-                        )
-                    }
-                }
-                command.firstOrNull() == "loadfile" -> {
-                    if (sourceFailuresRemaining-- > 0) captured.complete(false)
-                    else captured.complete()
-                }
-                else -> captured.complete()
-            }
-        }
-        val callbacks = captureEventCallbacks(player)
-        player.setMediaItems(
-            mutableListOf(
-                mediaItemWithSubtitle(
-                    mediaId = "item-retry",
-                    uri = "https://media.example/retry-a",
-                    subtitle = "https://media.example/retry-a.srt",
-                )
-            ),
-            0,
-            0L,
-        )
-        commands.clear()
-
-        player.prepare()
-        assertTrue(
-            "异步 marker 失败后必须保留有界 recovery: markers=${capturedSourceMarkers[player]} recoveries=${capturedRecoveries[player]?.size}",
-            runNextRecovery(player),
-        )
-        assertTrue(
-            "持续 marker 失败后的下一次 deadline 必须继续重试: $commands",
-            runNextRecovery(player),
-        )
-        assertEquals(
-            "marker 恢复后 source command 必须发布: $commands",
-            1,
-            commands.count { it == loadFileCommand("https://media.example/retry-a") },
-        )
-
-        assertTrue(
-            "首次 source executor 失败后必须允许同 source 受控重试: $commands",
-            runNextRecovery(player),
-        )
-        assertEquals(
-            "source 失败只允许同一 source 安全重发: $commands",
-            2,
-            commands.count { it == loadFileCommand("https://media.example/retry-a") },
-        )
-        assertEquals(
-            "source 重试不得跨 source: $commands",
-            0,
-            commands.count { it == loadFileCommand("https://media.example/item-a") },
-        )
-
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
-        assertEquals("恢复后的 current initial commands 必须恰好一次", 1, subtitleCommandCount(commands))
     }
 
     @Test
@@ -2148,83 +1912,6 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
-    fun `concurrent marker callback and completion dispatch source command once`() {
-        val player = allocatedMpvPlayerForStartFile(epoch = 311L)
-        setField(player, "isPlayerReady", false)
-        setField(player, "commandsClosed", AtomicBoolean(false))
-        val marker = AtomicReference<CapturedCommand>()
-        val sourceCommands = CopyOnWriteArrayList<List<String>>()
-        installCommandExecutor(player) { captured ->
-            when (captured.arguments.firstOrNull()) {
-                "set" -> marker.set(captured)
-                "loadfile" -> {
-                    sourceCommands += captured.arguments
-                    captured.complete()
-                }
-                else -> captured.complete()
-            }
-        }
-        player.setMediaItems(
-            mutableListOf(
-                mediaItemWithSubtitle(
-                    mediaId = "item-concurrent",
-                    uri = "https://media.example/concurrent",
-                    subtitle = "https://media.example/concurrent.srt",
-                )
-            ),
-            0,
-            0L,
-        )
-
-        player.prepare()
-        val pendingMarker = checkNotNull(marker.get())
-        val token = checkNotNull(pendingMarker.arguments.getOrNull(2))
-        val callbackDone = CountDownLatch(1)
-        val barrier = CyclicBarrier(2)
-        val completionGate = CountDownLatch(1)
-        val pool = Executors.newFixedThreadPool(2)
-        try {
-            val callbackFuture = pool.submit {
-                barrier.await(5, TimeUnit.SECONDS)
-                player.eventProperty(sourceAttemptProperty, token)
-                callbackDone.countDown()
-            }
-            val completionFuture = pool.submit {
-                barrier.await(5, TimeUnit.SECONDS)
-                completionGate.await(5, TimeUnit.SECONDS)
-                pendingMarker.complete()
-            }
-            assertTrue("marker callback 必须在 5 秒内完成", callbackDone.await(5, TimeUnit.SECONDS))
-            assertTrue(
-                "executor completion 前 marker callback 不得冒充 native command 完成: $sourceCommands",
-                sourceCommands.isEmpty(),
-            )
-            completionGate.countDown()
-            completionFuture.get(5, TimeUnit.SECONDS)
-            callbackFuture.get(5, TimeUnit.SECONDS)
-        } finally {
-            completionGate.countDown()
-            pool.shutdownNow()
-        }
-        assertEquals("并发 callback/completion 后 source command 必须恰好一次", 1, sourceCommands.size)
-
-        val repeatPool = Executors.newFixedThreadPool(3)
-        try {
-            val repeatDone = CountDownLatch(3)
-            repeat(3) {
-                repeatPool.submit {
-                    player.eventProperty(sourceAttemptProperty, token)
-                    repeatDone.countDown()
-                }
-            }
-            assertTrue("重复 marker callback 必须在线程内完成", repeatDone.await(5, TimeUnit.SECONDS))
-        } finally {
-            repeatPool.shutdownNow()
-        }
-        assertEquals("重复 marker callback 不得重复 source command", 1, sourceCommands.size)
-    }
-
-    @Test
     fun `invalid playlist indices fail atomically before state epoch pending or native commands`() {
         val player =
             allocatedMpvPlayer(
@@ -2238,7 +1925,7 @@ class PlaybackSessionRulesTest {
                 currentIndex = 1,
                 sourcePosition = MpvSourcePositionState(sourceEpoch = 313L),
             )
-        val commands = captureCommands(player)
+        val commands = captureCommands(player, includeSourceMarkers = true)
         val inserted = mediaItem("item-new", "https://media.example/index-new")
         val before = itemIds(player)
         val epoch = player.currentSourceEpoch()
@@ -2269,57 +1956,6 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
-    fun `repeated replacements with only final START_FILE publish final snapshot once`() {
-        val epoch = 67L
-        val player =
-            allocatedMpvPlayer(
-                sourceEpoch = epoch,
-                mediaItems = mutableListOf(mediaItem("item-a", "https://media.example/item-a")),
-                currentIndex = 0,
-                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
-            )
-        setField(player, "isPlayerReady", false)
-        val commands = captureCommands(player, deliverSourceMarkers = false)
-        val finalCommands = listOf(arrayOf("sub-add", "final.srt", "auto", "final", "zh"))
-
-        replaceInitialCommands(player, listOf(arrayOf("sub-add", "a.srt", "auto", "a", "zh")))
-        player.setMediaItems(
-            mutableListOf(mediaItem("item-b", "https://media.example/item-b")),
-            0,
-            0L,
-        )
-        replaceInitialCommands(player, listOf(arrayOf("sub-add", "b.srt", "auto", "b", "zh")))
-        player.setMediaItems(
-            mutableListOf(mediaItem("item-c", "https://media.example/item-c")),
-            0,
-            0L,
-        )
-        replaceInitialCommands(player, listOf(arrayOf("sub-add", "c.srt", "auto", "c", "zh")))
-        player.setMediaItems(
-            mutableListOf(mediaItem("item-d", "https://media.example/item-d")),
-            0,
-            0L,
-        )
-        replaceInitialCommands(player, finalCommands)
-        commands.clear()
-        val callbacks = captureEventCallbacks(player)
-
-        deliverStartFile(player, callbacks)
-        commands.clear()
-        deliverStartFile(player, callbacks)
-        commands.clear()
-        deliverSourceMarker(player, 3)
-        commands.clear()
-        deliverStartFile(player, callbacks)
-
-        assertEquals(
-            "多个 stale owner 不得挡住且不得重复发布最终 source 快照",
-            finalCommands.map { it.toList() },
-            commands,
-        )
-    }
-
-    @Test
     fun `empty initial command ownership never publishes or replays`() {
         val epoch = 71L
         val player =
@@ -2333,7 +1969,7 @@ class PlaybackSessionRulesTest {
         val commands = captureCommands(player)
         val callbacks = captureEventCallbacks(player)
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
 
         assertTrue("ownership 为空时不得发布快照或重放初始化", commands.isEmpty())
@@ -2356,7 +1992,7 @@ class PlaybackSessionRulesTest {
 
         replaceInitialCommands(player, initialCommands)
         val callbacks = captureEventCallbacks(player)
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         player.setMediaItems(
             mutableListOf(mediaItem("item-c", "https://media.example/item-c")),
             0,
@@ -2369,7 +2005,7 @@ class PlaybackSessionRulesTest {
         assertTrue("claim 后 mutation 必须让旧 posted handler fail closed", commands.isEmpty())
 
         setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", false)
@@ -2380,7 +2016,7 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
-    fun `ambiguous START_FILE replays current source once before publishing`() {
+    fun `ambiguous START_FILE without identity cannot replay or publish`() {
         val epoch = 79L
         val player =
             allocatedMpvPlayer(
@@ -2405,20 +2041,16 @@ class PlaybackSessionRulesTest {
         setNullableField(player, "pendingSourceStart", null)
         val callbacks = captureEventCallbacks(player)
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
 
-        assertEquals(
-            "无法唯一归属时必须 fail closed 并恰好重放当前 source 一次",
-            listOf(listOf("playlist-play-index", "0")),
-            commands,
-        )
+        assertTrue("无法归属的 START_FILE 必须 fail closed: $commands", commands.isEmpty())
 
         commands.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
-        assertEquals("重放后的当前 START_FILE 必须发布快照一次", newCommands.map { it.toList() }, commands)
+        assertTrue("重复的无 identity START_FILE 仍须拒绝: $commands", commands.isEmpty())
     }
 
     @Test
@@ -2460,9 +2092,16 @@ class PlaybackSessionRulesTest {
         deliverSourceMarker(player, 2)
         commands.clear()
         deliverStartFile(player, callbacks)
+        assertEquals(
+            "旧 A1 terminal 后必须只推进 A3 source command 一次",
+            listOf(listOf("playlist-play-index", "0")),
+            commands,
+        )
+        commands.clear()
+        deliverStartFile(player, callbacks)
         assertEquals("恢复后的当前 A3 必须发布恰好一次", currentCommands.map { it.toList() }, commands)
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         assertEquals("当前 A3 不得因额外 START_FILE 重复发布", currentCommands.map { it.toList() }, commands)
     }
@@ -2506,11 +2145,18 @@ class PlaybackSessionRulesTest {
         deliverSourceMarker(player, 2)
         commands.clear()
         deliverStartFile(player, callbacks)
+        assertEquals(
+            "旧 A1 terminal 后必须只推进 A3 source command 一次",
+            listOf(listOf("playlist-play-index", "0")),
+            commands,
+        )
+        commands.clear()
+        deliverStartFile(player, callbacks)
         assertEquals("恢复后的真实当前 A event 才可发布 A3", currentCommands.map { it.toList() }, commands)
     }
 
     @Test
-    fun `unowned START_FILE replays current source once before publishing`() {
+    fun `unowned START_FILE without identity cannot publish current source`() {
         val epoch = 97L
         val player =
             allocatedMpvPlayer(
@@ -2535,32 +2181,20 @@ class PlaybackSessionRulesTest {
         setNullableField(player, "pendingSourceStart", null)
         val callbacks = captureEventCallbacks(player)
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
-        assertEquals(
-            "无法归属的 START_FILE 必须 fail closed 并重放当前 source",
-            listOf(listOf("playlist-play-index", "0")),
-            commands,
-        )
+        assertTrue("无法归属的 START_FILE 必须 fail closed: $commands", commands.isEmpty())
 
         commands.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
-        assertEquals(
-            "重放后的当前 START_FILE 仍须最终发布 commands",
-            currentCommands.map { it.toList() },
-            commands,
-        )
+        assertTrue("重复的无 identity START_FILE 不得发布 commands: $commands", commands.isEmpty())
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
-        assertEquals(
-            "后续 START_FILE 不得重复发布当前 commands",
-            currentCommands.map { it.toList() },
-            commands,
-        )
+        assertTrue("后续无 identity START_FILE 仍须拒绝: $commands", commands.isEmpty())
     }
 
     @Test
@@ -2590,7 +2224,7 @@ class PlaybackSessionRulesTest {
         )
 
         callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         assertEquals(
             "等价 path 之后回到 exact path 不得重复发布",
@@ -2664,7 +2298,7 @@ class PlaybackSessionRulesTest {
         val callbacks = captureEventCallbacks(player)
 
         repeat(2) {
-            player.event(MpvEvent.MPV_EVENT_START_FILE)
+            deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
             callbacks.forEach(Runnable::run)
             callbacks.clear()
             assertFalse(
@@ -2673,7 +2307,7 @@ class PlaybackSessionRulesTest {
             )
         }
         setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", false)
@@ -2706,7 +2340,7 @@ class PlaybackSessionRulesTest {
         val callbacks = captureEventCallbacks(player)
 
         repeat(2) {
-            player.event(MpvEvent.MPV_EVENT_START_FILE)
+            deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
             callbacks.forEach(Runnable::run)
             callbacks.clear()
         }
@@ -2716,7 +2350,7 @@ class PlaybackSessionRulesTest {
         )
 
         setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", false)
@@ -2812,7 +2446,7 @@ class PlaybackSessionRulesTest {
         installCommandExecutor(player) { captured ->
             commands += captured.arguments
             if (captured.arguments.firstOrNull() == "loadfile") {
-                player.event(MpvEvent.MPV_EVENT_START_FILE)
+                deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
             }
             captured.complete()
         }
@@ -2907,7 +2541,7 @@ class PlaybackSessionRulesTest {
         player.prepare()
         commands.clear()
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         assertTrue(
@@ -2916,13 +2550,13 @@ class PlaybackSessionRulesTest {
         )
 
         setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", false)
         deliverSourceMarker(player, 1)
         commands.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
 
         assertEquals(
@@ -2966,7 +2600,7 @@ class PlaybackSessionRulesTest {
 
         player.prepare()
         commands.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
 
@@ -2986,7 +2620,7 @@ class PlaybackSessionRulesTest {
             commands,
         )
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         assertEquals("redirect current source 不得重复发布", expected, commands)
     }
@@ -3016,16 +2650,16 @@ class PlaybackSessionRulesTest {
         commands.clear()
 
         setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_END_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_END_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", false)
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
         setField(player, "released", false)
 
@@ -3072,28 +2706,26 @@ class PlaybackSessionRulesTest {
         player.seekTo(1, 0L)
         commands.clear()
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_END_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_END_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
-        assertTrue("B terminal 前不得猜测 C source start: $commands", commands.isEmpty())
-        deliverSourceMarker(player, 1)
         assertEquals(
-            "B 的 START_FILE 后 END_FILE 必须释放 barrier 并推进 pending C 一次: markers=${capturedSourceMarkers[player]} inFlight=${getField(player, "sourceStartInFlight")} pending=${getField(player, "pendingSourceStart")} epoch=${player.currentSourceEpoch()} index=${getField(player, "currentMediaItemIndex")}",
+            "B 的 START_FILE 后 END_FILE 必须在 identity 边界推进 pending C 一次",
             listOf(listOf("playlist-play-index", "1")),
             commands,
         )
 
         setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_END_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_END_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", false)
         assertEquals("重复 END_FILE 不得释放尚未 START 的 C", 1, commands.size)
 
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         val cSubtitleCommands = commands.filter { command -> command.firstOrNull() == "sub-add" }
         assertEquals(
@@ -3138,13 +2770,11 @@ class PlaybackSessionRulesTest {
         player.prepare()
         player.seekTo(1, 0L)
         commands.clear()
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
-        assertTrue("B FILE_LOADED 前不得猜测 C source start: $commands", commands.isEmpty())
-        deliverSourceMarker(player, 1)
 
         assertEquals(
-            "B 仅 FILE_LOADED 时必须释放 barrier 并推进 pending C 一次: markers=${capturedSourceMarkers[player]} inFlight=${getField(player, "sourceStartInFlight")} pending=${getField(player, "pendingSourceStart")} epoch=${player.currentSourceEpoch()} index=${getField(player, "currentMediaItemIndex")}",
+            "B 仅 FILE_LOADED 时必须在 identity 边界推进 pending C 一次",
             listOf(listOf("playlist-play-index", "1")),
             commands,
         )
@@ -3209,76 +2839,12 @@ class PlaybackSessionRulesTest {
         player.prepare()
         commands.clear()
 
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
-        assertTrue("stale FILE_LOADED 不得越级发布 E3: $commands", commands.isEmpty())
-        deliverSourceMarker(player, 1)
-
         assertEquals(
-            "无新 mutation 时 E3 source-start 必须串行发布一次",
+            "E1 FILE_LOADED 的 identity 边界必须串行发布 E3 一次",
             listOf(listOf("loadfile", "https://media.example/epoch-e3", "replace")),
             commands,
-        )
-    }
-
-    @Test
-    fun `pending source start cannot escape captured epoch before handler mutation`() {
-        val mediaE1 =
-            mediaItemWithSubtitle(
-                mediaId = "item-e1",
-                uri = "https://media.example/mutate-e1",
-                subtitle = "https://media.example/mutate-e1.srt",
-            )
-        val mediaE3 =
-            mediaItemWithSubtitle(
-                mediaId = "item-e3",
-                uri = "https://media.example/mutate-e3",
-                subtitle = "https://media.example/mutate-e3.srt",
-            )
-        val mediaE4 =
-            mediaItemWithSubtitle(
-                mediaId = "item-e4",
-                uri = "https://media.example/mutate-e4",
-                subtitle = "https://media.example/mutate-e4.srt",
-            )
-        val player =
-            allocatedMpvPlayer(
-                sourceEpoch = 223L,
-                mediaItems = mutableListOf(mediaE1),
-                currentIndex = 0,
-                sourcePosition = MpvSourcePositionState(sourceEpoch = 223L),
-            )
-        val commands = captureCommands(player, deliverSourceMarkers = false)
-        val callbacks = captureEventCallbacks(player)
-
-        player.prepare()
-        player.setMediaItems(mutableListOf(mediaE3), 0, 0L)
-        player.prepare()
-        deliverSourceMarker(player, 1)
-        callbacks.clear()
-        commands.clear()
-
-        setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
-        setField(player, "released", false)
-        assertTrue("测试必须捕获 handler 前的 E1 回调", callbacks.isNotEmpty())
-
-        player.setMediaItems(mutableListOf(mediaE4), 0, 0L)
-        player.prepare()
-        callbacks.forEach(Runnable::run)
-        deliverSourceMarker(player, 2)
-
-        val e3SourceStarts = commands.count { command ->
-            command == listOf("loadfile", "https://media.example/mutate-e3", "replace")
-        }
-        val e4SourceStarts = commands.count { command ->
-            command == listOf("loadfile", "https://media.example/mutate-e4", "replace")
-        }
-        assertEquals("handler 前安装 E4 后 E3 source-start 必须为 0: $commands", 0, e3SourceStarts)
-        assertEquals(
-            "E4 成为最新 pending 后必须只发布 E4 一次: markers=${capturedSourceMarkers[player]} commands=$commands",
-            1,
-            e4SourceStarts,
         )
     }
 
@@ -3499,31 +3065,21 @@ class PlaybackSessionRulesTest {
         @Suppress("UNCHECKED_CAST")
         (getField(player, "internalMediaItems") as MutableList<MediaItem>).map(MediaItem::mediaId)
 
+    @Suppress("UNUSED_PARAMETER")
     private fun captureCommands(
         player: MPVPlayer,
         includeSourceMarkers: Boolean = false,
         deliverSourceMarkers: Boolean = true,
     ): MutableList<List<String>> {
         val commands = mutableListOf<List<String>>()
-        val sourceMarkers = mutableListOf<String>()
-        capturedSourceMarkers[player] = sourceMarkers
+        capturedSourceMarkers[player] = mutableListOf()
         assertTrue(
             "MPVPlayer 必须暴露可捕获的 postCommand 执行入口",
             trySetField(player, "commandsClosed", AtomicBoolean(false)),
         )
         installCommandExecutor(player) { captured ->
-            val command = captured.arguments
-            if (includeSourceMarkers || !command.isSourceMarker()) {
-                commands += command
-            }
-            if (command.isSourceMarker()) {
-                val token = checkNotNull(command.getOrNull(2))
-                sourceMarkers += token
-                captured.complete()
-                if (deliverSourceMarkers) player.eventProperty(sourceAttemptProperty, token)
-            } else {
-                captured.complete()
-            }
+            commands += captured.arguments
+            captured.complete()
         }
         return commands
     }
@@ -3620,30 +3176,46 @@ class PlaybackSessionRulesTest {
         return true
     }
 
-    private fun sourceMarker(player: MPVPlayer, index: Int): String =
-        checkNotNull(capturedSourceMarkers[player]?.getOrNull(index)) {
-            "source marker #$index missing: ${capturedSourceMarkers[player]}"
+    @Suppress("UNUSED_PARAMETER")
+    private fun deliverSourceMarker(player: MPVPlayer, index: Int) = Unit
+
+    private fun sourceEvent(
+        eventId: Int,
+        playlistEntryId: Long,
+        nativeGeneration: Long,
+        actionGeneration: Long,
+    ): MpvPlaybackEvent =
+        MpvPlaybackEvent(
+            eventId = eventId,
+            playlistEntryId = playlistEntryId,
+            nativeGeneration = nativeGeneration,
+            actionGeneration = actionGeneration,
+        )
+
+    private fun sourceActionGeneration(player: MPVPlayer, pending: Boolean = false): Long {
+        val attempt =
+            if (pending) {
+                getField(player, "pendingSourceStart") ?: getField(player, "sourceStartInFlight")
+            } else {
+                getField(player, "sourceStartInFlight") ?: getField(player, "pendingSourceStart")
+            } ?: return 0L
+        return attempt.javaClass.getDeclaredField("actionGeneration").let {
+            it.isAccessible = true
+            it.getLong(attempt)
         }
-
-    private fun sourceMarkerCount(player: MPVPlayer): Int = capturedSourceMarkers[player]?.size ?: 0
-
-    private fun deliverSourceMarker(player: MPVPlayer, index: Int) {
-        player.eventProperty(sourceAttemptProperty, sourceMarker(player, index))
     }
 
-    private fun Array<String>.isSourceMarker(): Boolean =
-        getOrNull(0) == "set" && getOrNull(1) == sourceAttemptProperty
-
-    private fun List<String>.isSourceMarker(): Boolean =
-        getOrNull(0) == "set" && getOrNull(1) == sourceAttemptProperty
-
-    private fun sourceMarkerCommand(token: String): List<String> =
-        listOf("set", sourceAttemptProperty, token)
-
-    private fun sourceMarkerToken(commands: List<List<String>>): String =
-        checkNotNull(commands.lastOrNull { it.isSourceMarker() }?.getOrNull(2)) {
-            "production source marker command missing: $commands"
-        }
+    private fun deliverSourceEvent(player: MPVPlayer, eventId: Int) {
+        val generation = sourceActionGeneration(player)
+        player.playbackEvent(
+            sourceEvent(
+                eventId = eventId,
+                playlistEntryId = 1_000_000L + generation,
+                nativeGeneration = generation,
+                actionGeneration = generation,
+            )
+        )
+    }
 
     private fun loadFileCommand(uri: String): List<String> = listOf("loadfile", uri, "replace")
 
@@ -3728,11 +3300,11 @@ class PlaybackSessionRulesTest {
         callbacks: MutableList<Runnable>,
     ) {
         callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", true)
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
         callbacks.clear()
         setField(player, "released", false)
@@ -3743,10 +3315,14 @@ class PlaybackSessionRulesTest {
         callbacks: MutableList<Runnable>,
     ) {
         callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_START_FILE)
+        player.playbackEvent(
+            sourceEvent(MpvEvent.MPV_EVENT_START_FILE, 9_000_001L, 500L, Long.MAX_VALUE)
+        )
         callbacks.forEach(Runnable::run)
         callbacks.clear()
-        player.event(MpvEvent.MPV_EVENT_FILE_LOADED)
+        player.playbackEvent(
+            sourceEvent(MpvEvent.MPV_EVENT_FILE_LOADED, 9_000_001L, 500L, Long.MAX_VALUE)
+        )
         callbacks.forEach(Runnable::run)
         callbacks.clear()
     }
