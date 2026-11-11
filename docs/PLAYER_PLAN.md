@@ -8095,8 +8095,8 @@ R18 implementation 由 fresh owner 完成，再由不同 fresh reviewer 审查�
 
 ### 52.63 Progress source-identity / retry-priority R19 command-bound barrier 任务卡（2026-11-11）
 
-**状态**：`R19_SCOPED_REVIEW=PASS / HANDOFF_TO_DELIVERY_LEAD_R4 / PAD_QA_PENDING /`
-`QA_READY=NO`。
+**状态**：`R19_SCOPED_REVIEW=PASS / R19_INDEPENDENT_QA=FAIL /`
+`BLOCKED_SECRET_OUTPUT_RESOURCE_URL / QA_READY=NO`。
 
 **进度（2026-11-11，R19 implementation 启动）**：R18 review FAIL 证据已核验为 report SHA-256
 `8EE20F7A081DE57A1098D04C4D27FF15D424F8639C859D22140C3E09C3550A9A` / manifest
@@ -8138,6 +8138,27 @@ Pad `43af8627`、单窗口 `<=600 s`、0 截图、生产只读、禁止 K60 / �
 R4 当前上下文 `141,210/1,048,576（13.5%）`。已完成：startup、唯一 Pad 锁、QA dispatch
 控制面。距发布剩余：canonical QaReady PASS → fresh Pad QA → 剩余核心用户旅程 →
 integration / Release。
+
+**进度（2026-11-12，R19 independent QA FAIL / QA harness 安全止损）**：fresh QA 自行运行
+canonical QaReady PASS；Control `7a1212fb...` clean、R19 `1487fa2c...` / tree
+`310f076f...` / parent `d429b949...` clean，review 双 hash 与唯一 Pad `43af8627` 锁匹配。
+installed debug 原不是 R19，已按授权仅做一次精确 arm64 debug 前向覆盖安装，installed base
+`3345E9B4...A0FD` 与候选 APK MATCH；debug/release 数据与包保留。唯一 sanitized wrapper
+ready PASS，runtime window 从 00:13:21 开始。执行到测试作用域搜索与条目入口后，QA 自己选择的
+日志筛选回显了测试服务器 URL，触发任务硬性保密止损；窗口于 `125.978 s / 600 s` 立即停止，
+未重开、未延长，真实播放与全部核心矩阵适用行 `NOT_RUN`。
+
+QA harness 的 query 脱敏正常，但命令层展示了 scheme/host；本地证据已统一替换完整 URI，
+复扫资源 URL 命中 0。这是 `P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01`，不是产品播放结论。
+cleanup PASS：wrapper `EXIT_CODE=0 / FLUSH_OK=YES / stderr=0 / child=0`，debug/release PID、
+debug service、MediaSession、通知、远程 UI dump 均收敛；17/17 系统 settings per-key、
+28/28 App preference key/value MATCH；users 仅 user0；无卸载 / `pm clear` / 系统设置写 /
+截图 / K60 命令。锁已 `RELEASED / ACTIVE=0`。QA report SHA-256 `9D715076...DB7E`，
+manifest `35/35` / `E68C98D9...CC02C`，证据根
+`evidence-v1-4-1-player-progress-source-retry-r19-independent-qa-2026-11-12`。
+已完成：一次真实 QA gate、精确安装、单窗口止损与完整清理；距发布剩余：先由 R4 另立最小 QA
+harness 资源回显门禁修复卡，再由不同 fresh QA 使用新锁 / 新 QaReady / 新窗口重跑未覆盖切片，
+之后才进入剩余核心用户旅程、integration 与 Release。本 owner 不补丁、不重开、不接后续阶段。
 
 R19 从 R18 candidate `d429b949bad8b065c8b32a6377dae9ec486efbd8` / tree
 `d6c1b1684582e4748886388cfd9db9b16dd15d81` 建立，继承 native seam 授权。只关闭 R18 review
