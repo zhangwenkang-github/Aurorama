@@ -1,10 +1,14 @@
 package dev.jdtech.mpv.binding
 
+import java.util.concurrent.atomic.AtomicLong
+
 class MpvSourceEventGate {
     private var expectedPlaylistEntryId = 0L
     private var expectedActionGeneration = 0L
     private var nativeGenerationFloor = 0L
     private var sourceEventGenerationFloor = 0L
+    private var expectedArmGeneration = 0L
+    private val armGeneration = AtomicLong()
     private var activeNativeGeneration = 0L
     private var startObserved = false
     private var loadedObserved = false
@@ -22,6 +26,7 @@ class MpvSourceEventGate {
         expectedActionGeneration = actionGeneration
         nativeGenerationFloor = afterNativeGeneration
         sourceEventGenerationFloor = afterSourceEventGeneration
+        expectedArmGeneration = armGeneration.incrementAndGet()
         activeNativeGeneration = 0L
         startObserved = false
         loadedObserved = false
@@ -41,13 +46,15 @@ class MpvSourceEventGate {
         playlistEntryId: Long,
         nativeGeneration: Long,
         sourceEventGeneration: Long = Long.MAX_VALUE,
+        armGeneration: Long = Long.MIN_VALUE,
     ): MpvPlaybackEvent? {
         if (
             !armed ||
                 closed ||
                 playlistEntryId != expectedPlaylistEntryId ||
                 nativeGeneration <= nativeGenerationFloor ||
-                sourceEventGeneration <= sourceEventGenerationFloor
+                sourceEventGeneration <= sourceEventGenerationFloor ||
+                (armGeneration != Long.MIN_VALUE && armGeneration != expectedArmGeneration)
         ) {
             return null
         }
@@ -82,6 +89,8 @@ class MpvSourceEventGate {
             actionGeneration = expectedActionGeneration,
         )
     }
+
+    fun currentArmGeneration(): Long = armGeneration.get()
 
     companion object {
         const val MPV_EVENT_START_FILE = 6

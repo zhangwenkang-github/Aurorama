@@ -29,6 +29,8 @@ extern "C" {
     jni_func(void, nativeInit, jlong instance);
     jni_func(void, nativeDestroy, jlong instance);
     jni_func(void, nativeCommand, jlong instance, jobjectArray jarray);
+    jni_func(void, nativeBeginSourceEventBarrier, jlong instance);
+    jni_func(void, nativeEndSourceEventBarrier, jlong instance);
     jni_func(jlongArray, nativeCommandForSource, jlong instance, jobjectArray jarray);
     jni_func(jlong, nativeGetNativeGeneration, jlong instance);
 };
@@ -171,10 +173,48 @@ static int64_t current_playlist_entry_id(mpv_handle *mpv) {
     return playlist_entry_id;
 }
 
+jni_func(void, nativeBeginSourceEventBarrier, jlong instance) {
+    auto mpv_instance = reinterpret_cast<MPVInstance*>(instance);
+    begin_source_event_barrier(mpv_instance);
+}
+
+jni_func(void, nativeEndSourceEventBarrier, jlong instance) {
+    auto mpv_instance = reinterpret_cast<MPVInstance*>(instance);
+    end_source_event_barrier(mpv_instance);
+}
+
+static bool await_source_event_barrier(
+        MPVInstance *instance,
+        uint64_t barrier_request) {
+    const int queued = mpv_get_property_async(
+        instance->mpv,
+        barrier_request,
+        "idle-active",
+        MPV_FORMAT_FLAG);
+    if (queued < 0)
+        return false;
+
+    std::unique_lock<std::mutex> lock(instance->source_event_barrier_mutex);
+    instance->source_event_barrier_condition.wait(
+        lock,
+        [instance, barrier_request] {
+            return instance->source_event_barrier_completed == barrier_request;
+        });
+    return true;
+}
+
 jni_func(jlongArray, nativeCommandForSource, jlong instance, jobjectArray jarray) {
     auto mpv_instance = reinterpret_cast<MPVInstance*>(instance);
     if (!mpv_instance->mpv)
         return nullptr;
+
+    const uint64_t barrier_request =
+        mpv_instance->next_source_event_barrier_request.fetch_add(1);
+    {
+        std::lock_guard<std::mutex> lock(mpv_instance->source_event_barrier_mutex);
+        mpv_instance->source_event_barrier_request = barrier_request;
+        mpv_instance->source_event_barrier_completed = 0;
+    }
 
     const char *arguments[128] = { nullptr };
     jstring stringRefs[128] = { nullptr };
@@ -196,14 +236,16 @@ jni_func(jlongArray, nativeCommandForSource, jlong instance, jobjectArray jarray
         mpv_free_node_contents(&result);
     if (playlist_entry_id <= 0 && command_result >= 0)
         playlist_entry_id = current_playlist_entry_id(mpv_instance->mpv);
-    const int64_t native_generation_after_command =
-        mpv_instance->next_native_generation.load();
     for (int i = 0; i < len; ++i) {
         if (stringRefs[i]) {
             env->ReleaseStringUTFChars(stringRefs[i], arguments[i]);
             env->DeleteLocalRef(stringRefs[i]);
         }
     }
+    if (!await_source_event_barrier(mpv_instance, barrier_request))
+        return nullptr;
+    const int64_t native_generation_after_command =
+        mpv_instance->next_native_generation.load();
     const jlong values[2] = {
         static_cast<jlong>(playlist_entry_id),
         static_cast<jlong>(native_generation_after_command),

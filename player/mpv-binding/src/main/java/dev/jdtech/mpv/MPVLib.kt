@@ -5,6 +5,7 @@ import android.view.Surface
 import dev.jdtech.mpv.binding.MpvPlaybackEvent
 import dev.jdtech.mpv.binding.MpvSourceCommandResult
 import dev.jdtech.mpv.binding.MpvSourceEventGate
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 internal data class MpvSourceCommandNativeResult(
@@ -14,6 +15,10 @@ internal data class MpvSourceCommandNativeResult(
 
 internal interface MpvSourceCommandBackend {
     fun nativeGeneration(instance: Long): Long
+
+    fun beginSourceEventBarrier(instance: Long) = Unit
+
+    fun endSourceEventBarrier(instance: Long) = Unit
 
     fun commandForSource(instance: Long, command: Array<String>): MpvSourceCommandNativeResult
 }
@@ -25,10 +30,17 @@ class MPVLib private constructor(nativePtr: Long) {
     private val logObservers = mutableListOf<LogObserver>()
     private val sourceEvents = MpvSourceEventGate()
     private val sourceEventLock = Any()
+    private val sourceEventIngressLock = Any()
+    private val sourceCommandLock = Any()
     private val sourceEventIngressGeneration = AtomicLong()
+    private val sourceEventCommandOpen = AtomicBoolean(false)
     private var sourceCommandBackend: MpvSourceCommandBackend =
         object : MpvSourceCommandBackend {
             override fun nativeGeneration(instance: Long) = nativeGetNativeGeneration(instance)
+
+            override fun beginSourceEventBarrier(instance: Long) = nativeBeginSourceEventBarrier(instance)
+
+            override fun endSourceEventBarrier(instance: Long) = nativeEndSourceEventBarrier(instance)
 
             override fun commandForSource(instance: Long, command: Array<String>) = nativeCommandForSource(instance, command)
                 ?.takeIf { it.size >= 2 }
@@ -109,27 +121,41 @@ class MPVLib private constructor(nativePtr: Long) {
     private external fun nativeCommand(instance: Long, cmd: Array<String>)
 
     fun commandForSource(cmd: Array<String>, actionGeneration: Long): MpvSourceCommandResult =
-        synchronized(sourceEventLock) {
+        synchronized(sourceCommandLock) {
             checkCreated()
-            val nativeResult = sourceCommandBackend.commandForSource(nativeInstance, cmd)
-            val playlistEntryId = nativeResult.playlistEntryId
-            if (playlistEntryId <= 0L) {
-                sourceEvents.disarm()
-                MpvSourceCommandResult(accepted = false)
-            } else {
-                sourceEvents.arm(
-                    playlistEntryId,
-                    actionGeneration,
-                    nativeResult.nativeGenerationAfterCommand,
-                    sourceEventIngressGeneration.get(),
-                )
-                MpvSourceCommandResult(
-                    accepted = true,
-                    playlistEntryId = playlistEntryId,
-                )
+            sourceEventCommandOpen.set(false)
+            sourceCommandBackend.beginSourceEventBarrier(nativeInstance)
+            try {
+                synchronized(sourceEventIngressLock) {
+                    val nativeResult = sourceCommandBackend.commandForSource(nativeInstance, cmd)
+                    val playlistEntryId = nativeResult.playlistEntryId
+                    synchronized(sourceEventLock) {
+                        if (playlistEntryId <= 0L) {
+                            sourceEvents.disarm()
+                            sourceEventCommandOpen.set(false)
+                            MpvSourceCommandResult(accepted = false)
+                        } else {
+                            sourceEvents.arm(
+                                playlistEntryId,
+                                actionGeneration,
+                                nativeResult.nativeGenerationAfterCommand,
+                                sourceEventIngressGeneration.get(),
+                            )
+                            sourceEventCommandOpen.set(true)
+                            MpvSourceCommandResult(
+                                accepted = true,
+                                playlistEntryId = playlistEntryId,
+                            )
+                        }
+                    }
+                }
+            } finally {
+                sourceCommandBackend.endSourceEventBarrier(nativeInstance)
             }
         }
     private external fun nativeCommandForSource(instance: Long, cmd: Array<String>): LongArray?
+    private external fun nativeBeginSourceEventBarrier(instance: Long)
+    private external fun nativeEndSourceEventBarrier(instance: Long)
     private external fun nativeGetNativeGeneration(instance: Long): Long
 
     fun setOptionString(name: String, value: String): Int {
@@ -251,22 +277,33 @@ class MPVLib private constructor(nativePtr: Long) {
         playlistEntryId: Long,
         nativeGeneration: Long,
     ) {
+        val armGeneration = sourceEvents.currentArmGeneration()
         val ingressGeneration = sourceEventIngressGeneration.incrementAndGet()
-        synchronized(sourceEventLock) {
-            val event =
-                sourceEvents.accept(
-                    eventId,
-                    playlistEntryId,
-                    nativeGeneration,
-                    ingressGeneration,
-                ) ?: return
-            synchronized(observers) {
-                for (observer in observers) observer.playbackEvent(event)
+        synchronized(sourceEventIngressLock) {
+            synchronized(sourceEventLock) {
+                if (!sourceEventCommandOpen.get()) return
+                val event =
+                    sourceEvents.accept(
+                        eventId,
+                        playlistEntryId,
+                        nativeGeneration,
+                        ingressGeneration,
+                        armGeneration,
+                    ) ?: return
+                synchronized(observers) {
+                    for (observer in observers) observer.playbackEvent(event)
+                }
             }
         }
     }
 
-    fun resetSourceEvents() = synchronized(sourceEventLock) { sourceEvents.disarm() }
+    fun resetSourceEvents() =
+        synchronized(sourceEventIngressLock) {
+            synchronized(sourceEventLock) {
+                sourceEventCommandOpen.set(false)
+                sourceEvents.disarm()
+            }
+        }
 
     fun addLogObserver(o: LogObserver) {
         synchronized(logObservers) {

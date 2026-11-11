@@ -1858,6 +1858,80 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `production seam rejects same-entry ingress after native snapshot before arm`() {
+        val backend = GateArmRaceBackend()
+        val mpv = MPVLib(1L, backend)
+        val player = allocatedMpvPlayerForStartFile(epoch = 432L)
+        setField(player, "isPlayerReady", false)
+        val commands = installProductionSourceSeam(player, mpv)
+        val callbacks = captureEventCallbacks(player)
+        mpv.addObserver(player)
+
+        player.setMediaItems(
+            mutableListOf(
+                mediaItemWithSubtitle(
+                    mediaId = "item-r19-barrier",
+                    uri = "https://media.example/r19-barrier",
+                    subtitle = "https://media.example/r19-barrier.srt",
+                )
+            ),
+            0,
+            0L,
+        )
+        commands.clear()
+        backend.reset()
+
+        val gate = checkNotNull(getField(mpv, "sourceEvents"))
+        val gateHeld = CountDownLatch(1)
+        val releaseArm = CountDownLatch(1)
+        val armBlocker =
+            Thread(
+                    {
+                        synchronized(gate) {
+                            gateHeld.countDown()
+                            check(releaseArm.await(2, TimeUnit.SECONDS)) {
+                                "test arm blocker timed out"
+                            }
+                        }
+                    },
+                    "r19-arm-blocker",
+                )
+                .also(Thread::start)
+        check(gateHeld.await(2, TimeUnit.SECONDS)) { "test arm blocker did not hold the gate" }
+
+        val prepareThread = Thread({ player.prepare() }, "r19-prepare")
+        setField(player, "listeners", ListenerSet<Player.Listener>(prepareThread))
+        prepareThread.start()
+        check(backend.commandEntered.await(2, TimeUnit.SECONDS)) {
+            "production source command did not reach native backend"
+        }
+        val commandThread = checkNotNull(backend.commandThread)
+        backend.releaseCommand()
+        awaitThreadState(commandThread, Thread.State.BLOCKED)
+        val staleThread =
+            Thread({ backend.emitStart(mpv) }, "r19-stale-ingress").also(Thread::start)
+        try {
+            awaitThreadState(staleThread, Thread.State.BLOCKED)
+        } finally {
+            releaseArm.countDown()
+        }
+        prepareThread.join(2_000L)
+        commandThread.join(2_000L)
+        staleThread.join(2_000L)
+        armBlocker.join(2_000L)
+        callbacks.forEach(Runnable::run)
+
+        assertFalse("prepare caller must finish", prepareThread.isAlive)
+        assertFalse("source command must finish", commandThread.isAlive)
+        assertFalse("pre-arm ingress thread must finish", staleThread.isAlive)
+        assertEquals(
+            "native snapshot 后、arm 前进入的 same-entry START 不得领取 successor initial commands",
+            0,
+            subtitleCommandCount(commands),
+        )
+    }
+
+    @Test
     fun `source event int cannot claim current initial commands through production observer`() {
         val backend = ImmediateSourceCommandBackend()
         val mpv = MPVLib(1L, backend)
@@ -1880,10 +1954,21 @@ class PlaybackSessionRulesTest {
         commands.clear()
         player.prepare()
 
-        mpv.event(MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
+        listOf(
+                MpvEvent.MPV_EVENT_START_FILE,
+                MpvEvent.MPV_EVENT_FILE_LOADED,
+                MpvEvent.MPV_EVENT_END_FILE,
+            )
+            .forEach { eventId ->
+                mpv.event(eventId)
+                callbacks.forEach(Runnable::run)
+            }
 
-        assertEquals("source-event event(int) 必须 fail closed", 0, subtitleCommandCount(commands))
+        assertEquals(
+            "source-event event(int) START/FILE_LOADED/END 必须全部 fail closed",
+            0,
+            subtitleCommandCount(commands),
+        )
     }
 
     @Test
@@ -3388,6 +3473,42 @@ class PlaybackSessionRulesTest {
                 nativeGenerationAfterCommand = nativeGeneration.get(),
             )
         }
+    }
+
+    private class GateArmRaceBackend : ImmediateSourceCommandBackend() {
+        private var commandLatch = CountDownLatch(1)
+        private val commandRelease = CountDownLatch(1)
+
+        @Volatile var commandThread: Thread? = null
+
+        val commandEntered: CountDownLatch
+            get() = commandLatch
+
+        fun reset() {
+            commandLatch = CountDownLatch(1)
+            commandThread = null
+        }
+
+        fun releaseCommand() {
+            commandRelease.countDown()
+        }
+
+        override fun commandForSource(
+            instance: Long,
+            command: Array<String>,
+        ): MpvSourceCommandNativeResult {
+            commandThread = Thread.currentThread()
+            val result = super.commandForSource(instance, command)
+            commandLatch.countDown()
+            check(commandRelease.await(2, TimeUnit.SECONDS)) { "test command release timed out" }
+            return result
+        }
+    }
+
+    private fun awaitThreadState(thread: Thread, expected: Thread.State) {
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
+        while (thread.state != expected && System.nanoTime() < deadline) Thread.yield()
+        assertEquals("thread state: ${thread.name}", expected, thread.state)
     }
 
     private fun installRecoverySchedulerIfPresent(

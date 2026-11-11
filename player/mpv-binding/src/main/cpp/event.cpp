@@ -6,6 +6,50 @@
 #include "jni_utils.h"
 #include "log.h"
 
+void begin_source_event_barrier(MPVInstance *instance) {
+    std::unique_lock<std::mutex> lock(instance->source_event_barrier_mutex);
+    instance->source_event_barrier_active.store(true);
+    instance->source_event_barrier_condition.wait(
+        lock,
+        [instance] {
+            return instance->source_event_dispatch_inflight.load() == 0;
+        });
+}
+
+void end_source_event_barrier(MPVInstance *instance) {
+    std::lock_guard<std::mutex> lock(instance->source_event_barrier_mutex);
+    instance->source_event_barrier_request = 0;
+    instance->source_event_barrier_completed = 0;
+    instance->source_event_barrier_active.store(false);
+}
+
+bool complete_source_event_barrier(MPVInstance *instance, uint64_t reply_userdata) {
+    std::lock_guard<std::mutex> lock(instance->source_event_barrier_mutex);
+    if (
+        instance->source_event_barrier_request == 0 ||
+        reply_userdata != instance->source_event_barrier_request
+    ) {
+        return false;
+    }
+    instance->source_event_barrier_completed = reply_userdata;
+    instance->source_event_barrier_condition.notify_all();
+    return true;
+}
+
+static bool begin_source_event_dispatch(MPVInstance *instance) {
+    std::lock_guard<std::mutex> lock(instance->source_event_barrier_mutex);
+    if (instance->source_event_barrier_active.load())
+        return false;
+    instance->source_event_dispatch_inflight.fetch_add(1);
+    return true;
+}
+
+static void end_source_event_dispatch(MPVInstance *instance) {
+    std::lock_guard<std::mutex> lock(instance->source_event_barrier_mutex);
+    instance->source_event_dispatch_inflight.fetch_sub(1);
+    instance->source_event_barrier_condition.notify_all();
+}
+
 
 static void sendPropertyUpdateToJava(JNIEnv *env, MPVInstance* instance, mpv_event_property *prop) {
     jstring jprop = env->NewStringUTF(prop->name);
@@ -99,6 +143,13 @@ void *event_thread(void *arg) {
         if (mp_event->event_id == MPV_EVENT_NONE)
             continue;
 
+        if (
+            mp_event->event_id == MPV_EVENT_GET_PROPERTY_REPLY &&
+            complete_source_event_barrier(instance, mp_event->reply_userdata)
+        ) {
+            continue;
+        }
+
         switch (mp_event->event_id) {
         case MPV_EVENT_LOG_MESSAGE:
             msg = (mpv_event_log_message*)mp_event->data;
@@ -111,33 +162,46 @@ void *event_thread(void *arg) {
             break;
         case MPV_EVENT_START_FILE: {
             auto start_file = static_cast<mpv_event_start_file*>(mp_event->data);
+            const bool deliver = begin_source_event_dispatch(instance);
             instance->active_playlist_entry_id = start_file->playlist_entry_id;
             instance->active_source_generation = ++instance->next_native_generation;
-            sendEventWithIdentityToJava(
-                env,
-                instance,
-                mp_event->event_id,
-                instance->active_playlist_entry_id,
-                instance->active_source_generation);
+            if (deliver) {
+                sendEventWithIdentityToJava(
+                    env,
+                    instance,
+                    mp_event->event_id,
+                    instance->active_playlist_entry_id,
+                    instance->active_source_generation);
+                end_source_event_dispatch(instance);
+            }
             break;
         }
-        case MPV_EVENT_FILE_LOADED:
-            sendEventWithIdentityToJava(
-                env,
-                instance,
-                mp_event->event_id,
-                instance->active_playlist_entry_id,
-                instance->active_source_generation);
+        case MPV_EVENT_FILE_LOADED: {
+            const bool deliver = begin_source_event_dispatch(instance);
+            if (deliver) {
+                sendEventWithIdentityToJava(
+                    env,
+                    instance,
+                    mp_event->event_id,
+                    instance->active_playlist_entry_id,
+                    instance->active_source_generation);
+                end_source_event_dispatch(instance);
+            }
             break;
+        }
         case MPV_EVENT_END_FILE: {
             auto end_file = static_cast<mpv_event_end_file*>(mp_event->data);
+            const bool deliver = begin_source_event_dispatch(instance);
             const bool active = end_file->playlist_entry_id == instance->active_playlist_entry_id;
-            sendEventWithIdentityToJava(
-                env,
-                instance,
-                mp_event->event_id,
-                end_file->playlist_entry_id,
-                active ? instance->active_source_generation : 0);
+            if (deliver) {
+                sendEventWithIdentityToJava(
+                    env,
+                    instance,
+                    mp_event->event_id,
+                    end_file->playlist_entry_id,
+                    active ? instance->active_source_generation : 0);
+                end_source_event_dispatch(instance);
+            }
             if (active) {
                 instance->active_playlist_entry_id = 0;
                 instance->active_source_generation = 0;
