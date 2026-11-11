@@ -8431,6 +8431,32 @@ candidate clean、设备锁 `ACTIVE=0`、owner 自测与 `HANDOFF_LINT=PASS`。�
 QA S2 卡、新 Pad 锁与 QaReady。当前 `QA_READY=NO`、无设备、无 verifier 运行。已完成：本波协议
 与控制面；距发布剩余：R5 接手 → allowlist verifier → 新 QA S2 → 核心旅程/Release。
 
+**进度（2026-11-12，fresh allowlist verifier R1 PASS / QA S2 准备）**：R5 先完成 minimal
+startup spot-check，再派与 owner、R1/R2 verifier、R19 QA、review 和实现角色均不同的 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_ALLOWLIST_PROTOCOL_VERIFIER_R1_2026_11_12`
+（`deepseek-flash / max / fork=none`）。Control `0599059b...` 与 R19
+`1487fa2c... / tree 310f076f... / parent d429b949...` 均 clean；owner report / manifest、
+pre-handoff audit、`78/78` owner manifest、`HANDOFF_LINT=PASS`、memory checker/doctor 和锁
+`ACTIVE=0` 均 PASS。
+
+verifier 报告 `STATUS=PASS`，SHA-256
+`48BD8BD9CB6518B0522498B6080319684A436960CB388CAA239BA66D6F927DDA`；manifest
+`164/164 MATCH` / SHA-256 `09997FE6F603D50BDE65468CDDE0FC1DCF2F6237847B600C051DFE97865CF286`。
+独立复跑 RED `8/8`、GREEN `14/14`、owner adversarial `23/23`、R1 owner `18/18`、
+R1 verifier `16/16`、R2 `28/28`、历史 verifier R2 `17 PASS / 6 FAIL / exit 1`；
+verifier-only synthetic `47/47 PASS`，raw payload / ANSI-control / stderr /
+command detail 泄漏均为 0。静态 `23/23`、冻结 `109/109`、历史 manifest `5/5 / 104 entries`，
+七根 `353` 文件扫描全部 0。故
+`P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01=CLOSED_BY_FRESH_ALLOWLIST_VERIFIER_PASS`。
+
+该 PASS 仅关闭离线 QA 输出安全 P1。R5 已另立 QA S2 最小卡并为 Pad `43af8627` 建立唯一新锁，
+把 exact R19 candidate 切到 `QA_READY=YES`；必须先提交 Control docs，再运行 canonical
+QaReady。QA S2 只允许一次 `<=600 s` 真实窗口，覆盖 progress truth、same identity
+IDLE/UNKNOWN、add/move remap、explicit seek、one-click retry、stale source、per-key
+settings 和真实 libmpv order。真实 wrapper/high-throughput、真机、PLAYER_CORE_RELEASE_MATRIX、
+剩余核心旅程、integration 与 Release 仍未执行。已完成：fresh verifier PASS 与 QA S2
+控制面准备；距发布剩余：canonical QaReady → fresh QA S2 → 剩余核心旅程 → integration → Release。
+
 **范围**：只在新证据根实现离线可复用的 allowlist output projection、log parser、command
 display、artifact path 和 replay tests；产品、测试、schema、Gradle、settings、网络、设备与
 旧证据只读。不得重放 R19 QA，不得申请 Pad/K60，不得改产品或写 Engramory。
