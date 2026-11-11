@@ -7965,7 +7965,15 @@ FAIL 自动另立 R17。
 
 ### 52.61 Progress source-identity / retry-priority R17 native identity 任务卡（2026-11-11）
 
-**状态**：`R17_TASK_CARD_READY / NATIVE_SOURCE_EVENT_IDENTITY_AUTHORIZED / QA_READY=NO`。
+**状态**：`R17_IMPLEMENTATION_IN_PROGRESS / NATIVE_SOURCE_EVENT_IDENTITY_AUTHORIZED /`
+`QA_READY=NO`。
+
+**进度（2026-11-11，R17 implementation 启动）**：用户已授权 native seam。R17 worktree 从
+R15 candidate `dc5c47c9...` 建立且 clean。已派 fresh implementation owner
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R17_2026_11_11`
+（`deepseek-flash / max / fork=none`），先做 20–30 分钟上游 source/JNI/`playlist_entry_id`
+可构建性 spike；确认可行后以正式 RED 实现 seam + MPVPlayer 收敛。当前已完成：R16 API 边界与
+RED 证据；距发布剩余：R17 GREEN、R17 review、Pad QA、其余核心 QA/集成/Release。
 
 R17 从 R15 candidate `dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45` / tree
 `2b9a1bd1195c7657a198413beba6f32ae07b5288` 建立。用户授权的最小新增写域为：
