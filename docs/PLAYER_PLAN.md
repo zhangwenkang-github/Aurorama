@@ -7777,7 +7777,7 @@ fresh owner 完成，再由不同 fresh reviewer 独立 review；review PASS 后
 
 ### 52.59 Progress source-identity / retry-priority R15 任务卡（2026-11-11）
 
-**状态**：`R15_IMPLEMENTATION_IN_PROGRESS / FRESH_OWNER_TDD_RED_THEN_GREEN / QA_READY=NO`。
+**状态**：`R15_IMPLEMENTATION_GREEN / USER_HOLD_BEFORE_R15_SCOPED_REVIEW / QA_READY=NO`。
 
 **进度（2026-11-11，R15 implementation 启动）**：R14 review FAIL 证据已核验为 report SHA-256
 `37399C4A53BD6A5882340E62800DAF0CCD68800A88E9345553C2E307C3862706` / manifest
@@ -7791,6 +7791,22 @@ implementation owner
 （`deepseek-flash / max / fork=none`），要求先固定 stale START、非零 initial window、异步
 command/observe 失败、并发 dispatch 与非法 index 的 production-entry RED，再实现 native
 ownership/locked exactly-once/bounded recovery。尚无 R15 candidate/report；设备与 QA 继续禁止。
+
+**进度（2026-11-11，R15 implementation GREEN / 用户要求先停）**：fresh R15 implementation
+owner 已提交 `dc5c47c9c87ee141d8cd4c66e95d3386c7cb6d45`（tree
+`2b9a1bd1195c7657a198413beba6f32ae07b5288`，parent
+`de7efbcdd9eb2e3d93aafda7b919754dac0e3469`），仅改 `MPVPlayer.kt` 与冻结的既有测试，clean、
+未 push。正式 RED 为 `84/6/0/0` assertion-only；RED/GREEN 测试源码 SHA 均为
+`0B6CE740E8B70AB062D282B7C6E8017FCC96D8AAA5CE150CFC81759EA58C3350`；targeted GREEN
+`84`、player-local `42 suites / 369`、phone `62 suites / 412`。assemble、KTFMT、A0
+`15,494/15,512`、GatePlan/workflow/handoff/Control assemble 均 exit 0；implementation
+manifest `152/152 MATCH`，report SHA-256
+`7052824E9402731C5705820B62FE1A2D4A59928DF553416BB091F799EADF2EF7`，manifest
+`03B577DCB5F3E8051C10DAB3BD2CCBCD62B524506D020C26603890A9B6D5AC4C`。
+用户明确要求本代理完成后先停、待通知再继续，因此 R15 scoped review 尚未启动；R15 review
+evidence 不存在，设备锁 `ACTIVE=0`。R14 四个 P1 与相关 P2 仅为
+`CLOSED_IMPLEMENTATION_PENDING_R15_REVIEW`，不是产品 PASS；产品
+`P1-PLAYER-PROGRESS-001`、`P2-PLAYER-LOADING-001`、`P2-PLAYER-STALL-001` 仍开放。
 
 R15 从 R14 candidate `de7efbcdd9eb2e3d93aafda7b919754dac0e3469` / tree
 `53d95a77d3b97d91b05bc423bd3de954a1be44c9` 隔离建立，保留 R14 已通过的 marker value 绑定、
