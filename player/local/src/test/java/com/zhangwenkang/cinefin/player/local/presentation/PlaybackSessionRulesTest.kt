@@ -13,7 +13,10 @@ import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.mpv.MpvSourcePositionState
+import dev.jdtech.mpv.MPVLib
 import dev.jdtech.mpv.MPVLib.MpvEvent
+import dev.jdtech.mpv.MpvSourceCommandBackend
+import dev.jdtech.mpv.MpvSourceCommandNativeResult
 import dev.jdtech.mpv.binding.MpvPlaybackEvent
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -23,6 +26,8 @@ import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import javax.tools.ToolProvider
@@ -1796,6 +1801,156 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `production seam rejects pre-command same-entry start then accepts current start once`() {
+        val backend = BlockingSourceCommandBackend()
+        val mpv = MPVLib(1L, backend)
+        backend.attach(mpv)
+        val player = allocatedMpvPlayerForStartFile(epoch = 431L)
+        setField(player, "isPlayerReady", false)
+        val commands = installProductionSourceSeam(player, mpv)
+        val callbacks = captureEventCallbacks(player)
+        mpv.addObserver(player)
+
+        player.setMediaItems(
+            mutableListOf(
+                mediaItemWithSubtitle(
+                    mediaId = "item-r18-race",
+                    uri = "https://media.example/r18-race",
+                    subtitle = "https://media.example/r18-race.srt",
+                )
+            ),
+            0,
+            0L,
+        )
+        commands.clear()
+        player.prepare()
+        val gate = checkNotNull(getField(mpv, "sourceEvents"))
+        val staleThread =
+            checkNotNull(backend.staleThread) { "source command seam was not executed" }
+        staleThread.join(2_000L)
+
+        assertEquals(
+            "racing event must enter sourceEventLock before command returns",
+            Thread.State.BLOCKED,
+            backend.observedState,
+        )
+        assertFalse(
+            "racing event thread must finish after command releases the gate",
+            staleThread.isAlive,
+        )
+        assertEquals(
+            "pre-command same-entry START 不得被 arm 后消费",
+            false,
+            getField(gate, "startObserved"),
+        )
+        assertEquals(
+            "pre-command same-entry START 不得领取 successor initial commands: commands=$commands",
+            0,
+            subtitleCommandCount(commands),
+        )
+
+        backend.emitStart(mpv)
+        callbacks.forEach(Runnable::run)
+        assertEquals("arm 后合法 current START 必须一次成功", 1, subtitleCommandCount(commands))
+        backend.emitStart(mpv)
+        callbacks.forEach(Runnable::run)
+        assertEquals("current START 不得重复领取 initial commands", 1, subtitleCommandCount(commands))
+    }
+
+    @Test
+    fun `source event int cannot claim current initial commands through production observer`() {
+        val backend = ImmediateSourceCommandBackend()
+        val mpv = MPVLib(1L, backend)
+        val player = allocatedMpvPlayerForStartFile(epoch = 433L)
+        setField(player, "isPlayerReady", false)
+        val commands = installProductionSourceSeam(player, mpv)
+        val callbacks = captureEventCallbacks(player)
+        mpv.addObserver(player)
+        player.setMediaItems(
+            mutableListOf(
+                mediaItemWithSubtitle(
+                    mediaId = "item-r18-event-int",
+                    uri = "https://media.example/r18-event-int",
+                    subtitle = "https://media.example/r18-event-int.srt",
+                )
+            ),
+            0,
+            0L,
+        )
+        commands.clear()
+        player.prepare()
+
+        mpv.event(MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+
+        assertEquals("source-event event(int) 必须 fail closed", 0, subtitleCommandCount(commands))
+    }
+
+    @Test
+    fun `pre-arm current start is recovered by bounded same-entry rearm`() {
+        val backend = BlockingSourceCommandBackend()
+        val mpv = MPVLib(1L, backend)
+        backend.attach(mpv)
+        val player = allocatedMpvPlayerForStartFile(epoch = 435L)
+        setField(player, "isPlayerReady", false)
+        val commands = installProductionSourceSeam(player, mpv)
+        val callbacks = captureEventCallbacks(player)
+        mpv.addObserver(player)
+        player.setMediaItems(
+            mutableListOf(
+                mediaItemWithSubtitle(
+                    mediaId = "item-r18-bounded",
+                    uri = "https://media.example/r18-bounded",
+                    subtitle = "https://media.example/r18-bounded.srt",
+                )
+            ),
+            0,
+            0L,
+        )
+        commands.clear()
+        player.prepare()
+        backend.staleThread?.join(2_000L)
+        assertEquals(
+            "scenario requires the pre-arm event to be blocked",
+            Thread.State.BLOCKED,
+            backend.observedState,
+        )
+        val gate = checkNotNull(getField(mpv, "sourceEvents"))
+        assertEquals(
+            "pre-arm current START 必须在 arm 边界前 fail closed",
+            false,
+            getField(gate, "startObserved"),
+        )
+        assertEquals(
+            "pre-arm current START 不得发布 initial commands",
+            0,
+            subtitleCommandCount(commands),
+        )
+
+        var steps = 0
+        while (
+            commands.count { it.firstOrNull() == "loadfile" } < 2 &&
+                steps < 8 &&
+                runNextRecovery(player)
+        ) {
+            steps++
+        }
+        assertEquals(
+            "pre-arm current START 被拒绝后必须 bounded drain + 同 entry rearm: steps=$steps commands=$commands",
+            2,
+            commands.count { it.firstOrNull() == "loadfile" },
+        )
+
+        backend.emitStart(mpv)
+        callbacks.forEach(Runnable::run)
+        assertEquals(
+            "bounded rearm 后 current START 必须发布 initial commands 恰好一次",
+            1,
+            subtitleCommandCount(commands),
+        )
+    }
+
+    @Test
     fun `nonzero initial window publishes bootstrap append and target source sequence once`() {
         val first =
             mediaItemWithSubtitle(
@@ -3134,6 +3289,105 @@ class PlaybackSessionRulesTest {
                 }
             }
         field.set(player, proxy)
+    }
+
+    private fun installProductionSourceSeam(
+        player: MPVPlayer,
+        mpv: MPVLib,
+    ): MutableList<List<String>> {
+        setField(player, "mpvLib", mpv)
+        val commands = mutableListOf<List<String>>()
+        assertTrue(
+            "production seam test must enable MPVPlayer command path",
+            trySetField(player, "commandsClosed", AtomicBoolean(false)),
+        )
+        installCommandExecutor(player) { captured ->
+            commands += captured.arguments
+            captured.complete()
+        }
+        val sourceExecutor: (Array<String>, Long, (Boolean) -> Unit) -> Unit =
+            { command, actionGeneration, done ->
+                commands += command.toList()
+                done(mpv.commandForSource(command, actionGeneration).accepted)
+            }
+        setField(player, "sourceCommandExecutor", sourceExecutor)
+        return commands
+    }
+
+    private open class ImmediateSourceCommandBackend : MpvSourceCommandBackend {
+        protected val nativeGeneration = AtomicLong(10L)
+        protected var blockedThread: Thread? = null
+        protected var isBlockingStartEnabled = false
+
+        override fun nativeGeneration(instance: Long): Long = nativeGeneration.get()
+
+        override fun commandForSource(
+            instance: Long,
+            command: Array<String>,
+        ): MpvSourceCommandNativeResult {
+            return MpvSourceCommandNativeResult(
+                playlistEntryId = SAME_ENTRY_ID,
+                nativeGenerationAfterCommand = nativeGeneration.get(),
+            )
+        }
+
+        fun emitStart(mpv: MPVLib) {
+            mpv.eventWithIdentity(
+                MpvEvent.MPV_EVENT_START_FILE,
+                SAME_ENTRY_ID,
+                nativeGeneration.incrementAndGet(),
+            )
+        }
+
+        companion object {
+            const val SAME_ENTRY_ID = 42L
+        }
+    }
+
+    private class BlockingSourceCommandBackend : ImmediateSourceCommandBackend() {
+        private lateinit var mpv: MPVLib
+        var observedState: Thread.State = Thread.State.NEW
+
+        val staleThread: Thread?
+            get() = blockedThread
+
+        fun attach(mpv: MPVLib) {
+            this.mpv = mpv
+            isBlockingStartEnabled = true
+        }
+
+        override fun commandForSource(
+            instance: Long,
+            command: Array<String>,
+        ): MpvSourceCommandNativeResult {
+            if (!isBlockingStartEnabled) {
+                return super.commandForSource(instance, command)
+            }
+            isBlockingStartEnabled = false
+            val entered = CountDownLatch(1)
+            val generation = nativeGeneration.incrementAndGet()
+            blockedThread =
+                Thread({
+                        entered.countDown()
+                        mpv.eventWithIdentity(
+                            MpvEvent.MPV_EVENT_START_FILE,
+                            SAME_ENTRY_ID,
+                            generation,
+                        )
+                    })
+                    .also(Thread::start)
+            assertTrue("racing event thread must start", entered.await(2, TimeUnit.SECONDS))
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
+            while (blockedThread?.state != Thread.State.BLOCKED && System.nanoTime() < deadline) {
+                Thread.yield()
+            }
+            observedState = blockedThread?.state ?: Thread.State.NEW
+            assertEquals(Thread.State.BLOCKED, observedState)
+            return MpvSourceCommandNativeResult(
+                playlistEntryId = SAME_ENTRY_ID,
+                nativeGenerationAfterCommand = nativeGeneration.get(),
+            )
+        }
     }
 
     private fun installRecoverySchedulerIfPresent(

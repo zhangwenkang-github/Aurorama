@@ -5,6 +5,18 @@ import android.view.Surface
 import dev.jdtech.mpv.binding.MpvPlaybackEvent
 import dev.jdtech.mpv.binding.MpvSourceCommandResult
 import dev.jdtech.mpv.binding.MpvSourceEventGate
+import java.util.concurrent.atomic.AtomicLong
+
+internal data class MpvSourceCommandNativeResult(
+    val playlistEntryId: Long,
+    val nativeGenerationAfterCommand: Long,
+)
+
+internal interface MpvSourceCommandBackend {
+    fun nativeGeneration(instance: Long): Long
+
+    fun commandForSource(instance: Long, command: Array<String>): MpvSourceCommandNativeResult
+}
 
 @Suppress("unused")
 class MPVLib private constructor(nativePtr: Long) {
@@ -13,9 +25,27 @@ class MPVLib private constructor(nativePtr: Long) {
     private val logObservers = mutableListOf<LogObserver>()
     private val sourceEvents = MpvSourceEventGate()
     private val sourceEventLock = Any()
+    private val sourceEventIngressGeneration = AtomicLong()
+    private var sourceCommandBackend: MpvSourceCommandBackend =
+        object : MpvSourceCommandBackend {
+            override fun nativeGeneration(instance: Long) = nativeGetNativeGeneration(instance)
+
+            override fun commandForSource(instance: Long, command: Array<String>) = nativeCommandForSource(instance, command)
+                ?.takeIf { it.size >= 2 }
+                ?.let { MpvSourceCommandNativeResult(it[0], it[1]) }
+                ?: MpvSourceCommandNativeResult(-1L, nativeGetNativeGeneration(instance))
+        }
+
+    internal constructor(
+        nativePtr: Long,
+        sourceCommandBackend: MpvSourceCommandBackend,
+    ) : this(nativePtr) {
+        nativeInstance = nativePtr
+        this.sourceCommandBackend = sourceCommandBackend
+    }
 
     companion object {
-        init {
+        private fun loadNativeLibraries() {
             val libs = arrayOf("mpv", "player")
             for (lib in libs) {
                 System.loadLibrary(lib)
@@ -24,6 +54,7 @@ class MPVLib private constructor(nativePtr: Long) {
 
         @JvmStatic
         fun create(context: Context): MPVLib? {
+            loadNativeLibraries()
             val appCtx = context.applicationContext
 
             val instance = MPVLib(0L)
@@ -80,20 +111,25 @@ class MPVLib private constructor(nativePtr: Long) {
     fun commandForSource(cmd: Array<String>, actionGeneration: Long): MpvSourceCommandResult =
         synchronized(sourceEventLock) {
             checkCreated()
-            val baselineGeneration = nativeGetNativeGeneration(nativeInstance)
-            val playlistEntryId = nativeCommandForSource(nativeInstance, cmd)
+            val nativeResult = sourceCommandBackend.commandForSource(nativeInstance, cmd)
+            val playlistEntryId = nativeResult.playlistEntryId
             if (playlistEntryId <= 0L) {
                 sourceEvents.disarm()
                 MpvSourceCommandResult(accepted = false)
             } else {
-                sourceEvents.arm(playlistEntryId, actionGeneration, baselineGeneration)
+                sourceEvents.arm(
+                    playlistEntryId,
+                    actionGeneration,
+                    nativeResult.nativeGenerationAfterCommand,
+                    sourceEventIngressGeneration.get(),
+                )
                 MpvSourceCommandResult(
                     accepted = true,
                     playlistEntryId = playlistEntryId,
                 )
             }
         }
-    private external fun nativeCommandForSource(instance: Long, cmd: Array<String>): Long
+    private external fun nativeCommandForSource(instance: Long, cmd: Array<String>): LongArray?
     private external fun nativeGetNativeGeneration(instance: Long): Long
 
     fun setOptionString(name: String, value: String): Int {
@@ -215,8 +251,15 @@ class MPVLib private constructor(nativePtr: Long) {
         playlistEntryId: Long,
         nativeGeneration: Long,
     ) {
+        val ingressGeneration = sourceEventIngressGeneration.incrementAndGet()
         synchronized(sourceEventLock) {
-            val event = sourceEvents.accept(eventId, playlistEntryId, nativeGeneration) ?: return
+            val event =
+                sourceEvents.accept(
+                    eventId,
+                    playlistEntryId,
+                    nativeGeneration,
+                    ingressGeneration,
+                ) ?: return
             synchronized(observers) {
                 for (observer in observers) observer.playbackEvent(event)
             }

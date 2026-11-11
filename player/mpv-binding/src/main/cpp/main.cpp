@@ -29,7 +29,7 @@ extern "C" {
     jni_func(void, nativeInit, jlong instance);
     jni_func(void, nativeDestroy, jlong instance);
     jni_func(void, nativeCommand, jlong instance, jobjectArray jarray);
-    jni_func(jlong, nativeCommandForSource, jlong instance, jobjectArray jarray);
+    jni_func(jlongArray, nativeCommandForSource, jlong instance, jobjectArray jarray);
     jni_func(jlong, nativeGetNativeGeneration, jlong instance);
 };
 
@@ -171,16 +171,16 @@ static int64_t current_playlist_entry_id(mpv_handle *mpv) {
     return playlist_entry_id;
 }
 
-jni_func(jlong, nativeCommandForSource, jlong instance, jobjectArray jarray) {
+jni_func(jlongArray, nativeCommandForSource, jlong instance, jobjectArray jarray) {
     auto mpv_instance = reinterpret_cast<MPVInstance*>(instance);
     if (!mpv_instance->mpv)
-        return -1;
+        return nullptr;
 
     const char *arguments[128] = { nullptr };
     jstring stringRefs[128] = { nullptr };
     const int len = env->GetArrayLength(jarray);
     if (len >= ARRAYLEN(arguments))
-        return -1;
+        return nullptr;
 
     for (int i = 0; i < len; ++i) {
         stringRefs[i] = static_cast<jstring>(env->GetObjectArrayElement(jarray, i));
@@ -196,13 +196,23 @@ jni_func(jlong, nativeCommandForSource, jlong instance, jobjectArray jarray) {
         mpv_free_node_contents(&result);
     if (playlist_entry_id <= 0 && command_result >= 0)
         playlist_entry_id = current_playlist_entry_id(mpv_instance->mpv);
+    const int64_t native_generation_after_command =
+        mpv_instance->next_native_generation.load();
     for (int i = 0; i < len; ++i) {
         if (stringRefs[i]) {
             env->ReleaseStringUTFChars(stringRefs[i], arguments[i]);
             env->DeleteLocalRef(stringRefs[i]);
         }
     }
-    return playlist_entry_id;
+    const jlong values[2] = {
+        static_cast<jlong>(playlist_entry_id),
+        static_cast<jlong>(native_generation_after_command),
+    };
+    jlongArray command_result_array = env->NewLongArray(2);
+    if (!command_result_array)
+        return nullptr;
+    env->SetLongArrayRegion(command_result_array, 0, 2, values);
+    return command_result_array;
 }
 
 jni_func(jlong, nativeGetNativeGeneration, jlong instance) {

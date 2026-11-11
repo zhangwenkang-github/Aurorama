@@ -4,6 +4,7 @@ class MpvSourceEventGate {
     private var expectedPlaylistEntryId = 0L
     private var expectedActionGeneration = 0L
     private var nativeGenerationFloor = 0L
+    private var sourceEventGenerationFloor = 0L
     private var activeNativeGeneration = 0L
     private var startObserved = false
     private var loadedObserved = false
@@ -11,10 +12,16 @@ class MpvSourceEventGate {
     private var armed = false
 
     @Synchronized
-    fun arm(playlistEntryId: Long, actionGeneration: Long, afterNativeGeneration: Long) {
+    fun arm(
+        playlistEntryId: Long,
+        actionGeneration: Long,
+        afterNativeGeneration: Long,
+        afterSourceEventGeneration: Long = 0L,
+    ) {
         expectedPlaylistEntryId = playlistEntryId
         expectedActionGeneration = actionGeneration
         nativeGenerationFloor = afterNativeGeneration
+        sourceEventGenerationFloor = afterSourceEventGeneration
         activeNativeGeneration = 0L
         startObserved = false
         loadedObserved = false
@@ -33,12 +40,14 @@ class MpvSourceEventGate {
         eventId: Int,
         playlistEntryId: Long,
         nativeGeneration: Long,
+        sourceEventGeneration: Long = Long.MAX_VALUE,
     ): MpvPlaybackEvent? {
         if (
             !armed ||
                 closed ||
                 playlistEntryId != expectedPlaylistEntryId ||
-                nativeGeneration <= nativeGenerationFloor
+                nativeGeneration <= nativeGenerationFloor ||
+                sourceEventGeneration <= sourceEventGenerationFloor
         ) {
             return null
         }
