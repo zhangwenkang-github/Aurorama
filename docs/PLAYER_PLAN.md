@@ -7678,7 +7678,7 @@ FAIL 自动另立 R14，不得在 R13 内补丁。
 
 ### 52.58 Progress source-identity / retry-priority R14 任务卡（2026-11-11）
 
-**状态**：`R14_IMPLEMENTATION_GREEN / R14_SCOPED_REVIEW_IN_PROGRESS / QA_READY=NO`。
+**状态**：`R14_SCOPED_REVIEW=FAIL / BLOCKED_HISTORY / R15_REQUIRED / QA_READY=NO`。
 
 **进度（2026-11-11，R14 implementation 启动）**：R13 review FAIL 证据已核验为 report SHA-256
 `A7F82C54A1B3FEDE9F617F96C0859021ABA77D10CCA880733E487D437CF320ED` / manifest
@@ -7707,6 +7707,21 @@ pending marker 确认后发布同份 source command，并移除 R13 反射 token
 scoped reviewer `AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R14_S1_2026_11_11`
 （`deepseek-flash / max / fork=none`）。review 结论尚未生成；PASS 前禁止 Pad 锁、QaReady、
 QA/设备，FAIL 必须另立 R15。
+
+**进度（2026-11-11，R14 scoped review FAIL / R15 required）**：fresh reviewer 独立复核对象、
+targeted `78/0/0/0`、player-local `363`、phone 证据 `412`、manifest `196/196 MATCH` 与静态门禁
+后判定 `R14_SCOPED_REVIEW=FAIL`。R13 reflection token reader 已移除，marker value 精确匹配与
+marker/source command 顺序通过；仍存在四个 P1：① current marker 后旧 no-token `START_FILE`
+可错领新 attempt 的 initial commands/barrier；② `postCommand()` 只证明 executor 调用，
+异步 marker/source command 失败不可观察且无 source retry，同 epoch pending 可永久 starvation；
+③ `startIndex>0` 的 initial window 中 index 0 `loadfile` 被 current-source 门禁拒绝、index N
+`playlist-play-index` 永久 pending，真实音乐控制器的非零 `currentIndex` 可达；④
+`postSourceStartCommand()` 在锁外调用 `dispatchSourceStartLocked()`，与 marker callback 并发
+时可能重复发布。P2 为 add/remove/move 负 index 未统一原子拒绝，以及 RED 时刻测试源码快照/SHA
+缺失。Review report SHA-256
+`37399C4A53BD6A5882340E62800DAF0CCD68800A88E9345553C2E307C3862706`，manifest
+`F63DCA55B8ACE27B1F62E0A6414876571782FA7585586019C01A486832AB9D31`。R14 保持
+`FAIL / BLOCKED_HISTORY`，不得同卡补丁；未申请 Pad 锁、未 QaReady、未 QA。
 
 R14 从 R13 candidate `4f46ab0904b9c899c8c68ed3c8e2797903641b5a` / tree
 `93c70fc1b6ec0e574824537976c1550792c37dc4` 隔离建立，保留 R13 已通过的 R12
@@ -7759,3 +7774,74 @@ version/signing/workflow/release，以及设备/ADB/截图/生产写。A0 baseli
 `15,510` / headroom 2，R14 不得增长；必要时只做同路径无损压缩。R14 implementation 必须由
 fresh owner 完成，再由不同 fresh reviewer 独立 review；review PASS 后才申请 Pad `43af8627`
 锁与 `QaReady`，K60 仍禁止。任何 R14 review FAIL 自动另立 R15，不得在 R14 内补丁。
+
+### 52.59 Progress source-identity / retry-priority R15 任务卡（2026-11-11）
+
+**状态**：`R15_TASK_CARD_READY / R15_IMPLEMENTATION_REQUIRED / QA_READY=NO`。
+
+R15 从 R14 candidate `de7efbcdd9eb2e3d93aafda7b919754dac0e3469` / tree
+`53d95a77d3b97d91b05bc423bd3de954a1be44c9` 隔离建立，保留 R14 已通过的 marker value 绑定、
+marker/source command 顺序、R13 reflection reader 移除、R12 旧 END/next-gate、titleless/
+redirect/canonical、same-identity、batch/range、property/eventId gate 与真实 PLAYING 回归。
+唯一目标是关闭 R14 review 的四个 P1、两个 P2：
+
+1. **native START/END 唯一 ownership**
+   - `START_FILE` / `FILE_LOADED` 本身没有 token；仅凭“当前唯一 in-flight”不足以证明事件来自
+     current source action。必须定义并实现可证明的 native 事件屏障/序列化或可恢复 fail-closed
+     协议，使 current marker 后迟到的旧 START/END 不能领取新 attempt 的 initial commands、
+     不能提前释放 barrier、不能推进 pending/跨 source。
+   - 精确反例：`A1 in-flight -> A3 marker ack 并晋升 -> A1 延迟 START_FILE -> A3 真实 START`。
+     A1 事件必须被拒绝或隔离，A3 initial commands 与 barrier 仍必须最终恰好一次完成。
+   - 同 URI A/B/A、旧 END、仅 FILE_LOADED、claim 后 mutation、旧事件无 terminal 与 current 唯一
+     事件都必须有确定结果；不得 guessing current、重复或永久饿死。
+2. **command acknowledgement / bounded recovery**
+   - source marker 与 source command 必须有可观察的完成/失败边界；不能把异步
+     `commandHandler.post` 或 `postCommand()` 返回值冒充 libmpv 已接受命令。
+   - marker 持续失败、property observe 丢失/合并、source command 失败、pending 无 terminal 或
+     同 epoch in-flight 永久无事件时，必须有有界 recovery generation/deadline 与安全
+     replacement；current command 最终可重发但不得重复发布或跨 source。
+   - `commandDispatched` 只有在可证明命令实际进入 production executor 后才置位；失败必须允许
+     受控重试。source command 的 post 与状态必须处于同一临界区，禁止锁外 dispatch race。
+   - 测试必须覆盖异步失败、持续失败、第一 command 失败、marker 丢失、重入和并发 marker/event；
+     不得仅用同步抛错模拟全部 native 失败。
+3. **non-zero initial window**
+   - `setMediaItems(items, startIndex>0, 0)` 后 `prepare()` 必须发布可完成的 initial sequence：
+     首个实际 `loadfile`、append 项、以及目标 `playlist-play-index` 均不得因 current owner/index
+     门禁形成永久 pending；最终目标 source command 与 initial commands 恰好一次。
+   - 覆盖真实 `MusicPlaybackControllerImpl` 调用形状的 production public path；禁止只测 index 0。
+4. **atomic invalid index**
+   - `addMediaItems`、`removeMediaItems`、`moveMediaItems` 的任一负 index / 非法 range 必须在
+     internal state、epoch、pending 或 native command 改变前原子拒绝；不得 clamp/no-op/部分执行。
+   - 合法 batch/range 顺序与已有 command gate 保持。
+5. **RED/GREEN source provenance**
+   - 先在 R13/R14 base 的既有 test path 取得 assertion-only RED，并把 RED 时刻
+     `PlaybackSessionRulesTest.kt` 字节快照与 SHA-256 存入 evidence；随后冻结测试源码，只改
+     production path，最终 GREEN 测试文件 SHA 必须与 RED 快照一致。
+   - formal test 必须经过 public `setMediaItems()` / `prepare()`、production command executor 与
+     public event/eventProperty callback；不得 reflection 注入 token、预置事件 ownership、过滤
+     formal marker/source command 或调用 private release helper。test harness 可模拟 native
+     callback，但必须由 production 发出的 marker/command 驱动。
+6. **冻结回归**
+   - 保留 R12 `END_FILE(A)->START_FILE(B)->FILE_LOADED(B)` barrier；FILE_LOADED resolve E3 后
+     handler 前 E4：E3=0、E4=1。
+   - 保留 titleless/redirect/non-visible、canonical `%2F/%3F/%26` 不折叠与 `%20` 等价、
+     同 URI A/B/A、public prepare owner-before-loadfile、missing URI/requestMetadata-only、
+     same-identity IDLE/UNKNOWN/BUFFERING/PLAYING、合法 batch/range、String/Boolean/eventId
+     gate 与真实 PLAYING fixture。
+
+允许五路径固定为：
+
+```text
+app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/player/PlayerControlOverlay.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt
+player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt
+```
+
+禁止新 production/test file、`CinefinPlaybackService.kt`、schema/settings/metadata/A0 baseline/
+version/signing/workflow/release，以及设备/ADB/截图/生产写。A0 baseline `15,512`，R14 当前
+`15,512` / headroom 0，R15 不得增长；必须同路径压缩旧注释/非行为代码腾出实现空间。R15
+implementation 必须由 fresh owner 完成，再由不同 fresh reviewer 独立 review；review PASS 后
+才申请 Pad `43af8627` 锁与 `QaReady`，K60 仍禁止。任何 R15 review FAIL 自动另立 R16，不得在
+R15 内补丁。
