@@ -8559,3 +8559,15 @@ R5 不自动创建 capture R2，也不继续设备/产品/QA 工作。下一步�
 已完成：crash diagnosis R1 与 capture R1 安全止损；距发布剩余：用户对 resource-output P2
 的新授权/止损决定 → 可选安全 capture → 最小修复/复审/QA → 剩余核心旅程 → integration →
 Release。
+
+**交接（2026-11-12，R5 → R6 / context 357,898）**：用户在看到 resource-output P2 后明确授权
+继续下一步。R5 实测上下文 `357,898/1,048,576（34.1%）`，已超过 35 万交接线，因此停止扩项，
+完成 ACTIVE/docs/memory/pre-handoff audit 后交接到
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R6_2026_11_12`。
+
+R6 的第一项实际工作不是设备测试，而是纯离线建立
+`R19_SAFE_CAPTURE_INPUT_BOUNDARY_R1`：输入只接受固定 operation ID，资源由内部安全 provider
+解析；命令、参数、异常、原始日志和真实资源值不得进入 owner 工具输出、脚本、artifact、report 或
+聊天。先用合成数据完成 RED/GREEN 并由不同 fresh verifier 通过，才可另立一次新 Pad 锁与
+sanitized capture R2。当前 P2
+`P2-CAPTURE-R1-RESOURCE-OUTPUT-BOUNDARY-BREACH` 保持 OPEN，锁 `ACTIVE=0`，QA_READY=NO。
