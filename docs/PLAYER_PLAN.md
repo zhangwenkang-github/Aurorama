@@ -8518,3 +8518,23 @@ log、产品 / 测试 / schema / Gradle / settings 写、QA 重放和 merge/inte
 候选引入 / 继承 / 环境分类、假设与反证矩阵和最小下一步；能用静态/离线证据证明才可声称根因，
 单一崩溃信号或代码气味不得冒充证明。已完成：QA S2 失败收口与诊断卡路由；距发布剩余：
 crash diagnosis R1 → 最小修复决策 → 新复审/QA → 剩余核心旅程 → integration → Release。
+
+**进度（2026-11-12，crash diagnosis R1 `NEEDS_DEVICE_EVIDENCE` / sanitized capture R1）**：fresh
+只读诊断 owner 已复核 exact candidate、QA S2 fixed signals、R19 七路径 diff、APK signature/ABI/
+alignment、native entries、ELF/JNI/DEX、依赖闭包与 fallback-session consumer。结论为
+`STATUS=NEEDS_DEVICE_EVIDENCE / CAUSE_NOT_PROVEN=YES`：Activity setup 与 native load 可能性较低，
+问题收窄到 MPV 播放启动域但无法区分 mpv init、R19 source barrier、first render/audio 或继承
+native 路径；APK/native packaging 未发现缺陷，R19 barrier 无超时等待仍是 liveness 风险但无
+证据证明是本次进程死亡根因，fallback-session pref 更可能是正常初始化副作用/共现。Diagnosis
+report SHA-256 `3565DB62C57DF1A8366239B2665EB5ECBFF9B922A2DABD257F44536D3BBC2895`，manifest
+`11/11` / SHA-256 `F641DECFDDCF16BA1628962E1033FBAADA2279FDA5F01AEF4184D4705293C3C7`。
+
+用户网络中断后明确恢复并继续。R5 已另立一次性的 sanitized crash-capture R1 卡和新 Pad
+`43af8627` 锁，路由全新
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_SANITIZED_CRASH_CAPTURE_OWNER_R1_2026_11_12`
+（`deepseek-flash / max / fork=none`）。严格限制一次 exact candidate 播放启动尝试、capture
+window `<=300 s`、锁 `<=20 min`；raw logcat/tombstone/command/exception/resource 只在进程内存，
+输出仅允许 signal、异常类、线程/模块 basename、build-id、相对 PC 与关键 backtrace 帧。
+禁止重装、第二 attempt、截图、K60、生产写、产品/测试/schema/Gradle/settings 写、QA、
+merge/integration/Release。已完成：静态诊断收口与新设备取证门；距发布剩余：sanitized crash
+capture → 最小修复决策/实现 → fresh review/QA → 剩余核心旅程 → integration → Release。
