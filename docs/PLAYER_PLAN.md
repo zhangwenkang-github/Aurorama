@@ -8678,3 +8678,25 @@ R6 已另立 repair verifier 根并路由不同 fresh
 Pad 锁与 capture R2。已完成：最小 repair 与 owner self-test；距发布剩余：different fresh
 repair verifier → 用户设备决策/新 Pad 锁/capture R2 → crash 最小修复或 scoping →
 fresh review/QA → 剩余核心旅程 → integration → Release。
+
+**进度（2026-11-12，safe-input repair R2 verifier PASS）**：不同 fresh repair verifier
+独立复跑 R1 owner RED `8/8` / GREEN `30/30`、repair RED `4/4` / GREEN `30/30`、exact
+`3/3`、public format-control `4/4`、provider 未启动 `4/4`、provider direct reject
+`4/4`、negative `14/14` 与 Unicode replay `2/2`，全部 PASS。verifier-only 追加 21 类 /
+每类 2 次 / 56 次执行，结果 `56 PASS / 0 FAIL`；format-control 未启动 provider child
+`6/6`，provider-start counter 正控制 `2/2`；outer/provider 均实际采用 visible-ASCII +
+ordinal exact。AST `9/9`，UTF-8/LF、manifest `6/6`、泄漏/路径扫描全部 PASS。
+
+verifier report SHA-256
+`BC548B078C3A818D6F640E51A419C409B6BEF96317DBFF1EAECF602C24FDB675`，manifest SHA-256
+`BCCC44D39505BA29F5BBDC24C7D7ECD0D32D51D013E3CACC368882943FD28EC8`。
+`P2-R19-SAFE-INPUT-UNICODE-FORMAT-CONTROL-ACCEPTED` 已由独立 repair verifier
+`CLOSED_BY_INDEPENDENT_REPAIR_VERIFIER_R2`；这一 PASS 只关闭离线输入安全 P2，不是
+`P2-CAPTURE-R1-RESOURCE-OUTPUT-BOUNDARY-BREACH`、产品 QA、真实 capture 或 Release PASS。
+
+当前唯一阻断是新的设备决策门：capture P2 仍 OPEN、P1 播放崩溃仍 OPEN、`QA_READY=NO`、
+`LOCK_ACTIVE=0`、`RELEASE_FROZEN`。下一步需用户显式授权或拒绝新 Pad `43af8627` 独占锁与
+一次 `<=300 s` sanitized capture R2；未授权前不得 ADB、设备、K60、QaReady、QA、
+merge/integration/Release。已完成：安全输入 owner→独立 verifier 全链 PASS；距发布剩余：
+用户设备决策 → capture R2 → crash 最小修复或 scoping → fresh review/QA → 剩余核心旅程 →
+integration → Release。
