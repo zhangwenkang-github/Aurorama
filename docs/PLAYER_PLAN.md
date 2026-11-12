@@ -8620,3 +8620,24 @@ R6 停止回报用户；verifier PASS 前 ADB、设备、锁、QaReady、QA、ca
 merge/integration/Release 全部禁止。已完成：owner 自测收口与独立 verifier 派单；距发布剩余：
 different fresh verifier PASS → 新 Pad 锁/capture R2 → crash 最小修复或 scoping →
 fresh review/QA → 剩余核心旅程 → integration → Release。
+
+**进度（2026-11-12，safe-input verifier R1 FAIL / R6 STOP）**：不同 fresh verifier 独立复跑
+owner RED `8/8`、GREEN `30/30`、AST `6/6`、manifest `13/13` PASS，并追加 verifier-only
+`59` 类 / `118` 次 probes，得到 `57 PASS / 2 FAIL`。失败根因是 owner
+`Get-OperationDescriptor` 使用文化敏感比较；合法 operation ID 注入 `U+202E` 或 `U+200D`
+后仍被接受并返回 `SAFE_INPUT_RESULT / OK / NONE`，ordinal exact match 为 `NO`，两次重复均复现。
+
+新增 `P2-R19-SAFE-INPUT-UNICODE-FORMAT-CONTROL-ACCEPTED:OPEN`。verifier report SHA-256
+`7EE64CAA15E3B5B909B7C38209BED182B8DB6B96BD1756E2621328A37BEABB69`，manifest
+`22/22 MATCH` / SHA-256
+`AD6C4F3450755CDCB41895ECE3DEAE732C81646016C465491D8B2BEC6D70B9BD`；raw payload、
+command、exception、ANSI/control、URL-like 与 input-derived path 均为 0。该 FAIL 是离线输入
+identity 绕过，不是产品 QA、真实 capture 或播放结论。
+
+按 verifier FAIL 硬门，R6 已停止且不会自动创建 R2 repair、capture R2、设备锁、QaReady 或 QA。
+下一步只能由用户显式决定：授权一次新的 fresh 最小 ordinal / Unicode format-control repair、
+选择替代 safe-input 设计，或停止 1.4.1 发布链。若授权 repair，必须使用与本次 owner、verifier
+均不同的全新 owner，完成后再由另一 fresh verifier 从头验证；当前 `QA_READY=NO`、锁
+`ACTIVE=0`、`RELEASE_FROZEN`。已完成：safe-input owner + verifier 门与 FAIL 收口；距发布剩余：
+用户决策 → 可选 fresh repair + different fresh verifier → 新 Pad 锁/capture R2 → crash 最小修复
+或 scoping → fresh review/QA → 剩余核心旅程 → integration → Release。
