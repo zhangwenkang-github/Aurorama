@@ -9174,6 +9174,23 @@ verifier 已派发确认 blocked；若确认，继续 A QA 必须先由用户决
 身份（例如固定 testTag/resource id）还是接受该覆盖阻断。禁止以自由文本、raw UI 或坐标猜测
 绕过。
 
+**进度（2026-11-13，C 两个 P2 repair 完成 / fresh R2 review 派单）**：不同 fresh C P2 repair
+owner 从 `b4658fd0` 追加修复至 head `269e9cb7d1bf4655b619b6fa2b12b4de9a96b1b2` / tree
+`7e2fe2cd747f76c2620916e0488ce3d36c06b6d9` / clean。Native 回退改为 Jellyfin source index
+与 Media3 `Format.id` 唯一精确匹配；同语言多轨、missing/duplicate id、graphic、无
+DeliveryUrl、侧载无原生身份均 fail closed 并发布原因。合法次字幕 download/parse/empty cue
+失败改为 `DownloadFailed` / `InvalidContent`，不 ready/cache、退出 Managed-only，UI 提供
+retry/close，stale failure 不覆盖新选择。Targeted 42/0/0/0、player-local `393/0/0/0`、
+phone `412/0/0/0`，affected 204/204 tasks executed，assemble/ktfmt/diff/graphify PASS。
+
+Repair report SHA `F344801EA75A7A6A03A2C7FF1FB9479210F8FA27700F0487D48F6E7CCC7CF4C1`、
+result `278490B65627B2452CDF353FCF5DBF9BA90B63314DF09A93DE901C297CB5A6B8`、manifest
+`ED6EE0B9879CB9FB0988CC39B5133CC4EB782DDC9C990E9A71D86F04A2CE797D`（`125/125 MATCH`）。
+新增 P0–P3=`0/0/0/0`、BLOCKED=0；原两个 P2 现为 `FIXED_PENDING_R2_REVIEW`，不得提前关闭。
+Repair delta 含一个 `docs/PLAYER_PLAN.md` 写回路径，fresh R2 reviewer 必须判断其仅为项目进度
+写回还是越权产品/动态状态修改。真实字幕画面、Direct/HLS/转码 DeliveryUrl、PC-06/07 仍
+`NOT_RUN`；R2 review PASS 前 C `MERGE_PREP_READY=NO`。
+
 **进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
 `codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
 `V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
