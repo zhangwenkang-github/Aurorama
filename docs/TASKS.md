@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
-- TASK_STAGE=R20_SOURCE_EPOCH_INIT_MINIMAL_FIX_DEVICE_RESOLVED / FRESH_SCOPED_REVIEW_REQUIRED / QA_READY:NO
+- TASK_STAGE=R20_SOURCE_EPOCH_INIT_FIX_SCOPED_REVIEW_IN_PROGRESS / QA_READY:NO
 - BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE
 - BUG_LOOP_MAX_ATTEMPTS=2
 - BUG_LOOP_ATTEMPTS_USED=2
@@ -26,6 +26,7 @@
 - R19_LOCAL_STAGE_FAULT_EVIDENCE_R2=CAUSE_PROVEN;CONFIDENCE=HIGH;SIGNAL=6_SIGABRT;LAST_APP_STAGE=PLAYER_ACTIVITY_MPV_INIT;LAST_MPV_STAGE=INIT_PROPERTY_OBSERVATION;R19_BARRIER_STAGE=NOT_REACHED_PRE_LOADFILE;FAULT_MODULE=libc.so;FAULT_OFFSET=0x8d974;FAULT_SYMBOL=abort+168;JAVA_NPE_SOURCE=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt:511;REPORT_SHA=1E87DE4D2B5AF3A004C72F9D1774EF6CEDD649DDAA7CB64B29C6275FC0F09465;RESULT_SHA=37DD73AA93BC1C1D3DA49E66BE52023B8F87166E37DACCD91DD7E6F3EA6A5E03;MANIFEST_SHA=788A19CE17403F9B7A45F95D4C994916C4CD74C6BF0DB03278CE9C115E322F6F;LOCK_STATE=RELEASED;LOCK_ACTIVE=0;QA_READY=NO
 - R19_SOURCE_EPOCH_INIT_FIX_R20_CARD=READY;BUG_LOOP_DISPATCH_GATE=PASS;OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R20_2026_11_12;MODEL=deepseek-flash;REASONING=max;FORK=none;PRODUCT_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt;TEST_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt;RETEST_LIMIT=1;QA_AUTHORIZED=NO
 - R20_SOURCE_EPOCH_INIT_RESULT=DEVICE_SELFTEST_RESOLVED;RED=1/1_SAME_NULL_SOURCE_EPOCH_NPE;TARGETED_GREEN=1/0/0/0;PLAYER_LOCAL=373/0/0/0;PHONE_ASSEMBLE=PASS;CHANGED_PATHS=2;APK_SHA=2B7ADAA24B0B74E9759C264B7318A0575632BCCC983C0392D3F37B60C0827442;APP_START_COUNT=1;PLAYBACK_START_ATTEMPTS=1;AM_CRASH=0;AM_PROC_DIED=0;LOCK_ACTIVE=0;CLEANUP=PASS;REPORT_SHA=760E78FBE2E8BE860816AD5F75F1913256DE6F84C69F237DF06015DC20A5193A;RESULT_SHA=89666E799846F0A229A22841F21A1E1ECB5603408027C3337ACD8C78BA2D9CAE;MANIFEST_SHA=1CAAB7449CA59452789D80731244F1FF8FA7228DC6E06FC572B5BAA397F7CD03;GATE=ACCEPTED_FOR_FRESH_SCOPED_REVIEW;GATE_REPORT_SHA=398C81128BED2AE6AF93CA6B9304425AEAE74CD9FA9C872DFA870F769AD25E65;PROVENANCE=SAME_SAF_DOCUMENT_IDENTITY_NOT_R9_BYTES;QA_PASS=NO;RELEASE_PASS=NO
+- R20_SCOPED_REVIEW_CARD=READY;OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R20_S1_2026_11_12;MODEL=deepseek-flash;REASONING=max;FORK=none;TARGET_HEAD=45d7f789b8737b5edb5dc9748e7eb600b7168b8c;DEVICE=NONE;PRODUCT_WRITE=NO
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-media-route-diagnosis-r1-2026-11-12\LOCAL_MEDIA_ROUTE_DIAGNOSIS_R1_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-media-route-diagnosis-r1-2026-11-12\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-fixture-capture-r9-2026-11-12\R19_LOCAL_FIXTURE_CAPTURE_R9_CARD.md
@@ -48,6 +49,9 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-source-epoch-init-fix-r20-2026-11-12\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-source-epoch-init-fix-r20-2026-11-12\R8_R20_DELIVERY_GATE_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-source-epoch-init-fix-r20-2026-11-12\R8_R20_DELIVERY_GATE_MANIFEST.sha256
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r20-scoped-review-r1-2026-11-12\R20_SCOPED_REVIEW_CARD.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r20-scoped-review-r1-2026-11-12\R20_SCOPED_REVIEW_PROMPT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r20-scoped-review-r1-2026-11-12\PRE_DISPATCH_MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-bug-loop-policy-r1-2026-11-12\BUG_LOOP_POLICY_R1_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-bug-loop-policy-r1-2026-11-12\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-bug-loop-policy-audit-r1-2026-11-12\BUG_LOOP_POLICY_AUDIT_R1_REPORT.md
@@ -80,7 +84,7 @@
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_REPAIR_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R4_2026_11_11
-- CURRENT_DELEGATED_ROLE=NONE
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R20_S1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_LOCAL_MEDIA_ROUTE_DIAGNOSTIC_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_SANITIZED_CRASH_CAPTURE_OWNER_R8_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_SANITIZED_CRASH_CAPTURE_OWNER_R7_2026_11_12
@@ -114,15 +118,15 @@
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R13_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R12_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R12_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-source-epoch-init-fix-r20-2026-11-12\R8_R20_DELIVERY_GATE_REPORT.md
-- NEXT_REQUIREMENT=R20 sourceEpoch initialization repair is accepted only as RESOLVED for the original crash on one exact local SAF path. The next work item is a different fresh scoped reviewer, explicitly started in a later R8 wave, to review initialization/readiness ordering, fail-closed callback coverage, RED adequacy, preservation of source identity/retry behavior, fixture provenance and cleanup. Independent QA remains blocked until scoped review PASS.
-- STOP_CONDITION=Scoped review stops on object/evidence drift, a newly observed P0/P1, a real production/resource breach, an out-of-scope native/UI/architecture change, or any attempt to treat the one-path device result as QA or Release PASS. R20 must not be reused for another edit or playback retest.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r20-scoped-review-r1-2026-11-12\R20_SCOPED_REVIEW_CARD.md
+- NEXT_REQUIREMENT=Fresh R20 scoped reviewer must verify initialization/readiness ordering, callback fail-closed scope, source identity/retry preservation, RED adequacy, fixture provenance and cleanup against exact candidate 45d7f789. Only review PASS may open the new QA card, unique Pad lock and QaReady gate.
+- STOP_CONDITION=Review stops on object/evidence drift, new P0/P1/P2 code blocker, production/resource breach, required product/test/native/UI edit, device/network need, or any attempt to write a QA/Release conclusion. Reviewer must not patch or request a second R20 playback retest.
 - SCOPE=1.4.1_PLAYER_STABILITY/R19_SOURCE_EPOCH_INIT_FIX_R20
-- AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_AUTHORIZED_NATIVE_SEAM_2026_11_11 / USER_PRIORITIZED_FAST_1_4_1_RELEASE / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / SERVER_READ_STANDING_AUTHORIZED_2026_11_12 / TRAFFIC_BUDGET_SINGLE_EPISODE_2026_11_12 / DOWNLOAD_CAPTURE_PATH_RETIRED_2026_11_12 / LOCAL_FIXTURE_ROUTE_ONLY_2026_11_12 / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
-- IMPLEMENTATION_AUTHORIZED=NO_CURRENT_R20_CLOSED / FRESH_SCOPED_REVIEW_REQUIRED_BEFORE_NEXT_IMPLEMENTATION / NO_SCOPE_EXPANSION
+- AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_AUTHORIZED_NATIVE_SEAM_2026_11_11 / USER_PRIORITIZED_FAST_1_4_1_RELEASE / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / USER_AUTHORIZED_CONTINUOUS_1_4_1_DELIVERY_TO_RELEASE_2026_11_12 / SERVER_READ_STANDING_AUTHORIZED_2026_11_12 / TRAFFIC_BUDGET_SINGLE_EPISODE_2026_11_12 / DOWNLOAD_CAPTURE_PATH_RETIRED_2026_11_12 / LOCAL_FIXTURE_ROUTE_ONLY_2026_11_12 / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
+- IMPLEMENTATION_AUTHORIZED=NO_UNTIL_R20_REVIEW_PASS / FRESH_SCOPED_REVIEW_IN_PROGRESS / NO_PRODUCT_WRITE
 - DEVICE_ACCESS=LOCKS_HELD:NONE / DEVICE_ACCESS:NONE / LOCK_ACTIVE=0 / R20_LOCK_RELEASED / K60_8e875894_FORBIDDEN / K60_DEFERRED_UNTIL_CORE_MATRIX_PASS
-- FRESH_INDEPENDENT_QA_REQUIRED=NO_UNTIL_FRESH_SCOPED_REVIEW_PASS / R20_DEVICE_RESOLVED_ONE_PATH / R19_INDEPENDENT_QA_R19_S2=FAIL / QA_READY:NO
-- USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11 / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / USER_RETIRED_DOWNLOAD_CAPTURE_PATH_2026_11_12 / USER_REQUESTED_HANDOFF_2026_11_12 / R19_LOCAL_STAGE_FAULT_EVIDENCE_R2=AUTHORIZED_2026_11_12 / R19_MINIMAL_FIX=AUTHORIZED_2026_11_12
+- FRESH_INDEPENDENT_QA_REQUIRED=YES_AFTER_R20_SCOPED_REVIEW_PASS / R20_DEVICE_RESOLVED_ONE_PATH / R19_INDEPENDENT_QA_R19_S2=FAIL_HISTORICAL / QA_READY:NO
+- USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11 / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / USER_RETIRED_DOWNLOAD_CAPTURE_PATH_2026_11_12 / USER_REQUESTED_HANDOFF_2026_11_12 / R19_LOCAL_STAGE_FAULT_EVIDENCE_R2=AUTHORIZED_2026_11_12 / R19_MINIMAL_FIX=AUTHORIZED_2026_11_12 / USER_AUTHORIZED_CONTINUOUS_1_4_1_DELIVERY_TO_RELEASE_2026_11_12
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - P0=0
@@ -1706,9 +1710,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- QA_RESULT=R19_INDEPENDENT_QA_S2=FAIL_HISTORICAL / R20_IMPLEMENTATION_SELFTEST=DEVICE_RESOLVED_ONE_PATH / PLAYER_CORE_MATRIX_RESULT=NOT_RUN / FRESH_SCOPED_REVIEW_REQUIRED / QA_READY=NO
-- UNCOVERED=Fresh scoped review; independent QA; stable playback; first render/audio; PLAYER_CORE_RELEASE_MATRIX; seek/remap/retry/progress truth; remaining core journeys; integration and Release.
-- STOP_CONDITION=Scoped review stops on object/evidence drift, new P0/P1, production/resource breach, out-of-scope native/UI/architecture work, or any attempt to turn the one-path RESOLVED into QA or Release PASS.
+- QA_RESULT=R19_INDEPENDENT_QA_S2=FAIL_HISTORICAL / R20_IMPLEMENTATION_SELFTEST=DEVICE_RESOLVED_ONE_PATH / R20_SCOPED_REVIEW=IN_PROGRESS / PLAYER_CORE_MATRIX_RESULT=NOT_RUN / QA_READY=NO
+- UNCOVERED=R20 scoped review; independent QA; stable playback; first render/audio; PLAYER_CORE_RELEASE_MATRIX; seek/remap/retry/progress truth; remaining core journeys; integration and Release.
+- STOP_CONDITION=R20 review stops on object/evidence drift, new code P0/P1/P2, production/resource breach, required product/test/native/UI change, device need, or any attempt to turn scoped review into QA/Release PASS.
 - MANUAL_LIMITATION=R20 closes the proven sourceEpoch initialization crash only on one exact LOCAL SAF path. The same SAF document identity was reused, but the R9 fixture bytes were unavailable and a local non-sensitive SDK sample was written to that identity; the pre-loadfile fault classification remains valid, while byte-for-byte R9 replay is not claimed. Fresh scoped review must inspect this provenance before any QA dispatch.
 - MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R8_2026_11_12
 

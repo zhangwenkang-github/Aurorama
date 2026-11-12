@@ -8963,3 +8963,10 @@ R8 delivery gate report SHA
 `398C81128BED2AE6AF93CA6B9304425AEAE74CD9FA9C872DFA870F769AD25E65`。下一角色是 R8
 后续波显式启动的不同 fresh scoped reviewer；review 首读 delivery gate report 与 R20 report，
 未 PASS 前不得派 QA。
+
+**进度（2026-11-12，R20 fresh scoped review 派单）**：用户明确授权持续推进 1.4.1 发布，
+并要求按上下文规范交接。当前水位 `277855/1048576（26.5%）`，尚未到 30 万准备线。R8 已建立
+只读 R20 review 卡，目标是 candidate `45d7f789... / tree 726b07ab...`，重点审查 Kotlin
+初始化顺序、`sourceEpochReady` 可见性、pre-ready fail-closed 是否误吞 steady-state 属性、
+source identity/retry 保持、RED 充分性、SAF fixture provenance 与 cleanup。reviewer 不操作
+设备、不改产品、不跑完整矩阵；只有 review PASS 才创建新 QA 卡、新 Pad 锁与 QaReady。
