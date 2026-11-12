@@ -3105,6 +3105,18 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `string property callback with uninitialized source epoch fails closed`() {
+        val unsafeField =
+            Unsafe::class.java.getDeclaredField("theUnsafe").apply { isAccessible = true }
+        val unsafe = unsafeField.get(null) as Unsafe
+        val player = unsafe.allocateInstance(MPVPlayer::class.java) as MPVPlayer
+        setNullableField(player, "sourceEpoch", null)
+
+        assertNull(getField(player, "sourceEpoch"))
+        player.eventProperty("track-list", "[]")
+    }
+
+    @Test
     fun `classification precedence is pause then error then seek failure`() {
         assertEquals(
             false,

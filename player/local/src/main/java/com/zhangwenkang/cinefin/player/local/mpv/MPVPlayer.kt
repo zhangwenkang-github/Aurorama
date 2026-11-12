@@ -137,6 +137,8 @@ class MPVPlayer(
     audioOutput: String = "aaudio",
     hwDec: String = "mediacodec",
 ) : BasePlayer(), MPVLib.EventObserver, AudioManager.OnAudioFocusChangeListener {
+    private val sourceEpoch = AtomicLong()
+    @Volatile private var sourceEpochReady = false
     private val mpvLib: MPVLib
     private val audioManager: AudioManager by lazy { context.getSystemService()!! }
     private var audioFocusCallback: () -> Unit = {}
@@ -232,6 +234,7 @@ class MPVPlayer(
     }
 
     init {
+        sourceEpochReady = true
         val configDir = File(context.filesDir, "mpv")
         val cacheDir = File(context.cacheDir, "mpv")
         setupDirectories(context, configDir, cacheDir)
@@ -439,7 +442,6 @@ class MPVPlayer(
     private var isPlayerReady: Boolean = false
     private var isSeekable: Boolean = false
     private var currentMediaItemIndex: Int = 0
-    private val sourceEpoch = AtomicLong()
     private val sourceStartAttemptSequence = AtomicLong()
     private var sourcePosition = MpvSourcePositionState()
     private var pendingPlaylistRemap = false
@@ -508,6 +510,7 @@ class MPVPlayer(
     override fun eventProperty(property: String) {}
 
     override fun eventProperty(property: String, value: String) {
+        if (!sourceEpochReady) return
         val epoch = sourceEpoch.get()
         handler.post {
             if (epoch != sourceEpoch.get()) return@post
@@ -525,6 +528,7 @@ class MPVPlayer(
     }
 
     override fun eventProperty(property: String, value: Boolean) {
+        if (!sourceEpochReady) return
         val epoch = sourceEpoch.get()
         handler.post {
             if (epoch != sourceEpoch.get()) return@post
@@ -573,6 +577,7 @@ class MPVPlayer(
     }
 
     override fun eventProperty(property: String, value: Long) {
+        if (!sourceEpochReady) return
         val epoch = sourceEpoch.get()
         handler.post {
             if (epoch != sourceEpoch.get()) return@post
