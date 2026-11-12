@@ -8654,6 +8654,21 @@ capture。R7 卡 SHA
 R7 capture 结论 → crash fingerprint 最小修复或 scoping → fresh review/QA → 剩余核心旅程 →
 integration → Release。
 
+**进度（2026-11-12，capture R7 single-item UI unavailable / R8 multi-select dispatch）**：
+R7 在 Pad `43af8627` 上启动 App 一次，并在内存中确认存在短项，但详情页没有可执行的单项下载
+入口；未点击下载、未创建批次、未播放，锁已释放。`SHORT_ITEM_ELIGIBLE=YES`、
+`DOWNLOAD_BATCH_COUNT=0`、`PLAYBACK_START_ATTEMPTS=0`。报告 SHA
+`AC936A8EA470ADA09BF98A635F432AFCF30EFE424B70C2FB37011AAD44894135`，manifest
+`9/9` / SHA `B8B4270451B90B393A7C764AC4308CCAC4E96FC087F685D94675EF109B65DA51`。
+
+R8 只尝试 multi-select 路径：进入多选后必须把选中数显式降为 1，且下载确认提示必须为 1 项；
+若不能降为 1 或提示 12 集/多集，取消下载并停止。R8 卡 SHA
+`69FEB020BE858BC9146E82BECC57AB67D3739030F8D91A0C932BF5A648DC7843`，唯一 Pad 锁
+`AURORAMA-141-PLAYER-PROGRESS-SOURCE-RETRY-R19-SANITIZED-CRASH-CAPTURE-R8-43af8627-20261112-1948`
+已登记。服务器访问无需再请示，生产写/12 集批量/K60 仍禁止。已完成：R7 UI 入口止损与 R8
+多选单项派单；距发布剩余：R8 capture 结论 → crash fingerprint 最小修复或 scoping →
+fresh review/QA → 剩余核心旅程 → integration → Release。
+
 **进度（2026-11-12，safe-input verifier R1 FAIL / R6 STOP）**：不同 fresh verifier 独立复跑
 owner RED `8/8`、GREEN `30/30`、AST `6/6`、manifest `13/13` PASS，并追加 verifier-only
 `59` 类 / `118` 次 probes，得到 `57 PASS / 2 FAIL`。失败根因是 owner
