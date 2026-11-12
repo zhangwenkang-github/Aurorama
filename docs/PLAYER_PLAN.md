@@ -8638,6 +8638,22 @@ capture；如果 partial 不存在、不可续传或需要重新 enqueue，立�
 已完成：R5 单集止损与 R6 续传派单；距发布剩余：R6 capture 结论 → crash fingerprint 最小修复
 或 scoping → fresh review/QA → 剩余核心旅程 → integration → Release。
 
+**进度（2026-11-12，capture R6 partial not resumable / R7 short single-item dispatch）**：
+R6 只启动 App 一次，没有发现可调用的 Resume/Retry 动作，确认现有单集 partial 无法在 UI 中
+续传；未重新选择来源、未重新 enqueue、未创建新批次。`PARTIAL_PRESENT=YES`、
+`RESUME_ATTEMPTS=0`、`DOWNLOAD_COMPLETED_COUNT=0`、`PLAYBACK_START_ATTEMPTS=0`，锁已释放。
+报告 SHA `A99B4A19D98FACFB99654F408070C231D7890AB8ADFFAA1E9ED1FEB8C7491628`，manifest
+`10/10` / SHA `4E88017F5BA0807A597BC51BF74FBEAD306E05E7DF532005F902E120636C9082`。
+
+R7 改为只选择一个 UI 可识别、时长 `<=600 s` 的短媒体项；若没有短项则停止，不退化到整集、
+整季或 12 集。最终确认必须明确 1 项，单批最多 1 项；完成后才做一次 offline playback
+capture。R7 卡 SHA
+`8BB270A6D8AC5BB6A4C3491E1351F47C9B826173FBE017EA688AA4A88C9F3A65`，唯一 Pad 锁
+`AURORAMA-141-PLAYER-PROGRESS-SOURCE-RETRY-R19-SANITIZED-CRASH-CAPTURE-R7-43af8627-20261112-1928`
+已登记。服务器只读访问无需再次请示。已完成：R6 partial 止损与 R7 短单集派单；距发布剩余：
+R7 capture 结论 → crash fingerprint 最小修复或 scoping → fresh review/QA → 剩余核心旅程 →
+integration → Release。
+
 **进度（2026-11-12，safe-input verifier R1 FAIL / R6 STOP）**：不同 fresh verifier 独立复跑
 owner RED `8/8`、GREEN `30/30`、AST `6/6`、manifest `13/13` PASS，并追加 verifier-only
 `59` 类 / `118` 次 probes，得到 `57 PASS / 2 FAIL`。失败根因是 owner
