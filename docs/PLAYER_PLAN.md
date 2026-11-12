@@ -9279,3 +9279,16 @@ candidate / integration 仍未执行。R10 实测上下文 `406132 / 1048576 = 3
 硬线；本轮收口后交接到 R11 delivery lead。R11 第一事项必须等待用户明确二选一：
 授权新增固定 `testTag` / `testTagsAsResourceId` / click postcondition 等测试结构身份，
 或接受 A QA 覆盖保持 `BLOCKED`。在此之前禁止重开 A QA、派设备 QA 或写 Release。
+
+**进度（2026-11-13，R11 用户授权 A QA 测试结构身份）**：用户选择新增明确测试结构身份，
+而不是接受 A QA 覆盖缺口。授权边界固定为最小、可审的固定 `testTag` /
+`testTagsAsResourceId` / click postcondition 等测试语义来源，用于唯一投影 local-library
+导航；不得使用自由文本、raw UI、坐标或猜测 locator。R9 的
+`BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY` 作为历史保留，不重写、不宣称已修复。
+
+R11 先并行执行两个只读阶段：①全新 A QA structural identity scope owner 定义最小可测试
+语义、精确路径、点击后置条件与独立 verifier 检查面；②另一全新 1.4.1 residual defect
+ledger auditor 从 user promise、ACTIVE P0–P3、release scope matrix 与既有 review/result
+证据核对所有未处理缺陷，明确 `OPEN / BLOCKED / NOT_RUN / ACCEPTED / RETIRED`，不得把
+未执行矩阵写成通过。阶段完成前不修改产品、不申请设备锁、不重开 QA、不进入 signed
+candidate / integration / Release。
