@@ -317,6 +317,127 @@ class PlayerSubtitleControllerTest {
     }
 
     @Test
+    fun `仅切换文本主字幕保留失败次字幕原因，次轨重分配后才清除`() = runBlocking {
+        val validSubtitle =
+            """
+            1
+            00:00:01,000 --> 00:00:03,000
+            重分配成功
+            """
+                .trimIndent()
+        val preferences = AppPreferences(FakeSharedPreferences())
+        preferences.setValue(preferences.subtitleMode, Constants.SubtitleMode.OFF)
+        val failed = source(index = 7, title = "无效内容", language = "en", codec = "subrip")
+        val reassignedSecondary =
+            source(index = 5, title = "可重分配", language = "ja", codec = "subrip")
+        val scope = CoroutineScope(Job())
+        val controller =
+            PlayerSubtitleController(scope, preferences) { selected ->
+                if (selected.index == failed.index) "" else validSubtitle
+            }
+        try {
+            controller.reset(
+                "media-secondary-invalid-primary-change",
+                sources + failed + reassignedSecondary,
+                autoSecondary = false,
+            )
+            controller.assignSecondary(failed.index)
+            withTimeout(5_000) {
+                controller.overlayState.first {
+                    it.secondaryUnavailableReason ==
+                        SubtitleSecondaryUnavailableReason.InvalidContent
+                }
+            }
+
+            controller.assignPrimary(4)
+            val primaryChanged = controller.overlayState.value
+            assertEquals(4, primaryChanged.primaryIndex)
+            assertEquals(failed.index, primaryChanged.secondaryIndex)
+            assertEquals(
+                SubtitleSecondaryUnavailableReason.InvalidContent,
+                primaryChanged.secondaryUnavailableReason,
+            )
+            assertTrue(primaryChanged.secondaryCues.isEmpty())
+            assertFalse(primaryChanged.secondaryManaged)
+
+            controller.assignSecondary(reassignedSecondary.index)
+            val reassigned =
+                withTimeout(5_000) {
+                    controller.overlayState.first {
+                        it.secondaryIndex == reassignedSecondary.index && it.secondaryManaged
+                    }
+                }
+            assertNull(reassigned.secondaryUnavailableReason)
+            assertEquals("重分配成功", reassigned.secondaryCues.single().text)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `仅切换图形主字幕保留失败次字幕原因，关闭次轨后才清除`() = runBlocking {
+        val validSubtitle =
+            """
+            1
+            00:00:01,000 --> 00:00:03,000
+            主字幕
+            """
+                .trimIndent()
+        val preferences = AppPreferences(FakeSharedPreferences())
+        preferences.setValue(preferences.subtitleMode, Constants.SubtitleMode.OFF)
+        val failed = source(index = 7, title = "下载失败", language = "en", codec = "subrip")
+        val graphic =
+            PlayerSubtitleSource(
+                index = 9,
+                title = "PGS 中文",
+                language = "zh-Hans",
+                uri = "https://server/Subtitles/9/Stream.sup",
+                codec = "pgs",
+                isGraphic = true,
+            )
+        val scope = CoroutineScope(Job())
+        val controller =
+            PlayerSubtitleController(scope, preferences) { selected ->
+                if (selected.index == failed.index) {
+                    error("download failed")
+                }
+                validSubtitle
+            }
+        try {
+            controller.reset(
+                "media-secondary-download-primary-change",
+                sources + failed + graphic,
+                autoSecondary = false,
+            )
+            controller.assignSecondary(failed.index)
+            withTimeout(5_000) {
+                controller.overlayState.first {
+                    it.secondaryUnavailableReason ==
+                        SubtitleSecondaryUnavailableReason.DownloadFailed
+                }
+            }
+
+            controller.selectPrimary(graphic.index)
+            val primaryChanged = controller.overlayState.value
+            assertEquals(graphic.index, primaryChanged.primaryIndex)
+            assertEquals(failed.index, primaryChanged.secondaryIndex)
+            assertEquals(
+                SubtitleSecondaryUnavailableReason.DownloadFailed,
+                primaryChanged.secondaryUnavailableReason,
+            )
+            assertTrue(primaryChanged.secondaryCues.isEmpty())
+            assertFalse(primaryChanged.secondaryManaged)
+
+            controller.selectSecondary(null)
+            val secondaryClosed = controller.overlayState.value
+            assertNull(secondaryClosed.secondaryIndex)
+            assertNull(secondaryClosed.secondaryUnavailableReason)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun `失败次字幕可直接重试并在成功后清除原因`() = runBlocking {
         var attempts = 0
         val preferences = AppPreferences(FakeSharedPreferences())

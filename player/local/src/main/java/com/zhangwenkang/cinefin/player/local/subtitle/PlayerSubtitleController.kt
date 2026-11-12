@@ -243,7 +243,6 @@ class PlayerSubtitleController(
             }
             // 图形字幕没有可交给自研层的文本：保留在源序号上，由路由交给内核原生渲染。
             disabledByUser = false
-            secondaryUnavailableReason = null
             if (secondaryIndex == index) {
                 applySecondary(null, persist = false)
             }
@@ -283,7 +282,6 @@ class PlayerSubtitleController(
                 source.index,
             )
         disabledByUser = false
-        secondaryUnavailableReason = null
         if (next.secondaryIndex == null && secondaryIndex != null) {
             applySecondary(null, persist = false)
         }
