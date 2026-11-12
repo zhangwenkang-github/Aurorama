@@ -8851,3 +8851,28 @@ R19 先做一次本地 fixture / content URI 路由诊断；安全则做一次 l
 不收敛则停止并回报。规则入口已写入 `AGENTS.md`、`PROJECT_RULES` R043、唯一 ACTIVE 与
 `v2-handoff-lint.ps1 -Mode BugLoopPrompt`；旧诊断 owner 已因规则切换停止，待 fresh audit PASS
 后换全新诊断 owner，不复用旧 owner。
+
+**进度（2026-11-12，R9 local SAF fixture crash / scoping blocked）**：R7 复核
+`R19_LOCAL_MEDIA_ROUTE_DIAGNOSIS_R1=PASS / EXISTING_LOCAL_FIXTURE_READY`：外部
+`ACTION_VIEW/video/*` 不直达播放器，但 App 内 SAF 本地库能合成 LOCAL `content` 源，经同一
+`PlayerActivity` 与 MPV backend 播放。R9 只在 Pad `43af8627` 上执行一次任务专用 5 秒 synthetic
+AVI capture：SAF 索引 `1` 条 LOCAL content、MPV confirmed、App start `1`、playback attempt `1`；
+随后立即出现 `am_crash + am_proc_died`，`SIGNAL=6/SIGABRT`，位置增长 / fixture EOS / 完整矩阵
+均 `NOT_RUN`。因此服务器、下载和在线 PlaybackInfo 不是这次进程退出的必要条件；这不关闭既有
+`P1-R19-S2-PLAYBACK-PROCESS-CRASH-01`，也不证明任一具体根因。
+
+fresh 只读 scoping 返回 `BLOCKED_INSUFFICIENT_EVIDENCE / PRIMARY_HYPOTHESIS=NONE /
+MINIMAL_FIX_SCOPE=NONE / CONFIDENCE=LOW`：sanitized fingerprint 只有 `libc.so / libart.so /
+libbase.so` 通用帧，无法区分 R19 native barrier、MPV init/surface、first render/audio 等竞争
+解释。按 R043 不自动做第二次盲测或猜测修复；下一步只能由用户决定是否授权一次 additional
+sanitized exact-path stage / fault-frame evidence capture，或在当前证据下停止该路线。任何新
+证据步骤仍禁止产品改动、网络/下载 fallback、生产写和 raw resource/log 输出。R9 cleanup 除
+崩溃后无法再开 App 删除新增本地库外均 PASS，保留
+`LOCAL_LIBRARY_CLEANUP_INCOMPLETE` P3；锁已 `RELEASED / ACTIVE=0`。
+
+证据：R9 report SHA `CF07E99854A0CAA8EB8B67FF6EFB53B7594DACA829183188DD12FE2FCCE98538`、
+typed result `6E2AD04684CBBA970D25CC9F35D5DA9E12BFF14D56B7491651C68BD588DF599C`、manifest
+`96E927DEB787546CFA8AF97A75E9DFB78212A505F47EDB3D14B84A48AEB23171`；scoping report
+`8A48113FE659949A51D0F52333A496419BDBDA1D72428EAC4F3921BE5C7778F0`、result
+`C6AC03833151937FE2C0DF5C2EEA440325AF51A3EAD1032176887CBB017183C4`、manifest
+`3298D0944A44D525F46BC7C556AD2906EC468E193057290B224025DA5D113AC8`。

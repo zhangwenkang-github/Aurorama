@@ -8,19 +8,20 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
-- TASK_STAGE=R19_LOCAL_CRASH_SCOPING_R1_DISPATCHING / LOCAL_FIXTURE_CRASH_OBSERVED / DELIVERY_LEAD_R7 / QA_READY:NO
+- TASK_STAGE=R19_LOCAL_CRASH_SCOPING_BLOCKED_INSUFFICIENT_EVIDENCE / USER_DECISION_REQUIRED / QA_READY:NO / RELEASE_FROZEN
 - BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE
 - BUG_LOOP_MAX_ATTEMPTS=2
+- BUG_LOOP_ATTEMPTS_USED=1
 - BUG_LOOP_USER_PATH=EXACT_R19_LOCAL_FIXTURE_PLAYBACK_START_ONCE
 - REPRO_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-fixture-capture-r9-2026-11-12\LOCAL_FIXTURE_CAPTURE_R9_REPORT.md
 - PRIMARY_HYPOTHESIS=NONE
-- TARGETED_VERIFICATION=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-crash-scoping-r1-2026-11-12\R19_LOCAL_CRASH_SCOPING_R1_CARD.md
+- TARGETED_VERIFICATION=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-crash-scoping-r1-2026-11-12\R19_LOCAL_CRASH_SCOPING_R1_REPORT.md
 - BUG_LOOP_STOP_BUDGET=2_SAME_SYMPTOM_ATTEMPTS_THEN_STOP_OR_USER_DECISION
 - FULL_MATRIX_GATE=RELEASE_CANDIDATE_ONLY
 - BUG_LOOP_POLICY_R1=AUDIT_PASS;RULE=R043;COMMIT=1c05ff6f09abc00035b862b4f726c2a05011744c;LINT_TESTS=103/0;WORKFLOW_TESTS=39/0;REPORT_SHA=423563ECA155B90AFC13C3F1119DEE03AB1057A75CF16E4E64ACDA00F08110B5;MANIFEST_SHA=3026DF5A32AD6B9EAD327E1403C1EEF65527346728B75F45FE0D1D2DF61D9022;AUDIT_REPORT_SHA=72A5F8CF4A4374003F96950C3DD92E3CC658CEB9084F0B4B312E6575D536B753;AUDIT_MANIFEST_SHA=9E00FDDD80B9DFA718B52159940213F4D5DBE7219DF8EDEB804554021FDED998;AUDIT_P3=1_EXISTING_MEMORY_NOTE_SIZE_WARNING
 - R19_LOCAL_MEDIA_ROUTE_DIAGNOSIS_R1=PASS;ROUTE_RESULT=EXISTING_LOCAL_FIXTURE_READY;PLAYER_ENTRY_CLASS=com.zhangwenkang.cinefin.PlayerActivity;EXTERNAL_INTENT_SUPPORTED=NO;CONTENT_URI_SUPPORTED=YES;PRODUCTION_WRITE_REQUIRED=NO;PRODUCT_CHANGE_REQUIRED=NO;REPORT_SHA=959F8613034569E332C6EC8CF26223721401782B835560E2937482B948110F41;MANIFEST_SHA=CAA923218F116A096AB5D772A0BB468A416A773679B276F348AA3D95C9550599
 - R19_LOCAL_FIXTURE_CAPTURE_R9=CRASH_OBSERVED;EVENT_CRASH=TRUE;EVENT_PROC_DIED=TRUE;SAF_LIBRARY_INDEXED_COUNT=1;LOCAL_CONTENT_SOURCE=YES;MPV_BACKEND_CONFIRMED=YES;PLAYBACK_START_ATTEMPTS=1;APP_START_COUNT=1;CAPTURE_WINDOW_SECONDS=0;SIGNAL=6_SIGABRT;REPORT_SHA=CF07E99854A0CAA8EB8B67FF6EFB53B7594DACA829183188DD12FE2FCCE98538;RESULT_SHA=6E2AD04684CBBA970D25CC9F35D5DA9E12BFF14D56B7491651C68BD588DF599C;MANIFEST_SHA=96E927DEB787546CFA8AF97A75E9DFB78212A505F47EDB3D14B84A48AEB23171;LOCAL_LIBRARY_CLEANUP=INCOMPLETE_APP_PROCESS_DEAD_SINGLE_START_BOUNDARY;P3=1_LOCAL_LIBRARY_CLEANUP_INCOMPLETE;LOCK_STATE=RELEASED;LOCK_ACTIVE=0;QA_READY=NO
-- R19_LOCAL_CRASH_SCOPING_R1=DISPATCHING_FRESH_OWNER;OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_LOCAL_CRASH_SCOPING_OWNER_R1_2026_11_12;CARD_SHA=962415A4B5CCD0311D20880D0FAA6C73B9EBC0FE284B0EB5BBD28FD36ACEBCF8;MODE=READ_ONLY_OFFLINE_CURRENT_CANDIDATE_CRASH_SCOPING;DEVICE=NONE;NETWORK=NONE;QA_READY=NO
+- R19_LOCAL_CRASH_SCOPING_R1=BLOCKED_INSUFFICIENT_EVIDENCE;PRIMARY_HYPOTHESIS=NONE;FALSIFIER=NONE;AFFECTED_PATH=NONE;MINIMAL_FIX_SCOPE=NONE;PRODUCT_CHANGE_REQUIRED=NO;CONFIDENCE=LOW;REPORT_SHA=8A48113FE659949A51D0F52333A496419BDBDA1D72428EAC4F3921BE5C7778F0;RESULT_SHA=C6AC03833151937FE2C0DF5C2EEA440325AF51A3EAD1032176887CBB017183C4;MANIFEST_SHA=3298D0944A44D525F46BC7C556AD2906EC468E193057290B224025DA5D113AC8;NEXT=SANITIZED_STAGE_AND_FAULT_FRAME_EVIDENCE_OR_STOP;DEVICE=NONE;NETWORK=NONE;QA_READY=NO
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-media-route-diagnosis-r1-2026-11-12\LOCAL_MEDIA_ROUTE_DIAGNOSIS_R1_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-media-route-diagnosis-r1-2026-11-12\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-fixture-capture-r9-2026-11-12\R19_LOCAL_FIXTURE_CAPTURE_R9_CARD.md
@@ -28,6 +29,9 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-fixture-capture-r9-2026-11-12\R19_LOCAL_FIXTURE_CAPTURE_R9_RESULT.json
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-fixture-capture-r9-2026-11-12\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-crash-scoping-r1-2026-11-12\R19_LOCAL_CRASH_SCOPING_R1_CARD.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-crash-scoping-r1-2026-11-12\R19_LOCAL_CRASH_SCOPING_R1_REPORT.md
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-crash-scoping-r1-2026-11-12\R19_LOCAL_CRASH_SCOPING_R1_RESULT.json
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-crash-scoping-r1-2026-11-12\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-bug-loop-policy-r1-2026-11-12\BUG_LOOP_POLICY_R1_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-bug-loop-policy-r1-2026-11-12\MANIFEST.sha256
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-bug-loop-policy-audit-r1-2026-11-12\BUG_LOOP_POLICY_AUDIT_R1_REPORT.md
@@ -55,12 +59,12 @@
 - R19_NATIVE_SCOPE=Inherited R17 seam only. Add command-bound source-event ownership barrier or equivalent new-entry/drain protocol; deterministically reject post-snapshot/pre-arm stale same-entry START. No unrelated native/dependency upgrade.
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.66 > R8 blocked report > local media route diagnosis card > safe-input verifier PASS > exact candidate/APK
-- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R7_2026_11_12
+- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_R19_LOCAL_CRASH_EVIDENCE_OR_STOP
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R6_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_REPAIR_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R4_2026_11_11
-- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_LOCAL_CRASH_SCOPING_OWNER_R1_2026_11_12
+- CURRENT_DELEGATED_ROLE=NONE
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_LOCAL_MEDIA_ROUTE_DIAGNOSTIC_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_SANITIZED_CRASH_CAPTURE_OWNER_R8_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_SANITIZED_CRASH_CAPTURE_OWNER_R7_2026_11_12
@@ -94,15 +98,15 @@
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R13_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R12_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R12_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-crash-scoping-r1-2026-11-12\R19_LOCAL_CRASH_SCOPING_R1_CARD.md
-- NEXT_REQUIREMENT=R9 reproduced the existing playback process crash on one LOCAL SAF content + MPV startup. Dispatch one fresh read-only scoping owner to trace the exact current candidate and produce exactly one falsifiable primary hypothesis plus one falsifier, or return BLOCKED_INSUFFICIENT_EVIDENCE without inventing a fix.
-- STOP_CONDITION=Scoping stops on any object or evidence hash drift, device/network/playback/raw log/real resource requirement, multiple equally supported hypotheses, proposed new paths or product settings/schema/service/dependency change, new blocking P0-P2, or any attempt to enter implementation, QA, review, merge, integration, or Release.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-crash-scoping-r1-2026-11-12\R19_LOCAL_CRASH_SCOPING_R1_REPORT.md
+- NEXT_REQUIREMENT=R19 reproduced the crash on local SAF content plus MPV, but sanitized evidence cannot select one mechanism or one falsifiable primary hypothesis. User must choose whether to authorize one additional sanitized exact-path stage and fault-frame evidence capture, with no product change or production write, or stop this route. No minimal-fix owner may be dispatched before that decision.
+- STOP_CONDITION=Stop without automatic second device capture or speculative fix. Resume only after explicit user decision; any authorized evidence step must preserve the sanitized output boundary, exact candidate, one Pad lock, no product change, no online/download fallback, and no new blocking P0-P2.
 - SCOPE=1.4.1_PLAYER_STABILITY/R19_SAFE_CAPTURE_INPUT_BOUNDARY_R1
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_AUTHORIZED_NATIVE_SEAM_2026_11_11 / USER_PRIORITIZED_FAST_1_4_1_RELEASE / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / SERVER_READ_STANDING_AUTHORIZED_2026_11_12 / TRAFFIC_BUDGET_SINGLE_EPISODE_2026_11_12 / DOWNLOAD_CAPTURE_PATH_RETIRED_2026_11_12 / LOCAL_FIXTURE_ROUTE_ONLY_2026_11_12 / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=NO_PRODUCT_IMPLEMENTATION / LOCAL_MEDIA_ROUTE_DIAGNOSIS_READ_ONLY
 - DEVICE_ACCESS=LOCKS_HELD:NONE / DEVICE_ACCESS:NONE / LOCK_ACTIVE=0 / K60_8e875894_FORBIDDEN / K60_DEFERRED_UNTIL_CORE_MATRIX_PASS
 - FRESH_INDEPENDENT_QA_REQUIRED=NO / HANDOFF_TO_DELIVERY_LEAD_R7 / R19_INDEPENDENT_QA_R19_S2=FAIL / QA_READY:NO
-- USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11 / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / USER_RETIRED_DOWNLOAD_CAPTURE_PATH_2026_11_12 / USER_REQUESTED_HANDOFF_2026_11_12
+- USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11 / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / USER_RETIRED_DOWNLOAD_CAPTURE_PATH_2026_11_12 / USER_REQUESTED_HANDOFF_2026_11_12 / R19_LOCAL_CRASH_EVIDENCE_R2_OR_STOP=PENDING
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - P0=0
@@ -177,7 +181,7 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\MANIFEST.sha256
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=HANDOFF_R7_THEN_LOCAL_MEDIA_ROUTE_DIAGNOSIS_THEN_OPTIONAL_LOCAL_FIXTURE_CAPTURE
+- NEXT_CRITICAL_PATH=USER_DECISION_ON_R19_LOCAL_CRASH_EVIDENCE_R2_OR_STOP
 - HANDOFF_REASON=CONTEXT_OVER_350K_USER_REQUESTED_HANDOFF / 544668_OF_1048576_51.9_PERCENT
 - HANDOFF_AT_CONTEXT=544668/1048576/51.9%
 - HANDOFF_MEASURED_AT=2026-11-12 20:07:26 Asia/Shanghai
@@ -1688,8 +1692,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - QA_RESULT=R19_INDEPENDENT_QA_S2=FAIL / PLAYER_CORE_MATRIX_RESULT=FAIL / P1-R19-S2-PLAYBACK-PROCESS-CRASH-01=OPEN_CAUSE_NOT_PROVEN / LOCK_DURATION_OVER_30_MIN=FAIL / SAFE_INPUT_REPAIR_VERIFIER_R2=PASS
 - UNCOVERED=Stable playback; UI/engine/MediaSession progress truth; same-identity IDLE/UNKNOWN; add/move remap; seek across BUFFERING; retry method/token; stale-source rejection; real libmpv command/source/marker/event order; PC-01/02/03/04/05/11; remaining core journeys; integration; Release.
 - STOP_CONDITION=Stop if the next work retries download UI, on any ADB/device/network/real-resource/product-change/production-write during the read-only diagnosis, or on a new blocking P0-P2. No capture or QA until local-media-route diagnosis PASSes.
-- MANUAL_LIMITATION=Allowlist output safety and cleanup passed, but real playback crashed the debug process. Static diagnosis returned NEEDS_DEVICE_EVIDENCE. Sanitized capture R1 stopped before App launch because one real resource-value output event occurred. Safe-input repair verifier passed. Capture R2/R3/R5/R6/R7/R8 exhausted the accessible download and offline-source UI paths without a usable single-item source. Per the user's 2026-11-12 decision, the download-capture path is RETIRED; the successor must first test a no-download local media/content-URI fixture route, and stop if none exists.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R7_2026_11_12
+- MANUAL_LIMITATION=R9 reproduced the same process crash on one LOCAL SAF content + MPV startup. The sanitized fingerprint has only libc/libart/libbase frames and cannot distinguish the R19 native barrier from MPV init/surface or first render/audio. Scoping is BLOCKED_INSUFFICIENT_EVIDENCE; no minimal-fix owner is authorized and no second device capture may start without explicit user decision.
+- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_R19_LOCAL_CRASH_EVIDENCE_OR_STOP
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
