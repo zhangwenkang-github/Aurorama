@@ -9158,6 +9158,22 @@ hygiene，接受为 `P3-QA-R9-APP-UPDATE-METADATA-DRIFT-01`，不升级产品缺
 唯一结构 locator，0/多候选 fail closed，禁止 raw UI 或自由文本。该 repair 后还必须由不同
 fresh offline verifier PASS，才可创建新 A QA 卡、新 QaReady 与新锁。
 
+**进度（2026-11-13，navigation projection blocked / fresh verifier 派单）**：fresh projection
+repair owner 复核 R9 49 项 evidence、23 个 closed JSONL / 87 事件与候选导航源码，确认虽然存在
+43 个 clickable source token，但 resource-id、semantic role、bounds、screen identity、
+click postcondition 列均为 0，且 `NavigationRoot.kt` / `CinefinDrawer.kt` 没有
+`testTag` / `testTagsAsResourceId`。在不猜文本、不读 raw UI 的前提下无法形成唯一 deployable
+locator，因此返回 `BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY`，不是修复或产品 QA 结论。
+
+Synthetic constraints RED `5/5`、GREEN `9/9`、静态 5 sources 0 AST/format error、manifest
+`24 files / 23 entries` PASS；仅为约束层证据。Repair report SHA
+`4BBF81914FF56AE4CE25B08F0FA0B264B2A1106F9805D0B17695947A2E5A837A`、result
+`41030F8B745274F136569E7BF4CB671764B424D1E2817092F005CAAD716F99D0`、manifest
+`51BE3D2322E0C3021E456D8AAF10E4A4FFEF0B9F0E720ABA27F7EF113F08E79C`。不同 fresh offline
+verifier 已派发确认 blocked；若确认，继续 A QA 必须先由用户决定是否授权新增明确的测试结构
+身份（例如固定 testTag/resource id）还是接受该覆盖阻断。禁止以自由文本、raw UI 或坐标猜测
+绕过。
+
 **进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
 `codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
 `V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
