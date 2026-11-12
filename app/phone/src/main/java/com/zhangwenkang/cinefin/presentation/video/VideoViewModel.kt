@@ -125,7 +125,7 @@ private constructor(
         when (key) {
             appPreferences.uiVideoDisplayMode.backendName,
             appPreferences.uiVideoLibraryId.backendName -> applyCurrentSelection()
-            appPreferences.offlineMode.backendName -> load()
+            appPreferences.mediaCatalogScopeRevision.backendName -> load()
         }
     }
 

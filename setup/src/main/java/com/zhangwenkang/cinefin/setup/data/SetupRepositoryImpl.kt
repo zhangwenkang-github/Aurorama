@@ -643,6 +643,7 @@ class SetupRepositoryImpl(
             }
         projectionFailure?.let { throw it }
         requireApplied(result)
+        appPreferences.markMediaCatalogScopeChanged()
     }
 
     override suspend fun getUsers(serverId: String): List<User> = database.getUsers(serverId)
@@ -748,7 +749,10 @@ class SetupRepositoryImpl(
             projectionFailure?.let { throw it }
             when (result) {
                 IdentityTransitionResult.APPLIED,
-                IdentityTransitionResult.NO_OP -> SavedUserActivationResult.Activated(user)
+                IdentityTransitionResult.NO_OP -> {
+                    appPreferences.markMediaCatalogScopeChanged()
+                    SavedUserActivationResult.Activated(user)
+                }
                 IdentityTransitionResult.STALE_DISCARDED -> throw IdentityAttemptStaleException()
                 IdentityTransitionResult.RECOVERING,
                 IdentityTransitionResult.FAILED -> throw IdentityTransitionFailedException(result)
@@ -892,6 +896,7 @@ class SetupRepositoryImpl(
             }
         projectionFailure?.let { throw it }
         requireApplied(result)
+        appPreferences.markMediaCatalogScopeChanged()
     }
 
     override suspend fun setCurrentUser(userId: UUID) {
@@ -957,6 +962,7 @@ class SetupRepositoryImpl(
             }
         projectionFailure?.let { throw it }
         requireApplied(result)
+        appPreferences.markMediaCatalogScopeChanged()
     }
 
     override suspend fun trustCertificate(trustKey: String, fingerprint: String) {

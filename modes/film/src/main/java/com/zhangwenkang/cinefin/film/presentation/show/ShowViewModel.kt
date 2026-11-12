@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.film.presentation.show
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
+import com.zhangwenkang.cinefin.film.presentation.detail.LatestContentRequest
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.models.FindroidShow
@@ -22,11 +23,13 @@ import org.jellyfin.sdk.model.api.PersonKind
 class ShowViewModel @Inject constructor(private val repository: JellyfinRepository) : ViewModel() {
     private val _state = MutableStateFlow(ShowState())
     val state = _state.asStateFlow()
+    private val contentRequests = LatestContentRequest()
 
     lateinit var showId: UUID
 
     fun loadShow(showId: UUID) {
         this.showId = showId
+        val request = contentRequests.begin()
         viewModelScope.launch {
             try {
                 val show = repository.getShow(showId)
@@ -35,6 +38,7 @@ class ShowViewModel @Inject constructor(private val repository: JellyfinReposito
                 val actors = getActors(show)
                 val director = getDirector(show)
                 val writers = getWriters(show)
+                if (!contentRequests.isCurrent(request)) return@launch
                 _state.emit(
                     _state.value.copy(
                         show = show,
@@ -43,9 +47,11 @@ class ShowViewModel @Inject constructor(private val repository: JellyfinReposito
                         actors = actors,
                         director = director,
                         writers = writers,
+                        error = null,
                     )
                 )
             } catch (e: Exception) {
+                if (!contentRequests.isCurrent(request)) return@launch
                 _state.emit(_state.value.copy(error = e))
             }
         }

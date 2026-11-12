@@ -3,8 +3,10 @@ package com.zhangwenkang.cinefin.film.presentation.home
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.HomeItem
 import com.zhangwenkang.cinefin.models.Server
+import com.zhangwenkang.cinefin.repository.MediaCatalogScope
 
 data class HomeState(
+    val catalogScope: MediaCatalogScope? = null,
     val server: Server? = null,
     val suggestionsSection: HomeItem.Suggestions? = null,
     /** 继续观看（视频：电影 / 单集）。沿用旧字段名，TV 端首页不受影响。 */

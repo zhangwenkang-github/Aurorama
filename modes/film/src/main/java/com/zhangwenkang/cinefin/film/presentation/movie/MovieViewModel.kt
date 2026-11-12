@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
 import com.zhangwenkang.cinefin.film.domain.selectSourceForMetadata
+import com.zhangwenkang.cinefin.film.presentation.detail.LatestContentRequest
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSource
@@ -68,6 +69,7 @@ private constructor(
 
     private val _state = MutableStateFlow(MovieState())
     val state = _state.asStateFlow()
+    private val contentRequests = LatestContentRequest()
 
     lateinit var movieId: UUID
         private set
@@ -79,13 +81,14 @@ private constructor(
     fun loadMovie(movieId: UUID, preferredMediaSourceId: String? = null) {
         this.movieId = movieId
         val requestSerial = ++loadSerial
+        val contentRequest = contentRequests.begin()
         viewModelScope.launch {
             try {
                 val scope = catalogReadPort.currentScope()
                 if (scope == null) {
                     loadedScope = null
                     loadedMovieId = null
-                    if (requestSerial == loadSerial) {
+                    if (requestSerial == loadSerial && contentRequests.isCurrent(contentRequest)) {
                         _state.value = _state.value.clearCatalog()
                     }
                     return@launch
@@ -97,7 +100,9 @@ private constructor(
                 }
                 val outcome =
                     catalogReadPort.movie(CatalogMovieQuery(itemId = movieId, frozenScope = scope))
-                if (requestSerial != loadSerial) return@launch
+                if (requestSerial != loadSerial || !contentRequests.isCurrent(contentRequest)) {
+                    return@launch
+                }
                 when (outcome) {
                     CatalogReadOutcome.IdentityUnavailable -> {
                         loadedScope = null
@@ -123,16 +128,22 @@ private constructor(
                         val writers = getWriters(movie)
                         val currentScope = catalogReadPort.currentScope()
                         if (
-                            !isMovieCatalogResultCurrent(
-                                request = token,
-                                currentSerial = loadSerial,
-                                currentMovieId = this@MovieViewModel.movieId,
-                                frozenScope = scope,
-                                currentScope = currentScope,
-                                snapshotScope = outcome.snapshot.scope,
-                            )
+                            !contentRequests.isCurrent(contentRequest) ||
+                                !isMovieCatalogResultCurrent(
+                                    request = token,
+                                    currentSerial = loadSerial,
+                                    currentMovieId = this@MovieViewModel.movieId,
+                                    frozenScope = scope,
+                                    currentScope = currentScope,
+                                    snapshotScope = outcome.snapshot.scope,
+                                )
                         ) {
-                            if (requestSerial != loadSerial) return@launch
+                            if (
+                                requestSerial != loadSerial ||
+                                    !contentRequests.isCurrent(contentRequest)
+                            ) {
+                                return@launch
+                            }
                             loadedScope = null
                             loadedMovieId = null
                             _state.value = _state.value.clearCatalog()
@@ -156,7 +167,7 @@ private constructor(
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Exception) {
-                if (requestSerial == loadSerial) {
+                if (requestSerial == loadSerial && contentRequests.isCurrent(contentRequest)) {
                     if (loadedScope == null || loadedMovieId != movieId) {
                         _state.value = _state.value.clearCatalog()
                     }

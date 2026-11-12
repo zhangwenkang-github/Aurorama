@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -75,6 +74,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.metaLine
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.presentation.utils.rememberScrollMemoryState
 import com.zhangwenkang.cinefin.utils.ObserveAsEvents
 import java.util.UUID
 import kotlinx.coroutines.launch
@@ -136,6 +136,7 @@ fun MovieScreen(
 
     MovieScreenLayout(
         state = state,
+        scrollKey = "movie:$movieId",
         downloaderState = downloaderState,
         downloadBadges = downloadBadges,
         snackbarHostState = snackbarHostState,
@@ -174,6 +175,7 @@ fun MovieScreen(
 @Composable
 private fun MovieScreenLayout(
     state: MovieState,
+    scrollKey: String = "movie:preview",
     downloaderState: DownloaderState,
     downloadBadges: Map<UUID, DownloadBadgeInfo> = emptyMap(),
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
@@ -192,7 +194,7 @@ private fun MovieScreenLayout(
             .windowSizeClass
             .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
 
-    val scrollState = rememberScrollState()
+    val scrollState = rememberScrollMemoryState(scrollKey)
 
     ProvideLumen {
         Box(modifier = Modifier.fillMaxSize()) {

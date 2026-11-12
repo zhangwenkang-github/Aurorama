@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
 import com.zhangwenkang.cinefin.film.domain.selectSourceForMetadata
+import com.zhangwenkang.cinefin.film.presentation.detail.LatestContentRequest
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -29,11 +30,13 @@ constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(EpisodeState())
     val state = _state.asStateFlow()
+    private val contentRequests = LatestContentRequest()
 
     lateinit var episodeId: UUID
 
     fun loadEpisode(episodeId: UUID, preferredMediaSourceId: String? = null) {
         this.episodeId = episodeId
+        val request = contentRequests.begin()
         viewModelScope.launch {
             try {
                 val episode = repository.getEpisode(episodeId)
@@ -44,15 +47,18 @@ constructor(
                     }
                 val actors = getActors(episode)
                 val displayExtraInfo = appPreferences.getValue(appPreferences.displayExtraInfo)
+                if (!contentRequests.isCurrent(request)) return@launch
                 _state.emit(
                     _state.value.copy(
                         episode = episode,
                         videoMetadata = videoMetadata,
                         actors = actors,
                         displayExtraInfo = displayExtraInfo,
+                        error = null,
                     )
                 )
             } catch (e: Exception) {
+                if (!contentRequests.isCurrent(request)) return@launch
                 _state.emit(_state.value.copy(error = e))
             }
         }

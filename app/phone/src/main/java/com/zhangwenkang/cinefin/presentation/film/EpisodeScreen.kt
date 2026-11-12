@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -60,6 +59,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessag
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.presentation.utils.rememberScrollMemoryState
 import com.zhangwenkang.cinefin.utils.ObserveAsEvents
 import com.zhangwenkang.cinefin.utils.format
 import java.util.UUID
@@ -132,6 +132,7 @@ fun EpisodeScreen(
 
     EpisodeScreenLayout(
         state = state,
+        scrollKey = "episode:$episodeId",
         downloaderState = downloaderState,
         downloadState =
             DetailDownloadRules.stateOf(
@@ -167,6 +168,7 @@ fun EpisodeScreen(
 @Composable
 private fun EpisodeScreenLayout(
     state: EpisodeState,
+    scrollKey: String = "episode:preview",
     downloaderState: DownloaderState,
     downloadState: DetailDownloadState,
     snackbarHostState: SnackbarHostState,
@@ -180,7 +182,7 @@ private fun EpisodeScreenLayout(
     val paddingEnd = safePadding.end + MaterialTheme.spacings.default
     val paddingBottom = safePadding.bottom + MaterialTheme.spacings.default
 
-    val scrollState = rememberScrollState()
+    val scrollState = rememberScrollMemoryState(scrollKey)
 
     ProvideLumen {
         Box(modifier = Modifier.fillMaxSize()) {

@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.MediaCatalogScope
+import com.zhangwenkang.cinefin.repository.MediaCatalogSession
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import javax.inject.Provider
@@ -15,6 +18,7 @@ import kotlinx.coroutines.launch
 
 /** 「我的收藏」页 UI 状态（W60b）：跨库汇总条目 + 类型筛选 + 服务端排序。 */
 data class FavoritesState(
+    val catalogScope: MediaCatalogScope? = null,
     val isLoading: Boolean = true,
     val error: Throwable? = null,
     val items: List<FindroidItem> = emptyList(),
@@ -34,23 +38,75 @@ data class FavoritesState(
 @HiltViewModel
 class FavoritesItemsViewModel
 @Inject
-constructor(private val repositoryProvider: Provider<JellyfinRepository>) : ViewModel() {
-    private val _state = MutableStateFlow(FavoritesState())
+constructor(
+    repositoryProvider: Provider<JellyfinRepository>,
+    appPreferences: AppPreferences,
+) : ViewModel() {
+    private val catalogSession = MediaCatalogSession(repositoryProvider, appPreferences)
+    private var activeCatalogScope: MediaCatalogScope? = catalogSession.currentScope()
+    private val _state = MutableStateFlow(FavoritesState(catalogScope = activeCatalogScope))
     val state: StateFlow<FavoritesState> = _state.asStateFlow()
+    private var loadSerial = 0L
+
+    init {
+        viewModelScope.launch {
+            catalogSession.observeChanges().collect {
+                val nextScope = catalogSession.currentScope()
+                if (nextScope == activeCatalogScope) return@collect
+                activeCatalogScope = nextScope
+                loadSerial += 1
+                val current = _state.value
+                _state.value =
+                    FavoritesState(
+                        catalogScope = nextScope,
+                        isLoading = nextScope != null,
+                        filter = current.filter,
+                        sort = current.sort,
+                    )
+                if (nextScope != null) load()
+            }
+        }
+    }
 
     fun load() {
+        val catalogScope = catalogSession.currentScope()
+        if (catalogScope == null) {
+            loadSerial += 1
+            _state.update {
+                it.copy(
+                    catalogScope = null,
+                    isLoading = false,
+                    error = null,
+                    items = emptyList(),
+                )
+            }
+            return
+        }
+        val request = ++loadSerial
         val requestedSort = _state.value.sort
+        val sameCatalogScope = _state.value.catalogScope == catalogScope
+        _state.update {
+            it.copy(
+                catalogScope = catalogScope,
+                isLoading = it.items.isEmpty() || !sameCatalogScope,
+                error = null,
+                items = if (sameCatalogScope) it.items else emptyList(),
+            )
+        }
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = it.items.isEmpty(), error = null) }
             val spec = favoriteSortSpec(requestedSort)
             val result = runCatching {
-                repositoryProvider
-                    .get()
+                catalogSession
+                    .repository()
                     .getFavoriteItems(sortBy = spec.sortBy, sortOrder = spec.sortOrder)
             }
             _state.update { current ->
                 // 请求期间用户又换了排序：丢弃这份过期结果，由新请求覆盖。
-                if (current.sort != requestedSort) {
+                if (
+                    request != loadSerial ||
+                        !catalogSession.isCurrent(catalogScope) ||
+                        current.sort != requestedSort
+                ) {
                     current
                 } else {
                     result.fold(
