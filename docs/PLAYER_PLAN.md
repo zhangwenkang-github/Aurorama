@@ -8595,3 +8595,28 @@ owner 自测完成后必须停止，由另一全新 fresh verifier 独立复跑�
 自测不得写成 verifier PASS。已完成：R6 startup 与离线最小卡派单；距发布剩余：safe-input owner
 自测 → different fresh verifier → 新锁/capture R2 → crash 最小修复或 scoping → fresh review/QA
 → 剩余核心旅程 → integration → Release。
+
+**进度（2026-11-12，safe-input owner 自测 PASS / fresh verifier dispatch）**：fresh
+implementation owner 已在新根完成纯离线边界，owner 自测为 RED `8/8`、GREEN `30/30`、AST
+`6/6`、manifest `13/13 MATCH` / 14 files；报告 SHA-256
+`043B3FF8C4270DCDE14F9B2CF1D5FDD3584EE12FB7A3474474146E32B7E18AF6`，manifest SHA-256
+`05D2FEA2C13DF7B8793AE2A47566BCFACB3C22C78607078F07393A1363E46944`，card SHA
+`BB0C002AAE32077B4489C8203EECF48AB87C68A178635473B1763A3FFD0B40DE`。负责人独立复算
+manifest `13/13`、Control/candidate clean 与锁 `ACTIVE=0` MATCH。
+
+实现固定 public schema 为 `schemaVersion / eventType / operationId / status / errorCode /
+resultClass`，stdin 只接受一个严格 `operationId` 字段；provider 使用真实 `pwsh` 子进程与 bounded
+memory buffer，raw stdout/stderr 不持久化。owner 报告明确 `OWNER_SELF_TEST=PASS /
+FRESH_VERIFIER=NOT_RUN / QA_READY=NO`，不是 verifier、产品 QA 或 Release PASS。
+
+R6 已另立 verifier 根
+`evidence-v1-4-1-player-progress-source-retry-r19-safe-capture-input-boundary-verifier-r1-2026-11-12`
+并路由与历史 capture owner、本 implementation owner 及历史 reviewers 不同的 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_SAFE_CAPTURE_INPUT_BOUNDARY_VERIFIER_R1_2026_11_12`
+（`deepseek-flash / max / fork=none`）。verifier 只读 owner 根，独立复跑并追加 closed
+operation/field、Unicode/ANSI/control、argv/env、input-derived path、split write、
+stderr/exception、oversize/timeout 等 probes；只写新 verifier 根。verifier FAIL 不自动 R2，
+R6 停止回报用户；verifier PASS 前 ADB、设备、锁、QaReady、QA、capture R2、
+merge/integration/Release 全部禁止。已完成：owner 自测收口与独立 verifier 派单；距发布剩余：
+different fresh verifier PASS → 新 Pad 锁/capture R2 → crash 最小修复或 scoping →
+fresh review/QA → 剩余核心旅程 → integration → Release。
