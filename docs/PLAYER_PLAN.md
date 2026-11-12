@@ -9110,6 +9110,22 @@ cue/managed，不发布失败原因，形成“已选但无画面、无解释”
 `b4658fd0` 继续 TDD，修后必须再由另一名 fresh reviewer 复审，P0–P2 清零前禁止 C merge-prep
 或字幕 QA。B 的 22 路径实现已进入独立 fresh review；D review 继续维持 PASS 与 P3 接受边界。
 
+**进度（2026-11-13，harness verifier PASS / A QA R9 重新开卡）**：不同 fresh harness verifier
+独立复算 repair manifest、在 verifier root 的完整副本上重跑 verify、static `6/0/0`、RED
+`7/7`、GREEN `14/14`、adversarial `26/26`、独立 synthetic probes `25/25`，并验证 repair
+root 与 A QA 历史证据前后不变。Repair manifest `20/20`、verifier manifest `41/41` MATCH，
+root 42 files、unlisted/control/URI/raw diagnostics 均为 0；`P0–P3=0/0/0/0`。
+`VERIFIER_STATUS=PASS / QA_DISPATCH_ALLOWED=YES`，原
+`P2-QA-R8-UNPROJECTED-HARNESS-OUTPUT-01` 关闭。Verifier report SHA
+`9AC437A1BDCB04E2A880F7A8726921BBB383AA65EB4336FA3787F5EC8A7267AC`、result
+`7AE1E9B414B3D4A8ADA99F385AB66399ABF81914E46E5D16251784FB338A5BF5`、manifest
+`EE11A39DC18649A9D70768B545512ED6389BBA9612943BC206B7CAF507B88FCD`。
+
+已创建全新 A QA R9 card / exact prompt 与唯一 Pad `43af8627` 锁，仍只覆盖
+PC-01/02/03/04/05/11/12。R9 QA 必须重新首跑 QaReady，所有 child 输出只走 verified
+allowlist harness 的 `child` / `project`；R8 QA owner、锁与 runtime window均不得复用。
+QA 实际派发只等待提交后的 canonical `QA_READY_LINT=PASS`。
+
 **进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
 `codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
 `V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
