@@ -8970,3 +8970,26 @@ R8 delivery gate report SHA
 初始化顺序、`sourceEpochReady` 可见性、pre-ready fail-closed 是否误吞 steady-state 属性、
 source identity/retry 保持、RED 充分性、SAF fixture provenance 与 cleanup。reviewer 不操作
 设备、不改产品、不跑完整矩阵；只有 review PASS 才创建新 QA 卡、新 Pad 锁与 QaReady。
+
+**进度（2026-11-12，R20 scoped review PASS / 1.4.1 范围审计 / R8 → R9 交接）**：fresh R20
+reviewer 返回 `PASS`，代码 P0/P1/P2=`0/0/0`，保留 3 个 P3：Unsafe RED 只覆盖 fail-closed
+分支、生产构造顺序缺机械线程断言、Pad fixture 只复用 SAF identity 而非 R9 字节。该 PASS
+允许进入独立 QA，不关闭产品 P1，也不是 Release PASS。
+
+独立 Release Scope Auditor 建立 34 行可复算矩阵：11 条用户承诺中 5 条已实现待当前候选
+review、5 条仍 `PENDING_FIX`、1 条已决策延期；当前候选 12 条 `PLAYER_CORE_RELEASE_MATRIX`
+全部 `NOT_RUN`；11 个发布任务只有 R20 review 完成，发布材料/签名候选仍未开始。当前实现完成度
+按 active promise 为 `5/10=50%`，但产品 QA 完成度 `0/12`、发布就绪 `0/8`，不能因 R20 单路径
+成功而宣称接近 Release。
+
+仍缺 B/C/D 五条 active promise：目录作用域、节目页返回恢复、ColorOS 音乐、字幕加载、字幕
+上屏。R9 首波应同时执行 A scoped QA 和三个隔离实现 worktree；先派 A QA + B + C，D 排队，
+每个实现 owner 不开 QA / 不碰设备。A QA 只覆盖 PC-01/02/03/04/05/11/12；全量 12 行矩阵
+必须等 B/C/D 汇总、版本改为 1.4.1(6)、双签名 release 候选冻结后再跑。
+
+当前负责人上下文约 `282964/1048576（27.0%）`，按 30 万准备线交接到 R9。交接首读
+R20 review report / 1.4.1 scope audit / ACTIVE；R9 第一实际任务是同步 PASS、建立 A QA 的
+新锁与 QaReady，并创建 B/C/D 隔离实现卡。证据入口为
+`evidence-v1-4-1-player-progress-source-retry-r20-scoped-review-r1-2026-11-12`、
+`evidence-v1-4-1-release-scope-progress-audit-r1-2026-11-12` 与
+`evidence-v1-4-1-player-a-cluster-independent-qa-r8-2026-11-12`。
