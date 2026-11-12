@@ -8836,3 +8836,18 @@ TASKS ACTIVE、PLAYER §52.66、R8 blocked report、local diagnosis card，再�
 preflight；第一实际任务只做本地路由诊断，不派 QA、不碰下载。已完成：下载路线退役与 R6 收口；
 距发布剩余：local route diagnosis → optional local fixture capture → crash fingerprint 最小修复
 或 scoping → fresh review/QA → 剩余核心旅程 → integration → Release。
+
+**执行方式（2026-11-12，Bug Loop Policy `R043`）**：用户拍板把当前 R19 bug 固定为
+`OBSERVE → TRACE_CURRENT → FIX_MINIMAL → RETEST_SAME_PATH → CLASSIFY`。只使用同一 exact
+candidate、设备、输入与用户动作复现一次并保留一个关键证据；只读现行候选和已有证据形成一个
+主假设；最小修复后只从同一入口复测一次。同一症状连续两轮不收敛即停止盲改。每个 fix 的
+targeted build / test / static gate 最多一次，完整 `PLAYER_CORE_RELEASE_MATRIX`、广泛回归、
+独立 QA 与多设备矩阵只在 release-candidate gate 执行；设备锁、生产只读、资源脱敏、exact
+candidate/APK 与实现/发布前 QA 分权不取消。
+
+当前下载 capture 路线继续保持 `RETIRED_BY_USER_AFTER_R2_R8`，不重试下载 UI、12 集或 partial。
+R19 先做一次本地 fixture / content URI 路由诊断；安全则做一次 local-fixture playback capture。
+若 crash 重现，按 R043 只形成一个主假设并做最小修复，再用同一条播放启动路径复测一次；两轮
+不收敛则停止并回报。规则入口已写入 `AGENTS.md`、`PROJECT_RULES` R043、唯一 ACTIVE 与
+`v2-handoff-lint.ps1 -Mode BugLoopPrompt`；旧诊断 owner 已因规则切换停止，待 fresh audit PASS
+后换全新诊断 owner，不复用旧 owner。

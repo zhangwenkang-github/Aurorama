@@ -43,6 +43,32 @@
 
   只有 `QA_READY_LINT=PASS` 才可派发 fresh independent QA。QA owner 第一条动作必须自行重跑该命令，
   不信任上游自报；FAIL 时停止并回报 failure code。
+- **Bug Loop Policy（`R043`，2026-11-12，强制）**：当前用户 bug 只走
+  `OBSERVE → TRACE_CURRENT → FIX_MINIMAL → RETEST_SAME_PATH → CLASSIFY`。同一 exact
+  candidate / device / input / user action 只复现一次并记录一个关键证据；只读现行代码与已有证据，
+  给出一个主假设和一个可推翻它的最小证据；只改命中的最小路径；用同一入口复测一次，只判断原症状
+  是否消失及有无新增阻塞信号。同一症状连续两轮不收敛即停止盲改，回到根因重评或用户决策。
+  每个 fix 的 targeted build / test / static gate 最多一次；`PLAYER_CORE_RELEASE_MATRIX`、广泛回归、
+  独立 QA 与多设备矩阵只在 release-candidate gate 执行。设备独占锁、生产只读、资源脱敏、exact
+  candidate/APK、实现与发布前 QA 分权仍是不可取消安全门。
+
+  每个 fresh owner / verifier / QA 和后续负责人 prompt 在派发前必须把精确 spawn prompt 落到
+  absolute evidence 文件，并显式携带以下逐字字段；ACTIVE 是值的唯一来源：
+
+  ```text
+  BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE
+  BUG_LOOP_MAX_ATTEMPTS=2
+  BUG_LOOP_USER_PATH=<one exact user path>
+  REPRO_EVIDENCE=<absolute nonempty evidence file>
+  PRIMARY_HYPOTHESIS=<one falsifiable hypothesis or NONE>
+  TARGETED_VERIFICATION=<one command or absolute existing path>
+  BUG_LOOP_STOP_BUDGET=2_SAME_SYMPTOM_ATTEMPTS_THEN_STOP_OR_USER_DECISION
+  FULL_MATRIX_GATE=RELEASE_CANDIDATE_ONLY
+  ```
+
+  派发前运行 `v2-handoff-lint.ps1 -Mode BugLoopPrompt -PromptPath <absolute-prompt-file>`；只有
+  `BUG_LOOP_DISPATCH_GATE=PASS` 才可创建子代理或后继会话。Handoff / QaReady 同样机械要求 ACTIVE
+  字段齐全且值合法；任一缺失、重复、占位、证据缺失或 ACTIVE/prompt 不一致即 FAIL，不得只靠负责人记忆。
 - **同一 docs 提交不得写自身最终 SHA**：candidate / base / required ancestors / failed candidate 的稳定
   SHA 放在 `V2_HANDOFF_OBJECT_BEGIN/END`；当前 candidate HEAD 只由 manager 通过 `-ExpectedHead` 外部 pin。
 - **Selector 机械门**：含 `--tests` 的真实命令只放 QA test matrix；空引号、裸选项、空等号或
@@ -60,7 +86,8 @@
   只读；设备、网络、Release 与产品代码均需本次任务卡明确授权。控制面工具 PASS 不等于产品 QA、A0、
   architecture seam、W1 或 Release PASS。
 
-- **开工顺序**：先读 `docs/PROJECT_RULES.md` → `docs/TASKS.md` 唯一 `ACTIVE` 与任务卡 → 所在任务线稳定文档；
+- **开工顺序**：先读 `docs/PROJECT_RULES.md`（含 `R043` Bug Loop Policy）→ `docs/TASKS.md`
+  唯一 `ACTIVE` 与任务卡 → 所在任务线稳定文档；
   播放器线稳定需求 / 验收见 `docs/PLAYER_PLAN.md`。项目总览和架构文档只提供稳定背景。
 - **播放器必读门（2026-11-09，强制）**：任何播放器、媒体目录、字幕、音乐播放修复或
   1.4.x / 2.0 Release 任务，除 `docs/PLAYER_PLAN.md` 外还必须读 `docs/TEST_PLAN.md` §8

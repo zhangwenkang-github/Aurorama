@@ -59,11 +59,12 @@ function Invoke-Git {
 
 function Invoke-Linter {
     param(
-        [Parameter(Mandatory)][ValidateSet('Handoff', 'QaReady')][string]$Mode,
+        [Parameter(Mandatory)][ValidateSet('Handoff', 'QaReady', 'BugLoopPrompt')][string]$Mode,
         [Parameter(Mandatory)][string]$FixtureRoot,
         [Parameter(Mandatory)][AllowEmptyString()][string]$ExpectedHead,
         [Parameter(Mandatory)][string]$TasksPath,
-        [AllowNull()][string]$MemoryIndex
+        [AllowNull()][string]$MemoryIndex,
+        [AllowNull()][string]$PromptPath
     )
 
     $arguments = @(
@@ -81,6 +82,9 @@ function Invoke-Linter {
     )
     if ($Mode -eq 'Handoff') {
         $arguments += @('-ExpectedHead', $ExpectedHead)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PromptPath)) {
+        $arguments += @('-PromptPath', $PromptPath)
     }
     if (-not [string]::IsNullOrWhiteSpace($MemoryIndex)) {
         $arguments += @('-MemoryIndex', $MemoryIndex)
@@ -216,6 +220,7 @@ function Get-TasksText {
     )
 
     $handoffEvidence = Join-Path $EvidenceRoot 'handoff.txt'
+    $reproEvidence = Join-Path $EvidenceRoot 'bug-repro.txt'
     $redEvidence = Join-Path $EvidenceRoot 'qa-red.txt'
     $greenEvidence = Join-Path $EvidenceRoot $P1Green
 
@@ -241,6 +246,14 @@ function Get-TasksText {
     $lines.Add('- STOP_CONDITION=Any contract drift stops dispatch.')
     $lines.Add('- SCOPE=Fixture validation only.')
     $lines.Add("- EVIDENCE=$handoffEvidence")
+    $lines.Add('- BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE')
+    $lines.Add('- BUG_LOOP_MAX_ATTEMPTS=2')
+    $lines.Add('- BUG_LOOP_USER_PATH=EXACT_LOCAL_FIXTURE_PLAYBACK_START_ONCE')
+    $lines.Add("- REPRO_EVIDENCE=$reproEvidence")
+    $lines.Add('- PRIMARY_HYPOTHESIS=NONE')
+    $lines.Add("- TARGETED_VERIFICATION=$handoffEvidence")
+    $lines.Add('- BUG_LOOP_STOP_BUDGET=2_SAME_SYMPTOM_ATTEMPTS_THEN_STOP_OR_USER_DECISION')
+    $lines.Add('- FULL_MATRIX_GATE=RELEASE_CANDIDATE_ONLY')
     $lines.Add('- P1=P1-001;P1-002')
     $lines.Add('- P2=P2-001')
     if (-not [string]::IsNullOrWhiteSpace($ActiveExtra)) {
@@ -302,6 +315,33 @@ function Get-TasksText {
     return ($lines -join "`n")
 }
 
+function Get-BugLoopPromptText {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$TasksText)
+
+    $keys = @(
+        'BUG_LOOP_MODE',
+        'BUG_LOOP_MAX_ATTEMPTS',
+        'BUG_LOOP_USER_PATH',
+        'REPRO_EVIDENCE',
+        'PRIMARY_HYPOTHESIS',
+        'TARGETED_VERIFICATION',
+        'BUG_LOOP_STOP_BUDGET',
+        'FULL_MATRIX_GATE'
+    )
+    $promptLines = [System.Collections.Generic.List[string]]::new()
+    foreach ($key in $keys) {
+        $match = [regex]::Match(
+            $TasksText,
+            '(?im)^[ \t]*(?:[-*][ \t]+)?' + [regex]::Escape($key) + '[ \t]*=[ \t]*(.*?)[ \t]*$'
+        )
+        if (-not $match.Success) {
+            throw "Missing fixture Bug Loop token $key"
+        }
+        $promptLines.Add("$key=$($match.Groups[1].Value.Trim())")
+    }
+    return (($promptLines -join "`n") + "`n")
+}
+
 function Get-StableDocText {
     param([Parameter(Mandatory)][string]$RelativePath)
 
@@ -357,6 +397,7 @@ function New-Fixture {
     New-Item -ItemType Directory -Path $memoryRoot -Force | Out-Null
 
     Write-Utf8File -Path (Join-Path $evidenceRoot 'handoff.txt') -Text "HANDOFF evidence`n"
+    Write-Utf8File -Path (Join-Path $evidenceRoot 'bug-repro.txt') -Text "Bug reproduction evidence`n"
     Write-Utf8File -Path (Join-Path $evidenceRoot 'qa-red.txt') -Text "RED evidence`n"
     Write-Utf8File -Path (Join-Path $evidenceRoot 'qa-green.txt') -Text "GREEN evidence`n"
     Write-Utf8File -Path (Join-Path $evidenceRoot 'qa-selector.txt') -Text "SELECTOR evidence`n"
@@ -543,6 +584,77 @@ Invoke-FixtureTest -Name 'positive fixture passes Handoff and QaReady' -Body {
             -TasksPath $fixture.TasksPath -MemoryIndex $fixture.SafeMemoryIndex
         Assert-ExitCode -Result $qa -Expected 0
         Assert-ContainsToken -Result $qa -Token 'QA_READY_LINT=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'exact Bug Loop prompt passes dispatch gate' -Body {
+    $fixture = New-Fixture
+    try {
+        $promptPath = Join-Path $fixture.EvidenceRoot 'dispatch-prompt.md'
+        Write-Utf8File -Path $promptPath -Text (Get-BugLoopPromptText -TasksText $fixture.TasksText)
+        $result = Invoke-Linter -Mode BugLoopPrompt -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex '' -PromptPath $promptPath
+        Assert-ExitCode -Result $result -Expected 0
+        Assert-ContainsToken -Result $result -Token 'BUG_LOOP_DISPATCH_GATE=PASS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'missing ACTIVE Bug Loop field fails Handoff' -Body {
+    $fixture = New-Fixture
+    try {
+        $mutated = $fixture.TasksText.Replace("- BUG_LOOP_MAX_ATTEMPTS=2`n", '')
+        $newHead = Update-TasksAndCommit -Fixture $fixture -Text $mutated
+        $result = Invoke-Linter -Mode Handoff -FixtureRoot $fixture.Root -ExpectedHead $newHead `
+            -TasksPath $fixture.TasksPath -MemoryIndex ''
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:BUG_LOOP_ACTIVE_TOKEN_MISSING:'
+        Assert-ContainsToken -Result $result -Token '/BUG_LOOP_MAX_ATTEMPTS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'missing prompt Bug Loop field fails dispatch gate' -Body {
+    $fixture = New-Fixture
+    try {
+        $prompt = (Get-BugLoopPromptText -TasksText $fixture.TasksText).Replace(
+            "PRIMARY_HYPOTHESIS=NONE`n",
+            ''
+        )
+        $promptPath = Join-Path $fixture.EvidenceRoot 'dispatch-prompt-missing.md'
+        Write-Utf8File -Path $promptPath -Text $prompt
+        $result = Invoke-Linter -Mode BugLoopPrompt -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex '' -PromptPath $promptPath
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:BUG_LOOP_PROMPT_TOKEN_MISSING:'
+        Assert-ContainsToken -Result $result -Token '/PRIMARY_HYPOTHESIS'
+    }
+    finally {
+        Remove-Fixture -Fixture $fixture
+    }
+}
+
+Invoke-FixtureTest -Name 'prompt Bug Loop field mismatch fails dispatch gate' -Body {
+    $fixture = New-Fixture
+    try {
+        $prompt = (Get-BugLoopPromptText -TasksText $fixture.TasksText).Replace(
+            'BUG_LOOP_MAX_ATTEMPTS=2',
+            'BUG_LOOP_MAX_ATTEMPTS=1'
+        )
+        $promptPath = Join-Path $fixture.EvidenceRoot 'dispatch-prompt-mismatch.md'
+        Write-Utf8File -Path $promptPath -Text $prompt
+        $result = Invoke-Linter -Mode BugLoopPrompt -FixtureRoot $fixture.Root -ExpectedHead '' `
+            -TasksPath $fixture.TasksPath -MemoryIndex '' -PromptPath $promptPath
+        Assert-ExitCode -Result $result -Expected 2
+        Assert-ContainsToken -Result $result -Token 'FAIL:BUG_LOOP_PROMPT_VALUE_MISMATCH:'
+        Assert-ContainsToken -Result $result -Token '/BUG_LOOP_MAX_ATTEMPTS'
     }
     finally {
         Remove-Fixture -Fixture $fixture

@@ -1,11 +1,12 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Handoff', 'QaReady')]
+    [ValidateSet('Handoff', 'QaReady', 'BugLoopPrompt')]
     [string]$Mode,
     [string]$RepoRoot,
     [string]$ExpectedHead,
     [string]$TasksPath = 'docs/TASKS.md',
     [string]$MemoryIndex,
+    [string]$PromptPath,
     [switch]$Help
 )
 
@@ -23,9 +24,11 @@ function Write-Usage {
     Write-Output '  pwsh -NoProfile -File <repo>/tools/architecture/v2-handoff-lint.ps1 -Help'
     Write-Output '  pwsh -NoProfile -File <repo>/tools/architecture/v2-handoff-lint.ps1 -Mode Handoff -RepoRoot <absolute-repo> -ExpectedHead <40-or-64-hex> [-TasksPath docs/TASKS.md] [-MemoryIndex <absolute-MEMORY.md>]'
     Write-Output '  pwsh -NoProfile -File <repo>/tools/architecture/v2-handoff-lint.ps1 -Mode QaReady -RepoRoot <absolute-repo> [-TasksPath docs/TASKS.md] [-MemoryIndex <absolute-MEMORY.md>]'
+    Write-Output '  pwsh -NoProfile -File <repo>/tools/architecture/v2-handoff-lint.ps1 -Mode BugLoopPrompt -RepoRoot <absolute-repo> -PromptPath <absolute-prompt.md> [-TasksPath docs/TASKS.md]'
     Write-Output 'OUTPUT:'
     Write-Output '  Handoff success: HANDOFF_LINT=PASS'
     Write-Output '  QaReady success: QA_READY_LINT=PASS'
+    Write-Output '  BugLoopPrompt success: BUG_LOOP_DISPATCH_GATE=PASS'
     Write-Output '  Failure: FAIL:<CODE>:<path>, nonzero exit'
     Write-Output 'EXIT CODES:'
     Write-Output '  0 success or -Help; 2 lint/gate failure; 3 unexpected error; 64 required argument or validation error.'
@@ -516,6 +519,99 @@ function Test-Evidence {
     }
 }
 
+function Assert-BugLoopActivePolicy {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory)][string]$Subject
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return
+    }
+
+    $mode = Get-SingleToken -Text $Text -Key 'BUG_LOOP_MODE' -Label 'BUG_LOOP_ACTIVE' `
+        -Subject $Subject -Required
+    if (-not [string]::IsNullOrWhiteSpace($mode) -and
+        $mode -cne 'OBSERVE_CURRENT_FIX_RETEST_ONCE') {
+        Add-Failure -Code 'BUG_LOOP_MODE_INVALID' -Subject $mode
+    }
+
+    $maxAttempts = Get-SingleToken -Text $Text -Key 'BUG_LOOP_MAX_ATTEMPTS' -Label 'BUG_LOOP_ACTIVE' `
+        -Subject $Subject -Required
+    if (-not [string]::IsNullOrWhiteSpace($maxAttempts) -and $maxAttempts -cne '2') {
+        Add-Failure -Code 'BUG_LOOP_MAX_ATTEMPTS_INVALID' -Subject $maxAttempts
+    }
+
+    Get-SingleToken -Text $Text -Key 'BUG_LOOP_USER_PATH' -Label 'BUG_LOOP_ACTIVE' `
+        -Subject $Subject -Required | Out-Null
+    $reproEvidence = Get-SingleToken -Text $Text -Key 'REPRO_EVIDENCE' -Label 'BUG_LOOP_ACTIVE' `
+        -Subject $Subject -Required
+    if (-not [string]::IsNullOrWhiteSpace($reproEvidence)) {
+        Test-Evidence -Values @($reproEvidence) -Label 'BUG_LOOP_REPRO_EVIDENCE'
+    }
+    Get-SingleToken -Text $Text -Key 'PRIMARY_HYPOTHESIS' -Label 'BUG_LOOP_ACTIVE' `
+        -Subject $Subject -Required | Out-Null
+    $targetedVerification = Get-SingleToken -Text $Text -Key 'TARGETED_VERIFICATION' `
+        -Label 'BUG_LOOP_ACTIVE' -Subject $Subject -Required
+    if (-not [string]::IsNullOrWhiteSpace($targetedVerification) -and
+        [System.IO.Path]::IsPathRooted($targetedVerification)) {
+        Test-Evidence -Values @($targetedVerification) -Label 'BUG_LOOP_TARGETED_VERIFICATION'
+    }
+    $stopBudget = Get-SingleToken -Text $Text -Key 'BUG_LOOP_STOP_BUDGET' `
+        -Label 'BUG_LOOP_ACTIVE' -Subject $Subject -Required
+    if (-not [string]::IsNullOrWhiteSpace($stopBudget) -and
+        ($stopBudget -notmatch '^2_' -or $stopBudget -notmatch '(?i)STOP')) {
+        Add-Failure -Code 'BUG_LOOP_STOP_BUDGET_INVALID' -Subject $stopBudget
+    }
+    $fullMatrixGate = Get-SingleToken -Text $Text -Key 'FULL_MATRIX_GATE' `
+        -Label 'BUG_LOOP_ACTIVE' -Subject $Subject -Required
+    if (-not [string]::IsNullOrWhiteSpace($fullMatrixGate) -and
+        $fullMatrixGate -cne 'RELEASE_CANDIDATE_ONLY') {
+        Add-Failure -Code 'BUG_LOOP_FULL_MATRIX_GATE_INVALID' -Subject $fullMatrixGate
+    }
+}
+
+function Test-BugLoopPrompt {
+    param(
+        [Parameter(Mandatory)][string]$TasksFile,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$TasksText,
+        [Parameter(Mandatory)][string]$PromptFile,
+        [Parameter(Mandatory)][AllowEmptyString()][string]$PromptText
+    )
+
+    $active = Get-MarkedBlock -Text $TasksText `
+        -BeginMarker '<!-- V2_HANDOFF_ACTIVE_BEGIN -->' `
+        -EndMarker '<!-- V2_HANDOFF_ACTIVE_END -->' `
+        -Label 'ACTIVE' -Subject $TasksFile
+    Assert-BugLoopActivePolicy -Text $active -Subject $TasksFile
+    if ([string]::IsNullOrWhiteSpace($active) -or [string]::IsNullOrWhiteSpace($PromptText)) {
+        return
+    }
+
+    foreach ($key in @(
+        'BUG_LOOP_MODE',
+        'BUG_LOOP_MAX_ATTEMPTS',
+        'BUG_LOOP_USER_PATH',
+        'REPRO_EVIDENCE',
+        'PRIMARY_HYPOTHESIS',
+        'TARGETED_VERIFICATION',
+        'BUG_LOOP_STOP_BUDGET',
+        'FULL_MATRIX_GATE'
+    )) {
+        $activeValue = Get-SingleToken -Text $active -Key $key -Label 'BUG_LOOP_ACTIVE' `
+            -Subject $TasksFile -Required
+        $promptValue = Get-SingleToken -Text $PromptText -Key $key -Label 'BUG_LOOP_PROMPT' `
+            -Subject $PromptFile -Required
+        if (-not [string]::IsNullOrWhiteSpace($activeValue) -and
+            -not [string]::IsNullOrWhiteSpace($promptValue) -and
+            $activeValue -cne $promptValue) {
+            Add-Failure -Code 'BUG_LOOP_PROMPT_VALUE_MISMATCH' -Subject "$PromptFile/$key" `
+                -Detail "ACTIVE=$activeValue PROMPT=$promptValue"
+        }
+    }
+    Add-EvidencePath -Path $PromptFile
+}
+
 function Get-RenderedMarkdownHeadings {
     param(
         [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
@@ -740,6 +836,7 @@ function Test-Handoff {
 
     $activeNextRole = ''
     if (-not [string]::IsNullOrWhiteSpace($active)) {
+        Assert-BugLoopActivePolicy -Text $active -Subject $TasksFile
         foreach ($key in @(
             'TASK_ID',
             'WORKTREE_POLICY',
@@ -1211,6 +1308,7 @@ function Test-QaReady {
         -BeginMarker '<!-- V2_HANDOFF_ACTIVE_BEGIN -->' `
         -EndMarker '<!-- V2_HANDOFF_ACTIVE_END -->' `
         -Label 'ACTIVE' -Subject $TasksFile
+    Assert-BugLoopActivePolicy -Text $active -Subject $TasksFile
     $qa = Get-MarkedBlock -Text $Text `
         -BeginMarker '<!-- V2_QA_READY_BEGIN -->' `
         -EndMarker '<!-- V2_QA_READY_END -->' `
@@ -1438,6 +1536,32 @@ try {
         Test-QaReady -Root $resolvedRepoRoot -TasksFile $resolvedTasksPath -Text $tasksText `
             -MemoryFile $MemoryIndex
     }
+    elseif ($Mode -eq 'BugLoopPrompt') {
+        if ([string]::IsNullOrWhiteSpace($PromptPath)) {
+            Add-Failure -Code 'BUG_LOOP_PROMPT_PATH_REQUIRED' -Subject ''
+        }
+        elseif (-not [System.IO.Path]::IsPathRooted($PromptPath)) {
+            Add-Failure -Code 'BUG_LOOP_PROMPT_PATH_NOT_ABSOLUTE' -Subject $PromptPath
+        }
+        else {
+            $resolvedPromptPath = [System.IO.Path]::GetFullPath($PromptPath)
+            if (-not (Test-Path -LiteralPath $resolvedPromptPath -PathType Leaf)) {
+                Add-Failure -Code 'BUG_LOOP_PROMPT_PATH_MISSING' -Subject $resolvedPromptPath
+            }
+            else {
+                try {
+                    $promptText = Read-Utf8Text -Path $resolvedPromptPath
+                }
+                catch {
+                    Add-Failure -Code 'BUG_LOOP_PROMPT_UTF8' -Subject $resolvedPromptPath `
+                        -Detail $_.Exception.Message
+                    $promptText = ''
+                }
+                Test-BugLoopPrompt -TasksFile $resolvedTasksPath -TasksText $tasksText `
+                    -PromptFile $resolvedPromptPath -PromptText $promptText
+            }
+        }
+    }
 
     foreach ($warning in $script:warnings) {
         Write-Output "WARN:$($warning.Code):$($warning.Subject)"
@@ -1456,7 +1580,11 @@ try {
         exit 2
     }
 
-    $passToken = if ($Mode -eq 'Handoff') { 'HANDOFF_LINT=PASS' } else { 'QA_READY_LINT=PASS' }
+    $passToken = switch ($Mode) {
+        'Handoff' { 'HANDOFF_LINT=PASS' }
+        'QaReady' { 'QA_READY_LINT=PASS' }
+        'BugLoopPrompt' { 'BUG_LOOP_DISPATCH_GATE=PASS' }
+    }
     Write-Output $passToken
     if ($script:evidence.Count -gt 0) {
         Write-Output "EVIDENCE=$($script:evidence -join ';')"
