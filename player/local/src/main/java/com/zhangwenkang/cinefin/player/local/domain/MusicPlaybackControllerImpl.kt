@@ -122,6 +122,7 @@ constructor(
                 if (!playerHolder.musicSessionActive) return
                 val player = playerHolder.existingPlayer ?: return
                 if (!player.isPlayingMusicItem()) return
+                _isPlaying.value = MusicPlaybackSurfaceState.from(player).isPlaybackActive
                 val itemId = activeItemId ?: return
                 // 暂停 / 恢复 / 耳机拔出：立即上报，不等 10s 周期
                 reportProgress(
@@ -175,7 +176,7 @@ constructor(
                         player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0L) ?: 0L
                     _positionMs.value = position
                     _durationMs.value = lastKnownDurationMs
-                    _isPlaying.value = player.isPlaying
+                    _isPlaying.value = MusicPlaybackSurfaceState.from(player).isPlaybackActive
                     // 队列可能被移动 / 删除 / 自动切换，索引以播放器为准最可靠
                     _queue.update { queue ->
                         // 只在播放器条目数与队列一致时同步：换队列过渡窗口里播放器还停在旧队列，
@@ -273,6 +274,7 @@ constructor(
                     ?.takeIf { it > 0L }
                     ?.let { position -> player.seekTo(startIndex, position) }
                 player.play()
+                _isPlaying.value = MusicPlaybackSurfaceState.from(player).isPlaybackActive
                 published.currentItem?.let { item ->
                     activeItemId = item.itemId
                     lastKnownPositionMs = item.playbackPosition.coerceAtLeast(0L)
@@ -295,14 +297,13 @@ constructor(
 
     override fun playPause() {
         val player = musicPlayer() ?: return
-        if (player.isPlaying) player.pause() else player.play()
-        _isPlaying.value = player.isPlaying
+        _isPlaying.value = player.toggleMusicPlaybackTransport().isPlaybackActive
     }
 
     override fun play() {
         val player = musicPlayer() ?: return
         player.play()
-        _isPlaying.value = player.isPlaying
+        _isPlaying.value = MusicPlaybackSurfaceState.from(player).isPlaybackActive
     }
 
     override fun pause() {
