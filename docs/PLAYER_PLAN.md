@@ -8621,6 +8621,23 @@ merge/integration/Release 全部禁止。已完成：owner 自测收口与独立
 different fresh verifier PASS → 新 Pad 锁/capture R2 → crash 最小修复或 scoping →
 fresh review/QA → 剩余核心旅程 → integration → Release。
 
+**进度（2026-11-12，capture R5 single-download BLOCKED / R6 partial resume dispatch）**：
+R5 遵守流量预算，只选择并受理 `1` 集、`1` 个下载批次，没有触碰 12 集；30 分钟内 exact
+debug UI 仍显示 `0%` 且只有 partial，无法证明 Offline 可用，因此
+`CAPTURE_RESULT=BLOCKED / BLOCKING_CODE=DOWNLOAD_FAILED`、`PLAYBACK_START_ATTEMPTS=0`，
+锁已释放，用户 partial 媒体保留。报告 SHA
+`2B888AF4B94CF3DA7B9CF4F9EE9CF8D40EE812E9051AD683BBBF47DCD99B1D65`，manifest
+`8/8` / SHA `AAC048B37B4419FACE03F7410877E4D933C50F56EE5C9E3611D9E80C485993F1`。
+
+R6 只续传 R5 已存在的那一条 partial，不重新选源、不新建下载批次、不下载第二集；最多一次
+resume/retry。如果能完成且在 exact debug Downloads/Offline 可见，就执行一次 offline playback
+capture；如果 partial 不存在、不可续传或需要重新 enqueue，立即停止。R6 卡 SHA
+`730045FC524FB5988F33A4D44FDB74E300DA2612E6FC953FCAE570EE4F868D6B`，新 Pad 锁
+`AURORAMA-141-PLAYER-PROGRESS-SOURCE-RETRY-R19-SANITIZED-CRASH-CAPTURE-R6-43af8627-20261112-1913`
+已登记。服务器只读访问继续 standing-authorized；生产写、12 集批次、K60/OnePlus 仍禁止。
+已完成：R5 单集止损与 R6 续传派单；距发布剩余：R6 capture 结论 → crash fingerprint 最小修复
+或 scoping → fresh review/QA → 剩余核心旅程 → integration → Release。
+
 **进度（2026-11-12，safe-input verifier R1 FAIL / R6 STOP）**：不同 fresh verifier 独立复跑
 owner RED `8/8`、GREEN `30/30`、AST `6/6`、manifest `13/13` PASS，并追加 verifier-only
 `59` 类 / `118` 次 probes，得到 `57 PASS / 2 FAIL`。失败根因是 owner
