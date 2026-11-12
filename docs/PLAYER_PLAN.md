@@ -8993,3 +8993,26 @@ R20 review report / 1.4.1 scope audit / ACTIVE；R9 第一实际任务是同步 
 `evidence-v1-4-1-player-progress-source-retry-r20-scoped-review-r1-2026-11-12`、
 `evidence-v1-4-1-release-scope-progress-audit-r1-2026-11-12` 与
 `evidence-v1-4-1-player-a-cluster-independent-qa-r8-2026-11-12`。
+
+**进度（2026-11-12，R9 首波编排启动）**：R9 minimal startup spot-check PASS：Control
+`39a43c47... / tree 7b207c83... / codex/v2-integration` clean，R20 candidate
+`45d7f789... / tree 726b07ab... / parent 1487fa2c...` clean；唯一 ACTIVE/QA marker、R20
+review report/result manifest `2/2 MATCH`、scope audit manifest `2/2 MATCH` 与设备锁
+`ACTIVE=0` 均一致。R20 review PASS 已同步，scope audit 仍为 active promise implementation
+`5/10=50% / current-candidate promise review 0/10 / PLAYER_CORE_MATRIX 0/12 /
+release readiness 0/8 / RELEASE_READY=NO`。
+
+R9 从 R20-reviewed head 建立三条隔离实现分支，均不污染唯一 candidate：
+
+- B `codex/v141-b-catalog-nav-r21-2026-11-12`：`V2-FIX-CATALOG-SCOPE-001`、
+  `V2-FIX-NAV-RESTORE-001`；
+- C `codex/v141-c-subtitle-r21-2026-11-12`：`V2-FIX-SUBTITLE-LOAD-001`、
+  `V2-FIX-SUBTITLE-RENDER-001`；
+- D `codex/v141-d-music-r21-2026-11-12`：`V2-FIX-MUSIC-PLAYBACK-001`，先排队。
+
+A QA R8 exact prompt 与唯一 Pad `43af8627` 锁已建立；实际派发仍必须等待提交后的 canonical
+`QaReady` 输出 `QA_READY_LINT=PASS`。A QA 只覆盖 PC-01/02/03/04/05/11/12 与
+seek/loading/stall/progress/no-silent-hang，不是完整 release matrix。B/C 只做 TDD、定向
+build/test 与实现报告；D 在并发槽释放后派发。实现 owner 均禁止设备、QA、review、merge、
+integration 与 Release。B/C/D 完成后必须分别由不同 fresh reviewer 复审，review PASS 后才可
+进入 merge-prep 汇总。

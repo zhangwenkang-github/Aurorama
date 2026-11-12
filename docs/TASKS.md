@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
-- TASK_STAGE=R20_SCOPED_REVIEW_PASS / HANDOFF_TO_DELIVERY_LEAD_R9 / A_SCOPED_QA_AND_B_C_D_PENDING / QA_READY:NO
+- TASK_STAGE=R9_A_SCOPED_QA_DISPATCH_READY / B_CATALOG_NAV_IMPLEMENTING / C_SUBTITLE_IMPLEMENTING / D_MUSIC_QUEUED / QA_READY:YES
 - BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE
 - BUG_LOOP_MAX_ATTEMPTS=2
 - BUG_LOOP_ATTEMPTS_USED=2
@@ -90,12 +90,12 @@
 - R19_NATIVE_SCOPE=Inherited R17 seam only. Add command-bound source-event ownership barrier or equivalent new-entry/drain protocol; deterministically reject post-snapshot/pre-arm stale same-entry START. No unrelated native/dependency upgrade.
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.66 > R20 scoped review report > 1.4.1 release scope audit > A QA card > exact candidate/APK
-- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R9_2026_11_12
+- NEXT_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_OWNER_R8_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R6_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_REPAIR_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R2_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R4_2026_11_11
-- CURRENT_DELEGATED_ROLE=NONE
+- CURRENT_DELEGATED_ROLE=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_OWNER_R8_2026_11_12;AURORAMA_141_B_CATALOG_SCOPE_NAV_RESTORE_IMPLEMENTATION_OWNER_R21_2026_11_12;AURORAMA_141_C_SUBTITLE_LOAD_RENDER_IMPLEMENTATION_OWNER_R21_2026_11_12;D_PROMPT_READY_QUEUED
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R8_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_LOCAL_MEDIA_ROUTE_DIAGNOSTIC_OWNER_R1_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_SANITIZED_CRASH_CAPTURE_OWNER_R8_2026_11_12
@@ -130,14 +130,14 @@
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R13_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R12_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R12_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-r9-delivery-handoff-r1-2026-11-12\R9_DELIVERY_LEAD_PROMPT.md
-- NEXT_REQUIREMENT=R9 must consume the R20 scoped review PASS and release scope audit, sync the unique ACTIVE, arm and dispatch fresh A scoped QA, and in parallel create isolated B/C/D implementation worktrees for catalog/NAV, subtitle load/render and ColorOS music. No direct full release QA or Release claim is allowed before B/C/D implementation + review and final signed candidate.
-- STOP_CONDITION=Stop only on object/evidence drift, QA_READY failure, lock conflict, real safety/resource breach, production write, out-of-scope architecture change, new P0/P1, failed review not yet repaired, or a user-subjective decision. Normal in-scope implementation, one local retry, QA delta repair and same-path retest continue.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r8-2026-11-12\A_CLUSTER_SCOPED_QA_R8_OWNER_PROMPT.md
+- NEXT_REQUIREMENT=A_QA_R8_MUST_PASS_QA_READY_LOCK_OBJECT_AND_ALLOWLIST_GATES_THEN_EXECUTE_PC01_02_03_04_05_11_12_IN_ONE_MAX_600_SECOND_PAD_WINDOW;B_AND_C_IMPLEMENT_IN_PARALLEL_FROM_R20_REVIEWED_HEAD;D_MUSIC_QUEUED_UNTIL_A_SLOT_FREES;NO_FULL_MATRIX_OR_RELEASE_CLAIM
+- STOP_CONDITION=Stop only on object/evidence drift, QA_READY failure, lock conflict, real safety/resource breach, production write, out-of-scope architecture change, new P0/P1, failed review not yet repaired, or a user-subjective decision. Normal in-scope B/C/D TDD, one local retry, A QA delta repair and same-path retest continue.
 - SCOPE=1.4.1_RELEASE_DELIVERY/R20_PASS_A_SCOPED_QA_B_C_D_IMPLEMENTATION
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_AUTHORIZED_NATIVE_SEAM_2026_11_11 / USER_PRIORITIZED_FAST_1_4_1_RELEASE / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / USER_AUTHORIZED_CONTINUOUS_1_4_1_DELIVERY_TO_RELEASE_2026_11_12 / SERVER_READ_STANDING_AUTHORIZED_2026_11_12 / TRAFFIC_BUDGET_SINGLE_EPISODE_2026_11_12 / DOWNLOAD_CAPTURE_PATH_RETIRED_2026_11_12 / LOCAL_FIXTURE_ROUTE_ONLY_2026_11_12 / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=YES_R9_FRESH_B_C_D_OWNERS_IN_ISOLATED_WORKTREES / R20_REVIEW_PASS_BASE_45d7f789 / NO_QA_IN_IMPLEMENTATION_OWNERS
-- DEVICE_ACCESS=R9_A_QA_ONLY_AFTER_NEW_UNIQUE_LOCK / PAD_43af8627 / LOCKS_HELD:NONE / LOCK_ACTIVE=0 / K60_8e875894_FORBIDDEN / ONEPLUS_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=YES_A_SCOPED_QA_R8_AFTER_R9_QA_READY_PASS / B_C_D_REVIEW_REQUIRED_AFTER_IMPLEMENTATION / QA_READY:NO
+- DEVICE_ACCESS=R9_A_QA_ACTIVE_LOCK / PAD_43af8627 / LOCK_TITLE=AURORAMA-141-A-CLUSTER-SCOPED-QA-R8-43af8627-20261112-2310 / LOCK_ACTIVE=1 / QA_WINDOW_MAX_SECONDS=600 / LOCK_MAX_MINUTES=20 / K60_8e875894_FORBIDDEN / ONEPLUS_FORBIDDEN
+- FRESH_INDEPENDENT_QA_REQUIRED=YES_A_SCOPED_QA_R8_AFTER_QA_READY_PASS / B_C_D_REVIEW_REQUIRED_AFTER_IMPLEMENTATION / A_QA_CARD_SHA=386810B8D6F4C79D4B3080B0F32C12C613BE0DD51C913B3E58F8742DB088436D
 - USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11 / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / USER_RETIRED_DOWNLOAD_CAPTURE_PATH_2026_11_12 / USER_REQUESTED_HANDOFF_2026_11_12 / R19_LOCAL_STAGE_FAULT_EVIDENCE_R2=AUTHORIZED_2026_11_12 / R19_MINIMAL_FIX=AUTHORIZED_2026_11_12 / USER_AUTHORIZED_CONTINUOUS_1_4_1_DELIVERY_TO_RELEASE_2026_11_12
 - MANAGER_HANDOFF_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode Handoff -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -ExpectedHead <external-pinned-control-head> -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
 - MANAGER_QA_READY_COMMAND=pwsh -NoProfile -ExecutionPolicy Bypass -File F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama\tools\architecture\v2-handoff-lint.ps1 -Mode QaReady -RepoRoot F:\Develop\code_data\work_tree\Aurorama\v2-requirements-baseline\Aurorama -TasksPath docs/TASKS.md -MemoryIndex F:\Develop\codex_work\Documents\Codex\engramory-memory\MEMORY.md
@@ -1721,12 +1721,12 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   `...\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09`。
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=NO
-- QA_RESULT=R20_SCOPED_REVIEW=PASS;R19_INDEPENDENT_QA_S2=FAIL_HISTORICAL;A_SCOPED_QA=PENDING_AFTER_R9_QA_READY;PLAYER_CORE_MATRIX_RESULT=NOT_RUN;QA_READY=NO
-- UNCOVERED=A scoped QA; B/C/D implementation and review; final signed 1.4.1 candidate; PLAYER_CORE_RELEASE_MATRIX 12/12; stable playback/progress/seek/retry; integration; Release assets/tag/upload.
-- STOP_CONDITION=A QA stops on QaReady failure, object/APK/device drift, raw resource output, crash, silent hang, unknown P0/P1, settings drift or scope expansion. B/C/D stop on product write outside card, new scope, device/network need or new P0/P1.
-- MANUAL_LIMITATION=R20 closes the proven sourceEpoch initialization crash only on one exact LOCAL SAF path. The same SAF document identity was reused, but the R9 fixture bytes were unavailable and a local non-sensitive SDK sample was written to that identity; the pre-loadfile fault classification remains valid, while byte-for-byte R9 replay is not claimed. Fresh scoped review must inspect this provenance before any QA dispatch.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R9_2026_11_12
+- QA_READY=YES
+- QA_RESULT=R20_SCOPED_REVIEW=PASS;A_SCOPED_QA=DISPATCH_READY;A_QA_PROMPT_SHA=8882A4AE4DE7A2B59DEC304EE86E44EC79F4E2DD61B08655440C9AA75D5E7A4B;B_PROMPT_SHA=D7658E657863A0F7F0E98A70EA362F9A2A6ADD0AC72ED499B62A881E3D9B77F2;C_PROMPT_SHA=C4C912A0C806C73ACF8D2E06B23EE700C52E400C9DF57855436A5B3455CCB2A9;D_PROMPT_SHA=DB319E23D31CFC5EF1FA6F7523EB086B8792808CA5AD2FADFA87655F1399DFE3;PLAYER_CORE_MATRIX_RESULT=NOT_RUN
+- UNCOVERED=A scoped QA; B/C/D implementation and review; final signed 1.4.1 candidate; PLAYER_CORE_RELEASE_MATRIX 12/12; PC-06 through PC-10; integration; Release assets/tag/upload.
+- STOP_CONDITION=A QA stops on QaReady failure, lock/object/APK drift, raw resource output, crash, silent hang, unknown P0/P1, settings drift or scope expansion. B/C/D stop on product write outside card, new scope, device/network need or new P0/P1.
+- MANUAL_LIMITATION=R20 closes the proven sourceEpoch initialization crash only on one exact LOCAL SAF path. The R9 fixture bytes were unavailable; the same document identity hosted a non-sensitive SDK sample. The pre-loadfile fault classification remains valid, but byte-for-byte R9 replay is not claimed. A QA may use one exact local fixture playback start plus test-environment read/play; it cannot claim the full 12-row matrix.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_A_CLUSTER_INDEPENDENT_QA_OWNER_R8_2026_11_12
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -1737,6 +1737,10 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 | INV-R19-RETRY | Playback recovery and MPVPlayer drain | Invoke one-click retry twice; source changes between terminals | One token/method hit; stale token rejected; current source converges or explicit error | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | QA S2 FAIL: retry NOT_RUN |
 | INV-R19-SETTINGS | Settings snapshot / QA cleanup | Hash each key before/after QA | Per-key hash unchanged except explicitly exercised setting | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | QA S2 FAIL: App prefs 27/28; one playback-chain drift |
 | INV-R19-SCOPE-A0 | Candidate object, seven authorized paths and A0 | Audit base..candidate, path union, A0 baseline | Seven unique authorized paths; zero outside union; A0 15497/15512 | evidence-v1-4-1-player-progress-source-retry-r19-scoped-review-r1-2026-11-11\SCOPED_REVIEW_REPORT.md | N/A:static Git and A0 only |
+| INV-R8-A-CRASH | Exact R20 candidate + Pad 43af8627 | One App start and one exact LOCAL fixture playback start on the allowlist path | No crash, proc death, ANR or silent hang; stable playback may proceed into PC rows | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-source-epoch-init-fix-r20-2026-11-12\R20_IMPLEMENTATION_REPORT.md | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-source-epoch-init-fix-r20-2026-11-12\R20_RESULT.json |
+| INV-R8-A-RESUME-PROGRESS | Persisted source, engine, UI and MediaSession | Save non-zero progress, re-enter, then exercise play/pause/seek/buffering | Position source is explainable; UI/engine/MediaSession agree; only true EOS advances the queue | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-source-epoch-init-fix-r20-2026-11-12\R20_IMPLEMENTATION_REPORT.md | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r8-2026-11-12\A_CLUSTER_SCOPED_QA_R8_CARD.md |
+| INV-R8-A-SEEK-LOADING-STALL | Single loading surface, seek coordinator and stall recovery | Load, pause/resume while loading, forward/back/continuous seek, wait through no-progress, one retry | One loading surface; seek target never impersonates confirmed engine position; normal buffering differs from stall; retry is visible and recoverable | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-release-scope-progress-audit-r1-2026-11-12\RELEASE_SCOPE_MATRIX.json | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r8-2026-11-12\A_CLUSTER_SCOPED_QA_R8_CARD.md |
+| INV-R8-A-INTERRUPT-RETRY | App/process/engine/UI recovery and failure surface | Force-stop during playback, re-enter, then exercise one visible failure/retry | No auto-audio; four-state recovery is explainable; failure, exit and one retry are visible without silent hang | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-release-scope-progress-audit-r1-2026-11-12\RELEASE_SCOPE_MATRIX.json | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r8-2026-11-12\A_CLUSTER_SCOPED_QA_R8_CARD.md |
 <!-- V2_QA_INVARIANT_MATRIX_END -->
 
 <!-- V2_QA_TEST_MATRIX_BEGIN -->
@@ -1765,6 +1769,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 | P1-QA-R19-SECRET-OUTPUT-RESOURCE-URL-01 | QA-selected output could expose a resource locator or arbitrary raw text; R1/R2 detector repair attempts were rejected | `CLOSED_BY_FRESH_ALLOWLIST_VERIFIER_PASS`: fixed typed schema/enums/IDs/bounded numbers; RED 8/8, GREEN 14/14, owner adversarial 23/23, verifier synthetic 47/47; prior verifier matrix remains 17 PASS / 6 FAIL; raw payload/ANSI/stderr/command leaks 0 | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-allowlist-protocol-verifier-r1-2026-11-12\SECURITY_VERIFIER_ALLOWLIST_R1_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-allowlist-protocol-verifier-r1-2026-11-12\MANIFEST.sha256 |
 | P1-QA-R3-01 | Sanitized wrapper captured whole-device logcat and exited 22 after 8.179 seconds; QA R3 continued device actions for 145.707 seconds without a live sanitized stream | CLOSED_BY_QA_R5_REAL_DEVICE_PROOF: UID-filtered wrapper ready PASS, wrapper alive through the 402.871-second core window, EXIT_CODE=0, FLUSH_OK=YES, 4210 sanitized lines and 318 redactions; no raw stderr | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r3-2026-11-10\INDEPENDENT_QA_R3_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r5-2026-11-10\sanitized\wrapper-stdout.txt |
 | P1-PLAYER-LOADING-BACKGROUND-CONTINUE | R3/R5 originally treated HOME pause as a continuation candidate; diagnosis later proved the R5 foreground reload used a new playback Intent | CLOSED_BY_QA_R6_PC02_BOTH_BRANCHES_PASS: default background-audio-off HOME pause is expected; explicit in-app background audio kept the same task/PID/PlayerActivity/source generation on return with zero initializePlayer calls | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-scope-decision-r4-2026-11-10\BACKGROUND_CONTINUE_SCOPE_DECISION_R4_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r6-2026-11-10\INDEPENDENT_QA_R6_REPORT.md |
+| P1-R19-S2-PLAYBACK-PROCESS-CRASH-01 | R19 S2 showed `am_crash + am_proc_died` before stable playback; branch fault evidence localized the old sourceEpoch observer initialization NPE, while the P1 remained open | R20 moves sourceEpoch initialization before observer registration and passes scoped review plus one exact LOCAL SAF path launch; fresh A scoped QA must prove current candidate startup/playback without crash before global closure | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-stage-fault-evidence-r2-2026-11-12\LOCAL_STAGE_FAULT_EVIDENCE_R2_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r20-scoped-review-r1-2026-11-12\SCOPED_REVIEW_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r8-2026-11-12\A_CLUSTER_SCOPED_QA_R8_CARD.md |
 <!-- V2_QA_P1_MATRIX_END -->
 <!-- V2_QA_READY_END -->
 
