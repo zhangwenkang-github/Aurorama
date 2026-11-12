@@ -8700,3 +8700,20 @@ verifier report SHA-256
 merge/integration/Release。已完成：安全输入 owner→独立 verifier 全链 PASS；距发布剩余：
 用户设备决策 → capture R2 → crash 最小修复或 scoping → fresh review/QA → 剩余核心旅程 →
 integration → Release。
+
+**进度（2026-11-12，sanitized crash capture R2 dispatched）**：用户明确授权进入下一步并允许
+使用设备。按项目硬门，本轮仍只使用 Pad `43af8627`；K60 / OnePlus 在剩余核心矩阵通过前保持
+零命令。R6 已建立新根
+`evidence-v1-4-1-player-progress-source-retry-r19-sanitized-crash-capture-r2-2026-11-12`，
+任务卡 SHA-256 `93E22BBAB78B2EF7A7CE907DD80A7BC383D9630D44DA3022664DE66CFCE6B030`，
+并登记唯一 Pad 锁
+`AURORAMA-141-PLAYER-PROGRESS-SOURCE-RETRY-R19-SANITIZED-CRASH-CAPTURE-R2-43af8627-20261112-1806`。
+
+capture R2 只接受 fixed closed operation ID；真实资源仅在内部 provider 进程内存解析。
+优先使用不会写生产服务器的 offline/download 媒体；若找不到这样的 input，必须停止
+`BLOCKED_NO_READ_ONLY_PLAYBACK_SOURCE`，不得为 capture 写生产。时间盒为锁 `<=20 min`、
+capture `<=300 s`、一次 App 启动和一次 playback attempt；NO_CRASH 不重试。原始
+logcat/tombstone/UI XML/命令/exception/resource 不持久化、不回显，输出只允许卡内 typed schema。
+已完成：安全输入 repair/verifier PASS、fresh capture owner 派单与唯一 Pad 锁；距发布剩余：
+capture R2 结论 → crash fingerprint 最小修复或 scoping → fresh review/QA → 剩余核心旅程 →
+integration → Release。
