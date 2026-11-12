@@ -9138,6 +9138,26 @@ Review report SHA `A6DCE9174478BFE41C16C260F55134193BC42DF585E5354EF3CCA66393EC1
 result `4C8E878C9D6718DC279841989810955531A1473EC224AA6FB90F8DB9F0AAAF22`、manifest
 `768E886A4E159FE514FCF0127648C719A11D50266FDED7C570622E2C6458E81D`（`140/140 MATCH`）。
 
+**进度（2026-11-13，A QA R9 因闭合导航投影不足再次 FAIL）**：全新 A QA R9 owner 首跑
+QaReady PASS，核对 candidate/APK/R20 review/harness verifier/唯一 R9 锁后启动一次 App；
+闭合 activity/UI inventory 无法唯一归因“本地媒体库”入口，因此没有进入播放，
+`PLAYBACK_START_ATTEMPTS=0`、PC-01/02/03/04/05/11/12 全部 `NOT_RUN`。唯一窗口
+`494/600 s`，无 crash/ANR/silent hang/生产写/截图；debug cleanup PASS，锁 `RELEASED /
+ACTIVE=0`，持锁 `1118 s`。这是 QA 导航覆盖缺口，不是产品播放 FAIL 或 PASS。
+
+新增 `P3-QA-R9-LOCAL-LIBRARY-CONTROL-NOT-UNIQUELY-LOCATED:OPEN_COVERAGE`；App 启动触发的
+`pref_update_last_success_at` 与 `pref_update_auto_check_attempt_at` 漂移属于 update metadata
+hygiene，接受为 `P3-QA-R9-APP-UPDATE-METADATA-DRIFT-01`，不升级产品缺陷。系统 settings
+`17/17 MATCH`、App prefs `26/28 MATCH`。Report SHA
+`053C65B6B40A171EFD3C6AFEA299A296FED7B343462FAF7B66495F866ADD25C1`、result
+`24B1AD4CA36A2433DD19A5E13B04EE12201EABE029EA6547CB20A8CB12AA7B65`、manifest
+`AA5576CC5FB29AC913A32305F8B490305FEB21E54D3231F26CDBDB4EA361BC87`（`49/49 MATCH`）。
+
+已派不同 fresh navigation-projection repair owner，只修离线 QA harness：要求为
+`open_local_library` 建立 exact activity / resource-id / semantic role / bounded state 的
+唯一结构 locator，0/多候选 fail closed，禁止 raw UI 或自由文本。该 repair 后还必须由不同
+fresh offline verifier PASS，才可创建新 A QA 卡、新 QaReady 与新锁。
+
 **进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
 `codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
 `V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
