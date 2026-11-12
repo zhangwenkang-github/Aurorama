@@ -8735,21 +8735,22 @@ QA、产品修复、merge/integration/Release。已完成：R3 安全止损与�
 用户选择非生产来源 → 新 fresh capture → crash fingerprint 最小修复或 scoping →
 fresh review/QA → 剩余核心旅程 → integration → Release。
 
-**进度（2026-11-12，capture R4 App-mediated offline preparation dispatch）**：用户说明 Pad 上
-一个 App 无法访问详情页，另一个 App 不能下载单集，但 multi-select 后会提示下载 12 集，并
-明确授权常规只读服务器访问无需重复请示。R6 已建立 R4 新根与卡
-`R19_SANITIZED_CRASH_CAPTURE_R4_CARD.md`（SHA
-`483410A0C2C4866FDC8CE261B6425E5C4DA7EE30BECE845C3E72DA7292EC1E19`），登记唯一 Pad
-锁 `AURORAMA-141-PLAYER-PROGRESS-SOURCE-RETRY-R19-SANITIZED-CRASH-CAPTURE-R4-43af8627-20261112-1844`。
+**进度（2026-11-12，capture R4 traffic abort / capture R5 single-episode dispatch）**：用户
+说明 Pad 上 multi-select 后会提示下载 12 集，但随后明确要求不能一次下载 12 集，流量过高。
+R4 owner 已在未启动 App、未下载、未播放的状态中止；`DOWNLOAD_BATCH_COUNT=0`、
+`DOWNLOAD_COMPLETED_COUNT=0`、锁已释放，未删除用户媒体。R4 report SHA
+`6D832A4D3657A790D3D045F6BABDCE1FC61E5CDA37C977B4F88B182747C03FC0`，manifest SHA
+`DF71771B9F4C88544DC24BE032F17AFB3B10233C3FBC8032ECEED4BA8D24BA0E`。
 
-R4 只通过 App UI 正常 multi-select 下载一批（最多 12 集），服务器侧只读；确认至少一集真实
-完成且在 exact debug candidate 的 Downloads/Offline 可见后，才用该 offline 单集做一次
-playback attempt。禁止 Room/WAL/DB 读取、生产在线 fallback、生产写、第二下载批次、第二
-playback attempt、K60/OnePlus、截图和 raw/UI XML/资源值输出。锁上限 30 分钟，capture 上限
-300 秒。当前 `QA_READY=NO`；R4 完成后才决定 crash fingerprint 最小修复或 scoping。已完成：
-用户来源说明、standing server-read authorization、R4 卡/锁/owner 派单；距发布剩余：R4
-capture 结论 → crash 最小修复或 scoping → fresh review/QA → 剩余核心旅程 → integration →
-Release。
+R6 改为 R5：通过 App UI 多选界面只选中 1 集，必须在最终确认提示明确为 1 集后才下载；
+若只能形成 12 集批次，在下载前取消并停止 `BLOCKED_NO_SINGLE_EPISODE_SELECTION`。最多一次
+下载批次、最多完成 1 集、最多一次 playback attempt；不读 DB/WAL，不使用生产在线 fallback，
+不删除用户媒体。R5 卡 SHA
+`7435E72564A424333D2D68901FF796A858E9F2EADA258F2712F047DDA1895631`，唯一 Pad 锁
+`AURORAMA-141-PLAYER-PROGRESS-SOURCE-RETRY-R19-SANITIZED-CRASH-CAPTURE-R5-43af8627-20261112-1852`
+已登记 ACTIVE 后再派 fresh owner。服务器普通只读访问无需再次请示。已完成：流量预算修订、
+R4 中止与 R5 派单；距发布剩余：R5 单集 offline/capture 结论 → crash 最小修复或 scoping →
+fresh review/QA → 剩余核心旅程 → integration → Release。
 
 **进度（2026-11-12，capture R2 WAL 止损 / capture R3 UI-only dispatch）**：capture R2 在
 来源确认阶段因 WAL 模式 Room 数据库无法在不落盘真实资源的前提下安全读取而止损：
