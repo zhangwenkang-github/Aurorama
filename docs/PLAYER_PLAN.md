@@ -8717,3 +8717,21 @@ logcat/tombstone/UI XML/命令/exception/resource 不持久化、不回显，输
 已完成：安全输入 repair/verifier PASS、fresh capture owner 派单与唯一 Pad 锁；距发布剩余：
 capture R2 结论 → crash fingerprint 最小修复或 scoping → fresh review/QA → 剩余核心旅程 →
 integration → Release。
+
+**进度（2026-11-12，capture R2 WAL 止损 / capture R3 UI-only dispatch）**：capture R2 在
+来源确认阶段因 WAL 模式 Room 数据库无法在不落盘真实资源的前提下安全读取而止损：
+`CAPTURE_RESULT=BLOCKED / BLOCKING_CODE=BLOCKED_NO_READ_ONLY_PLAYBACK_SOURCE`，
+`PLAYBACK_START_ATTEMPTS=0 / CAPTURE_WINDOW_SECONDS=0 / APP_STARTED=NO`，Pad 锁已释放，
+debug/release PID、service、MediaSession、通知、child 均收敛；P3 新增
+`P3-R19-CAPTURE-R2-WAL-MEMORY-SOURCE-SELECTION:OPEN_HARNESS_LIMITATION`。报告 SHA
+`CB4CAB29FBE5C0BF4B7EE208BA928D8F0CF439994FEAF627F8336320AE647169`，manifest
+`11/11` / SHA `30AABE7EA22E78436C757D564E0631A8EFF3265844FF0DFF273C36903D1824F2`。
+
+用户授权所有设备后，R6 不扩大到 K60；按硬门改用 Pad `43af8627` 的新 R3 UI-only 路径，
+不读 Room/WAL/DB，只在进程内存解析 UI 层级寻找 Downloads/Offline 媒体。R3 新卡 SHA
+`5B7DFF2DCA52411884F753742DAECB33F8F7DE6BFE1E2B5EEF4CC188F8432BFE`，唯一锁
+`AURORAMA-141-PLAYER-PROGRESS-SOURCE-RETRY-R19-SANITIZED-CRASH-CAPTURE-R3-43af8627-20261112-1824`
+已登记 ACTIVE；一次 App 启动、一次 playback attempt、300 秒 capture、20 分钟锁上限。若找不到
+稳定非生产离线来源或 UI XML 需要落盘，立即停止 `BLOCKED_NO_UI_OFFLINE_SOURCE`。已完成：
+R2 安全止损与 R3 派单；距发布剩余：R3 capture 结论 → crash fingerprint 最小修复或 scoping →
+fresh review/QA → 剩余核心旅程 → integration → Release。
