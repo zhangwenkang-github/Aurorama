@@ -203,6 +203,9 @@
     <string name="player_subtitle_secondary_native_primary">主字幕仅原生，暂不能分配次字幕</string>
     <string name="player_subtitle_secondary_delivery_missing">该字幕缺少可下载文本地址，只能由内核原生渲染，不能作为次字幕</string>
     <string name="player_subtitle_secondary_stale">上次选择的次字幕已不在当前列表中，已关闭次字幕</string>
+    <string name="player_subtitle_secondary_download_failed">次字幕下载失败，未上屏；可重试、选择其他字幕或关闭次字幕。</string>
+    <string name="player_subtitle_secondary_invalid_content">次字幕内容为空或无法解析，未上屏；可重试、选择其他字幕或关闭次字幕。</string>
+    <string name="player_subtitle_primary_identity_unavailable">所选字幕无法唯一对应到一条内核字幕轨，因此未上屏；请选择其他字幕或使用自动选择。</string>
     <string name="player_subtitle_track_fallback">字幕 %1$d</string>
     <string name="player_subtitle_origin_sideload">侧载</string>
     <string name="player_subtitle_delay">字幕延迟</string>

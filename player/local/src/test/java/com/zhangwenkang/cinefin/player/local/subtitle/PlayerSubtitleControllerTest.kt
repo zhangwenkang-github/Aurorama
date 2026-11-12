@@ -7,9 +7,12 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
+import com.zhangwenkang.cinefin.player.local.presentation.SubtitleRouting
+import com.zhangwenkang.cinefin.player.local.presentation.resolveSubtitleRouting
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import java.io.File
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -232,6 +235,181 @@ class PlayerSubtitleControllerTest {
                 SubtitleSecondaryUnavailableReason.DeliveryUrlMissing,
                 state.secondaryUnavailableReason,
             )
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `次字幕下载失败公开原因且不再按 ready 接管内核`() = runBlocking {
+        val missingFile =
+            File.createTempFile("cinefin-subtitle-missing-", ".srt").apply { delete() }
+        val scope = CoroutineScope(Job())
+        val controller = PlayerSubtitleController(scope, AppPreferences(FakeSharedPreferences()))
+        val failed =
+            source(
+                index = 7,
+                title = "下载失败",
+                language = "en",
+                codec = "subrip",
+                uri = missingFile.toURI().toString(),
+            )
+        try {
+            controller.reset(
+                "media-secondary-download-failed",
+                listOf(failed),
+                autoSecondary = false,
+            )
+            controller.assignSecondary(failed.index)
+
+            val state =
+                withTimeout(5_000) {
+                    controller.overlayState.first { it.secondaryUnavailableReason != null }
+                }
+
+            assertEquals("DownloadFailed", state.secondaryUnavailableReason?.name)
+            assertEquals(failed.index, state.secondaryIndex)
+            assertTrue(state.secondaryCues.isEmpty())
+            assertFalse(state.secondaryManaged)
+            assertFalse(state.loading)
+            assertEquals(SubtitleRouting.Off, resolveSubtitleRouting(state))
+        } finally {
+            scope.cancel()
+            missingFile.delete()
+        }
+    }
+
+    @Test
+    fun `次字幕解析为空公开原因而不是静默空画面`() = runBlocking {
+        val emptySubtitle =
+            File.createTempFile("cinefin-subtitle-empty-", ".srt").apply {
+                writeText("not a subtitle", Charsets.UTF_8)
+            }
+        val scope = CoroutineScope(Job())
+        val controller = PlayerSubtitleController(scope, AppPreferences(FakeSharedPreferences()))
+        val failed =
+            source(
+                index = 8,
+                title = "空内容",
+                language = "zh-Hans",
+                codec = "subrip",
+                uri = emptySubtitle.toURI().toString(),
+            )
+        try {
+            controller.reset("media-secondary-empty", listOf(failed), autoSecondary = false)
+            controller.assignSecondary(failed.index)
+
+            val state =
+                withTimeout(5_000) {
+                    controller.overlayState.first { it.secondaryUnavailableReason != null }
+                }
+
+            assertEquals("InvalidContent", state.secondaryUnavailableReason?.name)
+            assertEquals(failed.index, state.secondaryIndex)
+            assertTrue(state.secondaryCues.isEmpty())
+            assertFalse(state.secondaryManaged)
+            assertFalse(state.loading)
+            assertEquals(SubtitleRouting.Off, resolveSubtitleRouting(state))
+        } finally {
+            scope.cancel()
+            emptySubtitle.delete()
+        }
+    }
+
+    @Test
+    fun `失败次字幕可直接重试并在成功后清除原因`() = runBlocking {
+        var attempts = 0
+        val preferences = AppPreferences(FakeSharedPreferences())
+        preferences.setValue(preferences.subtitleMode, Constants.SubtitleMode.OFF)
+        val source = source(index = 9, title = "可重试", language = "en", codec = "subrip")
+        val scope = CoroutineScope(Job())
+        val controller =
+            PlayerSubtitleController(scope, preferences) {
+                attempts++
+                if (attempts == 1) {
+                    error("first attempt failed")
+                }
+                """
+                1
+                00:00:01,000 --> 00:00:03,000
+                重试成功
+                """
+                    .trimIndent()
+            }
+        try {
+            controller.reset("media-secondary-retry", listOf(source), autoSecondary = false)
+            controller.assignSecondary(source.index)
+            withTimeout(5_000) {
+                controller.overlayState.first {
+                    it.secondaryUnavailableReason ==
+                        SubtitleSecondaryUnavailableReason.DownloadFailed
+                }
+            }
+
+            controller.assignSecondary(source.index)
+            val recovered =
+                withTimeout(5_000) {
+                    controller.overlayState.first {
+                        it.secondaryIndex == source.index && it.secondaryManaged
+                    }
+                }
+
+            assertEquals(2, attempts)
+            assertNull(recovered.secondaryUnavailableReason)
+            assertEquals("重试成功", recovered.secondaryCues.single().text)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `过期次字幕加载失败不得覆盖新选择`() = runBlocking {
+        val staleStarted = CompletableDeferred<Unit>()
+        val releaseStale = CompletableDeferred<Unit>()
+        val current = source(index = 8, title = "新选择", language = "zh-Hans", codec = "subrip")
+        val stale = source(index = 9, title = "旧选择", language = "en", codec = "subrip")
+        val scope = CoroutineScope(Job())
+        val controller =
+            PlayerSubtitleController(scope, AppPreferences(FakeSharedPreferences())) { selected ->
+                when (selected.index) {
+                    stale.index -> {
+                        staleStarted.complete(Unit)
+                        releaseStale.await()
+                        error("stale load failed")
+                    }
+                    current.index ->
+                        """
+                        1
+                        00:00:01,000 --> 00:00:03,000
+                        当前字幕
+                        """
+                            .trimIndent()
+                    else -> error("unexpected source")
+                }
+            }
+        try {
+            controller.reset(
+                "media-secondary-stale",
+                listOf(current, stale),
+                autoSecondary = false,
+            )
+            controller.assignSecondary(stale.index)
+            withTimeout(5_000) { staleStarted.await() }
+            controller.assignSecondary(current.index)
+            val currentState =
+                withTimeout(5_000) {
+                    controller.overlayState.first {
+                        it.secondaryIndex == current.index && it.secondaryManaged
+                    }
+                }
+
+            releaseStale.complete(Unit)
+            Thread.sleep(50)
+            val finalState = controller.overlayState.value
+            assertEquals(current.index, finalState.secondaryIndex)
+            assertTrue(finalState.secondaryManaged)
+            assertNull(finalState.secondaryUnavailableReason)
+            assertEquals(currentState.secondaryCues, finalState.secondaryCues)
         } finally {
             scope.cancel()
         }

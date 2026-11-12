@@ -10,6 +10,8 @@ enum class SubtitleSecondaryUnavailableReason {
     GraphicOnly,
     DeliveryUrlMissing,
     StaleTrack,
+    DownloadFailed,
+    InvalidContent,
 }
 
 fun PlayerSubtitleSource.secondaryUnavailableReason(): SubtitleSecondaryUnavailableReason? =

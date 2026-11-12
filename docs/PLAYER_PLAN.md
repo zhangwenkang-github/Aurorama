@@ -9242,3 +9242,14 @@ R9 波次收口：B/C/D 各自 implementation + fresh scoped review 均 PASS，P
 1048576 = 46.8%`，按 35 万硬线交接到 R10 delivery lead；R10 首任务是 full-scope review
 （A + B/C/D），PASS 后才可派不同 fresh merge-prep owner。R10 交接入口：
 `evidence-v1-4-1-r10-delivery-handoff-2026-11-13\R10_DELIVERY_LEAD_PROMPT.md`。
+
+**C2 docs-equivalent merge-prep writeback（2026-11-13）**：C2 source
+`269e9cb7d1bf4655b619b6fa2b12b4de9a96b1b2` 的 9 个产品、测试与 resource 路径按 source blob
+原样保留；仅 `docs/PLAYER_PLAN.md` 因 Control 已有更新 R9/R10 内容而发生追加尾部冲突。本段
+保留上方全部较新事实，并合并 C2 的进度写回：Native 源身份使用稳定
+`SubtitleConfiguration.id = cinefin:subtitle-source:<Jellyfin index>` 唯一精确匹配，缺失、
+重复或不匹配时 fail closed；次字幕下载失败发布 `DownloadFailed`，解析异常或空 cue 发布
+`InvalidContent`，并提供重试 / 关闭与 stale-load fencing。C2 targeted 为
+`42/0/0/0`，player-local `393/0/0/0`、phone `412/0/0/0`，affected `204/204` executed，
+assemble、ktfmt、diff-check 与 graphify PASS。真实 Exo/mpv 字幕画面、PC-06/PC-07、
+`PLAYER_CORE_RELEASE_MATRIX`、独立 QA 与 Release 均未执行；本段不是 QA 或 Release PASS。

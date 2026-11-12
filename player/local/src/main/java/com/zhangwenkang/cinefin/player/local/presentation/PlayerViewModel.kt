@@ -13,14 +13,15 @@ import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackGroup
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import com.zhangwenkang.cinefin.api.JellyfinApi
-import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSegment
@@ -299,6 +300,10 @@ constructor(
         SameTrack,
     }
 
+    enum class SubtitlePrimaryUnavailableReason {
+        NativeSourceIdentityUnavailable
+    }
+
     /** 字幕面板里的一行轨道选项（两个内核共用同一套 UI） */
     data class SubtitleOption(
         /** 行身份：ExoPlayer = 源序号；mpv = 原生 track id。 */
@@ -337,6 +342,8 @@ constructor(
         val loading: Boolean = false,
         /** 主字幕仅原生 / 无法映射时，次字幕整体不可分配。 */
         val secondaryAssignmentBlocked: Boolean = false,
+        /** 选中图形 / 仅原生源无法唯一绑定 Media3 轨时的明确原因。 */
+        val primaryUnavailableReason: SubtitlePrimaryUnavailableReason? = null,
         /** 当前 / 最近一次次字幕请求因图形或缺少 DeliveryUrl 被拒绝的明确原因。 */
         val secondaryUnavailableReason: SubtitleSecondaryUnavailableReason? = null,
         /** 仅当主、次都是不同文本轨且动作 id 可解析时为 null。 */
@@ -392,6 +399,7 @@ constructor(
     private val _subtitlePanelState = MutableStateFlow(SubtitlePanelState())
     val subtitlePanelState = _subtitlePanelState.asStateFlow()
     private var lastSubtitleRoutingTrace: String? = null
+    private var nativeSubtitleUnavailableReason: SubtitlePrimaryUnavailableReason? = null
 
     private val _audioPanelState = MutableStateFlow(AudioPanelState())
     val audioPanelState = _audioPanelState.asStateFlow()
@@ -2105,17 +2113,20 @@ constructor(
         if (player.currentMediaItem == null) return
         val subtitleState = subtitleController.overlayState.value
         val routing = resolveSubtitleRouting(subtitleState)
-        traceSubtitleRouting(routing, subtitleState)
-        runCatching {
+        val update = runCatching {
             val parameters =
                 trackSelectionEngine.parameters(
                     player.trackSelectionParameters,
                     tracks,
                     subtitlesManaged = routing !is SubtitleRouting.Auto,
                 )
-            player.trackSelectionParameters = routeSubtitleParameters(parameters, routing)
+            applySubtitleRoutingParameters(parameters, routing, tracks)
         }
             .onFailure { Timber.w(it, "自动选择字幕/音轨失败") }
+            .getOrNull()
+        nativeSubtitleUnavailableReason = update?.nativeUnavailableReason
+        traceSubtitleRouting(routing, subtitleState)
+        update?.let { player.trackSelectionParameters = it.parameters }
         publishSubtitlePanelState()
     }
 
@@ -2125,13 +2136,20 @@ constructor(
         if (player.currentMediaItem == null) return
         val subtitleState = subtitleController.overlayState.value
         val routing = resolveSubtitleRouting(subtitleState)
-        traceSubtitleRouting(routing, subtitleState)
-        if (routing is SubtitleRouting.Auto) return
-        runCatching {
-            player.trackSelectionParameters =
-                routeSubtitleParameters(player.trackSelectionParameters, routing)
+        val update = runCatching {
+            applySubtitleRoutingParameters(
+                player.trackSelectionParameters,
+                routing,
+                player.currentTracks,
+            )
         }
             .onFailure { Timber.w(it, "字幕渲染路由失败") }
+            .getOrNull()
+        nativeSubtitleUnavailableReason = update?.nativeUnavailableReason
+        traceSubtitleRouting(routing, subtitleState)
+        if (routing !is SubtitleRouting.Auto) {
+            update?.let { player.trackSelectionParameters = it.parameters }
+        }
         publishSubtitlePanelState()
     }
 
@@ -2157,6 +2175,7 @@ constructor(
                     state.primaryManaged,
                     state.primaryLoading,
                     state.primaryRenderFailed,
+                    nativeSubtitleUnavailableReason,
                     selected?.index,
                     selected?.codec,
                     selected?.isExternal,
@@ -2165,57 +2184,18 @@ constructor(
         if (signature == lastSubtitleRoutingTrace) return
         lastSubtitleRoutingTrace = signature
         Timber.d(
-            "字幕渲染路由: route=%s primary=%s secondary=%s managed=%b loading=%b renderFailed=%b sourceIndex=%s codec=%s external=%s",
+            "字幕渲染路由: route=%s primary=%s secondary=%s managed=%b loading=%b renderFailed=%b unavailable=%s sourceIndex=%s codec=%s external=%s",
             route,
             state.primaryIndex,
             state.secondaryIndex,
             state.primaryManaged,
             state.primaryLoading,
             state.primaryRenderFailed,
+            nativeSubtitleUnavailableReason,
             selected?.index,
             selected?.codec,
             selected?.isExternal,
         )
-    }
-
-    /** 把路由规则应用到轨道选择参数 */
-    private fun routeSubtitleParameters(
-        parameters: TrackSelectionParameters,
-        routing: SubtitleRouting,
-    ): TrackSelectionParameters =
-        when (routing) {
-            SubtitleRouting.Managed,
-            SubtitleRouting.Off ->
-                parameters
-                    .buildUpon()
-                    .clearOverridesOfType(C.TRACK_TYPE_TEXT)
-                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
-                    .build()
-            is SubtitleRouting.Native -> applyNativeSubtitleOverride(parameters, routing.source)
-            SubtitleRouting.Auto -> parameters
-        }
-
-    /** 图形字幕：按语言匹配内核文字轨（匹配不到就用第一条文字轨兜底） */
-    private fun applyNativeSubtitleOverride(
-        parameters: TrackSelectionParameters,
-        source: PlayerSubtitleSource,
-    ): TrackSelectionParameters {
-        val groups =
-            player.currentTracks.groups.filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
-        if (groups.isEmpty()) return parameters
-        val base = LanguageMatcher.baseOf(source.language)
-        val matched =
-            groups.firstOrNull { group ->
-                val format = group.mediaTrackGroup.getFormat(0)
-                val tag = LanguageMatcher.detect(format.language, format.label, format.id)
-                tag != null && source.language.isNotBlank() && LanguageMatcher.baseOf(tag) == base
-            } ?: groups.firstOrNull()
-        if (matched == null) return parameters
-        return parameters
-            .buildUpon()
-            .setOverrideForType(TrackSelectionOverride(matched.mediaTrackGroup, 0))
-            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
-            .build()
     }
 
     private data class MpvNativeSubtitleTrack(
@@ -2393,6 +2373,7 @@ constructor(
                 managed = state.primaryManaged,
                 controllable = state.sources.any { it.isTextBased },
                 loading = state.loading,
+                primaryUnavailableReason = nativeSubtitleUnavailableReason,
                 secondaryUnavailableReason = state.secondaryUnavailableReason,
                 swapBlockedReason = swapBlockedReason,
                 assSecondaryHint = secondarySource.isAssSecondary(),
@@ -3321,13 +3302,11 @@ internal fun boundedBufferedPosition(currentPositionMs: Long?, buffered: Long): 
 
 internal fun PlayerItem.toMediaItem(application: Application): MediaItem {
     val streamUrl = mediaSourceUri
-    val mediaSubtitles = externalSubtitles.map { externalSubtitle ->
-        MediaItem.SubtitleConfiguration.Builder(externalSubtitle.uri)
-            .setLabel(externalSubtitle.title.ifBlank { application.getString(R.string.external) })
-            .setMimeType(externalSubtitle.mimeType)
-            .setLanguage(externalSubtitle.language)
-            .build()
-    }
+    val mediaSubtitles =
+        subtitleConfigurationsForNativeFallback(
+            item = this,
+            fallbackLabel = application.getString(R.string.external),
+        )
 
     Timber.d("Stream url: ${redactUrlSecrets(streamUrl)}")
     return MediaItem.Builder()
@@ -3360,6 +3339,37 @@ internal fun PlayerItem.toMediaItem(application: Application): MediaItem {
         .setSubtitleConfigurations(mediaSubtitles)
         .build()
 }
+
+internal const val NATIVE_SUBTITLE_SOURCE_ID_PREFIX = "cinefin:subtitle-source:"
+
+internal fun nativeSubtitleSourceTrackId(index: Int): String =
+    "$NATIVE_SUBTITLE_SOURCE_ID_PREFIX$index"
+
+/** 原生兜底清单：所有可自管文本源都携带 Jellyfin 源序号，原生轨身份因此可反查。 */
+internal fun subtitleConfigurationsForNativeFallback(
+    item: PlayerItem,
+    fallbackLabel: String,
+): List<MediaItem.SubtitleConfiguration> =
+    item.subtitleSources
+        .filter { it.isTextBased }
+        .distinctBy { it.index }
+        .map { source ->
+            MediaItem.SubtitleConfiguration.Builder(Uri.parse(source.uri))
+                .setId(nativeSubtitleSourceTrackId(source.index))
+                .setLabel(source.title.ifBlank { fallbackLabel })
+                .setMimeType(nativeSubtitleMimeType(source.codec))
+                .setLanguage(source.language)
+                .build()
+        }
+
+private fun nativeSubtitleMimeType(codec: String): String =
+    when (codec.lowercase()) {
+        "subrip",
+        "webvtt" -> MimeTypes.APPLICATION_SUBRIP
+        "ass",
+        "ssa" -> MimeTypes.TEXT_SSA
+        else -> MimeTypes.TEXT_UNKNOWN
+    }
 
 sealed interface PlayerEvents {
     data object NavigateBack : PlayerEvents
@@ -3416,13 +3426,98 @@ internal sealed interface SubtitleRouting {
     data object Auto : SubtitleRouting
 }
 
+internal data class SubtitleRoutingUpdate(
+    val parameters: TrackSelectionParameters,
+    val nativeUnavailableReason: PlayerViewModel.SubtitlePrimaryUnavailableReason? = null,
+)
+
+internal fun applySubtitleRoutingParameters(
+    parameters: TrackSelectionParameters,
+    routing: SubtitleRouting,
+    tracks: Tracks,
+): SubtitleRoutingUpdate =
+    when (routing) {
+        SubtitleRouting.Managed,
+        SubtitleRouting.Off ->
+            SubtitleRoutingUpdate(
+                parameters
+                    .buildUpon()
+                    .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                    .build()
+            )
+        is SubtitleRouting.Native -> applyNativeSubtitleOverride(parameters, routing.source, tracks)
+        SubtitleRouting.Auto -> SubtitleRoutingUpdate(parameters)
+    }
+
+private data class MatchedNativeSubtitleTrack(
+    val group: TrackGroup,
+    val trackIndex: Int,
+)
+
+/** Native 只接受可由稳定源 id 唯一证明的轨道；其余情况显式关闭文字轨。 */
+private fun applyNativeSubtitleOverride(
+    parameters: TrackSelectionParameters,
+    source: PlayerSubtitleSource,
+    tracks: Tracks,
+): SubtitleRoutingUpdate {
+    val matched =
+        if (source.isGraphic) {
+            null
+        } else {
+            tracks.groups
+                .filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
+                .flatMap { group ->
+                    (0 until group.mediaTrackGroup.length).mapNotNull { trackIndex ->
+                        val format = group.mediaTrackGroup.getFormat(trackIndex)
+                        if (nativeSubtitleSourceIndex(format.id) == source.index) {
+                            MatchedNativeSubtitleTrack(group.mediaTrackGroup, trackIndex)
+                        } else {
+                            null
+                        }
+                    }
+                }
+                .singleOrNull()
+        }
+    if (matched == null) {
+        return SubtitleRoutingUpdate(
+            parameters =
+                parameters
+                    .buildUpon()
+                    .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                    .build(),
+            nativeUnavailableReason =
+                PlayerViewModel.SubtitlePrimaryUnavailableReason.NativeSourceIdentityUnavailable,
+        )
+    }
+    return SubtitleRoutingUpdate(
+        parameters
+            .buildUpon()
+            .setOverrideForType(TrackSelectionOverride(matched.group, matched.trackIndex))
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .build()
+    )
+}
+
+private fun nativeSubtitleSourceIndex(formatId: String?): Int? {
+    val id = formatId?.takeIf { it.startsWith(NATIVE_SUBTITLE_SOURCE_ID_PREFIX) } ?: return null
+    val index = id.removePrefix(NATIVE_SUBTITLE_SOURCE_ID_PREFIX).toIntOrNull() ?: return null
+    if (index < 0 || nativeSubtitleSourceTrackId(index) != id) return null
+    return index
+}
+
 /** 当前字幕 overlay 状态到内核渲染路由的唯一判定入口。 */
 internal fun resolveSubtitleRouting(state: SubtitleOverlayState): SubtitleRouting {
     if (state.disabledByUser) return SubtitleRouting.Off
     // 主路被「移到次路」清空时不是用户关闭字幕；次路仍由 Compose 渲染，
-    // 必须同时禁掉内核文字轨，否则 Exo 会自动补一条原生字幕与次字幕叠在一起。
+    // 加载期间必须禁掉内核文字轨；失败后则显式关闭，不能继续留下 Managed-only 空态。
     if (state.primaryIndex == null && state.secondaryIndex != null) {
-        return SubtitleRouting.Managed
+        return if (state.secondaryManaged || state.loading) {
+            SubtitleRouting.Managed
+        } else {
+            SubtitleRouting.Off
+        }
     }
     val selected = state.sources.firstOrNull { it.index == state.primaryIndex }
     if (selected != null) {

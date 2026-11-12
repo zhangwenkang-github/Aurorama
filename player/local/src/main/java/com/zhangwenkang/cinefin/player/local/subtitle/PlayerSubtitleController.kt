@@ -17,6 +17,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -110,6 +111,7 @@ fun shouldSuppressSecondaryForMpvPrimarySelection(
 class PlayerSubtitleController(
     private val scope: CoroutineScope,
     private val appPreferences: AppPreferences,
+    private val contentLoader: (suspend (PlayerSubtitleSource) -> String)? = null,
 ) {
     companion object {
         /** 延迟步长 0.1s，可调范围 ±10s */
@@ -147,7 +149,11 @@ class PlayerSubtitleController(
     private val subtitleCache = mutableMapOf<String, LoadedSubtitle>()
 
     /** 一次下载的产物：cue 列表（文本 / 双语） + ASS 原文（libass） */
-    private data class LoadedSubtitle(val cues: List<SubtitleCue>, val assScript: String?)
+    private data class LoadedSubtitle(
+        val cues: List<SubtitleCue>,
+        val assScript: String?,
+        val failure: SubtitleSecondaryUnavailableReason? = null,
+    )
 
     private var mediaId: String = ""
     private var selectionScope: SubtitleSelectionScope? = null
@@ -706,7 +712,16 @@ class PlayerSubtitleController(
             loadSubtitle(source, isPrimary = false) { loaded ->
                 if (secondaryIndex == source.index) {
                     secondaryCues = loaded.cues
-                    secondaryManaged = loaded.cues.isNotEmpty()
+                    val reason =
+                        loaded.failure
+                            ?: SubtitleSecondaryUnavailableReason.InvalidContent.takeIf {
+                                loaded.cues.isEmpty()
+                            }
+                    secondaryManaged = reason == null && loaded.cues.isNotEmpty()
+                    secondaryUnavailableReason = reason
+                    if (reason != null) {
+                        subtitleCache.remove(subtitleCacheKey(source))
+                    }
                     publish()
                 }
             }
@@ -734,7 +749,7 @@ class PlayerSubtitleController(
         isPrimary: Boolean,
         onReady: (LoadedSubtitle) -> Unit,
     ): Job? {
-        val cacheKey = "$mediaId:${source.index}"
+        val cacheKey = subtitleCacheKey(source)
         val cached = subtitleCache[cacheKey]
         if (cached != null) {
             onReady(cached)
@@ -742,37 +757,63 @@ class PlayerSubtitleController(
         }
         if (isPrimary) primaryLoading = true else secondaryLoading = true
         return scope.launch {
-            val loaded =
-                withContext(Dispatchers.IO) {
-                    runCatching {
-                            // 下载与解析一起兜底：解析器异常（含 Error）绝不能带崩播放页
-                            // W74 #21：下载失败先短退避重试一次，避免瞬时抖动静默变成空字幕
-                            val content =
-                                retryOnce(
-                                    delayMs = SUBTITLE_DOWNLOAD_RETRY_DELAY_MS,
-                                    label = "字幕下载（index=${source.index}）",
-                                ) {
-                                    download(source.uri)
-                                }
-                            LoadedSubtitle(
-                                cues = SubtitleParser.parse(content, source.codec),
-                                assScript = assScriptOf(content, source.codec),
-                            )
-                        }
-                        // 不打印完整地址：Jellyfin 的 DeliveryUrl 里带 ApiKey
-                        .onFailure { Timber.w(it, "字幕加载失败（index=%d）", source.index) }
-                        .getOrDefault(LoadedSubtitle(emptyList(), null))
-                }
-            subtitleCache[cacheKey] = loaded
+            val loaded = withContext(Dispatchers.IO) { loadSubtitleContent(source) }
+            if (loaded.failure == null && (loaded.cues.isNotEmpty() || loaded.assScript != null)) {
+                subtitleCache[cacheKey] = loaded
+            }
             if (isPrimary) primaryLoading = false else secondaryLoading = false
             Timber.d(
-                "字幕解析完成: index=%d, cues=%d, ass=%b",
+                "字幕解析完成: index=%d, cues=%d, ass=%b, failure=%s",
                 source.index,
                 loaded.cues.size,
                 loaded.assScript != null,
+                loaded.failure,
             )
             onReady(loaded)
         }
+    }
+
+    private fun subtitleCacheKey(source: PlayerSubtitleSource): String = "$mediaId:${source.index}"
+
+    private suspend fun loadSubtitleContent(source: PlayerSubtitleSource): LoadedSubtitle {
+        val content =
+            try {
+                contentLoader?.invoke(source)
+                    ?: retryOnce(
+                        delayMs = SUBTITLE_DOWNLOAD_RETRY_DELAY_MS,
+                        label = "字幕下载（index=${source.index}）",
+                    ) {
+                        download(source.uri)
+                    }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                // 不打印完整地址：Jellyfin 的 DeliveryUrl 里带 ApiKey
+                Timber.w(failure, "字幕加载失败（index=%d）", source.index)
+                return LoadedSubtitle(
+                    cues = emptyList(),
+                    assScript = null,
+                    failure = SubtitleSecondaryUnavailableReason.DownloadFailed,
+                )
+            }
+
+        val cues =
+            try {
+                SubtitleParser.parse(content, source.codec)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                Timber.w(failure, "字幕解析失败（index=%d）", source.index)
+                return LoadedSubtitle(
+                    cues = emptyList(),
+                    assScript = null,
+                    failure = SubtitleSecondaryUnavailableReason.InvalidContent,
+                )
+            }
+        return LoadedSubtitle(
+            cues = cues,
+            assScript = assScriptOf(content, source.codec),
+        )
     }
 
     /**

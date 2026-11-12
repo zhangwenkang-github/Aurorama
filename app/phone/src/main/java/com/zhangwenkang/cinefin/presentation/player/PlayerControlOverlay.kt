@@ -3527,17 +3527,53 @@ private fun SubtitleTracksPage(
                         ),
                 )
             }
-            state.secondaryUnavailableReason?.let { reason ->
+            state.primaryUnavailableReason?.let { reason ->
                 Text(
-                    text = subtitleSecondaryUnavailableReason(reason),
+                    text = subtitlePrimaryUnavailableReason(reason),
                     style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant,
+                    color = colors.error,
                     modifier =
                         Modifier.padding(
                             horizontal = CinefinSpacing.Space5,
                             vertical = CinefinSpacing.Space1,
                         ),
                 )
+            }
+            state.secondaryUnavailableReason?.let { reason ->
+                Column(
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space1,
+                        )
+                ) {
+                    Text(
+                        text = subtitleSecondaryUnavailableReason(reason),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.error,
+                    )
+                    if (reason.isRetryable()) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+                            modifier = Modifier.padding(top = CinefinSpacing.Space1),
+                        ) {
+                            secondary?.secondaryActionId?.let { actionId ->
+                                PanelChip(
+                                    label =
+                                        stringResource(PlayerR.string.player_controls_error_retry),
+                                    selected = false,
+                                    onClick = { onAssignSecondary(actionId) },
+                                )
+                            }
+                            PanelChip(
+                                label = stringResource(PlayerR.string.player_subtitle_close),
+                                selected = false,
+                                onClick = onClearSecondary,
+                            )
+                        }
+                    }
+                }
             }
 
             PanelTitle(stringResource(PlayerR.string.player_subtitle_all_tracks))
@@ -3878,8 +3914,27 @@ private fun subtitleSecondaryUnavailableReason(reason: SubtitleSecondaryUnavaila
                 PlayerR.string.player_subtitle_secondary_delivery_missing
             SubtitleSecondaryUnavailableReason.StaleTrack ->
                 PlayerR.string.player_subtitle_secondary_stale
+            SubtitleSecondaryUnavailableReason.DownloadFailed ->
+                PlayerR.string.player_subtitle_secondary_download_failed
+            SubtitleSecondaryUnavailableReason.InvalidContent ->
+                PlayerR.string.player_subtitle_secondary_invalid_content
         }
     )
+
+@Composable
+private fun subtitlePrimaryUnavailableReason(
+    reason: PlayerViewModel.SubtitlePrimaryUnavailableReason
+): String =
+    stringResource(
+        when (reason) {
+            PlayerViewModel.SubtitlePrimaryUnavailableReason.NativeSourceIdentityUnavailable ->
+                PlayerR.string.player_subtitle_primary_identity_unavailable
+        }
+    )
+
+private fun SubtitleSecondaryUnavailableReason.isRetryable(): Boolean =
+    this == SubtitleSecondaryUnavailableReason.DownloadFailed ||
+        this == SubtitleSecondaryUnavailableReason.InvalidContent
 
 @Composable
 private fun SubtitleTextBadge(label: String) {
