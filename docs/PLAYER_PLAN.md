@@ -9050,3 +9050,18 @@ ktfmt、diff-check PASS；arm64 debug APK SHA
 新增 P0–P3=`0/0/0/0`、BLOCKED=0；ColorOS 真实播放/暂停/继续、进度、音频焦点、锁屏、通知、
 FGS 生命周期与 PC-10 全部 `NOT_RUN`。D 只放行不同 fresh scoped reviewer；review PASS 后才
 另派设备的独立 QA，不得把离线 GREEN 写成 PC-10 或 Release PASS。
+
+**进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
+`codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
+`V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
+`b16390dc5329052ea1cdf7d5b8c07e14d44081b1` / parent `45d7f789...` / clean，9 路径。
+主假设为字幕选择/路由缺少单一 capability-aware 不变量，导致 native-only/graphic 主字幕被漏、
+非受管文本选中后回落 Auto、非法次字幕恢复形成 manual-empty。RED 分别为
+`28 tests / 4 failed` 与 `23 tests / 2 failed`；GREEN targeted `62/0/0/0`，player-local
+`384/0/0/0`、phone `412/0/0/0`，两模块强制重跑 `204/204`，phone assemble、ktfmt、
+diff-check PASS。报告 SHA `D34496F1C767CA8EC3FB169DD7F75C073AFA6B278EF2E23FEE907357BC822A9A`、
+result `4DC62A48DA8A89ACA474A837E13553F757733427E8F18F6EB89BC86CC8680CB4`、manifest
+`4A815A8FAB417558DF1E08868E655F7AC62C1066078844AAF83AF9CE899183FF`（`121/121 MATCH`）。
+新增 P0–P3=`0/0/0/0`、BLOCKED=0；真实 Exo/mpv 直放/HLS 字幕画面、DeliveryUrl、视觉层级、
+PC-06/PC-07 与 release matrix 均 `NOT_RUN`。C 只放行不同 fresh scoped reviewer，不能把自动化
+合同写成字幕设备 PASS。
