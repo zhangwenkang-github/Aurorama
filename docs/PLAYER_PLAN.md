@@ -8657,3 +8657,24 @@ fresh verifier；verifier PASS 前 ADB、Pad/K60 锁、QaReady、QA、capture R2
 merge/integration/Release 全部冻结。已完成：用户授权、repair 卡与 owner 派单；距发布剩余：
 repair owner 自测 → different fresh verifier → 新 Pad 锁/capture R2 → crash 最小修复或
 scoping → fresh review/QA → 剩余核心旅程 → integration → Release。
+
+**进度（2026-11-12，safe-input repair R2 owner PASS / verifier dispatched）**：fresh repair
+owner 在真实子进程边界复现冻结 R1 Unicode RED `4/4` 接受，并完成最小修复：public 与 provider
+child 均以 ordinal exact 判定三个 closed ID；`U+202E` / `U+200D` 注入 GREEN
+`4/4` fail closed、provider child `4/4 NOT_STARTED`，provider 自身直接注入 `4/4` 拒绝；
+GREEN `30/30`，R1 owner 回归 `8/8` / `30/30`，verifier Unicode replay `2/2`。AST `9/9`，
+manifest `20/20 MATCH`，raw/unsafe path/input-derived filename 均为 0。
+
+repair report SHA-256
+`2D63FA484B12D8730C25BBEAAB58201E76678F5A91BD495B409686CA660916C0`，manifest SHA-256
+`1F389092A6580639B154C45E9999410ACC0E8D8BD71FE35759375378BD4DC2BB`。P2
+`P2-R19-SAFE-INPUT-UNICODE-FORMAT-CONTROL-ACCEPTED` 仅到
+`CLOSED_PENDING_FRESH_VERIFIER`，不能由 owner 自测关闭。
+
+R6 已另立 repair verifier 根并路由不同 fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_SAFE_CAPTURE_INPUT_BOUNDARY_REPAIR_VERIFIER_R2_2026_11_12`
+（`deepseek-flash / max / fork=none`）。verifier 只读 R1/repair 证据，独立复跑并追加至少
+12 类 / 每类 2 次 probes；只写新 verifier 根。verifier FAIL 不自动下一轮，PASS 后才能申请新
+Pad 锁与 capture R2。已完成：最小 repair 与 owner self-test；距发布剩余：different fresh
+repair verifier → 用户设备决策/新 Pad 锁/capture R2 → crash 最小修复或 scoping →
+fresh review/QA → 剩余核心旅程 → integration → Release。
