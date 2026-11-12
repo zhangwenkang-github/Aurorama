@@ -8641,3 +8641,19 @@ identity 绕过，不是产品 QA、真实 capture 或播放结论。
 `ACTIVE=0`、`RELEASE_FROZEN`。已完成：safe-input owner + verifier 门与 FAIL 收口；距发布剩余：
 用户决策 → 可选 fresh repair + different fresh verifier → 新 Pad 锁/capture R2 → crash 最小修复
 或 scoping → fresh review/QA → 剩余核心旅程 → integration → Release。
+
+**进度（2026-11-12，safe-input repair R2 dispatched）**：用户明确选择推荐方案，只授权一次新的
+最小 fresh repair。R6 已在新根
+`evidence-v1-4-1-player-progress-source-retry-r19-safe-capture-input-boundary-repair-r2-2026-11-12`
+建立 `R19_SAFE_CAPTURE_INPUT_BOUNDARY_REPAIR_R2_CARD.md`，card SHA-256
+`2A830FCFFBCFDC79D13255A854A018FB9CFD39DD2A5B40821D27D3992059BD32`。修复 owner 必须与 R1
+implementation owner、R1 verifier 及全部历史角色不同，只修 ordinal exact operation ID 与
+Unicode format-control 拒绝；不得改 repair 根外文件、接真实 provider、设备或 QA。
+
+必需 RED 必须先在真实子进程边界复现 `U+202E` / `U+200D` 两次被接受；GREEN 必须让两个注入
+用例各重复两次均 fail closed、provider child 不启动，并回归 R1 owner RED `8/8` / GREEN
+`30/30` 与 verifier 的 Unicode FAIL probes。owner 自测完成后必须停止，再由 R6 派另一个全新
+fresh verifier；verifier PASS 前 ADB、Pad/K60 锁、QaReady、QA、capture R2、
+merge/integration/Release 全部冻结。已完成：用户授权、repair 卡与 owner 派单；距发布剩余：
+repair owner 自测 → different fresh verifier → 新 Pad 锁/capture R2 → crash 最小修复或
+scoping → fresh review/QA → 剩余核心旅程 → integration → Release。
