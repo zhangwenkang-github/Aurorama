@@ -9242,3 +9242,40 @@ R9 波次收口：B/C/D 各自 implementation + fresh scoped review 均 PASS，P
 1048576 = 46.8%`，按 35 万硬线交接到 R10 delivery lead；R10 首任务是 full-scope review
 （A + B/C/D），PASS 后才可派不同 fresh merge-prep owner。R10 交接入口：
 `evidence-v1-4-1-r10-delivery-handoff-2026-11-13\R10_DELIVERY_LEAD_PROMPT.md`。
+
+**进度（2026-11-13，R10 full-scope → merge-prep → handoff）**：R10 startup spot-check 确认
+Control / A / B / C / D 五对象、ACTIVE、锁与 R10 pre-handoff audit 一致。第一个 different
+fresh full-scope reviewer 对 A R20+B+C+D `39` 路径返回 `FAIL`，唯一 P2 为
+`P2-R10-C-SECONDARY-FAILURE-REASON-CLEARED-ON-PRIMARY-CHANGE`：次字幕失败后只切主字幕会
+清空失败原因但保留失败次轨。不同 fresh C repair owner 从 `269e9cb7` 最小修复到
+`c502f328c944910f918c6f86a466d5ca3251890a` / tree
+`f51ee6ea14305539f41b60961126e920d22a164d`，仅两路径，RED `33/2`、GREEN `33/0/0/0`、
+player-local `395/0/0/0`。另一个 fresh full-scope reviewer R2 重新审查完整 union，
+`PASS`、R1 P2 `CLOSED`、新增代码 P0/P1/P2=`0/0/0`，独立复跑 `97/0/0/0`。
+
+merge-prep 先由 fresh R2 在 B 五路径遇到 Control `CatalogReadPort / IdentityConditionalWritePort`
+架构适配冲突并正确 `BLOCKED`；负责人批准 `R10-MERGE-EQUIVALENCE-B-2026-11-13`，
+由不同 fresh owner 在五个既有路径做语义移植。随后 C2 仅 `docs/PLAYER_PLAN.md` 冲突，
+负责人批准 `R10-MERGE-EQUIVALENCE-C2-DOCS-2026-11-13`，限定 9 个非文档 blob 必须与
+C2 source 完全一致，仅文档等价合并。最终 isolated candidate：
+
+```text
+FINAL_HEAD=8814c3377e5812e0c589b7222ee21102922e57bb
+FINAL_TREE=8403b88821cde91ed88debee4dbe46e90477ad93
+TARGET_ANCESTOR=YES / BEHIND_CONTROL=0 / COMMITS=28 / CLEAN=YES
+PATCH_ID=26 MATCH / 2 EQUIVALENT / 0 MISSING
+PATHS=100 / BINARY=36 authorized native seam / forbidden hits=0
+```
+
+fresh merge-prep verifier 独立复算 R4 manifest `219/219`、28 提交、B/C2 两个 equivalence、
+100 路径、四项 JVM `218/218 tasks / 1377/0/0/0`、assemble、ktfmt、APK identity，结论
+`VERIFIER_STATUS=PASS`。arm64 debug candidate APK 为
+`154292900 B / 9C722D879C764E0AA45982B4DA50592AB06A59AA14664B88A4999F041C88BC37`，
+仍非 signed release candidate，未安装、未 QA。
+
+当前 `A QA=BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY`，七个 scoped PC 行全部 `NOT_RUN`；
+`QA_READY=NO`、无设备锁、`PLAYER_CORE_RELEASE_MATRIX=NOT_RUN`，Release materials / signed
+candidate / integration 仍未执行。R10 实测上下文 `406132 / 1048576 = 38.7%`，已超过 35 万
+硬线；本轮收口后交接到 R11 delivery lead。R11 第一事项必须等待用户明确二选一：
+授权新增固定 `testTag` / `testTagsAsResourceId` / click postcondition 等测试结构身份，
+或接受 A QA 覆盖保持 `BLOCKED`。在此之前禁止重开 A QA、派设备 QA 或写 Release。
