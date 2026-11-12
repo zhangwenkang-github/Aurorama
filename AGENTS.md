@@ -69,6 +69,9 @@
   派发前运行 `v2-handoff-lint.ps1 -Mode BugLoopPrompt -PromptPath <absolute-prompt-file>`；只有
   `BUG_LOOP_DISPATCH_GATE=PASS` 才可创建子代理或后继会话。Handoff / QaReady 同样机械要求 ACTIVE
   字段齐全且值合法；任一缺失、重复、占位、证据缺失或 ACTIVE/prompt 不一致即 FAIL，不得只靠负责人记忆。
+  停止门只保留会破坏安全、证据完整性、对象绑定或任务范围的条件；未列出的可逆、在授权写域内的
+  常规技术选择和一次受控重试不构成停止。子代理应优先选择最能区分根因的最小取证/修复动作，
+  不为正常子步骤反复回问，也不因预防性流程限制降低找 bug / 修 bug 的效率。
 - **同一 docs 提交不得写自身最终 SHA**：candidate / base / required ancestors / failed candidate 的稳定
   SHA 放在 `V2_HANDOFF_OBJECT_BEGIN/END`；当前 candidate HEAD 只由 manager 通过 `-ExpectedHead` 外部 pin。
 - **Selector 机械门**：含 `--tests` 的真实命令只放 QA test matrix；空引号、裸选项、空等号或
