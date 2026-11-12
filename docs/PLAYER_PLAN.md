@@ -9222,3 +9222,23 @@ result `4DC62A48DA8A89ACA474A837E13553F757733427E8F18F6EB89BC86CC8680CB4`、mani
 新增 P0–P3=`0/0/0/0`、BLOCKED=0；真实 Exo/mpv 直放/HLS 字幕画面、DeliveryUrl、视觉层级、
 PC-06/PC-07 与 release matrix 均 `NOT_RUN`。C 只放行不同 fresh scoped reviewer，不能把自动化
 合同写成字幕设备 PASS。
+
+**进度（2026-11-13，C R2 review PASS / R9 wave closeout / R10 handoff）**：不同 fresh C R2
+reviewer 对两个原 P2 的 repair 做独立复审，结论 `PASS`，代码 P0/P1/P2=`0/0/0`、P3=3；
+`P2-C-SUBTITLE-NATIVE-FALLBACK-SOURCE-IDENTITY` 与
+`P2-C-SUBTITLE-SECONDARY-FAILURE-REASON` 均 `CLOSED`。Target head
+`269e9cb7... / tree 7e2fe2cd...` clean；targeted 42/0/0/0，player-local `393/0/0/0`、phone
+`412/0/0/0`，affected `204/204` executed，assemble/ktfmt/diff PASS。`docs/PLAYER_PLAN.md`
+写回被裁决为 `ACCEPT_NO_FINDING`，10 路径无 forbidden hit。Review report SHA
+`6096A029ED5F5860BF81119D9B6752789B9F429992043A40D9F878381D54BC9F`、result
+`78F98C1223CAB0104B5E43390D339119E01AA988C55634DB5D7D08E31B3FA0F3`、manifest
+`87C98BCE88DF1ECD22105CC435098844DEBDD716246C9089239DA335EFF25D74`（`120/120 MATCH`）。
+`MERGE_PREP_READY=NO` 只因独立 QA 未执行；不等于代码 review FAIL。
+
+R9 波次收口：B/C/D 各自 implementation + fresh scoped review 均 PASS，P3 均由负责人接受或
+保留为非阻断；A QA 输出边界已关闭，但真实 A QA 仍受
+`BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY` 阻断，等待用户决定是否新增明确测试结构身份。
+当前无设备锁、`QA_READY=NO`、`PLAYER_CORE_RELEASE_MATRIX=NOT_RUN`。R9 实际上下文 `491239 /
+1048576 = 46.8%`，按 35 万硬线交接到 R10 delivery lead；R10 首任务是 full-scope review
+（A + B/C/D），PASS 后才可派不同 fresh merge-prep owner。R10 交接入口：
+`evidence-v1-4-1-r10-delivery-handoff-2026-11-13\R10_DELIVERY_LEAD_PROMPT.md`。
