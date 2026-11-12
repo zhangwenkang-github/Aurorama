@@ -9094,6 +9094,22 @@ diff-check、graphify PASS。报告 SHA
 账号切换、长播返回、scroll 与 force-stop 均 `NOT_RUN`，黑屏直接根因未证明。B 只放行不同
 fresh scoped reviewer，不得把 22 路径自动化 GREEN 写成目录/返回恢复 QA PASS。
 
+**进度（2026-11-13，C fresh scoped review FAIL / P2 repair 派单）**：不同 fresh C reviewer
+对 `45d7f789..b4658fd0` 的 9 路径返回 `FAIL`，`MERGE_PREP_READY=NO`，代码
+P0/P1/P2/P3=`0/0/2/2`。两个 P2 分别是：Exo Native 回退只按语言或第一条文字轨选择，未证明
+Jellyfin subtitle source 到 Media3 track 的唯一同源映射；合法文本次字幕下载/解析失败后只清空
+cue/managed，不发布失败原因，形成“已选但无画面、无解释”。独立复跑 targeted 33 tests
+`0/0/0`，player-local `384/0/0/0`、phone `412/0/0/0`，assemble/ktfmt/diff-check PASS；
+但它们不能关闭两个真实代码缺口。Review report SHA
+`9909C8EA7116EF9052852B1D2CD2B8DD58FC8620C01CB6429B85B117C96F0940`、result
+`0796559355E61A9A8EEA98E3F3B70D664ACA7667A80C6BD707D4BF846FF107B0`、manifest
+`82EDB5C031094489F21ADFA42B4415EBFB0B52AB7ACA85D6A427C0C019209DEA`（`115/115 MATCH`）。
+
+新 `P2-C-SUBTITLE-NATIVE-FALLBACK-SOURCE-IDENTITY` 与
+`P2-C-SUBTITLE-SECONDARY-FAILURE-REASON` 已登记 OPEN；不同 fresh C P2 repair owner 从
+`b4658fd0` 继续 TDD，修后必须再由另一名 fresh reviewer 复审，P0–P2 清零前禁止 C merge-prep
+或字幕 QA。B 的 22 路径实现已进入独立 fresh review；D review 继续维持 PASS 与 P3 接受边界。
+
 **进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
 `codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
 `V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
