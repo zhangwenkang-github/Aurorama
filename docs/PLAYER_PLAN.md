@@ -8900,3 +8900,28 @@ barrier、surface、render 或 audio。
 证据：stage/fault report SHA `1E87DE4D2B5AF3A004C72F9D1774EF6CEDD649DDAA7CB64B29C6275FC0F09465`、
 result `37DD73AA93BC1C1D3DA49E66BE52023B8F87166E37DACCD91DD7E6F3EA6A5E03`、manifest
 `788A19CE17403F9B7A45F95D4C994916C4CD74C6BF0DB03278CE9C115E322F6F`。
+
+**进度（2026-11-12，R8 建 R20 最小修复卡并派 fresh implementation owner）**：R8 完成最小
+startup spot-check：Control `codex/v2-integration` @
+`3a087e7f642b7fac67dd770043accccccb80467e` clean；R19 candidate
+`1487fa2cd9f3634635b5e82702c40bba4fc4d519 / tree 310f076f2f5bca3d07b1367b58965369787627c6 /
+parent d429b949bad8b065c8b32a6377dae9ec486efbd8` clean；stage/fault report、result 与
+manifest `4/4` MATCH，R9 report/result-manifest `2/2` MATCH，唯一 ACTIVE 的 8 个 Bug Loop
+字段与派单逐字一致。
+
+R8 已在新证据根
+`evidence-v1-4-1-player-progress-source-retry-r19-source-epoch-init-fix-r20-2026-11-12`
+建立卡 `R19_SOURCE_EPOCH_INIT_FIX_R20_CARD.md` 与 exact prompt；prompt SHA
+`DDC8DBDCC74B6735393DE8F2DE73CAED4ACDCAAC774C8C5CD3B2BD32ADC65F9`
+经 `v2-handoff-lint.ps1 -Mode BugLoopPrompt` 返回 `BUG_LOOP_DISPATCH_GATE=PASS`。fresh
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R20_2026_11_12`
+（`deepseek-flash / reasoning_effort=max / fork_turns=none`）已派发。
+
+唯一产品写域为
+`player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt`；仅在
+RED/GREEN 必要时允许既有
+`PlaybackSessionRulesTest.kt`。owner 只做 RED/GREEN、定向 player-local 测试、exact
+`:app:phone:assembleDebug`、一次 Pad `43af8627` 同路径 playback start 和自身实现报告；
+不得改 R19 barrier/native/UI，不得跑完整 release matrix，不得派 QA/review/merge/Release。
+本地 SAF 后仅分类 `RESOLVED / NOT_RESOLVED / INCONCLUSIVE`；`RESOLVED` 也只关闭初始化崩溃
+症状，不等于稳定播放、首帧、progress、QA 或 Release PASS。
