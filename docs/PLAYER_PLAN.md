@@ -8571,3 +8571,27 @@ R6 的第一项实际工作不是设备测试，而是纯离线建立
 聊天。先用合成数据完成 RED/GREEN 并由不同 fresh verifier 通过，才可另立一次新 Pad 锁与
 sanitized capture R2。当前 P2
 `P2-CAPTURE-R1-RESOURCE-OUTPUT-BOUNDARY-BREACH` 保持 OPEN，锁 `ACTIVE=0`，QA_READY=NO。
+
+**进度（2026-11-12，R19 safe capture input boundary R1 dispatch）**：R6 最小 startup
+spot-check PASS：Control `codex/v2-integration` @
+`db276c0854e1aabff9a540f44f3776e48e69b7d4` clean，R19 candidate
+`1487fa2cd9f3634635b5e82702c40bba4fc4d519` / tree
+`310f076f2f5bca3d07b1367b58965369787627c6` / parent
+`d429b949bad8b065c8b32a6377dae9ec486efbd8` clean；唯一 ACTIVE 与 QA owner 均指向 R6，
+pre-handoff audit report / manifest SHA 匹配，`HANDOFF_LINT=PASS`，memory checker/doctor 退出
+`0`，设备锁 `ACTIVE=0`。
+
+R6 已在新证据根
+`evidence-v1-4-1-player-progress-source-retry-r19-safe-capture-input-boundary-r1-2026-11-12`
+建立最小卡 `R19_SAFE_CAPTURE_INPUT_BOUNDARY_R1_CARD.md`，并路由与历史 capture owner 不同的
+fresh `AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_R19_SAFE_CAPTURE_INPUT_BOUNDARY_IMPLEMENTATION_OWNER_R1_2026_11_12`
+（`deepseek-flash / max / fork=none`）。owner 只可写该新根，只做 synthetic RED/GREEN、真实子进程
+输出边界、closed operation/field、command injection、input-derived path、stderr/exception、
+split write、ANSI/control 与 fail-closed 自测；不得 ADB、设备、网络、旧 QA navigation
+implementation、真实资源、产品或旧证据写入。
+
+owner 自测完成后必须停止，由另一全新 fresh verifier 独立复跑并追加 synthetic probes。verifier
+未 PASS 前禁止 ADB、新 Pad/K60 锁、QaReady、QA、capture R2、merge/integration/Release；owner
+自测不得写成 verifier PASS。已完成：R6 startup 与离线最小卡派单；距发布剩余：safe-input owner
+自测 → different fresh verifier → 新锁/capture R2 → crash 最小修复或 scoping → fresh review/QA
+→ 剩余核心旅程 → integration → Release。
