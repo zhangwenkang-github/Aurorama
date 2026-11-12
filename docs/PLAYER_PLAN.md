@@ -8925,3 +8925,41 @@ RED/GREEN 必要时允许既有
 不得改 R19 barrier/native/UI，不得跑完整 release matrix，不得派 QA/review/merge/Release。
 本地 SAF 后仅分类 `RESOLVED / NOT_RESOLVED / INCONCLUSIVE`；`RESOLVED` 也只关闭初始化崩溃
 症状，不等于稳定播放、首帧、progress、QA 或 Release PASS。
+
+**进度（2026-11-12，R20 最小修复 `RESOLVED` on one exact path / delivery gate）**：fresh R20
+owner 在 candidate `1487fa2c...` 上先得到同源 RED：旧代码在
+`MPVPlayer.eventProperty(MPVPlayer.kt:511)` 读取 null `sourceEpoch` 并触发 NPE。最小修复
+把 `sourceEpoch` 前移到 `init` 之前，在注册 MPV observer 前发布 `sourceEpochReady`，并让
+String / Boolean / Long 属性回调在未 ready 时 fail closed；未改 source identity、retry、
+R19 barrier、native ownership、UI、surface、render 或 audio。
+
+targeted GREEN `1/0/0/0`，player-local `43 files / 373 tests / 0 failures / 0 errors / 0 skipped`，
+`:app:phone:assembleDebug` PASS；diff 仅 2 paths / `+18 -1`。candidate 提交
+`45d7f789b8737b5edb5dc9748e7eb600b7168b8c / tree 726b07ab27012a9644249be4287c0c3f52a96b5b /
+parent 1487fa2cd9f3634635b5e82702c40bba4fc4d519`，clean；exact arm64 debug APK SHA
+`2B7ADAA24B0B74E9759C264B7318A0575632BCCC983C0392D3F37B60C0827442`，installed base MATCH。
+
+Pad `43af8627` 唯一锁下只做一次 App start / 一次 LOCAL SAF playback start，真实进入
+`PlayerActivity`，debug PID 存活，`am_crash=0 / am_proc_died=0`，因此
+`DEVICE_SELFTEST=RESOLVED`。R9 原 fixture 文件已删除且没有可用字节哈希；本轮复用同一 SAF
+document identity，但用本地 Android SDK 非敏感短样例写入既有 document 路径。原故障位于
+`NOT_REACHED_PRE_LOADFILE` 的 observer/sourceEpoch 初始化阶段，故该字节 provenance 限制被
+明确保留，不能写成 byte-for-byte R9 replay。
+
+cleanup PASS：fixture 文件 / 目录、UI dump、宿主失败临时文件均删除；活动本地库 UI 条目已删除；
+debug PID/process/service/active MediaSession/notification 均 0；debug/release 包与 App data
+保留，release base/PID 不变；锁 `RELEASED / ACTIVE=0`。`P3-R9-LOCAL-LIBRARY-CLEANUP-INCOMPLETE`
+按活动 UI 证据关闭；SQLite/WAL 非活动残留不作为 active library entry。
+
+交付门结论为 `IMPLEMENTATION_WAVE_ACCEPTED_FOR_FRESH_SCOPED_REVIEW`，新增 P0–P3=`0/0/0/0`。
+既有 `P1-R19-S2-PLAYBACK-PROCESS-CRASH-01` 只改为
+`SYMPTOM_RESOLVED_ON_ONE_EXACT_LOCAL_PATH_NOT_QA_CLOSED`；稳定播放、首帧/音频、progress、
+seek/remap/retry、`PLAYER_CORE_RELEASE_MATRIX`、QA、integration 与 Release 均未执行。
+
+证据：R20 report SHA `760E78FBE2E8BE860816AD5F75F1913256DE6F84C69F237DF06015DC20A5193A`、
+result `89666E799846F0A229A22841F21A1E1ECB5603408027C3337ACD8C78BA2D9CAE`、manifest
+`1CAAB7449CA59452789D80731244F1FF8FA7228DC6E06FC572B5BAA397F7CD03`（`2/2 MATCH`）；
+R8 delivery gate report SHA
+`398C81128BED2AE6AF93CA6B9304425AEAE74CD9FA9C872DFA870F769AD25E65`。下一角色是 R8
+后续波显式启动的不同 fresh scoped reviewer；review 首读 delivery gate report 与 R20 report，
+未 PASS 前不得派 QA。
