@@ -9174,6 +9174,23 @@ verifier 已派发确认 blocked；若确认，继续 A QA 必须先由用户决
 身份（例如固定 testTag/resource id）还是接受该覆盖阻断。禁止以自由文本、raw UI 或坐标猜测
 绕过。
 
+**进度（2026-11-13，结构身份缺失经 fresh verifier 确认 / 用户决策门）**：第一次 fresh
+verifier 正确拦截了负责人补 prompt 固定字段后未同步 manifest 的 hash 漂移；原 repair owner
+仅同步 evidence metadata 并重跑 verify/static/RED/GREEN/audit/scan。同一独立 verifier 的
+受控重试最终 `BLOCKED_CONFIRMED / BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY`：外部固定输入
+`6/6 MATCH`、repair manifest `23/23`、R9 manifest `49/49`、verifier manifest `8/8`；
+RED `5/5`、GREEN `9/9`，但 R9 closed inventory 的 resource-id/role/bounds/screen/postcondition
+仍全为 0，源码 `testTag=0 / testTagsAsResourceId=0`。
+
+Verifier retry report SHA `9B92EF428F135AEA01CA6DE4FF5E870823CA08A76A597DE627E49A805891249A`、
+result `0876B458E927B90A2062F1189BB3FC34875B2EEAD0D08D6634E2ACC7BB5CDB4C`、manifest
+`CDB7E8C9EDFB0DBCBC90F60DC995256270E2D91584900043850B9C819A1C3BA2`。该结论不是产品缺陷，
+但明确阻断了当前 A QA 的真实入口。负责人不再派同形 harness 修复；需用户二选一：
+
+1. 授权新增明确的测试结构身份（例如固定 `testTag` / `testTagsAsResourceId`）与 click
+   postcondition，使 local-library 导航可被唯一、安全地投影；或
+2. 接受 A QA 保持 `BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY`，不重复猜文本/raw UI。
+
 **进度（2026-11-13，C 两个 P2 repair 完成 / fresh R2 review 派单）**：不同 fresh C P2 repair
 owner 从 `b4658fd0` 追加修复至 head `269e9cb7d1bf4655b619b6fa2b12b4de9a96b1b2` / tree
 `7e2fe2cd747f76c2620916e0488ce3d36c06b6d9` / clean。Native 回退改为 Jellyfin source index
