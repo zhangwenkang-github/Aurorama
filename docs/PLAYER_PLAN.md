@@ -9016,3 +9016,20 @@ seek/loading/stall/progress/no-silent-hang，不是完整 release matrix。B/C �
 build/test 与实现报告；D 在并发槽释放后派发。实现 owner 均禁止设备、QA、review、merge、
 integration 与 Release。B/C/D 完成后必须分别由不同 fresh reviewer 复审，review PASS 后才可
 进入 merge-prep 汇总。
+
+**进度（2026-11-12，A QA R8 安全止损 / harness repair 排队）**：Control checkpoint
+`f22ea9133acffeb10a79d9988dc21c64e6cf0955` clean 后 canonical `QA_READY_LINT=PASS`，A QA
+owner 独立核对 candidate/APK/R20 review/scope audit/唯一锁后进入唯一窗口，但在
+`59.937 / 600 s` 因辅助探测绕过 allowlist projection 且临时复制的旧导航脚本含未获准资源
+字面量而立即止损。该临时文件在 manifest 前删除，未确认真实资源值进入 terminal/report/
+result/manifest；PC-01/02/03/04/05/11/12 全部 `NOT_RUN`，`PLAYER_CORE_MATRIX_RESULT=NOT_RUN`。
+系统设置 `17/17`、App preference `28/28` MATCH，cleanup PASS，锁已 `RELEASED / ACTIVE=0`。
+
+新增 `P2-QA-R8-UNPROJECTED-HARNESS-OUTPUT-01:OPEN` 与
+`P3-QA-R8-OWNER-PROMPT-READ-BEFORE-QA-READY:OPEN`，无新增 P0/P1 产品问题。A QA report
+SHA `7EA2D0C50B590B6E93B4DC5F2ED6E5C7F2EBBACBBD57D4174F26C383D4F40C01`、result
+`FC85FB0CA8797BD5C9A9C8F6F18A87CDF67BC7EA0BC9B7428EE3EFD011C11C35`、manifest
+`D4A782320FAA8B8BB9DA8D1AF610B292F55D364CA4826C54825CFAE39106AD7A`（`23/23 MATCH`）。
+下一步必须先派与 A QA 不同的 fresh offline harness repair owner；其闭环后仍需不同 fresh
+verifier PASS，才可创建新 A QA 卡、新 QaReady 与新唯一锁。D 已在 B/C 之后获得席位并开始
+`V2-FIX-MUSIC-PLAYBACK-001`；B/C/D 仍只做实现，不操作设备或 QA。
