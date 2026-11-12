@@ -9051,6 +9051,21 @@ ktfmt、diff-check PASS；arm64 debug APK SHA
 FGS 生命周期与 PC-10 全部 `NOT_RUN`。D 只放行不同 fresh scoped reviewer；review PASS 后才
 另派设备的独立 QA，不得把离线 GREEN 写成 PC-10 或 Release PASS。
 
+**进度（2026-11-13，QA harness output-boundary repair / fresh verifier 派单）**：fresh harness
+repair owner 只在新 evidence root 实现无 typed `param` 的手工参数入口、固定 fail-closed
+错误码、内存消费 child stdout/stderr、固定 artifact 集和严格文件/内容 allowlist；未修改产品、
+candidate、Control 或 A QA 历史证据，`COMMIT=NONE_BY_SCOPE`。RED `7/7`、GREEN `14/14`、
+对抗 `26/26`、合计 `41/0`；静态 6 sources 无 AST/format error、UTF-8 no BOM、LF-only；
+verify `20` entries / `0 mismatch`。报告 SHA
+`D75CD3F49207B58735DB16EA1904F6E86BC2A83595D9C3CD1D2FB7CEF097B3A4`、result
+`9D0E6FFB45F40EC9F58619FF068F606BED594977E9D67D0933F1FA158B7A95BE`、manifest
+`289656BC984631613A210BC34C64DB9DEFBB6893E64BFB7222A6C978CBE2BD83`。
+原 P2 现仅为 `FIXED_PENDING_FRESH_VERIFIER`，新增 P0–P3=`0/0/0/0`、BLOCKED=0。
+
+不同 fresh verifier 已按新卡派发，首动作复算 repair manifest，再在 verifier root 的完整副本上
+复跑 verify、静态、RED/GREEN/adversarial 和独立合成探针，同时证明 repair root 前后不变。
+verifier PASS 前 `QA_READY=NO`、无设备锁；不得创建新 QA 或把 owner 自测写成产品 QA。
+
 **进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
 `codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
 `V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
