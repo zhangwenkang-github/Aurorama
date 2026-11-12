@@ -9033,3 +9033,20 @@ SHA `7EA2D0C50B590B6E93B4DC5F2ED6E5C7F2EBBACBBD57D4174F26C383D4F40C01`、result
 下一步必须先派与 A QA 不同的 fresh offline harness repair owner；其闭环后仍需不同 fresh
 verifier PASS，才可创建新 A QA 卡、新 QaReady 与新唯一锁。D 已在 B/C 之后获得席位并开始
 `V2-FIX-MUSIC-PLAYBACK-001`；B/C/D 仍只做实现，不操作设备或 QA。
+
+**进度（2026-11-12，D ColorOS 音乐实现自动化收口）**：fresh D implementation owner 在
+`codex/v141-d-music-r21-2026-11-12` 从 R20-reviewed base 完成
+`V2-FIX-MUSIC-PLAYBACK-001`，head `0159756e01ecb0dcc3729958859eda9514984550` / tree
+`3c7757a0d76bc414aa61059e804a685580919ea0` / parent `45d7f789...` / clean，5 个目标文件、
+`+228/-9`。主假设为音乐 surface 混用 `Player.isPlaying` 与 `playWhenReady`，导致
+BUFFERING/source start 被误发布为“已暂停”，toggle 也可能丢失暂停意图；实现统一 App 状态源、
+transport action 与音乐通知语义。RED focused 4 项中 3 项行为失败；GREEN focused `4/0/0/0`、
+player-local `377/0/0/0`、music `294/0/0/0`、phone `412/0/0/0`，phone assemble、根
+ktfmt、diff-check PASS；arm64 debug APK SHA
+`E0E960EC0F298BD90A7D0767EDC3FD4B801C8E1F9E4DB5E7148BDD9D458C8548`。报告 SHA
+`B0C29E79E6C8A066941B4F0CE910F57CF992CD4BC2A2A5A0AF1AD87357260F62`、result
+`07216FED28D6B7669A8C391375F95778FE522F8CEDD9F69EE67D04BDBFBFEBE2`、manifest
+`20F81C272149DBEB98A8FB1756215EEC2F9373E27986B36B82DDCA946BF99E4B`（`154/154 MATCH`）。
+新增 P0–P3=`0/0/0/0`、BLOCKED=0；ColorOS 真实播放/暂停/继续、进度、音频焦点、锁屏、通知、
+FGS 生命周期与 PC-10 全部 `NOT_RUN`。D 只放行不同 fresh scoped reviewer；review PASS 后才
+另派设备的独立 QA，不得把离线 GREEN 写成 PC-10 或 Release PASS。
