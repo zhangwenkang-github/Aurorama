@@ -9066,6 +9066,17 @@ verify `20` entries / `0 mismatch`。报告 SHA
 复跑 verify、静态、RED/GREEN/adversarial 和独立合成探针，同时证明 repair root 前后不变。
 verifier PASS 前 `QA_READY=NO`、无设备锁；不得创建新 QA 或把 owner 自测写成产品 QA。
 
+**进度（2026-11-13，D fresh scoped review PASS / P3 接受）**：不同 fresh D reviewer 对
+`45d7f789..0159756e` 的 5 路径实现独立复核，结论 `PASS`，代码 P0/P1/P2=`0/0/0`、
+P3=2、`MERGE_PREP_READY=YES`。定向 `4/0/0/0`，player-local/film/phone JVM 共 126 XML /
+`940/0/0/0`，phone assemble、ktfmt、diff-check PASS；APK SHA 与实现一致，worktree 仍 clean。
+两项 P3 为 controller/notification 消费侧及 FAILED/no-media 缺少直接机械断言、RED raw
+XML/log 未入实现 manifest；负责人均接受为非阻断后续增强，不改变代码 PASS。
+Review report SHA `E32061FEE0F535B2FE7CB828F9388460F765D92A878C26909977720198A88BDD`、
+result `CD047009B671768A9340AB0DBE29B521A90D4865CF058C0E21641AE2E5F39DE1`、manifest
+`D4533130F6ABAFE445B3FD52B78A9282F61843365BE4E386C345BDF8282D3BEF`（`137/137 MATCH`）。
+D 仍不是独立 QA、PC-10 或 Release PASS；ColorOS 真实链路保持 `NOT_RUN`。
+
 **进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
 `codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
 `V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
