@@ -8876,3 +8876,27 @@ typed result `6E2AD04684CBBA970D25CC9F35D5DA9E12BFF14D56B7491651C68BD588DF599C`�
 `8A48113FE659949A51D0F52333A496419BDBDA1D72428EAC4F3921BE5C7778F0`、result
 `C6AC03833151937FE2C0DF5C2EEA440325AF51A3EAD1032176887CBB017183C4`、manifest
 `3298D0944A44D525F46BC7C556AD2906EC468E193057290B224025DA5D113AC8`。
+
+**进度（2026-11-12，R19 stage/fault evidence R2 根因证明 / handoff R8）**：用户授权第二次
+bounded crash evidence capture，并明确停止规则只保留必要安全/证据/范围门。fresh owner 在 Pad
+`43af8627` 上复用同一 LOCAL SAF fixture + MPV，App start `1`、playback start `1`；约 1.515 秒后
+发生 `SIGABRT`。crash 前最后阶段为 `PLAYER_ACTIVITY_MPV_INIT / INIT_PROPERTY_OBSERVATION`，
+`R19_BARRIER_STAGE=NOT_REACHED_PRE_LOADFILE`，未进入 loadfile、START_FILE、首帧或首音频。
+
+证据给出 `CAUSE_PROVEN / CONFIDENCE=HIGH`：`MPVPlayer` 构造中的 init block 先
+`mpvLib.addObserver(this)` 并注册字符串属性 observer，但 `sourceEpoch` 的 Kotlin 属性初始化
+位于源码更后位置。初始 `track-list` 字符串回调进入 `MPVPlayer.kt:511` 时 `sourceEpoch` 仍未
+初始化，`sourceEpoch.get()` 触发 `NullPointerException`；JNI `NewStringUTF` 看到 pending
+exception，ART/libc 随即 abort。崩溃栈为
+`event_thread → sendPropertyUpdateToJava → NewStringUTF → ART abort → libc abort`；fault
+`libc.so +0x8d974 / abort+168`。本次直接故障点是 observer/sourceEpoch 初始化顺序，不是 R19
+barrier、surface、render 或 audio。
+
+用户已授权下一步最小修复。R7 因上下文 `454034/1048576（43.3%）` 超过交接线，停止实质扩张并
+交接到 R8 交付负责人；R8 第一实际任务是另立最小 fix 卡并派 fresh implementation owner，
+优先只调整 `MPVPlayer` 的初始化顺序或等价的 fail-closed 回调边界，随后用同一条 LOCAL SAF
+播放启动路径复测一次。该修复和复测不是产品、QA 或 Release PASS。
+
+证据：stage/fault report SHA `1E87DE4D2B5AF3A004C72F9D1774EF6CEDD649DDAA7CB64B29C6275FC0F09465`、
+result `37DD73AA93BC1C1D3DA49E66BE52023B8F87166E37DACCD91DD7E6F3EA6A5E03`、manifest
+`788A19CE17403F9B7A45F95D4C994916C4CD74C6BF0DB03278CE9C115E322F6F`。
