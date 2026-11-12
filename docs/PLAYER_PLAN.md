@@ -8817,3 +8817,22 @@ debug/release PID、service、MediaSession、通知、child 均收敛；P3 新�
 稳定非生产离线来源或 UI XML 需要落盘，立即停止 `BLOCKED_NO_UI_OFFLINE_SOURCE`。已完成：
 R2 安全止损与 R3 派单；距发布剩余：R3 capture 结论 → crash fingerprint 最小修复或 scoping →
 fresh review/QA → 剩余核心旅程 → integration → Release。
+
+**决策（2026-11-12，download capture path RETIRED / handoff R6 → R7）**：用户明确要求停止
+继续试下载，判断该下载能力从首版起长期不完整、多个版本未修好。R2–R8 的 WAL/offline、单集、
+partial resume、short item、multi-select 路径均不允许作为后续 capture 来源；无论是否属于产品
+缺陷，均不再用下载功能阻塞播放崩溃取证。`R19_DOWNLOAD_CAPTURE_PATH` 状态固定为
+`RETIRED_BY_USER_AFTER_R2_R8`。
+
+下一任只允许先走 `R19_LOCAL_MEDIA_ROUTE_DIAGNOSIS_R1`：检查 exact debug 是否支持
+`ACTION_VIEW` / `content://` / 本地短媒体 fixture 进入同一 MPV PlayerActivity。该诊断纯离线、
+只读、无设备、无网络、无产品改动；若不存在安全本地路由，报告 `NO_SAFE_LOCAL_ROUTE`，不得再
+尝试下载 UI，也不得自动改为生产在线播放。若存在，再由 fresh capture owner 执行一次 bounded
+local-fixture capture。
+
+上下文实测 `544668/1048576（51.9%）`，用户要求按交接规范换负责人。R6 停止实质扩张，ACTIVE
+切换到 `AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R7_2026_11_12`；R7 首读
+TASKS ACTIVE、PLAYER §52.66、R8 blocked report、local diagnosis card，再消费 compressed
+preflight；第一实际任务只做本地路由诊断，不派 QA、不碰下载。已完成：下载路线退役与 R6 收口；
+距发布剩余：local route diagnosis → optional local fixture capture → crash fingerprint 最小修复
+或 scoping → fresh review/QA → 剩余核心旅程 → integration → Release。
