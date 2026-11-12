@@ -131,6 +131,7 @@ import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
+import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSecondaryUnavailableReason
 import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.settings.domain.Constants
@@ -3526,6 +3527,18 @@ private fun SubtitleTracksPage(
                         ),
                 )
             }
+            state.secondaryUnavailableReason?.let { reason ->
+                Text(
+                    text = subtitleSecondaryUnavailableReason(reason),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space1,
+                        ),
+                )
+            }
 
             PanelTitle(stringResource(PlayerR.string.player_subtitle_all_tracks))
             if (state.tracks.isEmpty()) {
@@ -3845,9 +3858,28 @@ private fun SubtitleTrackRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
             )
+        } else if (!option.textAssignable) {
+            Text(
+                text = stringResource(PlayerR.string.player_subtitle_secondary_delivery_missing),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
         }
     }
 }
+
+@Composable
+private fun subtitleSecondaryUnavailableReason(reason: SubtitleSecondaryUnavailableReason): String =
+    stringResource(
+        when (reason) {
+            SubtitleSecondaryUnavailableReason.GraphicOnly ->
+                PlayerR.string.player_subtitle_graphic_no_secondary
+            SubtitleSecondaryUnavailableReason.DeliveryUrlMissing ->
+                PlayerR.string.player_subtitle_secondary_delivery_missing
+            SubtitleSecondaryUnavailableReason.StaleTrack ->
+                PlayerR.string.player_subtitle_secondary_stale
+        }
+    )
 
 @Composable
 private fun SubtitleTextBadge(label: String) {

@@ -3,12 +3,19 @@ package com.zhangwenkang.cinefin.player.local.subtitle
 import android.content.SharedPreferences
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -46,12 +53,13 @@ class PlayerSubtitleControllerTest {
         title: String,
         language: String,
         codec: String = "ass",
+        uri: String = "file:///cinefin-test-$index.$codec",
     ) =
         PlayerSubtitleSource(
             index = index,
             title = title,
             language = language,
-            uri = "file:///cinefin-test-$index.$codec",
+            uri = uri,
             codec = codec,
         )
 
@@ -128,6 +136,286 @@ class PlayerSubtitleControllerTest {
             assertFalse(primaryOnly.disabledByUser)
         } finally {
             scope.cancel()
+        }
+    }
+
+    @Test
+    fun `仅图形字幕也会自动成为主轨`() {
+        val scope = CoroutineScope(Job())
+        val controller = PlayerSubtitleController(scope, AppPreferences(FakeSharedPreferences()))
+        val graphic =
+            PlayerSubtitleSource(
+                index = 9,
+                title = "PGS 中文",
+                language = "zh-Hans",
+                uri = "https://server/Subtitles/9/Stream.sup",
+                codec = "pgs",
+                isGraphic = true,
+            )
+        try {
+            controller.reset("media-graphic", listOf(graphic), autoSecondary = false)
+
+            assertEquals(9, controller.overlayState.value.primaryIndex)
+            assertFalse(controller.overlayState.value.primaryManaged)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `失效图形次轨恢复为显式关闭而不是伪手动空态`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val itemScope = scope()
+        val graphic =
+            PlayerSubtitleSource(
+                index = 9,
+                title = "PGS 中文",
+                language = "zh-Hans",
+                uri = "https://server/Subtitles/9/Stream.sup",
+                codec = "pgs",
+                isGraphic = true,
+            )
+        preferences.setValue(
+            PlayerExtraPreferences.subtitleManualSelectionsV2,
+            ScopedSubtitleSelection(
+                    scope = itemScope,
+                    primaryIndex = ScopedSubtitleSelection.NO_INDEX,
+                    secondaryIndex = 9,
+                )
+                .encode(),
+        )
+        val fixture = fixture(preferences)
+        try {
+            fixture.controller.reset(
+                mediaId = itemScope.itemId,
+                sources = listOf(graphic),
+                selectionScope = itemScope,
+                autoSecondary = false,
+            )
+
+            val state = fixture.controller.overlayState.value
+            assertNull(state.primaryIndex)
+            assertNull(state.secondaryIndex)
+            assertTrue(state.disabledByUser)
+            assertEquals(
+                SubtitleSecondaryUnavailableReason.GraphicOnly,
+                state.secondaryUnavailableReason,
+            )
+        } finally {
+            fixture.scope.cancel()
+        }
+    }
+
+    @Test
+    fun `缺少 DeliveryUrl 的次字幕请求保持关闭并给出原因`() {
+        val scope = CoroutineScope(Job())
+        val controller = PlayerSubtitleController(scope, AppPreferences(FakeSharedPreferences()))
+        val nativeOnly =
+            source(
+                index = 7,
+                title = "仅原生文本",
+                language = "en",
+                codec = "subrip",
+                uri = "",
+            )
+        try {
+            controller.reset(
+                "media-native-secondary",
+                sources + nativeOnly,
+                autoSecondary = false,
+            )
+            controller.assignSecondary(nativeOnly.index)
+
+            val state = controller.overlayState.value
+            assertNull(state.secondaryIndex)
+            assertEquals(
+                SubtitleSecondaryUnavailableReason.DeliveryUrlMissing,
+                state.secondaryUnavailableReason,
+            )
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `持久次轨不存在时保留有效主轨并给出过期原因`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val itemScope = scope()
+        preferences.setValue(
+            PlayerExtraPreferences.subtitleManualSelectionsV2,
+            ScopedSubtitleSelection(
+                    scope = itemScope,
+                    primaryIndex = 3,
+                    secondaryIndex = 99,
+                )
+                .encode(),
+        )
+        val fixture = fixture(preferences)
+        try {
+            fixture.controller.reset(
+                mediaId = itemScope.itemId,
+                sources = sources,
+                selectionScope = itemScope,
+                autoSecondary = false,
+            )
+
+            val state = fixture.controller.overlayState.value
+            assertEquals(3, state.primaryIndex)
+            assertNull(state.secondaryIndex)
+            assertEquals(
+                SubtitleSecondaryUnavailableReason.StaleTrack,
+                state.secondaryUnavailableReason,
+            )
+            assertFalse(state.disabledByUser)
+        } finally {
+            fixture.scope.cancel()
+        }
+    }
+
+    @Test
+    fun `自动次字幕按语言记忆选择且不抢主轨`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        preferences.setValue(preferences.secondarySubtitleLanguages, "en")
+        val scope = CoroutineScope(Job())
+        val controller = PlayerSubtitleController(scope, preferences)
+        try {
+            controller.reset("media-auto-dual", sources, autoSecondary = true)
+
+            val state = controller.overlayState.value
+            assertEquals(3, state.primaryIndex)
+            assertEquals(4, state.secondaryIndex)
+            assertTrue(state.primaryIndex != state.secondaryIndex)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun `字幕延迟与外观修改即时发布且重建后持久读取`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val scope = CoroutineScope(Job())
+        val controller = PlayerSubtitleController(scope, preferences)
+        val appearance =
+            SubtitleAppearance(
+                primary = SubtitleStyle(sizePercent = 125),
+                secondary = SubtitleStyle(sizePercent = 85),
+                layout = SubtitleLayout(gapDp = 6, bottomPercent = 12),
+            )
+        try {
+            controller.reset("media-settings", sources, autoSecondary = false)
+            controller.setDelay(300)
+            controller.updateAppearance(appearance)
+
+            val live = controller.overlayState.value
+            assertEquals(300L, live.delayMs)
+            assertEquals(appearance.primary, live.primaryStyle)
+            assertEquals(appearance.secondary, live.secondaryStyle)
+            assertEquals(appearance.layout, live.layout)
+        } finally {
+            scope.cancel()
+        }
+
+        val readerScope = CoroutineScope(Job())
+        val reader = PlayerSubtitleController(readerScope, preferences)
+        try {
+            reader.reset("media-settings", sources, autoSecondary = false)
+            val restored = reader.overlayState.value
+            assertEquals(300L, restored.delayMs)
+            assertEquals(appearance.primary, restored.primaryStyle)
+            assertEquals(appearance.secondary, restored.secondaryStyle)
+            assertEquals(appearance.layout, restored.layout)
+        } finally {
+            readerScope.cancel()
+        }
+    }
+
+    @Test
+    fun `直放与转码使用相同字幕序号时产出相同 cue 和 managed 状态`() = runBlocking {
+        val repeatedCue = "同一不变量"
+        val files =
+            List(2) { index ->
+                File.createTempFile("cinefin-subtitle-route-$index-", ".srt").apply {
+                    writeText(
+                        """
+                        1
+                        00:00:01,000 --> 00:00:03,000
+                        $repeatedCue
+                        """
+                            .trimIndent(),
+                        Charsets.UTF_8,
+                    )
+                }
+            }
+        val scope = CoroutineScope(Job())
+        val controller = PlayerSubtitleController(scope, AppPreferences(FakeSharedPreferences()))
+        try {
+            val direct =
+                source(
+                        index = 4,
+                        title = "简体",
+                        language = "zh-Hans",
+                        codec = "subrip",
+                        uri = files[0].toURI().toString(),
+                    )
+                    .copy(isExternal = false)
+            controller.reset("media-direct", listOf(direct), autoSecondary = false)
+            val directState =
+                withTimeout(5_000) { controller.overlayState.first { it.primaryCues.isNotEmpty() } }
+
+            val transcode =
+                direct.copy(
+                    uri = files[1].toURI().toString(),
+                    isExternal = true,
+                )
+            controller.reset("media-transcode", listOf(transcode), autoSecondary = false)
+            val transcodeState =
+                withTimeout(5_000) { controller.overlayState.first { it.primaryCues.isNotEmpty() } }
+
+            assertEquals(direct.index, transcodeState.primaryIndex)
+            assertEquals(directState.primaryCues, transcodeState.primaryCues)
+            assertEquals(directState.primaryManaged, transcodeState.primaryManaged)
+            assertEquals(repeatedCue, transcodeState.primaryCues.single().text)
+        } finally {
+            scope.cancel()
+            files.forEach(File::delete)
+        }
+    }
+
+    @Test
+    fun `选中本地字幕后公开 overlay 产出真实 cue 与 managed`() = runBlocking {
+        val subtitleFile =
+            File.createTempFile("cinefin-subtitle-", ".srt").apply {
+                writeText(
+                    """
+                    1
+                    00:00:01,000 --> 00:00:03,000
+                    真正上屏
+                    """
+                        .trimIndent(),
+                    Charsets.UTF_8,
+                )
+            }
+        val scope = CoroutineScope(Job())
+        val controller = PlayerSubtitleController(scope, AppPreferences(FakeSharedPreferences()))
+        try {
+            val source =
+                source(
+                    index = 4,
+                    title = "简体",
+                    language = "zh-Hans",
+                    codec = "subrip",
+                    uri = subtitleFile.toURI().toString(),
+                )
+            controller.reset("media-real-cue", listOf(source), autoSecondary = false)
+
+            val state =
+                withTimeout(5_000) { controller.overlayState.first { it.primaryCues.isNotEmpty() } }
+            assertEquals(4, state.primaryIndex)
+            assertTrue(state.primaryManaged)
+            assertEquals("真正上屏", state.primaryCues.single().text)
+        } finally {
+            scope.cancel()
+            subtitleFile.delete()
         }
     }
 

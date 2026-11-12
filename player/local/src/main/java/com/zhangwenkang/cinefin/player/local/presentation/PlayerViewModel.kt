@@ -74,6 +74,7 @@ import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitle
 import com.zhangwenkang.cinefin.player.local.subtitle.SideloadedSubtitleStore
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleAppearancePreferences
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
+import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSecondaryUnavailableReason
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSelectionScope
 import com.zhangwenkang.cinefin.player.local.subtitle.shouldSuppressSecondaryForMpvPrimarySelection
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -336,6 +337,8 @@ constructor(
         val loading: Boolean = false,
         /** 主字幕仅原生 / 无法映射时，次字幕整体不可分配。 */
         val secondaryAssignmentBlocked: Boolean = false,
+        /** 当前 / 最近一次次字幕请求因图形或缺少 DeliveryUrl 被拒绝的明确原因。 */
+        val secondaryUnavailableReason: SubtitleSecondaryUnavailableReason? = null,
         /** 仅当主、次都是不同文本轨且动作 id 可解析时为 null。 */
         val swapBlockedReason: SubtitleSwapBlock? = SubtitleSwapBlock.NoPrimary,
         /** ASS/SSA 落在次字幕时的文本降级提示。 */
@@ -388,6 +391,7 @@ constructor(
 
     private val _subtitlePanelState = MutableStateFlow(SubtitlePanelState())
     val subtitlePanelState = _subtitlePanelState.asStateFlow()
+    private var lastSubtitleRoutingTrace: String? = null
 
     private val _audioPanelState = MutableStateFlow(AudioPanelState())
     val audioPanelState = _audioPanelState.asStateFlow()
@@ -2021,6 +2025,7 @@ constructor(
         mediaId: String,
         sources: List<PlayerSubtitleSource>,
     ) {
+        lastSubtitleRoutingTrace = null
         sideloads = runCatching { sideloadStore.list(mediaId) }.getOrDefault(emptyList())
         subtitleController.reset(
             mediaId = mediaId,
@@ -2094,47 +2099,13 @@ constructor(
                 ),
         )
 
-    /** 字幕渲染路由：文字轨交给谁渲染 */
-    private sealed interface SubtitleRouting {
-        /** 自研字幕接管（或正在加载）：禁用内核文字轨 */
-        data object Managed : SubtitleRouting
-
-        /** 用户显式关闭字幕 */
-        data object Off : SubtitleRouting
-
-        /** 图形字幕：由内核渲染，尽量匹配到具体轨道 */
-        data class Native(val source: PlayerSubtitleSource) : SubtitleRouting
-
-        /** 没有特殊约定：交给语言优先级引擎 */
-        data object Auto : SubtitleRouting
-    }
-
-    private fun resolveSubtitleRouting(
-        state: SubtitleOverlayState = subtitleController.overlayState.value
-    ): SubtitleRouting {
-        if (state.disabledByUser) return SubtitleRouting.Off
-        // 主路被「移到次路」清空时不是用户关闭字幕；次路仍由 Compose 渲染，
-        // 必须同时禁掉内核文字轨，否则 Exo 会自动补一条原生字幕与次字幕叠在一起。
-        if (state.primaryIndex == null && state.secondaryIndex != null) {
-            return SubtitleRouting.Managed
-        }
-        val selected = state.sources.firstOrNull { it.index == state.primaryIndex }
-        if (selected != null) {
-            // 自管字幕「已接管」或「正在加载」都先禁掉内核文字轨：
-            // 否则下载完成的瞬间会先闪一下原生字幕再被自绘层替换
-            if (selected.isTextBased && (state.primaryManaged || state.primaryLoading)) {
-                return SubtitleRouting.Managed
-            }
-            if (selected.isGraphic) return SubtitleRouting.Native(selected)
-        }
-        return SubtitleRouting.Auto
-    }
-
     // Apply auto-selection and subtitle routing in one parameter update.
     private fun applyAutoSelectAndRoute(tracks: Tracks = player.currentTracks) {
         if (player !is ExoPlayer) return
         if (player.currentMediaItem == null) return
-        val routing = resolveSubtitleRouting()
+        val subtitleState = subtitleController.overlayState.value
+        val routing = resolveSubtitleRouting(subtitleState)
+        traceSubtitleRouting(routing, subtitleState)
         runCatching {
             val parameters =
                 trackSelectionEngine.parameters(
@@ -2152,7 +2123,9 @@ constructor(
     private fun applySubtitleRoutingOnly() {
         if (player !is ExoPlayer) return
         if (player.currentMediaItem == null) return
-        val routing = resolveSubtitleRouting()
+        val subtitleState = subtitleController.overlayState.value
+        val routing = resolveSubtitleRouting(subtitleState)
+        traceSubtitleRouting(routing, subtitleState)
         if (routing is SubtitleRouting.Auto) return
         runCatching {
             player.trackSelectionParameters =
@@ -2160,6 +2133,49 @@ constructor(
         }
             .onFailure { Timber.w(it, "字幕渲染路由失败") }
         publishSubtitlePanelState()
+    }
+
+    private fun traceSubtitleRouting(
+        routing: SubtitleRouting,
+        state: SubtitleOverlayState,
+    ) {
+        val route =
+            when (routing) {
+                SubtitleRouting.Managed -> "managed"
+                SubtitleRouting.Off -> "off"
+                is SubtitleRouting.Native -> "native"
+                SubtitleRouting.Auto -> "auto"
+            }
+        val selected =
+            (routing as? SubtitleRouting.Native)?.source
+                ?: state.sources.firstOrNull { it.index == state.primaryIndex }
+        val signature =
+            listOf(
+                    route,
+                    state.primaryIndex,
+                    state.secondaryIndex,
+                    state.primaryManaged,
+                    state.primaryLoading,
+                    state.primaryRenderFailed,
+                    selected?.index,
+                    selected?.codec,
+                    selected?.isExternal,
+                )
+                .joinToString("|")
+        if (signature == lastSubtitleRoutingTrace) return
+        lastSubtitleRoutingTrace = signature
+        Timber.d(
+            "字幕渲染路由: route=%s primary=%s secondary=%s managed=%b loading=%b renderFailed=%b sourceIndex=%s codec=%s external=%s",
+            route,
+            state.primaryIndex,
+            state.secondaryIndex,
+            state.primaryManaged,
+            state.primaryLoading,
+            state.primaryRenderFailed,
+            selected?.index,
+            selected?.codec,
+            selected?.isExternal,
+        )
     }
 
     /** 把路由规则应用到轨道选择参数 */
@@ -2328,6 +2344,7 @@ constructor(
                     controllable = tracks.isNotEmpty(),
                     loading = state.loading,
                     secondaryAssignmentBlocked = !secondarySelectable,
+                    secondaryUnavailableReason = state.secondaryUnavailableReason,
                     swapBlockedReason = swapBlockedReason,
                     assSecondaryHint = secondarySource.isAssSecondary(),
                 )
@@ -2376,6 +2393,7 @@ constructor(
                 managed = state.primaryManaged,
                 controllable = state.sources.any { it.isTextBased },
                 loading = state.loading,
+                secondaryUnavailableReason = state.secondaryUnavailableReason,
                 swapBlockedReason = swapBlockedReason,
                 assSecondaryHint = secondarySource.isAssSecondary(),
             )
@@ -3382,3 +3400,39 @@ internal fun playerSubtitleSourcesForBackend(
     } else {
         item.subtitleSources + sideloaded
     }
+
+/** 字幕渲染路由：文字轨交给谁渲染 */
+internal sealed interface SubtitleRouting {
+    /** 自研字幕接管（或正在加载）：禁用内核文字轨 */
+    data object Managed : SubtitleRouting
+
+    /** 用户显式关闭字幕 */
+    data object Off : SubtitleRouting
+
+    /** 图形字幕 / 不可自管字幕：由内核渲染，尽量匹配到具体轨道 */
+    data class Native(val source: PlayerSubtitleSource) : SubtitleRouting
+
+    /** 没有特殊约定：交给语言优先级引擎 */
+    data object Auto : SubtitleRouting
+}
+
+/** 当前字幕 overlay 状态到内核渲染路由的唯一判定入口。 */
+internal fun resolveSubtitleRouting(state: SubtitleOverlayState): SubtitleRouting {
+    if (state.disabledByUser) return SubtitleRouting.Off
+    // 主路被「移到次路」清空时不是用户关闭字幕；次路仍由 Compose 渲染，
+    // 必须同时禁掉内核文字轨，否则 Exo 会自动补一条原生字幕与次字幕叠在一起。
+    if (state.primaryIndex == null && state.secondaryIndex != null) {
+        return SubtitleRouting.Managed
+    }
+    val selected = state.sources.firstOrNull { it.index == state.primaryIndex }
+    if (selected != null) {
+        // 已选中的可自管文本轨一律先由 App 接管；即使尚未发布 loading
+        // 也不能退回 Auto 让语言引擎挑另一条轨。加载失败后显式回退到
+        // 同一源对应的内核轨，保证选中身份确定。
+        if (selected.isTextBased && !state.primaryRenderFailed) {
+            return SubtitleRouting.Managed
+        }
+        return SubtitleRouting.Native(selected)
+    }
+    return SubtitleRouting.Auto
+}

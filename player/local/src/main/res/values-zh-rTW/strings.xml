@@ -102,6 +102,8 @@
     <string name="player_subtitle_swap_no_secondary">次字幕未分配或僅原生</string>
     <string name="player_subtitle_swap_same">主次字幕相同</string>
     <string name="player_subtitle_secondary_native_primary">主字幕僅原生，暫不能分配次字幕</string>
+    <string name="player_subtitle_secondary_delivery_missing">此字幕缺少可下載文字位址，只能由核心原生轉譯，不能作為次字幕</string>
+    <string name="player_subtitle_secondary_stale">上次選擇的次字幕已不在目前清單中，已關閉次字幕</string>
     <string name="player_subtitle_track_fallback">字幕 %1$d</string>
     <string name="player_subtitle_origin_sideload">側載</string>
 </resources>

@@ -200,6 +200,8 @@
     <string name="player_subtitle_swap_no_secondary">Secondary subtitle is missing or native-only</string>
     <string name="player_subtitle_swap_same">Primary and secondary are the same track</string>
     <string name="player_subtitle_secondary_native_primary">Primary subtitle is native-only; secondary assignment is unavailable</string>
+    <string name="player_subtitle_secondary_delivery_missing">This subtitle has no downloadable text URL and can only use native rendering; secondary assignment is unavailable</string>
+    <string name="player_subtitle_secondary_stale">The previously selected secondary subtitle is no longer present and has been closed</string>
     <string name="player_subtitle_track_fallback">Subtitle %1$d</string>
     <string name="player_subtitle_origin_sideload">Sideloaded</string>
     <string name="player_subtitle_delay">Subtitle delay</string>

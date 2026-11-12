@@ -73,6 +73,8 @@ data class SubtitleOverlayState(
     val nativePrimaryActive: Boolean = false,
     /** 次字幕是否存在（次字幕只走自研渲染） */
     val secondaryManaged: Boolean = false,
+    /** 最近一次选择 / 恢复不能落到次字幕的明确原因 */
+    val secondaryUnavailableReason: SubtitleSecondaryUnavailableReason? = null,
     /** 正在下载 / 解析字幕 */
     val loading: Boolean = false,
     /** 主字幕正在加载：路由层据此在「加载中」就禁用内核文字轨，避免闪一下原生字幕 */
@@ -130,6 +132,7 @@ class PlayerSubtitleController(
     /** 已为哪个主字幕序号发起过加载：在 publish() 唤醒 collector 前占位，避免同一源并发两次 loadSubtitle。 */
     private var primaryLoadStartedForIndex: Int? = null
     private var secondaryManaged = false
+    private var secondaryUnavailableReason: SubtitleSecondaryUnavailableReason? = null
     private var primaryLoading = false
     private var secondaryLoading = false
     private val loading: Boolean
@@ -196,6 +199,7 @@ class PlayerSubtitleController(
         nativePrimaryActive = false
         primaryLoadStartedForIndex = null
         secondaryManaged = false
+        secondaryUnavailableReason = null
         primaryLoading = false
         secondaryLoading = false
         disabledByUser = false
@@ -218,6 +222,7 @@ class PlayerSubtitleController(
             disabledByUser = restored.disabledByUser
             applyPrimary(restored.primaryIndex, persist = false)
             applySecondary(restored.secondaryIndex, persist = false)
+            secondaryUnavailableReason = restored.secondaryUnavailableReason
             publish()
         }
     }
@@ -232,6 +237,7 @@ class PlayerSubtitleController(
             }
             // 图形字幕没有可交给自研层的文本：保留在源序号上，由路由交给内核原生渲染。
             disabledByUser = false
+            secondaryUnavailableReason = null
             if (secondaryIndex == index) {
                 applySecondary(null, persist = false)
             }
@@ -271,6 +277,7 @@ class PlayerSubtitleController(
                 source.index,
             )
         disabledByUser = false
+        secondaryUnavailableReason = null
         if (next.secondaryIndex == null && secondaryIndex != null) {
             applySecondary(null, persist = false)
         }
@@ -285,13 +292,25 @@ class PlayerSubtitleController(
      * 若它当前在主路，清空主路并保持「非用户关闭」状态；次路渲染会由路由层抑制内核文字轨。
      */
     fun assignSecondary(index: Int) {
-        val source = sources.firstOrNull { it.index == index && it.isTextBased } ?: return
+        val source =
+            sources.firstOrNull { it.index == index }
+                ?: run {
+                    secondaryUnavailableReason = SubtitleSecondaryUnavailableReason.StaleTrack
+                    publish()
+                    return
+                }
+        source.secondaryUnavailableReason()?.let { reason ->
+            secondaryUnavailableReason = reason
+            publish()
+            return
+        }
         val next =
             SubtitleTrackAssignment.assignSecondary(
                 SubtitleTrackPair(primaryIndex, secondaryIndex),
                 source.index,
             )
         disabledByUser = false
+        secondaryUnavailableReason = null
         if (next.primaryIndex == null && primaryIndex != null) {
             applyPrimary(null, persist = false)
         }
@@ -308,6 +327,7 @@ class PlayerSubtitleController(
         val secondarySource = sources.firstOrNull { it.index == next.secondaryIndex }
         if (primarySource?.isTextBased != true || secondarySource?.isTextBased != true) return
         disabledByUser = false
+        secondaryUnavailableReason = null
         applyPrimary(next.primaryIndex, persist = true)
         applySecondary(next.secondaryIndex, persist = true)
         rememberManualSelection()
@@ -655,12 +675,28 @@ class PlayerSubtitleController(
         secondaryLoadJob = null
 
         val source = sources.firstOrNull { it.index == index }
-        if (index == null || source == null || !source.isTextBased) {
+        if (index == null) {
             secondaryCues = emptyList()
             secondaryManaged = false
             secondaryLoading = false
+            secondaryUnavailableReason = null
             return
         }
+        if (source == null) {
+            secondaryCues = emptyList()
+            secondaryManaged = false
+            secondaryLoading = false
+            secondaryUnavailableReason = SubtitleSecondaryUnavailableReason.StaleTrack
+            return
+        }
+        source.secondaryUnavailableReason()?.let { reason ->
+            secondaryCues = emptyList()
+            secondaryManaged = false
+            secondaryLoading = false
+            secondaryUnavailableReason = reason
+            return
+        }
+        secondaryUnavailableReason = null
         if (persist) {
             rememberLanguage(appPreferences.secondarySubtitleLanguages, source, isSecondary = true)
         }
@@ -772,6 +808,7 @@ class PlayerSubtitleController(
                 primaryRenderFailed = primaryRenderFailed,
                 nativePrimaryActive = nativePrimaryActive,
                 secondaryManaged = secondaryManaged,
+                secondaryUnavailableReason = secondaryUnavailableReason,
                 loading = loading,
                 primaryLoading = primaryLoading,
                 disabledByUser = disabledByUser,
