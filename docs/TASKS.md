@@ -1726,7 +1726,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=A scoped QA; B/C/D implementation and review; final signed 1.4.1 candidate; PLAYER_CORE_RELEASE_MATRIX 12/12; stable playback/progress/seek/retry; integration; Release assets/tag/upload.
 - STOP_CONDITION=A QA stops on QaReady failure, object/APK/device drift, raw resource output, crash, silent hang, unknown P0/P1, settings drift or scope expansion. B/C/D stop on product write outside card, new scope, device/network need or new P0/P1.
 - MANUAL_LIMITATION=R20 closes the proven sourceEpoch initialization crash only on one exact LOCAL SAF path. The same SAF document identity was reused, but the R9 fixture bytes were unavailable and a local non-sensitive SDK sample was written to that identity; the pre-loadfile fault classification remains valid, while byte-for-byte R9 replay is not claimed. Fresh scoped review must inspect this provenance before any QA dispatch.
-- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R8_2026_11_12
+- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R9_2026_11_12
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
