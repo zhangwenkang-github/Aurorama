@@ -9077,6 +9077,23 @@ result `CD047009B671768A9340AB0DBE29B521A90D4865CF058C0E21641AE2E5F39DE1`、mani
 `D4533130F6ABAFE445B3FD52B78A9282F61843365BE4E386C345BDF8282D3BEF`（`137/137 MATCH`）。
 D 仍不是独立 QA、PC-10 或 Release PASS；ColorOS 真实链路保持 `NOT_RUN`。
 
+**进度（2026-11-13，B 目录作用域与返回恢复实现自动化收口）**：fresh B implementation owner
+在 `codex/v141-b-catalog-nav-r21-2026-11-12` 完成 `V2-FIX-CATALOG-SCOPE-001` 与
+`V2-FIX-NAV-RESTORE-001`，head
+`876f063d0a9dc81a30bd832de78331b1bb7e31be` / tree
+`25a8a627185d015e34f52f53a984a18491e411d6` / parent `45d7f789...` / clean，22 paths。
+主假设为 catalog consumer 将 loaded/TTL 错误跨 server/user/access-mode scope 复用并允许迟到
+结果发布，detail `RESUMED` 缺 latest-request ownership 且 Lazy restore 忽略 same-item offset。
+RED `4 tests / 4 failures`；targeted GREEN `19/0/0/0`，data `278/0/0/0`、film
+`151/0/0/0`、phone `418/0/0/0`，三模块 128 XML / `847/0/0/0`，phone assemble、ktfmt、
+diff-check、graphify PASS。报告 SHA
+`F79C439A76891C850F772600AE1941812187207DC5AC2813FADB4194E2A7F6FC`、result
+`9EF5891B9241400B2C1533237FBF8B57353C2BF838C340809A7FF8E1534A28F3`、manifest
+`25FA272DA54E6E5DA383CE48A5B467C6338B2C96BA6F2A5131B292853EA6E84C`（`145/145 MATCH`）。
+新增 P0/P1/P2=`0/0/0`、P3=3、BLOCKED=0；Home 缺直接 JVM scope 测试，PC-08/PC-09 真机首帧、
+账号切换、长播返回、scroll 与 force-stop 均 `NOT_RUN`，黑屏直接根因未证明。B 只放行不同
+fresh scoped reviewer，不得把 22 路径自动化 GREEN 写成目录/返回恢复 QA PASS。
+
 **进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
 `codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
 `V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
