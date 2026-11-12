@@ -8538,3 +8538,24 @@ window `<=300 s`、锁 `<=20 min`；raw logcat/tombstone/command/exception/resou
 禁止重装、第二 attempt、截图、K60、生产写、产品/测试/schema/Gradle/settings 写、QA、
 merge/integration/Release。已完成：静态诊断收口与新设备取证门；距发布剩余：sanitized crash
 capture → 最小修复决策/实现 → fresh review/QA → 剩余核心旅程 → integration → Release。
+
+**进度（2026-11-12，sanitized crash capture R1 pre-play 止损 / resource-output P2）**：fresh
+capture owner 先完成 Control/candidate、QA/diagnosis 双 SHA、exact APK 与 installed base、
+唯一 Pad `43af8627` 锁、debug/release UID 和 cleanup 基线核验；exact APK SHA
+`3345E9B4E24464FB57655BC90AFEED2A91BF137DF4558B49FF128B192AEEA0FD` MATCH。但在读取既有 QA
+导航实现、尚未启动 App 前，owner 主会话回显了一处真实资源值。该值未在本任务卡、报告、结果、
+manifest、最终摘要或 R5 上下文复述，raw crash/tombstone 未读取，播放启动尝试 `0/1`。
+
+按红线立即停止：`CAPTURE_RESULT=CAPTURE_INCOMPLETE / FINAL_ACTION=STOP /
+RESOURCE_VALUE_OUTPUT_EVENTS=1 / RAW_CRASH_OUTPUT=0`，新增
+`P2-CAPTURE-R1-RESOURCE-OUTPUT-BOUNDARY-BREACH:OPEN_PROCESS_STOPPED`。capture window `0 s`，
+锁已 `RELEASED / ACTIVE=0`；debug/release PID、service、session、通知、capture child 与临时 UI
+dump 均收敛，两包和 App data 保留。报告 SHA-256
+`D3EDB2A189B616FB31ECFF318BC29CC101C842329F450EFA29A1E797DBA7C612`，manifest `5/5` /
+SHA-256 `F341BD27C5CBACAAAE21BE6C43AE6B677E800AE0618DCBA9D32A6DF7B41411D6`。
+
+R5 不自动创建 capture R2，也不继续设备/产品/QA 工作。下一步只能是用户显式决定是否授权全新的
+安全输入路径与 fresh capture owner；不得隐藏该 P2、复用本 owner 或把未执行写成产品结论。
+已完成：crash diagnosis R1 与 capture R1 安全止损；距发布剩余：用户对 resource-output P2
+的新授权/止损决定 → 可选安全 capture → 最小修复/复审/QA → 剩余核心旅程 → integration →
+Release。
