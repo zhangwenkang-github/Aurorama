@@ -8718,6 +8718,23 @@ logcat/tombstone/UI XML/命令/exception/resource 不持久化、不回显，输
 capture R2 结论 → crash fingerprint 最小修复或 scoping → fresh review/QA → 剩余核心旅程 →
 integration → Release。
 
+**进度（2026-11-12，capture R3 UI-only BLOCKED / source decision）**：fresh R3 owner 在
+Pad `43af8627` 上启动 App 一次，用内存内 UI 层级寻找 Downloads/Offline 来源；17 秒内未找到
+可确认的非生产 offline/download 条目，因此 `PLAYBACK_START_ATTEMPTS=0`、
+`CAPTURE_WINDOW_SECONDS=17`，未读取 raw crash/tombstone/UI XML，未重试。唯一锁在
+`2026-11-12 18:32:30 +08:00` 释放，ACTIVE=0；debug/release PID、service、MediaSession、
+通知、child 均收敛，两包与 App data 保留；K60/OnePlus、生产写、截图均 0。
+
+新增 `P3-R19-CAPTURE-R3-NO-UI-OFFLINE-SOURCE:OPEN_HARNESS_LIMITATION`；报告 SHA
+`D90B9814857D68D71819100601AEFEEB7FC92CBBD41324EDFA77CBB7BF60C8F5`，manifest
+`7/7` / SHA `B87DC5E6B7FED9DF9DA6E3FC88BB8212BAF911F7AECC00E3EBB015FDA575B602`。
+由于禁止生产写且没有可用 offline/download 来源，不能继续盲目 capture；下一步必须由用户
+显式选择非生产媒体来源方案，例如授权的本地 synthetic media fixture / 独立测试媒体服务器，
+或另一个不触发生产写的安全来源。未获新方案前不得 ADB/设备/capture、使用 K60、QaReady、
+QA、产品修复、merge/integration/Release。已完成：R3 安全止损与锁释放；距发布剩余：
+用户选择非生产来源 → 新 fresh capture → crash fingerprint 最小修复或 scoping →
+fresh review/QA → 剩余核心旅程 → integration → Release。
+
 **进度（2026-11-12，capture R2 WAL 止损 / capture R3 UI-only dispatch）**：capture R2 在
 来源确认阶段因 WAL 模式 Room 数据库无法在不落盘真实资源的前提下安全读取而止损：
 `CAPTURE_RESULT=BLOCKED / BLOCKING_CODE=BLOCKED_NO_READ_ONLY_PLAYBACK_SOURCE`，
