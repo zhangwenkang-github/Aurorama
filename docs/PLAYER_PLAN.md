@@ -9126,6 +9126,18 @@ PC-01/02/03/04/05/11/12。R9 QA 必须重新首跑 QaReady，所有 child 输出
 allowlist harness 的 `child` / `project`；R8 QA owner、锁与 runtime window均不得复用。
 QA 实际派发只等待提交后的 canonical `QA_READY_LINT=PASS`。
 
+**进度（2026-11-13，B fresh scoped review PASS / P3 接受）**：不同 fresh B reviewer 对
+`45d7f789..876f063d` 的 22 paths 独立复核，`REVIEW_STATUS=PASS`，代码
+P0/P1/P2=`0/0/0`、P3=4、`MERGE_PREP_READY=YES`。Review targeted 3 XML / 17 tests
+`0/0/0`；data+film+phone full JVM 128 XML / `847/0/0/0`，210/210 tasks executed；
+phone assemble+ktfmt、diff-check PASS；对象 22/22、clean、实现 manifest `145/145` 均一致。
+两项实现覆盖 P3（Home 无直接 JVM scope test、Movie/Season/Episode 共享 latest-request RED）
+接受为非阻断；PC-08/PC-09 真机首帧、账号切换、长播返回、scroll index 与 force-stop
+仍为 `NOT_RUN`，留给最终 signed-candidate 核心矩阵，不因 scoped review PASS 关闭。
+Review report SHA `A6DCE9174478BFE41C16C260F55134193BC42DF585E5354EF3CCA66393EC1E12`、
+result `4C8E878C9D6718DC279841989810955531A1473EC224AA6FB90F8DB9F0AAAF22`、manifest
+`768E886A4E159FE514FCF0127648C719A11D50266FDED7C570622E2C6458E81D`（`140/140 MATCH`）。
+
 **进度（2026-11-12，C 字幕实现自动化收口）**：fresh C implementation owner 在
 `codex/v141-c-subtitle-r21-2026-11-12` 完成 `V2-FIX-SUBTITLE-LOAD-001` 与
 `V2-FIX-SUBTITLE-RENDER-001`，head `b4658fd0ab50186dd8ebd248d03c231989bafc2c` / tree
