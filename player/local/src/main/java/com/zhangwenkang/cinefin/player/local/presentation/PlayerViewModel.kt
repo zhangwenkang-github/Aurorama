@@ -701,21 +701,23 @@ constructor(
         viewModelScope.launch {
             val startItem =
                 try {
-                    if (queueEntries.isNotEmpty()) {
-                        playlistManager.getInitialItemForQueue(
-                            entries = queueEntries,
-                            preferredItemId = itemId,
-                            startFromBeginning = startFromBeginning,
-                            startPositionMs = startPositionMs.takeIf { it > 0L },
-                        )
-                    } else {
-                        playlistManager.getInitialItem(
-                            itemId = itemId,
-                            itemKind = BaseItemKind.fromName(itemKind),
-                            mediaSourceIndex = null,
-                            startFromBeginning = startFromBeginning,
-                            startPositionMs = startPositionMs.takeIf { it > 0L },
-                        )
+                    runPlaybackStartupRequest {
+                        if (queueEntries.isNotEmpty()) {
+                            playlistManager.getInitialItemForQueue(
+                                entries = queueEntries,
+                                preferredItemId = itemId,
+                                startFromBeginning = startFromBeginning,
+                                startPositionMs = startPositionMs.takeIf { it > 0L },
+                            )
+                        } else {
+                            playlistManager.getInitialItem(
+                                itemId = itemId,
+                                itemKind = BaseItemKind.fromName(itemKind),
+                                mediaSourceIndex = null,
+                                startFromBeginning = startFromBeginning,
+                                startPositionMs = startPositionMs.takeIf { it > 0L },
+                            )
+                        }
                     }
                 } catch (e: CancellationException) {
                     // W76-B11b：起播窗口内退出播放页 = 正常取消，不是解析失败。
@@ -726,7 +728,15 @@ constructor(
                     // （连接被中断的 IOException 等）。离开播放页时同样不该把它当成解析失败弹提示。
                     if (!isActive) throw e
                     Timber.e(e)
-                    Toast.makeText(application, e.localizedMessage, Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                            application,
+                            playbackStartFailureMessage(
+                                e,
+                                application.getString(R.string.player_controls_error_title),
+                            ),
+                            Toast.LENGTH_LONG,
+                        )
+                        .show()
                     null
                 }
 
@@ -3531,3 +3541,10 @@ internal fun resolveSubtitleRouting(state: SubtitleOverlayState): SubtitleRoutin
     }
     return SubtitleRouting.Auto
 }
+
+/** PlaybackInfo / Jellyfin 条目解析含真实网络，不能继承 viewModelScope 的主线程调度。 */
+internal suspend fun <T> runPlaybackStartupRequest(block: suspend () -> T): T =
+    withContext(Dispatchers.IO) { block() }
+
+internal fun playbackStartFailureMessage(error: Throwable, fallback: String): String =
+    error.localizedMessage?.takeIf { it.isNotBlank() } ?: fallback
