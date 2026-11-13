@@ -8,7 +8,7 @@
 ### ACTIVE — AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
-- TASK_STAGE=BATCH_DOWNLOAD_MISMATCH / SIGNED_BUILD_PASS / DEVICE_VERIFY_PENDING
+- TASK_STAGE=BATCH_DOWNLOAD_MISMATCH / SIGNED_VERIFIED_PAD / FINAL_DUAL_INSTALL_PENDING
 - PROFESSIONAL_IDENTITY=AURORAMA_141_RELEASE_FINISH_LEAD_NEXT_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
@@ -29,7 +29,7 @@
 - RELEASE_APK_UNIVERSAL=app/phone/build/outputs/apk/libre/release/phone-libre-universal-release.apk;LENGTH=175101164;SHA256=29781E512AB7466CFB7BD96A1C8BBB3AE2D7C2255C1EE301D473BCCAE083EEE2
 - DELIVERY_DIR=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-2026-11-14;ARM64=Aurorama-1.4.1-arm64-v8a.apk;UNIVERSAL=Aurorama-1.4.1-universal.apk;MANIFEST_SHA256=B3CE776262D457FD9A39643F936D98C374063D82C0CD5FE6C9818DB89A156D71
 - RELEASE_PACKAGE=io.github.zhangwenkang.aurorama;VERSION=1.4.1(6);APKSIGNER_V2=TRUE;SINGLE_SIGNER=TRUE;ARM64_ONLY=TRUE;UNIVERSAL_ABI_COUNT=4
-- DEVICE_ACCESS=DIAGNOSTIC_OWNER_PAD_43AF8627_ONLY;LOCK_ACTIVE=0;K60_8e875894=FINAL_INSTALL_ONLY_AFTER_FIX
+- DEVICE_ACCESS=PAD_43AF8627_AND_K60_8E875894_FINAL_INSTALL_ONLY;LOCK_ACTIVE=0
 - DEVICE_VERIFIED=debug install -r preserve data; search two result cards and return; VIDEO kind + error card/retry; invalid Episode-on-Video prompt no crash; Exo AUTO direct pause/seek/consecutive seek/near-end/auto-next; cold force-stop resume ~278s; MediaSession/notification/FGS; HOME background-off pause; audio panel; external ASS subtitle selection/renderer; Wi-Fi-off downloaded Movie PLAYING from local path; latest debug APK local mpv actual draw/pause/resume/seek; signed candidate install -r preserve data/start/home/package/device hash; signed PlayerActivity 12s no crash; signed local 8-bit H264 Exo+mpv actual draw/pause/resume/seek; signed real 145MB download accepted/progress/completed notification/page-file consistency/delete
 - DEVICE_PARTIAL=download HTTP404 retry pause/resume/delete; Movie optional enrichment device injection BLOCKED_INJECTION_AUTOMATION_PASS; online HLS mpv blocked by server stream reset; subtitle pixel QA NOT_RUN; ColorOS/K60 NOT_RUN
 - AUTOMATION=PASS; PlayerStartupRequestTest 3/0; JellyfinOfflinePlaybackFallbackTest 2/0; MovieCatalogConsumerTest 11/0/0/0; MPV JNI release contract 8 callbacks / 41 direct methods mapped unchanged; signed release arm64/universal build; apksigner; phone ktfmt; git diff-check
@@ -37,14 +37,14 @@
 - HANDOFF_LINTER=OLD_R19_SCHEMA_FAIL_NOT_RELEASE_GATE;P0_WRITEBACK_APPLIED;NO_AUDIT_LOOP
 - RELEASE_STATE=RELEASE_CANDIDATE_READY_WITH_DOCUMENTED_GAPS;LOCAL_ONLY;NO_PUSH_TAG_RELEASE
 - P0=P0-RELEASE-MPV-JNI-R8-01:CLOSED_ON_PAD_43AF8627_BY_6888adc2;PlayerActivity_ALIVE_12S;AM_CRASH=0;AM_PROC_DIED=0;AM_ANR=0
-- P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:USER_REPORTED_NOT_PROVEN;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED;NEW-STARTUP-MAIN-THREAD-CRASH=CLOSED_BY_71e9c6e5_DEVICE_SAME_PATH;NEW-OFFLINE-NETWORK-FIRST=CLOSED_BY_77620372_DEVICE_OFFLINE
+- P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:SIGNED_PATH_RESOLVED_PAD;FINAL_DUAL_INSTALL_PENDING;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED
 - P2=P2-PLAYER-LOADING-001:OPEN;P2-PLAYER-STALL-001:OPEN;DOWNLOAD-BACKOFF-NOTIFICATION=OPEN_NONBLOCKING
 - P3=subtitle visual pixels NOT_RUN; ColorOS/K60 NOT_RUN; Movie enrichment real injection unavailable; two historical completed download files EOF in local mpv triage; local dual-backend fixture no audio; direct-file source failure from stale server media
-- NEXT_ROLE=AURORAMA_141_BATCH_DOWNLOAD_SIGNED_VERIFIER_R1_2026_11_14
+- NEXT_ROLE=AURORAMA_141_BATCH_DOWNLOAD_DUAL_DEVICE_INSTALLER_R1_2026_11_14
 - FIRST_READ_ACTION=read PROJECT_PLAN then this ACTIVE then DOWNLOAD_PLAN W51/W51b/W90 lineage, USER_REPORT, STATE_EFFECT_MATRIX and TARGETED_VERIFICATION_PLAN; verify HEAD/tree/clean and Pad lock
-- NEXT_ACTION=install signed arm64 on Pad 43af8627, select two aggregate-grid items, preserve item count through refresh, enqueue then pause, and verify selected IDs equal task IDs
-- STOP_CONDITION=object/APK/lock drift, signed selection-task mismatch, second same-symptom non-convergence, need second media, server write, product change, crash or ANR
-- CURRENT_HANDOFF=BATCH_DOWNLOAD_MISMATCH_SIGNED_VERIFY_2026_11_14
+- NEXT_ACTION=install exact signed arm64 72637DAC to 43af8627 and 8e875894 with -r preserving data, verify device-side hash and 1.4.1(6), then release lock
+- STOP_CONDITION=device offline/object or APK drift, install failure, MIUI identity gate, need to clear data or change system settings
+- CURRENT_HANDOFF=BATCH_DOWNLOAD_MISMATCH_FINAL_INSTALL_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1767,7 +1767,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=A QA product rows remain NOT_RUN pending user structural identity decision; PLAYER_CORE_RELEASE_MATRIX 12/12; full-scope review; merge-prep; integration; signed 1.4.1/6 packages; final QA; Release.
 - STOP_CONDITION=Do not dispatch A QA or device QA until user explicitly decides structural identity. No same-shape nav harness repair. Full-scope review stops on object/review/P0-P2 drift; merge-prep only after full-scope review PASS.
 - MANUAL_LIMITATION=A QA output-boundary issue is closed. A R9 real window then failed before playback because closed UI lacks structural identity; different fresh verifier confirms BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY. This is a QA coverage block pending explicit user decision, not a product playback failure. B/C/D scoped reviews PASS but remain non-device and non-Release evidence.
-- MANUAL_OWNER=AURORAMA_141_BATCH_DOWNLOAD_SIGNED_VERIFIER_R1_2026_11_14
+- MANUAL_OWNER=AURORAMA_141_BATCH_DOWNLOAD_DUAL_DEVICE_INSTALLER_R1_2026_11_14
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
