@@ -9546,3 +9546,19 @@ MATCH。真实漂移为 R5 三件 receipt 与 R7 report/result 的登记值。R1
 生成 exact audit R9 prompt、跑 BugLoopPrompt、派另一 fresh 只读 audit R9。R9 PASS 前不得
 派 A QA card owner、登记 Pad 锁、运行 QaReady 或 QA。R8 report/result/manifest SHA 为
 `1B880455...D93E / 5678197F...305E / 946654E1...A596`，manifest `3/3 MATCH`。
+
+**进度（2026-11-13，R9 fresh audit FAIL：审计员输出边界 / 30 万交接准备）**：R15 R3、
+Control `0b9a0098... / tree e77284c9...`、candidate `b4f7d21f... / 5ffe5cd4...`、APK、
+R2/R5/R7/R8 receipt、verifier R3 `919/919`、repair R2 `383/383`、ACTIVE 八字段、
+`QA_READY=NO`、锁 `ACTIVE=0` 与 memory checker/doctor 均匹配；R9 仍因审计员用宽匹配统计
+ACTIVE 时回显了 Control `TASKS.md` 的非当前历史字段，返回
+`FAIL_AUDITOR_READ_AND_OUTPUT_SCOPE_EXPANSION_UNRELATED_TASKS_HISTORY`，
+`allowedToDispatchAQAQACardOwner=false`。该过程 P1 未涉及外部 dirty-doc worktree、raw UI/log、
+真实资源值、设备或生产写，但 R9 receipt 不可复用。
+
+R9 report/result/manifest SHA 为
+`42480B73...F4A2 / 43E60502...0D0C / FB37199A...5683`，manifest `3/3 MATCH`。当前实测
+`319043 / 1048576 = 30.4%`，已进入 30 万交接准备档；本轮停止扩项，不再自动开 R10。
+后续 fresh R10 prompt 必须只做内存内 marker 计数与 current-ACTIVE 字段提取，输出只允许布尔
+/ 固定摘要，禁止全局 `rg` / `Select-String` 回显 TASKS 或锁历史。R10 PASS 前仍不得创建
+A QA 卡、登记 Pad 锁、运行 QaReady 或派 QA。
