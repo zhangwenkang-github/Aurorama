@@ -9478,3 +9478,20 @@ verifier R3 PASS 后停止扩项，不启动 A QA card owner。下一角色为 R
 实际任务是派新的 different fresh A QA card owner 创建最小 A QA 卡、登记 Pad `43af8627`
 唯一锁、保存并 lint exact QA prompt、提交 Control docs，再运行 canonical QaReady。只有
 `QA_READY_LINT=PASS` 后才能由负责人另派不同 fresh QA。
+
+**暂停（2026-11-13，R14→R15 pre-handoff audit FAIL / 等待用户通知）**：R15 prompt
+`AF7D1F85...51837A`、BugLoopPrompt 与 Handoff lint 均 PASS，但全新的只读 pre-handoff
+audit R1 返回 `FAIL:UNCOMMITTED_DOCS_OUTSIDE_CONTROL`，因此
+`allowedToCreateR15Session=false`。审计扫描 181 个 worktree，发现两个早于本轮且内容相同的
+外部 docs 未提交：
+`F:\Develop\codex_work\project\Aurorama` 与
+`F:\Develop\code_data\work_tree\Aurorama\w90a2-main-integration-sandbox-20261102\Aurorama`。
+审计只读 `git status`，未读正文、未修改、未清理；这不是 R14 产物。
+
+除该硬门外，Control `f279478d... / clean`、candidate `b4f7d21f... / clean`、APK、R15
+prompt、ACTIVE 八字段、R3 `919/919`、repair R2 `383/383`、锁 `ACTIVE=0`、memory
+checker/doctor 均 PASS。审计 manifest `5/5 MATCH`，report / result / manifest SHA 为
+`8BDD3DFA...C1171A / 9B54191C...FD7CA0 / 561D4969...90E5AB`。
+按用户要求，R14 在原子审计完成后停下并写回文档，不创建 R15 会话。用户通知恢复后，必须先
+解决或明确处置两个外部 dirty-doc 条件，再由 fresh audit R2 重新审核；此前不得进入 A QA
+卡、Pad 锁、QaReady、QA 或 Release。
