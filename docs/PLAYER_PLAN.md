@@ -9332,3 +9332,26 @@ UiAutomator resource-id / role / click binding、唯一 postcondition、新 QA�
 停止扩项。下一角色为 R12 交付负责人，首动作只派不同 fresh verifier 核对实现
 report/result/manifest、`b4f7d21f / 5ffe5cd4 / clean`、两路径和 RED/GREEN；verifier PASS
 前不得建新 QA 卡、申请设备锁或进入 merge/integration/Release。
+
+**进度（2026-11-13，R11 结构身份 fresh verifier PASS / 交接 R13）**：不同 fresh
+`AURORAMA_141_R11_A_QA_STRUCTURAL_IDENTITY_FRESH_VERIFIER_2026_11_13` 对 candidate
+`b4f7d21f / tree 5ffe5cd4 / parent 8814c337` 的 2 paths 完成离线独立复核，结论
+`VERIFIER_STATUS=PASS`、新增 P0–P3=`0/0/0/0`。四个固定 tag、debug Pad-only wiring、单一
+`testTagsAsResourceId` root、两个 `Role.Button` 实接点、唯一 full-size local-library screen
+wrapper 与 0 / 多候选、错误 Activity / focus / screen、缺失 / 重复 postcondition、raw text
+负例均 PASS；无动态库名 / id、文本、contentDescription、坐标或 fallback。
+
+verifier 独立复跑官方 RED `14/3 AssertionError/0/0`、targeted `14/0/0/0`、full phone
+`482/0/0/0`（71 XML / 196 tasks）、assemble、受控 ktfmt、diff-check、GatePlan
+`FULL / 2 paths / STATE_EFFECT_MATRIX PASS`、source static `14/14` 与负例 `13/13`。
+A0 在 base / candidate 均为 `FAIL_INHERITED_BASE`，相同的 4 个继承 P1 未新增 changed-path
+finding，不能写成 A0 PASS。implementation / scope / ledger manifest 复算
+`30/30 / 3/3 / 4/4`，verifier manifest `23/23 MATCH`；report / result / manifest SHA 为
+`879D5373... / 924DCC48... / A0A22FFE...`。
+
+该 PASS 只关闭离线结构身份与 fail-closed 合同验证，不证明真实 UiAutomator resource-id /
+role / click binding、七条 A scoped PC、12 行核心矩阵、QA、merge、integration、signed
+candidate 或 Release。当前 `QA_READY=NO`、`LOCK_ACTIVE=0`。负责人在实测
+`311989 / 1048576 = 29.8%` 越过 30 万准备线后停止扩项；下一角色为 R13 交付负责人，第一
+实际任务是建立新的 A QA 卡、新唯一 Pad 锁、canonical QaReady 并派不同 fresh QA，不得复用
+R9/R10/R11 历史执行窗口，也不得把本 verifier PASS 扩写为产品 QA。
