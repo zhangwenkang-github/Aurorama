@@ -9522,3 +9522,10 @@ docs 正文，按边界判 FAIL。audit R6 再次在读取 prompt 前访问了�
 下一轮必须是新的 fresh 只读 audit R7，只允许先完整读取 prompt，再对两个外部 worktree 执行
 `git status`、mtime 与 SHA；禁止任何 `Get-Content`/`rg`/正文读取。R6 的越界是审计过程 P1，
 不是产品 finding。当前仍无卡、锁、QaReady 或 QA。
+
+audit R7 按边界未访问外部 worktree，但发现原始 R15 prompt 仍缺 latest-audit 顶部字段，
+§3.1 又缺当前 Control 且要求再次核对外部摘要。因此原 prompt 不再作为后继入口；R14 将
+控制面交接改写为 `R15_DELIVERY_LEAD_PROMPT_R2.md`，当前会话不再继续 R8。R15 的第一任务
+只能是读取 R7 receipt 与 R2 prompt，创建不同 fresh audit R8 并取得 PASS；R8 前不得进入
+A QA 卡、Pad 锁、QaReady 或 QA。R7 report/result/manifest SHA 为
+`E9F528E6...D9476 / 2388E562...FFB29 / E08D1AEF...C384`，manifest `14/14 MATCH`。
