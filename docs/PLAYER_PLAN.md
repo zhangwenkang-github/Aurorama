@@ -9805,3 +9805,42 @@ PLAYBACK_START_BUDGET=1
 或 Release。若固定媒体 identity、PlayerActivity extra 或 MediaSession 控制结构不足，对相应
 行写 `NOT_RUN / BLOCKED_INSUFFICIENT_CONTROL_STRUCTURE`，不得退回 text、contentDescription、
 动态 resource-id、坐标或 raw fallback。
+
+**进度（2026-11-13，最后一次 A1 重试在设备前因资源输出边界 breach 停止）**：fresh
+`AURORAMA_141_A_CLUSTER_TARGETED_EVIDENCE_OWNER_R2_2026_11_13` 按读序读取 R7 复现报告时，
+原始报告在进入 closed projection 前进入了工具 stdout，违反“真实媒体 identity 仅存在于进程
+内存”的输出边界。owner 在发现后立即停止；未申请 Pad 锁、未执行 ADB、未安装、未启动 App、
+未 playback / seek / retry，也未进入 A2。
+
+```text
+A_CLUSTER_A1_RETRY_STATUS=BLOCKED
+BLOCKED=RESOURCE_OUTPUT_BOUNDARY_BREACH
+DETECTION_STAGE=READ_R7_REPRO_REPORT
+DEVICE_ACTIONS_AFTER_DETECTION=0
+APP_START_COUNT=0
+PLAYBACK_START_ATTEMPTS=0
+LOCK_ACQUIRED=NO
+PC03_04_05_12=NOT_RUN
+A2=NOT_RUN
+PROCESS_P1=P1-A1-RETRY-RESOURCE-OUTPUT-BOUNDARY-BREACH:OPEN
+PRODUCT_ATTRIBUTION=NONE
+```
+
+证据三件套已由负责人复算：
+
+```text
+REPORT_SHA256=CA664DCD6531A3569A6A363EB0E774A4B934783373DDBBC4BD15E5AC5B67F229
+RESULT_SHA256=2DDF5BA200933701628188577620D24BAD669076847DD727FBD2E38D5060E37B
+MANIFEST=4/4_MATCH
+MANIFEST_SHA256=481BAFABFAE3B4353C28B1526351DC8572288D83482625FD14FEFF963009FF45
+```
+
+Control 与 candidate 仍 clean，candidate 仍为
+`1b847ba6 / 235f7235`，APK 仍为
+`FDB4C5C7...A3A513`，共享锁在复核时仍 `ACTIVE=0`。该事件不是产品播放器 P1，也没有关闭或
+恶化任何 A1/A2 行；它是证据保密门失败。未经用户明确决定，不得重开 A1/A2、申请 Pad 锁、
+运行 QaReady、创建第四个 A1、继续读取媒体 identity、进入完整矩阵或 Release。
+
+后续若继续，必须先由不同 fresh owner 在只读进程中把授权复现报告投影为 closed 数值 / 枚举，
+再让另一个未接触 raw report 的 fresh 设备 owner 使用该投影；不能由本轮已暴露媒体 identity 的
+owner 继续设备取证。
