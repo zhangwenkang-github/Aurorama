@@ -9529,3 +9529,20 @@ audit R7 按边界未访问外部 worktree，但发现原始 R15 prompt 仍缺 l
 只能是读取 R7 receipt 与 R2 prompt，创建不同 fresh audit R8 并取得 PASS；R8 前不得进入
 A QA 卡、Pad 锁、QaReady 或 QA。R7 report/result/manifest SHA 为
 `E9F528E6...D9476 / 2388E562...FFB29 / E08D1AEF...C384`，manifest `14/14 MATCH`。
+
+**进度（2026-11-13，R8 fresh audit FAIL / R9 控制面复验）**：R15 已冻结 exact R8 prompt，
+运行 `BUG_LOOP_DISPATCH_GATE=PASS` 后由与 R7、R14 及全部实现 / verifier / QA 不同的 fresh
+只读审计员执行。Control `a7a7f310... / tree 3eb2cd59...`、candidate
+`b4f7d21f... / 5ffe5cd4... / parent 8814c337...`、APK
+`508C5BCD...AA62B`、R15 R2 prompt、R3 `919/919`、repair R2 `383/383`、ACTIVE 八字段、
+`QA_READY=NO`、`LOCK_ACTIVE=0` 与 memory checker/doctor 均 PASS；R8 仍因 ACTIVE 的 R5/R7
+receipt SHA 登记漂移返回 `FAIL_ACTIVE_RECEIPT_SHA_REGISTRATION_DRIFT`，
+`allowedToDispatchAQAQACardOwner=false`。
+
+R8 报告的 R2 result 单字符缺失未能在现场复现；当前 ACTIVE 值为
+`569C2CB3D748B1AE49AB8569EC11010F1D78E5797207F91E69BD6CA478260BF6`，长度 `64` 且与 receipt
+MATCH。真实漂移为 R5 三件 receipt 与 R7 report/result 的登记值。R15 已将 R2 作为被取代历史，
+新增 `R15_DELIVERY_LEAD_PROMPT_R3.md` 并修正 R5/R7 receipt 与 R8 FAIL receipt；下一步只能
+生成 exact audit R9 prompt、跑 BugLoopPrompt、派另一 fresh 只读 audit R9。R9 PASS 前不得
+派 A QA card owner、登记 Pad 锁、运行 QaReady 或 QA。R8 report/result/manifest SHA 为
+`1B880455...D93E / 5678197F...305E / 946654E1...A596`，manifest `3/3 MATCH`。
