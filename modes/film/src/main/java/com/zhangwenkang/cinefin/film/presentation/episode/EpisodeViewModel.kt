@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
 import com.zhangwenkang.cinefin.film.domain.selectSourceForMetadata
 import com.zhangwenkang.cinefin.film.presentation.detail.LatestContentRequest
+import com.zhangwenkang.cinefin.film.presentation.detail.readOptionalDetail
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -12,6 +13,7 @@ import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,23 +42,40 @@ constructor(
         viewModelScope.launch {
             try {
                 val episode = repository.getEpisode(episodeId)
-                val videoMetadata =
-                    selectSourceForMetadata(episode.sources, preferredMediaSourceId)?.let { source
-                        ->
-                        videoMetadataParser.parse(source)
-                    }
-                val actors = getActors(episode)
-                val displayExtraInfo = appPreferences.getValue(appPreferences.displayExtraInfo)
                 if (!contentRequests.isCurrent(request)) return@launch
                 _state.emit(
                     _state.value.copy(
                         episode = episode,
-                        videoMetadata = videoMetadata,
-                        actors = actors,
-                        displayExtraInfo = displayExtraInfo,
+                        videoMetadata = null,
+                        actors = emptyList(),
                         error = null,
                     )
                 )
+                val videoMetadataResult = readOptionalDetail {
+                    selectSourceForMetadata(episode.sources, preferredMediaSourceId)?.let { source
+                        ->
+                        videoMetadataParser.parse(source)
+                    }
+                }
+                val actorsResult = readOptionalDetail { getActors(episode) }
+                val displayExtraInfoResult = readOptionalDetail {
+                    appPreferences.getValue(appPreferences.displayExtraInfo)
+                }
+                if (!contentRequests.isCurrent(request)) return@launch
+                val enrichmentError =
+                    listOf(videoMetadataResult, actorsResult, displayExtraInfoResult)
+                        .firstNotNullOfOrNull { result -> result.exceptionOrNull() as? Exception }
+                _state.emit(
+                    _state.value.copy(
+                        videoMetadata = videoMetadataResult.getOrNull(),
+                        actors = actorsResult.getOrDefault(emptyList()),
+                        displayExtraInfo =
+                            displayExtraInfoResult.getOrDefault(_state.value.displayExtraInfo),
+                        error = enrichmentError,
+                    )
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (e: Exception) {
                 if (!contentRequests.isCurrent(request)) return@launch
                 _state.emit(_state.value.copy(error = e))

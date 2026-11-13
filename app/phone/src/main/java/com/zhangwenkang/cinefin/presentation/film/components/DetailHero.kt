@@ -407,6 +407,19 @@ internal fun detailHeroActionsDegraded(screenWidthDp: Float): Boolean = screenWi
 /** 平板头图基准高度（纯函数）：400dp；实际由 [ItemHeader] 的 `heightIn(min)` 保证不裁切。 */
 internal fun detailHeroMinHeightDp(expanded: Boolean): Float = if (expanded) 400f else 300f
 
+internal enum class DetailBodyMode {
+    Content,
+    Error,
+    Loading,
+}
+
+internal fun detailBodyMode(hasContent: Boolean, hasError: Boolean): DetailBodyMode =
+    when {
+        hasContent -> DetailBodyMode.Content
+        hasError -> DetailBodyMode.Error
+        else -> DetailBodyMode.Loading
+    }
+
 /** 与 [detailHeroMinHeightDp] 同源的 Dp 包装。 */
 private fun detailHeroMinHeight(expanded: Boolean) = detailHeroMinHeightDp(expanded).dp
 

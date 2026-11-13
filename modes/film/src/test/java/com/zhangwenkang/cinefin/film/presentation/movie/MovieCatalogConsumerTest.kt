@@ -42,6 +42,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -118,7 +119,7 @@ class MovieCatalogConsumerTest {
     }
 
     @Test
-    fun `identity unavailable clears all catalog-owned movie state`() {
+    fun `catalog clear helper removes stale content before outcome publication`() {
         val previous =
             MovieState(
                 movie = movie("old"),
@@ -151,6 +152,44 @@ class MovieCatalogConsumerTest {
 
         assertEquals("new", state.movie?.name)
         assertEquals(true, state.displayExtraInfo)
+    }
+
+    @Test
+    fun `identity unavailable publishes retryable error and recovers on retry`() = runBlocking {
+        val catalog = MovieCatalogPort(SCOPE)
+        var requestCount = 0
+        catalog.movieResult = { query ->
+            requestCount += 1
+            if (requestCount == 1) {
+                CatalogReadOutcome.IdentityUnavailable
+            } else {
+                available(
+                    scope = query.frozenScope,
+                    movie = movie(name = "retry-ok", id = query.itemId),
+                )
+            }
+        }
+        val viewModel =
+            installViewModel(
+                MovieViewModel(
+                        catalogReadPort = catalog,
+                        repository = repository(),
+                        appPreferences = appPreferences(),
+                        parseVideoMetadata = { metadata() },
+                        peopleDispatcher = Dispatchers.Unconfined,
+                    )
+                    .withUnconfinedViewModelScope()
+            )
+
+        viewModel.loadMovie(MOVIE_ID)
+
+        assertNull(viewModel.state.value.movie)
+        assertNotNull(viewModel.state.value.error)
+
+        viewModel.loadMovie(MOVIE_ID)
+
+        assertEquals("retry-ok", viewModel.state.value.movie?.name)
+        assertNull(viewModel.state.value.error)
     }
 
     @Test

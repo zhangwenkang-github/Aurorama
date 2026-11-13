@@ -1,7 +1,9 @@
 package com.zhangwenkang.cinefin.presentation.film
 
 import com.zhangwenkang.cinefin.film.presentation.show.ShowViewModel
+import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidImages
+import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import java.io.IOException
@@ -51,16 +53,19 @@ class ShowViewModelRestoreTest {
             val showId = UUID.randomUUID()
             var getShowCalls = 0
             val repository =
-                controlledRepository(backgroundScope) {
-                    when (++getShowCalls) {
-                        1 -> show(showId, "initial")
-                        2 -> {
-                            olderRefreshGate.await()
-                            show(showId, "older-refresh")
+                controlledRepository(
+                    scope = backgroundScope,
+                    loadShow = {
+                        when (++getShowCalls) {
+                            1 -> show(showId, "initial")
+                            2 -> {
+                                olderRefreshGate.await()
+                                show(showId, "older-refresh")
+                            }
+                            else -> show(showId, "newest-refresh")
                         }
-                        else -> show(showId, "newest-refresh")
-                    }
-                }
+                    },
+                )
             val viewModel = ShowViewModel(repository)
 
             viewModel.loadShow(showId)
@@ -90,16 +95,19 @@ class ShowViewModelRestoreTest {
             val showId = UUID.randomUUID()
             var getShowCalls = 0
             val repository =
-                controlledRepository(backgroundScope) {
-                    when (++getShowCalls) {
-                        1 -> show(showId, "initial")
-                        2 -> {
-                            olderRefreshGate.await()
-                            throw IOException("older refresh failed")
+                controlledRepository(
+                    scope = backgroundScope,
+                    loadShow = {
+                        when (++getShowCalls) {
+                            1 -> show(showId, "initial")
+                            2 -> {
+                                olderRefreshGate.await()
+                                throw IOException("older refresh failed")
+                            }
+                            else -> show(showId, "newest-refresh")
                         }
-                        else -> show(showId, "newest-refresh")
-                    }
-                }
+                    },
+                )
             val viewModel = ShowViewModel(repository)
 
             viewModel.loadShow(showId)
@@ -119,6 +127,56 @@ class ShowViewModelRestoreTest {
             assertNull(viewModel.state.value.error)
         }
 
+    @Test
+    fun coreShowIsPublishedBeforeOptionalEnrichmentCompletes() =
+        runTest(mainDispatcher.scheduler) {
+            val nextUpGate = CompletableDeferred<Unit>()
+            val showId = UUID.randomUUID()
+            val repository =
+                controlledRepository(
+                    scope = backgroundScope,
+                    loadShow = { show(showId, "core") },
+                    loadNextUp = {
+                        nextUpGate.await()
+                        emptyList()
+                    },
+                )
+            val viewModel = ShowViewModel(repository)
+
+            viewModel.loadShow(showId)
+            runCurrent()
+
+            assertEquals("core", viewModel.state.value.show?.name)
+
+            nextUpGate.complete(Unit)
+            runCurrent()
+            settleDefaultDispatcher()
+            runCurrent()
+            settleDefaultDispatcher()
+            runCurrent()
+        }
+
+    @Test
+    fun optionalShowEnrichmentFailureKeepsCoreShowVisible() =
+        runTest(mainDispatcher.scheduler) {
+            val showId = UUID.randomUUID()
+            val repository =
+                controlledRepository(
+                    scope = backgroundScope,
+                    loadShow = { show(showId, "core") },
+                    loadNextUp = { throw IOException("next up failed") },
+                )
+            val viewModel = ShowViewModel(repository)
+
+            viewModel.loadShow(showId)
+            runCurrent()
+            settleDefaultDispatcher()
+            runCurrent()
+
+            assertEquals("core", viewModel.state.value.show?.name)
+            assertEquals("next up failed", viewModel.state.value.error?.message)
+        }
+
     private suspend fun awaitShowName(viewModel: ShowViewModel, expected: String) {
         withContext(Dispatchers.Default) {
             withTimeout(5_000) {
@@ -136,6 +194,8 @@ class ShowViewModelRestoreTest {
     private fun controlledRepository(
         scope: CoroutineScope,
         loadShow: suspend () -> FindroidShow,
+        loadNextUp: suspend () -> List<FindroidEpisode> = { emptyList() },
+        loadSeasons: suspend () -> List<FindroidSeason> = { emptyList() },
     ): JellyfinRepository =
         Proxy.newProxyInstance(
             JellyfinRepository::class.java.classLoader,
@@ -148,8 +208,18 @@ class ShowViewModelRestoreTest {
                     scope.launch { continuation.resumeWith(runCatching { loadShow() }) }
                     COROUTINE_SUSPENDED
                 }
-                "getNextUp" -> emptyList<Any>()
-                "getSeasons" -> emptyList<Any>()
+                "getNextUp" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val continuation = args!!.last() as Continuation<List<FindroidEpisode>>
+                    scope.launch { continuation.resumeWith(runCatching { loadNextUp() }) }
+                    COROUTINE_SUSPENDED
+                }
+                "getSeasons" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val continuation = args!!.last() as Continuation<List<FindroidSeason>>
+                    scope.launch { continuation.resumeWith(runCatching { loadSeasons() }) }
+                    COROUTINE_SUSPENDED
+                }
                 "toString" -> "ShowViewModelRestoreTestRepository"
                 "hashCode" -> System.identityHashCode(this)
                 "equals" -> false

@@ -48,13 +48,16 @@ import com.zhangwenkang.cinefin.film.presentation.episode.EpisodeViewModel
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
+import com.zhangwenkang.cinefin.presentation.film.components.DetailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
+import com.zhangwenkang.cinefin.presentation.film.components.DetailLoadError
 import com.zhangwenkang.cinefin.presentation.film.components.ExtraInfoText
 import com.zhangwenkang.cinefin.presentation.film.components.ItemButtonsBar
 import com.zhangwenkang.cinefin.presentation.film.components.ItemTopBar
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.VideoMetadataBar
 import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
+import com.zhangwenkang.cinefin.presentation.film.components.detailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.downloadEventMessage
 import com.zhangwenkang.cinefin.presentation.film.components.showsViewAction
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
@@ -162,6 +165,7 @@ fun EpisodeScreen(
         onDownloadClick = { episode, storageIndex ->
             detailDownloadViewModel.enqueueItem(item = episode, storageIndex = storageIndex)
         },
+        onRetry = { viewModel.loadEpisode(episodeId = episodeId) },
     )
 }
 
@@ -175,6 +179,7 @@ private fun EpisodeScreenLayout(
     onAction: (EpisodeAction) -> Unit,
     onDownloaderAction: (DownloaderAction) -> Unit,
     onDownloadClick: (FindroidEpisode, Int) -> Unit,
+    onRetry: () -> Unit = {},
 ) {
     val safePadding = rememberSafePadding()
 
@@ -183,89 +188,113 @@ private fun EpisodeScreenLayout(
     val paddingBottom = safePadding.bottom + MaterialTheme.spacings.default
 
     val scrollState = rememberScrollMemoryState(scrollKey)
+    val bodyMode =
+        detailBodyMode(hasContent = state.episode != null, hasError = state.error != null)
 
     ProvideLumen {
         Box(modifier = Modifier.fillMaxSize()) {
-            state.episode?.let { episode ->
-                Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
-                    DetailHero(
-                        item = episode,
-                        scrollState = scrollState,
-                        eyebrow = episodeHeroEyebrow(episode),
-                        title = episode.name,
-                        meta = episodeHeroMeta(episode),
-                        // W76-Q1：点眉标「第 X 季 - 第 Y 集」回到所属季（W66 删掉的顶栏入口不在顶栏重建）。
-                        onEyebrowClick = {
-                            onAction(EpisodeAction.NavigateToSeason(episode.seasonId))
-                        },
-                    ) { heroLayout ->
-                        ItemButtonsBar(
+            state.episode
+                ?.takeIf { bodyMode != DetailBodyMode.Error }
+                ?.let { episode ->
+                    Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
+                        DetailHero(
                             item = episode,
-                            downloaderState = downloaderState,
-                            onPlayClick = { startFromBeginning ->
-                                onAction(
-                                    EpisodeAction.Play(startFromBeginning = startFromBeginning)
-                                )
+                            scrollState = scrollState,
+                            eyebrow = episodeHeroEyebrow(episode),
+                            title = episode.name,
+                            meta = episodeHeroMeta(episode),
+                            // W76-Q1：点眉标「第 X 季 - 第 Y 集」回到所属季（W66 删掉的顶栏入口不在顶栏重建）。
+                            onEyebrowClick = {
+                                onAction(EpisodeAction.NavigateToSeason(episode.seasonId))
                             },
-                            onMarkAsPlayedClick = {
-                                when (episode.played) {
-                                    true -> onAction(EpisodeAction.UnmarkAsPlayed)
-                                    false -> onAction(EpisodeAction.MarkAsPlayed)
-                                }
-                            },
-                            onMarkAsFavoriteClick = {
-                                when (episode.favorite) {
-                                    true -> onAction(EpisodeAction.UnmarkAsFavorite)
-                                    false -> onAction(EpisodeAction.MarkAsFavorite)
-                                }
-                            },
-                            onTrailerClick = {},
-                            onDownloadClick = { storageIndex ->
-                                onDownloadClick(episode, storageIndex)
-                            },
-                            onDownloadCancelClick = {
-                                onDownloaderAction(DownloaderAction.CancelDownload(episode))
-                            },
-                            onDownloadDeleteClick = {
-                                onDownloaderAction(DownloaderAction.DeleteDownload(episode))
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            downloadState = downloadState,
-                            downloadEnabled = episode.canDownload,
-                            heroLayout = heroLayout,
-                        )
-                    }
-                    Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
-                        Spacer(Modifier.height(MaterialTheme.spacings.small))
-                        state.videoMetadata?.let { videoMetadata ->
-                            VideoMetadataBar(videoMetadata)
-                            Spacer(Modifier.height(MaterialTheme.spacings.small))
+                        ) { heroLayout ->
+                            ItemButtonsBar(
+                                item = episode,
+                                downloaderState = downloaderState,
+                                onPlayClick = { startFromBeginning ->
+                                    onAction(
+                                        EpisodeAction.Play(startFromBeginning = startFromBeginning)
+                                    )
+                                },
+                                onMarkAsPlayedClick = {
+                                    when (episode.played) {
+                                        true -> onAction(EpisodeAction.UnmarkAsPlayed)
+                                        false -> onAction(EpisodeAction.MarkAsPlayed)
+                                    }
+                                },
+                                onMarkAsFavoriteClick = {
+                                    when (episode.favorite) {
+                                        true -> onAction(EpisodeAction.UnmarkAsFavorite)
+                                        false -> onAction(EpisodeAction.MarkAsFavorite)
+                                    }
+                                },
+                                onTrailerClick = {},
+                                onDownloadClick = { storageIndex ->
+                                    onDownloadClick(episode, storageIndex)
+                                },
+                                onDownloadCancelClick = {
+                                    onDownloaderAction(DownloaderAction.CancelDownload(episode))
+                                },
+                                onDownloadDeleteClick = {
+                                    onDownloaderAction(DownloaderAction.DeleteDownload(episode))
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                downloadState = downloadState,
+                                downloadEnabled = episode.canDownload,
+                                heroLayout = heroLayout,
+                            )
                         }
-                        if (state.displayExtraInfo && state.videoMetadata != null) {
-                            ExtraInfoText(videoMetadata = state.videoMetadata!!)
+                        Column(
+                            modifier = Modifier.padding(start = paddingStart, end = paddingEnd)
+                        ) {
+                            Spacer(Modifier.height(MaterialTheme.spacings.small))
+                            state.videoMetadata?.let { videoMetadata ->
+                                VideoMetadataBar(videoMetadata)
+                                Spacer(Modifier.height(MaterialTheme.spacings.small))
+                            }
+                            if (state.displayExtraInfo && state.videoMetadata != null) {
+                                ExtraInfoText(videoMetadata = state.videoMetadata!!)
+                                Spacer(Modifier.height(MaterialTheme.spacings.medium))
+                            }
+                            OverviewText(text = episode.overview)
                             Spacer(Modifier.height(MaterialTheme.spacings.medium))
                         }
-                        OverviewText(text = episode.overview)
-                        Spacer(Modifier.height(MaterialTheme.spacings.medium))
+                        if (state.actors.isNotEmpty()) {
+                            ActorsRow(
+                                actors = state.actors,
+                                onActorClick = { personId ->
+                                    onAction(EpisodeAction.NavigateToPerson(personId))
+                                },
+                                contentPadding =
+                                    PaddingValues(start = paddingStart, end = paddingEnd),
+                            )
+                        }
+                        Spacer(Modifier.height(paddingBottom))
                     }
-                    if (state.actors.isNotEmpty()) {
-                        ActorsRow(
-                            actors = state.actors,
-                            onActorClick = { personId ->
-                                onAction(EpisodeAction.NavigateToPerson(personId))
-                            },
-                            contentPadding = PaddingValues(start = paddingStart, end = paddingEnd),
+                }
+                ?: run {
+                    if (bodyMode == DetailBodyMode.Error) {
+                        state.error?.let { error ->
+                            DetailLoadError(
+                                exception = error,
+                                onRetryClick = onRetry,
+                                modifier =
+                                    Modifier.fillMaxSize()
+                                        .padding(
+                                            start = paddingStart,
+                                            top = 88.dp,
+                                            end = paddingEnd,
+                                            bottom = paddingBottom,
+                                        ),
+                            )
+                        }
+                    } else {
+                        DetailSkeleton(
+                            gutterStart = paddingStart,
+                            gutterEnd = paddingEnd,
+                            modifier = Modifier.fillMaxSize().padding(top = 72.dp),
                         )
                     }
-                    Spacer(Modifier.height(paddingBottom))
-                }
-            }
-                ?: run {
-                    DetailSkeleton(
-                        gutterStart = paddingStart,
-                        gutterEnd = paddingEnd,
-                        modifier = Modifier.fillMaxSize().padding(top = 72.dp),
-                    )
                 }
 
             ItemTopBar(

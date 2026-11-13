@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.LatestContentRequest
+import com.zhangwenkang.cinefin.film.presentation.detail.readOptionalDetail
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.models.FindroidShow
@@ -11,6 +12,7 @@ import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,23 +35,45 @@ class ShowViewModel @Inject constructor(private val repository: JellyfinReposito
         viewModelScope.launch {
             try {
                 val show = repository.getShow(showId)
-                val nextUp = getNextUp(showId)
-                val seasons = repository.getSeasons(showId)
-                val actors = getActors(show)
-                val director = getDirector(show)
-                val writers = getWriters(show)
                 if (!contentRequests.isCurrent(request)) return@launch
                 _state.emit(
                     _state.value.copy(
                         show = show,
-                        nextUp = nextUp,
-                        seasons = seasons,
-                        actors = actors,
-                        director = director,
-                        writers = writers,
+                        nextUp = null,
+                        seasons = emptyList(),
+                        actors = emptyList(),
+                        director = null,
+                        writers = emptyList(),
                         error = null,
                     )
                 )
+                val nextUpResult = readOptionalDetail { getNextUp(showId) }
+                val seasonsResult = readOptionalDetail { repository.getSeasons(showId) }
+                val actorsResult = readOptionalDetail { getActors(show) }
+                val directorResult = readOptionalDetail { getDirector(show) }
+                val writersResult = readOptionalDetail { getWriters(show) }
+                if (!contentRequests.isCurrent(request)) return@launch
+                val enrichmentError =
+                    listOf(
+                            nextUpResult,
+                            seasonsResult,
+                            actorsResult,
+                            directorResult,
+                            writersResult,
+                        )
+                        .firstNotNullOfOrNull { result -> result.exceptionOrNull() as? Exception }
+                _state.emit(
+                    _state.value.copy(
+                        nextUp = nextUpResult.getOrNull(),
+                        seasons = seasonsResult.getOrDefault(emptyList()),
+                        actors = actorsResult.getOrDefault(emptyList()),
+                        director = directorResult.getOrNull(),
+                        writers = writersResult.getOrDefault(emptyList()),
+                        error = enrichmentError,
+                    )
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (e: Exception) {
                 if (!contentRequests.isCurrent(request)) return@launch
                 _state.emit(_state.value.copy(error = e))

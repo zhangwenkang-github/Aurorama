@@ -42,6 +42,13 @@ class DetailHeroRulesTest {
         assertFalse(detailHeroActionsDegraded(411f))
     }
 
+    @Test
+    fun `detail body mode prefers content then error then loading`() {
+        assertEquals(DetailBodyMode.Content, detailBodyMode(hasContent = true, hasError = true))
+        assertEquals(DetailBodyMode.Error, detailBodyMode(hasContent = false, hasError = true))
+        assertEquals(DetailBodyMode.Loading, detailBodyMode(hasContent = false, hasError = false))
+    }
+
     /** W76-Q1：可点眉标追加 `›`；不可点（电影 / 节目 / 季页）保持 W66 原文案。 */
     @Test
     fun `clickable eyebrow appends chevron and plain eyebrow stays untouched`() {

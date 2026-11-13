@@ -107,7 +107,10 @@ private constructor(
                     CatalogReadOutcome.IdentityUnavailable -> {
                         loadedScope = null
                         loadedMovieId = null
-                        _state.value = _state.value.clearCatalog()
+                        _state.value =
+                            _state.value
+                                .clearCatalog()
+                                .copy(error = IllegalStateException("movie identity unavailable"))
                     }
                     is CatalogReadOutcome.Available -> {
                         val token =
