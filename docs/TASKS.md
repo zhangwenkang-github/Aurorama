@@ -8,7 +8,7 @@
 ### ACTIVE — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
 
 - TASK_ID=V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
-- TASK_STAGE=R13_RUNTIME_ADAPTER_FRESH_VERIFIER_BLOCKED / IDENTITY_AND_VISIBILITY_CONTRACT_OPEN / USER_REQUESTED_PAUSE_AFTER_SUBTASK / QA_READY:NO
+- TASK_STAGE=R13_RUNTIME_ADAPTER_FRESH_VERIFIER_BLOCKED / HANDOFF_TO_R14 / FRESH_PRE_HANDOFF_AUDIT_REQUIRED / QA_READY:NO
 - BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE
 - BUG_LOOP_MAX_ATTEMPTS=2
 - BUG_LOOP_ATTEMPTS_USED=2
@@ -89,8 +89,8 @@
 - R19_AUTHORIZED_NATIVE_SEAM=player/mpv-binding/**;gradle/libs.versions.toml;settings.gradle.kts;player/local/build.gradle.kts;player/local/src/test/java/**/mpv/**
 - R19_NATIVE_SCOPE=Inherited R17 seam only. Add command-bound source-event ownership barrier or equivalent new-entry/drain protocol; deterministically reject post-snapshot/pre-arm stale same-entry START. No unrelated native/dependency upgrade.
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN §52.66 > R20 scoped review report > 1.4.1 release scope audit > A QA card > exact candidate/APK
-- NEXT_ROLE=AURORAMA_141_R13_A_QA_RUNTIME_ADAPTER_REPAIR_OWNER_2026_11_13
+- READ_ORDER=AGENTS player gate > TASKS ACTIVE > PLAYER_PLAN 52.66 and R13 adapter latest > R13 verifier > R14 handoff prompt > R11 verifier > residual ledger > A QA R9/navigation blocker > TEST_PLAN 8 > R034/R042/R043 > L044 > GLOSSARY
+- NEXT_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R14_2026_11_13
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R12_2026_11_13
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R6_2026_11_12
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_QA_HARNESS_SECURITY_REPAIR_OWNER_R1_2026_11_12
@@ -131,14 +131,14 @@
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R13_S1_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_IMPLEMENTATION_OWNER_R12_2026_11_11
 - RETIRED_ROLE=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_SCOPED_REVIEWER_R12_2026_11_11
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-r13-a-qa-runtime-adapter-fresh-verifier-r1-2026-11-13\A_QA_RUNTIME_ADAPTER_FRESH_VERIFIER_REPORT.md
-- NEXT_REQUIREMENT=R13 paused by user after runtime-adapter verifier BLOCKED. After user notification, dispatch a different fresh repair owner for ordinal exact Unicode/control identity and viewport containment, then a different fresh verifier; only verifier PASS permits a new A QA card, Pad lock, canonical QaReady and QA
-- STOP_CONDITION=Current pause is blocked on user notification. Do not dispatch repair, create card, register lock, run QaReady or QA, use the BLOCKED adapter, bypass ordinal exact identity, accept off-viewport visible nodes, persist raw UI, use text/content-description/coordinate locator fallback, touch K60 or OnePlus, write production, or claim QA/Release PASS.
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-r14-delivery-handoff-2026-11-13\R14_DELIVERY_LEAD_PROMPT.md
+- NEXT_REQUIREMENT=R14 must run startup spot-check and read the R14 exact prompt, verify Control and candidate objects, then dispatch a different fresh runtime-adapter repair owner for ordinal exact Unicode/control identity and visible-viewport containment. A different fresh verifier must pass before any new A QA card, Pad lock, canonical QaReady or QA
+- STOP_CONDITION=Stop on object/evidence/hash/ACTIVE/lock drift, missing R13 pre-handoff audit receipt, culture-sensitive identity or off-viewport visible acceptance, raw UI persistence, text/content-description/coordinate fallback, device use before adapter verifier PASS, new P0/P1, production write, fake QA or Release PASS.
 - SCOPE=1.4.1_RELEASE_DELIVERY/R20_PASS_A_SCOPED_QA_B_C_D_IMPLEMENTATION/R11_DEBUG_PAD_TEST_STRUCTURAL_IDENTITY
 - AUTHORIZATION=USER_DELEGATED_ALL_TASK_STAGE_AUTHORIZATIONS_AND_DECISIONS_2026_11_09 / USER_AUTHORIZED_NATIVE_SEAM_2026_11_11 / USER_PRIORITIZED_FAST_1_4_1_RELEASE / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / USER_AUTHORIZED_CONTINUOUS_1_4_1_DELIVERY_TO_RELEASE_2026_11_12 / SERVER_READ_STANDING_AUTHORIZED_2026_11_12 / TRAFFIC_BUDGET_SINGLE_EPISODE_2026_11_12 / DOWNLOAD_CAPTURE_PATH_RETIRED_2026_11_12 / LOCAL_FIXTURE_ROUTE_ONLY_2026_11_12 / METADATA_WRITE_FORBIDDEN / PRODUCTION_WRITE_FORBIDDEN / ONEPLUS_SYSTEM_MODIFICATION_FORBIDDEN
 - IMPLEMENTATION_AUTHORIZED=YES_R9_FRESH_B_C_D_OWNERS_IN_ISOLATED_WORKTREES / R20_REVIEW_PASS_BASE_45d7f789 / R11_A_QA_TWO_PATH_DEBUG_PAD_TEST_STRUCTURAL_IDENTITY_BASE_8814c337 / NO_QA_IN_IMPLEMENTATION_OWNERS
 - DEVICE_ACCESS=NONE / LOCKS_HELD:NONE / LOCK_ACTIVE=0 / K60_8e875894_FORBIDDEN / ONEPLUS_FORBIDDEN
-- FRESH_INDEPENDENT_QA_REQUIRED=YES_AFTER_STRUCTURAL_IDENTITY_SCOPE_OWNER_FRESH_VERIFIER_AND_NEW_QA_CARD;R11_STRUCTURAL_IDENTITY_FRESH_VERIFIER=PASS;R10_FULL_SCOPE_R2=PASS;R10_MERGE_PREP=PASS;R10_MERGE_VERIFIER=PASS;QA_READY:NO
+- FRESH_INDEPENDENT_QA_REQUIRED=YES_AFTER_R13_RUNTIME_ADAPTER_REPAIR_AND_DIFFERENT_FRESH_VERIFIER_AND_NEW_QA_CARD_AND_QA_READY;R11_STRUCTURAL_IDENTITY_VERIFIER=PASS;R13_RUNTIME_ADAPTER_VERIFIER=BLOCKED;QA_READY:NO
 - USER_DECISION=NATIVE_SEAM_AUTHORIZED_2026_11_11 / USER_AUTHORIZED_ALL_DEVICES_2026_11_12 / USER_RETIRED_DOWNLOAD_CAPTURE_PATH_2026_11_12 / USER_REQUESTED_HANDOFF_2026_11_12 / R19_LOCAL_STAGE_FAULT_EVIDENCE_R2=AUTHORIZED_2026_11_12 / R19_MINIMAL_FIX=AUTHORIZED_2026_11_12 / USER_AUTHORIZED_CONTINUOUS_1_4_1_DELIVERY_TO_RELEASE_2026_11_12 / A_QA_TEST_STRUCTURAL_IDENTITY=AUTHORIZED_2026_11_13
 - R11_STRUCTURAL_IDENTITY_DECISION=MINIMAL_FIXED_TEST_SEMANTICS_ONLY / TEST_TAG_OR_TEST_TAGS_AS_RESOURCE_ID_OR_CLICK_POSTCONDITION / R9_BLOCKED_HISTORY_IMMUTABLE / SCOPE_OWNER_AND_FRESH_VERIFIER_REQUIRED / NEW_QA_CARD_REQUIRED
 - R11_ACTIVE_READONLY_AUDIT_1=A_QA_STRUCTURAL_IDENTITY_SCOPE
@@ -219,13 +219,13 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\IMPLEMENTATION_REPORT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-qa-harness-security-repair-r1-2026-11-12\MANIFEST.sha256
 - OPEN_LONG_TERM_PLAN_IDS=V2-ARCH-SEAM-IDENTITY-CATALOG-W1,V2-ARCH-SEAM-DOWNLOAD-CONTROL-W2,V2-ARCH-SEAM-PLAYBACK-SESSION-W3,V2-ARCH-SEAM-READER-SOURCE-W4,V2-ARCH-SEAM-USER-WRITE-W5
-- NEXT_CRITICAL_PATH=USER_NOTIFICATION_THEN_R13_RUNTIME_ADAPTER_REPAIR_THEN_DIFFERENT_FRESH_VERIFIER_THEN_NEW_A_QA_CARD_AND_UNIQUE_PAD_LOCK_AND_CANONICAL_QA_READY_THEN_FRESH_PAD_QA_FOR_SEVEN_A_ROWS_THEN_REMAINING_PLAYER_CORE_MATRIX_THEN_RELEASE_SCOPE_P1_P2_INTEGRATION_AND_RELEASE
-- HANDOFF_REASON=USER_REQUESTED_PAUSE_2026_11_13_AFTER_R13_RUNTIME_ADAPTER_VERIFIER_BLOCKED
+- NEXT_CRITICAL_PATH=R14_STARTUP_AND_FRESH_PRE_HANDOFF_AUDIT_THEN_R13_RUNTIME_ADAPTER_REPAIR_THEN_DIFFERENT_FRESH_VERIFIER_THEN_NEW_A_QA_CARD_AND_UNIQUE_PAD_LOCK_AND_CANONICAL_QA_READY_THEN_FRESH_PAD_QA_FOR_SEVEN_A_ROWS_THEN_REMAINING_PLAYER_CORE_MATRIX_THEN_RELEASE_SCOPE_P1_P2_INTEGRATION_AND_RELEASE
+- HANDOFF_REASON=CONTEXT_391399_ABOVE_350K_R13_RUNTIME_ADAPTER_VERIFIER_BLOCKED
 - R11_SCOPE_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-r11-a-qa-structural-identity-scope-r1-2026-11-13\A_QA_STRUCTURAL_IDENTITY_SCOPE_REPORT.md;RESULT=A3A0588949799D9B76D1CFAD7202AD222C4B58502EC64CF9393E46C218F6C9C0;MANIFEST=8D8EB21C81683EE72EDB0477E3ABDF80123622A20219D642E74AD9259E8988D2
 - R11_DEFECT_LEDGER_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-r11-residual-defect-ledger-audit-r1-2026-11-13\R11_RESIDUAL_DEFECT_LEDGER_REPORT.md;REPORT=6E680083BC10C1EAF099BD8DE171312D782EFBDE0AF8BBF277C0DA9FC30E5B42;RESULT=8999081BDAEFCFBF87EAC1E7F381B42175C74DEEEE363B215E531AD1717F94A2;MANIFEST=8EE271A86D3CBB657D8365B0A96FA6B1FAB01C0FD561CF8BE0FC699184E40166
-- HANDOFF_AT_CONTEXT=378145/1048576/36.1%
-- HANDOFF_MEASURED_AT=2026-11-13_101415_CST
-- CONTEXT_WATERMARK=311989/1048576/29.8% / 2026-11-13 08:47:24 +08:00
+- HANDOFF_AT_CONTEXT=391399/1048576/37.3%
+- HANDOFF_MEASURED_AT=2026-11-13_110106_CST
+- CONTEXT_WATERMARK=391399/1048576/37.3% / 2026-11-13_110106_CST
 - R11_CONTEXT_WATERMARK=321904/1048576/30.7% / 2026-11-13 08:04:45 +08:00
 - R11_IMPLEMENTATION=GREEN;HEAD=b4f7d21fbd4ef17cc351db062117407ae14b1576;TREE=5ffe5cd4c3084ac79fe4b0968b4ed3288f99fb7c;PARENT=8814c3377e5812e0c589b7222ee21102922e57bb;BRANCH=codex/v141-r11-a-qa-test-semantics-r1-2026-11-13;CHANGED_PATHS=2;CLEAN=YES;PUSHED=NO
 - R11_IMPLEMENTATION_TDD=RED_ASSERTION=3/14;TARGETED_GREEN=14/0/0/0;FULL_PHONE_JVM=482/0/0/0;PHONE_XML=71;EXECUTED_TASKS=196;GATEPLAN=FULL_PASS;ASSEMBLE=PASS;KTFMT=PASS;DIFF_CHECK=PASS;SOURCE_STATIC=14/14;GRAPHIFY=PASS
@@ -1740,11 +1740,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- QA_RESULT=R13_CARD_OWNER=BLOCKED_CARD_CONTRACT_MANIFEST_6_OF_6;R13_RUNTIME_ADAPTER_OWNER=READY_FOR_FRESH_VERIFIER_MANIFEST_26_OF_26;R13_RUNTIME_ADAPTER_FRESH_VERIFIER=BLOCKED_MANIFEST_43_OF_43;PROBES=78_CASES_89_EXECUTIONS_60_PASS_18_FAIL;P0-P3=0/0/2/0;BLOCKED_RUNTIME_ADAPTER_IDENTITY_AND_VISIBILITY_CONTRACT;REAL_DEVICE_INVENTORY=NOT_RUN;QA_PASS=NO;PLAYER_CORE_MATRIX=NOT_RUN;DEVICE_COMMANDS=0;LOCK_ACTIVE=0;QA_READY=NO;VERIFIER_REPORT_SHA=477DC1CC794769F5806EE946F8CE66C52B0D138A3CABB662CC8B2D83DB562C67;VERIFIER_RESULT_SHA=3222BCBD846B655F8F283BD1CC0ACA32D9C639AEF8BC71F5C0B5B7C88110A80C;VERIFIER_MANIFEST_SHA=E106CF7D6567C290C346D8382EFD61807C77818A549DCFFC1F85E98FF4AFE737
-- UNCOVERED=R13 is paused before runtime-adapter repair. The owner adapter passed its 41-test and 26/26 self-test but the fresh verifier found 18 fail-open probes: Unicode format/control identity suffixes and off-viewport nodes declared visible. No adapter verifier PASS, A QA card, Pad lock, QaReady, real UiAutomator binding, real click/postcondition, seven A PC rows or 12-row core matrix exists. Three product P1 and two product P2 remain open; download-core release scope is unresolved; signed 1.4.1(6), integration, final QA and Release were not executed.
-- STOP_CONDITION=No repair, card, lock, QaReady or QA until the user says continue. After resume, require a different fresh repair owner, then another different fresh verifier; never reuse the BLOCKED adapter, accept culture-sensitive identities, accept off-viewport visible candidates, persist raw UI, use text/content-description/coordinate fallback, dispatch K60/OnePlus, write production, or turn owner/verifier output into QA or Release PASS.
-- MANUAL_LIMITATION=R11 structural identity remains offline verifier PASS only. R13 first card owner correctly stopped because no executable four-tag adapter existed; a fresh adapter owner supplied one and owner self-test passed, but a second fresh verifier reproduced two process P2 classes and blocked QA. This is QA-infrastructure evidence, not a product defect or device result. The Control candidate remains b4f7d21f with exactly two paths, clean; active device lock count remains zero.
-- MANUAL_OWNER=AURORAMA_141_R13_A_QA_RUNTIME_ADAPTER_REPAIR_OWNER_2026_11_13
+- QA_RESULT=R13_CARD_OWNER=BLOCKED_CARD_CONTRACT_MANIFEST_6_OF_6;R13_RUNTIME_ADAPTER_OWNER=READY_FOR_FRESH_VERIFIER_MANIFEST_26_OF_26;R13_RUNTIME_ADAPTER_FRESH_VERIFIER=BLOCKED_MANIFEST_43_OF_43;PROBES=78_CASES_89_EXECUTIONS_60_PASS_18_FAIL;P0-P3=0/0/2/0;BLOCKED_RUNTIME_ADAPTER_IDENTITY_AND_VISIBILITY_CONTRACT;REAL_DEVICE_INVENTORY=NOT_RUN;QA_PASS=NO;PLAYER_CORE_MATRIX=NOT_RUN;DEVICE_COMMANDS=0;LOCK_ACTIVE=0;QA_READY=NO;VERIFIER_REPORT_SHA=477DC1CC794769F5806EE946F8CE66C52B0D138A3CABB662CC8B2D83DB562C67;VERIFIER_RESULT_SHA=3222BCBD846B655F8F283BD1CC0ACA32D9C639AEF8BC71F5C0B5B7C88110A80C;VERIFIER_MANIFEST_SHA=E106CF7D6567C290C346D8382EFD61807C77818A549DCFFC1F85E98FF4AFE737;R14_PROMPT_SHA=B753AD3D4A7C04EB222923068873E6ABE5468CBC92808D93EC95196356C3EB66
+- UNCOVERED=R13 handoff occurs before runtime-adapter repair. The adapter owner self-test passed but the fresh verifier found 18 fail-open probes: Unicode format/control identity suffixes and off-viewport nodes declared visible. No adapter verifier PASS, A QA card, Pad lock, QaReady, real UiAutomator binding, real click/postcondition, seven A PC rows or 12-row core matrix exists. Three product P1 and two product P2 remain open; download-core release scope is unresolved; signed 1.4.1(6), integration, final QA and Release were not executed.
+- STOP_CONDITION=R14 may only dispatch a different fresh runtime-adapter repair owner after startup and pre-handoff audit PASS. No card, lock, QaReady or QA before another different fresh verifier passes. Never accept culture-sensitive identities or off-viewport visible candidates, persist raw UI, use text/content-description/coordinate fallback, dispatch K60/OnePlus, write production, or turn owner/verifier output into QA or Release PASS.
+- MANUAL_LIMITATION=R11 structural identity remains offline verifier PASS only. R13 card owner correctly stopped for lack of an executable four-tag adapter; a fresh adapter owner supplied one and owner self-test passed, but a second fresh verifier reproduced two process P2 classes and blocked QA. This is QA-infrastructure evidence, not a product defect or device result. The candidate remains b4f7d21f with exactly two paths and remains clean; active device lock count remains zero.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R14_2026_11_13
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

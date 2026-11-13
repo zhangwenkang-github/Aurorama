@@ -9392,3 +9392,17 @@ fresh verifier 结论为 `BLOCKED_RUNTIME_ADAPTER_IDENTITY_AND_VISIBILITY_CONTRA
 repair owner 修复 ordinal exact Unicode/control identity 与 visible-viewport 合同，再由另一个
 不同 fresh verifier 全量复核；只有 verifier PASS 后才允许新的 A QA card owner 建卡、登记
 Pad `43af8627` 唯一锁并运行 canonical QaReady。不得在当前 BLOCKED adapter 上派 QA。
+
+**交接（2026-11-13，R13 → R14）**：用户通知继续，但 R13 实测上下文为
+`391399 / 1048576 = 37.3%`，已越过 35 万交接线，因此本线程只做负责人交接，不继续 adapter
+repair。R14 自包含 prompt 已保存为
+`evidence-v1-4-1-r14-delivery-handoff-2026-11-13\R14_DELIVERY_LEAD_PROMPT.md`，SHA-256
+`B753AD3D4A7C04EB222923068873E6ABE5468CBC92808D93EC95196356C3EB66`，BugLoopPrompt lint
+为 `BUG_LOOP_DISPATCH_GATE=PASS`。
+
+R14 的 startup 只允许核对 Control/candidate/APK、R13 三个 evidence manifest、ACTIVE、
+`QA_READY=NO`、`LOCK_ACTIVE=0`、Bug Loop `8/8`、memory checker/doctor 与 fresh pre-handoff
+audit。PASS 后第一实际工作是派一个全新 runtime-adapter repair owner 修复两个过程 P2；再由
+另一个 fresh verifier 全量复核。adapter verifier PASS 前不得建 A QA 卡、登记 Pad 锁、运行
+canonical QaReady 或派 QA。当前 `QA_READY=NO / LOCK_ACTIVE=0 / PLAYER_CORE_RELEASE_MATRIX=NOT_RUN`，
+下载 capture 继续 RETIRED。
