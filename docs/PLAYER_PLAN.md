@@ -9515,3 +9515,10 @@ audit R4 确认主体对象与外部 docs accounting 通过，但继续抓到 R1
 “最新 fresh pre-handoff audit PASS”语义：两个 adapter P2 记为
 `CLOSED_OFFLINE_BY_FRESH_VERIFIER_R3`，`NEW_PROCESS_P2=0`；R2/R3/R4 的 FAIL receipt 保留为
 历史。没有卡、锁、QaReady 或 QA。
+
+audit R5 修正了 ACTIVE `NEXT_REQUIREMENT` 的旧等待文案，但 R5 自身在读取 prompt 前读了外部
+docs 正文，按边界判 FAIL。audit R6 再次在读取 prompt 前访问了外部 `PROJECT_PLAN.md` 正文，
+因此也不得作为 PASS 复用；其对象、R15 prompt、lint、R3/repair R2 manifest 摘要均正常。
+下一轮必须是新的 fresh 只读 audit R7，只允许先完整读取 prompt，再对两个外部 worktree 执行
+`git status`、mtime 与 SHA；禁止任何 `Get-Content`/`rg`/正文读取。R6 的越界是审计过程 P1，
+不是产品 finding。当前仍无卡、锁、QaReady 或 QA。
