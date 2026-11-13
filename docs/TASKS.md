@@ -21,6 +21,7 @@
 - DEVICE_PARTIAL=download task accepted HTTP404 retry pause/resume/delete; completion notification and successful completed download NOT_RUN; Movie optional enrichment failure NOT_RUN; mpv latest APK NOT_RUN; subtitle pixel QA NOT_RUN
 - AUTOMATION=PASS; PlayerStartupRequestTest 3/0; JellyfinOfflinePlaybackFallbackTest 2/0; assembleDebug PASS; app/data/player-local ktfmt PASS; git diff-check PASS
 - CONTEXT_USAGE=507983 / 1048576 (48.4%); HANDOFF_TRIGGER=EXCEEDED_350K
+- HANDOFF_LINTER=FAIL_STALE_R19_SCHEMA_AND_BRANCH_DIFF_SCOPE;NOT_RELEASE_GATE;NO_FURTHER_AUDIT_LOOP_PER_USER
 - RELEASE_STATE=NOT_BUILT; source version remains 1.4.0(5); 1.4.1(6) version bump, signed arm64/universal, apksigner, candidate-device regression all NOT_RUN
 - P0=0_CURRENT_AFTER_DEVICE_RETEST
 - P1=P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED;NEW-STARTUP-MAIN-THREAD-CRASH=CLOSED_BY_71e9c6e5_DEVICE_SAME_PATH;NEW-OFFLINE-NETWORK-FIRST=CLOSED_BY_77620372_DEVICE_OFFLINE
