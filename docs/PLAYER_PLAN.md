@@ -9313,3 +9313,22 @@ P0/P1/P2/P3=`0/3/2/0`，开放流程 P1/P2/P3=`0/2/3`，30 个证据缺口，12 
 `8814c3377e5812e0c589b7222ee21102922e57bb` 在隔离 worktree 实现上述 2 路径，先取得
 assertion RED 再最小 GREEN。实现 owner 必须停在 implementation report，不得自派 verifier、
 QA、设备、merge-prep、integration 或 Release。
+
+**进度（2026-11-13，R11 结构身份 implementation GREEN / 交接 R12）**：不同 fresh
+implementation owner 在隔离分支 `codex/v141-r11-a-qa-test-semantics-r1-2026-11-13`
+从 `8814c337` 完成 1 个提交：
+`b4f7d21fbd4ef17cc351db062117407ae14b1576` / tree
+`5ffe5cd4c3084ac79fe4b0968b4ed3288f99fb7c`，仅 2 路径并 clean。正式 RED 为 JUnit
+`AssertionError 3/14`；targeted GREEN `14/0/0/0`、完整 phone JVM `482/0/0/0`（71 XML /
+196 tasks），GatePlan FULL、assemble、ktfmt、diff-check、source static `14/14` 与 graphify
+均通过。arm64 debug APK 为 `151260871 B / 508C5BCD...AA62B`，未安装。
+
+A0 仍为 `FAIL_INHERITED_BASE`：固定 base 与本候选共有 4 个继承 P1，changed paths 新增
+finding 0；该基线债不并入本卡，也不写成 A0 PASS。实现未引入新 P0–P3，但 verifier、真实
+UiAutomator resource-id / role / click binding、唯一 postcondition、新 QA、七条 A scoped PC、
+12 行核心矩阵、integration 与 Release 全部未执行。
+
+本负责人实测 `350801 / 1048576 = 33.5%`，越过 35 万交接硬线；在实现 GREEN 的自然边界
+停止扩项。下一角色为 R12 交付负责人，首动作只派不同 fresh verifier 核对实现
+report/result/manifest、`b4f7d21f / 5ffe5cd4 / clean`、两路径和 RED/GREEN；verifier PASS
+前不得建新 QA 卡、申请设备锁或进入 merge/integration/Release。
