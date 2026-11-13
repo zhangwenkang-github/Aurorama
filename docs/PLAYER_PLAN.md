@@ -9611,3 +9611,33 @@ SHA-256 `F35241745F450C53782B8FDEA7638BBBB2683818DDB065F90AD5A855632D6DDF`。
 网络、Gradle、QaReady 或 QA。其报告返回 `ACTIONABLE_CARD_READY / NEEDS_TARGETED_EVIDENCE /
 NO_CODE_GAP_FOUND` 后，由负责人决定最小修复卡；在诊断与负责人决定前保持
 `QA_READY=NO`、无 A QA 卡、无 Pad 锁、无 QA、`PLAYER_CORE_RELEASE_MATRIX=NOT_RUN`。
+
+**进度（2026-11-13，四个产品缺陷只读诊断完成 / 最小 progress 卡获授权）**：fresh
+`AURORAMA_141_PLAYER_PRODUCT_DEFECT_DIAGNOSIS_R1_READ_ONLY_2026_11_13` 返回
+`ACTIONABLE_CARD_READY`，报告 / result / prompt / START_PLAN manifest `4/4 MATCH`，报告 SHA
+`7A45E591...5EF12`、manifest SHA `6705AEC6...7B98D`。四项产品缺陷均保持 OPEN：
+
+- `P1-PLAYER-PROGRESS-001=PARTIAL_FIX_REVIEW_PASS + CODE_GAP_STILL_OPEN`；
+- `P1-PLAYER-SEEK-001=CODE_PATH_PRESENT_NO_PRODUCT_EVIDENCE`；
+- `P2-PLAYER-LOADING-001=CODE_PATH_PRESENT_NO_PRODUCT_EVIDENCE`；
+- `P2-PLAYER-STALL-001=CODE_PATH_PRESENT_NO_PRODUCT_EVIDENCE`。
+
+R19/R20 精确 reviewed commit 不是当前 candidate 直接祖先，但当前候选含有 diffstat 与 subject
+一致的集成等效提交 `be06d94b` / `f07c1533`，只能记 `EQUIVALENT`，不能把离线 review PASS 扩写
+为真实设备或产品 PASS。当前 candidate 的 PC-01–PC-05、PC-11、PC-12 仍全部未重新执行。
+
+负责人只授权一张最小 P1 实现卡 `CARD-141-PLAYER-PROGRESS-TIMEPOS-R1`：普通 mpv
+`time-pos` 已被 `MPVPlayer.updateEnginePosition()` 接纳，但没有形成 Media3 listener /
+MediaSession 可消费的非 seek 位置刷新。唯一 production 写路径为
+`player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt`，测试仅允许
+既有 `SeekPlayerEventListenerTest.kt` 与 `PlaybackSessionRulesTest.kt`。禁止改 seek 状态机、
+R19 barrier、R20 初始化、loading/stall 阈值、EOS 策略、第二 MediaSession Player、UI cache
+回填或新状态机；禁止用 `DISCONTINUITY_REASON_SEEK` 冒充普通位置刷新。
+
+实现 prompt：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-timepos-r1-implementation-2026-11-13\PLAYER_PROGRESS_TIMEPOS_R1_IMPLEMENTATION_PROMPT.md`，
+SHA-256 `61E4365DC2200542CE9A583AC49C08B26DA27F8F09B69417354051732363C68B`。
+下一角色是不同 fresh 实现 owner，在从 candidate `b4f7d21f...` 建立的隔离 worktree 中完成
+断言 RED → 最小 GREEN → player-local targeted / phone assemble 和 diff-scope 证据。完成后只到
+`IMPLEMENTATION_DONE / AUTOMATION_GREEN / REVIEW_PENDING`；仍不得申请设备、创建 A QA 卡、Pad
+锁、QaReady 或 QA，也不得写产品 / Release PASS。
