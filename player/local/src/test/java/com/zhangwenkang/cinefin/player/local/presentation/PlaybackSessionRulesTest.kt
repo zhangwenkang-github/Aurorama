@@ -5,8 +5,10 @@ import android.os.Handler
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.ListenerSet
+import androidx.media3.exoplayer.source.SinglePeriodTimeline
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
@@ -583,6 +585,74 @@ class PlaybackSessionRulesTest {
         val anchored = requireNotNull(switched.restart(epoch = 2L, positionMs = 0L))
         assertEquals(0L, anchored.positionMs)
         assertEquals(1_000L, anchored.acceptPosition(epoch = 2L, positionMs = 1_000L)?.positionMs)
+    }
+
+    @Test
+    fun `ordinary mpv time-pos emits supported non-seek position refresh`() {
+        val epoch = 271L
+        val item = mediaItem("item-progress", "https://media.example/progress")
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = epoch,
+                mediaItems = mutableListOf(item),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = epoch),
+            )
+        setField(
+            player,
+            "timeline",
+            SinglePeriodTimeline(120_000L, true, false, false, null, item),
+        )
+        setSuperField(player, "window", Timeline.Window())
+        setField(player, "isPlayerReady", true)
+        setField(player, "currentPlayWhenReady", true)
+        setField(player, "playbackState", Player.STATE_READY)
+        val listeners = getField(player, "listeners") as ListenerSet<Player.Listener>
+        val recorder = MpvPositionRefreshRecorder(player)
+        listeners.add(recorder)
+        listeners.flushEvents()
+
+        assertTrue(
+            "PLAYBACK_RESTART transition must anchor the same epoch at 1000ms",
+            anchorThroughPlaybackRestartTransition(player, epoch, 1_000L),
+        )
+        listeners.flushEvents()
+        recorder.clear()
+
+        invokeUpdateEnginePosition(player, epoch, 1_250L)
+        listeners.flushEvents()
+        assertEquals(1_250L, player.currentPosition)
+
+        invokeUpdateEnginePosition(player, epoch, 1_500L)
+        listeners.flushEvents()
+        assertEquals(1_500L, player.currentPosition)
+
+        assertEquals(listOf(1_250L, 1_500L), recorder.refreshPositionsMs)
+        assertEquals(2, recorder.positionDiscontinuityEvents)
+        assertTrue(
+            "ordinary time-pos must never be projected as a seek discontinuity",
+            recorder.discontinuityReasons.none { it == Player.DISCONTINUITY_REASON_SEEK },
+        )
+        assertTrue(
+            "ordinary time-pos must not fabricate an EOS or automatic transition",
+            recorder.discontinuityReasons.none {
+                it == Player.DISCONTINUITY_REASON_AUTO_TRANSITION
+            },
+        )
+        assertEquals(0, recorder.endedPlaybackStates)
+        assertEquals(0, recorder.endOfMediaReasons)
+        assertEquals(0, recorder.mediaItemTransitions)
+        assertEquals(epoch, player.currentSourceEpoch())
+
+        setField(player, "sourceEpoch", AtomicLong(epoch + 1L))
+        recorder.clear()
+        invokeUpdateEnginePosition(player, epoch, 1_750L)
+        listeners.flushEvents()
+        assertTrue(
+            "time-pos from the old source epoch must not publish a refresh",
+            recorder.refreshPositionsMs.isEmpty(),
+        )
+        assertEquals(epoch + 1L, player.currentSourceEpoch())
     }
 
     @Test
@@ -3309,6 +3379,39 @@ class PlaybackSessionRulesTest {
     private fun sourcePosition(player: MPVPlayer): MpvSourcePositionState =
         getField(player, "sourcePosition") as MpvSourcePositionState
 
+    private fun anchorThroughPlaybackRestartTransition(
+        player: MPVPlayer,
+        epoch: Long,
+        positionMs: Long,
+    ): Boolean {
+        val restarted = sourcePosition(player).restart(epoch, positionMs) ?: return false
+        setField(player, "sourcePosition", restarted)
+        val publish =
+            MPVPlayer::class
+                .java
+                .getDeclaredMethod("publishPositionDiscontinuity", Long::class.java)
+        publish.isAccessible = true
+        publish.invoke(player, epoch)
+        return sourcePosition(player).positionMs == positionMs
+    }
+
+    private fun invokeUpdateEnginePosition(
+        player: MPVPlayer,
+        epoch: Long,
+        positionMs: Long,
+    ) {
+        val update =
+            MPVPlayer::class
+                .java
+                .getDeclaredMethod(
+                    "updateEnginePosition",
+                    Long::class.java,
+                    Long::class.java,
+                )
+        update.isAccessible = true
+        update.invoke(player, epoch, positionMs)
+    }
+
     private fun itemAt(player: MPVPlayer, index: Int): MediaItem =
         @Suppress("UNCHECKED_CAST")
         (getField(player, "internalMediaItems") as MutableList<MediaItem>)[index]
@@ -3774,6 +3877,20 @@ class PlaybackSessionRulesTest {
         }
     }
 
+    private fun setSuperField(target: Any, name: String, value: Any) {
+        var type: Class<*>? = target.javaClass.superclass
+        while (type != null) {
+            val field = runCatching { type.getDeclaredField(name) }.getOrNull()
+            if (field != null) {
+                field.isAccessible = true
+                field.set(target, value)
+                return
+            }
+            type = type.superclass
+        }
+        error("missing superclass field: $name")
+    }
+
     private fun setNullableField(target: Any, name: String, value: Any?) {
         target.javaClass.getDeclaredField(name).apply {
             isAccessible = true
@@ -3783,6 +3900,50 @@ class PlaybackSessionRulesTest {
 
     private fun getField(target: Any, name: String): Any? =
         target.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(target)
+
+    private class MpvPositionRefreshRecorder(private val player: Player) : Player.Listener {
+        val refreshPositionsMs = mutableListOf<Long>()
+        val discontinuityReasons = mutableListOf<Int>()
+        var positionDiscontinuityEvents: Int = 0
+        var endedPlaybackStates: Int = 0
+        var endOfMediaReasons: Int = 0
+        var mediaItemTransitions: Int = 0
+
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            positionDiscontinuityEvents++
+            discontinuityReasons += reason
+            if (reason != Player.DISCONTINUITY_REASON_SEEK) {
+                refreshPositionsMs += player.currentPosition
+            }
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            if (playbackState == Player.STATE_ENDED) endedPlaybackStates++
+        }
+
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+                endOfMediaReasons++
+            }
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            mediaItemTransitions++
+        }
+
+        fun clear() {
+            refreshPositionsMs.clear()
+            discontinuityReasons.clear()
+            positionDiscontinuityEvents = 0
+            endedPlaybackStates = 0
+            endOfMediaReasons = 0
+            mediaItemTransitions = 0
+        }
+    }
 
     private object TestUriFactory {
         private val constructor: Constructor<Uri> by lazy {

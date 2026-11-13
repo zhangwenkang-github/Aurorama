@@ -1181,7 +1181,17 @@ class MPVPlayer(
     }
 
     private fun updateEnginePosition(epoch: Long, positionMs: Long) {
-        sourcePosition = sourcePosition.acceptPosition(epoch, positionMs) ?: return
+        if (epoch != sourceEpoch.get()) return
+        val next = sourcePosition.acceptPosition(epoch, positionMs) ?: return
+        val previousPositionMs = sourcePosition.positionMs ?: positionMs
+        sourcePosition = next
+        listeners.sendEvent(EVENT_POSITION_DISCONTINUITY) { listener ->
+            listener.onPositionDiscontinuity(
+                positionInfo(previousPositionMs),
+                positionInfo(positionMs),
+                DISCONTINUITY_REASON_INTERNAL,
+            )
+        }
     }
 
     private fun publishPositionDiscontinuity(epoch: Long) {
