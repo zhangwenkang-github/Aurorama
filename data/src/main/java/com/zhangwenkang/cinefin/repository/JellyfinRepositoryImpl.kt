@@ -10,9 +10,11 @@ import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidMovieDto
 import com.zhangwenkang.cinefin.models.FindroidPerson
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSegment
@@ -99,6 +101,36 @@ class JellyfinRepositoryImpl(
     private val localLibrary: LocalLibraryRepository,
     metadataSnapshotStore: MetadataSnapshotStore,
 ) : JellyfinRepository, OriginScopedJellyfinRepository, CatalogReadPort {
+    private var downloadedMovieMapper: suspend (FindroidMovieDto, UUID?) -> FindroidMovie =
+        { dto, userId ->
+            dto.toFindroidMovie(database, userId)
+        }
+    private var downloadedEpisodeMapper: suspend (FindroidEpisodeDto, UUID?) -> FindroidEpisode =
+        { dto, userId ->
+            dto.toFindroidEpisode(database, userId)
+        }
+
+    internal constructor(
+        context: Context,
+        jellyfinApi: JellyfinApi,
+        database: ServerDatabaseDao,
+        appPreferences: AppPreferences,
+        localLibrary: LocalLibraryRepository,
+        metadataSnapshotStore: MetadataSnapshotStore,
+        downloadedMovieMapper: suspend (FindroidMovieDto, UUID?) -> FindroidMovie,
+        downloadedEpisodeMapper: suspend (FindroidEpisodeDto, UUID?) -> FindroidEpisode,
+    ) : this(
+        context = context,
+        jellyfinApi = jellyfinApi,
+        database = database,
+        appPreferences = appPreferences,
+        localLibrary = localLibrary,
+        metadataSnapshotStore = metadataSnapshotStore,
+    ) {
+        this.downloadedMovieMapper = downloadedMovieMapper
+        this.downloadedEpisodeMapper = downloadedEpisodeMapper
+    }
+
     private var searchItemsIoDispatcher: CoroutineDispatcher = Dispatchers.IO
     private var searchItemsFetch: suspend (JellyfinApi, String, SearchScope) -> List<BaseItemDto> =
         { api, query, scope ->
@@ -525,8 +557,13 @@ class JellyfinRepositoryImpl(
     override suspend fun getPublicSystemInfo(): PublicSystemInfo =
         withContext(Dispatchers.IO) { jellyfinApi.systemApi.getPublicSystemInfo().content }
 
-    override suspend fun getEpisode(itemId: UUID): FindroidEpisode =
-        cachedDto(
+    override suspend fun getEpisode(itemId: UUID): FindroidEpisode {
+        if (completedLocalSource(itemId) != null) {
+            return withContext(Dispatchers.IO) {
+                downloadedEpisodeMapper(database.getEpisode(itemId), jellyfinApi.userId)
+            }
+        }
+        return cachedDto(
             key = MetadataCacheKeys.episode(itemId),
             fetch = {
                 withContext(Dispatchers.IO) {
@@ -540,12 +577,18 @@ class JellyfinRepositoryImpl(
                 }
             },
         )
+    }
 
     override suspend fun getMovie(itemId: UUID): FindroidMovie {
         withContext(Dispatchers.IO) { localLibrary.syntheticMovie(itemId) }
             ?.let {
                 return it
             }
+        if (completedLocalSource(itemId) != null) {
+            return withContext(Dispatchers.IO) {
+                downloadedMovieMapper(database.getMovie(itemId), jellyfinApi.userId)
+            }
+        }
         return cachedDto(
             key = MetadataCacheKeys.movie(itemId),
             fetch = {
@@ -1738,6 +1781,9 @@ class JellyfinRepositoryImpl(
             localLibrary.syntheticSources(itemId)?.let {
                 return@withContext it
             }
+            completedLocalSource(itemId)?.let {
+                return@withContext listOf(it)
+            }
             /*
              * 码率档位：0 = 自动（不设上限，服务器自行判断直连 / 转码）、
              * -1 = 原始画质（只直连，明确禁用转码）、>0 = 具体 bps（只映射 maxStreamingBitrate）。
@@ -1840,6 +1886,11 @@ class JellyfinRepositoryImpl(
             )
             sources.addAll(database.getSources(itemId).map { it.toFindroidSource(database) })
             sources
+        }
+
+    private suspend fun completedLocalSource(itemId: UUID): FindroidSource? =
+        withContext(Dispatchers.IO) {
+            database.getCompletedSource(itemId)?.toFindroidSource(database)
         }
 
     override suspend fun getStreamUrl(itemId: UUID, mediaSourceId: String): String =
