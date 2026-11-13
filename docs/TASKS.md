@@ -8,7 +8,7 @@
 ### ACTIVE — AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
-- TASK_STAGE=BATCH_DOWNLOAD_MISMATCH / SIGNED_VERIFIED_PAD / FINAL_DUAL_INSTALL_PENDING
+- TASK_STAGE=BATCH_DOWNLOAD_MISMATCH_RESOLVED / DUAL_INSTALLED / USER_ACCEPTANCE_PENDING
 - PROFESSIONAL_IDENTITY=AURORAMA_141_RELEASE_FINISH_LEAD_NEXT_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
@@ -25,26 +25,26 @@
 - FIX_COMMIT_1=71e9c6e5 / startup network work moved off main thread; empty Toast message fallback; TDD 3/0
 - FIX_COMMIT_2=77620372 / completed Movie/Episode local source selected before network; playback sources use completed local source; TDD 2/0
 - DEBUG_APK=app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk;LENGTH=154831828;SHA256=AE0074CCE9D0991737B4A962294D0507C569C15633698383FA5C6D1B96483BF3
-- RELEASE_APK_ARM64=app/phone/build/outputs/apk/libre/release/phone-libre-arm64-v8a-release.apk;LENGTH=80486994;SHA256=8C36796F1A640B612047977249FE781D0ADDA77B13D012EEFA09EB2845F856FF
-- RELEASE_APK_UNIVERSAL=app/phone/build/outputs/apk/libre/release/phone-libre-universal-release.apk;LENGTH=175101164;SHA256=29781E512AB7466CFB7BD96A1C8BBB3AE2D7C2255C1EE301D473BCCAE083EEE2
-- DELIVERY_DIR=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-2026-11-14;ARM64=Aurorama-1.4.1-arm64-v8a.apk;UNIVERSAL=Aurorama-1.4.1-universal.apk;MANIFEST_SHA256=B3CE776262D457FD9A39643F936D98C374063D82C0CD5FE6C9818DB89A156D71
+- RELEASE_APK_ARM64=app/phone/build/outputs/apk/libre/release/phone-libre-arm64-v8a-release.apk;LENGTH=80487230;SHA256=72637DACED361A085F9002DF6DDED338FF22B2A5C66CA3FF410F69ADADF90D45
+- RELEASE_APK_UNIVERSAL=app/phone/build/outputs/apk/libre/release/phone-libre-universal-release.apk;LENGTH=175101400;SHA256=4F8D89662A7ACCE306C6E745F0F1AE91597E9D99C75066677E9FA63AA63A0443
+- DELIVERY_DIR=NONE;FINAL_INSTALL_SOURCE=RELEASE_APK_ARM64;PRIOR_RELEASE_FOLDER=SUPERSEDED_BY_BATCH_FIX
 - RELEASE_PACKAGE=io.github.zhangwenkang.aurorama;VERSION=1.4.1(6);APKSIGNER_V2=TRUE;SINGLE_SIGNER=TRUE;ARM64_ONLY=TRUE;UNIVERSAL_ABI_COUNT=4
-- DEVICE_ACCESS=PAD_43AF8627_AND_K60_8E875894_FINAL_INSTALL_ONLY;LOCK_ACTIVE=0
-- DEVICE_VERIFIED=debug install -r preserve data; search two result cards and return; VIDEO kind + error card/retry; invalid Episode-on-Video prompt no crash; Exo AUTO direct pause/seek/consecutive seek/near-end/auto-next; cold force-stop resume ~278s; MediaSession/notification/FGS; HOME background-off pause; audio panel; external ASS subtitle selection/renderer; Wi-Fi-off downloaded Movie PLAYING from local path; latest debug APK local mpv actual draw/pause/resume/seek; signed candidate install -r preserve data/start/home/package/device hash; signed PlayerActivity 12s no crash; signed local 8-bit H264 Exo+mpv actual draw/pause/resume/seek; signed real 145MB download accepted/progress/completed notification/page-file consistency/delete
+- DEVICE_ACCESS=NONE;LOCK_ACTIVE=0;PAD_43AF8627=INSTALLED_1_4_1_6_72637DAC;K60_8E875894=INSTALLED_1_4_1_6_72637DAC;NOT_LAUNCHED
+- DEVICE_VERIFIED=signed aggregate-grid selection after paging refresh produced exactly the two selected IDs;pause/delete cleanup PASS;dual device install -r preserve data and device APK hash MATCH on 43af8627 and 8e875894
 - DEVICE_PARTIAL=download HTTP404 retry pause/resume/delete; Movie optional enrichment device injection BLOCKED_INJECTION_AUTOMATION_PASS; online HLS mpv blocked by server stream reset; subtitle pixel QA NOT_RUN; ColorOS/K60 NOT_RUN
-- AUTOMATION=PASS; PlayerStartupRequestTest 3/0; JellyfinOfflinePlaybackFallbackTest 2/0; MovieCatalogConsumerTest 11/0/0/0; MPV JNI release contract 8 callbacks / 41 direct methods mapped unchanged; signed release arm64/universal build; apksigner; phone ktfmt; git diff-check
-- CONTEXT_USAGE=257917 / 1048576 (24.6%) at release closeout; HANDOFF_TRIGGER=NOT_REACHED
+- AUTOMATION=PASS;MediaBatchRulesTest 15/0/0/0 with same-size content replacement RED;assembleDebug;ktfmt;diff-check;MPV JNI release contract;new signed arm64/universal build;apksigner
+- CONTEXT_USAGE=419647 / 1048576 (40.0%) at task completion; HANDOFF_TRIGGER=EXCEEDED_350K_TASK_COMPLETE_NO_NEXT_IMPLEMENTATION
 - HANDOFF_LINTER=OLD_R19_SCHEMA_FAIL_NOT_RELEASE_GATE;P0_WRITEBACK_APPLIED;NO_AUDIT_LOOP
-- RELEASE_STATE=RELEASE_CANDIDATE_READY_WITH_DOCUMENTED_GAPS;LOCAL_ONLY;NO_PUSH_TAG_RELEASE
+- RELEASE_STATE=SIGNED_FIXED_CANDIDATE_READY_WITH_DOCUMENTED_GAPS;DUAL_DEVICE_INSTALLED;LOCAL_ONLY;NO_PUSH_TAG_RELEASE
 - P0=P0-RELEASE-MPV-JNI-R8-01:CLOSED_ON_PAD_43AF8627_BY_6888adc2;PlayerActivity_ALIVE_12S;AM_CRASH=0;AM_PROC_DIED=0;AM_ANR=0
-- P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:SIGNED_PATH_RESOLVED_PAD;FINAL_DUAL_INSTALL_PENDING;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED
+- P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:RESOLVED_SIGNED_PATH_AND_DUAL_INSTALLED;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED
 - P2=P2-PLAYER-LOADING-001:OPEN;P2-PLAYER-STALL-001:OPEN;DOWNLOAD-BACKOFF-NOTIFICATION=OPEN_NONBLOCKING
 - P3=subtitle visual pixels NOT_RUN; ColorOS/K60 NOT_RUN; Movie enrichment real injection unavailable; two historical completed download files EOF in local mpv triage; local dual-backend fixture no audio; direct-file source failure from stale server media
-- NEXT_ROLE=AURORAMA_141_BATCH_DOWNLOAD_DUAL_DEVICE_INSTALLER_R1_2026_11_14
+- NEXT_ROLE=USER_FINAL_ACCEPTANCE
 - FIRST_READ_ACTION=read PROJECT_PLAN then this ACTIVE then DOWNLOAD_PLAN W51/W51b/W90 lineage, USER_REPORT, STATE_EFFECT_MATRIX and TARGETED_VERIFICATION_PLAN; verify HEAD/tree/clean and Pad lock
-- NEXT_ACTION=install exact signed arm64 72637DAC to 43af8627 and 8e875894 with -r preserving data, verify device-side hash and 1.4.1(6), then release lock
-- STOP_CONDITION=device offline/object or APK drift, install failure, MIUI identity gate, need to clear data or change system settings
-- CURRENT_HANDOFF=BATCH_DOWNLOAD_MISMATCH_FINAL_INSTALL_2026_11_14
+- NEXT_ACTION=open installed 1.4.1(6) on Pad 43af8627 and K60 8e875894 and verify batch selected items equal actual downloads; report any mismatch
+- STOP_CONDITION=no further mutation unless user reports a new mismatch or authorizes public release; do not push/tag/Release
+- CURRENT_HANDOFF=BATCH_DOWNLOAD_FIX_DUAL_INSTALLED_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1767,7 +1767,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=A QA product rows remain NOT_RUN pending user structural identity decision; PLAYER_CORE_RELEASE_MATRIX 12/12; full-scope review; merge-prep; integration; signed 1.4.1/6 packages; final QA; Release.
 - STOP_CONDITION=Do not dispatch A QA or device QA until user explicitly decides structural identity. No same-shape nav harness repair. Full-scope review stops on object/review/P0-P2 drift; merge-prep only after full-scope review PASS.
 - MANUAL_LIMITATION=A QA output-boundary issue is closed. A R9 real window then failed before playback because closed UI lacks structural identity; different fresh verifier confirms BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY. This is a QA coverage block pending explicit user decision, not a product playback failure. B/C/D scoped reviews PASS but remain non-device and non-Release evidence.
-- MANUAL_OWNER=AURORAMA_141_BATCH_DOWNLOAD_DUAL_DEVICE_INSTALLER_R1_2026_11_14
+- MANUAL_OWNER=USER_FINAL_ACCEPTANCE
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

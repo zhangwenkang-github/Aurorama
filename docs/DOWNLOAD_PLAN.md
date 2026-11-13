@@ -947,3 +947,48 @@ W61 全量回归 F2（P3）：「离线书架『已下载 4 本』与下载页�
 
 - **未做真机端到端**（books 库为空，见 28.1 ③）：待样本恢复后按 `FIX_PLAN` §3 W80/S80-1 判据复跑 —— ①书架长按选中 → 下载 → **即时 Snackbar**；②下载页出现「书籍 · 下载中 xx%」条目 → 完成后进「已完成 · 书籍」；③阅读页「下载」同链路；④删除进行中条目 = 取消且无残留；⑤「已下载」时再点下载 → 「所选条目均已下载或在下载队列中」。
 - 编译与单测证据：全量门禁 **996 / 0 / 0**（含新增 21 项：`ReaderGesturesTest` 13 + `RailFitRulesTest` 4 + `BookDownloadTaskTest` 4）。
+
+## 29. 1.4.1 批量下载选择身份漂移修复（2026-11-14）
+
+**状态：`RESOLVED_SIGNED_PATH / DUAL_DEVICE_INSTALLED / USER_ACCEPTANCE_PENDING`。**
+
+用户报告“批量下载错误，实际下载与选择不一致”。诊断 owner 在季详情手动多选两集的路径
+两次均得到所选 S1E1+S1E2 / S1E3+S1E5，未复现错配；随后只读追踪把主假设收敛到聚合视频页 /
+聚合媒体库页的 Paging 选择快照：
+
+- 选中数量来自稳定 `selectedIds`；
+- 实际下载对象来自 `loadedItems.filter { id in selectedIds }`；
+- 旧实现用 `remember(itemCount)` 缓存 `loadedItems`；同数量内容替换、页码刷新或 placeholder
+  晚到时，选择 ID 与实际传给下载器的对象可来自不同快照；
+- 下载前没有 `selectedIds` ↔ `selectedItems` 的一对一断言。
+
+修复提交 `4900ff0ee26b0f9204370cabab028bc1dea308bd` / tree
+`20e1a7e19eae5fdf8a0f3c2879fb1358dd7ad4a3`：
+
+- `VideoScreen.kt` / `LibraryScreen.kt` 改读当前 Paging `itemSnapshotList`，不再只按
+  `itemCount` 缓存对象；
+- `MediaBatchRules.kt` 新增 `resolveMediaBatchSelection`：返回当前顺序对象、`missingIds`、
+  `duplicateIds`；只有选择集合与当前对象严格一对一才执行批量下载；
+- 缺失/未加载/重复时 fail closed，显示“未加载条目，未执行修改”，不调用
+  `downloadSelected`，不会静默下载替代条目；
+- 未改 Downloader、Room schema 或 W51 `DetailDownloadRules`。
+
+RED/GREEN：`MediaBatchRulesTest` 先真实失败 2 项（同数量内容替换漏掉旧选择 ID、重复身份未拒绝），
+修复后 `15/0/0/0`；`assembleDebug`、`ktfmt`、`diff-check` PASS。
+
+signed 验证据 Pad `43af8627`：聚合网格选择两项 → Paging 重载/HOME 往返 → “已选 2 项” →
+下载页 `2 进行中 / 0 完成 / 0 失败`，两个实际任务 opaque title hash 与选择集合完全一致、
+初始顺序一致；随后两任务暂停并 App 内逐项删除，下载页恢复 `0/0/0/0 B`。季详情手动多选路径
+本身未复现错配，不能写成该子路径 FAIL。
+
+最终 signed arm64 `80487230 B / 72637DAC…0D45` 已同一份覆盖安装到：
+
+- Pad `43af8627`：保留 data，`1.4.1(6)`，non-debuggable；
+- K60 `8e875894`：保留 data，`1.4.1(6)`，non-debuggable；
+- 两机设备侧回拉 APK hash 均 MATCH；未启动 App，未卸载 / `pm clear`，未改系统设置。
+
+`P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001` 的 signed 路径已 RESOLVED；完整 release matrix 仅在
+release-candidate gate 执行。既有播放器 seek/progress P1 与 loading/stall P2 状态不变。
+
+证据根：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-batch-download-mismatch-r1-2026-11-14\`。
