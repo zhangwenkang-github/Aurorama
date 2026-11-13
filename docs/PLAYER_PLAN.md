@@ -9253,3 +9253,60 @@ R9 波次收口：B/C/D 各自 implementation + fresh scoped review 均 PASS，P
 `42/0/0/0`，player-local `393/0/0/0`、phone `412/0/0/0`，affected `204/204` executed，
 assemble、ktfmt、diff-check 与 graphify PASS。真实 Exo/mpv 字幕画面、PC-06/PC-07、
 `PLAYER_CORE_RELEASE_MATRIX`、独立 QA 与 Release 均未执行；本段不是 QA 或 Release PASS。
+
+## 52. 1.4.1 发布收尾与上下文交接（2026-11-14）
+
+**状态：`CONTEXT_HANDOFF / CORE_PARTIAL / RELEASE_NOT_BUILT`。** 本会话从
+`ff9b5a176fdd15d2b73c659e218d7c39fe56ec32` / tree
+`43a65a71e5191a13ccc195342eaab60b5af2c93e` 继续，确认工作树 clean 与 debug arm64 APK
+`153732620 B / F3E2E160…66C7` 后覆盖安装 Pad `43af8627`，登录与 data 保留。
+
+本会话追加两个最小修复：
+
+- `71e9c6e5 fix(player): keep startup resolution off main thread`：真实 Episode 起播时，
+  `PlaylistManager.getInitialItem*()` 的 Jellyfin/PlaybackInfo 请求继承主线程，触发
+  `NetworkOnMainThreadException`；错误消息为空时 `Toast.makeText(..., null, ...)` 再抛
+  `IllegalStateException: You must either set a text or a view`，进程崩溃。现起播解析固定走
+  IO，错误提示对 null/blank message 使用“播放失败”兜底。TDD `3/0`。
+- `77620372 fix(data): use completed downloads before network`：已完成下载进入详情后点播放，
+  在线仓库仍先请求 `getMovie/getEpisode/PlaybackInfo`；断网时 DNS 失败并留下空播放页。
+  现 Movie/Episode 与播放源在存在 `COMPLETED` LOCAL source 时先读本地，不再联网。TDD `2/0`。
+
+代码 HEAD 为 `77620372` / tree `2749b55351f68ab608c31f62e736273544ce4c55`。当前 debug APK
+`154831828 B / AE0074CCE9D0991737B4A962294D0507C569C15633698383FA5C6D1B96483BF3`；
+`assembleDebug`、data/player-local/phone ktfmt 与 diff-check PASS。未重跑用户交接中已经 PASS 的
+四组大套件。交接时实测上下文 `507983 / 1048576 = 48.4%`，已超过 35 万硬线。
+
+**Pad 真机已执行（截图 0）**
+
+- `UN-GO` 两张结果卡逐张进入 Episode 详情，系统返回后查询与结果保持。
+- 真实 `Type=Video`：正常进入 PlayerActivity；旧媒体 404 时显示“播放失败 /
+  `ERROR_CODE_IO_BAD_HTTP_STATUS` / 重试 / 改用 mpv 内核”，重试保持错误卡且不崩溃。
+- 真实 Type=Video 被以 `itemKind=Episode` 请求时，ff9b5 的 fail-closed 生效：可见 Toast、
+  `IllegalStateException("该条目不是可播放的剧集")`，无 NPE/Crash。
+- ExoPlayer + AUTO direct/file：起播、UI 暂停/继续、seek `1459008 → 2121190 → 576098 ms`、
+  近片尾、自然 EOS 自动下一集、MediaSession 位置/buffered、5 动作通知、FGS 均通过。
+- 冷退出 + force-stop 后同 Episode 从约 `278297 ms` 恢复；默认后台播关闭时 HOME 会暂停。
+- 音轨面板显示日语 `AAC · 2 声道 · 254 kbps`；外挂 ASS 自动成为主字幕，libass
+  `SubtitleRenderer` 已执行；像素级字幕画面未做视觉 QA。
+- Wi-Fi 关闭后启动已下载 Movie：MediaSession `PLAYING`，媒体路径为
+  `files/downloads/...`，修复后不再产生起播 DNS 失败。
+- 单个短任务真实受理；测试源 HTTP 404 后自动重试，下载页与暂停/继续/删除动作一致，
+  删除后 `0 进行中` 且本地无该任务文件。成功完成/完成通知因媒体源 404 为 `NOT_RUN`。
+
+**未覆盖 / 开放**
+
+- `P0=0`（本会话新增两项均在同路径设备复测关闭）。
+- `P1-PLAYER-SEEK-001`、`P1-PLAYER-PROGRESS-001` 仍是旧全矩阵口径的 `OPEN_NOT_FULLY_ASSESSED`；
+  本会话 direct/file 子集通过，不能代替 mpv/HLS/全部核心矩阵。
+- `P2-PLAYER-LOADING-001`、`P2-PLAYER-STALL-001` 仍开放；下载退避窗口无常驻通知为
+  `P3 / NONBLOCKING`。
+- Movie optional enrichment 失败态、最新 APK 的 mpv 路径、字幕视觉、完整成功下载、ColorOS/K60
+  均 `NOT_RUN`。K60 `8e875894` 全程未接触。
+- 尚未提升 `1.4.1(6)`，未构建 signed arm64/universal，未执行 `apksigner`、候选包覆盖安装与
+  候选包核心回归；Release 材料与最终发布结论均未成立。
+
+**下一步**：`AURORAMA_141_RELEASE_FINISH_LEAD_NEXT_2026_11_14` 先读
+`PROJECT_PLAN → TASKS 唯一 ACTIVE → 本节`，核验当前 HEAD/tree/clean、现有 debug APK 和 Pad 唯一锁；
+不重复已经 PASS 的搜索、VIDEO、debug 起播与离线本地路径。随后只补剩余核心矩阵，再进入
+`1.4.1(6)` 签名构建。出现新 P0、锁冲突、签名输入不可用或服务器删除风险即停止请示。
