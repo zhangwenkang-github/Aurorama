@@ -9447,3 +9447,34 @@ repair `108/108 BYTE`、root manifest `107/107`、verifier manifest `235/235` �
 probe 的固定错误码 / 节点模板，同时保留 ordinal exact、Control/Format fail-closed 和
 visible-viewport 合同；完成后仍须由另一个不同 fresh verifier R3 全量复核。未获 verifier
 PASS 前不得建 A QA 卡、登记 Pad `43af8627` 锁、运行 QaReady 或派 QA。
+
+**进度（2026-11-13，repair R2 GREEN / different fresh verifier R3 PASS / 交接 R15）**：
+用户授权继续后，全新 repair owner R2 在
+`evidence-v1-4-1-r13-a-qa-runtime-adapter-repair-owner-r2-2026-11-13` 保留 repair R1
+`108/108 BYTE` immutable snapshot 与冻结 probe 原字节，先复现
+`62 PASS / 16 FAIL`，再只改 R2 work 的 synthetic fixture 形状、identity 前置判定和错误码
+优先级。冻结 probe 双跑随后为 `78/78 PASS / exit 0`，result SHA
+`C8C4793B...7183A9`；R2-only `10/10`、behavior `111/111`、adversarial `13/13`、
+projection `6/6`，root manifest `383/383`。owner result / manifest SHA 为
+`34439AFF...23882A / 96D597E7...2AE7`。这只是 owner self-test。
+
+随后另一个不同 fresh verifier R3 在
+`evidence-v1-4-1-r13-a-qa-runtime-adapter-fresh-verifier-r3-2026-11-13` 对 repair R2
+`384/384 BYTE` 独立复制并复跑。pre-R2 frozen RED `62/16`、final frozen GREEN
+`78/78` 均双跑稳定；R2 compatibility `10/10`、official `111/111`、adversarial
+`13/13`、projection `6/6`、static/scan 全 PASS，另追加
+`85 cases / 96 executions / 18 categories / 85 PASS` verifier-only probes。
+最终 manifest `919/919 MATCH`（920 files），P0–P3 新增 `0/0/0/0`。报告 / 结果 /
+manifest SHA 为 `50C3732A...D7819E / F189F46F...CBCB4 / 762F8975...81F60`。
+
+`P2-R13-RUNTIME-ADAPTER-CULTURE-SENSITIVE-IDENTITY-COMPARISON` 与
+`P2-R13-RUNTIME-ADAPTER-VISIBLE-OUTSIDE-VIEWPORT` 的离线 replay 合同现由 fresh verifier
+R3 PASS 关闭。该 PASS 不证明真实 UiAutomator resource-id/role、真实 click/postcondition、
+A QA 七行、核心矩阵、产品 QA、merge、integration、signed candidate 或 Release。当前仍为
+`QA_READY=NO / LOCK_ACTIVE=0`，无 A QA 卡和 Pad 锁。
+
+R14 实测上下文 `343040 / 1048576 = 32.7%`，越过 30 万准备线且接近 35 万交接线，因此在
+verifier R3 PASS 后停止扩项，不启动 A QA card owner。下一角色为 R15 交付负责人；其第一
+实际任务是派新的 different fresh A QA card owner 创建最小 A QA 卡、登记 Pad `43af8627`
+唯一锁、保存并 lint exact QA prompt、提交 Control docs，再运行 canonical QaReady。只有
+`QA_READY_LINT=PASS` 后才能由负责人另派不同 fresh QA。
