@@ -604,6 +604,9 @@ class PlaybackSessionRulesTest {
             SinglePeriodTimeline(120_000L, true, false, false, null, item),
         )
         setSuperField(player, "window", Timeline.Window())
+        val handler = DeferredHandlerFactory.create()
+        setField(player, "handler", handler)
+        setField(player, "sourceEpochReady", false)
         setField(player, "isPlayerReady", true)
         setField(player, "currentPlayWhenReady", true)
         setField(player, "playbackState", Player.STATE_READY)
@@ -619,15 +622,27 @@ class PlaybackSessionRulesTest {
         listeners.flushEvents()
         recorder.clear()
 
-        invokeUpdateEnginePosition(player, epoch, 1_250L)
+        player.eventProperty("time-pos", 2L)
+        runHandlerCallbacks(handler)
         listeners.flushEvents()
-        assertEquals(1_250L, player.currentPosition)
+        assertEquals(1_000L, player.currentPosition)
+        assertTrue(
+            "sourceEpochReady=false must block the time-pos property route",
+            recorder.refreshPositionsMs.isEmpty(),
+        )
 
-        invokeUpdateEnginePosition(player, epoch, 1_500L)
+        setField(player, "sourceEpochReady", true)
+        player.eventProperty("time-pos", 2L)
+        runHandlerCallbacks(handler)
         listeners.flushEvents()
-        assertEquals(1_500L, player.currentPosition)
+        assertEquals(2_000L, player.currentPosition)
 
-        assertEquals(listOf(1_250L, 1_500L), recorder.refreshPositionsMs)
+        player.eventProperty("time-pos", 3L)
+        runHandlerCallbacks(handler)
+        listeners.flushEvents()
+        assertEquals(3_000L, player.currentPosition)
+
+        assertEquals(listOf(2_000L, 3_000L), recorder.refreshPositionsMs)
         assertEquals(2, recorder.positionDiscontinuityEvents)
         assertTrue(
             "ordinary time-pos must never be projected as a seek discontinuity",
@@ -644,12 +659,13 @@ class PlaybackSessionRulesTest {
         assertEquals(0, recorder.mediaItemTransitions)
         assertEquals(epoch, player.currentSourceEpoch())
 
+        player.eventProperty("time-pos", 4L)
         setField(player, "sourceEpoch", AtomicLong(epoch + 1L))
         recorder.clear()
-        invokeUpdateEnginePosition(player, epoch, 1_750L)
+        runHandlerCallbacks(handler)
         listeners.flushEvents()
         assertTrue(
-            "time-pos from the old source epoch must not publish a refresh",
+            "queued time-pos from the old source epoch must not publish a refresh",
             recorder.refreshPositionsMs.isEmpty(),
         )
         assertEquals(epoch + 1L, player.currentSourceEpoch())
@@ -3395,21 +3411,8 @@ class PlaybackSessionRulesTest {
         return sourcePosition(player).positionMs == positionMs
     }
 
-    private fun invokeUpdateEnginePosition(
-        player: MPVPlayer,
-        epoch: Long,
-        positionMs: Long,
-    ) {
-        val update =
-            MPVPlayer::class
-                .java
-                .getDeclaredMethod(
-                    "updateEnginePosition",
-                    Long::class.java,
-                    Long::class.java,
-                )
-        update.isAccessible = true
-        update.invoke(player, epoch, positionMs)
+    private fun runHandlerCallbacks(handler: Handler) {
+        handler.javaClass.getMethod("runAll").invoke(handler)
     }
 
     private fun itemAt(player: MPVPlayer, index: Int): MediaItem =
@@ -4024,6 +4027,69 @@ class PlaybackSessionRulesTest {
         }
 
         fun uri(value: String): Uri = constructor.newInstance(value)
+    }
+
+    private object DeferredHandlerFactory {
+        private val constructor: Constructor<Handler> by lazy {
+            val source =
+                """
+                package android.os;
+
+                import java.util.ArrayDeque;
+
+                public final class TestDeferredHandler extends Handler {
+                    private final ArrayDeque<Runnable> callbacks = new ArrayDeque<>();
+
+                    @Override
+                    public boolean post(Runnable callback) {
+                        callbacks.add(callback);
+                        return true;
+                    }
+
+                    public void runAll() {
+                        while (!callbacks.isEmpty()) {
+                            callbacks.remove().run();
+                        }
+                    }
+                }
+                """
+                    .trimIndent()
+            val root = Files.createTempDirectory("player-test-handler").toFile()
+            val sourceFile =
+                File(root, "android/os/TestDeferredHandler.java").apply {
+                    parentFile.mkdirs()
+                    writeText(source)
+                }
+            val classes = File(root, "classes").apply { mkdirs() }
+            val diagnostics = ByteArrayOutputStream()
+            val compiler = checkNotNull(ToolProvider.getSystemJavaCompiler())
+            val result =
+                compiler.run(
+                    null,
+                    null,
+                    diagnostics,
+                    "-classpath",
+                    File(Handler::class.java.protectionDomain.codeSource.location.toURI()).path,
+                    "-d",
+                    classes.path,
+                    sourceFile.path,
+                )
+            check(result == 0) { "真实 Handler 测试夹具编译失败：${diagnostics.toString("UTF-8")}" }
+            val lookup = MethodHandles.privateLookupIn(Handler::class.java, MethodHandles.lookup())
+            val defineClass =
+                lookup.javaClass.getDeclaredMethod("defineClass", ByteArray::class.java).apply {
+                    isAccessible = true
+                }
+            val type =
+                defineClass.invoke(
+                    lookup,
+                    File(classes, "android/os/TestDeferredHandler.class").readBytes(),
+                ) as Class<*>
+            @Suppress("UNCHECKED_CAST")
+            type.getDeclaredConstructor() as Constructor<Handler>
+        }
+
+        fun create(): Handler = constructor.newInstance()
     }
 
     private data class SameIdentityCase(
