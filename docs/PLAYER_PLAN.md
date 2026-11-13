@@ -9292,3 +9292,24 @@ ledger auditor 从 user promise、ACTIVE P0–P3、release scope matrix 与既�
 证据核对所有未处理缺陷，明确 `OPEN / BLOCKED / NOT_RUN / ACCEPTED / RETIRED`，不得把
 未执行矩阵写成通过。阶段完成前不修改产品、不申请设备锁、不重开 QA、不进入 signed
 candidate / integration / Release。
+
+**进度（2026-11-13，R11 只读 scope 与缺陷总账完成）**：A QA structural identity scope
+返回 `READY_FOR_IMPLEMENTATION`，冻结四个 debug Pad 侧轨语义：
+`aurorama.qa.main_navigation.screen`、`aurorama.qa.media_group.nav_item`、
+`aurorama.qa.local_library.nav_item`、`aurorama.qa.local_library.screen`；两个导航控件使用
+`Role.Button`。候选最多修改 `NavigationRoot.kt` 并新增
+`LocalLibraryQaSemanticsTest.kt`，总计 2 路径。0 或多候选必须 fail closed，点击后只接受
+唯一、可见的 `LocalLibraryRoute` screen 锚点；不得用自由文本、raw UI、坐标或动态库 ID。
+
+独立 1.4.1 residual defect ledger 返回 `BLOCKED_EVIDENCE_GAP`：90 个结构行、56 个唯一
+P0–P3 ID；active user promise 实现 / 静态 review 为 10/10，但产品 QA 为 0/10；开放产品
+P0/P1/P2/P3=`0/3/2/0`，开放流程 P1/P2/P3=`0/2/3`，30 个证据缺口，12 条核心矩阵全
+`NOT_RUN`。当前明确未处理产品项为 `P1-PLAYER-SEEK-001`、
+`P1-PLAYER-PROGRESS-001`、`P1-R19-S2-PLAYBACK-PROCESS-CRASH-01`（仅一个精确本地路径
+症状已解决）、`P2-PLAYER-LOADING-001`、`P2-PLAYER-STALL-001`。另有
+`GLOBAL-GATE-DOWNLOAD-CORE` 需要发布范围决策；下载 capture 路线仍 RETIRED。
+
+下一步只启动不同 fresh structural identity implementation owner，从候选
+`8814c3377e5812e0c589b7222ee21102922e57bb` 在隔离 worktree 实现上述 2 路径，先取得
+assertion RED 再最小 GREEN。实现 owner 必须停在 implementation report，不得自派 verifier、
+QA、设备、merge-prep、integration 或 Release。
