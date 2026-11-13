@@ -9509,3 +9509,9 @@ report/result SHA 与 R15 startup 旧 Control。两项已修正；audit R3 又�
 `LATEST_FRESH_PRE_HANDOFF_AUDIT_PASS`，ACTIVE 不再绑定具体 audit 序号；下一轮只做新的
 fresh 只读 audit。R3 的 FAIL receipt 保留，不覆盖。audit PASS 后才创建 R15，当前仍
 `QA_READY=NO / LOCK_ACTIVE=0`，无卡、锁或 QA。
+
+audit R4 确认主体对象与外部 docs accounting 通过，但继续抓到 R15 §3.1 的 R2 字样、ACTIVE
+的旧 NEXT_PATH/accounting 字段、adapter 两个 P2 状态冲突和 memory 等待文案。现已全部统一到
+“最新 fresh pre-handoff audit PASS”语义：两个 adapter P2 记为
+`CLOSED_OFFLINE_BY_FRESH_VERIFIER_R3`，`NEW_PROCESS_P2=0`；R2/R3/R4 的 FAIL receipt 保留为
+历史。没有卡、锁、QaReady 或 QA。
