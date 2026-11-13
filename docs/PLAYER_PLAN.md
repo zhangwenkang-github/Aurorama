@@ -9562,3 +9562,11 @@ R9 report/result/manifest SHA 为
 后续 fresh R10 prompt 必须只做内存内 marker 计数与 current-ACTIVE 字段提取，输出只允许布尔
 / 固定摘要，禁止全局 `rg` / `Select-String` 回显 TASKS 或锁历史。R10 PASS 前仍不得创建
 A QA 卡、登记 Pad 锁、运行 QaReady 或派 QA。
+
+**交接（2026-11-13，R15 → R16）**：R15 收口时实测
+`354616 / 1048576 = 33.8%`，越过 35 万交接线；旧负责人只完成控制面收口和文档 / memory，
+不再开 R10。唯一 ACTIVE 路由到
+`AURORAMA_141_PLAYER_PROGRESS_SOURCE_RETRY_DELIVERY_LEAD_R16_2026_11_13`，
+当前 `QA_READY=NO`、`LOCK_ACTIVE=0`，无 A QA 卡、Pad 锁或 QA。R16 第一实际任务是核验
+exact handoff prompt 与 clean Control，再创建只允许内存内 ACTIVE 截取 / 计数的 R10 prompt；
+R10 PASS 前不得进入任何下游阶段。
