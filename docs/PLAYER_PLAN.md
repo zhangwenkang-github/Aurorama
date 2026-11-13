@@ -9355,3 +9355,40 @@ candidate 或 Release。当前 `QA_READY=NO`、`LOCK_ACTIVE=0`。负责人在实
 `311989 / 1048576 = 29.8%` 越过 30 万准备线后停止扩项；下一角色为 R13 交付负责人，第一
 实际任务是建立新的 A QA 卡、新唯一 Pad 锁、canonical QaReady 并派不同 fresh QA，不得复用
 R9/R10/R11 历史执行窗口，也不得把本 verifier PASS 扩写为产品 QA。
+
+**进度（2026-11-13，R13 结构身份卡 owner 阻断 / runtime adapter owner 自测 / fresh verifier BLOCKED）**：
+R13 的全新 A QA card owner 先得到 `BLOCKED_CARD_CONTRACT`：现有 output-boundary 只证明输出
+封闭，navigation projection 仍只有 synthetic contract，R9 runtime helper 又依赖
+text / content-description，无法在新卡中安全执行四固定 tag 导航，因此没有建卡、登记锁或运行
+QaReady。该 owner manifest 为 `6/6 MATCH`，结论入口为
+`evidence-v1-4-1-r13-a-qa-card-owner-r1-2026-11-13\A_QA_CARD_OWNER_REPORT.md`。
+
+随后不同 fresh runtime-adapter owner 在独立证据根完成 stdin-only、无 raw UI 落盘的 closed
+adapter：四个固定 resource-id、两次固定 click operation、唯一 `scr_local_library`
+postcondition 与全通道封闭输出。owner 正式 RED `41/41` 行为失败、同一 selector GREEN
+`41/41/0`、entry / adversarial `13/13`、projection `6/6`、static 与 scan 通过，manifest
+`26/26 MATCH`；这只是 owner 自测，不是 verifier 或 QA。报告 SHA `AE544429...AFEEE2`、
+result `FBE1F44A...F773E8B8`、manifest `EFCCF2E4...D757EE8`。
+
+另一个不同 fresh verifier 将 owner root 字节复制到独立 root 后独立复跑全部官方门禁均通过，
+但追加 `78 cases / 89 executions / 13 categories` 的 verifier-only probes 得到
+`60 PASS / 18 FAIL`，两轮结果 SHA 相同（`3B7AABE6...2B5571`），稳定阻断 adapter：
+
+- `P2-R13-RUNTIME-ADAPTER-CULTURE-SENSITIVE-IDENTITY-COMPARISON`：PowerShell culture-sensitive
+  比较会忽略 `U+200D / U+202E / U+009B` 等格式控制字符，operation、package、activity、
+  focus、screen、phase、resource-id 与 role 可带隐形后缀仍被判等；现有 control gate 仅覆盖
+  ASCII 控制区。
+- `P2-R13-RUNTIME-ADAPTER-VISIBLE-OUTSIDE-VIEWPORT`：输入显式 `visible=true` 可覆盖 bounds
+  viewport containment，屏外 media / local 仍产生 click，屏外 postcondition 仍可宣告
+  `OPENED`。
+
+fresh verifier 结论为 `BLOCKED_RUNTIME_ADAPTER_IDENTITY_AND_VISIBILITY_CONTRACT`、新增 P0–P3
+`0/0/2/0`、manifest `43/43 MATCH`；report / result / manifest SHA 为
+`477DC1CC...562C67 / 3222BCBD...8110A80C / E106CF7D...AFE737`。本轮没有设备命令、ADB、
+截图、A QA 卡、Pad 锁、QaReady、真实设备 inventory、click/postcondition、七条 A PC 行或
+12 行核心矩阵；`QA_READY=NO`、`LOCK_ACTIVE=0`。当前 adapter 不得用于 QA。
+
+用户于本轮结束时要求先暂停并等待通知。恢复后的下一步必须是不同 fresh runtime-adapter
+repair owner 修复 ordinal exact Unicode/control identity 与 visible-viewport 合同，再由另一个
+不同 fresh verifier 全量复核；只有 verifier PASS 后才允许新的 A QA card owner 建卡、登记
+Pad `43af8627` 唯一锁并运行 canonical QaReady。不得在当前 BLOCKED adapter 上派 QA。
