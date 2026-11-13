@@ -9256,7 +9256,7 @@ assemble、ktfmt、diff-check 与 graphify PASS。真实 Exo/mpv 字幕画面、
 
 ## 52. 1.4.1 发布收尾与上下文交接（2026-11-14）
 
-**状态：`CONTEXT_HANDOFF / CORE_PARTIAL / RELEASE_NOT_BUILT`。** 本会话从
+**状态：`SIGNED_CANDIDATE_P0 / RELEASE_STOPPED`。** 本会话从
 `ff9b5a176fdd15d2b73c659e218d7c39fe56ec32` / tree
 `43a65a71e5191a13ccc195342eaab60b5af2c93e` 继续，确认工作树 clean 与 debug arm64 APK
 `153732620 B / F3E2E160…66C7` 后覆盖安装 Pad `43af8627`，登录与 data 保留。
@@ -9310,3 +9310,41 @@ assemble、ktfmt、diff-check 与 graphify PASS。真实 Exo/mpv 字幕画面、
 `PROJECT_PLAN → TASKS 唯一 ACTIVE → 本节`，核验当前 HEAD/tree/clean、现有 debug APK 和 Pad 唯一锁；
 不重复已经 PASS 的搜索、VIDEO、debug 起播与离线本地路径。随后只补剩余核心矩阵，再进入
 `1.4.1(6)` 签名构建。出现新 P0、锁冲突、签名输入不可用或服务器删除风险即停止请示。
+
+### 52.67 signed 1.4.1(6) 候选包 P0：R8 破坏 mpv JNI callback 契约（2026-11-14）
+
+**状态：`P0_RELEASE_BLOCKER / STOPPED_FOR_USER_AUTHORIZATION`。**
+
+版本提交 `b8f25e36e18a2e5ad091844b628ace9d1a10ae7d` / tree
+`88c2ea971dccbf18d7c2970d9bf5801891149ed9` 将源码提升为 `1.4.1(6)`。signed arm64
+候选 `80454226 B / 09DBDCFB…4F67` 在 Pad `43af8627` 执行 `install -r` 后：
+package / version / non-debuggable / data 保留 / 首页启动均 PASS，设备侧回拉 APK 哈希与宿主一致。
+
+进入真实 Episode 的 `PlayerActivity` 后约 0.28 秒，Release PID 发生 SIGABRT：
+
+```text
+java.lang.NoSuchMethodError:
+no non-static method "Ldev/jdtech/mpv/MPVLib;.eventProperty(Ljava/lang/String;)V"
+
+Throwing new exception
+'no non-static method "Ldev/jdtech/mpv/MPVLib;.eventProperty(Ljava/lang/String;Z)V"'
+with unexpected pending exception
+```
+
+栈为 `MPVLib.nativeCreate → MPVPlayer.<init> → PlayerHolder.create →
+PlayerViewModel.publishAudioPanelState → PlayerActivity.onCreate`。Release mapping 证明 R8
+改写了 `MPVLib` Java 方法名，而 native 侧仍按原 JNI 名查找，构成 Release-only JNI 契约断裂。
+`am_crash`、`am_proc_died` 与 `ApplicationExitInfo reason=5` 同时成立；不是外部片源或调试日志口径问题。
+
+该 P0 使 signed 候选在进入播放页即崩溃，Exo 起播 / 暂停 / seek、signed Release mpv、成功下载与
+完成通知均未继续执行。按用户停止条件，本轮不自行修改 R8/JNI，不继续设备矩阵，不 tag / push /
+Release。下一角色只能是全新的
+`AURORAMA_141_RELEASE_BLOCKER_IMPLEMENTATION_OWNER_R1_2026_11_14`，且须先获用户授权；首条
+只读动作是核对候选报告、crash evidence 与 Release mapping，随后以 RED 证明 JNI 方法名契约，
+再用最小 keep/等价保护修复。修复后必须重建 signed arm64，并由另一个 fresh 候选回归 owner
+覆盖安装复测。
+
+证据根：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-signed-candidate-core-r1-2026-11-14\`；
+报告 SHA-256 `13A01BAD07FFBFEBBE019A54E03D3CECEFD57369B17CE0530BE2675C26A721D8`，
+manifest SHA-256 `C737A6C9F2B958308CFA15EAB780E7D21FCC023A20262820EA8ADE3458BD8EAE`。

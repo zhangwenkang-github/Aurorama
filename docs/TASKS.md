@@ -8,30 +8,33 @@
 ### ACTIVE — AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
-- TASK_STAGE=CONTEXT_HANDOFF_AFTER_CORE_FIXES / DEVICE_CORE_PARTIAL / RELEASE_NOT_BUILT / SIGNED_APK=NO
-- PROFESSIONAL_IDENTITY=AURORAMA_141_RELEASE_FINISH_LEAD_2026_11_14
+- TASK_STAGE=SIGNED_CANDIDATE_BUILT / CORE_DEVICE_REGRESSION_P0 / STOPPED_FOR_USER_DECISION
+- PROFESSIONAL_IDENTITY=AURORAMA_141_RELEASE_FINISH_LEAD_NEXT_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
-- BASE_HEAD=ff9b5a176fdd15d2b73c659e218d7c39fe56ec32
+- VERSION_COMMIT=b8f25e36e18a2e5ad091844b628ace9d1a10ae7d / tree 88c2ea971dccbf18d7c2970d9bf5801891149ed9 / release: prepare 1.4.1 (6)
 - FIX_COMMIT_1=71e9c6e5 / startup network work moved off main thread; empty Toast message fallback; TDD 3/0
 - FIX_COMMIT_2=77620372 / completed Movie/Episode local source selected before network; playback sources use completed local source; TDD 2/0
 - DEBUG_APK=app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk;LENGTH=154831828;SHA256=AE0074CCE9D0991737B4A962294D0507C569C15633698383FA5C6D1B96483BF3
+- RELEASE_APK_ARM64=app/phone/build/outputs/apk/libre/release/phone-libre-arm64-v8a-release.apk;LENGTH=80454226;SHA256=09DBDCFB30249C6A5025EDF87D40B67DD6CF71C5D61A51B8CB9B68733FAB4F67
+- RELEASE_APK_UNIVERSAL=app/phone/build/outputs/apk/libre/release/phone-libre-universal-release.apk;LENGTH=175068396;SHA256=01DE33A334842712ED029C281AE2C1713628C250000B92DDDDCF4E3F9AA0A7E1
+- RELEASE_PACKAGE=io.github.zhangwenkang.aurorama;VERSION=1.4.1(6);APKSIGNER_V2=TRUE;SINGLE_SIGNER=TRUE;ARM64_ONLY=TRUE;UNIVERSAL_ABI_COUNT=4
 - DEVICE_ACCESS=NONE;LOCK_ACTIVE=0;LAST_DEVICE=43af8627;K60_8e875894=NOT_TOUCHED
-- DEVICE_VERIFIED=debug install -r preserve data; search two result cards and return; VIDEO kind + error card/retry; invalid Episode-on-Video prompt no crash; Exo AUTO direct pause/seek/consecutive seek/near-end/auto-next; cold force-stop resume ~278s; MediaSession/notification/FGS; HOME background-off pause; audio panel; external ASS subtitle selection/renderer; Wi-Fi-off downloaded Movie PLAYING from local path
-- DEVICE_PARTIAL=download task accepted HTTP404 retry pause/resume/delete; completion notification and successful completed download NOT_RUN; Movie optional enrichment failure NOT_RUN; mpv latest APK NOT_RUN; subtitle pixel QA NOT_RUN
-- AUTOMATION=PASS; PlayerStartupRequestTest 3/0; JellyfinOfflinePlaybackFallbackTest 2/0; assembleDebug PASS; app/data/player-local ktfmt PASS; git diff-check PASS
-- CONTEXT_USAGE=507983 / 1048576 (48.4%); HANDOFF_TRIGGER=EXCEEDED_350K
-- HANDOFF_LINTER=FAIL_STALE_R19_SCHEMA_AND_BRANCH_DIFF_SCOPE;NOT_RELEASE_GATE;NO_FURTHER_AUDIT_LOOP_PER_USER
-- RELEASE_STATE=NOT_BUILT; source version remains 1.4.0(5); 1.4.1(6) version bump, signed arm64/universal, apksigner, candidate-device regression all NOT_RUN
-- P0=0_CURRENT_AFTER_DEVICE_RETEST
+- DEVICE_VERIFIED=debug install -r preserve data; search two result cards and return; VIDEO kind + error card/retry; invalid Episode-on-Video prompt no crash; Exo AUTO direct pause/seek/consecutive seek/near-end/auto-next; cold force-stop resume ~278s; MediaSession/notification/FGS; HOME background-off pause; audio panel; external ASS subtitle selection/renderer; Wi-Fi-off downloaded Movie PLAYING from local path; latest debug APK local mpv actual draw/pause/resume/seek; signed candidate install -r preserve data/start/home/package/device hash
+- DEVICE_PARTIAL=download task accepted HTTP404 retry pause/resume/delete; completion notification and successful completed download NOT_RUN; Movie optional enrichment device injection BLOCKED_INJECTION_AUTOMATION_PASS; online HLS mpv blocked by server stream reset; subtitle pixel QA NOT_RUN
+- AUTOMATION=PASS; PlayerStartupRequestTest 3/0; JellyfinOfflinePlaybackFallbackTest 2/0; MovieCatalogConsumerTest 11/0/0/0; signed release arm64/universal build; apksigner; phone ktfmt; git diff-check
+- CONTEXT_USAGE=170977 / 1048576 (16.3%) at P0 stop; HANDOFF_TRIGGER=NOT_REACHED
+- HANDOFF_LINTER=OLD_R19_SCHEMA_FAIL_NOT_RELEASE_GATE;P0_WRITEBACK_APPLIED;NO_AUDIT_LOOP
+- RELEASE_STATE=SIGNED_CANDIDATE_BUILT_NOT_RELEASABLE;P0_RELEASE_ONLY_NATIVE_CRASH;RELEASE_DEVICE_REGRESSION_STOPPED
+- P0=P0-RELEASE-MPV-JNI-R8-01:OPEN_SIGNED_RELEASE_PLAYERACTIVITY_NATIVE_SIGABRT;DIRECT=NoSuchMethodError_MPVLib.eventProperty_String_and_String_boolean;PACKAGE_HASH_MATCH=YES;DEBUGGABLE=NO;APP_DATA_PRESERVED=YES
 - P1=P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED;NEW-STARTUP-MAIN-THREAD-CRASH=CLOSED_BY_71e9c6e5_DEVICE_SAME_PATH;NEW-OFFLINE-NETWORK-FIRST=CLOSED_BY_77620372_DEVICE_OFFLINE
 - P2=P2-PLAYER-LOADING-001:OPEN;P2-PLAYER-STALL-001:OPEN;DOWNLOAD-BACKOFF-NOTIFICATION=OPEN_NONBLOCKING
-- P3=subtitle visual pixels NOT_RUN; latest-APK mpv NOT_RUN; ColorOS/K60 NOT_RUN; failed download completion NOT_RUN; direct-file source failure from stale server media
-- NEXT_ROLE=AURORAMA_141_RELEASE_FINISH_LEAD_NEXT_2026_11_14
+- P3=subtitle visual pixels NOT_RUN; ColorOS/K60 NOT_RUN; successful download completion NOT_RUN; Movie enrichment real injection unavailable; two historical completed download files EOF in local mpv triage; direct-file source failure from stale server media
+- NEXT_ROLE=AURORAMA_141_RELEASE_BLOCKER_IMPLEMENTATION_OWNER_R1_2026_11_14 / AWAIT_USER_AUTHORIZATION
 - FIRST_READ_ACTION=read PROJECT_PLAN then this ACTIVE then PLAYER_PLAN §52; verify HEAD/tree/clean, APK hash and Pad lock before any device action
-- NEXT_ACTION=continue current core matrix from already PASS items; do not repeat search/detail/VIDEO/debug startup/offline-local checks; then bump 1.4.1(6), signed arm64/universal and candidate-device regression
-- STOP_CONDITION=new P0, device/object lock conflict, signing input unavailable, server delete/destructive risk, or scope requires product decision
-- CURRENT_HANDOFF=HANDOFF_FOR_CONTEXT_MANAGEMENT_2026_11_14
+- NEXT_ACTION=await user authorization, then RED-first R8/JNI keep contract fix; rebuild signed arm64 and hand to another fresh candidate regression owner
+- STOP_CONDITION=P0 triggered; no product fix until user authorizes blocker implementation scope
+- CURRENT_HANDOFF=P0_SIGNED_RELEASE_JNI_STOP_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
