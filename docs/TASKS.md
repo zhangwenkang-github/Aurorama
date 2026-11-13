@@ -8,7 +8,7 @@
 ### ACTIVE — AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
-- TASK_STAGE=BATCH_DOWNLOAD_MISMATCH / RED_IMPLEMENTATION_PENDING / DIAGNOSTIC_COMPLETE
+- TASK_STAGE=BATCH_DOWNLOAD_MISMATCH / IMPLEMENTATION_GREEN / SIGNED_BUILD_PENDING
 - PROFESSIONAL_IDENTITY=AURORAMA_141_RELEASE_FINISH_LEAD_NEXT_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
@@ -40,11 +40,11 @@
 - P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:USER_REPORTED_NOT_PROVEN;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED;NEW-STARTUP-MAIN-THREAD-CRASH=CLOSED_BY_71e9c6e5_DEVICE_SAME_PATH;NEW-OFFLINE-NETWORK-FIRST=CLOSED_BY_77620372_DEVICE_OFFLINE
 - P2=P2-PLAYER-LOADING-001:OPEN;P2-PLAYER-STALL-001:OPEN;DOWNLOAD-BACKOFF-NOTIFICATION=OPEN_NONBLOCKING
 - P3=subtitle visual pixels NOT_RUN; ColorOS/K60 NOT_RUN; Movie enrichment real injection unavailable; two historical completed download files EOF in local mpv triage; local dual-backend fixture no audio; direct-file source failure from stale server media
-- NEXT_ROLE=AURORAMA_141_BATCH_DOWNLOAD_MISMATCH_IMPLEMENTATION_OWNER_R1_2026_11_14
+- NEXT_ROLE=AURORAMA_141_BATCH_DOWNLOAD_RELEASE_BUILDER_R1_2026_11_14
 - FIRST_READ_ACTION=read PROJECT_PLAN then this ACTIVE then DOWNLOAD_PLAN W51/W51b/W90 lineage, USER_REPORT, STATE_EFFECT_MATRIX and TARGETED_VERIFICATION_PLAN; verify HEAD/tree/clean and Pad lock
-- NEXT_ACTION=write identity-set RED for aggregate paging/list itemCount unchanged but content replaced, then minimally fix selectedIds-to-selectedItems batch boundary and run targeted gates
-- STOP_CONDITION=stop if RED cannot prove identity drift, more than 2 same-symptom attempts, object/lock drift, production write, or fix requires Downloader/schema/architecture scope
-- CURRENT_HANDOFF=BATCH_DOWNLOAD_MISMATCH_IMPLEMENT_2026_11_14
+- NEXT_ACTION=build signed arm64 and universal 1.4.1(6) from fix commit 4900ff0e, verify package/version/ABI/apksigner/hash, then hand to fresh signed verifier
+- STOP_CONDITION=object/clean/signing drift, unsigned-only, version/ABI/apksigner mismatch, more than 2 same-symptom attempts, or fix requiring Downloader/schema/architecture scope
+- CURRENT_HANDOFF=BATCH_DOWNLOAD_MISMATCH_SIGNED_BUILD_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1767,7 +1767,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=A QA product rows remain NOT_RUN pending user structural identity decision; PLAYER_CORE_RELEASE_MATRIX 12/12; full-scope review; merge-prep; integration; signed 1.4.1/6 packages; final QA; Release.
 - STOP_CONDITION=Do not dispatch A QA or device QA until user explicitly decides structural identity. No same-shape nav harness repair. Full-scope review stops on object/review/P0-P2 drift; merge-prep only after full-scope review PASS.
 - MANUAL_LIMITATION=A QA output-boundary issue is closed. A R9 real window then failed before playback because closed UI lacks structural identity; different fresh verifier confirms BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY. This is a QA coverage block pending explicit user decision, not a product playback failure. B/C/D scoped reviews PASS but remain non-device and non-Release evidence.
-- MANUAL_OWNER=AURORAMA_141_BATCH_DOWNLOAD_MISMATCH_IMPLEMENTATION_OWNER_R1_2026_11_14
+- MANUAL_OWNER=AURORAMA_141_BATCH_DOWNLOAD_RELEASE_BUILDER_R1_2026_11_14
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
