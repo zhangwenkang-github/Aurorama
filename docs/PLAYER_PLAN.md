@@ -9702,3 +9702,33 @@ SHA-256 `CC0724148C762ADCC373D765E6F6DEC597679544C8106AADBF8B436EF9C4FC61`，
 BugLoopPrompt PASS。R18 首任务是从 `1b847ba6` 重建 exact debug APK，再派全新 A 簇设备证据
 owner；按 A1（PC-03/04/05/12）与 A2（PC-01/02/11+crash class）两个 ≤600 秒 Pad
 `43af8627` 窗口推进。仍禁止 K60 / OnePlus / 下载 capture / 生产写 / 截图。
+
+**进度（2026-11-13，R18 startup PASS / exact APK 重建 / A 簇证据 owner 卡就绪）**：
+R18 交付负责人完成 minimal startup gate：Control clean；candidate
+`1b847ba69c2e64b5c5e1d16c583908091cac5e81 / tree 235f7235a81861517327fdb3a17fbae37c21ec75`
+clean，相对上一候选恰 2 路径；implementation manifest `40/40 MATCH`、review manifest
+`4/4 MATCH`；唯一 ACTIVE 与 lock `ACTIVE=0` 无漂移；Engramory checker/doctor clean。
+从 exact candidate 以 `--offline --rerun-tasks` 实际重建 phone debug，`251/251 tasks executed`，
+APK `151,260,871 B` / SHA-256
+`FDB4C5C74E807F3646F64B544BAC1288ED510BB98AED6242C7FB01657AA3A513`，与交接值 MATCH。
+
+已创建最小 A 簇证据卡与 owner prompt：
+
+```text
+CARD=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-r18-a-cluster-device-evidence-r1-2026-11-13\R18_A_CLUSTER_A1_A2_CARD.md
+CARD_SHA256=FE4622F7543E78469F30303180C9CC4297B67663647FBF66B07D3D79D71A36C0
+PROMPT=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-r18-a-cluster-device-evidence-r1-2026-11-13\R18_A_CLUSTER_A1_A2_OWNER_PROMPT.md
+PROMPT_SHA256=02B2925363E73BEB50B1BF7A46DD551239711A1EBD4EF5061E8C9B5180375647
+BUG_LOOP_DISPATCH_GATE=PASS
+```
+
+A1 固定 `PC-03 / PC-04 / PC-05 / PC-12`，A2 固定 `PC-01 / PC-02 / PC-11` 与 playback
+crash class。两个窗口各自登记唯一 Pad `43af8627` 锁，单窗口 ≤600 秒，结束立即释放；
+A1 PASS 后才允许 A2。设备输出只能经 verified allowlist / closed structural identity /
+local fixture route 投影，逐操作采集 operation start、target/accepted、engine/UI/
+MediaSession position+buffered+state、loading、stall terminal、retry、EOS、process alive 与
+source epoch。真实资源值、raw UI/log、K60、OnePlus、下载 capture、生产写与截图继续禁止。
+
+当前 A1/A2 均为 `NOT_RUN`，`QA_PASS=NO`、`PLAYER_CORE_RELEASE_MATRIX=NOT_RUN`、
+`RELEASE_PASS=NO`。下一实际动作是派与实现/reviewer 不同的 fresh A 簇证据 owner；A1/A2
+结果回来后再决定产品修复、独立 QA 或下一关键路径，不重开 R10/R11 控制面审计。
