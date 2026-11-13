@@ -8,15 +8,15 @@
 ### ACTIVE — AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
-- TASK_STAGE=BATCH_DOWNLOAD_MISMATCH / OBSERVE_PENDING / NOT_PROVEN
+- TASK_STAGE=BATCH_DOWNLOAD_MISMATCH / RED_IMPLEMENTATION_PENDING / DIAGNOSTIC_COMPLETE
 - PROFESSIONAL_IDENTITY=AURORAMA_141_RELEASE_FINISH_LEAD_NEXT_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE
 - BUG_LOOP_MAX_ATTEMPTS=2
 - BUG_LOOP_USER_PATH=SEASON_BATCH_SELECT_TWO_EPISODES_THEN_ENQUEUE_AND_COMPARE_STABLE_IDS
-- REPRO_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-batch-download-mismatch-r1-2026-11-14\USER_REPORT.md
-- PRIMARY_HYPOTHESIS=NONE_PENDING_TRACE_CURRENT
+- REPRO_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-batch-download-mismatch-r1-2026-11-14\DIAGNOSTIC_REPORT.md
+- PRIMARY_HYPOTHESIS=AGGREGATE_GRID_SELECTION_IDS_AND_ENQUEUE_ITEMS_USE_STALE_OR_PARTIAL_PAGING_SNAPSHOTS
 - TARGETED_VERIFICATION=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-batch-download-mismatch-r1-2026-11-14\TARGETED_VERIFICATION_PLAN.md
 - BUG_LOOP_STOP_BUDGET=2_SAME_SYMPTOM_ATTEMPTS_THEN_STOP_OR_USER_DECISION
 - FULL_MATRIX_GATE=RELEASE_CANDIDATE_ONLY
@@ -40,11 +40,11 @@
 - P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:USER_REPORTED_NOT_PROVEN;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED;NEW-STARTUP-MAIN-THREAD-CRASH=CLOSED_BY_71e9c6e5_DEVICE_SAME_PATH;NEW-OFFLINE-NETWORK-FIRST=CLOSED_BY_77620372_DEVICE_OFFLINE
 - P2=P2-PLAYER-LOADING-001:OPEN;P2-PLAYER-STALL-001:OPEN;DOWNLOAD-BACKOFF-NOTIFICATION=OPEN_NONBLOCKING
 - P3=subtitle visual pixels NOT_RUN; ColorOS/K60 NOT_RUN; Movie enrichment real injection unavailable; two historical completed download files EOF in local mpv triage; local dual-backend fixture no audio; direct-file source failure from stale server media
-- NEXT_ROLE=AURORAMA_141_BATCH_DOWNLOAD_MISMATCH_DIAGNOSTICIAN_R1_2026_11_14
+- NEXT_ROLE=AURORAMA_141_BATCH_DOWNLOAD_MISMATCH_IMPLEMENTATION_OWNER_R1_2026_11_14
 - FIRST_READ_ACTION=read PROJECT_PLAN then this ACTIVE then DOWNLOAD_PLAN W51/W51b/W90 lineage, USER_REPORT, STATE_EFFECT_MATRIX and TARGETED_VERIFICATION_PLAN; verify HEAD/tree/clean and Pad lock
-- NEXT_ACTION=observe one two-episode season batch selection on Pad 43af8627, trace current selection-to-queue identity path, and return one falsifiable primary hypothesis
-- STOP_CONDITION=object/evidence/lock drift, more than 2 same-symptom attempts, production write, or a fix requiring product/architecture scope beyond batch selection identity
-- CURRENT_HANDOFF=BATCH_DOWNLOAD_MISMATCH_DIAGNOSE_2026_11_14
+- NEXT_ACTION=write identity-set RED for aggregate paging/list itemCount unchanged but content replaced, then minimally fix selectedIds-to-selectedItems batch boundary and run targeted gates
+- STOP_CONDITION=stop if RED cannot prove identity drift, more than 2 same-symptom attempts, object/lock drift, production write, or fix requires Downloader/schema/architecture scope
+- CURRENT_HANDOFF=BATCH_DOWNLOAD_MISMATCH_IMPLEMENT_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1767,7 +1767,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=A QA product rows remain NOT_RUN pending user structural identity decision; PLAYER_CORE_RELEASE_MATRIX 12/12; full-scope review; merge-prep; integration; signed 1.4.1/6 packages; final QA; Release.
 - STOP_CONDITION=Do not dispatch A QA or device QA until user explicitly decides structural identity. No same-shape nav harness repair. Full-scope review stops on object/review/P0-P2 drift; merge-prep only after full-scope review PASS.
 - MANUAL_LIMITATION=A QA output-boundary issue is closed. A R9 real window then failed before playback because closed UI lacks structural identity; different fresh verifier confirms BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY. This is a QA coverage block pending explicit user decision, not a product playback failure. B/C/D scoped reviews PASS but remain non-device and non-Release evidence.
-- MANUAL_OWNER=AURORAMA_141_BATCH_DOWNLOAD_MISMATCH_DIAGNOSTICIAN_R1_2026_11_14
+- MANUAL_OWNER=AURORAMA_141_BATCH_DOWNLOAD_MISMATCH_IMPLEMENTATION_OWNER_R1_2026_11_14
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
