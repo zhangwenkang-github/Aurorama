@@ -9502,3 +9502,10 @@ checker/doctor 均 PASS。审计 manifest `5/5 MATCH`，report / result / manife
 也不会清理它们。当前上下文 `393488 / 1048576 = 37.5%`，已超过 35 万交接线；下一步只能是
 带该明确 accounting 的全新只读 pre-handoff audit R2。只有 artifact R2 PASS 后才能创建 R15；
 本会话不再进入卡、锁或 QA。
+
+后续 audit R2 已证明外部 dirty docs 可接受 accounting，但发现两处文档漂移：旧 R1
+report/result SHA 与 R15 startup 旧 Control。两项已修正；audit R3 又发现 R15 startup 把
+具体 audit R2 写成必须 PASS，且 ACTIVE 仍指向 R2。现在统一改为稳定条件
+`LATEST_FRESH_PRE_HANDOFF_AUDIT_PASS`，ACTIVE 不再绑定具体 audit 序号；下一轮只做新的
+fresh 只读 audit。R3 的 FAIL receipt 保留，不覆盖。audit PASS 后才创建 R15，当前仍
+`QA_READY=NO / LOCK_ACTIVE=0`，无卡、锁或 QA。
