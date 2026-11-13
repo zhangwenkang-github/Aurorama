@@ -9641,3 +9641,34 @@ SHA-256 `61E4365DC2200542CE9A583AC49C08B26DA27F8F09B69417354051732363C68B`。
 断言 RED → 最小 GREEN → player-local targeted / phone assemble 和 diff-scope 证据。完成后只到
 `IMPLEMENTATION_DONE / AUTOMATION_GREEN / REVIEW_PENDING`；仍不得申请设备、创建 A QA 卡、Pad
 锁、QaReady 或 QA，也不得写产品 / Release PASS。
+
+**进度（2026-11-13，progress `time-pos` 最小实现 GREEN / 交接 R17）**：不同 fresh
+`AURORAMA_141_PLAYER_PROGRESS_TIMEPOS_R1_IMPLEMENTATION_OWNER_2026_11_13` 在隔离分支
+`codex/v141-player-progress-timepos-r1-2026-11-13` 完成 1 个提交：
+`2873636dc7419f3e1cdef073d653639bab777a34` / tree
+`002f30c69e6f8ab40cc6e56f935097edea4d8244` / parent
+`b4f7d21fbd4ef17cc351db062117407ae14b1576`，clean，changed paths 恰 2：
+
+- `player/local/src/main/java/com/zhangwenkang/cinefin/player/local/mpv/MPVPlayer.kt`
+- `player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSessionRulesTest.kt`
+
+实现以 `EVENT_POSITION_DISCONTINUITY + DISCONTINUITY_REASON_INTERNAL` 发布普通 mpv
+`time-pos` 的非 seek 位置刷新；没有改 seek discontinuity、EOS、queue、R19 barrier、R20 init、
+loading/stall 阈值或 UI 位置真源。正式 RED 为断言失败
+`expected:<[1250, 1500]> but was:<[]>`；player-local `44 XML / 400 tests / 0 failures /
+0 errors / 0 skipped`，formatter 后 focused test PASS，phone assemble exit 0，diff-check PASS。
+implementation manifest `31/31 MATCH`，SHA-256
+`79273B760059426DAEE338F9F97AB4FE9BD00521372BC0D1C1CBDBCF406FFAE7`。新增产品 P0–P3
+`0/0/0/0`。
+
+该 GREEN 只证明离线合同和 targeted 构建；`P1-PLAYER-PROGRESS-001` 仍 OPEN，真实 HLS+mpv、
+MediaSession binder、暂停 / 缓冲 / 恢复、seek、EOS、DirectPlay+Exo、QA 与 Release 全部未执行。
+当前实测上下文 `305948 / 1048576 = 29.2%`，已超过 30 万准备档，本会话不再派新 review owner。
+
+已创建后继入口：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-timepos-r1-handoff-2026-11-13\R17_DELIVERY_LEAD_PROMPT.md`，
+SHA-256 `5AA22F6D4D16757E963B14EA13F708F511C83B8A0F4538B5DA275B4372D9C486`，
+`BUG_LOOP_DISPATCH_GATE=PASS / exit 0`。R17 第一实际任务是派不同 fresh scoped reviewer 复审
+`2873636d` 的 2 路径 diff、Media3 internal discontinuity 语义、RED/GREEN 与 manifest；review
+PASS 后才由新负责人决定当前 candidate 的定向真实设备证据。仍不进入 A QA 卡、Pad 锁、QaReady
+或 QA，不继续 R10/R11 控制面审计自旋。
