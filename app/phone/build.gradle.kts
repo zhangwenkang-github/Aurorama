@@ -285,3 +285,59 @@ tasks
             }
         }
     }
+
+/*
+ * libmpv 的 native 侧按原 JVM 方法名查找回调。R8 无法自行看到这条 JNI 契约，
+ * 因此 release mapping 必须保留 MPVLib 对 native 暴露的完整 callback 面。
+ */
+val verifyMpvJniReleaseContract by tasks.registering {
+    group = "verification"
+    description = "Verifies that R8 preserves libmpv JNI callback method names."
+    dependsOn("assembleLibreRelease")
+
+    doLast {
+        val mappingFile =
+            layout.buildDirectory.file("outputs/mapping/libreRelease/mapping.txt").get().asFile
+        check(mappingFile.isFile) { "缺少 release mapping：${mappingFile.absolutePath}" }
+
+        val callbacks =
+            mapOf(
+                "eventProperty" to
+                    listOf(
+                        "(java.lang.String)",
+                        "(java.lang.String,long)",
+                        "(java.lang.String,double)",
+                        "(java.lang.String,boolean)",
+                        "(java.lang.String,java.lang.String)",
+                    ),
+                "event" to listOf("(int)"),
+                "logMessage" to listOf("(java.lang.String,int,java.lang.String)"),
+            )
+        val violations =
+            mappingFile.useLines(Charsets.UTF_8) { lines ->
+                val mappingLines =
+                    lines
+                        .dropWhile { line -> !line.startsWith("dev.jdtech.mpv.MPVLib ->") }
+                        .drop(1)
+                        .takeWhile { line -> line.isNotBlank() }
+                        .toList()
+                callbacks.flatMap { (name, signatures) ->
+                    signatures.mapNotNull { signature ->
+                        val preserved = mappingLines.any { line ->
+                            val arrow = line.indexOf(" -> ")
+                            arrow >= 0 &&
+                                line.substring(arrow + 4).trim() == name &&
+                                line.substring(0, arrow).contains("void $name$signature:")
+                        }
+                        if (preserved) null else "$name$signature"
+                    }
+                }
+            }
+        check(violations.isEmpty()) {
+            "R8 丢失 libmpv JNI callback：${violations.joinToString()}；" + "必须在 release keep 规则中保留原方法名"
+        }
+        logger.lifecycle(
+            "MPV JNI release contract PASS：${callbacks.values.sumOf { it.size }} callbacks"
+        )
+    }
+}
