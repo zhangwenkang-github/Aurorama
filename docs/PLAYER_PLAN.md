@@ -9256,7 +9256,7 @@ assemble、ktfmt、diff-check 与 graphify PASS。真实 Exo/mpv 字幕画面、
 
 ## 52. 1.4.1 发布收尾与上下文交接（2026-11-14）
 
-**状态：`SIGNED_CANDIDATE_P0 / RELEASE_STOPPED`。** 本会话从
+**状态：`RELEASE_CANDIDATE_READY_WITH_DOCUMENTED_GAPS / USER_FINAL_ACCEPTANCE_PENDING`。** 本会话从
 `ff9b5a176fdd15d2b73c659e218d7c39fe56ec32` / tree
 `43a65a71e5191a13ccc195342eaab60b5af2c93e` 继续，确认工作树 clean 与 debug arm64 APK
 `153732620 B / F3E2E160…66C7` 后覆盖安装 Pad `43af8627`，登录与 data 保留。
@@ -9348,3 +9348,41 @@ Release。下一角色只能是全新的
 `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-signed-candidate-core-r1-2026-11-14\`；
 报告 SHA-256 `13A01BAD07FFBFEBBE019A54E03D3CECEFD57369B17CE0530BE2675C26A721D8`，
 manifest SHA-256 `C737A6C9F2B958308CFA15EAB780E7D21FCC023A20262820EA8ADE3458BD8EAE`。
+
+### 52.68 signed 1.4.1(6) 发布候选闭环（2026-11-14）
+
+**状态：`RELEASE_CANDIDATE_READY_WITH_DOCUMENTED_GAPS / LOCAL_ONLY / NOT_PUBLICLY_RELEASED`。**
+
+P0 经两轮最小修复关闭：
+
+- `8463b2925f5e27e9add5057fd467654cd808a5d7`：首次 R8 keep + mapping contract。
+- `6888adc254a3fff83ac5769147f5251377a4f391` / tree
+  `0dec188769004e5d09a6bec21679a6667117b859`：从 `jni_utils.cpp` 自动枚举完整 8 条
+  `MPVLib` callback，改为单类完整 JVM ABI 保护 `-keep class dev.jdtech.mpv.MPVLib { *; }`；
+  contract task 同时验证 mapping 中 41 个直接方法未改名。
+
+signed arm64 候选在 Pad `43af8627` 的最终结果：
+
+- 覆盖安装保留 data，设备侧 APK hash MATCH；`1.4.1(6)` / non-debuggable。
+- 真实 Episode `PlayerActivity` 稳定 12 秒，`am_crash / am_proc_died / am_anr` 均为 0，P0 关闭。
+- 同一 20 秒 8-bit H.264 本地 fixture：Exo 与 mpv 均完成实际出播、暂停/继续、一次 seek；
+  mpv 的 MediaSession `position=-1` 只作签名辅证，PASS 依赖 UI 实际推进。
+- 单条真实 145 MB 下载：任务受理、进度、完成、完成通知、下载页/文件一致与 App 内删除全部 PASS。
+
+最终 signed 产物：
+
+- arm64 `80486994 B / 8C36796F…856FF`
+- universal `175101164 B / 29781E51…EEE2`
+- 交付副本目录：
+  `F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-2026-11-14\`
+- delivery manifest SHA-256
+  `B3CE776262D457FD9A39643F936D98C374063D82C0CD5FE6C9818DB89A156D71`
+
+signed 包的核心用户旅程已经真实执行；这不是完整全矩阵 PASS。既有
+`P1-PLAYER-SEEK-001` / `P1-PLAYER-PROGRESS-001` 和
+`P2-PLAYER-LOADING-001` / `P2-PLAYER-STALL-001` 按原口径继续开放；在线 HLS 受测试流 reset
+阻断，字幕像素视觉与 ColorOS/K60 未覆盖。P0=0，P3 为 fixture 无音轨与两条历史已完成下载
+文件在 mpv 下提前 EOF 的数据/来源 triage。
+
+发布边界：`NO_PUSH / NO_TAG / NO_GITHUB_RELEASE`。下一步由用户做主观视觉、手感与本人设备/
+数据最终验收；只有用户明确授权后，才进入 push、tag、Release 与资产上传。
