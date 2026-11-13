@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,6 +90,7 @@ import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchActionEnabled
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchCaps
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchEventMessage
+import com.zhangwenkang.cinefin.presentation.selection.resolveMediaBatchSelection
 import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
@@ -97,6 +99,7 @@ import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.settings.domain.models.VideoDisplayMode
 import java.util.UUID
+import kotlinx.coroutines.launch
 
 /**
  * 视频模式页（W53，用户 2026-10-03 确认）：与首页 / 音乐 / 书架同级的顶层入口。
@@ -218,6 +221,7 @@ private fun VideoScreenLayout(
     val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val viewLabel = stringResource(CoreR.string.snackbar_view)
     var batchSelection by rememberMultiSelectState()
     var showBatchDeleteDialog by rememberSaveable { mutableStateOf(false) }
@@ -226,15 +230,14 @@ private fun VideoScreenLayout(
         temporaryLibrary != null ||
             (state.displayMode == VideoDisplayMode.Aggregated && state.libraries.isNotEmpty())
     val selectionMode = aggregateVisible && batchSelection.selectionMode
-    val loadedItems =
-        remember(pagingItems.itemCount) {
-            (0 until pagingItems.itemCount).mapNotNull { index -> pagingItems[index] }
-        }
-    val loadedIds = remember(loadedItems) { loadedItems.map { it.id.toString() } }
-    val selectedItems =
-        remember(loadedItems, batchSelection.selectedIds) {
-            loadedItems.filter { it.id.toString() in batchSelection.selectedIds }
-        }
+    val loadedItems = pagingItems.itemSnapshotList.items.filterNotNull()
+    val loadedIds = loadedItems.map { it.id.toString() }
+    val selectionResolution =
+        resolveMediaBatchSelection(
+            currentItems = loadedItems,
+            selectedIds = batchSelection.selectedIds,
+        )
+    val selectedItems = selectionResolution.items
     val selectedCaps =
         remember(selectedItems, downloadState) {
             selectedItems.map { item ->
@@ -444,7 +447,19 @@ private fun VideoScreenLayout(
                 onAction = { action ->
                     when (action) {
                         MediaBatchAction.PLAY -> batchViewModel.playSelected(selectedItems)
-                        MediaBatchAction.DOWNLOAD -> batchViewModel.downloadSelected(selectedItems)
+                        MediaBatchAction.DOWNLOAD ->
+                            if (selectionResolution.isComplete) {
+                                batchViewModel.downloadSelected(selectedItems)
+                            } else {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(
+                                            CoreR.string.selection_load_failed,
+                                            selectionResolution.issueCount,
+                                        )
+                                    )
+                                }
+                            }
                         MediaBatchAction.MARK_PLAYED ->
                             batchViewModel.markPlayedSelected(selectedItems)
                         MediaBatchAction.FAVORITE -> batchViewModel.favoriteSelected(selectedItems)

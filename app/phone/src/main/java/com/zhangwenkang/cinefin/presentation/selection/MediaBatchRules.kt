@@ -135,6 +135,38 @@ fun batchPlayOrder(items: List<FindroidItem>): List<FindroidItem> = items.filter
     mediaItemPlayable(it)
 }
 
+data class MediaBatchSelection(
+    val items: List<FindroidItem>,
+    val missingIds: Set<String> = emptySet(),
+    val duplicateIds: Set<String> = emptySet(),
+) {
+    val isComplete: Boolean
+        get() = missingIds.isEmpty() && duplicateIds.isEmpty()
+
+    val issueCount: Int
+        get() = missingIds.size + duplicateIds.size
+}
+
+fun resolveMediaBatchSelection(
+    currentItems: List<FindroidItem>,
+    selectedIds: Set<String>,
+): MediaBatchSelection {
+    val selectedCurrentItems = currentItems.filter { it.id.toString() in selectedIds }
+    val resolvedItems = selectedCurrentItems.distinctBy { it.id }
+    val duplicateIds =
+        selectedCurrentItems
+            .groupingBy { it.id.toString() }
+            .eachCount()
+            .filterValues { count -> count > 1 }
+            .keys
+    val resolvedIds = resolvedItems.map { it.id.toString() }.toSet()
+    return MediaBatchSelection(
+        items = resolvedItems,
+        missingIds = selectedIds - resolvedIds,
+        duplicateIds = duplicateIds,
+    )
+}
+
 /** 批量「下载」目标：跳过已下载 / 已在下载队列的条目。 */
 fun batchDownloadTargets(
     items: List<FindroidItem>,

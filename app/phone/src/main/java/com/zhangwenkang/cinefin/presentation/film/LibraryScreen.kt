@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -93,6 +94,7 @@ import com.zhangwenkang.cinefin.presentation.selection.mediaBatchActionEnabled
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchCaps
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchEventMessage
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchMode
+import com.zhangwenkang.cinefin.presentation.selection.resolveMediaBatchSelection
 import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
@@ -104,6 +106,7 @@ import com.zhangwenkang.cinefin.utils.BookCoverRules
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 
 /** W69b：进入页面时预取详情的卡片数（只取前几张可见卡，避免放大请求量）。 */
 private const val DETAIL_PREFETCH_COUNT = 6
@@ -266,18 +269,20 @@ private fun LibraryScreenLayout(
     val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val viewLabel = stringResource(CoreR.string.snackbar_view)
     var batchSelection by rememberMultiSelectState()
     var showBatchDeleteDialog by rememberSaveable { mutableStateOf(false) }
     val selectionMode = batchMode != MediaBatchMode.NONE && batchSelection.selectionMode
     // 「已加载条目」快照：分页只取已加载部分（不拉全库），翻页 / 刷新后由 retain 求交集。
-    val loadedItems =
-        remember(items.itemCount) { (0 until items.itemCount).mapNotNull { index -> items[index] } }
-    val loadedIds = remember(loadedItems) { loadedItems.map { it.id.toString() } }
-    val selectedItems =
-        remember(loadedItems, batchSelection.selectedIds) {
-            loadedItems.filter { it.id.toString() in batchSelection.selectedIds }
-        }
+    val loadedItems = items.itemSnapshotList.items.filterNotNull()
+    val loadedIds = loadedItems.map { it.id.toString() }
+    val selectionResolution =
+        resolveMediaBatchSelection(
+            currentItems = loadedItems,
+            selectedIds = batchSelection.selectedIds,
+        )
+    val selectedItems = selectionResolution.items
     val selectedCaps =
         remember(selectedItems, downloadState) {
             selectedItems.map { item ->
@@ -758,7 +763,19 @@ private fun LibraryScreenLayout(
                 onAction = { action ->
                     when (action) {
                         MediaBatchAction.PLAY -> batchViewModel.playSelected(selectedItems)
-                        MediaBatchAction.DOWNLOAD -> batchViewModel.downloadSelected(selectedItems)
+                        MediaBatchAction.DOWNLOAD ->
+                            if (selectionResolution.isComplete) {
+                                batchViewModel.downloadSelected(selectedItems)
+                            } else {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(
+                                            CoreR.string.selection_load_failed,
+                                            selectionResolution.issueCount,
+                                        )
+                                    )
+                                }
+                            }
                         MediaBatchAction.MARK_PLAYED ->
                             batchViewModel.markPlayedSelected(selectedItems)
                         MediaBatchAction.FAVORITE -> batchViewModel.favoriteSelected(selectedItems)

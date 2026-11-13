@@ -123,6 +123,54 @@ class MediaBatchRulesTest {
     }
 
     @Test
+    fun `selection resolution detects ids missing after same-size list replacement`() {
+        val a = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000001"))
+        val b = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000002"))
+        val c = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000003"))
+
+        val resolved =
+            resolveMediaBatchSelection(
+                currentItems = listOf(b, c),
+                selectedIds = setOf(a.id.toString(), b.id.toString()),
+            )
+
+        assertEquals(listOf(b), resolved.items)
+        assertEquals(setOf(a.id.toString()), resolved.missingIds)
+        assertFalse(resolved.isComplete)
+    }
+
+    @Test
+    fun `selection resolution rejects duplicate current identities`() {
+        val item = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000004"))
+
+        val resolved =
+            resolveMediaBatchSelection(
+                currentItems = listOf(item, item),
+                selectedIds = setOf(item.id.toString()),
+            )
+
+        assertEquals(setOf(item.id.toString()), resolved.duplicateIds)
+        assertFalse(resolved.isComplete)
+    }
+
+    @Test
+    fun `selection resolution keeps current order and resolves one-to-one`() {
+        val a = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000005"))
+        val b = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000006"))
+
+        val resolved =
+            resolveMediaBatchSelection(
+                currentItems = listOf(a, b),
+                selectedIds = setOf(b.id.toString(), a.id.toString()),
+            )
+
+        assertEquals(listOf(a, b), resolved.items)
+        assertTrue(resolved.missingIds.isEmpty())
+        assertTrue(resolved.duplicateIds.isEmpty())
+        assertTrue(resolved.isComplete)
+    }
+
+    @Test
     fun `delete targets keep only downloaded server items`() {
         val a = movie()
         val b = movie()
@@ -163,12 +211,13 @@ class MediaBatchRulesTest {
     }
 
     private fun movie(
+        id: UUID = UUID.randomUUID(),
         played: Boolean = false,
         favorite: Boolean = false,
         canPlay: Boolean = true,
     ) =
         FindroidMovie(
-            id = UUID.randomUUID(),
+            id = id,
             name = "测试电影",
             originalTitle = null,
             overview = "",
