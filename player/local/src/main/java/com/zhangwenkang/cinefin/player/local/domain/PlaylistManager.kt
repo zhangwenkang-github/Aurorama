@@ -71,7 +71,8 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
 
         val initialItem =
             when (itemKind) {
-                BaseItemKind.MOVIE -> {
+                BaseItemKind.MOVIE,
+                BaseItemKind.VIDEO -> {
                     val movie = repository.getMovie(itemId)
 
                     items = listOf(movie)

@@ -535,7 +535,8 @@ class JellyfinRepositoryImpl(
             },
             materialize = { dto ->
                 withContext(Dispatchers.IO) {
-                    dto.toFindroidEpisode(this@JellyfinRepositoryImpl, database)!!
+                    dto.toFindroidEpisode(this@JellyfinRepositoryImpl, database)
+                        ?: throw IllegalStateException("该条目不是可播放的剧集")
                 }
             },
         )
