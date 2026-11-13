@@ -9406,3 +9406,44 @@ audit。PASS 后第一实际工作是派一个全新 runtime-adapter repair owne
 另一个 fresh verifier 全量复核。adapter verifier PASS 前不得建 A QA 卡、登记 Pad 锁、运行
 canonical QaReady 或派 QA。当前 `QA_READY=NO / LOCK_ACTIVE=0 / PLAYER_CORE_RELEASE_MATRIX=NOT_RUN`，
 下载 capture 继续 RETIRED。
+
+**进度（2026-11-13，R13 runtime adapter repair R1 owner GREEN / fresh verifier R2 BLOCKED）**：
+R14 完成最小 startup 后，只派了不同 fresh
+`AURORAMA_141_R13_A_QA_RUNTIME_ADAPTER_REPAIR_OWNER_R1_2026_11_13`
+（`deepseek-flash / max / fork=none`）。owner 在
+`evidence-v1-4-1-r13-a-qa-runtime-adapter-repair-owner-r1-2026-11-13` 独立根保留 27 文件
+immutable R13 owner snapshot，先以冻结 R1 probe 双跑复现 `60 PASS / 18 FAIL`，再把
+operation/package/activity/focus/screen/phase/resource-id/role 改为 ordinal exact，完整拒绝
+Unicode `Control / Format`，并要求 `visible=true`、合法 bounds、完整 viewport containment
+与 click center 联合约束。owner self-test 为 same probe `78/78 PASS`、behavior
+`111/111`、adversarial `13/13`、projection `6/6`、新增边界 `70`；root manifest
+`107/107 MATCH`，报告 / 结果 / manifest SHA 为
+`1066F31C...C80D73 / C3A2A6BB...B1FEBE / 8172BDF2...A85C131`。这只是 owner self-test，
+不是 verifier、设备或 QA PASS。
+
+随后另一个不同 fresh
+`AURORAMA_141_R13_A_QA_RUNTIME_ADAPTER_FRESH_VERIFIER_R2_2026_11_13`
+把 repair 根按字节复制到
+`evidence-v1-4-1-r13-a-qa-runtime-adapter-fresh-verifier-r2-2026-11-13` 并独立复跑。
+原始 RED 仍稳定为 `60 PASS / 18 FAIL`；但修复后 work 的冻结 R1 probe 为
+`62 PASS / 16 FAIL / exit 1`，两跑结果 SHA
+`F7BBE0DA827B81E672BB6B18743AAFF1C63B73CC6D42F5C325A8F03F7637CB17` 完全一致。
+其中 8 个预期 fail-closed case 实际返回 valid，另 8 个已 fail-closed 但返回
+`DUPLICATE_ATTRIBUTE`，偏离冻结合同固定错误码。原因边界是 repair fixtures 已显式写入
+`visible=true`，而冻结 probe 的 mutation 仍按旧 fixture 追加同名属性或复用不含
+`visible=true` 的节点模板；verifier 不得改冻结 probe 或删除失败项来取得 PASS。
+
+fresh verifier R2 因此为 `BLOCKED_RUNTIME_ADAPTER_FROZEN_GREEN_REPLAY`，复制前后
+repair `108/108 BYTE`、root manifest `107/107`、verifier manifest `235/235` 均 MATCH；
+报告 / 结果 / manifest SHA 为
+`E4378529...CBA8EED / 82AA0D5F...6D7690D / 4943EDD2...ACFF2`。新增 P0–P3
+`0/0/0/0`，两个目标 P2 仍为 `NOT_PROVEN_BY_EXACT_FROZEN_GREEN`，没有被关闭。官方 owner
+矩阵与至少 24 个 verifier-only probes 因前置门失败保持 `NOT_RUN`。本轮无设备、ADB、
+截图、卡、Pad 锁、QaReady、QA、核心矩阵、merge、integration 或 Release；当前仍为
+`QA_READY=NO / LOCK_ACTIVE=0`。
+
+按 Bug Loop stop budget，本负责人不自动开第二轮 repair。下一步必须由用户决定是否授权一个
+不同 fresh runtime-adapter repair owner R2，仅对齐 repaired synthetic fixtures 与冻结 R1
+probe 的固定错误码 / 节点模板，同时保留 ordinal exact、Control/Format fail-closed 和
+visible-viewport 合同；完成后仍须由另一个不同 fresh verifier R3 全量复核。未获 verifier
+PASS 前不得建 A QA 卡、登记 Pad `43af8627` 锁、运行 QaReady 或派 QA。
