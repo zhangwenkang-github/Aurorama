@@ -9732,3 +9732,43 @@ source epoch。真实资源值、raw UI/log、K60、OnePlus、下载 capture、�
 当前 A1/A2 均为 `NOT_RUN`，`QA_PASS=NO`、`PLAYER_CORE_RELEASE_MATRIX=NOT_RUN`、
 `RELEASE_PASS=NO`。下一实际动作是派与实现/reviewer 不同的 fresh A 簇证据 owner；A1/A2
 结果回来后再决定产品修复、独立 QA 或下一关键路径，不重开 R10/R11 控制面审计。
+
+**进度（2026-11-13，R18 A1 两轮失败 / 进程缺失未分类 / 单次诊断派单）**：fresh A 簇
+evidence owner 完成两次独立 A1 锁窗口，均安全释放，最终 `LOCK_ACTIVE=0`：
+
+- 第一次窗口 runtime `0.312 s`、锁持有 `506.263 s`，在 App 启动前因 launcher resolver
+  两行输出被误解析而 fail-closed；App start `0`、playback start `0`，分类 HARNESS。
+- 第二次窗口 runtime `22.600 s`、锁持有 `183.194 s`，真实 App start `1`，但 closed UI
+  inventory 5 次均未产生可解析快照；click `0`、playback start `0`。events 只有
+  `am_proc_start=1`，`am_crash / am_proc_died / am_ANR=0`。
+- cleanup 后 debug PID 为空，不能单独证明 App 在启动后自行死亡；`PROCESS_ABSENCE_CLASS`
+  保持 `UNCLASSIFIED`。因此 `PC-03/04/05/12=NOT_RUN`，A2 未取锁并全部 `NOT_RUN`。
+
+证据三件套：
+
+```text
+REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-r18-a-cluster-device-evidence-r1-2026-11-13\A_CLUSTER_DEVICE_EVIDENCE_REPORT.md
+REPORT_SHA256=44369C24BD9C6FEDC95765D580DE8A60F4764CA5BCF8F62C9ED28AF24265261F
+RESULT_SHA256=4974BBBD3FCF696465501DEABAB85639933157ABD2CBD8AB0E425D8C25CCD024
+MANIFEST=11/11_MATCH
+MANIFEST_SHA256=BE585856104F617F82861D1B2517FC78A2544183F93B819EF6ED2E82D4D7489E
+```
+
+settings 前后系统 `17/17`、App `28/28` MATCH；安装 exact debug 仅一次且 data inode 保留；
+debug services / MediaSession / notification / remote UI dump 收尾为 0；release base 与 PID
+保持；K60、OnePlus、生产写、下载 capture、截图、raw UI/log 持久化均为 0。新增 confirmed
+P0–P3 为 `0/0/0/0`，存在未分类 blocker `APP_PROCESS_ABSENCE_AFTER_A1_APP_START`。
+
+下一角色是全新
+`AURORAMA_141_R18_A1_PROCESS_ABSENCE_DIAGNOSTICIAN_R1_2026_11_13`。诊断卡只允许一次
+Pad `43af8627` App 启动，无点击、无播放、无第二次启动；在 cleanup 前采样 launch outcome、
+PID、focus/resume、closed events 和最多 5 次 UI dump 结果，分类为
+`HARNESS_LAUNCH_FAILURE / APP_CRASH / APP_ANR / APP_NORMAL_FINISH / SYSTEM_PROCESS_KILL /
+APP_STILL_ALIVE_UI_CAPTURE_FAILURE / BLOCKED_INSUFFICIENT_EVIDENCE` 之一。诊断完成前不得
+重开第三次同形 A1、A2、完整矩阵、merge、integration 或 Release。
+
+```text
+DIAGNOSIS_CARD_SHA256=009867DA1917EEDD2FFDEBFF6ACAC64C3C2A8DE2D2BAC24E67EED86E4E8DAB7F
+DIAGNOSIS_PROMPT_SHA256=F318E102487E5A79858F6CE4CFFF576488F03356E16847C9427D0A02B78F6B74
+QA_READY=NO
+```
