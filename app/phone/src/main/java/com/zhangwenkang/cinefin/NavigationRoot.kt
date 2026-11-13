@@ -56,6 +56,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -319,6 +324,30 @@ data class TemporaryLibraryRoute(
 /** W37：本地媒体库详情（本地库总览卡进入）。 */
 @Serializable data class LocalLibraryRoute(val libraryId: Long)
 
+internal data class LocalLibraryQaSemantics(
+    val mainNavigationScreenTag: String,
+    val mediaGroupTag: String,
+    val localLibraryItemTag: String,
+    val localLibraryScreenTag: String,
+    val clickableRole: Role,
+)
+
+internal fun localLibraryQaSemantics(
+    isPadRail: Boolean,
+    isDebugBuild: Boolean,
+): LocalLibraryQaSemantics? =
+    if (isPadRail && isDebugBuild) {
+        LocalLibraryQaSemantics(
+            mainNavigationScreenTag = "aurorama.qa.main_navigation.screen",
+            mediaGroupTag = "aurorama.qa.media_group.nav_item",
+            localLibraryItemTag = "aurorama.qa.local_library.nav_item",
+            localLibraryScreenTag = "aurorama.qa.local_library.screen",
+            clickableRole = Role.Button,
+        )
+    } else {
+        null
+    }
+
 @Serializable data class MovieRoute(val movieId: String)
 
 @Serializable data class ShowRoute(val showId: String)
@@ -473,6 +502,11 @@ fun NavigationRoot(
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val compactNavigation =
         !windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
+    val qaSemantics =
+        localLibraryQaSemantics(
+            isPadRail = !compactNavigation,
+            isDebugBuild = BuildConfig.DEBUG,
+        )
     // W65（用户 2026-10-04 拍板，全部按推荐）：侧栏宽度自适应——屏宽取窗口配置（旋转 / 分屏即时生效），
     // 宽度计算是纯函数（NavigationIa.kt + 单测）：侧轨展开 clamp(30%, 200, 240)dp、手机抽屉 clamp(55%, 208, 280)dp；
     // 折叠轨恒定 72dp。
@@ -1267,27 +1301,33 @@ fun NavigationRoot(
             }
             composable<LocalLibraryRoute> { backStackEntry ->
                 val route: LocalLibraryRoute = backStackEntry.toRoute()
-                LocalLibraryDetailScreen(
-                    libraryId = route.libraryId,
-                    onBack = { navController.safePopBackStack() },
-                    // W53B：库级设置（「在媒体库显示」开关 / 重命名 / 条目数）变化后刷新侧栏「本地媒体库」子分组。
-                    onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
-                    onPlayVideo = { itemId ->
-                        val intent = Intent(context, PlayerActivity::class.java)
-                        intent.putExtra("itemId", itemId.toString())
-                        intent.putExtra("itemKind", BaseItemKind.MOVIE.serialName)
-                        context.startActivity(intent)
-                    },
-                    onOpenBook = { itemId, title, documentUri ->
-                        openReader(
-                            context = context,
-                            itemId = itemId.toString(),
-                            title = title,
-                            localUri = documentUri,
-                        )
-                    },
-                    onMusicStarted = { navigateTopLevel(MusicModeRoute) },
-                )
+                Box(
+                    modifier =
+                        Modifier.fillMaxSize()
+                            .localLibraryQaTestTag(qaSemantics?.localLibraryScreenTag)
+                ) {
+                    LocalLibraryDetailScreen(
+                        libraryId = route.libraryId,
+                        onBack = { navController.safePopBackStack() },
+                        // W53B：库级设置（「在媒体库显示」开关 / 重命名 / 条目数）变化后刷新侧栏「本地媒体库」子分组。
+                        onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
+                        onPlayVideo = { itemId ->
+                            val intent = Intent(context, PlayerActivity::class.java)
+                            intent.putExtra("itemId", itemId.toString())
+                            intent.putExtra("itemKind", BaseItemKind.MOVIE.serialName)
+                            context.startActivity(intent)
+                        },
+                        onOpenBook = { itemId, title, documentUri ->
+                            openReader(
+                                context = context,
+                                itemId = itemId.toString(),
+                                title = title,
+                                localUri = documentUri,
+                            )
+                        },
+                        onMusicStarted = { navigateTopLevel(MusicModeRoute) },
+                    )
+                }
             }
             composable<BookshelfRoute> {
                 if (isOfflineMode) {
@@ -1716,6 +1756,7 @@ fun NavigationRoot(
         // W65：手机抽屉宽自适应（clamp(55%, 208, 280)dp；K60 ≈ 216dp），平板形态不渲染抽屉。
         drawerWidth = adaptiveDrawerWidthDp.dp,
         drawerSkin = { drawerContent -> LumenChrome(lumenChrome) { drawerContent() } },
+        modifier = Modifier.localLibraryQaTestTagsAsResourceId(qaSemantics != null),
     ) {
         when {
             compactNavigation && showNavigation ->
@@ -1772,6 +1813,7 @@ fun NavigationRoot(
                             onToggleExpanded = { railExpanded = !railExpanded },
                             groupBreaks = railBreaks,
                             pinnedTailCount = railPinnedTail,
+                            qaSemantics = qaSemantics,
                         )
                     }
                     Box(modifier = Modifier.weight(1f)) { host() }
@@ -1870,6 +1912,30 @@ private data class DrawerEntry(
     val section: DrawerEntrySection = DrawerEntrySection.Normal,
 )
 
+private fun Modifier.localLibraryQaTestTagsAsResourceId(enabled: Boolean): Modifier =
+    if (enabled) {
+        semantics { testTagsAsResourceId = true }
+    } else {
+        this
+    }
+
+private fun Modifier.localLibraryQaTestTag(tag: String?): Modifier =
+    if (tag == null) {
+        this
+    } else {
+        semantics { testTag = tag }
+    }
+
+private fun Modifier.localLibraryQaNavigationItem(tag: String?, role: Role?): Modifier =
+    if (tag == null || role == null) {
+        this
+    } else {
+        semantics {
+            testTag = tag
+            this.role = role
+        }
+    }
+
 /**
  * 平板侧导航（§8.6）：logo 38dp + 条目 48dp（二级子项 44dp）/ 圆角 14dp；折叠恒定 [RAIL_COLLAPSED_WIDTH_DP]（72dp）， 展开宽 W65
  * 起自适应（[railExpandedWidthDp]，Pad 5 ≈ 213dp）。
@@ -1893,6 +1959,7 @@ private fun CinefinSideNavigation(
     onToggleExpanded: () -> Unit,
     groupBreaks: Set<Int> = emptySet(),
     pinnedTailCount: Int = 0,
+    qaSemantics: LocalLibraryQaSemantics? = null,
 ) {
     val colors = LocalCinefinColors.current
     val lumen = LocalLumenColors.current
@@ -1929,6 +1996,7 @@ private fun CinefinSideNavigation(
                         Modifier
                     }
                 )
+                .localLibraryQaTestTag(qaSemantics?.mainNavigationScreenTag)
     ) {
         Row(
             modifier =
@@ -2039,6 +2107,11 @@ private fun CinefinSideNavigation(
                             destination.onClick()
                             if (!mediaGroupExpanded) onToggleMediaGroup()
                         },
+                        modifier =
+                            Modifier.localLibraryQaNavigationItem(
+                                qaSemantics?.mediaGroupTag,
+                                qaSemantics?.clickableRole,
+                            ),
                         trailing =
                             if (
                                 (mediaLibraries.isNotEmpty() || localLibraries.isNotEmpty()) &&
@@ -2123,7 +2196,12 @@ private fun CinefinSideNavigation(
                                                 count = library.itemCount,
                                                 labelWidthDp = railLabelWidthDp,
                                             ),
-                                        modifier = Modifier.padding(start = CinefinSpacing.Space4),
+                                        modifier =
+                                            Modifier.padding(start = CinefinSpacing.Space4)
+                                                .localLibraryQaNavigationItem(
+                                                    qaSemantics?.localLibraryItemTag,
+                                                    qaSemantics?.clickableRole,
+                                                ),
                                     )
                                 }
                             }
