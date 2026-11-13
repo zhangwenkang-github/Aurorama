@@ -9491,7 +9491,7 @@ audit R1 返回 `FAIL:UNCOMMITTED_DOCS_OUTSIDE_CONTROL`，因此
 除该硬门外，Control `f279478d... / clean`、candidate `b4f7d21f... / clean`、APK、R15
 prompt、ACTIVE 八字段、R3 `919/919`、repair R2 `383/383`、锁 `ACTIVE=0`、memory
 checker/doctor 均 PASS。审计 manifest `5/5 MATCH`，report / result / manifest SHA 为
-`8BDD3DFA...C1171A / 9B54191C...FD7CA0 / 561D4969...90E5AB`。
+`D0D3ADC5...EBE9D / D5F24557...5B10B / 561D4969...90E5AB`。
 按用户要求，R14 在原子审计完成后停下并写回文档，不创建 R15 会话。用户通知恢复后，必须先
 解决或明确处置两个外部 dirty-doc 条件，再由 fresh audit R2 重新审核；此前不得进入 A QA
 卡、Pad 锁、QaReady、QA 或 Release。
