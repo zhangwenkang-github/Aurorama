@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.film.domain.VideoMetadataParser
 import com.zhangwenkang.cinefin.film.domain.selectSourceForMetadata
 import com.zhangwenkang.cinefin.film.presentation.detail.LatestContentRequest
+import com.zhangwenkang.cinefin.film.presentation.detail.readOptionalDetail
 import com.zhangwenkang.cinefin.models.FindroidItemPerson
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSource
@@ -120,15 +121,9 @@ private constructor(
                                 scope = scope,
                             )
                         val movie = outcome.snapshot.value
-                        val videoMetadata =
-                            selectSourceForMetadata(
-                                    movie.sources,
-                                    preferredMediaSourceId,
-                                )
-                                ?.let { source -> parseVideoMetadata(source) }
-                        val actors = getActors(movie)
-                        val director = getDirector(movie)
-                        val writers = getWriters(movie)
+                        val actorsResult = readOptionalDetail { getActors(movie) }
+                        val directorResult = readOptionalDetail { getDirector(movie) }
+                        val writersResult = readOptionalDetail { getWriters(movie) }
                         val currentScope = catalogReadPort.currentScope()
                         if (
                             !contentRequests.isCurrent(contentRequest) ||
@@ -152,19 +147,76 @@ private constructor(
                             _state.value = _state.value.clearCatalog()
                             return@launch
                         }
-                        val displayExtraInfo =
-                            appPreferences.getValue(appPreferences.displayExtraInfo)
+                        val peopleError =
+                            listOf(actorsResult, directorResult, writersResult)
+                                .firstNotNullOfOrNull { result ->
+                                    result.exceptionOrNull() as? Exception
+                                }
                         _state.value =
                             _state.value.withCatalogMovie(
                                 movie = movie,
-                                videoMetadata = videoMetadata,
-                                actors = actors,
-                                director = director,
-                                writers = writers,
-                                displayExtraInfo = displayExtraInfo,
+                                videoMetadata = null,
+                                actors = actorsResult.getOrDefault(emptyList()),
+                                director = directorResult.getOrNull(),
+                                writers = writersResult.getOrDefault(emptyList()),
+                                error = peopleError,
                             )
                         loadedScope = scope
                         loadedMovieId = movieId
+
+                        val videoMetadataResult = readOptionalDetail {
+                            selectSourceForMetadata(
+                                    movie.sources,
+                                    preferredMediaSourceId,
+                                )
+                                ?.let { source -> parseVideoMetadata(source) }
+                        }
+                        val displayExtraInfoResult = readOptionalDetail {
+                            appPreferences.getValue(appPreferences.displayExtraInfo)
+                        }
+                        val currentScopeAfterEnrichment = catalogReadPort.currentScope()
+                        if (
+                            !contentRequests.isCurrent(contentRequest) ||
+                                !isMovieCatalogResultCurrent(
+                                    request = token,
+                                    currentSerial = loadSerial,
+                                    currentMovieId = this@MovieViewModel.movieId,
+                                    frozenScope = scope,
+                                    currentScope = currentScopeAfterEnrichment,
+                                    snapshotScope = outcome.snapshot.scope,
+                                )
+                        ) {
+                            if (
+                                requestSerial != loadSerial ||
+                                    !contentRequests.isCurrent(contentRequest)
+                            ) {
+                                return@launch
+                            }
+                            loadedScope = null
+                            loadedMovieId = null
+                            _state.value = _state.value.clearCatalog()
+                            return@launch
+                        }
+                        val enrichmentError =
+                            listOf(
+                                    actorsResult,
+                                    directorResult,
+                                    writersResult,
+                                    videoMetadataResult,
+                                    displayExtraInfoResult,
+                                )
+                                .firstNotNullOfOrNull { result ->
+                                    result.exceptionOrNull() as? Exception
+                                }
+                        _state.value =
+                            _state.value.copy(
+                                videoMetadata = videoMetadataResult.getOrNull(),
+                                displayExtraInfo =
+                                    displayExtraInfoResult.getOrDefault(
+                                        _state.value.displayExtraInfo
+                                    ),
+                                error = enrichmentError,
+                            )
                     }
                 }
             } catch (cancellation: CancellationException) {
@@ -257,6 +309,7 @@ internal fun MovieState.withCatalogMovie(
     director: FindroidItemPerson?,
     writers: List<FindroidItemPerson>,
     displayExtraInfo: Boolean = this.displayExtraInfo,
+    error: Exception? = null,
 ): MovieState =
     copy(
         movie = movie,
@@ -265,5 +318,5 @@ internal fun MovieState.withCatalogMovie(
         director = director,
         writers = writers,
         displayExtraInfo = displayExtraInfo,
-        error = null,
+        error = error,
     )

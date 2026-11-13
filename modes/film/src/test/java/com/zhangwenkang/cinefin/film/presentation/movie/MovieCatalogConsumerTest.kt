@@ -31,9 +31,11 @@ import com.zhangwenkang.cinefin.repository.catalog.CatalogScope
 import com.zhangwenkang.cinefin.repository.catalog.CatalogSearchQuery
 import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import java.io.IOException
 import java.lang.reflect.Proxy
 import java.util.UUID
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -193,6 +195,158 @@ class MovieCatalogConsumerTest {
     }
 
     @Test
+    fun `metadata enrichment failure still publishes core movie and clears metadata`() =
+        runBlocking {
+            val catalog = MovieCatalogPort(SCOPE)
+            catalog.movieResult = { query ->
+                available(
+                    scope = query.frozenScope,
+                    movie = movie(name = "metadata-core", id = query.itemId),
+                )
+            }
+            val viewModel =
+                installViewModel(
+                    MovieViewModel(
+                            catalogReadPort = catalog,
+                            repository = repository(),
+                            appPreferences = appPreferences(),
+                            parseVideoMetadata = { throw IOException("metadata failed") },
+                            peopleDispatcher = Dispatchers.Unconfined,
+                        )
+                        .withUnconfinedViewModelScope()
+                )
+
+            viewModel.loadMovie(MOVIE_ID)
+
+            assertEquals("metadata-core", viewModel.state.value.movie?.name)
+            assertNull(viewModel.state.value.videoMetadata)
+            assertEquals("metadata failed", viewModel.state.value.error?.message)
+        }
+
+    @Test
+    fun `preference enrichment failure still publishes core movie with default display preference`() =
+        runBlocking {
+            val catalog = MovieCatalogPort(SCOPE)
+            catalog.movieResult = { query ->
+                available(
+                    scope = query.frozenScope,
+                    movie = movie(name = "preference-core", id = query.itemId),
+                )
+            }
+            val viewModel =
+                installViewModel(
+                    MovieViewModel(
+                            catalogReadPort = catalog,
+                            repository = repository(),
+                            appPreferences = appPreferences(failReads = true),
+                            parseVideoMetadata = { metadata() },
+                            peopleDispatcher = Dispatchers.Unconfined,
+                        )
+                        .withUnconfinedViewModelScope()
+                )
+
+            viewModel.loadMovie(MOVIE_ID)
+
+            assertEquals("preference-core", viewModel.state.value.movie?.name)
+            assertFalse(viewModel.state.value.displayExtraInfo)
+            assertEquals("prefs failed", viewModel.state.value.error?.message)
+        }
+
+    @Test
+    fun `people projection failure still publishes core movie with safe fallback`() = runBlocking {
+        val catalog = MovieCatalogPort(SCOPE)
+        catalog.movieResult = { query ->
+            available(
+                scope = query.frozenScope,
+                movie = movie(name = "people-core", id = query.itemId),
+            )
+        }
+        val viewModel =
+            installViewModel(
+                MovieViewModel(
+                        catalogReadPort = catalog,
+                        repository = repository(),
+                        appPreferences = appPreferences(),
+                        parseVideoMetadata = { metadata() },
+                        peopleDispatcher = FailingDispatcher(),
+                    )
+                    .withUnconfinedViewModelScope()
+            )
+
+        viewModel.loadMovie(MOVIE_ID)
+
+        assertEquals("people-core", viewModel.state.value.movie?.name)
+        assertTrue(viewModel.state.value.actors.isEmpty())
+        assertNull(viewModel.state.value.director)
+        assertTrue(viewModel.state.value.writers.isEmpty())
+        assertEquals("people failed", viewModel.state.value.error?.message)
+    }
+
+    @Test
+    fun `metadata cancellation keeps core movie and publishes no data error`() = runBlocking {
+        val catalog = MovieCatalogPort(SCOPE)
+        catalog.movieResult = { query ->
+            available(
+                scope = query.frozenScope,
+                movie = movie(name = "cancel-core", id = query.itemId),
+            )
+        }
+        val viewModel =
+            installViewModel(
+                MovieViewModel(
+                        catalogReadPort = catalog,
+                        repository = repository(),
+                        appPreferences = appPreferences(),
+                        parseVideoMetadata = { throw CancellationException("metadata cancelled") },
+                        peopleDispatcher = Dispatchers.Unconfined,
+                    )
+                    .withUnconfinedViewModelScope()
+            )
+
+        viewModel.loadMovie(MOVIE_ID)
+
+        assertEquals("cancel-core", viewModel.state.value.movie?.name)
+        assertNull(viewModel.state.value.error)
+    }
+
+    @Test
+    fun `refresh optional failure publishes new core movie instead of preserving stale detail`() =
+        runBlocking {
+            var requestCount = 0
+            var parseCount = 0
+            val catalog = MovieCatalogPort(SCOPE)
+            catalog.movieResult = { query ->
+                requestCount += 1
+                available(
+                    scope = query.frozenScope,
+                    movie = movie(name = "version-$requestCount", id = query.itemId),
+                )
+            }
+            val viewModel =
+                installViewModel(
+                    MovieViewModel(
+                            catalogReadPort = catalog,
+                            repository = repository(),
+                            appPreferences = appPreferences(),
+                            parseVideoMetadata = {
+                                parseCount += 1
+                                if (parseCount == 1) metadata()
+                                else throw IOException("refresh metadata failed")
+                            },
+                            peopleDispatcher = Dispatchers.Unconfined,
+                        )
+                        .withUnconfinedViewModelScope()
+                )
+
+            viewModel.loadMovie(MOVIE_ID)
+            viewModel.loadMovie(MOVIE_ID)
+
+            assertEquals("version-2", viewModel.state.value.movie?.name)
+            assertNull(viewModel.state.value.videoMetadata)
+            assertEquals("refresh metadata failed", viewModel.state.value.error?.message)
+        }
+
+    @Test
     fun `real movie view model fences completion after all people projections`() = runBlocking {
         val peopleDispatcher = ManualDispatcher()
         val nextScope = SCOPE.copy(identityGeneration = 2L)
@@ -307,19 +461,30 @@ class MovieCatalogConsumerTest {
             )
         )
 
-    private fun appPreferences(): AppPreferences {
+    private fun appPreferences(failReads: Boolean = false): AppPreferences {
         val preferences =
             Proxy.newProxyInstance(
                 SharedPreferences::class.java.classLoader,
                 arrayOf(SharedPreferences::class.java),
             ) { proxy, method, args ->
                 when (method.name) {
-                    "getBoolean" -> args?.getOrNull(1) ?: false
+                    "getBoolean" ->
+                        if (failReads) {
+                            throw IllegalStateException("prefs failed")
+                        } else {
+                            args?.getOrNull(1) ?: false
+                        }
                     "getString" -> args?.getOrNull(1)
                     "getInt" -> args?.getOrNull(1) ?: 0
                     "getLong" -> args?.getOrNull(1) ?: 0L
                     "getFloat" -> args?.getOrNull(1) ?: 0f
                     "getStringSet" -> args?.getOrNull(1)
+                    "edit" ->
+                        if (failReads) {
+                            throw IllegalStateException("prefs failed")
+                        } else {
+                            null
+                        }
                     "contains" -> false
                     "getAll" -> emptyMap<String, Any>()
                     "toString" -> "MovieCatalogConsumerTestPreferences"
@@ -390,6 +555,12 @@ class MovieCatalogConsumerTest {
         fun runAt(index: Int) {
             check(index in 0 until tasks.size) { "invalid task index $index/${tasks.size}" }
             tasks.removeAt(index).run()
+        }
+    }
+
+    private class FailingDispatcher : CoroutineDispatcher() {
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            throw IllegalStateException("people failed")
         }
     }
 
