@@ -9672,3 +9672,33 @@ SHA-256 `5AA22F6D4D16757E963B14EA13F708F511C83B8A0F4538B5DA275B4372D9C486`，
 `2873636d` 的 2 路径 diff、Media3 internal discontinuity 语义、RED/GREEN 与 manifest；review
 PASS 后才由新负责人决定当前 candidate 的定向真实设备证据。仍不进入 A QA 卡、Pad 锁、QaReady
 或 QA，不继续 R10/R11 控制面审计自旋。
+
+**进度（2026-11-13，time-pos fresh review PASS / Fast Lane 落档 / 交接 R18）**：fresh scoped
+review 首次 FAIL，指出测试通过反射绕过 production property path；同一实现 owner 只修既有
+`PlaybackSessionRulesTest.kt`，production blob 保持
+`7863652bbf6c448570dab2248ee39a7a58c4db24`。新候选
+`1b847ba69c2e64b5c5e1d16c583908091cac5e81 / tree 235f7235a81861517327fdb3a17fbae37c21ec75`
+clean；RED 穿过 `eventProperty(Long,"time-pos")` 为
+`expected:<[2000, 3000]> but was:<[]>`，GREEN `44 XML / 400/0/0/0`，targeted
+`84/0/0/0`，ktfmt PASS。implementation manifest `40/40`；fresh re-review `PASS`，原过程 P1
+关闭，review report/result/manifest SHA 为
+`6CA2B085...F5119 / 1A676309...7A0D / 040FC60F...310A0`。真实 libmpv property 顺序、JNI
+`PLAYBACK_RESTART`、MediaSession binder、HLS+mpv 和设备行为仍 `NOT_RUN`，产品 P1 继续 OPEN。
+
+流程已优化为 `PROJECT_RULES` `R044 Fast Lane`：一个 exact bug cluster 一次修完、一次证明；
+派单前只跑 `BugLoopPrompt`，最终 release candidate 只做一次 fresh audit；`v2-workflow.ps1`
+继续作为唯一执行入口。R044 已同步到 `AGENTS.md` 和 `PROJECT_PLAN.md`，不再逐波 R10/R11。
+
+独立 release gap planner 当前快照：10 条 active 用户承诺均已有实现 / review 路径，但产品 QA
+`0/10`、`PLAYER_CORE_RELEASE_MATRIX=0/12`、Release readiness `0/8`；开放产品
+`P0/P1/P2/P3=0/3/2/0`。现实 ETA 为 `97 agent-hours / 4–6 日历日`，乐观
+`46h / 2–3 天`，保守 `212h / 8–12 天`。前提是 Pad/用户窗口、签名输入和下载核心门可及时
+裁决。完整矩阵见
+`evidence-v1-4-1-release-gap-plan-r1-2026-11-13\V141_RELEASE_GAP_PLAN_R1_REPORT.md`。
+
+当前上下文实测 `365013 / 1048576 = 34.8%`，已超过 35 万交接线。后继入口为
+`evidence-v1-4-1-r18-delivery-handoff-2026-11-13\R18_DELIVERY_LEAD_PROMPT.md`，
+SHA-256 `CC0724148C762ADCC373D765E6F6DEC597679544C8106AADBF8B436EF9C4FC61`，
+BugLoopPrompt PASS。R18 首任务是从 `1b847ba6` 重建 exact debug APK，再派全新 A 簇设备证据
+owner；按 A1（PC-03/04/05/12）与 A2（PC-01/02/11+crash class）两个 ≤600 秒 Pad
+`43af8627` 窗口推进。仍禁止 K60 / OnePlus / 下载 capture / 生产写 / 截图。

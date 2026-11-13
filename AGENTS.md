@@ -85,6 +85,12 @@
   `RETIRED_ROLE`；MEMORY index 和 pointer 从 store 起的每个路径组件均拒绝 reparse point，
   且不读取逃逸目标。上述均由 linter 机械执行；稳定文档是否应物理去重、历史文案是否可读以及
   是否接受剩余 P2 由人工 owner 决策，不能替代机械 PASS。
+- **1.4.1 Fast Lane（`R044`，2026-11-13，强制）**：缺陷修复按 exact bug cluster 一次修完、
+  一次证明。控制面审计不得成为产品修复前置条件；每波只保留 `BugLoopPrompt`，最终 release
+  candidate 只做一次 fresh pre-handoff audit。唯一执行入口仍是
+  `tools/architecture/v2-workflow.ps1 -Mode Snapshot|QaReady|Closeout` 与
+  `v2-handoff-lint.ps1 -Mode BugLoopPrompt`。不得借精简流程取消生产只读、设备独占、
+  exact candidate/APK、实现/QA 分权、R034、R042 核心矩阵或 Release 门。
 - **红线**：实现与独立 QA 分权；实现 owner 不派 QA、不 merge-prep、不 push / tag / Release。生产服务器
   只读；设备、网络、Release 与产品代码均需本次任务卡明确授权。控制面工具 PASS 不等于产品 QA、A0、
   architecture seam、W1 或 Release PASS。
