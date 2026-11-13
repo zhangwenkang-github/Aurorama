@@ -9495,3 +9495,10 @@ checker/doctor 均 PASS。审计 manifest `5/5 MATCH`，report / result / manife
 按用户要求，R14 在原子审计完成后停下并写回文档，不创建 R15 会话。用户通知恢复后，必须先
 解决或明确处置两个外部 dirty-doc 条件，再由 fresh audit R2 重新审核；此前不得进入 A QA
 卡、Pad 锁、QaReady、QA 或 Release。
+
+用户随后通知继续。R14 只读复核确认两个外部 worktree 的状态、mtime 与三个 docs 文件 SHA
+均和 audit R1 完全一致：它们仍是 2026-10-27/31 的既有用户资产，本轮未修改、未读取正文。
+本波将其明确登记为 `USER_OWNED_UNRELATED_EXTERNAL_WORKTREES`，R15 handoff 不依赖其内容，
+也不会清理它们。当前上下文 `393488 / 1048576 = 37.5%`，已超过 35 万交接线；下一步只能是
+带该明确 accounting 的全新只读 pre-handoff audit R2。只有 artifact R2 PASS 后才能创建 R15；
+本会话不再进入卡、锁或 QA。
