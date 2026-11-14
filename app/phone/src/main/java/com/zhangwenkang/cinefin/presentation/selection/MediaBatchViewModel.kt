@@ -33,12 +33,40 @@ data class MediaDownloadState(
     val localBookItemIds: Set<UUID> = emptySet(),
 )
 
+/** Show / Season 展开后的确认清单；候选与作用域在确认前冻结。 */
+data class MediaBatchDownloadPreparation(
+    val requestId: Long,
+    val requestedSelectionIds: Set<String>,
+    val sourceItems: List<FindroidItem>,
+    val expandedFromIds: List<UUID>,
+    val scopeKey: String,
+    val candidates: List<FindroidItem> = emptyList(),
+    val isLoading: Boolean = true,
+    val isConfirming: Boolean = false,
+    val loadFailureCount: Int = 0,
+    val deduplicatedCandidateCount: Int = 0,
+) {
+    val isReady: Boolean
+        get() = !isLoading && !isConfirming && loadFailureCount == 0 && candidates.isNotEmpty()
+}
+
 /** 批量动作结果（页面据此弹提示 / 起播 / 刷新）。 */
 sealed interface MediaBatchEvent {
     data class DownloadQueued(val queued: Int, val failed: Int) : MediaBatchEvent
 
     /** W80（#23）：所选条目都已在队列 / 已下载 —— 不能静默无反应。 */
     data object DownloadSkipped : MediaBatchEvent
+
+    data object DownloadSelectionRequired : MediaBatchEvent
+
+    data object DownloadSelectionRejected : MediaBatchEvent
+
+    data class DownloadSelectionFinished(
+        val manifest: MediaDownloadManifest,
+        val acceptedIds: List<UUID>,
+        val skippedIds: List<UUID>,
+        val failedIds: List<UUID>,
+    ) : MediaBatchEvent
 
     data class Updated(val changed: Int, val failed: Int) : MediaBatchEvent
 
@@ -66,7 +94,11 @@ constructor(
     private val _downloadState = MutableStateFlow(MediaDownloadState())
     val downloadState = _downloadState.asStateFlow()
 
-    private val eventsChannel = Channel<MediaBatchEvent>()
+    private val _downloadPreparation = MutableStateFlow<MediaBatchDownloadPreparation?>(null)
+    val downloadPreparation = _downloadPreparation.asStateFlow()
+    private var downloadPreparationGeneration = 0L
+
+    private val eventsChannel = Channel<MediaBatchEvent>(Channel.BUFFERED)
     val events = eventsChannel.receiveAsFlow()
 
     /** 进入页面 / 动作完成后刷新下载态（只读 Room，不唤醒引擎）。 */
@@ -128,8 +160,204 @@ constructor(
         }
     }
 
-    /** 批量下载：跳过已下载 / 已在队列的条目（目标由 [batchDownloadTargets] 过滤）。 */
+    /**
+     * 为 Show / Season 选择准备显式剧集候选。
+     *
+     * 此阶段只读取并展示，不创建任务。Show 按全部季展开，Season 只取本季；候选按稳定 itemId 去重，同时绑定当前 server / user 作用域。解析或加载不完整时保持
+     * fail closed。
+     */
+    fun prepareDownloadSelection(
+        requestedSelectionIds: Set<String>,
+        sourceItems: List<FindroidItem>,
+    ) {
+        val sourceIds = sourceItems.map { item -> item.id.toString() }
+        val hasDuplicateSource = sourceIds.size != sourceIds.toSet().size
+        val hasMissingSource = sourceIds.toSet() != requestedSelectionIds
+        if (hasDuplicateSource || hasMissingSource || sourceItems.isEmpty()) {
+            viewModelScope.launch { eventsChannel.send(MediaBatchEvent.DownloadSelectionRejected) }
+            return
+        }
+        if (!mediaBatchNeedsEpisodeSelection(sourceItems)) {
+            viewModelScope.launch { eventsChannel.send(MediaBatchEvent.DownloadSelectionRequired) }
+            return
+        }
+        val repository = repositoryProvider.get()
+        val scopeKey = runCatching {
+            repository.downloadScopeKey()
+        }
+            .getOrElse {
+                viewModelScope.launch {
+                    eventsChannel.send(MediaBatchEvent.DownloadSelectionRejected)
+                }
+                return
+            }
+        val generation = ++downloadPreparationGeneration
+        val expandedFromIds =
+            sourceItems
+                .filter { item -> item is FindroidShow || item is FindroidSeason }
+                .map { item -> item.id }
+        _downloadPreparation.value =
+            MediaBatchDownloadPreparation(
+                requestId = generation,
+                requestedSelectionIds = requestedSelectionIds,
+                sourceItems = sourceItems,
+                expandedFromIds = expandedFromIds,
+                scopeKey = scopeKey,
+            )
+        viewModelScope.launch {
+            val result = runCatching { loadDownloadCandidates(repository, sourceItems) }
+            if (_downloadPreparation.value?.requestId != generation) return@launch
+            result
+                .onSuccess { rawCandidates ->
+                    val candidates = rawCandidates.distinctBy { item -> item.id }
+                    _downloadPreparation.value =
+                        _downloadPreparation.value?.copy(
+                            candidates = candidates,
+                            isLoading = false,
+                            loadFailureCount = if (candidates.isEmpty()) 1 else 0,
+                            deduplicatedCandidateCount = rawCandidates.size - candidates.size,
+                        )
+                }
+                .onFailure { error ->
+                    Timber.w(error, "展开批量下载剧集失败")
+                    _downloadPreparation.value =
+                        _downloadPreparation.value?.copy(
+                            candidates = emptyList(),
+                            isLoading = false,
+                            loadFailureCount = 1,
+                        )
+                }
+        }
+    }
+
+    fun retryDownloadSelection() {
+        val current = _downloadPreparation.value ?: return
+        prepareDownloadSelection(
+            requestedSelectionIds = current.requestedSelectionIds,
+            sourceItems = current.sourceItems,
+        )
+    }
+
+    fun clearDownloadSelection() {
+        downloadPreparationGeneration += 1
+        _downloadPreparation.value = null
+    }
+
+    /**
+     * 用户确认后冻结显式叶子 manifest，再逐 ID 执行。
+     *
+     * 这里不会读取 Show / Season children 来补集；唯一可执行集合来自确认时的候选交集。
+     */
+    fun downloadPreparedSelection(
+        requestId: Long,
+        confirmedIds: Set<UUID>,
+    ) {
+        val preparation = _downloadPreparation.value ?: return
+        if (preparation.requestId != requestId || !preparation.isReady) return
+        val candidateIds = preparation.candidates.map { item -> item.id }
+        val confirmedOrderedIds =
+            candidateIds.filter { id -> id in confirmedIds } +
+                (confirmedIds - candidateIds.toSet()).sortedBy(UUID::toString)
+        val manifestResult =
+            buildMediaDownloadManifest(
+                requestedIds = confirmedOrderedIds,
+                candidates = preparation.candidates,
+                expandedFromIds = preparation.expandedFromIds,
+                scopeKey = preparation.scopeKey,
+            )
+        val manifest = manifestResult.manifest
+        if (manifest == null) {
+            clearDownloadSelection()
+            viewModelScope.launch { eventsChannel.send(MediaBatchEvent.DownloadSelectionRejected) }
+            return
+        }
+        _downloadPreparation.value = preparation.copy(isConfirming = true)
+        viewModelScope.launch {
+            val repository = repositoryProvider.get()
+            val currentScope = runCatching {
+                repository.downloadScopeKey()
+            }
+                .getOrElse {
+                    clearDownloadSelection()
+                    eventsChannel.send(MediaBatchEvent.DownloadSelectionRejected)
+                    return@launch
+                }
+            if (currentScope != manifest.scopeKey) {
+                clearDownloadSelection()
+                eventsChannel.send(MediaBatchEvent.DownloadSelectionRejected)
+                return@launch
+            }
+            val downloaded = runCatching {
+                downloader.downloadedItemIds()
+            }
+                .getOrElse {
+                    clearDownloadSelection()
+                    eventsChannel.send(MediaBatchEvent.DownloadSelectionRejected)
+                    return@launch
+                }
+            val queued = runCatching {
+                downloader.activeItemIds()
+            }
+                .getOrElse {
+                    clearDownloadSelection()
+                    eventsChannel.send(MediaBatchEvent.DownloadSelectionRejected)
+                    return@launch
+                }
+            val selection =
+                DetailDownloadRules.selectBatch(
+                    itemIds = manifest.plannedIds,
+                    downloaded = downloaded,
+                    queued = queued,
+                    limit = null,
+                )
+            val candidatesById = preparation.candidates.associateBy { item -> item.id }
+            val accepted = mutableListOf<UUID>()
+            val failed = mutableListOf<UUID>()
+            for (id in selection.selected) {
+                val item = candidatesById[id]
+                if (item == null) {
+                    failed += id
+                    continue
+                }
+                val (queuedNow, failedNow) = enqueueEngineItem(repository, item)
+                when {
+                    queuedNow == 1 -> accepted += id
+                    failedNow > 0 -> failed += id
+                    else -> failed += id
+                }
+            }
+            val skipped = manifest.plannedIds.filter { id -> id in downloaded || id in queued }
+            val execution =
+                mediaDownloadExecutionIds(
+                    plannedIds = manifest.plannedIds,
+                    acceptedIds = accepted,
+                    skippedIds = skipped,
+                    failedIds = failed,
+                )
+            if (!execution.isComplete) {
+                clearDownloadSelection()
+                eventsChannel.send(MediaBatchEvent.DownloadSelectionRejected)
+                return@launch
+            }
+            clearDownloadSelection()
+            refreshDownloadState()
+            eventsChannel.send(
+                MediaBatchEvent.DownloadSelectionFinished(
+                    manifest = manifest,
+                    acceptedIds = accepted,
+                    skippedIds = skipped,
+                    failedIds = failed,
+                )
+            )
+        }
+    }
+
+    /** 直接叶子批量下载；Show / Season 必须改走显式候选确认。 */
     fun downloadSelected(items: List<FindroidItem>) {
+        if (mediaBatchNeedsEpisodeSelection(items)) {
+            viewModelScope.launch { eventsChannel.send(MediaBatchEvent.DownloadSelectionRequired) }
+            return
+        }
         val targets = batchDownloadTargets(items, capsOf(items))
         viewModelScope.launch {
             // W80（#23）：以前这里直接 return，用户点「下载」看起来毫无反应；
@@ -139,7 +367,6 @@ constructor(
                 return@launch
             }
             val repository = repositoryProvider.get()
-            val state = _downloadState.value
             var queued = 0
             var failed = 0
             // 书籍走阅读器离线文件链路（与下载页「书籍」分组同源），其余走下载引擎。
@@ -154,13 +381,7 @@ constructor(
                     .onFailure { failed++ }
             }
             for (item in targets - books.toSet()) {
-                val (queuedNow, failedNow) =
-                    enqueueEngineTargets(
-                        repository = repository,
-                        item = item,
-                        downloadedIds = state.downloadedItemIds,
-                        queuedIds = state.activeItemIds,
-                    )
+                val (queuedNow, failedNow) = enqueueEngineItem(repository, item)
                 queued += queuedNow
                 failed += failedNow
             }
@@ -273,41 +494,53 @@ constructor(
     }
         .getOrNull()
 
+    private fun JellyfinRepository.downloadScopeKey(): String =
+        "${getBaseUrl().trimEnd('/')}|${getUserId()}"
+
     /**
-     * 单条目入队（下载引擎）：电影 / 单集直接入队；**剧集 / 季按「补齐缺失集」展开** （与详情页「整剧 / 全季下载」同口径，复用 `DetailDownloadRules`
-     * 的取集字段 / 目标筛选 / 上限 / 去重）。
+     * 展开候选时严格传播失败：任一季读取异常都会终止整次动作，不把异常吞成“空候选”。
      *
-     * 返回 (成功入队数, 失败数)。
+     * Show 使用当前 repository 的 server / user 作用域遍历全部季；Season 只请求自身。最终统一按 itemId 去重由调用方完成，冲突不会进入
+     * Downloader。
      */
-    private suspend fun enqueueEngineTargets(
+    private suspend fun loadDownloadCandidates(
         repository: JellyfinRepository,
-        item: FindroidItem,
-        downloadedIds: Set<UUID>,
-        queuedIds: Set<UUID>,
-    ): Pair<Int, Int> {
-        val episodes =
+        sourceItems: List<FindroidItem>,
+    ): List<FindroidItem> {
+        val candidates = mutableListOf<FindroidItem>()
+        for (item in sourceItems) {
             when (item) {
-                is FindroidShow -> loadSeriesEpisodes(repository, item.id)
-                is FindroidSeason -> loadSeasonEpisodes(repository, item.seriesId, item.id)
-                else -> return enqueueEngineItem(repository, item)
+                is FindroidShow -> {
+                    val seasons = repository.getSeasons(item.id).sortedBy { it.indexNumber }
+                    for (season in seasons) {
+                        candidates +=
+                            DetailDownloadRules.downloadTargets(
+                                repository
+                                    .getEpisodes(
+                                        seriesId = item.id,
+                                        seasonId = season.id,
+                                        fields = DetailDownloadRules.EPISODE_FETCH_FIELDS,
+                                    )
+                                    .sortedBy { it.indexNumber }
+                            )
+                    }
+                }
+                is FindroidSeason -> {
+                    candidates +=
+                        DetailDownloadRules.downloadTargets(
+                            repository
+                                .getEpisodes(
+                                    seriesId = item.seriesId,
+                                    seasonId = item.id,
+                                    fields = DetailDownloadRules.EPISODE_FETCH_FIELDS,
+                                )
+                                .sortedBy { it.indexNumber }
+                        )
+                }
+                else -> candidates += item
             }
-        val targets = DetailDownloadRules.downloadTargets(episodes)
-        val selection =
-            DetailDownloadRules.selectBatch(
-                itemIds = targets.map { it.id },
-                downloaded = downloadedIds,
-                queued = queuedIds,
-            )
-        val byId = targets.associateBy { it.id }
-        var queued = 0
-        var failed = 0
-        for (id in selection.selected) {
-            val episode = byId[id] ?: continue
-            val (queuedNow, failedNow) = enqueueEngineItem(repository, episode)
-            queued += queuedNow
-            failed += failedNow
         }
-        return queued to failed
+        return candidates
     }
 
     /** 单条目入队（下载引擎）；返回 (成功入队数, 失败数)。 */
@@ -333,31 +566,4 @@ constructor(
                 onFailure = { 0 to 1 },
             )
     }
-
-    /** 整剧集数（全部季，按季号 → 集号排序；取集字段与详情页一致）。 */
-    private suspend fun loadSeriesEpisodes(
-        repository: JellyfinRepository,
-        seriesId: UUID,
-    ): List<FindroidEpisode> = runCatching {
-        repository
-            .getSeasons(seriesId)
-            .sortedBy { it.indexNumber }
-            .flatMap { season -> loadSeasonEpisodes(repository, seriesId, season.id) }
-    }
-        .getOrElse { emptyList() }
-
-    private suspend fun loadSeasonEpisodes(
-        repository: JellyfinRepository,
-        seriesId: UUID,
-        seasonId: UUID,
-    ): List<FindroidEpisode> = runCatching {
-        repository
-            .getEpisodes(
-                seriesId = seriesId,
-                seasonId = seasonId,
-                fields = DetailDownloadRules.EPISODE_FETCH_FIELDS,
-            )
-            .sortedBy { it.indexNumber }
-    }
-        .getOrElse { emptyList() }
 }

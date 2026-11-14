@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.R as AppR
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinBatchBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
@@ -150,6 +151,35 @@ internal fun mediaBatchEventMessage(context: Context, event: MediaBatchEvent): S
             }
         // W80（#23）：无目标可选时也要给反馈，避免「点了没反应」。
         MediaBatchEvent.DownloadSkipped -> context.getString(FilmR.string.batch_download_skipped)
+        MediaBatchEvent.DownloadSelectionRequired ->
+            context.getString(AppR.string.media_batch_episode_selection_required)
+        MediaBatchEvent.DownloadSelectionRejected ->
+            context.getString(AppR.string.media_batch_episode_selection_rejected)
+        is MediaBatchEvent.DownloadSelectionFinished ->
+            when {
+                event.acceptedIds.isNotEmpty() ->
+                    batchResultText(
+                        context,
+                        event.acceptedIds.size,
+                        event.failedIds.size,
+                    ) { count ->
+                        context.getString(FilmR.string.batch_download_added, count)
+                    }
+                event.failedIds.isNotEmpty() ->
+                    batchResultText(
+                        context,
+                        successCount = 0,
+                        failed = event.failedIds.size,
+                    ) { count ->
+                        context.getString(FilmR.string.batch_download_added, count)
+                    }
+                event.skippedIds.isNotEmpty() ->
+                    context.getString(
+                        AppR.string.media_batch_episode_selection_all_skipped,
+                        event.skippedIds.size,
+                    )
+                else -> context.getString(FilmR.string.batch_download_skipped)
+            }
         is MediaBatchEvent.Updated ->
             batchResultText(context, event.changed, event.failed) { count ->
                 context.getString(FilmR.string.batch_action_updated, count)

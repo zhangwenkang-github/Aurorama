@@ -74,6 +74,7 @@ import com.zhangwenkang.cinefin.presentation.components.TopBarAction
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
+import com.zhangwenkang.cinefin.presentation.film.components.EpisodeDownloadSelectionDialog
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
 import com.zhangwenkang.cinefin.presentation.film.components.FavoriteChangeEffect
 import com.zhangwenkang.cinefin.presentation.film.components.ItemCard
@@ -90,6 +91,7 @@ import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchActionEnabled
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchCaps
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchEventMessage
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchNeedsEpisodeSelection
 import com.zhangwenkang.cinefin.presentation.selection.resolveMediaBatchSelection
 import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
@@ -218,6 +220,7 @@ private fun VideoScreenLayout(
     val batchViewModel: MediaBatchViewModel = hiltViewModel()
     val downloadStatusViewModel: DownloadStatusViewModel = hiltViewModel()
     val downloadState by batchViewModel.downloadState.collectAsStateWithLifecycle()
+    val downloadPreparation by batchViewModel.downloadPreparation.collectAsStateWithLifecycle()
     val downloadBadges by downloadStatusViewModel.badges.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -262,7 +265,15 @@ private fun VideoScreenLayout(
                     snackbarHostState.showSnackbar(
                         message = message,
                         actionLabel =
-                            if (event is MediaBatchEvent.DownloadQueued) viewLabel else null,
+                            if (
+                                event is MediaBatchEvent.DownloadQueued ||
+                                    (event is MediaBatchEvent.DownloadSelectionFinished &&
+                                        event.acceptedIds.isNotEmpty())
+                            ) {
+                                viewLabel
+                            } else {
+                                null
+                            },
                         duration = DownloadSnackbarDuration,
                     )
                 if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
@@ -449,7 +460,14 @@ private fun VideoScreenLayout(
                         MediaBatchAction.PLAY -> batchViewModel.playSelected(selectedItems)
                         MediaBatchAction.DOWNLOAD ->
                             if (selectionResolution.isComplete) {
-                                batchViewModel.downloadSelected(selectedItems)
+                                if (mediaBatchNeedsEpisodeSelection(selectedItems)) {
+                                    batchViewModel.prepareDownloadSelection(
+                                        requestedSelectionIds = batchSelection.selectedIds,
+                                        sourceItems = selectedItems,
+                                    )
+                                } else {
+                                    batchViewModel.downloadSelected(selectedItems)
+                                }
                             } else {
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
@@ -468,6 +486,19 @@ private fun VideoScreenLayout(
                 },
             )
         }
+    }
+
+    downloadPreparation?.let { preparation ->
+        EpisodeDownloadSelectionDialog(
+            preparation = preparation,
+            downloadedIds = downloadState.downloadedItemIds,
+            queuedIds = downloadState.activeItemIds,
+            onRetryLoad = batchViewModel::retryDownloadSelection,
+            onConfirm = { requestId, ids ->
+                batchViewModel.downloadPreparedSelection(requestId, ids)
+            },
+            onDismiss = batchViewModel::clearDownloadSelection,
+        )
     }
 
     val error = state.error

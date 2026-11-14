@@ -171,6 +171,98 @@ class MediaBatchRulesTest {
     }
 
     @Test
+    fun `download manifest freezes selected episode ids and rejects missing candidates`() {
+        val first = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000010"))
+        val second = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000011"))
+        val missing = UUID.fromString("00000000-0000-0000-0000-000000000012")
+        val seasonId = UUID.fromString("00000000-0000-0000-0000-000000000013")
+
+        val result =
+            buildMediaDownloadManifest(
+                requestedIds = listOf(first.id, missing),
+                candidates = listOf(first, second),
+                expandedFromIds = listOf(seasonId),
+                scopeKey = "server|user",
+            )
+
+        assertFalse(result.isComplete)
+        assertEquals(listOf(missing), result.missingIds)
+        assertEquals(
+            listOf(seasonId),
+            buildMediaDownloadManifest(
+                    requestedIds = listOf(first.id, second.id),
+                    candidates = listOf(first, second),
+                    expandedFromIds = listOf(seasonId),
+                    scopeKey = "server|user",
+                )
+                .manifest
+                ?.expandedFromIds,
+        )
+    }
+
+    @Test
+    fun `download manifest rejects duplicate requested and candidate ids`() {
+        val item = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000014"))
+
+        val duplicateRequest =
+            buildMediaDownloadManifest(
+                requestedIds = listOf(item.id, item.id),
+                candidates = listOf(item),
+                expandedFromIds = emptyList(),
+                scopeKey = "server|user",
+            )
+        val duplicateCandidate =
+            buildMediaDownloadManifest(
+                requestedIds = listOf(item.id),
+                candidates = listOf(item, item),
+                expandedFromIds = emptyList(),
+                scopeKey = "server|user",
+            )
+
+        assertFalse(duplicateRequest.isComplete)
+        assertEquals(listOf(item.id), duplicateRequest.duplicateRequestedIds)
+        assertFalse(duplicateCandidate.isComplete)
+        assertEquals(listOf(item.id), duplicateCandidate.duplicateCandidateIds)
+    }
+
+    @Test
+    fun `download execution partitions each planned id exactly once`() {
+        val accepted = UUID.fromString("00000000-0000-0000-0000-000000000015")
+        val skipped = UUID.fromString("00000000-0000-0000-0000-000000000016")
+        val failed = UUID.fromString("00000000-0000-0000-0000-000000000017")
+
+        val execution =
+            mediaDownloadExecutionIds(
+                plannedIds = listOf(accepted, skipped, failed),
+                acceptedIds = listOf(accepted),
+                skippedIds = listOf(skipped),
+                failedIds = listOf(failed),
+            )
+
+        assertTrue(execution.isComplete)
+        assertTrue(execution.unknownIds.isEmpty())
+        assertTrue(execution.duplicateResultIds.isEmpty())
+    }
+
+    @Test
+    fun `download execution rejects duplicate or unplanned result ids`() {
+        val planned = UUID.fromString("00000000-0000-0000-0000-000000000018")
+        val unknown = UUID.fromString("00000000-0000-0000-0000-000000000019")
+
+        val execution =
+            mediaDownloadExecutionIds(
+                plannedIds = listOf(planned),
+                acceptedIds = listOf(planned),
+                skippedIds = listOf(planned),
+                failedIds = listOf(unknown),
+            )
+
+        assertFalse(execution.isComplete)
+        assertEquals(listOf(planned), execution.duplicateResultIds)
+        assertEquals(listOf(unknown), execution.unknownIds)
+    }
+
+    @Test
     fun `delete targets keep only downloaded server items`() {
         val a = movie()
         val b = movie()
