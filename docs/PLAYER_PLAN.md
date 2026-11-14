@@ -10031,3 +10031,51 @@ PC matrix：
 下一步优先判别 Pad `HLS/mpv` 停滞，不先改 download notification 或猜测 mpv 修复：
 同一 Pad、同一 Episode/source，先 mpv，再用播放器现有设置切 Exo；mpv 不出画而 Exo 出画则
 锁定 mpv backend，均不出画则转向 source/network。K60 本轮零命令，最多两遍以内。
+
+### 52.70.16 Pad mpv vs Exo 判别完成 / 最小实现入口（2026-11-14）
+
+**状态：`MPV_NO_FRAME_EXO_PLAYS / FAILURE_LAYER_MPV_PAD_BACKEND / EXACT_SUBCAUSE_UNKNOWN /
+IMPLEMENTATION_ACTIVE / NOT_RELEASABLE`。**
+
+fresh `AURORAMA_141_PAD_MPV_VS_EXO_DISCRIMINATOR_R1_2026_11_14` 在 exact signed R2 上完成
+一次同对象判别。worktree HEAD `3fc31798` / tree `66a93c44` 仅比 signed product source
+`2c27ee0d` / tree `e5eef85f` 多 `docs/TASKS.md`、`docs/PLAYER_PLAN.md`，产品 / 测试差异 `0`；
+source 为当前 HEAD 祖先。首次派单 prompt 误把控制面 HEAD 与 signed source 都写成
+`Source HEAD`，fresh owner 在触设备前零设备停止；负责人只修正 prompt 对象字段、重跑 R043
+门禁后另派 fresh owner。该停止不计 playback attempt。
+
+Pad `43af8627` 同一 `PlayerActivity(SERIES)`、Episode `S1:E5 - Hinamatsuri`、同 HLS master：
+
+- mpv 硬解 30 秒始终 `BUFFERING(6)`，position / buffered `-1`，UI `00:00`，无首帧或位置推进；
+- 不改 Activity / Episode，通过现有解码面板切 ExoPlayer 硬解；实际 backend changed；
+- Exo position `2,838 → 17,860 → 26,870 ms`，buffered `8,425 → 34,451 → 51,801 ms`，
+  `PLAYING(3)`、speed `1.0`、error null；auto fallback 未把 Exo 切回 mpv；
+- 结论排除“该 HLS source 对两个 backend 共同不可播”的当前分类，失败层收敛到
+  mpv/Pad backend pipeline，但 HTTP / demuxer / cache / hwdec / vo / ao / decoder 子因仍未证明。
+
+`EXACT_SOURCE_PATH_PAIR=PARTIAL`：Exo 窗口直接取得同 HLS master 的 path hash；mpv 窗口只取得
+HLS / `master.m3u8` 安全类别，未单独保存 mpv 侧 path hash。相同 Episode、HLS class、同 Activity
+切换与 Exo 回读足以支持 backend 层判别，但不得写成两侧逐路径完全复算。设置已恢复
+`BACKEND=mpv / DECODE=hardware / AUTO_FALLBACK=ON`；Release force-stop，PID / MediaSession /
+通知 0；K60、Oppo/OnePlus 零命令，截图 0，服务器写 0。锁 `ACTIVE=0`，最终 SHA-256
+`7DA6476C948F7929AC18768C733893F76F218EAF8EBBCABBA8D51A229DFC4102`。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_MPV_VS_EXO_DISCRIMINATOR_R1.md`
+  / SHA-256 `15844265C102A08DE7EC7B2B64A501B57CAE529C74C9DE47CF3F66E523643280`；
+- 同名 manifest SHA-256
+  `39C56C6A739DD80DF0B201DB20953D178AF989A81A357893D172B152DC0E1005`，2/2 MATCH；
+- prompt SHA-256
+  `EF8BDE73627AF4AA948F8362A1AA84AD59AC87FB307ED0CBBDB7AAC39EC3CCF6`。
+
+P0 新增 `0`；`P1-PAD-ONLINE-PLAYBACK-STALL-001` 保持 OPEN，失败层改为 mpv/Pad backend；
+Series divergence、seek/progress P1 与其他既有 P2 均未关闭。
+
+下一卡冻结为 fresh 路径级实现 owner：只处理“`AUTO_FALLBACK=ON` + mpv 远端/HLS 已确认 20 秒
+进度停滞时，同一 media generation 最多静默切到 Exo 一次”。若现行代码已有受控 backend
+replacement seam，则 TDD 实现；若无该 seam，必须停止并报告，不得重写播放器架构、猜改 mpv
+native/hwdec/renderer 或扩散到 source/Episode/download。状态×效果矩阵已加入
+`AURORAMA_141_STATE_EFFECT_MATRIX_R1.md` §5。实现 owner 不触设备、不做 QA；后续仍须
+fresh signed Release 与不同 fresh independent QA，完整播放器发布矩阵未执行前保持
+`NOT_RELEASABLE`。
