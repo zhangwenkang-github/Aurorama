@@ -10217,3 +10217,54 @@ force-stop、A2/A3/A4 与 PC-01–PC-12 均未执行，1.4.1 仍 `NOT_RELEASABLE
 只允许 Pad `43af8627`；由 QA 合同显式授权 exact signed arm64 `install -r` 并保留 data /
 session。主症状只做一次同路径复测，之后按 QA 合同覆盖 A1 状态、A2/A3/A4 与 PC-01–PC-12。
 K60 / Oppo / OnePlus、系统网络 / 开发者选项、用户已有下载删除、服务器写和截图均为非目标。
+
+### 52.70.19 Signed R3 fresh QA：A1 自动接管通过 / QA 续测 R4（2026-11-14）
+
+**状态：`A1_AUTO_SIGNED_QA_PASS / QA_R3_STOPPED_ON_HOST_WRAPPER / QA_R4_MATRIX_CONTINUATION_REQUIRED /
+NOT_RELEASABLE`。**
+
+fresh `AURORAMA_141_FRESH_INDEPENDENT_QA_R3_2026_11_14` 独立复算 exact signed R3 后，在 Pad
+`43af8627` 执行 `install -r`，设备侧 APK length / SHA-256 / signer MATCH；firstInstallTime
+`2026-11-08 19:11:30`、CE data inode `894761`、current user 0、login session 与 data 均保留。
+
+A1 真实用户路径：
+
+- `2026-11-14 20:31:47` 从动漫库精确《超能力女儿》Show 详情顶部“播放”点击 1 次；
+- Episode `S1:E6 - Hinamatsuri`，初始 mpv，PID `9239` 保持；
+- 约 T+25.8 秒出现一次既有 Activity recreate，档位切为 `ExoPlayer 硬解`；
+- Exo position `2100 → 3944 → 60893 ms`、buffered `3086 → 4421 → 80330`，最终 `PLAYING(3)`；
+- 第二次自动切换 0、并行 player 0、新增 Modal / Toast / 通知 0，crash / ANR / proc death
+  `0/0/0`；
+- A1-OFF 保持 mpv `BUFFERING/-1/-1` 且无 recreate；force-stop 后 cold start 无自动播放。
+
+据此 `P1-PAD-ONLINE-PLAYBACK-STALL-001` 的用户承诺——signed 默认 mpv + remote/HLS 停滞时
+自动切 Exo 一次并恢复实际推进——由真实设备证据关闭。该关闭不外溢到 Series Episode divergence、
+seek/progress、UI/MediaSession 终态或下载通知等其它问题。
+
+R3 QA 未完成：
+
+- A1-CANCEL `NOT_RUN`；A1-SECOND-STALL 自然边界通过但严格注入行 `NOT_RUN`；
+- A2 显式两集任务与 `2 tasks` PASS，但第二 leaf 稳定 ID 未独立取得；通知总量
+  `1.57 GB` 对页面 `3.20 GB`，再次复现 `P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001`；
+- A3 leaf/Show 递归删除与通知清除终态 PASS，`Deleting` 首帧 `NOT_PROVEN`，删除后 restart
+  `NOT_RUN`；A4 `NOT_RUN`；
+- PC-01–PC-12 未正式执行；PC-10 继续由 Oppo / OnePlus 授权阻断。
+
+QA R3 在 A3 后因连续三次宿主包装误用非 `pwsh` 而按合同停止；第三次仅执行了一个
+`KEYCODE_BACK`，产品 / data / server / system 边界未越界。该失败属于 QA harness，不是产品回退。
+最终清理为 App PID 0、PlaybackState 0、notification 0、download page `0/0/0`；设置恢复
+`BACKEND=mpv / DECODE=mediacodec / AUTO_FALLBACK=ON`；锁已释放，SHA-256
+`FF303D1EF754432404AB8E4C7ED7B7A8CC69CECF82B7A234BF0957EC106C7D8F`。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_QA_R3.md`
+  / manifest SHA-256
+  `ED00C1336A2A16CE0656FB2ADE22150AA7AD9C98E1124A43840BB85E7B130BC0`，3/3 MATCH；
+- next continuation contract：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_QA_R4_PROMPT.md`。
+
+下一 owner = fresh `AURORAMA_141_FRESH_INDEPENDENT_QA_R4_2026_11_14`。禁止重跑 A1-AUTO；
+只补 A1-CANCEL、A2 leaf 身份、A3 restart / Deleting、A4 与 PC-01–PC-12。所有命令必须显式
+由 `pwsh` 承载；同一包装错误最多一次受控重试。该续测仍 `RELEASE_CANDIDATE_ONLY`，不得制作
+Release notes、资产或请求用户最终验收。
