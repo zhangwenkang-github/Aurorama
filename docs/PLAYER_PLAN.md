@@ -10661,3 +10661,33 @@ PC-02/03/05 仍 FAIL，PC-04/06/08/11 仍未跑，PC-10 仍授权阻断，Series
 
 后继负责人必须先只读复核本段与上述证据，再在“慢删除 P1 / near-end seek trace / Player Core
 未跑行 / Series divergence”之间由用户选择下一最小合同。不得在本通知 PASS 后自动扩大产品修改。
+
+### 52.70.28 用户授权慢删除 P1 / R6 并行诊断交接（2026-11-15）
+
+**状态：`USER_AUTHORIZED_NEXT_SCOPE=P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001 /
+R6_PARALLEL_DIAGNOSIS_DISPATCH_READY / NOT_RELEASABLE`。**
+
+用户 2026-11-15 授权进入下一 P1，并要求按交接规范交接、可并行处并行。范围固定为下载删除
+即时性与残留；不扩 seek、mpv、Series、通知 aggregate、Player Core 未跑行或其它 P2。
+
+本轮仍先取证，不直接猜改下载引擎。R6 第一波并行创建两个 fresh、互斥的 owner：
+
+1. `AURORAMA_141_DELETE_LATENCY_SOURCE_DIAGNOSIS_R1_2026_11_15`：零设备、零产品写，追踪
+   ViewModel → Downloader / Worker / Room / filesystem cleanup → canonical set refresh →
+   Compose projection，给出一个主假设与最小 falsifier；
+2. `AURORAMA_141_DELETE_LATENCY_SIGNED_OBSERVER_R1_2026_11_15`：Pad `43af8627` 独占，
+   exact signed R4 arm64，最多两叶、只删一叶，记录确认前后、`删除中` 首帧、canonical set
+   收敛、文件 / DB / notification / restart；20 分钟预算，结束释放锁。
+
+两路收口后由 R6 负责人裁决主假设。若不能区分竞争解释，固定
+`INCONCLUSIVE / NO_IMPLEMENTATION_GATE` 并停止；若收敛，再创建 fresh 实现 owner 进行最小
+TDD，之后必须另派不同 fresh QA。实现 / QA / Release 不共身份、不复用代理。
+
+已知证据：
+
+- signed R4 QA 在删除一叶时，`删除中` 在 +2 s / +5 s / +10 s 仍存在，之后才收敛；
+- 父 / 子残留终态与两次 restart 不复活已有 PASS，不能替代即时反馈 P1；
+- A3 `Deleting` 首帧仍 `NOT_PROVEN`，作为本 P1 的验收子项观察，但不预设与慢删除同根因。
+
+R6 交接入口：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\NEXT_LEADER_PROMPT_R6.md`。
