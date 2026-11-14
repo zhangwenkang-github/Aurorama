@@ -1,17 +1,86 @@
 package com.zhangwenkang.cinefin.utils
 
+import com.sun.net.httpserver.HttpExchange
+import com.sun.net.httpserver.HttpServer
+import com.zhangwenkang.cinefin.di.configureDownloadHttpClient
 import java.io.File
+import java.net.InetSocketAddress
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executors
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.OkHttpClient
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DownloaderImplDeleteTraceTest {
+
+    @Test
+    fun `active delete joins within bound when response body is blocked`() = runBlocking {
+        val fixture = DownloaderImplRecoveryTest.Fixture()
+        val server = StalledDownloadServer()
+        val engine =
+            DownloadHttpEngine(
+                configureDownloadHttpClient(OkHttpClient.Builder()).build(),
+                elapsedRealtimeMillis = { 0L },
+            )
+        val downloader =
+            fixture.newDownloader(
+                object : DownloadTransfer {
+                    override suspend fun download(
+                        request: DownloadTransferRequest
+                    ): DownloadAttemptResult =
+                        engine.download(
+                            url = server.url,
+                            token = null,
+                            baseUrl = server.baseUrl,
+                            target = request.target,
+                            existingBytes = request.existingBytes,
+                            validator = request.validator,
+                            expectedTotalBytes = request.expectedTotalBytes,
+                            speedLimitBytesPerSecond = request.speedLimitBytesPerSecond,
+                            onProgress = request.onProgress,
+                        )
+                }
+            )
+        var queueJob: Job? = null
+        try {
+            server.start()
+            val movie = fixture.movie()
+            val sourceId = movie.sources.single().id
+            val (handle, error) = downloader.downloadItem(movie, sourceId, 0)
+            assertTrue(handle >= 0L)
+            assertNull(error)
+            queueJob = launch(Dispatchers.Default) { downloader.runQueue() }
+            assertTrue("stalled response did not start", server.awaitResponseHeaders(2_000L))
+            // 让 OkHttp 走完 execute() 并进入首次 body read。
+            delay(200L)
+            val task =
+                downloader.refreshDownloadTasks().single { task -> task.sourceId == sourceId }
+
+            val deleted = withTimeoutOrNull(2_000L) { downloader.deleteTask(task) }
+
+            assertTrue(
+                "active cancel reached join but did not terminate the blocked body",
+                deleted == true,
+            )
+            assertNull(fixture.dao.sourceById(sourceId))
+        } finally {
+            server.releaseBody()
+            queueJob?.cancelAndJoin()
+            server.close()
+            fixture.close()
+        }
+    }
 
     @Test
     fun `real task deletion records D3 D4 pre-row D6 post-row and D7 in control-flow order`() =
@@ -220,5 +289,55 @@ class DownloaderImplDeleteTraceTest {
         }
 
         override fun pendingCleared() = Unit
+    }
+
+    private class StalledDownloadServer {
+        private val body = ByteArray(16 * 1024) { index -> index.toByte() }
+        private val responseHeadersSent = CompletableDeferred<Unit>()
+        private val releaseGate = CompletableDeferred<Unit>()
+        private val executor = Executors.newSingleThreadExecutor()
+        private val server =
+            HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
+                createContext("/Items/item/Download") { exchange -> respond(exchange) }
+                executor = this@StalledDownloadServer.executor
+            }
+
+        val baseUrl: String
+            get() = "http://127.0.0.1:${server.address.port}"
+
+        val url: String
+            get() = "$baseUrl/Items/item/Download"
+
+        fun start() {
+            server.start()
+        }
+
+        suspend fun awaitResponseHeaders(timeoutMs: Long): Boolean =
+            withTimeoutOrNull(timeoutMs) { responseHeadersSent.await() } != null
+
+        fun releaseBody() {
+            releaseGate.complete(Unit)
+        }
+
+        fun close() {
+            server.stop(0)
+            executor.shutdownNow()
+        }
+
+        private fun respond(exchange: HttpExchange) {
+            try {
+                exchange.sendResponseHeaders(200, body.size.toLong())
+                exchange.responseBody.use { output ->
+                    responseHeadersSent.complete(Unit)
+                    kotlinx.coroutines.runBlocking { releaseGate.await() }
+                    output.write(body)
+                    output.flush()
+                }
+            } catch (_: Exception) {
+                responseHeadersSent.complete(Unit)
+            } finally {
+                exchange.close()
+            }
+        }
     }
 }

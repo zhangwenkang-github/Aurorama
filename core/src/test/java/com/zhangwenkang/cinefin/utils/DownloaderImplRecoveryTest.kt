@@ -5231,7 +5231,9 @@ class DownloaderImplRecoveryTest {
             transfer.sourceIdForPath = dao::sourceIdByPath
         }
 
-        fun newDownloader(): DownloaderImpl =
+        fun newDownloader(): DownloaderImpl = newDownloader(transfer)
+
+        fun newDownloader(downloadTransfer: DownloadTransfer): DownloaderImpl =
             DownloaderImpl.createForTest(
                 context = context,
                 database = dao.proxy,
@@ -5248,7 +5250,7 @@ class DownloaderImplRecoveryTest {
                 externalStorageState = { "mounted" },
                 availableBytes = { Long.MAX_VALUE },
                 workGateway = workGateway,
-                downloadTransfer = transfer,
+                downloadTransfer = downloadTransfer,
                 imageFinalizationScheduler = imageScheduler,
                 intentResolutionDispatcher = resolutionDispatcher,
                 intentResolutionDeadlineScheduler = resolutionDeadlineScheduler,
