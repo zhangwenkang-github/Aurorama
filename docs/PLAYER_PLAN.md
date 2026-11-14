@@ -9444,3 +9444,48 @@ HLS、mpv、Exo、IPv6 或解码器为根因。修复后仍需 fresh 独立 QA �
 当前负责人会话实测上下文 `386667 / 1048576 (36.9%)`，已超过 35 万交接线。下载三条 lineage
 已在各自实现边界 GREEN，Pad 在线加载尚停留在精确 signed 基线的同条件 A/B 前。因此本会话
 不再扩项；后继负责人必须先完成交接审计，再从 Pad→K60 同条件诊断开始，不得先修改播放器。
+
+### 52.70.1 Pad 在线播放 A/B 诊断 R1：Pad 复现，K60 因证据输出边界 P1 停止（2026-11-14）
+
+**状态：`STOPPED / INCONCLUSIVE / EVIDENCE_OUTPUT_BOUNDARY_P1 / NOT_RELEASABLE`。**
+
+负责人已完成现场接管：HEAD `379447a0ca0799264844e5ad8851904b5acd23e7` / tree
+`ccd0a9ff2a5e08303a2a185285aebb3e91b0b7a5`；Pad `43af8627`、K60 `8e875894` 在线；
+设备锁 `ACTIVE=0`。两机 Release 均为 signed arm64 `80487230 B / 72637DACED361A085F9002DF6DDED338FF22B2A5C66CA3FF410F69ADADF90D45`
+且 base MATCH。Pad prompt 与 ACTIVE 八字段经 `BUG_LOOP_DISPATCH_GATE=PASS` 后，创建 fresh
+`AURORAMA_141_PAD_ONLINE_DIAGNOSIS_OWNER_R1_2026_11_14`。
+
+R1 结果：
+
+- Pad `43af8627`：唯一一次真实在线 playback attempt 进入
+  `PlayerActivity`；backend `mpv` / `MPV_HARDWARE`，source `HLS / MKV / HEVC`；
+  `T+34.329 s` 仍为 MediaSession `BUFFERING`、position / buffered position `-1`、
+  speed `0.0`，UI `00:00`；无 crash / ANR / proc death。Pad 停滞已再次复现。
+- K60 `8e875894`：同 Wi-Fi、同账号、同服务器作用域核验 MATCH，但进入同 Episode 播放前，
+  脱敏辅助脚本因 PowerShell 单字母函数名与 alias 冲突、参数绑定错误回显账号文本 / 服务器
+  URI；owner 立即停止，K60 playback attempt `0`。本轮完整双机 A/B 为 `INCONCLUSIVE`，
+  不得把 Pad backend/source 组合写成已确认设备根因。
+- 输出边界 P1：`P1-PAD-ONLINE-DIAG-EVIDENCE-URI-OUTPUT-01`。未确认 token / cookie /
+  密码 / 媒体流 URI 或真实 Episode ID 被输出；报告扫描 URL / email / Authorization / Bearer
+  值命中均为 `0`。事故值不得在后续文档、prompt、聊天或 memory 中重复。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_ONLINE_DIAGNOSIS_R1.md`
+  / SHA-256 `C68828E06ECA231CB5E984BAFECAF61DE129B17D6D4CE368E884B1116BB5BE6E`；
+- `PAD_ONLINE_DIAGNOSIS_R1_MANIFEST.sha256`
+  / SHA-256 `4D8CBF0C75866132C316860FEA9E5C1C51DD411F2A4AA4F1DD92325B20D20FD1`，
+  报告 hash MATCH。
+
+清理：两机 Release force-stop、PID / 活动 MediaSession / 活动目标通知均为 `0`；设备临时
+XML 20 个、宿主 raw 文件 31 个 / `9,358,297 B` 已删除；App 安装与 data 保留；截图 0；
+Oppo / OnePlus 零命令；服务器直接写 0。联合锁
+`AURORAMA-141-PAD-ONLINE-AB-DIAG-R1-43AF8627-8E875894-20261114-1334` 已 `RELEASED /
+ACTIVE=0`，实际复核锁 SHA-256 为
+`8BF2DE1A2853F9BB64D8573D484F112145CFFD0CDCF2E4F6373B92F8FE8C3425`。
+
+P0=0；新增证据输出边界 P1 阻断继续设备操作。按现行“新 P0–P2 即停止”门禁，本轮不再创建
+K60 continuation owner，也不先猜 mpv / HLS / HEVC / 网络 / 解码器根因。下一步由用户决定是否
+继续；若继续，必须创建 fresh 静态证据输出边界 owner，先完成 helper alias、stderr / 参数绑定
+固定投影的静态审查与验证，再考虑 K60 同入口单次 continuation。产品代码、测试、版本、签名、
+ACTIVE 均未由 Pad owner 修改；发布状态仍为 `NOT_RELEASABLE`。
