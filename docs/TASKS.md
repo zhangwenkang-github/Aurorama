@@ -1343,11 +1343,14 @@ PUSH=NO / TAG=NO / RELEASE=NO
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=77f13d23aeed4630bb1d5e4b2c76f4c3f4f36757
-- REQUIRED_ANCESTOR=77f13d23aeed4630bb1d5e4b2c76f4c3f4f36757
-- FAILED_CANDIDATE=NONE
-- MAX_CHANGED_PATHS=3
-- ALLOWED_PATH=docs/DOWNLOAD_PLAN.md
+- BASE_HEAD=40c8cd4816ee70866be7e785318e5e9a3ade185a
+- REQUIRED_ANCESTOR=2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104
+- FAILED_CANDIDATE=2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104
+- MAX_CHANGED_PATHS=6
+- ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
+- ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlayerProgressFallback.kt
+- ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
+- ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerProgressFallbackTest.kt
 - ALLOWED_PATH=docs/PLAYER_PLAN.md
 - ALLOWED_PATH=docs/TASKS.md
 <!-- V2_HANDOFF_OBJECT_END -->
@@ -1868,7 +1871,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=fresh signed candidate build; real Pad top-play automatic mpv-to-Exo switch; position/buffered/MediaSession/FGS/notification; manual cancel; AUTO_FALLBACK_OFF; Exo second-stall recovery; force-stop/restart; PLAYER_CORE_RELEASE_MATRIX_PC01-PC12
 - STOP_CONDITION=No independent QA until a fresh signed candidate and QA-ready dispatch are prepared by the next owner; implementation owner has zero device actions
 - MANUAL_LIMITATION=R1 implementation is static and JVM verified only. Product behavior, build, and no-popup/UI claims require fresh signed device QA.
-- MANUAL_OWNER=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R2_2026_11_14
+- MANUAL_OWNER=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R4_2026_11_14
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
