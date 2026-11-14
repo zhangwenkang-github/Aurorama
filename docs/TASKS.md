@@ -8,7 +8,7 @@
 ### ACTIVE — AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
-- TASK_STAGE=USER_ACCEPTANCE_FAILED / DOWNLOAD_AND_PAD_PLAYBACK_REOPENED / HANDOFF_REQUIRED
+- TASK_STAGE=PLANNING_COMPLETE / SELECTED_EPISODES_CONTRACT_GREEN / DELETE_AND_TOOLBAR_PENDING / PAD_AB_PENDING / NOT_RELEASABLE
 - PROFESSIONAL_IDENTITY=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
@@ -17,16 +17,16 @@
 - CANONICAL_BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=PROJECT_PLAN > TASKS ACTIVE > DOWNLOAD_PLAN 30 > PLAYER_PLAN 52.69 > USER_ACCEPTANCE_FAIL > COVERAGE_GAP_ANALYSIS > NEXT_LEADER_PROMPT
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\NEXT_LEADER_PROMPT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\DELETE_DIAGNOSIS_OWNER_PROMPT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\USER_ACCEPTANCE_FAIL.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\COVERAGE_GAP_ANALYSIS.md
 - SCOPE=1.4.1_ACCEPTANCE_REPAIR/DOWNLOAD_DELETE_SELECTION_UI/PAD_ONLINE_PLAYBACK_AB
 - BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE
 - BUG_LOOP_MAX_ATTEMPTS=2
-- BUG_LOOP_USER_PATH=USER_ACCEPTANCE_FAILURE_MULTI_SYMPTOM_SCOPE_PENDING
+- BUG_LOOP_USER_PATH=DOWNLOADS_TAB_CONFIRM_DELETE_A_SHOW_WITH_MULTIPLE_EPISODE_TASKS_THEN_REENTER
 - REPRO_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\USER_ACCEPTANCE_FAIL.md
-- PRIMARY_HYPOTHESIS=NONE_PENDING_SUCCESSOR_TRIAGE
-- TARGETED_VERIFICATION=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\COVERAGE_GAP_ANALYSIS.md
+- PRIMARY_HYPOTHESIS=DELETE_CONFIRMATION_DOES_NOT_ENTER_VISIBLE_PENDING_BEFORE_IO_AND_PARENT_DELETE_DOES_NOT_RECURSIVELY_CONVERGE_ALL_LEAF_TASKS
+- TARGETED_VERIFICATION=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_ACCEPTANCE_MATRIX_R1.md
 - BUG_LOOP_STOP_BUDGET=2_SAME_SYMPTOM_ATTEMPTS_THEN_STOP_OR_USER_DECISION
 - FULL_MATRIX_GATE=RELEASE_CANDIDATE_ONLY
 - VERSION_COMMIT=b8f25e36e18a2e5ad091844b628ace9d1a10ae7d / tree 88c2ea971dccbf18d7c2970d9bf5801891149ed9 / release: prepare 1.4.1 (6)
@@ -49,9 +49,9 @@
 - P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:REOPENED_USER_ACCEPTANCE_STILL_DOWNLOADS_ALL;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:USER_REPORTED_NOT_PROVEN;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:USER_REPORTED_NOT_PROVEN;P1-PAD-ONLINE-PLAYBACK-STALL-001:USER_REPORTED_NOT_PROVEN;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED
 - P2=P2-PLAYER-LOADING-001:OPEN;P2-PLAYER-STALL-001:OPEN;DOWNLOAD-BACKOFF-NOTIFICATION=OPEN_NONBLOCKING
 - P3=subtitle visual pixels NOT_RUN;ColorOS/K60 historical matrix NOT_RUN;Movie enrichment real injection unavailable
-- NEXT_ROLE=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_2026_11_14
-- FIRST_READ_ACTION=read PROJECT_PLAN then TASKS ACTIVE then DOWNLOAD_PLAN 30 and PLAYER_PLAN 52.69 plus USER_ACCEPTANCE_FAIL and COVERAGE_GAP_ANALYSIS; verify object clean, installed APK and locks
-- NEXT_ACTION=build 1.4.1 requirement matrix, reference mainstream Jellyfin/download UX, split download deletion/selection/UI and Pad playback A/B into independent bug loops, then dispatch fresh professional owners
+- NEXT_ROLE=AURORAMA_141_DELETE_DIAGNOSIS_OWNER_R1_2026_11_14
+- FIRST_READ_ACTION=read DELETE_DIAGNOSIS_OWNER_PROMPT then verify HEAD tree clean APK and lock before one bounded Pad reproduction
+- NEXT_ACTION=dispatch fresh delete diagnosis owner to reproduce click-to-pending latency duplicate delete and parent-child residue on Pad
 - STOP_CONDITION=new P0, device/object lock conflict, server write risk, need for product decision or scope beyond 1.4.1 acceptance repair
 - CURRENT_HANDOFF=USER_ACCEPTANCE_FAIL_HANDOFF_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
@@ -1771,7 +1771,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=A QA product rows remain NOT_RUN pending user structural identity decision; PLAYER_CORE_RELEASE_MATRIX 12/12; full-scope review; merge-prep; integration; signed 1.4.1/6 packages; final QA; Release.
 - STOP_CONDITION=Do not dispatch A QA or device QA until user explicitly decides structural identity. No same-shape nav harness repair. Full-scope review stops on object/review/P0-P2 drift; merge-prep only after full-scope review PASS.
 - MANUAL_LIMITATION=A QA output-boundary issue is closed. A R9 real window then failed before playback because closed UI lacks structural identity; different fresh verifier confirms BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY. This is a QA coverage block pending explicit user decision, not a product playback failure. B/C/D scoped reviews PASS but remain non-device and non-Release evidence.
-- MANUAL_OWNER=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_2026_11_14
+- MANUAL_OWNER=AURORAMA_141_DELETE_DIAGNOSIS_OWNER_R1_2026_11_14
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

@@ -1019,3 +1019,71 @@ release-candidate gate 执行。既有播放器 seek/progress P1 与 loading/sta
 - `V2-FIX-PLAYER-PAD-ONLINE-LOADING-*`：Pad/K60 同 WiFi、同账号、同片源的在线播放 A/B。
 
 在新的用户矩阵和同路径 signed 证据完成前，不得写“批量下载已修复”或“1.4.1 可发布”。
+
+## 31. 1.4.1 下载验收整改 R1（2026-11-14）
+
+**状态：`PLANNING_COMPLETE / SELECTED_EPISODES_CONTRACT_GREEN / DELETE_AND_TOOLBAR_REOPENED /
+DEVICE_EXACT_ENTRY_INCONCLUSIVE / NOT_RELEASABLE`。**
+
+基线核验：HEAD `12ace89562b1ebd553e2b8e041cc4655d64d480a` / tree
+`515787acc5e1581b8a23dde42e4ea9bf8b1a6dbf` clean；signed arm64
+`80487230 B / 72637DACED361A085F9002DF6DDED338FF22B2A5C66CA3FF410F69ADADF90D45`
+同时安装 Pad `43af8627` 与 K60 `8e875894`，设备侧 SHA MATCH；锁 `ACTIVE=0`。
+
+规划证据根：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\`
+
+- `AURORAMA_141_ACCEPTANCE_MATRIX_R1.md`：用户承诺 → 入口 → 操作 → 可观察结果 →
+  自动化 / fixture → 双机 → 未覆盖；
+- `AURORAMA_141_STATE_EFFECT_MATRIX_R1.md`：R038 七类状态经 GatePlan `FULL` 机械 PASS；
+- `DOWNLOAD_UX_REFERENCE_DIFF_R1.md`：官方 Jellyfin、Streamyfin、AntennaPod、Material 等
+  固定 commit 参考，SHA `C6B0A5EA…EDA1C`。
+
+### 31.1 冻结的产品契约
+
+1. 普通容器动作明确“下载整剧 / 下载全季”；长按选择态必须与普通容器动作互斥。
+2. Show / Season 先显式展开为具体 Episode 清单；用户确认时冻结
+   `requestedIds / plannedIds / expandedFromIds / scopeKey`；执行路径不得再次按容器动态补集。
+3. `plannedIds = acceptedIds + skippedIds + failedIds`，无重、无漏、无计划外 ID。
+4. 工具栏按分组和能力生成，每个语义 `actionId` 最多一个控件；“播放选中”和“继续下载”不得
+   共用同一三角图标。
+5. 保留一次删除确认；确认触发后首个 UI 帧进入 `Deleting`，在途重复点击幂等，失败项保留可重试。
+6. 节目 / 季是叶子 Episode 的派生投影；删除父级必须逐叶子 receipt 收敛，全部成功前父级不消失。
+
+### 31.2 指定剧集 lineage R1
+
+`V2-FIX-DOWNLOAD-SELECTED-EPISODES-001`
+
+- 诊断静态确认：Video 聚合页选择 Season 时只保存顶层 Season ID，
+  `MediaBatchViewModel.enqueueEngineTargets` 原先会加载该季全部 Episode 并逐一入队；
+  下载页 Show → Season → Episode 默认折叠会遮蔽叶子任务。
+- 真机已确认第一卡是含 6 集的 Season，但合成“长按”稳定触发单击，无法在精确入口进入多选；
+  实际任务 `0`、下载流量 `0`，故设备四集合等式仍 `INCONCLUSIVE`，不得写 PASS。
+- 实现候选 `0cd906e3d70f2b5f435d24127daa3b99856f5a09` / tree
+  `8b5b87d7f1dc222c25005afff139411b5452acff`：增加显式 Episode 候选清单、默认不勾选、
+  全选 / 清空 / 逐集 toggle、server + user scope、manifest fail-closed，并删除执行期容器展开补集。
+- 行为 RED 为旧路径仍向 Downloader 入队 Season 子集；GREEN phone JVM `502/0/0/0`，
+  targeted `19 + 7 + 2`，`assembleDebug`、ktfmt、diff-check、R038 GatePlan、graphify PASS。
+- debug APK `154385144 B / 7E4C94B2…8B21D`。分类仍为
+  `OPEN_PENDING_FRESH_QA / DEVICE_EXACT_ENTRY_INCONCLUSIVE`；需不同 fresh owner 在真实入口
+  验证选择 manifest、任务、下载页叶子和本地任务逐 ID 相等。
+
+证据：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-selected-episodes-implementation-r1-2026-11-14\IMPLEMENTATION_REPORT.md`。
+
+### 31.3 删除与工具栏
+
+- `V2-FIX-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001`：fresh 诊断 owner 必须创建同一节目下最多
+  2 个暂停任务，记录确认到可见 `Deleting` 的时序、快速重复点击和父/子收敛；
+  prompt 已落盘，待按 R043 active 字段轮转并通过 BugLoopPrompt 后派发。
+- `V2-FIX-DOWNLOAD-SELECTION-CONTROLS-001`：fresh 诊断 owner 只读采集 ACTIVE 分组多选中每个
+  action 的 icon / label / bounds / enabled / 出现次数，禁止执行播放。
+- 两者均不得由指定剧集实现 owner 接续；独立 QA 必须与实现 owner 不同，且由负责人显式启动。
+
+### 31.4 下一步
+
+1. 指派 fresh 删除诊断 owner，确认即时态 / 重复删除 / 父子残留的真实 RED；
+2. 指派 fresh 工具栏诊断 owner，确认两个播放语义的来源；
+3. 三条下载 lineage 实现收口后，由负责人显式启动一个与之不同的独立 QA，在最终 signed 候选走
+   真实节目 / 季入口、真实任务和真实文件；
+4. 未完成上述证据前保持 `NOT_RELEASABLE`，不得使用聚合网格、单测或最终 `0/0/0` 代替。

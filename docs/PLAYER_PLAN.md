@@ -9403,3 +9403,39 @@ PlayerActivity 存活或本地 fixture PASS 当作在线播放 PASS**。
 
 证据：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\USER_ACCEPTANCE_FAIL.md`
 与 `COVERAGE_GAP_ANALYSIS.md`。当前不宣告 1.4.1 可发布。
+
+### 52.70 1.4.1 验收整改规划后的播放诊断交接（2026-11-14）
+
+**状态：`PLANNING_COMPLETE / PAD_ONLINE_AB_PENDING / NOT_RELEASABLE`。**
+
+下载侧四条用户症状已归并为三个下载 lineage，另有本播放 lineage。用户承诺矩阵与 R038
+状态×效果矩阵位于：
+
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\`
+
+Pad 在线播放仍保持 `REOPENED P1`。尚无 Pad/K60 同 WiFi、同账号、同 Episode、同服务器、
+同播放入口的 A/B；现有 signed 证据只证明：
+
+- `PlayerActivity` 曾稳定 12 秒；
+- 20 秒本地 fixture 在 Exo 与 mpv 均能实际出播；
+- 两个在线测试片源曾发生流 connection reset；
+- 本地 fixture、Activity 存活、K60 单独可播都不能证明 Pad 在线播放 PASS。
+
+已落盘 fresh 诊断 prompt：
+
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_ONLINE_DIAGNOSIS_OWNER_PROMPT.md`
+
+派发前必须按 R043 将唯一 ACTIVE 的 BUG LOOP 字段轮转到该 lineage 并运行
+`BugLoopPrompt`，PASS 后才可创建 owner。诊断顺序固定为 Pad `43af8627` →
+K60 `8e875894`，两机显式 serial、同一 Episode、相同网络 / 账号作用域。必须记录：
+
+- backend、直放 / HLS、媒体源；
+- 首帧或位置推进、MediaSession、UI 加载；
+- 20 秒无可证进展门禁、HTTP / decoder / kernel error；
+- PlayerActivity、crash / ANR / proc death；
+- 截图 0、服务器只读、Oppo 零接触。
+
+若 Pad 仍无首帧 / 无位置推进，而 K60 同条件推进，才可将主假设标为
+`PAD_DEVICE_PLAYBACK_PIPELINE_STALLS_AFTER_SOURCE_RESOLUTION` 并进入最小依赖阶段；不得先猜
+HLS、mpv、Exo、IPv6 或解码器为根因。修复后仍需 fresh 独立 QA 和
+`PLAYER_CORE_RELEASE_MATRIX`，本段不改变既有 seek / progress P1 与 loading / stall P2。
