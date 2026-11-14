@@ -10848,3 +10848,63 @@ push / tag / Release。原 `P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001` 与
 证据：
 `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_DELETE_FIX_MERGE_PREP_R1.md`
 及同名 `_MANIFEST.sha256`。
+
+### 52.70.32 慢删除根因修复、PC-02/PC-03/05 判别（2026-11-15）
+
+**状态：`DELETE_JOIN_STALL_FIXED_ON_MAIN / DEVICE_QA=RESOLVED /
+PENDING_FINAL_SIGNED_REGRESSION / PLAYER_CORE_MATRIX=FAIL_UNCHANGED / NOT_RELEASABLE`。**
+
+用户在双叶场景未复现后补充高概率入口：一次下载整季约 12 集，并在下载进行中删除。R6 在
+exact signed R4 上执行该路径两轮，均为 `10 s` 内快速收敛，说明单凭 signed UI 时间仍不能稳定
+捕获慢路径。随后 debug-only D1–D9 trace 在 Pad 上复现：
+
+- 整季 requested / accepted `12/12`，删叶前两叶均有真实非零进度；
+- 确认删除后 `D1→D2→D3→D4_CANCEL_BEGIN→D4_JOIN_BEGIN` 在 `203 ms` 内发生；
+- `D4_JOIN_BEGIN` 后 `122.506 s` 仍无 `D4_JOIN_END`，D5–D9 未生成；主耗时阶段固定为
+  active download job 的 `cancel + join`；
+- 根因是 `DownloadHttpEngine` 只在 job 完成回调里调用 `call.cancel()`，job 又阻塞在 OkHttp
+  body `read()`，二者互锁。修复在取消态立即取消本次 call，不改 Worker lifecycle。
+
+修复候选与门禁：
+
+- implementation `de82fa3d000ab99ca89af9b82b6ad0fa61d1ca0f` / tree
+  `46c50418fce1b099fa3c2b1e9d5c7ac96848001e`；
+- RED 修复前 2 秒测试 deadline 不返回；GREEN 单测实测 `226 ms`；
+- core 全量 `412/0/0/0`，ktfmt 与 phone debug assemble PASS；
+- fresh scoped review `PASS / P0–P3=0`；
+- fresh device QA 在真实整季活动下载上两轮删除：`D4_JOIN_END` 分别为 `3 ms` / `6 ms`，
+  D5–D9 完整，页面分别在 `2,997 ms` / `3,501 ms` 内 `12→11→10`，cold restart 不复活，
+  P0–P3=`0/0/0/0`；分类 `RESOLVED`；
+- merge-prep candidate `4fbd4e2200c1d7ab2718f6d90ee02a29800f5ea9` / tree
+  `e53658f8fc9a83da536ce528e1eb82e0dd312f16`，2/2 patch-id、core `412/0`、
+  phone 251/251、release compile 114/114、trace exclusion 0；
+- 候选已 ff-only 集成到主分支。由于尚未在 fresh signed 包上执行绑定回归，
+  `P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001` 记为
+  `FIXED_ON_MAIN_PENDING_SIGNED_QA`，不得直接写成 Release PASS。
+
+PC-02 判别：
+
+- R5 的 HOME 后暂停由后台播放偏好实际关闭解释；应用内显式开启后，同一 PID/task/MediaSession
+  在 HOME 15 秒内保持 BUFFERING 且 buffer `3086→3253 ms`，回前台无第二 source session；
+- 缓冲中暂停 `6→2`、继续 `2→3`，唯一 loading `1→0→1`；分类为
+  `EXPECTED_BACKGROUND_PAUSE_WITH_SETTING_OFF`，不再作为产品修复项。
+
+PC-03/05 判别：
+
+- final-reviewed seek trace 在 Pad 的 HLS/Exo near-end seek 中记录 requested→dispatch→accepted→
+  position discontinuity→HLS replacement，`sourceEpoch 2→3` 与 replacement mediaRef 身份正确；
+- 新 HLS source 随后出现 `SocketTimeoutException / IO_NETWORK_CONNECTION_TIMEOUT`，
+  position / buffer 停在目标点，generation 1 正确进入 TIMEOUT terminal `retryable=true`；
+- 既有“重试”生成 generation 2 并被受理，但同一不可用 source 再次 TIMEOUT；
+- 停滞层固定为 `BUFFER_NOT_GROWING`，不是 seek request、source replacement 身份或终态丢失。
+  仍需在可用/受控网络路径上完成 Player Core 矩阵，不能据此关闭 PC-03/05。
+
+证据：
+
+- `AURORAMA_141_DELETE_TRACE_DEVICE_OBSERVER_R3.md` / D1–D9 timeline / manifest；
+- `AURORAMA_141_DELETE_JOIN_STALL_FIX_IMPLEMENTATION_R1.md` /
+  `AURORAMA_141_DELETE_JOIN_STALL_FIX_REVIEW_R1.md` /
+  `AURORAMA_141_DELETE_JOIN_STALL_FIX_DEVICE_QA_R1.md`；
+- `AURORAMA_141_DELETE_FIX_MERGE_PREP_R1.md`；
+- `AURORAMA_141_PC02_BACKGROUND_DISCRIMINATOR_R2.md`；
+- `AURORAMA_141_PC03_05_SEEK_TRACE_DEVICE_OBSERVER_R1.md`。
