@@ -10809,3 +10809,42 @@ QA / Release PASS。未跑设备矩阵、真机 trace、D1–D9 真实时间线�
 `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_DELETE_PHASE_TRACE_IMPLEMENTATION_R1.md`
 及同名 `_MANIFEST.sha256`。下一步必须由负责人另派不同 fresh independent QA；实现 owner
 不 merge / push / tag / Release。
+
+### 52.70.31 R6 删除 trace + join fix merge-prep PASS（2026-11-15）
+
+**状态：`MERGE_PREP=PASS / CLEAN_CANDIDATE / READY_FOR_DELIVERY_LEAD_DECISION /
+NOT_RELEASABLE`。**
+
+隔离 worktree
+`F:\Develop\code_data\work_tree\Aurorama\r6-delete-fix-merge-prep\Aurorama` 从
+`3c5247bec9c4ce8b65ee4ab3090ebf4746b0d38b` 创建 branch
+`codex/r6-delete-fix-merge-prep`，按 lineage 顺序 cherry-pick
+`ddf9ad7c48342afe75f42e8a0afc1366c49daca6`（trace）与
+`de82fa3d000ab99ca89af9b82b6ad0fa61d1ca0f`（join fix）。两次 cherry-pick 均无冲突；
+目标 `docs/TASKS.md` 未被源提交覆盖，最新 ACTIVE 保持连续。
+
+机械对账：
+
+- source/final patch-id：trace `5bebdc9c71d4a52bb685aaf41651cebde322b3a6`、
+  fix `f2705fdf5b905e2a0b849b1b8d98f88b0aba0288`，2/2 MATCH；
+- `3c5247be` 是 candidate 祖先，trace 是 fix 祖先；13 个产品 changed paths 与 source
+  集合完全一致；
+- schema / Worker lifecycle / signing / version / workflow 禁改路径命中 0；
+- core JVM `52 XML / 412/0/0/0`；本次删除 ViewModel 定向 `18/0/0/0`；根
+  `ktfmtCheck`、`:app:phone:assembleDebug`、core/phone
+  `compileLibreReleaseKotlin` 均 PASS；
+- release source 与 compiled classes 对
+  `AURORAMA_DELETE_TRACE|DownloadDeleteTraceOwner|DownloadDeleteTraceDebugModule|HmacSHA256`
+  均 0 命中；
+- arm64 debug APK `151634887 B / SHA-256
+  969A279D9F73F44193779BC2D860422A5E681B98AAA5FDF973C4335384117908`，
+  `io.github.zhangwenkang.aurorama.debug / 1.4.1(6) / min28 target36 / arm64-v8a /
+  debuggable / v2 单签名`。
+
+merge-prep 新增 P0/P1/P2/P3=`0/0/0/0`。按合同未重复设备 QA、未改 fix 逻辑、未 merge /
+push / tag / Release。原 `P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001` 与
+`P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN` 仍按既有状态保留，不能由本次构建 PASS 关闭。
+
+证据：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_DELETE_FIX_MERGE_PREP_R1.md`
+及同名 `_MANIFEST.sha256`。
