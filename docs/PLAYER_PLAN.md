@@ -10157,3 +10157,16 @@ P0–P3：
   MediaSession / FGS / 通知、manual cancel、AUTO_FALLBACK=OFF、Exo 二次停滞恢复与 force-stop
   restart 检查；
 - 核心矩阵未执行或开放 P1 未关闭前，1.4.1 仍 `NOT_RELEASABLE`。
+
+负责人 R3 的关键 diff 审查结论：`PASS_FOR_FRESH_SIGNED_BUILD`。实际产品范围严格为
+`PlayerActivity` glue、`PlayerViewModel` watchdog 接线与新 `PlayerProgressFallback` 纯策略；
+触发门为 mpv + `AUTO_FALLBACK=ON` + remote/HLS + 既有 progress terminal，restart 固定当前
+Episode / `mediaSourceId` / position，复用既有单实例 replacement。未发现下载、Series、
+source resolver、schema、签名或新弹窗越界。Activity glue 尚无真机证据，因此该审查只允许进入
+fresh signed Release 工程，不构成 signed QA / Release PASS。
+
+R3 实测上下文 `256883 / 1048576 (24.5%)`，已越过 25 万扩项门：本会话不再派 Release / QA；
+下一负责人 R4 从 clean commit 开始，首读实现报告 + manifest，现场复核实现 commit 与 signed
+source 祖先，再派 fresh signed Release owner。Release owner 不得 QA；后续 QA 必须再次使用
+不同 fresh 代理，并在 Pad 实时证明自动 mpv→Exo、position/buffered、无新弹窗、关闭自动回退、
+cancel、Exo 二次停滞恢复与 force-stop，再接完整 PC-01–PC-12。
