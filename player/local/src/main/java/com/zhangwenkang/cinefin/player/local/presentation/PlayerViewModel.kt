@@ -52,6 +52,8 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerItemEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlayerQueueEndAction
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
+import com.zhangwenkang.cinefin.player.local.domain.SeriesPlaybackTraceTracker
+import com.zhangwenkang.cinefin.player.local.domain.SeriesResolutionTraceLog
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
@@ -63,6 +65,7 @@ import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
+import com.zhangwenkang.cinefin.player.local.domain.seriesBackendKind
 import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
@@ -188,6 +191,7 @@ constructor(
     private var activePlaybackToken: PlaybackRequestToken? = null
     private var playbackSessionState = PlaybackSessionState()
     private var playbackSessionJob: Job? = null
+    private var seriesPlaybackTrace: SeriesPlaybackTraceTracker? = null
 
     val sleepTimerState = sleepTimerController.state
 
@@ -549,6 +553,11 @@ constructor(
         _uiState.update {
             it.copy(playbackSession = PlaybackSessionRules.project(playbackSessionState, input))
         }
+        seriesPlaybackTrace?.observePosition(
+            positionMs = playbackSessionState.lastEnginePositionMs,
+            terminalKind = playbackSessionState.terminal?.kind,
+            hasPlayerError = _uiState.value.playerError != null,
+        )
     }
 
     private fun currentPlaybackSessionKey(player: Player?, mediaItem: MediaItem?): String? =
@@ -668,6 +677,7 @@ constructor(
         playbackSessionId: String,
         queueEntries: List<PlaybackQueueEntry> = emptyList(),
     ) {
+        seriesPlaybackTrace = null
         // Release any music session before touching the shared player instance.
         playbackCoordinator.onVideoStartRequested()
         // Decode fallback and speed are scoped to the playback session.
@@ -748,6 +758,17 @@ constructor(
             if (playbackSnapshots.generation != initializationGeneration) {
                 Timber.d("Discard stale player initialization after generation advanced")
                 return@launch
+            }
+
+            if (queueEntries.isEmpty() && BaseItemKind.fromName(itemKind) == BaseItemKind.SERIES) {
+                playlistManager.lastSeriesResolutionTraceContext?.let { context ->
+                    seriesPlaybackTrace =
+                        SeriesPlaybackTraceTracker(
+                            traceId = context.traceId,
+                            backend = seriesBackendKind(playerBackend),
+                            emit = SeriesResolutionTraceLog::emit,
+                        )
+                }
             }
 
             val identity =
@@ -1392,6 +1413,10 @@ constructor(
         }
     }
 
+    override fun onRenderedFirstFrame() {
+        seriesPlaybackTrace?.recordFirstFrame()
+    }
+
     override fun onPlaybackStateChanged(state: Int) {
         var stateString = "UNKNOWN_STATE             -"
         when (state) {
@@ -1432,6 +1457,7 @@ constructor(
     // Surface errors only after recovery paths decline ownership.
     override fun onPlayerError(error: PlaybackException) {
         Timber.e(error, "Player error on backend=$playerBackend: ${error.errorCodeName}")
+        seriesPlaybackTrace?.recordEngineError(error.errorCodeName)
         // Retry network errors in place instead of restarting the page.
         if (isNetworkOrSourceError(error)) {
             if (handleTransientNetworkError(error)) return
