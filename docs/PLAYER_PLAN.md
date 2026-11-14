@@ -9489,3 +9489,51 @@ K60 continuation owner，也不先猜 mpv / HLS / HEVC / 网络 / 解码器根�
 继续；若继续，必须创建 fresh 静态证据输出边界 owner，先完成 helper alias、stderr / 参数绑定
 固定投影的静态审查与验证，再考虑 K60 同入口单次 continuation。产品代码、测试、版本、签名、
 ACTIVE 均未由 Pad owner 修改；发布状态仍为 `NOT_RELEASABLE`。
+
+### 52.70.2 K60 continuation R1：Episode 对象漂移，A/B 仍不可比（2026-11-14）
+
+**状态：`STOPPED / BLOCKED_A_B_OBJECT_MISMATCH / K60_LOCAL_ENOENT_OBSERVED /
+NOT_RELEASABLE`。**
+
+用户明确测试服务器地址与账号为测速专用，R1 的文本 / URI 输出按用户决策关闭为非阻断。
+负责人据此创建 fresh `AURORAMA_141_PAD_ONLINE_K60_CONTINUATION_OWNER_R1_2026_11_14`，
+固定 K60 `8e875894` 单机和 Pad R1 相同的 UI 入口。派单门禁
+`BUG_LOOP_DISPATCH_GATE=PASS`；执行对象为 HEAD
+`db1ed316e61ac1eae82e6ecb9344505538cb71cb` / tree
+`4f54a795fee58ad3cdb47faa93013abd1a79d298`。
+
+K60 结果：
+
+- Wi-Fi、account、server scope 与 Pad opaque hash 均 `MATCH`；
+- App start `1`、playback attempt `1`、retry `0`、second playback `0`；
+- 同一固定入口在 PlayerActivity 得到的 Episode title opaque SHA-256 为
+  `EC3F54235EDDBEB2A9904C72A23287E5E17246FAF4E2BF7A3A567C16CFBE3333`，
+  Pad 为 `B35A7CFFF8158E619BB3AFD909EF3DCE6D06992FD3E052FA105080570BC76435`；
+  长度均为 19，但对象 `MISMATCH`，所以本轮 `SAME_EPISODE_K60_RESULT=NOT_RUN`；
+- K60 该次对象使用 `ExoPlayer` 的 `LOCAL_DOWNLOAD`，`T+1.096 s` 对 App 自有
+  `files/downloads/<opaque>.download` 触发 `ENOENT / Source error`；T+34.45 s UI
+  `00:00` 并出现“重试”，MediaSession `ERROR(7)`、position / buffered `0`。
+  该路径不是 Pad 的 `mpv / HLS`，不能用于支持或推翻 Pad 设备特有停滞假设；
+- K60 local missing source 记为独立 P2，不在本轮修改播放器或回退逻辑。
+
+分类：`A/B_OBJECT_MISMATCH / NOT_COMPARABLE / PAD_R1_STALL_NOT_RESOLVED`。
+P0=`0`；P1 为对象漂移，并继承 Pad 在线停滞；P2 为 K60 本地下载源缺失和 Pad source
+trace 不足；Episode 漂移原因未证明。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\K60_ONLINE_DIAGNOSIS_CONTINUATION_R1.md`
+  / SHA-256 `955DBFD56919BBDDBE59DBF352C4027F096DD59B0965878FBA174FF1F7BD86C1`；
+- 同名 manifest SHA-256
+  `AD5C08A93220311FE1D287D236E1D341A497C53D6588FEF2A6F49C1A70AF7AAB`，报告 hash MATCH。
+
+清理：K60 已 force-stop，PID / App MediaSession / active session / 目标通知均为 `0`；
+设备 UI dump 1 个、宿主 raw log `2,080,151 B` 已删除；App 安装、data inode 和登录 session
+保留；截图 0；Pad 定向命令 0；Oppo/OnePlus 0；服务器直接写 0。锁
+`AURORAMA-141-K60-ONLINE-CONTINUATION-R1-8e875894-20261114-1358` 已 `RELEASED /
+ACTIVE=0`，最终锁 SHA-256
+`68DCD7D7EDFC45717C47FA40A6A2F2C18477B19E0E3ACD755D8E60EFC944FF62`。
+
+按 R043 停止，不执行第二次 K60 playback，不切换到其他 Episode 规避对象门，也不据
+`ENOENT` 直接修改播放器。下一步必须由用户选择明确 Episode，再由 fresh owner 先证明
+Pad/K60 解析到同一稳定媒体身份，然后才允许下一次单次观察；K60 本地源缺失另行分诊。
