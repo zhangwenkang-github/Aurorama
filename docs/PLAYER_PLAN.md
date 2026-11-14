@@ -10170,3 +10170,50 @@ R3 实测上下文 `306054 / 1048576 (29.2%)`，已到 30 万检查点：本会�
 source 祖先，再派 fresh signed Release owner。Release owner 不得 QA；后续 QA 必须再次使用
 不同 fresh 代理，并在 Pad 实时证明自动 mpv→Exo、position/buffered、无新弹窗、关闭自动回退、
 cancel、Exo 二次停滞恢复与 force-stop，再接完整 PC-01–PC-12。
+
+### 52.70.18 Signed Release R3 PASS / fresh independent QA entry（2026-11-14）
+
+**状态：`SIGNED_RELEASE_R3_PASS / FRESH_INDEPENDENT_QA_DISPATCH_READY / NOT_RELEASABLE`。**
+
+fresh `AURORAMA_141_SIGNED_RELEASE_ENGINEER_R3_2026_11_14` 只做 Release 工程，从产品实现
+`092afea32508466203ea1db7d1d0f6f6ad6473ce` / tree
+`95db8db5e62b330cfb5f38ae5faefaa8b49929f6` 构建 fresh signed arm64 / universal。控制面
+开工 HEAD / tree 为 `62e94c12` / `df65d0af`；`092afea3..HEAD` 仅含
+`docs/PLAYER_PLAN.md`、`docs/TASKS.md`，产品与测试代码 diff 0。
+
+Release 结果：
+
+- 7/7 required ancestors PASS；旧 signed R2 source `2c27ee0d` 与
+  `2c27ee0d → 092afea3` 六文件白名单均通过；
+- arm64 `80,599,166 B` /
+  `BA260225500798504983B4486CDE8B1BC7179EAA29F56C3BE674F65A1D7F9D34`；
+- universal `175,213,336 B` /
+  `DA00789829C288FF0C4CD71B7163F0CC57BCFB85C7F5D6D391A2E0426D377B14`；
+- package `io.github.zhangwenkang.aurorama` / `1.4.1(6)` / minSdk 28 / targetSdk 36 /
+  non-debuggable；ABI 与 v2 / 单 signer 均 PASS；
+- cert SHA-256
+  `e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff`；
+- 首次全量、JNI contract、JNI 后最终 universal packaging 均 exit 0；最终 APK 与首次构建
+  hash MATCH；unsigned APK 0；
+- delivery manifest 15/15、SHA256SUMS 2/2、evidence manifest 2/2 MATCH；delivery manifest
+  SHA-256 `5AE628AEA5940568BBED02FCC59E6166DA984BBCBC79140CA79931782B112D38`；
+- Release owner device / server / screenshots 均为 0；未安装、未 QA、未 push / tag / Release。
+
+该 PASS 只证明 signed Release 工程产物有效。`P1-PAD-ONLINE-PLAYBACK-STALL-001` 仍 OPEN；
+真实 mpv→Exo、position / buffered、manual cancel、AUTO_FALLBACK=OFF、二次停滞恢复、
+force-stop、A2/A3/A4 与 PC-01–PC-12 均未执行，1.4.1 仍 `NOT_RELEASABLE`。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SIGNED_RELEASE_ENGINEERING_R3.md`
+  / manifest SHA-256
+  `8D74E4AE068698450F3790694DFA6F785EBBAD2D612E5C666B0CABDF85A8DEAB`；
+- delivery：
+  `F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r3-2026-11-14`；
+- next QA contract：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_QA_R3_PROMPT.md`。
+
+下一 owner 必须是与 implementation / Release / Final QA R1 均不同的 fresh independent QA。
+只允许 Pad `43af8627`；由 QA 合同显式授权 exact signed arm64 `install -r` 并保留 data /
+session。主症状只做一次同路径复测，之后按 QA 合同覆盖 A1 状态、A2/A3/A4 与 PC-01–PC-12。
+K60 / Oppo / OnePlus、系统网络 / 开发者选项、用户已有下载删除、服务器写和截图均为非目标。
