@@ -9691,3 +9691,343 @@ BUG LOOP 停止：同一路径已有 R3 + discriminator 两次设备观察，仍
 mapping / retry / Episode 行点击语义。若用户选择继续，必须显式批准一种不重复本轮取证方式的
 单一证据方案，例如受控 debug / instrumented 等价对象；获得类别前 `IMPLEMENTATION_GATE`
 继续保持关闭。1.4.1 仍 `NOT_RELEASABLE`。
+
+### 52.70.7 用户 post-retest 新观察：播放可能恢复（2026-11-14）
+
+用户于 2026-11-14 在上一轮停止后反馈：“刚刚我测试播放好像又可以了”，同时询问为什么同一个
+App 在不同设备上会出现不同行为，并指出 1.3.0 似乎没有这种情况；用户明确授权后续采用推荐
+诊断方案，不再逐步等待授权。
+
+该反馈是新的用户观察，但尚未形成 candidate / device / object / source 绑定的证据。当前状态
+因此从“稳定 pre-player 阻断”改为：
+
+```text
+USER_RETEST_POSSIBLY_RECOVERED / CURRENT_SYMPTOM_REPRODUCIBLE=UNCONFIRMED /
+REGRESSION_SUSPECTED_1_3_0_NOT_VERIFIED / NOT_RELEASABLE
+```
+
+推荐下一步不是立即改代码或加 debug instrumentation，而是固定同一个《超能力女儿》S1E1，
+使用当前 signed `1.4.1(6)` 走一次 Pad → K60 的真实完整路径：
+
+`Episode 行 → Episode 详情 → 播放按钮`
+
+记录当前是否进入 PlayerActivity、是否出现数据加载错误、最终 backend / source kind、首帧或
+位置推进、MediaSession 与 20 秒状态。只有两机当前行为可重复分类后才决定是否使用 debug /
+instrumented 等价对象。
+
+1.3.0 只能作为 `REGRESSION_SUSPECTED`：真实设备 data/schema 不得从 1.4.1 直接降级，除非
+另有隔离包 / 安全基线方案；没有同片源 1.3.0/1.4.x A/B 就不能写确认回归。
+
+本确认 owner 不修改产品 / 测试 / 版本 / 签名 / 系统网络，不删除 data / 下载，不使用直接
+metadata API，不执行 Oppo / OnePlus。若当前播放恢复，结论只能是“当前间歇 / 状态相关现象未
+复现”，不能关闭既有 P1。
+
+### 52.70.8 用户更正真实入口与发布弹窗红线（2026-11-14）
+
+用户进一步明确：
+
+1. 真实操作入口是**节目 / 剧集详情页上方的“播放”按钮**，不是 Episode 行，也不是先进入
+   Episode 详情再点播放；
+2. 同一入口有时能播放、有时不能，随后又反馈“测试又不行了”，因此当前是间歇性症状；
+3. 正式发布不得出现多余弹窗，例如视频播放超时弹窗影响体验。
+
+此前基于“Episode 行 → Episode 详情 → 播放按钮”的 post-retest prompt 已因入口错误
+`SUPERSEDED`，不得继续使用。该 owner 已被立即中断；安全收尾中 Pad 错误入口 App start 1、
+Episode 行点击 0、播放点击 0、PlayerActivity 0，K60 命令 0；两机 force-stop，临时文件 /
+session / MediaSession / 通知均收敛，App data 与下载保留，截图 0；联合锁
+`RELEASED / ACTIVE=0`，最终锁 SHA-256
+`780A4193338F5D995A97404F803EB2292A72B7CE62BF9809041A67D5A4135735`。
+
+代码静态事实：
+
+```text
+ShowScreen ItemButtonsBar.onPlayClick
+→ ShowAction.Play
+→ Intent(PlayerActivity, itemId=<seriesId>, itemKind=SERIES)
+→ PlayerViewModel.initializePlayer
+→ PlaylistManager.getInitialItem(SERIES)
+→ repository.getNextUp(seriesId)
+→ 命中则播放 NextUp Episode；失败 / 空则枚举整剧并从第一季第一集兜底
+```
+
+所以同一个顶部“播放”按钮在运行时不保证落到同一 Episode：NextUp、播放进度、本地下载源、
+设备能力与后端偏好都可能让 Pad / K60 走不同路径。该结构解释只能作为观察框架，不能替代
+当前 signed 候选的同入口证据。
+
+本轮应直接按真实入口执行 Pad → K60 各一次顶部播放确认：
+
+- 记录 `itemKind=SERIES`、NextUp / fallback、选中 Episode opaque ID；
+- 记录 backend、DirectPlay / HLS / LOCAL_DOWNLOAD、首帧 / 位置推进；
+- 记录失败提示类型，并区分普通 BUFFERING 与阻塞式超时弹窗；
+- 不进入 Episode 行或使用旧 pre-player 结论替代。
+
+发布体验新增硬红线：
+
+```text
+RELEASE_UX_REQUIREMENT=NO_UNNECESSARY_PLAYBACK_TIMEOUT_POPUP
+```
+
+正式包不得因正常缓冲 / 暂时无进度而主动弹阻断式超时窗口；若必须提示，只能使用非阻断、
+上下文相关、可恢复的播放器内状态。不得为了诊断向 release 增加 popup / Toast /
+instrumentation 提示。该要求在独立 QA 的 `PC-02` / `PC-05` / `PC-12` 证据中必须显式检查。
+
+### 52.70.9 Show 顶部播放 A/B R1：两机失败但根因分叉（2026-11-14）
+
+**结论：`FAIL_BOTH / SERIES_RESOLUTION_DIVERGENCE / SOURCE_BACKEND_DIVERGENCE /
+INTERMITTENT_ROOT_CAUSE_NOT_PROVEN / NOT_RELEASABLE`。**
+
+同 signed `1.4.1(6)`、同一精确《超能力女儿》Show 顶部“播放”：
+
+| 字段 | Pad `43af8627` | K60 `8e875894` |
+|---|---|---|
+| SERIES 解析 | `FALLBACK_S1E1_INFERRED` | `NEXTUP_S1E3` |
+| Episode | `S1:E1` | `S1:E3` |
+| backend | `mpv` | `ExoPlayer` |
+| source | `HLS / MKV / HEVC` | `LOCAL_DOWNLOAD / MISSING` |
+| 20 秒结果 | BUFFERING，position `-1` | `ERROR(7) Source error`，position `0` |
+| 用户可见状态 | `PLAYBACK_PROGRESS_TIMEOUT` 内联卡 | `PROGRESS_UNCONFIRMED` 内联卡 |
+
+两机均无 ModalDialog、无 Toast，但错误卡直接显示英文内部 token，且 Pad 已显示 timeout 内联
+终态时 MediaSession 仍为 BUFFERING。发布体验门新增：
+
+- `P2-PLAYER-RAW-ERROR-TOKEN-UI-001`
+- `P2-PLAYER-UI-MEDIASESSION-TERMINAL-DIVERGENCE-001`
+- 用户要求的“正式包无多余播放超时弹窗”继续作为硬门；任何新增诊断 UI 禁止进入 release。
+
+证据：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SHOW_TOP_PLAY_INTERMITTENT_AB_R1.md`，
+报告 SHA-256 `3647BCBF3E7E22CA5CAA5375A2CAFDAE333BB961E5923C5400B27B8535E10667`；
+manifest SHA-256 `80CB6ED88EB9D43B859735E1C2FF1396BC7C0D61FCF9B9303ACEC7F004F52B12`，MATCH。
+两机 App start / top-play click 各 1、Episode row click 0、retry 0、second playback 0；锁已
+`RELEASED / ACTIVE=0`，最终锁 SHA-256
+`500DC254A3A1DFBA5D77BE6F3E283CF4783D207358EB96B64A1B119E2257A469`。
+
+不能把两机现象混成一个根因：
+
+1. Pad 是 `S1E1 + HLS + mpv` 在线管线 >20 秒无进展；
+2. K60 是 `S1E3 + LOCAL_DOWNLOAD + MISSING` 的 source 选择 / 文件一致性问题；
+3. `NextUp` 的 EMPTY / EXCEPTION 与 completed local source DB 状态仍缺 App 绑定结构化证据。
+
+因此下一卡只做 debug-only structured instrumentation，保持用户行为不变，采集
+`getNextUp=SUCCESS/EMPTY/EXCEPTION`、fallback Episode、local source DB/file 状态、最终
+source/backend。不得先猜修 PlaylistManager，也不得把 raw token 卡改成新的 popup。
+
+派单 prompt：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SERIES_RESOLUTION_INSTRUMENTATION_OWNER_R1_PROMPT.md`。
+
+### 52.70.10 Series resolution instrumentation R1：Pad 深层 mpv 停滞，K60 待 signed QA（2026-11-14）
+
+**状态：`IMPLEMENTATION=PASS / RED_GREEN=PASS / PAD_TRACE_COMPLETE /
+K60_DEBUG_SESSION_BLOCKED / NO_USER_VISIBLE_CHANGES`。**
+
+debug-only structured trace 已合并到当前分支：
+
+- commit `4f158c7d3148546994455f4a1a010cb9dad98266` / tree
+  `c8f49e38f7740ce9fa3d8e1395a30e1814397997`；
+- 4 个产品 / 测试文件；RED 2 个实际断言失败，focused GREEN `9/9`；
+- `player:local` JVM `413/0/0/0`，47 XML；ktfmt、`assembleDebug` PASS；
+- debug arm64 `154388092 B` / SHA-256
+  `7D9BFB7E948B07669B340C68CAEBAA863D3AB4542604778565934A9AE508BCEE`；
+- trace 仅在 debug Timber tree 存在时创建；release 无 tree 时不计算 hash、不探测本地文件、不建
+  tracker；用户可见变化 `0`。
+
+Pad `43af8627`：
+
+- 顶部 SERIES Play 的 `getNextUp=SUCCESS / count=1`，实际 NextUp 为 `S1E2`，不是 S1E1
+  fallback；
+- Episode opaque hash `D56786CC…24EC8B8`；completed local `ABSENT`；
+- source 为 `DIRECT_PLAY / REMOTE / MKV`，backend `MPV`；
+- 30 秒无首帧、position 不推进，最终 `PLAYBACK_PROGRESS_TIMEOUT`、MediaSession BUFFERING。
+
+这说明 Pad 的 SERIES resolution 正常，停滞发生在 remote DirectPlay 交给 MPV 之后的
+demux / network / decode / render 区间；不能继续归因于 NextUp 或 Episode 详情加载。
+
+K60：
+
+- debug 包已有 data 但无已登录 server session，唯一一次 cold start 停在首连页；
+- 顶部 Play 未执行；不构成 K60 播放失败或 PASS；
+- signed Release 已明确 `NextUp S1E3 + LOCAL_DOWNLOAD + file MISSING`，所以首个实现切片优先
+  修 stale local source 的远端回退，不能等待 debug session。
+
+锁已 `RELEASED / ACTIVE=0`，最终 SHA-256
+`B1D8A37FB68B64A0C34873C357DAACF67A4BA72BFD8BE713050A4050DBE14CFA`。
+
+下一卡：
+`AURORAMA_141_LOCAL_SOURCE_STALE_FALLBACK_IMPLEMENTATION_OWNER_R1_2026_11_14`。
+只修 completed local 文件缺失时静默回退 REMOTE；有效 local 仍优先；不删除用户下载、不增加
+弹窗。随后由 fresh Release owner 生成 signed candidate，再由 fresh QA 验证真实 K60 顶部播放。
+
+### 52.70.11 Stale local source fallback 实现收口（2026-11-14）
+
+**状态：`IMPLEMENTATION=PASS / RED_GREEN=PASS / SIGNED_DEVICE_QA=PENDING`。**
+
+实现 commit `cf9e256cff08a3dc8d493c99caba33ff30400b0c` / tree
+`60fe4017848fc8688df385be93a8640bc485c71e`，9 个白名单产品 / 测试文件，`+468/-21`。
+
+新 contract：
+
+- completed local 必须是 completed / legacy final 生命周期；
+- 本地 path 必须是存在且非空的 regular file，或已索引 `content://` 本地库文档；
+- missing / empty / 不可读 local 不进入 source selection；
+- `selectFindroidSource` 只在可交付源中选择：preferred → LOCAL → 首个 REMOTE；
+- `getEpisode` / `getMovie` / `getMediaSources` 使用同一 validity 口径；
+- 不删除 / 改写 DB、不删除用户下载；无 REMOTE 时保留既有 typed failure。
+
+RED：data targeted 10/6 failed、player targeted 2/1 failed，均为旧代码仍选 missing LOCAL。
+GREEN：data `52 XML / 354/0/0/0`、player `47 XML / 414/0/0/0`、ktfmt / diff-check /
+assembleDebug PASS。debug arm64 `155797200 B`，SHA-256
+`6D82EA53E036D39C85F706985B9A29E6890ED484F3A2DBE49837B2CF1F8FF51D`。
+
+实现报告 SHA-256
+`FF71A090E6846F77D4A92140BCAD346BDD408A7C2964753E6997D0F3AA37EFAD`；manifest SHA-256
+`A17030CAC37D4764504F3C77294E4EF88DB471F76AF96FEF16710D2E0933E4E0`，MATCH。
+K60 signed 顶部播放源码绑定回归仍 PENDING；有效 local 实际 codec / 首帧仍 PENDING。
+
+下一卡只处理用户可见的播放恢复文案：保留非阻断内联恢复与 20 秒 watchdog，但正式 UI 不得
+显示 `PLAYBACK_PROGRESS_TIMEOUT`、`PROGRESS_UNCONFIRMED`、`START_ZERO`、
+`ENGINE_POSITION` 等内部 token，也不得新增 Modal / AlertDialog / Toast。
+
+### 52.70.12 Player recovery UX 实现收口 / signed Release R2 入口（2026-11-14）
+
+**状态：`IMPLEMENTATION=PASS / RED_GREEN=PASS / SIGNED_DEVICE_QA=PENDING /
+NOT_RELEASABLE`。**
+
+实现 commit `2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104` / tree
+`e5eef85f42c02dfa7c20e1f0dd5a710135850713`，6 个白名单产品 / 测试文件，`+213/-8`。
+
+恢复文案 contract：
+
+- `PLAYBACK_PROGRESS_TIMEOUT` → “播放暂时没有继续”；
+- `PROGRESS_UNCONFIRMED` → “播放进度暂时无法确认”；
+- unknown kind → 安全通用恢复文案；
+- `START_ZERO` → “从头播放”；
+- 已确认位置 → 只显示格式化时间；
+- 正式 UI 不再直接渲染 `terminal.kind`、`positionSource.name` 或 `error.codeName`；
+- 保留原非阻断 `PlaybackRecoveryBar`、20 秒 watchdog 与 retry token / 位置来源。
+
+门禁：目标 `6/0/0/0`；app phone JVM 76 XML / `517/0/0/0`；player local 47 XML /
+`414/0/0/0`；assembleDebug 251 tasks；ktfmt / diff-check PASS。debug arm64
+`158861644 B` / SHA-256
+`E2381BCF0A9F2FF8D46296AF83B48C58D299CA68F9A4A681F104014C44FC93B6`。
+提交 diff 新增 `AlertDialog / DialogFragment / Toast / Dialog(` 命中 `0`；
+`PlayerViewModel` / source / mpv / Media3 diff `0`。
+
+报告 SHA-256 `F86D7A4B7548E49CDB54894E75B22BEEB484FA098505884096B213FE6A91D0F8`；
+manifest SHA-256
+`4EA98EBE1DBC8A5BD801DC9FBF4DBBDE5239DCB9C4E17A590D5A78A65C9BB9A5`，MATCH。
+
+下一角色 = fresh `AURORAMA_141_SIGNED_RELEASE_ENGINEER_R2_2026_11_14`。只从 HEAD
+`2c27ee0d` 构建 signed arm64 / universal，证明所有下载、local fallback、recovery UX 与
+debug-only trace 祖先关系；不得安装、QA、merge、push、tag 或 Release。后续独立 QA 必须另派。
+
+### 52.70.13 Signed Release Engineering R2 PASS / Independent QA ACTIVE（2026-11-14）
+
+**状态：`SIGNED_RELEASE_ENGINEERING_R2=PASS / QA_PENDING / NOT_RELEASABLE`。**
+
+候选 source `2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104` / tree
+`e5eef85f42c02dfa7c20e1f0dd5a710135850713`；6/6 修复提交均为候选祖先。
+
+Signed：
+
+- arm64 `80582770 B` / SHA-256
+  `1D074E8CF23D716F1C11C7F6ADFB66DBC45BDDEB398152DC1DEA4E6F8EFA05C0`；
+- universal `175196940 B` / SHA-256
+  `092EC7C1979F19CD7E1E3633745D3FB832448F2A969E4E17BAD87AFA8127C54E`；
+- package `io.github.zhangwenkang.aurorama` / `1.4.1(6)` / non-debuggable / v2 单 signer；
+- signer SHA-256 `e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff`；
+- delivery `F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r2-2026-11-14`，
+  delivery manifest SHA-256 `03EAA501E0F03E91E05587809A5DB7B87DA81D7A8B3B1B3C5481C48268435EDC`。
+
+Release 报告 SHA-256
+`75B400B36AD5B0B3AD296DC19D417FAEAA581E63D19DC37C6ED5D34A14F1EAC1`；
+evidence manifest SHA-256
+`BB907E0E638B0F4645241A925950E8EC33CC33F5B95D1833F84E988E396FBE3A`，报告为 manifest
+第二行并 MATCH（第一行是 prompt hash）。
+
+Release 审查确认：正式主界面无原始 terminal / position token；无新增 timeout Modal、诊断
+Toast、AlertDialog 或 DialogFragment；debug trace 在 release `DEBUG=false` / 无 Timber DebugTree
+时不创建 context、不探测文件；显式剧集选择确认框保留为产品功能。
+
+下一角色 = fresh `AURORAMA_141_FINAL_INDEPENDENT_QA_R1_2026_11_14`。必须与所有实现 /
+Release owner 不同；先独立复算 candidate / manifest / signer / commit，再按真实用户入口执行
+核心旅程、三条下载 lineage 与 PC-01–PC-12。设备动作从 exact signed arm64 开始；任何对象、
+manifest、签名或设备锁漂移立即停止。QA 不能改代码、版本、签名或服务器。
+
+### 52.70.14 Final Independent QA R1 核心结果 / 用户解除测试数据隐私阻断（2026-11-14）
+
+**当前：`QA_CONTINUATION_REQUIRED / CORE_PLAYBACK_EXECUTED / DOWNLOAD_AND_MATRIX_NOT_RUN /
+NOT_RELEASABLE`。**
+
+QA 已独立复核 candidate、delivery manifest、signer、source commit/tree、6 个修复祖先，
+两机 `install -r` 保留 data/session，设备 APK hash MATCH。核心 A1 结果：
+
+- Pad `43af8627`：顶部《超能力女儿》解析 `S1:E4`，`mpv / HLS`，约 37.8 秒仍
+  BUFFERING、position `-1`、UI `00:00`；恢复条单条非阻断、内部 token/Dialog/Toast 均 0；
+  Pad 停滞 P1 继续 OPEN。
+- K60 `8e875894`：顶部解析 `S1:E5`，`ExoPlayer / REMOTE`，position 推进到
+  `8876 ms`、`20883 ms`，buffered `69861 ms`，error null。missing LOCAL Source Error 本次未复现，
+  但单次观察不能关闭 P2。
+- 同 Show 顶部入口仍解析不同 Episode，Series resolution divergence P1 继续 OPEN。
+- A2 指定剧集下载、A3 删除递归、A4 工具栏唯一、PC-01–PC-12 均未运行；
+  `PLAYER_CORE_MATRIX_RESULT=NOT_RUN`。
+
+QA 在 K60 信息面板安全投影上曾输出一条测试媒体路径类定位符，按当时合同停止。用户随后明确：
+测试服务器地址、账号及测试媒体路径无需按隐私泄露处理；只需继续避免 token、cookie、密码和
+query 等真实凭据值。因此：
+
+- `P1-QA-EVIDENCE-MEDIA-PATH-OUTPUT-001` 由用户决策
+  `ACCEPTED_BY_USER_NONBLOCKING` 关闭；
+- 不重跑已完成的 A1；同一 fresh independent QA 从断点继续；
+- 继续执行 A2/A3/A4 后逐行 PC-01–PC-12；
+- 下载 lineage 与矩阵执行前仍不得进入 Release / 最终用户验收。
+
+QA report SHA-256
+`614E06584FC53078AEF6CA221B17CE8E1981224ABB506A27B9C4D444BD639CEB`；
+manifest SHA-256
+`EB17B8584BAF4699F075FE2B9EDFBD23B4DC0126401C1F16D83CE897D793459E`，MATCH。
+设备锁已 `RELEASED / ACTIVE=0`，最终锁 SHA-256
+`C3516E7BBCA4F146ED7EDA029CD4CA7749C08B55D1B797A7FA13B188021E7501`。
+
+### 52.70.15 Final Independent QA R1 完成 / Player matrix FAIL（2026-11-14）
+
+**状态：`FINAL_INDEPENDENT_QA_R1=COMPLETE_WITH_FAILURES /
+PLAYER_CORE_MATRIX_RESULT=FAIL / READINESS=NO / NOT_RELEASABLE`。**
+
+报告 SHA-256
+`30227E9D07AB5B92A017A844751707F043C5008583DACFEBCF416CF66A3C4EEC`；manifest SHA-256
+`9C9428C5E26AB822344C1804025FC7829224C9B142D806EF3FE4C364C82C0008`，MATCH。
+两机 installed signed arm64 与 candidate MATCH；安装、data、session、用户媒体保留。
+
+A1：
+
+- Pad：`S1:E4 / HLS / mpv`，37.8 秒仍 BUFFERING、位置 `-1`；本地化恢复条单条非阻断，无 raw
+  token / Modal / Toast。`P1-PAD-ONLINE-PLAYBACK-STALL-001` 仍 OPEN。
+- K60：`S1:E5 / REMOTE / Exo`，position `8,876 → 20,883 ms`，buffered `69,861 ms`；
+  stale LOCAL missing 已按 REMOTE fallback 成功，但单次不复现不能关闭旧 P2。
+- Show 顶部两机 Episode 仍不同，resolution divergence P1 继续 OPEN。
+
+A2：
+
+- 真实 `只有神知道的世界 / Season 1` 共 26 集，选择 `S1E1 + S1E2`；任务四集合相等；
+- 暂停 / 继续 / 取消 / 单叶删除真实执行；
+- 新 P2 `P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001`：下载页
+  `51.8 MB / 2.38 GB` 与通知 `57.57 MB / 1.33 GB` 的分母/总量不一致；A2 严格 FAIL。
+
+A3：
+
+- 单条 / Season / Show 删除最终 `0/0/0`，重复确认无第二 batch，两次 cold restart 不复活；
+- UIAutomator 未能抓住 `Deleting` 首帧，A3 首帧实时门 `NOT_PROVEN`，严格 FAIL。
+
+A4 PASS：PAUSED 选择 `2` 项只有 `继续下载 ×1 / 删除 ×1`，Play/Pause/Retry 均 0。
+
+PC matrix：
+
+- PASS：PC-01、PC-07、PC-09、PC-12；
+- FAIL：PC-02、PC-03、PC-05（HLS/mpv stall、后台 buffering、near-end seek stall）；
+- NOT_RUN：PC-04、PC-06、PC-08、PC-11；
+- BLOCKED_AUTHORIZATION：PC-10（Oppo/OnePlus 零命令）。
+
+用户已授权测试媒体路径不作为隐私阻断；token/cookie/password/query 仍脱敏。
+
+下一步优先判别 Pad `HLS/mpv` 停滞，不先改 download notification 或猜测 mpv 修复：
+同一 Pad、同一 Episode/source，先 mpv，再用播放器现有设置切 Exo；mpv 不出画而 Exo 出画则
+锁定 mpv backend，均不出画则转向 source/network。K60 本轮零命令，最多两遍以内。
