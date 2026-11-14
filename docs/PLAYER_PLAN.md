@@ -10517,3 +10517,21 @@ empty / duplicate / reordered / cancel / restart / representative action source 
 的源码构建新的 signed arm64 / universal，证明 `092afea3`、`924b66fc` 与既有 required
 ancestors 均在候选内；不安装、不 QA、不 push / tag / Release。Release PASS 后必须由另一个
 fresh independent QA 在 Pad 真实 `S1E1 + S1E2` A2 验证页面/通知字节、百分比与 actions。
+
+### 52.70.25 R4 负责人主动交接（2026-11-14）
+
+本会话实测 `402932 / 1048576 (38.4%)`，已超过 35 万强制交接门。停止扩项，交接动态状态以
+`docs/TASKS.md` 唯一 ACTIVE 和 `NEXT_LEADER_PROMPT_R5.md` 为准。
+
+当前完成度：
+
+- signed R3 真实 A1-AUTO 已通过并关闭 Pad mpv 停滞 P1；
+- signed R5 QA 已完成 A2 / A4，关闭指定剧集选择与工具栏 P1；
+- 下载通知 total / denominator 根因已证明并完成 JVM GREEN；
+- `924b66fc` 只改通知 aggregate 两处生产文件与一组 fixture；
+- fresh signed R4 未启动；
+- 播放器 PC-02/03/05 失败仍开放，near-end seek 诊断 `INCONCLUSIVE`，实现门关闭；
+- A3 Deleting 首帧、PC-04/06/08/10/11、Series divergence 等未关闭。
+
+后继负责人必须先从包含 `924b66fc` 的当前 clean HEAD 生成 signed R4，再用不同 fresh QA
+验证通知修复。不得复用 signed R3 / JVM fixture 作为通知 P2 的设备 PASS。
