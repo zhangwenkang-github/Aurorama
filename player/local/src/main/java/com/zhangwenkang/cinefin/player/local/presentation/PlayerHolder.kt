@@ -57,13 +57,18 @@ constructor(
         object : SeekSessionBridge {
             override suspend fun rebuildForSeek(
                 itemId: String,
+                mediaSourceId: String,
                 targetMs: Long,
             ): SeekSessionReplacement? {
                 val parsedItemId =
                     runCatching { UUID.fromString(itemId) }.getOrNull() ?: return null
                 val rebuilt =
                     withContext(Dispatchers.IO) {
-                        playlistManager.rebuildPlayerItemForPosition(parsedItemId, targetMs)
+                        playlistManager.rebuildPlayerItemForPosition(
+                            parsedItemId,
+                            targetMs,
+                            mediaSourceId,
+                        )
                     } ?: return null
                 val mediaItem = rebuilt.toMediaItem(application)
                 val mediaIdentity = seekMediaIdentityFromItem(mediaItem) ?: return null

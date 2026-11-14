@@ -10911,34 +10911,42 @@ PC-03/05 判别：
 
 ### 52.70.33 PC-03/05 near-end HLS retry source refresh R1（2026-11-15）
 
-**状态：`IMPLEMENTATION_GREEN / PLAYER_LOCAL_PASS / PHONE_ASSEMBLE_PASS /
-FRESH_SIGNED_QA_REQUIRED / PC-03_05_OPEN / NOT_RELEASABLE`。**
+**状态：`REVIEW_FINDINGS_REPAIRED / IMPLEMENTATION_GREEN / PLAYER_LOCAL_PASS /
+PHONE_ASSEMBLE_PASS / FRESH_SIGNED_QA_REQUIRED / PC-03_05_OPEN / NOT_RELEASABLE`。**
 
 root cause：近片尾 Exo/HLS seek 已成功 replacement，但 replacement 自身网络超时后，用户“重试”走
 `retrySeek` 通用原地路径；此时 target、current、buffered 与 replacement `sessionStart` 已对齐，
 `shouldRestartTranscodeSession=false`，generation 2 再次提交同一不可用 HLS source。原 window-cap
 分支也以同一 source `seekTo` 静默返回。
 
-最小修复只改现有 `SeekPlayerEventListener.kt`：
+最小修复继续使用现有 seek / replacement / restart seam：
 
 - HLS+Exo 的显式 seek retry 标记 `forceFreshTranscodeSource`，继续走既有
   `scheduleTranscodeRestart → bridge.rebuildForSeek → replaceMediaItem`；
+- fresh rebuild 显式携带当前 `mediaSourceId`；PlaylistManager 以该 ID 重取，并在 refreshed
+  sources 已无该 ID 时返回失败；sink replacement 再次校验 source identity，不 replace / seek
+  替代 source；
+- fresh rebuild 仅用于“已应用 replacement source 后 TIMEOUT”的 retry 链；普通 HLS
+  `ENGINE_ERROR` / `SOURCE_CHANGED` 仍走当前 source；
+- restart 预算键改为 requestId + target generation；每次 bridge attempt 在调用前计数，bridge
+  异常 / null / identity 不匹配也计数；新 seek 使用新键，不继承旧预算；
 - 现有 30 秒 / 6 次 restart window 耗尽时，改为立即
   `Failed(SESSION_REBUILD_FAILED, retryable=true)`，不再同 source 静默重投；
 - 不新增 player、timer、source resolver、版本、schema、Series、下载或 mpv 逻辑。
 
 TDD 与门禁：
 
-- 两条 RED 分别为“retry 未产生第二次 replacement”（`expected 2, actual 1`）与
-  “window cap 仍停留 Seeking 而非可重试终态”；随后 targeted GREEN；
-- `PlaybackSeekSinkTest=9/0/0/0`；`player:local` 全量 `429/0/0/0 / 48 XML`；
+- 原始 RED / GREEN 输出保存在合同证据目录；RED 覆盖换源被接受、普通 HLS 错误误 fresh、
+  失败 rebuild 未计次与跨 request 预算泄漏；
+- targeted final `16/0/0/0`（`PlaybackSeekSinkTest=13`、`PlaylistManagerInitialItemTest=3`）；
+- `player:local:testDebugUnitTest=PASS`；
 - 根 `ktfmtCheck=PASS`；`:app:phone:assembleDebug=PASS / 251 tasks`；
-- debug APK `151,634,887 B / DC26D57CCE8D28CA17B1691886D16550325EA7EC372B7272CA0240C68D242C6C`。
+- debug APK `153,058,032 B / 7DF1E781FDEF72DA0DF375CC462EA39D781D339FDDDC0F11ED9EE1135FB3FE33`。
 
 未覆盖：没有设备自测、fresh signed candidate、独立 QA、真实近片尾恢复、普通 seek / PC-12 /
 source identity 的独立真机矩阵，也未 merge / push / Release。因此不能关闭 PC-03/05 或宣称
 Release PASS。
 
 证据：
-`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_PC03_05_NEAR_END_HLS_FIX_R1.md`
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_PC03_05_NEAR_END_HLS_SOURCE_BINDING_R1.md`
 及同名 `_MANIFEST.sha256`。

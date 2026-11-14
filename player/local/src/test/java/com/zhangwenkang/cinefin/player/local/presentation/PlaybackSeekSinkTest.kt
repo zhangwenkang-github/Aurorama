@@ -154,9 +154,11 @@ class PlaybackSeekSinkTest {
             object : SeekSessionBridge {
                 override suspend fun rebuildForSeek(
                     itemId: String,
+                    mediaSourceId: String,
                     targetMs: Long,
                 ): SeekSessionReplacement {
                     assertEquals("item-a", itemId)
+                    assertEquals("source-a", mediaSourceId)
                     assertEquals(60_000L, targetMs)
                     currentUri = "https://media.example/video/master.m3u8?StartTimeTicks=600000000"
                     currentIdentity =
@@ -203,6 +205,265 @@ class PlaybackSeekSinkTest {
     }
 
     @Test
+    fun `seek rebuild rejects a replacement from a different media source`() {
+        var now = 6_000L
+        val originalUri = "https://media.example/video/master.m3u8?StartTimeTicks=0"
+        val player =
+            FakePlayer(
+                mediaItem =
+                    directItem(
+                        id = "item-source",
+                        sourceId = "source-selected",
+                        uri = originalUri,
+                    ),
+                currentPositionMs = 1_000L,
+                bufferedPositionMs = 1_000L,
+            )
+        var currentUri = originalUri
+        var currentIdentity =
+            com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                itemId = "item-source",
+                mediaSourceId = "source-selected",
+                mediaSourceUri = currentUri,
+            )
+        val bridge =
+            object : SeekSessionBridge {
+                override suspend fun rebuildForSeek(
+                    itemId: String,
+                    mediaSourceId: String,
+                    targetMs: Long,
+                ): SeekSessionReplacement {
+                    assertEquals("source-selected", mediaSourceId)
+                    currentUri =
+                        "https://media.example/video/master.m3u8" +
+                            "?StartTimeTicks=${targetMs * 10_000L}&WrongSource=true"
+                    currentIdentity =
+                        com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                            itemId = itemId,
+                            mediaSourceId = "source-other",
+                            mediaSourceUri = currentUri,
+                        )
+                    return SeekSessionReplacement(
+                        directItem(
+                            id = itemId,
+                            sourceId = "source-other",
+                            uri = currentUri,
+                            sessionStartMs = targetMs,
+                        ),
+                        currentIdentity,
+                    )
+                }
+
+                override fun onSessionReplaced(replacement: SeekSessionReplacement) = Unit
+            }
+        val sink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { now },
+                transcodeDebounceMs = 0L,
+                mediaIdentityProvider = { currentIdentity },
+                mediaSourceUriProvider = { currentUri },
+                sessionBridge = bridge,
+            )
+        sink.attach(player.player)
+
+        sink.submit(PlayerViewModel.SeekIntent.Absolute(60_000L))
+
+        assertTrue(
+            "expected source mismatch failure, was ${sink.state}",
+            sink.state is SeekState.Failed,
+        )
+        val failed = sink.state as SeekState.Failed
+        assertEquals(SeekFailureReason.SESSION_REBUILD_FAILED, failed.reason)
+        assertTrue(failed.retryable)
+        assertEquals(0, player.calls.count { it == "replaceMediaItem" })
+        assertEquals(0, player.calls.count { it == "seekTo" || it == "seekToIndex" })
+    }
+
+    @Test
+    fun `retry after ordinary hls engine error seeks current source without rebuilding`() {
+        var now = 8_000L
+        val currentUri = "https://media.example/video/master.m3u8?StartTimeTicks=0"
+        val player =
+            FakePlayer(
+                mediaItem =
+                    directItem(
+                        id = "item-engine-error",
+                        sourceId = "source-engine-error",
+                        uri = currentUri,
+                    ),
+                currentPositionMs = 50_000L,
+                bufferedPositionMs = 70_000L,
+            )
+        val currentIdentity =
+            com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                itemId = "item-engine-error",
+                mediaSourceId = "source-engine-error",
+                mediaSourceUri = currentUri,
+            )
+        var rebuilds = 0
+        val bridge =
+            object : SeekSessionBridge {
+                override suspend fun rebuildForSeek(
+                    itemId: String,
+                    mediaSourceId: String,
+                    targetMs: Long,
+                ): SeekSessionReplacement? {
+                    rebuilds++
+                    error("ordinary HLS ENGINE_ERROR must not rebuild the source")
+                }
+
+                override fun onSessionReplaced(replacement: SeekSessionReplacement) = Unit
+            }
+        val sink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { now },
+                transcodeDebounceMs = 0L,
+                mediaIdentityProvider = { currentIdentity },
+                mediaSourceUriProvider = { currentUri },
+                sessionBridge = bridge,
+            )
+        sink.attach(player.player)
+
+        sink.submit(PlayerViewModel.SeekIntent.Absolute(60_000L))
+        player.currentPositionMs = 60_000L
+        player.bufferedPositionMs = 60_000L
+        assertTrue(
+            sink.coordinator.failCurrent(
+                reason = SeekFailureReason.ENGINE_ERROR,
+                retryable = true,
+                nowElapsedMs = now,
+            )
+        )
+        assertEquals(
+            SeekFailureReason.ENGINE_ERROR,
+            (sink.state as SeekState.Failed).reason,
+        )
+        val callsBeforeRetry = player.calls.size
+
+        sink.retrySeek()
+
+        assertEquals(0, rebuilds)
+        assertTrue(
+            "expected retry to remain seeking, was ${sink.state}",
+            sink.state is SeekState.Seeking,
+        )
+        val retryCalls = player.calls.drop(callsBeforeRetry)
+        assertEquals("seekTo", retryCalls.firstOrNull { it == "seekTo" || it == "seekToIndex" })
+        assertFalse(retryCalls.contains("replaceMediaItem"))
+    }
+
+    @Test
+    fun `failed replacement rebuild attempts count toward the restart budget`() {
+        var now = 9_000L
+        val originalUri = "https://media.example/video/master.m3u8?StartTimeTicks=0"
+        val player =
+            FakePlayer(
+                mediaItem =
+                    directItem(
+                        id = "item-failed-rebuild",
+                        sourceId = "source-failed-rebuild",
+                        uri = originalUri,
+                    ),
+                currentPositionMs = 1_000L,
+                bufferedPositionMs = 1_000L,
+                durationMs = 120_000L,
+            )
+        var currentUri = originalUri
+        var currentIdentity =
+            com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                itemId = "item-failed-rebuild",
+                mediaSourceId = "source-failed-rebuild",
+                mediaSourceUri = currentUri,
+            )
+        var rebuildCalls = 0
+        val bridge =
+            object : SeekSessionBridge {
+                override suspend fun rebuildForSeek(
+                    itemId: String,
+                    mediaSourceId: String,
+                    targetMs: Long,
+                ): SeekSessionReplacement {
+                    assertEquals("source-failed-rebuild", mediaSourceId)
+                    rebuildCalls++
+                    if (rebuildCalls == 1) {
+                        currentUri =
+                            "https://media.example/video/master.m3u8" +
+                                "?StartTimeTicks=${targetMs * 10_000L}&Refresh=1"
+                        currentIdentity =
+                            com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                                itemId = itemId,
+                                mediaSourceId = mediaSourceId,
+                                mediaSourceUri = currentUri,
+                            )
+                        return SeekSessionReplacement(
+                            directItem(
+                                id = itemId,
+                                sourceId = mediaSourceId,
+                                uri = currentUri,
+                                sessionStartMs = targetMs,
+                            ),
+                            currentIdentity,
+                        )
+                    }
+                    error("rebuild attempt $rebuildCalls failed")
+                }
+
+                override fun onSessionReplaced(replacement: SeekSessionReplacement) = Unit
+            }
+        val sink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { now },
+                transcodeDebounceMs = 0L,
+                mediaIdentityProvider = { currentIdentity },
+                mediaSourceUriProvider = { currentUri },
+                sessionBridge = bridge,
+            )
+        sink.attach(player.player)
+
+        sink.submit(PlayerViewModel.SeekIntent.Absolute(60_000L))
+        player.playbackState = Player.STATE_BUFFERING
+        player.emitMediaItemTransition(player.mediaItem)
+        player.emitSeekAccepted(positionMs = 60_000L)
+        player.currentPositionMs = 60_000L
+        player.bufferedPositionMs = 60_000L
+        sink.coordinator.failCurrent(
+            reason = SeekFailureReason.TIMEOUT,
+            retryable = true,
+            nowElapsedMs = now,
+        )
+        assertEquals(SeekFailureReason.TIMEOUT, (sink.state as SeekState.Failed).reason)
+
+        repeat(5) { sink.retrySeek() }
+        assertEquals(6, rebuildCalls)
+        assertEquals(
+            SeekFailureReason.SESSION_REBUILD_FAILED,
+            (sink.state as SeekState.Failed).reason,
+        )
+        val mutationsBeforeCapRetry =
+            player.calls.count { it == "replaceMediaItem" || it == "seekTo" || it == "seekToIndex" }
+
+        sink.retrySeek()
+
+        assertEquals(6, rebuildCalls)
+        assertEquals(
+            mutationsBeforeCapRetry,
+            player.calls.count {
+                it == "replaceMediaItem" || it == "seekTo" || it == "seekToIndex"
+            },
+        )
+        assertEquals(
+            SeekFailureReason.SESSION_REBUILD_FAILED,
+            (sink.state as SeekState.Failed).reason,
+        )
+    }
+
+    @Test
     fun `retry after near-end replacement timeout refreshes hls source before dispatch`() {
         var now = 7_000L
         val originalUri = "https://media.example/video/master.m3u8?StartTimeTicks=0"
@@ -230,9 +491,11 @@ class PlaybackSeekSinkTest {
             object : SeekSessionBridge {
                 override suspend fun rebuildForSeek(
                     itemId: String,
+                    mediaSourceId: String,
                     targetMs: Long,
                 ): SeekSessionReplacement {
                     assertEquals("item-retry", itemId)
+                    assertEquals("source-retry", mediaSourceId)
                     assertEquals(60_000L, targetMs)
                     rebuilds++
                     currentUri =
@@ -280,10 +543,18 @@ class PlaybackSeekSinkTest {
         sink.coordinator.onTick(now)
         assertEquals(SeekFailureReason.TIMEOUT, (sink.coordinator.state as SeekState.Failed).reason)
 
+        val callsBeforeRetry = player.calls.size
         sink.retrySeek()
 
         assertEquals(2, rebuilds)
         assertEquals(2, player.calls.count { it == "replaceMediaItem" })
+        val retryCalls = player.calls.drop(callsBeforeRetry)
+        assertEquals(
+            "replaceMediaItem",
+            retryCalls.firstOrNull {
+                it == "replaceMediaItem" || it == "seekTo" || it == "seekToIndex"
+            },
+        )
         val retry = sink.state as SeekState.Seeking
         assertEquals(first.requestGeneration + 1L, retry.requestGeneration)
         assertEquals(3L, retry.sourceEpoch)
@@ -318,8 +589,10 @@ class PlaybackSeekSinkTest {
             object : SeekSessionBridge {
                 override suspend fun rebuildForSeek(
                     itemId: String,
+                    mediaSourceId: String,
                     targetMs: Long,
                 ): SeekSessionReplacement {
+                    assertEquals("source-cap", mediaSourceId)
                     rebuilds++
                     currentUri =
                         "https://media.example/video/master.m3u8" +
@@ -381,6 +654,99 @@ class PlaybackSeekSinkTest {
     }
 
     @Test
+    fun `a later seek does not inherit the exhausted restart budget`() {
+        var now = 11_000L
+        val originalUri = "https://media.example/video/master.m3u8?StartTimeTicks=0"
+        val player =
+            FakePlayer(
+                mediaItem =
+                    directItem(
+                        id = "item-budget-scope",
+                        sourceId = "source-budget-scope",
+                        uri = originalUri,
+                    ),
+                currentPositionMs = 1_000L,
+                bufferedPositionMs = 1_000L,
+                durationMs = 120_000L,
+            )
+        var currentUri = originalUri
+        var currentIdentity =
+            com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                itemId = "item-budget-scope",
+                mediaSourceId = "source-budget-scope",
+                mediaSourceUri = currentUri,
+            )
+        var rebuilds = 0
+        val bridge =
+            object : SeekSessionBridge {
+                override suspend fun rebuildForSeek(
+                    itemId: String,
+                    mediaSourceId: String,
+                    targetMs: Long,
+                ): SeekSessionReplacement {
+                    rebuilds++
+                    currentUri =
+                        "https://media.example/video/master.m3u8" +
+                            "?StartTimeTicks=${targetMs * 10_000L}&Refresh=$rebuilds"
+                    currentIdentity =
+                        com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor(
+                            itemId = itemId,
+                            mediaSourceId = mediaSourceId,
+                            mediaSourceUri = currentUri,
+                        )
+                    return SeekSessionReplacement(
+                        directItem(
+                            id = itemId,
+                            sourceId = mediaSourceId,
+                            uri = currentUri,
+                            sessionStartMs = targetMs,
+                        ),
+                        currentIdentity,
+                    )
+                }
+
+                override fun onSessionReplaced(replacement: SeekSessionReplacement) = Unit
+            }
+        val sink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { now },
+                transcodeDebounceMs = 0L,
+                mediaIdentityProvider = { currentIdentity },
+                mediaSourceUriProvider = { currentUri },
+                sessionBridge = bridge,
+            )
+        sink.attach(player.player)
+
+        sink.submit(PlayerViewModel.SeekIntent.Absolute(60_000L))
+        repeat(5) {
+            sink.coordinator.failCurrent(
+                reason = SeekFailureReason.TIMEOUT,
+                retryable = true,
+                nowElapsedMs = now,
+            )
+            sink.retrySeek()
+        }
+        assertEquals(6, rebuilds)
+        sink.coordinator.failCurrent(
+            reason = SeekFailureReason.TIMEOUT,
+            retryable = true,
+            nowElapsedMs = now,
+        )
+        sink.retrySeek()
+        assertTrue(sink.state is SeekState.Failed)
+
+        sink.submit(PlayerViewModel.SeekIntent.Absolute(90_000L))
+
+        assertEquals(7, rebuilds)
+        assertTrue(
+            "expected a fresh request budget, was ${sink.state}",
+            sink.state is SeekState.Seeking,
+        )
+    }
+
+    @Test
     fun `process bridge rebuilds HLS without a view model binding`() {
         var now = 5_000L
         val original =
@@ -413,9 +779,11 @@ class PlaybackSeekSinkTest {
             object : SeekSessionBridge {
                 override suspend fun rebuildForSeek(
                     itemId: String,
+                    mediaSourceId: String,
                     targetMs: Long,
                 ): SeekSessionReplacement {
                     assertEquals("item-process", itemId)
+                    assertEquals("source-process", mediaSourceId)
                     assertEquals(90_000L, targetMs)
                     currentUri = "https://media.example/video/master.m3u8?StartTimeTicks=900000000"
                     currentIdentity =
@@ -484,8 +852,10 @@ class PlaybackSeekSinkTest {
             object : SeekSessionBridge {
                 override suspend fun rebuildForSeek(
                     itemId: String,
+                    mediaSourceId: String,
                     targetMs: Long,
                 ): SeekSessionReplacement {
+                    assertEquals("source-lifecycle", mediaSourceId)
                     rebuilds++
                     currentUri =
                         "https://media.example/video/master.m3u8?StartTimeTicks=" +

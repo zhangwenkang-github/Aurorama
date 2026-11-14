@@ -368,29 +368,53 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
      * 重新请求 PlaybackInfo 并携 `startTimeTicks = positionMs × 10000`，服务器从目标位置开始生成分片；新条目写回 [playerItems]
      * 缓存（同条目旧 URL 作废），播放侧用 `replaceMediaItem` 原位替换，不重启 Activity。
      */
-    suspend fun rebuildPlayerItemForPosition(itemId: UUID, positionMs: Long): PlayerItem? {
+    suspend fun rebuildPlayerItemForPosition(
+        itemId: UUID,
+        positionMs: Long,
+        mediaSourceId: String? = null,
+    ): PlayerItem? {
         val item =
             items.firstOrNull { it.id == itemId }
                 ?: startItem?.takeIf { it.id == itemId }
                 ?: return null
+        val selectedMediaSourceId =
+            mediaSourceId
+                ?: playerItems.firstOrNull { it.itemId == itemId }?.mediaSourceId
+                ?: return null
+        if (selectedMediaSourceId.isBlank()) return null
         // W76-Q6：重开会话必须拿新地址，强制绕过缓存并覆盖旧结果。
-        return runCatching {
-            item.toPlayerItem(null, positionMs.coerceAtLeast(0L), forceRefresh = true)
+        val rebuilt = runCatching {
+            item.toPlayerItem(
+                mediaSourceIndex = null,
+                playbackPosition = positionMs.coerceAtLeast(0L),
+                forceRefresh = true,
+                preferredMediaSourceId = selectedMediaSourceId,
+            )
         }
-            .onSuccess { rebuilt ->
-                playerItems.removeAll { it.itemId == itemId }
-                playerItems.add(rebuilt)
-                failedItemIds.remove(itemId)
-            }
             .onFailure {
                 Timber.w(
                     it,
-                    "重建播放条目失败（转码 seek 重开会话）：item=%s position=%d",
+                    "重建播放条目失败（转码 seek 重开会话）：item=%s source=%s position=%d",
                     itemId,
+                    selectedMediaSourceId,
                     positionMs,
                 )
             }
             .getOrNull()
+        if (rebuilt == null) return null
+        if (rebuilt.mediaSourceId != selectedMediaSourceId) {
+            Timber.w(
+                "拒绝转码 seek 重开会话切换媒体源：item=%s selected=%s rebuilt=%s",
+                itemId,
+                selectedMediaSourceId,
+                rebuilt.mediaSourceId,
+            )
+            return null
+        }
+        playerItems.removeAll { it.itemId == itemId }
+        playerItems.add(rebuilt)
+        failedItemIds.remove(itemId)
+        return rebuilt
     }
 
     /**

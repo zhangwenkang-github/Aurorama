@@ -13,6 +13,7 @@ import org.jellyfin.sdk.model.api.BaseItemKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -97,6 +98,43 @@ class PlaylistManagerInitialItemTest {
         )
         assertEquals("这个条目暂时没有可播放的媒体源", failure?.message)
     }
+
+    @Test
+    fun `seek rebuild preserves selected source or fails when it is no longer available`() =
+        runBlocking {
+            val itemId = UUID.fromString("33333333-3333-4333-8333-333333333333")
+            val selectedSourceId = "selected-source"
+            val otherSourceId = "other-source"
+            var availableSources = listOf(source(selectedSourceId), source(otherSourceId))
+            val repository =
+                Proxy.newProxyInstance(
+                    JellyfinRepository::class.java.classLoader,
+                    arrayOf(JellyfinRepository::class.java),
+                ) { proxy, method, args ->
+                    when (method.name) {
+                        "getMovie" -> movie(itemId = itemId, sources = availableSources)
+                        "getMediaSources" -> availableSources
+                        "toString" -> "PlaylistManagerSelectedSourceTestRepository"
+                        "hashCode" -> System.identityHashCode(proxy)
+                        "equals" -> proxy === args?.firstOrNull()
+                        else -> error("Unexpected repository call: ${method.name}")
+                    }
+                } as JellyfinRepository
+            val manager = PlaylistManager(repository)
+            val initial =
+                manager.getInitialItem(
+                    itemId = itemId,
+                    itemKind = BaseItemKind.MOVIE,
+                    preferredMediaSourceId = selectedSourceId,
+                )
+            assertEquals(selectedSourceId, initial?.mediaSourceId)
+
+            availableSources = listOf(source(otherSourceId))
+            val rebuilt = manager.rebuildPlayerItemForPosition(itemId, 60_000L)
+
+            assertNull(rebuilt)
+            assertEquals(selectedSourceId, manager.getPlayerItem(itemId)?.mediaSourceId)
+        }
 
     private fun movie(itemId: UUID, sourceId: String): FindroidMovie =
         movie(itemId = itemId, sources = listOf(source(id = sourceId)))
