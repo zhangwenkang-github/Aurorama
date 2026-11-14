@@ -4309,10 +4309,12 @@ private constructor(
         }
 
     override suspend fun foregroundInfo(): ForegroundInfo {
-        val tasks = snapshotActiveTasks()
-        val activeCount = activeItemIds().size
+        val aggregate = aggregateDownloadNotification(snapshotActiveTasks())
         val notification =
-            notifications.buildForeground(task = tasks.firstOrNull(), activeCount = activeCount)
+            notifications.buildForeground(
+                task = aggregate.task,
+                activeCount = aggregate.activeCount,
+            )
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
                 DownloadNotifications.FOREGROUND_NOTIFICATION_ID,
@@ -5055,25 +5057,22 @@ private constructor(
     }
 
     private suspend fun snapshotActiveTasks(): List<DownloadTask> =
-        withContext(Dispatchers.IO) {
-            val snapshot = sidecar.allRecords()
-            activeJobs.keys
-                .mapNotNull { database.getSource(it) }
-                .map { buildTask(it, DownloadTaskStatus.RUNNING, sidecarSnapshot = snapshot) }
-        }
+        refreshDownloadTasks().filter { task -> DownloadTaskRules.isActiveQueueStatus(task.status) }
 
     private fun updateForegroundNotificationNow() {
         val now = System.currentTimeMillis()
         if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) return
         lastNotificationAt = now
         scope.launch {
-            val active = activeItemIds().size
-            if (active == 0) {
+            val aggregate = aggregateDownloadNotification(snapshotActiveTasks())
+            if (aggregate.activeCount == 0) {
                 lastNotificationAt = 0L
                 return@launch
             }
-            val first = snapshotActiveTasks().firstOrNull()
-            notifications.notifyForeground(task = first, activeCount = active)
+            notifications.notifyForeground(
+                task = aggregate.task,
+                activeCount = aggregate.activeCount,
+            )
         }
     }
 

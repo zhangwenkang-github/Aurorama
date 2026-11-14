@@ -29,6 +29,86 @@ internal data class DownloadFailureNotificationContent(
     val expandedText: String,
 )
 
+internal data class DownloadNotificationAggregate(
+    val task: DownloadTask?,
+    val activeCount: Int,
+)
+
+/**
+ * Projects one canonical active task list into the single foreground notification payload.
+ *
+ * Title count, byte totals, progress and notification actions all come from [tasks]. Duplicate
+ * snapshots are collapsed by download identity and active count, while the representative task for
+ * pause/cancel is selected deterministically from the same set.
+ */
+internal fun aggregateDownloadNotification(
+    tasks: List<DownloadTask>
+): DownloadNotificationAggregate {
+    val canonicalTasks =
+        tasks
+            .asSequence()
+            .filter { task -> DownloadTaskRules.isActiveQueueStatus(task.status) }
+            .sortedWith(
+                compareByDescending<DownloadTask> { task -> task.taskGeneration }
+                    .thenByDescending { task -> task.updatedAt }
+                    .thenBy { task -> task.sourceId }
+            )
+            .distinctBy { task -> task.downloadIdentity() }
+            .sortedBy { task -> task.sourceId }
+            .toList()
+    if (canonicalTasks.isEmpty()) {
+        return DownloadNotificationAggregate(task = null, activeCount = 0)
+    }
+    if (canonicalTasks.size == 1) {
+        return DownloadNotificationAggregate(task = canonicalTasks.single(), activeCount = 1)
+    }
+
+    val totalBytes = canonicalTasks.sumOf(DownloadTask::notificationExpectedBytes)
+    val downloadedBytes = canonicalTasks.sumOf { task ->
+        if (task.status == DownloadTaskStatus.COMPLETED) {
+            task.notificationExpectedBytes()
+        } else {
+            task.downloadedBytes.coerceAtLeast(0L)
+        }
+    }
+    val speedBytesPerSecond = canonicalTasks.sumOf { task ->
+        task.speedBytesPerSecond.coerceAtLeast(0L)
+    }
+    val remainingBytes = (totalBytes - downloadedBytes).coerceAtLeast(0L)
+    val etaSeconds =
+        when {
+            totalBytes <= 0L -> null
+            remainingBytes == 0L -> 0L
+            speedBytesPerSecond <= 0L -> null
+            else ->
+                remainingBytes / speedBytesPerSecond +
+                    if (remainingBytes % speedBytesPerSecond > 0L) 1L else 0L
+        }
+    val representative =
+        canonicalTasks
+            .first()
+            .copy(
+                downloadedBytes = downloadedBytes,
+                totalBytes = totalBytes,
+                updatedAt = canonicalTasks.maxOf(DownloadTask::updatedAt),
+                speedBytesPerSecond = speedBytesPerSecond,
+                etaSeconds = etaSeconds,
+            )
+    return DownloadNotificationAggregate(
+        task = representative,
+        activeCount = canonicalTasks.size,
+    )
+}
+
+internal fun downloadNotificationPercent(downloadedBytes: Long, totalBytes: Long): Int =
+    if (totalBytes > 0L) {
+        (downloadedBytes.coerceAtLeast(0L) * 100L / totalBytes).coerceIn(0L, 100L).toInt()
+    } else {
+        0
+    }
+
+private fun DownloadTask.notificationExpectedBytes(): Long = totalBytes.coerceAtLeast(0L)
+
 internal fun downloadNotificationTarget(
     destination: DownloadNotificationDestination
 ): DownloadNotificationTarget =
@@ -175,7 +255,14 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
                         }
                     )
                 )
-                .setProgress(100, task?.progressPercent() ?: 0, task?.totalBytes == 0L)
+                .setProgress(
+                    100,
+                    downloadNotificationPercent(
+                        downloadedBytes = task?.downloadedBytes ?: 0L,
+                        totalBytes = task?.totalBytes ?: 0L,
+                    ),
+                    task?.totalBytes == 0L,
+                )
         if (task != null) {
             builder
                 .addAction(
@@ -236,18 +323,11 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
             totalBytes > 0L -> {
                 val total = Formatter.formatFileSize(context, totalBytes)
                 val eta = etaSeconds?.let { " · ${it.asEtaText()}" }.orEmpty()
-                "$downloaded / $total · ${progressPercent()}%$eta"
+                "$downloaded / $total · ${downloadNotificationPercent(downloadedBytes, totalBytes)}%$eta"
             }
             else -> downloaded
         }
     }
-
-    private fun DownloadTask.progressPercent(): Int =
-        if (totalBytes > 0L) {
-            (downloadedBytes * 100L / totalBytes).coerceIn(0L, 100L).toInt()
-        } else {
-            0
-        }
 
     private fun Long.asEtaText(): String {
         val seconds = coerceAtLeast(0L)
