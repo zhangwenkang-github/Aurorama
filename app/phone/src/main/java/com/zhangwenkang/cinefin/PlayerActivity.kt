@@ -52,6 +52,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
+import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
@@ -100,6 +101,9 @@ private const val AMBIENT_FADE_DURATION = 600
 /** 换解码内核重开播放页时携带的精确续播位置（毫秒） */
 private const val EXTRA_START_POSITION_MS = "startPositionMs"
 
+/** 换内核重开播放页时保留当前播放源的稳定身份 */
+private const val EXTRA_MEDIA_SOURCE_ID = "mediaSourceId"
+
 /**
  * W58b 视频多选批量播放：显式播放队列的条目 id / 类型（两个并行 `ArrayList<String>`）。
  *
@@ -118,7 +122,11 @@ internal const val EXTRA_QUEUE_ITEM_KINDS = "queueItemKinds"
 private const val EXTRA_PLAYBACK_SESSION = "playbackSessionId"
 
 /** 重启播放页时要恢复到的条目（W19）：当前实际播放的条目，而不是 Intent 里的原始条目 */
-private data class PlayerRestartTarget(val itemId: String, val itemKind: String)
+private data class PlayerRestartTarget(
+    val itemId: String,
+    val itemKind: String,
+    val mediaSourceId: String?,
+)
 
 @AndroidEntryPoint
 class PlayerActivity : BasePlayerActivity() {
@@ -228,6 +236,9 @@ class PlayerActivity : BasePlayerActivity() {
                 ids = intent.extras?.getStringArrayList(EXTRA_QUEUE_ITEM_IDS),
                 kinds = intent.extras?.getStringArrayList(EXTRA_QUEUE_ITEM_KINDS),
             )
+        val preferredMediaSourceId =
+            intent.extras?.getString(EXTRA_MEDIA_SOURCE_ID)?.takeIf(String::isNotBlank)
+        intent.removeExtra(EXTRA_MEDIA_SOURCE_ID)
         // 换内核会重开播放页：把失败前的精确进度带过来，不用服务端 5 秒一次的上报值续播
         val startPositionMs = intent.extras?.getLong(EXTRA_START_POSITION_MS, 0L) ?: 0L
         // 读掉就删：这个 Intent 会被 recreate() 复用，留着会让下次重建又跳回老位置
@@ -531,6 +542,8 @@ class PlayerActivity : BasePlayerActivity() {
                              */
                             is PlayerEvents.FallbackToSoftware ->
                                 switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
+                            is PlayerEvents.FallbackToExoForProgressStall ->
+                                switchBackendForProgressStall(event.requestToken)
                             // 字幕外观变化：同步给 PlayerView 的原生字幕（图形字幕 / 兜底路径）
                             is PlayerEvents.SubtitleStyleChanged -> configureSubtitleStyle()
                             is PlayerEvents.IsPlayingChanged -> {
@@ -576,6 +589,7 @@ class PlayerActivity : BasePlayerActivity() {
                 startPositionMs = startPositionMs,
                 playbackSessionId = playbackSessionId,
                 queueEntries = queueEntries,
+                preferredMediaSourceId = preferredMediaSourceId,
             )
         } else if (viewModel.player.mediaItemCount > 0) {
             // 从通知回来：会话还在跑，接管它（补标题/章节等信息），不重新拉流
@@ -620,8 +634,12 @@ class PlayerActivity : BasePlayerActivity() {
                 ids = intent.extras?.getStringArrayList(EXTRA_QUEUE_ITEM_IDS),
                 kinds = intent.extras?.getStringArrayList(EXTRA_QUEUE_ITEM_KINDS),
             )
+        val preferredMediaSourceId =
+            intent.extras?.getString(EXTRA_MEDIA_SOURCE_ID)?.takeIf(String::isNotBlank)
+        intent.removeExtra(EXTRA_MEDIA_SOURCE_ID)
 
         // W19：onNewIntent = 新的播放请求 = 新会话（清回退档位，链路从头走）
+        viewModel.cancelProgressFallback()
         playbackSessionId = UUID.randomUUID().toString()
         viewModel.initializePlayer(
             itemId = itemId,
@@ -629,6 +647,7 @@ class PlayerActivity : BasePlayerActivity() {
             startFromBeginning = startFromBeginning,
             playbackSessionId = playbackSessionId,
             queueEntries = queueEntries,
+            preferredMediaSourceId = preferredMediaSourceId,
         )
     }
 
@@ -876,6 +895,7 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     private fun switchBackendAndRestart(target: String) {
+        viewModel.cancelProgressFallback()
         val position = currentConfirmedPosition()
         // W19：重启目标必须在写偏好之前取——偏好一变，PlayerHolder 会立刻按新偏好重建空实例
         val restartTarget = currentRestartTarget()
@@ -894,11 +914,38 @@ class PlayerActivity : BasePlayerActivity() {
      * mpv，toggle 会误判成「切回 ExoPlayer」（W17 根因）。
      */
     private fun switchBackendForFallback(target: String) {
+        viewModel.cancelProgressFallback()
         val position = currentConfirmedPosition()
         val restartTarget = currentRestartTarget()
         viewModel.setBackend(target)
         Timber.d("Restart player with backend=$target from position=$position (fallback)")
         restartPlaybackFromPosition(position, restartTarget)
+    }
+
+    /**
+     * mpv remote/HLS progress watchdog 的唯一自动接管出口。
+     *
+     * 这里不重新解析条目：ViewModel 已校验 request 仍属于当前 generation，并把当前 Episode + mediaSourceId 冻结在 handoff
+     * 中。既有 recreate 路径负责释放单一实例并重建 MediaSession。
+     */
+    private fun switchBackendForProgressStall(requestToken: String) {
+        val handoff = viewModel.consumeProgressFallback(requestToken) ?: return
+        viewModel.setBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER)
+        settingsController.refresh()
+        Timber.i(
+            "Progress stall switched backend to ExoPlayer item=%s source=%s position=%d",
+            handoff.itemId,
+            handoff.mediaSourceId,
+            handoff.positionMs,
+        )
+        restartPlaybackFromPosition(
+            handoff.positionMs,
+            PlayerRestartTarget(
+                itemId = handoff.itemId.toString(),
+                itemKind = handoff.itemKind,
+                mediaSourceId = handoff.mediaSourceId,
+            ),
+        )
     }
 
     /**
@@ -909,7 +956,18 @@ class PlayerActivity : BasePlayerActivity() {
     private fun currentRestartTarget(): PlayerRestartTarget? {
         val kind = viewModel.currentPlaybackItemKind() ?: return null
         val mediaId = viewModel.player.currentMediaItem?.mediaId?.takeIf { it.isNotBlank() }
-        return mediaId?.let { PlayerRestartTarget(it, kind) }
+        val mediaSourceId =
+            viewModel.player.currentMediaItem
+                ?.mediaMetadata
+                ?.extras
+                ?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
+        return mediaId?.let {
+            PlayerRestartTarget(
+                itemId = it,
+                itemKind = kind,
+                mediaSourceId = mediaSourceId,
+            )
+        }
     }
 
     /**
@@ -1135,7 +1193,10 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private fun selectAutoFallback(enabled: Boolean) {
         settingsController.setAutoFallback(enabled)
-        if (!enabled) viewModel.clearDecodeFallback()
+        if (!enabled) {
+            viewModel.cancelProgressFallback()
+            viewModel.clearDecodeFallback()
+        }
         Timber.d("解码自动回退开关：%s", if (enabled) "开" else "关（强制所选内核）")
     }
 
@@ -1153,6 +1214,7 @@ class PlayerActivity : BasePlayerActivity() {
 
     /** 重启播放页并从当前位置续播：清 ViewModel（连着旧 player）后 recreate，Intent 里带上位置 */
     private fun restartPlaybackKeepingPosition(reason: String) {
+        viewModel.cancelProgressFallback()
         val position = currentConfirmedPosition()
         Timber.d("Restart player (%s) from position=%d", reason, position)
         restartPlaybackFromPosition(position)
@@ -1175,6 +1237,9 @@ class PlayerActivity : BasePlayerActivity() {
         target?.let {
             intent.putExtra("itemId", it.itemId)
             intent.putExtra("itemKind", it.itemKind)
+            it.mediaSourceId?.let { mediaSourceId ->
+                intent.putExtra(EXTRA_MEDIA_SOURCE_ID, mediaSourceId)
+            }
             Timber.d("Restart player 对准当前条目：itemId=%s kind=%s", it.itemId, it.itemKind)
         }
         intent.putExtra(EXTRA_PLAYBACK_SESSION, playbackSessionId)
@@ -1226,6 +1291,7 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     private fun finishPlayback() {
+        viewModel.cancelProgressFallback()
         try {
             // 视频输出已改为 TextureView（避免控制层覆盖时 SurfaceView 被遮挡变黑），
             // 这里同时兼容两种输出类型

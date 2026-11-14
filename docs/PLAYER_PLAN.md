@@ -10079,3 +10079,81 @@ native/hwdec/renderer 或扩散到 source/Episode/download。状态×效果矩�
 `AURORAMA_141_STATE_EFFECT_MATRIX_R1.md` §5。实现 owner 不触设备、不做 QA；后续仍须
 fresh signed Release 与不同 fresh independent QA，完整播放器发布矩阵未执行前保持
 `NOT_RELEASABLE`。
+
+### 52.70.17 Pad mpv 进度停滞受控 Exo fallback 实现 R1（2026-11-14）
+
+**状态：`IMPLEMENTATION_COMPLETE / PATH_TDD_GREEN / FRESH_SIGNED_RELEASE_AND_INDEPENDENT_QA_REQUIRED /
+NOT_RELEASABLE`。**
+
+fresh
+`AURORAMA_141_PAD_MPV_STALL_EXO_FALLBACK_IMPLEMENTATION_OWNER_R1_2026_11_14`
+只在既有受控 replacement seam 上接线，没有改 mpv native / JNI / hwdec / renderer，
+没有改 source resolver、下载、Series resolution、恢复文案、schema、版本或签名。
+
+现行 seam：
+
+```text
+PlaybackSessionRules 20 秒 watchdog
+-> PlayerProgressFallbackController（ViewModel 内、按 session generation 一次性 latch）
+-> PlayerEvents.FallbackToExoForProgressStall
+-> PlayerActivity 既有 ViewModelStore.clear + recreate
+-> PlayerHolder 唯一实例释放 / ExoPlayer 建立
+-> 当前实际 Episode + preferredMediaSourceId + position + playWhenReady 意图恢复
+```
+
+自动切换只在 `AUTO_FALLBACK=ON`、当前 backend 为 mpv、source 为远端 HLS、既有 terminal 为
+`PLAYBACK_PROGRESS_TIMEOUT` / `PROGRESS_UNCONFIRMED` 时成立。manual backend、暂停 / 退出、关闭
+自动回退与 generation 改变都会使旧 request 失效；同一 generation 只允许一个 request，Exo 再次
+停滞时不再切回 mpv，只显示既有本地化、非阻断恢复。
+
+状态×效果：
+
+- `SUCCESS`：位置持续推进，MPV 保持，不切换、不显示恢复条。
+- `EMPTY_RESULT`：无 source / identity 时不申请切换，既有 source error 归原路径。
+- `PERMISSION`：`N/A`，不新增系统权限，不改网络 / 解码器 / 开发者选项。
+- `TIMEOUT_ERROR`：首个合法 20 秒 terminal 静默发起一次 Exo handoff，terminal 在接管期间不显示。
+- `CANCEL`：manual choice、暂停 / 退出、AUTO_FALLBACK 关闭均取消 pending request。
+- `RETRY_DUPLICATE`：重复 watchdog / retry / lifecycle 回调被 generation latch 合并。
+- `RESTART_RECOVERY`：latch 仅存在 ViewModel 内存，不跨 generation / force-stop 恢复；偏好保留原值。
+
+identity：
+
+- handoff 冻结 `itemId + mediaSourceId + terminal position + itemKind`；
+- Activity 只从当前实际播放项构造 restart target，并以既有
+  `PlaylistManager.preferredMediaSourceId` 参数重新选择同一 source id；
+- Episode 路径停留 `BaseItemKind.EPISODE`，不进入 SERIES / NextUp /第一集 fallback；
+- 既有 `recreate()` 释放旧实例后建立新实例，不存在并行 player。
+
+TDD / 门禁（设备动作 0、截图 0）：
+
+- targeted RED：`PlayerProgressFallbackTest` 13 项，真实断言失败 `8/13`；
+- targeted GREEN：`13/13`；
+- `:player:local:testDebugUnitTest --rerun-tasks`：48 XML / `427/0/0/0`；
+- `:app:phone:testLibreDebugUnitTest --rerun-tasks`：76 XML / `517/0/0/0`；
+- 根 `ktfmtCheck=PASS`；`:app:phone:assembleDebug=PASS`；`git diff --check=exit 0`；
+- `graphify update .` 完成，20021 nodes / 61328 edges / 650 communities；
+- debug arm64 APK `158861644 B` /
+  `6131469560C3201E6B4D1990D88914A32F3EF3D4408FDC64648B6B1A53BA43D1`。
+
+实现报告将固定在本任务 evidence 根：
+
+```text
+F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_MPV_STALL_EXO_FALLBACK_IMPLEMENTATION_R1.md
+```
+
+P0–P3：
+
+- P0 新增 `0`；本切片无新 P0。
+- `P1-PAD-ONLINE-PLAYBACK-STALL-001` 保持 OPEN，直到 signed 候选真实入口确认 mpv→Exo 自动接管、
+  Exo position / buffered 推进且无新增弹窗。
+- `P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001`、seek / progress P1 与其他既有 P2 未关闭。
+- P3：静态测试不等于真实 mpv 停滞注入；Exo 二次停滞只验证投影 / 策略，不含设备故障注入。
+
+未覆盖 / 下一门：
+
+- 未安装、未接触 Pad / K60 / 服务器、未截图、未做真实入口复测；
+- 下一 owner 必须从本实现 commit 构建 fresh signed 候选，再用不同 fresh independent QA 在 Pad
+  `43af8627` 同一《超能力女儿》顶部播放入口执行一次 mpv→Exo 自动切换、position / buffered、
+  MediaSession / FGS / 通知、manual cancel、AUTO_FALLBACK=OFF、Exo 二次停滞恢复与 force-stop
+  restart 检查；
+- 核心矩阵未执行或开放 P1 未关闭前，1.4.1 仍 `NOT_RELEASABLE`。

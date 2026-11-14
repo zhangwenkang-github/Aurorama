@@ -49,6 +49,8 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.PlayerEndBehavior
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlayerItemEndAction
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackController
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackInput
 import com.zhangwenkang.cinefin.player.local.domain.PlayerQueueEndAction
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
@@ -63,6 +65,7 @@ import com.zhangwenkang.cinefin.player.local.domain.beginPlaybackRequest
 import com.zhangwenkang.cinefin.player.local.domain.bindSourceSnapshot
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
+import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSourceKind
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import com.zhangwenkang.cinefin.player.local.domain.seriesBackendKind
@@ -191,6 +194,7 @@ constructor(
     private var activePlaybackToken: PlaybackRequestToken? = null
     private var playbackSessionState = PlaybackSessionState()
     private var playbackSessionJob: Job? = null
+    private val progressFallbackController = PlayerProgressFallbackController()
     private var seriesPlaybackTrace: SeriesPlaybackTraceTracker? = null
 
     val sleepTimerState = sleepTimerController.state
@@ -246,6 +250,13 @@ constructor(
         val positionSource: PlaybackRetryPositionSource,
         val token: String,
         val cause: String? = null,
+    )
+
+    data class PlaybackProgressFallbackHandoff(
+        val itemId: UUID,
+        val itemKind: String,
+        val mediaSourceId: String,
+        val positionMs: Long,
     )
 
     enum class PlaybackRetryPositionSource {
@@ -526,12 +537,13 @@ constructor(
         val seekState = _uiState.value.seekState
         val explicitSeek = seekState.explicitSeekFields()
         val enginePositionMs = confirmedPosition(active)
+        val sessionKey = currentPlaybackSessionKey(active, mediaItem)
+        val playWhenReadyIntent =
+            if (startupInProgress) playWhenReady else active?.playWhenReady ?: playWhenReady
         val input =
             PlaybackSessionInput(
-                key = currentPlaybackSessionKey(active, mediaItem),
-                playWhenReady =
-                    if (startupInProgress) playWhenReady
-                    else active?.playWhenReady ?: playWhenReady,
+                key = sessionKey,
+                playWhenReady = playWhenReadyIntent,
                 isPlaying = active?.isPlaying == true,
                 isBuffering =
                     startupInProgress ||
@@ -550,13 +562,71 @@ constructor(
             )
         playbackSessionState =
             PlaybackSessionRules.advance(playbackSessionState, input, nowElapsedMs)
+        val progressFallbackInput =
+            progressFallbackInput(
+                mediaItem = mediaItem,
+                sessionKey = sessionKey,
+                playWhenReady = playWhenReadyIntent,
+            )
+        val progressFallbackRequest = progressFallbackController.evaluate(progressFallbackInput)
+        if (progressFallbackRequest != null) {
+            val queued =
+                eventsChannel.trySend(
+                    PlayerEvents.FallbackToExoForProgressStall(progressFallbackRequest.token)
+                )
+            if (queued.isFailure) progressFallbackController.cancelCurrentGeneration()
+        }
         _uiState.update {
-            it.copy(playbackSession = PlaybackSessionRules.project(playbackSessionState, input))
+            it.copy(
+                playbackSession =
+                    PlaybackSessionRules.project(
+                        playbackSessionState,
+                        input,
+                        suppressTerminal =
+                            progressFallbackController.suppressesTerminal(sessionKey),
+                    )
+            )
         }
         seriesPlaybackTrace?.observePosition(
             positionMs = playbackSessionState.lastEnginePositionMs,
             terminalKind = playbackSessionState.terminal?.kind,
             hasPlayerError = _uiState.value.playerError != null,
+        )
+    }
+
+    private fun progressFallbackInput(
+        mediaItem: MediaItem?,
+        sessionKey: String?,
+        playWhenReady: Boolean,
+    ): PlayerProgressFallbackInput {
+        val extras = mediaItem?.mediaMetadata?.extras
+        val itemId =
+            mediaItem?.mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
+        val mediaSourceId = extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
+        val sourceItem =
+            mediaItem?.mediaId?.let { mediaId ->
+                items.firstOrNull { it.itemId.toString() == mediaId }
+            }
+        val sourceUri =
+            extras?.getString(PLAYER_EXTRA_SEEK_SOURCE_URI)?.takeIf(String::isNotBlank)
+                ?: mediaItem?.localConfiguration?.uri?.toString()
+                ?: sourceItem?.mediaSourceUri
+        val terminal = playbackSessionState.terminal
+        return PlayerProgressFallbackInput(
+            sessionKey = sessionKey,
+            mediaIdentity = playbackMediaIdentity(itemId, mediaSourceId),
+            sourceKind =
+                playerProgressFallbackSourceKind(
+                    sourceUri = sourceUri,
+                    container = sourceItem?.mediaInfo?.container,
+                    mimeType = mediaItem?.localConfiguration?.mimeType,
+                ),
+            backend = playerBackend,
+            autoFallbackEnabled = appPreferences.getValue(appPreferences.playerAutoFallback),
+            playWhenReady = playWhenReady,
+            terminalKind = terminal?.kind,
+            terminalToken = terminal?.token,
+            positionMs = terminal?.positionMs ?: -1L,
         )
     }
 
@@ -676,6 +746,7 @@ constructor(
         startPositionMs: Long = 0L,
         playbackSessionId: String,
         queueEntries: List<PlaybackQueueEntry> = emptyList(),
+        preferredMediaSourceId: String? = null,
     ) {
         seriesPlaybackTrace = null
         // Release any music session before touching the shared player instance.
@@ -716,6 +787,7 @@ constructor(
                             playlistManager.getInitialItemForQueue(
                                 entries = queueEntries,
                                 preferredItemId = itemId,
+                                preferredMediaSourceId = preferredMediaSourceId,
                                 startFromBeginning = startFromBeginning,
                                 startPositionMs = startPositionMs.takeIf { it > 0L },
                             )
@@ -724,6 +796,7 @@ constructor(
                                 itemId = itemId,
                                 itemKind = BaseItemKind.fromName(itemKind),
                                 mediaSourceIndex = null,
+                                preferredMediaSourceId = preferredMediaSourceId,
                                 startFromBeginning = startFromBeginning,
                                 startPositionMs = startPositionMs.takeIf { it > 0L },
                             )
@@ -995,6 +1068,7 @@ constructor(
     private fun releasePlayer() {
         // Capture and send the final progress synchronously before process exit.
         refreshPlaybackSession()
+        progressFallbackController.cancelCurrentGeneration()
         val activePlayer = playerHolder.existingPlayer
         val mediaId = activePlayer?.currentMediaItem?.mediaId
         val position = playbackSessionState.lastEnginePositionMs
@@ -2704,6 +2778,38 @@ constructor(
         playbackSpeed = speed
     }
 
+    fun consumeProgressFallback(requestToken: String): PlaybackProgressFallbackHandoff? {
+        refreshPlaybackSession()
+        val active = playerHolder.existingPlayer ?: return null
+        val mediaItem = active.currentMediaItem ?: return null
+        val sessionKey = currentPlaybackSessionKey(active, mediaItem) ?: return null
+        val itemKind = currentPlaybackItemKind()
+        if (itemKind == null) {
+            progressFallbackController.cancelCurrentGeneration()
+            return null
+        }
+        val playWhenReadyIntent = if (startupInProgress) playWhenReady else active.playWhenReady
+        val request =
+            progressFallbackController.consume(
+                requestToken,
+                progressFallbackInput(
+                    mediaItem = mediaItem,
+                    sessionKey = sessionKey,
+                    playWhenReady = playWhenReadyIntent,
+                ),
+            ) ?: return null
+        return PlaybackProgressFallbackHandoff(
+            itemId = request.mediaIdentity.itemId,
+            itemKind = itemKind,
+            mediaSourceId = request.mediaIdentity.mediaSourceId,
+            positionMs = request.positionMs,
+        )
+    }
+
+    fun cancelProgressFallback() {
+        progressFallbackController.cancelCurrentGeneration()
+    }
+
     fun retryPlayback(terminalToken: String) {
         val terminal = playbackSessionState.terminal
         if (terminal?.token != terminalToken || playbackSessionState.retryConsumed) {
@@ -3270,8 +3376,9 @@ internal object PlaybackSessionRules {
     fun project(
         state: PlaybackSessionState,
         input: PlaybackSessionInput,
+        suppressTerminal: Boolean = false,
     ): PlayerViewModel.PlaybackSessionUi {
-        val terminal = state.terminal?.takeUnless { state.retryConsumed }
+        val terminal = state.terminal?.takeUnless { state.retryConsumed || suppressTerminal }
         val showError = input.playWhenReady && input.hasPlayerError
         val showSeekFailure = input.playWhenReady && !showError && input.hasSeekFailure
         return PlayerViewModel.PlaybackSessionUi(
@@ -3425,6 +3532,9 @@ sealed interface PlayerEvents {
 
     /** 硬解失败的第 3 档：本地软解（mpv hwdec=no）重播 */
     data object FallbackToSoftware : PlayerEvents
+
+    /** mpv remote/HLS 已由既有 20 秒 watchdog 确认无进度：同代次静默切到 ExoPlayer 一次 */
+    data class FallbackToExoForProgressStall(val requestToken: String) : PlayerEvents
 
     /** 字幕外观变化：Activity 用它更新 PlayerView 原生字幕样式（图形字幕 / 兜底路径） */
     data class SubtitleStyleChanged(val style: SubtitleStyle) : PlayerEvents
