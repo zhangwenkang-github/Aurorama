@@ -8,8 +8,8 @@
 ### ACTIVE — AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
-- TASK_STAGE=FRESH_QA_R3_STOPPED_AFTER_NON_PWSH_WRAPPER / SIGNED_A1_AUTO_PASS / QA_R4_MATRIX_CONTINUATION_REQUIRED / NOT_RELEASABLE
-- PROFESSIONAL_IDENTITY=AURORAMA_141_FRESH_INDEPENDENT_QA_R4_2026_11_14
+- TASK_STAGE=FRESH_QA_R3_A1_AUTO_PASS / FRESH_QA_R4_STOPPED_BEFORE_DEVICE / FRESH_QA_R5_ABSOLUTE_PWSH_CONTINUATION_READY / NOT_RELEASABLE
+- PROFESSIONAL_IDENTITY=AURORAMA_141_FRESH_INDEPENDENT_QA_R5_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - WORKTREE_POLICY=EXACT_ABSOLUTE
@@ -145,13 +145,13 @@
 - P0=0;NEW_P0=0;IMPL_R1_NO_NEW_P0
 - P1=P1-PAD-ONLINE-PLAYBACK-STALL-001:CLOSED_BY_FRESH_SIGNED_QA_R3_A1_AUTO;P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001:OPEN;P1-PLAYER-SEEK-001:OPEN_NOT_RUN_QA_R3;P1-PLAYER-PROGRESS-001:OPEN_NOT_RUN_QA_R3;P1-QA-EVIDENCE-MEDIA-PATH-OUTPUT-001:ACCEPTED_BY_USER_NONBLOCKING;P1-R3-PREPLAYER-DATA-LOAD-FAILURE-001:HISTORICAL_WRONG_ENTRY_NOT_APPLICABLE_TO_TOP_PLAY;P1-DIAG-K60-ONLINE-AB-OBJECT-MISMATCH-001:RESOLVED_FOR_UI_OBJECT_BY_R3;P1-PAD-ONLINE-DIAG-EVIDENCE-URI-OUTPUT-01:CLOSED_BY_USER_DECISION_NON_BLOCKING;P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:OPEN_A2_TASK_COUNT_PASS_SECOND_LEAF_ID_NOT_PROVEN;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:OPEN_RECURSION_PASS_FIRST_FRAME_AND_POST_DELETE_RESTART_NOT_PROVEN;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:OPEN_A4_NOT_RUN
 - P2=P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001:OPEN_REPRODUCED_SIGNED_QA_R3_A2;P2-PLAYER-EXCESSIVE-TIMEOUT-POPUP-001:LOCALIZED_NONMODAL_A1_PASS;P2-PLAYER-RAW-ERROR-TOKEN-UI-001:FULL_FAMILY_NOT_RUN;P2-PLAYER-UI-MEDIASESSION-TERMINAL-DIVERGENCE-001:OPEN;P2-K60-LOCAL-DOWNLOAD-SOURCE-MISSING-001:NOT_TESTED_QA_R3_PAD_ONLY;P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN:OPEN;P2-PLAYER-LOADING-001:OPEN_NOT_RUN_QA_R3;P2-PLAYER-STALL-001:OPEN_NOT_RUN_QA_R3;P2-R3-NON_PWSH-WRAPPER-STOP:PROCESS_DEFECT_ONE_CONTROLLED_RETRY_ALLOWED
-- P3=P1-DIAG-K60-DEBUG-SESSION-MISSING-001:BLOCKED_EXTERNAL_SESSION;QA_R3_A2_SECOND_LEAF_ID_NOT_PROVEN;QA_R3_THREE_NON_PWSH_WRAPPER_MISUSES;1.3.0 comparison NOT_VERIFIED/NO_DOWNGRADE;subtitle visual pixels NOT_RUN;ColorOS/K60 historical matrix NOT_RUN;Movie enrichment real injection unavailable
+- P3=P1-DIAG-K60-DEBUG-SESSION-MISSING-001:BLOCKED_EXTERNAL_SESSION;QA_R3_A2_SECOND_LEAF_ID_NOT_PROVEN;QA_R3_THREE_NON_PWSH_WRAPPER_MISUSES;QA_R4_ABSOLUTE_PWSH_NOT_INVOKED;1.3.0 comparison NOT_VERIFIED/NO_DOWNGRADE;subtitle visual pixels NOT_RUN;ColorOS/K60 historical matrix NOT_RUN;Movie enrichment real injection unavailable
 - CONTEXT_USAGE=306054 / 1048576 (29.2%);30万_CHECKPOINT_REACHED;HANDOFF_REQUIRED
-- NEXT_ROLE=AURORAMA_141_FRESH_INDEPENDENT_QA_R4_2026_11_14
-- FIRST_READ_ACTION=read FRESH_INDEPENDENT_QA_R3 report+manifest and FRESH_INDEPENDENT_QA_R4_PROMPT, run QA_READY, verify exact installed R3 arm64 and data/session, never rerun A1-AUTO
-- NEXT_ACTION=continue exact signed Pad QA on A1-CANCEL, A2 leaf identity, A3 deleting/restart, A4 and PLAYER_CORE_RELEASE_MATRIX PC-01-PC-12 using explicit pwsh wrappers
-- STOP_CONDITION=stop on candidate/signer/source/device-lock/data drift, repeated pwsh wrapper failure, product-code expansion, user-download deletion or clear-data, system network or unauthorized device, uncontrolled fallback, or new P0
-- CURRENT_HANDOFF=FRESH_QA_R3_A1_AUTO_PASS_QA_R4_CONTINUATION_READY_2026_11_14
+- NEXT_ROLE=AURORAMA_141_FRESH_INDEPENDENT_QA_R5_2026_11_14
+- FIRST_READ_ACTION=run the exact absolute-pwsh QA_READY command first, then if PASS read FRESH_INDEPENDENT_QA_R4_PROMPT and execute only its remaining matrix without rerunning A1-AUTO
+- NEXT_ACTION=continue Pad 43af8627 exact signed QA for A1-CANCEL, A2 second leaf identity, A3 deleting and restart, A4, and PC-01-PC-12 using the verified absolute PowerShell 7 binary
+- STOP_CONDITION=stop if same absolute-pwsh QA_READY fails twice, candidate/installed APK/signer/source/lock/data drift, product change is required, user data or downloads would be deleted, system network or unauthorized device is needed, fallback becomes uncontrolled, or a new P0 appears
+- CURRENT_HANDOFF=FRESH_QA_R5_ABSOLUTE_PWSH_CONTINUATION_READY_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1868,11 +1868,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=YES
-- QA_RESULT=FRESH_INDEPENDENT_QA_R3=STOPPED;A1_AUTO=PASS;A1_OFF=PASS;A1_FORCE_STOP=PASS;A1_CANCEL=NOT_RUN;A2=FULL_SET_NOT_PROVEN;A3=STRICT_NOT_PROVEN;A4=NOT_RUN;PC_MATRIX=FAIL_NOT_RUN;MANIFEST_SHA256=ED00C1336A2A16CE0656FB2ADE22150AA7AD9C98E1124A43840BB85E7B130BC0
-- UNCOVERED=A1_CANCEL; A2 second leaf stable ID; A3 deleting first frame and post-delete restart; A4 toolbar uniqueness; PLAYER_CORE_RELEASE_MATRIX PC-01-PC-12; PC-10 authorization; A1_AUTO must not be rerun
-- STOP_CONDITION=QA continuation only on exact signed R3 Pad 43af8627 with data/session preserved; stop if current installed APK or signer drifts, lock conflicts, two explicit-pwsh wrapper attempts fail, product changes are needed, user downloads or data would be removed, system networking or unauthorized devices are required, or a new P0 appears
-- MANUAL_LIMITATION=R3 A1_AUTO is accepted signed-device evidence and must be reused, not repeated. Release remains blocked by A2 notification mismatch, A3 strict gaps, A4 and full PC matrix not run, and other open findings.
-- MANUAL_OWNER=AURORAMA_141_FRESH_INDEPENDENT_QA_R4_2026_11_14
+- QA_RESULT=FRESH_QA_R3_STOPPED_AFTER_DEVICE_A1_PASS;FRESH_QA_R4_STOPPED_BEFORE_DEVICE_ON_COMMAND_DISCOVERY;PRODUCT_QA_R5=NOT_RUN;MANIFEST_R3=ED00C1336A2A16CE0656FB2ADE22150AA7AD9C98E1124A43840BB85E7B130BC0;MANIFEST_R4=7FAA007D4480142593AB4CEF15F124F18A97F31C2EC7B748F5065AC78A7D6D0F
+- UNCOVERED=A1_CANCEL; A2 second leaf stable ID; A3 deleting first frame and post-delete restart; A4 toolbar uniqueness; PLAYER_CORE_RELEASE_MATRIX PC-01-PC-12; PC-10 authorization; A1_AUTO must remain no-rerun
+- STOP_CONDITION=QA continuation only through the absolute PowerShell 7 executable and exact signed R3 Pad 43af8627; stop if the same QA_READY wrapper fails twice, installed APK/signer/source/data/lock drift, product changes are needed, user data would be deleted, system network or unauthorized devices are required, or a new P0 appears
+- MANUAL_LIMITATION=R3 signed A1_AUTO remains accepted and closed for the specific Pad mpv-stall promise. R4 was a tooling-only stop before device. Release remains blocked by A2 notification mismatch, A3 strict gaps, A4/PC not run and other open findings.
+- MANUAL_OWNER=AURORAMA_141_FRESH_INDEPENDENT_QA_R5_2026_11_14
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

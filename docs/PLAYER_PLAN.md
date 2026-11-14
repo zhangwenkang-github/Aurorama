@@ -10268,3 +10268,23 @@ QA R3 在 A3 后因连续三次宿主包装误用非 `pwsh` 而按合同停止�
 只补 A1-CANCEL、A2 leaf 身份、A3 restart / Deleting、A4 与 PC-01–PC-12。所有命令必须显式
 由 `pwsh` 承载；同一包装错误最多一次受控重试。该续测仍 `RELEASE_CANDIDATE_ONLY`，不得制作
 Release notes、资产或请求用户最终验收。
+
+### 52.70.20 QA 续测包装收敛 / 绝对 pwsh 入口（2026-11-14）
+
+`AURORAMA_141_FRESH_INDEPENDENT_QA_R4_2026_11_14` 未进入设备阶段：合同 `QA_READY` 首次包装
+`COMMAND_NOT_FOUND` exit 2，唯一一次受控重试 exit 3；实际
+`v2-workflow.ps1 -Mode QaReady` 为 `NOT_EXECUTED`。因此 ADB / App / install / data 动作均为
+0，锁回到 `RELEASED / ACTIVE=0 / LOCK_ACTIVE=0`，最终 SHA-256
+`7FAA007D4480142593AB4CEF15F124F18A97F31C2EC7B748F5065AC78A7D6D0F`。这是 QA harness
+的自动发现包装缺陷，不是产品或 candidate 失败。
+
+已由负责人现场确认 PowerShell 7 绝对路径：
+
+```text
+C:\Users\zhangwenkang\.cache\codex-runtimes\codex-primary-runtime\dependencies\native\powershell\pwsh.exe
+```
+
+下一 fresh owner = `AURORAMA_141_FRESH_INDEPENDENT_QA_R5_2026_11_14`。合同固定
+`FRESH_INDEPENDENT_QA_R5_PROMPT.md`，第一条只运行该绝对 pwsh 的完整 `QaReady` 命令；
+取得 PASS 后再读 R4 续测合同。R5 仍不得重跑 A1-AUTO，只补未完成矩阵。若绝对入口第二次
+仍失败，则停止而不再用其他 shell 包装。
