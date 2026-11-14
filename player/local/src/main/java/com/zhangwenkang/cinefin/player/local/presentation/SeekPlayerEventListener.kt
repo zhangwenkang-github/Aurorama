@@ -137,6 +137,7 @@ internal constructor(
         val mediaItemIndex: Int,
         val mediaIdentity: SeekMediaIdentity,
         val targetSourceUri: String,
+        val forceFreshTranscodeSource: Boolean = false,
     )
 
     private val _state = MutableStateFlow<SeekState>(SeekState.Idle)
@@ -313,13 +314,17 @@ internal constructor(
         val identity = mediaIdentity(item) ?: return failUnsupported()
         clearPendingSeek()
         cancelTranscodeWork()
+        val targetSourceUri = mediaSourceUri(item)
         activeTarget =
             ActiveTarget(
                 requestGeneration = generation,
                 intent = PlayerViewModel.SeekIntent.Absolute(retry.targetMs),
                 mediaItemIndex = player.currentMediaItemIndex,
                 mediaIdentity = identity,
-                targetSourceUri = mediaSourceUri(item),
+                targetSourceUri = targetSourceUri,
+                forceFreshTranscodeSource =
+                    engineProvider() == SeekEngine.EXOPLAYER &&
+                        targetSourceUri.contains(".m3u8", ignoreCase = true),
             )
         publish()
         armDeadline()
@@ -435,21 +440,27 @@ internal constructor(
                 durationMs = player.duration,
             ) ?: return
         val lease = markDispatched(target.requestGeneration, target.mediaIdentity) ?: return
-        if (
+        val absoluteExoHlsSeek =
             target.intent is PlayerViewModel.SeekIntent.Absolute &&
-                shouldRestartTranscodeSession(
-                    isTranscodeStream = target.targetSourceUri.contains(".m3u8", ignoreCase = true),
-                    isExoPlayer = engineProvider() == SeekEngine.EXOPLAYER,
-                    targetMs = targetMs,
-                    currentPositionMs = player.currentPosition,
-                    bufferedPositionMs = player.bufferedPosition,
-                    sessionStartMs =
-                        player.currentMediaItem
-                            ?.mediaMetadata
-                            ?.extras
-                            ?.getLong(PLAYER_EXTRA_SEEK_SESSION_START_MS, 0L) ?: 0L,
-                )
-        ) {
+                target.targetSourceUri.contains(".m3u8", ignoreCase = true) &&
+                engineProvider() == SeekEngine.EXOPLAYER
+        val restartTranscode =
+            absoluteExoHlsSeek &&
+                (target.forceFreshTranscodeSource ||
+                    shouldRestartTranscodeSession(
+                        isTranscodeStream =
+                            target.targetSourceUri.contains(".m3u8", ignoreCase = true),
+                        isExoPlayer = engineProvider() == SeekEngine.EXOPLAYER,
+                        targetMs = targetMs,
+                        currentPositionMs = player.currentPosition,
+                        bufferedPositionMs = player.bufferedPosition,
+                        sessionStartMs =
+                            player.currentMediaItem
+                                ?.mediaMetadata
+                                ?.extras
+                                ?.getLong(PLAYER_EXTRA_SEEK_SESSION_START_MS, 0L) ?: 0L,
+                    ))
+        if (restartTranscode) {
             scheduleTranscodeRestart(lease, source)
             return
         }
@@ -644,7 +655,11 @@ internal constructor(
             transcodeRestartWindowCount = 0
         }
         if (transcodeRestartWindowCount >= TRANSCODE_RESTART_WINDOW_MAX) {
-            runCatching { player.seekTo(targetMs) }
+            failActiveSeek(
+                SeekFailureReason.SESSION_REBUILD_FAILED,
+                retryable = true,
+                lease = lease,
+            )
             return
         }
         val wasPlaying = player.playWhenReady

@@ -10908,3 +10908,37 @@ PC-03/05 判别：
 - `AURORAMA_141_DELETE_FIX_MERGE_PREP_R1.md`；
 - `AURORAMA_141_PC02_BACKGROUND_DISCRIMINATOR_R2.md`；
 - `AURORAMA_141_PC03_05_SEEK_TRACE_DEVICE_OBSERVER_R1.md`。
+
+### 52.70.33 PC-03/05 near-end HLS retry source refresh R1（2026-11-15）
+
+**状态：`IMPLEMENTATION_GREEN / PLAYER_LOCAL_PASS / PHONE_ASSEMBLE_PASS /
+FRESH_SIGNED_QA_REQUIRED / PC-03_05_OPEN / NOT_RELEASABLE`。**
+
+root cause：近片尾 Exo/HLS seek 已成功 replacement，但 replacement 自身网络超时后，用户“重试”走
+`retrySeek` 通用原地路径；此时 target、current、buffered 与 replacement `sessionStart` 已对齐，
+`shouldRestartTranscodeSession=false`，generation 2 再次提交同一不可用 HLS source。原 window-cap
+分支也以同一 source `seekTo` 静默返回。
+
+最小修复只改现有 `SeekPlayerEventListener.kt`：
+
+- HLS+Exo 的显式 seek retry 标记 `forceFreshTranscodeSource`，继续走既有
+  `scheduleTranscodeRestart → bridge.rebuildForSeek → replaceMediaItem`；
+- 现有 30 秒 / 6 次 restart window 耗尽时，改为立即
+  `Failed(SESSION_REBUILD_FAILED, retryable=true)`，不再同 source 静默重投；
+- 不新增 player、timer、source resolver、版本、schema、Series、下载或 mpv 逻辑。
+
+TDD 与门禁：
+
+- 两条 RED 分别为“retry 未产生第二次 replacement”（`expected 2, actual 1`）与
+  “window cap 仍停留 Seeking 而非可重试终态”；随后 targeted GREEN；
+- `PlaybackSeekSinkTest=9/0/0/0`；`player:local` 全量 `429/0/0/0 / 48 XML`；
+- 根 `ktfmtCheck=PASS`；`:app:phone:assembleDebug=PASS / 251 tasks`；
+- debug APK `151,634,887 B / DC26D57CCE8D28CA17B1691886D16550325EA7EC372B7272CA0240C68D242C6C`。
+
+未覆盖：没有设备自测、fresh signed candidate、独立 QA、真实近片尾恢复、普通 seek / PC-12 /
+source identity 的独立真机矩阵，也未 merge / push / Release。因此不能关闭 PC-03/05 或宣称
+Release PASS。
+
+证据：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_PC03_05_NEAR_END_HLS_FIX_R1.md`
+及同名 `_MANIFEST.sha256`。
