@@ -992,3 +992,30 @@ release-candidate gate 执行。既有播放器 seek/progress P1 与 loading/sta
 
 证据根：
 `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-batch-download-mismatch-r1-2026-11-14\`。
+
+## 30. 1.4.1 用户验收失败：下载交互重新打开（2026-11-14）
+
+**状态：`ACCEPTANCE_FAILED / REOPENED / HANDOFF_REQUIRED`。** 用户安装双机包后明确反馈：
+
+1. 下载页删除有时无反应或过慢；预期点击后立即进入删除态并删除选中项。
+2. 删除节目后对应剧集有残留。
+3. 长按多选后的操作栏异常，出现两个播放按钮。
+4. 批量选择下载仍下载全部剧集，而不是用户选择的指定剧集。
+5. Pad `43af8627` 在线视频持续加载；同 WiFi 的 K60 `8e875894` 正常。
+
+上一轮把“聚合视频/媒体库 Paging 身份”修复误当成用户实际批量下载路径。用户实际使用的是
+节目/季/指定剧集批量语义；上一轮 signed 验证只覆盖聚合网格，属于**验收覆盖错误**。下载删除
+也只验证最终 `0/0/0`，未覆盖点击即时反馈、重复点击、节目→剧集递归残留；长按操作栏未断言
+播放动作唯一。该结论已在
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\COVERAGE_GAP_ANALYSIS.md`
+记录。
+
+整改前必须先建立 1.4.1 逐项用户承诺矩阵，参考主流 Jellyfin 客户端和成熟下载 App 的
+“选择集 → 批量下载 / 删除 / 暂停”逻辑，再为以下症状分别分派 fresh owner：
+
+- `V2-FIX-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-*`：点击即反馈、节目/季/剧集递归一致；
+- `V2-FIX-DOWNLOAD-SELECTION-CONTROLS-*`：长按操作栏动作唯一（禁止两个播放按钮）；
+- `V2-FIX-DOWNLOAD-SELECTED-EPISODES-*`：节目/季/指定剧集的稳定 ID 集合必须等于实际任务；
+- `V2-FIX-PLAYER-PAD-ONLINE-LOADING-*`：Pad/K60 同 WiFi、同账号、同片源的在线播放 A/B。
+
+在新的用户矩阵和同路径 signed 证据完成前，不得写“批量下载已修复”或“1.4.1 可发布”。

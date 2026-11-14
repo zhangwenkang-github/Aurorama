@@ -9386,3 +9386,20 @@ signed 包的核心用户旅程已经真实执行；这不是完整全矩阵 PAS
 
 发布边界：`NO_PUSH / NO_TAG / NO_GITHUB_RELEASE`。下一步由用户做主观视觉、手感与本人设备/
 数据最终验收；只有用户明确授权后，才进入 push、tag、Release 与资产上传。
+
+### 52.69 用户验收失败：Pad 在线播放持续加载（2026-11-14）
+
+**状态：`ACCEPTANCE_FAILED / PAD_ONLINE_LOADING_REOPENED / HANDOFF_REQUIRED`。**
+
+用户验收报告 Pad `43af8627` 在线视频一直处于加载，同 WiFi 下 K60 `8e875894`（以及用户提到的
+Oppo）播放正常。此前 signed P0 只证明 `PlayerActivity` 存活 12 秒，本地 mpv fixture 只证明
+内核能出播；没有完成同 WiFi、同账号、同片源、同播放入口的 Pad/K60 在线 A/B，因此**不能把
+PlayerActivity 存活或本地 fixture PASS 当作在线播放 PASS**。
+
+下一负责人必须先建立同条件 A/B 证据：同账号 / 同 Episode / 同服务器 URL / 同网络，记录
+`PlayerActivity`、MediaSession、UI 加载文本、首帧/位置推进、网络错误与内核；Pad/K60 均可用于
+对照，Oppo 未授权接触。若 Pad 仍加载，按 `V2-FIX-PLAYER-PAD-ONLINE-LOADING-*` 独立 lineage
+做最小修复，不能用本地 fixture 或 K60 结果替代。
+
+证据：`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\USER_ACCEPTANCE_FAIL.md`
+与 `COVERAGE_GAP_ANALYSIS.md`。当前不宣告 1.4.1 可发布。

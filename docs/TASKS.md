@@ -8,16 +8,16 @@
 ### ACTIVE — AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
-- TASK_STAGE=BATCH_DOWNLOAD_MISMATCH_RESOLVED / DUAL_INSTALLED / USER_ACCEPTANCE_PENDING
+- TASK_STAGE=USER_ACCEPTANCE_FAILED / DOWNLOAD_AND_PAD_PLAYBACK_REOPENED / HANDOFF_REQUIRED
 - PROFESSIONAL_IDENTITY=AURORAMA_141_RELEASE_FINISH_LEAD_NEXT_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE
 - BUG_LOOP_MAX_ATTEMPTS=2
-- BUG_LOOP_USER_PATH=SEASON_BATCH_SELECT_TWO_EPISODES_THEN_ENQUEUE_AND_COMPARE_STABLE_IDS
-- REPRO_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-batch-download-mismatch-r1-2026-11-14\DIAGNOSTIC_REPORT.md
-- PRIMARY_HYPOTHESIS=AGGREGATE_GRID_SELECTION_IDS_AND_ENQUEUE_ITEMS_USE_STALE_OR_PARTIAL_PAGING_SNAPSHOTS
-- TARGETED_VERIFICATION=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-batch-download-mismatch-r1-2026-11-14\TARGETED_VERIFICATION_PLAN.md
+- BUG_LOOP_USER_PATH=USER_ACCEPTANCE_FAILURE_MULTI_SYMPTOM_SCOPE_PENDING
+- REPRO_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\USER_ACCEPTANCE_FAIL.md
+- PRIMARY_HYPOTHESIS=NONE_PENDING_SUCCESSOR_TRIAGE
+- TARGETED_VERIFICATION=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\COVERAGE_GAP_ANALYSIS.md
 - BUG_LOOP_STOP_BUDGET=2_SAME_SYMPTOM_ATTEMPTS_THEN_STOP_OR_USER_DECISION
 - FULL_MATRIX_GATE=RELEASE_CANDIDATE_ONLY
 - VERSION_COMMIT=b8f25e36e18a2e5ad091844b628ace9d1a10ae7d / tree 88c2ea971dccbf18d7c2970d9bf5801891149ed9 / release: prepare 1.4.1 (6)
@@ -29,22 +29,22 @@
 - RELEASE_APK_UNIVERSAL=app/phone/build/outputs/apk/libre/release/phone-libre-universal-release.apk;LENGTH=175101400;SHA256=4F8D89662A7ACCE306C6E745F0F1AE91597E9D99C75066677E9FA63AA63A0443
 - DELIVERY_DIR=NONE;FINAL_INSTALL_SOURCE=RELEASE_APK_ARM64;PRIOR_RELEASE_FOLDER=SUPERSEDED_BY_BATCH_FIX
 - RELEASE_PACKAGE=io.github.zhangwenkang.aurorama;VERSION=1.4.1(6);APKSIGNER_V2=TRUE;SINGLE_SIGNER=TRUE;ARM64_ONLY=TRUE;UNIVERSAL_ABI_COUNT=4
-- DEVICE_ACCESS=NONE;LOCK_ACTIVE=0;PAD_43AF8627=INSTALLED_1_4_1_6_72637DAC;K60_8E875894=INSTALLED_1_4_1_6_72637DAC;NOT_LAUNCHED
+- DEVICE_ACCESS=NONE;LOCK_ACTIVE=0;PAD_43AF8627=INSTALLED_1_4_1_6_ACCEPTANCE_FAILED;K60_8E875894=INSTALLED_1_4_1_6_CONTROL_ONLY;OPPO_NOT_AUTHORIZED
 - DEVICE_VERIFIED=signed aggregate-grid selection after paging refresh produced exactly the two selected IDs;pause/delete cleanup PASS;dual device install -r preserve data and device APK hash MATCH on 43af8627 and 8e875894
 - DEVICE_PARTIAL=download HTTP404 retry pause/resume/delete; Movie optional enrichment device injection BLOCKED_INJECTION_AUTOMATION_PASS; online HLS mpv blocked by server stream reset; subtitle pixel QA NOT_RUN; ColorOS/K60 NOT_RUN
 - AUTOMATION=PASS;MediaBatchRulesTest 15/0/0/0 with same-size content replacement RED;assembleDebug;ktfmt;diff-check;MPV JNI release contract;new signed arm64/universal build;apksigner
-- CONTEXT_USAGE=419647 / 1048576 (40.0%) at task completion; HANDOFF_TRIGGER=EXCEEDED_350K_TASK_COMPLETE_NO_NEXT_IMPLEMENTATION
+- CONTEXT_USAGE=443203 / 1048576 (42.3%);HANDOFF_TRIGGER=EXCEEDED_350K_SUCCESSOR_REQUIRED
 - HANDOFF_LINTER=OLD_R19_SCHEMA_FAIL_NOT_RELEASE_GATE;P0_WRITEBACK_APPLIED;NO_AUDIT_LOOP
-- RELEASE_STATE=SIGNED_FIXED_CANDIDATE_READY_WITH_DOCUMENTED_GAPS;DUAL_DEVICE_INSTALLED;LOCAL_ONLY;NO_PUSH_TAG_RELEASE
-- P0=P0-RELEASE-MPV-JNI-R8-01:CLOSED_ON_PAD_43AF8627_BY_6888adc2;PlayerActivity_ALIVE_12S;AM_CRASH=0;AM_PROC_DIED=0;AM_ANR=0
-- P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:RESOLVED_SIGNED_PATH_AND_DUAL_INSTALLED;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED
+- RELEASE_STATE=ACCEPTANCE_FAILED;NOT_RELEASABLE;PRIOR_BATCH_RESOLUTION_SUPERSEDED
+- P0=0_KNOWN;NEW_P0=NOT_ASSESSED_UNTIL_TRIAGE
+- P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:REOPENED_USER_ACCEPTANCE_STILL_DOWNLOADS_ALL;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:USER_REPORTED_NOT_PROVEN;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:USER_REPORTED_NOT_PROVEN;P1-PAD-ONLINE-PLAYBACK-STALL-001:USER_REPORTED_NOT_PROVEN;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED
 - P2=P2-PLAYER-LOADING-001:OPEN;P2-PLAYER-STALL-001:OPEN;DOWNLOAD-BACKOFF-NOTIFICATION=OPEN_NONBLOCKING
-- P3=subtitle visual pixels NOT_RUN; ColorOS/K60 NOT_RUN; Movie enrichment real injection unavailable; two historical completed download files EOF in local mpv triage; local dual-backend fixture no audio; direct-file source failure from stale server media
-- NEXT_ROLE=USER_FINAL_ACCEPTANCE
-- FIRST_READ_ACTION=read PROJECT_PLAN then this ACTIVE then DOWNLOAD_PLAN W51/W51b/W90 lineage, USER_REPORT, STATE_EFFECT_MATRIX and TARGETED_VERIFICATION_PLAN; verify HEAD/tree/clean and Pad lock
-- NEXT_ACTION=open installed 1.4.1(6) on Pad 43af8627 and K60 8e875894 and verify batch selected items equal actual downloads; report any mismatch
-- STOP_CONDITION=no further mutation unless user reports a new mismatch or authorizes public release; do not push/tag/Release
-- CURRENT_HANDOFF=BATCH_DOWNLOAD_FIX_DUAL_INSTALLED_2026_11_14
+- P3=subtitle visual pixels NOT_RUN;ColorOS/K60 historical matrix NOT_RUN;Movie enrichment real injection unavailable
+- NEXT_ROLE=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_2026_11_14
+- FIRST_READ_ACTION=read PROJECT_PLAN then TASKS ACTIVE then DOWNLOAD_PLAN 29 and USER_ACCEPTANCE_FAIL plus COVERAGE_GAP_ANALYSIS; verify HEAD/tree/clean, installed APK and locks
+- NEXT_ACTION=build 1.4.1 requirement matrix, reference mainstream Jellyfin/download UX, split download deletion/selection/UI and Pad playback A/B into independent bug loops, then dispatch fresh professional owners
+- STOP_CONDITION=new P0, device/object lock conflict, server write risk, need for product decision or scope beyond 1.4.1 acceptance repair
+- CURRENT_HANDOFF=USER_ACCEPTANCE_FAIL_HANDOFF_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1767,7 +1767,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=A QA product rows remain NOT_RUN pending user structural identity decision; PLAYER_CORE_RELEASE_MATRIX 12/12; full-scope review; merge-prep; integration; signed 1.4.1/6 packages; final QA; Release.
 - STOP_CONDITION=Do not dispatch A QA or device QA until user explicitly decides structural identity. No same-shape nav harness repair. Full-scope review stops on object/review/P0-P2 drift; merge-prep only after full-scope review PASS.
 - MANUAL_LIMITATION=A QA output-boundary issue is closed. A R9 real window then failed before playback because closed UI lacks structural identity; different fresh verifier confirms BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY. This is a QA coverage block pending explicit user decision, not a product playback failure. B/C/D scoped reviews PASS but remain non-device and non-Release evidence.
-- MANUAL_OWNER=USER_FINAL_ACCEPTANCE
+- MANUAL_OWNER=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_2026_11_14
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
