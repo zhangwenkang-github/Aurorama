@@ -10391,3 +10391,63 @@ start、direct/replacement、READY/ENDED 顺序、source generation 与 load/htt
   `8590FD5E08CE8D693512426793CCE612D8A603E216A4C52A405838E6480A4819`，4/4 MATCH；
 - next contract：
   `DOWNLOAD_NOTIFICATION_TOTAL_DIAGNOSIS_R1_PROMPT.md`。
+
+### 52.70.23 下载通知总量根因确认 / 最小聚合实现入口（2026-11-14）
+
+**状态：`DOWNLOAD_NOTIFICATION_TOTAL_ROOT_CAUSE_PROVEN /
+MINIMAL_AGGREGATE_IMPLEMENTATION_ACTIVE / NOT_RELEASABLE`。**
+
+fresh `AURORAMA_141_DOWNLOAD_NOTIFICATION_TOTAL_DIAGNOSIS_R1_2026_11_14` 离线确认根因：
+
+- 页面总量是 canonical active leaf 集合的 expected bytes 求和；
+- 通知标题使用 `activeItemIds().size`；
+- 通知正文 / 分母 / 百分比 / progress / actions 使用
+  `snapshotActiveTasks().firstOrNull()`；
+- 因此 A2 中 2 tasks 始终一致，但 page `≈3.20 GB` 是双任务，notification `≈1.57 GB` 是首任务；
+- 不是重复通知、单位换算或全新引擎回归；该投影自 W50/W52 起即存在。
+
+冻结公式：
+
+```text
+E(t) = totalBytes > 0 ? totalBytes : sizeBytes
+D(t) = COMPLETED ? E(t) : downloadedBytes
+canonical active set A = same snapshot used by page and notification
+TOTAL(A) = Σ E(t)
+USED(A) = Σ D(t)
+PCT(A) = floor(100 * USED(A) / TOTAL(A))
+page.total == notification.total
+page.downloaded == notification.downloaded
+```
+
+诊断结论高置信、`NEEDS_IMPLEMENTATION=YES`。最小生产表面：
+
+```text
+core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadNotifications.kt
+core/src/main/java/com/zhangwenkang/cinefin/utils/DownloaderImpl.kt
+```
+
+测试最小面：
+
+```text
+core/src/test/java/com/zhangwenkang/cinefin/utils/DownloadNotificationsTest.kt
+core/src/test/java/com/zhangwenkang/cinefin/utils/DownloadNotificationsAggregationTest.kt
+```
+
+不改 Room schema / DAO、HTTP Range、调度、失败分类、暂停/取消/删除、Worker lifecycle 或
+source lineage。状态×效果矩阵 §7 已冻结，包含 `SUCCESS / EMPTY_RESULT / PERMISSION /
+TIMEOUT_ERROR / CANCEL / RETRY_DUPLICATE / RESTART_RECOVERY`；矩阵 SHA-256
+`FE7B72A946886062EA8B06D2253406254DABB12177E3AFB6936FD8A0D73BE789`。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\DOWNLOAD_NOTIFICATION_TOTAL_DIAGNOSIS_R1.md`
+  / SHA-256 `15361006B05403A62FB17461C2B958B4020896E1BD6E7CEF33978C8F02DA8F31`；
+- manifest SHA-256
+  `9B22C2893B8C1785C8C445B101DDF19C02A7581E49DD6B300E91AAE88F1763E8`，2/2 MATCH；
+- implementation contract：
+  `DOWNLOAD_NOTIFICATION_AGGREGATE_IMPLEMENTATION_R1_PROMPT.md`。
+
+下一 owner = fresh `AURORAMA_141_DOWNLOAD_NOTIFICATION_AGGREGATE_IMPLEMENTATION_OWNER_R1_2026_11_14`。
+先用双任务 failing fixture 证明 page / notification 同一 canonical set，再只改通知 aggregate
+与 call site；targeted / core / phone assemble / ktfmt / diff / graphify 收口后必须另派 fresh
+independent QA 与新 signed candidate，不得由实现 owner 自测真机或宣称发布 PASS。
