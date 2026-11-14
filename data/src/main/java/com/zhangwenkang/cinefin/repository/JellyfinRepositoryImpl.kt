@@ -23,6 +23,7 @@ import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidTag
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
+import com.zhangwenkang.cinefin.models.isAvailableForSourceSelection
 import com.zhangwenkang.cinefin.models.toFindroidCollection
 import com.zhangwenkang.cinefin.models.toFindroidEpisode
 import com.zhangwenkang.cinefin.models.toFindroidItem
@@ -1884,13 +1885,20 @@ class JellyfinRepositoryImpl(
                     .mediaSources
                     .map { it.toFindroidSource(this@JellyfinRepositoryImpl, itemId, includePath) }
             )
-            sources.addAll(database.getSources(itemId).map { it.toFindroidSource(database) })
+            sources.addAll(
+                database
+                    .getSources(itemId)
+                    .map { it.toFindroidSource(database) }
+                    .filter { it.isAvailableForSourceSelection() }
+            )
             sources
         }
 
     private suspend fun completedLocalSource(itemId: UUID): FindroidSource? =
         withContext(Dispatchers.IO) {
-            database.getCompletedSource(itemId)?.toFindroidSource(database)
+            database.getCompletedSource(itemId)?.toFindroidSource(database)?.takeIf {
+                it.isAvailableForSourceSelection()
+            }
         }
 
     override suspend fun getStreamUrl(itemId: UUID, mediaSourceId: String): String =

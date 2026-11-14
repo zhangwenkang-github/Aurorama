@@ -5,12 +5,15 @@ import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import java.io.File
 import java.lang.reflect.Proxy
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaylistManagerInitialItemTest {
@@ -57,13 +60,54 @@ class PlaylistManagerInitialItemTest {
         assertEquals(1, getMediaSourcesCalls)
     }
 
+    @Test
+    fun `stale local source without remote keeps typed playback failure`() = runBlocking {
+        val itemId = UUID.fromString("22222222-2222-4222-8222-222222222222")
+        val missingPath =
+            File(
+                    System.getProperty("java.io.tmpdir"),
+                    "cinefin-stale-local-${UUID.randomUUID()}.mkv",
+                )
+                .path
+        assertFalse(File(missingPath).exists())
+        val repository =
+            Proxy.newProxyInstance(
+                JellyfinRepository::class.java.classLoader,
+                arrayOf(JellyfinRepository::class.java),
+            ) { proxy, method, args ->
+                when (method.name) {
+                    "getMovie" -> movie(itemId = itemId, sources = listOf(localSource(missingPath)))
+                    "getMediaSources" -> listOf(localSource(missingPath))
+                    "toString" -> "PlaylistManagerStaleLocalSourceTestRepository"
+                    "hashCode" -> System.identityHashCode(proxy)
+                    "equals" -> proxy === args?.firstOrNull()
+                    else -> error("Unexpected repository call: ${method.name}")
+                }
+            } as JellyfinRepository
+        val manager = PlaylistManager(repository)
+
+        val failure = runCatching {
+            manager.getInitialItem(itemId = itemId, itemKind = BaseItemKind.MOVIE)
+        }
+            .exceptionOrNull()
+
+        assertTrue(
+            "expected PlaybackStartException, got ${failure?.javaClass?.name}: ${failure?.message}",
+            failure is PlaybackStartException,
+        )
+        assertEquals("这个条目暂时没有可播放的媒体源", failure?.message)
+    }
+
     private fun movie(itemId: UUID, sourceId: String): FindroidMovie =
+        movie(itemId = itemId, sources = listOf(source(id = sourceId)))
+
+    private fun movie(itemId: UUID, sources: List<FindroidSource>): FindroidMovie =
         FindroidMovie(
             id = itemId,
             name = "home video",
             originalTitle = null,
             overview = "",
-            sources = listOf(source(id = sourceId)),
+            sources = sources,
             played = false,
             favorite = false,
             canPlay = true,
@@ -93,5 +137,17 @@ class PlaylistManagerInitialItemTest {
             path = "https://example.invalid/home-video.mp4",
             size = 1L,
             mediaStreams = emptyList(),
+        )
+
+    private fun localSource(path: String): FindroidSource =
+        FindroidSource(
+            id = "stale-local-source",
+            name = "missing.mkv",
+            type = FindroidSourceType.LOCAL,
+            path = path,
+            size = 0L,
+            mediaStreams = emptyList(),
+            container = "mkv",
+            downloadTaskStatus = "COMPLETED",
         )
 }

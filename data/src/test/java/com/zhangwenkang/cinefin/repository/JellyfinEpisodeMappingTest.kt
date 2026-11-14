@@ -40,11 +40,14 @@ class JellyfinEpisodeMappingTest {
                 every { this@apply.userId } returns userId
                 every { this@apply.userLibraryApi } returns userLibraryApi
             }
+        val database = mockk<ServerDatabaseDao>(relaxed = true)
+        coEvery { database.getCompletedSource(itemId) } returns null
+        coEvery { database.getSources(itemId) } returns emptyList()
         val repository =
             JellyfinRepositoryImpl(
                 context = mockk<Context>(relaxed = true),
                 jellyfinApi = api,
-                database = mockk<ServerDatabaseDao>(relaxed = true),
+                database = database,
                 appPreferences = AppPreferences(mockk<SharedPreferences>(relaxed = true)),
                 localLibrary = mockk<LocalLibraryRepository>(relaxed = true),
                 metadataSnapshotStore = mockk(relaxed = true),

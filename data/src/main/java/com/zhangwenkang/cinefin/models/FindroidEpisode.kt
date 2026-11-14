@@ -50,7 +50,12 @@ suspend fun BaseItemDto.toFindroidEpisode(
     val sources = mutableListOf<FindroidSource>()
     sources.addAll(mediaSources?.map { it.toFindroidSource(jellyfinRepository, id) } ?: emptyList())
     if (database != null) {
-        sources.addAll(database.getSources(id).map { it.toFindroidSource(database) })
+        sources.addAll(
+            database
+                .getSources(id)
+                .map { it.toFindroidSource(database) }
+                .filter { it.isAvailableForSourceSelection() }
+        )
     }
     return try {
         FindroidEpisode(
@@ -96,7 +101,11 @@ suspend fun FindroidEpisodeDto.toFindroidEpisode(
 ): FindroidEpisode {
     // W36：无账号离线模式下没有 userId，播放状态按未观看处理，不再要求登录会话。
     val userData = userId?.let { database.getUserDataOrCreateNew(id, it) }
-    val sources = database.getSources(id).map { it.toFindroidSource(database) }
+    val sources =
+        database
+            .getSources(id)
+            .map { it.toFindroidSource(database) }
+            .filter { it.isAvailableForSourceSelection() }
     val trickplayInfos = mutableMapOf<String, FindroidTrickplayInfo>()
     for (source in sources) {
         database.getTrickplayInfo(source.id)?.toFindroidTrickplayInfo()?.let {
