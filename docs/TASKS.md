@@ -8,8 +8,8 @@
 ### ACTIVE — AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
-- TASK_STAGE=FRESH_QA_R3_A1_AUTO_PASS / FRESH_QA_R4_STOPPED_BEFORE_DEVICE / FRESH_QA_R5_ABSOLUTE_PWSH_CONTINUATION_READY / NOT_RELEASABLE
-- PROFESSIONAL_IDENTITY=AURORAMA_141_FRESH_INDEPENDENT_QA_R5_2026_11_14
+- TASK_STAGE=FRESH_QA_R5_COMPLETE_WITH_FAILURES / PLAYER_CORE_SEEK_STALL_DIAGNOSIS_REQUIRED / A1_A2_A4_SIGNED_PASS / NOT_RELEASABLE
+- PROFESSIONAL_IDENTITY=AURORAMA_141_PLAYER_CORE_SEEK_STALL_DIAGNOSIS_R1_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - WORKTREE_POLICY=EXACT_ABSOLUTE
@@ -79,7 +79,7 @@
 - BUG_LOOP_STOP_BUDGET=2_SAME_SYMPTOM_ATTEMPTS_THEN_STOP_OR_USER_DECISION
 - FULL_MATRIX_GATE=RELEASE_CANDIDATE_ONLY
 - DOWNLOAD_LINEAGE_CANDIDATE_ANCESTORS=0cd906e3d70f2b5f435d24127daa3b99856f5a09;4b7f7bf35f0f3d74e63c822af3684e6f60b5ef9a;77f13d23aeed4630bb1d5e4b2c76f4c3f4f36757
-- FINAL_SIGNED_QA=PARTIAL_PASS_A1_AUTO;QA_R3_STOPPED_AFTER_HOST_WRAPPER;FRESH_QA_R4_REQUIRED
+- FINAL_SIGNED_QA=QA_R5_COMPLETE_WITH_FAILURES;A1_A2_A4_PASS;PC02_PC03_PC05_FAIL;PC04_PC06_PC08_PC11_NOT_RUN
 - QA_CANDIDATE_ARM64=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r3-2026-11-14\Aurorama-1.4.1-arm64-v8a.apk;LENGTH=80599166;SHA256=BA260225500798504983B4486CDE8B1BC7179EAA29F56C3BE674F65A1D7F9D34
 - QA_CANDIDATE_UNIVERSAL=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r3-2026-11-14\Aurorama-1.4.1-universal.apk;LENGTH=175213336;SHA256=DA00789829C288FF0C4CD71B7163F0CC57BCFB85C7F5D6D391A2E0426D377B14
 - QA_CANDIDATE_SIGNER=e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff
@@ -143,15 +143,15 @@
 - QA_FINAL_REPORT_SHA256=30227E9D07AB5B92A017A844751707F043C5008583DACFEBCF416CF66A3C4EEC;MANIFEST_SHA256=9C9428C5E26AB822344C1804025FC7829224C9B142D806EF3FE4C364C82C0008;MATCH=YES
 - QA_FINAL_EXECUTED=A2_SPECIFIED_EPISODES_TASKS_EQUAL_BUT_NOTIFICATION_TOTAL_MISMATCH/A3_RECURSION_PASS_BUT_DELETING_FIRST_FRAME_NOT_PROVEN/A4_PASS/PC01_PC07_PC09_PC12_PASS/PC02_PC03_PC05_FAIL/PC04_PC06_PC08_PC11_NOT_RUN/PC10_BLOCKED
 - P0=0;NEW_P0=0;IMPL_R1_NO_NEW_P0
-- P1=P1-PAD-ONLINE-PLAYBACK-STALL-001:CLOSED_BY_FRESH_SIGNED_QA_R3_A1_AUTO;P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001:OPEN;P1-PLAYER-SEEK-001:OPEN_NOT_RUN_QA_R3;P1-PLAYER-PROGRESS-001:OPEN_NOT_RUN_QA_R3;P1-QA-EVIDENCE-MEDIA-PATH-OUTPUT-001:ACCEPTED_BY_USER_NONBLOCKING;P1-R3-PREPLAYER-DATA-LOAD-FAILURE-001:HISTORICAL_WRONG_ENTRY_NOT_APPLICABLE_TO_TOP_PLAY;P1-DIAG-K60-ONLINE-AB-OBJECT-MISMATCH-001:RESOLVED_FOR_UI_OBJECT_BY_R3;P1-PAD-ONLINE-DIAG-EVIDENCE-URI-OUTPUT-01:CLOSED_BY_USER_DECISION_NON_BLOCKING;P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:OPEN_A2_TASK_COUNT_PASS_SECOND_LEAF_ID_NOT_PROVEN;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:OPEN_RECURSION_PASS_FIRST_FRAME_AND_POST_DELETE_RESTART_NOT_PROVEN;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:OPEN_A4_NOT_RUN
-- P2=P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001:OPEN_REPRODUCED_SIGNED_QA_R3_A2;P2-PLAYER-EXCESSIVE-TIMEOUT-POPUP-001:LOCALIZED_NONMODAL_A1_PASS;P2-PLAYER-RAW-ERROR-TOKEN-UI-001:FULL_FAMILY_NOT_RUN;P2-PLAYER-UI-MEDIASESSION-TERMINAL-DIVERGENCE-001:OPEN;P2-K60-LOCAL-DOWNLOAD-SOURCE-MISSING-001:NOT_TESTED_QA_R3_PAD_ONLY;P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN:OPEN;P2-PLAYER-LOADING-001:OPEN_NOT_RUN_QA_R3;P2-PLAYER-STALL-001:OPEN_NOT_RUN_QA_R3;P2-R3-NON_PWSH-WRAPPER-STOP:PROCESS_DEFECT_ONE_CONTROLLED_RETRY_ALLOWED
-- P3=P1-DIAG-K60-DEBUG-SESSION-MISSING-001:BLOCKED_EXTERNAL_SESSION;QA_R3_A2_SECOND_LEAF_ID_NOT_PROVEN;QA_R3_THREE_NON_PWSH_WRAPPER_MISUSES;QA_R4_ABSOLUTE_PWSH_NOT_INVOKED;1.3.0 comparison NOT_VERIFIED/NO_DOWNGRADE;subtitle visual pixels NOT_RUN;ColorOS/K60 historical matrix NOT_RUN;Movie enrichment real injection unavailable
+- P1=P1-PAD-ONLINE-PLAYBACK-STALL-001:CLOSED_BY_FRESH_SIGNED_QA_R3_A1_AUTO;P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001:OPEN;P1-PLAYER-SEEK-001:OPEN_QA_R5_PC03_PC05_FAIL;P1-PLAYER-PROGRESS-001:OPEN_QA_R5_PC02_PC05_FAIL;P1-QA-EVIDENCE-MEDIA-PATH-OUTPUT-001:ACCEPTED_BY_USER_NONBLOCKING;P1-R3-PREPLAYER-DATA-LOAD-FAILURE-001:HISTORICAL_WRONG_ENTRY_NOT_APPLICABLE_TO_TOP_PLAY;P1-DIAG-K60-ONLINE-AB-OBJECT-MISMATCH-001:RESOLVED_FOR_UI_OBJECT_BY_R3;P1-PAD-ONLINE-DIAG-EVIDENCE-URI-OUTPUT-01:CLOSED_BY_USER_DECISION_NON_BLOCKING;P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:CLOSED_BY_FRESH_SIGNED_QA_R5_A2;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:OPEN_FINAL_CONVERGENCE_PASS_DELETING_FIRST_FRAME_NOT_PROVEN;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:CLOSED_BY_FRESH_SIGNED_QA_R5_A4
+- P2=P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001:OPEN_REPRODUCED_QA_R3_R5;P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN:OPEN;P2-PLAYER-LOADING-001:OPEN_QA_R5_PC02_FAIL;P2-PLAYER-STALL-001:OPEN_QA_R5_PC03_PC05_FAIL;P2-PLAYER-UI-MEDIASESSION-TERMINAL-DIVERGENCE-001:OPEN;P2-PLAYER-RAW-ERROR-TOKEN-UI-001:PARTIAL_PC12_PASS;P2-K60-LOCAL-DOWNLOAD-SOURCE-MISSING-001:NOT_TESTED_QA_R5
+- P3=PC04_TRUE_EOS_NOT_RUN;PC06_PIXELS_NOT_RUN;PC08_SECOND_ACCOUNT_NOT_RUN;PC10_OPPO_ONE_PLUS_BLOCKED_AUTHORIZATION;PC11_NETWORK_BRANCH_NOT_RUN;QA_R3_NON_PWSH_WRAPPER_PROCESS_DEFECT;1.3.0 comparison NOT_VERIFIED/NO_DOWNGRADE;subtitle visual pixels NOT_RUN;ColorOS/K60 historical matrix NOT_RUN
 - CONTEXT_USAGE=306054 / 1048576 (29.2%);30万_CHECKPOINT_REACHED;HANDOFF_REQUIRED
-- NEXT_ROLE=AURORAMA_141_FRESH_INDEPENDENT_QA_R5_2026_11_14
-- FIRST_READ_ACTION=run the exact absolute-pwsh QA_READY command first, then if PASS read FRESH_INDEPENDENT_QA_R4_PROMPT and execute only its remaining matrix without rerunning A1-AUTO
-- NEXT_ACTION=continue Pad 43af8627 exact signed QA for A1-CANCEL, A2 second leaf identity, A3 deleting and restart, A4, and PC-01-PC-12 using the verified absolute PowerShell 7 binary
-- STOP_CONDITION=stop if same absolute-pwsh QA_READY fails twice, candidate/installed APK/signer/source/lock/data drift, product change is required, user data or downloads would be deleted, system network or unauthorized device is needed, fallback becomes uncontrolled, or a new P0 appears
-- CURRENT_HANDOFF=FRESH_QA_R5_ABSOLUTE_PWSH_CONTINUATION_READY_2026_11_14
+- NEXT_ROLE=AURORAMA_141_PLAYER_CORE_SEEK_STALL_DIAGNOSIS_R1_2026_11_14
+- FIRST_READ_ACTION=read FRESH_INDEPENDENT_QA_R5 report manifest and PC03-PC05 sections, then trace the current Exo HLS seek wait retry state machine without device or product writes
+- NEXT_ACTION=produce one falsifiable root-cause hypothesis for near-end Exo HLS accepted seek stall and failed retry, separating client state from source or server availability
+- STOP_CONDITION=stop on source or HEAD drift, need for device or server writes, need to change code before diagnosis, need to rerun A1-AUTO, mixed unrelated failure cluster, or new P0
+- CURRENT_HANDOFF=FRESH_QA_R5_COMPLETE_PLAYER_SEEK_STALL_DIAGNOSIS_READY_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1867,12 +1867,12 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
   `...\evidence-v2-w1c-1-catalog-readers-independent-qa-2026-11-09`。
 
 <!-- V2_QA_READY_BEGIN -->
-- QA_READY=YES
-- QA_RESULT=FRESH_QA_R3_STOPPED_AFTER_DEVICE_A1_PASS;FRESH_QA_R4_STOPPED_BEFORE_DEVICE_ON_COMMAND_DISCOVERY;PRODUCT_QA_R5=NOT_RUN;MANIFEST_R3=ED00C1336A2A16CE0656FB2ADE22150AA7AD9C98E1124A43840BB85E7B130BC0;MANIFEST_R4=7FAA007D4480142593AB4CEF15F124F18A97F31C2EC7B748F5065AC78A7D6D0F
-- UNCOVERED=A1_CANCEL; A2 second leaf stable ID; A3 deleting first frame and post-delete restart; A4 toolbar uniqueness; PLAYER_CORE_RELEASE_MATRIX PC-01-PC-12; PC-10 authorization; A1_AUTO must remain no-rerun
-- STOP_CONDITION=QA continuation only through the absolute PowerShell 7 executable and exact signed R3 Pad 43af8627; stop if the same QA_READY wrapper fails twice, installed APK/signer/source/data/lock drift, product changes are needed, user data would be deleted, system network or unauthorized devices are required, or a new P0 appears
-- MANUAL_LIMITATION=R3 signed A1_AUTO remains accepted and closed for the specific Pad mpv-stall promise. R4 was a tooling-only stop before device. Release remains blocked by A2 notification mismatch, A3 strict gaps, A4/PC not run and other open findings.
-- MANUAL_OWNER=AURORAMA_141_FRESH_INDEPENDENT_QA_R5_2026_11_14
+- QA_READY=NO
+- QA_RESULT=FRESH_INDEPENDENT_QA_R5=COMPLETE_WITH_FAILURES;A1_AUTO_REUSED_NO_RERUN;A2=PASS;A3=PARTIAL_STRICT;A4=PASS;PC01=PARTIAL;PC02=FAIL;PC03=FAIL;PC04=NOT_RUN;PC05=FAIL;PC06=NOT_RUN;PC07=PASS;PC08=NOT_RUN;PC09=PASS;PC10=BLOCKED_AUTHORIZATION;PC11=PARTIAL_NOT_RUN;PC12=PASS;PLAYER_CORE_MATRIX=FAIL;MANIFEST_SHA256=32CB3846969BE1D41C20F1A8532936302DE8AF6BC151BE0DBB279C74C41C9102
+- UNCOVERED=PC02 background loading; PC03/PC04/PC05 near-end seek stall retry EOS; PC06 subtitle pixels; PC08 second account first-frame; PC10 authorized daily phone; PC11 network recovery; A3 Deleting first frame; download notification total equality
+- STOP_CONDITION=No further QA or release claim until the player-core failures are diagnosed and repaired on a new candidate; stop if candidate/source/data/lock drift, product scope expands, server write or system network change is required, or a new P0 appears
+- MANUAL_LIMITATION=QA R5 closes A2 leaf identity and A4 toolbar promises and closes the original Pad mpv-stall P1 via R3 A1_AUTO. It does not pass the full player release matrix: PC02/03/05 fail, PC04/06/08/11 are not run, PC10 is authorization-blocked, A3 Deleting remains unproven, and notification totals still mismatch.
+- MANUAL_OWNER=AURORAMA_141_PLAYER_CORE_SEEK_STALL_DIAGNOSIS_R1_2026_11_14
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -1922,9 +1922,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 | P1-R3-PREPLAYER-DATA-LOAD-FAILURE-001 | Historical explicit Episode-row path stopped in EpisodeView load error with no PlayerActivity | Historical wrong-entry chain is not current top-play symptom; do not use it as current Pad backend proof | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\ANIME_SUPERPOWER_DAUGHTER_UI_AB_R3.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PREPLAYER_DATA_LOAD_DIAG_R1.md |
 | P1-DIAG-K60-ONLINE-AB-OBJECT-MISMATCH-001 | Early K60/Pad online diagnostic compared different Episode titles | UI object later matched when the corrected path was used; this does not close other playback findings | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\K60_ONLINE_DIAGNOSIS_CONTINUATION_R1.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\ANIME_SUPERPOWER_DAUGHTER_UI_AB_R3.md |
 | P1-PAD-ONLINE-DIAG-EVIDENCE-URI-OUTPUT-01 | Pad diagnostic stream emitted evidence URI text | Closed by explicit user non-blocking decision; current QA still forbids token/cookie/password/query output | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_ONLINE_DIAGNOSIS_R1.md |
-| P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001 | Container-level batch target could expand to all episodes instead of explicit selected leaves | `0cd906e3` requires explicit selected episodes; signed R3 A2 must prove task and download-page identity | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SIGNED_RELEASE_ENGINEERING_R3.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FINAL_INDEPENDENT_QA_R1.md |
+| P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001 | Container-level batch target could expand to all episodes instead of explicit selected leaves | `CLOSED_BY_FRESH_SIGNED_QA_R5_A2`: requested 2, accepted 2, independent task detail IDs `S1E1` / `S1E2`, no unselected task | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_QA_R5.md |
 | P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001 | Immediate deleting state and parent/child residue were not fully proven | Final result and restart no-resurrection previously passed; signed R3 A3 must prove first-frame plus recursive convergence | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FINAL_INDEPENDENT_QA_R1.md |
-| P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001 | Download multi-select toolbar could expose duplicate playback-like actions | `77f13d23` filters actions by capability; signed R3 A4 must prove one resume and one delete action | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SIGNED_RELEASE_ENGINEERING_R3.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FINAL_INDEPENDENT_QA_R1.md |
+| P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001 | Download multi-select toolbar could expose duplicate playback-like actions | `CLOSED_BY_FRESH_SIGNED_QA_R5_A4`: resume 1, delete 1, play-selected 0, pause 0, retry 0 | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_QA_R5.md |
 <!-- V2_QA_P1_MATRIX_END -->
 <!-- V2_QA_READY_END -->
 

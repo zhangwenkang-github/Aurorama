@@ -10288,3 +10288,59 @@ C:\Users\zhangwenkang\.cache\codex-runtimes\codex-primary-runtime\dependencies\n
 `FRESH_INDEPENDENT_QA_R5_PROMPT.md`，第一条只运行该绝对 pwsh 的完整 `QaReady` 命令；
 取得 PASS 后再读 R4 续测合同。R5 仍不得重跑 A1-AUTO，只补未完成矩阵。若绝对入口第二次
 仍失败，则停止而不再用其他 shell 包装。
+
+### 52.70.21 Signed R5 QA 完成 / Player Core 失败簇（2026-11-14）
+
+**状态：`FRESH_QA_R5_COMPLETE_WITH_FAILURES / A1_A2_A4_SIGNED_PASS / PLAYER_CORE_MATRIX_FAIL /
+NOT_RELEASABLE`。**
+
+fresh `AURORAMA_141_FRESH_INDEPENDENT_QA_R5_2026_11_14` 使用绝对 PowerShell 7 入口越过
+`QA_READY`，在 exact signed R3 candidate、Pad `43af8627` 上完成限定续测。设备内 APK hash、
+package、version、v2、单 signer 均 MATCH；`A1_AUTO_RERUN=NO`。
+
+正向结果：
+
+- A2：显式请求 2 集、受理 2 集，任务详情独立回读 `S1E1`、`S1E2`，无未选剧集；
+- A4：选择态 `继续下载=1 / 删除=1 / 播放选中=0 / 暂停=0 / 重试=0`；
+- A3：leaf / Show 删除最终收敛 `0/0/0`，两次 cold restart 不复活，通知保持 0；
+- PC-07 / PC-09 / PC-12 PASS；PC-01 持久续播、PC-11 force-stop/冷启子分支 PASS。
+
+仍失败 / 未跑：
+
+- `PC-02 FAIL`：HOME 后 state 转 PAUSED，position 停在 `4606 ms`，buffered 仅
+  `4921 → 5088` 后 15 秒不变，后台加载未通过；
+- `PC-03 FAIL`：Exo/HLS 前向、rewind、fast-forward、连续 seek 可接受；近片尾
+  `1,503,178 ms` 后 30 秒不推进并出现“定位超时”；mpv 分支未跑；
+- `PC-04 NOT_RUN`：近片尾停滞，未到真实 EOS / 自动下一集；
+- `PC-05 FAIL`：重试后 position `1,503,983 ms` 连续 20 秒不推进；
+- `PC-06 PIXELS / PC-08 ACCOUNT / PC-11 NETWORK` 未跑；PC-10 仍授权阻断；
+- A3 `Deleting` 首帧仍 `NOT_PROVEN`；
+- A2 通知总量仍 `1.57 GB` 对页面 `3.20 GB`，既有 P2 保持 OPEN。
+
+联合结果：
+
+```text
+PLAYER_CORE_MATRIX_RESULT=FAIL
+RELEASE_READY=NO
+RELEASE_STATUS=NOT_RELEASABLE
+```
+
+本轮 A2 叶身份和 A4 唯一工具栏分别关闭对应下载 P1；A3 首帧、下载通知总量、PC-02/03/05
+及其 `NOT_RUN / BLOCKED` 行继续阻断发布。不得用 A1/A2/A4 的正向结果覆盖播放器矩阵失败。
+
+清理后 App PID `0`、PlaybackState `0`、App notification `0`、FGS `0`，top launcher；
+本轮 download fixture 全部删除并回到 `0/0/0`；设置恢复 `BACKEND=mpv / DECODE=mediacodec /
+字幕 100% / 白色`；firstInstallTime、CE data inode、user0、data、session、用户下载全部保留。
+K60 / Oppo / OnePlus、截图、服务器写均为 0。锁已释放，最终 SHA-256
+`1224EF23CE18CA058338726F182AA087364BE485D73ABC48AB82B872315C5D68`。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_QA_R5.md`
+  / manifest SHA-256
+  `32CB3846969BE1D41C20F1A8532936302DE8AF6BC151BE0DBB279C74C41C9102`，4/4 MATCH。
+
+下一 owner = fresh `AURORAMA_141_PLAYER_CORE_SEEK_STALL_DIAGNOSIS_R1_2026_11_14`，只诊断
+PC-03/04/05 near-end Exo/HLS seek-retry 簇。PC-02 后台加载、A3、通知总量与其它未跑行不得
+混入同一根因。诊断 owner 零设备、零产品写；先用 R5 事件序列与当前源码状态机给出一个可推翻
+的主假设，PASS 后才另派 fresh 实现 owner。
