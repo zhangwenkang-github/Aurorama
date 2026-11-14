@@ -16,10 +16,10 @@
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - CANONICAL_BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- HANDOFF_HEAD=2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104 / HANDOFF_TREE=e5eef85f42c02dfa7c20e1f0dd5a710135850713
+- HANDOFF_HEAD=092afea32508466203ea1db7d1d0f6f6ad6473ce / HANDOFF_TREE=95db8db5e62b330cfb5f38ae5faefaa8b49929f6
 - CONTROL_PLANE_DIFF=IMPLEMENTATION_PATHS=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt;player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt;player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlayerProgressFallback.kt;player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerProgressFallbackTest.kt;docs/PLAYER_PLAN.md;docs/TASKS.md
 - READ_ORDER=PROJECT_PLAN > TASKS ACTIVE > PLAYER_PLAN 52.70.17 > PAD_MPV_STALL_EXO_FALLBACK_IMPLEMENTATION_R1 report + manifest > PAD_MPV_VS_EXO_DISCRIMINATOR_R1 > AURORAMA_141_STATE_EFFECT_MATRIX_R1 section 5 > TEST_PLAN 8 > PROJECT_RULES R010/R034/R038/R042/R043
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_MPV_STALL_EXO_FALLBACK_IMPLEMENTATION_R1.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\NEXT_LEADER_PROMPT_R4.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\USER_ACCEPTANCE_FAIL.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\COVERAGE_GAP_ANALYSIS.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_STATE_EFFECT_MATRIX_R1.md
@@ -63,6 +63,7 @@
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_MPV_VS_EXO_DISCRIMINATOR_R1_PROMPT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_MPV_VS_EXO_DISCRIMINATOR_R1.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_MPV_VS_EXO_DISCRIMINATOR_R1_MANIFEST.sha256
+- EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\NEXT_LEADER_PROMPT_R4.md
 - SCOPE=P1-PAD-ONLINE-PLAYBACK-STALL-001/PAD_MPV_PROGRESS_STALL_AUTO_SWITCH_TO_EXO_ONCE
 - REAL_USER_ENTRY=ANIME_LIBRARY > SUPER_POWER_DAUGHTER_SHOW_DETAIL > TOP_PLAY_BUTTON;EPISODE_ROW_AND_EPISODE_DETAIL_PATH_EXCLUDED
 - SHOW_TOP_PLAY_STATIC_PATH=SHOW_ACTION_PLAY -> PLAYERACTIVITY(SERIES_ID) -> PLAYLISTMANAGER_GET_INITIAL_ITEM -> NEXTUP_OR_S1E1_FALLBACK
@@ -126,7 +127,7 @@
 - PLAYER_RECOVERY_RESULT=RAW_TOKENS_REMOVED/NONBLOCKING_RECOVERY_KEPT/WATCHDOG_AND_RETRY_UNCHANGED/NO_NEW_MODAL_TOAST
 - PLAYER_RECOVERY_REPORT_SHA256=F86D7A4B7548E49CDB54894E75B22BEEB484FA098505884096B213FE6A91D0F8;MANIFEST_SHA256=4EA98EBE1DBC8A5BD801DC9FBF4DBBDE5239DCB9C4E17A590D5A78A65C9BB9A5;MATCH=YES
 - PRODUCT_CODE_WRITE_ALLOWED=NONE_IMPLEMENTATION_COMMITTED;FRESH_RELEASE_AND_QA_READ_ONLY_UNTIL_NEW_TASK
-- RELEASE_ANCESTORS=0cd906e3d70f2b5f435d24127daa3b99856f5a09;4b7f7bf35f0f3d74e63c822af3684e6f60b5ef9a;77f13d23aeed4630bb1d5e4b2c76f4c3f4f36757;4f158c7d3148546994455f4a1a010cb9dad98266;cf9e256cff08a3dc8d493c99caba33ff30400b0c;2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104
+- RELEASE_ANCESTORS=0cd906e3d70f2b5f435d24127daa3b99856f5a09;4b7f7bf35f0f3d74e63c822af3684e6f60b5ef9a;77f13d23aeed4630bb1d5e4b2c76f4c3f4f36757;4f158c7d3148546994455f4a1a010cb9dad98266;cf9e256cff08a3dc8d493c99caba33ff30400b0c;2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104;092afea32508466203ea1db7d1d0f6f6ad6473ce
 - SERVER_ACCOUNT_DECISION=USER_2026_11_14_TEST_SPEED_DEDICATED_PRIVACY_NOT_BLOCKING;EVIDENCE_URI_OUTPUT_P1_ACCEPTED_NON_BLOCKING
 - RAW_ARTIFACT_CLEANUP=PASS/DEVICE_XML_20/HOST_FILES_31/9358297_B/SOURCE_AND_DATA_PRESERVED
 - REPORT_SHA256=C68828E06ECA231CB5E984BAFECAF61DE129B17D6D4CE368E884B1116BB5BE6E;MANIFEST_SHA256=4D8CBF0C75866132C316860FEA9E5C1C51DD411F2A4AA4F1DD92325B20D20FD1;MATCH=YES
@@ -147,10 +148,10 @@
 - P3=P1-DIAG-K60-DEBUG-SESSION-MISSING-001:BLOCKED_EXTERNAL_SESSION;1.3.0 comparison NOT_VERIFIED/NO_DOWNGRADE;showId not exposed;dmesg unreadable;subtitle visual pixels NOT_RUN;ColorOS/K60 historical matrix NOT_RUN;Movie enrichment real injection unavailable;PAD_MPV_STALL_EXO_FALLBACK_R1_STATIC_ONLY:DEVICE_NOT_RUN
 - CONTEXT_USAGE=306054 / 1048576 (29.2%);30万_CHECKPOINT_REACHED;HANDOFF_REQUIRED
 - NEXT_ROLE=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R4_2026_11_14
-- FIRST_READ_ACTION=read PAD_MPV_STALL_EXO_FALLBACK_IMPLEMENTATION_R1.md and manifest, verify implementation commit/source ancestry and exact signed R2 delta, then dispatch a fresh signed Release engineering owner
+- FIRST_READ_ACTION=read NEXT_LEADER_PROMPT_R4.md, implementation report and manifest, verify implementation commit/source ancestry and exact signed R2 delta, then dispatch a fresh signed Release engineering owner
 - NEXT_ACTION=build fresh signed candidate from the implementation commit, then dispatch a different fresh independent QA for the Pad top-play mpv-to-Exo one-shot path and release matrix
 - STOP_CONDITION=stop on commit/tree drift, signed source not descendant, missing fresh Release/QA ownership, architecture/source expansion, device action outside a fresh contract, or new P0-P2
-- CURRENT_HANDOFF=PAD_MPV_STALL_EXO_FALLBACK_IMPLEMENTATION_COMPLETE_2026_11_14
+- CURRENT_HANDOFF=PAD_MPV_STALL_EXO_FALLBACK_R4_HANDOFF_READY_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
