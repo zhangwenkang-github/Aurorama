@@ -1073,17 +1073,28 @@ DEVICE_EXACT_ENTRY_INCONCLUSIVE / NOT_RELEASABLE`。**
 
 ### 31.3 删除与工具栏
 
-- `V2-FIX-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001`：fresh 诊断 owner 必须创建同一节目下最多
-  2 个暂停任务，记录确认到可见 `Deleting` 的时序、快速重复点击和父/子收敛；
-  prompt 已落盘，待按 R043 active 字段轮转并通过 BugLoopPrompt 后派发。
+- `V2-FIX-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001` 的诊断已在 exact signed 包上执行同一 Show /
+  Season 下 2 个暂停任务：快速双击未创建第二 batch；父、季、叶、任务、活动通知与重启投影
+  2/2 收敛；但 Show drilldown 头与 Season 卡未消费同步写入的 pending，删除按钮仍可点，
+  `DELETING` 还被投成“等待下载”，形成 P1 `DELETE_PARENT_SEASON_PENDING_NOT_VISIBLE`。
+- 实现候选 `4b7f7bf35f0f3d74e63c822af3684e6f60b5ef9a` / tree
+  `86ed03180b90ef1d30608c2ff80fb29d838d5524` 让 Show 头、Season、叶共享删除派生投影；
+  pending / deleting 时互斥动作禁用，显示“删除中”、失败数、“已收敛 X/N”，失败叶可重试。
+  focused `37/0/0/0`、phone JVM `505/0/0/0`、film JVM `182/0/0/0`、assemble、ktfmt、
+  diff-check、R038 GatePlan、workflow / handoff tests、graphify PASS；debug APK
+  `154387056 B / 33AF87F2…3998`。`DEVICE_SELFTEST=NOT_RUN_PER_LOCK_POLICY`，需 independent
+  QA 在合法锁下验证首帧可见删除态、最终 `0/0/0/0 B`、通知不残留与 restart。
+- 证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\DELETE_DIAGNOSIS_R1.md`；
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-delete-pending-ui-implementation-r1-2026-11-14\DELETE_PENDING_UI_IMPLEMENTATION_R1_REPORT.md`。
 - `V2-FIX-DOWNLOAD-SELECTION-CONTROLS-001`：fresh 诊断 owner 只读采集 ACTIVE 分组多选中每个
   action 的 icon / label / bounds / enabled / 出现次数，禁止执行播放。
 - 两者均不得由指定剧集实现 owner 接续；独立 QA 必须与实现 owner 不同，且由负责人显式启动。
 
 ### 31.4 下一步
 
-1. 指派 fresh 删除诊断 owner，确认即时态 / 重复删除 / 父子残留的真实 RED；
-2. 指派 fresh 工具栏诊断 owner，确认两个播放语义的来源；
+1. 指派 fresh 工具栏诊断 owner，确认两个播放语义的来源；
+2. 在合法设备锁下另派运行 verifier / independent QA 复核删除首帧态与指定剧集真实入口；
 3. 三条下载 lineage 实现收口后，由负责人显式启动一个与之不同的独立 QA，在最终 signed 候选走
    真实节目 / 季入口、真实任务和真实文件；
 4. 未完成上述证据前保持 `NOT_RELEASABLE`，不得使用聚合网格、单测或最终 `0/0/0` 代替。
