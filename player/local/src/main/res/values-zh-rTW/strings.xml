@@ -77,6 +77,11 @@
     <string name="player_controls_aspect_unsupported">目前播放核心不支援畫面比例</string>
     <string name="player_controls_error_title">播放失敗</string>
     <string name="player_controls_error_retry">重試</string>
+    <string name="player_progress_recovery_stalled">播放暫時沒有繼續</string>
+    <string name="player_progress_recovery_unconfirmed">播放進度暫時無法確認</string>
+    <string name="player_progress_recovery_generic">播放暫時沒有繼續</string>
+    <string name="player_progress_recovery_retry_from_start">可以重試，從頭播放。</string>
+    <string name="player_progress_recovery_retry_from_position">可以重試，從 %1$s 繼續。</string>
     <string name="player_controls_error_switch_backend">改用 %1$s 核心</string>
     <string name="player_subtitle_tab_tracks">軌道</string>
     <string name="player_subtitle_tab_appearance">外觀</string>

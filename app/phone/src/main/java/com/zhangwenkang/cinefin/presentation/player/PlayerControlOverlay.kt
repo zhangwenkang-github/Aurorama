@@ -1910,9 +1910,25 @@ private fun PlaybackProgressRecoveryAction(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val copy =
+        resolvePlaybackRecoveryCopy(
+            kind = terminal.kind,
+            positionMs = terminal.positionMs,
+            positionSource = terminal.positionSource,
+        )
+    val detail =
+        when (copy.detail) {
+            PlaybackRecoveryDetail.RetryFromStart ->
+                stringResource(PlaybackRecoveryDetail.RetryFromStart.stringRes())
+            PlaybackRecoveryDetail.RetryFromPosition ->
+                stringResource(
+                    PlaybackRecoveryDetail.RetryFromPosition.stringRes(),
+                    formatTime(copy.positionMs ?: 0L),
+                )
+        }
     PlaybackRecoveryBar(
-        title = terminal.kind,
-        detail = "${terminal.positionSource.name} · " + formatTime(terminal.positionMs),
+        title = stringResource(copy.title.stringRes()),
+        detail = detail,
         onRetry = onRetry,
         modifier = modifier,
     )
@@ -2033,12 +2049,6 @@ private fun PlayerErrorCard(
             style = MaterialTheme.typography.bodySmall,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
-        Text(
-            text = "${error.backend} · ${error.codeName}",
-            color = colors.onSurfaceFaint,
-            style = MaterialTheme.typography.labelSmall,
         )
         Spacer(modifier = Modifier.height(CinefinSpacing.Space5))
         Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3)) {
