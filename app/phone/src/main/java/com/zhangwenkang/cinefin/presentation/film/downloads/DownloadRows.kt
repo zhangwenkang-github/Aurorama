@@ -73,6 +73,8 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadAction
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadContainerTaskAction
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDeletionProjection
+import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadDeletionSummary
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadFormatRules
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyContainer
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyEntry
@@ -147,8 +149,9 @@ internal fun downloadRowActionSpecs(
     canDelete: Boolean,
     pending: Boolean,
     intentOnly: Boolean = false,
+    deleteLabelRes: Int = CoreR.string.download_action_delete,
 ): List<DownloadRowActionSpec> {
-    if (pending) return emptyList()
+    if (pending || status == DownloadTaskStatus.DELETING) return emptyList()
     return buildList {
         when (status) {
             DownloadTaskStatus.RUNNING,
@@ -176,14 +179,13 @@ internal fun downloadRowActionSpecs(
                     )
                 )
             DownloadTaskStatus.COMPLETED,
-            DownloadTaskStatus.DELETING,
             null -> Unit
         }
         if (canDelete) {
             add(
                 DownloadRowActionSpec(
                     DownloadRowTaskAction.DELETE,
-                    CoreR.string.download_action_delete,
+                    deleteLabelRes,
                 )
             )
         }
@@ -194,20 +196,25 @@ internal fun downloadRowActionSpecs(
     task: DownloadTask,
     canDelete: Boolean,
     pending: Boolean,
+    deleteLabelRes: Int = CoreR.string.download_action_delete,
 ): List<DownloadRowActionSpec> =
     downloadRowActionSpecs(
         status = task.status,
         canDelete = canDelete,
         pending = pending,
         intentOnly = task.isIntentOnly,
+        deleteLabelRes = deleteLabelRes,
     )
 
 /** 顶层容器动作由真实任务能力生成，eligible keys 原样传给 ViewModel。 */
 internal fun downloadContainerRowActionSpecs(
     container: DownloadHierarchyContainer,
     pending: Boolean,
+    deleteLabelRes: Int = CoreR.string.download_action_delete,
 ): List<DownloadRowActionSpec> {
-    if (pending) return emptyList()
+    if (pending || container.allEntries().any { it.status == DownloadTaskStatus.DELETING }) {
+        return emptyList()
+    }
     return buildList {
         container.taskActionSpecs().forEach { taskSpec ->
             val action =
@@ -234,7 +241,7 @@ internal fun downloadContainerRowActionSpecs(
             add(
                 DownloadRowActionSpec(
                     action = DownloadRowTaskAction.DELETE,
-                    labelRes = CoreR.string.download_action_delete,
+                    labelRes = deleteLabelRes,
                 )
             )
         }
@@ -380,10 +387,26 @@ internal fun DownloadTopLevelCard(
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: () -> Unit,
     pendingAction: DownloadPendingAction? = null,
+    deletionProjection: DownloadDeletionProjection =
+        DownloadDeletionProjection(pending = false, deleting = false, failedCount = 0),
+    deletionSummary: DownloadDeletionSummary? = null,
 ) {
     val colors = LocalCinefinColors.current
     val contentInteractionSource = remember { MutableInteractionSource() }
-    val actionSpecs = downloadContainerRowActionSpecs(container, pending = pendingAction != null)
+    val effectivePendingAction =
+        pendingAction ?: DownloadPendingAction.DELETE.takeIf { deletionProjection.deleting }
+    val hasDeletionFailure =
+        deletionProjection.failedCount > 0 || (deletionSummary?.failedCount ?: 0) > 0
+    val deleteLabelRes =
+        if (hasDeletionFailure) CoreR.string.download_action_retry_delete
+        else CoreR.string.download_action_delete
+    val actionSpecs =
+        downloadContainerRowActionSpecs(
+            container = container,
+            pending = effectivePendingAction != null || deletionProjection.pending,
+            deleteLabelRes = deleteLabelRes,
+        )
+    val deletionText = deletionStatusText(deletionProjection, deletionSummary)
     val square = container.mediaKind == DownloadMediaKind.MUSIC
     val artworkWidth =
         when {
@@ -457,13 +480,17 @@ internal fun DownloadTopLevelCard(
                     Spacer(Modifier.height(CinefinSpacing.Space1))
                     Text(
                         text =
-                            hierarchyStatusLabel(container.status) +
+                            (deletionText ?: hierarchyStatusLabel(container.status)) +
                                 " · " +
                                 containerCountText(container),
                         style = CinefinType.BodySmall,
                         color =
-                            if (container.status == DownloadHierarchyStatus.FAILED) colors.error
-                            else colors.onSurfaceVariant,
+                            if (
+                                hasDeletionFailure ||
+                                    container.status == DownloadHierarchyStatus.FAILED
+                            ) {
+                                colors.error
+                            } else colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -508,7 +535,7 @@ internal fun DownloadTopLevelCard(
                     DownloadContainerActionIcon(
                         containerKey = container.key,
                         actionSpecs = actionSpecs,
-                        pendingAction = pendingAction,
+                        pendingAction = effectivePendingAction,
                         onAction = onAction,
                         onRequestDelete = onRequestDelete,
                     )
@@ -530,6 +557,9 @@ internal fun DownloadTopLevelRow(
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: (key: String, title: String) -> Unit,
     pendingAction: DownloadPendingAction? = null,
+    deletionProjection: DownloadDeletionProjection =
+        DownloadDeletionProjection(pending = false, deleting = false, failedCount = 0),
+    deletionSummary: DownloadDeletionSummary? = null,
 ) {
     val colors = LocalCinefinColors.current
     val entry = container.allEntries().firstOrNull() ?: return
@@ -540,6 +570,14 @@ internal fun DownloadTopLevelRow(
     var showTechnicalDetails by remember(task?.sourceId) { mutableStateOf(false) }
     val (artworkWidth, artworkHeight) = leafArtworkSize(entry)
     val contentInteractionSource = remember { MutableInteractionSource() }
+    val effectivePendingAction =
+        pendingAction ?: DownloadPendingAction.DELETE.takeIf { deletionProjection.deleting }
+    val deletionText = deletionStatusText(deletionProjection, deletionSummary)
+    val hasDeletionFailure =
+        deletionProjection.failedCount > 0 || (deletionSummary?.failedCount ?: 0) > 0
+    val deleteLabelRes =
+        if (hasDeletionFailure) CoreR.string.download_action_retry_delete
+        else CoreR.string.download_action_delete
 
     // W59：书籍行可见时懒生成一次封面（已下载书籍走本地文件；生成完成由 ViewModel 刷新出图）。
     LaunchedEffect(entry.itemId, entry.mediaKind) {
@@ -633,6 +671,8 @@ internal fun DownloadTopLevelRow(
                                 },
                             // W80b（D3）：书籍下载失败带服务端原始原因（`BookDownloadTask.error`）。
                             failureDetail = failureDetail,
+                            deletionProjection = deletionProjection,
+                            deletionText = deletionText,
                         )
                         Spacer(Modifier.width(CinefinSpacing.Space2))
                         Text(
@@ -682,10 +722,11 @@ internal fun DownloadTopLevelRow(
                     }
                     DownloadTaskActionIcon(
                         task = task,
-                        pendingAction = pendingAction,
+                        pendingAction = effectivePendingAction,
                         onAction = onAction,
                         onRequestDelete = { onRequestDelete(entry.key, entry.name) },
                         canDelete = entry.canDelete,
+                        deleteLabelRes = deleteLabelRes,
                     )
                 }
             }
@@ -708,6 +749,7 @@ private fun DownloadTaskActionIcon(
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: () -> Unit,
     canDelete: Boolean,
+    deleteLabelRes: Int = CoreR.string.download_action_delete,
 ) {
     val actionSpecs =
         if (task != null) {
@@ -715,12 +757,14 @@ private fun DownloadTaskActionIcon(
                 task = task,
                 canDelete = canDelete,
                 pending = pendingAction != null,
+                deleteLabelRes = deleteLabelRes,
             )
         } else {
             downloadRowActionSpecs(
                 status = null,
                 canDelete = canDelete,
                 pending = pendingAction != null,
+                deleteLabelRes = deleteLabelRes,
             )
         }
     DownloadRowActionIcon(
@@ -803,11 +847,18 @@ internal fun DownloadDrilldownHeader(
     onPauseAll: (Set<String>) -> Unit,
     onResumeAll: (Set<String>) -> Unit,
     onRequestDelete: () -> Unit,
+    deletionProjection: DownloadDeletionProjection =
+        DownloadDeletionProjection(pending = false, deleting = false, failedCount = 0),
+    deletionSummary: DownloadDeletionSummary? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val actionSpecs = container.taskActionSpecs()
+    val actionsEnabled = !deletionProjection.pending && !deletionProjection.deleting
+    val actionSpecs = if (actionsEnabled) container.taskActionSpecs() else emptyList()
     val pauseSpec = actionSpecs.firstOrNull { it.action == DownloadContainerTaskAction.PAUSE }
     val resumeSpec = actionSpecs.firstOrNull { it.action == DownloadContainerTaskAction.RESUME }
+    val deletionText = deletionStatusText(deletionProjection, deletionSummary)
+    val hasDeletionFailure =
+        deletionProjection.failedCount > 0 || (deletionSummary?.failedCount ?: 0) > 0
     Column(modifier = modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             DownloadArtwork(
@@ -835,13 +886,17 @@ internal fun DownloadDrilldownHeader(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text =
-                            hierarchyStatusLabel(container.status) +
+                            (deletionText ?: hierarchyStatusLabel(container.status)) +
                                 " · " +
                                 containerCountText(container),
                         style = CinefinType.BodySmall,
                         color =
-                            if (container.status == DownloadHierarchyStatus.FAILED) colors.error
-                            else colors.onSurfaceVariant,
+                            if (
+                                hasDeletionFailure ||
+                                    container.status == DownloadHierarchyStatus.FAILED
+                            ) {
+                                colors.error
+                            } else colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -885,20 +940,28 @@ internal fun DownloadDrilldownHeader(
                 onClick = { pauseSpec?.let { onPauseAll(it.eligibleTaskKeys) } },
                 variant = CinefinButtonVariant.Outlined,
                 size = CinefinButtonSize.Small,
-                enabled = pauseSpec != null,
+                enabled = actionsEnabled && pauseSpec != null,
             )
             CinefinButton(
                 text = stringResource(CoreR.string.download_detail_resume_all),
                 onClick = { resumeSpec?.let { onResumeAll(it.eligibleTaskKeys) } },
                 variant = CinefinButtonVariant.Outlined,
                 size = CinefinButtonSize.Small,
-                enabled = resumeSpec != null,
+                enabled = actionsEnabled && resumeSpec != null,
             )
             CinefinButton(
-                text = stringResource(CoreR.string.download_action_delete),
+                text =
+                    stringResource(
+                        if (hasDeletionFailure) {
+                            CoreR.string.download_action_retry_delete
+                        } else {
+                            CoreR.string.download_action_delete
+                        }
+                    ),
                 onClick = onRequestDelete,
                 variant = CinefinButtonVariant.Text,
                 size = CinefinButtonSize.Small,
+                enabled = actionsEnabled,
             )
         }
     }
@@ -914,12 +977,17 @@ internal fun DownloadSeasonCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongPress: () -> Unit = onClick,
+    deletionProjection: DownloadDeletionProjection =
+        DownloadDeletionProjection(pending = false, deleting = false, failedCount = 0),
+    deletionSummary: DownloadDeletionSummary? = null,
 ) {
     val colors = LocalCinefinColors.current
+    val deletionText = deletionStatusText(deletionProjection, deletionSummary)
+    val contentEnabled = !deletionProjection.pending && !deletionProjection.deleting
     CinefinCard(
         modifier = modifier,
-        onClick = onClick,
-        onLongClick = onLongPress,
+        onClick = onClick.takeIf { contentEnabled },
+        onLongClick = onLongPress.takeIf { contentEnabled },
         selected = selected,
         contentPadding = PaddingValues(0.dp),
     ) {
@@ -973,14 +1041,18 @@ internal fun DownloadSeasonCard(
                         )
                     }
                 }
-                season.detail?.let { detail ->
+                (deletionText ?: season.detail)?.let { detail ->
                     Spacer(Modifier.height(CinefinSpacing.Space1))
                     Text(
                         text = detail,
                         style = CinefinType.BodySmall,
                         color =
-                            if (season.status == DownloadHierarchyStatus.FAILED) colors.error
-                            else colors.onSurfaceVariant,
+                            if (
+                                deletionProjection.failedCount > 0 ||
+                                    season.status == DownloadHierarchyStatus.FAILED
+                            ) {
+                                colors.error
+                            } else colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1033,6 +1105,8 @@ internal fun DownloadLeafCard(
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: (key: String, title: String) -> Unit,
     pendingAction: DownloadPendingAction? = null,
+    deletionProjection: DownloadDeletionProjection =
+        DownloadDeletionProjection(pending = false, deleting = false, failedCount = 0),
 ) {
     val colors = LocalCinefinColors.current
     val task = entry.task
@@ -1045,6 +1119,11 @@ internal fun DownloadLeafCard(
             completed = completed,
         )
     val contentInteractionSource = remember { MutableInteractionSource() }
+    val effectivePendingAction =
+        pendingAction ?: DownloadPendingAction.DELETE.takeIf { deletionProjection.deleting }
+    val deleteLabelRes =
+        if (deletionProjection.failedCount > 0) CoreR.string.download_action_retry_delete
+        else CoreR.string.download_action_delete
 
     CinefinCard(
         modifier = modifier,
@@ -1125,6 +1204,30 @@ internal fun DownloadLeafCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (deletionProjection.deleting || deletionProjection.failedCount > 0) {
+                        Spacer(Modifier.height(CinefinSpacing.Space1))
+                        DownloadStatusBadge(
+                            status = entry.status,
+                            failureReason = task?.failureReason,
+                            retrying = showsRetryLabel(task),
+                            retryCount = task?.retryCount ?: 0,
+                            phase =
+                                task?.let {
+                                    DownloadControlPlaneRules.phase(
+                                        status = it.status,
+                                        downloadedBytes = it.downloadedBytes,
+                                        totalBytes = it.totalBytes,
+                                        failureReason = it.failureReason,
+                                        nextRetryAt = it.nextRetryAt,
+                                        nowMs = System.currentTimeMillis(),
+                                        intentPhase = it.intentPhase,
+                                    )
+                                },
+                            failureDetail = visibleFailureDetail(task, entry.bookDetail),
+                            deletionProjection = deletionProjection,
+                            deletionText = deletionStatusText(deletionProjection, null),
+                        )
+                    }
                     DownloadTaskExplanationLine(
                         task = task,
                         failureDetail = visibleFailureDetail(task, entry.bookDetail),
@@ -1164,10 +1267,11 @@ internal fun DownloadLeafCard(
                     }
                     DownloadTaskActionIcon(
                         task = task,
-                        pendingAction = pendingAction,
+                        pendingAction = effectivePendingAction,
                         onAction = onAction,
                         onRequestDelete = { onRequestDelete(entry.key, entry.name) },
                         canDelete = entry.canDelete,
+                        deleteLabelRes = deleteLabelRes,
                     )
                 }
             }
@@ -1188,11 +1292,20 @@ private fun DownloadStatusBadge(
      * 401…」）；有真实文案时优先显示它， 否则才回落「未知错误」占位。
      */
     failureDetail: String? = null,
+    deletionProjection: DownloadDeletionProjection =
+        DownloadDeletionProjection(pending = false, deleting = false, failedCount = 0),
+    deletionText: String? = null,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val running = status == DownloadTaskStatus.RUNNING
-    val failed = status == DownloadTaskStatus.FAILED
+    val displayStatus =
+        when {
+            deletionProjection.deleting -> DownloadTaskStatus.DELETING
+            deletionProjection.failedCount > 0 -> DownloadTaskStatus.FAILED
+            else -> status
+        }
+    val running = displayStatus == DownloadTaskStatus.RUNNING
+    val failed = displayStatus == DownloadTaskStatus.FAILED
     val contentColor =
         when {
             failed -> colors.error
@@ -1206,7 +1319,7 @@ private fun DownloadStatusBadge(
             else -> colors.outline
         }
     val icon =
-        when (status) {
+        when (displayStatus) {
             DownloadTaskStatus.PENDING,
             DownloadTaskStatus.RUNNING -> CoreR.drawable.ic_download
             DownloadTaskStatus.PAUSED -> CoreR.drawable.ic_pause
@@ -1217,7 +1330,10 @@ private fun DownloadStatusBadge(
     val intentPhaseLabel = phase?.let(::downloadIntentPhaseLabel)
     val label =
         when {
-            showsCompletedDownloadLabel(status) ->
+            deletionProjection.deleting -> stringResource(CoreR.string.download_deleting)
+            deletionProjection.failedCount > 0 ->
+                deletionText ?: stringResource(CoreR.string.download_delete_failed)
+            showsCompletedDownloadLabel(displayStatus) ->
                 stringResource(CoreR.string.download_tasks_completed)
             // W60b：自动重试（等待下一次 / 正在重试）优先显示「重试中 · 第 N 次」。
             retrying && retryCount > 0 ->
@@ -1244,8 +1360,9 @@ private fun DownloadStatusBadge(
             phase == DownloadTaskPhase.COMPLETED ->
                 stringResource(CoreR.string.download_tasks_completed)
             phase == DownloadTaskPhase.DELETING -> stringResource(CoreR.string.download_deleting)
-            status == DownloadTaskStatus.PENDING -> stringResource(CoreR.string.download_pending)
-            status == DownloadTaskStatus.RUNNING ->
+            displayStatus == DownloadTaskStatus.PENDING ->
+                stringResource(CoreR.string.download_pending)
+            displayStatus == DownloadTaskStatus.RUNNING ->
                 stringResource(CoreR.string.download_downloading)
             else -> failureDetail?.takeIf { it.isNotBlank() } ?: failureLabel(failureReason)
         }
@@ -1279,6 +1396,7 @@ internal fun downloadIntentPhaseLabel(phase: DownloadTaskPhase): Int? =
         DownloadTaskPhase.QUEUED -> CoreR.string.download_intent_queued
         DownloadTaskPhase.RESOLVING -> CoreR.string.download_intent_resolving
         DownloadTaskPhase.SOURCE_PENDING -> CoreR.string.download_intent_source_pending
+        DownloadTaskPhase.DELETING -> CoreR.string.download_deleting
         else -> null
     }
 
@@ -1574,6 +1692,35 @@ internal fun DownloadListSkeleton(
 }
 
 // ---------------------------------------------------------------- 文案 / 数值
+
+@Composable
+internal fun deletionStatusText(
+    projection: DownloadDeletionProjection,
+    summary: DownloadDeletionSummary?,
+): String? {
+    if (projection.deleting) return stringResource(CoreR.string.download_deleting)
+    val failedCount = maxOf(projection.failedCount, summary?.failedCount ?: 0)
+    val parts = buildList {
+        if (failedCount > 0) {
+            add(
+                stringResource(
+                    CoreR.string.download_delete_failed_count,
+                    failedCount,
+                )
+            )
+        }
+        if (summary != null && summary.totalCount > 0) {
+            add(
+                stringResource(
+                    CoreR.string.download_delete_converged,
+                    summary.convergedCount,
+                    summary.totalCount,
+                )
+            )
+        }
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
 
 /** 容器 / 详情状态文案（聚合层没有单项失败原因，按状态给中性文案）。 */
 @Composable

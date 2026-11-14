@@ -123,7 +123,10 @@
     <string name="download_intent_queued">已加入下载队列</string>
     <string name="download_intent_resolving">正在解析媒体来源</string>
     <string name="download_intent_source_pending">来源已就绪，正在启动下载</string>
-    <string name="download_deleting">正在删除下载</string>
+    <string name="download_deleting">删除中</string>
+    <string name="download_delete_failed">删除失败</string>
+    <string name="download_delete_failed_count">删除失败 · %1$d 项</string>
+    <string name="download_delete_converged">已收敛 %1$d/%2$d</string>
     <string name="download_connecting">正在连接服务器</string>
     <string name="download_verifying">正在校验文件</string>
     <string name="download_waiting_retry">等待重试</string>
@@ -149,6 +152,7 @@
     <string name="download_action_resume">继续</string>
     <string name="download_action_retry">重试</string>
     <string name="download_action_delete">删除</string>
+    <string name="download_action_retry_delete">重试删除</string>
     <string name="download_action_select">选择</string>
     <string name="download_select_all">全选</string>
     <string name="download_select_all_failed">全选失败</string>

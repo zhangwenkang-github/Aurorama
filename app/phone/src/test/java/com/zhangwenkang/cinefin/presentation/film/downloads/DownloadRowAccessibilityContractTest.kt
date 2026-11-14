@@ -111,7 +111,7 @@ class DownloadRowAccessibilityContractTest {
     }
 
     @Test
-    fun `删除中或无任务仅保留真实删除动作`() {
+    fun `删除中任务不保留任何动作`() {
         val delete =
             DownloadRowActionSpec(
                 DownloadRowTaskAction.DELETE,
@@ -119,7 +119,7 @@ class DownloadRowAccessibilityContractTest {
             )
 
         assertEquals(
-            listOf(delete),
+            emptyList<DownloadRowActionSpec>(),
             downloadRowActionSpecs(
                 status = DownloadTaskStatus.DELETING,
                 canDelete = true,
@@ -134,6 +134,16 @@ class DownloadRowAccessibilityContractTest {
                 pending = false,
             ),
         )
+    }
+
+    @Test
+    fun `无任务或已完成条目只保留真实删除动作`() {
+        val delete =
+            DownloadRowActionSpec(
+                DownloadRowTaskAction.DELETE,
+                CoreR.string.download_action_delete,
+            )
+
         assertEquals(
             listOf(delete),
             downloadRowActionSpecs(
@@ -223,7 +233,7 @@ class DownloadRowAccessibilityContractTest {
     }
 
     @Test
-    fun `顶层容器无可执行任务时只保留真实删除能力`() {
+    fun `删除中的顶层容器不保留任何动作`() {
         val deleting = downloadTask(DownloadTaskStatus.DELETING, name = "删除中")
         val noDeleteContainer = testContainer(deleting, canDelete = false)
 
@@ -234,12 +244,7 @@ class DownloadRowAccessibilityContractTest {
 
         val deleteContainer = testContainer(deleting, canDelete = true)
         assertEquals(
-            listOf(
-                DownloadRowActionSpec(
-                    DownloadRowTaskAction.DELETE,
-                    CoreR.string.download_action_delete,
-                )
-            ),
+            emptyList<DownloadRowActionSpec>(),
             downloadContainerRowActionSpecs(deleteContainer, pending = false),
         )
         assertEquals(
@@ -334,6 +339,31 @@ class DownloadRowAccessibilityContractTest {
             "顶层卡片必须渲染与内容区互为兄弟的独立任务动作",
             card.contains("DownloadContainerActionIcon("),
         )
+    }
+
+    @Test
+    fun `钻取头部与季卡消费同一删除投影并禁用动作`() {
+        val source = downloadRowsSource()
+        val header =
+            source.substringAfter("internal fun DownloadDrilldownHeader(").substringBefore("/** 季卡")
+        val season =
+            source.substringAfter("internal fun DownloadSeasonCard(").substringBefore("/** 详情条目行")
+
+        assertTrue(header.contains("deletionProjection: DownloadDeletionProjection"))
+        assertTrue(
+            header.contains(
+                "val actionsEnabled = !deletionProjection.pending && !deletionProjection.deleting"
+            )
+        )
+        assertTrue(header.contains("deletionProjection.failedCount > 0"))
+        assertTrue(season.contains("deletionProjection: DownloadDeletionProjection"))
+        assertTrue(
+            season.contains(
+                "val contentEnabled = !deletionProjection.pending && !deletionProjection.deleting"
+            )
+        )
+        assertTrue(season.contains("onClick = onClick.takeIf { contentEnabled }"))
+        assertTrue(season.contains("deletionStatusText(deletionProjection, deletionSummary)"))
     }
 
     @Test

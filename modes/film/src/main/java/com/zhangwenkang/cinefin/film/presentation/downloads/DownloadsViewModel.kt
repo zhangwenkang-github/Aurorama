@@ -255,6 +255,7 @@ constructor(
                         )
                     }
                 },
+            deletionSummary = deletionSummary,
         )
     }
 
@@ -458,6 +459,7 @@ constructor(
                         actionFailure = null,
                         deletionFailureReason = null,
                         deletionRecoveryEntries = emptyList(),
+                        deletionSummary = null,
                     )
                 }
             DownloadAction.DeleteSelected -> deleteSelected()
@@ -558,6 +560,7 @@ constructor(
                     actionFailure = null,
                     deletionFailureReason = null,
                     deletionRecoveryEntries = emptyList(),
+                    deletionSummary = null,
                 )
             } else {
                 current.copy(
@@ -565,6 +568,7 @@ constructor(
                     actionFailure = null,
                     deletionFailureReason = null,
                     deletionRecoveryEntries = emptyList(),
+                    deletionSummary = null,
                 )
             }
         }
@@ -579,6 +583,7 @@ constructor(
                 actionFailure = null,
                 deletionFailureReason = null,
                 deletionRecoveryEntries = emptyList(),
+                deletionSummary = null,
             )
         }
     }
@@ -591,6 +596,7 @@ constructor(
                 actionFailure = null,
                 deletionFailureReason = null,
                 deletionRecoveryEntries = emptyList(),
+                deletionSummary = null,
             )
         }
     }
@@ -950,6 +956,7 @@ constructor(
                             it.deletionRecoveryEntries.filterNot { entry ->
                                 entry.entryKey in resolved.succeededKeys
                             },
+                        deletionSummary = resolved.toSummary(containerKey),
                     )
                 }
                 refresh(showLoading = false)

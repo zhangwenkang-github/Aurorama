@@ -27,6 +27,15 @@ data class DownloadDeletionRecoveryEntry(
     val canonicalIdentity: DownloadCanonicalIdentity,
 )
 
+/** 一次批次结果的最小可见摘要；只用于展示收敛数，不作为删除状态真源。 */
+data class DownloadDeletionSummary(
+    val containerKey: String?,
+    val totalCount: Int,
+    val convergedCount: Int,
+    val failedCount: Int,
+    val supersededCount: Int,
+)
+
 internal fun DownloadDeletionRecoveryEntry.toDeletionEntry(): DownloadHierarchyEntry =
     DownloadHierarchyEntry(
         itemId = UUID.fromString(canonicalIdentity.itemId),
@@ -69,6 +78,8 @@ data class DownloadManagerState(
     val deletionFailureReason: DownloadDeletionFailureReason? = null,
     /** 本次删除批次开始时的不可变恢复元数据，只保留仍失败的候选。 */
     val deletionRecoveryEntries: List<DownloadDeletionRecoveryEntry> = emptyList(),
+    /** 最近一次已收敛批次的结果摘要；仅用于“已收敛 X/N”的用户可见投影。 */
+    val deletionSummary: DownloadDeletionSummary? = null,
 ) {
     val activeCount: Int
         get() = activeContainers.flatMap { it.descendantEntries() }.distinctBy { it.key }.size
@@ -188,6 +199,7 @@ fun DownloadManagerState.beginPending(
         pendingActions = pendingActions + keys.associateWith { action },
         actionFailure = null,
         deletionFailureReason = null,
+        deletionSummary = null,
     )
 
 internal fun DownloadManagerState.beginDeletionBatch(
