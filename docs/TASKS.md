@@ -39,18 +39,18 @@
 - DELIVERY_DIR=NONE;FINAL_INSTALL_SOURCE=RELEASE_APK_ARM64;PRIOR_RELEASE_FOLDER=SUPERSEDED_BY_BATCH_FIX
 - RELEASE_PACKAGE=io.github.zhangwenkang.aurorama;VERSION=1.4.1(6);APKSIGNER_V2=TRUE;SINGLE_SIGNER=TRUE;ARM64_ONLY=TRUE;UNIVERSAL_ABI_COUNT=4
 - DEVICE_ACCESS=NONE;LOCK_ACTIVE=0;PAD_43AF8627=INSTALLED_1_4_1_6_ACCEPTANCE_FAILED;K60_8E875894=INSTALLED_1_4_1_6_CONTROL_ONLY;OPPO_NOT_AUTHORIZED
-- DEVICE_VERIFIED=signed aggregate-grid selection after paging refresh produced exactly the two selected IDs;pause/delete cleanup PASS;dual device install -r preserve data and device APK hash MATCH on 43af8627 and 8e875894
+- DEVICE_VERIFIED=HISTORY_PRE_ACCEPTANCE_ONLY;signed aggregate-grid selection and final 0/0/0 were superseded by user acceptance failure;delete latency/parent-child residue/duplicate play controls/specified-episode download-all/Pad online loading are REOPENED P1
 - DEVICE_PARTIAL=download HTTP404 retry pause/resume/delete; Movie optional enrichment device injection BLOCKED_INJECTION_AUTOMATION_PASS; online HLS mpv blocked by server stream reset; subtitle pixel QA NOT_RUN; ColorOS/K60 NOT_RUN
 - AUTOMATION=PASS;MediaBatchRulesTest 15/0/0/0 with same-size content replacement RED;assembleDebug;ktfmt;diff-check;MPV JNI release contract;new signed arm64/universal build;apksigner
 - CONTEXT_USAGE=443203 / 1048576 (42.3%);HANDOFF_TRIGGER=EXCEEDED_350K_SUCCESSOR_REQUIRED
-- HANDOFF_LINTER=OLD_R19_SCHEMA_FAIL_NOT_RELEASE_GATE;P0_WRITEBACK_APPLIED;NO_AUDIT_LOOP
+- HANDOFF_LINTER=PASS;STRICT_HANDOFF_SCHEMA_FIXED;NO_RELEASE_GATE_RERUN_REQUIRED
 - RELEASE_STATE=ACCEPTANCE_FAILED;NOT_RELEASABLE;PRIOR_BATCH_RESOLUTION_SUPERSEDED
 - P0=0_KNOWN;NEW_P0=NOT_ASSESSED_UNTIL_TRIAGE
 - P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:REOPENED_USER_ACCEPTANCE_STILL_DOWNLOADS_ALL;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:USER_REPORTED_NOT_PROVEN;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:USER_REPORTED_NOT_PROVEN;P1-PAD-ONLINE-PLAYBACK-STALL-001:USER_REPORTED_NOT_PROVEN;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED
 - P2=P2-PLAYER-LOADING-001:OPEN;P2-PLAYER-STALL-001:OPEN;DOWNLOAD-BACKOFF-NOTIFICATION=OPEN_NONBLOCKING
 - P3=subtitle visual pixels NOT_RUN;ColorOS/K60 historical matrix NOT_RUN;Movie enrichment real injection unavailable
 - NEXT_ROLE=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_2026_11_14
-- FIRST_READ_ACTION=read PROJECT_PLAN then TASKS ACTIVE then DOWNLOAD_PLAN 29 and USER_ACCEPTANCE_FAIL plus COVERAGE_GAP_ANALYSIS; verify HEAD/tree/clean, installed APK and locks
+- FIRST_READ_ACTION=read PROJECT_PLAN then TASKS ACTIVE then DOWNLOAD_PLAN 30 and PLAYER_PLAN 52.69 plus USER_ACCEPTANCE_FAIL and COVERAGE_GAP_ANALYSIS; verify object clean, installed APK and locks
 - NEXT_ACTION=build 1.4.1 requirement matrix, reference mainstream Jellyfin/download UX, split download deletion/selection/UI and Pad playback A/B into independent bug loops, then dispatch fresh professional owners
 - STOP_CONDITION=new P0, device/object lock conflict, server write risk, need for product decision or scope beyond 1.4.1 acceptance repair
 - CURRENT_HANDOFF=USER_ACCEPTANCE_FAIL_HANDOFF_2026_11_14
