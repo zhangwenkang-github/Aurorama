@@ -10165,7 +10165,7 @@ Episode / `mediaSourceId` / position，复用既有单实例 replacement。未�
 source resolver、schema、签名或新弹窗越界。Activity glue 尚无真机证据，因此该审查只允许进入
 fresh signed Release 工程，不构成 signed QA / Release PASS。
 
-R3 实测上下文 `256883 / 1048576 (24.5%)`，已越过 25 万扩项门：本会话不再派 Release / QA；
+R3 实测上下文 `299827 / 1048576 (28.6%)`，已到 30 万检查点：本会话不再派 Release / QA；
 下一负责人 R4 从 clean commit 开始，首读实现报告 + manifest，现场复核实现 commit 与 signed
 source 祖先，再派 fresh signed Release owner。Release owner 不得 QA；后续 QA 必须再次使用
 不同 fresh 代理，并在 Pad 实时证明自动 mpv→Exo、position/buffered、无新弹窗、关闭自动回退、
