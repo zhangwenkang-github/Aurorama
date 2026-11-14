@@ -8,7 +8,7 @@
 ### ACTIVE — AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-RELEASE-FINISH-2026-11-14
-- TASK_STAGE=PLANNING_COMPLETE / SELECTED_EPISODES_CONTRACT_GREEN / DELETE_PENDING_UI_CONTRACT_GREEN / TOOLBAR_DIAGNOSIS_PENDING / PAD_AB_PENDING / NOT_RELEASABLE
+- TASK_STAGE=HANDOFF_REQUIRED / DOWNLOAD_CONTRACTS_GREEN / PAD_ONLINE_AB_PENDING / FINAL_SIGNED_QA_PENDING / NOT_RELEASABLE
 - PROFESSIONAL_IDENTITY=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_2026_11_14
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
@@ -17,15 +17,15 @@
 - CANONICAL_BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
 - READ_ORDER=PROJECT_PLAN > TASKS ACTIVE > DOWNLOAD_PLAN 30 > PLAYER_PLAN 52.69 > USER_ACCEPTANCE_FAIL > COVERAGE_GAP_ANALYSIS > NEXT_LEADER_PROMPT
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SELECTION_CONTROLS_DIAGNOSIS_OWNER_PROMPT.md
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\NEXT_LEADER_PROMPT_R2.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\USER_ACCEPTANCE_FAIL.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\COVERAGE_GAP_ANALYSIS.md
 - SCOPE=1.4.1_ACCEPTANCE_REPAIR/DOWNLOAD_DELETE_SELECTION_UI/PAD_ONLINE_PLAYBACK_AB
 - BUG_LOOP_MODE=OBSERVE_CURRENT_FIX_RETEST_ONCE
 - BUG_LOOP_MAX_ATTEMPTS=2
-- BUG_LOOP_USER_PATH=DOWNLOAD_ACTIVE_TAB_LONG_PRESS_SELECT_ONE_PAUSED_TASK_THEN_INSPECT_SELECTION_CONTEXT_ACTIONS_WITHOUT_EXECUTING_PLAY
+- BUG_LOOP_USER_PATH=PAD_AND_K60_SAME_ACCOUNT_WIFI_EPISODE_ENTRY_ONLINE_PLAYBACK_AB
 - REPRO_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\USER_ACCEPTANCE_FAIL.md
-- PRIMARY_HYPOTHESIS=FIXED_SELECTION_TOOLBAR_RENDERS_PLAY_SELECTED_AND_CONTINUE_DOWNLOAD_WITH_THE_SAME_PLAY_ICON_OR_DUPLICATE_PLAY_SEMANTICS
+- PRIMARY_HYPOTHESIS=PAD_DEVICE_PLAYBACK_PIPELINE_STALLS_AFTER_SOURCE_RESOLUTION_WHILE_K60_SAME_SOURCE_PROGRESSES
 - TARGETED_VERIFICATION=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_STATE_EFFECT_MATRIX_R1.md
 - BUG_LOOP_STOP_BUDGET=2_SAME_SYMPTOM_ATTEMPTS_THEN_STOP_OR_USER_DECISION
 - FULL_MATRIX_GATE=RELEASE_CANDIDATE_ONLY
@@ -33,7 +33,7 @@
 - BLOCKER_FIX_COMMIT=6888adc254a3fff83ac5769147f5251377a4f391 / tree 0dec188769004e5d09a6bec21679a6667117b859 / complete MPVLib JNI/JVM keep contract
 - FIX_COMMIT_1=71e9c6e5 / startup network work moved off main thread; empty Toast message fallback; TDD 3/0
 - FIX_COMMIT_2=77620372 / completed Movie/Episode local source selected before network; playback sources use completed local source; TDD 2/0
-- DEBUG_APK=app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk;LENGTH=154831828;SHA256=AE0074CCE9D0991737B4A962294D0507C569C15633698383FA5C6D1B96483BF3
+- DEBUG_APK=app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk;LENGTH=154388092;SHA256=FD54E749896DAB54E1D6EC4511CDC32C3A3AE650BE8CD63980835B5DB480C1B7
 - RELEASE_APK_ARM64=app/phone/build/outputs/apk/libre/release/phone-libre-arm64-v8a-release.apk;LENGTH=80487230;SHA256=72637DACED361A085F9002DF6DDED338FF22B2A5C66CA3FF410F69ADADF90D45
 - RELEASE_APK_UNIVERSAL=app/phone/build/outputs/apk/libre/release/phone-libre-universal-release.apk;LENGTH=175101400;SHA256=4F8D89662A7ACCE306C6E745F0F1AE91597E9D99C75066677E9FA63AA63A0443
 - DELIVERY_DIR=NONE;FINAL_INSTALL_SOURCE=RELEASE_APK_ARM64;PRIOR_RELEASE_FOLDER=SUPERSEDED_BY_BATCH_FIX
@@ -42,18 +42,18 @@
 - DEVICE_VERIFIED=HISTORY_PRE_ACCEPTANCE_ONLY;signed aggregate-grid selection and final 0/0/0 were superseded by user acceptance failure;delete latency/parent-child residue/duplicate play controls/specified-episode download-all/Pad online loading are REOPENED P1
 - DEVICE_PARTIAL=download HTTP404 retry pause/resume/delete; Movie optional enrichment device injection BLOCKED_INJECTION_AUTOMATION_PASS; online HLS mpv blocked by server stream reset; subtitle pixel QA NOT_RUN; ColorOS/K60 NOT_RUN
 - AUTOMATION=PASS;MediaBatchRulesTest 15/0/0/0 with same-size content replacement RED;assembleDebug;ktfmt;diff-check;MPV JNI release contract;new signed arm64/universal build;apksigner
-- CONTEXT_USAGE=443203 / 1048576 (42.3%);HANDOFF_TRIGGER=EXCEEDED_350K_SUCCESSOR_REQUIRED
+- CONTEXT_USAGE=386667 / 1048576 (36.9%);HANDOFF_TRIGGER=EXCEEDED_350K_SUCCESSOR_REQUIRED
 - HANDOFF_LINTER=PASS;STRICT_HANDOFF_SCHEMA_FIXED;NO_RELEASE_GATE_RERUN_REQUIRED
 - RELEASE_STATE=ACCEPTANCE_FAILED;NOT_RELEASABLE;PRIOR_BATCH_RESOLUTION_SUPERSEDED
 - P0=0_KNOWN;NEW_P0=NOT_ASSESSED_UNTIL_TRIAGE
 - P1=P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001:REOPENED_USER_ACCEPTANCE_STILL_DOWNLOADS_ALL;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:USER_REPORTED_NOT_PROVEN;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:USER_REPORTED_NOT_PROVEN;P1-PAD-ONLINE-PLAYBACK-STALL-001:USER_REPORTED_NOT_PROVEN;P1-PLAYER-SEEK-001:OPEN_NOT_FULLY_ASSESSED;P1-PLAYER-PROGRESS-001:OPEN_NOT_FULLY_ASSESSED
 - P2=P2-PLAYER-LOADING-001:OPEN;P2-PLAYER-STALL-001:OPEN;DOWNLOAD-BACKOFF-NOTIFICATION=OPEN_NONBLOCKING
 - P3=subtitle visual pixels NOT_RUN;ColorOS/K60 historical matrix NOT_RUN;Movie enrichment real injection unavailable
-- NEXT_ROLE=AURORAMA_141_SELECTION_CONTROLS_DIAGNOSIS_OWNER_R1_2026_11_14
-- FIRST_READ_ACTION=read SELECTION_CONTROLS_DIAGNOSIS prompt then verify HEAD tree clean APK and lock before one bounded selection toolbar inspection
-- NEXT_ACTION=dispatch fresh toolbar diagnosis owner to count play and continue icons labels and action uniqueness on Pad without playback
+- NEXT_ROLE=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R2_2026_11_14
+- FIRST_READ_ACTION=read NEXT_LEADER_PROMPT_R2 then project docs active matrices evidence and verify current Git device packages and locks
+- NEXT_ACTION=successor lead startup and dispatch fresh Pad then K60 same-condition online playback diagnosis before player changes
 - STOP_CONDITION=new P0, device/object lock conflict, server write risk, need for product decision or scope beyond 1.4.1 acceptance repair
-- CURRENT_HANDOFF=USER_ACCEPTANCE_FAIL_HANDOFF_2026_11_14
+- CURRENT_HANDOFF=DOWNLOAD_LINEAGES_GREEN_HANDOFF_R2_2026_11_14
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1771,7 +1771,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - UNCOVERED=A QA product rows remain NOT_RUN pending user structural identity decision; PLAYER_CORE_RELEASE_MATRIX 12/12; full-scope review; merge-prep; integration; signed 1.4.1/6 packages; final QA; Release.
 - STOP_CONDITION=Do not dispatch A QA or device QA until user explicitly decides structural identity. No same-shape nav harness repair. Full-scope review stops on object/review/P0-P2 drift; merge-prep only after full-scope review PASS.
 - MANUAL_LIMITATION=A QA output-boundary issue is closed. A R9 real window then failed before playback because closed UI lacks structural identity; different fresh verifier confirms BLOCKED_INSUFFICIENT_STRUCTURAL_IDENTITY. This is a QA coverage block pending explicit user decision, not a product playback failure. B/C/D scoped reviews PASS but remain non-device and non-Release evidence.
-- MANUAL_OWNER=AURORAMA_141_SELECTION_CONTROLS_DIAGNOSIS_OWNER_R1_2026_11_14
+- MANUAL_OWNER=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R2_2026_11_14
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

@@ -1022,8 +1022,8 @@ release-candidate gate 执行。既有播放器 seek/progress P1 与 loading/sta
 
 ## 31. 1.4.1 下载验收整改 R1（2026-11-14）
 
-**状态：`PLANNING_COMPLETE / SELECTED_EPISODES_CONTRACT_GREEN / DELETE_AND_TOOLBAR_REOPENED /
-DEVICE_EXACT_ENTRY_INCONCLUSIVE / NOT_RELEASABLE`。**
+**状态：`PLANNING_COMPLETE / THREE_DOWNLOAD_LINEAGES_CONTRACT_GREEN /
+EXACT_SIGNED_QA_PENDING / NOT_RELEASABLE`。**
 
 基线核验：HEAD `12ace89562b1ebd553e2b8e041cc4655d64d480a` / tree
 `515787acc5e1581b8a23dde42e4ea9bf8b1a6dbf` clean；signed arm64
@@ -1088,13 +1088,25 @@ DEVICE_EXACT_ENTRY_INCONCLUSIVE / NOT_RELEASABLE`。**
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\DELETE_DIAGNOSIS_R1.md`；
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-delete-pending-ui-implementation-r1-2026-11-14\DELETE_PENDING_UI_IMPLEMENTATION_R1_REPORT.md`。
 - `V2-FIX-DOWNLOAD-SELECTION-CONTROLS-001`：fresh 诊断 owner 只读采集 ACTIVE 分组多选中每个
-  action 的 icon / label / bounds / enabled / 出现次数，禁止执行播放。
+  action 的 icon / label / bounds / enabled / 出现次数，禁止执行播放。exact signed 包确认：
+  `PlaySelected` 与 `ResumeSelected` 虽然 action ID 不同，但同时固定渲染且共用 `ic_play`；
+  ACTIVE 暂停任务下形成“一个禁用播放三角 + 一个可用继续三角”。
+- 实现候选 `77f13d23aeed4630bb1d5e4b2c76f4c3f4f36757` / tree
+  `b44edbb20018bc6faa7ec077856a8c4a2ea48463` 改为能力过滤 action contract：
+  ACTIVE PAUSED 只生成“继续下载 + 删除”，COMPLETED 生成“播放 + 删除”，FAILED 生成
+  “重试 + 删除”；继续下载使用 `ic_download`，播放 / 继续标签资源化。真实 RED `5/5
+  AssertionError`，focused `5/0/0/0`、phone JVM `511/0/0/0`、assemble、ktfmt、GatePlan、
+  diff-check、graphify PASS；debug APK `154388092 B / FD54E749…C1B7`。Pad 真实暂停任务
+  选择态只看到 `继续下载 1 / 删除 1`，`播放选中 / 暂停 / 重试 = 0`，Play/Continue 动作执行 0。
+  证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SELECTION_CONTROLS_DIAGNOSIS_R1.md`；
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-selection-controls-implementation-r1-2026-11-14\SELECTION_CONTROLS_IMPLEMENTATION_R1_REPORT.md`。
 - 两者均不得由指定剧集实现 owner 接续；独立 QA 必须与实现 owner 不同，且由负责人显式启动。
 
 ### 31.4 下一步
 
-1. 指派 fresh 工具栏诊断 owner，确认两个播放语义的来源；
-2. 在合法设备锁下另派运行 verifier / independent QA 复核删除首帧态与指定剧集真实入口；
-3. 三条下载 lineage 实现收口后，由负责人显式启动一个与之不同的独立 QA，在最终 signed 候选走
+1. 三条下载 lineage 实现契约均已 GREEN；下一步不是继续局部修补，而是先构建包含
+   `0cd906e3`、`4b7f7bf3`、`77f13d23` 的新 signed 候选；
+2. 由负责人显式启动与三个实现 owner 不同的 fresh independent QA，在最终 signed 候选走
    真实节目 / 季入口、真实任务和真实文件；
-4. 未完成上述证据前保持 `NOT_RELEASABLE`，不得使用聚合网格、单测或最终 `0/0/0` 代替。
+3. 未完成上述证据前保持 `NOT_RELEASABLE`，不得使用聚合网格、单测或最终 `0/0/0` 代替。
