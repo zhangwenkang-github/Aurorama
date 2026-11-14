@@ -9537,3 +9537,157 @@ ACTIVE=0`，最终锁 SHA-256
 按 R043 停止，不执行第二次 K60 playback，不切换到其他 Episode 规避对象门，也不据
 `ENOENT` 直接修改播放器。下一步必须由用户选择明确 Episode，再由 fresh owner 先证明
 Pad/K60 解析到同一稳定媒体身份，然后才允许下一次单次观察；K60 本地源缺失另行分诊。
+
+### 52.70.3《超能力女儿》UI-only 显式 Episode 对象门（2026-11-14）
+
+用户推荐动漫库《超能力女儿》作为稳定剧集目标。R2 owner 尝试先通过只读服务器 metadata
+冻结 Show / Season / Episode；测试服务器公开端点可读，但标准 `MediaBrowser` Authorization
+对资源文件中的普通与管理员测试凭据均返回 HTTP 401，直连且禁用宿主代理后仍为 401。owner
+未修改凭据、未猜凭据、未占用设备，Pad / K60 的 App start 与 playback 均为 0。
+
+状态：`STOPPED / BLOCKED_METADATA_AUTH / PLAYBACK_NOT_RUN`。直接 API 路径在当前测试凭据下
+RETIRED；这不是产品播放 P1，也不是用户目标失效。证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\ANIME_SUPERPOWER_DAUGHTER_AB_R2.md`
+  / SHA-256 `B67078F79A8F579A9EEFD1E2EC23F3E0AECA346B2B9B1D9A4E2F0D704EC13179`；
+- 同名 manifest SHA-256
+  `6ACDC3659F8B8576E878D0D3AF40E3C9621C4CB9FA219D7982B1A88AAC5CC7DE`，报告 hash MATCH。
+
+负责人决策：不改凭据、不要求用户换账号，改走两台设备现有已登录 App session 的 UI-only
+对象门。新 lineage 先在 Pad `43af8627` 与 K60 `8e875894` 各自唯一一次 App start 中只导航、
+不播放，冻结：
+
+```text
+showTitle = 超能力女儿
+seasonEpisode = S1E1
+episodeTitleIfVisible = UI 当前 Episode 1 标题
+objectKey = SHA256(showTitle + "\n" + seasonEpisode + "\n" + episodeTitleIfVisible)
+```
+
+入口固定为 `动漫库 → 超能力女儿 → Season 1 → Episode 1 → 播放`。禁止 Show 详情通用
+“播放”、继续观看、首页 / 聚合网格和搜索直接播放。两机 object key MATCH 后，Pad 才先播放、
+K60 后播放；任一差异立即停止，不得另选 Episode。
+
+派单 prompt：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\ANIME_SUPERPOWER_DAUGHTER_UI_AB_OWNER_R3_PROMPT.md`。
+该步骤仍是诊断，不是实现 / QA / Release；产品代码、测试、版本、签名未变。
+
+### 52.70.4《超能力女儿》UI 对象 MATCH，但 pre-player 数据加载失败（2026-11-14）
+
+**状态：`STOPPED / UI_OBJECT_MATCH / PRE_PLAYER_DATA_LOAD_FAILURE / INCONCLUSIVE`。**
+
+UI-only owner 在 Pad `43af8627`、K60 `8e875894` 现有 session 上完成播放前对象预锁：
+
+- Show：`超能力女儿`，两机唯一；
+- Season：唯一季卡 ordinal 1，归一化 `S1`；摘要均为 `季 · 12`；
+- Episode：两机唯一显式编号 1 的行；标题可见长度 14，title SHA-256 均为
+  `D9C1978EA54F2E2239EF1ABE6EDAF1F03C407495BAA024573DA16FEFB9E21438`；
+- UI object key：
+  `730E50356DB27C8B73529FEA7F0178A071F4BBBFAA5CBB1715E765271F588677`，两机 MATCH。
+
+两机各 App start `1`、显式 Episode 点击 `1`，但 `PlayerActivity start` 均为 `0`：
+
+- Pad：T+23.598 s 出现 `加载数据错误`，仍 top-resumed `MainActivity`；
+- K60：T+23.766 s 采样未出现错误文本，同样仍在 `MainActivity`；
+- 两机 App MediaSession 均为 0，backend / source / 首帧 / 位置推进均 `NOT_REACHED`；
+- playback 窗口 crash / ANR / proc death 均为 0；retry / second playback 均为 0。
+
+因此 R3 不是播放器内停滞的有效复测，不能支持或推翻
+`PAD_DEVICE_PLAYBACK_PIPELINE_STALLS_AFTER_SOURCE_RESOLUTION`。对象漂移问题已通过 UI object
+key MATCH 解决；新阻断为 `P1-R3-PREPLAYER-DATA-LOAD-FAILURE-001`，根因未证明。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\ANIME_SUPERPOWER_DAUGHTER_UI_AB_R3.md`
+  / SHA-256 `0BD2E8CF4688211C12EDADB7F7416BDE454046087B50B51B270B6E4CBDDEDD6E`；
+- 同名 manifest SHA-256
+  `B82F3095ED4773116A03F6D43B021A7E11E853E31E8BCEA52428696783820DDB`，报告 hash MATCH。
+
+清理：两机 Release force-stop，PID / App MediaSession / 通知 / 临时 XML 均为 0；App 安装、
+data、登录 session 和已有下载保留；截图 0；服务器直接写 0；Oppo/OnePlus 0。联合锁已
+`RELEASED / ACTIVE=0`，最终锁 SHA-256
+`0C7C86DE68D925C649D902C32FA50CE18432B21ADB78054766DCA8706C1C3A42`。
+
+下一诊断切片只处理：
+`显式《超能力女儿》S1E1 Episode 行点击 → 加载数据错误 / MainActivity 停留 → PlayerActivity 未创建`。
+必须先静态追踪 `加载数据错误` 文案消费点、Episode 点击 handler、播放意图与导航前数据加载；
+静态证据足够时不启动设备。只有不足时才允许 Pad 唯一一次、K60 零命令的可控点击取证。
+不得混入 HLS / mpv / decoder / kernel 诊断，也不得在本轮直接实现。
+
+### 52.70.5 Pre-player 静态链路完成后的一次 repository 判别（2026-11-14）
+
+静态诊断 R1 已确认精确链：
+
+```text
+EpisodeCard.onClick
+→ SeasonAction.NavigateToItem
+→ EpisodeRoute（仍在 MainActivity NavHost）
+→ EpisodeViewModel.getEpisode
+→ 核心加载失败
+→ state.episode == null
+→ ErrorCard「加载数据错误」
+→ EpisodeAction.Play 不可渲染
+→ PlayerActivity intent 未发出
+```
+
+`加载数据错误` 的唯一代码消费点是通用 `ErrorCard`，资源 ID 为 `error_loading_data`；
+本次点击目标是 `EpisodeRoute`，其 `EpisodeViewModel` 在核心 `getEpisode` 失败后不会设置
+`state.episode`。Season / Episode 页都承载于 `MainActivity`，因此 R3 的 Activity 名不能
+证明导航失败。可选 enrichment 失败不会遮住已成功映射的核心 Episode。
+
+状态：`STATIC_CHAIN_COMPLETE / GET_EPISODE_SUBCAUSE_UNKNOWN /
+NO_IMPLEMENTATION_GATE`。已收窄到
+`JellyfinRepositoryImpl.getEpisode` 的五个候选分支：
+
+```text
+LOCAL_SOURCE / GET_ITEM / MAPPING / SNAPSHOT / ROOM / UNKNOWN
+```
+
+静态诊断本身 App start / click / ADB 均为 0，未占锁，未改产品代码。报告 SHA-256
+`037851971DD2E80F48FA1F2A79BAEDFDA890A38A0683D78D351B12243EB2C2DE`；manifest SHA-256
+`23D1B8E95BB13FA3EC6D5837FFBEAA9EFE6CA9A4FF7659C7BEA41DD0CA9A895B`，报告 hash MATCH。
+
+下一步固定为 fresh、Pad-only、单次 repository discriminator：P0 已用 App start 0；
+新 owner 只允许 Pad `43af8627` 一次 App start + 一次显式 S1E1 Episode 行点击，K60 零命令，
+不得点击 Episode 页播放按钮。只输出五分支枚举 / 布尔 / 安全异常类别；30 秒内不能归因则
+`UNKNOWN / INCONCLUSIVE` 并停止。这是同症状第二次也是最后一次设备观察。
+
+派单 prompt：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PREPLAYER_REPOSITORY_DISCRIMINATOR_OWNER_R1_PROMPT.md`。
+
+### 52.70.6 Repository discriminator R1：两轮观察耗尽，仍为 UNKNOWN（2026-11-14）
+
+**状态：`STOPPED / UNKNOWN / INCONCLUSIVE /
+BUG_LOOP_SAME_SYMPTOM_DEVICE_OBSERVATIONS_USED=2 /
+NO_IMPLEMENTATION_GATE`。**
+
+fresh discriminator 在 Pad `43af8627` 完成第二次也是最后一次受控观察：
+
+- UI object key 继续
+  `730E50356DB27C8B73529FEA7F0178A071F4BBBFAA5CBB1715E765271F588677`，MATCH；
+- App start `1`、显式 S1E1 Episode 行点击 `1`、Episode 页播放按钮点击 `0`；
+- T+19.624 s 已出现 Episode-only `加载数据错误`；点击后 Season marker / S1E1 row 均为 0，
+  ErrorCard / 重试 / 显示堆栈跟踪各 1，页面 marker 与静态 `EpisodeRoute` 链一致；
+- `PlayerActivity=0`；App PID 日志只有 7 行系统噪声，没有 App 绑定 HTTP、exception、
+  ViewModel、repository、snapshot 或 Room 类别；全局 timeout / file 类名未绑定 App PID；
+- 五分支 `LOCAL_SOURCE / GET_ITEM / MAPPING / SNAPSHOT / ROOM` 均 `NOT_SELECTED`，
+  最终 `REPOSITORY_FAILURE_CLASS=UNKNOWN`。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PREPLAYER_REPOSITORY_DISCRIMINATOR_R1.md`
+  / SHA-256 `857BC0D65DB990D0191A9E85B7FD3032FD71A754798391766068B3B36FA2579C`；
+- 同名 manifest SHA-256
+  `9C55023740809790E0D78C3FDBF15B025C85CEDA428C6A0F1E30EB1B525BD0B0`，报告 hash MATCH。
+
+清理：Pad Release force-stop，PID 0，PlayerActivity 不存在；临时 UI XML / host raw / logcat
+清理完成；App 安装、data、session、已有下载保留；截图 0；K60 / Oppo / OnePlus 0；服务器直接写 0。
+Pad 锁 `AURORAMA-141-PREPLAYER-REPOSITORY-DISCRIMINATOR-R1-43AF8627-20261114-1448`
+已 `RELEASED / ACTIVE_HEADINGS=0`，最终锁 SHA-256
+`E14D062CB0437C5B4C9386C8885A8F71327FF18D825F7EFE6C43ABDB2B7CBBD9`。
+
+BUG LOOP 停止：同一路径已有 R3 + discriminator 两次设备观察，仍未取得单一 App 绑定类别。
+禁止第三次同路径 row click，禁止根据全局日志噪声或猜测改 repository / local fallback /
+mapping / retry / Episode 行点击语义。若用户选择继续，必须显式批准一种不重复本轮取证方式的
+单一证据方案，例如受控 debug / instrumented 等价对象；获得类别前 `IMPLEMENTATION_GATE`
+继续保持关闭。1.4.1 仍 `NOT_RELEASABLE`。
