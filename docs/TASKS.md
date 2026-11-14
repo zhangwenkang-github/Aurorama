@@ -1346,12 +1346,17 @@ PUSH=NO / TAG=NO / RELEASE=NO
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
 - BASE_HEAD=40c8cd4816ee70866be7e785318e5e9a3ade185a
 - REQUIRED_ANCESTOR=2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104
+- REQUIRED_ANCESTOR=092afea32508466203ea1db7d1d0f6f6ad6473ce
+- REQUIRED_ANCESTOR=924b66fc3403ec34890c5bf51ad0e2fd8a8a514d
 - FAILED_CANDIDATE=2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104
-- MAX_CHANGED_PATHS=6
+- MAX_CHANGED_PATHS=9
 - ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
 - ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlayerProgressFallback.kt
 - ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
 - ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerProgressFallbackTest.kt
+- ALLOWED_PATH=core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadNotifications.kt
+- ALLOWED_PATH=core/src/main/java/com/zhangwenkang/cinefin/utils/DownloaderImpl.kt
+- ALLOWED_PATH=core/src/test/java/com/zhangwenkang/cinefin/utils/DownloadNotificationsAggregationTest.kt
 - ALLOWED_PATH=docs/PLAYER_PLAN.md
 - ALLOWED_PATH=docs/TASKS.md
 <!-- V2_HANDOFF_OBJECT_END -->
