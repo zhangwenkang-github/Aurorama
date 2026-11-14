@@ -78,9 +78,12 @@ import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadLeafCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListMetrics
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListSkeleton
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSeasonCard
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSelectionActionId
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSelectionActionSpec
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelRow
 import com.zhangwenkang.cinefin.presentation.film.downloads.deletionStatusText
+import com.zhangwenkang.cinefin.presentation.film.downloads.downloadSelectionActionSpecs
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchEvent
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
 import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
@@ -89,8 +92,6 @@ import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
-import com.zhangwenkang.cinefin.utils.DownloadTaskRules
-import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.util.UUID
 import kotlinx.serialization.Serializable
 
@@ -435,6 +436,7 @@ private fun DownloadsScreenLayout(
         if (state.selectionMode) {
             SelectionBar(
                 state = state,
+                group = tab.group,
                 pageGutter = horizontalPadding,
                 onAction = onAction,
                 onRequestDelete = { pendingDelete = PendingDelete.Selection },
@@ -837,18 +839,13 @@ private fun StorageSummary(
 @Composable
 private fun SelectionBar(
     state: DownloadManagerState,
+    group: DownloadTaskGroup,
     pageGutter: Dp,
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val selectedTasks = state.selectedTasks
-    val playbackPlan = DownloadSelectionRules.playbackPlan(state)
-    val pendingActions = state.selectedEntries.mapNotNull { state.pendingActions[it.key] }.toSet()
-    val canStartSelectionAction = DownloadSelectionRules.canStartSelectionAction(state)
-    val canRetrySelected =
-        selectedTasks.any { DownloadTaskRules.canRetry(it.status) } ||
-            state.selectedEntries.any { it.status == DownloadTaskStatus.FAILED }
+    val actions = downloadSelectionActionSpecs(state, group)
     val selectedDeletion = state.deletionProjection(state.selectedEntries)
     val selectedDeletionText = deletionStatusText(selectedDeletion, state.deletionSummary)
     Row(
@@ -877,47 +874,30 @@ private fun SelectionBar(
             color = if (state.actionFailure != null) colors.error else colors.onSurface,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1)) {
-            SelectionActionIcon(
-                pending = DownloadPendingAction.PLAY in pendingActions,
-                enabled = canStartSelectionAction && playbackPlan != null,
-                description = "播放选中",
-                iconRes = CoreR.drawable.ic_play,
-                onClick = { onAction(DownloadAction.PlaySelected) },
-            )
-            SelectionActionIcon(
-                pending = DownloadPendingAction.PAUSE in pendingActions,
-                enabled =
-                    canStartSelectionAction && selectedTasks.any { DownloadTaskRules.canPause(it) },
-                description = stringResource(CoreR.string.download_action_pause),
-                iconRes = CoreR.drawable.ic_pause,
-                onClick = { onAction(DownloadAction.PauseSelected) },
-            )
-            SelectionActionIcon(
-                pending = DownloadPendingAction.RESUME in pendingActions,
-                enabled =
-                    canStartSelectionAction &&
-                        selectedTasks.any { DownloadTaskRules.canResume(it.status) },
-                description = stringResource(CoreR.string.download_action_resume),
-                iconRes = CoreR.drawable.ic_play,
-                onClick = { onAction(DownloadAction.ResumeSelected) },
-            )
-            SelectionActionIcon(
-                pending = DownloadPendingAction.RETRY in pendingActions,
-                enabled = canStartSelectionAction && canRetrySelected,
-                description = stringResource(CoreR.string.download_action_retry),
-                iconRes = CoreR.drawable.ic_rotate_ccw,
-                onClick = { onAction(DownloadAction.RetrySelected) },
-            )
-            SelectionActionIcon(
-                pending = DownloadPendingAction.DELETE in pendingActions,
-                enabled = canStartSelectionAction && state.hasSelection,
-                description = stringResource(CoreR.string.download_action_delete),
-                iconRes = CoreR.drawable.ic_trash,
-                onClick = onRequestDelete,
-            )
+            actions.forEach { action ->
+                SelectionActionIcon(
+                    pending = action.pending,
+                    enabled = action.enabled,
+                    description = stringResource(action.label.resourceId),
+                    iconRes = action.iconRes,
+                    onClick = {
+                        val downloadAction = action.toDownloadAction()
+                        if (downloadAction == null) onRequestDelete() else onAction(downloadAction)
+                    },
+                )
+            }
         }
     }
 }
+
+private fun DownloadSelectionActionSpec.toDownloadAction(): DownloadAction? =
+    when (actionId) {
+        DownloadSelectionActionId.PLAY_SELECTED -> DownloadAction.PlaySelected
+        DownloadSelectionActionId.PAUSE_SELECTED -> DownloadAction.PauseSelected
+        DownloadSelectionActionId.RESUME_SELECTED -> DownloadAction.ResumeSelected
+        DownloadSelectionActionId.RETRY_SELECTED -> DownloadAction.RetrySelected
+        DownloadSelectionActionId.DELETE_SELECTED -> null
+    }
 
 @Composable
 private fun SelectionActionIcon(

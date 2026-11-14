@@ -150,6 +150,8 @@
     <string name="download_empty_failed">没有失败的下载</string>
     <string name="download_action_pause">暂停</string>
     <string name="download_action_resume">继续</string>
+    <string name="download_action_resume_selected">继续下载</string>
+    <string name="download_action_play_selected">播放选中</string>
     <string name="download_action_retry">重试</string>
     <string name="download_action_delete">删除</string>
     <string name="download_action_retry_delete">重试删除</string>

@@ -150,6 +150,8 @@
     <string name="download_empty_failed">No failed downloads</string>
     <string name="download_action_pause">Pause</string>
     <string name="download_action_resume">Resume</string>
+    <string name="download_action_resume_selected">Resume download</string>
+    <string name="download_action_play_selected">Play selected</string>
     <string name="download_action_retry">Retry</string>
     <string name="download_action_delete">Delete</string>
     <string name="download_action_retry_delete">Retry delete</string>
