@@ -10451,3 +10451,69 @@ TIMEOUT_ERROR / CANCEL / RETRY_DUPLICATE / RESTART_RECOVERY`；矩阵 SHA-256
 先用双任务 failing fixture 证明 page / notification 同一 canonical set，再只改通知 aggregate
 与 call site；targeted / core / phone assemble / ktfmt / diff / graphify 收口后必须另派 fresh
 independent QA 与新 signed candidate，不得由实现 owner 自测真机或宣称发布 PASS。
+
+### 52.70.24 下载通知聚合实现 GREEN / fresh signed R4 入口（2026-11-14）
+
+**状态：`DOWNLOAD_NOTIFICATION_AGGREGATE_IMPLEMENTATION_GREEN /
+FRESH_SIGNED_CANDIDATE_REQUIRED / P2_STILL_OPEN / NOT_RELEASABLE`。**
+
+fresh `AURORAMA_141_DOWNLOAD_NOTIFICATION_AGGREGATE_IMPLEMENTATION_OWNER_R1_2026_11_14` 已完成
+通知聚合修复：
+
+- start `e3247ada35feb5d232ad5749f820ed381a86bf17` / tree
+  `208c3c5b260776bb3a64812c25295536fd13ce12`；
+- end `924b66fc3403ec34890c5bf51ad0e2fd8a8a514d` / tree
+  `4edb33b8e042e79bb01278ca5e78fce95911f1f7`；
+- 3 files / `+471 / -22`：`DownloadNotifications.kt`、`DownloaderImpl.kt`、
+  `DownloadNotificationsAggregationTest.kt`；
+- 未改 Room / DAO / HTTP Range / scheduler / failure classification / pause-cancel-delete /
+  Worker lifecycle / source lineage / player / version / signing。
+
+真实 RED：
+
+```text
+TEST=DownloadNotificationsAggregationTest
+1 executed / 1 failed / 0 errors
+expected=3000 / actual=1000
+```
+
+最终门禁：
+
+```text
+targeted=13/0/0/0
+core module=402/0/0/0
+phone assembleDebug=PASS
+ktfmtCheck=PASS
+git diff --check=exit 0
+graphify update=exit 0 / 20077 nodes / 61468 edges / 666 communities
+device/server/screenshots=0/0/0
+```
+
+实现公式：
+
+```text
+E(t) = max(0, totalBytes)
+D(t) = COMPLETED ? E(t) : max(0, downloadedBytes)
+notification total = Σ E(active canonical tasks)
+notification downloaded = Σ D(active canonical tasks)
+percent = floor(100 * downloaded / total)
+```
+
+双任务 fixture：page = notification `3000 / 900 B / 30%`；单任务 `500 / 2000 = 25%`；
+empty / duplicate / reordered / cancel / restart / representative action source 均通过 JVM。
+
+该 GREEN 不关闭 `P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001`。尚未构建 fresh signed、未观察
+真实 Android notification / actions，也未在同一 signed A2 上证明 page 与 notification 字节、
+百分比和 actions 一致。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\DOWNLOAD_NOTIFICATION_AGGREGATE_IMPLEMENTATION_R1.md`
+  / SHA-256 `38E55C7FD8BC05B52496B8EAB5A21A4FC8D7D1CB3FD229813BE1D83191D4CBEB`；
+- manifest SHA-256
+  `DB1CD11756B1533347986A0C03D06309729297372E6C24414E9131E2370E84B7`，2/2 MATCH。
+
+下一 owner = fresh `AURORAMA_141_SIGNED_RELEASE_ENGINEER_R4_2026_11_14`。从包含 `924b66fc`
+的源码构建新的 signed arm64 / universal，证明 `092afea3`、`924b66fc` 与既有 required
+ancestors 均在候选内；不安装、不 QA、不 push / tag / Release。Release PASS 后必须由另一个
+fresh independent QA 在 Pad 真实 `S1E1 + S1E2` A2 验证页面/通知字节、百分比与 actions。
