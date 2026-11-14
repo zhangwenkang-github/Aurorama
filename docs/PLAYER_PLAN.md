@@ -10546,3 +10546,64 @@ R5 pre-handoff audit 第一轮 `BLOCKED` 后已修复两项控制面问题：
 
 ACTIVE 的 read order / next path 已同步到 R5；修复后必须使用全新只读审计员重新审计，
 不得复用第一轮 BLOCKED audit。
+
+### 52.70.26 Signed Release R4 PASS / fresh signed notification QA entry（2026-11-14）
+
+**状态：`SIGNED_RELEASE_R4_PASS / FRESH_SIGNED_NOTIFICATION_QA_REQUIRED / P2_STILL_OPEN /
+PLAYER_CORE_MATRIX_FAIL_UNCHANGED / NOT_RELEASABLE`。**
+
+fresh `AURORAMA_141_SIGNED_RELEASE_ENGINEER_R4_2026_11_14` 只做 signed Release 工程，从 control
+HEAD `3f7574db199cac84f0a9513dc8160b274dd79f98` / tree
+`9ee755ac51ef16bd3667a67addc613d9301f49d2` 构建并验证通知修复 `924b66fc` 的 arm64 / universal。
+该 release owner 未安装、未 QA、未接触设备 / 服务器、未 push / tag / Release。
+
+工程结果：
+
+- required ancestors `8/8 PASS`，包含 `092afea3`、`924b66fc` 与全部既有祖先；
+- `092afea3..924b66fc` 恰为 3 个通知产品 / 测试文件 + `PLAYER_PLAN` / `TASKS` 共 5 路径；
+  `924b66fc..CONTROL_HEAD` 仅 docs；
+- arm64 `80,599,166 B` /
+  `74A9112309415DA45BF323B9D19449F709199384BB081D92D34A68D006DA54FB`；
+- universal `175,213,336 B` /
+  `F9E79CE7160125E4205A658946ECD26899069BC70621F92A895C0FE14554B586`；
+- package `io.github.zhangwenkang.aurorama` / `1.4.1(6)` / minSdk 28 / targetSdk 36 /
+  non-debuggable；ABI、v2、单 signer 与 cert
+  `e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff` 均 PASS；
+- delivery manifest `20/20 MATCH`、coverage `20/20`、`SHA256SUMS 2/2`、unsigned APK `0`；
+  manifest SHA-256 `6568717CB849A06293027E623F3A4865EA26432BB260CAEB80883BC66DB84A6A`；
+- 首轮构建与 JNI 后最终重建 hash 不同；按合同交付权威 = JNI 后最终原始 universal packaging，
+  最终包已重新完成身份、签名、ABI、manifest 验证；
+- Release owner P0/P1/P2=`0/0/0`，新增 P3=`3` 次只读 harness 纠正，APK / 对象无影响。
+
+负责人独立复算：R4 report / manifest hash、两枚 APK hash、delivery `20/20` / coverage `20/20`、
+evidence `2/2` 与两枚 APK `apksigner` v2 / 单 signer / cert 均 MATCH；最终 worktree clean。
+
+本工程 PASS 不关闭 `P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001`。必须另派与实现、Release 和
+旧 QA 不同的 fresh signed QA，在 Pad `43af8627` 对 exact R4 arm64 显式 `install -r` 保留 data /
+session，并用真实 `S1E1 + S1E2` 双活动叶验证：
+
+```text
+page.total == notification.total
+page.downloaded == notification.downloaded
+percent 同源
+actions 唯一、稳定且仍作用于 canonical active set
+单任务 500 / 2000 = 25% 回归
+empty / cancel / restart 状态回归
+```
+
+通知 P2 在 exact signed R4 真机设备证据生成前继续保持 OPEN。不得复用 signed R3、JVM fixture、
+debug assemble 或本 Release PASS 代替设备 QA。A1-AUTO 不重跑；seek、A3 Deleting 首帧、
+PC-02/03/05 与其余 Player Core 行不混入本窄 QA。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SIGNED_RELEASE_ENGINEERING_R4.md`
+  / SHA-256 `A82669F517D79E09D3F0C01D32FC3342FC7C4ECB1E85264C4C50AF72F3AEAEE1`；
+- `SIGNED_RELEASE_ENGINEERING_R4_MANIFEST.sha256`
+  / SHA-256 `AFCA19875726F45F26FD3A794393FF5F8698C455913DB8FE2F6B24C05237FD7D`；
+- delivery：
+  `F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r4-2026-11-14`。
+
+下一 owner = fresh `AURORAMA_141_FRESH_INDEPENDENT_SIGNED_QA_R4_2026_11_14`，只执行上述 Pad
+通知 aggregate / actions 与 required state regression；QA 不改产品，不派子代理，不 push / tag /
+Release。
