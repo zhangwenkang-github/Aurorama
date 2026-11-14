@@ -10607,3 +10607,57 @@ PC-02/03/05 与其余 Player Core 行不混入本窄 QA。
 下一 owner = fresh `AURORAMA_141_FRESH_INDEPENDENT_SIGNED_QA_R4_2026_11_14`，只执行上述 Pad
 通知 aggregate / actions 与 required state regression；QA 不改产品，不派子代理，不 push / tag /
 Release。
+
+### 52.70.27 Signed R4 通知 QA PASS / P2 关闭（2026-11-15）
+
+**状态：`SIGNED_R4_NOTIFICATION_QA_PASS / P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001=CLOSED /
+PLAYER_CORE_MATRIX_FAIL_UNCHANGED / NOT_RELEASABLE`。**
+
+fresh `AURORAMA_141_FRESH_INDEPENDENT_SIGNED_QA_R4_2026_11_14` 在 Pad `43af8627` 对 exact signed
+R4 arm64 执行一次 `install -r`，保持 user0、首装时间、CE data inode、登录 session 与既有下载；
+设备回拉 APK 与宿主
+`74A9112309415DA45BF323B9D19449F709199384BB081D92D34A68D006DA54FB` MATCH。QA 没有重跑
+A1-AUTO 或 Player Core 矩阵，没有 K60 / Oppo / OnePlus 命令、服务器写或截图。
+
+真实 `S1E1 + S1E2` 双任务窗口：
+
+- 页面总数 `2.97 GiB`，通知总数 `3.19 GB`，两者由同一约 3.19 GB 字节集合经 1024 / 十进制
+  formatter 显示，不再是旧版页面全叶 / 通知首任务的双范围；
+- 页面 `0/2`、`2 集`、两个独立进度行与通知 title count `2` 一致；
+- notification downloaded / percent / progress 与同一活动集合一致；
+- actions 仅 `暂停, 取消`，无重复播放类动作、第二条通知或 `0 个任务` 通知；
+- 通知暂停后页面双叶冻结；页面恢复后通知由同一双叶集合重建；
+- 删除一叶后页面 `0/1` 与通知单任务身份一致；force-stop + cold start 只恢复剩余任务；
+- 删除最后一叶后页面 `0/0/0`、通知 `0`、下载文件 `0`；
+- 真实单任务 `250 MiB / 1.74 GiB = 14%` 与通知 `262 MB / 1.87 GB / 14%` 同源；JVM
+  `500 / 2000 = 25%` 仅为辅助，未冒充设备证据。
+
+结论：
+
+```text
+QA_READY_LINT=PASS
+QA_RESULT=PASS_FOR_P2_DOWNLOAD_NOTIFICATION_TOTAL_MISMATCH_ONLY
+P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001=RESOLVED_ON_EXACT_SIGNED_R4_PAD
+```
+
+该 P2 已由负责人关闭。不得把该 PASS 扩写为整包 / 播放器 / Release PASS。
+
+同一 QA 再次观察到删除一叶时 `删除中` 在 +2 s / +5 s / +10 s 仍存在，随后才收敛为单任务。
+`P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001` 继续保持 OPEN；A3 `Deleting` 首帧仍未证明，
+PC-02/03/05 仍 FAIL，PC-04/06/08/11 仍未跑，PC-10 仍授权阻断，Series divergence 与 seek
+诊断边界不变。1.4.1 仍 `NOT_RELEASABLE`。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_SIGNED_QA_R4.md`
+  / SHA-256 `ACBBA6E0FA9E4736D57AF35E79C022721CE4C6304D3844B736FAAB94EBA7F67A`；
+- `FRESH_INDEPENDENT_SIGNED_QA_R4_MANIFEST.sha256`
+  / SHA-256 `0525FBE2CCF6B0ED6CDD485BF3C38C261A98A316755AB26AC274C58151BB856D`，
+  3/3 MATCH；
+- `FRESH_INDEPENDENT_SIGNED_QA_R4_DEVICE_LOCK_FINAL.md`
+  / SHA-256 `68BAA435F247F9486701DA533C120FB59447EE3034BA3B04CF9AF949B8FC168E`；
+- 共享设备锁最终 `ACTIVE=0 / LOCK_ACTIVE=0`，SHA-256
+  `14F3D998F9D52FF3A82DCF45C17AD8599CBB7ACB584987CC1BE2159AEA616D00`。
+
+后继负责人必须先只读复核本段与上述证据，再在“慢删除 P1 / near-end seek trace / Player Core
+未跑行 / Series divergence”之间由用户选择下一最小合同。不得在本通知 PASS 后自动扩大产品修改。
