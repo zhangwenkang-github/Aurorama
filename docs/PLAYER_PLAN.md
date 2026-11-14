@@ -10691,3 +10691,70 @@ TDD，之后必须另派不同 fresh QA。实现 / QA / Release 不共身份、�
 
 R6 交接入口：
 `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\NEXT_LEADER_PROMPT_R6.md`。
+
+### 52.70.29 R6 并行诊断收口：INCONCLUSIVE / NO_IMPLEMENTATION_GATE（2026-11-15）
+
+**状态：`R6_PARALLEL_DIAGNOSIS_COMPLETE /
+CONCLUSION=INCONCLUSIVE / IMPLEMENTATION_GATE=NO_IMPLEMENTATION_GATE /
+P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001=OPEN / NOT_RELEASABLE`。**
+
+R6 在精确对象 `105d7e82ff984f15b8604dcdb609ffc6e8b476bc` / tree
+`d4fd308b95374510722c0a6303caaf4bea7e4e8a` 上并行派出两个 fresh、互斥 owner；两路合同均先
+保存为绝对路径并取得 `BUG_LOOP_DISPATCH_GATE=PASS`。源码 owner 零设备、零产品写；signed
+observer 独占 Pad `43af8627`，使用 exact signed R4 arm64
+`74A9112309415DA45BF323B9D19449F709199384BB081D92D34A68D006DA54FB`，20 分钟内只执行一次
+删叶，结束后锁为 `RELEASED / ACTIVE=0 / LOCK_ACTIVE=0`。
+
+源码生命周期诊断结论：
+
+- 现行路径顺序为：Compose 确认 → ViewModel 同步登记 pending → Downloader 写 Room
+  `DELETING` 栅栏 → `cancel + join` 同一 source 的活动 job → 文件 / sidecar / 图片清理 →
+  删除 source / media / 可选父级行 → runtime / 通知 / `notifyQueueChanged` → ViewModel
+  post-delete refresh → 清除 pending；
+- `删除中` 由 `deletionProjection` 统一投影，输入为进程内 pending 或持久 `DELETING`；首帧
+  机制在代码中存在；
+- 主假设的顺序部分获得支持，但活动 job 等待、递归文件清理、post-delete refresh 三者的
+  `>10 s` 主导耗时仍不能由一个静态证据选出，裁决为
+  `ORDERING_PARTIALLY_SUPPORTED / DOMINANT_LATENCY_SOURCE_UNPROVEN`；
+- 该 owner 没有执行 JVM、构建、设备或网络，产品 / 测试写与 commit 均为 `0`。
+
+exact signed observer 结论：
+
+- 真实入口创建两个 QA leaf 后只删 `Season 1 / S1E1` 一次，确认点击 `1`、第二次删除 `0`、
+  用户已有下载删除 `0`；
+- 首个可解析压缩 UI dump 在确认后 `+2.829 s` 完成时 canonical set 已由 `2` 收敛为 `1`，
+  `删除中` 未观察到；可访问 download 文件在 `+729 ms` 已由 `2` 变为 `1`；
+- 后续 `+5.469 s / +10.374 s / +15.669 s` 等采样均只见剩余单叶，未复现 R4 的 `删除中`
+  持续超过 10 秒；一次 cold restart 后已删叶不复活；
+- release DB 固定为 `NOT_ACCESSIBLE_WITHOUT_BYPASS`，没有 root / `run-as` / debugger 绕过；
+  MIUI `uiautomator dump` 的 `2.8 s` 级延迟使 sub-second `删除中` 首帧仍为
+  `NOT_OBSERVED`，不能写成“从未显示”；
+- 本轮快速删除不关闭既有 P1，也没有新增 P0/P1；A3 首帧保持未证。
+
+两路合并后固定：
+
+```text
+PRIMARY_HYPOTHESIS_RESULT=ORDERING_PARTIALLY_SUPPORTED / DOMINANT_LATENCY_SOURCE_UNPROVEN
+P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001=UNCHANGED_OPEN_NOT_REPRODUCED_THIS_RUN
+DELETING_FIRST_FRAME=NOT_PROVEN
+IMPLEMENTATION_PERMISSION=NONE
+DECISION=INCONCLUSIVE / NO_IMPLEMENTATION_GATE
+```
+
+本轮不派实现 owner。后续若继续本 P1，必须先有新合同明确选择一次受控的同路径证据步骤，
+并能分别锚定 job 退出、文件清理、Room source 行消失与 UI row 消失；若转做其它 P1，也须由
+用户明确选择。不得用本轮快速样本关闭 P1，不得把通知 P2 PASS 扩写为整包 PASS。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_DELETE_LATENCY_SOURCE_DIAGNOSIS_R1.md`
+  / SHA-256 `F39B92F9166CA40436C224BBE3B65615D8DE3760C3DE0508156099D9F67FFC4B`；
+- `AURORAMA_141_DELETE_LATENCY_SOURCE_DIAGNOSIS_R1_MANIFEST.sha256`
+  / SHA-256 `863CE965263CFA4437F1E1D5EF26632C8FA8093BA53FCBEA2F4EBC5D14913596`，30/30 MATCH；
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_DELETE_LATENCY_SIGNED_OBSERVER_R1.md`
+  / SHA-256 `1F129835265B34B5E15C36452A80FCA64BF625A7394B3490C6A20D55344E1FCD`；
+- `AURORAMA_141_DELETE_LATENCY_SIGNED_OBSERVER_R1_MANIFEST.sha256`
+  / SHA-256 `D331B0ABAB48674F6BB4380450CEF2AD41E55983C7A8E0A8B0A882B5948EE220`，3/3 MATCH；
+- `AURORAMA_141_DELETE_LATENCY_SIGNED_OBSERVER_R1_DEVICE_LOCK_FINAL.md`；共享锁最终
+  `ACTIVE=0 / LOCK_ACTIVE=0`，SHA-256
+  `B420E4D2BF80AF4385B367113575B38EBE0434D8AD2E4453195A0571FE2EACD0`。
