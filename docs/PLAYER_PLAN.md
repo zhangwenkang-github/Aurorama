@@ -10758,3 +10758,54 @@ DECISION=INCONCLUSIVE / NO_IMPLEMENTATION_GATE
 - `AURORAMA_141_DELETE_LATENCY_SIGNED_OBSERVER_R1_DEVICE_LOCK_FINAL.md`；共享锁最终
   `ACTIVE=0 / LOCK_ACTIVE=0`，SHA-256
   `B420E4D2BF80AF4385B367113575B38EBE0434D8AD2E4453195A0571FE2EACD0`。
+
+### 52.70.30 删除阶段 debug-only trace 实现 R1（2026-11-15）
+
+**状态：`IMPLEMENTATION_COMPLETE_WITH_MODULE_GATE_FAIL / TARGETED_TRACE_GREEN /
+DEBUG_ASSEMBLE_PASS / RELEASE_STATIC_EXCLUSION_PASS / INDEPENDENT_QA_PENDING`。**
+
+worktree `F:\Develop\code_data\work_tree\Aurorama\r6-delete-trace-impl\Aurorama`，
+branch `codex/r6-delete-phase-trace`，base
+`85b11c6ea67fbc5a268ce632b7850ffc5631065e`。实现只增加 debug-only 删除阶段观测：
+
+- main 合同与 no-op runtime；debug owner 独占 requestId、HMAC、registry、单调时钟、
+  event cap、旧代过滤、字段 allowlist、Timber 与 Choreographer frame probe；
+- ViewModel 在 D1/D2/D8/D9 边界提交固定枚举与既有标量，Downloader 在 D3–D7
+  既有边界采样，不改变删除顺序、返回值、异常 / 取消传播、Worker lifecycle、schema、
+  notification aggregate 或 player；
+- `D5_PRE_ROW -> D6 -> D5_POST_ROW` 按现存源码真实顺序记录，未为了好看时序重排删除代码。
+
+RED / GREEN：
+
+- 先取得缺失 API 编译 RED，再以空骨架取得 6/7 行为断言 RED；
+- owner focused `7/0/0/0`，覆盖 disabled 零 hash/clock、固定 schema、dedup、旧代、cap、
+  sink 异常隔离与 D9 下一帧；
+- Downloader focused `2/0/0/0`，覆盖活动 job cancel/join、D5/D6 交错、D7 顺序与
+  PARTIAL 失败不伪造 D6；
+- final targeted core `9/0/0/0`；`DownloadsViewModelDeletionTest` `18/0/0/0`。
+
+构建与静态排除：
+
+- `:core:ktfmtCheck :modes:film:ktfmtCheck :app:phone:ktfmtCheck` 与
+  `:app:phone:assembleDebug` PASS（262 tasks）；
+- `:core:compileLibreReleaseKotlin :app:phone:compileLibreReleaseKotlin` PASS；
+  release main source 与 release compiled classes 对
+  `AURORAMA_DELETE_TRACE|DownloadDeleteTraceOwner|DownloadDeleteTraceDebugModule|HmacSHA256`
+  均 0 命中；
+- arm64 debug APK `151634887 B / 91FC1681D60C8CB73D83C2E9D74FE9F68229FB57B76AF8F2C83824A00EB6A5C4`。
+
+模块门禁未全绿：`:modes:film:testDebugUnitTest` 全量 183 项中唯一失败为
+`VideoSourceSelectorTest > 缺失 preferred 时回落到本地源与播放器一致`
+（`expected:<local> but was:<remote>`）。该生产 / 测试文件在本分支 diff 为 0；
+同测试单点重跑仍稳定失败，未在本 owner 范围修复。core 全量 JVM 在组合门禁中执行通过。
+
+P0–P3 新增均为 0。既有
+`P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001` 与
+`P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN` 保持 OPEN，本实现不关闭 P1/P2，也不代表整包
+QA / Release PASS。未跑设备矩阵、真机 trace、D1–D9 真实时间线、release APK dex scan
+（未生成 release APK）、Worker/notification 实际绘制或独立 QA。
+
+证据最终入口：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_DELETE_PHASE_TRACE_IMPLEMENTATION_R1.md`
+及同名 `_MANIFEST.sha256`。下一步必须由负责人另派不同 fresh independent QA；实现 owner
+不 merge / push / tag / Release。

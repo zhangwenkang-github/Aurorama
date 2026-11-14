@@ -89,9 +89,12 @@ import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
 import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRuntime
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
+import com.zhangwenkang.cinefin.utils.safeAttached
+import com.zhangwenkang.cinefin.utils.safeDisposed
 import java.util.UUID
 import kotlinx.serialization.Serializable
 
@@ -577,6 +580,14 @@ private fun DownloadDetailPane(
                 is DownloadDetailRow.Item -> {
                     val entry = row.entry
                     val entryDeletion = deletionState.deletionProjection(listOf(entry))
+                    val traceRow =
+                        remember(entry.key) { DownloadDeleteTraceRuntime.rowTrace(entry.key) }
+                    if (traceRow != null) {
+                        DisposableEffect(traceRow) {
+                            traceRow.safeAttached()
+                            onDispose { traceRow.safeDisposed() }
+                        }
+                    }
                     DownloadLeafCard(
                         entry = entry,
                         deletionProjection = entryDeletion,

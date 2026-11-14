@@ -3165,10 +3165,22 @@ private constructor(
         withContext(Dispatchers.IO) {
             val current = database.getSource(sourceId) ?: return@withContext true
             if (current.taskGeneration != expectedGeneration) {
+                currentDownloadDeleteTraceHandle(sourceId)
+                    .safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D3_ROOM_DELETING_COMMITTED,
+                            result = DownloadDeleteTraceResult.SUPERSEDED,
+                            error = DownloadDeleteTraceError.CAS,
+                            sourceId = sourceId,
+                            generation = expectedGeneration,
+                        )
+                    )
                 return@withContext false
             }
+            val resumeAlreadyDeleting =
+                current.taskStatus.toTaskStatus() == DownloadTaskStatus.DELETING
             val source =
-                if (current.taskStatus.toTaskStatus() == DownloadTaskStatus.DELETING) {
+                if (resumeAlreadyDeleting) {
                     lifecycleControl.withPersistedGeneration(sourceId, expectedGeneration) {
                         current
                     }
@@ -3183,11 +3195,93 @@ private constructor(
                             )
                         DownloadSourceCommandResult(row, row?.taskGeneration)
                     }
-                } ?: return@withContext false
+                }
+                    ?: run {
+                        currentDownloadDeleteTraceHandle(sourceId)
+                            .safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D3_ROOM_DELETING_COMMITTED,
+                                    result = DownloadDeleteTraceResult.SUPERSEDED,
+                                    error = DownloadDeleteTraceError.CAS,
+                                    sourceId = sourceId,
+                                    generation = expectedGeneration,
+                                )
+                            )
+                        return@withContext false
+                    }
+
+            val trace = currentDownloadDeleteTraceHandle(sourceId)
+            trace.safeBindSource(sourceId, source.taskGeneration)
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase =
+                        if (resumeAlreadyDeleting) {
+                            DownloadDeleteTracePhase.D3_RESUME_ALREADY_DELETING
+                        } else {
+                            DownloadDeleteTracePhase.D3_ROOM_DELETING_COMMITTED
+                        },
+                    result =
+                        if (resumeAlreadyDeleting) {
+                            DownloadDeleteTraceResult.RESUMED
+                        } else {
+                            DownloadDeleteTraceResult.COMMITTED
+                        },
+                    sourceId = source.id,
+                    generation = source.taskGeneration,
+                )
+            )
 
             val job = activeJobs[sourceId]
-            job?.cancel(CancellationException("用户取消下载"))
-            job?.join()
+            if (job == null) {
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D4_JOIN_END,
+                        result = DownloadDeleteTraceResult.SKIPPED,
+                        sourceId = source.id,
+                        generation = source.taskGeneration,
+                    )
+                )
+            } else {
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D4_CANCEL_BEGIN,
+                        result = DownloadDeleteTraceResult.STARTED,
+                        sourceId = source.id,
+                        generation = source.taskGeneration,
+                    )
+                )
+                job.cancel(CancellationException("用户取消下载"))
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D4_JOIN_BEGIN,
+                        result = DownloadDeleteTraceResult.STARTED,
+                        sourceId = source.id,
+                        generation = source.taskGeneration,
+                    )
+                )
+                try {
+                    job.join()
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D4_JOIN_END,
+                            result = DownloadDeleteTraceResult.DONE,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
+                } catch (cancellation: CancellationException) {
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D4_JOIN_END,
+                            result = DownloadDeleteTraceResult.FAILED,
+                            error = DownloadDeleteTraceError.CANCELLED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
+                    throw cancellation
+                }
+            }
             val artifactGeneration =
                 DownloadCompletionCommitRules.sourceArtifactGeneration(
                     path = source.path,
@@ -3212,7 +3306,24 @@ private constructor(
                     ) {
                         return@withCurrentGeneration false
                     }
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                            result = DownloadDeleteTraceResult.STARTED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
                     workGateway.cancelUnique(ImageDownloadWorkRules.uniqueWorkName(sourceId))
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                            result = DownloadDeleteTraceResult.STARTED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                            category = DownloadDeleteTraceCategory.RESOLVE,
+                        )
+                    )
                     val artifactScan = artifactGeneration?.let { generation ->
                         File(source.path).parentFile?.let { directory ->
                             DownloadCompletionCommitRules.sourceArtifactScan(
@@ -3224,22 +3335,126 @@ private constructor(
                             )
                         }
                     }
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                            result =
+                                if (artifactScan?.unprovenWitnesses?.isNotEmpty() == true) {
+                                    DownloadDeleteTraceResult.FAILED
+                                } else {
+                                    DownloadDeleteTraceResult.DONE
+                                },
+                            error =
+                                if (artifactScan?.unprovenWitnesses?.isNotEmpty() == true) {
+                                    DownloadDeleteTraceError.UNKNOWN
+                                } else {
+                                    DownloadDeleteTraceError.NONE
+                                },
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                            category = DownloadDeleteTraceCategory.RESOLVE,
+                            count = artifactScan?.unprovenWitnesses?.size,
+                        )
+                    )
                     if (artifactScan?.unprovenWitnesses?.isNotEmpty() == true) {
                         Timber.w(
                             "下载删除发现无法证明的精确 witness，保留 DELETING：%s",
                             artifactScan.unprovenWitnesses.joinToString { it.path },
                         )
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_END,
+                                result = DownloadDeleteTraceResult.FAILED,
+                                error = DownloadDeleteTraceError.UNKNOWN,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                            )
+                        )
                         return@withCurrentGeneration false
                     }
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                            result = DownloadDeleteTraceResult.STARTED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                            category = DownloadDeleteTraceCategory.PARTIAL,
+                        )
+                    )
                     if (!deletePartialArtifacts(source.path)) {
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                                result = DownloadDeleteTraceResult.FAILED,
+                                error = DownloadDeleteTraceError.IO,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                                category = DownloadDeleteTraceCategory.PARTIAL,
+                            )
+                        )
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_END,
+                                result = DownloadDeleteTraceResult.FAILED,
+                                error = DownloadDeleteTraceError.IO,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                            )
+                        )
                         error("下载残片删除未确认：${source.path}")
                     }
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                            result = DownloadDeleteTraceResult.DONE,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                            category = DownloadDeleteTraceCategory.PARTIAL,
+                        )
+                    )
                     val item =
                         knownItem
                             ?: run {
+                                trace.safeRecord(
+                                    DownloadDeleteTraceEvent(
+                                        phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                                        result = DownloadDeleteTraceResult.STARTED,
+                                        sourceId = source.id,
+                                        generation = source.taskGeneration,
+                                        category = DownloadDeleteTraceCategory.SIDECAR,
+                                    )
+                                )
                                 if (!removeExactUnprovableSidecarForSource(source)) {
+                                    trace.safeRecord(
+                                        DownloadDeleteTraceEvent(
+                                            phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                                            result = DownloadDeleteTraceResult.FAILED,
+                                            error = DownloadDeleteTraceError.IO,
+                                            sourceId = source.id,
+                                            generation = source.taskGeneration,
+                                            category = DownloadDeleteTraceCategory.SIDECAR,
+                                        )
+                                    )
+                                    trace.safeRecord(
+                                        DownloadDeleteTraceEvent(
+                                            phase = DownloadDeleteTracePhase.D5_FS_END,
+                                            result = DownloadDeleteTraceResult.FAILED,
+                                            error = DownloadDeleteTraceError.IO,
+                                            sourceId = source.id,
+                                            generation = source.taskGeneration,
+                                        )
+                                    )
                                     return@withCurrentGeneration false
                                 }
+                                trace.safeRecord(
+                                    DownloadDeleteTraceEvent(
+                                        phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                                        result = DownloadDeleteTraceResult.DONE,
+                                        sourceId = source.id,
+                                        generation = source.taskGeneration,
+                                        category = DownloadDeleteTraceCategory.SIDECAR,
+                                    )
+                                )
                                 if (source.downloadOriginAnchor() == null) {
                                     null
                                 } else {
@@ -3259,6 +3474,15 @@ private constructor(
                             claimGeneration,
                         )
                     } else {
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                                result = DownloadDeleteTraceResult.STARTED,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                                category = DownloadDeleteTraceCategory.FINAL,
+                            )
+                        )
                         if (
                             !deleteSourceCompletionArtifacts(
                                 source,
@@ -3275,15 +3499,66 @@ private constructor(
                         ) {
                             return@withCurrentGeneration false
                         }
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                                result = DownloadDeleteTraceResult.DONE,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                                category = DownloadDeleteTraceCategory.FINAL,
+                            )
+                        )
                         database.deleteMediaStreamsBySourceId(sourceId)
                         database.deleteSource(sourceId)
+                        if (database.getSource(sourceId) == null) {
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D6_SOURCE_MEDIA_ROWS_REMOVED,
+                                    result = DownloadDeleteTraceResult.REMOVED,
+                                    sourceId = source.id,
+                                    generation = source.taskGeneration,
+                                )
+                            )
+                        }
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_END,
+                                result = DownloadDeleteTraceResult.DONE,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                            )
+                        )
                     }
                     if (database.getSource(sourceId) != null) {
                         return@withCurrentGeneration false
                     }
                     runtime.update { it - sourceId }
-                    updateForegroundNotificationNow()
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D7_RUNTIME_REMOVED,
+                            result = DownloadDeleteTraceResult.REMOVED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
+                    val notificationDecision = updateForegroundNotificationNow()
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D7_NOTIFICATION_DECISION,
+                            result = notificationDecision,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
                     notifyQueueChanged()
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D7_QUEUE_SIGNAL,
+                            result = DownloadDeleteTraceResult.DONE,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
                     true
                 } ?: false
             if (cleanupSucceeded) {
@@ -3777,17 +4052,25 @@ private constructor(
             if (database.getSource(source.id)?.taskGeneration != expectedGeneration) {
                 return@withLock false
             }
-            deleteItemUnderItemLock(item, source, artifactGeneration, claimGeneration)
+            deleteItemUnderItemLock(
+                item,
+                source,
+                expectedGeneration,
+                artifactGeneration,
+                claimGeneration,
+            )
             true
         }
 
     private suspend fun deleteItemUnderItemLock(
         item: FindroidItem,
         source: FindroidSource,
+        expectedGeneration: Long,
         artifactGeneration: Long?,
         claimGeneration: Long,
     ) {
         val current = checkNotNull(database.getSource(source.id))
+        val trace = currentDownloadDeleteTraceHandle(source.id)
         val parentOrigin = downloadOriginForSource(current)
         val mediaStreams = database.getMediaStreamsBySourceId(source.id)
         val files = buildList {
@@ -3806,22 +4089,137 @@ private constructor(
             }
             mediaStreams.mapTo(this) { stream -> File(stream.path) }
         }
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.MEDIA_STREAM_FILE,
+                count = files.size,
+            )
+        )
         for (file in files) {
             if (file.exists() && !file.delete()) {
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                        result = DownloadDeleteTraceResult.FAILED,
+                        error = DownloadDeleteTraceError.IO,
+                        sourceId = source.id,
+                        generation = expectedGeneration,
+                        category = DownloadDeleteTraceCategory.MEDIA_STREAM_FILE,
+                        count = files.size,
+                    )
+                )
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D5_FS_END,
+                        result = DownloadDeleteTraceResult.FAILED,
+                        error = DownloadDeleteTraceError.IO,
+                        sourceId = source.id,
+                        generation = expectedGeneration,
+                    )
+                )
                 error("无法删除下载文件：${file.path}")
             }
         }
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.MEDIA_STREAM_FILE,
+                count = files.size,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.SIDECAR,
+            )
+        )
         if (!deletePartialSidecar(source.path)) {
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                    result = DownloadDeleteTraceResult.FAILED,
+                    error = DownloadDeleteTraceError.IO,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                    category = DownloadDeleteTraceCategory.SIDECAR,
+                )
+            )
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D5_FS_END,
+                    result = DownloadDeleteTraceResult.FAILED,
+                    error = DownloadDeleteTraceError.IO,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                )
+            )
             error("无法删除下载断点信息：${source.path}")
         }
         if (!removeSidecarForSource(itemId = item.id, sourceId = source.id)) {
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                    result = DownloadDeleteTraceResult.FAILED,
+                    error = DownloadDeleteTraceError.IO,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                    category = DownloadDeleteTraceCategory.SIDECAR,
+                )
+            )
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D5_FS_END,
+                    result = DownloadDeleteTraceResult.FAILED,
+                    error = DownloadDeleteTraceError.IO,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                )
+            )
             error("无法删除下载来源侧车：${source.id}")
         }
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.SIDECAR,
+            )
+        )
 
         database.deleteMediaStreamsBySourceId(source.id)
         database.deleteSource(source.id)
+        if (database.getSource(source.id) == null) {
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D6_SOURCE_MEDIA_ROWS_REMOVED,
+                    result = DownloadDeleteTraceResult.REMOVED,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                )
+            )
+        }
         if (database.getSources(item.id).isNotEmpty()) return
 
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.HIERARCHY,
+            )
+        )
         when (item) {
             is FindroidMovie -> database.deleteMovie(item.id)
             is FindroidEpisode -> {
@@ -3836,8 +4234,44 @@ private constructor(
                             origin = parentOrigin,
                         )
                         database.deleteUserData(item.seasonId)
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                                result = DownloadDeleteTraceResult.STARTED,
+                                sourceId = source.id,
+                                generation = expectedGeneration,
+                                category = DownloadDeleteTraceCategory.TRICKPLAY,
+                            )
+                        )
                         File(context.filesDir, "trickplay/${item.seasonId}").deleteRecursively()
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                                result = DownloadDeleteTraceResult.DONE,
+                                sourceId = source.id,
+                                generation = expectedGeneration,
+                                category = DownloadDeleteTraceCategory.TRICKPLAY,
+                            )
+                        )
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                                result = DownloadDeleteTraceResult.STARTED,
+                                sourceId = source.id,
+                                generation = expectedGeneration,
+                                category = DownloadDeleteTraceCategory.IMAGES,
+                            )
+                        )
                         File(context.filesDir, "images/${item.seasonId}").deleteRecursively()
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                                result = DownloadDeleteTraceResult.DONE,
+                                sourceId = source.id,
+                                generation = expectedGeneration,
+                                category = DownloadDeleteTraceCategory.IMAGES,
+                            )
+                        )
                         val remainingSeasons = database.getSeasonsByShowId(item.seriesId)
                         if (remainingSeasons.isEmpty()) {
                             database.deleteShow(item.seriesId)
@@ -3847,18 +4281,133 @@ private constructor(
                                 origin = parentOrigin,
                             )
                             database.deleteUserData(item.seriesId)
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                                    result = DownloadDeleteTraceResult.STARTED,
+                                    sourceId = source.id,
+                                    generation = expectedGeneration,
+                                    category = DownloadDeleteTraceCategory.TRICKPLAY,
+                                )
+                            )
                             File(context.filesDir, "trickplay/${item.seriesId}").deleteRecursively()
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                                    result = DownloadDeleteTraceResult.DONE,
+                                    sourceId = source.id,
+                                    generation = expectedGeneration,
+                                    category = DownloadDeleteTraceCategory.TRICKPLAY,
+                                )
+                            )
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                                    result = DownloadDeleteTraceResult.STARTED,
+                                    sourceId = source.id,
+                                    generation = expectedGeneration,
+                                    category = DownloadDeleteTraceCategory.IMAGES,
+                                )
+                            )
                             File(context.filesDir, "images/${item.seriesId}").deleteRecursively()
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                                    result = DownloadDeleteTraceResult.DONE,
+                                    sourceId = source.id,
+                                    generation = expectedGeneration,
+                                    category = DownloadDeleteTraceCategory.IMAGES,
+                                )
+                            )
                         }
                     }
                 }
             }
         }
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.HIERARCHY,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D6_HIERARCHY_ROWS_REMOVED,
+                result = DownloadDeleteTraceResult.REMOVED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+            )
+        )
 
         database.deleteUserData(item.id)
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.TRICKPLAY,
+            )
+        )
         File(context.filesDir, "trickplay/${item.id}").deleteRecursively()
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.TRICKPLAY,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.IMAGES,
+            )
+        )
         File(context.filesDir, "images/${item.id}").deleteRecursively()
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.IMAGES,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.IMAGE_CACHE,
+            )
+        )
         imageCacheStore.delete(item.id)
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.IMAGE_CACHE,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+            )
+        )
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -5059,9 +5608,11 @@ private constructor(
     private suspend fun snapshotActiveTasks(): List<DownloadTask> =
         refreshDownloadTasks().filter { task -> DownloadTaskRules.isActiveQueueStatus(task.status) }
 
-    private fun updateForegroundNotificationNow() {
+    private fun updateForegroundNotificationNow(): DownloadDeleteTraceResult {
         val now = System.currentTimeMillis()
-        if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) return
+        if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) {
+            return DownloadDeleteTraceResult.THROTTLED
+        }
         lastNotificationAt = now
         scope.launch {
             val aggregate = aggregateDownloadNotification(snapshotActiveTasks())
@@ -5074,6 +5625,7 @@ private constructor(
                 activeCount = aggregate.activeCount,
             )
         }
+        return DownloadDeleteTraceResult.SCHEDULED
     }
 
     private fun networkPolicyAllows(): Boolean {
