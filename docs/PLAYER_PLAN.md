@@ -10344,3 +10344,50 @@ K60 / Oppo / OnePlus、截图、服务器写均为 0。锁已释放，最终 SHA
 PC-03/04/05 near-end Exo/HLS seek-retry 簇。PC-02 后台加载、A3、通知总量与其它未跑行不得
 混入同一根因。诊断 owner 零设备、零产品写；先用 R5 事件序列与当前源码状态机给出一个可推翻
 的主假设，PASS 后才另派 fresh 实现 owner。
+
+### 52.70.22 Near-end seek 诊断 INCONCLUSIVE / 下载通知总量转诊断（2026-11-14）
+
+**状态：`SEEK_STALL_DIAGNOSIS_INCONCLUSIVE / NO_IMPLEMENTATION_GATE /
+DOWNLOAD_NOTIFICATION_DIAGNOSIS_NEXT / NOT_RELEASABLE`。**
+
+fresh `AURORAMA_141_PLAYER_CORE_SEEK_STALL_DIAGNOSIS_R1_2026_11_14` 只读追踪
+PC-03/04/05，确认唯一 seek 状态真源为 `SeekStateReducer.state`；
+`SeekRequestCoordinator.dispatches` 负责 generation/source，`PlaybackSeekSink._state` 只是投影。
+20 秒 progress watchdog 与 35 秒 HLS seek deadline 是两条不同恢复路径；R5 的“定位超时”来自
+seek reducer。
+
+诊断主假设为近片尾 HLS 尾部窗口未提供可进入 `STATE_READY` 的媒体；客户端进入 `Seeking` 后按
+设计超时，retry 复用原 target 且不保证刷新 source。支持证据是普通同源 seek 成功、仅近片尾
+失败、无 player error 的长时间 BUFFERING 与目标 `1,503,178 ms` / 引擎 `1,503,983 ms`。
+
+但最强反证仍足够阻断实现：R5 未记录 duration、buffered window、session start、replacement
+次数、transition / discontinuity / READY / ENDED 原始顺序，也没有 HLS playlist / segment /
+HTTP / parser error。因此不能在客户端、Exo source、HLS server 间确认首个停滞根因。
+
+结论：
+
+```text
+FAILURE_LAYER=INSUFFICIENT_EVIDENCE
+NEEDS_IMPLEMENTATION=NO
+NO_IMPLEMENTATION_GATE
+```
+
+理论最小生产表面仅为 `TranscodeSeekRules.kt`、`SeekPlayerEventListener.kt`，必要时再触
+`SeekStateReducer.kt` / `SeekRequestCoordinator.kt`；本会话不得猜改。下一最小证据必须是
+debug-only、行为不变的 near-end Exo/HLS 单路径 trace，记录 duration/current/buffered、session
+start、direct/replacement、READY/ENDED 顺序、source generation 与 load/http/parser 错误；不得
+重跑 A1-AUTO 或改 mpv。
+
+由于当前红线尚未授权安装额外 trace 包，播放器 seek 实现门保持关闭。负责人转去可完全离线
+诊断且已两次 signed 复现的 `P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001`：
+`AURORAMA_141_DOWNLOAD_NOTIFICATION_TOTAL_DIAGNOSIS_R1_2026_11_14` 只追 page `3.20 GB`
+与 notification `1.57 GB` 的跨界面公式，不改下载引擎 / Room / Worker，不与 seek 或 A3 混因。
+
+证据：
+
+- `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PLAYER_CORE_SEEK_STALL_DIAGNOSIS_R1.md`
+  / SHA-256 `9E184A1ACBA05A8668DE74431AEEE3D8E5243396A85C5EB68BF4133738474413`；
+- manifest SHA-256
+  `8590FD5E08CE8D693512426793CCE612D8A603E216A4C52A405838E6480A4819`，4/4 MATCH；
+- next contract：
+  `DOWNLOAD_NOTIFICATION_TOTAL_DIAGNOSIS_R1_PROMPT.md`。
