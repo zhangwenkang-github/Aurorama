@@ -10260,7 +10260,7 @@ QA R3 在 A3 后因连续三次宿主包装误用非 `pwsh` 而按合同停止�
 
 - `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_QA_R3.md`
   / manifest SHA-256
-  `ED00C1336A2A16CE0656FB2ADE22150AA7AD9C98E1124A43840BB85E7B130BC0`，3/3 MATCH；
+  `5D3E24A899A9A27F7303A670742CAF0EA52A7AFEEFA3E97FE3BF4D1B17EE2769`，2/2 MATCH；
 - next continuation contract：
   `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_QA_R4_PROMPT.md`。
 
@@ -10535,3 +10535,14 @@ fresh independent QA 在 Pad 真实 `S1E1 + S1E2` A2 验证页面/通知字节�
 
 后继负责人必须先从包含 `924b66fc` 的当前 clean HEAD 生成 signed R4，再用不同 fresh QA
 验证通知修复。不得复用 signed R3 / JVM fixture 作为通知 P2 的设备 PASS。
+
+R5 pre-handoff audit 第一轮 `BLOCKED` 后已修复两项控制面问题：
+
+- `FRESH_INDEPENDENT_QA_R3_MANIFEST.sha256` 移除证据根外的 live `device-lock.md` 指针，仅保留
+  可复算的 prompt + report，现为 2/2；当前 manifest SHA-256
+  `5D3E24A899A9A27F7303A670742CAF0EA52A7AFEEFA3E97FE3BF4D1B17EE2769`；
+- R4 Release prompt 明确 `092afea3..924b66fc` 为 3 个通知产品 / 测试文件 + 2 份 docs 共
+  5 路径，`924b66fc..CONTROL_HEAD` 为 docs-only，不再把两者混写为 3 文件。
+
+ACTIVE 的 read order / next path 已同步到 R5；修复后必须使用全新只读审计员重新审计，
+不得复用第一轮 BLOCKED audit。
