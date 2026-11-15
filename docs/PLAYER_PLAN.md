@@ -10950,3 +10950,47 @@ Release PASS。
 证据：
 `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_PC03_05_NEAR_END_HLS_SOURCE_BINDING_R1.md`
 及同名 `_MANIFEST.sha256`。
+
+### 52.70.34 Signed R6 Pad 回归：删除与 PC-03/05 主 bug 关闭（2026-11-15）
+
+**状态：`DELETE_P1=CLOSED_BY_SIGNED_R6 / PC03_05=CLOSED_BY_SIGNED_R6 /
+PLAYER_CORE_MATRIX=FAIL_RELEASE_NO_GO / 1.4.1=NOT_RELEASABLE`。**
+
+R6 以主分支精确修复源 `6080f043cfb7925196a12c083cb61abc050f944a` 构建 signed arm64
+`80,648,330 B / DC4BFA3CE175D693E82EAA9DDCCAFCD78FF315D51905B0B18B4E56A2E436D59A`。
+Pad `43af8627` 一次 `install -r` 保留 data / session，设备回拉 hash MATCH。
+
+删除回归：
+
+- 真实整季 12 叶活动下载中删除 S1E2；
+- 首个 UI 快照在 `3,388 ms` 收敛为 `0/11`，冷启动不复活；
+- signed R6 完成原用户 symptom 回归，`P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001` 可关闭；
+- A3 首帧仍 `NOT_PROVEN`，`P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN` 保持单独开放。
+
+PC-03/05 near-end HLS：
+
+- 使用 R5 同路径 `S1:E4 / 720p / 6 Mbps / target 1,393,960 ms`；
+- R6 接受 target 为 `1,394,038 ms` 后持续 PLAYING 至 EOS，并自动进入 S1:E5；
+- `S1:E1` 一次 retry 后 buffer 基线重置并恢复 PLAYING；
+- 普通前向 / 后退 / 连续 seek 均恢复 PLAYING；PC-12 错误卡与单一重试通过；
+- 因此 `P1-PLAYER-SEEK-001`、`P1-PLAYER-PROGRESS-001` 可关闭；0 截图，未将外部 source
+  故障伪写为产品 PASS。
+
+其它 Pad 结果：
+
+- PC-01 PASS（手动回 0 后推进 `17,899 ms`）；PC-02 PASS（关闭/开启后台播放行为都符合设置）；
+- PC-04 PASS（真实 EOS，active item `3→4`）；PC-07 PASS；PC-09 PASS；PC-12 PASS；
+- PC-06 `PARTIAL / NOT_PROVEN`：主字幕选择状态正确，但 0 截图约束下未证明实际 cues / 上屏；
+- PC-08 `NOT_RUN`：本轮优先收口 near-end 与删除，未执行第二账号全作用域；
+- PC-10 `BLOCKED / OPPO_ONE_PLUS_AUTHORIZATION_REQUIRED`；
+- PC-11 `PARTIAL`：cold restart 无 surprise autoplay；系统断网恢复未跑。
+
+R6 QA 新增 P0/P1/P2=`0/0/0`；覆盖缺口为 PC-06 实际渲染、PC-08 全作用域、PC-10 设备授权、
+PC-11 网络恢复，以及 A3 首帧。按 R042，任一 `NOT_RUN` / `NOT_PROVEN` 均不得用
+`PASS_WITH_GAPS` 放行，故 R6 仍 `RELEASE_NO_GO`。尚未 push / tag / Release。
+
+证据：
+
+- `AURORAMA_141_SIGNED_R6_PAD_RELEASE_QA_R1.md` / `_MANIFEST.sha256`；
+- `SIGNED_RELEASE_ENGINEERING_R6.md` / `_MANIFEST.sha256`；
+- `AURORAMA_141_PC03_05_MERGE_PREP_R1.md` / `_MANIFEST.sha256`。
