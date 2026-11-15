@@ -10,6 +10,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import com.zhangwenkang.cinefin.playback.CinefinPlaybackService
+import com.zhangwenkang.cinefin.player.local.presentation.PlayerExitFinalizationGate
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import timber.log.Timber
 
@@ -18,8 +19,7 @@ abstract class BasePlayerActivity : AppCompatActivity() {
     abstract val viewModel: PlayerViewModel
 
     private var wasPip: Boolean = false
-    private var explicitVideoExitStarted = false
-    private var explicitVideoExitStopsService = false
+    private val explicitVideoExitGate = PlayerExitFinalizationGate()
 
     /**
      * 是否允许「后台继续播放」：由子类读取设置项。
@@ -56,7 +56,7 @@ abstract class BasePlayerActivity : AppCompatActivity() {
 
         if (isInPictureInPictureMode) {
             wasPip = true
-        } else if (!explicitVideoExitStarted && !isChangingConfigurations) {
+        } else if (!explicitVideoExitGate.isCompleted && !isChangingConfigurations) {
             // 起播窗口内播放器的值不可信，不回存（bug ②）
             viewModel.rememberPlayWhenReady()
             /*
@@ -87,12 +87,9 @@ abstract class BasePlayerActivity : AppCompatActivity() {
          * 开启后台播放的用户例外——服务要继续把播放交给通知栏与锁屏。
          * W68：音乐会话同样例外——服务是音乐后台播放的通知 / 锁屏宿主，不能随视频页退出而停。
          */
-        if (explicitVideoExitStarted) {
-            if (explicitVideoExitStopsService) {
-                stopService(Intent(this, CinefinPlaybackService::class.java))
-            }
-        } else if (
-            !isChangingConfigurations &&
+        if (
+            !explicitVideoExitGate.isCompleted &&
+                !isChangingConfigurations &&
                 !isBackgroundAudioEnabled() &&
                 !viewModel.isMusicSessionActive
         ) {
@@ -108,15 +105,15 @@ abstract class BasePlayerActivity : AppCompatActivity() {
      *
      * @return 本次是否为第一次实际执行。重复调用必须直接 no-op。
      */
-    protected fun completeExplicitVideoExit(): Boolean {
-        if (explicitVideoExitStarted) return false
-        explicitVideoExitStarted = true
-        explicitVideoExitStopsService = viewModel.onExplicitVideoExit()
-        if (explicitVideoExitStopsService) {
-            stopService(Intent(this, CinefinPlaybackService::class.java))
-        }
-        return true
-    }
+    protected fun completeExplicitVideoExit(detachVideoOutput: () -> Unit = {}): Boolean =
+        explicitVideoExitGate.run(
+            detachVideoOutput = detachVideoOutput,
+            finalizePlayback = {
+                if (viewModel.onExplicitVideoExit()) {
+                    stopService(Intent(this, CinefinPlaybackService::class.java))
+                }
+            },
+        )
 
     private fun startPlaybackService() {
         try {

@@ -1299,20 +1299,24 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     private fun finishPlayback() {
-        if (!completeExplicitVideoExit()) {
+        val activePlayer = viewModel.existingPlayer
+        val videoOutput = binding.playerView.videoSurfaceView
+        val completed = completeExplicitVideoExit {
+            try {
+                // 视频输出已改为 TextureView（避免控制层覆盖时 SurfaceView 被遮挡变黑），
+                // 这里同时兼容两种输出类型；必须在 stop / release 前使用退出前实例分离。
+                when (videoOutput) {
+                    is SurfaceView -> activePlayer?.clearVideoSurfaceView(videoOutput)
+                    is TextureView -> activePlayer?.clearVideoTextureView(videoOutput)
+                    else -> Unit
+                }
+            } catch (e: Exception) {
+                Timber.e(e)
+            }
+        }
+        if (!completed) {
             if (!isFinishing) finish()
             return
-        }
-        try {
-            // 视频输出已改为 TextureView（避免控制层覆盖时 SurfaceView 被遮挡变黑），
-            // 这里同时兼容两种输出类型
-            when (val output = binding.playerView.videoSurfaceView) {
-                is SurfaceView -> viewModel.player.clearVideoSurfaceView(output)
-                is TextureView -> viewModel.player.clearVideoTextureView(output)
-                else -> Unit
-            }
-        } catch (e: Exception) {
-            Timber.e(e)
         }
         finish()
     }

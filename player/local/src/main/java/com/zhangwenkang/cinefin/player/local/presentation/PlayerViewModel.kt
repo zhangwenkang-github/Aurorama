@@ -45,10 +45,10 @@ import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackQueueEntry
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackRequestToken
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackSnapshotState
-import com.zhangwenkang.cinefin.player.local.domain.PlayerExitAction
-import com.zhangwenkang.cinefin.player.local.domain.PlayerExplicitExitController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.PlayerEndBehavior
+import com.zhangwenkang.cinefin.player.local.domain.PlayerExitAction
+import com.zhangwenkang.cinefin.player.local.domain.PlayerExplicitExitController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlayerItemEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackController
@@ -77,8 +77,8 @@ import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSource
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import com.zhangwenkang.cinefin.player.local.domain.seriesBackendKind
-import com.zhangwenkang.cinefin.player.local.domain.shouldStopPlaybackServiceOnExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
+import com.zhangwenkang.cinefin.player.local.domain.shouldStopPlaybackServiceOnExit
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackMapping
@@ -187,6 +187,9 @@ constructor(
 
     val player: Player
         get() = playerHolder.player
+
+    val existingPlayer: Player?
+        get() = playerHolder.existingPlayer
 
     private val _uiState =
         MutableStateFlow(
@@ -610,8 +613,7 @@ constructor(
                 )
             if (queued.isFailure) progressFallbackController.cancelCurrentGeneration()
         }
-        val recoveryTerminal =
-            playbackSessionState.terminal ?: lastProgressRecoveryTerminal
+        val recoveryTerminal = playbackSessionState.terminal ?: lastProgressRecoveryTerminal
         val progressRecoveryInput =
             PlayerProgressRecoveryInput(
                 sessionKey = sessionKey,
@@ -636,6 +638,14 @@ constructor(
             progressRecoveryJob?.cancel()
             progressRecoveryJob = null
         }
+        lastProgressRecoveryTerminal =
+            retireConfirmedProgressRecoveryTerminal(
+                lastProgressRecoveryTerminal,
+                recoveryObservation.phase,
+            )
+        if (lastProgressRecoveryTerminal == null) {
+            lastProgressRecoverySessionKey = null
+        }
         val suppressTerminal = progressFallbackController.suppressesTerminal(sessionKey)
         if (!suppressTerminal && progressRecoveryJob?.isActive != true) {
             progressRecoveryController.begin(progressRecoveryInput)?.let {
@@ -646,14 +656,11 @@ constructor(
             it.copy(
                 playbackSession =
                     PlaybackSessionRules.project(
-                        playbackSessionState,
-                        input,
-                        suppressTerminal = suppressTerminal,
-                    )
-                        .copy(
-                            progressRecovery =
-                                progressRecoveryController.status()?.toUi()
+                            playbackSessionState,
+                            input,
+                            suppressTerminal = suppressTerminal,
                         )
+                        .copy(progressRecovery = progressRecoveryController.status()?.toUi())
             )
         }
         seriesPlaybackTrace?.observePosition(
@@ -665,31 +672,39 @@ constructor(
 
     private fun launchProgressRecovery(firstRequest: PlayerProgressRecoveryRequest) {
         progressRecoveryJob?.cancel()
-        progressRecoveryJob =
-            viewModelScope.launch {
-                var request: PlayerProgressRecoveryRequest? = firstRequest
-                while (isActive && request != null) {
-                    val currentRequest = request
-                    delay(currentRequest.delayMs)
-                    if (!isActive || !progressRecoveryRequestIsCurrent(currentRequest)) {
-                        return@launch
-                    }
-                    retryPlaybackAt(
-                        position = currentRequest.targetPositionMs,
-                        positionSource =
-                            lastProgressRecoveryTerminal
-                                ?.takeIf { it.token == currentRequest.terminalToken }
-                                ?.positionSource,
-                    )
-                    delay(PROGRESS_RECOVERY_OBSERVE_WINDOW_MS)
-                    if (!isActive) return@launch
-                    request = progressRecoveryController.nextAttempt(currentRequest)
+        progressRecoveryJob = viewModelScope.launch {
+            var request: PlayerProgressRecoveryRequest? = firstRequest
+            var expectedSeekBinding = seekSink.state.progressRecoverySeekBinding()
+            while (isActive && request != null) {
+                val currentRequest = request
+                delay(currentRequest.delayMs)
+                if (
+                    !isActive ||
+                        !progressRecoveryRequestIsCurrent(
+                            currentRequest,
+                            expectedSeekBinding,
+                        )
+                ) {
+                    return@launch
                 }
+                retryPlaybackAt(
+                    position = currentRequest.targetPositionMs,
+                    positionSource =
+                        lastProgressRecoveryTerminal
+                            ?.takeIf { it.token == currentRequest.terminalToken }
+                            ?.positionSource,
+                )
+                expectedSeekBinding = seekSink.state.progressRecoverySeekBinding()
+                delay(PROGRESS_RECOVERY_OBSERVE_WINDOW_MS)
+                if (!isActive) return@launch
+                request = progressRecoveryController.nextAttempt(currentRequest)
             }
+        }
     }
 
     private fun progressRecoveryRequestIsCurrent(
         request: PlayerProgressRecoveryRequest,
+        expectedSeekBinding: ProgressRecoverySeekBinding?,
     ): Boolean {
         if (explicitExitController.isExited || !progressRecoveryController.isCurrent(request)) {
             return false
@@ -701,9 +716,14 @@ constructor(
             mediaItem.mediaId.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
                 ?: return false
         val mediaSourceId =
-            mediaItem.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
-                ?: return false
-        return PlaybackMediaIdentity(itemId, mediaSourceId) == request.mediaIdentity
+            mediaItem.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID) ?: return false
+        return progressRecoveryRequestIdentityIsCurrent(
+            request = request,
+            expectedSeekBinding = expectedSeekBinding,
+            currentSessionKey = currentPlaybackSessionKey(active, mediaItem),
+            currentMediaIdentity = PlaybackMediaIdentity(itemId, mediaSourceId),
+            currentSeekState = seekSink.state,
+        )
     }
 
     private fun PlayerProgressRecoveryStatus.toUi() =
@@ -909,8 +929,7 @@ constructor(
             playbackPosition = startPositionMs
         }
 
-        playbackStartupJob =
-            viewModelScope.launch {
+        playbackStartupJob = viewModelScope.launch {
             val startItem =
                 try {
                     runPlaybackStartupRequest {
@@ -940,10 +959,7 @@ constructor(
                 } catch (e: Exception) {
                     // W76-B11b：协程已被取消时，网络层可能抛出「取消的副产品」而不是 CancellationException
                     // （连接被中断的 IOException 等）。离开播放页时同样不该把它当成解析失败弹提示。
-                    if (
-                        !isActive ||
-                            !explicitExitController.isCurrent(exitGeneration)
-                    ) {
+                    if (!isActive || !explicitExitController.isCurrent(exitGeneration)) {
                         return@launch
                     }
                     Timber.e(e)
@@ -1037,8 +1053,7 @@ constructor(
             playbackSnapshots.generation == initializationGeneration
 
     private fun isActivePlaybackGeneration(exitGeneration: Long): Boolean =
-        !explicitExitController.isExited &&
-            explicitExitController.isCurrent(exitGeneration)
+        !explicitExitController.isExited && explicitExitController.isCurrent(exitGeneration)
 
     // Expand series metadata after playback starts, then refill from the new queue size.
     private fun fillQueueInBackgroundAfterSeriesExpansion() {
@@ -1245,8 +1260,7 @@ constructor(
         return shouldStopPlaybackServiceOnExit(
             musicSessionActive = isMusicSessionActive,
             explicitVideoExit = true,
-            backgroundAudioEnabled =
-                appPreferences.getValue(appPreferences.playerBackgroundAudio),
+            backgroundAudioEnabled = appPreferences.getValue(appPreferences.playerBackgroundAudio),
         )
     }
 
@@ -1269,16 +1283,14 @@ constructor(
         if (playbackResourcesFinalized) return
         val activePlayer = playerHolder.existingPlayer
         val mediaId = activePlayer?.currentMediaItem?.mediaId
-        val position =
-            playbackSessionState.lastEnginePositionMs
-                ?: confirmedPosition(activePlayer)
+        val position = playbackSessionState.lastEnginePositionMs ?: confirmedPosition(activePlayer)
         val duration = activePlayer?.duration ?: C.TIME_UNSET
         val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
         // Only the page-owned session reports a stop; attached music remains music-owned.
         if (
             action != PlayerExitAction.PRESERVE_MUSIC &&
                 action != PlayerExitAction.PRESERVE_BACKGROUND_VIDEO &&
-            shouldReportStopOnPlayerExit(playerHolder.isCurrentItemMusic) &&
+                shouldReportStopOnPlayerExit(playerHolder.isCurrentItemMusic) &&
                 itemId != null &&
                 position != null &&
                 duration != C.TIME_UNSET
@@ -1309,8 +1321,9 @@ constructor(
         playbackStartupJob = null
         startupInProgress = false
         playerHolder.existingPlayer?.removeListener(this)
-        if (action != PlayerExitAction.STOP_AND_RELEASE &&
-            action != PlayerExitAction.PAUSE_FOREGROUND_ONLY
+        if (
+            action != PlayerExitAction.STOP_AND_RELEASE &&
+                action != PlayerExitAction.PAUSE_FOREGROUND_ONLY
         ) {
             // Background playback keeps the instance alive; persist only the position.
             position?.let { savedStateHandle["position"] = it }
@@ -3464,6 +3477,58 @@ internal fun SeekState.explicitSeekFields() =
             Triple(it.targetMs, it.requestGeneration, it.sourceEpoch)
         }
 
+internal data class ProgressRecoverySeekBinding(
+    val targetMs: Long,
+    val requestGeneration: Long,
+    val sourceEpoch: Long,
+)
+
+internal fun SeekState.progressRecoverySeekBinding(): ProgressRecoverySeekBinding? =
+    when (this) {
+        is SeekState.Seeking ->
+            ProgressRecoverySeekBinding(targetMs, requestGeneration, sourceEpoch)
+        is SeekState.Confirmed ->
+            ProgressRecoverySeekBinding(targetMs, requestGeneration, sourceEpoch)
+        is SeekState.Failed -> ProgressRecoverySeekBinding(targetMs, requestGeneration, sourceEpoch)
+        SeekState.Idle -> null
+    }
+
+internal fun progressRecoveryRequestIdentityIsCurrent(
+    request: PlayerProgressRecoveryRequest,
+    expectedSeekBinding: ProgressRecoverySeekBinding?,
+    currentSessionKey: String?,
+    currentMediaIdentity: PlaybackMediaIdentity?,
+    currentSeekState: SeekState,
+): Boolean =
+    currentSessionKey == request.sessionKey &&
+        currentMediaIdentity == request.mediaIdentity &&
+        currentSeekState.progressRecoverySeekBinding() == expectedSeekBinding
+
+internal fun retireConfirmedProgressRecoveryTerminal(
+    terminal: PlayerViewModel.PlaybackRecovery?,
+    observation: PlayerProgressRecoveryPhase,
+): PlayerViewModel.PlaybackRecovery? = terminal.takeUnless {
+    observation == PlayerProgressRecoveryPhase.CONFIRMED
+}
+
+class PlayerExitFinalizationGate {
+    private var completed = false
+
+    val isCompleted: Boolean
+        get() = completed
+
+    fun run(
+        detachVideoOutput: () -> Unit,
+        finalizePlayback: () -> Unit,
+    ): Boolean {
+        if (completed) return false
+        completed = true
+        detachVideoOutput()
+        finalizePlayback()
+        return true
+    }
+}
+
 internal fun playbackSessionKeyFor(
     mediaIdentity: SeekMediaIdentity,
     snapshotGeneration: Long,
@@ -3610,7 +3675,8 @@ internal object PlaybackSessionRules {
         input: PlaybackSessionInput,
         suppressTerminal: Boolean = false,
     ): PlayerViewModel.PlaybackSessionUi {
-        val progressTerminal = state.terminal?.takeUnless { state.retryConsumed || suppressTerminal }
+        val progressTerminal =
+            state.terminal?.takeUnless { state.retryConsumed || suppressTerminal }
         val showError = input.playWhenReady && input.hasPlayerError
         val showSeekFailure = input.playWhenReady && !showError && input.hasSeekFailure
         return PlayerViewModel.PlaybackSessionUi(
@@ -3618,9 +3684,7 @@ internal object PlaybackSessionRules {
             showPlayerError = showError,
             showSeekFailure = showSeekFailure,
             loading =
-                !showError &&
-                    !showSeekFailure &&
-                    (progressTerminal != null || isLoading(input)),
+                !showError && !showSeekFailure && (progressTerminal != null || isLoading(input)),
             terminal = null,
             lastConfirmedPositionMs = state.lastEnginePositionMs,
         )

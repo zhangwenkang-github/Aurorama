@@ -7,6 +7,9 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackSource
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryInput
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryPhase
+import com.zhangwenkang.cinefin.player.local.domain.SeekConfirmationPolicy
+import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
+import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSourceKind
 import java.util.UUID
 import org.junit.Assert.assertEquals
@@ -47,7 +50,7 @@ class PlayerProgressFallbackTest {
 
         assertNotNull(state.terminal)
         assertNull(controller.evaluate(input))
-        assertNotNull(PlaybackSessionRules.project(state, playbackInput(state.key)).terminal)
+        assertNull(PlaybackSessionRules.project(state, playbackInput(state.key)).terminal)
     }
 
     @Test
@@ -261,8 +264,7 @@ class PlayerProgressFallbackTest {
         assertNull(controller.status())
 
         val readyController = PlayerProgressRecoveryController()
-        val readyInput =
-            recoveryInput(enginePositionMs = 0L, wasLoading = true)
+        val readyInput = recoveryInput(enginePositionMs = 0L, wasLoading = true)
         val readyRequest = present(readyController.begin(readyInput))
         val readyConfirmed =
             readyController.observe(
@@ -275,6 +277,105 @@ class PlayerProgressFallbackTest {
 
         assertTrue(readyController.isCurrent(readyRequest))
         assertEquals(PlayerProgressRecoveryPhase.CONFIRMED, readyConfirmed.phase)
+    }
+
+    @Test
+    fun `confirmed recovery terminal stays retired across pause and resume`() {
+        val controller = PlayerProgressRecoveryController()
+        val input = recoveryInput()
+        present(controller.begin(input))
+
+        val confirmed =
+            controller.observe(
+                input.copy(
+                    enginePositionMs = 1_000L,
+                    bufferedPositionMs = 2_000L,
+                )
+            )
+
+        assertEquals(PlayerProgressRecoveryPhase.CONFIRMED, confirmed.phase)
+        var retainedTerminal: PlayerViewModel.PlaybackRecovery? =
+            PlayerViewModel.PlaybackRecovery(
+                kind = "PLAYBACK_PROGRESS_TIMEOUT",
+                positionMs = 0L,
+                positionSource = PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
+                token = "terminal-a",
+            )
+        retainedTerminal =
+            retireConfirmedProgressRecoveryTerminal(retainedTerminal, confirmed.phase)
+        assertNull(retainedTerminal)
+
+        val paused = controller.observe(input.copy(playWhenReady = false))
+        assertEquals(PlayerProgressRecoveryPhase.CANCELLED, paused.phase)
+        assertNull(retireConfirmedProgressRecoveryTerminal(retainedTerminal, paused.phase))
+        assertNull(
+            controller.begin(
+                input.copy(
+                    terminalKind = retainedTerminal?.kind,
+                    terminalToken = retainedTerminal?.token,
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `newer explicit seek makes a recovery request stale`() {
+        val controller = PlayerProgressRecoveryController()
+        val request = present(controller.begin(recoveryInput()))
+        val seekIdentity =
+            SeekMediaIdentity(
+                itemId = EPISODE_ID.toString(),
+                mediaSourceId = SOURCE_ID,
+                sourceFingerprint = "source-fingerprint",
+            )
+        val policy =
+            SeekConfirmationPolicy(
+                completionTimeoutMs = 5_000L,
+                positionToleranceMs = 500L,
+                minimumTargetDisplayMs = 0L,
+            )
+        val originalSeek =
+            SeekState.Seeking(
+                targetMs = 40_000L,
+                requestGeneration = 11L,
+                sourceEpoch = 7L,
+                mediaIdentity = seekIdentity,
+                requestedAtMs = 1_000L,
+                policy = policy,
+            )
+        val originalBinding = originalSeek.progressRecoverySeekBinding()
+
+        assertTrue(
+            progressRecoveryRequestIdentityIsCurrent(
+                request = request,
+                expectedSeekBinding = originalBinding,
+                currentSessionKey = request.sessionKey,
+                currentMediaIdentity = request.mediaIdentity,
+                currentSeekState = originalSeek,
+            )
+        )
+        assertFalse(
+            progressRecoveryRequestIdentityIsCurrent(
+                request = request,
+                expectedSeekBinding = originalBinding,
+                currentSessionKey = request.sessionKey,
+                currentMediaIdentity = request.mediaIdentity,
+                currentSeekState =
+                    originalSeek.copy(
+                        targetMs = 55_000L,
+                        requestGeneration = 12L,
+                    ),
+            )
+        )
+        assertFalse(
+            progressRecoveryRequestIdentityIsCurrent(
+                request = request,
+                expectedSeekBinding = originalBinding,
+                currentSessionKey = request.sessionKey,
+                currentMediaIdentity = request.mediaIdentity,
+                currentSeekState = originalSeek.copy(sourceEpoch = 8L),
+            )
+        )
     }
 
     @Test
@@ -325,11 +426,7 @@ class PlayerProgressFallbackTest {
         controller.exhaust(second)
 
         val nextGeneration =
-            present(
-                controller.begin(
-                    recoveryInput(terminalToken = "terminal-next")
-                )
-            )
+            present(controller.begin(recoveryInput(terminalToken = "terminal-next")))
 
         assertEquals(1, nextGeneration.attempt)
         assertTrue(nextGeneration.generation > first.generation)

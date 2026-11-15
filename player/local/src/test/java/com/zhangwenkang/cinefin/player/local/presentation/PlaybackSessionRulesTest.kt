@@ -50,6 +50,22 @@ class PlaybackSessionRulesTest {
     private val capturedRecoveries = mutableMapOf<MPVPlayer, MutableList<ScheduledRecovery>>()
 
     @Test
+    fun `explicit exit detaches output before finalization and runs once`() {
+        val gate = PlayerExitFinalizationGate()
+        val actions = mutableListOf<String>()
+
+        fun exit(): Boolean =
+            gate.run(
+                detachVideoOutput = { actions += "detach" },
+                finalizePlayback = { actions += "finalize" },
+            )
+
+        assertTrue(exit())
+        assertFalse(exit())
+        assertEquals(listOf("detach", "finalize"), actions)
+    }
+
+    @Test
     fun `play action follows intent while loading`() {
         val loading = advance(input(isPlaying = false, isBuffering = true), 0L)
         assertTrue(loading.second.loading)
@@ -342,7 +358,7 @@ class PlaybackSessionRulesTest {
         assertEquals(
             5_000L,
             terminalAtDeadline(enginePositionMs = 5_000L, persistedResumeMs = 8_000L)
-                .second
+                .first
                 .terminal
                 ?.positionMs,
         )
