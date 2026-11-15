@@ -1727,17 +1727,19 @@ class JellyfinRepositoryImpl(
                         offline = false,
                     ),
                 fetch = {
-                    jellyfinApi.showsApi
-                        .getEpisodes(
-                            seriesId,
-                            jellyfinApi.userId!!,
-                            seasonId = seasonId,
-                            fields = fields,
-                            startItemId = startItemId,
-                            limit = limit,
-                        )
-                        .content
-                        .items
+                    withContext(Dispatchers.IO) {
+                        jellyfinApi.showsApi
+                            .getEpisodes(
+                                seriesId,
+                                jellyfinApi.userId!!,
+                                seasonId = seasonId,
+                                fields = fields,
+                                startItemId = startItemId,
+                                limit = limit,
+                            )
+                            .content
+                            .items
+                    }
                 },
                 materialize = { dtos ->
                     withContext(Dispatchers.IO) {
