@@ -11240,3 +11240,83 @@ exception class。release、错误态、网络、重试、DTO、mapping、cache�
 当前 A3 P2、Series P1、A3 删除首帧和 1.4.1 Release 仍开放；本次 trace 不是修复，不能写
 `A3_FIXED`、`QA_PASS` 或 `RELEASE_PASS`。R9 自己的交接规则与 Bug Loop 八字段见
 `NEXT_LEADER_PROMPT_R9.md`。
+
+### 52.70.40 R9 A3 debug trace 审查：直接异常已捕获，A3 仍 OPEN（2026-11-15）
+
+R9 负责人固定身份 `AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R9_2026_11_15`。用户 2026-11-15
+授权范围内，fresh owner `AURORAMA_141_A3_READ_FAILURE_TRACE_OWNER_R1_2026_11_15` 已在隔离
+worktree/branch 完成默认 no-op、仅 debug 的 `DownloadTargetsTrace`：
+
+```text
+WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-a3-read-trace-r1-2026-11-15\Aurorama
+BRANCH=codex/v141-a3-read-trace-r1-2026-11-15
+BASE_HEAD=69f8a35a22601b8e243ff741cb564da6fd75b1ea
+CANDIDATE_HEAD=0c1bc2f0865df21408d73d4316bfc7e877ccd634
+CANDIDATE_TREE=fdc27c6c67d106be98b4d6557e4e7a107ae3d006
+CHANGED_PATH_COUNT=8
+CANDIDATE_CLEAN=YES
+```
+
+TDD 与定向门实际执行：
+
+```text
+CORE_TARGET_TESTS=3/0/0/0
+DATA_TARGET_TESTS=4/0/0/0
+FILM_TARGET_TESTS=2/0/0/0
+KTFMT_CHECK=PASS
+DEBUG_BUILD=PASS
+RELEASE_COMPILE=PASS
+DEBUG_TRACE_CLASS_HITS=10
+RELEASE_TRACE_CLASS_HITS=0
+PAD_SELFTEST=PASS / ONE_OBSERVATION
+```
+
+唯一 Pad `43af8627` selftest 在既有 Show 下载对话框中由同一 App PID `25693` 记录两条事件：
+
+```text
+FETCH_PHASE=FETCH_FAILURE
+CONSUMER_PHASE=CONSUMER_FAILURE
+EXCEPTION_CLASS=NetworkOnMainThreadException
+HTTP_STATUS=UNAVAILABLE_NO_RESPONSE
+ITEMS_COUNT=UNAVAILABLE_NO_RESPONSE
+UI=读取剧集失败
+```
+
+该结果证明本次用户路径直接抛出 `NetworkOnMainThreadException`，异常发生在取得 Episodes HTTP
+响应之前。它没有证明上游具体是哪一处 suspend / dispatcher 边界未切换到 IO，也没有证明
+signed R6 当前运行时行为。R9 审查关键 diff、脱敏、production/release no-op、测试 XML、APK
+signer 与 owner manifest 后判定：
+
+```text
+LEAD_REVIEW=PASS
+DECISION=ACCEPT_TRACE_ONLY_IMPLEMENTATION
+A3_STATUS=OPEN / NOT_FIXED
+UPSTREAM_THREADING_CAUSE=NOT_YET_PROVEN
+SIGNED_RELEASE_CURRENT_RUNTIME=UNKNOWN
+INDEPENDENT_QA=NOT_RUN
+MERGE_PREP=NOT_RUN
+RELEASE_READY=NO
+```
+
+trace 只输出 App PID、request family、series/season opaque hash、单调时间、phase、HTTP status、
+item count 与安全 exception class chain；未发现 token、cookie、password、URL、query、完整媒体
+路径或完整 DTO 泄漏。release 编译产物不包含 debug owner / module / trace prefix，release 保持
+默认 no-op。
+
+owner manifest `16/16 MATCH`，R9 lead-review manifest `9/9 MATCH`。证据入口：
+
+- [owner report](../evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14/AURORAMA_141_A3_READ_FAILURE_TRACE_OWNER_R1_2026_11_15_REPORT.md)；
+- [owner result](../evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14/AURORAMA_141_A3_READ_FAILURE_TRACE_OWNER_R1_2026_11_15_RESULT.json)；
+- [owner manifest](../evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14/AURORAMA_141_A3_READ_FAILURE_TRACE_OWNER_R1_2026_11_15_MANIFEST.sha256)；
+- [R9 lead review](../evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14/AURORAMA_141_A3_READ_FAILURE_TRACE_LEAD_REVIEW_R9_2026_11_15.md)；
+- [R9 lead-review manifest](../evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14/AURORAMA_141_A3_READ_FAILURE_TRACE_LEAD_REVIEW_R9_2026_11_15_MANIFEST.sha256)。
+
+本轮 queue click、playback、delete、screenshot、`view_image`、K60、Oppo 针对性命令均为 0；
+Pad 锁最终 `RELEASED / ACTIVE=0 / LOCK_ACTIVE=0`，安装、data、session 与用户下载保留。没有新增
+P0–P2，Series P1、A3 读取失败 P2 与 A3 删除首帧 P2 仍 OPEN。1.4.1 仍 `NOT_RELEASABLE`，本轮不
+请求最终验收、不执行独立 QA、不 merge、不 push/tag/Release。
+
+下一波由 fresh R10 负责人只读消费本结论，并派 fresh read-only discriminator 定位
+`ShowViewModel.loadDownloadTargets -> JellyfinRepositoryImpl.getEpisodes -> ShowsApi.getEpisodes`
+为何在本路径主线程执行网络调用。第一条只读动作必须沿该 suspend / dispatcher 链建立最小证据，
+不得直接把 `NetworkOnMainThreadException` 写成上游根因或产品修复授权。
