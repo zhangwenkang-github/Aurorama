@@ -8,7 +8,7 @@
 ### ACTIVE — AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
-- TASK_STAGE=STOPPED_A3_NEW_P2 / SERIES_R2_NOT_COMPARABLE / PLAYER_CORE_PC01_PC12_UNCHANGED / NOT_RELEASABLE
+- TASK_STAGE=HANDOFF_TO_R8 / SERIES_R2_NOT_COMPARABLE / A3_STOPPED_NEW_P2 / NOT_RELEASABLE
 - MERGE_PREP_STAGE=PASS / CANDIDATE_READY_FOR_DELIVERY_LEAD_DECISION / NOT_RELEASABLE
 - MERGE_PREP_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\r6-delete-fix-merge-prep\Aurorama
 - MERGE_PREP_BRANCH=codex/r6-delete-fix-merge-prep
@@ -25,7 +25,7 @@
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - CANONICAL_BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- HANDOFF_HEAD=0b761f0e9fe8a325239218de9601c55d1f09bd93 / HANDOFF_TREE=4fc29d7f44a0eb601462707ae9c5002b2ad5d872
+- HANDOFF_HEAD=ae9e4c4efed24dd751a7b71cfba8edd5d1a82dd8 / HANDOFF_TREE=c66179efa38a0f3a6d0c62053c0d98455371bb8b
 - CONTROL_PLANE_DIFF=IMPLEMENTATION_PATHS=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt;player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt;player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlayerProgressFallback.kt;player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerProgressFallbackTest.kt;docs/PLAYER_PLAN.md;docs/TASKS.md
 - READ_ORDER=PROJECT_PLAN > TASKS ACTIVE > PLAYER_PLAN 52.70.27-52.70.29 > source diagnosis R1 > signed observer R1 > FRESH_INDEPENDENT_SIGNED_QA_R4 > AURORAMA_141_STATE_EFFECT_MATRIX_R1 sections 2/7 > TEST_PLAN 8 > PROJECT_RULES R010/R014/R018/R019/R034/R038/R042/R043
 - NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama\docs\PLAYER_PLAN.md
@@ -155,12 +155,12 @@
 - P1=P1-PAD-ONLINE-PLAYBACK-STALL-001:CLOSED_BY_SIGNED_R3_A1_AUTO;P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001:OPEN;P1-AB-SERVER-WRITE-ATTEMPT-001:ACCEPTED_BY_USER_NONBLOCKING_2026_11_15;P1-PLAYER-SEEK-001:CLOSED_BY_SIGNED_R6_PC03_05;P1-PLAYER-PROGRESS-001:CLOSED_BY_SIGNED_R6_PC05;P1-QA-EVIDENCE-MEDIA-PATH-OUTPUT-001:ACCEPTED_BY_USER_NONBLOCKING;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:CLOSED_BY_SIGNED_R6_PAD_QA;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:CLOSED_BY_R5_A4
 - P2=P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001:CLOSED_BY_SIGNED_R4_QA;P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN:OPEN;P2-A3-DOWNLOAD-SEASON-EPISODE-READ-FAILURE-001:OPEN_USER_VISIBLE_ROOT_CAUSE_NOT_CLASSIFIED;P2-PLAYER-LOADING-001:CLOSED_EXPECTED_BACKGROUND_PAUSE_WITH_SETTING_OFF;P2-PLAYER-STALL-001:CLOSED_BY_SIGNED_R6_PC03_05;P2-PLAYER-UI-MEDIASESSION-TERMINAL-DIVERGENCE-001:CLOSED_BY_SIGNED_R6_PC03_05_PC12;P2-PLAYER-RAW-ERROR-TOKEN-UI-001:CLOSED_BY_SIGNED_R6_PC12;P2-K60-LOCAL-DOWNLOAD-SOURCE-MISSING-001:NOT_REACHED_SERIES_AB_STOPPED
 - P3=PLAYER_CORE_PC01_PC12_PASS;SERIES_R2_NOT_COMPARABLE;A3_NOT_RUN
-- CONTEXT_USAGE=283527 / 1048576 (27.0%); measured 2026-11-15 11:33 +08
-- NEXT_ROLE=AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSTICIAN_R1_2026_11_15
-- FIRST_READ_ACTION=Diagnostician must run status, read ACTIVE and PLAYER_PLAN 52.70.37 and the A3 report, then classify Show-Season-Episodes read failure read-only without playback/download/delete
-- NEXT_ACTION=Fresh read-only diagnosis only; no user final acceptance or release while Series P1 and A3 P2s remain open; no push/tag/Release
-- STOP_CONDITION=stop on object/APK/signer drift, device lock conflict, playback/download/delete, metadata or destructive server write, user data loss, or new P0-P2
-- CURRENT_HANDOFF=R7_STOPPED_A3_PREFLIGHT_P2_2026_11_15
+- CONTEXT_USAGE=337554 / 1048576 (32.2%); measured 2026-11-15 12:07 +08
+- NEXT_ROLE=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R8_2026_11_15
+- FIRST_READ_ACTION=R8 must run status and self-contained handoff prompt, read ACTIVE and PLAYER_PLAN 52.70.37, verify clean docs HEAD, R6 hashes/signer, unique ACTIVE and released locks, then dispatch a fresh read-only Season-Episodes diagnostic after BugLoopPrompt lint
+- NEXT_ACTION=R8 only coordinates a fresh read-only diagnosis of P2-A3-DOWNLOAD-SEASON-EPISODE-READ-FAILURE-001; do not retry A3, implement, request final acceptance, or release before classification
+- STOP_CONDITION=stop on object/APK/signer drift, device lock conflict, playback/download/delete, metadata or destructive server write, user data loss, unresolved diagnostics, or new P0-P2
+- CURRENT_HANDOFF=R7_TO_R8_A3_READ_FAILURE_2026_11_15
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1897,9 +1897,9 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 - QA_READY=NO
 - QA_RESULT=PLAYER_CORE_PC01_PC12=PASS_WITH_DEVICE_EVIDENCE;PC06_VISUAL=PASS;PC08=PASS;PC10_OPPO=PASS;PC11_NETWORK_RECOVERY=PASS;SERVER_WRITE_ATTEMPT=ACCEPTED_BY_USER;SERIES_R2=NOT_COMPARABLE;A3=STOPPED_NOT_PROVEN;NEW_P2=SEASON_EPISODES_READ_FAILURE_OPEN;RELEASE_READY=NO
 - UNCOVERED=Series strict same-state after progress write; A3 first-frame proof; A3 download Season-Episodes read-failure cause; final user acceptance
-- STOP_CONDITION=Do not retry A3 or implement until fresh diagnosis classifies the new P2; no playback, user-data deletion, metadata mutation, destructive server write, push/tag/Release
+- STOP_CONDITION=R8 must not retry A3, implement, request final acceptance, or release until a fresh read-only diagnosis classifies the Season-Episodes read failure; no playback, user-data deletion, metadata mutation, destructive server write, push/tag/Release
 - MANUAL_LIMITATION=Non-destructive playback session/progress/UserData writes are user-accepted; metadata/data deletion remains forbidden
-- MANUAL_OWNER=AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSTICIAN_R1_2026_11_15
+- MANUAL_OWNER=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R8_2026_11_15
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |

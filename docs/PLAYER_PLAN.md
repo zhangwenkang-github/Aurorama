@@ -11119,7 +11119,12 @@ OnePlus 在 A3 为零命令，截图与视觉 QA 均为 0。Player Core PC-01–
 - `aurorama_141_a3_deleting_first_frame_qa_r1/A3_PREFLIGHT_AND_BLOCKER_PROJECTION.txt`，
   SHA-256 `5E0CA37026C0032D1A7E0089CE395F2EB617B4DC9E39A02BFCD3C2F909AA0C6B`。
 
-下一角色必须是 fresh 只读 `AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSTICIAN_R1_2026_11_15`：
-先只读分类 debug App 的 Show→Season→Episodes 读取失败，区分 UI → ViewModel → repository 的
-HTTP / auth / DTO / mapping / cache / Room 分支；不得播放、下载、删除用户数据或改 metadata。
-任一对象 / APK / 锁漂移、需要破坏性写或新 P0/P1/P2 时停止。
+本轮实测上下文 `337,554 / 1,048,576（32.2%）`，进入准备交接档。后继必须先是 fresh
+`AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R8_2026_11_15`，由新负责人重新核验对象、唯一 ACTIVE、
+R6、设备锁和本轮证据，再派 fresh 只读
+`AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSTICIAN_R1_2026_11_15`。
+
+诊断 owner 只分类 debug App 的 Show→Season→Episodes 读取失败，区分 UI → ViewModel → repository
+的 HTTP / auth / DTO / mapping / cache / Room 分支；不得播放、下载、删除用户数据或改 metadata。
+对象 / APK / 锁漂移、需要破坏性写或新 P0/P1/P2 时停止。R8 负责人不得把本轮局部结论扩写为
+Series P1 关闭、A3 P2 关闭、Release PASS 或用户最终验收。
