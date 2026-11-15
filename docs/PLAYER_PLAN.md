@@ -11417,3 +11417,39 @@ P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN=OPEN
 本轮未创建后继负责人：当前只剩一个需要用户授权的具体后续输入，不满足“下一任务已授权、具体、
 可立即执行”的交接条件。用户若批准，应另派 fresh、行为不变、仅 debug 的同 PID 单次失败栈采集
 owner；不得把该输入扩成产品修复或 Release 工作。
+
+### 52.70.42 R11 负责人托管授权：直接修复并发布 1.4.1（2026-11-15）
+
+用户 2026-11-15 明确修订授权方式：以后常规技术阶段的授权由负责人判断，不再逐项等待用户确认；
+目标是直接继续 A3 修复、独立 QA、Release engineering，并尽快正式发布 1.4.1。负责人固定身份为
+`AURORAMA_141_RELEASE_RECOVERY_LEAD_R11_2026_11_15`。
+
+该授权覆盖诊断补证、行为不变 debug-only 采集、最小产品修复、隔离 worktree、构建、真实设备
+测试、独立 QA、signed candidate、资产 / Release notes、push、tag 与 GitHub Release。它不取消
+以下硬门：
+
+- A3 仍须先用同 App PID、同 foreground miss 的一次脱敏失败栈定位实际失败边界；禁止在证据
+  不足时猜改 `Dispatchers.IO`、网络、重试、DTO、mapping、cache、Room、Worker 或 player；
+- 实现与独立 QA 必须由不同 fresh owner 承担；实现 owner 不派 QA、不做 merge-prep / Release；
+- 核心用户旅程必须在 exact signed candidate 上真实执行；`PASS_WITH_GAPS` 不得覆盖未执行或失败
+  的核心行；
+- 设备独占锁、显式 serial、生产服务器只读、用户数据保留、凭据 / query / 媒体路径脱敏不变；
+- 1.4.1 只有在开放 P1、高频阻断 P2、A3 读取 / 删除首帧、Series strict same-state 与
+  `PLAYER_CORE_RELEASE_MATRIX` 全部完成闭环后才可发布。
+
+当前已由负责人批准唯一下一步：
+
+```text
+ROLE=AURORAMA_141_A3_MAIN_THREAD_FAILURE_STACK_OWNER_R1_2026_11_15
+INPUT=SAME_APP_PID_SAME_FOREGROUND_MISS_SANITIZED_FETCH_FAILURE_STACK
+LIMIT=ONE_FAILURE / DEBUG_ONLY / BEHAVIORAL_NO_OP / NO_USER_DATA_WRITE
+OUTPUT=THREAD_NAME_STATE_PLUS_SANITIZED_CLASS_METHOD_LINE_STACK
+```
+
+owner 必须在隔离 worktree 工作，第一条实际动作对精确 prompt 运行
+`v2-handoff-lint.ps1 -Mode BugLoopPrompt`，只有 PASS 才继续。采集只允许一次既有 Show 下载
+对话框失败现场；不创建下载任务、不播放、不删除用户数据，不输出 message、URL/query、token、
+cookie、password、DTO 或媒体路径。
+
+采集后 R11 负责人直接决定根因与最小修复范围；后续继续实现、独立 QA、signed candidate 和正式
+发布，不再请求用户逐阶段授权。

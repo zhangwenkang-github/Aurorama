@@ -8,7 +8,7 @@
 ### ACTIVE — AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
-- TASK_STAGE=R10_A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_INCONCLUSIVE / NO_IMPLEMENTATION_GATE / A3_OPEN / USER_DECISION_REQUIRED_FOR_SANITIZED_FETCH_FAILURE_STACK / NOT_RELEASABLE
+- TASK_STAGE=R11_LEAD_MANAGED_RELEASE_RECOVERY / A3_SANITIZED_FAILURE_STACK_AUTHORIZED / A3_OPEN / NOT_RELEASABLE
 - MERGE_PREP_STAGE=HISTORICAL_R6_MERGE_PREP_PASS / NO_MERGE_PREP_FOR_TRACE_CANDIDATE / NOT_RELEASABLE
 - MERGE_PREP_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\r6-delete-fix-merge-prep\Aurorama
 - MERGE_PREP_BRANCH=codex/r6-delete-fix-merge-prep
@@ -18,7 +18,7 @@
 - MERGE_PREP_GATES=CORE_JVM_412/0/0/0;FILM_DELETION_18/0/0/0;KTFMT_PASS;PHONE_ASSEMBLE_PASS;RELEASE_COMPILE_PASS;RELEASE_TRACE_HITS=0;PROTECTED_PATH_HITS=0
 - MERGE_PREP_APK=app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk;LENGTH=151634887;SHA256=969A279D9F73F44193779BC2D860422A5E681B98AAA5FDF973C4335384117908
 - MERGE_PREP_EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_DELETE_FIX_MERGE_PREP_R1.md
-- PROFESSIONAL_IDENTITY=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R10_2026_11_15
+- PROFESSIONAL_IDENTITY=AURORAMA_141_RELEASE_RECOVERY_LEAD_R11_2026_11_15
 - WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - WORKTREE_POLICY=EXACT_ABSOLUTE
@@ -28,8 +28,8 @@
 - R9_HANDOFF_HEAD=69f8a35a22601b8e243ff741cb564da6fd75b1ea / R9_HANDOFF_TREE=b8a9eef690e4a86c085d0823f42c4f1bc55cde15
 - CONTROL_PLANE_DIFF=IMPLEMENTATION_PATHS=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt;player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt;player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlayerProgressFallback.kt;player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerProgressFallbackTest.kt;docs/PLAYER_PLAN.md;docs/TASKS.md
 - R10_CONTROL_PLANE_DIFF=DOCS_ONLY=docs/PLAYER_PLAN.md;docs/TASKS.md
-- READ_ORDER=AGENTS > PROJECT_RULES R010/R014/R018/R019/R027/R028/R034/R037/R038/R041/R042/R043 > TASKS ACTIVE > PLAYER_PLAN 52.70.38-52.70.41 > A3 diagnosis R1 > trace owner report/result/manifest > R9 lead review/manifest > trace candidate 8-path diff > TEST_PLAN 8 > R10 network-main-thread discriminator report/result/manifest > specified source/SDK/APK chain
-- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_OWNER_R1_2026_11_15_REPORT.md
+- READ_ORDER=AGENTS > PROJECT_RULES R010/R014/R018/R019/R027/R028/R034/R037/R038/R041/R042/R043 > TASKS ACTIVE > PLAYER_PLAN 52.70.38-52.70.42 > R10 discriminator report/result/manifest > A3 stack capture contract > TEST_PLAN 8 > current A3 fix/QA/release evidence
+- NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_A3_MAIN_THREAD_FAILURE_STACK_OWNER_R1_2026_11_15_PROMPT.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\USER_ACCEPTANCE_FAIL.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\COVERAGE_GAP_ANALYSIS.md
 - EVIDENCE=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_STATE_EFFECT_MATRIX_R1.md
@@ -160,13 +160,14 @@
 - P0=0;NEW_P0=0;IMPL_R1_NO_NEW_P0
 - P1=P1-PAD-ONLINE-PLAYBACK-STALL-001:CLOSED_BY_SIGNED_R3_A1_AUTO;P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001:OPEN;P1-AB-SERVER-WRITE-ATTEMPT-001:ACCEPTED_BY_USER_NONBLOCKING_2026_11_15;P1-PLAYER-SEEK-001:CLOSED_BY_SIGNED_R6_PC03_05;P1-PLAYER-PROGRESS-001:CLOSED_BY_SIGNED_R6_PC05;P1-QA-EVIDENCE-MEDIA-PATH-OUTPUT-001:ACCEPTED_BY_USER_NONBLOCKING;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:CLOSED_BY_SIGNED_R6_PAD_QA;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:CLOSED_BY_R5_A4
 - P2=P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001:CLOSED_BY_SIGNED_R4_QA;P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN:OPEN;P2-A3-DOWNLOAD-SEASON-EPISODE-READ-FAILURE-001:OPEN_DIRECT_EXCEPTION_CAPTURED_UPSTREAM_DISPATCHER_UNKNOWN;P2-PLAYER-LOADING-001:CLOSED_EXPECTED_BACKGROUND_PAUSE_WITH_SETTING_OFF;P2-PLAYER-STALL-001:CLOSED_BY_SIGNED_R6_PC03_05;P2-PLAYER-UI-MEDIASESSION-TERMINAL-DIVERGENCE-001:CLOSED_BY_SIGNED_R6_PC03_05_PC12;P2-PLAYER-RAW-ERROR-TOKEN-UI-001:CLOSED_BY_SIGNED_R6_PC12;P2-K60-LOCAL-DOWNLOAD-SOURCE-MISSING-001:NOT_REACHED_SERIES_AB_STOPPED
-- P3=PLAYER_CORE_PC01_PC12_PASS;SERIES_R2_NOT_COMPARABLE;A3_READ_FAILURE_TRACE_OWNER_R1=PASS;TRACE_LEAD_REVIEW_R9=PASS;A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_R10=INCONCLUSIVE;P3-DIAG-LOCK-POST-RELEASE-READ-001
+- P3=PLAYER_CORE_PC01_PC12_PASS;SERIES_R2_NOT_COMPARABLE;A3_READ_FAILURE_TRACE_OWNER_R1=PASS;TRACE_LEAD_REVIEW_R9=PASS;A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_R10=INCONCLUSIVE;R10_PRE_HANDOFF_AUDIT=PASS;P3-DIAG-LOCK-POST-RELEASE-READ-001
 - CONTEXT_USAGE=199996 / 1048576 (19.1%); measured 2026-11-15 14:12 +08
-- NEXT_ROLE=USER_DECISION_REQUIRED_FOR_SANITIZED_FETCH_FAILURE_STACK
-- FIRST_READ_ACTION=No successor is created while the task is waiting for user authorization; if authorized, a fresh read-only owner must first run BugLoopPrompt lint against its exact prompt, then capture only one same-App-PID foreground-miss sanitized failure stack
-- NEXT_ACTION=user decides whether to authorize the one minimal sanitized failure-stack input; no fix, retest, QA, merge, push, tag, Release or final acceptance before that decision
-- STOP_CONDITION=stop on object, APK, signer, ACTIVE, prompt or lock drift; product behavior change without new authorization; device, instrumentation or QA without a fresh authorized task; destructive server write; user data deletion; credential exposure; new P0-P2; or any fix attempted before the single sanitized failure-stack input
-- CURRENT_HANDOFF=R10_WAVE_CLOSED_TO_USER_DECISION_2026_11_15;DISCRIMINATION=INCONCLUSIVE;NO_SUCCESSOR_CREATED;REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_OWNER_R1_2026_11_15_REPORT.md
+- AUTHORIZATION_POLICY=LEAD_MANAGED_NO_USER_CONFIRMATION / USER_2026_11_15_DIRECTIVE_TO_FIX_AND_RELEASE_1_4_1
+- NEXT_ROLE=AURORAMA_141_A3_MAIN_THREAD_FAILURE_STACK_OWNER_R1_2026_11_15
+- FIRST_READ_ACTION=fresh owner must first run BugLoopPrompt lint against its exact prompt, then capture exactly one same-App-PID foreground-miss failed-thread/state and sanitized stack in an isolated debug-only worktree
+- NEXT_ACTION=R11 authorizes and dispatches A3 failure-stack capture; after evidence review, continue directly to minimal fix, independent QA and 1.4.1 Release without user stage approval
+- STOP_CONDITION=stop only on object or lock drift; evidence cannot distinguish the failure boundary; debug instrumentation changes user behavior or leaks sensitive data; destructive server write; user-data deletion; new P0-P2 outside current plan; owner boundary breach; or evidence contradicts the published candidate without a safe containment path
+- CURRENT_HANDOFF=R11_A3_FAILURE_STACK_CAPTURE_AUTHORIZED_2026_11_15;AUTHORIZATION=LEAD_MANAGED;TARGET=1.4.1_RELEASE;R10_REPORT=F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_OWNER_R1_2026_11_15_REPORT.md
 - TRACE_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-a3-read-trace-r1-2026-11-15\Aurorama
 - TRACE_BRANCH=codex/v141-a3-read-trace-r1-2026-11-15
 - TRACE_BASE_HEAD=69f8a35a22601b8e243ff741cb564da6fd75b1ea / TRACE_BASE_TREE=b8a9eef690e4a86c085d0823f42c4f1bc55cde15
@@ -196,10 +197,10 @@
 - RETIRED_ROLE=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R10_2026_11_15
 - RETIRED_ROLE=AURORAMA_141_A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_R1_2026_11_15
 - OPEN_LONG_TERM_PLAN_IDS=P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001;P2-A3-DOWNLOAD-SEASON-EPISODE-READ-FAILURE-001;P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN;P3-DIAG-LOCK-POST-RELEASE-READ-001
-- NEXT_CRITICAL_PATH=USER_DECISION_ON_ONE_SANITIZED_SAME_PID_FETCH_FAILURE_STACK_THEN_MINIMAL_IMPLEMENTATION_GATE
+- NEXT_CRITICAL_PATH=A3_SANITIZED_SAME_PID_FETCH_FAILURE_STACK_THEN_MINIMAL_FIX_THEN_FRESH_QA_THEN_SIGNED_RELEASE
 - CURRENT_DELEGATED_ROLE=NONE
-- NEXT_LEADER_PROMPT_SHA256=NONE
-- NEXT_LEADER_PROMPT_LINT=NOT_APPLICABLE_NO_AUTHORIZED_SUCCESSOR
+- NEXT_LEADER_PROMPT_SHA256=PENDING_A3_STACK_OWNER_PROMPT
+- NEXT_LEADER_PROMPT_LINT=PENDING_BUG_LOOP_PROMPT_LINT
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1916,11 +1917,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- QA_RESULT=PLAYER_CORE_PC01_PC12=PASS_WITH_DEVICE_EVIDENCE;PC06_VISUAL=PASS;PC08=PASS;PC10_OPPO=PASS;PC11_NETWORK_RECOVERY=PASS;SERVER_WRITE_ATTEMPT=ACCEPTED_BY_USER;SERIES_R2=NOT_COMPARABLE;A3_DEBUG_TRACE=OWNER_PASS_R9_REVIEW_PASS;A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_R10=INCONCLUSIVE;A3_DIRECT_EXCEPTION=NetworkOnMainThreadException;A3_HTTP_STATUS=UNAVAILABLE_NO_RESPONSE;A3_STILL_OPEN;RELEASE_READY=NO
-- UNCOVERED=same-App-PID foreground-miss failed thread and sanitized stack; signed R6 current Season-Episodes runtime impact; A3 deletion first-frame; Series strict same-state after progress write; final user acceptance
-- STOP_CONDITION=No successor is created while waiting for user authorization; any authorized stack capture must remain behavioral no-op, debug-only, one foreground miss, sanitized, and cannot enter product fix, independent QA, A3 retry, final acceptance or release
+- QA_RESULT=PLAYER_CORE_PC01_PC12=PASS_WITH_DEVICE_EVIDENCE;PC06_VISUAL=PASS;PC08=PASS;PC10_OPPO=PASS;PC11_NETWORK_RECOVERY=PASS;SERVER_WRITE_ATTEMPT=ACCEPTED_BY_USER;SERIES_R2=NOT_COMPARABLE;A3_DEBUG_TRACE=OWNER_PASS_R9_REVIEW_PASS;A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_R10=INCONCLUSIVE;R10_PRE_HANDOFF_AUDIT=PASS;A3_STACK_CAPTURE=AUTHORIZED;A3_STILL_OPEN;RELEASE_READY=NO
+- UNCOVERED=same-App-PID foreground-miss failed thread and sanitized stack; A3 root-cause fix and current-runtime retest; A3 deletion first-frame; Series strict same-state; fresh signed candidate core user journey and full release matrix
+- STOP_CONDITION=Lead-managed authorization is active through A3 fix, independent QA and Release; stop only for evidence ambiguity, object/lock drift, unsafe product or data behavior, secret leakage, owner boundary breach, or new P0-P2
 - MANUAL_LIMITATION=Non-destructive playback session/progress/UserData writes are user-accepted; metadata/data deletion remains forbidden
-- MANUAL_OWNER=USER_DECISION_REQUIRED_FOR_SANITIZED_FETCH_FAILURE_STACK
+- MANUAL_OWNER=AURORAMA_141_A3_MAIN_THREAD_FAILURE_STACK_OWNER_R1_2026_11_15
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
