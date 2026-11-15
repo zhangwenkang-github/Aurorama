@@ -30,6 +30,123 @@ import org.junit.Test
 
 class PlayerProgressFallbackTest {
     @Test
+    fun `finalized retry entry rejects before player or retry work access`() {
+        val player = recoverySeekPlayer(mutableListOf())
+        var playerProviderCalls = 0
+        var currentItemAccesses = 0
+        var positionAccesses = 0
+        var seekRequests = 0
+        var transcodeRestarts = 0
+        var networkRetries = 0
+        var retryAttempts = 0
+        val access =
+            PlayerAccessInvariant(
+                isClosed = { true },
+                existingPlayerProvider = {
+                    playerProviderCalls += 1
+                    player
+                },
+            )
+
+        val executed = access.withExistingPlayer {
+            currentItemAccesses += 1
+            positionAccesses += 1
+            seekRequests += 1
+            transcodeRestarts += 1
+            networkRetries += 1
+            retryAttempts += 1
+        }
+
+        assertFalse(executed)
+        assertEquals(0, playerProviderCalls)
+        assertEquals(0, currentItemAccesses)
+        assertEquals(0, positionAccesses)
+        assertEquals(0, seekRequests)
+        assertEquals(0, transcodeRestarts)
+        assertEquals(0, networkRetries)
+        assertEquals(0, retryAttempts)
+    }
+
+    @Test
+    fun `finalized player error entry rejects before callback work`() {
+        val player = recoverySeekPlayer(mutableListOf())
+        var playerProviderCalls = 0
+        var currentItemAccesses = 0
+        var positionAccesses = 0
+        var transcodeRestarts = 0
+        var networkRetries = 0
+        var retryAttempts = 0
+        val access =
+            PlayerAccessInvariant(
+                isClosed = { true },
+                existingPlayerProvider = {
+                    playerProviderCalls += 1
+                    player
+                },
+            )
+
+        val executed = access.runIfOpen {
+            currentItemAccesses += 1
+            positionAccesses += 1
+            transcodeRestarts += 1
+            networkRetries += 1
+            retryAttempts += 1
+        }
+
+        assertFalse(executed)
+        assertEquals(0, playerProviderCalls)
+        assertEquals(0, currentItemAccesses)
+        assertEquals(0, positionAccesses)
+        assertEquals(0, transcodeRestarts)
+        assertEquals(0, networkRetries)
+        assertEquals(0, retryAttempts)
+    }
+
+    @Test
+    fun `open access preserves pre-exit retry network and non-exit lifecycle controls`() {
+        val player = recoverySeekPlayer(mutableListOf())
+        var playerProviderCalls = 0
+        var retryAttempts = 0
+        var networkCallbacks = 0
+        val access =
+            PlayerAccessInvariant(
+                isClosed = { false },
+                existingPlayerProvider = {
+                    playerProviderCalls += 1
+                    player
+                },
+            )
+
+        assertTrue(access.runIfOpen { networkCallbacks += 1 })
+        assertTrue(access.withExistingPlayer { retryAttempts += 1 })
+
+        assertEquals(1, networkCallbacks)
+        assertEquals(1, retryAttempts)
+        assertEquals(1, playerProviderCalls)
+    }
+
+    @Test
+    fun `explicit exit and finalization independently close the shared access gate`() {
+        var explicitExit = false
+        var finalized = false
+        val player = recoverySeekPlayer(mutableListOf())
+        val access =
+            PlayerAccessInvariant(
+                isClosed = { explicitExit || finalized },
+                existingPlayerProvider = { player },
+            )
+
+        assertTrue(access.isOpen())
+
+        explicitExit = true
+        assertFalse(access.isOpen())
+
+        explicitExit = false
+        finalized = true
+        assertFalse(access.isOpen())
+    }
+
+    @Test
     fun `positive progress keeps mpv without a fallback request`() {
         val state = positiveProgressState()
         val input = fallbackInput(state)

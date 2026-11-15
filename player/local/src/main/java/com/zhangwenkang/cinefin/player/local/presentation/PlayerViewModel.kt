@@ -190,7 +190,15 @@ constructor(
         get() = playerHolder.player
 
     val existingPlayer: Player?
-        get() = playerHolder.existingPlayer
+        get() = playerAccess.existingPlayer()
+
+    /**
+     * Compose 依赖更新只允许读取尚未退出 / finalize 的活动实例。
+     *
+     * 该属性与 retry、player error、segment 共用 [PlayerAccessInvariant]；关闭后绝不触碰 lazy [player] getter。
+     */
+    val uiPlayer: Player?
+        get() = playerAccess.existingPlayer()
 
     private val _uiState =
         MutableStateFlow(
@@ -213,6 +221,11 @@ constructor(
     private val progressRecoveryController = PlayerProgressRecoveryController()
     private val explicitExitController = PlayerExplicitExitController()
     private val playbackResourcesGate = PlayerExitFinalizationGate()
+    private val playerAccess =
+        PlayerAccessInvariant(
+            isClosed = { explicitExitController.isExited || playbackResourcesGate.isCompleted },
+            existingPlayerProvider = { playerHolder.existingPlayer },
+        )
     private val progressRecoveryOwnership =
         ProgressRecoveryJobOwner(
             scope = viewModelScope,
@@ -227,16 +240,8 @@ constructor(
             },
             observeWindowMs = PROGRESS_RECOVERY_OBSERVE_WINDOW_MS,
         )
-    private val segmentPlayerAccess =
-        PlayerSegmentPlayerAccess(
-            existingPlayerProvider = { playerHolder.existingPlayer },
-            playerFactory = { playerHolder.player },
-        )
     private val segmentCallbackCoordinator =
-        PlayerSegmentCallbackCoordinator(
-            gate = playbackResourcesGate,
-            playerAccess = segmentPlayerAccess,
-        )
+        PlayerSegmentCallbackCoordinator(playerAccess = playerAccess)
     private var seriesPlaybackTrace: SeriesPlaybackTraceTracker? = null
 
     val sleepTimerState = sleepTimerController.state
@@ -1416,7 +1421,7 @@ constructor(
     }
 
     fun updateCurrentSegment(): Boolean {
-        if (playbackResourcesGate.isCompleted) return false
+        if (!playerAccess.isOpen()) return false
         // 页内改过「跳过片头片尾」设置就现读一次（§1.9：不重开播放页也生效）
         refreshSegmentPreferences()
         // 没有片段数据、或两个开关都关：收起按钮直接返回（每秒一次的轮询不该刷日志 / 干活）
@@ -1762,6 +1767,10 @@ constructor(
 
     // Surface errors only after recovery paths decline ownership.
     override fun onPlayerError(error: PlaybackException) {
+        playerAccess.runIfOpen { handlePlayerError(error) }
+    }
+
+    private fun handlePlayerError(error: PlaybackException) {
         Timber.e(error, "Player error on backend=$playerBackend: ${error.errorCodeName}")
         seriesPlaybackTrace?.recordEngineError(error.errorCodeName)
         // Retry network errors in place instead of restarting the page.
@@ -1790,7 +1799,9 @@ constructor(
     // Retry transient network failures once or reopen a transcode session.
     private fun handleTransientNetworkError(error: PlaybackException): Boolean {
         if (!isNetworkOrSourceError(error)) return false
-        val mediaId = player.currentMediaItem?.mediaId ?: return false
+        if (!playerAccess.isOpen()) return false
+        val activePlayer = playerAccess.existingPlayer() ?: return false
+        val mediaId = activePlayer.currentMediaItem?.mediaId ?: return false
         val nowMs = SystemClock.elapsedRealtime()
         if (
             mediaId != lastNetworkErrorMediaId ||
@@ -1815,13 +1826,17 @@ constructor(
             return false
         }
         networkRetryAttempts++
-        val position = (seekSink.state as? SeekState.Seeking)?.targetMs ?: currentResumePositionMs()
-        val item = currentPlaybackItem()
+        if (!playerAccess.isOpen()) return false
+        val position =
+            (seekSink.state as? SeekState.Seeking)?.targetMs
+                ?: currentResumePositionMs(activePlayer)
+        val item = items.firstOrNull { it.itemId.toString() == mediaId }
         val isTranscode = item != null && isTranscodeStreamUri(item.mediaSourceUri)
         val restartTranscodeSession =
             isTranscode && playerBackend == PLAYER_BACKEND_EXOPLAYER && networkRetryAttempts > 1
         val seekLease = seekSink.coordinator.captureRequestLease()
         if (restartTranscodeSession && seekLease != null) {
+            if (!playerAccess.isOpen()) return false
             Timber.w(
                 "网络错误（%s）第 %d 次：转码流带位置重开会话 target=%d",
                 error.errorCodeName,
@@ -1836,7 +1851,7 @@ constructor(
                 networkRetryAttempts,
                 position,
             )
-            retryPlaybackAt(position)
+            retryPlaybackAt(position, activePlayer = activePlayer)
         }
         return true
     }
@@ -3043,13 +3058,13 @@ constructor(
     }
 
     fun retryPlayback(terminalToken: String) {
-        if (explicitExitController.isExited) return
+        if (!playerAccess.isOpen()) return
         val terminal = playbackSessionState.terminal
         if (terminal?.token != terminalToken || playbackSessionState.retryConsumed) {
             Timber.d("Ignoring stale playback retry terminal=%s", terminalToken)
             return
         }
-        val active = playerHolder.existingPlayer
+        val active = playerAccess.existingPlayer()
         val currentKey = currentPlaybackSessionKey(active, active?.currentMediaItem)
         if (!PlaybackSessionRules.retrySourceIsCurrent(playbackSessionState, currentKey)) {
             return refreshPlaybackSession()
@@ -3065,40 +3080,53 @@ constructor(
     }
 
     fun retryPlayerError() {
-        Timber.d("Retrying player error on backend=$playerBackend")
-        retryPlaybackAt(currentResumePositionMs())
+        playerAccess.withExistingPlayer { activePlayer ->
+            Timber.d("Retrying player error on backend=$playerBackend")
+            retryPlaybackAt(
+                position = currentResumePositionMs(activePlayer),
+                activePlayer = activePlayer,
+            )
+        }
     }
 
     private fun retryPlaybackAt(
         position: Long,
         positionSource: PlaybackRetryPositionSource? = null,
+        activePlayer: Player? = playerAccess.existingPlayer(),
     ) {
-        if (explicitExitController.isExited || playbackResourcesGate.isCompleted) return
-        val activePlayer = playerHolder.existingPlayer ?: return
+        if (!playerAccess.isOpen()) return
+        val active = activePlayer ?: return
         _uiState.update { it.copy(playerError = null) }
-        activePlayer.prepare()
+        active.prepare()
         if (position > 0L) {
             if (positionSource == PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST) {
                 seekSink.requestSeek(position, "progress-recovery-user-target")
             } else {
-                activePlayer.seekTo(position)
+                active.seekTo(position)
             }
         }
-        activePlayer.play()
+        active.play()
         refreshPlaybackSession()
     }
 
-    private fun currentResumePositionMs(): Long {
+    private fun currentResumePositionMs(activePlayer: Player): Long {
+        if (!playerAccess.isOpen()) return 0L
         refreshPlaybackSession()
+        if (!playerAccess.isOpen()) return 0L
         val livePosition =
-            confirmedPosition(player) ?: playbackSessionState.lastEnginePositionMs ?: C.TIME_UNSET
+            confirmedPosition(activePlayer)
+                ?: playbackSessionState.lastEnginePositionMs
+                ?: C.TIME_UNSET
         if (livePosition > 0L) return livePosition
         val mediaId =
-            player.currentMediaItem?.mediaId?.let { raw ->
+            activePlayer.currentMediaItem?.mediaId?.let { raw ->
                 runCatching { UUID.fromString(raw) }.getOrNull()
             }
         val mediaSourceId =
-            player.currentMediaItem?.mediaMetadata?.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
+            activePlayer.currentMediaItem
+                ?.mediaMetadata
+                ?.extras
+                ?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
         return if (
             mediaId != null &&
                 mediaId == lastProgressItemId &&
@@ -3319,6 +3347,7 @@ constructor(
     fun seekDisplayPositionMs(): Long = seekSink.seekDisplayPositionMs()
 
     fun retrySeek() {
+        if (!playerAccess.isOpen()) return
         seekSink.retrySeek()
     }
 
@@ -3526,34 +3555,43 @@ class PlayerExitFinalizationGate {
     }
 }
 
-class PlayerSegmentPlayerAccess(
+/**
+ * 唯一允许 retry / player error / Compose / segment 读取活动播放器的入口。
+ *
+ * 关闭后不得触碰 lazy factory，也不得读取 current item / position / lease / seek sink。
+ */
+class PlayerAccessInvariant(
+    private val isClosed: () -> Boolean,
     private val existingPlayerProvider: () -> Player?,
-    private val playerFactory: () -> Player,
 ) {
     var existingPlayerAccessCount: Int = 0
         private set
 
-    var lazyPlayerAccessCount: Int = 0
-        private set
+    fun isOpen(): Boolean = !isClosed()
+
+    fun runIfOpen(action: () -> Unit): Boolean {
+        if (!isOpen()) return false
+        action()
+        return true
+    }
 
     fun existingPlayer(): Player? {
+        if (!isOpen()) return null
         existingPlayerAccessCount += 1
         return existingPlayerProvider()
     }
 
-    fun createPlayer(): Player {
-        lazyPlayerAccessCount += 1
-        return playerFactory()
+    fun withExistingPlayer(action: (Player) -> Unit): Boolean {
+        if (!isOpen()) return false
+        val activePlayer = existingPlayer() ?: return false
+        if (!isOpen()) return false
+        action(activePlayer)
+        return true
     }
 }
 
-class PlayerSegmentCallbackCoordinator(
-    private val gate: PlayerExitFinalizationGate,
-    private val playerAccess: PlayerSegmentPlayerAccess,
-) {
-    fun runIfActive(action: (Player) -> Unit): Boolean = gate.runIfActive {
-        playerAccess.existingPlayer()?.let(action)
-    }
+class PlayerSegmentCallbackCoordinator(private val playerAccess: PlayerAccessInvariant) {
+    fun runIfActive(action: (Player) -> Unit): Boolean = playerAccess.withExistingPlayer(action)
 }
 
 internal class ProgressRecoveryJobOwner(

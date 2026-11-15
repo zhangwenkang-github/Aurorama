@@ -302,12 +302,15 @@ class PlayerActivity : BasePlayerActivity() {
             CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
                 val subtitleState by
                     viewModel.subtitleController.overlayState.collectAsStateWithLifecycle()
-                PlayerSubtitleOverlay(
-                    player = viewModel.player,
-                    state = subtitleState,
-                    // W16：libass 字幕层按「视频实际显示区」定位（与 mpv 一致），而不是整窗
-                    videoRectProvider = ::currentVideoRect,
-                )
+                val subtitlePlayer = viewModel.uiPlayer
+                if (subtitlePlayer != null) {
+                    PlayerSubtitleOverlay(
+                        player = subtitlePlayer,
+                        state = subtitleState,
+                        // W16：libass 字幕层按「视频实际显示区」定位（与 mpv 一致），而不是整窗
+                        videoRectProvider = ::currentVideoRect,
+                    )
+                }
             }
         }
 
@@ -331,8 +334,13 @@ class PlayerActivity : BasePlayerActivity() {
                         layoutContext = layout
                         applyVideoArea(layout)
                     }
+                    val controlPlayer = viewModel.uiPlayer
+                    if (controlPlayer == null) {
+                        binding.controlOverlay.visibility = View.INVISIBLE
+                        return@ProvideLumenColors
+                    }
                     PlayerControlOverlay(
-                        player = viewModel.player,
+                        player = controlPlayer,
                         uiState = uiState,
                         controls = controlsState,
                         layout = layout,
@@ -357,7 +365,10 @@ class PlayerActivity : BasePlayerActivity() {
                             )
                         },
                         onSeekRelativeRequest = { delta ->
-                            viewModel.submitSeek(PlayerViewModel.SeekIntent.Relative(delta), "step")
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.Relative(delta),
+                                "step",
+                            )
                         },
                         onPreviousMediaItem = {
                             viewModel.submitSeek(
