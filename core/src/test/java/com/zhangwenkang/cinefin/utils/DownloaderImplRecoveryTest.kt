@@ -4,6 +4,7 @@ import android.app.Notification
 import android.content.ContextWrapper
 import android.content.SharedPreferences
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -41,6 +42,7 @@ import com.zhangwenkang.cinefin.repository.OriginScopedJellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.work.ImagesDownloaderWorker
+import com.zhangwenkang.cinefin.work.runDownloadEngineWork
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.lang.reflect.InvocationHandler
@@ -212,6 +214,84 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `empty foreground startup fails closed without building an ongoing notification`() =
+        runBlocking {
+            val fixture = Fixture()
+            try {
+                val startupFailure = runCatching {
+                    fixture.downloader.foregroundInfo()
+                }
+                    .exceptionOrNull()
+
+                assertTrue(
+                    "empty foreground startup must fail closed",
+                    startupFailure is IllegalStateException,
+                )
+                assertEquals(0, fixture.notificationGateway.builtForegroundCount())
+                assertEquals(0, fixture.notificationGateway.foregroundCount())
+            } finally {
+                fixture.close()
+            }
+        }
+
+    @Test
+    fun `worker startup skips foreground when no runnable work exists`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val gatedDownloader =
+                object : Downloader by fixture.downloader, DownloadEngineForegroundGate {
+                    override suspend fun foregroundInfoForRunnableWork(): ForegroundInfo? =
+                        fixture.downloader.foregroundInfoForRunnableWork()
+
+                    override suspend fun runQueue(): DownloadQueueOutcome =
+                        DownloadQueueOutcome(
+                            ranTasks = 0,
+                            hasPendingTasks = false,
+                            shouldRetry = false,
+                        )
+                }
+            var setForegroundCount = 0
+
+            runDownloadEngineWork(gatedDownloader) { setForegroundCount += 1 }
+
+            assertEquals(0, setForegroundCount)
+            assertEquals(0, fixture.notificationGateway.builtForegroundCount())
+            assertEquals(0, fixture.notificationGateway.foregroundCount())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `worker startup publishes foreground when runnable work exists`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            fixture.seedConcurrentMovies(1)
+            val gatedDownloader =
+                object : Downloader by fixture.downloader, DownloadEngineForegroundGate {
+                    override suspend fun foregroundInfoForRunnableWork(): ForegroundInfo? =
+                        fixture.downloader.foregroundInfoForRunnableWork()
+
+                    override suspend fun runQueue(): DownloadQueueOutcome =
+                        DownloadQueueOutcome(
+                            ranTasks = 0,
+                            hasPendingTasks = true,
+                            shouldRetry = true,
+                        )
+                }
+            var setForegroundCount = 0
+
+            runDownloadEngineWork(gatedDownloader) { setForegroundCount += 1 }
+
+            assertEquals(1, setForegroundCount)
+            assertEquals(1, fixture.notificationGateway.builtForegroundCount())
+            assertEquals(1, fixture.notificationGateway.lastBuiltForeground()?.activeCount)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `foreground ack gates publisher and newer epoch wins`() = runBlocking {
         val fixture = Fixture()
         try {
@@ -328,6 +408,51 @@ class DownloaderImplRecoveryTest {
                 }
             assertNotNull("a failed snapshot read must retry and recover", recovered)
             assertEquals(1, fixture.notificationGateway.successfulForegroundCount())
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `permanent notification failure stops after a bounded recovery window`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seeded = fixture.seedConcurrentMovies(1).single()
+            val initial = requireNotNull(fixture.dao.sourceById(seeded.source.id))
+            fixture.dao.putSource(
+                initial.copy(
+                    downloadedBytes = 40L,
+                    totalBytes = 1_000L,
+                )
+            )
+            val maxAttempts = DownloaderImpl.NOTIFICATION_RECOVERY_MAX_ATTEMPTS
+            fixture.notificationGateway.failNextForegroundNotifications(Int.MAX_VALUE)
+
+            fixture.downloader.requestForegroundSnapshotRefreshForTest()
+
+            assertTrue(
+                "permanent failure must consume the finite recovery window",
+                fixture.notificationGateway.awaitForegroundAttemptCount(
+                    count = maxAttempts,
+                    timeoutMs = 6_000L,
+                ),
+            )
+            delay(1_500L)
+            assertEquals(
+                "exhausted recovery window must not self-schedule another marker",
+                maxAttempts,
+                fixture.notificationGateway.foregroundAttemptCount(),
+            )
+
+            fixture.notificationGateway.clearForegroundFailures()
+            fixture.downloader.requestForegroundSnapshotRefreshForTest()
+
+            val recovered =
+                fixture.notificationGateway.awaitForegroundTask(timeoutMs = 2_500L) { captured ->
+                    captured.task?.downloadedBytes == 40L && captured.task?.totalBytes == 1_000L
+                }
+            assertNotNull("a new external request must open a fresh recovery window", recovered)
+            assertTrue(fixture.notificationGateway.foregroundAttemptCount() > maxAttempts)
         } finally {
             fixture.close()
         }
@@ -8224,6 +8349,7 @@ class DownloaderImplRecoveryTest {
         val completedTasks = CopyOnWriteArrayList<DownloadTask>()
         private val foreground = CopyOnWriteArrayList<CapturedForegroundNotification>()
         private val builtForeground = CopyOnWriteArrayList<CapturedForegroundNotification>()
+        private val foregroundAttempts = AtomicInteger(0)
         private val foregroundFailuresRemaining = AtomicInteger(0)
 
         override fun buildForeground(task: DownloadTask?, activeCount: Int): Notification {
@@ -8233,6 +8359,7 @@ class DownloaderImplRecoveryTest {
         }
 
         override fun notifyForeground(task: DownloadTask?, activeCount: Int) {
+            foregroundAttempts.incrementAndGet()
             if (
                 foregroundFailuresRemaining.getAndUpdate { remaining -> maxOf(0, remaining - 1) } >
                     0
@@ -8252,13 +8379,30 @@ class DownloaderImplRecoveryTest {
 
         fun lastBuiltForeground(): CapturedForegroundNotification? = builtForeground.lastOrNull()
 
+        fun builtForegroundCount(): Int = builtForeground.size
+
         fun foregroundCount(): Int = foreground.size
 
         fun successfulForegroundCount(): Int = foreground.size
 
+        fun foregroundAttemptCount(): Int = foregroundAttempts.get()
+
         fun failNextForegroundNotifications(count: Int) {
             foregroundFailuresRemaining.set(count)
         }
+
+        fun clearForegroundFailures() {
+            foregroundFailuresRemaining.set(0)
+        }
+
+        suspend fun awaitForegroundAttemptCount(
+            count: Int,
+            timeoutMs: Long = 2_000L,
+        ): Boolean =
+            withTimeoutOrNull(timeoutMs) {
+                while (foregroundAttempts.get() < count) delay(10L)
+                true
+            } ?: false
 
         suspend fun awaitForegroundCount(
             count: Int,

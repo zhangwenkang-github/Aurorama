@@ -305,6 +305,14 @@ internal class WorkManagerImageFinalizationScheduler(private val workGateway: Do
     }
 }
 
+internal interface DownloadEngineForegroundGate {
+    /**
+     * Samples the canonical queue once and returns foreground metadata only when this worker has
+     * work that it can claim immediately.
+     */
+    suspend fun foregroundInfoForRunnableWork(): ForegroundInfo?
+}
+
 /**
  * W50 自研下载引擎门面。
  *
@@ -337,7 +345,7 @@ private constructor(
     private val intentResolutionDispatcher: CoroutineDispatcher,
     private val intentResolutionDeadlineScheduler: DownloadIntentDeadlineScheduler,
     private val intentResolutionTimeoutMs: Long,
-) : Downloader, CanonicalActiveTaskSnapshotSource {
+) : Downloader, CanonicalActiveTaskSnapshotSource, DownloadEngineForegroundGate {
     constructor(
         context: Context,
         database: ServerDatabaseDao,
@@ -395,6 +403,8 @@ private constructor(
     private var pendingForegroundInfoEpoch = 0L
     private var foregroundNotificationDirty = false
     private var foregroundNotificationRequestVersion = 0L
+    private var foregroundNotificationRecoveryVersion = 0L
+    private var foregroundNotificationTrailingRetries = 0
     private val foregroundNotificationPublisher = scope.launch {
         publishForegroundNotificationChanges()
     }
@@ -4881,7 +4891,12 @@ private constructor(
                 .getOrElse { emptySet() }
         }
 
-    override suspend fun foregroundInfo(): ForegroundInfo {
+    override suspend fun foregroundInfo(): ForegroundInfo =
+        checkNotNull(foregroundInfoForRunnableWork()) {
+            "empty canonical queue cannot start a download foreground notification"
+        }
+
+    override suspend fun foregroundInfoForRunnableWork(): ForegroundInfo? {
         val requestVersionAtBuildStart =
             synchronized(foregroundNotificationStateLock) {
                 foregroundInfoAwaitingAck = true
@@ -4889,6 +4904,15 @@ private constructor(
                 foregroundNotificationRequestVersion
             }
         val snapshot = sampleCanonicalActiveTaskSnapshot()
+        if (!snapshot.hasRunnableForegroundWork(System.currentTimeMillis())) {
+            synchronized(foregroundNotificationStateLock) {
+                foregroundInfoAwaitingAck = false
+                pendingForegroundInfoEpoch = 0L
+                lastRenderedNotificationEpoch =
+                    maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
+            }
+            return null
+        }
         synchronized(foregroundNotificationStateLock) {
             pendingForegroundInfoEpoch = snapshot.samplingEpochMs
             if (requestVersionAtBuildStart == foregroundNotificationRequestVersion) {
@@ -4911,6 +4935,14 @@ private constructor(
             ForegroundInfo(DownloadNotifications.FOREGROUND_NOTIFICATION_ID, notification)
         }
     }
+
+    private fun CanonicalActiveTaskSnapshot.hasRunnableForegroundWork(now: Long): Boolean =
+        activeTasks.any { task ->
+            !task.sourceId.startsWith(INTENT_SOURCE_PREFIX) &&
+                task.nextRetryAt <= now &&
+                (task.status == DownloadTaskStatus.PENDING ||
+                    task.status == DownloadTaskStatus.RUNNING)
+        }
 
     // ---------------------------------------------------------------------------------------------
     // 附属内容（外部字幕流 / 分段 / Trickplay / 图片缓存）
@@ -5771,9 +5803,21 @@ private constructor(
     private fun scheduleForegroundNotificationRetry() {
         val shouldSchedule =
             synchronized(foregroundNotificationStateLock) {
-                foregroundNotificationDirty &&
-                    !foregroundInfoAwaitingAck &&
-                    foregroundNotificationRetryScheduled.compareAndSet(false, true)
+                if (foregroundNotificationRecoveryVersion != foregroundNotificationRequestVersion) {
+                    foregroundNotificationRecoveryVersion = foregroundNotificationRequestVersion
+                    foregroundNotificationTrailingRetries = 0
+                }
+                if (
+                    foregroundNotificationDirty &&
+                        !foregroundInfoAwaitingAck &&
+                        foregroundNotificationTrailingRetries < NOTIFICATION_TRAILING_RETRY_LIMIT &&
+                        foregroundNotificationRetryScheduled.compareAndSet(false, true)
+                ) {
+                    foregroundNotificationTrailingRetries += 1
+                    true
+                } else {
+                    false
+                }
             }
         if (!shouldSchedule) return
         scope.launch {
@@ -5944,6 +5988,9 @@ private constructor(
         const val PERSIST_INTERVAL_MS = 1_000L
         const val NOTIFICATION_INTERVAL_MS = 1_000L
         const val NOTIFICATION_RETRY_ATTEMPTS = 4
+        const val NOTIFICATION_TRAILING_RETRY_LIMIT = 1
+        const val NOTIFICATION_RECOVERY_MAX_ATTEMPTS =
+            NOTIFICATION_RETRY_ATTEMPTS * (NOTIFICATION_TRAILING_RETRY_LIMIT + 1)
         const val NOTIFICATION_RETRY_BASE_BACKOFF_MS = 100L
         const val NOTIFICATION_RETRY_MAX_BACKOFF_MS = 1_000L
 
