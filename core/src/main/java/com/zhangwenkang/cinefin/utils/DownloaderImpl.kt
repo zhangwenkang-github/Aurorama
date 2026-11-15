@@ -395,15 +395,15 @@ private constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val canonicalSnapshotOwner = CanonicalActiveTaskSnapshotOwner()
     private val foregroundNotificationStateLock = Any()
-    private val foregroundNotificationRetryScheduled = AtomicBoolean(false)
-    private val foregroundNotificationRequests = Channel<Unit>(Channel.CONFLATED)
+    private val foregroundNotificationRequests = Channel<Long>(Channel.CONFLATED)
     @Volatile private var lastNotificationAt = 0L
     private var lastRenderedNotificationEpoch = 0L
     private var foregroundInfoAwaitingAck = false
     private var pendingForegroundInfoEpoch = 0L
     private var foregroundNotificationDirty = false
     private var foregroundNotificationRequestVersion = 0L
-    private var foregroundNotificationRecoveryVersion = 0L
+    private var foregroundNotificationTrailingJob: Job? = null
+    private var foregroundNotificationTrailingVersion = 0L
     private var foregroundNotificationTrailingRetries = 0
     private val foregroundNotificationPublisher = scope.launch {
         publishForegroundNotificationChanges()
@@ -5693,25 +5693,17 @@ private constructor(
      */
     fun acknowledgeForegroundInfoPublished() {
         val latestEpoch = canonicalSnapshotOwner.latest().samplingEpochMs
-        val shouldReconcile =
-            synchronized(foregroundNotificationStateLock) {
-                if (!foregroundInfoAwaitingAck) {
-                    false
-                } else {
-                    foregroundInfoAwaitingAck = false
-                    val builtEpoch = pendingForegroundInfoEpoch
-                    pendingForegroundInfoEpoch = 0L
-                    lastRenderedNotificationEpoch = maxOf(lastRenderedNotificationEpoch, builtEpoch)
-                    val reconcile = foregroundNotificationDirty || latestEpoch > builtEpoch
-                    if (reconcile) {
-                        foregroundNotificationDirty = true
-                        foregroundNotificationRequestVersion += 1L
-                    }
-                    reconcile
+        synchronized(foregroundNotificationStateLock) {
+            if (foregroundInfoAwaitingAck) {
+                foregroundInfoAwaitingAck = false
+                val builtEpoch = pendingForegroundInfoEpoch
+                pendingForegroundInfoEpoch = 0L
+                lastRenderedNotificationEpoch = maxOf(lastRenderedNotificationEpoch, builtEpoch)
+                if (foregroundNotificationDirty || latestEpoch > builtEpoch) {
+                    foregroundNotificationDirty = true
+                    beginForegroundNotificationRequestLocked()
                 }
             }
-        if (shouldReconcile) {
-            foregroundNotificationRequests.trySend(Unit)
         }
     }
 
@@ -5726,24 +5718,26 @@ private constructor(
             }
         synchronized(foregroundNotificationStateLock) {
             foregroundNotificationDirty = true
-            foregroundNotificationRequestVersion += 1L
+            beginForegroundNotificationRequestLocked()
         }
-        foregroundNotificationRequests.trySend(Unit)
         return result
     }
 
     private suspend fun publishForegroundNotificationChanges() {
-        for (ignored in foregroundNotificationRequests) {
+        for (requestVersion in foregroundNotificationRequests) {
             for (attempt in 1..NOTIFICATION_RETRY_ATTEMPTS) {
+                if (!isForegroundNotificationRequestCurrent(requestVersion)) {
+                    break
+                }
                 try {
-                    publishLatestForegroundNotification()
+                    publishLatestForegroundNotification(requestVersion)
                     break
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {
                     Timber.w(error, "刷新下载前台通知失败")
                     if (attempt == NOTIFICATION_RETRY_ATTEMPTS) {
-                        scheduleForegroundNotificationRetry()
+                        scheduleForegroundNotificationRetry(requestVersion)
                     } else {
                         delay(notificationRetryDelayMs(attempt))
                     }
@@ -5752,38 +5746,37 @@ private constructor(
         }
     }
 
-    private suspend fun publishLatestForegroundNotification() {
-        val requestVersion =
-            synchronized(foregroundNotificationStateLock) {
-                if (!foregroundNotificationDirty || foregroundInfoAwaitingAck) {
-                    return
-                }
-                foregroundNotificationRequestVersion
-            }
+    private suspend fun publishLatestForegroundNotification(requestVersion: Long) {
+        if (!isForegroundNotificationRequestCurrent(requestVersion)) {
+            return
+        }
         val waitMs =
             (lastNotificationAt + NOTIFICATION_INTERVAL_MS - System.currentTimeMillis())
                 .coerceAtLeast(0L)
         if (waitMs > 0L) delay(waitMs)
 
+        if (!isForegroundNotificationRequestCurrent(requestVersion)) {
+            return
+        }
         val snapshot = sampleCanonicalActiveTaskSnapshot()
         val aggregate = aggregateDownloadNotification(snapshot)
         synchronized(foregroundNotificationStateLock) {
-            if (foregroundInfoAwaitingAck) {
+            if (
+                requestVersion != foregroundNotificationRequestVersion ||
+                    !foregroundNotificationDirty ||
+                    foregroundInfoAwaitingAck
+            ) {
                 return
             }
             if (aggregate.activeCount == 0) {
                 lastRenderedNotificationEpoch =
                     maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
                 lastNotificationAt = System.currentTimeMillis()
-                if (requestVersion == foregroundNotificationRequestVersion) {
-                    foregroundNotificationDirty = false
-                }
+                foregroundNotificationDirty = false
                 return
             }
             if (snapshot.samplingEpochMs <= lastRenderedNotificationEpoch) {
-                if (requestVersion == foregroundNotificationRequestVersion) {
-                    foregroundNotificationDirty = false
-                }
+                foregroundNotificationDirty = false
                 return
             }
 
@@ -5794,42 +5787,73 @@ private constructor(
             lastRenderedNotificationEpoch =
                 maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
             lastNotificationAt = System.currentTimeMillis()
-            if (requestVersion == foregroundNotificationRequestVersion) {
-                foregroundNotificationDirty = false
-            }
+            foregroundNotificationDirty = false
         }
     }
 
-    private fun scheduleForegroundNotificationRetry() {
-        val shouldSchedule =
-            synchronized(foregroundNotificationStateLock) {
-                if (foregroundNotificationRecoveryVersion != foregroundNotificationRequestVersion) {
-                    foregroundNotificationRecoveryVersion = foregroundNotificationRequestVersion
-                    foregroundNotificationTrailingRetries = 0
-                }
-                if (
-                    foregroundNotificationDirty &&
-                        !foregroundInfoAwaitingAck &&
-                        foregroundNotificationTrailingRetries < NOTIFICATION_TRAILING_RETRY_LIMIT &&
-                        foregroundNotificationRetryScheduled.compareAndSet(false, true)
-                ) {
-                    foregroundNotificationTrailingRetries += 1
-                    true
-                } else {
-                    false
-                }
+    private fun isForegroundNotificationRequestCurrent(requestVersion: Long): Boolean =
+        synchronized(foregroundNotificationStateLock) {
+            requestVersion == foregroundNotificationRequestVersion &&
+                foregroundNotificationDirty &&
+                !foregroundInfoAwaitingAck
+        }
+
+    private fun beginForegroundNotificationRequestLocked(): Long {
+        val requestVersion = ++foregroundNotificationRequestVersion
+        foregroundNotificationTrailingJob?.cancel()
+        foregroundNotificationTrailingJob = null
+        foregroundNotificationTrailingVersion = 0L
+        foregroundNotificationTrailingRetries = 0
+        foregroundNotificationRequests.trySend(requestVersion)
+        return requestVersion
+    }
+
+    private fun scheduleForegroundNotificationRetry(requestVersion: Long) {
+        synchronized(foregroundNotificationStateLock) {
+            if (
+                requestVersion != foregroundNotificationRequestVersion ||
+                    !foregroundNotificationDirty ||
+                    foregroundInfoAwaitingAck
+            ) {
+                return
             }
-        if (!shouldSchedule) return
-        scope.launch {
-            try {
-                delay(NOTIFICATION_RETRY_MAX_BACKOFF_MS)
-                synchronized(foregroundNotificationStateLock) {
-                    foregroundNotificationRetryScheduled.set(false)
+            if (foregroundNotificationTrailingVersion != requestVersion) {
+                foregroundNotificationTrailingJob?.cancel()
+                foregroundNotificationTrailingJob = null
+                foregroundNotificationTrailingVersion = requestVersion
+                foregroundNotificationTrailingRetries = 0
+            }
+            if (
+                foregroundNotificationTrailingRetries >= NOTIFICATION_TRAILING_RETRY_LIMIT ||
+                    foregroundNotificationTrailingJob?.isActive == true
+            ) {
+                return
+            }
+            foregroundNotificationTrailingRetries += 1
+            foregroundNotificationTrailingJob = scope.launch {
+                val trailingJob = coroutineContext[Job]
+                try {
+                    delay(NOTIFICATION_RETRY_MAX_BACKOFF_MS)
+                    synchronized(foregroundNotificationStateLock) {
+                        if (foregroundNotificationTrailingJob === trailingJob) {
+                            foregroundNotificationTrailingJob = null
+                        }
+                        val current =
+                            requestVersion == foregroundNotificationRequestVersion &&
+                                foregroundNotificationTrailingVersion == requestVersion &&
+                                foregroundNotificationDirty &&
+                                !foregroundInfoAwaitingAck
+                        if (current) {
+                            foregroundNotificationRequests.trySend(requestVersion)
+                        }
+                    }
+                } finally {
+                    synchronized(foregroundNotificationStateLock) {
+                        if (foregroundNotificationTrailingJob === trailingJob) {
+                            foregroundNotificationTrailingJob = null
+                        }
+                    }
                 }
-                foregroundNotificationRequests.trySend(Unit)
-            } catch (cancellation: CancellationException) {
-                foregroundNotificationRetryScheduled.set(false)
-                throw cancellation
             }
         }
     }

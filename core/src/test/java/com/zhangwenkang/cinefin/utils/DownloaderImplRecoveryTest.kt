@@ -459,6 +459,53 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `old trailing retry cannot inject a marker into a newer request version`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seeded = fixture.seedConcurrentMovies(1).single()
+            val initial = requireNotNull(fixture.dao.sourceById(seeded.source.id))
+            fixture.dao.putSource(
+                initial.copy(
+                    downloadedBytes = 40L,
+                    totalBytes = 1_000L,
+                )
+            )
+            val maxAttempts = DownloaderImpl.NOTIFICATION_RECOVERY_MAX_ATTEMPTS
+            fixture.notificationGateway.failNextForegroundNotifications(Int.MAX_VALUE)
+
+            fixture.downloader.requestForegroundSnapshotRefreshForTest()
+            assertTrue(
+                "the initial request must consume its short retry window",
+                fixture.notificationGateway.awaitForegroundAttemptCount(
+                    count = DownloaderImpl.NOTIFICATION_RETRY_ATTEMPTS,
+                    timeoutMs = 4_000L,
+                ),
+            )
+            delay(100L)
+            val attemptsBeforeNewVersion = fixture.notificationGateway.foregroundAttemptCount()
+            assertEquals(DownloaderImpl.NOTIFICATION_RETRY_ATTEMPTS, attemptsBeforeNewVersion)
+
+            fixture.downloader.requestForegroundSnapshotRefreshForTest()
+            assertTrue(
+                "the newer request must reach its bounded recovery window",
+                fixture.notificationGateway.awaitForegroundAttemptCount(
+                    count = attemptsBeforeNewVersion + maxAttempts,
+                    timeoutMs = 8_000L,
+                ),
+            )
+            delay(2_500L)
+
+            assertEquals(
+                "an old trailing coroutine must not extend a newer request version beyond 8 attempts",
+                maxAttempts,
+                fixture.notificationGateway.foregroundAttemptCount() - attemptsBeforeNewVersion,
+            )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `pause cancel and delete publish new canonical epochs`() = runBlocking {
         val fixture = Fixture()
         try {
