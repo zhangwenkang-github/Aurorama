@@ -753,10 +753,9 @@ fun PlayerControlOverlay(
         (uiState.seekState as? SeekState.Failed)?.takeIf { playbackSession.showSeekFailure }
     val showPlayerError = uiState.playerError != null && playbackSession.showPlayerError
     val progressRecovery = playbackSession.progressRecovery
-    val progressStatusText =
-        progressRecovery?.let {
-            stringResource(resolvePlaybackRecoveryTitle(it.kind).stringRes())
-        }
+    val progressStatusText = progressRecovery?.let {
+        stringResource(resolvePlaybackRecoveryTitle(it.kind).stringRes())
+    }
     val recoveryPresentation =
         playbackRecoveryPresentation(
             showPlayerError = showPlayerError,
@@ -2173,9 +2172,7 @@ private fun PlayerBottomBar(
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .padding(horizontal = CinefinSpacing.Space4),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space4),
             )
         }
 

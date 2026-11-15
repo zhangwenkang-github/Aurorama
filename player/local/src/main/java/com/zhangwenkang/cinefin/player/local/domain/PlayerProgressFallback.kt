@@ -162,10 +162,7 @@ internal class PlayerProgressRecoveryController {
             input.enginePositionMs != null &&
                 current.baselineEnginePositionMs != null &&
                 input.enginePositionMs > current.baselineEnginePositionMs
-        val readyRecovered =
-            current.baselineWasLoading &&
-                input.isReady &&
-                input.isPlaying
+        val readyRecovered = current.baselineWasLoading && input.isReady && input.isPlaying
         if (engineAdvanced || readyRecovered) {
             state = current.copy(request = null, confirmed = true, exhausted = false)
             return status(
