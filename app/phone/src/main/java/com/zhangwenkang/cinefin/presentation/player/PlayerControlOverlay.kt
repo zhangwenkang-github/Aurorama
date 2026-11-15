@@ -690,8 +690,6 @@ fun PlayerControlOverlay(
     debugStatsProvider: suspend () -> PlayerDebugStats = { PlayerDebugStats() },
     /** 播放失败后的「重试」：清错误并从当前进度重新拉流 */
     onRetry: () -> Unit,
-    /** 进度恢复面点击：原样交回当前 UI terminal token */
-    onRetryProgress: (String) -> Unit,
     /** 「换内核」：ExoPlayer ⇄ mpv（由 Activity 写偏好并重启播放页生效） */
     onSwitchBackend: (String) -> Unit,
     /**
@@ -753,8 +751,18 @@ fun PlayerControlOverlay(
             )
     val seekFailed =
         (uiState.seekState as? SeekState.Failed)?.takeIf { playbackSession.showSeekFailure }
-    val progressTerminal = playbackSession.terminal
     val showPlayerError = uiState.playerError != null && playbackSession.showPlayerError
+    val progressRecovery = playbackSession.progressRecovery
+    val progressStatusText =
+        progressRecovery?.let {
+            stringResource(resolvePlaybackRecoveryTitle(it.kind).stringRes())
+        }
+    val recoveryPresentation =
+        playbackRecoveryPresentation(
+            showPlayerError = showPlayerError,
+            seekFailed = seekFailed != null,
+            progressRecovery = progressRecovery != null,
+        )
     val pausesPlayback = playbackSession.pauseWhenReady
     val seekPending = uiState.seekState is SeekState.Seeking
     /*
@@ -808,7 +816,6 @@ fun PlayerControlOverlay(
         controls.locked,
         showPlayerError,
         seekFailed,
-        progressTerminal,
         seekPending,
         playbackSession.loading,
         skipChipVisible,
@@ -860,8 +867,8 @@ fun PlayerControlOverlay(
     }
 
     // 出错时把控制层顶出来：错误卡片是模态的，用户点掉之前一直可见
-    LaunchedEffect(showPlayerError, seekFailed, progressTerminal) {
-        if (showPlayerError || seekFailed != null || progressTerminal != null) {
+    LaunchedEffect(showPlayerError, seekFailed, recoveryPresentation.forceControlsVisible) {
+        if (recoveryPresentation.forceControlsVisible) {
             controls.show()
         }
     }
@@ -874,7 +881,6 @@ fun PlayerControlOverlay(
         panel,
         showPlayerError,
         seekFailed,
-        progressTerminal,
         seekPending,
         layout.chrome,
     ) {
@@ -882,9 +888,7 @@ fun PlayerControlOverlay(
             controls.visible &&
                 panel == PlayerPanel.None &&
                 runtime.isPlaying &&
-                !showPlayerError &&
-                seekFailed == null &&
-                progressTerminal == null &&
+                recoveryPresentation.canAutoHideControls &&
                 !seekPending &&
                 !layout.isCompact &&
                 layout.chrome != PlayerChromeLayout.FoldHalfOpen
@@ -954,6 +958,7 @@ fun PlayerControlOverlay(
                 trickplayFrameAt = trickplayFrameAt,
                 speed = runtime.speed,
                 sleepActive = sleepState.active,
+                progressStatusText = progressStatusText,
                 subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
                 bitrateActive = settingsController.state.streamingBitrate > 0L,
                 decodeActive =
@@ -1198,14 +1203,6 @@ fun PlayerControlOverlay(
                     SeekFailureCard(
                         failure = seekFailed,
                         onRetry = onRetrySeek,
-                        modifier =
-                            Modifier.align(Alignment.BottomCenter)
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                    )
-                } else if (progressTerminal != null && controls.visible) {
-                    PlaybackProgressRecoveryAction(
-                        terminal = progressTerminal,
-                        onRetry = { onRetryProgress(progressTerminal.token) },
                         modifier =
                             Modifier.align(Alignment.BottomCenter)
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -1905,36 +1902,6 @@ private fun PlayerToolCluster(
 }
 
 @Composable
-private fun PlaybackProgressRecoveryAction(
-    terminal: PlayerViewModel.PlaybackRecovery,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val copy =
-        resolvePlaybackRecoveryCopy(
-            kind = terminal.kind,
-            positionMs = terminal.positionMs,
-            positionSource = terminal.positionSource,
-        )
-    val detail =
-        when (copy.detail) {
-            PlaybackRecoveryDetail.RetryFromStart ->
-                stringResource(PlaybackRecoveryDetail.RetryFromStart.stringRes())
-            PlaybackRecoveryDetail.RetryFromPosition ->
-                stringResource(
-                    PlaybackRecoveryDetail.RetryFromPosition.stringRes(),
-                    formatTime(copy.positionMs ?: 0L),
-                )
-        }
-    PlaybackRecoveryBar(
-        title = stringResource(copy.title.stringRes()),
-        detail = detail,
-        onRetry = onRetry,
-        modifier = modifier,
-    )
-}
-
-@Composable
 private fun PlaybackRecoveryBar(
     title: String,
     detail: String,
@@ -2120,6 +2087,7 @@ private fun PlayerBottomBar(
     trickplayFrameAt: (Long) -> Bitmap?,
     speed: Float,
     sleepActive: Boolean,
+    progressStatusText: String?,
     /** 字幕键激活态（改在进度条下方这一行，W12 终版布局） */
     subtitleEnabled: Boolean,
     /** 码率键激活态：选了具体码率档（服务器转码中） */
@@ -2195,6 +2163,19 @@ private fun PlayerBottomBar(
                 text = formatTime(durationMs),
                 style = CinefinType.MonoDataSmall,
                 color = colors.onSurfaceVariant,
+            )
+        }
+
+        if (progressStatusText != null) {
+            Text(
+                text = progressStatusText,
+                color = colors.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .padding(horizontal = CinefinSpacing.Space4),
             )
         }
 

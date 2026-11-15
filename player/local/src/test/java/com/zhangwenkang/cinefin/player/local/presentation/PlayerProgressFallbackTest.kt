@@ -4,6 +4,9 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlaybackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackInput
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackSourceKind
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryController
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryInput
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryPhase
 import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSourceKind
 import java.util.UUID
 import org.junit.Assert.assertEquals
@@ -150,8 +153,8 @@ class PlayerProgressFallbackTest {
 
         assertNull(accepted.terminal)
         assertTrue(accepted.loading)
-        assertNotNull(declined.terminal)
-        assertEquals("PLAYBACK_PROGRESS_TIMEOUT", declined.terminal?.kind)
+        assertNull(declined.terminal)
+        assertEquals("PLAYBACK_PROGRESS_TIMEOUT", state.terminal?.kind)
     }
 
     @Test
@@ -162,8 +165,8 @@ class PlayerProgressFallbackTest {
 
         assertNull(controller.evaluate(input))
         val recovery = PlaybackSessionRules.project(state, playbackInput(state.key))
-        assertNotNull(recovery.terminal)
-        assertEquals("PLAYBACK_PROGRESS_TIMEOUT", recovery.terminal?.kind)
+        assertNull(recovery.terminal)
+        assertEquals("PLAYBACK_PROGRESS_TIMEOUT", state.terminal?.kind)
     }
 
     @Test
@@ -209,6 +212,127 @@ class PlayerProgressFallbackTest {
                 mimeType = "video/x-matroska",
             ),
         )
+    }
+
+    @Test
+    fun `bounded progress recovery coalesces duplicates and uses increasing backoff`() {
+        val controller = PlayerProgressRecoveryController()
+        val input = recoveryInput()
+
+        val first = present(controller.begin(input))
+
+        assertNull(controller.begin(input))
+        assertEquals(1, first.attempt)
+        assertTrue(first.delayMs > 0L)
+
+        val second = present(controller.nextAttempt(first))
+
+        assertEquals(2, second.attempt)
+        assertTrue(second.delayMs > first.delayMs)
+        controller.exhaust(second)
+        assertNull(controller.begin(input))
+        assertEquals(
+            PlayerProgressRecoveryPhase.EXHAUSTED,
+            controller.status()?.phase,
+        )
+    }
+
+    @Test
+    fun `buffered growth is not confirmation but engine or ready evidence is`() {
+        val controller = PlayerProgressRecoveryController()
+        val input = recoveryInput(enginePositionMs = 5_000L, bufferedPositionMs = 6_000L)
+        val request = present(controller.begin(input))
+
+        val bufferedOnly =
+            controller.observe(
+                input.copy(
+                    bufferedPositionMs = 9_000L,
+                    isReady = false,
+                    isPlaying = false,
+                )
+            )
+
+        assertEquals(PlayerProgressRecoveryPhase.RETRYING, bufferedOnly.phase)
+        assertTrue(controller.isCurrent(request))
+
+        val engineConfirmed = controller.observe(input.copy(enginePositionMs = 6_000L))
+
+        assertEquals(PlayerProgressRecoveryPhase.CONFIRMED, engineConfirmed.phase)
+        assertNull(controller.status())
+
+        val readyController = PlayerProgressRecoveryController()
+        val readyInput =
+            recoveryInput(enginePositionMs = 0L, wasLoading = true)
+        val readyRequest = present(readyController.begin(readyInput))
+        val readyConfirmed =
+            readyController.observe(
+                readyInput.copy(
+                    isReady = true,
+                    isPlaying = true,
+                    wasLoading = false,
+                )
+            )
+
+        assertTrue(readyController.isCurrent(readyRequest))
+        assertEquals(PlayerProgressRecoveryPhase.CONFIRMED, readyConfirmed.phase)
+    }
+
+    @Test
+    fun `pause source change and stale completion cancel the active recovery`() {
+        val paused = PlayerProgressRecoveryController()
+        val pausedInput = recoveryInput()
+        val pausedRequest = present(paused.begin(pausedInput))
+
+        assertEquals(
+            PlayerProgressRecoveryPhase.CANCELLED,
+            paused.observe(pausedInput.copy(playWhenReady = false)).phase,
+        )
+        assertFalse(paused.isCurrent(pausedRequest))
+        assertNull(paused.nextAttempt(pausedRequest))
+
+        val changed = PlayerProgressRecoveryController()
+        val oldRequest = present(changed.begin(pausedInput))
+        val changedInput =
+            recoveryInput(
+                sessionKey = "generation-new",
+                terminalToken = "terminal-new",
+            )
+
+        assertEquals(
+            PlayerProgressRecoveryPhase.CANCELLED,
+            changed.observe(changedInput).phase,
+        )
+        assertNull(changed.nextAttempt(oldRequest))
+
+        val replaced = PlayerProgressRecoveryController()
+        val old = present(replaced.begin(pausedInput))
+        val current = present(replaced.begin(changedInput))
+
+        assertFalse(replaced.isCurrent(old))
+        replaced.exhaust(old)
+        assertTrue(replaced.isCurrent(current))
+        assertEquals(
+            PlayerProgressRecoveryPhase.RETRYING,
+            replaced.status()?.phase,
+        )
+    }
+
+    @Test
+    fun `new terminal generation reopens a fresh bounded budget`() {
+        val controller = PlayerProgressRecoveryController()
+        val first = present(controller.begin(recoveryInput()))
+        val second = present(controller.nextAttempt(first))
+        controller.exhaust(second)
+
+        val nextGeneration =
+            present(
+                controller.begin(
+                    recoveryInput(terminalToken = "terminal-next")
+                )
+            )
+
+        assertEquals(1, nextGeneration.attempt)
+        assertTrue(nextGeneration.generation > first.generation)
     }
 
     private fun positiveProgressState(): PlaybackSessionState {
@@ -273,6 +397,29 @@ class PlayerProgressFallbackTest {
             terminalKind = state.terminal?.kind,
             terminalToken = state.terminal?.token,
             positionMs = state.terminal?.positionMs ?: 0L,
+        )
+
+    private fun recoveryInput(
+        sessionKey: String = "generation-a",
+        terminalToken: String = "terminal-a",
+        enginePositionMs: Long? = 0L,
+        bufferedPositionMs: Long? = 1_000L,
+        wasLoading: Boolean = true,
+    ): PlayerProgressRecoveryInput =
+        PlayerProgressRecoveryInput(
+            sessionKey = sessionKey,
+            mediaIdentity = PlaybackMediaIdentity(EPISODE_ID, SOURCE_ID),
+            targetPositionMs = enginePositionMs ?: 0L,
+            terminalKind = "PLAYBACK_PROGRESS_TIMEOUT",
+            terminalToken = terminalToken,
+            playWhenReady = true,
+            hasPlayerError = false,
+            hasSeekFailure = false,
+            enginePositionMs = enginePositionMs,
+            bufferedPositionMs = bufferedPositionMs,
+            isReady = false,
+            isPlaying = false,
+            wasLoading = wasLoading,
         )
 
     private fun <T : Any> present(value: T?): T {

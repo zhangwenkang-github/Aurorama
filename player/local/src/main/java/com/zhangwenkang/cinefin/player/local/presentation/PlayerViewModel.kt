@@ -45,12 +45,19 @@ import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackQueueEntry
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackRequestToken
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackSnapshotState
+import com.zhangwenkang.cinefin.player.local.domain.PlayerExitAction
+import com.zhangwenkang.cinefin.player.local.domain.PlayerExplicitExitController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.PlayerEndBehavior
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlayerItemEndAction
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackInput
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryController
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryInput
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryPhase
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryRequest
+import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryStatus
 import com.zhangwenkang.cinefin.player.local.domain.PlayerQueueEndAction
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
@@ -65,11 +72,12 @@ import com.zhangwenkang.cinefin.player.local.domain.beginPlaybackRequest
 import com.zhangwenkang.cinefin.player.local.domain.bindSourceSnapshot
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
+import com.zhangwenkang.cinefin.player.local.domain.playerExitAction
 import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSourceKind
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import com.zhangwenkang.cinefin.player.local.domain.seriesBackendKind
-import com.zhangwenkang.cinefin.player.local.domain.shouldReleasePlayerOnExit
+import com.zhangwenkang.cinefin.player.local.domain.shouldStopPlaybackServiceOnExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
@@ -173,6 +181,8 @@ constructor(
         private const val NETWORK_RETRY_WINDOW_MS = 30_000L
         private const val NETWORK_RETRY_MIN_INTERVAL_MS = 3_000L
         private const val NETWORK_RETRY_MAX = 2
+
+        private const val PROGRESS_RECOVERY_OBSERVE_WINDOW_MS = 5_000L
     }
 
     val player: Player
@@ -194,7 +204,14 @@ constructor(
     private var activePlaybackToken: PlaybackRequestToken? = null
     private var playbackSessionState = PlaybackSessionState()
     private var playbackSessionJob: Job? = null
+    private var playbackStartupJob: Job? = null
+    private var progressRecoveryJob: Job? = null
     private val progressFallbackController = PlayerProgressFallbackController()
+    private val progressRecoveryController = PlayerProgressRecoveryController()
+    private val explicitExitController = PlayerExplicitExitController()
+    private var playbackResourcesFinalized = false
+    private var lastProgressRecoveryTerminal: PlaybackRecovery? = null
+    private var lastProgressRecoverySessionKey: String? = null
     private var seriesPlaybackTrace: SeriesPlaybackTraceTracker? = null
 
     val sleepTimerState = sleepTimerController.state
@@ -241,7 +258,15 @@ constructor(
         val showSeekFailure: Boolean = false,
         val loading: Boolean = true,
         val terminal: PlaybackRecovery? = null,
+        val progressRecovery: PlaybackProgressRecoveryUi? = null,
         val lastConfirmedPositionMs: Long? = null,
+    )
+
+    data class PlaybackProgressRecoveryUi(
+        val kind: String,
+        val attempt: Int,
+        val maxAttempts: Int,
+        val exhausted: Boolean,
     )
 
     data class PlaybackRecovery(
@@ -530,6 +555,7 @@ constructor(
     }
 
     private fun refreshPlaybackSession(nowElapsedMs: Long = SystemClock.elapsedRealtime()) {
+        if (explicitExitController.isExited) return
         val active = playerHolder.existingPlayer
         val mediaItem = active?.currentMediaItem
         val currentSourceId =
@@ -562,6 +588,14 @@ constructor(
             )
         playbackSessionState =
             PlaybackSessionRules.advance(playbackSessionState, input, nowElapsedMs)
+        playbackSessionState.terminal?.let {
+            lastProgressRecoveryTerminal = it
+            lastProgressRecoverySessionKey = sessionKey
+        }
+        if (playbackSessionState.terminal == null && sessionKey != lastProgressRecoverySessionKey) {
+            lastProgressRecoveryTerminal = null
+            lastProgressRecoverySessionKey = null
+        }
         val progressFallbackInput =
             progressFallbackInput(
                 mediaItem = mediaItem,
@@ -576,15 +610,50 @@ constructor(
                 )
             if (queued.isFailure) progressFallbackController.cancelCurrentGeneration()
         }
+        val recoveryTerminal =
+            playbackSessionState.terminal ?: lastProgressRecoveryTerminal
+        val progressRecoveryInput =
+            PlayerProgressRecoveryInput(
+                sessionKey = sessionKey,
+                mediaIdentity = progressFallbackInput.mediaIdentity,
+                targetPositionMs = recoveryTerminal?.positionMs ?: 0L,
+                terminalKind = recoveryTerminal?.kind,
+                terminalToken = recoveryTerminal?.token,
+                playWhenReady = playWhenReadyIntent,
+                hasPlayerError = input.hasPlayerError,
+                hasSeekFailure = input.hasSeekFailure,
+                enginePositionMs = input.enginePositionMs,
+                bufferedPositionMs = input.bufferedPositionMs,
+                isReady = input.isReady,
+                isPlaying = input.isPlaying,
+                wasLoading = playbackSessionState.wasLoading,
+            )
+        val recoveryObservation = progressRecoveryController.observe(progressRecoveryInput)
+        if (
+            recoveryObservation.phase == PlayerProgressRecoveryPhase.CONFIRMED ||
+                recoveryObservation.phase == PlayerProgressRecoveryPhase.CANCELLED
+        ) {
+            progressRecoveryJob?.cancel()
+            progressRecoveryJob = null
+        }
+        val suppressTerminal = progressFallbackController.suppressesTerminal(sessionKey)
+        if (!suppressTerminal && progressRecoveryJob?.isActive != true) {
+            progressRecoveryController.begin(progressRecoveryInput)?.let {
+                launchProgressRecovery(it)
+            }
+        }
         _uiState.update {
             it.copy(
                 playbackSession =
                     PlaybackSessionRules.project(
                         playbackSessionState,
                         input,
-                        suppressTerminal =
-                            progressFallbackController.suppressesTerminal(sessionKey),
+                        suppressTerminal = suppressTerminal,
                     )
+                        .copy(
+                            progressRecovery =
+                                progressRecoveryController.status()?.toUi()
+                        )
             )
         }
         seriesPlaybackTrace?.observePosition(
@@ -593,6 +662,57 @@ constructor(
             hasPlayerError = _uiState.value.playerError != null,
         )
     }
+
+    private fun launchProgressRecovery(firstRequest: PlayerProgressRecoveryRequest) {
+        progressRecoveryJob?.cancel()
+        progressRecoveryJob =
+            viewModelScope.launch {
+                var request: PlayerProgressRecoveryRequest? = firstRequest
+                while (isActive && request != null) {
+                    val currentRequest = request
+                    delay(currentRequest.delayMs)
+                    if (!isActive || !progressRecoveryRequestIsCurrent(currentRequest)) {
+                        return@launch
+                    }
+                    retryPlaybackAt(
+                        position = currentRequest.targetPositionMs,
+                        positionSource =
+                            lastProgressRecoveryTerminal
+                                ?.takeIf { it.token == currentRequest.terminalToken }
+                                ?.positionSource,
+                    )
+                    delay(PROGRESS_RECOVERY_OBSERVE_WINDOW_MS)
+                    if (!isActive) return@launch
+                    request = progressRecoveryController.nextAttempt(currentRequest)
+                }
+            }
+    }
+
+    private fun progressRecoveryRequestIsCurrent(
+        request: PlayerProgressRecoveryRequest,
+    ): Boolean {
+        if (explicitExitController.isExited || !progressRecoveryController.isCurrent(request)) {
+            return false
+        }
+        val active = playerHolder.existingPlayer ?: return false
+        val mediaItem = active.currentMediaItem ?: return false
+        if (currentPlaybackSessionKey(active, mediaItem) != request.sessionKey) return false
+        val itemId =
+            mediaItem.mediaId.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
+                ?: return false
+        val mediaSourceId =
+            mediaItem.mediaMetadata.extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
+                ?: return false
+        return PlaybackMediaIdentity(itemId, mediaSourceId) == request.mediaIdentity
+    }
+
+    private fun PlayerProgressRecoveryStatus.toUi() =
+        PlaybackProgressRecoveryUi(
+            kind = requireNotNull(terminalKind),
+            attempt = attempt,
+            maxAttempts = maxAttempts,
+            exhausted = phase == PlayerProgressRecoveryPhase.EXHAUSTED,
+        )
 
     private fun progressFallbackInput(
         mediaItem: MediaItem?,
@@ -748,7 +868,16 @@ constructor(
         queueEntries: List<PlaybackQueueEntry> = emptyList(),
         preferredMediaSourceId: String? = null,
     ) {
+        if (explicitExitController.isExited) return
         seriesPlaybackTrace = null
+        playbackStartupJob?.cancel()
+        queueExpandJob?.cancel()
+        queueFillJob?.cancel()
+        progressRecoveryJob?.cancel()
+        progressRecoveryJob = null
+        progressRecoveryController.cancel()
+        lastProgressRecoveryTerminal = null
+        lastProgressRecoverySessionKey = null
         // Release any music session before touching the shared player instance.
         playbackCoordinator.onVideoStartRequested()
         // Decode fallback and speed are scoped to the playback session.
@@ -770,6 +899,7 @@ constructor(
         playWhenReady = true
         // 新播放页 / 新码率 / 新内核请求：旧 source 与 current 立即失效。
         val initializationGeneration = resetPlaybackSnapshots()
+        val exitGeneration = explicitExitController.generation
         player.addListener(this)
         applySavedSubtitlePreferences()
         syncMpvSubtitleMode()
@@ -779,7 +909,8 @@ constructor(
             playbackPosition = startPositionMs
         }
 
-        viewModelScope.launch {
+        playbackStartupJob =
+            viewModelScope.launch {
             val startItem =
                 try {
                     runPlaybackStartupRequest {
@@ -809,7 +940,12 @@ constructor(
                 } catch (e: Exception) {
                     // W76-B11b：协程已被取消时，网络层可能抛出「取消的副产品」而不是 CancellationException
                     // （连接被中断的 IOException 等）。离开播放页时同样不该把它当成解析失败弹提示。
-                    if (!isActive) throw e
+                    if (
+                        !isActive ||
+                            !explicitExitController.isCurrent(exitGeneration)
+                    ) {
+                        return@launch
+                    }
                     Timber.e(e)
                     Toast.makeText(
                             application,
@@ -825,10 +961,12 @@ constructor(
 
             if (startItem == null) {
                 Timber.e("No start item, stopping player initialization")
-                startupInProgress = false
+                if (explicitExitController.isCurrent(exitGeneration)) {
+                    startupInProgress = false
+                }
                 return@launch
             }
-            if (playbackSnapshots.generation != initializationGeneration) {
+            if (!isCurrentPlaybackStartup(exitGeneration, initializationGeneration)) {
                 Timber.d("Discard stale player initialization after generation advanced")
                 return@launch
             }
@@ -849,6 +987,9 @@ constructor(
                     itemId = startItem.itemId,
                     mediaSourceId = startItem.mediaSourceId,
                 )
+            if (!isCurrentPlaybackStartup(exitGeneration, initializationGeneration)) {
+                return@launch
+            }
             val sourceToken = beginMediaSnapshot(identity)
             applySourceSnapshot(sourceToken, startItem.mediaInfo)
 
@@ -871,6 +1012,9 @@ constructor(
                     playbackPosition
                 }
 
+            if (!isCurrentPlaybackStartup(exitGeneration, initializationGeneration)) {
+                return@launch
+            }
             seekSink.observeSource(mediaItems.firstOrNull())
             player.setMediaItems(mediaItems, 0, startPosition)
             // W74 U2-B（D-F8）：进播放页 / 重建播放器实例时套用保存的循环 / 随机模式。
@@ -885,8 +1029,20 @@ constructor(
         }
     }
 
+    private fun isCurrentPlaybackStartup(
+        exitGeneration: Long,
+        initializationGeneration: Long,
+    ): Boolean =
+        isActivePlaybackGeneration(exitGeneration) &&
+            playbackSnapshots.generation == initializationGeneration
+
+    private fun isActivePlaybackGeneration(exitGeneration: Long): Boolean =
+        !explicitExitController.isExited &&
+            explicitExitController.isCurrent(exitGeneration)
+
     // Expand series metadata after playback starts, then refill from the new queue size.
     private fun fillQueueInBackgroundAfterSeriesExpansion() {
+        if (explicitExitController.isExited) return
         val pending = playlistManager.pendingSeriesQueueExpansion
         if (pending == null) {
             // 电影 / 显式队列播放：队列在起播前就是全的
@@ -895,6 +1051,7 @@ constructor(
         }
 
         queueExpandJob?.cancel()
+        val exitGeneration = explicitExitController.generation
         queueExpandJob =
             viewModelScope.launch(Dispatchers.IO) {
                 val expanded =
@@ -907,7 +1064,7 @@ constructor(
                         Timber.w(e, "整剧队列补全失败，保持单条队列（series=%s）", pending.seriesId)
                         false
                     }
-                if (expanded && isActive) {
+                if (expanded && isActive && isActivePlaybackGeneration(exitGeneration)) {
                     fillQueueInBackground()
                 }
             }
@@ -934,7 +1091,9 @@ constructor(
 
     // Fill the queue off the main thread with bounded insertion batches.
     private fun fillQueueInBackground() {
+        if (explicitExitController.isExited) return
         queueFillJob?.cancel()
+        val exitGeneration = explicitExitController.generation
         queueFillJob =
             viewModelScope.launch(Dispatchers.IO) {
                 val (currentIndex, queueSize) =
@@ -947,6 +1106,7 @@ constructor(
                 var stoppedAtLimit = false
 
                 for (index in (currentIndex + 1) until queueSize) {
+                    if (!isActivePlaybackGeneration(exitGeneration)) return@launch
                     // 用户手动整理过队列（排序 / 删除 / 清空）：不再把条目补回来
                     if (queueManuallyEdited) return@launch
                     if (added >= MAX_QUEUE_FILL_ITEMS) {
@@ -960,6 +1120,7 @@ constructor(
                 }
                 if (!stoppedAtLimit) {
                     for (index in (currentIndex - 1) downTo 0) {
+                        if (!isActivePlaybackGeneration(exitGeneration)) return@launch
                         if (queueManuallyEdited) return@launch
                         if (added >= MAX_QUEUE_FILL_ITEMS) {
                             stoppedAtLimit = true
@@ -972,6 +1133,7 @@ constructor(
                     }
                 }
 
+                if (!isActivePlaybackGeneration(exitGeneration)) return@launch
                 val total = withContext(Dispatchers.Main) { player.mediaItemCount }
                 if (stoppedAtLimit) {
                     Timber.w("播放队列补全达上限：本次新增 %d 项（播放器共 %d 项）", added, total)
@@ -1064,18 +1226,58 @@ constructor(
         }
     }
 
+    /**
+     * 用户明确从视频页返回时唯一允许的收尾入口。后台开关只影响 HOME / 锁屏， 不能覆盖明确的视频退出。
+     *
+     * @return Activity 是否应停止视频拥有的前台播放服务。音乐会话永远由音乐链路保留。
+     */
+    fun onExplicitVideoExit(): Boolean {
+        if (explicitExitController.begin() == null) return false
+        cancelPlaybackWork(cancelSessionSampler = true)
+        val action =
+            playerExitAction(
+                musicSessionActive = isMusicSessionActive,
+                explicitVideoExit = true,
+                backgroundAudioEnabled =
+                    appPreferences.getValue(appPreferences.playerBackgroundAudio),
+            )
+        finalizePlaybackSession(action)
+        return shouldStopPlaybackServiceOnExit(
+            musicSessionActive = isMusicSessionActive,
+            explicitVideoExit = true,
+            backgroundAudioEnabled =
+                appPreferences.getValue(appPreferences.playerBackgroundAudio),
+        )
+    }
+
     @OptIn(DelicateCoroutinesApi::class)
     private fun releasePlayer() {
-        // Capture and send the final progress synchronously before process exit.
-        refreshPlaybackSession()
-        progressFallbackController.cancelCurrentGeneration()
+        if (playbackResourcesFinalized) return
+        cancelPlaybackWork(cancelSessionSampler = false)
+        val action =
+            playerExitAction(
+                musicSessionActive = isMusicSessionActive,
+                explicitVideoExit = explicitExitController.isExited,
+                backgroundAudioEnabled =
+                    appPreferences.getValue(appPreferences.playerBackgroundAudio),
+            )
+        finalizePlaybackSession(action)
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    private fun finalizePlaybackSession(action: PlayerExitAction) {
+        if (playbackResourcesFinalized) return
         val activePlayer = playerHolder.existingPlayer
         val mediaId = activePlayer?.currentMediaItem?.mediaId
-        val position = playbackSessionState.lastEnginePositionMs
+        val position =
+            playbackSessionState.lastEnginePositionMs
+                ?: confirmedPosition(activePlayer)
         val duration = activePlayer?.duration ?: C.TIME_UNSET
         val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
         // Only the page-owned session reports a stop; attached music remains music-owned.
         if (
+            action != PlayerExitAction.PRESERVE_MUSIC &&
+                action != PlayerExitAction.PRESERVE_BACKGROUND_VIDEO &&
             shouldReportStopOnPlayerExit(playerHolder.isCurrentItemMusic) &&
                 itemId != null &&
                 position != null &&
@@ -1103,17 +1305,45 @@ constructor(
         playWhenReady = false
         playbackPosition = 0L
         currentMediaItemIndex = 0
-        player.removeListener(this)
-        val backgroundAudioEnabled = appPreferences.getValue(appPreferences.playerBackgroundAudio)
-        if (!shouldReleasePlayerOnExit(playerHolder.musicSessionActive, backgroundAudioEnabled)) {
+        playbackStartupJob?.cancel()
+        playbackStartupJob = null
+        startupInProgress = false
+        playerHolder.existingPlayer?.removeListener(this)
+        if (action != PlayerExitAction.STOP_AND_RELEASE &&
+            action != PlayerExitAction.PAUSE_FOREGROUND_ONLY
+        ) {
             // Background playback keeps the instance alive; persist only the position.
             position?.let { savedStateHandle["position"] = it }
         } else {
+            activePlayer?.playWhenReady = false
+            runCatching { activePlayer?.stop() }
+            runCatching { activePlayer?.clearMediaItems() }
             playerHolder.release()
+        }
+        playbackResourcesFinalized = true
+    }
+
+    private fun cancelPlaybackWork(cancelSessionSampler: Boolean) {
+        playbackStartupJob?.cancel()
+        playbackStartupJob = null
+        queueExpandJob?.cancel()
+        queueExpandJob = null
+        queueFillJob?.cancel()
+        queueFillJob = null
+        progressRecoveryJob?.cancel()
+        progressRecoveryJob = null
+        progressRecoveryController.cancel()
+        progressFallbackController.cancelCurrentGeneration()
+        lastProgressRecoveryTerminal = null
+        lastProgressRecoverySessionKey = null
+        if (cancelSessionSampler) {
+            playbackSessionJob?.cancel()
+            playbackSessionJob = null
         }
     }
 
     fun updatePlaybackProgress() {
+        if (explicitExitController.isExited) return
         val player = playerHolder.existingPlayer ?: return
         val mediaItem = player.currentMediaItem ?: return
         val itemId = runCatching { UUID.fromString(mediaItem.mediaId) }.getOrNull() ?: return
@@ -1787,8 +2017,7 @@ constructor(
     override fun onCleared() {
         super.onCleared()
         Timber.d("Clearing Player ViewModel")
-        playbackSessionJob?.cancel()
-        playbackSessionJob = null
+        cancelPlaybackWork(cancelSessionSampler = true)
         releasePlayer()
     }
 
@@ -2779,6 +3008,7 @@ constructor(
     }
 
     fun consumeProgressFallback(requestToken: String): PlaybackProgressFallbackHandoff? {
+        if (explicitExitController.isExited) return null
         refreshPlaybackSession()
         val active = playerHolder.existingPlayer ?: return null
         val mediaItem = active.currentMediaItem ?: return null
@@ -2811,6 +3041,7 @@ constructor(
     }
 
     fun retryPlayback(terminalToken: String) {
+        if (explicitExitController.isExited) return
         val terminal = playbackSessionState.terminal
         if (terminal?.token != terminalToken || playbackSessionState.retryConsumed) {
             Timber.d("Ignoring stale playback retry terminal=%s", terminalToken)
@@ -2840,6 +3071,7 @@ constructor(
         position: Long,
         positionSource: PlaybackRetryPositionSource? = null,
     ) {
+        if (explicitExitController.isExited || playbackResourcesFinalized) return
         _uiState.update { it.copy(playerError = null) }
         player.prepare()
         if (position > 0L) {
@@ -3378,15 +3610,18 @@ internal object PlaybackSessionRules {
         input: PlaybackSessionInput,
         suppressTerminal: Boolean = false,
     ): PlayerViewModel.PlaybackSessionUi {
-        val terminal = state.terminal?.takeUnless { state.retryConsumed || suppressTerminal }
+        val progressTerminal = state.terminal?.takeUnless { state.retryConsumed || suppressTerminal }
         val showError = input.playWhenReady && input.hasPlayerError
         val showSeekFailure = input.playWhenReady && !showError && input.hasSeekFailure
         return PlayerViewModel.PlaybackSessionUi(
             pauseWhenReady = input.playWhenReady,
             showPlayerError = showError,
             showSeekFailure = showSeekFailure,
-            loading = terminal == null && !showError && !showSeekFailure && isLoading(input),
-            terminal = terminal,
+            loading =
+                !showError &&
+                    !showSeekFailure &&
+                    (progressTerminal != null || isLoading(input)),
+            terminal = null,
             lastConfirmedPositionMs = state.lastEnginePositionMs,
         )
     }

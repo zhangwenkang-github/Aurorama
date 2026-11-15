@@ -5,6 +5,7 @@ import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackRecoveryCopyTest {
@@ -114,5 +115,40 @@ class PlaybackRecoveryCopyTest {
 
             assertFalse(copy.toString().contains(kind))
         }
+    }
+
+    @Test
+    fun progressTerminal_isNonBlockingAndDoesNotProduceActionBar() {
+        val presentation =
+            playbackRecoveryPresentation(
+                showPlayerError = false,
+                seekFailed = false,
+                progressRecovery = true,
+            )
+
+        assertFalse(presentation.forceControlsVisible)
+        assertTrue(presentation.canAutoHideControls)
+        assertFalse(presentation.showProgressRecoveryAction)
+    }
+
+    @Test
+    fun fatalPlayerErrorAndSeekFailureKeepBlockingControls() {
+        val playerError =
+            playbackRecoveryPresentation(
+                showPlayerError = true,
+                seekFailed = false,
+                progressRecovery = true,
+            )
+        val seekFailure =
+            playbackRecoveryPresentation(
+                showPlayerError = false,
+                seekFailed = true,
+                progressRecovery = true,
+            )
+
+        assertTrue(playerError.forceControlsVisible)
+        assertFalse(playerError.canAutoHideControls)
+        assertTrue(seekFailure.forceControlsVisible)
+        assertFalse(seekFailure.canAutoHideControls)
     }
 }

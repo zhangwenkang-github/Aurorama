@@ -27,6 +27,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
@@ -219,6 +220,14 @@ class PlayerActivity : BasePlayerActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    finishPlayback()
+                }
+            },
+        )
 
         /*
          * itemId 允许为空：从通知 / 锁屏回到播放页时，播放会话已经在服务里跑着，
@@ -400,7 +409,6 @@ class PlayerActivity : BasePlayerActivity() {
                         trickplayFrameAt = { position -> viewModel.trickplayFrameAt(position) },
                         showChapterMarkers = settingsController.state.chapterMarkers,
                         onRetry = viewModel::retryPlayerError,
-                        onRetryProgress = viewModel::retryPlayback,
                         onSwitchBackend = { target -> switchBackendAndRestart(target) },
                         onRegionsChanged = {
                             visible,
@@ -1291,7 +1299,10 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     private fun finishPlayback() {
-        viewModel.cancelProgressFallback()
+        if (!completeExplicitVideoExit()) {
+            if (!isFinishing) finish()
+            return
+        }
         try {
             // 视频输出已改为 TextureView（避免控制层覆盖时 SurfaceView 被遮挡变黑），
             // 这里同时兼容两种输出类型

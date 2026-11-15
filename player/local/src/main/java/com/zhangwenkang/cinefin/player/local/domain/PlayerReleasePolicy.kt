@@ -1,5 +1,60 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
+internal enum class PlayerExitAction {
+    PRESERVE_MUSIC,
+    STOP_AND_RELEASE,
+    PRESERVE_BACKGROUND_VIDEO,
+    PAUSE_FOREGROUND_ONLY,
+}
+
+internal fun playerExitAction(
+    musicSessionActive: Boolean,
+    explicitVideoExit: Boolean,
+    backgroundAudioEnabled: Boolean,
+): PlayerExitAction =
+    when {
+        musicSessionActive -> PlayerExitAction.PRESERVE_MUSIC
+        explicitVideoExit -> PlayerExitAction.STOP_AND_RELEASE
+        backgroundAudioEnabled -> PlayerExitAction.PRESERVE_BACKGROUND_VIDEO
+        else -> PlayerExitAction.PAUSE_FOREGROUND_ONLY
+    }
+
+internal fun shouldReleasePlayerOnExit(
+    musicSessionActive: Boolean,
+    explicitVideoExit: Boolean,
+    backgroundAudioEnabled: Boolean,
+): Boolean =
+    playerExitAction(musicSessionActive, explicitVideoExit, backgroundAudioEnabled) in
+        setOf(PlayerExitAction.STOP_AND_RELEASE, PlayerExitAction.PAUSE_FOREGROUND_ONLY)
+
+internal fun shouldStopPlaybackServiceOnExit(
+    musicSessionActive: Boolean,
+    explicitVideoExit: Boolean,
+    backgroundAudioEnabled: Boolean,
+): Boolean =
+    playerExitAction(musicSessionActive, explicitVideoExit, backgroundAudioEnabled) in
+        setOf(PlayerExitAction.STOP_AND_RELEASE, PlayerExitAction.PAUSE_FOREGROUND_ONLY)
+
+internal class PlayerExplicitExitController {
+    private var currentGeneration = 0L
+    private var exited = false
+
+    val generation: Long
+        get() = currentGeneration
+
+    val isExited: Boolean
+        get() = exited
+
+    fun begin(): Long? {
+        if (exited) return null
+        exited = true
+        currentGeneration += 1L
+        return currentGeneration
+    }
+
+    fun isCurrent(generation: Long): Boolean = generation == currentGeneration
+}
+
 /**
  * W68：播放页真正结束（onCleared）时是否释放进程级共享播放器实例。
  *
@@ -12,4 +67,9 @@ package com.zhangwenkang.cinefin.player.local.domain
 internal fun shouldReleasePlayerOnExit(
     musicSessionActive: Boolean,
     backgroundAudioEnabled: Boolean,
-): Boolean = !musicSessionActive && !backgroundAudioEnabled
+): Boolean =
+    shouldReleasePlayerOnExit(
+        musicSessionActive = musicSessionActive,
+        explicitVideoExit = false,
+        backgroundAudioEnabled = backgroundAudioEnabled,
+    )
