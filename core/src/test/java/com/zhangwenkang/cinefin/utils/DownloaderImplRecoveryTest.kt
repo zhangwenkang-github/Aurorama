@@ -292,6 +292,229 @@ class DownloaderImplRecoveryTest {
     }
 
     @Test
+    fun `empty sample then concurrent enqueue activates foreground before same worker transfer`() =
+        runBlocking {
+            val fixture = Fixture()
+            var queueRun: kotlinx.coroutines.Deferred<DownloadQueueOutcome>? = null
+            try {
+                fixture.transfer.holdDownloads()
+                val sequence = AtomicInteger()
+                val emptySampleIndex = AtomicInteger()
+                val newTaskCommittedIndex = AtomicInteger()
+                val sameWorkerClaimedIndex = AtomicInteger()
+                val foregroundRequestedIndex = AtomicInteger()
+                val foregroundAckIndex = AtomicInteger()
+                val foregroundActivationCount = AtomicInteger()
+                val transferStartIndex = AtomicInteger()
+                fixture.dao.onClaimSourceRunning = {
+                    sameWorkerClaimedIndex.set(sequence.incrementAndGet())
+                }
+                val gatedDownloader =
+                    object : Downloader by fixture.downloader, DownloadEngineForegroundGate {
+                        override suspend fun foregroundInfoForRunnableWork(): ForegroundInfo? {
+                            val info = fixture.downloader.foregroundInfoForRunnableWork()
+                            assertNull("the canonical gate must first observe an empty queue", info)
+                            emptySampleIndex.set(sequence.incrementAndGet())
+                            fixture.seedConcurrentMovies(1)
+                            newTaskCommittedIndex.set(sequence.incrementAndGet())
+                            return null
+                        }
+
+                        override suspend fun runQueueWithForegroundActivation(
+                            foregroundPublishedAtStart: Boolean,
+                            setForeground: suspend (ForegroundInfo) -> Unit,
+                        ): DownloadQueueOutcome =
+                            fixture.downloader.runQueueWithForegroundActivation(
+                                foregroundPublishedAtStart = foregroundPublishedAtStart,
+                                setForeground = setForeground,
+                            )
+                    }
+
+                queueRun =
+                    async(Dispatchers.Default) {
+                        runDownloadEngineWork(gatedDownloader) {
+                            foregroundRequestedIndex.set(sequence.incrementAndGet())
+                            foregroundAckIndex.set(sequence.incrementAndGet())
+                            foregroundActivationCount.incrementAndGet()
+                        }
+                    }
+
+                assertTrue(
+                    "the same worker must claim and start the newly enqueued source",
+                    fixture.transfer.awaitStarted(1),
+                )
+                transferStartIndex.set(sequence.incrementAndGet())
+                val networkCallsBeforeAck =
+                    if (foregroundAckIndex.get() == 0) {
+                        fixture.transfer.startedPaths().size
+                    } else {
+                        0
+                    }
+
+                assertEquals(1, emptySampleIndex.get())
+                assertTrue(newTaskCommittedIndex.get() > emptySampleIndex.get())
+                assertTrue(sameWorkerClaimedIndex.get() > newTaskCommittedIndex.get())
+                assertTrue(foregroundRequestedIndex.get() > sameWorkerClaimedIndex.get())
+                assertTrue(foregroundAckIndex.get() > foregroundRequestedIndex.get())
+                assertTrue(
+                    "transfer must start only after the foreground promotion ack",
+                    transferStartIndex.get() > foregroundAckIndex.get(),
+                )
+                assertEquals(0, networkCallsBeforeAck)
+                fixture.transfer.release()
+                withTimeout(5_000L) { queueRun.await() }
+                assertEquals(
+                    "a reused worker must activate foreground exactly once",
+                    1,
+                    foregroundActivationCount.get(),
+                )
+            } finally {
+                fixture.transfer.release()
+                queueRun?.let { run -> withTimeout(5_000L) { run.await() } }
+                fixture.close()
+            }
+        }
+
+    @Test
+    fun `foreground promotion failure leaves new claim pending and starts no transfer`() =
+        runBlocking {
+            val fixture = Fixture()
+            try {
+                var newSourceId: String? = null
+                val gatedDownloader =
+                    object : Downloader by fixture.downloader, DownloadEngineForegroundGate {
+                        override suspend fun foregroundInfoForRunnableWork(): ForegroundInfo? {
+                            val info = fixture.downloader.foregroundInfoForRunnableWork()
+                            assertNull(info)
+                            newSourceId = fixture.seedConcurrentMovies(1).single().source.id
+                            return null
+                        }
+
+                        override suspend fun runQueueWithForegroundActivation(
+                            foregroundPublishedAtStart: Boolean,
+                            setForeground: suspend (ForegroundInfo) -> Unit,
+                        ): DownloadQueueOutcome =
+                            fixture.downloader.runQueueWithForegroundActivation(
+                                foregroundPublishedAtStart = foregroundPublishedAtStart,
+                                setForeground = setForeground,
+                            )
+                    }
+
+                val failure = runCatching {
+                    runDownloadEngineWork(gatedDownloader) { error("foreground promotion failed") }
+                }
+
+                assertTrue(
+                    "promotion failure must propagate as a non-success worker result",
+                    failure.exceptionOrNull() is IllegalStateException,
+                )
+                assertEquals(0, fixture.transfer.startedPaths().size)
+                assertEquals(
+                    DownloadTaskStatus.PENDING.name,
+                    requireNotNull(fixture.dao.sourceById(requireNotNull(newSourceId))).taskStatus,
+                )
+            } finally {
+                fixture.transfer.release()
+                fixture.close()
+            }
+        }
+
+    @Test
+    fun `foreground promotion cancellation leaves new claim pending and starts no transfer`() =
+        runBlocking {
+            val fixture = Fixture()
+            try {
+                var newSourceId: String? = null
+                val gatedDownloader =
+                    object : Downloader by fixture.downloader, DownloadEngineForegroundGate {
+                        override suspend fun foregroundInfoForRunnableWork(): ForegroundInfo? {
+                            val info = fixture.downloader.foregroundInfoForRunnableWork()
+                            assertNull(info)
+                            newSourceId = fixture.seedConcurrentMovies(1).single().source.id
+                            return null
+                        }
+
+                        override suspend fun runQueueWithForegroundActivation(
+                            foregroundPublishedAtStart: Boolean,
+                            setForeground: suspend (ForegroundInfo) -> Unit,
+                        ): DownloadQueueOutcome =
+                            fixture.downloader.runQueueWithForegroundActivation(
+                                foregroundPublishedAtStart = foregroundPublishedAtStart,
+                                setForeground = setForeground,
+                            )
+                    }
+
+                val failure = runCatching {
+                    runDownloadEngineWork(gatedDownloader) {
+                        throw CancellationException("foreground promotion cancelled")
+                    }
+                }
+
+                assertTrue(
+                    "promotion cancellation must propagate",
+                    failure.exceptionOrNull() is CancellationException,
+                )
+                assertEquals(0, fixture.transfer.startedPaths().size)
+                assertEquals(
+                    DownloadTaskStatus.PENDING.name,
+                    requireNotNull(fixture.dao.sourceById(requireNotNull(newSourceId))).taskStatus,
+                )
+            } finally {
+                fixture.transfer.release()
+                fixture.close()
+            }
+        }
+
+    @Test
+    fun `existing runnable work publishes foreground before transfer`() = runBlocking {
+        val fixture = Fixture()
+        var queueRun: kotlinx.coroutines.Deferred<DownloadQueueOutcome>? = null
+        try {
+            fixture.transfer.holdDownloads()
+            fixture.seedConcurrentMovies(1)
+            val sequence = AtomicInteger()
+            val foregroundRequestedIndex = AtomicInteger()
+            val foregroundAckIndex = AtomicInteger()
+            val transferStartIndex = AtomicInteger()
+            val gatedDownloader =
+                object : Downloader by fixture.downloader, DownloadEngineForegroundGate {
+                    override suspend fun foregroundInfoForRunnableWork(): ForegroundInfo? =
+                        fixture.downloader.foregroundInfoForRunnableWork()
+
+                    override suspend fun runQueueWithForegroundActivation(
+                        foregroundPublishedAtStart: Boolean,
+                        setForeground: suspend (ForegroundInfo) -> Unit,
+                    ): DownloadQueueOutcome =
+                        fixture.downloader.runQueueWithForegroundActivation(
+                            foregroundPublishedAtStart = foregroundPublishedAtStart,
+                            setForeground = setForeground,
+                        )
+                }
+
+            queueRun =
+                async(Dispatchers.Default) {
+                    runDownloadEngineWork(gatedDownloader) {
+                        foregroundRequestedIndex.set(sequence.incrementAndGet())
+                        foregroundAckIndex.set(sequence.incrementAndGet())
+                    }
+                }
+
+            assertTrue(fixture.transfer.awaitStarted(1))
+            transferStartIndex.set(sequence.incrementAndGet())
+            assertEquals(1, foregroundRequestedIndex.get())
+            assertEquals(2, foregroundAckIndex.get())
+            assertTrue(
+                "foreground ack must precede transfer",
+                foregroundAckIndex.get() in 1 until transferStartIndex.get(),
+            )
+        } finally {
+            fixture.transfer.release()
+            queueRun?.let { run -> withTimeout(5_000L) { run.await() } }
+            fixture.close()
+        }
+    }
+
+    @Test
     fun `foreground ack gates publisher and newer epoch wins`() = runBlocking {
         val fixture = Fixture()
         try {
@@ -6674,6 +6897,7 @@ class DownloaderImplRecoveryTest {
         var itemAvailable = true
         var sourceTaskStatusUpdateResult: Int? = null
         var onGetMovie: (() -> Unit)? = null
+        var onClaimSourceRunning: (() -> Unit)? = null
         var trackParentRows = false
         var remainingEpisodes: List<Any> = emptyList()
         var remainingSeasons: List<Any> = emptyList()
@@ -6838,10 +7062,14 @@ class DownloaderImplRecoveryTest {
                             sources[id]?.let { sources[id] = it.copy(path = args[1] as String) }
                             Unit
                         }
-                        "claimSourceRunning" ->
-                            updateSource(args) {
-                                it.copy(taskStatus = "RUNNING", failureReason = null)
-                            }
+                        "claimSourceRunning" -> {
+                            val updated =
+                                updateSource(args) {
+                                    it.copy(taskStatus = "RUNNING", failureReason = null)
+                                }
+                            if (updated > 0) onClaimSourceRunning?.invoke()
+                            updated
+                        }
                         "beginSourcePause" ->
                             updateSourceRow(args) {
                                 it.copy(

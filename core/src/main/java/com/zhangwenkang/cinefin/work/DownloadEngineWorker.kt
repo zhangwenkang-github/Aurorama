@@ -54,10 +54,14 @@ internal suspend fun runDownloadEngineWork(
     downloader: Downloader,
     setForeground: suspend (ForegroundInfo) -> Unit,
 ): DownloadQueueOutcome {
-    val foregroundInfo =
-        (downloader as? DownloadEngineForegroundGate)?.foregroundInfoForRunnableWork()
+    val foregroundGate = downloader as? DownloadEngineForegroundGate ?: return downloader.runQueue()
+    val foregroundInfo = foregroundGate.foregroundInfoForRunnableWork()
+    val foregroundPublishedAtStart = foregroundInfo != null
     if (foregroundInfo != null) {
         setForeground(foregroundInfo)
     }
-    return downloader.runQueue()
+    return foregroundGate.runQueueWithForegroundActivation(
+        foregroundPublishedAtStart = foregroundPublishedAtStart,
+        setForeground = setForeground,
+    )
 }

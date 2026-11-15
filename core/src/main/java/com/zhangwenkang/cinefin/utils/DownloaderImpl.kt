@@ -305,12 +305,21 @@ internal class WorkManagerImageFinalizationScheduler(private val workGateway: Do
     }
 }
 
-internal interface DownloadEngineForegroundGate {
+internal interface DownloadEngineForegroundGate : Downloader {
     /**
      * Samples the canonical queue once and returns foreground metadata only when this worker has
      * work that it can claim immediately.
      */
     suspend fun foregroundInfoForRunnableWork(): ForegroundInfo?
+
+    /**
+     * Runs one worker queue pass while allowing the first actual claim to promote the worker to
+     * foreground before its transfer starts.
+     */
+    suspend fun runQueueWithForegroundActivation(
+        foregroundPublishedAtStart: Boolean,
+        setForeground: suspend (ForegroundInfo) -> Unit,
+    ): DownloadQueueOutcome = runQueue()
 }
 
 /**
@@ -1824,8 +1833,29 @@ private constructor(
             current.taskGeneration == intent.taskGeneration
     }
 
-    override suspend fun runQueue(): DownloadQueueOutcome {
+    override suspend fun runQueue(): DownloadQueueOutcome = runQueueInternal()
+
+    override suspend fun runQueueWithForegroundActivation(
+        foregroundPublishedAtStart: Boolean,
+        setForeground: suspend (ForegroundInfo) -> Unit,
+    ): DownloadQueueOutcome =
+        runQueueInternal(
+            foregroundPublishedAtStart = foregroundPublishedAtStart,
+            activateForegroundBeforeClaimedExecution = { claimedSources ->
+                activateForegroundBeforeClaimedExecution(
+                    claimedSources = claimedSources,
+                    setForeground = setForeground,
+                )
+            },
+        )
+
+    private suspend fun runQueueInternal(
+        foregroundPublishedAtStart: Boolean = false,
+        activateForegroundBeforeClaimedExecution: (suspend (List<FindroidSourceDto>) -> Unit)? =
+            null,
+    ): DownloadQueueOutcome {
         acknowledgeForegroundInfoPublished()
+        var foregroundPublished = foregroundPublishedAtStart
         // W76-Q7：新一轮 worker 开始 → 复位调度交接状态（上一轮遗留的 kick / 静默标记作废）。
         synchronized(queueKickLock) {
             engineWorkerQuiesced = false
@@ -1836,7 +1866,16 @@ private constructor(
             ran +=
                 queuePump.run(
                     maxConcurrentTasks = { maxConcurrentTasks },
-                    claim = ::claimRunnableTasks,
+                    claim = { limit ->
+                        val claimedSources = claimRunnableTasks(limit)
+                        if (claimedSources.isNotEmpty() && !foregroundPublished) {
+                            activateForegroundBeforeClaimedExecution?.let { activate ->
+                                activate(claimedSources)
+                                foregroundPublished = true
+                            }
+                        }
+                        claimedSources
+                    },
                     key = FindroidSourceDto::id,
                     execute = ::executeTask,
                     pause = ::pauseTaskById,
@@ -1886,6 +1925,61 @@ private constructor(
                 )
         }
     }
+
+    private suspend fun activateForegroundBeforeClaimedExecution(
+        claimedSources: List<FindroidSourceDto>,
+        setForeground: suspend (ForegroundInfo) -> Unit,
+    ) {
+        try {
+            val foregroundInfo =
+                foregroundInfoForRunnableWork()
+                    ?: error("claimed download work lost its runnable foreground snapshot")
+            setForeground(foregroundInfo)
+            acknowledgeForegroundInfoPublished()
+        } catch (failure: Exception) {
+            runCatching { restoreClaimedSourcesAfterForegroundFailure(claimedSources) }
+                .onFailure(failure::addSuppressed)
+            throw failure
+        }
+    }
+
+    private suspend fun restoreClaimedSourcesAfterForegroundFailure(
+        claimedSources: List<FindroidSourceDto>
+    ) =
+        withContext(NonCancellable + Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            var restorationFailure: Exception? = null
+            claimedSources.forEach { source ->
+                try {
+                    lifecycleControl.withSourceOperation(source.id) {
+                        val current = database.getSource(source.id)
+                        if (
+                            current != null &&
+                                current.taskGeneration == source.taskGeneration &&
+                                current.taskStatus.toTaskStatus() == DownloadTaskStatus.RUNNING
+                        ) {
+                            database.setSourceTaskStatusIfCurrent(
+                                id = source.id,
+                                generation = source.taskGeneration,
+                                status = DownloadTaskStatus.PENDING.name,
+                                failureReason = null,
+                                updatedAt = now,
+                            )
+                        }
+                    }
+                } catch (failure: Exception) {
+                    restorationFailure = restorationFailure ?: failure
+                    Timber.w(
+                        failure,
+                        "恢复前台激活失败后的 PENDING 状态时异常：${source.id}",
+                    )
+                } finally {
+                    lifecycleControl.releaseClaim(source.id, source.taskGeneration)
+                }
+            }
+            notifyQueueChanged()
+            restorationFailure?.let { throw it }
+        }
 
     /** 领取可立即运行的 PENDING 任务并标记 RUNNING（受并发上限约束）。 */
     private suspend fun claimRunnableTasks(limit: Int): List<FindroidSourceDto> {
