@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.presentation
 
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import com.zhangwenkang.cinefin.player.core.domain.models.PlaybackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackInput
@@ -8,10 +10,17 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryContro
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryInput
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryPhase
 import com.zhangwenkang.cinefin.player.local.domain.SeekConfirmationPolicy
+import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSourceKind
+import java.lang.reflect.Proxy
 import java.util.UUID
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -432,6 +441,127 @@ class PlayerProgressFallbackTest {
         assertTrue(nextGeneration.generation > first.generation)
     }
 
+    @Test
+    fun `stale recovery retry is canceled across newer seek pause and resume`() = runBlocking {
+        val seekTargets = mutableListOf<Long>()
+        val seekSink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { 1_000L },
+                mediaIdentityProvider = {
+                    SeekMediaIdentity(
+                        itemId = EPISODE_ID.toString(),
+                        mediaSourceId = SOURCE_ID,
+                        sourceFingerprint = "source-fingerprint",
+                    )
+                },
+                mediaSourceUriProvider = { "https://media.example/stream.m3u8" },
+            )
+        seekSink.attach(recoverySeekPlayer(seekTargets))
+        seekSink.requestSeek(40_000L, "initial-user-seek")
+        val initialSeek = seekSink.state as SeekState.Seeking
+        seekTargets.clear()
+
+        val sessionKey = "item-a|$SOURCE_ID|1|source-fingerprint|x"
+        val oldInput =
+            recoverySessionInput(
+                sessionKey = sessionKey,
+                explicitTargetMs = initialSeek.targetMs,
+                requestGeneration = initialSeek.requestGeneration,
+                sourceEpoch = initialSeek.sourceEpoch,
+            )
+        val started = PlaybackSessionRules.advance(PlaybackSessionState(), oldInput, 1_000L)
+        val timedOut = PlaybackSessionRules.advance(started, oldInput, 21_000L)
+        val oldTerminal = present(timedOut.terminal)
+        val controller = PlayerProgressRecoveryController()
+        val oldRequest =
+            present(
+                controller.begin(
+                    recoveryInput()
+                        .copy(
+                            sessionKey = sessionKey,
+                            targetPositionMs = oldTerminal.positionMs,
+                            terminalKind = oldTerminal.kind,
+                            terminalToken = oldTerminal.token,
+                        )
+                )
+            )
+        val retriedTargets = mutableListOf<Long>()
+        val owner =
+            ProgressRecoveryJobOwner(
+                scope = this,
+                controller = controller,
+                currentSeekBinding = { seekSink.state.progressRecoverySeekBinding() },
+                requestIsCurrent = { request, expectedBinding ->
+                    progressRecoveryRequestIdentityIsCurrent(
+                        request = request,
+                        expectedSeekBinding = expectedBinding,
+                        currentSessionKey = sessionKey,
+                        currentMediaIdentity = PlaybackMediaIdentity(EPISODE_ID, SOURCE_ID),
+                        currentSeekState = seekSink.state,
+                    )
+                },
+                executeRetry = { request, _ ->
+                    retriedTargets += request.targetPositionMs
+                    seekSink.requestSeek(request.targetPositionMs, "progress-recovery")
+                },
+                observeWindowMs = 0L,
+            )
+
+        owner.start(oldRequest, oldTerminal)
+        yield()
+        assertTrue(owner.isActive)
+
+        seekSink.requestSeek(10_000L, "newer-backward-seek")
+        val newerSeek = seekSink.state as SeekState.Seeking
+        val newerInput =
+            recoverySessionInput(
+                sessionKey = sessionKey,
+                explicitTargetMs = newerSeek.targetMs,
+                requestGeneration = newerSeek.requestGeneration,
+                sourceEpoch = newerSeek.sourceEpoch,
+            )
+        val afterSeek = PlaybackSessionRules.advance(timedOut, newerInput, 22_000L)
+        owner.retainTerminal(afterSeek.terminal, afterSeek.key)
+
+        assertNull(afterSeek.terminal)
+        assertFalse(controller.isCurrent(oldRequest))
+        assertFalse(owner.isActive)
+        assertNull(owner.activeTerminal)
+
+        val paused =
+            PlaybackSessionRules.advance(afterSeek, newerInput.copy(playWhenReady = false), 23_000L)
+        val resumed = PlaybackSessionRules.advance(paused, newerInput, 24_000L)
+        assertNull(paused.terminal)
+        assertNull(resumed.terminal)
+
+        delay(oldRequest.delayMs + 50L)
+        assertTrue("old recovery target was retried: $retriedTargets", retriedTargets.isEmpty())
+        assertFalse("old 40s target reached seek sink: $seekTargets", seekTargets.contains(40_000L))
+
+        val newTerminal =
+            PlaybackSessionRules.advance(
+                resumed,
+                newerInput,
+                24_000L + PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+            )
+        assertEquals(10_000L, newTerminal.terminal?.positionMs)
+        val newRequest =
+            present(
+                controller.begin(
+                    recoveryInput()
+                        .copy(
+                            sessionKey = sessionKey,
+                            targetPositionMs = requireNotNull(newTerminal.terminal).positionMs,
+                            terminalKind = requireNotNull(newTerminal.terminal).kind,
+                            terminalToken = requireNotNull(newTerminal.terminal).token,
+                        )
+                )
+            )
+        assertEquals(10_000L, newRequest.targetPositionMs)
+    }
+
     private fun positiveProgressState(): PlaybackSessionState {
         val input =
             playbackInput(sessionKey = "generation-a", isBuffering = false)
@@ -518,6 +648,69 @@ class PlayerProgressFallbackTest {
             isPlaying = false,
             wasLoading = wasLoading,
         )
+
+    private fun recoverySessionInput(
+        sessionKey: String,
+        explicitTargetMs: Long,
+        requestGeneration: Long,
+        sourceEpoch: Long,
+    ): PlaybackSessionInput =
+        PlaybackSessionInput(
+            key = sessionKey,
+            playWhenReady = true,
+            isPlaying = false,
+            isBuffering = true,
+            isReady = false,
+            enginePositionMs = 5_000L,
+            bufferedPositionMs = 6_000L,
+            hasPlayerError = false,
+            hasSeekFailure = false,
+            explicitSeekTargetMs = explicitTargetMs,
+            explicitSeekRequestGeneration = requestGeneration,
+            explicitSeekSourceEpoch = sourceEpoch,
+            persistedResumeMs = 0L,
+        )
+
+    private fun recoverySeekPlayer(seekTargets: MutableList<Long>): Player =
+        Proxy.newProxyInstance(
+            Player::class.java.classLoader,
+            arrayOf(Player::class.java),
+        ) { _, method, args ->
+            when (method.name) {
+                "addListener",
+                "removeListener" -> Unit
+                "getCurrentMediaItem" -> MediaItem.fromUri("https://media.example/item")
+                "getDuration" -> 120_000L
+                "getPlaybackState" -> Player.STATE_READY
+                "getCurrentPosition" -> 5_000L
+                "getCurrentMediaItemIndex" -> 0
+                "getSeekBackIncrement" -> 10_000L
+                "getSeekForwardIncrement" -> 10_000L
+                "isCommandAvailable" -> true
+                "seekTo" -> {
+                    seekTargets += requireNotNull(args).last() as Long
+                    Unit
+                }
+                "hashCode" -> System.identityHashCode(this)
+                "equals" -> false
+                "toString" -> "recoverySeekPlayer"
+                else -> defaultValue(method.returnType)
+            }
+        } as Player
+
+    private fun defaultValue(type: Class<*>): Any? =
+        when (type) {
+            java.lang.Boolean.TYPE -> false
+            java.lang.Byte.TYPE -> 0.toByte()
+            java.lang.Short.TYPE -> 0.toShort()
+            java.lang.Integer.TYPE -> 0
+            java.lang.Long.TYPE -> 0L
+            java.lang.Float.TYPE -> 0f
+            java.lang.Double.TYPE -> 0.0
+            java.lang.Character.TYPE -> '\u0000'
+            Void.TYPE -> Unit
+            else -> null
+        }
 
     private fun <T : Any> present(value: T?): T {
         assertNotNull(value)

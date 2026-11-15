@@ -130,6 +130,16 @@ private data class PlayerRestartTarget(
     val mediaSourceId: String?,
 )
 
+internal class PlayerExitServiceStopGate {
+    private var stopRequested = false
+
+    fun request(stop: () -> Boolean): Boolean {
+        if (stopRequested) return false
+        stopRequested = true
+        return stop()
+    }
+}
+
 @AndroidEntryPoint
 class PlayerActivity : BasePlayerActivity() {
 
@@ -149,6 +159,11 @@ class PlayerActivity : BasePlayerActivity() {
     /** Compose 控制层的可见性/锁定状态：控件层与手势层共用同一份状态 */
     private val controlsState = PlayerControlsState()
     private var segmentPollJob: Job? = null
+    private val exitServiceStopGate = PlayerExitServiceStopGate()
+
+    override fun stopService(service: Intent): Boolean = exitServiceStopGate.request {
+        super.stopService(service)
+    }
 
     /** Android 13+ 通知权限：通知栏播放控制需要它；没授予只影响通知，不影响播放本身 */
     private val notificationPermissionLauncher =

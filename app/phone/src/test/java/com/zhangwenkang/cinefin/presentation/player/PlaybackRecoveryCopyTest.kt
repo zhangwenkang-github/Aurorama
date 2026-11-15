@@ -1,6 +1,11 @@
 package com.zhangwenkang.cinefin.presentation.player
 
+import androidx.media3.common.Player
+import com.zhangwenkang.cinefin.PlayerExitServiceStopGate
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
+import com.zhangwenkang.cinefin.player.local.presentation.PlayerExitFinalizationGate
+import com.zhangwenkang.cinefin.player.local.presentation.PlayerSegmentCallbackCoordinator
+import com.zhangwenkang.cinefin.player.local.presentation.PlayerSegmentPlayerAccess
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -150,5 +155,70 @@ class PlaybackRecoveryCopyTest {
         assertFalse(playerError.canAutoHideControls)
         assertTrue(seekFailure.forceControlsVisible)
         assertFalse(seekFailure.canAutoHideControls)
+    }
+
+    @Test
+    fun finalizedActivityCallbackNeverCreatesPlayerAndServiceStopsOnce() {
+        val activePlayer =
+            java.lang.reflect.Proxy.newProxyInstance(
+                Player::class.java.classLoader,
+                arrayOf(Player::class.java),
+            ) { _, _, _ ->
+                null
+            } as Player
+        var playerCreations = 0
+        val playerAccess =
+            PlayerSegmentPlayerAccess(
+                existingPlayerProvider = { activePlayer },
+                playerFactory = {
+                    playerCreations += 1
+                    activePlayer
+                },
+            )
+        val finalizationGate = PlayerExitFinalizationGate()
+        val segmentCallbacks =
+            PlayerSegmentCallbackCoordinator(
+                gate = finalizationGate,
+                playerAccess = playerAccess,
+            )
+        var segmentCallbacksExecuted = 0
+        var blockedWorkRestarts = 0
+
+        assertTrue(segmentCallbacks.runIfActive { segmentCallbacksExecuted += 1 })
+
+        val serviceStopGate = PlayerExitServiceStopGate()
+        var serviceStops = 0
+        assertTrue(
+            finalizationGate.run(
+                detachVideoOutput = {},
+                finalizePlayback = {
+                    assertTrue(
+                        serviceStopGate.request {
+                            serviceStops += 1
+                            true
+                        }
+                    )
+                },
+            )
+        )
+        assertFalse(
+            serviceStopGate.request {
+                serviceStops += 1
+                true
+            }
+        )
+        assertFalse(
+            segmentCallbacks.runIfActive {
+                segmentCallbacksExecuted += 1
+                blockedWorkRestarts += 1
+            }
+        )
+
+        assertEquals(1, segmentCallbacksExecuted)
+        assertEquals(1, serviceStops)
+        assertEquals(0, blockedWorkRestarts)
+        assertEquals(1, playerAccess.existingPlayerAccessCount)
+        assertEquals(0, playerAccess.lazyPlayerAccessCount)
+        assertEquals(0, playerCreations)
     }
 }

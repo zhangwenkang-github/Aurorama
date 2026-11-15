@@ -102,6 +102,7 @@ import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -208,13 +209,34 @@ constructor(
     private var playbackSessionState = PlaybackSessionState()
     private var playbackSessionJob: Job? = null
     private var playbackStartupJob: Job? = null
-    private var progressRecoveryJob: Job? = null
     private val progressFallbackController = PlayerProgressFallbackController()
     private val progressRecoveryController = PlayerProgressRecoveryController()
     private val explicitExitController = PlayerExplicitExitController()
     private val playbackResourcesGate = PlayerExitFinalizationGate()
-    private var activeProgressRecoveryTerminal: PlaybackRecovery? = null
-    private var activeProgressRecoverySessionKey: String? = null
+    private val progressRecoveryOwnership =
+        ProgressRecoveryJobOwner(
+            scope = viewModelScope,
+            controller = progressRecoveryController,
+            currentSeekBinding = { seekSink.state.progressRecoverySeekBinding() },
+            requestIsCurrent = ::progressRecoveryRequestIsCurrent,
+            executeRetry = { request, terminal ->
+                retryPlaybackAt(
+                    position = request.targetPositionMs,
+                    positionSource = terminal.positionSource,
+                )
+            },
+            observeWindowMs = PROGRESS_RECOVERY_OBSERVE_WINDOW_MS,
+        )
+    private val segmentPlayerAccess =
+        PlayerSegmentPlayerAccess(
+            existingPlayerProvider = { playerHolder.existingPlayer },
+            playerFactory = { playerHolder.player },
+        )
+    private val segmentCallbackCoordinator =
+        PlayerSegmentCallbackCoordinator(
+            gate = playbackResourcesGate,
+            playerAccess = segmentPlayerAccess,
+        )
     private var seriesPlaybackTrace: SeriesPlaybackTraceTracker? = null
 
     val sleepTimerState = sleepTimerController.state
@@ -592,15 +614,7 @@ constructor(
         playbackSessionState =
             PlaybackSessionRules.advance(playbackSessionState, input, nowElapsedMs)
         val recoveryTerminal = playbackSessionState.terminal
-        val activeTerminal = activeProgressRecoveryTerminal
-        if (
-            activeTerminal != null &&
-                (recoveryTerminal == null ||
-                    recoveryTerminal.token != activeTerminal.token ||
-                    sessionKey != activeProgressRecoverySessionKey)
-        ) {
-            cancelProgressRecoveryOwnership()
-        }
+        progressRecoveryOwnership.retainTerminal(recoveryTerminal, sessionKey)
         val progressFallbackInput =
             progressFallbackInput(
                 mediaItem = mediaItem,
@@ -639,9 +653,7 @@ constructor(
             cancelProgressRecoveryOwnership()
         }
         val suppressTerminal = progressFallbackController.suppressesTerminal(sessionKey)
-        if (
-            recoveryTerminal != null && !suppressTerminal && progressRecoveryJob?.isActive != true
-        ) {
+        if (recoveryTerminal != null && !suppressTerminal && !progressRecoveryOwnership.isActive) {
             progressRecoveryController.begin(progressRecoveryInput)?.let {
                 launchProgressRecovery(it, recoveryTerminal)
             }
@@ -668,47 +680,11 @@ constructor(
         firstRequest: PlayerProgressRecoveryRequest,
         terminal: PlaybackRecovery,
     ) {
-        progressRecoveryJob?.cancel()
-        activeProgressRecoveryTerminal = terminal
-        activeProgressRecoverySessionKey = firstRequest.sessionKey
-        progressRecoveryJob = viewModelScope.launch {
-            var request: PlayerProgressRecoveryRequest? = firstRequest
-            var expectedSeekBinding = seekSink.state.progressRecoverySeekBinding()
-            while (isActive && request != null) {
-                val currentRequest = request
-                delay(currentRequest.delayMs)
-                if (
-                    !isActive ||
-                        !progressRecoveryRequestIsCurrent(
-                            currentRequest,
-                            expectedSeekBinding,
-                        )
-                ) {
-                    cancelProgressRecoveryOwnership()
-                    return@launch
-                }
-                retryPlaybackAt(
-                    position = currentRequest.targetPositionMs,
-                    positionSource = terminal.positionSource,
-                )
-                expectedSeekBinding = seekSink.state.progressRecoverySeekBinding()
-                delay(PROGRESS_RECOVERY_OBSERVE_WINDOW_MS)
-                if (!isActive) return@launch
-                request = progressRecoveryController.nextAttempt(currentRequest)
-            }
-            if (activeProgressRecoveryTerminal?.token == terminal.token) {
-                activeProgressRecoveryTerminal = null
-                activeProgressRecoverySessionKey = null
-            }
-        }
+        progressRecoveryOwnership.start(firstRequest, terminal)
     }
 
     private fun cancelProgressRecoveryOwnership() {
-        progressRecoveryJob?.cancel()
-        progressRecoveryJob = null
-        progressRecoveryController.cancel()
-        activeProgressRecoveryTerminal = null
-        activeProgressRecoverySessionKey = null
+        progressRecoveryOwnership.cancel()
     }
 
     private fun progressRecoveryRequestIsCurrent(
@@ -1451,8 +1427,7 @@ constructor(
             return true
         }
         viewModelScope.launch(Dispatchers.Main) {
-            playbackResourcesGate.runIfActive {
-                val activePlayer = playerHolder.existingPlayer ?: return@runIfActive
+            segmentCallbackCoordinator.runIfActive { activePlayer ->
                 val milliSeconds = activePlayer.currentPosition
 
                 // Get current segment, - 100 milliseconds to avoid showing button after segment
@@ -3548,6 +3523,115 @@ class PlayerExitFinalizationGate {
         detachVideoOutput()
         finalizePlayback()
         return true
+    }
+}
+
+class PlayerSegmentPlayerAccess(
+    private val existingPlayerProvider: () -> Player?,
+    private val playerFactory: () -> Player,
+) {
+    var existingPlayerAccessCount: Int = 0
+        private set
+
+    var lazyPlayerAccessCount: Int = 0
+        private set
+
+    fun existingPlayer(): Player? {
+        existingPlayerAccessCount += 1
+        return existingPlayerProvider()
+    }
+
+    fun createPlayer(): Player {
+        lazyPlayerAccessCount += 1
+        return playerFactory()
+    }
+}
+
+class PlayerSegmentCallbackCoordinator(
+    private val gate: PlayerExitFinalizationGate,
+    private val playerAccess: PlayerSegmentPlayerAccess,
+) {
+    fun runIfActive(action: (Player) -> Unit): Boolean = gate.runIfActive {
+        playerAccess.existingPlayer()?.let(action)
+    }
+}
+
+internal class ProgressRecoveryJobOwner(
+    private val scope: CoroutineScope,
+    private val controller: PlayerProgressRecoveryController,
+    private val currentSeekBinding: () -> ProgressRecoverySeekBinding?,
+    private val requestIsCurrent:
+        (PlayerProgressRecoveryRequest, ProgressRecoverySeekBinding?) -> Boolean,
+    private val executeRetry:
+        (PlayerProgressRecoveryRequest, PlayerViewModel.PlaybackRecovery) -> Unit,
+    private val observeWindowMs: Long,
+) {
+    private var job: Job? = null
+    private var terminal: PlayerViewModel.PlaybackRecovery? = null
+    private var sessionKey: String? = null
+
+    val isActive: Boolean
+        get() = job?.isActive == true
+
+    val activeTerminal: PlayerViewModel.PlaybackRecovery?
+        get() = terminal
+
+    fun start(
+        firstRequest: PlayerProgressRecoveryRequest,
+        recoveryTerminal: PlayerViewModel.PlaybackRecovery,
+    ) {
+        job?.cancel()
+        terminal = recoveryTerminal
+        sessionKey = firstRequest.sessionKey
+        job = scope.launch {
+            var request: PlayerProgressRecoveryRequest? = firstRequest
+            var expectedSeekBinding = currentSeekBinding()
+            while (isActive && request != null) {
+                val currentRequest = request
+                delay(currentRequest.delayMs)
+                if (
+                    !isActive ||
+                        !requestIsCurrent(
+                            currentRequest,
+                            expectedSeekBinding,
+                        )
+                ) {
+                    cancel()
+                    return@launch
+                }
+                executeRetry(currentRequest, recoveryTerminal)
+                expectedSeekBinding = currentSeekBinding()
+                delay(observeWindowMs)
+                if (!isActive) return@launch
+                request = controller.nextAttempt(currentRequest)
+            }
+            if (terminal?.token == recoveryTerminal.token) {
+                terminal = null
+                sessionKey = null
+            }
+        }
+    }
+
+    fun retainTerminal(
+        currentTerminal: PlayerViewModel.PlaybackRecovery?,
+        currentSessionKey: String?,
+    ) {
+        val activeTerminal = terminal ?: return
+        if (
+            currentTerminal == null ||
+                currentTerminal.token != activeTerminal.token ||
+                currentSessionKey != sessionKey
+        ) {
+            cancel()
+        }
+    }
+
+    fun cancel() {
+        job?.cancel()
+        job = null
+        controller.cancel()
+        terminal = null
+        sessionKey = null
     }
 }
 
