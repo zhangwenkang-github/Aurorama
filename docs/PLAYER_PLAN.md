@@ -11320,3 +11320,100 @@ P0–P2，Series P1、A3 读取失败 P2 与 A3 删除首帧 P2 仍 OPEN。1.4.1
 `ShowViewModel.loadDownloadTargets -> JellyfinRepositoryImpl.getEpisodes -> ShowsApi.getEpisodes`
 为何在本路径主线程执行网络调用。第一条只读动作必须沿该 suspend / dispatcher 链建立最小证据，
 不得直接把 `NetworkOnMainThreadException` 写成上游根因或产品修复授权。
+
+### 52.70.41 R10 A3 主线程网络判别：INCONCLUSIVE，等待单一失败栈输入（2026-11-15）
+
+**状态：`R10_A3_NETWORK_MAIN_THREAD_DISCRIMINATOR=INCONCLUSIVE /
+NO_IMPLEMENTATION_GATE / A3_OPEN / 1.4.1=NOT_RELEASABLE`。**
+
+R10 负责人 `AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R10_2026_11_15` 先完成对象 spot-check，再派发
+fresh、只读 owner
+`AURORAMA_141_A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_R1_2026_11_15`。owner prompt 固定为绝对
+evidence 文件，SHA-256 `5034D132D9098CBCF36AC106315F35AE574793EB222A4D5EA49026F31C155C9F`；
+派发前 `BUG_LOOP_DISPATCH_GATE=PASS`，owner 第一条实际动作自行重跑同一 lint 后再次 PASS。
+
+对象与实际执行：
+
+```text
+DOCS_HEAD=ec0305bd8073a7a05528e83c9c747cbba6be8c99 / tree 3f803c74d403956783ab8b7e0df455e4d23b4ec0
+TRACE_HEAD=0c1bc2f0865df21408d73d4316bfc7e877ccd634 / tree fdc27c6c67d106be98b4d6557e4e7a107ae3d006
+DOCS_CLEAN=YES / TRACE_CLEAN=YES / UNIQUE_ACTIVE=1
+DEVICE_LOCK=RELEASED / ACTIVE=0 / SHA256=903BAE737365B1B8617A191E72EF9D5A8F81EB4AA1236E9180CB7AB00A08A227
+OWNER_MANIFEST=16/16 / R9_MANIFEST=9/9 / R10_OUTPUT_MANIFEST=3/3
+R10_EXECUTED=BUILD 0 / GRADLE_TEST 0 / ADB 0 / APP_START 0 / DOWNLOAD_DIALOG 0 / QA 0 / SERVER 0 / SCREENSHOT 0
+```
+
+owner 的只读源码 / SDK / APK 判别形成以下事实：
+
+- `loadDownloadTargets` 由默认 `viewModelScope` 启动，已打包 Lifecycle DEX 的 context 为
+  `Dispatchers.Main.immediate`；该函数没有显式 IO dispatcher；
+- online `getEpisodes -> cachedDtoList -> cachedSnapshotMetadata -> MetadataSnapshotSwr.read`
+  在 Episodes snapshot 不存在的 foreground miss 上，经 `fetchForeground -> executeOwner -> fetch()`
+  原样进入 `ShowsApi.getEpisodes`；foreground fetch 前没有 `withContext(IO)`；
+- `cachedDtoList` 之后的 DTO materialize 有 `Dispatchers.IO`，但它只在响应取得后执行，不能解释本次
+  `FETCH_FAILURE`；
+- `MetadataSnapshotSwr.backgroundScope` 使用 `Dispatchers.IO`，只覆盖 stale refresh；R8 已证明当前
+  Episodes snapshot 不存在，因此本次路径是 foreground miss，不能用后台 refresh context 解释；
+- 仓库使用 Jellyfin SDK `1.8.12` 与 OkHttp `5.5.0`。SDK `OkHttpClient.await` 字节码调用
+  `Call.enqueue`，未调用 `Call.execute`；打包 OkHttp 的 `RealCall.enqueue` 把 `AsyncCall` 交给
+  dispatcher executor。因而目标 HTTP transport 具有异步 executor 边界，不能被无条件写成在 caller
+  主线程同步执行；
+- trace wrapper 不创建 scope、不调用 `withContext`、不替换 SDK client，instrumentation 新增或移除
+  dispatcher 切换已排除；但这不能替代缺失的失败线程名与栈帧；
+- 唯一 App-bound 运行态仍记录响应前 `NetworkOnMainThreadException`，当前 trace 没有失败线程名或
+  stack frame。静态异步 transport 证据与运行态直接异常互相约束，不能在不猜测的前提下选择
+  pre-enqueue 同步 socket、未覆盖的 interceptor/transport，或当前已核验字节码之外的运行差异。
+
+裁决：
+
+```text
+DISCRIMINATION=INCONCLUSIVE
+BUSINESS_LAYER_NO_IO_BOUNDARY=CONFIRMED
+NETWORK_ON_MAIN_UNCONDITIONALLY_PROVEN=NO
+INSTRUMENTATION_NEW_DISPATCH=EXCLUDED
+A3_STATUS=OPEN / NOT_FIXED
+SIGNED_R6_CURRENT_RUNTIME=UNKNOWN
+```
+
+唯一最小后续输入：
+
+```text
+MISSING_INPUT=SAME_APP_PID_SAME_FOREGROUND_MISS_SANITIZED_FETCH_FAILURE_STACK
+```
+
+该输入只允许来自同一 App PID、同一 foreground miss 的一次失败现场，保留失败线程名 / state 和
+`NetworkOnMainThreadException` 的关键 stack frames（class / method / line）；不得包含 message、
+URL、query、token、cookie、password、DTO 或媒体路径。取得该项前禁止猜修，也不得重跑 A3、Series
+或删除路径作为替代证据。
+
+R10 审查通过报告、result、manifest 与关键 SDK 反证，未发现 token、cookie、password、带 query
+URL、完整 DTO 或媒体路径泄漏。本轮只读，不修改产品代码，不构建、不跑设备、不跑 QA，不 merge /
+push / tag / Release。
+
+P0–P3 保持：
+
+```text
+P0=0
+NEW_P1=0
+NEW_P2=0
+NEW_P3=0
+P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001=OPEN
+P2-A3-DOWNLOAD-SEASON-EPISODE-READ-FAILURE-001=OPEN
+P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN=OPEN
+1.4.1=NOT_RELEASABLE
+```
+
+证据：
+
+- `AURORAMA_141_A3_NETWORK_MAIN_THREAD_DISCRIMINATOR_OWNER_R1_2026_11_15_REPORT.md`，
+  SHA-256 `7B881BE7CC01702867055CC7768DDE31E4732521B9320F38C24060A1457D2373`；
+- 同名 `_RESULT.json`，SHA-256
+  `6AF185AB06987E13AB22A0C65916D3FAFB77B048EAC48ACFCA3758269D013B5D`；
+- 同名 `_PROMPT.md`，SHA-256
+  `5034D132D9098CBCF36AC106315F35AE574793EB222A4D5EA49026F31C155C9F`；
+- `_MANIFEST.sha256`，SHA-256
+  `5A2D69E25B99AE967D02D357CF5AFEBF8D5E114D472949FAC3774E2D80E10ADF`；manifest `3/3 MATCH`。
+
+本轮未创建后继负责人：当前只剩一个需要用户授权的具体后续输入，不满足“下一任务已授权、具体、
+可立即执行”的交接条件。用户若批准，应另派 fresh、行为不变、仅 debug 的同 PID 单次失败栈采集
+owner；不得把该输入扩成产品修复或 Release 工作。
