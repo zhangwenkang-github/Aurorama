@@ -1353,21 +1353,34 @@ PUSH=NO / TAG=NO / RELEASE=NO
 <!-- HISTORY_HANDOFF_ACTIVE_SNAPSHOT_END -->
 
 <!-- V2_HANDOFF_OBJECT_BEGIN -->
-- BASE_HEAD=40c8cd4816ee70866be7e785318e5e9a3ade185a
-- REQUIRED_ANCESTOR=2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104
+- BASE_HEAD=85b11c6ea67fbc5a268ce632b7850ffc5631065e
 - REQUIRED_ANCESTOR=092afea32508466203ea1db7d1d0f6f6ad6473ce
 - REQUIRED_ANCESTOR=924b66fc3403ec34890c5bf51ad0e2fd8a8a514d
-- FAILED_CANDIDATE=2c27ee0dd2a5f7b940fa852c4f8d2cce56e17104
-- MAX_CHANGED_PATHS=9
-- ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt
-- ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlayerProgressFallback.kt
-- ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt
-- ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerProgressFallbackTest.kt
-- ALLOWED_PATH=core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadNotifications.kt
+- REQUIRED_ANCESTOR=f96e28a4d82629cf2355f7ab3766792a0fa8b404
+- REQUIRED_ANCESTOR=add5b24655a1d7fef12ca1e2391eeeb3d67e5014
+- REQUIRED_ANCESTOR=6080f043cfb7925196a12c083cb61abc050f944a
+- FAILED_CANDIDATE=NONE
+- MAX_CHANGED_PATHS=20
+- ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/BaseApplication.kt
+- ALLOWED_PATH=app/phone/src/main/java/com/zhangwenkang/cinefin/presentation/film/DownloadsScreen.kt
+- ALLOWED_PATH=core/src/debug/java/com/zhangwenkang/cinefin/di/DownloadDeleteTraceDebugModule.kt
+- ALLOWED_PATH=core/src/debug/java/com/zhangwenkang/cinefin/utils/DownloadDeleteTraceDebug.kt
+- ALLOWED_PATH=core/src/main/java/com/zhangwenkang/cinefin/di/DownloadDeleteTraceModule.kt
+- ALLOWED_PATH=core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadDeleteTraceContract.kt
+- ALLOWED_PATH=core/src/main/java/com/zhangwenkang/cinefin/utils/DownloadHttpEngine.kt
 - ALLOWED_PATH=core/src/main/java/com/zhangwenkang/cinefin/utils/DownloaderImpl.kt
-- ALLOWED_PATH=core/src/test/java/com/zhangwenkang/cinefin/utils/DownloadNotificationsAggregationTest.kt
+- ALLOWED_PATH=core/src/test/java/com/zhangwenkang/cinefin/utils/DownloaderImplDeleteTraceTest.kt
+- ALLOWED_PATH=core/src/test/java/com/zhangwenkang/cinefin/utils/DownloaderImplRecoveryTest.kt
+- ALLOWED_PATH=core/src/testDebug/java/com/zhangwenkang/cinefin/utils/DownloadDeleteTraceTest.kt
 - ALLOWED_PATH=docs/PLAYER_PLAN.md
 - ALLOWED_PATH=docs/TASKS.md
+- ALLOWED_PATH=modes/film/src/main/java/com/zhangwenkang/cinefin/film/presentation/downloads/DownloadsViewModel.kt
+- ALLOWED_PATH=modes/film/src/test/java/com/zhangwenkang/cinefin/film/presentation/downloads/DownloadsViewModelDeletionTest.kt
+- ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlaylistManager.kt
+- ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerHolder.kt
+- ALLOWED_PATH=player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/SeekPlayerEventListener.kt
+- ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/domain/PlaylistManagerInitialItemTest.kt
+- ALLOWED_PATH=player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlaybackSeekSinkTest.kt
 <!-- V2_HANDOFF_OBJECT_END -->
 
 ### HISTORY — W1B-1B product merge-prep PASS / local ff-only integrated（2026-11-08）
