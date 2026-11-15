@@ -52,7 +52,6 @@ class DownloadNotificationsAggregationTest {
         assertEquals(2, foreground.activeCount)
         assertEquals(pageAggregate.totalBytes, aggregateTask.totalBytes)
         assertEquals(pageAggregate.downloadedBytes, aggregateTask.downloadedBytes)
-        assertEquals("source-a", aggregateTask.sourceId)
         assertEquals(
             30,
             downloadNotificationPercent(
@@ -66,7 +65,7 @@ class DownloadNotificationsAggregationTest {
     fun `single task keeps the existing twenty five percent regression`() {
         val task = downloadTask(sourceId = "source-a", downloadedBytes = 500L, totalBytes = 2_000L)
 
-        val aggregate = aggregateDownloadNotification(listOf(task))
+        val aggregate = aggregateDownloadNotification(snapshotOf(listOf(task)))
 
         assertEquals(1, aggregate.activeCount)
         assertEquals(task, aggregate.task)
@@ -77,7 +76,7 @@ class DownloadNotificationsAggregationTest {
 
     @Test
     fun `empty active set has no zero task foreground aggregate`() {
-        val aggregate = aggregateDownloadNotification(emptyList())
+        val aggregate = aggregateDownloadNotification(snapshotOf(emptyList()))
 
         assertEquals(0, aggregate.activeCount)
         assertEquals(null, aggregate.task)
@@ -100,14 +99,13 @@ class DownloadNotificationsAggregationTest {
                 speedBytesPerSecond = 50L,
             )
 
-        val forward = aggregateDownloadNotification(listOf(first, second, first))
-        val reversed = aggregateDownloadNotification(listOf(second, first, second))
+        val forward = aggregateDownloadNotification(snapshotOf(listOf(first, second, first)))
+        val reversed = aggregateDownloadNotification(snapshotOf(listOf(second, first, second)))
 
         assertSameAggregateContent(forward, reversed)
         assertEquals(2, forward.activeCount)
         assertEquals(900L, forward.task?.downloadedBytes)
         assertEquals(3_000L, forward.task?.totalBytes)
-        assertEquals("source-a", forward.task?.sourceId)
         assertEquals(14L, forward.task?.etaSeconds)
     }
 
@@ -117,8 +115,8 @@ class DownloadNotificationsAggregationTest {
         val second =
             downloadTask(sourceId = "source-b", downloadedBytes = 400L, totalBytes = 1_000L)
 
-        val afterOneCancelled = aggregateDownloadNotification(listOf(first))
-        val afterAllCancelled = aggregateDownloadNotification(emptyList())
+        val afterOneCancelled = aggregateDownloadNotification(snapshotOf(listOf(first)))
+        val afterAllCancelled = aggregateDownloadNotification(snapshotOf(emptyList()))
 
         assertEquals(1, afterOneCancelled.activeCount)
         assertEquals(first, afterOneCancelled.task)
@@ -131,17 +129,16 @@ class DownloadNotificationsAggregationTest {
         val first = downloadTask(sourceId = "source-a", downloadedBytes = 500L, totalBytes = 2_000L)
         val second =
             downloadTask(sourceId = "source-b", downloadedBytes = 400L, totalBytes = 1_000L)
-        val beforeRestart = aggregateDownloadNotification(listOf(first, second))
+        val beforeRestart = aggregateDownloadNotification(snapshotOf(listOf(first, second)))
         val rebuiltSnapshot =
             listOf(
                 first.copy(updatedAt = first.updatedAt + 1_000L),
                 second.copy(updatedAt = second.updatedAt + 1_000L),
             )
 
-        val afterRestart = aggregateDownloadNotification(rebuiltSnapshot)
+        val afterRestart = aggregateDownloadNotification(snapshotOf(rebuiltSnapshot))
 
         assertSameAggregateContent(beforeRestart, afterRestart)
-        assertEquals("source-a", afterRestart.task?.sourceId)
     }
 
     private data class CapturedForeground(
@@ -172,6 +169,8 @@ class DownloadNotificationsAggregationTest {
         actual: DownloadNotificationAggregate,
     ) {
         assertEquals(expected.activeCount, actual.activeCount)
+        assertEquals(expected.samplingEpochMs, actual.samplingEpochMs)
+        assertEquals(expected.identityKeys, actual.identityKeys)
         assertEquals(expected.task?.sourceId, actual.task?.sourceId)
         assertEquals(expected.task?.name, actual.task?.name)
         assertEquals(expected.task?.downloadedBytes, actual.task?.downloadedBytes)
@@ -268,6 +267,7 @@ class DownloadNotificationsAggregationTest {
                 InvocationHandler { _, method, args ->
                     when (method.name) {
                         "getPendingSources" -> sources.values.toList()
+                        "getAllSources" -> sources.values.toList()
                         "getSource" -> sources[args[0] as String]
                         "getReceivedDownloadIntents" -> emptyList<Any>()
                         "getDownloadIntents" -> emptyList<Any>()
@@ -354,6 +354,17 @@ class DownloadNotificationsAggregationTest {
                 totalBytes = totalBytes,
                 updatedAt = totalBytes,
                 speedBytesPerSecond = speedBytesPerSecond,
+            )
+
+        fun snapshotOf(
+            tasks: List<DownloadTask>,
+            downloadedCanonicalKeys: Set<String> = emptySet(),
+            samplingEpochMs: Long = 1L,
+        ): CanonicalActiveTaskSnapshot =
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = tasks,
+                downloadedCanonicalKeys = downloadedCanonicalKeys,
+                samplingEpochMs = samplingEpochMs,
             )
 
         fun <T : Any> unusedProxy(type: Class<T>): T =

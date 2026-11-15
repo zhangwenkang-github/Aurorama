@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
+import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
@@ -165,6 +166,65 @@ class DownloadHierarchyBuilderTest {
         assertEquals("2.1 MB", container.detail)
         assertEquals("file://book", container.imageUri)
         assertTrue(container.canOpen)
+    }
+
+    @Test
+    fun `canonical snapshot drives real hierarchy projection with equal raw bytes`() {
+        val canonicalShowId = UUID.fromString("10000000-0000-4000-8000-000000000001")
+        val canonicalSeasonId = UUID.fromString("10000000-0000-4000-8000-000000000002")
+        val tasks =
+            (1..12).map { index ->
+                DownloadTask(
+                    itemId = UUID(0L, 10_000L + index),
+                    sourceId = "canonical-source-$index",
+                    name = "E$index",
+                    path = "/tmp/canonical-$index.download",
+                    downloadId = index.toLong(),
+                    status = DownloadTaskStatus.RUNNING,
+                    failureReason = null,
+                    downloadedBytes = index * 1_000L,
+                    totalBytes = index * 1_000_000L,
+                    updatedAt = index.toLong(),
+                    taskGeneration = 1L,
+                    serverId = "canonical-server",
+                    userId = "canonical-user",
+                )
+            }
+        val snapshot =
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = tasks,
+                downloadedCanonicalKeys = emptySet(),
+                samplingEpochMs = 100L,
+            )
+        val entries =
+            snapshot.activeTasks.mapIndexed { index, task ->
+                DownloadHierarchyEntry(
+                    itemId = task.itemId,
+                    name = task.name,
+                    mediaKind = DownloadMediaKind.VIDEO,
+                    status = task.status,
+                    task = task,
+                    sizeBytes = task.totalBytes,
+                    downloadedBytes = task.downloadedBytes,
+                    totalBytes = task.totalBytes,
+                    updatedAt = task.updatedAt,
+                    seriesId = canonicalShowId,
+                    seasonId = canonicalSeasonId,
+                    seriesName = "Canonical Show",
+                    seasonName = "Season 1",
+                    episodeIndex = index + 1,
+                )
+            }
+
+        val show = DownloadHierarchyBuilder.build(entries).single()
+
+        assertEquals(snapshot.activeCount, show.totalCount)
+        assertEquals(snapshot.downloadedBytes, show.downloadedBytes)
+        assertEquals(snapshot.totalBytes, show.totalBytes)
+        assertEquals(
+            "76.2 KB / 74.4 MB",
+            DownloadFormatRules.formatSizePair(show.downloadedBytes, show.totalBytes),
+        )
     }
 
     @Test

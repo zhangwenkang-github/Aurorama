@@ -71,6 +71,95 @@ data class DownloadBatchReceipt(
     val acceptedAtMs: Long,
 )
 
+/** Canonical active-task leaf. Identity and raw byte values are frozen at publication time. */
+data class CanonicalActiveTask(
+    val identity: DownloadCanonicalIdentity,
+    val task: DownloadTask,
+    val downloadedBytes: Long,
+    val totalBytes: Long,
+)
+
+/**
+ * The single immutable active-task snapshot consumed by the downloads page and foreground
+ * notification.
+ */
+data class CanonicalActiveTaskSnapshot(
+    val samplingEpochMs: Long,
+    val tasks: List<CanonicalActiveTask>,
+    val downloadedBytes: Long,
+    val totalBytes: Long,
+) {
+    val activeTasks: List<DownloadTask>
+        get() = tasks.map(CanonicalActiveTask::task)
+
+    val sortedIdentityKeys: List<String>
+        get() = tasks.map { leaf -> leaf.identity.canonicalKey }
+
+    val activeCount: Int
+        get() = tasks.size
+
+    companion object {
+        fun empty(samplingEpochMs: Long): CanonicalActiveTaskSnapshot =
+            CanonicalActiveTaskSnapshot(
+                samplingEpochMs = samplingEpochMs,
+                tasks = emptyList(),
+                downloadedBytes = 0L,
+                totalBytes = 0L,
+            )
+    }
+}
+
+/** App-scope source of the one latest canonical active-task snapshot. */
+interface CanonicalActiveTaskSnapshotSource {
+    fun beginCanonicalActiveTaskSampling(): Long
+
+    fun publishCanonicalActiveTaskSnapshot(
+        samplingEpochMs: Long,
+        tasks: List<DownloadTask>,
+        downloadedCanonicalKeys: Set<String>,
+    ): CanonicalActiveTaskSnapshot?
+
+    fun latestCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot
+}
+
+/**
+ * Monotonic snapshot publication gate.
+ *
+ * A sampling token is allocated before asynchronous reads begin. If a newer sample starts first,
+ * the older completion is rejected and can never overwrite the latest snapshot.
+ */
+class CanonicalActiveTaskSnapshotOwner(private val clock: () -> Long = System::currentTimeMillis) {
+    private var highestRequestedEpoch = 0L
+    private var latest = CanonicalActiveTaskSnapshot.empty(samplingEpochMs = 0L)
+
+    @Synchronized
+    fun beginSampling(): Long {
+        highestRequestedEpoch = maxOf(clock().coerceAtLeast(0L), highestRequestedEpoch + 1L)
+        return highestRequestedEpoch
+    }
+
+    @Synchronized
+    fun publish(
+        samplingEpochMs: Long,
+        tasks: List<DownloadTask>,
+        downloadedCanonicalKeys: Set<String>,
+    ): CanonicalActiveTaskSnapshot? {
+        if (samplingEpochMs < highestRequestedEpoch || samplingEpochMs <= latest.samplingEpochMs) {
+            return null
+        }
+        highestRequestedEpoch = samplingEpochMs
+        latest =
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = tasks,
+                downloadedCanonicalKeys = downloadedCanonicalKeys,
+                samplingEpochMs = samplingEpochMs,
+            )
+        return latest
+    }
+
+    @Synchronized fun latest(): CanonicalActiveTaskSnapshot = latest
+}
+
 /** 批量受理门面：先确认已存在集合，再一次性持久化全部新意图。 */
 class DownloadBatchInbox(
     private val store: DownloadIntentStore,
@@ -112,14 +201,55 @@ object DownloadControlPlaneRules {
         tasks: List<DownloadTask>,
         downloadedCanonicalKeys: Set<String>,
     ): List<DownloadTask> =
-        tasks
-            .asSequence()
-            .filter { task ->
-                DownloadTaskRules.isActiveQueueStatus(task.status) &&
-                    task.downloadIdentity().canonicalKey !in downloadedCanonicalKeys
-            }
-            .distinctBy { it.downloadIdentity() }
-            .toList()
+        canonicalActiveTaskSnapshot(
+                tasks = tasks,
+                downloadedCanonicalKeys = downloadedCanonicalKeys,
+                samplingEpochMs = 0L,
+            )
+            .activeTasks
+
+    /**
+     * Applies active filtering, completed-key exclusion, full identity deduplication and
+     * deterministic ordering exactly once.
+     */
+    fun canonicalActiveTaskSnapshot(
+        tasks: List<DownloadTask>,
+        downloadedCanonicalKeys: Set<String>,
+        samplingEpochMs: Long,
+    ): CanonicalActiveTaskSnapshot {
+        val representatives =
+            tasks
+                .asSequence()
+                .filter { task ->
+                    DownloadTaskRules.isActiveQueueStatus(task.status) &&
+                        task.downloadIdentity().canonicalKey !in downloadedCanonicalKeys
+                }
+                .groupBy { task -> task.downloadIdentity() }
+                .values
+                .map { duplicates ->
+                    duplicates.maxWithOrNull(
+                        compareBy<DownloadTask> { task -> task.taskGeneration }
+                            .thenBy { task -> task.updatedAt }
+                            .thenBy { task -> task.sourceId }
+                    ) ?: return@map duplicates.first()
+                }
+                .sortedBy { task -> task.downloadIdentity().canonicalKey }
+
+        val canonicalTasks = representatives.map { task ->
+            CanonicalActiveTask(
+                identity = task.downloadIdentity(),
+                task = task,
+                downloadedBytes = task.downloadedBytes.coerceAtLeast(0L),
+                totalBytes = task.totalBytes.coerceAtLeast(0L),
+            )
+        }
+        return CanonicalActiveTaskSnapshot(
+            samplingEpochMs = samplingEpochMs.coerceAtLeast(0L),
+            tasks = canonicalTasks.toList(),
+            downloadedBytes = canonicalTasks.sumOf(CanonicalActiveTask::downloadedBytes),
+            totalBytes = canonicalTasks.sumOf(CanonicalActiveTask::totalBytes),
+        )
+    }
 
     fun retryableFailureIntents(tasks: List<DownloadTask>): List<DownloadTask> =
         tasks

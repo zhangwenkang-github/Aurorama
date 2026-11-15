@@ -77,6 +77,195 @@ import timber.log.Timber
 
 class DownloaderImplRecoveryTest {
 
+    private fun DownloaderImpl.requestForegroundSnapshotRefreshForTest():
+        DownloadDeleteTraceResult {
+        val method = DownloaderImpl::class.java.getDeclaredMethod("updateForegroundNotificationNow")
+        method.isAccessible = true
+        return method.invoke(this) as DownloadDeleteTraceResult
+    }
+
+    @Test
+    fun `resume_without_new_bytes_refreshes_foreground_snapshot`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seeded = fixture.seedConcurrentMovies(1).single()
+            val paused =
+                requireNotNull(fixture.dao.sourceById(seeded.source.id))
+                    .copy(
+                        taskStatus = DownloadTaskStatus.PAUSED.name,
+                        downloadedBytes = 40L,
+                        totalBytes = 1_000L,
+                    )
+            fixture.dao.putSource(paused)
+
+            fixture.downloader.requestForegroundSnapshotRefreshForTest()
+            assertTrue(fixture.notificationGateway.awaitForegroundCount(1))
+            assertEquals(1_000L, fixture.notificationGateway.lastForeground()?.task?.totalBytes)
+
+            fixture.dao.putSource(paused.copy(totalBytes = 2_000L))
+            val resumed =
+                fixture.downloader.resumeTask(fixture.downloader.refreshDownloadTasks().single())
+            assertTrue("resume must be accepted", resumed.first >= 0L)
+
+            val latest =
+                fixture.notificationGateway.awaitForegroundTask(timeoutMs = 2_500L) { captured ->
+                    captured.task?.downloadedBytes == 40L && captured.task?.totalBytes == 2_000L
+                }
+            assertNotNull("resume without byte progress must refresh notification", latest)
+            assertEquals(1, latest?.activeCount)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `throttled_changes_publish_trailing_latest_epoch`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seeded = fixture.seedConcurrentMovies(2)
+            fixture.downloader.requestForegroundSnapshotRefreshForTest()
+            assertTrue(fixture.notificationGateway.awaitForegroundCount(1))
+
+            seeded.forEachIndexed { index, item ->
+                val current = requireNotNull(fixture.dao.sourceById(item.source.id))
+                fixture.dao.putSource(
+                    current.copy(
+                        downloadedBytes = 10L * (index + 1),
+                        totalBytes = 3_000L + index,
+                    )
+                )
+            }
+            fixture.downloader.requestForegroundSnapshotRefreshForTest()
+            fixture.downloader.requestForegroundSnapshotRefreshForTest()
+
+            val latest =
+                fixture.notificationGateway.awaitForegroundTask(timeoutMs = 2_500L) { captured ->
+                    captured.activeCount == 2 &&
+                        captured.task?.downloadedBytes == 30L &&
+                        captured.task?.totalBytes == 6_001L
+                }
+            assertNotNull("throttled calls must coalesce into a trailing latest epoch", latest)
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `runtime_total_ready_publishes_foreground_snapshot_before_progress`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seeded = fixture.seedConcurrentMovies(1).single()
+            val pending = requireNotNull(fixture.dao.sourceById(seeded.source.id))
+            fixture.dao.putSource(
+                pending.copy(
+                    downloadedBytes = 0L,
+                    totalBytes = 0L,
+                )
+            )
+            fixture.transfer.holdDownloads()
+            val queueRun = launch(Dispatchers.Default) { fixture.downloader.runQueue() }
+            assertTrue(fixture.transfer.awaitStarted(1))
+
+            val runtimeReady =
+                fixture.notificationGateway.awaitForegroundTask(timeoutMs = 2_500L) { captured ->
+                    captured.task?.downloadedBytes == 0L &&
+                        captured.task?.totalBytes == MEDIA_BYTES.size.toLong()
+                }
+            assertNotNull("runtime total ready must publish without byte progress", runtimeReady)
+
+            fixture.transfer.release()
+            withTimeout(5_000L) { queueRun.join() }
+        } finally {
+            fixture.transfer.release()
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `pause cancel and delete publish new canonical epochs`() = runBlocking {
+        val fixture = Fixture()
+        try {
+            val seeded = fixture.seedConcurrentMovies(3)
+            val source = fixture.downloader as CanonicalActiveTaskSnapshotSource
+
+            fixture.downloader.requestForegroundSnapshotRefreshForTest()
+            val initial =
+                withTimeout(3_000L) {
+                    while (source.latestCanonicalActiveTaskSnapshot().activeCount != 3) {
+                        delay(10L)
+                    }
+                    source.latestCanonicalActiveTaskSnapshot()
+                }
+
+            val toPause =
+                fixture.downloader.refreshDownloadTasks().single { task ->
+                    task.sourceId == seeded.first().source.id
+                }
+            assertTrue(fixture.downloader.pauseTask(toPause))
+            val paused =
+                withTimeout(3_000L) {
+                    while (true) {
+                        val latest = source.latestCanonicalActiveTaskSnapshot()
+                        if (
+                            latest.samplingEpochMs > initial.samplingEpochMs &&
+                                latest.activeTasks.any { task ->
+                                    task.sourceId == toPause.sourceId &&
+                                        task.status == DownloadTaskStatus.PAUSED
+                                }
+                        ) {
+                            break
+                        }
+                        delay(10L)
+                    }
+                    source.latestCanonicalActiveTaskSnapshot()
+                }
+
+            val toCancel =
+                fixture.downloader.refreshDownloadTasks().single { task ->
+                    task.sourceId == seeded[1].source.id
+                }
+            assertTrue(fixture.downloader.cancelTask(toCancel))
+            val cancelled =
+                withTimeout(3_000L) {
+                    while (true) {
+                        val latest = source.latestCanonicalActiveTaskSnapshot()
+                        if (
+                            latest.samplingEpochMs > paused.samplingEpochMs &&
+                                latest.activeCount == 2
+                        ) {
+                            break
+                        }
+                        delay(10L)
+                    }
+                    source.latestCanonicalActiveTaskSnapshot()
+                }
+
+            val toDelete =
+                fixture.downloader.refreshDownloadTasks().single { task ->
+                    task.sourceId == seeded[2].source.id
+                }
+            assertTrue(fixture.downloader.deleteTask(toDelete))
+            val deleted =
+                withTimeout(3_000L) {
+                    while (true) {
+                        val latest = source.latestCanonicalActiveTaskSnapshot()
+                        if (
+                            latest.samplingEpochMs > cancelled.samplingEpochMs &&
+                                latest.activeCount == 1
+                        ) {
+                            break
+                        }
+                        delay(10L)
+                    }
+                    source.latestCanonicalActiveTaskSnapshot()
+                }
+
+            assertTrue(deleted.samplingEpochMs > cancelled.samplingEpochMs)
+        } finally {
+            fixture.close()
+        }
+    }
+
     private object RealDtoMapperBridge {
         fun map(
             dto: FindroidMovieDto,
@@ -6332,6 +6521,15 @@ class DownloaderImplRecoveryTest {
                                     taskGeneration = it.taskGeneration + 1,
                                 )
                             }
+                        "beginSourceResume" ->
+                            updateSourceRow(args) {
+                                it.copy(
+                                    taskStatus = DownloadTaskStatus.PENDING.name,
+                                    failureReason = null,
+                                    nextRetryAt = 0L,
+                                    taskGeneration = it.taskGeneration + 1,
+                                )
+                            }
                         "beginSourceCancellation" ->
                             updateSourceRow(args) {
                                 it.copy(
@@ -7859,18 +8057,46 @@ class DownloaderImplRecoveryTest {
 
     internal class FakeNotificationGateway : DownloadNotificationGateway {
         val completedTasks = CopyOnWriteArrayList<DownloadTask>()
+        private val foreground = CopyOnWriteArrayList<CapturedForegroundNotification>()
 
         override fun buildForeground(task: DownloadTask?, activeCount: Int): Notification =
             allocate()
 
-        override fun notifyForeground(task: DownloadTask?, activeCount: Int) = Unit
+        override fun notifyForeground(task: DownloadTask?, activeCount: Int) {
+            foreground += CapturedForegroundNotification(task = task, activeCount = activeCount)
+        }
 
         override fun notifyCompleted(task: DownloadTask) {
             completedTasks += task
         }
 
         override fun notifyFailed(task: DownloadTask) = Unit
+
+        fun lastForeground(): CapturedForegroundNotification? = foreground.lastOrNull()
+
+        suspend fun awaitForegroundCount(
+            count: Int,
+            timeoutMs: Long = 2_000L,
+        ): Boolean =
+            withTimeoutOrNull(timeoutMs) {
+                while (foreground.size < count) delay(10L)
+                true
+            } ?: false
+
+        suspend fun awaitForegroundTask(
+            timeoutMs: Long,
+            predicate: (CapturedForegroundNotification) -> Boolean,
+        ): CapturedForegroundNotification? =
+            withTimeoutOrNull(timeoutMs) {
+                while (foreground.none(predicate)) delay(10L)
+                foreground.last(predicate)
+            }
     }
+
+    internal data class CapturedForegroundNotification(
+        val task: DownloadTask?,
+        val activeCount: Int,
+    )
 
     internal class FakePreferences : SharedPreferences {
         var currentServer = SERVER_ID

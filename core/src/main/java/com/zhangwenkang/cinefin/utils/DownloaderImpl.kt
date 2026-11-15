@@ -79,7 +79,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -335,7 +337,7 @@ private constructor(
     private val intentResolutionDispatcher: CoroutineDispatcher,
     private val intentResolutionDeadlineScheduler: DownloadIntentDeadlineScheduler,
     private val intentResolutionTimeoutMs: Long,
-) : Downloader {
+) : Downloader, CanonicalActiveTaskSnapshotSource {
     constructor(
         context: Context,
         database: ServerDatabaseDao,
@@ -383,6 +385,11 @@ private constructor(
             beginDeletion = database::beginDownloadIntentDeletion,
         )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val canonicalSnapshotOwner = CanonicalActiveTaskSnapshotOwner()
+    private val foregroundNotificationRequests = Channel<Unit>(Channel.CONFLATED)
+    private val foregroundNotificationPublisher = scope.launch {
+        publishForegroundNotificationChanges()
+    }
     private val intentResolutionCoordinator =
         DownloadIntentResolutionCoordinator(
             maxConcurrency = INTENT_RESOLVE_CONCURRENCY,
@@ -535,6 +542,22 @@ private constructor(
         _queueChanges.tryEmit(Unit)
     }
 
+    override fun beginCanonicalActiveTaskSampling(): Long = canonicalSnapshotOwner.beginSampling()
+
+    override fun publishCanonicalActiveTaskSnapshot(
+        samplingEpochMs: Long,
+        tasks: List<DownloadTask>,
+        downloadedCanonicalKeys: Set<String>,
+    ): CanonicalActiveTaskSnapshot? =
+        canonicalSnapshotOwner.publish(
+            samplingEpochMs = samplingEpochMs,
+            tasks = tasks,
+            downloadedCanonicalKeys = downloadedCanonicalKeys,
+        )
+
+    override fun latestCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot =
+        canonicalSnapshotOwner.latest()
+
     /** sourceId → 运行中的下载协程。 */
     private val activeJobs = ConcurrentHashMap<String, Job>()
 
@@ -584,6 +607,7 @@ private constructor(
             )
 
     @Volatile private var lastNotificationAt = 0L
+    @Volatile private var lastRenderedNotificationEpoch = 0L
 
     /**
      * 网络恢复回调（W50）：把「网络类失败 + 退避等待」的任务立即唤醒。
@@ -2138,6 +2162,7 @@ private constructor(
             if (activated == null) {
                 throw CancellationException("下载 claim 已被新代次取代")
             }
+            updateForegroundNotificationNow()
 
             // W57 限速：每次任务启动时读取偏好；运行中的任务不打断（新任务 / 重试立即生效）。
             val speedLimitBytesPerSecond =
@@ -2813,6 +2838,7 @@ private constructor(
             lifecycleControl.withCurrentGeneration(task.sourceId, resumed.taskGeneration) {
                 queuePump.kick()
                 ensureEngineRunning(forceStart = true)
+                updateForegroundNotificationNow()
                 notifyQueueChanged()
             }
             Pair(resumed.downloadId ?: downloadTaskHandle(resumed.id), null)
@@ -4858,7 +4884,10 @@ private constructor(
         }
 
     override suspend fun foregroundInfo(): ForegroundInfo {
-        val aggregate = aggregateDownloadNotification(snapshotActiveTasks())
+        val snapshot = refreshCanonicalActiveTaskSnapshot()
+        lastRenderedNotificationEpoch =
+            maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
+        val aggregate = aggregateDownloadNotification(snapshot)
         val notification =
             notifications.buildForeground(
                 task = aggregate.task,
@@ -5605,27 +5634,66 @@ private constructor(
         }
     }
 
-    private suspend fun snapshotActiveTasks(): List<DownloadTask> =
-        refreshDownloadTasks().filter { task -> DownloadTaskRules.isActiveQueueStatus(task.status) }
+    private suspend fun refreshCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot {
+        while (true) {
+            val samplingEpochMs = canonicalSnapshotOwner.beginSampling()
+            val tasks = refreshDownloadTasks()
+            val completedCanonicalKeys =
+                downloadedMediaRecords().mapTo(mutableSetOf()) { record ->
+                    record.canonicalIdentity().canonicalKey
+                }
+            canonicalSnapshotOwner
+                .publish(
+                    samplingEpochMs = samplingEpochMs,
+                    tasks = tasks,
+                    downloadedCanonicalKeys = completedCanonicalKeys,
+                )
+                ?.let { snapshot ->
+                    return snapshot
+                }
+        }
+    }
 
     private fun updateForegroundNotificationNow(): DownloadDeleteTraceResult {
         val now = System.currentTimeMillis()
         if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) {
+            foregroundNotificationRequests.trySend(Unit)
             return DownloadDeleteTraceResult.THROTTLED
         }
         lastNotificationAt = now
-        scope.launch {
-            val aggregate = aggregateDownloadNotification(snapshotActiveTasks())
-            if (aggregate.activeCount == 0) {
-                lastNotificationAt = 0L
-                return@launch
-            }
-            notifications.notifyForeground(
-                task = aggregate.task,
-                activeCount = aggregate.activeCount,
-            )
-        }
+        foregroundNotificationRequests.trySend(Unit)
         return DownloadDeleteTraceResult.SCHEDULED
+    }
+
+    private suspend fun publishForegroundNotificationChanges() {
+        for (ignored in foregroundNotificationRequests) {
+            try {
+                val waitMs =
+                    (lastNotificationAt + NOTIFICATION_INTERVAL_MS - System.currentTimeMillis())
+                        .coerceAtLeast(0L)
+                if (waitMs > 0L) delay(waitMs)
+                lastNotificationAt = System.currentTimeMillis()
+
+                var snapshot = refreshCanonicalActiveTaskSnapshot()
+                val latest = canonicalSnapshotOwner.latest()
+                if (latest.samplingEpochMs > snapshot.samplingEpochMs) {
+                    snapshot = latest
+                }
+                if (snapshot.samplingEpochMs <= lastRenderedNotificationEpoch) {
+                    continue
+                }
+                val aggregate = aggregateDownloadNotification(snapshot)
+                notifications.notifyForeground(
+                    task = aggregate.task,
+                    activeCount = aggregate.activeCount,
+                )
+                lastRenderedNotificationEpoch = snapshot.samplingEpochMs
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Exception) {
+                Timber.w(error, "刷新下载前台通知失败")
+            }
+        }
     }
 
     private fun networkPolicyAllows(): Boolean {

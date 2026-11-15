@@ -17,6 +17,8 @@ import com.zhangwenkang.cinefin.repository.LocalBookFile
 import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
+import com.zhangwenkang.cinefin.utils.CanonicalActiveTaskSnapshot
+import com.zhangwenkang.cinefin.utils.CanonicalActiveTaskSnapshotSource
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceError
 import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceEvent
@@ -1177,6 +1179,10 @@ constructor(
         // W34：每个数据源单独兜底——曲库 / 书籍元数据拉取失败时不能把下载任务整页清空。
         // W36：「允许离线模式观看」开关状态（sources / 书籍偏好），供条目行与容器开关显示。
         val loadedOfflineAllowMap = loadOfflineAllowMap()
+        val canonicalSnapshotSource = downloader as? CanonicalActiveTaskSnapshotSource
+        val canonicalSamplingEpoch =
+            canonicalSnapshotSource?.beginCanonicalActiveTaskSampling()
+                ?: System.currentTimeMillis()
         // W37 遗留修复（W36 §12）：取消（快速切页）不能被吞掉，否则会把页面刷成 0 条后靠下一次轮询自愈。
         val tasks =
             try {
@@ -1195,8 +1201,14 @@ constructor(
             completedMediaRecords.mapTo(mutableSetOf()) { record ->
                 record.canonicalIdentity().canonicalKey
             }
-        val activeEngineTasks =
-            DownloadControlPlaneRules.activeUniqueIntents(tasks, completedCanonicalKeys)
+        val canonicalSnapshot =
+            canonicalActiveTaskSnapshot(
+                source = canonicalSnapshotSource,
+                samplingEpochMs = canonicalSamplingEpoch,
+                tasks = tasks,
+                completedCanonicalKeys = completedCanonicalKeys,
+            )
+        val activeEngineTasks = canonicalSnapshot.activeTasks
         val failedEngineTasks = DownloadControlPlaneRules.retryableFailureIntents(tasks)
         val episodeHierarchy = loadEpisodeHierarchy()
         val bookFiles = loadBookFiles()
@@ -1346,6 +1358,26 @@ constructor(
             bookStorageBytes = bookStorageBytes,
             artworkById = artworkById,
             traceRefresh = traceRefresh,
+        )
+    }
+
+    private fun canonicalActiveTaskSnapshot(
+        source: CanonicalActiveTaskSnapshotSource?,
+        samplingEpochMs: Long,
+        tasks: List<DownloadTask>,
+        completedCanonicalKeys: Set<String>,
+    ): CanonicalActiveTaskSnapshot {
+        if (source != null) {
+            return source.publishCanonicalActiveTaskSnapshot(
+                samplingEpochMs = samplingEpochMs,
+                tasks = tasks,
+                downloadedCanonicalKeys = completedCanonicalKeys,
+            ) ?: source.latestCanonicalActiveTaskSnapshot()
+        }
+        return DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+            tasks = tasks,
+            downloadedCanonicalKeys = completedCanonicalKeys,
+            samplingEpochMs = samplingEpochMs,
         )
     }
 
