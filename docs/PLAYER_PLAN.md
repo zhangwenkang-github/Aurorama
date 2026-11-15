@@ -10994,3 +10994,52 @@ PC-11 网络恢复，以及 A3 首帧。按 R042，任一 `NOT_RUN` / `NOT_PROVE
 - `AURORAMA_141_SIGNED_R6_PAD_RELEASE_QA_R1.md` / `_MANIFEST.sha256`；
 - `SIGNED_RELEASE_ENGINEERING_R6.md` / `_MANIFEST.sha256`；
 - `AURORAMA_141_PC03_05_MERGE_PREP_R1.md` / `_MANIFEST.sha256`。
+
+### 52.70.35 残余矩阵与 Server-Write 停机（2026-11-15）
+
+**状态：`PLAYER_CORE_PC01_PC12=ALL_PASS_WITH_DEVICE_EVIDENCE /
+P1-AB-SERVER-WRITE-ATTEMPT-001=OPEN / SERIES=OPEN / A3=NOT_PROVEN /
+RELEASE=NO_GO_UNTIL_PROCESS_DECISION`。**
+
+用户于 2026-11-15 明确授权 Pad / K60 / Oppo 全部 QA 与受控网络切换；Oppo 仅允许应用层和
+只读取证，禁止任何底层设置修改。残余 QA 结果：
+
+- PC-06：exact Pad signed R6 上外挂 ASS 主字幕已选；独立视觉 QA 只查看一张
+  `800×1280 / 70,199 B` 压缩图，确认中文主字幕真实上屏、字形完整可读、无裁切或大面积遮挡；
+- PC-08：`zhangwenkang → admin → zhangwenkang`，首页 / 媒体库 / 视频库 / 收藏首帧均正确，
+  旧 scope 泄漏 `0`；
+- PC-10：Oppo `PLR110 / 3B664P010Y200000 / Android 16`，exact R6 universal 安装保留
+  data/session；同一 MediaSession position `4326→13092 ms`，暂停冻结 `25613 ms`，继续到
+  `28670 ms`，FGS / 通知 / 音频焦点 / AudioTrack 一致，P0–P3=`0/0/0/0`；
+- PC-11：受控 Wi-Fi disable/enable；断网出现本地化失败，恢复 VALIDATED 后一次重试
+  `48 s` 回到家 PLAYING，从 `174,658 ms` 继续到 `177,265 ms`，随后一次合法再缓冲；
+- 因此 `PLAYER_CORE_RELEASE_MATRIX` 的 PC-01–PC-12 均已有通过证据；PC-06 的视觉结论由独立
+  视觉 QA 给出，主会话没有看图。
+
+Series same-state A/B 停机：
+
+- Pad 从 Show 顶部播放进入 `S1:E1 / ExoPlayer / HEVC`，UI `00:00→00:01`，约 `2.111 s` 后
+  BUFFERING 停滞并显示行内重试；K60 在播放前完成对象预冻结但未点击；
+- 本轮发现 Pad 真实播放自动发送
+  `POST /Sessions/Playing`、`POST /Sessions/Playing/Progress`、
+  `POST /UserItems/{id}/UserData` 各 1；
+- 该行为违反生产服务器只读边界，登记
+  `P1-AB-SERVER-WRITE-ATTEMPT-001=OPEN / HTTP_RESULT_UNKNOWN`。设备已立即 force-stop，
+  锁已释放；没有尝试用额外写请求“恢复”，没有继续 K60 或 A3 设备轨；
+- Series 分类固定 `NOT_COMPARABLE`，既有 divergence P1 不关闭。后续如需继续，必须采用能证明
+  不触发服务器 progress/userdata/session 写入的测试模式或用户明确接受该副作用；不能再用直接播放
+  作为“只读” A/B。
+
+清理与未完成：
+
+- Pad / K60 / Oppo 锁均 `RELEASED / ACTIVE=0`；安装、data、session 与用户下载保留；
+- A3 `Deleting` 首帧仍 `NOT_PROVEN`；
+- 当前 release 结论仍为 `NO_GO`，原因不再是 Player Core 产品矩阵，而是开放的 server-write P1、
+  Series divergence 与 A3 首帧证据。
+
+证据：
+
+- `AURORAMA_141_SIGNED_R6_PAD_RESIDUAL_QA_R1.md` / `_MANIFEST.sha256`；
+- `AURORAMA_141_PC06_SUBTITLE_VISUAL_QA_R1.md`（视觉文字结论）；
+- `AURORAMA_141_SIGNED_R6_OPPO_PC10_QA_R1.md` / `_MANIFEST.sha256`；
+- `AURORAMA_141_SERIES_SAME_STATE_AB_QA_R1.md` / `_MANIFEST.sha256`。
