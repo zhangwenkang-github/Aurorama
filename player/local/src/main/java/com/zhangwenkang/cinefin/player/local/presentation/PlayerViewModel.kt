@@ -240,6 +240,8 @@ constructor(
             isClosed = { explicitExitController.isExited || playbackResourcesGate.isCompleted },
             existingPlayerProvider = { playerHolder.existingPlayer },
         )
+    private val postSuspendCallbackCoordinator =
+        PlayerPostSuspendCallbackCoordinator(playerAccess = playerAccess)
     private val subtitlePublicationCoordinator =
         PlayerSubtitlePublicationCoordinator(
             playerAccess = playerAccess,
@@ -1623,43 +1625,99 @@ constructor(
                         )
                     }
 
-                    repository.postPlaybackStart(item.itemId)
+                    val continueCurrentItem: suspend () -> Unit = continueCurrentItem@{
+                        if (
+                            !playerAccess.runIfOpen {
+                                // W20（§1.11）：Trickplay 改为按需加载——这里只准备加载器，不拉任何图
+                                prepareTrickplay(item)
+                                playlistManager.setCurrentMediaItemIndex(item.itemId)
+                            }
+                        ) {
+                            return@continueCurrentItem
+                        }
 
+                        // W76-B11b：这两个插入没有历史去重（后台补片可能已经插过同一条），会让队列面板出现重复条目
+                        var previousItem: PlayerItem? = null
+                        if (
+                            !postSuspendCallbackCoordinator.run(
+                                suspendWork = {
+                                    previousItem = playlistManager.getPreviousPlayerItem()
+                                },
+                                continuation = {
+                                    previousItem?.let { itemToInsert ->
+                                        if (
+                                            !hasMediaItem(
+                                                callbackPlayer,
+                                                itemToInsert.itemId.toString(),
+                                            )
+                                        ) {
+                                            items.add(
+                                                callbackPlayer.currentMediaItemIndex,
+                                                itemToInsert,
+                                            )
+                                            callbackPlayer.addMediaItem(
+                                                callbackPlayer.currentMediaItemIndex,
+                                                itemToInsert.toMediaItem(application),
+                                            )
+                                        }
+                                    }
+                                },
+                            )
+                        ) {
+                            return@continueCurrentItem
+                        }
+
+                        var nextItem: PlayerItem? = null
+                        if (
+                            !postSuspendCallbackCoordinator.run(
+                                suspendWork = { nextItem = playlistManager.getNextPlayerItem() },
+                                continuation = {
+                                    nextItem?.let { itemToInsert ->
+                                        if (
+                                            !hasMediaItem(
+                                                callbackPlayer,
+                                                itemToInsert.itemId.toString(),
+                                            )
+                                        ) {
+                                            items.add(
+                                                callbackPlayer.currentMediaItemIndex + 1,
+                                                itemToInsert,
+                                            )
+                                            callbackPlayer.addMediaItem(
+                                                callbackPlayer.currentMediaItemIndex + 1,
+                                                itemToInsert.toMediaItem(application),
+                                            )
+                                        }
+                                    }
+                                },
+                            )
+                        ) {
+                            return@continueCurrentItem
+                        }
+
+                        Timber.tag("PlayerItems").d(items.map { it.indexNumber }.toString())
+                    }
                     if (segmentsSkipButton || segmentsAutoSkip) {
-                        getSegments(item.itemId)
-                    }
-
-                    // W20（§1.11）：Trickplay 改为按需加载——这里只准备加载器，不拉任何图
-                    prepareTrickplay(item)
-
-                    playlistManager.setCurrentMediaItemIndex(item.itemId)
-
-                    // W76-B11b：这两个插入没有历史去重（后台补片可能已经插过同一条），会让队列面板出现重复条目
-                    val previousItem = playlistManager.getPreviousPlayerItem()
-                    if (
-                        previousItem != null &&
-                            !hasMediaItem(callbackPlayer, previousItem.itemId.toString())
-                    ) {
-                        items.add(callbackPlayer.currentMediaItemIndex, previousItem)
-                        callbackPlayer.addMediaItem(
-                            callbackPlayer.currentMediaItemIndex,
-                            previousItem.toMediaItem(application),
+                        if (
+                            !postSuspendCallbackCoordinator.run(
+                                suspendWork = { repository.postPlaybackStart(item.itemId) },
+                                continuation = {},
+                            )
+                        ) {
+                            return@launch
+                        }
+                        if (!getSegments(item.itemId)) {
+                            return@launch
+                        }
+                        continueCurrentItem()
+                    } else if (
+                        !postSuspendCallbackCoordinator.run(
+                            suspendWork = { repository.postPlaybackStart(item.itemId) },
+                            continuation = continueCurrentItem,
                         )
-                    }
-
-                    val nextItem = playlistManager.getNextPlayerItem()
-                    if (
-                        nextItem != null &&
-                            !hasMediaItem(callbackPlayer, nextItem.itemId.toString())
                     ) {
-                        items.add(callbackPlayer.currentMediaItemIndex + 1, nextItem)
-                        callbackPlayer.addMediaItem(
-                            callbackPlayer.currentMediaItemIndex + 1,
-                            nextItem.toMediaItem(application),
-                        )
+                        return@launch
                     }
-
-                    Timber.tag("PlayerItems").d(items.map { it.indexNumber }.toString())
                 }
             } catch (e: Exception) {
                 Timber.e(e)
@@ -1692,20 +1750,32 @@ constructor(
             val position = playbackSessionState.lastEnginePositionMs
             val duration = callbackPlayer.duration
             val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
+            val reportPlaybackStop: suspend () -> Unit
             if (itemId != null && position != null) {
                 markStopReported(itemId)
                 recordProgressSnapshot(itemId, position, duration)
-                try {
-                    repository.postPlaybackStop(
-                        itemId,
-                        position.times(10000),
-                        playedPercentage(position, duration),
-                    )
-                } catch (e: Exception) {
-                    Timber.e(e)
+                reportPlaybackStop = {
+                    try {
+                        repository.postPlaybackStop(
+                            itemId,
+                            position.times(10000),
+                            playedPercentage(position, duration),
+                        )
+                    } catch (e: Exception) {
+                        Timber.e(e)
+                    }
                 }
+            } else {
+                reportPlaybackStop = {}
             }
-            advanceAfterItemEnd(callbackPlayer)
+            if (
+                !postSuspendCallbackCoordinator.run(
+                    suspendWork = reportPlaybackStop,
+                    continuation = { advanceAfterItemEnd(callbackPlayer) },
+                )
+            ) {
+                return@launch
+            }
         }
     }
 
@@ -3314,13 +3384,20 @@ constructor(
         _uiState.update { it.copy(playerError = null) }
     }
 
-    private suspend fun getSegments(itemId: UUID) {
-        try {
-            currentMediaItemSegments = repository.getSegments(itemId)
-        } catch (e: Exception) {
-            currentMediaItemSegments = emptyList()
-            Timber.e(e)
-        }
+    private suspend fun getSegments(itemId: UUID): Boolean {
+        var loadedSegments: List<FindroidSegment> = emptyList()
+        return postSuspendCallbackCoordinator.run(
+            suspendWork = {
+                loadedSegments =
+                    try {
+                        repository.getSegments(itemId)
+                    } catch (e: Exception) {
+                        Timber.e(e)
+                        emptyList()
+                    }
+            },
+            continuation = { currentMediaItemSegments = loadedSegments },
+        )
     }
 
     /**
@@ -3652,6 +3729,19 @@ class PlayerAccessInvariant(
         val activePlayer = existingPlayer() ?: return false
         if (!isOpen()) return false
         action(activePlayer)
+        return true
+    }
+}
+
+class PlayerPostSuspendCallbackCoordinator(private val playerAccess: PlayerAccessInvariant) {
+    suspend fun run(
+        suspendWork: suspend () -> Unit,
+        continuation: suspend () -> Unit,
+    ): Boolean {
+        if (!playerAccess.isOpen()) return false
+        suspendWork()
+        if (!playerAccess.isOpen()) return false
+        continuation()
         return true
     }
 }

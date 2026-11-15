@@ -18,8 +18,10 @@ import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSource
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
 import java.lang.reflect.Proxy
 import java.util.UUID
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
@@ -146,6 +148,163 @@ class PlayerProgressFallbackTest {
         explicitExit = false
         finalized = true
         assertFalse(access.isOpen())
+    }
+
+    @Test
+    fun `media transition continuation rechecks exit gate after playback start suspend`() =
+        runBlocking {
+            var closed = false
+            val suspendEntered = CompletableDeferred<Unit>()
+            val resumeSuspend = CompletableDeferred<Unit>()
+            var currentItemReads = 0
+            var queueChanges = 0
+            var addMediaItemCalls = 0
+            var seekRequests = 0
+            var playCalls = 0
+            var lazyPlayerCreations = 0
+            val coordinator =
+                PlayerPostSuspendCallbackCoordinator(
+                    playerAccess =
+                        PlayerAccessInvariant(
+                            isClosed = { closed },
+                            existingPlayerProvider = {
+                                lazyPlayerCreations += 1
+                                recoverySeekPlayer(mutableListOf())
+                            },
+                        )
+                )
+            val callback = async {
+                coordinator.run(
+                    suspendWork = {
+                        suspendEntered.complete(Unit)
+                        resumeSuspend.await()
+                    },
+                    continuation = {
+                        currentItemReads += 1
+                        queueChanges += 1
+                        addMediaItemCalls += 1
+                        seekRequests += 1
+                        playCalls += 1
+                    },
+                )
+            }
+
+            suspendEntered.await()
+            closed = true
+            resumeSuspend.complete(Unit)
+
+            assertFalse(callback.await())
+            assertEquals(0, currentItemReads)
+            assertEquals(0, queueChanges)
+            assertEquals(0, addMediaItemCalls)
+            assertEquals(0, seekRequests)
+            assertEquals(0, playCalls)
+            assertEquals(0, lazyPlayerCreations)
+        }
+
+    @Test
+    fun `open media transition continuation runs once after playback start suspend`() =
+        runBlocking {
+            val suspendEntered = CompletableDeferred<Unit>()
+            val resumeSuspend = CompletableDeferred<Unit>()
+            var continuationCalls = 0
+            val coordinator =
+                PlayerPostSuspendCallbackCoordinator(
+                    playerAccess =
+                        PlayerAccessInvariant(
+                            isClosed = { false },
+                            existingPlayerProvider = { recoverySeekPlayer(mutableListOf()) },
+                        )
+                )
+            val callback = async {
+                coordinator.run(
+                    suspendWork = {
+                        suspendEntered.complete(Unit)
+                        resumeSuspend.await()
+                    },
+                    continuation = { continuationCalls += 1 },
+                )
+            }
+
+            suspendEntered.await()
+            resumeSuspend.complete(Unit)
+
+            assertTrue(callback.await())
+            assertEquals(1, continuationCalls)
+        }
+
+    @Test
+    fun `play when ready continuation rechecks finalize gate after playback stop suspend`() =
+        runBlocking {
+            var finalized = false
+            val suspendEntered = CompletableDeferred<Unit>()
+            val resumeSuspend = CompletableDeferred<Unit>()
+            var playerReads = 0
+            var seekRequests = 0
+            var playCalls = 0
+            var serviceStops = 0
+            val coordinator =
+                PlayerPostSuspendCallbackCoordinator(
+                    playerAccess =
+                        PlayerAccessInvariant(
+                            isClosed = { finalized },
+                            existingPlayerProvider = { recoverySeekPlayer(mutableListOf()) },
+                        )
+                )
+            val callback = async {
+                coordinator.run(
+                    suspendWork = {
+                        suspendEntered.complete(Unit)
+                        resumeSuspend.await()
+                    },
+                    continuation = {
+                        playerReads += 1
+                        seekRequests += 1
+                        playCalls += 1
+                        serviceStops += 1
+                    },
+                )
+            }
+
+            suspendEntered.await()
+            finalized = true
+            resumeSuspend.complete(Unit)
+
+            assertFalse(callback.await())
+            assertEquals(0, playerReads)
+            assertEquals(0, seekRequests)
+            assertEquals(0, playCalls)
+            assertEquals(0, serviceStops)
+        }
+
+    @Test
+    fun `open play when ready continuation runs once after playback stop suspend`() = runBlocking {
+        val suspendEntered = CompletableDeferred<Unit>()
+        val resumeSuspend = CompletableDeferred<Unit>()
+        var continuationCalls = 0
+        val coordinator =
+            PlayerPostSuspendCallbackCoordinator(
+                playerAccess =
+                    PlayerAccessInvariant(
+                        isClosed = { false },
+                        existingPlayerProvider = { recoverySeekPlayer(mutableListOf()) },
+                    )
+            )
+        val callback = async {
+            coordinator.run(
+                suspendWork = {
+                    suspendEntered.complete(Unit)
+                    resumeSuspend.await()
+                },
+                continuation = { continuationCalls += 1 },
+            )
+        }
+
+        suspendEntered.await()
+        resumeSuspend.complete(Unit)
+
+        assertTrue(callback.await())
+        assertEquals(1, continuationCalls)
     }
 
     @Test
