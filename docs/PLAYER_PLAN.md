@@ -11043,3 +11043,30 @@ Series same-state A/B 停机：
 - `AURORAMA_141_PC06_SUBTITLE_VISUAL_QA_R1.md`（视觉文字结论）；
 - `AURORAMA_141_SIGNED_R6_OPPO_PC10_QA_R1.md` / `_MANIFEST.sha256`；
 - `AURORAMA_141_SERIES_SAME_STATE_AB_QA_R1.md` / `_MANIFEST.sha256`。
+
+### 52.70.36 Server-write 用户裁决与 R7 交接（2026-11-15）
+
+用户 2026-11-15 明确裁决：
+
+```text
+不删除用户数据、不修改元数据等破坏性写，允许正常播放产生的
+session / playback progress / UserData 写入。
+```
+
+因此：
+
+- `P1-AB-SERVER-WRITE-ATTEMPT-001` 由用户接受为非阻断事故，不再作为 Release blocker；请求结果
+  未回溯，未尝试写入式回滚；
+- Series same-state A/B 可以在该裁决下继续，但必须继续禁止删除、元数据、库结构、用户数据删除
+  和其它破坏性写；
+- Player Core PC-01–PC-12 的设备证据已齐，PC-06 视觉由独立 QA 确认；
+- 仍开放 `P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001` 与
+  `P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN`；
+- 当前负责人上下文已超过 35 万硬交接线，下一步由新的 R7 负责人继续；R7 首轨必须：
+  1. 只读复核主分支、signed R6、PC 矩阵与 server-write 用户裁决；
+  2. 完成 Pad/K60 Series 同账号同进度同 NextUp 的 A/B；
+  3. 用 debug-only semantics / trace 完成 A3 删除首帧证明；
+  4. 只有两项收口后才进入用户最终验收和发布决策。
+
+R5/R6 设备均已释放，安装、data、session 和用户下载保留；当前没有可继续扩张的 Pad/K60/Oppo
+设备轨，等待 R7 新会话显式派单。
