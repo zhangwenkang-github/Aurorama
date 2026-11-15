@@ -11128,3 +11128,82 @@ R6、设备锁和本轮证据，再派 fresh 只读
 的 HTTP / auth / DTO / mapping / cache / Room 分支；不得播放、下载、删除用户数据或改 metadata。
 对象 / APK / 锁漂移、需要破坏性写或新 P0/P1/P2 时停止。R8 负责人不得把本轮局部结论扩写为
 Series P1 关闭、A3 P2 关闭、Release PASS 或用户最终验收。
+
+### 52.70.38 R8 A3 Season / Episodes 读取失败只读诊断：INCONCLUSIVE（2026-11-15）
+
+**状态：`A3_READ_FAILURE_DIAGNOSIS_R1=INCONCLUSIVE /
+NO_IMPLEMENTATION_GATE / P2-A3-DOWNLOAD-SEASON-EPISODE-READ-FAILURE-001=OPEN /
+1.4.1=NOT_RELEASABLE`。**
+
+R8 以固定专业身份 `AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R8_2026_11_15` 只完成范围、契约、证据审查与
+门控；实际只读诊断由 fresh
+`AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSTICIAN_R1_2026_11_15` 执行。派发前独立
+`v2-handoff-lint.ps1 -Mode BugLoopPrompt` 工具门为 `BUG_LOOP_DISPATCH_GATE=PASS`；诊断 owner
+第一条实际命令自行重跑同一 lint 并再次 PASS。
+
+输入对象：
+
+- worktree `F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama`；
+- branch `codex/v141-player-progress-timepos-r1-2026-11-13`；
+- docs-only 输入 HEAD `e8bd24ca4509451af0cc8049e90ad1c9268b9c4d` / tree
+  `6a04e022f774f6cdf9a55e72fbcf74abad823e28`；
+- 产品修复祖先 `6080f043cfb7925196a12c083cb61abc050f944a`；
+- exact signed R6 arm64 `80,648,330 B /
+  DC4BFA3CE175D693E82EAA9DDCCAFCD78FF315D51905B0B18B4E56A2E436D59A`，universal
+  `175,246,116 B / CBCBE30F884150BAD8D70909111BB876D8B64481D4EE3D2D205BD100C33FCD6E`，
+  v2 单 signer `e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff`；
+- Pad `43af8627` 独占；K60 / Oppo / OnePlus 针对性命令 `0`。
+
+已证明与未证明：
+
+- “读取剧集失败”不是通用 `error_loading_data`，实际字符串为
+  `CoreR.string.detail_download_batch_load_failed`；
+- 失败态条件是 `downloadTargetsError != null && downloadTargets == null`；异常由
+  `ShowViewModel.loadDownloadTargets catch(Exception)` 写入，调用链进入
+  `repository.getEpisodes(seriesId, seasonId, EPISODE_FETCH_FIELDS)`；
+- `.debug` 在同一既有 Show 下载对话框再次复现失败，App 请求族已绑定
+  `/Shows/{showId}/Episodes`；debug 请求没有留下 App PID 绑定的 HTTP status 或异常类；
+- 同一 session token 的只读服务器 GET 对两个既有 Show 的 Seasons / Episodes 均返回 HTTP 200，
+  各 12 集且 `MediaSources` / `SeriesId` / `SeasonId` 形状完整；App 当前 Show / Season 身份哈希与
+  当前精确搜索身份不同，但用 App URL 身份直接 GET 仍为 200 + 12 集，故 identity 漂移是线索但不是
+  充分根因；
+- Room `integrity_check=ok`、schema 17、唯一有效 session；两个 Show 的 `show` / `seasons`
+  snapshot 存在，Episodes snapshot 不存在，运行时应走网络；
+- Pad 与宿主曾对无 App 请求绑定的公开 TLS 探针收到 `UNRECOGNIZED_NAME / alert 112`；该证据不能
+  替代目标 `/Episodes` 请求的 HTTP status；
+- exact signed R6 进入同一 Show 详情，但唯一一次“下载”点击未打开对话框；按两次观察上限未 retry，
+  因此 signed R6 当前运行时影响固定 `UNKNOWN`，不能声称 debug-only；
+- 因传输/TLS/HTTP 与 SDK decode / mapping / cache identity 两条竞争分支无法单选，最终结论固定
+  `INCONCLUSIVE / NO_IMPLEMENTATION_GATE`，不创建实现 owner、不重试 A3、不请用户最终验收。
+
+唯一缺失判别输入为同一 App PID 绑定的 `/Shows/{showId}/Episodes`
+`HTTP_STATUS_PLUS_EXCEPTION_CLASS`。若状态为 TLS / connect / timeout / 非 2xx，传输或 HTTP 分支
+成立；若为 HTTP 200 且完整 12 条 DTO 已到达 repository，则主假设被推翻，转查 SDK decode、
+mapping materialization 或 cache identity。任何补证 owner 必须行为不变、仅 debug、不得输出 token /
+URL / query / 媒体路径或完整 DTO。
+
+本轮 executed：设备命令 `127`；App 启动 `2`；下载对话框 `2 attempts / 1 reached`；
+queue click `0`、download task `0`、playback `0`、delete `0`；server GET `16`；Room 投影 `1`；
+screenshot / `view_image` `0`；K60 / Oppo / OnePlus 命令 `0`。两包均 force-stop，安装、data /
+session、用户既有下载保留；debug data inode `882268→882268`，两包 `lastUpdateTime` 未变；
+临时 Room / WAL / XML / 日志均清理。
+
+过程 P3：owner 在释放 Pad 锁后又执行 2 个只读 `pidof` 命令确认进程为 0。它们未启动 App、
+未改变 data/session/下载或服务器状态，但违反“所有设备命令均在锁内”的边界，固定
+`P3-DIAG-LOCK-POST-RELEASE-READ-001`。此后未再执行设备命令；R8 不再扩张设备工作。
+
+证据：
+
+- `AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSIS_R1_CONTRACT.md`，SHA-256
+  `3359C9096A0DB5BF1C730D8F1D8516C5DEB134B8A097BAEB0D9E5C96B4525943`；
+- `AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSIS_R1.md`，SHA-256
+  `F8E14656FBDF69B6362160EE5D0314EFB9E410877E911F6CB2D3CCFAEFB690DE`；
+- `AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSIS_R1_EVIDENCE.txt`，SHA-256
+  `5D8058F678AE4D882BFAE6B7087A33F0EAF5666173BB70AC686AEF7568B3C7A9`；
+- `AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSIS_R1_MANIFEST.sha256`，SHA-256
+  `7338247052D760893451EC0B54A8B6A17815740D71739B1576BEB93F691A0C7A`；manifest 7/7
+  独立复算 MATCH。
+
+下一动作不是实现。需要用户决定是否授权一个 fresh、行为不变、仅 debug 的定向 trace owner，
+只补取 `HTTP_STATUS_PLUS_EXCEPTION_CLASS`；在其获得单一判别结果前，A3 P2、Series P1、
+`P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN` 与 1.4.1 Release 门均保持开放。
