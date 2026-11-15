@@ -11070,3 +11070,56 @@ session / playback progress / UserData 写入。
 
 R5/R6 设备均已释放，安装、data、session 和用户下载保留；当前没有可继续扩张的 Pad/K60/Oppo
 设备轨，等待 R7 新会话显式派单。
+
+### 52.70.37 R7 Series / A3 收口尝试：NOT_COMPARABLE 与新 P2 阻断（2026-11-15）
+
+**状态：`SERIES_R2=NOT_COMPARABLE / A3=STOPPED_NOT_PROVEN /
+PLAYER_CORE_PC01_PC12_UNCHANGED / 1.4.1=NOT_RELEASABLE`。**
+
+Series same-state A/B R2 在 exact signed R6 上完成：
+
+- 两机账号 / 服务器 opaque hash、Show、1 季、12 集、Episode 顺序、空 NextUp UI、
+  backend `exoplayer` 与目标 completed local source `0` 均 MATCH；顺序为 Pad 后 K60；
+- 两机本轮实际均解析 `S1:E1 - Hinamatsuri / ExoPlayer`，未复现 Episode/backend 分歧；
+  Pad 为 remote Direct MKV / HEVC / FLAC，K60 source protocol 因窄屏信息不足保持
+  `NOT_PROVEN`；
+- Pad 唯一播放从 UI `00:01` 推进至至少 `02:47` 后 force-stop；其已授权非破坏性 progress
+  写使 K60 唯一播放从约 `03:41` 恢复，position `221,319→337,070 ms`。因此 pre-play 输入匹配，
+  但 post-play 持久进度已变化，固定
+  `NOT_COMPARABLE / POST_PAD_NONDESTRUCTIVE_PROGRESS_WRITE_CHANGED_K60_RESUME_POSITION`；
+- 未 retry、未换 Episode/backend/source、未第二次播放。
+  `P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001` 保持 OPEN。
+
+A3 deleting first-frame QA R1 在 debug 构建和覆盖安装后、创建任何 QA 下载任务前停止：
+
+- debug APK `158,861,644 B / 3B0E70D5C5E8A7B5CE4CBA1E945F8C5B50AF0D228F5F81AD0B5BB86EDBFF9C5C`，
+  安装后 base hash MATCH，data inode `882268→882268`；
+- `超能力女儿`、一次冷启动后的同季、以及 `成群结伴！西顿学园` 的 Show 下载对话框均显示
+  `读取剧集失败`，重试一次仍未恢复，`加入下载队列` disabled；
+- `QA_CREATED_TASKS=0 / DELETE_ATTEMPTS=0 / PLAYBACK_ATTEMPTS=0`。未到达确认删除 T0、
+  D1/D2、首个可见 `Deleting / 删除中`、D3–D9、canonical row absent 或 restart；
+- 新增并保持 OPEN：
+  `P2-A3-DOWNLOAD-SEASON-EPISODE-READ-FAILURE-001=OPEN_USER_VISIBLE_ROOT_CAUSE_NOT_CLASSIFIED`；
+  既有 `P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN` 也保持 OPEN。
+
+两轮均无产品代码变化。所有锁已释放，用户下载、安装、data、session 保留；K60 / Oppo /
+OnePlus 在 A3 为零命令，截图与视觉 QA 均为 0。Player Core PC-01–PC-12 的既有 exact R6
+设备证据保持不变，但当前开放 P1/P2 不允许进入用户最终验收或发布。
+
+证据：
+
+- `AURORAMA_141_SERIES_SAME_STATE_AB_QA_R2.md`，SHA-256
+  `B6F51CA993C6A66B79BF13CA1E88B2573018FF42F1C2FBD41E166FE252510B52`；
+- `AURORAMA_141_SERIES_SAME_STATE_AB_QA_R2_MANIFEST.sha256`，SHA-256
+  `DBC7A6D7E346B9C6F91E347C29274EEBE290A2D94DA157C7CCCC57DE0707519B`；
+- `AURORAMA_141_A3_DELETING_FIRST_FRAME_QA_R1.md`，SHA-256
+  `8616CC6ED63C759587556474A7EED09B80D02AC58FD3BCA9865309B787B3DC82`；
+- `AURORAMA_141_A3_DELETING_FIRST_FRAME_QA_R1_MANIFEST.sha256`，SHA-256
+  `A26E69474D7515299F9B8C643B383713345DF4227040C1ADE1085238A6ECEC42`；
+- `aurorama_141_a3_deleting_first_frame_qa_r1/A3_PREFLIGHT_AND_BLOCKER_PROJECTION.txt`，
+  SHA-256 `5E0CA37026C0032D1A7E0089CE395F2EB617B4DC9E39A02BFCD3C2F909AA0C6B`。
+
+下一角色必须是 fresh 只读 `AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSTICIAN_R1_2026_11_15`：
+先只读分类 debug App 的 Show→Season→Episodes 读取失败，区分 UI → ViewModel → repository 的
+HTTP / auth / DTO / mapping / cache / Room 分支；不得播放、下载、删除用户数据或改 metadata。
+任一对象 / APK / 锁漂移、需要破坏性写或新 P0/P1/P2 时停止。

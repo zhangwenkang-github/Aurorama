@@ -8,7 +8,7 @@
 ### ACTIVE — AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
 
 - TASK_ID=AURORAMA-1.4.1-PAD-MPV-STALL-EXO-FALLBACK-2026-11-14
-- TASK_STAGE=HANDOFF_TO_R7_SERIES_AND_A3_REMAINDER / NONDESTRUCTIVE_WRITES_ACCEPTED / NOT_RELEASABLE
+- TASK_STAGE=STOPPED_A3_NEW_P2 / SERIES_R2_NOT_COMPARABLE / PLAYER_CORE_PC01_PC12_UNCHANGED / NOT_RELEASABLE
 - MERGE_PREP_STAGE=PASS / CANDIDATE_READY_FOR_DELIVERY_LEAD_DECISION / NOT_RELEASABLE
 - MERGE_PREP_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\r6-delete-fix-merge-prep\Aurorama
 - MERGE_PREP_BRANCH=codex/r6-delete-fix-merge-prep
@@ -25,7 +25,7 @@
 - CANONICAL_WORKTREE=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama
 - CANONICAL_BRANCH=codex/v141-player-progress-timepos-r1-2026-11-13
 - EXPECTED_HEAD_SOURCE=MANAGER_EXTERNAL_PIN
-- HANDOFF_HEAD=092afea32508466203ea1db7d1d0f6f6ad6473ce / HANDOFF_TREE=95db8db5e62b330cfb5f38ae5faefaa8b49929f6
+- HANDOFF_HEAD=0b761f0e9fe8a325239218de9601c55d1f09bd93 / HANDOFF_TREE=4fc29d7f44a0eb601462707ae9c5002b2ad5d872
 - CONTROL_PLANE_DIFF=IMPLEMENTATION_PATHS=app/phone/src/main/java/com/zhangwenkang/cinefin/PlayerActivity.kt;player/local/src/main/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerViewModel.kt;player/local/src/main/java/com/zhangwenkang/cinefin/player/local/domain/PlayerProgressFallback.kt;player/local/src/test/java/com/zhangwenkang/cinefin/player/local/presentation/PlayerProgressFallbackTest.kt;docs/PLAYER_PLAN.md;docs/TASKS.md
 - READ_ORDER=PROJECT_PLAN > TASKS ACTIVE > PLAYER_PLAN 52.70.27-52.70.29 > source diagnosis R1 > signed observer R1 > FRESH_INDEPENDENT_SIGNED_QA_R4 > AURORAMA_141_STATE_EFFECT_MATRIX_R1 sections 2/7 > TEST_PLAN 8 > PROJECT_RULES R010/R014/R018/R019/R034/R038/R042/R043
 - NEXT_PATH=F:\Develop\code_data\work_tree\Aurorama\v141-player-progress-timepos-r1-2026-11-13\Aurorama\docs\PLAYER_PLAN.md
@@ -88,16 +88,16 @@
 - BUG_LOOP_STOP_BUDGET=2_SAME_SYMPTOM_ATTEMPTS_THEN_STOP_OR_USER_DECISION
 - FULL_MATRIX_GATE=RELEASE_CANDIDATE_ONLY
 - DOWNLOAD_LINEAGE_CANDIDATE_ANCESTORS=0cd906e3d70f2b5f435d24127daa3b99856f5a09;4b7f7bf35f0f3d74e63c822af3684e6f60b5ef9a;77f13d23aeed4630bb1d5e4b2c76f4c3f4f36757
-- FINAL_SIGNED_QA=SIGNED_R4_NOTIFICATION_QA_PASS_FOR_P2;PLAYER_MATRIX_FAIL_UNCHANGED;RELEASE_READY=NO
-- QA_CANDIDATE_ARM64=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r4-2026-11-14\Aurorama-1.4.1-arm64-v8a.apk;LENGTH=80599166;SHA256=74A9112309415DA45BF323B9D19449F709199384BB081D92D34A68D006DA54FB
-- QA_CANDIDATE_UNIVERSAL=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r4-2026-11-14\Aurorama-1.4.1-universal.apk;LENGTH=175213336;SHA256=F9E79CE7160125E4205A658946ECD26899069BC70621F92A895C0FE14554B586
+- FINAL_SIGNED_QA=PLAYER_CORE_PC01_PC12_PASS_ON_SIGNED_R6;SERIES_R2_NOT_COMPARABLE;A3_STOPPED_NOT_PROVEN;RELEASE_READY=NO
+- QA_CANDIDATE_ARM64=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r6-2026-11-15\Aurorama-1.4.1-arm64-v8a.apk;LENGTH=80648330;SHA256=DC4BFA3CE175D693E82EAA9DDCCAFCD78FF315D51905B0B18B4E56A2E436D59A
+- QA_CANDIDATE_UNIVERSAL=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r6-2026-11-15\Aurorama-1.4.1-universal.apk;LENGTH=175246116;SHA256=CBCBE30F884150BAD8D70909111BB876D8B64481D4EE3D2D205BD100C33FCD6E
 - QA_CANDIDATE_SIGNER=e449c4aadde191a789fe72ca8f7ec5471547c21446ddc04e4b7b8b23cee155ff
 - QA_CANDIDATE_PACKAGE=io.github.zhangwenkang.aurorama/1.4.1(6)/NON_DEBUGGABLE/V2_SINGLE_SIGNER
 - QA_REQUIRED=CORE_USER_JOURNEY_THEN_DOWNLOAD_LINEAGES_THEN_PLAYER_CORE_RELEASE_MATRIX_PC01_PC12
 - REPRO_SIGNED_ARM64=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r2-2026-11-14\Aurorama-1.4.1-arm64-v8a.apk;LENGTH=80582770;SHA256=1D074E8CF23D716F1C11C7F6ADFB66DBC45BDDEB398152DC1DEA4E6F8EFA05C0
-- RELEASE_APK_UNIVERSAL=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r4-2026-11-14\Aurorama-1.4.1-universal.apk;LENGTH=175213336;SHA256=F9E79CE7160125E4205A658946ECD26899069BC70621F92A895C0FE14554B586
-- DELIVERY_MANIFEST=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r4-2026-11-14\MANIFEST.sha256;SHA256=6568717CB849A06293027E623F3A4865EA26432BB260CAEB80883BC66DB84A6A
-- DEBUG_APK=app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk;LENGTH=158861644;SHA256=6131469560C3201E6B4D1990D88914A32F3EF3D4408FDC64648B6B1A53BA43D1
+- RELEASE_APK_UNIVERSAL=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r6-2026-11-15\Aurorama-1.4.1-universal.apk;LENGTH=175246116;SHA256=CBCBE30F884150BAD8D70909111BB876D8B64481D4EE3D2D205BD100C33FCD6E
+- DELIVERY_MANIFEST=F:\Develop\codex_work\Documents\Aurorama\releases\1.4.1-signed-r6-2026-11-15\MANIFEST.sha256;SHA256=CD4C4BB57A74EE7D8B521A2AA8B81A3520F502FEAE225BD42E8F2635AE6A90E1
+- DEBUG_APK=app/phone/build/outputs/apk/libre/debug/phone-libre-arm64-v8a-debug.apk;LENGTH=158861644;SHA256=3B0E70D5C5E8A7B5CE4CBA1E945F8C5B50AF0D228F5F81AD0B5BB86EDBFF9C5C
 - RELEASE_PACKAGE=io.github.zhangwenkang.aurorama;VERSION=1.4.1(6);APKSIGNER_V2=TRUE;SINGLE_SIGNER=TRUE;ARM64_ONLY=TRUE
 - DEVICE_ACCESS=PAD_43AF8627;K60_8E875894;OPPO_3B664P010Y200000_APP_LEVEL_ONLY;EXPLICIT_SERIAL_ONLY;OPPO_NO_SYSTEM_SETTINGS
 - IMPLEMENTATION_DEVICE_ACCESS=NONE;FRESH_SIGNED_QA_LATER_PAD_ONLY
@@ -111,7 +111,7 @@
 - DEVICE_LOCK_AFTER_SERIES_INSTRUMENTATION_R1=ACTIVE=0;LOCK_SHA256=B1D8A37FB68B64A0C34873C357DAACF67A4BA72BFD8BE713050A4050DBE14CFA
 - DEVICE_LOCK_AFTER_PAD_MPV_VS_EXO=ACTIVE=0;LOCK_SHA256=7DA6476C948F7929AC18768C733893F76F218EAF8EBBCABBA8D51A229DFC4102
 - INSTALLED_RELEASE_MATCH=PAD_43AF8627=80487230/72637DACED361A085F9002DF6DDED338FF22B2A5C66CA3FF410F69ADADF90D45;K60_8E875894=80487230/72637DACED361A085F9002DF6DDED338FF22B2A5C66CA3FF410F69ADADF90D45
-- INSTALLED_DEBUG=PAD_43AF8627=1.4.1(6)/FD54E749896DAB54E1D6EC4511CDC32C3A3AE650BE8CD63980835B5DB480C1B7;K60_8E875894=1.4.0(5)/F00CD53392025A9975916AE4738FC6340FBF348A9050F1A4B5AB67326EDD8D49
+- INSTALLED_DEBUG=PAD_43AF8627=1.4.1(6)/158861644/3B0E70D5C5E8A7B5CE4CBA1E945F8C5B50AF0D228F5F81AD0B5BB86EDBFF9C5C;K60_8E875894=NOT_TOUCHED_A3
 - USER_DATA=PRESERVE;NO_UNINSTALL;NO_PM_CLEAR;NO_CREDENTIAL_EXPORT
 - PAD_R1_RESULT=REPRODUCED/PLAYERACTIVITY_ALIVE/MPV_HARDWARE/HLS-MKV-HEVC/BUFFERING_GT_34S/POSITION_-1/UI_00_00/NO_CRASH_ANR_PROC_DEATH
 - PAD_MPV_VS_EXO_RESULT=MPV_NO_FRAME_EXO_PLAYS/SAME_PAD_SAME_EPISODE_HLS_CLASS/AUTO_FALLBACK_NOT_TRIGGERED/FAILURE_LAYER_MPV_PAD_BACKEND/EXACT_SUBCAUSE_UNKNOWN
@@ -153,14 +153,14 @@
 - QA_FINAL_EXECUTED=A2_SPECIFIED_EPISODES_TASKS_EQUAL_BUT_NOTIFICATION_TOTAL_MISMATCH/A3_RECURSION_PASS_BUT_DELETING_FIRST_FRAME_NOT_PROVEN/A4_PASS/PC01_PC07_PC09_PC12_PASS/PC02_PC03_PC05_FAIL/PC04_PC06_PC08_PC11_NOT_RUN/PC10_BLOCKED
 - P0=0;NEW_P0=0;IMPL_R1_NO_NEW_P0
 - P1=P1-PAD-ONLINE-PLAYBACK-STALL-001:CLOSED_BY_SIGNED_R3_A1_AUTO;P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001:OPEN;P1-AB-SERVER-WRITE-ATTEMPT-001:ACCEPTED_BY_USER_NONBLOCKING_2026_11_15;P1-PLAYER-SEEK-001:CLOSED_BY_SIGNED_R6_PC03_05;P1-PLAYER-PROGRESS-001:CLOSED_BY_SIGNED_R6_PC05;P1-QA-EVIDENCE-MEDIA-PATH-OUTPUT-001:ACCEPTED_BY_USER_NONBLOCKING;P1-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001:CLOSED_BY_SIGNED_R6_PAD_QA;P1-DOWNLOAD-SELECTION-CONTROLS-DUPLICATE-PLAY-001:CLOSED_BY_R5_A4
-- P2=P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001:CLOSED_BY_SIGNED_R4_QA;P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN:OPEN;P2-PLAYER-LOADING-001:CLOSED_EXPECTED_BACKGROUND_PAUSE_WITH_SETTING_OFF;P2-PLAYER-STALL-001:CLOSED_BY_SIGNED_R6_PC03_05;P2-PLAYER-UI-MEDIASESSION-TERMINAL-DIVERGENCE-001:CLOSED_BY_SIGNED_R6_PC03_05_PC12;P2-PLAYER-RAW-ERROR-TOKEN-UI-001:CLOSED_BY_SIGNED_R6_PC12;P2-K60-LOCAL-DOWNLOAD-SOURCE-MISSING-001:NOT_REACHED_SERIES_AB_STOPPED
-- P3=PLAYER_CORE_PC01_PC12_PASS;A3_DELETING_FIRST_FRAME_NOT_PROVEN;SERIES_SAME_STATE_K60_NOT_COMPLETED
-- CONTEXT_USAGE=648218 / 1048576 (61.8%);35万硬交接线已超过;R7_REQUIRED
-- NEXT_ROLE=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R7_2026_11_15
-- FIRST_READ_ACTION=R7 must run startup/status, read ACTIVE and PLAYER_PLAN 52.70.35-36, verify main/signed R6, then dispatch fresh Series A/B and A3 first-frame owners without destructive server writes
-- NEXT_ACTION=R7 continues only Series same-state A/B and A3 first-frame proof; after those close, run final user acceptance and release decision; no push/tag/Release without separate explicit authorization
-- STOP_CONDITION=stop on destructive server write, user data deletion, metadata mutation, APK/object drift, device lock conflict, uncontrolled network change, new P0/P1, or claims without exact evidence
-- CURRENT_HANDOFF=R6_TO_R7_SERIES_AND_A3_REMAINDER_2026_11_15
+- P2=P2-DOWNLOAD-NOTIFICATION-TOTAL-MISMATCH-001:CLOSED_BY_SIGNED_R4_QA;P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN:OPEN;P2-A3-DOWNLOAD-SEASON-EPISODE-READ-FAILURE-001:OPEN_USER_VISIBLE_ROOT_CAUSE_NOT_CLASSIFIED;P2-PLAYER-LOADING-001:CLOSED_EXPECTED_BACKGROUND_PAUSE_WITH_SETTING_OFF;P2-PLAYER-STALL-001:CLOSED_BY_SIGNED_R6_PC03_05;P2-PLAYER-UI-MEDIASESSION-TERMINAL-DIVERGENCE-001:CLOSED_BY_SIGNED_R6_PC03_05_PC12;P2-PLAYER-RAW-ERROR-TOKEN-UI-001:CLOSED_BY_SIGNED_R6_PC12;P2-K60-LOCAL-DOWNLOAD-SOURCE-MISSING-001:NOT_REACHED_SERIES_AB_STOPPED
+- P3=PLAYER_CORE_PC01_PC12_PASS;SERIES_R2_NOT_COMPARABLE;A3_NOT_RUN
+- CONTEXT_USAGE=283527 / 1048576 (27.0%); measured 2026-11-15 11:33 +08
+- NEXT_ROLE=AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSTICIAN_R1_2026_11_15
+- FIRST_READ_ACTION=Diagnostician must run status, read ACTIVE and PLAYER_PLAN 52.70.37 and the A3 report, then classify Show-Season-Episodes read failure read-only without playback/download/delete
+- NEXT_ACTION=Fresh read-only diagnosis only; no user final acceptance or release while Series P1 and A3 P2s remain open; no push/tag/Release
+- STOP_CONDITION=stop on object/APK/signer drift, device lock conflict, playback/download/delete, metadata or destructive server write, user data loss, or new P0-P2
+- CURRENT_HANDOFF=R7_STOPPED_A3_PREFLIGHT_P2_2026_11_15
 <!-- V2_HANDOFF_ACTIVE_END -->
 
 ### HISTORY — V1.4.1-PLAYER-PROGRESS-SOURCE-RETRY-R19-2026-11-11
@@ -1895,11 +1895,11 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 
 <!-- V2_QA_READY_BEGIN -->
 - QA_READY=NO
-- QA_RESULT=PLAYER_CORE_PC01_PC12=PASS_WITH_DEVICE_EVIDENCE;PC06_VISUAL=PASS;PC08=PASS;PC10_OPPO=PASS;PC11_NETWORK_RECOVERY=PASS;SERVER_WRITE_ATTEMPT=ACCEPTED_BY_USER;SERIES_AB=REMAINING;A3=NOT_PROVEN;RELEASE_READY=NO
-- UNCOVERED=SERIES same-state K60 playback; A3 first-frame proof; final release acceptance
-- STOP_CONDITION=R7 must close Series and A3 without destructive writes; then full user acceptance; no PASS_WITH_GAPS for remaining open items
+- QA_RESULT=PLAYER_CORE_PC01_PC12=PASS_WITH_DEVICE_EVIDENCE;PC06_VISUAL=PASS;PC08=PASS;PC10_OPPO=PASS;PC11_NETWORK_RECOVERY=PASS;SERVER_WRITE_ATTEMPT=ACCEPTED_BY_USER;SERIES_R2=NOT_COMPARABLE;A3=STOPPED_NOT_PROVEN;NEW_P2=SEASON_EPISODES_READ_FAILURE_OPEN;RELEASE_READY=NO
+- UNCOVERED=Series strict same-state after progress write; A3 first-frame proof; A3 download Season-Episodes read-failure cause; final user acceptance
+- STOP_CONDITION=Do not retry A3 or implement until fresh diagnosis classifies the new P2; no playback, user-data deletion, metadata mutation, destructive server write, push/tag/Release
 - MANUAL_LIMITATION=Non-destructive playback session/progress/UserData writes are user-accepted; metadata/data deletion remains forbidden
-- MANUAL_OWNER=AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R7_2026_11_15
+- MANUAL_OWNER=AURORAMA_141_A3_SEASON_EPISODES_READ_FAILURE_DIAGNOSTICIAN_R1_2026_11_15
 
 <!-- V2_QA_INVARIANT_MATRIX_BEGIN -->
 | Invariant ID | Entry | Action | Observable result | Automation/fixture evidence | Device evidence |
@@ -1944,7 +1944,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File "F:\Develop\code_data\work_tree\Au
 | P1-PLAYER-LOADING-BACKGROUND-CONTINUE | R3/R5 originally treated HOME pause as a continuation candidate; diagnosis later proved the R5 foreground reload used a new playback Intent | CLOSED_BY_QA_R6_PC02_BOTH_BRANCHES_PASS: default background-audio-off HOME pause is expected; explicit in-app background audio kept the same task/PID/PlayerActivity/source generation on return with zero initializePlayer calls | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-background-continue-scope-decision-r4-2026-11-10\BACKGROUND_CONTINUE_SCOPE_DECISION_R4_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r6-2026-11-10\INDEPENDENT_QA_R6_REPORT.md |
 | P1-R19-S2-PLAYBACK-PROCESS-CRASH-01 | R19 S2 showed `am_crash + am_proc_died` before stable playback; branch fault evidence localized the old sourceEpoch observer initialization NPE, while the P1 remained open | R20 moves sourceEpoch initialization before observer registration and passes scoped review plus one exact LOCAL SAF path launch; fresh A scoped QA must prove current candidate startup/playback without crash before global closure | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r19-local-stage-fault-evidence-r2-2026-11-12\LOCAL_STAGE_FAULT_EVIDENCE_R2_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-progress-source-retry-r20-scoped-review-r1-2026-11-12\SCOPED_REVIEW_REPORT.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-player-a-cluster-independent-qa-r8-2026-11-12\A_CLUSTER_SCOPED_QA_R8_CARD.md |
 | P1-PAD-ONLINE-PLAYBACK-STALL-001 | Signed R2 Pad top-play HLS/mpv remained BUFFERING with no first frame; same-source Exo manually advanced | `CLOSED_BY_FRESH_SIGNED_QA_R3_A1_AUTO`: same PID, one Activity recreate, one mpv→Exo, Exo position `2100→60893 ms` and buffered `3086→80330`, final PLAYING; no second switch / parallel player / new popup / crash | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FRESH_INDEPENDENT_QA_R3.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SIGNED_RELEASE_ENGINEERING_R3.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PAD_MPV_STALL_EXO_FALLBACK_IMPLEMENTATION_R1.md |
-| P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001 | Prior signed observations resolved different Episodes across devices / top-play runs | Requires same candidate real-entry matrix evidence; not closed by backend fallback policy | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FINAL_INDEPENDENT_QA_R1.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SERIES_RESOLUTION_INSTRUMENTATION_R1.md |
+| P1-SHOW-TOP-PLAY-SERIES-RESOLUTION-DIVERGENCE-001 | Prior signed observations resolved different Episodes across devices / top-play runs | R2 both resolved S1E1/ExoPlayer but post-Pad progress write changed K60 resume state; fixed NOT_COMPARABLE, P1 remains OPEN | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FINAL_INDEPENDENT_QA_R1.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SERIES_RESOLUTION_INSTRUMENTATION_R1.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\AURORAMA_141_SERIES_SAME_STATE_AB_QA_R2.md |
 | P1-QA-EVIDENCE-MEDIA-PATH-OUTPUT-001 | R1 QA emitted test media path material before redaction boundary was tightened | User accepted test server/account/media path as non-blocking; token/cookie/password/query redaction remains mandatory | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\FINAL_INDEPENDENT_QA_R1.md |
 | P1-R3-PREPLAYER-DATA-LOAD-FAILURE-001 | Historical explicit Episode-row path stopped in EpisodeView load error with no PlayerActivity | Historical wrong-entry chain is not current top-play symptom; do not use it as current Pad backend proof | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\ANIME_SUPERPOWER_DAUGHTER_UI_AB_R3.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\PREPLAYER_DATA_LOAD_DIAG_R1.md |
 | P1-DIAG-K60-ONLINE-AB-OBJECT-MISMATCH-001 | Early K60/Pad online diagnostic compared different Episode titles | UI object later matched when the corrected path was used; this does not close other playback findings | F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\K60_ONLINE_DIAGNOSIS_CONTINUATION_R1.md;F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\ANIME_SUPERPOWER_DAUGHTER_UI_AB_R3.md |
