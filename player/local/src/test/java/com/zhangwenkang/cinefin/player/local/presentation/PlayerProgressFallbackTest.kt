@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.player.local.presentation
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.zhangwenkang.cinefin.player.core.domain.models.PlaybackMediaIdentity
+import com.zhangwenkang.cinefin.player.local.domain.PlayerExplicitExitController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackInput
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackSourceKind
@@ -14,6 +15,7 @@ import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSourceKind
+import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
 import java.lang.reflect.Proxy
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
@@ -144,6 +146,171 @@ class PlayerProgressFallbackTest {
         explicitExit = false
         finalized = true
         assertFalse(access.isOpen())
+    }
+
+    @Test
+    fun `explicit exit blocks delayed restart with server transcode effects`() {
+        val explicitExitController = PlayerExplicitExitController()
+        assertNotNull(explicitExitController.begin())
+        var playerProviderCalls = 0
+        var playerGetterCalls = 0
+        var currentItemAccesses = 0
+        var positionAccesses = 0
+        var restartRequests = 0
+        var transcodeRequests = 0
+        var serviceStops = 0
+        val access =
+            PlayerAccessInvariant(
+                isClosed = { explicitExitController.isExited },
+                existingPlayerProvider = {
+                    playerProviderCalls += 1
+                    recoverySeekPlayer(mutableListOf())
+                },
+            )
+        val dispatcher =
+            PlayerDelayedEventDispatcher(
+                playerAccess = access,
+                onFallbackToMpv = {},
+                onRestartWithServerTranscode = {
+                    playerGetterCalls += 1
+                    currentItemAccesses += 1
+                    positionAccesses += 1
+                    restartRequests += 1
+                    transcodeRequests += 1
+                    serviceStops += 1
+                },
+                onFallbackToSoftware = {},
+                onFallbackToExoForProgressStall = {},
+            )
+
+        assertFalse(dispatcher.dispatch(PlayerEvents.RestartWithServerTranscode))
+        assertEquals(0, playerProviderCalls)
+        assertEquals(0, playerGetterCalls)
+        assertEquals(0, currentItemAccesses)
+        assertEquals(0, positionAccesses)
+        assertEquals(0, restartRequests)
+        assertEquals(0, transcodeRequests)
+        assertEquals(0, serviceStops)
+    }
+
+    @Test
+    fun `finalization blocks delayed fallback to software effects`() {
+        val finalizationGate = PlayerExitFinalizationGate()
+        assertTrue(finalizationGate.run(detachVideoOutput = {}, finalizePlayback = {}))
+        var playerProviderCalls = 0
+        var playerGetterCalls = 0
+        var currentItemAccesses = 0
+        var positionAccesses = 0
+        var restartRequests = 0
+        var fallbackRequests = 0
+        var serviceStops = 0
+        val access =
+            PlayerAccessInvariant(
+                isClosed = { finalizationGate.isCompleted },
+                existingPlayerProvider = {
+                    playerProviderCalls += 1
+                    recoverySeekPlayer(mutableListOf())
+                },
+            )
+        val dispatcher =
+            PlayerDelayedEventDispatcher(
+                playerAccess = access,
+                onFallbackToMpv = {},
+                onRestartWithServerTranscode = {},
+                onFallbackToSoftware = {
+                    playerGetterCalls += 1
+                    currentItemAccesses += 1
+                    positionAccesses += 1
+                    restartRequests += 1
+                    fallbackRequests += 1
+                    serviceStops += 1
+                },
+                onFallbackToExoForProgressStall = {},
+            )
+
+        assertFalse(dispatcher.dispatch(PlayerEvents.FallbackToSoftware))
+        assertEquals(0, playerProviderCalls)
+        assertEquals(0, playerGetterCalls)
+        assertEquals(0, currentItemAccesses)
+        assertEquals(0, positionAccesses)
+        assertEquals(0, restartRequests)
+        assertEquals(0, fallbackRequests)
+        assertEquals(0, serviceStops)
+    }
+
+    @Test
+    fun `finalization blocks async subtitle publication before routing or player access`() {
+        val finalizationGate = PlayerExitFinalizationGate()
+        assertTrue(finalizationGate.run(detachVideoOutput = {}, finalizePlayback = {}))
+        var playerProviderCalls = 0
+        var lazyPlayerGetterCalls = 0
+        var panelPublishes = 0
+        var subtitleRoutes = 0
+        var seekRequests = 0
+        var serviceStops = 0
+        val access =
+            PlayerAccessInvariant(
+                isClosed = { finalizationGate.isCompleted },
+                existingPlayerProvider = {
+                    playerProviderCalls += 1
+                    recoverySeekPlayer(mutableListOf())
+                },
+            )
+        val coordinator =
+            PlayerSubtitlePublicationCoordinator(
+                playerAccess = access,
+                publishPanel = { panelPublishes += 1 },
+                routeSubtitle = {
+                    lazyPlayerGetterCalls += 1
+                    subtitleRoutes += 1
+                    seekRequests += 1
+                    serviceStops += 1
+                },
+            )
+
+        assertFalse(coordinator.publish(SubtitleOverlayState()))
+        assertEquals(0, playerProviderCalls)
+        assertEquals(0, lazyPlayerGetterCalls)
+        assertEquals(0, panelPublishes)
+        assertEquals(0, subtitleRoutes)
+        assertEquals(0, seekRequests)
+        assertEquals(0, serviceStops)
+    }
+
+    @Test
+    fun `open delayed fallback transcode and subtitle publication preserve pre-exit behavior`() {
+        var transcodeRestarts = 0
+        var softwareFallbacks = 0
+        var progressFallbacks = 0
+        var subtitleRoutes = 0
+        val access =
+            PlayerAccessInvariant(
+                isClosed = { false },
+                existingPlayerProvider = { recoverySeekPlayer(mutableListOf()) },
+            )
+        val dispatcher =
+            PlayerDelayedEventDispatcher(
+                playerAccess = access,
+                onFallbackToMpv = { progressFallbacks += 1 },
+                onRestartWithServerTranscode = { transcodeRestarts += 1 },
+                onFallbackToSoftware = { softwareFallbacks += 1 },
+                onFallbackToExoForProgressStall = { progressFallbacks += 1 },
+            )
+        val subtitlePublication =
+            PlayerSubtitlePublicationCoordinator(
+                playerAccess = access,
+                publishPanel = {},
+                routeSubtitle = { subtitleRoutes += 1 },
+            )
+
+        assertTrue(dispatcher.dispatch(PlayerEvents.RestartWithServerTranscode))
+        assertTrue(dispatcher.dispatch(PlayerEvents.FallbackToSoftware))
+        assertTrue(dispatcher.dispatch(PlayerEvents.FallbackToExoForProgressStall("token")))
+        assertTrue(subtitlePublication.publish(SubtitleOverlayState()))
+        assertEquals(1, transcodeRestarts)
+        assertEquals(1, softwareFallbacks)
+        assertEquals(1, progressFallbacks)
+        assertEquals(1, subtitleRoutes)
     }
 
     @Test

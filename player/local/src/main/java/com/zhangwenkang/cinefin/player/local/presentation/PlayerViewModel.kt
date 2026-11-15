@@ -200,6 +200,20 @@ constructor(
     val uiPlayer: Player?
         get() = playerAccess.existingPlayer()
 
+    fun createDelayedPlayerEventDispatcher(
+        onFallbackToMpv: () -> Unit,
+        onRestartWithServerTranscode: () -> Unit,
+        onFallbackToSoftware: () -> Unit,
+        onFallbackToExoForProgressStall: (String) -> Unit,
+    ): PlayerDelayedEventDispatcher =
+        PlayerDelayedEventDispatcher(
+            playerAccess = playerAccess,
+            onFallbackToMpv = onFallbackToMpv,
+            onRestartWithServerTranscode = onRestartWithServerTranscode,
+            onFallbackToSoftware = onFallbackToSoftware,
+            onFallbackToExoForProgressStall = onFallbackToExoForProgressStall,
+        )
+
     private val _uiState =
         MutableStateFlow(
             UiState(
@@ -225,6 +239,15 @@ constructor(
         PlayerAccessInvariant(
             isClosed = { explicitExitController.isExited || playbackResourcesGate.isCompleted },
             existingPlayerProvider = { playerHolder.existingPlayer },
+        )
+    private val subtitlePublicationCoordinator =
+        PlayerSubtitlePublicationCoordinator(
+            playerAccess = playerAccess,
+            publishPanel = ::publishSubtitlePanelState,
+            routeSubtitle = { state ->
+                applySubtitleRoutingOnly()
+                ensureMpvPrimaryContent(state)
+            },
         )
     private val progressRecoveryOwnership =
         ProgressRecoveryJobOwner(
@@ -454,6 +477,7 @@ constructor(
 
     /** 自研字幕管线：延迟 / 双语 / 外观（ExoPlayer 文字字幕由它接管） */
     val subtitleController = PlayerSubtitleController(viewModelScope, appPreferences)
+    private var subtitleOverlayJob: Job? = null
 
     /**
      * W27 侧载字幕：用户从文件选择器导入的字幕文件按播放条目保存在本机（文件存储，不写服务器）。
@@ -575,17 +599,15 @@ constructor(
         }
 
         // 自研字幕状态变化 → 刷新面板状态，并把「原生文字渲染」的开关同步给播放内核
-        viewModelScope.launch {
+        subtitleOverlayJob = viewModelScope.launch {
             subtitleController.overlayState.collect { state ->
-                publishSubtitlePanelState(state)
-                applySubtitleRoutingOnly()
-                ensureMpvPrimaryContent(state)
+                subtitlePublicationCoordinator.publish(state)
             }
         }
     }
 
     private fun refreshPlaybackSession(nowElapsedMs: Long = SystemClock.elapsedRealtime()) {
-        if (explicitExitController.isExited) return
+        if (!playerAccess.isOpen()) return
         val active = playerHolder.existingPlayer
         val mediaItem = active?.currentMediaItem
         val currentSourceId =
@@ -696,7 +718,7 @@ constructor(
         request: PlayerProgressRecoveryRequest,
         expectedSeekBinding: ProgressRecoverySeekBinding?,
     ): Boolean {
-        if (explicitExitController.isExited || !progressRecoveryController.isCurrent(request)) {
+        if (!playerAccess.isOpen() || !progressRecoveryController.isCurrent(request)) {
             return false
         }
         val active = playerHolder.existingPlayer ?: return false
@@ -852,19 +874,22 @@ constructor(
     }
 
     private fun refreshCurrentStreamSnapshot(token: PlaybackRequestToken) {
-        if (player !is MPVPlayer) {
+        if (!playerAccess.isOpen()) return
+        val activePlayer = playerAccess.existingPlayer() ?: return
+        if (activePlayer !is MPVPlayer) {
             // ExoPlayer.currentTracks 是主线程状态；放到 IO 读取会拿到空 / 旧选中态。
             applyCurrentStreamSnapshot(
                 token,
-                runCatching { readKernelMediaInfo(player) }.getOrNull(),
+                runCatching { readKernelMediaInfo(activePlayer) }.getOrNull(),
             )
             return
         }
         viewModelScope.launch {
             val info =
                 withContext(Dispatchers.IO) {
-                    runCatching { readKernelMediaInfo(player) }.getOrNull()
+                    runCatching { readKernelMediaInfo(activePlayer) }.getOrNull()
                 }
+            if (!playerAccess.isOpen()) return@launch
             applyCurrentStreamSnapshot(token, info)
         }
     }
@@ -1116,7 +1141,8 @@ constructor(
                     }
                     val item = playlistManager.buildPlayerItemAt(index) ?: continue
                     if (!isActive) return@launch
-                    if (insertQueueItem(item, atFront = false)) added++
+                    if (insertQueueItem(item, atFront = false, exitGeneration = exitGeneration))
+                        added++
                     delay(QUEUE_FILL_STEP_DELAY_MS)
                 }
                 if (!stoppedAtLimit) {
@@ -1129,13 +1155,18 @@ constructor(
                         }
                         val item = playlistManager.buildPlayerItemAt(index) ?: continue
                         if (!isActive) return@launch
-                        if (insertQueueItem(item, atFront = true)) added++
+                        if (insertQueueItem(item, atFront = true, exitGeneration = exitGeneration))
+                            added++
                         delay(QUEUE_FILL_STEP_DELAY_MS)
                     }
                 }
 
                 if (!isActivePlaybackGeneration(exitGeneration)) return@launch
-                val total = withContext(Dispatchers.Main) { player.mediaItemCount }
+                val total =
+                    withContext(Dispatchers.Main) {
+                        if (!isActivePlaybackGeneration(exitGeneration)) return@withContext null
+                        playerAccess.existingPlayer()?.mediaItemCount
+                    } ?: return@launch
                 if (stoppedAtLimit) {
                     Timber.w("播放队列补全达上限：本次新增 %d 项（播放器共 %d 项）", added, total)
                 } else {
@@ -1156,20 +1187,25 @@ constructor(
     private suspend fun insertQueueItem(
         item: PlayerItem,
         atFront: Boolean,
+        exitGeneration: Long,
     ): Boolean =
         withContext(Dispatchers.Main) {
+            if (!isActivePlaybackGeneration(exitGeneration)) return@withContext false
+            val activePlayer = playerAccess.existingPlayer() ?: return@withContext false
             val mediaId = item.itemId.toString()
-            if (hasMediaItem(mediaId)) return@withContext false
+            if (hasMediaItem(activePlayer, mediaId)) return@withContext false
             // 显式给下标：不依赖 BasePlayer 对"无下标 addMediaItem"的封装（mpv 内核上它传过越界值）
-            val index = if (atFront) 0 else player.mediaItemCount
-            player.addMediaItem(index, item.toMediaItem(application))
+            val index = if (atFront) 0 else activePlayer.mediaItemCount
+            activePlayer.addMediaItem(index, item.toMediaItem(application))
             rememberQueueItem(item)
             true
         }
 
     /** 播放器当前时间线里是否已有这个 mediaId。只在主线程调用。 */
-    private fun hasMediaItem(mediaId: String): Boolean =
-        (0 until player.mediaItemCount).any { player.getMediaItemAt(it).mediaId == mediaId }
+    private fun hasMediaItem(activePlayer: Player, mediaId: String): Boolean =
+        (0 until activePlayer.mediaItemCount).any {
+            activePlayer.getMediaItemAt(it).mediaId == mediaId
+        }
 
     private fun rememberQueueItem(item: PlayerItem) {
         if (items.none { it.itemId == item.itemId }) {
@@ -1202,7 +1238,8 @@ constructor(
 
     /** 用播放器当前条目刷新 uiState（标题 / 条目 id），不改动任何播放状态 */
     private fun refreshUiStateFromPlayer() {
-        val mediaItem = player.currentMediaItem ?: return
+        val activePlayer = playerAccess.existingPlayer() ?: return
+        val mediaItem = activePlayer.currentMediaItem ?: return
         val itemId = runCatching { UUID.fromString(mediaItem.mediaId) }.getOrNull()
         val extras = mediaItem.mediaMetadata.extras
         val mediaSourceId = extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
@@ -1330,6 +1367,8 @@ constructor(
     }
 
     private fun cancelPlaybackWork(cancelSessionSampler: Boolean) {
+        subtitleOverlayJob?.cancel()
+        subtitleOverlayJob = null
         playbackStartupJob?.cancel()
         playbackStartupJob = null
         queueExpandJob?.cancel()
@@ -1345,7 +1384,7 @@ constructor(
     }
 
     fun updatePlaybackProgress() {
-        if (explicitExitController.isExited) return
+        if (!playerAccess.isOpen()) return
         val player = playerHolder.existingPlayer ?: return
         val mediaItem = player.currentMediaItem ?: return
         val itemId = runCatching { UUID.fromString(mediaItem.mediaId) }.getOrNull() ?: return
@@ -1478,8 +1517,10 @@ constructor(
 
     // Re-evaluate automatic tracks on every callback unless the user selected manually.
     override fun onTracksChanged(tracks: Tracks) {
+        if (!playerAccess.isOpen()) return
+        val activePlayer = playerAccess.existingPlayer() ?: return
         val currentToken = advanceCurrentStreamGeneration()
-        if (player !is ExoPlayer) {
+        if (activePlayer !is ExoPlayer) {
             // Refresh mpv subtitle and audio panels, then inject pending sideloads.
             ensureMpvSideloadsInjected(tracks)
             publishSubtitlePanelState()
@@ -1491,7 +1532,7 @@ constructor(
             currentToken?.let(::refreshCurrentStreamSnapshot)
             return
         }
-        val mediaId = player.currentMediaItem?.mediaId ?: return
+        val mediaId = activePlayer.currentMediaItem?.mediaId ?: return
         if (manualTrackSelectionMediaId != mediaId) {
             // 自动选轨 + 字幕路由：一次算完再设置，避免参数来回变化
             applyAutoSelectAndRoute(tracks)
@@ -1504,27 +1545,31 @@ constructor(
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        if (!playerAccess.isOpen()) return
+        val activePlayer = playerAccess.existingPlayer() ?: return
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
         // 条目 / 媒体源一变化先清空旧快照；后续只有同一 identity 的结果能重新填入。
         refreshUiStateFromPlayer()
         refreshPlaybackSession()
         // Preserve session speed across queue transitions on both engines.
-        player.setPlaybackSpeed(playbackSpeed)
+        activePlayer.setPlaybackSpeed(playbackSpeed)
         // W20（§1.11）：先把「上一条」的进度收尾（补 stop），再按新条目走后续流程
         reportOutgoingItemStop()
         // mpv 换集后重新对齐字幕开关（off → sid=no；auto / always → 按 slang 重选）
         syncMpvSubtitleMode()
-        savedStateHandle["mediaItemIndex"] = player.currentMediaItemIndex
+        savedStateHandle["mediaItemIndex"] = activePlayer.currentMediaItemIndex
         viewModelScope.launch {
+            if (!playerAccess.isOpen()) return@launch
+            val callbackPlayer = playerAccess.existingPlayer() ?: return@launch
             try {
                 val item = items.firstOrNull {
-                    it.itemId.toString() == player.currentMediaItem?.mediaId
+                    it.itemId.toString() == callbackPlayer.currentMediaItem?.mediaId
                 }
                 if (item == null) {
                     // Recover title metadata when the page attached without local queue items.
                     refreshUiStateFromPlayer()
                     // 字幕源清单跟着播放器里的媒体 id 走：能从 PlaylistManager 找回就恢复
-                    player.currentMediaItem?.mediaId?.let { mediaId ->
+                    callbackPlayer.currentMediaItem?.mediaId?.let { mediaId ->
                         val remembered = runCatching {
                             UUID.fromString(mediaId)
                         }
@@ -1591,19 +1636,25 @@ constructor(
 
                     // W76-B11b：这两个插入没有历史去重（后台补片可能已经插过同一条），会让队列面板出现重复条目
                     val previousItem = playlistManager.getPreviousPlayerItem()
-                    if (previousItem != null && !hasMediaItem(previousItem.itemId.toString())) {
-                        items.add(player.currentMediaItemIndex, previousItem)
-                        player.addMediaItem(
-                            player.currentMediaItemIndex,
+                    if (
+                        previousItem != null &&
+                            !hasMediaItem(callbackPlayer, previousItem.itemId.toString())
+                    ) {
+                        items.add(callbackPlayer.currentMediaItemIndex, previousItem)
+                        callbackPlayer.addMediaItem(
+                            callbackPlayer.currentMediaItemIndex,
                             previousItem.toMediaItem(application),
                         )
                     }
 
                     val nextItem = playlistManager.getNextPlayerItem()
-                    if (nextItem != null && !hasMediaItem(nextItem.itemId.toString())) {
-                        items.add(player.currentMediaItemIndex + 1, nextItem)
-                        player.addMediaItem(
-                            player.currentMediaItemIndex + 1,
+                    if (
+                        nextItem != null &&
+                            !hasMediaItem(callbackPlayer, nextItem.itemId.toString())
+                    ) {
+                        items.add(callbackPlayer.currentMediaItemIndex + 1, nextItem)
+                        callbackPlayer.addMediaItem(
+                            callbackPlayer.currentMediaItemIndex + 1,
                             nextItem.toMediaItem(application),
                         )
                     }
@@ -1617,6 +1668,8 @@ constructor(
     }
 
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+        if (!playerAccess.isOpen()) return
+        val activePlayer = playerAccess.existingPlayer() ?: return
         if (!startupInProgress) this.playWhenReady = playWhenReady
         refreshPlaybackSession()
         if (playWhenReady || startupInProgress) return
@@ -1628,14 +1681,16 @@ constructor(
         // Report playback stopped for current item and transition to the next one
         // END reason is authoritative even if playbackState is still buffering.
         Timber.d(
-            "end of media item: state=${player.playbackState} repeat=${player.repeatMode} " +
-                "shuffle=${player.shuffleModeEnabled} index=${player.currentMediaItemIndex}/" +
-                "${player.mediaItemCount} hasNext=${player.hasNextMediaItem()}"
+            "end of media item: state=${activePlayer.playbackState} repeat=${activePlayer.repeatMode} " +
+                "shuffle=${activePlayer.shuffleModeEnabled} index=${activePlayer.currentMediaItemIndex}/" +
+                "${activePlayer.mediaItemCount} hasNext=${activePlayer.hasNextMediaItem()}"
         )
         viewModelScope.launch {
-            val mediaId = player.currentMediaItem?.mediaId
+            if (!playerAccess.isOpen()) return@launch
+            val callbackPlayer = playerAccess.existingPlayer() ?: return@launch
+            val mediaId = callbackPlayer.currentMediaItem?.mediaId
             val position = playbackSessionState.lastEnginePositionMs
-            val duration = player.duration
+            val duration = callbackPlayer.duration
             val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
             if (itemId != null && position != null) {
                 markStopReported(itemId)
@@ -1650,26 +1705,26 @@ constructor(
                     Timber.e(e)
                 }
             }
-            advanceAfterItemEnd()
+            advanceAfterItemEnd(callbackPlayer)
         }
     }
 
     // Apply loop, shuffle, auto-next and stay-at-end policy after an authoritative end.
-    private fun advanceAfterItemEnd() {
-        val from = player.currentMediaItemIndex
-        val repeatMode = player.repeatMode
+    private fun advanceAfterItemEnd(activePlayer: Player) {
+        val from = activePlayer.currentMediaItemIndex
+        val repeatMode = activePlayer.repeatMode
         val autoNext = appPreferences.getValue(PlayerExtraPreferences.autoNextEpisode)
         when (
             PlayerEndBehavior.itemEndAction(
                 repeatMode = repeatMode,
-                hasNextMediaItem = player.hasNextMediaItem(),
+                hasNextMediaItem = activePlayer.hasNextMediaItem(),
                 autoNextEpisode = autoNext,
             )
         ) {
-            PlayerItemEndAction.LOOP_CURRENT -> player.seekTo(from, 0L)
+            PlayerItemEndAction.LOOP_CURRENT -> activePlayer.seekTo(from, 0L)
             PlayerItemEndAction.PLAY_NEXT -> {
                 // hasNextMediaItem() 已经把列表循环与随机算进去了：循环/随机在队列末尾会绕回第一集
-                player.seekToNextMediaItem()
+                activePlayer.seekToNextMediaItem()
             }
             PlayerItemEndAction.STAY_AT_END -> {
                 // Auto-next off always stays at the current end frame.
@@ -1696,21 +1751,21 @@ constructor(
         }
         Timber.d(
             "advance after item end: from=$from repeat=$repeatMode " +
-                "shuffle=${player.shuffleModeEnabled} -> index=${player.currentMediaItemIndex}"
+                "shuffle=${activePlayer.shuffleModeEnabled} -> index=${activePlayer.currentMediaItemIndex}"
         )
-        player.play()
+        activePlayer.play()
     }
 
     /** 队列走到尽头时的兜底：单集循环回到本集开头，列表循环/随机回第一集 */
-    private fun restartAtQueueEnd() {
+    private fun restartAtQueueEnd(activePlayer: Player) {
         val index =
-            if (player.repeatMode == Player.REPEAT_MODE_ONE) {
-                player.currentMediaItemIndex
+            if (activePlayer.repeatMode == Player.REPEAT_MODE_ONE) {
+                activePlayer.currentMediaItemIndex
             } else {
                 0
             }
-        player.seekTo(index, 0L)
-        player.play()
+        activePlayer.seekTo(index, 0L)
+        activePlayer.play()
     }
 
     // Migrate the legacy pause-after-item preference once.
@@ -1725,10 +1780,13 @@ constructor(
     }
 
     override fun onRenderedFirstFrame() {
+        if (!playerAccess.isOpen()) return
         seriesPlaybackTrace?.recordFirstFrame()
     }
 
     override fun onPlaybackStateChanged(state: Int) {
+        if (!playerAccess.isOpen()) return
+        val activePlayer = playerAccess.existingPlayer() ?: return
         var stateString = "UNKNOWN_STATE             -"
         when (state) {
             ExoPlayer.STATE_IDLE -> {
@@ -1745,7 +1803,7 @@ constructor(
             ExoPlayer.STATE_ENDED -> {
                 stateString = "ExoPlayer.STATE_ENDED     -"
                 // Fallback for an end frame that did not trigger the normal transition.
-                if (player.repeatMode == Player.REPEAT_MODE_OFF) {
+                if (activePlayer.repeatMode == Player.REPEAT_MODE_OFF) {
                     when (
                         PlayerEndBehavior.queueEndAction(
                             appPreferences.getValue(PlayerExtraPreferences.stayAtEndOfFrame)
@@ -1757,7 +1815,7 @@ constructor(
                             Timber.d("queue end: stay at end frame (停在结束帧)")
                     }
                 } else {
-                    restartAtQueueEnd()
+                    restartAtQueueEnd(activePlayer)
                 }
             }
         }
@@ -2201,6 +2259,7 @@ constructor(
         bytes: ByteArray,
         onResult: (Boolean, String) -> Unit,
     ) {
+        if (!playerAccess.isOpen()) return
         val mediaId = currentPlaybackMediaId()
         if (mediaId == null) {
             onResult(false, application.getString(R.string.player_subtitle_sideload_no_media))
@@ -2218,10 +2277,12 @@ constructor(
                 )
                 return@launch
             }
+            if (!playerAccess.isOpen()) return@launch
+            val activePlayer = playerAccess.existingPlayer() ?: return@launch
             sideloads = runCatching { sideloadStore.list(mediaId) }.getOrDefault(emptyList())
             Timber.d("侧载字幕导入：%s（语言=%s）", record.displayName, record.language)
             if (playerBackend == PLAYER_BACKEND_MPV) {
-                (player as? MPVPlayer)?.addSubtitleFile(record.path, select = true)
+                (activePlayer as? MPVPlayer)?.addSubtitleFile(record.path, select = true)
             } else {
                 val item = currentPlaybackItem()
                 applySubtitlePipelineForMedia(mediaId, pipelineSourcesFor(mediaId, item))
@@ -2240,14 +2301,17 @@ constructor(
 
     // Remove a sideload and rebuild the current subtitle pipeline.
     fun removeSideloadedSubtitle(optionId: Int) {
+        if (!playerAccess.isOpen()) return
         val mediaId = currentPlaybackMediaId() ?: return
         val record = resolveSideloadedRecord(optionId) ?: return
         viewModelScope.launch {
             withContext(Dispatchers.IO) { runCatching { sideloadStore.remove(record) } }
+            if (!playerAccess.isOpen()) return@launch
+            val activePlayer = playerAccess.existingPlayer() ?: return@launch
             sideloads = runCatching { sideloadStore.list(mediaId) }.getOrDefault(emptyList())
             Timber.d("侧载字幕已移除：%s", record.displayName)
             if (playerBackend == PLAYER_BACKEND_MPV) {
-                (player as? MPVPlayer)?.removeSubtitleFile(record.path)
+                (activePlayer as? MPVPlayer)?.removeSubtitleFile(record.path)
             } else {
                 val item = currentPlaybackItem()
                 applySubtitlePipelineForMedia(mediaId, pipelineSourcesFor(mediaId, item))
@@ -2274,7 +2338,8 @@ constructor(
 
     // Read debug fields on the thread required by the active backend.
     suspend fun readDebugStats(): PlayerDebugStats {
-        val current = player
+        if (!playerAccess.isOpen()) return PlayerDebugStats()
+        val current = playerAccess.existingPlayer() ?: return PlayerDebugStats()
         val stats =
             if (current is MPVPlayer) {
                 withContext(Dispatchers.IO) { readPlayerDebugStats(current) }
@@ -3486,6 +3551,7 @@ constructor(
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         super.onIsPlayingChanged(isPlaying)
+        if (!playerAccess.isOpen()) return
         eventsChannel.trySend(PlayerEvents.IsPlayingChanged(isPlaying))
         refreshPlaybackSession()
     }
@@ -3587,6 +3653,36 @@ class PlayerAccessInvariant(
         if (!isOpen()) return false
         action(activePlayer)
         return true
+    }
+}
+
+class PlayerDelayedEventDispatcher(
+    private val playerAccess: PlayerAccessInvariant,
+    private val onFallbackToMpv: () -> Unit,
+    private val onRestartWithServerTranscode: () -> Unit,
+    private val onFallbackToSoftware: () -> Unit,
+    private val onFallbackToExoForProgressStall: (String) -> Unit,
+) {
+    fun dispatch(event: PlayerEvents): Boolean =
+        when (event) {
+            PlayerEvents.FallbackToMpv -> playerAccess.runIfOpen(onFallbackToMpv)
+            PlayerEvents.RestartWithServerTranscode ->
+                playerAccess.runIfOpen(onRestartWithServerTranscode)
+            PlayerEvents.FallbackToSoftware -> playerAccess.runIfOpen(onFallbackToSoftware)
+            is PlayerEvents.FallbackToExoForProgressStall ->
+                playerAccess.runIfOpen { onFallbackToExoForProgressStall(event.requestToken) }
+            else -> false
+        }
+}
+
+class PlayerSubtitlePublicationCoordinator(
+    private val playerAccess: PlayerAccessInvariant,
+    private val publishPanel: (SubtitleOverlayState) -> Unit,
+    private val routeSubtitle: (SubtitleOverlayState) -> Unit,
+) {
+    fun publish(state: SubtitleOverlayState): Boolean = playerAccess.runIfOpen {
+        publishPanel(state)
+        routeSubtitle(state)
     }
 }
 

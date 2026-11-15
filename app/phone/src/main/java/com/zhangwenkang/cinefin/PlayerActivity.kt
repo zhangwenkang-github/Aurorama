@@ -159,6 +159,7 @@ class PlayerActivity : BasePlayerActivity() {
     /** Compose 控制层的可见性/锁定状态：控件层与手势层共用同一份状态 */
     private val controlsState = PlayerControlsState()
     private var segmentPollJob: Job? = null
+    private var playbackEventsJob: Job? = null
     private val exitServiceStopGate = PlayerExitServiceStopGate()
 
     override fun stopService(service: Intent): Boolean = exitServiceStopGate.request {
@@ -561,25 +562,30 @@ class PlayerActivity : BasePlayerActivity() {
                     }
                 }
 
-                launch {
+                playbackEventsJob = launch {
+                    val delayedEvents =
+                        viewModel.createDelayedPlayerEventDispatcher(
+                            onFallbackToMpv = {
+                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
+                            },
+                            onRestartWithServerTranscode = {
+                                restartPlaybackKeepingPosition("fallback=server-transcode")
+                            },
+                            onFallbackToSoftware = {
+                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
+                            },
+                            onFallbackToExoForProgressStall = { requestToken ->
+                                switchBackendForProgressStall(requestToken)
+                            },
+                        )
                     viewModel.eventsChannelFlow.collect { event ->
                         when (event) {
                             is PlayerEvents.NavigateBack -> finishPlayback()
-                            // 解码能力不足：静默换 mpv 内核重播（不弹提示，进度由 switchBackendForFallback 带过去）
-                            is PlayerEvents.FallbackToMpv ->
-                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
-                            // W16 回退链第 2 档：服务器解码/转码（PlaybackInfo 已按档位强制转码，重启拉新流）
-                            is PlayerEvents.RestartWithServerTranscode ->
-                                restartPlaybackKeepingPosition("fallback=server-transcode")
-                            /*
-                             * W16 回退链第 3 档：本地软解（mpv hwdec=no，档位由 PlayerHolder 读偏好强制）。
-                             * W17：目标内核必须**显式指定 mpv**，不能再用 toggle——回退档位写入后 PlayerHolder
-                             * 可能已把实例重建为 mpv，toggle 会误判成「切回 ExoPlayer」，导致回退链断在第 2 档。
-                             */
-                            is PlayerEvents.FallbackToSoftware ->
-                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
+                            is PlayerEvents.FallbackToMpv,
+                            is PlayerEvents.RestartWithServerTranscode,
+                            is PlayerEvents.FallbackToSoftware,
                             is PlayerEvents.FallbackToExoForProgressStall ->
-                                switchBackendForProgressStall(event.requestToken)
+                                delayedEvents.dispatch(event)
                             // 字幕外观变化：同步给 PlayerView 的原生字幕（图形字幕 / 兜底路径）
                             is PlayerEvents.SubtitleStyleChanged -> configureSubtitleStyle()
                             is PlayerEvents.IsPlayingChanged -> {
@@ -626,7 +632,7 @@ class PlayerActivity : BasePlayerActivity() {
                 queueEntries = queueEntries,
                 preferredMediaSourceId = preferredMediaSourceId,
             )
-        } else if (viewModel.player.mediaItemCount > 0) {
+        } else if ((viewModel.existingPlayer?.mediaItemCount ?: 0) > 0) {
             // 从通知回来：会话还在跑，接管它（补标题/章节等信息），不重新拉流
             viewModel.attachToExistingSession()
         } else {
@@ -691,7 +697,7 @@ class PlayerActivity : BasePlayerActivity() {
         if (
             Build.VERSION.SDK_INT < Build.VERSION_CODES.S &&
                 appPreferences.getValue(appPreferences.playerPipGesture) &&
-                viewModel.player.isPlaying &&
+                viewModel.existingPlayer?.isPlaying == true &&
                 !isControlsLocked
         ) {
             pictureInPicture()
@@ -766,6 +772,7 @@ class PlayerActivity : BasePlayerActivity() {
                         .getOrNull()
                     name to data
                 }
+            if (isFinishing || isDestroyed) return@launch
             if (bytes == null || bytes.isEmpty()) {
                 Toast.makeText(
                         this@PlayerActivity,
@@ -924,8 +931,9 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private fun currentConfirmedPosition(): Long {
         val session = viewModel.uiState.value.playbackSession
-        return PlayerViewModel.confirmedPosition(viewModel.player)
-            ?: session.lastConfirmedPositionMs?.takeIf { viewModel.player !is MPVPlayer }
+        val activePlayer = viewModel.existingPlayer ?: return androidx.media3.common.C.TIME_UNSET
+        return PlayerViewModel.confirmedPosition(activePlayer)
+            ?: session.lastConfirmedPositionMs?.takeIf { activePlayer !is MPVPlayer }
             ?: androidx.media3.common.C.TIME_UNSET
     }
 
@@ -989,10 +997,11 @@ class PlayerActivity : BasePlayerActivity() {
      * 必须**在写 `pref_player_backend` 之前**调用：偏好一变，[PlayerViewModel.player] 会立即按新偏好重建空实例。
      */
     private fun currentRestartTarget(): PlayerRestartTarget? {
+        val activePlayer = viewModel.existingPlayer ?: return null
         val kind = viewModel.currentPlaybackItemKind() ?: return null
-        val mediaId = viewModel.player.currentMediaItem?.mediaId?.takeIf { it.isNotBlank() }
+        val mediaId = activePlayer.currentMediaItem?.mediaId?.takeIf { it.isNotBlank() }
         val mediaSourceId =
-            viewModel.player.currentMediaItem
+            activePlayer.currentMediaItem
                 ?.mediaMetadata
                 ?.extras
                 ?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
@@ -1013,7 +1022,7 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private fun applyResizeModeToKernel(mode: Int) {
         binding.playerView.resizeMode = mode
-        val mpv = viewModel.player as? MPVPlayer
+        val mpv = viewModel.existingPlayer as? MPVPlayer
         mpv?.applyResizeMode(mode)
         Timber.d("player resize mode=%d kernel=%s", mode, if (mpv != null) "mpv" else "exoplayer")
     }
@@ -1047,7 +1056,7 @@ class PlayerActivity : BasePlayerActivity() {
 
     private fun applyVideoTransform() {
         val transform = videoTransform.value
-        val mpv = viewModel.player as? MPVPlayer
+        val mpv = viewModel.existingPlayer as? MPVPlayer
         val videoWidth = viewModel.uiState.value.currentMediaInfo?.width ?: 0
         val videoHeight = viewModel.uiState.value.currentMediaInfo?.height ?: 0
         if (mpv != null) {
@@ -1202,7 +1211,7 @@ class PlayerActivity : BasePlayerActivity() {
 
     /** mpv 换硬件解码：播放中即时生效（ExoPlayer 不走这条） */
     private fun applyMpvHwDec(hwDec: String) {
-        (viewModel.player as? MPVPlayer)?.applyHwDec(hwDec)
+        (viewModel.existingPlayer as? MPVPlayer)?.applyHwDec(hwDec)
         Timber.d("mpv hwdec=%s", hwDec)
     }
 
@@ -1326,6 +1335,8 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     private fun finishPlayback() {
+        playbackEventsJob?.cancel()
+        playbackEventsJob = null
         segmentPollJob?.cancel()
         segmentPollJob = null
         val activePlayer = viewModel.existingPlayer
@@ -1351,7 +1362,7 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     private fun pipParams(
-        enableAutoEnter: Boolean = viewModel.player.isPlaying
+        enableAutoEnter: Boolean = viewModel.existingPlayer?.isPlaying == true
     ): PictureInPictureParams {
         val displayAspectRatio = Rational(binding.playerView.width, binding.playerView.height)
 
