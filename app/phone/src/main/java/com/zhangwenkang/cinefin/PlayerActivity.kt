@@ -89,6 +89,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -147,6 +148,7 @@ class PlayerActivity : BasePlayerActivity() {
 
     /** Compose 控制层的可见性/锁定状态：控件层与手势层共用同一份状态 */
     private val controlsState = PlayerControlsState()
+    private var segmentPollJob: Job? = null
 
     /** Android 13+ 通知权限：通知栏播放控制需要它；没授予只影响通知，不影响播放本身 */
     private val notificationPermissionLauncher =
@@ -580,9 +582,8 @@ class PlayerActivity : BasePlayerActivity() {
                  * W20：这里的 5 秒进度上报循环已移除——进度改成 ViewModel 常驻协程
                  * （切后台 / 锁屏也不停），并补上暂停 / 切集 / 退出的即时落盘，见 §23。
                  */
-                launch {
-                    while (true) {
-                        viewModel.updateCurrentSegment()
+                segmentPollJob = launch {
+                    while (viewModel.updateCurrentSegment()) {
                         delay(1000L)
                     }
                 }
@@ -1299,6 +1300,8 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     private fun finishPlayback() {
+        segmentPollJob?.cancel()
+        segmentPollJob = null
         val activePlayer = viewModel.existingPlayer
         val videoOutput = binding.playerView.videoSurfaceView
         val completed = completeExplicitVideoExit {

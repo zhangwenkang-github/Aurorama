@@ -66,6 +66,30 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `finalized exit blocks delayed segment callback and repeated service stop`() {
+        val gate = PlayerExitFinalizationGate()
+        var lazyPlayerCreations = 0
+        var serviceStops = 0
+
+        assertTrue(
+            gate.run(
+                detachVideoOutput = {},
+                finalizePlayback = { serviceStops += 1 },
+            )
+        )
+        assertFalse(gate.runIfActive { lazyPlayerCreations += 1 })
+        assertFalse(
+            gate.run(
+                detachVideoOutput = {},
+                finalizePlayback = { serviceStops += 1 },
+            )
+        )
+
+        assertEquals(0, lazyPlayerCreations)
+        assertEquals(1, serviceStops)
+    }
+
+    @Test
     fun `play action follows intent while loading`() {
         val loading = advance(input(isPlaying = false, isBuffering = true), 0L)
         assertTrue(loading.second.loading)
@@ -362,6 +386,59 @@ class PlaybackSessionRulesTest {
                 .terminal
                 ?.positionMs,
         )
+    }
+
+    @Test
+    fun `new backward seek retires terminal until a new deadline`() {
+        val terminal = terminalAtDeadline(enginePositionMs = 40_000L).first
+        val recoveryTargets = mutableListOf<Long>()
+
+        fun requestVisibleRecovery(state: PlaybackSessionState) {
+            state.terminal?.let { recoveryTargets += it.positionMs }
+        }
+
+        requestVisibleRecovery(terminal)
+        assertEquals(listOf(40_000L), recoveryTargets)
+        recoveryTargets.clear()
+
+        val newSeek =
+            input(
+                enginePositionMs = null,
+                bufferedPositionMs = null,
+                explicitSeekTargetMs = 10_000L,
+                explicitSeekRequestGeneration = 22L,
+                explicitSeekSourceEpoch = 7L,
+            )
+        val seekAtMs = PlaybackSessionRules.STALL_TIMEOUT_MS + 1_000L
+        val afterSeek = advance(newSeek, seekAtMs, terminal).first
+        requestVisibleRecovery(afterSeek)
+        assertNull(afterSeek.terminal)
+
+        val paused =
+            advance(
+                    newSeek.copy(playWhenReady = false),
+                    seekAtMs + 1_000L,
+                    afterSeek,
+                )
+                .first
+        requestVisibleRecovery(paused)
+        assertNull(paused.terminal)
+
+        val resumed = advance(newSeek, seekAtMs + 2_000L, paused).first
+        requestVisibleRecovery(resumed)
+        assertNull(resumed.terminal)
+        assertTrue(recoveryTargets.isEmpty())
+
+        val newTerminal =
+            advance(
+                    newSeek,
+                    seekAtMs + 2_000L + PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+                    resumed,
+                )
+                .first
+        requestVisibleRecovery(newTerminal)
+        assertEquals(10_000L, newTerminal.terminal?.positionMs)
+        assertEquals(listOf(10_000L), recoveryTargets)
     }
 
     @Test

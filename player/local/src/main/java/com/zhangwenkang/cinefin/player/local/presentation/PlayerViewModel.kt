@@ -212,9 +212,9 @@ constructor(
     private val progressFallbackController = PlayerProgressFallbackController()
     private val progressRecoveryController = PlayerProgressRecoveryController()
     private val explicitExitController = PlayerExplicitExitController()
-    private var playbackResourcesFinalized = false
-    private var lastProgressRecoveryTerminal: PlaybackRecovery? = null
-    private var lastProgressRecoverySessionKey: String? = null
+    private val playbackResourcesGate = PlayerExitFinalizationGate()
+    private var activeProgressRecoveryTerminal: PlaybackRecovery? = null
+    private var activeProgressRecoverySessionKey: String? = null
     private var seriesPlaybackTrace: SeriesPlaybackTraceTracker? = null
 
     val sleepTimerState = sleepTimerController.state
@@ -591,13 +591,15 @@ constructor(
             )
         playbackSessionState =
             PlaybackSessionRules.advance(playbackSessionState, input, nowElapsedMs)
-        playbackSessionState.terminal?.let {
-            lastProgressRecoveryTerminal = it
-            lastProgressRecoverySessionKey = sessionKey
-        }
-        if (playbackSessionState.terminal == null && sessionKey != lastProgressRecoverySessionKey) {
-            lastProgressRecoveryTerminal = null
-            lastProgressRecoverySessionKey = null
+        val recoveryTerminal = playbackSessionState.terminal
+        val activeTerminal = activeProgressRecoveryTerminal
+        if (
+            activeTerminal != null &&
+                (recoveryTerminal == null ||
+                    recoveryTerminal.token != activeTerminal.token ||
+                    sessionKey != activeProgressRecoverySessionKey)
+        ) {
+            cancelProgressRecoveryOwnership()
         }
         val progressFallbackInput =
             progressFallbackInput(
@@ -613,7 +615,6 @@ constructor(
                 )
             if (queued.isFailure) progressFallbackController.cancelCurrentGeneration()
         }
-        val recoveryTerminal = playbackSessionState.terminal ?: lastProgressRecoveryTerminal
         val progressRecoveryInput =
             PlayerProgressRecoveryInput(
                 sessionKey = sessionKey,
@@ -635,21 +636,14 @@ constructor(
             recoveryObservation.phase == PlayerProgressRecoveryPhase.CONFIRMED ||
                 recoveryObservation.phase == PlayerProgressRecoveryPhase.CANCELLED
         ) {
-            progressRecoveryJob?.cancel()
-            progressRecoveryJob = null
-        }
-        lastProgressRecoveryTerminal =
-            retireConfirmedProgressRecoveryTerminal(
-                lastProgressRecoveryTerminal,
-                recoveryObservation.phase,
-            )
-        if (lastProgressRecoveryTerminal == null) {
-            lastProgressRecoverySessionKey = null
+            cancelProgressRecoveryOwnership()
         }
         val suppressTerminal = progressFallbackController.suppressesTerminal(sessionKey)
-        if (!suppressTerminal && progressRecoveryJob?.isActive != true) {
+        if (
+            recoveryTerminal != null && !suppressTerminal && progressRecoveryJob?.isActive != true
+        ) {
             progressRecoveryController.begin(progressRecoveryInput)?.let {
-                launchProgressRecovery(it)
+                launchProgressRecovery(it, recoveryTerminal)
             }
         }
         _uiState.update {
@@ -670,8 +664,13 @@ constructor(
         )
     }
 
-    private fun launchProgressRecovery(firstRequest: PlayerProgressRecoveryRequest) {
+    private fun launchProgressRecovery(
+        firstRequest: PlayerProgressRecoveryRequest,
+        terminal: PlaybackRecovery,
+    ) {
         progressRecoveryJob?.cancel()
+        activeProgressRecoveryTerminal = terminal
+        activeProgressRecoverySessionKey = firstRequest.sessionKey
         progressRecoveryJob = viewModelScope.launch {
             var request: PlayerProgressRecoveryRequest? = firstRequest
             var expectedSeekBinding = seekSink.state.progressRecoverySeekBinding()
@@ -685,21 +684,31 @@ constructor(
                             expectedSeekBinding,
                         )
                 ) {
+                    cancelProgressRecoveryOwnership()
                     return@launch
                 }
                 retryPlaybackAt(
                     position = currentRequest.targetPositionMs,
-                    positionSource =
-                        lastProgressRecoveryTerminal
-                            ?.takeIf { it.token == currentRequest.terminalToken }
-                            ?.positionSource,
+                    positionSource = terminal.positionSource,
                 )
                 expectedSeekBinding = seekSink.state.progressRecoverySeekBinding()
                 delay(PROGRESS_RECOVERY_OBSERVE_WINDOW_MS)
                 if (!isActive) return@launch
                 request = progressRecoveryController.nextAttempt(currentRequest)
             }
+            if (activeProgressRecoveryTerminal?.token == terminal.token) {
+                activeProgressRecoveryTerminal = null
+                activeProgressRecoverySessionKey = null
+            }
         }
+    }
+
+    private fun cancelProgressRecoveryOwnership() {
+        progressRecoveryJob?.cancel()
+        progressRecoveryJob = null
+        progressRecoveryController.cancel()
+        activeProgressRecoveryTerminal = null
+        activeProgressRecoverySessionKey = null
     }
 
     private fun progressRecoveryRequestIsCurrent(
@@ -893,11 +902,7 @@ constructor(
         playbackStartupJob?.cancel()
         queueExpandJob?.cancel()
         queueFillJob?.cancel()
-        progressRecoveryJob?.cancel()
-        progressRecoveryJob = null
-        progressRecoveryController.cancel()
-        lastProgressRecoveryTerminal = null
-        lastProgressRecoverySessionKey = null
+        cancelProgressRecoveryOwnership()
         // Release any music session before touching the shared player instance.
         playbackCoordinator.onVideoStartRequested()
         // Decode fallback and speed are scoped to the playback session.
@@ -1256,17 +1261,23 @@ constructor(
                 backgroundAudioEnabled =
                     appPreferences.getValue(appPreferences.playerBackgroundAudio),
             )
-        finalizePlaybackSession(action)
-        return shouldStopPlaybackServiceOnExit(
-            musicSessionActive = isMusicSessionActive,
-            explicitVideoExit = true,
-            backgroundAudioEnabled = appPreferences.getValue(appPreferences.playerBackgroundAudio),
-        )
+        val completed =
+            playbackResourcesGate.run(
+                detachVideoOutput = {},
+                finalizePlayback = { finalizePlaybackSession(action) },
+            )
+        return completed &&
+            shouldStopPlaybackServiceOnExit(
+                musicSessionActive = isMusicSessionActive,
+                explicitVideoExit = true,
+                backgroundAudioEnabled =
+                    appPreferences.getValue(appPreferences.playerBackgroundAudio),
+            )
     }
 
     @OptIn(DelicateCoroutinesApi::class)
     private fun releasePlayer() {
-        if (playbackResourcesFinalized) return
+        if (playbackResourcesGate.isCompleted) return
         cancelPlaybackWork(cancelSessionSampler = false)
         val action =
             playerExitAction(
@@ -1275,12 +1286,14 @@ constructor(
                 backgroundAudioEnabled =
                     appPreferences.getValue(appPreferences.playerBackgroundAudio),
             )
-        finalizePlaybackSession(action)
+        playbackResourcesGate.run(
+            detachVideoOutput = {},
+            finalizePlayback = { finalizePlaybackSession(action) },
+        )
     }
 
     @OptIn(DelicateCoroutinesApi::class)
     private fun finalizePlaybackSession(action: PlayerExitAction) {
-        if (playbackResourcesFinalized) return
         val activePlayer = playerHolder.existingPlayer
         val mediaId = activePlayer?.currentMediaItem?.mediaId
         val position = playbackSessionState.lastEnginePositionMs ?: confirmedPosition(activePlayer)
@@ -1333,7 +1346,6 @@ constructor(
             runCatching { activePlayer?.clearMediaItems() }
             playerHolder.release()
         }
-        playbackResourcesFinalized = true
     }
 
     private fun cancelPlaybackWork(cancelSessionSampler: Boolean) {
@@ -1343,12 +1355,8 @@ constructor(
         queueExpandJob = null
         queueFillJob?.cancel()
         queueFillJob = null
-        progressRecoveryJob?.cancel()
-        progressRecoveryJob = null
-        progressRecoveryController.cancel()
         progressFallbackController.cancelCurrentGeneration()
-        lastProgressRecoveryTerminal = null
-        lastProgressRecoverySessionKey = null
+        cancelProgressRecoveryOwnership()
         if (cancelSessionSampler) {
             playbackSessionJob?.cancel()
             playbackSessionJob = null
@@ -1431,7 +1439,8 @@ constructor(
         }
     }
 
-    fun updateCurrentSegment() {
+    fun updateCurrentSegment(): Boolean {
+        if (playbackResourcesGate.isCompleted) return false
         // 页内改过「跳过片头片尾」设置就现读一次（§1.9：不重开播放页也生效）
         refreshSegmentPreferences()
         // 没有片段数据、或两个开关都关：收起按钮直接返回（每秒一次的轮询不该刷日志 / 干活）
@@ -1439,47 +1448,52 @@ constructor(
             if (_uiState.value.currentSegment != null) {
                 _uiState.update { it.copy(currentSegment = null) }
             }
-            return
+            return true
         }
         viewModelScope.launch(Dispatchers.Main) {
-            val milliSeconds = player.currentPosition
+            playbackResourcesGate.runIfActive {
+                val activePlayer = playerHolder.existingPlayer ?: return@runIfActive
+                val milliSeconds = activePlayer.currentPosition
 
-            // Get current segment, - 100 milliseconds to avoid showing button after segment ends
-            val currentSegment = currentMediaItemSegments.find { segment ->
-                milliSeconds in segment.startTicks..<(segment.endTicks - 100L)
-            }
+                // Get current segment, - 100 milliseconds to avoid showing button after segment
+                // ends
+                val currentSegment = currentMediaItemSegments.find { segment ->
+                    milliSeconds in segment.startTicks..<(segment.endTicks - 100L)
+                }
 
-            if (currentSegment == null) {
-                // Remove button if not pressed and there is no current segment
-                if (_uiState.value.currentSegment != null) {
+                if (currentSegment == null) {
+                    // Remove button if not pressed and there is no current segment
+                    if (_uiState.value.currentSegment != null) {
+                        _uiState.update { it.copy(currentSegment = null) }
+                    }
+                    return@runIfActive
+                }
+
+                Timber.tag("SegmentInfo").d("currentSegment: %s", currentSegment)
+
+                if (
+                    segmentsAutoSkip &&
+                        segmentsAutoSkipTypes.contains(currentSegment.type.toString()) &&
+                        (segmentsAutoSkipMode == Constants.PlayerMediaSegmentsAutoSkip.ALWAYS ||
+                            (segmentsAutoSkipMode == Constants.PlayerMediaSegmentsAutoSkip.PIP &&
+                                isInPictureInPictureMode))
+                ) {
+                    // Auto Skip segment
+                    skipSegment(currentSegment)
+                } else if (segmentsSkipButtonTypes.contains(currentSegment.type.toString())) {
+                    // Skip Button segment
+                    _uiState.update {
+                        it.copy(
+                            currentSegment = currentSegment,
+                            currentSkipButtonStringRes = getSkipButtonTextStringId(currentSegment),
+                        )
+                    }
+                } else {
                     _uiState.update { it.copy(currentSegment = null) }
                 }
-                return@launch
-            }
-
-            Timber.tag("SegmentInfo").d("currentSegment: %s", currentSegment)
-
-            if (
-                segmentsAutoSkip &&
-                    segmentsAutoSkipTypes.contains(currentSegment.type.toString()) &&
-                    (segmentsAutoSkipMode == Constants.PlayerMediaSegmentsAutoSkip.ALWAYS ||
-                        (segmentsAutoSkipMode == Constants.PlayerMediaSegmentsAutoSkip.PIP &&
-                            isInPictureInPictureMode))
-            ) {
-                // Auto Skip segment
-                skipSegment(currentSegment)
-            } else if (segmentsSkipButtonTypes.contains(currentSegment.type.toString())) {
-                // Skip Button segment
-                _uiState.update {
-                    it.copy(
-                        currentSegment = currentSegment,
-                        currentSkipButtonStringRes = getSkipButtonTextStringId(currentSegment),
-                    )
-                }
-            } else {
-                _uiState.update { it.copy(currentSegment = null) }
             }
         }
+        return true
     }
 
     // Re-evaluate automatic tracks on every callback unless the user selected manually.
@@ -3084,17 +3098,18 @@ constructor(
         position: Long,
         positionSource: PlaybackRetryPositionSource? = null,
     ) {
-        if (explicitExitController.isExited || playbackResourcesFinalized) return
+        if (explicitExitController.isExited || playbackResourcesGate.isCompleted) return
+        val activePlayer = playerHolder.existingPlayer ?: return
         _uiState.update { it.copy(playerError = null) }
-        player.prepare()
+        activePlayer.prepare()
         if (position > 0L) {
             if (positionSource == PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST) {
                 seekSink.requestSeek(position, "progress-recovery-user-target")
             } else {
-                player.seekTo(position)
+                activePlayer.seekTo(position)
             }
         }
-        player.play()
+        activePlayer.play()
         refreshPlaybackSession()
     }
 
@@ -3346,9 +3361,10 @@ constructor(
 
     // Check if the outro segment's end time is within n milliseconds of the player's total duration
     private fun shouldSkipToNextEpisode(segment: FindroidSegment): Boolean {
-        return if (segment.type == FindroidSegmentType.OUTRO && player.hasNextMediaItem()) {
+        val activePlayer = playerHolder.existingPlayer ?: return false
+        return if (segment.type == FindroidSegmentType.OUTRO && activePlayer.hasNextMediaItem()) {
             val segmentEndTimeMillis = segment.endTicks
-            val playerDurationMillis = player.duration
+            val playerDurationMillis = activePlayer.duration
             val thresholdMillis =
                 playerDurationMillis -
                     appPreferences.getValue(appPreferences.playerMediaSegmentsNextEpisodeThreshold)
@@ -3517,6 +3533,12 @@ class PlayerExitFinalizationGate {
     val isCompleted: Boolean
         get() = completed
 
+    fun runIfActive(action: () -> Unit): Boolean {
+        if (completed) return false
+        action()
+        return true
+    }
+
     fun run(
         detachVideoOutput: () -> Unit,
         finalizePlayback: () -> Unit,
@@ -3566,6 +3588,7 @@ internal data class PlaybackSessionState(
     val pendingSeekTargetMs: Long? = null,
     val pendingSeekGeneration: Long? = null,
     val pendingSeekBinding: String? = null,
+    val recoverySeekBinding: String? = null,
 )
 
 internal object PlaybackSessionRules {
@@ -3587,18 +3610,34 @@ internal object PlaybackSessionRules {
             input.explicitSeekTargetMs?.let {
                 "$explicitGeneration|${input.explicitSeekSourceEpoch}|$key"
             }
+        val seekBindingChanged =
+            explicitBinding != null && explicitBinding != state.recoverySeekBinding
         val sameGeneration = state.pendingSeekGeneration == explicitGeneration
         val pendingTarget =
             when {
                 explicitBinding == null -> null
                 !sameGeneration -> input.explicitSeekTargetMs
+                seekBindingChanged && input.explicitSeekTargetMs != state.pendingSeekTargetMs ->
+                    input.explicitSeekTargetMs
                 state.pendingSeekBinding == explicitBinding -> input.explicitSeekTargetMs
                 else -> null
             }
         val pendingBinding = pendingTarget?.let { explicitBinding }
         var next =
             if (state.key == key) {
-                state
+                if (seekBindingChanged) {
+                    state.copy(
+                        lastEnginePositionMs = input.enginePositionMs ?: state.lastEnginePositionMs,
+                        lastBufferedPositionMs =
+                            input.bufferedPositionMs ?: state.lastBufferedPositionMs,
+                        lastProgressAtMs = nowElapsedMs,
+                        wasLoading = isLoading(input),
+                        terminal = null,
+                        retryConsumed = false,
+                    )
+                } else {
+                    state
+                }
             } else {
                 PlaybackSessionState(
                     key = key,
@@ -3613,6 +3652,7 @@ internal object PlaybackSessionRules {
                 pendingSeekTargetMs = pendingTarget,
                 pendingSeekGeneration = explicitGeneration,
                 pendingSeekBinding = pendingBinding,
+                recoverySeekBinding = explicitBinding,
             )
         if (!input.playWhenReady || input.hasPlayerError || input.hasSeekFailure) {
             return next.copy(
