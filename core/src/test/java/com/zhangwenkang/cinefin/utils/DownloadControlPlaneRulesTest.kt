@@ -2,8 +2,11 @@ package com.zhangwenkang.cinefin.utils
 
 import java.security.MessageDigest
 import java.util.UUID
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -120,45 +123,141 @@ class DownloadControlPlaneRulesTest {
     }
 
     @Test
-    fun `old epoch async completion cannot replace latest canonical snapshot`() {
-        val owner = CanonicalActiveTaskSnapshotOwner(clock = { 1L })
-        val olderEpoch = owner.beginSampling()
-        val newerEpoch = owner.beginSampling()
-        val newer =
-            owner.publish(
-                samplingEpochMs = newerEpoch,
-                tasks =
-                    listOf(
-                        task(
-                            sourceId = "newer",
-                            status = DownloadTaskStatus.RUNNING,
-                            totalBytes = 200L,
-                        )
-                    ),
-                downloadedCanonicalKeys = emptySet(),
+    fun `nonempty zero total bytes stays equal across raw consumers`() {
+        val zeroTotal =
+            task(
+                sourceId = "zero-total",
+                status = DownloadTaskStatus.RUNNING,
+                downloadedBytes = 25L,
+                totalBytes = 0L,
             )
-        val stale =
-            owner.publish(
-                samplingEpochMs = olderEpoch,
-                tasks =
-                    listOf(
-                        task(
-                            sourceId = "stale",
-                            status = DownloadTaskStatus.RUNNING,
-                            totalBytes = 100L,
-                        )
-                    ),
-                downloadedCanonicalKeys = emptySet(),
+        val knownTotal =
+            task(
+                sourceId = "known-total",
+                status = DownloadTaskStatus.PAUSED,
+                downloadedBytes = 40L,
+                totalBytes = 1_000L,
             )
+        val snapshot =
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = listOf(zeroTotal, knownTotal),
+                downloadedCanonicalKeys = emptySet(),
+                samplingEpochMs = 43L,
+            )
+        val notification = aggregateDownloadNotification(snapshot)
 
-        assertNotNull(newer)
-        assertNull(stale)
-        assertEquals(newer, owner.latest())
+        assertEquals(2, snapshot.activeCount)
+        assertEquals(2, notification.activeCount)
+        assertEquals(65L, snapshot.downloadedBytes)
+        assertEquals(1_000L, snapshot.totalBytes)
+        assertEquals(snapshot.downloadedBytes, notification.task?.downloadedBytes)
+        assertEquals(snapshot.totalBytes, notification.task?.totalBytes)
+        assertEquals(snapshot.sortedIdentityKeys, notification.identityKeys)
+        assertEquals(
+            0L,
+            snapshot.tasks.single { it.identity == zeroTotal.downloadIdentity() }.totalBytes,
+        )
+    }
+
+    @Test
+    fun `single flight sampler publishes older completion before newer request`() = runBlocking {
+        val owner = CanonicalActiveTaskSnapshotOwner(clock = { 1L })
+        val firstStarted = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        val older = async {
+            owner.sample { samplingEpochMs ->
+                firstStarted.complete(Unit)
+                releaseFirst.await()
+                DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                    tasks =
+                        listOf(
+                            task(
+                                sourceId = "older",
+                                status = DownloadTaskStatus.RUNNING,
+                                totalBytes = 100L,
+                            )
+                        ),
+                    downloadedCanonicalKeys = emptySet(),
+                    samplingEpochMs = samplingEpochMs,
+                )
+            }
+        }
+        firstStarted.await()
+        val newer =
+            async(start = CoroutineStart.UNDISPATCHED) {
+                owner.sample { samplingEpochMs ->
+                    DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                        tasks =
+                            listOf(
+                                task(
+                                    sourceId = "newer",
+                                    status = DownloadTaskStatus.RUNNING,
+                                    totalBytes = 200L,
+                                )
+                            ),
+                        downloadedCanonicalKeys = emptySet(),
+                        samplingEpochMs = samplingEpochMs,
+                    )
+                }
+            }
+        releaseFirst.complete(Unit)
+
+        assertEquals(100L, older.await().totalBytes)
+        assertEquals(200L, newer.await().totalBytes)
         assertEquals(200L, owner.latest().totalBytes)
     }
 
     @Test
-    fun `same raw task set still publishes a new canonical epoch`() {
+    fun `page completion is not rejected by a newer requested only epoch`() = runBlocking {
+        val owner = CanonicalActiveTaskSnapshotOwner(clock = { 100L })
+        val pageTasks =
+            (1L..12L).map { index ->
+                task(
+                    itemId = UUID(0L, 20_000L + index),
+                    sourceId = "page-$index",
+                    status = DownloadTaskStatus.RUNNING,
+                    downloadedBytes = index,
+                    totalBytes = index * 1_000L,
+                )
+            }
+        val pageStarted = CompletableDeferred<Unit>()
+        val releasePage = CompletableDeferred<Unit>()
+        val page = async {
+            owner.sample { samplingEpochMs ->
+                pageStarted.complete(Unit)
+                releasePage.await()
+                DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                    tasks = pageTasks,
+                    downloadedCanonicalKeys = emptySet(),
+                    samplingEpochMs = samplingEpochMs,
+                )
+            }
+        }
+        pageStarted.await()
+        val notification =
+            async(start = CoroutineStart.UNDISPATCHED) {
+                owner.sample { samplingEpochMs ->
+                    DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                        tasks = pageTasks.take(11),
+                        downloadedCanonicalKeys = emptySet(),
+                        samplingEpochMs = samplingEpochMs,
+                    )
+                }
+            }
+        releasePage.complete(Unit)
+
+        val pageSnapshot = page.await()
+
+        assertEquals(12, pageSnapshot.activeCount)
+        assertEquals(pageTasks.sumOf { it.totalBytes }, pageSnapshot.totalBytes)
+
+        val notificationSnapshot = notification.await()
+        assertEquals(11, notificationSnapshot.activeCount)
+        assertEquals(notificationSnapshot, owner.latest())
+    }
+
+    @Test
+    fun `same raw task set still publishes a new canonical epoch`() = runBlocking {
         val owner = CanonicalActiveTaskSnapshotOwner(clock = { 10L })
         val tasks =
             listOf(
@@ -169,24 +268,24 @@ class DownloadControlPlaneRulesTest {
                     totalBytes = 100L,
                 )
             )
-        val paused =
-            owner.publish(
-                samplingEpochMs = owner.beginSampling(),
+        val paused = owner.sample { samplingEpochMs ->
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
                 tasks = tasks,
                 downloadedCanonicalKeys = emptySet(),
+                samplingEpochMs = samplingEpochMs,
             )
-        val resumed =
-            owner.publish(
-                samplingEpochMs = owner.beginSampling(),
+        }
+        val resumed = owner.sample { samplingEpochMs ->
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
                 tasks = tasks,
                 downloadedCanonicalKeys = emptySet(),
+                samplingEpochMs = samplingEpochMs,
             )
+        }
 
-        assertNotNull(paused)
-        assertNotNull(resumed)
-        assertEquals(paused?.downloadedBytes, resumed?.downloadedBytes)
-        assertEquals(paused?.totalBytes, resumed?.totalBytes)
-        assertTrue(requireNotNull(resumed).samplingEpochMs > requireNotNull(paused).samplingEpochMs)
+        assertEquals(paused.downloadedBytes, resumed.downloadedBytes)
+        assertEquals(paused.totalBytes, resumed.totalBytes)
+        assertTrue(resumed.samplingEpochMs > paused.samplingEpochMs)
     }
 
     @Test

@@ -386,7 +386,15 @@ private constructor(
         )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val canonicalSnapshotOwner = CanonicalActiveTaskSnapshotOwner()
+    private val foregroundNotificationStateLock = Any()
+    private val foregroundNotificationRetryScheduled = AtomicBoolean(false)
     private val foregroundNotificationRequests = Channel<Unit>(Channel.CONFLATED)
+    @Volatile private var lastNotificationAt = 0L
+    private var lastRenderedNotificationEpoch = 0L
+    private var foregroundInfoAwaitingAck = false
+    private var pendingForegroundInfoEpoch = 0L
+    private var foregroundNotificationDirty = false
+    private var foregroundNotificationRequestVersion = 0L
     private val foregroundNotificationPublisher = scope.launch {
         publishForegroundNotificationChanges()
     }
@@ -542,18 +550,10 @@ private constructor(
         _queueChanges.tryEmit(Unit)
     }
 
-    override fun beginCanonicalActiveTaskSampling(): Long = canonicalSnapshotOwner.beginSampling()
-
-    override fun publishCanonicalActiveTaskSnapshot(
-        samplingEpochMs: Long,
-        tasks: List<DownloadTask>,
-        downloadedCanonicalKeys: Set<String>,
-    ): CanonicalActiveTaskSnapshot? =
-        canonicalSnapshotOwner.publish(
-            samplingEpochMs = samplingEpochMs,
-            tasks = tasks,
-            downloadedCanonicalKeys = downloadedCanonicalKeys,
-        )
+    override suspend fun sampleCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot =
+        canonicalSnapshotOwner.sample { samplingEpochMs ->
+            canonicalSnapshotAt(samplingEpochMs)
+        }
 
     override fun latestCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot =
         canonicalSnapshotOwner.latest()
@@ -605,9 +605,6 @@ private constructor(
             DownloadTaskRules.coerceConcurrency(
                 appPreferences.getValue(appPreferences.downloadConcurrency)
             )
-
-    @Volatile private var lastNotificationAt = 0L
-    @Volatile private var lastRenderedNotificationEpoch = 0L
 
     /**
      * 网络恢复回调（W50）：把「网络类失败 + 退避等待」的任务立即唤醒。
@@ -1818,6 +1815,7 @@ private constructor(
     }
 
     override suspend fun runQueue(): DownloadQueueOutcome {
+        acknowledgeForegroundInfoPublished()
         // W76-Q7：新一轮 worker 开始 → 复位调度交接状态（上一轮遗留的 kick / 静默标记作废）。
         synchronized(queueKickLock) {
             engineWorkerQuiesced = false
@@ -4884,9 +4882,19 @@ private constructor(
         }
 
     override suspend fun foregroundInfo(): ForegroundInfo {
-        val snapshot = refreshCanonicalActiveTaskSnapshot()
-        lastRenderedNotificationEpoch =
-            maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
+        val requestVersionAtBuildStart =
+            synchronized(foregroundNotificationStateLock) {
+                foregroundInfoAwaitingAck = true
+                pendingForegroundInfoEpoch = 0L
+                foregroundNotificationRequestVersion
+            }
+        val snapshot = sampleCanonicalActiveTaskSnapshot()
+        synchronized(foregroundNotificationStateLock) {
+            pendingForegroundInfoEpoch = snapshot.samplingEpochMs
+            if (requestVersionAtBuildStart == foregroundNotificationRequestVersion) {
+                foregroundNotificationDirty = false
+            }
+        }
         val aggregate = aggregateDownloadNotification(snapshot)
         val notification =
             notifications.buildForeground(
@@ -5634,67 +5642,158 @@ private constructor(
         }
     }
 
-    private suspend fun refreshCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot {
-        while (true) {
-            val samplingEpochMs = canonicalSnapshotOwner.beginSampling()
-            val tasks = refreshDownloadTasks()
-            val completedCanonicalKeys =
-                downloadedMediaRecords().mapTo(mutableSetOf()) { record ->
-                    record.canonicalIdentity().canonicalKey
+    private suspend fun canonicalSnapshotAt(samplingEpochMs: Long): CanonicalActiveTaskSnapshot {
+        val tasks = refreshDownloadTasks()
+        val completedCanonicalKeys =
+            downloadedMediaRecords().mapTo(mutableSetOf()) { record ->
+                record.canonicalIdentity().canonicalKey
+            }
+        return DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+            tasks = tasks,
+            downloadedCanonicalKeys = completedCanonicalKeys,
+            samplingEpochMs = samplingEpochMs,
+        )
+    }
+
+    /**
+     * WorkManager acknowledges the exact [foregroundInfo] value by returning from setForeground and
+     * entering [runQueue]. Until then asynchronous renders remain gated.
+     */
+    fun acknowledgeForegroundInfoPublished() {
+        val latestEpoch = canonicalSnapshotOwner.latest().samplingEpochMs
+        val shouldReconcile =
+            synchronized(foregroundNotificationStateLock) {
+                if (!foregroundInfoAwaitingAck) {
+                    false
+                } else {
+                    foregroundInfoAwaitingAck = false
+                    val builtEpoch = pendingForegroundInfoEpoch
+                    pendingForegroundInfoEpoch = 0L
+                    lastRenderedNotificationEpoch = maxOf(lastRenderedNotificationEpoch, builtEpoch)
+                    val reconcile = foregroundNotificationDirty || latestEpoch > builtEpoch
+                    if (reconcile) {
+                        foregroundNotificationDirty = true
+                        foregroundNotificationRequestVersion += 1L
+                    }
+                    reconcile
                 }
-            canonicalSnapshotOwner
-                .publish(
-                    samplingEpochMs = samplingEpochMs,
-                    tasks = tasks,
-                    downloadedCanonicalKeys = completedCanonicalKeys,
-                )
-                ?.let { snapshot ->
-                    return snapshot
-                }
+            }
+        if (shouldReconcile) {
+            foregroundNotificationRequests.trySend(Unit)
         }
     }
 
     private fun updateForegroundNotificationNow(): DownloadDeleteTraceResult {
         val now = System.currentTimeMillis()
-        if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) {
-            foregroundNotificationRequests.trySend(Unit)
-            return DownloadDeleteTraceResult.THROTTLED
+        val result =
+            if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) {
+                DownloadDeleteTraceResult.THROTTLED
+            } else {
+                lastNotificationAt = now
+                DownloadDeleteTraceResult.SCHEDULED
+            }
+        synchronized(foregroundNotificationStateLock) {
+            foregroundNotificationDirty = true
+            foregroundNotificationRequestVersion += 1L
         }
-        lastNotificationAt = now
         foregroundNotificationRequests.trySend(Unit)
-        return DownloadDeleteTraceResult.SCHEDULED
+        return result
     }
 
     private suspend fun publishForegroundNotificationChanges() {
         for (ignored in foregroundNotificationRequests) {
-            try {
-                val waitMs =
-                    (lastNotificationAt + NOTIFICATION_INTERVAL_MS - System.currentTimeMillis())
-                        .coerceAtLeast(0L)
-                if (waitMs > 0L) delay(waitMs)
-                lastNotificationAt = System.currentTimeMillis()
-
-                var snapshot = refreshCanonicalActiveTaskSnapshot()
-                val latest = canonicalSnapshotOwner.latest()
-                if (latest.samplingEpochMs > snapshot.samplingEpochMs) {
-                    snapshot = latest
+            for (attempt in 1..NOTIFICATION_RETRY_ATTEMPTS) {
+                try {
+                    publishLatestForegroundNotification()
+                    break
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "刷新下载前台通知失败")
+                    if (attempt == NOTIFICATION_RETRY_ATTEMPTS) {
+                        scheduleForegroundNotificationRetry()
+                    } else {
+                        delay(notificationRetryDelayMs(attempt))
+                    }
                 }
-                if (snapshot.samplingEpochMs <= lastRenderedNotificationEpoch) {
-                    continue
-                }
-                val aggregate = aggregateDownloadNotification(snapshot)
-                notifications.notifyForeground(
-                    task = aggregate.task,
-                    activeCount = aggregate.activeCount,
-                )
-                lastRenderedNotificationEpoch = snapshot.samplingEpochMs
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (error: Exception) {
-                Timber.w(error, "刷新下载前台通知失败")
             }
         }
     }
+
+    private suspend fun publishLatestForegroundNotification() {
+        val requestVersion =
+            synchronized(foregroundNotificationStateLock) {
+                if (!foregroundNotificationDirty || foregroundInfoAwaitingAck) {
+                    return
+                }
+                foregroundNotificationRequestVersion
+            }
+        val waitMs =
+            (lastNotificationAt + NOTIFICATION_INTERVAL_MS - System.currentTimeMillis())
+                .coerceAtLeast(0L)
+        if (waitMs > 0L) delay(waitMs)
+
+        val snapshot = sampleCanonicalActiveTaskSnapshot()
+        val aggregate = aggregateDownloadNotification(snapshot)
+        synchronized(foregroundNotificationStateLock) {
+            if (foregroundInfoAwaitingAck) {
+                return
+            }
+            if (aggregate.activeCount == 0) {
+                lastRenderedNotificationEpoch =
+                    maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
+                lastNotificationAt = System.currentTimeMillis()
+                if (requestVersion == foregroundNotificationRequestVersion) {
+                    foregroundNotificationDirty = false
+                }
+                return
+            }
+            if (snapshot.samplingEpochMs <= lastRenderedNotificationEpoch) {
+                if (requestVersion == foregroundNotificationRequestVersion) {
+                    foregroundNotificationDirty = false
+                }
+                return
+            }
+
+            notifications.notifyForeground(
+                task = aggregate.task,
+                activeCount = aggregate.activeCount,
+            )
+            lastRenderedNotificationEpoch =
+                maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
+            lastNotificationAt = System.currentTimeMillis()
+            if (requestVersion == foregroundNotificationRequestVersion) {
+                foregroundNotificationDirty = false
+            }
+        }
+    }
+
+    private fun scheduleForegroundNotificationRetry() {
+        val shouldSchedule =
+            synchronized(foregroundNotificationStateLock) {
+                foregroundNotificationDirty &&
+                    !foregroundInfoAwaitingAck &&
+                    foregroundNotificationRetryScheduled.compareAndSet(false, true)
+            }
+        if (!shouldSchedule) return
+        scope.launch {
+            try {
+                delay(NOTIFICATION_RETRY_MAX_BACKOFF_MS)
+                synchronized(foregroundNotificationStateLock) {
+                    foregroundNotificationRetryScheduled.set(false)
+                }
+                foregroundNotificationRequests.trySend(Unit)
+            } catch (cancellation: CancellationException) {
+                foregroundNotificationRetryScheduled.set(false)
+                throw cancellation
+            }
+        }
+    }
+
+    private fun notificationRetryDelayMs(attempt: Int): Long =
+        (NOTIFICATION_RETRY_BASE_BACKOFF_MS shl (attempt - 1).coerceIn(0, 3)).coerceAtMost(
+            NOTIFICATION_RETRY_MAX_BACKOFF_MS
+        )
 
     private fun networkPolicyAllows(): Boolean {
         val manager =
@@ -5844,6 +5943,9 @@ private constructor(
         /** 进度落库 / 通知刷新间隔。 */
         const val PERSIST_INTERVAL_MS = 1_000L
         const val NOTIFICATION_INTERVAL_MS = 1_000L
+        const val NOTIFICATION_RETRY_ATTEMPTS = 4
+        const val NOTIFICATION_RETRY_BASE_BACKOFF_MS = 100L
+        const val NOTIFICATION_RETRY_MAX_BACKOFF_MS = 1_000L
 
         /** W63：节目 / 季快照缓存有效期。 */
         const val SNAPSHOT_TTL_MS = 10 * 60 * 1_000L

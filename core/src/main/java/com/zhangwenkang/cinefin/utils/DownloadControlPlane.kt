@@ -111,50 +111,53 @@ data class CanonicalActiveTaskSnapshot(
 
 /** App-scope source of the one latest canonical active-task snapshot. */
 interface CanonicalActiveTaskSnapshotSource {
-    fun beginCanonicalActiveTaskSampling(): Long
-
-    fun publishCanonicalActiveTaskSnapshot(
-        samplingEpochMs: Long,
-        tasks: List<DownloadTask>,
-        downloadedCanonicalKeys: Set<String>,
-    ): CanonicalActiveTaskSnapshot?
+    suspend fun sampleCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot
 
     fun latestCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot
 }
 
 /**
- * Monotonic snapshot publication gate.
+ * Single-flight canonical snapshot sampler.
  *
- * A sampling token is allocated before asynchronous reads begin. If a newer sample starts first,
- * the older completion is rejected and can never overwrite the latest snapshot.
+ * Consumers request a fresh snapshot; only the owner performs the asynchronous read. Requests that
+ * arrive while a sample is in flight coalesce into the next serialized sample. A request that loses
+ * the coalescing race still gets a subsequent sample, so it never has to consume an older fallback.
  */
 class CanonicalActiveTaskSnapshotOwner(private val clock: () -> Long = System::currentTimeMillis) {
-    private var highestRequestedEpoch = 0L
+    private val samplingMutex = Mutex()
+    private var highestRequestId = 0L
+    private var completedRequestId = 0L
     private var latest = CanonicalActiveTaskSnapshot.empty(samplingEpochMs = 0L)
 
     @Synchronized
-    fun beginSampling(): Long {
-        highestRequestedEpoch = maxOf(clock().coerceAtLeast(0L), highestRequestedEpoch + 1L)
-        return highestRequestedEpoch
+    private fun allocateRequestId(): Long {
+        highestRequestId += 1L
+        return highestRequestId
     }
 
     @Synchronized
-    fun publish(
-        samplingEpochMs: Long,
-        tasks: List<DownloadTask>,
-        downloadedCanonicalKeys: Set<String>,
-    ): CanonicalActiveTaskSnapshot? {
-        if (samplingEpochMs < highestRequestedEpoch || samplingEpochMs <= latest.samplingEpochMs) {
-            return null
+    private fun nextSamplingEpoch(): Long =
+        maxOf(clock().coerceAtLeast(0L), latest.samplingEpochMs + 1L)
+
+    suspend fun sample(
+        loader: suspend (samplingEpochMs: Long) -> CanonicalActiveTaskSnapshot
+    ): CanonicalActiveTaskSnapshot {
+        val requestId = allocateRequestId()
+        samplingMutex.withLock {
+            if (synchronized(this) { completedRequestId >= requestId }) {
+                return latest()
+            }
+
+            val targetRequestId = synchronized(this) { highestRequestId }
+            val sampled = loader(nextSamplingEpoch())
+            return synchronized(this) {
+                if (sampled.samplingEpochMs > latest.samplingEpochMs) {
+                    latest = sampled
+                }
+                completedRequestId = maxOf(completedRequestId, targetRequestId)
+                latest
+            }
         }
-        highestRequestedEpoch = samplingEpochMs
-        latest =
-            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
-                tasks = tasks,
-                downloadedCanonicalKeys = downloadedCanonicalKeys,
-                samplingEpochMs = samplingEpochMs,
-            )
-        return latest
     }
 
     @Synchronized fun latest(): CanonicalActiveTaskSnapshot = latest

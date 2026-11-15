@@ -228,6 +228,74 @@ class DownloadHierarchyBuilderTest {
     }
 
     @Test
+    fun `nonempty canonical snapshot with zero total preserves raw hierarchy equality`() {
+        val showId = UUID.fromString("20000000-0000-4000-8000-000000000001")
+        val seasonId = UUID.fromString("20000000-0000-4000-8000-000000000002")
+        val tasks =
+            listOf(
+                DownloadTask(
+                    itemId = UUID(0L, 30_001L),
+                    sourceId = "zero-total-source",
+                    name = "E1",
+                    path = "/tmp/zero-total.download",
+                    downloadId = 1L,
+                    status = DownloadTaskStatus.RUNNING,
+                    failureReason = null,
+                    downloadedBytes = 25L,
+                    totalBytes = 0L,
+                    updatedAt = 1L,
+                    taskGeneration = 1L,
+                ),
+                DownloadTask(
+                    itemId = UUID(0L, 30_002L),
+                    sourceId = "known-total-source",
+                    name = "E2",
+                    path = "/tmp/known-total.download",
+                    downloadId = 2L,
+                    status = DownloadTaskStatus.PAUSED,
+                    failureReason = null,
+                    downloadedBytes = 40L,
+                    totalBytes = 1_000L,
+                    updatedAt = 2L,
+                    taskGeneration = 1L,
+                ),
+            )
+        val snapshot =
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = tasks,
+                downloadedCanonicalKeys = emptySet(),
+                samplingEpochMs = 101L,
+            )
+        val entries =
+            snapshot.activeTasks.mapIndexed { index, task ->
+                DownloadHierarchyEntry(
+                    itemId = task.itemId,
+                    name = task.name,
+                    mediaKind = DownloadMediaKind.VIDEO,
+                    status = task.status,
+                    task = task,
+                    sizeBytes = task.totalBytes,
+                    downloadedBytes = task.downloadedBytes,
+                    totalBytes = task.totalBytes,
+                    updatedAt = task.updatedAt,
+                    seriesId = showId,
+                    seasonId = seasonId,
+                    seriesName = "Zero Total Show",
+                    seasonName = "Season 1",
+                    episodeIndex = index + 1,
+                )
+            }
+
+        val show = DownloadHierarchyBuilder.build(entries).single()
+
+        assertEquals(2, show.totalCount)
+        assertEquals(65L, show.downloadedBytes)
+        assertEquals(1_000L, show.totalBytes)
+        assertEquals(snapshot.downloadedBytes, show.downloadedBytes)
+        assertEquals(snapshot.totalBytes, show.totalBytes)
+    }
+
+    @Test
     fun `aggregate status prefers failure then running then paused`() {
         assertEquals(
             DownloadHierarchyStatus.FAILED,
