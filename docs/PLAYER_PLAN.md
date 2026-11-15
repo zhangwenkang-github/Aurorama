@@ -11207,3 +11207,36 @@ session、用户既有下载保留；debug data inode `882268→882268`，两包
 下一动作不是实现。需要用户决定是否授权一个 fresh、行为不变、仅 debug 的定向 trace owner，
 只补取 `HTTP_STATUS_PLUS_EXCEPTION_CLASS`；在其获得单一判别结果前，A3 P2、Series P1、
 `P2-A3-DELETING-FIRST-FRAME-NOT-PROVEN` 与 1.4.1 Release 门均保持开放。
+
+### 52.70.39 R8 后续授权：A3 debug-only trace 交 R9（2026-11-15）
+
+用户 2026-11-15 明确授权进入下一诊断实现步，并说明以后同类“行为不变、仅 debug 的判别补证”
+无需再次征求同意。授权不扩展到破坏性操作、独立 QA、merge、push、tag、Release 或用户最终验收。
+
+R9 后继负责人固定身份：
+
+```text
+AURORAMA_141_ACCEPTANCE_REPAIR_LEAD_R9_2026_11_15
+```
+
+下一实现 owner 固定身份：
+
+```text
+AURORAMA_141_A3_READ_FAILURE_TRACE_OWNER_R1_2026_11_15
+```
+
+派发输入为 [A3 trace owner 合同](../evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14/AURORAMA_141_A3_READ_FAILURE_TRACE_OWNER_R1_2026_11_15_CONTRACT.md)
+与 [state-effect matrix](../evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14/AURORAMA_141_A3_READ_FAILURE_TRACE_STATE_EFFECT_MATRIX_R1.md)。
+合同 BugLoop 门已 PASS，GatePlan 为 FULL 且矩阵 PASS。owner 只在隔离 worktree 中做 TDD，
+增加默认 no-op 的 `DownloadTargetsTrace`；debug source set 安装 Timber sink；在 repository
+`getEpisodes` 响应边界记录 HTTP status / items 数量，在 `ShowViewModel` 既有 catch 记录
+exception class。release、错误态、网络、重试、DTO、mapping、cache、Room、Worker、UI 行为
+不得改变。
+
+只允许一次 Pad `43af8627` 下载对话框最小 selftest；不点击加入队列、不播放、不删除，K60/Oppo
+针对性命令为 0。owner 不得开启 independent QA。实现 owner 收口后，R9 只审查报告、关键 diff、
+脱敏、release no-op 与 selftest，再由 R9 决定是否进入 fresh read-only 判别确认。
+
+当前 A3 P2、Series P1、A3 删除首帧和 1.4.1 Release 仍开放；本次 trace 不是修复，不能写
+`A3_FIXED`、`QA_PASS` 或 `RELEASE_PASS`。R9 自己的交接规则与 Bug Loop 八字段见
+`NEXT_LEADER_PROMPT_R9.md`。
