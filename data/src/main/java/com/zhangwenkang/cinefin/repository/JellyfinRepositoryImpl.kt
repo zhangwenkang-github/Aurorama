@@ -1708,53 +1708,64 @@ class JellyfinRepositoryImpl(
         startItemId: UUID?,
         limit: Int?,
         offline: Boolean,
-    ): List<FindroidEpisode> =
+    ): List<FindroidEpisode> {
         if (offline) {
-            withContext(Dispatchers.IO) {
+            return withContext(Dispatchers.IO) {
                 database.getEpisodesBySeasonId(seasonId).map {
                     it.toFindroidEpisode(database, jellyfinApi.userId!!)
                 }
             }
-        } else {
-            cachedDtoList(
-                key =
-                    MetadataCacheKeys.episodes(
-                        seriesId = seriesId,
+        }
+
+        val fetchOnlineEpisodes: suspend () -> List<BaseItemDto> = {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.showsApi
+                    .getEpisodes(
+                        seriesId,
+                        jellyfinApi.userId!!,
                         seasonId = seasonId,
                         fields = fields,
                         startItemId = startItemId,
                         limit = limit,
-                        offline = false,
-                    ),
-                fetch = {
-                    withContext(Dispatchers.IO) {
-                        jellyfinApi.showsApi
-                            .getEpisodes(
-                                seriesId,
-                                jellyfinApi.userId!!,
-                                seasonId = seasonId,
-                                fields = fields,
-                                startItemId = startItemId,
-                                limit = limit,
-                            )
-                            .content
-                            .items
+                    )
+                    .content
+                    .items
+            }
+        }
+        val materializeOnlineEpisodes: suspend (List<BaseItemDto>) -> List<FindroidEpisode> =
+            { dtos ->
+                withContext(Dispatchers.IO) {
+                    dtos.mapNotNull {
+                        // W73（#10）：未知季的集不带 SeasonId，用请求用的 seasonId 回落，别让整条被丢掉。
+                        it.toFindroidEpisode(
+                            this@JellyfinRepositoryImpl,
+                            database,
+                            fallbackSeasonId = seasonId,
+                        )
                     }
-                },
-                materialize = { dtos ->
-                    withContext(Dispatchers.IO) {
-                        dtos.mapNotNull {
-                            // W73（#10）：未知季的集不带 SeasonId，用请求用的 seasonId 回落，别让整条被丢掉。
-                            it.toFindroidEpisode(
-                                this@JellyfinRepositoryImpl,
-                                database,
-                                fallbackSeasonId = seasonId,
-                            )
-                        }
-                    }
-                },
+                }
+            }
+
+        if (fields?.contains(ItemFields.MEDIA_SOURCES) == true) {
+            return materializeOnlineEpisodes(
+                fetchOnlineEpisodes().map { dto -> dto.withCurrentRoomUserData() }
             )
         }
+
+        return cachedDtoList(
+            key =
+                MetadataCacheKeys.episodes(
+                    seriesId = seriesId,
+                    seasonId = seasonId,
+                    fields = fields,
+                    startItemId = startItemId,
+                    limit = limit,
+                    offline = false,
+                ),
+            fetch = fetchOnlineEpisodes,
+            materialize = materializeOnlineEpisodes,
+        )
+    }
 
     override suspend fun getMediaSourcesForOrigin(
         itemId: UUID,
