@@ -177,18 +177,22 @@ class DownloadNotificationsAggregationTest {
         assertEquals(expected.task?.totalBytes, actual.task?.totalBytes)
         assertEquals(expected.task?.speedBytesPerSecond, actual.task?.speedBytesPerSecond)
         assertEquals(expected.task?.etaSeconds, actual.task?.etaSeconds)
+        assertEquals(expected.projection, actual.projection)
+        assertEquals(expected.actionSourceIds, actual.actionSourceIds)
     }
 
     private class CapturingNotificationGateway : DownloadNotificationGateway {
         val foreground = mutableListOf<CapturedForeground>()
 
-        override fun buildForeground(task: DownloadTask?, activeCount: Int): Notification {
-            foreground += CapturedForeground(task = task, activeCount = activeCount)
+        override fun buildForeground(aggregate: DownloadNotificationAggregate): Notification {
+            foreground +=
+                CapturedForeground(task = aggregate.task, activeCount = aggregate.activeCount)
             return allocateNotification()
         }
 
-        override fun notifyForeground(task: DownloadTask?, activeCount: Int) {
-            foreground += CapturedForeground(task = task, activeCount = activeCount)
+        override fun notifyForeground(aggregate: DownloadNotificationAggregate) {
+            foreground +=
+                CapturedForeground(task = aggregate.task, activeCount = aggregate.activeCount)
         }
 
         override fun notifyCompleted(task: DownloadTask) = Unit

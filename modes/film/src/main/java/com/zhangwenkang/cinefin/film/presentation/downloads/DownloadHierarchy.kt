@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
+import com.zhangwenkang.cinefin.utils.CanonicalDownloadAction
 import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadSpeedRules
@@ -57,6 +58,8 @@ data class DownloadHierarchyEntry(
     val bookDetail: String? = null,
     /** W36：该条目是否允许在离线模式观看（对应 sources.allowOffline / 书籍偏好）。 */
     val allowOffline: Boolean = true,
+    /** Canonical snapshot leaf capabilities; null means this is not an active engine task. */
+    val canonicalActions: Set<CanonicalDownloadAction>? = null,
 ) {
     val canonicalIdentity: DownloadCanonicalIdentity
         get() =
@@ -72,7 +75,9 @@ data class DownloadHierarchyEntry(
         get() = "item:${canonicalIdentity.canonicalKey}"
 
     val canDelete: Boolean
-        get() = status != DownloadTaskStatus.COMPLETED || sourceId != null
+        get() =
+            canonicalActions?.contains(CanonicalDownloadAction.DELETE)
+                ?: (status != DownloadTaskStatus.COMPLETED || sourceId != null)
 }
 
 enum class DownloadHierarchyStatus {

@@ -8627,13 +8627,16 @@ class DownloaderImplRecoveryTest {
         private val foregroundAttempts = AtomicInteger(0)
         private val foregroundFailuresRemaining = AtomicInteger(0)
 
-        override fun buildForeground(task: DownloadTask?, activeCount: Int): Notification {
+        override fun buildForeground(aggregate: DownloadNotificationAggregate): Notification {
             builtForeground +=
-                CapturedForegroundNotification(task = task, activeCount = activeCount)
+                CapturedForegroundNotification(
+                    task = aggregate.task,
+                    activeCount = aggregate.activeCount,
+                )
             return allocate()
         }
 
-        override fun notifyForeground(task: DownloadTask?, activeCount: Int) {
+        override fun notifyForeground(aggregate: DownloadNotificationAggregate) {
             foregroundAttempts.incrementAndGet()
             if (
                 foregroundFailuresRemaining.getAndUpdate { remaining -> maxOf(0, remaining - 1) } >
@@ -8641,7 +8644,11 @@ class DownloaderImplRecoveryTest {
             ) {
                 error("injected foreground notification failure")
             }
-            foreground += CapturedForegroundNotification(task = task, activeCount = activeCount)
+            foreground +=
+                CapturedForegroundNotification(
+                    task = aggregate.task,
+                    activeCount = aggregate.activeCount,
+                )
         }
 
         override fun notifyCompleted(task: DownloadTask) {

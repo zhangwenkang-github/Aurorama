@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.film.presentation.downloads
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.utils.CanonicalDownloadAction
 import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
@@ -155,9 +156,12 @@ data class DownloadContainerTaskActionSpec(
 
 /** 顶层容器动作资格；按容器内真实任务状态计算，而不是复用聚合展示状态。 */
 fun DownloadHierarchyContainer.taskActionSpecs(): List<DownloadContainerTaskActionSpec> {
-    val tasks = allEntries().mapNotNull { it.task }
     return DownloadContainerTaskAction.entries.mapNotNull { action ->
-        val eligibleTaskKeys = tasks.filter { it.supports(action) }.map(::taskKey).toSet()
+        val eligibleTaskKeys =
+            allEntries()
+                .filter { entry -> entry.supports(action) }
+                .map(DownloadHierarchyEntry::key)
+                .toSet()
         if (eligibleTaskKeys.isEmpty()) null
         else DownloadContainerTaskActionSpec(action, eligibleTaskKeys)
     }
@@ -168,15 +172,22 @@ fun DownloadHierarchyContainer.tasksForTaskAction(
     spec: DownloadContainerTaskActionSpec
 ): List<DownloadTask> =
     allEntries()
-        .mapNotNull { it.task }
-        .filter { task -> taskKey(task) in spec.eligibleTaskKeys && task.supports(spec.action) }
+        .filter { entry -> entry.key in spec.eligibleTaskKeys && entry.supports(spec.action) }
+        .mapNotNull(DownloadHierarchyEntry::task)
         .distinctBy(::taskKey)
 
-private fun DownloadTask.supports(action: DownloadContainerTaskAction): Boolean =
+private fun DownloadHierarchyEntry.supports(action: DownloadContainerTaskAction): Boolean =
     when (action) {
-        DownloadContainerTaskAction.PAUSE -> DownloadTaskRules.canPause(this)
-        DownloadContainerTaskAction.RESUME -> DownloadTaskRules.canResume(status)
-        DownloadContainerTaskAction.RETRY -> DownloadTaskRules.canRetry(status)
+        DownloadContainerTaskAction.PAUSE ->
+            canonicalActions?.contains(CanonicalDownloadAction.PAUSE)
+                ?: task?.let(DownloadTaskRules::canPause)
+                ?: false
+        DownloadContainerTaskAction.RESUME ->
+            canonicalActions?.contains(CanonicalDownloadAction.RESUME)
+                ?: task?.let(DownloadTaskRules::canResume)
+                ?: false
+        DownloadContainerTaskAction.RETRY ->
+            task?.let { candidate -> DownloadTaskRules.canRetry(candidate.status) } ?: false
     }
 
 enum class DownloadActionFailure {

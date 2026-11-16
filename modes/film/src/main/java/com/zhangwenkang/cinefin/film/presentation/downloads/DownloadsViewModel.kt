@@ -17,6 +17,7 @@ import com.zhangwenkang.cinefin.repository.LocalBookFile
 import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
+import com.zhangwenkang.cinefin.utils.CanonicalActiveTask
 import com.zhangwenkang.cinefin.utils.CanonicalActiveTaskSnapshotSource
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceError
@@ -1129,6 +1130,7 @@ constructor(
         val sequence: Long,
         val token: String,
         val activeEngineTasks: List<DownloadTask>,
+        val canonicalActiveTasks: List<CanonicalActiveTask>,
         val failedEngineTasks: List<DownloadTask>,
         val completedMediaRecords: List<DownloadMediaRecord>,
         val episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
@@ -1247,15 +1249,16 @@ constructor(
         val artworkById = loadArtworkSnapshot(artworkIds, generatedCoverIds)
 
         // ——— W63 阶段 1：本地数据（Room / 文件）先上屏，首帧不等待任何服务器接口 ———
-        val localActiveEntries = activeEngineTasks.map { task ->
-            task.toHierarchyEntry(
-                episodeHierarchy = episodeHierarchy,
-                musicById = emptyMap(),
-                offlineAllowMap = loadedOfflineAllowMap,
-                artworkById = artworkById,
-                allowRemoteImages = false,
-            )
-        }
+        val localActiveEntries =
+            canonicalSnapshot.tasks.map { canonicalTask ->
+                canonicalTask.toHierarchyEntry(
+                    episodeHierarchy = episodeHierarchy,
+                    musicById = emptyMap(),
+                    offlineAllowMap = loadedOfflineAllowMap,
+                    artworkById = artworkById,
+                    allowRemoteImages = false,
+                )
+            }
         val localFailedEntries = failedEngineTasks.map { task ->
             task.toHierarchyEntry(
                 episodeHierarchy = episodeHierarchy,
@@ -1341,6 +1344,7 @@ constructor(
             sequence = ++nextLocalSnapshotSequence,
             token = snapshotToken,
             activeEngineTasks = activeEngineTasks,
+            canonicalActiveTasks = canonicalSnapshot.tasks,
             failedEngineTasks = failedEngineTasks,
             completedMediaRecords = completedMediaRecords,
             episodeHierarchy = episodeHierarchy,
@@ -1442,7 +1446,7 @@ constructor(
             )
 
         val activeEntries =
-            snapshot.activeEngineTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
+            snapshot.canonicalActiveTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
                 task.toHierarchyEntry(
                     episodeHierarchy = snapshot.episodeHierarchy,
                     musicById = musicById,
@@ -1847,12 +1851,29 @@ constructor(
             this[it]?.localImage?.uri
         }
 
+    private suspend fun CanonicalActiveTask.toHierarchyEntry(
+        episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
+        musicById: Map<UUID, MusicTrackMetadata>,
+        offlineAllowMap: Map<UUID, Boolean>,
+        artworkById: Map<UUID, LocalArtworkSnapshot>,
+        allowRemoteImages: Boolean = true,
+    ): DownloadHierarchyEntry =
+        task.toHierarchyEntry(
+            episodeHierarchy = episodeHierarchy,
+            musicById = musicById,
+            offlineAllowMap = offlineAllowMap,
+            artworkById = artworkById,
+            allowRemoteImages = allowRemoteImages,
+            canonicalTask = this,
+        )
+
     private suspend fun DownloadTask.toHierarchyEntry(
         episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
         musicById: Map<UUID, MusicTrackMetadata>,
         offlineAllowMap: Map<UUID, Boolean>,
         artworkById: Map<UUID, LocalArtworkSnapshot>,
         allowRemoteImages: Boolean = true,
+        canonicalTask: CanonicalActiveTask? = null,
     ): DownloadHierarchyEntry {
         val episode = episodeHierarchy[itemId]
         val song = musicById[itemId]
@@ -1872,9 +1893,14 @@ constructor(
             userId = userId,
             task = this,
             downloadId = downloadId,
-            sizeBytes = if (status == DownloadTaskStatus.COMPLETED) downloadedBytes else totalBytes,
-            downloadedBytes = downloadedBytes,
-            totalBytes = totalBytes,
+            sizeBytes =
+                if (status == DownloadTaskStatus.COMPLETED) {
+                    canonicalTask?.downloadedBytes ?: downloadedBytes
+                } else {
+                    canonicalTask?.totalBytes ?: totalBytes
+                },
+            downloadedBytes = canonicalTask?.downloadedBytes ?: downloadedBytes,
+            totalBytes = canonicalTask?.totalBytes ?: totalBytes,
             updatedAt = updatedAt,
             seriesId = episode?.seriesId,
             seasonId = episode?.seasonId,
@@ -1921,6 +1947,7 @@ constructor(
                     ),
                 ),
             allowOffline = offlineAllowMap[itemId] ?: true,
+            canonicalActions = canonicalTask?.actionCapabilities,
         )
     }
 

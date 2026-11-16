@@ -2946,6 +2946,13 @@ private constructor(
             Pair(resumed.downloadId ?: downloadTaskHandle(resumed.id), null)
         }
 
+    override suspend fun resumeTaskById(sourceId: String): Boolean {
+        val task =
+            refreshDownloadTasks().firstOrNull { candidate -> candidate.sourceId == sourceId }
+                ?: return false
+        return resumeTask(task).first >= 0L
+    }
+
     override suspend fun retryTask(task: DownloadTask): Pair<Long, UiText?> =
         withContext(Dispatchers.IO) {
             if (task.sourceId.startsWith(INTENT_SOURCE_PREFIX)) {
@@ -5014,11 +5021,7 @@ private constructor(
             }
         }
         val aggregate = aggregateDownloadNotification(snapshot)
-        val notification =
-            notifications.buildForeground(
-                task = aggregate.task,
-                activeCount = aggregate.activeCount,
-            )
+        val notification = notifications.buildForeground(aggregate)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
                 DownloadNotifications.FOREGROUND_NOTIFICATION_ID,
@@ -5874,10 +5877,7 @@ private constructor(
                 return
             }
 
-            notifications.notifyForeground(
-                task = aggregate.task,
-                activeCount = aggregate.activeCount,
-            )
+            notifications.notifyForeground(aggregate)
             lastRenderedNotificationEpoch =
                 maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
             lastNotificationAt = System.currentTimeMillis()

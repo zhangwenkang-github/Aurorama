@@ -88,6 +88,7 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.taskActionSpecs
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonBlock
 import com.zhangwenkang.cinefin.presentation.components.LumenSkeletonLine
 import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
+import com.zhangwenkang.cinefin.utils.CanonicalDownloadAction
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadFailureReason
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
@@ -150,12 +151,30 @@ internal fun downloadRowActionSpecs(
     pending: Boolean,
     intentOnly: Boolean = false,
     deleteLabelRes: Int = CoreR.string.download_action_delete,
+    canonicalActions: Set<CanonicalDownloadAction>? = null,
 ): List<DownloadRowActionSpec> {
     if (pending || status == DownloadTaskStatus.DELETING) return emptyList()
     return buildList {
-        when (status) {
-            DownloadTaskStatus.RUNNING,
-            DownloadTaskStatus.PENDING ->
+        when {
+            canonicalActions != null -> {
+                if (CanonicalDownloadAction.PAUSE in canonicalActions) {
+                    add(
+                        DownloadRowActionSpec(
+                            DownloadRowTaskAction.PAUSE,
+                            CoreR.string.download_action_pause,
+                        )
+                    )
+                }
+                if (CanonicalDownloadAction.RESUME in canonicalActions) {
+                    add(
+                        DownloadRowActionSpec(
+                            DownloadRowTaskAction.RESUME,
+                            CoreR.string.download_action_resume,
+                        )
+                    )
+                }
+            }
+            status == DownloadTaskStatus.RUNNING || status == DownloadTaskStatus.PENDING ->
                 if (!intentOnly) {
                     add(
                         DownloadRowActionSpec(
@@ -164,22 +183,20 @@ internal fun downloadRowActionSpecs(
                         )
                     )
                 }
-            DownloadTaskStatus.PAUSED ->
+            status == DownloadTaskStatus.PAUSED ->
                 add(
                     DownloadRowActionSpec(
                         DownloadRowTaskAction.RESUME,
                         CoreR.string.download_action_resume,
                     )
                 )
-            DownloadTaskStatus.FAILED ->
+            status == DownloadTaskStatus.FAILED ->
                 add(
                     DownloadRowActionSpec(
                         DownloadRowTaskAction.RETRY,
                         CoreR.string.download_action_retry,
                     )
                 )
-            DownloadTaskStatus.COMPLETED,
-            null -> Unit
         }
         if (canDelete) {
             add(
@@ -197,6 +214,7 @@ internal fun downloadRowActionSpecs(
     canDelete: Boolean,
     pending: Boolean,
     deleteLabelRes: Int = CoreR.string.download_action_delete,
+    canonicalActions: Set<CanonicalDownloadAction>? = null,
 ): List<DownloadRowActionSpec> =
     downloadRowActionSpecs(
         status = task.status,
@@ -204,6 +222,7 @@ internal fun downloadRowActionSpecs(
         pending = pending,
         intentOnly = task.isIntentOnly,
         deleteLabelRes = deleteLabelRes,
+        canonicalActions = canonicalActions,
     )
 
 /** 顶层容器动作由真实任务能力生成，eligible keys 原样传给 ViewModel。 */
@@ -727,6 +746,7 @@ internal fun DownloadTopLevelRow(
                         onRequestDelete = { onRequestDelete(entry.key, entry.name) },
                         canDelete = entry.canDelete,
                         deleteLabelRes = deleteLabelRes,
+                        canonicalActions = entry.canonicalActions,
                     )
                 }
             }
@@ -750,6 +770,7 @@ private fun DownloadTaskActionIcon(
     onRequestDelete: () -> Unit,
     canDelete: Boolean,
     deleteLabelRes: Int = CoreR.string.download_action_delete,
+    canonicalActions: Set<CanonicalDownloadAction>? = null,
 ) {
     val actionSpecs =
         if (task != null) {
@@ -758,6 +779,7 @@ private fun DownloadTaskActionIcon(
                 canDelete = canDelete,
                 pending = pendingAction != null,
                 deleteLabelRes = deleteLabelRes,
+                canonicalActions = canonicalActions,
             )
         } else {
             downloadRowActionSpecs(
@@ -765,6 +787,7 @@ private fun DownloadTaskActionIcon(
                 canDelete = canDelete,
                 pending = pendingAction != null,
                 deleteLabelRes = deleteLabelRes,
+                canonicalActions = canonicalActions,
             )
         }
     DownloadRowActionIcon(
@@ -1272,6 +1295,7 @@ internal fun DownloadLeafCard(
                         onRequestDelete = { onRequestDelete(entry.key, entry.name) },
                         canDelete = entry.canDelete,
                         deleteLabelRes = deleteLabelRes,
+                        canonicalActions = entry.canonicalActions,
                     )
                 }
             }

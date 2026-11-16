@@ -34,6 +34,8 @@ internal data class DownloadNotificationAggregate(
     val activeCount: Int,
     val samplingEpochMs: Long,
     val identityKeys: List<String>,
+    val projection: CanonicalActiveTaskProjection,
+    val actionSourceIds: Map<CanonicalDownloadAction, List<String>>,
 )
 
 /**
@@ -46,20 +48,22 @@ internal fun aggregateDownloadNotification(
     snapshot: CanonicalActiveTaskSnapshot
 ): DownloadNotificationAggregate {
     val canonicalTasks = snapshot.activeTasks
+    val actionSourceIds =
+        snapshot.projection.actionEligibleIdentities.mapValues { (_, identityKeys) ->
+            val sourceIdByIdentity =
+                snapshot.tasks.associate { leaf ->
+                    leaf.identity.canonicalKey to leaf.task.sourceId
+                }
+            identityKeys.mapNotNull(sourceIdByIdentity::get)
+        }
     if (canonicalTasks.isEmpty()) {
         return DownloadNotificationAggregate(
             task = null,
             activeCount = 0,
             samplingEpochMs = snapshot.samplingEpochMs,
             identityKeys = snapshot.sortedIdentityKeys,
-        )
-    }
-    if (canonicalTasks.size == 1) {
-        return DownloadNotificationAggregate(
-            task = canonicalTasks.single(),
-            activeCount = 1,
-            samplingEpochMs = snapshot.samplingEpochMs,
-            identityKeys = snapshot.sortedIdentityKeys,
+            projection = snapshot.projection,
+            actionSourceIds = emptyMap(),
         )
     }
 
@@ -93,6 +97,8 @@ internal fun aggregateDownloadNotification(
         activeCount = canonicalTasks.size,
         samplingEpochMs = snapshot.samplingEpochMs,
         identityKeys = snapshot.sortedIdentityKeys,
+        projection = snapshot.projection,
+        actionSourceIds = actionSourceIds,
     )
 }
 
@@ -202,15 +208,15 @@ private fun DownloadFailureReason?.localizedLabelRes(): Int =
 /**
  * W50 下载通知中心。
  *
- * - 前台通知：常驻，显示当前任务进度 + 暂停 / 取消操作（WorkManager `setForeground` 托管）；
+ * - 前台通知：常驻，显示当前任务进度 + canonical pause / resume / delete 操作 （WorkManager `setForeground` 托管）；
  * - 完成 / 失败通知：单任务一条，自动消失，点击打开应用。
  *
- * W52：操作按钮仍只对「当前任务」生效；**多任务**时点击通知本体直接进下载页（不额外做多按钮）。
+ * W52：多任务时点击通知本体直接进下载页；操作按钮的可用性与 eligible source 由同一 canonical active-task projection 发布。
  */
 internal interface DownloadNotificationGateway {
-    fun buildForeground(task: DownloadTask?, activeCount: Int): Notification
+    fun buildForeground(aggregate: DownloadNotificationAggregate): Notification
 
-    fun notifyForeground(task: DownloadTask?, activeCount: Int)
+    fun notifyForeground(aggregate: DownloadNotificationAggregate)
 
     fun notifyCompleted(task: DownloadTask)
 
@@ -224,7 +230,9 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
         createChannel()
     }
 
-    override fun buildForeground(task: DownloadTask?, activeCount: Int): Notification {
+    override fun buildForeground(aggregate: DownloadNotificationAggregate): Notification {
+        val task = aggregate.task
+        val activeCount = aggregate.activeCount
         val title =
             if (activeCount > 1) {
                 context.getString(CoreR.string.download_notification_active_multi, activeCount)
@@ -257,27 +265,28 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
                     ),
                     task?.totalBytes == 0L,
                 )
-        if (task != null) {
-            builder
-                .addAction(
-                    0,
-                    context.getString(CoreR.string.download_notification_pause),
-                    actionIntent(ACTION_PAUSE, task.sourceId),
-                )
-                .addAction(
-                    0,
-                    context.getString(CoreR.string.download_notification_cancel),
-                    actionIntent(ACTION_CANCEL, task.sourceId),
-                )
+        CanonicalDownloadAction.entries.forEach { capability ->
+            val sourceIds = aggregate.actionSourceIds[capability].orEmpty()
+            if (sourceIds.isEmpty()) return@forEach
+            val action =
+                when (capability) {
+                    CanonicalDownloadAction.PAUSE -> ACTION_PAUSE
+                    CanonicalDownloadAction.RESUME -> ACTION_RESUME
+                    CanonicalDownloadAction.DELETE -> ACTION_DELETE
+                }
+            val label =
+                when (capability) {
+                    CanonicalDownloadAction.PAUSE -> CoreR.string.download_notification_pause
+                    CanonicalDownloadAction.RESUME -> CoreR.string.download_action_resume
+                    CanonicalDownloadAction.DELETE -> CoreR.string.download_action_delete
+                }
+            builder.addAction(0, context.getString(label), actionIntent(action, sourceIds))
         }
         return builder.build()
     }
 
-    override fun notifyForeground(task: DownloadTask?, activeCount: Int) {
-        manager.notify(
-            FOREGROUND_NOTIFICATION_ID,
-            buildForeground(task = task, activeCount = activeCount),
-        )
+    override fun notifyForeground(aggregate: DownloadNotificationAggregate) {
+        manager.notify(FOREGROUND_NOTIFICATION_ID, buildForeground(aggregate))
     }
 
     override fun notifyCompleted(task: DownloadTask) {
@@ -353,14 +362,22 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
         )
     }
 
-    private fun actionIntent(action: String, sourceId: String): PendingIntent {
+    private fun actionIntent(action: String, sourceIds: Collection<String>): PendingIntent {
+        val distinctSourceIds = sourceIds.distinct().sorted()
         val intent =
             Intent(context, DownloadActionReceiver::class.java)
                 .setAction(action)
-                .putExtra(DownloadActionReceiver.EXTRA_SOURCE_ID, sourceId)
+                .putStringArrayListExtra(
+                    DownloadActionReceiver.EXTRA_SOURCE_IDS,
+                    ArrayList(distinctSourceIds),
+                )
+                .putExtra(
+                    DownloadActionReceiver.EXTRA_SOURCE_ID,
+                    distinctSourceIds.firstOrNull(),
+                )
         return PendingIntent.getBroadcast(
             context,
-            sourceId.hashCode() xor action.hashCode(),
+            distinctSourceIds.hashCode() xor action.hashCode(),
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
@@ -388,6 +405,8 @@ internal class DownloadNotifications(private val context: Context) : DownloadNot
         const val FOREGROUND_NOTIFICATION_ID = 4201
 
         const val ACTION_PAUSE = "com.zhangwenkang.cinefin.action.DOWNLOAD_PAUSE"
+        const val ACTION_RESUME = "com.zhangwenkang.cinefin.action.DOWNLOAD_RESUME"
+        const val ACTION_DELETE = "com.zhangwenkang.cinefin.action.DOWNLOAD_DELETE"
         const val ACTION_CANCEL = "com.zhangwenkang.cinefin.action.DOWNLOAD_CANCEL"
 
         private const val STATE_NOTIFICATION_BASE = 4500

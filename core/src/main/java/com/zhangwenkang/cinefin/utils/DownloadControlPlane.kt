@@ -77,7 +77,20 @@ data class CanonicalActiveTask(
     val task: DownloadTask,
     val downloadedBytes: Long,
     val totalBytes: Long,
+    val actionCapabilities: Set<CanonicalDownloadAction>,
 )
+
+data class CanonicalActiveTaskProjection(
+    val samplingEpochMs: Long,
+    val identityKeys: List<String>,
+    val activeCount: Int,
+    val downloadedBytes: Long,
+    val totalBytes: Long,
+    val actionEligibleIdentities: Map<CanonicalDownloadAction, Set<String>>,
+) {
+    val identitySet: Set<String>
+        get() = identityKeys.toSet()
+}
 
 /**
  * The single immutable active-task snapshot consumed by the downloads page and foreground
@@ -98,6 +111,28 @@ data class CanonicalActiveTaskSnapshot(
     val activeCount: Int
         get() = tasks.size
 
+    val projection: CanonicalActiveTaskProjection
+        get() =
+            CanonicalActiveTaskProjection(
+                samplingEpochMs = samplingEpochMs,
+                identityKeys = sortedIdentityKeys,
+                activeCount = activeCount,
+                downloadedBytes = downloadedBytes,
+                totalBytes = totalBytes,
+                actionEligibleIdentities =
+                    CanonicalDownloadAction.entries
+                        .mapNotNull { action ->
+                            tasks
+                                .asSequence()
+                                .filter { leaf -> action in leaf.actionCapabilities }
+                                .map { leaf -> leaf.identity.canonicalKey }
+                                .toSet()
+                                .takeIf(Set<String>::isNotEmpty)
+                                ?.let { identities -> action to identities }
+                        }
+                        .toMap(),
+            )
+
     companion object {
         fun empty(samplingEpochMs: Long): CanonicalActiveTaskSnapshot =
             CanonicalActiveTaskSnapshot(
@@ -106,6 +141,24 @@ data class CanonicalActiveTaskSnapshot(
                 downloadedBytes = 0L,
                 totalBytes = 0L,
             )
+    }
+}
+
+enum class CanonicalDownloadAction {
+    PAUSE,
+    RESUME,
+    DELETE,
+}
+
+fun DownloadTask.canonicalActionCapabilities(): Set<CanonicalDownloadAction> = buildSet {
+    if (DownloadTaskRules.canPause(this@canonicalActionCapabilities)) {
+        add(CanonicalDownloadAction.PAUSE)
+    }
+    if (DownloadTaskRules.canResume(this@canonicalActionCapabilities)) {
+        add(CanonicalDownloadAction.RESUME)
+    }
+    if (status != DownloadTaskStatus.DELETING) {
+        add(CanonicalDownloadAction.DELETE)
     }
 }
 
@@ -244,6 +297,7 @@ object DownloadControlPlaneRules {
                 task = task,
                 downloadedBytes = task.downloadedBytes.coerceAtLeast(0L),
                 totalBytes = task.totalBytes.coerceAtLeast(0L),
+                actionCapabilities = task.canonicalActionCapabilities(),
             )
         }
         return CanonicalActiveTaskSnapshot(
