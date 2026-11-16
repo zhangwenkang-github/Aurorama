@@ -27,6 +27,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
@@ -88,6 +89,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -128,6 +130,16 @@ private data class PlayerRestartTarget(
     val mediaSourceId: String?,
 )
 
+internal class PlayerExitServiceStopGate {
+    private var stopRequested = false
+
+    fun request(stop: () -> Boolean): Boolean {
+        if (stopRequested) return false
+        stopRequested = true
+        return stop()
+    }
+}
+
 @AndroidEntryPoint
 class PlayerActivity : BasePlayerActivity() {
 
@@ -146,6 +158,13 @@ class PlayerActivity : BasePlayerActivity() {
 
     /** Compose 控制层的可见性/锁定状态：控件层与手势层共用同一份状态 */
     private val controlsState = PlayerControlsState()
+    private var segmentPollJob: Job? = null
+    private var playbackEventsJob: Job? = null
+    private val exitServiceStopGate = PlayerExitServiceStopGate()
+
+    override fun stopService(service: Intent): Boolean = exitServiceStopGate.request {
+        super.stopService(service)
+    }
 
     /** Android 13+ 通知权限：通知栏播放控制需要它；没授予只影响通知，不影响播放本身 */
     private val notificationPermissionLauncher =
@@ -219,6 +238,14 @@ class PlayerActivity : BasePlayerActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    finishPlayback()
+                }
+            },
+        )
 
         /*
          * itemId 允许为空：从通知 / 锁屏回到播放页时，播放会话已经在服务里跑着，
@@ -276,12 +303,15 @@ class PlayerActivity : BasePlayerActivity() {
             CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
                 val subtitleState by
                     viewModel.subtitleController.overlayState.collectAsStateWithLifecycle()
-                PlayerSubtitleOverlay(
-                    player = viewModel.player,
-                    state = subtitleState,
-                    // W16：libass 字幕层按「视频实际显示区」定位（与 mpv 一致），而不是整窗
-                    videoRectProvider = ::currentVideoRect,
-                )
+                val subtitlePlayer = viewModel.uiPlayer
+                if (subtitlePlayer != null) {
+                    PlayerSubtitleOverlay(
+                        player = subtitlePlayer,
+                        state = subtitleState,
+                        // W16：libass 字幕层按「视频实际显示区」定位（与 mpv 一致），而不是整窗
+                        videoRectProvider = ::currentVideoRect,
+                    )
+                }
             }
         }
 
@@ -305,8 +335,13 @@ class PlayerActivity : BasePlayerActivity() {
                         layoutContext = layout
                         applyVideoArea(layout)
                     }
+                    val controlPlayer = viewModel.uiPlayer
+                    if (controlPlayer == null) {
+                        binding.controlOverlay.visibility = View.INVISIBLE
+                        return@ProvideLumenColors
+                    }
                     PlayerControlOverlay(
-                        player = viewModel.player,
+                        player = controlPlayer,
                         uiState = uiState,
                         controls = controlsState,
                         layout = layout,
@@ -331,7 +366,10 @@ class PlayerActivity : BasePlayerActivity() {
                             )
                         },
                         onSeekRelativeRequest = { delta ->
-                            viewModel.submitSeek(PlayerViewModel.SeekIntent.Relative(delta), "step")
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.Relative(delta),
+                                "step",
+                            )
                         },
                         onPreviousMediaItem = {
                             viewModel.submitSeek(
@@ -400,7 +438,6 @@ class PlayerActivity : BasePlayerActivity() {
                         trickplayFrameAt = { position -> viewModel.trickplayFrameAt(position) },
                         showChapterMarkers = settingsController.state.chapterMarkers,
                         onRetry = viewModel::retryPlayerError,
-                        onRetryProgress = viewModel::retryPlayback,
                         onSwitchBackend = { target -> switchBackendAndRestart(target) },
                         onRegionsChanged = {
                             visible,
@@ -525,25 +562,30 @@ class PlayerActivity : BasePlayerActivity() {
                     }
                 }
 
-                launch {
+                playbackEventsJob = launch {
+                    val delayedEvents =
+                        viewModel.createDelayedPlayerEventDispatcher(
+                            onFallbackToMpv = {
+                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
+                            },
+                            onRestartWithServerTranscode = {
+                                restartPlaybackKeepingPosition("fallback=server-transcode")
+                            },
+                            onFallbackToSoftware = {
+                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
+                            },
+                            onFallbackToExoForProgressStall = { requestToken ->
+                                switchBackendForProgressStall(requestToken)
+                            },
+                        )
                     viewModel.eventsChannelFlow.collect { event ->
                         when (event) {
                             is PlayerEvents.NavigateBack -> finishPlayback()
-                            // 解码能力不足：静默换 mpv 内核重播（不弹提示，进度由 switchBackendForFallback 带过去）
-                            is PlayerEvents.FallbackToMpv ->
-                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
-                            // W16 回退链第 2 档：服务器解码/转码（PlaybackInfo 已按档位强制转码，重启拉新流）
-                            is PlayerEvents.RestartWithServerTranscode ->
-                                restartPlaybackKeepingPosition("fallback=server-transcode")
-                            /*
-                             * W16 回退链第 3 档：本地软解（mpv hwdec=no，档位由 PlayerHolder 读偏好强制）。
-                             * W17：目标内核必须**显式指定 mpv**，不能再用 toggle——回退档位写入后 PlayerHolder
-                             * 可能已把实例重建为 mpv，toggle 会误判成「切回 ExoPlayer」，导致回退链断在第 2 档。
-                             */
-                            is PlayerEvents.FallbackToSoftware ->
-                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
+                            is PlayerEvents.FallbackToMpv,
+                            is PlayerEvents.RestartWithServerTranscode,
+                            is PlayerEvents.FallbackToSoftware,
                             is PlayerEvents.FallbackToExoForProgressStall ->
-                                switchBackendForProgressStall(event.requestToken)
+                                delayedEvents.dispatch(event)
                             // 字幕外观变化：同步给 PlayerView 的原生字幕（图形字幕 / 兜底路径）
                             is PlayerEvents.SubtitleStyleChanged -> configureSubtitleStyle()
                             is PlayerEvents.IsPlayingChanged -> {
@@ -572,9 +614,8 @@ class PlayerActivity : BasePlayerActivity() {
                  * W20：这里的 5 秒进度上报循环已移除——进度改成 ViewModel 常驻协程
                  * （切后台 / 锁屏也不停），并补上暂停 / 切集 / 退出的即时落盘，见 §23。
                  */
-                launch {
-                    while (true) {
-                        viewModel.updateCurrentSegment()
+                segmentPollJob = launch {
+                    while (viewModel.updateCurrentSegment()) {
                         delay(1000L)
                     }
                 }
@@ -591,7 +632,7 @@ class PlayerActivity : BasePlayerActivity() {
                 queueEntries = queueEntries,
                 preferredMediaSourceId = preferredMediaSourceId,
             )
-        } else if (viewModel.player.mediaItemCount > 0) {
+        } else if ((viewModel.existingPlayer?.mediaItemCount ?: 0) > 0) {
             // 从通知回来：会话还在跑，接管它（补标题/章节等信息），不重新拉流
             viewModel.attachToExistingSession()
         } else {
@@ -656,7 +697,7 @@ class PlayerActivity : BasePlayerActivity() {
         if (
             Build.VERSION.SDK_INT < Build.VERSION_CODES.S &&
                 appPreferences.getValue(appPreferences.playerPipGesture) &&
-                viewModel.player.isPlaying &&
+                viewModel.existingPlayer?.isPlaying == true &&
                 !isControlsLocked
         ) {
             pictureInPicture()
@@ -731,6 +772,7 @@ class PlayerActivity : BasePlayerActivity() {
                         .getOrNull()
                     name to data
                 }
+            if (isFinishing || isDestroyed) return@launch
             if (bytes == null || bytes.isEmpty()) {
                 Toast.makeText(
                         this@PlayerActivity,
@@ -889,8 +931,9 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private fun currentConfirmedPosition(): Long {
         val session = viewModel.uiState.value.playbackSession
-        return PlayerViewModel.confirmedPosition(viewModel.player)
-            ?: session.lastConfirmedPositionMs?.takeIf { viewModel.player !is MPVPlayer }
+        val activePlayer = viewModel.existingPlayer ?: return androidx.media3.common.C.TIME_UNSET
+        return PlayerViewModel.confirmedPosition(activePlayer)
+            ?: session.lastConfirmedPositionMs?.takeIf { activePlayer !is MPVPlayer }
             ?: androidx.media3.common.C.TIME_UNSET
     }
 
@@ -954,10 +997,11 @@ class PlayerActivity : BasePlayerActivity() {
      * 必须**在写 `pref_player_backend` 之前**调用：偏好一变，[PlayerViewModel.player] 会立即按新偏好重建空实例。
      */
     private fun currentRestartTarget(): PlayerRestartTarget? {
+        val activePlayer = viewModel.existingPlayer ?: return null
         val kind = viewModel.currentPlaybackItemKind() ?: return null
-        val mediaId = viewModel.player.currentMediaItem?.mediaId?.takeIf { it.isNotBlank() }
+        val mediaId = activePlayer.currentMediaItem?.mediaId?.takeIf { it.isNotBlank() }
         val mediaSourceId =
-            viewModel.player.currentMediaItem
+            activePlayer.currentMediaItem
                 ?.mediaMetadata
                 ?.extras
                 ?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
@@ -978,7 +1022,7 @@ class PlayerActivity : BasePlayerActivity() {
      */
     private fun applyResizeModeToKernel(mode: Int) {
         binding.playerView.resizeMode = mode
-        val mpv = viewModel.player as? MPVPlayer
+        val mpv = viewModel.existingPlayer as? MPVPlayer
         mpv?.applyResizeMode(mode)
         Timber.d("player resize mode=%d kernel=%s", mode, if (mpv != null) "mpv" else "exoplayer")
     }
@@ -1012,7 +1056,7 @@ class PlayerActivity : BasePlayerActivity() {
 
     private fun applyVideoTransform() {
         val transform = videoTransform.value
-        val mpv = viewModel.player as? MPVPlayer
+        val mpv = viewModel.existingPlayer as? MPVPlayer
         val videoWidth = viewModel.uiState.value.currentMediaInfo?.width ?: 0
         val videoHeight = viewModel.uiState.value.currentMediaInfo?.height ?: 0
         if (mpv != null) {
@@ -1167,7 +1211,7 @@ class PlayerActivity : BasePlayerActivity() {
 
     /** mpv 换硬件解码：播放中即时生效（ExoPlayer 不走这条） */
     private fun applyMpvHwDec(hwDec: String) {
-        (viewModel.player as? MPVPlayer)?.applyHwDec(hwDec)
+        (viewModel.existingPlayer as? MPVPlayer)?.applyHwDec(hwDec)
         Timber.d("mpv hwdec=%s", hwDec)
     }
 
@@ -1291,23 +1335,34 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     private fun finishPlayback() {
-        viewModel.cancelProgressFallback()
-        try {
-            // 视频输出已改为 TextureView（避免控制层覆盖时 SurfaceView 被遮挡变黑），
-            // 这里同时兼容两种输出类型
-            when (val output = binding.playerView.videoSurfaceView) {
-                is SurfaceView -> viewModel.player.clearVideoSurfaceView(output)
-                is TextureView -> viewModel.player.clearVideoTextureView(output)
-                else -> Unit
+        playbackEventsJob?.cancel()
+        playbackEventsJob = null
+        segmentPollJob?.cancel()
+        segmentPollJob = null
+        val activePlayer = viewModel.existingPlayer
+        val videoOutput = binding.playerView.videoSurfaceView
+        val completed = completeExplicitVideoExit {
+            try {
+                // 视频输出已改为 TextureView（避免控制层覆盖时 SurfaceView 被遮挡变黑），
+                // 这里同时兼容两种输出类型；必须在 stop / release 前使用退出前实例分离。
+                when (videoOutput) {
+                    is SurfaceView -> activePlayer?.clearVideoSurfaceView(videoOutput)
+                    is TextureView -> activePlayer?.clearVideoTextureView(videoOutput)
+                    else -> Unit
+                }
+            } catch (e: Exception) {
+                Timber.e(e)
             }
-        } catch (e: Exception) {
-            Timber.e(e)
+        }
+        if (!completed) {
+            if (!isFinishing) finish()
+            return
         }
         finish()
     }
 
     private fun pipParams(
-        enableAutoEnter: Boolean = viewModel.player.isPlaying
+        enableAutoEnter: Boolean = viewModel.existingPlayer?.isPlaying == true
     ): PictureInPictureParams {
         val displayAspectRatio = Rational(binding.playerView.width, binding.playerView.height)
 

@@ -50,11 +50,51 @@ class PlaybackSessionRulesTest {
     private val capturedRecoveries = mutableMapOf<MPVPlayer, MutableList<ScheduledRecovery>>()
 
     @Test
+    fun `explicit exit detaches output before finalization and runs once`() {
+        val gate = PlayerExitFinalizationGate()
+        val actions = mutableListOf<String>()
+
+        fun exit(): Boolean =
+            gate.run(
+                detachVideoOutput = { actions += "detach" },
+                finalizePlayback = { actions += "finalize" },
+            )
+
+        assertTrue(exit())
+        assertFalse(exit())
+        assertEquals(listOf("detach", "finalize"), actions)
+    }
+
+    @Test
+    fun `finalized exit blocks delayed segment callback and repeated service stop`() {
+        val gate = PlayerExitFinalizationGate()
+        var lazyPlayerCreations = 0
+        var serviceStops = 0
+
+        assertTrue(
+            gate.run(
+                detachVideoOutput = {},
+                finalizePlayback = { serviceStops += 1 },
+            )
+        )
+        assertFalse(gate.runIfActive { lazyPlayerCreations += 1 })
+        assertFalse(
+            gate.run(
+                detachVideoOutput = {},
+                finalizePlayback = { serviceStops += 1 },
+            )
+        )
+
+        assertEquals(0, lazyPlayerCreations)
+        assertEquals(1, serviceStops)
+    }
+
+    @Test
     fun `play action follows intent while loading`() {
         val loading = advance(input(isPlaying = false, isBuffering = true), 0L)
         assertTrue(loading.second.loading)
         assertTrue(loading.second.pauseWhenReady)
-        assertNull(loading.second.terminal)
+        assertNull(loading.first.terminal)
     }
 
     @Test
@@ -88,7 +128,7 @@ class PlaybackSessionRulesTest {
                 PlaybackSessionRules.STALL_TIMEOUT_MS - 1L,
                 initial.first,
             )
-        assertNull(before.second.terminal)
+        assertNull(before.first.terminal)
 
         val terminal =
             advance(
@@ -96,12 +136,12 @@ class PlaybackSessionRulesTest {
                 PlaybackSessionRules.STALL_TIMEOUT_MS,
                 before.first,
             )
-        assertEquals("PLAYBACK_PROGRESS_TIMEOUT", terminal.second.terminal?.kind)
+        assertEquals("PLAYBACK_PROGRESS_TIMEOUT", terminal.first.terminal?.kind)
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
-            terminal.second.terminal?.positionSource,
+            terminal.first.terminal?.positionSource,
         )
-        assertFalse(terminal.second.loading)
+        assertTrue(terminal.second.loading)
     }
 
     @Test
@@ -115,10 +155,10 @@ class PlaybackSessionRulesTest {
                 bufferedPositionMs = null,
             )
         val initial = advance(input, 0L)
-        assertNull(initial.second.terminal)
+        assertNull(initial.first.terminal)
         val terminal = advance(input, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
-        assertEquals("PROGRESS_UNCONFIRMED", terminal.second.terminal?.kind)
-        assertNull(terminal.second.terminal?.cause)
+        assertEquals("PROGRESS_UNCONFIRMED", terminal.first.terminal?.kind)
+        assertNull(terminal.first.terminal?.cause)
     }
 
     @Test
@@ -130,7 +170,7 @@ class PlaybackSessionRulesTest {
             advance(ready.copy(enginePositionMs = 11_000L), 29_999L, progressed.first)
         assertEquals(10_000L, progressed.first.lastProgressAtMs)
         assertEquals(11_000L, progressed.first.lastEnginePositionMs)
-        assertNull(beforeNewDeadline.second.terminal)
+        assertNull(beforeNewDeadline.first.terminal)
     }
 
     @Test
@@ -151,8 +191,8 @@ class PlaybackSessionRulesTest {
             )
         assertEquals(0L, progressed.first.lastProgressAtMs)
         assertEquals(2_000L, progressed.first.lastBufferedPositionMs)
-        assertNull(beforeNewDeadline.second.terminal)
-        assertTrue(atOriginalDeadline.second.terminal != null)
+        assertNull(beforeNewDeadline.first.terminal)
+        assertTrue(atOriginalDeadline.first.terminal != null)
     }
 
     @Test
@@ -163,7 +203,7 @@ class PlaybackSessionRulesTest {
         val beforeNewDeadline = advance(readyInput, 29_999L, ready.first)
         assertFalse(ready.second.loading)
         assertEquals(10_000L, ready.first.lastProgressAtMs)
-        assertNull(beforeNewDeadline.second.terminal)
+        assertNull(beforeNewDeadline.first.terminal)
     }
 
     @Test
@@ -171,14 +211,14 @@ class PlaybackSessionRulesTest {
         val input = input(isPlaying = false, isBuffering = true)
         val initial = advance(input, 0L)
         val terminal = advance(input, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
-        assertTrue(terminal.second.terminal != null)
+        assertTrue(terminal.first.terminal != null)
         val changed =
             advance(
                 input.copy(key = "item-b|source-b|2|2"),
                 PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
                 terminal.first,
             )
-        assertNull(changed.second.terminal)
+        assertNull(changed.first.terminal)
         assertNull(changed.first.terminal)
         assertFalse(changed.first.retryConsumed)
         assertNull(PlaybackSessionRules.consumeRetry(changed.first, "stale"))
@@ -237,7 +277,7 @@ class PlaybackSessionRulesTest {
         val initial = advance(input(key = oldKey), 0L)
         val oldTerminal =
             advance(input(key = oldKey), PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
-        assertTrue(oldTerminal.second.terminal != null)
+        assertTrue(oldTerminal.first.terminal != null)
 
         val switched =
             advance(
@@ -245,7 +285,7 @@ class PlaybackSessionRulesTest {
                 PlaybackSessionRules.STALL_TIMEOUT_MS,
                 oldTerminal.first,
             )
-        assertNull(switched.second.terminal)
+        assertNull(switched.first.terminal)
         assertNull(switched.first.terminal)
         assertFalse(switched.first.retryConsumed)
 
@@ -255,14 +295,14 @@ class PlaybackSessionRulesTest {
                 PlaybackSessionRules.STALL_TIMEOUT_MS * 2L - 1L,
                 switched.first,
             )
-        assertNull(beforeNewTerminal.second.terminal)
+        assertNull(beforeNewTerminal.first.terminal)
         val newTerminal =
             advance(
                 input(key = newKey),
                 PlaybackSessionRules.STALL_TIMEOUT_MS * 2L,
                 beforeNewTerminal.first,
             )
-        assertTrue(newTerminal.second.terminal != null)
+        assertTrue(newTerminal.first.terminal != null)
         val token = requireNotNull(newTerminal.first.terminal).token
         val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(newTerminal.first, token))
         assertNull(PlaybackSessionRules.consumeRetry(consumed, token))
@@ -275,7 +315,7 @@ class PlaybackSessionRulesTest {
         assertTrue(token.isNotBlank())
         assertNull(PlaybackSessionRules.consumeRetry(terminal.first, "other-terminal"))
         val consumed = requireNotNull(PlaybackSessionRules.consumeRetry(terminal.first, token))
-        assertEquals(5_000L, terminal.second.terminal?.positionMs)
+        assertEquals(5_000L, terminal.first.terminal?.positionMs)
         assertTrue(consumed.retryConsumed)
         assertNull(
             PlaybackSessionRules.project(consumed, input(isPlaying = false, isBuffering = true))
@@ -291,7 +331,7 @@ class PlaybackSessionRulesTest {
             explicit: Long?,
             persisted: Long?,
         ): PlayerViewModel.PlaybackRetryPositionSource? =
-            terminalAtDeadline(engine, explicit, persisted).second.terminal?.positionSource
+            terminalAtDeadline(engine, explicit, persisted).first.terminal?.positionSource
 
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST,
@@ -334,18 +374,71 @@ class PlaybackSessionRulesTest {
         val terminal =
             advance(buffering, PlaybackSessionRules.STALL_TIMEOUT_MS, stillBuffering.first)
 
-        assertEquals(60_000L, terminal.second.terminal?.positionMs)
+        assertEquals(60_000L, terminal.first.terminal?.positionMs)
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST,
-            terminal.second.terminal?.positionSource,
+            terminal.first.terminal?.positionSource,
         )
         assertEquals(
             5_000L,
             terminalAtDeadline(enginePositionMs = 5_000L, persistedResumeMs = 8_000L)
-                .second
+                .first
                 .terminal
                 ?.positionMs,
         )
+    }
+
+    @Test
+    fun `new backward seek retires terminal until a new deadline`() {
+        val terminal = terminalAtDeadline(enginePositionMs = 40_000L).first
+        val recoveryTargets = mutableListOf<Long>()
+
+        fun requestVisibleRecovery(state: PlaybackSessionState) {
+            state.terminal?.let { recoveryTargets += it.positionMs }
+        }
+
+        requestVisibleRecovery(terminal)
+        assertEquals(listOf(40_000L), recoveryTargets)
+        recoveryTargets.clear()
+
+        val newSeek =
+            input(
+                enginePositionMs = null,
+                bufferedPositionMs = null,
+                explicitSeekTargetMs = 10_000L,
+                explicitSeekRequestGeneration = 22L,
+                explicitSeekSourceEpoch = 7L,
+            )
+        val seekAtMs = PlaybackSessionRules.STALL_TIMEOUT_MS + 1_000L
+        val afterSeek = advance(newSeek, seekAtMs, terminal).first
+        requestVisibleRecovery(afterSeek)
+        assertNull(afterSeek.terminal)
+
+        val paused =
+            advance(
+                    newSeek.copy(playWhenReady = false),
+                    seekAtMs + 1_000L,
+                    afterSeek,
+                )
+                .first
+        requestVisibleRecovery(paused)
+        assertNull(paused.terminal)
+
+        val resumed = advance(newSeek, seekAtMs + 2_000L, paused).first
+        requestVisibleRecovery(resumed)
+        assertNull(resumed.terminal)
+        assertTrue(recoveryTargets.isEmpty())
+
+        val newTerminal =
+            advance(
+                    newSeek,
+                    seekAtMs + 2_000L + PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
+                    resumed,
+                )
+                .first
+        requestVisibleRecovery(newTerminal)
+        assertEquals(10_000L, newTerminal.terminal?.positionMs)
+        assertEquals(listOf(10_000L), recoveryTargets)
     }
 
     @Test
@@ -368,10 +461,10 @@ class PlaybackSessionRulesTest {
                 switched.first,
             )
 
-        assertEquals(8_000L, terminal.second.terminal?.positionMs)
+        assertEquals(8_000L, terminal.first.terminal?.positionMs)
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.PERSISTED_RESUME,
-            terminal.second.terminal?.positionSource,
+            terminal.first.terminal?.positionSource,
         )
     }
 
@@ -404,10 +497,10 @@ class PlaybackSessionRulesTest {
                 PlaybackSessionRules.STALL_TIMEOUT_MS + 100L,
                 invalidated.first,
             )
-        assertEquals(5_000L, terminal.second.terminal?.positionMs)
+        assertEquals(5_000L, terminal.first.terminal?.positionMs)
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
-            terminal.second.terminal?.positionSource,
+            terminal.first.terminal?.positionSource,
         )
 
         val renewed =
@@ -474,7 +567,7 @@ class PlaybackSessionRulesTest {
         assertEquals(targetMs, failed.first.pendingSeekTargetMs)
         assertTrue(failed.second.showSeekFailure)
         assertFalse(failed.second.loading)
-        assertNull(failed.second.terminal)
+        assertNull(failed.first.terminal)
     }
 
     @Test
@@ -492,9 +585,9 @@ class PlaybackSessionRulesTest {
         val terminal = advance(invalid, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.START_ZERO,
-            terminal.second.terminal?.positionSource,
+            terminal.first.terminal?.positionSource,
         )
-        assertEquals(0L, terminal.second.terminal?.positionMs)
+        assertEquals(0L, terminal.first.terminal?.positionMs)
     }
 
     @Test
@@ -536,7 +629,7 @@ class PlaybackSessionRulesTest {
         )
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
-            terminalAtDeadline(enginePositionMs = 0L).second.terminal?.positionSource,
+            terminalAtDeadline(enginePositionMs = 0L).first.terminal?.positionSource,
         )
         val noSourceZero =
             advance(
@@ -709,7 +802,7 @@ class PlaybackSessionRulesTest {
             )
         val initial = advance(loading, 0L)
         val terminal = advance(loading, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
-        assertTrue(terminal.second.terminal != null)
+        assertTrue(terminal.first.terminal != null)
 
         val bufferedGrowth =
             advance(
@@ -717,7 +810,7 @@ class PlaybackSessionRulesTest {
                 PlaybackSessionRules.STALL_TIMEOUT_MS + 1L,
                 terminal.first,
             )
-        assertTrue(bufferedGrowth.second.terminal != null)
+        assertTrue(bufferedGrowth.first.terminal != null)
         assertEquals(0L, bufferedGrowth.first.lastProgressAtMs)
     }
 
@@ -736,7 +829,7 @@ class PlaybackSessionRulesTest {
                 terminal.first,
             )
 
-        assertNull(advanced.second.terminal)
+        assertNull(advanced.first.terminal)
     }
 
     @Test
@@ -755,7 +848,7 @@ class PlaybackSessionRulesTest {
                 terminal.first,
             )
 
-        assertNull(recovered.second.terminal)
+        assertNull(recovered.first.terminal)
     }
 
     @Test
@@ -777,7 +870,7 @@ class PlaybackSessionRulesTest {
 
         assertEquals(5_000L, buffering.first.lastEnginePositionMs)
         assertEquals(5_000L, buffering.second.lastConfirmedPositionMs)
-        assertNull(buffering.second.terminal)
+        assertNull(buffering.first.terminal)
 
         val terminal =
             advance(
@@ -792,10 +885,10 @@ class PlaybackSessionRulesTest {
                 buffering.first,
             )
 
-        assertEquals(5_000L, terminal.second.terminal?.positionMs)
+        assertEquals(5_000L, terminal.first.terminal?.positionMs)
         assertEquals(
             PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
-            terminal.second.terminal?.positionSource,
+            terminal.first.terminal?.positionSource,
         )
     }
 
@@ -3186,7 +3279,7 @@ class PlaybackSessionRulesTest {
                 terminal.first,
             )
 
-        assertNull(changed.second.terminal)
+        assertNull(changed.first.terminal)
         assertNull(PlaybackSessionRules.consumeRetry(changed.first, token))
     }
 
@@ -3221,6 +3314,16 @@ class PlaybackSessionRulesTest {
             advance(input(hasPlayerError = true, hasSeekFailure = true), 0L).second.showPlayerError
         )
         assertTrue(advance(input(hasSeekFailure = true), 0L).second.showSeekFailure)
+    }
+
+    @Test
+    fun `progress terminal stays internal instead of becoming a blocking UI projection`() {
+        val terminal = terminalAtDeadline(enginePositionMs = 5_000L)
+        val recovery = PlaybackSessionRules.project(terminal.first, input())
+
+        assertNotNull(terminal.first.terminal)
+        assertNull(recovery.terminal)
+        assertTrue(recovery.loading)
     }
 
     @Test

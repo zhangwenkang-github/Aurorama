@@ -20,6 +20,32 @@ internal data class PlaybackRecoveryCopy(
     val positionMs: Long?,
 )
 
+internal data class PlaybackRecoveryPresentation(
+    val forceControlsVisible: Boolean,
+    val canAutoHideControls: Boolean,
+    val showProgressRecoveryAction: Boolean,
+)
+
+internal fun playbackRecoveryPresentation(
+    showPlayerError: Boolean,
+    seekFailed: Boolean,
+    progressRecovery: Boolean,
+): PlaybackRecoveryPresentation {
+    val controlsBlocked = showPlayerError || seekFailed
+    return PlaybackRecoveryPresentation(
+        forceControlsVisible = controlsBlocked,
+        canAutoHideControls = !controlsBlocked,
+        showProgressRecoveryAction = false,
+    )
+}
+
+internal fun resolvePlaybackRecoveryTitle(kind: String): PlaybackRecoveryTitle =
+    when (kind) {
+        "PLAYBACK_PROGRESS_TIMEOUT" -> PlaybackRecoveryTitle.Stalled
+        "PROGRESS_UNCONFIRMED" -> PlaybackRecoveryTitle.ProgressUnconfirmed
+        else -> PlaybackRecoveryTitle.Generic
+    }
+
 internal fun PlaybackRecoveryTitle.stringRes(): Int =
     when (this) {
         PlaybackRecoveryTitle.Stalled -> PlayerR.string.player_progress_recovery_stalled
@@ -41,12 +67,7 @@ internal fun resolvePlaybackRecoveryCopy(
     positionMs: Long,
     positionSource: PlayerViewModel.PlaybackRetryPositionSource,
 ): PlaybackRecoveryCopy {
-    val title =
-        when (kind) {
-            "PLAYBACK_PROGRESS_TIMEOUT" -> PlaybackRecoveryTitle.Stalled
-            "PROGRESS_UNCONFIRMED" -> PlaybackRecoveryTitle.ProgressUnconfirmed
-            else -> PlaybackRecoveryTitle.Generic
-        }
+    val title = resolvePlaybackRecoveryTitle(kind)
     val restartFromBeginning =
         positionSource == PlayerViewModel.PlaybackRetryPositionSource.START_ZERO || positionMs <= 0L
     return PlaybackRecoveryCopy(

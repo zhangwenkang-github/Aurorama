@@ -27,6 +27,267 @@ internal data class PlayerProgressFallbackRequest(
     val positionMs: Long,
 )
 
+internal const val MAX_AUTO_PROGRESS_RECOVERY_ATTEMPTS = 2
+
+internal data class PlayerProgressRecoveryInput(
+    val sessionKey: String?,
+    val mediaIdentity: PlaybackMediaIdentity?,
+    val targetPositionMs: Long,
+    val terminalKind: String?,
+    val terminalToken: String?,
+    val playWhenReady: Boolean,
+    val hasPlayerError: Boolean,
+    val hasSeekFailure: Boolean,
+    val enginePositionMs: Long?,
+    val bufferedPositionMs: Long?,
+    val isReady: Boolean,
+    val isPlaying: Boolean,
+    val wasLoading: Boolean,
+)
+
+internal data class PlayerProgressRecoveryRequest(
+    val token: String,
+    val sessionKey: String,
+    val mediaIdentity: PlaybackMediaIdentity,
+    val targetPositionMs: Long,
+    val terminalKind: String,
+    val terminalToken: String,
+    val generation: Long,
+    val attempt: Int,
+    val delayMs: Long,
+)
+
+internal enum class PlayerProgressRecoveryPhase {
+    IDLE,
+    RETRYING,
+    EXHAUSTED,
+    CONFIRMED,
+    CANCELLED,
+}
+
+internal data class PlayerProgressRecoveryStatus(
+    val phase: PlayerProgressRecoveryPhase,
+    val terminalKind: String?,
+    val attempt: Int,
+    val maxAttempts: Int,
+)
+
+internal class PlayerProgressRecoveryController {
+    private data class State(
+        val sessionKey: String,
+        val mediaIdentity: PlaybackMediaIdentity,
+        val targetPositionMs: Long,
+        val terminalKind: String,
+        val terminalToken: String,
+        val generation: Long,
+        val baselineEnginePositionMs: Long?,
+        val baselineWasLoading: Boolean,
+        val attempts: Int = 0,
+        val request: PlayerProgressRecoveryRequest? = null,
+        val exhausted: Boolean = false,
+        val confirmed: Boolean = false,
+    )
+
+    private var state: State? = null
+    private var nextGeneration = 0L
+    private var nextRequestId = 1L
+
+    fun begin(input: PlayerProgressRecoveryInput): PlayerProgressRecoveryRequest? {
+        val identity = input.identity() ?: return null
+        val current = state
+        if (current != null && !current.matches(identity, input.targetPositionMs)) {
+            state = null
+        }
+        val next =
+            state
+                ?: State(
+                    sessionKey = identity.first,
+                    mediaIdentity = identity.second,
+                    targetPositionMs = input.targetPositionMs.coerceAtLeast(0L),
+                    terminalKind = requireNotNull(input.terminalKind),
+                    terminalToken = requireNotNull(input.terminalToken),
+                    generation = ++nextGeneration,
+                    baselineEnginePositionMs = input.enginePositionMs,
+                    baselineWasLoading = input.wasLoading,
+                )
+        if (
+            state != null &&
+                (next.terminalToken != input.terminalToken ||
+                    next.terminalKind != input.terminalKind)
+        ) {
+            state = null
+            return begin(input)
+        }
+        if (next.request != null || next.exhausted || next.confirmed) return null
+        if (next.attempts >= MAX_AUTO_PROGRESS_RECOVERY_ATTEMPTS) {
+            state = next.copy(exhausted = true)
+            return null
+        }
+        val attempt = next.attempts + 1
+        val request =
+            PlayerProgressRecoveryRequest(
+                token = "progress-recovery:${next.generation}:${attempt}:${nextRequestId++}",
+                sessionKey = next.sessionKey,
+                mediaIdentity = next.mediaIdentity,
+                targetPositionMs = next.targetPositionMs,
+                terminalKind = next.terminalKind,
+                terminalToken = next.terminalToken,
+                generation = next.generation,
+                attempt = attempt,
+                delayMs = RETRY_DELAYS_MS[attempt - 1],
+            )
+        state = next.copy(attempts = attempt, request = request)
+        return request
+    }
+
+    fun observe(input: PlayerProgressRecoveryInput): PlayerProgressRecoveryStatus {
+        val current = state ?: return idleStatus()
+        val identity = input.identity()
+        if (
+            identity == null ||
+                !current.matches(identity, input.targetPositionMs) ||
+                input.terminalToken != current.terminalToken ||
+                input.terminalKind != current.terminalKind ||
+                !input.playWhenReady ||
+                input.hasPlayerError ||
+                input.hasSeekFailure
+        ) {
+            state = null
+            return status(
+                phase = PlayerProgressRecoveryPhase.CANCELLED,
+                state = current,
+            )
+        }
+        val engineAdvanced =
+            input.enginePositionMs != null &&
+                current.baselineEnginePositionMs != null &&
+                input.enginePositionMs > current.baselineEnginePositionMs
+        val readyRecovered = current.baselineWasLoading && input.isReady && input.isPlaying
+        if (engineAdvanced || readyRecovered) {
+            state = current.copy(request = null, confirmed = true, exhausted = false)
+            return status(
+                phase = PlayerProgressRecoveryPhase.CONFIRMED,
+                state = current,
+            )
+        }
+        return status(
+            phase =
+                if (current.exhausted) {
+                    PlayerProgressRecoveryPhase.EXHAUSTED
+                } else {
+                    PlayerProgressRecoveryPhase.RETRYING
+                },
+            state = current,
+        )
+    }
+
+    fun nextAttempt(previous: PlayerProgressRecoveryRequest): PlayerProgressRecoveryRequest? {
+        val current = state ?: return null
+        if (!isCurrent(previous) || current.confirmed) return null
+        if (current.attempts >= MAX_AUTO_PROGRESS_RECOVERY_ATTEMPTS) {
+            state =
+                current.copy(
+                    request = null,
+                    exhausted = true,
+                )
+            return null
+        }
+        val attempt = current.attempts + 1
+        val request =
+            previous.copy(
+                token = "progress-recovery:${current.generation}:${attempt}:${nextRequestId++}",
+                attempt = attempt,
+                delayMs = RETRY_DELAYS_MS[attempt - 1],
+            )
+        state =
+            current.copy(
+                attempts = attempt,
+                request = request,
+                exhausted = false,
+            )
+        return request
+    }
+
+    fun exhaust(request: PlayerProgressRecoveryRequest) {
+        val current = state ?: return
+        if (!isCurrent(request)) return
+        state =
+            current.copy(
+                request = null,
+                exhausted = current.attempts >= MAX_AUTO_PROGRESS_RECOVERY_ATTEMPTS,
+            )
+    }
+
+    fun isCurrent(request: PlayerProgressRecoveryRequest): Boolean {
+        val current = state ?: return false
+        return current.generation == request.generation &&
+            current.sessionKey == request.sessionKey &&
+            current.mediaIdentity == request.mediaIdentity &&
+            current.terminalToken == request.terminalToken &&
+            current.targetPositionMs == request.targetPositionMs
+    }
+
+    fun status(): PlayerProgressRecoveryStatus? {
+        val current = state ?: return null
+        if (current.confirmed) return null
+        return status(
+            phase =
+                if (current.exhausted) {
+                    PlayerProgressRecoveryPhase.EXHAUSTED
+                } else {
+                    PlayerProgressRecoveryPhase.RETRYING
+                },
+            state = current,
+        )
+    }
+
+    fun cancel() {
+        state = null
+    }
+
+    private fun PlayerProgressRecoveryInput.identity(): Pair<String, PlaybackMediaIdentity>? {
+        val sessionKey = sessionKey?.takeIf(String::isNotBlank) ?: return null
+        val mediaIdentity = mediaIdentity ?: return null
+        if (mediaIdentity.mediaSourceId.isBlank()) return null
+        if (terminalKind !in PROGRESS_TERMINAL_KINDS) return null
+        if (terminalToken.isNullOrBlank()) return null
+        if (!playWhenReady || hasPlayerError || hasSeekFailure) return null
+        return sessionKey to mediaIdentity
+    }
+
+    private fun State.matches(
+        identity: Pair<String, PlaybackMediaIdentity>,
+        targetPositionMs: Long,
+    ): Boolean =
+        sessionKey == identity.first &&
+            mediaIdentity == identity.second &&
+            this.targetPositionMs == targetPositionMs.coerceAtLeast(0L)
+
+    private fun idleStatus() =
+        PlayerProgressRecoveryStatus(
+            phase = PlayerProgressRecoveryPhase.IDLE,
+            terminalKind = null,
+            attempt = 0,
+            maxAttempts = MAX_AUTO_PROGRESS_RECOVERY_ATTEMPTS,
+        )
+
+    private fun status(
+        phase: PlayerProgressRecoveryPhase,
+        state: State,
+    ) =
+        PlayerProgressRecoveryStatus(
+            phase = phase,
+            terminalKind = state.terminalKind,
+            attempt = state.attempts,
+            maxAttempts = MAX_AUTO_PROGRESS_RECOVERY_ATTEMPTS,
+        )
+
+    private companion object {
+        val RETRY_DELAYS_MS = longArrayOf(1_000L, 4_000L)
+        val PROGRESS_TERMINAL_KINDS = setOf("PLAYBACK_PROGRESS_TIMEOUT", "PROGRESS_UNCONFIRMED")
+    }
+}
+
 internal class PlayerProgressFallbackController {
     private data class State(
         val sessionKey: String? = null,
