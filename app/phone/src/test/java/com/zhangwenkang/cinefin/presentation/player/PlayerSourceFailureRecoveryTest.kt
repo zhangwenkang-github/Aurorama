@@ -16,6 +16,7 @@ import com.zhangwenkang.cinefin.player.local.presentation.PlaybackSeekSink
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerHolder
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.PlaybackSourceAttemptContext
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -24,6 +25,7 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import java.io.IOException
+import java.util.Collections
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +41,7 @@ import kotlinx.coroutines.test.setMain
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -101,6 +104,10 @@ class PlayerSourceFailureRecoveryTest {
         pump(harness.dispatcher)
 
         assertEquals(2, harness.sourceCalls.get())
+        val attempts = harness.sourceAttempts.toList()
+        assertEquals(2, attempts.size)
+        assertEquals(attempts[0].sourceIntentId, attempts[1].sourceIntentId)
+        assertNotEquals(attempts[0].attemptId, attempts[1].attemptId)
         coVerify(exactly = 2) {
             harness.playlistManager.getInitialItem(
                 itemId = ITEM_ID,
@@ -109,6 +116,7 @@ class PlayerSourceFailureRecoveryTest {
                 preferredMediaSourceId = "source-2",
                 startFromBeginning = true,
                 startPositionMs = 42_000L,
+                sourceAttempt = any(),
             )
         }
         val error = harness.viewModel.uiState.value.playerError
@@ -129,7 +137,7 @@ class PlayerSourceFailureRecoveryTest {
             pump(harness.dispatcher)
             assertEquals(1, harness.sourceCalls.get())
 
-            delay(31_000L)
+            delay(36_000L)
             pump(harness.dispatcher)
 
             val error = harness.viewModel.uiState.value.playerError
@@ -190,6 +198,8 @@ class PlayerSourceFailureRecoveryTest {
         every { playerHolder.musicSessionActive } returns false
         every { playerHolder.isCurrentItemMusic } returns false
         val sourceCalls = AtomicInteger()
+        val sourceAttempts =
+            Collections.synchronizedList(mutableListOf<PlaybackSourceAttemptContext>())
         if (hangSource) {
             coEvery {
                 playlistManager.getInitialItem(
@@ -199,9 +209,11 @@ class PlayerSourceFailureRecoveryTest {
                     preferredMediaSourceId = any(),
                     startFromBeginning = any(),
                     startPositionMs = any(),
+                    sourceAttempt = any(),
                 )
             } coAnswers
                 {
+                    sourceAttempts += invocation.args[6] as PlaybackSourceAttemptContext
                     sourceCalls.incrementAndGet()
                     awaitCancellation()
                 }
@@ -214,9 +226,11 @@ class PlayerSourceFailureRecoveryTest {
                     preferredMediaSourceId = any(),
                     startFromBeginning = any(),
                     startPositionMs = any(),
+                    sourceAttempt = any(),
                 )
             } answers
                 {
+                    sourceAttempts += invocation.args[6] as PlaybackSourceAttemptContext
                     sourceCalls.incrementAndGet()
                     throw IOException("source unavailable")
                 }
@@ -234,7 +248,14 @@ class PlayerSourceFailureRecoveryTest {
                 playbackCoordinator = mockk<PlaybackCoordinatorImpl>(relaxed = true),
                 jellyfinApi = mockk<JellyfinApi>(relaxed = true),
             )
-        return Harness(viewModel, playlistManager, sourceCalls, toastCalls, dispatcher)
+        return Harness(
+            viewModel,
+            playlistManager,
+            sourceCalls,
+            toastCalls,
+            sourceAttempts,
+            dispatcher,
+        )
     }
 
     private suspend fun pump(dispatcher: TestDispatcher) {
@@ -250,6 +271,7 @@ class PlayerSourceFailureRecoveryTest {
         val playlistManager: PlaylistManager,
         val sourceCalls: AtomicInteger,
         val toastCalls: AtomicInteger,
+        val sourceAttempts: MutableList<PlaybackSourceAttemptContext>,
         val dispatcher: TestDispatcher,
     )
 }

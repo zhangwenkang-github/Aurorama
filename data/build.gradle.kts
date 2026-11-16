@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.timber)
 
     testImplementation(libs.junit)
+    testImplementation(libs.slf4j.api)
     testImplementation("io.mockk:mockk:1.13.16")
     testImplementation("org.xerial:sqlite-jdbc:3.50.3.0")
     androidTestImplementation("androidx.room3:room3-testing:3.0.3")

@@ -92,6 +92,7 @@ import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSecondaryUnavailab
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSelectionScope
 import com.zhangwenkang.cinefin.player.local.subtitle.shouldSuppressSecondaryForMpvPrimarySelection
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.PlaybackSourceAttemptContext
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
@@ -179,7 +180,7 @@ constructor(
         private const val STOP_REPORT_DEDUPE_MS = 15_000L
 
         private const val PLAYBACK_SESSION_SAMPLE_INTERVAL_MS = 1_000L
-        private const val SOURCE_RESOLUTION_TIMEOUT_MS = 30_000L
+        private const val SOURCE_RESOLUTION_OUTER_TIMEOUT_MS = 35_000L
 
         /** W73（#8）：网络类播放错误的原地重试窗口 / 次数上限（超过则交给错误卡片，不换内核、不重启页面）。 */
         private const val NETWORK_RETRY_WINDOW_MS = 30_000L
@@ -368,6 +369,7 @@ constructor(
         val playbackSessionId: String,
         val queueEntries: List<PlaybackQueueEntry>,
         val preferredMediaSourceId: String?,
+        val sourceIntentId: String,
     )
 
     /** W86-C：Activity / 手势只能提交这些意图，不能直接操作底层播放器位置。 */
@@ -924,6 +926,7 @@ constructor(
         playbackSessionId: String,
         queueEntries: List<PlaybackQueueEntry> = emptyList(),
         preferredMediaSourceId: String? = null,
+        sourceIntentId: String = UUID.randomUUID().toString(),
     ) {
         if (explicitExitController.isExited) return
         val sourceIntent =
@@ -935,7 +938,9 @@ constructor(
                 playbackSessionId = playbackSessionId,
                 queueEntries = queueEntries.toList(),
                 preferredMediaSourceId = preferredMediaSourceId,
+                sourceIntentId = sourceIntentId,
             )
+        val sourceAttempt = PlaybackSourceAttemptContext.new(sourceIntent.sourceIntentId)
         failedSourceIntent = null
         _uiState.update { it.copy(playerError = null) }
         seriesPlaybackTrace = null
@@ -979,7 +984,7 @@ constructor(
             val startItem =
                 try {
                     runPlaybackStartupRequest {
-                        withTimeout(SOURCE_RESOLUTION_TIMEOUT_MS) {
+                        withTimeout(SOURCE_RESOLUTION_OUTER_TIMEOUT_MS) {
                             if (queueEntries.isNotEmpty()) {
                                 playlistManager.getInitialItemForQueue(
                                     entries = queueEntries,
@@ -987,6 +992,7 @@ constructor(
                                     preferredMediaSourceId = preferredMediaSourceId,
                                     startFromBeginning = startFromBeginning,
                                     startPositionMs = startPositionMs.takeIf { it > 0L },
+                                    sourceAttempt = sourceAttempt,
                                 )
                             } else {
                                 playlistManager.getInitialItem(
@@ -996,6 +1002,7 @@ constructor(
                                     preferredMediaSourceId = preferredMediaSourceId,
                                     startFromBeginning = startFromBeginning,
                                     startPositionMs = startPositionMs.takeIf { it > 0L },
+                                    sourceAttempt = sourceAttempt,
                                 )
                             }
                         }
@@ -1004,7 +1011,7 @@ constructor(
                     if (!isActive || !explicitExitController.isCurrent(exitGeneration)) {
                         return@launch
                     }
-                    Timber.w(e, "Playback source resolution timed out")
+                    Timber.w("Playback source resolution timed out")
                     sourceFailure = sourceResolutionFailure()
                     null
                 } catch (e: CancellationException) {
@@ -1017,7 +1024,10 @@ constructor(
                     if (!isActive || !explicitExitController.isCurrent(exitGeneration)) {
                         return@launch
                     }
-                    Timber.e(e)
+                    Timber.e(
+                        "Playback source resolution failed: %s",
+                        e.javaClass.simpleName,
+                    )
                     sourceFailure = sourceResolutionFailure()
                     null
                 }
@@ -3275,6 +3285,7 @@ constructor(
                 playbackSessionId = sourceIntent.playbackSessionId,
                 queueEntries = sourceIntent.queueEntries,
                 preferredMediaSourceId = sourceIntent.preferredMediaSourceId,
+                sourceIntentId = sourceIntent.sourceIntentId,
             )
             return
         }

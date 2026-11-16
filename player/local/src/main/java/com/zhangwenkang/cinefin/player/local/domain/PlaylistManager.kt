@@ -18,6 +18,8 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.TrickplayInfo
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.PlaybackSourceAttemptContext
+import com.zhangwenkang.cinefin.repository.PlaybackSourceResolver
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -26,7 +28,17 @@ import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.MediaStreamType
 import timber.log.Timber
 
-class PlaylistManager @Inject internal constructor(private val repository: JellyfinRepository) {
+class PlaylistManager internal constructor(private val repository: JellyfinRepository) {
+    private var playbackSourceResolver: PlaybackSourceResolver? = null
+
+    @Inject
+    internal constructor(
+        repository: JellyfinRepository,
+        playbackSourceResolver: PlaybackSourceResolver,
+    ) : this(repository) {
+        this.playbackSourceResolver = playbackSourceResolver
+    }
+
     private var startItem: FindroidItem? = null
     private var items: List<FindroidItem> = emptyList()
     private val playerItems: MutableList<PlayerItem> = mutableListOf()
@@ -67,6 +79,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         preferredMediaSourceId: String? = null,
         startFromBeginning: Boolean = false,
         startPositionMs: Long? = null,
+        sourceAttempt: PlaybackSourceAttemptContext? = null,
     ): PlayerItem? {
         Timber.d("Retrieving initial player item")
 
@@ -222,6 +235,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                     playbackPosition = playbackPosition,
                     preferredMediaSourceId = preferredMediaSourceId,
                     seriesTraceContext = seriesTrace,
+                    sourceAttempt = sourceAttempt,
                 )
             } catch (e: CancellationException) {
                 throw e
@@ -246,6 +260,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         preferredMediaSourceId: String? = null,
         startFromBeginning: Boolean = false,
         startPositionMs: Long? = null,
+        sourceAttempt: PlaybackSourceAttemptContext? = null,
     ): PlayerItem? {
         // W76-B11b：显式队列播放不走「骨架队列 + 后台补全」
         pendingSeriesQueueExpansion = null
@@ -278,6 +293,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 mediaSourceIndex = null,
                 playbackPosition = playbackPosition,
                 preferredMediaSourceId = preferredMediaSourceId,
+                sourceAttempt = sourceAttempt,
             )
         playerItems.add(playerItem)
         return playerItem
@@ -583,6 +599,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         forceRefresh: Boolean = false,
         preferredMediaSourceId: String? = null,
         seriesTraceContext: SeriesResolutionTraceContext? = null,
+        sourceAttempt: PlaybackSourceAttemptContext? = null,
     ): PlayerItem =
         playbackRequestCache.resolve(
             key =
@@ -591,6 +608,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                     mediaSourceIndex = mediaSourceIndex,
                     startPositionTicks = playbackPosition * 10000L,
                     preferredMediaSourceId = preferredMediaSourceId,
+                    sourceAttemptId = sourceAttempt?.attemptId,
                 ),
             forceRefresh = forceRefresh,
         ) {
@@ -599,6 +617,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 playbackPosition,
                 preferredMediaSourceId,
                 seriesTraceContext,
+                sourceAttempt,
             )
         }
 
@@ -608,6 +627,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         playbackPosition: Long,
         preferredMediaSourceId: String?,
         seriesTraceContext: SeriesResolutionTraceContext?,
+        sourceAttempt: PlaybackSourceAttemptContext?,
     ): PlayerItem {
         Timber.d("Converting FindroidItem ${this.id} to PlayerItem")
 
@@ -616,7 +636,19 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
          * 而不是恒从 0 开始追赶（窗口外 seek 长卡 / 回片头的根因）。
          */
         val mediaSources =
-            repository.getMediaSources(id, true, startPositionTicks = playbackPosition * 10000L)
+            playbackSourceResolver
+                ?.resolve(
+                    itemId = id,
+                    includePath = true,
+                    startPositionTicks = playbackPosition * 10000L,
+                    attempt = sourceAttempt ?: PlaybackSourceAttemptContext.new(),
+                )
+                ?.resolvedSourcesOrThrow()
+                ?: repository.getMediaSources(
+                    id,
+                    true,
+                    startPositionTicks = playbackPosition * 10000L,
+                )
         val mediaSource =
             if (mediaSourceIndex == null) {
                 selectFindroidSource(mediaSources, preferredMediaSourceId)

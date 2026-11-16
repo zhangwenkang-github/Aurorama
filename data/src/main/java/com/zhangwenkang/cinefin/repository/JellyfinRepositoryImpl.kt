@@ -50,8 +50,6 @@ import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
 import com.zhangwenkang.cinefin.repository.catalog.CatalogView
 import com.zhangwenkang.cinefin.repository.catalog.CatalogViewItems
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
-import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
-import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.io.File
 import java.util.UUID
@@ -74,7 +72,6 @@ import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.PlayAccess
 import org.jellyfin.sdk.model.api.PlayMethod
-import org.jellyfin.sdk.model.api.PlaybackInfoDto
 import org.jellyfin.sdk.model.api.PlaybackOrder
 import org.jellyfin.sdk.model.api.PlaybackProgressInfo
 import org.jellyfin.sdk.model.api.PlaybackStartInfo
@@ -1798,59 +1795,32 @@ class JellyfinRepositoryImpl(
              * 播放侧（PlaylistManager）优先使用它。分辨率标签参考 Android client v2.7.3 快照，
              * 是非协议硬限制标签，不会新增 maxWidth / maxHeight 请求。
              */
-            val streamingBitrate = appPreferences.getPlayerStreamingBitrate()
-            val maxStreamingBitrate =
-                PlayerStreamingQuality.maxStreamingBitrate(streamingBitrate).toInt()
-            val transcodingEnabled = PlayerStreamingQuality.transcodingEnabled(streamingBitrate)
+            val request =
+                PlaybackInfoSourceRequestFactory.create(
+                    appPreferences = appPreferences,
+                    userId = jellyfinApi.userId!!,
+                    startPositionTicks = startPositionTicks,
+                )
             /*
              * W16 解码回退链第 2 档：本地硬解报「解码能力不足」后，按回退档位强制服务器转码——
              * 明确不允许直连 / 直传（enableDirectPlay / enableDirectStream = false），否则服务器会
              * 认为参数没超限继续 DirectPlay，客户端还是解不了。用户显式选码率后档位会清零。
              */
-            val forceTranscode =
-                PlayerDecodeFallback.forcesServerTranscode(
-                    appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
-                )
-            val deviceProfile = PlaybackDeviceProfileFactory.create(maxStreamingBitrate)
+            val deviceProfile = request.deviceProfile
             Timber.d(
                 "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b forceTranscode=%b directPlay=%d transcodingProfiles=%d startTimeTicks=%d",
-                streamingBitrate,
-                maxStreamingBitrate,
-                transcodingEnabled,
-                forceTranscode,
-                deviceProfile.directPlayProfiles.size,
-                deviceProfile.transcodingProfiles.size,
-                startPositionTicks,
+                appPreferences.getPlayerStreamingBitrate(),
+                request.maxStreamingBitrate ?: 0,
+                request.enableTranscoding == true,
+                request.enableDirectPlay == false && request.enableDirectStream == false,
+                deviceProfile?.directPlayProfiles?.size ?: 0,
+                deviceProfile?.transcodingProfiles?.size ?: 0,
+                request.startTimeTicks ?: 0L,
             )
             val sources = mutableListOf<FindroidSource>()
             sources.addAll(
                 jellyfinApi.mediaInfoApi
-                    .getPostedPlaybackInfo(
-                        itemId,
-                        PlaybackInfoDto(
-                            userId = jellyfinApi.userId!!,
-                            deviceProfile = deviceProfile,
-                            maxStreamingBitrate = maxStreamingBitrate,
-                            /*
-                             * W73（#7）：把起播 / seek 目标位置透传给服务器。转码会话据此从目标位置开始生成分片，
-                             * 客户端不必等转码任务从 0 追赶（实测窗口外 seek 会 BUFFERING 15–30 s）。
-                             */
-                            startTimeTicks = startPositionTicks.takeIf { it > 0L },
-                            // 原始画质 = 只直连；自动 / 具体码率都允许服务器转码
-                            enableTranscoding = transcodingEnabled,
-                            // W16：回退档位 = 服务器转码时禁止直连 / 直传，逼服务器真的转码
-                            enableDirectPlay = if (forceTranscode) false else null,
-                            enableDirectStream = if (forceTranscode) false else null,
-                            /*
-                             * 还禁止「流拷贝」：只禁直连 / 直传时，服务器会把 10-bit H.264 原样
-                             * 塞进 HLS（video stream copy），客户端依旧解不了——实测就是这个坑
-                             * （Hi10P 片源第二档仍报 ERROR_CODE_DECODING_FAILED）。禁掉拷贝后
-                             * 服务器按转码档位（h264/aac）重新编码，客户端硬解才吃得下。
-                             */
-                            allowVideoStreamCopy = if (forceTranscode) false else null,
-                            allowAudioStreamCopy = if (forceTranscode) false else null,
-                        ),
-                    )
+                    .getPostedPlaybackInfo(itemId, request)
                     .content
                     .mediaSources
                     .map { it.toFindroidSource(this@JellyfinRepositoryImpl, itemId, includePath) }
