@@ -167,6 +167,7 @@
     <string name="player_controls_aspect_unsupported">当前播放核心不支持画面比例</string>
     <string name="player_controls_error_title">播放失败</string>
     <string name="player_controls_error_retry">重试</string>
+    <string name="player_source_resolution_failed">无法加载视频源，请重试。</string>
     <string name="player_progress_recovery_stalled">播放暂时没有继续</string>
     <string name="player_progress_recovery_unconfirmed">播放进度暂时无法确认</string>
     <string name="player_progress_recovery_generic">播放暂时没有继续</string>

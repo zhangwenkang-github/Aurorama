@@ -66,15 +66,11 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.DeviceOptionsDto
-import org.jellyfin.sdk.model.api.DeviceProfile
-import org.jellyfin.sdk.model.api.DlnaProfileType
-import org.jellyfin.sdk.model.api.EncodingContext
 import org.jellyfin.sdk.model.api.GeneralCommandType
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
-import org.jellyfin.sdk.model.api.MediaStreamProtocol
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.PlayAccess
 import org.jellyfin.sdk.model.api.PlayMethod
@@ -86,9 +82,6 @@ import org.jellyfin.sdk.model.api.PlaybackStopInfo
 import org.jellyfin.sdk.model.api.PublicSystemInfo
 import org.jellyfin.sdk.model.api.RepeatMode
 import org.jellyfin.sdk.model.api.SortOrder as ItemSortOrder
-import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
-import org.jellyfin.sdk.model.api.SubtitleProfile
-import org.jellyfin.sdk.model.api.TranscodingProfile
 import org.jellyfin.sdk.model.api.UserConfiguration
 import org.jellyfin.sdk.model.api.UserItemDataDto
 import timber.log.Timber
@@ -1818,37 +1811,15 @@ class JellyfinRepositoryImpl(
                 PlayerDecodeFallback.forcesServerTranscode(
                     appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
                 )
-            /*
-             * 选了具体码率就必须声明转码能力：否则服务器认为「这个客户端不会播转码流」，
-             * 于是无视 maxStreamingBitrate 继续直连（Pad 5 真机实测：3 Mbps 档仍是 DirectPlay）。
-             * 只声明 HLS + H.264/AAC（Jellyfin 官方客户端的流式档位），音频直通优先级由服务器决定。
-             */
-            val transcodingProfiles =
-                if (
-                    PlayerStreamingQuality.requestsTranscoding(streamingBitrate) || forceTranscode
-                ) {
-                    listOf(
-                        TranscodingProfile(
-                            container = "ts",
-                            type = DlnaProfileType.VIDEO,
-                            videoCodec = "h264",
-                            audioCodec = "aac,mp3,ac3,opus",
-                            protocol = MediaStreamProtocol.HLS,
-                            context = EncodingContext.STREAMING,
-                            enableSubtitlesInManifest = true,
-                            conditions = emptyList(),
-                        )
-                    )
-                } else {
-                    emptyList()
-                }
+            val deviceProfile = PlaybackDeviceProfileFactory.create(maxStreamingBitrate)
             Timber.d(
-                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b forceTranscode=%b profiles=%d startTimeTicks=%d",
+                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b forceTranscode=%b directPlay=%d transcodingProfiles=%d startTimeTicks=%d",
                 streamingBitrate,
                 maxStreamingBitrate,
                 transcodingEnabled,
                 forceTranscode,
-                transcodingProfiles.size,
+                deviceProfile.directPlayProfiles.size,
+                deviceProfile.transcodingProfiles.size,
                 startPositionTicks,
             )
             val sources = mutableListOf<FindroidSource>()
@@ -1858,21 +1829,7 @@ class JellyfinRepositoryImpl(
                         itemId,
                         PlaybackInfoDto(
                             userId = jellyfinApi.userId!!,
-                            deviceProfile =
-                                DeviceProfile(
-                                    name = "Direct play all",
-                                    maxStaticBitrate = maxStreamingBitrate,
-                                    maxStreamingBitrate = maxStreamingBitrate,
-                                    codecProfiles = emptyList(),
-                                    containerProfiles = emptyList(),
-                                    directPlayProfiles = emptyList(),
-                                    transcodingProfiles = transcodingProfiles,
-                                    subtitleProfiles =
-                                        listOf(
-                                            SubtitleProfile("srt", SubtitleDeliveryMethod.EXTERNAL),
-                                            SubtitleProfile("ass", SubtitleDeliveryMethod.EXTERNAL),
-                                        ),
-                                ),
+                            deviceProfile = deviceProfile,
                             maxStreamingBitrate = maxStreamingBitrate,
                             /*
                              * W73（#7）：把起播 / seek 目标位置透传给服务器。转码会话据此从目标位置开始生成分片，

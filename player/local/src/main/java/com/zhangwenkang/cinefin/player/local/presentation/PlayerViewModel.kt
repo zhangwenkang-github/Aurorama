@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
-import android.widget.Toast
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -107,6 +106,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -116,6 +116,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.jellyfin.sdk.model.api.BaseItemKind
 import timber.log.Timber
 
@@ -147,6 +148,7 @@ constructor(
         // Local hardware -> server transcode -> local software.
         const val DECODE_MODE_HARDWARE = "hardware"
         const val DECODE_MODE_SOFTWARE = "software"
+        const val PLAYER_ERROR_SOURCE_RESOLUTION_FAILED = "SOURCE_RESOLUTION_FAILED"
 
         fun confirmedPosition(player: Player?): Long? =
             (player as? MPVPlayer)?.confirmedPosition()
@@ -177,6 +179,7 @@ constructor(
         private const val STOP_REPORT_DEDUPE_MS = 15_000L
 
         private const val PLAYBACK_SESSION_SAMPLE_INTERVAL_MS = 1_000L
+        private const val SOURCE_RESOLUTION_TIMEOUT_MS = 30_000L
 
         /** W73（#8）：网络类播放错误的原地重试窗口 / 次数上限（超过则交给错误卡片，不换内核、不重启页面）。 */
         private const val NETWORK_RETRY_WINDOW_MS = 30_000L
@@ -231,6 +234,7 @@ constructor(
     private var playbackSessionState = PlaybackSessionState()
     private var playbackSessionJob: Job? = null
     private var playbackStartupJob: Job? = null
+    private var failedSourceIntent: SourceResolutionIntent? = null
     private val progressFallbackController = PlayerProgressFallbackController()
     private val progressRecoveryController = PlayerProgressRecoveryController()
     private val explicitExitController = PlayerExplicitExitController()
@@ -354,6 +358,16 @@ constructor(
         val codeName: String,
         /** 出错时使用的内核：exoplayer / mpv */
         val backend: String,
+    )
+
+    private data class SourceResolutionIntent(
+        val itemId: UUID,
+        val itemKind: String,
+        val startFromBeginning: Boolean,
+        val startPositionMs: Long,
+        val playbackSessionId: String,
+        val queueEntries: List<PlaybackQueueEntry>,
+        val preferredMediaSourceId: String?,
     )
 
     /** W86-C：Activity / 手势只能提交这些意图，不能直接操作底层播放器位置。 */
@@ -618,8 +632,14 @@ constructor(
         val explicitSeek = seekState.explicitSeekFields()
         val enginePositionMs = confirmedPosition(active)
         val sessionKey = currentPlaybackSessionKey(active, mediaItem)
+        val sourceResolutionFailed =
+            _uiState.value.playerError?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
         val playWhenReadyIntent =
-            if (startupInProgress) playWhenReady else active?.playWhenReady ?: playWhenReady
+            if (startupInProgress || sourceResolutionFailed) {
+                playWhenReady
+            } else {
+                active?.playWhenReady ?: playWhenReady
+            }
         val input =
             PlaybackSessionInput(
                 key = sessionKey,
@@ -906,6 +926,18 @@ constructor(
         preferredMediaSourceId: String? = null,
     ) {
         if (explicitExitController.isExited) return
+        val sourceIntent =
+            SourceResolutionIntent(
+                itemId = itemId,
+                itemKind = itemKind,
+                startFromBeginning = startFromBeginning,
+                startPositionMs = startPositionMs,
+                playbackSessionId = playbackSessionId,
+                queueEntries = queueEntries.toList(),
+                preferredMediaSourceId = preferredMediaSourceId,
+            )
+        failedSourceIntent = null
+        _uiState.update { it.copy(playerError = null) }
         seriesPlaybackTrace = null
         playbackStartupJob?.cancel()
         queueExpandJob?.cancel()
@@ -943,28 +975,38 @@ constructor(
         }
 
         playbackStartupJob = viewModelScope.launch {
+            var sourceFailure: PlayerErrorInfo? = null
             val startItem =
                 try {
                     runPlaybackStartupRequest {
-                        if (queueEntries.isNotEmpty()) {
-                            playlistManager.getInitialItemForQueue(
-                                entries = queueEntries,
-                                preferredItemId = itemId,
-                                preferredMediaSourceId = preferredMediaSourceId,
-                                startFromBeginning = startFromBeginning,
-                                startPositionMs = startPositionMs.takeIf { it > 0L },
-                            )
-                        } else {
-                            playlistManager.getInitialItem(
-                                itemId = itemId,
-                                itemKind = BaseItemKind.fromName(itemKind),
-                                mediaSourceIndex = null,
-                                preferredMediaSourceId = preferredMediaSourceId,
-                                startFromBeginning = startFromBeginning,
-                                startPositionMs = startPositionMs.takeIf { it > 0L },
-                            )
+                        withTimeout(SOURCE_RESOLUTION_TIMEOUT_MS) {
+                            if (queueEntries.isNotEmpty()) {
+                                playlistManager.getInitialItemForQueue(
+                                    entries = queueEntries,
+                                    preferredItemId = itemId,
+                                    preferredMediaSourceId = preferredMediaSourceId,
+                                    startFromBeginning = startFromBeginning,
+                                    startPositionMs = startPositionMs.takeIf { it > 0L },
+                                )
+                            } else {
+                                playlistManager.getInitialItem(
+                                    itemId = itemId,
+                                    itemKind = BaseItemKind.fromName(itemKind),
+                                    mediaSourceIndex = null,
+                                    preferredMediaSourceId = preferredMediaSourceId,
+                                    startFromBeginning = startFromBeginning,
+                                    startPositionMs = startPositionMs.takeIf { it > 0L },
+                                )
+                            }
                         }
                     }
+                } catch (e: TimeoutCancellationException) {
+                    if (!isActive || !explicitExitController.isCurrent(exitGeneration)) {
+                        return@launch
+                    }
+                    Timber.w(e, "Playback source resolution timed out")
+                    sourceFailure = sourceResolutionFailure()
+                    null
                 } catch (e: CancellationException) {
                     // W76-B11b：起播窗口内退出播放页 = 正常取消，不是解析失败。
                     // 旧实现让 CancellationException 落进下面的通用 catch → 给用户弹一句英文 `Job was cancelled`。
@@ -976,15 +1018,7 @@ constructor(
                         return@launch
                     }
                     Timber.e(e)
-                    Toast.makeText(
-                            application,
-                            playbackStartFailureMessage(
-                                e,
-                                application.getString(R.string.player_controls_error_title),
-                            ),
-                            Toast.LENGTH_LONG,
-                        )
-                        .show()
+                    sourceFailure = sourceResolutionFailure()
                     null
                 }
 
@@ -992,9 +1026,15 @@ constructor(
                 Timber.e("No start item, stopping player initialization")
                 if (explicitExitController.isCurrent(exitGeneration)) {
                     startupInProgress = false
+                    failedSourceIntent = sourceIntent
+                    _uiState.update {
+                        it.copy(playerError = sourceFailure ?: sourceResolutionFailure())
+                    }
+                    refreshPlaybackSession()
                 }
                 return@launch
             }
+            failedSourceIntent = null
             if (!isCurrentPlaybackStartup(exitGeneration, initializationGeneration)) {
                 Timber.d("Discard stale player initialization after generation advanced")
                 return@launch
@@ -1064,6 +1104,13 @@ constructor(
     ): Boolean =
         isActivePlaybackGeneration(exitGeneration) &&
             playbackSnapshots.generation == initializationGeneration
+
+    private fun sourceResolutionFailure(): PlayerErrorInfo =
+        PlayerErrorInfo(
+            message = application.getString(R.string.player_source_resolution_failed),
+            codeName = PLAYER_ERROR_SOURCE_RESOLUTION_FAILED,
+            backend = playerBackend,
+        )
 
     private fun isActivePlaybackGeneration(exitGeneration: Long): Boolean =
         !explicitExitController.isExited && explicitExitController.isCurrent(exitGeneration)
@@ -3215,6 +3262,22 @@ constructor(
     }
 
     fun retryPlayerError() {
+        val sourceIntent = failedSourceIntent?.takeIf {
+            _uiState.value.playerError?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
+        }
+        if (sourceIntent != null) {
+            if (explicitExitController.isExited) return
+            initializePlayer(
+                itemId = sourceIntent.itemId,
+                itemKind = sourceIntent.itemKind,
+                startFromBeginning = sourceIntent.startFromBeginning,
+                startPositionMs = sourceIntent.startPositionMs,
+                playbackSessionId = sourceIntent.playbackSessionId,
+                queueEntries = sourceIntent.queueEntries,
+                preferredMediaSourceId = sourceIntent.preferredMediaSourceId,
+            )
+            return
+        }
         playerAccess.withExistingPlayer { activePlayer ->
             Timber.d("Retrying player error on backend=$playerBackend")
             retryPlaybackAt(
