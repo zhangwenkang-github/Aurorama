@@ -174,6 +174,88 @@ class DownloadsViewModelPauseSelectedTest {
     }
 
     @Test
+    fun `canonical refresh failure keeps page state and exposes failure without raw fallback`() =
+        runBlocking {
+            val tasks =
+                (1L..12L).map { index ->
+                    task(
+                        sourceId = "episode-$index",
+                        intentPhase = null,
+                        suffix = index,
+                        status = DownloadTaskStatus.RUNNING,
+                    )
+                }
+            val initialRefresh = canonicalRefresh(tasks, samplingEpochMs = 100L)
+            val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+            var canonicalRefreshReads = 0
+            var rawTaskReads = 0
+            var completedRecordReads = 0
+            var failCanonicalRefresh = false
+            val context = TestContext(createTempDirectory().toFile())
+            val viewModel =
+                DownloadsViewModel(
+                    context = context,
+                    downloader =
+                        canonicalDownloaderProxy(
+                            refresh = initialRefresh,
+                            canonicalRefreshProvider = {
+                                check(!failCanonicalRefresh) { "canonical refresh failed" }
+                                initialRefresh
+                            },
+                            queueChanges = queueChanges,
+                            onCanonicalRefresh = { canonicalRefreshReads += 1 },
+                            onRawTaskRead = { rawTaskReads += 1 },
+                            onCompletedRecordRead = { completedRecordReads += 1 },
+                        ),
+                    repository = repositoryProxy(),
+                    readerRepository = readerRepositoryProxy(),
+                    offlineMediaRepository = offlineRepositoryProxy(),
+                    bookCoverProvider = bookCoverProvider(),
+                    imageCacheStore = imageCacheStore(context),
+                )
+
+            viewModel.actionScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+            viewModel.pollIntervalMsOverrideForTest = 60_000L
+            try {
+                viewModel.start()
+                withTimeout(5_000L) {
+                    while (viewModel.state.value.activeTasks.size != tasks.size) {
+                        delay(10L)
+                    }
+                }
+
+                failCanonicalRefresh = true
+                queueChanges.emit(Unit)
+                withTimeout(5_000L) {
+                    while (
+                        viewModel.state.value.refreshFailure == null &&
+                            rawTaskReads == 0 &&
+                            completedRecordReads == 0
+                    ) {
+                        delay(10L)
+                    }
+                }
+
+                assertEquals(2, canonicalRefreshReads)
+                assertEquals(0, rawTaskReads)
+                assertEquals(0, completedRecordReads)
+                assertEquals(tasks, viewModel.state.value.activeTasks)
+                assertEquals(
+                    DownloadRefreshFailure.CANONICAL_SNAPSHOT,
+                    viewModel.state.value.refreshFailure,
+                )
+                assertEquals(
+                    initialRefresh.snapshot.sortedIdentityKeys,
+                    viewModel.state.value.activeTasks.map { task ->
+                        task.downloadIdentity().canonicalKey
+                    },
+                )
+            } finally {
+                viewModel.stop()
+            }
+        }
+
+    @Test
     fun `selected pause sends only real source tasks to pauseTask`() {
         val realSource =
             task(
@@ -257,6 +339,8 @@ class DownloadsViewModelPauseSelectedTest {
     private fun canonicalDownloaderProxy(
         refresh: CanonicalActiveTaskRefresh,
         canonicalRefreshEvents: StateFlow<CanonicalActiveTaskRefresh>? = null,
+        canonicalRefreshProvider: (() -> CanonicalActiveTaskRefresh)? = null,
+        queueChanges: MutableSharedFlow<Unit> = MutableSharedFlow(),
         onCanonicalRefresh: () -> Unit,
         onRawTaskRead: () -> Unit,
         onCompletedRecordRead: () -> Unit,
@@ -269,10 +353,10 @@ class DownloadsViewModelPauseSelectedTest {
                 "equals" -> proxy === args?.firstOrNull()
                 "hashCode" -> System.identityHashCode(proxy)
                 "toString" -> "CanonicalTestDownloader"
-                "getQueueChanges" -> MutableSharedFlow<Unit>()
+                "getQueueChanges" -> queueChanges
                 "refreshCanonicalActiveTaskRefresh" -> {
                     onCanonicalRefresh()
-                    refresh
+                    canonicalRefreshProvider?.invoke() ?: refresh
                 }
                 "latestCanonicalActiveTaskRefresh" -> refresh
                 "latestCanonicalActiveTaskSnapshot" -> refresh.snapshot

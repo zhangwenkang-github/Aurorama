@@ -74,6 +74,8 @@ data class DownloadManagerState(
     val deletionAliases: Map<String, String> = emptyMap(),
     /** alias 请求 key 对应的 active deletion batches；批次结束只移除自身所有权。 */
     val deletionAliasBatches: Map<String, Set<Long>> = emptyMap(),
+    /** canonical refresh 失败时的可见信号；已有页面快照继续保留。 */
+    val refreshFailure: DownloadRefreshFailure? = null,
     /** 批次动作失败后的可见终态；下一次选择或动作开始时清除。 */
     val actionFailure: DownloadActionFailure? = null,
     val deletionFailureReason: DownloadDeletionFailureReason? = null,
@@ -196,6 +198,10 @@ enum class DownloadActionFailure {
     RESUME,
     RETRY,
     DELETE,
+}
+
+enum class DownloadRefreshFailure {
+    CANONICAL_SNAPSHOT
 }
 
 enum class DownloadDeletionFailureReason {

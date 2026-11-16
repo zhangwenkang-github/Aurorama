@@ -18,6 +18,9 @@ import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
@@ -194,6 +197,88 @@ class DownloadNotificationsAggregationTest {
             assertEquals(published.snapshot.projection, foreground.projection)
             assertEquals(2, fixture.pendingSourceReads)
         }
+
+    @Test
+    fun `older refresh cannot acquire a later notification request version after newer epoch publishes`() =
+        runBlocking {
+            val fixture = Fixture()
+            repeat(12) { index ->
+                fixture.seedActiveSource(
+                    sourceId = "episode-${index + 1}",
+                    downloadedBytes = (index + 1L) * 100L,
+                    totalBytes = (index + 1L) * 10_000L,
+                )
+            }
+            fixture.markRunningAll()
+            fixture.installCapturingGateway()
+            val source = fixture.downloader as CanonicalActiveTaskSnapshotSource
+            val publicationEvents = checkNotNull(source.canonicalRefreshEvents)
+            val olderLoaded = CompletableDeferred<CanonicalActiveTaskRefresh>()
+            val releaseOlder = CompletableDeferred<Unit>()
+            val observerCalls = AtomicInteger()
+            fixture.downloader.canonicalRefreshLoadedObserverForTest = { refresh ->
+                if (observerCalls.incrementAndGet() == 1) {
+                    olderLoaded.complete(refresh)
+                    releaseOlder.await()
+                }
+            }
+
+            val olderCall = async { source.refreshCanonicalActiveTaskRefresh() }
+            val older = withTimeout(5_000L) { olderLoaded.await() }
+            fixture.removeSource("episode-12")
+            val newer = withTimeout(5_000L) { source.refreshCanonicalActiveTaskRefresh() }
+            assertTrue(newer.snapshot.samplingEpochMs > older.snapshot.samplingEpochMs)
+            assertSame(newer, publicationEvents.value)
+
+            val requestVersionField =
+                DownloaderImpl::class.java.getDeclaredField("foregroundNotificationRequestVersion")
+            requestVersionField.isAccessible = true
+            val requestVersionBeforeOlderPublication =
+                requestVersionField.getLong(fixture.downloader)
+            releaseOlder.complete(Unit)
+            val olderReturned = withTimeout(5_000L) { olderCall.await() }
+
+            assertEquals(
+                requestVersionBeforeOlderPublication,
+                requestVersionField.getLong(fixture.downloader),
+            )
+            assertSame(newer, publicationEvents.value)
+            assertSame(newer, olderReturned)
+            fixture.downloader.canonicalRefreshLoadedObserverForTest = null
+        }
+
+    @Test
+    fun `acknowledgement after newer publication schedules only the latest epoch`() = runBlocking {
+        val fixture = Fixture()
+        repeat(12) { index ->
+            fixture.seedActiveSource(
+                sourceId = "episode-${index + 1}",
+                downloadedBytes = (index + 1L) * 100L,
+                totalBytes = (index + 1L) * 10_000L,
+            )
+        }
+        fixture.markRunningAll()
+        val gateway = fixture.installCapturingGateway()
+        val source = fixture.downloader as CanonicalActiveTaskSnapshotSource
+        source.refreshCanonicalActiveTaskRefresh()
+        checkNotNull(fixture.downloader.foregroundInfoForRunnableWork())
+
+        fixture.removeSource("episode-12")
+        val newer = source.refreshCanonicalActiveTaskRefresh()
+        gateway.foreground.clear()
+        fixture.downloader.acknowledgeForegroundInfoPublished()
+
+        val rendered =
+            withTimeout(5_000L) {
+                while (gateway.foreground.isEmpty()) {
+                    delay(10L)
+                }
+                gateway.foreground.last()
+            }
+        assertEquals(newer.snapshot.samplingEpochMs, rendered.projection.samplingEpochMs)
+        assertEquals(11, rendered.activeCount)
+        assertEquals(newer.snapshot.projection, rendered.projection)
+    }
 
     @Test
     fun `single task keeps the existing twenty five percent regression`() {

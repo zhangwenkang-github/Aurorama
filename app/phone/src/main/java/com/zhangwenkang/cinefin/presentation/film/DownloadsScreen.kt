@@ -372,6 +372,15 @@ private fun DownloadsScreenLayout(
             }
 
             Spacer(Modifier.height(CinefinSpacing.Space2))
+            if (state.refreshFailure != null) {
+                Text(
+                    text = stringResource(CoreR.string.download_failed),
+                    style = CinefinType.BodyMedium,
+                    color = colors.error,
+                    modifier = Modifier.padding(horizontal = horizontalPadding),
+                )
+                Spacer(Modifier.height(CinefinSpacing.Space2))
+            }
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when {
                     state.isLoading ->

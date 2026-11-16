@@ -1177,7 +1177,12 @@ constructor(
         } catch (error: Exception) {
             traceRefresh.safeFail(DownloadDeleteTraceError.UNKNOWN)
             Timber.e(error, "下载页刷新失败")
-            _state.update { it.copy(isLoading = false) }
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    refreshFailure = DownloadRefreshFailure.CANONICAL_SNAPSHOT,
+                )
+            }
         }
     }
 
@@ -1208,7 +1213,12 @@ constructor(
         } catch (error: Exception) {
             traceRefresh?.safeFail(DownloadDeleteTraceError.UNKNOWN)
             Timber.e(error, "应用 canonical 下载快照失败")
-            _state.update { it.copy(isLoading = false) }
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    refreshFailure = DownloadRefreshFailure.CANONICAL_SNAPSHOT,
+                )
+            }
         }
     }
 
@@ -1226,19 +1236,14 @@ constructor(
         val loadedOfflineAllowMap = loadOfflineAllowMap()
         val canonicalSnapshotSource = downloader as? CanonicalActiveTaskSnapshotSource
         val canonicalRefresh =
-            canonicalRefreshOverride
-                ?: try {
-                    canonicalSnapshotSource?.refreshCanonicalActiveTaskRefresh()
-                } catch (cancellation: CancellationException) {
-                    throw cancellation
-                } catch (error: Exception) {
-                    Timber.w(error, "刷新 canonical 下载快照失败")
-                    null
-                }
-        // W37 遗留修复（W36 §12）：取消（快速切页）不能被吞掉，否则会把页面刷成 0 条后靠下一次轮询自愈。
+            canonicalRefreshOverride ?: canonicalSnapshotSource?.refreshCanonicalActiveTaskRefresh()
+        val hasCanonicalSource = canonicalSnapshotSource != null
+        // 非 canonical 历史入口仍读 raw tasks；生产 DownloaderImpl 只消费已发布 refresh。
         val tasks =
-            canonicalRefresh?.tasks
-                ?: try {
+            if (hasCanonicalSource) {
+                checkNotNull(canonicalRefresh).tasks
+            } else {
+                try {
                     downloader.refreshDownloadTasks()
                 } catch (cancellation: CancellationException) {
                     throw cancellation
@@ -1246,22 +1251,29 @@ constructor(
                     Timber.w(error, "刷新下载任务失败")
                     emptyList()
                 }
+            }
         completedMediaRecords =
-            canonicalRefresh?.completedMediaRecords
-                ?: runCatchingCancellable { downloader.downloadedMediaRecords() }
+            if (hasCanonicalSource) {
+                checkNotNull(canonicalRefresh).completedMediaRecords
+            } else {
+                runCatchingCancellable { downloader.downloadedMediaRecords() }
                     .onFailure { Timber.w(it, "读取已完成下载快照失败") }
                     .getOrElse { emptyList() }
+            }
         val completedCanonicalKeys =
             completedMediaRecords.mapTo(mutableSetOf()) { record ->
                 record.canonicalIdentity().canonicalKey
             }
         val canonicalSnapshot =
-            canonicalRefresh?.snapshot
-                ?: DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+            if (hasCanonicalSource) {
+                checkNotNull(canonicalRefresh).snapshot
+            } else {
+                DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
                     tasks = tasks,
                     downloadedCanonicalKeys = completedCanonicalKeys,
                     samplingEpochMs = System.currentTimeMillis(),
                 )
+            }
         val activeEngineTasks = canonicalSnapshot.activeTasks
         val failedEngineTasks = DownloadControlPlaneRules.retryableFailureIntents(tasks)
         val episodeHierarchy = loadEpisodeHierarchy()
@@ -1373,6 +1385,7 @@ constructor(
             val refreshed =
                 current.copy(
                     isLoading = false,
+                    refreshFailure = null,
                     activeTasks = activeEngineTasks,
                     failedTasks = failedEngineTasks,
                     activeContainers =
