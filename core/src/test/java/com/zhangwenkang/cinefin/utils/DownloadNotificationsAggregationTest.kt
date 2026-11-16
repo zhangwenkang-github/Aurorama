@@ -17,9 +17,14 @@ import java.lang.reflect.Proxy
 import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import sun.misc.Unsafe
 
@@ -60,6 +65,135 @@ class DownloadNotificationsAggregationTest {
             ),
         )
     }
+
+    @Test
+    fun `one page snapshot is reused by notification without a second production read`() =
+        runBlocking {
+            val fixture = Fixture()
+            repeat(12) { index ->
+                fixture.seedActiveSource(
+                    sourceId = "episode-${index + 1}",
+                    downloadedBytes = (index + 1L) * 100L,
+                    totalBytes = (index + 1L) * 10_000L,
+                )
+            }
+            fixture.markRunningAll()
+            fixture.markPaused("episode-12")
+            val gateway = fixture.installCapturingGateway()
+            val source = fixture.downloader as CanonicalActiveTaskSnapshotSource
+            val pageSnapshot = source.refreshCanonicalActiveTaskRefresh().snapshot
+            assertEquals(
+                11,
+                pageSnapshot.projection.actionEligibleIdentities
+                    .getValue(CanonicalDownloadAction.PAUSE)
+                    .size,
+            )
+            assertEquals(
+                1,
+                pageSnapshot.projection.actionEligibleIdentities
+                    .getValue(CanonicalDownloadAction.RESUME)
+                    .size,
+            )
+            assertEquals(
+                12,
+                pageSnapshot.projection.actionEligibleIdentities
+                    .getValue(CanonicalDownloadAction.DELETE)
+                    .size,
+            )
+
+            fixture.removeSource("episode-12")
+            checkNotNull(fixture.downloader.foregroundInfoForRunnableWork())
+
+            val foregrounds = gateway.foreground.toList()
+            assertTrue(foregrounds.isNotEmpty())
+            foregrounds.forEach { foreground ->
+                assertEquals(pageSnapshot.projection, foreground.projection)
+            }
+            assertEquals(1, fixture.pendingSourceReads)
+        }
+
+    @Test
+    fun `foreground publisher consumes the refresh request after source mutation`() = runBlocking {
+        val fixture = Fixture()
+        repeat(12) { index ->
+            fixture.seedActiveSource(
+                sourceId = "episode-${index + 1}",
+                downloadedBytes = (index + 1L) * 100L,
+                totalBytes = (index + 1L) * 10_000L,
+            )
+        }
+        fixture.markRunningAll()
+        val gateway = fixture.installCapturingGateway()
+        val source = fixture.downloader as CanonicalActiveTaskSnapshotSource
+        val pageSnapshot = source.refreshCanonicalActiveTaskRefresh().snapshot
+
+        fixture.removeSource("episode-12")
+        val foreground =
+            withTimeout(5_000L) {
+                while (gateway.foreground.isEmpty()) {
+                    delay(10L)
+                }
+                gateway.foreground.last()
+            }
+
+        assertEquals(pageSnapshot.projection, foreground.projection)
+        assertEquals(1, fixture.pendingSourceReads)
+    }
+
+    @Test
+    fun `notification refresh publishes the same canonical refresh object to the page source`() =
+        runBlocking {
+            val fixture = Fixture()
+            repeat(12) { index ->
+                fixture.seedActiveSource(
+                    sourceId = "episode-${index + 1}",
+                    downloadedBytes = (index + 1L) * 100L,
+                    totalBytes = (index + 1L) * 10_000L,
+                )
+            }
+            fixture.markRunningAll()
+            val gateway = fixture.installCapturingGateway()
+            val source = fixture.downloader as CanonicalActiveTaskSnapshotSource
+            val pageRefresh = source.refreshCanonicalActiveTaskRefresh()
+            val publicationEvents = checkNotNull(source.canonicalRefreshEvents)
+            assertSame(pageRefresh, publicationEvents.value)
+
+            gateway.foreground.clear()
+            fixture.removeSource("episode-12")
+            val update =
+                DownloaderImpl::class.java.getDeclaredMethod("updateForegroundNotificationNow")
+            update.isAccessible = true
+            update.invoke(fixture.downloader)
+
+            val published =
+                withTimeout(5_000L) {
+                    while (
+                        publicationEvents.value.snapshot.samplingEpochMs <=
+                            pageRefresh.snapshot.samplingEpochMs
+                    ) {
+                        delay(10L)
+                    }
+                    publicationEvents.value
+                }
+            val foreground =
+                withTimeout(5_000L) {
+                    while (
+                        gateway.foreground.none { captured ->
+                            captured.projection.samplingEpochMs ==
+                                published.snapshot.samplingEpochMs
+                        }
+                    ) {
+                        delay(10L)
+                    }
+                    gateway.foreground.last { captured ->
+                        captured.projection.samplingEpochMs == published.snapshot.samplingEpochMs
+                    }
+                }
+
+            assertEquals(11, published.snapshot.activeCount)
+            assertEquals(published.snapshot.projection, foreground.projection)
+            assertEquals(2, fixture.pendingSourceReads)
+        }
 
     @Test
     fun `single task keeps the existing twenty five percent regression`() {
@@ -144,6 +278,7 @@ class DownloadNotificationsAggregationTest {
     private data class CapturedForeground(
         val task: DownloadTask?,
         val activeCount: Int,
+        val projection: CanonicalActiveTaskProjection,
     )
 
     private data class PageAggregate(
@@ -182,17 +317,25 @@ class DownloadNotificationsAggregationTest {
     }
 
     private class CapturingNotificationGateway : DownloadNotificationGateway {
-        val foreground = mutableListOf<CapturedForeground>()
+        val foreground = CopyOnWriteArrayList<CapturedForeground>()
 
         override fun buildForeground(aggregate: DownloadNotificationAggregate): Notification {
             foreground +=
-                CapturedForeground(task = aggregate.task, activeCount = aggregate.activeCount)
+                CapturedForeground(
+                    task = aggregate.task,
+                    activeCount = aggregate.activeCount,
+                    projection = aggregate.projection,
+                )
             return allocateNotification()
         }
 
         override fun notifyForeground(aggregate: DownloadNotificationAggregate) {
             foreground +=
-                CapturedForeground(task = aggregate.task, activeCount = aggregate.activeCount)
+                CapturedForeground(
+                    task = aggregate.task,
+                    activeCount = aggregate.activeCount,
+                    projection = aggregate.projection,
+                )
         }
 
         override fun notifyCompleted(task: DownloadTask) = Unit
@@ -254,6 +397,27 @@ class DownloadNotificationsAggregationTest {
             seeded.forEach { source -> activeJobs[source.id] = Unit }
         }
 
+        fun markRunningAll() {
+            markRunning(*sources.values.toTypedArray())
+        }
+
+        fun markPaused(sourceId: String) {
+            val field = DownloaderImpl::class.java.getDeclaredField("activeJobs")
+            field.isAccessible = true
+            @Suppress("UNCHECKED_CAST")
+            val activeJobs = field.get(downloader) as ConcurrentHashMap<String, Any>
+            activeJobs.remove(sourceId)
+            sources[sourceId] =
+                sources.getValue(sourceId).copy(taskStatus = DownloadTaskStatus.PAUSED.name)
+        }
+
+        fun removeSource(sourceId: String) {
+            sources.remove(sourceId)
+        }
+
+        val pendingSourceReads: Int
+            get() = dao.pendingSourceReads
+
         fun installCapturingGateway(): CapturingNotificationGateway {
             val field = DownloaderImpl::class.java.getDeclaredField("notifications")
             field.isAccessible = true
@@ -264,13 +428,18 @@ class DownloadNotificationsAggregationTest {
     }
 
     private class RecordingDao(private val sources: Map<String, FindroidSourceDto>) {
+        var pendingSourceReads: Int = 0
+
         val proxy: ServerDatabaseDao =
             Proxy.newProxyInstance(
                 ServerDatabaseDao::class.java.classLoader,
                 arrayOf(ServerDatabaseDao::class.java),
                 InvocationHandler { _, method, args ->
                     when (method.name) {
-                        "getPendingSources" -> sources.values.toList()
+                        "getPendingSources" -> {
+                            pendingSourceReads += 1
+                            sources.values.toList()
+                        }
                         "getAllSources" -> sources.values.toList()
                         "getSource" -> sources[args[0] as String]
                         "getReceivedDownloadIntents" -> emptyList<Any>()

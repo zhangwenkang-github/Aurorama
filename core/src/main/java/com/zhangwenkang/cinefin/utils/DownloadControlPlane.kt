@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.utils
 
 import java.util.UUID
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -144,6 +145,22 @@ data class CanonicalActiveTaskSnapshot(
     }
 }
 
+/** One Room/sidecar read and its frozen canonical active-task snapshot. */
+data class CanonicalActiveTaskRefresh(
+    val tasks: List<DownloadTask>,
+    val completedMediaRecords: List<DownloadMediaRecord>,
+    val snapshot: CanonicalActiveTaskSnapshot,
+) {
+    companion object {
+        fun empty(samplingEpochMs: Long): CanonicalActiveTaskRefresh =
+            CanonicalActiveTaskRefresh(
+                tasks = emptyList(),
+                completedMediaRecords = emptyList(),
+                snapshot = CanonicalActiveTaskSnapshot.empty(samplingEpochMs),
+            )
+    }
+}
+
 enum class CanonicalDownloadAction {
     PAUSE,
     RESUME,
@@ -164,9 +181,15 @@ fun DownloadTask.canonicalActionCapabilities(): Set<CanonicalDownloadAction> = b
 
 /** App-scope source of the one latest canonical active-task snapshot. */
 interface CanonicalActiveTaskSnapshotSource {
-    suspend fun sampleCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot
+    suspend fun refreshCanonicalActiveTaskRefresh(): CanonicalActiveTaskRefresh
 
-    fun latestCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot
+    fun latestCanonicalActiveTaskRefresh(): CanonicalActiveTaskRefresh
+
+    val canonicalRefreshEvents: StateFlow<CanonicalActiveTaskRefresh>?
+        get() = null
+
+    fun latestCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot =
+        latestCanonicalActiveTaskRefresh().snapshot
 }
 
 /**
@@ -180,7 +203,7 @@ class CanonicalActiveTaskSnapshotOwner(private val clock: () -> Long = System::c
     private val samplingMutex = Mutex()
     private var highestRequestId = 0L
     private var completedRequestId = 0L
-    private var latest = CanonicalActiveTaskSnapshot.empty(samplingEpochMs = 0L)
+    private var latestRefresh = CanonicalActiveTaskRefresh.empty(samplingEpochMs = 0L)
 
     @Synchronized
     private fun allocateRequestId(): Long {
@@ -190,30 +213,43 @@ class CanonicalActiveTaskSnapshotOwner(private val clock: () -> Long = System::c
 
     @Synchronized
     private fun nextSamplingEpoch(): Long =
-        maxOf(clock().coerceAtLeast(0L), latest.samplingEpochMs + 1L)
+        maxOf(clock().coerceAtLeast(0L), latestRefresh.snapshot.samplingEpochMs + 1L)
 
-    suspend fun sample(
-        loader: suspend (samplingEpochMs: Long) -> CanonicalActiveTaskSnapshot
-    ): CanonicalActiveTaskSnapshot {
+    suspend fun refresh(
+        loader: suspend (samplingEpochMs: Long) -> CanonicalActiveTaskRefresh
+    ): CanonicalActiveTaskRefresh {
         val requestId = allocateRequestId()
         samplingMutex.withLock {
             if (synchronized(this) { completedRequestId >= requestId }) {
-                return latest()
+                return latestRefresh()
             }
 
             val targetRequestId = synchronized(this) { highestRequestId }
             val sampled = loader(nextSamplingEpoch())
             return synchronized(this) {
-                if (sampled.samplingEpochMs > latest.samplingEpochMs) {
-                    latest = sampled
+                if (sampled.snapshot.samplingEpochMs > latestRefresh.snapshot.samplingEpochMs) {
+                    latestRefresh = sampled
                 }
                 completedRequestId = maxOf(completedRequestId, targetRequestId)
-                latest
+                latestRefresh
             }
         }
     }
 
-    @Synchronized fun latest(): CanonicalActiveTaskSnapshot = latest
+    suspend fun sample(
+        loader: suspend (samplingEpochMs: Long) -> CanonicalActiveTaskSnapshot
+    ): CanonicalActiveTaskSnapshot = refresh { samplingEpochMs ->
+        CanonicalActiveTaskRefresh(
+            tasks = emptyList(),
+            completedMediaRecords = emptyList(),
+            snapshot = loader(samplingEpochMs),
+        )
+    }
+        .snapshot
+
+    @Synchronized fun latestRefresh(): CanonicalActiveTaskRefresh = latestRefresh
+
+    @Synchronized fun latest(): CanonicalActiveTaskSnapshot = latestRefresh.snapshot
 }
 
 /** 批量受理门面：先确认已存在集合，再一次性持久化全部新意图。 */

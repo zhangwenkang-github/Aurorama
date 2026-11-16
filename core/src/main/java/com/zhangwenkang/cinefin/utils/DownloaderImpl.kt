@@ -86,7 +86,9 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -389,6 +391,11 @@ private constructor(
         intentResolutionTimeoutMs = DEFAULT_INTENT_RESOLUTION_TIMEOUT_MS,
     )
 
+    private data class ForegroundNotificationRequest(
+        val version: Long,
+        val refresh: CanonicalActiveTaskRefresh,
+    )
+
     private val workGateway =
         workGatewayOverride ?: WorkManagerDownloadWorkGateway(workManager = workManager)
     private val downloadTransfer =
@@ -403,8 +410,13 @@ private constructor(
         )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val canonicalSnapshotOwner = CanonicalActiveTaskSnapshotOwner()
+    private val canonicalRefreshEventsState =
+        MutableStateFlow(CanonicalActiveTaskRefresh.empty(samplingEpochMs = 0L))
+    override val canonicalRefreshEvents: StateFlow<CanonicalActiveTaskRefresh> =
+        canonicalRefreshEventsState.asStateFlow()
     private val foregroundNotificationStateLock = Any()
-    private val foregroundNotificationRequests = Channel<Long>(Channel.CONFLATED)
+    private val foregroundNotificationRequests =
+        Channel<ForegroundNotificationRequest>(Channel.CONFLATED)
     @Volatile private var lastNotificationAt = 0L
     private var lastRenderedNotificationEpoch = 0L
     private var foregroundInfoAwaitingAck = false
@@ -569,13 +581,30 @@ private constructor(
         _queueChanges.tryEmit(Unit)
     }
 
-    override suspend fun sampleCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot =
-        canonicalSnapshotOwner.sample { samplingEpochMs ->
-            canonicalSnapshotAt(samplingEpochMs)
-        }
+    override suspend fun refreshCanonicalActiveTaskRefresh(): CanonicalActiveTaskRefresh =
+        refreshCanonicalActiveTaskRefreshInternal(scheduleNotification = true)
 
-    override fun latestCanonicalActiveTaskSnapshot(): CanonicalActiveTaskSnapshot =
-        canonicalSnapshotOwner.latest()
+    private suspend fun refreshCanonicalActiveTaskRefreshInternal(
+        scheduleNotification: Boolean
+    ): CanonicalActiveTaskRefresh {
+        val refresh = canonicalSnapshotOwner.refresh { samplingEpochMs ->
+            canonicalRefreshAt(samplingEpochMs)
+        }
+        canonicalRefreshEventsState.update { current ->
+            if (refresh.snapshot.samplingEpochMs > current.snapshot.samplingEpochMs) {
+                refresh
+            } else {
+                current
+            }
+        }
+        if (scheduleNotification) {
+            scheduleForegroundNotification(refresh)
+        }
+        return refresh
+    }
+
+    override fun latestCanonicalActiveTaskRefresh(): CanonicalActiveTaskRefresh =
+        canonicalSnapshotOwner.latestRefresh()
 
     /** sourceId → 运行中的下载协程。 */
     private val activeJobs = ConcurrentHashMap<String, Job>()
@@ -5004,8 +5033,15 @@ private constructor(
                 pendingForegroundInfoEpoch = 0L
                 foregroundNotificationRequestVersion
             }
-        val snapshot = sampleCanonicalActiveTaskSnapshot()
-        if (!snapshot.hasRunnableForegroundWork(System.currentTimeMillis())) {
+        val now = System.currentTimeMillis()
+        val latestRefresh = latestCanonicalActiveTaskRefresh()
+        val refresh =
+            latestRefresh.takeIf { candidate ->
+                candidate.snapshot.samplingEpochMs > 0L &&
+                    candidate.snapshot.hasRunnableForegroundWork(now)
+            } ?: refreshCanonicalActiveTaskRefreshInternal(scheduleNotification = false)
+        val snapshot = refresh.snapshot
+        if (!snapshot.hasRunnableForegroundWork(now)) {
             synchronized(foregroundNotificationStateLock) {
                 foregroundInfoAwaitingAck = false
                 pendingForegroundInfoEpoch = 0L
@@ -5771,16 +5807,22 @@ private constructor(
         }
     }
 
-    private suspend fun canonicalSnapshotAt(samplingEpochMs: Long): CanonicalActiveTaskSnapshot {
+    private suspend fun canonicalRefreshAt(samplingEpochMs: Long): CanonicalActiveTaskRefresh {
         val tasks = refreshDownloadTasks()
+        val completedMediaRecords = downloadedMediaRecords()
         val completedCanonicalKeys =
-            downloadedMediaRecords().mapTo(mutableSetOf()) { record ->
+            completedMediaRecords.mapTo(mutableSetOf()) { record ->
                 record.canonicalIdentity().canonicalKey
             }
-        return DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+        return CanonicalActiveTaskRefresh(
             tasks = tasks,
-            downloadedCanonicalKeys = completedCanonicalKeys,
-            samplingEpochMs = samplingEpochMs,
+            completedMediaRecords = completedMediaRecords,
+            snapshot =
+                DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                    tasks = tasks,
+                    downloadedCanonicalKeys = completedCanonicalKeys,
+                    samplingEpochMs = samplingEpochMs,
+                ),
         )
     }
 
@@ -5789,7 +5831,8 @@ private constructor(
      * entering [runQueue]. Until then asynchronous renders remain gated.
      */
     fun acknowledgeForegroundInfoPublished() {
-        val latestEpoch = canonicalSnapshotOwner.latest().samplingEpochMs
+        val latestRefresh = canonicalSnapshotOwner.latestRefresh()
+        val latestEpoch = latestRefresh.snapshot.samplingEpochMs
         synchronized(foregroundNotificationStateLock) {
             if (foregroundInfoAwaitingAck) {
                 foregroundInfoAwaitingAck = false
@@ -5798,9 +5841,16 @@ private constructor(
                 lastRenderedNotificationEpoch = maxOf(lastRenderedNotificationEpoch, builtEpoch)
                 if (foregroundNotificationDirty || latestEpoch > builtEpoch) {
                     foregroundNotificationDirty = true
-                    beginForegroundNotificationRequestLocked()
+                    beginForegroundNotificationRequestLocked(latestRefresh)
                 }
             }
+        }
+    }
+
+    private fun scheduleForegroundNotification(refresh: CanonicalActiveTaskRefresh) {
+        synchronized(foregroundNotificationStateLock) {
+            foregroundNotificationDirty = true
+            beginForegroundNotificationRequestLocked(refresh)
         }
     }
 
@@ -5813,28 +5863,39 @@ private constructor(
                 lastNotificationAt = now
                 DownloadDeleteTraceResult.SCHEDULED
             }
-        synchronized(foregroundNotificationStateLock) {
-            foregroundNotificationDirty = true
-            beginForegroundNotificationRequestLocked()
+        scope.launch {
+            for (attempt in 1..NOTIFICATION_RETRY_ATTEMPTS) {
+                try {
+                    refreshCanonicalActiveTaskRefreshInternal(scheduleNotification = true)
+                    return@launch
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "刷新 canonical 下载快照失败 attempt=$attempt")
+                    if (attempt < NOTIFICATION_RETRY_ATTEMPTS) {
+                        delay(notificationRetryDelayMs(attempt))
+                    }
+                }
+            }
         }
         return result
     }
 
     private suspend fun publishForegroundNotificationChanges() {
-        for (requestVersion in foregroundNotificationRequests) {
+        for (request in foregroundNotificationRequests) {
             for (attempt in 1..NOTIFICATION_RETRY_ATTEMPTS) {
-                if (!isForegroundNotificationRequestCurrent(requestVersion)) {
+                if (!isForegroundNotificationRequestCurrent(request.version)) {
                     break
                 }
                 try {
-                    publishLatestForegroundNotification(requestVersion)
+                    publishForegroundNotification(request)
                     break
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (error: Exception) {
                     Timber.w(error, "刷新下载前台通知失败")
                     if (attempt == NOTIFICATION_RETRY_ATTEMPTS) {
-                        scheduleForegroundNotificationRetry(requestVersion)
+                        scheduleForegroundNotificationRetry(request)
                     } else {
                         delay(notificationRetryDelayMs(attempt))
                     }
@@ -5843,8 +5904,8 @@ private constructor(
         }
     }
 
-    private suspend fun publishLatestForegroundNotification(requestVersion: Long) {
-        if (!isForegroundNotificationRequestCurrent(requestVersion)) {
+    private suspend fun publishForegroundNotification(request: ForegroundNotificationRequest) {
+        if (!isForegroundNotificationRequestCurrent(request.version)) {
             return
         }
         val waitMs =
@@ -5852,14 +5913,14 @@ private constructor(
                 .coerceAtLeast(0L)
         if (waitMs > 0L) delay(waitMs)
 
-        if (!isForegroundNotificationRequestCurrent(requestVersion)) {
+        if (!isForegroundNotificationRequestCurrent(request.version)) {
             return
         }
-        val snapshot = sampleCanonicalActiveTaskSnapshot()
+        val snapshot = request.refresh.snapshot
         val aggregate = aggregateDownloadNotification(snapshot)
         synchronized(foregroundNotificationStateLock) {
             if (
-                requestVersion != foregroundNotificationRequestVersion ||
+                request.version != foregroundNotificationRequestVersion ||
                     !foregroundNotificationDirty ||
                     foregroundInfoAwaitingAck
             ) {
@@ -5892,17 +5953,21 @@ private constructor(
                 !foregroundInfoAwaitingAck
         }
 
-    private fun beginForegroundNotificationRequestLocked(): Long {
+    private fun beginForegroundNotificationRequestLocked(
+        refresh: CanonicalActiveTaskRefresh
+    ): ForegroundNotificationRequest {
         val requestVersion = ++foregroundNotificationRequestVersion
         foregroundNotificationTrailingJob?.cancel()
         foregroundNotificationTrailingJob = null
         foregroundNotificationTrailingVersion = 0L
         foregroundNotificationTrailingRetries = 0
-        foregroundNotificationRequests.trySend(requestVersion)
-        return requestVersion
+        val request = ForegroundNotificationRequest(requestVersion, refresh)
+        foregroundNotificationRequests.trySend(request)
+        return request
     }
 
-    private fun scheduleForegroundNotificationRetry(requestVersion: Long) {
+    private fun scheduleForegroundNotificationRetry(request: ForegroundNotificationRequest) {
+        val requestVersion = request.version
         synchronized(foregroundNotificationStateLock) {
             if (
                 requestVersion != foregroundNotificationRequestVersion ||
@@ -5938,7 +6003,7 @@ private constructor(
                                 foregroundNotificationDirty &&
                                 !foregroundInfoAwaitingAck
                         if (current) {
-                            foregroundNotificationRequests.trySend(requestVersion)
+                            foregroundNotificationRequests.trySend(request)
                         }
                     }
                 } finally {

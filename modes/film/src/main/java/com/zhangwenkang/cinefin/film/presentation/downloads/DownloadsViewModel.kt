@@ -18,6 +18,7 @@ import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
 import com.zhangwenkang.cinefin.utils.CanonicalActiveTask
+import com.zhangwenkang.cinefin.utils.CanonicalActiveTaskRefresh
 import com.zhangwenkang.cinefin.utils.CanonicalActiveTaskSnapshotSource
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceError
@@ -360,6 +361,7 @@ constructor(
     private var pollingJob: Job? = null
     private var queueChangesJob: Job? = null
     private var bookDownloadsJob: Job? = null
+    private var canonicalRefreshJob: Job? = null
     private var externalRefreshRequestsJob: Job? = null
     @Volatile private var externalRefreshRequests: Channel<Unit>? = null
     private var remoteRefreshJob: Job? = null
@@ -378,6 +380,7 @@ constructor(
     private val artworkBackfillAttempted = mutableSetOf<UUID>()
     private var artworkBackfillJob: Job? = null
     private var completedMediaRecords: List<DownloadMediaRecord> = emptyList()
+    @Volatile private var lastAppliedCanonicalEpoch = 0L
 
     /** 页面进入：立即刷新 + 启动轮询；重复调用无副作用。 */
     fun start() {
@@ -401,6 +404,13 @@ constructor(
         bookDownloadsJob = scope.launch {
             readerRepository.bookDownloads.drop(1).collect { requestExternalRefresh() }
         }
+        canonicalRefreshJob =
+            (downloader as? CanonicalActiveTaskSnapshotSource)?.canonicalRefreshEvents?.let { events
+                ->
+                scope.launch {
+                    events.collect { refresh -> applyPublishedCanonicalRefresh(refresh) }
+                }
+            }
         scope.launch {
             refresh(
                 showLoading = true,
@@ -426,6 +436,8 @@ constructor(
         queueChangesJob = null
         bookDownloadsJob?.cancel()
         bookDownloadsJob = null
+        canonicalRefreshJob?.cancel()
+        canonicalRefreshJob = null
         externalRefreshRequests?.close()
         externalRefreshRequests = null
         externalRefreshRequestsJob?.cancel()
@@ -1169,9 +1181,41 @@ constructor(
         }
     }
 
+    private suspend fun applyPublishedCanonicalRefresh(refresh: CanonicalActiveTaskRefresh) {
+        if (refresh.snapshot.samplingEpochMs <= lastAppliedCanonicalEpoch) return
+        var traceRefresh: DownloadDeleteTraceRefresh? = null
+        try {
+            val snapshot = localRefreshMutex.withLock {
+                if (refresh.snapshot.samplingEpochMs <= lastAppliedCanonicalEpoch) {
+                    return@withLock null
+                }
+                traceRefresh =
+                    DownloadDeleteTraceRuntime.beginCanonicalRefresh(
+                        DownloadDeleteTraceTrigger.QUEUE
+                    )
+                refreshLocal(
+                    showLoading = false,
+                    traceRefresh = traceRefresh,
+                    canonicalRefreshOverride = refresh,
+                )
+            }
+            if (snapshot != null) {
+                enqueueRemoteRefresh(snapshot)
+            }
+        } catch (cancellation: CancellationException) {
+            traceRefresh?.safeFail(DownloadDeleteTraceError.CANCELLED)
+            throw cancellation
+        } catch (error: Exception) {
+            traceRefresh?.safeFail(DownloadDeleteTraceError.UNKNOWN)
+            Timber.e(error, "应用 canonical 下载快照失败")
+            _state.update { it.copy(isLoading = false) }
+        }
+    }
+
     private suspend fun refreshLocal(
         showLoading: Boolean,
         traceRefresh: DownloadDeleteTraceRefresh?,
+        canonicalRefreshOverride: CanonicalActiveTaskRefresh? = null,
     ): LocalDownloadSnapshot {
         if (showLoading && _state.value.activeTasks.isEmpty() && _state.value.completed.isEmpty()) {
             _state.update { it.copy(isLoading = true) }
@@ -1181,26 +1225,38 @@ constructor(
         // W36：「允许离线模式观看」开关状态（sources / 书籍偏好），供条目行与容器开关显示。
         val loadedOfflineAllowMap = loadOfflineAllowMap()
         val canonicalSnapshotSource = downloader as? CanonicalActiveTaskSnapshotSource
+        val canonicalRefresh =
+            canonicalRefreshOverride
+                ?: try {
+                    canonicalSnapshotSource?.refreshCanonicalActiveTaskRefresh()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "刷新 canonical 下载快照失败")
+                    null
+                }
         // W37 遗留修复（W36 §12）：取消（快速切页）不能被吞掉，否则会把页面刷成 0 条后靠下一次轮询自愈。
         val tasks =
-            try {
-                downloader.refreshDownloadTasks()
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (error: Exception) {
-                Timber.w(error, "刷新下载任务失败")
-                emptyList()
-            }
+            canonicalRefresh?.tasks
+                ?: try {
+                    downloader.refreshDownloadTasks()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "刷新下载任务失败")
+                    emptyList()
+                }
         completedMediaRecords =
-            runCatchingCancellable { downloader.downloadedMediaRecords() }
-                .onFailure { Timber.w(it, "读取已完成下载快照失败") }
-                .getOrElse { emptyList() }
+            canonicalRefresh?.completedMediaRecords
+                ?: runCatchingCancellable { downloader.downloadedMediaRecords() }
+                    .onFailure { Timber.w(it, "读取已完成下载快照失败") }
+                    .getOrElse { emptyList() }
         val completedCanonicalKeys =
             completedMediaRecords.mapTo(mutableSetOf()) { record ->
                 record.canonicalIdentity().canonicalKey
             }
         val canonicalSnapshot =
-            canonicalSnapshotSource?.sampleCanonicalActiveTaskSnapshot()
+            canonicalRefresh?.snapshot
                 ?: DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
                     tasks = tasks,
                     downloadedCanonicalKeys = completedCanonicalKeys,
@@ -1339,6 +1395,8 @@ constructor(
             }
         }
         traceRefresh.safePublish(canonicalKeys)
+        lastAppliedCanonicalEpoch =
+            maxOf(lastAppliedCanonicalEpoch, canonicalSnapshot.samplingEpochMs)
         localSnapshotToken = snapshotToken
         return LocalDownloadSnapshot(
             sequence = ++nextLocalSnapshotSequence,

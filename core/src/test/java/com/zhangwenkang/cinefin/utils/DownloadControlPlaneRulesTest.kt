@@ -208,55 +208,6 @@ class DownloadControlPlaneRulesTest {
     }
 
     @Test
-    fun `page completion is not rejected by a newer requested only epoch`() = runBlocking {
-        val owner = CanonicalActiveTaskSnapshotOwner(clock = { 100L })
-        val pageTasks =
-            (1L..12L).map { index ->
-                task(
-                    itemId = UUID(0L, 20_000L + index),
-                    sourceId = "page-$index",
-                    status = DownloadTaskStatus.RUNNING,
-                    downloadedBytes = index,
-                    totalBytes = index * 1_000L,
-                )
-            }
-        val pageStarted = CompletableDeferred<Unit>()
-        val releasePage = CompletableDeferred<Unit>()
-        val page = async {
-            owner.sample { samplingEpochMs ->
-                pageStarted.complete(Unit)
-                releasePage.await()
-                DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
-                    tasks = pageTasks,
-                    downloadedCanonicalKeys = emptySet(),
-                    samplingEpochMs = samplingEpochMs,
-                )
-            }
-        }
-        pageStarted.await()
-        val notification =
-            async(start = CoroutineStart.UNDISPATCHED) {
-                owner.sample { samplingEpochMs ->
-                    DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
-                        tasks = pageTasks.take(11),
-                        downloadedCanonicalKeys = emptySet(),
-                        samplingEpochMs = samplingEpochMs,
-                    )
-                }
-            }
-        releasePage.complete(Unit)
-
-        val pageSnapshot = page.await()
-
-        assertEquals(12, pageSnapshot.activeCount)
-        assertEquals(pageTasks.sumOf { it.totalBytes }, pageSnapshot.totalBytes)
-
-        val notificationSnapshot = notification.await()
-        assertEquals(11, notificationSnapshot.activeCount)
-        assertEquals(notificationSnapshot, owner.latest())
-    }
-
-    @Test
     fun `same raw task set still publishes a new canonical epoch`() = runBlocking {
         val owner = CanonicalActiveTaskSnapshotOwner(clock = { 10L })
         val tasks =
