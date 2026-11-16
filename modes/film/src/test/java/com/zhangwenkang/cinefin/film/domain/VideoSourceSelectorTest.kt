@@ -49,7 +49,12 @@ class VideoSourceSelectorTest {
             id = id,
             name = "$id.mkv",
             type = type,
-            path = "",
+            path =
+                if (type == FindroidSourceType.LOCAL) {
+                    "content://com.zhangwenkang.cinefin.test/media/$id"
+                } else {
+                    ""
+                },
             size = 0L,
             mediaStreams = emptyList(),
         )
