@@ -32,45 +32,39 @@ internal data class DownloadFailureNotificationContent(
 internal data class DownloadNotificationAggregate(
     val task: DownloadTask?,
     val activeCount: Int,
+    val samplingEpochMs: Long,
+    val identityKeys: List<String>,
 )
 
 /**
- * Projects one canonical active task list into the single foreground notification payload.
+ * Projects one canonical active-task snapshot into the single foreground notification payload.
  *
- * Title count, byte totals, progress and notification actions all come from [tasks]. Duplicate
- * snapshots are collapsed by download identity and active count, while the representative task for
- * pause/cancel is selected deterministically from the same set.
+ * This consumer never filters, sorts or deduplicates task rows. Those decisions already happened
+ * once in [CanonicalActiveTaskSnapshotOwner].
  */
 internal fun aggregateDownloadNotification(
-    tasks: List<DownloadTask>
+    snapshot: CanonicalActiveTaskSnapshot
 ): DownloadNotificationAggregate {
-    val canonicalTasks =
-        tasks
-            .asSequence()
-            .filter { task -> DownloadTaskRules.isActiveQueueStatus(task.status) }
-            .sortedWith(
-                compareByDescending<DownloadTask> { task -> task.taskGeneration }
-                    .thenByDescending { task -> task.updatedAt }
-                    .thenBy { task -> task.sourceId }
-            )
-            .distinctBy { task -> task.downloadIdentity() }
-            .sortedBy { task -> task.sourceId }
-            .toList()
+    val canonicalTasks = snapshot.activeTasks
     if (canonicalTasks.isEmpty()) {
-        return DownloadNotificationAggregate(task = null, activeCount = 0)
+        return DownloadNotificationAggregate(
+            task = null,
+            activeCount = 0,
+            samplingEpochMs = snapshot.samplingEpochMs,
+            identityKeys = snapshot.sortedIdentityKeys,
+        )
     }
     if (canonicalTasks.size == 1) {
-        return DownloadNotificationAggregate(task = canonicalTasks.single(), activeCount = 1)
+        return DownloadNotificationAggregate(
+            task = canonicalTasks.single(),
+            activeCount = 1,
+            samplingEpochMs = snapshot.samplingEpochMs,
+            identityKeys = snapshot.sortedIdentityKeys,
+        )
     }
 
-    val totalBytes = canonicalTasks.sumOf(DownloadTask::notificationExpectedBytes)
-    val downloadedBytes = canonicalTasks.sumOf { task ->
-        if (task.status == DownloadTaskStatus.COMPLETED) {
-            task.notificationExpectedBytes()
-        } else {
-            task.downloadedBytes.coerceAtLeast(0L)
-        }
-    }
+    val totalBytes = snapshot.totalBytes
+    val downloadedBytes = snapshot.downloadedBytes
     val speedBytesPerSecond = canonicalTasks.sumOf { task ->
         task.speedBytesPerSecond.coerceAtLeast(0L)
     }
@@ -97,6 +91,8 @@ internal fun aggregateDownloadNotification(
     return DownloadNotificationAggregate(
         task = representative,
         activeCount = canonicalTasks.size,
+        samplingEpochMs = snapshot.samplingEpochMs,
+        identityKeys = snapshot.sortedIdentityKeys,
     )
 }
 
@@ -106,8 +102,6 @@ internal fun downloadNotificationPercent(downloadedBytes: Long, totalBytes: Long
     } else {
         0
     }
-
-private fun DownloadTask.notificationExpectedBytes(): Long = totalBytes.coerceAtLeast(0L)
 
 internal fun downloadNotificationTarget(
     destination: DownloadNotificationDestination
