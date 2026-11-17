@@ -13,7 +13,8 @@ enum class SeekEngine {
  * rebuffering before STATE_READY; cross-item switches additionally load a whole new source (~6–10s
  * observed). Short windows published a false persistent "定位超时" over healthy playback, so all
  * engines share a generous window; genuine engine failures surface earlier via the error path
- * instead of the deadline.
+ * instead of the deadline. A transcode target gets the widest window on every engine, mpv included:
+ * the server still has to spin the session up before the first byte.
  */
 private const val EXO_SEEK_TIMEOUT_MS = 30_000L
 private const val MPV_SEEK_TIMEOUT_MS = 30_000L
@@ -29,16 +30,16 @@ fun seekConfirmationPolicyForTarget(
 ): SeekConfirmationPolicy {
     val isTranscode = isTranscodeStreamUri(mediaSourceUri)
     return when {
-        engine == SeekEngine.MPV ->
-            SeekConfirmationPolicy(
-                completionTimeoutMs = MPV_SEEK_TIMEOUT_MS,
-                positionToleranceMs = MPV_SEEK_TOLERANCE_MS,
-                minimumTargetDisplayMs = SEEK_TARGET_DISPLAY_MIN_MS,
-            )
         isTranscode ->
             SeekConfirmationPolicy(
                 completionTimeoutMs = TRANSCODE_SEEK_TIMEOUT_MS,
                 positionToleranceMs = TRANSCODE_SEEK_TOLERANCE_MS,
+                minimumTargetDisplayMs = SEEK_TARGET_DISPLAY_MIN_MS,
+            )
+        engine == SeekEngine.MPV ->
+            SeekConfirmationPolicy(
+                completionTimeoutMs = MPV_SEEK_TIMEOUT_MS,
+                positionToleranceMs = MPV_SEEK_TOLERANCE_MS,
                 minimumTargetDisplayMs = SEEK_TARGET_DISPLAY_MIN_MS,
             )
         else ->

@@ -145,6 +145,72 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `cross item seek in flight never produces a progress terminal`() {
+        val inFlight = input(isPlaying = false, isBuffering = true, crossItemSeekInFlight = true)
+        val initial = advance(inFlight, 0L)
+        val atStallDeadline =
+            advance(inFlight, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
+        val longColdStart = advance(inFlight, 60_000L, atStallDeadline.first)
+
+        assertNull(initial.first.terminal)
+        assertNull(atStallDeadline.first.terminal)
+        assertNull(longColdStart.first.terminal)
+        assertTrue(atStallDeadline.second.loading)
+    }
+
+    @Test
+    fun `cross item flag off keeps the twenty second terminal unchanged`() {
+        val stalled = input(isPlaying = false, isBuffering = true)
+        val initial = advance(stalled, 0L)
+        val terminal = advance(stalled, PlaybackSessionRules.STALL_TIMEOUT_MS, initial.first)
+
+        val explicitOff = stalled.copy(crossItemSeekInFlight = false)
+        val offInitial = advance(explicitOff, 0L)
+        val offTerminal =
+            advance(explicitOff, PlaybackSessionRules.STALL_TIMEOUT_MS, offInitial.first)
+
+        assertEquals("PLAYBACK_PROGRESS_TIMEOUT", terminal.first.terminal?.kind)
+        assertEquals(terminal.first, offTerminal.first)
+    }
+
+    @Test
+    fun `cross item seek keeps position frozen and restarts the deadline once it ends`() {
+        val inFlight =
+            input(
+                isPlaying = false,
+                isBuffering = true,
+                enginePositionMs = 5_000L,
+                crossItemSeekInFlight = true,
+            )
+        val initial = advance(inFlight, 0L)
+        val midLoad = advance(inFlight, 40_000L, initial.first)
+        assertEquals(5_000L, midLoad.first.lastEnginePositionMs)
+        assertEquals(40_000L, midLoad.first.lastProgressAtMs)
+        assertNull(midLoad.first.terminal)
+
+        val cleared = input(isPlaying = false, isBuffering = true, enginePositionMs = 5_000L)
+        val justCleared = advance(cleared, 40_100L, midLoad.first)
+        assertEquals(40_000L, justCleared.first.lastProgressAtMs)
+        assertNull(justCleared.first.terminal)
+
+        val beforeNewDeadline =
+            advance(
+                cleared,
+                40_000L + PlaybackSessionRules.STALL_TIMEOUT_MS - 1L,
+                justCleared.first,
+            )
+        assertNull(beforeNewDeadline.first.terminal)
+
+        val atNewDeadline =
+            advance(
+                cleared,
+                40_000L + PlaybackSessionRules.STALL_TIMEOUT_MS,
+                beforeNewDeadline.first,
+            )
+        assertEquals("PLAYBACK_PROGRESS_TIMEOUT", atNewDeadline.first.terminal?.kind)
+    }
+
+    @Test
     fun `noop-like input only yields progress unconfirmed`() {
         val input =
             input(
@@ -3363,6 +3429,7 @@ class PlaybackSessionRulesTest {
         explicitSeekRequestGeneration: Long? = null,
         explicitSeekSourceEpoch: Long? = null,
         persistedResumeMs: Long? = null,
+        crossItemSeekInFlight: Boolean = false,
     ) =
         PlaybackSessionInput(
             key = key,
@@ -3378,6 +3445,7 @@ class PlaybackSessionRulesTest {
             explicitSeekRequestGeneration = explicitSeekRequestGeneration,
             explicitSeekSourceEpoch = explicitSeekSourceEpoch,
             persistedResumeMs = persistedResumeMs,
+            crossItemSeekInFlight = crossItemSeekInFlight,
         )
 
     private fun terminalAtDeadline(

@@ -953,16 +953,68 @@ class PlaybackSeekSinkTest {
         )
     }
 
+    @Test
+    fun `cross item seek in flight is reported only while the target is loading`() {
+        var now = 5_000L
+        var identityAvailable = true
+        val firstItem = directItem("item-a", "source-a")
+        val secondItem = directItem("item-b", "source-b")
+        val player = FakePlayer(mediaItem = firstItem, queuedItems = listOf(secondItem))
+        val sink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { now },
+                mediaIdentityProvider = { item ->
+                    if (identityAvailable) testIdentity(item) else null
+                },
+                mediaSourceUriProvider = ::testSourceUri,
+            )
+        sink.attach(player.player)
+
+        assertFalse(sink.isCrossItemSeekInFlight)
+
+        sink.submit(PlayerViewModel.SeekIntent.Absolute(30_000L))
+        assertTrue("unexpected state: ${sink.state}", sink.state is SeekState.Seeking)
+        assertFalse(sink.isCrossItemSeekInFlight)
+
+        player.playbackState = Player.STATE_BUFFERING
+        player.currentPositionMs = 0L
+        sink.submit(PlayerViewModel.SeekIntent.MediaItem(1, 0L))
+        assertTrue(sink.isCrossItemSeekInFlight)
+
+        sink.submit(PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = true))
+        assertTrue(sink.isCrossItemSeekInFlight)
+
+        player.emitSeekAccepted(positionMs = 0L, mediaItem = secondItem)
+        assertTrue("unexpected state: ${sink.state}", sink.state is SeekState.Seeking)
+        assertTrue(sink.isCrossItemSeekInFlight)
+
+        player.emitMediaItemTransition(secondItem)
+        assertTrue(sink.isCrossItemSeekInFlight)
+
+        now = 5_100L
+        player.emitPlaybackReady(positionMs = 0L)
+        assertTrue("unexpected state: ${sink.state}", sink.state is SeekState.Confirmed)
+        assertFalse(sink.isCrossItemSeekInFlight)
+
+        identityAvailable = false
+        sink.submit(PlayerViewModel.SeekIntent.Absolute(10_000L))
+        assertTrue("unexpected state: ${sink.state}", sink.state is SeekState.Failed)
+        assertFalse(sink.isCrossItemSeekInFlight)
+    }
+
     private class FakePlayer(
         var mediaItem: MediaItem,
         var playbackState: Int = Player.STATE_READY,
         var durationMs: Long = 120_000L,
         var currentPositionMs: Long = 10_000L,
         var bufferedPositionMs: Long = 120_000L,
+        queuedItems: List<MediaItem> = emptyList(),
     ) {
         val calls = mutableListOf<String>()
         private val listeners = mutableListOf<Player.Listener>()
-        private val mediaItems = mutableListOf(mediaItem)
+        private val mediaItems = mutableListOf(mediaItem).apply { addAll(queuedItems) }
         private var currentIndex = 0
 
         val player: Player =

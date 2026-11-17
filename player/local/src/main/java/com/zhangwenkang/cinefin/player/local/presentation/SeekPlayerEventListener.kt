@@ -160,6 +160,20 @@ internal constructor(
     val state: SeekState
         get() = coordinator.state
 
+    /**
+     * A cross-item switch is loading a whole new source, so the progress watchdog must not treat
+     * the silent minutes that follow as a stall.
+     */
+    val isCrossItemSeekInFlight: Boolean
+        get() {
+            if (coordinator.state !is SeekState.Seeking) return false
+            return when (activeTarget?.intent) {
+                is PlayerViewModel.SeekIntent.MediaItem,
+                is PlayerViewModel.SeekIntent.AdjacentMediaItem -> true
+                else -> false
+            }
+        }
+
     private var attachedPlayer: Player? = null
     private var activeTarget: ActiveTarget? = null
     private var pendingSeek: PendingSeek? = null

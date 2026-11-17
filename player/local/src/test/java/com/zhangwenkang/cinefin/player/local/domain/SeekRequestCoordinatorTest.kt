@@ -293,6 +293,25 @@ class SeekRequestCoordinatorTest {
     }
 
     @Test
+    fun `mpv transcode target keeps the wider confirmation window`() {
+        val transcode =
+            seekConfirmationPolicyForTarget(
+                engine = SeekEngine.MPV,
+                mediaSourceUri = "https://media.example/item/master.m3u8?VideoBitrate=3000000",
+            )
+        val direct =
+            seekConfirmationPolicyForTarget(
+                engine = SeekEngine.MPV,
+                mediaSourceUri = "https://media.example/item?static=true",
+            )
+
+        assertEquals(35_000L, transcode.completionTimeoutMs)
+        assertEquals(30_000L, direct.completionTimeoutMs)
+        assertEquals(2_000L, transcode.positionToleranceMs)
+        assertEquals(2_000L, direct.positionToleranceMs)
+    }
+
+    @Test
     fun `coordinator selects policy from each queue target uri`() {
         val coordinator = SeekRequestCoordinator()
         coordinator.observeSource(identity)

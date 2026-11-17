@@ -681,6 +681,7 @@ constructor(
                 explicitSeekRequestGeneration = explicitSeek?.second,
                 explicitSeekSourceEpoch = explicitSeek?.third,
                 persistedResumeMs = persistedResumePositionMs(mediaItem?.mediaId, currentSourceId),
+                crossItemSeekInFlight = seekSink.isCrossItemSeekInFlight,
             )
         playbackSessionState =
             PlaybackSessionRules.advance(playbackSessionState, input, nowElapsedMs)
@@ -4088,6 +4089,7 @@ internal data class PlaybackSessionInput(
     val explicitSeekRequestGeneration: Long? = null,
     val explicitSeekSourceEpoch: Long? = null,
     val persistedResumeMs: Long? = null,
+    val crossItemSeekInFlight: Boolean = false,
 )
 
 internal data class PlaybackSessionState(
@@ -4182,7 +4184,11 @@ internal object PlaybackSessionRules {
             input.enginePositionMs?.let { engine ->
                 next.lastEnginePositionMs?.let { engine > it } == true
             } == true || next.wasLoading && !loading && input.isPlaying && input.isReady
-        val progressAtMs = if (progressed) nowElapsedMs else next.lastProgressAtMs ?: nowElapsedMs
+        // A cross-item seek is a fresh cold source (~40–65s to first frame); the progress watchdog
+        // must not fire a recovery terminal while that load is legitimately silent.
+        val progressAtMs =
+            if (progressed || input.crossItemSeekInFlight) nowElapsedMs
+            else next.lastProgressAtMs ?: nowElapsedMs
         next =
             next.copy(
                 lastEnginePositionMs = input.enginePositionMs ?: next.lastEnginePositionMs,
