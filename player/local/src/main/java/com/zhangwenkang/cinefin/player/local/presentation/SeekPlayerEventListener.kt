@@ -6,6 +6,7 @@ import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
+import com.zhangwenkang.cinefin.player.local.diag.PlaybackDiag
 import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
@@ -439,7 +440,7 @@ internal constructor(
         resetRequestWork()
         val targetSourceUri = mediaSourceUri(targetItem)
         val generation =
-            coordinator.beginRequestForTarget(
+            coordinator.beginRequestForCrossItemTarget(
                 targetMs = 0L,
                 durationMs = player.duration,
                 issuedAtMs = clock(),
@@ -459,6 +460,12 @@ internal constructor(
                         targetGeneration = nextTranscodeRestartTargetGeneration(),
                     ),
             )
+        PlaybackDiag.log(
+            "requestMediaItemSeek g$generation index=$index positionMs=$positionMs " +
+                "current=${currentIdentity.itemId}/${currentIdentity.sourceFingerprint} " +
+                "target=${targetIdentity.itemId}/${targetIdentity.sourceFingerprint} " +
+                "engine=${engineProvider()} duration=${player.duration}"
+        )
         publish()
         executeCurrent(player, source)
     }
@@ -516,10 +523,16 @@ internal constructor(
             }
         }
             .onFailure {
+                PlaybackDiag.log(
+                    "engine seekTo THREW g${target.requestGeneration}: ${it.javaClass.simpleName}"
+                )
                 Timber.w(it, "seek 同步拒绝：source=%s target=%d", source, targetMs)
                 failActiveSeek(SeekFailureReason.REJECTED, retryable = false)
             }
             .onSuccess {
+                PlaybackDiag.log(
+                    "engine seekTo OK g${target.requestGeneration} target=$targetMs intent=${target.intent}"
+                )
                 armTranscodeWatchdog(
                     lease = lease,
                     source = source,
@@ -929,6 +942,10 @@ class SeekPlayerEventListener(
         newPosition: Player.PositionInfo,
         reason: Int,
     ) {
+        PlaybackDiag.log(
+            "event discontinuity reason=$reason old=${oldPosition.mediaItem?.mediaId}@${oldPosition.positionMs} " +
+                "new=${newPosition.mediaItem?.mediaId}@${newPosition.positionMs} engine=${engine()}"
+        )
         if (engine() != SeekEngine.EXOPLAYER || reason != Player.DISCONTINUITY_REASON_SEEK) {
             return
         }
@@ -948,6 +965,7 @@ class SeekPlayerEventListener(
     }
 
     override fun onPlaybackStateChanged(state: Int) {
+        PlaybackDiag.log("event playbackState=$state engine=${engine()}")
         if (engine() != SeekEngine.EXOPLAYER || state != Player.STATE_READY) return
         val identity = mediaIdentity(null) ?: return
         val positionMs = readyPositionMs() ?: return

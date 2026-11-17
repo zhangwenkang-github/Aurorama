@@ -39,6 +39,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
+import com.zhangwenkang.cinefin.player.local.diag.PlaybackDiag
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackCoordinatorImpl
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackQueueEntry
@@ -980,6 +981,9 @@ constructor(
         }
 
         playbackStartupJob = viewModelScope.launch {
+            PlaybackDiag.log(
+                "startup begin item=$itemId kind=$itemKind gen=$initializationGeneration"
+            )
             var sourceFailure: PlayerErrorInfo? = null
             val startItem =
                 try {
@@ -1008,6 +1012,9 @@ constructor(
                         }
                     }
                 } catch (e: TimeoutCancellationException) {
+                    PlaybackDiag.log(
+                        "startup resolution TIMEOUT active=$isActive exitCurrent=${explicitExitController.isCurrent(exitGeneration)}"
+                    )
                     if (!isActive || !explicitExitController.isCurrent(exitGeneration)) {
                         return@launch
                     }
@@ -1015,10 +1022,14 @@ constructor(
                     sourceFailure = sourceResolutionFailure()
                     null
                 } catch (e: CancellationException) {
+                    PlaybackDiag.log("startup resolution CANCELLED")
                     // W76-B11b：起播窗口内退出播放页 = 正常取消，不是解析失败。
                     // 旧实现让 CancellationException 落进下面的通用 catch → 给用户弹一句英文 `Job was cancelled`。
                     throw e
                 } catch (e: Exception) {
+                    PlaybackDiag.log(
+                        "startup resolution ERROR ${e.javaClass.simpleName} active=$isActive"
+                    )
                     // W76-B11b：协程已被取消时，网络层可能抛出「取消的副产品」而不是 CancellationException
                     // （连接被中断的 IOException 等）。离开播放页时同样不该把它当成解析失败弹提示。
                     if (!isActive || !explicitExitController.isCurrent(exitGeneration)) {
@@ -1033,6 +1044,7 @@ constructor(
                 }
 
             if (startItem == null) {
+                PlaybackDiag.log("startup no start item, publish error")
                 Timber.e("No start item, stopping player initialization")
                 if (explicitExitController.isCurrent(exitGeneration)) {
                     startupInProgress = false
@@ -1046,6 +1058,9 @@ constructor(
             }
             failedSourceIntent = null
             if (!isCurrentPlaybackStartup(exitGeneration, initializationGeneration)) {
+                PlaybackDiag.log(
+                    "startup guard#1 REJECT exited=${explicitExitController.isExited} exitGen=${explicitExitController.generation} vs $exitGeneration snapshotGen=${playbackSnapshots.generation} vs $initializationGeneration"
+                )
                 Timber.d("Discard stale player initialization after generation advanced")
                 return@launch
             }
@@ -1091,9 +1106,23 @@ constructor(
                     playbackPosition
                 }
 
-            if (!isCurrentPlaybackStartup(exitGeneration, initializationGeneration)) {
+            if (
+                !isActivePlaybackGeneration(exitGeneration) ||
+                    playbackSnapshots.identity != identity ||
+                    playbackSnapshots.generation != sourceToken.generation
+            ) {
+                // beginMediaSnapshot 自身会推进 generation，不能与起播前代次比较；
+                // 只拒绝「起播后又被别的请求换源 / 退出」的过期场景。
+                PlaybackDiag.log(
+                    "startup guard#3 REJECT exited=${explicitExitController.isExited} " +
+                        "snapshotIdentity=${playbackSnapshots.identity} vs $identity " +
+                        "snapshotGen=${playbackSnapshots.generation} vs ${sourceToken.generation}"
+                )
                 return@launch
             }
+            PlaybackDiag.log(
+                "startup setMediaItems+prepare item=${startItem.itemId} startPosition=$startPosition"
+            )
             seekSink.observeSource(mediaItems.firstOrNull())
             player.setMediaItems(mediaItems, 0, startPosition)
             // W74 U2-B（D-F8）：进播放页 / 重建播放器实例时套用保存的循环 / 随机模式。

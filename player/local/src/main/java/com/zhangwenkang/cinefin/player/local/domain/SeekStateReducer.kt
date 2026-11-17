@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
+import com.zhangwenkang.cinefin.player.local.diag.PlaybackDiag
+
 data class SeekMediaIdentity(
     val itemId: String,
     val mediaSourceId: String,
@@ -169,6 +171,12 @@ class SeekStateReducer {
                 evidence.mediaIdentity != seeking.mediaIdentity ||
                 evidence.kind != SeekEngineEvidenceKind.SEEK_ACCEPTED
         ) {
+            PlaybackDiag.log(
+                "reducer accept REJECT g${evidence.requestGeneration}e${evidence.sourceEpoch} " +
+                    "${evidence.mediaIdentity.itemId}/${evidence.mediaIdentity.sourceFingerprint} " +
+                    "kind=${evidence.kind} vs seeking g${seeking.requestGeneration}e${seeking.sourceEpoch} " +
+                    "${seeking.mediaIdentity.itemId}/${seeking.mediaIdentity.sourceFingerprint}"
+            )
             return
         }
         state = seeking.copy(acceptedPositionMs = evidence.positionMs)
@@ -187,6 +195,15 @@ class SeekStateReducer {
                 kotlin.math.abs(evidence.positionMs - seeking.targetMs) >
                     seeking.policy.positionToleranceMs
         ) {
+            PlaybackDiag.log(
+                "reducer ready REJECT acceptedPos=${seeking.acceptedPositionMs} " +
+                    "evidence g${evidence.requestGeneration}e${evidence.sourceEpoch} " +
+                    "${evidence.mediaIdentity.itemId}/${evidence.mediaIdentity.sourceFingerprint} " +
+                    "kind=${evidence.kind} pos=${evidence.positionMs} vs seeking " +
+                    "g${seeking.requestGeneration}e${seeking.sourceEpoch} " +
+                    "${seeking.mediaIdentity.itemId}/${seeking.mediaIdentity.sourceFingerprint} " +
+                    "target=${seeking.targetMs} tol=${seeking.policy.positionToleranceMs}"
+            )
             return
         }
         state =
@@ -199,6 +216,27 @@ class SeekStateReducer {
                 confirmedAtMs = nowElapsedMs,
                 policy = seeking.policy,
             )
+    }
+
+    /**
+     * A TIMEOUT failure only means the engine was slow, not that the source is unusable. When the
+     * same media later reports READY at the failed target, the request completes late instead of
+     * leaving a false persistent failure on screen.
+     */
+    fun onLateReadyAfterTimeout(positionMs: Long, nowElapsedMs: Long): Boolean {
+        val failed = state as? SeekState.Failed ?: return false
+        if (failed.reason != SeekFailureReason.TIMEOUT) return false
+        state =
+            SeekState.Confirmed(
+                targetMs = failed.targetMs,
+                positionMs = positionMs,
+                requestGeneration = failed.requestGeneration,
+                sourceEpoch = failed.sourceEpoch,
+                requestedAtMs = nowElapsedMs,
+                confirmedAtMs = nowElapsedMs,
+                policy = failed.policy,
+            )
+        return true
     }
 
     fun onFailure(failure: SeekEngineFailure, nowElapsedMs: Long) {
@@ -250,6 +288,9 @@ class SeekStateReducer {
         currentSourceEpoch += 1L
         currentSourceMediaIdentity = mediaIdentity
         if (itemChanged && !preserveRequestAcrossItemChange) {
+            PlaybackDiag.log(
+                "reducer replace DROP-TO-IDLE old=${currentSourceMediaIdentity?.itemId} new=${mediaIdentity.itemId} state=$state"
+            )
             state = SeekState.Idle
             return true
         }

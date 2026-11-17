@@ -26,6 +26,8 @@ android {
         register("staging") { initWith(getByName("release")) }
     }
 
+    buildFeatures { buildConfig = true }
+
     compileOptions {
         sourceCompatibility = Versions.JAVA
         targetCompatibility = Versions.JAVA
