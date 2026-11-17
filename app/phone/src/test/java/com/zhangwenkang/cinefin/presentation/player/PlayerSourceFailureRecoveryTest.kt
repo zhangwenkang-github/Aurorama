@@ -5,7 +5,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.SystemClock
 import android.widget.Toast
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackCoordinatorImpl
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
@@ -43,6 +46,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -147,7 +151,59 @@ class PlayerSourceFailureRecoveryTest {
             assertEquals(0, harness.toastCalls.get())
         }
 
-    private fun harness(hangSource: Boolean = false): Harness {
+    @Test
+    fun `startup network errors exhaust into a retryable source failure card`() = runBlocking {
+        val harness =
+            harness(
+                hangSource = true,
+                // 只设置 mediaId：JVM 单测里 android.net.Uri.parse 没有实现，不能走 setUri。
+                mediaItem = MediaItem.Builder().setMediaId("transcode-session").build(),
+            )
+        harness.viewModel.initializePlayer(
+            itemId = ITEM_ID,
+            itemKind = BaseItemKind.MOVIE.serialName,
+            startFromBeginning = false,
+            startPositionMs = 42_000L,
+            playbackSessionId = "startup-network-session",
+        )
+        pump(harness.dispatcher)
+        assertEquals(1, harness.sourceCalls.get())
+
+        harness.viewModel.onPlayerError(startupSourceTimeout())
+        pump(harness.dispatcher)
+
+        // 起播期只做一次原地重试，不弹错误卡片
+        assertNull(harness.viewModel.uiState.value.playerError)
+        assertEquals(1, harness.prepareCalls.get())
+
+        harness.viewModel.onPlayerError(startupSourceTimeout())
+        pump(harness.dispatcher)
+
+        val error = harness.viewModel.uiState.value.playerError
+        assertNotNull(error)
+        assertEquals("STARTUP_SOURCE_FAILED", error?.codeName)
+        assertEquals(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER, error?.backend)
+        assertTrue(harness.viewModel.uiState.value.playbackSession.showPlayerError)
+
+        harness.viewModel.retryPlayerError()
+        pump(harness.dispatcher)
+
+        // 重试必须重新解析源（新转码会话），不是对死地址再 prepare 一次
+        assertEquals(2, harness.sourceCalls.get())
+        assertEquals(1, harness.prepareCalls.get())
+        val attempts = harness.sourceAttempts.toList()
+        assertEquals(2, attempts.size)
+        assertEquals(attempts[0].sourceIntentId, attempts[1].sourceIntentId)
+    }
+
+    private fun startupSourceTimeout(): PlaybackException =
+        PlaybackException(
+            "source timeout",
+            null,
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+        )
+
+    private fun harness(hangSource: Boolean = false, mediaItem: MediaItem? = null): Harness {
         val dispatcher = StandardTestDispatcher()
         Dispatchers.setMain(dispatcher)
         mockkStatic(SystemClock::class)
@@ -179,13 +235,20 @@ class PlayerSourceFailureRecoveryTest {
 
         val application = mockk<Application>(relaxed = true)
         every { application.getString(any<Int>()) } returns "Playback failed"
+        val prepareCalls = AtomicInteger()
         val player = mockk<Player>(relaxed = true)
-        every { player.currentMediaItem } returns null
+        every { player.currentMediaItem } returns mediaItem
+        every { player.currentTimeline } returns Timeline.EMPTY
         every { player.currentMediaItemIndex } returns -1
         every { player.mediaItemCount } returns 0
         every { player.playbackState } returns Player.STATE_IDLE
         every { player.isPlaying } returns false
         every { player.playWhenReady } returns false
+        every { player.prepare() } answers
+            {
+                prepareCalls.incrementAndGet()
+                Unit
+            }
         val seekSink = mockk<PlaybackSeekSink>(relaxed = true)
         every { seekSink.stateFlow } returns MutableStateFlow(SeekState.Idle)
         val playlistManager = mockk<PlaylistManager>(relaxed = true)
@@ -254,6 +317,7 @@ class PlayerSourceFailureRecoveryTest {
             sourceCalls,
             toastCalls,
             sourceAttempts,
+            prepareCalls,
             dispatcher,
         )
     }
@@ -272,6 +336,7 @@ class PlayerSourceFailureRecoveryTest {
         val sourceCalls: AtomicInteger,
         val toastCalls: AtomicInteger,
         val sourceAttempts: MutableList<PlaybackSourceAttemptContext>,
+        val prepareCalls: AtomicInteger,
         val dispatcher: TestDispatcher,
     )
 }

@@ -152,6 +152,14 @@ constructor(
         const val DECODE_MODE_SOFTWARE = "software"
         const val PLAYER_ERROR_SOURCE_RESOLUTION_FAILED = "SOURCE_RESOLUTION_FAILED"
 
+        /**
+         * 起播期（还没出画面）源加载失败。
+         *
+         * 慢启动转码（服务端 30–60s 才出流）下 media3 内部先把 IO 错误重试完才上报一次， 两次上报间隔恒大于 播放中的 30s
+         * 重试窗口；必须按次预算收敛，否则会无限静默重试、永远 BUFFERING。
+         */
+        const val PLAYER_ERROR_STARTUP_SOURCE_FAILED = "STARTUP_SOURCE_FAILED"
+
         fun confirmedPosition(player: Player?): Long? =
             (player as? MPVPlayer)?.confirmedPosition()
                 ?: player?.let {
@@ -187,6 +195,9 @@ constructor(
         private const val NETWORK_RETRY_WINDOW_MS = 30_000L
         private const val NETWORK_RETRY_MIN_INTERVAL_MS = 3_000L
         private const val NETWORK_RETRY_MAX = 2
+
+        /** 起播期源错误的原地重试上限：慢启动转码只给一次原地重试，之后交给错误卡片（重试 = 重新解析源）。 */
+        private const val STARTUP_SOURCE_RETRY_MAX = 1
 
         private const val PROGRESS_RECOVERY_OBSERVE_WINDOW_MS = 5_000L
     }
@@ -237,6 +248,13 @@ constructor(
     private var playbackSessionJob: Job? = null
     private var playbackStartupJob: Job? = null
     private var failedSourceIntent: SourceResolutionIntent? = null
+
+    /** 最近一次 `initializePlayer` 的源意图：起播期源错误卡片的「重试」要靠它重新解析源。 */
+    private var lastSourceIntent: SourceResolutionIntent? = null
+
+    /** 起播期源错误的重试预算；与播放中按 30s 窗口计数的那套完全独立。 */
+    private val startupSourceRetryBudget =
+        PlayerStartupSourceRetryBudget(maxAttempts = STARTUP_SOURCE_RETRY_MAX)
     private val progressFallbackController = PlayerProgressFallbackController()
     private val progressRecoveryController = PlayerProgressRecoveryController()
     private val explicitExitController = PlayerExplicitExitController()
@@ -270,6 +288,7 @@ constructor(
                 )
             },
             observeWindowMs = PROGRESS_RECOVERY_OBSERVE_WINDOW_MS,
+            onExhausted = ::publishExhaustedStartupSourceFailure,
         )
     private val segmentCallbackCoordinator =
         PlayerSegmentCallbackCoordinator(playerAccess = playerAccess)
@@ -739,6 +758,19 @@ constructor(
         progressRecoveryOwnership.cancel()
     }
 
+    /**
+     * 进度恢复耗尽仍未出画面：没有错误卡片播放器会一直 BUFFERING，用户没有任何重试入口。
+     *
+     * 这里补发起播源错误，`retryPlayerError` 会按 `lastSourceIntent` 重新解析源、换新的转码会话。
+     */
+    private fun publishExhaustedStartupSourceFailure() {
+        if (_uiState.value.fileLoaded) return
+        if (_uiState.value.playerError != null) return
+        failedSourceIntent = lastSourceIntent
+        _uiState.update { it.copy(playerError = startupSourceFailure()) }
+        refreshPlaybackSession()
+    }
+
     private fun progressRecoveryRequestIsCurrent(
         request: PlayerProgressRecoveryRequest,
         expectedSeekBinding: ProgressRecoverySeekBinding?,
@@ -943,6 +975,8 @@ constructor(
             )
         val sourceAttempt = PlaybackSourceAttemptContext.new(sourceIntent.sourceIntentId)
         failedSourceIntent = null
+        lastSourceIntent = sourceIntent
+        startupSourceRetryBudget.reset()
         _uiState.update { it.copy(playerError = null) }
         seriesPlaybackTrace = null
         playbackStartupJob?.cancel()
@@ -1148,6 +1182,13 @@ constructor(
         PlayerErrorInfo(
             message = application.getString(R.string.player_source_resolution_failed),
             codeName = PLAYER_ERROR_SOURCE_RESOLUTION_FAILED,
+            backend = playerBackend,
+        )
+
+    private fun startupSourceFailure(): PlayerErrorInfo =
+        PlayerErrorInfo(
+            message = application.getString(R.string.player_source_resolution_failed),
+            codeName = PLAYER_ERROR_STARTUP_SOURCE_FAILED,
             backend = playerBackend,
         )
 
@@ -1955,6 +1996,7 @@ constructor(
                 stateString = "ExoPlayer.STATE_READY     -"
                 // 能进 READY 就说明上一次失败已经恢复，顺手收起错误卡片
                 _uiState.update { it.copy(fileLoaded = true, playerError = null) }
+                startupSourceRetryBudget.reset()
             }
             ExoPlayer.STATE_ENDED -> {
                 stateString = "ExoPlayer.STATE_ENDED     -"
@@ -1995,16 +2037,22 @@ constructor(
             if (handleCodecFallback(error)) return
         }
         seekSink.onEngineError(mediaIdentity = seekMediaIdentity(), retryable = true)
+        val startupSourceFailed = !_uiState.value.fileLoaded
+        if (startupSourceFailed) failedSourceIntent = lastSourceIntent
         _uiState.update {
             it.copy(
                 playerError =
-                    PlayerErrorInfo(
-                        message =
-                            error.message?.takeIf { message -> message.isNotBlank() }
-                                ?: error.errorCodeName,
-                        codeName = error.errorCodeName,
-                        backend = playerBackend,
-                    )
+                    if (startupSourceFailed) {
+                        startupSourceFailure()
+                    } else {
+                        PlayerErrorInfo(
+                            message =
+                                error.message?.takeIf { message -> message.isNotBlank() }
+                                    ?: error.errorCodeName,
+                            codeName = error.errorCodeName,
+                            backend = playerBackend,
+                        )
+                    }
             )
         }
         refreshPlaybackSession()
@@ -2017,29 +2065,45 @@ constructor(
         val activePlayer = playerAccess.existingPlayer() ?: return false
         val mediaId = activePlayer.currentMediaItem?.mediaId ?: return false
         val nowMs = SystemClock.elapsedRealtime()
-        if (
-            mediaId != lastNetworkErrorMediaId ||
-                nowMs - lastNetworkErrorAtMs > NETWORK_RETRY_WINDOW_MS
-        ) {
-            lastNetworkErrorMediaId = mediaId
-            networkRetryAttempts = 0
+        val startupSourcePhase = !_uiState.value.fileLoaded
+        if (startupSourcePhase) {
+            // 起播期：转码冷启动 30–60s 才回一次错，按 30s 墙钟窗口清零会让预算永远不可达。
+            if (!startupSourceRetryBudget.shouldRetry(mediaId)) {
+                Timber.w(
+                    "起播源错误原地重试已达上限（media=%s attempts=%d），交给错误卡片",
+                    mediaId,
+                    startupSourceRetryBudget.attempts,
+                )
+                return false
+            }
+        } else {
+            if (
+                mediaId != lastNetworkErrorMediaId ||
+                    nowMs - lastNetworkErrorAtMs > NETWORK_RETRY_WINDOW_MS
+            ) {
+                lastNetworkErrorMediaId = mediaId
+                networkRetryAttempts = 0
+            }
+            // 同一次故障可能连发多条错误（mpv 尤其明显）：重试间隔内的重复上报直接吞掉，不叠加重试次数
+            if (
+                networkRetryAttempts > 0 &&
+                    nowMs - lastNetworkErrorAtMs < NETWORK_RETRY_MIN_INTERVAL_MS
+            ) {
+                return true
+            }
+            lastNetworkErrorAtMs = nowMs
+            if (networkRetryAttempts >= NETWORK_RETRY_MAX) {
+                Timber.w(
+                    "网络错误原地重试已达上限（media=%s attempts=%d），交给错误卡片",
+                    mediaId,
+                    networkRetryAttempts,
+                )
+                return false
+            }
+            networkRetryAttempts++
         }
-        // 同一次故障可能连发多条错误（mpv 尤其明显）：重试间隔内的重复上报直接吞掉，不叠加重试次数
-        if (
-            networkRetryAttempts > 0 && nowMs - lastNetworkErrorAtMs < NETWORK_RETRY_MIN_INTERVAL_MS
-        ) {
-            return true
-        }
-        lastNetworkErrorAtMs = nowMs
-        if (networkRetryAttempts >= NETWORK_RETRY_MAX) {
-            Timber.w(
-                "网络错误原地重试已达上限（media=%s attempts=%d），交给错误卡片",
-                mediaId,
-                networkRetryAttempts,
-            )
-            return false
-        }
-        networkRetryAttempts++
+        val retryAttempt =
+            if (startupSourcePhase) startupSourceRetryBudget.attempts else networkRetryAttempts
         if (!playerAccess.isOpen()) return false
         val position =
             (seekSink.state as? SeekState.Seeking)?.targetMs
@@ -2047,14 +2111,14 @@ constructor(
         val item = items.firstOrNull { it.itemId.toString() == mediaId }
         val isTranscode = item != null && isTranscodeStreamUri(item.mediaSourceUri)
         val restartTranscodeSession =
-            isTranscode && playerBackend == PLAYER_BACKEND_EXOPLAYER && networkRetryAttempts > 1
+            isTranscode && playerBackend == PLAYER_BACKEND_EXOPLAYER && retryAttempt > 1
         val seekLease = seekSink.coordinator.captureRequestLease()
         if (restartTranscodeSession && seekLease != null) {
             if (!playerAccess.isOpen()) return false
             Timber.w(
                 "网络错误（%s）第 %d 次：转码流带位置重开会话 target=%d",
                 error.errorCodeName,
-                networkRetryAttempts,
+                retryAttempt,
                 position,
             )
             seekSink.restartTranscodeForNetwork(seekLease, "network-retry")
@@ -2062,7 +2126,7 @@ constructor(
             Timber.w(
                 "网络错误（%s）第 %d 次：原地重试当前内核 position=%d",
                 error.errorCodeName,
-                networkRetryAttempts,
+                retryAttempt,
                 position,
             )
             retryPlaybackAt(position, activePlayer = activePlayer)
@@ -3302,7 +3366,8 @@ constructor(
 
     fun retryPlayerError() {
         val sourceIntent = failedSourceIntent?.takeIf {
-            _uiState.value.playerError?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
+            _uiState.value.playerError?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED ||
+                _uiState.value.playerError?.codeName == PLAYER_ERROR_STARTUP_SOURCE_FAILED
         }
         if (sourceIntent != null) {
             if (explicitExitController.isExited) return
@@ -3883,6 +3948,35 @@ class PlayerSegmentCallbackCoordinator(private val playerAccess: PlayerAccessInv
     fun runIfActive(action: (Player) -> Unit): Boolean = playerAccess.withExistingPlayer(action)
 }
 
+/**
+ * 起播期（还没出画面）源错误的原地重试预算。
+ *
+ * 慢启动转码的服务端 30–60s 才出流，media3 自己会先把 IO 错误重试完再上报一次， 两次上报间隔恒大于播放中的 30s 重试窗口。这里只按次数与 mediaId
+ * 归属计数、与时钟无关：同一源的第 N 次错误才消耗预算， 换了媒体源（mediaId 变化）或重新出画面（STATE_READY）后重开。
+ */
+internal class PlayerStartupSourceRetryBudget(private val maxAttempts: Int) {
+    var attempts: Int = 0
+        private set
+
+    private var mediaId: String? = null
+
+    fun reset() {
+        attempts = 0
+        mediaId = null
+    }
+
+    /** 记录一次起播期源错误；返回 false 表示预算耗尽，应交给错误卡片。 */
+    fun shouldRetry(mediaId: String): Boolean {
+        if (this.mediaId != mediaId) {
+            this.mediaId = mediaId
+            attempts = 0
+        }
+        if (attempts >= maxAttempts) return false
+        attempts++
+        return true
+    }
+}
+
 internal class ProgressRecoveryJobOwner(
     private val scope: CoroutineScope,
     private val controller: PlayerProgressRecoveryController,
@@ -3892,6 +3986,8 @@ internal class ProgressRecoveryJobOwner(
     private val executeRetry:
         (PlayerProgressRecoveryRequest, PlayerViewModel.PlaybackRecovery) -> Unit,
     private val observeWindowMs: Long,
+    /** 重试预算真正耗尽（不是被取消 / 确认恢复）时回调，由持有方决定是否补发错误状态。 */
+    private val onExhausted: () -> Unit,
 ) {
     private var job: Job? = null
     private var terminal: PlayerViewModel.PlaybackRecovery? = null
@@ -3931,6 +4027,12 @@ internal class ProgressRecoveryJobOwner(
                 delay(observeWindowMs)
                 if (!isActive) return@launch
                 request = controller.nextAttempt(currentRequest)
+                if (
+                    request == null &&
+                        controller.status()?.phase == PlayerProgressRecoveryPhase.EXHAUSTED
+                ) {
+                    onExhausted()
+                }
             }
             if (terminal?.token == recoveryTerminal.token) {
                 terminal = null

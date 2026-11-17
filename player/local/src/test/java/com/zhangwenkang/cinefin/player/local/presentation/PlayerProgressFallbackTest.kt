@@ -950,6 +950,7 @@ class PlayerProgressFallbackTest {
                     seekSink.requestSeek(request.targetPositionMs, "progress-recovery")
                 },
                 observeWindowMs = 0L,
+                onExhausted = {},
             )
 
         owner.start(oldRequest, oldTerminal)
@@ -1004,6 +1005,66 @@ class PlayerProgressFallbackTest {
             )
         assertEquals(10_000L, newRequest.targetPositionMs)
     }
+
+    @Test
+    fun `progress recovery owner reports exhaustion exactly once`() = runBlocking {
+        val controller = PlayerProgressRecoveryController()
+        val first = present(controller.begin(recoveryInput()))
+        val second = present(controller.nextAttempt(first))
+        controller.exhaust(second)
+        var exhaustedCallbacks = 0
+        val owner =
+            ProgressRecoveryJobOwner(
+                scope = this,
+                controller = controller,
+                currentSeekBinding = { null },
+                requestIsCurrent = { _, _ -> true },
+                executeRetry = { _, _ -> },
+                observeWindowMs = 0L,
+                onExhausted = { exhaustedCallbacks += 1 },
+            )
+
+        owner.start(first.copy(delayMs = 0L), recoveryTerminal())
+        yield()
+        delay(50L)
+
+        assertEquals(1, exhaustedCallbacks)
+        assertFalse(owner.isActive)
+        assertNull(owner.activeTerminal)
+    }
+
+    @Test
+    fun `progress recovery owner does not report exhaustion after cancellation`() = runBlocking {
+        val controller = PlayerProgressRecoveryController()
+        val first = present(controller.begin(recoveryInput()))
+        var exhaustedCallbacks = 0
+        val owner =
+            ProgressRecoveryJobOwner(
+                scope = this,
+                controller = controller,
+                currentSeekBinding = { null },
+                requestIsCurrent = { _, _ -> true },
+                executeRetry = { _, _ -> },
+                observeWindowMs = 0L,
+                onExhausted = { exhaustedCallbacks += 1 },
+            )
+
+        owner.start(first.copy(delayMs = 0L), recoveryTerminal())
+        controller.cancel()
+        yield()
+        delay(50L)
+
+        assertEquals(0, exhaustedCallbacks)
+        assertFalse(owner.isActive)
+    }
+
+    private fun recoveryTerminal(): PlayerViewModel.PlaybackRecovery =
+        PlayerViewModel.PlaybackRecovery(
+            kind = "PLAYBACK_PROGRESS_TIMEOUT",
+            positionMs = 0L,
+            positionSource = PlayerViewModel.PlaybackRetryPositionSource.ENGINE_POSITION,
+            token = "terminal-a",
+        )
 
     private fun positiveProgressState(): PlaybackSessionState {
         val input =
