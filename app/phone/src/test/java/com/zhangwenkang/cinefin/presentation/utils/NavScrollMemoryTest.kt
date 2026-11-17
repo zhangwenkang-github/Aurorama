@@ -1,7 +1,9 @@
 package com.zhangwenkang.cinefin.presentation.utils
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** W75 #5：详情 / 列表页滚动位置的记忆表（按键取回、LRU 有界、无记录时回落 0）。 */
@@ -73,5 +75,33 @@ class NavScrollMemoryTest {
         // 组合不在 NavHost 内（预览 / 测试宿主）时回落调用方给的稳定键。
         assertEquals("show:abc", navScrollKey(owner = null, fallback = "show:abc"))
         assertEquals("show:abc", navScrollKey(owner = Any(), fallback = "show:abc"))
+    }
+
+    @Test
+    fun lazyPositionRestoresIntraItemOffsetWithoutOverridingNewerUserScroll() {
+        assertTrue(
+            shouldRestoreLazyPosition(
+                currentIndex = 0,
+                currentOffset = 0,
+                targetIndex = 0,
+                targetOffset = 600,
+            )
+        )
+        assertTrue(
+            shouldRestoreLazyPosition(
+                currentIndex = 2,
+                currentOffset = 0,
+                targetIndex = 3,
+                targetOffset = 120,
+            )
+        )
+        assertFalse(
+            shouldRestoreLazyPosition(
+                currentIndex = 0,
+                currentOffset = 800,
+                targetIndex = 0,
+                targetOffset = 600,
+            )
+        )
     }
 }

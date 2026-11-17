@@ -23,6 +23,10 @@
 # Keep class names of all classes for easy debugging (and fix navigation route checking)
 -keepnames class com.zhangwenkang.cinefin.** { *; }
 
+# libmpv 的 native 代码按原 JVM 名反射调用 MPVLib callback；R8 看不到该 JNI 契约。
+# 与 libmpv AAR 自带的 consumer 规则一致，只保留这个桥接类，不扩大到整个依赖。
+-keep class dev.jdtech.mpv.MPVLib { *; }
+
 # W71 · PdfBox 的 JPX（JPEG2000）滤镜引用可选编解码器 com.gemalto.jp2.*，本工程不打包该依赖
 # （debug 同样不存在，属已知可选路径）→ 只静默 R8 缺类告警，不影响其它 PDF 页面解码。
 -dontwarn com.gemalto.jp2.**

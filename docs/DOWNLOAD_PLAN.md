@@ -947,3 +947,166 @@ W61 全量回归 F2（P3）：「离线书架『已下载 4 本』与下载页�
 
 - **未做真机端到端**（books 库为空，见 28.1 ③）：待样本恢复后按 `FIX_PLAN` §3 W80/S80-1 判据复跑 —— ①书架长按选中 → 下载 → **即时 Snackbar**；②下载页出现「书籍 · 下载中 xx%」条目 → 完成后进「已完成 · 书籍」；③阅读页「下载」同链路；④删除进行中条目 = 取消且无残留；⑤「已下载」时再点下载 → 「所选条目均已下载或在下载队列中」。
 - 编译与单测证据：全量门禁 **996 / 0 / 0**（含新增 21 项：`ReaderGesturesTest` 13 + `RailFitRulesTest` 4 + `BookDownloadTaskTest` 4）。
+
+## 29. 1.4.1 批量下载选择身份漂移修复（2026-11-14）
+
+**状态：`RESOLVED_SIGNED_PATH / DUAL_DEVICE_INSTALLED / USER_ACCEPTANCE_PENDING`。**
+
+用户报告“批量下载错误，实际下载与选择不一致”。诊断 owner 在季详情手动多选两集的路径
+两次均得到所选 S1E1+S1E2 / S1E3+S1E5，未复现错配；随后只读追踪把主假设收敛到聚合视频页 /
+聚合媒体库页的 Paging 选择快照：
+
+- 选中数量来自稳定 `selectedIds`；
+- 实际下载对象来自 `loadedItems.filter { id in selectedIds }`；
+- 旧实现用 `remember(itemCount)` 缓存 `loadedItems`；同数量内容替换、页码刷新或 placeholder
+  晚到时，选择 ID 与实际传给下载器的对象可来自不同快照；
+- 下载前没有 `selectedIds` ↔ `selectedItems` 的一对一断言。
+
+修复提交 `4900ff0ee26b0f9204370cabab028bc1dea308bd` / tree
+`20e1a7e19eae5fdf8a0f3c2879fb1358dd7ad4a3`：
+
+- `VideoScreen.kt` / `LibraryScreen.kt` 改读当前 Paging `itemSnapshotList`，不再只按
+  `itemCount` 缓存对象；
+- `MediaBatchRules.kt` 新增 `resolveMediaBatchSelection`：返回当前顺序对象、`missingIds`、
+  `duplicateIds`；只有选择集合与当前对象严格一对一才执行批量下载；
+- 缺失/未加载/重复时 fail closed，显示“未加载条目，未执行修改”，不调用
+  `downloadSelected`，不会静默下载替代条目；
+- 未改 Downloader、Room schema 或 W51 `DetailDownloadRules`。
+
+RED/GREEN：`MediaBatchRulesTest` 先真实失败 2 项（同数量内容替换漏掉旧选择 ID、重复身份未拒绝），
+修复后 `15/0/0/0`；`assembleDebug`、`ktfmt`、`diff-check` PASS。
+
+signed 验证据 Pad `43af8627`：聚合网格选择两项 → Paging 重载/HOME 往返 → “已选 2 项” →
+下载页 `2 进行中 / 0 完成 / 0 失败`，两个实际任务 opaque title hash 与选择集合完全一致、
+初始顺序一致；随后两任务暂停并 App 内逐项删除，下载页恢复 `0/0/0/0 B`。季详情手动多选路径
+本身未复现错配，不能写成该子路径 FAIL。
+
+最终 signed arm64 `80487230 B / 72637DAC…0D45` 已同一份覆盖安装到：
+
+- Pad `43af8627`：保留 data，`1.4.1(6)`，non-debuggable；
+- K60 `8e875894`：保留 data，`1.4.1(6)`，non-debuggable；
+- 两机设备侧回拉 APK hash 均 MATCH；未启动 App，未卸载 / `pm clear`，未改系统设置。
+
+`P1-BATCH-DOWNLOAD-SELECTION-DRIFT-001` 的 signed 路径已 RESOLVED；完整 release matrix 仅在
+release-candidate gate 执行。既有播放器 seek/progress P1 与 loading/stall P2 状态不变。
+
+证据根：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-batch-download-mismatch-r1-2026-11-14\`。
+
+## 30. 1.4.1 用户验收失败：下载交互重新打开（2026-11-14）
+
+**状态：`ACCEPTANCE_FAILED / REOPENED / HANDOFF_REQUIRED`。** 用户安装双机包后明确反馈：
+
+1. 下载页删除有时无反应或过慢；预期点击后立即进入删除态并删除选中项。
+2. 删除节目后对应剧集有残留。
+3. 长按多选后的操作栏异常，出现两个播放按钮。
+4. 批量选择下载仍下载全部剧集，而不是用户选择的指定剧集。
+5. Pad `43af8627` 在线视频持续加载；同 WiFi 的 K60 `8e875894` 正常。
+
+上一轮把“聚合视频/媒体库 Paging 身份”修复误当成用户实际批量下载路径。用户实际使用的是
+节目/季/指定剧集批量语义；上一轮 signed 验证只覆盖聚合网格，属于**验收覆盖错误**。下载删除
+也只验证最终 `0/0/0`，未覆盖点击即时反馈、重复点击、节目→剧集递归残留；长按操作栏未断言
+播放动作唯一。该结论已在
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-user-acceptance-fail-2026-11-14\COVERAGE_GAP_ANALYSIS.md`
+记录。
+
+整改前必须先建立 1.4.1 逐项用户承诺矩阵，参考主流 Jellyfin 客户端和成熟下载 App 的
+“选择集 → 批量下载 / 删除 / 暂停”逻辑，再为以下症状分别分派 fresh owner：
+
+- `V2-FIX-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-*`：点击即反馈、节目/季/剧集递归一致；
+- `V2-FIX-DOWNLOAD-SELECTION-CONTROLS-*`：长按操作栏动作唯一（禁止两个播放按钮）；
+- `V2-FIX-DOWNLOAD-SELECTED-EPISODES-*`：节目/季/指定剧集的稳定 ID 集合必须等于实际任务；
+- `V2-FIX-PLAYER-PAD-ONLINE-LOADING-*`：Pad/K60 同 WiFi、同账号、同片源的在线播放 A/B。
+
+在新的用户矩阵和同路径 signed 证据完成前，不得写“批量下载已修复”或“1.4.1 可发布”。
+
+## 31. 1.4.1 下载验收整改 R1（2026-11-14）
+
+**状态：`PLANNING_COMPLETE / THREE_DOWNLOAD_LINEAGES_CONTRACT_GREEN /
+EXACT_SIGNED_QA_PENDING / NOT_RELEASABLE`。**
+
+基线核验：HEAD `12ace89562b1ebd553e2b8e041cc4655d64d480a` / tree
+`515787acc5e1581b8a23dde42e4ea9bf8b1a6dbf` clean；signed arm64
+`80487230 B / 72637DACED361A085F9002DF6DDED338FF22B2A5C66CA3FF410F69ADADF90D45`
+同时安装 Pad `43af8627` 与 K60 `8e875894`，设备侧 SHA MATCH；锁 `ACTIVE=0`。
+
+规划证据根：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\`
+
+- `AURORAMA_141_ACCEPTANCE_MATRIX_R1.md`：用户承诺 → 入口 → 操作 → 可观察结果 →
+  自动化 / fixture → 双机 → 未覆盖；
+- `AURORAMA_141_STATE_EFFECT_MATRIX_R1.md`：R038 七类状态经 GatePlan `FULL` 机械 PASS；
+- `DOWNLOAD_UX_REFERENCE_DIFF_R1.md`：官方 Jellyfin、Streamyfin、AntennaPod、Material 等
+  固定 commit 参考，SHA `C6B0A5EA…EDA1C`。
+
+### 31.1 冻结的产品契约
+
+1. 普通容器动作明确“下载整剧 / 下载全季”；长按选择态必须与普通容器动作互斥。
+2. Show / Season 先显式展开为具体 Episode 清单；用户确认时冻结
+   `requestedIds / plannedIds / expandedFromIds / scopeKey`；执行路径不得再次按容器动态补集。
+3. `plannedIds = acceptedIds + skippedIds + failedIds`，无重、无漏、无计划外 ID。
+4. 工具栏按分组和能力生成，每个语义 `actionId` 最多一个控件；“播放选中”和“继续下载”不得
+   共用同一三角图标。
+5. 保留一次删除确认；确认触发后首个 UI 帧进入 `Deleting`，在途重复点击幂等，失败项保留可重试。
+6. 节目 / 季是叶子 Episode 的派生投影；删除父级必须逐叶子 receipt 收敛，全部成功前父级不消失。
+
+### 31.2 指定剧集 lineage R1
+
+`V2-FIX-DOWNLOAD-SELECTED-EPISODES-001`
+
+- 诊断静态确认：Video 聚合页选择 Season 时只保存顶层 Season ID，
+  `MediaBatchViewModel.enqueueEngineTargets` 原先会加载该季全部 Episode 并逐一入队；
+  下载页 Show → Season → Episode 默认折叠会遮蔽叶子任务。
+- 真机已确认第一卡是含 6 集的 Season，但合成“长按”稳定触发单击，无法在精确入口进入多选；
+  实际任务 `0`、下载流量 `0`，故设备四集合等式仍 `INCONCLUSIVE`，不得写 PASS。
+- 实现候选 `0cd906e3d70f2b5f435d24127daa3b99856f5a09` / tree
+  `8b5b87d7f1dc222c25005afff139411b5452acff`：增加显式 Episode 候选清单、默认不勾选、
+  全选 / 清空 / 逐集 toggle、server + user scope、manifest fail-closed，并删除执行期容器展开补集。
+- 行为 RED 为旧路径仍向 Downloader 入队 Season 子集；GREEN phone JVM `502/0/0/0`，
+  targeted `19 + 7 + 2`，`assembleDebug`、ktfmt、diff-check、R038 GatePlan、graphify PASS。
+- debug APK `154385144 B / 7E4C94B2…8B21D`。分类仍为
+  `OPEN_PENDING_FRESH_QA / DEVICE_EXACT_ENTRY_INCONCLUSIVE`；需不同 fresh owner 在真实入口
+  验证选择 manifest、任务、下载页叶子和本地任务逐 ID 相等。
+
+证据：
+`F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-selected-episodes-implementation-r1-2026-11-14\IMPLEMENTATION_REPORT.md`。
+
+### 31.3 删除与工具栏
+
+- `V2-FIX-DOWNLOAD-DELETE-IMMEDIACY-RESIDUE-001` 的诊断已在 exact signed 包上执行同一 Show /
+  Season 下 2 个暂停任务：快速双击未创建第二 batch；父、季、叶、任务、活动通知与重启投影
+  2/2 收敛；但 Show drilldown 头与 Season 卡未消费同步写入的 pending，删除按钮仍可点，
+  `DELETING` 还被投成“等待下载”，形成 P1 `DELETE_PARENT_SEASON_PENDING_NOT_VISIBLE`。
+- 实现候选 `4b7f7bf35f0f3d74e63c822af3684e6f60b5ef9a` / tree
+  `86ed03180b90ef1d30608c2ff80fb29d838d5524` 让 Show 头、Season、叶共享删除派生投影；
+  pending / deleting 时互斥动作禁用，显示“删除中”、失败数、“已收敛 X/N”，失败叶可重试。
+  focused `37/0/0/0`、phone JVM `505/0/0/0`、film JVM `182/0/0/0`、assemble、ktfmt、
+  diff-check、R038 GatePlan、workflow / handoff tests、graphify PASS；debug APK
+  `154387056 B / 33AF87F2…3998`。`DEVICE_SELFTEST=NOT_RUN_PER_LOCK_POLICY`，需 independent
+  QA 在合法锁下验证首帧可见删除态、最终 `0/0/0/0 B`、通知不残留与 restart。
+- 证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\DELETE_DIAGNOSIS_R1.md`；
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-delete-pending-ui-implementation-r1-2026-11-14\DELETE_PENDING_UI_IMPLEMENTATION_R1_REPORT.md`。
+- `V2-FIX-DOWNLOAD-SELECTION-CONTROLS-001`：fresh 诊断 owner 只读采集 ACTIVE 分组多选中每个
+  action 的 icon / label / bounds / enabled / 出现次数，禁止执行播放。exact signed 包确认：
+  `PlaySelected` 与 `ResumeSelected` 虽然 action ID 不同，但同时固定渲染且共用 `ic_play`；
+  ACTIVE 暂停任务下形成“一个禁用播放三角 + 一个可用继续三角”。
+- 实现候选 `77f13d23aeed4630bb1d5e4b2c76f4c3f4f36757` / tree
+  `b44edbb20018bc6faa7ec077856a8c4a2ea48463` 改为能力过滤 action contract：
+  ACTIVE PAUSED 只生成“继续下载 + 删除”，COMPLETED 生成“播放 + 删除”，FAILED 生成
+  “重试 + 删除”；继续下载使用 `ic_download`，播放 / 继续标签资源化。真实 RED `5/5
+  AssertionError`，focused `5/0/0/0`、phone JVM `511/0/0/0`、assemble、ktfmt、GatePlan、
+  diff-check、graphify PASS；debug APK `154388092 B / FD54E749…C1B7`。Pad 真实暂停任务
+  选择态只看到 `继续下载 1 / 删除 1`，`播放选中 / 暂停 / 重试 = 0`，Play/Continue 动作执行 0。
+  证据：
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-acceptance-repair-planning-r1-2026-11-14\SELECTION_CONTROLS_DIAGNOSIS_R1.md`；
+  `F:\Develop\code_data\work_tree\Aurorama\evidence-v1-4-1-selection-controls-implementation-r1-2026-11-14\SELECTION_CONTROLS_IMPLEMENTATION_R1_REPORT.md`。
+- 两者均不得由指定剧集实现 owner 接续；独立 QA 必须与实现 owner 不同，且由负责人显式启动。
+
+### 31.4 下一步
+
+1. 三条下载 lineage 实现契约均已 GREEN；下一步不是继续局部修补，而是先构建包含
+   `0cd906e3`、`4b7f7bf3`、`77f13d23` 的新 signed 候选；
+2. 由负责人显式启动与三个实现 owner 不同的 fresh independent QA，在最终 signed 候选走
+   真实节目 / 季入口、真实任务和真实文件；
+3. 未完成上述证据前保持 `NOT_RELEASABLE`，不得使用聚合网格、单测或最终 `0/0/0` 代替。

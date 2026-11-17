@@ -9,11 +9,14 @@ import java.net.URI
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.EventListener
@@ -145,9 +148,12 @@ internal class DownloadHttpEngine(
                     .eventListener(DownloadRequestEventListener(requestState))
                     .build()
             val call = callClient.newCall(request)
-            val cancellationHandle =
-                coroutineContext[Job]?.invokeOnCompletion { cause ->
-                    if (cause is CancellationException) call.cancel()
+            // 阻塞式 OkHttp 调用必须监听协程进入取消态，而不是等待 job 完成；后者会被 body read 反锁。
+            val cancellationWatcher =
+                CoroutineScope(coroutineContext).launch(start = CoroutineStart.UNDISPATCHED) {
+                    suspendCancellableCoroutine<Unit> { continuation ->
+                        continuation.invokeOnCancellation { call.cancel() }
+                    }
                 }
             try {
                 call.execute().use { response ->
@@ -288,6 +294,8 @@ internal class DownloadHttpEngine(
                     io,
                     requestMarker(url, requestState.requestSent, "FAILED", reason),
                 )
+            } finally {
+                cancellationWatcher.cancel()
             }
         }
 

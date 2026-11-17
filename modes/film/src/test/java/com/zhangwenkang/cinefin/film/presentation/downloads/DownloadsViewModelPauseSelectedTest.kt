@@ -6,6 +6,10 @@ import com.zhangwenkang.cinefin.repository.BookDownloadTask
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
+import com.zhangwenkang.cinefin.utils.CanonicalActiveTaskRefresh
+import com.zhangwenkang.cinefin.utils.CanonicalActiveTaskSnapshotSource
+import com.zhangwenkang.cinefin.utils.CanonicalDownloadAction
+import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
 import com.zhangwenkang.cinefin.utils.DownloadIntentPhase
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
@@ -14,18 +18,242 @@ import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.utils.ImageCacheStore
 import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
+import com.zhangwenkang.cinefin.utils.downloadIdentity
 import java.io.File
 import java.lang.reflect.Proxy
 import java.util.UUID
 import kotlin.io.path.createTempDirectory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class DownloadsViewModelPauseSelectedTest {
+
+    @Test
+    fun `page applies an externally published canonical refresh epoch`() = runBlocking {
+        val initialTasks =
+            (1L..12L).map { index ->
+                task(
+                    sourceId = "episode-$index",
+                    intentPhase = null,
+                    suffix = index,
+                    status = DownloadTaskStatus.RUNNING,
+                )
+            }
+        val publishedTasks =
+            initialTasks.take(11).mapIndexed { index, task ->
+                task.copy(
+                    status =
+                        if (index == 10) DownloadTaskStatus.PAUSED else DownloadTaskStatus.RUNNING,
+                    downloadedBytes = (index + 1L) * 1_000L,
+                    totalBytes = (index + 1L) * 10_000L,
+                    updatedAt = 2_000L + index,
+                )
+            }
+        val initialRefresh = canonicalRefresh(initialTasks, samplingEpochMs = 100L)
+        val publishedRefresh = canonicalRefresh(publishedTasks, samplingEpochMs = 101L)
+        val publications = MutableStateFlow(initialRefresh)
+        var canonicalRefreshReads = 0
+        var rawTaskReads = 0
+        val context = TestContext(createTempDirectory().toFile())
+        val viewModel =
+            DownloadsViewModel(
+                context = context,
+                downloader =
+                    canonicalDownloaderProxy(
+                        refresh = initialRefresh,
+                        canonicalRefreshEvents = publications,
+                        onCanonicalRefresh = { canonicalRefreshReads += 1 },
+                        onRawTaskRead = { rawTaskReads += 1 },
+                        onCompletedRecordRead = {},
+                    ),
+                repository = repositoryProxy(),
+                readerRepository = readerRepositoryProxy(),
+                offlineMediaRepository = offlineRepositoryProxy(),
+                bookCoverProvider = bookCoverProvider(),
+                imageCacheStore = imageCacheStore(context),
+            )
+
+        viewModel.actionScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        viewModel.pollIntervalMsOverrideForTest = 60_000L
+        viewModel.start()
+
+        publications.value = publishedRefresh
+        withTimeout(5_000L) {
+            while (
+                viewModel.state.value.activeTasks.size != publishedRefresh.snapshot.activeCount
+            ) {
+                delay(10L)
+            }
+        }
+
+        val container = viewModel.state.value.activeContainers.single()
+        assertEquals(1, canonicalRefreshReads)
+        assertEquals(0, rawTaskReads)
+        assertEquals(
+            publishedRefresh.snapshot.sortedIdentityKeys,
+            viewModel.state.value.activeTasks.map { task -> task.downloadIdentity().canonicalKey },
+        )
+        assertEquals(publishedRefresh.snapshot.downloadedBytes, container.downloadedBytes)
+        assertEquals(publishedRefresh.snapshot.totalBytes, container.totalBytes)
+        assertEquals(
+            publishedRefresh.snapshot.projection.actionEligibleIdentities.keys,
+            canonicalPageActions(container),
+        )
+        viewModel.stop()
+    }
+
+    @Test
+    fun `page consumes one canonical refresh payload without a second raw task read`() {
+        val tasks =
+            (1L..12L).map { index ->
+                task(
+                    sourceId = "episode-$index",
+                    intentPhase = null,
+                    suffix = index,
+                    status =
+                        if (index == 12L) DownloadTaskStatus.PAUSED else DownloadTaskStatus.RUNNING,
+                )
+            }
+        val snapshot =
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = tasks,
+                downloadedCanonicalKeys = emptySet(),
+                samplingEpochMs = 77L,
+            )
+        val refresh =
+            CanonicalActiveTaskRefresh(
+                tasks = tasks,
+                completedMediaRecords = emptyList(),
+                snapshot = snapshot,
+            )
+        var canonicalRefreshReads = 0
+        var rawTaskReads = 0
+        var completedRecordReads = 0
+        val context = TestContext(createTempDirectory().toFile())
+        val viewModel =
+            DownloadsViewModel(
+                context = context,
+                downloader =
+                    canonicalDownloaderProxy(
+                        refresh = refresh,
+                        onCanonicalRefresh = { canonicalRefreshReads += 1 },
+                        onRawTaskRead = { rawTaskReads += 1 },
+                        onCompletedRecordRead = { completedRecordReads += 1 },
+                    ),
+                repository = repositoryProxy(),
+                readerRepository = readerRepositoryProxy(),
+                offlineMediaRepository = offlineRepositoryProxy(),
+                bookCoverProvider = bookCoverProvider(),
+                imageCacheStore = imageCacheStore(context),
+            )
+
+        viewModel.actionScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+        viewModel.pollIntervalMsOverrideForTest = 60_000L
+        viewModel.start()
+
+        val container = viewModel.state.value.activeContainers.single()
+        assertEquals(1, canonicalRefreshReads)
+        assertEquals(0, rawTaskReads)
+        assertEquals(0, completedRecordReads)
+        assertEquals(12, viewModel.state.value.activeTasks.size)
+        assertEquals(snapshot.downloadedBytes, container.downloadedBytes)
+        assertEquals(snapshot.totalBytes, container.totalBytes)
+        assertEquals(
+            snapshot.projection.actionEligibleIdentities.keys,
+            canonicalPageActions(container),
+        )
+        viewModel.stop()
+    }
+
+    @Test
+    fun `canonical refresh failure keeps page state and exposes failure without raw fallback`() =
+        runBlocking {
+            val tasks =
+                (1L..12L).map { index ->
+                    task(
+                        sourceId = "episode-$index",
+                        intentPhase = null,
+                        suffix = index,
+                        status = DownloadTaskStatus.RUNNING,
+                    )
+                }
+            val initialRefresh = canonicalRefresh(tasks, samplingEpochMs = 100L)
+            val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+            var canonicalRefreshReads = 0
+            var rawTaskReads = 0
+            var completedRecordReads = 0
+            var failCanonicalRefresh = false
+            val context = TestContext(createTempDirectory().toFile())
+            val viewModel =
+                DownloadsViewModel(
+                    context = context,
+                    downloader =
+                        canonicalDownloaderProxy(
+                            refresh = initialRefresh,
+                            canonicalRefreshProvider = {
+                                check(!failCanonicalRefresh) { "canonical refresh failed" }
+                                initialRefresh
+                            },
+                            queueChanges = queueChanges,
+                            onCanonicalRefresh = { canonicalRefreshReads += 1 },
+                            onRawTaskRead = { rawTaskReads += 1 },
+                            onCompletedRecordRead = { completedRecordReads += 1 },
+                        ),
+                    repository = repositoryProxy(),
+                    readerRepository = readerRepositoryProxy(),
+                    offlineMediaRepository = offlineRepositoryProxy(),
+                    bookCoverProvider = bookCoverProvider(),
+                    imageCacheStore = imageCacheStore(context),
+                )
+
+            viewModel.actionScopeOverride = CoroutineScope(Dispatchers.Unconfined)
+            viewModel.pollIntervalMsOverrideForTest = 60_000L
+            try {
+                viewModel.start()
+                withTimeout(5_000L) {
+                    while (viewModel.state.value.activeTasks.size != tasks.size) {
+                        delay(10L)
+                    }
+                }
+
+                failCanonicalRefresh = true
+                queueChanges.emit(Unit)
+                withTimeout(5_000L) {
+                    while (
+                        viewModel.state.value.refreshFailure == null &&
+                            rawTaskReads == 0 &&
+                            completedRecordReads == 0
+                    ) {
+                        delay(10L)
+                    }
+                }
+
+                assertEquals(2, canonicalRefreshReads)
+                assertEquals(0, rawTaskReads)
+                assertEquals(0, completedRecordReads)
+                assertEquals(tasks, viewModel.state.value.activeTasks)
+                assertEquals(
+                    DownloadRefreshFailure.CANONICAL_SNAPSHOT,
+                    viewModel.state.value.refreshFailure,
+                )
+                assertEquals(
+                    initialRefresh.snapshot.sortedIdentityKeys,
+                    viewModel.state.value.activeTasks.map { task ->
+                        task.downloadIdentity().canonicalKey
+                    },
+                )
+            } finally {
+                viewModel.stop()
+            }
+        }
 
     @Test
     fun `selected pause sends only real source tasks to pauseTask`() {
@@ -69,14 +297,19 @@ class DownloadsViewModelPauseSelectedTest {
         assertEquals(listOf("real-source"), paused.map(DownloadTask::sourceId))
     }
 
-    private fun task(sourceId: String, intentPhase: DownloadIntentPhase?, suffix: Long) =
+    private fun task(
+        sourceId: String,
+        intentPhase: DownloadIntentPhase?,
+        suffix: Long,
+        status: DownloadTaskStatus = DownloadTaskStatus.PENDING,
+    ) =
         DownloadTask(
             itemId = UUID(0L, suffix),
             sourceId = sourceId,
             name = "Task $suffix",
             path = "",
             downloadId = null,
-            status = DownloadTaskStatus.PENDING,
+            status = status,
             failureReason = null,
             downloadedBytes = 0L,
             totalBytes = 100L,
@@ -102,6 +335,75 @@ class DownloadsViewModelPauseSelectedTest {
                 else -> defaultValue(method.returnType)
             }
         }
+
+    private fun canonicalDownloaderProxy(
+        refresh: CanonicalActiveTaskRefresh,
+        canonicalRefreshEvents: StateFlow<CanonicalActiveTaskRefresh>? = null,
+        canonicalRefreshProvider: (() -> CanonicalActiveTaskRefresh)? = null,
+        queueChanges: MutableSharedFlow<Unit> = MutableSharedFlow(),
+        onCanonicalRefresh: () -> Unit,
+        onRawTaskRead: () -> Unit,
+        onCompletedRecordRead: () -> Unit,
+    ): Downloader =
+        Proxy.newProxyInstance(
+            Downloader::class.java.classLoader,
+            arrayOf(Downloader::class.java, CanonicalActiveTaskSnapshotSource::class.java),
+        ) { proxy, method, args ->
+            when (method.name) {
+                "equals" -> proxy === args?.firstOrNull()
+                "hashCode" -> System.identityHashCode(proxy)
+                "toString" -> "CanonicalTestDownloader"
+                "getQueueChanges" -> queueChanges
+                "refreshCanonicalActiveTaskRefresh" -> {
+                    onCanonicalRefresh()
+                    canonicalRefreshProvider?.invoke() ?: refresh
+                }
+                "latestCanonicalActiveTaskRefresh" -> refresh
+                "latestCanonicalActiveTaskSnapshot" -> refresh.snapshot
+                "getCanonicalRefreshEvents",
+                "canonicalRefreshEvents" -> canonicalRefreshEvents
+                "refreshDownloadTasks" -> {
+                    onRawTaskRead()
+                    refresh.tasks.dropLast(1)
+                }
+                "downloadedMediaRecords" -> {
+                    onCompletedRecordRead()
+                    emptyList<Any>()
+                }
+                "getStorageUsage" -> DownloadStorageUsage(0L, 0L, 0L)
+                else -> defaultValue(method.returnType)
+            }
+        } as Downloader
+
+    private fun canonicalRefresh(
+        tasks: List<DownloadTask>,
+        samplingEpochMs: Long,
+    ): CanonicalActiveTaskRefresh =
+        CanonicalActiveTaskRefresh(
+            tasks = tasks,
+            completedMediaRecords = emptyList(),
+            snapshot =
+                DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                    tasks = tasks,
+                    downloadedCanonicalKeys = emptySet(),
+                    samplingEpochMs = samplingEpochMs,
+                ),
+        )
+
+    private fun canonicalPageActions(
+        container: DownloadHierarchyContainer
+    ): Set<CanonicalDownloadAction> =
+        container
+            .taskActionSpecs()
+            .mapNotNull { spec ->
+                when (spec.action) {
+                    DownloadContainerTaskAction.PAUSE -> CanonicalDownloadAction.PAUSE
+                    DownloadContainerTaskAction.RESUME -> CanonicalDownloadAction.RESUME
+                    DownloadContainerTaskAction.RETRY -> null
+                }
+            }
+            .toSet() +
+            if (container.canDelete) setOf(CanonicalDownloadAction.DELETE) else emptySet()
 
     private fun repositoryProxy(): JellyfinRepository =
         proxy(JellyfinRepository::class.java) { method, _ ->

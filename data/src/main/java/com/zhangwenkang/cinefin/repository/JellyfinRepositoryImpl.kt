@@ -10,9 +10,11 @@ import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.models.FindroidEpisodeDto
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
+import com.zhangwenkang.cinefin.models.FindroidMovieDto
 import com.zhangwenkang.cinefin.models.FindroidPerson
 import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidSegment
@@ -21,6 +23,7 @@ import com.zhangwenkang.cinefin.models.FindroidSource
 import com.zhangwenkang.cinefin.models.FindroidTag
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
+import com.zhangwenkang.cinefin.models.isAvailableForSourceSelection
 import com.zhangwenkang.cinefin.models.toFindroidCollection
 import com.zhangwenkang.cinefin.models.toFindroidEpisode
 import com.zhangwenkang.cinefin.models.toFindroidItem
@@ -47,8 +50,6 @@ import com.zhangwenkang.cinefin.repository.catalog.CatalogSnapshot
 import com.zhangwenkang.cinefin.repository.catalog.CatalogView
 import com.zhangwenkang.cinefin.repository.catalog.CatalogViewItems
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
-import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
-import com.zhangwenkang.cinefin.settings.domain.PlayerStreamingQuality
 import com.zhangwenkang.cinefin.utils.ImageCacheRules
 import java.io.File
 import java.util.UUID
@@ -63,19 +64,14 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.DeviceOptionsDto
-import org.jellyfin.sdk.model.api.DeviceProfile
-import org.jellyfin.sdk.model.api.DlnaProfileType
-import org.jellyfin.sdk.model.api.EncodingContext
 import org.jellyfin.sdk.model.api.GeneralCommandType
 import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
-import org.jellyfin.sdk.model.api.MediaStreamProtocol
 import org.jellyfin.sdk.model.api.MediaType
 import org.jellyfin.sdk.model.api.PlayAccess
 import org.jellyfin.sdk.model.api.PlayMethod
-import org.jellyfin.sdk.model.api.PlaybackInfoDto
 import org.jellyfin.sdk.model.api.PlaybackOrder
 import org.jellyfin.sdk.model.api.PlaybackProgressInfo
 import org.jellyfin.sdk.model.api.PlaybackStartInfo
@@ -83,9 +79,6 @@ import org.jellyfin.sdk.model.api.PlaybackStopInfo
 import org.jellyfin.sdk.model.api.PublicSystemInfo
 import org.jellyfin.sdk.model.api.RepeatMode
 import org.jellyfin.sdk.model.api.SortOrder as ItemSortOrder
-import org.jellyfin.sdk.model.api.SubtitleDeliveryMethod
-import org.jellyfin.sdk.model.api.SubtitleProfile
-import org.jellyfin.sdk.model.api.TranscodingProfile
 import org.jellyfin.sdk.model.api.UserConfiguration
 import org.jellyfin.sdk.model.api.UserItemDataDto
 import timber.log.Timber
@@ -99,6 +92,36 @@ class JellyfinRepositoryImpl(
     private val localLibrary: LocalLibraryRepository,
     metadataSnapshotStore: MetadataSnapshotStore,
 ) : JellyfinRepository, OriginScopedJellyfinRepository, CatalogReadPort {
+    private var downloadedMovieMapper: suspend (FindroidMovieDto, UUID?) -> FindroidMovie =
+        { dto, userId ->
+            dto.toFindroidMovie(database, userId)
+        }
+    private var downloadedEpisodeMapper: suspend (FindroidEpisodeDto, UUID?) -> FindroidEpisode =
+        { dto, userId ->
+            dto.toFindroidEpisode(database, userId)
+        }
+
+    internal constructor(
+        context: Context,
+        jellyfinApi: JellyfinApi,
+        database: ServerDatabaseDao,
+        appPreferences: AppPreferences,
+        localLibrary: LocalLibraryRepository,
+        metadataSnapshotStore: MetadataSnapshotStore,
+        downloadedMovieMapper: suspend (FindroidMovieDto, UUID?) -> FindroidMovie,
+        downloadedEpisodeMapper: suspend (FindroidEpisodeDto, UUID?) -> FindroidEpisode,
+    ) : this(
+        context = context,
+        jellyfinApi = jellyfinApi,
+        database = database,
+        appPreferences = appPreferences,
+        localLibrary = localLibrary,
+        metadataSnapshotStore = metadataSnapshotStore,
+    ) {
+        this.downloadedMovieMapper = downloadedMovieMapper
+        this.downloadedEpisodeMapper = downloadedEpisodeMapper
+    }
+
     private var searchItemsIoDispatcher: CoroutineDispatcher = Dispatchers.IO
     private var searchItemsFetch: suspend (JellyfinApi, String, SearchScope) -> List<BaseItemDto> =
         { api, query, scope ->
@@ -525,8 +548,13 @@ class JellyfinRepositoryImpl(
     override suspend fun getPublicSystemInfo(): PublicSystemInfo =
         withContext(Dispatchers.IO) { jellyfinApi.systemApi.getPublicSystemInfo().content }
 
-    override suspend fun getEpisode(itemId: UUID): FindroidEpisode =
-        cachedDto(
+    override suspend fun getEpisode(itemId: UUID): FindroidEpisode {
+        if (completedLocalSource(itemId) != null) {
+            return withContext(Dispatchers.IO) {
+                downloadedEpisodeMapper(database.getEpisode(itemId), jellyfinApi.userId)
+            }
+        }
+        return cachedDto(
             key = MetadataCacheKeys.episode(itemId),
             fetch = {
                 withContext(Dispatchers.IO) {
@@ -535,16 +563,23 @@ class JellyfinRepositoryImpl(
             },
             materialize = { dto ->
                 withContext(Dispatchers.IO) {
-                    dto.toFindroidEpisode(this@JellyfinRepositoryImpl, database)!!
+                    dto.toFindroidEpisode(this@JellyfinRepositoryImpl, database)
+                        ?: throw IllegalStateException("该条目不是可播放的剧集")
                 }
             },
         )
+    }
 
     override suspend fun getMovie(itemId: UUID): FindroidMovie {
         withContext(Dispatchers.IO) { localLibrary.syntheticMovie(itemId) }
             ?.let {
                 return it
             }
+        if (completedLocalSource(itemId) != null) {
+            return withContext(Dispatchers.IO) {
+                downloadedMovieMapper(database.getMovie(itemId), jellyfinApi.userId)
+            }
+        }
         return cachedDto(
             key = MetadataCacheKeys.movie(itemId),
             fetch = {
@@ -1663,51 +1698,64 @@ class JellyfinRepositoryImpl(
         startItemId: UUID?,
         limit: Int?,
         offline: Boolean,
-    ): List<FindroidEpisode> =
+    ): List<FindroidEpisode> {
         if (offline) {
-            withContext(Dispatchers.IO) {
+            return withContext(Dispatchers.IO) {
                 database.getEpisodesBySeasonId(seasonId).map {
                     it.toFindroidEpisode(database, jellyfinApi.userId!!)
                 }
             }
-        } else {
-            cachedDtoList(
-                key =
-                    MetadataCacheKeys.episodes(
-                        seriesId = seriesId,
+        }
+
+        val fetchOnlineEpisodes: suspend () -> List<BaseItemDto> = {
+            withContext(Dispatchers.IO) {
+                jellyfinApi.showsApi
+                    .getEpisodes(
+                        seriesId,
+                        jellyfinApi.userId!!,
                         seasonId = seasonId,
                         fields = fields,
                         startItemId = startItemId,
                         limit = limit,
-                        offline = false,
-                    ),
-                fetch = {
-                    jellyfinApi.showsApi
-                        .getEpisodes(
-                            seriesId,
-                            jellyfinApi.userId!!,
-                            seasonId = seasonId,
-                            fields = fields,
-                            startItemId = startItemId,
-                            limit = limit,
+                    )
+                    .content
+                    .items
+            }
+        }
+        val materializeOnlineEpisodes: suspend (List<BaseItemDto>) -> List<FindroidEpisode> =
+            { dtos ->
+                withContext(Dispatchers.IO) {
+                    dtos.mapNotNull {
+                        // W73（#10）：未知季的集不带 SeasonId，用请求用的 seasonId 回落，别让整条被丢掉。
+                        it.toFindroidEpisode(
+                            this@JellyfinRepositoryImpl,
+                            database,
+                            fallbackSeasonId = seasonId,
                         )
-                        .content
-                        .items
-                },
-                materialize = { dtos ->
-                    withContext(Dispatchers.IO) {
-                        dtos.mapNotNull {
-                            // W73（#10）：未知季的集不带 SeasonId，用请求用的 seasonId 回落，别让整条被丢掉。
-                            it.toFindroidEpisode(
-                                this@JellyfinRepositoryImpl,
-                                database,
-                                fallbackSeasonId = seasonId,
-                            )
-                        }
                     }
-                },
+                }
+            }
+
+        if (fields?.contains(ItemFields.MEDIA_SOURCES) == true) {
+            return materializeOnlineEpisodes(
+                fetchOnlineEpisodes().map { dto -> dto.withCurrentRoomUserData() }
             )
         }
+
+        return cachedDtoList(
+            key =
+                MetadataCacheKeys.episodes(
+                    seriesId = seriesId,
+                    seasonId = seasonId,
+                    fields = fields,
+                    startItemId = startItemId,
+                    limit = limit,
+                    offline = false,
+                ),
+            fetch = fetchOnlineEpisodes,
+            materialize = materializeOnlineEpisodes,
+        )
+    }
 
     override suspend fun getMediaSourcesForOrigin(
         itemId: UUID,
@@ -1737,6 +1785,9 @@ class JellyfinRepositoryImpl(
             localLibrary.syntheticSources(itemId)?.let {
                 return@withContext it
             }
+            completedLocalSource(itemId)?.let {
+                return@withContext listOf(it)
+            }
             /*
              * 码率档位：0 = 自动（不设上限，服务器自行判断直连 / 转码）、
              * -1 = 原始画质（只直连，明确禁用转码）、>0 = 具体 bps（只映射 maxStreamingBitrate）。
@@ -1744,101 +1795,50 @@ class JellyfinRepositoryImpl(
              * 播放侧（PlaylistManager）优先使用它。分辨率标签参考 Android client v2.7.3 快照，
              * 是非协议硬限制标签，不会新增 maxWidth / maxHeight 请求。
              */
-            val streamingBitrate = appPreferences.getPlayerStreamingBitrate()
-            val maxStreamingBitrate =
-                PlayerStreamingQuality.maxStreamingBitrate(streamingBitrate).toInt()
-            val transcodingEnabled = PlayerStreamingQuality.transcodingEnabled(streamingBitrate)
+            val request =
+                PlaybackInfoSourceRequestFactory.create(
+                    appPreferences = appPreferences,
+                    userId = jellyfinApi.userId!!,
+                    startPositionTicks = startPositionTicks,
+                )
             /*
              * W16 解码回退链第 2 档：本地硬解报「解码能力不足」后，按回退档位强制服务器转码——
              * 明确不允许直连 / 直传（enableDirectPlay / enableDirectStream = false），否则服务器会
              * 认为参数没超限继续 DirectPlay，客户端还是解不了。用户显式选码率后档位会清零。
              */
-            val forceTranscode =
-                PlayerDecodeFallback.forcesServerTranscode(
-                    appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
-                )
-            /*
-             * 选了具体码率就必须声明转码能力：否则服务器认为「这个客户端不会播转码流」，
-             * 于是无视 maxStreamingBitrate 继续直连（Pad 5 真机实测：3 Mbps 档仍是 DirectPlay）。
-             * 只声明 HLS + H.264/AAC（Jellyfin 官方客户端的流式档位），音频直通优先级由服务器决定。
-             */
-            val transcodingProfiles =
-                if (
-                    PlayerStreamingQuality.requestsTranscoding(streamingBitrate) || forceTranscode
-                ) {
-                    listOf(
-                        TranscodingProfile(
-                            container = "ts",
-                            type = DlnaProfileType.VIDEO,
-                            videoCodec = "h264",
-                            audioCodec = "aac,mp3,ac3,opus",
-                            protocol = MediaStreamProtocol.HLS,
-                            context = EncodingContext.STREAMING,
-                            enableSubtitlesInManifest = true,
-                            conditions = emptyList(),
-                        )
-                    )
-                } else {
-                    emptyList()
-                }
+            val deviceProfile = request.deviceProfile
             Timber.d(
-                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b forceTranscode=%b profiles=%d startTimeTicks=%d",
-                streamingBitrate,
-                maxStreamingBitrate,
-                transcodingEnabled,
-                forceTranscode,
-                transcodingProfiles.size,
-                startPositionTicks,
+                "getMediaSources bitrate=%d maxStreamingBitrate=%d transcoding=%b forceTranscode=%b directPlay=%d transcodingProfiles=%d startTimeTicks=%d",
+                appPreferences.getPlayerStreamingBitrate(),
+                request.maxStreamingBitrate ?: 0,
+                request.enableTranscoding == true,
+                request.enableDirectPlay == false && request.enableDirectStream == false,
+                deviceProfile?.directPlayProfiles?.size ?: 0,
+                deviceProfile?.transcodingProfiles?.size ?: 0,
+                request.startTimeTicks ?: 0L,
             )
             val sources = mutableListOf<FindroidSource>()
             sources.addAll(
                 jellyfinApi.mediaInfoApi
-                    .getPostedPlaybackInfo(
-                        itemId,
-                        PlaybackInfoDto(
-                            userId = jellyfinApi.userId!!,
-                            deviceProfile =
-                                DeviceProfile(
-                                    name = "Direct play all",
-                                    maxStaticBitrate = maxStreamingBitrate,
-                                    maxStreamingBitrate = maxStreamingBitrate,
-                                    codecProfiles = emptyList(),
-                                    containerProfiles = emptyList(),
-                                    directPlayProfiles = emptyList(),
-                                    transcodingProfiles = transcodingProfiles,
-                                    subtitleProfiles =
-                                        listOf(
-                                            SubtitleProfile("srt", SubtitleDeliveryMethod.EXTERNAL),
-                                            SubtitleProfile("ass", SubtitleDeliveryMethod.EXTERNAL),
-                                        ),
-                                ),
-                            maxStreamingBitrate = maxStreamingBitrate,
-                            /*
-                             * W73（#7）：把起播 / seek 目标位置透传给服务器。转码会话据此从目标位置开始生成分片，
-                             * 客户端不必等转码任务从 0 追赶（实测窗口外 seek 会 BUFFERING 15–30 s）。
-                             */
-                            startTimeTicks = startPositionTicks.takeIf { it > 0L },
-                            // 原始画质 = 只直连；自动 / 具体码率都允许服务器转码
-                            enableTranscoding = transcodingEnabled,
-                            // W16：回退档位 = 服务器转码时禁止直连 / 直传，逼服务器真的转码
-                            enableDirectPlay = if (forceTranscode) false else null,
-                            enableDirectStream = if (forceTranscode) false else null,
-                            /*
-                             * 还禁止「流拷贝」：只禁直连 / 直传时，服务器会把 10-bit H.264 原样
-                             * 塞进 HLS（video stream copy），客户端依旧解不了——实测就是这个坑
-                             * （Hi10P 片源第二档仍报 ERROR_CODE_DECODING_FAILED）。禁掉拷贝后
-                             * 服务器按转码档位（h264/aac）重新编码，客户端硬解才吃得下。
-                             */
-                            allowVideoStreamCopy = if (forceTranscode) false else null,
-                            allowAudioStreamCopy = if (forceTranscode) false else null,
-                        ),
-                    )
+                    .getPostedPlaybackInfo(itemId, request)
                     .content
                     .mediaSources
                     .map { it.toFindroidSource(this@JellyfinRepositoryImpl, itemId, includePath) }
             )
-            sources.addAll(database.getSources(itemId).map { it.toFindroidSource(database) })
+            sources.addAll(
+                database
+                    .getSources(itemId)
+                    .map { it.toFindroidSource(database) }
+                    .filter { it.isAvailableForSourceSelection() }
+            )
             sources
+        }
+
+    private suspend fun completedLocalSource(itemId: UUID): FindroidSource? =
+        withContext(Dispatchers.IO) {
+            database.getCompletedSource(itemId)?.toFindroidSource(database)?.takeIf {
+                it.isAvailableForSourceSelection()
+            }
         }
 
     override suspend fun getStreamUrl(itemId: UUID, mediaSourceId: String): String =

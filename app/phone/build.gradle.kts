@@ -285,3 +285,165 @@ tasks
             }
         }
     }
+
+/*
+ * libmpv 的 native 侧按原 JVM 方法名查找回调。R8 无法自行看到这条 JNI 契约，
+ * 因此 release mapping 必须保留 MPVLib 的完整 JVM ABI。期望 callback 直接从仓库
+ * JNI 源码解析，避免新增 native callback 时漏掉手写白名单。
+ */
+val verifyMpvJniReleaseContract by tasks.registering {
+    group = "verification"
+    description = "Verifies that R8 preserves the complete libmpv JNI/JVM contract."
+    dependsOn("assembleLibreRelease")
+
+    doLast {
+        val mappingFile =
+            layout.buildDirectory.file("outputs/mapping/libreRelease/mapping.txt").get().asFile
+        check(mappingFile.isFile) { "缺少 release mapping：${mappingFile.absolutePath}" }
+
+        fun parseDescriptorTypes(sequence: String, descriptor: String): List<String> {
+            val types = mutableListOf<String>()
+            var index = 0
+            while (index < sequence.length) {
+                var arrayDepth = 0
+                while (sequence[index] == '[') {
+                    arrayDepth += 1
+                    index += 1
+                }
+                val type =
+                    when (sequence[index]) {
+                        'Z' -> "boolean"
+                        'B' -> "byte"
+                        'C' -> "char"
+                        'S' -> "short"
+                        'I' -> "int"
+                        'J' -> "long"
+                        'F' -> "float"
+                        'D' -> "double"
+                        'V' -> "void"
+                        'L' -> {
+                            val end = sequence.indexOf(';', index)
+                            check(end > index) { "非法 JNI object descriptor：$descriptor" }
+                            sequence.substring(index + 1, end).replace('/', '.').also {
+                                index = end
+                            }
+                        }
+                        else -> error("不支持的 JNI type descriptor：$descriptor")
+                    }
+                types += type + "[]".repeat(arrayDepth)
+                index += 1
+            }
+            return types
+        }
+
+        fun descriptorParameterTypes(descriptor: String): List<String> {
+            check(descriptor.startsWith("(") && descriptor.contains(')')) {
+                "非法 JNI method descriptor：$descriptor"
+            }
+            return parseDescriptorTypes(
+                descriptor.substringAfter('(').substringBefore(')'),
+                descriptor,
+            )
+        }
+
+        fun descriptorReturnType(descriptor: String): String =
+            parseDescriptorTypes(descriptor.substringAfter(')'), descriptor).single()
+
+        val jniUtils = rootProject.file("player/mpv-binding/src/main/cpp/jni_utils.cpp")
+        check(jniUtils.isFile) { "缺少 libmpv JNI 源码：${jniUtils.absolutePath}" }
+        val callbackPattern =
+            Regex(
+                """GetMethodID\(\s*mpv_MPVLib,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)""",
+                RegexOption.MULTILINE,
+            )
+        val expectedCallbacks =
+            callbackPattern
+                .findAll(jniUtils.readText(Charsets.UTF_8))
+                .map { match ->
+                    val descriptor = match.groupValues[2]
+                    val name = match.groupValues[1]
+                    "${descriptorReturnType(descriptor)} $name(" +
+                        descriptorParameterTypes(descriptor).joinToString(",") +
+                        ")"
+                }
+                .toSet()
+        check(expectedCallbacks.isNotEmpty()) {
+            "未从 libmpv JNI 源码解析到 callback：${jniUtils.absolutePath}"
+        }
+
+        data class MappedMethod(
+            val signature: String,
+            val originalName: String,
+            val mappedName: String,
+        )
+
+        val mappedMethods =
+            mappingFile.useLines(Charsets.UTF_8) { lines ->
+                lines
+                    .dropWhile { line -> !line.startsWith("dev.jdtech.mpv.MPVLib ->") }
+                    .drop(1)
+                    .takeWhile { line ->
+                        line.isBlank() ||
+                            line.startsWith("#") ||
+                            line.firstOrNull()?.isWhitespace() == true
+                    }
+                    .mapNotNull { line ->
+                        val arrow = line.indexOf(" -> ")
+                        if (arrow < 0) return@mapNotNull null
+                        val declaration =
+                            line
+                                .substring(0, arrow)
+                                .replace(Regex("""^\s*\d+:\d+:"""), "")
+                                .replace(Regex(""":\d+(?::\d+)?\s*$"""), "")
+                        val closeParen = declaration.lastIndexOf(')')
+                        val openParen = declaration.lastIndexOf('(', closeParen)
+                        if (closeParen < 0 || openParen < 0) return@mapNotNull null
+                        val qualifiedName =
+                            declaration.substring(0, openParen).trim().substringAfterLast(' ')
+                        val returnType =
+                            declaration.substring(0, openParen).trim().substringBeforeLast(' ')
+                        // JNI callbacks are declared directly on MPVLib. R8 inline entries for
+                        // nested classes carry a qualified method name and are not class members.
+                        if ('.' in qualifiedName) {
+                            return@mapNotNull null
+                        }
+                        MappedMethod(
+                            signature =
+                                "$returnType $qualifiedName" +
+                                    declaration.substring(openParen, closeParen + 1),
+                            originalName = qualifiedName,
+                            mappedName = line.substring(arrow + 4).trim(),
+                        )
+                    }
+                    .distinctBy { it.signature to it.mappedName }
+                    .toList()
+            }
+        val missingCallbacks =
+            expectedCallbacks -
+                mappedMethods
+                    .filter { it.originalName == it.mappedName }
+                    .map { it.signature }
+                    .toSet()
+        val renamedMethods =
+            mappedMethods
+                .filter { it.originalName != it.mappedName }
+                .map { "${it.signature} -> ${it.mappedName}" }
+        check(missingCallbacks.isEmpty() && renamedMethods.isEmpty()) {
+            buildString {
+                if (missingCallbacks.isNotEmpty()) {
+                    append("R8 丢失 libmpv JNI callback：")
+                    append(missingCallbacks.sorted().joinToString())
+                    append("；")
+                }
+                if (renamedMethods.isNotEmpty()) {
+                    append("R8 改名 MPVLib JVM 方法：")
+                    append(renamedMethods.sorted().joinToString())
+                }
+            }
+        }
+        logger.lifecycle(
+            "MPV JNI release contract PASS：${expectedCallbacks.size} callbacks / " +
+                "${mappedMethods.size} direct methods preserved"
+        )
+    }
+}

@@ -17,7 +17,21 @@ import com.zhangwenkang.cinefin.repository.LocalBookFile
 import com.zhangwenkang.cinefin.repository.MusicTrackMetadata
 import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.utils.BookCoverProvider
+import com.zhangwenkang.cinefin.utils.CanonicalActiveTask
+import com.zhangwenkang.cinefin.utils.CanonicalActiveTaskRefresh
+import com.zhangwenkang.cinefin.utils.CanonicalActiveTaskSnapshotSource
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceError
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceEvent
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceHandle
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceIdentity
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTracePhase
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRefresh
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRequest
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceResult
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRoot
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRuntime
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceTrigger
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadMediaRecord
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
@@ -32,6 +46,11 @@ import com.zhangwenkang.cinefin.utils.OfflineMediaRepository
 import com.zhangwenkang.cinefin.utils.canonicalIdentity
 import com.zhangwenkang.cinefin.utils.downloadIdentity
 import com.zhangwenkang.cinefin.utils.offlineBookDisplayName
+import com.zhangwenkang.cinefin.utils.safeFail
+import com.zhangwenkang.cinefin.utils.safePendingCleared
+import com.zhangwenkang.cinefin.utils.safePublish
+import com.zhangwenkang.cinefin.utils.safeRecord
+import com.zhangwenkang.cinefin.utils.withDownloadDeleteTrace
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -190,6 +209,85 @@ constructor(
 
     private fun actionScope(): CoroutineScope = actionScopeOverride ?: viewModelScope
 
+    private data class TracedDelete(
+        val root: DownloadDeleteTraceRoot = DownloadDeleteTraceRoot.Empty,
+        val handlesByKey: Map<String, DownloadDeleteTraceHandle> = emptyMap(),
+    )
+
+    private fun startDeleteTrace(entries: List<DownloadHierarchyEntry>): TracedDelete {
+        val requests = entries.distinctBy(DownloadHierarchyEntry::key).map(::deleteTraceRequest)
+        val root = DownloadDeleteTraceRuntime.start(requests)
+        return TracedDelete(
+            root = root,
+            handlesByKey = root.handles.associateBy(DownloadDeleteTraceHandle::stableKey),
+        )
+    }
+
+    private fun startDeleteTraceForTask(task: DownloadTask): TracedDelete {
+        val entry = _state.value.findEntry(taskKey(task))
+        return startDeleteTrace(
+            listOf(
+                entry
+                    ?: DownloadHierarchyEntry(
+                        itemId = task.itemId,
+                        name = task.name,
+                        mediaKind = task.mediaKind,
+                        status = task.status,
+                        sourceId = task.sourceId,
+                        serverId = task.serverId,
+                        userId = task.userId,
+                        task = task,
+                    )
+            )
+        )
+    }
+
+    private fun deleteTraceRequest(entry: DownloadHierarchyEntry): DownloadDeleteTraceRequest =
+        DownloadDeleteTraceRequest(
+            stableKey = entry.key,
+            sourceId = entry.task?.sourceId ?: entry.sourceId,
+            identity = {
+                DownloadDeleteTraceIdentity(
+                    mediaKind = entry.mediaKind,
+                    serverId = entry.serverId ?: entry.task?.serverId,
+                    userId = entry.userId ?: entry.task?.userId,
+                    itemId = entry.itemId.toString(),
+                    sourceId = entry.task?.sourceId ?: entry.sourceId,
+                )
+            },
+        )
+
+    private fun recordPendingProjection(
+        trace: TracedDelete,
+        keys: Collection<String>,
+    ) {
+        val state = _state.value
+        keys.forEach { key ->
+            val visible =
+                state.pendingActions[key] == DownloadPendingAction.DELETE ||
+                    key in state.deletionPendingBatches ||
+                    state.findEntry(key)?.status == DownloadTaskStatus.DELETING
+            trace.handlesByKey[key].safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D2_PENDING_PROJECTED,
+                    result =
+                        if (visible) {
+                            DownloadDeleteTraceResult.VISIBLE
+                        } else {
+                            DownloadDeleteTraceResult.FAILED
+                        },
+                )
+            )
+        }
+    }
+
+    private fun finishTracePending(trace: TracedDelete) {
+        trace.handlesByKey.values.forEach(DownloadDeleteTraceHandle::safePendingCleared)
+    }
+
+    private fun DownloadManagerState.canonicalDeleteTraceKeys(): Set<String> =
+        allContainers().flatMap(::descendantEntries).mapTo(linkedSetOf()) { it.key }
+
     private fun DownloadManagerState.applySelectionRefresh(
         result: DownloadSelectionRefreshResult
     ): DownloadManagerState {
@@ -255,6 +353,7 @@ constructor(
                         )
                     }
                 },
+            deletionSummary = deletionSummary,
         )
     }
 
@@ -262,6 +361,7 @@ constructor(
     private var pollingJob: Job? = null
     private var queueChangesJob: Job? = null
     private var bookDownloadsJob: Job? = null
+    private var canonicalRefreshJob: Job? = null
     private var externalRefreshRequestsJob: Job? = null
     @Volatile private var externalRefreshRequests: Channel<Unit>? = null
     private var remoteRefreshJob: Job? = null
@@ -280,6 +380,7 @@ constructor(
     private val artworkBackfillAttempted = mutableSetOf<UUID>()
     private var artworkBackfillJob: Job? = null
     private var completedMediaRecords: List<DownloadMediaRecord> = emptyList()
+    @Volatile private var lastAppliedCanonicalEpoch = 0L
 
     /** 页面进入：立即刷新 + 启动轮询；重复调用无副作用。 */
     fun start() {
@@ -291,7 +392,10 @@ constructor(
         externalRefreshRequests = refreshRequests
         externalRefreshRequestsJob = scope.launch {
             for (ignored in refreshRequests) {
-                refresh(showLoading = false)
+                refresh(
+                    showLoading = false,
+                    trigger = DownloadDeleteTraceTrigger.QUEUE,
+                )
             }
         }
         queueChangesJob = scope.launch {
@@ -300,11 +404,26 @@ constructor(
         bookDownloadsJob = scope.launch {
             readerRepository.bookDownloads.drop(1).collect { requestExternalRefresh() }
         }
-        scope.launch { refresh(showLoading = true) }
+        canonicalRefreshJob =
+            (downloader as? CanonicalActiveTaskSnapshotSource)?.canonicalRefreshEvents?.let { events
+                ->
+                scope.launch {
+                    events.collect { refresh -> applyPublishedCanonicalRefresh(refresh) }
+                }
+            }
+        scope.launch {
+            refresh(
+                showLoading = true,
+                trigger = DownloadDeleteTraceTrigger.EXPLICIT,
+            )
+        }
         pollingJob = scope.launch {
             while (isActive) {
                 delay(pollIntervalMsOverrideForTest ?: POLL_INTERVAL_MS)
-                refresh(showLoading = false)
+                refresh(
+                    showLoading = false,
+                    trigger = DownloadDeleteTraceTrigger.POLL,
+                )
             }
         }
     }
@@ -317,6 +436,8 @@ constructor(
         queueChangesJob = null
         bookDownloadsJob?.cancel()
         bookDownloadsJob = null
+        canonicalRefreshJob?.cancel()
+        canonicalRefreshJob = null
         externalRefreshRequests?.close()
         externalRefreshRequests = null
         externalRefreshRequestsJob?.cancel()
@@ -458,6 +579,7 @@ constructor(
                         actionFailure = null,
                         deletionFailureReason = null,
                         deletionRecoveryEntries = emptyList(),
+                        deletionSummary = null,
                     )
                 }
             DownloadAction.DeleteSelected -> deleteSelected()
@@ -509,33 +631,38 @@ constructor(
 
     /** W34：删除层级里的单个条目（任务 / 已完成媒体 / 阅读器离线书籍）。 */
     private fun deleteEntry(key: String) {
+        val tracedEntry = _state.value.findEntry(key) ?: return
+        val trace = startDeleteTrace(listOf(tracedEntry))
         _state.update { it.beginPending(DownloadPendingAction.DELETE, setOf(key)) }
+        recordPendingProjection(trace, setOf(key))
         actionScope().launch {
             try {
                 val entry = _state.value.findEntry(key) ?: return@launch
-                when {
-                    entry.task != null -> downloader.deleteTask(entry.task)
-                    entry.mediaKind == DownloadMediaKind.BOOK -> {
-                        // 完成书籍的本地文件没有自己的 owner；只有唯一 book task 时才能安全补齐 canonical。
-                        val canonicalKey =
-                            entry.canonicalIdentity.canonicalKey.takeIf {
-                                entry.serverId != null && entry.userId != null
-                            }
-                        val result =
-                            readerRepository.deleteLocalFile(
-                                itemId = entry.itemId,
-                                canonicalKey = canonicalKey,
-                            )
-                        if (result != BookDownloadDeleteResult.Deleted) {
-                            _state.update { current ->
-                                current.failPending(DownloadPendingAction.DELETE, setOf(key))
+                withDownloadDeleteTrace(trace.root) {
+                    when {
+                        entry.task != null -> downloader.deleteTask(entry.task)
+                        entry.mediaKind == DownloadMediaKind.BOOK -> {
+                            // 完成书籍的本地文件没有自己的 owner；只有唯一 book task 时才能安全补齐 canonical。
+                            val canonicalKey =
+                                entry.canonicalIdentity.canonicalKey.takeIf {
+                                    entry.serverId != null && entry.userId != null
+                                }
+                            val result =
+                                readerRepository.deleteLocalFile(
+                                    itemId = entry.itemId,
+                                    canonicalKey = canonicalKey,
+                                )
+                            if (result != BookDownloadDeleteResult.Deleted) {
+                                _state.update { current ->
+                                    current.failPending(DownloadPendingAction.DELETE, setOf(key))
+                                }
                             }
                         }
-                    }
-                    else -> {
-                        val completed =
-                            _state.value.completed.firstOrNull { it.item.id == entry.itemId }
-                        completed?.source?.let { downloader.deleteItem(completed.item, it) }
+                        else -> {
+                            val completed =
+                                _state.value.completed.firstOrNull { it.item.id == entry.itemId }
+                            completed?.source?.let { downloader.deleteItem(completed.item, it) }
+                        }
                     }
                 }
                 refresh(showLoading = false)
@@ -545,6 +672,7 @@ constructor(
                 failSelectionAction(DownloadPendingAction.DELETE, setOf(key), error)
             } finally {
                 _state.update { it.finishPending(setOf(key)) }
+                finishTracePending(trace)
             }
         }
     }
@@ -558,6 +686,7 @@ constructor(
                     actionFailure = null,
                     deletionFailureReason = null,
                     deletionRecoveryEntries = emptyList(),
+                    deletionSummary = null,
                 )
             } else {
                 current.copy(
@@ -565,6 +694,7 @@ constructor(
                     actionFailure = null,
                     deletionFailureReason = null,
                     deletionRecoveryEntries = emptyList(),
+                    deletionSummary = null,
                 )
             }
         }
@@ -579,6 +709,7 @@ constructor(
                 actionFailure = null,
                 deletionFailureReason = null,
                 deletionRecoveryEntries = emptyList(),
+                deletionSummary = null,
             )
         }
     }
@@ -591,6 +722,7 @@ constructor(
                 actionFailure = null,
                 deletionFailureReason = null,
                 deletionRecoveryEntries = emptyList(),
+                deletionSummary = null,
             )
         }
     }
@@ -631,11 +763,20 @@ constructor(
         block: suspend (DownloadTask) -> Any?,
     ) {
         val key = taskKey(task)
+        val trace =
+            if (pendingAction == DownloadPendingAction.DELETE) {
+                startDeleteTraceForTask(task)
+            } else {
+                TracedDelete()
+            }
         _state.update { it.beginPending(pendingAction, setOf(key)) }
+        if (pendingAction == DownloadPendingAction.DELETE) {
+            recordPendingProjection(trace, setOf(key))
+        }
         (if (pendingAction == DownloadPendingAction.DELETE) actionScope() else viewModelScope)
             .launch {
                 try {
-                    block(task)
+                    withDownloadDeleteTrace(trace.root) { block(task) }
                     refresh(showLoading = false)
                 } catch (cancellation: CancellationException) {
                     throw cancellation
@@ -647,6 +788,9 @@ constructor(
                     }
                 } finally {
                     _state.update { it.finishPending(setOf(key)) }
+                    if (pendingAction == DownloadPendingAction.DELETE) {
+                        finishTracePending(trace)
+                    }
                 }
             }
     }
@@ -763,10 +907,21 @@ constructor(
                             entry.sourceId == download.source.id)
                 }
                 ?.key ?: itemKey(download.item.id)
+        val trace =
+            startDeleteTrace(
+                listOfNotNull(
+                    _state.value.allContainers().flatMap(::descendantEntries).firstOrNull {
+                        it.key == key
+                    }
+                )
+            )
         _state.update { it.beginPending(DownloadPendingAction.DELETE, setOf(key)) }
+        recordPendingProjection(trace, setOf(key))
         actionScope().launch {
             try {
-                download.source?.let { downloader.deleteItem(download.item, it) }
+                withDownloadDeleteTrace(trace.root) {
+                    download.source?.let { downloader.deleteItem(download.item, it) }
+                }
                 refresh(showLoading = false)
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -774,6 +929,7 @@ constructor(
                 failSelectionAction(DownloadPendingAction.DELETE, setOf(key), error)
             } finally {
                 _state.update { it.finishPending(setOf(key)) }
+                finishTracePending(trace)
             }
         }
     }
@@ -827,17 +983,19 @@ constructor(
                     if (entries.isEmpty()) {
                         null
                     } else {
+                        val trace = startDeleteTrace(entries)
                         val batchId = ++nextDeletionBatchId
                         _state.update { DownloadSelectionRules.beginDeletion(it, entries, batchId) }
-                        batchId to entries
+                        Triple(batchId, entries, trace)
                     }
                 }
             } ?: return
-        val (batchId, entries) = batch
+        val (batchId, entries, trace) = batch
         val keys = entries.map { it.key }.toSet()
+        recordPendingProjection(trace, keys)
         actionScope().launch {
             try {
-                val result = deleteEntries(entries)
+                val result = withDownloadDeleteTrace(trace.root) { deleteEntries(entries) }
                 _state.update { DownloadSelectionRules.completeDeletion(it, result) }
                 refresh(showLoading = false)
             } catch (cancellation: CancellationException) {
@@ -846,6 +1004,7 @@ constructor(
                 failSelectionAction(DownloadPendingAction.DELETE, keys, error)
             } finally {
                 _state.update { it.finishDeletionBatch(batchId) }
+                finishTracePending(trace)
             }
         }
     }
@@ -912,16 +1071,18 @@ constructor(
                 if (entries.isEmpty() || overlapsPending || hasNonDeletionPending) {
                     null
                 } else {
+                    val trace = startDeleteTrace(entries)
                     val batchId = ++nextDeletionBatchId
                     _state.update { DownloadSelectionRules.beginDeletion(it, entries, batchId) }
-                    batchId to entries
+                    Triple(batchId, entries, trace)
                 }
             } ?: return
-        val (batchId, entries) = batch
+        val (batchId, entries, trace) = batch
         val keys = entries.map { it.key }.toSet()
+        recordPendingProjection(trace, keys)
         actionScope().launch {
             try {
-                val result = deleteEntries(entries)
+                val result = withDownloadDeleteTrace(trace.root) { deleteEntries(entries) }
                 _state.update {
                     val resolved = it.resolveDeletionResult(result)
                     it.copy(
@@ -950,6 +1111,7 @@ constructor(
                             it.deletionRecoveryEntries.filterNot { entry ->
                                 entry.entryKey in resolved.succeededKeys
                             },
+                        deletionSummary = resolved.toSummary(containerKey),
                     )
                 }
                 refresh(showLoading = false)
@@ -959,6 +1121,7 @@ constructor(
                 failSelectionAction(DownloadPendingAction.DELETE, keys, error)
             } finally {
                 _state.update { it.finishDeletionBatch(batchId) }
+                finishTracePending(trace)
             }
         }
     }
@@ -979,6 +1142,7 @@ constructor(
         val sequence: Long,
         val token: String,
         val activeEngineTasks: List<DownloadTask>,
+        val canonicalActiveTasks: List<CanonicalActiveTask>,
         val failedEngineTasks: List<DownloadTask>,
         val completedMediaRecords: List<DownloadMediaRecord>,
         val episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
@@ -991,21 +1155,78 @@ constructor(
         val storage: DownloadStorageUsage,
         val bookStorageBytes: Long,
         val artworkById: Map<UUID, LocalArtworkSnapshot>,
+        val traceRefresh: DownloadDeleteTraceRefresh?,
     )
 
-    private suspend fun refresh(showLoading: Boolean) {
+    private suspend fun refresh(
+        showLoading: Boolean,
+        trigger: DownloadDeleteTraceTrigger = DownloadDeleteTraceTrigger.EXPLICIT,
+    ) {
+        val traceRefresh = DownloadDeleteTraceRuntime.beginCanonicalRefresh(trigger)
         try {
-            val snapshot = localRefreshMutex.withLock { refreshLocal(showLoading) }
+            val snapshot = localRefreshMutex.withLock {
+                refreshLocal(
+                    showLoading = showLoading,
+                    traceRefresh = traceRefresh,
+                )
+            }
             enqueueRemoteRefresh(snapshot)
         } catch (cancellation: CancellationException) {
+            traceRefresh.safeFail(DownloadDeleteTraceError.CANCELLED)
             throw cancellation
         } catch (error: Exception) {
+            traceRefresh.safeFail(DownloadDeleteTraceError.UNKNOWN)
             Timber.e(error, "下载页刷新失败")
-            _state.update { it.copy(isLoading = false) }
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    refreshFailure = DownloadRefreshFailure.CANONICAL_SNAPSHOT,
+                )
+            }
         }
     }
 
-    private suspend fun refreshLocal(showLoading: Boolean): LocalDownloadSnapshot {
+    private suspend fun applyPublishedCanonicalRefresh(refresh: CanonicalActiveTaskRefresh) {
+        if (refresh.snapshot.samplingEpochMs <= lastAppliedCanonicalEpoch) return
+        var traceRefresh: DownloadDeleteTraceRefresh? = null
+        try {
+            val snapshot = localRefreshMutex.withLock {
+                if (refresh.snapshot.samplingEpochMs <= lastAppliedCanonicalEpoch) {
+                    return@withLock null
+                }
+                traceRefresh =
+                    DownloadDeleteTraceRuntime.beginCanonicalRefresh(
+                        DownloadDeleteTraceTrigger.QUEUE
+                    )
+                refreshLocal(
+                    showLoading = false,
+                    traceRefresh = traceRefresh,
+                    canonicalRefreshOverride = refresh,
+                )
+            }
+            if (snapshot != null) {
+                enqueueRemoteRefresh(snapshot)
+            }
+        } catch (cancellation: CancellationException) {
+            traceRefresh?.safeFail(DownloadDeleteTraceError.CANCELLED)
+            throw cancellation
+        } catch (error: Exception) {
+            traceRefresh?.safeFail(DownloadDeleteTraceError.UNKNOWN)
+            Timber.e(error, "应用 canonical 下载快照失败")
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    refreshFailure = DownloadRefreshFailure.CANONICAL_SNAPSHOT,
+                )
+            }
+        }
+    }
+
+    private suspend fun refreshLocal(
+        showLoading: Boolean,
+        traceRefresh: DownloadDeleteTraceRefresh?,
+        canonicalRefreshOverride: CanonicalActiveTaskRefresh? = null,
+    ): LocalDownloadSnapshot {
         if (showLoading && _state.value.activeTasks.isEmpty() && _state.value.completed.isEmpty()) {
             _state.update { it.copy(isLoading = true) }
         }
@@ -1013,26 +1234,47 @@ constructor(
         // W34：每个数据源单独兜底——曲库 / 书籍元数据拉取失败时不能把下载任务整页清空。
         // W36：「允许离线模式观看」开关状态（sources / 书籍偏好），供条目行与容器开关显示。
         val loadedOfflineAllowMap = loadOfflineAllowMap()
-        // W37 遗留修复（W36 §12）：取消（快速切页）不能被吞掉，否则会把页面刷成 0 条后靠下一次轮询自愈。
+        val canonicalSnapshotSource = downloader as? CanonicalActiveTaskSnapshotSource
+        val canonicalRefresh =
+            canonicalRefreshOverride ?: canonicalSnapshotSource?.refreshCanonicalActiveTaskRefresh()
+        val hasCanonicalSource = canonicalSnapshotSource != null
+        // 非 canonical 历史入口仍读 raw tasks；生产 DownloaderImpl 只消费已发布 refresh。
         val tasks =
-            try {
-                downloader.refreshDownloadTasks()
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (error: Exception) {
-                Timber.w(error, "刷新下载任务失败")
-                emptyList()
+            if (hasCanonicalSource) {
+                checkNotNull(canonicalRefresh).tasks
+            } else {
+                try {
+                    downloader.refreshDownloadTasks()
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "刷新下载任务失败")
+                    emptyList()
+                }
             }
         completedMediaRecords =
-            runCatchingCancellable { downloader.downloadedMediaRecords() }
-                .onFailure { Timber.w(it, "读取已完成下载快照失败") }
-                .getOrElse { emptyList() }
+            if (hasCanonicalSource) {
+                checkNotNull(canonicalRefresh).completedMediaRecords
+            } else {
+                runCatchingCancellable { downloader.downloadedMediaRecords() }
+                    .onFailure { Timber.w(it, "读取已完成下载快照失败") }
+                    .getOrElse { emptyList() }
+            }
         val completedCanonicalKeys =
             completedMediaRecords.mapTo(mutableSetOf()) { record ->
                 record.canonicalIdentity().canonicalKey
             }
-        val activeEngineTasks =
-            DownloadControlPlaneRules.activeUniqueIntents(tasks, completedCanonicalKeys)
+        val canonicalSnapshot =
+            if (hasCanonicalSource) {
+                checkNotNull(canonicalRefresh).snapshot
+            } else {
+                DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                    tasks = tasks,
+                    downloadedCanonicalKeys = completedCanonicalKeys,
+                    samplingEpochMs = System.currentTimeMillis(),
+                )
+            }
+        val activeEngineTasks = canonicalSnapshot.activeTasks
         val failedEngineTasks = DownloadControlPlaneRules.retryableFailureIntents(tasks)
         val episodeHierarchy = loadEpisodeHierarchy()
         val bookFiles = loadBookFiles()
@@ -1075,15 +1317,16 @@ constructor(
         val artworkById = loadArtworkSnapshot(artworkIds, generatedCoverIds)
 
         // ——— W63 阶段 1：本地数据（Room / 文件）先上屏，首帧不等待任何服务器接口 ———
-        val localActiveEntries = activeEngineTasks.map { task ->
-            task.toHierarchyEntry(
-                episodeHierarchy = episodeHierarchy,
-                musicById = emptyMap(),
-                offlineAllowMap = loadedOfflineAllowMap,
-                artworkById = artworkById,
-                allowRemoteImages = false,
-            )
-        }
+        val localActiveEntries =
+            canonicalSnapshot.tasks.map { canonicalTask ->
+                canonicalTask.toHierarchyEntry(
+                    episodeHierarchy = episodeHierarchy,
+                    musicById = emptyMap(),
+                    offlineAllowMap = loadedOfflineAllowMap,
+                    artworkById = artworkById,
+                    allowRemoteImages = false,
+                )
+            }
         val localFailedEntries = failedEngineTasks.map { task ->
             task.toHierarchyEntry(
                 episodeHierarchy = episodeHierarchy,
@@ -1137,10 +1380,12 @@ constructor(
                 artworkById = artworkById,
             )
         currentCoroutineContext().ensureActive()
+        var canonicalKeys: Set<String> = emptySet()
         _state.update { current ->
             val refreshed =
                 current.copy(
                     isLoading = false,
+                    refreshFailure = null,
                     activeTasks = activeEngineTasks,
                     failedTasks = failedEngineTasks,
                     activeContainers =
@@ -1158,13 +1403,19 @@ constructor(
                     validKeys = localKeys,
                     currentEntries = localEntries,
                 )
-            refreshed.applySelectionRefresh(selectionRefresh)
+            refreshed.applySelectionRefresh(selectionRefresh).also { published ->
+                canonicalKeys = published.canonicalDeleteTraceKeys()
+            }
         }
+        traceRefresh.safePublish(canonicalKeys)
+        lastAppliedCanonicalEpoch =
+            maxOf(lastAppliedCanonicalEpoch, canonicalSnapshot.samplingEpochMs)
         localSnapshotToken = snapshotToken
         return LocalDownloadSnapshot(
             sequence = ++nextLocalSnapshotSequence,
             token = snapshotToken,
             activeEngineTasks = activeEngineTasks,
+            canonicalActiveTasks = canonicalSnapshot.tasks,
             failedEngineTasks = failedEngineTasks,
             completedMediaRecords = completedMediaRecords,
             episodeHierarchy = episodeHierarchy,
@@ -1177,6 +1428,7 @@ constructor(
             storage = storage,
             bookStorageBytes = bookStorageBytes,
             artworkById = artworkById,
+            traceRefresh = traceRefresh,
         )
     }
 
@@ -1224,8 +1476,10 @@ constructor(
             try {
                 refreshRemote(snapshot)
             } catch (cancellation: CancellationException) {
+                snapshot.traceRefresh.safeFail(DownloadDeleteTraceError.CANCELLED)
                 throw cancellation
             } catch (error: Exception) {
+                snapshot.traceRefresh.safeFail(DownloadDeleteTraceError.UNKNOWN)
                 Timber.e(error, "下载页远程元数据刷新失败")
                 _state.update { it.copy(isLoading = false) }
             }
@@ -1263,7 +1517,7 @@ constructor(
             )
 
         val activeEntries =
-            snapshot.activeEngineTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
+            snapshot.canonicalActiveTasks.mapBounded(REMOTE_PREFETCH_CONCURRENCY) { task ->
                 task.toHierarchyEntry(
                     episodeHierarchy = snapshot.episodeHierarchy,
                     musicById = musicById,
@@ -1368,6 +1622,7 @@ constructor(
         }
         if (!published) return
 
+        snapshot.traceRefresh.safePublish(validKeys)
         remotePublishObserverForTest?.invoke()
 
         // ——— W66 阶段 3：缺图 / 过期图后台补齐（并发上限 4；完成后自动刷新一次，无需重进页面） ———
@@ -1667,12 +1922,29 @@ constructor(
             this[it]?.localImage?.uri
         }
 
+    private suspend fun CanonicalActiveTask.toHierarchyEntry(
+        episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
+        musicById: Map<UUID, MusicTrackMetadata>,
+        offlineAllowMap: Map<UUID, Boolean>,
+        artworkById: Map<UUID, LocalArtworkSnapshot>,
+        allowRemoteImages: Boolean = true,
+    ): DownloadHierarchyEntry =
+        task.toHierarchyEntry(
+            episodeHierarchy = episodeHierarchy,
+            musicById = musicById,
+            offlineAllowMap = offlineAllowMap,
+            artworkById = artworkById,
+            allowRemoteImages = allowRemoteImages,
+            canonicalTask = this,
+        )
+
     private suspend fun DownloadTask.toHierarchyEntry(
         episodeHierarchy: Map<UUID, DownloadedEpisodeHierarchy>,
         musicById: Map<UUID, MusicTrackMetadata>,
         offlineAllowMap: Map<UUID, Boolean>,
         artworkById: Map<UUID, LocalArtworkSnapshot>,
         allowRemoteImages: Boolean = true,
+        canonicalTask: CanonicalActiveTask? = null,
     ): DownloadHierarchyEntry {
         val episode = episodeHierarchy[itemId]
         val song = musicById[itemId]
@@ -1692,9 +1964,14 @@ constructor(
             userId = userId,
             task = this,
             downloadId = downloadId,
-            sizeBytes = if (status == DownloadTaskStatus.COMPLETED) downloadedBytes else totalBytes,
-            downloadedBytes = downloadedBytes,
-            totalBytes = totalBytes,
+            sizeBytes =
+                if (status == DownloadTaskStatus.COMPLETED) {
+                    canonicalTask?.downloadedBytes ?: downloadedBytes
+                } else {
+                    canonicalTask?.totalBytes ?: totalBytes
+                },
+            downloadedBytes = canonicalTask?.downloadedBytes ?: downloadedBytes,
+            totalBytes = canonicalTask?.totalBytes ?: totalBytes,
             updatedAt = updatedAt,
             seriesId = episode?.seriesId,
             seasonId = episode?.seasonId,
@@ -1741,6 +2018,7 @@ constructor(
                     ),
                 ),
             allowOffline = offlineAllowMap[itemId] ?: true,
+            canonicalActions = canonicalTask?.actionCapabilities,
         )
     }
 

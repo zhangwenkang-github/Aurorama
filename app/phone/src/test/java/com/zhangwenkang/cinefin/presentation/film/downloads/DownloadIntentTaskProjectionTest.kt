@@ -4,6 +4,7 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadContainerTas
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyBuilder
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadHierarchyEntry
 import com.zhangwenkang.cinefin.film.presentation.downloads.taskActionSpecs
+import com.zhangwenkang.cinefin.utils.CanonicalDownloadAction
 import com.zhangwenkang.cinefin.utils.DownloadIntentPhase
 import com.zhangwenkang.cinefin.utils.DownloadTask
 import com.zhangwenkang.cinefin.utils.DownloadTaskPhase
@@ -52,6 +53,22 @@ class DownloadIntentTaskProjectionTest {
         assertEquals(
             listOf(DownloadRowTaskAction.PAUSE, DownloadRowTaskAction.DELETE),
             downloadRowActionSpecs(task, canDelete = true, pending = false).map { it.action },
+        )
+    }
+
+    @Test
+    fun `canonical capabilities override status-only row eligibility`() {
+        val task = pendingSourceTask()
+
+        assertEquals(
+            listOf(DownloadRowTaskAction.DELETE),
+            downloadRowActionSpecs(
+                    task,
+                    canDelete = true,
+                    pending = false,
+                    canonicalActions = setOf(CanonicalDownloadAction.DELETE),
+                )
+                .map { it.action },
         )
     }
 

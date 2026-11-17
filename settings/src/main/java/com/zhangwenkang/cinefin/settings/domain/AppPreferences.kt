@@ -267,6 +267,8 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Offline mode
     val offlineMode = Preference("pref_offline_mode", false)
+    /** 目录作用域提交通知；实际 server / user / mode 仍从各自真源读取。 */
+    val mediaCatalogScopeRevision = Preference("pref_media_catalog_scope_revision", 0L)
     /**
      * W36：被关闭「允许离线模式观看」的书籍 id（书籍离线文件不经过 `sources` 表， 开关状态只能落在偏好里；视频 / 音乐用 `sources.allowOffline`）。
      */
@@ -490,6 +492,11 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     fun lastAutomaticUpdateCheckAttemptAt(): Long = getValue(updateAutomaticCheckAttemptAt)
 
     fun lastSuccessfulUpdateCheckAt(): Long = getValue(updateLastSuccessfulCheckAt)
+
+    @Synchronized
+    fun markMediaCatalogScopeChanged() {
+        setValue(mediaCatalogScopeRevision, getValue(mediaCatalogScopeRevision) + 1L)
+    }
 
     /** 自动检查门控必须先于网络写入磁盘；返回 false 时调用方不得发网络请求。 使用 commit 而不是 apply，避免“已发网络但门控尚未落盘”的跨进程窗口。 */
     fun recordAutomaticUpdateCheckAttempt(epochMs: Long): Boolean =

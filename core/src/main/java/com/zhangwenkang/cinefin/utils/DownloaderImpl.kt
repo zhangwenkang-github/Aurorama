@@ -79,12 +79,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -303,6 +307,23 @@ internal class WorkManagerImageFinalizationScheduler(private val workGateway: Do
     }
 }
 
+internal interface DownloadEngineForegroundGate : Downloader {
+    /**
+     * Samples the canonical queue once and returns foreground metadata only when this worker has
+     * work that it can claim immediately.
+     */
+    suspend fun foregroundInfoForRunnableWork(): ForegroundInfo?
+
+    /**
+     * Runs one worker queue pass while allowing the first actual claim to promote the worker to
+     * foreground before its transfer starts.
+     */
+    suspend fun runQueueWithForegroundActivation(
+        foregroundPublishedAtStart: Boolean,
+        setForeground: suspend (ForegroundInfo) -> Unit,
+    ): DownloadQueueOutcome = runQueue()
+}
+
 /**
  * W50 自研下载引擎门面。
  *
@@ -335,7 +356,7 @@ private constructor(
     private val intentResolutionDispatcher: CoroutineDispatcher,
     private val intentResolutionDeadlineScheduler: DownloadIntentDeadlineScheduler,
     private val intentResolutionTimeoutMs: Long,
-) : Downloader {
+) : Downloader, CanonicalActiveTaskSnapshotSource, DownloadEngineForegroundGate {
     constructor(
         context: Context,
         database: ServerDatabaseDao,
@@ -370,6 +391,11 @@ private constructor(
         intentResolutionTimeoutMs = DEFAULT_INTENT_RESOLUTION_TIMEOUT_MS,
     )
 
+    private data class ForegroundNotificationRequest(
+        val version: Long,
+        val refresh: CanonicalActiveTaskRefresh,
+    )
+
     private val workGateway =
         workGatewayOverride ?: WorkManagerDownloadWorkGateway(workManager = workManager)
     private val downloadTransfer =
@@ -383,6 +409,36 @@ private constructor(
             beginDeletion = database::beginDownloadIntentDeletion,
         )
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val canonicalSnapshotOwner = CanonicalActiveTaskSnapshotOwner()
+    private val canonicalRefreshEventsState =
+        MutableStateFlow(CanonicalActiveTaskRefresh.empty(samplingEpochMs = 0L))
+    override val canonicalRefreshEvents: StateFlow<CanonicalActiveTaskRefresh> =
+        canonicalRefreshEventsState.asStateFlow()
+    private var latestPublishedCanonicalRefresh =
+        CanonicalActiveTaskRefresh.empty(samplingEpochMs = 0L)
+    /**
+     * One transaction orders epoch selection, StateFlow publication and notification scheduling.
+     */
+    private val foregroundNotificationStateLock = Any()
+    private val foregroundNotificationRequests =
+        Channel<ForegroundNotificationRequest>(Channel.CONFLATED)
+    @Volatile private var lastNotificationAt = 0L
+    private var lastRenderedNotificationEpoch = 0L
+    private var foregroundInfoAwaitingAck = false
+    private var pendingForegroundInfoEpoch = 0L
+    private var foregroundNotificationDirty = false
+    private var foregroundNotificationRequestVersion = 0L
+    private var lastScheduledNotificationEpoch = 0L
+    private var foregroundNotificationTrailingJob: Job? = null
+    private var foregroundNotificationTrailingVersion = 0L
+    private var foregroundNotificationTrailingRetries = 0
+    @Volatile
+    internal var canonicalRefreshLoadedObserverForTest:
+        (suspend (CanonicalActiveTaskRefresh) -> Unit)? =
+        null
+    private val foregroundNotificationPublisher = scope.launch {
+        publishForegroundNotificationChanges()
+    }
     private val intentResolutionCoordinator =
         DownloadIntentResolutionCoordinator(
             maxConcurrency = INTENT_RESOLVE_CONCURRENCY,
@@ -535,6 +591,36 @@ private constructor(
         _queueChanges.tryEmit(Unit)
     }
 
+    override suspend fun refreshCanonicalActiveTaskRefresh(): CanonicalActiveTaskRefresh =
+        refreshCanonicalActiveTaskRefreshInternal(scheduleNotification = true)
+
+    private suspend fun refreshCanonicalActiveTaskRefreshInternal(
+        scheduleNotification: Boolean
+    ): CanonicalActiveTaskRefresh {
+        val sampledRefresh = canonicalSnapshotOwner.refresh { samplingEpochMs ->
+            canonicalRefreshAt(samplingEpochMs)
+        }
+        canonicalRefreshLoadedObserverForTest?.invoke(sampledRefresh)
+        synchronized(foregroundNotificationStateLock) {
+            if (
+                sampledRefresh.snapshot.samplingEpochMs <=
+                    latestPublishedCanonicalRefresh.snapshot.samplingEpochMs
+            ) {
+                return latestPublishedCanonicalRefresh
+            }
+            latestPublishedCanonicalRefresh = sampledRefresh
+            canonicalRefreshEventsState.value = sampledRefresh
+            if (scheduleNotification) {
+                foregroundNotificationDirty = true
+                beginForegroundNotificationRequestLocked(sampledRefresh)
+            }
+            return sampledRefresh
+        }
+    }
+
+    override fun latestCanonicalActiveTaskRefresh(): CanonicalActiveTaskRefresh =
+        synchronized(foregroundNotificationStateLock) { latestPublishedCanonicalRefresh }
+
     /** sourceId → 运行中的下载协程。 */
     private val activeJobs = ConcurrentHashMap<String, Job>()
 
@@ -582,8 +668,6 @@ private constructor(
             DownloadTaskRules.coerceConcurrency(
                 appPreferences.getValue(appPreferences.downloadConcurrency)
             )
-
-    @Volatile private var lastNotificationAt = 0L
 
     /**
      * 网络恢复回调（W50）：把「网络类失败 + 退避等待」的任务立即唤醒。
@@ -1793,7 +1877,29 @@ private constructor(
             current.taskGeneration == intent.taskGeneration
     }
 
-    override suspend fun runQueue(): DownloadQueueOutcome {
+    override suspend fun runQueue(): DownloadQueueOutcome = runQueueInternal()
+
+    override suspend fun runQueueWithForegroundActivation(
+        foregroundPublishedAtStart: Boolean,
+        setForeground: suspend (ForegroundInfo) -> Unit,
+    ): DownloadQueueOutcome =
+        runQueueInternal(
+            foregroundPublishedAtStart = foregroundPublishedAtStart,
+            activateForegroundBeforeClaimedExecution = { claimedSources ->
+                activateForegroundBeforeClaimedExecution(
+                    claimedSources = claimedSources,
+                    setForeground = setForeground,
+                )
+            },
+        )
+
+    private suspend fun runQueueInternal(
+        foregroundPublishedAtStart: Boolean = false,
+        activateForegroundBeforeClaimedExecution: (suspend (List<FindroidSourceDto>) -> Unit)? =
+            null,
+    ): DownloadQueueOutcome {
+        acknowledgeForegroundInfoPublished()
+        var foregroundPublished = foregroundPublishedAtStart
         // W76-Q7：新一轮 worker 开始 → 复位调度交接状态（上一轮遗留的 kick / 静默标记作废）。
         synchronized(queueKickLock) {
             engineWorkerQuiesced = false
@@ -1804,7 +1910,16 @@ private constructor(
             ran +=
                 queuePump.run(
                     maxConcurrentTasks = { maxConcurrentTasks },
-                    claim = ::claimRunnableTasks,
+                    claim = { limit ->
+                        val claimedSources = claimRunnableTasks(limit)
+                        if (claimedSources.isNotEmpty() && !foregroundPublished) {
+                            activateForegroundBeforeClaimedExecution?.let { activate ->
+                                activate(claimedSources)
+                                foregroundPublished = true
+                            }
+                        }
+                        claimedSources
+                    },
                     key = FindroidSourceDto::id,
                     execute = ::executeTask,
                     pause = ::pauseTaskById,
@@ -1854,6 +1969,61 @@ private constructor(
                 )
         }
     }
+
+    private suspend fun activateForegroundBeforeClaimedExecution(
+        claimedSources: List<FindroidSourceDto>,
+        setForeground: suspend (ForegroundInfo) -> Unit,
+    ) {
+        try {
+            val foregroundInfo =
+                foregroundInfoForRunnableWork()
+                    ?: error("claimed download work lost its runnable foreground snapshot")
+            setForeground(foregroundInfo)
+            acknowledgeForegroundInfoPublished()
+        } catch (failure: Exception) {
+            runCatching { restoreClaimedSourcesAfterForegroundFailure(claimedSources) }
+                .onFailure(failure::addSuppressed)
+            throw failure
+        }
+    }
+
+    private suspend fun restoreClaimedSourcesAfterForegroundFailure(
+        claimedSources: List<FindroidSourceDto>
+    ) =
+        withContext(NonCancellable + Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            var restorationFailure: Exception? = null
+            claimedSources.forEach { source ->
+                try {
+                    lifecycleControl.withSourceOperation(source.id) {
+                        val current = database.getSource(source.id)
+                        if (
+                            current != null &&
+                                current.taskGeneration == source.taskGeneration &&
+                                current.taskStatus.toTaskStatus() == DownloadTaskStatus.RUNNING
+                        ) {
+                            database.setSourceTaskStatusIfCurrent(
+                                id = source.id,
+                                generation = source.taskGeneration,
+                                status = DownloadTaskStatus.PENDING.name,
+                                failureReason = null,
+                                updatedAt = now,
+                            )
+                        }
+                    }
+                } catch (failure: Exception) {
+                    restorationFailure = restorationFailure ?: failure
+                    Timber.w(
+                        failure,
+                        "恢复前台激活失败后的 PENDING 状态时异常：${source.id}",
+                    )
+                } finally {
+                    lifecycleControl.releaseClaim(source.id, source.taskGeneration)
+                }
+            }
+            notifyQueueChanged()
+            restorationFailure?.let { throw it }
+        }
 
     /** 领取可立即运行的 PENDING 任务并标记 RUNNING（受并发上限约束）。 */
     private suspend fun claimRunnableTasks(limit: Int): List<FindroidSourceDto> {
@@ -2138,6 +2308,7 @@ private constructor(
             if (activated == null) {
                 throw CancellationException("下载 claim 已被新代次取代")
             }
+            updateForegroundNotificationNow()
 
             // W57 限速：每次任务启动时读取偏好；运行中的任务不打断（新任务 / 重试立即生效）。
             val speedLimitBytesPerSecond =
@@ -2813,10 +2984,18 @@ private constructor(
             lifecycleControl.withCurrentGeneration(task.sourceId, resumed.taskGeneration) {
                 queuePump.kick()
                 ensureEngineRunning(forceStart = true)
+                updateForegroundNotificationNow()
                 notifyQueueChanged()
             }
             Pair(resumed.downloadId ?: downloadTaskHandle(resumed.id), null)
         }
+
+    override suspend fun resumeTaskById(sourceId: String): Boolean {
+        val task =
+            refreshDownloadTasks().firstOrNull { candidate -> candidate.sourceId == sourceId }
+                ?: return false
+        return resumeTask(task).first >= 0L
+    }
 
     override suspend fun retryTask(task: DownloadTask): Pair<Long, UiText?> =
         withContext(Dispatchers.IO) {
@@ -3165,10 +3344,22 @@ private constructor(
         withContext(Dispatchers.IO) {
             val current = database.getSource(sourceId) ?: return@withContext true
             if (current.taskGeneration != expectedGeneration) {
+                currentDownloadDeleteTraceHandle(sourceId)
+                    .safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D3_ROOM_DELETING_COMMITTED,
+                            result = DownloadDeleteTraceResult.SUPERSEDED,
+                            error = DownloadDeleteTraceError.CAS,
+                            sourceId = sourceId,
+                            generation = expectedGeneration,
+                        )
+                    )
                 return@withContext false
             }
+            val resumeAlreadyDeleting =
+                current.taskStatus.toTaskStatus() == DownloadTaskStatus.DELETING
             val source =
-                if (current.taskStatus.toTaskStatus() == DownloadTaskStatus.DELETING) {
+                if (resumeAlreadyDeleting) {
                     lifecycleControl.withPersistedGeneration(sourceId, expectedGeneration) {
                         current
                     }
@@ -3183,11 +3374,93 @@ private constructor(
                             )
                         DownloadSourceCommandResult(row, row?.taskGeneration)
                     }
-                } ?: return@withContext false
+                }
+                    ?: run {
+                        currentDownloadDeleteTraceHandle(sourceId)
+                            .safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D3_ROOM_DELETING_COMMITTED,
+                                    result = DownloadDeleteTraceResult.SUPERSEDED,
+                                    error = DownloadDeleteTraceError.CAS,
+                                    sourceId = sourceId,
+                                    generation = expectedGeneration,
+                                )
+                            )
+                        return@withContext false
+                    }
+
+            val trace = currentDownloadDeleteTraceHandle(sourceId)
+            trace.safeBindSource(sourceId, source.taskGeneration)
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase =
+                        if (resumeAlreadyDeleting) {
+                            DownloadDeleteTracePhase.D3_RESUME_ALREADY_DELETING
+                        } else {
+                            DownloadDeleteTracePhase.D3_ROOM_DELETING_COMMITTED
+                        },
+                    result =
+                        if (resumeAlreadyDeleting) {
+                            DownloadDeleteTraceResult.RESUMED
+                        } else {
+                            DownloadDeleteTraceResult.COMMITTED
+                        },
+                    sourceId = source.id,
+                    generation = source.taskGeneration,
+                )
+            )
 
             val job = activeJobs[sourceId]
-            job?.cancel(CancellationException("用户取消下载"))
-            job?.join()
+            if (job == null) {
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D4_JOIN_END,
+                        result = DownloadDeleteTraceResult.SKIPPED,
+                        sourceId = source.id,
+                        generation = source.taskGeneration,
+                    )
+                )
+            } else {
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D4_CANCEL_BEGIN,
+                        result = DownloadDeleteTraceResult.STARTED,
+                        sourceId = source.id,
+                        generation = source.taskGeneration,
+                    )
+                )
+                job.cancel(CancellationException("用户取消下载"))
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D4_JOIN_BEGIN,
+                        result = DownloadDeleteTraceResult.STARTED,
+                        sourceId = source.id,
+                        generation = source.taskGeneration,
+                    )
+                )
+                try {
+                    job.join()
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D4_JOIN_END,
+                            result = DownloadDeleteTraceResult.DONE,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
+                } catch (cancellation: CancellationException) {
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D4_JOIN_END,
+                            result = DownloadDeleteTraceResult.FAILED,
+                            error = DownloadDeleteTraceError.CANCELLED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
+                    throw cancellation
+                }
+            }
             val artifactGeneration =
                 DownloadCompletionCommitRules.sourceArtifactGeneration(
                     path = source.path,
@@ -3212,7 +3485,24 @@ private constructor(
                     ) {
                         return@withCurrentGeneration false
                     }
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                            result = DownloadDeleteTraceResult.STARTED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
                     workGateway.cancelUnique(ImageDownloadWorkRules.uniqueWorkName(sourceId))
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                            result = DownloadDeleteTraceResult.STARTED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                            category = DownloadDeleteTraceCategory.RESOLVE,
+                        )
+                    )
                     val artifactScan = artifactGeneration?.let { generation ->
                         File(source.path).parentFile?.let { directory ->
                             DownloadCompletionCommitRules.sourceArtifactScan(
@@ -3224,22 +3514,126 @@ private constructor(
                             )
                         }
                     }
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                            result =
+                                if (artifactScan?.unprovenWitnesses?.isNotEmpty() == true) {
+                                    DownloadDeleteTraceResult.FAILED
+                                } else {
+                                    DownloadDeleteTraceResult.DONE
+                                },
+                            error =
+                                if (artifactScan?.unprovenWitnesses?.isNotEmpty() == true) {
+                                    DownloadDeleteTraceError.UNKNOWN
+                                } else {
+                                    DownloadDeleteTraceError.NONE
+                                },
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                            category = DownloadDeleteTraceCategory.RESOLVE,
+                            count = artifactScan?.unprovenWitnesses?.size,
+                        )
+                    )
                     if (artifactScan?.unprovenWitnesses?.isNotEmpty() == true) {
                         Timber.w(
                             "下载删除发现无法证明的精确 witness，保留 DELETING：%s",
                             artifactScan.unprovenWitnesses.joinToString { it.path },
                         )
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_END,
+                                result = DownloadDeleteTraceResult.FAILED,
+                                error = DownloadDeleteTraceError.UNKNOWN,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                            )
+                        )
                         return@withCurrentGeneration false
                     }
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                            result = DownloadDeleteTraceResult.STARTED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                            category = DownloadDeleteTraceCategory.PARTIAL,
+                        )
+                    )
                     if (!deletePartialArtifacts(source.path)) {
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                                result = DownloadDeleteTraceResult.FAILED,
+                                error = DownloadDeleteTraceError.IO,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                                category = DownloadDeleteTraceCategory.PARTIAL,
+                            )
+                        )
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_END,
+                                result = DownloadDeleteTraceResult.FAILED,
+                                error = DownloadDeleteTraceError.IO,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                            )
+                        )
                         error("下载残片删除未确认：${source.path}")
                     }
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                            result = DownloadDeleteTraceResult.DONE,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                            category = DownloadDeleteTraceCategory.PARTIAL,
+                        )
+                    )
                     val item =
                         knownItem
                             ?: run {
+                                trace.safeRecord(
+                                    DownloadDeleteTraceEvent(
+                                        phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                                        result = DownloadDeleteTraceResult.STARTED,
+                                        sourceId = source.id,
+                                        generation = source.taskGeneration,
+                                        category = DownloadDeleteTraceCategory.SIDECAR,
+                                    )
+                                )
                                 if (!removeExactUnprovableSidecarForSource(source)) {
+                                    trace.safeRecord(
+                                        DownloadDeleteTraceEvent(
+                                            phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                                            result = DownloadDeleteTraceResult.FAILED,
+                                            error = DownloadDeleteTraceError.IO,
+                                            sourceId = source.id,
+                                            generation = source.taskGeneration,
+                                            category = DownloadDeleteTraceCategory.SIDECAR,
+                                        )
+                                    )
+                                    trace.safeRecord(
+                                        DownloadDeleteTraceEvent(
+                                            phase = DownloadDeleteTracePhase.D5_FS_END,
+                                            result = DownloadDeleteTraceResult.FAILED,
+                                            error = DownloadDeleteTraceError.IO,
+                                            sourceId = source.id,
+                                            generation = source.taskGeneration,
+                                        )
+                                    )
                                     return@withCurrentGeneration false
                                 }
+                                trace.safeRecord(
+                                    DownloadDeleteTraceEvent(
+                                        phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                                        result = DownloadDeleteTraceResult.DONE,
+                                        sourceId = source.id,
+                                        generation = source.taskGeneration,
+                                        category = DownloadDeleteTraceCategory.SIDECAR,
+                                    )
+                                )
                                 if (source.downloadOriginAnchor() == null) {
                                     null
                                 } else {
@@ -3259,6 +3653,15 @@ private constructor(
                             claimGeneration,
                         )
                     } else {
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                                result = DownloadDeleteTraceResult.STARTED,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                                category = DownloadDeleteTraceCategory.FINAL,
+                            )
+                        )
                         if (
                             !deleteSourceCompletionArtifacts(
                                 source,
@@ -3275,15 +3678,66 @@ private constructor(
                         ) {
                             return@withCurrentGeneration false
                         }
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                                result = DownloadDeleteTraceResult.DONE,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                                category = DownloadDeleteTraceCategory.FINAL,
+                            )
+                        )
                         database.deleteMediaStreamsBySourceId(sourceId)
                         database.deleteSource(sourceId)
+                        if (database.getSource(sourceId) == null) {
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D6_SOURCE_MEDIA_ROWS_REMOVED,
+                                    result = DownloadDeleteTraceResult.REMOVED,
+                                    sourceId = source.id,
+                                    generation = source.taskGeneration,
+                                )
+                            )
+                        }
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_END,
+                                result = DownloadDeleteTraceResult.DONE,
+                                sourceId = source.id,
+                                generation = source.taskGeneration,
+                            )
+                        )
                     }
                     if (database.getSource(sourceId) != null) {
                         return@withCurrentGeneration false
                     }
                     runtime.update { it - sourceId }
-                    updateForegroundNotificationNow()
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D7_RUNTIME_REMOVED,
+                            result = DownloadDeleteTraceResult.REMOVED,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
+                    val notificationDecision = updateForegroundNotificationNow()
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D7_NOTIFICATION_DECISION,
+                            result = notificationDecision,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
                     notifyQueueChanged()
+                    trace.safeRecord(
+                        DownloadDeleteTraceEvent(
+                            phase = DownloadDeleteTracePhase.D7_QUEUE_SIGNAL,
+                            result = DownloadDeleteTraceResult.DONE,
+                            sourceId = source.id,
+                            generation = source.taskGeneration,
+                        )
+                    )
                     true
                 } ?: false
             if (cleanupSucceeded) {
@@ -3777,17 +4231,25 @@ private constructor(
             if (database.getSource(source.id)?.taskGeneration != expectedGeneration) {
                 return@withLock false
             }
-            deleteItemUnderItemLock(item, source, artifactGeneration, claimGeneration)
+            deleteItemUnderItemLock(
+                item,
+                source,
+                expectedGeneration,
+                artifactGeneration,
+                claimGeneration,
+            )
             true
         }
 
     private suspend fun deleteItemUnderItemLock(
         item: FindroidItem,
         source: FindroidSource,
+        expectedGeneration: Long,
         artifactGeneration: Long?,
         claimGeneration: Long,
     ) {
         val current = checkNotNull(database.getSource(source.id))
+        val trace = currentDownloadDeleteTraceHandle(source.id)
         val parentOrigin = downloadOriginForSource(current)
         val mediaStreams = database.getMediaStreamsBySourceId(source.id)
         val files = buildList {
@@ -3806,22 +4268,137 @@ private constructor(
             }
             mediaStreams.mapTo(this) { stream -> File(stream.path) }
         }
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.MEDIA_STREAM_FILE,
+                count = files.size,
+            )
+        )
         for (file in files) {
             if (file.exists() && !file.delete()) {
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                        result = DownloadDeleteTraceResult.FAILED,
+                        error = DownloadDeleteTraceError.IO,
+                        sourceId = source.id,
+                        generation = expectedGeneration,
+                        category = DownloadDeleteTraceCategory.MEDIA_STREAM_FILE,
+                        count = files.size,
+                    )
+                )
+                trace.safeRecord(
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D5_FS_END,
+                        result = DownloadDeleteTraceResult.FAILED,
+                        error = DownloadDeleteTraceError.IO,
+                        sourceId = source.id,
+                        generation = expectedGeneration,
+                    )
+                )
                 error("无法删除下载文件：${file.path}")
             }
         }
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.MEDIA_STREAM_FILE,
+                count = files.size,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_PRE_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.SIDECAR,
+            )
+        )
         if (!deletePartialSidecar(source.path)) {
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                    result = DownloadDeleteTraceResult.FAILED,
+                    error = DownloadDeleteTraceError.IO,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                    category = DownloadDeleteTraceCategory.SIDECAR,
+                )
+            )
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D5_FS_END,
+                    result = DownloadDeleteTraceResult.FAILED,
+                    error = DownloadDeleteTraceError.IO,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                )
+            )
             error("无法删除下载断点信息：${source.path}")
         }
         if (!removeSidecarForSource(itemId = item.id, sourceId = source.id)) {
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                    result = DownloadDeleteTraceResult.FAILED,
+                    error = DownloadDeleteTraceError.IO,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                    category = DownloadDeleteTraceCategory.SIDECAR,
+                )
+            )
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D5_FS_END,
+                    result = DownloadDeleteTraceResult.FAILED,
+                    error = DownloadDeleteTraceError.IO,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                )
+            )
             error("无法删除下载来源侧车：${source.id}")
         }
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_PRE_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.SIDECAR,
+            )
+        )
 
         database.deleteMediaStreamsBySourceId(source.id)
         database.deleteSource(source.id)
+        if (database.getSource(source.id) == null) {
+            trace.safeRecord(
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D6_SOURCE_MEDIA_ROWS_REMOVED,
+                    result = DownloadDeleteTraceResult.REMOVED,
+                    sourceId = source.id,
+                    generation = expectedGeneration,
+                )
+            )
+        }
         if (database.getSources(item.id).isNotEmpty()) return
 
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.HIERARCHY,
+            )
+        )
         when (item) {
             is FindroidMovie -> database.deleteMovie(item.id)
             is FindroidEpisode -> {
@@ -3836,8 +4413,44 @@ private constructor(
                             origin = parentOrigin,
                         )
                         database.deleteUserData(item.seasonId)
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                                result = DownloadDeleteTraceResult.STARTED,
+                                sourceId = source.id,
+                                generation = expectedGeneration,
+                                category = DownloadDeleteTraceCategory.TRICKPLAY,
+                            )
+                        )
                         File(context.filesDir, "trickplay/${item.seasonId}").deleteRecursively()
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                                result = DownloadDeleteTraceResult.DONE,
+                                sourceId = source.id,
+                                generation = expectedGeneration,
+                                category = DownloadDeleteTraceCategory.TRICKPLAY,
+                            )
+                        )
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                                result = DownloadDeleteTraceResult.STARTED,
+                                sourceId = source.id,
+                                generation = expectedGeneration,
+                                category = DownloadDeleteTraceCategory.IMAGES,
+                            )
+                        )
                         File(context.filesDir, "images/${item.seasonId}").deleteRecursively()
+                        trace.safeRecord(
+                            DownloadDeleteTraceEvent(
+                                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                                result = DownloadDeleteTraceResult.DONE,
+                                sourceId = source.id,
+                                generation = expectedGeneration,
+                                category = DownloadDeleteTraceCategory.IMAGES,
+                            )
+                        )
                         val remainingSeasons = database.getSeasonsByShowId(item.seriesId)
                         if (remainingSeasons.isEmpty()) {
                             database.deleteShow(item.seriesId)
@@ -3847,18 +4460,133 @@ private constructor(
                                 origin = parentOrigin,
                             )
                             database.deleteUserData(item.seriesId)
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                                    result = DownloadDeleteTraceResult.STARTED,
+                                    sourceId = source.id,
+                                    generation = expectedGeneration,
+                                    category = DownloadDeleteTraceCategory.TRICKPLAY,
+                                )
+                            )
                             File(context.filesDir, "trickplay/${item.seriesId}").deleteRecursively()
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                                    result = DownloadDeleteTraceResult.DONE,
+                                    sourceId = source.id,
+                                    generation = expectedGeneration,
+                                    category = DownloadDeleteTraceCategory.TRICKPLAY,
+                                )
+                            )
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                                    result = DownloadDeleteTraceResult.STARTED,
+                                    sourceId = source.id,
+                                    generation = expectedGeneration,
+                                    category = DownloadDeleteTraceCategory.IMAGES,
+                                )
+                            )
                             File(context.filesDir, "images/${item.seriesId}").deleteRecursively()
+                            trace.safeRecord(
+                                DownloadDeleteTraceEvent(
+                                    phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                                    result = DownloadDeleteTraceResult.DONE,
+                                    sourceId = source.id,
+                                    generation = expectedGeneration,
+                                    category = DownloadDeleteTraceCategory.IMAGES,
+                                )
+                            )
                         }
                     }
                 }
             }
         }
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.HIERARCHY,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D6_HIERARCHY_ROWS_REMOVED,
+                result = DownloadDeleteTraceResult.REMOVED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+            )
+        )
 
         database.deleteUserData(item.id)
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.TRICKPLAY,
+            )
+        )
         File(context.filesDir, "trickplay/${item.id}").deleteRecursively()
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.TRICKPLAY,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.IMAGES,
+            )
+        )
         File(context.filesDir, "images/${item.id}").deleteRecursively()
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.IMAGES,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_BEGIN,
+                result = DownloadDeleteTraceResult.STARTED,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.IMAGE_CACHE,
+            )
+        )
         imageCacheStore.delete(item.id)
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_POST_ROW_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+                category = DownloadDeleteTraceCategory.IMAGE_CACHE,
+            )
+        )
+        trace.safeRecord(
+            DownloadDeleteTraceEvent(
+                phase = DownloadDeleteTracePhase.D5_FS_END,
+                result = DownloadDeleteTraceResult.DONE,
+                sourceId = source.id,
+                generation = expectedGeneration,
+            )
+        )
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -4308,11 +5036,43 @@ private constructor(
                 .getOrElse { emptySet() }
         }
 
-    override suspend fun foregroundInfo(): ForegroundInfo {
-        val tasks = snapshotActiveTasks()
-        val activeCount = activeItemIds().size
-        val notification =
-            notifications.buildForeground(task = tasks.firstOrNull(), activeCount = activeCount)
+    override suspend fun foregroundInfo(): ForegroundInfo =
+        checkNotNull(foregroundInfoForRunnableWork()) {
+            "empty canonical queue cannot start a download foreground notification"
+        }
+
+    override suspend fun foregroundInfoForRunnableWork(): ForegroundInfo? {
+        val requestVersionAtBuildStart =
+            synchronized(foregroundNotificationStateLock) {
+                foregroundInfoAwaitingAck = true
+                pendingForegroundInfoEpoch = 0L
+                foregroundNotificationRequestVersion
+            }
+        val now = System.currentTimeMillis()
+        val latestRefresh = latestCanonicalActiveTaskRefresh()
+        val refresh =
+            latestRefresh.takeIf { candidate ->
+                candidate.snapshot.samplingEpochMs > 0L &&
+                    candidate.snapshot.hasRunnableForegroundWork(now)
+            } ?: refreshCanonicalActiveTaskRefreshInternal(scheduleNotification = false)
+        val snapshot = refresh.snapshot
+        if (!snapshot.hasRunnableForegroundWork(now)) {
+            synchronized(foregroundNotificationStateLock) {
+                foregroundInfoAwaitingAck = false
+                pendingForegroundInfoEpoch = 0L
+                lastRenderedNotificationEpoch =
+                    maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
+            }
+            return null
+        }
+        synchronized(foregroundNotificationStateLock) {
+            pendingForegroundInfoEpoch = snapshot.samplingEpochMs
+            if (requestVersionAtBuildStart == foregroundNotificationRequestVersion) {
+                foregroundNotificationDirty = false
+            }
+        }
+        val aggregate = aggregateDownloadNotification(snapshot)
+        val notification = notifications.buildForeground(aggregate)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
                 DownloadNotifications.FOREGROUND_NOTIFICATION_ID,
@@ -4323,6 +5083,14 @@ private constructor(
             ForegroundInfo(DownloadNotifications.FOREGROUND_NOTIFICATION_ID, notification)
         }
     }
+
+    private fun CanonicalActiveTaskSnapshot.hasRunnableForegroundWork(now: Long): Boolean =
+        activeTasks.any { task ->
+            !task.sourceId.startsWith(INTENT_SOURCE_PREFIX) &&
+                task.nextRetryAt <= now &&
+                (task.status == DownloadTaskStatus.PENDING ||
+                    task.status == DownloadTaskStatus.RUNNING)
+        }
 
     // ---------------------------------------------------------------------------------------------
     // 附属内容（外部字幕流 / 分段 / Trickplay / 图片缓存）
@@ -5054,28 +5822,219 @@ private constructor(
         }
     }
 
-    private suspend fun snapshotActiveTasks(): List<DownloadTask> =
-        withContext(Dispatchers.IO) {
-            val snapshot = sidecar.allRecords()
-            activeJobs.keys
-                .mapNotNull { database.getSource(it) }
-                .map { buildTask(it, DownloadTaskStatus.RUNNING, sidecarSnapshot = snapshot) }
-        }
-
-    private fun updateForegroundNotificationNow() {
-        val now = System.currentTimeMillis()
-        if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) return
-        lastNotificationAt = now
-        scope.launch {
-            val active = activeItemIds().size
-            if (active == 0) {
-                lastNotificationAt = 0L
-                return@launch
+    private suspend fun canonicalRefreshAt(samplingEpochMs: Long): CanonicalActiveTaskRefresh {
+        val tasks = refreshDownloadTasks()
+        val completedMediaRecords = downloadedMediaRecords()
+        val completedCanonicalKeys =
+            completedMediaRecords.mapTo(mutableSetOf()) { record ->
+                record.canonicalIdentity().canonicalKey
             }
-            val first = snapshotActiveTasks().firstOrNull()
-            notifications.notifyForeground(task = first, activeCount = active)
+        return CanonicalActiveTaskRefresh(
+            tasks = tasks,
+            completedMediaRecords = completedMediaRecords,
+            snapshot =
+                DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                    tasks = tasks,
+                    downloadedCanonicalKeys = completedCanonicalKeys,
+                    samplingEpochMs = samplingEpochMs,
+                ),
+        )
+    }
+
+    /**
+     * WorkManager acknowledges the exact [foregroundInfo] value by returning from setForeground and
+     * entering [runQueue]. Until then asynchronous renders remain gated.
+     */
+    fun acknowledgeForegroundInfoPublished() {
+        synchronized(foregroundNotificationStateLock) {
+            val latestRefresh = latestPublishedCanonicalRefresh
+            val latestEpoch = latestRefresh.snapshot.samplingEpochMs
+            if (foregroundInfoAwaitingAck) {
+                foregroundInfoAwaitingAck = false
+                val builtEpoch = pendingForegroundInfoEpoch
+                pendingForegroundInfoEpoch = 0L
+                lastRenderedNotificationEpoch = maxOf(lastRenderedNotificationEpoch, builtEpoch)
+                if (foregroundNotificationDirty || latestEpoch > builtEpoch) {
+                    foregroundNotificationDirty = true
+                    beginForegroundNotificationRequestLocked(latestRefresh)
+                }
+            }
         }
     }
+
+    private fun updateForegroundNotificationNow(): DownloadDeleteTraceResult {
+        val now = System.currentTimeMillis()
+        val result =
+            if (now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) {
+                DownloadDeleteTraceResult.THROTTLED
+            } else {
+                lastNotificationAt = now
+                DownloadDeleteTraceResult.SCHEDULED
+            }
+        scope.launch {
+            for (attempt in 1..NOTIFICATION_RETRY_ATTEMPTS) {
+                try {
+                    refreshCanonicalActiveTaskRefreshInternal(scheduleNotification = true)
+                    return@launch
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "刷新 canonical 下载快照失败 attempt=$attempt")
+                    if (attempt < NOTIFICATION_RETRY_ATTEMPTS) {
+                        delay(notificationRetryDelayMs(attempt))
+                    }
+                }
+            }
+        }
+        return result
+    }
+
+    private suspend fun publishForegroundNotificationChanges() {
+        for (request in foregroundNotificationRequests) {
+            for (attempt in 1..NOTIFICATION_RETRY_ATTEMPTS) {
+                if (!isForegroundNotificationRequestCurrent(request.version)) {
+                    break
+                }
+                try {
+                    publishForegroundNotification(request)
+                    break
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (error: Exception) {
+                    Timber.w(error, "刷新下载前台通知失败")
+                    if (attempt == NOTIFICATION_RETRY_ATTEMPTS) {
+                        scheduleForegroundNotificationRetry(request)
+                    } else {
+                        delay(notificationRetryDelayMs(attempt))
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun publishForegroundNotification(request: ForegroundNotificationRequest) {
+        if (!isForegroundNotificationRequestCurrent(request.version)) {
+            return
+        }
+        val waitMs =
+            (lastNotificationAt + NOTIFICATION_INTERVAL_MS - System.currentTimeMillis())
+                .coerceAtLeast(0L)
+        if (waitMs > 0L) delay(waitMs)
+
+        if (!isForegroundNotificationRequestCurrent(request.version)) {
+            return
+        }
+        val snapshot = request.refresh.snapshot
+        val aggregate = aggregateDownloadNotification(snapshot)
+        synchronized(foregroundNotificationStateLock) {
+            if (
+                request.version != foregroundNotificationRequestVersion ||
+                    !foregroundNotificationDirty ||
+                    foregroundInfoAwaitingAck ||
+                    request.refresh.snapshot.samplingEpochMs !=
+                        latestPublishedCanonicalRefresh.snapshot.samplingEpochMs
+            ) {
+                return
+            }
+            if (aggregate.activeCount == 0) {
+                lastRenderedNotificationEpoch =
+                    maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
+                lastNotificationAt = System.currentTimeMillis()
+                foregroundNotificationDirty = false
+                return
+            }
+            if (snapshot.samplingEpochMs <= lastRenderedNotificationEpoch) {
+                foregroundNotificationDirty = false
+                return
+            }
+
+            notifications.notifyForeground(aggregate)
+            lastRenderedNotificationEpoch =
+                maxOf(lastRenderedNotificationEpoch, snapshot.samplingEpochMs)
+            lastNotificationAt = System.currentTimeMillis()
+            foregroundNotificationDirty = false
+        }
+    }
+
+    private fun isForegroundNotificationRequestCurrent(requestVersion: Long): Boolean =
+        synchronized(foregroundNotificationStateLock) {
+            requestVersion == foregroundNotificationRequestVersion &&
+                foregroundNotificationDirty &&
+                !foregroundInfoAwaitingAck &&
+                latestPublishedCanonicalRefresh.snapshot.samplingEpochMs ==
+                    lastScheduledNotificationEpoch
+        }
+
+    private fun beginForegroundNotificationRequestLocked(refresh: CanonicalActiveTaskRefresh) {
+        if (refresh.snapshot.samplingEpochMs < lastScheduledNotificationEpoch) {
+            return
+        }
+        lastScheduledNotificationEpoch =
+            maxOf(lastScheduledNotificationEpoch, refresh.snapshot.samplingEpochMs)
+        val requestVersion = ++foregroundNotificationRequestVersion
+        foregroundNotificationTrailingJob?.cancel()
+        foregroundNotificationTrailingJob = null
+        foregroundNotificationTrailingVersion = 0L
+        foregroundNotificationTrailingRetries = 0
+        val request = ForegroundNotificationRequest(requestVersion, refresh)
+        foregroundNotificationRequests.trySend(request)
+    }
+
+    private fun scheduleForegroundNotificationRetry(request: ForegroundNotificationRequest) {
+        val requestVersion = request.version
+        synchronized(foregroundNotificationStateLock) {
+            if (
+                requestVersion != foregroundNotificationRequestVersion ||
+                    !foregroundNotificationDirty ||
+                    foregroundInfoAwaitingAck
+            ) {
+                return
+            }
+            if (foregroundNotificationTrailingVersion != requestVersion) {
+                foregroundNotificationTrailingJob?.cancel()
+                foregroundNotificationTrailingJob = null
+                foregroundNotificationTrailingVersion = requestVersion
+                foregroundNotificationTrailingRetries = 0
+            }
+            if (
+                foregroundNotificationTrailingRetries >= NOTIFICATION_TRAILING_RETRY_LIMIT ||
+                    foregroundNotificationTrailingJob?.isActive == true
+            ) {
+                return
+            }
+            foregroundNotificationTrailingRetries += 1
+            foregroundNotificationTrailingJob = scope.launch {
+                val trailingJob = coroutineContext[Job]
+                try {
+                    delay(NOTIFICATION_RETRY_MAX_BACKOFF_MS)
+                    synchronized(foregroundNotificationStateLock) {
+                        if (foregroundNotificationTrailingJob === trailingJob) {
+                            foregroundNotificationTrailingJob = null
+                        }
+                        val current =
+                            requestVersion == foregroundNotificationRequestVersion &&
+                                foregroundNotificationTrailingVersion == requestVersion &&
+                                foregroundNotificationDirty &&
+                                !foregroundInfoAwaitingAck
+                        if (current) {
+                            foregroundNotificationRequests.trySend(request)
+                        }
+                    }
+                } finally {
+                    synchronized(foregroundNotificationStateLock) {
+                        if (foregroundNotificationTrailingJob === trailingJob) {
+                            foregroundNotificationTrailingJob = null
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun notificationRetryDelayMs(attempt: Int): Long =
+        (NOTIFICATION_RETRY_BASE_BACKOFF_MS shl (attempt - 1).coerceIn(0, 3)).coerceAtMost(
+            NOTIFICATION_RETRY_MAX_BACKOFF_MS
+        )
 
     private fun networkPolicyAllows(): Boolean {
         val manager =
@@ -5225,6 +6184,12 @@ private constructor(
         /** 进度落库 / 通知刷新间隔。 */
         const val PERSIST_INTERVAL_MS = 1_000L
         const val NOTIFICATION_INTERVAL_MS = 1_000L
+        const val NOTIFICATION_RETRY_ATTEMPTS = 4
+        const val NOTIFICATION_TRAILING_RETRY_LIMIT = 1
+        const val NOTIFICATION_RECOVERY_MAX_ATTEMPTS =
+            NOTIFICATION_RETRY_ATTEMPTS * (NOTIFICATION_TRAILING_RETRY_LIMIT + 1)
+        const val NOTIFICATION_RETRY_BASE_BACKOFF_MS = 100L
+        const val NOTIFICATION_RETRY_MAX_BACKOFF_MS = 1_000L
 
         /** W63：节目 / 季快照缓存有效期。 */
         const val SNAPSHOT_TTL_MS = 10 * 60 * 1_000L

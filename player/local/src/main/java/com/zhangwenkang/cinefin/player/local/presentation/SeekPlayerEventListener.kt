@@ -6,6 +6,7 @@ import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
+import com.zhangwenkang.cinefin.player.local.diag.PlaybackDiag
 import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.SeekFailureReason
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
@@ -92,7 +93,11 @@ internal data class SeekSessionReplacement(
 )
 
 internal interface SeekSessionBridge {
-    suspend fun rebuildForSeek(itemId: String, targetMs: Long): SeekSessionReplacement?
+    suspend fun rebuildForSeek(
+        itemId: String,
+        mediaSourceId: String,
+        targetMs: Long,
+    ): SeekSessionReplacement?
 
     fun onSessionReplaced(replacement: SeekSessionReplacement)
 }
@@ -131,12 +136,21 @@ internal constructor(
         data class Relative(val deltaMs: Long) : PendingSeek
     }
 
+    private data class TranscodeRestartBudgetKey(
+        val requestId: Long,
+        val targetGeneration: Long,
+    )
+
     private data class ActiveTarget(
         val requestGeneration: Long,
         val intent: PlayerViewModel.SeekIntent,
         val mediaItemIndex: Int,
         val mediaIdentity: SeekMediaIdentity,
         val targetSourceUri: String,
+        val transcodeRestartBudgetKey: TranscodeRestartBudgetKey,
+        val forceFreshTranscodeSource: Boolean = false,
+        val freshSourceRetry: Boolean = false,
+        val replacementSourceFingerprint: String? = null,
     )
 
     private val _state = MutableStateFlow<SeekState>(SeekState.Idle)
@@ -145,6 +159,20 @@ internal constructor(
     internal val coordinator = SeekRequestCoordinator()
     val state: SeekState
         get() = coordinator.state
+
+    /**
+     * A cross-item switch is loading a whole new source, so the progress watchdog must not treat
+     * the silent minutes that follow as a stall.
+     */
+    val isCrossItemSeekInFlight: Boolean
+        get() {
+            if (coordinator.state !is SeekState.Seeking) return false
+            return when (activeTarget?.intent) {
+                is PlayerViewModel.SeekIntent.MediaItem,
+                is PlayerViewModel.SeekIntent.AdjacentMediaItem -> true
+                else -> false
+            }
+        }
 
     private var attachedPlayer: Player? = null
     private var activeTarget: ActiveTarget? = null
@@ -157,9 +185,10 @@ internal constructor(
     private var transcodeRestartPendingLease: SeekRequestLease? = null
     private var transcodeRestartJob: Job? = null
     private var transcodeRestartLease: SeekRequestLease? = null
+    private var nextTranscodeRestartTargetGeneration = 0L
+    private var transcodeRestartBudgetKey: TranscodeRestartBudgetKey? = null
     private var transcodeRestartWindowStartMs = 0L
     private var transcodeRestartWindowCount = 0
-    private var lastTranscodeRestartMediaId: String? = null
     private var transcodeWatchdogJob: Job? = null
 
     private val seekEventListener =
@@ -272,6 +301,11 @@ internal constructor(
                 mediaItemIndex = player.currentMediaItemIndex,
                 mediaIdentity = identity,
                 targetSourceUri = mediaSourceUri(mediaItem),
+                transcodeRestartBudgetKey =
+                    TranscodeRestartBudgetKey(
+                        requestId = generation,
+                        targetGeneration = nextTranscodeRestartTargetGeneration(),
+                    ),
             )
         publish()
         armDeadline()
@@ -306,6 +340,10 @@ internal constructor(
     }
 
     fun retrySeek() {
+        val failed = coordinator.state as? SeekState.Failed
+        val previousTarget = activeTarget?.takeIf { target ->
+            failed != null && target.requestGeneration == failed.requestGeneration
+        }
         val generation = coordinator.retryRequest(clock()) ?: return
         val retry = coordinator.state as? SeekState.Seeking ?: return
         val player = attachedPlayer ?: return failUnsupported()
@@ -313,13 +351,31 @@ internal constructor(
         val identity = mediaIdentity(item) ?: return failUnsupported()
         clearPendingSeek()
         cancelTranscodeWork()
+        val targetSourceUri = mediaSourceUri(item)
+        val replacementTimedOut =
+            failed?.reason == SeekFailureReason.TIMEOUT &&
+                previousTarget?.replacementSourceFingerprint != null &&
+                failed.mediaIdentity?.sourceFingerprint ==
+                    previousTarget.replacementSourceFingerprint
+        val freshSourceRetry = previousTarget?.freshSourceRetry == true || replacementTimedOut
         activeTarget =
             ActiveTarget(
                 requestGeneration = generation,
                 intent = PlayerViewModel.SeekIntent.Absolute(retry.targetMs),
                 mediaItemIndex = player.currentMediaItemIndex,
                 mediaIdentity = identity,
-                targetSourceUri = mediaSourceUri(item),
+                targetSourceUri = targetSourceUri,
+                transcodeRestartBudgetKey =
+                    previousTarget?.transcodeRestartBudgetKey
+                        ?: TranscodeRestartBudgetKey(
+                            requestId = generation,
+                            targetGeneration = nextTranscodeRestartTargetGeneration(),
+                        ),
+                forceFreshTranscodeSource =
+                    engineProvider() == SeekEngine.EXOPLAYER &&
+                        targetSourceUri.contains(".m3u8", ignoreCase = true) &&
+                        freshSourceRetry,
+                freshSourceRetry = freshSourceRetry,
             )
         publish()
         armDeadline()
@@ -398,7 +454,7 @@ internal constructor(
         resetRequestWork()
         val targetSourceUri = mediaSourceUri(targetItem)
         val generation =
-            coordinator.beginRequestForTarget(
+            coordinator.beginRequestForCrossItemTarget(
                 targetMs = 0L,
                 durationMs = player.duration,
                 issuedAtMs = clock(),
@@ -412,7 +468,18 @@ internal constructor(
                 mediaItemIndex = index,
                 mediaIdentity = targetIdentity,
                 targetSourceUri = targetSourceUri,
+                transcodeRestartBudgetKey =
+                    TranscodeRestartBudgetKey(
+                        requestId = generation,
+                        targetGeneration = nextTranscodeRestartTargetGeneration(),
+                    ),
             )
+        PlaybackDiag.log(
+            "requestMediaItemSeek g$generation index=$index positionMs=$positionMs " +
+                "current=${currentIdentity.itemId}/${currentIdentity.sourceFingerprint} " +
+                "target=${targetIdentity.itemId}/${targetIdentity.sourceFingerprint} " +
+                "engine=${engineProvider()} duration=${player.duration}"
+        )
         publish()
         executeCurrent(player, source)
     }
@@ -435,21 +502,27 @@ internal constructor(
                 durationMs = player.duration,
             ) ?: return
         val lease = markDispatched(target.requestGeneration, target.mediaIdentity) ?: return
-        if (
+        val absoluteExoHlsSeek =
             target.intent is PlayerViewModel.SeekIntent.Absolute &&
-                shouldRestartTranscodeSession(
-                    isTranscodeStream = target.targetSourceUri.contains(".m3u8", ignoreCase = true),
-                    isExoPlayer = engineProvider() == SeekEngine.EXOPLAYER,
-                    targetMs = targetMs,
-                    currentPositionMs = player.currentPosition,
-                    bufferedPositionMs = player.bufferedPosition,
-                    sessionStartMs =
-                        player.currentMediaItem
-                            ?.mediaMetadata
-                            ?.extras
-                            ?.getLong(PLAYER_EXTRA_SEEK_SESSION_START_MS, 0L) ?: 0L,
-                )
-        ) {
+                target.targetSourceUri.contains(".m3u8", ignoreCase = true) &&
+                engineProvider() == SeekEngine.EXOPLAYER
+        val restartTranscode =
+            absoluteExoHlsSeek &&
+                (target.forceFreshTranscodeSource ||
+                    shouldRestartTranscodeSession(
+                        isTranscodeStream =
+                            target.targetSourceUri.contains(".m3u8", ignoreCase = true),
+                        isExoPlayer = engineProvider() == SeekEngine.EXOPLAYER,
+                        targetMs = targetMs,
+                        currentPositionMs = player.currentPosition,
+                        bufferedPositionMs = player.bufferedPosition,
+                        sessionStartMs =
+                            player.currentMediaItem
+                                ?.mediaMetadata
+                                ?.extras
+                                ?.getLong(PLAYER_EXTRA_SEEK_SESSION_START_MS, 0L) ?: 0L,
+                    ))
+        if (restartTranscode) {
             scheduleTranscodeRestart(lease, source)
             return
         }
@@ -464,10 +537,16 @@ internal constructor(
             }
         }
             .onFailure {
+                PlaybackDiag.log(
+                    "engine seekTo THREW g${target.requestGeneration}: ${it.javaClass.simpleName}"
+                )
                 Timber.w(it, "seek 同步拒绝：source=%s target=%d", source, targetMs)
                 failActiveSeek(SeekFailureReason.REJECTED, retryable = false)
             }
             .onSuccess {
+                PlaybackDiag.log(
+                    "engine seekTo OK g${target.requestGeneration} target=$targetMs intent=${target.intent}"
+                )
                 armTranscodeWatchdog(
                     lease = lease,
                     source = source,
@@ -521,7 +600,20 @@ internal constructor(
             targetMs = resolved,
             durationMs = player.duration,
         )
-        activeTarget = activeTarget?.copy(intent = PlayerViewModel.SeekIntent.Absolute(resolved))
+        activeTarget = activeTarget?.let { target ->
+            val previousTargetMs = (target.intent as? PlayerViewModel.SeekIntent.Absolute)?.targetMs
+            target.copy(
+                intent = PlayerViewModel.SeekIntent.Absolute(resolved),
+                transcodeRestartBudgetKey =
+                    if (previousTargetMs == resolved) {
+                        target.transcodeRestartBudgetKey
+                    } else {
+                        target.transcodeRestartBudgetKey.copy(
+                            targetGeneration = nextTranscodeRestartTargetGeneration()
+                        )
+                    },
+            )
+        }
         publish()
         val source = pendingSource
         clearPendingSeek(cancelFlush = false)
@@ -635,16 +727,20 @@ internal constructor(
         val index = player.currentMediaItemIndex
         val targetMs = lease.targetMs
         val now = clock()
-        if (mediaId != lastTranscodeRestartMediaId) {
-            lastTranscodeRestartMediaId = mediaId
-            transcodeRestartWindowStartMs = now
-            transcodeRestartWindowCount = 0
-        } else if (now - transcodeRestartWindowStartMs > TRANSCODE_RESTART_WINDOW_MS) {
-            transcodeRestartWindowStartMs = now
-            transcodeRestartWindowCount = 0
-        }
-        if (transcodeRestartWindowCount >= TRANSCODE_RESTART_WINDOW_MAX) {
-            runCatching { player.seekTo(targetMs) }
+        val budgetKey =
+            activeTarget
+                ?.takeIf { it.requestGeneration == lease.requestGeneration }
+                ?.transcodeRestartBudgetKey
+                ?: TranscodeRestartBudgetKey(
+                    requestId = lease.requestGeneration,
+                    targetGeneration = nextTranscodeRestartTargetGeneration(),
+                )
+        if (!consumeTranscodeRestartAttempt(budgetKey, now)) {
+            failActiveSeek(
+                SeekFailureReason.SESSION_REBUILD_FAILED,
+                retryable = true,
+                lease = lease,
+            )
             return
         }
         val wasPlaying = player.playWhenReady
@@ -652,7 +748,11 @@ internal constructor(
         transcodeRestartJob = scope.launch {
             try {
                 val replacement = runCatching {
-                    bridge.rebuildForSeek(mediaId, targetMs)
+                    bridge.rebuildForSeek(
+                        mediaId,
+                        lease.mediaIdentity.mediaSourceId,
+                        targetMs,
+                    )
                 }
                     .onFailure { Timber.e(it, "转码重开会话：重建播放信息异常") }
                     .getOrNull()
@@ -667,6 +767,8 @@ internal constructor(
                 }
                 if (
                     replacement == null ||
+                        replacement.mediaIdentity.mediaSourceId !=
+                            lease.mediaIdentity.mediaSourceId ||
                         !coordinator.prepareSourceReplacement(
                             lease,
                             replacement.mediaIdentity,
@@ -685,13 +787,20 @@ internal constructor(
                 livePlayer.seekTo(index, targetMs)
                 livePlayer.prepare()
                 if (wasPlaying) livePlayer.play() else livePlayer.pause()
-                transcodeRestartWindowCount++
+                activeTarget =
+                    activeTarget
+                        ?.takeIf { it.requestGeneration == lease.requestGeneration }
+                        ?.copy(
+                            replacementSourceFingerprint =
+                                replacement.mediaIdentity.sourceFingerprint
+                        ) ?: activeTarget
                 Timber.d(
-                    "转码 seek 重开会话：item=%s target=%d source=%s index=%d",
+                    "转码 seek 重开会话：item=%s target=%d source=%s index=%d attempts=%d",
                     mediaId,
                     targetMs,
                     source,
                     index,
+                    transcodeRestartWindowCount,
                 )
             } finally {
                 if (transcodeRestartLease == lease) {
@@ -709,6 +818,28 @@ internal constructor(
                 }
             }
         }
+    }
+
+    private fun consumeTranscodeRestartAttempt(
+        key: TranscodeRestartBudgetKey,
+        nowElapsedMs: Long,
+    ): Boolean {
+        if (
+            key != transcodeRestartBudgetKey ||
+                nowElapsedMs - transcodeRestartWindowStartMs > TRANSCODE_RESTART_WINDOW_MS
+        ) {
+            transcodeRestartBudgetKey = key
+            transcodeRestartWindowStartMs = nowElapsedMs
+            transcodeRestartWindowCount = 0
+        }
+        if (transcodeRestartWindowCount >= TRANSCODE_RESTART_WINDOW_MAX) return false
+        transcodeRestartWindowCount++
+        return true
+    }
+
+    private fun nextTranscodeRestartTargetGeneration(): Long {
+        nextTranscodeRestartTargetGeneration++
+        return nextTranscodeRestartTargetGeneration
     }
 
     private fun armTranscodeWatchdog(
@@ -825,6 +956,10 @@ class SeekPlayerEventListener(
         newPosition: Player.PositionInfo,
         reason: Int,
     ) {
+        PlaybackDiag.log(
+            "event discontinuity reason=$reason old=${oldPosition.mediaItem?.mediaId}@${oldPosition.positionMs} " +
+                "new=${newPosition.mediaItem?.mediaId}@${newPosition.positionMs} engine=${engine()}"
+        )
         if (engine() != SeekEngine.EXOPLAYER || reason != Player.DISCONTINUITY_REASON_SEEK) {
             return
         }
@@ -844,6 +979,7 @@ class SeekPlayerEventListener(
     }
 
     override fun onPlaybackStateChanged(state: Int) {
+        PlaybackDiag.log("event playbackState=$state engine=${engine()}")
         if (engine() != SeekEngine.EXOPLAYER || state != Player.STATE_READY) return
         val identity = mediaIdentity(null) ?: return
         val positionMs = readyPositionMs() ?: return

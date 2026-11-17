@@ -12,6 +12,14 @@ import org.junit.Test
 class DownloadIntentPhaseProjectionTest {
 
     @Test
+    fun `deleting phase never falls through to waiting label`() {
+        assertEquals(
+            R.string.download_deleting,
+            downloadIntentPhaseLabel(DownloadTaskPhase.DELETING),
+        )
+    }
+
+    @Test
     fun `queued resolving and source pending have three distinct user labels`() {
         val phases =
             listOf(

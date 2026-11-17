@@ -36,6 +36,8 @@ import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.presentation.update.launchAutomaticUpdateCheck
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.update.UpdateWorkScheduler
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceInstaller
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRuntime
 import com.zhangwenkang.cinefin.utils.Downloader
 import com.zhangwenkang.cinefin.work.MpvCleanupWorker
 import com.zhangwenkang.cinefin.work.ReaderProgressSyncWorker
@@ -70,6 +72,10 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
 
     @Inject lateinit var downloader: Downloader
 
+    @Inject
+    lateinit var downloadDeleteTraceInstallers:
+        Set<@JvmSuppressWildcards DownloadDeleteTraceInstaller>
+
     @Inject lateinit var updateWorkScheduler: UpdateWorkScheduler
 
     override val workManagerConfiguration: Configuration
@@ -80,6 +86,7 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
 
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
+            downloadDeleteTraceInstallers.forEach(DownloadDeleteTraceRuntime::install)
         }
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {

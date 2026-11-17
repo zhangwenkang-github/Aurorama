@@ -135,6 +135,156 @@ fun batchPlayOrder(items: List<FindroidItem>): List<FindroidItem> = items.filter
     mediaItemPlayable(it)
 }
 
+data class MediaBatchSelection(
+    val items: List<FindroidItem>,
+    val missingIds: Set<String> = emptySet(),
+    val duplicateIds: Set<String> = emptySet(),
+) {
+    val isComplete: Boolean
+        get() = missingIds.isEmpty() && duplicateIds.isEmpty()
+
+    val issueCount: Int
+        get() = missingIds.size + duplicateIds.size
+}
+
+fun resolveMediaBatchSelection(
+    currentItems: List<FindroidItem>,
+    selectedIds: Set<String>,
+): MediaBatchSelection {
+    val selectedCurrentItems = currentItems.filter { it.id.toString() in selectedIds }
+    val resolvedItems = selectedCurrentItems.distinctBy { it.id }
+    val duplicateIds =
+        selectedCurrentItems
+            .groupingBy { it.id.toString() }
+            .eachCount()
+            .filterValues { count -> count > 1 }
+            .keys
+    val resolvedIds = resolvedItems.map { it.id.toString() }.toSet()
+    return MediaBatchSelection(
+        items = resolvedItems,
+        missingIds = selectedIds - resolvedIds,
+        duplicateIds = duplicateIds,
+    )
+}
+
+/** Show / Season 批量下载必须先展开为可见叶子候选，再由用户确认。 */
+fun mediaBatchNeedsEpisodeSelection(items: List<FindroidItem>): Boolean = items.any { item ->
+    item is FindroidShow || item is FindroidSeason
+}
+
+/**
+ * 显式下载计划。
+ *
+ * [requestedIds] 是用户在剧集候选清单中勾选的稳定叶子身份；[plannedIds] 是确认时冻结的同一集合。 [expandedFromIds] 只解释 Show / Season
+ * 来源，不参与执行期再次取集；[scopeKey] 绑定展开时的 server / user 作用域。
+ */
+data class MediaDownloadManifest(
+    val requestedIds: List<UUID>,
+    val plannedIds: List<UUID>,
+    val expandedFromIds: List<UUID>,
+    val scopeKey: String,
+)
+
+data class MediaDownloadManifestResult(
+    val manifest: MediaDownloadManifest?,
+    val missingIds: List<UUID> = emptyList(),
+    val duplicateRequestedIds: List<UUID> = emptyList(),
+    val duplicateCandidateIds: List<UUID> = emptyList(),
+) {
+    val isComplete: Boolean
+        get() = manifest != null
+}
+
+fun buildMediaDownloadManifest(
+    requestedIds: List<UUID>,
+    candidates: List<FindroidItem>,
+    expandedFromIds: List<UUID>,
+    scopeKey: String,
+): MediaDownloadManifestResult {
+    val duplicateRequestedIds =
+        requestedIds
+            .groupingBy { it }
+            .eachCount()
+            .filterValues { count -> count > 1 }
+            .keys
+            .sortedBy(UUID::toString)
+    val duplicateCandidateIds =
+        candidates
+            .groupingBy { it.id }
+            .eachCount()
+            .filterValues { count -> count > 1 }
+            .keys
+            .sortedBy(UUID::toString)
+    val candidatesById = candidates.distinctBy { it.id }.associateBy { it.id }
+    val plannedIds = requestedIds.distinct().filter(candidatesById::containsKey)
+    val missingIds = requestedIds.toSet() - plannedIds.toSet()
+    val complete =
+        requestedIds.isNotEmpty() &&
+            duplicateRequestedIds.isEmpty() &&
+            duplicateCandidateIds.isEmpty() &&
+            missingIds.isEmpty() &&
+            plannedIds.size == requestedIds.size
+    return MediaDownloadManifestResult(
+        manifest =
+            if (complete) {
+                MediaDownloadManifest(
+                    requestedIds = requestedIds,
+                    plannedIds = plannedIds,
+                    expandedFromIds = expandedFromIds.distinct(),
+                    scopeKey = scopeKey,
+                )
+            } else {
+                null
+            },
+        missingIds = missingIds.sortedBy(UUID::toString),
+        duplicateRequestedIds = duplicateRequestedIds,
+        duplicateCandidateIds = duplicateCandidateIds,
+    )
+}
+
+/** 一次显式下载计划必须被 accepted / skipped / failed 三集合无重无漏划分。 */
+data class MediaDownloadExecutionIds(
+    val plannedIds: List<UUID>,
+    val acceptedIds: List<UUID>,
+    val skippedIds: List<UUID>,
+    val failedIds: List<UUID>,
+    val unknownIds: List<UUID>,
+    val duplicateResultIds: List<UUID>,
+) {
+    val isComplete: Boolean
+        get() {
+            val planned = plannedIds.toSet()
+            val result = acceptedIds + skippedIds + failedIds
+            return unknownIds.isEmpty() && duplicateResultIds.isEmpty() && result.toSet() == planned
+        }
+}
+
+fun mediaDownloadExecutionIds(
+    plannedIds: List<UUID>,
+    acceptedIds: List<UUID>,
+    skippedIds: List<UUID>,
+    failedIds: List<UUID>,
+): MediaDownloadExecutionIds {
+    val planned = plannedIds.toSet()
+    val resultIds = acceptedIds + skippedIds + failedIds
+    val duplicateResultIds =
+        resultIds
+            .groupingBy { it }
+            .eachCount()
+            .filterValues { count -> count > 1 }
+            .keys
+            .sortedBy(UUID::toString)
+    val unknownIds = (resultIds.toSet() - planned).sortedBy(UUID::toString)
+    return MediaDownloadExecutionIds(
+        plannedIds = plannedIds,
+        acceptedIds = acceptedIds,
+        skippedIds = skippedIds,
+        failedIds = failedIds,
+        unknownIds = unknownIds,
+        duplicateResultIds = duplicateResultIds,
+    )
+}
+
 /** 批量「下载」目标：跳过已下载 / 已在下载队列的条目。 */
 fun batchDownloadTargets(
     items: List<FindroidItem>,

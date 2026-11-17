@@ -115,6 +115,9 @@ interface Downloader {
     /** W32：恢复或重试任务；返回 (downloadId, 错误文案)，-1 表示失败。 */
     suspend fun resumeTask(task: DownloadTask): Pair<Long, UiText?>
 
+    /** 通知栏 / 页面按 sourceId 继续暂停任务。 */
+    suspend fun resumeTaskById(sourceId: String): Boolean
+
     /** W32：重试失败任务；返回 (downloadId, 错误文案)，-1 表示失败。 */
     suspend fun retryTask(task: DownloadTask): Pair<Long, UiText?>
 

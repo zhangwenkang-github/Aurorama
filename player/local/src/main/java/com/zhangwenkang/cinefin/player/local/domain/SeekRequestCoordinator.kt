@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
+import com.zhangwenkang.cinefin.player.local.diag.PlaybackDiag
 import kotlin.math.abs
 
 enum class SeekEngine {
@@ -7,34 +8,38 @@ enum class SeekEngine {
     MPV,
 }
 
-private const val EXO_SEEK_TIMEOUT_MS = 4_000L
-private const val MPV_SEEK_TIMEOUT_MS = 6_000L
+/**
+ * Seek confirmation windows. On real networks a seek that lands immediately still needs seconds of
+ * rebuffering before STATE_READY; cross-item switches additionally load a whole new source (~6–10s
+ * observed). Short windows published a false persistent "定位超时" over healthy playback, so all
+ * engines share a generous window; genuine engine failures surface earlier via the error path
+ * instead of the deadline. A transcode target gets the widest window on every engine, mpv included:
+ * the server still has to spin the session up before the first byte.
+ */
+private const val EXO_SEEK_TIMEOUT_MS = 30_000L
+private const val MPV_SEEK_TIMEOUT_MS = 30_000L
 private const val TRANSCODE_SEEK_TIMEOUT_MS = 35_000L
 private const val EXO_SEEK_TOLERANCE_MS = 1_000L
 private const val MPV_SEEK_TOLERANCE_MS = 2_000L
 private const val TRANSCODE_SEEK_TOLERANCE_MS = 2_000L
 private const val SEEK_TARGET_DISPLAY_MIN_MS = 300L
 
-/**
- * Policy belongs to the target item's source, not whichever item happens to be current when a
- * cross-item command is queued.
- */
 fun seekConfirmationPolicyForTarget(
     engine: SeekEngine,
     mediaSourceUri: String,
 ): SeekConfirmationPolicy {
     val isTranscode = isTranscodeStreamUri(mediaSourceUri)
     return when {
-        engine == SeekEngine.MPV ->
-            SeekConfirmationPolicy(
-                completionTimeoutMs = MPV_SEEK_TIMEOUT_MS,
-                positionToleranceMs = MPV_SEEK_TOLERANCE_MS,
-                minimumTargetDisplayMs = SEEK_TARGET_DISPLAY_MIN_MS,
-            )
         isTranscode ->
             SeekConfirmationPolicy(
                 completionTimeoutMs = TRANSCODE_SEEK_TIMEOUT_MS,
                 positionToleranceMs = TRANSCODE_SEEK_TOLERANCE_MS,
+                minimumTargetDisplayMs = SEEK_TARGET_DISPLAY_MIN_MS,
+            )
+        engine == SeekEngine.MPV ->
+            SeekConfirmationPolicy(
+                completionTimeoutMs = MPV_SEEK_TIMEOUT_MS,
+                positionToleranceMs = MPV_SEEK_TOLERANCE_MS,
                 minimumTargetDisplayMs = SEEK_TARGET_DISPLAY_MIN_MS,
             )
         else ->
@@ -46,10 +51,6 @@ fun seekConfirmationPolicyForTarget(
     }
 }
 
-/**
- * Stable source identity for dispatch correlation; mutable playback position is intentionally
- * absent.
- */
 fun seekMediaIdentityFor(
     itemId: String,
     mediaSourceId: String,
@@ -61,14 +62,6 @@ fun seekMediaIdentityFor(
         sourceFingerprint = Integer.toHexString("$mediaSourceUri|$mediaSourceId".hashCode()),
     )
 
-/**
- * Correlates callback-only engine events with the seek dispatch that caused them.
- *
- * Media3 and mpv do not attach a seek request id to their callbacks. An observation is accepted
- * only when its engine, media identity, target position and policy tolerance match. Same-target
- * dispatches are coalesced because engines may merge consecutive seeks; only the current reducer
- * generation may change visible state.
- */
 class SeekRequestCoordinator {
     private val reducer = SeekStateReducer()
 
@@ -150,6 +143,22 @@ class SeekRequestCoordinator {
         )
     }
 
+    /** Cross-item episode switch: same policy as same-item seeks (uniform load-aware window). */
+    fun beginRequestForCrossItemTarget(
+        targetMs: Long,
+        durationMs: Long,
+        issuedAtMs: Long,
+        engine: SeekEngine,
+        targetSourceUri: String,
+    ): Long =
+        beginRequestForTarget(
+            targetMs = targetMs,
+            durationMs = durationMs,
+            issuedAtMs = issuedAtMs,
+            engine = engine,
+            targetSourceUri = targetSourceUri,
+        )
+
     fun onDispatched(
         requestGeneration: Long,
         engine: SeekEngine,
@@ -169,6 +178,11 @@ class SeekRequestCoordinator {
                 targetMs = seeking.targetMs,
                 positionToleranceMs = seeking.policy.positionToleranceMs,
             )
+        PlaybackDiag.log(
+            "dispatch g$requestGeneration e${seeking.sourceEpoch} " +
+                "expected=${expectedMediaIdentity.itemId}/${expectedMediaIdentity.sourceFingerprint} " +
+                "target=${seeking.targetMs} tol=${seeking.policy.positionToleranceMs} timeout=${seeking.policy.completionTimeoutMs}"
+        )
     }
 
     fun onSeekAccepted(
@@ -183,15 +197,33 @@ class SeekRequestCoordinator {
                 it.expectedMediaIdentity == mediaIdentity &&
                 (positionMs == null || abs(positionMs - it.targetMs) <= it.positionToleranceMs)
         }
-        if (matchingDispatches.isEmpty()) return false
+        if (matchingDispatches.isEmpty()) {
+            PlaybackDiag.log(
+                "accept MISS engine=$engine pos=$positionMs id=${mediaIdentity.itemId}/${mediaIdentity.sourceFingerprint} " +
+                    "dispatches=${dispatches.map { "g${it.requestGeneration}:e${it.sourceEpoch}:${it.expectedMediaIdentity.itemId}/${it.expectedMediaIdentity.sourceFingerprint}:t${it.targetMs}:acc${it.accepted}:cmp${it.completed}" }} " +
+                    "state=${reducer.state}"
+            )
+            return false
+        }
         matchingDispatches.forEach {
             it.accepted = true
             it.acceptedPositionMs = positionMs ?: it.targetMs
         }
-        val current = reducer.state as? SeekState.Seeking ?: return false
-        val dispatch =
-            matchingDispatches.firstOrNull { it.requestGeneration == current.requestGeneration }
-                ?: return false
+        val current = reducer.state as? SeekState.Seeking
+        if (current == null) {
+            PlaybackDiag.log("accept matched but state not Seeking: ${reducer.state}")
+            return false
+        }
+        val dispatch = matchingDispatches.firstOrNull {
+            it.requestGeneration == current.requestGeneration
+        }
+        if (dispatch == null) {
+            PlaybackDiag.log(
+                "accept matched older gen: current=g${current.requestGeneration} matched=${matchingDispatches.map { it.requestGeneration }}"
+            )
+            return false
+        }
+        val before = reducer.state
         reducer.onAccepted(
             SeekEngineEvidence(
                 requestGeneration = dispatch.requestGeneration,
@@ -201,7 +233,12 @@ class SeekRequestCoordinator {
                 kind = SeekEngineEvidenceKind.SEEK_ACCEPTED,
             )
         )
-        return reducer.state != current
+        val changed = reducer.state != before
+        PlaybackDiag.log(
+            "accept HIT g${dispatch.requestGeneration} e${current.sourceEpoch} pos=$positionMs " +
+                "reducerAccepted=$changed seeking=${reducer.state}"
+        )
+        return changed
     }
 
     fun onPlaybackReady(
@@ -217,12 +254,41 @@ class SeekRequestCoordinator {
                 it.expectedMediaIdentity == mediaIdentity &&
                 abs(positionMs - it.targetMs) <= it.positionToleranceMs
         }
-        if (matchingDispatches.isEmpty()) return false
-        val current = reducer.state as? SeekState.Seeking ?: return false
+        if (matchingDispatches.isEmpty()) {
+            val failed = reducer.state as? SeekState.Failed
+            if (
+                failed != null &&
+                    failed.reason == SeekFailureReason.TIMEOUT &&
+                    failed.mediaIdentity == mediaIdentity &&
+                    abs(positionMs - failed.targetMs) <= failed.policy.positionToleranceMs &&
+                    reducer.onLateReadyAfterTimeout(positionMs, nowElapsedMs)
+            ) {
+                // The engine finished loading after the deadline; the media is really playing,
+                // so the timeout card must clear instead of persisting as a false failure.
+                PlaybackDiag.log(
+                    "ready LATE-CONFIRM g${failed.requestGeneration} pos=$positionMs id=${mediaIdentity.itemId}"
+                )
+                return true
+            }
+            PlaybackDiag.log(
+                "ready MISS engine=$engine pos=$positionMs id=${mediaIdentity.itemId}/${mediaIdentity.sourceFingerprint} " +
+                    "dispatches=${dispatches.map { "g${it.requestGeneration}:e${it.sourceEpoch}:${it.expectedMediaIdentity.itemId}/${it.expectedMediaIdentity.sourceFingerprint}:t${it.targetMs}:acc${it.accepted}:cmp${it.completed}" }} " +
+                    "state=${reducer.state}"
+            )
+            return false
+        }
+        val current = reducer.state as? SeekState.Seeking
+        if (current == null) {
+            PlaybackDiag.log("ready matched but state not Seeking: ${reducer.state}")
+            return false
+        }
         val dispatch = matchingDispatches.firstOrNull {
             it.requestGeneration == current.requestGeneration
         }
         if (dispatch == null) {
+            PlaybackDiag.log(
+                "ready matched older gen: current=g${current.requestGeneration} matched=${matchingDispatches.map { it.requestGeneration }}"
+            )
             matchingDispatches.forEach { it.completed = true }
             return false
         }
@@ -237,15 +303,13 @@ class SeekRequestCoordinator {
             ),
             nowElapsedMs = nowElapsedMs,
         )
-        return reducer.state is SeekState.Confirmed
+        val confirmed = reducer.state is SeekState.Confirmed
+        PlaybackDiag.log(
+            "ready HIT g${dispatch.requestGeneration} e${current.sourceEpoch} pos=$positionMs confirmed=$confirmed state=${reducer.state}"
+        )
+        return confirmed
     }
 
-    /**
-     * Engine errors have no request id. They are only eligible after an accepted anchor from the
-     * same dispatch; an older accepted dispatch consumes the error first, so it cannot be
-     * re-labelled as the current request. Errors before any anchor are left to the playback error
-     * path and ultimately the deadline.
-     */
     fun onEngineError(
         engine: SeekEngine,
         mediaIdentity: SeekMediaIdentity,
@@ -284,7 +348,46 @@ class SeekRequestCoordinator {
             dispatches.firstOrNull { it.requestGeneration == state.requestGeneration }
         }
         val expectedIdentity = currentDispatch?.expectedMediaIdentity ?: seeking?.mediaIdentity
+        val expectedItemMatches = expectedIdentity?.itemId == mediaIdentity.itemId
+        val currentItemMatches = reducer.sourceMediaIdentity?.itemId == mediaIdentity.itemId
+        PlaybackDiag.log(
+            "sourceTransition id=${mediaIdentity.itemId}/${mediaIdentity.sourceFingerprint} " +
+                "expected=${expectedIdentity?.itemId}/${expectedIdentity?.sourceFingerprint} " +
+                "seeking=$seeking dispatch=${currentDispatch?.let { "g${it.requestGeneration}:acc${it.accepted}:pos${it.acceptedPositionMs}" }}"
+        )
+        if (seeking != null && !expectedItemMatches && !currentItemMatches) {
+            PlaybackDiag.log("sourceTransition DROP (item mismatch both)")
+            dispatches.clear()
+            reducer.onSourceReplaced(mediaIdentity)
+            return true
+        }
+        if (seeking != null && expectedIdentity != mediaIdentity && expectedItemMatches) {
+            PlaybackDiag.log("sourceTransition REBASE (same item, new identity)")
+            dispatches.removeAll {
+                it.completed ||
+                    (it.requestGeneration < seeking.requestGeneration &&
+                        it.expectedMediaIdentity != mediaIdentity)
+            }
+            reducer.onSourceReplaced(mediaIdentity)
+            val transitioned = reducer.state as? SeekState.Seeking
+            if (transitioned != null) {
+                val index = dispatches.indexOfLast {
+                    it.requestGeneration == transitioned.requestGeneration
+                }
+                if (index >= 0) {
+                    dispatches[index] =
+                        dispatches[index].copy(
+                            sourceEpoch = transitioned.sourceEpoch,
+                            expectedMediaIdentity = mediaIdentity,
+                            accepted = false,
+                            acceptedPositionMs = null,
+                        )
+                }
+            }
+            return true
+        }
         if (seeking != null && expectedIdentity != mediaIdentity) {
+            PlaybackDiag.log("sourceTransition FAIL SOURCE_CHANGED g${seeking.requestGeneration}")
             dispatches.removeAll { it.requestGeneration <= seeking.requestGeneration }
             reducer.onSourceReplaced(mediaIdentity)
             reducer.onFailure(
@@ -303,7 +406,17 @@ class SeekRequestCoordinator {
             currentDispatch
                 ?.takeIf { it.expectedMediaIdentity == mediaIdentity && it.accepted }
                 ?.acceptedPositionMs
-        val changed = reducer.onSourceReplaced(mediaIdentity, acceptedPositionMs)
+        val changed =
+            reducer.onSourceReplaced(
+                mediaIdentity = mediaIdentity,
+                acceptedPositionMs = acceptedPositionMs,
+                preserveRequestAcrossItemChange =
+                    seeking != null && expectedIdentity == mediaIdentity,
+            )
+        PlaybackDiag.log(
+            "sourceTransition REPLACE changed=$changed preserve=${seeking != null && expectedIdentity == mediaIdentity} " +
+                "carryAcceptedPos=$acceptedPositionMs newState=${reducer.state}"
+        )
         dispatches.removeAll { it.completed || it.expectedMediaIdentity != mediaIdentity }
         return changed
     }
@@ -331,6 +444,7 @@ class SeekRequestCoordinator {
         mediaIdentity: SeekMediaIdentity,
     ): Boolean {
         if (!isCurrent(lease)) return false
+        if (lease.mediaIdentity.itemId != mediaIdentity.itemId) return false
         val changed = reducer.onSourceReplaced(mediaIdentity)
         val seeking = reducer.state as? SeekState.Seeking ?: return changed
         val index = dispatches.indexOfLast {
@@ -380,8 +494,11 @@ class SeekRequestCoordinator {
                     state.reason == SeekFailureReason.TIMEOUT
             }
         if (timedOut && dispatchingGeneration != null) {
-            // A timed-out dispatch can never accept later evidence. Retire it together with all
-            // older unresolved dispatches so a same-target retry starts with a clean queue.
+            PlaybackDiag.log(
+                "TIMEOUT g$dispatchingGeneration state=${reducer.state} " +
+                    "dispatches=${dispatches.map { "g${it.requestGeneration}:${it.expectedMediaIdentity.itemId}:acc${it.accepted}:pos${it.acceptedPositionMs}:cmp${it.completed}" }}"
+            )
+            // Retire timed-out and older dispatches before a same-target retry.
             dispatches.removeAll { it.requestGeneration <= dispatchingGeneration }
         }
     }

@@ -67,6 +67,7 @@ import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadPlaybackRequ
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadSelectionRules
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadsViewModel
 import com.zhangwenkang.cinefin.film.presentation.downloads.allEntries
+import com.zhangwenkang.cinefin.film.presentation.downloads.deletionProjection
 import com.zhangwenkang.cinefin.film.presentation.downloads.detailRows
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadConfirmDialog
@@ -77,18 +78,23 @@ import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadLeafCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListMetrics
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadListSkeleton
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSeasonCard
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSelectionActionId
+import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadSelectionActionSpec
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelCard
 import com.zhangwenkang.cinefin.presentation.film.downloads.DownloadTopLevelRow
+import com.zhangwenkang.cinefin.presentation.film.downloads.deletionStatusText
+import com.zhangwenkang.cinefin.presentation.film.downloads.downloadSelectionActionSpecs
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchEvent
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
 import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRuntime
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
 import com.zhangwenkang.cinefin.utils.DownloadTaskGroup
-import com.zhangwenkang.cinefin.utils.DownloadTaskRules
-import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
+import com.zhangwenkang.cinefin.utils.safeAttached
+import com.zhangwenkang.cinefin.utils.safeDisposed
 import java.util.UUID
 import kotlinx.serialization.Serializable
 
@@ -366,6 +372,15 @@ private fun DownloadsScreenLayout(
             }
 
             Spacer(Modifier.height(CinefinSpacing.Space2))
+            if (state.refreshFailure != null) {
+                Text(
+                    text = stringResource(CoreR.string.download_failed),
+                    style = CinefinType.BodyMedium,
+                    color = colors.error,
+                    modifier = Modifier.padding(horizontal = horizontalPadding),
+                )
+                Spacer(Modifier.height(CinefinSpacing.Space2))
+            }
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 when {
                     state.isLoading ->
@@ -380,6 +395,7 @@ private fun DownloadsScreenLayout(
                         )
                     else ->
                         OverviewList(
+                            deletionState = state,
                             containers = state.containersFor(tab.group),
                             emptyTitle =
                                 stringResource(
@@ -413,6 +429,7 @@ private fun DownloadsScreenLayout(
             }
         } else {
             DownloadDetailPane(
+                deletionState = state,
                 container = drilldown,
                 pageGutter = horizontalPadding,
                 selectionMode = state.selectionMode,
@@ -431,6 +448,7 @@ private fun DownloadsScreenLayout(
         if (state.selectionMode) {
             SelectionBar(
                 state = state,
+                group = tab.group,
                 pageGutter = horizontalPadding,
                 onAction = onAction,
                 onRequestDelete = { pendingDelete = PendingDelete.Selection },
@@ -490,6 +508,7 @@ private val DownloadTab.group: DownloadTaskGroup
 
 @Composable
 private fun DownloadDetailPane(
+    deletionState: DownloadManagerState,
     container: DownloadHierarchyContainer,
     pageGutter: Dp,
     selectionMode: Boolean,
@@ -499,6 +518,9 @@ private fun DownloadDetailPane(
     onRequestDeleteEntry: (key: String, title: String) -> Unit,
     onRequestDeleteContainer: (key: String, title: String) -> Unit,
 ) {
+    val containerDeletion = deletionState.deletionProjection(container)
+    val containerSummary =
+        deletionState.deletionSummary?.takeIf { summary -> summary.containerKey == container.key }
     var expandedSeasons by remember(container.key) { mutableStateOf<Set<String>>(emptySet()) }
     val listState = rememberLazyListState()
     val rows =
@@ -529,6 +551,8 @@ private fun DownloadDetailPane(
         item(key = "detail-header") {
             DownloadDrilldownHeader(
                 container = container,
+                deletionProjection = containerDeletion,
+                deletionSummary = containerSummary,
                 onPauseAll = { eligibleTaskKeys ->
                     onAction(DownloadAction.PauseContainer(container.key, eligibleTaskKeys))
                 },
@@ -542,8 +566,12 @@ private fun DownloadDetailPane(
             when (row) {
                 is DownloadDetailRow.Season -> {
                     val seasonKeys = row.season.children.map { it.key }.toSet()
+                    val seasonDeletion = deletionState.deletionProjection(row.season)
+                    val seasonSummary = containerSummary?.takeIf { seasonDeletion.failedCount > 0 }
                     DownloadSeasonCard(
                         season = row.season,
+                        deletionProjection = seasonDeletion,
+                        deletionSummary = seasonSummary,
                         expanded = row.expanded,
                         selectionMode = selectionMode,
                         selected = seasonKeys.any { it in selection },
@@ -560,8 +588,18 @@ private fun DownloadDetailPane(
                 }
                 is DownloadDetailRow.Item -> {
                     val entry = row.entry
+                    val entryDeletion = deletionState.deletionProjection(listOf(entry))
+                    val traceRow =
+                        remember(entry.key) { DownloadDeleteTraceRuntime.rowTrace(entry.key) }
+                    if (traceRow != null) {
+                        DisposableEffect(traceRow) {
+                            traceRow.safeAttached()
+                            onDispose { traceRow.safeDisposed() }
+                        }
+                    }
                     DownloadLeafCard(
                         entry = entry,
+                        deletionProjection = entryDeletion,
                         depth = if (entry.seriesId != null) 1 else 0,
                         selectionMode = selectionMode,
                         selected = entry.key in selection,
@@ -581,6 +619,7 @@ private fun DownloadDetailPane(
 /** 顶层列表：只显示 Show 卡 / 专辑卡 / 电影条目 / 书籍条目（平板折叠顶层项两两并排）。 */
 @Composable
 private fun OverviewList(
+    deletionState: DownloadManagerState,
     containers: List<DownloadHierarchyContainer>,
     emptyTitle: String,
     emptyIconRes: Int,
@@ -636,6 +675,7 @@ private fun OverviewList(
         ) {
             items(items = rows, key = { row -> row.key }) { row ->
                 OverviewItem(
+                    deletionState = deletionState,
                     container = row.container,
                     compact = true,
                     selectionMode = selectionMode,
@@ -668,6 +708,7 @@ private fun OverviewList(
                         horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space5),
                     ) {
                         OverviewItem(
+                            deletionState = deletionState,
                             container = block.first.container,
                             compact = false,
                             selectionMode = selectionMode,
@@ -680,6 +721,7 @@ private fun OverviewList(
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         OverviewItem(
+                            deletionState = deletionState,
                             container = block.second.container,
                             compact = false,
                             selectionMode = selectionMode,
@@ -695,6 +737,7 @@ private fun OverviewList(
                 is DownloadGridBlock.Single ->
                     (block.row as? DownloadHierarchyRow.ContainerRow)?.let { containerRow ->
                         OverviewItem(
+                            deletionState = deletionState,
                             container = containerRow.container,
                             compact = false,
                             selectionMode = selectionMode,
@@ -713,6 +756,7 @@ private fun OverviewList(
 
 @Composable
 private fun OverviewItem(
+    deletionState: DownloadManagerState,
     container: DownloadHierarchyContainer,
     compact: Boolean,
     selectionMode: Boolean,
@@ -726,6 +770,9 @@ private fun OverviewItem(
 ) {
     val drillable = DownloadDrilldownRules.isDrilldown(container)
     val entries = container.allEntries()
+    val containerDeletion = deletionState.deletionProjection(container)
+    val containerSummary =
+        deletionState.deletionSummary?.takeIf { summary -> summary.containerKey == container.key }
     val selected = entries.any { it.key in selection }
     val onClick = {
         when {
@@ -740,6 +787,8 @@ private fun OverviewItem(
     if (drillable) {
         DownloadTopLevelCard(
             container = container,
+            deletionProjection = containerDeletion,
+            deletionSummary = containerSummary,
             compact = compact,
             selectionMode = selectionMode,
             selected = selected,
@@ -753,6 +802,8 @@ private fun OverviewItem(
     } else {
         DownloadTopLevelRow(
             container = container,
+            deletionProjection = containerDeletion,
+            deletionSummary = containerSummary,
             selectionMode = selectionMode,
             selected = selected,
             modifier = modifier,
@@ -808,18 +859,15 @@ private fun StorageSummary(
 @Composable
 private fun SelectionBar(
     state: DownloadManagerState,
+    group: DownloadTaskGroup,
     pageGutter: Dp,
     onAction: (DownloadAction) -> Unit,
     onRequestDelete: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val selectedTasks = state.selectedTasks
-    val playbackPlan = DownloadSelectionRules.playbackPlan(state)
-    val pendingActions = state.selectedEntries.mapNotNull { state.pendingActions[it.key] }.toSet()
-    val canStartSelectionAction = DownloadSelectionRules.canStartSelectionAction(state)
-    val canRetrySelected =
-        selectedTasks.any { DownloadTaskRules.canRetry(it.status) } ||
-            state.selectedEntries.any { it.status == DownloadTaskStatus.FAILED }
+    val actions = downloadSelectionActionSpecs(state, group)
+    val selectedDeletion = state.deletionProjection(state.selectedEntries)
+    val selectedDeletionText = deletionStatusText(selectedDeletion, state.deletionSummary)
     Row(
         modifier =
             Modifier.fillMaxWidth()
@@ -835,6 +883,9 @@ private fun SelectionBar(
                     state.actionFailure == DownloadActionFailure.DELETE &&
                         state.deletionFailureReason == DownloadDeletionFailureReason.SUPERSEDED ->
                         stringResource(CoreR.string.download_delete_generation_superseded)
+                    state.actionFailure == DownloadActionFailure.DELETE &&
+                        selectedDeletionText != null -> selectedDeletionText
+                    selectedDeletion.deleting -> stringResource(CoreR.string.download_deleting)
                     state.actionFailure != null -> stringResource(CoreR.string.download_failed)
                     else ->
                         stringResource(CoreR.string.download_selected_count, state.selection.size)
@@ -843,47 +894,30 @@ private fun SelectionBar(
             color = if (state.actionFailure != null) colors.error else colors.onSurface,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1)) {
-            SelectionActionIcon(
-                pending = DownloadPendingAction.PLAY in pendingActions,
-                enabled = canStartSelectionAction && playbackPlan != null,
-                description = "播放选中",
-                iconRes = CoreR.drawable.ic_play,
-                onClick = { onAction(DownloadAction.PlaySelected) },
-            )
-            SelectionActionIcon(
-                pending = DownloadPendingAction.PAUSE in pendingActions,
-                enabled =
-                    canStartSelectionAction && selectedTasks.any { DownloadTaskRules.canPause(it) },
-                description = stringResource(CoreR.string.download_action_pause),
-                iconRes = CoreR.drawable.ic_pause,
-                onClick = { onAction(DownloadAction.PauseSelected) },
-            )
-            SelectionActionIcon(
-                pending = DownloadPendingAction.RESUME in pendingActions,
-                enabled =
-                    canStartSelectionAction &&
-                        selectedTasks.any { DownloadTaskRules.canResume(it.status) },
-                description = stringResource(CoreR.string.download_action_resume),
-                iconRes = CoreR.drawable.ic_play,
-                onClick = { onAction(DownloadAction.ResumeSelected) },
-            )
-            SelectionActionIcon(
-                pending = DownloadPendingAction.RETRY in pendingActions,
-                enabled = canStartSelectionAction && canRetrySelected,
-                description = stringResource(CoreR.string.download_action_retry),
-                iconRes = CoreR.drawable.ic_rotate_ccw,
-                onClick = { onAction(DownloadAction.RetrySelected) },
-            )
-            SelectionActionIcon(
-                pending = DownloadPendingAction.DELETE in pendingActions,
-                enabled = canStartSelectionAction && state.hasSelection,
-                description = stringResource(CoreR.string.download_action_delete),
-                iconRes = CoreR.drawable.ic_trash,
-                onClick = onRequestDelete,
-            )
+            actions.forEach { action ->
+                SelectionActionIcon(
+                    pending = action.pending,
+                    enabled = action.enabled,
+                    description = stringResource(action.label.resourceId),
+                    iconRes = action.iconRes,
+                    onClick = {
+                        val downloadAction = action.toDownloadAction()
+                        if (downloadAction == null) onRequestDelete() else onAction(downloadAction)
+                    },
+                )
+            }
         }
     }
 }
+
+private fun DownloadSelectionActionSpec.toDownloadAction(): DownloadAction? =
+    when (actionId) {
+        DownloadSelectionActionId.PLAY_SELECTED -> DownloadAction.PlaySelected
+        DownloadSelectionActionId.PAUSE_SELECTED -> DownloadAction.PauseSelected
+        DownloadSelectionActionId.RESUME_SELECTED -> DownloadAction.ResumeSelected
+        DownloadSelectionActionId.RETRY_SELECTED -> DownloadAction.RetrySelected
+        DownloadSelectionActionId.DELETE_SELECTED -> null
+    }
 
 @Composable
 private fun SelectionActionIcon(

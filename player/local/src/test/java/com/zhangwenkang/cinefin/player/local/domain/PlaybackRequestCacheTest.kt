@@ -123,6 +123,24 @@ class PlaybackRequestCacheTest {
     }
 
     @Test
+    fun `新 source attempt 不复用旧播放信息结果`() {
+        assertNotEquals(
+            playbackRequestKey(
+                itemId = episodeId,
+                mediaSourceIndex = null,
+                startPositionTicks = 0L,
+                sourceAttemptId = "attempt-1",
+            ),
+            playbackRequestKey(
+                itemId = episodeId,
+                mediaSourceIndex = null,
+                startPositionTicks = 0L,
+                sourceAttemptId = "attempt-2",
+            ),
+        )
+    }
+
+    @Test
     fun `缓存的键把负位置归一为从零起播`() {
         assertEquals(
             playbackRequestKey(episodeId, null, 0L),

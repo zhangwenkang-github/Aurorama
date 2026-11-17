@@ -20,4 +20,18 @@
     <string name="about_releases">GitHub Releases</string>
     <string name="about_third_party">第三方元件與授權</string>
     <string name="about_close">關閉</string>
+    <string name="media_batch_episode_selection_title">選擇要下載的劇集</string>
+    <string name="media_batch_episode_selection_expanded">%1$d 個容器 · 展開 %2$d 集</string>
+    <string name="media_batch_episode_selection_loading">正在展開劇集…</string>
+    <string name="media_batch_episode_selection_load_failed">劇集載入不完整，已阻止下載。</string>
+    <string name="media_batch_episode_selection_summary">已選 %1$d / 共 %2$d 集</string>
+    <string name="media_batch_episode_selection_select_all">全選</string>
+    <string name="media_batch_episode_selection_select_none">清空</string>
+    <string name="media_batch_episode_selection_confirm">下載所選（%1$d 集）</string>
+    <string name="media_batch_episode_selection_deduplicated">已合併 %1$d 個重複劇集目標。</string>
+    <string name="media_batch_episode_selection_required">請先選擇具體劇集，再執行下載。</string>
+    <string name="media_batch_episode_selection_rejected">劇集選擇未完整載入，未執行下載。</string>
+    <string name="media_batch_episode_selection_all_skipped">所選 %1$d 集均已下載或已在佇列中。</string>
+    <string name="media_batch_episode_downloaded">已下載</string>
+    <string name="media_batch_episode_queued">下載佇列中</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.film.presentation.home
 
+import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
@@ -39,12 +40,12 @@ constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(HomeState())
     val state = _state.asStateFlow()
+    private var loadSerial = 0L
 
     /** W64：首页书籍卡本地封面（同书架链路）：itemId → `files/book_covers/<id>.jpg` 绝对路径。 */
     private val _bookCovers = MutableStateFlow<Map<UUID, String>>(emptyMap())
     val bookCovers = _bookCovers.asStateFlow()
     private val requestedBookCovers = mutableSetOf<UUID>()
-    private var loadSerial = 0L
     private var loadedScope: CatalogScope? = null
 
     /**
@@ -114,6 +115,29 @@ constructor(
         _bookCovers.update { covers ->
             if (covers[itemId] == path) covers else covers + (itemId to path)
         }
+    }
+
+    private val catalogScopeListener =
+        SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (
+                key == appPreferences.mediaCatalogScopeRevision.backendName ||
+                    key == appPreferences.offlineMode.backendName
+            ) {
+                loadData()
+            }
+        }
+
+    init {
+        appPreferences.sharedPreferences.registerOnSharedPreferenceChangeListener(
+            catalogScopeListener
+        )
+    }
+
+    override fun onCleared() {
+        appPreferences.sharedPreferences.unregisterOnSharedPreferenceChangeListener(
+            catalogScopeListener
+        )
+        super.onCleared()
     }
 
     /** 在同一个 canonical scope、同一个 composite fence 下读取全部启用走廊；只发布一次完整快照。 */

@@ -290,10 +290,10 @@ class DownloaderImplBookDeletionTest {
     }
 
     private class NoopNotificationGateway : DownloadNotificationGateway {
-        override fun buildForeground(task: DownloadTask?, activeCount: Int): Notification =
+        override fun buildForeground(aggregate: DownloadNotificationAggregate): Notification =
             allocate()
 
-        override fun notifyForeground(task: DownloadTask?, activeCount: Int) = Unit
+        override fun notifyForeground(aggregate: DownloadNotificationAggregate) = Unit
 
         override fun notifyCompleted(task: DownloadTask) = Unit
 

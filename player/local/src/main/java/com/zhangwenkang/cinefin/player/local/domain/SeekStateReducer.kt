@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
+import com.zhangwenkang.cinefin.player.local.diag.PlaybackDiag
+
 data class SeekMediaIdentity(
     val itemId: String,
     val mediaSourceId: String,
@@ -97,10 +99,6 @@ class SeekStateReducer {
     val sourceMediaIdentity: SeekMediaIdentity?
         get() = currentSourceMediaIdentity
 
-    /**
-     * An observation may initialize the cursor, but it can never move an already initialized
-     * cursor. Authoritative player transitions use [onSourceReplaced].
-     */
     fun observeSource(mediaIdentity: SeekMediaIdentity): Boolean {
         if (currentSourceMediaIdentity != null) return false
         currentSourceEpoch = 1L
@@ -138,6 +136,7 @@ class SeekStateReducer {
             requireNotNull(currentSourceMediaIdentity) {
                 "A seek retry requires an observed media source"
             }
+        if (failed.mediaIdentity?.itemId != mediaIdentity.itemId) return null
         val generation = nextGeneration()
         state =
             SeekState.Seeking(
@@ -172,6 +171,12 @@ class SeekStateReducer {
                 evidence.mediaIdentity != seeking.mediaIdentity ||
                 evidence.kind != SeekEngineEvidenceKind.SEEK_ACCEPTED
         ) {
+            PlaybackDiag.log(
+                "reducer accept REJECT g${evidence.requestGeneration}e${evidence.sourceEpoch} " +
+                    "${evidence.mediaIdentity.itemId}/${evidence.mediaIdentity.sourceFingerprint} " +
+                    "kind=${evidence.kind} vs seeking g${seeking.requestGeneration}e${seeking.sourceEpoch} " +
+                    "${seeking.mediaIdentity.itemId}/${seeking.mediaIdentity.sourceFingerprint}"
+            )
             return
         }
         state = seeking.copy(acceptedPositionMs = evidence.positionMs)
@@ -190,6 +195,15 @@ class SeekStateReducer {
                 kotlin.math.abs(evidence.positionMs - seeking.targetMs) >
                     seeking.policy.positionToleranceMs
         ) {
+            PlaybackDiag.log(
+                "reducer ready REJECT acceptedPos=${seeking.acceptedPositionMs} " +
+                    "evidence g${evidence.requestGeneration}e${evidence.sourceEpoch} " +
+                    "${evidence.mediaIdentity.itemId}/${evidence.mediaIdentity.sourceFingerprint} " +
+                    "kind=${evidence.kind} pos=${evidence.positionMs} vs seeking " +
+                    "g${seeking.requestGeneration}e${seeking.sourceEpoch} " +
+                    "${seeking.mediaIdentity.itemId}/${seeking.mediaIdentity.sourceFingerprint} " +
+                    "target=${seeking.targetMs} tol=${seeking.policy.positionToleranceMs}"
+            )
             return
         }
         state =
@@ -202,6 +216,27 @@ class SeekStateReducer {
                 confirmedAtMs = nowElapsedMs,
                 policy = seeking.policy,
             )
+    }
+
+    /**
+     * A TIMEOUT failure only means the engine was slow, not that the source is unusable. When the
+     * same media later reports READY at the failed target, the request completes late instead of
+     * leaving a false persistent failure on screen.
+     */
+    fun onLateReadyAfterTimeout(positionMs: Long, nowElapsedMs: Long): Boolean {
+        val failed = state as? SeekState.Failed ?: return false
+        if (failed.reason != SeekFailureReason.TIMEOUT) return false
+        state =
+            SeekState.Confirmed(
+                targetMs = failed.targetMs,
+                positionMs = positionMs,
+                requestGeneration = failed.requestGeneration,
+                sourceEpoch = failed.sourceEpoch,
+                requestedAtMs = nowElapsedMs,
+                confirmedAtMs = nowElapsedMs,
+                policy = failed.policy,
+            )
+        return true
     }
 
     fun onFailure(failure: SeekEngineFailure, nowElapsedMs: Long) {
@@ -239,6 +274,7 @@ class SeekStateReducer {
     fun onSourceReplaced(
         mediaIdentity: SeekMediaIdentity,
         acceptedPositionMs: Long? = null,
+        preserveRequestAcrossItemChange: Boolean = false,
     ): Boolean {
         if (currentSourceMediaIdentity == mediaIdentity) {
             val seeking = state as? SeekState.Seeking
@@ -246,17 +282,34 @@ class SeekStateReducer {
             state = seeking.copy(acceptedPositionMs = acceptedPositionMs)
             return true
         }
+        val itemChanged =
+            currentSourceMediaIdentity?.itemId != null &&
+                currentSourceMediaIdentity?.itemId != mediaIdentity.itemId
         currentSourceEpoch += 1L
         currentSourceMediaIdentity = mediaIdentity
-        val seeking = state as? SeekState.Seeking
-        if (seeking != null) {
-            state =
-                seeking.copy(
-                    sourceEpoch = currentSourceEpoch,
-                    mediaIdentity = mediaIdentity,
-                    acceptedPositionMs = acceptedPositionMs,
-                )
+        if (itemChanged && !preserveRequestAcrossItemChange) {
+            PlaybackDiag.log(
+                "reducer replace DROP-TO-IDLE old=${currentSourceMediaIdentity?.itemId} new=${mediaIdentity.itemId} state=$state"
+            )
+            state = SeekState.Idle
+            return true
         }
+        state =
+            when (val current = state) {
+                is SeekState.Seeking ->
+                    current.copy(
+                        sourceEpoch = currentSourceEpoch,
+                        mediaIdentity = mediaIdentity,
+                        acceptedPositionMs = acceptedPositionMs,
+                    )
+                is SeekState.Failed ->
+                    current.copy(
+                        sourceEpoch = currentSourceEpoch,
+                        mediaIdentity = mediaIdentity,
+                    )
+                is SeekState.Confirmed -> SeekState.Idle
+                SeekState.Idle -> SeekState.Idle
+            }
         return true
     }
 
@@ -293,7 +346,7 @@ class SeekStateReducer {
     fun onDispatched(requestGeneration: Long, nowElapsedMs: Long) {
         val seeking = state as? SeekState.Seeking ?: return
         if (seeking.requestGeneration != requestGeneration) return
-        // Media3 can deliver SEEK_ACCEPTED synchronously before the engine call returns.
+        // Media3 can emit acceptance before dispatch returns.
         state = seeking.copy(requestedAtMs = nowElapsedMs)
     }
 
@@ -322,7 +375,7 @@ fun seekDisplayPositionMs(
 ): Long =
     when (state) {
         is SeekState.Seeking -> state.targetMs
-        is SeekState.Failed -> state.targetMs
+        is SeekState.Failed -> enginePositionMs.coerceAtLeast(0L)
         is SeekState.Confirmed ->
             if (nowElapsedMs < state.requestedAtMs + state.policy.minimumTargetDisplayMs) {
                 state.targetMs

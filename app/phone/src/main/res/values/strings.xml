@@ -45,4 +45,18 @@
     <string name="update_retry_download">Retry download</string>
     <string name="update_install">Open system installer</string>
     <string name="update_install_safety">Installation is confirmed in the system UI. The app rechecks the installed version before reporting success.</string>
+    <string name="media_batch_episode_selection_title">Choose episodes to download</string>
+    <string name="media_batch_episode_selection_expanded">%1$d container(s) · %2$d episode(s) found</string>
+    <string name="media_batch_episode_selection_loading">Loading episodes…</string>
+    <string name="media_batch_episode_selection_load_failed">Episode list is incomplete. Download was blocked.</string>
+    <string name="media_batch_episode_selection_summary">%1$d of %2$d episodes selected</string>
+    <string name="media_batch_episode_selection_select_all">Select all</string>
+    <string name="media_batch_episode_selection_select_none">Clear</string>
+    <string name="media_batch_episode_selection_confirm">Download selected (%1$d)</string>
+    <string name="media_batch_episode_selection_deduplicated">Merged %1$d duplicate episode target(s).</string>
+    <string name="media_batch_episode_selection_required">Choose specific episodes before downloading.</string>
+    <string name="media_batch_episode_selection_rejected">The episode selection is incomplete. Nothing was downloaded.</string>
+    <string name="media_batch_episode_selection_all_skipped">%1$d selected episode(s) are already downloaded or queued.</string>
+    <string name="media_batch_episode_downloaded">Downloaded</string>
+    <string name="media_batch_episode_queued">In download queue</string>
 </resources>

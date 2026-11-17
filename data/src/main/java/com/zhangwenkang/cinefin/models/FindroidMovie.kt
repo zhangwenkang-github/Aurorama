@@ -44,7 +44,12 @@ suspend fun BaseItemDto.toFindroidMovie(
     val sources = mutableListOf<FindroidSource>()
     sources.addAll(mediaSources?.map { it.toFindroidSource(jellyfinRepository, id) } ?: emptyList())
     if (serverDatabase != null) {
-        sources.addAll(serverDatabase.getSources(id).map { it.toFindroidSource(serverDatabase) })
+        sources.addAll(
+            serverDatabase
+                .getSources(id)
+                .map { it.toFindroidSource(serverDatabase) }
+                .filter { it.isAvailableForSourceSelection() }
+        )
     }
     return FindroidMovie(
         id = id,
@@ -82,7 +87,11 @@ suspend fun FindroidMovieDto.toFindroidMovie(
 ): FindroidMovie {
     // W36：无账号离线模式下没有 userId，播放状态按未观看处理，不再要求登录会话。
     val userData = userId?.let { database.getUserDataOrCreateNew(id, it) }
-    val sources = database.getSources(id).map { it.toFindroidSource(database) }
+    val sources =
+        database
+            .getSources(id)
+            .map { it.toFindroidSource(database) }
+            .filter { it.isAvailableForSourceSelection() }
     val trickplayInfos = mutableMapOf<String, FindroidTrickplayInfo>()
     for (source in sources) {
         database.getTrickplayInfo(source.id)?.toFindroidTrickplayInfo()?.let {
@@ -108,7 +117,7 @@ suspend fun FindroidMovieDto.toFindroidMovie(
         endDate = endDate,
         canDownload = false,
         canPlay = true,
-        sources = database.getSources(id).map { it.toFindroidSource(database) },
+        sources = sources,
         trailer = null,
         images = toLocalFindroidImages(itemId = id),
         chapters = chapters ?: emptyList(),

@@ -59,6 +59,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -130,6 +131,7 @@ import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
+import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSecondaryUnavailableReason
 import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.settings.domain.Constants
@@ -516,9 +518,9 @@ class PlayerControlsState {
 /** 播放中的易变状态：位置 / 缓冲 / 播放中 / 轨道 / 队列，统一在这里聚合 */
 @Stable
 private class PlayerRuntime {
-    var position by mutableLongStateOf(0L)
+    var position by mutableLongStateOf(C.TIME_UNSET)
     var duration by mutableLongStateOf(0L)
-    var buffered by mutableLongStateOf(0L)
+    var buffered by mutableLongStateOf(C.TIME_UNSET)
     var isPlaying by mutableStateOf(false)
     var isBuffering by mutableStateOf(false)
     var speed by mutableFloatStateOf(1f)
@@ -535,10 +537,12 @@ private class PlayerRuntime {
     /** 当前播放核心能不能被随机播放：mpv 后端的 setShuffleModeEnabled 还是 TODO，不能碰 */
     var canShuffle by mutableStateOf(false)
 
-    fun sync(player: Player) {
-        position = player.currentPosition.coerceAtLeast(0L)
+    fun sync(player: Player, lastConfirmedPositionMs: Long?) {
+        val confirmedPosition = PlayerViewModel.confirmedPosition(player) ?: lastConfirmedPositionMs
+        position = confirmedPosition ?: C.TIME_UNSET
         duration = player.duration.let { if (it > 0L) it else 0L }
-        buffered = player.bufferedPosition.coerceAtLeast(0L)
+        buffered =
+            PlayerViewModel.confirmedBufferedPosition(player, confirmedPosition) ?: C.TIME_UNSET
         isPlaying = player.isPlaying
         /*
          * W76-B11b：除了「正在缓冲」，**还没有任何可播条目的准备窗口**也算加载中。
@@ -577,22 +581,26 @@ private class PlayerRuntime {
 }
 
 @Composable
-private fun rememberPlayerRuntime(player: Player): PlayerRuntime {
+private fun rememberPlayerRuntime(
+    player: Player,
+    lastConfirmedPositionMs: Long?,
+): PlayerRuntime {
     val runtime = remember { PlayerRuntime() }
+    val latestLastConfirmedPositionMs = rememberUpdatedState(lastConfirmedPositionMs)
     DisposableEffect(player) {
         val listener =
             object : Player.Listener {
                 override fun onEvents(p: Player, events: Player.Events) {
-                    runtime.sync(p)
+                    runtime.sync(p, latestLastConfirmedPositionMs.value)
                 }
             }
         player.addListener(listener)
-        runtime.sync(player)
+        runtime.sync(player, latestLastConfirmedPositionMs.value)
         onDispose { player.removeListener(listener) }
     }
     LaunchedEffect(player) {
         while (true) {
-            runtime.sync(player)
+            runtime.sync(player, latestLastConfirmedPositionMs.value)
             delay(if (runtime.isPlaying) 500L else 1000L)
         }
     }
@@ -727,14 +735,34 @@ fun PlayerControlOverlay(
     onSelectMediaItem: (Int) -> Unit = {},
     onRetrySeek: () -> Unit = {},
 ) {
-    val runtime = rememberPlayerRuntime(player)
-    val displayPositionMs =
-        seekDisplayPositionMs(
-            uiState.seekState,
-            runtime.position,
-            SystemClock.elapsedRealtime(),
+    val playbackSession = uiState.playbackSession
+    val runtime =
+        rememberPlayerRuntime(
+            player,
+            playbackSession.lastConfirmedPositionMs?.takeIf { player !is MPVPlayer },
         )
-    val seekFailed = uiState.seekState as? SeekState.Failed
+    val displayPositionMs =
+        if (runtime.position < 0L && uiState.seekState !is SeekState.Seeking) C.TIME_UNSET
+        else
+            seekDisplayPositionMs(
+                uiState.seekState,
+                runtime.position,
+                SystemClock.elapsedRealtime(),
+            )
+    val seekFailed =
+        (uiState.seekState as? SeekState.Failed)?.takeIf { playbackSession.showSeekFailure }
+    val showPlayerError = uiState.playerError != null && playbackSession.showPlayerError
+    val progressRecovery = playbackSession.progressRecovery
+    val progressStatusText = progressRecovery?.let {
+        stringResource(resolvePlaybackRecoveryTitle(it.kind).stringRes())
+    }
+    val recoveryPresentation =
+        playbackRecoveryPresentation(
+            showPlayerError = showPlayerError,
+            seekFailed = seekFailed != null,
+            progressRecovery = progressRecovery != null,
+        )
+    val pausesPlayback = playbackSession.pauseWhenReady
     val seekPending = uiState.seekState is SeekState.Seeking
     /*
      * W67 补充：预计结束时刻。播放中每秒推进「当前时钟」→ 结束时刻稳定跟随播放推进；暂停后时钟冻结在暂停点
@@ -757,7 +785,7 @@ fun PlayerControlOverlay(
             )
         }
     val endTimeText =
-        if (runtime.duration > 0L) {
+        if (runtime.duration > 0L && displayPositionMs >= 0L) {
             stringResource(
                 AppR.string.player_end_time_label,
                 formatClockTime(
@@ -785,10 +813,10 @@ fun PlayerControlOverlay(
         controls.visible,
         panel,
         controls.locked,
-        uiState.playerError,
+        showPlayerError,
         seekFailed,
         seekPending,
-        runtime.isBuffering,
+        playbackSession.loading,
         skipChipVisible,
         debugOverlayVisible,
     ) {
@@ -796,9 +824,9 @@ fun PlayerControlOverlay(
             controls.visible,
             panel != PlayerPanel.None,
             controls.locked,
-            uiState.playerError != null || seekFailed != null,
+            showPlayerError,
             // 缓冲期间承载视图要保持合成：控件整层隐藏时还要画那一个独立的缓冲圈（反馈⑤）
-            runtime.isBuffering,
+            playbackSession.loading,
             // W20（§6.1）：跳过提示条独立于控制层，可见时承载视图必须保持合成
             skipChipVisible && uiState.currentSegment != null && !controls.locked,
             // W27：调试面板独立于控制层，打开期间承载视图必须保持合成
@@ -838,8 +866,8 @@ fun PlayerControlOverlay(
     }
 
     // 出错时把控制层顶出来：错误卡片是模态的，用户点掉之前一直可见
-    LaunchedEffect(uiState.playerError, seekFailed) {
-        if (uiState.playerError != null || seekFailed != null) {
+    LaunchedEffect(showPlayerError, seekFailed, recoveryPresentation.forceControlsVisible) {
+        if (recoveryPresentation.forceControlsVisible) {
             controls.show()
         }
     }
@@ -850,7 +878,7 @@ fun PlayerControlOverlay(
         controls.visible,
         runtime.isPlaying,
         panel,
-        uiState.playerError,
+        showPlayerError,
         seekFailed,
         seekPending,
         layout.chrome,
@@ -859,8 +887,7 @@ fun PlayerControlOverlay(
             controls.visible &&
                 panel == PlayerPanel.None &&
                 runtime.isPlaying &&
-                uiState.playerError == null &&
-                seekFailed == null &&
+                recoveryPresentation.canAutoHideControls &&
                 !seekPending &&
                 !layout.isCompact &&
                 layout.chrome != PlayerChromeLayout.FoldHalfOpen
@@ -930,6 +957,7 @@ fun PlayerControlOverlay(
                 trickplayFrameAt = trickplayFrameAt,
                 speed = runtime.speed,
                 sleepActive = sleepState.active,
+                progressStatusText = progressStatusText,
                 subtitleEnabled = hasSelectedTrack(runtime.tracks, C.TRACK_TYPE_TEXT),
                 bitrateActive = settingsController.state.streamingBitrate > 0L,
                 decodeActive =
@@ -1019,8 +1047,8 @@ fun PlayerControlOverlay(
         if (layout.isCompact) {
             // 小窗：标题行 + 工具行 + 细进度条。「更多」取消后，工具行横向可滚，兜住全部入口（不缩水也不越界）
             PlayerCompactBar(
-                isPlaying = runtime.isPlaying,
-                buffering = runtime.isBuffering,
+                isPlaying = pausesPlayback,
+                buffering = playbackSession.loading,
                 title = uiState.currentItemTitle.ifEmpty { runtime.title },
                 positionMs = displayPositionMs,
                 durationMs = runtime.duration,
@@ -1030,7 +1058,7 @@ fun PlayerControlOverlay(
                 trickplayVersion = uiState.trickplayVersion,
                 trickplayFrameAt = trickplayFrameAt,
                 isFullscreen = isFullscreen,
-                onPlayPause = { if (player.isPlaying) player.pause() else player.play() },
+                onPlayPause = { if (pausesPlayback) player.pause() else player.play() },
                 onPrevious = onPreviousMediaItem,
                 // W74 U6：步进用时现读（设置页改完立即生效），不用实例创建时的快照
                 onRewind = { onSeekRelativeRequest(-settingsController.seekBackIncrementMs) },
@@ -1111,7 +1139,7 @@ fun PlayerControlOverlay(
                         )
 
                         val playerError = uiState.playerError
-                        if (playerError != null) {
+                        if (showPlayerError && playerError != null) {
                             // 出错时中央大控件让位给错误卡片，避免「点了没反应」的假按钮
                             PlayerErrorCard(
                                 error = playerError,
@@ -1119,22 +1147,16 @@ fun PlayerControlOverlay(
                                 onSwitchBackend = onSwitchBackend,
                                 modifier = Modifier.align(Alignment.Center),
                             )
-                        } else if (seekFailed != null) {
-                            SeekFailureCard(
-                                failure = seekFailed,
-                                onRetry = onRetrySeek,
-                                modifier = Modifier.align(Alignment.Center),
-                            )
                         } else {
                             // 中央播放簇（W11 反馈③）：播放 / 快进 / 播放下一个 回到屏幕正中
                             PlayerCenterCluster(
-                                isPlaying = runtime.isPlaying,
+                                showsPauseAction = pausesPlayback,
                                 // 缓冲中把播放键的图标换成转圈（反馈⑤：全屏只留一个加载图标）
-                                buffering = runtime.isBuffering,
+                                buffering = playbackSession.loading,
                                 // 中央簇随画面区宽度收放：窄窗不跟右缘锁定键打架（反馈⑧）
                                 spec = playerCenterSpec(videoWidthDp.toFloat()),
                                 onPlayPause = {
-                                    if (player.isPlaying) player.pause() else player.play()
+                                    if (pausesPlayback) player.pause() else player.play()
                                 },
                                 onPrevious = onPreviousMediaItem,
                                 onRewind = {
@@ -1176,7 +1198,17 @@ fun PlayerControlOverlay(
                  * 缓冲（W11 反馈⑤）：控件可见时由中央播放键里的转圈表达；控件整层隐藏（用户手动收起）
                  * 时才用独立的玻璃圈兜底——任何时刻整个播放页只有 1 个加载图标，也不会与播放键叠在一起。
                  */
-                if (runtime.isBuffering && !controls.visible) {
+                if (seekFailed != null && controls.visible) {
+                    SeekFailureCard(
+                        failure = seekFailed,
+                        onRetry = onRetrySeek,
+                        modifier =
+                            Modifier.align(Alignment.BottomCenter)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
+
+                if (playbackSession.loading && !controls.visible) {
                     PlayerBufferingIndicator(
                         visible = true,
                         modifier = Modifier.align(Alignment.Center),
@@ -1655,7 +1687,7 @@ internal fun PlayerPlayKey(
  */
 @Composable
 private fun PlayerCenterCluster(
-    isPlaying: Boolean,
+    showsPauseAction: Boolean,
     buffering: Boolean,
     /** 版式规格：窄窗收一档，避免与右缘锁定键重叠（W11 反馈⑧） */
     spec: PlayerCenterSpec,
@@ -1685,7 +1717,7 @@ private fun PlayerCenterCluster(
             size = spec.transportSizeDp.dp,
         )
         PlayerPlayKey(
-            isPlaying = isPlaying,
+            isPlaying = showsPauseAction,
             onClick = onPlayPause,
             size = spec.playSizeDp.dp,
             buffering = buffering,
@@ -1869,45 +1901,43 @@ private fun PlayerToolCluster(
 }
 
 @Composable
-private fun SeekFailureCard(
-    failure: SeekState.Failed,
-    onRetry: () -> Unit,
+private fun PlaybackRecoveryBar(
+    title: String,
+    detail: String,
+    onRetry: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
     val shape = CinefinShapes.Md
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier =
             modifier
-                .widthIn(max = 420.dp)
+                .widthIn(max = 560.dp)
                 .clip(shape)
                 .background(colors.surfaceContainer.copy(alpha = 0.96f))
                 .border(1.dp, colors.outline, shape)
-                .padding(horizontal = CinefinSpacing.Space6, vertical = CinefinSpacing.Space5),
+                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space2),
     ) {
-        Text(
-            text =
-                stringResource(
-                    if (failure.reason == SeekFailureReason.TIMEOUT) {
-                        PlayerR.string.player_seek_timeout_title
-                    } else {
-                        PlayerR.string.player_seek_failed_title
-                    }
-                ),
-            color = colors.onSurface,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
-        Text(
-            text = stringResource(PlayerR.string.player_seek_failure_message),
-            color = colors.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-            textAlign = TextAlign.Center,
-        )
-        if (failure.retryable) {
-            Spacer(modifier = Modifier.height(CinefinSpacing.Space5))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = colors.onSurface,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = detail,
+                color = colors.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (onRetry != null) {
+            Spacer(modifier = Modifier.width(CinefinSpacing.Space3))
             ErrorActionButton(
                 text = stringResource(PlayerR.string.player_controls_error_retry),
                 primary = true,
@@ -1915,6 +1945,27 @@ private fun SeekFailureCard(
             )
         }
     }
+}
+
+@Composable
+private fun SeekFailureCard(
+    failure: SeekState.Failed,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    PlaybackRecoveryBar(
+        title =
+            stringResource(
+                if (failure.reason == SeekFailureReason.TIMEOUT) {
+                    PlayerR.string.player_seek_timeout_title
+                } else {
+                    PlayerR.string.player_seek_failed_title
+                }
+            ),
+        detail = stringResource(PlayerR.string.player_seek_failure_message),
+        onRetry = onRetry.takeIf { failure.retryable },
+        modifier = modifier,
+    )
 }
 
 /**
@@ -1964,12 +2015,6 @@ private fun PlayerErrorCard(
             style = MaterialTheme.typography.bodySmall,
             maxLines = 3,
             overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
-        Text(
-            text = "${error.backend} · ${error.codeName}",
-            color = colors.onSurfaceFaint,
-            style = MaterialTheme.typography.labelSmall,
         )
         Spacer(modifier = Modifier.height(CinefinSpacing.Space5))
         Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3)) {
@@ -2041,6 +2086,7 @@ private fun PlayerBottomBar(
     trickplayFrameAt: (Long) -> Bitmap?,
     speed: Float,
     sleepActive: Boolean,
+    progressStatusText: String?,
     /** 字幕键激活态（改在进度条下方这一行，W12 终版布局） */
     subtitleEnabled: Boolean,
     /** 码率键激活态：选了具体码率档（服务器转码中） */
@@ -2116,6 +2162,17 @@ private fun PlayerBottomBar(
                 text = formatTime(durationMs),
                 style = CinefinType.MonoDataSmall,
                 color = colors.onSurfaceVariant,
+            )
+        }
+
+        if (progressStatusText != null) {
+            Text(
+                text = progressStatusText,
+                color = colors.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space4),
             )
         }
 
@@ -2975,6 +3032,7 @@ private fun LockedOverlay(
 // ---------- 工具 ----------
 
 internal fun formatTime(millis: Long): String {
+    if (millis < 0L) return "—"
     val totalSeconds = (millis / 1000L).coerceAtLeast(0L)
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60
@@ -3457,6 +3515,54 @@ private fun SubtitleTracksPage(
                         ),
                 )
             }
+            state.primaryUnavailableReason?.let { reason ->
+                Text(
+                    text = subtitlePrimaryUnavailableReason(reason),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.error,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space1,
+                        ),
+                )
+            }
+            state.secondaryUnavailableReason?.let { reason ->
+                Column(
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space1,
+                        )
+                ) {
+                    Text(
+                        text = subtitleSecondaryUnavailableReason(reason),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.error,
+                    )
+                    if (reason.isRetryable()) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+                            modifier = Modifier.padding(top = CinefinSpacing.Space1),
+                        ) {
+                            secondary?.secondaryActionId?.let { actionId ->
+                                PanelChip(
+                                    label =
+                                        stringResource(PlayerR.string.player_controls_error_retry),
+                                    selected = false,
+                                    onClick = { onAssignSecondary(actionId) },
+                                )
+                            }
+                            PanelChip(
+                                label = stringResource(PlayerR.string.player_subtitle_close),
+                                selected = false,
+                                onClick = onClearSecondary,
+                            )
+                        }
+                    }
+                }
+            }
 
             PanelTitle(stringResource(PlayerR.string.player_subtitle_all_tracks))
             if (state.tracks.isEmpty()) {
@@ -3776,9 +3882,47 @@ private fun SubtitleTrackRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
             )
+        } else if (!option.textAssignable) {
+            Text(
+                text = stringResource(PlayerR.string.player_subtitle_secondary_delivery_missing),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurfaceVariant,
+            )
         }
     }
 }
+
+@Composable
+private fun subtitleSecondaryUnavailableReason(reason: SubtitleSecondaryUnavailableReason): String =
+    stringResource(
+        when (reason) {
+            SubtitleSecondaryUnavailableReason.GraphicOnly ->
+                PlayerR.string.player_subtitle_graphic_no_secondary
+            SubtitleSecondaryUnavailableReason.DeliveryUrlMissing ->
+                PlayerR.string.player_subtitle_secondary_delivery_missing
+            SubtitleSecondaryUnavailableReason.StaleTrack ->
+                PlayerR.string.player_subtitle_secondary_stale
+            SubtitleSecondaryUnavailableReason.DownloadFailed ->
+                PlayerR.string.player_subtitle_secondary_download_failed
+            SubtitleSecondaryUnavailableReason.InvalidContent ->
+                PlayerR.string.player_subtitle_secondary_invalid_content
+        }
+    )
+
+@Composable
+private fun subtitlePrimaryUnavailableReason(
+    reason: PlayerViewModel.SubtitlePrimaryUnavailableReason
+): String =
+    stringResource(
+        when (reason) {
+            PlayerViewModel.SubtitlePrimaryUnavailableReason.NativeSourceIdentityUnavailable ->
+                PlayerR.string.player_subtitle_primary_identity_unavailable
+        }
+    )
+
+private fun SubtitleSecondaryUnavailableReason.isRetryable(): Boolean =
+    this == SubtitleSecondaryUnavailableReason.DownloadFailed ||
+        this == SubtitleSecondaryUnavailableReason.InvalidContent
 
 @Composable
 private fun SubtitleTextBadge(label: String) {

@@ -77,6 +77,12 @@
     <string name="player_controls_aspect_unsupported">目前播放核心不支援畫面比例</string>
     <string name="player_controls_error_title">播放失敗</string>
     <string name="player_controls_error_retry">重試</string>
+    <string name="player_source_resolution_failed">無法載入影片來源，請重試。</string>
+    <string name="player_progress_recovery_stalled">播放暫時沒有繼續</string>
+    <string name="player_progress_recovery_unconfirmed">播放進度暫時無法確認</string>
+    <string name="player_progress_recovery_generic">播放暫時沒有繼續</string>
+    <string name="player_progress_recovery_retry_from_start">可以重試，從頭播放。</string>
+    <string name="player_progress_recovery_retry_from_position">可以重試，從 %1$s 繼續。</string>
     <string name="player_controls_error_switch_backend">改用 %1$s 核心</string>
     <string name="player_subtitle_tab_tracks">軌道</string>
     <string name="player_subtitle_tab_appearance">外觀</string>
@@ -102,6 +108,11 @@
     <string name="player_subtitle_swap_no_secondary">次字幕未分配或僅原生</string>
     <string name="player_subtitle_swap_same">主次字幕相同</string>
     <string name="player_subtitle_secondary_native_primary">主字幕僅原生，暫不能分配次字幕</string>
+    <string name="player_subtitle_secondary_delivery_missing">此字幕缺少可下載文字位址，只能由核心原生轉譯，不能作為次字幕</string>
+    <string name="player_subtitle_secondary_stale">上次選擇的次字幕已不在目前清單中，已關閉次字幕</string>
+    <string name="player_subtitle_secondary_download_failed">次字幕下載失敗，未顯示；可重試、選擇其他字幕或關閉次字幕。</string>
+    <string name="player_subtitle_secondary_invalid_content">次字幕內容為空或無法解析，未顯示；可重試、選擇其他字幕或關閉次字幕。</string>
+    <string name="player_subtitle_primary_identity_unavailable">所選字幕無法唯一對應到一條核心字幕軌，因此未顯示；請選擇其他字幕或使用自動選擇。</string>
     <string name="player_subtitle_track_fallback">字幕 %1$d</string>
     <string name="player_subtitle_origin_sideload">側載</string>
 </resources>

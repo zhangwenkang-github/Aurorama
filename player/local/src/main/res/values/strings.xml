@@ -166,6 +166,12 @@
     <string name="player_controls_aspect_unsupported">Not supported by the current player core</string>
     <string name="player_controls_error_title">Playback failed</string>
     <string name="player_controls_error_retry">Retry</string>
+    <string name="player_source_resolution_failed">Unable to load the video source. Please try again.</string>
+    <string name="player_progress_recovery_stalled">Playback has not continued yet</string>
+    <string name="player_progress_recovery_unconfirmed">Playback progress has not been confirmed yet</string>
+    <string name="player_progress_recovery_generic">Playback has not continued yet</string>
+    <string name="player_progress_recovery_retry_from_start">Try again from the beginning.</string>
+    <string name="player_progress_recovery_retry_from_position">Try again from %1$s.</string>
     <string name="player_seek_failed_title">Seek failed</string>
     <string name="player_seek_timeout_title">Seek timed out</string>
     <string name="player_seek_failure_message">The player did not confirm this seek. Try again.</string>
@@ -200,6 +206,11 @@
     <string name="player_subtitle_swap_no_secondary">Secondary subtitle is missing or native-only</string>
     <string name="player_subtitle_swap_same">Primary and secondary are the same track</string>
     <string name="player_subtitle_secondary_native_primary">Primary subtitle is native-only; secondary assignment is unavailable</string>
+    <string name="player_subtitle_secondary_delivery_missing">This subtitle has no downloadable text URL and can only use native rendering; secondary assignment is unavailable</string>
+    <string name="player_subtitle_secondary_stale">The previously selected secondary subtitle is no longer present and has been closed</string>
+    <string name="player_subtitle_secondary_download_failed">Secondary subtitle download failed and is not displayed. Retry, choose another track, or turn secondary subtitles off.</string>
+    <string name="player_subtitle_secondary_invalid_content">Secondary subtitle content is empty or cannot be parsed and is not displayed. Retry, choose another track, or turn secondary subtitles off.</string>
+    <string name="player_subtitle_primary_identity_unavailable">The selected subtitle cannot be matched to one native track, so it was not rendered. Choose another subtitle or use Auto select.</string>
     <string name="player_subtitle_track_fallback">Subtitle %1$d</string>
     <string name="player_subtitle_origin_sideload">Sideloaded</string>
     <string name="player_subtitle_delay">Subtitle delay</string>

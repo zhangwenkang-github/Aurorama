@@ -67,7 +67,9 @@ import com.zhangwenkang.cinefin.presentation.components.DetailSkeleton
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.ActorsRow
 import com.zhangwenkang.cinefin.presentation.film.components.BatchDownloadDialog
+import com.zhangwenkang.cinefin.presentation.film.components.DetailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.DetailHero
+import com.zhangwenkang.cinefin.presentation.film.components.DetailLoadError
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
 import com.zhangwenkang.cinefin.presentation.film.components.DownloadBadgeInfo
 import com.zhangwenkang.cinefin.presentation.film.components.InfoText
@@ -79,6 +81,7 @@ import com.zhangwenkang.cinefin.presentation.film.components.LumenInfoTable
 import com.zhangwenkang.cinefin.presentation.film.components.OverviewText
 import com.zhangwenkang.cinefin.presentation.film.components.SectionHeader
 import com.zhangwenkang.cinefin.presentation.film.components.communityRatingText
+import com.zhangwenkang.cinefin.presentation.film.components.detailBodyMode
 import com.zhangwenkang.cinefin.presentation.film.components.detailEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.detailTypeEyebrow
 import com.zhangwenkang.cinefin.presentation.film.components.downloadBadgeInfo
@@ -200,6 +203,7 @@ fun ShowScreen(
             }
             viewModel.onAction(action)
         },
+        onRetry = { viewModel.loadShow(showId = showId) },
     )
 
     if (batchDialogVisible) {
@@ -230,6 +234,7 @@ private fun ShowScreenLayout(
     snackbarHostState: SnackbarHostState,
     onDownloadClick: () -> Unit,
     onAction: (ShowAction) -> Unit,
+    onRetry: () -> Unit = {},
     /** W75 #5：滚动位置的记忆键（真实入口传 `show:<id>`，预览用默认值）。 */
     scrollKey: String = "show:preview",
 ) {
@@ -246,155 +251,185 @@ private fun ShowScreenLayout(
             .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND)
 
     val scrollState = rememberScrollMemoryState(scrollKey)
+    val bodyMode = detailBodyMode(hasContent = state.show != null, hasError = state.error != null)
 
     ProvideLumen {
         Box(modifier = Modifier.fillMaxSize()) {
-            state.show?.let { show ->
-                Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
-                    DetailHero(
-                        item = show,
-                        scrollState = scrollState,
-                        eyebrow = show.detailEyebrow(extra = null),
-                        title = show.name,
-                        originalTitle = show.originalTitle,
-                        meta = show.metaLine(),
-                        downloadBadge = downloadBadges[show.id] ?: downloadBadgeInfo(downloadState),
-                        heroEyebrow = show.detailTypeEyebrow(),
-                    ) { heroLayout ->
-                        ItemButtonsBar(
+            state.show
+                ?.takeIf { bodyMode != DetailBodyMode.Error }
+                ?.let { show ->
+                    Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
+                        DetailHero(
                             item = show,
-                            onPlayClick = { startFromBeginning ->
-                                onAction(ShowAction.Play(startFromBeginning = startFromBeginning))
-                            },
-                            onMarkAsPlayedClick = {
-                                when (show.played) {
-                                    true -> onAction(ShowAction.UnmarkAsPlayed)
-                                    false -> onAction(ShowAction.MarkAsPlayed)
-                                }
-                            },
-                            onMarkAsFavoriteClick = {
-                                when (show.favorite) {
-                                    true -> onAction(ShowAction.UnmarkAsFavorite)
-                                    false -> onAction(ShowAction.MarkAsFavorite)
-                                }
-                            },
-                            onTrailerClick = { uri -> onAction(ShowAction.PlayTrailer(uri)) },
-                            onDownloadClick = { onDownloadClick() },
-                            onDownloadCancelClick = {},
-                            onDownloadDeleteClick = {},
-                            modifier = Modifier.fillMaxWidth(),
-                            canPlay = state.seasons.isNotEmpty(),
-                            downloadState = downloadState,
-                            downloadBusy = downloadBusy,
-                            storageSelectionEnabled = false,
-                            heroLayout = heroLayout,
-                        )
-                    }
-
-                    Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
-                        Spacer(Modifier.height(CinefinSpacing.Space8))
-                        if (expanded) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space10)
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    OverviewText(text = show.overview, maxCollapsedLines = 6)
-                                }
-                                LumenInfoTable(
-                                    rows = showInfoRows(show = show, state = state),
-                                    modifier = Modifier.width(360.dp),
-                                )
-                            }
-                        } else {
-                            OverviewText(text = show.overview, maxCollapsedLines = 4)
-                            Spacer(Modifier.height(CinefinSpacing.Space6))
-                            InfoText(
-                                genres = show.genres,
-                                director = state.director,
-                                writers = state.writers,
-                                rating = show.communityRating,
+                            scrollState = scrollState,
+                            eyebrow = show.detailEyebrow(extra = null),
+                            title = show.name,
+                            originalTitle = show.originalTitle,
+                            meta = show.metaLine(),
+                            downloadBadge =
+                                downloadBadges[show.id] ?: downloadBadgeInfo(downloadState),
+                            heroEyebrow = show.detailTypeEyebrow(),
+                        ) { heroLayout ->
+                            ItemButtonsBar(
+                                item = show,
+                                onPlayClick = { startFromBeginning ->
+                                    onAction(
+                                        ShowAction.Play(startFromBeginning = startFromBeginning)
+                                    )
+                                },
+                                onMarkAsPlayedClick = {
+                                    when (show.played) {
+                                        true -> onAction(ShowAction.UnmarkAsPlayed)
+                                        false -> onAction(ShowAction.MarkAsPlayed)
+                                    }
+                                },
+                                onMarkAsFavoriteClick = {
+                                    when (show.favorite) {
+                                        true -> onAction(ShowAction.UnmarkAsFavorite)
+                                        false -> onAction(ShowAction.MarkAsFavorite)
+                                    }
+                                },
+                                onTrailerClick = { uri -> onAction(ShowAction.PlayTrailer(uri)) },
+                                onDownloadClick = { onDownloadClick() },
+                                onDownloadCancelClick = {},
+                                onDownloadDeleteClick = {},
+                                modifier = Modifier.fillMaxWidth(),
+                                canPlay = state.seasons.isNotEmpty(),
+                                downloadState = downloadState,
+                                downloadBusy = downloadBusy,
+                                storageSelectionEnabled = false,
+                                heroLayout = heroLayout,
                             )
                         }
-                        Spacer(Modifier.height(CinefinSpacing.Space8))
-                    }
 
-                    state.nextUp?.let { nextUp ->
                         Column(
                             modifier = Modifier.padding(start = paddingStart, end = paddingEnd)
                         ) {
-                            SectionHeader(title = stringResource(CoreR.string.next_up))
-                            Spacer(Modifier.height(CinefinSpacing.Space4))
-                            Column(
-                                modifier =
-                                    Modifier.widthIn(max = 420.dp)
-                                        .clip(CinefinShapes.Md)
-                                        .clickable { onAction(ShowAction.NavigateToItem(nextUp)) }
-                            ) {
-                                ItemPoster(
-                                    item = nextUp,
-                                    direction = Direction.HORIZONTAL,
-                                    modifier = Modifier.clip(CinefinShapes.Md),
-                                )
-                                Spacer(Modifier.height(CinefinSpacing.Space3))
-                                Text(
-                                    text =
-                                        stringResource(
-                                            id = CoreR.string.episode_name_extended,
-                                            nextUp.parentIndexNumber,
-                                            nextUp.indexNumber,
-                                            nextUp.name,
-                                        ),
-                                    style = CinefinType.TitleSmall,
-                                    color = LocalCinefinColors.current.onSurface,
+                            Spacer(Modifier.height(CinefinSpacing.Space8))
+                            if (expanded) {
+                                Row(
+                                    horizontalArrangement =
+                                        Arrangement.spacedBy(CinefinSpacing.Space10)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        OverviewText(text = show.overview, maxCollapsedLines = 6)
+                                    }
+                                    LumenInfoTable(
+                                        rows = showInfoRows(show = show, state = state),
+                                        modifier = Modifier.width(360.dp),
+                                    )
+                                }
+                            } else {
+                                OverviewText(text = show.overview, maxCollapsedLines = 4)
+                                Spacer(Modifier.height(CinefinSpacing.Space6))
+                                InfoText(
+                                    genres = show.genres,
+                                    director = state.director,
+                                    writers = state.writers,
+                                    rating = show.communityRating,
                                 )
                             }
                             Spacer(Modifier.height(CinefinSpacing.Space8))
                         }
-                    }
 
-                    if (state.seasons.isNotEmpty()) {
-                        Column(
-                            modifier = Modifier.padding(start = paddingStart, end = paddingEnd)
-                        ) {
-                            SectionHeader(title = stringResource(CoreR.string.seasons))
-                        }
-                        Spacer(Modifier.height(CinefinSpacing.Space4))
-                        LazyRow(
-                            contentPadding = PaddingValues(start = paddingStart, end = paddingEnd),
-                            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
-                        ) {
-                            items(items = state.seasons, key = { item -> item.id }) { season ->
-                                ItemCard(
-                                    item = season,
-                                    direction = Direction.VERTICAL,
-                                    onClick = { onAction(ShowAction.NavigateToItem(season)) },
-                                    // 季卡统一尺寸（W11 反馈⑨）：横排行是无界宽度，必须显式给宽度，
-                                    // 否则每张卡按各自海报的固有尺寸排布 → 「一大一小」；给死后只保留横向滑动
-                                    width = rememberSeasonCardWidth(),
-                                )
+                        state.nextUp?.let { nextUp ->
+                            Column(
+                                modifier = Modifier.padding(start = paddingStart, end = paddingEnd)
+                            ) {
+                                SectionHeader(title = stringResource(CoreR.string.next_up))
+                                Spacer(Modifier.height(CinefinSpacing.Space4))
+                                Column(
+                                    modifier =
+                                        Modifier.widthIn(max = 420.dp)
+                                            .clip(CinefinShapes.Md)
+                                            .clickable {
+                                                onAction(ShowAction.NavigateToItem(nextUp))
+                                            }
+                                ) {
+                                    ItemPoster(
+                                        item = nextUp,
+                                        direction = Direction.HORIZONTAL,
+                                        modifier = Modifier.clip(CinefinShapes.Md),
+                                    )
+                                    Spacer(Modifier.height(CinefinSpacing.Space3))
+                                    Text(
+                                        text =
+                                            stringResource(
+                                                id = CoreR.string.episode_name_extended,
+                                                nextUp.parentIndexNumber,
+                                                nextUp.indexNumber,
+                                                nextUp.name,
+                                            ),
+                                        style = CinefinType.TitleSmall,
+                                        color = LocalCinefinColors.current.onSurface,
+                                    )
+                                }
+                                Spacer(Modifier.height(CinefinSpacing.Space8))
                             }
                         }
-                        Spacer(Modifier.height(CinefinSpacing.Space8))
-                    }
 
-                    if (state.actors.isNotEmpty()) {
-                        ActorsRow(
-                            actors = state.actors,
-                            onActorClick = { personId ->
-                                onAction(ShowAction.NavigateToPerson(personId))
-                            },
-                            contentPadding = PaddingValues(start = paddingStart, end = paddingEnd),
+                        if (state.seasons.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier.padding(start = paddingStart, end = paddingEnd)
+                            ) {
+                                SectionHeader(title = stringResource(CoreR.string.seasons))
+                            }
+                            Spacer(Modifier.height(CinefinSpacing.Space4))
+                            LazyRow(
+                                contentPadding =
+                                    PaddingValues(start = paddingStart, end = paddingEnd),
+                                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space6),
+                            ) {
+                                items(items = state.seasons, key = { item -> item.id }) { season ->
+                                    ItemCard(
+                                        item = season,
+                                        direction = Direction.VERTICAL,
+                                        onClick = { onAction(ShowAction.NavigateToItem(season)) },
+                                        // 季卡统一尺寸（W11 反馈⑨）：横排行是无界宽度，必须显式给宽度，
+                                        // 否则每张卡按各自海报的固有尺寸排布 → 「一大一小」；给死后只保留横向滑动
+                                        width = rememberSeasonCardWidth(),
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(CinefinSpacing.Space8))
+                        }
+
+                        if (state.actors.isNotEmpty()) {
+                            ActorsRow(
+                                actors = state.actors,
+                                onActorClick = { personId ->
+                                    onAction(ShowAction.NavigateToPerson(personId))
+                                },
+                                contentPadding =
+                                    PaddingValues(start = paddingStart, end = paddingEnd),
+                            )
+                        }
+                        Spacer(Modifier.height(paddingBottom))
+                    }
+                }
+                ?: run {
+                    if (bodyMode == DetailBodyMode.Error) {
+                        state.error?.let { error ->
+                            DetailLoadError(
+                                exception = error,
+                                onRetryClick = onRetry,
+                                modifier =
+                                    Modifier.fillMaxSize()
+                                        .padding(
+                                            start = paddingStart,
+                                            top = 88.dp,
+                                            end = paddingEnd,
+                                            bottom = paddingBottom,
+                                        ),
+                            )
+                        }
+                    } else {
+                        DetailSkeleton(
+                            gutterStart = paddingStart,
+                            gutterEnd = paddingEnd,
+                            modifier = Modifier.fillMaxSize().padding(top = 72.dp),
                         )
                     }
-                    Spacer(Modifier.height(paddingBottom))
-                }
-            }
-                ?: run {
-                    DetailSkeleton(
-                        gutterStart = paddingStart,
-                        gutterEnd = paddingEnd,
-                        modifier = Modifier.fillMaxSize().padding(top = 72.dp),
-                    )
                 }
 
             ItemTopBar(

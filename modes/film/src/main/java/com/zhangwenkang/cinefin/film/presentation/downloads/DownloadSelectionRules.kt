@@ -24,6 +24,12 @@ data class DownloadDeletionResult(
         get() = failedKeys + supersededKeys
 }
 
+data class DownloadDeletionProjection(
+    val pending: Boolean,
+    val deleting: Boolean,
+    val failedCount: Int,
+)
+
 data class DownloadSelectionRefreshResult(
     val selection: List<String>,
     val migratedEntries: Map<String, DownloadHierarchyEntry> = emptyMap(),
@@ -117,6 +123,7 @@ object DownloadSelectionRules {
                 },
             deletionRecoveryEntries =
                 state.deletionRecoveryEntries.filterNot { it.entryKey in resolved.succeededKeys },
+            deletionSummary = resolved.toSummary(),
         )
     }
 
@@ -292,4 +299,56 @@ object DownloadSelectionRules {
         sourceId == "$INTENT_SOURCE_PREFIX$itemId"
 
     private const val INTENT_SOURCE_PREFIX = "intent:"
+}
+
+fun DownloadManagerState.deletionProjection(
+    entries: Collection<DownloadHierarchyEntry>
+): DownloadDeletionProjection {
+    val keys = entries.mapTo(linkedSetOf()) { it.key }
+    val deleting = entries.any { entry ->
+        entry.status == DownloadTaskStatus.DELETING ||
+            pendingActions[entry.key] == DownloadPendingAction.DELETE ||
+            entry.key in deletionPendingBatches
+    }
+    val failedCount =
+        if (actionFailure == DownloadActionFailure.DELETE) {
+            deletionRecoveryEntries
+                .map { entry ->
+                    val resolvedKey = resolveDeletionKey(entry.entryKey)
+                    if (resolvedKey in keys) resolvedKey else entry.entryKey
+                }
+                .filter { key -> key in keys }
+                .distinct()
+                .size
+        } else {
+            0
+        }
+    return DownloadDeletionProjection(
+        pending = entries.any { it.key in pendingActions },
+        deleting = deleting,
+        failedCount = failedCount,
+    )
+}
+
+fun DownloadManagerState.deletionProjection(
+    container: DownloadHierarchyContainer
+): DownloadDeletionProjection = deletionProjection(container.allEntries())
+
+fun DownloadManagerState.deletionProjection(
+    season: DownloadHierarchySubContainer
+): DownloadDeletionProjection = deletionProjection(season.children.map { it.entry })
+
+internal fun DownloadDeletionResult.toSummary(
+    containerKey: String? = null
+): DownloadDeletionSummary? {
+    if (failedKeys.isEmpty() && supersededKeys.isEmpty()) return null
+    val total = (succeededKeys + failedKeys + supersededKeys).size
+    if (total == 0) return null
+    return DownloadDeletionSummary(
+        containerKey = containerKey,
+        totalCount = total,
+        convergedCount = succeededKeys.size,
+        failedCount = failedKeys.size,
+        supersededCount = supersededKeys.size,
+    )
 }

@@ -123,6 +123,146 @@ class MediaBatchRulesTest {
     }
 
     @Test
+    fun `selection resolution detects ids missing after same-size list replacement`() {
+        val a = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000001"))
+        val b = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000002"))
+        val c = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000003"))
+
+        val resolved =
+            resolveMediaBatchSelection(
+                currentItems = listOf(b, c),
+                selectedIds = setOf(a.id.toString(), b.id.toString()),
+            )
+
+        assertEquals(listOf(b), resolved.items)
+        assertEquals(setOf(a.id.toString()), resolved.missingIds)
+        assertFalse(resolved.isComplete)
+    }
+
+    @Test
+    fun `selection resolution rejects duplicate current identities`() {
+        val item = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000004"))
+
+        val resolved =
+            resolveMediaBatchSelection(
+                currentItems = listOf(item, item),
+                selectedIds = setOf(item.id.toString()),
+            )
+
+        assertEquals(setOf(item.id.toString()), resolved.duplicateIds)
+        assertFalse(resolved.isComplete)
+    }
+
+    @Test
+    fun `selection resolution keeps current order and resolves one-to-one`() {
+        val a = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000005"))
+        val b = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000006"))
+
+        val resolved =
+            resolveMediaBatchSelection(
+                currentItems = listOf(a, b),
+                selectedIds = setOf(b.id.toString(), a.id.toString()),
+            )
+
+        assertEquals(listOf(a, b), resolved.items)
+        assertTrue(resolved.missingIds.isEmpty())
+        assertTrue(resolved.duplicateIds.isEmpty())
+        assertTrue(resolved.isComplete)
+    }
+
+    @Test
+    fun `download manifest freezes selected episode ids and rejects missing candidates`() {
+        val first = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000010"))
+        val second = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000011"))
+        val missing = UUID.fromString("00000000-0000-0000-0000-000000000012")
+        val seasonId = UUID.fromString("00000000-0000-0000-0000-000000000013")
+
+        val result =
+            buildMediaDownloadManifest(
+                requestedIds = listOf(first.id, missing),
+                candidates = listOf(first, second),
+                expandedFromIds = listOf(seasonId),
+                scopeKey = "server|user",
+            )
+
+        assertFalse(result.isComplete)
+        assertEquals(listOf(missing), result.missingIds)
+        assertEquals(
+            listOf(seasonId),
+            buildMediaDownloadManifest(
+                    requestedIds = listOf(first.id, second.id),
+                    candidates = listOf(first, second),
+                    expandedFromIds = listOf(seasonId),
+                    scopeKey = "server|user",
+                )
+                .manifest
+                ?.expandedFromIds,
+        )
+    }
+
+    @Test
+    fun `download manifest rejects duplicate requested and candidate ids`() {
+        val item = movie(id = UUID.fromString("00000000-0000-0000-0000-000000000014"))
+
+        val duplicateRequest =
+            buildMediaDownloadManifest(
+                requestedIds = listOf(item.id, item.id),
+                candidates = listOf(item),
+                expandedFromIds = emptyList(),
+                scopeKey = "server|user",
+            )
+        val duplicateCandidate =
+            buildMediaDownloadManifest(
+                requestedIds = listOf(item.id),
+                candidates = listOf(item, item),
+                expandedFromIds = emptyList(),
+                scopeKey = "server|user",
+            )
+
+        assertFalse(duplicateRequest.isComplete)
+        assertEquals(listOf(item.id), duplicateRequest.duplicateRequestedIds)
+        assertFalse(duplicateCandidate.isComplete)
+        assertEquals(listOf(item.id), duplicateCandidate.duplicateCandidateIds)
+    }
+
+    @Test
+    fun `download execution partitions each planned id exactly once`() {
+        val accepted = UUID.fromString("00000000-0000-0000-0000-000000000015")
+        val skipped = UUID.fromString("00000000-0000-0000-0000-000000000016")
+        val failed = UUID.fromString("00000000-0000-0000-0000-000000000017")
+
+        val execution =
+            mediaDownloadExecutionIds(
+                plannedIds = listOf(accepted, skipped, failed),
+                acceptedIds = listOf(accepted),
+                skippedIds = listOf(skipped),
+                failedIds = listOf(failed),
+            )
+
+        assertTrue(execution.isComplete)
+        assertTrue(execution.unknownIds.isEmpty())
+        assertTrue(execution.duplicateResultIds.isEmpty())
+    }
+
+    @Test
+    fun `download execution rejects duplicate or unplanned result ids`() {
+        val planned = UUID.fromString("00000000-0000-0000-0000-000000000018")
+        val unknown = UUID.fromString("00000000-0000-0000-0000-000000000019")
+
+        val execution =
+            mediaDownloadExecutionIds(
+                plannedIds = listOf(planned),
+                acceptedIds = listOf(planned),
+                skippedIds = listOf(planned),
+                failedIds = listOf(unknown),
+            )
+
+        assertFalse(execution.isComplete)
+        assertEquals(listOf(planned), execution.duplicateResultIds)
+        assertEquals(listOf(unknown), execution.unknownIds)
+    }
+
+    @Test
     fun `delete targets keep only downloaded server items`() {
         val a = movie()
         val b = movie()
@@ -163,12 +303,13 @@ class MediaBatchRulesTest {
     }
 
     private fun movie(
+        id: UUID = UUID.randomUUID(),
         played: Boolean = false,
         favorite: Boolean = false,
         canPlay: Boolean = true,
     ) =
         FindroidMovie(
-            id = UUID.randomUUID(),
+            id = id,
             name = "测试电影",
             originalTitle = null,
             overview = "",

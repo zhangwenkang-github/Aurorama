@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.film.presentation.downloads
 
 import android.content.ContextWrapper
+import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
@@ -15,6 +16,17 @@ import com.zhangwenkang.cinefin.utils.DownloadDeleteBatchResult
 import com.zhangwenkang.cinefin.utils.DownloadDeleteOutcome
 import com.zhangwenkang.cinefin.utils.DownloadDeleteReceipt
 import com.zhangwenkang.cinefin.utils.DownloadDeleteRequest
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceEvent
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceHandle
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTracePhase
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTracePort
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRefresh
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRequest
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceResult
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRoot
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRowHandle
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceRuntime
+import com.zhangwenkang.cinefin.utils.DownloadDeleteTraceTrigger
 import com.zhangwenkang.cinefin.utils.DownloadDeletionIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
@@ -45,6 +57,58 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 class DownloadsViewModelDeletionTest {
+
+    @Test
+    fun `task deletion wires D1 D2 canonical refresh absence and D9 pending clear`() {
+        val task = task("traced", "source-traced")
+        val fixture =
+            Fixture(
+                tasks = listOf(task),
+                outcomes = emptyMap(),
+                removeDeletedTasks = true,
+            )
+        val trace = RecordingDeleteTracePort()
+        try {
+            fixture.start()
+            val key = taskKey(task)
+            DownloadDeleteTraceRuntime.install(trace)
+
+            fixture.viewModel.onAction(DownloadAction.DeleteTask(task))
+            fixture.waitUntil("traced deletion did not finish") {
+                fixture.viewModel.state.value.pendingActions.isEmpty() &&
+                    fixture.tasks.value.none { it.sourceId == task.sourceId } &&
+                    trace.handle.events.any {
+                        it.phase == DownloadDeleteTracePhase.D9_PENDING_CLEARED
+                    }
+            }
+
+            val events = trace.handle.events
+            assertTrue(events.any { it.phase == DownloadDeleteTracePhase.D1_REQUEST_ACCEPTED })
+            assertTrue(
+                events.any {
+                    it.phase == DownloadDeleteTracePhase.D2_PENDING_PROJECTED &&
+                        it.result == DownloadDeleteTraceResult.VISIBLE
+                }
+            )
+            assertTrue(
+                events.any {
+                    it.phase == DownloadDeleteTracePhase.D8_CANONICAL_REFRESH_BEGIN &&
+                        it.trigger == DownloadDeleteTraceTrigger.EXPLICIT
+                }
+            )
+            assertTrue(
+                events.any {
+                    it.phase == DownloadDeleteTracePhase.D8_CANONICAL_REFRESH_END &&
+                        it.result == DownloadDeleteTraceResult.ABSENT
+                }
+            )
+            assertTrue(events.any { it.phase == DownloadDeleteTracePhase.D9_PENDING_CLEARED })
+            assertEquals(key, trace.handle.stableKey)
+        } finally {
+            DownloadDeleteTraceRuntime.uninstall(trace)
+            fixture.close()
+        }
+    }
 
     @Test
     fun `single completed leaf exception becomes visible and retains entry`() {
@@ -215,6 +279,139 @@ class DownloadsViewModelDeletionTest {
                 "container delete leaked an unhandled exception: ${fixture.unhandled}",
                 fixture.unhandled.isEmpty(),
             )
+        } finally {
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `container delete one success one failure keeps failed identity and convergence`() {
+        val seriesId = UUID.randomUUID()
+        val failed = task("failed", "source-failed", seriesId = seriesId)
+        val succeeded = task("succeeded", "source-succeeded", seriesId = seriesId)
+        val fixture =
+            Fixture(
+                tasks = listOf(failed, succeeded),
+                outcomes =
+                    mapOf(
+                        "source-failed" to DownloadDeleteOutcome.FAILED,
+                        "source-succeeded" to DownloadDeleteOutcome.SUCCEEDED,
+                    ),
+                episodeHierarchy =
+                    listOf(failed, succeeded).mapIndexed { index, task ->
+                        DownloadedEpisodeHierarchy(
+                            episodeId = task.itemId,
+                            seasonId = UUID.nameUUIDFromBytes("season".toByteArray()),
+                            seriesId = seriesId,
+                            episodeName = task.name,
+                            episodeIndex = index + 1,
+                            runtimeTicks = 0L,
+                            seriesName = "Series",
+                            seasonName = "Season",
+                            seasonIndex = 1,
+                        )
+                    },
+            )
+        try {
+            fixture.start()
+            val failedKey = taskKey(failed)
+            val succeededKey = taskKey(succeeded)
+            val container =
+                fixture.viewModel.state.value.activeContainers.first { candidate ->
+                    candidate
+                        .allEntries()
+                        .map { it.key }
+                        .containsAll(listOf(failedKey, succeededKey))
+                }
+            fixture.deleteGate = CompletableDeferred()
+
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(container.key))
+            fixture.waitUntil("container delete was not started") {
+                fixture.deleteRequests.size == 1
+            }
+            fixture.viewModel.onAction(DownloadAction.DeleteContainer(container.key))
+            assertEquals(
+                "rapid duplicate container confirmation created another batch",
+                1,
+                fixture.deleteRequests.size,
+            )
+
+            val pendingState = fixture.viewModel.state.value
+            assertEquals(
+                setOf(failedKey, succeededKey),
+                pendingState.pendingActions.keys,
+            )
+            assertEquals(
+                pendingState.deletionPendingBatches[failedKey],
+                pendingState.deletionPendingBatches[succeededKey],
+            )
+
+            fixture.tasks.value = listOf(failed)
+            fixture.deleteGate?.complete(Unit)
+            fixture.waitUntil("container delete did not finish") {
+                fixture.viewModel.state.value.pendingActions.isEmpty() &&
+                    fixture.viewModel.state.value.actionFailure == DownloadActionFailure.DELETE
+            }
+
+            val state = fixture.viewModel.state.value
+            assertEquals(
+                listOf(failedKey),
+                state.activeContainers.flatMap(::hierarchyLeafKeys),
+            )
+            assertEquals(
+                listOf(failedKey),
+                state.deletionRecoveryEntries.map { it.entryKey },
+            )
+            assertEquals(
+                DownloadDeletionSummary(
+                    containerKey = container.key,
+                    totalCount = 2,
+                    convergedCount = 1,
+                    failedCount = 1,
+                    supersededCount = 0,
+                ),
+                state.deletionSummary,
+            )
+        } finally {
+            fixture.deleteGate?.complete(Unit)
+            fixture.close()
+        }
+    }
+
+    @Test
+    fun `restart projection only restores the surviving failed leaf identity`() {
+        val seriesId = UUID.randomUUID()
+        val seasonId = UUID.nameUUIDFromBytes("restart-season".toByteArray())
+        val failed = task("failed", "source-failed", seriesId = seriesId)
+        val succeeded = task("succeeded", "source-succeeded", seriesId = seriesId)
+        val hierarchy =
+            listOf(failed, succeeded).mapIndexed { index, task ->
+                DownloadedEpisodeHierarchy(
+                    episodeId = task.itemId,
+                    seasonId = seasonId,
+                    seriesId = seriesId,
+                    episodeName = task.name,
+                    episodeIndex = index + 1,
+                    runtimeTicks = 0L,
+                    seriesName = "Series",
+                    seasonName = "Season",
+                    seasonIndex = 1,
+                )
+            }
+        val fixture =
+            Fixture(
+                tasks = listOf(failed),
+                outcomes = emptyMap(),
+                episodeHierarchy = hierarchy,
+            )
+        try {
+            fixture.start()
+
+            val visibleKeys =
+                fixture.viewModel.state.value.activeContainers.flatMap(::hierarchyLeafKeys)
+
+            assertEquals(listOf(taskKey(failed)), visibleKeys)
+            assertFalse(taskKey(succeeded) in visibleKeys)
         } finally {
             fixture.close()
         }
@@ -803,9 +1000,11 @@ class DownloadsViewModelDeletionTest {
         tasks: List<DownloadTask>,
         var outcomes: Map<String, DownloadDeleteOutcome>,
         private val downloads: List<FindroidItem> = emptyList(),
+        private val episodeHierarchy: List<DownloadedEpisodeHierarchy> = emptyList(),
         private val deleteItemException: Exception? = null,
         private val deleteTaskException: Exception? = null,
         private val deleteDownloadsException: Exception? = null,
+        private val removeDeletedTasks: Boolean = false,
     ) {
         val tasks = MutableStateFlow(tasks)
         val queueChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -824,7 +1023,18 @@ class DownloadsViewModelDeletionTest {
                     "deleteItem" ->
                         throw requireNotNull(deleteItemException) { "deleteItem was not expected" }
                     "deleteTask" ->
-                        throw requireNotNull(deleteTaskException) { "deleteTask was not expected" }
+                        if (deleteTaskException != null) {
+                            throw deleteTaskException
+                        } else if (removeDeletedTasks) {
+                            val task = args.first() as DownloadTask
+                            this.tasks.value =
+                                this.tasks.value.filterNot { current ->
+                                    current.sourceId == task.sourceId
+                                }
+                            false
+                        } else {
+                            throw IllegalStateException("deleteTask was not expected")
+                        }
                     "deleteDownloads" -> {
                         deleteDownloadsException?.let { throw it }
                         @Suppress("UNCHECKED_CAST")
@@ -851,7 +1061,7 @@ class DownloadsViewModelDeletionTest {
             DownloadsViewModel(
                     context = context,
                     downloader = downloader,
-                    repository = repositoryProxy(downloads),
+                    repository = repositoryProxy(downloads, episodeHierarchy),
                     readerRepository = readerRepositoryProxy(),
                     offlineMediaRepository = offlineRepositoryProxy(),
                     bookCoverProvider = bookCoverProvider(),
@@ -920,12 +1130,86 @@ class DownloadsViewModelDeletionTest {
             )
     }
 
+    private class RecordingDeleteTracePort : DownloadDeleteTracePort {
+        lateinit var handle: RecordingDeleteTraceHandle
+        var refresh: RecordingRefresh? = null
+
+        override fun start(requests: List<DownloadDeleteTraceRequest>): DownloadDeleteTraceRoot {
+            val request = requests.single()
+            request.identity()
+            handle = RecordingDeleteTraceHandle(request.stableKey)
+            handle.events +=
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D1_REQUEST_ACCEPTED,
+                    result = DownloadDeleteTraceResult.ACCEPTED,
+                )
+            return DownloadDeleteTraceRoot(
+                handles = listOf(handle),
+                sourceBindings = request.sourceId?.let { listOf(it to handle) }?.toMap().orEmpty(),
+            )
+        }
+
+        override fun beginCanonicalRefresh(
+            trigger: DownloadDeleteTraceTrigger
+        ): DownloadDeleteTraceRefresh {
+            handle.events +=
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D8_CANONICAL_REFRESH_BEGIN,
+                    result = DownloadDeleteTraceResult.STARTED,
+                    trigger = trigger,
+                )
+            return RecordingRefresh(handle, trigger).also { refresh = it }
+        }
+
+        override fun rowTrace(stableKey: String): DownloadDeleteTraceRowHandle? = null
+    }
+
+    private class RecordingRefresh(
+        private val handle: RecordingDeleteTraceHandle,
+        private val trigger: DownloadDeleteTraceTrigger,
+    ) : DownloadDeleteTraceRefresh {
+        override fun publish(visibleKeys: Set<String>) {
+            if (handle.stableKey !in visibleKeys) {
+                handle.events +=
+                    DownloadDeleteTraceEvent(
+                        phase = DownloadDeleteTracePhase.D8_CANONICAL_REFRESH_END,
+                        result = DownloadDeleteTraceResult.ABSENT,
+                        trigger = trigger,
+                    )
+            }
+        }
+
+        override fun fail(error: com.zhangwenkang.cinefin.utils.DownloadDeleteTraceError) = Unit
+    }
+
+    private class RecordingDeleteTraceHandle(override val stableKey: String) :
+        DownloadDeleteTraceHandle {
+        val events = mutableListOf<DownloadDeleteTraceEvent>()
+
+        override fun bindSource(sourceId: String, generation: Long) = Unit
+
+        override fun record(event: DownloadDeleteTraceEvent) {
+            events += event
+        }
+
+        override fun pendingCleared() {
+            events +=
+                DownloadDeleteTraceEvent(
+                    phase = DownloadDeleteTracePhase.D9_PENDING_CLEARED,
+                    result = DownloadDeleteTraceResult.CLEARED,
+                )
+        }
+    }
+
     private companion object {
-        private fun repositoryProxy(downloads: List<FindroidItem>): JellyfinRepository =
+        private fun repositoryProxy(
+            downloads: List<FindroidItem>,
+            episodeHierarchy: List<DownloadedEpisodeHierarchy>,
+        ): JellyfinRepository =
             proxy(JellyfinRepository::class.java) { method, _ ->
                 when (method.name) {
                     "getDownloads" -> downloads
-                    "getEpisodeHierarchyWithSources" -> emptyList<Any>()
+                    "getEpisodeHierarchyWithSources" -> episodeHierarchy
                     "getMusicTrackMetadata" ->
                         downloads.filterIsInstance<FindroidMovie>().associate { item ->
                             item.id to

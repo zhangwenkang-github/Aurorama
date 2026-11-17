@@ -18,6 +18,8 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.TrickplayInfo
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.PlaybackSourceAttemptContext
+import com.zhangwenkang.cinefin.repository.PlaybackSourceResolver
 import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -26,10 +28,24 @@ import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.MediaStreamType
 import timber.log.Timber
 
-class PlaylistManager @Inject internal constructor(private val repository: JellyfinRepository) {
+class PlaylistManager internal constructor(private val repository: JellyfinRepository) {
+    private var playbackSourceResolver: PlaybackSourceResolver? = null
+
+    @Inject
+    internal constructor(
+        repository: JellyfinRepository,
+        playbackSourceResolver: PlaybackSourceResolver,
+    ) : this(repository) {
+        this.playbackSourceResolver = playbackSourceResolver
+    }
+
     private var startItem: FindroidItem? = null
     private var items: List<FindroidItem> = emptyList()
     private val playerItems: MutableList<PlayerItem> = mutableListOf()
+
+    /** Debug-only correlation handle for the latest SERIES top-play resolution. */
+    internal var lastSeriesResolutionTraceContext: SeriesResolutionTraceContext? = null
+        private set
 
     /**
      * W76-B11b：整剧队列的「后台补全」请求。
@@ -63,21 +79,33 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         preferredMediaSourceId: String? = null,
         startFromBeginning: Boolean = false,
         startPositionMs: Long? = null,
+        sourceAttempt: PlaybackSourceAttemptContext? = null,
     ): PlayerItem? {
         Timber.d("Retrieving initial player item")
 
         // W76-B11b：每次解析新条目都先清掉上一次的「骨架队列」标记（电影 / 显式队列播放用不到它）
         pendingSeriesQueueExpansion = null
+        lastSeriesResolutionTraceContext = null
+        var seriesTrace: SeriesResolutionTraceContext? = null
 
         val initialItem =
             when (itemKind) {
-                BaseItemKind.MOVIE -> {
+                BaseItemKind.MOVIE,
+                BaseItemKind.VIDEO -> {
                     val movie = repository.getMovie(itemId)
 
                     items = listOf(movie)
                     movie
                 }
                 BaseItemKind.SERIES -> {
+                    val trace =
+                        if (SeriesResolutionTraceLog.isEnabled()) {
+                            SeriesResolutionTraceContext.start(seriesId = itemId)
+                        } else {
+                            null
+                        }
+                    seriesTrace = trace
+                    lastSeriesResolutionTraceContext = trace
                     /*
                      * W76-B11：系列级「播放」= **续播**（服务器 NextUp）→ 否则**第一季第一集**；解析链上每一步失败
                      * 都只降级、不取空（NextUp 取不到 → 第一季；归属季取不到 → 季号最小的季），确实没有可播的集时抛
@@ -87,11 +115,13 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                      * [expandPendingSeriesQueue] 补。旧实现把整剧枚举排在起播之前（getNextUp → 逐季 getEpisodes，
                      * 5 次串行 HTTP），真机实测这段时间播放页一直停在 `00:00/00:00` + 队列为空 + 无提示的空白态。
                      */
-                    val nextUpEpisode = runCatchingCancellable {
-                        repository.getNextUp(itemId).firstOrNull()
-                    }
-                        .onFailure { Timber.w(it, "系列级播放：拉取 NextUp 失败，回退第一季第一集") }
-                        .getOrNull()
+                    val nextUpResult = runCatchingCancellable { repository.getNextUp(itemId) }
+                    trace?.recordNextUp(nextUpResult)
+                    val nextUpEpisode =
+                        nextUpResult
+                            .onFailure { Timber.w(it, "系列级播放：拉取 NextUp 失败，回退第一季第一集") }
+                            .getOrNull()
+                            ?.firstOrNull()
 
                     if (nextUpEpisode != null) {
                         // 快路径：只解析这一集（补齐章节 / Trickplay；同一份季集响应会被后台整剧补全命中缓存）
@@ -103,6 +133,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                                 fallbackSeasonId = startEpisode.seasonId,
                             )
                         items = listOf(startEpisode)
+                        trace?.recordEpisode(startEpisode, fallback = false)
                         startEpisode
                     } else {
                         // 兜底：服务器没给续播（整部看完 / 无 NextUp）时仍然从第一季第一集起播（需枚举整剧）
@@ -117,7 +148,9 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                                 ?: throw PlaybackStartException("这部剧暂时没有可播放的剧集，请稍后重试")
 
                         items = plan.episodes
-                        plan.episodes[plan.startIndex]
+                        plan.episodes[plan.startIndex].also { episode ->
+                            trace?.recordEpisode(episode, fallback = true)
+                        }
                     }
                 }
                 BaseItemKind.SEASON -> {
@@ -196,11 +229,20 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 else -> 0L
             }
         val playerItem =
-            initialItem.toPlayerItem(
-                mediaSourceIndex = mediaSourceIndex,
-                playbackPosition = playbackPosition,
-                preferredMediaSourceId = preferredMediaSourceId,
-            )
+            try {
+                initialItem.toPlayerItem(
+                    mediaSourceIndex = mediaSourceIndex,
+                    playbackPosition = playbackPosition,
+                    preferredMediaSourceId = preferredMediaSourceId,
+                    seriesTraceContext = seriesTrace,
+                    sourceAttempt = sourceAttempt,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                seriesTrace?.recordSourceFailure(e)
+                throw e
+            }
         playerItems.add(playerItem)
 
         return playerItem
@@ -218,6 +260,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         preferredMediaSourceId: String? = null,
         startFromBeginning: Boolean = false,
         startPositionMs: Long? = null,
+        sourceAttempt: PlaybackSourceAttemptContext? = null,
     ): PlayerItem? {
         // W76-B11b：显式队列播放不走「骨架队列 + 后台补全」
         pendingSeriesQueueExpansion = null
@@ -250,6 +293,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                 mediaSourceIndex = null,
                 playbackPosition = playbackPosition,
                 preferredMediaSourceId = preferredMediaSourceId,
+                sourceAttempt = sourceAttempt,
             )
         playerItems.add(playerItem)
         return playerItem
@@ -340,29 +384,53 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
      * 重新请求 PlaybackInfo 并携 `startTimeTicks = positionMs × 10000`，服务器从目标位置开始生成分片；新条目写回 [playerItems]
      * 缓存（同条目旧 URL 作废），播放侧用 `replaceMediaItem` 原位替换，不重启 Activity。
      */
-    suspend fun rebuildPlayerItemForPosition(itemId: UUID, positionMs: Long): PlayerItem? {
+    suspend fun rebuildPlayerItemForPosition(
+        itemId: UUID,
+        positionMs: Long,
+        mediaSourceId: String? = null,
+    ): PlayerItem? {
         val item =
             items.firstOrNull { it.id == itemId }
                 ?: startItem?.takeIf { it.id == itemId }
                 ?: return null
+        val selectedMediaSourceId =
+            mediaSourceId
+                ?: playerItems.firstOrNull { it.itemId == itemId }?.mediaSourceId
+                ?: return null
+        if (selectedMediaSourceId.isBlank()) return null
         // W76-Q6：重开会话必须拿新地址，强制绕过缓存并覆盖旧结果。
-        return runCatching {
-            item.toPlayerItem(null, positionMs.coerceAtLeast(0L), forceRefresh = true)
+        val rebuilt = runCatching {
+            item.toPlayerItem(
+                mediaSourceIndex = null,
+                playbackPosition = positionMs.coerceAtLeast(0L),
+                forceRefresh = true,
+                preferredMediaSourceId = selectedMediaSourceId,
+            )
         }
-            .onSuccess { rebuilt ->
-                playerItems.removeAll { it.itemId == itemId }
-                playerItems.add(rebuilt)
-                failedItemIds.remove(itemId)
-            }
             .onFailure {
                 Timber.w(
                     it,
-                    "重建播放条目失败（转码 seek 重开会话）：item=%s position=%d",
+                    "重建播放条目失败（转码 seek 重开会话）：item=%s source=%s position=%d",
                     itemId,
+                    selectedMediaSourceId,
                     positionMs,
                 )
             }
             .getOrNull()
+        if (rebuilt == null) return null
+        if (rebuilt.mediaSourceId != selectedMediaSourceId) {
+            Timber.w(
+                "拒绝转码 seek 重开会话切换媒体源：item=%s selected=%s rebuilt=%s",
+                itemId,
+                selectedMediaSourceId,
+                rebuilt.mediaSourceId,
+            )
+            return null
+        }
+        playerItems.removeAll { it.itemId == itemId }
+        playerItems.add(rebuilt)
+        failedItemIds.remove(itemId)
+        return rebuilt
     }
 
     /**
@@ -530,6 +598,8 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         playbackPosition: Long,
         forceRefresh: Boolean = false,
         preferredMediaSourceId: String? = null,
+        seriesTraceContext: SeriesResolutionTraceContext? = null,
+        sourceAttempt: PlaybackSourceAttemptContext? = null,
     ): PlayerItem =
         playbackRequestCache.resolve(
             key =
@@ -538,10 +608,17 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                     mediaSourceIndex = mediaSourceIndex,
                     startPositionTicks = playbackPosition * 10000L,
                     preferredMediaSourceId = preferredMediaSourceId,
+                    sourceAttemptId = sourceAttempt?.attemptId,
                 ),
             forceRefresh = forceRefresh,
         ) {
-            buildPlayerItem(mediaSourceIndex, playbackPosition, preferredMediaSourceId)
+            buildPlayerItem(
+                mediaSourceIndex,
+                playbackPosition,
+                preferredMediaSourceId,
+                seriesTraceContext,
+                sourceAttempt,
+            )
         }
 
     /** W76-Q6：缓存层之下的真正解析（请求 `PlaybackInfo` 并组装条目），只由 [toPlayerItem] 调用。 */
@@ -549,6 +626,8 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
         mediaSourceIndex: Int?,
         playbackPosition: Long,
         preferredMediaSourceId: String?,
+        seriesTraceContext: SeriesResolutionTraceContext?,
+        sourceAttempt: PlaybackSourceAttemptContext?,
     ): PlayerItem {
         Timber.d("Converting FindroidItem ${this.id} to PlayerItem")
 
@@ -557,13 +636,27 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
          * 而不是恒从 0 开始追赶（窗口外 seek 长卡 / 回片头的根因）。
          */
         val mediaSources =
-            repository.getMediaSources(id, true, startPositionTicks = playbackPosition * 10000L)
+            playbackSourceResolver
+                ?.resolve(
+                    itemId = id,
+                    includePath = true,
+                    startPositionTicks = playbackPosition * 10000L,
+                    attempt = sourceAttempt ?: PlaybackSourceAttemptContext.new(),
+                )
+                ?.resolvedSourcesOrThrow()
+                ?: repository.getMediaSources(
+                    id,
+                    true,
+                    startPositionTicks = playbackPosition * 10000L,
+                )
         val mediaSource =
             if (mediaSourceIndex == null) {
                 selectFindroidSource(mediaSources, preferredMediaSourceId)
             } else {
                 mediaSources.getOrNull(mediaSourceIndex)
             } ?: throw PlaybackStartException("这个条目暂时没有可播放的媒体源")
+        val playbackUri = mediaSource.transcodingPath ?: mediaSource.path
+        seriesTraceContext?.recordSource(mediaSource, playbackUri)
         val externalSubtitles =
             mediaSource.mediaStreams
                 .filter { mediaStream ->
@@ -646,7 +739,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             itemId = id,
             mediaSourceId = mediaSource.id,
             // 服务器要转码时用转码地址（否则 Hi10P 之类会「有声音、进度在走、画面全黑」）
-            mediaSourceUri = mediaSource.transcodingPath ?: mediaSource.path,
+            mediaSourceUri = playbackUri,
             playbackPosition = playbackPosition,
             parentIndexNumber = if (this is FindroidEpisode) parentIndexNumber else null,
             indexNumber = if (this is FindroidEpisode) indexNumber else null,
@@ -660,7 +753,7 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             mediaInfo =
                 buildSourceMediaInfo(
                     source = mediaSource,
-                    playbackUri = mediaSource.transcodingPath ?: mediaSource.path,
+                    playbackUri = playbackUri,
                 ),
         )
     }

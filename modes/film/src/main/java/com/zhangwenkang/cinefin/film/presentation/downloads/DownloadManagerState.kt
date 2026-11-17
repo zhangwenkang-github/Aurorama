@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.film.presentation.downloads
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.utils.CanonicalDownloadAction
 import com.zhangwenkang.cinefin.utils.DownloadCanonicalIdentity
 import com.zhangwenkang.cinefin.utils.DownloadMediaKind
 import com.zhangwenkang.cinefin.utils.DownloadStorageUsage
@@ -25,6 +26,15 @@ enum class DownloadMediaFilter {
 data class DownloadDeletionRecoveryEntry(
     val entryKey: String,
     val canonicalIdentity: DownloadCanonicalIdentity,
+)
+
+/** 一次批次结果的最小可见摘要；只用于展示收敛数，不作为删除状态真源。 */
+data class DownloadDeletionSummary(
+    val containerKey: String?,
+    val totalCount: Int,
+    val convergedCount: Int,
+    val failedCount: Int,
+    val supersededCount: Int,
 )
 
 internal fun DownloadDeletionRecoveryEntry.toDeletionEntry(): DownloadHierarchyEntry =
@@ -64,11 +74,15 @@ data class DownloadManagerState(
     val deletionAliases: Map<String, String> = emptyMap(),
     /** alias 请求 key 对应的 active deletion batches；批次结束只移除自身所有权。 */
     val deletionAliasBatches: Map<String, Set<Long>> = emptyMap(),
+    /** canonical refresh 失败时的可见信号；已有页面快照继续保留。 */
+    val refreshFailure: DownloadRefreshFailure? = null,
     /** 批次动作失败后的可见终态；下一次选择或动作开始时清除。 */
     val actionFailure: DownloadActionFailure? = null,
     val deletionFailureReason: DownloadDeletionFailureReason? = null,
     /** 本次删除批次开始时的不可变恢复元数据，只保留仍失败的候选。 */
     val deletionRecoveryEntries: List<DownloadDeletionRecoveryEntry> = emptyList(),
+    /** 最近一次已收敛批次的结果摘要；仅用于“已收敛 X/N”的用户可见投影。 */
+    val deletionSummary: DownloadDeletionSummary? = null,
 ) {
     val activeCount: Int
         get() = activeContainers.flatMap { it.descendantEntries() }.distinctBy { it.key }.size
@@ -144,9 +158,12 @@ data class DownloadContainerTaskActionSpec(
 
 /** 顶层容器动作资格；按容器内真实任务状态计算，而不是复用聚合展示状态。 */
 fun DownloadHierarchyContainer.taskActionSpecs(): List<DownloadContainerTaskActionSpec> {
-    val tasks = allEntries().mapNotNull { it.task }
     return DownloadContainerTaskAction.entries.mapNotNull { action ->
-        val eligibleTaskKeys = tasks.filter { it.supports(action) }.map(::taskKey).toSet()
+        val eligibleTaskKeys =
+            allEntries()
+                .filter { entry -> entry.supports(action) }
+                .map(DownloadHierarchyEntry::key)
+                .toSet()
         if (eligibleTaskKeys.isEmpty()) null
         else DownloadContainerTaskActionSpec(action, eligibleTaskKeys)
     }
@@ -157,15 +174,22 @@ fun DownloadHierarchyContainer.tasksForTaskAction(
     spec: DownloadContainerTaskActionSpec
 ): List<DownloadTask> =
     allEntries()
-        .mapNotNull { it.task }
-        .filter { task -> taskKey(task) in spec.eligibleTaskKeys && task.supports(spec.action) }
+        .filter { entry -> entry.key in spec.eligibleTaskKeys && entry.supports(spec.action) }
+        .mapNotNull(DownloadHierarchyEntry::task)
         .distinctBy(::taskKey)
 
-private fun DownloadTask.supports(action: DownloadContainerTaskAction): Boolean =
+private fun DownloadHierarchyEntry.supports(action: DownloadContainerTaskAction): Boolean =
     when (action) {
-        DownloadContainerTaskAction.PAUSE -> DownloadTaskRules.canPause(this)
-        DownloadContainerTaskAction.RESUME -> DownloadTaskRules.canResume(status)
-        DownloadContainerTaskAction.RETRY -> DownloadTaskRules.canRetry(status)
+        DownloadContainerTaskAction.PAUSE ->
+            canonicalActions?.contains(CanonicalDownloadAction.PAUSE)
+                ?: task?.let(DownloadTaskRules::canPause)
+                ?: false
+        DownloadContainerTaskAction.RESUME ->
+            canonicalActions?.contains(CanonicalDownloadAction.RESUME)
+                ?: task?.let(DownloadTaskRules::canResume)
+                ?: false
+        DownloadContainerTaskAction.RETRY ->
+            task?.let { candidate -> DownloadTaskRules.canRetry(candidate.status) } ?: false
     }
 
 enum class DownloadActionFailure {
@@ -174,6 +198,10 @@ enum class DownloadActionFailure {
     RESUME,
     RETRY,
     DELETE,
+}
+
+enum class DownloadRefreshFailure {
+    CANONICAL_SNAPSHOT
 }
 
 enum class DownloadDeletionFailureReason {
@@ -188,6 +216,7 @@ fun DownloadManagerState.beginPending(
         pendingActions = pendingActions + keys.associateWith { action },
         actionFailure = null,
         deletionFailureReason = null,
+        deletionSummary = null,
     )
 
 internal fun DownloadManagerState.beginDeletionBatch(

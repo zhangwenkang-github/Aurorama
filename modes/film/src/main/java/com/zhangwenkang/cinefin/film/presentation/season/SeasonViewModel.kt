@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.film.presentation.season
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
+import com.zhangwenkang.cinefin.film.presentation.detail.LatestContentRequest
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -17,11 +18,13 @@ class SeasonViewModel @Inject constructor(private val repository: JellyfinReposi
     ViewModel() {
     private val _state = MutableStateFlow(SeasonState())
     val state = _state.asStateFlow()
+    private val contentRequests = LatestContentRequest()
 
     lateinit var seasonId: UUID
 
     fun loadSeason(seasonId: UUID) {
         this.seasonId = seasonId
+        val request = contentRequests.begin()
         viewModelScope.launch {
             try {
                 val season = repository.getSeason(seasonId)
@@ -31,8 +34,16 @@ class SeasonViewModel @Inject constructor(private val repository: JellyfinReposi
                         seasonId = seasonId,
                         fields = DetailDownloadRules.EPISODE_FETCH_FIELDS,
                     )
-                _state.emit(_state.value.copy(season = season, episodes = episodes))
+                if (!contentRequests.isCurrent(request)) return@launch
+                _state.emit(
+                    _state.value.copy(
+                        season = season,
+                        episodes = episodes,
+                        error = null,
+                    )
+                )
             } catch (e: Exception) {
+                if (!contentRequests.isCurrent(request)) return@launch
                 _state.emit(_state.value.copy(error = e))
             }
         }

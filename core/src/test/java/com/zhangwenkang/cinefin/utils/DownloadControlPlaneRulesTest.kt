@@ -1,8 +1,14 @@
 package com.zhangwenkang.cinefin.utils
 
+import java.security.MessageDigest
 import java.util.UUID
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** W84：下载控制面唯一集合、阶段解释、批量接收与角标口径。 */
@@ -17,6 +23,10 @@ class DownloadControlPlaneRulesTest {
         failureReason: DownloadFailureReason? = null,
         retryCount: Int = 0,
         nextRetryAt: Long = 0L,
+        updatedAt: Long = 0L,
+        taskGeneration: Long = 0L,
+        serverId: String? = null,
+        userId: String? = null,
     ) =
         DownloadTask(
             itemId = itemId,
@@ -28,10 +38,206 @@ class DownloadControlPlaneRulesTest {
             failureReason = failureReason,
             downloadedBytes = downloadedBytes,
             totalBytes = totalBytes,
-            updatedAt = 0L,
+            updatedAt = updatedAt,
             retryCount = retryCount,
             nextRetryAt = nextRetryAt,
+            taskGeneration = taskGeneration,
+            serverId = serverId,
+            userId = userId,
         )
+
+    @Test
+    fun `canonical_transform_matches_real_page_and_notification`() {
+        val completed =
+            task(
+                itemId = UUID(0L, 900L),
+                sourceId = "completed",
+                status = DownloadTaskStatus.RUNNING,
+                serverId = "server-a",
+                userId = "user-a",
+            )
+        val active =
+            (1L..12L).map { index ->
+                task(
+                    itemId = UUID(0L, 1_000L + index),
+                    sourceId = "episode-$index",
+                    status = DownloadTaskStatus.RUNNING,
+                    downloadedBytes = index * 100L,
+                    totalBytes = index * 10_000L,
+                    updatedAt = index,
+                    taskGeneration = 1L,
+                    serverId = "server-a",
+                    userId = "user-a",
+                )
+            }
+        val olderDuplicate =
+            active
+                .first()
+                .copy(
+                    downloadedBytes = 1L,
+                    totalBytes = 2L,
+                    updatedAt = 1L,
+                    taskGeneration = 1L,
+                )
+        val newerDuplicate =
+            active
+                .first()
+                .copy(
+                    downloadedBytes = 99L,
+                    totalBytes = 999L,
+                    updatedAt = 99L,
+                    taskGeneration = 2L,
+                )
+        val allTasks = listOf(completed) + active + olderDuplicate + newerDuplicate
+        val completedKeys = setOf(completed.downloadIdentity().canonicalKey)
+
+        val snapshot =
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = allTasks,
+                downloadedCanonicalKeys = completedKeys,
+                samplingEpochMs = 42L,
+            )
+        val notification = aggregateDownloadNotification(snapshot)
+
+        assertEquals(12, snapshot.activeCount)
+        assertEquals(snapshot.activeCount, notification.activeCount)
+        assertEquals(snapshot.downloadedBytes, notification.task?.downloadedBytes)
+        assertEquals(snapshot.totalBytes, notification.task?.totalBytes)
+        assertEquals(snapshot.sortedIdentityKeys, notification.identityKeys)
+        assertEquals(
+            identityHash(snapshot.sortedIdentityKeys),
+            identityHash(notification.identityKeys),
+        )
+        assertEquals(42L, notification.samplingEpochMs)
+        assertEquals(
+            snapshot.tasks.sumOf(CanonicalActiveTask::downloadedBytes),
+            snapshot.downloadedBytes,
+        )
+        assertEquals(snapshot.tasks.sumOf(CanonicalActiveTask::totalBytes), snapshot.totalBytes)
+        assertEquals(
+            999L,
+            snapshot.tasks
+                .single { leaf -> leaf.identity == active.first().downloadIdentity() }
+                .totalBytes,
+        )
+    }
+
+    @Test
+    fun `nonempty zero total bytes stays equal across raw consumers`() {
+        val zeroTotal =
+            task(
+                sourceId = "zero-total",
+                status = DownloadTaskStatus.RUNNING,
+                downloadedBytes = 25L,
+                totalBytes = 0L,
+            )
+        val knownTotal =
+            task(
+                sourceId = "known-total",
+                status = DownloadTaskStatus.PAUSED,
+                downloadedBytes = 40L,
+                totalBytes = 1_000L,
+            )
+        val snapshot =
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = listOf(zeroTotal, knownTotal),
+                downloadedCanonicalKeys = emptySet(),
+                samplingEpochMs = 43L,
+            )
+        val notification = aggregateDownloadNotification(snapshot)
+
+        assertEquals(2, snapshot.activeCount)
+        assertEquals(2, notification.activeCount)
+        assertEquals(65L, snapshot.downloadedBytes)
+        assertEquals(1_000L, snapshot.totalBytes)
+        assertEquals(snapshot.downloadedBytes, notification.task?.downloadedBytes)
+        assertEquals(snapshot.totalBytes, notification.task?.totalBytes)
+        assertEquals(snapshot.sortedIdentityKeys, notification.identityKeys)
+        assertEquals(
+            0L,
+            snapshot.tasks.single { it.identity == zeroTotal.downloadIdentity() }.totalBytes,
+        )
+    }
+
+    @Test
+    fun `single flight sampler publishes older completion before newer request`() = runBlocking {
+        val owner = CanonicalActiveTaskSnapshotOwner(clock = { 1L })
+        val firstStarted = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        val older = async {
+            owner.sample { samplingEpochMs ->
+                firstStarted.complete(Unit)
+                releaseFirst.await()
+                DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                    tasks =
+                        listOf(
+                            task(
+                                sourceId = "older",
+                                status = DownloadTaskStatus.RUNNING,
+                                totalBytes = 100L,
+                            )
+                        ),
+                    downloadedCanonicalKeys = emptySet(),
+                    samplingEpochMs = samplingEpochMs,
+                )
+            }
+        }
+        firstStarted.await()
+        val newer =
+            async(start = CoroutineStart.UNDISPATCHED) {
+                owner.sample { samplingEpochMs ->
+                    DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                        tasks =
+                            listOf(
+                                task(
+                                    sourceId = "newer",
+                                    status = DownloadTaskStatus.RUNNING,
+                                    totalBytes = 200L,
+                                )
+                            ),
+                        downloadedCanonicalKeys = emptySet(),
+                        samplingEpochMs = samplingEpochMs,
+                    )
+                }
+            }
+        releaseFirst.complete(Unit)
+
+        assertEquals(100L, older.await().totalBytes)
+        assertEquals(200L, newer.await().totalBytes)
+        assertEquals(200L, owner.latest().totalBytes)
+    }
+
+    @Test
+    fun `same raw task set still publishes a new canonical epoch`() = runBlocking {
+        val owner = CanonicalActiveTaskSnapshotOwner(clock = { 10L })
+        val tasks =
+            listOf(
+                task(
+                    sourceId = "same",
+                    status = DownloadTaskStatus.PAUSED,
+                    downloadedBytes = 40L,
+                    totalBytes = 100L,
+                )
+            )
+        val paused = owner.sample { samplingEpochMs ->
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = tasks,
+                downloadedCanonicalKeys = emptySet(),
+                samplingEpochMs = samplingEpochMs,
+            )
+        }
+        val resumed = owner.sample { samplingEpochMs ->
+            DownloadControlPlaneRules.canonicalActiveTaskSnapshot(
+                tasks = tasks,
+                downloadedCanonicalKeys = emptySet(),
+                samplingEpochMs = samplingEpochMs,
+            )
+        }
+
+        assertEquals(paused.downloadedBytes, resumed.downloadedBytes)
+        assertEquals(paused.totalBytes, resumed.totalBytes)
+        assertTrue(resumed.samplingEpochMs > paused.samplingEpochMs)
+    }
 
     @Test
     fun `活动唯一意图按 canonical identity 去重并剔除已完成落盘`() {
@@ -315,4 +521,9 @@ class DownloadControlPlaneRulesTest {
             ),
         )
     }
+
+    private fun identityHash(keys: List<String>): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(keys.joinToString(separator = "\n").toByteArray())
+            .joinToString(separator = "") { byte -> "%02x".format(byte) }
 }

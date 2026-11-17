@@ -64,6 +64,14 @@ private val navScrollMemory = NavScrollMemory()
 internal fun navScrollKey(owner: Any?, fallback: String): String =
     if (owner is NavBackStackEntry) "entry:${owner.id}" else fallback
 
+internal fun shouldRestoreLazyPosition(
+    currentIndex: Int,
+    currentOffset: Int,
+    targetIndex: Int,
+    targetOffset: Int,
+): Boolean =
+    currentIndex < targetIndex || (currentIndex == targetIndex && currentOffset < targetOffset)
+
 /** 当前组合所属的导航条目 id（不在 NavHost 里时回落到 [fallbackKey]）。 */
 @Composable
 private fun rememberNavScrollKey(fallbackKey: String): String {
@@ -108,7 +116,14 @@ internal fun rememberLazyScrollMemoryState(fallbackKey: String): LazyListState {
         val target = navScrollMemory.lazyPosition(key) ?: return@LaunchedEffect
         if (target.first == 0 && target.second == 0) return@LaunchedEffect
         snapshotFlow { state.layoutInfo.totalItemsCount }.first { it > target.first }
-        if (state.firstVisibleItemIndex < target.first) {
+        if (
+            shouldRestoreLazyPosition(
+                currentIndex = state.firstVisibleItemIndex,
+                currentOffset = state.firstVisibleItemScrollOffset,
+                targetIndex = target.first,
+                targetOffset = target.second,
+            )
+        ) {
             state.scrollToItem(target.first, target.second)
         }
     }
@@ -137,7 +152,14 @@ internal fun rememberLazyGridScrollMemoryState(fallbackKey: String): LazyGridSta
         val target = navScrollMemory.lazyPosition(key) ?: return@LaunchedEffect
         if (target.first == 0 && target.second == 0) return@LaunchedEffect
         snapshotFlow { state.layoutInfo.totalItemsCount }.first { it > target.first }
-        if (state.firstVisibleItemIndex < target.first) {
+        if (
+            shouldRestoreLazyPosition(
+                currentIndex = state.firstVisibleItemIndex,
+                currentOffset = state.firstVisibleItemScrollOffset,
+                targetIndex = target.first,
+                targetOffset = target.second,
+            )
+        ) {
             state.scrollToItem(target.first, target.second)
         }
     }

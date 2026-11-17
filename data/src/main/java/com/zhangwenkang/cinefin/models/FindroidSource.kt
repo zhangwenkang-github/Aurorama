@@ -33,6 +33,40 @@ data class FindroidSource(
     val downloadTaskStatus: String? = null,
 )
 
+/**
+ * 播放源选择只接受当前仍可交付的源。
+ *
+ * LOCAL 必须处于可完成生命周期，并且是本机可读取的非空文件；content:// 代表已索引的本地媒体库文档。 HTTP 或未知 scheme 不能被当作本地文件，避免 stale
+ * LOCAL 仅因 path 非空而短路远端回退。
+ */
+internal fun FindroidSource.isAvailableForSourceSelection(): Boolean =
+    when (type) {
+        FindroidSourceType.REMOTE -> true
+        FindroidSourceType.LOCAL ->
+            (downloadTaskStatus == null ||
+                downloadTaskStatus.equals("COMPLETED", ignoreCase = true)) &&
+                hasReadableLocalMediaPath()
+    }
+
+private fun FindroidSource.hasReadableLocalMediaPath(): Boolean {
+    val rawPath = path.trim()
+    if (rawPath.isEmpty()) return false
+    if (rawPath.startsWith("content://", ignoreCase = true)) return true
+
+    val uri = runCatching { URI(rawPath) }.getOrNull()
+    val file =
+        when {
+            WINDOWS_ABSOLUTE_PATH.matches(rawPath) -> File(rawPath)
+            uri == null || uri.scheme.isNullOrBlank() -> File(rawPath)
+            uri.scheme.equals("file", ignoreCase = true) -> runCatching { File(uri) }.getOrNull()
+            else -> return false
+        } ?: return false
+
+    return runCatching { file.isFile && file.length() > 0L }.getOrDefault(false)
+}
+
+private val WINDOWS_ABSOLUTE_PATH = Regex("^[A-Za-z]:[\\\\/].*")
+
 enum class DownloadPathKind {
     SYNTHETIC_STREAM,
     OFFICIAL_DOWNLOAD,

@@ -45,4 +45,18 @@
     <string name="update_retry_download">重试下载</string>
     <string name="update_install">打开系统安装器</string>
     <string name="update_install_safety">安装由系统界面确认；应用只有在复核已安装版本后才会显示安装成功。</string>
+    <string name="media_batch_episode_selection_title">选择要下载的剧集</string>
+    <string name="media_batch_episode_selection_expanded">%1$d 个容器 · 展开 %2$d 集</string>
+    <string name="media_batch_episode_selection_loading">正在展开剧集…</string>
+    <string name="media_batch_episode_selection_load_failed">剧集加载不完整，已阻止下载。</string>
+    <string name="media_batch_episode_selection_summary">已选 %1$d / 共 %2$d 集</string>
+    <string name="media_batch_episode_selection_select_all">全选</string>
+    <string name="media_batch_episode_selection_select_none">清空</string>
+    <string name="media_batch_episode_selection_confirm">下载所选（%1$d 集）</string>
+    <string name="media_batch_episode_selection_deduplicated">已合并 %1$d 个重复剧集目标。</string>
+    <string name="media_batch_episode_selection_required">请先选择具体剧集，再执行下载。</string>
+    <string name="media_batch_episode_selection_rejected">剧集选择未完整加载，未执行下载。</string>
+    <string name="media_batch_episode_selection_all_skipped">所选 %1$d 集均已下载或已在队列中。</string>
+    <string name="media_batch_episode_downloaded">已下载</string>
+    <string name="media_batch_episode_queued">下载队列中</string>
 </resources>

@@ -23,6 +23,8 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
+import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackSurfaceState
+import com.zhangwenkang.cinefin.player.local.domain.MusicTransportAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,6 +78,17 @@ class CinefinMediaNotificationProvider(
     ): MediaNotification {
         val player = mediaSession.player
         val metadata = player.mediaMetadata
+        val surfaceState = MusicPlaybackSurfaceState.from(player)
+        val musicItem = isMusicItem()
+        val playbackActive = if (musicItem) surfaceState.isPlaybackActive else player.isPlaying
+        val transportAction =
+            if (musicItem) {
+                surfaceState.transportAction
+            } else if (player.isPlaying) {
+                MusicTransportAction.PAUSE
+            } else {
+                MusicTransportAction.PLAY
+            }
         val extras = metadata.extras
         val season = extras?.getInt(PLAYER_EXTRA_SEASON_NUMBER, -1) ?: -1
         val episode = extras?.getInt(PLAYER_EXTRA_EPISODE_NUMBER, -1) ?: -1
@@ -83,7 +96,7 @@ class CinefinMediaNotificationProvider(
         val subtitle =
             when {
                 // W68：音乐 → 歌手（无则空）；视频 → 现有季集副标题
-                isMusicItem() -> metadata.artist?.toString().orEmpty()
+                musicItem -> metadata.artist?.toString().orEmpty()
                 season >= 0 && episode >= 0 -> "S$season:E$episode"
                 else -> ""
             }
@@ -105,7 +118,7 @@ class CinefinMediaNotificationProvider(
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setShowWhen(false)
                 .setOnlyAlertOnce(true)
-                .setOngoing(player.isPlaying)
+                .setOngoing(playbackActive)
 
         /*
          * 封面（§1.4）：命中缓存就带上；没有就异步加载，加载完成后再回调刷新一次通知。
@@ -160,7 +173,11 @@ class CinefinMediaNotificationProvider(
             mediaAction(
                 actionFactory,
                 mediaSession,
-                if (player.isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play,
+                if (transportAction == MusicTransportAction.PAUSE) {
+                    CoreR.drawable.ic_pause
+                } else {
+                    CoreR.drawable.ic_play
+                },
                 PlayerR.string.player_controls_play_pause,
                 Player.COMMAND_PLAY_PAUSE,
             )

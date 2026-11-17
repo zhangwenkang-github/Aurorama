@@ -147,7 +147,16 @@ class VideoViewModelTest {
     fun `scope changes while loading so the old result cannot overwrite new libraries`() =
         runTest(mainDispatcher.scheduler) {
             val oldGate = CompletableDeferred<Unit>()
-            val nextScope = SCOPE.copy(identityGeneration = 2L)
+            val nextScope =
+                SCOPE.copy(
+                    origin =
+                        JellyfinOrigin(
+                            serverId = "server-b",
+                            userId = UUID.fromString("33333333-3333-4333-8333-333333333333"),
+                        ),
+                    principalContext = CatalogPrincipalContext.SAVED_OFFLINE_ACCOUNT,
+                    identityGeneration = 2L,
+                )
             val catalog =
                 FakeVideoCatalog(SCOPE).apply {
                     libraryResult = { query ->
@@ -159,18 +168,26 @@ class VideoViewModelTest {
                         }
                     }
                 }
-            val viewModel = installViewModel(newViewModel(catalog))
+            val appPreferences = appPreferences()
+            val viewModel =
+                installViewModel(
+                    VideoViewModel(
+                        catalogReadPort = catalog,
+                        appPreferences = appPreferences,
+                        sleepTimerState = MutableStateFlow(SleepTimerController.State()),
+                    )
+                )
 
             viewModel.load()
             runCurrent()
             catalog.scope = nextScope
-            viewModel.load()
+            appPreferences.setValue(appPreferences.mediaCatalogScopeRevision, 1L)
             advanceUntilIdle()
             oldGate.complete(Unit)
             advanceUntilIdle()
 
             assertEquals(listOf("new"), viewModel.state.value.allLibraries.map { it.name })
-            assertEquals(VideoLibrarySource.Online, viewModel.state.value.source)
+            assertEquals(VideoLibrarySource.Offline, viewModel.state.value.source)
         }
 
     @Test

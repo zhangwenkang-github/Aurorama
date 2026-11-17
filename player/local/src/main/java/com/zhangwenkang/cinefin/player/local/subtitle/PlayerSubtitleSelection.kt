@@ -5,6 +5,22 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import timber.log.Timber
 
+/** 某条字幕为何不能作为次字幕；用于面板与恢复路径共用同一 fail-closed 原因。 */
+enum class SubtitleSecondaryUnavailableReason {
+    GraphicOnly,
+    DeliveryUrlMissing,
+    StaleTrack,
+    DownloadFailed,
+    InvalidContent,
+}
+
+fun PlayerSubtitleSource.secondaryUnavailableReason(): SubtitleSecondaryUnavailableReason? =
+    when {
+        isGraphic -> SubtitleSecondaryUnavailableReason.GraphicOnly
+        !isTextBased -> SubtitleSecondaryUnavailableReason.DeliveryUrlMissing
+        else -> null
+    }
+
 /** 旧单槽字幕记忆（W74 #14②）：只作为 W86-B 一次性迁移源，新写入不得使用。 */
 data class SubtitleManualSelection(
     val mediaId: String,
@@ -113,6 +129,7 @@ data class RestoredSubtitleSelection(
     val primaryIndex: Int?,
     val secondaryIndex: Int?,
     val disabledByUser: Boolean,
+    val secondaryUnavailableReason: SubtitleSecondaryUnavailableReason? = null,
 )
 
 /** 主 / 次字幕在 Jellyfin 源序号域的当前分配。 */
@@ -294,7 +311,10 @@ object PlayerSubtitleSelection {
     ): PlayerSubtitleSource? {
         if (mode == Constants.SubtitleMode.OFF) return null
 
-        val candidates = sources.filter { it.isTextBased }
+        // 主字幕既可由 App 侧文本管线渲染，也可交给内核原生轨（图形字幕 /
+        // 没有 DeliveryUrl 的文本轨）。自动选择不能只看见可下载文本源，否则
+        // 仅含 PGS/VobSub 的媒体会被静默判成“没有字幕”。
+        val candidates = sources
         if (candidates.isEmpty()) return null
 
         val best =
@@ -305,6 +325,8 @@ object PlayerSubtitleSelection {
                 .sortedWith(
                     compareBy(
                         { LanguageMatcher.priorityIndex(it.language, priority) },
+                        // 同一语言下优先可自管的文本轨；图形 / 仅原生轨仍参与兜底。
+                        { if (it.isTextBased) 0 else 1 },
                         // 同一语言下优先完整字幕（非强制字幕）
                         { if (it.isForced) 1 else 0 },
                         { if (it.isDefault) 0 else 1 },
@@ -380,16 +402,26 @@ object PlayerSubtitleSelection {
                 sources.any { it.index == memory.primaryIndex } -> memory.primaryIndex
                 else -> return null
             }
+        val secondaryReason =
+            secondaryRestoreReason(
+                index = memory.secondaryIndex,
+                primary = primary,
+                sources = sources,
+                noIndex = SubtitleManualSelection.NO_INDEX,
+            )
         val secondary =
             memory.secondaryIndex
                 .takeIf { it != SubtitleManualSelection.NO_INDEX && it != primary }
-                ?.takeIf { index -> sources.any { it.index == index } }
+                ?.takeIf { secondaryReason == null }
+        val primaryExplicitlyOff = memory.primaryIndex == SubtitleManualSelection.NO_INDEX
         return RestoredSubtitleSelection(
             primaryIndex = primary,
             secondaryIndex = secondary,
             disabledByUser =
-                memory.primaryIndex == SubtitleManualSelection.NO_INDEX &&
-                    memory.secondaryIndex == SubtitleManualSelection.NO_INDEX,
+                primaryExplicitlyOff &&
+                    (memory.secondaryIndex == SubtitleManualSelection.NO_INDEX ||
+                        secondary == null),
+            secondaryUnavailableReason = secondaryReason,
         )
     }
 
@@ -406,16 +438,39 @@ object PlayerSubtitleSelection {
                 sources.any { it.index == selection.primaryIndex } -> selection.primaryIndex
                 else -> return null
             }
+        val secondaryReason =
+            secondaryRestoreReason(
+                index = selection.secondaryIndex,
+                primary = primary,
+                sources = sources,
+                noIndex = ScopedSubtitleSelection.NO_INDEX,
+            )
         val secondary =
             selection.secondaryIndex
                 .takeIf { it != ScopedSubtitleSelection.NO_INDEX && it != primary }
-                ?.takeIf { index -> sources.any { it.index == index } }
+                ?.takeIf { secondaryReason == null }
+        val primaryExplicitlyOff = selection.primaryIndex == ScopedSubtitleSelection.NO_INDEX
         return RestoredSubtitleSelection(
             primaryIndex = primary,
             secondaryIndex = secondary,
             disabledByUser =
-                selection.primaryIndex == ScopedSubtitleSelection.NO_INDEX &&
-                    selection.secondaryIndex == ScopedSubtitleSelection.NO_INDEX,
+                primaryExplicitlyOff &&
+                    (selection.secondaryIndex == ScopedSubtitleSelection.NO_INDEX ||
+                        secondary == null),
+            secondaryUnavailableReason = secondaryReason,
         )
+    }
+
+    private fun secondaryRestoreReason(
+        index: Int,
+        primary: Int?,
+        sources: List<PlayerSubtitleSource>,
+        noIndex: Int,
+    ): SubtitleSecondaryUnavailableReason? {
+        if (index == noIndex || index == primary) return null
+        val source =
+            sources.firstOrNull { it.index == index }
+                ?: return SubtitleSecondaryUnavailableReason.StaleTrack
+        return source.secondaryUnavailableReason()
     }
 }

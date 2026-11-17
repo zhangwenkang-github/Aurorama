@@ -184,7 +184,7 @@ class SeekStateReducerTest {
     }
 
     @Test
-    fun `engine failure keeps request target and exposes retryability`() {
+    fun `engine failure displays engine position instead of request target`() {
         val reducer = SeekStateReducer()
         begin(reducer, targetMs = 70_000L)
 
@@ -205,8 +205,12 @@ class SeekStateReducerTest {
         assertEquals(SeekFailureReason.ENGINE_ERROR, failed.reason)
         assertTrue(failed.retryable)
         assertEquals(
-            70_000L,
+            0L,
             seekDisplayPositionMs(failed, enginePositionMs = 0L, nowElapsedMs = 2_100L),
+        )
+        assertEquals(
+            12_345L,
+            seekDisplayPositionMs(failed, enginePositionMs = 12_345L, nowElapsedMs = 2_100L),
         )
     }
 
@@ -495,7 +499,11 @@ class SeekStateReducerTest {
 
         // The coordinator holds an accepted anchor until Media3 reports the authoritative
         // transition, then applies that anchor to the new source cursor.
-        reducer.onSourceReplaced(newIdentity, acceptedPositionMs = 0L)
+        reducer.onSourceReplaced(
+            mediaIdentity = newIdentity,
+            acceptedPositionMs = 0L,
+            preserveRequestAcrossItemChange = true,
+        )
         val transitionedSeeking = reducer.state as SeekState.Seeking
         assertEquals(2L, transitionedSeeking.sourceEpoch)
         assertEquals(newIdentity, transitionedSeeking.mediaIdentity)
