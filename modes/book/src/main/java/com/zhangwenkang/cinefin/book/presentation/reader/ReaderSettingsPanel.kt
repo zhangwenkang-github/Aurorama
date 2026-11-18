@@ -59,7 +59,7 @@ internal data class ReaderSettingsTools(
 /**
  * 阅读器排版面板（UI_DESIGN_SYSTEM §8.14）。
  *
- * 宽 512dp、圆角 22dp、内边距 30/28dp；字号 / 行距 / 边距滑块，字体 / 对齐 chip 行， 主题缩略图 5 个（78dp 圆角
+ * 宽 512dp、圆角 20dp（CinefinShapes.Card）、内边距 30/28dp；字号 / 行距 / 边距滑块，字体 / 对齐 chip 行， 主题缩略图 5 个（78dp 圆角
  * 14dp）。所有修改即时回调，由调用方提交导航器并持久化。
  *
  * 分段控件与 chip 使用 core 组件；纸色 / 护眼主题下媒体色已被 [ReaderSettings.mediaColors] 替换为纸页棕，组件自动取色，面板不再手工传强调色。

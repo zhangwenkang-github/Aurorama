@@ -151,7 +151,7 @@ Cinefin · 播放控制层（Compose）
 颜色锁：  影视域媒体色（琥珀 MediaFilm）只出现在进度、进行中与激活面板上，且必须融进
           控件本体（填充 / 描边 / 图标 / 文字）；其余一律中性色（CinefinColors）。
           禁止独立色块 / 色点 / 发光，禁止任何 Color(0x…) 字面量。
-形状锁：  主播放键 22dp、工具键 16dp、面板 22dp、chip 12dp（CinefinShapes）。
+形状锁：  主播放键 Xl、工具键 / chip Button、面板 Card（CinefinShapes 语义槽位，W3-T4 起）。
 动效锁：  控制层 280ms Decelerate（淡入 + 上浮 12dp）；面板 420ms Emphasized；只动 transform / opacity / color。
 可读性：  上下渐隐遮罩 + 覆盖层工具键玻璃底，保证任何画面上文字与图标都可读。
 ========================================================================= */
