@@ -50,10 +50,6 @@ import com.zhangwenkang.cinefin.player.local.domain.PlayerExitAction
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExplicitExitController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlayerItemEndAction
-import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackController
-import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressFallbackInput
-import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryController
-import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryInput
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryPhase
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryRequest
 import com.zhangwenkang.cinefin.player.local.domain.PlayerProgressRecoveryStatus
@@ -68,7 +64,6 @@ import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.playerExitAction
-import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSourceKind
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.seekMediaIdentityFor
 import com.zhangwenkang.cinefin.player.local.domain.seriesBackendKind
@@ -81,8 +76,13 @@ import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_SOURCE_RESOLUT
 import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_STARTUP_SOURCE_FAILED
 import com.zhangwenkang.cinefin.player.local.session.PlaybackSessionOwner
 import com.zhangwenkang.cinefin.player.local.session.PlayerErrorInfo
+import com.zhangwenkang.cinefin.player.local.session.ProgressFallbackSnapshot
+import com.zhangwenkang.cinefin.player.local.session.ProgressWatchdog
+import com.zhangwenkang.cinefin.player.local.session.RecoveryOwnershipSnapshot
 import com.zhangwenkang.cinefin.player.local.session.SourceResolutionIntent
 import com.zhangwenkang.cinefin.player.local.session.StartupStateMachine
+import com.zhangwenkang.cinefin.player.local.session.WatchdogInput
+import com.zhangwenkang.cinefin.player.local.session.recoveryRetains
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackMapping
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackRef
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
@@ -252,8 +252,8 @@ constructor(
             },
             backendName = { playerBackend },
         )
-    private val progressFallbackController = PlayerProgressFallbackController()
-    private val progressRecoveryController = PlayerProgressRecoveryController()
+    /** 进度看门狗：terminal / 兜底 / 恢复的判定与分发都归它，VM 只采集输入、执行计划。 */
+    private val watchdog = ProgressWatchdog()
     private val explicitExitController = PlayerExplicitExitController()
     private val playbackResourcesGate = PlayerExitFinalizationGate()
     private val playerAccess =
@@ -275,7 +275,6 @@ constructor(
     private val progressRecoveryOwnership =
         ProgressRecoveryJobOwner(
             scope = viewModelScope,
-            controller = progressRecoveryController,
             currentSeekBinding = { seekSink.state.progressRecoverySeekBinding() },
             requestIsCurrent = ::progressRecoveryRequestIsCurrent,
             executeRetry = { request, terminal ->
@@ -286,6 +285,11 @@ constructor(
             },
             observeWindowMs = PROGRESS_RECOVERY_OBSERVE_WINDOW_MS,
             onExhausted = ::publishExhaustedStartupSourceFailure,
+            nextAttempt = watchdog::nextRecoveryAttempt,
+            recoveryExhausted = {
+                watchdog.progressRecoveryStatus()?.phase == PlayerProgressRecoveryPhase.EXHAUSTED
+            },
+            releaseRecovery = watchdog::cancelRecovery,
         )
     private val segmentCallbackCoordinator =
         PlayerSegmentCallbackCoordinator(playerAccess = playerAccess)
@@ -656,68 +660,36 @@ constructor(
                 persistedResumeMs = persistedResumePositionMs(mediaItem?.mediaId, currentSourceId),
                 crossItemSeekInFlight = seekSink.isCrossItemSeekInFlight,
             )
-        sessionOwner.updatePlaybackSessionState(
-            PlaybackSessionRules.advance(sessionOwner.playbackSessionState, input, nowElapsedMs)
-        )
-        val recoveryTerminal = sessionOwner.playbackSessionState.terminal
-        progressRecoveryOwnership.retainTerminal(recoveryTerminal, sessionKey)
-        val progressFallbackInput =
-            progressFallbackInput(
-                mediaItem = mediaItem,
-                sessionKey = sessionKey,
-                playWhenReady = playWhenReadyIntent,
-            )
-        val progressFallbackRequest = progressFallbackController.evaluate(progressFallbackInput)
-        if (progressFallbackRequest != null) {
-            val queued =
-                eventsChannel.trySend(
-                    PlayerEvents.FallbackToExoForProgressStall(progressFallbackRequest.token)
+        val plan =
+            watchdog.evaluate(
+                WatchdogInput(
+                    nowElapsedMs = nowElapsedMs,
+                    sessionState = sessionOwner.playbackSessionState,
+                    session = input,
+                    fallback = progressFallbackSnapshot(mediaItem, sessionKey),
+                    recoveryOwnership = progressRecoveryOwnership.snapshot(),
                 )
-            if (queued.isFailure) progressFallbackController.cancelCurrentGeneration()
-        }
-        val progressRecoveryInput =
-            PlayerProgressRecoveryInput(
-                sessionKey = sessionKey,
-                mediaIdentity = progressFallbackInput.mediaIdentity,
-                targetPositionMs = recoveryTerminal?.positionMs ?: 0L,
-                terminalKind = recoveryTerminal?.kind,
-                terminalToken = recoveryTerminal?.token,
-                playWhenReady = playWhenReadyIntent,
-                hasPlayerError = input.hasPlayerError,
-                hasSeekFailure = input.hasSeekFailure,
-                enginePositionMs = input.enginePositionMs,
-                bufferedPositionMs = input.bufferedPositionMs,
-                isReady = input.isReady,
-                isPlaying = input.isPlaying,
-                wasLoading = sessionOwner.playbackSessionState.wasLoading,
             )
-        val recoveryObservation = progressRecoveryController.observe(progressRecoveryInput)
-        if (
-            recoveryObservation.phase == PlayerProgressRecoveryPhase.CONFIRMED ||
-                recoveryObservation.phase == PlayerProgressRecoveryPhase.CANCELLED
-        ) {
-            cancelProgressRecoveryOwnership()
+        sessionOwner.updatePlaybackSessionState(plan.newSessionState)
+        progressRecoveryOwnership.retainTerminal(plan.retainTerminal, sessionKey)
+        plan.fallbackEventToken?.let { requestToken ->
+            val queued =
+                eventsChannel.trySend(PlayerEvents.FallbackToExoForProgressStall(requestToken))
+            if (queued.isFailure) watchdog.cancelFallback()
         }
-        val suppressTerminal = progressFallbackController.suppressesTerminal(sessionKey)
-        if (recoveryTerminal != null && !suppressTerminal && !progressRecoveryOwnership.isActive) {
-            progressRecoveryController.begin(progressRecoveryInput)?.let {
-                launchProgressRecovery(it, recoveryTerminal)
-            }
-        }
+        if (plan.cancelRecovery) releaseProgressRecoveryJob()
+        plan.startRecovery?.let { (request, terminal) -> launchProgressRecovery(request, terminal) }
         _uiState.update {
             it.copy(
                 playbackSession =
-                    PlaybackSessionRules.project(
-                            sessionOwner.playbackSessionState,
-                            input,
-                            suppressTerminal = suppressTerminal,
-                        )
-                        .copy(progressRecovery = progressRecoveryController.status()?.toUi())
+                    plan.sessionUiBase.copy(
+                        progressRecovery = watchdog.progressRecoveryStatus()?.toUi()
+                    )
             )
         }
         seriesPlaybackTrace?.observePosition(
-            positionMs = sessionOwner.playbackSessionState.lastEnginePositionMs,
-            terminalKind = sessionOwner.playbackSessionState.terminal?.kind,
+            positionMs = plan.newSessionState.lastEnginePositionMs,
+            terminalKind = plan.newSessionState.terminal?.kind,
             hasPlayerError = errorPolicy.current != null,
         )
     }
@@ -729,6 +701,12 @@ constructor(
         progressRecoveryOwnership.start(firstRequest, terminal)
     }
 
+    /** 只释放恢复协程；恢复状态已由 [watchdog] 按计划清掉。 */
+    private fun releaseProgressRecoveryJob() {
+        progressRecoveryOwnership.releaseJob()
+    }
+
+    /** 全量取消：协程与恢复状态一起清（显式退出 / 新起播）。 */
     private fun cancelProgressRecoveryOwnership() {
         progressRecoveryOwnership.cancel()
     }
@@ -752,7 +730,7 @@ constructor(
         request: PlayerProgressRecoveryRequest,
         expectedSeekBinding: ProgressRecoverySeekBinding?,
     ): Boolean {
-        if (!playerAccess.isOpen() || !progressRecoveryController.isCurrent(request)) {
+        if (!playerAccess.isOpen() || !watchdog.isRecoveryCurrent(request)) {
             return false
         }
         val active = playerHolder.existingPlayer ?: return false
@@ -780,11 +758,11 @@ constructor(
             exhausted = phase == PlayerProgressRecoveryPhase.EXHAUSTED,
         )
 
-    private fun progressFallbackInput(
+    /** 采集媒体来源原始字段：兜底的身份与源类型判定在看门狗内部完成（session 包不碰 media3）。 */
+    private fun progressFallbackSnapshot(
         mediaItem: MediaItem?,
         sessionKey: String?,
-        playWhenReady: Boolean,
-    ): PlayerProgressFallbackInput {
+    ): ProgressFallbackSnapshot {
         val extras = mediaItem?.mediaMetadata?.extras
         val itemId =
             mediaItem?.mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
@@ -797,22 +775,15 @@ constructor(
             extras?.getString(PLAYER_EXTRA_SEEK_SOURCE_URI)?.takeIf(String::isNotBlank)
                 ?: mediaItem?.localConfiguration?.uri?.toString()
                 ?: sourceItem?.mediaSourceUri
-        val terminal = sessionOwner.playbackSessionState.terminal
-        return PlayerProgressFallbackInput(
+        return ProgressFallbackSnapshot(
             sessionKey = sessionKey,
-            mediaIdentity = playbackMediaIdentity(itemId, mediaSourceId),
-            sourceKind =
-                playerProgressFallbackSourceKind(
-                    sourceUri = sourceUri,
-                    container = sourceItem?.mediaInfo?.container,
-                    mimeType = mediaItem?.localConfiguration?.mimeType,
-                ),
+            itemId = itemId,
+            mediaSourceId = mediaSourceId,
+            sourceUri = sourceUri,
+            container = sourceItem?.mediaInfo?.container,
+            mimeType = mediaItem?.localConfiguration?.mimeType,
             backend = playerBackend,
             autoFallbackEnabled = appPreferences.getValue(appPreferences.playerAutoFallback),
-            playWhenReady = playWhenReady,
-            terminalKind = terminal?.kind,
-            terminalToken = terminal?.token,
-            positionMs = terminal?.positionMs ?: -1L,
         )
     }
 
@@ -1413,7 +1384,7 @@ constructor(
         queueExpandJob = null
         queueFillJob?.cancel()
         queueFillJob = null
-        progressFallbackController.cancelCurrentGeneration()
+        watchdog.cancelFallback()
         cancelProgressRecoveryOwnership()
         if (cancelSessionSampler) {
             playbackSessionJob?.cancel()
@@ -3215,19 +3186,17 @@ constructor(
         val sessionKey = currentPlaybackSessionKey(active, mediaItem) ?: return null
         val itemKind = currentPlaybackItemKind()
         if (itemKind == null) {
-            progressFallbackController.cancelCurrentGeneration()
+            watchdog.cancelFallback()
             return null
         }
         val playWhenReadyIntent =
             if (startupStateMachine.startupInProgress) playWhenReady else active.playWhenReady
         val request =
-            progressFallbackController.consume(
-                requestToken,
-                progressFallbackInput(
-                    mediaItem = mediaItem,
-                    sessionKey = sessionKey,
-                    playWhenReady = playWhenReadyIntent,
-                ),
+            watchdog.consumeFallback(
+                requestToken = requestToken,
+                snapshot = progressFallbackSnapshot(mediaItem, sessionKey),
+                playWhenReady = playWhenReadyIntent,
+                terminal = sessionOwner.playbackSessionState.terminal,
             ) ?: return null
         return PlaybackProgressFallbackHandoff(
             itemId = request.mediaIdentity.itemId,
@@ -3238,7 +3207,7 @@ constructor(
     }
 
     fun cancelProgressFallback() {
-        progressFallbackController.cancelCurrentGeneration()
+        watchdog.cancelFallback()
     }
 
     fun retryPlayback(terminalToken: String) {
@@ -3887,9 +3856,13 @@ internal class PlayerStartupSourceRetryBudget(private val maxAttempts: Int) {
     }
 }
 
+/**
+ * 进度恢复协程的唯一持有者；恢复状态本身归 [ProgressWatchdog]。
+ *
+ * 本类只管协程：起停在跑的重试、按 [nextAttempt] 取下一轮请求、按 [recoveryExhausted] 判耗尽。
+ */
 internal class ProgressRecoveryJobOwner(
     private val scope: CoroutineScope,
-    private val controller: PlayerProgressRecoveryController,
     private val currentSeekBinding: () -> ProgressRecoverySeekBinding?,
     private val requestIsCurrent:
         (PlayerProgressRecoveryRequest, ProgressRecoverySeekBinding?) -> Boolean,
@@ -3898,6 +3871,12 @@ internal class ProgressRecoveryJobOwner(
     private val observeWindowMs: Long,
     /** 重试预算真正耗尽（不是被取消 / 确认恢复）时回调，由持有方决定是否补发错误状态。 */
     private val onExhausted: () -> Unit,
+    /** 下一轮重试请求；null = 本轮结束，再看 [recoveryExhausted]。 */
+    private val nextAttempt: (PlayerProgressRecoveryRequest) -> PlayerProgressRecoveryRequest?,
+    /** 重试预算是否已耗尽（恢复状态归看门狗，这里只问不写）。 */
+    private val recoveryExhausted: () -> Boolean,
+    /** 全量取消时一并清空恢复状态；协程自己判旧 / 外部退出与新起播都走这条。 */
+    private val releaseRecovery: () -> Unit,
 ) {
     private var job: Job? = null
     private var terminal: PlayerViewModel.PlaybackRecovery? = null
@@ -3936,11 +3915,8 @@ internal class ProgressRecoveryJobOwner(
                 expectedSeekBinding = currentSeekBinding()
                 delay(observeWindowMs)
                 if (!isActive) return@launch
-                request = controller.nextAttempt(currentRequest)
-                if (
-                    request == null &&
-                        controller.status()?.phase == PlayerProgressRecoveryPhase.EXHAUSTED
-                ) {
+                request = nextAttempt(currentRequest)
+                if (request == null && recoveryExhausted()) {
                     onExhausted()
                 }
             }
@@ -3955,22 +3931,28 @@ internal class ProgressRecoveryJobOwner(
         currentTerminal: PlayerViewModel.PlaybackRecovery?,
         currentSessionKey: String?,
     ) {
-        val activeTerminal = terminal ?: return
-        if (
-            currentTerminal == null ||
-                currentTerminal.token != activeTerminal.token ||
-                currentSessionKey != sessionKey
-        ) {
-            cancel()
+        // 恢复状态由看门狗在同一次判定里清空；这里只释放协程。
+        if (!recoveryRetains(terminal, sessionKey, currentTerminal, currentSessionKey)) {
+            releaseJob()
         }
     }
 
-    fun cancel() {
+    /** 恢复 job 的只读现状；看门狗用它判定步骤⑥ 的短路条件。 */
+    fun snapshot(): RecoveryOwnershipSnapshot =
+        RecoveryOwnershipSnapshot(active = isActive, terminal = terminal, sessionKey = sessionKey)
+
+    /** 只释放协程：恢复状态已由看门狗按计划清掉（观察取消 / retain 释放）。 */
+    fun releaseJob() {
         job?.cancel()
         job = null
-        controller.cancel()
         terminal = null
         sessionKey = null
+    }
+
+    /** 全量取消：协程与恢复状态一起清（协程自判旧、显式退出、新起播）。 */
+    fun cancel() {
+        releaseJob()
+        releaseRecovery()
     }
 }
 

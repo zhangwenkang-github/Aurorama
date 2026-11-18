@@ -15,6 +15,7 @@ import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.SeekMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.SeekState
 import com.zhangwenkang.cinefin.player.local.domain.playerProgressFallbackSourceKind
+import com.zhangwenkang.cinefin.player.local.session.recoveryRetains
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
 import java.lang.reflect.Proxy
 import java.util.UUID
@@ -934,7 +935,12 @@ class PlayerProgressFallbackTest {
         val owner =
             ProgressRecoveryJobOwner(
                 scope = this,
-                controller = controller,
+                // 恢复状态归 ProgressWatchdog；job owner 只驱动协程。
+                nextAttempt = controller::nextAttempt,
+                recoveryExhausted = {
+                    controller.status()?.phase == PlayerProgressRecoveryPhase.EXHAUSTED
+                },
+                releaseRecovery = { controller.cancel() },
                 currentSeekBinding = { seekSink.state.progressRecoverySeekBinding() },
                 requestIsCurrent = { request, expectedBinding ->
                     progressRecoveryRequestIdentityIsCurrent(
@@ -967,9 +973,13 @@ class PlayerProgressFallbackTest {
                 sourceEpoch = newerSeek.sourceEpoch,
             )
         val afterSeek = PlaybackSessionRules.advance(timedOut, newerInput, 22_000L)
+        val retains = recoveryRetains(oldTerminal, sessionKey, afterSeek.terminal, afterSeek.key)
         owner.retainTerminal(afterSeek.terminal, afterSeek.key)
+        // W2-T3b：恢复状态归 ProgressWatchdog，判定为释放时由看门狗同步清空。
+        if (!retains) controller.cancel()
 
         assertNull(afterSeek.terminal)
+        assertFalse(retains)
         assertFalse(controller.isCurrent(oldRequest))
         assertFalse(owner.isActive)
         assertNull(owner.activeTerminal)
@@ -1016,7 +1026,12 @@ class PlayerProgressFallbackTest {
         val owner =
             ProgressRecoveryJobOwner(
                 scope = this,
-                controller = controller,
+                // 恢复状态归 ProgressWatchdog；job owner 只驱动协程。
+                nextAttempt = controller::nextAttempt,
+                recoveryExhausted = {
+                    controller.status()?.phase == PlayerProgressRecoveryPhase.EXHAUSTED
+                },
+                releaseRecovery = { controller.cancel() },
                 currentSeekBinding = { null },
                 requestIsCurrent = { _, _ -> true },
                 executeRetry = { _, _ -> },
@@ -1041,7 +1056,12 @@ class PlayerProgressFallbackTest {
         val owner =
             ProgressRecoveryJobOwner(
                 scope = this,
-                controller = controller,
+                // 恢复状态归 ProgressWatchdog；job owner 只驱动协程。
+                nextAttempt = controller::nextAttempt,
+                recoveryExhausted = {
+                    controller.status()?.phase == PlayerProgressRecoveryPhase.EXHAUSTED
+                },
+                releaseRecovery = { controller.cancel() },
                 currentSeekBinding = { null },
                 requestIsCurrent = { _, _ -> true },
                 executeRetry = { _, _ -> },
