@@ -59,8 +59,7 @@ enum class CinefinButtonSize {
 /**
  * 按钮色调（§8.1 本轮扩展）：[Media] = 当前域媒体色（默认）；[Inverse] = 反色高对比面。
  *
- * [Inverse] 用于 Lumen（S1 A 稿）区域的主行动：月白底 + 深色内容（A 稿 `.btn.primary`）， 其余状态、描边、禁用逻辑与 [Media] 一致。非 Lumen
- * 组件不得使用。
+ * [Inverse] 是反色高对比面：月白底 + 深色内容（A 稿 `.btn.primary`）， 其余状态、描边、禁用逻辑与 [Media] 一致。
  */
 enum class CinefinButtonTone {
     Media,
@@ -131,7 +130,7 @@ internal fun resolveButtonColors(
     }
 
     if (tone == CinefinButtonTone.Inverse && variant == CinefinButtonVariant.Filled) {
-        // 反色填充（Lumen 主行动）：月白底 + 深色内容；按下 / 悬停用深色状态层轻轻压暗，保持同一色相
+        // 反色填充：月白底 + 深色内容；按下 / 悬停用深色状态层轻轻压暗，保持同一色相
         val container =
             when (state) {
                 CinefinInteractionState.Hover ->

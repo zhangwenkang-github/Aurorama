@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidSeason
@@ -178,19 +177,16 @@ private fun ItemHeaderBase(
 }
 
 /**
- * Lumen 背景全套 scrim（顶部光晕 + 侧向渐隐 + 暗角 + 底部渐隐到页面底色）。
+ * 背景全套 scrim（顶部光晕 + 侧向渐隐 + 暗角 + 底部渐隐到页面底色）。
  *
- * 左侧水平渐隐只在 Lumen 区域（电影 / 剧集详情）叠加，非 Lumen 详情页保持原观感；被 [ItemHeaderBase] 与 W66b 竖屏 hero 的独立 backdrop
- * 图层（[HeroBackdropLayer]）共用。
+ * 被 [ItemHeaderBase] 与 W66b 竖屏 hero 的独立 backdrop 图层（[HeroBackdropLayer]）共用。
  */
 @Composable
 internal fun BoxScope.LumenBackdropScrims() {
     val backgroundColor = LocalCinefinColors.current.surface
-    val lumenScrimColor = LocalLumenColors.current?.scrim
     Canvas(modifier = Modifier.matchParentSize()) {
-        // Lumen：顶部光晕（内容即光源）+ 左侧水平渐隐（文字托底）+ 内暗角 + 底部渐隐，内容图向下溶进页面底色
+        // 顶部光晕（内容即光源）+ 左侧水平渐隐（文字托底）+ 内暗角 + 底部渐隐，内容图向下溶进页面底色
         drawRect(brush = lumenTopGlow)
-        lumenScrimColor?.let { drawRect(brush = lumenSideScrim(it)) }
         drawRect(brush = lumenVignette)
         drawRect(brush = lumenBottomScrim(backgroundColor))
     }

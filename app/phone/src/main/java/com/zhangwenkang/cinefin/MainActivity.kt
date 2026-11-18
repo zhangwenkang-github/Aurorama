@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -30,7 +31,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinThemes
 import com.zhangwenkang.cinefin.playback.EXTRA_OPEN_MUSIC_NOW_PLAYING
 import com.zhangwenkang.cinefin.presentation.components.ColdStartSplash
 import com.zhangwenkang.cinefin.presentation.film.DownloadTab
@@ -72,14 +73,34 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
+            val systemInDarkTheme = isSystemInDarkTheme()
+            // `system` / `dynamic` 的明暗跟系统走；light 固定浅色，其余主题固定深色。
+            val darkTheme =
+                when (state.themeId) {
+                    CinefinThemes.LIGHT -> false
+                    CinefinThemes.SYSTEM,
+                    CinefinThemes.DYNAMIC -> systemInDarkTheme
+                    else -> true
+                }
+            // `system` 解析成 aurora / light 的真实色板 id；`dynamic` 保留 id 让 M3 走系统动态取色。
+            val themeId =
+                if (state.themeId == CinefinThemes.SYSTEM) {
+                    if (systemInDarkTheme) CinefinThemes.AURORA else CinefinThemes.LIGHT
+                } else {
+                    state.themeId
+                }
 
-            CinefinTheme(dynamicColor = state.isDynamicColors) {
+            CinefinTheme(
+                themeId = themeId,
+                darkTheme = darkTheme,
+                dynamicColor = themeId == CinefinThemes.DYNAMIC || state.isDynamicColors,
+            ) {
                 val navController = rememberNavController()
-                // 冷启动过渡（W6-VIS D24）：登录态解析期间显示 Lumen 品牌页，就绪后主界面 220ms 淡入，
-                // 取代"先黑屏、再整屏弹出"。只给品牌页套 Lumen——主界面按页面各自的域换皮。
+                // 冷启动过渡（W6-VIS D24）：登录态解析期间显示品牌页，就绪后主界面 220ms 淡入，
+                // 取代"先黑屏、再整屏弹出"。
                 Box(modifier = Modifier.fillMaxSize()) {
                     if (state.isLoading) {
-                        ProvideLumen { ColdStartSplash() }
+                        ColdStartSplash()
                     }
                     AnimatedVisibility(
                         visible = !state.isLoading,

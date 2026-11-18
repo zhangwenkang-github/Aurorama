@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,19 +28,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /**
@@ -57,9 +51,9 @@ class CinefinDrawerGroup(
 )
 
 /**
- * Cinefin 抽屉（§8.6）：默认宽 320dp（W65 起由调用方按窗口宽度传入 [drawerWidth]，手机 ≈ 55% 屏宽、夹取 208–280dp），底 = 页底衬底 +
- * 石墨面板 @74%（W46，与平板侧轨同一透明度），header 96dp，条目 56dp / 圆角 12dp， 分组标题 `LabelSmall +
- * OnSurfaceFaint`；无投影（`tonalElevation = 0`），遮罩用 `Scrim`。
+ * Cinefin 抽屉（§8.6）：默认宽 320dp（W65 起由调用方按窗口宽度传入 [drawerWidth]，手机 ≈ 55% 屏宽、夹取 208–280dp），底 =
+ * 面板容器色，header 96dp，条目 56dp / 圆角 12dp， 分组标题 `LabelSmall + OnSurfaceFaint`；无投影（`tonalElevation =
+ * 0`），遮罩用 `Scrim`。
  *
  * `selectedIndex` 按分组顺序拍平后计算；域页条目选中态为 `Media.Container + Media.Bright`。
  */
@@ -74,12 +68,6 @@ fun CinefinModalDrawer(
     /** 抽屉内容宽（W65 自适应接入点；默认 320dp 保持既有预览 / 调用方行为）。 */
     drawerWidth: Dp = 320.dp,
     modifier: Modifier = Modifier,
-    /**
-     * 抽屉内容的皮肤注入点（W6-VIS）：影视域页面用 `ProvideLumenColors` 包一层，音乐 / 阅读域保持 Prism。
-     *
-     * 只作用于抽屉本身，不影响 `content`（页面内容），因此抽屉的皮肤能与当前页面一致而不"污染"音乐 / 阅读页面。
-     */
-    drawerSkin: @Composable (@Composable () -> Unit) -> Unit = { it() },
     content: @Composable () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
@@ -89,31 +77,20 @@ fun CinefinModalDrawer(
         gesturesEnabled = gesturesEnabled,
         scrimColor = colors.scrim,
         drawerContent = {
-            drawerSkin {
-                val skin = LocalLumenColors.current
-                ModalDrawerSheet(
-                    modifier =
-                        Modifier.width(drawerWidth)
-                            // W46：与侧轨同款 74% 半透明——先铺页底衬底再叠面板，否则透明度会被抽屉壳的
-                            // 同色底吃掉（踩坑 57）。
-                            .background(skin?.background ?: colors.surface)
-                            .background(
-                                skin?.panel?.copy(alpha = CinefinTokens.RailTranslucency)
-                                    ?: colors.surfaceContainer
-                            ),
-                    drawerShape = RectangleShape,
-                    // 底色由上一条 modifier 的两层 background 提供（容器色必须是透明，否则会盖住半透明层）。
-                    drawerContainerColor = Color.Transparent,
-                    drawerContentColor = skin?.text ?: colors.onSurface,
-                    drawerTonalElevation = 0.dp,
-                ) {
-                    CinefinDrawerContent(
-                        header = header,
-                        groups = groups,
-                        selectedIndex = selectedIndex,
-                        onSelect = onSelect,
-                    )
-                }
+            ModalDrawerSheet(
+                modifier = Modifier.width(drawerWidth).background(colors.surfaceContainer),
+                drawerShape = RectangleShape,
+                // 底色由上一条 modifier 的 background 提供（容器色必须是透明，否则会盖住该层）。
+                drawerContainerColor = Color.Transparent,
+                drawerContentColor = colors.onSurface,
+                drawerTonalElevation = 0.dp,
+            ) {
+                CinefinDrawerContent(
+                    header = header,
+                    groups = groups,
+                    selectedIndex = selectedIndex,
+                    onSelect = onSelect,
+                )
             }
         },
         content = content,
@@ -129,23 +106,10 @@ internal fun CinefinDrawerContent(
     onSelect: (Int) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val lumen = LocalLumenColors.current
     Column(modifier = Modifier.fillMaxHeight()) {
         Box(
             modifier =
-                Modifier.fillMaxWidth()
-                    .height(96.dp)
-                    .drawBehind {
-                        if (lumen != null) {
-                            val stroke = 1.dp.toPx()
-                            drawRect(
-                                color = lumen.line,
-                                topLeft = Offset(0f, size.height - stroke),
-                                size = Size(size.width, stroke),
-                            )
-                        }
-                    }
-                    .padding(horizontal = CinefinSpacing.Space5),
+                Modifier.fillMaxWidth().height(96.dp).padding(horizontal = CinefinSpacing.Space5),
             contentAlignment = Alignment.CenterStart,
         ) {
             header()
@@ -162,7 +126,7 @@ internal fun CinefinDrawerContent(
                     Text(
                         text = group.title,
                         style = CinefinType.LabelSmall,
-                        color = lumen?.textFaint ?: colors.onSurfaceFaint,
+                        color = colors.onSurfaceFaint,
                         modifier =
                             Modifier.padding(
                                 start = CinefinSpacing.Space5,
@@ -195,7 +159,6 @@ private fun CinefinDrawerItem(
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
-    val lumen = LocalLumenColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()
@@ -207,7 +170,6 @@ private fun CinefinDrawerItem(
             pressed = pressed,
             media = media,
             colors = colors,
-            lumen = lumen,
         )
     val content =
         navItemContentColor(
@@ -216,7 +178,6 @@ private fun CinefinDrawerItem(
             pressed = pressed,
             media = media,
             colors = colors,
-            lumen = lumen,
         )
     val shape = RoundedCornerShape(12.dp)
 
@@ -236,7 +197,6 @@ private fun CinefinDrawerItem(
                     .height(if (item.nested) 48.dp else 56.dp)
                     .clip(shape)
                     .background(container)
-                    .lumenItemFrame(lumen, selected, 12.dp)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,

@@ -56,6 +56,9 @@
     <string name="picture_in_picture_gesture_summary">Folosiți butonul acasă sau gestura pentru a intra în modul picture-in-picture cât timp se redă videoclipul</string>
     <string name="offline_mode">Mod offline</string>
     <string name="theme">Temă</string>
+    <string name="theme_aurora">Aurora (implicit)</string>
+    <string name="theme_amoled">AMOLED negru</string>
+    <string name="theme_dynamic">Dinamic (Material You)</string>
     <string name="theme_system">Urmărește sistemul</string>
     <string name="theme_light">Deschisă</string>
     <string name="theme_dark">Întunecată</string>

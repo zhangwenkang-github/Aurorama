@@ -39,6 +39,9 @@
     <string name="subtitles_summary">Dostosuj wygląd napisów</string>
     <string name="subtitles">Napisy</string>
     <string name="seeking">Przesuwanie</string>
+    <string name="theme_aurora">Aurora (domyślny)</string>
+    <string name="theme_amoled">AMOLED czarny</string>
+    <string name="theme_dynamic">Dynamiczny (Material You)</string>
     <string name="theme_system">Zgodnie z systemem</string>
     <string name="theme_light">Jasny</string>
     <string name="theme_dark">Ciemny</string>

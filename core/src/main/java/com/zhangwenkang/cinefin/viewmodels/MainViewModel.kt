@@ -3,6 +3,8 @@ package com.zhangwenkang.cinefin.viewmodels
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinThemes
+import com.zhangwenkang.cinefin.core.presentation.theme.migrateThemeId
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.repository.catalog.CatalogPrincipalContext
 import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
@@ -25,20 +27,24 @@ constructor(
     private val _state = MutableStateFlow(MainState())
     val state = _state.asStateFlow()
 
-    private val offlineModeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == appPreferences.offlineMode.backendName) check(showLoading = false)
+    private val preferencesListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        when (key) {
+            appPreferences.offlineMode.backendName,
+            appPreferences.theme.backendName,
+            appPreferences.dynamicColors.backendName -> check(showLoading = false)
+        }
     }
 
     init {
         check()
         appPreferences.sharedPreferences.registerOnSharedPreferenceChangeListener(
-            offlineModeListener
+            preferencesListener
         )
     }
 
     override fun onCleared() {
         appPreferences.sharedPreferences.unregisterOnSharedPreferenceChangeListener(
-            offlineModeListener
+            preferencesListener
         )
         super.onCleared()
     }
@@ -47,10 +53,18 @@ constructor(
         viewModelScope.launch {
             if (showLoading) _state.emit(MainState(isLoading = true))
             val scope = resolveScope()
+            val isDynamicColors = appPreferences.getValue(appPreferences.dynamicColors)
+            val storedThemeId = migrateThemeId(appPreferences.getValue(appPreferences.theme))
             _state.emit(
                 MainState(
                     isLoading = false,
-                    isDynamicColors = appPreferences.getValue(appPreferences.dynamicColors),
+                    isDynamicColors = isDynamicColors,
+                    themeId =
+                        if (isDynamicColors && storedThemeId == CinefinThemes.SYSTEM) {
+                            CinefinThemes.DYNAMIC
+                        } else {
+                            storedThemeId
+                        },
                     hasServers = database.getServersCount() > 0,
                     hasCurrentServer = scope != null,
                     hasCurrentUser = scope != null,
@@ -78,4 +92,8 @@ data class MainState(
     val hasCurrentServer: Boolean = false,
     val hasCurrentUser: Boolean = false,
     val isOfflineMode: Boolean = false,
+    /** 迁移后的主题 id（[CinefinThemes] 键或 `system`）。 */
+    val themeId: String = CinefinThemes.DEFAULT,
+    /** 由 [themeId] 派生的明暗外观；`system` / `dynamic` 由宿主按系统明暗解析。 */
+    val isDarkTheme: Boolean = true,
 )

@@ -25,7 +25,8 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val rememberTrackSelection = Preference("pref_remember_track_selection", true)
 
     // Interface
-    val theme = Preference("pref_theme", "system")
+    /** 主题 id（CinefinThemes 注册表键）：aurora / light / amoled / dynamic / system。 */
+    val theme = Preference("pref_theme", "aurora")
     /** 动态取色默认关闭：极光幕有自己的墨底 + 朱砂配色， 跟随系统壁纸会把品牌色冲掉；想要 Material You 的用户可在设置里打开。 */
     val dynamicColors = Preference("pref_dynamic_colors", false)
     val homeSuggestions = Preference<Boolean>("home_suggestions", true)

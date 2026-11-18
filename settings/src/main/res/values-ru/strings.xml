@@ -31,6 +31,9 @@
     <string name="seek_forward_increment">Шаг перемотки вперёд</string>
     <string name="subtitles">Субтитры</string>
     <string name="subtitles_summary">Изменить стиль субтитров</string>
+    <string name="theme_aurora">Аврора (по умолчанию)</string>
+    <string name="theme_amoled">AMOLED чёрная</string>
+    <string name="theme_dynamic">Динамическая (Material You)</string>
     <string name="theme_system">Как на устройстве</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Тёмная</string>

@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="theme">
-        <item>@string/theme_system</item>
+        <item>@string/theme_aurora</item>
         <item>@string/theme_light</item>
-        <item>@string/theme_dark</item>
+        <item>@string/theme_amoled</item>
+        <item>@string/theme_dynamic</item>
+        <item>@string/theme_system</item>
     </string-array>
     <string-array name="theme_values">
-        <item>system</item>
+        <item>aurora</item>
         <item>light</item>
-        <item>dark</item>
+        <item>amoled</item>
+        <item>dynamic</item>
+        <item>system</item>
     </string-array>
     <string-array name="player_backends">
         <item>exoplayer</item>

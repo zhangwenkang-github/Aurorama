@@ -58,6 +58,9 @@
     <string name="offline_mode">Mode Luring</string>
     <string name="offline_mode_summary">Tonton film dan serial tanpa koneksi ke server</string>
     <string name="theme">Tema</string>
+    <string name="theme_aurora">Aurora (bawaan)</string>
+    <string name="theme_amoled">AMOLED hitam</string>
+    <string name="theme_dynamic">Dinamis (Material You)</string>
     <string name="theme_system">Ikuti sistem</string>
     <string name="theme_light">Terang</string>
     <string name="theme_dark">Gelap</string>

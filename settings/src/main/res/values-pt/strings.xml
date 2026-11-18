@@ -22,6 +22,9 @@
     <string name="player_gestures">Gestor de reprodução</string>
     <string name="player_brightness_remember">Lembrar o nível de brilho</string>
     <string name="player_gestures_zoom_summary">Clique para preencher o ecrã com o vídeo</string>
+    <string name="theme_aurora">Aurora (predefinido)</string>
+    <string name="theme_amoled">AMOLED preto</string>
+    <string name="theme_dynamic">Dinâmico (Material You)</string>
     <string name="theme_system">Seguir sistema</string>
     <string name="seeking">Procura</string>
     <string name="subtitles">Legendas</string>

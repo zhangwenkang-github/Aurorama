@@ -37,7 +37,6 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyHomeView
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyServer
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.home.HomeAction
 import com.zhangwenkang.cinefin.film.presentation.home.HomeState
@@ -175,190 +174,188 @@ private fun HomeScreenLayout(
         { _ -> libraryPlaceholderIconRes(type) }
     }
 
-    ProvideLumen {
-        Column(modifier = Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
-            HomeTopBar(
-                onOpenDrawer = onOpenDrawer,
-                onSearchClick = onSearchClick,
-                isLoading = state.isLoading,
-                isError = state.error != null,
-                onErrorClick = { showErrorDialog = true },
-                onRetryClick = onRetry,
-                modifier =
-                    Modifier.padding(
-                        start = gutterStart,
-                        top = safePadding.top,
-                        end = gutterEnd,
-                    ),
-            )
+    Column(modifier = Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
+        HomeTopBar(
+            onOpenDrawer = onOpenDrawer,
+            onSearchClick = onSearchClick,
+            isLoading = state.isLoading,
+            isError = state.error != null,
+            onErrorClick = { showErrorDialog = true },
+            onRetryClick = onRetry,
+            modifier =
+                Modifier.padding(
+                    start = gutterStart,
+                    top = safePadding.top,
+                    end = gutterEnd,
+                ),
+        )
 
-            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                // 列数按网格实际可用宽度算（已排除侧轨与左右页边距）：按窗口宽度算会在
-                // 平板（侧轨占宽）上多出一列，把卡片压到最小列宽以下；页边距由网格
-                // `contentPadding` 统一承担，保证同一行所有卡片完全等宽。
-                val columns =
-                    remember(maxWidth, gutterStart, gutterEnd, wallGap) {
-                        val available = maxWidth - gutterStart - gutterEnd
-                        ((available + wallGap) / (wallMinColumnWidth + wallGap))
-                            .toInt()
-                            .coerceAtLeast(2)
+        BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            // 列数按网格实际可用宽度算（已排除侧轨与左右页边距）：按窗口宽度算会在
+            // 平板（侧轨占宽）上多出一列，把卡片压到最小列宽以下；页边距由网格
+            // `contentPadding` 统一承担，保证同一行所有卡片完全等宽。
+            val columns =
+                remember(maxWidth, gutterStart, gutterEnd, wallGap) {
+                    val available = maxWidth - gutterStart - gutterEnd
+                    ((available + wallGap) / (wallMinColumnWidth + wallGap))
+                        .toInt()
+                        .coerceAtLeast(2)
+                }
+            PullToRefreshBox(isRefreshing = false, onRefresh = onRetry) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding =
+                        PaddingValues(
+                            start = gutterStart,
+                            end = gutterEnd,
+                            bottom = safePadding.bottom + CinefinSpacing.Space8,
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(wallGap),
+                    // Lumen 节奏：区块之间 32dp（旧稿 16dp），页面因此有"幕布"般的呼吸感
+                    verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
+                ) {
+                    heroItem?.let { item ->
+                        item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
+                            HomeHero(
+                                item = item,
+                                onClick = onItemClick,
+                                modifier = Modifier.lumenEntrance(),
+                            )
+                        }
                     }
-                PullToRefreshBox(isRefreshing = false, onRefresh = onRetry) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(columns),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding =
-                            PaddingValues(
-                                start = gutterStart,
-                                end = gutterEnd,
-                                bottom = safePadding.bottom + CinefinSpacing.Space8,
-                            ),
-                        horizontalArrangement = Arrangement.spacedBy(wallGap),
-                        // Lumen 节奏：区块之间 32dp（旧稿 16dp），页面因此有"幕布"般的呼吸感
-                        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space8),
-                    ) {
-                        heroItem?.let { item ->
-                            item(key = "hero", span = { GridItemSpan(maxLineSpan) }) {
-                                HomeHero(
-                                    item = item,
-                                    onClick = onItemClick,
-                                    modifier = Modifier.lumenEntrance(),
-                                )
-                            }
-                        }
 
-                        resumeRail?.let { section ->
-                            item(key = "resume_rail", span = { GridItemSpan(maxLineSpan) }) {
-                                HomeSection(
-                                    section = section.copy(items = section.items.drop(1)),
-                                    itemsPadding = PaddingValues(),
-                                    downloadBadges = downloadBadges,
-                                    onAction = { action ->
-                                        action.dispatch(onItemClick, onLibraryClick)
-                                    },
-                                )
-                            }
-                        }
-
-                        readingRail?.let { section ->
-                            homeRail(
-                                key = "resume_reading",
-                                section = section,
+                    resumeRail?.let { section ->
+                        item(key = "resume_rail", span = { GridItemSpan(maxLineSpan) }) {
+                            HomeSection(
+                                section = section.copy(items = section.items.drop(1)),
+                                itemsPadding = PaddingValues(),
                                 downloadBadges = downloadBadges,
-                                onItemClick = onItemClick,
-                                onLibraryClick = onLibraryClick,
-                                imageOverrideFor = bookLocalCover,
-                                placeholderIconResFor = bookPlaceholderIcon,
-                                onItemVisible = requestBookCover,
-                                onCoverFallback = requestBookCoverFallback,
+                                onAction = { action ->
+                                    action.dispatch(onItemClick, onLibraryClick)
+                                },
                             )
                         }
+                    }
 
-                        listeningRail?.let { section ->
-                            homeRail(
-                                key = "resume_listening",
-                                section = section,
-                                downloadBadges = downloadBadges,
-                                onItemClick = onItemClick,
-                                onLibraryClick = onLibraryClick,
-                                placeholderIconResFor = musicPlaceholderIcon,
-                            )
-                        }
-
-                        nextUpRail?.let { items ->
-                            item(key = "next_up", span = { GridItemSpan(maxLineSpan) }) {
-                                HomeSection(
-                                    section = state.nextUpSection!!.homeSection.copy(items = items),
-                                    itemsPadding = PaddingValues(),
-                                    downloadBadges = downloadBadges,
-                                    onAction = { action ->
-                                        action.dispatch(onItemClick, onLibraryClick)
-                                    },
-                                )
-                            }
-                        }
-
-                        // W37：本地媒体（`pref_local_library_visible`，默认关；无本地库时 section 自行隐藏）。
-                        item(key = "local_media", span = { GridItemSpan(maxLineSpan) }) {
-                            HomeLocalMediaSection(onOpenLibrary = onOpenLocalLibrary)
-                        }
-
-                        state.views.forEach { view ->
-                            item(key = "view_${view.id}", span = { GridItemSpan(maxLineSpan) }) {
-                                HomeView(
-                                    view = view,
-                                    itemsPadding = PaddingValues(),
-                                    downloadBadges = downloadBadges,
-                                    imageOverrideFor = bookLocalCover,
-                                    placeholderIconResFor = libraryPlaceholderIcon(view.view.type),
-                                    onItemVisible = requestBookCover,
-                                    onServerImageFailed = requestBookCoverFallback,
-                                    onAction = { action ->
-                                        action.dispatch(onItemClick, onLibraryClick)
-                                    },
-                                )
-                            }
-                        }
-
-                        // W54-D：「最近添加」按媒体类型拆成三条（视频 = 原海报墙形态保留）。
-                        homePosterWall(
-                            keyPrefix = "recent_video",
-                            titleRes = FilmR.string.recently_added_videos,
-                            items = wallItems,
-                            onItemClick = onItemClick,
+                    readingRail?.let { section ->
+                        homeRail(
+                            key = "resume_reading",
+                            section = section,
                             downloadBadges = downloadBadges,
-                        )
-                        homePosterWall(
-                            keyPrefix = "recent_book",
-                            titleRes = FilmR.string.recently_added_books,
-                            items = state.recentlyAddedBooks,
                             onItemClick = onItemClick,
-                            downloadBadges = downloadBadges,
+                            onLibraryClick = onLibraryClick,
                             imageOverrideFor = bookLocalCover,
                             placeholderIconResFor = bookPlaceholderIcon,
                             onItemVisible = requestBookCover,
                             onCoverFallback = requestBookCoverFallback,
                         )
-                        homePosterWall(
-                            keyPrefix = "recent_music",
-                            titleRes = FilmR.string.recently_added_music,
-                            items = state.recentlyAddedMusic,
-                            onItemClick = onItemClick,
+                    }
+
+                    listeningRail?.let { section ->
+                        homeRail(
+                            key = "resume_listening",
+                            section = section,
                             downloadBadges = downloadBadges,
+                            onItemClick = onItemClick,
+                            onLibraryClick = onLibraryClick,
                             placeholderIconResFor = musicPlaceholderIcon,
                         )
                     }
-                }
 
-                if (state.error != null && showErrorDialog) {
-                    ErrorDialog(
-                        exception = state.error!!,
-                        onDismissRequest = { showErrorDialog = false },
+                    nextUpRail?.let { items ->
+                        item(key = "next_up", span = { GridItemSpan(maxLineSpan) }) {
+                            HomeSection(
+                                section = state.nextUpSection!!.homeSection.copy(items = items),
+                                itemsPadding = PaddingValues(),
+                                downloadBadges = downloadBadges,
+                                onAction = { action ->
+                                    action.dispatch(onItemClick, onLibraryClick)
+                                },
+                            )
+                        }
+                    }
+
+                    // W37：本地媒体（`pref_local_library_visible`，默认关；无本地库时 section 自行隐藏）。
+                    item(key = "local_media", span = { GridItemSpan(maxLineSpan) }) {
+                        HomeLocalMediaSection(onOpenLibrary = onOpenLocalLibrary)
+                    }
+
+                    state.views.forEach { view ->
+                        item(key = "view_${view.id}", span = { GridItemSpan(maxLineSpan) }) {
+                            HomeView(
+                                view = view,
+                                itemsPadding = PaddingValues(),
+                                downloadBadges = downloadBadges,
+                                imageOverrideFor = bookLocalCover,
+                                placeholderIconResFor = libraryPlaceholderIcon(view.view.type),
+                                onItemVisible = requestBookCover,
+                                onServerImageFailed = requestBookCoverFallback,
+                                onAction = { action ->
+                                    action.dispatch(onItemClick, onLibraryClick)
+                                },
+                            )
+                        }
+                    }
+
+                    // W54-D：「最近添加」按媒体类型拆成三条（视频 = 原海报墙形态保留）。
+                    homePosterWall(
+                        keyPrefix = "recent_video",
+                        titleRes = FilmR.string.recently_added_videos,
+                        items = wallItems,
+                        onItemClick = onItemClick,
+                        downloadBadges = downloadBadges,
+                    )
+                    homePosterWall(
+                        keyPrefix = "recent_book",
+                        titleRes = FilmR.string.recently_added_books,
+                        items = state.recentlyAddedBooks,
+                        onItemClick = onItemClick,
+                        downloadBadges = downloadBadges,
+                        imageOverrideFor = bookLocalCover,
+                        placeholderIconResFor = bookPlaceholderIcon,
+                        onItemVisible = requestBookCover,
+                        onCoverFallback = requestBookCoverFallback,
+                    )
+                    homePosterWall(
+                        keyPrefix = "recent_music",
+                        titleRes = FilmR.string.recently_added_music,
+                        items = state.recentlyAddedMusic,
+                        onItemClick = onItemClick,
+                        downloadBadges = downloadBadges,
+                        placeholderIconResFor = musicPlaceholderIcon,
                     )
                 }
+            }
 
-                // 首屏加载过渡（W6-VIS D24）：数据到达前先铺骨架屏，就绪后骨架 220ms 淡出、卡片按
-                // `lumenEntrance` 错峰入场——不再出现"一片黑板直出"。
-                // W69：骨架只在"真的没有任何可渲染内容"时铺（缓存优先）——已上屏的走廊 / 海报墙 /
-                // 库行绝不被骨架盖住；刷新在有内容时是静默的，卡片原地更新。
-                val hasRenderableContent =
-                    heroItem != null ||
-                        resumeRail != null ||
-                        readingRail != null ||
-                        listeningRail != null ||
-                        nextUpRail != null ||
-                        wallItems.isNotEmpty() ||
-                        state.recentlyAddedBooks.isNotEmpty() ||
-                        state.recentlyAddedMusic.isNotEmpty() ||
-                        state.views.isNotEmpty()
-                LumenSkeletonOverlay(visible = state.isLoading && !hasRenderableContent) {
-                    HomeSkeleton(
-                        columns = columns,
-                        gutterStart = gutterStart,
-                        gutterEnd = gutterEnd,
-                        modifier = Modifier.fillMaxSize().padding(top = CinefinSpacing.Space4),
-                    )
-                }
+            if (state.error != null && showErrorDialog) {
+                ErrorDialog(
+                    exception = state.error!!,
+                    onDismissRequest = { showErrorDialog = false },
+                )
+            }
+
+            // 首屏加载过渡（W6-VIS D24）：数据到达前先铺骨架屏，就绪后骨架 220ms 淡出、卡片按
+            // `lumenEntrance` 错峰入场——不再出现"一片黑板直出"。
+            // W69：骨架只在"真的没有任何可渲染内容"时铺（缓存优先）——已上屏的走廊 / 海报墙 /
+            // 库行绝不被骨架盖住；刷新在有内容时是静默的，卡片原地更新。
+            val hasRenderableContent =
+                heroItem != null ||
+                    resumeRail != null ||
+                    readingRail != null ||
+                    listeningRail != null ||
+                    nextUpRail != null ||
+                    wallItems.isNotEmpty() ||
+                    state.recentlyAddedBooks.isNotEmpty() ||
+                    state.recentlyAddedMusic.isNotEmpty() ||
+                    state.views.isNotEmpty()
+            LumenSkeletonOverlay(visible = state.isLoading && !hasRenderableContent) {
+                HomeSkeleton(
+                    columns = columns,
+                    gutterStart = gutterStart,
+                    gutterEnd = gutterEnd,
+                    modifier = Modifier.fillMaxSize().padding(top = CinefinSpacing.Space4),
+                )
             }
         }
     }

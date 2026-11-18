@@ -36,6 +36,9 @@
     <string name="mpv_player_summary">실험용 mpv 플레이어를 사용하여 비디오를 재생합니다. mpv 플레이어는 더 많은 비디오, 오디오 및 자막 코덱을 지원합니다.</string>
     <string name="subtitles">자막</string>
     <string name="subtitles_summary">자막 스타일 커스텀</string>
+    <string name="theme_aurora">오로라 (기본)</string>
+    <string name="theme_amoled">AMOLED 검정</string>
+    <string name="theme_dynamic">동적 (Material You)</string>
     <string name="theme_system">기기 테마와 동기화</string>
     <string name="theme_light">라이트 모드</string>
     <string name="theme_dark">다크 모드</string>

@@ -108,18 +108,19 @@ fun SettingsScreen(
                 val uiModeManager = context.getSystemService(UiModeManager::class.java)
                 val nightMode =
                     when (event.theme) {
-                        "system" ->
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                                UiModeManager.MODE_NIGHT_AUTO
-                            else AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
                         "light" ->
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                                 UiModeManager.MODE_NIGHT_NO
                             else AppCompatDelegate.MODE_NIGHT_NO
+                        // 深色主题 + 存量 "dark"：固定深色外观
+                        "aurora",
+                        "amoled",
+                        "lumen",
                         "dark" ->
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                                 UiModeManager.MODE_NIGHT_YES
                             else AppCompatDelegate.MODE_NIGHT_YES
+                        // "dynamic" / "system" / 未知：跟随系统明暗
                         else ->
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                                 UiModeManager.MODE_NIGHT_AUTO

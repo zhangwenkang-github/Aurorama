@@ -92,9 +92,13 @@ class BaseApplication : Application(), Configuration.Provider, SingletonImageLoa
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             val mode =
                 when (appPreferences.getValue(appPreferences.theme)) {
-                    "system" -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
                     "light" -> AppCompatDelegate.MODE_NIGHT_NO
+                    // 深色主题 + 存量 "dark"：固定深色外观
+                    "aurora",
+                    "amoled",
+                    "lumen",
                     "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+                    // "dynamic" / "system" / 未知：跟随系统明暗
                     else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
                 }
             AppCompatDelegate.setDefaultNightMode(mode)

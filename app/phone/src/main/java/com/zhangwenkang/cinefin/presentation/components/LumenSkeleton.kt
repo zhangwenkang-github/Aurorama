@@ -11,7 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -50,7 +49,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 
 /**
  * Lumen 加载过渡组件（W6-VIS 决策 D24）。
@@ -58,19 +56,14 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
  * 目标：加载阶段不再"黑板直出"——页面先用骨架屏占位，数据到达后骨架淡出、内容淡入。遵守 §6.4 性能规则： 全部动效只走**不透明度与位移**（`graphicsLayer` +
  * 渐变平移），不改变尺寸、不触发逐帧重组（读数只发生在绘制阶段）。
  *
- * 色值不新增：骨架 = 石墨底 + 雾灰扫光（Lumen 区域），Prism 区域自动回落到 `SurfaceContainer` / `SurfaceContainerHigh`。
+ * 色值不新增：骨架 = 表面容器色 + 上一档容器色的扫光。
  */
 
-/** 骨架底色的语义取值（Lumen 用石墨 / 雾灰，Prism 用表面容器色）。 */
+/** 骨架底色的语义取值（表面容器色 / 上一档容器色）。 */
 @Composable
 private fun skeletonColors(): Pair<Color, Color> {
-    val lumen = LocalLumenColors.current
     val colors = LocalCinefinColors.current
-    return if (lumen != null) {
-        lumen.panel to lumen.panelElevated
-    } else {
-        colors.surfaceContainer to colors.surfaceContainerHigh
-    }
+    return colors.surfaceContainer to colors.surfaceContainerHigh
 }
 
 /**
@@ -192,9 +185,8 @@ fun LumenSkeletonOverlay(
 @Composable
 fun ColdStartSplash(modifier: Modifier = Modifier) {
     val colors = LocalCinefinColors.current
-    val lumen = LocalLumenColors.current
     Box(
-        modifier = modifier.fillMaxSize().background(lumen?.background ?: colors.surface),
+        modifier = modifier.fillMaxSize().background(colors.surface),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -205,14 +197,7 @@ fun ColdStartSplash(modifier: Modifier = Modifier) {
                 modifier =
                     Modifier.size(64.dp)
                         .clip(CinefinShapes.Lg)
-                        .background(lumen?.panelElevated ?: colors.surfaceContainerHigh)
-                        .then(
-                            if (lumen != null) {
-                                Modifier.border(1.dp, lumen.line, CinefinShapes.Lg)
-                            } else {
-                                Modifier
-                            }
-                        ),
+                        .background(colors.surfaceContainerHigh),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -225,7 +210,7 @@ fun ColdStartSplash(modifier: Modifier = Modifier) {
             Text(
                 text = stringResource(CoreR.string.app_name),
                 style = CinefinType.TitleMedium,
-                color = lumen?.text ?: colors.onSurface,
+                color = colors.onSurface,
             )
             LumenSkeletonBlock(modifier = Modifier.width(96.dp).height(4.dp))
         }

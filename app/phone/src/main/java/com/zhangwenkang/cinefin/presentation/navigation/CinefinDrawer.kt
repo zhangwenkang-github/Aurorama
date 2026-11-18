@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.presentation.navigation
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,13 +24,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.R as CoreR
-import com.zhangwenkang.cinefin.core.presentation.components.LocalNavItemInteraction
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.CollectionType
 
@@ -39,8 +35,6 @@ import com.zhangwenkang.cinefin.models.CollectionType
  * 抽屉头部（Prism §8.6）：品牌 + 当前账号 / 服务器一行，服务器可点进服务器管理。
  *
  * 视觉保持"安静"：无卡片、无底色，只用字号与明度差建立层级；不再出现选中竖条 / 色点。
- *
- * W6-VIS：Lumen 区域给品牌印记加"雾灰底 + 发丝线"承托（双层嵌套的最小单元），服务器行改幽灵胶囊—— 石墨 / 雾灰的层次让抽屉不再是"一条平铺的清单"。
  */
 @Composable
 fun CinefinDrawerHeader(
@@ -50,21 +44,11 @@ fun CinefinDrawerHeader(
     onOpenServers: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val lumen = LocalLumenColors.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier =
-                    Modifier.size(40.dp)
-                        .clip(CinefinShapes.Sm)
-                        .background(lumen?.panelElevated ?: Color.Transparent)
-                        .then(
-                            if (lumen != null) {
-                                Modifier.border(1.dp, lumen.line, CinefinShapes.Sm)
-                            } else {
-                                Modifier
-                            }
-                        ),
+                    Modifier.size(40.dp).clip(CinefinShapes.Sm).background(Color.Transparent),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -101,14 +85,7 @@ fun CinefinDrawerHeader(
             modifier =
                 Modifier.fillMaxWidth()
                     .clip(CinefinShapes.Xs)
-                    .background(lumen?.ghost ?: Color.Transparent)
-                    .then(
-                        if (lumen != null) {
-                            Modifier.border(1.dp, lumen.lineSoft, CinefinShapes.Xs)
-                        } else {
-                            Modifier
-                        }
-                    )
+                    .background(Color.Transparent)
                     .clickable(onClick = onOpenServers)
                     .height(30.dp)
                     .padding(horizontal = CinefinSpacing.Space2),
@@ -141,24 +118,12 @@ fun CinefinDrawerHeader(
     }
 }
 
-/**
- * 导航图标着色（W42）：Lumen 侧柜 = 选中极光青、未选中白 62%（悬停 / 按下再提亮一档）； Prism 区域保持 §7.1 的「选中 `Media.Bright` / 未选中
- * `OnSurfaceVariant`」。
- */
+/** 导航图标着色（W42）：保持 §7.1 的「选中 `Media.Bright` / 未选中 `OnSurfaceVariant`」。 */
 @Composable
 internal fun navIconTint(selected: Boolean): Color {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
-    val lumen = LocalLumenColors.current
-    val interaction = LocalNavItemInteraction.current
-    return when {
-        lumen != null && selected -> lumen.accent
-        lumen != null && interaction.pressed -> Color.White.copy(alpha = 0.92f)
-        lumen != null && interaction.hovered -> Color.White.copy(alpha = 0.78f)
-        lumen != null -> Color.White.copy(alpha = CinefinTokens.NavUnselectedIconAlpha)
-        selected -> media.bright
-        else -> colors.onSurfaceVariant
-    }
+    return if (selected) media.bright else colors.onSurfaceVariant
 }
 
 /** 导航条目图标槽：统一 24dp 资源 + 选中态着色。 */

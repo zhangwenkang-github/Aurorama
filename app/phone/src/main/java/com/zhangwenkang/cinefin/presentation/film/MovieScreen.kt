@@ -46,7 +46,6 @@ import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyVideoMetadata
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieAction
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieState
 import com.zhangwenkang.cinefin.film.presentation.movie.MovieViewModel
@@ -202,161 +201,151 @@ private fun MovieScreenLayout(
     val scrollState = rememberScrollMemoryState(scrollKey)
     val bodyMode = detailBodyMode(hasContent = state.movie != null, hasError = state.error != null)
 
-    ProvideLumen {
-        Box(modifier = Modifier.fillMaxSize()) {
-            state.movie
-                ?.takeIf { bodyMode != DetailBodyMode.Error }
-                ?.let { movie ->
-                    Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
-                        DetailHero(
+    Box(modifier = Modifier.fillMaxSize()) {
+        state.movie
+            ?.takeIf { bodyMode != DetailBodyMode.Error }
+            ?.let { movie ->
+                Column(modifier = Modifier.fillMaxWidth().verticalScroll(scrollState)) {
+                    DetailHero(
+                        item = movie,
+                        scrollState = scrollState,
+                        eyebrow = movie.detailEyebrow(),
+                        title = movie.name,
+                        originalTitle = movie.originalTitle,
+                        meta = movie.metaLine(),
+                        downloadBadge =
+                            downloadBadges[movie.id]
+                                ?: if (movie.isDownloaded()) {
+                                    DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED)
+                                } else {
+                                    DownloadBadgeInfo()
+                                },
+                        heroEyebrow = movie.detailTypeEyebrow(),
+                    ) { heroLayout ->
+                        ItemButtonsBar(
                             item = movie,
-                            scrollState = scrollState,
-                            eyebrow = movie.detailEyebrow(),
-                            title = movie.name,
-                            originalTitle = movie.originalTitle,
-                            meta = movie.metaLine(),
-                            downloadBadge =
-                                downloadBadges[movie.id]
-                                    ?: if (movie.isDownloaded()) {
-                                        DownloadBadgeInfo(DownloadBadgeState.DOWNLOADED)
-                                    } else {
-                                        DownloadBadgeInfo()
-                                    },
-                            heroEyebrow = movie.detailTypeEyebrow(),
-                        ) { heroLayout ->
-                            ItemButtonsBar(
-                                item = movie,
-                                downloaderState = downloaderState,
-                                onPlayClick = { startFromBeginning ->
-                                    onAction(
-                                        MovieAction.Play(startFromBeginning = startFromBeginning)
-                                    )
-                                },
-                                onMarkAsPlayedClick = {
-                                    when (movie.played) {
-                                        true -> onAction(MovieAction.UnmarkAsPlayed)
-                                        false -> onAction(MovieAction.MarkAsPlayed)
-                                    }
-                                },
-                                onMarkAsFavoriteClick = {
-                                    when (movie.favorite) {
-                                        true -> onAction(MovieAction.UnmarkAsFavorite)
-                                        false -> onAction(MovieAction.MarkAsFavorite)
-                                    }
-                                },
-                                onTrailerClick = { uri -> onAction(MovieAction.PlayTrailer(uri)) },
-                                onDownloadClick = { storageIndex ->
-                                    onDownloaderAction(
-                                        DownloaderAction.Download(movie, storageIndex)
-                                    )
-                                },
-                                onDownloadCancelClick = {
-                                    onDownloaderAction(DownloaderAction.CancelDownload(movie))
-                                },
-                                onDownloadDeleteClick = {
-                                    onDownloaderAction(DownloaderAction.DeleteDownload(movie))
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                heroLayout = heroLayout,
-                            )
-                        }
-
-                        Column(
-                            modifier = Modifier.padding(start = paddingStart, end = paddingEnd)
-                        ) {
-                            Spacer(Modifier.height(CinefinSpacing.Space8))
-                            if (expanded) {
-                                Row(
-                                    horizontalArrangement =
-                                        Arrangement.spacedBy(CinefinSpacing.Space10)
-                                ) {
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement =
-                                            Arrangement.spacedBy(CinefinSpacing.Space4),
-                                    ) {
-                                        OverviewText(text = movie.overview, maxCollapsedLines = 6)
-                                        state.videoMetadata?.let { videoMetadata ->
-                                            VideoMetadataBar(videoMetadata = videoMetadata)
-                                        }
-                                    }
-                                    LumenInfoTable(
-                                        rows = movieInfoRows(movie = movie, state = state),
-                                        modifier = Modifier.width(360.dp),
-                                    )
+                            downloaderState = downloaderState,
+                            onPlayClick = { startFromBeginning ->
+                                onAction(MovieAction.Play(startFromBeginning = startFromBeginning))
+                            },
+                            onMarkAsPlayedClick = {
+                                when (movie.played) {
+                                    true -> onAction(MovieAction.UnmarkAsPlayed)
+                                    false -> onAction(MovieAction.MarkAsPlayed)
                                 }
-                            } else {
-                                OverviewText(text = movie.overview, maxCollapsedLines = 4)
-                                Spacer(Modifier.height(CinefinSpacing.Space6))
-                                InfoText(
-                                    genres = movie.genres,
-                                    director = state.director,
-                                    writers = state.writers,
-                                    rating = movie.communityRating,
-                                )
-                                state.videoMetadata?.let { videoMetadata ->
-                                    Spacer(Modifier.height(CinefinSpacing.Space4))
-                                    VideoMetadataBar(videoMetadata = videoMetadata)
+                            },
+                            onMarkAsFavoriteClick = {
+                                when (movie.favorite) {
+                                    true -> onAction(MovieAction.UnmarkAsFavorite)
+                                    false -> onAction(MovieAction.MarkAsFavorite)
                                 }
-                                if (state.displayExtraInfo && state.videoMetadata != null) {
-                                    Spacer(Modifier.height(CinefinSpacing.Space6))
-                                    ExtraInfoText(videoMetadata = state.videoMetadata!!)
-                                }
-                            }
-                            Spacer(Modifier.height(CinefinSpacing.Space8))
-                        }
-
-                        if (state.actors.isNotEmpty()) {
-                            ActorsRow(
-                                actors = state.actors,
-                                onActorClick = { personId ->
-                                    onAction(MovieAction.NavigateToPerson(personId))
-                                },
-                                contentPadding =
-                                    PaddingValues(start = paddingStart, end = paddingEnd),
-                            )
-                        }
-                        Spacer(Modifier.height(paddingBottom))
-                    }
-                }
-                ?: run {
-                    if (bodyMode == DetailBodyMode.Error) {
-                        state.error?.let { error ->
-                            DetailLoadError(
-                                exception = error,
-                                onRetryClick = onRetry,
-                                modifier =
-                                    Modifier.fillMaxSize()
-                                        .padding(
-                                            start = paddingStart,
-                                            top = 88.dp,
-                                            end = paddingEnd,
-                                            bottom = paddingBottom,
-                                        ),
-                            )
-                        }
-                    } else {
-                        // 加载过渡（W6-VIS D24）：先用骨架屏占位，数据到达后内容淡入，不再"黑板 + 转圈"
-                        DetailSkeleton(
-                            gutterStart = paddingStart,
-                            gutterEnd = paddingEnd,
-                            modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+                            },
+                            onTrailerClick = { uri -> onAction(MovieAction.PlayTrailer(uri)) },
+                            onDownloadClick = { storageIndex ->
+                                onDownloaderAction(DownloaderAction.Download(movie, storageIndex))
+                            },
+                            onDownloadCancelClick = {
+                                onDownloaderAction(DownloaderAction.CancelDownload(movie))
+                            },
+                            onDownloadDeleteClick = {
+                                onDownloaderAction(DownloaderAction.DeleteDownload(movie))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            heroLayout = heroLayout,
                         )
                     }
+
+                    Column(modifier = Modifier.padding(start = paddingStart, end = paddingEnd)) {
+                        Spacer(Modifier.height(CinefinSpacing.Space8))
+                        if (expanded) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space10)
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement =
+                                        Arrangement.spacedBy(CinefinSpacing.Space4),
+                                ) {
+                                    OverviewText(text = movie.overview, maxCollapsedLines = 6)
+                                    state.videoMetadata?.let { videoMetadata ->
+                                        VideoMetadataBar(videoMetadata = videoMetadata)
+                                    }
+                                }
+                                LumenInfoTable(
+                                    rows = movieInfoRows(movie = movie, state = state),
+                                    modifier = Modifier.width(360.dp),
+                                )
+                            }
+                        } else {
+                            OverviewText(text = movie.overview, maxCollapsedLines = 4)
+                            Spacer(Modifier.height(CinefinSpacing.Space6))
+                            InfoText(
+                                genres = movie.genres,
+                                director = state.director,
+                                writers = state.writers,
+                                rating = movie.communityRating,
+                            )
+                            state.videoMetadata?.let { videoMetadata ->
+                                Spacer(Modifier.height(CinefinSpacing.Space4))
+                                VideoMetadataBar(videoMetadata = videoMetadata)
+                            }
+                            if (state.displayExtraInfo && state.videoMetadata != null) {
+                                Spacer(Modifier.height(CinefinSpacing.Space6))
+                                ExtraInfoText(videoMetadata = state.videoMetadata!!)
+                            }
+                        }
+                        Spacer(Modifier.height(CinefinSpacing.Space8))
+                    }
+
+                    if (state.actors.isNotEmpty()) {
+                        ActorsRow(
+                            actors = state.actors,
+                            onActorClick = { personId ->
+                                onAction(MovieAction.NavigateToPerson(personId))
+                            },
+                            contentPadding = PaddingValues(start = paddingStart, end = paddingEnd),
+                        )
+                    }
+                    Spacer(Modifier.height(paddingBottom))
                 }
+            }
+            ?: run {
+                if (bodyMode == DetailBodyMode.Error) {
+                    state.error?.let { error ->
+                        DetailLoadError(
+                            exception = error,
+                            onRetryClick = onRetry,
+                            modifier =
+                                Modifier.fillMaxSize()
+                                    .padding(
+                                        start = paddingStart,
+                                        top = 88.dp,
+                                        end = paddingEnd,
+                                        bottom = paddingBottom,
+                                    ),
+                        )
+                    }
+                } else {
+                    // 加载过渡（W6-VIS D24）：先用骨架屏占位，数据到达后内容淡入，不再"黑板 + 转圈"
+                    DetailSkeleton(
+                        gutterStart = paddingStart,
+                        gutterEnd = paddingEnd,
+                        modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+                    )
+                }
+            }
 
-            ItemTopBar(
-                hasBackButton = true,
-                hasHomeButton = true,
-                onBackClick = { onAction(MovieAction.OnBackClick) },
-                onHomeClick = { onAction(MovieAction.OnHomeClick) },
-            )
+        ItemTopBar(
+            hasBackButton = true,
+            hasHomeButton = true,
+            onBackClick = { onAction(MovieAction.OnBackClick) },
+            onHomeClick = { onAction(MovieAction.OnHomeClick) },
+        )
 
-            CinefinSnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = paddingBottom),
-            )
-        }
+        CinefinSnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = paddingBottom),
+        )
     }
 }
 

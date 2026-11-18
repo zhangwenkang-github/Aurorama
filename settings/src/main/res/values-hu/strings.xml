@@ -38,6 +38,9 @@
     <string name="theme_dark">Sötét</string>
     <string name="settings_category_network">Hálózat</string>
     <string name="dynamic_colors_summary">Használja a Material You dinamikus színeit (Csak Android 12+-on érhető el)</string>
+    <string name="theme_aurora">Aurora (alapértelmezett)</string>
+    <string name="theme_amoled">AMOLED fekete</string>
+    <string name="theme_dynamic">Dinamikus (Material You)</string>
     <string name="theme_system">Kövesd a rendszert</string>
     <string name="seek_forward_increment">Előre seekelési sebesség növekedése</string>
     <string name="settings_connect_timeout">Csatlakozási időtúllépés</string>

@@ -29,6 +29,9 @@
     <string name="amoled_theme">AMOLED-mörkt tema</string>
     <string name="amoled_theme_summary">Använd AMOLED-tema med en helt svart bakgrund</string>
     <string name="subtitles">Textning</string>
+    <string name="theme_aurora">Aurora (standard)</string>
+    <string name="theme_amoled">AMOLED svart</string>
+    <string name="theme_dynamic">Dynamisk (Material You)</string>
     <string name="theme_system">Följ systemet</string>
     <string name="theme_light">Ljust</string>
     <string name="theme_dark">Mörkt</string>

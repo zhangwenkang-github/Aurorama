@@ -43,6 +43,9 @@
     <string name="dynamic_colors">動態色彩</string>
     <string name="subtitles">字幕</string>
     <string name="subtitles_summary">自訂字幕外觀</string>
+    <string name="theme_aurora">極光（預設）</string>
+    <string name="theme_amoled">AMOLED 純黑</string>
+    <string name="theme_dynamic">跟隨系統動態色</string>
     <string name="theme_system">跟隨系統</string>
     <string name="theme_light">明亮</string>
     <string name="theme_dark">黑暗</string>

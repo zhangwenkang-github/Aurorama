@@ -15,8 +15,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
  * 关闭态拇指用 `onSurfaceVariant` 提亮——M3 默认取 `outline`，在暗底上几乎看不见（用户实测：音乐音效「开启均衡器」关闭态小圆点不明显）； 轨道用
  * `surfaceContainerHigh` 填充 + `onSurfaceFaint` 描边提高轮廓对比；开启态保持当前域强调色；禁用态降透明度但仍可辨。
  *
- * Prism 与 Lumen 两套皮肤都由 [LocalCinefinColors] / [LocalMediaColors] 自动切换（`ProvideLumen` 已同步覆盖这两个
- * CompositionLocal），**不新增任何色值**。
+ * 配色全部来自 [LocalCinefinColors] / [LocalMediaColors]，随主题与域自动切换，**不新增任何色值**。
  *
  * @param colors 仅限自带底色的特殊面板覆盖（如阅读器纸色面板），普通页面保持默认。
  */
@@ -37,7 +36,7 @@ fun CinefinSwitch(
     )
 }
 
-/** 全 App 默认开关配色（Prism / Lumen 同源，随主题与域自动切换）。 */
+/** 全 App 默认开关配色（随主题与域自动切换）。 */
 @Composable
 fun cinefinSwitchColors(): SwitchColors {
     val colors = LocalCinefinColors.current

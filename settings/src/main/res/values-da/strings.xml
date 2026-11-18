@@ -11,6 +11,9 @@
     <string name="dynamic_colors_summary">Brug Material You-dynamiske farver (kun tilgængeligt på Android 12+)</string>
     <string name="subtitles">Undertekster</string>
     <string name="dynamic_colors">Dynamiske farver</string>
+    <string name="theme_aurora">Aurora (standard)</string>
+    <string name="theme_amoled">AMOLED sort</string>
+    <string name="theme_dynamic">Dynamisk (Material You)</string>
     <string name="theme_system">Følg system</string>
     <string name="picture_in_picture">Picture-in-picture</string>
     <string name="pref_player_chapter_markers_summary">Vis kapitelmarkører på tidslinjen</string>

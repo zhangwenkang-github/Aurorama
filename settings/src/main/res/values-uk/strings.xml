@@ -51,6 +51,9 @@
     <string name="seek_forward_increment">Крок пошуку вперед</string>
     <string name="dynamic_colors">Динамічні кольори</string>
     <string name="dynamic_colors_summary">Використовувати кольори Material You (доступно лише на Android 12+)</string>
+    <string name="theme_aurora">Аврора (за замовчуванням)</string>
+    <string name="theme_amoled">AMOLED чорна</string>
+    <string name="theme_dynamic">Динамічна (Material You)</string>
     <string name="theme_system">Як на пристрої</string>
     <string name="settings_connect_timeout">Тайм-аут підключення (мс)</string>
     <string name="extra_info_summary">Відображає детальну інформацію про аудіо, відео та субтитри</string>

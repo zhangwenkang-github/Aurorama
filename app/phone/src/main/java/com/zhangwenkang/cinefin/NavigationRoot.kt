@@ -46,10 +46,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -90,16 +87,10 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavigationIt
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinRailGroupDivider
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinRailSectionDivider
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
-import com.zhangwenkang.cinefin.core.presentation.components.lumenEdgeHighlight
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LumenColorsDark
-import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
-import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadBadgeViewModel
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidBoxSet
@@ -560,9 +551,6 @@ fun NavigationRoot(
         } else {
             null
         }
-    // 侧柜皮肤（W6-VIS D23 → W7-R3 用户反馈 3）：侧轨 / 底栏 / 抽屉**常驻** S1「A · Lumen」——
-    // 音乐 / 书架 / 阅读页只是**内容**保持各自皮肤（LumenPage 仍按域分流），侧边菜单统一走 A 稿。
-    val lumenChrome = true
     // 控制台 / 媒体资料管理器共用 ConsoleRoute 目的地，选中态要靠 path 参数区分（否则两条入口
     // 会同时高亮，见踩坑 28 的同类问题）。
     val consolePath =
@@ -1071,86 +1059,75 @@ fun NavigationRoot(
             predictivePopExitTransition = { fadeOut(tween(300)) },
         ) {
             composable<WelcomeRoute> {
-                ProvideLumen {
-                    WelcomeScreen(
-                        onContinueClick = { navController.safeNavigate(ServersRoute) },
-                        onOfflineClick = enterOfflineMode,
-                    )
-                }
+                WelcomeScreen(
+                    onContinueClick = { navController.safeNavigate(ServersRoute) },
+                    onOfflineClick = enterOfflineMode,
+                )
             }
             composable<ServersRoute> {
-                ProvideLumen {
-                    ServersScreen(
-                        navigateToUsers = { navController.safeNavigate(UsersRoute) },
-                        navigateToAddresses = { serverId ->
-                            navController.safeNavigate(ServerAddressesRoute(serverId))
-                        },
-                        onAddClick = { navController.safeNavigate(AddServerRoute) },
-                        onBackClick = { navController.safePopBackStack() },
-                        showBack = navController.previousBackStackEntry != null,
-                        onOfflineClick = enterOfflineMode,
-                    )
-                }
+                ServersScreen(
+                    navigateToUsers = { navController.safeNavigate(UsersRoute) },
+                    navigateToAddresses = { serverId ->
+                        navController.safeNavigate(ServerAddressesRoute(serverId))
+                    },
+                    onAddClick = { navController.safeNavigate(AddServerRoute) },
+                    onBackClick = { navController.safePopBackStack() },
+                    showBack = navController.previousBackStackEntry != null,
+                    onOfflineClick = enterOfflineMode,
+                )
             }
             composable<AddServerRoute> {
-                ProvideLumen {
-                    AddServerScreen(
-                        onSuccess = { navController.safeNavigate(UsersRoute) },
-                        onBackClick = { navController.safePopBackStack() },
-                    )
-                }
+                AddServerScreen(
+                    onSuccess = { navController.safeNavigate(UsersRoute) },
+                    onBackClick = { navController.safePopBackStack() },
+                )
             }
             composable<ServerAddressesRoute> { backStackEntry ->
                 val route: ServerAddressesRoute = backStackEntry.toRoute()
-                ProvideLumen {
-                    ServerAddressesScreen(
-                        serverId = route.serverId,
-                        navigateBack = { navController.safePopBackStack() },
-                    )
-                }
+
+                ServerAddressesScreen(
+                    serverId = route.serverId,
+                    navigateBack = { navController.safePopBackStack() },
+                )
             }
             composable<UsersRoute> {
-                ProvideLumen {
-                    UsersScreen(
-                        navigateToHome = { navigateHome(navController) },
-                        onChangeServerClick = {
-                            navController.safeNavigate(ServersRoute) {
-                                popUpTo(ServersRoute) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        },
-                        onAddClick = { navController.safeNavigate(LoginRoute()) },
-                        onBackClick = { navController.safePopBackStack() },
-                        onPublicUserClick = { _ ->
-                            // W85：登录页不预选任何用户；公开用户列表只负责进入登录。
-                            navController.safeNavigate(LoginRoute())
-                        },
-                        showBack = navController.previousBackStackEntry != null,
-                        onOfflineClick = enterOfflineMode,
-                    )
-                }
+                UsersScreen(
+                    navigateToHome = { navigateHome(navController) },
+                    onChangeServerClick = {
+                        navController.safeNavigate(ServersRoute) {
+                            popUpTo(ServersRoute) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    onAddClick = { navController.safeNavigate(LoginRoute()) },
+                    onBackClick = { navController.safePopBackStack() },
+                    onPublicUserClick = { _ ->
+                        // W85：登录页不预选任何用户；公开用户列表只负责进入登录。
+                        navController.safeNavigate(LoginRoute())
+                    },
+                    showBack = navController.previousBackStackEntry != null,
+                    onOfflineClick = enterOfflineMode,
+                )
             }
             composable<LoginRoute> {
-                ProvideLumen {
-                    LoginScreen(
-                        onSuccess = {
-                            // W36：登录成功自动退出离线模式，回到在线首页。
-                            offlineModeViewModel.exitOfflineMode()
-                            navController.safeNavigate(HomeRoute) {
-                                popUpTo(0)
-                                launchSingleTop = true
-                            }
-                        },
-                        onChangeServerClick = {
-                            navController.safeNavigate(ServersRoute) {
-                                popUpTo(ServersRoute) { inclusive = false }
-                                launchSingleTop = true
-                            }
-                        },
-                        onBackClick = { navController.safePopBackStack() },
-                        onOfflineClick = enterOfflineMode,
-                    )
-                }
+                LoginScreen(
+                    onSuccess = {
+                        // W36：登录成功自动退出离线模式，回到在线首页。
+                        offlineModeViewModel.exitOfflineMode()
+                        navController.safeNavigate(HomeRoute) {
+                            popUpTo(0)
+                            launchSingleTop = true
+                        }
+                    },
+                    onChangeServerClick = {
+                        navController.safeNavigate(ServersRoute) {
+                            popUpTo(ServersRoute) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    },
+                    onBackClick = { navController.safePopBackStack() },
+                    onOfflineClick = enterOfflineMode,
+                )
             }
             composable<HomeRoute> {
                 if (isOfflineMode) {
@@ -1216,40 +1193,9 @@ fun NavigationRoot(
                     )
                 ) {
                     VideoLibrarySurface.OfflineDownloads -> offlineVideoDirectory()
-                    // 视频模式页（W53）：影视域页面走 Lumen 皮肤（D24），条目点击复用统一详情分发。
+                    // 视频模式页（W53）：影视域页面，条目点击复用统一详情分发。
                     VideoLibrarySurface.OnlineLibraries ->
-                        ProvideLumen {
-                            VideoScreen(
-                                onOpenDrawer = openDrawer,
-                                onItemClick = { item ->
-                                    navigateToItem(
-                                        navController = navController,
-                                        item = item,
-                                        context = context,
-                                    )
-                                },
-                                // D-F7：顶栏「库选择」选中具体库 → 直达该库内容
-                                // （与侧栏 / 媒体页同一条 libraryEntryRoute 落点链路）。
-                                onOpenLibrary = { library ->
-                                    navigateToItem(
-                                        navController = navController,
-                                        item = library,
-                                        context = context,
-                                    )
-                                },
-                                onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
-                                onSearchClick = openVideoSearch,
-                            )
-                        }
-                }
-            }
-            composable<MediaRoute> {
-                if (isOfflineMode) {
-                    // W36 离线媒体库：只展示已下载媒体，点条目直接走本地文件。
-                    offlineVideoDirectory()
-                } else {
-                    ProvideLumen {
-                        MediaScreen(
+                        VideoScreen(
                             onOpenDrawer = openDrawer,
                             onItemClick = { item ->
                                 navigateToItem(
@@ -1258,20 +1204,28 @@ fun NavigationRoot(
                                     context = context,
                                 )
                             },
-                            onOpenLocalLibrary = { libraryId ->
-                                navController.safeNavigate(LocalLibraryRoute(libraryId))
+                            // D-F7：顶栏「库选择」选中具体库 → 直达该库内容
+                            // （与侧栏 / 媒体页同一条 libraryEntryRoute 落点链路）。
+                            onOpenLibrary = { library ->
+                                navigateToItem(
+                                    navController = navController,
+                                    item = library,
+                                    context = context,
+                                )
                             },
-                            // W70：本地库新建 / 删除 / 开关后刷新侧栏「本地媒体库」子分组。
-                            onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
-                            onSearchClick = openMediaSearch,
+                            onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
+                            onSearchClick = openVideoSearch,
                         )
-                    }
                 }
             }
-            composable<SearchRoute> {
-                ProvideLumen {
-                    SearchScreen(
-                        onClose = { navController.safePopBackStack() },
+            composable<MediaRoute> {
+                if (isOfflineMode) {
+                    // W36 离线媒体库：只展示已下载媒体，点条目直接走本地文件。
+                    offlineVideoDirectory()
+                } else {
+
+                    MediaScreen(
+                        onOpenDrawer = openDrawer,
                         onItemClick = { item ->
                             navigateToItem(
                                 navController = navController,
@@ -1279,25 +1233,43 @@ fun NavigationRoot(
                                 context = context,
                             )
                         },
-                        onPlayLocalVideo = { itemId ->
-                            val intent = Intent(context, PlayerActivity::class.java)
-                            intent.putExtra("itemId", itemId.toString())
-                            intent.putExtra("itemKind", BaseItemKind.MOVIE.serialName)
-                            context.startActivity(intent)
+                        onOpenLocalLibrary = { libraryId ->
+                            navController.safeNavigate(LocalLibraryRoute(libraryId))
                         },
-                        onOpenLocalBook = { itemId, title, documentUri ->
-                            openReader(
-                                context = context,
-                                itemId = itemId.toString(),
-                                title = title,
-                                localUri = documentUri,
-                            )
-                        },
-                        onOpenMusic = { itemId ->
-                            navController.safeNavigate(MusicItemRoute(itemId.toString()))
-                        },
+                        // W70：本地库新建 / 删除 / 开关后刷新侧栏「本地媒体库」子分组。
+                        onLocalLibrariesChanged = drawerViewModel::refreshLocalLibraries,
+                        onSearchClick = openMediaSearch,
                     )
                 }
+            }
+            composable<SearchRoute> {
+                SearchScreen(
+                    onClose = { navController.safePopBackStack() },
+                    onItemClick = { item ->
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
+                    },
+                    onPlayLocalVideo = { itemId ->
+                        val intent = Intent(context, PlayerActivity::class.java)
+                        intent.putExtra("itemId", itemId.toString())
+                        intent.putExtra("itemKind", BaseItemKind.MOVIE.serialName)
+                        context.startActivity(intent)
+                    },
+                    onOpenLocalBook = { itemId, title, documentUri ->
+                        openReader(
+                            context = context,
+                            itemId = itemId.toString(),
+                            title = title,
+                            localUri = documentUri,
+                        )
+                    },
+                    onOpenMusic = { itemId ->
+                        navController.safeNavigate(MusicItemRoute(itemId.toString()))
+                    },
+                )
             }
             composable<LocalLibraryRoute> { backStackEntry ->
                 val route: LocalLibraryRoute = backStackEntry.toRoute()
@@ -1356,30 +1328,29 @@ fun NavigationRoot(
             }
             composable<DownloadsRoute> { backStackEntry ->
                 val route = backStackEntry.toRoute<DownloadsRoute>()
-                ProvideLumen {
-                    DownloadsScreen(
-                        onOpenDrawer = openDrawer,
-                        onItemClick = { item ->
-                            navigateToItem(
-                                navController = navController,
-                                item = item,
-                                context = context,
-                            )
-                        },
-                        onPlayMusicItemIds = { itemIds ->
-                            itemIds.firstOrNull()?.let { first ->
-                                navController.safeNavigate(
-                                    MusicItemRoute(
-                                        itemId = first.toString(),
-                                        queueItemIds = itemIds.joinToString(","),
-                                    )
+
+                DownloadsScreen(
+                    onOpenDrawer = openDrawer,
+                    onItemClick = { item ->
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
+                    },
+                    onPlayMusicItemIds = { itemIds ->
+                        itemIds.firstOrNull()?.let { first ->
+                            navController.safeNavigate(
+                                MusicItemRoute(
+                                    itemId = first.toString(),
+                                    queueItemIds = itemIds.joinToString(","),
                                 )
-                            }
-                        },
-                        initialTab = route.initialTab,
-                        requestId = route.requestId,
-                    )
-                }
+                            )
+                        }
+                    },
+                    initialTab = route.initialTab,
+                    requestId = route.requestId,
+                )
             }
             composable<MusicModeRoute> {
                 MusicModeScreen(
@@ -1417,30 +1388,26 @@ fun NavigationRoot(
                         ) {
                             VideoLibrarySurface.OfflineDownloads -> offlineVideoDirectory()
                             VideoLibrarySurface.OnlineLibraries ->
-                                ProvideLumen {
-                                    VideoScreen(
-                                        onOpenDrawer = openDrawer,
-                                        onItemClick = { item ->
-                                            navigateToItem(
-                                                navController = navController,
-                                                item = item,
-                                                context = context,
+                                VideoScreen(
+                                    onOpenDrawer = openDrawer,
+                                    onItemClick = { item ->
+                                        navigateToItem(
+                                            navController = navController,
+                                            item = item,
+                                            context = context,
+                                        )
+                                    },
+                                    temporaryLibraryId = route.libraryId,
+                                    onExitTemporaryLibrary = { exitTemporaryLibrary(VideoRoute) },
+                                    onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
+                                    onSearchClick = {
+                                        openSearch(
+                                            searchScopeForLibraryType(
+                                                CollectionType.fromString(route.libraryType)
                                             )
-                                        },
-                                        temporaryLibraryId = route.libraryId,
-                                        onExitTemporaryLibrary = {
-                                            exitTemporaryLibrary(VideoRoute)
-                                        },
-                                        onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
-                                        onSearchClick = {
-                                            openSearch(
-                                                searchScopeForLibraryType(
-                                                    CollectionType.fromString(route.libraryType)
-                                                )
-                                            )
-                                        },
-                                    )
-                                }
+                                        )
+                                    },
+                                )
                         }
                     TemporaryLibraryKind.Music ->
                         MusicModeScreen(
@@ -1503,48 +1470,21 @@ fun NavigationRoot(
                     // 兜底：任何残留路由落到音乐库时同样进音乐模式（见 libraryEntryRoute）
                     MusicModeScreen(onOpenDrawer = openDrawer, onSearchClick = openMusicSearch)
                 } else {
-                    // 库内容页按域换皮（W6-VIS D23）：书籍库属阅读域、保持 Prism，影视类库走 Lumen
-                    LumenPage(enabled = route.libraryType != CollectionType.Books) {
-                        LibraryScreen(
-                            libraryId = UUID.fromString(route.libraryId),
-                            libraryName = route.libraryName,
-                            libraryType = route.libraryType,
-                            // W54-D：首页「全部」入口带「最近添加」初始排序；其余入口为 null（沿用偏好）。
-                            initialSortBy =
-                                route.sortBy?.let { name ->
-                                    SortBy.entries.firstOrNull { it.name == name }
-                                },
-                            initialSortOrder =
-                                route.sortOrder?.let { name ->
-                                    SortOrder.entries.firstOrNull { it.name == name }
-                                },
-                            onItemClick = { item ->
-                                navigateToItem(
-                                    navController = navController,
-                                    item = item,
-                                    context = context,
-                                )
+                    // 库内容页按域确立内容域：书籍库属阅读域，影视类库属影视域
+
+                    LibraryScreen(
+                        libraryId = UUID.fromString(route.libraryId),
+                        libraryName = route.libraryName,
+                        libraryType = route.libraryType,
+                        // W54-D：首页「全部」入口带「最近添加」初始排序；其余入口为 null（沿用偏好）。
+                        initialSortBy =
+                            route.sortBy?.let { name ->
+                                SortBy.entries.firstOrNull { it.name == name }
                             },
-                            navigateBack = { navController.safePopBackStack() },
-                            onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
-                            // W75 #13：库内容页（二级）顶栏搜索入口——与视频页 / 音乐 / 书架同一套流程。
-                            topBarActions = {
-                                SearchTopBarAction(
-                                    onClick = {
-                                        openSearch(searchScopeForLibraryType(route.libraryType))
-                                    }
-                                )
+                        initialSortOrder =
+                            route.sortOrder?.let { name ->
+                                SortOrder.entries.firstOrNull { it.name == name }
                             },
-                        )
-                    }
-                }
-            }
-            composable<CollectionRoute> { backStackEntry ->
-                val route: CollectionRoute = backStackEntry.toRoute()
-                ProvideLumen {
-                    CollectionScreen(
-                        collectionId = UUID.fromString(route.collectionId),
-                        collectionName = route.collectionName,
                         onItemClick = { item ->
                             navigateToItem(
                                 navController = navController,
@@ -1553,23 +1493,46 @@ fun NavigationRoot(
                             )
                         },
                         navigateBack = { navController.safePopBackStack() },
+                        onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
+                        // W75 #13：库内容页（二级）顶栏搜索入口——与视频页 / 音乐 / 书架同一套流程。
+                        topBarActions = {
+                            SearchTopBarAction(
+                                onClick = {
+                                    openSearch(searchScopeForLibraryType(route.libraryType))
+                                }
+                            )
+                        },
                     )
                 }
             }
+            composable<CollectionRoute> { backStackEntry ->
+                val route: CollectionRoute = backStackEntry.toRoute()
+
+                CollectionScreen(
+                    collectionId = UUID.fromString(route.collectionId),
+                    collectionName = route.collectionName,
+                    onItemClick = { item ->
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
+                    },
+                    navigateBack = { navController.safePopBackStack() },
+                )
+            }
             composable<FavoritesRoute> {
-                ProvideLumen {
-                    FavoritesScreen(
-                        onOpenDrawer = openDrawer,
-                        onItemClick = { item ->
-                            navigateToItem(
-                                navController = navController,
-                                item = item,
-                                context = context,
-                            )
-                        },
-                        onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
-                    )
-                }
+                FavoritesScreen(
+                    onOpenDrawer = openDrawer,
+                    onItemClick = { item ->
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
+                    },
+                    onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
+                )
             }
             composable<MovieRoute> { backStackEntry ->
                 val route: MovieRoute = backStackEntry.toRoute()
@@ -1644,95 +1607,92 @@ fun NavigationRoot(
             }
             composable<PersonRoute> { backStackEntry ->
                 val route: PersonRoute = backStackEntry.toRoute()
-                ProvideLumen {
-                    PersonScreen(
-                        personId = UUID.fromString(route.personId),
-                        navigateBack = { navController.safePopBackStack() },
-                        navigateHome = { navigateHome(navController) },
-                        navigateToItem = { item ->
-                            navigateToItem(
-                                navController = navController,
-                                item = item,
-                                context = context,
-                            )
-                        },
-                    )
-                }
+
+                PersonScreen(
+                    personId = UUID.fromString(route.personId),
+                    navigateBack = { navController.safePopBackStack() },
+                    navigateHome = { navigateHome(navController) },
+                    navigateToItem = { item ->
+                        navigateToItem(
+                            navController = navController,
+                            item = item,
+                            context = context,
+                        )
+                    },
+                )
             }
             composable<SettingsRoute> { backStackEntry ->
                 val route: SettingsRoute = backStackEntry.toRoute()
-                ProvideLumen {
-                    SettingsScreen(
-                        indexes = route.indexes,
-                        navigateToSettings = { indexes ->
-                            navController.safeNavigate(SettingsRoute(indexes = indexes))
-                        },
-                        navigateToSettingsFileEdit = { filePath ->
-                            navController.safeNavigate(SettingsFileEditRoute(filePath = filePath))
-                        },
-                        navigateToServers = { navController.safeNavigate(ServersRoute) },
-                        navigateToUsers = { navController.safeNavigate(UsersRoute) },
-                        navigateToUpdate = { navController.safeNavigate(UpdateRoute) },
-                        onOpenOfflineIdentity = { hasCurrentUser ->
-                            if (hasCurrentUser) {
-                                navController.safeNavigate(UsersRoute)
-                            } else {
-                                val plan =
-                                    resolveOfflineExitPlan(
-                                        hasServers = hasServers,
-                                        hasCurrentServer = hasCurrentServer,
-                                        hasCurrentUser = false,
-                                    )
-                                if (plan.clearOfflineMode) {
-                                    offlineModeViewModel.exitOfflineMode()
-                                }
-                                when (plan.destination) {
-                                    OfflineExitDestination.LOGIN ->
-                                        navController.safeNavigate(
-                                            LoginRoute(username = plan.loginUsername)
-                                        ) {
-                                            popUpTo(0)
-                                            launchSingleTop = true
-                                        }
-                                    OfflineExitDestination.SERVERS ->
-                                        navController.safeNavigate(ServersRoute) {
-                                            popUpTo(0)
-                                            launchSingleTop = true
-                                        }
-                                    OfflineExitDestination.WELCOME ->
-                                        navController.safeNavigate(WelcomeRoute) {
-                                            popUpTo(0)
-                                            launchSingleTop = true
-                                        }
-                                    OfflineExitDestination.HOME ->
-                                        navController.safeNavigate(HomeRoute) {
-                                            popUpTo(0)
-                                            launchSingleTop = true
-                                        }
-                                }
+
+                SettingsScreen(
+                    indexes = route.indexes,
+                    navigateToSettings = { indexes ->
+                        navController.safeNavigate(SettingsRoute(indexes = indexes))
+                    },
+                    navigateToSettingsFileEdit = { filePath ->
+                        navController.safeNavigate(SettingsFileEditRoute(filePath = filePath))
+                    },
+                    navigateToServers = { navController.safeNavigate(ServersRoute) },
+                    navigateToUsers = { navController.safeNavigate(UsersRoute) },
+                    navigateToUpdate = { navController.safeNavigate(UpdateRoute) },
+                    onOpenOfflineIdentity = { hasCurrentUser ->
+                        if (hasCurrentUser) {
+                            navController.safeNavigate(UsersRoute)
+                        } else {
+                            val plan =
+                                resolveOfflineExitPlan(
+                                    hasServers = hasServers,
+                                    hasCurrentServer = hasCurrentServer,
+                                    hasCurrentUser = false,
+                                )
+                            if (plan.clearOfflineMode) {
+                                offlineModeViewModel.exitOfflineMode()
                             }
-                        },
-                        navigateToAbout = { navController.safeNavigate(AboutRoute) },
-                        navigateBack = { navController.safePopBackStack() },
-                        // W42：平板形态没有底栏，「隐藏底栏」开关需要置灰并给出说明。
-                        compactForm = compactNavigation,
-                    )
-                }
+                            when (plan.destination) {
+                                OfflineExitDestination.LOGIN ->
+                                    navController.safeNavigate(
+                                        LoginRoute(username = plan.loginUsername)
+                                    ) {
+                                        popUpTo(0)
+                                        launchSingleTop = true
+                                    }
+                                OfflineExitDestination.SERVERS ->
+                                    navController.safeNavigate(ServersRoute) {
+                                        popUpTo(0)
+                                        launchSingleTop = true
+                                    }
+                                OfflineExitDestination.WELCOME ->
+                                    navController.safeNavigate(WelcomeRoute) {
+                                        popUpTo(0)
+                                        launchSingleTop = true
+                                    }
+                                OfflineExitDestination.HOME ->
+                                    navController.safeNavigate(HomeRoute) {
+                                        popUpTo(0)
+                                        launchSingleTop = true
+                                    }
+                            }
+                        }
+                    },
+                    navigateToAbout = { navController.safeNavigate(AboutRoute) },
+                    navigateBack = { navController.safePopBackStack() },
+                    // W42：平板形态没有底栏，「隐藏底栏」开关需要置灰并给出说明。
+                    compactForm = compactNavigation,
+                )
             }
             composable<SettingsFileEditRoute> { backStackEntry ->
                 val route: SettingsFileEditRoute = backStackEntry.toRoute()
-                ProvideLumen {
-                    SettingsFileEditScreen(
-                        filePath = route.filePath,
-                        navigateBack = { navController.safePopBackStack() },
-                    )
-                }
+
+                SettingsFileEditScreen(
+                    filePath = route.filePath,
+                    navigateBack = { navController.safePopBackStack() },
+                )
             }
             composable<AboutRoute> {
-                ProvideLumen { AboutScreen(navigateBack = { navController.safePopBackStack() }) }
+                AboutScreen(navigateBack = { navController.safePopBackStack() })
             }
             composable<UpdateRoute> {
-                ProvideLumen { UpdateScreen(navigateBack = { navController.safePopBackStack() }) }
+                UpdateScreen(navigateBack = { navController.safePopBackStack() })
             }
         }
     }
@@ -1755,7 +1715,6 @@ fun NavigationRoot(
         onSelect = { index -> drawerEntries.getOrNull(index)?.onClick?.invoke() },
         // W65：手机抽屉宽自适应（clamp(55%, 208, 280)dp；K60 ≈ 216dp），平板形态不渲染抽屉。
         drawerWidth = adaptiveDrawerWidthDp.dp,
-        drawerSkin = { drawerContent -> LumenChrome(lumenChrome) { drawerContent() } },
         modifier = Modifier.localLibraryQaTestTagsAsResourceId(qaSemantics != null),
     ) {
         when {
@@ -1765,57 +1724,46 @@ fun NavigationRoot(
                     // W42「隐藏底栏」：紧凑形态可整体隐藏底栏（重启保留）；各页自身按 safeDrawing
                     // 底部留白，隐藏后不会顶到手势条，导航仍可从顶栏 logo / 汉堡打开抽屉到达。
                     if (!drawerData.hideBottomBar) {
-                        LumenChrome(lumenChrome) {
-                            // 手势条安全区也要跟着底栏一起铺满底色，否则系统导航区会露出外层主题的石板色
-                            // （真机表现为底栏下缘一条 21,26,33 的色带）。
-                            Box(
-                                modifier =
-                                    Modifier.fillMaxWidth()
-                                        .background(
-                                            LocalLumenColors.current?.background
-                                                ?: LocalCinefinColors.current.surface
-                                        )
-                                        .background(
-                                            LocalLumenColors.current
-                                                ?.panel
-                                                ?.copy(alpha = CinefinTokens.ChromeTranslucency)
-                                                ?: LocalCinefinColors.current.surface
-                                        )
-                            ) {
-                                CinefinBottomTab(
-                                    items = bottomItems.map { it.item },
-                                    selectedIndex = bottomItems.indexOfFirst { it.selected },
-                                    onSelect = { index ->
-                                        bottomItems.getOrNull(index)?.onClick?.invoke()
-                                    },
-                                    modifier = Modifier.navigationBarsPadding(),
-                                )
-                            }
+
+                        // 手势条安全区也要跟着底栏一起铺满底色，否则系统导航区会露出外层主题的石板色
+                        // （真机表现为底栏下缘露出一条外层底色）。
+                        Box(
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .background(LocalCinefinColors.current.surface)
+                        ) {
+                            CinefinBottomTab(
+                                items = bottomItems.map { it.item },
+                                selectedIndex = bottomItems.indexOfFirst { it.selected },
+                                onSelect = { index ->
+                                    bottomItems.getOrNull(index)?.onClick?.invoke()
+                                },
+                                modifier = Modifier.navigationBarsPadding(),
+                            )
                         }
                     }
                 }
             !compactNavigation && showNavigation ->
                 Row(modifier = Modifier.fillMaxSize()) {
-                    LumenChrome(lumenChrome) {
-                        CinefinSideNavigation(
-                            destinations = railDestinations,
-                            mediaLibraries = navigationLibraries,
-                            // W53B：本地库只读本机索引，离线模式也列出（与服务器库分开的子分组）。
-                            localLibraries = drawerData.localLibraries,
-                            currentLibraryId = currentLibrary?.libraryId,
-                            currentLocalLibraryId = currentLocalLibraryId,
-                            mediaGroupExpanded = mediaGroupExpanded,
-                            onToggleMediaGroup = { mediaGroupExpanded = !mediaGroupExpanded },
-                            onOpenLibrary = openLibrary,
-                            onOpenLocalLibrary = openLocalLibrary,
-                            expandedWidthDp = adaptiveRailWidthDp,
-                            expanded = railExpanded,
-                            onToggleExpanded = { railExpanded = !railExpanded },
-                            groupBreaks = railBreaks,
-                            pinnedTailCount = railPinnedTail,
-                            qaSemantics = qaSemantics,
-                        )
-                    }
+                    CinefinSideNavigation(
+                        destinations = railDestinations,
+                        mediaLibraries = navigationLibraries,
+                        // W53B：本地库只读本机索引，离线模式也列出（与服务器库分开的子分组）。
+                        localLibraries = drawerData.localLibraries,
+                        currentLibraryId = currentLibrary?.libraryId,
+                        currentLocalLibraryId = currentLocalLibraryId,
+                        mediaGroupExpanded = mediaGroupExpanded,
+                        onToggleMediaGroup = { mediaGroupExpanded = !mediaGroupExpanded },
+                        onOpenLibrary = openLibrary,
+                        onOpenLocalLibrary = openLocalLibrary,
+                        expandedWidthDp = adaptiveRailWidthDp,
+                        expanded = railExpanded,
+                        onToggleExpanded = { railExpanded = !railExpanded },
+                        groupBreaks = railBreaks,
+                        pinnedTailCount = railPinnedTail,
+                        qaSemantics = qaSemantics,
+                    )
+
                     Box(modifier = Modifier.weight(1f)) { host() }
                 }
             else -> host()
@@ -1824,70 +1772,37 @@ fun NavigationRoot(
 }
 
 /**
- * 侧柜皮肤开关（W6-VIS D23）：影视域 = S1「A · Lumen」，其余 = 当前域 Prism。
- *
- * 只换色板，不加壳——侧轨 / 底栏 / 抽屉各自带底色，用 [ProvideLumenColors] 才不会在 Column / Row 里抢空间。
- */
-@Composable
-private fun LumenChrome(enabled: Boolean, content: @Composable () -> Unit) {
-    if (enabled) {
-        ProvideLumenColors { content() }
-    } else {
-        content()
-    }
-}
-
-/** 页面级皮肤开关：影视域页面铺 S1 A 稿底（曜石黑 + A 色板），音乐 / 阅读域保持各自皮肤。 */
-@Composable
-private fun LumenPage(enabled: Boolean, content: @Composable () -> Unit) {
-    if (enabled) {
-        ProvideLumen { content() }
-    } else {
-        content()
-    }
-}
-
-/**
  * 控制台页的悬浮「返回极光幕」胶囊（W7-R3 用户反馈 4）。
  *
- * A 稿手法：石墨底 + 1dp 发丝线 + 顶缘内高光 + 月白文字与品牌图标；无投影（§5.3 无投影规则）。 自铺底色、只借色板，因此用
- * [ProvideLumenColors]（与侧柜同一入口）；点击回主界面， 系统返回键的「控制台内先退网页历史」行为保持不变（踩坑 31）。
+ * 容器底色 + 1dp 发丝线 + 品牌图标；无投影（§5.3 无投影规则）。点击回主界面， 系统返回键的「控制台内先退网页历史」行为保持不变（踩坑 31）。
  */
 @Composable
 private fun ConsoleBackToAppPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    ProvideLumenColors {
-        val lumen = LocalLumenColors.current ?: LumenColorsDark
-        Row(
-            modifier =
-                modifier
-                    .clip(CinefinShapes.Full)
-                    .background(lumen.panel.copy(alpha = 0.94f))
-                    .drawBehind {
-                        drawRect(
-                            brush = lumenEdgeHighlight(lumen),
-                            size = Size(size.width, 1.dp.toPx()),
-                        )
-                    }
-                    .border(1.dp, lumen.line, CinefinShapes.Full)
-                    .cinefinClickable(onClick = onClick)
-                    .defaultMinSize(minHeight = 44.dp)
-                    .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space2),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                painter = painterResource(CoreR.drawable.ic_logo),
-                contentDescription = null,
-                tint = Color.Unspecified,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(CinefinSpacing.Space2))
-            Text(
-                text = stringResource(CoreR.string.console_back_to_app),
-                style = CinefinType.NavLabel,
-                color = lumen.text,
-                maxLines = 1,
-            )
-        }
+    val colors = LocalCinefinColors.current
+    Row(
+        modifier =
+            modifier
+                .clip(CinefinShapes.Full)
+                .background(colors.surfaceContainer.copy(alpha = 0.94f))
+                .border(1.dp, colors.outline, CinefinShapes.Full)
+                .cinefinClickable(onClick = onClick)
+                .defaultMinSize(minHeight = 44.dp)
+                .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(CoreR.drawable.ic_logo),
+            contentDescription = null,
+            tint = Color.Unspecified,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(CinefinSpacing.Space2))
+        Text(
+            text = stringResource(CoreR.string.console_back_to_app),
+            style = CinefinType.NavLabel,
+            color = colors.onSurface,
+            maxLines = 1,
+        )
     }
 }
 
@@ -1962,85 +1877,29 @@ private fun CinefinSideNavigation(
     qaSemantics: LocalLibraryQaSemantics? = null,
 ) {
     val colors = LocalCinefinColors.current
-    val lumen = LocalLumenColors.current
     // W65：二级库子项的「项目数」让位判定按当前展开宽实时计算（不再固定 168dp 尺寸链）。
     val railLabelWidthDp = railLibraryLabelWidthDp(expandedWidthDp)
     Column(
         modifier =
             // W42：折叠 72dp；W46 展开 168dp；W65：展开改自适应（clamp(30%, 200, 240)dp），折叠轨不变。
-            // 底色 = 半透明石墨（W46 起 ~74%）+ 右缘发丝线 + 顶缘内高光。
+            // 底色 = navSurface + 一圈发丝线。
             Modifier.width((if (expanded) expandedWidthDp else RAIL_COLLAPSED_WIDTH_DP).dp)
                 .fillMaxHeight()
-                .background(lumen?.background ?: colors.surface)
-                .background(
-                    lumen?.panel?.copy(alpha = CinefinTokens.RailTranslucency) ?: colors.navSurface
-                )
-                .drawBehind {
-                    val stroke = 1.dp.toPx()
-                    if (lumen != null) {
-                        drawRect(
-                            brush = lumenEdgeHighlight(lumen),
-                            size = Size(size.width, stroke),
-                        )
-                        drawRect(
-                            color = lumen.line,
-                            topLeft = Offset(size.width - stroke, 0f),
-                            size = Size(stroke, size.height),
-                        )
-                    }
-                }
-                .then(
-                    if (lumen == null) {
-                        Modifier.border(1.dp, colors.outline)
-                    } else {
-                        Modifier
-                    }
-                )
+                .background(colors.navSurface)
+                .border(1.dp, colors.outline)
                 .localLibraryQaTestTag(qaSemantics?.mainNavigationScreenTag)
     ) {
         Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .height(72.dp)
-                    .drawBehind {
-                        if (lumen != null) {
-                            val stroke = 1.dp.toPx()
-                            drawRect(
-                                color = lumen.lineSoft,
-                                topLeft = Offset(0f, size.height - stroke),
-                                size = Size(size.width, stroke),
-                            )
-                        }
-                    }
-                    .padding(horizontal = 14.dp),
+            modifier = Modifier.fillMaxWidth().height(72.dp).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center,
         ) {
-            if (lumen != null) {
-                // 品牌印记放进"雾灰 + 发丝线"的小方框：与抽屉头部、设置页磁贴同一套材质语言
-                Box(
-                    modifier =
-                        Modifier.size(38.dp)
-                            .clip(CinefinShapes.Sm)
-                            .background(lumen.panelElevated)
-                            .border(1.dp, lumen.line, CinefinShapes.Sm),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(CoreR.drawable.ic_logo),
-                        contentDescription = null,
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(26.dp),
-                    )
-                }
-            } else {
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_logo),
-                    contentDescription = null,
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(38.dp),
-                )
-            }
+            Icon(
+                painter = painterResource(CoreR.drawable.ic_logo),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(38.dp),
+            )
             if (expanded) {
                 Spacer(Modifier.width(CinefinSpacing.Space3))
                 Text(
@@ -2234,15 +2093,6 @@ private fun CinefinSideNavigation(
             modifier =
                 Modifier.fillMaxWidth()
                     .height(56.dp)
-                    .drawBehind {
-                        if (lumen != null) {
-                            val stroke = 1.dp.toPx()
-                            drawRect(
-                                brush = lumenEdgeHighlight(lumen),
-                                size = Size(size.width, stroke),
-                            )
-                        }
-                    }
                     .clickable(onClick = onToggleExpanded)
                     .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -2346,11 +2196,10 @@ private fun adaptiveLibraryCountTrailing(
 @Composable
 private fun RailSubgroupTitle(text: String) {
     val colors = LocalCinefinColors.current
-    val lumen = LocalLumenColors.current
     Text(
         text = text,
         style = CinefinType.LabelSmall,
-        color = lumen?.textFaint ?: colors.onSurfaceFaint,
+        color = colors.onSurfaceFaint,
         maxLines = 1,
         modifier =
             Modifier.fillMaxWidth()

@@ -21,6 +21,9 @@
     <string name="settings_category_network">Síť</string>
     <string name="pref_player_mpv_hwdec">Hardwarové dekódování</string>
     <string name="pref_player_mpv_vo">Výstup videa</string>
+    <string name="theme_aurora">Aurora (výchozí)</string>
+    <string name="theme_amoled">AMOLED černé</string>
+    <string name="theme_dynamic">Dynamické (Material You)</string>
     <string name="theme_system">Podle systému</string>
     <string name="dynamic_colors">Dynamické barvy</string>
     <string name="dynamic_colors_summary">Použit dynamické barvy Material You (dostupné pouze v systému Android 12+)</string>

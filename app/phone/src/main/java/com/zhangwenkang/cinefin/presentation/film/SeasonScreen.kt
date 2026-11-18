@@ -47,7 +47,6 @@ import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelect
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummySeason
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumen
 import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
@@ -243,141 +242,137 @@ private fun SeasonScreenLayout(
 
     val lazyListState = rememberLazyScrollMemoryState(scrollKey)
 
-    ProvideLumen {
-        Box(modifier = Modifier.fillMaxSize()) {
-            state.season?.let { season ->
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    state = lazyListState,
-                    contentPadding = PaddingValues(bottom = paddingBottom),
-                    verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
-                ) {
-                    if (selectionMode) {
-                        item(key = "selection-header") {
-                            Row(
-                                modifier =
-                                    Modifier.fillMaxWidth()
-                                        .padding(
-                                            start = paddingStart,
-                                            end = paddingEnd,
-                                            top = safePadding.top + 64.dp,
-                                        ),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text =
-                                        stringResource(
-                                            CoreR.string.download_selected_count,
-                                            selectedCount,
-                                        ),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color.White,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                MediaBatchTopBarActions(
-                                    selectedCount = selectedCount,
-                                    visibleCount = state.episodes.size,
-                                    onSelectAll = onSelectAll,
-                                    onSelectNone = onSelectNone,
-                                    onExit = onExitSelection,
-                                )
-                            }
-                        }
-                    }
-                    item {
-                        DetailHero(
-                            item = season,
-                            lazyListState = lazyListState,
-                            eyebrow = season.seriesName,
-                            title = season.name,
-                            meta =
-                                if (state.episodes.isNotEmpty()) {
-                                    stringResource(CoreR.string.episodes_label) +
-                                        " · " +
-                                        state.episodes.size
-                                } else {
-                                    null
-                                },
-                        ) { heroLayout ->
-                            ItemButtonsBar(
-                                item = season,
-                                onPlayClick = { startFromBeginning ->
-                                    onAction(
-                                        SeasonAction.Play(startFromBeginning = startFromBeginning)
-                                    )
-                                },
-                                onMarkAsPlayedClick = {
-                                    when (season.played) {
-                                        true -> onAction(SeasonAction.UnmarkAsPlayed)
-                                        false -> onAction(SeasonAction.MarkAsPlayed)
-                                    }
-                                },
-                                onMarkAsFavoriteClick = {
-                                    when (season.favorite) {
-                                        true -> onAction(SeasonAction.UnmarkAsFavorite)
-                                        false -> onAction(SeasonAction.MarkAsFavorite)
-                                    }
-                                },
-                                onTrailerClick = {},
-                                onDownloadClick = { onDownloadClick() },
-                                onDownloadCancelClick = {},
-                                onDownloadDeleteClick = {},
-                                modifier = Modifier.fillMaxWidth(),
-                                canPlay = state.episodes.isNotEmpty(),
-                                downloadState = downloadState,
-                                storageSelectionEnabled = false,
-                                heroLayout = heroLayout,
+    Box(modifier = Modifier.fillMaxSize()) {
+        state.season?.let { season ->
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                state = lazyListState,
+                contentPadding = PaddingValues(bottom = paddingBottom),
+                verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
+            ) {
+                if (selectionMode) {
+                    item(key = "selection-header") {
+                        Row(
+                            modifier =
+                                Modifier.fillMaxWidth()
+                                    .padding(
+                                        start = paddingStart,
+                                        end = paddingEnd,
+                                        top = safePadding.top + 64.dp,
+                                    ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text =
+                                    stringResource(
+                                        CoreR.string.download_selected_count,
+                                        selectedCount,
+                                    ),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                modifier = Modifier.weight(1f),
+                            )
+                            MediaBatchTopBarActions(
+                                selectedCount = selectedCount,
+                                visibleCount = state.episodes.size,
+                                onSelectAll = onSelectAll,
+                                onSelectNone = onSelectNone,
+                                onExit = onExitSelection,
                             )
                         }
                     }
-                    items(items = state.episodes, key = { episode -> episode.id }) { episode ->
-                        val episodeKey = episode.id.toString()
-                        EpisodeCard(
-                            episode = episode,
-                            selectionMode = selectionMode,
-                            selected = episodeKey in selectedIds,
-                            onClick = {
-                                if (selectionMode) onToggleEpisode(episodeKey)
-                                else onAction(SeasonAction.NavigateToItem(episode))
+                }
+                item {
+                    DetailHero(
+                        item = season,
+                        lazyListState = lazyListState,
+                        eyebrow = season.seriesName,
+                        title = season.name,
+                        meta =
+                            if (state.episodes.isNotEmpty()) {
+                                stringResource(CoreR.string.episodes_label) +
+                                    " · " +
+                                    state.episodes.size
+                            } else {
+                                null
                             },
-                            onLongClick = { onLongPressEpisode(episodeKey) },
-                            modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
+                    ) { heroLayout ->
+                        ItemButtonsBar(
+                            item = season,
+                            onPlayClick = { startFromBeginning ->
+                                onAction(SeasonAction.Play(startFromBeginning = startFromBeginning))
+                            },
+                            onMarkAsPlayedClick = {
+                                when (season.played) {
+                                    true -> onAction(SeasonAction.UnmarkAsPlayed)
+                                    false -> onAction(SeasonAction.MarkAsPlayed)
+                                }
+                            },
+                            onMarkAsFavoriteClick = {
+                                when (season.favorite) {
+                                    true -> onAction(SeasonAction.UnmarkAsFavorite)
+                                    false -> onAction(SeasonAction.MarkAsFavorite)
+                                }
+                            },
+                            onTrailerClick = {},
+                            onDownloadClick = { onDownloadClick() },
+                            onDownloadCancelClick = {},
+                            onDownloadDeleteClick = {},
+                            modifier = Modifier.fillMaxWidth(),
+                            canPlay = state.episodes.isNotEmpty(),
+                            downloadState = downloadState,
+                            storageSelectionEnabled = false,
+                            heroLayout = heroLayout,
                         )
                     }
                 }
-            }
-                ?: run {
-                    DetailSkeleton(
-                        gutterStart = paddingStart,
-                        gutterEnd = paddingEnd,
-                        modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+                items(items = state.episodes, key = { episode -> episode.id }) { episode ->
+                    val episodeKey = episode.id.toString()
+                    EpisodeCard(
+                        episode = episode,
+                        selectionMode = selectionMode,
+                        selected = episodeKey in selectedIds,
+                        onClick = {
+                            if (selectionMode) onToggleEpisode(episodeKey)
+                            else onAction(SeasonAction.NavigateToItem(episode))
+                        },
+                        onLongClick = { onLongPressEpisode(episodeKey) },
+                        modifier = Modifier.padding(start = paddingStart, end = paddingEnd),
                     )
                 }
+            }
+        }
+            ?: run {
+                DetailSkeleton(
+                    gutterStart = paddingStart,
+                    gutterEnd = paddingEnd,
+                    modifier = Modifier.fillMaxSize().padding(top = 72.dp),
+                )
+            }
 
-            ItemTopBar(
-                hasBackButton = true,
-                hasHomeButton = true,
-                onBackClick = { onAction(SeasonAction.OnBackClick) },
-                onHomeClick = { onAction(SeasonAction.OnHomeClick) },
-            )
-            CinefinSnackbarHost(
-                hostState = snackbarHostState,
-                modifier =
-                    Modifier.align(Alignment.BottomCenter).padding(bottom = CinefinSpacing.Space6),
-            )
-            if (selectionMode) {
-                CinefinBatchBar(
-                    selectedCount = selectedCount,
-                    modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
-                ) {
-                    CinefinIconButton(onClick = onBatchDownload) { tint ->
-                        Icon(
-                            painter = painterResource(CoreR.drawable.ic_download),
-                            contentDescription = stringResource(FilmR.string.batch_action_download),
-                            tint = tint,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
+        ItemTopBar(
+            hasBackButton = true,
+            hasHomeButton = true,
+            onBackClick = { onAction(SeasonAction.OnBackClick) },
+            onHomeClick = { onAction(SeasonAction.OnHomeClick) },
+        )
+        CinefinSnackbarHost(
+            hostState = snackbarHostState,
+            modifier =
+                Modifier.align(Alignment.BottomCenter).padding(bottom = CinefinSpacing.Space6),
+        )
+        if (selectionMode) {
+            CinefinBatchBar(
+                selectedCount = selectedCount,
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+            ) {
+                CinefinIconButton(onClick = onBatchDownload) { tint ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_download),
+                        contentDescription = stringResource(FilmR.string.batch_action_download),
+                        tint = tint,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
             }
         }

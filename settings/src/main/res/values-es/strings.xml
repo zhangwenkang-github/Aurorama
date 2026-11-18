@@ -36,6 +36,9 @@
     <string name="subtitles_summary">Personalizar apariencia de subtítulos</string>
     <string name="dynamic_colors">Colores dinámicos</string>
     <string name="dynamic_colors_summary">Usar colores dinámicos de Material You (solo en Android 12+)</string>
+    <string name="theme_aurora">Aurora (predeterminado)</string>
+    <string name="theme_amoled">AMOLED negro</string>
+    <string name="theme_dynamic">Dinámico (Material You)</string>
     <string name="theme_system">Seguir tema del dispositivo</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Oscuro</string>

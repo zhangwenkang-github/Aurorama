@@ -62,6 +62,9 @@
     <string name="title_download">Descargas</string>
     <string name="theme">Tema</string>
     <string name="about">Acerca</string>
+    <string name="theme_aurora">Aurora (predeterminado)</string>
+    <string name="theme_amoled">AMOLED negro</string>
+    <string name="theme_dynamic">Dinámico (Material You)</string>
     <string name="theme_system">Seguir al sistema</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Oscuro</string>

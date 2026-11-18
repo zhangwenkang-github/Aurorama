@@ -32,32 +32,36 @@ val LocalMediaColors = staticCompositionLocalOf { MediaFilm }
 val LocalCinefinTypography = staticCompositionLocalOf { CinefinTypography }
 
 /**
- * Cinefin Prism 主题（设计系统核心，位于 `core`）。
+ * Cinefin 主题（设计系统核心，位于 `core`）。
  *
- * - 色彩：M3 槽位由 [cinefinColorScheme] 按 [domain] 与亮 / 暗生成；组件层另有 [LocalMediaColors]。
+ * - 色彩：色板由 [themeId] 从 [CinefinThemes] 注册表取，M3 槽位由 [cinefinColorScheme] 按 [domain] 与亮 / 暗生成；组件层另有
+ *   [LocalMediaColors]。
  * - 排版：默认 [CinefinTypography]（v1.0 新字阶）；过渡期宿主可传 [LegacyTypography] 让存量页面零回归。
  * - 形状：[CinefinShapes.M3]（28/22/16/12/8）；动效与间距由调用方直接引用 token 对象。
  *
+ * @param themeId 主题 id（[CinefinThemes] 的键）；未知 id 回落 aurora。
+ * @param dynamicColor 是否用系统动态取色生成 M3 方案（Material You）。开启时 [LocalCinefinColors] 仍用注册表色板。
  * @param surfaceBackground 是否铺一层主题底色。播放页控制层叠在视频画面上时必须传 `false`， 否则不透明底会盖住画面（表现为「一显示控制层就全黑」）。
  */
 @Composable
 fun CinefinTheme(
     domain: ContentDomain = ContentDomain.Neutral,
     darkTheme: Boolean = true,
+    themeId: String = CinefinThemes.DEFAULT,
     dynamicColor: Boolean = false,
     surfaceBackground: Boolean = true,
     typography: Typography = CinefinTypography,
     content: @Composable () -> Unit,
 ) {
-    val colors = if (darkTheme) CinefinColorsDark else CinefinColorsLight
-    val media = mediaColorsFor(domain)
+    val colors = CinefinThemes.colorsFor(themeId, darkTheme)
+    val media = mediaColorsFor(domain, colors)
     val colorScheme =
         when {
             dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
                 val context = LocalContext.current
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
-            else -> cinefinColorScheme(domain, darkTheme)
+            else -> cinefinColorScheme(domain, colors, darkTheme)
         }
 
     CompositionLocalProvider(

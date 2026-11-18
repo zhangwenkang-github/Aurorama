@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -29,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 
 /**
@@ -58,7 +56,6 @@ fun LumenCardFrame(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val lumen = LocalLumenColors.current
     val borderBrush =
         if (emphasized) {
             Brush.linearGradient(
@@ -69,9 +66,6 @@ fun LumenCardFrame(
                         1f to media.outline,
                     )
             )
-        } else if (lumen != null) {
-            // Lumen 区域（S1 A 稿）：均匀 1px 白 8.5% 细线（`--line`），不再做"上缘受光"的铝框强调
-            SolidColor(lumen.line)
         } else {
             // 铝框感：上缘受光更亮、中段回落、下缘再收一点光，避免"通体一根灰线"
             Brush.linearGradient(

@@ -39,6 +39,9 @@
     <string name="extra_info_summary">Показва подробна информация за аудио, видео и субтитри</string>
     <string name="theme_light">Светла</string>
     <string name="amoled_theme_summary">Използване на AMOLED тема с чисто черен фон</string>
+    <string name="theme_aurora">Аурора (по подразбиране)</string>
+    <string name="theme_amoled">AMOLED черно</string>
+    <string name="theme_dynamic">Динамична (Material You)</string>
     <string name="theme_system">Системна</string>
     <string name="amoled_theme">AMOLED тъмна тема</string>
     <string name="player_gestures_seek">Жест за превъртане</string>

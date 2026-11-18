@@ -41,7 +41,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.CollectionType
@@ -67,11 +66,10 @@ fun LibraryEntryCard(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val lumen = LocalLumenColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()
-    val scrim = lumen?.scrim ?: Color.Black
+    val scrim = Color.Black
     val tileShape = CinefinShapes.Sm
     val collection = item as? FindroidCollection
     // W74（#3）：无论库自身有没有封面，底层都常驻「库类型图标 + 媒体域色底」占位——
@@ -88,7 +86,7 @@ fun LibraryEntryCard(
                 onClick()
             },
         emphasized = hovered || pressed,
-        container = lumen?.panel ?: colors.surfaceContainerHigh,
+        container = colors.surfaceContainerHigh,
     ) {
         Box(
             modifier =
@@ -145,8 +143,8 @@ fun LibraryEntryCard(
                 modifier =
                     Modifier.size(44.dp)
                         .clip(tileShape)
-                        .background(lumen?.panelElevated ?: colors.surfaceContainerHigh)
-                        .border(1.dp, lumen?.line ?: colors.outline, tileShape),
+                        .background(colors.surfaceContainerHigh)
+                        .border(1.dp, colors.outline, tileShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -161,7 +159,7 @@ fun LibraryEntryCard(
                 Text(
                     text = item.name,
                     style = CinefinType.WideCardTitle,
-                    color = lumen?.text ?: colors.onSurface,
+                    color = colors.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -170,7 +168,7 @@ fun LibraryEntryCard(
                     Text(
                         text = stringResource(FilmR.string.library_item_count, itemCount),
                         style = CinefinType.BodySmall,
-                        color = lumen?.textSecondary ?: colors.onSurfaceVariant,
+                        color = colors.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -180,7 +178,7 @@ fun LibraryEntryCard(
             Icon(
                 painter = painterResource(CoreR.drawable.ic_arrow_right),
                 contentDescription = null,
-                tint = lumen?.textFaint ?: colors.onSurfaceVariant,
+                tint = colors.onSurfaceVariant,
                 modifier = Modifier.size(20.dp),
             )
         }

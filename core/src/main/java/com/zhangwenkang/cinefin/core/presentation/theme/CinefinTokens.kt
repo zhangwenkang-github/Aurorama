@@ -5,8 +5,8 @@ import androidx.compose.ui.graphics.Color
 /**
  * Cinefin Prism 原始 token（依据 `docs/UI_DESIGN_SYSTEM.md` v1.0 §2–§7）。
  *
- * 本文件与历史 `Color.kt` 是项目中仅有的两处允许出现 `Color(0x…)` 字面量的文件；业务与组件代码 一律通过 [CinefinColorsDark] /
- * [CinefinColorsLight]、[MediaFilm] / [MediaMusic] / [MediaBook] 以及 [CinefinType] / [CinefinShapes]
+ * 本文件与历史 `Color.kt` 是项目中仅有的两处允许出现 `Color(0x…)` 字面量的文件；业务与组件代码 一律通过 [CinefinColors]（经
+ * `CinefinThemes` 注册表）、[MediaFilm] / [MediaMusic] / [MediaBook] 以及 [CinefinType] / [CinefinShapes]
  * / [CinefinMotion] / [CinefinSpacing] 引用语义 token。
  *
  * 标注「派生」的值是设计系统未逐字给出、按 §2.4 派生规则（叠加 / 邻近明度）补全的亮色与扩展槽位， 变更需回设计系统评审。
@@ -113,6 +113,33 @@ object CinefinTokens {
     val MediaBookContainerPressed = Color(0xFF2F415E)
     val MediaBookOnBase = Color(0xFF0A1220)
     val MediaBookOutline = Color(0xFF415E8A)
+
+    // ---- Lumen 遗产色板（原 LumenColors.kt，仅注册表 `lumen` 条目引用；不在用户可选值域内）----
+    /** `--bg` 曜石黑。 */
+    val LumenBackground = Color(0xFF08090C)
+    /** `--panel` 石墨。 */
+    val LumenPanel = Color(0xFF111319)
+    /** `--panel-2` 雾灰。 */
+    val LumenPanelElevated = Color(0xFF171A21)
+    /** `--text` 月白。 */
+    val LumenText = Color(0xFFF2F5F9)
+    /** `--text-2` 次级文字。 */
+    val LumenTextSecondary = Color(0xFF98A2B3)
+    /** `--text-3` 三级文字。 */
+    val LumenTextFaint = Color(0xFF6B7483)
+    /** `--accent` 极光青。 */
+    val LumenAccent = Color(0xFF5CE1D2)
+    /** `--accent-2` 辅光蓝。 */
+    val LumenAccentSecondary = Color(0xFF7CC4FF)
+    val LumenOnPrimary = Color(0xFF0A0C11)
+    /** `--line` 细线：白 8.5%。 */
+    const val LumenLineAlpha = 0.085f
+    /** `--line-soft` 弱分隔线：白 5%。 */
+    const val LumenLineSoftAlpha = 0.05f
+    /** hero 进度轨道：白 14%。 */
+    const val LumenProgressTrackAlpha = 0.14f
+    /** 侧缘渐隐基色（曜石黑同源）。 */
+    val LumenScrim = Color(0xFF06070A)
 
     // ---- §8.14 阅读器纸色主题（C · Nocturne 皮肤）----
     val PaperSurface = Color(0xFFFBF6EC)

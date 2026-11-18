@@ -22,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.ColorPainter
@@ -47,7 +46,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.R as FilmR
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -77,7 +75,6 @@ fun HomeHero(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val lumen = LocalLumenColors.current
     val expanded =
         currentWindowAdaptiveInfo()
             .windowSizeClass
@@ -86,7 +83,7 @@ fun HomeHero(
     val contentPadding = if (expanded) CinefinSpacing.Space8 else CinefinSpacing.Space6
 
     val resumeFraction = item.resumeFraction()
-    val sideScrimColor = lumen?.scrim ?: colors.surface
+    val sideScrimColor = colors.surface
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         // 平板按 21:9 出稿、手机按 16:9；高度上限兜底大屏，内容高度兜底小屏（见类注释）
@@ -237,15 +234,7 @@ fun HomeHero(
                         modifier =
                             Modifier.fillMaxWidth(resumeFraction)
                                 .height(3.dp)
-                                .background(
-                                    if (lumen != null) {
-                                        Brush.horizontalGradient(
-                                            listOf(lumen.accent, lumen.accentSecondary)
-                                        )
-                                    } else {
-                                        SolidColor(media.base)
-                                    }
-                                )
+                                .background(SolidColor(media.base))
                     )
                 }
             }

@@ -10,6 +10,9 @@
     <string name="subtitles_summary">pas het uiterlijk van ondertiteling aan</string>
     <string name="seeking">Zoeken</string>
     <string name="seek_back_increment">Terugzoek stappen</string>
+    <string name="theme_aurora">Aurora (standaard)</string>
+    <string name="theme_amoled">AMOLED zwart</string>
+    <string name="theme_dynamic">Dynamisch (Material You)</string>
     <string name="theme_system">Volg systeem</string>
     <string name="theme_light">Licht</string>
     <string name="theme_dark">Donker</string>

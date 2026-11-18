@@ -28,6 +28,9 @@
     <string name="dynamic_colors_summary">Uporabite dinamične barve Material You (na voljo samo v sistemih novejših od Android 12)</string>
     <string name="subtitles">Podnapisi</string>
     <string name="subtitles_summary">Prilagodite videz podnapisov</string>
+    <string name="theme_aurora">Aurora (privzeto)</string>
+    <string name="theme_amoled">AMOLED črna</string>
+    <string name="theme_dynamic">Dinamično (Material You)</string>
     <string name="theme_system">Sledi sistemu</string>
     <string name="theme_light">Svetlo</string>
     <string name="theme_dark">Temno</string>

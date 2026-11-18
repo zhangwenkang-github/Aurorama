@@ -18,9 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -33,7 +30,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 
 /**
  * 顶层页面共用顶栏（W8-R3 用户反馈 1）：媒体库 / 音乐 / 书架三页共用同一套尺寸与排版。
@@ -41,7 +37,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
  * 统一项：**56dp 内容高 + `statusBarsPadding()`**（音乐页原先 72dp 且不带状态栏内边距，顶栏键会被系统状态栏压住，这里根治）、 44dp 图标键（图标
  * 24dp，与首页 `HomeTopBar` 同一语言）、页边距随窗口分级 20 / 24 / 32 / 48dp、**一级页面左侧入口 = `ic_logo` app 图标 +
  * `content-desc="打开侧栏"`**（W46：与首页 / 音乐 / 书架 / 媒体库四页统一；二级页面仍用返回键）、标题排版 = 主标题（`TitleLarge`）+
- * 计数副标题（`BodySmall`）。Lumen 区域在顶栏下缘补一条发丝线（A 稿层次），Prism 区域保持纯净。
+ * 计数副标题（`BodySmall`）。顶栏不画分隔线，保持干净层次。
  */
 @Composable
 fun CinefinPageTopBar(
@@ -56,7 +52,6 @@ fun CinefinPageTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = LocalCinefinColors.current
-    val lumen = LocalLumenColors.current
     val gutter = cinefinPageGutter()
 
     Row(
@@ -65,20 +60,6 @@ fun CinefinPageTopBar(
                 .fillMaxWidth()
                 .statusBarsPadding()
                 .height(56.dp)
-                .then(
-                    if (lumen != null) {
-                        Modifier.drawBehind {
-                            val stroke = 1.dp.toPx()
-                            drawRect(
-                                color = lumen.lineSoft,
-                                topLeft = Offset(0f, size.height - stroke),
-                                size = Size(size.width, stroke),
-                            )
-                        }
-                    } else {
-                        Modifier
-                    }
-                )
                 .padding(start = gutter, end = gutter),
         verticalAlignment = Alignment.CenterVertically,
     ) {

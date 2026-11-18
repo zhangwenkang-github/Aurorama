@@ -36,6 +36,9 @@
     <string name="subtitles_summary">Personalizza lo stile dei sottotitoli</string>
     <string name="dynamic_colors">Colori dinamici</string>
     <string name="dynamic_colors_summary">Usa i colori dinamici Material You (disponibile solo per Android 12+)</string>
+    <string name="theme_aurora">Aurora (predefinito)</string>
+    <string name="theme_amoled">AMOLED nero</string>
+    <string name="theme_dynamic">Dinamico (Material You)</string>
     <string name="theme_system">Usa le impostazioni di sistema</string>
     <string name="settings_request_timeout">Timeout richiesta</string>
     <string name="pref_player_mpv_ao">Output audio</string>

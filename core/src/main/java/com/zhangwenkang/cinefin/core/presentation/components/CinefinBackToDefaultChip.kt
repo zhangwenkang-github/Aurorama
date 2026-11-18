@@ -26,8 +26,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 /**
  * 临时库视图的「返回默认 ×」胶囊（W53 追加）：一键回到该模式页的默认库。
  *
- * 与顶栏同一排使用（`CinefinPageTopBar(actions = { … })`）；配色只用当前皮肤语义 token （Prism / Lumen /
- * 阅读器纸色都能自动跟随），不新增色值。
+ * 与顶栏同一排使用（`CinefinPageTopBar(actions = { … })`）；配色只用当前主题的语义 token（阅读器纸色面板也能自动跟随）， 不新增色值。
  */
 @Composable
 fun CinefinBackToDefaultChip(onClick: () -> Unit, modifier: Modifier = Modifier) {

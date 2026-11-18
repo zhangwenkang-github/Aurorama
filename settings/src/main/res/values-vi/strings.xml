@@ -27,6 +27,9 @@
     <string name="dynamic_colors">Đổi màu động</string>
     <string name="subtitles">Phụ đề</string>
     <string name="subtitles_summary">Tùy chình diện mạo của phụ đề</string>
+    <string name="theme_aurora">Aurora (mặc định)</string>
+    <string name="theme_amoled">AMOLED đen</string>
+    <string name="theme_dynamic">Động (Material You)</string>
     <string name="theme_system">Theo hệ thống</string>
     <string name="theme_light">Sáng</string>
     <string name="theme_dark">Tối</string>

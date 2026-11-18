@@ -25,6 +25,9 @@
     <string name="pref_player_mpv_ao">Saída de áudio</string>
     <string name="subtitles">Legendas</string>
     <string name="subtitles_summary">Personalize a aparência das legendas</string>
+    <string name="theme_aurora">Aurora (padrão)</string>
+    <string name="theme_amoled">AMOLED preto</string>
+    <string name="theme_dynamic">Dinâmico (Material You)</string>
     <string name="theme_system">Usar configurações do sistema</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Escuro</string>

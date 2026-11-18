@@ -19,7 +19,6 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVarian
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.models.FindroidItem
 
 @Composable
@@ -45,10 +44,7 @@ fun PlayButton(
         modifier = modifier,
         variant = CinefinButtonVariant.Filled,
         size = CinefinButtonSize.Large,
-        // Lumen 区域（电影 / 剧集详情）用 A 稿月白主按钮；其余页面保持媒体色填充
-        tone =
-            if (LocalLumenColors.current != null) CinefinButtonTone.Inverse
-            else CinefinButtonTone.Media,
+        tone = CinefinButtonTone.Media,
         enabled = enabled,
         icon = { tint ->
             Icon(

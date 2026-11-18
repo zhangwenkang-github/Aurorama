@@ -63,6 +63,9 @@
     <string name="offline_mode">­وضع عدم الاتصال</string>
     <string name="offline_mode_summary">مشاهدة الأفلام والمسلسلات بدون اتصال بالخادم</string>
     <string name="theme">الثمة</string>
+    <string name="theme_aurora">أورورا (افتراضي)</string>
+    <string name="theme_amoled">AMOLED أسود</string>
+    <string name="theme_dynamic">ديناميكي (Material You)</string>
     <string name="theme_system">حسب النظام</string>
     <string name="theme_light">فاتح</string>
     <string name="theme_dark">داكن</string>

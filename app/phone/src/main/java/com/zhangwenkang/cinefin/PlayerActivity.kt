@@ -51,7 +51,6 @@ import coil3.request.ImageRequest
 import coil3.request.bitmapConfig
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
-import com.zhangwenkang.cinefin.core.presentation.theme.ProvideLumenColors
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
@@ -318,177 +317,167 @@ class PlayerActivity : BasePlayerActivity() {
         binding.controlOverlayCompose.setContent {
             // 注意：这里必须关掉主题底色，否则那层不透明 Surface 会把视频画面整个盖住
             CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
-                // 反馈⑦：播放页整层切到 A · Lumen（极光青强调 / 曜石黑面板 / 月白主行动）；
-                // 组件仍只引用语义 token，离开本页自动回到 Prism
-                ProvideLumenColors {
-                    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                    val subtitlePanelState by
-                        viewModel.subtitlePanelState.collectAsStateWithLifecycle()
-                    val audioPanelState by viewModel.audioPanelState.collectAsStateWithLifecycle()
-                    val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
-                    // 形态判定放在 Compose 侧：窗口尺寸 / 折叠姿势 / 多窗口状态变化都会触发重组
-                    // W67b：竖屏内容区展开 / 收起由页面状态参与布局（画面区高度、内容区占位一并生效）
-                    val layout =
-                        rememberPlayerLayoutContext(isPip = pipMode.value)
-                            .copy(bottomContentExpanded = bottomContentExpanded.value)
-                    LaunchedEffect(layout, sidePanelExpanded.value) {
-                        layoutContext = layout
-                        applyVideoArea(layout)
-                    }
-                    val controlPlayer = viewModel.uiPlayer
-                    if (controlPlayer == null) {
-                        binding.controlOverlay.visibility = View.INVISIBLE
-                        return@ProvideLumenColors
-                    }
-                    PlayerControlOverlay(
-                        player = controlPlayer,
-                        uiState = uiState,
-                        controls = controlsState,
-                        layout = layout,
-                        sidePanelExpanded = sidePanelExpanded.value,
-                        onToggleSidePanel = { sidePanelExpanded.value = !sidePanelExpanded.value },
-                        onCollapseBottomContent = { bottomContentExpanded.value = false },
-                        onExpandBottomContent = { bottomContentExpanded.value = true },
-                        isPipSupported = isPipSupported,
-                        isFullscreen = fullscreenMode.value,
-                        onToggleFullscreen = { toggleFullscreen() },
-                        // W73（#7）：seek 统一走 ViewModel——未就绪排队 + 转码超窗重开会话
-                        onSeekRequest = { target ->
-                            viewModel.submitSeek(
-                                PlayerViewModel.SeekIntent.Absolute(target),
-                                "progress",
-                            )
-                        },
-                        onSeekFractionRequest = { fraction ->
-                            viewModel.submitSeek(
-                                PlayerViewModel.SeekIntent.Fraction(fraction),
-                                "progress-unknown",
-                            )
-                        },
-                        onSeekRelativeRequest = { delta ->
-                            viewModel.submitSeek(
-                                PlayerViewModel.SeekIntent.Relative(delta),
-                                "step",
-                            )
-                        },
-                        onPreviousMediaItem = {
-                            viewModel.submitSeek(
-                                PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = false),
-                                "previous",
-                            )
-                        },
-                        onNextMediaItem = {
-                            viewModel.submitSeek(
-                                PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = true),
-                                "next",
-                            )
-                        },
-                        onSelectMediaItem = { index ->
-                            viewModel.submitSeek(
-                                PlayerViewModel.SeekIntent.MediaItem(index),
-                                "queue",
-                            )
-                        },
-                        onRetrySeek = viewModel::retrySeek,
-                        // W55 睡眠定时统一：状态与选择都走进程级单例（音乐 / 视频共享）
-                        sleepState = sleepTimerState,
-                        onSelectSleepMinutes = { minutes -> viewModel.selectSleepTimer(minutes) },
-                        onBack = { finishPlayback() },
-                        onPip = { pictureInPicture() },
-                        onSelectSpeed = { speed -> viewModel.selectSpeed(speed) },
-                        subtitlePanelState = subtitlePanelState,
-                        onAssignPrimarySubtitle = { id -> viewModel.assignSubtitlePrimary(id) },
-                        onAssignSecondarySubtitle = { id -> viewModel.assignSubtitleSecondary(id) },
-                        onClearPrimarySubtitle = { viewModel.clearSubtitlePrimary() },
-                        onClearSecondarySubtitle = { viewModel.clearSubtitleSecondary() },
-                        onSwapSubtitles = { viewModel.swapSubtitleTracks() },
-                        onAutoSelectSubtitles = { viewModel.autoSelectSubtitleTracks() },
-                        onAdjustSubtitleDelay = { delta -> viewModel.adjustSubtitleDelay(delta) },
-                        onResetSubtitleDelay = { viewModel.resetSubtitleDelay() },
-                        onUpdateSubtitleAppearance = { appearance ->
-                            viewModel.updateSubtitleAppearance(appearance)
-                        },
-                        audioPanelState = audioPanelState,
-                        onSelectAudioTrack = { index -> viewModel.selectAudioTrack(index) },
-                        onAdjustAudioDelay = { delta -> viewModel.adjustAudioDelay(delta) },
-                        onResetAudioDelay = { viewModel.resetAudioDelay() },
-                        onSkipSegment = { segment -> viewModel.skipSegment(segment) },
-                        initialResizeMode =
-                            appPreferences.getValue(appPreferences.playerResizeMode),
-                        onSelectResizeMode = { mode -> selectResizeMode(mode) },
-                        settingsController = settingsController,
-                        videoTransform = videoTransform.value,
-                        onSelectBackend = { backend -> switchBackendAndRestart(backend) },
-                        onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
-                        onSelectDecodeMode = { mode -> selectDecodeMode(mode) },
-                        onAutoFallbackChange = { enabled -> selectAutoFallback(enabled) },
-                        onSelectBitrate = { bitrate -> selectStreamingBitrate(bitrate) },
-                        onSubtitleModeChanged = { mode -> viewModel.setSubtitleMode(mode) },
-                        // W27：侧载字幕导入 / 移除 + PlayerDebugOverlay 实时数据源
-                        onImportSubtitle = { subtitleImportLauncher.launch(arrayOf("*/*")) },
-                        onRemoveSideloadedSubtitle = { id ->
-                            viewModel.removeSideloadedSubtitle(id)
-                        },
-                        debugStatsProvider = { viewModel.readDebugStats() },
-                        onVideoTransformChanged = { transform -> updateVideoTransform(transform) },
-                        onQueueMove = { from, to -> viewModel.moveQueueItem(from, to) },
-                        onQueueRemove = { index -> viewModel.removeQueueItem(index) },
-                        onQueueClear = { viewModel.clearQueue() },
-                        // W20（§1.11）：Trickplay 预览按需取（未命中触发后台拉取，不阻塞拖动）
-                        trickplayFrameAt = { position -> viewModel.trickplayFrameAt(position) },
-                        showChapterMarkers = settingsController.state.chapterMarkers,
-                        onRetry = viewModel::retryPlayerError,
-                        onSwitchBackend = { target -> switchBackendAndRestart(target) },
-                        onRegionsChanged = {
-                            visible,
-                            panelOpen,
-                            locked,
-                            errorVisible,
-                            buffering,
-                            skipChipVisible,
-                            debugOverlayVisible ->
-                            binding.controlOverlay.controlsVisible = visible
-                            binding.controlOverlay.panelOpen = panelOpen
-                            binding.controlOverlay.locked = locked
-                            binding.controlOverlay.errorVisible = errorVisible
-                            binding.controlOverlay.debugOverlayVisible = debugOverlayVisible
-                            /*
-                             * 控制层隐藏时整层退出合成（INVISIBLE），不要留一个满屏的 Compose 层
-                             * 一直盖在视频 SurfaceView 上：部分设备会据此判定「画面被遮挡」而黑屏。
-                             * 但平板侧栏、手机竖屏下方内容区是常驻的，这些骨架必须保持可见。
-                             * 缓冲期间也要保持合成：那时播放键里的转圈是唯一加载图标（反馈⑤）。
-                             */
-                            val chromeKeepsComposition =
-                                layoutContext?.chrome?.keepsComposition() == true
-                            binding.controlOverlay.visibility =
-                                if (
-                                    visible ||
-                                        panelOpen ||
-                                        locked ||
-                                        buffering ||
-                                        skipChipVisible ||
-                                        debugOverlayVisible ||
-                                        chromeKeepsComposition
-                                ) {
-                                    View.VISIBLE
-                                } else {
-                                    View.INVISIBLE
-                                }
-                        },
-                        onTopBarHeight = { px ->
-                            binding.controlOverlay.topBarHeightPx = px.toFloat()
-                        },
-                        onBottomBarHeight = { px ->
-                            binding.controlOverlay.bottomBarHeightPx = px.toFloat()
-                            // 小窗只有这一条控制条，命中带读同一个实测高度（§9 踩坑：不写死 dp）
-                            binding.controlOverlay.compactBarHeightPx = px.toFloat()
-                        },
-                        onCenterClusterSize = { width, height ->
-                            binding.controlOverlay.centerClusterWidthPx = width.toFloat()
-                            binding.controlOverlay.centerClusterHeightPx = height.toFloat()
-                        },
-                    )
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                val subtitlePanelState by viewModel.subtitlePanelState.collectAsStateWithLifecycle()
+                val audioPanelState by viewModel.audioPanelState.collectAsStateWithLifecycle()
+                val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
+                // 形态判定放在 Compose 侧：窗口尺寸 / 折叠姿势 / 多窗口状态变化都会触发重组
+                // W67b：竖屏内容区展开 / 收起由页面状态参与布局（画面区高度、内容区占位一并生效）
+                val layout =
+                    rememberPlayerLayoutContext(isPip = pipMode.value)
+                        .copy(bottomContentExpanded = bottomContentExpanded.value)
+                LaunchedEffect(layout, sidePanelExpanded.value) {
+                    layoutContext = layout
+                    applyVideoArea(layout)
                 }
+                val controlPlayer = viewModel.uiPlayer
+                if (controlPlayer == null) {
+                    binding.controlOverlay.visibility = View.INVISIBLE
+                    return@CinefinTheme
+                }
+                PlayerControlOverlay(
+                    player = controlPlayer,
+                    uiState = uiState,
+                    controls = controlsState,
+                    layout = layout,
+                    sidePanelExpanded = sidePanelExpanded.value,
+                    onToggleSidePanel = { sidePanelExpanded.value = !sidePanelExpanded.value },
+                    onCollapseBottomContent = { bottomContentExpanded.value = false },
+                    onExpandBottomContent = { bottomContentExpanded.value = true },
+                    isPipSupported = isPipSupported,
+                    isFullscreen = fullscreenMode.value,
+                    onToggleFullscreen = { toggleFullscreen() },
+                    // W73（#7）：seek 统一走 ViewModel——未就绪排队 + 转码超窗重开会话
+                    onSeekRequest = { target ->
+                        viewModel.submitSeek(
+                            PlayerViewModel.SeekIntent.Absolute(target),
+                            "progress",
+                        )
+                    },
+                    onSeekFractionRequest = { fraction ->
+                        viewModel.submitSeek(
+                            PlayerViewModel.SeekIntent.Fraction(fraction),
+                            "progress-unknown",
+                        )
+                    },
+                    onSeekRelativeRequest = { delta ->
+                        viewModel.submitSeek(
+                            PlayerViewModel.SeekIntent.Relative(delta),
+                            "step",
+                        )
+                    },
+                    onPreviousMediaItem = {
+                        viewModel.submitSeek(
+                            PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = false),
+                            "previous",
+                        )
+                    },
+                    onNextMediaItem = {
+                        viewModel.submitSeek(
+                            PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = true),
+                            "next",
+                        )
+                    },
+                    onSelectMediaItem = { index ->
+                        viewModel.submitSeek(
+                            PlayerViewModel.SeekIntent.MediaItem(index),
+                            "queue",
+                        )
+                    },
+                    onRetrySeek = viewModel::retrySeek,
+                    // W55 睡眠定时统一：状态与选择都走进程级单例（音乐 / 视频共享）
+                    sleepState = sleepTimerState,
+                    onSelectSleepMinutes = { minutes -> viewModel.selectSleepTimer(minutes) },
+                    onBack = { finishPlayback() },
+                    onPip = { pictureInPicture() },
+                    onSelectSpeed = { speed -> viewModel.selectSpeed(speed) },
+                    subtitlePanelState = subtitlePanelState,
+                    onAssignPrimarySubtitle = { id -> viewModel.assignSubtitlePrimary(id) },
+                    onAssignSecondarySubtitle = { id -> viewModel.assignSubtitleSecondary(id) },
+                    onClearPrimarySubtitle = { viewModel.clearSubtitlePrimary() },
+                    onClearSecondarySubtitle = { viewModel.clearSubtitleSecondary() },
+                    onSwapSubtitles = { viewModel.swapSubtitleTracks() },
+                    onAutoSelectSubtitles = { viewModel.autoSelectSubtitleTracks() },
+                    onAdjustSubtitleDelay = { delta -> viewModel.adjustSubtitleDelay(delta) },
+                    onResetSubtitleDelay = { viewModel.resetSubtitleDelay() },
+                    onUpdateSubtitleAppearance = { appearance ->
+                        viewModel.updateSubtitleAppearance(appearance)
+                    },
+                    audioPanelState = audioPanelState,
+                    onSelectAudioTrack = { index -> viewModel.selectAudioTrack(index) },
+                    onAdjustAudioDelay = { delta -> viewModel.adjustAudioDelay(delta) },
+                    onResetAudioDelay = { viewModel.resetAudioDelay() },
+                    onSkipSegment = { segment -> viewModel.skipSegment(segment) },
+                    initialResizeMode = appPreferences.getValue(appPreferences.playerResizeMode),
+                    onSelectResizeMode = { mode -> selectResizeMode(mode) },
+                    settingsController = settingsController,
+                    videoTransform = videoTransform.value,
+                    onSelectBackend = { backend -> switchBackendAndRestart(backend) },
+                    onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
+                    onSelectDecodeMode = { mode -> selectDecodeMode(mode) },
+                    onAutoFallbackChange = { enabled -> selectAutoFallback(enabled) },
+                    onSelectBitrate = { bitrate -> selectStreamingBitrate(bitrate) },
+                    onSubtitleModeChanged = { mode -> viewModel.setSubtitleMode(mode) },
+                    // W27：侧载字幕导入 / 移除 + PlayerDebugOverlay 实时数据源
+                    onImportSubtitle = { subtitleImportLauncher.launch(arrayOf("*/*")) },
+                    onRemoveSideloadedSubtitle = { id -> viewModel.removeSideloadedSubtitle(id) },
+                    debugStatsProvider = { viewModel.readDebugStats() },
+                    onVideoTransformChanged = { transform -> updateVideoTransform(transform) },
+                    onQueueMove = { from, to -> viewModel.moveQueueItem(from, to) },
+                    onQueueRemove = { index -> viewModel.removeQueueItem(index) },
+                    onQueueClear = { viewModel.clearQueue() },
+                    // W20（§1.11）：Trickplay 预览按需取（未命中触发后台拉取，不阻塞拖动）
+                    trickplayFrameAt = { position -> viewModel.trickplayFrameAt(position) },
+                    showChapterMarkers = settingsController.state.chapterMarkers,
+                    onRetry = viewModel::retryPlayerError,
+                    onSwitchBackend = { target -> switchBackendAndRestart(target) },
+                    onRegionsChanged = {
+                        visible,
+                        panelOpen,
+                        locked,
+                        errorVisible,
+                        buffering,
+                        skipChipVisible,
+                        debugOverlayVisible ->
+                        binding.controlOverlay.controlsVisible = visible
+                        binding.controlOverlay.panelOpen = panelOpen
+                        binding.controlOverlay.locked = locked
+                        binding.controlOverlay.errorVisible = errorVisible
+                        binding.controlOverlay.debugOverlayVisible = debugOverlayVisible
+                        /*
+                         * 控制层隐藏时整层退出合成（INVISIBLE），不要留一个满屏的 Compose 层
+                         * 一直盖在视频 SurfaceView 上：部分设备会据此判定「画面被遮挡」而黑屏。
+                         * 但平板侧栏、手机竖屏下方内容区是常驻的，这些骨架必须保持可见。
+                         * 缓冲期间也要保持合成：那时播放键里的转圈是唯一加载图标（反馈⑤）。
+                         */
+                        val chromeKeepsComposition =
+                            layoutContext?.chrome?.keepsComposition() == true
+                        binding.controlOverlay.visibility =
+                            if (
+                                visible ||
+                                    panelOpen ||
+                                    locked ||
+                                    buffering ||
+                                    skipChipVisible ||
+                                    debugOverlayVisible ||
+                                    chromeKeepsComposition
+                            ) {
+                                View.VISIBLE
+                            } else {
+                                View.INVISIBLE
+                            }
+                    },
+                    onTopBarHeight = { px -> binding.controlOverlay.topBarHeightPx = px.toFloat() },
+                    onBottomBarHeight = { px ->
+                        binding.controlOverlay.bottomBarHeightPx = px.toFloat()
+                        // 小窗只有这一条控制条，命中带读同一个实测高度（§9 踩坑：不写死 dp）
+                        binding.controlOverlay.compactBarHeightPx = px.toFloat()
+                    },
+                    onCenterClusterSize = { width, height ->
+                        binding.controlOverlay.centerClusterWidthPx = width.toFloat()
+                        binding.controlOverlay.centerClusterHeightPx = height.toFloat()
+                    },
+                )
             }
         }
 

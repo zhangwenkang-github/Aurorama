@@ -44,7 +44,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -73,7 +72,6 @@ fun BatchDownloadDialog(
     onDismiss: () -> Unit,
     defaultLimit: Int = DetailDownloadRules.DEFAULT_BATCH_LIMIT,
 ) {
-    val lumen = LocalLumenColors.current
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     var limitEnabled by remember { mutableStateOf(true) }
@@ -93,7 +91,7 @@ fun BatchDownloadDialog(
     Dialog(onDismissRequest = onDismiss) {
         LumenCardFrame(
             shape = CinefinShapes.Xl,
-            container = lumen?.panel ?: colors.surfaceContainerHigh,
+            container = colors.surfaceContainerHigh,
             modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp),
         ) {
             Column(modifier = Modifier.padding(CinefinSpacing.Space6)) {
@@ -212,9 +210,7 @@ fun BatchDownloadDialog(
                             onConfirm(targets.filter { it.id in selectedIds })
                         },
                         variant = CinefinButtonVariant.Filled,
-                        tone =
-                            if (lumen != null) CinefinButtonTone.Inverse
-                            else CinefinButtonTone.Media,
+                        tone = CinefinButtonTone.Media,
                         size = CinefinButtonSize.Medium,
                         enabled = selection?.selected?.isNotEmpty() == true,
                     )
@@ -246,7 +242,6 @@ fun EpisodeDownloadSelectionDialog(
     onConfirm: (requestId: Long, selectedIds: Set<UUID>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val lumen = LocalLumenColors.current
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     var selectedIds by
@@ -255,7 +250,7 @@ fun EpisodeDownloadSelectionDialog(
     Dialog(onDismissRequest = { if (!preparation.isConfirming) onDismiss() }) {
         LumenCardFrame(
             shape = CinefinShapes.Xl,
-            container = lumen?.panel ?: colors.surfaceContainerHigh,
+            container = colors.surfaceContainerHigh,
             modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp),
         ) {
             Column(modifier = Modifier.padding(CinefinSpacing.Space6)) {
@@ -458,9 +453,7 @@ fun EpisodeDownloadSelectionDialog(
                                 !preparation.isConfirming &&
                                 selectedIds.isNotEmpty(),
                         variant = CinefinButtonVariant.Filled,
-                        tone =
-                            if (lumen != null) CinefinButtonTone.Inverse
-                            else CinefinButtonTone.Media,
+                        tone = CinefinButtonTone.Media,
                         size = CinefinButtonSize.Medium,
                     )
                 }

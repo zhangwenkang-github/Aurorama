@@ -29,6 +29,9 @@
     <string name="dynamic_colors">Dynamické farby</string>
     <string name="subtitles">Titulky</string>
     <string name="subtitles_summary">Prispôsobiť vzhľad titulkov</string>
+    <string name="theme_aurora">Aurora (predvolené)</string>
+    <string name="theme_amoled">AMOLED čierny</string>
+    <string name="theme_dynamic">Dynamický (Material You)</string>
     <string name="theme_system">Podľa systému</string>
     <string name="theme_light">Svetlý</string>
     <string name="theme_dark">Temný</string>

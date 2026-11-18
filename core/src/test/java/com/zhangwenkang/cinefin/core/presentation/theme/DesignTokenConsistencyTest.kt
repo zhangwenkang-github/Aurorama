@@ -85,37 +85,51 @@ class DesignTokenConsistencyTest {
     }
 
     @Test
-    fun `media container composition matches published tokens`() {
-        val surface = CinefinColorsDark.surfaceContainer
-        listOf(MediaFilm, MediaMusic, MediaBook).forEach { media ->
-            val composed = media.containerOver(surface)
-            assertTrue(
-                "container 合成值与 token 偏差过大",
-                kotlin.math.abs(composed.red - media.container.red) <= 2f / 255f &&
-                    kotlin.math.abs(composed.green - media.container.green) <= 2f / 255f &&
-                    kotlin.math.abs(composed.blue - media.container.blue) <= 2f / 255f,
+    fun `media containers are derived over the palette surface container`() {
+        val colors = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
+        listOf(ContentDomain.Movie, ContentDomain.Music, ContentDomain.Book).forEach { domain ->
+            val media = mediaColorsFor(domain, colors)
+            val published =
+                when (domain) {
+                    ContentDomain.Movie -> MediaFilm
+                    ContentDomain.Music -> MediaMusic
+                    ContentDomain.Book -> MediaBook
+                    ContentDomain.Neutral -> MediaFilm
+                }
+            assertEquals(published.containerOver(colors.surfaceContainer), media.container)
+            assertEquals(
+                published.containerPressedOver(colors.surfaceContainer),
+                media.containerPressed,
             )
+            assertEquals(published.outlineOver(colors.surfaceContainer), media.outline)
+            assertEquals(published.base, media.base)
+            assertEquals(published.bright, media.bright)
+            assertEquals(published.dim, media.dim)
+            assertEquals(published.onBase, media.onBase)
         }
     }
 
     @Test
     fun `material color scheme maps current domain media color`() {
-        val movieDark = cinefinColorScheme(ContentDomain.Movie, dark = true)
-        assertEquals(MediaFilm.base, movieDark.primary)
-        assertEquals(MediaFilm.onBase, movieDark.onPrimary)
-        assertEquals(MediaFilm.container, movieDark.primaryContainer)
-        assertEquals(MediaFilm.bright, movieDark.onPrimaryContainer)
-        assertEquals(CinefinColorsDark.surface, movieDark.surface)
-        assertEquals(CinefinColorsDark.surfaceContainer, movieDark.surfaceContainer)
+        val darkColors = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
+        val lightColors = CinefinThemes.colorsFor(CinefinThemes.LIGHT, dark = false)
+        val movieDark = cinefinColorScheme(ContentDomain.Movie, darkColors, dark = true)
+        val movieMedia = mediaColorsFor(ContentDomain.Movie, darkColors)
+        assertEquals(movieMedia.base, movieDark.primary)
+        assertEquals(movieMedia.onBase, movieDark.onPrimary)
+        assertEquals(movieMedia.container, movieDark.primaryContainer)
+        assertEquals(movieMedia.bright, movieDark.onPrimaryContainer)
+        assertEquals(darkColors.surface, movieDark.surface)
+        assertEquals(darkColors.surfaceContainer, movieDark.surfaceContainer)
         assertEquals(CinefinTokens.MediaMusicBase, movieDark.secondary)
         assertEquals(CinefinTokens.MediaBookBase, movieDark.tertiary)
 
-        val bookLight = cinefinColorScheme(ContentDomain.Book, dark = false)
+        val bookLight = cinefinColorScheme(ContentDomain.Book, lightColors, dark = false)
         assertEquals(MediaBook.base, bookLight.primary)
         assertEquals(MediaBook.onBase, bookLight.onPrimary)
         assertEquals(MediaFilm.base, bookLight.secondary)
         assertEquals(MediaMusic.base, bookLight.tertiary)
-        assertEquals(CinefinColorsLight.surface, bookLight.surface)
+        assertEquals(lightColors.surface, bookLight.surface)
     }
 
     @Test
@@ -220,73 +234,18 @@ class DesignTokenConsistencyTest {
     }
 
     @Test
-    fun `lumen tokens match s1 direction a palette`() {
-        // 依据 docs/design/s1-direction-a/README.md §2 与 _src/direction-a.html 的 CSS 变量（用户 2026-10-01
-        // 批准）
-        assertHex(0xFF08090C, LumenTokens.Background, "Lumen Background")
-        assertHex(0xFF111319, LumenTokens.Panel, "Lumen Panel")
-        assertHex(0xFF171A21, LumenTokens.PanelElevated, "Lumen PanelElevated")
-        assertHex(0xFFF2F5F9, LumenTokens.Text, "Lumen Text")
-        assertHex(0xFF98A2B3, LumenTokens.TextSecondary, "Lumen TextSecondary")
-        assertHex(0xFF6B7483, LumenTokens.TextFaint, "Lumen TextFaint")
-        assertHex(0xFF5CE1D2, LumenTokens.Accent, "Lumen Accent")
-        assertHex(0xFF7CC4FF, LumenTokens.AccentSecondary, "Lumen AccentSecondary")
-        assertHex(0xFF0A0C11, LumenTokens.OnPrimary, "Lumen OnPrimary")
-        assertEquals(0.085f, LumenTokens.LineAlpha, 0.001f)
-        assertEquals(0.05f, LumenTokens.LineSoftAlpha, 0.001f)
-        assertEquals(0.07f, LumenTokens.GhostAlpha, 0.001f)
-        assertEquals(0.14f, LumenTokens.ProgressTrackAlpha, 0.001f)
-    }
-
-    @Test
-    fun `lumen cover maps prism semantics to direction a values`() {
-        assertHex(0xFF08090C, LumenCinefinColorsDark.surface, "Lumen surface")
-        assertHex(0xFF111319, LumenCinefinColorsDark.surfaceContainer, "Lumen container")
-        assertHex(
-            0xFF171A21,
-            LumenCinefinColorsDark.surfaceContainerHigh,
-            "Lumen container high",
-        )
-        assertHex(0xFFF2F5F9, LumenCinefinColorsDark.onSurface, "Lumen onSurface")
-        assertHex(0xFFF2F5F9, LumenColorsDark.primaryButton, "Lumen primary button")
-        assertHex(0xFF0A0C11, LumenColorsDark.onPrimary, "Lumen onPrimary")
-        // A 稿唯一强调色：极光青同时承担 base / bright（眉标、进度、焦点）
-        assertHex(0xFF5CE1D2, LumenMediaColors.base, "Lumen media base")
-        assertHex(0xFF5CE1D2, LumenMediaColors.bright, "Lumen media bright")
-    }
-
-    @Test
-    fun `inverse button tone resolves to month white with dark content`() {
+    fun `inverse button tone resolves to inverse surface with dark content`() {
+        val colors = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
         val resolved =
             resolveButtonColors(
                 variant = CinefinButtonVariant.Filled,
                 state = CinefinInteractionState.Default,
-                media = LumenMediaColors,
-                colors = LumenCinefinColorsDark,
+                media = mediaColorsFor(ContentDomain.Movie, colors),
+                colors = colors,
                 tone = CinefinButtonTone.Inverse,
             )
-        assertHex(0xFFF2F5F9, resolved.container, "Inverse container")
-        assertHex(0xFF0A0C11, resolved.content, "Inverse content")
+        assertEquals(colors.inverseSurface, resolved.container)
+        assertEquals(colors.inverseOnSurface, resolved.content)
         assertEquals(0f, resolved.border.alpha, 0.001f)
-    }
-
-    @Test
-    fun `lumen material scheme maps neutral slots to direction a values`() {
-        // W6-VIS：ProvideLumen 需要同时覆盖 MaterialTheme.colorScheme，否则 Scaffold / TopAppBar /
-        // Switch / 对话框这些存量 M3 组件会在 Lumen 页面留下石板蓝黑底与琥珀 / 松石强调色。
-        assertHex(0xFF08090C, LumenMaterialColorScheme.background, "Lumen M3 background")
-        assertHex(0xFF08090C, LumenMaterialColorScheme.surface, "Lumen M3 surface")
-        assertHex(0xFFF2F5F9, LumenMaterialColorScheme.onSurface, "Lumen M3 onSurface")
-        assertHex(0xFF111319, LumenMaterialColorScheme.surfaceContainer, "Lumen M3 container")
-        assertHex(
-            0xFF171A21,
-            LumenMaterialColorScheme.surfaceContainerHigh,
-            "Lumen M3 container high",
-        )
-        assertHex(0xFF98A2B3, LumenMaterialColorScheme.onSurfaceVariant, "Lumen M3 variant")
-        // 唯一强调色：primary / secondary 都收敛到极光青，不再出现琥珀（影视）与松石（音乐）
-        assertHex(0xFF5CE1D2, LumenMaterialColorScheme.primary, "Lumen M3 primary")
-        assertHex(0xFF5CE1D2, LumenMaterialColorScheme.secondary, "Lumen M3 secondary")
-        assertHex(0xFF0A0C11, LumenMaterialColorScheme.onPrimary, "Lumen M3 onPrimary")
     }
 }

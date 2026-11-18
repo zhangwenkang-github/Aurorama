@@ -106,7 +106,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalLumenColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
@@ -2542,10 +2541,9 @@ internal fun PlayerSeekBar(
     val haptics = LocalHapticFeedback.current
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val lumen = LocalLumenColors.current
-    // 已播段流光渐变的两端色（W11 反馈④）：极光青打底、辅光蓝收尾；没有 Lumen 色板时退回当前域媒体色
-    val accent = lumen?.accent ?: media.base
-    val accentSecondary = lumen?.accentSecondary ?: media.bright
+    // 已播段流光渐变的两端色（W11 反馈④）：取当前域媒体色（base 打底、bright 收尾）
+    val accent = media.base
+    val accentSecondary = media.bright
 
     val safeDuration = durationMs.coerceAtLeast(1L)
     val playedFraction =
