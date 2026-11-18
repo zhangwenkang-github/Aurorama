@@ -69,11 +69,13 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.coroutineContext
 import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -95,6 +97,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import okhttp3.OkHttpClient
 import timber.log.Timber
 
@@ -447,6 +450,7 @@ private constructor(
         )
     private val intentProcessorRunning = AtomicBoolean(false)
     private val intentProcessorRequested = AtomicBoolean(false)
+    private val intentProcessorJob = AtomicReference<Job?>(null)
     /** W63：批量入队的节目 / 季快照缓存（同剧 N 集只解析一次，避免逐集两次网络往返）。 */
     private val showSnapshotCache =
         ConcurrentHashMap<SnapshotCacheKey, CachedSnapshot<FindroidShow>>()
@@ -1148,22 +1152,45 @@ private constructor(
         enqueueIntentWork()
         intentProcessorRequested.set(true)
         if (!intentProcessorRunning.compareAndSet(false, true)) return
-        scope.launch(intentResolutionDispatcher) {
-            try {
-                do {
-                    intentProcessorRequested.set(false)
-                    runIntentProcessorPass(
-                        block = {
-                            do {
-                                val outcome = processReceivedIntents()
-                            } while (outcome.hasPendingIntents)
-                        },
-                        onFailure = { Timber.w(it, "处理已受理下载意图失败") },
-                    )
-                } while (intentProcessorRequested.get())
-            } finally {
-                intentProcessorRunning.set(false)
-                if (intentProcessorRequested.get()) launchReceivedIntentProcessor()
+        // LAZY + 先发布 Job 再启动：finally 里的续跑轮不会把新 Job 覆盖成旧 Job。
+        val job =
+            scope.launch(intentResolutionDispatcher, start = CoroutineStart.LAZY) {
+                try {
+                    do {
+                        intentProcessorRequested.set(false)
+                        runIntentProcessorPass(
+                            block = {
+                                do {
+                                    val outcome = processReceivedIntents()
+                                } while (outcome.hasPendingIntents)
+                            },
+                            onFailure = { Timber.w(it, "处理已受理下载意图失败") },
+                        )
+                    } while (intentProcessorRequested.get())
+                } finally {
+                    intentProcessorRunning.set(false)
+                    if (intentProcessorRequested.get()) launchReceivedIntentProcessor()
+                }
+            }
+        intentProcessorJob.set(job)
+        job.start()
+    }
+
+    /**
+     * 等待后台意图处理器彻底静默，包括处理期间被追加的续跑轮。
+     *
+     * [launchReceivedIntentProcessor] 对生产路径仍是 fire-and-forget；本入口把同一个 Job 暴露成可在不改变生产时序的前提下等待的完成信号。
+     *
+     * 启动恢复与测试若要断言「恢复已观测到 sidecar 状态」，必须 await 本函数而不是墙钟等待；恢复链路上的 sidecar 读取与 fail-closed 判定都在该 Job
+     * 内完成。
+     */
+    internal suspend fun awaitIntentProcessingIdle() {
+        while (intentProcessorRunning.get() || intentProcessorRequested.get()) {
+            val job = intentProcessorJob.get()
+            if (job == null || job.isCompleted) {
+                yield()
+            } else {
+                job.join()
             }
         }
     }
