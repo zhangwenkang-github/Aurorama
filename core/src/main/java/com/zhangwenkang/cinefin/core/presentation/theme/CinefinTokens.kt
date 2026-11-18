@@ -132,6 +132,7 @@ object CinefinTokens {
     /** `--accent-2` 辅光蓝。 */
     val LumenAccentSecondary = Color(0xFF7CC4FF)
     val LumenOnPrimary = Color(0xFF0A0C11)
+    val LumenOnErrorContainer = Color(0xFFF4F1EA)
     /** `--line` 细线：白 8.5%。 */
     const val LumenLineAlpha = 0.085f
     /** `--line-soft` 弱分隔线：白 5%。 */
@@ -140,6 +141,80 @@ object CinefinTokens {
     const val LumenProgressTrackAlpha = 0.14f
     /** 侧缘渐隐基色（曜石黑同源）。 */
     val LumenScrim = Color(0xFF06070A)
+
+    // ---- K1 Aurora Cinema（2026-11-18 设计定稿）----
+    /** 玻璃面板底色透明度（aurora / lumen 同值）。 */
+    const val GlassAlpha = 0.58f
+    /** 普通表面上的进度轨道透明度：白 12%。 */
+    const val ProgressTrackAlpha = 0.12f
+
+    // aurora.dark 中性色
+    val AuroraDarkSurface = Color(0xFF080D17)
+    val AuroraDarkSurfaceDim = Color(0xFF04070D)
+    val AuroraDarkSurfaceBright = Color(0xFF131D30)
+    val AuroraDarkSurfaceContainerLowest = Color(0xFF04070D)
+    val AuroraDarkSurfaceContainerLow = Color(0xFF080D17)
+    val AuroraDarkSurfaceContainer = Color(0xFF0D1522)
+    val AuroraDarkSurfaceContainerHigh = Color(0xFF131D30)
+    val AuroraDarkSurfaceContainerHighest = Color(0xFF1C2638)
+    val AuroraDarkOnSurface = Color(0xFFF5F7FB)
+    val AuroraDarkOnSurfaceVariant = Color(0xFF9FAEC4)
+    val AuroraDarkOnSurfaceFaint = Color(0xFF5D6C85)
+    /** 描边：白 14%。 */
+    const val AuroraDarkOutlineAlpha = 0.14f
+    /** 弱描边：白 9%。 */
+    const val AuroraDarkOutlineVariantAlpha = 0.09f
+    val AuroraDarkInverseSurface = Color(0xFFF5F7FB)
+    val AuroraDarkInverseOnSurface = Color(0xFF080D17)
+    val AuroraDarkNavSurface = Color(0xFF0A101C)
+    val AuroraDarkOnErrorContainer = Color(0xFFF5F7FB)
+    /** 玻璃描边：白 9%。 */
+    const val AuroraDarkGlassBorderAlpha = 0.09f
+    val Aurora1Dark = Color(0xFF3DE8C2)
+    val Aurora2Dark = Color(0xFF6FA0FF)
+    val Aurora3Dark = Color(0xFFB07CFF)
+    val OnAuroraDark = Color(0xFF04201A)
+
+    // amoled.dark：只覆盖与 aurora.dark 不同的槽位（纯黑省电）
+    val AmoledDarkSurface = Color(0xFF000000)
+    val AmoledDarkSurfaceDim = Color(0xFF000000)
+    val AmoledDarkSurfaceBright = Color(0xFF121A2A)
+    val AmoledDarkSurfaceContainerLowest = Color(0xFF000000)
+    val AmoledDarkSurfaceContainerLow = Color(0xFF000000)
+    val AmoledDarkSurfaceContainer = Color(0xFF0A0F18)
+    val AmoledDarkSurfaceContainerHigh = Color(0xFF121A2A)
+    val AmoledDarkSurfaceContainerHighest = Color(0xFF1B2332)
+    val AmoledDarkNavSurface = Color(0xFF000000)
+
+    // light（aurora / amoled / lumen 共用的浅色变体）
+    val AuroraLightSurface = Color(0xFFFAFAFB)
+    val AuroraLightSurfaceDim = Color(0xFFE6E9F0)
+    val AuroraLightSurfaceBright = Color(0xFFFFFFFF)
+    val AuroraLightSurfaceContainerLowest = Color(0xFFFFFFFF)
+    val AuroraLightSurfaceContainerLow = Color(0xFFFAFAFB)
+    val AuroraLightSurfaceContainer = Color(0xFFF0F2F6)
+    val AuroraLightSurfaceContainerHigh = Color(0xFFE6E9F0)
+    val AuroraLightSurfaceContainerHighest = Color(0xFFDDE0E6)
+    val AuroraLightOnSurface = Color(0xFF10151F)
+    val AuroraLightOnSurfaceVariant = Color(0xFF4A5568)
+    val AuroraLightOnSurfaceFaint = Color(0xFF8A94A6)
+    /** 描边：#10151F @ 14%。 */
+    const val AuroraLightOutlineAlpha = 0.14f
+    /** 弱描边：#10151F @ 8%。 */
+    const val AuroraLightOutlineVariantAlpha = 0.08f
+    val AuroraLightInverseSurface = Color(0xFF10151F)
+    val AuroraLightInverseOnSurface = Color(0xFFF5F7FB)
+    val AuroraLightNavSurface = Color(0xFFFFFFFF)
+    val AuroraLightErrorContainer = Color(0xFFF6D9D3)
+    val AuroraLightOnErrorContainer = Color(0xFF3F120B)
+    /** 玻璃底：白 72%。 */
+    const val AuroraLightGlassAlpha = 0.72f
+    /** 玻璃描边：#10151F @ 8%。 */
+    const val AuroraLightGlassBorderAlpha = 0.08f
+    val Aurora1Light = Color(0xFF0C9E82)
+    val Aurora2Light = Color(0xFF3E6FE4)
+    val Aurora3Light = Color(0xFF8B53E8)
+    val OnAuroraLight = Color(0xFF000000)
 
     // ---- §8.14 阅读器纸色主题（C · Nocturne 皮肤）----
     val PaperSurface = Color(0xFFFBF6EC)

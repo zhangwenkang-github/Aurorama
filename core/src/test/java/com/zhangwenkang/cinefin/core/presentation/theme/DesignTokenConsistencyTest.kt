@@ -29,32 +29,52 @@ class DesignTokenConsistencyTest {
         assertEquals("$label · alpha", 1f, actual.alpha, tolerance)
     }
 
-    @Test
-    fun `dark neutral tokens match design system`() {
-        assertHex(0xFF151A21, CinefinTokens.SurfaceDark, "Surface")
-        assertHex(0xFF10141A, CinefinTokens.SurfaceDimDark, "SurfaceDim")
-        assertHex(0xFF1B212B, CinefinTokens.SurfaceContainerDark, "SurfaceContainer")
-        assertHex(0xFF222A36, CinefinTokens.SurfaceContainerHighDark, "SurfaceContainerHigh")
-        assertHex(0xFF2A3340, CinefinTokens.SurfaceContainerHighestDark, "SurfaceContainerHighest")
-        assertHex(0xFFF4F1EA, CinefinTokens.OnSurfaceDark, "OnSurface")
-        assertHex(0xFFA7B0BD, CinefinTokens.OnSurfaceVariantDark, "OnSurfaceVariant")
-        assertHex(0xFF6E7887, CinefinTokens.OnSurfaceFaintDark, "OnSurfaceFaint")
-        assertHex(0xFF2C3542, CinefinTokens.OutlineDark, "Outline")
-        assertHex(0xFF232B36, CinefinTokens.OutlineVariantDark, "OutlineVariant")
-        assertHex(0xFFF4F1EA, CinefinTokens.InverseSurfaceDark, "InverseSurface")
-        assertHex(0xFF14181F, CinefinTokens.InverseOnSurfaceDark, "InverseOnSurface")
-        assertHex(0xFFE87C6E, CinefinTokens.Error, "Error")
-        assertHex(0xFF1A0F0C, CinefinTokens.OnError, "OnError")
+    private fun assertWhiteOutline(expectedAlpha: Float, actual: Color, label: String) {
+        assertEquals("$label · alpha", expectedAlpha, actual.alpha, tolerance)
+        assertEquals("$label · red", 1f, actual.red, tolerance)
+        assertEquals("$label · green", 1f, actual.green, tolerance)
+        assertEquals("$label · blue", 1f, actual.blue, tolerance)
     }
 
     @Test
-    fun `light neutral tokens match design system`() {
-        assertHex(0xFFF5F3EE, CinefinTokens.SurfaceLight, "Light Surface")
-        assertHex(0xFFFFFFFF, CinefinTokens.SurfaceContainerLight, "Light SurfaceContainer")
-        assertHex(0xFF1B212B, CinefinTokens.OnSurfaceLight, "Light OnSurface")
-        assertHex(0xFF59616E, CinefinTokens.OnSurfaceVariantLight, "Light OnSurfaceVariant")
-        assertHex(0xFFD8D3C8, CinefinTokens.OutlineLight, "Light Outline")
-        assertHex(0xFFE7E2D8, CinefinTokens.OutlineVariantLight, "Light OutlineVariant")
+    fun `dark neutral tokens match K1 aurora palette`() {
+        val colors = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
+        assertHex(0xFF080D17, colors.surface, "Surface")
+        assertHex(0xFF04070D, colors.surfaceDim, "SurfaceDim")
+        assertHex(0xFF131D30, colors.surfaceBright, "SurfaceBright")
+        assertHex(0xFF04070D, colors.surfaceContainerLowest, "SurfaceContainerLowest")
+        assertHex(0xFF0D1522, colors.surfaceContainer, "SurfaceContainer")
+        assertHex(0xFF131D30, colors.surfaceContainerHigh, "SurfaceContainerHigh")
+        assertHex(0xFF1C2638, colors.surfaceContainerHighest, "SurfaceContainerHighest")
+        assertHex(0xFFF5F7FB, colors.onSurface, "OnSurface")
+        assertHex(0xFF9FAEC4, colors.onSurfaceVariant, "OnSurfaceVariant")
+        assertHex(0xFF5D6C85, colors.onSurfaceFaint, "OnSurfaceFaint")
+        assertWhiteOutline(0.14f, colors.outline, "Outline")
+        assertWhiteOutline(0.09f, colors.outlineVariant, "OutlineVariant")
+        assertHex(0xFFF5F7FB, colors.inverseSurface, "InverseSurface")
+        assertHex(0xFF080D17, colors.inverseOnSurface, "InverseOnSurface")
+        assertHex(0xFFE87C6E, colors.error, "Error")
+        assertHex(0xFF1A0F0C, colors.onError, "OnError")
+        assertHex(0xFF3DE8C2, colors.aurora1, "Aurora1")
+        assertHex(0xFF6FA0FF, colors.aurora2, "Aurora2")
+        assertHex(0xFFB07CFF, colors.aurora3, "Aurora3")
+        assertHex(0xFF04201A, colors.onAurora, "OnAurora")
+    }
+
+    @Test
+    fun `light neutral tokens match K1 aurora palette`() {
+        val colors = CinefinThemes.colorsFor(CinefinThemes.LIGHT, dark = false)
+        assertHex(0xFFFAFAFB, colors.surface, "Light Surface")
+        assertHex(0xFFF0F2F6, colors.surfaceContainer, "Light SurfaceContainer")
+        assertHex(0xFFE6E9F0, colors.surfaceContainerHigh, "Light SurfaceContainerHigh")
+        assertHex(0xFF10151F, colors.onSurface, "Light OnSurface")
+        assertHex(0xFF4A5568, colors.onSurfaceVariant, "Light OnSurfaceVariant")
+        assertEquals(0.14f, colors.outline.alpha, tolerance)
+        assertEquals(0.08f, colors.outlineVariant.alpha, tolerance)
+        assertHex(0xFF0C9E82, colors.aurora1, "Light Aurora1")
+        assertHex(0xFF3E6FE4, colors.aurora2, "Light Aurora2")
+        assertHex(0xFF8B53E8, colors.aurora3, "Light Aurora3")
+        assertHex(0xFF000000, colors.onAurora, "Light OnAurora")
     }
 
     @Test

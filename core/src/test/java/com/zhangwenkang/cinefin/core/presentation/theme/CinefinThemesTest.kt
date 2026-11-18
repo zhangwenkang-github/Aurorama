@@ -91,6 +91,26 @@ class CinefinThemesTest {
     }
 
     @Test
+    fun `registered palettes pin the K1 token values`() {
+        val auroraDark = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
+        assertHex(0xFF080D17, auroraDark.surface, "aurora.dark surface")
+        assertHex(0xFF3DE8C2, auroraDark.aurora1, "aurora.dark aurora1")
+        assertHex(0xFF04201A, auroraDark.onAurora, "aurora.dark onAurora")
+
+        val light = CinefinThemes.colorsFor(CinefinThemes.LIGHT, dark = false)
+        assertHex(0xFFFAFAFB, light.surface, "light surface")
+        assertHex(0xFF0C9E82, light.aurora1, "light aurora1")
+        assertHex(0xFF000000, light.onAurora, "light onAurora")
+
+        val amoled = CinefinThemes.colorsFor(CinefinThemes.AMOLED, dark = true)
+        assertHex(0xFF000000, amoled.surface, "amoled.dark surface")
+        assertHex(0xFF0A0F18, amoled.surfaceContainer, "amoled.dark surfaceContainer")
+
+        val lumen = CinefinThemes.colorsFor(CinefinThemes.LUMEN, dark = true)
+        assertHex(0xFF08090C, lumen.surface, "lumen.dark surface")
+    }
+
+    @Test
     fun `brand colors keep readable contrast on every registered palette`() {
         CinefinThemes.map.forEach { (id, palette) ->
             listOf("dark" to palette.dark, "light" to palette.light).forEach { (mode, colors) ->
