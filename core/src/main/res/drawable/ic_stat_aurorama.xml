@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知栏小图标 · B「极幕之眼」：24dp 整幅缩放，纯白 alpha，由系统着色。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <group android:translateX="0" android:translateY="0"
+        android:scaleX="0.042857" android:scaleY="0.042857">
+        <path android:pathData="M163.02,130.28 A190,190 0 1 1 140.22,408.69"
+            android:fillColor="#00000000" android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="46" android:strokeLineCap="round"/>
+        <path android:pathData="M382,356 L452,424 L402,452 L340,372 Z"
+            android:fillColor="#FFFFFFFF"/>
+        <path android:pathData="M183,180 a13,13 0 1 1 26,0 a13,13 0 1 1 -26,0"
+            android:fillColor="#FFFFFFFF"/>
+    </group>
+</vector>

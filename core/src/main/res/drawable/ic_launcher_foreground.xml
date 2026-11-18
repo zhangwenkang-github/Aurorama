@@ -1,41 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  自适应图标前景 · 方向 1「极光帘幕」（W38 品牌波）。
-  极光丝带自左上流下，底部一条幕布地平线；极光青 #5CE1D2 → 辅光蓝 #7CC4FF。
-  108dp 画布内，关键形体全部落在安全区 66dp（约 21…87）内，蒙版裁切后仍可读。
--->
+<!-- 自适应图标前景 · B「极幕之眼」（K1 定稿，docs/design/_src/direction-k1.html icon-b 段）。
+     560 设计稿 ×0.136 居中；虚线圆环换算为 265.3° 圆弧（dasharray 880/320、rotate -128°）。
+     光束尖端距心 30.5dp、圆环外径 57.9dp，均在 66dp 安全区内。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-
-    <!-- 副丝带：帘幕纵深，压在主线右侧 -->
-    <path
-        android:pathData="M60,26 C70,38 74,50 72,62 C70,74 64,82 58,88 L50,88 C56,80 62,72 64,62 C66,50 62,38 52,28 Z"
-        android:fillColor="#8C7CC4FF" />
-
-    <!-- 极光主线：自左上流下 -->
-    <path android:pathData="M38,18 C52,30 60,44 58,58 C56,72 48,80 44,88 L32,88 C38,78 44,70 42,58 C40,44 32,30 24,20 Z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:startX="26"
-                android:startY="18"
-                android:endX="48"
-                android:endY="88"
-                android:type="linear">
-                <item android:offset="0" android:color="#FF5CE1D2" />
-                <item android:offset="1" android:color="#FF7CC4FF" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- 幕布地平线 -->
-    <path
-        android:pathData="M22,80 C40,72 68,72 86,80"
-        android:fillColor="#00000000"
-        android:strokeColor="#FF7CC4FF"
-        android:strokeWidth="3"
-        android:strokeLineCap="round" />
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:translateX="15.92" android:translateY="15.92"
+        android:scaleX="0.136" android:scaleY="0.136">
+        <path android:pathData="M163.02,130.28 A190,190 0 1 1 140.22,408.69"
+            android:fillColor="#00000000" android:strokeWidth="46" android:strokeLineCap="round">
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="90" android:startY="90" android:endX="470" android:endY="470">
+                    <item android:offset="0" android:color="#FF3DE8C2"/>
+                    <item android:offset="0.55" android:color="#FF6FA0FF"/>
+                    <item android:offset="1" android:color="#FFB07CFF"/>
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path android:pathData="M382,356 L452,424 L402,452 L340,372 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="340" android:startY="356" android:endX="452" android:endY="452">
+                    <item android:offset="0" android:color="#FF3DE8C2"/>
+                    <item android:offset="0.55" android:color="#FF6FA0FF"/>
+                    <item android:offset="1" android:color="#FFB07CFF"/>
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path android:pathData="M183,180 a13,13 0 1 1 26,0 a13,13 0 1 1 -26,0"
+            android:fillColor="#FFEAFBFF"/>
+    </group>
 </vector>

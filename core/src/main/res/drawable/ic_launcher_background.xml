@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- B「极幕之眼」背景层：K1 定稿径向渐变 #060B15 → #101C33。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M0,0 h108 v108 h-108 z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial"
+                android:centerX="54" android:centerY="54" android:gradientRadius="76.4"
+                android:startColor="#FF060B15" android:endColor="#FF101C33"/>
+        </aapt:attr>
+    </path>
+</vector>

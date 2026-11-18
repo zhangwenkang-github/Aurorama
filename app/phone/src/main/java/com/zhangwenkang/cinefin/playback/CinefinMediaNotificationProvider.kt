@@ -110,7 +110,7 @@ class CinefinMediaNotificationProvider(
 
         val builder =
             NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(CoreR.drawable.ic_play)
+                .setSmallIcon(CoreR.drawable.ic_stat_aurorama)
                 .setContentTitle(title)
                 .setContentText(subtitle)
                 .setContentIntent(contentIntent())
