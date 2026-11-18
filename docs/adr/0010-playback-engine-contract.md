@@ -36,7 +36,7 @@ Accepted
 
 ## mpv `prepare()` 怪癖的归属
 
-`MPVPlayer.prepare()`（`MPVPlayer.kt:1894`）在非保源路径下固定先用 `loadFileCommand(first, "replace")` 载 0 号条，再用 `playlist-play-index` 跳回目标条目，因此重试 / 引擎重建时首集会被真实重载。本步 `MpvPlaybackEngine.prepare()` **原样委托**，怪癖在 KDoc 里标为已知问题并指向 T5 锚点；根治（以 `currentMediaItemIndex` 为准、不再先载 0 号条）在实现内部完成，接口面不出现任何「首条 / 重载」语义。
+原怪癖：`MPVPlayer.prepare()` 在非保源路径下固定先用 `loadfile first replace` 载 0 号条，再用 `playlist-play-index` 跳回目标条目，重试 / 引擎重建时首集被真实重载。**已于 W2-T5β（`e2b564cc`）根治**：prepare 改由 `MpvPrepareCommands` 纯函数产出命令计划，第一条 loadfile 直指目标条目（`currentMediaItemIndex` 优先、越界退回 `initialIndex`），前方条目 `insert-at`、后方 `append`，删除事后 `playlist-play-index`；保源路径只重指当前条目、不碰 loadfile。接口面不出现任何「首条 / 重载」语义的约定不变。
 
 同理，`seekTo(itemIndex, positionMs)` 的重载存在就是为了让重试路径携带条目上下文；接口不提供「prepare + 裸 seekTo(position)」这类会丢条目上下文的组合语义。
 

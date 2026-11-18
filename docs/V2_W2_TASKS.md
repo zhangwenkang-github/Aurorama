@@ -1,17 +1,20 @@
 # 2.0 W2 · 播放器架构重构 + 1.4.1 遗留根治（任务卡）
 
-> 状态：`IN PROGRESS`（2026-11-18 开工）　分支基座：`codex/v2-integration`
+> 状态：`DONE`（2026-11-18 收口，9/9 任务验收合入；唯一遗留 = T5-β 的 mpv 真机补验，待 TLS 环境解锁）　分支基座：`codex/v2-integration`
 > 架构唯一权威：`docs/V2_ARCHITECTURE.md` §2/§3。**执行者不做任何设计/架构决策**——任务边界、类名、归属以本卡为准；遇到本卡未覆盖的结构问题，停下来报告，不自行发挥。
 
 ## 状态块
 
-- 当前波次：W2 **进行中**　进度：T0 ✅（2/2）· T1 ✅ · T2 ✅ · T3a ✅ · T3b ✅ · T4 ✅；T5-α/β、T6 未派
-- 基座 HEAD：`d5576fcb`（T4，含 ADR-0010；docs 状态块随后一个 commit 推）
+- 当前波次：W2 **完成**　进度：T0 ✅（2/2）· T1 ✅ · T2 ✅ · T3a ✅ · T3b ✅ · T4 ✅ · T5-α ✅ · T5-β ✅（真机补验 PENDING TLS）· T6 ✅
+- 基座 HEAD：`ce2febca`（全链 `55df7572`→`ce2febca`，已推送）
+- T5-α 验收（2026-11-18）：修复①`retryPlaybackAt` 重试带 `currentMediaItemIndex`（prepare 前捕获）；修复②onExhausted 携带会话键 + 守卫改为"当前会话是否出过帧"（废弃陈旧全局 fileLoaded 短路），JobOwner 用本轮局部 sessionKey 防换代错归属。526+528 全绿；K60 exoplayer 双向跨集 + 错误卡重试链全过。
+- T5-β 验收（2026-11-18）：mpv prepare 改由 `MpvPrepareCommands` 纯函数产出命令计划——第一条 loadfile 直指目标条目（currentMediaItemIndex 优先、越界退 initialIndex），前方 `insert-at`、后方 `append`，删事后 `playlist-play-index`；9+2 单测含命令级重放模拟；536+528 全绿。**mpv 真机补验 PENDING**（TLS `-0x7280`，jellyfins ECDSA 证书 vs mbedtls）。
+- T6 验收（2026-11-18）：TV 本地 `TvMainViewModel`（48 行，旧 uiState/UiState/loadServerAndUser 契约）恢复 app/tv 编译；根 `assembleDebug` 428 任务全绿（Build CI 口径）；TV 功能冻结口径不变。
 - T1 验收（2026-11-18）：`PlaybackSessionOwner`（140 行纯 Kotlin）+ 9 单测；`SourceResolutionIntent` 随迁 session 包（ADR-0009 记录）；VM 净减 62 行；player/local 486 + app/phone 528 用例全绿。
 - T2 验收（2026-11-18）：`ErrorPolicy`（158 行纯 Kotlin）统一 7 处 playerError 写点 + 起播预算 + 去重窗口；`PlayerErrorInfo` 提为 session 包 public 顶层类（typealias 不可嵌套，改在 `PlayerControlOverlay.kt` 换 import，app/phone 仅此 1 处）；8 新单测；494 + 528 用例全绿。
 - T3a 验收（2026-11-18）：`StartupStateMachine`（110 行纯 Kotlin，5 相位迁移表 + 代次归属）+ 7 单测；`startupInProgress` 布尔删除、8 处读取全改状态机。**已验收的语义偏差**：起播保护窗口右边界从 `play()` 返回后移到 STATE_READY 出画面（更保守，commit body 已录）。K60 真机：起播 PLAYING→暂停 PAUSED→续播 PLAYING、FAILED 分支错误卡、退出复位重进全过。
 - **环境阻塞（待用户决策）**：K60 上 mpv 内核 TLS 握手失败（`mbedtls -0x7280`，服务器 ECDSA 证书兼容问题，既有、与 W2 改动无关）→ T4/T5 的 mpv 路径真机验证暂不可用，T3a 回归是改 pref 到 exoplayer 跑的（已还原）。
-- 观察项：K60 上 `e22f44af`（齐木楠雄 S00E01）报"暂时没有可播放的媒体源"、重进同集停 BUFFERING 且 recovery attempt=2——待 T5 真机复核是否既有现象。T3b 已真机复现 T5-c 现场：跨集冷载 `exhausted=true` 却因 `fileLoaded=true` 短路不出错误卡（最终自行缓冲成功）——T5-c 的活样本。
+- 观察项已结：`e22f44af` 的"没有可播放的媒体源"在 T3b 复核时为服务端瞬时态（同条目稍后返回了可直连 mp4）；静默取消现场已由 T5-α 根治。
 - T3b 验收（2026-11-18）：`ProgressWatchdog`（232 行纯 Kotlin）收口 refreshPlaybackSession 判定+分发，`WatchdogPlan` 有序计划 + 9 单测；`ProgressRecoveryJobOwner` 不再持有 controller（结构性后果，等价谓词 `recoveryRetains` 守住）；K60 exoplayer 四链路（起播/暂停/续播/跨集）+ 错误卡重试交互链全过。
 - T4 验收（2026-11-18）：`PlaybackEngine`（52 行接口，player/core 零 media3 依赖）+ `EngineCapabilities`（6 位）+ `EngineError`/`EngineErrorMapper`；Exo/mpv 适配器逐一委托；`PlayerHolder` 经 `PlaybackEngineFactory` 持有引擎（`currentEngine` 新增、`existingPlayer` 语义不变）；补 `Media3PlaybackEngine` 内部接口桥（ADR-0010 记录）；`supportsShuffleMode` 能力位为实证的唯一内核差异（mpv=false）；15 新单测，525+13+528 用例全绿；K60 exoplayer 起播/暂停/续播过。
 - **环境结论（2026-11-18 查实）**：jellyfins 证书为 Let's Encrypt ECDSA（notBefore 2026-09-23，P-384 签名族）——mpv TLS `-0x7280` 与该 ECDSA 证书的兼容问题属环境/绑定层既有问题，非 W2 改动引入；**T5-β 的真机验证受此阻塞**。
@@ -20,7 +23,7 @@
 - 红线：不改 data 层协议映射、不动 UI 视觉、TV 端除 T6 外冻结；门禁 = `player/local`（+涉及模块）单测 + `ktfmtCheck` + 构建；**播放链路行为改动必须 K60（`8e875894`）真机验证**（起播/暂停/续播/跨集/错误卡重试），Worker SUCCESS / 日志无报错不算数。
 - T0a 验收（2026-11-18 本地）：`player/local/build.gradle.kts` 加 `packaging.jniLibs.pickFirsts += "**/libc++_shared.so"`（与 app/phone、app/tv 同款）；clean 后全量 `:app:phone:assembleDebug` + `:data:testDebugUnitTest` + `ktfmtCheck` 全绿（308 任务 / 4m18s）。
 - T0b 验收（2026-11-18）：同代码两次 master CI 挂不同用例（run 44163993936 / 44256582821，`data/` 零 diff）→ 纯时序型；两挂例共享 `assertSame(failure, caught?.cause)`，钉死了 coroutines `-ea` 下 stacktrace recovery 的异常拷贝行为；已放宽为 cause 链可达（`assertSameFailureDelivered`）。本地单独类 6 轮 + 全量 3 轮不复现，最终待 CI 复核。
-- **CI 触发口径（2026-11-18 查实）**：Build / Unit Tests 仅 `push: master` 与 PR 触发；分支推送不跑 CI。分支已推 `73f44f0d`；master 立即转绿需 cherry-pick（待用户授权）或开 PR。
+- **CI 触发口径（2026-11-18 查实）**：Build / Unit Tests 仅 `push: master` 与 PR 触发；分支推送不跑 CI。master 立即转绿需 cherry-pick T0 两修复（待用户授权）或开 PR。
 
 ## 现状调查摘要（2026-11-18，Kimi 亲查）
 

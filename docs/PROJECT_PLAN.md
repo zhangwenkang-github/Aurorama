@@ -32,8 +32,8 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟢 **W2 开工**（2026-11-18）：W1 全项验收合入；W2 任务卡就绪（`docs/V2_W2_TASKS.md`），T0 开工批两条 master CI 失败已修复推送（HEAD `73f44f0d`），T1–T6 待派 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W2_TASKS.md` |
-| 播放器 | 🟢 1.4.1 三修复已发布；架构重构（单 owner/状态机/引擎抽象）列入 W2 | `docs/V2_ARCHITECTURE.md` §3 |
+| 2.0.0 | 🟢 **W2 完成**（2026-11-18）：播放器架构重构（SessionOwner/ErrorPolicy/StartupStateMachine/ProgressWatchdog/PlaybackEngine 抽象，ADR-0009/0010）+ 1.4.1 三遗留根治 + 两条 master CI 失败修复 + app/tv 恢复编译，9/9 任务合入（HEAD `ce2febca`）；唯一遗留 = mpv 真机补验待 TLS 环境解锁；下一波 W3 导航与新 UI 骨架 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W2_TASKS.md` |
+| 播放器 | 🟢 W2 架构重构完成（单 owner/状态机/看门狗/引擎抽象落地）+ 1.4.1 三遗留根治；mpv 真机补验待 TLS 解锁 | `docs/V2_W2_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W2 播放器架构重构**（进行中）：任务卡 `docs/V2_W2_TASKS.md`（T0 开工批两条 master CI 既有失败已修：`55df7572` pickFirst libc++_shared.so + `73f44f0d` episode 测试放宽，门禁全绿已推分支；**CI 仅 master/PR 触发，分支推送不跑**，master 转绿待 cherry-pick 授权或开 PR）。T1–T6 待派 deepseek（SessionOwner→ErrorPolicy→StartupStateMachine/Watchdog→引擎抽象→三条遗留根治→TV 恢复编译）。W1 遗留 9 条见 `docs/V2_W1_TASKS.md` 交接节。
+1. **2.0.0 W3 导航与新 UI 骨架**（W2 播放器架构重构已于 2026-11-18 收口：`docs/V2_W2_TASKS.md`，HEAD `ce2febca`；W3 依赖 W1 已完成，任务卡待备）。W2 遗留：mpv 真机补验待 jellyfins ECDSA 证书与 mpv mbedtls 的 TLS `-0x7280` 解锁；master CI 转绿需 cherry-pick T0 两修复（待授权）或开 PR；W1 遗留 9 条见 `docs/V2_W1_TASKS.md` 交接节（图标第二批、形状 token 随 W3）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
