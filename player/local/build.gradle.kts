@@ -28,6 +28,17 @@ android {
 
     buildFeatures { buildConfig = true }
 
+    packaging {
+        jniLibs {
+            /*
+             * CMake ANDROID_STL=c++_shared（上方 L18）与 mpv-binding jniLibs 源码集各带一份
+             * libc++_shared.so，mergeDebugNativeLibs 直接报错；pickFirst 保留源码集那份新版
+             * （mpv-binding 自带，app/phone 与 app/tv 已有同款去重）。
+             */
+            pickFirsts += "**/libc++_shared.so"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = Versions.JAVA
         targetCompatibility = Versions.JAVA
