@@ -76,7 +76,11 @@ import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldStopPlaybackServiceOnExit
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
+import com.zhangwenkang.cinefin.player.local.session.ErrorPolicy
+import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
+import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_STARTUP_SOURCE_FAILED
 import com.zhangwenkang.cinefin.player.local.session.PlaybackSessionOwner
+import com.zhangwenkang.cinefin.player.local.session.PlayerErrorInfo
 import com.zhangwenkang.cinefin.player.local.session.SourceResolutionIntent
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackMapping
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackRef
@@ -147,15 +151,6 @@ constructor(
         // Local hardware -> server transcode -> local software.
         const val DECODE_MODE_HARDWARE = "hardware"
         const val DECODE_MODE_SOFTWARE = "software"
-        const val PLAYER_ERROR_SOURCE_RESOLUTION_FAILED = "SOURCE_RESOLUTION_FAILED"
-
-        /**
-         * 起播期（还没出画面）源加载失败。
-         *
-         * 慢启动转码（服务端 30–60s 才出流）下 media3 内部先把 IO 错误重试完才上报一次， 两次上报间隔恒大于 播放中的 30s
-         * 重试窗口；必须按次预算收敛，否则会无限静默重试、永远 BUFFERING。
-         */
-        const val PLAYER_ERROR_STARTUP_SOURCE_FAILED = "STARTUP_SOURCE_FAILED"
 
         fun confirmedPosition(player: Player?): Long? =
             (player as? MPVPlayer)?.confirmedPosition()
@@ -192,9 +187,6 @@ constructor(
         private const val NETWORK_RETRY_WINDOW_MS = 30_000L
         private const val NETWORK_RETRY_MIN_INTERVAL_MS = 3_000L
         private const val NETWORK_RETRY_MAX = 2
-
-        /** 起播期源错误的原地重试上限：慢启动转码只给一次原地重试，之后交给错误卡片（重试 = 重新解析源）。 */
-        private const val STARTUP_SOURCE_RETRY_MAX = 1
 
         private const val PROGRESS_RECOVERY_OBSERVE_WINDOW_MS = 5_000L
     }
@@ -241,12 +233,24 @@ constructor(
 
     private val sessionOwner = PlaybackSessionOwner(onSnapshotsChanged = ::publishPlaybackSnapshots)
 
+    /** 唯一投影点：把 [errorPolicy] 的当前错误写进 UI 状态；policy 是错误事实的唯一来源。 */
+    private fun publishPlayerError() {
+        val error = errorPolicy.current
+        _uiState.update { it.copy(playerError = error) }
+    }
+
     private var playbackSessionJob: Job? = null
     private var playbackStartupJob: Job? = null
 
-    /** 起播期源错误的重试预算；与播放中按 30s 窗口计数的那套完全独立。 */
-    private val startupSourceRetryBudget =
-        PlayerStartupSourceRetryBudget(maxAttempts = STARTUP_SOURCE_RETRY_MAX)
+    /** 播放错误的唯一决策者：错误发不发、发哪一种、起播重试预算与失败去重全归它。 */
+    private val errorPolicy =
+        ErrorPolicy(
+            nowMs = SystemClock::elapsedRealtime,
+            sourceResolutionMessage = {
+                application.getString(R.string.player_source_resolution_failed)
+            },
+            backendName = { playerBackend },
+        )
     private val progressFallbackController = PlayerProgressFallbackController()
     private val progressRecoveryController = PlayerProgressRecoveryController()
     private val explicitExitController = PlayerExplicitExitController()
@@ -294,9 +298,6 @@ constructor(
     // Buffering prevents codec-fallback events from being silently dropped.
     private val eventsChannel = Channel<PlayerEvents>(capacity = Channel.BUFFERED)
     val eventsChannelFlow = eventsChannel.receiveAsFlow()
-
-    private var lastFailureHandledKey: String? = null
-    private var lastFailureHandledAtMs: Long = 0L
 
     data class UiState(
         val currentItemTitle: String,
@@ -362,16 +363,6 @@ constructor(
         PERSISTED_RESUME,
         START_ZERO,
     }
-
-    /** 播放错误：给控制层的错误卡片用（阶段 1.3） */
-    data class PlayerErrorInfo(
-        /** 后端给出的说明，可能较长，UI 侧截断显示 */
-        val message: String,
-        /** 错误码名，例如 ERROR_CODE_DECODING_FAILED */
-        val codeName: String,
-        /** 出错时使用的内核：exoplayer / mpv */
-        val backend: String,
-    )
 
     /** W86-C：Activity / 手势只能提交这些意图，不能直接操作底层播放器位置。 */
     sealed interface SeekIntent {
@@ -636,7 +627,7 @@ constructor(
         val enginePositionMs = confirmedPosition(active)
         val sessionKey = currentPlaybackSessionKey(active, mediaItem)
         val sourceResolutionFailed =
-            _uiState.value.playerError?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
+            errorPolicy.current?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
         val playWhenReadyIntent =
             if (startupInProgress || sourceResolutionFailed) {
                 playWhenReady
@@ -656,7 +647,7 @@ constructor(
                 isReady = active?.playbackState == Player.STATE_READY,
                 enginePositionMs = enginePositionMs,
                 bufferedPositionMs = confirmedBufferedPosition(active, enginePositionMs),
-                hasPlayerError = _uiState.value.playerError != null,
+                hasPlayerError = errorPolicy.current != null,
                 hasSeekFailure = seekState is SeekState.Failed,
                 explicitSeekTargetMs = explicitSeek?.first,
                 explicitSeekRequestGeneration = explicitSeek?.second,
@@ -726,7 +717,7 @@ constructor(
         seriesPlaybackTrace?.observePosition(
             positionMs = sessionOwner.playbackSessionState.lastEnginePositionMs,
             terminalKind = sessionOwner.playbackSessionState.terminal?.kind,
-            hasPlayerError = _uiState.value.playerError != null,
+            hasPlayerError = errorPolicy.current != null,
         )
     }
 
@@ -747,10 +738,12 @@ constructor(
      * 这里补发起播源错误，`retryPlayerError` 会按 `sessionOwner.lastSourceIntent` 重新解析源、换新的转码会话。
      */
     private fun publishExhaustedStartupSourceFailure() {
-        if (_uiState.value.fileLoaded) return
-        if (_uiState.value.playerError != null) return
+        // 已出画面或已有错误卡片时不重复发布；判定与短路都由 policy 负责。
+        if (errorPolicy.onStartupSourceExhausted(fileLoaded = _uiState.value.fileLoaded) == null) {
+            return
+        }
         sessionOwner.failLastSourceIntent()
-        _uiState.update { it.copy(playerError = startupSourceFailure()) }
+        publishPlayerError()
         refreshPlaybackSession()
     }
 
@@ -905,8 +898,8 @@ constructor(
             )
         val sourceAttempt = PlaybackSourceAttemptContext.new(sourceIntent.sourceIntentId)
         sessionOwner.startSourceAttempt(sourceIntent)
-        startupSourceRetryBudget.reset()
-        _uiState.update { it.copy(playerError = null) }
+        errorPolicy.onNewPlaybackAttempt()
+        publishPlayerError()
         seriesPlaybackTrace = null
         playbackStartupJob?.cancel()
         queueExpandJob?.cancel()
@@ -947,7 +940,6 @@ constructor(
             PlaybackDiag.log(
                 "startup begin item=$itemId kind=$itemKind gen=$initializationGeneration"
             )
-            var sourceFailure: PlayerErrorInfo? = null
             val startItem =
                 try {
                     runPlaybackStartupRequest {
@@ -982,7 +974,6 @@ constructor(
                         return@launch
                     }
                     Timber.w("Playback source resolution timed out")
-                    sourceFailure = sourceResolutionFailure()
                     null
                 } catch (e: CancellationException) {
                     PlaybackDiag.log("startup resolution CANCELLED")
@@ -1002,7 +993,6 @@ constructor(
                         "Playback source resolution failed: %s",
                         e.javaClass.simpleName,
                     )
-                    sourceFailure = sourceResolutionFailure()
                     null
                 }
 
@@ -1012,9 +1002,8 @@ constructor(
                 if (explicitExitController.isCurrent(exitGeneration)) {
                     startupInProgress = false
                     sessionOwner.failSourceIntent(sourceIntent)
-                    _uiState.update {
-                        it.copy(playerError = sourceFailure ?: sourceResolutionFailure())
-                    }
+                    errorPolicy.onStartupResolutionFailed()
+                    publishPlayerError()
                     refreshPlaybackSession()
                 }
                 return@launch
@@ -1106,20 +1095,6 @@ constructor(
     ): Boolean =
         isActivePlaybackGeneration(exitGeneration) &&
             sessionOwner.playbackSnapshots.generation == initializationGeneration
-
-    private fun sourceResolutionFailure(): PlayerErrorInfo =
-        PlayerErrorInfo(
-            message = application.getString(R.string.player_source_resolution_failed),
-            codeName = PLAYER_ERROR_SOURCE_RESOLUTION_FAILED,
-            backend = playerBackend,
-        )
-
-    private fun startupSourceFailure(): PlayerErrorInfo =
-        PlayerErrorInfo(
-            message = application.getString(R.string.player_source_resolution_failed),
-            codeName = PLAYER_ERROR_STARTUP_SOURCE_FAILED,
-            backend = playerBackend,
-        )
 
     private fun isActivePlaybackGeneration(exitGeneration: Long): Boolean =
         !explicitExitController.isExited && explicitExitController.isCurrent(exitGeneration)
@@ -1926,8 +1901,9 @@ constructor(
             ExoPlayer.STATE_READY -> {
                 stateString = "ExoPlayer.STATE_READY     -"
                 // 能进 READY 就说明上一次失败已经恢复，顺手收起错误卡片
-                _uiState.update { it.copy(fileLoaded = true, playerError = null) }
-                startupSourceRetryBudget.reset()
+                errorPolicy.onPlaybackFileLoaded()
+                val playerError = errorPolicy.current
+                _uiState.update { it.copy(fileLoaded = true, playerError = playerError) }
             }
             ExoPlayer.STATE_ENDED -> {
                 stateString = "ExoPlayer.STATE_ENDED     -"
@@ -1969,23 +1945,18 @@ constructor(
         }
         seekSink.onEngineError(mediaIdentity = seekMediaIdentity(), retryable = true)
         val startupSourceFailed = !_uiState.value.fileLoaded
-        if (startupSourceFailed) sessionOwner.failLastSourceIntent()
-        _uiState.update {
-            it.copy(
-                playerError =
-                    if (startupSourceFailed) {
-                        startupSourceFailure()
-                    } else {
-                        PlayerErrorInfo(
-                            message =
-                                error.message?.takeIf { message -> message.isNotBlank() }
-                                    ?: error.errorCodeName,
-                            codeName = error.errorCodeName,
-                            backend = playerBackend,
-                        )
-                    }
+        if (startupSourceFailed) {
+            sessionOwner.failLastSourceIntent()
+            errorPolicy.onStartupSourceFailed()
+        } else {
+            errorPolicy.onPlaybackError(
+                message =
+                    error.message?.takeIf { message -> message.isNotBlank() }
+                        ?: error.errorCodeName,
+                codeName = error.errorCodeName,
             )
         }
+        publishPlayerError()
         refreshPlaybackSession()
     }
 
@@ -1999,11 +1970,11 @@ constructor(
         val startupSourcePhase = !_uiState.value.fileLoaded
         if (startupSourcePhase) {
             // 起播期：转码冷启动 30–60s 才回一次错，按 30s 墙钟窗口清零会让预算永远不可达。
-            if (!startupSourceRetryBudget.shouldRetry(mediaId)) {
+            if (!errorPolicy.shouldRetryStartupSource(mediaId)) {
                 Timber.w(
                     "起播源错误原地重试已达上限（media=%s attempts=%d），交给错误卡片",
                     mediaId,
-                    startupSourceRetryBudget.attempts,
+                    errorPolicy.startupSourceAttempts,
                 )
                 return false
             }
@@ -2034,7 +2005,7 @@ constructor(
             networkRetryAttempts++
         }
         val retryAttempt =
-            if (startupSourcePhase) startupSourceRetryBudget.attempts else networkRetryAttempts
+            if (startupSourcePhase) errorPolicy.startupSourceAttempts else networkRetryAttempts
         if (!playerAccess.isOpen()) return false
         val position =
             (seekSink.state as? SeekState.Seeking)?.targetMs
@@ -2088,20 +2059,12 @@ constructor(
                 appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
             )
         // Deduplicate duplicate END_FILE failures from the same fallback stage.
-        val nowMs = SystemClock.elapsedRealtime()
-        if (
-            PlayerDecodeFallback.isDuplicateFailure(
-                lastKey = lastFailureHandledKey,
-                lastHandledAtMs = lastFailureHandledAtMs,
-                backend = backend,
-                stage = currentStage,
-                nowMs = nowMs,
-            )
-        ) {
+        val failureKey = PlayerDecodeFallback.failureKey(backend, currentStage)
+        if (!errorPolicy.shouldHandleFailure(failureKey)) {
             Timber.d(
                 "忽略重复的解码失败上报（%s，%dms 内已接管）",
-                PlayerDecodeFallback.failureKey(backend, currentStage),
-                nowMs - lastFailureHandledAtMs,
+                failureKey,
+                SystemClock.elapsedRealtime() - errorPolicy.lastHandledAtMs,
             )
             return true
         }
@@ -2145,8 +2108,7 @@ constructor(
         }
         // null = 链路已用尽（第 3 档也失败）：这一次才是「全部失败」，交给错误卡片
         if (nextStage == null || nextStage == currentStage) return false
-        lastFailureHandledKey = PlayerDecodeFallback.failureKey(backend, currentStage)
-        lastFailureHandledAtMs = nowMs
+        errorPolicy.markFailureHandled(failureKey)
         nextGuard?.let {
             appPreferences.setValue(
                 appPreferences.playerDecodeFallbackGuard,
@@ -3303,10 +3265,11 @@ constructor(
     }
 
     fun retryPlayerError() {
+        val playerError = errorPolicy.current
         val sourceIntent =
             sessionOwner.failedSourceIntent?.takeIf {
-                _uiState.value.playerError?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED ||
-                    _uiState.value.playerError?.codeName == PLAYER_ERROR_STARTUP_SOURCE_FAILED
+                playerError?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED ||
+                    playerError?.codeName == PLAYER_ERROR_STARTUP_SOURCE_FAILED
             }
         if (sourceIntent != null) {
             if (explicitExitController.isExited) return
@@ -3338,7 +3301,8 @@ constructor(
     ) {
         if (!playerAccess.isOpen()) return
         val active = activePlayer ?: return
-        _uiState.update { it.copy(playerError = null) }
+        errorPolicy.clear()
+        publishPlayerError()
         active.prepare()
         if (position > 0L) {
             if (positionSource == PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST) {
@@ -3488,7 +3452,8 @@ constructor(
 
     /** 手动收起错误卡片（不改播放状态） */
     fun dismissPlayerError() {
-        _uiState.update { it.copy(playerError = null) }
+        errorPolicy.clear()
+        publishPlayerError()
     }
 
     private suspend fun getSegments(itemId: UUID): Boolean {

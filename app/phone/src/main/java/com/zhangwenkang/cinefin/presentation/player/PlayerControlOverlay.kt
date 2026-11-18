@@ -129,6 +129,7 @@ import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
+import com.zhangwenkang.cinefin.player.local.session.PlayerErrorInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSecondaryUnavailableReason
 import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
@@ -1974,7 +1975,7 @@ private fun SeekFailureCard(
  */
 @Composable
 private fun PlayerErrorCard(
-    error: PlayerViewModel.PlayerErrorInfo,
+    error: PlayerErrorInfo,
     onRetry: () -> Unit,
     onSwitchBackend: (String) -> Unit,
     modifier: Modifier = Modifier,

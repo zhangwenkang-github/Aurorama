@@ -1,4 +1,4 @@
-package com.zhangwenkang.cinefin.player.local.presentation
+package com.zhangwenkang.cinefin.player.local.session
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
