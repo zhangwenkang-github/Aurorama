@@ -5,13 +5,18 @@
 
 ## 状态块
 
-- 当前波次：W2 **进行中**　进度：T0 ✅（2/2）· T1 ✅ · T2 ✅ · T3a ✅；T3b、T4–T6 未派
-- 基座 HEAD：`196404dc`（T0a `55df7572` · T0b `73f44f0d` · T1 `6d07f3ea` · T2 `c6d5e22d` · T3a `196404dc`，已推送）
+- 当前波次：W2 **进行中**　进度：T0 ✅（2/2）· T1 ✅ · T2 ✅ · T3a ✅ · T3b ✅ · T4 ✅；T5-α/β、T6 未派
+- 基座 HEAD：`d5576fcb`（T4，含 ADR-0010；docs 状态块随后一个 commit 推）
 - T1 验收（2026-11-18）：`PlaybackSessionOwner`（140 行纯 Kotlin）+ 9 单测；`SourceResolutionIntent` 随迁 session 包（ADR-0009 记录）；VM 净减 62 行；player/local 486 + app/phone 528 用例全绿。
 - T2 验收（2026-11-18）：`ErrorPolicy`（158 行纯 Kotlin）统一 7 处 playerError 写点 + 起播预算 + 去重窗口；`PlayerErrorInfo` 提为 session 包 public 顶层类（typealias 不可嵌套，改在 `PlayerControlOverlay.kt` 换 import，app/phone 仅此 1 处）；8 新单测；494 + 528 用例全绿。
 - T3a 验收（2026-11-18）：`StartupStateMachine`（110 行纯 Kotlin，5 相位迁移表 + 代次归属）+ 7 单测；`startupInProgress` 布尔删除、8 处读取全改状态机。**已验收的语义偏差**：起播保护窗口右边界从 `play()` 返回后移到 STATE_READY 出画面（更保守，commit body 已录）。K60 真机：起播 PLAYING→暂停 PAUSED→续播 PLAYING、FAILED 分支错误卡、退出复位重进全过。
 - **环境阻塞（待用户决策）**：K60 上 mpv 内核 TLS 握手失败（`mbedtls -0x7280`，服务器 ECDSA 证书兼容问题，既有、与 W2 改动无关）→ T4/T5 的 mpv 路径真机验证暂不可用，T3a 回归是改 pref 到 exoplayer 跑的（已还原）。
-- 观察项：K60 上 `e22f44af`（齐木楠雄 S00E01）报"暂时没有可播放的媒体源"、重进同集停 BUFFERING 且 recovery attempt=2——待 T3b/T5 真机复核是否既有现象。
+- 观察项：K60 上 `e22f44af`（齐木楠雄 S00E01）报"暂时没有可播放的媒体源"、重进同集停 BUFFERING 且 recovery attempt=2——待 T5 真机复核是否既有现象。T3b 已真机复现 T5-c 现场：跨集冷载 `exhausted=true` 却因 `fileLoaded=true` 短路不出错误卡（最终自行缓冲成功）——T5-c 的活样本。
+- T3b 验收（2026-11-18）：`ProgressWatchdog`（232 行纯 Kotlin）收口 refreshPlaybackSession 判定+分发，`WatchdogPlan` 有序计划 + 9 单测；`ProgressRecoveryJobOwner` 不再持有 controller（结构性后果，等价谓词 `recoveryRetains` 守住）；K60 exoplayer 四链路（起播/暂停/续播/跨集）+ 错误卡重试交互链全过。
+- T4 验收（2026-11-18）：`PlaybackEngine`（52 行接口，player/core 零 media3 依赖）+ `EngineCapabilities`（6 位）+ `EngineError`/`EngineErrorMapper`；Exo/mpv 适配器逐一委托；`PlayerHolder` 经 `PlaybackEngineFactory` 持有引擎（`currentEngine` 新增、`existingPlayer` 语义不变）；补 `Media3PlaybackEngine` 内部接口桥（ADR-0010 记录）；`supportsShuffleMode` 能力位为实证的唯一内核差异（mpv=false）；15 新单测，525+13+528 用例全绿；K60 exoplayer 起播/暂停/续播过。
+- **环境结论（2026-11-18 查实）**：jellyfins 证书为 Let's Encrypt ECDSA（notBefore 2026-09-23，P-384 签名族）——mpv TLS `-0x7280` 与该 ECDSA 证书的兼容问题属环境/绑定层既有问题，非 W2 改动引入；**T5-β 的真机验证受此阻塞**。
+- **门禁环境备注**：16G 内存机器全量门禁曾 OOM，后续子代理构建统一带 `--max-workers=2`。
+- **T5 拆分（2026-11-18 主负责人裁定）**：T5-α = 跨集重试带 index（卡 2）+ onExhausted 会话归属守卫（卡 3），exoplayer 可真机验证，先行；T5-β = mpv prepare() 重载首集（卡 1，MPVPlayer.kt:1894 收口进 MpvPlaybackEngine），单测+构建先行，真机验证待 TLS 解锁。
 - 红线：不改 data 层协议映射、不动 UI 视觉、TV 端除 T6 外冻结；门禁 = `player/local`（+涉及模块）单测 + `ktfmtCheck` + 构建；**播放链路行为改动必须 K60（`8e875894`）真机验证**（起播/暂停/续播/跨集/错误卡重试），Worker SUCCESS / 日志无报错不算数。
 - T0a 验收（2026-11-18 本地）：`player/local/build.gradle.kts` 加 `packaging.jniLibs.pickFirsts += "**/libc++_shared.so"`（与 app/phone、app/tv 同款）；clean 后全量 `:app:phone:assembleDebug` + `:data:testDebugUnitTest` + `ktfmtCheck` 全绿（308 任务 / 4m18s）。
 - T0b 验收（2026-11-18）：同代码两次 master CI 挂不同用例（run 44163993936 / 44256582821，`data/` 零 diff）→ 纯时序型；两挂例共享 `assertSame(failure, caught?.cause)`，钉死了 coroutines `-ea` 下 stacktrace recovery 的异常拷贝行为；已放宽为 cause 链可达（`assertSameFailureDelivered`）。本地单独类 6 轮 + 全量 3 轮不复现，最终待 CI 复核。
@@ -84,6 +89,8 @@
 **验收**：引擎适配层契约测试（参照既有 harness 惯例）；双内核 K60 起播回归。
 
 ## T5 三条 1.4.1 遗留根治（依赖 T3/T4）
+
+**执行拆分（2026-11-18 裁定）**：T5-α = 卡 2 + 卡 3（跨引擎、exoplayer 可真机验证）；T5-β = 卡 1（mpv 专属，真机待 TLS 解锁）。T5-α 先行。
 
 1. **F2 mpv prepare() 重载首集**：`MpvPlaybackEngine` 内 prepare 以 `currentMediaItemIndex` 为准，不再先载 0 号条（`MPVPlayer.kt:1894-1926` 重写，保源路径语义并入）。
 2. **跨集重试落回上一集**：重试路径携带 mediaItemIndex（`seekTo(mediaItemIndex, position)` 语义），禁止 `prepare()` + 裸 `seekTo(position)`（`PlayerViewModel.kt:3396-3414`）。
