@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W3 导航与新 UI 骨架**（W2 播放器架构重构已于 2026-11-18 收口：`docs/V2_W2_TASKS.md`，HEAD `ce2febca`；W3 依赖 W1 已完成，任务卡待备）。W2 遗留：mpv 真机补验待 jellyfins ECDSA 证书与 mpv mbedtls 的 TLS `-0x7280` 解锁；master CI 转绿需 cherry-pick T0 两修复（待授权）或开 PR；W1 遗留 9 条见 `docs/V2_W1_TASKS.md` 交接节（图标第二批、形状 token 随 W3）。
+1. **2.0.0 W3 导航与新 UI 骨架**（W2 已于 2026-11-18 收口：`docs/V2_W2_TASKS.md`，HEAD `edcf7a68`）：W3 交接卡已备 `docs/V2_W3_TASKS.md`（状态块 = W2 遗留核查清单 + 新会话开工提示词 + 任务草案）。W2 遗留：master Build CI 差 T6 cherry-pick（`ce2febca`，待授权）；mpv 真机补验待服务器 TLS 修复（ECDSA 单证书 vs mbedtls）；W1 遗留 9 条随 W3。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
