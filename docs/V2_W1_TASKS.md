@@ -1,13 +1,15 @@
 # 2.0 W1 · 设计系统落地（任务卡）
 
-> 状态：`READY`（2026-11-18，待开工）　分支基座：`codex/v2-integration`
+> 状态：`IN_PROGRESS`（2026-11-18，T1/T2 已验收合入）　分支基座：`codex/v2-integration`
 > 设计唯一权威：`docs/V2_DESIGN.md` §3（K1 定稿）。**执行者不做任何设计决策**——色值、圆角、尺寸、动效时长一律取本文档与 V2_DESIGN.md 的定稿值；遇到定稿未覆盖的样式问题，停下来报告，不自行发挥。
 
 ## 状态块
 
-- 当前波次：W1　进度：0/5 任务
-- 基座 HEAD：`7c634e16`
+- 当前波次：W1　进度：**2/5 任务**（T1 ✅ T2 ✅，T3/T4/T5 待派）
+- 基座 HEAD：`31587506`（T1 `63c61f91` + T2 `31587506` + 状态栏修复 `c41cec61`）
 - 红线：不改播放器逻辑、不改 data 层、不动 `app/tv`；门禁 = `:core` 及相关模块单测 + `ktfmtCheck` + 构建。
+- T1/T2 验收证据（2026-11-18，K60 `8e875894`）：core 446 + phone 528 用例 0 失败；四主题设置页切换即时生效且像素精确命中 token（aurora `#080D17` / light `#FAFAFB` / amoled `#000000` / dynamic·system 随系统）；pref 逐项写入、杀进程重启保持；浅色下状态栏图标切深色；升级用户无 `pref_theme` 键 → 默认 Aurora；详情页无残留色。
+- 遗留（转 T5/后续波次）：①存量偏好值 `dark` 在设置选择行显示「未设置」（读到即按 aurora 生效，T5 页面重做时处理）；②`enableEdgeToEdge` 已随主题明暗切换（`c41cec61`）；③旧 Prism 中性常量暂留 `CinefinTokens`（reader 仍引用 `OnSurfaceLight`），W3 页面换肤后清理；④light `aurora3` 对 `onAurora` 对比度 4.5003 无余量，后续调值须同步改测试。
 
 ## T1 主题引擎改造（先做，后续任务都依赖它）
 

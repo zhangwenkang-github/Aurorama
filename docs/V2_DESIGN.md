@@ -50,6 +50,14 @@ ADR-0007（2026-11-02）保留有效的部分：主题是覆盖全 App 的完整
 
 规则：渐变只允许出现在主 CTA、进度、选中/焦点态、logo 与品牌页；页面背景禁大面积渐变（环境光晕例外，且必须来自当前内容图）。前景文字 onAurora = `#04201A`。
 
+**W1 落地校准（2026-11-18 主负责人定稿，代码已实现并经 K60 真机验证）**：
+
+- 8 个 M3 surface 槽与四级 bg 的映射：Lowest=bg0 / Low=bg1 / Container=bg2 / High=bg3 / Highest=派生提亮档（aurora `#1C2638` = bg3+白4%，amoled `#1B2332`，light `#DDE0E6` = bg3+黑4%）；surface=bg1、surfaceDim=bg0、surfaceBright=bg3。
+- 通用发丝线：outline=白14%（浅色 `#10151F` 14%）、outlineVariant=glassBorder 值。
+- 品牌槽位随主题走（`CinefinColors.aurora1/2/3/onAurora/glass/glassBorder`）；**浅色主题 onAurora 校准为 `#000000`**（`#04201A` 在浅版 au2/au3 上仅 3.7:1，纯黑全段 ≥4.5）。
+- 对比度验收规则（`CinefinThemesTest` 钉死）：每个注册色板的 onAurora 对三段极光色均 ≥ 4.5（WCAG AA）。
+- Lumen（A 稿流光）退役为注册表遗产条目 `lumen`（非用户可选），`ProvideLumen` 包裹机制已删除；主题状态流：`pref_theme ∈ {aurora, light, amoled, dynamic, system}`，默认 `aurora`（无显式选择的升级用户进 Aurora），旧值 `dark→aurora`。
+
 ### 3.2 形状 / 动效 / 排版 token
 
 - 圆角：海报 14、卡片 20、按钮 16、玻璃容器 32–44、logo 容器 26–150（按尺寸比例）；同页不混用两套圆角体系。

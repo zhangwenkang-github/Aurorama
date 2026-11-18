@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W0 完成**（2026-11-18）：需求账本/架构方向/设计方向定稿；下一波 W1 设计系统 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` |
+| 2.0.0 | 🟡 **W1 进行中**（2026-11-18）：T1 主题引擎 + T2 四套 token 已验收合入（`63c61f91`/`31587506`/`c41cec61`，K60 四主题真机验证通过）；T3 logo / T4 图标 / T5 主题选择器待派 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W1_TASKS.md` |
 | 播放器 | 🟢 1.4.1 三修复已发布；架构重构（单 owner/状态机/引擎抽象）列入 W2 | `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W1 设计系统**（任务卡已备，随时开工）：`docs/V2_W1_TASKS.md` 五个任务（T1 主题引擎 → T2 四套 token → T3 logo B 资源 / T4 首批图标 / T5 主题选择器）。设计已用户验收：K1 Aurora Cinema（`docs/design/k1-aurora/`），logo 定稿 B「极幕之眼」（A 保留备选）。执行约束：设计零自主决策，全部按 `V2_DESIGN.md` §3 定稿值。
+1. **2.0.0 W1 设计系统**（2/5 完成）：T1 主题引擎 + T2 四套 token 已验收（K60 真机四主题切换/持久化/浅色可读全过）；下一批 T3 logo B 资源与 T4 首批 30 图标（可并行），T5 主题选择器最后。执行约束：设计零自主决策，全部按 `V2_DESIGN.md` §3 定稿值。
 2. v1.4.0 收尾仍挂起（tag v1.4.0 + Release + 用户终验，见 `docs/FIX_PLAN.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
