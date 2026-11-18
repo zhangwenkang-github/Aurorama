@@ -1,14 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 播放控制层「画中画」入口：24dp 网格、外框 + 右下角内窗。 -->
+<!-- K1 图标体系：24dp 视框 / 2dp 笔宽 / 圆头端点拐角（W1-T4）。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
     <path
         android:pathData="M4.4,5.6 H19.6 A1.8,1.8 0 0,1 21.4,7.4 V16.6 A1.8,1.8 0 0,1 19.6,18.4 H4.4 A1.8,1.8 0 0,1 2.6,16.6 V7.4 A1.8,1.8 0 0,1 4.4,5.6 Z"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.5"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
     <path

@@ -1,4 +1,4 @@
-<!-- K1 图标体系：24dp 视框 / 2dp 笔宽 / 圆头端点拐角（W1-T4）。 -->
+<!-- K1 图标体系：24dp 视框 / 2dp 笔宽 / 圆头端点拐角（W1-T4）。W3-T3 微调样张：指针起点退出中心点圆外（12,15.5 → 13.3,14.0），指向关系不变。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -13,7 +13,7 @@
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
     <path
-        android:pathData="M12,15.5 L15.8,10.9"
+        android:pathData="M13.3,14.0 L15.8,10.9"
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"

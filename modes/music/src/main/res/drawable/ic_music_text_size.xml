@@ -1,31 +1,36 @@
-<?xml version="1.0" encoding="utf-8"?>
+<!-- K1 图标体系：24dp 视框 / 2dp 笔宽 / 圆头端点拐角（W1-T4）。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
     <path
         android:pathData="M3.5,19 L8.5,5 L13.5,19"
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="1.75" />
+        android:strokeLineJoin="round" />
     <path
         android:pathData="M5.6,14.4 L11.4,14.4"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeWidth="1.75" />
+        android:strokeLineJoin="round" />
     <path
         android:pathData="M15,19 L18.2,10.5 L21.4,19"
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="1.75" />
+        android:strokeLineJoin="round" />
     <path
         android:pathData="M16.2,16 L20.2,16"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeWidth="1.75" />
+        android:strokeLineJoin="round" />
 </vector>

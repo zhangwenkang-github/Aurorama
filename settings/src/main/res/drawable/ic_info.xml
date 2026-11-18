@@ -1,20 +1,24 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 关于（W42 重绘）：信息圆 + 实心点 -->
+<!-- K1 图标体系：24dp 视框 / 2dp 笔宽 / 圆头端点拐角（W1-T4）。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
     <path
         android:pathData="M12,3.6 A8.4,8.4 0 1 0 12,20.4 A8.4,8.4 0 1 0 12,3.6 Z"
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.75" />
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
     <path
         android:pathData="M12,11.2 V16.2"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.75"
-        android:strokeLineCap="round" />
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
     <path
         android:pathData="M12,7.9 A1,1 0 1 0 12,9.9 A1,1 0 1 0 12,7.9 Z"
         android:fillColor="#FFFFFFFF" />
