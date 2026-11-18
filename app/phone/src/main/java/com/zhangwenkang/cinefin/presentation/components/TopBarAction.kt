@@ -33,7 +33,8 @@ fun TopBarAction(
 ) {
     val colors = LocalCinefinColors.current
     Box(
-        modifier = modifier.size(44.dp).clip(CinefinShapes.Sm).cinefinClickable(onClick = onClick),
+        modifier =
+            modifier.size(44.dp).clip(CinefinShapes.Button).cinefinClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         if (content != null) {

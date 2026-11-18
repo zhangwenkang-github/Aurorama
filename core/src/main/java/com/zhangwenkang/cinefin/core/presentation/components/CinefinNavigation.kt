@@ -39,9 +39,9 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -145,8 +145,8 @@ fun CinefinNavigationItem(
     trailing: (@Composable () -> Unit)? = null,
     /** 二级分组子项用 44dp 紧凑行，避免「父项 + 全部库」把侧轨撑到需要滚动。 */
     compact: Boolean = false,
-    /** 条目圆角（与外壳一致；K1 定稿 16dp）。 */
-    cornerRadius: Dp = 16.dp,
+    /** 条目圆角（与外壳一致；K1 定稿 `CinefinShapes.Button`）。 */
+    shape: Shape = CinefinShapes.Button,
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
@@ -168,7 +168,6 @@ fun CinefinNavigationItem(
             pressed = pressed,
             colors = colors,
         )
-    val shape = RoundedCornerShape(cornerRadius)
 
     CompositionLocalProvider(
         LocalNavItemInteraction provides
@@ -311,7 +310,8 @@ private fun Modifier.auroraGradientIndicator(colors: CinefinColors, visible: Boo
     }
 
 /**
- * 底部 Tab（Compact <600dp）：K1 悬浮玻璃条——`glass` 底（半透明、不做实时 blur）+ 1dp `glassBorder` 描边 + 圆角 32dp，高 64dp。
+ * 底部 Tab（Compact <600dp）：K1 悬浮玻璃条——`glass` 底（半透明、不做实时 blur）+ 1dp `glassBorder` 描边 + 圆角
+ * `CinefinShapes.Glass`（32dp），高 64dp。
  *
  * 选中项：图标 + 文字提亮 `textPrimary`，文字下方 20×3dp 极光渐变指示小条；未选中项 `textSecondary`。条目数量与 IA 不变。
  */
@@ -323,7 +323,7 @@ fun CinefinBottomTab(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
-    val shape = RoundedCornerShape(32.dp)
+    val shape = CinefinShapes.Glass
     Row(
         modifier =
             modifier

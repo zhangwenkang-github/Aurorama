@@ -1291,7 +1291,7 @@ private fun MusicSourceFilterMenuChip(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            shape = CinefinShapes.Sm,
+            shape = CinefinShapes.Card,
             containerColor = colors.surfaceContainerHighest,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
@@ -2060,7 +2060,7 @@ private fun SongRow(
                 DropdownMenu(
                     expanded = menuOpen,
                     onDismissRequest = { menuOpen = false },
-                    shape = CinefinShapes.Sm,
+                    shape = CinefinShapes.Button,
                     containerColor = colors.surfaceContainerHighest,
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp,
@@ -2184,7 +2184,7 @@ private fun NowPlayingBar(
             Row(
                 modifier =
                     Modifier.weight(1f)
-                        .clip(CinefinShapes.Sm)
+                        .clip(CinefinShapes.Button)
                         .clickable(onClick = onOpenNowPlaying)
                         .padding(
                             horizontal = CinefinSpacing.Space1,

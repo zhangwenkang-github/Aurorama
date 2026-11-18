@@ -519,12 +519,12 @@ private fun SettingsGroupRow(
                 style = MaterialTheme.typography.labelLarge,
                 color = if (isSelected) media.bright else colors.onSurfaceVariant,
                 modifier =
-                    Modifier.clip(CinefinShapes.Sm)
+                    Modifier.clip(CinefinShapes.Button)
                         .background(if (isSelected) media.container else colors.surfaceContainer)
                         .border(
                             1.dp,
                             if (isSelected) media.outline else colors.outline,
-                            CinefinShapes.Sm,
+                            CinefinShapes.Button,
                         )
                         .clickable { onSelect(index) }
                         .semantics { this.selected = isSelected }
@@ -553,7 +553,7 @@ internal fun PanelSwitchRow(
             Modifier.fillMaxWidth()
                 .padding(horizontal = CinefinSpacing.Space3, vertical = 2.dp)
                 .heightIn(min = 52.dp)
-                .clip(CinefinShapes.Sm)
+                .clip(CinefinShapes.Button)
                 .background(colors.surfaceContainerLow)
                 // 整行可点：开关行是「一行的表单」，不该只有右侧小圆钮响应（48dp 命中区纪律）
                 .clickable(enabled = enabled) { onCheckedChange(!checked) }

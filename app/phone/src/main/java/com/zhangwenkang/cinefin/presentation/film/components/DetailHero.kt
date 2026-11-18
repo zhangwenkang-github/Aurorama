@@ -376,7 +376,7 @@ private fun HeroEyebrow(
         textAlign = textAlign,
         modifier =
             modifier
-                .clip(CinefinShapes.Sm)
+                .clip(CinefinShapes.Button)
                 .cinefinClickable(onClick = onClick)
                 // 眉标只有一行高，向内补一点内边距把命中区放大（视觉仅多出两侧留白）。
                 .padding(horizontal = CinefinSpacing.Space1, vertical = CinefinSpacing.Space1),

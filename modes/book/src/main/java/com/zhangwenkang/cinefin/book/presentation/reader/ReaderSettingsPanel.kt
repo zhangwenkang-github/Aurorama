@@ -82,7 +82,7 @@ internal fun ReaderSettingsPanel(
             modifier
                 .widthIn(max = 512.dp)
                 .fillMaxWidth()
-                .clip(CinefinShapes.Lg)
+                .clip(CinefinShapes.Card)
                 .background(settings.chromeColor(systemDark))
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 30.dp, vertical = 28.dp),

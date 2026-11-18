@@ -80,7 +80,7 @@ fun SettingsGroupCard(
                 )
             }
         }
-        LumenCardFrame(shape = CinefinShapes.Lg, modifier = Modifier.fillMaxWidth()) {
+        LumenCardFrame(shape = CinefinShapes.Card, modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 if (header != null) {
                     header()

@@ -347,9 +347,9 @@ private fun DetailLabeledButton(
         modifier =
             modifier
                 .defaultMinSize(minHeight = 48.dp)
-                .clip(CinefinShapes.Sm)
+                .clip(CinefinShapes.Button)
                 .background(containerColor)
-                .border(1.dp, borderColor, CinefinShapes.Sm)
+                .border(1.dp, borderColor, CinefinShapes.Button)
                 .cinefinClickable(enabled = enabled, onClick = onClick)
                 .padding(horizontal = CinefinSpacing.Space4, vertical = CinefinSpacing.Space3),
         verticalAlignment = Alignment.CenterVertically,
@@ -524,9 +524,9 @@ private fun HeroActionKey(
         modifier =
             modifier
                 .height(64.dp)
-                .clip(CinefinShapes.Sm)
+                .clip(CinefinShapes.Button)
                 .background(containerColor)
-                .border(1.dp, borderColor, CinefinShapes.Sm)
+                .border(1.dp, borderColor, CinefinShapes.Button)
                 .cinefinClickable(enabled = enabled, onClick = onClick)
                 .padding(vertical = CinefinSpacing.Space2),
         horizontalAlignment = Alignment.CenterHorizontally,

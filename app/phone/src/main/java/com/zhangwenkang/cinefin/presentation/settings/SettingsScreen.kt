@@ -335,9 +335,9 @@ private fun SettingsAccountHeader(
             Box(
                 modifier =
                     Modifier.size(48.dp)
-                        .clip(CinefinShapes.Md)
+                        .clip(CinefinShapes.Card)
                         .background(colors.surfaceContainerHigh)
-                        .border(1.dp, colors.outline, CinefinShapes.Md),
+                        .border(1.dp, colors.outline, CinefinShapes.Card),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(

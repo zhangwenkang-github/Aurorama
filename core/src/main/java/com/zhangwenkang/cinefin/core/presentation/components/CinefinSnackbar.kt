@@ -43,7 +43,7 @@ fun CinefinSnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Modif
             modifier =
                 Modifier.widthIn(max = 480.dp)
                     .heightIn(min = 52.dp)
-                    .clip(CinefinShapes.Sm)
+                    .clip(CinefinShapes.Button)
                     .background(colors.inverseSurface)
                     .padding(
                         horizontal = CinefinSpacing.Space5,
@@ -67,7 +67,7 @@ fun CinefinSnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Modif
                     color = colors.inverseOnSurface,
                     maxLines = 1,
                     modifier =
-                        Modifier.clip(CinefinShapes.Sm)
+                        Modifier.clip(CinefinShapes.Button)
                             .cinefinClickable(onClick = { data.performAction() })
                             .padding(
                                 horizontal = CinefinSpacing.Space3,

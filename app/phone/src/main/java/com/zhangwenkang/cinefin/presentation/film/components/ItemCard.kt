@@ -29,6 +29,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -96,6 +97,8 @@ fun ItemCard(
     ) {
         LumenCardFrame(
             modifier = Modifier.fillMaxWidth(),
+            shape =
+                if (direction == Direction.HORIZONTAL) CinefinShapes.Card else CinefinShapes.Poster,
             emphasized = hovered || pressed,
             container = colors.surfaceContainerHigh,
         ) {

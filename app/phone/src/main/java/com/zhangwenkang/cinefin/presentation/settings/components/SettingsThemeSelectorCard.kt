@@ -144,7 +144,7 @@ private fun ThemePreviewSwatch(themeId: String, darkTheme: Boolean, selected: Bo
             SolidColor(colors.outline)
         }
 
-    Box(modifier = Modifier.size(width = 72.dp, height = 48.dp).clip(CinefinShapes.Sm)) {
+    Box(modifier = Modifier.size(width = 72.dp, height = 48.dp).clip(CinefinShapes.Xs)) {
         Column(modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.fillMaxWidth().weight(1f).background(swatch.surface))
             Box(modifier = Modifier.fillMaxWidth().weight(1f).background(swatch.surfaceContainer))
@@ -170,7 +170,7 @@ private fun ThemePreviewSwatch(themeId: String, darkTheme: Boolean, selected: Bo
                     .border(
                         width = if (selected) 2.dp else 1.dp,
                         brush = borderBrush,
-                        shape = CinefinShapes.Sm,
+                        shape = CinefinShapes.Xs,
                     )
         )
     }

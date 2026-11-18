@@ -333,13 +333,13 @@ private fun ShowScreenLayout(
                             Column(
                                 modifier =
                                     Modifier.widthIn(max = 420.dp)
-                                        .clip(CinefinShapes.Md)
+                                        .clip(CinefinShapes.Card)
                                         .clickable { onAction(ShowAction.NavigateToItem(nextUp)) }
                             ) {
                                 ItemPoster(
                                     item = nextUp,
                                     direction = Direction.HORIZONTAL,
-                                    modifier = Modifier.clip(CinefinShapes.Md),
+                                    modifier = Modifier.clip(CinefinShapes.Poster),
                                 )
                                 Spacer(Modifier.height(CinefinSpacing.Space3))
                                 Text(

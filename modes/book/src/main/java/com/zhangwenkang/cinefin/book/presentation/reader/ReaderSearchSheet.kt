@@ -190,7 +190,7 @@ private fun SearchHitRow(
     Row(
         modifier =
             Modifier.fillMaxWidth()
-                .clip(CinefinShapes.Sm)
+                .clip(CinefinShapes.Button)
                 .background(contentColor.copy(alpha = 0.04f))
                 .padding(horizontal = CinefinSpacing.Space2, vertical = CinefinSpacing.Space1),
         verticalAlignment = Alignment.CenterVertically,

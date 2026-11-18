@@ -126,7 +126,7 @@ fun HomeLocalMediaSection(
 }
 
 /**
- * 首页本地库卡（W45）：与「继续观看」横排同宽同高（[rememberLandscapeCardWidth] + 16:9）、 同 `CinefinShapes.Md` 圆角；封面 +
+ * 首页本地库卡（W45）：与「继续观看」横排同宽同高（[rememberLandscapeCardWidth] + 16:9）、 同 `CinefinShapes.Card` 圆角；封面 +
  * 底部渐隐 + 库名 +「N 项 · 类型」+ 右上类型角标。
  */
 @Composable
@@ -869,7 +869,7 @@ private fun LocalLibraryHeaderCover(
         modifier =
             Modifier.fillMaxWidth()
                 .height(140.dp)
-                .clip(CinefinShapes.Md)
+                .clip(CinefinShapes.Poster)
                 .background(colors.surfaceContainerHigh)
                 .background(placeholder.base.copy(alpha = LocalLibraryPlaceholderTintAlpha)),
         contentAlignment = Alignment.Center,

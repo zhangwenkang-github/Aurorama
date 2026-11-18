@@ -1634,7 +1634,7 @@ internal fun PlayerPlayKey(
                     scaleX = scale
                     scaleY = scale
                 }
-                .clip(CinefinShapes.Lg)
+                .clip(CinefinShapes.Xl)
                 .background(
                     colors.scrim.copy(
                         alpha = if (pressed) PLAYER_GLASS_PRESSED_ALPHA else PLAYER_GLASS_ALPHA
@@ -1643,11 +1643,11 @@ internal fun PlayerPlayKey(
                 .border(
                     1.dp,
                     colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA),
-                    CinefinShapes.Lg,
+                    CinefinShapes.Xl,
                 )
                 .then(
                     if (focused) {
-                        Modifier.border(2.dp, colors.onSurface.copy(alpha = 0.6f), CinefinShapes.Lg)
+                        Modifier.border(2.dp, colors.onSurface.copy(alpha = 0.6f), CinefinShapes.Xl)
                     } else {
                         Modifier
                     }
@@ -1908,7 +1908,7 @@ private fun PlaybackRecoveryBar(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
-    val shape = CinefinShapes.Md
+    val shape = CinefinShapes.Card
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
@@ -1990,7 +1990,7 @@ private fun PlayerErrorCard(
     val targetLabel =
         if (targetBackend == PlayerViewModel.PLAYER_BACKEND_MPV) "mpv" else "ExoPlayer"
     val colors = LocalCinefinColors.current
-    val shape = CinefinShapes.Md
+    val shape = CinefinShapes.Card
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -2044,7 +2044,7 @@ private fun ErrorActionButton(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val shape = CinefinShapes.Sm
+    val shape = CinefinShapes.Button
     Box(
         contentAlignment = Alignment.Center,
         modifier =
@@ -2846,7 +2846,7 @@ internal fun PlayerIconButton(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
-    val shape = CinefinShapes.Md
+    val shape = CinefinShapes.Button
     val keyWidth = if (label != null) size + PLAYER_TOOL_KEY_LABEL_WIDTH_EXTRA_DP.dp else size
     val keyHeight = if (label != null) size + PLAYER_TOOL_KEY_LABEL_HEIGHT_EXTRA_DP.dp else size
     val drawnIconSize = if (label != null) iconSize * 0.82f else iconSize
@@ -3014,9 +3014,9 @@ private fun LockedOverlay(
             modifier
                 .padding(end = CinefinSpacing.Space5)
                 .size(56.dp)
-                .clip(CinefinShapes.Lg)
+                .clip(CinefinShapes.Button)
                 .background(media.container)
-                .border(1.dp, media.outline, CinefinShapes.Lg)
+                .border(1.dp, media.outline, CinefinShapes.Button)
                 .clickable(onClick = onUnlock),
     ) {
         Icon(
@@ -3119,7 +3119,7 @@ internal fun PanelRow(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val shape = CinefinShapes.Sm
+    val shape = CinefinShapes.Button
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
@@ -3615,7 +3615,7 @@ private fun SubtitleCurrentCombination(
     onResetDelay: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val shape = CinefinShapes.Sm
+    val shape = CinefinShapes.Card
     Column(
         modifier =
             Modifier.fillMaxWidth()
@@ -3793,7 +3793,7 @@ private fun SubtitleTrackRow(
     onRemoveSideloaded: (Int) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val shape = CinefinShapes.Sm
+    val shape = CinefinShapes.Card
     Column(
         modifier =
             Modifier.fillMaxWidth()
@@ -4142,7 +4142,7 @@ private fun SubtitleAppearanceEditor(
     onChange: (SubtitleAppearance) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
-    val shape = CinefinShapes.Sm
+    val shape = CinefinShapes.Card
     var tabIndex by rememberSaveable { mutableStateOf(0) }
     Column(
         modifier =
@@ -4186,7 +4186,7 @@ private fun SubtitleAppearancePreview(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
-    val shape = CinefinShapes.Sm
+    val shape = CinefinShapes.Card
     val previewHeight = 150.dp
     Box(
         modifier =
@@ -4526,7 +4526,7 @@ private fun SubtitleColorChip(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val shape = CinefinShapes.Sm
+    val shape = CinefinShapes.Button
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
@@ -4687,7 +4687,7 @@ internal fun PanelChip(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val shape = CinefinShapes.Sm
+    val shape = CinefinShapes.Button
     Box(
         contentAlignment = Alignment.Center,
         modifier =

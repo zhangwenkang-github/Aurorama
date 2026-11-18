@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -154,7 +153,7 @@ private fun ButtonStateMatrixContent() {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CinefinInteractionState.entries.forEach { state ->
                     val resolved = resolveButtonColors(variant, state, media, colors)
-                    val shape = RoundedCornerShape(12.dp)
+                    val shape = CinefinShapes.Button
                     val focused = state == CinefinInteractionState.Focused
                     Box(
                         modifier =

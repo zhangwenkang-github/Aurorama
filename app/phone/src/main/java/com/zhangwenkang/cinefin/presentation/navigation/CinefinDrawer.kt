@@ -48,7 +48,7 @@ fun CinefinDrawerHeader(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier =
-                    Modifier.size(40.dp).clip(CinefinShapes.Sm).background(Color.Transparent),
+                    Modifier.size(40.dp).clip(CinefinShapes.Xs).background(Color.Transparent),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

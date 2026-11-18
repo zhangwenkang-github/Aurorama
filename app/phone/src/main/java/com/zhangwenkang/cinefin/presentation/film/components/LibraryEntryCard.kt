@@ -70,7 +70,7 @@ fun LibraryEntryCard(
     val hovered by interactionSource.collectIsHoveredAsState()
     val pressed by interactionSource.collectIsPressedAsState()
     val scrim = Color.Black
-    val tileShape = CinefinShapes.Sm
+    val tileShape = CinefinShapes.Xs
     val collection = item as? FindroidCollection
     // W74（#3）：无论库自身有没有封面，底层都常驻「库类型图标 + 媒体域色底」占位——
     // 无封面 / 加载中 / 加载失败都不再出现纯黑（深色）块；真实封面就绪后覆盖在上层。

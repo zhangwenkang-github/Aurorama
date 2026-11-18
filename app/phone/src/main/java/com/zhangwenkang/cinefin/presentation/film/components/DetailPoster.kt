@@ -29,7 +29,7 @@ fun DetailPoster(
     val colors = LocalCinefinColors.current
     LumenCardFrame(
         modifier = modifier.width(width).aspectRatio(2f / 3f),
-        shape = CinefinShapes.Md,
+        shape = CinefinShapes.Poster,
         container = colors.surfaceContainerHigh,
     ) {
         // W69：详情海报刷新（含返回重进）时保留上一张图 + 交叉淡入。

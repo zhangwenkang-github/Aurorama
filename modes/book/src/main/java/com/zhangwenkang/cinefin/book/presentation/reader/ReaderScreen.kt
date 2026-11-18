@@ -670,7 +670,7 @@ private fun ReaderZoomBar(
     onZoomIn: () -> Unit,
 ) {
     Surface(
-        shape = CinefinShapes.Sm,
+        shape = CinefinShapes.Button,
         color = containerColor.copy(alpha = 0.92f),
         contentColor = contentColor,
     ) {
@@ -825,7 +825,7 @@ private fun BrightnessHud(
 ) {
     Surface(
         modifier = modifier,
-        shape = CinefinShapes.Sm,
+        shape = CinefinShapes.Button,
         color = containerColor.copy(alpha = 0.92f),
         contentColor = contentColor,
     ) {

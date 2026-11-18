@@ -104,9 +104,9 @@ fun Modifier.lumenShimmer(): Modifier {
     }
 }
 
-/** 骨架占位块：圆角由调用方决定，默认 12dp（与卡片 / 磁贴同一套半径语言）。 */
+/** 骨架占位块：圆角由调用方决定，默认 `CinefinShapes.Card`（与卡片 / 磁贴同一套半径语言）。 */
 @Composable
-fun LumenSkeletonBlock(modifier: Modifier = Modifier, shape: Shape = CinefinShapes.Sm) {
+fun LumenSkeletonBlock(modifier: Modifier = Modifier, shape: Shape = CinefinShapes.Card) {
     Box(modifier = modifier.clip(shape).lumenShimmer())
 }
 
@@ -196,7 +196,7 @@ fun ColdStartSplash(modifier: Modifier = Modifier) {
             Box(
                 modifier =
                     Modifier.size(64.dp)
-                        .clip(CinefinShapes.Lg)
+                        .clip(CinefinShapes.Card)
                         .background(colors.surfaceContainerHigh),
                 contentAlignment = Alignment.Center,
             ) {
@@ -231,7 +231,7 @@ fun HomeSkeleton(columns: Int, gutterStart: Dp, gutterEnd: Dp, modifier: Modifie
                 Modifier.fillMaxWidth()
                     .padding(start = gutterStart, end = gutterEnd)
                     .height(260.dp),
-            shape = CinefinShapes.Lg,
+            shape = CinefinShapes.Card,
         )
         Column(
             modifier = Modifier.fillMaxWidth().padding(start = gutterStart, end = gutterEnd),
@@ -242,7 +242,7 @@ fun HomeSkeleton(columns: Int, gutterStart: Dp, gutterEnd: Dp, modifier: Modifie
                 repeat(3) {
                     LumenSkeletonBlock(
                         modifier = Modifier.width(220.dp).height(124.dp),
-                        shape = CinefinShapes.Md,
+                        shape = CinefinShapes.Card,
                     )
                 }
             }
@@ -256,7 +256,7 @@ fun HomeSkeleton(columns: Int, gutterStart: Dp, gutterEnd: Dp, modifier: Modifie
                 repeat(columns.coerceIn(2, 6)) {
                     LumenSkeletonBlock(
                         modifier = Modifier.weight(1f).height(210.dp),
-                        shape = CinefinShapes.Md,
+                        shape = CinefinShapes.Poster,
                     )
                 }
             }
@@ -280,12 +280,12 @@ fun MediaLibrarySkeleton(
         LumenSkeletonLine(widthFraction = 0.16f, height = 16.dp)
         LumenSkeletonBlock(
             modifier = Modifier.fillMaxWidth().height(112.dp),
-            shape = CinefinShapes.Md,
+            shape = CinefinShapes.Card,
         )
         repeat(if (columns >= 2) 2 else 1) {
             LumenSkeletonBlock(
                 modifier = Modifier.fillMaxWidth().height(180.dp),
-                shape = CinefinShapes.Md,
+                shape = CinefinShapes.Card,
             )
         }
     }
@@ -319,7 +319,7 @@ fun LibraryGridSkeleton(
                 repeat(columns.coerceIn(2, 6)) {
                     LumenSkeletonBlock(
                         modifier = Modifier.weight(1f).height(tileHeight),
-                        shape = CinefinShapes.Md,
+                        shape = CinefinShapes.Poster,
                     )
                 }
             }
@@ -333,7 +333,7 @@ fun DetailSkeleton(gutterStart: Dp, gutterEnd: Dp, modifier: Modifier = Modifier
     Column(modifier = modifier.fillMaxWidth()) {
         LumenSkeletonBlock(
             modifier = Modifier.fillMaxWidth().height(300.dp),
-            shape = CinefinShapes.Lg,
+            shape = CinefinShapes.Card,
         )
         Column(
             modifier =
@@ -375,7 +375,7 @@ fun SettingsSkeleton(
     ) {
         LumenSkeletonBlock(
             modifier = Modifier.fillMaxWidth().widthIn(max = maxWidth).height(72.dp),
-            shape = CinefinShapes.Md,
+            shape = CinefinShapes.Card,
         )
         repeat(3) {
             LumenSkeletonBlock(
@@ -383,7 +383,7 @@ fun SettingsSkeleton(
                     Modifier.fillMaxWidth()
                         .widthIn(max = maxWidth)
                         .height(if (it == 0) 168.dp else 216.dp),
-                shape = CinefinShapes.Lg,
+                shape = CinefinShapes.Card,
             )
         }
     }

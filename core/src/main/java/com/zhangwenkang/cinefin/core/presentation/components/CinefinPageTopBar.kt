@@ -113,7 +113,8 @@ private fun CinefinTopBarIcon(
     onClick: () -> Unit,
 ) {
     Box(
-        modifier = Modifier.size(44.dp).clip(CinefinShapes.Sm).cinefinClickable(onClick = onClick),
+        modifier =
+            Modifier.size(44.dp).clip(CinefinShapes.Button).cinefinClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

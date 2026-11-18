@@ -35,11 +35,11 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 /** 分段控件容器高度（§8.2）。 */
 private val SegmentedHeight = 44.dp
 
-/** 选中段内缩 2dp：容器圆角 12 − 内缩 2 = 10dp。 */
-private val SegmentedItemCorner = 10.dp
+/** 选中段内缩 2dp：容器圆角 16 − 内缩 2 = 14dp（与外层 `CinefinShapes.Button` 同心）。 */
+private val SegmentedItemCorner = 14.dp
 
 /**
- * 分段控件（§8.2）：高 44dp、底 `SurfaceContainerHigh`、1dp `Outline`、圆角 12dp。
+ * 分段控件（§8.2）：高 44dp、底 `SurfaceContainerHigh`、1dp `Outline`、圆角取 `CinefinShapes.Button`（16dp）。
  *
  * 选中段用 `Media.Container` 底 + `Media.Bright` 600 文字 + 1dp `Media.Outline` 内描边； 未选中段透明底 +
  * `OnSurfaceVariant`；按下用 `Media.ContainerPressed`（未选中段用白 8% 状态层）；聚焦画 2dp `Media.Base@60%` 内环（容器
@@ -60,9 +60,9 @@ fun <T> CinefinSegmentedControl(
             modifier
                 .fillMaxWidth()
                 .height(SegmentedHeight)
-                .clip(CinefinShapes.Sm)
+                .clip(CinefinShapes.Button)
                 .background(colors.surfaceContainerHigh)
-                .border(1.dp, colors.outline, CinefinShapes.Sm)
+                .border(1.dp, colors.outline, CinefinShapes.Button)
                 .padding(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -54,7 +54,7 @@ internal fun PlayerDebugOverlay(
         }
     }
 
-    val shape = CinefinShapes.Md
+    val shape = CinefinShapes.Card
     Column(
         modifier =
             modifier

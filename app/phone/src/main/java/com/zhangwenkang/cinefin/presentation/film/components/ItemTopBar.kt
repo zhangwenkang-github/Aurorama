@@ -59,7 +59,7 @@ private fun OverlayIconAction(icon: Int, onClick: () -> Unit) {
         modifier =
             Modifier.padding(end = CinefinSpacing.Space2)
                 .size(44.dp)
-                .clip(CinefinShapes.Sm)
+                .clip(CinefinShapes.Button)
                 .background(Color.Black.copy(alpha = 0.6f))
                 .cinefinClickable(onClick = onClick),
         contentAlignment = Alignment.Center,

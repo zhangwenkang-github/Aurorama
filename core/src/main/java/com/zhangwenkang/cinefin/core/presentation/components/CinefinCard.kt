@@ -81,7 +81,7 @@ fun CinefinCard(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     selected: Boolean = false,
-    shape: Shape = CinefinShapes.Md,
+    shape: Shape = CinefinShapes.Card,
     contentPadding: PaddingValues = PaddingValues(0.dp),
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     content: @Composable ColumnScope.() -> Unit,
@@ -155,7 +155,7 @@ fun CinefinPosterCard(
             modifier =
                 Modifier.fillMaxWidth()
                     .aspectRatio(2f / 3f)
-                    .clip(CinefinShapes.Md)
+                    .clip(CinefinShapes.Poster)
                     .background(colors.surfaceContainerHigh)
         ) {
             poster()
@@ -197,7 +197,7 @@ fun CinefinWideCard(
             modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
-                .clip(CinefinShapes.Md)
+                .clip(CinefinShapes.Card)
                 .background(colors.surfaceContainerHigh)
                 .then(
                     if (onClick != null) Modifier.cinefinClickable(onClick = onClick) else Modifier

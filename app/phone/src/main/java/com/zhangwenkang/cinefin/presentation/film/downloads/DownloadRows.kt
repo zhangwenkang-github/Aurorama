@@ -639,7 +639,7 @@ internal fun DownloadTopLevelRow(
                             .height(artworkHeight),
                     shape =
                         if (entry.mediaKind == DownloadMediaKind.MUSIC) CinefinShapes.Xs
-                        else CinefinShapes.Sm,
+                        else CinefinShapes.Poster,
                 )
                 Column(
                     modifier =
@@ -1189,7 +1189,7 @@ internal fun DownloadLeafCard(
                             .height(artworkHeight),
                     shape =
                         if (entry.mediaKind == DownloadMediaKind.MUSIC) CinefinShapes.Xs
-                        else CinefinShapes.Sm,
+                        else CinefinShapes.Poster,
                 )
                 Column(
                     modifier =
@@ -1583,7 +1583,7 @@ internal fun DownloadArtwork(
     model: String?,
     kind: DownloadMediaKind,
     modifier: Modifier = Modifier,
-    shape: Shape = CinefinShapes.Sm,
+    shape: Shape = CinefinShapes.Poster,
 ) {
     val colors = LocalCinefinColors.current
     val context = LocalContext.current
@@ -1692,7 +1692,7 @@ internal fun DownloadListSkeleton(
             ) {
                 LumenSkeletonBlock(
                     modifier = Modifier.width(DownloadListMetrics.PosterWidth).fillMaxHeight(),
-                    shape = CinefinShapes.Md,
+                    shape = CinefinShapes.Poster,
                 )
                 Column(
                     modifier = Modifier.weight(1f).padding(DownloadListMetrics.RowPadding),

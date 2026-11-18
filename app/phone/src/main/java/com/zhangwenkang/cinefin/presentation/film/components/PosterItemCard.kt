@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -80,6 +81,7 @@ fun PosterItemCard(
     ) {
         LumenCardFrame(
             modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f),
+            shape = CinefinShapes.Poster,
             emphasized = emphasized,
             container = colors.surfaceContainerHigh,
         ) {

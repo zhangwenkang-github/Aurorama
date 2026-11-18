@@ -73,7 +73,7 @@ fun SettingsRow(
             Box(
                 modifier =
                     Modifier.size(SettingsIconTileSize)
-                        .clip(CinefinShapes.Sm)
+                        .clip(CinefinShapes.Xs)
                         .background(colors.surfaceContainerHigh)
                         .drawBehind {
                             drawRect(
@@ -81,7 +81,7 @@ fun SettingsRow(
                                 size = Size(size.width, 1.dp.toPx()),
                             )
                         }
-                        .border(width = 1.dp, color = colors.outline, shape = CinefinShapes.Sm),
+                        .border(width = 1.dp, color = colors.outline, shape = CinefinShapes.Xs),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

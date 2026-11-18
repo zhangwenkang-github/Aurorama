@@ -37,7 +37,7 @@ val LocalCinefinTypography = staticCompositionLocalOf { CinefinTypography }
  * - 色彩：色板由 [themeId] 从 [CinefinThemes] 注册表取，M3 槽位由 [cinefinColorScheme] 按 [domain] 与亮 / 暗生成；组件层另有
  *   [LocalMediaColors]。
  * - 排版：默认 [CinefinTypography]（v1.0 新字阶）；过渡期宿主可传 [LegacyTypography] 让存量页面零回归。
- * - 形状：[CinefinShapes.M3]（28/22/16/12/8）；动效与间距由调用方直接引用 token 对象。
+ * - 形状：[CinefinShapes.M3]（玻璃 32 / Xl 28 / 卡片 20 / 按钮 16 / 海报 14 / 8 / 4）；动效与间距由调用方直接引用 token 对象。
  *
  * @param themeId 主题 id（[CinefinThemes] 的键）；未知 id 回落 aurora。
  * @param dynamicColor 是否用系统动态取色生成 M3 方案（Material You）。开启时 [LocalCinefinColors] 仍用注册表色板。

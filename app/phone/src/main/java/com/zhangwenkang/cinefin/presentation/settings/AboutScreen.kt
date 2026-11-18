@@ -204,7 +204,7 @@ private fun AboutHeaderBlock(
             )
         }
 
-        LumenCardFrame(shape = CinefinShapes.Lg, modifier = Modifier.fillMaxWidth()) {
+        LumenCardFrame(shape = CinefinShapes.Card, modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 AboutInfoRow(
                     title = stringResource(R.string.about_package_name),

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
@@ -82,8 +82,8 @@ private val CinefinButtonSize.horizontalPadding: Dp
             CinefinButtonSize.Small -> 16.dp
         }
 
-private val CinefinButtonSize.corner: Dp
-    get() = 12.dp
+/** 按钮圆角（K1：`CinefinShapes.Button` 的 16dp）；焦点环走 drawBehind，需要 Dp 值。 */
+private val CinefinButtonCorner = 16.dp
 
 private val CinefinButtonSize.textStyle: TextStyle
     get() =
@@ -228,7 +228,7 @@ fun CinefinButton(
         }
 
     val isIconOnly = variant == CinefinButtonVariant.Icon
-    val shape = RoundedCornerShape(if (isIconOnly) 12.dp else size.corner)
+    val shape = CinefinShapes.Button
     val target = resolveButtonColors(variant, state, media, colors, tone)
     val spec = tween<Color>(durationMillis = CinefinMotion.Fast, easing = CinefinMotion.Standard)
     val containerColor by
@@ -266,7 +266,7 @@ fun CinefinButton(
                     .then(if (isIconOnly) Modifier.defaultMinSize(minWidth = 44.dp) else Modifier)
                     .cinefinFocusRing(
                         color = focusRing,
-                        cornerRadius = if (isIconOnly) 12.dp else size.corner,
+                        cornerRadius = CinefinButtonCorner,
                     )
                     .clip(shape)
                     .background(containerColor)

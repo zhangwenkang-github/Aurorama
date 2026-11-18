@@ -655,7 +655,7 @@ private fun LyricsPreview(window: LyricsWindow, message: String?, onClick: () ->
     val media = LocalMediaColors.current
     Column(
         modifier =
-            Modifier.clip(CinefinShapes.Sm)
+            Modifier.clip(CinefinShapes.Button)
                 .clickable(onClick = onClick)
                 .padding(
                     horizontal = CinefinSpacing.Space4,
@@ -843,7 +843,7 @@ private fun PrimaryPlayButton(isPlaying: Boolean, onClick: () -> Unit) {
     Box(
         modifier =
             Modifier.size(70.dp)
-                .clip(CinefinShapes.Lg)
+                .clip(CinefinShapes.Xl)
                 .background(
                     if (pressed) {
                         colors.onSurface.copy(alpha = 0.88f)

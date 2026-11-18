@@ -95,10 +95,10 @@ fun CinefinFilterChip(
         Row(
             modifier =
                 Modifier.height(if (compact) 32.dp else 40.dp)
-                    .clip(CinefinShapes.Sm)
+                    .clip(CinefinShapes.Button)
                     .background(containerColor)
-                    .border(1.dp, borderColor, CinefinShapes.Sm)
-                    .cinefinInnerFocusRing(color = focusRing, cornerRadius = 12.dp)
+                    .border(1.dp, borderColor, CinefinShapes.Button)
+                    .cinefinInnerFocusRing(color = focusRing, cornerRadius = 16.dp)
                     .cinefinClickable(
                         enabled = enabled,
                         interactionSource = interactionSource,

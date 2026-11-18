@@ -73,7 +73,7 @@ fun LibrarySelectorChip(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            shape = CinefinShapes.Sm,
+            shape = CinefinShapes.Card,
             containerColor = colors.surfaceContainerHighest,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,

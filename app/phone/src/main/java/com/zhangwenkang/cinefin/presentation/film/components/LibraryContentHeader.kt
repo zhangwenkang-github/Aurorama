@@ -179,7 +179,7 @@ private fun LibraryIconToggle(
     Box(
         modifier =
             Modifier.size(44.dp)
-                .clip(CinefinShapes.Sm)
+                .clip(CinefinShapes.Button)
                 .then(
                     if (selected) {
                         Modifier.background(colors.surfaceContainerHigh)

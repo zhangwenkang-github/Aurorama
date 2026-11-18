@@ -153,13 +153,23 @@ class DesignTokenConsistencyTest {
     }
 
     @Test
-    fun `shape tokens match 28 22 16 12 8 4`() {
+    fun `shape tokens match 32 28 20 16 14 8 4`() {
+        assertEquals(CornerSize(32.dp), CinefinShapes.Glass.topStart)
         assertEquals(CornerSize(28.dp), CinefinShapes.Xl.topStart)
-        assertEquals(CornerSize(22.dp), CinefinShapes.Lg.topStart)
-        assertEquals(CornerSize(16.dp), CinefinShapes.Md.topStart)
-        assertEquals(CornerSize(12.dp), CinefinShapes.Sm.topStart)
+        assertEquals(CornerSize(20.dp), CinefinShapes.Card.topStart)
+        assertEquals(CornerSize(16.dp), CinefinShapes.Button.topStart)
+        assertEquals(CornerSize(14.dp), CinefinShapes.Poster.topStart)
         assertEquals(CornerSize(8.dp), CinefinShapes.Xs.topStart)
         assertEquals(CornerSize(4.dp), CinefinShapes.TwoXs.topStart)
+    }
+
+    @Test
+    fun `material shapes map to cinefin slots`() {
+        assertEquals(CinefinShapes.TwoXs, CinefinShapes.M3.extraSmall)
+        assertEquals(CinefinShapes.Xs, CinefinShapes.M3.small)
+        assertEquals(CinefinShapes.Button, CinefinShapes.M3.medium)
+        assertEquals(CinefinShapes.Card, CinefinShapes.M3.large)
+        assertEquals(CinefinShapes.Xl, CinefinShapes.M3.extraLarge)
     }
 
     @Test

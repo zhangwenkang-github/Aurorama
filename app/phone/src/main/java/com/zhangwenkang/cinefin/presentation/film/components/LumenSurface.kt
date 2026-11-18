@@ -49,7 +49,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 @Composable
 fun LumenCardFrame(
     modifier: Modifier = Modifier,
-    shape: Shape = CinefinShapes.Md,
+    shape: Shape = CinefinShapes.Card,
     emphasized: Boolean = false,
     container: Color = LocalCinefinColors.current.surfaceContainerLow,
     content: @Composable BoxScope.() -> Unit,

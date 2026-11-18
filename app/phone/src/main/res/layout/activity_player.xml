@@ -196,7 +196,7 @@
 
         <ImageView
             android:id="@+id/gesture_speed_image"
-            android:layout_width="36dp"
+            android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_marginHorizontal="16dp"
             android:src="@drawable/ic_speed_forward"

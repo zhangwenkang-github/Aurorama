@@ -288,10 +288,10 @@ private fun PlayerContentRow(
             modifier
                 .fillMaxWidth()
                 .padding(horizontal = CinefinSpacing.Space2, vertical = 3.dp)
-                .clip(CinefinShapes.Sm)
+                .clip(CinefinShapes.Button)
                 .background(if (selected) media.container else Color.Transparent)
                 .then(
-                    if (selected) Modifier.border(1.dp, media.outline, CinefinShapes.Sm)
+                    if (selected) Modifier.border(1.dp, media.outline, CinefinShapes.Button)
                     else Modifier
                 )
                 .clickable(onClick = onClick)
@@ -584,7 +584,7 @@ private fun PlayerEpisodeCards(
     ) {
         itemsIndexed(entries) { index, entry ->
             val selected = index == currentIndex
-            val shape = CinefinShapes.Sm
+            val shape = CinefinShapes.Card
             Column(
                 modifier =
                     Modifier.width(184.dp)

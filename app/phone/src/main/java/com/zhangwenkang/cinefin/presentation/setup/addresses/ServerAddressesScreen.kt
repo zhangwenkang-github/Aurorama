@@ -152,7 +152,7 @@ fun ServerAddressesLayout(state: ServerAddressesState, onAction: (ServerAddresse
                     Box(
                         modifier =
                             Modifier.fillMaxWidth()
-                                .clip(CinefinShapes.Md)
+                                .clip(CinefinShapes.Card)
                                 .background(colors.surfaceContainer)
                                 .combinedClickable(
                                     onClick = {},

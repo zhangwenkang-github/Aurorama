@@ -48,7 +48,7 @@ fun SectionHeader(
         if (actionText != null && onActionClick != null) {
             Row(
                 modifier =
-                    Modifier.clip(CinefinShapes.Sm)
+                    Modifier.clip(CinefinShapes.Button)
                         .cinefinClickable { onActionClick() }
                         .padding(
                             horizontal = CinefinSpacing.Space2,
