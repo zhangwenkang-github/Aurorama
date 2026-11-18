@@ -47,7 +47,7 @@
 | 抽屉/侧轨开合 | 开 **200ms** / 关 **160ms**，EmphasizedDecelerate，无弹跳 | 导航容器进出视口 |
 | 一级页内容切换 | **120ms**，仅 opacity + translateX **8dp**，不触发布局重排；替换现状 NavHost 全局 300ms fade | 内容域切换，方向感来自位移 |
 | 页内二级导航 | 沿用 120ms 同规格 | 层级进退 |
-| 选中态 | **离散**：aurora 渐变指示条 + 背景 pill + 字重 500→700；不依赖任何动画 | 当前位置 |
+| 选中态 | **离散**（对齐 K1 tablet-home 稿）：整行圆角 pill（aurora 淡色玻璃填充 = `aurora1` 低透明度 + `glassBorder` 发丝线描边）+ 图标/文字转 `aurora1` 色；不依赖任何动画 | 当前位置 |
 | 按压反馈 | 300ms 内背景渐变到 `bg3`（触摸设备无悬停） | 触点确认 |
 | Reduce Motion | 全部退化为即时切换或 ≤50ms 淡入；选中态全部保留 | — |
 
@@ -83,14 +83,17 @@
 
 ### T2 侧轨/抽屉/底栏 K1 换肤
 
-- **目标**：按 K1 定稿换肤导航容器——侧轨 `bg1` 实底 + `glassBorder` 发丝线 + 选中 aurora 渐变指示条 + 背景 pill（圆角按形状 token）；抽屉同语言；底栏选中态同一离散规则。**禁止**实时 blur（决策定稿）。
+- **目标**：按 K1 定稿稿（`docs/design/k1-aurora/tablet-home.png`）换肤导航容器——侧轨 `bg1` 实底 + 右缘 `glassBorder` 发丝线；选中行 = 整行圆角 pill（`aurora1` 低透明度填充 + `glassBorder` 描边）+ 图标/文字 `aurora1` 色，未选中 `textSecondary`；顶部品牌行（logo + 极光幕字标）与底部用户芯片沿用现状结构换 token；抽屉/底栏同一离散选中规则。**禁止**实时 blur（决策定稿）。
 - **文件边界**：`NavigationRoot.kt` 的 `CinefinSideNavigation` 段、`core` 导航组件、`CinefinDrawer.kt`。
 - **验收**：K60 + Pad 双形态截图级对比 K1 稿（token 像素命中）；aurora/light/amoled 三主题无残留色；单测绿。
 
-### T3 图标第二批（约 66 个 + settings 5 个同名 + T4 三处几何微调）
+### T3 图标第二批（约 56 个 core 旧图标 + settings 19 个（含 5 个同名）+ W1-T4 三处几何微调）
 
-- **前置**：Kimi 先出 SVG 样张规范（统一 24dp 栅格/2dp 笔宽/圆头延续 W1-T4 规范）后派单。
-- **验收**：29→全量图标零 testTag 变化；`aapt2`/渲染抽查；K60 抽屉+设置+下载页取证。
+- **现状盘点（2026-11-18 T0 实测）**：core `drawable/ic_*.xml` 共 86 个，其中 56 个未引用 `colorControlNormal`、78 个仍写死 `fillColor="#"`；settings 模块另有 19 个（`ic_closed_caption/download/music/play/speaker` 与 core 同名）。
+- **造型规范（Kimi 定稿，沿用 W1-T4 既定事实标准）**：24dp 视框；描边图标 `fillColor=#00000000` + `strokeColor=#FFFFFFFF` + `strokeWidth=2` + round cap/join；填充变体（`*_filled`）纯 `fillColor=#FFFFFFFF`；混合式（如仪表盘指针+中心点）描边主体 + 填充点缀；文件头保留「K1 图标体系」注释；根元素 `tint=?attr/colorControlNormal`。禁止新增写死 fillColor。
+- **三处几何微调方向（最终 path 值由 Kimi 出样张时给出）**：① `ic_settings` 齿轮齿宽不均→齿距/齿宽均匀化；② `ic_music_sleep` 月牙右下尖刺→内弧终点缩短 + 圆头收拢，消除零厚度 cusp；③ `ic_player_speed` 指针尖端被中心点覆盖→指针起点退到中心点圆外（保留指向关系）。
+- **前置**：Kimi 出 3–4 张代表样张（描边/填充/混合/微调各一）后派单；QA 语义（testTag/contentDescription）零变化。
+- **验收**：全量图标零 testTag/contentDescription 变化、零新增写死 fillColor；`aapt2`/渲染抽查；K60 抽屉 + 设置 + 下载页取证。
 
 ### T4 形状 token 切换 + 页面级换肤首批
 
