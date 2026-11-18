@@ -82,6 +82,7 @@ import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_STARTUP_SOURCE
 import com.zhangwenkang.cinefin.player.local.session.PlaybackSessionOwner
 import com.zhangwenkang.cinefin.player.local.session.PlayerErrorInfo
 import com.zhangwenkang.cinefin.player.local.session.SourceResolutionIntent
+import com.zhangwenkang.cinefin.player.local.session.StartupStateMachine
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackMapping
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackRef
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
@@ -531,13 +532,13 @@ constructor(
         get() = playerHolder.musicSessionActive || playerHolder.isCurrentItemMusic
 
     /**
-     * 起播窗口：`initializePlayer` 已发出、但媒体还没真正交给播放器（还在拉流 / 建播放信息）。
+     * 起播显式状态机（W2-T3a）：起播窗口 = 相位落在 `RESOLVING` / `PREPARING`，取代旧的 `startupInProgress` 布尔。
      *
      * bug ②（打开视频不自动播）：这个窗口里播放器的 `playWhenReady` 还是默认值 false， 此时若发生 pause / resume（通知权限弹窗、
      * 加载中切后台、切内核重启…），BasePlayerActivity 会把 false 回存再写回， 把随后 `initializePlayer` 里的 `play()`
      * 覆盖成暂停，用户必须手点一次。起播窗口内两边都不动播放状态，保证「打开即播」。
      */
-    private var startupInProgress = false
+    private val startupStateMachine = StartupStateMachine()
 
     private var currentMediaItemIndex = savedStateHandle["mediaItemIndex"] ?: 0
     private var playbackPosition: Long = savedStateHandle["position"] ?: 0
@@ -629,7 +630,7 @@ constructor(
         val sourceResolutionFailed =
             errorPolicy.current?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
         val playWhenReadyIntent =
-            if (startupInProgress || sourceResolutionFailed) {
+            if (startupStateMachine.startupInProgress || sourceResolutionFailed) {
                 playWhenReady
             } else {
                 active?.playWhenReady ?: playWhenReady
@@ -640,7 +641,7 @@ constructor(
                 playWhenReady = playWhenReadyIntent,
                 isPlaying = active?.isPlaying == true,
                 isBuffering =
-                    startupInProgress ||
+                    startupStateMachine.startupInProgress ||
                         active == null ||
                         active.mediaItemCount == 0 ||
                         active.playbackState == Player.STATE_BUFFERING,
@@ -922,7 +923,7 @@ constructor(
             ),
         )
         // 打开条目就先声明「要播」的意图：起播窗口内不被 pause/resume 回存覆盖（bug ②）
-        startupInProgress = true
+        val startupGeneration = startupStateMachine.begin(sourceIntent.sourceIntentId)
         playWhenReady = true
         // 新播放页 / 新码率 / 新内核请求：旧 source 与 current 立即失效。
         val initializationGeneration = sessionOwner.resetPlaybackSnapshots()
@@ -973,6 +974,7 @@ constructor(
                     if (!isActive || !explicitExitController.isCurrent(exitGeneration)) {
                         return@launch
                     }
+                    startupStateMachine.markFailed(startupGeneration)
                     Timber.w("Playback source resolution timed out")
                     null
                 } catch (e: CancellationException) {
@@ -989,6 +991,7 @@ constructor(
                     if (!isActive || !explicitExitController.isCurrent(exitGeneration)) {
                         return@launch
                     }
+                    startupStateMachine.markFailed(startupGeneration)
                     Timber.e(
                         "Playback source resolution failed: %s",
                         e.javaClass.simpleName,
@@ -1000,7 +1003,7 @@ constructor(
                 PlaybackDiag.log("startup no start item, publish error")
                 Timber.e("No start item, stopping player initialization")
                 if (explicitExitController.isCurrent(exitGeneration)) {
-                    startupInProgress = false
+                    startupStateMachine.markFailed(startupGeneration)
                     sessionOwner.failSourceIntent(sourceIntent)
                     errorPolicy.onStartupResolutionFailed()
                     publishPlayerError()
@@ -1075,6 +1078,7 @@ constructor(
             PlaybackDiag.log(
                 "startup setMediaItems+prepare item=${startItem.itemId} startPosition=$startPosition"
             )
+            startupStateMachine.markPreparing()
             seekSink.observeSource(mediaItems.firstOrNull())
             player.setMediaItems(mediaItems, 0, startPosition)
             // W74 U2-B（D-F8）：进播放页 / 重建播放器实例时套用保存的循环 / 随机模式。
@@ -1082,8 +1086,7 @@ constructor(
             applySavedPlaybackMode()
             player.prepare()
             player.play()
-            // 媒体已交给播放器：之后的 playWhenReady 变化都算用户 / 系统意图，恢复正常回存
-            startupInProgress = false
+            // 相位保持 PREPARING，直到出画面（fileLoaded 置位）才转 READY：起播窗口到那时才结束
             // 起播之后再补全整剧队列（用户反馈：队列面板只显示当前一集）
             fillQueueInBackgroundAfterSeriesExpansion()
         }
@@ -1131,7 +1134,7 @@ constructor(
 
     // Restore background playback state without overwriting the startup intent window.
     fun restorePlayWhenReady() {
-        if (startupInProgress) return
+        if (startupStateMachine.startupInProgress) return
         if (
             appPreferences.getValue(appPreferences.playerBackgroundAudio) ||
                 playerHolder.musicSessionActive
@@ -1144,7 +1147,7 @@ constructor(
 
     /** 播放页离开前台时回存播放状态；起播窗口内的值不可信（还是播放器默认值），不回存（bug ②） */
     fun rememberPlayWhenReady() {
-        if (startupInProgress) return
+        if (startupStateMachine.startupInProgress) return
         playWhenReady = player.playWhenReady
     }
 
@@ -1385,7 +1388,7 @@ constructor(
         currentMediaItemIndex = 0
         playbackStartupJob?.cancel()
         playbackStartupJob = null
-        startupInProgress = false
+        startupStateMachine.resetToIdle()
         playerHolder.existingPlayer?.removeListener(this)
         if (
             action != PlayerExitAction.STOP_AND_RELEASE &&
@@ -1761,6 +1764,7 @@ constructor(
     override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
         if (!playerAccess.isOpen()) return
         val activePlayer = playerAccess.existingPlayer() ?: return
+        val startupInProgress = startupStateMachine.startupInProgress
         if (!startupInProgress) this.playWhenReady = playWhenReady
         refreshPlaybackSession()
         if (playWhenReady || startupInProgress) return
@@ -1902,6 +1906,7 @@ constructor(
                 stateString = "ExoPlayer.STATE_READY     -"
                 // 能进 READY 就说明上一次失败已经恢复，顺手收起错误卡片
                 errorPolicy.onPlaybackFileLoaded()
+                startupStateMachine.markReady()
                 val playerError = errorPolicy.current
                 _uiState.update { it.copy(fileLoaded = true, playerError = playerError) }
             }
@@ -3213,7 +3218,8 @@ constructor(
             progressFallbackController.cancelCurrentGeneration()
             return null
         }
-        val playWhenReadyIntent = if (startupInProgress) playWhenReady else active.playWhenReady
+        val playWhenReadyIntent =
+            if (startupStateMachine.startupInProgress) playWhenReady else active.playWhenReady
         val request =
             progressFallbackController.consume(
                 requestToken,
