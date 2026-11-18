@@ -219,7 +219,7 @@ class JellyfinEpisodeMappingTest {
                     caught is IllegalStateException,
                 )
                 assertEquals(failure.message, caught?.message)
-                assertSame(failure, caught?.cause)
+                assertSameFailureDelivered(failure, caught)
                 assertSame(callerThread, continuationThread)
             } finally {
                 callerDispatcher.close()
@@ -343,7 +343,7 @@ class JellyfinEpisodeMappingTest {
                     caught is IllegalStateException,
                 )
                 assertEquals(failure.message, caught?.message)
-                assertSame(failure, caught?.cause)
+                assertSameFailureDelivered(failure, caught)
             }
         }
 
@@ -385,6 +385,18 @@ class JellyfinEpisodeMappingTest {
                 }
             }
         }
+
+    /**
+     * 异常跨 dispatcher 传递时，kotlinx-coroutines 在 -ea 下会做 stacktrace recovery。
+     *
+     * 交付的可能是原实例，也可能是以原实例为 cause 的拷贝（视调度路径而定）。
+     *
+     * 只断言原异常出现在 cause 链上，不钉死层级。
+     */
+    private fun assertSameFailureDelivered(failure: Throwable, delivered: Throwable?) {
+        val reached = generateSequence(delivered) { it.cause }.take(4).any { it === failure }
+        assertTrue("expected $failure to be delivered, got $delivered (cause chain)", reached)
+    }
 
     private fun episodesApi(
         responseFor: suspend (Thread, Thread) -> Response<BaseItemDtoQueryResult>
