@@ -1,17 +1,34 @@
 # 2.0 W1 · 设计系统落地（任务卡）
 
-> 状态：`IN_PROGRESS`（2026-11-18，T1/T2 已验收合入）　分支基座：`codex/v2-integration`
+> 状态：`DONE`（2026-11-18，5/5 全部验收合入）　分支基座：`codex/v2-integration`
 > 设计唯一权威：`docs/V2_DESIGN.md` §3（K1 定稿）。**执行者不做任何设计决策**——色值、圆角、尺寸、动效时长一律取本文档与 V2_DESIGN.md 的定稿值；遇到定稿未覆盖的样式问题，停下来报告，不自行发挥。
 
 ## 状态块
 
-- 当前波次：W1　进度：**4/5 任务**（T1 ✅ T2 ✅ T3 ✅ T4 ✅，T5 待派）
-- 基座 HEAD：`8d691cb8`（T1 `63c61f91` + T2 `31587506` + 状态栏修复 `c41cec61` + T4 `74298199` + T3 `8d691cb8`）
+- 当前波次：W1 **完成**　进度：**5/5 任务**（T1 ✅ T2 ✅ T3 ✅ T4 ✅ T5 ✅）
+- 基座 HEAD：`d021de57`（T1 `63c61f91` · T2 `31587506` · 状态栏修复 `c41cec61` · T4 `74298199` · T3 `8d691cb8` · T5 `4134cf25` + `d021de57`）
 - 红线：不改播放器逻辑、不改 data 层、不动 `app/tv`；门禁 = `:core` 及相关模块单测 + `ktfmtCheck` + 构建。
 - T1/T2 验收证据（2026-11-18，K60 `8e875894`）：core 446 + phone 528 用例 0 失败；四主题设置页切换即时生效且像素精确命中 token（aurora `#080D17` / light `#FAFAFB` / amoled `#000000` / dynamic·system 随系统）；pref 逐项写入、杀进程重启保持；浅色下状态栏图标切深色；升级用户无 `pref_theme` 键 → 默认 Aurora；详情页无残留色。
-- T3 验收证据（2026-11-18）：aapt2 dump badging 确认 `mipmap-anydpi-v33/ic_launcher.xml`（v26/v33 双份，monochrome 注册）；fastlane 商店图标 1024×1024（Edge 管线渲染，像素抽样命中 `#060B15`/`#101C33`）；K60 桌面图标在 squircle 遮罩下圆弧/光束/极星完整（与旧 A 图标新旧对比截图验后已删）；通知小图标接线 `CinefinMediaNotificationProvider` 一处。
-- T4 验收证据（2026-11-18）：29 文件零增删改名（core 22 + player/local 5 + music 2），统一 24dp/2dp/圆头 + `?attr/colorControlNormal`；K60 抽屉截图确认导航系视觉一致，设置/下载/音乐页 dump 渲染正常；播放器壳 5 图标经子代理校对图渲染核对（未单独开播放器真机验证）。
-- 遗留（转 T5/后续波次）：①存量偏好值 `dark` 在设置选择行显示「未设置」（读到即按 aurora 生效，T5 处理）；②旧 Prism 中性常量暂留 `CinefinTokens`（reader 仍引用 `OnSurfaceLight`），W3 后清理；③light `aurora3` 对比度 4.5003 无余量；④T4 三处已定稿几何的观感微调点（齿轮齿宽不均/月牙右下小尖刺/倍速中心点被指针覆盖）→ 下一批图标微调时一并处理；⑤`settings` 模块有 5 个同名旧图标（ic_closed_caption/download/music/play/speaker），后续批次覆盖；⑥「分享」无代码入口，T4 未定稿该图标，W3 页面新增分享动作时再绘。
+- T3 验收证据（2026-11-18）：aapt2 dump badging 确认 `mipmap-anydpi-v33/ic_launcher.xml`（v26/v33 双份，monochrome 注册）；fastlane 商店图标 1024×1024（Edge 管线渲染）；K60 桌面图标在 squircle 遮罩下圆弧/光束/极星完整。
+- T4 验收证据（2026-11-18）：29 文件零增删改名（core 22 + player/local 5 + music 2），统一 24dp/2dp/圆头 + `?attr/colorControlNormal`；K60 抽屉截图确认导航系视觉一致，设置/下载/音乐页 dump 渲染正常。
+- T5 验收证据（2026-11-18，K60）：外观页 4 张预览卡（三色带+极光小条+选中渐变环/对勾）渲染符合规格；逐卡切换像素精确命中；重启保持；legacy 组合（`dark` + `dynamicColors=true`）选中态正确落「极光」，显式选择后动态键清除为 `false`（`d021de57` 修复）。
+
+## W1 交接（2026-11-18 收口）
+
+**已交付**：主题引擎（`CinefinTheme(themeId)` + `CinefinThemes` 注册表 aurora/light/amoled/lumen + dynamic 特例；`CinefinColors` 含品牌槽位 aurora1/2/3、onAurora、glass、glassBorder）；K1 四套 token 全量落地；`ProvideLumen` 机制删除（Prism 退役，lumen 为遗产条目）；logo B adaptive icon 全套 + 通知图标 + fastlane 1024px；首批 29 K1 图标；外观页主题选择器（预览卡 + 即时切换 + legacy 迁移收口）。
+
+**遗留清单（后续波次处理）**：
+1. 存量偏好值 `dark` 已在 T5 选择器选中态正确解析（`resolveThemeSelectorSelection`），无残留问题。
+2. 旧 Prism 中性常量暂留 `CinefinTokens`（reader 仍引用 `OnSurfaceLight`）→ W3 页面换肤后清理。
+3. light `aurora3` 对 `onAurora` 对比度 4.5003 无余量 → 后续调值须同步改 `CinefinThemesTest`。
+4. T4 三处已定稿几何观感微调点（齿轮齿宽不均/月牙右下小尖刺/倍速中心点被指针覆盖）→ 下一批图标（W3 或图标第二批）一并微调。
+5. `settings` 模块有 5 个同名旧图标（ic_closed_caption/download/music/play/speaker）→ 图标第二批覆盖。
+6. 「分享」图标未定稿（代码无入口）→ W3 新增分享动作时再绘。
+7. **`app/tv` 在本分支编译失败**（`ui/MainScreen.kt:65` 缺 `MainViewModel.uiState`）：基座既有问题，与 W1 全部改动无关；TV 端冻结，恢复编译列入后续波次评估（W2 或独立修复波）。
+8. 图标第二批（剩余约 66 个旧图标）与页面级 K1 换肤 → W3。
+9. 形状 token（K1 §3.2 圆角 14/20/16/32-44）未替换现有 `CinefinShapes.M3`（28/22/16/12/8）→ 随 W3 页面重设计一并切换。
+
+**下一波入口**：W2 播放器架构重构 + 1.4.1 遗留根治（依据 `V2_REQUIREMENTS.md` §15、`V2_ARCHITECTURE.md` §3）。
 
 ## T1 主题引擎改造（先做，后续任务都依赖它）
 
