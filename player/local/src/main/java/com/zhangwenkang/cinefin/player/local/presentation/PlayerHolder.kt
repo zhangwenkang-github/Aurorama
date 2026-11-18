@@ -6,6 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import com.zhangwenkang.cinefin.player.core.playback.PlaybackEngine
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.audio.CinefinRenderersFactory
@@ -15,6 +16,8 @@ import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.isPlayingMusicItem
+import com.zhangwenkang.cinefin.player.local.engine.Media3PlaybackEngine
+import com.zhangwenkang.cinefin.player.local.engine.PlaybackEngineFactory
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
@@ -33,6 +36,9 @@ import timber.log.Timber
  * 播放器必须活得比播放页久：通知栏、锁屏、后台播放都要求 Activity 销毁后播放器继续存在。 所以创建与释放从 `PlayerViewModel` 挪到这里：播放页与
  * `CinefinPlaybackService` 共用同一实例， 通知栏上的播放/暂停/上下集/快退快进直接作用在这个实例上，不需要跨进程控制器往返。
  *
+ * W2-T4：实例改为经 [PlaybackEngineFactory] 创建并包成 [PlaybackEngine]；[existingPlayer] / [player] 仍返回同一个
+ * media3 实例，既有调用方零改动。
+ *
  * 线程约定：与 Media3 一致，所有调用都在主线程。
  */
 @Singleton
@@ -46,11 +52,11 @@ constructor(
 ) {
     companion object {
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
-        const val BACKEND_EXOPLAYER = "exoplayer"
-        const val BACKEND_MPV = "mpv"
+        const val BACKEND_EXOPLAYER = PlaybackEngine.BACKEND_EXOPLAYER
+        const val BACKEND_MPV = PlaybackEngine.BACKEND_MPV
     }
 
-    private var instance: Player? = null
+    private var engine: Media3PlaybackEngine? = null
     private var instanceBackend: String? = null
 
     private val processSeekSessionBridge =
@@ -103,7 +109,11 @@ constructor(
      * 的偏好重建逻辑，会把正在播放的音乐实例换掉。
      */
     val existingPlayer: Player?
-        get() = instance
+        get() = engine?.media3Player
+
+    /** 当前实例的引擎适配器；没有实例时返回 null（**不**按偏好创建）。W2-T4 新增的只读暴露。 */
+    val currentEngine: PlaybackEngine?
+        get() = engine
 
     /** 当前实例使用的内核；还没创建实例时返回偏好里的值 */
     val backend: String
@@ -116,7 +126,7 @@ constructor(
      * [musicSessionActive]——视频路径直接 setMediaItems 抢用实例时，标志可能还没清零。
      */
     val isCurrentItemMusic: Boolean
-        get() = instance?.isPlayingMusicItem() == true
+        get() = existingPlayer?.isPlayingMusicItem() == true
 
     /**
      * W68：音乐条目没有封面时，给媒体会话（系统桌面媒体胶囊 / 锁屏）的通用音符占位图 URI。
@@ -137,8 +147,8 @@ constructor(
                 return audioSession()
             }
             val wanted = appPreferences.getValue(appPreferences.playerBackend)
-            val existing = instance
-            if (existing != null && instanceBackend == wanted) return existing
+            val existing = engine
+            if (existing != null && instanceBackend == wanted) return existing.media3Player
             if (existing != null) {
                 Timber.i("播放内核切换为 %s，重建播放器实例", wanted)
                 seekSink.onPlayerReleased()
@@ -154,8 +164,8 @@ constructor(
      * 仍按用户偏好恢复视频内核。
      */
     fun audioSession(): Player {
-        val existing = instance
-        if (existing != null && instanceBackend == BACKEND_EXOPLAYER) return existing
+        val existing = engine
+        if (existing != null && instanceBackend == BACKEND_EXOPLAYER) return existing.media3Player
         if (existing != null) {
             Timber.i("音乐会话要求 ExoPlayer，重建播放器实例")
             seekSink.onPlayerReleased()
@@ -171,11 +181,11 @@ constructor(
      * false，专辑连播与 gapless 全部失效。 音乐永远走 ExoPlayer（[audioSession]），非 ExoPlayer 实例（mpv）静默忽略。
      */
     fun applyMusicPlaybackTuning(inMusicSession: Boolean) {
-        (instance as? ExoPlayer)?.setPauseAtEndOfMediaItems(!inMusicSession)
+        (engine?.media3Player as? ExoPlayer)?.setPauseAtEndOfMediaItems(!inMusicSession)
         // 音效只在音乐会话处理（EQ / ReplayGain）：视频会话透传，退出音乐时把交叉淡化可能留下的音量复位。
         musicAudioEffects.processor.sessionActive = inMusicSession
         if (!inMusicSession) {
-            instance?.volume = 1f
+            engine?.media3Player?.volume = 1f
         }
     }
 
@@ -188,7 +198,7 @@ constructor(
         val clamped =
             delayMs.coerceIn(-AudioDelayProcessor.MAX_DELAY_MS, AudioDelayProcessor.MAX_DELAY_MS)
         audioDelayProcessor.delayMs = clamped
-        (instance as? MPVPlayer)?.setAudioDelay(clamped)
+        (engine?.media3Player as? MPVPlayer)?.setAudioDelay(clamped)
     }
 
     private fun applySavedAudioDelay() {
@@ -206,11 +216,12 @@ constructor(
     fun applySeekIncrements() {
         val backMs = appPreferences.getValue(appPreferences.playerSeekBackInc)
         val forwardMs = appPreferences.getValue(appPreferences.playerSeekForwardInc)
-        (instance as? ExoPlayer)?.apply {
+        val player = engine?.media3Player
+        (player as? ExoPlayer)?.apply {
             setSeekBackIncrementMs(backMs)
             setSeekForwardIncrementMs(forwardMs)
         }
-        (instance as? MPVPlayer)?.setSeekIncrements(backMs, forwardMs)
+        (player as? MPVPlayer)?.setSeekIncrements(backMs, forwardMs)
     }
 
     /** 释放实例。播放页关闭且不允许后台播放、或服务停止时调用。 */
@@ -227,22 +238,22 @@ constructor(
         }
         musicSessionActive = false
         musicAudioEffects.processor.sessionActive = false
-        val player = instance ?: return
-        instance = null
+        val activeEngine = engine ?: return
+        engine = null
         instanceBackend = null
         seekSink.onPlayerReleased()
-        runCatching { player.release() }
+        runCatching { activeEngine.release() }
     }
 
-    private fun install(backend: String, player: Player): Player {
-        instance = player
+    private fun install(backend: String, engine: Media3PlaybackEngine): Player {
+        this.engine = engine
         instanceBackend = backend
         applySavedAudioDelay()
-        seekSink.attach(player)
-        return player
+        seekSink.attach(engine.media3Player)
+        return engine.media3Player
     }
 
-    private fun create(backend: String): Player {
+    private fun create(backend: String): Media3PlaybackEngine {
         val audioAttributes =
             AudioAttributes.Builder()
                 .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
@@ -262,79 +273,77 @@ constructor(
         )
 
         return when (backend) {
-            BACKEND_EXOPLAYER -> {
-                /*
-                 * 解码策略（W12 反馈 B；W16 优先级调整为 本地硬解 → 服务器解码/转码 → 本地软解）：
-                 * 硬解优先 = 扩展渲染器兜底 + 解码器自动回退；仅软解 = 扩展渲染器优先。
-                 * 回退链升到「本地软解」档时强制软解（偏好本身不动，面板显示不变）。
-                 */
-                val decodeMode =
-                    PlayerDecodeMode.effectiveMode(
-                        appPreferences.getValue(appPreferences.playerDecodeMode),
-                        appPreferences.getValue(appPreferences.playerDecodeFallbackStage),
-                    )
-                val renderersFactory =
-                    CinefinRenderersFactory(
-                            application,
-                            audioDelayProcessor,
-                            musicAudioEffects.processor,
-                        )
-                        .setExtensionRendererMode(
-                            PlayerDecodeMode.extensionRendererMode(decodeMode)
-                        )
-                        .setEnableDecoderFallback(
-                            PlayerDecodeMode.decoderFallbackEnabled(decodeMode)
-                        )
-                ExoPlayer.Builder(application, renderersFactory)
-                    .setAudioAttributes(audioAttributes, true)
-                    /*
-                     * W68：锁屏 / 后台继续播放（默认开启）必须持有 partial wake lock + wifi lock。
-                     * 真机实测（K60，锁屏 Dozing）未设置时播放会在缓冲中停滞（speed=0），唤醒才恢复；
-                     * setWakeMode 由 ExoPlayer 在播放期间自动申请 / 释放（WAKE_LOCK 权限见 AndroidManifest）。
-                     */
-                    .setWakeMode(C.WAKE_MODE_NETWORK)
-                    .setTrackSelector(trackSelector)
-                    // 拔耳机 / 蓝牙断开时自动暂停：不这样做会突然外放（阶段 4.4）
-                    .setHandleAudioBecomingNoisy(true)
-                    .setSeekBackIncrementMs(
-                        appPreferences.getValue(appPreferences.playerSeekBackInc)
-                    )
-                    .setSeekForwardIncrementMs(
-                        appPreferences.getValue(appPreferences.playerSeekForwardInc)
-                    )
-                    .setPauseAtEndOfMediaItems(true)
-                    .build()
-            }
-
-            BACKEND_MPV -> {
-                // 回退链的「本地软解」档：mpv 强制 hwdec=no，不再问 hwdec 偏好
-                val softwareForced =
-                    PlayerDecodeFallback.forcesLocalSoftware(
-                        appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
-                    )
-                MPVPlayer.Builder(application)
-                    .setAudioAttributes(audioAttributes, true)
-                    .setTrackSelectionParameters(trackSelector.parameters)
-                    .setSeekBackIncrementMs(
-                        appPreferences.getValue(appPreferences.playerSeekBackInc)
-                    )
-                    .setSeekForwardIncrementMs(
-                        appPreferences.getValue(appPreferences.playerSeekForwardInc)
-                    )
-                    .setPauseAtEndOfMediaItems(true)
-                    .setVideoOutput(appPreferences.getValue(appPreferences.playerMpvVo))
-                    .setAudioOutput(appPreferences.getValue(appPreferences.playerMpvAo))
-                    .setHwDec(
-                        if (softwareForced) {
-                            PlayerDecodeMode.mpvHwDec(PlayerDecodeMode.SOFTWARE)
-                        } else {
-                            appPreferences.getValue(appPreferences.playerMpvHwdec)
-                        }
-                    )
-                    .build()
-            }
-
+            BACKEND_EXOPLAYER ->
+                PlaybackEngineFactory.exo(createExoPlayer(audioAttributes, trackSelector))
+            BACKEND_MPV ->
+                PlaybackEngineFactory.mpv(createMpvPlayer(audioAttributes, trackSelector))
             else -> throw RuntimeException("$backend is not a valid player backend")
         }
+    }
+
+    private fun createExoPlayer(
+        audioAttributes: AudioAttributes,
+        trackSelector: DefaultTrackSelector,
+    ): ExoPlayer {
+        /*
+         * 解码策略（W12 反馈 B；W16 优先级调整为 本地硬解 → 服务器解码/转码 → 本地软解）：
+         * 硬解优先 = 扩展渲染器兜底 + 解码器自动回退；仅软解 = 扩展渲染器优先。
+         * 回退链升到「本地软解」档时强制软解（偏好本身不动，面板显示不变）。
+         */
+        val decodeMode =
+            PlayerDecodeMode.effectiveMode(
+                appPreferences.getValue(appPreferences.playerDecodeMode),
+                appPreferences.getValue(appPreferences.playerDecodeFallbackStage),
+            )
+        val renderersFactory =
+            CinefinRenderersFactory(
+                    application,
+                    audioDelayProcessor,
+                    musicAudioEffects.processor,
+                )
+                .setExtensionRendererMode(PlayerDecodeMode.extensionRendererMode(decodeMode))
+                .setEnableDecoderFallback(PlayerDecodeMode.decoderFallbackEnabled(decodeMode))
+        return ExoPlayer.Builder(application, renderersFactory)
+            .setAudioAttributes(audioAttributes, true)
+            /*
+             * W68：锁屏 / 后台继续播放（默认开启）必须持有 partial wake lock + wifi lock。
+             * 真机实测（K60，锁屏 Dozing）未设置时播放会在缓冲中停滞（speed=0），唤醒才恢复；
+             * setWakeMode 由 ExoPlayer 在播放期间自动申请 / 释放（WAKE_LOCK 权限见 AndroidManifest）。
+             */
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setTrackSelector(trackSelector)
+            // 拔耳机 / 蓝牙断开时自动暂停：不这样做会突然外放（阶段 4.4）
+            .setHandleAudioBecomingNoisy(true)
+            .setSeekBackIncrementMs(appPreferences.getValue(appPreferences.playerSeekBackInc))
+            .setSeekForwardIncrementMs(appPreferences.getValue(appPreferences.playerSeekForwardInc))
+            .setPauseAtEndOfMediaItems(true)
+            .build()
+    }
+
+    private fun createMpvPlayer(
+        audioAttributes: AudioAttributes,
+        trackSelector: DefaultTrackSelector,
+    ): MPVPlayer {
+        // 回退链的「本地软解」档：mpv 强制 hwdec=no，不再问 hwdec 偏好
+        val softwareForced =
+            PlayerDecodeFallback.forcesLocalSoftware(
+                appPreferences.getValue(appPreferences.playerDecodeFallbackStage)
+            )
+        return MPVPlayer.Builder(application)
+            .setAudioAttributes(audioAttributes, true)
+            .setTrackSelectionParameters(trackSelector.parameters)
+            .setSeekBackIncrementMs(appPreferences.getValue(appPreferences.playerSeekBackInc))
+            .setSeekForwardIncrementMs(appPreferences.getValue(appPreferences.playerSeekForwardInc))
+            .setPauseAtEndOfMediaItems(true)
+            .setVideoOutput(appPreferences.getValue(appPreferences.playerMpvVo))
+            .setAudioOutput(appPreferences.getValue(appPreferences.playerMpvAo))
+            .setHwDec(
+                if (softwareForced) {
+                    PlayerDecodeMode.mpvHwDec(PlayerDecodeMode.SOFTWARE)
+                } else {
+                    appPreferences.getValue(appPreferences.playerMpvHwdec)
+                }
+            )
+            .build()
     }
 }
