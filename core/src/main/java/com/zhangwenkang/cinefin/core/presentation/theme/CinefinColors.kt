@@ -274,6 +274,9 @@ fun themeSelectorIds(sdkInt: Int): List<String> = buildList {
  *
  * 「跟随系统明暗」（[CinefinThemes.SYSTEM]）没有独立卡片：动态取色开启时落 [CinefinThemes.DYNAMIC]，否则落
  * [CinefinThemes.AURORA]。其余值按 [migrateThemeId] 迁移（旧 `dark` / 空值 / 未知值 → 极光）。
+ *
+ * 选择器做出显式选择后 `pref_dynamic_colors` 即被清除（第 4 卡「跟随系统动态色」是动态取色的唯一入口），因此 `system` +
+ * `dynamicColorsEnabled=true` 这一 legacy 组合只在用户尚未显式选择过之前存在。
  */
 fun resolveThemeSelectorSelection(stored: String?, dynamicColorsEnabled: Boolean): String =
     when (val id = migrateThemeId(stored)) {

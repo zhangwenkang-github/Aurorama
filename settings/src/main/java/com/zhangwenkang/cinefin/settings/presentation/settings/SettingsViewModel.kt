@@ -1292,12 +1292,17 @@ constructor(
                                                     supportedDeviceTypes = listOf(DeviceType.PHONE),
                                                     backendPreference = appPreferences.theme,
                                                     onSelect = { themeId ->
-                                                        // 写 pref_theme（T1 的 MainViewModel 监听它换主题），
-                                                        // 并发出夜间模式联动事件（aurora/amoled→YES，light→NO，其余→AUTO）。
+                                                        // 写 pref_theme（T1 的 MainViewModel 监听它换主题）。
                                                         appPreferences.setValue(
                                                             appPreferences.theme,
                                                             themeId,
                                                         )
+                                                        // 显式选择：清掉 legacy 动态取色键。
+                                                        appPreferences.setValue(
+                                                            appPreferences.dynamicColors,
+                                                            false,
+                                                        )
+                                                        // 夜间模式联动（aurora/amoled→YES，light→NO，其余→AUTO）。
                                                         viewModelScope.launch {
                                                             eventsChannel.send(
                                                                 SettingsEvent.UpdateTheme(themeId)
