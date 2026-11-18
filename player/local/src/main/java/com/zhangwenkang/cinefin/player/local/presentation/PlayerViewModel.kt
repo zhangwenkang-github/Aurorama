@@ -44,7 +44,6 @@ import com.zhangwenkang.cinefin.player.local.domain.PlaybackCoordinatorImpl
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackPositionWriter
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackQueueEntry
 import com.zhangwenkang.cinefin.player.local.domain.PlaybackRequestToken
-import com.zhangwenkang.cinefin.player.local.domain.PlaybackSnapshotState
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.PlayerEndBehavior
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExitAction
@@ -66,10 +65,6 @@ import com.zhangwenkang.cinefin.player.local.domain.SeriesResolutionTraceLog
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
-import com.zhangwenkang.cinefin.player.local.domain.acceptCurrentStreamSnapshot
-import com.zhangwenkang.cinefin.player.local.domain.advanceCurrentStreamRequest
-import com.zhangwenkang.cinefin.player.local.domain.beginPlaybackRequest
-import com.zhangwenkang.cinefin.player.local.domain.bindSourceSnapshot
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.playerExitAction
@@ -81,6 +76,8 @@ import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldStopPlaybackServiceOnExit
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
+import com.zhangwenkang.cinefin.player.local.session.PlaybackSessionOwner
+import com.zhangwenkang.cinefin.player.local.session.SourceResolutionIntent
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackMapping
 import com.zhangwenkang.cinefin.player.local.subtitle.MpvSubtitleTrackRef
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
@@ -242,15 +239,10 @@ constructor(
         )
     val uiState = _uiState.asStateFlow()
 
-    private var playbackSnapshots = PlaybackSnapshotState()
-    private var activePlaybackToken: PlaybackRequestToken? = null
-    private var playbackSessionState = PlaybackSessionState()
+    private val sessionOwner = PlaybackSessionOwner(onSnapshotsChanged = ::publishPlaybackSnapshots)
+
     private var playbackSessionJob: Job? = null
     private var playbackStartupJob: Job? = null
-    private var failedSourceIntent: SourceResolutionIntent? = null
-
-    /** 最近一次 `initializePlayer` 的源意图：起播期源错误卡片的「重试」要靠它重新解析源。 */
-    private var lastSourceIntent: SourceResolutionIntent? = null
 
     /** 起播期源错误的重试预算；与播放中按 30s 窗口计数的那套完全独立。 */
     private val startupSourceRetryBudget =
@@ -379,17 +371,6 @@ constructor(
         val codeName: String,
         /** 出错时使用的内核：exoplayer / mpv */
         val backend: String,
-    )
-
-    private data class SourceResolutionIntent(
-        val itemId: UUID,
-        val itemKind: String,
-        val startFromBeginning: Boolean,
-        val startPositionMs: Long,
-        val playbackSessionId: String,
-        val queueEntries: List<PlaybackQueueEntry>,
-        val preferredMediaSourceId: String?,
-        val sourceIntentId: String,
     )
 
     /** W86-C：Activity / 手势只能提交这些意图，不能直接操作底层播放器位置。 */
@@ -683,9 +664,10 @@ constructor(
                 persistedResumeMs = persistedResumePositionMs(mediaItem?.mediaId, currentSourceId),
                 crossItemSeekInFlight = seekSink.isCrossItemSeekInFlight,
             )
-        playbackSessionState =
-            PlaybackSessionRules.advance(playbackSessionState, input, nowElapsedMs)
-        val recoveryTerminal = playbackSessionState.terminal
+        sessionOwner.updatePlaybackSessionState(
+            PlaybackSessionRules.advance(sessionOwner.playbackSessionState, input, nowElapsedMs)
+        )
+        val recoveryTerminal = sessionOwner.playbackSessionState.terminal
         progressRecoveryOwnership.retainTerminal(recoveryTerminal, sessionKey)
         val progressFallbackInput =
             progressFallbackInput(
@@ -715,7 +697,7 @@ constructor(
                 bufferedPositionMs = input.bufferedPositionMs,
                 isReady = input.isReady,
                 isPlaying = input.isPlaying,
-                wasLoading = playbackSessionState.wasLoading,
+                wasLoading = sessionOwner.playbackSessionState.wasLoading,
             )
         val recoveryObservation = progressRecoveryController.observe(progressRecoveryInput)
         if (
@@ -734,7 +716,7 @@ constructor(
             it.copy(
                 playbackSession =
                     PlaybackSessionRules.project(
-                            playbackSessionState,
+                            sessionOwner.playbackSessionState,
                             input,
                             suppressTerminal = suppressTerminal,
                         )
@@ -742,8 +724,8 @@ constructor(
             )
         }
         seriesPlaybackTrace?.observePosition(
-            positionMs = playbackSessionState.lastEnginePositionMs,
-            terminalKind = playbackSessionState.terminal?.kind,
+            positionMs = sessionOwner.playbackSessionState.lastEnginePositionMs,
+            terminalKind = sessionOwner.playbackSessionState.terminal?.kind,
             hasPlayerError = _uiState.value.playerError != null,
         )
     }
@@ -762,12 +744,12 @@ constructor(
     /**
      * 进度恢复耗尽仍未出画面：没有错误卡片播放器会一直 BUFFERING，用户没有任何重试入口。
      *
-     * 这里补发起播源错误，`retryPlayerError` 会按 `lastSourceIntent` 重新解析源、换新的转码会话。
+     * 这里补发起播源错误，`retryPlayerError` 会按 `sessionOwner.lastSourceIntent` 重新解析源、换新的转码会话。
      */
     private fun publishExhaustedStartupSourceFailure() {
         if (_uiState.value.fileLoaded) return
         if (_uiState.value.playerError != null) return
-        failedSourceIntent = lastSourceIntent
+        sessionOwner.failLastSourceIntent()
         _uiState.update { it.copy(playerError = startupSourceFailure()) }
         refreshPlaybackSession()
     }
@@ -821,7 +803,7 @@ constructor(
             extras?.getString(PLAYER_EXTRA_SEEK_SOURCE_URI)?.takeIf(String::isNotBlank)
                 ?: mediaItem?.localConfiguration?.uri?.toString()
                 ?: sourceItem?.mediaSourceUri
-        val terminal = playbackSessionState.terminal
+        val terminal = sessionOwner.playbackSessionState.terminal
         return PlayerProgressFallbackInput(
             sessionKey = sessionKey,
             mediaIdentity = playbackMediaIdentity(itemId, mediaSourceId),
@@ -844,7 +826,7 @@ constructor(
         mediaItem?.let(::seekMediaIdentityFromItem)?.let {
             playbackSessionKeyFor(
                 it,
-                playbackSnapshots.generation,
+                sessionOwner.playbackSnapshots.generation,
                 (player as? MPVPlayer)?.currentSourceEpoch(),
             )
         }
@@ -866,7 +848,7 @@ constructor(
     }
 
     private fun publishPlaybackSnapshots() {
-        val snapshots = playbackSnapshots
+        val snapshots = sessionOwner.playbackSnapshots
         _uiState.update {
             it.copy(
                 currentMediaInfo = snapshots.sourceMediaInfo,
@@ -878,65 +860,12 @@ constructor(
         refreshPlaybackSession()
     }
 
-    /** 新请求开始：清空 source / current，并返回单调递增的代次。 */
-    private fun resetPlaybackSnapshots(): Long {
-        val generation = playbackSnapshots.generation + 1L
-        playbackSnapshots = PlaybackSnapshotState(generation = generation)
-        activePlaybackToken = null
-        publishPlaybackSnapshots()
-        return generation
-    }
-
-    private fun beginMediaSnapshot(identity: PlaybackMediaIdentity): PlaybackRequestToken {
-        val (snapshots, token) = beginPlaybackRequest(playbackSnapshots, identity)
-        playbackSnapshots = snapshots
-        activePlaybackToken = token
-        publishPlaybackSnapshots()
-        return token
-    }
-
-    private fun ensureMediaSnapshot(identity: PlaybackMediaIdentity): PlaybackRequestToken {
-        val active = activePlaybackToken
-        if (
-            active != null &&
-                active.identity == identity &&
-                playbackSnapshots.identity == identity &&
-                playbackSnapshots.generation == active.generation
-        ) {
-            return active
-        }
-        return beginMediaSnapshot(identity)
-    }
-
-    /** 切轨 / 内核轨道集变化：保留 source，只清旧 current 并让旧异步结果失效。 */
-    private fun advanceCurrentStreamGeneration(): PlaybackRequestToken? {
-        val (snapshots, token) = advanceCurrentStreamRequest(playbackSnapshots)
-        playbackSnapshots = snapshots
-        if (token == null) return null
-        activePlaybackToken = token
-        publishPlaybackSnapshots()
-        return token
-    }
-
-    private fun applySourceSnapshot(token: PlaybackRequestToken, source: PlayerMediaInfo?) {
-        playbackSnapshots = bindSourceSnapshot(playbackSnapshots, token, source)
-        publishPlaybackSnapshots()
-    }
-
-    private fun applyCurrentStreamSnapshot(
-        token: PlaybackRequestToken,
-        current: PlayerMediaInfo?,
-    ) {
-        playbackSnapshots = acceptCurrentStreamSnapshot(playbackSnapshots, token, current)
-        publishPlaybackSnapshots()
-    }
-
     private fun refreshCurrentStreamSnapshot(token: PlaybackRequestToken) {
         if (!playerAccess.isOpen()) return
         val activePlayer = playerAccess.existingPlayer() ?: return
         if (activePlayer !is MPVPlayer) {
             // ExoPlayer.currentTracks 是主线程状态；放到 IO 读取会拿到空 / 旧选中态。
-            applyCurrentStreamSnapshot(
+            sessionOwner.applyCurrentStreamSnapshot(
                 token,
                 runCatching { readKernelMediaInfo(activePlayer) }.getOrNull(),
             )
@@ -948,7 +877,7 @@ constructor(
                     runCatching { readKernelMediaInfo(activePlayer) }.getOrNull()
                 }
             if (!playerAccess.isOpen()) return@launch
-            applyCurrentStreamSnapshot(token, info)
+            sessionOwner.applyCurrentStreamSnapshot(token, info)
         }
     }
 
@@ -975,8 +904,7 @@ constructor(
                 sourceIntentId = sourceIntentId,
             )
         val sourceAttempt = PlaybackSourceAttemptContext.new(sourceIntent.sourceIntentId)
-        failedSourceIntent = null
-        lastSourceIntent = sourceIntent
+        sessionOwner.startSourceAttempt(sourceIntent)
         startupSourceRetryBudget.reset()
         _uiState.update { it.copy(playerError = null) }
         seriesPlaybackTrace = null
@@ -1004,7 +932,7 @@ constructor(
         startupInProgress = true
         playWhenReady = true
         // 新播放页 / 新码率 / 新内核请求：旧 source 与 current 立即失效。
-        val initializationGeneration = resetPlaybackSnapshots()
+        val initializationGeneration = sessionOwner.resetPlaybackSnapshots()
         val exitGeneration = explicitExitController.generation
         player.addListener(this)
         applySavedSubtitlePreferences()
@@ -1083,7 +1011,7 @@ constructor(
                 Timber.e("No start item, stopping player initialization")
                 if (explicitExitController.isCurrent(exitGeneration)) {
                     startupInProgress = false
-                    failedSourceIntent = sourceIntent
+                    sessionOwner.failSourceIntent(sourceIntent)
                     _uiState.update {
                         it.copy(playerError = sourceFailure ?: sourceResolutionFailure())
                     }
@@ -1091,10 +1019,10 @@ constructor(
                 }
                 return@launch
             }
-            failedSourceIntent = null
+            sessionOwner.clearFailedSourceIntent()
             if (!isCurrentPlaybackStartup(exitGeneration, initializationGeneration)) {
                 PlaybackDiag.log(
-                    "startup guard#1 REJECT exited=${explicitExitController.isExited} exitGen=${explicitExitController.generation} vs $exitGeneration snapshotGen=${playbackSnapshots.generation} vs $initializationGeneration"
+                    "startup guard#1 REJECT exited=${explicitExitController.isExited} exitGen=${explicitExitController.generation} vs $exitGeneration snapshotGen=${sessionOwner.playbackSnapshots.generation} vs $initializationGeneration"
                 )
                 Timber.d("Discard stale player initialization after generation advanced")
                 return@launch
@@ -1119,8 +1047,8 @@ constructor(
             if (!isCurrentPlaybackStartup(exitGeneration, initializationGeneration)) {
                 return@launch
             }
-            val sourceToken = beginMediaSnapshot(identity)
-            applySourceSnapshot(sourceToken, startItem.mediaInfo)
+            val sourceToken = sessionOwner.beginMediaSnapshot(identity)
+            sessionOwner.applySourceSnapshot(sourceToken, startItem.mediaInfo)
 
             items = listOfNotNull(startItem).toMutableList()
             currentMediaItemIndex = items.indexOf(startItem)
@@ -1143,15 +1071,15 @@ constructor(
 
             if (
                 !isActivePlaybackGeneration(exitGeneration) ||
-                    playbackSnapshots.identity != identity ||
-                    playbackSnapshots.generation != sourceToken.generation
+                    sessionOwner.playbackSnapshots.identity != identity ||
+                    sessionOwner.playbackSnapshots.generation != sourceToken.generation
             ) {
                 // beginMediaSnapshot 自身会推进 generation，不能与起播前代次比较；
                 // 只拒绝「起播后又被别的请求换源 / 退出」的过期场景。
                 PlaybackDiag.log(
                     "startup guard#3 REJECT exited=${explicitExitController.isExited} " +
-                        "snapshotIdentity=${playbackSnapshots.identity} vs $identity " +
-                        "snapshotGen=${playbackSnapshots.generation} vs ${sourceToken.generation}"
+                        "snapshotIdentity=${sessionOwner.playbackSnapshots.identity} vs $identity " +
+                        "snapshotGen=${sessionOwner.playbackSnapshots.generation} vs ${sourceToken.generation}"
                 )
                 return@launch
             }
@@ -1177,7 +1105,7 @@ constructor(
         initializationGeneration: Long,
     ): Boolean =
         isActivePlaybackGeneration(exitGeneration) &&
-            playbackSnapshots.generation == initializationGeneration
+            sessionOwner.playbackSnapshots.generation == initializationGeneration
 
     private fun sourceResolutionFailure(): PlayerErrorInfo =
         PlayerErrorInfo(
@@ -1375,12 +1303,12 @@ constructor(
         val mediaSourceId = extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID)
         val identity = playbackMediaIdentity(itemId, mediaSourceId)
         if (identity == null) {
-            resetPlaybackSnapshots()
+            sessionOwner.resetPlaybackSnapshots()
         } else {
-            val token = ensureMediaSnapshot(identity)
+            val token = sessionOwner.ensureMediaSnapshot(identity)
             @Suppress("DEPRECATION")
             val sourceInfo = extras?.getParcelable(PLAYER_EXTRA_MEDIA_INFO) as? PlayerMediaInfo
-            applySourceSnapshot(token, sourceInfo)
+            sessionOwner.applySourceSnapshot(token, sourceInfo)
         }
         val season = extras?.getInt(PLAYER_EXTRA_SEASON_NUMBER, -1) ?: -1
         val episode = extras?.getInt(PLAYER_EXTRA_EPISODE_NUMBER, -1) ?: -1
@@ -1444,7 +1372,9 @@ constructor(
     private fun finalizePlaybackSession(action: PlayerExitAction) {
         val activePlayer = playerHolder.existingPlayer
         val mediaId = activePlayer?.currentMediaItem?.mediaId
-        val position = playbackSessionState.lastEnginePositionMs ?: confirmedPosition(activePlayer)
+        val position =
+            sessionOwner.playbackSessionState.lastEnginePositionMs
+                ?: confirmedPosition(activePlayer)
         val duration = activePlayer?.duration ?: C.TIME_UNSET
         val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
         // Only the page-owned session reports a stop; attached music remains music-owned.
@@ -1519,7 +1449,7 @@ constructor(
         val mediaItem = player.currentMediaItem ?: return
         val itemId = runCatching { UUID.fromString(mediaItem.mediaId) }.getOrNull() ?: return
         refreshPlaybackSession()
-        val position = playbackSessionState.lastEnginePositionMs ?: return
+        val position = sessionOwner.playbackSessionState.lastEnginePositionMs ?: return
         val duration = player.duration
         savedStateHandle["position"] = position
         recordProgressSnapshot(itemId, position, duration)
@@ -1649,7 +1579,7 @@ constructor(
     override fun onTracksChanged(tracks: Tracks) {
         if (!playerAccess.isOpen()) return
         val activePlayer = playerAccess.existingPlayer() ?: return
-        val currentToken = advanceCurrentStreamGeneration()
+        val currentToken = sessionOwner.advanceCurrentStreamGeneration()
         if (activePlayer !is ExoPlayer) {
             // Refresh mpv subtitle and audio panels, then inject pending sideloads.
             ensureMpvSideloadsInjected(tracks)
@@ -1741,8 +1671,8 @@ constructor(
                             itemId = item.itemId,
                             mediaSourceId = item.mediaSourceId,
                         )
-                    val sourceToken = ensureMediaSnapshot(identity)
-                    applySourceSnapshot(sourceToken, item.mediaInfo)
+                    val sourceToken = sessionOwner.ensureMediaSnapshot(identity)
+                    sessionOwner.applySourceSnapshot(sourceToken, item.mediaInfo)
                     _uiState.update {
                         it.copy(
                             currentItemTitle = itemTitle,
@@ -1875,7 +1805,7 @@ constructor(
             if (!playerAccess.isOpen()) return@launch
             val callbackPlayer = playerAccess.existingPlayer() ?: return@launch
             val mediaId = callbackPlayer.currentMediaItem?.mediaId
-            val position = playbackSessionState.lastEnginePositionMs
+            val position = sessionOwner.playbackSessionState.lastEnginePositionMs
             val duration = callbackPlayer.duration
             val itemId = mediaId?.let { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
             val reportPlaybackStop: suspend () -> Unit
@@ -2039,7 +1969,7 @@ constructor(
         }
         seekSink.onEngineError(mediaIdentity = seekMediaIdentity(), retryable = true)
         val startupSourceFailed = !_uiState.value.fileLoaded
-        if (startupSourceFailed) failedSourceIntent = lastSourceIntent
+        if (startupSourceFailed) sessionOwner.failLastSourceIntent()
         _uiState.update {
             it.copy(
                 playerError =
@@ -3345,18 +3275,25 @@ constructor(
 
     fun retryPlayback(terminalToken: String) {
         if (!playerAccess.isOpen()) return
-        val terminal = playbackSessionState.terminal
-        if (terminal?.token != terminalToken || playbackSessionState.retryConsumed) {
+        val terminal = sessionOwner.playbackSessionState.terminal
+        if (terminal?.token != terminalToken || sessionOwner.playbackSessionState.retryConsumed) {
             Timber.d("Ignoring stale playback retry terminal=%s", terminalToken)
             return
         }
         val active = playerAccess.existingPlayer()
         val currentKey = currentPlaybackSessionKey(active, active?.currentMediaItem)
-        if (!PlaybackSessionRules.retrySourceIsCurrent(playbackSessionState, currentKey)) {
+        if (
+            !PlaybackSessionRules.retrySourceIsCurrent(
+                sessionOwner.playbackSessionState,
+                currentKey,
+            )
+        ) {
             return refreshPlaybackSession()
         }
-        playbackSessionState =
-            PlaybackSessionRules.consumeRetry(playbackSessionState, terminalToken) ?: return
+        val consumed =
+            PlaybackSessionRules.consumeRetry(sessionOwner.playbackSessionState, terminalToken)
+                ?: return
+        sessionOwner.updatePlaybackSessionState(consumed)
         Timber.d(
             "Retrying playback terminal=%s backend=$playerBackend from position=%d",
             terminalToken,
@@ -3366,10 +3303,11 @@ constructor(
     }
 
     fun retryPlayerError() {
-        val sourceIntent = failedSourceIntent?.takeIf {
-            _uiState.value.playerError?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED ||
-                _uiState.value.playerError?.codeName == PLAYER_ERROR_STARTUP_SOURCE_FAILED
-        }
+        val sourceIntent =
+            sessionOwner.failedSourceIntent?.takeIf {
+                _uiState.value.playerError?.codeName == PLAYER_ERROR_SOURCE_RESOLUTION_FAILED ||
+                    _uiState.value.playerError?.codeName == PLAYER_ERROR_STARTUP_SOURCE_FAILED
+            }
         if (sourceIntent != null) {
             if (explicitExitController.isExited) return
             initializePlayer(
@@ -3419,7 +3357,7 @@ constructor(
         if (!playerAccess.isOpen()) return 0L
         val livePosition =
             confirmedPosition(activePlayer)
-                ?: playbackSessionState.lastEnginePositionMs
+                ?: sessionOwner.playbackSessionState.lastEnginePositionMs
                 ?: C.TIME_UNSET
         if (livePosition > 0L) return livePosition
         val mediaId =
