@@ -1063,6 +1063,13 @@ class MPVPlayer(
                     return@synchronized 4
                 }
                 when {
+                    // 已被换集淘汰的 attempt 不得向全局 mpv 发 stop，否则会杀掉当前 source。
+                    pendingSourceStart == null && attemptReadyLocked(attempt) == null -> 5
+                    // 当前 source 已 START_FILE、无 pending 后继时，慢 MKV 读取尾部索引和
+                    // playlist-play-index 尚未返回都属于健康加载；250ms 后 stop 会打断正常起播。
+                    attempt.startObserved &&
+                        pendingSourceStart == null &&
+                        attemptReadyLocked(attempt) != null -> 0
                     attempt.startObserved || attempt.commandEntered || attempt.commandDispatched ->
                         2
                     else -> {
@@ -1072,9 +1079,11 @@ class MPVPlayer(
                 }
             }
         when (action) {
+            0 -> Unit
             2 -> beginSourceDrain(attempt)
             3 -> requestSourceCommand(attempt, recovery = true)
             4 -> activeToDrain?.let(::beginSourceDrain) ?: finishSourceDrain(attempt)
+            5 -> finishSourceDrain(attempt)
         }
     }
 

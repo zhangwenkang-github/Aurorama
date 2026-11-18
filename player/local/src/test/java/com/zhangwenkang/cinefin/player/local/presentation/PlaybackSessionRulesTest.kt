@@ -2046,6 +2046,94 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
+    fun `healthy slow source start after command dispatch must not stop or retry`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 423L)
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-slow-start", "https://media.example/r19-slow-start")),
+            0,
+            0L,
+        )
+        player.prepare()
+        assertEquals(
+            "prepare 必须派发 loadfile",
+            1,
+            commands.count { it == loadFileCommand("https://media.example/r19-slow-start") },
+        )
+        commands.clear()
+
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        commands.clear()
+
+        assertTrue(
+            "慢速加载窗口内必须还有待执行的 source recovery 检查",
+            runNextRecovery(player),
+        )
+        assertTrue(
+            "START_FILE 已到、loadfile 已返回、FILE_LOADED 未到时不得 stop 或重试: commands=$commands",
+            commands.isEmpty(),
+        )
+    }
+
+    @Test
+    fun `healthy cross item start while native command is entered must not stop`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 424L)
+        setField(player, "isPlayerReady", false)
+        val commands = mutableListOf<List<String>>()
+        assertTrue(trySetField(player, "commandsClosed", AtomicBoolean(false)))
+        installCommandExecutor(player) { captured -> commands += captured.arguments }
+        val callbacks = captureEventCallbacks(player)
+
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-cross-item", "https://media.example/r20-cross-item")),
+            0,
+            0L,
+        )
+        player.prepare()
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        commands.clear()
+
+        assertTrue(runNextRecovery(player))
+        assertTrue(
+            "跨集 START_FILE 已到但 playlist-play-index 尚未返回时不得 stop: commands=$commands",
+            commands.isEmpty(),
+        )
+    }
+
+    @Test
+    fun `stale source recovery without pending must not stop current source`() {
+        val player = allocatedMpvPlayerForStartFile(epoch = 425L)
+        setField(player, "isPlayerReady", false)
+        val commands = captureCommands(player)
+        val callbacks = captureEventCallbacks(player)
+
+        player.setMediaItems(
+            mutableListOf(mediaItem("item-stale", "https://media.example/r21-stale")),
+            0,
+            0L,
+        )
+        player.prepare()
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
+        callbacks.forEach(Runnable::run)
+        callbacks.clear()
+        setField(player, "sourceEpoch", AtomicLong(426L))
+        commands.clear()
+
+        assertTrue(runNextRecovery(player))
+        assertTrue(
+            "旧 source 的 recovery 不得向当前 source 发 stop: commands=$commands",
+            commands.isEmpty(),
+        )
+    }
+
+    @Test
     fun `production seam rejects pre-command same-entry start then accepts current start once`() {
         val backend = BlockingSourceCommandBackend()
         val mpv = MPVLib(1L, backend)

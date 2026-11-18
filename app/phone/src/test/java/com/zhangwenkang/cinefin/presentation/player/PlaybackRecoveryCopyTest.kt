@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.os.SystemClock
 import androidx.lifecycle.SavedStateHandle
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
@@ -30,6 +31,7 @@ import io.mockk.unmockkAll
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -103,6 +105,40 @@ class PlaybackRecoveryCopyTest {
             assertEquals(0, harness.playerProbe.seekCalls.get())
             assertEquals(0, harness.playerProbe.playCalls.get())
             assertNull(harness.viewModel.uiState.value.playerError)
+        } finally {
+            Dispatchers.resetMain()
+            unmockkAll()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun retryPlayerErrorSeeksToItemIndexCapturedBeforePrepare() {
+        Dispatchers.setMain(StandardTestDispatcher())
+        mockkStatic(SystemClock::class)
+        every { SystemClock.elapsedRealtime() } returns 10_000L
+        try {
+            val harness = playerViewModelHarness()
+            val timeline = mockk<Timeline>(relaxed = true)
+            every { timeline.isEmpty } returns false
+            harness.playerProbe.apply {
+                mediaItem = MediaItem.Builder().setMediaId(UUID.randomUUID().toString()).build()
+                this.timeline = timeline
+                playbackState = Player.STATE_READY
+                positionMs = 42_000L
+                mediaItemIndex = 2
+                mediaItemCount = 3
+                resetIndexOnPrepare = true
+            }
+
+            harness.viewModel.retryPlayerError()
+
+            assertEquals(1, harness.playerProbe.prepareCalls.get())
+            assertEquals(1, harness.playerProbe.playCalls.get())
+            assertEquals(1, harness.playerProbe.seekCalls.get())
+            assertEquals(listOf(2 to 42_000L), harness.playerProbe.indexedSeeks)
+            assertTrue(harness.playerProbe.positionOnlySeeks.isEmpty())
+            assertEquals(0, harness.playerProbe.mediaItemIndex)
         } finally {
             Dispatchers.resetMain()
             unmockkAll()
@@ -420,6 +456,16 @@ class PlaybackRecoveryCopyTest {
         val prepareCalls = AtomicInteger()
         val seekCalls = AtomicInteger()
         val playCalls = AtomicInteger()
+        val indexedSeeks = mutableListOf<Pair<Int, Long>>()
+        val positionOnlySeeks = mutableListOf<Long>()
+
+        var mediaItem: MediaItem? = null
+        var timeline: Timeline = Timeline.EMPTY
+        var playbackState: Int = Player.STATE_IDLE
+        var positionMs: Long = 0L
+        var mediaItemIndex: Int = 0
+        var mediaItemCount: Int = 0
+        var resetIndexOnPrepare: Boolean = false
 
         val player: Player =
             Proxy.newProxyInstance(
@@ -433,6 +479,8 @@ class PlaybackRecoveryCopyTest {
             prepareCalls.set(0)
             seekCalls.set(0)
             playCalls.set(0)
+            indexedSeeks.clear()
+            positionOnlySeeks.clear()
         }
 
         override fun invoke(proxy: Any, method: Method, args: Array<out Any?>?): Any? =
@@ -442,24 +490,30 @@ class PlaybackRecoveryCopyTest {
                 "toString" -> "PlayerProbe"
                 "getCurrentMediaItem" -> {
                     currentMediaItemAccesses.incrementAndGet()
-                    null
+                    mediaItem
                 }
                 "getCurrentTracks" -> Tracks.EMPTY
-                "getCurrentTimeline" -> Timeline.EMPTY
+                "getCurrentTimeline" -> timeline
                 "getAvailableCommands" -> Player.Commands.EMPTY
                 "getDuration" -> C.TIME_UNSET
                 "getCurrentPosition",
-                "getBufferedPosition" -> 0L
-                "getPlaybackState" -> Player.STATE_IDLE
-                "getCurrentMediaItemIndex",
-                "getMediaItemCount" -> 0
+                "getBufferedPosition" -> positionMs
+                "getPlaybackState" -> playbackState
+                "getCurrentMediaItemIndex" -> mediaItemIndex
+                "getMediaItemCount" -> mediaItemCount
                 "getRepeatMode" -> Player.REPEAT_MODE_OFF
                 "prepare" -> {
                     prepareCalls.incrementAndGet()
+                    if (resetIndexOnPrepare) mediaItemIndex = 0
                     null
                 }
                 "seekTo" -> {
                     seekCalls.incrementAndGet()
+                    when {
+                        args?.size == 2 && args[0] is Int && args[1] is Long ->
+                            indexedSeeks += (args[0] as Int) to (args[1] as Long)
+                        args?.size == 1 && args[0] is Long -> positionOnlySeeks += args[0] as Long
+                    }
                     null
                 }
                 "play" -> {
