@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W3 导航与新 UI 骨架**：T0 完成（2026-11-18）——导航现状调查 + NAV-01~13 决策定稿 + 任务卡 T1–T5 定稿（`docs/V2_W3_TASKS.md`）；W2 遗留（mpv 过早 stop 修复 + retry harness）已随 T0 提交。下一入口：T1 导航动效与容器校准（派 deepseek）。
+1. **2.0.0 W3 导航与新 UI 骨架**：T0（定稿）+ T1（动效校准 `38a4a8ec`，K60 验证通过）已完成；下一入口 T2 侧轨/抽屉/底栏 K1 换肤（派 deepseek，选中态 = aurora pill 定稿见 `docs/V2_W3_TASKS.md`）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）

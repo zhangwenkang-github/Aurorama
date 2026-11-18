@@ -8,7 +8,8 @@
 
 - 分支：`codex/v2-integration`；W3 开工基线 `7540f829` + W2 遗留提交（mpv 过早 stop 修复 + 判别性 harness，本会话首日提交）。
 - **W2 遗留核查（2026-11-18 复核通过）**：① 第三个 flaky 已 cherry-pick 回 master（`a1e2951c`，master Build CI 不再阻塞）；② mpv 过早 stop 修复（`MPVPlayer.kt` 当前 source 已 START 且无 pending 时不 stop / stale 无 pending 只清理）+ 3 条 RED→GREEN 单测在工作区，Pad 实测 E1 起播/暂停续播/E1→E2 通过；③ VM `retryPlaybackAt` 判别性 harness 已补（`PlaybackRecoveryCopyTest.retryPlayerErrorSeeksToItemIndexCapturedBeforePrepare`，断言 `seekTo(2, 42000)`，回退裸 seekTo 时如期变红）。
-- **T0 完成（2026-11-18，Kimi 亲自）**：导航现状调查 + NAV-01~13 决策定稿（见下节）；任务卡 T1–T5 定稿。
+- **T0 完成（2026-11-18，Kimi 亲自）**：导航现状调查 + NAV-01~13 决策定稿（见下节）；任务卡 T1–T5 定稿（`a0d88660` + `fe328e0f`）。
+- **T1 ✅（2026-11-18，commit `38a4a8ec`，deepseek 执行 / Kimi 验收通过）**：导航动效 token 唯一源 `CinefinNavigationMotion`（120ms/8dp、抽屉 200/160ms、RM 50ms，EmphasizedDecelerate 无弹簧，`NavigationMotionTest` 锁定数值）；抽屉换 `AnchoredDraggableState` 自绘外壳（M3 规格不可外部定制，任务卡已授权）；Reduce Motion 接 `ANIMATOR_DURATION_SCALE`（ContentObserver 监听）。门禁：core 451 + phone 529 单测 0 失败、ktfmtCheck、assembleDebug（--max-workers=2）全绿；K60 实测抽屉开 211ms/关 176ms、RM 下 19/8ms 即时、底栏切换 0 FATAL、选中态可见。Kimi 批准两项报备微决策：popEnter/popExit 显式镜像 predictive 槽；手势吸附统一 200ms 减速。
 - **独立未覆盖项（不阻塞 W3）**：K60 / jellyfins 生产 HTTPS 间歇 `mbedtls -0x7280`（E1 可播、E2 握手失败）；`seekSink.retrySeek()` 条目归属另开最小修复。
 - **本次质量门（W2 遗留提交时已过）**：`player/local` 539 + `app/phone` 529 单测全绿，全仓 `ktfmtCheck` 与 `:app:phone:assembleDebug` 通过。
 - **环境备注**：全量构建带 `--max-workers=2`（16G 机器 OOM 前科）；构建前 `export JAVA_HOME='F:\Develop\Android\Android Studio\jbr'; export GRADLE_USER_HOME='F:\Develop\gradle-home'`；CI（Build/Unit Tests/Format）仅 master push 与 PR 触发；K60=`8e875894`、Pad=`43af8627`；jellyfins 只读。
