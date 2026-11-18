@@ -44,6 +44,8 @@ ADR-0007（2026-11-02）保留有效的部分：主题是覆盖全 App 的完整
 
 ## 5. W1 设计系统落地清单（实施波任务卡依据）
 
+> **执行约束**：设计决策（token 数值、配色、logo 选型、布局方案）由主负责人 Kimi 亲自制定并定稿进本文件；deepseek 子代理只按定稿做代码实现，不做任何样式自由发挥。
+
 1. 主题引擎：`CinefinTheme(themeId)` + palette 注册表；打通 `darkTheme` 与 `pref_theme`；Lumen 皮肤机制并入。
 2. Aurora/Light/AMOLED/Dynamic 四套 token 集（颜色/排版/形状/间距/动效强度）。
 3. Logo 定稿派生资源（mipmap-anydpi 修正 `-v26` 命名）；图标第一批（导航/播放传输/高频动作约 30 个）。
