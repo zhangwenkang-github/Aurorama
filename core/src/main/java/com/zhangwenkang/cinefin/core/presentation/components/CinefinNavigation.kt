@@ -274,7 +274,7 @@ internal fun navSelectedFill(colors: CinefinColors): Color =
  * `aurora1`（#0C9E82）在近白底上只有 3.2:1，浅色主题的选中 pill 里读不清；本值与 [navSelectedFill] 的浅色分支配套（对页面底 #FAFAFB
  * 5.05:1）。
  */
-internal val LightNavSelectedContent = Color(0xFF0A7A66)
+internal val LightNavSelectedContent = Color(0xFF0A6B5A)
 
 /**
  * 选中图文色（K1）：深色主题（aurora / amoled / lumen）= `aurora1`，浅色主题 = [LightNavSelectedContent]。

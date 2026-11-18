@@ -60,7 +60,7 @@ class CinefinNavigationSelectionTest {
 
     @Test
     fun `selected content follows the fill lightness rule`() {
-        assertHex(0xFF0A7A66, navSelectedContent(light), "light selected content")
+        assertHex(0xFF0A6B5A, navSelectedContent(light), "light selected content")
         assertNotEquals(
             "浅色主题不能再直接用 aurora1（3.2:1）",
             light.aurora1,
@@ -98,8 +98,8 @@ class CinefinNavigationSelectionTest {
         // pill 底取真实合成值：侧轨画在页面底上，抽屉画在面板容器（bg2）上。
         val overPage = contrast(content, pillOver(light, light.surface))
         val overDrawer = contrast(content, pillOver(light, light.surfaceContainer))
-        // 页面底已过 AA；pill 底目前 4.22 / 3.95（低于 4.5），阈值钉在实测下限防止回退，是否再加深由设计裁决。
-        assertTrue("浅色选中图文对侧轨 pill 底 $overPage < 4.2", overPage >= 4.2)
-        assertTrue("浅色选中图文对抽屉 pill 底 $overDrawer < 3.9", overDrawer >= 3.9)
+        // #0A6B5A 对三类底全部过 WCAG AA 4.5（页面 6.17 / 侧轨 pill 5.16 / 抽屉 pill 4.82，2026-11-19 设计裁决）。
+        assertTrue("浅色选中图文对侧轨 pill 底 $overPage < 4.5", overPage >= 4.5)
+        assertTrue("浅色选中图文对抽屉 pill 底 $overDrawer < 4.5", overDrawer >= 4.5)
     }
 }
