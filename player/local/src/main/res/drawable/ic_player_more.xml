@@ -1,20 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-    播放控制层「更多」入口：24dp 网格、三点省略号（Horizontal Ellipsis）。
-    Prism 图标语言：几何、无噪声；三点用实心圆，运行时由 Compose 统一着色。
--->
+<!-- K1 图标体系：24dp 视框 / 2dp 笔宽 / 圆头端点拐角（W1-T4）。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M6,10.4 a1.6,1.6 0 1,0 0,3.2 a1.6,1.6 0 1,0 0,-3.2 z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M12,10.4 a1.6,1.6 0 1,0 0,3.2 a1.6,1.6 0 1,0 0,-3.2 z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M18,10.4 a1.6,1.6 0 1,0 0,3.2 a1.6,1.6 0 1,0 0,-3.2 z" />
+        android:pathData="M3.2,12 a1.8,1.8 0 1 1 3.6,0 a1.8,1.8 0 1 1 -3.6,0 M10.2,12 a1.8,1.8 0 1 1 3.6,0 a1.8,1.8 0 1 1 -3.6,0 M17.2,12 a1.8,1.8 0 1 1 3.6,0 a1.8,1.8 0 1 1 -3.6,0"
+        android:fillColor="#FFFFFFFF" />
 </vector>

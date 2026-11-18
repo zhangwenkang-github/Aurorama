@@ -1,32 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 播放控制层「退出全屏」入口：24dp 网格、四角向内的框角（与 ic_player_fullscreen 同语言）。 -->
+<!-- K1 图标体系：24dp 视框 / 2dp 笔宽 / 圆头端点拐角（W1-T4）。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
     <path
-        android:pathData="M4,9.4 H7.6 A1.8,1.8 0 0,0 9.4,7.6 V4"
+        android:pathData="M9,4 L9,7.5 A1.5,1.5 0 0 1 7.5,9 L4,9 M20,9 L16.5,9 A1.5,1.5 0 0 1 15,7.5 L15,4 M15,20 L15,16.5 A1.5,1.5 0 0 1 16.5,15 L20,15 M4,15 L7.5,15 A1.5,1.5 0 0 1 9,16.5 L9,20"
+        android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M14.6,4 V7.6 A1.8,1.8 0 0,0 16.4,9.4 H20"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M20,14.6 H16.4 A1.8,1.8 0 0,1 14.6,16.4 V20"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <path
-        android:pathData="M9.4,20 V16.4 A1.8,1.8 0 0,1 7.6,14.6 H4"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.5"
+        android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
 </vector>

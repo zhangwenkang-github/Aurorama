@@ -1,9 +1,15 @@
+<!-- K1 图标体系：24dp 视框 / 2dp 笔宽 / 圆头端点拐角（W1-T4）。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
-    android:viewportHeight="24">
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M18,2H6c-1.1,0 -2,0.9 -2,2v16c0,1.1 0.9,2 2,2h12c1.1,0 2,-0.9 2,-2V4c0,-1.1 -0.9,-2 -2,-2zM8,4h2v8l-1,-1 -1,1V4z" />
+        android:pathData="M5,3 L16,3 A3,3 0 0 1 19,6 L19,21 L15,18.5 L11,21 L7,18.5 L5,21 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>
