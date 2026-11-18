@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,7 +33,6 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -87,10 +87,13 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinNavigationIt
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinRailGroupDivider
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinRailSectionDivider
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.components.rememberCinefinDrawerState
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinNavigationMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
+import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
 import com.zhangwenkang.cinefin.film.presentation.downloads.DownloadBadgeViewModel
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidBoxSet
@@ -429,7 +432,7 @@ fun NavigationRoot(
 
     val currentDestination = navBackStackEntry?.destination
     // 主导航：手机底部 4 tab / 平板侧轨；抽屉继续承载全量入口（库列表 / 控制台 / 服务器）
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val drawerState = rememberCinefinDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     // 顶层页面允许手势拉出抽屉；详情页等保留全宽与返回手势。
     // 统一目的地（D18）：凡是侧柜（底部 Tab / 侧轨 / 抽屉）里能点到的目标都按顶层页面处理——
@@ -1048,15 +1051,47 @@ fun NavigationRoot(
         }
     val drawerSelectedIndex = drawerEntries.indexOfFirst { it.selected }
 
+    // W3-T1 导航动效定稿：120ms opacity + 8dp 位移；Reduce Motion 时退化为 ≤50ms 淡入、无位移。
+    // NavHost 的 slide 由 EnterTransition 内部用 graphicsLayer/IntOffset 完成，不改尺寸、不触发布局重排。
+    val reduceMotion = rememberReduceMotionEnabled()
+    val navTransitionMillis =
+        if (reduceMotion) CinefinNavigationMotion.ReducedMotionMillis
+        else CinefinNavigationMotion.PageTransitionMillis
+    val navTranslatePx =
+        if (reduceMotion) 0
+        else with(LocalDensity.current) { CinefinNavigationMotion.PageTransitionOffset.roundToPx() }
     val host: @Composable () -> Unit = {
         NavHost(
             navController = navController,
             startDestination = startDestination,
             modifier = Modifier.fillMaxSize(),
-            enterTransition = { fadeIn(tween(300)) },
-            exitTransition = { fadeOut(tween(300)) },
-            predictivePopEnterTransition = { fadeIn(tween(300)) },
-            predictivePopExitTransition = { fadeOut(tween(300)) },
+            enterTransition = {
+                fadeIn(animationSpec = tween(navTransitionMillis)) +
+                    slideIntoContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.Start,
+                        animationSpec = tween(navTransitionMillis),
+                        initialOffset = { navTranslatePx },
+                    )
+            },
+            exitTransition = { fadeOut(animationSpec = tween(navTransitionMillis)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(navTransitionMillis)) },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(navTransitionMillis)) +
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = tween(navTransitionMillis),
+                        targetOffset = { navTranslatePx },
+                    )
+            },
+            predictivePopEnterTransition = { fadeIn(animationSpec = tween(navTransitionMillis)) },
+            predictivePopExitTransition = {
+                fadeOut(animationSpec = tween(navTransitionMillis)) +
+                    slideOutOfContainer(
+                        towards = AnimatedContentTransitionScope.SlideDirection.End,
+                        animationSpec = tween(navTransitionMillis),
+                        targetOffset = { navTranslatePx },
+                    )
+            },
         ) {
             composable<WelcomeRoute> {
                 WelcomeScreen(
