@@ -50,10 +50,14 @@ import java.lang.reflect.Proxy
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.util.UUID
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import javax.tools.ToolProvider
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -3135,6 +3139,9 @@ class DownloaderImplRecoveryTest {
                 },
             )
 
+            // 补偿写入 sidecar 只完成了一半状态；intent 置 FAILED 发生在同一轮处理器尾部，
+            // 未等处理器静默就 retryIntent 会读到仍是 RESOLVING/RECEIVED 的代次而拿不到句柄。
+            fixture.downloader.awaitIntentProcessingIdle()
             fixture.retryIntent(itemId)
             fixture.newDownloader().recoverOnStartup()
 
@@ -5721,7 +5728,10 @@ class DownloaderImplRecoveryTest {
     }
 
     private suspend fun assertCorruptPendingSidecarFailsClosed(corrupt: (String) -> String) {
-        val fixture = Fixture()
+        // receiveMusicBatch 受理后会立即 kick 后台意图处理器；先把它停在调度器入口，
+        // 保证写坏 sidecar 发生在处理器第一次读取之前，而不是赌线程调度顺序。
+        val dispatcher = PausingDispatcher()
+        val fixture = Fixture(resolutionDispatcher = dispatcher)
         try {
             val itemId = fixture.preparePendingMusicOrigin()
             val sidecar = fixture.sidecarFile()
@@ -5730,8 +5740,10 @@ class DownloaderImplRecoveryTest {
             sidecar.writeText(corrupted)
             fixture.resetCurrentOriginReads()
 
+            dispatcher.release()
+            fixture.downloader.awaitIntentProcessingIdle()
             fixture.downloader.recoverOnStartup()
-            delay(200)
+            fixture.downloader.awaitIntentProcessingIdle()
             fixture.downloader.runQueue()
 
             assertTrue(
@@ -5752,6 +5764,7 @@ class DownloaderImplRecoveryTest {
             assertTrue("sidecar 修复后必须重试并插入 source", fixture.dao.awaitInsertedSourceCount(1))
             assertEquals(listOf(SOURCE_ID), fixture.dao.sourceIds())
         } finally {
+            dispatcher.release()
             fixture.close()
         }
     }
@@ -5935,6 +5948,39 @@ class DownloaderImplRecoveryTest {
                 fixture.close()
             }
         }
+
+    /**
+     * 可暂停的意图解析调度器。
+     *
+     * 任务在 [release] 之前只入队不执行，测试因而能在「后台意图处理器尚未读取 sidecar」的确定状态下写坏 sidecar。
+     */
+    private class PausingDispatcher(private val delegate: CoroutineDispatcher = Dispatchers.IO) :
+        CoroutineDispatcher() {
+        private val released = AtomicBoolean(false)
+        private val parked = ConcurrentLinkedQueue<Runnable>()
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            if (released.get()) {
+                delegate.dispatch(context, block)
+                return
+            }
+            parked.add(block)
+            // 入队与 release 并发：release 的 drain 可能已经跑完，这里补一次。
+            if (released.get()) drain()
+        }
+
+        fun release() {
+            released.set(true)
+            drain()
+        }
+
+        private fun drain() {
+            while (true) {
+                val block = parked.poll() ?: return
+                delegate.dispatch(EmptyCoroutineContext, block)
+            }
+        }
+    }
 
     internal class Fixture(
         private val resolutionDispatcher: CoroutineDispatcher = Dispatchers.IO,
