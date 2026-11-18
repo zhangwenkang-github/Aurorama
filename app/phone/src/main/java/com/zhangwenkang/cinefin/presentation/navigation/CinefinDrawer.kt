@@ -28,7 +28,6 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.models.CollectionType
 
 /**
@@ -118,12 +117,14 @@ fun CinefinDrawerHeader(
     }
 }
 
-/** 导航图标着色（W42）：保持 §7.1 的「选中 `Media.Bright` / 未选中 `OnSurfaceVariant`」。 */
+/**
+ * 导航图标着色（W3-T2 K1）：选中 `aurora1`（与文字同色）、未选中 `textSecondary`（`OnSurfaceVariant`）， 与容器选中 pill
+ * 保持同一套离散语言。
+ */
 @Composable
 internal fun navIconTint(selected: Boolean): Color {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
-    return if (selected) media.bright else colors.onSurfaceVariant
+    return if (selected) colors.aurora1 else colors.onSurfaceVariant
 }
 
 /** 导航条目图标槽：统一 24dp 资源 + 选中态着色。 */

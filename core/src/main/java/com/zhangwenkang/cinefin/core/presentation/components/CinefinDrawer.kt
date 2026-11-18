@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.core.presentation.components
 
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
 import androidx.compose.foundation.gestures.AnchoredDraggableState
@@ -161,11 +162,12 @@ class CinefinDrawerGroup(
 )
 
 /**
- * Cinefin 抽屉（§8.6）：默认宽 320dp（W65 起由调用方按窗口宽度传入 [drawerWidth]，手机 ≈ 55% 屏宽、夹取 208–280dp），底 =
- * 面板容器色，header 96dp，条目 56dp / 圆角 12dp， 分组标题 `LabelSmall + OnSurfaceFaint`；无投影（`tonalElevation =
- * 0`），遮罩用 `Scrim`。
+ * Cinefin 抽屉（§8.6 + W3-T2 K1 换肤）：默认宽 320dp（W65 起由调用方按窗口宽度传入 [drawerWidth]，手机 ≈ 55% 屏宽、夹取
+ * 208–280dp），底 = 面板容器色，header 96dp，条目 56dp / 圆角 16dp， 分组标题 `LabelSmall +
+ * OnSurfaceFaint`；无投影（`tonalElevation = 0`），遮罩用 `Scrim`。
  *
- * `selectedIndex` 按分组顺序拍平后计算；域页条目选中态为 `Media.Container + Media.Bright`。
+ * `selectedIndex` 按分组顺序拍平后计算；选中态与常显侧轨同一套 K1 离散语言（极光淡色 pill + `glassBorder` 描边 + `aurora1` 图文，见
+ * [navItemContainerColor]）。
  *
  * 容器外壳（W3-T1）：M3 `ModalNavigationDrawer` 的动画规格不可外部定制，这里用 `AnchoredDraggableState` 自绘—— 与 M3
  * 相同的全屏水平手势 / 遮罩 / 锚点模型，位移只走 `Modifier.offset { IntOffset(...) }`，不触发布局重排。
@@ -350,7 +352,7 @@ internal fun CinefinDrawerContent(
     }
 }
 
-/** 抽屉条目：56dp 高、圆角 12dp、左右 16dp 内边距；二级子项（[CinefinNavItem.nested]）48dp + 缩进。 */
+/** 抽屉条目：56dp 高、圆角 16dp（K1）、左右 16dp 内边距；二级子项（[CinefinNavItem.nested]）48dp + 缩进。 */
 @Composable
 private fun CinefinDrawerItem(
     item: CinefinNavItem,
@@ -374,12 +376,10 @@ private fun CinefinDrawerItem(
     val content =
         navItemContentColor(
             selected = selected,
-            neutral = item.neutral,
             pressed = pressed,
-            media = media,
             colors = colors,
         )
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(16.dp)
 
     CompositionLocalProvider(
         LocalNavItemInteraction provides
@@ -397,6 +397,13 @@ private fun CinefinDrawerItem(
                     .height(if (item.nested) 48.dp else 56.dp)
                     .clip(shape)
                     .background(container)
+                    .then(
+                        if (selected) {
+                            Modifier.border(1.dp, colors.glassBorder, shape)
+                        } else {
+                            Modifier
+                        }
+                    )
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,

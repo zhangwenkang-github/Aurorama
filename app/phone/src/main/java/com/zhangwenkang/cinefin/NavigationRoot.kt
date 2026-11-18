@@ -46,7 +46,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -1762,10 +1765,13 @@ fun NavigationRoot(
 
                         // 手势条安全区也要跟着底栏一起铺满底色，否则系统导航区会露出外层主题的石板色
                         // （真机表现为底栏下缘露出一条外层底色）。
+                        // W3-T2：底栏改 K1 悬浮玻璃条——安全区仍铺页面底色，玻璃条本体四周内缩 12dp / 8dp。
                         Box(
                             modifier =
                                 Modifier.fillMaxWidth()
                                     .background(LocalCinefinColors.current.surface)
+                                    .navigationBarsPadding()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             CinefinBottomTab(
                                 items = bottomItems.map { it.item },
@@ -1773,7 +1779,6 @@ fun NavigationRoot(
                                 onSelect = { index ->
                                     bottomItems.getOrNull(index)?.onClick?.invoke()
                                 },
-                                modifier = Modifier.navigationBarsPadding(),
                             )
                         }
                     }
@@ -1917,11 +1922,18 @@ private fun CinefinSideNavigation(
     Column(
         modifier =
             // W42：折叠 72dp；W46 展开 168dp；W65：展开改自适应（clamp(30%, 200, 240)dp），折叠轨不变。
-            // 底色 = navSurface + 一圈发丝线。
+            // W3-T2（K1）：底色 = 页面底 bg1 实底（不做实时 blur），只留右缘 1dp glassBorder 发丝线。
             Modifier.width((if (expanded) expandedWidthDp else RAIL_COLLAPSED_WIDTH_DP).dp)
                 .fillMaxHeight()
-                .background(colors.navSurface)
-                .border(1.dp, colors.outline)
+                .background(colors.surface)
+                .drawBehind {
+                    val stroke = 1.dp.toPx()
+                    drawRect(
+                        color = colors.glassBorder,
+                        topLeft = Offset(size.width - stroke, 0f),
+                        size = Size(stroke, size.height),
+                    )
+                }
                 .localLibraryQaTestTag(qaSemantics?.mainNavigationScreenTag)
     ) {
         Row(

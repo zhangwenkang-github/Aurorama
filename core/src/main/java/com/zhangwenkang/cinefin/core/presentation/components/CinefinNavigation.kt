@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.core.presentation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -28,30 +29,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinColors
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
 import com.zhangwenkang.cinefin.utils.DownloadControlPlaneRules
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
- * 导航条目（§8.6）。
+ * 导航条目（§8.6 + K1）。
  *
- * [neutral] 为 true 表示首页 / 设置等中性项：选中态用 `SurfaceContainerHigh + OnSurface`； 域页项选中态用
- * `Media.Container + Media.Bright`，不出现独立色点 / 色条（底部 Tab 的 24×3dp 指示条是导航指示器，属规范允许的例外）。
+ * [neutral] 保留给按压态取色（中性项走 `statePressed`），选中态不再区分中性 / 域页：三形态容器统一用 K1 极光 pill（见
+ * [navItemContainerColor]）。
  */
 class CinefinNavItem(
     val label: String,
@@ -73,10 +78,10 @@ class CinefinNavItem(
 )
 
 /**
- * 侧导航（W42 改版：折叠 72dp；W46 展开 150 → 168dp）。
+ * 侧导航（W42 改版：折叠 72dp；W46 展开 150 → 168dp；W3-T2 换 K1 皮肤）。
  *
- * 底色取 `navSurface` + 右缘 1dp 发丝线；分组之间用 [groupBreaks] 插入 12dp 空隙与细分隔线， 末尾 [pinnedTailCount]
- * 条（客户端设置区）用发丝线与导航区分隔。
+ * 底色取页面底 `surface`（bg1，实底、不做实时 blur）+ 右缘 1dp `glassBorder` 发丝线；分组之间用 [groupBreaks] 插入 12dp 空隙与细分隔线，
+ * 末尾 [pinnedTailCount] 条（客户端设置区）用发丝线与导航区分隔。
  */
 @Composable
 fun CinefinSideRail(
@@ -96,11 +101,11 @@ fun CinefinSideRail(
             modifier
                 .width(if (expanded) 168.dp else 72.dp)
                 .fillMaxHeight()
-                .background(colors.navSurface)
+                .background(colors.surface)
                 .drawBehind {
                     val stroke = 1.dp.toPx()
                     drawRect(
-                        color = colors.outline,
+                        color = colors.glassBorder,
                         topLeft = Offset(size.width - stroke, 0f),
                         size = Size(stroke, size.height),
                     )
@@ -140,8 +145,8 @@ fun CinefinNavigationItem(
     trailing: (@Composable () -> Unit)? = null,
     /** 二级分组子项用 44dp 紧凑行，避免「父项 + 全部库」把侧轨撑到需要滚动。 */
     compact: Boolean = false,
-    /** 条目圆角（与外壳一致）。 */
-    cornerRadius: Dp = 14.dp,
+    /** 条目圆角（与外壳一致；K1 定稿 16dp）。 */
+    cornerRadius: Dp = 16.dp,
 ) {
     val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
@@ -160,9 +165,7 @@ fun CinefinNavigationItem(
     val content =
         navItemContentColor(
             selected = selected,
-            neutral = item.neutral,
             pressed = pressed,
-            media = media,
             colors = colors,
         )
     val shape = RoundedCornerShape(cornerRadius)
@@ -178,7 +181,7 @@ fun CinefinNavigationItem(
                     .height(if (compact) 44.dp else 48.dp)
                     .clip(shape)
                     .background(container)
-                    .railSelectionIndicator(color = media.base, selected = selected)
+                    .selectionOutline(colors = colors, selected = selected, shape = shape)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
@@ -250,23 +253,51 @@ fun CinefinRailSectionDivider() {
     )
 }
 
-/** 选中条目的 3dp 媒体色左缘指示条（W42：行内垂直居中 24dp、两端圆角）。 */
-private fun Modifier.railSelectionIndicator(color: Color, selected: Boolean): Modifier {
-    if (!selected) return this
-    return drawWithContent {
-        drawContent()
-        val barWidth = 3.dp.toPx()
-        val barHeight = 24.dp.toPx()
+/** 选中条目的 1dp `glassBorder` 描边（K1：整行 pill 的极光淡色玻璃轮廓）。 */
+private fun Modifier.selectionOutline(
+    colors: CinefinColors,
+    selected: Boolean,
+    shape: Shape,
+): Modifier = if (selected) border(1.dp, colors.glassBorder, shape) else this
+
+/**
+ * 选中 pill 填充（K1 定稿）：`aurora1` 12%。
+ *
+ * 浅色主题下 12% 在近白底上几乎不可辨，按 W3-T2 任务卡授权只把浅色底提到 16%（判定依据 = 页面底 `surface` 的明度）。
+ */
+internal fun navSelectedFill(colors: CinefinColors): Color =
+    colors.aurora1.copy(alpha = if (colors.surface.luminance() > 0.5f) 0.16f else 0.12f)
+
+/**
+ * 底栏选中指示小条（K1 `auroraGradient`）：100° 线性 `au1→au2→au3`。
+ *
+ * 角度按 CSS `linear-gradient(100deg)` 的渐变线定义（0° 朝上、90° 朝右）：方向向量 `(sin θ, -cos θ)`，渐变线长度取 `|w·sin θ| +
+ * |h·cos θ|`，起止点以构件中心对称。指示条的尺寸与圆角由调用方 modifier 给出。
+ */
+private fun Modifier.auroraGradientIndicator(colors: CinefinColors, visible: Boolean): Modifier =
+    drawBehind {
+        if (!visible) return@drawBehind
+        val radians = Math.toRadians(100.0)
+        val dirX = sin(radians).toFloat()
+        val dirY = -cos(radians).toFloat()
+        val length = abs(size.width * dirX) + abs(size.height * dirY)
+        val center = Offset(size.width / 2f, size.height / 2f)
         drawRoundRect(
-            color = color,
-            topLeft = Offset(0f, (size.height - barHeight) / 2f),
-            size = Size(barWidth, barHeight),
-            cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f),
+            brush =
+                Brush.linearGradient(
+                    colors = listOf(colors.aurora1, colors.aurora2, colors.aurora3),
+                    start = Offset(center.x - dirX * length / 2f, center.y - dirY * length / 2f),
+                    end = Offset(center.x + dirX * length / 2f, center.y + dirY * length / 2f),
+                ),
+            cornerRadius = CornerRadius(size.height / 2f, size.height / 2f),
         )
     }
-}
 
-/** 底部 Tab（Compact <600dp）：高 64dp；选中指示条 24×3dp 位于图标上方 4dp。 */
+/**
+ * 底部 Tab（Compact <600dp）：K1 悬浮玻璃条——`glass` 底（半透明、不做实时 blur）+ 1dp `glassBorder` 描边 + 圆角 32dp，高 64dp。
+ *
+ * 选中项：图标 + 文字提亮 `textPrimary`，文字下方 20×3dp 极光渐变指示小条；未选中项 `textSecondary`。条目数量与 IA 不变。
+ */
 @Composable
 fun CinefinBottomTab(
     items: List<CinefinNavItem>,
@@ -274,33 +305,26 @@ fun CinefinBottomTab(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val media = LocalMediaColors.current
     val colors = LocalCinefinColors.current
+    val shape = RoundedCornerShape(32.dp)
     Row(
-        modifier = modifier.fillMaxWidth().height(64.dp).background(colors.surface),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clip(shape)
+                .background(colors.glass)
+                .border(1.dp, colors.glassBorder, shape),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         items.forEachIndexed { index, item ->
             val selected = index == selectedIndex
-            val content =
-                if (selected) {
-                    media.bright
-                } else {
-                    colors.onSurfaceVariant
-                }
+            val content = if (selected) colors.onSurface else colors.onSurfaceVariant
             Column(
                 modifier = Modifier.weight(1f).fillMaxHeight().cinefinClickable { onSelect(index) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Box(
-                    modifier =
-                        Modifier.width(24.dp)
-                            .height(3.dp)
-                            .clip(CinefinShapes.TwoXs)
-                            .background(if (!selected) Color.Transparent else media.base)
-                )
-                Spacer(Modifier.height(CinefinSpacing.Space1))
                 NavIconWithBadge(item = item, selected = selected)
                 Spacer(Modifier.height(2.dp))
                 Text(
@@ -308,6 +332,14 @@ fun CinefinBottomTab(
                     style = CinefinType.LabelSmall,
                     color = content,
                     maxLines = 1,
+                )
+                Spacer(Modifier.height(3.dp))
+                // 指示条槽位常驻（未选中不绘制），避免选中切换时整列内容跳动。
+                Box(
+                    modifier =
+                        Modifier.width(20.dp)
+                            .height(3.dp)
+                            .auroraGradientIndicator(colors = colors, visible = selected)
                 )
             }
         }
@@ -361,7 +393,7 @@ fun CinefinCountBadge(
     }
 }
 
-/** 导航条目底色：既有状态层（按下取域色 / 中性色，选中共用容器色，悬停状态层）。 */
+/** 导航条目底色：K1 离散选中语言（选中 = `aurora1` 低透明度 pill）；按压 / 悬停沿用既有状态层。 */
 @Composable
 internal fun navItemContainerColor(
     selected: Boolean,
@@ -374,24 +406,20 @@ internal fun navItemContainerColor(
     when {
         pressed && (selected || !neutral) -> media.containerPressed
         pressed -> colors.statePressed
-        selected && neutral -> colors.surfaceContainerHigh
-        selected -> media.container
+        selected -> navSelectedFill(colors)
         hovered -> colors.stateHover
         else -> Color.Transparent
     }
 
-/** 导航条目内容色：选中的中性项用 `OnSurface`、域页项用媒体色；按下回到 `OnSurface`。 */
+/** 导航条目内容色（K1）：选中 `aurora1`（图标与文字同色），按压回 `OnSurface`，其余 `textSecondary`。 */
 @Composable
 internal fun navItemContentColor(
     selected: Boolean,
-    neutral: Boolean,
     pressed: Boolean,
-    media: MediaColors = LocalMediaColors.current,
     colors: CinefinColors = LocalCinefinColors.current,
 ): Color =
     when {
-        selected && neutral -> colors.onSurface
-        selected -> media.bright
+        selected -> colors.aurora1
         pressed -> colors.onSurface
         else -> colors.onSurfaceVariant
     }
