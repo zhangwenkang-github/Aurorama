@@ -65,12 +65,12 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 
 /**
- * 阅读页（§9 Compose 落地）：外壳（顶栏 / 加载 / 错误态 / 设置面板）全部走 Prism 组件。
+ * 阅读页（§9 Compose 落地）：外壳（顶栏 / 加载 / 错误态 / 设置面板）全部走 core 组件。
  *
  * 阅读主题（纸色 / 护眼 / 深色 / OLED / 跟随）驱动 `CinefinTheme` 的亮暗与底色； 纸色 / 护眼主题内媒体色整体替换为纸页棕（§8.14），所有控件通过
  * `LocalMediaColors` 自动取色。
  *
- * W3-R1 在 Prism 外壳上并入离线能力：顶栏下载状态 / 书签入口、离线暂存横幅、书签面板与跳转。
+ * W3-R1 在阅读外壳上并入离线能力：顶栏下载状态 / 书签入口、离线暂存横幅、书签面板与跳转。
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalReadiumApi::class)
 @Composable

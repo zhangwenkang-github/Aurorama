@@ -5,7 +5,7 @@ import com.zhangwenkang.cinefin.music.data.lyrics.LyricsRow
 /**
  * 桌面歌词悬浮窗的文字颜色（W23-MUSIC · D 组，纯数据）。
  *
- * 颜色取自 Prism 设计系统的中性色 / 媒体色，[argb] 是 0xAARRGGBB；悬浮窗按"当前句实色、 下一句 60% 同色"渲染，保证两行层次分明。
+ * 颜色取自 App 主题（Aurora 系）的中性色 / 媒体色，[argb] 是 0xAARRGGBB；悬浮窗按"当前句实色、 下一句 60% 同色"渲染，保证两行层次分明。
  */
 enum class LyricsOverlayTint(val key: String, val label: String, val argb: Long) {
     MOON_WHITE("moon_white", "月白", 0xFFF2F5F9L),

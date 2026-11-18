@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSelectIndicator
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.spacings
@@ -55,7 +56,7 @@ fun EpisodeCard(
             modifier
                 .height(84.dp)
                 .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
+                .clip(CinefinShapes.Card)
                 .cinefinSelectable(
                     selected = selected,
                     onClick = onClick,

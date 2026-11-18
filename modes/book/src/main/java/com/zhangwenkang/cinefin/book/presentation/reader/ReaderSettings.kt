@@ -24,6 +24,12 @@ val ReaderFontSizeRange = 0.7f..2.5f
 val ReaderLineHeightRange = 1.0f..2.0f
 val ReaderPageMarginsRange = 0.0f..2.0f
 
+/** 阅读正文墨色（浅色家族）：阅读域自持，不随 App 主题色板变化。 */
+val ReaderInkLight = Color(0xFF1B212B)
+
+/** 阅读正文墨色（深色 / OLED）：同上，阅读域自持的暖白。 */
+val ReaderInkDark = Color(0xFFF4F1EA)
+
 /** 阅读模式：滚动 / 横向分页（单栏）/ 横向分页（平板双栏）。 */
 enum class ReaderMode(val storageValue: String, val label: String) {
     Scroll("scroll", "滚动"),
@@ -69,7 +75,7 @@ enum class ReaderTheme(val storageValue: String, val label: String) {
 
     /** 阅读内容文字色。 */
     fun contentColor(systemDark: Boolean): Color =
-        if (isDark(systemDark)) CinefinTokens.OnSurfaceDark else CinefinTokens.OnSurfaceLight
+        if (isDark(systemDark)) ReaderInkDark else ReaderInkLight
 
     /** 阅读器外壳（顶栏 / 面板）底色：深色家族用 §8.14 的 `#191F28`，浅色家族与内容同底。 */
     fun chromeColor(systemDark: Boolean): Color =
@@ -150,7 +156,7 @@ data class ReaderSettings(
 
     /** 强调色填充上的前景色（纸色 / 护眼用深墨，深色 / OLED 用阅读域 OnBase）。 */
     fun onAccentColor(systemDark: Boolean): Color =
-        if (theme.isDark(systemDark)) MediaBook.onBase else CinefinTokens.OnSurfaceLight
+        if (theme.isDark(systemDark)) MediaBook.onBase else ReaderInkLight
 
     /**
      * 阅读器内的媒体色（§8.14 例外）：纸色 / 护眼主题把阅读域天青整体替换为纸页棕 `#A8843C`， 深色 / OLED 仍用阅读域天青。
@@ -165,7 +171,7 @@ data class ReaderSettings(
             base = accent,
             bright = accent,
             dim = accent,
-            onBase = CinefinTokens.OnSurfaceLight,
+            onBase = ReaderInkLight,
             container =
                 accent.copy(alpha = CinefinTokens.MediaContainerAlpha).compositeOver(surface),
             containerPressed =

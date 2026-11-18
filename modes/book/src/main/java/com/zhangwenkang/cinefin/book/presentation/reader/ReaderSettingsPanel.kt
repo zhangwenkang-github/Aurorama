@@ -62,8 +62,7 @@ internal data class ReaderSettingsTools(
  * 宽 512dp、圆角 22dp、内边距 30/28dp；字号 / 行距 / 边距滑块，字体 / 对齐 chip 行， 主题缩略图 5 个（78dp 圆角
  * 14dp）。所有修改即时回调，由调用方提交导航器并持久化。
  *
- * 分段控件与 chip 使用 core 的 Prism 组件；纸色 / 护眼主题下媒体色已被 [ReaderSettings.mediaColors]
- * 替换为纸页棕，组件自动取色，面板不再手工传强调色。
+ * 分段控件与 chip 使用 core 组件；纸色 / 护眼主题下媒体色已被 [ReaderSettings.mediaColors] 替换为纸页棕，组件自动取色，面板不再手工传强调色。
  */
 @Composable
 internal fun ReaderSettingsPanel(
@@ -280,7 +279,7 @@ private fun RtlSwitchRow(
                 color = contentColor.copy(alpha = 0.72f),
             )
         }
-        // W44：组件统一走 core；纸色 / 护眼面板自带底色，配色仍按 ReaderSettings 派生（不用 Prism token）。
+        // W44：组件统一走 core；纸色 / 护眼面板自带底色，配色仍按 ReaderSettings 派生（不用 App 主题 token）。
         CinefinSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,

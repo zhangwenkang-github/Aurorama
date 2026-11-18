@@ -52,7 +52,7 @@ import com.zhangwenkang.cinefin.presentation.navigation.libraryIconRes
  * 媒体库入口卡（Lumen 改版，W8-R3）：整列宽度 16:9 大图 + 底部渐隐 + 一层「类型图标 + 库名 + 项目数」信息条。
  *
  * 与首页同一视觉语言：`LumenCardFrame` 的 1dp 发丝线 + 顶部内高光、`lumenEntrance` 错峰淡入；类型图标放进"雾灰 + 发丝线"
- * 磁贴并用当前强调色点缀（Lumen = 极光青，Prism = 当前域媒体色），右侧一个三级灰箭头表示"进入"； 项目数来自库的
+ * 磁贴并用当前强调色点缀（Lumen = 极光青，App 主题 = 当前域媒体色），右侧一个三级灰箭头表示"进入"； 项目数来自库的
  * `ChildCount`（`FindroidCollection.itemCount`），服务器没给就只显示库名，不占位。
  *
  * 取代原先"固定 260dp 宽 + 自适应栅格"的写法——那种组合在手机上会挤出屏幕，在平板上又留下不规则空档； 现在卡片宽度由栅格列宽决定，一屏只放 1–3 张，信息密度直接降下来。

@@ -79,7 +79,7 @@ fun HomeHero(
         currentWindowAdaptiveInfo()
             .windowSizeClass
             .isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)
-    val shape = if (expanded) CinefinShapes.Card else CinefinShapes.Xl
+    val shape = CinefinShapes.Card
     val contentPadding = if (expanded) CinefinSpacing.Space8 else CinefinSpacing.Space6
 
     val resumeFraction = item.resumeFraction()

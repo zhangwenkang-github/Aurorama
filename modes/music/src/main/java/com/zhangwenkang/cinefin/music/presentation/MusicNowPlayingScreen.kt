@@ -761,7 +761,7 @@ private fun MusicProgressBar(
         val startX = thumbRadius
         val endX = size.width - thumbRadius
         val thumbX = startX + (endX - startX) * fraction
-        // 发光拖点：以圆形浮标为中心的一圈同色柔光（Prism / 音乐皮肤）
+        // 发光拖点：以圆形浮标为中心的一圈同色柔光（App 主题 / 音乐皮肤）
         drawCircle(
             brush =
                 Brush.radialGradient(

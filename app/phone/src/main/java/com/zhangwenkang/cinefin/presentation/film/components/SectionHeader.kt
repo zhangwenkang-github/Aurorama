@@ -36,7 +36,7 @@ fun SectionHeader(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    // A 稿 `.shelf-head .more` 是三级文字灰；Prism 区域保持媒体色文字操作
+    // A 稿 `.shelf-head .more` 是三级文字灰；App 主题下保持媒体色文字操作
     val actionColor = media.bright
     Row(
         modifier = modifier,

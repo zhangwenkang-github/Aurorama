@@ -578,7 +578,7 @@ internal fun PanelSwitchRow(
             }
         }
         Spacer(Modifier.width(CinefinSpacing.Space3))
-        // W44：统一走 core `CinefinSwitch`（关闭态拇指提亮 + 轨道描边），皮肤随 Prism / Lumen 自动切换。
+        // W44：统一走 core `CinefinSwitch`（关闭态拇指提亮 + 轨道描边），皮肤随当前 App 主题自动切换。
         CinefinSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,

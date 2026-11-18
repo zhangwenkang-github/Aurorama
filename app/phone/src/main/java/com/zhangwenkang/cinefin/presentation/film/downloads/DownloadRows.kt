@@ -1302,7 +1302,7 @@ internal fun DownloadLeafCard(
     }
 }
 
-/** 下载页状态徽标（旧 Findroid 文本行 → Prism / Lumen 中性徽标 + 12dp 前置图标）。 */
+/** 下载页状态徽标（旧 Findroid 文本行 → App 主题 / Lumen 中性徽标 + 12dp 前置图标）。 */
 @Composable
 private fun DownloadStatusBadge(
     status: DownloadTaskStatus,

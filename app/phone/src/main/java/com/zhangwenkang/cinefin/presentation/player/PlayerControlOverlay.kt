@@ -146,7 +146,7 @@ import timber.log.Timber
 /* =========================================================================
 Cinefin · 播放控制层（Compose）
 
-设计解读：私人影音库的沉浸播放层（S1 · 流光「内容即光源」+ Prism 设计系统 v1.0）。
+设计解读：私人影音库的沉浸播放层（S1 · 流光「内容即光源」+ App 主题设计系统 v1.0）。
           画面是唯一光源：控制层只在需要时浮现，面板从右侧盖在画面上而不是挤压画面。
 颜色锁：  影视域媒体色（琥珀 MediaFilm）只出现在进度、进行中与激活面板上，且必须融进
           控件本体（填充 / 描边 / 图标 / 文字）；其余一律中性色（CinefinColors）。
@@ -3014,9 +3014,9 @@ private fun LockedOverlay(
             modifier
                 .padding(end = CinefinSpacing.Space5)
                 .size(56.dp)
-                .clip(CinefinShapes.Button)
+                .clip(CinefinShapes.Xl)
                 .background(media.container)
-                .border(1.dp, media.outline, CinefinShapes.Button)
+                .border(1.dp, media.outline, CinefinShapes.Xl)
                 .clickable(onClick = onUnlock),
     ) {
         Icon(

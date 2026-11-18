@@ -33,7 +33,7 @@ class ReaderSettingsTest {
         val paper = ReaderSettings(theme = ReaderTheme.Paper).toPreferenceSpec(systemDark = false)
         assertFalse(paper.darkTheme)
         assertEquals(CinefinTokens.PaperSurface, paper.backgroundColor)
-        assertEquals(CinefinTokens.OnSurfaceLight, paper.textColor)
+        assertEquals(ReaderInkLight, paper.textColor)
 
         val eyeCare =
             ReaderSettings(theme = ReaderTheme.EyeCare).toPreferenceSpec(systemDark = false)
@@ -43,7 +43,7 @@ class ReaderSettingsTest {
         val dark = ReaderSettings(theme = ReaderTheme.Dark).toPreferenceSpec(systemDark = false)
         assertTrue(dark.darkTheme)
         assertEquals(CinefinTokens.SurfaceDark, dark.backgroundColor)
-        assertEquals(CinefinTokens.OnSurfaceDark, dark.textColor)
+        assertEquals(ReaderInkDark, dark.textColor)
 
         val oled = ReaderSettings(theme = ReaderTheme.Oled).toPreferenceSpec(systemDark = false)
         assertTrue(oled.darkTheme)

@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 
@@ -35,7 +36,7 @@ fun BaseDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth().heightIn(max = 540.dp),
-            shape = MaterialTheme.shapes.large,
+            shape = CinefinShapes.Xl,
         ) {
             Column(modifier = Modifier.padding(top = MaterialTheme.spacings.default)) {
                 Text(

@@ -32,7 +32,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.models.CollectionType
 
 /**
- * 抽屉头部（Prism §8.6）：品牌 + 当前账号 / 服务器一行，服务器可点进服务器管理。
+ * 抽屉头部（设计规范 §8.6）：品牌 + 当前账号 / 服务器一行，服务器可点进服务器管理。
  *
  * 视觉保持"安静"：无卡片、无底色，只用字号与明度差建立层级；不再出现选中竖条 / 色点。
  */

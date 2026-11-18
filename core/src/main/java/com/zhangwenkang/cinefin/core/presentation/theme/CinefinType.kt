@@ -279,7 +279,7 @@ val CinefinTypography =
  * 旧「极光幕」排版（迁移前 `app:phone` 的 `Typography.kt` 原值）。
  *
  * W1 桥接：`app:phone` 的入口包装暂时把它交给 MaterialTheme，保证存量页面（145 处 `MaterialTheme.typography`
- * 引用）排版零回归；W3/W4 页面按 Prism 字阶改造后删除本桥接。
+ * 引用）排版零回归；W3/W4 页面按 App 主题字阶改造后删除本桥接。
  */
 val LegacyTypography =
     Typography(

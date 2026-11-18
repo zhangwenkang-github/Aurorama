@@ -167,7 +167,7 @@ internal data class MusicPrimaryToolbarVisibility(
 }
 
 /**
- * 音乐模式入口（W1 R2 最小闭环，W2 R2 扩到四维浏览 + 队列面板，W3 R3 接入 Prism）。
+ * 音乐模式入口（W1 R2 最小闭环，W2 R2 扩到四维浏览 + 队列面板，W3 R3 接入 App 主题）。
  *
  * 浏览：专辑 / 艺术家 / 歌曲 / 歌单四个分段（设计系统 §8.2），点歌以当前列表整份入队； 队列：底栏「队列」按钮打开面板，支持点歌跳转、长按拖拽排序、移除与「下一首播放」；
  * 通知栏与锁屏由播放会话服务承载（music → Media3 单 MediaSession）。

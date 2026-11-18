@@ -3,7 +3,7 @@ package com.zhangwenkang.cinefin.core.presentation.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * Cinefin Prism 原始 token（依据 `docs/UI_DESIGN_SYSTEM.md` v1.0 §2–§7）。
+ * Cinefin 基础色板 token（依据 `docs/UI_DESIGN_SYSTEM.md` v1.0 §2–§7；App 主题色板见 `CinefinThemes` 注册表）。
  *
  * 本文件与历史 `Color.kt` 是项目中仅有的两处允许出现 `Color(0x…)` 字面量的文件；业务与组件代码 一律通过 [CinefinColors]（经
  * `CinefinThemes` 注册表）、[MediaFilm] / [MediaMusic] / [MediaBook] 以及 [CinefinType] / [CinefinShapes]
@@ -21,7 +21,6 @@ object CinefinTokens {
     val SurfaceContainerLowestDark = Color(0xFF0E1217) // 派生
     val SurfaceContainerLowDark = Color(0xFF171D25) // 派生
     val SurfaceBrightDark = Color(0xFF323C4B) // 派生
-    val OnSurfaceDark = Color(0xFFF4F1EA)
     val OnSurfaceVariantDark = Color(0xFFA7B0BD)
     val OnSurfaceFaintDark = Color(0xFF6E7887)
     val OutlineDark = Color(0xFF2C3542)
@@ -38,7 +37,6 @@ object CinefinTokens {
     val SurfaceContainerLowestLight = Color(0xFFFFFFFF) // 派生
     val SurfaceContainerLowLight = Color(0xFFFAF8F4) // 派生
     val SurfaceBrightLight = Color(0xFFFFFFFF) // 派生
-    val OnSurfaceLight = Color(0xFF1B212B)
     val OnSurfaceVariantLight = Color(0xFF59616E)
     val OnSurfaceFaintLight = Color(0xFF8A9099) // 派生
     val OutlineLight = Color(0xFFD8D3C8)
