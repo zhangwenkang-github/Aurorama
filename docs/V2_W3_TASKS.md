@@ -109,5 +109,6 @@
 
 ### T5 旧 Prism 中性常量清理
 
-- **前置**：T4 完成、reader 对 `OnSurfaceLight` 引用收口后执行；light aurora3 调值须同步 `CinefinThemesTest`。
-- **验收**：`CinefinTokens` 无旧 Prism 残留引用；core 单测绿。
+- **前置已查清（2026-11-19）**：`CinefinTokens.OnSurfaceLight`/`OnSurfaceDark` 仅剩阅读域引用（`modes/book/.../ReaderSettings.kt` 3 处）+ `DesignTokenConsistencyTest` 钉值 + `ReaderSettingsTest` 断言。
+- **定稿（Kimi）**：阅读器正文文字色属阅读域 4 套子主题自管范畴——把 `#1B212B` / `#F4F1EA` 两值迁移为 `modes/book` 阅读域自有常量（如 `ReaderInkLight` / `ReaderInkDark`，命名以实现时阅读域现有命名风格为准），core `CinefinTokens` 删除这两个常量；`DesignTokenConsistencyTest` 对应钉值同步删除，`ReaderSettingsTest` 断言改指阅读域常量。同时顺手清理散落的「Prism」表述注释（`LumenSkeleton.kt`、`ReaderScreen.kt`、`NavigationRoot.kt` 皮肤开关注释等）：Prism 已退役，注释改述为「App 主题（Aurora 系）」语义；只改注释不改行为。
+- **验收**：core + book 模块单测绿；全仓 grep 无 `CinefinTokens.OnSurfaceLight/Dark` 残留；构建绿。
