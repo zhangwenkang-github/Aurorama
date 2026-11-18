@@ -32,8 +32,8 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟢 **W2 完成**（2026-11-18）：播放器架构重构（SessionOwner/ErrorPolicy/StartupStateMachine/ProgressWatchdog/PlaybackEngine 抽象，ADR-0009/0010）+ 1.4.1 三遗留根治 + 两条 master CI 失败修复 + app/tv 恢复编译，9/9 任务合入（HEAD `ce2febca`）；唯一遗留 = mpv 真机补验待 TLS 环境解锁；下一波 W3 导航与新 UI 骨架 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W2_TASKS.md` |
-| 播放器 | 🟢 W2 架构重构完成（单 owner/状态机/看门狗/引擎抽象落地）+ 1.4.1 三遗留根治；mpv 真机补验待 TLS 解锁 | `docs/V2_W2_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
+| 2.0.0 | 🟡 **W3 进行中**（2026-11-18）：W2 9/9 合入、遗留核查通过并已提交；W3 T0（导航调查 + NAV 决策定稿）完成，T1–T5 待派 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W3_TASKS.md` |
+| 播放器 | 🟡 W2 架构重构完成；mpv 健康慢加载/stale recovery 修复与真实 E1→E2 验证通过（待提交）；生产 HTTPS 间歇 `-0x7280`、seek 重试条目归属待后续最小修复 | `docs/V2_W3_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W3 导航与新 UI 骨架**（W2 已于 2026-11-18 收口：`docs/V2_W2_TASKS.md`，HEAD `edcf7a68`）：W3 交接卡已备 `docs/V2_W3_TASKS.md`（状态块 = W2 遗留核查清单 + 新会话开工提示词 + 任务草案）。W2 遗留：master Build CI 差 T6 cherry-pick（`ce2febca`，待授权）；mpv 真机补验待服务器 TLS 修复（ECDSA 单证书 vs mbedtls）；W1 遗留 9 条随 W3。
+1. **2.0.0 W3 导航与新 UI 骨架**：T0 完成（2026-11-18）——导航现状调查 + NAV-01~13 决策定稿 + 任务卡 T1–T5 定稿（`docs/V2_W3_TASKS.md`）；W2 遗留（mpv 过早 stop 修复 + retry harness）已随 T0 提交。下一入口：T1 导航动效与容器校准（派 deepseek）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
