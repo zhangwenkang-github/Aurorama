@@ -1,6 +1,6 @@
 # 2.0 W3 · 导航与新 UI 骨架（任务卡）
 
-> 状态：`IN_PROGRESS`（2026-11-18 T0 完成：现状调查 + NAV 决策定稿，任务卡定稿待派）
+> 状态：`DONE`（2026-11-19，T0–T5 全部验收合入）　分支：`codex/v2-integration`
 > 依据：`docs/V2_REQUIREMENTS.md` §10（V2-NAV）与 §15 波次（W3 ← W1）；设计唯一权威 `docs/V2_DESIGN.md`。
 > **执行约束**：设计决策（容器选型、动效参数、视觉样式）全部由 Kimi 定稿于本卡「W3 导航决策定稿」节；deepseek 子代理只按定稿执行，遇到定稿未覆盖的样式问题停下来报告，不自行发挥。
 
@@ -13,6 +13,7 @@
 - **T2 ✅（2026-11-19，commits `f58104d1` + `3a1388a3` + `61cf998b`，deepseek 执行 / Kimi 验收通过）**：三容器 K1 换肤——侧轨 bg1 实底 + 右缘 glassBorder 发丝线（禁实时 blur）；选中 = 16dp 圆角 pill（aurora1@12%，浅色 16%）+ glassBorder 描边 + aurora1 图文；底栏悬浮玻璃条（glass + 32dp 圆角 + 12/8dp 外缩）+ 选中图文 textPrimary + 20×3dp aurora 渐变指示条。浅色选中图文定稿 `#0A6B5A`（页面 6.17 / 侧轨 pill 5.16 / 抽屉 pill 4.82，全过 AA，`CinefinNavigationSelectionTest` 钉死）。门禁全绿；K60/Pad 双形态三主题像素取证命中。Kimi 裁决：底栏 12/8dp 外缩批准；AMOLED 玻璃微亮接受；底栏 textPrimary vs 侧轨 aurora1 非笔误；**侧轨底部用户芯片缓建**（列 W3 后续候选）。
 - **T3 ✅（2026-11-19，commit `0cf22094`，deepseek 执行 / Kimi 验收通过）**：82 个图标归一到 K1 标准（core 47 / settings 19 / modes 10 / player 6），零改名零 Kotlin 改动；三张定稿样张 md5 逐字节命中；`ic_speed_forward` 重建 24dp 栅格、`ic_unlock` 对齐锁体。例外 10 个均有理由（品牌/启动图标/通知/level-list/厂商标识）。门禁：core 454 + phone 529 单测 0 失败、ktfmt、构建全绿；K60 抽屉/设置/下载页取证通过。遗留小项：① `activity_player.xml` 36×24dp 已在 T4 顺带修复；② 8 个 core 图标用 `@android:color/white`（功能等价，可选清理）；③ `ic_minus_fat` 死资源保留。
 - **T4 ✅（2026-11-19，commit `f48c8262`，deepseek 执行 / Kimi 验收通过）**：形状 token 按定稿切换（Poster 14 / Card 20 / Button 16 / Glass 32 / Xl 28 保留，M3 五槽同步，`DesignTokenConsistencyTest` 钉新值）；46 文件迁移，`Sm/Md/Lg` 全仓归零；`activity_player.xml` 倍速图标 24dp 修复附带完成。门禁：core 455 + phone 529 单测 0 失败、ktfmt、构建全绿；K60（density 420=2.625px/dp）角点拟合实测底栏 31.8dp/海报 15.4dp/横版卡 20.5dp 命中，Pad 侧轨 pill 15.5dp 命中；三主题 0 FATAL。**Kimi 对存疑清单的裁决（随 T5 执行）**：① 播放键保持 `Xl`（56dp 即圆形，`LockedOverlay` 同尺寸改 `Xl` 保持键簇同形）；② 下拉菜单 `Card` 批准；③ 图标磁贴 `Xs(8)` 批准；④ `HomeHero` 平板/手机统一 `Card(20)`；⑤ 英雄骨架 `Card` 批准。**顺带修正**：`BaseDialog` 显式 `Xl`、`EpisodeCard.medium` 与 `HomeCarouselItem.large` 显式 `Card`（脱离 M3 槽位间接漂移）。**遗留**：9 处非 token 硬编码圆角（歌词覆盖层 22、MusicModeScreen 12 等）列页面级换肤后续批次。
+- **T5 ✅（2026-11-19，commit `3f80bfe6` + 注释修正 `fc9c723f`，deepseek 执行 / Kimi 验收通过）**：`CinefinTokens.OnSurfaceLight/Dark` 退役，墨色迁阅读域 `ReaderInkLight/Dark`（值不变）；Prism 注释 16 处清零；T4 五项裁决修正落地（LockedOverlay→Xl、HomeHero 统一 Card、BaseDialog→Xl、EpisodeCard/HomeCarouselItem 显式 Card）。门禁：core 455 + phone 529 + book 171 单测 0 失败、ktfmt、构建全绿；K60 阅读设置面板完整渲染、Hero 圆角拟合 19.62dp 命中 Card(20)、0 FATAL。注意：`DesignTokenConsistencyTest` 从未钉 Prism 钉值（任务卡前提在该分支不成立），无需删除。**W3 至此全部完成。**
 - **独立未覆盖项（不阻塞 W3）**：K60 / jellyfins 生产 HTTPS 间歇 `mbedtls -0x7280`（E1 可播、E2 握手失败）；`seekSink.retrySeek()` 条目归属另开最小修复。
 - **本次质量门（W2 遗留提交时已过）**：`player/local` 539 + `app/phone` 529 单测全绿，全仓 `ktfmtCheck` 与 `:app:phone:assembleDebug` 通过。
 - **环境备注**：全量构建带 `--max-workers=2`（16G 机器 OOM 前科）；构建前 `export JAVA_HOME='F:\Develop\Android\Android Studio\jbr'; export GRADLE_USER_HOME='F:\Develop\gradle-home'`；CI（Build/Unit Tests/Format）仅 master push 与 PR 触发；K60=`8e875894`、Pad=`43af8627`；jellyfins 只读。

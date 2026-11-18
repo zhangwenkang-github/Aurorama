@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W3 进行中**（2026-11-18）：W2 9/9 合入、遗留核查通过并已提交；W3 T0（导航调查 + NAV 决策定稿）完成，T1–T5 待派 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W3_TASKS.md` |
+| 2.0.0 | 🟢 **W3 完成**（2026-11-19）：T0–T5 全部合入（导航决策定稿 + 动效校准 + K1 三容器换肤 + 82 图标 + 形状 token + Prism 清理）；下一波 W4 视频域（← W2） | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W3_TASKS.md` |
 | 播放器 | 🟡 W2 架构重构完成；mpv 健康慢加载/stale recovery 修复与真实 E1→E2 验证通过（待提交）；生产 HTTPS 间歇 `-0x7280`、seek 重试条目归属待后续最小修复 | `docs/V2_W3_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W3 导航与新 UI 骨架**：T0–T4 完成（动效 `38a4a8ec`、K1 换肤 `f58104d1` 系、图标 82 个 `0cf22094`、形状 token `f48c8262`）；下一入口 T5 旧 Prism 常量清理 + T4 裁决顺带修正（定稿见 `docs/V2_W3_TASKS.md`），W3 收官在望。
+1. **2.0.0 W3 导航与新 UI 骨架 ✅ 完成**（2026-11-19）：T0–T5 全部验收合入（NAV-01~13 决策定稿、动效 120/200/160ms token 化、K1 三容器换肤、82 图标归一、形状 token Poster14/Card20/Button16/Glass32、Prism 清理）；遗留候选：侧轨用户芯片、9 处硬编码圆角、页面级换肤后续批次。下一波：W4 视频域（← W2）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
