@@ -2281,7 +2281,7 @@ class PlaybackSessionRulesTest {
     }
 
     @Test
-    fun `nonzero initial window publishes bootstrap append and target source sequence once`() {
+    fun `nonzero initial window loads target first then rebuilds playlist order`() {
         val first =
             mediaItemWithSubtitle(
                 mediaId = "item-zero",
@@ -2311,45 +2311,75 @@ class PlaybackSessionRulesTest {
         player.prepare()
 
         assertEquals(
-            "非零 initial window 必须先发布首个真实 loadfile: $commands",
-            1,
+            "mpv 的第一条 loadfile 必须直接指向目标条目: $commands",
+            listOf("loadfile", "https://media.example/window-two", "replace"),
+            commands.first(),
+        )
+        assertEquals(
+            "首集不得被拉流: $commands",
+            0,
             commands.count { it == loadFileCommand("https://media.example/window-zero") },
         )
         assertEquals(
-            "非零 initial window 必须 append 其余项: $commands",
-            1,
-            commands.count {
-                it == listOf("loadfile", "https://media.example/window-one", "append")
-            },
+            "目标之前的条目按序号插入，目标之后的条目按序追加: $commands",
+            listOf(
+                listOf("loadfile", "https://media.example/window-zero", "insert-at", "0"),
+                listOf("loadfile", "https://media.example/window-one", "insert-at", "1"),
+            ),
+            commands.filter { it.getOrNull(2) == "insert-at" },
         )
         assertEquals(
-            "非零 initial window 必须 append 目标项: $commands",
-            1,
-            commands.count {
-                it == listOf("loadfile", "https://media.example/window-two", "append")
-            },
-        )
-
-        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
-        callbacks.forEach(Runnable::run)
-        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
-        callbacks.forEach(Runnable::run)
-        assertEquals(
-            "bootstrap terminal 后目标 playlist index 必须恰好一次: $commands",
-            1,
-            commands.count { it == listOf("playlist-play-index", "2") },
+            "prepare 不得再用 playlist-play-index 跳条目: $commands",
+            0,
+            commands.count { it.firstOrNull() == "playlist-play-index" },
         )
 
         deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
         callbacks.forEach(Runnable::run)
         assertEquals("目标 source initial commands 必须恰好一次", 1, subtitleCommandCount(commands))
-        deliverSourceEvent(player, MpvEvent.MPV_EVENT_START_FILE)
+        // terminal 事件在 released 下投递：只走 source 归属收口，不触碰 native mpvLib。
+        setField(player, "released", true)
+        deliverSourceEvent(player, MpvEvent.MPV_EVENT_FILE_LOADED)
         callbacks.forEach(Runnable::run)
-        assertEquals("目标 source 额外 START 不得重复", 1, subtitleCommandCount(commands))
+        setField(player, "released", false)
+        assertEquals("目标 source 额外 FILE_LOADED 不得重复发布", 1, subtitleCommandCount(commands))
         assertEquals(
-            "目标 playlist-play-index 不得重复",
-            1,
-            commands.count { it == listOf("playlist-play-index", "2") },
+            "目标条目不得再被 playlist-play-index 重载",
+            0,
+            commands.count { it.firstOrNull() == "playlist-play-index" },
+        )
+    }
+
+    @Test
+    fun `retry prepare targets the current item instead of the session start`() {
+        val first = mediaItem("item-zero", "https://media.example/window-zero")
+        val second = mediaItem("item-one", "https://media.example/window-one")
+        val third = mediaItem("item-two", "https://media.example/window-two")
+        val player =
+            allocatedMpvPlayer(
+                sourceEpoch = 291L,
+                mediaItems = mutableListOf(),
+                currentIndex = 0,
+                sourcePosition = MpvSourcePositionState(sourceEpoch = 291L),
+            )
+        setField(player, "isPlayerReady", true)
+        val commands = captureCommands(player, includeSourceMarkers = true)
+        player.setMediaItems(mutableListOf(first, second, third), 0, 0L)
+        // 会话内跨集后 mpv 的 playlist-current-pos 会把 current index 推到第 3 集（initialIndex 仍是会话起点 0）。
+        setField(player, "currentMediaItemIndex", 2)
+        commands.clear()
+
+        player.prepare()
+
+        assertEquals(
+            "重试 prepare 的第一条 loadfile 必须是出错条目: $commands",
+            listOf("loadfile", "https://media.example/window-two", "replace"),
+            commands.first(),
+        )
+        assertEquals(
+            "会话起点条目不得被重新拉流: $commands",
+            0,
+            commands.count { it == loadFileCommand("https://media.example/window-zero") },
         )
     }
 

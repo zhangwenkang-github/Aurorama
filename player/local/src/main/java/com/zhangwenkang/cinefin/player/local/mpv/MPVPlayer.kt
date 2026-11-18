@@ -1891,39 +1891,54 @@ class MPVPlayer(
         return nextEpoch
     }
 
+    /**
+     * 准备播放：以当前条目为目标（会话起点即 [initialIndex]），保源路径只重发条目选择。
+     *
+     * 命令序列由 [MpvPrepareCommands] 拼接（纯函数、可单测），这里只负责执行。
+     *
+     * 第一条 loadfile 直接指向目标条目，会话起点与首集都不再被额外加载/缓冲。
+     *
+     * 保源路径语义不变：不碰 loadfile，只把 mpv 的当前条目重新指向 [currentMediaItemIndex]。
+     */
     override fun prepare() {
         if (preserveSourceOnPrepare) {
             preserveSourceOnPrepare = false
             if (preparePreservedSourceOnPrepare) {
                 postSourceStartCommand(
-                    arrayOf("playlist-play-index", "$currentMediaItemIndex"),
+                    MpvPrepareCommands.preserveSourceCommand(currentMediaItemIndex),
                     currentMediaItemIndex,
                 )
             }
             preparePreservedSourceOnPrepare = false
             return
         }
-        prepareMediaItem(initialIndex, postSelection = false)
-        val first = internalMediaItems.firstOrNull() ?: return
-        val followUps = internalMediaItems.drop(1).map { loadFileCommand(it, "append") }
-        if (initialIndex == 0) {
-            enqueueSourceStart(
-                command = loadFileCommand(first, "replace"),
-                sourceIndex = 0,
-                sourceUri = mediaUri(first).toString(),
-                followUpCommands = followUps,
+        val target = targetIndex()
+        prepareMediaItem(target, postSelection = false)
+        val commands =
+            MpvPrepareCommands.freshSessionCommands(
+                sourceUris = internalMediaItems.map { mediaUri(it).toString() },
+                targetIndex = target,
             )
-        } else {
-            enqueueSourceStart(
-                command = loadFileCommand(first, "replace"),
-                sourceIndex = 0,
-                sourceUri = mediaUri(first).toString(),
-                bootstrap = true,
-                followUpCommands = followUps,
-            )
-            postSourceStartCommand(arrayOf("playlist-play-index", "$initialIndex"), initialIndex)
-        }
+        val first = commands.firstOrNull() ?: return
+        enqueueSourceStart(
+            command = first,
+            sourceIndex = target,
+            sourceUri = null,
+            followUpCommands = commands.drop(1),
+        )
     }
+
+    /**
+     * prepare 的目标条目：会话起点取 [initialIndex]，会话内跨集后取 [currentMediaItemIndex]。
+     *
+     * 见 [MpvPrepareCommands.targetIndex] 的取舍说明。
+     */
+    private fun targetIndex(): Int =
+        MpvPrepareCommands.targetIndex(
+            itemCount = internalMediaItems.size,
+            currentIndex = currentMediaItemIndex,
+            initialIndex = initialIndex,
+        )
 
     override fun getPlaybackState(): Int = playbackState
 
@@ -2020,11 +2035,6 @@ class MPVPlayer(
             setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
         }
     }
-
-    private fun loadFileCommand(
-        mediaItem: MediaItem,
-        flags: String,
-    ): Array<String> = arrayOf("loadfile", mediaUri(mediaItem).toString(), flags)
 
     override fun getSeekBackIncrement(): Long = seekBackIncrement
 

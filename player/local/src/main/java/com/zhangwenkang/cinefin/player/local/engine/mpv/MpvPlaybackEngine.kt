@@ -27,12 +27,15 @@ internal class MpvPlaybackEngine(private val mpvPlayer: MPVPlayer) : Media3Playb
         get() = mpvPlayer
 
     /**
-     * 直接委托 [MPVPlayer.prepare]，怪癖原样保留。
+     * 直接委托 [MPVPlayer.prepare]。
      *
-     * 已知怪癖：mpv 的 prepare 在非保源路径下先用 `loadFileCommand(first, "replace")` 载 0 号条， 再用
-     * `playlist-play-index` 跳回当前条目（`MPVPlayer.kt:1894`），所以重试 / 引擎重建时首集会被真实重载。
+     * W2-T5-β 已根治 F2 怪癖：prepare 的第一条 loadfile 直接指向目标条目。
      *
-     * 该怪癖按约定在实现内部收口，归 T5（F2）处理；本步只做委托。
+     * 新会话路径按目标序号规划命令，0 号条不再被先加载一遍。
+     *
+     * 保源路径不碰 loadfile。
+     *
+     * 内核怪癖按约定仍在实现内部收口，接口面不出现「首条 / 重载」语义（ADR-0010）。
      */
     override fun prepare() = mpvPlayer.prepare()
 
