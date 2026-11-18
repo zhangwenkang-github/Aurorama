@@ -92,8 +92,8 @@
 
 - **现状盘点（2026-11-18 T0 实测）**：core `drawable/ic_*.xml` 共 86 个，其中 56 个未引用 `colorControlNormal`、78 个仍写死 `fillColor="#"`；settings 模块另有 19 个（`ic_closed_caption/download/music/play/speaker` 与 core 同名）。
 - **造型规范（Kimi 定稿，沿用 W1-T4 既定事实标准）**：24dp 视框；描边图标 `fillColor=#00000000` + `strokeColor=#FFFFFFFF` + `strokeWidth=2` + round cap/join；填充变体（`*_filled`）纯 `fillColor=#FFFFFFFF`；混合式（如仪表盘指针+中心点）描边主体 + 填充点缀；文件头保留「K1 图标体系」注释；根元素 `tint=?attr/colorControlNormal`。禁止新增写死 fillColor。
-- **三处几何微调方向（最终 path 值由 Kimi 出样张时给出）**：① `ic_settings` 齿轮齿宽不均→齿距/齿宽均匀化；② `ic_music_sleep` 月牙右下尖刺→内弧终点缩短 + 圆头收拢，消除零厚度 cusp；③ `ic_player_speed` 指针尖端被中心点覆盖→指针起点退到中心点圆外（保留指向关系）。
-- **前置**：Kimi 出 3–4 张代表样张（描边/填充/混合/微调各一）后派单；QA 语义（testTag/contentDescription）零变化。
+- **三处几何微调已定稿出样张（2026-11-18，Kimi，渲染对比验证通过）**：`docs/design/k1-aurora/icon-w3-samples/`（`ic_settings.xml` 8 齿均匀化 / `ic_music_sleep.xml` 内弧终点缩短消尖刺 / `ic_player_speed.xml` 指针退出中心点；before/after 见 `preview-fixes.png`）。T3 直接应用这三份文件内容，不得改动。
+- **前置**：样张已出 ✅；批量执行延续 W1-T4 事实标准；QA 语义（testTag/contentDescription）零变化。
 - **验收**：全量图标零 testTag/contentDescription 变化、零新增写死 fillColor；`aapt2`/渲染抽查；K60 抽屉 + 设置 + 下载页取证。
 
 ### T4 形状 token 切换 + 页面级换肤首批
