@@ -269,6 +269,23 @@ internal fun navSelectedFill(colors: CinefinColors): Color =
     colors.aurora1.copy(alpha = if (colors.surface.luminance() > 0.5f) 0.16f else 0.12f)
 
 /**
+ * 浅色主题的选中图文色（K1 修正值，2026-11-18）：`aurora1` 加深派生。
+ *
+ * `aurora1`（#0C9E82）在近白底上只有 3.2:1，浅色主题的选中 pill 里读不清；本值与 [navSelectedFill] 的浅色分支配套（对页面底 #FAFAFB
+ * 5.05:1）。
+ */
+internal val LightNavSelectedContent = Color(0xFF0A7A66)
+
+/**
+ * 选中图文色（K1）：深色主题（aurora / amoled / lumen）= `aurora1`，浅色主题 = [LightNavSelectedContent]。
+ *
+ * 判据与 [navSelectedFill] 完全一致（页面底 `surface` 的明度），保证三形态容器的选中 pill 与图文永远配套。公开给 app 侧
+ * 图标槽（`navIconTint`）复用，避免出现「文字换色、图标没换」的偏差。
+ */
+fun navSelectedContent(colors: CinefinColors): Color =
+    if (colors.surface.luminance() > 0.5f) LightNavSelectedContent else colors.aurora1
+
+/**
  * 底栏选中指示小条（K1 `auroraGradient`）：100° 线性 `au1→au2→au3`。
  *
  * 角度按 CSS `linear-gradient(100deg)` 的渐变线定义（0° 朝上、90° 朝右）：方向向量 `(sin θ, -cos θ)`，渐变线长度取 `|w·sin θ| +
@@ -411,7 +428,7 @@ internal fun navItemContainerColor(
         else -> Color.Transparent
     }
 
-/** 导航条目内容色（K1）：选中 `aurora1`（图标与文字同色），按压回 `OnSurface`，其余 `textSecondary`。 */
+/** 导航条目内容色（K1）：选中 [navSelectedContent]（图标与文字同色），按压回 `OnSurface`，其余 `textSecondary`。 */
 @Composable
 internal fun navItemContentColor(
     selected: Boolean,
@@ -419,7 +436,7 @@ internal fun navItemContentColor(
     colors: CinefinColors = LocalCinefinColors.current,
 ): Color =
     when {
-        selected -> colors.aurora1
+        selected -> navSelectedContent(colors)
         pressed -> colors.onSurface
         else -> colors.onSurfaceVariant
     }
