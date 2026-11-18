@@ -42,7 +42,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 ## 4. 当前焦点（2026-11-18）
 
 1. **2.0.0 W2 播放器架构重构**（W1 设计系统已于 2026-11-18 完成收口）：单 owner/状态机/引擎抽象（`docs/V2_ARCHITECTURE.md` §3）+ 1.4.1 三项遗留根治；任务卡待备。W1 遗留 9 条见 `docs/V2_W1_TASKS.md` 交接节（含 app/tv 既有编译失败、图标第二批、形状 token 随 W3 切换）。
-2. **主仓工作区卫生**（2026-11-18 核实）：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在），原"收尾挂起"记录作废；仅剩主仓（`F:\Develop\codex_work\project\Aurorama`）master 上一个未推送 docs 提交 `cd2acb75` + 未提交发布材料（`docs/RELEASE_NOTES_v1.4.0.md`、`images/release/*.png` 等），是否提交推送由用户拍板。
+2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
 
