@@ -49,7 +49,6 @@ import com.zhangwenkang.cinefin.presentation.theme.spacings
 import com.zhangwenkang.cinefin.ui.components.LoadingIndicator
 import com.zhangwenkang.cinefin.ui.components.PillBorderIndicator
 import com.zhangwenkang.cinefin.ui.components.ProfileButton
-import com.zhangwenkang.cinefin.viewmodels.MainViewModel
 import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemKind
 
@@ -60,7 +59,7 @@ fun MainScreen(
     navigateToMovie: (itemId: UUID) -> Unit,
     navigateToShow: (itemId: UUID) -> Unit,
     navigateToPlayer: (itemId: UUID, itemKind: BaseItemKind) -> Unit,
-    mainViewModel: MainViewModel = hiltViewModel(),
+    mainViewModel: TvMainViewModel = hiltViewModel(),
 ) {
     val delegatedUiState by mainViewModel.uiState.collectAsState()
 
@@ -85,7 +84,7 @@ enum class TabDestination(@param:DrawableRes val icon: Int, @param:StringRes val
 
 @Composable
 private fun MainScreenLayout(
-    uiState: MainViewModel.UiState,
+    uiState: TvMainViewModel.UiState,
     navigateToSettings: () -> Unit,
     navigateToLibrary: (libraryId: UUID, libraryName: String, libraryType: CollectionType) -> Unit,
     navigateToMovie: (itemId: UUID) -> Unit,
@@ -99,7 +98,7 @@ private fun MainScreenLayout(
 
     var user: User? = null
     when (uiState) {
-        is MainViewModel.UiState.Normal -> {
+        is TvMainViewModel.UiState.Normal -> {
             user = uiState.user
         }
         else -> Unit
@@ -206,7 +205,7 @@ private fun MainScreenLayout(
 private fun MainScreenLayoutPreview() {
     CinefinTheme {
         MainScreenLayout(
-            uiState = MainViewModel.UiState.Normal(server = dummyServer, user = dummyUser),
+            uiState = TvMainViewModel.UiState.Normal(server = dummyServer, user = dummyUser),
             navigateToSettings = {},
             navigateToLibrary = { _, _, _ -> },
             navigateToMovie = {},
