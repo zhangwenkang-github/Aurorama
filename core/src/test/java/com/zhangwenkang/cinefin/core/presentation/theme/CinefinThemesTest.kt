@@ -91,6 +91,41 @@ class CinefinThemesTest {
     }
 
     @Test
+    fun `themeSelectorIds only exposes dynamic from Android 12`() {
+        listOf(28, 29, 30).forEach { sdk ->
+            assertEquals(
+                listOf(CinefinThemes.AURORA, CinefinThemes.LIGHT, CinefinThemes.AMOLED),
+                themeSelectorIds(sdk),
+            )
+        }
+        listOf(31, 35).forEach { sdk ->
+            assertEquals(
+                listOf(
+                    CinefinThemes.AURORA,
+                    CinefinThemes.LIGHT,
+                    CinefinThemes.AMOLED,
+                    CinefinThemes.DYNAMIC,
+                ),
+                themeSelectorIds(sdk),
+            )
+        }
+    }
+
+    @Test
+    fun `resolveThemeSelectorSelection maps every stored branch`() {
+        assertEquals(CinefinThemes.AURORA, resolveThemeSelectorSelection("dark", false))
+        assertEquals(CinefinThemes.AURORA, resolveThemeSelectorSelection("system", false))
+        assertEquals(CinefinThemes.DYNAMIC, resolveThemeSelectorSelection("system", true))
+        assertEquals(CinefinThemes.AURORA, resolveThemeSelectorSelection("aurora", false))
+        assertEquals(CinefinThemes.LIGHT, resolveThemeSelectorSelection("light", false))
+        assertEquals(CinefinThemes.AMOLED, resolveThemeSelectorSelection("amoled", false))
+        assertEquals(CinefinThemes.DYNAMIC, resolveThemeSelectorSelection("dynamic", false))
+        assertEquals(CinefinThemes.AURORA, resolveThemeSelectorSelection(null, false))
+        assertEquals(CinefinThemes.AURORA, resolveThemeSelectorSelection(null, true))
+        assertEquals(CinefinThemes.AURORA, resolveThemeSelectorSelection("unknown", false))
+    }
+
+    @Test
     fun `registered palettes pin the K1 token values`() {
         val auroraDark = CinefinThemes.colorsFor(CinefinThemes.AURORA, dark = true)
         assertHex(0xFF080D17, auroraDark.surface, "aurora.dark surface")

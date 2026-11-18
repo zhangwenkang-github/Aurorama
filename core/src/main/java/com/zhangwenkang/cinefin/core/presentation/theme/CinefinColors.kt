@@ -257,6 +257,31 @@ fun migrateThemeId(stored: String?): String =
         else -> CinefinThemes.AURORA
     }
 
+/**
+ * 主题选择器展示的主题 id 列表（W1-T5）：极光 → 浅色 → AMOLED →（Android S+）动态取色。
+ *
+ * [CinefinThemes.DYNAMIC] 依赖系统动态取色 API（Android 12 / API 31），低版本不展示该行。
+ */
+fun themeSelectorIds(sdkInt: Int): List<String> = buildList {
+    add(CinefinThemes.AURORA)
+    add(CinefinThemes.LIGHT)
+    add(CinefinThemes.AMOLED)
+    if (sdkInt >= 31) add(CinefinThemes.DYNAMIC)
+}
+
+/**
+ * 主题选择器的选中态解析（W1-T5）：把存量偏好值映射到选择器里的一行。
+ *
+ * 「跟随系统明暗」（[CinefinThemes.SYSTEM]）没有独立卡片：动态取色开启时落 [CinefinThemes.DYNAMIC]，否则落
+ * [CinefinThemes.AURORA]。其余值按 [migrateThemeId] 迁移（旧 `dark` / 空值 / 未知值 → 极光）。
+ */
+fun resolveThemeSelectorSelection(stored: String?, dynamicColorsEnabled: Boolean): String =
+    when (val id = migrateThemeId(stored)) {
+        CinefinThemes.SYSTEM ->
+            if (dynamicColorsEnabled) CinefinThemes.DYNAMIC else CinefinThemes.AURORA
+        else -> id
+    }
+
 /** 主题内可用的语义色（由 [CinefinTheme] 提供，随主题与亮 / 暗切换）。 */
 val LocalCinefinColors = staticCompositionLocalOf {
     CinefinThemes.colorsFor(CinefinThemes.DEFAULT, dark = true)

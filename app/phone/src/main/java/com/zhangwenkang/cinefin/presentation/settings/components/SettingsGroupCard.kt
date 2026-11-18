@@ -35,6 +35,7 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceLongInput
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceMultiSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSwitch
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceThemeSelector
 import com.zhangwenkang.cinefin.settings.presentation.settings.SettingsAction
 
 /**
@@ -114,6 +115,19 @@ fun SettingsGroupCard(
                                         SettingsAction.OnUpdate(preference.copy(value = value))
                                     )
                                     preference.onUpdate(value)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        is PreferenceThemeSelector ->
+                            SettingsThemeSelectorCard(
+                                preference = preference,
+                                onSelect = { themeId ->
+                                    // 先写 pref_theme（模型回调），再发 OnUpdate 触发设置页重载，
+                                    // 保证选中标记和预览块立刻落到新主题。
+                                    preference.onSelect(themeId)
+                                    onAction(
+                                        SettingsAction.OnUpdate(preference.copy(value = themeId))
+                                    )
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )

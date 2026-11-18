@@ -31,6 +31,7 @@ import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceLongInput
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceMultiSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSelect
 import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceSwitch
+import com.zhangwenkang.cinefin.settings.presentation.models.PreferenceThemeSelector
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -1284,33 +1285,26 @@ constructor(
                                     PreferenceGroup(
                                         preferences =
                                             listOf(
-                                                PreferenceSelect(
+                                                // W1-T5：主题选择（四行预览卡）取代旧的「主题」单选 +「动态色彩」开关；
+                                                // R.array.theme / theme_values 自 T5 起不再被引用（保留供回溯）。
+                                                PreferenceThemeSelector(
                                                     nameStringResource = R.string.theme,
                                                     supportedDeviceTypes = listOf(DeviceType.PHONE),
                                                     backendPreference = appPreferences.theme,
-                                                    onUpdate = { value ->
+                                                    onSelect = { themeId ->
+                                                        // 写 pref_theme（T1 的 MainViewModel 监听它换主题），
+                                                        // 并发出夜间模式联动事件（aurora/amoled→YES，light→NO，其余→AUTO）。
+                                                        appPreferences.setValue(
+                                                            appPreferences.theme,
+                                                            themeId,
+                                                        )
                                                         viewModelScope.launch {
                                                             eventsChannel.send(
-                                                                SettingsEvent.UpdateTheme(
-                                                                    value ?: "system"
-                                                                )
+                                                                SettingsEvent.UpdateTheme(themeId)
                                                             )
                                                         }
                                                     },
-                                                    options = R.array.theme,
-                                                    optionValues = R.array.theme_values,
-                                                ),
-                                                PreferenceSwitch(
-                                                    nameStringResource = R.string.dynamic_colors,
-                                                    descriptionStringRes =
-                                                        R.string.dynamic_colors_summary,
-                                                    enabled =
-                                                        Build.VERSION.SDK_INT >=
-                                                            Build.VERSION_CODES.S,
-                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
-                                                    backendPreference =
-                                                        appPreferences.dynamicColors,
-                                                ),
+                                                )
                                             )
                                     )
                                 ),
@@ -1417,6 +1411,24 @@ constructor(
                                                             ?: appPreferences.getValue(
                                                                 preference.backendPreference
                                                             ),
+                                                )
+                                            }
+                                            is PreferenceThemeSelector -> {
+                                                // W1-T5：存量原值 + 遗留动态取色开关一起决定选中行。
+                                                preference.copy(
+                                                    enabled =
+                                                        preference.enabled &&
+                                                            preference.dependencies.all {
+                                                                appPreferences.getValue(it)
+                                                            },
+                                                    value =
+                                                        appPreferences.getValue(
+                                                            preference.backendPreference
+                                                        ),
+                                                    dynamicColorsEnabled =
+                                                        appPreferences.getValue(
+                                                            appPreferences.dynamicColors
+                                                        ),
                                                 )
                                             }
                                             is PreferenceDynamicSelect -> {

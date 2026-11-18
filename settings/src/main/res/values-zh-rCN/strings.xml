@@ -52,10 +52,14 @@
     <string name="dynamic_colors">动态色彩</string>
     <string name="dynamic_colors_summary">使用 Material You 动态颜色（仅适用于 Android 12+）</string>
     <string name="theme_aurora">极光（默认）</string>
+    <string name="theme_aurora_desc">深夜天幕 + 极光强调（默认）</string>
     <string name="theme_amoled">AMOLED 纯黑</string>
+    <string name="theme_amoled_desc">纯黑底，OLED 节电</string>
     <string name="theme_dynamic">跟随系统动态色</string>
+    <string name="theme_dynamic_desc">跟随壁纸取色（Material You）</string>
     <string name="theme_system">跟随系统</string>
     <string name="theme_light">浅色</string>
+    <string name="theme_light_desc">近白底 + 极光强调</string>
     <string name="theme_dark">深色</string>
     <string name="settings_category_network">网络</string>
     <string name="settings_request_timeout">请求超时</string>

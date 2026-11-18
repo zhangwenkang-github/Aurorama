@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- W1-T5：主题选择改走 PreferenceThemeSelector（四行预览卡），本数组与 theme_values 自 T5 起不再被代码引用，保留供回溯。 -->
     <string-array name="theme">
         <item>@string/theme_aurora</item>
         <item>@string/theme_light</item>

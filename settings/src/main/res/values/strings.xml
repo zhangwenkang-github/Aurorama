@@ -94,10 +94,14 @@
     <string name="offline_mode_summary">Only downloaded content while offline</string>
     <string name="theme">Theme</string>
     <string name="theme_aurora">Aurora (Default)</string>
+    <string name="theme_aurora_desc">Night sky with aurora accents (default)</string>
     <string name="theme_amoled">AMOLED Black</string>
+    <string name="theme_amoled_desc">True black for OLED</string>
     <string name="theme_dynamic">Dynamic (Material You)</string>
+    <string name="theme_dynamic_desc">Material You colors from wallpaper</string>
     <string name="theme_system">Follow system</string>
     <string name="theme_light">Light</string>
+    <string name="theme_light_desc">Near-white with aurora accents</string>
     <string name="theme_dark">Dark</string>
     <string name="dynamic_colors">Dynamic colors</string>
     <string name="dynamic_colors_summary">Use Material You Dynamic colors (only available on Android 12+)</string>
