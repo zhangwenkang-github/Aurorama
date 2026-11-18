@@ -35,32 +35,32 @@ class ErrorPolicyTest {
     }
 
     @Test
-    fun `起播源耗尽在已出画面时不发布错误`() {
+    fun `起播源耗尽在会话已出帧时不发布错误`() {
         val policy = policy()
 
-        val published = policy.onStartupSourceExhausted(fileLoaded = true)
+        val published = policy.onStartupSourceExhausted(sessionHadProgress = true)
 
         assertNull(published)
         assertNull(policy.current)
     }
 
     @Test
-    fun `起播源耗尽在已发布错误时不重复发布`() {
+    fun `起播源耗尽在已有错误时不重复发布`() {
         val policy = policy()
         policy.onStartupSourceFailed()
         val existing = policy.current
 
-        val published = policy.onStartupSourceExhausted(fileLoaded = false)
+        val published = policy.onStartupSourceExhausted(sessionHadProgress = false)
 
         assertNull(published)
         assertSame(existing, policy.current)
     }
 
     @Test
-    fun `起播源耗尽在未出画面且无错误时发布起播源错误`() {
+    fun `起播源耗尽在会话未出帧且无错误时发布起播源错误`() {
         val policy = policy()
 
-        val published = policy.onStartupSourceExhausted(fileLoaded = false)
+        val published = policy.onStartupSourceExhausted(sessionHadProgress = false)
 
         assertNotNull(published)
         assertEquals(PLAYER_ERROR_STARTUP_SOURCE_FAILED, published?.codeName)

@@ -714,11 +714,17 @@ constructor(
     /**
      * 进度恢复耗尽仍未出画面：没有错误卡片播放器会一直 BUFFERING，用户没有任何重试入口。
      *
+     * [sessionKey] 是耗尽所属的会话键；会话已翻页（换集 / 换源）时静默是对的，不发布。
+     *
      * 这里补发起播源错误，`retryPlayerError` 会按 `sessionOwner.lastSourceIntent` 重新解析源、换新的转码会话。
      */
-    private fun publishExhaustedStartupSourceFailure() {
-        // 已出画面或已有错误卡片时不重复发布；判定与短路都由 policy 负责。
-        if (errorPolicy.onStartupSourceExhausted(fileLoaded = _uiState.value.fileLoaded) == null) {
+    private fun publishExhaustedStartupSourceFailure(sessionKey: String?) {
+        // 上一集出画面留下的 fileLoaded 属于旧会话，不能拿来短路当前会话的耗尽。
+        val sessionHadProgress =
+            sessionOwner.playbackSessionState
+                .takeIf { it.key == sessionKey }
+                ?.lastEnginePositionMs != null
+        if (errorPolicy.onStartupSourceExhausted(sessionHadProgress) == null) {
             return
         }
         sessionOwner.failLastSourceIntent()
@@ -3278,12 +3284,15 @@ constructor(
         val active = activePlayer ?: return
         errorPolicy.clear()
         publishPlayerError()
+        // prepare() 可能把内核的条目上下文重置到 0 号条（mpv）；重试必须带上出错条目的序号。
+        // 序号在 prepare() 之前取：它描述的是报错时的那一集，不是 prepare 之后的。
+        val mediaItemIndex = active.currentMediaItemIndex
         active.prepare()
         if (position > 0L) {
             if (positionSource == PlaybackRetryPositionSource.USER_SEEK_TARGET_NEW_REQUEST) {
                 seekSink.requestSeek(position, "progress-recovery-user-target")
             } else {
-                active.seekTo(position)
+                active.seekTo(mediaItemIndex, position)
             }
         }
         active.play()
@@ -3869,8 +3878,12 @@ internal class ProgressRecoveryJobOwner(
     private val executeRetry:
         (PlayerProgressRecoveryRequest, PlayerViewModel.PlaybackRecovery) -> Unit,
     private val observeWindowMs: Long,
-    /** 重试预算真正耗尽（不是被取消 / 确认恢复）时回调，由持有方决定是否补发错误状态。 */
-    private val onExhausted: () -> Unit,
+    /**
+     * 重试预算真正耗尽（不是被取消 / 确认恢复）时回调，并交出本次恢复的会话键。
+     *
+     * 持有方按会话键判定归属：会话已翻页时不得把耗尽算到当前会话头上。
+     */
+    private val onExhausted: (sessionKey: String?) -> Unit,
     /** 下一轮重试请求；null = 本轮结束，再看 [recoveryExhausted]。 */
     private val nextAttempt: (PlayerProgressRecoveryRequest) -> PlayerProgressRecoveryRequest?,
     /** 重试预算是否已耗尽（恢复状态归看门狗，这里只问不写）。 */
@@ -3894,7 +3907,9 @@ internal class ProgressRecoveryJobOwner(
     ) {
         job?.cancel()
         terminal = recoveryTerminal
-        sessionKey = firstRequest.sessionKey
+        // 本轮恢复的会话键固定下来：耗尽回调按它归属，不能被下一轮 start() 覆盖。
+        val recoverySessionKey = firstRequest.sessionKey
+        sessionKey = recoverySessionKey
         job = scope.launch {
             var request: PlayerProgressRecoveryRequest? = firstRequest
             var expectedSeekBinding = currentSeekBinding()
@@ -3917,7 +3932,7 @@ internal class ProgressRecoveryJobOwner(
                 if (!isActive) return@launch
                 request = nextAttempt(currentRequest)
                 if (request == null && recoveryExhausted()) {
-                    onExhausted()
+                    onExhausted(recoverySessionKey)
                 }
             }
             if (terminal?.token == recoveryTerminal.token) {

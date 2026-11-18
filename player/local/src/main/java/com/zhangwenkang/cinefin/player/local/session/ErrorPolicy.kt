@@ -71,10 +71,14 @@ internal class ErrorPolicy(
     /**
      * 进度恢复耗尽仍未出画面：补发起播源错误，否则播放器会一直 BUFFERING、用户没有重试入口。
      *
-     * 已出画面或已有错误卡片时返回 null（不重复发布），调用方据此跳过后续动作。
+     * [sessionHadProgress] 指「耗尽所属的会话是否确认过引擎位置」，即该会话出过帧。
+     *
+     * 它不是全局的「已出过画面」：跨集冷载时上一集的出画面不能替当前会话作证。
+     *
+     * 会话已出帧或已有错误卡片时返回 null（不重复发布），调用方据此跳过后续动作。
      */
-    fun onStartupSourceExhausted(fileLoaded: Boolean): PlayerErrorInfo? {
-        if (fileLoaded) return null
+    fun onStartupSourceExhausted(sessionHadProgress: Boolean): PlayerErrorInfo? {
+        if (sessionHadProgress) return null
         if (current != null) return null
         return onStartupSourceFailed()
     }

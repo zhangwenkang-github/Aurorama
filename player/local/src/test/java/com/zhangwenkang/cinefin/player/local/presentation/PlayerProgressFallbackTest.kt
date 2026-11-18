@@ -956,7 +956,7 @@ class PlayerProgressFallbackTest {
                     seekSink.requestSeek(request.targetPositionMs, "progress-recovery")
                 },
                 observeWindowMs = 0L,
-                onExhausted = {},
+                onExhausted = { _ -> },
             )
 
         owner.start(oldRequest, oldTerminal)
@@ -1036,7 +1036,7 @@ class PlayerProgressFallbackTest {
                 requestIsCurrent = { _, _ -> true },
                 executeRetry = { _, _ -> },
                 observeWindowMs = 0L,
-                onExhausted = { exhaustedCallbacks += 1 },
+                onExhausted = { _ -> exhaustedCallbacks += 1 },
             )
 
         owner.start(first.copy(delayMs = 0L), recoveryTerminal())
@@ -1046,6 +1046,36 @@ class PlayerProgressFallbackTest {
         assertEquals(1, exhaustedCallbacks)
         assertFalse(owner.isActive)
         assertNull(owner.activeTerminal)
+    }
+
+    @Test
+    fun `progress recovery owner reports exhaustion with its own session key`() = runBlocking {
+        val controller = PlayerProgressRecoveryController()
+        val first = present(controller.begin(recoveryInput(sessionKey = "generation-b")))
+        val second = present(controller.nextAttempt(first))
+        controller.exhaust(second)
+        val exhaustedSessionKeys = mutableListOf<String?>()
+        val owner =
+            ProgressRecoveryJobOwner(
+                scope = this,
+                nextAttempt = controller::nextAttempt,
+                recoveryExhausted = {
+                    controller.status()?.phase == PlayerProgressRecoveryPhase.EXHAUSTED
+                },
+                releaseRecovery = { controller.cancel() },
+                currentSeekBinding = { null },
+                requestIsCurrent = { _, _ -> true },
+                executeRetry = { _, _ -> },
+                observeWindowMs = 0L,
+                onExhausted = { sessionKey -> exhaustedSessionKeys += sessionKey },
+            )
+
+        owner.start(first.copy(delayMs = 0L), recoveryTerminal())
+        yield()
+        delay(50L)
+
+        // 耗尽必须归属到发起恢复的那个会话，持有方据此判断「当前会话是否出过帧」。
+        assertEquals(listOf<String?>("generation-b"), exhaustedSessionKeys)
     }
 
     @Test
@@ -1066,7 +1096,7 @@ class PlayerProgressFallbackTest {
                 requestIsCurrent = { _, _ -> true },
                 executeRetry = { _, _ -> },
                 observeWindowMs = 0L,
-                onExhausted = { exhaustedCallbacks += 1 },
+                onExhausted = { _ -> exhaustedCallbacks += 1 },
             )
 
         owner.start(first.copy(delayMs = 0L), recoveryTerminal())
