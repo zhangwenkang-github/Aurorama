@@ -227,6 +227,24 @@ $env:JAVA_HOME='F:\Develop\Android\Android Studio\jbr'
 
 **1.3.0（W78–W83 + EXP19/EXP20，2026-10-18）检查状态**：版本号 `1.3.0 (4)` ✅（`Versions.kt`，versionCode 3 → 4，未跳号）；Release notes `docs/RELEASE_NOTES_v1.3.0.md` ✅；最终 master `813542f` 单次 release 构建成功（5m05s / 399 tasks）✅；双 APK `aapt2` / `apksigner` v2 + 指纹一致 ✅（哈希 / 体积见 §7）；Pad 5 / K60 覆盖安装后 `versionName=1.3.0` / `versionCode=4` / 非 `DEBUGGABLE` / `lastUpdateTime` 均核验 ✅；字幕主次分配与交换、PDF/CBZ 跨页共享缩放、音乐点击歌词 seek、播放/阅读基本链路、双机 0 FATAL / ANR ✅；代码合并 `ffd079c` 的 Build / Format / Unit Tests 三路 success；`813542f` docs-only 未触发 run，`86297cb` docs-only 触发 Format success（Build / Unit Tests 未运行）✅。**已发布：tag `v1.3.0`（`86297cb`）+ [GitHub Release](https://github.com/zhangwenkang-github/Aurorama/releases/tag/v1.3.0) + 双 APK；发布后下载资产复核通过。**
 
+**1.4.0（候选 `61c04a38`，Release notes 准备轮 2026-10-27）检查状态**
+
+| 检查项 | 状态 | 当前口径 |
+|---|---|---|
+| 版本 / 包名 / versionCode | PASS | `1.4.0 (5)`、`io.github.zhangwenkang.aurorama`，上一公开 `1.3.0 (4)` |
+| 同 SHA CI | PASS | Build `40496020875` / Unit Tests `40496020788` / Format `40496020742` 均 success |
+| release build | PASS | `assembleLibreRelease "-Paurorama.universalApk=true"` exit 0，399/399 executed |
+| 双包身份 / 签名 / 指纹 | PASS | 两包 v2=true、单签名者、证书 `e449c4aa…e155ff`；包名 / 版本 / ABI 均 MATCH |
+| Release notes | PASS（草案） | `docs/RELEASE_NOTES_v1.4.0.md` 本轮创建，顶部明确 DRAFT / 未发布 |
+| 当前候选与检查记录 | PASS（文档） | 本轮新增 `61c04a38` 双包、CI、证据与检查状态；两个 release-prep P2 关闭 |
+| README / LICENSE / PRIVACY / NOTICE | PASS（沿用前审） | 均存在，README 入口可解析；本轮未改内容 |
+| 发布截图 | PASS | 9/9 ACCEPT；最终独立视觉 QA `READY_FOR_ASSET_INTEGRATION`，P0/P1/P2=`0/0/0`、BLOCKED=0，保留 4 项非阻断 P3；证据 `F:\Develop\code_data\qa\w90-1.4.0-release-screenshot-visual-qa-final-20261027\report.md` |
+| release 包真实设备最终验收 | PASS_WITH_GAPS | 当前 universal / arm64 已分别在 Pad / K60 覆盖安装，设备 SHA / 登录 / 数据 / 核心链路 / 0 App FATAL·ANR 通过；系统安装确认与 1.3→1.4 跨版本升级仍 NOT_RUN |
+| tag / GitHub Release / post-release asset check | 未执行 | 无 `v1.4.0` tag / Release；未上传资产，未做发布后下载复核 |
+| 最终用户发布验收 | **FAIL** | 2026-10-27 用户实测失败：歌词跟随、离线音乐闪退 / 在线库卡、视频 / 音乐 / 书籍下载、通知状态同步、全选删除与无季视频层级均异常。Release 冻结，必须修复并重新独立 QA |
+
+> 1.4.0 当前分级：用户最终验收 **FAIL**，发现歌词 / 离线 / 下载核心链路回归；上一轮 `PASS_WITH_GAPS` 未覆盖真实下载、播放、更新、TalkBack 与异常矩阵，且最终 Release QA 明确未创建 / 删除真实下载。Release notes、截图与 CI 通过均不能抵消用户 FAIL；tag / Release / workflow / post-release check 保持未执行，必须完成根因修复、RED、独立 QA 与用户复验后再决定发布。
+
 ## 9. CI 发布（可选，后续）
 
 - `.github/workflows/publish.yaml` 原为上游 Findroid 的自动发布流程（`on: push: tags: v*`，依赖 `FINDROID_KEYSTORE` / Play API 凭据并调用 `fastlane publish`，会尝试发布 Google Play）。
