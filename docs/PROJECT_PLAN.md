@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W1 设计系统**（待用户审 W0 成果后开工）：主题引擎（`CinefinTheme(themeId)` + palette 注册表、打通 darkTheme/pref_theme、并入 Lumen）、Aurora/Light/AMOLED/Dynamic 四套 tokens、logo 定稿（先评既有三方向 `docs/design/v2-logo-redesign/`）、图标第一批。
+1. **2.0.0 W1 设计系统**（任务卡已备，随时开工）：`docs/V2_W1_TASKS.md` 五个任务（T1 主题引擎 → T2 四套 token → T3 logo B 资源 / T4 首批图标 / T5 主题选择器）。设计已用户验收：K1 Aurora Cinema（`docs/design/k1-aurora/`），logo 定稿 B「极幕之眼」（A 保留备选）。执行约束：设计零自主决策，全部按 `V2_DESIGN.md` §3 定稿值。
 2. v1.4.0 收尾仍挂起（tag v1.4.0 + Release + 用户终验，见 `docs/FIX_PLAN.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
