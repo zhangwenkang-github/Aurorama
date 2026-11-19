@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-19：**已交付六卡**：T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709`、T3a-1 `8f49e1ad`、T8c `788d25bf`（合态终验 ktfmt+单测+assembleDebug 全绿；T3a 设计定稿/T8c 设计定稿见下）；下一步派 **T3a-2**（上层迁移+原地切换+遮罩提示，规格已定稿）与 **T8d**（播放口适配+装配）；遗留 L3 主题跟随、L4 coroutines catalog）
+> 状态：`ACTIVE`（2026-11-19：**已交付八卡**：T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709`、T3a-1 `8f49e1ad`、T8c `788d25bf`、T3a-2 `f118f49c`、T8d `d4762f1f`（各波合态终验全绿；T3a-2 K60 位置误差 0ms/轨道保持/窗口不重建已取证）；下一步派 **T8e**（入口面板 + K60 实组双端验收，生产临时组已获用户授权）与 **T5**（手势复核）；遗留 L3 主题跟随、L4 coroutines catalog、L5 自动回退坏流复验）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -148,6 +148,16 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 - 门禁：`core`+`app:phone`+`modes:music` 单测（断言旧值的布局测试同步更新）+ `ktfmtCheck` + `assembleDebug --max-workers=2`。
 - K60 取证：起播→控制层弹簧出入（连点验证可中断）→暂停降亮暗角→拖拽吸附回弹→trickplay 上浮→面板 stagger→自动隐藏 4s（logcat 计时）→四主题切换无残留色；圆角量测允许 ≤2 张压缩截图（看完即删）。**取证完必须 media_session state=NONE + force-stop 兜底**。
 
+## T3a-2/T8d 交付遗留（2026-11-19 收口记录）
+
+- **T3a-2 结构**：快照采集=`PlayerViewModel.captureEngineSwitchSnapshot`；编排=`PlayerHolder.switchBackendInPlace`（`backendSwitchInProgress` 守卫 + rollback）；上层重绑=`PlayerViewModel.rebindAfterBackendSwitch`；宿主=`PlayerActivity.requestBackendSwitch`（四条手动/自动入口统一）。轨道映射=`EngineTrackMatcher.match()` 三级命中。MediaSession 走服务既有 `rebuildSessionIfPlayerChanged()`（换实例必重挂，未重启服务/Activity，KDoc 已写清）。
+- **T3a-2 真机教训（后续代理必读）**：mpv 的 vo 必须在 `prepare()` 前绑定 surface；`setMediaItems(..., startPositionMs)` 后**不要**再补 seek（mpv 会卡在 seek 中间态）；播放中 `uiautomator dump` 常返回旧内容，位置读数必须先暂停再 dump。
+- **L5（新立遗留）**：自动回退链（起播错误→自动切 mpv）已统一走原地切换管线但**无坏流片源无法真机复现**，四条入口代码路径已统一、档位语义保留；带坏流 fixture 的复验并入 T7 域验收。
+- **T3a-2 存疑（Kimi 已裁决）**：Exo 引擎层字幕映射会先按 isDefault 兜底选一条轨、随后 VM 路由恢复正确轨——最终状态正确，接受现状；Exo 字幕映射完全交路由层的优化不立项。
+- **T8d 结构**：`SyncPlaySessionCoordinator`（@Singleton 进程级）注入 `PlayerActivity`（非 ViewModel——直接 new VM 的测试会崩 + 避免循环依赖）；host=`PlayerHolderSyncPlayHost`（scope=`PlayerHolder.processScope`）；三路 WS 流各只收集一次；`notifyBackendRebound()` 监听位解耦 holder↔coordinator。映射文件落 `player/local/syncplay/`（data 看不到 player:core，data 零改动）。
+- **T8d 裁决（Kimi）**：断线重连「对齐」= 刷组快照+解决 Joining+组不存在收尾（GET 不返回位置 ticks，协议限制，位置由后续组命令纠正）——接受；**长按倍速在组内禁用**（与漂移追帧抢倍速）——批准，T8e 面板不显露。
+- **T8e 必读**：协调器 API（`createAndJoin/joinGroup/leaveGroup/state/activeGroup/connectionState/gate`）与实组验收五步骤在 T8d 交接里（含「创建组先 pause 再 createAndJoin」「协调器未包 playQueue，T8e 直接用 gateway 或补 `startGroupQueue()`」）；**组内换集（上/下一集、队列点选）未接闸门**——T8e 规格：入组期间这些入口拦截并提示「同步观看中，换集由组控制」（最小方案，不做 setPlaylistItem 接管）。
+
 ## T3a-1/T8c 交付遗留（2026-11-19 收口记录）
 
 - **T3a-1 裁决（Kimi）**：能力位只加 2 个（`supportsTrackEnumeration`/`supportsSubtitleDelay`）——`supportsAudioDelay`/`supportsSubtitleStyling` W2 已存在，批准不加同义字段。
@@ -229,6 +239,7 @@ fun setSubtitleStyle(style: SubtitleStyle)           // SubtitleStyle 已在 pla
 
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-19（七）：**T3a-2 ✅ `f118f49c`**（原地切换四入口统一，K60：位置误差 0ms、轨道保持、窗口不重建；mpv vo 预绑定/setMediaItems 后禁补 seek 两条真机教训入库）与 **T8d ✅ `d4762f1f`**（协调器 + 闸门 + seekSink 委托 + 断线恢复，33 例单测）串行交付。L5 立（坏流回退复验入 T7）。
 - 2026-11-19（六）：**T3a-1 ✅ `8f49e1ad`**（引擎 8 动词 + EngineTrack + 双内核实现，能力位 +2）与 **T8c ✅ `788d25bf`**（七态状态机 + deadline + 双内核三档漂移，29 例单测）并行交付；T3a/T8c 设计定稿入库；两项裁决（能力位 +2、PAUSE 晚到不补偿）批准。
 - 2026-11-19（五）：**T2 ✅ `c8a05dce`**（50ms 步进/语言分组标注/图形字幕非阻断提示，K60 取证：步进、seek 与引擎切换后偏移保持、分组与提示条上屏，已停播放）与 **T8b ✅ `ad8b2709`**（SyncClock，公式与 jellyfin-web 逐字对应，9+3 例测试全绿）并行交付；合态终验全绿。VIDEO-15 查无实现关闭；L4 立（coroutines 进 catalog）。
 - 2026-11-19（四）：**T1 ✅ `d2795184`**（deepseek，K1 玻璃换肤 + 弹簧动效 + 圆角清理 9 处 + 自动隐藏 4s；K60 取证：隐藏 4.29–4.32s、暂停降亮 ≈0.80 含边缘压暗、连点可中断无 ANR，已停播放）与 **T8a ✅ `1ef74954`**（deepseek，SyncPlay gateway 22 动词 + 探针三路径契约测试 20 例）并行交付，门禁全绿；T1 设计规格 Kimi 定稿入「T1 设计定稿」节；新立遗留 L3（播放页 themeId 跟随 aurora↔amoled），trickplay 复验并入 T4。
