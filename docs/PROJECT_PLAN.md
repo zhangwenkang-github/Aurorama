@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟢 **W4 视频域进行中**（2026-11-19）：T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709` 已交付；下一步派 T3a + T8c | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W4_TASKS.md` |
+| 2.0.0 | 🟢 **W4 视频域进行中**（2026-11-19）：已交付 T1/T2/T8a/T8b/T3a-1/T8c 六卡（最新 `8f49e1ad`/`788d25bf`）；下一步派 T3a-2（原地切换）+ T8d（装配） | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W4_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W4 视频域进行中**：已交付 T1（K1 换肤动效 `d2795184`）、T2（字幕域 `c8a05dce`）、T8a（SyncPlay gateway `1ef74954`）、T8b（SyncClock `ad8b2709`），门禁全绿、K60 取证通过、设备已停播放；T1 设计规格与 T2/T8b 交付遗留见 `V2_W4_TASKS.md`。下一步：派 T3a（引擎切换接口，需 Kimi 先定交互规格）与 T8c（SyncPlay 状态机，player/core 纯 JVM）。注意：jellyfin-test 与生产 jellyfins 同实例（12.4.0）；SyncPlay 实组验收是服务器会话写，用户已确认允许生产临时组测试。**设备用后必停播放**。
+1. **2.0.0 W4 视频域进行中**：已交付六卡 T1 `d2795184` / T2 `c8a05dce` / T8a `1ef74954` / T8b `ad8b2709` / T3a-1 `8f49e1ad` / T8c `788d25bf`，合态终验全绿；T3a/T8c 设计定稿与各卡交付遗留均在 `V2_W4_TASKS.md`。下一步：派 T3a-2（上层迁移 + 原地切换 + 遮罩提示，规格已定稿）与 T8d（播放口适配 + PlayerHolder 装配，T8a–T8c 消费口径已备）。注意：jellyfin-test 与生产 jellyfins 同实例（12.4.0）；SyncPlay 实组验收是服务器会话写，用户已确认允许生产临时组测试。**设备用后必停播放**。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）

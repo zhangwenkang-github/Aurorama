@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-19：**T1 ✅ `d2795184`、T8a ✅ `1ef74954`、T2 ✅ `c8a05dce`、T8b ✅ `ad8b2709`**（四卡两波并行交付，合态终验 ktfmt+四模块单测+assembleDebug 全绿；T2 K60 取证通过已停播放）；下一步派 T3a（引擎切换接口）与 T8c（SyncPlay 状态机）；遗留 L3 已立：播放页 themeId 跟随 aurora↔amoled 深色主题）
+> 状态：`ACTIVE`（2026-11-19：**已交付六卡**：T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709`、T3a-1 `8f49e1ad`、T8c `788d25bf`（合态终验 ktfmt+单测+assembleDebug 全绿；T3a 设计定稿/T8c 设计定稿见下）；下一步派 **T3a-2**（上层迁移+原地切换+遮罩提示，规格已定稿）与 **T8d**（播放口适配+装配）；遗留 L3 主题跟随、L4 coroutines catalog）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -148,6 +148,69 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 - 门禁：`core`+`app:phone`+`modes:music` 单测（断言旧值的布局测试同步更新）+ `ktfmtCheck` + `assembleDebug --max-workers=2`。
 - K60 取证：起播→控制层弹簧出入（连点验证可中断）→暂停降亮暗角→拖拽吸附回弹→trickplay 上浮→面板 stagger→自动隐藏 4s（logcat 计时）→四主题切换无残留色；圆角量测允许 ≤2 张压缩截图（看完即删）。**取证完必须 media_session state=NONE + force-stop 兜底**。
 
+## T3a-1/T8c 交付遗留（2026-11-19 收口记录）
+
+- **T3a-1 裁决（Kimi）**：能力位只加 2 个（`supportsTrackEnumeration`/`supportsSubtitleDelay`）——`supportsAudioDelay`/`supportsSubtitleStyling` W2 已存在，批准不加同义字段。
+- **T3a-1 事实（T3a-2 必读）**：`EngineTrack` 8 字段逐字按定稿；Exo 轨 id=`"group:track"`（轨道重建会漂移，**切换快照必须在同一会话内取**）；Exo `setSubtitleDelay/Style` 经 `ExoSubtitleHooks` 转发 `PlayerSubtitleController`（同一语义源，非平行套）；mpv `selectTrack(SUBTITLE,null)`=「sid=no」，恢复时勿传空串；Exo 直调 `selectTrack(SUBTITLE,id)` 会与 `applySubtitleRoutingParameters` 竞争——原地切换应走快照恢复后首次参数下发；`installExoSubtitleHooks(null)` 在 `onCleared` 无条件清空（单播放页无影响）。Exo 轨道枚举/选择与双内核延迟生效**未真机验**，并入 T3a-2 K60 验收。
+- **T8c 裁决（Kimi）**：PAUSE 晚到**不做** elapsed 补偿（组已冻结，期望位置=positionTicks）——公式语义正确，批准；`QueueChanged` 不进状态机（组队列编辑本波 DEFERRED），data 侧该事件 T8d 丢弃。
+- **T8c 事实（T8d 必读）**：必须双循环 `clock.run()` + `controller.run()`；T8a 的 `commands/groupUpdates` Flow 每次收集重订阅 WS，**只收集一次**；`SyncPlayDriftProfile.forBackend(engine.backendName)` 取档（切内核后需重建或改可变注入）；core 与 data 同名模型映射文件需 `import as`；`STOP`/踢出/`UserJoined` 等边界已处理；`onJoinRequested/onJoinFailed` 供装配层驱动 Joining 态。
+- **graphify**：T3a-1 代理未跑（边界），负责人已统一跑。
+
+## T8c 设计定稿（Kimi，2026-11-19，deepseek 零裁量）
+
+- **模块隔离**：`player/core` 不得依赖 `data`。T8c 在 `player/core/syncplay/` 自定义命令/组事件模型（字段与 T8a `SyncPlayCommand`/`SyncPlayGroupUpdate` 对齐：`whenAt`/`emittedAt`/`positionTicks`/命令类型），data→core 映射归 T8d 装配层。
+- **播放口**：T8c 定义 `SyncPlayPlaybackPort` 接口（最小集：`play/pause/seekTo(positionMs)/setRate(rate)` + 读侧 `currentPositionMs/isPlaying`；缓冲态读不到就省，T8d 实现时再议），单测全 fake。
+- **时钟**：消费 T8b `SyncPlayClock`（`nowServer()` 对比 `whenAt`；`state.isSynchronized` ⇔ `ClockWarming` 迁移）。
+- **漂移分档参数（写死）**：漂移 = 本地位置 − 组期望位置（`positionTicks + (nowServer − whenAt) × rate`）。Exo：|漂移|<60ms 忽略；60–400ms 变速追帧（领先 → 0.95x，落后 → 1.05x，回到 <30ms 恢复 1.0，滞回防抖）；>400ms 直接 seek。mpv：阈值放宽 150/600ms（R2），追帧倍率同。
+- **晚到命令**：到达时已过期（`nowServer > whenAt`）→ 按 `positionTicks + elapsed×rate` 直跳，不补播。
+- 状态机七态（NotInGroup/Joining/Idle/Armed/Playing/Paused/ClockWarming）迁移表在代码 KDoc 写全，单测逐条覆盖。
+
+## T3a 设计定稿（Kimi，2026-11-19，deepseek 零裁量）
+
+T3a 拆两步：**T3a-1** = 接口扩展 + 双内核实现（本波，纯 player 层）；**T3a-2** = 上层迁移 + 原地切换 + 遮罩/提示（下波，依赖 T3a-1）。依据 VIDEO-02/03/04/05/06/07/34。
+
+### 1. 接口扩展（T3a-1，`player/core/playback/`）
+
+新增模型（纯 Kotlin，无 Android 依赖）：
+
+```kotlin
+enum class EngineTrackType { VIDEO, AUDIO, SUBTITLE }
+data class EngineTrack(
+    val id: String,            // 内核内稳定 id（exo 用 group/renderer 索引编码，mpv 用 track id；格式是实现细节，调用方只当不透明 token）
+    val type: EngineTrackType,
+    val language: String?,     // BCP-47，未知为 null
+    val title: String?,
+    val codec: String?,        // 编码名小写（ass/pgsub/aac/h264…），供图形字幕判定与映射
+    val isExternal: Boolean,
+    val isDefault: Boolean,
+    val isForced: Boolean,
+)
+```
+
+`PlaybackEngine` 新增动词（主线程约定与既有一致）：
+
+```kotlin
+fun availableTracks(type: EngineTrackType): List<EngineTrack>
+fun selectedTrack(type: EngineTrackType): String?   // null = 该类型未启用（字幕常见）
+fun selectTrack(type: EngineTrackType, trackId: String?)  // trackId=null 仅字幕允许（=关闭）
+fun setSubtitleDelay(delayMs: Long)
+fun getSubtitleDelay(): Long
+fun setAudioDelay(delayMs: Long)
+fun getAudioDelay(): Long
+fun setSubtitleStyle(style: SubtitleStyle)           // SubtitleStyle 已在 player/core/domain/models，直接引用
+```
+
+约束：不改既有 7 个动词语义；Exo/mpv 双实现各自的怪癖收口在实现内部（mpv 的 `sub-delay`/`audio-delay` 属性、Exo 的 `TrackSelectionParameters`/`AudioDelayProcessor` 接线）；`EngineCapabilities` 增补能力位（轨道枚举/字幕延迟/音频延迟/样式 各一个布尔），不支持的内核返回空表/空操作而非抛异常。
+
+### 2. 原地切换交互规格（T3a-2 用，先定稿）
+
+- **共用管线**：手动切换（设置面板、T2 图形字幕提示条「切换内核」）与自动回退都走同一「原地切换」管线；`switchBackendAndRestart` 的 Activity recreate 路径降级为管线异常时的兜底（一次，记 Timber 警告）。
+- **非阻断提示**（VIDEO-04/34）：全程**无对话框**。切换开始即出提示条（样式复用 `PlaybackRecoveryBar`：玻璃底 `colors.glass` + `glassBorder` + `CinefinShapes.Xs`）：「正在切换到 mpv 内核…」；成功换「已切换」1.5s 自动消失；失败换「切换失败，已保持原内核」3s。
+- **淡入遮罩**（VIDEO-07/34）：切换开始画面叠 `scrim @ 90%`（`tween(Fast=200, Standard)` 淡入），遮罩上**无文案无 spinner**（状态全在提示条）；新内核 ready 后 `tween(Player=280, Standard)` 淡出。与控制层可见性解耦。
+- **状态快照**（切换前采集，切换后恢复）：position（`confirmedPosition` 口径，误差验收 <1s）、isPlaying、rate、字幕轨/音轨选择、字幕延迟、音频延迟、字幕样式、画面比例、循环模式。
+- **轨道映射表**（Exo↔mpv 重选轨，按序命中）：① 精确：language + codec + isExternal + title 全等；② 宽松：language + type + isExternal；③ 兜底：同类型 isDefault 轨；原类型未启用（字幕关闭）则保持关闭。映射不进持久化，仅切换瞬间使用。
+- **K60 验收**：jellyfin-test 上 Exo→mpv 与 mpv→Exo 原地切换位置误差 <1s、已选字幕/音轨保持、无 Activity 重开感（窗口不重建）；回退链（错误回退自动切 mpv）不回归。
+
 ## T2/T8b 交付遗留（2026-11-19 收口记录）
 
 - **T2 裁决（Kimi）**：「· 图形」标注仅用于真图形轨（PGS/VobSub 族），ASS/SSA 不标（文本格式，标「图形」误导）；但 mpv 提示条对 ASS/SSA/PGS 全触发。代理偏离任务卡括注，理由成立，批准。
@@ -166,6 +229,7 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-19（六）：**T3a-1 ✅ `8f49e1ad`**（引擎 8 动词 + EngineTrack + 双内核实现，能力位 +2）与 **T8c ✅ `788d25bf`**（七态状态机 + deadline + 双内核三档漂移，29 例单测）并行交付；T3a/T8c 设计定稿入库；两项裁决（能力位 +2、PAUSE 晚到不补偿）批准。
 - 2026-11-19（五）：**T2 ✅ `c8a05dce`**（50ms 步进/语言分组标注/图形字幕非阻断提示，K60 取证：步进、seek 与引擎切换后偏移保持、分组与提示条上屏，已停播放）与 **T8b ✅ `ad8b2709`**（SyncClock，公式与 jellyfin-web 逐字对应，9+3 例测试全绿）并行交付；合态终验全绿。VIDEO-15 查无实现关闭；L4 立（coroutines 进 catalog）。
 - 2026-11-19（四）：**T1 ✅ `d2795184`**（deepseek，K1 玻璃换肤 + 弹簧动效 + 圆角清理 9 处 + 自动隐藏 4s；K60 取证：隐藏 4.29–4.32s、暂停降亮 ≈0.80 含边缘压暗、连点可中断无 ANR，已停播放）与 **T8a ✅ `1ef74954`**（deepseek，SyncPlay gateway 22 动词 + 探针三路径契约测试 20 例）并行交付，门禁全绿；T1 设计规格 Kimi 定稿入「T1 设计定稿」节；新立遗留 L3（播放页 themeId 跟随 aurora↔amoled），trickplay 复验并入 T4。
 - 2026-11-19（三）：用户拍板 SyncPlay **go**（go-minimal 范围），立 T8a–T8e 实现卡；新增纪律「设备用后必停播放」（media_session state=NONE + force-stop 兜底，已入记忆库）；补回新会话开工提示词。
