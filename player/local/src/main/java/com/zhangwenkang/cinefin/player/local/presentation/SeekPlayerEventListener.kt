@@ -348,10 +348,30 @@ internal constructor(
         val retry = coordinator.state as? SeekState.Seeking ?: return
         val player = attachedPlayer ?: return failUnsupported()
         val item = player.currentMediaItem ?: return failUnsupported()
-        val identity = mediaIdentity(item) ?: return failUnsupported()
         clearPendingSeek()
         cancelTranscodeWork()
-        val targetSourceUri = mediaSourceUri(item)
+        /*
+         * 跨条目意图（换集 / 上下集）必须沿用失败请求的原目标条目与落点：失败后引擎可能仍停在
+         * 回退条目上（mpv prepare 失败回退上一集），若从 currentMediaItem 重建，重试会打成
+         * 对回退条目的 Absolute seek——目标条目和位置一起丢。仅跨条目意图走原目标；
+         * 条目内 Absolute/Relative 维持按当前条目重建（与 prepare 后语义一致）。
+         */
+        val crossItemIntent =
+            previousTarget?.intent?.takeIf {
+                it is PlayerViewModel.SeekIntent.MediaItem ||
+                    it is PlayerViewModel.SeekIntent.AdjacentMediaItem
+            }
+        val identity =
+            if (crossItemIntent != null) {
+                previousTarget!!.mediaIdentity
+            } else {
+                mediaIdentity(item) ?: return failUnsupported()
+            }
+        val targetSourceUri =
+            if (crossItemIntent != null) previousTarget!!.targetSourceUri else mediaSourceUri(item)
+        val mediaItemIndex =
+            if (crossItemIntent != null) previousTarget!!.mediaItemIndex
+            else player.currentMediaItemIndex
         val replacementTimedOut =
             failed?.reason == SeekFailureReason.TIMEOUT &&
                 previousTarget?.replacementSourceFingerprint != null &&
@@ -361,8 +381,8 @@ internal constructor(
         activeTarget =
             ActiveTarget(
                 requestGeneration = generation,
-                intent = PlayerViewModel.SeekIntent.Absolute(retry.targetMs),
-                mediaItemIndex = player.currentMediaItemIndex,
+                intent = crossItemIntent ?: PlayerViewModel.SeekIntent.Absolute(retry.targetMs),
+                mediaItemIndex = mediaItemIndex,
                 mediaIdentity = identity,
                 targetSourceUri = targetSourceUri,
                 transcodeRestartBudgetKey =

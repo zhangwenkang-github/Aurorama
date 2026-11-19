@@ -357,6 +357,50 @@ class PlaybackSeekSinkTest {
     }
 
     @Test
+    fun `cross item retry redispatches original target item after engine fallback`() {
+        var now = 4_000L
+        val firstItem = directItem("item-a", "source-a")
+        val secondItem = directItem("item-b", "source-b")
+        // 引擎仍停在 item-a（跨条目 seek 超时后回退上一集的现场）
+        val player = FakePlayer(mediaItem = firstItem, queuedItems = listOf(secondItem))
+        val sink =
+            PlaybackSeekSink(
+                scope = CoroutineScope(Dispatchers.Unconfined),
+                engineProvider = { SeekEngine.EXOPLAYER },
+                clock = { now },
+                mediaIdentityProvider = ::testIdentity,
+                mediaSourceUriProvider = ::testSourceUri,
+            )
+        sink.attach(player.player)
+
+        sink.submit(PlayerViewModel.SeekIntent.MediaItem(1, 45_000L))
+        assertTrue("unexpected state: ${sink.state}", sink.state is SeekState.Seeking)
+        assertTrue(player.calls.contains("seekToIndex"))
+        assertTrue(
+            sink.coordinator.failCurrent(
+                reason = SeekFailureReason.ENGINE_ERROR,
+                retryable = true,
+                nowElapsedMs = now,
+            )
+        )
+        val callsBeforeRetry = player.calls.size
+
+        sink.retrySeek()
+
+        assertTrue(
+            "expected retry to remain seeking, was ${sink.state}",
+            sink.state is SeekState.Seeking,
+        )
+        val retryCalls = player.calls.drop(callsBeforeRetry)
+        // 修复前：重试被重建为对回退条目（item-a）的 Absolute seek（"seekTo"），目标集丢失
+        assertEquals(
+            "seekToIndex",
+            retryCalls.firstOrNull { it == "seekTo" || it == "seekToIndex" },
+        )
+        assertFalse(retryCalls.contains("replaceMediaItem"))
+    }
+
+    @Test
     fun `failed replacement rebuild attempts count toward the restart budget`() {
         var now = 9_000L
         val originalUri = "https://media.example/video/master.m3u8?StartTimeTicks=0"
