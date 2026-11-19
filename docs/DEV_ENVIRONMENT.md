@@ -18,7 +18,7 @@
 
 ## 2. Jellyfin 测试服务器
 
-- 地址：`https://jellyfins.zhangwenkang.com`（Jellyfin 10.11.8）
+- 地址：`https://jellyfins.zhangwenkang.com`（Jellyfin **12.4.0**，2026-11-19 经 `/System/Info/Public` 复验；`jellyfin-test.zhangwenkang.com` 返回相同 server Id `0af95147…92ff22`，为同一实例的别名）
 - 凭据：存于本地共享文件与 `Cinefin/.env.local`（均已 gitignore，禁止提交）
 - 权限纪律：**只读 + 用户数据写白名单**（进度 / 收藏 / 播放列表）；禁止媒体库管理、扫描、删除
 

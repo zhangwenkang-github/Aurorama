@@ -1,12 +1,13 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-19：T0 调查完成、任务卡定稿；遗留 L1 已修，L2 复验进行中）
+> 状态：`ACTIVE`（2026-11-19：T0 调查 + T6 SyncPlay 评估完成、任务卡定稿；遗留 L1/L2 全部关闭；下一步 T1 待 Kimi 设计定稿后派 deepseek）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
 
 - 分支：`codex/v2-integration`；W4 开工基线 `651cd427`（W3 全部合入）。
-- **T0 ✅（2026-11-19，Kimi 亲自）**：§9 全 50 条现状核对完成，结论见下文「T0 现状核对」；SyncPlay 评估输入已齐（SDK 1.8.12 全套 API + 生产服 12.4.0），go/no-go 见 T6 卡。
+- **T0 ✅（2026-11-19，Kimi 亲自）**：§9 全 50 条现状核对完成，结论见下文「T0 现状核对」。
+- **T6 ✅（2026-11-19，deepseek 调研 + Kimi 复核）**：SyncPlay 评估输入完整——SDK 1.8.12 的 `SyncPlayApi`（22 REST 方法）+ `SocketApi.subscribeSyncPlayCommands` WS 扩展 + `TimeSyncApi.getUtcTime` 全部现成（时钟同步走 `GetUtcTime` 而非 `SyncPlay/Ping`——需求文档的"Ping"系误命名；8 窗最小 RTT、3 次 greedy→60s 与 jellyfin-web 逐字对应）。落点：状态机入 `player/core`（纯 JVM 可测）、SDK 适配入 `data`、装配挂 `PlayerHolder`；硬缺口：`PlaybackEngine` 无读侧（位置/时长/播放态），`PlayerHolder.currentEngine` 零调用方。工作量：全量 13–15 个一屏任务，最小闭环 6–7 个。**Kimi 建议 go-minimal（创建/加入 + 播放/暂停/seek 同步 + 时钟；组队列编辑/胶囊/深链/PiP 细分 DEFERRED），待用户拍板后立实现卡**。服务器前提：jellyfin-test 实测 12.4.0（≥10.9 满足），但它与生产 jellyfins 同实例（`/System/Info/Public` 同 server Id）——SyncPlay 实组测试需用户确认独立环境。
 - **遗留 L1 ✅（2026-11-19，Kimi 亲自，commit `ccdafefa`）**：`seekSink.retrySeek()` 跨条目意图重建 bug 已修——失败请求是 MediaItem/AdjacentMediaItem 时沿用原目标条目与落点，不再从回退后的引擎条目重建；新增回归测试（RED→GREEN 验证），门禁 player/local+phone 单测 + ktfmt + 构建全绿。
 - **遗留 L2 ✅（2026-11-19 复验通过）**：生产 `jellyfins` mpv TLS `-0x7280` 已随服务器侧修复消失。K60（新构建含 L1）mpv 内核直连生产 HTTPS 播放《告白实行委员会》（mkv/HEVC/FLAC 2.1GB）：无 mbedtls 错误，位置 6s→48s 实时推进，UI「正在播放」。排障插曲：Room 缓存的 accessToken 与 movie itemId 均已失效（401/源解析失败），App 线上会话不受影响；真机取证一律走 UI 驱动，勿用缓存 itemId 冷启 PlayerActivity。
 - **W3 遗留并入 W4**：9 处非 token 硬编码圆角（`PlayerContentTabItem` 10、`PlayerSubtitleOverlay` 6、`ErrorDialog` 28、`LyricsSheet` 8、`BaseBadge` 8、歌词覆盖层 22 等）随 T1 播放器 UI 换肤一并清理。
@@ -83,10 +84,11 @@
 | T3 | 引擎切换体验（拆 T3a/T3b）。T3a：`PlaybackEngine` 接口补轨道枚举/选择、字幕延迟、音频延迟、字幕样式动词 + 上层调用点迁移 + 原地切换（保留 position/播放态/倍速/轨道/延迟/样式 + 轨道映射表）+ 淡入遮罩 + 非阻断提示。T3b：能力探测（MediaCodec/HDR10/HDR10+/DV/mpv hwdec）+ mpv tone-mapping 选项（bt.2390 默认 / mobius / hable） | VIDEO-02/03/04/05/06/07/08/09/34 | jellyfin-test 上 Exo→mpv 原地切换位置误差 <1s、轨道保持；K60 取证无「重开播放器」感；T3b 探测结果落面板 |
 | T4 | trickplay 与 HDR 核查补缺：拖拽缩略图+时间戳+章节名核对；Exo HDR10/10+ 直通真机验证；mpv 补偿依赖 T3b | VIDEO-17/18 | K60 HDR 片源双内核取证（无 HDR 片源则用 jellyfin-test 转码流说明边界） |
 | T5 | 手势复核补缺：双击连击递增（10/20/30s）；方向锁改 8–10vp 显著位移仲裁；双指连续缩放+平移评估（保持档位切换还是升级，Kimi 定）；「越久越快」长按档评估；非全屏下滑退出核查 | VIDEO-20/23/24/25/26 + 19/21/22/27 回归 | 七类手势无冲突真机走查单；方向锁斜滑不跳变 |
-| T6 | SyncPlay go/no-go 评估（Kimi 亲自或 deepseek 纯调研卡）：基于 T0 输入产出技术方案与工作量估算；go 则另立实现卡（状态机 + 时钟同步 + 漂移校正 + 组队列） | VIDEO-36~46 | 评估报告含 SDK 适配面、WS 通道方案、风险与裁剪建议 |
+| T6 ✅ | SyncPlay go/no-go 评估（deepseek 纯调研，2026-11-19 完成）：SDK 适配面/时钟同步/落点/风险全部就绪；建议 go-minimal，待用户拍板后立实现卡 | VIDEO-36~46 | 报告结论已并入状态块 |
 | T7 | 本地媒体核查 + 域验收：SAF 外挂字幕同级推断核查；VIDEO-49/50 全量验收清单（双内核状态保留、图形字幕、字幕不漂移、SAF 失效/组不存在/版本过低非阻断提示） | VIDEO-47/48/49/50 | 验收清单逐项 K60 取证 |
 
 ## 日志（只留最近 ~5 条）
 
-- 2026-11-19：W4 开工。T0 调查完成（结论如上）；L1 retrySeek 修复 + 回归测试（门禁绿，待提交）；L2 TLS 复验进行中；任务卡定稿 T1–T7。
+- 2026-11-19（二）：L1 retrySeek 修复提交 `ccdafefa`；L2 TLS 复验通过（K60 mpv 生产播放健康）；T6 SyncPlay 调研完成（建议 go-minimal 待拍板）；顺手修正 `DEV_ENVIRONMENT.md` 服务器版本 10.11.8→12.4.0 并记录 jellyfin-test=生产同实例。
+- 2026-11-19：W4 开工。T0 调查完成（结论如上）；L1/L2 认领；任务卡定稿 T1–T7。
 - 2026-11-19：W3 收口后建卡（`69b9f87f`），含开工提示词与任务草案。

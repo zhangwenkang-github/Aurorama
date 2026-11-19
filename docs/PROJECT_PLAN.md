@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W4 视频域进行中**：T0 调查 + 任务卡 T1–T7 定稿（`docs/V2_W4_TASKS.md`）；两个独立遗留已清（retrySeek 修复 `ccdafefa`、生产 TLS `-0x7280` 复验通过）。下一步：派 deepseek 执行 T6（SyncPlay go/no-go 纯调研）→ T1（播放页 K1 换肤与动效，设计定稿先行）。
+1. **2.0.0 W4 视频域进行中**：T0 调查 + 任务卡 T1–T7 定稿（`docs/V2_W4_TASKS.md`）；两个独立遗留已清（retrySeek 修复 `ccdafefa`、生产 TLS `-0x7280` 复验通过）；T6 SyncPlay 调研完成（建议 go-minimal，**待用户拍板**）。下一步：Kimi 定稿 T1 播放页换肤设计规格后派 deepseek 实现。注意：jellyfin-test 与生产 jellyfins 同实例（12.4.0），"用 jellyfin-test 验证"实际打生产。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
