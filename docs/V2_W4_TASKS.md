@@ -1,18 +1,35 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-19：T0 调查 + T6 SyncPlay 评估完成、任务卡定稿；遗留 L1/L2 全部关闭；下一步 T1 待 Kimi 设计定稿后派 deepseek）
+> 状态：`ACTIVE`（2026-11-19：T0 调查 + T6 SyncPlay 评估完成、用户拍板 go-minimal、T8a–T8e 已立卡；遗留 L1/L2 全部关闭；下一步 T1 待 Kimi 设计定稿后派 deepseek，T8a 可并行）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
 
 - 分支：`codex/v2-integration`；W4 开工基线 `651cd427`（W3 全部合入）。
 - **T0 ✅（2026-11-19，Kimi 亲自）**：§9 全 50 条现状核对完成，结论见下文「T0 现状核对」。
-- **T6 ✅（2026-11-19，deepseek 调研 + Kimi 复核）**：SyncPlay 评估输入完整——SDK 1.8.12 的 `SyncPlayApi`（22 REST 方法）+ `SocketApi.subscribeSyncPlayCommands` WS 扩展 + `TimeSyncApi.getUtcTime` 全部现成（时钟同步走 `GetUtcTime` 而非 `SyncPlay/Ping`——需求文档的"Ping"系误命名；8 窗最小 RTT、3 次 greedy→60s 与 jellyfin-web 逐字对应）。落点：状态机入 `player/core`（纯 JVM 可测）、SDK 适配入 `data`、装配挂 `PlayerHolder`；硬缺口：`PlaybackEngine` 无读侧（位置/时长/播放态），`PlayerHolder.currentEngine` 零调用方。工作量：全量 13–15 个一屏任务，最小闭环 6–7 个。**Kimi 建议 go-minimal（创建/加入 + 播放/暂停/seek 同步 + 时钟；组队列编辑/胶囊/深链/PiP 细分 DEFERRED），待用户拍板后立实现卡**。服务器前提：jellyfin-test 实测 12.4.0（≥10.9 满足），但它与生产 jellyfins 同实例（`/System/Info/Public` 同 server Id）——SyncPlay 实组测试需用户确认独立环境。
+- **T6 ✅ → 用户拍板 go（2026-11-19，go-minimal 范围）**：SyncPlay 评估完成（SDK 1.8.12 的 `SyncPlayApi` 22 REST + `SocketApi.subscribeSyncPlayCommands` WS 扩展 + `TimeSyncApi.getUtcTime` 全部现成；时钟同步走 `GetUtcTime` 而非 `SyncPlay/Ping`——需求文档的"Ping"系误命名；8 窗最小 RTT、3 次 greedy→60s 与 jellyfin-web 逐字对应）。落点：状态机入 `player/core`（纯 JVM 可测）、SDK 适配入 `data`、装配挂 `PlayerHolder`；硬缺口：`PlaybackEngine` 无读侧（位置/时长/播放态），`PlayerHolder.currentEngine` 零调用方。**已立 T8a–T8e 实现卡**（gateway/时钟/状态机/播放口/入口面板）；组队列编辑、胶囊完整动效、深链、PiP 细分 DEFERRED。**⚠️ 验收环境红线**：jellyfin-test 与生产 jellyfins 同实例（12.4.0），创建 SyncPlay 组是服务器侧会话写——实组验收前需用户确认可用生产做临时组测试（组离开即销毁）或提供独立实例。
 - **遗留 L1 ✅（2026-11-19，Kimi 亲自，commit `ccdafefa`）**：`seekSink.retrySeek()` 跨条目意图重建 bug 已修——失败请求是 MediaItem/AdjacentMediaItem 时沿用原目标条目与落点，不再从回退后的引擎条目重建；新增回归测试（RED→GREEN 验证），门禁 player/local+phone 单测 + ktfmt + 构建全绿。
 - **遗留 L2 ✅（2026-11-19 复验通过）**：生产 `jellyfins` mpv TLS `-0x7280` 已随服务器侧修复消失。K60（新构建含 L1）mpv 内核直连生产 HTTPS 播放《告白实行委员会》（mkv/HEVC/FLAC 2.1GB）：无 mbedtls 错误，位置 6s→48s 实时推进，UI「正在播放」。排障插曲：Room 缓存的 accessToken 与 movie itemId 均已失效（401/源解析失败），App 线上会话不受影响；真机取证一律走 UI 驱动，勿用缓存 itemId 冷启 PlayerActivity。
 - **W3 遗留并入 W4**：9 处非 token 硬编码圆角（`PlayerContentTabItem` 10、`PlayerSubtitleOverlay` 6、`ErrorDialog` 28、`LyricsSheet` 8、`BaseBadge` 8、歌词覆盖层 22 等）随 T1 播放器 UI 换肤一并清理。
 - **本次质量门**：相关模块单测 + `ktfmtCheck` + `:app:phone:assembleDebug --max-workers=2` 绿；核心链路 K60（`8e875894`）真机验证，播放链路验证用 jellyfin-test（生产 jellyfins 永久只读，App 播放链路自身请求除外）。
-- **环境备注**：`export JAVA_HOME='F:\Develop\Android\Android Studio\jbr'; export GRADLE_USER_HOME='F:\Develop\gradle-home'`；K60 density 420 = 2.625 px/dp、Pad `43af8627` 360dpi = 2.25 px/dp；CI 仅 master push/PR 触发。
+- **环境备注**：`export JAVA_HOME='F:\Develop\Android\Android Studio\jbr'; export GRADLE_USER_HOME='F:\Develop\gradle-home'`；K60 density 420 = 2.625 px/dp、Pad `43af8627` 360dpi = 2.25 px/dp；CI 仅 master push/PR 触发。**设备用后必停播放**：取证完确认 media_session state=NONE，`am force-stop io.github.zhangwenkang.aurorama.debug` 兜底（用户 2026-11-19 指令）。
+
+## 新会话开工提示词（可直接粘贴）
+
+```
+继续 Aurorama 2.0.0 开发。你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
+工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
+开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W4_TASKS.md 状态块
+→ docs/V2_REQUIREMENTS.md §9 + docs/V2_ARCHITECTURE.md §3 + docs/V2_DESIGN.md → 记忆库 MEMORY.md。
+W4 状态：T0 现状核对、T6 SyncPlay 评估（已拍板 go-minimal）、L1/L2 两遗留均已完成；
+任务卡 T1–T5、T7、T8a–T8e 已定稿待派。
+本波任务：先由 Kimi 定稿 T1（播放页 K1 换肤与动效）设计规格（玻璃控制层参数/弹簧曲线/菜单动效），
+定稿后派 deepseek 执行 T1；T8a（SyncPlay gateway，data 模块）与 T1 不同模块可并行派出。
+设计决策由 Kimi 亲自定稿，deepseek 零设计权。
+纪律：每任务一个子代理一个 commit；门禁=相关模块单测+ktfmtCheck+构建（--max-workers=2）；
+核心链路 K60 真机验证；设备用后必须停播放（media_session state=NONE + force-stop 兜底）。
+红线：生产 jellyfins 只读；SyncPlay 实组验收是服务器会话写，需用户确认后才可在生产做。
+```
 
 ## T0 现状核对（2026-11-19，对照 §9 全 50 条）
 
@@ -84,11 +101,17 @@
 | T3 | 引擎切换体验（拆 T3a/T3b）。T3a：`PlaybackEngine` 接口补轨道枚举/选择、字幕延迟、音频延迟、字幕样式动词 + 上层调用点迁移 + 原地切换（保留 position/播放态/倍速/轨道/延迟/样式 + 轨道映射表）+ 淡入遮罩 + 非阻断提示。T3b：能力探测（MediaCodec/HDR10/HDR10+/DV/mpv hwdec）+ mpv tone-mapping 选项（bt.2390 默认 / mobius / hable） | VIDEO-02/03/04/05/06/07/08/09/34 | jellyfin-test 上 Exo→mpv 原地切换位置误差 <1s、轨道保持；K60 取证无「重开播放器」感；T3b 探测结果落面板 |
 | T4 | trickplay 与 HDR 核查补缺：拖拽缩略图+时间戳+章节名核对；Exo HDR10/10+ 直通真机验证；mpv 补偿依赖 T3b | VIDEO-17/18 | K60 HDR 片源双内核取证（无 HDR 片源则用 jellyfin-test 转码流说明边界） |
 | T5 | 手势复核补缺：双击连击递增（10/20/30s）；方向锁改 8–10vp 显著位移仲裁；双指连续缩放+平移评估（保持档位切换还是升级，Kimi 定）；「越久越快」长按档评估；非全屏下滑退出核查 | VIDEO-20/23/24/25/26 + 19/21/22/27 回归 | 七类手势无冲突真机走查单；方向锁斜滑不跳变 |
-| T6 ✅ | SyncPlay go/no-go 评估（deepseek 纯调研，2026-11-19 完成）：SDK 适配面/时钟同步/落点/风险全部就绪；建议 go-minimal，待用户拍板后立实现卡 | VIDEO-36~46 | 报告结论已并入状态块 |
+| T6 ✅ | SyncPlay go/no-go 评估（deepseek 纯调研，2026-11-19 完成；**用户同日拍板 go**，按 go-minimal 范围立 T8 系列实现卡） | VIDEO-36~46 | 报告结论并入状态块 |
+| T8a | SyncPlay gateway 骨架：`JellyfinApi` 暴露 `syncPlayApi`/`timeSyncApi`/`webSocket`（各一行扩展属性）；`data/syncplay/` 网关把 SDK 类型/异常翻成域事件（GroupUpdate/Command 流 + 22 个 REST 动词），含 204 空体与 GroupDoesNotExist/LibraryAccessDenied 映射；入组前探针（`syncPlayGetGroups`+`getUtcTime`），不支持则降级隐藏入口 | VIDEO-36/43/50 | data 模块单测；探针降级路径有契约测试 |
+| T8b | SyncClock：`GetUtcTime` 四时间戳采样（T1–T4、offset/delay 公式与 jellyfin-web TimeSync.js 一致）、8 窗最小 RTT、前 3 次 1s greedy 后 60s 低功耗、SDK DateTimeSerializer 的 systemDefault 时区换算用契约测试钉死 | VIDEO-38 | player/core 纯 JVM 单测（注入时钟），时区换算用例覆盖 |
+| T8c | SyncPlayController 状态机（`player/core`，纯 Kotlin）：NotInGroup/Joining/Idle/Armed/Playing/Paused/ClockWarming；When→本地时钟 deadline 调度；晚到命令按 `positionTicks + elapsed×rate` 直跳不补播；漂移校正分档（<60ms 忽略 / 60–400ms `setRate` 追帧 / >400ms 跳），mpv 内核阈值放宽到 150/600ms（R2） | VIDEO-37/39/40/41/43 | 纯 JVM 单测覆盖各迁移与三档漂移 |
+| T8d | 播放口适配与装配（`player/local`）：`SyncPlayPlaybackPort` 实现（读位置/时长/播放/缓冲态——`PlaybackEngine` 无读侧，port 直接读 media3Player）、seek 一律经 `seekSink.submit(..., "syncplay-command")` 复用确认逻辑、入组期间 `syncPlayOwnsTransport` 闸门（本地手势只发请求不写引擎）、挂 `PlayerHolder` 进程级 scope（WS 订阅计数随收集生命周期，断线先 `GetGroup` 拉快照再恢复） | VIDEO-37/42(最小)/44 | player/local 单测 + 契约测试；K60 双端（App + jellyfin-web 对照）走查 |
+| T8e | 入口与状态（`app/phone`）：播放页菜单加 SyncPlay 面板——未入组：创建/加入（组列表）；入组：组名、成员数、离开；VIDEO-32 最小态胶囊（已同步绿点/重连中提示；脉动与"已对齐"淡出 DEFERRED）；创建时自动暂停本地播放 | VIDEO-46/32(最小) | K60 真机：创建组→web 端加入→双端播/停/seek 同步取证 |
 | T7 | 本地媒体核查 + 域验收：SAF 外挂字幕同级推断核查；VIDEO-49/50 全量验收清单（双内核状态保留、图形字幕、字幕不漂移、SAF 失效/组不存在/版本过低非阻断提示） | VIDEO-47/48/49/50 | 验收清单逐项 K60 取证 |
 
 ## 日志（只留最近 ~5 条）
 
-- 2026-11-19（二）：L1 retrySeek 修复提交 `ccdafefa`；L2 TLS 复验通过（K60 mpv 生产播放健康）；T6 SyncPlay 调研完成（建议 go-minimal 待拍板）；顺手修正 `DEV_ENVIRONMENT.md` 服务器版本 10.11.8→12.4.0 并记录 jellyfin-test=生产同实例。
-- 2026-11-19：W4 开工。T0 调查完成（结论如上）；L1/L2 认领；任务卡定稿 T1–T7。
+- 2026-11-19（三）：用户拍板 SyncPlay **go**（go-minimal 范围），立 T8a–T8e 实现卡；新增纪律「设备用后必停播放」（media_session state=NONE + force-stop 兜底，已入记忆库）；补回新会话开工提示词。
+- 2026-11-19（二）：L1 retrySeek 修复提交 `ccdafefa`；L2 TLS 复验通过（K60 mpv 生产播放健康）；T6 SyncPlay 调研完成；顺手修正 `DEV_ENVIRONMENT.md` 服务器版本 10.11.8→12.4.0 并记录 jellyfin-test=生产同实例。
+- 2026-11-19：W4 开工。T0 调查完成；L1/L2 认领；任务卡定稿 T1–T7。
 - 2026-11-19：W3 收口后建卡（`69b9f87f`），含开工提示词与任务草案。

@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟢 **W4 视频域开工**（2026-11-19）：T0 现状核对完成、任务卡定稿 T1–T7（`docs/V2_W4_TASKS.md`）；W3 已全部合入（导航决策 + 动效校准 + K1 三容器换肤 + 82 图标 + 形状 token + Prism 清理） | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W4_TASKS.md` |
+| 2.0.0 | 🟢 **W4 视频域开工**（2026-11-19）：T0 现状核对完成、任务卡定稿 T1–T7 + T8a–T8e（SyncPlay 已拍板 go-minimal）；W3 已全部合入 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W4_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-18）
 
-1. **2.0.0 W4 视频域进行中**：T0 调查 + 任务卡 T1–T7 定稿（`docs/V2_W4_TASKS.md`）；两个独立遗留已清（retrySeek 修复 `ccdafefa`、生产 TLS `-0x7280` 复验通过）；T6 SyncPlay 调研完成（建议 go-minimal，**待用户拍板**）。下一步：Kimi 定稿 T1 播放页换肤设计规格后派 deepseek 实现。注意：jellyfin-test 与生产 jellyfins 同实例（12.4.0），"用 jellyfin-test 验证"实际打生产。
+1. **2.0.0 W4 视频域进行中**：T0 调查 + 任务卡定稿（`docs/V2_W4_TASKS.md`）；遗留 retrySeek 修复（`ccdafefa`）与 TLS `-0x7280` 复验通过均已关闭；T6 SyncPlay 用户已拍板 **go**（go-minimal），实现卡 T8a–T8e 已立。下一步：Kimi 定稿 T1 播放页换肤设计规格后派 deepseek；T8a（data 层 gateway）可并行。注意：jellyfin-test 与生产 jellyfins 同实例（12.4.0）；SyncPlay 实组验收是服务器会话写，需用户确认。**设备用后必停播放**（新纪律，2026-11-19）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
