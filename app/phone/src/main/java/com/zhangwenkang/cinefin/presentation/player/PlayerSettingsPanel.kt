@@ -717,8 +717,8 @@ internal fun PlayerDecodePanel(
                 label = stringResource(PlayerR.string.player_settings_backend_exoplayer),
                 caption = stringResource(PlayerR.string.player_controls_decode_kernel_caption),
                 selected = settings.backend == PlayerViewModel.PLAYER_BACKEND_EXOPLAYER,
-                // W19：偏好由 Activity 的 switchBackendAndRestart 写（必须先读续播位置、再写偏好，
-                // 否则 PlayerHolder 会立刻按新偏好重建空实例，位置读成 0、当前条目也取不到）
+                // W4-T3a-2：偏好由原地切换管线在**成功之后**写入（PlayerActivity.requestBackendSwitch →
+                // PlayerViewModel.switchBackendInPlace），面板只发意图，不直接改偏好
                 onClick = { onSelectBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER) },
             )
             PanelRow(

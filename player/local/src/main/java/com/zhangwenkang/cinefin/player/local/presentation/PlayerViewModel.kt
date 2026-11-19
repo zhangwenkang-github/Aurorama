@@ -37,6 +37,9 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
+import com.zhangwenkang.cinefin.player.core.playback.EngineTrack
+import com.zhangwenkang.cinefin.player.core.playback.EngineTrackType
+import com.zhangwenkang.cinefin.player.core.playback.PlaybackEngine
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.diag.PlaybackDiag
@@ -70,6 +73,8 @@ import com.zhangwenkang.cinefin.player.local.domain.seriesBackendKind
 import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldStopPlaybackServiceOnExit
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
+import com.zhangwenkang.cinefin.player.local.engine.EngineSwitchOutcome
+import com.zhangwenkang.cinefin.player.local.engine.EngineSwitchSnapshot
 import com.zhangwenkang.cinefin.player.local.engine.exo.ExoSubtitleHooks
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.session.ErrorPolicy
@@ -2147,8 +2152,8 @@ constructor(
             else -> {
                 /*
                  * 本地软解：mpv + hwdec=no（PlayerHolder 按回退档位强制软解）。
-                 * 这里**只写档位**，内核由 Activity 收到事件后显式 setBackend(mpv) + 重启播放页；
-                 * 提前写偏好会让 PlayerHolder 在原地把实例重建为 mpv，随后 toggle 又把它切回 Exo（W17 根因）。
+                 * 这里**只写档位**，内核由 Activity 收到事件后走原地切换管线（W4-T3a-2）；
+                 * 提前写偏好会让 PlayerHolder 在管线外按新偏好重建实例，位置与轨道全丢（W17 根因的同类问题）。
                  */
                 Timber.i(
                     "解码能力不足（backend=%s，%s），服务器转码不可用/已用尽，降级到本地软解（mpv hwdec=no）",
@@ -3360,19 +3365,149 @@ constructor(
         }
     }
 
-    fun switchBackend(): String {
+    /**
+     * 切换内核（设置面板 / 快捷键的唯一入口）：走 W4-T3a-2 的原地切换管线。
+     *
+     * 偏好由管线在**成功之后**写入（见 [switchBackendInPlace]），不再单独暴露写偏好的 setter—— 活动实例存在时改偏好会让 `PlayerHolder`
+     * 立刻按新偏好重建空实例。
+     */
+    suspend fun switchBackend(): BackendSwitchResult {
         val next =
             if (playerBackend == PLAYER_BACKEND_MPV) PLAYER_BACKEND_EXOPLAYER
             else PLAYER_BACKEND_MPV
-        appPreferences.setValue(appPreferences.playerBackend, next)
-        Timber.d("Player backend switched: $playerBackend -> $next")
-        return next
+        return switchBackendInPlace(next)
     }
 
-    // Persist an explicitly selected backend for restart and resume.
-    fun setBackend(backend: String) {
-        appPreferences.setValue(appPreferences.playerBackend, backend)
-        Timber.d("Player backend set to %s by settings panel", backend)
+    /**
+     * 原地切换内核（W4-T3a-2）：手动切换、字幕提示条、错误回退与进度停滞回退共用这一条管线。
+     *
+     * 快照在同一会话内、切换之前采集（T3a-1 坑位：Exo 轨道 id 随轨道重建漂移），引擎实例的替换与恢复交给 [PlayerHolder]； 本方法只负责「采集 → 调管线 →
+     * 成功后重绑监听与字幕路由 → 写偏好」。
+     *
+     * 偏好**在成功之后**才写：失败时偏好保持旧内核，重启兜底路径（recreate）才会拿回同一内核，提示条「已保持原内核」才成立。
+     *
+     * @param positionOverrideMs 回退链带进来的权威位置（如进度停滞 handoff）；null 时用 `confirmedPosition` 口径。
+     * @param onEngineInstalled 新实例刚装好、**尚未 prepare** 时回调；宿主用它先把画面输出换到新实例（mpv 必需）。
+     */
+    suspend fun switchBackendInPlace(
+        target: String,
+        positionOverrideMs: Long? = null,
+        onEngineInstalled: ((Player) -> Unit)? = null,
+    ): BackendSwitchResult {
+        if (target != PLAYER_BACKEND_EXOPLAYER && target != PLAYER_BACKEND_MPV) {
+            return BackendSwitchResult.Failure("unknown-backend", keptPreviousBackend = true)
+        }
+        if (!playerAccess.isOpen()) {
+            return BackendSwitchResult.Failure("player-closed", keptPreviousBackend = true)
+        }
+        val activePlayer =
+            playerAccess.existingPlayer()
+                ?: return BackendSwitchResult.Failure(
+                    "no-active-player",
+                    keptPreviousBackend = false,
+                )
+        if (playerBackend == target && playerHolder.currentEngine != null) {
+            return BackendSwitchResult.Success(target)
+        }
+
+        val snapshot = captureEngineSwitchSnapshot(activePlayer, positionOverrideMs)
+        Timber.i(
+            "原地切换内核：%s -> %s，位置 %d ms，播放态=%s，音轨=%s，字幕轨=%s",
+            playerBackend,
+            target,
+            snapshot.positionMs,
+            snapshot.isPlaying,
+            snapshot.audioTrack?.language ?: snapshot.audioTrack?.title,
+            snapshot.subtitleTrack?.language ?: snapshot.subtitleTrack?.title,
+        )
+        return when (
+            val outcome = playerHolder.switchBackendInPlace(target, snapshot, onEngineInstalled)
+        ) {
+            is EngineSwitchOutcome.Success -> {
+                appPreferences.setValue(appPreferences.playerBackend, target)
+                rebindAfterBackendSwitch(activePlayer)
+                Timber.i("原地切换内核成功：%s", target)
+                BackendSwitchResult.Success(target)
+            }
+            is EngineSwitchOutcome.Failure -> {
+                Timber.w(
+                    outcome.cause,
+                    "原地切换内核失败：%s（reason=%s rolledBack=%s）",
+                    target,
+                    outcome.reason,
+                    outcome.rolledBack,
+                )
+                if (outcome.rolledBack) rebindAfterBackendSwitch(activePlayer)
+                BackendSwitchResult.Failure(outcome.reason, outcome.rolledBack)
+            }
+        }
+    }
+
+    /** 切换前快照（设计定稿 §2 的八项）：位置 / 播放态 / 倍速 / 轨道 / 字幕延迟 / 音频延迟 / 字幕样式 / 比例 + 循环。 */
+    private fun captureEngineSwitchSnapshot(
+        activePlayer: Player,
+        positionOverrideMs: Long?,
+    ): EngineSwitchSnapshot {
+        val engine = playerHolder.currentEngine
+        val appearance = readSubtitleAppearance()
+        return EngineSwitchSnapshot(
+            positionMs =
+                positionOverrideMs?.takeIf { it > 0L }
+                    ?: confirmedPosition(activePlayer)
+                    // 刚切完内核、新实例还没 ready 时 `confirmedPosition` 读不到：退回会话采样的最后确认位置，
+                    // 否则会把 TIME_UNSET 传进新内核（位置直接丢失）
+                    ?: _uiState.value.playbackSession.lastConfirmedPositionMs
+                    ?: C.TIME_UNSET,
+            isPlaying =
+                activePlayer.playWhenReady && activePlayer.playbackState != Player.STATE_ENDED,
+            playbackRate = activePlayer.playbackParameters.speed,
+            repeatMode = activePlayer.repeatMode,
+            resizeMode = appPreferences.getValue(appPreferences.playerResizeMode),
+            subtitleDelayMs =
+                engine?.getSubtitleDelay() ?: subtitleController.overlayState.value.delayMs,
+            audioDelayMs =
+                engine?.getAudioDelay()
+                    ?: appPreferences.getValue(appPreferences.playerAudioDelayMs),
+            subtitleStyle = appearance.primary,
+            audioTrack = snapshotSelectedTrack(engine, EngineTrackType.AUDIO),
+            subtitleTrack = snapshotSelectedTrack(engine, EngineTrackType.SUBTITLE),
+            // 「关闭」语义只看自研管线：Exo 由 libass 接管时没有原生文字轨，不能当成用户关了字幕
+            subtitlesOff = subtitleController.overlayState.value.primaryIndex == null,
+        )
+    }
+
+    /** 把选中的轨道 id 还原成字段描述（id 只用来在同一会话内查表，不进快照的映射逻辑）。 */
+    private fun snapshotSelectedTrack(
+        engine: PlaybackEngine?,
+        type: EngineTrackType,
+    ): EngineTrack? {
+        val active = engine ?: return null
+        val selectedId = active.selectedTrack(type) ?: return null
+        return active.availableTracks(type).firstOrNull { it.id == selectedId }
+    }
+
+    /**
+     * 切换成功后把上层状态接到新实例：监听、字幕管线、面板投影。
+     *
+     * 轨道参数只在这个位置下发一次——`addListener` 会立即回放当前状态，`onTracksChanged` 里的路由就是「快照恢复后的首次参数下发」，
+     * 不在这里循环反复写（T3a-1 坑位：Exo `selectTrack(SUBTITLE)` 与 `applySubtitleRoutingParameters` 互相打架）。
+     */
+    private fun rebindAfterBackendSwitch(previousPlayer: Player) {
+        runCatching { previousPlayer.removeListener(this) }
+        val activePlayer = playerHolder.existingPlayer ?: return
+        // 字幕管线按**新内核**重建：Exo 走源清单渲染、mpv 走 native sid + 侧载 sub-add，两边源清单与注入时机不同。
+        activePlayer.currentMediaItem?.mediaId?.let { mediaId ->
+            applySubtitlePipelineForMedia(
+                mediaId,
+                pipelineSourcesFor(mediaId, currentPlaybackItem()),
+            )
+        }
+        activePlayer.addListener(this)
+        syncMpvSubtitleMode()
+        publishSubtitlePanelState()
+        publishAudioPanelState()
+        refreshUiStateFromPlayer()
+        refreshPlaybackSession()
     }
 
     // Apply a global subtitle mode without overwriting item-specific selection.

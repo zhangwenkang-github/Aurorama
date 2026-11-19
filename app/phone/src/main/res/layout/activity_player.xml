@@ -242,4 +242,16 @@
             android:layout_height="match_parent" />
 
     </com.zhangwenkang.cinefin.presentation.player.PlayerOverlayContainer>
+
+    <!--
+        引擎原地切换（W4-T3a-2）：淡入遮罩 + 非阻断提示条，永远压在控制层之上、与控制层可见性解耦。
+        空闲时 GONE：不留满屏 Compose 层盖住画面，也不参与触摸分发。
+    -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/backend_switch_compose"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false"
+        android:visibility="gone" />
 </FrameLayout>

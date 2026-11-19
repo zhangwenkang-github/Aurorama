@@ -62,7 +62,7 @@
     <string name="player_settings_repeat_entry">循环模式</string>
     <string name="player_settings_repeat_entry_caption">顺序播放 / 列表循环 / 单集循环 / 随机</string>
     <string name="player_settings_backend">播放内核</string>
-    <string name="player_settings_backend_caption">切换内核会重载播放页，进度保留</string>
+    <string name="player_settings_backend_caption">就地切换，保留播放进度与已选轨道</string>
     <string name="player_settings_backend_exoplayer">ExoPlayer</string>
     <string name="player_settings_backend_mpv">mpv</string>
     <string name="player_settings_mpv_hwdec">mpv 硬件解码</string>
@@ -177,6 +177,9 @@
     <string name="player_seek_timeout_title">定位超时</string>
     <string name="player_seek_failure_message">播放器未确认本次定位，请重试。</string>
     <string name="player_controls_error_switch_backend">改用 %1$s 内核</string>
+    <string name="player_backend_switch_switching">正在切换到 %1$s 内核…</string>
+    <string name="player_backend_switch_switched">已切换</string>
+    <string name="player_backend_switch_failed">切换失败，已保持原内核</string>
     <string name="player_subtitle_external">外挂</string>
     <string name="player_subtitle_embedded">内嵌</string>
     <string name="player_subtitle_graphic">图形字幕</string>
@@ -325,7 +328,7 @@
     <string name="player_controls_bitrate_caption">按所选码率请求服务器转码（对齐 Jellyfin 官方档位）</string>
     <string name="player_controls_bitrate_active">服务器转码</string>
     <string name="player_controls_decode_kernel">播放内核</string>
-    <string name="player_controls_decode_kernel_caption">切换内核会从当前位置重启播放</string>
+    <string name="player_controls_decode_kernel_caption">就地切换，保留播放进度与已选轨道</string>
     <string name="player_controls_decode_strategy">解码策略</string>
     <string name="player_controls_decode_hardware">硬解优先</string>
     <string name="player_controls_decode_hardware_caption">本地硬解，失败时先请求服务器转码，再回退本地软解</string>

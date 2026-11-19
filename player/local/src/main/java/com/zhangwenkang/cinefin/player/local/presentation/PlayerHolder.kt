@@ -1,11 +1,15 @@
 package com.zhangwenkang.cinefin.player.local.presentation
 
 import android.app.Application
+import android.os.SystemClock
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import com.zhangwenkang.cinefin.player.core.playback.EngineTrack
+import com.zhangwenkang.cinefin.player.core.playback.EngineTrackType
 import com.zhangwenkang.cinefin.player.core.playback.PlaybackEngine
 import com.zhangwenkang.cinefin.player.local.R
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
@@ -16,6 +20,9 @@ import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.isPlayingMusicItem
+import com.zhangwenkang.cinefin.player.local.engine.EngineSwitchOutcome
+import com.zhangwenkang.cinefin.player.local.engine.EngineSwitchSnapshot
+import com.zhangwenkang.cinefin.player.local.engine.EngineTrackMatcher
 import com.zhangwenkang.cinefin.player.local.engine.Media3PlaybackEngine
 import com.zhangwenkang.cinefin.player.local.engine.PlaybackEngineFactory
 import com.zhangwenkang.cinefin.player.local.engine.exo.ExoPlaybackEngine
@@ -26,10 +33,14 @@ import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 
 /**
@@ -56,10 +67,21 @@ constructor(
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
         const val BACKEND_EXOPLAYER = PlaybackEngine.BACKEND_EXOPLAYER
         const val BACKEND_MPV = PlaybackEngine.BACKEND_MPV
+
+        /** 原地切换后等新内核交出轨道列表的上限；超时只跳过轨道映射，不回滚。 */
+        private const val TRACKS_READY_TIMEOUT_MS = 8_000L
     }
 
     private var engine: Media3PlaybackEngine? = null
     private var instanceBackend: String? = null
+
+    /**
+     * 原地切换内核进行中（W4-T3a-2）。
+     *
+     * 切换期间偏好 / 实例会短暂不一致：`player` getter 若照常按偏好比对，会在管线中途把**旧实例**当成过期实例重建， 位置与轨道全丢。窗口内一律返回当前实例，由
+     * [switchBackendInPlace] 独占实例的替换。
+     */
+    private var backendSwitchInProgress: Boolean = false
 
     /**
      * Exo 字幕延迟 / 样式的出口（W4-T3a-1）。
@@ -161,6 +183,16 @@ constructor(
             if (musicSessionActive) {
                 return audioSession()
             }
+            // 原地切换窗口：实例正由 switchBackendInPlace 独占替换，这里不能再按偏好比对重建。
+            if (backendSwitchInProgress) {
+                engine?.let {
+                    return it.media3Player
+                }
+                return install(
+                    appPreferences.getValue(appPreferences.playerBackend),
+                    create(appPreferences.getValue(appPreferences.playerBackend)),
+                )
+            }
             val wanted = appPreferences.getValue(appPreferences.playerBackend)
             val existing = engine
             if (existing != null && instanceBackend == wanted) return existing.media3Player
@@ -171,6 +203,189 @@ constructor(
             }
             return install(wanted, create(wanted))
         }
+
+    /**
+     * 原地切换内核（W4-T3a-2）：不 recreate 播放页、不打断会话。
+     *
+     * 时序（设计定稿 §2）：
+     * 1. 复制旧实例的队列与当前条目序号，新建目标内核实例并 install（seek sink / 字幕钩子随之换绑）；
+     * 2. `setMediaItems(items, index, snapshot.positionMs)` → `prepare()` → 等轨道就绪（超时只告警）；
+     * 3. seek 快照位置 → 倍速 / 字幕延迟 / 音频延迟 / 字幕样式 / 循环模式 / 画面比例；
+     * 4. 轨道映射表重选音轨与字幕轨（[EngineTrackMatcher] 三级命中；原字幕关闭保持关闭）；
+     * 5. 释放旧实例。
+     *
+     * 通知 / 锁屏的 `MediaSession` 包的是「实例 + seek 门面」这一对，换实例后由宿主沿用服务既有的 「实例不一致就重建会话」路径重新对齐（见
+     * `CinefinPlaybackService.rebuildSessionIfPlayerChanged`）， 不重启服务、不重建播放页。
+     *
+     * 任何一步抛异常都回滚到旧实例（`rolledBack = true`），由调用方决定是否走重启兜底。 切换期间 [player] 不再按偏好重建实例。
+     *
+     * 主线程调用（与 media3 约定一致）；挂起等轨道就绪，不阻塞主线程。
+     */
+    internal suspend fun switchBackendInPlace(
+        target: String,
+        snapshot: EngineSwitchSnapshot,
+        onEngineInstalled: ((Player) -> Unit)? = null,
+    ): EngineSwitchOutcome {
+        if (target != BACKEND_EXOPLAYER && target != BACKEND_MPV) {
+            return EngineSwitchOutcome.Failure("unknown-backend", rolledBack = true)
+        }
+        if (musicSessionActive) {
+            // 音乐会话固定 ExoPlayer（MU-4）：这里换实例会把正在播放的音乐换掉。
+            return EngineSwitchOutcome.Failure("music-session", rolledBack = true)
+        }
+        val previous = engine ?: return EngineSwitchOutcome.Failure("no-engine", rolledBack = false)
+        if (instanceBackend == target) return EngineSwitchOutcome.Success(target)
+
+        val previousBackend = instanceBackend
+        val previousPlayer = previous.media3Player
+        val mediaItems =
+            (0 until previousPlayer.mediaItemCount).map { previousPlayer.getMediaItemAt(it) }
+        if (mediaItems.isEmpty()) {
+            return EngineSwitchOutcome.Failure("empty-queue", rolledBack = true)
+        }
+        val startIndex = previousPlayer.currentMediaItemIndex.coerceIn(0, mediaItems.lastIndex)
+
+        backendSwitchInProgress = true
+        val switchStartedAtMs = SystemClock.elapsedRealtime()
+        var replacement: Media3PlaybackEngine? = null
+        try {
+            val created = create(target)
+            replacement = created
+            install(target, created)
+            val newPlayer = created.media3Player
+            // 宿主先把画面输出（PlayerView / TextureView）换到新实例，**再** prepare：
+            // mpv 的 vo 在 load 时就绑定输出，晚挂 surface 会卡在 aimagereader 等帧超时（K60 实测）。
+            onEngineInstalled?.invoke(newPlayer)
+            // 位置未知时按 0 起点载入（不能把 TIME_UNSET 传给内核）
+            newPlayer.setMediaItems(
+                mediaItems.toMutableList(),
+                startIndex,
+                snapshot.positionMs.coerceAtLeast(0L),
+            )
+            // 旧实例不再出声：双实例并行时会双声轨。
+            previousPlayer.playWhenReady = false
+            created.prepare()
+            awaitTracksReady(newPlayer)
+            restoreSnapshot(created, snapshot)
+            runCatching { previous.release() }
+                .onFailure { Timber.w(it, "旧内核实例释放失败（已切到 %s）", target) }
+            Timber.i(
+                "原地切换内核完成：%s -> %s，条目 %d/%d，快照位置 %d ms，切换后位置 %d ms，耗时 %d ms",
+                previousBackend,
+                target,
+                startIndex,
+                mediaItems.size,
+                snapshot.positionMs,
+                newPlayer.currentPosition,
+                SystemClock.elapsedRealtime() - switchStartedAtMs,
+            )
+            return EngineSwitchOutcome.Success(target)
+        } catch (cancellation: CancellationException) {
+            rollback(previous, previousBackend, replacement, snapshot.isPlaying)
+            throw cancellation
+        } catch (error: Throwable) {
+            Timber.w(error, "原地切换内核失败：%s -> %s，回滚旧实例", previousBackend, target)
+            rollback(previous, previousBackend, replacement, snapshot.isPlaying)
+            return EngineSwitchOutcome.Failure("pipeline-error", rolledBack = true, cause = error)
+        } finally {
+            backendSwitchInProgress = false
+        }
+    }
+
+    /** 回滚：释放没接管成功的新实例，把旧实例重新放回唯一实例位（播放意图按快照还原）。 */
+    private fun rollback(
+        previous: Media3PlaybackEngine,
+        previousBackend: String?,
+        replacement: Media3PlaybackEngine?,
+        wasPlaying: Boolean,
+    ) {
+        if (replacement != null && replacement !== previous) {
+            runCatching { replacement.release() }
+        }
+        engine = previous
+        instanceBackend = previousBackend
+        (previous as? ExoPlaybackEngine)?.subtitleHooks = exoSubtitleHooks
+        seekSink.attach(previous.media3Player)
+        runCatching { previous.media3Player.playWhenReady = wasPlaying }
+    }
+
+    /**
+     * 等新内核把轨道交上来（Exo 要等 media source prepare，mpv 要等 `track-list` 事件）。
+     *
+     * 超时不视为失败：轨道映射会退化为「沿用新内核的选择」，播放位置与播放态照常恢复。
+     */
+    private suspend fun awaitTracksReady(player: Player) {
+        if (player.currentTracks.groups.isNotEmpty()) return
+        val ready =
+            withTimeoutOrNull(TRACKS_READY_TIMEOUT_MS) {
+                suspendCancellableCoroutine { continuation ->
+                    val listener =
+                        object : Player.Listener {
+                            override fun onTracksChanged(tracks: Tracks) {
+                                if (tracks.groups.isEmpty() || !continuation.isActive) return
+                                player.removeListener(this)
+                                continuation.resume(Unit)
+                            }
+                        }
+                    player.addListener(listener)
+                    continuation.invokeOnCancellation { player.removeListener(listener) }
+                    // addListener 的回放既可能是同步的，也可能被内核吞掉：补一次现读。
+                    if (player.currentTracks.groups.isNotEmpty()) {
+                        player.removeListener(listener)
+                        if (continuation.isActive) continuation.resume(Unit)
+                    }
+                }
+            }
+        if (ready == null) {
+            Timber.w("切换内核后 %d ms 内没等到轨道，轨道映射跳过", TRACKS_READY_TIMEOUT_MS)
+        }
+    }
+
+    /**
+     * 恢复顺序按设计定稿：定位 → 倍速 / 延迟 / 样式 → 轨道 → 播放态。
+     *
+     * 定位**只靠** `setMediaItems(..., startPositionMs)`：两个内核都在 load 时按起点位置落点。 额外再发一次 seek 会让 mpv
+     * 的位置跟踪进入「已发起 seek、未收到 restart」的中间态（`getCurrentPosition` 变未知、进度条冻住，K60 实测）。
+     */
+    private fun restoreSnapshot(engine: Media3PlaybackEngine, snapshot: EngineSwitchSnapshot) {
+        engine.setRate(snapshot.playbackRate)
+        engine.setSubtitleDelay(snapshot.subtitleDelayMs)
+        engine.setAudioDelay(snapshot.audioDelayMs)
+        runCatching { engine.setSubtitleStyle(snapshot.subtitleStyle) }
+            .onFailure { Timber.w(it, "切换后恢复字幕样式失败") }
+        engine.media3Player.repeatMode = snapshot.repeatMode
+        (engine.media3Player as? MPVPlayer)?.applyResizeMode(snapshot.resizeMode)
+        remapTrack(engine, EngineTrackType.AUDIO, snapshot.audioTrack)
+        remapTrack(engine, EngineTrackType.SUBTITLE, snapshot.subtitleTrack, snapshot.subtitlesOff)
+        if (snapshot.isPlaying) engine.play() else engine.pause()
+    }
+
+    /**
+     * 用映射表在新内核里重选轨。
+     *
+     * 字幕：只有「切换前就是关闭」才写一次关闭（mpv `sid=no` / Exo 禁用文字轨）；其余情况要么按映射表重选， 要么留给上层字幕路由做首次参数下发（Exo
+     * 自研渲染接管时没有原生轨可选，不能因此把新内核的字幕关掉）。
+     */
+    private fun remapTrack(
+        engine: Media3PlaybackEngine,
+        type: EngineTrackType,
+        snapshotTrack: EngineTrack?,
+        subtitlesOff: Boolean = false,
+    ) {
+        if (snapshotTrack == null) {
+            if (type == EngineTrackType.SUBTITLE && subtitlesOff) engine.selectTrack(type, null)
+            return
+        }
+        val candidates = runCatching {
+            engine.availableTracks(type)
+        }
+            .onFailure { Timber.w(it, "切换后枚举 %s 轨道失败", type) }
+            .getOrDefault(emptyList())
+        val matched = EngineTrackMatcher.match(snapshotTrack, candidates) ?: return
+        if (engine.selectedTrack(type) == matched.id) return
+        engine.selectTrack(type, matched.id)
+        Timber.d("切换后轨道重选：type=%s id=%s lang=%s", type, matched.id, matched.language)
+    }
 
     /**
      * 音乐会话入口（W0 冻结，MU-4 / MU-8）：音频强制 ExoPlayer —— 音乐永远不用 mpv。

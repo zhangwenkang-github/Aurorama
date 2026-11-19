@@ -42,6 +42,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
@@ -52,6 +53,7 @@ import coil3.request.bitmapConfig
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
+import com.zhangwenkang.cinefin.playback.CinefinPlaybackService
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
@@ -62,9 +64,12 @@ import com.zhangwenkang.cinefin.player.local.domain.parsePlaybackQueueEntries
 import com.zhangwenkang.cinefin.player.local.domain.redactUrlSecrets
 import com.zhangwenkang.cinefin.player.local.domain.rotationFillScale
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
+import com.zhangwenkang.cinefin.player.local.presentation.BackendSwitchResult
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleAppearancePreferences
+import com.zhangwenkang.cinefin.presentation.player.BackendSwitchNotice
+import com.zhangwenkang.cinefin.presentation.player.BackendSwitchOverlay
 import com.zhangwenkang.cinefin.presentation.player.PlayerChromeLayout
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlOverlay
 import com.zhangwenkang.cinefin.presentation.player.PlayerControlsState
@@ -129,6 +134,15 @@ private data class PlayerRestartTarget(
     val mediaSourceId: String?,
 )
 
+/** 切换成功提示条的停留时长（设计定稿 §2：1.5s）。 */
+private const val SWITCH_SUCCESS_NOTICE_MS = 1_500L
+
+/** 切换失败提示条的停留时长（设计定稿 §2：3s）。 */
+private const val SWITCH_FAILURE_NOTICE_MS = 3_000L
+
+/** 遮罩淡出（280ms）结束后再撤掉整个切换层，避免淡出被切断。 */
+private const val SWITCH_LAYER_HIDE_DELAY_MS = 320L
+
 internal class PlayerExitServiceStopGate {
     private var stopRequested = false
 
@@ -184,6 +198,24 @@ class PlayerActivity : BasePlayerActivity() {
 
     /** 画中画状态：控制层据此切到 Pip 骨架（PiP 窗口里不渲染控制层） */
     private val pipMode = mutableStateOf(false)
+
+    /**
+     * 当前要交给 UI 的播放器实例（W4-T3a-2）。
+     *
+     * 原地切换内核后实例会换对象：`PlayerView` 与 Compose 层必须跟着换绑，否则字幕层 / 控制层还挂在已释放的旧实例上。 之前靠 recreate
+     * 顺带完成这件事，现在由这个状态显式驱动。
+     */
+    private val playerInstance = mutableStateOf<Player?>(null)
+
+    /** 引擎切换遮罩（`scrim @ 90%`）；与控制层可见性解耦。 */
+    private val backendSwitchScrim = mutableStateOf(false)
+
+    /** 引擎切换提示条（非阻断，无对话框）。 */
+    private val backendSwitchNotice = mutableStateOf<BackendSwitchNotice?>(null)
+
+    private var backendSwitchJob: Job? = null
+    private var backendSwitchNoticeJob: Job? = null
+    private var backendSwitchHideJob: Job? = null
 
     /**
      * 平板 / 折叠展开时右侧内容栏是否展开。
@@ -278,7 +310,7 @@ class PlayerActivity : BasePlayerActivity() {
         setContentView(binding.root)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        binding.playerView.player = viewModel.player
+        bindPlayerInstance(viewModel.player)
         // 画面比例：沿用上次选过的档位（RESIZE_MODE_*，默认 0 = 适应屏幕）；两个内核都落到各自的输出通路
         applyResizeModeToKernel(appPreferences.getValue(appPreferences.playerResizeMode))
         // 设置面板（§1.9）与画面调整（§1.6）：偏好是唯一来源，进页面就按偏好还原
@@ -302,7 +334,7 @@ class PlayerActivity : BasePlayerActivity() {
             CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
                 val subtitleState by
                     viewModel.subtitleController.overlayState.collectAsStateWithLifecycle()
-                val subtitlePlayer = viewModel.uiPlayer
+                val subtitlePlayer = playerInstance.value
                 if (subtitlePlayer != null) {
                     PlayerSubtitleOverlay(
                         player = subtitlePlayer,
@@ -330,7 +362,7 @@ class PlayerActivity : BasePlayerActivity() {
                     layoutContext = layout
                     applyVideoArea(layout)
                 }
-                val controlPlayer = viewModel.uiPlayer
+                val controlPlayer = playerInstance.value
                 if (controlPlayer == null) {
                     binding.controlOverlay.visibility = View.INVISIBLE
                     return@CinefinTheme
@@ -412,7 +444,13 @@ class PlayerActivity : BasePlayerActivity() {
                     onSelectResizeMode = { mode -> selectResizeMode(mode) },
                     settingsController = settingsController,
                     videoTransform = videoTransform.value,
-                    onSelectBackend = { backend -> switchBackendAndRestart(backend) },
+                    onSelectBackend = { backend ->
+                        requestBackendSwitch(
+                            backend,
+                            reason = "manual-settings",
+                            clearDecodeFallbackStage = true,
+                        )
+                    },
                     onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
                     onSelectDecodeMode = { mode -> selectDecodeMode(mode) },
                     onAutoFallbackChange = { enabled -> selectAutoFallback(enabled) },
@@ -430,7 +468,13 @@ class PlayerActivity : BasePlayerActivity() {
                     trickplayFrameAt = { position -> viewModel.trickplayFrameAt(position) },
                     showChapterMarkers = settingsController.state.chapterMarkers,
                     onRetry = viewModel::retryPlayerError,
-                    onSwitchBackend = { target -> switchBackendAndRestart(target) },
+                    onSwitchBackend = { target ->
+                        requestBackendSwitch(
+                            target,
+                            reason = "manual-error-card",
+                            clearDecodeFallbackStage = true,
+                        )
+                    },
                     onRegionsChanged = {
                         visible,
                         panelOpen,
@@ -477,6 +521,19 @@ class PlayerActivity : BasePlayerActivity() {
                         binding.controlOverlay.centerClusterWidthPx = width.toFloat()
                         binding.controlOverlay.centerClusterHeightPx = height.toFloat()
                     },
+                )
+            }
+        }
+
+        /*
+         * 引擎原地切换层（W4-T3a-2）：遮罩 + 非阻断提示条。
+         * 独立 ComposeView 压在控制层之上：控制层隐藏 / 切换失败卡片都不影响这两件东西的显隐。
+         */
+        binding.backendSwitchCompose.setContent {
+            CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
+                BackendSwitchOverlay(
+                    switching = backendSwitchScrim.value,
+                    notice = backendSwitchNotice.value,
                 )
             }
         }
@@ -555,13 +612,21 @@ class PlayerActivity : BasePlayerActivity() {
                     val delayedEvents =
                         viewModel.createDelayedPlayerEventDispatcher(
                             onFallbackToMpv = {
-                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
+                                requestBackendSwitch(
+                                    PlayerViewModel.PLAYER_BACKEND_MPV,
+                                    reason = "fallback-mpv",
+                                    clearDecodeFallbackStage = false,
+                                )
                             },
                             onRestartWithServerTranscode = {
                                 restartPlaybackKeepingPosition("fallback=server-transcode")
                             },
                             onFallbackToSoftware = {
-                                switchBackendForFallback(PlayerViewModel.PLAYER_BACKEND_MPV)
+                                requestBackendSwitch(
+                                    PlayerViewModel.PLAYER_BACKEND_MPV,
+                                    reason = "fallback-software",
+                                    clearDecodeFallbackStage = false,
+                                )
                             },
                             onFallbackToExoForProgressStall = { requestToken ->
                                 switchBackendForProgressStall(requestToken)
@@ -911,12 +976,11 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     /**
-     * 手动切内核（解码面板 / 错误卡片「改用 X 内核」）。
+     * 位置口径（W4-T3a-2 起只用于「兜底重启」与进度续播）：优先内核确认位置，其次会话采样。
      *
-     * W18（用户实测反馈）：**手动选内核不等于关掉回退链**——这里把回退档位清回第 1 档（用户显式选择优先， 链路从头走），失败后仍按「本地硬解 → 服务器解码/转码 →
-     * 本地软解」逐级下降。
-     *
-     * 注意顺序：先读当前位置，再写偏好——写完后 [PlayerViewModel.player] 会按新偏好重建实例， 后读位置会拿到 0。
+     * 原地切换的主路径不再需要它——位置由
+     * [com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel.switchBackendInPlace]
+     * 在切换前采集。
      */
     private fun currentConfirmedPosition(): Long {
         val session = viewModel.uiState.value.playbackSession
@@ -926,57 +990,178 @@ class PlayerActivity : BasePlayerActivity() {
             ?: androidx.media3.common.C.TIME_UNSET
     }
 
-    private fun switchBackendAndRestart(target: String) {
+    /**
+     * 切内核的唯一入口（W4-T3a-2）：手动切换（解码面板 / 错误卡片 / 字幕提示条）与自动回退共用同一条原地切换管线。
+     *
+     * 全程无对话框：开始即出遮罩（`scrim @ 90%`）与「正在切换到 X 内核…」提示条；成功换「已切换」1.5s， 失败换「切换失败，已保持原内核」3s。管线异常时回退旧
+     * recreate 路径一次（偏好未改写，重启后仍是原内核）。
+     *
+     * W18（用户实测反馈）：**手动选内核不等于关掉回退链**——手动路径把回退档位清回第 1 档（用户显式选择优先，链路从头走）； 回退链自己的两档（mpv /
+     * 本地软解）不清档位，档位语义由调用方决定。
+     *
+     * @param positionOverrideMs 回退链带进来的权威位置（进度停滞 handoff）；null 时用 `confirmedPosition` 口径。
+     * @param restartTarget 兜底重启要对准的条目；null 时现取当前条目。
+     */
+    private fun requestBackendSwitch(
+        target: String,
+        reason: String,
+        clearDecodeFallbackStage: Boolean,
+        positionOverrideMs: Long? = null,
+        restartTarget: PlayerRestartTarget? = null,
+    ) {
+        if (backendSwitchJob?.isActive == true) {
+            Timber.d("引擎切换进行中，忽略重复请求：%s（%s）", target, reason)
+            return
+        }
+        if (viewModel.existingPlayer == null) {
+            Timber.d("没有活动实例，忽略引擎切换请求：%s（%s）", target, reason)
+            return
+        }
+        if (target == viewModel.playerBackend) {
+            Timber.d("已经是 %s 内核，忽略切换请求（%s）", target, reason)
+            return
+        }
         viewModel.cancelProgressFallback()
-        val position = currentConfirmedPosition()
-        // W19：重启目标必须在写偏好之前取——偏好一变，PlayerHolder 会立刻按新偏好重建空实例
-        val restartTarget = currentRestartTarget()
-        viewModel.setBackend(target)
-        viewModel.clearDecodeFallback()
-        // 面板快照跟随（真正生效的内核在 Activity 重建后由 PlayerSettingsController 现读）
-        settingsController.refresh()
-        Timber.d("Restart player with backend=$target from position=$position (manual)")
-        restartPlaybackFromPosition(position, restartTarget)
+        if (clearDecodeFallbackStage) viewModel.clearDecodeFallback()
+        // 兜底重启要用「切换前」的位置与条目：管线失败后实例可能已回滚或已换，再读会拿到别的值。
+        val fallbackPosition = positionOverrideMs ?: currentConfirmedPosition()
+        val fallbackTarget = restartTarget ?: currentRestartTarget()
+        val label = engineLabel(target)
+        Timber.d("原地切换内核（%s）：-> %s", reason, target)
+
+        backendSwitchScrim.value = true
+        showBackendSwitchNotice(getString(PlayerR.string.player_backend_switch_switching, label))
+        backendSwitchJob = lifecycleScope.launch {
+            val result =
+                viewModel.switchBackendInPlace(
+                    target = target,
+                    positionOverrideMs = positionOverrideMs,
+                    // 新实例一装好就把画面输出换过去（mpv 的 vo 在 load 时绑定输出，晚挂 surface 会卡帧）
+                    onEngineInstalled = { installed -> bindPlayerInstance(installed) },
+                )
+            when (result) {
+                is BackendSwitchResult.Success -> {
+                    backendSwitchScrim.value = false
+                    bindPlayerInstance(viewModel.existingPlayer)
+                    // 通知 / 锁屏的 MediaSession 持有的是实例引用：换实例后要让服务重新对齐（不重启服务、不重建页面）
+                    realignPlaybackSession()
+                    // 画面比例落在两个内核各自的通路（PlayerView / mpv keepaspect）上
+                    applyResizeModeToKernel(
+                        appPreferences.getValue(appPreferences.playerResizeMode)
+                    )
+                    // 原生图形字幕走 PlayerView 的 captions 样式
+                    configureSubtitleStyle()
+                    settingsController.refresh()
+                    showBackendSwitchNotice(
+                        getString(PlayerR.string.player_backend_switch_switched),
+                        holdMs = SWITCH_SUCCESS_NOTICE_MS,
+                    )
+                    Timber.i("原地切换内核完成（%s）：%s", reason, target)
+                }
+                is BackendSwitchResult.Failure -> {
+                    backendSwitchScrim.value = false
+                    // 回滚到旧实例：画面输出也跟着还回去
+                    bindPlayerInstance(viewModel.existingPlayer)
+                    showBackendSwitchNotice(
+                        getString(PlayerR.string.player_backend_switch_failed),
+                        holdMs = SWITCH_FAILURE_NOTICE_MS,
+                    )
+                    Timber.w(
+                        "原地切换内核失败（%s）：reason=%s keptPrevious=%s，回退旧重启路径",
+                        reason,
+                        result.reason,
+                        result.keptPreviousBackend,
+                    )
+                    restartPlaybackFromPosition(fallbackPosition, fallbackTarget)
+                }
+            }
+        }
+    }
+
+    /** 内核显示名（提示条文案用）：与解码面板里的内核名同一来源。 */
+    private fun engineLabel(backend: String): String =
+        getString(
+            if (backend == PlayerViewModel.PLAYER_BACKEND_MPV) {
+                PlayerR.string.player_settings_backend_mpv
+            } else {
+                PlayerR.string.player_settings_backend_exoplayer
+            }
+        )
+
+    /** 提示条：先出「正在切换」，成功 / 失败各保持固定时长后自动消失（无对话框、无需用户确认）。 */
+    private fun showBackendSwitchNotice(text: String, holdMs: Long? = null) {
+        backendSwitchNoticeJob?.cancel()
+        backendSwitchNotice.value = BackendSwitchNotice(text)
+        refreshBackendSwitchLayer()
+        if (holdMs == null) return
+        backendSwitchNoticeJob = lifecycleScope.launch {
+            delay(holdMs)
+            backendSwitchNotice.value = null
+            refreshBackendSwitchLayer()
+        }
     }
 
     /**
-     * 回退链换内核（第 3 档：mpv + hwdec=no）。
+     * 切换层显隐：有遮罩或有提示条时段内可见。
      *
-     * 与手动切换的区别：**保留**回退档位（PlayerHolder 靠它强制软解），且目标内核必须显式指定，不能用 toggle——档位写入后 PlayerHolder 可能已把实例重建为
-     * mpv，toggle 会误判成「切回 ExoPlayer」（W17 根因）。
+     * 遮罩淡出要 280ms，所以退场后再等一帧时长才把整层设为 GONE——否则淡出会被直接切断。
      */
-    private fun switchBackendForFallback(target: String) {
-        viewModel.cancelProgressFallback()
-        val position = currentConfirmedPosition()
-        val restartTarget = currentRestartTarget()
-        viewModel.setBackend(target)
-        Timber.d("Restart player with backend=$target from position=$position (fallback)")
-        restartPlaybackFromPosition(position, restartTarget)
+    private fun refreshBackendSwitchLayer() {
+        backendSwitchHideJob?.cancel()
+        if (backendSwitchScrim.value || backendSwitchNotice.value != null) {
+            binding.backendSwitchCompose.visibility = View.VISIBLE
+            return
+        }
+        backendSwitchHideJob = lifecycleScope.launch {
+            delay(SWITCH_LAYER_HIDE_DELAY_MS)
+            if (!backendSwitchScrim.value && backendSwitchNotice.value == null) {
+                binding.backendSwitchCompose.visibility = View.GONE
+            }
+        }
+    }
+
+    /** 把播放器实例同时交给 PlayerView 与 Compose 层（首次进入与原地切换后共用）。 */
+    private fun bindPlayerInstance(player: Player?) {
+        playerInstance.value = player
+        binding.playerView.player = player
+    }
+
+    /**
+     * 让 `CinefinPlaybackService` 的 MediaSession 重新对齐到当前实例（W4-T3a-2）。
+     *
+     * 会话里包的是「实例 + seek 门面」这一对，换实例后不能只改引用：复用服务既有的「实例不一致就重建会话」路径 （`startService` → `onStartCommand` →
+     * `rebuildSessionIfPlayerChanged`），通知 / 锁屏 / 车机随之指向新内核。 服务本来就以前台态在跑，这里不会重启服务，也不碰播放页。
+     */
+    private fun realignPlaybackSession() {
+        runCatching { startService(Intent(this, CinefinPlaybackService::class.java)) }
+            .onFailure { Timber.w(it, "播放会话对齐失败：通知 / 锁屏可能短暂失联") }
     }
 
     /**
      * mpv remote/HLS progress watchdog 的唯一自动接管出口。
      *
      * 这里不重新解析条目：ViewModel 已校验 request 仍属于当前 generation，并把当前 Episode + mediaSourceId 冻结在 handoff
-     * 中。既有 recreate 路径负责释放单一实例并重建 MediaSession。
+     * 中。手交位置作为快照位置进原地切换管线；失败才回退旧重启路径。
      */
     private fun switchBackendForProgressStall(requestToken: String) {
         val handoff = viewModel.consumeProgressFallback(requestToken) ?: return
-        viewModel.setBackend(PlayerViewModel.PLAYER_BACKEND_EXOPLAYER)
-        settingsController.refresh()
         Timber.i(
             "Progress stall switched backend to ExoPlayer item=%s source=%s position=%d",
             handoff.itemId,
             handoff.mediaSourceId,
             handoff.positionMs,
         )
-        restartPlaybackFromPosition(
-            handoff.positionMs,
-            PlayerRestartTarget(
-                itemId = handoff.itemId.toString(),
-                itemKind = handoff.itemKind,
-                mediaSourceId = handoff.mediaSourceId,
-            ),
+        requestBackendSwitch(
+            target = PlayerViewModel.PLAYER_BACKEND_EXOPLAYER,
+            reason = "progress-stall",
+            clearDecodeFallbackStage = false,
+            positionOverrideMs = handoff.positionMs,
+            restartTarget =
+                PlayerRestartTarget(
+                    itemId = handoff.itemId.toString(),
+                    itemKind = handoff.itemKind,
+                    mediaSourceId = handoff.mediaSourceId,
+                ),
         )
     }
 
@@ -1254,10 +1439,9 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     /**
-     * 从给定位置重开播放页。
+     * 从给定位置重开播放页（W4-T3a-2 起降级为**兜底**：原地切换管线异常 / 码率与转码换源才走这里）。
      *
-     * W18：单独抽出来是因为「手动切内核」必须**先读位置、再写偏好**（见 [switchBackendAndRestart]），
-     * 位置要由调用方传入，不能在这里再读一次（那时实例已重建、位置是 0）。
+     * 位置与目标条目要由调用方传入：原地切换失败时实例可能已换 / 已回滚，在这里再读会拿到错的值。
      *
      * W19：重启前把「正在播放的条目」和「播放会话 id」写回 Intent—— ① 季 / 剧集入口与队列换集时，Intent 里的原始条目 ≠
      * 实际播放条目，重启用实际条目才不会跳回第一集 （找不到条目信息时保持原样）；② 会话 id 让解码回退档位活过 Activity 重建（见

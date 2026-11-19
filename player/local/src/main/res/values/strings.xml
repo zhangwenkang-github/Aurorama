@@ -59,7 +59,7 @@
     <string name="player_settings_repeat_entry">Repeat mode</string>
     <string name="player_settings_repeat_entry_caption">Order / repeat all / repeat one / shuffle</string>
     <string name="player_settings_backend">Player core</string>
-    <string name="player_settings_backend_caption">Switching reloads the player page and keeps the position</string>
+    <string name="player_settings_backend_caption">Switches in place: position and selected tracks are kept</string>
     <string name="player_settings_backend_exoplayer">ExoPlayer</string>
     <string name="player_settings_backend_mpv">mpv</string>
     <string name="player_settings_mpv_hwdec">mpv hardware decoding</string>
@@ -176,6 +176,9 @@
     <string name="player_seek_timeout_title">Seek timed out</string>
     <string name="player_seek_failure_message">The player did not confirm this seek. Try again.</string>
     <string name="player_controls_error_switch_backend">Switch to %1$s</string>
+    <string name="player_backend_switch_switching">Switching to the %1$s engine…</string>
+    <string name="player_backend_switch_switched">Switched</string>
+    <string name="player_backend_switch_failed">Switch failed — previous engine kept</string>
     <string name="player_subtitle_external">External</string>
     <string name="player_subtitle_embedded">Embedded</string>
     <string name="player_subtitle_graphic">Graphic</string>
@@ -324,7 +327,7 @@
     <string name="player_controls_bitrate_caption">Requests server transcoding at this bitrate (Jellyfin quality ladder)</string>
     <string name="player_controls_bitrate_active">Server transcoding</string>
     <string name="player_controls_decode_kernel">Player core</string>
-    <string name="player_controls_decode_kernel_caption">Changing the core restarts playback from the current position</string>
+    <string name="player_controls_decode_kernel_caption">Switches in place: position and selected tracks are kept</string>
     <string name="player_controls_decode_strategy">Decoding strategy</string>
     <string name="player_controls_decode_hardware">Hardware first</string>
     <string name="player_controls_decode_hardware_caption">Local hardware decoding; on failure asks the server to transcode, then falls back to software</string>
