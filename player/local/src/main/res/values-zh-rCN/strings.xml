@@ -214,9 +214,15 @@
     <string name="player_subtitle_primary_identity_unavailable">所选字幕无法唯一对应到一条内核字幕轨，因此未上屏；请选择其他字幕或使用自动选择。</string>
     <string name="player_subtitle_track_fallback">字幕 %1$d</string>
     <string name="player_subtitle_origin_sideload">侧载</string>
+    <string name="player_subtitle_tag_embedded">内封</string>
+    <string name="player_subtitle_tag_external">外挂</string>
+    <string name="player_subtitle_tag_graphic">图形</string>
+    <string name="player_subtitle_language_unknown">未标注语言</string>
+    <string name="player_subtitle_graphic_backend_hint">图形字幕在当前内核可能无法正常显示，建议切换到 mpv 内核</string>
+    <string name="player_subtitle_graphic_backend_switch">切换内核</string>
     <string name="player_subtitle_delay">字幕延迟</string>
-    <string name="player_subtitle_delay_earlier">字幕提前 0.1 秒</string>
-    <string name="player_subtitle_delay_later">字幕延后 0.1 秒</string>
+    <string name="player_subtitle_delay_earlier">字幕提前 0.05 秒</string>
+    <string name="player_subtitle_delay_later">字幕延后 0.05 秒</string>
     <string name="player_subtitle_delay_reset">延迟归零</string>
     <string name="player_subtitle_appearance">字幕外观</string>
     <string name="player_subtitle_tab_primary">主字幕</string>

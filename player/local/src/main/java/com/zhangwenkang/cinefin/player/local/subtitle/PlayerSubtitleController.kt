@@ -101,7 +101,7 @@ fun shouldSuppressSecondaryForMpvPrimarySelection(
  * 自研字幕管线：下载字幕文件 → 解析成 cue → 交给 Compose 覆盖层渲染。
  *
  * 为什么要有它（而不是直接用 Media3 的 SubtitleView）：
- * 1. Media3 没有字幕时间偏移 API，「延迟 ±0.1s 且立即生效」做不到；
+ * 1. Media3 没有字幕时间偏移 API，「延迟 ±0.05s 且立即生效」做不到；
  * 2. 一个 Player 同一时刻只能选一条文字轨，「双语次字幕」做不到；
  * 3. 字号 / 颜色 / 背景 / 描边 / 位置需要统一的面板入口，自绘最直接。
  *
@@ -114,8 +114,8 @@ class PlayerSubtitleController(
     private val contentLoader: (suspend (PlayerSubtitleSource) -> String)? = null,
 ) {
     companion object {
-        /** 延迟步长 0.1s，可调范围 ±10s */
-        const val DELAY_STEP_MS = 100L
+        /** 延迟步长 0.05s（VIDEO-12），可调范围 ±10s */
+        const val DELAY_STEP_MS = 50L
         const val DELAY_LIMIT_MS = 10_000L
     }
 

@@ -629,6 +629,40 @@ class PlayerSubtitleControllerTest {
     }
 
     @Test
+    fun `字幕延迟按 50ms 步进并夹在正负 10 秒`() {
+        val preferences = AppPreferences(FakeSharedPreferences())
+        val scope = CoroutineScope(Job())
+        val controller = PlayerSubtitleController(scope, preferences)
+        try {
+            assertEquals("延迟步长必须是 50ms（VIDEO-12）", 50L, PlayerSubtitleController.DELAY_STEP_MS)
+            assertEquals(0L, controller.overlayState.value.delayMs)
+
+            controller.adjustDelay(PlayerSubtitleController.DELAY_STEP_MS)
+            assertEquals(50L, controller.overlayState.value.delayMs)
+
+            controller.adjustDelay(PlayerSubtitleController.DELAY_STEP_MS)
+            assertEquals(100L, controller.overlayState.value.delayMs)
+
+            controller.adjustDelay(-PlayerSubtitleController.DELAY_STEP_MS)
+            assertEquals(50L, controller.overlayState.value.delayMs)
+
+            repeat(1_000) { controller.adjustDelay(PlayerSubtitleController.DELAY_STEP_MS) }
+            assertEquals(
+                PlayerSubtitleController.DELAY_LIMIT_MS,
+                controller.overlayState.value.delayMs,
+            )
+
+            repeat(1_000) { controller.adjustDelay(-PlayerSubtitleController.DELAY_STEP_MS) }
+            assertEquals(
+                -PlayerSubtitleController.DELAY_LIMIT_MS,
+                controller.overlayState.value.delayMs,
+            )
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun `直放与转码使用相同字幕序号时产出相同 cue 和 managed 状态`() = runBlocking {
         val repeatedCue = "同一不变量"
         val files =

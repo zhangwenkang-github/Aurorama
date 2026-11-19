@@ -57,7 +57,7 @@ import timber.log.Timber
 /**
  * 自研字幕渲染层（§1.1；W16 起主字幕走 libass）。
  *
- * 贴在 PlayerView 之上、控制层之下：只画字幕，不处理任何触摸。之所以不用 Media3 的 SubtitleView：这里要同时显示主/次两条字幕、 要能整体做 ±0.1s
+ * 贴在 PlayerView 之上、控制层之下：只画字幕，不处理任何触摸。之所以不用 Media3 的 SubtitleView：这里要同时显示主/次两条字幕、 要能整体做 ±0.05s
  * 时间偏移、还要字号 / 颜色 / 背景 / 描边 / 位置全可控。
  *
  * W16 渲染路由（与 mpv 内核的原生 libass 对齐）：
@@ -456,7 +456,7 @@ fun PlayerSubtitleOverlay(
 }
 
 /** 当前时刻应显示的字幕文本（同一时刻多条 cue 按顺序叠成多行） */
-private fun visibleText(
+internal fun visibleText(
     cues: List<SubtitleCue>,
     positionMs: Long,
     delayMs: Long,

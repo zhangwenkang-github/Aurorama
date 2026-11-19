@@ -115,4 +115,10 @@
     <string name="player_subtitle_primary_identity_unavailable">所選字幕無法唯一對應到一條核心字幕軌，因此未顯示；請選擇其他字幕或使用自動選擇。</string>
     <string name="player_subtitle_track_fallback">字幕 %1$d</string>
     <string name="player_subtitle_origin_sideload">側載</string>
+    <string name="player_subtitle_tag_embedded">內封</string>
+    <string name="player_subtitle_tag_external">外掛</string>
+    <string name="player_subtitle_tag_graphic">圖形</string>
+    <string name="player_subtitle_language_unknown">未標註語言</string>
+    <string name="player_subtitle_graphic_backend_hint">圖形字幕在目前核心可能無法正常顯示，建議切換到 mpv 核心</string>
+    <string name="player_subtitle_graphic_backend_switch">切換核心</string>
 </resources>

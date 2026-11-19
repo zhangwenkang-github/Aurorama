@@ -213,9 +213,15 @@
     <string name="player_subtitle_primary_identity_unavailable">The selected subtitle cannot be matched to one native track, so it was not rendered. Choose another subtitle or use Auto select.</string>
     <string name="player_subtitle_track_fallback">Subtitle %1$d</string>
     <string name="player_subtitle_origin_sideload">Sideloaded</string>
+    <string name="player_subtitle_tag_embedded">Embedded</string>
+    <string name="player_subtitle_tag_external">External</string>
+    <string name="player_subtitle_tag_graphic">Graphic</string>
+    <string name="player_subtitle_language_unknown">Language not tagged</string>
+    <string name="player_subtitle_graphic_backend_hint">Graphic subtitles may not display correctly on the current engine. Switching to the mpv engine is recommended.</string>
+    <string name="player_subtitle_graphic_backend_switch">Switch engine</string>
     <string name="player_subtitle_delay">Subtitle delay</string>
-    <string name="player_subtitle_delay_earlier">Subtitle earlier by 0.1 s</string>
-    <string name="player_subtitle_delay_later">Subtitle later by 0.1 s</string>
+    <string name="player_subtitle_delay_earlier">Subtitle earlier by 0.05 s</string>
+    <string name="player_subtitle_delay_later">Subtitle later by 0.05 s</string>
     <string name="player_subtitle_delay_reset">Reset delay to zero</string>
     <string name="player_subtitle_appearance">Appearance</string>
     <string name="player_subtitle_tab_primary">Primary</string>

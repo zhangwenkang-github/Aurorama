@@ -116,6 +116,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.models.FindroidSegment
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_EPISODE_NUMBER
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_SEASON_NUMBER
@@ -702,7 +703,7 @@ fun PlayerControlOverlay(
     onClearSecondarySubtitle: () -> Unit,
     onSwapSubtitles: () -> Unit,
     onAutoSelectSubtitles: () -> Unit,
-    /** 字幕延迟步进（±100ms） */
+    /** 字幕延迟步进（±50ms，见 `PlayerSubtitleController.DELAY_STEP_MS`） */
     onAdjustSubtitleDelay: (Long) -> Unit,
     /** 字幕延迟归零 */
     onResetSubtitleDelay: () -> Unit,
@@ -1497,6 +1498,8 @@ fun PlayerControlOverlay(
                             // W27：侧载字幕导入 / 移除
                             onImport = onImportSubtitle,
                             onRemoveSideloaded = onRemoveSideloadedSubtitle,
+                            // VIDEO-11：图形 / ASS 字幕的非阻断提示条里换内核，复用错误卡的同一路径
+                            onSwitchBackend = onSwitchBackend,
                         )
                     PlayerPanel.Audio ->
                         AudioPanel(
@@ -3635,6 +3638,8 @@ private fun SubtitlePanel(
     onImport: () -> Unit,
     /** W27：移除一条侧载字幕（id 与行身份同一套 id） */
     onRemoveSideloaded: (Int) -> Unit,
+    /** VIDEO-11：图形字幕提示条里的「切换内核」 */
+    onSwitchBackend: (String) -> Unit,
 ) {
     // 用 Int 而不是 enum：rememberSaveable 的自动 Saver 对基本类型最稳。
     var tab by rememberSaveable { mutableStateOf(0) }
@@ -3663,6 +3668,7 @@ private fun SubtitlePanel(
                     onSubtitleModeChanged = onSubtitleModeChanged,
                     onImport = onImport,
                     onRemoveSideloaded = onRemoveSideloaded,
+                    onSwitchBackend = onSwitchBackend,
                 )
             else -> SubtitleAppearancePage(state = state, onUpdateAppearance = onUpdateAppearance)
         }
@@ -3684,6 +3690,7 @@ private fun SubtitleTracksPage(
     onSubtitleModeChanged: (String) -> Unit,
     onImport: () -> Unit,
     onRemoveSideloaded: (Int) -> Unit,
+    onSwitchBackend: (String) -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     val primary =
@@ -3697,6 +3704,11 @@ private fun SubtitleTracksPage(
 
     Column(modifier = Modifier.fillMaxSize()) {
         PanelList {
+            if (state.mpvSuggestedForPrimary) {
+                SubtitleBackendHint(
+                    onSwitchBackend = { onSwitchBackend(PlayerViewModel.PLAYER_BACKEND_MPV) }
+                )
+            }
             SubtitleCurrentCombination(
                 state = state,
                 primary = primary,
@@ -3794,13 +3806,18 @@ private fun SubtitleTracksPage(
                         ),
                 )
             } else {
-                state.tracks.forEach { option ->
-                    SubtitleTrackRow(
-                        option = option,
-                        onAssignPrimary = onAssignPrimary,
-                        onAssignSecondary = onAssignSecondary,
-                        onRemoveSideloaded = onRemoveSideloaded,
-                    )
+                // VIDEO-11：按语言分组，组内内封在前、外挂在后（稳定排序保留原标题序）。
+                val groups = remember(state.tracks) { groupSubtitleTracksByLanguage(state.tracks) }
+                groups.forEach { group ->
+                    PanelTitle(subtitleLanguageGroupLabel(group.language))
+                    group.options.forEach { option ->
+                        SubtitleTrackRow(
+                            option = option,
+                            onAssignPrimary = onAssignPrimary,
+                            onAssignSecondary = onAssignSecondary,
+                            onRemoveSideloaded = onRemoveSideloaded,
+                        )
+                    }
                 }
             }
 
@@ -4040,13 +4057,15 @@ private fun SubtitleTrackRow(
                     }
                 }
                 Text(
-                    text = subtitleTrackMeta(option),
+                    text = subtitleTrackRowMeta(option),
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            Spacer(Modifier.width(CinefinSpacing.Space2))
+            SubtitleTrackTag(subtitleTrackTag(option))
             option.assignment?.let { assignment -> SubtitleAssignmentBadge(assignment) }
             if (option.sideloaded) {
                 SideloadRemoveKey(id = option.id, onRemove = onRemoveSideloaded)
@@ -4257,6 +4276,123 @@ private fun subtitleTrackMeta(option: PlayerViewModel.SubtitleOption): String {
         .joinToString(" · ")
 }
 
+/** 轨道行副标题：语言进组头、来源进行尾标注，这里只留格式与落点，避免同一信息写三遍。 */
+@Composable
+private fun subtitleTrackRowMeta(option: PlayerViewModel.SubtitleOption): String =
+    listOfNotNull(
+            option.format.takeIf { it.isNotBlank() },
+            option.assignment?.let { subtitleAssignmentLabel(it) },
+        )
+        .joinToString(" · ")
+
+@Composable
+private fun subtitleAssignmentLabel(assignment: PlayerViewModel.SubtitleAssignment): String =
+    stringResource(
+        when (assignment) {
+            PlayerViewModel.SubtitleAssignment.Primary -> PlayerR.string.player_subtitle_primary
+            PlayerViewModel.SubtitleAssignment.Secondary -> PlayerR.string.player_subtitle_secondary
+            PlayerViewModel.SubtitleAssignment.Native -> PlayerR.string.player_subtitle_native_only
+        }
+    )
+
+/**
+ * 行尾 12sp 标注（VIDEO-11）：内封 / 外挂；图形字幕追加「· 图形」。
+ *
+ * 侧载字幕本质是外挂文件，同样标「外挂」，本机身份由行尾移除键体现。
+ */
+@Composable
+private fun subtitleTrackTag(option: PlayerViewModel.SubtitleOption): String {
+    val origin =
+        stringResource(
+            when (option.origin) {
+                PlayerViewModel.SubtitleOrigin.Embedded ->
+                    PlayerR.string.player_subtitle_tag_embedded
+                PlayerViewModel.SubtitleOrigin.External,
+                PlayerViewModel.SubtitleOrigin.Sideloaded ->
+                    PlayerR.string.player_subtitle_tag_external
+            }
+        )
+    return if (option.graphic) {
+        "$origin · ${stringResource(PlayerR.string.player_subtitle_tag_graphic)}"
+    } else {
+        origin
+    }
+}
+
+@Composable
+private fun SubtitleTrackTag(text: String) {
+    Text(
+        text = text,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        color = LocalCinefinColors.current.onSurfaceVariant,
+        maxLines = 1,
+    )
+}
+
+@Composable
+private fun subtitleLanguageGroupLabel(language: String): String =
+    if (language.isBlank()) {
+        stringResource(PlayerR.string.player_subtitle_language_unknown)
+    } else {
+        LanguageMatcher.displayName(language)
+    }
+
+internal data class SubtitleLanguageGroup(
+    val language: String,
+    val options: List<PlayerViewModel.SubtitleOption>,
+)
+
+/**
+ * 按语言分组（VIDEO-11）。
+ *
+ * 组序 = 语言在清单里首次出现的位置；组内内封在前、外挂（含侧载）在后，`sortedBy` 稳定，同来源保留原标题序。
+ */
+internal fun groupSubtitleTracksByLanguage(
+    tracks: List<PlayerViewModel.SubtitleOption>
+): List<SubtitleLanguageGroup> =
+    tracks
+        .groupBy { it.language.trim() }
+        .map { (language, options) ->
+            SubtitleLanguageGroup(
+                language = language,
+                options =
+                    options.sortedBy {
+                        if (it.origin == PlayerViewModel.SubtitleOrigin.Embedded) 0 else 1
+                    },
+            )
+        }
+
+/** VIDEO-11 非阻断提示条：玻璃底 + 发丝线 + Xs 圆角，只给动作，不拦选轨。 */
+@Composable
+private fun SubtitleBackendHint(onSwitchBackend: () -> Unit) {
+    val colors = LocalCinefinColors.current
+    val shape = CinefinShapes.Xs
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier.fillMaxWidth()
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space1)
+                .clip(shape)
+                .background(colors.glass)
+                .border(1.dp, colors.glassBorder, shape)
+                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space2),
+    ) {
+        Text(
+            text = stringResource(PlayerR.string.player_subtitle_graphic_backend_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(CinefinSpacing.Space2))
+        PanelChip(
+            label = stringResource(PlayerR.string.player_subtitle_graphic_backend_switch),
+            selected = false,
+            onClick = onSwitchBackend,
+        )
+    }
+}
+
 @Composable
 private fun subtitleSwapBlockReason(reason: PlayerViewModel.SubtitleSwapBlock): String =
     stringResource(
@@ -4271,20 +4407,21 @@ private fun subtitleSwapBlockReason(reason: PlayerViewModel.SubtitleSwapBlock): 
         }
     )
 
-/** 延迟一行：−0.1s / 当前值（点击归零）/ +0.1s */
+/** 延迟一行：−0.05s / 当前值（点击归零）/ +0.05s；步长取 `PlayerSubtitleController.DELAY_STEP_MS` */
 @Composable
 private fun SubtitleDelayRow(
     delayMs: Long,
     onAdjust: (Long) -> Unit,
     onReset: () -> Unit,
 ) {
+    val stepLabel = formatSubtitleDelayStep(PlayerSubtitleController.DELAY_STEP_MS)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
     ) {
         PanelChip(
-            label = "−0.1s",
+            label = "−$stepLabel",
             selected = false,
             contentDescription = stringResource(PlayerR.string.player_subtitle_delay_earlier),
             onClick = { onAdjust(-PlayerSubtitleController.DELAY_STEP_MS) },
@@ -4296,7 +4433,7 @@ private fun SubtitleDelayRow(
             onClick = onReset,
         )
         PanelChip(
-            label = "+0.1s",
+            label = "+$stepLabel",
             selected = false,
             contentDescription = stringResource(PlayerR.string.player_subtitle_delay_later),
             onClick = { onAdjust(PlayerSubtitleController.DELAY_STEP_MS) },
@@ -4944,15 +5081,18 @@ internal fun PanelChip(
     }
 }
 
-/** 延迟显示：+0.3s / −0.1s / 0.0s */
-private fun formatSubtitleDelay(delayMs: Long): String {
+/** 延迟显示：+0.30s / −0.05s / 0.00s（两位小数，50ms 步进在 UI 上可见） */
+internal fun formatSubtitleDelay(delayMs: Long): String {
     val seconds = kotlin.math.abs(delayMs) / 1000.0
     return when {
-        delayMs > 0L -> "+%.1fs".format(seconds)
-        delayMs < 0L -> "−%.1fs".format(seconds)
-        else -> "0.0s"
+        delayMs > 0L -> "+%.2fs".format(seconds)
+        delayMs < 0L -> "−%.2fs".format(seconds)
+        else -> "0.00s"
     }
 }
+
+/** 步长标签（不带符号）：0.05s；与 [PlayerSubtitleController.DELAY_STEP_MS] 同步，不写死文案 */
+internal fun formatSubtitleDelayStep(stepMs: Long): String = "%.2fs".format(stepMs / 1000.0)
 
 /**
  * 音轨面板（§1.2）：音轨延迟 ±0.05s + 带描述的轨道列表。

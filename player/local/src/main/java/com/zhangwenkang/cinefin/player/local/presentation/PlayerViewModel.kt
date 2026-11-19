@@ -93,6 +93,7 @@ import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleAppearancePreferen
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleOverlayState
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSecondaryUnavailableReason
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSelectionScope
+import com.zhangwenkang.cinefin.player.local.subtitle.isMpvPreferredSubtitleCodec
 import com.zhangwenkang.cinefin.player.local.subtitle.shouldSuppressSecondaryForMpvPrimarySelection
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.repository.PlaybackSourceAttemptContext
@@ -458,6 +459,12 @@ constructor(
         val swapBlockedReason: SubtitleSwapBlock? = SubtitleSwapBlock.NoPrimary,
         /** ASS/SSA 落在次字幕时的文本降级提示。 */
         val assSecondaryHint: Boolean = false,
+        /**
+         * 当前主字幕在 Exo 路径下建议改用 mpv 内核（ASS/SSA 特效与 PGS/VobSub 图形字幕）。
+         *
+         * 只在面板顶部出一条非阻断提示，不影响选轨；mpv 路径恒为 false。
+         */
+        val mpvSuggestedForPrimary: Boolean = false,
     )
 
     /** 音轨面板里的一行：轨道信息（编码 / 声道 / 码率） */
@@ -2444,7 +2451,7 @@ constructor(
         return stats.copy(decodeStage = currentDecodeStage().name)
     }
 
-    /** 字幕延迟 ±0.1s；两个内核都立即生效，并写回偏好 */
+    /** 字幕延迟 ±0.05s；两个内核都立即生效，并写回偏好 */
     fun adjustSubtitleDelay(deltaMs: Long) {
         val current = appPreferences.getValue(appPreferences.playerSubtitleDelayMs)
         val next =
@@ -2893,6 +2900,9 @@ constructor(
                 secondaryUnavailableReason = state.secondaryUnavailableReason,
                 swapBlockedReason = swapBlockedReason,
                 assSecondaryHint = secondarySource.isAssSecondary(),
+                // VIDEO-11：ASS/SSA 与图形字幕在 Exo 路径能力有限，面板顶部给可切换 mpv 的非阻断提示。
+                mpvSuggestedForPrimary =
+                    primarySource?.let { isMpvPreferredSubtitleCodec(it.codec) } == true,
             )
     }
 
