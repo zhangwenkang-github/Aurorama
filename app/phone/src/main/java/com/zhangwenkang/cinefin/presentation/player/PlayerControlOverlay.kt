@@ -142,6 +142,7 @@ import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
 import com.zhangwenkang.cinefin.player.local.session.PlayerErrorInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSecondaryUnavailableReason
+import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlayTransportGate
 import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.settings.domain.Constants
@@ -682,6 +683,8 @@ private fun rememberPlayerRuntime(
 @Composable
 fun PlayerControlOverlay(
     player: Player,
+    /** W4-T8d SyncPlay 闸门：入组期间播放键只发组命令；null = 未装配（按原有直驱路径）。 */
+    syncPlayGate: SyncPlayTransportGate? = null,
     uiState: PlayerViewModel.UiState,
     controls: PlayerControlsState,
     /** 当前形态与骨架（D9）：决定控制层落在画面区还是折痕下屏、内容栏是否常驻 */
@@ -828,6 +831,20 @@ fun PlayerControlOverlay(
             progressRecovery = progressRecovery != null,
         )
     val pausesPlayback = playbackSession.pauseWhenReady
+    /*
+     * W4-T8d SyncPlay 闸门：入组期间播放键只发组命令（不直驱本地引擎），出组恢复原有直驱路径。
+     * 读 `ownsTransport.value` 放在点击回调里（不参与组合阶段的重组判定）。
+     */
+    val requestPlayPause: (Boolean) -> Unit = { play ->
+        val gate = syncPlayGate
+        if (gate?.ownsTransport?.value == true) {
+            gate.requestPlay(play)
+        } else if (play) {
+            player.play()
+        } else {
+            player.pause()
+        }
+    }
     val seekPending = uiState.seekState is SeekState.Seeking
     /*
      * W67 补充：预计结束时刻。播放中每秒推进「当前时钟」→ 结束时刻稳定跟随播放推进；暂停后时钟冻结在暂停点
@@ -1123,7 +1140,7 @@ fun PlayerControlOverlay(
                 trickplayVersion = uiState.trickplayVersion,
                 trickplayFrameAt = trickplayFrameAt,
                 isFullscreen = isFullscreen,
-                onPlayPause = { if (pausesPlayback) player.pause() else player.play() },
+                onPlayPause = { requestPlayPause(!pausesPlayback) },
                 onPrevious = onPreviousMediaItem,
                 // W74 U6：步进用时现读（设置页改完立即生效），不用实例创建时的快照
                 onRewind = { onSeekRelativeRequest(-settingsController.seekBackIncrementMs) },
@@ -1229,9 +1246,7 @@ fun PlayerControlOverlay(
                                 buffering = playbackSession.loading,
                                 // 中央簇随画面区宽度收放：窄窗不跟右缘锁定键打架（反馈⑧）
                                 spec = playerCenterSpec(videoWidthDp.toFloat()),
-                                onPlayPause = {
-                                    if (pausesPlayback) player.pause() else player.play()
-                                },
+                                onPlayPause = { requestPlayPause(!pausesPlayback) },
                                 onPrevious = onPreviousMediaItem,
                                 onRewind = {
                                     onSeekRelativeRequest(-settingsController.seekBackIncrementMs)

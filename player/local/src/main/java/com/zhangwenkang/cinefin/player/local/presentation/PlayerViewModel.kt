@@ -3508,6 +3508,8 @@ constructor(
         publishAudioPanelState()
         refreshUiStateFromPlayer()
         refreshPlaybackSession()
+        // W4-T8d：入组期间切内核后重建 SyncPlay 播放口与漂移档，组态按切前状态恢复（不重新 Join）。
+        playerHolder.notifyBackendRebound()
     }
 
     // Apply a global subtitle mode without overwriting item-specific selection.

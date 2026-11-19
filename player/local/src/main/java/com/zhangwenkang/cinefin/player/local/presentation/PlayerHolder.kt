@@ -90,6 +90,23 @@ constructor(
      */
     private var exoSubtitleHooks: ExoSubtitleHooks? = null
 
+    /**
+     * 原地切内核完成后的回调位（W4-T8d）。
+     *
+     * SyncPlay 协调器在 `start()` 时挂上自己的重绑逻辑：入组期间切内核要重建播放口与漂移档。用监听位而不是把协调器注入
+     * `PlayerViewModel`，是为了让协调器（它依赖本 holder）不被 holder 反向依赖。
+     */
+    private val backendReboundListeners = mutableListOf<() -> Unit>()
+
+    internal fun addBackendReboundListener(listener: () -> Unit) {
+        if (backendReboundListeners.none { it === listener }) backendReboundListeners += listener
+    }
+
+    /** 内核实例与上层绑定完成后触发（成功与回滚两条路径都会走到）。 */
+    fun notifyBackendRebound() {
+        backendReboundListeners.forEach { runCatching(it) }
+    }
+
     /** 装配层注入 / 解除 Exo 字幕钩子；已有实例同步生效。 */
     internal fun installExoSubtitleHooks(hooks: ExoSubtitleHooks?) {
         exoSubtitleHooks = hooks
@@ -120,6 +137,14 @@ constructor(
 
             override fun onSessionReplaced(replacement: SeekSessionReplacement) = Unit
         }
+
+    /**
+     * 进程级协程作用域（W4-T8d）：SyncPlay 的时钟循环、状态机循环与 WS 收集都挂这里。
+     *
+     * 与 [seekSink] 同级——活得比播放页久，播放页重建不会重订阅 WS（`SyncPlayGateway` 的 Flow 每次收集都会重订阅）。
+     * 主线程立即派发：`SyncPlayController` 的入口与 `run()` 必须同线程。
+     */
+    val processScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** Process-scoped, shared by MediaSession and every playback ViewModel. */
     val seekSink: PlaybackSeekSink =

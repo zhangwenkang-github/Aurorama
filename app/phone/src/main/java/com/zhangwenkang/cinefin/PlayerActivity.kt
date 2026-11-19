@@ -68,6 +68,7 @@ import com.zhangwenkang.cinefin.player.local.presentation.BackendSwitchResult
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleAppearancePreferences
+import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlaySessionCoordinator
 import com.zhangwenkang.cinefin.presentation.player.BackendSwitchNotice
 import com.zhangwenkang.cinefin.presentation.player.BackendSwitchOverlay
 import com.zhangwenkang.cinefin.presentation.player.PlayerChromeLayout
@@ -158,6 +159,8 @@ class PlayerActivity : BasePlayerActivity() {
 
     @Inject lateinit var appPreferences: AppPreferences
     @Inject lateinit var repository: JellyfinRepository
+    /** W4-T8d：SyncPlay 会话协调器（进程级单例；闸门、组状态与 T8e 面板入口）。 */
+    @Inject lateinit var syncPlay: SyncPlaySessionCoordinator
 
     lateinit var binding: ActivityPlayerBinding
     private var playerGestureHelper: PlayerGestureHelper? = null
@@ -269,6 +272,8 @@ class PlayerActivity : BasePlayerActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // W4-T8d：SyncPlay 装配幂等启动（时钟 / 状态机 / WS 三路流只收一次；播放页重建不重订阅）
+        syncPlay.start()
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
@@ -369,6 +374,8 @@ class PlayerActivity : BasePlayerActivity() {
                 }
                 PlayerControlOverlay(
                     player = controlPlayer,
+                    // W4-T8d SyncPlay 闸门：入组期间播放键改发组命令
+                    syncPlayGate = syncPlay.gate,
                     uiState = uiState,
                     controls = controlsState,
                     layout = layout,
@@ -381,22 +388,37 @@ class PlayerActivity : BasePlayerActivity() {
                     onToggleFullscreen = { toggleFullscreen() },
                     // W73（#7）：seek 统一走 ViewModel——未就绪排队 + 转码超窗重开会话
                     onSeekRequest = { target ->
-                        viewModel.submitSeek(
-                            PlayerViewModel.SeekIntent.Absolute(target),
-                            "progress",
-                        )
+                        // W4-T8d：入组期间定位只发组 SEEK 命令，不写本地引擎（复用闸门，出组恢复本地 seek）
+                        if (syncPlay.gate.ownsTransport.value) {
+                            syncPlay.gate.requestSeek(target)
+                        } else {
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.Absolute(target),
+                                "progress",
+                            )
+                        }
                     },
                     onSeekFractionRequest = { fraction ->
-                        viewModel.submitSeek(
-                            PlayerViewModel.SeekIntent.Fraction(fraction),
-                            "progress-unknown",
-                        )
+                        val gate = syncPlay.gate
+                        val duration = playerInstance.value?.duration ?: 0L
+                        if (gate.ownsTransport.value && duration > 0L) {
+                            gate.requestSeek((fraction * duration).toLong())
+                        } else {
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.Fraction(fraction),
+                                "progress-unknown",
+                            )
+                        }
                     },
                     onSeekRelativeRequest = { delta ->
-                        viewModel.submitSeek(
-                            PlayerViewModel.SeekIntent.Relative(delta),
-                            "step",
-                        )
+                        if (syncPlay.gate.ownsTransport.value) {
+                            syncPlay.gate.requestSeekRelative(delta)
+                        } else {
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.Relative(delta),
+                                "step",
+                            )
+                        }
                     },
                     onPreviousMediaItem = {
                         viewModel.submitSeek(
@@ -561,6 +583,7 @@ class PlayerActivity : BasePlayerActivity() {
                 this,
                 binding.playerView,
                 getSystemService(AUDIO_SERVICE) as AudioManager,
+                syncPlayGate = syncPlay.gate,
                 onSingleTap = {
                     // 错误卡片是模态的：错误消失前不让单击把控制层收走
                     if (viewModel.uiState.value.playerError == null) {

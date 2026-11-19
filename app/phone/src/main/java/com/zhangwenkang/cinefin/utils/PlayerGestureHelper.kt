@@ -31,6 +31,7 @@ import com.zhangwenkang.cinefin.isControlsLocked
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerChapter
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
+import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlayTransportGate
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
 import kotlin.math.abs
@@ -44,6 +45,8 @@ class PlayerGestureHelper(
     private val activity: PlayerActivity,
     private val playerView: PlayerView,
     private val audioManager: AudioManager,
+    /** W4-T8d SyncPlay 闸门：入组期间播放 / 定位手势只发组命令（null = 未装配）。 */
+    private val syncPlayGate: SyncPlayTransportGate? = null,
     /** 单击画面：切换控制层显隐（控制层由 Compose 渲染，这里只发意图） */
     private val onSingleTap: () -> Unit = {},
 ) {
@@ -163,6 +166,11 @@ class PlayerGestureHelper(
 
     @SuppressLint("SetTextI18n")
     private fun enableSpeedIncrease() {
+        // W4-T8d：入组期间倍速归组（漂移校正自己会写 0.95x / 1.05x），长按倍速不写本地引擎，避免与校正打架。
+        if (syncPlayGate?.ownsTransport?.value == true) {
+            Timber.d("SyncPlay 入组中：长按倍速跳过（倍速由组同步接管）")
+            return
+        }
         playerView.player?.let {
             if (it.isPlaying) {
                 lastPlaybackSpeed = it.playbackParameters.speed
@@ -231,7 +239,13 @@ class PlayerGestureHelper(
     }
 
     private fun togglePlayback() {
-        playerView.player?.let { player -> player.playWhenReady = !player.playWhenReady }
+        // W4-T8d：入组期间双击播放/暂停只发组命令，由状态机随命令回写本地引擎。
+        val gate = syncPlayGate
+        if (gate?.ownsTransport?.value == true) {
+            gate.togglePlayback()
+        } else {
+            playerView.player?.let { player -> player.playWhenReady = !player.playWhenReady }
+        }
         animateRipple(activity.binding.imagePlaybackAnimationRipple)
     }
 
@@ -247,6 +261,13 @@ class PlayerGestureHelper(
         val player = playerView.player
         val basePositionMs = activity.viewModel.seekDisplayPositionMs()
         val targetMs = gestureSeekTarget(basePositionMs, deltaMs, player?.duration ?: 0L)
+        // W4-T8d：入组期间定位只发组 SEEK 命令（按落点换算成绝对位置），不直驱本地引擎。
+        val gate = syncPlayGate
+        if (gate?.ownsTransport?.value == true) {
+            gate.requestSeek(targetMs)
+            Timber.d("手势 seek（SyncPlay 组命令）：Δ=%d → %d ms", deltaMs, targetMs)
+            return targetMs
+        }
         activity.viewModel.submitSeek(
             PlayerViewModel.SeekIntent.Relative(deltaMs),
             "gesture",
