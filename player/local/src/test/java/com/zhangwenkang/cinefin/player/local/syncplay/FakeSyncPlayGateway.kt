@@ -57,6 +57,10 @@ class FakeSyncPlayGateway : SyncPlayGateway {
     var unpauseResult: SyncPlayResult<Unit> = SyncPlayResult.Success(Unit)
     var seekResult: SyncPlayResult<Unit> = SyncPlayResult.Success(Unit)
 
+    /** W4-T8e：`startGroupQueue()` 薄封装的入参记录（队列体 / 下标 / ticks）。 */
+    val playQueueCalls = mutableListOf<Triple<List<UUID>, Int, Long>>()
+    var playQueueResult: SyncPlayResult<Unit> = SyncPlayResult.Success(Unit)
+
     override val connectionState: Flow<SyncPlayConnectionState>
         get() = flow {
             connectionCollections.incrementAndGet()
@@ -109,7 +113,10 @@ class FakeSyncPlayGateway : SyncPlayGateway {
         playlistItemIds: List<UUID>,
         playingItemIndex: Int,
         startPositionTicks: Long,
-    ): SyncPlayResult<Unit> = SyncPlayResult.Success(Unit)
+    ): SyncPlayResult<Unit> {
+        playQueueCalls += Triple(playlistItemIds, playingItemIndex, startPositionTicks)
+        return playQueueResult
+    }
 
     override suspend fun setPlaylistItem(playlistItemId: UUID): SyncPlayResult<Unit> =
         SyncPlayResult.Success(Unit)

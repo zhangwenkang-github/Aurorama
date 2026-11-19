@@ -121,4 +121,28 @@
     <string name="player_subtitle_language_unknown">未標註語言</string>
     <string name="player_subtitle_graphic_backend_hint">圖形字幕在目前核心可能無法正常顯示，建議切換到 mpv 核心</string>
     <string name="player_subtitle_graphic_backend_switch">切換核心</string>
+
+    <!-- W4-T8e：SyncPlay 入口面板 / 狀態膠囊 / 異常與攔截提示（VIDEO-32 最小態） -->
+    <string name="player_sync_label">同步觀看</string>
+    <string name="player_sync_panel_title">同步觀看</string>
+    <string name="player_sync_create_group">建立同步群組</string>
+    <string name="player_sync_join_existing">加入現有群組</string>
+    <string name="player_sync_no_groups">目前沒有可加入的群組</string>
+    <string name="player_sync_group_members">%1$d 名成員</string>
+    <string name="player_sync_leave_group">離開群組</string>
+    <string name="player_sync_capsule_synced">已同步</string>
+    <string name="player_sync_capsule_reconnecting">重新連線中…</string>
+    <string name="player_sync_capsule_clock_syncing">時鐘同步中…</string>
+    <string name="player_sync_episode_locked">同步觀看中，切換集數由群組控制</string>
+    <string name="player_sync_kicked">已被移出同步群組</string>
+    <string name="player_sync_join_failed">加入失敗：%1$s</string>
+    <string name="player_sync_create_failed">建立失敗：%1$s</string>
+    <string name="player_sync_error_group_missing">群組不存在或已解散</string>
+    <string name="player_sync_error_access_denied">無權存取群組內正在播放的媒體</string>
+    <string name="player_sync_error_unsupported">目前伺服器不支援同步觀看</string>
+    <string name="player_sync_error_unauthorized">登入狀態已失效</string>
+    <string name="player_sync_error_network">網路連線失敗</string>
+    <string name="player_sync_error_generic">操作失敗，請稍後再試</string>
+    <string name="player_sync_group_default_name">%1$s 的群組</string>
+    <string name="player_sync_group_default_name_fallback">我的同步群組</string>
 </resources>

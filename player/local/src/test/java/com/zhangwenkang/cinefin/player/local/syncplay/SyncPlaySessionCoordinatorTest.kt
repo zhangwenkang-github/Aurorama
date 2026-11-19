@@ -119,6 +119,54 @@ class SyncPlaySessionCoordinatorTest {
         assertFalse("建组后不应再发 join", gateway.calls.any { it.startsWith("joinGroup") })
     }
 
+    // —— 队列推送（T8e 薄封装） ——
+
+    @Test
+    fun `startGroupQueue 把毫秒换成 ticks 并把下标夹进队列范围`() {
+        coordinator.start()
+
+        val error = runSuspending {
+            coordinator.startGroupQueue(
+                listOf(itemId, groupId),
+                playingItemIndex = 9,
+                startPositionMs = 1_500L,
+            )
+        }
+
+        assertEquals(null, error)
+        val call = gateway.playQueueCalls.single()
+        assertEquals(listOf(itemId, groupId), call.first)
+        assertEquals("下标超界应夹到 lastIndex", 1, call.second)
+        assertEquals("1.5s = 15_000_000 ticks", 15_000_000L, call.third)
+    }
+
+    @Test
+    fun `startGroupQueue 空队列不发请求`() {
+        coordinator.start()
+
+        val error = runSuspending {
+            coordinator.startGroupQueue(emptyList(), playingItemIndex = 0, startPositionMs = 0L)
+        }
+
+        assertEquals(null, error)
+        assertTrue("空队列不应打扰服务器", gateway.playQueueCalls.isEmpty())
+    }
+
+    @Test
+    fun `startGroupQueue 失败只回错误 不动组态`() {
+        coordinator.start()
+        joinAndAwaitInGroup()
+        gateway.playQueueResult = SyncPlayResult.Failure(SyncPlayError.ServerError(500))
+
+        val error = runSuspending {
+            coordinator.startGroupQueue(listOf(itemId), playingItemIndex = 0, startPositionMs = 0L)
+        }
+
+        assertEquals(SyncPlayError.ServerError(500), error)
+        assertEquals(SyncPlayControllerState.Idle, coordinator.state.value)
+        assertTrue(coordinator.gate.ownsTransport.value)
+    }
+
     // —— 命令与漂移 ——
 
     @Test

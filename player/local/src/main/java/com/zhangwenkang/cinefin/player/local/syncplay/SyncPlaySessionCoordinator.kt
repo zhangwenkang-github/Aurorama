@@ -232,6 +232,28 @@ constructor(
     }
 
     /**
+     * 建组后把本机队列推给服务器（W4-T8e 薄封装：面板/宿主不直接碰 gateway）。
+     *
+     * 服务器据此向组内其它端下发 `PlayQueue`（jellyfin-web 等参考端要拿到队列才有东西可跟随）； 本机不吃这条命令（组队列接管在 T8c 拍板里
+     * DEFERRED）。失败只返回错误，组本身不受影响。
+     */
+    suspend fun startGroupQueue(
+        playlistItemIds: List<UUID>,
+        playingItemIndex: Int,
+        startPositionMs: Long,
+    ): SyncPlayError? {
+        if (playlistItemIds.isEmpty()) return null
+        val index = playingItemIndex.coerceIn(0, playlistItemIds.lastIndex)
+        return errorOf(
+            gateway.playQueue(
+                playlistItemIds = playlistItemIds,
+                playingItemIndex = index,
+                startPositionTicks = startPositionMs.coerceAtLeast(0L) * TICKS_PER_MILLISECOND,
+            )
+        )
+    }
+
+    /**
      * 原地切内核后的重绑（T3a-2 管线成功后由 `PlayerViewModel` 调用）。
      *
      * 重建播放口与漂移档，把组态按切前状态恢复（Playing / Paused → 合成一条立即执行的组命令完成恢复）， **不**重新 Join、**不**重收 WS 流。

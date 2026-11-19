@@ -345,4 +345,28 @@
     <string name="player_controls_decode_active">Software decoding</string>
     <string name="player_settings_tab_playback">Playback</string>
     <string name="player_settings_tab_gesture">Gestures</string>
+
+    <!-- W4-T8e：SyncPlay 入口面板 / 状态胶囊 / 异常与拦截提示（VIDEO-32 最小态） -->
+    <string name="player_sync_label">Sync together</string>
+    <string name="player_sync_panel_title">Sync together</string>
+    <string name="player_sync_create_group">Create a sync group</string>
+    <string name="player_sync_join_existing">Join an existing group</string>
+    <string name="player_sync_no_groups">No groups to join right now</string>
+    <string name="player_sync_group_members">%1$d members</string>
+    <string name="player_sync_leave_group">Leave group</string>
+    <string name="player_sync_capsule_synced">Synced</string>
+    <string name="player_sync_capsule_reconnecting">Reconnecting…</string>
+    <string name="player_sync_capsule_clock_syncing">Syncing clock…</string>
+    <string name="player_sync_episode_locked">Sync playback is on — episode switching is controlled by the group</string>
+    <string name="player_sync_kicked">You were removed from the sync group</string>
+    <string name="player_sync_join_failed">Could not join: %1$s</string>
+    <string name="player_sync_create_failed">Could not create the group: %1$s</string>
+    <string name="player_sync_error_group_missing">the group does not exist or was closed</string>
+    <string name="player_sync_error_access_denied">no access to the media playing in the group</string>
+    <string name="player_sync_error_unsupported">this server does not support sync playback</string>
+    <string name="player_sync_error_unauthorized">sign-in has expired</string>
+    <string name="player_sync_error_network">the network connection failed</string>
+    <string name="player_sync_error_generic">the request failed, try again later</string>
+    <string name="player_sync_group_default_name">%1$s\'s group</string>
+    <string name="player_sync_group_default_name_fallback">My sync group</string>
 </resources>

@@ -34,12 +34,13 @@ class PlayerControlLayoutTest {
     @Test
     fun topKeys_keepFinalOrderWithAspectBetweenEpisodesAndSettings() {
         assertEquals(
-            "右上角 5 键顺序：画中画 · 睡眠 · 选集 · 画面 · 设置（画面在选集与设置之间）",
+            "右上角 6 键顺序：画中画 · 睡眠 · 选集 · 画面 · SyncPlay · 设置（画面在选集与设置之间，SyncPlay 在画面之后）",
             listOf(
                 PlayerTopKey.Pip,
                 PlayerTopKey.Sleep,
                 PlayerTopKey.Episode,
                 PlayerTopKey.Aspect,
+                PlayerTopKey.SyncPlay,
                 PlayerTopKey.Settings,
             ),
             PLAYER_TOP_KEY_ORDER,

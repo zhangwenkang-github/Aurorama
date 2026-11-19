@@ -52,9 +52,11 @@ import coil3.request.ImageRequest
 import coil3.request.bitmapConfig
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
+import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
 import com.zhangwenkang.cinefin.playback.CinefinPlaybackService
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
+import com.zhangwenkang.cinefin.player.core.syncplay.SyncPlayControllerState
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
@@ -68,6 +70,7 @@ import com.zhangwenkang.cinefin.player.local.presentation.BackendSwitchResult
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerEvents
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleAppearancePreferences
+import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlayJoinOutcome
 import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlaySessionCoordinator
 import com.zhangwenkang.cinefin.presentation.player.BackendSwitchNotice
 import com.zhangwenkang.cinefin.presentation.player.BackendSwitchOverlay
@@ -78,9 +81,13 @@ import com.zhangwenkang.cinefin.presentation.player.PlayerFormFactor
 import com.zhangwenkang.cinefin.presentation.player.PlayerLayoutContext
 import com.zhangwenkang.cinefin.presentation.player.PlayerSettingsController
 import com.zhangwenkang.cinefin.presentation.player.PlayerSubtitleOverlay
+import com.zhangwenkang.cinefin.presentation.player.SyncPlayEpisodeAction
 import com.zhangwenkang.cinefin.presentation.player.keepsComposition
 import com.zhangwenkang.cinefin.presentation.player.rememberPlayerLayoutContext
+import com.zhangwenkang.cinefin.presentation.player.resolveSyncPlayEpisodeAction
+import com.zhangwenkang.cinefin.presentation.player.syncPlayErrorReasonRes
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.AmbientColors
 import com.zhangwenkang.cinefin.utils.PlayerGestureHelper
@@ -162,6 +169,10 @@ class PlayerActivity : BasePlayerActivity() {
     /** W4-T8d：SyncPlay 会话协调器（进程级单例；闸门、组状态与 T8e 面板入口）。 */
     @Inject lateinit var syncPlay: SyncPlaySessionCoordinator
 
+    /** W4-T8e：建组默认名要「<用户名> 的组」，用户名从当前服务器账号读取。 */
+    @Inject lateinit var catalogReadPort: CatalogReadPort
+    @Inject lateinit var serverDatabase: ServerDatabaseDao
+
     lateinit var binding: ActivityPlayerBinding
     private var playerGestureHelper: PlayerGestureHelper? = null
     override val viewModel: PlayerViewModel by viewModels()
@@ -215,6 +226,17 @@ class PlayerActivity : BasePlayerActivity() {
 
     /** 引擎切换提示条（非阻断，无对话框）。 */
     private val backendSwitchNotice = mutableStateOf<BackendSwitchNotice?>(null)
+
+    /** W4-T8e：SyncPlay 非阻断提示条（换集拦截 2s / 建组·入组失败 3s / 被移出组 3s）。 */
+    private val syncPlayNotice = mutableStateOf<String?>(null)
+    private var syncPlayNoticeJob: Job? = null
+
+    /**
+     * W4-T8e：主动退组标记。
+     *
+     * 组员回落 `NotInGroup` 有两种来路：自己点了「离开组」、或服务器踢出 / 组解散。只有后者弹「已被移出同步组」。
+     */
+    private var syncPlayLeaveRequested = false
 
     private var backendSwitchJob: Job? = null
     private var backendSwitchNoticeJob: Job? = null
@@ -274,6 +296,8 @@ class PlayerActivity : BasePlayerActivity() {
         super.onCreate(savedInstanceState)
         // W4-T8d：SyncPlay 装配幂等启动（时钟 / 状态机 / WS 三路流只收一次；播放页重建不重订阅）
         syncPlay.start()
+        // W4-T8e：被踢出 / 组解散的提示只在「真的从组内掉出来」时弹（自己离开不弹）
+        observeSyncPlayMembership()
         onBackPressedDispatcher.addCallback(
             this,
             object : OnBackPressedCallback(true) {
@@ -376,6 +400,12 @@ class PlayerActivity : BasePlayerActivity() {
                     player = controlPlayer,
                     // W4-T8d SyncPlay 闸门：入组期间播放键改发组命令
                     syncPlayGate = syncPlay.gate,
+                    // W4-T8e：SyncPlay 面板与状态胶囊（提示条文案由本页计时）
+                    syncPlay = syncPlay,
+                    syncPlayNoticeText = syncPlayNotice.value,
+                    onCreateSyncPlayGroup = ::createSyncPlayGroup,
+                    onJoinSyncPlayGroup = ::joinSyncPlayGroup,
+                    onLeaveSyncPlayGroup = ::leaveSyncPlayGroup,
                     uiState = uiState,
                     controls = controlsState,
                     layout = layout,
@@ -421,22 +451,29 @@ class PlayerActivity : BasePlayerActivity() {
                         }
                     },
                     onPreviousMediaItem = {
-                        viewModel.submitSeek(
-                            PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = false),
-                            "previous",
-                        )
+                        // W4-T8e：组内换集由组控制（拦下只提示，不写本地播放器）
+                        if (!blockEpisodeChangeWhileInGroup()) {
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = false),
+                                "previous",
+                            )
+                        }
                     },
                     onNextMediaItem = {
-                        viewModel.submitSeek(
-                            PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = true),
-                            "next",
-                        )
+                        if (!blockEpisodeChangeWhileInGroup()) {
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.AdjacentMediaItem(forward = true),
+                                "next",
+                            )
+                        }
                     },
                     onSelectMediaItem = { index ->
-                        viewModel.submitSeek(
-                            PlayerViewModel.SeekIntent.MediaItem(index),
-                            "queue",
-                        )
+                        if (!blockEpisodeChangeWhileInGroup()) {
+                            viewModel.submitSeek(
+                                PlayerViewModel.SeekIntent.MediaItem(index),
+                                "queue",
+                            )
+                        }
                     },
                     onRetrySeek = viewModel::retrySeek,
                     // W55 睡眠定时统一：状态与选择都走进程级单例（音乐 / 视频共享）
@@ -1147,6 +1184,130 @@ class PlayerActivity : BasePlayerActivity() {
     private fun bindPlayerInstance(player: Player?) {
         playerInstance.value = player
         binding.playerView.player = player
+    }
+
+    // ---------- W4-T8e：SyncPlay 入口动作与提示 ----------
+
+    /**
+     * 组员身份观察：从「真的在组里」（Idle / Armed / Playing / Paused / ClockWarming）掉回 `NotInGroup` 时弹「已被移出同步组」。
+     *
+     * `Joining → NotInGroup` 是入组失败，已有专门的失败提示，这里不算踢出；自己点「离开组」时 [syncPlayLeaveRequested] 已置位，同样不弹。
+     */
+    private fun observeSyncPlayMembership() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                var previous = syncPlay.state.value
+                syncPlay.state.collect { state ->
+                    val wasInGroup = previous.isSyncPlayInGroup()
+                    previous = state
+                    if (!wasInGroup || state != SyncPlayControllerState.NotInGroup) return@collect
+                    if (syncPlayLeaveRequested) {
+                        syncPlayLeaveRequested = false
+                    } else {
+                        showSyncPlayNotice(getString(PlayerR.string.player_sync_kicked), 3000L)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun SyncPlayControllerState.isSyncPlayInGroup(): Boolean =
+        this != SyncPlayControllerState.NotInGroup && this != SyncPlayControllerState.Joining
+
+    /** SyncPlay 提示条：非阻断，到点自动消失（与引擎切换提示条同一套计时惯例）。 */
+    private fun showSyncPlayNotice(text: String, holdMs: Long) {
+        syncPlayNoticeJob?.cancel()
+        syncPlayNotice.value = text
+        syncPlayNoticeJob = lifecycleScope.launch {
+            delay(holdMs)
+            syncPlayNotice.value = null
+        }
+    }
+
+    /**
+     * 建组：**先本地暂停**（定稿），再用当前账号名作默认组名，成功后把本机队列推给服务器。
+     *
+     * 队列推给服务器是给参考端（jellyfin-web 等）用的——它要拿到组队列才有东西可跟随；本机不吃 `PlayQueue`（组队列接管 DEFERRED）。
+     */
+    private fun createSyncPlayGroup() {
+        lifecycleScope.launch {
+            val player = playerInstance.value ?: return@launch
+            if (player.isPlaying) player.pause()
+            when (val outcome = syncPlay.createAndJoin(syncPlayGroupName())) {
+                is SyncPlayJoinOutcome.Success -> {
+                    syncPlay.startGroupQueue(
+                        playlistItemIds = currentQueueItemIds(player),
+                        playingItemIndex = player.currentMediaItemIndex,
+                        startPositionMs = player.currentPosition,
+                    )
+                }
+                is SyncPlayJoinOutcome.Failure ->
+                    showSyncPlayNotice(
+                        getString(
+                            PlayerR.string.player_sync_create_failed,
+                            getString(syncPlayErrorReasonRes(outcome.error)),
+                        ),
+                        3000L,
+                    )
+            }
+        }
+    }
+
+    private fun joinSyncPlayGroup(groupId: UUID) {
+        lifecycleScope.launch {
+            val outcome = syncPlay.joinGroup(groupId)
+            if (outcome is SyncPlayJoinOutcome.Failure) {
+                showSyncPlayNotice(
+                    getString(
+                        PlayerR.string.player_sync_join_failed,
+                        getString(syncPlayErrorReasonRes(outcome.error)),
+                    ),
+                    3000L,
+                )
+            }
+        }
+    }
+
+    private fun leaveSyncPlayGroup() {
+        syncPlayLeaveRequested = true
+        lifecycleScope.launch { syncPlay.leaveGroup() }
+    }
+
+    /** 组默认名：「<用户名> 的组」；读不到账号（离线 / 身份未就绪）时退回固定名。 */
+    private suspend fun syncPlayGroupName(): String {
+        val userName = runCatching {
+            val serverId =
+                catalogReadPort.currentScope()?.origin?.serverId ?: return@runCatching null
+            serverDatabase.getServerCurrentUser(serverId)?.name
+        }
+            .getOrNull()
+        return if (userName.isNullOrBlank()) {
+            getString(PlayerR.string.player_sync_group_default_name_fallback)
+        } else {
+            getString(PlayerR.string.player_sync_group_default_name, userName)
+        }
+    }
+
+    /** 当前播放器队列的条目 id（mediaId 即 Jellyfin itemId）；非 UUID 的条目（本地文件等）跳过。 */
+    private fun currentQueueItemIds(player: Player): List<UUID> =
+        (0 until player.mediaItemCount).mapNotNull { index ->
+            runCatching { UUID.fromString(player.getMediaItemAt(index).mediaId) }.getOrNull()
+        }
+
+    /**
+     * 组内换集拦截：入组期间上/下一集与队列点选不执行，只弹 2s 提示条（不上 setPlaylistItem，最小方案）。
+     *
+     * @return true = 已拦下，调用方不再走本地换集路径。
+     */
+    private fun blockEpisodeChangeWhileInGroup(): Boolean {
+        if (
+            resolveSyncPlayEpisodeAction(syncPlay.gate.ownsTransport.value) !=
+                SyncPlayEpisodeAction.Block
+        ) {
+            return false
+        }
+        showSyncPlayNotice(getString(PlayerR.string.player_sync_episode_locked), 2000L)
+        return true
     }
 
     /**

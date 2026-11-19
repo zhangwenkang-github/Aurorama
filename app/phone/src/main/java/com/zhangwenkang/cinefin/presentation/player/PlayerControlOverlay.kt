@@ -100,6 +100,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
@@ -127,6 +128,8 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
+import com.zhangwenkang.cinefin.player.core.syncplay.SyncPlayControllerState
+import com.zhangwenkang.cinefin.player.core.syncplay.SyncPlayGroup as CoreSyncPlayGroup
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
@@ -142,16 +145,21 @@ import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
 import com.zhangwenkang.cinefin.player.local.session.PlayerErrorInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSecondaryUnavailableReason
+import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlaySessionCoordinator
 import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlayTransportGate
 import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
+import com.zhangwenkang.cinefin.syncplay.SyncPlayCapability
+import com.zhangwenkang.cinefin.syncplay.SyncPlayConnectionState
+import java.util.UUID
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -291,6 +299,8 @@ internal enum class PlayerPanel {
     Decode,
     /** 码率面板（W12 反馈 B）：服务器转码档位，独立入口 */
     Bitrate,
+    /** W4-T8e：SyncPlay 入口面板（未入组 = 创建 / 加入；已入组 = 组名 + 成员 + 离开组） */
+    SyncPlay,
 }
 
 /**
@@ -444,6 +454,8 @@ internal enum class PlayerTopKey {
     Sleep,
     Episode,
     Aspect,
+    /** W4-T8e：SyncPlay 入口（定稿位置：画面之后、设置之前） */
+    SyncPlay,
     Settings,
 }
 
@@ -453,6 +465,7 @@ internal val PLAYER_TOP_KEY_ORDER: List<PlayerTopKey> =
         PlayerTopKey.Sleep,
         PlayerTopKey.Episode,
         PlayerTopKey.Aspect,
+        PlayerTopKey.SyncPlay,
         PlayerTopKey.Settings,
     )
 
@@ -685,6 +698,14 @@ fun PlayerControlOverlay(
     player: Player,
     /** W4-T8d SyncPlay 闸门：入组期间播放键只发组命令；null = 未装配（按原有直驱路径）。 */
     syncPlayGate: SyncPlayTransportGate? = null,
+    /** W4-T8e：SyncPlay 会话源（入口面板 / 状态胶囊）；null = 未装配，入口不出现。 */
+    syncPlay: SyncPlaySessionCoordinator? = null,
+    /** W4-T8e：非阻断提示条文案（宿主统一计时，到点置空）。 */
+    syncPlayNoticeText: String? = null,
+    /** W4-T8e：面板动作由宿主执行（建组要先暂停本地并把队列推给服务器）。 */
+    onCreateSyncPlayGroup: () -> Unit = {},
+    onJoinSyncPlayGroup: (UUID) -> Unit = {},
+    onLeaveSyncPlayGroup: () -> Unit = {},
     uiState: PlayerViewModel.UiState,
     controls: PlayerControlsState,
     /** 当前形态与骨架（D9）：决定控制层落在画面区还是折痕下屏、内容栏是否常驻 */
@@ -846,6 +867,26 @@ fun PlayerControlOverlay(
         }
     }
     val seekPending = uiState.seekState is SeekState.Seeking
+
+    /*
+     * W4-T8e：SyncPlay 面板与胶囊的会话面。全部收集都无条件调用（syncPlay 为空时退到本地兜底流），
+     * 避免「条件式 collect」在组合阶段换订阅。入口可见性先探一次能力：服务器不支持就整颗键隐藏（定稿：不置灰）。
+     */
+    val fallbackSyncPlayState = remember { MutableStateFlow(SyncPlayControllerState.NotInGroup) }
+    val fallbackSyncPlayGroup = remember { MutableStateFlow<CoreSyncPlayGroup?>(null) }
+    val fallbackSyncPlayConnection = remember { MutableStateFlow<SyncPlayConnectionState?>(null) }
+    val syncPlayState by (syncPlay?.state ?: fallbackSyncPlayState).collectAsStateWithLifecycle()
+    val syncPlayGroup by
+        (syncPlay?.activeGroup ?: fallbackSyncPlayGroup).collectAsStateWithLifecycle()
+    val syncPlayConnection by
+        (syncPlay?.connectionState ?: fallbackSyncPlayConnection).collectAsStateWithLifecycle()
+    var syncPlayEntryAvailable by remember { mutableStateOf(false) }
+    LaunchedEffect(syncPlay) {
+        syncPlayEntryAvailable = syncPlay?.probeCapability() is SyncPlayCapability.Available
+    }
+    val syncPlayCapsule = resolveSyncPlayCapsule(syncPlayState, syncPlayConnection)
+    var lastSyncPlayNotice by remember { mutableStateOf("") }
+    LaunchedEffect(syncPlayNoticeText) { syncPlayNoticeText?.let { lastSyncPlayNotice = it } }
     /*
      * W67 补充：预计结束时刻。播放中每秒推进「当前时钟」→ 结束时刻稳定跟随播放推进；暂停后时钟冻结在暂停点
      * （自洽口径：若就此继续，将在此刻结束），跳转 / 拖动后按冻结时钟重算。
@@ -1108,6 +1149,9 @@ fun PlayerControlOverlay(
                     }
                 },
             onOpenSettings = { navigatePanel(PlayerPanel.Settings) },
+            // W4-T8e：SyncPlay 入口（画面之后、设置之前；服务器不支持时整颗键隐藏）
+            syncPlayAvailable = syncPlayEntryAvailable,
+            onOpenSyncPlay = { navigatePanel(PlayerPanel.SyncPlay) },
             showLabels = toolLabelsVisible,
         )
     }
@@ -1176,6 +1220,9 @@ fun PlayerControlOverlay(
                         onSleep = { navigatePanel(PlayerPanel.Sleep) },
                         onPip = onPip,
                         onLock = { controls.setLock(true) },
+                        // W4-T8e：SyncPlay 入口（与画面区同序：画面之后、设置之前）
+                        syncPlayAvailable = syncPlayEntryAvailable,
+                        onOpenSyncPlay = { navigatePanel(PlayerPanel.SyncPlay) },
                     )
                 },
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -1224,6 +1271,9 @@ fun PlayerControlOverlay(
                             },
                             // 右上角 5 键：画中画 · 睡眠 · 选集 · 画面 · 设置（W12 终版）
                             showQualityLabel = !spec.narrow,
+                            // W4-T8e：标题右侧的同步状态胶囊（点击打开 SyncPlay 面板）
+                            syncPlayCapsule = syncPlayCapsule,
+                            onOpenSyncPlay = { navigatePanel(PlayerPanel.SyncPlay) },
                             tools = toolCluster,
                             modifier = Modifier.align(Alignment.TopCenter),
                             onHeightChanged = onTopBarHeight,
@@ -1408,6 +1458,19 @@ fun PlayerControlOverlay(
             )
         }
 
+        /* ---------- W4-T8e：SyncPlay 非阻断提示条 ----------
+         * 换集拦截（2s）/ 建组·入组失败（3s）/ 被移出组（3s）共用一条，文案由宿主拼好、到点置空；
+         * 与控件层可见性解耦（拦截发生在控制层收起时也要看得见）。
+         */
+        AnimatedVisibility(
+            visible = syncPlayNoticeText != null,
+            enter = fadeIn(tween(CinefinMotion.Fast, easing = CinefinMotion.Standard)),
+            exit = fadeOut(tween(CinefinMotion.Fast, easing = CinefinMotion.Accelerate)),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp),
+        ) {
+            SyncPlayNoticeBar(text = lastSyncPlayNotice)
+        }
+
         /* ---------- 面板层：右侧抽屉（§11 C）----------
          * 统一从右侧滑出（与选集栏同款），半透明底直接盖在画面上，画面布局不动；
          * 打开期间触摸由 PlayerOverlayContainer 整层接管（panelOpen），点抽屉外的空白关闭。
@@ -1577,6 +1640,17 @@ fun PlayerControlOverlay(
                             state = sleepState,
                             onSelect = onSelectSleepMinutes,
                         )
+                    // W4-T8e：SyncPlay 面板（组能力 / 组列表由协调器探针提供，建组 / 入组 / 退组由宿主执行）
+                    PlayerPanel.SyncPlay ->
+                        if (syncPlay != null) {
+                            SyncPlayPanel(
+                                syncPlay = syncPlay,
+                                activeGroup = syncPlayGroup,
+                                onCreateGroup = onCreateSyncPlayGroup,
+                                onJoinGroup = onJoinSyncPlayGroup,
+                                onLeaveGroup = onLeaveSyncPlayGroup,
+                            )
+                        }
                     PlayerPanel.None -> Unit
                 }
             }
@@ -1618,6 +1692,9 @@ private fun PlayerTopBar(
     onTitleLongPress: () -> Unit,
     /** 窄屏：清晰度徽标不占位，把宽度让给标题与 5 个工具键 */
     showQualityLabel: Boolean,
+    /** W4-T8e：标题右侧的 SyncPlay 状态胶囊；[SyncPlayCapsuleVisual.Hidden] = 不占位 */
+    syncPlayCapsule: SyncPlayCapsuleVisual = SyncPlayCapsuleVisual.Hidden,
+    onOpenSyncPlay: () -> Unit = {},
     /** 右上角 5 键（画中画 / 睡眠 / 选集 / 画面 / 设置），由调用方注入保持单一入口与固定顺序 */
     tools: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -1663,6 +1740,11 @@ private fun PlayerTopBar(
         if (qualityLabel != null && showQualityLabel) {
             Spacer(Modifier.width(CinefinSpacing.Space2))
             PlayerOverlayBadge(text = qualityLabel)
+        }
+        // W4-T8e：SyncPlay 状态胶囊贴在标题右侧（只在入组期间出现，随控制层一起进出）
+        if (syncPlayCapsule != SyncPlayCapsuleVisual.Hidden) {
+            Spacer(Modifier.width(CinefinSpacing.Space2))
+            SyncPlayCapsule(visual = syncPlayCapsule, onClick = onOpenSyncPlay)
         }
         Spacer(Modifier.width(CinefinSpacing.Space2))
         // 右上角 5 键（W12 终版）：画中画 · 睡眠 · 选集 · 画面 · 设置；锁移到右缘中部
@@ -1938,6 +2020,9 @@ private fun PlayerToolCluster(
     onOpenAspect: () -> Unit,
     onOpenQueue: () -> Unit,
     onOpenSettings: () -> Unit,
+    /** W4-T8e：SyncPlay 入口是否出现（能力探针不支持时整颗键隐藏） */
+    syncPlayAvailable: Boolean = false,
+    onOpenSyncPlay: () -> Unit = {},
     queueDescription: String,
     /** W17 反馈⑤：是否在图标下加小字（窄屏 / Compact 为 false） */
     showLabels: Boolean = false,
@@ -2018,6 +2103,21 @@ private fun PlayerToolCluster(
                                 null
                             },
                     )
+                PlayerTopKey.SyncPlay ->
+                    if (syncPlayAvailable) {
+                        PlayerIconButton(
+                            // 定稿：暂用最相近的同步类图标（全仓无 ic_sync / ic_group），待图标批次补 K1 重绘
+                            iconRes = CoreR.drawable.ic_repeat,
+                            contentDescription = stringResource(PlayerR.string.player_sync_label),
+                            onClick = onOpenSyncPlay,
+                            label =
+                                if (showLabels) {
+                                    stringResource(PlayerR.string.player_sync_label)
+                                } else {
+                                    null
+                                },
+                        )
+                    }
             }
         }
     }
@@ -2519,6 +2619,9 @@ internal fun PlayerCompactToolKeys(
     onSleep: () -> Unit,
     onPip: () -> Unit,
     onLock: () -> Unit,
+    /** W4-T8e：SyncPlay 入口（能力探针不支持时隐藏） */
+    syncPlayAvailable: Boolean = false,
+    onOpenSyncPlay: () -> Unit = {},
 ) {
     // 顺序与画面区版式同源：音轨 · 字幕 · 倍率 · 码率 · 解码 · 详细信息 + 1×，其余入口跟在后面
     PlayerIconButton(
@@ -2583,6 +2686,15 @@ internal fun PlayerCompactToolKeys(
         onClick = onOpenAspect,
         size = 40.dp,
     )
+    // W4-T8e：小窗工具行与画面区同序——SyncPlay 在画面之后、设置之前
+    if (syncPlayAvailable) {
+        PlayerIconButton(
+            iconRes = CoreR.drawable.ic_repeat,
+            contentDescription = stringResource(PlayerR.string.player_sync_label),
+            onClick = onOpenSyncPlay,
+            size = 40.dp,
+        )
+    }
     PlayerIconButton(
         iconRes = PlayerR.drawable.ic_player_settings,
         contentDescription = stringResource(PlayerR.string.player_controls_label_settings),
@@ -3518,6 +3630,7 @@ private fun panelTitleRes(panel: PlayerPanel): Int =
         PlayerPanel.Settings -> PlayerR.string.player_controls_settings
         PlayerPanel.Decode -> PlayerR.string.player_controls_label_decode
         PlayerPanel.Bitrate -> PlayerR.string.player_controls_label_bitrate
+        PlayerPanel.SyncPlay -> PlayerR.string.player_sync_panel_title
         PlayerPanel.None -> PlayerR.string.player_controls_settings
     }
 
