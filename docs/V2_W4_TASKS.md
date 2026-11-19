@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-19：**T1 ✅ `d2795184`、T8a ✅ `1ef74954`**（两 deepseek 子代理并行交付，门禁全绿 + K60 取证，已停播放）；下一步派 T2/T3a 与 T8b；遗留 L3 已立：播放页 themeId 跟随 aurora↔amoled 深色主题）
+> 状态：`ACTIVE`（2026-11-19：**T1 ✅ `d2795184`、T8a ✅ `1ef74954`、T2 ✅ `c8a05dce`、T8b ✅ `ad8b2709`**（四卡两波并行交付，合态终验 ktfmt+四模块单测+assembleDebug 全绿；T2 K60 取证通过已停播放）；下一步派 T3a（引擎切换接口）与 T8c（SyncPlay 状态机）；遗留 L3 已立：播放页 themeId 跟随 aurora↔amoled 深色主题）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -148,6 +148,14 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 - 门禁：`core`+`app:phone`+`modes:music` 单测（断言旧值的布局测试同步更新）+ `ktfmtCheck` + `assembleDebug --max-workers=2`。
 - K60 取证：起播→控制层弹簧出入（连点验证可中断）→暂停降亮暗角→拖拽吸附回弹→trickplay 上浮→面板 stagger→自动隐藏 4s（logcat 计时）→四主题切换无残留色；圆角量测允许 ≤2 张压缩截图（看完即删）。**取证完必须 media_session state=NONE + force-stop 兜底**。
 
+## T2/T8b 交付遗留（2026-11-19 收口记录）
+
+- **T2 裁决（Kimi）**：「· 图形」标注仅用于真图形轨（PGS/VobSub 族），ASS/SSA 不标（文本格式，标「图形」误导）；但 mpv 提示条对 ASS/SSA/PGS 全触发。代理偏离任务卡括注，理由成立，批准。
+- **T2 事实**：`DELAY_STEP_MS=50`（±10s 不变）；延迟显示改两位小数（`+0.05s`），chip 文案由常量推导；行副标题瘦身为「格式 · 落点」，语言进组头、来源进行尾；`PlayerSubtitleOverlay.visibleText` 升 internal 供回归测试。mpv 字幕样式**已实时**（`applySubtitleStyle` 写运行时可写属性），无补差；`sub-ass-override` 未显式设置（作者样式 ASS 可能部分不接受覆盖，边界已知）。**VIDEO-15 在线字幕搜索全仓零实现、零依赖，SHOULD 不实现，关闭。**
+- **T8b 事实（T8c/T8d 消费口径）**：`SyncPlayClock`（`player/core/syncplay/`）：`state.isSynchronized` = ≥1 样本；`run()` 吞单次采样异常，T8c 直接 `launch { clock.run() }`；退组 `reset()`；命令 deadline 用 `clock.nowServer()` 对比 `whenAt`。与上游 TimeSync.js 唯一偏差：任务卡钉 3 次 greedy（上游实际 4×1s），Kimi 裁决维持任务卡口径。`SyncPlayTimeSource`↔`gateway.getServerTime()` 适配器留 T8d。
+- **L4（小遗留）**：`player/core/build.gradle.kts` 硬编码 `kotlinx-coroutines-core:1.11.0`（catalog 无条目），下波顺手收进 version catalog。
+- **graphify**：T2/T8b 代理未跑（边界限制），负责人已统一跑。
+
 ## T1/T8a 交付遗留（2026-11-19 收口记录）
 
 - **L3（新立，小卡）**：`PlayerActivity` 目前 `CinefinTheme(themeId = DEFAULT)` 写死，播放页不随 App 主题换色板。Kimi 设计拍板：播放页跟随 **aurora↔amoled** 深色主题（light/dynamic 映射 aurora dark，保持影院深色基调——与「T1 设计定稿」§1 一致，VIDEO-35 的 OLED 维度由此闭合）。改动面：PlayerActivity 传 themeId 映射 + 播放页组件对照 aurora/amoled 玻璃参数抽查，随 T5 或独立小卡派。
@@ -158,6 +166,7 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-19（五）：**T2 ✅ `c8a05dce`**（50ms 步进/语言分组标注/图形字幕非阻断提示，K60 取证：步进、seek 与引擎切换后偏移保持、分组与提示条上屏，已停播放）与 **T8b ✅ `ad8b2709`**（SyncClock，公式与 jellyfin-web 逐字对应，9+3 例测试全绿）并行交付；合态终验全绿。VIDEO-15 查无实现关闭；L4 立（coroutines 进 catalog）。
 - 2026-11-19（四）：**T1 ✅ `d2795184`**（deepseek，K1 玻璃换肤 + 弹簧动效 + 圆角清理 9 处 + 自动隐藏 4s；K60 取证：隐藏 4.29–4.32s、暂停降亮 ≈0.80 含边缘压暗、连点可中断无 ANR，已停播放）与 **T8a ✅ `1ef74954`**（deepseek，SyncPlay gateway 22 动词 + 探针三路径契约测试 20 例）并行交付，门禁全绿；T1 设计规格 Kimi 定稿入「T1 设计定稿」节；新立遗留 L3（播放页 themeId 跟随 aurora↔amoled），trickplay 复验并入 T4。
 - 2026-11-19（三）：用户拍板 SyncPlay **go**（go-minimal 范围），立 T8a–T8e 实现卡；新增纪律「设备用后必停播放」（media_session state=NONE + force-stop 兜底，已入记忆库）；补回新会话开工提示词。
 - 2026-11-19（二）：L1 retrySeek 修复提交 `ccdafefa`；L2 TLS 复验通过（K60 mpv 生产播放健康）；T6 SyncPlay 调研完成；顺手修正 `DEV_ENVIRONMENT.md` 服务器版本 10.11.8→12.4.0 并记录 jellyfin-test=生产同实例。
