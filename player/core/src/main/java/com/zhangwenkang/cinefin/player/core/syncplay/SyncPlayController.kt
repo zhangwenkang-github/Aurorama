@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.player.core.syncplay
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import kotlin.math.abs
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -100,8 +101,24 @@ fun interface SyncPlayTicker {
  *
  * ## 漂移校正
  *
- * 只在 Playing 态、时钟已收敛、播放口报告在播时进行：期望位置 = 锚点位置 + (nowServer − 锚点时刻) × rate，漂移 = 播放口位置 − 期望位置，分档见
+ * 只在 Playing 态、时钟已收敛、播放口报告在播且位置读得到时进行：期望位置 = 锚点位置 + (nowServer − 锚点时刻) × rate，漂移 = 播放口位置 − 期望位置，分档见
  * [SyncPlayDriftProfile]。追帧倍速由 [applyRate] 去重，避免每个 tick 都写播放口。
+ *
+ * ## 定位 in-flight 抑制（W4-T8c 缺陷修复）
+ *
+ * 一次定位从发出到引擎真正落定需要数百毫秒到数秒（mpv 大跳要重缓冲、解码器重建更久），期间读侧仍是旧位置。若无条件按轮评估，每轮都会读到 旧位置 → 漂移恒越限 → 再发
+ * seek，形成每秒一次的「定位风暴」（每次定位触发一次解码器重建）。
+ *
+ * 因此每次定位（命令触发的起播 / 跳转，以及漂移校正的校正 seek）都记一条 in-flight，三条信号任一成立才收尾：
+ * - 落点确认（[SyncPlayPlaybackPort.seekConfirmation] 里请求号匹配的那条）；
+ * - 播放口报定位失败（[SyncPlayPlaybackPort.lastSeekFailed]）；
+ * - 读侧位置已经落到 seek 目标附近（容差 ≥ 1s：mpv `time-pos` 只有整秒粒度）。
+ *
+ * 其余时间整轮漂移评估挂起，绝不拿旧读数重锚点。
+ *
+ * **锚点始终对齐组时间线，不在落定时重设**：早期实现把锚点重设到落点，等于把 1–2s 的 seek 延迟吸收成永久本地偏差，下一轮仍判越限 → 每 2 秒再校正一次（真机取证即 2.4s
+ * 一次的定位风暴）。现在落定后只记录「本地落后多少」，把它作为下一次校正 seek 的提前量 （[seekAimAheadMs]），两三次内收敛到与组同步。连续两次校正 seek 另有
+ * [MIN_CORRECTION_SEEK_INTERVAL] 护栏。
  *
  * [run] 由装配层放进自己的 scope（`launch { controller.run() }`），[SyncPlayClock.run] 的采样循环同理另行启动。
  */
@@ -125,6 +142,10 @@ class SyncPlayController(
     var activeGroupId: UUID? = null
         private set
 
+    /** 是否还有一笔定位在等落点确认（诊断 / 单测用：等它收尾再断言漂移行为）。 */
+    internal val awaitingSeekConfirmation: Boolean
+        get() = seekInFlight != null
+
     /** 挂起（时钟未收敛）或已排定（Armed）的命令。 */
     private var pendingCommand: SyncPlayCommand? = null
 
@@ -137,6 +158,18 @@ class SyncPlayController(
     /** 当前写给播放口的倍速（播放口没有倍速读侧）。 */
     private var appliedRate: Float = profile.nominalRate
 
+    /** 定位请求号：单调递增，用于把落点确认配对回发出的那次请求。 */
+    private var seekRequestSequence: Long = 0
+
+    /** 已发出、等落点确认的定位；非 null 期间漂移评估整轮挂起。 */
+    private var seekInFlight: SeekInFlight? = null
+
+    /** 上一次漂移校正 seek 的服务器时刻：连续校正 seek 的护栏起点。 */
+    private var lastCorrectionSeekAt: Instant? = null
+
+    /** 校正 seek 的提前量（毫秒）：落定后本地仍落后多少，下次就多瞄这么多，用来抵消 seek 延迟。 */
+    private var seekAimAheadMs: Long = 0
+
     private var waitJob: Job? = null
 
     // —— 入口 ——
@@ -147,6 +180,7 @@ class SyncPlayController(
         pendingCommand = null
         armedFrom = null
         anchor = null
+        clearSeekTracking()
         applyRate(profile.nominalRate)
         _state.value = SyncPlayControllerState.Joining
         wakeUp()
@@ -176,6 +210,7 @@ class SyncPlayController(
                 pendingCommand = null
                 armedFrom = null
                 anchor = null
+                clearSeekTracking()
                 applyRate(profile.nominalRate)
                 // Joining → ClockWarming / Idle：加入完成的瞬间就按时钟收敛情况落位。
                 _state.value =
@@ -274,32 +309,34 @@ class SyncPlayController(
     }
 
     private fun applyNow(command: SyncPlayCommand, now: Instant) {
+        // 命令会重新定义组时间线：上次校正 seek 的护栏起点不再有意义。
+        lastCorrectionSeekAt = null
         when (command.type) {
             SyncPlayCommandType.UNPAUSE -> {
                 val ticks = command.positionTicks
                 val target = ticks?.let { expectedPositionMs(command, now) }
-                target?.let { port.seekTo(it) }
+                target?.let { issueSeek(it, now) }
                 applyRate(profile.nominalRate)
                 port.play()
                 anchor =
                     if (target != null) {
                         GroupAnchor(command.whenAt, target, groupRate)
                     } else {
-                        GroupAnchor(now, port.currentPositionMs, groupRate)
+                        port.currentPositionMs?.let { GroupAnchor(now, it, groupRate) }
                     }
                 _state.value = SyncPlayControllerState.Playing
             }
             SyncPlayCommandType.PAUSE -> {
-                command.positionTicks?.let { port.seekTo(ticksToMillis(it)) }
+                command.positionTicks?.let { port.seekTo(ticksToMillis(it), nextSeekRequestId()) }
                 port.pause()
-                anchor = GroupAnchor(now, port.currentPositionMs, groupRate)
+                anchor = port.currentPositionMs?.let { GroupAnchor(now, it, groupRate) }
                 _state.value = SyncPlayControllerState.Paused
             }
             SyncPlayCommandType.SEEK -> {
                 val ticks = command.positionTicks
                 if (ticks != null) {
                     val target = expectedPositionMs(command, now)
-                    port.seekTo(target)
+                    issueSeek(target, now)
                     anchor = GroupAnchor(command.whenAt, target, groupRate)
                 }
                 _state.value = seekReturnState()
@@ -307,6 +344,7 @@ class SyncPlayController(
             SyncPlayCommandType.STOP -> {
                 port.pause()
                 anchor = null
+                clearSeekTracking()
                 _state.value = SyncPlayControllerState.Idle
             }
             SyncPlayCommandType.UNKNOWN -> Unit
@@ -331,22 +369,103 @@ class SyncPlayController(
     }
 
     private fun correctDrift(now: Instant) {
+        // in-flight：上一笔定位还没落定，整轮挂起；落定那一轮只收尾（记录提前量），不再评估。
+        if (resolveSeekInFlight(now)) return
         val current = anchor ?: return
         if (!clock.state.isSynchronized) return
         // 缓冲 / 卡顿时引擎会短暂报 not playing：这一轮不校正，避免把追帧倍速叠在缓冲上。
         if (!port.isPlaying) return
+        // 读不到可信位置（引擎重建 / 未就绪）：这一轮不校正，绝不用占位值算漂移。
+        val position = port.currentPositionMs ?: return
         val expected = current.expectedAt(now)
-        val drift = port.currentPositionMs - expected
+        val drift = position - expected
         when (val action = SyncPlayDrift.decide(drift, appliedRate, profile, expected)) {
             SyncPlayDriftAction.Hold -> Unit
             is SyncPlayDriftAction.AdjustRate -> applyRate(action.rate)
             SyncPlayDriftAction.RestoreRate -> applyRate(profile.nominalRate)
             is SyncPlayDriftAction.Seek -> {
-                port.seekTo(action.positionMs)
+                if (!canIssueCorrectionSeek(now)) return
+                issueSeek(action.positionMs, now)
+                lastCorrectionSeekAt = now
                 applyRate(profile.nominalRate)
-                anchor = GroupAnchor(now, action.positionMs, groupRate)
             }
         }
+    }
+
+    /**
+     * 处理挂起的定位。三条收尾信号，任一成立即收尾并让本轮漂移评估作废：
+     *
+     * 1. 落点确认到达（请求号匹配）；
+     * 2. 播放口报定位失败；
+     * 3. 读侧位置已经落到 seek 目标附近。
+     *
+     * 三条都不成立就继续挂着——**绝不在读侧还是旧值时收尾**：大跳（如组把 380s 拉回 0.4s）要重缓冲数秒，短超时里读侧一直停在旧位置，
+     * 按旧值收尾会把「等待落定」误判成「仍然偏离」，每轮再发一次 seek（真机 2.4s 一次的定位风暴即此）。[SEEK_CONFIRM_TIMEOUT]
+     * 只是最后兜底，防止播放口既不确认也不失败时校正永久停摆。
+     *
+     * @return true = 本轮漂移评估跳过
+     */
+    private fun resolveSeekInFlight(now: Instant): Boolean {
+        val inFlight = seekInFlight ?: return false
+        val confirmation = port.seekConfirmation?.takeIf { it.requestId == inFlight.requestId }
+        if (confirmation != null) {
+            settleInFlight(now, confirmation.positionMs)
+            return true
+        }
+        if (port.lastSeekFailed) {
+            seekInFlight = null
+            return true
+        }
+        // 落到目标附近才算落定：播放中位置本来就在前进，「位置变了」不能当证据。
+        val position = port.currentPositionMs
+        if (position != null && abs(position - inFlight.targetMs) <= landingToleranceMs()) {
+            settleInFlight(now, position)
+            return true
+        }
+        if (now.isBefore(inFlight.deadline)) return true
+        // 兜底：既不确认也不失败也不动位置，说明这次定位大概率没被执行；直接收尾，让下一轮重新判断。
+        seekInFlight = null
+        return true
+    }
+
+    /**
+     * 落定收尾：更新下一次校正 seek 的提前量，**锚点保持组时间线不动**。
+     *
+     * 早期实现在这里把锚点重设到落点，等于把 seek 延迟（真机 1–2s）吸收成永久的本地偏差：下一轮仍判越限 → 再 seek → 每 2 秒一次的定位风暴。改成「按落后量给下一次
+     * seek 加提前量」，两三次内收敛到与组同步，且锚点始终对齐组时钟。
+     */
+    private fun settleInFlight(now: Instant, position: Long) {
+        seekInFlight = null
+        val expected = anchor?.expectedAt(now) ?: return
+        val error = position - expected
+        seekAimAheadMs =
+            (seekAimAheadMs - error).coerceIn(-MAX_SEEK_AIM_AHEAD_MS, MAX_SEEK_AIM_AHEAD_MS)
+    }
+
+    /** 落定判据的容差：读侧最快的快照粒度是整秒（mpv `time-pos`），容差不能比这更小。 */
+    private fun landingToleranceMs(): Long = maxOf(profile.seekAboveMs, 1_000L)
+
+    /** 连续校正 seek 的护栏：距上一次校正至少 [MIN_CORRECTION_SEEK_INTERVAL]。 */
+    private fun canIssueCorrectionSeek(now: Instant): Boolean {
+        val last = lastCorrectionSeekAt ?: return true
+        return Duration.between(last, now) >= MIN_CORRECTION_SEEK_INTERVAL
+    }
+
+    /** 发出一次定位并登记 in-flight，返回本次请求号。 */
+    private fun issueSeek(positionMs: Long, now: Instant): Long {
+        val requestId = nextSeekRequestId()
+        val aimed = positionMs + seekAimAheadMs
+        port.seekTo(aimed, requestId)
+        seekInFlight = SeekInFlight(requestId, aimed, now.plus(SEEK_CONFIRM_TIMEOUT))
+        return requestId
+    }
+
+    private fun nextSeekRequestId(): Long = ++seekRequestSequence
+
+    private fun clearSeekTracking() {
+        seekInFlight = null
+        lastCorrectionSeekAt = null
+        seekAimAheadMs = 0
     }
 
     /**
@@ -390,7 +509,15 @@ class SyncPlayController(
         pendingCommand = null
         armedFrom = null
         anchor = null
+        clearSeekTracking()
     }
+
+    /** 已发出、等落定的定位：[targetMs] 是落定判据的参照点，[deadline] 是兜底窗口。 */
+    private data class SeekInFlight(
+        val requestId: Long,
+        val targetMs: Long,
+        val deadline: Instant,
+    )
 
     /** 组时间线锚点：`whenAt` 时刻组位于 [positionMs]，之后按 [rate] 外推。 */
     private data class GroupAnchor(
@@ -411,5 +538,19 @@ class SyncPlayController(
 
         /** 空闲态（Idle / Paused / NotInGroup / Joining）的驱动循环空转周期。 */
         val IDLE_POLL_INTERVAL: Duration = Duration.ofSeconds(1)
+
+        /** 校正 seek 提前量的上下限：跨条目大跳的落定延迟可能到数秒，但再大就该怀疑定位被忽略。 */
+        const val MAX_SEEK_AIM_AHEAD_MS: Long = 5_000L
+
+        /**
+         * 一次定位等落定的上限（兜底）。
+         *
+         * 正常收尾靠确认 / 失败 / 读侧位置变化三条信号；这里只防「播放口既不确认也不动位置」的极端情况。大跳在 mpv 上要重缓冲
+         * 数秒，窗口取得比这更长，避免把「还没落定」误判成「没有执行」。
+         */
+        val SEEK_CONFIRM_TIMEOUT: Duration = Duration.ofSeconds(15)
+
+        /** 连续两次校正 seek 的最小间隔：任何残留环路的最后一道护栏。 */
+        val MIN_CORRECTION_SEEK_INTERVAL: Duration = Duration.ofSeconds(2)
     }
 }

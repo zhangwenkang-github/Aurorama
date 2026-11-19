@@ -98,12 +98,33 @@ class FakeSyncPlayHost(
     override val currentPositionMs: Long
         get() = positionMs
 
+    /** 漂移读侧口径：默认等于 [positionMs]，测试可设 null 模拟「读不到」或设别的值模拟滞后。 */
+    override var confirmedPositionMs: Long? = 0L
+
+    /** 已确认的落点：null = 还没确认（走控制器兜底）。 */
+    var seekConfirmationMs: Long? = null
+
+    /** 被 seek sink 判为失败的请求代次（0 = 无失败）。 */
+    var seekFailedGeneration: Long = 0L
+
+    private var seekGeneration: Long = 0L
+
     override val isPlaying: Boolean
         get() = playing
 
-    override fun submitSeek(positionMs: Long, source: String) {
+    override fun submitSeek(positionMs: Long, source: String): Long {
         seeks += positionMs to source
+        seekGeneration += 1
+        return seekGeneration
     }
+
+    override fun confirmedSeekPosition(requestGeneration: Long): Long? =
+        seekConfirmationMs?.takeIf {
+            requestGeneration == seekGeneration
+        }
+
+    override fun seekFailed(requestGeneration: Long): Boolean =
+        seekFailedGeneration == requestGeneration
 
     private val backendReboundListeners = mutableListOf<() -> Unit>()
 

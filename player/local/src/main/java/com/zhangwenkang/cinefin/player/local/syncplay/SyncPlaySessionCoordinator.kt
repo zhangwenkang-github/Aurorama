@@ -336,8 +336,10 @@ constructor(
                 PlayerSyncPlayPlaybackPort(
                     engineProvider = { host.engine },
                     seekDispatcher = seekDispatcher,
-                    positionProvider = { host.currentPositionMs },
+                    positionProvider = { host.confirmedPositionMs },
                     isPlayingProvider = { host.isPlaying },
+                    confirmationProvider = host::confirmedSeekPosition,
+                    failureProvider = host::seekFailed,
                 ),
             clock = clock,
             profile = profile,

@@ -156,6 +156,7 @@ class SyncPlayControllerTest {
     fun `主动退组回 NotInGroup 并把倍速恢复 1x`() = loop { fixture ->
         fixture.join(synced = true)
         fixture.controller.onCommand(fixture.play(whenAt = fixture.now(), atSeconds = 10))
+        fixture.settleSeek()
         fixture.port.positionMs = 10_400
         fixture.tick()
         assertEquals(0.95f, fixture.port.rateValue, 0.0001f)
@@ -426,6 +427,215 @@ class SyncPlayControllerTest {
         assertEquals(1.0f, fixture.port.rateValue, 0.0001f)
     }
 
+    // —— 定位 in-flight 抑制（W4-T8c 缺陷修复：seek 风暴） ——
+
+    @Test
+    fun `起播定位后读侧滞后不会连环发校正 seek`() = loop { fixture ->
+        fixture.join(synced = true)
+        // 读侧在 seek 后 600ms 才更新（mpv 解码器重建期的表现）
+        fixture.port.seekLatencyMs = 600
+        fixture.controller.onCommand(fixture.play(whenAt = fixture.now(), atSeconds = 10))
+        assertEquals(listOf(10_000L), fixture.port.seekTargets)
+
+        // in-flight 未落定：每轮评估都挂起，一轮都不该再发 seek
+        repeat(2) {
+            fixture.advance(250)
+            fixture.tick()
+        }
+        assertEquals(
+            "读侧滞后期间不应重复定位（旧实现这里会每轮发一次）",
+            listOf(10_000L),
+            fixture.port.seekTargets,
+        )
+
+        // 落定后只允许「一次」带提前量的补偿 seek（瞄准 seek 延迟）
+        repeat(4) {
+            fixture.advance(250)
+            fixture.tick()
+        }
+        assertEquals("落定后应只补一次提前量 seek", 2, fixture.port.seekTargets.size)
+        assertTrue(
+            "补偿 seek 应带提前量：${fixture.port.seekTargets}",
+            fixture.port.seekTargets[1] > 10_000L,
+        )
+
+        // 补偿 seek 落定后护栏内不再新增（旧实现这里是每 2s 一次的无尽循环）
+        repeat(3) {
+            fixture.advance(250)
+            fixture.tick()
+        }
+        assertEquals(2, fixture.port.seekTargets.size)
+    }
+
+    @Test
+    fun `校正 seek 在落点确认前不发新 seek`() = loop { fixture ->
+        fixture.join(synced = true)
+        fixture.playAtTenSeconds()
+        fixture.port.seekLatencyMs = 800
+
+        fixture.advance(250)
+        fixture.port.positionMs = 11_000
+        fixture.tick()
+        assertEquals(listOf(10_250L), fixture.port.seekTargets)
+
+        // 确认要 800ms 才来：窗口内读侧仍停在 11_000，但不得再发校正 seek
+        repeat(3) {
+            fixture.advance(250)
+            fixture.tick()
+        }
+        assertEquals(listOf(10_250L), fixture.port.seekTargets)
+    }
+
+    @Test
+    fun `确认后锚点取确认落点而不是 intended target`() = loop { fixture ->
+        fixture.join(synced = true)
+        fixture.playAtTenSeconds()
+        // 引擎实际落在请求目标之前 200ms
+        fixture.port.landingOffsetMs = -200
+
+        fixture.advance(250)
+        // 期望 10_250（锚点 10_000 + 250ms），读侧 10_700 → 领先 450ms > 400ms 触发校正 seek
+        fixture.port.positionMs = 10_700
+        fixture.tick()
+        assertEquals(listOf(10_250L), fixture.port.seekTargets)
+
+        // 确认落点 10_050：锚点 (t0+500, 10_050)
+        fixture.advance(250)
+        fixture.tick()
+
+        // 读侧 = 确认落点 + 250ms。按确认落点外推漂移 0（Hold）；
+        // 若误按 intended target(10_250) 外推，期望 10_500 → 漂移 -200 → 1.05x。
+        fixture.port.positionMs = 10_300
+        fixture.advance(250)
+        fixture.tick()
+
+        assertEquals(1.0f, fixture.port.rateValue, 0.0001f)
+        assertEquals(listOf(10_250L), fixture.port.seekTargets)
+    }
+
+    @Test
+    fun `连续校正 seek 至少间隔 2 秒`() = loop { fixture ->
+        fixture.join(synced = true)
+        fixture.playAtTenSeconds()
+
+        fixture.advance(250)
+        // 期望 10_250，读侧 10_700 → 领先 450ms 触发第一次校正 seek
+        fixture.port.positionMs = 10_700
+        fixture.tick()
+        assertEquals(1, fixture.port.seekTargets.size)
+
+        // 收尾确认并重锚点
+        fixture.advance(250)
+        fixture.tick()
+
+        // 立刻又越限：护栏拦住
+        fixture.port.positionMs = 11_500
+        fixture.advance(250)
+        fixture.tick()
+        assertEquals("两次校正 seek 之间至少要隔 2s", 1, fixture.port.seekTargets.size)
+
+        // 距第一次校正满 2s：放行
+        fixture.advance(1_500)
+        fixture.port.positionMs = 13_000
+        fixture.tick()
+        assertEquals(2, fixture.port.seekTargets.size)
+    }
+
+    @Test
+    fun `大跳落定前读侧停在旧值时持续挂起不发新 seek`() = loop { fixture ->
+        fixture.join(synced = true)
+        // 大跳（组把本地从 380s 拉回 0.4s）：mpv 要重缓冲数秒，读侧一直停在旧位置 0
+        fixture.port.seekLatencyMs = 6_000
+        fixture.controller.onCommand(fixture.play(whenAt = fixture.now(), atSeconds = 10))
+        assertEquals(1, fixture.port.seekTargets.size)
+
+        // 旧实现在 2s 超时后按旧读数重锚点，每 2.4s 再发一次（真机取证即此节奏）
+        repeat(20) {
+            fixture.advance(250)
+            fixture.tick()
+        }
+        assertEquals("落定前读侧停在旧值，一轮都不该重发", 1, fixture.port.seekTargets.size)
+    }
+
+    @Test
+    fun `读侧落到 seek 目标附近即视为落定并重锚点`() = loop { fixture ->
+        fixture.join(synced = true)
+        fixture.playAtTenSeconds()
+        // sink 一直停在 Seeking（不确认），但引擎实际已把位置跳到目标
+        fixture.port.confirmsSeeks = false
+        fixture.port.seekLatencyMs = 1_000
+
+        fixture.advance(250)
+        fixture.port.positionMs = 10_700
+        fixture.tick()
+        assertEquals(listOf(10_250L), fixture.port.seekTargets)
+
+        // 落定：读侧变成 10_250（= 目标）
+        fixture.advance(1_000)
+        fixture.tick()
+        // 之后按新锚点外推：读侧跟着走就不再定位
+        fixture.port.positionMs = 10_500
+        fixture.advance(250)
+        fixture.tick()
+
+        assertEquals(listOf(10_250L), fixture.port.seekTargets)
+    }
+
+    @Test
+    fun `播放中读侧前进本身不算落定依据`() = loop { fixture ->
+        fixture.join(synced = true)
+        fixture.playAtTenSeconds()
+        // 不确认、读侧缓慢前进（播放中位置本来就在走），但离目标很远
+        fixture.port.confirmsSeeks = false
+        fixture.port.seekLatencyMs = 20_000
+
+        fixture.advance(250)
+        fixture.port.positionMs = 10_700
+        fixture.tick()
+        assertEquals(1, fixture.port.seekTargets.size)
+
+        repeat(6) {
+            fixture.advance(250)
+            fixture.port.positionMs = (fixture.port.positionMs ?: 0L) + 250
+            fixture.tick()
+        }
+        assertEquals("读侧前进不等于落定，不能重发", 1, fixture.port.seekTargets.size)
+    }
+
+    @Test
+    fun `播放口报定位失败时立刻按读侧位置收尾`() = loop { fixture ->
+        fixture.join(synced = true)
+        fixture.playAtTenSeconds()
+        fixture.port.confirmsSeeks = false
+        fixture.port.seekFails = true
+        fixture.port.seekLatencyMs = 5_000
+
+        fixture.advance(250)
+        fixture.port.positionMs = 10_700
+        fixture.tick()
+        assertEquals(1, fixture.port.seekTargets.size)
+
+        // 失败信号到达：本轮就收尾，不补发
+        fixture.advance(250)
+        fixture.tick()
+        assertEquals(1, fixture.port.seekTargets.size)
+    }
+
+    @Test
+    fun `读侧读不到位置时跳过漂移评估`() = loop { fixture ->
+        fixture.join(synced = true)
+        fixture.playAtTenSeconds()
+
+        fixture.port.positionMs = null
+        repeat(4) {
+            fixture.advance(250)
+            fixture.tick()
+        }
+
+        assertTrue("读不到位置时不应变速或定位：${fixture.port.calls}", fixture.port.calls.isEmpty())
+        assertTrue(fixture.port.seekTargets.isEmpty())
+    }
+
     // —— 纯判定函数边界 ——
 
     @Test
@@ -494,7 +704,7 @@ private class Fixture(profile: SyncPlayDriftProfile = SyncPlayDriftProfile.Exo) 
 
     private val localClock = VirtualLocalClock(start)
     val clock = SyncPlayClock(FixedTimeSource(localClock), localClock)
-    val port = FakePlaybackPort()
+    val port = FakePlaybackPort { localClock.now() }
     val ticker = ManualTicker()
     val controller = SyncPlayController(port, clock, profile, ticker)
 
@@ -534,10 +744,24 @@ private class Fixture(profile: SyncPlayDriftProfile = SyncPlayDriftProfile.Exo) 
     fun stop(): SyncPlayCommand =
         SyncPlayCommand(groupId, playlistItemId, SyncPlayCommandType.STOP, now(), null, now())
 
-    /** 起播在 10s：锚点 = 当前时刻 / 10_000ms，之后每一步只动 [FakePlaybackPort.positionMs]。 */
-    fun playAtTenSeconds() {
+    /**
+     * 起播在 10s：锚点 = 当前时刻 / 10_000ms，之后每一步只动 [FakePlaybackPort.positionMs]。
+     *
+     * 起播自带的定位会登记 in-flight；先把落点确认收尾，锚点才落在「当前时刻 / 10_000ms」。
+     */
+    suspend fun playAtTenSeconds() {
         controller.onCommand(play(whenAt = now(), atSeconds = 10))
+        settleSeek()
         port.calls.clear()
+        port.seekTargets.clear()
+    }
+
+    /** 让驱动循环把上一笔定位的 in-flight 收掉（不推进时间，也不产生新的漂移动作）。 */
+    suspend fun settleSeek() {
+        repeat(4) {
+            if (!controller.awaitingSeekConfirmation) return
+            tick()
+        }
     }
 
     /** 触发一次驱动循环：先放开 ticker，再让循环协程推进到下一次挂起。 */
@@ -562,11 +786,34 @@ private class Fixture(profile: SyncPlayDriftProfile = SyncPlayDriftProfile.Exo) 
         )
 }
 
-private class FakePlaybackPort : SyncPlayPlaybackPort {
-    var positionMs: Long = 0
+private class FakePlaybackPort(private val nowProvider: () -> Instant = { Instant.EPOCH }) :
+    SyncPlayPlaybackPort {
+    /** 读侧当前位置；null = 引擎未就绪 / 正在重建，读不到可信值。 */
+    var positionMs: Long? = 0
     var playing: Boolean = false
     var rateValue: Float = 1.0f
+
+    /** seek 后读侧滞后多久才反映新位置（同时延迟落点确认）：mpv 解码器重建期的读侧表现。 */
+    var seekLatencyMs: Long = 0
+
+    /** 落点相对请求目标的偏差（引擎落点误差 / 关键帧对齐）。 */
+    var landingOffsetMs: Long = 0
+
+    /** false = 这个实现不提供落点确认（走控制器的兜底收尾）。 */
+    var confirmsSeeks: Boolean = true
+
+    /** true = 当前定位被播放口判为失败（sink 拒绝 / 引擎错误）。 */
+    var seekFails: Boolean = false
+
     val calls: MutableList<String> = mutableListOf()
+
+    /** 每次 seek 的目标位置（区分「发了多少次定位」，calls 里混有倍速与 play/pause）。 */
+    val seekTargets: MutableList<Long> = mutableListOf()
+
+    private var pendingLanding: PendingLanding? = null
+    private var confirmation: SyncPlaySeekConfirmation? = null
+
+    private data class PendingLanding(val requestId: Long, val landingMs: Long, val at: Instant)
 
     override fun play() {
         playing = true
@@ -578,21 +825,54 @@ private class FakePlaybackPort : SyncPlayPlaybackPort {
         calls += "pause"
     }
 
-    override fun seekTo(positionMs: Long) {
-        this.positionMs = positionMs
+    override fun seekTo(positionMs: Long, requestId: Long) {
+        seekTargets += positionMs
         calls += "seek($positionMs)"
+        val landing = positionMs + landingOffsetMs
+        if (seekLatencyMs <= 0) {
+            this.positionMs = landing
+            if (confirmsSeeks) {
+                confirmation = SyncPlaySeekConfirmation(requestId, landing)
+            }
+        } else {
+            pendingLanding =
+                PendingLanding(requestId, landing, nowProvider().plusMillis(seekLatencyMs))
+        }
     }
 
     override fun setRate(rate: Float) {
-        this.rateValue = rate
+        rateValue = rate
         calls += "rate($rate)"
     }
 
-    override val currentPositionMs: Long
-        get() = positionMs
+    override val currentPositionMs: Long?
+        get() {
+            settleLanding()
+            return positionMs
+        }
 
     override val isPlaying: Boolean
         get() = playing
+
+    override val seekConfirmation: SyncPlaySeekConfirmation?
+        get() {
+            settleLanding()
+            return confirmation
+        }
+
+    override val lastSeekFailed: Boolean
+        get() = seekFails
+
+    /** 滞后窗口过去后读侧才看到新位置、落点确认才出现。 */
+    private fun settleLanding() {
+        val pending = pendingLanding ?: return
+        if (nowProvider().isBefore(pending.at)) return
+        positionMs = pending.landingMs
+        if (confirmsSeeks) {
+            confirmation = SyncPlaySeekConfirmation(pending.requestId, pending.landingMs)
+        }
+        pendingLanding = null
+    }
 }
 
 /** 可手动推进的本地时钟（与 T8b 测试同款）。 */
