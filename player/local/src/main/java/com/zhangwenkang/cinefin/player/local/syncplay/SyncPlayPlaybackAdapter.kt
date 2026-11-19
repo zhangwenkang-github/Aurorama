@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.player.local.syncplay
 import com.zhangwenkang.cinefin.player.core.playback.PlaybackEngine
 import com.zhangwenkang.cinefin.player.core.syncplay.SyncPlayPlaybackPort
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
+import timber.log.Timber
 
 /**
  * SyncPlay 触发的定位统一带的来源标签（W4-T8d）。
@@ -56,6 +57,8 @@ class PlayerSyncPlayPlaybackPort(
     }
 
     override fun seekTo(positionMs: Long) {
+        // 真机取证锚点：SyncPlay 触发的定位一律带该来源标签（与 seek sink 的 source 同义）。
+        Timber.d("SyncPlay 定位：target=%d ms source=%s", positionMs, SYNC_PLAY_SEEK_SOURCE)
         seekDispatcher.seekTo(positionMs, SYNC_PLAY_SEEK_SOURCE)
     }
 

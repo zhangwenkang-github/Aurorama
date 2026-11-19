@@ -157,10 +157,23 @@ constructor(
         scope.launch { clock.run() }
         launchControllerLoop()
         launchStateMirror()
-        scope.launch { gateway.commands.collect { currentController().onCommand(it.toCore()) } }
+        // 三路 WS 只收一次：重连 / 入组 / 切内核都不重订阅（日志用于真机核对订阅计数）。
+        Timber.i("SyncPlay WS 订阅启动：commands / groupUpdates / connectionState 各一次")
+        scope.launch {
+            gateway.commands.collect { command ->
+                Timber.d(
+                    "SyncPlay 收到组命令：type=%s whenAt=%s positionTicks=%s",
+                    command.type,
+                    command.whenAt,
+                    command.positionTicks,
+                )
+                currentController().onCommand(command.toCore())
+            }
+        }
         scope.launch {
             gateway.groupUpdates.collect { update ->
                 val core = update.toCore() ?: return@collect
+                Timber.d("SyncPlay 组更新：%s", core::class.simpleName)
                 if (core is CoreSyncPlayGroupUpdate.GroupJoined) {
                     _activeGroup.value = core.group
                 }
@@ -344,6 +357,7 @@ constructor(
         stateJob =
             host.scope.launch {
                 target.state.collect { state ->
+                    Timber.d("SyncPlay 状态机：%s", state)
                     _state.value = state
                     gate.updateOwned(ownsTransport(state))
                     if (state == SyncPlayControllerState.NotInGroup) {
