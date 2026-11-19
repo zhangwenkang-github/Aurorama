@@ -58,6 +58,7 @@
     <string name="player_settings_stay_at_end_caption">When the queue ends, keep the player open on the last frame instead of closing it</string>
     <string name="player_settings_repeat_entry">Repeat mode</string>
     <string name="player_settings_repeat_entry_caption">Order / repeat all / repeat one / shuffle</string>
+    <string name="player_settings_decode_entry">Decode &amp; capabilities</string>
     <string name="player_settings_backend">Player core</string>
     <string name="player_settings_backend_caption">Switches in place: position and selected tracks are kept</string>
     <string name="player_settings_backend_exoplayer">ExoPlayer</string>

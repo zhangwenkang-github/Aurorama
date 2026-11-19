@@ -266,7 +266,15 @@ class MPVPlayer(
         mpvLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
         // W4-T3b（VIDEO-09）：HDR → SDR 色调映射算法，构造期写选项；播放中由 applyToneMapping 写同名属性
         mpvLib.setOptionString("tone-mapping", toneMapping)
-        Timber.i("MPVPlayer hwdec=%s tone-mapping=%s vo=%s", hwDec, toneMapping, videoOutput)
+        // W4-T9（VIDEO-17 后半）：HDR 峰值补偿——mpv 自算画面峰值并自动匹配目标峰值，只给默认值，不新增偏好档
+        mpvLib.setOptionString("hdr-compute-peak", "yes")
+        mpvLib.setOptionString("target-peak", "auto")
+        Timber.i(
+            "MPVPlayer hwdec=%s tone-mapping=%s hdr-compute-peak=yes target-peak=auto vo=%s",
+            hwDec,
+            toneMapping,
+            videoOutput,
+        )
         mpvLib.setOptionString("tls-verify", "no")
         mpvLib.setOptionString("cache", "yes")
         mpvLib.setOptionString("cache-pause-initial", "yes")
@@ -286,6 +294,13 @@ class MPVPlayer(
         mpvLib.setOptionString("ytdl", "no")
         mpvLib.setOptionString("audio-set-media-role", "yes")
         mpvLib.init()
+        /*
+         * W4-T9：`profile=fast`（上面构造期设的）在 init 时会把 `hdr-compute-peak` 覆写成 `no`
+         * （mpv 日志 `Applying profile 'fast'` 之后紧跟 `hdr-compute-peak = 'no'`），构造期的选项默认值会被它盖掉，
+         * 因此 init 后按运行时属性再落一次，HDR 峰值补偿才真正生效。
+         */
+        mpvLib.setPropertyString("hdr-compute-peak", "yes")
+        mpvLib.setPropertyString("target-peak", "auto")
         mpvLib.addObserver(this)
         data class Property(val name: String, val format: Int)
         arrayOf(

@@ -353,8 +353,9 @@ internal fun PlayerSettingsPanel(
             when (tab) {
                 PlayerSettingsTab.Playback -> {
                     /*
-                     * W17（用户确认）：W13 加的「码率 / 解码」两行兜底入口**完全移除**，不留兜底入口。
-                     * 两个功能的唯一入口回到进度条下的工具键（窄屏只留图标，仍然可点）。
+                     * W17（用户确认）：W13 加的「码率 / 解码」两行兜底入口**移除**，不留兜底入口。
+                     * W4-T9 例外：手机竖屏宽度预算会省略底栏「解码」键，因此在列表末尾补一条「解码与能力」入口
+                     * （跳到既有解码面板）；「码率」仍只走底栏键。
                      */
                     PanelSwitchRow(
                         label = stringResource(PlayerR.string.player_settings_background_audio),
@@ -440,6 +441,15 @@ internal fun PlayerSettingsPanel(
                             stringResource(PlayerR.string.player_settings_repeat_entry_caption),
                         selected = false,
                         onClick = { onOpenPanel(PlayerPanel.Repeat) },
+                    )
+                    /*
+                     * W4-T9（VIDEO-08 手机竖屏入口）：窄屏宽度预算省略底栏「码率 / 解码」键是既有行为（不改预算），
+                     * 这里给解码面板补一条页内入口，点击跳转到既有的 [PlayerPanel.Decode] 面板。
+                     */
+                    PanelRow(
+                        label = stringResource(PlayerR.string.player_settings_decode_entry),
+                        selected = false,
+                        onClick = { onOpenPanel(PlayerPanel.Decode) },
                     )
                 }
 

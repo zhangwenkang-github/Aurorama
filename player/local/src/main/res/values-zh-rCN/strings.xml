@@ -61,6 +61,7 @@
     <string name="player_settings_stay_at_end_caption">队列播完停在最后一帧，不退出播放页</string>
     <string name="player_settings_repeat_entry">循环模式</string>
     <string name="player_settings_repeat_entry_caption">顺序播放 / 列表循环 / 单集循环 / 随机</string>
+    <string name="player_settings_decode_entry">解码与能力</string>
     <string name="player_settings_backend">播放内核</string>
     <string name="player_settings_backend_caption">就地切换，保留播放进度与已选轨道</string>
     <string name="player_settings_backend_exoplayer">ExoPlayer</string>

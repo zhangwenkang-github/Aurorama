@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- W67：进度条章节吸附气泡 -->
 <resources>
-    <string name="player_chapter_snap">Chapter %1$d</string>
-    <string name="player_chapter_snap_named">Chapter %1$d · %2$s</string>
+    <string name="player_chapter_snap">Chapter %1$d (%2$s)</string>
+    <string name="player_chapter_snap_named">Chapter %1$d · %2$s (%3$s)</string>
     <!-- W67 补充：预计结束时刻 + 时间格式设置 -->
     <string name="player_end_time_label">Ends %1$s</string>
     <string name="player_settings_clock_format">Time format</string>

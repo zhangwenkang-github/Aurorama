@@ -181,15 +181,15 @@ class PlayerChapterSnapTest {
     @Test
     fun label_numbersFromOne() {
         val chapters = listOf(chapterAt(0L), chapterAt(60_000L, "开场"))
-        assertEquals(ChapterSnapLabel(1, null), chapterSnapLabel(chapters, 0))
-        assertEquals(ChapterSnapLabel(2, "开场"), chapterSnapLabel(chapters, 1))
+        assertEquals(ChapterSnapLabel(1, null, 0L), chapterSnapLabel(chapters, 0))
+        assertEquals(ChapterSnapLabel(2, "开场", 60_000L), chapterSnapLabel(chapters, 1))
     }
 
     @Test
     fun label_treatsBlankNameAsUnnamed() {
         val chapters = listOf(chapterAt(0L, "   "), chapterAt(1_000L, ""))
-        assertEquals(ChapterSnapLabel(1, null), chapterSnapLabel(chapters, 0))
-        assertEquals(ChapterSnapLabel(2, null), chapterSnapLabel(chapters, 1))
+        assertEquals(ChapterSnapLabel(1, null, 0L), chapterSnapLabel(chapters, 0))
+        assertEquals(ChapterSnapLabel(2, null, 1_000L), chapterSnapLabel(chapters, 1))
     }
 
     @Test
@@ -198,6 +198,45 @@ class PlayerChapterSnapTest {
         assertNull("未吸附（-1）不给气泡", chapterSnapLabel(chapters, CHAPTER_SNAP_NONE))
         assertNull("越界序号不给气泡", chapterSnapLabel(chapters, 3))
         assertNotNull(chapterSnapLabel(chapters, 0))
+    }
+
+    // ---------- W4-T9（VIDEO-18）：气泡补目标时间戳 ----------
+
+    private val unnamedFormat = "第 %1\$d 章（%2\$s）"
+    private val namedFormat = "第 %1\$d 章 · %2\$s（%3\$s）"
+
+    @Test
+    fun bubble_namedChapterHasNameAndTargetTimestamp() {
+        val chapters = listOf(chapterAt(0L), chapterAt(1_031_000L, "Chapter 03"))
+        val label = requireNotNull(chapterSnapLabel(chapters, 1))
+        assertEquals("气泡素材带吸附落点毫秒", 1_031_000L, label.startMs)
+        assertEquals(
+            "有名章节：第 N 章 · 名称（mm:ss）",
+            "第 2 章 · Chapter 03（17:11）",
+            chapterSnapBubbleText(label, timeText = "17:11", unnamedFormat, namedFormat),
+        )
+    }
+
+    @Test
+    fun bubble_unnamedChapterStillCarriesTimestamp() {
+        val chapters = listOf(chapterAt(0L), chapterAt(125_000L))
+        val label = requireNotNull(chapterSnapLabel(chapters, 1))
+        assertEquals(
+            "无名章节同样带时间戳",
+            "第 2 章（02:05）",
+            chapterSnapBubbleText(label, timeText = "02:05", unnamedFormat, namedFormat),
+        )
+    }
+
+    @Test
+    fun bubble_timestampIsSnapTargetNotCurrentPosition() {
+        // 手指落在 1_020_000 ms（17:00），吸附落点是章节起点 1_031_000 ms（17:11）：气泡素材必须取落点
+        val chapters = listOf(chapterAt(0L), chapterAt(1_031_000L, "Chapter 03"))
+        val snap = resolveChapterSnap(1_020_000L, chapters, enterMs = 30_000L, exitMs = 45_000L)
+        assertEquals("吸附到第 2 章", 1, snap.chapterIndex)
+        assertEquals("吸附落点 = 章节起点", 1_031_000L, snap.positionMs)
+        val label = requireNotNull(chapterSnapLabel(chapters, snap.chapterIndex))
+        assertEquals("气泡时间戳取吸附落点", snap.positionMs, label.startMs)
     }
 
     // ---------- W75（#1）：按片长派生的吸附窗口 ----------

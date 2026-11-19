@@ -2880,14 +2880,15 @@ internal fun PlayerSeekBar(
         onScrub(snapTarget((fraction * safeDuration).roundToLong()))
     }
 
-    // 吸附到章节时气泡显示「第 N 章 · 章节名」（无名字 → 「第 N 章」）；否则维持原来的时间提示
+    // 吸附到章节时气泡显示「第 N 章 · 章节名（mm:ss）」（无名字 → 「第 N 章（mm:ss）」）；mm:ss = 吸附落点，否则维持原来的时间提示
     val snapLabel = chapterSnapLabel(chapters, if (scrubbing) snapIndex else tapSnapIndex)
     val chapterBubbleText = snapLabel?.let { label ->
-        if (label.name == null) {
-            stringResource(AppR.string.player_chapter_snap, label.number)
-        } else {
-            stringResource(AppR.string.player_chapter_snap_named, label.number, label.name)
-        }
+        chapterSnapBubbleText(
+            label = label,
+            timeText = formatTime(label.startMs),
+            unnamedFormat = stringResource(AppR.string.player_chapter_snap),
+            namedFormat = stringResource(AppR.string.player_chapter_snap_named),
+        )
     }
     // 点击吸附后的气泡展示 1.5 s 再收起（拖动中的气泡本身跟随手势）
     LaunchedEffect(tapSnapTicket) {

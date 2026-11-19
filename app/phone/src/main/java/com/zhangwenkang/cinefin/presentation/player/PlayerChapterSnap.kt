@@ -85,13 +85,34 @@ internal fun resolveChapterSnap(
 /** 两点距离（毫秒），用 Double 避免极端值下的 Long 溢出。 */
 internal fun chapterSnapDistance(a: Long, b: Long): Double = abs(a.toDouble() - b.toDouble())
 
-/** 章节气泡的文案素材：序号从 1 计，名称空白视为无名。 */
-internal data class ChapterSnapLabel(val number: Int, val name: String?)
+/** 章节气泡的文案素材：序号从 1 计，名称空白视为无名，[startMs] 是吸附落点（章节起点）的目标时间。 */
+internal data class ChapterSnapLabel(val number: Int, val name: String?, val startMs: Long)
 
 internal fun chapterSnapLabel(chapters: List<PlayerChapter>, chapterIndex: Int): ChapterSnapLabel? {
     val chapter = chapters.getOrNull(chapterIndex) ?: return null
-    return ChapterSnapLabel(chapterIndex + 1, chapter.name?.takeIf { it.isNotBlank() })
+    return ChapterSnapLabel(
+        number = chapterIndex + 1,
+        name = chapter.name?.takeIf { it.isNotBlank() },
+        startMs = chapter.startPosition.coerceAtLeast(0L),
+    )
 }
+
+/**
+ * 章节气泡文案（W67 起「第 N 章 · 名称」；W4-T9 按 VIDEO-18 三要素同框补目标时间戳）。
+ *
+ * [timeText] 是吸附**落点**的目标时间（不是当前播放位置）；格式化由调用方传入（复用 `formatTime`），本函数只负责模板选择与占位符顺序。
+ */
+internal fun chapterSnapBubbleText(
+    label: ChapterSnapLabel,
+    timeText: String,
+    unnamedFormat: String,
+    namedFormat: String,
+): String =
+    if (label.name == null) {
+        unnamedFormat.format(label.number, timeText)
+    } else {
+        namedFormat.format(label.number, label.name, timeText)
+    }
 
 /** 章节刻度在进度条上的比例（0..1）；duration 非法 / 超大时收敛，不做除法溢出。 */
 internal fun chapterTickFraction(startPositionMs: Long, durationMs: Long): Float {
