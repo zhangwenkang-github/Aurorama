@@ -25,7 +25,9 @@ import org.jellyfin.sdk.api.client.extensions.quickConnectApi
 import org.jellyfin.sdk.api.client.extensions.sessionApi
 import org.jellyfin.sdk.api.client.extensions.studiosApi
 import org.jellyfin.sdk.api.client.extensions.suggestionsApi
+import org.jellyfin.sdk.api.client.extensions.syncPlayApi
 import org.jellyfin.sdk.api.client.extensions.systemApi
+import org.jellyfin.sdk.api.client.extensions.timeSyncApi
 import org.jellyfin.sdk.api.client.extensions.trickplayApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userApi
@@ -101,12 +103,15 @@ class JellyfinApi(
     val showsApi = api.tvShowsApi
     val suggestionsApi = api.suggestionsApi
     val studiosApi = api.studiosApi
+    val syncPlayApi = api.syncPlayApi
     val systemApi = api.systemApi
+    val timeSyncApi = api.timeSyncApi
     val trickplayApi = api.trickplayApi
     val userApi = api.userApi
     val userLibraryApi = api.userLibraryApi
     val videosApi = api.videosApi
     val viewsApi = api.userViewsApi
+    val webSocket = api.webSocket
 
     companion object {
         @Volatile private var INSTANCE: JellyfinApi? = null
