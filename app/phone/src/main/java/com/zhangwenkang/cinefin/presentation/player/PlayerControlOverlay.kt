@@ -6,12 +6,17 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,7 +47,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +54,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -59,15 +64,18 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -104,6 +112,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
@@ -136,10 +145,12 @@ import com.zhangwenkang.cinefin.presentation.film.components.LumenTextShadow
 import com.zhangwenkang.cinefin.presentation.film.components.lumenTextShadow
 import com.zhangwenkang.cinefin.settings.domain.Constants
 import com.zhangwenkang.cinefin.settings.domain.PlaybackSpeedOptions
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 
@@ -152,8 +163,9 @@ Cinefin · 播放控制层（Compose）
           控件本体（填充 / 描边 / 图标 / 文字）；其余一律中性色（CinefinColors）。
           禁止独立色块 / 色点 / 发光，禁止任何 Color(0x…) 字面量。
 形状锁：  主播放键 Xl、工具键 / chip Button、面板 Card（CinefinShapes 语义槽位，W3-T4 起）。
-动效锁：  控制层 280ms Decelerate（淡入 + 上浮 12dp）；面板 420ms Emphasized；只动 transform / opacity / color。
-可读性：  上下渐隐遮罩 + 覆盖层工具键玻璃底，保证任何画面上文字与图标都可读。
+动效锁：  控制层 280ms 淡入 + 弹簧上浮 12dp（可中断），退场弹簧让位；面板 scale0.92→1 + 菜单项错峰；
+          播放键图标 Crossfade + scale 过冲；暂停降亮 280ms。只动 transform / opacity / color。
+可读性：  上下渐隐遮罩 + 覆盖层工具键玻璃底（token 化），保证任何画面上文字与图标都可读。
 ========================================================================= */
 
 /** 顶部渐隐遮罩：界面只在需要时浮现（流光 A 手法）。 */
@@ -179,14 +191,66 @@ internal fun playerBottomScrim(): Brush {
 }
 
 /**
- * 覆盖层控件「玻璃框」的不透明度（W12 反馈 A）。
+ * 暂停降亮 + 四边暗角（VIDEO-30）。
  *
- * 用户要求比 W11 更透、框只包住图标与文字并带描边：底色从 0.45 降到 0.28（按下 0.44）， 未选中的描边用极淡月白（0.16）——描边只负责在亮画面上勾出边界，不做色块（§2.6
- * 第 1 条）。
+ * 暂停时画面叠一层 `scrim @ 22%`，同时四边径向暗角把视线收回画面中心（边缘黑 35%）；两者共用一条 [CinefinMotion.Player] /
+ * [CinefinMotion.Standard] 的透明度动画，恢复播放即撤。它画在控制层下面，与 控制层是否可见完全解耦——控制层 4 秒收起后降亮仍在。
  */
-private const val PLAYER_GLASS_ALPHA = 0.28f
-private const val PLAYER_GLASS_PRESSED_ALPHA = 0.44f
-private const val PLAYER_GLASS_BORDER_ALPHA = 0.16f
+@Composable
+private fun PlayerPauseDim(paused: Boolean, modifier: Modifier = Modifier) {
+    val scrim = LocalCinefinColors.current.scrim
+    val dim by
+        animateFloatAsState(
+            targetValue = if (paused) 1f else 0f,
+            animationSpec = tween(CinefinMotion.Player, easing = CinefinMotion.Standard),
+            label = "playerPauseDim",
+        )
+    Canvas(modifier = modifier) {
+        drawRect(color = scrim, alpha = PLAYER_PAUSE_DIM_ALPHA * dim)
+        drawRect(
+            brush =
+                Brush.radialGradient(
+                    colors =
+                        listOf(
+                            Color.Transparent,
+                            scrim.copy(alpha = PLAYER_PAUSE_EDGE_DIM_ALPHA),
+                        ),
+                    center = center,
+                    // 半径取半对角线：四角最暗、四边中段渐隐，形成一个圆形压边
+                    radius = hypot(size.width, size.height) / 2f,
+                ),
+            alpha = dim,
+        )
+    }
+}
+
+/*
+ * 覆盖层控件「玻璃框」的不透明度（W12 反馈 A）已迁入设计 token：
+ * [CinefinTokens.PlayerGlassAlpha]（底 0.28）/ [CinefinTokens.PlayerGlassPressedAlpha]（按下 0.44），
+ * 描边统一走 `colors.glassBorder`（原私有 0.16 常量废除，VIDEO-29）。
+ */
+
+/**
+ * 控制层自动淡出时长（VIDEO-28）：4 秒无操作收起。
+ *
+ * W17 的 3.5 s 是估值；K1 定稿校准到 4 s，各形态共用同一个阈值，「菜单关闭后重新计时」的行为不变。
+ */
+private const val PLAYER_CONTROLS_AUTO_HIDE_MS = 4000L
+
+/** 播放键图标切换过冲峰值（VIDEO-29：容器不缩放，只放大图标 1→约 1.18→1）。 */
+private const val PLAYER_PLAY_KEY_OVERSHOOT = 1.18f
+
+/** 面板菜单项错峰入场的上限项数（VIDEO-31）：第 8 项之后与控制层同时入场，不再拖长。 */
+private const val PLAYER_PANEL_STAGGER_MAX_ITEMS = 8
+
+/** 暂停降亮：画面叠 scrim 22%（VIDEO-30）。 */
+private const val PLAYER_PAUSE_DIM_ALPHA = 0.22f
+
+/** 暂停暗角：画面四边径向到黑的边缘透明度（VIDEO-30）。 */
+private const val PLAYER_PAUSE_EDGE_DIM_ALPHA = 0.35f
+
+/** 章节吸附落位时 knob 的起始缩放（VIDEO-31：0.9→1 微弹）。 */
+private const val PLAYER_SEEKBAR_SNAP_KNOB_SCALE = 0.9f
 
 /**
  * 「图标 + 小字」工具键在纯图标键框基础上加宽 / 加高的尺寸（W17 反馈⑤）。
@@ -872,7 +936,7 @@ fun PlayerControlOverlay(
         }
     }
 
-    // 3.5 秒无操作自动淡出：播放中、没有面板、没有错误时才淡出；
+    // 4 秒无操作自动淡出（VIDEO-28，[PLAYER_CONTROLS_AUTO_HIDE_MS]）：播放中、没有面板、没有错误时才淡出；
     // 小窗与折叠半开的控制区是常驻操作面（画面小、手势难落），不参与淡出
     LaunchedEffect(
         controls.visible,
@@ -892,7 +956,7 @@ fun PlayerControlOverlay(
                 !layout.isCompact &&
                 layout.chrome != PlayerChromeLayout.FoldHalfOpen
         ) {
-            delay(3500L)
+            delay(PLAYER_CONTROLS_AUTO_HIDE_MS)
             controls.hide()
         }
     }
@@ -1103,20 +1167,29 @@ fun PlayerControlOverlay(
             Box(
                 modifier = Modifier.width(videoWidth).height(videoHeight).align(Alignment.TopStart)
             ) {
+                // 暂停降亮 + 暗角（VIDEO-30）：画面上的一层，与控制层可见性解耦，控制层收起后仍在
+                PlayerPauseDim(
+                    paused = !runtime.isPlaying,
+                    modifier = Modifier.fillMaxSize(),
+                )
                 AnimatedVisibility(
                     visible = controls.visible,
                     /*
-                     * 流光：控制层淡入 + 上浮 12dp（只动 opacity / transform），退出用 Accelerate 快速让位。
-                     * 时长走设计系统 token（motion-player 280ms），不再用历史 180ms。
+                     * 流光：控制层淡入 200ms + 上浮 12dp 走可中断弹簧（VIDEO-28/30）；
+                     * 退场淡出 150ms 快速让位、位移临界阻尼弹簧一次到位。全部走 AnimatedVisibility，
+                     * 连点显隐时新过渡直接接管旧过渡，不会闪跳。
                      */
                     enter =
-                        fadeIn(tween(CinefinMotion.Player, easing = CinefinMotion.Decelerate)) +
+                        fadeIn(tween(CinefinMotion.Fast, easing = CinefinMotion.Standard)) +
                             slideInVertically(
-                                animationSpec =
-                                    tween(CinefinMotion.Player, easing = CinefinMotion.Decelerate),
+                                animationSpec = CinefinMotion.SpringControlInOffset,
                                 initialOffsetY = { with(density) { 12.dp.roundToPx() } },
                             ),
-                    exit = fadeOut(tween(CinefinMotion.Fast, easing = CinefinMotion.Accelerate)),
+                    exit =
+                        fadeOut(tween(150, easing = CinefinMotion.Accelerate)) +
+                            slideOutVertically(
+                                animationSpec = CinefinMotion.SpringControlOutOffset
+                            ),
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         PlayerTopBar(
@@ -1243,7 +1316,8 @@ fun PlayerControlOverlay(
         /*
          * 平板 / 折叠展开：右侧「选集」覆盖层（W12 反馈 C）。
          *
-         * 打开时画面区**不变**（不挤压、不右移），只把右缘 320dp 盖一层半透明面板 + 1dp 结构线；
+         * 打开时画面区**不变**（不挤压、不右移），只在右缘盖一层 320dp 悬浮玻璃容器（VIDEO-29：
+         * `colors.glass` + 1dp `glassBorder` + `CinefinShapes.Glass`）；
          * 它比控制层后绘制，所以盖在控件之上；触摸命中由 PlayerOverlayContainer.sidePanelOpen 单独接管。
          */
         if (layout.hasSideContent && sidePanelExpanded) {
@@ -1251,7 +1325,9 @@ fun PlayerControlOverlay(
                 modifier =
                     Modifier.width(layout.sidePanelWidthDp.dp)
                         .fillMaxHeight()
-                        .background(colors.surfaceDim.copy(alpha = 0.94f))
+                        .clip(CinefinShapes.Glass)
+                        .background(colors.glass)
+                        .border(1.dp, colors.glassBorder, CinefinShapes.Glass)
                         .align(Alignment.TopEnd)
             ) {
                 PlayerSideContent(
@@ -1265,15 +1341,9 @@ fun PlayerControlOverlay(
                     onQueueMove = onQueueMove,
                     onQueueRemove = onQueueRemove,
                     onQueueClear = onQueueClear,
-                    containerColor = colors.surfaceDim.copy(alpha = 0.94f),
+                    // 玻璃底由外层 Box 负责，内容区自身保持透明，避免叠两层半透明
+                    containerColor = Color.Transparent,
                     modifier = Modifier.fillMaxSize(),
-                )
-                // 覆盖层左缘结构线：与右侧抽屉同一套语言
-                Box(
-                    Modifier.align(Alignment.CenterStart)
-                        .width(1.dp)
-                        .fillMaxHeight()
-                        .background(colors.outline)
                 )
             }
         }
@@ -1342,10 +1412,15 @@ fun PlayerControlOverlay(
         }
         AnimatedVisibility(
             visible = panel != PlayerPanel.None,
+            /*
+             * 「圆形揭示」的 M3 Expressive 等价做法（VIDEO-31）：从抽屉锚点（右上角）scale 0.92→1 走可中断弹簧，
+             * 同时 200ms 淡入。退场保留既有的 420ms 右滑让位——定稿只改入场。
+             */
             enter =
-                slideInHorizontally(
-                    animationSpec = tween(CinefinMotion.Page, easing = CinefinMotion.Emphasized),
-                    initialOffsetX = { it },
+                scaleIn(
+                    animationSpec = CinefinMotion.SpringControlIn,
+                    initialScale = 0.92f,
+                    transformOrigin = TransformOrigin(1f, 0f),
                 ) + fadeIn(tween(CinefinMotion.Fast)),
             exit =
                 slideOutHorizontally(
@@ -1608,8 +1683,8 @@ private fun PlayerBufferingIndicator(visible: Boolean, modifier: Modifier = Modi
 /**
  * 主播放键（W17 反馈④：与其它覆盖键统一到同一套玻璃底 / 描边语言）。
  *
- * 旧版是「月白填充 + 深色图标」，与中央四个玻璃传输键不是一套视觉；现在改为 「黑 28% 玻璃底 + 1dp 白 16% 描边 + OnSurface
- * 图标」，只靠尺寸（56/70dp）与圆角（Lg） 保持主行动辨识度。中央五键与右缘锁定键一样**保持纯图标，不加文字**。
+ * 「玻璃底（[CinefinTokens.PlayerGlassAlpha]）+ 1dp `glassBorder` 描边 + OnSurface 图标」，只靠尺寸（56/70dp）与圆角（Xl）
+ * 保持主行动辨识度。中央五键与右缘锁定键一样**保持纯图标，不加文字**。
  *
  * [buffering] = true 时图标位换成同色转圈：全屏唯一的那一个加载图标就落在这里（W11 反馈⑤）， 键本身仍可点（缓冲中卡住时照样能暂停）。
  */
@@ -1625,6 +1700,21 @@ internal fun PlayerPlayKey(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val focused by interactionSource.collectIsFocusedAsState()
+    /*
+     * 图标切换过冲（VIDEO-29）：Crossfade 负责换图，图标自身 1→约 1.18→1 弹一下，容器不缩放。
+     * 首帧不弹（进播放页时状态没变过），快速来回切换时新动画直接接管旧动画，不会卡在半截。
+     */
+    val iconScale = remember { Animatable(1f) }
+    var firstPlayState by remember { mutableStateOf(true) }
+    LaunchedEffect(isPlaying) {
+        if (firstPlayState) {
+            firstPlayState = false
+            return@LaunchedEffect
+        }
+        iconScale.snapTo(1f)
+        iconScale.animateTo(PLAYER_PLAY_KEY_OVERSHOOT, CinefinMotion.SpringOvershoot)
+        iconScale.animateTo(1f, CinefinMotion.SpringOvershoot)
+    }
     Box(
         contentAlignment = Alignment.Center,
         modifier =
@@ -1637,12 +1727,14 @@ internal fun PlayerPlayKey(
                 .clip(CinefinShapes.Xl)
                 .background(
                     colors.scrim.copy(
-                        alpha = if (pressed) PLAYER_GLASS_PRESSED_ALPHA else PLAYER_GLASS_ALPHA
+                        alpha =
+                            if (pressed) CinefinTokens.PlayerGlassPressedAlpha
+                            else CinefinTokens.PlayerGlassAlpha
                     )
                 )
                 .border(
                     1.dp,
-                    colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA),
+                    colors.glassBorder,
                     CinefinShapes.Xl,
                 )
                 .then(
@@ -1668,15 +1760,26 @@ internal fun PlayerPlayKey(
                 strokeWidth = 2.dp,
             )
         } else {
-            Icon(
-                painter =
-                    painterResource(
-                        if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play
-                    ),
-                contentDescription = null,
-                tint = colors.onSurface,
+            Crossfade(
+                targetState = isPlaying,
                 modifier = Modifier.size(size * 0.45f),
-            )
+                animationSpec = tween(150),
+                label = "playerPlayIcon",
+            ) { playing ->
+                Icon(
+                    painter =
+                        painterResource(
+                            if (playing) CoreR.drawable.ic_pause else CoreR.drawable.ic_play
+                        ),
+                    contentDescription = null,
+                    tint = colors.onSurface,
+                    modifier =
+                        Modifier.fillMaxSize().graphicsLayer {
+                            scaleX = iconScale.value
+                            scaleY = iconScale.value
+                        },
+                )
+            }
         }
     }
 }
@@ -1763,12 +1866,14 @@ private fun PlayerTransportButton(
                 // 与其它覆盖键同一套玻璃底与描边（W12 反馈 A：更透 + 描边）
                 .background(
                     colors.scrim.copy(
-                        alpha = if (pressed) PLAYER_GLASS_PRESSED_ALPHA else PLAYER_GLASS_ALPHA
+                        alpha =
+                            if (pressed) CinefinTokens.PlayerGlassPressedAlpha
+                            else CinefinTokens.PlayerGlassAlpha
                     )
                 )
                 .border(
                     1.dp,
-                    colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA),
+                    colors.glassBorder,
                     CinefinShapes.Full,
                 )
                 .then(
@@ -2545,12 +2650,48 @@ internal fun PlayerSeekBar(
     // 已播段流光渐变的两端色（W11 反馈④）：取当前域媒体色（base 打底、bright 收尾）
     val accent = media.base
     val accentSecondary = media.bright
+    // 章节吸附落位瞬间的 knob 微弹（VIDEO-31）：0.9→1，只动缩放，不改落点
+    val knobScale = remember { Animatable(1f) }
+    val snapScope = rememberCoroutineScope()
 
     val safeDuration = durationMs.coerceAtLeast(1L)
-    val playedFraction =
+    /*
+     * 进度条比例动画（VIDEO-31）：
+     * - 非拖拽：played / buffered 走 tween(Fast, Standard)，播放推进与缓冲增长都柔和；
+     * - 拖拽中：动画关闭（snapTo 跟手），手指到哪条到哪里；
+     * - 松手后：从 scrub 值回到实际位置走 SpringSnap，knob 允许一点微过冲。
+     */
+    val rawPlayedFraction =
         (if (scrubbing) scrubFraction else positionMs.toFloat() / safeDuration).coerceIn(0f, 1f)
-    val bufferedFraction = (bufferedMs.toFloat() / safeDuration).coerceIn(0f, 1f)
-    val previewPosition = (playedFraction * safeDuration).roundToLong()
+    val rawBufferedFraction = (bufferedMs.toFloat() / safeDuration).coerceIn(0f, 1f)
+    val playedFraction = remember { Animatable(rawPlayedFraction) }
+    val bufferedFraction = remember { Animatable(rawBufferedFraction) }
+    // 松手标记：只在一次拖拽刚结束时用 SpringSnap，之后的播放推进回到 tween
+    var releasedFromScrub by remember { mutableStateOf(false) }
+    LaunchedEffect(rawPlayedFraction, scrubbing) {
+        when {
+            scrubbing -> playedFraction.snapTo(rawPlayedFraction)
+            releasedFromScrub -> {
+                playedFraction.animateTo(rawPlayedFraction, CinefinMotion.SpringSnap)
+                releasedFromScrub = false
+            }
+            else ->
+                playedFraction.animateTo(
+                    rawPlayedFraction,
+                    tween(CinefinMotion.Fast, easing = CinefinMotion.Standard),
+                )
+        }
+    }
+    LaunchedEffect(rawBufferedFraction) {
+        bufferedFraction.animateTo(
+            rawBufferedFraction,
+            tween(CinefinMotion.Fast, easing = CinefinMotion.Standard),
+        )
+    }
+    // 弹簧可能微过冲到 [0,1] 之外，喂给 fillMaxWidth 前夹住
+    val playedValue = playedFraction.value.coerceIn(0f, 1f)
+    val bufferedValue = bufferedFraction.value.coerceIn(0f, 1f)
+    val previewPosition = (playedValue * safeDuration).roundToLong()
     val previewBitmap: android.graphics.Bitmap? =
         if (scrubbing && trickplayIntervalMs > 0) {
             // 显式引用版本号：新精灵图到位（version 变化）时本段重组，把预览图刷出来
@@ -2571,11 +2712,17 @@ internal fun PlayerSeekBar(
      * 手指位置 → 最终落点：统一走 [resolveChapterSnap]（[snapEnterMs] 进入 / [snapExitMs] 滞回退出）。 chapters
      * 为空（没有章节数据 / 关掉章节刻度开关）时纯函数原样返回，行为与旧版纯比例拖动一致。 吸附到新的章节时触发一次触觉反馈（W75 起用更强的
      * [HapticFeedbackType.ContextClick]，原来的 TextHandleMove 太轻、用户「感觉不到」）。
+     *
+     * 吸附逻辑与滞回参数一行不动；VIDEO-31 只在落位瞬间加一个 knob 0.9→1 的缩放微弹。
      */
     fun snapTarget(rawMs: Long): Long {
         val result = resolveChapterSnap(rawMs, chapters, snapIndex, snapEnterMs, snapExitMs)
         if (result.chapterIndex != CHAPTER_SNAP_NONE && result.chapterIndex != snapIndex) {
             haptics.performHapticFeedback(HapticFeedbackType.ContextClick)
+            snapScope.launch {
+                knobScale.snapTo(PLAYER_SEEKBAR_SNAP_KNOB_SCALE)
+                knobScale.animateTo(1f, CinefinMotion.SpringSnap)
+            }
         }
         snapIndex = result.chapterIndex
         return result.positionMs
@@ -2620,13 +2767,31 @@ internal fun PlayerSeekBar(
                 modifier = Modifier.fillMaxWidth().padding(bottom = CinefinSpacing.Space2),
             ) {
                 if (previewBitmap != null) {
+                    /*
+                     * Trickplay 预览入场（VIDEO-31）：fadeIn 150ms + 上浮 8dp 走 SpringControlIn。
+                     * 拖动中每次都拿到新帧时不会重播——动画只在预览从无到有时跑一次。
+                     */
+                    val previewFade = remember { Animatable(0f) }
+                    val previewRise = remember { Animatable(1f) }
+                    LaunchedEffect(Unit) {
+                        previewFade.animateTo(1f, tween(150, easing = CinefinMotion.Standard))
+                    }
+                    LaunchedEffect(Unit) {
+                        previewRise.animateTo(0f, CinefinMotion.SpringControlIn)
+                    }
                     Image(
                         bitmap = previewBitmap.asImageBitmap(),
                         contentDescription = null,
                         modifier =
                             Modifier.width(160.dp)
+                                .graphicsLayer {
+                                    alpha = previewFade.value.coerceIn(0f, 1f)
+                                    translationY = previewRise.value * 8.dp.toPx()
+                                }
+                                // 玻璃容器小件（VIDEO-29）：glass 底 + glassBorder 描边 + Xs 圆角
                                 .clip(CinefinShapes.Xs)
-                                .border(1.dp, colors.outline, CinefinShapes.Xs),
+                                .background(colors.glass)
+                                .border(1.dp, colors.glassBorder, CinefinShapes.Xs),
                         contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     )
                     Spacer(Modifier.width(CinefinSpacing.Space3))
@@ -2640,7 +2805,9 @@ internal fun PlayerSeekBar(
                     modifier =
                         Modifier.widthIn(max = 260.dp)
                             .clip(CinefinShapes.Xs)
-                            .background(colors.scrim.copy(alpha = 0.8f))
+                            // 章节气泡同属玻璃小件：glass 底 + glassBorder 描边
+                            .background(colors.glass)
+                            .border(1.dp, colors.glassBorder, CinefinShapes.Xs)
                             .padding(horizontal = CinefinSpacing.Space2, vertical = 2.dp),
                 )
             }
@@ -2692,10 +2859,13 @@ internal fun PlayerSeekBar(
                                 }
                                 scrubbing = false
                                 snapIndex = CHAPTER_SNAP_NONE
+                                // 回实际位置走 SpringSnap（VIDEO-31）
+                                releasedFromScrub = true
                             },
                             onDragCancel = {
                                 scrubbing = false
                                 snapIndex = CHAPTER_SNAP_NONE
+                                releasedFromScrub = true
                             },
                         )
                     },
@@ -2723,12 +2893,12 @@ internal fun PlayerSeekBar(
                     Modifier.fillMaxWidth()
                         .height(1.dp)
                         .clip(CinefinShapes.TwoXs)
-                        .background(Color.White.copy(alpha = 0.05f))
+                        .background(colors.topHighlight)
             )
             // 已缓冲
             Box(
                 modifier =
-                    Modifier.fillMaxWidth(bufferedFraction)
+                    Modifier.fillMaxWidth(bufferedValue)
                         .height(trackHeight)
                         .clip(shape)
                         .background(colors.onSurface.copy(alpha = 0.24f))
@@ -2736,7 +2906,7 @@ internal fun PlayerSeekBar(
             // 已播：流光渐变（W11 反馈④）——极光青为主，末端 <10% 过渡到辅光蓝，不再是单色
             Box(
                 modifier =
-                    Modifier.fillMaxWidth(playedFraction)
+                    Modifier.fillMaxWidth(playedValue)
                         .height(if (scrubbing) 8.dp else trackHeight)
                         .clip(shape)
                         .background(playerProgressBrush(accent, accentSecondary))
@@ -2750,12 +2920,17 @@ internal fun PlayerSeekBar(
              */
             val thumbRadius = CinefinProgressVisuals.ThumbRadius
             Box(
-                modifier = Modifier.fillMaxWidth(playedFraction),
+                modifier = Modifier.fillMaxWidth(playedValue),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Box(
                     modifier =
                         Modifier.size(thumbRadius * 2)
+                            // 章节吸附落位微弹（VIDEO-31）：knob 0.9→1，键位不变
+                            .graphicsLayer {
+                                scaleX = knobScale.value
+                                scaleY = knobScale.value
+                            }
                             .drawBehind {
                                 val glowRadius =
                                     size.minDimension / 2f * CinefinProgressVisuals.VideoGlowScale
@@ -2868,9 +3043,9 @@ internal fun PlayerIconButton(
                     when {
                         error -> colors.error.copy(alpha = 0.16f)
                         selected -> media.container
-                        pressed -> colors.scrim.copy(alpha = PLAYER_GLASS_PRESSED_ALPHA)
+                        pressed -> colors.scrim.copy(alpha = CinefinTokens.PlayerGlassPressedAlpha)
                         focused -> colors.stateHover
-                        glass -> colors.scrim.copy(alpha = PLAYER_GLASS_ALPHA)
+                        glass -> colors.scrim.copy(alpha = CinefinTokens.PlayerGlassAlpha)
                         else -> Color.Transparent
                     }
                 )
@@ -2880,7 +3055,7 @@ internal fun PlayerIconButton(
                     when {
                         error -> colors.error.copy(alpha = 0.4f)
                         selected -> media.outline
-                        glass -> colors.onSurface.copy(alpha = PLAYER_GLASS_BORDER_ALPHA)
+                        glass -> colors.glassBorder
                         else -> Color.Transparent
                     },
                     shape,
@@ -3103,6 +3278,25 @@ internal fun PanelTitle(text: String) {
     )
 }
 
+/**
+ * 面板菜单项错峰入场的序号发号器（VIDEO-31）。
+ *
+ * [PanelList] 每次出场新建一个发号器；面板退场后再打开，内容重新组合、序号从 0 重新发， 错峰不会「接着上次的数」继续拖。
+ */
+private class PanelStaggerCounter {
+    var next = 0
+}
+
+private val LocalPanelStaggerCounter = staticCompositionLocalOf<PanelStaggerCounter?> { null }
+
+/** 本行的错峰延迟：序号 × [CinefinMotion.Stagger]，第 [PLAYER_PANEL_STAGGER_MAX_ITEMS] 项封顶；不在面板列表里则为 0。 */
+@Composable
+private fun rememberPanelStaggerDelayMs(): Int {
+    val counter = LocalPanelStaggerCounter.current ?: return 0
+    val index = remember { counter.next++ }
+    return minOf(index, PLAYER_PANEL_STAGGER_MAX_ITEMS) * CinefinMotion.Stagger
+}
+
 /** 面板里的一行：左侧文字，右侧选中标记；整行可点，高度 ≥ 52dp */
 @Composable
 internal fun PanelRow(
@@ -3120,10 +3314,30 @@ internal fun PanelRow(
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     val shape = CinefinShapes.Button
+    /*
+     * 错峰入场（VIDEO-31）：每项 fadeIn 150ms + 上浮 8dp，delay = 序号 × 40ms（上限 8 项）。
+     * 走 graphicsLayer 只动绘制层，不参与测量，列表不会因为入场动画抖高度。
+     */
+    val staggerDelayMs = rememberPanelStaggerDelayMs()
+    var staggerEntered by remember { mutableStateOf(false) }
+    LaunchedEffect(staggerDelayMs) {
+        if (staggerDelayMs > 0) delay(staggerDelayMs.toLong())
+        staggerEntered = true
+    }
+    val staggerProgress by
+        animateFloatAsState(
+            targetValue = if (staggerEntered) 1f else 0f,
+            animationSpec = tween(150, easing = CinefinMotion.Standard),
+            label = "panelRowStagger",
+        )
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             Modifier.fillMaxWidth()
+                .graphicsLayer {
+                    alpha = staggerProgress
+                    translationY = (1f - staggerProgress) * 8.dp.toPx()
+                }
                 .padding(horizontal = CinefinSpacing.Space3, vertical = 2.dp)
                 .heightIn(min = 52.dp)
                 .clip(shape)
@@ -3192,6 +3406,8 @@ internal fun PanelRow(
 
 @Composable
 internal fun ColumnScope.PanelList(content: @Composable () -> Unit) {
+    // 每次面板出场重新发号（VIDEO-31），子项按组合顺序拿到 0、1、2… 的错峰序号
+    val staggerCounter = remember { PanelStaggerCounter() }
     Column(
         modifier =
             Modifier.fillMaxWidth()
@@ -3199,7 +3415,7 @@ internal fun ColumnScope.PanelList(content: @Composable () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = CinefinSpacing.Space5)
     ) {
-        content()
+        CompositionLocalProvider(LocalPanelStaggerCounter provides staggerCounter) { content() }
     }
 }
 
@@ -3224,12 +3440,14 @@ private fun PlayerPanelDrawer(
         modifier =
             Modifier.width(width)
                 .fillMaxHeight()
-                .background(colors.surfaceContainer.copy(alpha = 0.95f))
+                // 悬浮玻璃容器（VIDEO-29）：玻璃底 + 1dp glassBorder，左缘结构线由描边承担，不再叠一条实线
+                .clip(CinefinShapes.Glass)
+                .background(colors.glass)
+                .border(1.dp, colors.glassBorder, CinefinShapes.Glass)
                 // 抽屉本体吞掉空白点击：用 pointerInput 而不是 clickable，避免给整块面板叠一个"按钮"语义
                 .pointerInput(Unit) { detectTapGestures {} }
                 .semantics { paneTitle = title }
     ) {
-        Box(Modifier.width(1.dp).fillMaxHeight().background(colors.outline))
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -4251,7 +4469,7 @@ private fun SubtitlePreviewLine(
         )
     Box(
         modifier =
-            Modifier.clip(RoundedCornerShape(4.dp))
+            Modifier.clip(CinefinShapes.TwoXs)
                 .background(Color(style.backgroundArgb))
                 .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {

@@ -2,6 +2,10 @@ package com.zhangwenkang.cinefin.core.presentation.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.unit.IntOffset
 
 /**
  * Cinefin 动效 token（UI_DESIGN_SYSTEM §6）。
@@ -45,4 +49,33 @@ object CinefinMotion {
 
     /** 元素消失。 */
     val Accelerate: Easing = CubicBezierEasing(0.4f, 0f, 1f, 1f)
+
+    /** 控制层出入位移、面板缩放：可中断、无可见回弹。 */
+    val SpringControlIn = spring<Float>(dampingRatio = 0.86f, stiffness = 400f)
+
+    /**
+     * [SpringControlIn] 的位移版：`slideInVertically` / `slideOutVertically` 要 [IntOffset] 规格。
+     *
+     * 参数与 [SpringControlIn] 同源（不另写一套数值），阈值取像素级 1px，弹簧在亚像素阶段停住。
+     */
+    val SpringControlInOffset: SpringSpec<IntOffset> =
+        spring(
+            dampingRatio = SpringControlIn.dampingRatio,
+            stiffness = SpringControlIn.stiffness,
+            visibilityThreshold = IntOffset.VisibilityThreshold,
+        )
+
+    /** 控制层退场位移：临界阻尼，让位时一次到位、不甩尾。 */
+    val SpringControlOutOffset: SpringSpec<IntOffset> =
+        spring(
+            dampingRatio = 1f,
+            stiffness = 400f,
+            visibilityThreshold = IntOffset.VisibilityThreshold,
+        )
+
+    /** 播放 / 暂停图标切换过冲（1→约 1.18→1）。 */
+    val SpringOvershoot = spring<Float>(dampingRatio = 0.62f, stiffness = 520f)
+
+    /** 进度条释放回弹与章节吸附落位。 */
+    val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 }

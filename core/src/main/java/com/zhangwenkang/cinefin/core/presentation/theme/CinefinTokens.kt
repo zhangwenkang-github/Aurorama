@@ -146,6 +146,12 @@ object CinefinTokens {
     /** 普通表面上的进度轨道透明度：白 12%。 */
     const val ProgressTrackAlpha = 0.12f
 
+    // ---- 播放页玻璃控制层（VIDEO-29，W12 用户验收值）----
+    /** 覆盖层控件玻璃底：scrim 28%。 */
+    const val PlayerGlassAlpha = 0.28f
+    /** 覆盖层控件按下态玻璃底：scrim 44%。 */
+    const val PlayerGlassPressedAlpha = 0.44f
+
     // aurora.dark 中性色
     val AuroraDarkSurface = Color(0xFF080D17)
     val AuroraDarkSurfaceDim = Color(0xFF04070D)

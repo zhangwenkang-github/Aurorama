@@ -18,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -35,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
@@ -199,7 +199,7 @@ private fun LyricsLines(
                 Column(
                     modifier =
                         Modifier.fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(CinefinShapes.Xs)
                             .background(
                                 if (active) MaterialTheme.colorScheme.surfaceVariant
                                 else MaterialTheme.colorScheme.background

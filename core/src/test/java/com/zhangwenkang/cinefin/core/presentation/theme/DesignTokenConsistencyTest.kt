@@ -191,6 +191,32 @@ class DesignTokenConsistencyTest {
     }
 
     @Test
+    fun `player glass control layer tokens match K1 spec`() {
+        // VIDEO-29：播放页玻璃控制层的 W12 验收值
+        assertEquals(0.28f, CinefinTokens.PlayerGlassAlpha, 0.001f)
+        assertEquals(0.44f, CinefinTokens.PlayerGlassPressedAlpha, 0.001f)
+        // VIDEO-29/30/31：三个弹簧 token 的定稿参数
+        assertEquals(0.86f, CinefinMotion.SpringControlIn.dampingRatio, 0.001f)
+        assertEquals(400f, CinefinMotion.SpringControlIn.stiffness, 0.001f)
+        assertEquals(0.62f, CinefinMotion.SpringOvershoot.dampingRatio, 0.001f)
+        assertEquals(520f, CinefinMotion.SpringOvershoot.stiffness, 0.001f)
+        assertEquals(0.75f, CinefinMotion.SpringSnap.dampingRatio, 0.001f)
+        assertEquals(600f, CinefinMotion.SpringSnap.stiffness, 0.001f)
+        // 位移版与 SpringControlIn 同源；退场位移是临界阻尼
+        assertEquals(
+            CinefinMotion.SpringControlIn.dampingRatio,
+            CinefinMotion.SpringControlInOffset.dampingRatio,
+            0.001f,
+        )
+        assertEquals(
+            CinefinMotion.SpringControlIn.stiffness,
+            CinefinMotion.SpringControlInOffset.stiffness,
+            0.001f,
+        )
+        assertEquals(1f, CinefinMotion.SpringControlOutOffset.dampingRatio, 0.001f)
+    }
+
+    @Test
     fun `spacing tokens match 4 8 based scale`() {
         assertEquals(4f, CinefinSpacing.Space1.value)
         assertEquals(8f, CinefinSpacing.Space2.value)

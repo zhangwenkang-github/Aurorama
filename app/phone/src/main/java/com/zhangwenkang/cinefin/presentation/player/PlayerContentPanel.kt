@@ -35,7 +35,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -135,7 +134,7 @@ private fun PlayerContentTabItem(
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier =
-            Modifier.clip(RoundedCornerShape(10.dp))
+            Modifier.clip(CinefinShapes.Xs)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {

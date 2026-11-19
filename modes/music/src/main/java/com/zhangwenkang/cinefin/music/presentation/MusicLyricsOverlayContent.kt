@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -77,7 +76,7 @@ fun MusicLyricsOverlayContent(
     val tint = Color(state.tint.argb.toInt())
     val container = Color(0xE60E1116)
     val borderColor = Color(0x1FFFFFFF)
-    val shape = RoundedCornerShape(22.dp)
+    val shape = CinefinShapes.Card
     // 背景 / 边框的显示窗口：面板打开或"最近一次交互后未超时且未锁定"（锁定 = 恒隐藏；常显档位 = 不超时）
     var interacting by remember { mutableStateOf(true) }
     var panelOpen by remember { mutableStateOf(false) }
@@ -186,7 +185,7 @@ fun MusicLyricsOverlayContent(
             Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier =
-                    Modifier.clip(RoundedCornerShape(14.dp))
+                    Modifier.clip(CinefinShapes.Button)
                         .background(if (showChrome) Color.Transparent else Color(0xB30E1116))
                         .padding(horizontal = 6.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -262,7 +261,7 @@ private fun OverlayIconButton(
     Box(
         modifier =
             Modifier.size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(CinefinShapes.Xs)
                 .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

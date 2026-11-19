@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -40,6 +39,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.subtitle.AssSubtitleScript
@@ -525,7 +525,7 @@ private fun SubtitleLine(
         modifier =
             modifier
                 .padding(vertical = 3.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .clip(CinefinShapes.Xs)
                 .background(backgroundColor)
                 .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {

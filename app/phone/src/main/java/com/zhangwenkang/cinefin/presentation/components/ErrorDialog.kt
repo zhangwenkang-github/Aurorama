@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
@@ -27,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.zhangwenkang.cinefin.core.R as CoreR
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.spacings
 
@@ -37,7 +37,7 @@ fun ErrorDialog(exception: Throwable, onDismissRequest: () -> Unit) {
     Dialog(onDismissRequest = { onDismissRequest() }) {
         Card(
             modifier = Modifier.fillMaxWidth().heightIn(200.dp, max = 540.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = CinefinShapes.Xl,
         ) {
             Column {
                 Spacer(modifier = Modifier.height(MaterialTheme.spacings.default))
