@@ -54,6 +54,7 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.ContentDomain
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.databinding.ActivityPlayerBinding
+import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.playback.CinefinPlaybackService
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.core.syncplay.SyncPlayControllerState
@@ -174,6 +175,8 @@ class PlayerActivity : BasePlayerActivity() {
     /** W4-T8e：建组默认名要「<用户名> 的组」，用户名从当前服务器账号读取。 */
     @Inject lateinit var catalogReadPort: CatalogReadPort
     @Inject lateinit var serverDatabase: ServerDatabaseDao
+    /** VIDEO-50：本地库源失效时错误卡的「重新扫描媒体库」。 */
+    @Inject lateinit var localLibraryRepository: LocalLibraryRepository
 
     lateinit var binding: ActivityPlayerBinding
     private var playerGestureHelper: PlayerGestureHelper? = null
@@ -512,6 +515,8 @@ class PlayerActivity : BasePlayerActivity() {
                             clearDecodeFallbackStage = true,
                         )
                     },
+                    // VIDEO-50：本地库文件被移动 / 授权失效时的错误卡动作
+                    onRescanLocalLibrary = ::rescanLocalLibrary,
                     onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
                     deviceCapabilities = deviceCapabilities,
                     onSelectToneMapping = { mode -> applyMpvToneMapping(mode) },
@@ -1195,20 +1200,33 @@ class PlayerActivity : BasePlayerActivity() {
     /**
      * 组员身份观察：从「真的在组里」（Idle / Armed / Playing / Paused / ClockWarming）掉回 `NotInGroup` 时弹「已被移出同步组」。
      *
-     * `Joining → NotInGroup` 是入组失败，已有专门的失败提示，这里不算踢出；自己点「离开组」时 [syncPlayLeaveRequested] 已置位，同样不弹。
+     * `Joining → NotInGroup` 不是被踢：那是加入途中组已解散（`GroupDoesNotExist` / `NotInGroup` 更新），
+     * 要提示「加入失败：组不存在或已解散」；自己点「离开组」时 [syncPlayLeaveRequested] 已置位，两种都不弹。
      */
     private fun observeSyncPlayMembership() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 var previous = syncPlay.state.value
                 syncPlay.state.collect { state ->
+                    val wasJoining = previous == SyncPlayControllerState.Joining
                     val wasInGroup = previous.isSyncPlayInGroup()
                     previous = state
-                    if (!wasInGroup || state != SyncPlayControllerState.NotInGroup) return@collect
+                    if (state != SyncPlayControllerState.NotInGroup) return@collect
                     if (syncPlayLeaveRequested) {
                         syncPlayLeaveRequested = false
-                    } else {
-                        showSyncPlayNotice(getString(PlayerR.string.player_sync_kicked), 3000L)
+                        return@collect
+                    }
+                    when {
+                        wasJoining ->
+                            showSyncPlayNotice(
+                                getString(PlayerR.string.player_sync_join_group_missing),
+                                3000L,
+                            )
+                        wasInGroup ->
+                            showSyncPlayNotice(
+                                getString(PlayerR.string.player_sync_kicked),
+                                3000L,
+                            )
                     }
                 }
             }
@@ -1275,6 +1293,19 @@ class PlayerActivity : BasePlayerActivity() {
     private fun leaveSyncPlayGroup() {
         syncPlayLeaveRequested = true
         lifecycleScope.launch { syncPlay.leaveGroup() }
+    }
+
+    /**
+     * VIDEO-50：本地库源失效时的恢复入口——重扫全部本地库后重试当前源。
+     *
+     * 文件被移动 / 放回后索引与错误卡片都随之更新；扫不到时重试会再次失败并停在错误卡片，无副作用。
+     */
+    private fun rescanLocalLibrary() {
+        lifecycleScope.launch {
+            runCatching { localLibraryRepository.rescanAll() }
+                .onFailure { Timber.w(it, "重新扫描媒体库失败") }
+            viewModel.retryPlayerError()
+        }
     }
 
     /** 组默认名：「<用户名> 的组」；读不到账号（离线 / 身份未就绪）时退回固定名。 */

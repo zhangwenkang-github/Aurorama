@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.subtitle
 
+import android.content.ContentResolver
+import android.net.Uri
 import com.zhangwenkang.cinefin.language.LanguageMatcher
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
@@ -111,6 +113,12 @@ fun shouldSuppressSecondaryForMpvPrimarySelection(
 class PlayerSubtitleController(
     private val scope: CoroutineScope,
     private val appPreferences: AppPreferences,
+    /**
+     * 本地媒体库字幕（VIDEO-48）：SAF `content://` 文档走 ContentResolver 读，树授权已覆盖读权限。
+     *
+     * null = 未装配（纯 JVM 单测 / 无本地库场景），`content://` 源按加载失败处理。
+     */
+    private val contentResolver: ContentResolver? = null,
     private val contentLoader: (suspend (PlayerSubtitleSource) -> String)? = null,
 ) {
     companion object {
@@ -861,8 +869,19 @@ class PlayerSubtitleController(
      *
      * W27：除 Jellyfin 的 HTTP 地址外，本机侧载字幕用 `file://` 地址（导入时已复制到 App 私有目录）， 不能强转
      * HttpURLConnection，需要单独走文件读取。
+     *
+     * VIDEO-48：本地媒体库的外挂字幕留在用户目录里（SAF `content://`，不拷贝），走 ContentResolver 读。
      */
     private fun download(uri: String): String {
+        if (uri.startsWith("content:", ignoreCase = true)) {
+            val resolver =
+                contentResolver
+                    ?: throw IllegalStateException("content:// 字幕需要 ContentResolver（未装配）")
+            val bytes =
+                resolver.openInputStream(Uri.parse(uri))?.use { it.readBytes() }
+                    ?: throw IllegalStateException("SAF 字幕文件打不开：授权失效或文件已移走")
+            return decodeText(bytes)
+        }
         if (uri.startsWith("file:")) {
             return decodeText(File(URI(uri)).readBytes())
         }

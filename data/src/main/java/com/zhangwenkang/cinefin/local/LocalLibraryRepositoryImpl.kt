@@ -10,7 +10,6 @@ import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidImages
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidSource
-import com.zhangwenkang.cinefin.models.FindroidSourceType
 import com.zhangwenkang.cinefin.models.LocalLibraryDto
 import com.zhangwenkang.cinefin.models.LocalLibraryFolderDto
 import com.zhangwenkang.cinefin.models.LocalMediaCountRow
@@ -171,6 +170,12 @@ class LocalLibraryRepositoryImpl(
             database.getLocalMediaItems(libraryId).size
         }
 
+    override suspend fun rescanAll(): Int =
+        withContext(Dispatchers.IO) {
+            database.getLocalLibraries().forEach { library -> runCatching { rescan(library.id) } }
+            database.getAllLocalMediaItems().size
+        }
+
     override suspend fun entries(libraryId: Long): List<LocalLibraryEntry> =
         withContext(Dispatchers.IO) { database.getLocalMediaItems(libraryId).map { it.toEntry() } }
 
@@ -225,6 +230,7 @@ class LocalLibraryRepositoryImpl(
                 artist = dto.artist,
                 album = dto.album,
                 trackIndex = dto.trackIndex,
+                subtitles = dto.subtitles,
             )
         }
 
@@ -303,6 +309,23 @@ class LocalLibraryRepositoryImpl(
                     DocumentsContract.buildDocumentUriUsingTree(treeUri, child.documentId)
                         .toString()
                 }
+        // VIDEO-48：同一目录的外挂字幕候选，只对本层视频生效（子目录另起一轮，天然不跨目录匹配）。
+        val subtitleCandidates =
+            children
+                .filter { child ->
+                    !child.isDirectory && LocalSubtitleRules.isSubtitleFile(child.name)
+                }
+                .map { child ->
+                    LocalSubtitleCandidate(
+                        name = child.name,
+                        relativePath =
+                            if (relativePath.isEmpty()) child.name
+                            else "$relativePath/${child.name}",
+                        uri =
+                            DocumentsContract.buildDocumentUriUsingTree(treeUri, child.documentId)
+                                .toString(),
+                    )
+                }
         for (child in children) {
             val childPath =
                 if (relativePath.isEmpty()) child.name else "$relativePath/${child.name}"
@@ -317,6 +340,12 @@ class LocalLibraryRepositoryImpl(
             val itemId = localItemIdFor(documentUri)
             val music =
                 if (kind == LocalMediaKind.MUSIC) readMusicMetadata(documentUri, itemId) else null
+            val subtitles =
+                if (kind == LocalMediaKind.VIDEO && subtitleCandidates.isNotEmpty()) {
+                    LocalSubtitleRules.match(child.name, childPath, subtitleCandidates)
+                } else {
+                    emptyList()
+                }
             out +=
                 LocalMediaItemDto(
                     itemId = itemId,
@@ -336,6 +365,7 @@ class LocalLibraryRepositoryImpl(
                     trackIndex = music?.trackIndex ?: 0,
                     durationMs = music?.durationMs ?: 0L,
                     coverUri = music?.coverUri ?: coverUri,
+                    subtitles = subtitles,
                     indexedAt = now,
                 )
         }
@@ -467,18 +497,6 @@ class LocalLibraryRepositoryImpl(
             album = album,
             trackIndex = trackIndex,
             coverUri = coverUri,
-        )
-
-    private fun LocalPlayableSource.toFindroidSource(): FindroidSource =
-        FindroidSource(
-            id = "local-${itemId}",
-            name = "本地文件",
-            type = FindroidSourceType.LOCAL,
-            path = uri,
-            size = 0L,
-            mediaStreams = emptyList(),
-            downloadId = null,
-            transcodingPath = null,
         )
 
     private fun LocalPlayableSource.toFindroidMovie(): FindroidMovie =

@@ -173,6 +173,8 @@
     <string name="player_controls_error_title">Playback failed</string>
     <string name="player_controls_error_retry">Retry</string>
     <string name="player_source_resolution_failed">Unable to load the video source. Please try again.</string>
+    <string name="player_source_saf_unavailable">The file may have been moved or the folder permission revoked. Check your media library.</string>
+    <string name="player_error_rescan_library">Rescan media library</string>
     <string name="player_progress_recovery_stalled">Playback has not continued yet</string>
     <string name="player_progress_recovery_unconfirmed">Playback progress has not been confirmed yet</string>
     <string name="player_progress_recovery_generic">Playback has not continued yet</string>
@@ -381,6 +383,7 @@
     <string name="player_sync_capsule_clock_syncing">Syncing clock…</string>
     <string name="player_sync_episode_locked">Sync playback is on — episode switching is controlled by the group</string>
     <string name="player_sync_kicked">You were removed from the sync group</string>
+    <string name="player_sync_join_group_missing">Could not join: the group does not exist or was closed</string>
     <string name="player_sync_join_failed">Could not join: %1$s</string>
     <string name="player_sync_create_failed">Could not create the group: %1$s</string>
     <string name="player_sync_error_group_missing">the group does not exist or was closed</string>

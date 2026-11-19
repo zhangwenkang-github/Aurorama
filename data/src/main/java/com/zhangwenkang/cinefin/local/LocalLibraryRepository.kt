@@ -37,6 +37,8 @@ data class LocalPlayableSource(
     val artist: String? = null,
     val album: String? = null,
     val trackIndex: Int = 0,
+    /** VIDEO-48：扫描期推断出的同目录外挂字幕（音乐 / 书籍恒为空）。 */
+    val subtitles: List<LocalSubtitleFile> = emptyList(),
 )
 
 /**
@@ -78,6 +80,9 @@ interface LocalLibraryRepository {
 
     /** 重新扫描整个库（全部文件夹），返回索引条目数。 */
     suspend fun rescan(libraryId: Long): Int
+
+    /** 重新扫描**全部**库（播放错误卡「重新扫描媒体库」用），返回索引条目数。 */
+    suspend fun rescanAll(): Int
 
     suspend fun entries(libraryId: Long): List<LocalLibraryEntry>
 

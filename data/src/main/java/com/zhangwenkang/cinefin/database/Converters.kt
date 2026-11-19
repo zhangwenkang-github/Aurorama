@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.database
 
 import androidx.room3.ColumnTypeConverter
+import com.zhangwenkang.cinefin.local.LocalSubtitleFile
 import com.zhangwenkang.cinefin.models.FindroidChapter
 import java.time.ZoneOffset
 import java.util.UUID
@@ -36,5 +37,17 @@ class Converters {
     @ColumnTypeConverter
     fun fromStringToFindroidChapters(value: String?): List<FindroidChapter>? {
         return value?.let { Json.decodeFromString(value) }
+    }
+
+    @ColumnTypeConverter
+    fun fromLocalSubtitlesToString(value: List<LocalSubtitleFile>?): String? {
+        return value?.let { Json.encodeToString(it) }
+    }
+
+    @ColumnTypeConverter
+    fun fromStringToLocalSubtitles(value: String?): List<LocalSubtitleFile>? {
+        return value?.let {
+            runCatching { Json.decodeFromString<List<LocalSubtitleFile>>(it) }.getOrNull()
+        }
     }
 }

@@ -143,6 +143,7 @@ import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerDebugStats
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
 import com.zhangwenkang.cinefin.player.local.presentation.readKernelMediaInfo
+import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_STARTUP_SOURCE_FAILED
 import com.zhangwenkang.cinefin.player.local.session.PlayerErrorInfo
 import com.zhangwenkang.cinefin.player.local.subtitle.PlayerSubtitleController
 import com.zhangwenkang.cinefin.player.local.subtitle.SubtitleSecondaryUnavailableReason
@@ -786,6 +787,8 @@ fun PlayerControlOverlay(
     onRetry: () -> Unit,
     /** 「换内核」：ExoPlayer ⇄ mpv（由 Activity 写偏好并重启播放页生效） */
     onSwitchBackend: (String) -> Unit,
+    /** VIDEO-50：本地库源失效时错误卡的「重新扫描媒体库」（宿主触发本地库重扫）。 */
+    onRescanLocalLibrary: () -> Unit = {},
     /**
      * 把「控制层可见 / 面板打开 / 锁屏 / 错误卡片 / 片头片尾提示条可见」同步给承载视图： 前四项用来决定哪些触摸留给播放器，最后一项（W20）用来决定整层 ComposeView
      * 是否保持合成—— 控制层 3.5 秒淡出时提示条不能跟着消失（§6.1）。
@@ -1291,6 +1294,7 @@ fun PlayerControlOverlay(
                                 error = playerError,
                                 onRetry = onRetry,
                                 onSwitchBackend = onSwitchBackend,
+                                onRescanLocalLibrary = onRescanLocalLibrary,
                                 modifier = Modifier.align(Alignment.Center),
                             )
                         } else {
@@ -2208,8 +2212,14 @@ private fun PlayerErrorCard(
     error: PlayerErrorInfo,
     onRetry: () -> Unit,
     onSwitchBackend: (String) -> Unit,
+    onRescanLocalLibrary: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    /*
+     * VIDEO-50：本地库（SAF content://）起播失败多半是文件被移动 / 树授权失效——换内核救不了，
+     * 文案改「检查媒体库」，主按钮改成重扫媒体库；在线条目的文案与动作保持原样。
+     */
+    val safUnavailable = error.isLocalSource && error.codeName == PLAYER_ERROR_STARTUP_SOURCE_FAILED
     // 卡片上直接写清「换成哪个内核」，避免用户点下去不知道会发生什么
     val targetBackend =
         if (error.backend == PlayerViewModel.PLAYER_BACKEND_EXOPLAYER) {
@@ -2240,7 +2250,12 @@ private fun PlayerErrorCard(
         )
         Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
         Text(
-            text = error.message,
+            text =
+                if (safUnavailable) {
+                    stringResource(PlayerR.string.player_source_saf_unavailable)
+                } else {
+                    error.message
+                },
             color = colors.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
             maxLines = 3,
@@ -2249,9 +2264,16 @@ private fun PlayerErrorCard(
         Spacer(modifier = Modifier.height(CinefinSpacing.Space5))
         Row(horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space3)) {
             ErrorActionButton(
-                text = stringResource(PlayerR.string.player_controls_error_retry),
+                text =
+                    stringResource(
+                        if (safUnavailable) {
+                            PlayerR.string.player_error_rescan_library
+                        } else {
+                            PlayerR.string.player_controls_error_retry
+                        }
+                    ),
                 primary = true,
-                onClick = onRetry,
+                onClick = if (safUnavailable) onRescanLocalLibrary else onRetry,
             )
             ErrorActionButton(
                 text =

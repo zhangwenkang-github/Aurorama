@@ -14,4 +14,10 @@ data class PlayerErrorInfo(
     val codeName: String,
     /** 出错时使用的内核：exoplayer / mpv */
     val backend: String,
+    /**
+     * VIDEO-50：出错条目是本地媒体库（`local-` 合成源 / SAF `content://`）。
+     *
+     * 错误卡片据此把起播失败文案换成「文件可能已被移动或授权失效」并给「重新扫描媒体库」动作。
+     */
+    val isLocalSource: Boolean = false,
 )

@@ -26,8 +26,20 @@ import timber.log.Timber
 class PlaybackPositionWriter @Inject constructor(private val jellyfinApi: JellyfinApi) {
 
     /** [positionTicks] 为 Jellyfin 的 100ns tick（毫秒 × 10000）。 */
-    suspend fun writePosition(itemId: UUID, positionTicks: Long) {
+    suspend fun writePosition(
+        itemId: UUID,
+        positionTicks: Long,
+        /** 本地判断：`local-` 合成源 id（[isLocalPlaybackSource]）。 */
+        mediaSourceId: String? = null,
+        /** 本地判断：SAF `content://` 播放 URI。 */
+        sourceUri: String? = null,
+    ) {
         if (positionTicks < 0L) return
+        // 本地媒体库条目在服务器上没有 UserData：写回必然 404（VIDEO-48 验收发现的噪音）。
+        if (isLocalPlaybackSource(mediaSourceId, sourceUri)) {
+            Timber.d("本地媒体库条目跳过服务器进度回写：%s", itemId)
+            return
+        }
         val userId = jellyfinApi.userId ?: return
         withContext(Dispatchers.IO) {
             runCatching {
@@ -46,3 +58,18 @@ class PlaybackPositionWriter @Inject constructor(private val jellyfinApi: Jellyf
         }
     }
 }
+
+/** 本地媒体库合成源 id 的前缀（`asFindroidSource` 侧 `local-<itemId>`）。 */
+internal const val LOCAL_MEDIA_SOURCE_ID_PREFIX = "local-"
+
+/**
+ * 本地媒体库条目的统一判据（进度回写 / 错误卡文案共用）： 合成源 id 带 `local-` 前缀，播放 URI 是 SAF `content://`。
+ *
+ * 服务器上没有这些条目：任何 Online 侧的 UserData / 会话上报都只会 404。
+ */
+internal fun isLocalPlaybackSource(
+    mediaSourceId: String?,
+    sourceUri: String?,
+): Boolean =
+    mediaSourceId?.startsWith(LOCAL_MEDIA_SOURCE_ID_PREFIX, ignoreCase = true) == true ||
+        sourceUri?.startsWith("content://", ignoreCase = true) == true

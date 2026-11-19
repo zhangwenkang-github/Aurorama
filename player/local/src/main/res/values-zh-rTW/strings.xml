@@ -78,6 +78,8 @@
     <string name="player_controls_error_title">播放失敗</string>
     <string name="player_controls_error_retry">重試</string>
     <string name="player_source_resolution_failed">無法載入影片來源，請重試。</string>
+    <string name="player_source_saf_unavailable">檔案可能已被移動或授權失效，請檢查媒體庫</string>
+    <string name="player_error_rescan_library">重新掃描媒體庫</string>
     <string name="player_progress_recovery_stalled">播放暫時沒有繼續</string>
     <string name="player_progress_recovery_unconfirmed">播放進度暫時無法確認</string>
     <string name="player_progress_recovery_generic">播放暫時沒有繼續</string>
@@ -135,6 +137,7 @@
     <string name="player_sync_capsule_clock_syncing">時鐘同步中…</string>
     <string name="player_sync_episode_locked">同步觀看中，切換集數由群組控制</string>
     <string name="player_sync_kicked">已被移出同步群組</string>
+    <string name="player_sync_join_group_missing">加入失敗：群組不存在或已解散</string>
     <string name="player_sync_join_failed">加入失敗：%1$s</string>
     <string name="player_sync_create_failed">建立失敗：%1$s</string>
     <string name="player_sync_error_group_missing">群組不存在或已解散</string>

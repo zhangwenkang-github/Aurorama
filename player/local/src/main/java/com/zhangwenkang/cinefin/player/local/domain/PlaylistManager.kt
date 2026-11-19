@@ -672,7 +672,10 @@ class PlaylistManager internal constructor(private val repository: JellyfinRepos
                             LanguageMatcher.detect(
                                 mediaStream.language,
                                 mediaStream.title,
-                                mediaStream.path,
+                                // SAF content:// 路径不含语言线索，交给它只会误判出 en/zh
+                                mediaStream.path?.takeUnless {
+                                    it.startsWith("content://", ignoreCase = true)
+                                },
                             ) ?: mediaStream.language,
                         uri = mediaStream.path!!.toUri(),
                         mimeType =
@@ -699,7 +702,10 @@ class PlaylistManager internal constructor(private val repository: JellyfinRepos
                         LanguageMatcher.detect(
                             mediaStream.language,
                             mediaStream.title,
-                            mediaStream.path,
+                            // SAF content:// 路径不含语言线索，交给它只会误判出 en/zh
+                            mediaStream.path?.takeUnless {
+                                it.startsWith("content://", ignoreCase = true)
+                            },
                         ) ?: mediaStream.language
                     PlayerSubtitleSource(
                         index = mediaStream.index,

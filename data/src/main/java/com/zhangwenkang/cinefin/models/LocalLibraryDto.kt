@@ -4,6 +4,7 @@ import androidx.room3.ColumnInfo
 import androidx.room3.Entity
 import androidx.room3.Index
 import androidx.room3.PrimaryKey
+import com.zhangwenkang.cinefin.local.LocalSubtitleFile
 import java.util.UUID
 
 /**
@@ -72,6 +73,8 @@ data class LocalMediaItemDto(
     @ColumnInfo(defaultValue = "0") val durationMs: Long = 0,
     /** 封面（内嵌标签落盘 / 同目录封面图）的本地路径或 URI。 */
     val coverUri: String? = null,
+    /** VIDEO-48：扫描期推断出的同目录外挂字幕（视频条目才有；其余为空）。 */
+    @ColumnInfo(defaultValue = "[]") val subtitles: List<LocalSubtitleFile> = emptyList(),
     @ColumnInfo(defaultValue = "0") val indexedAt: Long = 0,
 )
 

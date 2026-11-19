@@ -64,6 +64,7 @@ import com.zhangwenkang.cinefin.player.local.domain.SeriesResolutionTraceLog
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrickplayTiles
+import com.zhangwenkang.cinefin.player.local.domain.isLocalPlaybackSource
 import com.zhangwenkang.cinefin.player.local.domain.isTranscodeStreamUri
 import com.zhangwenkang.cinefin.player.local.domain.playbackMediaIdentity
 import com.zhangwenkang.cinefin.player.local.domain.playerExitAction
@@ -80,6 +81,7 @@ import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.session.ErrorPolicy
 import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
 import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_STARTUP_SOURCE_FAILED
+import com.zhangwenkang.cinefin.player.local.session.PlaybackErrorClassification
 import com.zhangwenkang.cinefin.player.local.session.PlaybackSessionOwner
 import com.zhangwenkang.cinefin.player.local.session.PlayerErrorInfo
 import com.zhangwenkang.cinefin.player.local.session.ProgressFallbackSnapshot
@@ -243,8 +245,25 @@ constructor(
 
     /** 唯一投影点：把 [errorPolicy] 的当前错误写进 UI 状态；policy 是错误事实的唯一来源。 */
     private fun publishPlayerError() {
-        val error = errorPolicy.current
+        val error =
+            errorPolicy.current?.let { current ->
+                // VIDEO-50：只有起播期源失败才按本地 / 在线分流文案与动作。
+                if (current.codeName == PLAYER_ERROR_STARTUP_SOURCE_FAILED) {
+                    current.copy(isLocalSource = currentPlaybackIsLocalSource())
+                } else {
+                    current
+                }
+            }
         _uiState.update { it.copy(playerError = error) }
+    }
+
+    /** 出错条目是不是本地媒体库（`local-` 合成源 / SAF content://）；判据与进度回写同一份。 */
+    private fun currentPlaybackIsLocalSource(): Boolean {
+        val extras = playerHolder.existingPlayer?.currentMediaItem?.mediaMetadata?.extras
+        return isLocalPlaybackSource(
+            mediaSourceId = extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID),
+            sourceUri = extras?.getString(PLAYER_EXTRA_SEEK_SOURCE_URI),
+        )
     }
 
     private var playbackSessionJob: Job? = null
@@ -504,7 +523,12 @@ constructor(
     private val trackSelectionEngine = TrackSelectionEngine(appPreferences)
 
     /** 自研字幕管线：延迟 / 双语 / 外观（ExoPlayer 文字字幕由它接管） */
-    val subtitleController = PlayerSubtitleController(viewModelScope, appPreferences)
+    val subtitleController =
+        PlayerSubtitleController(
+            viewModelScope,
+            appPreferences,
+            contentResolver = application.contentResolver,
+        )
 
     /**
      * Exo 引擎的字幕延迟 / 样式出口（W4-T3a-1）。
@@ -1450,7 +1474,13 @@ constructor(
         }
         // Persist UserData directly so abrupt exits retain the latest position.
         viewModelScope.launch {
-            playbackPositionWriter.writePosition(itemId, position.times(10000))
+            val extras = mediaItem.mediaMetadata.extras
+            playbackPositionWriter.writePosition(
+                itemId = itemId,
+                positionTicks = position.times(10000),
+                mediaSourceId = extras?.getString(PLAYER_EXTRA_MEDIA_SOURCE_ID),
+                sourceUri = extras?.getString(PLAYER_EXTRA_SEEK_SOURCE_URI),
+            )
         }
     }
 
@@ -2053,15 +2083,7 @@ constructor(
 
     // Network, IO and unspecified mpv failures use the in-place retry path.
     private fun isNetworkOrSourceError(error: PlaybackException): Boolean =
-        when (error.errorCode) {
-            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-            PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
-            PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
-            PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND,
-            PlaybackException.ERROR_CODE_UNSPECIFIED -> true
-            else -> false
-        }
+        PlaybackErrorClassification.isNetworkOrSourceError(error.errorCode)
 
     // Advance the persisted fallback ladder exactly once per logical failure.
     private fun handleCodecFallback(error: PlaybackException): Boolean {
@@ -2168,13 +2190,7 @@ constructor(
 
     /** 只有"内核解不了这个格式"类错误才值得换内核；网络、DRM、容器损坏等换内核也没用 */
     private fun isCodecCapabilityError(error: PlaybackException): Boolean =
-        when (error.errorCode) {
-            PlaybackException.ERROR_CODE_DECODING_FAILED,
-            PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
-            PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
-            PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED -> true
-            else -> false
-        }
+        PlaybackErrorClassification.isCodecCapabilityError(error.errorCode)
 
     // Keep fallback state for a session restart; clear it when the session id changes.
     private fun prepareDecodeFallback(playbackSessionId: String): Boolean {
