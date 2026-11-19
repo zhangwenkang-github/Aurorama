@@ -88,22 +88,201 @@ class PlayerSeekGestureRulesTest {
         assertFalse(gestureStartExcluded(100f, 100f, -1, 1600, 24, 48, 24, 48))
     }
 
-    @Test
-    fun scrollDirection_usesExisting2to1Threshold_andRejectsZero() {
-        assertTrue(isHorizontalScroll(100f, 0f))
-        assertTrue(isHorizontalScroll(100f, 199.9f))
-        assertTrue(isHorizontalScroll(-100f, 50f))
-        assertTrue(isHorizontalScroll(1f, 0f))
-        assertFalse(isHorizontalScroll(0f, 100f))
-        assertFalse(isHorizontalScroll(100f, 200f))
-        assertFalse(isHorizontalScroll(0f, 0f))
+    // ---------- W4-T5：方向锁 10vp（VIDEO-26） ----------
 
-        assertTrue(isVerticalScroll(0f, 100f))
-        assertTrue(isVerticalScroll(100f, 200f))
-        assertTrue(isVerticalScroll(-100f, -200f))
-        assertFalse(isVerticalScroll(100f, 199.9f))
-        assertFalse(isVerticalScroll(100f, 0f))
-        assertFalse(isVerticalScroll(0f, 0f))
+    @Test
+    fun directionLock_staysUnlockedBelowThreshold() {
+        // K60 density 2.625：10vp = 26.25px
+        val threshold = 10f * 2.625f
+        assertEquals(
+            GestureAxis.NONE,
+            resolveGestureAxis(GestureAxis.NONE, 20f, 3f, threshold),
+        )
+        assertEquals(
+            "斜向但未达 10vp 也不锁定（不反馈）",
+            GestureAxis.NONE,
+            resolveGestureAxis(GestureAxis.NONE, 15f, 15f, threshold),
+        )
+        assertEquals(
+            "达锁边界即锁定",
+            GestureAxis.HORIZONTAL,
+            resolveGestureAxis(GestureAxis.NONE, threshold, 0f, threshold),
+        )
+    }
+
+    @Test
+    fun directionLock_picksDominantAxisOnce_andNeverSwitches() {
+        val threshold = 26.25f
+        val locked = resolveGestureAxis(GestureAxis.NONE, 40f, 12f, threshold)
+        assertEquals(GestureAxis.HORIZONTAL, locked)
+        assertEquals(
+            "锁定后反向位移不得换向",
+            GestureAxis.HORIZONTAL,
+            resolveGestureAxis(locked, 5f, 300f, threshold),
+        )
+        val vertical = resolveGestureAxis(GestureAxis.NONE, 12f, 40f, threshold)
+        assertEquals(GestureAxis.VERTICAL, vertical)
+        assertEquals(
+            GestureAxis.VERTICAL,
+            resolveGestureAxis(vertical, 400f, 5f, threshold),
+        )
+    }
+
+    @Test
+    fun directionLock_diagonal30to60Degrees_keepsMainAxis() {
+        val threshold = 26.25f
+        // 30°：|dy| = 0.577|dx| → 横向
+        assertEquals(
+            GestureAxis.HORIZONTAL,
+            resolveGestureAxis(GestureAxis.NONE, 60f, 34f, threshold),
+        )
+        // 45°：等分取横向（确定性，不随机）
+        assertEquals(
+            GestureAxis.HORIZONTAL,
+            resolveGestureAxis(GestureAxis.NONE, 60f, 60f, threshold),
+        )
+        // 60°：|dx| = 0.577|dy| → 纵向
+        assertEquals(
+            GestureAxis.VERTICAL,
+            resolveGestureAxis(GestureAxis.NONE, 34f, 60f, threshold),
+        )
+    }
+
+    // ---------- W4-T5：双击连击递增（VIDEO-20） ----------
+
+    @Test
+    fun tapCombo_stepsUpToTripleWithinWindow() {
+        val base = 10_000L
+        val first = nextTapCombo(TapComboState(), base, direction = -1, nowMs = 1_000L)
+        assertEquals("第 1 次 = 基准步长 ×1", -10_000L, first.deltaMs)
+        assertEquals(-10_000L, first.accumulatedMs)
+
+        val second = nextTapCombo(first.state, base, direction = -1, nowMs = 1_500L)
+        assertEquals("窗口内第 2 次 ×2", -20_000L, second.deltaMs)
+        assertEquals("HUD 累计 −30s", -30_000L, second.accumulatedMs)
+
+        val third = nextTapCombo(second.state, base, direction = -1, nowMs = 2_000L)
+        assertEquals("第 3 次 ×3", -30_000L, third.deltaMs)
+        assertEquals("HUD 累计 −60s", -60_000L, third.accumulatedMs)
+
+        val fourth = nextTapCombo(third.state, base, direction = -1, nowMs = 2_500L)
+        assertEquals("第 4 次起维持 ×3 封顶", -30_000L, fourth.deltaMs)
+        assertEquals(-90_000L, fourth.accumulatedMs)
+    }
+
+    @Test
+    fun tapCombo_windowTimeout_resetsToFirstStep() {
+        val first = nextTapCombo(TapComboState(), 15_000L, direction = 1, nowMs = 1_000L)
+        val late = nextTapCombo(first.state, 15_000L, direction = 1, nowMs = 1_800L)
+        assertEquals("800ms 边界仍在窗口内", 30_000L, late.deltaMs)
+
+        val expired = nextTapCombo(late.state, 15_000L, direction = 1, nowMs = 2_601L)
+        assertEquals("超窗清零后从 ×1 重新开始", 15_000L, expired.deltaMs)
+        assertEquals(15_000L, expired.accumulatedMs)
+        assertEquals(1, expired.state.count)
+    }
+
+    @Test
+    fun tapCombo_directionChange_startsNewChain() {
+        val first = nextTapCombo(TapComboState(), 15_000L, direction = 1, nowMs = 1_000L)
+        val switched = nextTapCombo(first.state, 5_000L, direction = -1, nowMs = 1_200L)
+        assertEquals("换方向另起一串，用该方向的基准步长", -5_000L, switched.deltaMs)
+        assertEquals(-5_000L, switched.accumulatedMs)
+        assertEquals(1, switched.state.count)
+    }
+
+    @Test
+    fun tapCombo_usesConfiguredBaseStep() {
+        // 基准档 5s / 15s 各自缩放，不写死 10/20/30
+        val fwd2 =
+            nextTapCombo(
+                nextTapCombo(TapComboState(), 15_000L, 1, 1_000L).state,
+                15_000L,
+                1,
+                1_100L,
+            )
+        assertEquals(30_000L, fwd2.deltaMs)
+        val back3 =
+            nextTapCombo(
+                nextTapCombo(
+                        nextTapCombo(TapComboState(), 5_000L, -1, 1_000L).state,
+                        5_000L,
+                        -1,
+                        1_100L,
+                    )
+                    .state,
+                5_000L,
+                -1,
+                1_200L,
+            )
+        assertEquals(-15_000L, back3.deltaMs)
+        assertEquals(-30_000L, back3.accumulatedMs)
+    }
+
+    // ---------- W4-T5：双指连续缩放 + 平移（VIDEO-24） ----------
+
+    @Test
+    fun zoomScale_clampedTo1to3_andNaNFallsBack() {
+        assertEquals(1f, clampZoomScale(0.4f))
+        assertEquals(1f, clampZoomScale(1f))
+        assertEquals(1.75f, clampZoomScale(1.75f))
+        assertEquals(3f, clampZoomScale(9f))
+        assertEquals(1f, clampZoomScale(Float.NaN))
+    }
+
+    @Test
+    fun zoomPan_onlyAboveThreshold() {
+        assertFalse(zoomPanEnabled(1f))
+        assertFalse(zoomPanEnabled(ZOOM_PAN_THRESHOLD))
+        assertTrue(zoomPanEnabled(1.06f))
+        assertTrue(zoomPanEnabled(2.5f))
+    }
+
+    @Test
+    fun zoomTranslation_clampedInsideContent() {
+        assertEquals("1.0x 不允许平移", 0f, clampZoomTranslation(120f, 1f, 2560))
+        assertEquals("2.0x 最大平移半个画面宽", 1280f, clampZoomTranslation(9000f, 2f, 2560))
+        assertEquals(-1280f, clampZoomTranslation(-9000f, 2f, 2560))
+        assertEquals(300f, clampZoomTranslation(300f, 2f, 2560))
+        assertEquals("竖向同理", 800f, clampZoomTranslation(9000f, 2f, 1600))
+        assertEquals(0f, clampZoomTranslation(500f, 3f, 0))
+    }
+
+    @Test
+    fun zoomAnchor_keepsFocalPointFixed() {
+        // 以画面中心为焦点：平移量按比例放大（中心处 t=0 恒为 0）
+        assertEquals(
+            0f,
+            zoomTranslationAfterScale(translationPx = 0f, focalOffsetPx = 0f, 1f, 2f),
+        )
+        // 焦点在中心右侧 200px，1.0 → 2.0x：焦点处像素保持不动 ⇒ 平移变为 −200
+        assertEquals(
+            -200f,
+            zoomTranslationAfterScale(translationPx = 0f, focalOffsetPx = 200f, 1f, 2f),
+        )
+        // 已经有平移时同式：焦点 200、t=−100、1→1.5 ⇒ 200 − 1.5×300 = −250
+        assertEquals(
+            -250f,
+            zoomTranslationAfterScale(translationPx = -100f, focalOffsetPx = 200f, 1f, 1.5f),
+        )
+        assertEquals(
+            "非法旧缩放保持原值",
+            50f,
+            zoomTranslationAfterScale(50f, 200f, previousScale = 0f, newScale = 2f),
+        )
+    }
+
+    // ---------- W4-T5：「越久越快」长按倍速（VIDEO-23） ----------
+
+    @Test
+    fun speedRamp_stepsEveryTwoSeconds_upTo4x() {
+        assertEquals(2f, rampedPlaybackSpeed(2f, 0L))
+        assertEquals("不足 2s 停在基础档", 2f, rampedPlaybackSpeed(2f, 1_999L))
+        assertEquals(3f, rampedPlaybackSpeed(2f, 2_000L))
+        assertEquals(4f, rampedPlaybackSpeed(2f, 4_000L))
+        assertEquals("封顶 4x", 4f, rampedPlaybackSpeed(2f, 60_000L))
+        assertEquals("1.5 基础档 +1x", 2.5f, rampedPlaybackSpeed(1.5f, 2_000L))
+        assertEquals("3.0 基础档直接封顶", 4f, rampedPlaybackSpeed(3f, 2_000L))
     }
 
     @Test

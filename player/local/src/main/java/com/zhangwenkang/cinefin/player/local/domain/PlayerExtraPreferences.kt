@@ -53,6 +53,13 @@ object PlayerExtraPreferences {
 
     /** 随机播放开关（W74 U2-B / 决策 D-F8）：默认关。mpv 内核没有 `COMMAND_SET_SHUFFLE_MODE`，套用时跳过 */
     val shuffle = Preference("pref_player_shuffle", false)
+
+    /**
+     * 长按「越久越快」（W4-T5 / VIDEO-23）：默认关。
+     *
+     * 开启后长按播放中每 2 秒升一档（基础档 → +1x → +2x，封顶 4x），松手恢复原倍速；关闭 = 只在长按期间用固定档位。
+     */
+    val gesturesSpeedRamp = Preference("pref_player_gestures_speed_ramp", false)
 }
 
 /** 镜像模式的取值（与 [PlayerExtraPreferences.videoMirror] 对应） */

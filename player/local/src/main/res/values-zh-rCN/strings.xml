@@ -112,6 +112,11 @@
     <string name="player_settings_gesture_chapter_skip">长按跳章节</string>
     <string name="player_settings_gesture_brightness_remember">记住亮度</string>
     <string name="player_settings_gesture_start_maximized">进入时铺满画面</string>
+    <!-- W4-T5（VIDEO-23）：长按「越久越快」可选开关 -->
+    <string name="player_settings_gesture_speed_ramp">长按倍速逐级加快</string>
+    <string name="player_settings_gesture_speed_ramp_caption">长按每 2 秒升一档，封顶 4×</string>
+    <string name="player_gesture_seek_forward">快进 %1$s</string>
+    <string name="player_gesture_seek_back">快退 %1$s</string>
     <string name="player_settings_speed_multiplier">长按倍速</string>
     <string name="player_settings_seek_sensitivity">横向灵敏度</string>
     <string name="player_settings_vertical_sensitivity">纵向灵敏度</string>

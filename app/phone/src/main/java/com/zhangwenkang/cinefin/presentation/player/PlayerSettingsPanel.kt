@@ -82,6 +82,8 @@ data class PlayerSettingsSnapshot(
     val gesturesBrightnessRemember: Boolean,
     val gesturesStartMaximized: Boolean,
     val gesturesSpeedMultiplier: String,
+    /** W4-T5（VIDEO-23）：长按倍速逐级加快（默认关） */
+    val gesturesSpeedRamp: Boolean,
     val seekSensitivity: String,
     val verticalSensitivity: String,
     /** 码率档位：0 / -1 / 具体 bps，见 [PlayerStreamingQuality] */
@@ -205,6 +207,10 @@ class PlayerSettingsController(
     fun setGesturesSpeedMultiplier(value: String) =
         write(appPreferences.playerGesturesSpeedMultiplier, value)
 
+    /** W4-T5（VIDEO-23）：长按倍速逐级加快开关（默认关） */
+    fun setGesturesSpeedRamp(value: Boolean) =
+        write(PlayerExtraPreferences.gesturesSpeedRamp, value)
+
     fun setSeekSensitivity(value: String) =
         write(appPreferences.playerGesturesSeekSensitivity, value)
 
@@ -291,6 +297,7 @@ class PlayerSettingsController(
                 appPreferences.getValue(appPreferences.playerGesturesStartMaximized),
             gesturesSpeedMultiplier =
                 appPreferences.getValue(appPreferences.playerGesturesSpeedMultiplier),
+            gesturesSpeedRamp = appPreferences.getValue(PlayerExtraPreferences.gesturesSpeedRamp),
             seekSensitivity = appPreferences.getValue(appPreferences.playerGesturesSeekSensitivity),
             verticalSensitivity =
                 appPreferences.getValue(appPreferences.playerGesturesVerticalSensitivity),
@@ -479,6 +486,16 @@ internal fun PlayerSettingsPanel(
                                 listOf("1.5", "2.0", "3.0")[index]
                             )
                         },
+                    )
+                    // W4-T5（VIDEO-23）：长按「越久越快」可选开关，默认关 = 固定档位
+                    PanelSwitchRow(
+                        label = stringResource(PlayerR.string.player_settings_gesture_speed_ramp),
+                        caption =
+                            stringResource(
+                                PlayerR.string.player_settings_gesture_speed_ramp_caption
+                            ),
+                        checked = settings.gesturesSpeedRamp,
+                        onCheckedChange = { controller.setGesturesSpeedRamp(it) },
                     )
                     PanelTitle(stringResource(PlayerR.string.player_settings_seek_sensitivity))
                     SensitivityChips(

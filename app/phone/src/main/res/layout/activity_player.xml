@@ -17,15 +17,28 @@
         加载图标只留一个（W11 反馈⑤）：Media3 内置缓冲圈关掉，
         改由控制层的播放键转圈（控件可见）/ 玻璃圈（控件隐藏）表达，两个内核行为一致。
     -->
-    <androidx.media3.ui.PlayerView
-        android:id="@+id/player_view"
+    <!--
+        画面变换容器（W4-T5）：双指连续缩放 / 平移作用在这一层（视图渲染节点变换 = graphicsLayer 的 View 等价物），
+        不动渲染管线；与 PlayerView 自身的旋转/镜像/裁剪变换（Exo 路径用 playerView.scaleX）互不覆盖。
+    -->
+    <FrameLayout
+        android:id="@+id/player_zoom_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/transparent"
-        app:animation_enabled="false"
-        app:shutter_background_color="@android:color/transparent"
-        app:show_buffering="never"
-        app:surface_type="texture_view" />
+        android:clipChildren="true"
+        android:clipToPadding="true">
+
+        <androidx.media3.ui.PlayerView
+            android:id="@+id/player_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            app:animation_enabled="false"
+            app:shutter_background_color="@android:color/transparent"
+            app:show_buffering="never"
+            app:surface_type="texture_view" />
+
+    </FrameLayout>
 
     <!--
         自研字幕层（延迟 / 双语 / 外观）：贴在画面之上、控制层之下，
@@ -91,6 +104,36 @@
                 tools:text="[00:00:20]" />
 
         </LinearLayout>
+
+    </LinearLayout>
+
+    <!--
+        双击连击 seek 的累计 HUD（W4-T5 / VIDEO-20）：窗口内第 3 次起累计到 ±60s 等，
+        方向性波纹仍由下面的 ripple 承担；与滑动 seek 的 progress_scrubber 不同时出现（一次手势只有一种）。
+    -->
+    <LinearLayout
+        android:id="@+id/gesture_seek_hud_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="64dp"
+        android:background="@drawable/overlay_background"
+        android:clickable="false"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="16dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <TextView
+            android:id="@+id/gesture_seek_hud_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+            android:textColor="@color/primary_dark"
+            tools:text="快退 −30s" />
 
     </LinearLayout>
 

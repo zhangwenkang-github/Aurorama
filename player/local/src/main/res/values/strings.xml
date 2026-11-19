@@ -109,6 +109,11 @@
     <string name="player_settings_gesture_chapter_skip">Long press to skip chapter</string>
     <string name="player_settings_gesture_brightness_remember">Remember brightness</string>
     <string name="player_settings_gesture_start_maximized">Start zoomed to fill</string>
+    <!-- W4-T5（VIDEO-23）：长按「越久越快」可选开关 -->
+    <string name="player_settings_gesture_speed_ramp">Ramp up speed while long-pressing</string>
+    <string name="player_settings_gesture_speed_ramp_caption">+1× every 2 seconds held, capped at 4×</string>
+    <string name="player_gesture_seek_forward">Fast-forward %1$s</string>
+    <string name="player_gesture_seek_back">Rewind %1$s</string>
     <string name="player_settings_speed_multiplier">Long press speed</string>
     <string name="player_settings_seek_sensitivity">Seek sensitivity</string>
     <string name="player_settings_vertical_sensitivity">Vertical sensitivity</string>

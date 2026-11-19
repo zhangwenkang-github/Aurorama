@@ -1792,6 +1792,8 @@ class PlayerActivity : BasePlayerActivity() {
 
                 wasZoom = playerGestureHelper?.isZoomEnabled == true
                 playerGestureHelper?.updateZoomMode(false)
+                // W4-T5：双指连续缩放的画面变换在画中画里没有意义，进 PiP 时还原
+                playerGestureHelper?.resetZoom()
 
                 // Brightness mode Auto
                 window.attributes =
