@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-19：**已交付八卡**：T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709`、T3a-1 `8f49e1ad`、T8c `788d25bf`、T3a-2 `f118f49c`、T8d `d4762f1f`（各波合态终验全绿；T3a-2 K60 位置误差 0ms/轨道保持/窗口不重建已取证）；下一步派 **T8e**（入口面板 + K60 实组双端验收，生产临时组已获用户授权）与 **T5**（手势复核）；遗留 L3 主题跟随、L4 coroutines catalog、L5 自动回退坏流复验）
+> 状态：`ACTIVE`（2026-11-19 晚：**已交付九卡**：T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709`、T3a-1 `8f49e1ad`、T8c `788d25bf`、T3a-2 `f118f49c`、T8d `d4762f1f`、T8e `b32b81cc`+`e59c01e3`+`7d601455`（含 seek 风暴修复）；T8e 实组验收已证：建组自动暂停/web 入组/胶囊面板上屏/换集拦截/syncplay-command 链路/组销毁；**欠账：切内核、断网恢复、稳态同步量化——需一轮 K60 复验**（修复后未验）；T5 设计定稿完成待派；遗留 L3/L4/L5）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -148,6 +148,36 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 - 门禁：`core`+`app:phone`+`modes:music` 单测（断言旧值的布局测试同步更新）+ `ktfmtCheck` + `assembleDebug --max-workers=2`。
 - K60 取证：起播→控制层弹簧出入（连点验证可中断）→暂停降亮暗角→拖拽吸附回弹→trickplay 上浮→面板 stagger→自动隐藏 4s（logcat 计时）→四主题切换无残留色；圆角量测允许 ≤2 张压缩截图（看完即删）。**取证完必须 media_session state=NONE + force-stop 兜底**。
 
+## T8e 交付遗留（2026-11-19 晚收口记录）
+
+- **「控制层冻结」调查结论**：非 UI 缺陷——`dumpsys` 证明 overlay VISIBLE、点击后帧计数与像素均变化；真相 = MIUI `uiautomator dump` 树陈旧（返回已不存在的旧坐标）+ 建组自动暂停后的静止帧。**取证教训（后续代理必读）：uiautomator dump 陈旧时，改用 dumpsys activity/gfxinfo + 截图像素差验证 UI 活性，勿信「点了没反应」。**
+- **seek 风暴根因与修复（`7d601455`）**：真因 = 校正 seek 无 in-flight 抑制 + 锚点重设到落点把 1–2s seek 延迟吸收成永久偏差（实测 2.4s 一轮再校正）。修复：`seekInFlight` 抑制 + `seekConfirmation`(requestId) 落定 + `MIN_CORRECTION_SEEK_INTERVAL` 护栏；**Kimi 裁决：批准「锚点始终对齐组时间线、不在落定时重设」对原规格（落点重锚）的修正**——落点重锚会把 seek 延迟烙成永久偏差，代理的根因论证成立。
+- **T8e 裁决（Kimi）**：`Armed` 按「已同步」显示、`Joining` 按「时钟同步中…」（避免胶囊闪没）——批准；图标用 `ic_repeat` 占位（全仓无 sync 类图标），待图标批次补 K1 重绘；成员列表取数用面板打开时的探针快照（协调器只在 GroupJoined 刷新）——接受；浏览器页面快照 3 张属 web 对照取证，不占设备截图预算，下不为例需在任务卡写明。
+- **代理操作事故记录**：agent-15 误删 Temp 目录 4 个非本次会话的 k60_* 临时文件（越界操作）；已在后续任务卡加「只删自己创建的文件」条款。
+- **VIDEO-32 完整态接入点**（脉动/已对齐淡出，DEFERRED 项将来做）：`SyncPlayEntry.kt` 三态枚举 + `textRes()` 是唯一接缝，方案已记录在 T8e 交接 §6。
+- **实组验收欠账**（seek 风暴修复后未复验）：组内切内核位置误差、断网 12s/30s 恢复、稳态同步（修复后定位频率应 ≈0/分钟）——下一轮 K60 复验补齐；Pad 与 K60 不同账号（SyncPlay 组按账号隔离），双端对照只能用 web。
+
+## T8e 设计定稿（Kimi，2026-11-19，deepseek 零裁量）
+
+依据 VIDEO-32（最小态）/VIDEO-46 + T8d 交付的协调器 API。脉动与「已对齐」淡出 DEFERRED（T6 拍板范围）。
+
+- **入口**：右侧工具面板列表新增「SyncPlay」一项（位置在「画面」之后、「设置」之前；图标暂用既有 `ic_sync`/最相近同步类图标，无则用 `ic_group`，标注待图标批次补 K1 重绘）；面板打开前先 `probeCapability()`，`Unavailable` 时**隐藏**该入口（不做置灰）。
+- **面板（未入组）**：标题「同步观看」；主按钮「创建同步组」（`CinefinShapes.Button`，主 CTA 用 aurora 渐变——K1 规则允许）；其下「加入现有组」分组列出 `getGroups()` 返回的组（PanelRow：组名 + 成员数），点击即 `joinGroup`。创建走字符串资源默认名「<用户名> 的组」不弹输入框（最小方案）。**创建前先本地暂停**（定稿卡原文）。
+- **面板（已入组）**：组名（PanelTitle 样式）、成员列表（用户名字符串逐行 PanelRow）、底部「离开组」（错误色文字，非破坏性强调）；离开时**不弹确认框**（go-minimal，组离开即销毁语义服务器兜底）。
+- **状态胶囊（VIDEO-32 最小态）**：仅在入组期间出现，位置 = 顶栏标题右侧（随控制层出入，不独立常驻）；玻璃底 `colors.glass` + `glassBorder` + `CinefinShapes.Full` 胶囊、高 28dp、内边距横 10dp；内容 = 8dp 圆点 + 13sp 文字：`已同步`（圆点 aurora1 `#3DE8C2`，仅 `state==Playing/Paused/Idle` 且连接正常）/ `重连中…`（圆点 `colors.onSurfaceVariant`，`connectionState != CONNECTED`）/ `时钟同步中…`（圆点同上，`ClockWarming`）。点击胶囊 = 打开 SyncPlay 面板。
+- **组内行为约束（裁决已记录）**：上/下一集与队列点选入口在闸门开启时拦截，提示条「同步观看中，换集由组控制」（复用 PlaybackRecoveryBar 样式，2s 自动消失）；长按倍速已被闸门禁用（T8d），面板不显露。
+- **异常态**：join 失败/创建失败提示条 3s（「加入失败：组不存在或已解散」等按 `SyncPlayError` 映射文案，中英文入 strings.xml）；`GroupDoesNotExist/LibraryAccessDenied` 踢出事件 → 胶囊消失 + 提示条「已被移出同步组」3s。
+
+## T5 设计定稿（Kimi，2026-11-19，deepseek 零裁量）
+
+四项评估拍板：
+
+1. **双击连击递增：实现**（VIDEO-20 MUST）。单击 ±10s（取设置步长为基准步长）；800ms 连击窗口内第 2 次 ±20s、第 3 次起 ±30s（3 档封顶）；HUD 显示**累计值**（如「快退 −30s」），窗口结束或松手超时后清零。方向性波纹保留现状样式。
+2. **方向锁：改 10vp 显著位移仲裁**（VIDEO-26 MUST）。首次位移达 10vp 前不锁定（也不触发任何手势反馈）；锁定后本次手势不再换向；斜滑（位移夹角 30°–60°）达锁后按主轴执行，不跳变。替换现状 `|dy| < 2|dx|` 比率判定 + 50px 阈值。
+3. **双指连续缩放 + 平移：升级**（VIDEO-24 MUST，取代纯档位）。双指捏合 1.0–3.0x 连续缩放，锚点跟随双指中心；缩放 >1.05x 时单指拖动 = 平移（此期间单指 seek/亮度/音量手势禁用），≤1.05x 恢复手势语义；双指双击 = 还原 1.0x。既有「铺满/还原」档位键保留不变。画面变换走 PlayerView 外层 `graphicsLayer`（scale+translation），不动渲染管线。
+4. **「越久越快」长按档：实现为可选开关**（VIDEO-23 MUST 的可选半句）。设置面板加开关「长按倍速逐级加快」（默认关）；开启后长按每 2s 升一档：基础档→+1x→+2x，封顶 4x（基础档取设置值）；松手恢复。开关关闭 = 现状行为。
+5. **非全屏下滑退出（VIDEO-25）**：先核查——播放页现形态以全屏为主，`PlayerFormFactor` 边到边布局下无「非全屏播放」态；若核查确认无非全屏态，记录「不适用」关闭此条，不实现。
+
 ## T3a-2/T8d 交付遗留（2026-11-19 收口记录）
 
 - **T3a-2 结构**：快照采集=`PlayerViewModel.captureEngineSwitchSnapshot`；编排=`PlayerHolder.switchBackendInPlace`（`backendSwitchInProgress` 守卫 + rollback）；上层重绑=`PlayerViewModel.rebindAfterBackendSwitch`；宿主=`PlayerActivity.requestBackendSwitch`（四条手动/自动入口统一）。轨道映射=`EngineTrackMatcher.match()` 三级命中。MediaSession 走服务既有 `rebuildSessionIfPlayerChanged()`（换实例必重挂，未重启服务/Activity，KDoc 已写清）。
@@ -233,12 +263,13 @@ fun setSubtitleStyle(style: SubtitleStyle)           // SubtitleStyle 已在 pla
 
 - **L3（新立，小卡）**：`PlayerActivity` 目前 `CinefinTheme(themeId = DEFAULT)` 写死，播放页不随 App 主题换色板。Kimi 设计拍板：播放页跟随 **aurora↔amoled** 深色主题（light/dynamic 映射 aurora dark，保持影院深色基调——与「T1 设计定稿」§1 一致，VIDEO-35 的 OLED 维度由此闭合）。改动面：PlayerActivity 传 themeId 映射 + 播放页组件对照 aurora/amoled 玻璃参数抽查，随 T5 或独立小卡派。
 - **trickplay 上浮淡入**：代码已实现但本次片源无 trickplay 未真机触发，复验并入 T4。
-- **动效主观手感**（松手回弹/knob 微弹/stagger 节奏）：adb 采样粒度无法取证，建议用户人工触摸走查一次，不满意再回调弹簧参数（参数集中在 `CinefinMotion`，一处可调）。
+- **动效主观手感**（松手回弹/knob 微弹/stagger 节奏）：~~adb 采样粒度无法取证，建议用户人工触摸走查~~ **用户 2026-11-19 人工走查通过，关闭**。
 - **范围外圆角**（不属 W4 播放域，留各域波次）：`modes/book/ReaderSettingsPanel.kt`(14)、`core/.../CinefinNavigation.kt:399`(9)、`modes/music/MusicModeScreen.kt:1251`(12)；`app/tv` 冻结不动。
 - **T8a 接口事实**（T8b/c/d 消费注意）：403 一律映射 `LibraryAccessDenied`；时区换算 `toInstantInSystemZone()` 严格可逆，T8b 须契约测试复验；`commands`/`groupUpdates` Flow 每次收集重新订阅 WS（T8d 订阅计数语义依赖此）；`SyncPlayGatewayImpl` 未做 Hilt 绑定，装配留 T8d。
 
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-19（八）：**T8e ✅ `b32b81cc`**（面板+胶囊+拦截，K60 实组建组/web 入组/组销毁已证）+「控制层冻结」调查（`e59c01e3`，结论：uiautomator 树陈旧误判，非 UI 缺陷）+ **seek 风暴修复 `7d601455`**（in-flight 抑制 + 组时间线锚点；修复后实组复验欠账：切内核/断网/稳态）。T1 动效用户走查通过。代理误删 Temp 旧文件事故已记录并加任务卡条款。
 - 2026-11-19（七）：**T3a-2 ✅ `f118f49c`**（原地切换四入口统一，K60：位置误差 0ms、轨道保持、窗口不重建；mpv vo 预绑定/setMediaItems 后禁补 seek 两条真机教训入库）与 **T8d ✅ `d4762f1f`**（协调器 + 闸门 + seekSink 委托 + 断线恢复，33 例单测）串行交付。L5 立（坏流回退复验入 T7）。
 - 2026-11-19（六）：**T3a-1 ✅ `8f49e1ad`**（引擎 8 动词 + EngineTrack + 双内核实现，能力位 +2）与 **T8c ✅ `788d25bf`**（七态状态机 + deadline + 双内核三档漂移，29 例单测）并行交付；T3a/T8c 设计定稿入库；两项裁决（能力位 +2、PAUSE 晚到不补偿）批准。
 - 2026-11-19（五）：**T2 ✅ `c8a05dce`**（50ms 步进/语言分组标注/图形字幕非阻断提示，K60 取证：步进、seek 与引擎切换后偏移保持、分组与提示条上屏，已停播放）与 **T8b ✅ `ad8b2709`**（SyncClock，公式与 jellyfin-web 逐字对应，9+3 例测试全绿）并行交付；合态终验全绿。VIDEO-15 查无实现关闭；L4 立（coroutines 进 catalog）。
