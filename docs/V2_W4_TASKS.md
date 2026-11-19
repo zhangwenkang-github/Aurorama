@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-19 晚：**已交付十二卡**：T1/T2/T8a/T8b/T3a-1/T8c/T3a-2/T8d/T8e/T5 + **T3b `96169328`**（能力探测+ tone-mapping 三档，K60 实测四项 HDR 全支持、三档即时生效不中断）+ **T4 核查（零 commit）**（Exo HDR10 直通已证、mpv 三档观感差异量化已证；trickplay 因服务器未开提取 BLOCKED）；剩 T7 域验收 + T9 收尾小项包；trickplay 服务器开关待用户拍板；遗留 L3/L4/L5）
+> 状态：`ACTIVE`（2026-11-20：**已交付十三卡**：T1/T2/T8a/T8b/T3a-1/T8c/T3a-2/T8d/T8e/T5/T3b/T4 + **T9 `f96b1313`**（章节气泡时间戳/手机解码入口/mpv HDR 补偿/coroutines catalog，K60 三项取证过）；trickplay 扫描中、复验挂起并入 T7；**只剩 T7 域验收**；遗留 L3 主题跟随、L5 坏流回退（入 T7））
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -157,11 +157,18 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 - **VIDEO-32 完整态接入点**（脉动/已对齐淡出，DEFERRED 项将来做）：`SyncPlayEntry.kt` 三态枚举 + `textRes()` 是唯一接缝，方案已记录在 T8e 交接 §6。
 - **实组验收欠账**（seek 风暴修复后未复验）：组内切内核位置误差、断网 12s/30s 恢复、稳态同步（修复后定位频率应 ≈0/分钟）——下一轮 K60 复验补齐；Pad 与 K60 不同账号（SyncPlay 组按账号隔离），双端对照只能用 web。
 
+## T9 交付遗留（2026-11-20 收口记录）
+
+- **T9 裁决（Kimi）**：①mpv `profile=fast` 在 init 时覆写 `hdr-compute-peak=no`，代理保留构造期 `setOptionString` 并在 init 后补 `setPropertyString`（日志已证生效）——批准，这是最小正确做法，不改 profile；②气泡时间戳用既有 `formatTime`（≥1h 展开 h:mm:ss）——批准，长片 65:30 式纯 mm:ss 反而难读。
+- **T9 事实**：气泡文案 `第 N 章 · 名称（mm:ss）` 三要素同框（`PlayerChapterSnap.kt` label 加 `startMs`）；「解码与能力」入口在播放设置面板 Playback 页签末尾；mpv 构造日志含 `hdr-compute-peak=yes target-peak=auto`；coroutines catalog 已建（`kotlinx-coroutines = "1.11.0"`），player/core 已收编。
+- **新小遗留**：`app/phone/build.gradle.kts:219` 的 `kotlinx-coroutines-test:1.11.0` 硬编码未收（T9 边界外），下波顺手收 catalog。
+- **备查**：T9 取证期出现一次 mpv `tls: TLS handshake was aborted by peer`（服务器转码 URL，重开正常），与 T9 无关——若再出现按 L2 旧案（TLS 服务器侧）排查。
+
 ## T3b/T4 交付遗留（2026-11-19 晚收口记录）
 
 - **T3b 事实**：`DevicePlaybackCapabilities`（模型 player/core + 探测 player/local，进程级缓存）；K60 = 骁龙 8+（23013RK75C，**非天玑**），HDR 四项（DV/HDR10/HLG/HDR10+）全支持；tone-mapping 偏好 `pref_player_tone_mapping` 默认 bt.2390，mpv 运行时写属性即时生效（T3b K60 已证 PLAYING 不中断）。比对入口 `supportsAll/missingHdrTypes` 已备未接线。
 - **T4 核查结论（零 commit）**：Exo HDR10 直通已证（`colorInfo`→MediaCodec BT.2020/PQ→dataspace 链，面板当前流读数一致；**App 侧零 HDR 显式代码，纯「服务器直放+平台默认」**）；mpv 三档在 HDR 片源上观感差异量化已证（亮度 56.4/47.8/53.6，同帧相关系数 >0.92）。全库 HDR 片源 = 25 集 HDR10（青之箱），无 HDR10+。
-- **trickplay BLOCKED（待用户拍板）**：全库 2116 条零 trickplay——6 个媒体库 `EnableTrickplayImageExtraction` 全关（服务器侧配置）。App 侧代码（W20 + T1 动画）已就位。**开启提取是生产服务器写 + 全库扫描 CPU 开销，需用户决定**：开后重跑 T4 trickplay 三项（缩略图+时间戳气泡、T1 入场动画）。
+- **trickplay（2026-11-19 用户已开启提取，扫描进行中）**：用户已在服务器开启提取，全库扫描需时间（官方 App 端目前也看不到预览图，佐证扫描未完成）。**T4 trickplay 三项复验挂起**：待扫描产出后（`Trickplay` 字段非空）重跑——缩略图+时间戳气泡、章节名同框（T9①交付后一并验）、T1 入场动画；并入 T7 域验收检查单。App 侧代码（W20 + T1 动画）已就位，无需改动。
 - **T9 收尾小项包（新立，Kimi 定稿）**：①**章节气泡补目标时间戳**（裁决：VIDEO-18「缩略图、时间戳与章节名」按三要素同框——气泡文案 `第 N 章 · 名称（mm:ss）`，mm:ss=吸附落点）；②**解码面板手机竖屏入口**（裁决：手机竖屏宽度预算省略码率/解码键是既有行为，不改预算——在「播放设置」面板加「解码与能力」入口行跳解码面板）；③**mpv HDR 补偿参数**（VIDEO-17 后半缺口：`hdr-compute-peak=yes` + `target-peak=auto` 构造期默认值，偏好不加新档，先观察观感）；④ L4 coroutines catalog 顺手做。一卡一 commit。
 - **T4 其它缺口（记录不立项）**：设备档案无 HDR/位深门控（`PlaybackDeviceProfile` 只有容器+编解码条件）；mpv `target-contrast` 未设（随 T9③观察后再议）；全库无 HDR10+ 片源（HDR10+ 只能引 T3b 能力结论）。
 - **设备档案注意**：T4 取证用 HEAD 构建（22:20）重装了设备；`pref_player_backend`/`pref_player_tone_mapping` 已还原默认值。
@@ -294,6 +301,7 @@ fun setSubtitleStyle(style: SubtitleStyle)           // SubtitleStyle 已在 pla
 
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-20（一）：**T9 ✅ `f96b1313`**（收尾四小项，K60 三项取证过；profile=fast 覆写 hdr-compute-peak 的 post-init 补写裁决批准；app/phone coroutines-test 硬编码留小尾巴）。trickplay 用户已开服务器提取（扫描中），复验并入 T7。W4 只剩 T7 域验收。
 - 2026-11-19（十）：**T3b ✅ `96169328`**（能力探测+mpv tone-mapping 三档即时生效）+ **T4 核查（零 commit）**（Exo HDR10 直通已证、mpv 三档观感量化已证、trickplay 服务器未开提取 BLOCKED 待用户拍板）。新立 T9 收尾小项包（章节气泡时间戳/手机解码入口/mpv HDR 补偿/L4）。L6 关闭（双指缩放用户走查过）。
 - 2026-11-19（九）：**SyncPlay 复验全过**（稳态 0 次校正 seek、切内核 0/5ms、断网恢复、0.95× 追帧上屏）+ **T5 ✅ `b19c8d52`**（连击递增/10vp 方向锁/双指缩放/逐级倍速开关，K60 走查除多点注入受限项外全取证；VIDEO-25 不适用关闭）。L6 立（mpv 缩放人工确认）。
 - 2026-11-19（八）：**T8e ✅ `b32b81cc`**（面板+胶囊+拦截，K60 实组建组/web 入组/组销毁已证）+「控制层冻结」调查（`e59c01e3`，结论：uiautomator 树陈旧误判，非 UI 缺陷）+ **seek 风暴修复 `7d601455`**（in-flight 抑制 + 组时间线锚点；修复后实组复验欠账：切内核/断网/稳态）。T1 动效用户走查通过。代理误删 Temp 旧文件事故已记录并加任务卡条款。
