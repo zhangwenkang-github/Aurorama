@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-19 晚：**已交付九卡**：T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709`、T3a-1 `8f49e1ad`、T8c `788d25bf`、T3a-2 `f118f49c`、T8d `d4762f1f`、T8e `b32b81cc`+`e59c01e3`+`7d601455`（含 seek 风暴修复）；T8e 实组验收已证：建组自动暂停/web 入组/胶囊面板上屏/换集拦截/syncplay-command 链路/组销毁；**欠账：切内核、断网恢复、稳态同步量化——需一轮 K60 复验**（修复后未验）；T5 设计定稿完成待派；遗留 L3/L4/L5）
+> 状态：`ACTIVE`（2026-11-19 晚：**已交付十卡**：T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709`、T3a-1 `8f49e1ad`、T8c `788d25bf`、T3a-2 `f118f49c`、T8d `d4762f1f`、T8e `b32b81cc`+`e59c01e3`+`7d601455`、T5 `b19c8d52`；**SyncPlay 复验全过**：稳态 3 分钟 0 次校正 seek（修复前 310 次）、切内核误差 0/5ms、断网 12s 恢复快照对齐、0.95× 追帧上屏；剩 T3b/T4/T7 与复验小欠账；遗留 L3/L4/L5/L6）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -157,6 +157,22 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 - **VIDEO-32 完整态接入点**（脉动/已对齐淡出，DEFERRED 项将来做）：`SyncPlayEntry.kt` 三态枚举 + `textRes()` 是唯一接缝，方案已记录在 T8e 交接 §6。
 - **实组验收欠账**（seek 风暴修复后未复验）：组内切内核位置误差、断网 12s/30s 恢复、稳态同步（修复后定位频率应 ≈0/分钟）——下一轮 K60 复验补齐；Pad 与 K60 不同账号（SyncPlay 组按账号隔离），双端对照只能用 web。
 
+## T5 交付遗留与 SyncPlay 复验结论（2026-11-19 晚收口记录）
+
+### SyncPlay 修复后复验（K60 + web，全过）
+
+- **稳态**：3 分 10 秒窗口 `syncplay-command` 定位 **0 次**（修复前 ~310 次/3 分钟）、mpv 解码器重初始化 0 次；UNPAUSE 后初始对齐 3 秒内 3 次属正常，此后 4 分钟零漂移 seek。跟随延迟实测 368ms / 709ms（服务器 whenAt → App 收到）。
+- **组内切内核**：mpv→Exo 误差 **0ms**（耗时 8.3s）、Exo→mpv 误差 **5ms**（2.9s）；组态保持 Playing、无重新入组；漂移档随内核重建。
+- **断网 12s**：重连快照对齐日志在（`resyncAfterReconnect`），WS 全程零重订阅；观察项：网络恢复到对齐约 24s（SDK 判连断偏慢，记录不立项）。
+- **追帧**：UI 实测「倍速 0.95×」上屏（领先减速追帧），证实漂移走变速带而非 seek——修复设计意图兑现。
+- 小欠账：web 端主动 seek→App 跟随未取到直接数据（web OSD 交互限制），组命令带位置落点生效作间接证据；并入 T7 域验收收尾。
+
+### T5 交付事实与裁决
+
+- **Kimi 裁决**：①捏合缩放/双指双击还原真机未验（`input` 不支持多点、`sendevent` 被 SELinux 拒，非 root 无解）——纯函数单测 + 代码审查作证，**列入用户人工走查**（同 T1 动效模式）；②缩放用 PlayerView 外层 `player_zoom_container`（View scale/translation）实现 graphicsLayer 同语义——批准；③**字幕层不随缩放**（`subtitle_overlay_compose` 在容器外，保持原尺寸可读性优先）——批准为正式行为；④连击累计值不设上限（倍率 ×3 封顶）——符合定稿预期。
+- 事实：连击基准档取设置值（非写死 10/20/30）；方向锁阈值 10vp（K60=26.3px），旧 `|dy|<2|dx|` 判定已删；「越久越快」偏好键 `pref_player_gestures_speed_ramp` 在 `PlayerExtraPreferences`（默认关，走查后已复原）；VIDEO-25 核查结论「播放页无非全屏态，不适用」已关闭；`core` 的 `Constants.ZOOM_SCALE_BASE/THRESHOLD` 已无调用方（core 禁改，留 W 后清理）。
+- **L6（新立遗留）**：mpv + 视图层缩放只有代码路径判断（多点注入不了），随 L3 小卡或人工走查一并确认。
+
 ## T8e 设计定稿（Kimi，2026-11-19，deepseek 零裁量）
 
 依据 VIDEO-32（最小态）/VIDEO-46 + T8d 交付的协调器 API。脉动与「已对齐」淡出 DEFERRED（T6 拍板范围）。
@@ -269,6 +285,7 @@ fun setSubtitleStyle(style: SubtitleStyle)           // SubtitleStyle 已在 pla
 
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-19（九）：**SyncPlay 复验全过**（稳态 0 次校正 seek、切内核 0/5ms、断网恢复、0.95× 追帧上屏）+ **T5 ✅ `b19c8d52`**（连击递增/10vp 方向锁/双指缩放/逐级倍速开关，K60 走查除多点注入受限项外全取证；VIDEO-25 不适用关闭）。L6 立（mpv 缩放人工确认）。
 - 2026-11-19（八）：**T8e ✅ `b32b81cc`**（面板+胶囊+拦截，K60 实组建组/web 入组/组销毁已证）+「控制层冻结」调查（`e59c01e3`，结论：uiautomator 树陈旧误判，非 UI 缺陷）+ **seek 风暴修复 `7d601455`**（in-flight 抑制 + 组时间线锚点；修复后实组复验欠账：切内核/断网/稳态）。T1 动效用户走查通过。代理误删 Temp 旧文件事故已记录并加任务卡条款。
 - 2026-11-19（七）：**T3a-2 ✅ `f118f49c`**（原地切换四入口统一，K60：位置误差 0ms、轨道保持、窗口不重建；mpv vo 预绑定/setMediaItems 后禁补 seek 两条真机教训入库）与 **T8d ✅ `d4762f1f`**（协调器 + 闸门 + seekSink 委托 + 断线恢复，33 例单测）串行交付。L5 立（坏流回退复验入 T7）。
 - 2026-11-19（六）：**T3a-1 ✅ `8f49e1ad`**（引擎 8 动词 + EngineTrack + 双内核实现，能力位 +2）与 **T8c ✅ `788d25bf`**（七态状态机 + deadline + 双内核三档漂移，29 例单测）并行交付；T3a/T8c 设计定稿入库；两项裁决（能力位 +2、PAUSE 晚到不补偿）批准。
