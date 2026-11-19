@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-20：**已交付十三卡**：T1/T2/T8a/T8b/T3a-1/T8c/T3a-2/T8d/T8e/T5/T3b/T4 + **T9 `f96b1313`**（章节气泡时间戳/手机解码入口/mpv HDR 补偿/coroutines catalog，K60 三项取证过）；trickplay 扫描中、复验挂起并入 T7；**只剩 T7 域验收**；遗留 L3 主题跟随、L5 坏流回退（入 T7））
+> 状态：`CLOSED`（2026-11-20 **W4 收官**：全 14 卡交付——T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709`、T3a-1 `8f49e1ad`、T8c `788d25bf`、T3a-2 `f118f49c`、T8d `d4762f1f`、T8e `b32b81cc`+`e59c01e3`+`7d601455`、T5 `b19c8d52`、T3b `96169328`、T4 核查（零 commit）、T9 `f96b1313`、T7 验收（零 commit）、T10 `47095ed7`；T7 验收单 8✅/4⚠️/1❌ 见下「T7 验收收口」；残留项全部有归属。下一波 W5 音乐域，开工提示词在 `PROJECT_PLAN.md` 焦点节）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -157,6 +157,26 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 - **VIDEO-32 完整态接入点**（脉动/已对齐淡出，DEFERRED 项将来做）：`SyncPlayEntry.kt` 三态枚举 + `textRes()` 是唯一接缝，方案已记录在 T8e 交接 §6。
 - **实组验收欠账**（seek 风暴修复后未复验）：组内切内核位置误差、断网 12s/30s 恢复、稳态同步（修复后定位频率应 ≈0/分钟）——下一轮 K60 复验补齐；Pad 与 K60 不同账号（SyncPlay 组按账号隔离），双端对照只能用 web。
 
+## T7 验收收口（2026-11-20，K60 全清单）
+
+8 ✅ / 4 ⚠️ / 1 ❌。✅：SAF 同路径播放、双内核切换状态全量保留（倍速/字幕延迟/循环/比例/轨道五项实测）、字幕不漂移（seek×3+双档倍速+切换）、引擎切换提示、版本过低降级（契约测试）、trickplay 复验（14/17 部电影已产出，`trickplayIntervalMs=10000`，缩略图+时间戳气泡+章节名同框 `第 12 章 · Chapter 12（1:01:58）` 吸附误差 0）、控制层让位、图形字幕 Exo 提示。⚠️→已由 T10 修复：SAF 失效文案、解散组提示分支、L5 口径（裁决：自动回退仅 codec 能力错误，坏容器走错误卡——单测已钉）、本地进度回写 404。⚠️→残留（见下）。❌：D12 web 主动 seek→App 跟随（同账号双端不可靠）。
+
+### W4 残留项（全部有归属，不阻收官）
+
+| 项 | 归属 |
+|---|---|
+| L3 播放页 themeId 跟随 aurora↔amoled（方向已拍板） | W5+ 小卡 |
+| L7 mpv 内核 content:// 外挂字幕（T10 只覆盖 Exo；mpv `sub-add` 大概率打不开 content://） | W5 小卡 |
+| D12 web 主动 seek 双账号对照（需 admin 账号 web 端入组） | 用户有空时配合一轮 |
+| B5 mpv PGS 渲染视觉证据（截图预算耗尽，可选中无报错） | 用户人工留意 |
+| T1 trickplay 入场动画帧级取证（adb 粒度不够） | 用户人工走查（同动效模式） |
+| app/phone `kotlinx-coroutines-test:1.11.0` 硬编码 | 下波顺手收 catalog |
+| `core` 的 `Constants.ZOOM_SCALE_BASE/THRESHOLD` 无调用方 | W 后清理 |
+
+### T10 交付事实（`47095ed7`，22 文件）
+
+SAF 同级字幕推断（`LocalSubtitleRules`：同主名或主名+语言标签后缀，`.srt/.ass/.ssa/.vtt`，同目录，大小写不敏感扩展名）+ DB **v18** 自动迁移（`local_media_items.subtitles` 列，K60 实测迁移成功——**裁决：批准 schema 变更**，扫描期推断需要持久化）；字幕 content:// 读取通路（`PlayerSubtitleController`）；SAF 失效错误卡新文案+「重新扫描媒体库」主按钮（`rescanAll`）；Joining 态收到 GroupDoesNotExist →「加入失败：组不存在或已解散」；`PlaybackErrorClassification` 纯函数化 + 回退链口径单测；`PlaybackPositionWriter` 跳过本地条目。K60 取证：demo 双外挂字幕上屏渲染、失效错误卡与重扫动作可用。
+
 ## T9 交付遗留（2026-11-20 收口记录）
 
 - **T9 裁决（Kimi）**：①mpv `profile=fast` 在 init 时覆写 `hdr-compute-peak=no`，代理保留构造期 `setOptionString` 并在 init 后补 `setPropertyString`（日志已证生效）——批准，这是最小正确做法，不改 profile；②气泡时间戳用既有 `formatTime`（≥1h 展开 h:mm:ss）——批准，长片 65:30 式纯 mm:ss 反而难读。
@@ -301,6 +321,7 @@ fun setSubtitleStyle(style: SubtitleStyle)           // SubtitleStyle 已在 pla
 
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-20（二）：**W4 收官**。T7 验收（零 commit，8✅/4⚠️/1❌）+ **T10 ✅ `47095ed7`**（SAF 同级字幕推断+DB v18 等五项缺口修复，K60 取证过）。残留项全部有归属（L3/L7/D12 等）。trickplay 服务器扫描产出中（14/17 部电影已有）。
 - 2026-11-20（一）：**T9 ✅ `f96b1313`**（收尾四小项，K60 三项取证过；profile=fast 覆写 hdr-compute-peak 的 post-init 补写裁决批准；app/phone coroutines-test 硬编码留小尾巴）。trickplay 用户已开服务器提取（扫描中），复验并入 T7。W4 只剩 T7 域验收。
 - 2026-11-19（十）：**T3b ✅ `96169328`**（能力探测+mpv tone-mapping 三档即时生效）+ **T4 核查（零 commit）**（Exo HDR10 直通已证、mpv 三档观感量化已证、trickplay 服务器未开提取 BLOCKED 待用户拍板）。新立 T9 收尾小项包（章节气泡时间戳/手机解码入口/mpv HDR 补偿/L4）。L6 关闭（双指缩放用户走查过）。
 - 2026-11-19（九）：**SyncPlay 复验全过**（稳态 0 次校正 seek、切内核 0/5ms、断网恢复、0.95× 追帧上屏）+ **T5 ✅ `b19c8d52`**（连击递增/10vp 方向锁/双指缩放/逐级倍速开关，K60 走查除多点注入受限项外全取证；VIDEO-25 不适用关闭）。L6 立（mpv 缩放人工确认）。
@@ -310,6 +331,7 @@ fun setSubtitleStyle(style: SubtitleStyle)           // SubtitleStyle 已在 pla
 - 2026-11-19（五）：**T2 ✅ `c8a05dce`**（50ms 步进/语言分组标注/图形字幕非阻断提示，K60 取证：步进、seek 与引擎切换后偏移保持、分组与提示条上屏，已停播放）与 **T8b ✅ `ad8b2709`**（SyncClock，公式与 jellyfin-web 逐字对应，9+3 例测试全绿）并行交付；合态终验全绿。VIDEO-15 查无实现关闭；L4 立（coroutines 进 catalog）。
 - 2026-11-19（四）：**T1 ✅ `d2795184`**（deepseek，K1 玻璃换肤 + 弹簧动效 + 圆角清理 9 处 + 自动隐藏 4s；K60 取证：隐藏 4.29–4.32s、暂停降亮 ≈0.80 含边缘压暗、连点可中断无 ANR，已停播放）与 **T8a ✅ `1ef74954`**（deepseek，SyncPlay gateway 22 动词 + 探针三路径契约测试 20 例）并行交付，门禁全绿；T1 设计规格 Kimi 定稿入「T1 设计定稿」节；新立遗留 L3（播放页 themeId 跟随 aurora↔amoled），trickplay 复验并入 T4。
 - 2026-11-19（三）：用户拍板 SyncPlay **go**（go-minimal 范围），立 T8a–T8e 实现卡；新增纪律「设备用后必停播放」（media_session state=NONE + force-stop 兜底，已入记忆库）；补回新会话开工提示词。
+- 更早日志（W4 开工/T0/L1/L2/T6 与逐卡交付细节）见各「交付遗留」节与 git log（docs commit 逐波可查）。
 - 2026-11-19（二）：L1 retrySeek 修复提交 `ccdafefa`；L2 TLS 复验通过（K60 mpv 生产播放健康）；T6 SyncPlay 调研完成；顺手修正 `DEV_ENVIRONMENT.md` 服务器版本 10.11.8→12.4.0 并记录 jellyfin-test=生产同实例。
 - 2026-11-19：W4 开工。T0 调查完成；L1/L2 认领；任务卡定稿 T1–T7。
 - 2026-11-19：W3 收口后建卡（`69b9f87f`），含开工提示词与任务草案。
