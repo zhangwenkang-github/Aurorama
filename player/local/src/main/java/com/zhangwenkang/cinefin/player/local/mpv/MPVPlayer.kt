@@ -1275,6 +1275,13 @@ class MPVPlayer(
 
     fun setAudioDelay(delayMs: Long) = mpvLib.setPropertyDouble("audio-delay", delayMs / 1000.0)
 
+    /** 当前音轨时间偏移（毫秒，正 = 声音延后）；属性不可读时返回 0。 */
+    fun audioDelayMs(): Long = runCatching {
+        mpvLib.getPropertyDouble("audio-delay")
+    }
+        .getOrNull()
+        .toDelayMs()
+
     fun addSeekEventListener(listener: MpvSeekEventListener) = seekEventListeners.add(listener)
 
     fun removeSeekEventListener(listener: MpvSeekEventListener) =
@@ -1285,10 +1292,60 @@ class MPVPlayer(
         logSubtitleState()
     }
 
+    /** 当前字幕时间偏移（毫秒，正 = 字幕延后）；属性不可读时返回 0。 */
+    fun subtitleDelayMs(): Long = runCatching {
+        mpvLib.getPropertyDouble("sub-delay")
+    }
+        .getOrNull()
+        .toDelayMs()
+
     fun selectSubtitleTrack(trackId: Int?) {
         mpvLib.setPropertyString("sid", trackId?.toString() ?: "no")
         logSubtitleState()
     }
+
+    /**
+     * 按类型读当前选中轨道的 id（`sid` / `aid` / `vid`）。
+     *
+     * mpv 在未选中 / 关闭时返回 `no`，自动选择待定时可能返回 `auto`；两者都按「未选中」处理（null）。
+     */
+    fun selectedTrackId(trackType: MPVTrackType): Int? = runCatching {
+        mpvLib.getPropertyString(trackPropertyOf(trackType))
+    }
+        .getOrNull()
+        ?.trim()
+        ?.toIntOrNull()
+
+    /**
+     * 按类型直接写轨道属性：`id = null` 时字幕写 `sid=no`（其余类型写 `no` 同样表示关闭）。
+     *
+     * 只做底层写，不触发语言记忆或字幕路由——那是上层策略的职责。
+     */
+    fun selectTrackId(
+        trackType: MPVTrackType,
+        id: Int?,
+    ) {
+        if (trackType == MPVTrackType.SUBTITLE) {
+            selectSubtitleTrack(id)
+            return
+        }
+        selectTrack(trackType, id?.toString() ?: "no")
+    }
+
+    /** 当前 `track-list` 原文（mpv 的 JSON 字符串）；尚未加载或已释放时返回 null。 */
+    fun trackListJson(): String? = runCatching {
+        mpvLib.getPropertyString("track-list")
+    }
+        .getOrNull()
+
+    private fun trackPropertyOf(trackType: MPVTrackType): String =
+        when (trackType) {
+            MPVTrackType.VIDEO -> "vid"
+            MPVTrackType.AUDIO -> "aid"
+            MPVTrackType.SUBTITLE -> "sid"
+        }
+
+    private fun Double?.toDelayMs(): Long = this?.let { (it * C.MILLIS_PER_SECOND).toLong() } ?: 0L
 
     fun currentSubtitleSelection(): String? = runCatching {
         mpvLib.getPropertyString("sid")
@@ -1327,6 +1384,9 @@ class MPVPlayer(
         mpvLib.setPropertyDouble("sub-border-size", style.edgeWidthDp.toDouble())
         applyMpvSubtitlePosition(reservedFraction = subtitleReservation)
     }
+
+    /** 当前已应用的 mpv 字幕布局：引擎只下发样式时沿用它，避免字幕位置被默认布局带回底部。 */
+    fun currentSubtitleLayout(): SubtitleLayout = appliedSubtitleLayout
 
     fun applySecondarySubtitleReservation(reservedFraction: Float?) {
         if (released) return

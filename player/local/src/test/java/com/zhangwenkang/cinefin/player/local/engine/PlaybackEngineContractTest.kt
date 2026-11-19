@@ -1,6 +1,9 @@
 package com.zhangwenkang.cinefin.player.local.engine
 
+import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
 import com.zhangwenkang.cinefin.player.core.playback.EngineCapabilities
+import com.zhangwenkang.cinefin.player.core.playback.EngineTrack
+import com.zhangwenkang.cinefin.player.core.playback.EngineTrackType
 import com.zhangwenkang.cinefin.player.core.playback.PlaybackEngine
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerHolder
 import org.junit.Assert.assertEquals
@@ -8,7 +11,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * [PlaybackEngine] 的接口面契约（W2-T4）。
+ * [PlaybackEngine] 的接口面契约（W2-T4；W4-T3a-1 扩到 15 个动词）。
  *
  * 两类证据：编译期（下面这个 fake 必须能完整实现接口）与反射期（方法名 / 参数形态一旦漂移就红）。
  */
@@ -24,10 +27,16 @@ class PlaybackEngineContractTest {
                 supportsAudioDelay = true,
                 supportsSideloadedSubtitles = true,
                 supportsShuffleMode = true,
+                supportsTrackEnumeration = true,
+                supportsSubtitleDelay = true,
             ),
         override val backendName: String = "fake",
     ) : PlaybackEngine {
         val calls = mutableListOf<String>()
+        val tracks = mutableListOf<EngineTrack>()
+        var selected: String? = null
+        var subtitleDelayMs: Long = 0L
+        var audioDelayMs: Long = 0L
 
         override fun prepare() {
             calls += "prepare"
@@ -56,6 +65,32 @@ class PlaybackEngineContractTest {
         override fun release() {
             calls += "release"
         }
+
+        override fun availableTracks(type: EngineTrackType): List<EngineTrack> = tracks.filter {
+            it.type == type
+        }
+
+        override fun selectedTrack(type: EngineTrackType): String? = selected
+
+        override fun selectTrack(type: EngineTrackType, trackId: String?) {
+            calls += "selectTrack($type,$trackId)"
+        }
+
+        override fun setSubtitleDelay(delayMs: Long) {
+            subtitleDelayMs = delayMs
+        }
+
+        override fun getSubtitleDelay(): Long = subtitleDelayMs
+
+        override fun setAudioDelay(delayMs: Long) {
+            audioDelayMs = delayMs
+        }
+
+        override fun getAudioDelay(): Long = audioDelayMs
+
+        override fun setSubtitleStyle(style: SubtitleStyle) {
+            calls += "setSubtitleStyle(${style.sizePercent})"
+        }
     }
 
     @Test
@@ -64,14 +99,22 @@ class PlaybackEngineContractTest {
 
         assertEquals(
             listOf(
+                "availableTracks",
+                "getAudioDelay",
                 "getBackendName",
                 "getCapabilities",
+                "getSubtitleDelay",
                 "pause",
                 "play",
                 "prepare",
                 "release",
                 "seekTo",
+                "selectTrack",
+                "selectedTrack",
+                "setAudioDelay",
                 "setRate",
+                "setSubtitleDelay",
+                "setSubtitleStyle",
             ),
             names,
         )
@@ -94,7 +137,7 @@ class PlaybackEngineContractTest {
     }
 
     @Test
-    fun `能力位就是契约表的六个字段`() {
+    fun `能力位就是契约表的八个字段`() {
         val fields = EngineCapabilities::class.java.declaredFields.map { it.name }.sorted()
 
         assertEquals(
@@ -104,7 +147,9 @@ class PlaybackEngineContractTest {
                 "supportsShuffleMode",
                 "supportsSideloadedSubtitles",
                 "supportsSoftwareDecode",
+                "supportsSubtitleDelay",
                 "supportsSubtitleStyling",
+                "supportsTrackEnumeration",
             ),
             fields,
         )
@@ -120,6 +165,9 @@ class PlaybackEngineContractTest {
         engine.seekTo(1_000L)
         engine.seekTo(3, 2_000L)
         engine.setRate(1.5f)
+        engine.selectTrack(EngineTrackType.SUBTITLE, "0:1")
+        engine.selectTrack(EngineTrackType.SUBTITLE, null)
+        engine.setSubtitleStyle(SubtitleStyle(sizePercent = 125))
         engine.release()
 
         assertEquals(
@@ -130,10 +178,58 @@ class PlaybackEngineContractTest {
                 "seekTo(1000)",
                 "seekTo(3,2000)",
                 "setRate(1.5)",
+                "selectTrack(SUBTITLE,0:1)",
+                "selectTrack(SUBTITLE,null)",
+                "setSubtitleStyle(125)",
                 "release",
             ),
             engine.calls,
         )
+    }
+
+    @Test
+    fun `延迟动词按原值往返`() {
+        val engine = FakeEngine()
+
+        engine.setSubtitleDelay(-350L)
+        engine.setAudioDelay(1_250L)
+
+        assertEquals(-350L, engine.getSubtitleDelay())
+        assertEquals(1_250L, engine.getAudioDelay())
+    }
+
+    @Test
+    fun `轨道枚举按类型过滤且选中态可读`() {
+        val engine = FakeEngine()
+        engine.tracks +=
+            listOf(
+                EngineTrack(
+                    id = "0:0",
+                    type = EngineTrackType.VIDEO,
+                    language = null,
+                    title = "视频",
+                    codec = "h264",
+                    isExternal = false,
+                    isDefault = true,
+                    isForced = false,
+                ),
+                EngineTrack(
+                    id = "1:0",
+                    type = EngineTrackType.SUBTITLE,
+                    language = "zh-Hans",
+                    title = "简体中文",
+                    codec = "ass",
+                    isExternal = true,
+                    isDefault = false,
+                    isForced = false,
+                ),
+            )
+
+        assertEquals(listOf("1:0"), engine.availableTracks(EngineTrackType.SUBTITLE).map { it.id })
+        assertEquals(emptyList<EngineTrack>(), engine.availableTracks(EngineTrackType.AUDIO))
+
+        engine.selected = "1:0"
+        assertEquals("1:0", engine.selectedTrack(EngineTrackType.SUBTITLE))
     }
 
     @Test

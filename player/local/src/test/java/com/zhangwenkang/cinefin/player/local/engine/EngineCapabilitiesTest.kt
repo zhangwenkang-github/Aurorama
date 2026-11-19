@@ -9,9 +9,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 两套内核的能力位取值断言（W2-T4）。
+ * 两套内核的能力位取值断言（W2-T4；W4-T3a-1 增补轨道枚举 / 字幕延迟两位）。
  *
- * 取值是 2026-11-18 的现状快照；翻转任何一位都要同步 ADR-0010 的取值表。
+ * 取值是 2026-11-19 的现状快照；翻转任何一位都要同步 ADR-0010 的取值表。
  */
 class EngineCapabilitiesTest {
 
@@ -25,6 +25,8 @@ class EngineCapabilitiesTest {
         assertTrue(capabilities.supportsAudioDelay)
         assertTrue(capabilities.supportsSideloadedSubtitles)
         assertFalse(capabilities.supportsShuffleMode)
+        assertTrue(capabilities.supportsTrackEnumeration)
+        assertTrue(capabilities.supportsSubtitleDelay)
     }
 
     @Test
@@ -37,6 +39,8 @@ class EngineCapabilitiesTest {
         assertTrue(capabilities.supportsAudioDelay)
         assertTrue(capabilities.supportsSideloadedSubtitles)
         assertTrue(capabilities.supportsShuffleMode)
+        assertTrue(capabilities.supportsTrackEnumeration)
+        assertTrue(capabilities.supportsSubtitleDelay)
     }
 
     @Test

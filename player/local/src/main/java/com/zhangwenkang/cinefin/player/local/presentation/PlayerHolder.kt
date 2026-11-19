@@ -18,6 +18,8 @@ import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
 import com.zhangwenkang.cinefin.player.local.domain.isPlayingMusicItem
 import com.zhangwenkang.cinefin.player.local.engine.Media3PlaybackEngine
 import com.zhangwenkang.cinefin.player.local.engine.PlaybackEngineFactory
+import com.zhangwenkang.cinefin.player.local.engine.exo.ExoPlaybackEngine
+import com.zhangwenkang.cinefin.player.local.engine.exo.ExoSubtitleHooks
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
@@ -58,6 +60,19 @@ constructor(
 
     private var engine: Media3PlaybackEngine? = null
     private var instanceBackend: String? = null
+
+    /**
+     * Exo 字幕延迟 / 样式的出口（W4-T3a-1）。
+     *
+     * 由 `PlayerViewModel` 注入并在销毁时清空：进程级 holder 不能长期持有 ViewModel 的引用。
+     */
+    private var exoSubtitleHooks: ExoSubtitleHooks? = null
+
+    /** 装配层注入 / 解除 Exo 字幕钩子；已有实例同步生效。 */
+    internal fun installExoSubtitleHooks(hooks: ExoSubtitleHooks?) {
+        exoSubtitleHooks = hooks
+        (engine as? ExoPlaybackEngine)?.subtitleHooks = hooks
+    }
 
     private val processSeekSessionBridge =
         object : SeekSessionBridge {
@@ -248,6 +263,7 @@ constructor(
     private fun install(backend: String, engine: Media3PlaybackEngine): Player {
         this.engine = engine
         instanceBackend = backend
+        (engine as? ExoPlaybackEngine)?.subtitleHooks = exoSubtitleHooks
         applySavedAudioDelay()
         seekSink.attach(engine.media3Player)
         return engine.media3Player
@@ -274,7 +290,10 @@ constructor(
 
         return when (backend) {
             BACKEND_EXOPLAYER ->
-                PlaybackEngineFactory.exo(createExoPlayer(audioAttributes, trackSelector))
+                PlaybackEngineFactory.exo(
+                    createExoPlayer(audioAttributes, trackSelector),
+                    audioDelayProcessor,
+                )
             BACKEND_MPV ->
                 PlaybackEngineFactory.mpv(createMpvPlayer(audioAttributes, trackSelector))
             else -> throw RuntimeException("$backend is not a valid player backend")

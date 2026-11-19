@@ -20,4 +20,13 @@ data class EngineCapabilities(
     val supportsSideloadedSubtitles: Boolean,
     /** 内核是否接受随机播放（media3 `COMMAND_SET_SHUFFLE_MODE`）。 */
     val supportsShuffleMode: Boolean,
+    /** 能否枚举与选择轨道（W4-T3a-1）：Exo 走 `Tracks`，mpv 走 `track-list`。 */
+    val supportsTrackEnumeration: Boolean,
+    /**
+     * 字幕时间偏移能否生效（W4-T3a-1）。
+     *
+     * 与 [supportsAudioDelay] 对称：音频延迟在 Exo 由 `AudioDelayProcessor` 兑现，字幕延迟在 Exo 由自研字幕覆盖层
+     * （`PlayerSubtitleController`）兑现、mpv 由 `sub-delay` 属性兑现——都算「内核面支持」，只是执行者不一定是内核本身。
+     */
+    val supportsSubtitleDelay: Boolean,
 )

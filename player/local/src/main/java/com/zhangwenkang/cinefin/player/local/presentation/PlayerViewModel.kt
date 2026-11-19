@@ -70,6 +70,7 @@ import com.zhangwenkang.cinefin.player.local.domain.seriesBackendKind
 import com.zhangwenkang.cinefin.player.local.domain.shouldReportStopOnPlayerExit
 import com.zhangwenkang.cinefin.player.local.domain.shouldStopPlaybackServiceOnExit
 import com.zhangwenkang.cinefin.player.local.domain.speedForPlaybackSession
+import com.zhangwenkang.cinefin.player.local.engine.exo.ExoSubtitleHooks
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.session.ErrorPolicy
 import com.zhangwenkang.cinefin.player.local.session.PLAYER_ERROR_SOURCE_RESOLUTION_FAILED
@@ -499,6 +500,25 @@ constructor(
 
     /** 自研字幕管线：延迟 / 双语 / 外观（ExoPlayer 文字字幕由它接管） */
     val subtitleController = PlayerSubtitleController(viewModelScope, appPreferences)
+
+    /**
+     * Exo 引擎的字幕延迟 / 样式出口（W4-T3a-1）。
+     *
+     * 引擎动词与既有面板入口共用同一份状态，不另立第二套延迟或样式。
+     */
+    private val exoSubtitleHooks =
+        object : ExoSubtitleHooks {
+            override fun subtitleDelayMs(): Long = subtitleController.overlayState.value.delayMs
+
+            override fun setSubtitleDelayMs(delayMs: Long) {
+                subtitleController.setDelay(delayMs)
+            }
+
+            override fun applySubtitleStyle(style: SubtitleStyle) {
+                eventsChannel.trySend(PlayerEvents.SubtitleStyleChanged(style))
+            }
+        }
+
     private var subtitleOverlayJob: Job? = null
 
     /**
@@ -583,6 +603,7 @@ constructor(
         get() = playerHolder.backend
 
     init {
+        playerHolder.installExoSubtitleHooks(exoSubtitleHooks)
         playbackSessionJob = viewModelScope.launch {
             while (isActive) {
                 refreshPlaybackSession()
@@ -2194,6 +2215,7 @@ constructor(
     override fun onCleared() {
         super.onCleared()
         Timber.d("Clearing Player ViewModel")
+        playerHolder.installExoSubtitleHooks(null)
         cancelPlaybackWork(cancelSessionSampler = true)
         releasePlayer()
     }
