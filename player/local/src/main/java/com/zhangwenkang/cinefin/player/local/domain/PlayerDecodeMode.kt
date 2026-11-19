@@ -19,6 +19,20 @@ object PlayerDecodeMode {
     /** 仅软解：优先走扩展（FFmpeg）渲染器；mpv 关掉硬解 */
     const val SOFTWARE = "software"
 
+    /** mpv `hwdec` 的硬件解码档（与 `MPVPlayer` 的构造参数同值） */
+    const val HWDEC_MEDIACODEC = "mediacodec"
+
+    /** mpv `hwdec` 的软件解码档 */
+    const val HWDEC_NONE = "no"
+
+    /**
+     * mpv 配置路径实际可下发的 `hwdec` 档位（W4-T3b 能力探测用）。
+     *
+     * 这是 App 的配置值域（[mpvHwDec] 的两个返回值），不是 mpv 支持的全部 hwdec 档（还有 `mediacodec-copy` / `v4l2m2m` 等， 本
+     * App 从不下发）。探测结果照此如实报告，不把未接线的档位说成可用。
+     */
+    val MPV_HWDEC_TIERS: List<String> = listOf(HWDEC_MEDIACODEC, HWDEC_NONE)
+
     /** 兜底：偏好里出现未知值时按硬解优先处理（不静默降级成软解，避免耗电） */
     fun normalize(mode: String?): String = if (mode == SOFTWARE) SOFTWARE else HARDWARE
 
@@ -55,7 +69,8 @@ object PlayerDecodeMode {
     fun decoderFallbackEnabled(mode: String?): Boolean = true
 
     /** mpv 的 `hwdec` 参数：硬解优先 = mediacodec，仅软解 = no */
-    fun mpvHwDec(mode: String?): String = if (normalize(mode) == SOFTWARE) "no" else "mediacodec"
+    fun mpvHwDec(mode: String?): String =
+        if (normalize(mode) == SOFTWARE) HWDEC_NONE else HWDEC_MEDIACODEC
 
     /**
      * W18：解码面板「当前档位」的**实际状态**（文案要带内核，避免「本地硬解」到底是谁的歧义）。

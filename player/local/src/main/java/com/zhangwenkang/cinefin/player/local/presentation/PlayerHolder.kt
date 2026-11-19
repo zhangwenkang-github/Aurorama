@@ -16,6 +16,7 @@ import com.zhangwenkang.cinefin.player.local.audio.AudioDelayProcessor
 import com.zhangwenkang.cinefin.player.local.audio.CinefinRenderersFactory
 import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
+import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
 import com.zhangwenkang.cinefin.player.local.domain.PlaylistManager
 import com.zhangwenkang.cinefin.player.local.domain.SeekEngine
 import com.zhangwenkang.cinefin.player.local.domain.TrackSelectionEngine
@@ -603,6 +604,8 @@ constructor(
                     appPreferences.getValue(appPreferences.playerMpvHwdec)
                 }
             )
+            // W4-T3b：色调映射算法只在构造期写一次选项，播放中改档走 MPVPlayer.applyToneMapping
+            .setToneMapping(appPreferences.getValue(PlayerExtraPreferences.toneMapping))
             .build()
     }
 }

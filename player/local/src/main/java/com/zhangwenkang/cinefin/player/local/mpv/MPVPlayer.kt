@@ -44,6 +44,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerMediaInfo
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerSubtitleSource
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
+import com.zhangwenkang.cinefin.player.local.domain.PlayerToneMapping
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
 import com.zhangwenkang.cinefin.player.local.domain.mpvResizeProperties
@@ -136,6 +137,7 @@ class MPVPlayer(
     private val videoOutput: String = "gpu-next",
     audioOutput: String = "aaudio",
     hwDec: String = "mediacodec",
+    toneMapping: String = PlayerToneMapping.BT_2390,
 ) : BasePlayer(), MPVLib.EventObserver, AudioManager.OnAudioFocusChangeListener {
     private val sourceEpoch = AtomicLong()
     @Volatile private var sourceEpochReady = false
@@ -171,6 +173,7 @@ class MPVPlayer(
         videoOutput = builder.videoOutput,
         audioOutput = builder.audioOutput,
         hwDec = builder.hwDec,
+        toneMapping = builder.toneMapping,
     )
 
     class Builder(val context: Context) {
@@ -199,6 +202,10 @@ class MPVPlayer(
             private set
 
         var hwDec: String = "mediacodec"
+            private set
+
+        /** mpv `tone-mapping` 算法（W4-T3b）：构造期写选项，播放中由 `applyToneMapping` 写属性 */
+        var toneMapping: String = PlayerToneMapping.BT_2390
             private set
 
         fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) =
@@ -230,6 +237,10 @@ class MPVPlayer(
 
         fun setHwDec(hwDec: String) = apply { this.hwDec = hwDec }
 
+        fun setToneMapping(toneMapping: String) = apply {
+            this.toneMapping = PlayerToneMapping.normalize(toneMapping)
+        }
+
         fun build() = MPVPlayer(this)
     }
 
@@ -253,7 +264,9 @@ class MPVPlayer(
         mpvLib.setOptionString("opengl-es", "yes")
         mpvLib.setOptionString("hwdec", hwDec)
         mpvLib.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
-        Timber.i("MPVPlayer hwdec=%s vo=%s", hwDec, videoOutput)
+        // W4-T3b（VIDEO-09）：HDR → SDR 色调映射算法，构造期写选项；播放中由 applyToneMapping 写同名属性
+        mpvLib.setOptionString("tone-mapping", toneMapping)
+        Timber.i("MPVPlayer hwdec=%s tone-mapping=%s vo=%s", hwDec, toneMapping, videoOutput)
         mpvLib.setOptionString("tls-verify", "no")
         mpvLib.setOptionString("cache", "yes")
         mpvLib.setOptionString("cache-pause-initial", "yes")
@@ -1551,6 +1564,18 @@ class MPVPlayer(
         if (released) return
         runCatching { mpvLib.setPropertyString("hwdec", hwDec) }
             .onFailure { Timber.w(it, "mpv 切换硬件解码失败：%s", hwDec) }
+    }
+
+    /**
+     * 切换 mpv 色调映射算法（W4-T3b / VIDEO-09）：`tone-mapping` 是运行时可写属性，写完立即对后续渲染生效， 不需要重建实例或重开播放（与
+     * `applySubtitleStyle` 同一条运行时可写属性路径）。
+     */
+    fun applyToneMapping(mode: String) {
+        if (released) return
+        val value = PlayerToneMapping.mpvPropertyValue(mode)
+        runCatching { mpvLib.setPropertyString("tone-mapping", value) }
+            .onSuccess { Timber.i("mpv tone-mapping=%s", value) }
+            .onFailure { Timber.w(it, "mpv 切换色调映射失败：%s", value) }
     }
 
     fun queryMediaInfo(): PlayerMediaInfo? {

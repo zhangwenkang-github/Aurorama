@@ -348,6 +348,22 @@
     <string name="player_controls_decode_auto_fallback">Auto fallback</string>
     <string name="player_controls_decode_auto_fallback_caption">On: fall back automatically (hardware → server transcode → mpv software). Off: keep the selected core and only show the error.</string>
     <string name="player_controls_decode_active">Software decoding</string>
+    <!-- W4-T3b：mpv 色调映射三档（算法名不翻译）+ 设备能力只读区（HDR 四类 / 当前 hwdec） -->
+    <string name="player_controls_decode_tone_mapping">Tone mapping (mpv)</string>
+    <string name="player_controls_decode_tone_mapping_bt2390">bt.2390 (default)</string>
+    <string name="player_controls_decode_tone_mapping_mobius">mobius</string>
+    <string name="player_controls_decode_tone_mapping_hable">hable</string>
+    <string name="player_controls_decode_tone_mapping_caption">Available on the mpv core only</string>
+    <string name="player_controls_decode_device_capabilities">Device capabilities</string>
+    <string name="player_controls_decode_hdr10">HDR10</string>
+    <string name="player_controls_decode_hdr10_plus">HDR10+</string>
+    <string name="player_controls_decode_dolby_vision">Dolby Vision</string>
+    <string name="player_controls_decode_hlg">HLG</string>
+    <string name="player_controls_decode_supported">Supported</string>
+    <string name="player_controls_decode_unsupported">Not supported</string>
+    <string name="player_controls_decode_hwdec">mpv hwdec</string>
+    <string name="player_controls_decode_hwdec_hardware">mediacodec (hardware)</string>
+    <string name="player_controls_decode_hwdec_software">no (software)</string>
     <string name="player_settings_tab_playback">Playback</string>
     <string name="player_settings_tab_gesture">Gestures</string>
 

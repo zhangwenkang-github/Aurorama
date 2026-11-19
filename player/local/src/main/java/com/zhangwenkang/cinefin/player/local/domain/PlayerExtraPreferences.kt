@@ -60,6 +60,13 @@ object PlayerExtraPreferences {
      * 开启后长按播放中每 2 秒升一档（基础档 → +1x → +2x，封顶 4x），松手恢复原倍速；关闭 = 只在长按期间用固定档位。
      */
     val gesturesSpeedRamp = Preference("pref_player_gestures_speed_ramp", false)
+
+    /**
+     * mpv 色调映射算法（W4-T3b / VIDEO-09）：`bt.2390`（默认）/ `mobius` / `hable`。
+     *
+     * 取值与 mpv `tone-mapping` 属性同名，见 [PlayerToneMapping]；仅 mpv 内核生效，切换即时写运行时属性、不重启播放。
+     */
+    val toneMapping = Preference("pref_player_tone_mapping", PlayerToneMapping.BT_2390)
 }
 
 /** 镜像模式的取值（与 [PlayerExtraPreferences.videoMirror] 对应） */

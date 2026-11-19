@@ -58,6 +58,8 @@ import com.zhangwenkang.cinefin.playback.CinefinPlaybackService
 import com.zhangwenkang.cinefin.player.core.domain.models.PLAYER_EXTRA_MEDIA_SOURCE_ID
 import com.zhangwenkang.cinefin.player.core.syncplay.SyncPlayControllerState
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
+import com.zhangwenkang.cinefin.player.local.capabilities.DeviceCapabilitiesProbe
+import com.zhangwenkang.cinefin.player.local.domain.PlayerToneMapping
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.domain.cropScale
@@ -511,6 +513,8 @@ class PlayerActivity : BasePlayerActivity() {
                         )
                     },
                     onSelectMpvHwdec = { hwDec -> applyMpvHwDec(hwDec) },
+                    deviceCapabilities = deviceCapabilities,
+                    onSelectToneMapping = { mode -> applyMpvToneMapping(mode) },
                     onSelectDecodeMode = { mode -> selectDecodeMode(mode) },
                     onAutoFallbackChange = { enabled -> selectAutoFallback(enabled) },
                     onSelectBitrate = { bitrate -> selectStreamingBitrate(bitrate) },
@@ -1571,6 +1575,21 @@ class PlayerActivity : BasePlayerActivity() {
     private fun applyMpvHwDec(hwDec: String) {
         (viewModel.existingPlayer as? MPVPlayer)?.applyHwDec(hwDec)
         Timber.d("mpv hwdec=%s", hwDec)
+    }
+
+    /**
+     * 设备播放能力（W4-T3b / VIDEO-08）：进程级只探测一次（`DeviceCapabilitiesProbe` 自带缓存）， 播放页重建 / 反复开解码面板都读同一份快照。
+     */
+    private val deviceCapabilities by lazy { DeviceCapabilitiesProbe.probe(this) }
+
+    /**
+     * mpv 色调映射（W4-T3b / VIDEO-09）：偏好已由解码面板写入，这里只对**正在运行的 mpv 实例**写运行时属性， 不重启播放。Exo
+     * 内核下面板整组置灰、不会走到这里；非 mpv 实例同样是无操作。
+     */
+    private fun applyMpvToneMapping(mode: String) {
+        val value = PlayerToneMapping.mpvPropertyValue(mode)
+        (viewModel.existingPlayer as? MPVPlayer)?.applyToneMapping(value)
+        Timber.d("mpv tone-mapping=%s", value)
     }
 
     /**

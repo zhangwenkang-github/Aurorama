@@ -37,9 +37,11 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.player.core.playback.DevicePlaybackCapabilities
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
 import com.zhangwenkang.cinefin.player.local.domain.PlayerDecodeMode
 import com.zhangwenkang.cinefin.player.local.domain.PlayerExtraPreferences
+import com.zhangwenkang.cinefin.player.local.domain.PlayerToneMapping
 import com.zhangwenkang.cinefin.player.local.domain.PlayerVideoTransform
 import com.zhangwenkang.cinefin.player.local.domain.VideoMirrorMode
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
@@ -93,6 +95,9 @@ data class PlayerSettingsSnapshot(
 
     /** 解码回退档位（W16）：0 = 本地硬解；1 = 服务器转码；2 = 本地软解 */
     val decodeFallbackStage: Int,
+
+    /** mpv 色调映射算法（W4-T3b / VIDEO-09）：bt.2390 / mobius / hable，仅 mpv 内核生效 */
+    val toneMapping: String,
 
     /** 失败自动回退开关（W19）：关 = 强制所选内核，失败只提示错误 */
     val autoFallback: Boolean,
@@ -226,6 +231,10 @@ class PlayerSettingsController(
     /** 解码策略：hardware / software（mpv 的硬解开关同步由面板写 playerMpvHwdec） */
     fun setDecodeMode(value: String) = write(appPreferences.playerDecodeMode, value)
 
+    /** 色调映射算法（W4-T3b / VIDEO-09）：仅 mpv 内核可调，宿主收到回调后写运行时属性、不重启播放 */
+    fun setToneMapping(value: String) =
+        write(PlayerExtraPreferences.toneMapping, PlayerToneMapping.normalize(value))
+
     /** 失败自动回退开关（W19）：关 = 强制所选内核，失败只提示错误 */
     fun setAutoFallback(value: Boolean) = write(appPreferences.playerAutoFallback, value)
 
@@ -304,6 +313,10 @@ class PlayerSettingsController(
             streamingBitrate = appPreferences.getPlayerStreamingBitrate(),
             decodeMode = appPreferences.getValue(appPreferences.playerDecodeMode),
             decodeFallbackStage = appPreferences.getValue(appPreferences.playerDecodeFallbackStage),
+            toneMapping =
+                PlayerToneMapping.normalize(
+                    appPreferences.getValue(PlayerExtraPreferences.toneMapping)
+                ),
             autoFallback = appPreferences.getValue(appPreferences.playerAutoFallback),
         )
 }
@@ -711,16 +724,21 @@ internal fun VideoTransformControls(
 }
 
 /**
- * 解码面板（W12 反馈 B）：**内核切换（ExoPlayer / mpv）+ 硬解 / 软解策略**。
+ * 解码面板（W12 反馈 B）：**内核切换（ExoPlayer / mpv）+ 硬解 / 软解策略 + mpv 色调映射 + 设备能力**。
  *
  * W17（用户反馈②）：删除「优先级提示」文字；内核名只留 `ExoPlayer` / `mpv`（不带括号说明）。 面板保留「当前档位」一行，作为回退链实际落点的可视化证据。
  * 切内核与切策略都由宿主走「从当前位置重启播放」的既有路径，保证两个内核都用新参数重新创建实例。
+ *
+ * W4-T3b：新增「色调映射（mpv）」三档（仅 mpv 内核可用，Exo 置灰）与只读「设备能力」区（HDR 四类 + 当前 hwdec）。
+ * 设备能力快照由宿主进程级只探测一次后传入，面板自身不探测。
  */
 @Composable
 internal fun PlayerDecodePanel(
     controller: PlayerSettingsController,
+    deviceCapabilities: DevicePlaybackCapabilities,
     onSelectBackend: (String) -> Unit,
     onSelectDecodeMode: (String) -> Unit,
+    onSelectToneMapping: (String) -> Unit,
     onAutoFallbackChange: (Boolean) -> Unit,
 ) {
     // 回退档位可能在播放过程中被 ViewModel 推进（不是通过本控制器写的）：每次打开面板回读一次
@@ -762,6 +780,63 @@ internal fun PlayerDecodePanel(
                     controller.setDecodeMode(PlayerViewModel.DECODE_MODE_SOFTWARE)
                     onSelectDecodeMode(PlayerViewModel.DECODE_MODE_SOFTWARE)
                 },
+            )
+            /*
+             * W4-T3b（VIDEO-09）：mpv 色调映射三档。仅 mpv 内核可调——Exo 时整组置灰（PanelRow 的 enabled=false
+             * 走 onSurfaceFaint），偏好仍保留，不因切回 Exo 被清掉；选中后即时写 mpv 运行时属性，不重启播放。
+             */
+            PanelTitle(stringResource(PlayerR.string.player_controls_decode_tone_mapping))
+            val toneMappingAvailable = PlayerToneMapping.isAvailableForBackend(settings.backend)
+            PlayerToneMapping.all.forEach { mode ->
+                PanelRow(
+                    label = stringResource(toneMappingLabelRes(mode)),
+                    selected = settings.toneMapping == mode,
+                    enabled = toneMappingAvailable,
+                    onClick = {
+                        controller.setToneMapping(mode)
+                        onSelectToneMapping(mode)
+                    },
+                )
+            }
+            if (!toneMappingAvailable) {
+                Text(
+                    text =
+                        stringResource(PlayerR.string.player_controls_decode_tone_mapping_caption),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceFaint,
+                    modifier =
+                        Modifier.padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space1,
+                        ),
+                )
+            }
+            /*
+             * W4-T3b（VIDEO-08）：设备能力只读区——HDR 四类逐行「支持 / 不支持」，末尾一行当前 mpv hwdec 档。
+             * 只读行沿用 PanelRow 的信息行写法（onClick 空实现，同 SyncPlay 成员列表），标注走 caption（textSecondary）。
+             */
+            PanelTitle(stringResource(PlayerR.string.player_controls_decode_device_capabilities))
+            HdrCapabilityRow(
+                labelRes = PlayerR.string.player_controls_decode_hdr10,
+                supported = deviceCapabilities.hdr10,
+            )
+            HdrCapabilityRow(
+                labelRes = PlayerR.string.player_controls_decode_hdr10_plus,
+                supported = deviceCapabilities.hdr10Plus,
+            )
+            HdrCapabilityRow(
+                labelRes = PlayerR.string.player_controls_decode_dolby_vision,
+                supported = deviceCapabilities.dolbyVision,
+            )
+            HdrCapabilityRow(
+                labelRes = PlayerR.string.player_controls_decode_hlg,
+                supported = deviceCapabilities.hlg,
+            )
+            PanelRow(
+                label = stringResource(PlayerR.string.player_controls_decode_hwdec),
+                caption = hwdecCaption(settings.mpvHwdec),
+                selected = false,
+                onClick = {},
             )
             PanelTitle(stringResource(PlayerR.string.player_controls_decode_fallback))
             PanelSwitchRow(
@@ -812,6 +887,47 @@ internal fun PlayerDecodePanel(
         }
     }
 }
+
+/** 色调映射档位的行标签资源（W4-T3b）：算法名不翻译，默认档带标注。 */
+@StringRes
+private fun toneMappingLabelRes(mode: String): Int =
+    when (mode) {
+        PlayerToneMapping.MOBIUS -> PlayerR.string.player_controls_decode_tone_mapping_mobius
+        PlayerToneMapping.HABLE -> PlayerR.string.player_controls_decode_tone_mapping_hable
+        else -> PlayerR.string.player_controls_decode_tone_mapping_bt2390
+    }
+
+/** 设备能力只读行（W4-T3b）：编码 / HDR 类型名 + 「支持 / 不支持」标注（标注走 caption = textSecondary）。 */
+@Composable
+private fun HdrCapabilityRow(
+    @StringRes labelRes: Int,
+    supported: Boolean,
+) {
+    PanelRow(
+        label = stringResource(labelRes),
+        caption =
+            stringResource(
+                if (supported) {
+                    PlayerR.string.player_controls_decode_supported
+                } else {
+                    PlayerR.string.player_controls_decode_unsupported
+                }
+            ),
+        selected = false,
+        onClick = {},
+    )
+}
+
+/** 当前 mpv hwdec 档的说明文案（W4-T3b）：`mediacodec` / `no` 加语义注解，未知值原样显示。 */
+@Composable
+private fun hwdecCaption(mpvHwdec: String): String =
+    when (mpvHwdec) {
+        PlayerDecodeMode.HWDEC_MEDIACODEC ->
+            stringResource(PlayerR.string.player_controls_decode_hwdec_hardware)
+        PlayerDecodeMode.HWDEC_NONE ->
+            stringResource(PlayerR.string.player_controls_decode_hwdec_software)
+        else -> mpvHwdec
+    }
 
 /**
  * 码率面板：**自动 / 原始画质 / 官方快照档位**。

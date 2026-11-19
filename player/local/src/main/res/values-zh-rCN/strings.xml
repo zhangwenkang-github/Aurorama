@@ -349,6 +349,22 @@
     <string name="player_controls_decode_auto_fallback">失败时自动回退</string>
     <string name="player_controls_decode_auto_fallback_caption">开：失败自动按「硬解 → 服务器转码 → mpv 软解」回退；关：强制使用所选内核，失败只提示错误</string>
     <string name="player_controls_decode_active">软解中</string>
+    <!-- W4-T3b：mpv 色调映射三档（算法名不翻译）+ 设备能力只读区（HDR 四类 / 当前 hwdec） -->
+    <string name="player_controls_decode_tone_mapping">色调映射（mpv）</string>
+    <string name="player_controls_decode_tone_mapping_bt2390">bt.2390（默认）</string>
+    <string name="player_controls_decode_tone_mapping_mobius">mobius</string>
+    <string name="player_controls_decode_tone_mapping_hable">hable</string>
+    <string name="player_controls_decode_tone_mapping_caption">仅 mpv 内核可用</string>
+    <string name="player_controls_decode_device_capabilities">设备能力</string>
+    <string name="player_controls_decode_hdr10">HDR10</string>
+    <string name="player_controls_decode_hdr10_plus">HDR10+</string>
+    <string name="player_controls_decode_dolby_vision">Dolby Vision</string>
+    <string name="player_controls_decode_hlg">HLG</string>
+    <string name="player_controls_decode_supported">支持</string>
+    <string name="player_controls_decode_unsupported">不支持</string>
+    <string name="player_controls_decode_hwdec">mpv hwdec</string>
+    <string name="player_controls_decode_hwdec_hardware">mediacodec（硬解）</string>
+    <string name="player_controls_decode_hwdec_software">no（软解）</string>
     <string name="player_settings_tab_playback">播放</string>
     <string name="player_settings_tab_gesture">手势</string>
 

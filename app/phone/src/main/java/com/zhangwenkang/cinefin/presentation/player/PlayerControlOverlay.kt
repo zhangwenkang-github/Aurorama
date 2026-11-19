@@ -128,6 +128,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleAppearance
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleLayout
 import com.zhangwenkang.cinefin.player.core.domain.models.SubtitleStyle
+import com.zhangwenkang.cinefin.player.core.playback.DevicePlaybackCapabilities
 import com.zhangwenkang.cinefin.player.core.syncplay.SyncPlayControllerState
 import com.zhangwenkang.cinefin.player.core.syncplay.SyncPlayGroup as CoreSyncPlayGroup
 import com.zhangwenkang.cinefin.player.local.R as PlayerR
@@ -759,6 +760,10 @@ fun PlayerControlOverlay(
     onSelectBitrate: (Long) -> Unit = {},
     /** mpv 换硬件解码：即时写 mpv 属性 */
     onSelectMpvHwdec: (String) -> Unit,
+    /** W4-T3b：设备播放能力快照（进程级只探测一次，由宿主注入）；解码面板「设备能力」区数据源 */
+    deviceCapabilities: DevicePlaybackCapabilities = DevicePlaybackCapabilities.Unknown,
+    /** W4-T3b：色调映射档位切换（仅 mpv 生效）：偏好由面板写，宿主收到回调后即时写 mpv 运行时属性 */
+    onSelectToneMapping: (String) -> Unit = {},
     /** 字幕模式变化：ViewModel 立即重选字幕 */
     onSubtitleModeChanged: (String) -> Unit,
     /** 画面调整变化：写入偏好并立即应用到画面输出 */
@@ -1606,8 +1611,10 @@ fun PlayerControlOverlay(
                     PlayerPanel.Decode ->
                         PlayerDecodePanel(
                             controller = settingsController,
+                            deviceCapabilities = deviceCapabilities,
                             onSelectBackend = onSelectBackend,
                             onSelectDecodeMode = onSelectDecodeMode,
+                            onSelectToneMapping = onSelectToneMapping,
                             onAutoFallbackChange = onAutoFallbackChange,
                         )
                     PlayerPanel.Bitrate ->
