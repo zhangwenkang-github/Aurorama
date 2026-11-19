@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-19：T0 调查 + T6 SyncPlay 评估完成、用户拍板 go-minimal、T8a–T8e 已立卡；遗留 L1/L2 全部关闭；下一步 T1 待 Kimi 设计定稿后派 deepseek，T8a 可并行）
+> 状态：`ACTIVE`（2026-11-19：**T1 ✅ `d2795184`、T8a ✅ `1ef74954`**（两 deepseek 子代理并行交付，门禁全绿 + K60 取证，已停播放）；下一步派 T2/T3a 与 T8b；遗留 L3 已立：播放页 themeId 跟随 aurora↔amoled 深色主题）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -109,8 +109,56 @@ W4 状态：T0 现状核对、T6 SyncPlay 评估（已拍板 go-minimal）、L1/
 | T8e | 入口与状态（`app/phone`）：播放页菜单加 SyncPlay 面板——未入组：创建/加入（组列表）；入组：组名、成员数、离开；VIDEO-32 最小态胶囊（已同步绿点/重连中提示；脉动与"已对齐"淡出 DEFERRED）；创建时自动暂停本地播放 | VIDEO-46/32(最小) | K60 真机：创建组→web 端加入→双端播/停/seek 同步取证 |
 | T7 | 本地媒体核查 + 域验收：SAF 外挂字幕同级推断核查；VIDEO-49/50 全量验收清单（双内核状态保留、图形字幕、字幕不漂移、SAF 失效/组不存在/版本过低非阻断提示） | VIDEO-47/48/49/50 | 验收清单逐项 K60 取证 |
 
+## T1 设计定稿（Kimi，2026-11-19，deepseek 零裁量）
+
+依据 VIDEO-28/29/30/31/35 + `V2_DESIGN.md` §3（K1 token）。物理约束先说明：视频走 SurfaceView，**真实 backdrop blur 不可行**（RenderEffect 糊不到独立 surface）——磨砂感 = 半透明底 + 1dp 描边 + 顶部内高光，VIDEO-29 的「轻微模糊」与 VIDEO-30 的「blur 渐强」以 scrim 透明度渐强近似，此处正式记录偏离。
+
+### 1. 玻璃控制层参数（VIDEO-29）
+
+- **播放页恒为影院深色基调**：浅色/动态色主题下控制层遮罩、玻璃底仍用深色 scrim 系（行业惯例，画面可读性优先）；主题跟随（VIDEO-35）体现在强调色/媒体色、圆角、字体、描边 token 全部走 `LocalCinefinColors`/`LocalMediaColors`，不得出现 `Color.White` 等字面量。
+- 控件玻璃 chip（`PlayerIconButton`/`PlayerPlayKey`/传输键）：底 `scrim @ 28%`、按下 `@ 44%`（W12 用户验收值，保留），描边统一改为 `colors.glassBorder`（原私有 0.16 常量废除）；私有常量 `PLAYER_GLASS_ALPHA/PRESSED/BORDER` 迁入 `CinefinTokens` 命名为 `PlayerGlassAlpha/PlayerGlassPressedAlpha`，描边不再单设常量。
+- 玻璃容器（侧面板、trickplay 缩略图卡、章节气泡、手势 HUD 底）：底 `colors.glass` + 1dp `colors.glassBorder` + `CinefinShapes.Glass`（面板）/`Xs`（小件）。
+- 顶/底 scrim 渐隐遮罩保留（`playerTopScrim/playerBottomScrim`），不出现写死色值，继续走 `colors.scrim`。
+
+### 2. 弹簧与动效 token（新增进 `CinefinMotion`，VIDEO-29/30/31）
+
+```kotlin
+/** 控制层出入位移、面板缩放：可中断、无可见回弹。 */
+val SpringControlIn = spring<Float>(dampingRatio = 0.86f, stiffness = 400f)
+/** 播放/暂停图标切换过冲（1→约1.18→1）。 */
+val SpringOvershoot = spring<Float>(dampingRatio = 0.62f, stiffness = 520f)
+/** 进度条释放回弹与章节吸附落位。 */
+val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
+```
+
+- **控制层出入**（VIDEO-28/30）：enter = `fadeIn(tween(Fast, Standard))` + `slideInVertically(spring(0.86, 400))`，位移 12dp 保留；exit = `fadeOut(tween(150, Accelerate))` + `slideOutVertically(spring(dampingRatio=1f, stiffness=400f))`；scrim 遮罩 alpha 与控制层同步 `tween(Fast, Standard)`（blur 渐强的替代）。**必须可中断**：全部走 `AnimatedVisibility`/`animate*AsState`，禁止手写不可中断动画。
+- **播放/暂停图标**：切换 = `Crossfade(tween(150))` + 图标 scale 过冲（`SpringOvershoot`，仅图标，容器不缩放）。
+- **暂停降亮加暗角**（VIDEO-30 后半）：暂停时画面叠 `scrim @ 22%`（`tween(Player=280, Standard)` 淡入淡出）+ 四边径向暗角（边缘黑 35%，同一透明度动画）；恢复播放即撤；与控制层可见性解耦（控制层隐藏后降亮仍在）。
+- **进度条**（VIDEO-31）：非拖拽时 played/buffered 比例变化走 `animateFloatAsState(tween(Fast, Standard))`；拖拽中动画关闭；松手后从 scrub 值回实际位置走 `SpringSnap`（knob 可微过冲）；章节吸附落位瞬间 knob scale 0.9→1 `SpringSnap`；trickplay 缩略图 enter = `fadeIn(150)` + `slideInVertically(8dp, SpringControlIn)`。章节吸附逻辑（`resolveChapterSnap`）与滞回参数**不动**，只加表现层动画。
+- **菜单/面板**（VIDEO-31）：「圆形揭示」采用 M3 Expressive 等价做法——面板 `scaleIn(0.92→1, SpringControlIn, transformOrigin=锚点角)` + `fadeIn(Fast)`（真 shape 圆角动画成本高且收益低，记录偏离）；菜单项 stagger = 每项 `fadeIn(150)` + `slideInVertically(8dp)`、`delay = index × CinefinMotion.Stagger(40ms)`，stagger 上限 8 项。
+- **自动隐藏**（VIDEO-28）：`3500L` → 常量 `PLAYER_CONTROLS_AUTO_HIDE_MS = 4000L`；菜单随控制层关闭、关闭后重新计时（现状已有，回归确认不破坏）。
+
+### 3. 硬编码圆角清理（W3 遗留 9 处，映射规则写死）
+
+业务代码全量 grep `RoundedCornerShape(<数字>.dp)`（theme 定义文件除外），按档位映射，不得自选对齐：1–4→`TwoXs`；5–12→`Xs`；13–18→`Button`；19–24→`Card`；25–32→`Xl`（悬浮玻璃容器才用 `Glass`）。已知点：`PlayerContentPanel.kt:138`(10→Xs…按规则 10∈5–12→`Xs`)、`PlayerControlOverlay.kt:4254`(4→`TwoXs`)、`PlayerSubtitleOverlay.kt:528`(6→`Xs`)、`ErrorDialog.kt:40`(28→`Xl`)、`LyricsSheet.kt:202`(8→`Xs`)、`BaseBadge.kt:18`(8→`Xs`)、`MusicLyricsOverlayContent.kt:80`(22→`Card`)，以及 grep 新发现的其余处。
+
+### 4. 文件边界与验收
+
+- 允许动：`core` theme 三文件（Motion/Tokens/必要时 Colors）、`app/phone/presentation/player/**`、`app/phone/presentation/components/ErrorDialog.kt`、`app/phone/presentation/film/components/BaseBadge.kt`、`modes/music` 歌词两文件。**禁止**动 `player/core`、`player/local`、`data` 与任何手势/seek 行为逻辑。
+- 门禁：`core`+`app:phone`+`modes:music` 单测（断言旧值的布局测试同步更新）+ `ktfmtCheck` + `assembleDebug --max-workers=2`。
+- K60 取证：起播→控制层弹簧出入（连点验证可中断）→暂停降亮暗角→拖拽吸附回弹→trickplay 上浮→面板 stagger→自动隐藏 4s（logcat 计时）→四主题切换无残留色；圆角量测允许 ≤2 张压缩截图（看完即删）。**取证完必须 media_session state=NONE + force-stop 兜底**。
+
+## T1/T8a 交付遗留（2026-11-19 收口记录）
+
+- **L3（新立，小卡）**：`PlayerActivity` 目前 `CinefinTheme(themeId = DEFAULT)` 写死，播放页不随 App 主题换色板。Kimi 设计拍板：播放页跟随 **aurora↔amoled** 深色主题（light/dynamic 映射 aurora dark，保持影院深色基调——与「T1 设计定稿」§1 一致，VIDEO-35 的 OLED 维度由此闭合）。改动面：PlayerActivity 传 themeId 映射 + 播放页组件对照 aurora/amoled 玻璃参数抽查，随 T5 或独立小卡派。
+- **trickplay 上浮淡入**：代码已实现但本次片源无 trickplay 未真机触发，复验并入 T4。
+- **动效主观手感**（松手回弹/knob 微弹/stagger 节奏）：adb 采样粒度无法取证，建议用户人工触摸走查一次，不满意再回调弹簧参数（参数集中在 `CinefinMotion`，一处可调）。
+- **范围外圆角**（不属 W4 播放域，留各域波次）：`modes/book/ReaderSettingsPanel.kt`(14)、`core/.../CinefinNavigation.kt:399`(9)、`modes/music/MusicModeScreen.kt:1251`(12)；`app/tv` 冻结不动。
+- **T8a 接口事实**（T8b/c/d 消费注意）：403 一律映射 `LibraryAccessDenied`；时区换算 `toInstantInSystemZone()` 严格可逆，T8b 须契约测试复验；`commands`/`groupUpdates` Flow 每次收集重新订阅 WS（T8d 订阅计数语义依赖此）；`SyncPlayGatewayImpl` 未做 Hilt 绑定，装配留 T8d。
+
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-19（四）：**T1 ✅ `d2795184`**（deepseek，K1 玻璃换肤 + 弹簧动效 + 圆角清理 9 处 + 自动隐藏 4s；K60 取证：隐藏 4.29–4.32s、暂停降亮 ≈0.80 含边缘压暗、连点可中断无 ANR，已停播放）与 **T8a ✅ `1ef74954`**（deepseek，SyncPlay gateway 22 动词 + 探针三路径契约测试 20 例）并行交付，门禁全绿；T1 设计规格 Kimi 定稿入「T1 设计定稿」节；新立遗留 L3（播放页 themeId 跟随 aurora↔amoled），trickplay 复验并入 T4。
 - 2026-11-19（三）：用户拍板 SyncPlay **go**（go-minimal 范围），立 T8a–T8e 实现卡；新增纪律「设备用后必停播放」（media_session state=NONE + force-stop 兜底，已入记忆库）；补回新会话开工提示词。
 - 2026-11-19（二）：L1 retrySeek 修复提交 `ccdafefa`；L2 TLS 复验通过（K60 mpv 生产播放健康）；T6 SyncPlay 调研完成；顺手修正 `DEV_ENVIRONMENT.md` 服务器版本 10.11.8→12.4.0 并记录 jellyfin-test=生产同实例。
 - 2026-11-19：W4 开工。T0 调查完成；L1/L2 认领；任务卡定稿 T1–T7。
