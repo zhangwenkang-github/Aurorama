@@ -165,6 +165,40 @@ class MusicQueueSnapshotUpNextTest {
     }
 
     @Test
+    fun `AUTO 连播后快照 currentIndex 与时间线一致`() {
+        // W5 T5r 真机缺陷：主队列 A… 播着，「播放下一首」插入 X，手动消费 X 后 AUTO 连播
+        var live =
+            queue(
+                mainIds = listOf("A", "B", "C", "D", "E"),
+                currentIndex = 0,
+                upNext = listOf("X"),
+            )
+        val timeline = live.playbackItems.map { it.name }.toMutableList()
+
+        fun advanceTo(index: Int) {
+            val sync = requireNotNull(live.reconcileWithTimeline(index))
+            for (slot in sync.removalsDescending) timeline.removeAt(slot)
+            live = sync.queue
+        }
+
+        advanceTo(1) // 手动「下一首」消费 up-next
+        advanceTo(2) // AUTO：B
+        advanceTo(2) // AUTO：C
+        assertEquals(listOf("A", "B", "C", "D", "E"), timeline)
+        assertEquals("C", live.currentItem?.name)
+        assertEquals(2, live.currentIndex)
+
+        val stored = live.toStored(positionMs = 33_000L, savedAt = 9L)
+        assertEquals(2, stored.state.currentIndex)
+
+        val restored = stored.toSnapshot()!!.queue
+        assertEquals(2, restored.currentIndex)
+        assertEquals("C", restored.currentItem?.name)
+        // 续播位置写回当前曲（C），而不是被漂移的旧索引写给别的曲目
+        assertEquals(listOf(0L, 0L, 33_000L, 0L, 0L), restored.items.map { it.playbackPosition })
+    }
+
+    @Test
     fun `空主队列的快照不恢复`() {
         val stored =
             StoredQueue(
