@@ -177,6 +177,8 @@ internal data class MusicPrimaryToolbarVisibility(
 @Composable
 fun MusicModeScreen(
     modifier: Modifier = Modifier,
+    /** W5-T1 返修：App 全局主题（四变体）由宿主解析后传入；音乐页是普通内容页，直接跟随全局色板， 不再在这里钉死 aurora。默认值只服务预览 / 测试。 */
+    theme: MusicDomainTheme = MusicDomainTheme(),
     onOpenDrawer: (() -> Unit)? = null,
     /**
      * W53 Bug B1：从侧栏 / 抽屉点**具体音乐库**进入时带上库名——顶栏标题显示该库（如「音乐测试」）； null = 音乐 Tab
@@ -398,7 +400,14 @@ fun MusicModeScreen(
     // W58：长按进入多选后，任何子层 / 详情状态变化都不自动退出（用户用顶栏 × 或全不选退出）。
     BackHandler(enabled = batchSelection.selectionMode) { viewModel.onBatchExit() }
 
-    CinefinTheme(domain = ContentDomain.Music, surfaceBackground = false) {
+    CinefinTheme(
+        // 媒体色板仍是「音乐域」语义；色板 id / 明暗 / 动态取色跟随 App 全局主题
+        domain = ContentDomain.Music,
+        themeId = theme.themeId,
+        darkTheme = theme.darkTheme,
+        dynamicColor = theme.dynamicColor,
+        surfaceBackground = false,
+    ) {
         val colors = LocalCinefinColors.current
         Box(modifier = modifier.fillMaxSize().background(colors.surface)) {
             Column(modifier = Modifier.fillMaxSize()) {
