@@ -24,6 +24,25 @@
 核心链路 K60（8e875894）真机验证；设备用后必须停播放（media_session state=NONE + force-stop）。
 红线：生产 jellyfins 只读；只删自己创建的文件。
 ```
+- **W5 会话5 开工提示词**（新会话粘贴）：
+```
+继续 Aurorama 2.0.0 W5 音乐域实现会话。你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
+工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
+开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W5_TASKS.md 状态块与任务卡 → 记忆库 MEMORY.md。
+现状：T1–T6 + T10 + T1r/T4r/T5r + fixpack 全部合入并 K60 验收通过（HEAD 以 git log 为准，
+会话4 收官 docs = d2173430）。W5 剩 T7/T8/T9/T11 四卡：
+本会话任务：T7（交叉淡化口径：0–12s 连续可调、仅自然推进触发、短曲跳过 max(20s,3×fade)）、
+T8（容错恢复：onPlayerError 重试 1 次→snackbar+跳下一首、本地缺失标记跳过、缓冲指示）、
+T9（Auto DJ 纯调研，InstantMix 现成度，产出 go/no-go 报告并入状态块，不派实现）三卡可并行
+（各建专用 worktree，基线=集成 HEAD；T7 在 player/local+modes/music，T8 在 player/local+modes/music
+UI——两卡都碰 MusicPlaybackControllerImpl，合并顺序 T7 先 T8 后，冲突 Kimi 解）。
+T11（.elrc 解析+词级高亮+全量 50 条验收）殿后单独派。
+设计决策一律以 V2_W5_TASKS.md「设计定稿」四节为准，deepseek 零设计权。
+纪律：每任务一个子代理一个 commit；子代理禁用 adb，只做模块单测+ktfmtCheck+构建（--max-workers=2）；
+K60（8e875894）统一真机验证由 Kimi 做（T7 自然/手动切歌淡接对比、T8 断网重试跳曲、T11 .elrc 词级高亮）；
+设备用后必须停播放（media_session state=NONE + force-stop 兜底）。
+红线：生产 jellyfins 只读；只删自己创建的文件。
+```
 - **遗留观察项**：① SyncPlay unpause 回声时序（T10 发现：媒体键/UI 键 unpause 后本地一度仍暂停，疑组 pending 回声，非 L8 引入）——W6 或播放器线另立小卡评估；② core `CinefinIconButton` 可点区实为 44dp（T1 在音乐模块内补 48dp 触控壳），后续 core 侧把 clickable 提 48dp 后删壳；③ L7 mpv content:// 字幕修复未做 SAF 本地视频端到端（设备无素材），W4-T7 复验时补。
 - **T0 ✅（2026-11-20，Kimi 亲自）**：§7 全 50 条现状核对完成，结论见下文「T0 现状核对」。要点：播放层（单队列+随机/循环+冷启动恢复+MediaSession）、歌词全链路、ReplayGain、EQ 5 段、交叉淡化包络、睡眠定时已具备；缺口集中在 TrackSource 模型、/Audio/universal 协商、双队列、EQ 10 段、倍速、音频信息面板、波浪进度条、封面调色板、容器变换动效、失败恢复链。
 - **W4 残留并入 W5**：L3（播放页 themeId 跟随 aurora↔amoled，方向已拍板）、L7（mpv 内核 content:// 外挂字幕）、L8（媒体键暂停绕开 SyncPlay 组闸门，2026-11-20 W4 收官复验新立）、`app/phone` coroutines-test 硬编码收 catalog——四项合为 T10 收尾小项包（沿 W4 T9 先例，一卡一 commit）。W4 已正式收官（D12/B5 双账号复验双过）。
