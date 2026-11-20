@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`CLOSED`（2026-11-20 **W4 收官**：全 14 卡交付——T1 `d2795184`、T2 `c8a05dce`、T8a `1ef74954`、T8b `ad8b2709`、T3a-1 `8f49e1ad`、T8c `788d25bf`、T3a-2 `f118f49c`、T8d `d4762f1f`、T8e `b32b81cc`+`e59c01e3`+`7d601455`、T5 `b19c8d52`、T3b `96169328`、T4 核查（零 commit）、T9 `f96b1313`、T7 验收（零 commit）、T10 `47095ed7`；T7 验收单 8✅/4⚠️/1❌ 见下「T7 验收收口」；残留项全部有归属。下一波 W5 音乐域，开工提示词在 `PROJECT_PLAN.md` 焦点节）
+> 状态：`ACTIVE`（2026-11-20：全 14 卡代码交付 + T7 验收 8✅/4⚠️/1❌，缺口已由 T10 `47095ed7` 修复；**W4 未收官——两项验收待用户配合：D12 web 主动 seek→App 跟随双账号对照（admin 账号 web 端入组）、B5 mpv PGS 渲染视觉证据**。用户拍板：此两项属 W4 范围，不推给 W5。其余残留（L3/L7 等）见残留表）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -161,14 +161,19 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 
 8 ✅ / 4 ⚠️ / 1 ❌。✅：SAF 同路径播放、双内核切换状态全量保留（倍速/字幕延迟/循环/比例/轨道五项实测）、字幕不漂移（seek×3+双档倍速+切换）、引擎切换提示、版本过低降级（契约测试）、trickplay 复验（14/17 部电影已产出，`trickplayIntervalMs=10000`，缩略图+时间戳气泡+章节名同框 `第 12 章 · Chapter 12（1:01:58）` 吸附误差 0）、控制层让位、图形字幕 Exo 提示。⚠️→已由 T10 修复：SAF 失效文案、解散组提示分支、L5 口径（裁决：自动回退仅 codec 能力错误，坏容器走错误卡——单测已钉）、本地进度回写 404。⚠️→残留（见下）。❌：D12 web 主动 seek→App 跟随（同账号双端不可靠）。
 
-### W4 残留项（全部有归属，不阻收官）
+### W4 未关闭验收项（用户 2026-11-20 拍板：属 W4 范围，不推 W5，完成前 W4 不收官）
+
+| 项 | 需要什么 |
+|---|---|
+| **D12 web 主动 seek→App 跟随** | 双账号对照：App（zhangwenkang）建组 → **admin 账号** jellyfin-web 入组 → web 拖进度条 → App logcat 见 SEEK 命令 + `syncplay-command` 落点。同账号双端 `Participants` 不区分会话，上一轮已证不可靠 |
+| **B5 mpv PGS 渲染视觉证据** | mpv 内核选中 PGS 轨播放，1 张压缩截图证 PGS 上屏（上一轮截图预算耗尽，只验到可选中无报错） |
+
+### W4 残留项（不影响 W4 收官判定）
 
 | 项 | 归属 |
 |---|---|
 | L3 播放页 themeId 跟随 aurora↔amoled（方向已拍板） | W5+ 小卡 |
 | L7 mpv 内核 content:// 外挂字幕（T10 只覆盖 Exo；mpv `sub-add` 大概率打不开 content://） | W5 小卡 |
-| D12 web 主动 seek 双账号对照（需 admin 账号 web 端入组） | 用户有空时配合一轮 |
-| B5 mpv PGS 渲染视觉证据（截图预算耗尽，可选中无报错） | 用户人工留意 |
 | T1 trickplay 入场动画帧级取证（adb 粒度不够） | 用户人工走查（同动效模式） |
 | app/phone `kotlinx-coroutines-test:1.11.0` 硬编码 | 下波顺手收 catalog |
 | `core` 的 `Constants.ZOOM_SCALE_BASE/THRESHOLD` 无调用方 | W 后清理 |
