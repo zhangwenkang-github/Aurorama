@@ -42,6 +42,7 @@ constructor(
                         thumbnailUri = item.thumbnailUri,
                         indexNumber = item.indexNumber,
                         kind = item.kind,
+                        unavailable = item.unavailable,
                     )
                 },
             state =
@@ -77,6 +78,7 @@ constructor(
                         thumbnailUri = item.thumbnailUri,
                         indexNumber = item.indexNumber,
                         kind = item.kind,
+                        unavailable = item.unavailable,
                     )
                 },
             state =

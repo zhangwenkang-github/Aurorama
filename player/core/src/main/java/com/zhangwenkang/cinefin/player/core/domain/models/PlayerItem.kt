@@ -39,6 +39,12 @@ data class PlayerItem(
      * 视频条目为 null；音乐条目缺失时按「来源未知」处理，播放与 UI 都不得把它当作必需字段。
      */
     val trackSource: TrackSource? = null,
+    /**
+     * W5-T8（MUSIC-49）：本地文件缺失 / 授权失效，条目暂不可播。
+     *
+     * 只在本地 `content://` 源解析或播放失败后置 true；队列保留条目（可手动移除），自动播放时跳过。 旧队列快照没有这一列，反序列化按 false 处理，不炸。
+     */
+    val unavailable: Boolean = false,
 ) : Parcelable
 
 /** MediaItem extras：季号（队列面板按季分组用） */

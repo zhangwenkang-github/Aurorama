@@ -129,6 +129,7 @@ fun MusicNowPlayingScreen(
     queue: MusicQueue,
     lyricsState: MusicModeViewModel.LyricsUiState,
     isPlaying: Boolean,
+    isBuffering: Boolean = false,
     isRestored: Boolean,
     positionMs: Long,
     durationMs: Long,
@@ -232,6 +233,7 @@ fun MusicNowPlayingScreen(
                         queue = queue,
                         lyricsState = lyricsState,
                         isPlaying = isPlaying,
+                        isBuffering = isBuffering,
                         isRestored = isRestored,
                         positionMs = positionMs,
                         durationMs = durationMs,
@@ -271,6 +273,7 @@ private fun PlayerPage(
     queue: MusicQueue,
     lyricsState: MusicModeViewModel.LyricsUiState,
     isPlaying: Boolean,
+    isBuffering: Boolean,
     isRestored: Boolean,
     positionMs: Long,
     durationMs: Long,
@@ -402,6 +405,7 @@ private fun PlayerPage(
                             queue = queue,
                             lyricsState = lyricsState,
                             isPlaying = isPlaying,
+                            isBuffering = isBuffering,
                             isRestored = isRestored,
                             positionMs = positionMs,
                             durationMs = durationMs,
@@ -435,6 +439,7 @@ private fun PlayerPage(
                             queue = queue,
                             lyricsState = lyricsState,
                             isPlaying = isPlaying,
+                            isBuffering = isBuffering,
                             isRestored = isRestored,
                             positionMs = positionMs,
                             durationMs = durationMs,
@@ -459,6 +464,7 @@ private fun PlayerPage(
                             queue = queue,
                             lyricsState = lyricsState,
                             isPlaying = isPlaying,
+                            isBuffering = isBuffering,
                             isRestored = isRestored,
                             positionMs = positionMs,
                             durationMs = durationMs,
@@ -493,6 +499,7 @@ private fun RegularPlayerLayout(
     queue: MusicQueue,
     lyricsState: MusicModeViewModel.LyricsUiState,
     isPlaying: Boolean,
+    isBuffering: Boolean,
     isRestored: Boolean,
     positionMs: Long,
     durationMs: Long,
@@ -571,21 +578,11 @@ private fun RegularPlayerLayout(
             resetKey = item.itemId,
             modifier = Modifier.fillMaxWidth(),
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                text = formatPositionMs(dragValue?.roundToLong() ?: currentMs),
-                style = CinefinType.MonoDataSmall,
-                color = colors.onSurfaceVariant,
-            )
-            Text(
-                text = if (totalMs > 0L) formatPositionMs(totalMs) else "--:--",
-                style = CinefinType.MonoDataSmall,
-                color = colors.onSurfaceVariant,
-            )
-        }
+        PlaybackTimeRow(
+            currentText = formatPositionMs(dragValue?.roundToLong() ?: currentMs),
+            totalText = if (totalMs > 0L) formatPositionMs(totalMs) else "--:--",
+            isBuffering = isBuffering,
+        )
         Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
         TransportControls(
             isPlaying = isPlaying,
@@ -618,6 +615,7 @@ private fun CompactPlayerLayout(
     queue: MusicQueue,
     lyricsState: MusicModeViewModel.LyricsUiState,
     isPlaying: Boolean,
+    isBuffering: Boolean,
     isRestored: Boolean,
     positionMs: Long,
     durationMs: Long,
@@ -687,21 +685,11 @@ private fun CompactPlayerLayout(
                     resetKey = item.itemId,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = formatPositionMs(dragValue?.roundToLong() ?: currentMs),
-                        style = CinefinType.MonoDataSmall,
-                        color = colors.onSurfaceVariant,
-                    )
-                    Text(
-                        text = if (totalMs > 0L) formatPositionMs(totalMs) else "--:--",
-                        style = CinefinType.MonoDataSmall,
-                        color = colors.onSurfaceVariant,
-                    )
-                }
+                PlaybackTimeRow(
+                    currentText = formatPositionMs(dragValue?.roundToLong() ?: currentMs),
+                    totalText = if (totalMs > 0L) formatPositionMs(totalMs) else "--:--",
+                    isBuffering = isBuffering,
+                )
                 Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 TransportControls(
                     isPlaying = isPlaying,
@@ -749,6 +737,7 @@ private fun WidePlayerLayout(
     queue: MusicQueue,
     lyricsState: MusicModeViewModel.LyricsUiState,
     isPlaying: Boolean,
+    isBuffering: Boolean,
     isRestored: Boolean,
     positionMs: Long,
     durationMs: Long,
@@ -843,21 +832,11 @@ private fun WidePlayerLayout(
                         resetKey = item.itemId,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            text = formatPositionMs(dragValue?.roundToLong() ?: currentMs),
-                            style = CinefinType.MonoDataSmall,
-                            color = colors.onSurfaceVariant,
-                        )
-                        Text(
-                            text = if (totalMs > 0L) formatPositionMs(totalMs) else "--:--",
-                            style = CinefinType.MonoDataSmall,
-                            color = colors.onSurfaceVariant,
-                        )
-                    }
+                    PlaybackTimeRow(
+                        currentText = formatPositionMs(dragValue?.roundToLong() ?: currentMs),
+                        totalText = if (totalMs > 0L) formatPositionMs(totalMs) else "--:--",
+                        isBuffering = isBuffering,
+                    )
                     Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
                     TransportControls(
                         isPlaying = isPlaying,
@@ -1520,6 +1499,46 @@ private fun LyricsPreview(window: LyricsWindow, message: String?, onClick: () ->
                 )
             }
         }
+    }
+}
+
+/**
+ * W5-T8（MUSIC-49）：进度区时间行。
+ *
+ * 缓冲中在当前位置前叠加 10dp 轻量指示；播放键保持「暂停」语义（缓冲不算暂停）。
+ */
+@Composable
+private fun PlaybackTimeRow(
+    currentText: String,
+    totalText: String,
+    isBuffering: Boolean,
+) {
+    val colors = LocalCinefinColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (isBuffering) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(10.dp),
+                    color = colors.onSurfaceVariant,
+                    strokeWidth = 1.5.dp,
+                )
+                Spacer(modifier = Modifier.width(CinefinSpacing.Space1))
+            }
+            Text(
+                text = currentText,
+                style = CinefinType.MonoDataSmall,
+                color = colors.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = totalText,
+            style = CinefinType.MonoDataSmall,
+            color = colors.onSurfaceVariant,
+        )
     }
 }
 

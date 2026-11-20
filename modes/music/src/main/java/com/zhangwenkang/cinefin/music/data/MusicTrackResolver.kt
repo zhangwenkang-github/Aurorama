@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.music.data
 
 import android.content.Context
+import android.net.Uri
 import com.zhangwenkang.cinefin.api.MusicStreamRequest
 import com.zhangwenkang.cinefin.local.LocalMediaExtensions
 import com.zhangwenkang.cinefin.models.FindroidSource
@@ -18,6 +19,8 @@ import com.zhangwenkang.cinefin.settings.domain.MusicStreamingQuality
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.MediaStreamType
 import timber.log.Timber
 
@@ -47,7 +50,7 @@ constructor(
     private suspend fun MusicSong.resolve(): PlayerItem {
         // W37：本地媒体库曲目直接使用 SAF content:// 文档 URI，不经过服务器（离线也可播）。
         localUri?.let { uri ->
-            return localPlayerItem(uri)
+            return localPlayerItem(uri).withLocalReadability()
         }
         val sources = repository.getMediaSources(itemId, includePath = true)
         val source =
@@ -56,9 +59,30 @@ constructor(
                 ?: error("曲目「$name」没有可用的媒体源")
         // 已下载 / 本地合成源：直接播本地路径，不做服务器协商（离线链路）。
         if (source.type == FindroidSourceType.LOCAL) {
-            return localPlayerItem(source.path, mediaSourceId = source.id)
+            return localPlayerItem(source.path, mediaSourceId = source.id).withLocalReadability()
         }
         return serverPlayerItem(source)
+    }
+
+    /**
+     * W5-T8（MUSIC-49）：本地 `content://` 源不可读时标记「不可用」而不是抛错。
+     *
+     * 条目仍进队列（保留显示快照与手动移除入口），播放链会跳过它；非 `content://` 源不做本地探测。
+     */
+    private suspend fun PlayerItem.withLocalReadability(): PlayerItem {
+        if (!mediaSourceUri.startsWith("content://", ignoreCase = true)) return this
+        val readable =
+            withContext(Dispatchers.IO) {
+                runCatching {
+                        context.contentResolver
+                            .openAssetFileDescriptor(Uri.parse(mediaSourceUri), "r")
+                            ?.use { true } ?: false
+                    }
+                    .getOrDefault(false)
+            }
+        if (readable) return this
+        Timber.w("本地曲目不可读，标记不可用：%s", name)
+        return copy(unavailable = true)
     }
 
     private fun MusicSong.localPlayerItem(

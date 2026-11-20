@@ -17,6 +17,8 @@ data class StoredQueueItem(
     val indexNumber: Int?,
     /** 分区（W5 T5）：[StoredQueueKind.MAIN] 主队列 / [StoredQueueKind.UP_NEXT] 接下来播放。 */
     val kind: String = StoredQueueKind.MAIN,
+    /** W5-T8（MUSIC-49）：本地文件缺失 / 授权失效；v4 旧快照没有该字段，按 false 恢复。 */
+    val unavailable: Boolean = false,
 )
 
 /** 队列条目分区取值（W5 T5，MUSIC-09）：手动插入的「接下来播放」入快照并标注类型。 */

@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.player.local.domain
 import android.os.SystemClock
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ShuffleOrder
@@ -34,8 +35,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -79,6 +83,19 @@ constructor(
     private val _durationMs = MutableStateFlow(0L)
     override val durationMs: StateFlow<Long> = _durationMs.asStateFlow()
 
+    /** W5-T8（MUSIC-48）：播放失败事件（重试仍失败 / 本地文件不可用 → 跳曲或停播）。 */
+    private val _playbackFailures = MutableSharedFlow<MusicPlaybackFailure>(extraBufferCapacity = 8)
+    override val playbackFailures: SharedFlow<MusicPlaybackFailure> =
+        _playbackFailures.asSharedFlow()
+
+    /** W5-T8（MUSIC-49）：缓冲态轻量指示；缓冲中 `isPlaying` 仍为 true。 */
+    private val _isBuffering = MutableStateFlow(false)
+    override val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
+
+    /** W5-T8：同一曲目只重试一次的纯状态机（见 [MusicPlaybackRecovery]）。 */
+    private val playbackRecovery = MusicPlaybackRecovery()
+    private var errorRetryJob: Job? = null
+
     private var playbackJob: Job? = null
     private var attachedPlayer: Player? = null
 
@@ -107,7 +124,22 @@ constructor(
                     player.pause()
                 }
                 syncQueueWithPlayer(player)
-                onTrackChanged(mediaItem?.mediaId.toItemId())
+                val nextItemId = mediaItem?.mediaId.toItemId()
+                playbackRecovery.onItemChanged(nextItemId)
+                onTrackChanged(nextItemId)
+            }
+
+            /**
+             * W5-T8（MUSIC-48）：音乐会话内的播放错误恢复链。
+             *
+             * 本地 `content://` 源确认不可读 → 标记条目「不可用」并跳过（不重试）； 其余错误：同曲第一次延迟 1s 重试，第二次失败提示 +
+             * 跳下一首，队尾则停播清态。
+             */
+            override fun onPlayerError(error: PlaybackException) {
+                if (!playerHolder.musicSessionActive) return
+                val player = playerHolder.existingPlayer ?: return
+                if (!player.isPlayingMusicItem()) return
+                onMusicPlayerError(player, error)
             }
 
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -156,6 +188,12 @@ constructor(
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
+                val player = playerHolder.existingPlayer
+                if (
+                    player != null && playerHolder.musicSessionActive && player.isPlayingMusicItem()
+                ) {
+                    _isBuffering.value = isMusicBuffering(playbackState, player.playWhenReady)
+                }
                 if (playbackState != Player.STATE_ENDED) return
                 if (!playerHolder.musicSessionActive) return
                 // 队列播完：按"播到结尾"收尾，避免服务器把最后位置当成未听完
@@ -180,6 +218,8 @@ constructor(
                     _positionMs.value = position
                     _durationMs.value = lastKnownDurationMs
                     _isPlaying.value = MusicPlaybackSurfaceState.from(player).isPlaybackActive
+                    _isBuffering.value =
+                        isMusicBuffering(player.playbackState, player.playWhenReady)
                     // 队列可能被移动 / 删除 / 自动切换，索引以播放器为准最可靠
                     syncQueueWithPlayer(player)
                     reportPeriodicProgressIfDue(player, position)
@@ -187,6 +227,7 @@ constructor(
                     _positionMs.value = 0L
                     _durationMs.value = 0L
                     _isPlaying.value = false
+                    _isBuffering.value = false
                     // 视频起播等外部路径停掉音乐：上报由仲裁器负责，这里只清理本地状态
                     if (!playerHolder.musicSessionActive) activeItemId = null
                 }
@@ -223,6 +264,10 @@ constructor(
             queue.copy(currentIndex = normalizeStartIndex(startIndex, queue.items.size))
         _queue.value = normalized
         playbackJob?.cancel()
+        // W5-T8：换队列 = 新一轮播放，清掉上一轮的重试记忆与挂起的重试任务
+        errorRetryJob?.cancel()
+        errorRetryJob = null
+        playbackRecovery.reset()
         playbackJob = scope.launch {
             try {
                 // 0) 换队列前先把旧曲目按 MU-9 收尾（Stop 之后才允许 Start 新曲目）
@@ -245,18 +290,32 @@ constructor(
                 // setMediaItems 会抛 IllegalSeekPositionException → 起播失败。这里统一归一化。
                 // W5 T5：时间线 = 主队列 + 接下来播放（见 MusicQueue.playbackItems），起播位取时间线下标。
                 val timeline = latest.playbackItems
-                val startIndex = latest.playbackIndex.coerceIn(timeline.indices)
+                val requestedIndex = latest.playbackIndex.coerceIn(timeline.indices)
+                // W5-T8（MUSIC-49）：起播位落在「不可用」条目上时向前跳过；整段都不可用则保留队列但不出声。
+                val startIndex = firstPlayableQueueIndex(timeline, requestedIndex)
                 player.setMediaItems(
                     timeline.map { it.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri) },
-                    startIndex,
+                    startIndex ?: requestedIndex,
                     0L,
                 )
                 // 恢复顺序必须在 setMediaItems 之后、prepare/play 之前安装；只有完整置换才可表达。
                 val queueWithSeed = player.installPersistedShuffleOrder(latest)
                 player.repeatMode = latest.repeatMode.toPlayerRepeatMode()
                 player.shuffleModeEnabled = latest.shuffleEnabled
-                val published = player.captureShuffleSnapshot(queueWithSeed)
+                val published =
+                    player
+                        .captureShuffleSnapshot(queueWithSeed)
+                        .withTimelineIndex(startIndex ?: requestedIndex)
                 _queue.value = published
+                if (startIndex == null) {
+                    // 整段队列都没有可播条目（本地文件缺失）：保留队列供用户手动移除，不 prepare / 不报 Start。
+                    Timber.w("音乐队列没有可播放条目（本地文件缺失）")
+                    _isPlaying.value = false
+                    _isBuffering.value = false
+                    activeItemId = null
+                    audioEffects.clearCurrentTrack()
+                    return@launch
+                }
                 player.prepare()
                 // 交叉淡化可能把音量留在 0（异常路径）；起播前复位到 1，随后由包络循环接管。
                 player.volume = 1f
@@ -293,18 +352,22 @@ constructor(
     override fun playPause() {
         val player = musicPlayer() ?: return
         _isPlaying.value = player.toggleMusicPlaybackTransport().isPlaybackActive
+        _isBuffering.value = isMusicBuffering(player.playbackState, player.playWhenReady)
     }
 
     override fun play() {
         val player = musicPlayer() ?: return
         player.play()
         _isPlaying.value = MusicPlaybackSurfaceState.from(player).isPlaybackActive
+        _isBuffering.value = isMusicBuffering(player.playbackState, player.playWhenReady)
     }
 
     override fun pause() {
         val player = musicPlayer() ?: return
         player.pause()
         _isPlaying.value = false
+        // 缓冲中按暂停 = 立即退出缓冲态（缓冲不渲染成暂停，暂停也不残留缓冲指示）
+        _isBuffering.value = false
     }
 
     override fun next() {
@@ -413,9 +476,11 @@ constructor(
         val current = _queue.value ?: return
         if (index !in current.items.indices) return
         val player = musicPlayer() ?: return
-        val clean = current.copy(currentIndex = index, upNextPlaying = null)
+        // W5-T8（MUSIC-49）：目标条目本地缺失时向前跳到下一首可播曲目（保留条目，可手动移除）。
+        val playableIndex = firstPlayableQueueIndex(current.items, index) ?: return
+        val clean = current.copy(currentIndex = playableIndex, upNextPlaying = null)
         if (current.upNextPlaying == null && current.upNext.isEmpty()) {
-            player.seekTo(index, 0L)
+            player.seekTo(playableIndex, 0L)
             player.play()
             return
         }
@@ -507,6 +572,10 @@ constructor(
     override fun stop() {
         playbackJob?.cancel()
         playbackJob = null
+        // W5-T8：停止 = 本轮播放结束，清掉挂起的错误重试与重试记忆
+        errorRetryJob?.cancel()
+        errorRetryJob = null
+        playbackRecovery.reset()
         val itemId = activeItemId
         val positionMs = lastKnownPositionMs
         val durationMs = lastKnownDurationMs
@@ -515,6 +584,7 @@ constructor(
         _positionMs.value = 0L
         _durationMs.value = 0L
         _isPlaying.value = false
+        _isBuffering.value = false
         audioEffects.clearCurrentTrack()
         // W5-T6：音乐会话结束，清掉「播完当前曲目停止」的挂起状态
         sleepTimer.clearStopAfterCurrentTrack()
@@ -546,6 +616,135 @@ constructor(
         playerHolder.existingPlayer?.takeIf {
             playerHolder.musicSessionActive && it.isPlayingMusicItem()
         }
+
+    /**
+     * 音乐播放错误恢复（W5-T8，MUSIC-48/49）。
+     *
+     * - 本地 `content://` 源确认不可读：标记队列条目「不可用」→ 跳过（不重试）；
+     * - 同一曲目第一次错误：延迟 [MUSIC_ERROR_RETRY_DELAY_MS] 后 `prepare()`，`playWhenReady` 保持；
+     * - 同一曲目再次错误：发失败事件 → `seekToNextMediaItem`；队尾没有下一首则按 [stop] 收尾。
+     */
+    private fun onMusicPlayerError(player: Player, error: PlaybackException) {
+        val itemId = player.currentMediaItem?.mediaId.toItemId()
+        val item = queueItem(itemId)
+        val hasNext = player.hasNextDistinctMusicItem()
+        _isBuffering.value = false
+        val localUnavailable =
+            isLocalSourceUnavailableError(
+                mediaSourceUri = player.currentMediaItem?.localConfiguration?.uri?.toString(),
+                errorCode = error.errorCode,
+            )
+        if (localUnavailable) {
+            Timber.w(error, "音乐本地源不可用，跳过：%s", item?.name ?: itemId)
+            markQueueItemUnavailable(itemId)
+            emitPlaybackFailure(item, itemId, skippedToNext = hasNext)
+            if (hasNext) skipToNextMusicItem(player) else stop()
+            return
+        }
+        when (playbackRecovery.onError(itemId = itemId, hasNext = hasNext)) {
+            MusicErrorRecoveryAction.RETRY -> {
+                Timber.w(error, "音乐播放失败，%d ms 后重试：%s", MUSIC_ERROR_RETRY_DELAY_MS, itemId)
+                // 重试窗口内保留播放意图（缓冲不算暂停，重试同样不算）
+                _isPlaying.value = player.playWhenReady
+                scheduleErrorRetry(player, itemId)
+            }
+            MusicErrorRecoveryAction.SKIP_TO_NEXT -> {
+                Timber.w(error, "音乐播放重试仍失败，跳到下一首：%s", itemId)
+                emitPlaybackFailure(item, itemId, skippedToNext = true)
+                skipToNextMusicItem(player)
+            }
+            MusicErrorRecoveryAction.STOP -> {
+                Timber.w(error, "音乐播放重试仍失败且没有下一首，停止：%s", itemId)
+                emitPlaybackFailure(item, itemId, skippedToNext = false)
+                stop()
+            }
+        }
+    }
+
+    /** 延迟重试当前曲目；延迟期间切歌 / 换队列 / 停止都会让这次重试作废。 */
+    private fun scheduleErrorRetry(player: Player, itemId: UUID?) {
+        errorRetryJob?.cancel()
+        errorRetryJob = scope.launch {
+            delay(MUSIC_ERROR_RETRY_DELAY_MS)
+            val current = musicPlayer() ?: return@launch
+            if (current !== player) return@launch
+            if (current.currentMediaItem?.mediaId.toItemId() != itemId) return@launch
+            val resume = current.playWhenReady
+            runCatching {
+                current.prepare()
+                if (resume) current.play()
+            }
+                .onFailure { Timber.w(it, "音乐错误重试失败") }
+        }
+    }
+
+    /** 跳过当前条目（重试仍失败 / 本地不可用）：保持播放意图，队尾无下一首时由调用方走 stop。 */
+    private fun skipToNextMusicItem(player: Player) {
+        val resume = player.playWhenReady
+        errorRetryJob?.cancel()
+        errorRetryJob = null
+        runCatching {
+            player.seekToNextMediaItem()
+            player.prepare()
+            if (resume) player.play()
+        }
+            .onFailure { Timber.w(it, "音乐播放失败后跳下一首失败") }
+        if (resume) _isPlaying.value = true
+    }
+
+    /** 把队列里同一 itemId 的条目（主队列 / 接下来播放 / 正在播放）标记为「不可用」。 */
+    private fun markQueueItemUnavailable(itemId: UUID?) {
+        if (itemId == null) return
+        _queue.update { queue ->
+            queue?.let { current ->
+                val items =
+                    current.items.map { item ->
+                        if (item.itemId == itemId) item.copy(unavailable = true) else item
+                    }
+                val upNext =
+                    current.upNext.map { item ->
+                        if (item.itemId == itemId) item.copy(unavailable = true) else item
+                    }
+                val upNextPlaying =
+                    current.upNextPlaying?.let { item ->
+                        if (item.itemId == itemId) item.copy(unavailable = true) else item
+                    }
+                if (
+                    items == current.items &&
+                        upNext == current.upNext &&
+                        upNextPlaying == current.upNextPlaying
+                ) {
+                    current
+                } else {
+                    current.copy(
+                        items = items,
+                        upNext = upNext,
+                        upNextPlaying = upNextPlaying,
+                    )
+                }
+            }
+        }
+    }
+
+    /** 队列内按 itemId 找条目（当前曲目优先，其次主队列 / 接下来播放）。 */
+    private fun queueItem(itemId: UUID?): PlayerItem? {
+        if (itemId == null) return null
+        val queue = _queue.value ?: return null
+        return queue.currentItem?.takeIf { it.itemId == itemId }
+            ?: queue.items.firstOrNull { it.itemId == itemId }
+            ?: queue.upNext.firstOrNull { it.itemId == itemId }
+    }
+
+    private fun emitPlaybackFailure(item: PlayerItem?, itemId: UUID?, skippedToNext: Boolean) {
+        _playbackFailures.tryEmit(
+            MusicPlaybackFailure(
+                itemId = itemId ?: item?.itemId,
+                name = item?.name.orEmpty(),
+                artist = item?.artist,
+                skippedToNext = skippedToNext,
+            )
+        )
+    }
 
     /**
      * 用「当前曲目 + 接下来播放 + 其余洗牌」安装固定随机序（W5 T5，MUSIC-12）。
@@ -842,5 +1041,8 @@ constructor(
 
         /** ReplayGain 拉取失败后的一次重试延迟（毫秒）。 */
         const val REPLAYGAIN_RETRY_DELAY_MS = 3_000L
+
+        /** W5-T8：音乐播放错误后的第一次重试延迟（毫秒，MUSIC-48 定稿 1s）。 */
+        const val MUSIC_ERROR_RETRY_DELAY_MS = 1_000L
     }
 }

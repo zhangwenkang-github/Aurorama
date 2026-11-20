@@ -76,6 +76,7 @@ import com.zhangwenkang.cinefin.player.local.audio.MusicAudioOutputInfoSource
 import com.zhangwenkang.cinefin.player.local.audio.MusicEqualizerPreset
 import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
+import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackFailure
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackStateSource
 import com.zhangwenkang.cinefin.player.local.domain.MusicQueueEditor
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
@@ -206,6 +207,10 @@ constructor(
 
     private val playlistExportReadyChannel = Channel<PlaylistExportReady>(Channel.BUFFERED)
     val playlistExportReady = playlistExportReadyChannel.receiveAsFlow()
+
+    /** W5-T8（MUSIC-48）：播放失败（重试仍失败 / 本地文件不可用）→ 音乐页非阻塞 snackbar。 */
+    private val playbackFailureChannel = Channel<MusicPlaybackFailure>(Channel.BUFFERED)
+    val playbackFailures = playbackFailureChannel.receiveAsFlow()
 
     /** W58：长按多选状态（按曲目 itemId 选中；列表刷新后按 id 求交集）。 */
     private val _batchSelectionState = MutableStateFlow(MusicBatchSelectionState())
@@ -378,6 +383,9 @@ constructor(
     /** 当前曲目总时长（毫秒）：内核还没给出时为 0，UI 用曲库元数据兜底。 */
     val durationMs: StateFlow<Long> = playbackStateSource.durationMs
 
+    /** W5-T8（MUSIC-49）：缓冲中（播放意图不变，只叠加轻量指示）。 */
+    val isBuffering: StateFlow<Boolean> = playbackStateSource.isBuffering
+
     /** 桌面歌词悬浮窗状态（W23-MUSIC · D 组）：开关 / 颜色 / 字号 / 语言 / 锁定都在这里。 */
     val lyricsOverlayState: StateFlow<MusicLyricsOverlayController.State> = lyricsOverlay.state
 
@@ -503,6 +511,7 @@ constructor(
         observeRecent()
         observeOverlayArtists()
         observeRestoredQueueCleanup()
+        observePlaybackFailures()
         viewModelScope.launch { downloader.queueChanges.collect { refreshDownloadState() } }
         // W36：进入页面后切离线 / 回在线也要立刻重载曲库（VM 复用同一实例）。
         appPreferences.sharedPreferences.registerOnSharedPreferenceChangeListener(
@@ -603,6 +612,15 @@ constructor(
     private fun observeRestoredQueueCleanup() {
         viewModelScope.launch {
             playbackController.queue.filterNotNull().collect { _restoredQueue.value = null }
+        }
+    }
+
+    /** W5-T8（MUSIC-48）：控制器的失败事件转进页内 snackbar 通道（非阻塞，不弹模态）。 */
+    private fun observePlaybackFailures() {
+        viewModelScope.launch {
+            playbackStateSource.playbackFailures.collect { failure ->
+                playbackFailureChannel.send(failure)
+            }
         }
     }
 

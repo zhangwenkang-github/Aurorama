@@ -35,6 +35,7 @@ object MusicDatabaseModule {
                 MusicDatabase.MIGRATION_1_2,
                 MusicDatabase.MIGRATION_2_3,
                 MusicDatabase.MIGRATION_3_4,
+                MusicDatabase.MIGRATION_4_5,
             )
             .build()
 

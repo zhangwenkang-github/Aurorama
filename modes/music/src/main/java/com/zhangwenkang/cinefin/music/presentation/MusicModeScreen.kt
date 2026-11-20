@@ -8,8 +8,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -240,6 +244,7 @@ fun MusicModeScreen(
     val isRestored by viewModel.isRestored.collectAsState()
     val positionMs by viewModel.positionMs.collectAsState()
     val durationMs by viewModel.durationMs.collectAsState()
+    val isBuffering by viewModel.isBuffering.collectAsState()
     val playMode by viewModel.playMode.collectAsState()
     val lyricsState by viewModel.lyricsState.collectAsState()
     val lyricsEditorState by viewModel.lyricsEditorState.collectAsState()
@@ -276,6 +281,13 @@ fun MusicModeScreen(
                     duration = DownloadSnackbarDuration,
                 )
             if (result == SnackbarResult.ActionPerformed) onOpenDownloads()
+        }
+    }
+
+    // W5-T8（MUSIC-48）：播放失败非阻塞提示（自动重试 1 次仍失败 / 本地文件不可用 → 已跳下一首或停止）。
+    LaunchedEffect(viewModel) {
+        viewModel.playbackFailures.collect { failure ->
+            snackbarHostState.showSnackbar(musicPlaybackFailureMessage(failure))
         }
     }
     val effectsEqualizerEnabled by viewModel.effectsEqualizerEnabled.collectAsState()
@@ -676,6 +688,7 @@ fun MusicModeScreen(
                             NowPlayingBar(
                                 item = displayCurrentItem,
                                 isPlaying = isPlaying,
+                                isBuffering = isBuffering,
                                 isRestored = isRestored && optimisticCurrentItem == null,
                                 positionMs = if (optimisticCurrentItem == null) positionMs else 0L,
                                 durationMs = if (optimisticCurrentItem == null) durationMs else 0L,
@@ -734,6 +747,7 @@ fun MusicModeScreen(
                         queue = currentQueue,
                         lyricsState = lyricsState,
                         isPlaying = isPlaying,
+                        isBuffering = isBuffering,
                         isRestored = isRestored,
                         positionMs = positionMs,
                         durationMs = durationMs,
@@ -2354,6 +2368,10 @@ private val MusicMiniBarWideBreakpoint = 840.dp
 
 /** 暂停时迷你条进度线 alpha（定稿一 §2 / MUSIC-40 后半：40% 静态）。 */
 private const val MusicMiniBarPausedProgressAlpha = 0.4f
+
+/** W5-T8（MUSIC-49）：缓冲中进度线 indeterminate 扫过的周期与高亮段宽占比。 */
+private const val MusicMiniBarBufferingCycleMillis = 1_200
+private const val MusicMiniBarBufferingSegmentFraction = 0.3f
 private val MusicMiniBarArtistStyle =
     CinefinType.BodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp)
 
@@ -2382,6 +2400,7 @@ private data class MusicMiniBarGesture(
 private fun NowPlayingBar(
     item: PlayerItem?,
     isPlaying: Boolean,
+    isBuffering: Boolean,
     isRestored: Boolean,
     positionMs: Long,
     durationMs: Long,
@@ -2621,6 +2640,7 @@ private fun NowPlayingBar(
                 }
             }
             // 极细进度线：贴条上缘 2dp，media.base（调色板覆盖后随封面色），暂停时 alpha 降到 40%（tween(Fast) 过渡）
+            // W5-T8（MUSIC-49）：缓冲中进度线转 indeterminate（一段 30% 宽的高亮匀速扫过），播放键仍是暂停态。
             val pausedAlpha = if (isPlaying) 1f else MusicMiniBarPausedProgressAlpha
             val progressAlpha =
                 animateFloatAsState(
@@ -2633,15 +2653,51 @@ private fun NowPlayingBar(
                     Modifier.align(Alignment.TopStart)
                         .fillMaxWidth()
                         .height(MusicMiniBarProgressHeight)
-                        .semantics { contentDescription = "播放进度 $timeText" }
+                        .semantics {
+                            contentDescription =
+                                if (isBuffering) "缓冲中 $timeText" else "播放进度 $timeText"
+                        }
             ) {
-                Box(
-                    modifier =
-                        Modifier.fillMaxHeight()
-                            .fillMaxWidth(progress)
-                            .graphicsLayer { alpha = progressAlpha.value }
-                            .background(media.base)
-                )
+                if (isBuffering) {
+                    val reduceMotion = CinefinMotion.reduceMotion()
+                    val transition = rememberInfiniteTransition(label = "musicMiniBarBuffering")
+                    val phase by
+                        transition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 1f,
+                            animationSpec =
+                                infiniteRepeatable(
+                                    tween(
+                                        durationMillis = MusicMiniBarBufferingCycleMillis,
+                                        easing = LinearEasing,
+                                    )
+                                ),
+                            label = "musicMiniBarBufferingPhase",
+                        )
+                    val bufferingPhase = if (reduceMotion) 0.35f else phase
+                    Box(
+                        modifier =
+                            Modifier.fillMaxSize()
+                                .graphicsLayer { alpha = progressAlpha.value }
+                                .drawBehind {
+                                    val segment = size.width * MusicMiniBarBufferingSegmentFraction
+                                    val left = (size.width + segment) * bufferingPhase - segment
+                                    drawRect(
+                                        color = media.base,
+                                        topLeft = Offset(left, 0f),
+                                        size = Size(segment, size.height),
+                                    )
+                                }
+                    )
+                } else {
+                    Box(
+                        modifier =
+                            Modifier.fillMaxHeight()
+                                .fillMaxWidth(progress)
+                                .graphicsLayer { alpha = progressAlpha.value }
+                                .background(media.base)
+                    )
+                }
             }
         }
     }
@@ -3113,6 +3169,7 @@ internal fun QueueListBody(
                             showDivider = true,
                             enabled = false,
                             isCurrent = true,
+                            unavailable = playing.unavailable,
                             onJump = {},
                             onRemove = {},
                         )
@@ -3127,6 +3184,7 @@ internal fun QueueListBody(
                         position = index,
                         showDivider = index != queue.upNext.lastIndex,
                         enabled = onRemoveUpNext != null,
+                        unavailable = item.unavailable,
                         onJump = { onJumpUpNext?.invoke(index) },
                         onRemove = { onRemoveUpNext?.invoke(index) },
                     )
@@ -3166,6 +3224,8 @@ internal fun QueueListBody(
                     )
                 CinefinListRow(
                     title = item.name,
+                    // W5-T8（MUSIC-49）：本地文件缺失 → 标灰 + 「不可用」徽标；条目保留，仍可 ✕ / 左滑移除。
+                    badge = if (item.unavailable) "不可用" else null,
                     isCurrent = isCurrent,
                     showDivider = index != queue.items.lastIndex,
                     onClick = { onJump(index) },
@@ -3178,6 +3238,7 @@ internal fun QueueListBody(
                                 translationX = swipeOffsetX
                                 scaleX = liftScale.value
                                 scaleY = liftScale.value
+                                alpha = if (item.unavailable) QueueUnavailableRowAlpha else 1f
                                 if (isDragging) {
                                     shape = RectangleShape
                                     shadowElevation = liftElevationPx
@@ -3357,6 +3418,9 @@ private fun UpNextSectionHeader(count: Int, onClear: (() -> Unit)?) {
 /** 左滑移除阈值（72dp）：超过即删条目，未超过直接回位（动效 token 归 T3；主队列行与「接下来播放」行共用）。 */
 private val QueueSwipeRemoveThreshold = 72.dp
 
+/** W5-T8（MUSIC-49）：队列里「不可用」条目的整体透明度（标灰，仍可操作）。 */
+private const val QueueUnavailableRowAlpha = 0.55f
+
 /** 「接下来播放」行（W5 T5）：次要字号 + `onSurfaceVariant` 的轻视觉权重；左滑移除，✕ 按钮兜底可访问性。 */
 @Composable
 private fun UpNextRow(
@@ -3367,6 +3431,8 @@ private fun UpNextRow(
     onJump: () -> Unit,
     onRemove: () -> Unit,
     isCurrent: Boolean = false,
+    /** W5-T8（MUSIC-49）：本地文件缺失，标灰 + 「不可用」。 */
+    unavailable: Boolean = false,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -3449,11 +3515,23 @@ private fun UpNextRow(
             Text(
                 text = title,
                 style = CinefinType.BodySmall,
-                color = if (isCurrent) media.bright else colors.onSurfaceVariant,
+                color =
+                    when {
+                        unavailable -> colors.onSurfaceFaint
+                        isCurrent -> media.bright
+                        else -> colors.onSurfaceVariant
+                    },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            if (unavailable && !isCurrent) {
+                Text(
+                    text = "不可用",
+                    style = CinefinType.LabelSmall,
+                    color = colors.onSurfaceFaint,
+                )
+            }
             if (isCurrent) {
                 Text(
                     text = "正在播放",
