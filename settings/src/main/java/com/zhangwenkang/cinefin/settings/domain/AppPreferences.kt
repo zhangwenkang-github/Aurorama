@@ -432,8 +432,16 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 均衡器预设 key（`MusicEqualizerPreset.key`；`custom` = 使用 [musicEqualizerCustomBands]）。 */
     val musicEqualizerPreset = Preference("pref_music_eq_preset", "flat")
 
-    /** 自定义频段增益（逗号分隔 dB，五段：60 / 230 / 910 / 3600 / 14000 Hz）。 */
-    val musicEqualizerCustomBands = Preference("pref_music_eq_custom_bands", "0.0,0.0,0.0,0.0,0.0")
+    /**
+     * 自定义频段增益（逗号分隔 dB，十段：31.25 Hz–16 kHz；W5-T6 起十段口径）。
+     *
+     * 旧版本的 5 段值在音效中枢初始化时一次性插值迁移（读旧写新），不在这里做运行时解释。
+     */
+    val musicEqualizerCustomBands =
+        Preference(
+            "pref_music_eq_custom_bands",
+            "0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0",
+        )
 
     /** ReplayGain 模式 key（`off` / `track` / `album`；对齐 mpv 的 `replaygain` 三态）。默认关。 */
     val musicReplayGainMode = Preference("pref_music_replaygain_mode", "off")

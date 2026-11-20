@@ -9,7 +9,9 @@ import androidx.media3.exoplayer.source.ShuffleOrder
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
+import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
 import com.zhangwenkang.cinefin.player.core.domain.models.isValidShuffleOrder
+import com.zhangwenkang.cinefin.player.local.audio.MUSIC_DEFAULT_PLAYBACK_SPEED
 import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
 import com.zhangwenkang.cinefin.player.local.audio.MusicCrossfadeMath
 import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
@@ -56,6 +58,7 @@ constructor(
     private val repository: JellyfinRepository,
     private val audioEffects: MusicAudioEffectsController,
     private val replayGainReader: ReplayGainTagReader,
+    private val sleepTimer: SleepTimerController,
 ) : MusicPlaybackController, MusicPlaybackStateSource, MusicQueueEditor {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -81,6 +84,7 @@ constructor(
     private var lastKnownDurationMs = 0L
     private var lastProgressReportAtMs = 0L
     private var lastCrossfadeLogAtMs = 0L
+    private var lastSleepFadeLogAtMs = 0L
 
     private val playerListener =
         object : Player.Listener {
@@ -91,6 +95,13 @@ constructor(
                 // 自己 setMediaItems 造成的整体替换不是"切歌"，也不能用它的索引回写队列
                 // （过渡窗口里播放器还在旧队列，索引会越界；见 setQueue 的注释）
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) return
+                // W5-T6：睡眠定时「播完当前曲目停止」= AUTO 切歌后暂停（只消费一次）
+                if (
+                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO &&
+                        sleepTimer.consumeStopAfterCurrentTrack()
+                ) {
+                    player.pause()
+                }
                 _queue.update { queue ->
                     if (
                         queue == null ||
@@ -208,14 +219,21 @@ constructor(
             }
         }
         // W30-MUSIC-FX：交叉淡化音量包络（100ms 采样；未开启时降频空转，避免常驻高频唤醒）。
+        // W5-T6：同一包络通路叠加睡眠定时结束前淡出（乘算，末 5s 自动切到 100ms 采样）。
         scope.launch {
             while (isActive) {
                 val crossfadeActive =
                     playerHolder.musicSessionActive && audioEffects.crossfadeSeconds.value > 0
-                applyCrossfadeVolume()
-                delay(if (crossfadeActive) CROSSFADE_TICK_MS else CROSSFADE_IDLE_TICK_MS)
+                val sleepFadeActive = playerHolder.musicSessionActive && sleepTimer.fadeActive()
+                applyVolumeEnvelope()
+                delay(
+                    if (crossfadeActive || sleepFadeActive) CROSSFADE_TICK_MS
+                    else CROSSFADE_IDLE_TICK_MS
+                )
             }
         }
+        // W5-T6：音乐倍速（进程级，不落偏好）——只在音乐会话内写共享播放器。
+        scope.launch { audioEffects.playbackSpeed.collect { speed -> applyPlaybackSpeed(speed) } }
         // ReplayGain 模式切换（UI 面板）时立刻按当前曲目重算增益。
         scope.launch { audioEffects.replayGainMode.collect { refreshReplayGain() } }
         // W35：本机增益覆盖写入 / 清除后重读标签（覆盖文件优先级最高，立即生效）。
@@ -268,6 +286,9 @@ constructor(
                 player.prepare()
                 // 交叉淡化可能把音量留在 0（异常路径）；起播前复位到 1，随后由包络循环接管。
                 player.volume = 1f
+                // W5-T6：音乐会话起播强制 1.0×（与视频倍速互斥，不继承上个会话）
+                audioEffects.resetPlaybackSpeedForSessionStart()
+                player.setPlaybackSpeed(MUSIC_DEFAULT_PLAYBACK_SPEED)
                 // 6) 续播（MU-9）：优先使用服务器记录的位置
                 published.currentItem
                     ?.playbackPosition
@@ -426,6 +447,8 @@ constructor(
         _durationMs.value = 0L
         _isPlaying.value = false
         audioEffects.clearCurrentTrack()
+        // W5-T6：音乐会话结束，清掉「播完当前曲目停止」的挂起状态
+        sleepTimer.clearStopAfterCurrentTrack()
 
         val player = playerHolder.existingPlayer ?: return
         if (!playerHolder.musicSessionActive) return
@@ -440,6 +463,9 @@ constructor(
             player.clearMediaItems()
         }
             .onFailure { Timber.w(it, "停止音乐失败") }
+        // 倍速是音乐会话内状态：会话结束复位 1.0，避免共享实例带进视频会话
+        audioEffects.resetPlaybackSpeedForSessionStart()
+        player.setPlaybackSpeed(MUSIC_DEFAULT_PLAYBACK_SPEED)
         playerHolder.applyMusicPlaybackTuning(inMusicSession = false)
         if (itemId != null) {
             reportStop(itemId, positionMs, durationMs)
@@ -601,38 +627,58 @@ constructor(
         this?.let { mediaId -> runCatching { UUID.fromString(mediaId) }.getOrNull() }
 
     /**
-     * 交叉淡化音量包络（W30-MUSIC-FX·近似方案：曲尾淡出 + 曲首淡入）。
+     * 音量包络（W30-MUSIC-FX 交叉淡化 + W5-T6 睡眠定时淡出）。
      *
-     * - 音乐会话结束 / 关闭淡化：复位为 1（不残留）；
-     * - 暂停中：保持当前包络值（恢复播放后按位置续算）；
-     * - 其余：`Player.volume` = [MusicCrossfadeMath.crossfadeVolume]（等功率，与 gapless 不冲突）。
+     * - 音乐会话结束 / 无任何淡出：复位为 1（不残留）；
+     * - 交叉淡化：`Player.volume` = [MusicCrossfadeMath.crossfadeVolume]（等功率，与 gapless 不冲突），暂停中保持当前值；
+     * - 睡眠定时：末 [SleepTimerSpec.FADE_OUT_MS] 秒叠乘 [SleepTimerSpec.fadeOutGain]（同一 `Player.volume`
+     *   包络通路），到点暂停后由 [SleepTimerController] 复位为 1。
      */
-    private fun applyCrossfadeVolume() {
+    private fun applyVolumeEnvelope() {
         val player = playerHolder.existingPlayer ?: return
         if (!playerHolder.musicSessionActive || !player.isPlayingMusicItem()) {
             if (player.volume != 1f) player.volume = 1f
             return
         }
         val fadeMs = audioEffects.crossfadeSeconds.value * 1_000L
-        if (fadeMs <= 0L) {
-            if (player.volume != 1f) player.volume = 1f
+        val sleepGain = sleepTimer.volumeGain()
+        if (!player.isPlaying && sleepGain >= 0.999f) {
+            // 交叉淡化暂停中保持当前包络值（旧行为）；关闭淡化时复位 1
+            if (fadeMs <= 0L && player.volume != 1f) player.volume = 1f
             return
         }
-        if (!player.isPlaying) return
-        val duration = player.duration
-        if (duration == C.TIME_UNSET || duration <= 0L) {
-            if (player.volume != 1f) player.volume = 1f
+        val crossfadeGain =
+            if (fadeMs > 0L && player.isPlaying) {
+                val duration = player.duration
+                if (duration == C.TIME_UNSET || duration <= 0L) {
+                    1f
+                } else {
+                    MusicCrossfadeMath.crossfadeVolume(
+                        positionMs = player.currentPosition.coerceAtLeast(0L),
+                        durationMs = duration,
+                        fadeMs = fadeMs,
+                    )
+                }
+            } else {
+                1f
+            }
+        val target = crossfadeGain * sleepGain
+        if (abs(player.volume - target) <= 0.002f) return
+        player.volume = target
+        val now = SystemClock.elapsedRealtime()
+        if (sleepGain < 0.999f) {
+            if (now - lastSleepFadeLogAtMs >= CROSSFADE_LOG_INTERVAL_MS || target <= 0.001f) {
+                lastSleepFadeLogAtMs = now
+                Timber.i(
+                    "睡眠定时淡出：剩余 %d ms → 音量 %.2f",
+                    sleepTimer.remainingMs(),
+                    target,
+                )
+            }
             return
         }
-        val target =
-            MusicCrossfadeMath.crossfadeVolume(
-                positionMs = player.currentPosition.coerceAtLeast(0L),
-                durationMs = duration,
-                fadeMs = fadeMs,
-            )
-        if (abs(player.volume - target) > 0.002f) {
-            player.volume = target
-            val now = SystemClock.elapsedRealtime()
+        if (fadeMs > 0L && player.isPlaying) {
+            val duration = player.duration
             if (
                 now - lastCrossfadeLogAtMs >= CROSSFADE_LOG_INTERVAL_MS ||
                     target <= 0.001f ||
@@ -642,11 +688,21 @@ constructor(
                 Timber.i(
                     "交叉淡化：位置 %d ms / 剩余 %d ms → 音量 %.2f",
                     player.currentPosition.coerceAtLeast(0L),
-                    (duration - player.currentPosition).coerceAtLeast(0L),
+                    if (duration == C.TIME_UNSET) 0L
+                    else (duration - player.currentPosition).coerceAtLeast(0L),
                     target,
                 )
             }
         }
+    }
+
+    /** 音乐会话内应用倍速（Exo Sonics 保调）；视频会话 / 非音乐条目一律不碰。 */
+    private fun applyPlaybackSpeed(speed: Float) {
+        val player = playerHolder.existingPlayer ?: return
+        if (!playerHolder.musicSessionActive || !player.isPlayingMusicItem()) return
+        if (abs(player.playbackParameters.speed - speed) <= 0.001f) return
+        player.setPlaybackSpeed(speed)
+        Timber.i("音乐倍速：%.2f×", speed)
     }
 
     /** 读取当前曲目的 ReplayGain 标签并按模式应用；异步 IO，回到主线程后核对曲目未变。 */

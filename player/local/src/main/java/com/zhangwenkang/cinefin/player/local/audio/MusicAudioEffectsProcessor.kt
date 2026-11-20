@@ -9,7 +9,7 @@ import kotlin.math.sqrt
 import timber.log.Timber
 
 /**
- * 音乐音效处理器（W30-MUSIC-FX）：EQ（5 段 peaking）+ ReplayGain 增益，挂在 ExoPlayer 的音频处理链上
+ * 音乐音效处理器（W30-MUSIC-FX；W5-T6 升 10 段）：EQ（10 段 peaking）+ ReplayGain 增益，挂在 ExoPlayer 的音频处理链上
  * （[CinefinRenderersFactory] 与 [AudioDelayProcessor] 同链）。
  *
  * 线程模型：音频线程调用 [queueInput]；参数由主线程写入 `@Volatile` 字段，可在播放中即时生效。
@@ -25,10 +25,10 @@ class MusicAudioEffectsProcessor : BaseAudioProcessor() {
     /** 是否处于音乐会话；视频会话（false）时透传。 */
     @Volatile var sessionActive: Boolean = false
 
-    /** EQ 开关（关闭时跳过 5 段滤波）。 */
+    /** EQ 开关（关闭时跳过 10 段滤波）。 */
     @Volatile var equalizerEnabled: Boolean = false
 
-    /** 五段增益（dB），顺序同 [MusicEqualizerFrequencies]。 */
+    /** 十段增益（dB），顺序同 [MusicEqualizerFrequencies]。 */
     @Volatile var equalizerGainsDb: List<Float> = MusicEqualizerPreset.FLAT.gainsDb
 
     /** ReplayGain 线性增益（1 = 不应用）。 */
@@ -111,7 +111,7 @@ class MusicAudioEffectsProcessor : BaseAudioProcessor() {
         statsOutputSquares = 0.0
     }
 
-    /** 每处理一个 buffer 检查一次参数变化：变化时重算五段系数（不重置滤波器状态，避免瞬断）。 */
+    /** 每处理一个 buffer 检查一次参数变化：变化时重算十段系数（不重置滤波器状态，避免瞬断）。 */
     private fun applyParametersIfChanged() {
         val gains = equalizerGainsDb
         if (gains == appliedGains) return

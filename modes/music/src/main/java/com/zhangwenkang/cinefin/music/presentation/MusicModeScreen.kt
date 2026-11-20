@@ -251,6 +251,8 @@ fun MusicModeScreen(
     var pendingPlaylistSongs by remember { mutableStateOf<List<MusicSong>>(emptyList()) }
     // W5 T1（MUSIC-47）：长按曲目 = 上下文菜单 bottom sheet（多选改由工具栏「多选」入口进入）
     var contextSong by remember { mutableStateOf<MusicSong?>(null) }
+    // W5 T6（MUSIC-34）：音频信息面板（长按菜单「音频信息」/ 音效面板「输出信息」共用）
+    var audioInfo by remember { mutableStateOf<MusicAudioInfo?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // W60b：下载反馈统一（歌曲 / 专辑 / 批量）——「已加入下载队列 · N 首」+「查看」跳下载页。
@@ -271,6 +273,7 @@ fun MusicModeScreen(
     val effectsReplayGainMode by viewModel.effectsReplayGainMode.collectAsState()
     val effectsReplayGainLabel by viewModel.effectsReplayGainLabel.collectAsState()
     val effectsCrossfadeSeconds by viewModel.effectsCrossfadeSeconds.collectAsState()
+    val effectsPlaybackSpeed by viewModel.effectsPlaybackSpeed.collectAsState()
     val effectsHasCurrentTrack by viewModel.effectsHasCurrentTrack.collectAsState()
     val effectsOverrideTrackDb by viewModel.effectsOverrideTrackDb.collectAsState()
     val effectsOverrideAlbumDb by viewModel.effectsOverrideAlbumDb.collectAsState()
@@ -784,8 +787,11 @@ fun MusicModeScreen(
                     contextSong = null
                     viewModel.toggleSongDownload(contextSheetSong)
                 },
-                // 音频信息（MUSIC-34）：T6 交付前隐藏（设计定稿一 §1）
-                onAudioInfo = null,
+                // 音频信息（MUSIC-34）：W5-T6 起启用（设计定稿一 §1）
+                onAudioInfo = {
+                    contextSong = null
+                    audioInfo = viewModel.audioInfoFor(contextSheetSong)
+                },
             )
         }
 
@@ -807,11 +813,15 @@ fun MusicModeScreen(
                     viewModel.selectSleepTimer(minutes)
                     sleepSheetOpen = false
                 },
+                onStopAfterCurrentTrack = {
+                    viewModel.stopAfterCurrentTrack()
+                    sleepSheetOpen = false
+                },
                 onDismiss = { sleepSheetOpen = false },
             )
         }
 
-        // W30-MUSIC-FX：音效面板（EQ / ReplayGain / 淡入淡出），入口在全屏播放页功能行。
+        // W30-MUSIC-FX：音效面板（EQ / ReplayGain / 淡入淡出 + W5-T6 倍速 / 输出信息），入口在全屏播放页功能行。
         if (effectsSheetOpen) {
             MusicEffectsSheet(
                 equalizerEnabled = effectsEqualizerEnabled,
@@ -823,6 +833,7 @@ fun MusicModeScreen(
                 overrideTrackDb = effectsOverrideTrackDb,
                 overrideAlbumDb = effectsOverrideAlbumDb,
                 crossfadeSeconds = effectsCrossfadeSeconds,
+                playbackSpeed = effectsPlaybackSpeed,
                 onDismiss = { effectsSheetOpen = false },
                 onToggleEqualizer = viewModel::setEqualizerEnabled,
                 onSelectPreset = viewModel::selectEqualizerPreset,
@@ -834,7 +845,17 @@ fun MusicModeScreen(
                 onCommitOverride = viewModel::commitReplayGainOverride,
                 onClearOverride = viewModel::clearReplayGainOverride,
                 onSelectCrossfade = viewModel::selectCrossfadeSeconds,
+                onSelectPlaybackSpeed = viewModel::selectPlaybackSpeed,
+                onOpenAudioInfo = {
+                    effectsSheetOpen = false
+                    audioInfo = viewModel.audioInfoForCurrent()
+                },
             )
+        }
+
+        // W5-T6 · MUSIC-34：音频输出信息面板
+        audioInfo?.let { info ->
+            MusicAudioInfoSheet(info = info, onDismiss = { audioInfo = null })
         }
 
         if (overlayGuideOpen) {
@@ -2740,7 +2761,7 @@ private fun MusicBatchDeleteDialog(
 /**
  * 曲目长按上下文菜单（W5 T1 · MUSIC-47）：`ModalBottomSheet` 容器与队列面板同参数（`surfaceContainer` + 拖拽柄）。
  *
- * 五动作：播放下一首 / 加到队尾 / 加入播放列表 / 音频信息（**T6 交付前隐藏**，[onAudioInfo] 传 null 即不渲染）/ 下载 ·
+ * 五动作：播放下一首 / 加到队尾 / 加入播放列表 / 音频信息（W5-T6 起启用，[onAudioInfo] 传 null 时不渲染）/ 下载 ·
  * 离线。多选批量模式改由工具栏「多选」入口进入，长按不再进多选。
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -2813,7 +2834,7 @@ private fun SongContextSheet(
                 label = "加入播放列表",
                 onClick = onAddToPlaylist,
             )
-            // 音频信息（MUSIC-34）T6 交付；本卡只留接入口子，传 null 即整项隐藏
+            // 音频信息（MUSIC-34）：W5-T6 起启用
             if (onAudioInfo != null) {
                 SongContextAction(
                     icon = CoreR.drawable.ic_info,
@@ -3120,12 +3141,17 @@ private fun EmptyHint(title: String, message: String? = null) {
     }
 }
 
-/** 睡眠定时面板（W55 统一）：与视频 / 播放器共享 core 选择组件与进程级状态源；选中即生效并关闭面板。 */
+/**
+ * 睡眠定时面板（W55 统一）：与视频 / 播放器共享 core 选择组件与进程级状态源；选中即生效并关闭面板。
+ *
+ * W5-T6：档位改 15/30/45/60/90（core 组件同源），并在下方补音乐专属「播完当前曲目停止」。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SleepTimerSheet(
     state: SleepTimerController.State,
     onSelect: (Int?) -> Unit,
+    onStopAfterCurrentTrack: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
@@ -3160,6 +3186,14 @@ private fun SleepTimerSheet(
                 activeMinutes = state.minutes,
                 remainingMs = state.remainingMs,
                 onSelect = onSelect,
+            )
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
+            // W5-T6 · MUSIC-33：音乐专属「播完当前曲目停止」（视频页不适用该语义，故不放进 core 共享组件）
+            CinefinListRow(
+                title = "播完当前曲目停止",
+                secondary = if (state.stopAfterCurrentTrack) "已设置 · 播完本曲后暂停" else "不打断当前曲目，播完这首再暂停",
+                isCurrent = state.stopAfterCurrentTrack,
+                onClick = onStopAfterCurrentTrack,
             )
             Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
         }

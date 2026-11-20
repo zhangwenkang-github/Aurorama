@@ -68,16 +68,15 @@ constructor(
         )
     val equalizerPreset: StateFlow<MusicEqualizerPreset> = _equalizerPreset.asStateFlow()
 
-    private val _customBands =
-        MutableStateFlow(
-            parseMusicEqualizerBands(
-                appPreferences.getValue(appPreferences.musicEqualizerCustomBands)
-            )
-        )
+    private val _customBands = MutableStateFlow(loadCustomBands())
 
     private val _equalizerBands =
         MutableStateFlow(musicEqualizerBands(_equalizerPreset.value, _customBands.value))
     val equalizerBands: StateFlow<List<Float>> = _equalizerBands.asStateFlow()
+
+    /** 音乐倍速（W5-T6 · MUSIC-32）：进程级状态，不落偏好；音乐会话起播强制 1.0。 */
+    private val _playbackSpeed = MutableStateFlow(MUSIC_DEFAULT_PLAYBACK_SPEED)
+    val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
     private val _replayGainMode =
         MutableStateFlow(
@@ -139,12 +138,7 @@ constructor(
         val bands =
             _equalizerBands.value.toMutableList().also { list ->
                 list[index] =
-                    gainDb
-                        .takeIf { it.isFinite() }
-                        ?.coerceIn(
-                            MUSIC_EQUALIZER_MIN_GAIN_DB,
-                            MUSIC_EQUALIZER_MAX_GAIN_DB,
-                        ) ?: 0f
+                    gainDb.takeIf { it.isFinite() }?.let(::quantizeMusicEqualizerGain) ?: 0f
             }
         _customBands.value = bands
         _equalizerPreset.value = MusicEqualizerPreset.CUSTOM
@@ -174,6 +168,16 @@ constructor(
         val sanitized = MusicCrossfadeMath.sanitizeCrossfadeSeconds(seconds)
         appPreferences.setValue(appPreferences.musicCrossfadeSeconds, sanitized)
         _crossfadeSeconds.value = sanitized
+    }
+
+    /** 选择音乐倍速（W5-T6）：只改进程级状态，不落偏好。 */
+    fun setPlaybackSpeed(speed: Float) {
+        _playbackSpeed.value = sanitizeMusicPlaybackSpeed(speed)
+    }
+
+    /** 音乐会话起播：强制回到 1.0（与视频倍速互斥，不继承上次会话）。 */
+    fun resetPlaybackSpeedForSessionStart() {
+        _playbackSpeed.value = MUSIC_DEFAULT_PLAYBACK_SPEED
     }
 
     /** 由播放链在切歌 / 起播时调用（与 ReplayGain 模式无关）：登记当前曲目并加载本机覆盖值， 供音效面板编辑；传 null 表示没有在播曲目。 */
@@ -309,6 +313,16 @@ constructor(
             ReplayGainMode.TRACK -> tags?.trackGainDb
             ReplayGainMode.ALBUM -> tags?.albumGainDb ?: tags?.trackGainDb
         }
+
+    /** 旧 5 段自定义偏好 → 10 段一次性迁移（读旧写新；写回后再读已是十段，重复执行结果一致）。 */
+    private fun loadCustomBands(): List<Float> {
+        val stored = appPreferences.getValue(appPreferences.musicEqualizerCustomBands)
+        val migrated = migrateLegacyMusicEqualizerBands(stored)
+        if (migrated != null) {
+            appPreferences.setValue(appPreferences.musicEqualizerCustomBands, migrated)
+        }
+        return parseMusicEqualizerBands(migrated ?: stored)
+    }
 
     companion object {
         /** 增益上限 +18 dB（8×）与下限 -26 dB（0.05×）：避免脏标签造成爆音或局部静音。 */
