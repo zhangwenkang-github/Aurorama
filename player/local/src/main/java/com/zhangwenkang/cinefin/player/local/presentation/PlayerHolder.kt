@@ -7,6 +7,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import com.zhangwenkang.cinefin.player.core.playback.EngineTrack
 import com.zhangwenkang.cinefin.player.core.playback.EngineTrackType
@@ -29,6 +30,9 @@ import com.zhangwenkang.cinefin.player.local.engine.PlaybackEngineFactory
 import com.zhangwenkang.cinefin.player.local.engine.exo.ExoPlaybackEngine
 import com.zhangwenkang.cinefin.player.local.engine.exo.ExoSubtitleHooks
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
+import com.zhangwenkang.cinefin.player.local.network.PlaybackServerCredentials
+import com.zhangwenkang.cinefin.player.local.network.ServerAuthDataSourceFactory
+import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.settings.domain.PlayerDecodeFallback
 import java.util.UUID
@@ -63,6 +67,7 @@ constructor(
     val playlistManager: PlaylistManager,
     private val appPreferences: AppPreferences,
     private val musicAudioEffects: MusicAudioEffectsController,
+    private val repository: JellyfinRepository,
 ) {
     companion object {
         /** 播放核心取值，与 `AppPreferences.playerBackend` 里存的一致 */
@@ -541,6 +546,19 @@ constructor(
         }
     }
 
+    /**
+     * 播放请求的服务器凭据（W5-T4r）：**每次请求时现读** baseUrl / token。
+     *
+     * 走 `JellyfinRepository`（`JellyfinApi` 的实时会话状态）而不是缓存快照：登录 / 切换账号 / 换服务器后 不需要重建播放器实例。鉴权头构造与同源判定见
+     * `ServerCredentialScope`。
+     */
+    private val serverAuthDataSourceFactory = ServerAuthDataSourceFactory {
+        PlaybackServerCredentials(
+            baseUrl = repository.getBaseUrl(),
+            accessToken = repository.getAccessToken(),
+        )
+    }
+
     private fun createExoPlayer(
         audioAttributes: AudioAttributes,
         trackSelector: DefaultTrackSelector,
@@ -565,6 +583,12 @@ constructor(
                 .setEnableDecoderFallback(PlayerDecodeMode.decoderFallbackEnabled(decodeMode))
         return ExoPlayer.Builder(application, renderersFactory)
             .setAudioAttributes(audioAttributes, true)
+            /*
+             * W5-T4r：HTTP 数据源注入 Jellyfin 鉴权头（仅当前服务器同源）。
+             * `/Audio/{itemId}/universal` 在 Jellyfin 12 上无鉴权 401、api_key 也 401，只有
+             * `Authorization: MediaBrowser Token="…"` 头能 200（见 `network/JellyfinAuth.kt`）。
+             */
+            .setMediaSourceFactory(DefaultMediaSourceFactory(serverAuthDataSourceFactory))
             /*
              * W68：锁屏 / 后台继续播放（默认开启）必须持有 partial wake lock + wifi lock。
              * 真机实测（K60，锁屏 Dozing）未设置时播放会在缓冲中停滞（speed=0），唤醒才恢复；
