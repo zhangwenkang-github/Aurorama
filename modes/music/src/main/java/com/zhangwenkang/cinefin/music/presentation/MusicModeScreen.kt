@@ -2965,8 +2965,8 @@ internal fun QueueSheet(
 /**
  * 队列编辑列表体（W5 T1；W5 T5 双分区）：队列 sheet 与宽屏播放页右栏「队列」Tab 共用，行为与视觉同一份。
  *
- * 分区：「接下来播放」（手动插入、优先消费、播完即出）在上，主队列在下。 主队列：长按右侧「≡」拖拽排序、点行跳转、✕ 移除；接下来播放：更轻视觉权重 + 左滑移除（滑出动效 token 归
- * T3，这里只有普通位移 + 删除）。
+ * 分区：「接下来播放」（手动插入、优先消费、播完即出）在上，主队列在下。 主队列：长按右侧「≡」拖拽排序、点行跳转、左滑或 ✕ 移除；接下来播放：更轻视觉权重 + 左滑移除（滑出动效 token
+ * 归 T3，这里只有普通位移 + 删除）。两种行共用 72dp 阈值与「未过阈值回位」口径。
  */
 @Composable
 internal fun QueueListBody(
@@ -2982,6 +2982,7 @@ internal fun QueueListBody(
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     val rowHeightPx = with(LocalDensity.current) { QueueRowHeight.toPx() }
+    val swipeThresholdPx = with(LocalDensity.current) { QueueSwipeRemoveThreshold.toPx() }
     var draggingIndex by remember(queue) { mutableStateOf<Int?>(null) }
     var dragOffset by remember(queue) { mutableFloatStateOf(0f) }
     LazyColumn(modifier = modifier) {
@@ -3039,6 +3040,7 @@ internal fun QueueListBody(
             val isCurrent =
                 (index == queue.currentIndex && queue.upNextPlaying == null) ||
                     item.itemId == queue.upNextPlaying?.itemId
+            var swipeOffsetX by remember(item.itemId) { mutableFloatStateOf(0f) }
             CinefinListRow(
                 title = item.name,
                 isCurrent = isCurrent,
@@ -3046,7 +3048,26 @@ internal fun QueueListBody(
                 onClick = { onJump(index) },
                 modifier =
                     Modifier.zIndex(if (isDragging) 1f else 0f)
-                        .graphicsLayer { translationY = if (isDragging) dragOffset else 0f }
+                        .graphicsLayer {
+                            translationY = if (isDragging) dragOffset else 0f
+                            translationX = swipeOffsetX
+                        }
+                        // W5 T5r：主队列行左滑移除，阈值 / 回位口径与「接下来播放」行一致。
+                        // 正在播放行同样可滑（与点「✕」等价：移除后播放推进到下一时间线条目）。
+                        .pointerInput(index, item.itemId, queue.items.size) {
+                            detectHorizontalDragGestures(
+                                onDragEnd = {
+                                    if (swipeOffsetX <= -swipeThresholdPx) onRemove(index)
+                                    swipeOffsetX = 0f
+                                },
+                                onDragCancel = { swipeOffsetX = 0f },
+                                onHorizontalDrag = { change, amount ->
+                                    change.consume()
+                                    swipeOffsetX =
+                                        (swipeOffsetX + amount).coerceIn(-swipeThresholdPx * 2, 0f)
+                                },
+                            )
+                        }
                         .background(
                             if (isDragging) colors.surfaceContainerHigh else Color.Transparent
                         ),
@@ -3152,8 +3173,8 @@ private fun UpNextSectionHeader(count: Int, onClear: (() -> Unit)?) {
     }
 }
 
-/** 左滑移除阈值（72dp）：超过即删条目，未超过直接回位（动效 token 归 T3）。 */
-private val UpNextSwipeThreshold = 72.dp
+/** 左滑移除阈值（72dp）：超过即删条目，未超过直接回位（动效 token 归 T3；主队列行与「接下来播放」行共用）。 */
+private val QueueSwipeRemoveThreshold = 72.dp
 
 /** 「接下来播放」行（W5 T5）：次要字号 + `onSurfaceVariant` 的轻视觉权重；左滑移除，✕ 按钮兜底可访问性。 */
 @Composable
@@ -3168,7 +3189,7 @@ private fun UpNextRow(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val thresholdPx = with(LocalDensity.current) { UpNextSwipeThreshold.toPx() }
+    val thresholdPx = with(LocalDensity.current) { QueueSwipeRemoveThreshold.toPx() }
     var translationX by remember(title, position) { mutableFloatStateOf(0f) }
     Column {
         Row(

@@ -618,19 +618,12 @@ constructor(
         val previous = _queue.value ?: return
         if (player.mediaItemCount != previous.playbackItems.size) return
         if (player.currentMediaItemIndex !in 0 until player.mediaItemCount) return
-        val updated = previous.withTimelineIndex(player.currentMediaItemIndex)
-        if (updated == previous) return
-        if (previous.upNextCount > 0) {
-            val blockStart = previous.playbackIndex
-            val blockEnd = (blockStart + previous.upNextCount).coerceAtMost(player.mediaItemCount)
-            val newCurrent = player.currentMediaItemIndex
-            // 倒序删，保证前面下标不失效：正在播放的旧条目 + 被跨过的待播条目
-            for (index in blockEnd - 1 downTo blockStart) {
-                val stale = index != newCurrent && (index < newCurrent || index == blockStart)
-                if (stale && index < player.mediaItemCount) player.removeMediaItem(index)
-            }
+        val sync = previous.reconcileWithTimeline(player.currentMediaItemIndex) ?: return
+        // 旧下标降序摘除：已播出 / 被跳过的「接下来播放」条目，主队列条目不在这里
+        for (index in sync.removalsDescending) {
+            if (index < player.mediaItemCount) player.removeMediaItem(index)
         }
-        _queue.value = player.captureShuffleSnapshot(updated)
+        _queue.value = player.captureShuffleSnapshot(sync.queue)
     }
 
     /** 主队列下标 → 时间线下标（接下来播放段插在主队列当前曲之后，主队列后半段整体后移）。 */

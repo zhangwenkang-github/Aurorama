@@ -204,7 +204,44 @@ data class MusicQueue(
                 )
         }
     }
+
+    /**
+     * 播放器切换后的时间线对齐（W5 T5r）：模型按 [withTimelineIndex] 演进，并从播放器时间线摘掉已播 / 被跳过的 「接下来播放」条目，保证
+     * `playbackItems` 与播放器时间线始终同构。
+     *
+     * 返回 null 表示时间线没变（仍在播当前条目 / 下标越界），调用方无需动播放器。 [MusicQueueTimelineSync.removalsDescending]
+     * 是**旧时间线**下标，降序可直接逐个 `removeMediaItem`。
+     */
+    fun reconcileWithTimeline(timelineIndex: Int): MusicQueueTimelineSync? {
+        if (timelineIndex !in playbackItems.indices) return null
+        if (items.isEmpty()) return null
+        val updated = withTimelineIndex(timelineIndex)
+        if (updated == this) return null
+        val removals =
+            if (upNextCount == 0) emptyList()
+            else {
+                // 可删块只在「接下来播放」段内：主队列当前曲永远留在时间线上（上一首 / repeat 要用）。
+                // upNextPlaying != null 时它就是块首；否则块首是第一个待播条目。
+                val playingSlot = if (upNextPlaying != null) playbackIndex else null
+                val pendingStart = playbackIndex + 1
+                val pendingEnd = (pendingStart + upNext.size).coerceAtMost(playbackItems.size)
+                buildList {
+                    if (playingSlot != null && playingSlot != timelineIndex) add(playingSlot)
+                    for (slot in pendingStart until pendingEnd) {
+                        if (slot < timelineIndex) add(slot)
+                    }
+                }
+                    .sortedDescending()
+            }
+        return MusicQueueTimelineSync(updated, removals)
+    }
 }
+
+/** [MusicQueue.reconcileWithTimeline] 的结果：对齐后的队列 + 待从播放器时间线摘除的旧下标（降序）。 */
+data class MusicQueueTimelineSync(
+    val queue: MusicQueue,
+    val removalsDescending: List<Int>,
+)
 
 /** 实际 shuffle 序必须是 `0 until itemCount` 的完整置换。 */
 fun isValidShuffleOrder(order: List<Int>?, itemCount: Int): Boolean {
