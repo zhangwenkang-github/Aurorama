@@ -94,6 +94,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.rememberCinefinDraw
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinNavigationMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinThemes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
@@ -109,6 +110,7 @@ import com.zhangwenkang.cinefin.models.FindroidSeason
 import com.zhangwenkang.cinefin.models.FindroidShow
 import com.zhangwenkang.cinefin.models.SortBy
 import com.zhangwenkang.cinefin.models.SortOrder
+import com.zhangwenkang.cinefin.music.presentation.MusicDomainTheme
 import com.zhangwenkang.cinefin.music.presentation.MusicItemRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeRoute
 import com.zhangwenkang.cinefin.music.presentation.MusicModeScreen
@@ -177,6 +179,7 @@ import com.zhangwenkang.cinefin.presentation.setup.login.LoginScreen
 import com.zhangwenkang.cinefin.presentation.setup.servers.ServersScreen
 import com.zhangwenkang.cinefin.presentation.setup.users.UsersScreen
 import com.zhangwenkang.cinefin.presentation.setup.welcome.WelcomeScreen
+import com.zhangwenkang.cinefin.presentation.theme.AppThemePresentation
 import com.zhangwenkang.cinefin.presentation.update.UpdateRoute
 import com.zhangwenkang.cinefin.presentation.update.UpdateScreen
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
@@ -389,6 +392,9 @@ fun NavigationRoot(
     hasServers: Boolean,
     hasCurrentServer: Boolean,
     hasCurrentUser: Boolean,
+    /** W5-T1 返修：主界面已解析好的 App 主题结论（音乐域跟随全局四变体）。默认值只服务预览 / 测试。 */
+    appTheme: AppThemePresentation =
+        AppThemePresentation(CinefinThemes.AURORA, darkTheme = true, dynamicColor = false),
     /** W68：锁屏 / 通知点击音乐条目的请求——导航到音乐 Tab 并展开全屏播放覆盖层。 */
     openMusicNowPlayingRequest: Boolean = false,
     /** 请求已消费回调（MainActivity 清标记，避免重组时重复触发）。 */
@@ -396,6 +402,15 @@ fun NavigationRoot(
 ) {
     val isOfflineMode = LocalOfflineMode.current
     val offlineModeViewModel: OfflineModeViewModel = hiltViewModel()
+    // 音乐域与全局主题同源：同一份结论传给音乐页，不在模块内自建映射
+    val musicTheme =
+        remember(appTheme) {
+            MusicDomainTheme(
+                themeId = appTheme.themeId,
+                darkTheme = appTheme.darkTheme,
+                dynamicColor = appTheme.dynamicColor,
+            )
+        }
 
     // W36 导航门控（纯函数见 OfflineNavigation.kt，单测覆盖）：离线模式优先落离线首页。
     // 只在首次组合时决定：之后进入 / 退出离线模式由显式导航与页面内容分流处理，避免切换时重建导航图。
@@ -1392,6 +1407,7 @@ fun NavigationRoot(
             }
             composable<MusicModeRoute> {
                 MusicModeScreen(
+                    theme = musicTheme,
                     onOpenDrawer = openDrawer,
                     // W56：顶层「音乐」图标再点 = 回音乐主页（先收起全屏播放 / 歌词覆盖层，再退页内详情）。
                     reselectSignal = musicOverlayReselectSignal,
@@ -1405,6 +1421,7 @@ fun NavigationRoot(
             composable<MusicItemRoute> { backStackEntry ->
                 val route: MusicItemRoute = backStackEntry.toRoute()
                 MusicModeScreen(
+                    theme = musicTheme,
                     onOpenDrawer = openDrawer,
                     initialSongId = route.itemId,
                     initialQueueItemIds = route.queueItemIds,
@@ -1449,6 +1466,7 @@ fun NavigationRoot(
                         }
                     TemporaryLibraryKind.Music ->
                         MusicModeScreen(
+                            theme = musicTheme,
                             onOpenDrawer = openDrawer,
                             // libraryId 由 SavedStateHandle 进 ViewModel（按该库加载），name 只用于顶栏标题。
                             libraryName = route.libraryName,
@@ -1506,7 +1524,11 @@ fun NavigationRoot(
                 val route: LibraryRoute = backStackEntry.toRoute()
                 if (route.libraryType == CollectionType.Music) {
                     // 兜底：任何残留路由落到音乐库时同样进音乐模式（见 libraryEntryRoute）
-                    MusicModeScreen(onOpenDrawer = openDrawer, onSearchClick = openMusicSearch)
+                    MusicModeScreen(
+                        theme = musicTheme,
+                        onOpenDrawer = openDrawer,
+                        onSearchClick = openMusicSearch,
+                    )
                 } else {
                     // 库内容页按域确立内容域：书籍库属阅读域，影视类库属影视域
 

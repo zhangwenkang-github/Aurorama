@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.playback
 
 import android.app.Service
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -29,6 +30,8 @@ import com.zhangwenkang.cinefin.music.data.LyricsOverlayPosition
 import com.zhangwenkang.cinefin.music.data.MusicLyricsOverlayController
 import com.zhangwenkang.cinefin.music.data.clampOverlayPosition
 import com.zhangwenkang.cinefin.music.presentation.MusicLyricsOverlayContent
+import com.zhangwenkang.cinefin.presentation.theme.resolveAppThemePresentation
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +55,9 @@ class MusicLyricsOverlayService : Service() {
 
     @Inject lateinit var controller: MusicLyricsOverlayController
 
+    /** W5-T1 返修：桌面歌词同样跟随 App 全局主题（独立窗口拿不到环境主题，只能读偏好同源解析）。 */
+    @Inject lateinit var appPreferences: AppPreferences
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var windowManager: WindowManager? = null
     private var overlayView: ComposeView? = null
@@ -74,9 +80,24 @@ class MusicLyricsOverlayService : Service() {
         view.setViewTreeLifecycleOwner(owner)
         view.setViewTreeViewModelStoreOwner(owner)
         view.setViewTreeSavedStateRegistryOwner(owner)
+        // 悬浮窗生命周期内主题固定（配置变化会被系统重建窗口），与主界面共用同一份解析结论
+        val appTheme =
+            resolveAppThemePresentation(
+                themeId = appPreferences.getValue(appPreferences.theme),
+                systemDark =
+                    (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                        Configuration.UI_MODE_NIGHT_YES,
+                dynamicColorsEnabled = appPreferences.getValue(appPreferences.dynamicColors),
+            )
         view.setContent {
             val state by controller.state.collectAsState()
-            CinefinTheme(domain = ContentDomain.Music, surfaceBackground = false) {
+            CinefinTheme(
+                domain = ContentDomain.Music,
+                themeId = appTheme.themeId,
+                darkTheme = appTheme.darkTheme,
+                dynamicColor = appTheme.dynamicColor,
+                surfaceBackground = false,
+            ) {
                 MusicLyricsOverlayContent(
                     state = state,
                     onDrag = ::moveBy,

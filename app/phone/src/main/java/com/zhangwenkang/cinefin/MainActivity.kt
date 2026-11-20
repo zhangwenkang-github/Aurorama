@@ -33,10 +33,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinThemes
 import com.zhangwenkang.cinefin.playback.EXTRA_OPEN_MUSIC_NOW_PLAYING
 import com.zhangwenkang.cinefin.presentation.components.ColdStartSplash
 import com.zhangwenkang.cinefin.presentation.film.DownloadTab
+import com.zhangwenkang.cinefin.presentation.theme.AppThemePresentation
+import com.zhangwenkang.cinefin.presentation.theme.resolveAppThemePresentation
 import com.zhangwenkang.cinefin.presentation.utils.LocalOfflineMode
 import com.zhangwenkang.cinefin.utils.DOWNLOADS_TAB_FAILED
 import com.zhangwenkang.cinefin.utils.EXTRA_DOWNLOADS_TAB
@@ -76,21 +77,16 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val state by viewModel.state.collectAsStateWithLifecycle()
             val systemInDarkTheme = isSystemInDarkTheme()
-            // `system` / `dynamic` 的明暗跟系统走；light 固定浅色，其余主题固定深色。
-            val darkTheme =
-                when (state.themeId) {
-                    CinefinThemes.LIGHT -> false
-                    CinefinThemes.SYSTEM,
-                    CinefinThemes.DYNAMIC -> systemInDarkTheme
-                    else -> true
-                }
-            // `system` 解析成 aurora / light 的真实色板 id；`dynamic` 保留 id 让 M3 走系统动态取色。
-            val themeId =
-                if (state.themeId == CinefinThemes.SYSTEM) {
-                    if (systemInDarkTheme) CinefinThemes.AURORA else CinefinThemes.LIGHT
-                } else {
-                    state.themeId
-                }
+            // W5-T1 返修：明暗与色板解析抽成纯函数（`presentation/theme/AppThemeResolution.kt`），
+            // 音乐域与桌面歌词悬浮窗共用同一结论，避免第二套映射。
+            val appTheme =
+                resolveAppThemePresentation(
+                    themeId = state.themeId,
+                    systemDark = systemInDarkTheme,
+                    dynamicColorsEnabled = state.isDynamicColors,
+                )
+            val darkTheme = appTheme.darkTheme
+            val themeId = appTheme.themeId
 
             val activity = LocalActivity.current as? ComponentActivity
             LaunchedEffect(darkTheme) {
@@ -112,7 +108,7 @@ class MainActivity : AppCompatActivity() {
             CinefinTheme(
                 themeId = themeId,
                 darkTheme = darkTheme,
-                dynamicColor = themeId == CinefinThemes.DYNAMIC || state.isDynamicColors,
+                dynamicColor = appTheme.dynamicColor,
             ) {
                 val navController = rememberNavController()
                 // 冷启动过渡（W6-VIS D24）：登录态解析期间显示品牌页，就绪后主界面 220ms 淡入，
@@ -127,6 +123,7 @@ class MainActivity : AppCompatActivity() {
                     ) {
                         MainContent(
                             state = state,
+                            appTheme = appTheme,
                             navController = navController,
                             openDownloadsRequest = openDownloadsRequest,
                             onOpenDownloadsHandled = { openDownloadsRequest = null },
@@ -195,6 +192,8 @@ class MainActivity : AppCompatActivity() {
 @Composable
 private fun MainContent(
     state: MainState,
+    /** W5-T1 返修：主界面已解析好的主题呈现，音乐域直接复用同一结论。 */
+    appTheme: AppThemePresentation,
     navController: NavHostController,
     openDownloadsRequest: DownloadsRoute?,
     onOpenDownloadsHandled: () -> Unit,
@@ -204,6 +203,7 @@ private fun MainContent(
     CompositionLocalProvider(LocalOfflineMode provides state.isOfflineMode) {
         NavigationRoot(
             navController = navController,
+            appTheme = appTheme,
             hasServers = state.hasServers,
             hasCurrentServer = state.hasCurrentServer,
             hasCurrentUser = state.hasCurrentUser,
