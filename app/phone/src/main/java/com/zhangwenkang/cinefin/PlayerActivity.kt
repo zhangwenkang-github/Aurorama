@@ -87,6 +87,7 @@ import com.zhangwenkang.cinefin.presentation.player.PlayerSubtitleOverlay
 import com.zhangwenkang.cinefin.presentation.player.SyncPlayEpisodeAction
 import com.zhangwenkang.cinefin.presentation.player.keepsComposition
 import com.zhangwenkang.cinefin.presentation.player.rememberPlayerLayoutContext
+import com.zhangwenkang.cinefin.presentation.player.resolvePlayerThemeId
 import com.zhangwenkang.cinefin.presentation.player.resolveSyncPlayEpisodeAction
 import com.zhangwenkang.cinefin.presentation.player.syncPlayErrorReasonRes
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
@@ -94,6 +95,7 @@ import com.zhangwenkang.cinefin.repository.catalog.CatalogReadPort
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import com.zhangwenkang.cinefin.utils.AmbientColors
 import com.zhangwenkang.cinefin.utils.PlayerGestureHelper
+import com.zhangwenkang.cinefin.viewmodels.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.UUID
 import javax.inject.Inject
@@ -181,6 +183,9 @@ class PlayerActivity : BasePlayerActivity() {
     lateinit var binding: ActivityPlayerBinding
     private var playerGestureHelper: PlayerGestureHelper? = null
     override val viewModel: PlayerViewModel by viewModels()
+
+    /** 全局主题流（与 [MainActivity] 同源）：播放页只跟随 aurora↔amoled，见 [resolvePlayerThemeId]。 */
+    private val mainViewModel: MainViewModel by viewModels()
 
     override fun isBackgroundAudioEnabled(): Boolean =
         appPreferences.getValue(appPreferences.playerBackgroundAudio)
@@ -365,7 +370,13 @@ class PlayerActivity : BasePlayerActivity() {
          */
         binding.subtitleOverlayCompose.setContent {
             // 播放视频 = 影视域：字幕层与控制层共用琥珀媒体色，颜色只服务进度 / 激活 / 主行动
-            CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
+            // W4-L3：色板跟随全局主题（light/dynamic 保持 aurora 深色基调，amoled 直通）
+            val globalTheme by mainViewModel.state.collectAsStateWithLifecycle()
+            CinefinTheme(
+                domain = ContentDomain.Movie,
+                themeId = resolvePlayerThemeId(globalTheme.themeId),
+                surfaceBackground = false,
+            ) {
                 val subtitleState by
                     viewModel.subtitleController.overlayState.collectAsStateWithLifecycle()
                 val subtitlePlayer = playerInstance.value
@@ -382,7 +393,12 @@ class PlayerActivity : BasePlayerActivity() {
 
         binding.controlOverlayCompose.setContent {
             // 注意：这里必须关掉主题底色，否则那层不透明 Surface 会把视频画面整个盖住
-            CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
+            val globalTheme by mainViewModel.state.collectAsStateWithLifecycle()
+            CinefinTheme(
+                domain = ContentDomain.Movie,
+                themeId = resolvePlayerThemeId(globalTheme.themeId),
+                surfaceBackground = false,
+            ) {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 val subtitlePanelState by viewModel.subtitlePanelState.collectAsStateWithLifecycle()
                 val audioPanelState by viewModel.audioPanelState.collectAsStateWithLifecycle()
@@ -598,7 +614,12 @@ class PlayerActivity : BasePlayerActivity() {
          * 独立 ComposeView 压在控制层之上：控制层隐藏 / 切换失败卡片都不影响这两件东西的显隐。
          */
         binding.backendSwitchCompose.setContent {
-            CinefinTheme(domain = ContentDomain.Movie, surfaceBackground = false) {
+            val globalTheme by mainViewModel.state.collectAsStateWithLifecycle()
+            CinefinTheme(
+                domain = ContentDomain.Movie,
+                themeId = resolvePlayerThemeId(globalTheme.themeId),
+                surfaceBackground = false,
+            ) {
                 BackendSwitchOverlay(
                     switching = backendSwitchScrim.value,
                     notice = backendSwitchNotice.value,
