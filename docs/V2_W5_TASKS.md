@@ -7,7 +7,8 @@
 
 - 分支：`codex/v2-integration`；W5 开工基线 = W4 收官 HEAD（T10 `47095ed7` 之后，以 git log 为准）。
 - **T0 ✅（2026-11-20，Kimi 亲自）**：§7 全 50 条现状核对完成，结论见下文「T0 现状核对」。要点：播放层（单队列+随机/循环+冷启动恢复+MediaSession）、歌词全链路、ReplayGain、EQ 5 段、交叉淡化包络、睡眠定时已具备；缺口集中在 TrackSource 模型、/Audio/universal 协商、双队列、EQ 10 段、倍速、音频信息面板、波浪进度条、封面调色板、容器变换动效、失败恢复链。
-- **W4 残留并入 W5**：L3（播放页 themeId 跟随 aurora↔amoled，方向已拍板）、L7（mpv 内核 content:// 外挂字幕）、`app/phone` coroutines-test 硬编码收 catalog——三项合为 T10 收尾小项包（沿 W4 T9 先例，一卡一 commit）。
+- **W4 残留并入 W5**：L3（播放页 themeId 跟随 aurora↔amoled，方向已拍板）、L7（mpv 内核 content:// 外挂字幕）、L8（媒体键暂停绕开 SyncPlay 组闸门，2026-11-20 W4 收官复验新立）、`app/phone` coroutines-test 硬编码收 catalog——四项合为 T10 收尾小项包（沿 W4 T9 先例，一卡一 commit）。W4 已正式收官（D12/B5 双账号复验双过）。
+- **工具**：`tools/backup-docs.ps1` 已同步入 worktree（2026-11-20，参数化 `-DocsPath` 默认取脚本所在仓 docs/，主仓与 worktree 各自备份自己；keep 池共用 10 份）。
 - **本次质量门**：相关模块单测 + `ktfmtCheck` + `:app:phone:assembleDebug --max-workers=2` 绿；核心链路（起播/切歌/队列编辑/歌词跟随/失败恢复）K60（`8e875894`）真机取证；jellyfin-test 与生产 jellyfins 同实例（12.4.0），生产永久只读（App 播放链路自身请求除外）。
 - **环境备注**：`export JAVA_HOME='F:\Develop\Android\Android Studio\jbr'; export GRADLE_USER_HOME='F:\Develop\gradle-home'`；K60 density 420 = 2.625 px/dp；CI 仅 master push/PR 触发。**设备用后必停播放**：取证完确认 media_session state=NONE，`am force-stop io.github.zhangwenkang.aurorama.debug` 兜底。
 - **设计分权**：一切视觉/动效/布局决策以本文档「设计定稿」四节为准（Kimi 亲自定稿），deepseek 零设计权。
@@ -22,7 +23,8 @@
 W5 状态：T0 现状核对完成、设计规格四节已定稿（换肤布局/迷你条与调色板/动效/歌词）、
 任务卡 T1–T11 已定稿待派，依赖顺序见任务卡表。
 本会话任务：按依赖顺序派卡。首批可并行：T1（modes/music 换肤布局）与 T10（W4 残留小项包，
-app/phone+gradle）不同模块；T4（TrackSource 模型，player/core+modes/music data）先行解锁 T5/T6。
+app/phone+gradle+player/local 小改，含 L8 媒体键接 SyncPlayTransportGate）不同模块；
+T4（TrackSource 模型，player/core+modes/music data）先行解锁 T5/T6。
 设计决策一律以 V2_W5_TASKS.md「设计定稿」四节为准，deepseek 零设计权。
 纪律：每任务一个子代理一个 commit；门禁=相关模块单测+ktfmtCheck+构建（--max-workers=2）；
 核心链路 K60 真机验证；设备用后必须停播放（media_session state=NONE + force-stop 兜底）。
@@ -110,7 +112,7 @@ app/phone+gradle）不同模块；T4（TrackSource 模型，player/core+modes/mu
 | T7 | 交叉淡化口径对齐：档位改 0–12s 连续可调（1s 步进）；触发源限定队列自然推进（手动切歌/拖拽进度/暂停恢复不触发，需切歌原因可判定——`MEDIA_ITEM_TRANSITION_REASON_AUTO` vs `SEEK`）；短曲跳过 `max(20s, 3×fade)` | MUSIC-06（+05 回归） | 纯函数单测钉触发矩阵；K60 自然切歌可闻淡接、手动切歌无淡入 |
 | T8 | 容错与恢复：`MusicPlaybackControllerImpl` 补 `onPlayerError`——自动重试 1 次（延迟 1s）→ 仍失败非阻塞 snackbar + 自动跳下一首（队列尾=停）；本地缺失文件标记「不可用」保留队列、播放跳过、允许手动移除；缓冲中轻量指示（迷你条与全屏进度区缓冲态）且可暂停 | MUSIC-48/49 | 单测 fake 错误序列；K60 断网/坏源实测重试与跳曲；snackbar 文案三语言 |
 | T9 | Auto DJ 评估（纯调研，SHOULD）：Jellyfin InstantMix API（SDK `instantMixApi`）现成度、队列播完追加的接缝（`STATE_ENDED` 钩子）、偏好开关位置；产出 go/no-go 报告，go 则立实现卡 | MUSIC-14 | 报告并入状态块；不派实现 |
-| T10 | W4 残留收尾小项包（一卡一 commit）：① L3 播放页 themeId 跟随（`PlayerActivity` 的 `CinefinTheme(themeId=DEFAULT)` 改读全局主题流，light/dynamic 映射 aurora dark，amoled 直通——W4 已拍板方向）；② `app/phone/build.gradle.kts:219` coroutines-test 收 catalog（`libs.kotlinx.coroutines.test`）；③ L7 mpv 内核 content:// 外挂字幕核查修复（`sub-add` 打不开 content:// 时经 fd/临时副本通路，先核后修） | W4 残留表 L3/L7/T9 遗留 | K60 播放页 aurora↔amoled 切换取证；构建绿；L7 有结论（修复或记录边界） |
+| T10 | W4 残留收尾小项包（一卡一 commit）：① L3 播放页 themeId 跟随（`PlayerActivity` 的 `CinefinTheme(themeId=DEFAULT)` 改读全局主题流，light/dynamic 映射 aurora dark，amoled 直通——W4 已拍板方向）；② `app/phone/build.gradle.kts:219` coroutines-test 收 catalog（`libs.kotlinx.coroutines.test`）；③ L7 mpv 内核 content:// 外挂字幕核查修复（`sub-add` 打不开 content:// 时经 fd/临时副本通路，先核后修）；④ L8 媒体键暂停绕开 SyncPlay 组闸门（`CinefinPlaybackService` MediaSession onPlay/onPause 回调接 `SyncPlayTransportGate`，与 UI 键同走「只发请求不写引擎」闸门，修法已记在 `V2_W4_TASKS.md` 收官节） | W4 残留表 L3/L7/L8/T9 遗留 | K60 播放页 aurora↔amoled 切换取证；构建绿；L7 有结论（修复或记录边界）；L8 单测 + K60 实组：耳机/通知栏暂停触发组广播 |
 | T11 | 歌词域核查补缺 + 域验收：`.elrc` 解析（词级时间戳并入 `LyricWord`）；词级高亮用 .elrc fixture 真机/单测验证；全量验收清单（50 条逐条 K60/单测归证） | MUSIC-24/25 + 全域 | .elrc fixture 词级高亮上屏；验收单逐条 ✅/⚠️/❌ 有归属 |
 
 ## 设计定稿一：K1 换肤与布局（Kimi，2026-11-20，deepseek 零裁量）
@@ -198,4 +200,5 @@ val SpringCollapse = spring<Float>(dampingRatio = 1f, stiffness = 380f)
 
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-20（二）：W4 正式收官（D12/B5 复验双过，`8016fa37`）；新立 L8 收进 T10（四小项）；`tools/backup-docs.ps1` 同步入 worktree（参数化 DocsPath）。
 - 2026-11-20：**W5 会话1 收官**。T0 现状核对（§7 全 50 条）完成；设计规格四节 Kimi 定稿；任务卡 T1–T11 定稿；W4 残留 L3/L7/coroutines-test 收 T10。实现入会话2（提示词见上）。

@@ -2,7 +2,7 @@
 
 > **新会话第一步读这里**，再读所在波次/线文档的顶部状态块，最后查记忆库 `MEMORY.md`。
 > 本文件只放项目级事实与各线一句话状态；过程日志与历史细节在 `docs/archive/`（按需读取，不主动加载）。
-> 最后更新：2026-11-18　分支 `codex/v2-integration`
+> 最后更新：2026-11-20　分支 `codex/v2-integration`
 
 ## 1. 项目是什么
 
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-20）
 
-1. **2.0.0 W4 视频域正式收官（2026-11-20）**：全 14 卡交付 + T7 验收 + T10 修复 + **D12/B5 收官验收双通过**（admin 双账号 web seek→App 误差 140ms；mpv PGS 上屏同帧差分已证）；新发现 L8（媒体键暂停绕开 SyncPlay 组闸门）列入 W5 小卡。W5 会话1 已收官（T0+设计四节+T1–T11），**焦点 = W5 会话2 实现**（开工提示词在 `docs/V2_W5_TASKS.md` 状态块；W4 残留 L3/L7/coroutines-test 已收进 W5 T10）。
+1. **2.0.0 W4 视频域正式收官（2026-11-20）**：全 14 卡交付 + T7 验收 + T10 修复 + **D12/B5 收官验收双通过**（admin 双账号 web seek→App 误差 140ms；mpv PGS 上屏同帧差分已证）；新发现 L8（媒体键暂停绕开 SyncPlay 组闸门）已收 W5 T10（连同 L3/L7/coroutines-test 共四小项）。W5 会话1 已收官（T0+设计四节+T1–T11），**焦点 = W5 会话2 实现**（开工提示词在 `docs/V2_W5_TASKS.md` 状态块）。`tools/backup-docs.ps1` 已入 worktree（参数化 DocsPath，两仓各自备份）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
