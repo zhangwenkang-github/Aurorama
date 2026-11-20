@@ -5,8 +5,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** 睡眠定时纯逻辑（W55）：分钟换算 / 1–240 边界 / 到点判定 / 取消清理。 */
+/** 睡眠定时纯逻辑（W55；W5-T6 档位 / 淡出 / 播完停止）：分钟换算 / 1–240 边界 / 到点判定 / 取消清理。 */
 class SleepTimerTest {
+
+    @Test
+    fun `预设档位为 15 30 45 60 90`() {
+        assertEquals(listOf(15, 30, 45, 60, 90), SleepTimerSpec.PRESET_MINUTES)
+    }
 
     @Test
     fun `分钟换算为毫秒`() {
@@ -97,6 +102,68 @@ class SleepTimerTest {
         val selected = machine.select(minutes = 300, nowMs = 0L)
         assertEquals(240, selected.minutes)
         assertEquals(240 * 60_000L, selected.deadlineMs)
+    }
+
+    @Test
+    fun `到点前 5 秒淡出触发窗口与采样间隔`() {
+        // 窗口：剩余 (0, 5000] 内淡出；5001 起不淡出
+        assertFalse(SleepTimerSpec.fadeActive(5_001L))
+        assertTrue(SleepTimerSpec.fadeActive(5_000L))
+        assertTrue(SleepTimerSpec.fadeActive(1L))
+        assertTrue(SleepTimerSpec.fadeActive(0L))
+        assertFalse(SleepTimerSpec.fadeActive(-1L))
+
+        assertEquals(SleepTimerSpec.IDLE_TICK_MS, SleepTimerSpec.tickIntervalMs(5_001L))
+        assertEquals(SleepTimerSpec.FADE_TICK_MS, SleepTimerSpec.tickIntervalMs(5_000L))
+        assertEquals(SleepTimerSpec.FADE_TICK_MS, SleepTimerSpec.tickIntervalMs(0L))
+    }
+
+    @Test
+    fun `淡出增益等功率且窗口外为 1`() {
+        assertEquals(1f, SleepTimerSpec.fadeOutGain(5_000L), 0.0001f)
+        assertEquals(1f, SleepTimerSpec.fadeOutGain(9_999L), 0.0001f)
+        assertEquals(0f, SleepTimerSpec.fadeOutGain(0L), 0.0001f)
+        assertEquals(0f, SleepTimerSpec.fadeOutGain(-100L), 0.0001f)
+        // 等功率曲线中点 = sin(45°) ≈ 0.7071
+        assertEquals(0.7071f, SleepTimerSpec.fadeOutGain(2_500L), 0.001f)
+        // 单调递减
+        var previous = 1.0001f
+        for (remaining in 4_900L downTo 0L step 100L) {
+            val gain = SleepTimerSpec.fadeOutGain(remaining)
+            assertTrue("remaining=$remaining gain=$gain", gain <= previous)
+            previous = gain
+        }
+    }
+
+    @Test
+    fun `播完当前曲目停止只消费一次且与分钟计时互斥`() {
+        val machine = SleepTimerStateMachine()
+        val armed = machine.selectStopAfterCurrentTrack()
+        assertFalse(armed.active)
+        assertTrue(armed.stopAfterCurrentTrack)
+
+        // 第一次消费返回 true 并清空；之后不再触发
+        assertTrue(machine.consumeStopAfterCurrentTrack())
+        assertFalse(machine.consumeStopAfterCurrentTrack())
+        assertFalse(machine.current.stopAfterCurrentTrack)
+
+        // 选分钟档位会清掉挂起的「播完停止」
+        machine.selectStopAfterCurrentTrack()
+        val timed = machine.select(minutes = 15, nowMs = 1_000L)
+        assertTrue(timed.active)
+        assertFalse(timed.stopAfterCurrentTrack)
+        assertFalse(machine.consumeStopAfterCurrentTrack())
+
+        // 选「播完停止」会取消分钟计时
+        val armedAgain = machine.selectStopAfterCurrentTrack()
+        assertFalse(armedAgain.active)
+        assertTrue(armedAgain.stopAfterCurrentTrack)
+        assertFalse(machine.tick(nowMs = 2_000_000L).expired)
+
+        // 主动停止音乐：只清挂起，不影响分钟计时
+        machine.select(minutes = 30, nowMs = 0L)
+        assertFalse(machine.clearStopAfterCurrentTrack().stopAfterCurrentTrack)
+        assertTrue(machine.current.active)
     }
 
     @Test

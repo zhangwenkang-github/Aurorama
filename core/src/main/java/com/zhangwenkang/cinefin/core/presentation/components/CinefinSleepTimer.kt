@@ -26,7 +26,7 @@ import kotlin.math.roundToInt
 /**
  * 睡眠定时共享选择组件（W55）：音乐面板 / 视频页顶栏对话框共用同一套 UI 与状态语义。
  *
- * - 档位 = [SleepTimerSpec.PRESET_MINUTES]（10 / 20 / 30 / 60，保留既有验收档位）；
+ * - 档位 = [SleepTimerSpec.PRESET_MINUTES]（W5-T6 起 15 / 30 / 45 / 60 / 90；音乐 / 视频同一口径）；
  * - 自定义 = 滑块 1–240 分钟（整分钟），点「开始计时」生效；
  * - 进行中再打开会显示剩余时间，选中档位高亮，可一键取消。
  *

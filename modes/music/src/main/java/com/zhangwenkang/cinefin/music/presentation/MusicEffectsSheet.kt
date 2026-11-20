@@ -1,5 +1,6 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,8 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
+import com.zhangwenkang.cinefin.player.local.audio.MUSIC_EQUALIZER_GAIN_STEP_DB
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_EQUALIZER_MAX_GAIN_DB
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_EQUALIZER_MIN_GAIN_DB
+import com.zhangwenkang.cinefin.player.local.audio.MUSIC_PLAYBACK_SPEEDS
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_REPLAYGAIN_OVERRIDE_MAX_DB
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_REPLAYGAIN_OVERRIDE_MIN_DB
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_REPLAYGAIN_OVERRIDE_STEP_DB
@@ -37,7 +40,8 @@ import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
 import java.util.Locale
 
 /**
- * 音效面板（W30-MUSIC-FX + W35）：EQ（预设 + 五段自定义）、ReplayGain 三态 + 本机增益覆盖、淡入淡出档位。
+ * 音效面板（W30-MUSIC-FX + W35；W5-T6 升 10 段并补倍速 / 输出信息入口）：EQ（预设 + 十段自定义）、ReplayGain 三态 + 本机增益覆盖、淡入淡出档位、
+ * 播放速度、输出信息。
  *
  * 入口 = 全屏播放页功能行「音效」；只作用于音乐会话（播放链按会话门控，视频不受影响）。
  */
@@ -53,6 +57,7 @@ fun MusicEffectsSheet(
     overrideTrackDb: Float?,
     overrideAlbumDb: Float?,
     crossfadeSeconds: Int,
+    playbackSpeed: Float,
     onDismiss: () -> Unit,
     onToggleEqualizer: (Boolean) -> Unit,
     onSelectPreset: (MusicEqualizerPreset) -> Unit,
@@ -64,6 +69,8 @@ fun MusicEffectsSheet(
     onCommitOverride: () -> Unit,
     onClearOverride: () -> Unit,
     onSelectCrossfade: (Int) -> Unit,
+    onSelectPlaybackSpeed: (Float) -> Unit,
+    onOpenAudioInfo: () -> Unit,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -217,6 +224,67 @@ fun MusicEffectsSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ---------- 播放速度（W5-T6 · MUSIC-32）：末尾不显眼位，进程级不落偏好 ----------
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "播放速度",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = formatPlaybackSpeed(playbackSpeed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(MUSIC_PLAYBACK_SPEEDS.size) { index ->
+                    val speed = MUSIC_PLAYBACK_SPEEDS[index]
+                    FilterChip(
+                        selected = playbackSpeed == speed,
+                        onClick = { onSelectPlaybackSpeed(speed) },
+                        label = { Text(formatPlaybackSpeed(speed)) },
+                    )
+                }
+            }
+            Text(
+                text = "音高不变（Sonic）；每次起播回到 1×，不写入偏好。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+            )
+
+            // ---------- 输出信息（W5-T6 · MUSIC-34）：不显眼的底部入口 ----------
+            Row(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .clickable(onClick = onOpenAudioInfo)
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "输出信息",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = MUSIC_BIT_PERFECT_NOTE,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -256,6 +324,10 @@ private fun EqualizerBandRow(
             onValueChangeFinished = onCommit,
             enabled = enabled,
             valueRange = MUSIC_EQUALIZER_MIN_GAIN_DB..MUSIC_EQUALIZER_MAX_GAIN_DB,
+            steps =
+                ((MUSIC_EQUALIZER_MAX_GAIN_DB - MUSIC_EQUALIZER_MIN_GAIN_DB) /
+                        MUSIC_EQUALIZER_GAIN_STEP_DB)
+                    .toInt() - 1,
             modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -299,3 +371,9 @@ private fun formatFrequency(frequency: Float): String =
     } else {
         String.format(Locale.US, "%.0f Hz", frequency)
     }
+
+/** 倍速展示：1.0 → `1×`，0.75 → `0.75×`。 */
+private fun formatPlaybackSpeed(speed: Float): String {
+    val text = if (speed == speed.toInt().toFloat()) "${speed.toInt()}" else "$speed"
+    return "${text}×"
+}

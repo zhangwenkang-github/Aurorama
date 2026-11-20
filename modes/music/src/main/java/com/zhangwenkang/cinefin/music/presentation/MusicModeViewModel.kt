@@ -66,7 +66,10 @@ import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
+import com.zhangwenkang.cinefin.player.core.domain.models.TrackSource
+import com.zhangwenkang.cinefin.player.core.domain.models.TrackSourceType
 import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
+import com.zhangwenkang.cinefin.player.local.audio.MusicAudioOutputInfoSource
 import com.zhangwenkang.cinefin.player.local.audio.MusicEqualizerPreset
 import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
 import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
@@ -137,6 +140,8 @@ constructor(
     private val playbackStateSource: MusicPlaybackStateSource,
     private val appPreferences: AppPreferences,
     private val audioEffects: MusicAudioEffectsController,
+    /** W5-T6：音频输出信息面板的 Exo `Format` 运行时读数入口。 */
+    private val audioOutputInfo: MusicAudioOutputInfoSource,
     private val downloader: Downloader,
     private val jellyfinRepository: JellyfinRepository,
     /** W36：离线模式的曲库来源（本机已下载曲目）。 */
@@ -379,6 +384,8 @@ constructor(
     val effectsReplayGainMode: StateFlow<ReplayGainMode> = audioEffects.replayGainMode
     val effectsReplayGainLabel: StateFlow<String?> = audioEffects.replayGainLabel
     val effectsCrossfadeSeconds: StateFlow<Int> = audioEffects.crossfadeSeconds
+    /** W5-T6 · MUSIC-32：音乐倍速（进程级，不落偏好）。 */
+    val effectsPlaybackSpeed: StateFlow<Float> = audioEffects.playbackSpeed
     val effectsHasCurrentTrack: StateFlow<Boolean> = audioEffects.hasCurrentTrack
     val effectsOverrideTrackDb: StateFlow<Float?> = audioEffects.overrideTrackDb
     val effectsOverrideAlbumDb: StateFlow<Float?> = audioEffects.overrideAlbumDb
@@ -2688,6 +2695,49 @@ constructor(
     /** 选择睡眠定时档位（分钟）；null = 关闭。 */
     fun selectSleepTimer(minutes: Int?) = sleepTimer.select(minutes)
 
+    /** W5-T6 · MUSIC-33：「播完当前曲目停止」——暂停挂起，AUTO 切歌后由播放链暂停。 */
+    fun stopAfterCurrentTrack() = sleepTimer.selectStopAfterCurrentTrack()
+
+    /** 音频信息（W5-T6 · MUSIC-34）：源侧来自 [TrackSource]；只有该曲目正是当前音乐会话曲目时才带输出侧读数与转码判定。 */
+    fun audioInfoFor(song: MusicSong): MusicAudioInfo {
+        val liveItem = playbackController.queue.value?.currentItem
+        val playing = liveItem?.itemId == song.itemId
+        return buildMusicAudioInfo(
+            title = song.name,
+            source = if (playing) liveItem?.trackSource else song.toTrackSourceSnapshot(),
+            output = if (playing) audioOutputInfo.snapshot() else null,
+            playing = playing,
+        )
+    }
+
+    /** 音效面板「输出信息」入口：当前展示曲目（无会话时回落到恢复快照，输出侧显「未播放」）。 */
+    fun audioInfoForCurrent(): MusicAudioInfo? {
+        val liveItem = playbackController.queue.value?.currentItem
+        val item = liveItem ?: displayCurrentItem.value ?: return null
+        val playing = liveItem != null && liveItem.itemId == item.itemId
+        return buildMusicAudioInfo(
+            title = item.name,
+            source = item.trackSource,
+            output = if (playing) audioOutputInfo.snapshot() else null,
+            playing = playing,
+        )
+    }
+
+    /** 曲库快照 → 源侧信息（非当前曲目没有 Exo 协商结果，转码状态不猜）。 */
+    private fun MusicSong.toTrackSourceSnapshot(): TrackSource =
+        TrackSource(
+            id = itemId.toString(),
+            sourceType = if (localUri != null) TrackSourceType.LOCAL else TrackSourceType.SERVER,
+            streamUrl = localUri.orEmpty(),
+            duration = runtimeTicks / TICKS_PER_MS,
+            bitrate = bitrate,
+            codec = codec,
+            container = container,
+            sampleRate = sampleRate,
+            bitDepth = bitDepth,
+            isTranscoded = false,
+        )
+
     // W30-MUSIC-FX：音效面板动作（全部转发给 player:local 的音效中枢）。
     fun setEqualizerEnabled(enabled: Boolean) = audioEffects.setEqualizerEnabled(enabled)
 
@@ -2714,6 +2764,9 @@ constructor(
 
     fun selectCrossfadeSeconds(seconds: Int) = audioEffects.setCrossfadeSeconds(seconds)
 
+    /** W5-T6 · MUSIC-32：选择音乐倍速（进程级，不落偏好；起播时回到 1.0）。 */
+    fun selectPlaybackSpeed(speed: Float) = audioEffects.setPlaybackSpeed(speed)
+
     fun dismissError() {
         _uiState.update {
             it.copy(
@@ -2728,6 +2781,9 @@ constructor(
     private companion object {
         /** 曲库加载失败后的自动重试等待（毫秒）：给弱网 / 服务端偶发超时一次恢复窗口。 */
         const val AUTO_RETRY_DELAY_MS = 1_200L
+
+        /** Jellyfin runtimeTicks：1 tick = 100 ns → 1 ms = 10_000 ticks。 */
+        private const val TICKS_PER_MS = 10_000L
 
         /**
          * W78 补队列的批大小 = 批内并发度。

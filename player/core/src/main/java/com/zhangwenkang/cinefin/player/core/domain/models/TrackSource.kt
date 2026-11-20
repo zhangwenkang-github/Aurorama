@@ -32,10 +32,14 @@ data class TrackSource(
     val bitrate: Int? = null,
     /** 源编码（Jellyfin codec 名 / 本地扩展名归一值，例如 flac / aac / mp3）。 */
     val codec: String? = null,
+    /** 源容器（Jellyfin `Container` / 本地扩展名）；未知为 null。 */
+    val container: String? = null,
     /** 采样率（Hz）。 */
     val sampleRate: Int? = null,
     /** 位深（bit）。 */
     val bitDepth: Int? = null,
+    /** 声道数（MUSIC-34 源信息展示用；取不到为 null）。 */
+    val channelCount: Int? = null,
     /** 曲目级 ReplayGain（dB）。 */
     val replayGainTrack: Float? = null,
     /** 专辑级 ReplayGain（dB）。 */
