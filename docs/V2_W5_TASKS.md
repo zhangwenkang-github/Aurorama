@@ -6,7 +6,9 @@
 ## 状态块（新会话先读这里）
 
 - 分支：`codex/v2-integration`；W5 开工基线 = W4 收官 HEAD（T10 `47095ed7` 之后，以 git log 为准；会话2 实际基线 `4c69bf31`）。
-- **会话2 派卡中（2026-11-20）**：T1/T4/T10 三路并行，各自独立 worktree+分支——T1 `codex/v2-w5-t1`（`work_tree/Aurorama/v2-w5-t1`，modes/music UI）、T4 `codex/v2-w5-t4`（`v2-w5-t4`，player/core+modes/music data+data）、T10 `codex/v2-w5-t10`（`v2-w5-t10`，app/phone+gradle+player/local）；合入由 Kimi 验收后逐个并入 `codex/v2-integration`。
+- **会话2 首批三卡已并入（2026-11-20）**：T1 `bdbaee9c`（merge `f4640eb1`）、T10 `dbd264f6`（merge `1c8c1c19`）、T4 `c98d0f7c`→rebase 后 `41b404cb`（merge `e50c293f`），全部入 `codex/v2-integration`；三卡子代理门禁各自绿，T1 合并后集成门禁绿，T1+T4+T10 全量集成门禁与 K60 统一验证（T4 转码中 + T1 四主题走查）在途。
+- **设计追认（Kimi，2026-11-20）**：定稿一「横屏手机（高 <411dp）保留紧凑」对 K60 横屏（恰 411dp）是边界空洞，T1 实现为**矮屏（高 <620dp）优先紧凑两栏**并钉单测——追认为定稿口径，定稿一 §1 已同步修订。
+- **遗留观察项**：① SyncPlay unpause 回声时序（T10 发现：媒体键/UI 键 unpause 后本地一度仍暂停，疑组 pending 回声，非 L8 引入）——W6 或播放器线另立小卡评估；② core `CinefinIconButton` 可点区实为 44dp（T1 在音乐模块内补 48dp 触控壳），后续 core 侧把 clickable 提 48dp 后删壳；③ L7 mpv content:// 字幕修复未做 SAF 本地视频端到端（设备无素材），W4-T7 复验时补。
 - **T0 ✅（2026-11-20，Kimi 亲自）**：§7 全 50 条现状核对完成，结论见下文「T0 现状核对」。要点：播放层（单队列+随机/循环+冷启动恢复+MediaSession）、歌词全链路、ReplayGain、EQ 5 段、交叉淡化包络、睡眠定时已具备；缺口集中在 TrackSource 模型、/Audio/universal 协商、双队列、EQ 10 段、倍速、音频信息面板、波浪进度条、封面调色板、容器变换动效、失败恢复链。
 - **W4 残留并入 W5**：L3（播放页 themeId 跟随 aurora↔amoled，方向已拍板）、L7（mpv 内核 content:// 外挂字幕）、L8（媒体键暂停绕开 SyncPlay 组闸门，2026-11-20 W4 收官复验新立）、`app/phone` coroutines-test 硬编码收 catalog——四项合为 T10 收尾小项包（沿 W4 T9 先例，一卡一 commit）。W4 已正式收官（D12/B5 双账号复验双过）。
 - **工具**：`tools/backup-docs.ps1` 已同步入 worktree（2026-11-20，参数化 `-DocsPath` 默认取脚本所在仓 docs/，主仓与 worktree 各自备份自己；keep 池共用 10 份）。
@@ -125,7 +127,7 @@ T4（TrackSource 模型，player/core+modes/music data）先行解锁 T5/T6。
 安全区 → 工具栏（左「收起」、右「上下文菜单 ⋮」：队列/音效/睡眠定时/分享占位不做——菜单项 = 队列、音效、睡眠定时三项）→ 封面 → 曲目信息（曲名 18sp 500、艺术家 15sp 400 `onSurfaceVariant` **可点击跳艺术家页**——艺术家页已有 `ArtistList` 详情）→ 波浪进度条（T3）→ 主传输三键 → 次级操作行（播放模式/收藏/队列/歌词/音效 五键 44dp）→ 安全区。横屏手机（高 <411dp）保留现有两栏紧凑布局。
 
 - **封面**：手机竖屏 = `min(宽×0.80, 360dp)`（需求 78–82%），圆角 `CinefinShapes.Card`（20），1dp `glassBorder` 描边；**点击封面 = 切换封面/歌词视图**（MUSIC-20；与左滑进歌词并存），转场见定稿三。
-- **宽屏**（`maxWidth ≥ 840dp`）：左右分栏——左栏（封面+信息+进度+传输，居中，最大 480dp 列宽）/右栏 Tab「歌词 | 队列」（默认歌词），两栏独立滚动；分栏间无分隔线，间距 `CinefinSpacing.Space6`。
+- **宽屏**（`maxWidth ≥ 840dp` 且非矮屏）：左右分栏——左栏（封面+信息+进度+传输，居中，最大 480dp 列宽）/右栏 Tab「歌词 | 队列」（默认歌词），两栏独立滚动；分栏间无分隔线，间距 `CinefinSpacing.Space6`。**矮屏优先**（2026-11-20 追认）：`maxHeight < 620dp`（含全部手机横屏，K60 横屏高恰 411dp 属此类）保留现有两栏紧凑布局，不走宽屏分栏。
 - **上下文菜单（MUSIC-47）**：长按曲目 = `ModalBottomSheet`（复用 QueueSheet 的容器参数：`colors.surfaceContainer` + 拖拽柄）五动作：播放下一首 / 加到队尾 / 加入播放列表 / 音频信息（T6 未交付前**隐藏**该项）/ 下载·离线；现有多选批量模式保留（工具栏「多选」入口），长按不再进多选。
 - **圆角清理**：`MusicModeScreen.kt:1251`（12→按 W4 规则 5–12 档→`CinefinShapes.Xs`）及 grep 新发现的 `RoundedCornerShape(<数字>.dp)`（theme 定义文件除外），映射规则同 W4 T1 §3。
 
