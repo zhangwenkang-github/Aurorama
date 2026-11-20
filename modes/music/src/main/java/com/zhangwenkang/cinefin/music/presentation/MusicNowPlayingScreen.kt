@@ -33,6 +33,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -125,6 +126,12 @@ fun MusicNowPlayingScreen(
 ) {
     val item = queue.currentItem ?: return
     val colors = LocalCinefinColors.current
+    // W5-T2（MUSIC-17）：封面调色板只覆盖本覆盖层子树（迷你条在 MusicModeScreen 同源缓存），不动全局色板
+    val coverMediaColors =
+        MusicCoverPalette.mediaColors(
+            itemId = item.itemId.toString(),
+            imageUri = item.thumbnailUri,
+        )
     // 歌词页与全屏播放页同属一个覆盖层（W44：左滑进歌词 / 歌词页右滑返回）
     var lyricsPage by rememberSaveable(item.itemId) { mutableStateOf(false) }
     var lyricsEntryToken by rememberSaveable(item.itemId) { mutableLongStateOf(0L) }
@@ -134,59 +141,63 @@ fun MusicNowPlayingScreen(
     }
     BackHandler { if (lyricsPage) lyricsPage = false else onClose() }
 
-    Box(modifier = Modifier.fillMaxSize().background(colors.surface)) {
-        if (lyricsPage) {
-            MusicLyricsPage(
-                title = item.name,
-                state = lyricsState,
-                entryToken = lyricsEntryToken,
-                onBack = { lyricsPage = false },
-                onSelectLanguage = onSelectLyricsLanguage,
-                onToggleBilingual = onToggleLyricsBilingual,
-                onToggleFollow = onToggleLyricsFollow,
-                onSelectFontScale = onSelectLyricsFontScale,
-                onSelectLineSpacing = onSelectLyricsLineSpacing,
-                onLineClick = onSeekLyricLine,
-                modifier =
-                    Modifier.swipeGestures(
-                        onSwipeRight = { lyricsPage = false },
-                        onSwipeDown = { lyricsPage = false },
-                    ),
-            )
-        } else {
-            PlayerPage(
-                queue = queue,
-                lyricsState = lyricsState,
-                isPlaying = isPlaying,
-                isRestored = isRestored,
-                positionMs = positionMs,
-                durationMs = durationMs,
-                meta = meta,
-                playMode = playMode,
-                lyricsOverlayEnabled = lyricsOverlayEnabled,
-                onClose = onClose,
-                onPlayPause = onPlayPause,
-                onPrevious = onPrevious,
-                onNext = onNext,
-                onSeek = onSeek,
-                onCyclePlayMode = onCyclePlayMode,
-                onToggleLyricsOverlay = onToggleLyricsOverlay,
-                onOpenEffects = onOpenEffects,
-                onOpenLyrics = openLyrics,
-                onOpenQueue = onOpenQueue,
-                onOpenSleepTimer = onOpenSleepTimer,
-                onOpenArtist = onOpenArtist,
-                onJumpQueueItem = onJumpQueueItem,
-                onMoveQueueItem = onMoveQueueItem,
-                onRemoveQueueItem = onRemoveQueueItem,
-                onSeekLyricLine = onSeekLyricLine,
-                onToggleFavorite = onToggleFavorite,
-                modifier =
-                    Modifier.swipeGestures(
-                        onSwipeLeft = openLyrics,
-                        onSwipeDown = onClose,
-                    ),
-            )
+    CompositionLocalProvider(
+        LocalMediaColors provides (coverMediaColors ?: LocalMediaColors.current)
+    ) {
+        Box(modifier = Modifier.fillMaxSize().background(colors.surface)) {
+            if (lyricsPage) {
+                MusicLyricsPage(
+                    title = item.name,
+                    state = lyricsState,
+                    entryToken = lyricsEntryToken,
+                    onBack = { lyricsPage = false },
+                    onSelectLanguage = onSelectLyricsLanguage,
+                    onToggleBilingual = onToggleLyricsBilingual,
+                    onToggleFollow = onToggleLyricsFollow,
+                    onSelectFontScale = onSelectLyricsFontScale,
+                    onSelectLineSpacing = onSelectLyricsLineSpacing,
+                    onLineClick = onSeekLyricLine,
+                    modifier =
+                        Modifier.swipeGestures(
+                            onSwipeRight = { lyricsPage = false },
+                            onSwipeDown = { lyricsPage = false },
+                        ),
+                )
+            } else {
+                PlayerPage(
+                    queue = queue,
+                    lyricsState = lyricsState,
+                    isPlaying = isPlaying,
+                    isRestored = isRestored,
+                    positionMs = positionMs,
+                    durationMs = durationMs,
+                    meta = meta,
+                    playMode = playMode,
+                    lyricsOverlayEnabled = lyricsOverlayEnabled,
+                    onClose = onClose,
+                    onPlayPause = onPlayPause,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
+                    onSeek = onSeek,
+                    onCyclePlayMode = onCyclePlayMode,
+                    onToggleLyricsOverlay = onToggleLyricsOverlay,
+                    onOpenEffects = onOpenEffects,
+                    onOpenLyrics = openLyrics,
+                    onOpenQueue = onOpenQueue,
+                    onOpenSleepTimer = onOpenSleepTimer,
+                    onOpenArtist = onOpenArtist,
+                    onJumpQueueItem = onJumpQueueItem,
+                    onMoveQueueItem = onMoveQueueItem,
+                    onRemoveQueueItem = onRemoveQueueItem,
+                    onSeekLyricLine = onSeekLyricLine,
+                    onToggleFavorite = onToggleFavorite,
+                    modifier =
+                        Modifier.swipeGestures(
+                            onSwipeLeft = openLyrics,
+                            onSwipeDown = onClose,
+                        ),
+                )
+            }
         }
     }
 }

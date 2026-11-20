@@ -7,13 +7,19 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,13 +68,18 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
@@ -79,12 +92,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick as semanticsOnClick
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil3.compose.AsyncImage
@@ -105,6 +121,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorChip
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -123,11 +140,11 @@ import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.PlaylistExchangeAdapter
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
-import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
 import com.zhangwenkang.cinefin.player.local.domain.SleepTimerController
 import com.zhangwenkang.cinefin.utils.DownloadTaskStatus
 import java.io.IOException
 import java.util.UUID
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -612,24 +629,36 @@ fun MusicModeScreen(
                         onRemoveFromPlaylist = viewModel::removeSelectedFromPlaylist,
                     )
                 } else {
-                    NowPlayingBar(
-                        item = displayCurrentItem,
-                        isPlaying = isPlaying,
-                        isRestored = isRestored && optimisticCurrentItem == null,
-                        positionMs = if (optimisticCurrentItem == null) positionMs else 0L,
-                        durationMs = if (optimisticCurrentItem == null) durationMs else 0L,
-                        fallbackDurationMs =
-                            viewModel
-                                .songMeta(displayCurrentItem?.itemId)
-                                ?.runtimeTicks
-                                ?.div(TICKS_PER_MS) ?: 0L,
-                        sleepState = sleepState,
-                        onOpenNowPlaying = { nowPlayingOpen = true },
-                        onPlayPause = viewModel::togglePlayPause,
-                        onNext = viewModel::skipToNext,
-                        onOpenLyrics = viewModel::openLyrics,
-                        onClose = viewModel::dismissNowPlayingBar,
-                    )
+                    val liveQueue = queue
+                    val barMediaColors =
+                        MusicCoverPalette.mediaColors(
+                            itemId = displayCurrentItem?.itemId?.toString(),
+                            imageUri = displayCurrentItem?.thumbnailUri,
+                        )
+                    CompositionLocalProvider(
+                        LocalMediaColors provides (barMediaColors ?: LocalMediaColors.current)
+                    ) {
+                        NowPlayingBar(
+                            item = displayCurrentItem,
+                            isPlaying = isPlaying,
+                            isRestored = isRestored && optimisticCurrentItem == null,
+                            positionMs = if (optimisticCurrentItem == null) positionMs else 0L,
+                            durationMs = if (optimisticCurrentItem == null) durationMs else 0L,
+                            fallbackDurationMs =
+                                viewModel
+                                    .songMeta(displayCurrentItem?.itemId)
+                                    ?.runtimeTicks
+                                    ?.div(TICKS_PER_MS) ?: 0L,
+                            // W5-T2（MUSIC-23）：左右滑切歌的邻曲封面（探入动画只用封面，不读邻曲元数据）。
+                            previousArtworkUri = liveQueue?.previousArtworkUri(),
+                            nextArtworkUri = liveQueue?.nextArtworkUri(),
+                            onOpenNowPlaying = { nowPlayingOpen = true },
+                            onPlayPause = viewModel::togglePlayPause,
+                            onPrevious = viewModel::skipToPrevious,
+                            onNext = viewModel::skipToNext,
+                            onClose = viewModel::dismissNowPlayingBar,
+                        )
+                    }
                 }
 
                 CinefinSnackbarHost(
@@ -2225,6 +2254,39 @@ private fun SongRow(
     )
 }
 
+/** 迷你条尺寸与玻璃参数（W5-T2 定稿一 §2，写死，不得自调）。 */
+private val MusicMiniBarHeight = 64.dp
+private val MusicMiniBarArtworkSize = 40.dp
+private val MusicMiniBarProgressHeight = 2.dp
+private val MusicMiniBarTopHighlightHeight = 0.5.dp
+private const val MusicMiniBarTopHighlightAlpha = 0.06f
+private const val MusicMiniBarMarqueeRepeatDelayMillis = 1_200
+private val MusicMiniBarMarqueeVelocity = 30.dp
+private val MusicMiniBarWideBreakpoint = 840.dp
+private val MusicMiniBarArtistStyle =
+    CinefinType.BodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp)
+
+/** 手势结果（`awaitPointerEventScope` 里只负责采样，动画与判定回到普通 suspend 上下文做）。 */
+private data class MusicMiniBarGesture(
+    val totalX: Float,
+    val totalY: Float,
+    val velocityX: Float,
+    val velocityY: Float,
+    val horizontal: Boolean,
+)
+
+/**
+ * W5-T2（MUSIC-17/23）：玻璃迷你播放器。
+ *
+ * 布局（定稿 §2）：水平外边距 `Space3`、底部悬浮 `Space2`、高 64dp、`CinefinShapes.Glass`；底 `colors.glass` + 1dp
+ * `colors.glassBorder` + 顶部 0.5dp 白 6% 内高光（与 W4 玻璃容器同法）。宽 ≥840dp 退化为底部通栏（同一组件、外边距 0、圆角 0）。
+ *
+ * 组成：40dp 封面（`TwoXs`）→ 标题 marquee（首尾停顿 1.2s、30dp/s）→ 艺术家 12sp `onSurfaceVariant` → 播放/暂停 44dp → 下一首
+ * 44dp → 关闭 ×（语义不变：停播清内存队列、存档保留）；贴条上缘 2dp 进度线（`media.base`，暂停 40% alpha）。
+ *
+ * 手势：左右滑 ≥56dp 且同向速度 ≥800dp/s 切歌（左右各 16dp 边缘返回安全区不响应）；上滑 ≥48dp 或向上速度 ≥600dp/s 展开全屏；点击展开保留；未达阈值
+ * `SpringSnap` 回位。滑动中条目随指位移、邻曲封面从反侧探入。
+ */
 @Composable
 private fun NowPlayingBar(
     item: PlayerItem?,
@@ -2233,113 +2295,293 @@ private fun NowPlayingBar(
     positionMs: Long,
     durationMs: Long,
     fallbackDurationMs: Long,
-    sleepState: SleepTimerController.State,
+    previousArtworkUri: String?,
+    nextArtworkUri: String?,
     onOpenNowPlaying: () -> Unit,
     onPlayPause: () -> Unit,
+    onPrevious: () -> Unit,
     onNext: () -> Unit,
-    onOpenLyrics: () -> Unit,
     onClose: () -> Unit,
 ) {
     val currentItem = item ?: return
     val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
     // 恢复态（重启后未点播放）没有播放器会话，位置与时长回落到快照 / 曲库元数据
     val currentMs = if (isRestored) currentItem.playbackPosition else positionMs
     val totalMs = durationMs.takeIf { it > 0L } ?: fallbackDurationMs
-    // W66b：时间文本抽纯函数（单测覆盖）——不再与状态挤同一行被截断。
     val timeText = musicMiniBarTimeText(currentMs = currentMs, totalMs = totalMs)
-    val statusText = buildString {
-        if (isRestored) append("上次播放") else append(if (isPlaying) "正在播放" else "已暂停")
-        if (sleepState.active) {
-            append(" · 睡眠 ${SleepTimerSpec.formatRemaining(sleepState.remainingMs)}")
-        }
-    }
-    Column(modifier = Modifier.fillMaxWidth().background(colors.surfaceContainerHigh)) {
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(colors.outlineVariant))
-        Row(
+    val progress = musicMiniBarProgressFraction(currentMs = currentMs, totalMs = totalMs)
+    val density = LocalDensity.current
+    var dragX by remember(currentItem.itemId) { mutableFloatStateOf(0f) }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        // 平板形态（≥840dp）= 底部通栏：外边距 0、圆角 0（定稿 §2）
+        val wide = maxWidth >= MusicMiniBarWideBreakpoint
+        val shape = if (wide) RectangleShape else CinefinShapes.Glass
+        val thumbPx = with(density) { MusicMiniBarArtworkSize.toPx() }
+        Box(
             modifier =
-                Modifier.fillMaxWidth().height(72.dp).padding(horizontal = CinefinSpacing.Space2),
-            verticalAlignment = Alignment.CenterVertically,
+                Modifier.fillMaxWidth()
+                    .padding(
+                        start = if (wide) 0.dp else CinefinSpacing.Space3,
+                        end = if (wide) 0.dp else CinefinSpacing.Space3,
+                        bottom = if (wide) 0.dp else CinefinSpacing.Space2,
+                    )
+                    .height(MusicMiniBarHeight)
+                    .clip(shape)
+                    .background(colors.glass)
+                    .musicMiniBarTopHighlight()
+                    .border(1.dp, colors.glassBorder, shape)
+                    .pointerInput(currentItem.itemId, previousArtworkUri, nextArtworkUri) {
+                        val touchSlop = viewConfiguration.touchSlop
+                        val densityScale = density.density
+                        while (true) {
+                            val gesture =
+                                awaitPointerEventScope {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    // 左右各 16dp 是系统边缘返回安全区：整次手势不响应、不消费
+                                    if (
+                                        musicMiniBarEdgeGuardHit(
+                                            startXDp = down.position.x / densityScale,
+                                            widthDp = size.width / densityScale,
+                                        )
+                                    ) {
+                                        return@awaitPointerEventScope null
+                                    }
+                                    dragX = 0f
+                                    val tracker = VelocityTracker()
+                                    tracker.addPosition(down.uptimeMillis, down.position)
+                                    var totalX = 0f
+                                    var totalY = 0f
+                                    var horizontal = false
+                                    drag(down.id) { change ->
+                                        val delta = change.positionChange()
+                                        totalX += delta.x
+                                        totalY += delta.y
+                                        tracker.addPosition(change.uptimeMillis, change.position)
+                                        if (
+                                            !horizontal &&
+                                                abs(totalX) > touchSlop &&
+                                                abs(totalX) > abs(totalY)
+                                        ) {
+                                            horizontal = true
+                                        }
+                                        if (horizontal) {
+                                            change.consume()
+                                            dragX = totalX
+                                        }
+                                    }
+                                    val velocity = tracker.calculateVelocity()
+                                    MusicMiniBarGesture(
+                                        totalX = totalX,
+                                        totalY = totalY,
+                                        velocityX = velocity.x,
+                                        velocityY = velocity.y,
+                                        horizontal = horizontal,
+                                    )
+                                } ?: continue
+                            if (gesture.horizontal) {
+                                val target =
+                                    musicMiniBarSwipeTarget(
+                                        displacementDp = gesture.totalX / densityScale,
+                                        velocityDpPerSec = gesture.velocityX / densityScale,
+                                    )
+                                when (target) {
+                                    MusicMiniBarSwipe.Previous -> {
+                                        dragX = 0f
+                                        onPrevious()
+                                    }
+                                    MusicMiniBarSwipe.Next -> {
+                                        dragX = 0f
+                                        onNext()
+                                    }
+                                    // 未达阈值：SpringSnap 回位（逐帧写回同一状态，单一数据源）
+                                    null -> {
+                                        animate(
+                                            initialValue = dragX,
+                                            targetValue = 0f,
+                                            initialVelocity = gesture.velocityX,
+                                            animationSpec = CinefinMotion.SpringSnap,
+                                        ) { value, _ ->
+                                            dragX = value
+                                        }
+                                        dragX = 0f
+                                    }
+                                }
+                            } else if (
+                                musicMiniBarExpands(
+                                    dragYDp = gesture.totalY / densityScale,
+                                    velocityYDpPerSec = gesture.velocityY / densityScale,
+                                )
+                            ) {
+                                onOpenNowPlaying()
+                            }
+                        }
+                    }
         ) {
-            // 封面 + 标题 + 时间：整块可点，进入全屏播放界面（各按钮各自生效，不触发全屏）
+            // 邻曲封面从反侧探入：位移 = 手指位移（左滑露下一首、右滑露上一首）
+            previousArtworkUri?.let { uri ->
+                MusicMiniBarNeighborArtwork(
+                    imageUri = uri,
+                    modifier =
+                        Modifier.align(Alignment.CenterStart).offset {
+                            IntOffset((-thumbPx + dragX).roundToInt(), 0)
+                        },
+                )
+            }
+            nextArtworkUri?.let { uri ->
+                MusicMiniBarNeighborArtwork(
+                    imageUri = uri,
+                    modifier =
+                        Modifier.align(Alignment.CenterEnd).offset {
+                            IntOffset((thumbPx + dragX).roundToInt(), 0)
+                        },
+                )
+            }
             Row(
                 modifier =
-                    Modifier.weight(1f)
-                        .clip(CinefinShapes.Button)
-                        .clickable(onClick = onOpenNowPlaying)
-                        .padding(
-                            horizontal = CinefinSpacing.Space1,
-                            vertical = CinefinSpacing.Space1,
-                        ),
+                    Modifier.fillMaxSize()
+                        .graphicsLayer { translationX = dragX }
+                        .padding(start = CinefinSpacing.Space3, end = CinefinSpacing.Space1),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ArtworkThumb(
-                    imageUri = currentItem.thumbnailUri,
-                    title = currentItem.name,
-                )
-                Spacer(modifier = Modifier.width(CinefinSpacing.Space3))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = currentItem.name,
-                        style = CinefinType.TitleSmall,
-                        color = colors.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                // 封面 + 标题 + 艺术家：整块可点，进入全屏播放界面（各按钮各自生效，不触发全屏）
+                Row(
+                    modifier =
+                        Modifier.weight(1f)
+                            .clip(CinefinShapes.Button)
+                            .clickable(onClick = onOpenNowPlaying)
+                            .padding(
+                                horizontal = CinefinSpacing.Space1,
+                                vertical = CinefinSpacing.Space1,
+                            ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    MusicMiniBarArtwork(
+                        imageUri = currentItem.thumbnailUri,
+                        title = currentItem.name,
                     )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(modifier = Modifier.width(CinefinSpacing.Space3))
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = timeText,
-                            style = CinefinType.MonoDataSmall,
-                            color = colors.onSurfaceVariant,
+                            text = currentItem.name,
+                            style = CinefinType.TitleSmall,
+                            color = colors.onSurface,
                             maxLines = 1,
                             softWrap = false,
+                            overflow = TextOverflow.Clip,
+                            modifier =
+                                Modifier.basicMarquee(
+                                    repeatDelayMillis = MusicMiniBarMarqueeRepeatDelayMillis,
+                                    velocity = MusicMiniBarMarqueeVelocity,
+                                ),
                         )
-                        // 状态（正在播放 / 已暂停 / 上次播放 [· 睡眠]）同行展示，放不下时省略——
-                        // 时间永不被截断（W66b 用户口径）。
-                        Spacer(modifier = Modifier.width(CinefinSpacing.Space1))
-                        Text(
-                            text = statusText,
-                            style = CinefinType.MonoDataSmall,
-                            color = colors.onSurfaceFaint,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
+                        currentItem.artist
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { artist ->
+                                Text(
+                                    text = artist,
+                                    style = MusicMiniBarArtistStyle,
+                                    color = colors.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                     }
                 }
+                CinefinIconButton(onClick = onPlayPause) { tint ->
+                    Icon(
+                        painter =
+                            painterResource(
+                                if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play
+                            ),
+                        contentDescription = if (isPlaying) "暂停" else "播放",
+                        tint = tint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                CinefinIconButton(onClick = onNext) { tint ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_skip_forward),
+                        contentDescription = "下一首",
+                        tint = tint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                // W56：关闭面板 = 停止播放并收起迷你条（队列存档保留，再次选择曲目即可恢复）。
+                CinefinIconButton(onClick = onClose) { tint ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_close),
+                        contentDescription = "关闭面板",
+                        tint = tint,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
-            CinefinIconButton(onClick = onOpenLyrics) { tint ->
-                Text(text = "词", style = CinefinType.LabelLarge, color = tint)
-            }
-            CinefinIconButton(onClick = onPlayPause) { tint ->
-                Icon(
-                    painter =
-                        painterResource(
-                            if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play
-                        ),
-                    contentDescription = if (isPlaying) "暂停" else "播放",
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            CinefinIconButton(onClick = onNext) { tint ->
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_skip_forward),
-                    contentDescription = "下一首",
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            // W56：关闭面板 = 停止播放并收起迷你条（队列存档保留，再次选择曲目即可恢复）。
-            CinefinIconButton(onClick = onClose) { tint ->
-                Icon(
-                    painter = painterResource(CoreR.drawable.ic_close),
-                    contentDescription = "关闭面板",
-                    tint = tint,
-                    modifier = Modifier.size(20.dp),
+            // 极细进度线：贴条上缘 2dp，media.base（调色板覆盖后随封面色），暂停时 40% alpha 静态
+            Box(
+                modifier =
+                    Modifier.align(Alignment.TopStart)
+                        .fillMaxWidth()
+                        .height(MusicMiniBarProgressHeight)
+                        .semantics { contentDescription = "播放进度 $timeText" }
+            ) {
+                Box(
+                    modifier =
+                        Modifier.fillMaxHeight()
+                            .fillMaxWidth(progress)
+                            .background(media.base.copy(alpha = if (isPlaying) 1f else 0.4f))
                 )
             }
         }
     }
+}
+
+/** 40dp 封面缩略（`TwoXs` 圆角；无图时露出域/封面色的音符占位，不会出现黑块）。 */
+@Composable
+private fun MusicMiniBarArtwork(imageUri: String?, title: String) {
+    val media = LocalMediaColors.current
+    Box(
+        modifier =
+            Modifier.size(MusicMiniBarArtworkSize)
+                .clip(CinefinShapes.TwoXs)
+                .background(media.container),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(CoreR.drawable.ic_music),
+            contentDescription = null,
+            tint = media.bright,
+            modifier = Modifier.size(MusicMiniBarArtworkSize * 0.5f),
+        )
+        if (imageUri != null) {
+            AsyncImage(
+                model = imageUri,
+                contentDescription = title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+    }
+}
+
+/** 滑切歌时从反侧探入的邻曲封面（同 40dp / `TwoXs`，只用封面取色与位图）。 */
+@Composable
+private fun MusicMiniBarNeighborArtwork(imageUri: String, modifier: Modifier) {
+    AsyncImage(
+        model = imageUri,
+        contentDescription = null,
+        modifier = modifier.size(MusicMiniBarArtworkSize).clip(CinefinShapes.TwoXs),
+        contentScale = ContentScale.Crop,
+    )
+}
+
+/** 顶部内高光：0.5dp 白 6%（定稿 §2；与 W4 玻璃容器同一手法——`drawBehind` 贴顶画一条内线）。 */
+private fun Modifier.musicMiniBarTopHighlight(): Modifier = drawBehind {
+    drawRect(
+        color = Color.White.copy(alpha = MusicMiniBarTopHighlightAlpha),
+        size = Size(size.width, MusicMiniBarTopHighlightHeight.toPx()),
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
