@@ -455,12 +455,7 @@ constructor(
             val offset = current.upNextCount
             player.removeMediaItem(current.mainToTimelineIndex(index, offset))
         }
-        val removed =
-            current.copy(
-                items = current.items.toMutableList().apply { removeAt(index) },
-                shuffleOrder = null,
-                shuffleSeed = null,
-            )
+        val removed = current.removeAt(index)
         _queue.value = player.captureShuffleSnapshot(removed)
     }
 

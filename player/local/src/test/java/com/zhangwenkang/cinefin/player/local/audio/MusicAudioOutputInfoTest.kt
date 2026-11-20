@@ -1,6 +1,10 @@
 package com.zhangwenkang.cinefin.player.local.audio
 
+import androidx.media3.common.C
 import androidx.media3.common.Format
+import androidx.media3.common.TrackGroup
+import androidx.media3.common.Tracks
+import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -49,5 +53,49 @@ class MusicAudioOutputInfoTest {
                 .setChannelCount(2)
                 .build()
         assertEquals("mp4a.40.2", audioOutputInfo(format)?.codec)
+    }
+
+    @Test
+    fun `mediaId 一致时返回 Exo 输出读数`() {
+        val itemId = UUID.nameUUIDFromBytes("track-a".toByteArray())
+
+        val info = audioOutputInfoForItem(itemId, itemId.toString(), audioTracks())
+
+        assertEquals("flac", info?.codec)
+        assertEquals(48_000, info?.sampleRate)
+        assertEquals(2, info?.channelCount)
+    }
+
+    @Test
+    fun `mediaId 不一致时返回 null 不把新曲目读数混排进旧曲目面板`() {
+        val panelItemId = UUID.nameUUIDFromBytes("track-a".toByteArray())
+        val exoItemId = UUID.nameUUIDFromBytes("track-b".toByteArray())
+
+        assertNull(audioOutputInfoForItem(panelItemId, exoItemId.toString(), audioTracks()))
+    }
+
+    @Test
+    fun `播放器没有当前 mediaItem 时不返回读数`() {
+        assertNull(audioOutputInfoForItem(UUID.randomUUID(), null, audioTracks()))
+    }
+
+    private fun audioTracks(): Tracks {
+        val format =
+            Format.Builder()
+                .setSampleMimeType("audio/flac")
+                .setCodecs("flac")
+                .setSampleRate(48_000)
+                .setChannelCount(2)
+                .build()
+        return Tracks(
+            listOf(
+                Tracks.Group(
+                    TrackGroup(format),
+                    /* adaptiveSupported = */ false,
+                    intArrayOf(C.FORMAT_HANDLED),
+                    booleanArrayOf(true),
+                )
+            )
+        )
     }
 }

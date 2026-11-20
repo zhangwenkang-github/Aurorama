@@ -5,6 +5,7 @@ import androidx.media3.common.Format
 import androidx.media3.common.Tracks
 import com.zhangwenkang.cinefin.player.local.domain.isPlayingMusicItem
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerHolder
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,16 +45,34 @@ fun Tracks.selectedAudioFormat(): Format? =
         }
 
 /**
+ * 输出侧一致性守卫（W5-fixpack）：只有 Exo 当前 `mediaItem` 与面板展示的 [itemId] 同一代时才返回读数。
+ *
+ * AUTO 切歌瞬间 `queue.currentItem` 还停在旧曲目、Exo 的 `currentTracks` 已是新曲目；不加这道校验会把两首歌的参数混排进同一张面板。 对不上就返回
+ * null，由 UI 走既有「—（未播放）」降级，不猜也不冒充。
+ */
+internal fun audioOutputInfoForItem(
+    itemId: UUID,
+    currentMediaId: String?,
+    tracks: Tracks,
+): MusicAudioOutputInfo? =
+    if (currentMediaId != itemId.toString()) null else audioOutputInfo(tracks.selectedAudioFormat())
+
+/**
  * 音乐输出信息读取入口（W5-T6）：只在音乐会话且当前条目是音乐曲目时读数，避免把视频会话的音频参数当成音乐输出。
  *
- * UI 在打开信息面板时同步调用一次 [snapshot]（主线程，`currentTracks` 读取开销可忽略）。
+ * UI 在打开信息面板时同步调用一次 [snapshot]（主线程，`currentTracks` 读取开销可忽略）；[itemId] 必须是面板正在展示的曲目， 播放器当前条目与之不一致时返回
+ * null（切歌瞬间的代际校验）。
  */
 @Singleton
 class MusicAudioOutputInfoSource @Inject constructor(private val playerHolder: PlayerHolder) {
 
-    fun snapshot(): MusicAudioOutputInfo? {
+    fun snapshot(itemId: UUID): MusicAudioOutputInfo? {
         val player = playerHolder.existingPlayer ?: return null
         if (!playerHolder.musicSessionActive || !player.isPlayingMusicItem()) return null
-        return audioOutputInfo(player.currentTracks.selectedAudioFormat())
+        return audioOutputInfoForItem(
+            itemId = itemId,
+            currentMediaId = player.currentMediaItem?.mediaId,
+            tracks = player.currentTracks,
+        )
     }
 }
