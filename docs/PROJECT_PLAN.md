@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-20）
 
-1. **2.0.0 W5 音乐域实现中（2026-11-20 晚）**：会话2 首批 T1/T4/T10 三卡 + T1r（音乐域主题跟随）/T4r（J12 流鉴权：删 api_key、`ServerAuthDataSourceFactory` 同源注头，K60 转码/直连双档起播实证）双返修全部合入 `codex/v2-integration`；**焦点 = 收口后派 T2（玻璃迷你条+调色板）/T3（动效包）/T5（双队列）/T6（音频设置）**（依赖与接口约定见 `V2_W5_TASKS.md` 状态块）。`tools/backup-docs.ps1` 已入 worktree（参数化 DocsPath，两仓各自备份）。
+1. **2.0.0 W5 音乐域实现中（2026-11-20 晚，会话3）**：会话2 五卡（T1/T4/T10 + T1r/T4r 双返修，含 J12 流鉴权修复）全部合入 `codex/v2-integration` 并收口完毕；**会话3 已并行派 T2（玻璃迷你条+调色板，`v2-w5-t2`）/T5（双队列，`v2-w5-t5`）/T6（音频设置，`v2-w5-t6`），T3 动效包押后待 T2/T5 落成**。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
