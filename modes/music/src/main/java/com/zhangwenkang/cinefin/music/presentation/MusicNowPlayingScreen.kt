@@ -24,6 +24,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +50,8 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -53,6 +61,7 @@ import coil3.compose.AsyncImage
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinProgressVisuals
+import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -98,6 +107,14 @@ fun MusicNowPlayingScreen(
     onToggleLyricsOverlay: () -> Unit,
     onOpenEffects: () -> Unit,
     onOpenQueue: () -> Unit,
+    /** W5 T1：工具栏「上下文菜单 ⋮」→ 睡眠定时面板。 */
+    onOpenSleepTimer: () -> Unit,
+    /** W5 T1：点艺术家名跳艺术家详情页（按艺人名解析）。 */
+    onOpenArtist: (String) -> Unit,
+    /** W5 T1：宽屏右栏「队列」Tab 的队列编辑（与队列 sheet 同一份编辑链路）。 */
+    onJumpQueueItem: (Int) -> Unit,
+    onMoveQueueItem: (Int, Int) -> Unit,
+    onRemoveQueueItem: (Int) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     onSelectLyricsLanguage: (LyricsDisplayLanguage) -> Unit,
     onToggleLyricsBilingual: () -> Unit,
@@ -157,6 +174,12 @@ fun MusicNowPlayingScreen(
                 onOpenEffects = onOpenEffects,
                 onOpenLyrics = openLyrics,
                 onOpenQueue = onOpenQueue,
+                onOpenSleepTimer = onOpenSleepTimer,
+                onOpenArtist = onOpenArtist,
+                onJumpQueueItem = onJumpQueueItem,
+                onMoveQueueItem = onMoveQueueItem,
+                onRemoveQueueItem = onRemoveQueueItem,
+                onSeekLyricLine = onSeekLyricLine,
                 onToggleFavorite = onToggleFavorite,
                 modifier =
                     Modifier.swipeGestures(
@@ -189,6 +212,12 @@ private fun PlayerPage(
     onOpenEffects: () -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
+    onOpenSleepTimer: () -> Unit,
+    onOpenArtist: (String) -> Unit,
+    onSeekLyricLine: (Long) -> Unit,
+    onJumpQueueItem: (Int) -> Unit,
+    onMoveQueueItem: (Int, Int) -> Unit,
+    onRemoveQueueItem: (Int) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -196,55 +225,88 @@ private fun PlayerPage(
     val colors = LocalCinefinColors.current
     Box(modifier = modifier.fillMaxSize().background(colors.surface)) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
-            // 横屏手机（K60 横屏 411dp 高）走两栏紧凑布局，避免 W23 单列在矮屏被裁切
-            if (maxHeight < COMPACT_PLAYER_HEIGHT) {
-                CompactPlayerLayout(
-                    queue = queue,
-                    lyricsState = lyricsState,
-                    isPlaying = isPlaying,
-                    isRestored = isRestored,
-                    positionMs = positionMs,
-                    durationMs = durationMs,
-                    meta = meta,
-                    playMode = playMode,
-                    lyricsOverlayEnabled = lyricsOverlayEnabled,
-                    coverSize = minOf(maxWidth * 0.34f, maxHeight * 0.52f, 240.dp),
-                    onClose = onClose,
-                    onPlayPause = onPlayPause,
-                    onPrevious = onPrevious,
-                    onNext = onNext,
-                    onSeek = onSeek,
-                    onCyclePlayMode = onCyclePlayMode,
-                    onToggleLyricsOverlay = onToggleLyricsOverlay,
-                    onOpenEffects = onOpenEffects,
-                    onOpenLyrics = onOpenLyrics,
-                    onOpenQueue = onOpenQueue,
-                    onToggleFavorite = onToggleFavorite,
-                )
-            } else {
-                RegularPlayerLayout(
-                    queue = queue,
-                    lyricsState = lyricsState,
-                    isPlaying = isPlaying,
-                    isRestored = isRestored,
-                    positionMs = positionMs,
-                    durationMs = durationMs,
-                    meta = meta,
-                    playMode = playMode,
-                    lyricsOverlayEnabled = lyricsOverlayEnabled,
-                    coverSize = minOf(maxWidth * 0.58f, 320.dp),
-                    onClose = onClose,
-                    onPlayPause = onPlayPause,
-                    onPrevious = onPrevious,
-                    onNext = onNext,
-                    onSeek = onSeek,
-                    onCyclePlayMode = onCyclePlayMode,
-                    onToggleLyricsOverlay = onToggleLyricsOverlay,
-                    onOpenEffects = onOpenEffects,
-                    onOpenLyrics = onOpenLyrics,
-                    onOpenQueue = onOpenQueue,
-                    onToggleFavorite = onToggleFavorite,
-                )
+            when (playerLayoutMode(maxWidth, maxHeight)) {
+                // W5 T1 · MUSIC-20：宽屏（≥840dp）左右分栏——左封面+信息+进度+传输，右「歌词 | 队列」Tab
+                PlayerLayoutMode.Wide ->
+                    WidePlayerLayout(
+                        queue = queue,
+                        lyricsState = lyricsState,
+                        isPlaying = isPlaying,
+                        isRestored = isRestored,
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                        meta = meta,
+                        playMode = playMode,
+                        lyricsOverlayEnabled = lyricsOverlayEnabled,
+                        onClose = onClose,
+                        onPlayPause = onPlayPause,
+                        onPrevious = onPrevious,
+                        onNext = onNext,
+                        onSeek = onSeek,
+                        onCyclePlayMode = onCyclePlayMode,
+                        onToggleLyricsOverlay = onToggleLyricsOverlay,
+                        onOpenEffects = onOpenEffects,
+                        onOpenQueue = onOpenQueue,
+                        onOpenSleepTimer = onOpenSleepTimer,
+                        onOpenArtist = onOpenArtist,
+                        onSeekLyricLine = onSeekLyricLine,
+                        onJumpQueueItem = onJumpQueueItem,
+                        onMoveQueueItem = onMoveQueueItem,
+                        onRemoveQueueItem = onRemoveQueueItem,
+                        onToggleFavorite = onToggleFavorite,
+                    )
+                // 横屏手机（K60 横屏 411dp 高）走两栏紧凑布局，避免 W23 单列在矮屏被裁切
+                PlayerLayoutMode.Compact ->
+                    CompactPlayerLayout(
+                        queue = queue,
+                        lyricsState = lyricsState,
+                        isPlaying = isPlaying,
+                        isRestored = isRestored,
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                        meta = meta,
+                        playMode = playMode,
+                        lyricsOverlayEnabled = lyricsOverlayEnabled,
+                        coverSize = minOf(maxWidth * 0.34f, maxHeight * 0.52f, 240.dp),
+                        onClose = onClose,
+                        onPlayPause = onPlayPause,
+                        onPrevious = onPrevious,
+                        onNext = onNext,
+                        onSeek = onSeek,
+                        onCyclePlayMode = onCyclePlayMode,
+                        onToggleLyricsOverlay = onToggleLyricsOverlay,
+                        onOpenEffects = onOpenEffects,
+                        onOpenLyrics = onOpenLyrics,
+                        onOpenQueue = onOpenQueue,
+                        onToggleFavorite = onToggleFavorite,
+                    )
+                else ->
+                    RegularPlayerLayout(
+                        queue = queue,
+                        lyricsState = lyricsState,
+                        isPlaying = isPlaying,
+                        isRestored = isRestored,
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                        meta = meta,
+                        playMode = playMode,
+                        lyricsOverlayEnabled = lyricsOverlayEnabled,
+                        // W5 T1：封面 min(宽 × 0.80, 360dp)（MUSIC-20 需求 78–82%）
+                        coverSize = nowPlayingCoverSize(maxWidth),
+                        onClose = onClose,
+                        onPlayPause = onPlayPause,
+                        onPrevious = onPrevious,
+                        onNext = onNext,
+                        onSeek = onSeek,
+                        onCyclePlayMode = onCyclePlayMode,
+                        onToggleLyricsOverlay = onToggleLyricsOverlay,
+                        onOpenEffects = onOpenEffects,
+                        onOpenLyrics = onOpenLyrics,
+                        onOpenQueue = onOpenQueue,
+                        onOpenSleepTimer = onOpenSleepTimer,
+                        onOpenArtist = onOpenArtist,
+                        onToggleFavorite = onToggleFavorite,
+                    )
             }
         }
     }
@@ -273,6 +335,8 @@ private fun RegularPlayerLayout(
     onOpenEffects: () -> Unit,
     onOpenLyrics: () -> Unit,
     onOpenQueue: () -> Unit,
+    onOpenSleepTimer: () -> Unit,
+    onOpenArtist: (String) -> Unit,
     onToggleFavorite: (MusicSong) -> Unit,
 ) {
     val item = queue.currentItem ?: return
@@ -288,16 +352,23 @@ private fun RegularPlayerLayout(
         modifier = Modifier.fillMaxSize().padding(horizontal = CinefinSpacing.Space6),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // W5 T1 · MUSIC-19：工具栏左「收起」、右「上下文菜单 ⋮」（队列 / 音效 / 睡眠定时）
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = CinefinSpacing.Space3),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             ExitFullscreenButton(onClose)
+            PlayerContextMenu(
+                onOpenQueue = onOpenQueue,
+                onOpenEffects = onOpenEffects,
+                onOpenSleepTimer = onOpenSleepTimer,
+            )
         }
         Spacer(modifier = Modifier.weight(1f))
-        TrackCover(item = item, size = coverSize)
+        TrackCover(item = item, size = coverSize, onClick = onOpenLyrics)
         Spacer(modifier = Modifier.height(CinefinSpacing.Space6))
-        TrackTitles(item = item, meta = meta, compact = false)
+        TrackTitles(item = item, meta = meta, compact = false, onOpenArtist = onOpenArtist)
         Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
         // W24 · C8：2–3 行歌词（当前行 ±1），点任意一行进歌词页
         LyricsPreview(
@@ -477,6 +548,206 @@ private fun CompactPlayerLayout(
     }
 }
 
+/** 宽屏播放页右栏分页（W5 T1 · 设计定稿一 §1）。 */
+private enum class WidePlayerPane(val label: String) {
+    LYRICS("歌词"),
+    QUEUE("队列"),
+}
+
+/**
+ * 宽屏（≥ [WIDE_PLAYER_WIDTH]）左右分栏：左栏封面 + 信息 + 进度 + 传输（居中，最大 [WIDE_PLAYER_COLUMN_MAX] 列宽）， 右栏「歌词 |
+ * 队列」Tab（默认歌词，MUSIC-20）。
+ *
+ * 两栏各自独立滚动（左栏 `verticalScroll`、右栏歌词/队列本身是列表），栏间只留 [CinefinSpacing.Space6]，无分隔线。
+ */
+@Composable
+private fun WidePlayerLayout(
+    queue: MusicQueue,
+    lyricsState: MusicModeViewModel.LyricsUiState,
+    isPlaying: Boolean,
+    isRestored: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    meta: MusicSong?,
+    playMode: MusicPlayMode,
+    lyricsOverlayEnabled: Boolean,
+    onClose: () -> Unit,
+    onPlayPause: () -> Unit,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onCyclePlayMode: () -> Unit,
+    onToggleLyricsOverlay: () -> Unit,
+    onOpenEffects: () -> Unit,
+    onOpenQueue: () -> Unit,
+    onOpenSleepTimer: () -> Unit,
+    onOpenArtist: (String) -> Unit,
+    onToggleFavorite: (MusicSong) -> Unit,
+    onSeekLyricLine: (Long) -> Unit,
+    onJumpQueueItem: (Int) -> Unit,
+    onMoveQueueItem: (Int, Int) -> Unit,
+    onRemoveQueueItem: (Int) -> Unit,
+) {
+    val item = queue.currentItem ?: return
+    val colors = LocalCinefinColors.current
+    val totalMs = durationMs.takeIf { it > 0L } ?: (meta?.runtimeTicks?.div(TICKS_PER_MS) ?: 0L)
+    val currentMs = if (isRestored) item.playbackPosition else positionMs
+    var dragValue by remember(item.itemId) { mutableStateOf<Float?>(null) }
+    val sliderValue =
+        (dragValue ?: currentMs.toFloat()).coerceIn(0f, totalMs.coerceAtLeast(0L).toFloat())
+    var pane by rememberSaveable(item.itemId) { mutableStateOf(WidePlayerPane.LYRICS) }
+    var followState by
+        remember(item.itemId) {
+            mutableStateOf(LyricsFollowUiState().onPageEntered(lyricsState.display.follow))
+        }
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = CinefinSpacing.Space6)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = CinefinSpacing.Space3),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            ExitFullscreenButton(onClose)
+            PlayerContextMenu(
+                onOpenQueue = onOpenQueue,
+                onOpenEffects = onOpenEffects,
+                onOpenSleepTimer = onOpenSleepTimer,
+            )
+        }
+        Row(modifier = Modifier.fillMaxSize()) {
+            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                // 列宽在 BoxWithConstraints 作用域取；Column 内受 DSL marker 限制拿不到外层 maxWidth
+                val columnWidth = maxWidth
+                Column(
+                    modifier =
+                        Modifier.widthIn(max = WIDE_PLAYER_COLUMN_MAX)
+                            .align(Alignment.Center)
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = CinefinSpacing.Space6),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    // 封面点击 = 切到歌词视图（右栏 Tab，设计定稿一 §1）
+                    TrackCover(
+                        item = item,
+                        size = nowPlayingCoverSize(columnWidth),
+                        onClick = { pane = WidePlayerPane.LYRICS },
+                    )
+                    Spacer(modifier = Modifier.height(CinefinSpacing.Space6))
+                    TrackTitles(
+                        item = item,
+                        meta = meta,
+                        compact = false,
+                        onOpenArtist = onOpenArtist,
+                    )
+                    Spacer(modifier = Modifier.height(CinefinSpacing.Space5))
+                    MusicProgressBar(
+                        value = sliderValue,
+                        onValueChange = { value -> dragValue = value },
+                        onValueChangeFinished = {
+                            dragValue?.let { value -> onSeek(value.roundToLong()) }
+                            dragValue = null
+                        },
+                        valueRange = 0f..totalMs.coerceAtLeast(1L).toFloat(),
+                        enabled = totalMs > 0L && !isRestored,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = formatPositionMs(dragValue?.roundToLong() ?: currentMs),
+                            style = CinefinType.MonoDataSmall,
+                            color = colors.onSurfaceVariant,
+                        )
+                        Text(
+                            text = if (totalMs > 0L) formatPositionMs(totalMs) else "--:--",
+                            style = CinefinType.MonoDataSmall,
+                            color = colors.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
+                    TransportControls(
+                        isPlaying = isPlaying,
+                        onPrevious = onPrevious,
+                        onPlayPause = onPlayPause,
+                        onNext = onNext,
+                    )
+                    Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
+                    PlayerActionRow(
+                        playMode = playMode,
+                        meta = meta,
+                        lyricsOverlayEnabled = lyricsOverlayEnabled,
+                        onCyclePlayMode = onCyclePlayMode,
+                        onToggleFavorite = onToggleFavorite,
+                        onOpenQueue = onOpenQueue,
+                        onToggleLyricsOverlay = onToggleLyricsOverlay,
+                        onOpenEffects = onOpenEffects,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(CinefinSpacing.Space6))
+            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                CinefinSegmentedControl(
+                    items = WidePlayerPane.entries,
+                    selected = pane,
+                    onSelect = { selected -> pane = selected },
+                    label = { entry -> entry.label },
+                    modifier = Modifier.widthIn(max = 320.dp),
+                )
+                Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
+                when (pane) {
+                    WidePlayerPane.LYRICS ->
+                        WideLyricsPane(
+                            state = lyricsState,
+                            followState = followState,
+                            onFollowStateChange = { next -> followState = next },
+                            onLineClick = onSeekLyricLine,
+                        )
+                    WidePlayerPane.QUEUE ->
+                        QueueListBody(
+                            queue = queue,
+                            onJump = onJumpQueueItem,
+                            onMove = onMoveQueueItem,
+                            onRemove = onRemoveQueueItem,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                }
+            }
+        }
+    }
+}
+
+/** 宽屏右栏歌词：已加载即有行（复用歌词页的跟随/居中滚动），空态回落加载态或「暂无歌词」提示。 */
+@Composable
+private fun WideLyricsPane(
+    state: MusicModeViewModel.LyricsUiState,
+    followState: LyricsFollowUiState,
+    onFollowStateChange: (LyricsFollowUiState) -> Unit,
+    onLineClick: (Long) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        when {
+            state.loading -> CircularProgressIndicator()
+            state.rows.isEmpty() ->
+                Text(
+                    text = state.message ?: "该曲目暂无歌词",
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = CinefinSpacing.Space6),
+                )
+            else ->
+                LyricsLines(
+                    state = state,
+                    followState = followState,
+                    onFollowStateChange = onFollowStateChange,
+                    onLineClick = onLineClick,
+                )
+        }
+    }
+}
+
 @Composable
 private fun ExitFullscreenButton(onClose: () -> Unit) {
     CinefinIconButton(onClick = onClose) { tint ->
@@ -489,15 +760,95 @@ private fun ExitFullscreenButton(onClose: () -> Unit) {
     }
 }
 
+/**
+ * 全屏播放页工具栏右侧「上下文菜单 ⋮」（W5 T1 · MUSIC-19）：队列 / 音效 / 睡眠定时三项。
+ *
+ * 分享占位按设计定稿一 §1 **不做**；菜单容器沿用音乐页既有 DropdownMenu 口径（`surfaceContainerHighest` + `Card` 圆角 + 无阴影）。
+ */
 @Composable
-private fun TrackCover(item: PlayerItem, size: Dp) {
+private fun PlayerContextMenu(
+    onOpenQueue: () -> Unit,
+    onOpenEffects: () -> Unit,
+    onOpenSleepTimer: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        CinefinIconButton(onClick = { expanded = true }) { tint ->
+            // 与曲目行尾部「⋮」同一口径（不新增矢量图）
+            Box(modifier = Modifier.clearAndSetSemantics { contentDescription = "上下文菜单" }) {
+                Text(text = "⋮", style = CinefinType.TitleMedium, color = tint)
+            }
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = CinefinShapes.Card,
+            containerColor = colors.surfaceContainerHighest,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
+        ) {
+            PlayerContextMenuItem(
+                icon = CoreR.drawable.ic_playlist,
+                label = "播放队列",
+                onClick = {
+                    expanded = false
+                    onOpenQueue()
+                },
+            )
+            PlayerContextMenuItem(
+                icon = R.drawable.ic_music_equalizer,
+                label = "音效",
+                onClick = {
+                    expanded = false
+                    onOpenEffects()
+                },
+            )
+            PlayerContextMenuItem(
+                icon = R.drawable.ic_music_sleep,
+                label = "睡眠定时",
+                onClick = {
+                    expanded = false
+                    onOpenSleepTimer()
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerContextMenuItem(icon: Int, label: String, onClick: () -> Unit) {
+    val colors = LocalCinefinColors.current
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = label,
+                style = CinefinType.BodyMedium,
+                color = colors.onSurface,
+            )
+        },
+        leadingIcon = {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        },
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun TrackCover(item: PlayerItem, size: Dp, onClick: (() -> Unit)? = null) {
     val colors = LocalCinefinColors.current
     Box(
         modifier =
             Modifier.size(size)
-                .clip(CinefinShapes.Xl)
+                .clip(CinefinShapes.Card)
                 .background(colors.surfaceContainerHigh)
-                .border(1.dp, colors.outline, CinefinShapes.Xl),
+                .border(1.dp, colors.glassBorder, CinefinShapes.Card)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         if (item.thumbnailUri == null) {
@@ -518,30 +869,84 @@ private fun TrackCover(item: PlayerItem, size: Dp) {
 }
 
 @Composable
-private fun TrackTitles(item: PlayerItem, meta: MusicSong?, compact: Boolean) {
+private fun TrackTitles(
+    item: PlayerItem,
+    meta: MusicSong?,
+    compact: Boolean,
+    onOpenArtist: ((String) -> Unit)? = null,
+) {
     val colors = LocalCinefinColors.current
+    val artist = meta?.artist?.takeIf { it.isNotBlank() }
+    val album = meta?.albumName?.takeIf { it.isNotBlank() }
     Text(
         text = item.name,
-        style = if (compact) CinefinType.TitleLarge else CinefinType.HeadlineSmall,
+        // 设计定稿一 §1：曲名 18sp / 500（紧凑横屏沿用旧档）
+        style =
+            if (compact) CinefinType.TitleLarge else CinefinType.TitleMedium.copy(fontSize = 18.sp),
         color = colors.onSurface,
         maxLines = if (compact) 1 else 2,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,
     )
-    val subtitle =
-        listOfNotNull(meta?.artist?.takeIf { it.isNotBlank() }, meta?.albumName)
-            .distinct()
-            .joinToString(" · ")
-    if (subtitle.isNotBlank()) {
+    if (compact) {
+        val subtitle = listOfNotNull(artist, album).distinct().joinToString(" · ")
+        if (subtitle.isNotBlank()) {
+            Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
+            Text(
+                text = subtitle,
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        }
+        return
+    }
+    if (artist != null || album != null) {
         Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
-        Text(
-            text = subtitle,
-            style = if (compact) CinefinType.BodySmall else CinefinType.BodyMedium,
-            color = colors.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (artist != null) {
+                // 艺术家 15sp / 400，可点击跳艺术家详情（设计定稿一 §1）
+                Text(
+                    text = artist,
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier =
+                        if (onOpenArtist != null) {
+                            Modifier.clip(CinefinShapes.Button)
+                                .clickable { onOpenArtist(artist) }
+                                .padding(
+                                    horizontal = CinefinSpacing.Space2,
+                                    vertical = CinefinSpacing.Space1,
+                                )
+                        } else {
+                            Modifier
+                        },
+                )
+            }
+            if (artist != null && album != null) {
+                Text(
+                    text = "·",
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurfaceVariant,
+                )
+            }
+            if (album != null) {
+                Text(
+                    text = album,
+                    style = CinefinType.BodyMedium,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 
@@ -557,7 +962,7 @@ private fun TransportControls(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CinefinIconButton(onClick = onPrevious) { tint ->
+        PlayerIconButton(onClick = onPrevious) { tint ->
             Icon(
                 painter = painterResource(CoreR.drawable.ic_skip_back),
                 contentDescription = "上一曲",
@@ -568,7 +973,7 @@ private fun TransportControls(
         Spacer(modifier = Modifier.width(CinefinSpacing.Space6))
         PrimaryPlayButton(isPlaying = isPlaying, onClick = onPlayPause)
         Spacer(modifier = Modifier.width(CinefinSpacing.Space6))
-        CinefinIconButton(onClick = onNext) { tint ->
+        PlayerIconButton(onClick = onNext) { tint ->
             Icon(
                 painter = painterResource(CoreR.drawable.ic_skip_forward),
                 contentDescription = "下一首",
@@ -576,6 +981,48 @@ private fun TransportControls(
                 modifier = Modifier.size(30.dp),
             )
         }
+    }
+}
+
+/**
+ * MUSIC-22 · 48dp 最小触控目标（可视仍 44dp 图标钮口径）。
+ *
+ * core 的 `CinefinIconButton` 可点区域就是内层 44dp（48dp 只是外层占位），本卡要求主传输三键与次级五键 ≥48dp 且 core
+ * 不可改动，故在音乐模块内补这一层：视觉与 core Icon 变体同色阶（透明底 / `media.bright` 图标，按下 `media.container` 底 +
+ * `media.base` 图标）。core 侧把 clickable 提到 48dp 后可删除本层。
+ */
+@Composable
+private fun PlayerIconButton(
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    content: @Composable (tint: Color) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val tint =
+        when {
+            !enabled -> colors.onSurfaceFaint.copy(alpha = colors.disabledAlpha)
+            pressed -> media.base
+            else -> media.bright
+        }
+    Box(
+        modifier =
+            modifier
+                .size(48.dp)
+                .clip(CinefinShapes.Button)
+                .background(if (pressed && enabled) media.container else Color.Transparent)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    enabled = enabled,
+                    onClick = onClick,
+                ),
+        contentAlignment = Alignment.Center,
+    ) {
+        content(tint)
     }
 }
 
@@ -638,6 +1085,34 @@ private fun PlayerActionRow(
 }
 
 private val COMPACT_PLAYER_HEIGHT = 620.dp
+
+/** 宽屏分栏阈值（W5 T1 · 设计定稿一 §1：`maxWidth ≥ 840dp`）。 */
+private val WIDE_PLAYER_WIDTH = 840.dp
+
+/** 宽屏左栏（封面 + 信息 + 进度 + 传输）最大列宽。 */
+private val WIDE_PLAYER_COLUMN_MAX = 480.dp
+
+/** 封面边长 = `min(可用宽 × 0.80, 360dp)`（MUSIC-20：占手机宽 78–82%）。 */
+internal fun nowPlayingCoverSize(availableWidth: Dp): Dp = minOf(availableWidth * 0.80f, 360.dp)
+
+/** 全屏播放页三种布局（W5 T1）：宽屏分栏 / 横屏手机紧凑两栏 / 常规单列。 */
+internal enum class PlayerLayoutMode {
+    Wide,
+    Compact,
+    Regular,
+}
+
+/**
+ * 布局选择（纯函数）：矮屏（可用高 < 620dp，含 K60 横屏 411dp）一律保留紧凑两栏；否则宽 ≥ 840dp 走宽屏分栏，其余常规单列。
+ *
+ * 顺序有意如此：横屏手机宽 891dp 已越过 840dp 阈值，但按设计定稿一 §1「横屏手机保留现有紧凑两栏不动」必须先命中矮屏分支。
+ */
+internal fun playerLayoutMode(width: Dp, height: Dp): PlayerLayoutMode =
+    when {
+        height < COMPACT_PLAYER_HEIGHT -> PlayerLayoutMode.Compact
+        width >= WIDE_PLAYER_WIDTH -> PlayerLayoutMode.Wide
+        else -> PlayerLayoutMode.Regular
+    }
 
 /** 播放模式图标（C 组）：顺序 / 列表循环 / 单曲循环 / 随机。 */
 private fun MusicPlayMode.iconRes(): Int =
@@ -811,7 +1286,7 @@ private fun NowPlayingAction(
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        CinefinIconButton(onClick = onClick, enabled = enabled) { tint ->
+        PlayerIconButton(onClick = onClick, enabled = enabled) { tint ->
             Icon(
                 painter = icon,
                 contentDescription = label,
