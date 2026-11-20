@@ -2063,14 +2063,13 @@ class JellyfinRepositoryImpl(
 
     override fun getAccessToken(): String? = jellyfinApi.api.accessToken
 
-    /** MUSIC-03：`/Audio/{itemId}/universal`（协议拼装集中在 [MusicStreamUrl]）。 */
+    /** MUSIC-03：`/Audio/{itemId}/universal`（协议拼装集中在 [MusicStreamUrl]；鉴权由播放器注入请求头，不进 URL）。 */
     override fun getMusicStreamUrl(itemId: UUID, request: MusicStreamRequest): String? =
         MusicStreamUrl.build(
             baseUrl = getBaseUrl(),
             itemId = itemId,
             userId = jellyfinApi.userId?.toString(),
             deviceId = jellyfinApi.deviceId,
-            apiKey = getAccessToken(),
             request = request,
         )
 
