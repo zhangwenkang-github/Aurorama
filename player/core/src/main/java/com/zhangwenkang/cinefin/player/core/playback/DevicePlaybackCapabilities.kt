@@ -24,6 +24,36 @@ enum class VideoCodec {
 }
 
 /**
+ * 音乐编码（W5-T4 / MUSIC-03）：设备音频解码能力按编码分档。
+ *
+ * 只收录音乐链路会用到的编码；[jellyfinNames] 是 Jellyfin `MediaStream.codec` / 请求 `AudioCodec` 的命名， [container] 是
+ * `/Audio/{itemId}/universal` 直连容器名（`Container` 参数），两边共用同一张表，避免请求与判定各写一套字符串。
+ */
+enum class AudioCodec(val jellyfinNames: List<String>, val container: String?) {
+    MP3(listOf("mp3"), "mp3"),
+    AAC(listOf("aac"), "aac"),
+    FLAC(listOf("flac"), "flac"),
+    ALAC(listOf("alac"), "m4a"),
+    VORBIS(listOf("vorbis"), "ogg"),
+    OPUS(listOf("opus"), "opus"),
+    PCM(listOf("pcm", "pcm_s16le", "pcm_s24le", "wav"), "wav"),
+
+    /** DSD（.dsf / .dff）：手机侧无解码器，必须转码；容器名留给服务端判定。 */
+    DSD(listOf("dsd", "dsd_lsbf", "dsd_msbf"), null);
+
+    companion object {
+        /** Jellyfin 编码名 → 本枚举；未知编码返回 null（宁可少报，不猜）。 */
+        fun fromJellyfinName(name: String?): AudioCodec? {
+            val normalized = name?.trim()?.lowercase()?.takeIf { it.isNotBlank() } ?: return null
+            return entries.firstOrNull { codec -> normalized in codec.jellyfinNames }
+        }
+    }
+}
+
+/** 单个音乐编码在本机的解码档位。 */
+data class AudioCodecCapability(val codec: AudioCodec, val tier: CodecDecodeTier)
+
+/**
  * 某编码在本机的解码档位。
  *
  * [NONE] 是「本机连软解都解不了」——探测只枚举系统解码器（MediaCodecList），App 自带的 FFmpeg 扩展软解也算在系统解码器之外， 因此 [NONE] 只用于面板标注与
@@ -49,11 +79,13 @@ data class CodecCapability(val codec: VideoCodec, val tier: CodecDecodeTier)
  * @property codecs 各视频编码的解码档位（`MediaCodecList` 枚举结果）。
  * @property mpvHwdecTiers mpv 配置路径实际可下发的 `hwdec` 档位（App 的 `PlayerDecodeMode.mpvHwDec` 值域，不是 mpv
  *   全部档位）。
+ * @property audioCodecs 音乐编码的解码档位（MUSIC-03 直连 / 转码协商用；`MediaCodecList` 枚举结果）。
  */
 data class DevicePlaybackCapabilities(
     val hdrTypes: Set<HdrType>,
     val codecs: List<CodecCapability>,
     val mpvHwdecTiers: List<String>,
+    val audioCodecs: List<AudioCodecCapability> = emptyList(),
 ) {
     val hdr10: Boolean
         get() = HdrType.HDR10 in hdrTypes
@@ -72,6 +104,19 @@ data class DevicePlaybackCapabilities(
     /** 某编码的档位；不在快照里按 [CodecDecodeTier.NONE] 处理（探测失败 / 未知编码不会伪装成支持）。 */
     fun codecTier(codec: VideoCodec): CodecDecodeTier =
         codecs.firstOrNull { it.codec == codec }?.tier ?: CodecDecodeTier.NONE
+
+    /**
+     * 音乐编码是否可本机解码（MUSIC-03）。
+     *
+     * 空快照（探测失败）返回 false：协商退回「按服务端能力判断」，不会错报直连。
+     */
+    fun supportsAudio(codec: AudioCodec): Boolean =
+        audioCodecs.firstOrNull { it.codec == codec }?.tier?.let { it != CodecDecodeTier.NONE }
+            ?: false
+
+    /** 可本机解码的音乐编码集合（接 `/Audio/{itemId}/universal` 的直连容器表）。 */
+    fun supportedAudioCodecs(): Set<AudioCodec> =
+        audioCodecs.filter { it.tier != CodecDecodeTier.NONE }.map { it.codec }.toSet()
 
     /**
      * 片源 HDR 类型是否全部能在本机直通（T4/T7 的比对入口）。

@@ -22,6 +22,39 @@ class LocalLibraryPureTest {
     }
 
     @Test
+    fun `APE 与 DSD 被识别为音乐但引擎不支持`() {
+        // MUSIC-36：识别（入库、可见）与可播分离
+        assertEquals(LocalMediaKind.MUSIC, LocalMediaExtensions.kindOf("album/track.APE"))
+        assertEquals(LocalMediaKind.MUSIC, LocalMediaExtensions.kindOf("dsd64.dsf"))
+        assertEquals(LocalMediaKind.MUSIC, LocalMediaExtensions.kindOf("dsd128.DFF"))
+
+        assertTrue(!LocalMediaExtensions.isEnginePlayable("track.ape"))
+        assertTrue(!LocalMediaExtensions.isEnginePlayable("dsd64.dsf"))
+        assertTrue(!LocalMediaExtensions.isEnginePlayable("dsd128.dff"))
+
+        // 其余音乐格式（含 ALAC 所在的 m4a 容器）保持可播
+        listOf("a.mp3", "a.flac", "a.m4a", "a.aac", "a.opus", "a.ogg", "a.wav").forEach { name ->
+            assertTrue("$name 应可播", LocalMediaExtensions.isEnginePlayable(name))
+        }
+        // 非音乐文件不受该判定影响
+        assertTrue(LocalMediaExtensions.isEnginePlayable("movie.mkv"))
+        assertTrue(LocalMediaExtensions.isEnginePlayable("book.pdf"))
+    }
+
+    @Test
+    fun `本地条目暴露引擎可播与编码推导`() {
+        val playable = entry("song.flac", LocalMediaKind.MUSIC)
+        assertEquals("flac", playable.musicCodec)
+        assertTrue(playable.isEnginePlayable)
+
+        val ape = entry("song.ape", LocalMediaKind.MUSIC)
+        assertEquals("ape", ape.musicCodec)
+        assertTrue(!ape.isEnginePlayable)
+
+        assertNull(entry("movie.mkv", LocalMediaKind.VIDEO).musicCodec)
+    }
+
+    @Test
     fun `类型库只收录所属类型_混合库全收`() {
         assertTrue(LocalMediaExtensions.allowedIn(LocalLibraryType.VIDEO, LocalMediaKind.VIDEO))
         assertTrue(!LocalMediaExtensions.allowedIn(LocalLibraryType.VIDEO, LocalMediaKind.MUSIC))

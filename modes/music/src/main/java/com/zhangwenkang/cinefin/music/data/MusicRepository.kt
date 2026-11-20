@@ -16,8 +16,10 @@ import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ImageType
+import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
+import org.jellyfin.sdk.model.api.MediaStreamType
 import org.jellyfin.sdk.model.api.SortOrder
 
 /** W37 曲目来源（在线融合：全部 / 服务器 / 本地）。 */
@@ -66,6 +68,27 @@ data class MusicSong(
     /** 服务器曲目快照的持久来源；本地曲目为 null。 */
     val serverId: String? = null,
     val userId: String? = null,
+    // MUSIC-02/35：解析链与 TrackSource 对齐的音频参数（取不到为 null，不伪造 0）
+    /** 专辑艺人（服务器 `AlbumArtists[0]` / 本地内嵌标签）。 */
+    val albumArtist: String? = null,
+    /** 碟号（服务器 `ParentIndexNumber` / 本地内嵌标签）。 */
+    val discNumber: Int? = null,
+    /** 流派（首个）。 */
+    val genre: String? = null,
+    /** 发行年份。 */
+    val year: Int? = null,
+    /** 源编码（服务器 `MediaStream.codec` / 本地扩展名）。 */
+    val codec: String? = null,
+    /** 源码率（bit/s）。 */
+    val bitrate: Int? = null,
+    /** 采样率（Hz）。 */
+    val sampleRate: Int? = null,
+    /** 位深（bit）。 */
+    val bitDepth: Int? = null,
+    /** 源容器（服务器 `Container` / 本地扩展名）：协商直连容器表用。 */
+    val container: String? = null,
+    /** MUSIC-36：本地格式引擎解不了（APE / DSD）→ 曲目行弱提示「不支持」，不静默失败。 */
+    val formatUnsupported: Boolean = false,
 )
 
 /**
@@ -242,6 +265,7 @@ constructor(
                     playlistId = playlistId,
                     userId = userId,
                     limit = SONG_LIMIT,
+                    fields = listOf(ItemFields.MEDIA_STREAMS),
                     enableImages = true,
                     enableUserData = true,
                 )
@@ -284,6 +308,7 @@ constructor(
                     filters = listOf(ItemFilter.IS_FAVORITE),
                     includeItemTypes = listOf(BaseItemKind.AUDIO),
                     recursive = true,
+                    fields = listOf(ItemFields.MEDIA_STREAMS),
                     enableUserData = true,
                     limit = SONG_LIMIT,
                 )
@@ -304,6 +329,7 @@ constructor(
                 recursive = true,
                 sortBy = listOfNotNull(ItemSortBy.fromName("SortName")),
                 sortOrder = listOfNotNull(SortOrder.fromName("Ascending")),
+                fields = listOf(ItemFields.MEDIA_STREAMS),
                 enableUserData = true,
                 limit = SONG_LIMIT,
             )
@@ -318,6 +344,13 @@ constructor(
     ): MusicSong? {
         val title = name?.takeIf { it.isNotBlank() } ?: return null
         val runtimeTicks = runTimeTicks ?: 0L
+        // MUSIC-02：音频流参数决定直连 / 转码（列表接口带 MediaStreams 时才有值）
+        val audioStream = mediaStreams?.firstOrNull { it.type == MediaStreamType.AUDIO }
+        val streamBitrate: Int? = audioStream?.bitRate?.takeIf { it > 0 }
+        val sourceBitrate: Int? = streamBitrate
+        val streamCodec: String? = audioStream?.codec?.takeIf { it.isNotBlank() }
+        val sourceCodec: String? = streamCodec
+        val sourceContainer: String? = container?.takeIf { it.isNotBlank() } ?: streamCodec
         return MusicSong(
             itemId = id,
             name = title,
@@ -330,6 +363,15 @@ constructor(
             isFavorite = userData?.isFavorite == true,
             serverId = namespace?.serverId,
             userId = namespace?.userId,
+            albumArtist = albumArtists?.firstOrNull()?.name,
+            discNumber = parentIndexNumber,
+            genre = genres?.firstOrNull()?.takeIf { it.isNotBlank() },
+            year = productionYear,
+            codec = sourceCodec,
+            bitrate = sourceBitrate,
+            sampleRate = audioStream?.sampleRate?.takeIf { it > 0 },
+            bitDepth = audioStream?.bitDepth?.takeIf { it > 0 },
+            container = sourceContainer,
         )
     }
 

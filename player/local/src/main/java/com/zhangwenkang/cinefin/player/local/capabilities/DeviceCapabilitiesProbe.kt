@@ -6,6 +6,8 @@ import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.os.Build
 import android.view.Display
+import com.zhangwenkang.cinefin.player.core.playback.AudioCodec
+import com.zhangwenkang.cinefin.player.core.playback.AudioCodecCapability
 import com.zhangwenkang.cinefin.player.core.playback.CodecCapability
 import com.zhangwenkang.cinefin.player.core.playback.CodecDecodeTier
 import com.zhangwenkang.cinefin.player.core.playback.DevicePlaybackCapabilities
@@ -52,6 +54,7 @@ object DeviceCapabilitiesProbe {
             hdrTypes = hdrTypes(context),
             codecs = codecCapabilities(),
             mpvHwdecTiers = PlayerDecodeMode.MPV_HWDEC_TIERS,
+            audioCodecs = audioCodecCapabilities(),
         )
     }
         .onFailure { Timber.w(it, "设备能力探测失败，按空快照处理") }
@@ -125,6 +128,47 @@ object DeviceCapabilitiesProbe {
         }
     }
 
+    /** 音乐编码的解码档位（MUSIC-03；探测口径与视频一致，只按 MIME 判定）。 */
+    private fun audioCodecCapabilities(): List<AudioCodecCapability> {
+        val decoders = runCatching {
+            MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.filter { !it.isEncoder }
+        }
+            .getOrDefault(emptyList())
+        val allMimeTypes = mutableSetOf<String>()
+        val hardwareMimeTypes = mutableSetOf<String>()
+        decoders.forEach { info ->
+            val hardware = isHardwareAccelerated(info)
+            info.supportedTypes
+                .filter { it.startsWith("audio/") }
+                .forEach { mime ->
+                    allMimeTypes += mime
+                    if (hardware) hardwareMimeTypes += mime
+                }
+        }
+        return AudioCodec.entries.map { codec ->
+            AudioCodecCapability(codec, audioDecodeTier(hardwareMimeTypes, allMimeTypes, codec))
+        }
+    }
+
+    /**
+     * 音乐编码档位（纯函数，单测覆盖）。
+     *
+     * DSD 没有 Android MIME（手机侧一律无解码器），因此恒 [CodecDecodeTier.NONE]， 协商时会被转码——这正是「引擎不支持」的可判定来源。
+     */
+    internal fun audioDecodeTier(
+        hardwareMimeTypes: Set<String>,
+        allMimeTypes: Set<String>,
+        codec: AudioCodec,
+    ): CodecDecodeTier {
+        val mimeTypes = codec.mimeTypes
+        if (mimeTypes.isEmpty()) return CodecDecodeTier.NONE
+        return when {
+            mimeTypes.any { it in hardwareMimeTypes } -> CodecDecodeTier.HARDWARE
+            mimeTypes.any { it in allMimeTypes } -> CodecDecodeTier.SOFTWARE
+            else -> CodecDecodeTier.NONE
+        }
+    }
+
     private fun isHardwareAccelerated(info: MediaCodecInfo): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             info.isHardwareAccelerated
@@ -144,6 +188,20 @@ internal val VideoCodec.mimeTypes: List<String>
             VideoCodec.AV1 -> listOf("video/av01")
             VideoCodec.MPEG4 -> listOf("video/mp4v-es")
             VideoCodec.DOLBY_VISION -> listOf("video/dolby-vision")
+        }
+
+/** [AudioCodec] 对应的解码器 MIME（MUSIC-03）；DSD 在 Android 上没有解码器 MIME，返回空表。 */
+internal val AudioCodec.mimeTypes: List<String>
+    get() =
+        when (this) {
+            AudioCodec.MP3 -> listOf("audio/mpeg")
+            AudioCodec.AAC -> listOf("audio/mp4a-latm")
+            AudioCodec.FLAC -> listOf("audio/flac")
+            AudioCodec.ALAC -> listOf("audio/alac")
+            AudioCodec.VORBIS -> listOf("audio/vorbis")
+            AudioCodec.OPUS -> listOf("audio/opus")
+            AudioCodec.PCM -> listOf("audio/raw")
+            AudioCodec.DSD -> emptyList()
         }
 
 /** `Display.HdrCapabilities.HDR_TYPE_HDR10_PLUS`（API 29 引入）的取值。 */

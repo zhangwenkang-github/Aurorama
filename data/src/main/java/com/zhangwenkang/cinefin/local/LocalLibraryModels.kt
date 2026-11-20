@@ -43,8 +43,24 @@ enum class LocalFolderBrowseMode(val label: String, val shortLabel: String) {
 /** 扩展名白名单（W37 需求）：不在表内的文件不索引。 */
 object LocalMediaExtensions {
     val VIDEO = setOf("mp4", "mkv", "webm", "avi", "mov", "ts", "m2ts")
-    val MUSIC = setOf("mp3", "flac", "m4a", "aac", "opus", "ogg", "wav")
+
+    /**
+     * 音乐扩展名（MUSIC-36）：mp3 / aac / flac / alac（m4a 容器）/ wav / ogg / opus + APE / DSD。
+     *
+     * APE 与 DSD（`.dsf` / `.dff`）只做识别与入库，播放引擎（ExoPlayer + FFmpeg 扩展）解不了， 由 [isEnginePlayable]
+     * 给出「引擎不支持」判定供 UI 提示。
+     */
+    val MUSIC = setOf("mp3", "flac", "m4a", "aac", "opus", "ogg", "wav", "ape", "dsf", "dff")
+
     val BOOK = setOf("pdf", "epub", "cbz")
+
+    /**
+     * 引擎解不了的音乐扩展名（MUSIC-36）。
+     *
+     * 只列**确认**解不了的格式：APE（Monkey's Audio）与 DSD（.dsf / .dff）均为 FFmpeg 扩展与 ExoPlayer 原生皆不支持的编码；
+     * ALAC（m4a）、FLAC、Opus 等由 ExoPlayer / FFmpeg 扩展覆盖，不在此表。
+     */
+    val UNSUPPORTED_MUSIC = setOf("ape", "dsf", "dff")
 
     /** 小写扩展名；无扩展名返回空串。 */
     fun extensionOf(fileName: String): String = fileName.substringAfterLast('.', "").lowercase()
@@ -57,6 +73,20 @@ object LocalMediaExtensions {
             in BOOK -> LocalMediaKind.BOOK
             else -> null
         }
+
+    /**
+     * 播放引擎是否支持该文件（MUSIC-36 的「明确提示，不静默失败」判定源）。
+     *
+     * 非音乐文件恒 true（视频 / 书籍走各自链路）；音乐按 [UNSUPPORTED_MUSIC] 判定。
+     */
+    fun isEnginePlayable(fileName: String): Boolean = extensionOf(fileName) !in UNSUPPORTED_MUSIC
+
+    /** 扩展名 → 归一化的编码名（`LocalLibraryEntry.codec` / 本地 TrackSource 用）；未识别返回 null。 */
+    fun musicCodecOf(fileName: String): String? {
+        val extension = extensionOf(fileName)
+        if (extension !in MUSIC) return null
+        return extension
+    }
 
     /** 该类型库是否收录这种媒体（混合库全收）。 */
     fun allowedIn(type: LocalLibraryType, kind: LocalMediaKind): Boolean =
@@ -110,6 +140,17 @@ data class LocalLibraryEntry(
     val album: String? = null,
     val trackIndex: Int = 0,
     val coverUri: String? = null,
+    // MUSIC-35：首次入库时读到的完整标签（缺失为 null，播放链路用占位 fallback）
+    val albumArtist: String? = null,
+    val discNumber: Int? = null,
+    val genre: String? = null,
+    val year: Int? = null,
+    /** 源码率（bit/s）；retriever 取不到为 null。 */
+    val bitrate: Int? = null,
+    /** 采样率（Hz）；Android 12 以下取不到（retriever 无对应键）。 */
+    val sampleRate: Int? = null,
+    /** 位深（bit）；Android 12 以下取不到。 */
+    val bitDepth: Int? = null,
 ) {
     /** 显示名：音乐优先标签标题，其余用文件名。 */
     val displayName: String
@@ -118,6 +159,14 @@ data class LocalLibraryEntry(
     /** 所在文件夹的相对路径（根目录为空串）。 */
     val parentPath: String
         get() = relativePath.substringBeforeLast('/', "")
+
+    /** MUSIC-36：播放引擎是否支持该文件（APE / DSD 明确提示，不静默失败）。 */
+    val isEnginePlayable: Boolean
+        get() = LocalMediaExtensions.isEnginePlayable(name)
+
+    /** 归一化音乐编码（扩展名）；非音乐条目为 null。 */
+    val musicCodec: String?
+        get() = LocalMediaExtensions.musicCodecOf(name)
 }
 
 /** 混合库按类型分组后的一段；单一类型库只有一段（[kind] = null）。 */

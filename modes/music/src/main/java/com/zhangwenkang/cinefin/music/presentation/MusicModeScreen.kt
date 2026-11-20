@@ -2036,6 +2036,8 @@ private fun SongList(
                 sourceBadge =
                     when {
                         song.isPlaylistPlaceholder -> "不可用"
+                        // MUSIC-36：APE / DSD 引擎解不了 → 曲目行弱提示，不静默失败
+                        song.formatUnsupported -> "不支持"
                         showSourceBadge -> song.source.label
                         else -> null
                     },

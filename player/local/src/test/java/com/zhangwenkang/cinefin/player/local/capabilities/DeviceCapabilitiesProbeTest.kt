@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.capabilities
 
 import android.view.Display
+import com.zhangwenkang.cinefin.player.core.playback.AudioCodec
 import com.zhangwenkang.cinefin.player.core.playback.CodecDecodeTier
 import com.zhangwenkang.cinefin.player.core.playback.HdrType
 import com.zhangwenkang.cinefin.player.core.playback.VideoCodec
@@ -93,5 +94,58 @@ class DeviceCapabilitiesProbeTest {
                 codec.mimeTypes.distinct().size,
             )
         }
+    }
+
+    @Test
+    fun audioDecodeTier_mapsAudioMimesLikeVideo() {
+        val hardware = setOf("audio/mpeg", "audio/flac")
+        val all = hardware + setOf("audio/mp4a-latm", "audio/opus")
+
+        assertEquals(
+            CodecDecodeTier.HARDWARE,
+            DeviceCapabilitiesProbe.audioDecodeTier(hardware, all, AudioCodec.FLAC),
+        )
+        assertEquals(
+            CodecDecodeTier.SOFTWARE,
+            DeviceCapabilitiesProbe.audioDecodeTier(hardware, all, AudioCodec.AAC),
+        )
+        assertEquals(
+            CodecDecodeTier.NONE,
+            DeviceCapabilitiesProbe.audioDecodeTier(hardware, all, AudioCodec.VORBIS),
+        )
+    }
+
+    @Test
+    fun audioDecodeTier_dsdHasNoAndroidDecoder() {
+        // DSD 没有解码器 MIME：即使能力集里塞满编码，也必须报「不支持」（协商时会被转码）
+        assertEquals(
+            CodecDecodeTier.NONE,
+            DeviceCapabilitiesProbe.audioDecodeTier(
+                hardwareMimeTypes = setOf("audio/raw", "audio/dsd"),
+                allMimeTypes = setOf("audio/raw", "audio/dsd"),
+                codec = AudioCodec.DSD,
+            ),
+        )
+    }
+
+    @Test
+    fun audioCodecs_haveStableJellyfinNamesAndContainers() {
+        AudioCodec.entries.forEach { codec ->
+            assertEquals("$codec 缺 Jellyfin 编码名", true, codec.jellyfinNames.isNotEmpty())
+            assertEquals(
+                "$codec 的 Jellyfin 编码名不应重复",
+                codec.jellyfinNames.size,
+                codec.jellyfinNames.distinct().size,
+            )
+            assertEquals(
+                "$codec 的 Jellyfin 编码名应小写",
+                codec.jellyfinNames,
+                codec.jellyfinNames.map(String::lowercase),
+            )
+        }
+        assertEquals(AudioCodec.FLAC, AudioCodec.fromJellyfinName("FLAC"))
+        assertEquals(AudioCodec.PCM, AudioCodec.fromJellyfinName("pcm_s24le"))
+        assertEquals(null, AudioCodec.fromJellyfinName(""))
+        assertEquals(null, AudioCodec.fromJellyfinName(null))
     }
 }

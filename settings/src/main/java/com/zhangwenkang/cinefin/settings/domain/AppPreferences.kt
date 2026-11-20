@@ -441,6 +441,14 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 交叉淡化档位（秒；0 = 关闭，可选 2 / 4 / 6）。默认关。 */
     val musicCrossfadeSeconds = Preference("pref_music_crossfade_seconds", 0)
 
+    /**
+     * 音乐音质档位（MUSIC-03 / V2-D116）：0 = 自动、-1 = 原始禁转码、具体 bps = 320/256/192/128 kbps 档。
+     *
+     * 档位解析统一走 [MusicStreamingQuality]，`data` 层与播放决策不得各自解释原值。
+     */
+    val musicStreamingQuality =
+        Preference("pref_music_streaming_quality", MusicStreamingQuality.AUTO)
+
     // Local library（W37 本地媒体库；只追加 pref_local_* / pref_music_* 前缀，不重排既有键）
     /** 音乐曲库来源筛选：`ALL` / `SERVER` / `LOCAL`。 */
     val localLibraryMusicSource = Preference("pref_music_source_filter", "ALL")
