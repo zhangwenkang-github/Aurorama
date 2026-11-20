@@ -12,6 +12,7 @@ androidx-lifecycle = "2.11.0"
 androidx-media3 = "1.11.1"
 androidx-navigation = "2.10.1"
 androidx-paging = "3.5.1"
+androidx-palette = "1.0.0"
 androidx-room3 = "3.0.3"
 androidx-tv-material3 = "1.1.0"
 androidx-window = "1.5.1"
@@ -64,6 +65,7 @@ androidx-media3-session = { group = "androidx.media3", name = "media3-session", 
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "androidx-navigation" }
 androidx-paging = { group = "androidx.paging", name = "paging-runtime", version.ref = "androidx-paging" }
 androidx-paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "androidx-paging" }
+androidx-palette = { group = "androidx.palette", name = "palette-ktx", version.ref = "androidx-palette" }
 androidx-room3-runtime = { group = "androidx.room3", name = "room3-runtime", version.ref = "androidx-room3" }
 androidx-room3-compiler = { group = "androidx.room3", name = "room3-compiler", version.ref = "androidx-room3" }
 androidx-tv-material = { group = "androidx.tv", name = "tv-material", version.ref = "androidx-tv-material3" }
