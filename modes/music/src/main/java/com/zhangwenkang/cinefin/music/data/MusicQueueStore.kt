@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.music.data
 import com.zhangwenkang.cinefin.database.music.MusicStorage
 import com.zhangwenkang.cinefin.database.music.StoredQueue
 import com.zhangwenkang.cinefin.database.music.StoredQueueItem
+import com.zhangwenkang.cinefin.database.music.StoredQueueKind
 import com.zhangwenkang.cinefin.database.music.StoredQueueState
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
@@ -47,9 +48,21 @@ class MusicQueueStore @Inject constructor(private val storage: MusicStorage) {
 }
 
 internal fun MusicQueue.toStored(positionMs: Long, savedAt: Long): StoredQueue = run {
-    val storedItems = items.mapIndexedNotNull { index, item -> item.toStoredItem(position = index) }
+    val mainItems = items.mapIndexedNotNull { index, item ->
+        item.toStoredItem(position = index, kind = StoredQueueKind.MAIN)
+    }
+    // 正在播放的「接下来播放」条目回写成待播队首：进程被杀后曲目不丢（恢复后从主队列锚点续播），
+    // 播放位置只写回主队列当前曲目（见 toSnapshot）。
+    val upNextItems =
+        (listOfNotNull(upNextPlaying) + upNext).mapIndexedNotNull { index, item ->
+            item.toStoredItem(position = items.size + index, kind = StoredQueueKind.UP_NEXT)
+        }
+    val storedItems = mainItems + upNextItems
+    // 随机序是「时间线下标」的排列：只有没有接下来播放条目时时间线 == 主队列，序才可复用。
     val canPersistOrder =
-        storedItems.size == items.size && isValidShuffleOrder(shuffleOrder, items.size)
+        upNextCount == 0 &&
+            mainItems.size == items.size &&
+            isValidShuffleOrder(shuffleOrder, items.size)
     StoredQueue(
         items = storedItems,
         state =
@@ -63,19 +76,27 @@ internal fun MusicQueue.toStored(positionMs: Long, savedAt: Long): StoredQueue =
                 savedAt = savedAt,
                 shuffleOrder = shuffleOrder.takeIf { canPersistOrder }?.joinToString(","),
                 shuffleSeed = shuffleSeed.takeIf { canPersistOrder },
+                shuffleKeepCurrentFirst = shuffleKeepCurrentFirst && shuffleEnabled,
             ),
     )
 }
 
 internal fun StoredQueue.toSnapshot(): MusicQueueSnapshot? {
+    val ordered = items.sortedBy { item -> item.position }
     val restoredItems =
-        items.sortedBy { item -> item.position }.mapNotNull { item -> item.toPlayerItemOrNull() }
+        ordered
+            .filter { item -> item.kind != StoredQueueKind.UP_NEXT }
+            .mapNotNull { item -> item.toPlayerItemOrNull() }
     if (restoredItems.isEmpty()) return null
+    val restoredUpNext =
+        ordered
+            .filter { item -> item.kind == StoredQueueKind.UP_NEXT }
+            .mapNotNull { item -> item.toPlayerItemOrNull() }
     val positionMs = state.positionMs.coerceAtLeast(0L)
     val currentIndex = state.currentIndex.coerceIn(0, restoredItems.lastIndex)
     val restoredShuffleOrder =
         decodeShuffleOrder(state.shuffleOrder)?.takeIf { order ->
-            isValidShuffleOrder(order, restoredItems.size)
+            restoredUpNext.isEmpty() && isValidShuffleOrder(order, restoredItems.size)
         }
     val restoredShuffleSeed = state.shuffleSeed.takeIf { restoredShuffleOrder != null }
     // 保存位置写回当前曲目：恢复播放时 setQueue 会按 PlayerItem.playbackPosition 续播（与 MU-9 同一条路径）。
@@ -93,6 +114,8 @@ internal fun StoredQueue.toSnapshot(): MusicQueueSnapshot? {
                 sourceId = state.sourceId,
                 shuffleOrder = restoredShuffleOrder,
                 shuffleSeed = restoredShuffleSeed,
+                upNext = restoredUpNext,
+                shuffleKeepCurrentFirst = state.shuffleKeepCurrentFirst && state.shuffleEnabled,
             ),
         positionMs = positionMs,
         savedAt = state.savedAt,
@@ -104,7 +127,7 @@ internal fun decodeShuffleOrder(raw: String?): List<Int>? {
     return raw.split(',').map { part -> part.trim().toIntOrNull() ?: return null }
 }
 
-private fun PlayerItem.toStoredItem(position: Int): StoredQueueItem? {
+private fun PlayerItem.toStoredItem(position: Int, kind: String): StoredQueueItem? {
     // 没有媒体地址的条目无法恢复播放（正常情况下解析过的曲目都有直连或转码地址）。
     if (mediaSourceUri.isBlank()) return null
     return StoredQueueItem(
@@ -116,6 +139,7 @@ private fun PlayerItem.toStoredItem(position: Int): StoredQueueItem? {
         mediaSourceUri = mediaSourceUri,
         thumbnailUri = thumbnailUri,
         indexNumber = indexNumber,
+        kind = kind,
     )
 }
 

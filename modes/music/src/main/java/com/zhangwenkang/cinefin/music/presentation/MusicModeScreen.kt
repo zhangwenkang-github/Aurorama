@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -83,6 +85,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -671,8 +674,11 @@ fun MusicModeScreen(
                         viewModel.openArtistByName(artistName)
                     },
                     onJumpQueueItem = viewModel::jumpToQueueItem,
+                    onJumpUpNextItem = viewModel::jumpToUpNextItem,
                     onMoveQueueItem = viewModel::moveQueueItem,
                     onRemoveQueueItem = viewModel::removeQueueItem,
+                    onRemoveUpNextItem = viewModel::removeUpNextItem,
+                    onClearUpNext = viewModel::clearUpNext,
                     onToggleFavorite = viewModel::toggleFavorite,
                     onSelectLyricsLanguage = viewModel::selectLyricsLanguage,
                     onToggleLyricsBilingual = viewModel::toggleLyricsBilingual,
@@ -727,8 +733,11 @@ fun MusicModeScreen(
                 queue = currentQueue,
                 onDismiss = { queueSheetOpen = false },
                 onJump = viewModel::jumpToQueueItem,
+                onJumpUpNext = viewModel::jumpToUpNextItem,
                 onMove = viewModel::moveQueueItem,
                 onRemove = viewModel::removeQueueItem,
+                onRemoveUpNext = viewModel::removeUpNextItem,
+                onClearUpNext = viewModel::clearUpNext,
             )
         }
 
@@ -2637,8 +2646,11 @@ internal fun QueueSheet(
     queue: MusicQueue,
     onDismiss: () -> Unit,
     onJump: (Int) -> Unit,
+    onJumpUpNext: (Int) -> Unit,
     onMove: (Int, Int) -> Unit,
     onRemove: (Int) -> Unit,
+    onRemoveUpNext: (Int) -> Unit,
+    onClearUpNext: () -> Unit,
 ) {
     val colors = LocalCinefinColors.current
     ModalBottomSheet(
@@ -2669,7 +2681,7 @@ internal fun QueueSheet(
                 color = colors.onSurface,
             )
             Text(
-                text = "长按右侧「≡」拖拽排序，点标题跳转播放，点「✕」移除",
+                text = "「接下来播放」先于主队列消费；左滑或点「✕」移除，长按「≡」拖拽排序",
                 style = CinefinType.BodySmall,
                 color = colors.onSurfaceVariant,
             )
@@ -2677,8 +2689,11 @@ internal fun QueueSheet(
             QueueListBody(
                 queue = queue,
                 onJump = onJump,
+                onJumpUpNext = onJumpUpNext,
                 onMove = onMove,
                 onRemove = onRemove,
+                onRemoveUpNext = onRemoveUpNext,
+                onClearUpNext = onClearUpNext,
                 modifier = Modifier.fillMaxWidth().weight(1f),
             )
             Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
@@ -2687,9 +2702,10 @@ internal fun QueueSheet(
 }
 
 /**
- * 队列编辑列表体（W5 T1）：队列 sheet 与宽屏播放页右栏「队列」Tab 共用，行为与视觉同一份。
+ * 队列编辑列表体（W5 T1；W5 T5 双分区）：队列 sheet 与宽屏播放页右栏「队列」Tab 共用，行为与视觉同一份。
  *
- * 长按右侧「≡」拖拽排序、点行跳转、✕ 移除；拖拽行置顶 zIndex + 随指位移。
+ * 分区：「接下来播放」（手动插入、优先消费、播完即出）在上，主队列在下。 主队列：长按右侧「≡」拖拽排序、点行跳转、✕ 移除；接下来播放：更轻视觉权重 + 左滑移除（滑出动效 token 归
+ * T3，这里只有普通位移 + 删除）。
  */
 @Composable
 internal fun QueueListBody(
@@ -2698,6 +2714,9 @@ internal fun QueueListBody(
     onMove: (Int, Int) -> Unit,
     onRemove: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    onJumpUpNext: ((Int) -> Unit)? = null,
+    onRemoveUpNext: ((Int) -> Unit)? = null,
+    onClearUpNext: (() -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -2705,12 +2724,60 @@ internal fun QueueListBody(
     var draggingIndex by remember(queue) { mutableStateOf<Int?>(null) }
     var dragOffset by remember(queue) { mutableFloatStateOf(0f) }
     LazyColumn(modifier = modifier) {
+        if (queue.upNext.isNotEmpty() || queue.upNextPlaying != null) {
+            item(key = "up-next-header") {
+                UpNextSectionHeader(count = queue.upNext.size, onClear = onClearUpNext)
+            }
+            // 正在播放的「接下来播放」条目已出列，但仍在时间线上：按「正在播放」展示，避免用户在队列里找不到当前曲
+            val playing = queue.upNextPlaying
+            if (playing != null) {
+                item(key = "up-next-playing") {
+                    UpNextRow(
+                        title = playing.name,
+                        position = -1,
+                        showDivider = true,
+                        enabled = false,
+                        isCurrent = true,
+                        onJump = {},
+                        onRemove = {},
+                    )
+                }
+            }
+            itemsIndexed(
+                items = queue.upNext,
+                key = { index, item -> "up-next-$index-${item.itemId}" },
+            ) { index, item ->
+                UpNextRow(
+                    title = item.name,
+                    position = index,
+                    showDivider = index != queue.upNext.lastIndex,
+                    enabled = onRemoveUpNext != null,
+                    onJump = { onJumpUpNext?.invoke(index) },
+                    onRemove = { onRemoveUpNext?.invoke(index) },
+                )
+            }
+            item(key = "main-queue-header") {
+                Text(
+                    text = "播放队列",
+                    style = CinefinType.LabelMedium,
+                    color = colors.onSurfaceVariant,
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .padding(
+                                top = CinefinSpacing.Space4,
+                                bottom = CinefinSpacing.Space1,
+                            ),
+                )
+            }
+        }
         itemsIndexed(
             items = queue.items,
-            key = { index, item -> "$index-${item.itemId}" },
+            key = { index, item -> "main-$index-${item.itemId}" },
         ) { index, item ->
             val isDragging = draggingIndex == index
-            val isCurrent = index == queue.currentIndex
+            val isCurrent =
+                (index == queue.currentIndex && queue.upNextPlaying == null) ||
+                    item.itemId == queue.upNextPlaying?.itemId
             CinefinListRow(
                 title = item.name,
                 isCurrent = isCurrent,
@@ -2794,6 +2861,114 @@ internal fun QueueListBody(
                         }
                     }
                 },
+            )
+        }
+    }
+}
+
+/** 「接下来播放」分区标题：更轻权重（LabelMedium + onSurfaceVariant），右侧「清空」只清这一个分区。 */
+@Composable
+private fun UpNextSectionHeader(count: Int, onClear: (() -> Unit)?) {
+    val colors = LocalCinefinColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = CinefinSpacing.Space1),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "接下来播放（$count）",
+            style = CinefinType.LabelMedium,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        if (onClear != null) {
+            Text(
+                text = "清空",
+                style = CinefinType.LabelMedium,
+                color = colors.onSurfaceVariant.copy(alpha = 0.72f),
+                modifier = Modifier.clickable(onClick = onClear).padding(CinefinSpacing.Space2),
+            )
+        }
+    }
+}
+
+/** 左滑移除阈值（72dp）：超过即删条目，未超过直接回位（动效 token 归 T3）。 */
+private val UpNextSwipeThreshold = 72.dp
+
+/** 「接下来播放」行（W5 T5）：次要字号 + `onSurfaceVariant` 的轻视觉权重；左滑移除，✕ 按钮兜底可访问性。 */
+@Composable
+private fun UpNextRow(
+    title: String,
+    position: Int,
+    showDivider: Boolean,
+    enabled: Boolean,
+    onJump: () -> Unit,
+    onRemove: () -> Unit,
+    isCurrent: Boolean = false,
+) {
+    val colors = LocalCinefinColors.current
+    val media = LocalMediaColors.current
+    val thresholdPx = with(LocalDensity.current) { UpNextSwipeThreshold.toPx() }
+    var translationX by remember(title, position) { mutableFloatStateOf(0f) }
+    Column {
+        Row(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .offset { IntOffset(translationX.roundToInt(), 0) }
+                    .pointerInput(title, position, enabled) {
+                        if (!enabled) return@pointerInput
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                if (translationX <= -thresholdPx) onRemove()
+                                translationX = 0f
+                            },
+                            onDragCancel = { translationX = 0f },
+                            onHorizontalDrag = { change, amount ->
+                                change.consume()
+                                translationX =
+                                    (translationX + amount).coerceIn(-thresholdPx * 2, 0f)
+                            },
+                        )
+                    }
+                    .clickable(onClick = onJump)
+                    .height(48.dp)
+                    .padding(start = CinefinSpacing.Space5, end = CinefinSpacing.Space2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "↳",
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceFaint,
+                modifier = Modifier.width(28.dp),
+            )
+            Text(
+                text = title,
+                style = CinefinType.BodySmall,
+                color = if (isCurrent) media.bright else colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (isCurrent) {
+                Text(
+                    text = "正在播放",
+                    style = CinefinType.BodySmall,
+                    color = media.bright,
+                )
+            } else if (enabled) {
+                CinefinIconButton(onClick = onRemove) { tint ->
+                    Icon(
+                        painter = painterResource(CoreR.drawable.ic_close),
+                        contentDescription = "从接下来播放移除",
+                        tint = tint,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
+        if (showDivider) {
+            HorizontalDivider(
+                color = colors.onSurfaceFaint.copy(alpha = 0.12f),
+                modifier = Modifier.padding(start = CinefinSpacing.Space5),
             )
         }
     }

@@ -103,4 +103,4 @@ internal fun queuePersistPositionMs(
 internal fun queueCanPersistShuffleSnapshot(
     queue: MusicQueue,
     liveQueuePresent: Boolean,
-): Boolean = !liveQueuePresent || isValidShuffleOrder(queue.shuffleOrder, queue.items.size)
+): Boolean = !liveQueuePresent || isValidShuffleOrder(queue.shuffleOrder, queue.playbackItems.size)

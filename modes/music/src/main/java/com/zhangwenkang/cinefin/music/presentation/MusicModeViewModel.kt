@@ -34,6 +34,7 @@ import com.zhangwenkang.cinefin.music.data.PlaylistExchangeException
 import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.music.data.groupAlbums
 import com.zhangwenkang.cinefin.music.data.groupArtists
+import com.zhangwenkang.cinefin.music.data.isShuffle
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricEditLine
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsBilingualPreference
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
@@ -62,6 +63,7 @@ import com.zhangwenkang.cinefin.music.data.toLocalMusicSong
 import com.zhangwenkang.cinefin.music.data.toLocalPlaylistTrack
 import com.zhangwenkang.cinefin.music.data.toRepeatMode
 import com.zhangwenkang.cinefin.music.data.toShuffleEnabled
+import com.zhangwenkang.cinefin.music.data.toShuffleMode
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
@@ -359,6 +361,7 @@ constructor(
                 musicPlayModeOf(
                     repeatMode = queue?.repeatMode ?: RepeatMode.OFF,
                     shuffleEnabled = queue?.shuffleEnabled ?: false,
+                    shuffleKeepCurrentFirst = queue?.shuffleKeepCurrentFirst ?: false,
                 )
             }
             .stateIn(viewModelScope, SharingStarted.Eagerly, MusicPlayMode.SEQUENTIAL)
@@ -2358,14 +2361,14 @@ constructor(
     }
 
     /**
-     * W5 T1（MUSIC-47）：长按上下文菜单「加到队尾」——解析出可播放条目后追加到队列末尾。
+     * W5 T1（MUSIC-47）+ W5 T5：长按上下文菜单「加到队尾」——解析出可播放条目后加到**「接下来播放」队尾**。
      *
-     * 与「下一首播放」（[playNext] / `insertNext`）互补：`appendToQueue` 只认队尾，不受播放器自动切歌影响。
+     * 与「下一首播放」（[playNext] / `insertNext`）互补：一个插队首、一个排队尾，两者都优先于主队列消费、播完即出。
      */
     fun enqueueSongAtEnd(song: MusicSong) {
         viewModelScope.launch {
             runCatching { trackResolver.toPlayerItem(song) }
-                .onSuccess { item -> queueEditor.appendToQueue(listOf(item)) }
+                .onSuccess { item -> queueEditor.addToUpNext(item) }
                 .onFailure { error ->
                     _uiState.update {
                         it.copy(
@@ -2416,6 +2419,21 @@ constructor(
         queueEditor.jumpTo(index)
     }
 
+    /** W5 T5：「接下来播放」第 [index] 条立即播放（中间的待播条目按「播完即出」出列）。 */
+    fun jumpToUpNextItem(index: Int) {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            // 恢复态没有播放器：先把快照交给播放器，再跳到该条
+            val target = restored.upNext.getOrNull(index) ?: return
+            resumeRestored(
+                restored.copy(upNextPlaying = target, upNext = restored.upNext.drop(index + 1)),
+                restored.currentIndex,
+            )
+            return
+        }
+        queueEditor.jumpToUpNext(index)
+    }
+
     fun removeQueueItem(index: Int) {
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
@@ -2433,6 +2451,34 @@ constructor(
             return
         }
         queueEditor.removeAt(index)
+    }
+
+    /** W5 T5（MUSIC-11）：左滑 / ✕ 移除「接下来播放」第 [index] 条。 */
+    fun removeUpNextItem(index: Int) {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            val updated = restored.removeUpNextAt(index)
+            if (updated != restored) {
+                _restoredQueue.value = updated
+                persister.persistNow(updated)
+            }
+            return
+        }
+        queueEditor.removeUpNextAt(index)
+    }
+
+    /** W5 T5（MUSIC-11）：清空「接下来播放」（不动主队列，也不打断正在播放的曲目）。 */
+    fun clearUpNext() {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            val updated = restored.clearUpNext()
+            if (updated != restored) {
+                _restoredQueue.value = updated
+                persister.persistNow(updated)
+            }
+            return
+        }
+        queueEditor.clearUpNext()
     }
 
     fun togglePlayPause() {
@@ -2472,7 +2518,7 @@ constructor(
             )
             return
         }
-        if (playMode.value == MusicPlayMode.SHUFFLE) {
+        if (playMode.value.isShuffle) {
             // 随机下一曲交给内核 shuffle 顺序（DefaultShuffleOrder：一轮内每首各一次 = 未播优先）
             Timber.i(
                 "随机下一曲：当前 index=%d，按内核随机顺序切歌",
@@ -2489,7 +2535,7 @@ constructor(
             return
         }
         val live = playbackController.queue.value
-        if (playMode.value == MusicPlayMode.SHUFFLE && live != null) {
+        if (playMode.value.isShuffle && live != null) {
             // 随机规则（用户明确）：上一曲 = 播放历史里实际播放过的上一首，不是随机跳
             val index =
                 historyTracker.previousIndex(
@@ -2530,11 +2576,11 @@ constructor(
             "播放模式切换：%s（repeat=%s shuffle=%s）",
             mode.label,
             mode.toRepeatMode(),
-            mode.toShuffleEnabled(),
+            mode.toShuffleMode(),
         )
         if (playbackController.queue.value != null) {
             playbackController.setRepeatMode(mode.toRepeatMode())
-            playbackController.setShuffleEnabled(mode.toShuffleEnabled())
+            queueEditor.setShuffleMode(mode.toShuffleMode())
             return
         }
         val restored = _restoredQueue.value ?: return
@@ -2542,6 +2588,7 @@ constructor(
             restored.copy(
                 repeatMode = mode.toRepeatMode(),
                 shuffleEnabled = mode.toShuffleEnabled(),
+                shuffleKeepCurrentFirst = mode == MusicPlayMode.SHUFFLE_CURRENT_FIRST,
             )
         if (updated != restored) {
             _restoredQueue.value = updated

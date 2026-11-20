@@ -20,7 +20,7 @@ import androidx.sqlite.execSQL
             LocalPlaylistEntity::class,
             LocalPlaylistEntryEntity::class,
         ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class MusicDatabase : RoomDatabase() {
@@ -84,5 +84,46 @@ abstract class MusicDatabase : RoomDatabase() {
                     )
                 }
             }
+
+        /**
+         * v3 → v4（W5 T5，MUSIC-09/12）：队列条目加分区列、状态行加随机细分列。
+         *
+         * 全部是带默认值的追加列，旧行自动归为「主队列 + 全随机」，不重建表、不动歌单与最近播放。 迁移**幂等**：语句由
+         * [musicQueueMigration3To4Statements] 按现有列裁剪，重复执行不会因为列已存在而失败。
+         */
+        val MIGRATION_3_4 =
+            object : Migration(startVersion = 3, endVersion = 4) {
+                override suspend fun migrate(connection: SQLiteConnection) {
+                    musicQueueMigration3To4Statements { table -> connection.tableColumns(table) }
+                        .forEach { sql -> connection.execSQL(sql) }
+                }
+            }
+    }
+}
+
+/**
+ * v3 → v4 的追加列语句（纯函数，可 JVM 单测）。
+ *
+ * 入参是「读某张表现有列名」的探针；列已存在就跳过，因此迁移可安全重放（幂等）。
+ */
+internal fun musicQueueMigration3To4Statements(
+    existingColumns: (String) -> Set<String>
+): List<String> = buildList {
+    if ("kind" !in existingColumns("music_queue_items")) {
+        add("ALTER TABLE `music_queue_items` ADD COLUMN `kind` TEXT NOT NULL DEFAULT 'MAIN'")
+    }
+    if ("shuffleKeepCurrentFirst" !in existingColumns("music_queue_state")) {
+        add(
+            "ALTER TABLE `music_queue_state` ADD COLUMN " +
+                "`shuffleKeepCurrentFirst` INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
+private fun SQLiteConnection.tableColumns(table: String): Set<String> = buildSet {
+    prepare("PRAGMA table_info(`$table`)").use { statement ->
+        while (statement.step()) {
+            add(statement.getText(1))
+        }
     }
 }

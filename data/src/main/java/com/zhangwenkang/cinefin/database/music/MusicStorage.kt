@@ -41,6 +41,7 @@ constructor(
                         mediaSourceUri = item.mediaSourceUri,
                         thumbnailUri = item.thumbnailUri,
                         indexNumber = item.indexNumber,
+                        kind = item.kind,
                     )
                 },
             state =
@@ -54,6 +55,7 @@ constructor(
                     savedAt = queue.state.savedAt,
                     shuffleOrder = queue.state.shuffleOrder,
                     shuffleSeed = queue.state.shuffleSeed,
+                    shuffleKeepCurrentFirst = queue.state.shuffleKeepCurrentFirst,
                 ),
         )
     }
@@ -74,6 +76,7 @@ constructor(
                         mediaSourceUri = item.mediaSourceUri,
                         thumbnailUri = item.thumbnailUri,
                         indexNumber = item.indexNumber,
+                        kind = item.kind,
                     )
                 },
             state =
@@ -87,6 +90,7 @@ constructor(
                     savedAt = state.savedAt,
                     shuffleOrder = state.shuffleOrder,
                     shuffleSeed = state.shuffleSeed,
+                    shuffleKeepCurrentFirst = state.shuffleKeepCurrentFirst,
                 ),
         )
     }

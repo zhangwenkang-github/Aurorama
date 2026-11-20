@@ -115,6 +115,10 @@ fun MusicNowPlayingScreen(
     onJumpQueueItem: (Int) -> Unit,
     onMoveQueueItem: (Int, Int) -> Unit,
     onRemoveQueueItem: (Int) -> Unit,
+    /** W5 T5：接下来播放分区的跳播 / 移除 / 清空（宽屏「队列」Tab 与队列 sheet 同一份）。 */
+    onJumpUpNextItem: (Int) -> Unit = {},
+    onRemoveUpNextItem: (Int) -> Unit = {},
+    onClearUpNext: () -> Unit = {},
     onToggleFavorite: (MusicSong) -> Unit,
     onSelectLyricsLanguage: (LyricsDisplayLanguage) -> Unit,
     onToggleLyricsBilingual: () -> Unit,
@@ -179,6 +183,9 @@ fun MusicNowPlayingScreen(
                 onJumpQueueItem = onJumpQueueItem,
                 onMoveQueueItem = onMoveQueueItem,
                 onRemoveQueueItem = onRemoveQueueItem,
+                onJumpUpNextItem = onJumpUpNextItem,
+                onRemoveUpNextItem = onRemoveUpNextItem,
+                onClearUpNext = onClearUpNext,
                 onSeekLyricLine = onSeekLyricLine,
                 onToggleFavorite = onToggleFavorite,
                 modifier =
@@ -218,6 +225,10 @@ private fun PlayerPage(
     onJumpQueueItem: (Int) -> Unit,
     onMoveQueueItem: (Int, Int) -> Unit,
     onRemoveQueueItem: (Int) -> Unit,
+    /** W5 T5：接下来播放分区的跳播 / 移除 / 清空（宽屏「队列」Tab 与队列 sheet 同一份）。 */
+    onJumpUpNextItem: (Int) -> Unit = {},
+    onRemoveUpNextItem: (Int) -> Unit = {},
+    onClearUpNext: () -> Unit = {},
     onToggleFavorite: (MusicSong) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -253,6 +264,9 @@ private fun PlayerPage(
                         onJumpQueueItem = onJumpQueueItem,
                         onMoveQueueItem = onMoveQueueItem,
                         onRemoveQueueItem = onRemoveQueueItem,
+                        onJumpUpNextItem = onJumpUpNextItem,
+                        onRemoveUpNextItem = onRemoveUpNextItem,
+                        onClearUpNext = onClearUpNext,
                         onToggleFavorite = onToggleFavorite,
                     )
                 // 横屏手机（K60 横屏 411dp 高）走两栏紧凑布局，避免 W23 单列在矮屏被裁切
@@ -587,6 +601,10 @@ private fun WidePlayerLayout(
     onJumpQueueItem: (Int) -> Unit,
     onMoveQueueItem: (Int, Int) -> Unit,
     onRemoveQueueItem: (Int) -> Unit,
+    /** W5 T5：接下来播放分区的跳播 / 移除 / 清空（宽屏「队列」Tab 与队列 sheet 同一份）。 */
+    onJumpUpNextItem: (Int) -> Unit = {},
+    onRemoveUpNextItem: (Int) -> Unit = {},
+    onClearUpNext: () -> Unit = {},
 ) {
     val item = queue.currentItem ?: return
     val colors = LocalCinefinColors.current
@@ -707,8 +725,11 @@ private fun WidePlayerLayout(
                         QueueListBody(
                             queue = queue,
                             onJump = onJumpQueueItem,
+                            onJumpUpNext = onJumpUpNextItem,
                             onMove = onMoveQueueItem,
                             onRemove = onRemoveQueueItem,
+                            onRemoveUpNext = onRemoveUpNextItem,
+                            onClearUpNext = onClearUpNext,
                             modifier = Modifier.fillMaxSize(),
                         )
                 }
@@ -1125,13 +1146,15 @@ internal fun playerLayoutMode(width: Dp, height: Dp): PlayerLayoutMode =
         else -> PlayerLayoutMode.Regular
     }
 
-/** 播放模式图标（C 组）：顺序 / 列表循环 / 单曲循环 / 随机。 */
+/** 播放模式图标（C 组）：顺序 / 列表循环 / 单曲循环 / 随机 / 随机（当前居首）。 */
 private fun MusicPlayMode.iconRes(): Int =
     when (this) {
         MusicPlayMode.SEQUENTIAL -> R.drawable.ic_music_sequence
         MusicPlayMode.LIST_LOOP -> CoreR.drawable.ic_repeat
         MusicPlayMode.SINGLE_LOOP -> R.drawable.ic_music_repeat_one
         MusicPlayMode.SHUFFLE -> R.drawable.ic_music_shuffle
+        // T5：Cinefin 图标族暂无「随机·当前居首」专用图标，复用随机图标并以 label 区分（交接说明已标注）。
+        MusicPlayMode.SHUFFLE_CURRENT_FIRST -> R.drawable.ic_music_shuffle
     }
 
 /** 全屏播放页的歌词预览：当前行 ±1，点任意一行进歌词页（W24 · C8）。 */

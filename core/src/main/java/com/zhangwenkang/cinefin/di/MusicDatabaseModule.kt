@@ -31,7 +31,11 @@ object MusicDatabaseModule {
     fun provideMusicDatabase(@ApplicationContext app: Context): MusicDatabase =
         Room.databaseBuilder(app.applicationContext, MusicDatabase::class.java, "music")
             .setDriver(AndroidSQLiteDriver())
-            .addMigrations(MusicDatabase.MIGRATION_1_2, MusicDatabase.MIGRATION_2_3)
+            .addMigrations(
+                MusicDatabase.MIGRATION_1_2,
+                MusicDatabase.MIGRATION_2_3,
+                MusicDatabase.MIGRATION_3_4,
+            )
             .build()
 
     @Provides
