@@ -5,7 +5,8 @@
 
 ## 状态块（新会话先读这里）
 
-- 分支：`codex/v2-integration`；W5 开工基线 = W4 收官 HEAD（T10 `47095ed7` 之后，以 git log 为准）。
+- 分支：`codex/v2-integration`；W5 开工基线 = W4 收官 HEAD（T10 `47095ed7` 之后，以 git log 为准；会话2 实际基线 `4c69bf31`）。
+- **会话2 派卡中（2026-11-20）**：T1/T4/T10 三路并行，各自独立 worktree+分支——T1 `codex/v2-w5-t1`（`work_tree/Aurorama/v2-w5-t1`，modes/music UI）、T4 `codex/v2-w5-t4`（`v2-w5-t4`，player/core+modes/music data+data）、T10 `codex/v2-w5-t10`（`v2-w5-t10`，app/phone+gradle+player/local）；合入由 Kimi 验收后逐个并入 `codex/v2-integration`。
 - **T0 ✅（2026-11-20，Kimi 亲自）**：§7 全 50 条现状核对完成，结论见下文「T0 现状核对」。要点：播放层（单队列+随机/循环+冷启动恢复+MediaSession）、歌词全链路、ReplayGain、EQ 5 段、交叉淡化包络、睡眠定时已具备；缺口集中在 TrackSource 模型、/Audio/universal 协商、双队列、EQ 10 段、倍速、音频信息面板、波浪进度条、封面调色板、容器变换动效、失败恢复链。
 - **W4 残留并入 W5**：L3（播放页 themeId 跟随 aurora↔amoled，方向已拍板）、L7（mpv 内核 content:// 外挂字幕）、L8（媒体键暂停绕开 SyncPlay 组闸门，2026-11-20 W4 收官复验新立）、`app/phone` coroutines-test 硬编码收 catalog——四项合为 T10 收尾小项包（沿 W4 T9 先例，一卡一 commit）。W4 已正式收官（D12/B5 双账号复验双过）。
 - **工具**：`tools/backup-docs.ps1` 已同步入 worktree（2026-11-20，参数化 `-DocsPath` 默认取脚本所在仓 docs/，主仓与 worktree 各自备份自己；keep 池共用 10 份）。
