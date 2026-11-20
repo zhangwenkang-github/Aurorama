@@ -132,6 +132,29 @@ data class MusicQueue(
     }
 
     /**
+     * 从主队列移除第 [index] 首，并**同步换算** [currentIndex]（W5-fixpack）。
+     *
+     * 曲目集合变了但当前曲目不变时，索引直接落到它的新位置（删前面的左移一位）；删当前曲目时顺延到同索引（末尾则前移）。 这样队列 UI 不必等时间线同步的 ticker
+     * 才读到正确索引。越界返回自身；结构变化使旧随机序失效。
+     */
+    fun removeAt(index: Int): MusicQueue {
+        if (index !in items.indices) return this
+        val remaining = items.toMutableList().apply { removeAt(index) }
+        val newCurrentIndex =
+            when {
+                index < currentIndex -> currentIndex - 1
+                index == currentIndex -> currentIndex.coerceAtMost(remaining.lastIndex)
+                else -> currentIndex
+            }.coerceAtLeast(0)
+        return copy(
+            items = remaining,
+            currentIndex = newCurrentIndex,
+            shuffleOrder = null,
+            shuffleSeed = null,
+        )
+    }
+
+    /**
      * 播放下一首：「接下来播放」**队首**插入（MU-3 新语义，W5 T5）。
      *
      * 旧实现直接插进主队列当前曲目之后，播完残留在队列里；现在改由独立的 [upNext] 承载， 播完即出。多次「播放下一首」= 后点的那首排在前面（FIFO 语义），与主流播放器一致。

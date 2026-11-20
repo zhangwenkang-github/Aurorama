@@ -2752,7 +2752,7 @@ constructor(
         return buildMusicAudioInfo(
             title = song.name,
             source = if (playing) liveItem?.trackSource else song.toTrackSourceSnapshot(),
-            output = if (playing) audioOutputInfo.snapshot() else null,
+            output = if (playing) audioOutputInfo.snapshot(song.itemId) else null,
             playing = playing,
         )
     }
@@ -2765,7 +2765,7 @@ constructor(
         return buildMusicAudioInfo(
             title = item.name,
             source = item.trackSource,
-            output = if (playing) audioOutputInfo.snapshot() else null,
+            output = if (playing) audioOutputInfo.snapshot(item.itemId) else null,
             playing = playing,
         )
     }
