@@ -518,6 +518,9 @@ class MPVPlayer(
     private var initialSeekTo: Long = 0L
     private var oldMediaItem: MediaItem? = null
     private var pendingServerSubtitles: List<PlayerSubtitleSource>? = null
+    private val appContext: Context = context.applicationContext
+    /** W5-T10 L7：`content://` 外挂字幕在 sub-add 前落临时副本（libmpv 打不开内容 URI）。 */
+    private var contentSubtitleResolver: MpvContentSubtitleResolver? = null
     private val externalSubtitleTrackIds = ConcurrentHashMap<String, Int>()
     private val pendingSideloadedSubtitleAdds = CopyOnWriteArraySet<String>()
     private var subtitleAutoSelect: Boolean = true
@@ -2119,16 +2122,33 @@ class MPVPlayer(
         }
     }
 
+    /**
+     * W5-T10 L7：mpv 的 `sub-add` 只认真实文件路径；`content://` 字幕先落临时副本。
+     *
+     * 解析器惰性创建：纯单测用 Unsafe 分配的实例没有 Context，走不到这条分支（测试字幕都是 http）。
+     */
+    private fun resolveSubtitlePath(uri: String): String? {
+        if (!uri.startsWith("content:", ignoreCase = true)) return uri
+        val resolver =
+            contentSubtitleResolver
+                ?: MpvContentSubtitleResolver(appContext).also { contentSubtitleResolver = it }
+        return resolver.resolve(uri)
+    }
+
     private fun prepareMediaItem(index: Int, postSelection: Boolean = true) {
         internalMediaItems.getOrNull(index)?.let { mediaItem ->
             markIntentionalEndFile()
             resetInternalState()
             pendingServerSubtitles = mediaItem.serverSubtitleSources()
             val subtitleCommands =
-                mediaItem.localConfiguration?.subtitleConfigurations.orEmpty().map { subtitle ->
+                mediaItem.localConfiguration?.subtitleConfigurations.orEmpty().mapNotNull { subtitle
+                    ->
+                    // W5-T10 L7：SAF content:// 字幕先落带扩展名的临时副本，mpv 只认真实文件路径
+                    val path =
+                        resolveSubtitlePath(subtitle.uri.toString()) ?: return@mapNotNull null
                     arrayOf(
                         "sub-add",
-                        subtitle.uri.toString(),
+                        path,
                         "auto",
                         subtitle.label.orEmpty(),
                         subtitle.language.orEmpty(),
@@ -2183,6 +2203,7 @@ class MPVPlayer(
             AudioManagerCompat.abandonAudioFocusRequest(audioManager, audioFocusRequest)
         }
         resetInternalState()
+        contentSubtitleResolver?.clear()
         runCatching { mpvLib.resetSourceEvents() }
         runCatching { mpvLib.removeObserver(this) }
         commandsClosed.set(true)

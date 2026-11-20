@@ -22,6 +22,7 @@ import com.zhangwenkang.cinefin.player.local.domain.seekTargetFromFraction
 import com.zhangwenkang.cinefin.player.local.domain.shouldRestartTranscodeSession
 import com.zhangwenkang.cinefin.player.local.mpv.MPVPlayer
 import com.zhangwenkang.cinefin.player.local.mpv.MpvSeekEventListener
+import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlayTransportGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -41,11 +42,32 @@ internal const val PLAYER_EXTRA_SEEK_SOURCE_URI =
  * MediaSession only sees this facade. Every position-changing command is translated into the same
  * intent vocabulary used by the in-app controls; no seek reaches the delegate before the sink's
  * reducer authorizes an engine dispatch.
+ *
+ * W5-T10 L8：入组期间的播放 / 暂停也不再直接写引擎，而是与 UI 键同走 [SyncPlayTransportGate]（只发组命令）。
  */
 class MediaSessionSeekPlayer(
     player: Player,
     private val submitSeek: (PlayerViewModel.SeekIntent) -> Unit,
+    private val transportGate: SyncPlayTransportGate? = null,
 ) : ForwardingPlayer(player) {
+    override fun play() {
+        val gate = transportGate
+        if (gate != null && gate.ownsTransport.value) {
+            gate.requestPlay(true)
+        } else {
+            super.play()
+        }
+    }
+
+    override fun pause() {
+        val gate = transportGate
+        if (gate != null && gate.ownsTransport.value) {
+            gate.requestPlay(false)
+        } else {
+            super.pause()
+        }
+    }
+
     override fun seekTo(positionMs: Long) {
         submitSeek(PlayerViewModel.SeekIntent.Absolute(positionMs))
     }

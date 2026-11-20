@@ -20,6 +20,8 @@ import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackController
 import com.zhangwenkang.cinefin.player.local.presentation.MediaSessionSeekPlayer
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerHolder
 import com.zhangwenkang.cinefin.player.local.presentation.PlayerViewModel
+import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlaySessionCoordinator
+import com.zhangwenkang.cinefin.player.local.syncplay.SyncPlayTransportGate
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import timber.log.Timber
@@ -46,6 +48,9 @@ class CinefinPlaybackService : MediaSessionService() {
 
     /** W68b：系统媒体面板「关闭」对音乐走与迷你条 × 相同的停止 / 收尾路径。 */
     @Inject lateinit var musicPlaybackController: MusicPlaybackController
+
+    /** W5-T10 L8：媒体键（耳机 / 通知栏 / 锁屏）与 UI 键同走 SyncPlay 组闸门。 */
+    @Inject lateinit var syncPlay: SyncPlaySessionCoordinator
 
     private var mediaSession: MediaSession? = null
     private var mediaSessionDelegate: Player? = null
@@ -113,9 +118,11 @@ class CinefinPlaybackService : MediaSessionService() {
     private fun buildMediaSession(player: Player): MediaSession {
         sessionActivityIsMusicItem = playerHolder.isCurrentItemMusic
         val sessionPlayer =
-            mediaSessionSeekPlayerForSession(player) { intent ->
-                playerHolder.seekSink.submit(intent)
-            }
+            mediaSessionSeekPlayerForSession(
+                player,
+                submitSeek = { intent -> playerHolder.seekSink.submit(intent) },
+                transportGate = syncPlay.gate,
+            )
         val session =
             MediaSession.Builder(this, sessionPlayer)
                 .setSessionActivity(sessionActivityIntent(sessionActivityIsMusicItem))
@@ -273,5 +280,6 @@ class CinefinPlaybackService : MediaSessionService() {
 
 internal fun mediaSessionSeekPlayerForSession(
     player: Player,
+    transportGate: SyncPlayTransportGate? = null,
     submitSeek: (PlayerViewModel.SeekIntent) -> Unit,
-): MediaSessionSeekPlayer = MediaSessionSeekPlayer(player, submitSeek)
+): MediaSessionSeekPlayer = MediaSessionSeekPlayer(player, submitSeek, transportGate)
