@@ -75,4 +75,31 @@ class MusicQueueEditsTest {
         assertEquals(null, updated.shuffleOrder)
         assertEquals(null, updated.shuffleSeed)
     }
+
+    @Test
+    fun `撤销移除时原位插回并保持当前曲目`() {
+        val original = queue(size = 3, currentIndex = 1)
+        val removed = musicQueueRemoveAt(original, 0)!!
+        val restored = musicQueueInsertAt(removed, 0, item(0))
+        assertEquals(original.items.map { it.itemId }, restored.items.map { it.itemId })
+        assertEquals(original.currentIndex, restored.currentIndex)
+        assertEquals(item(1).itemId, restored.currentItem!!.itemId)
+    }
+
+    @Test
+    fun `插回当前曲目之前时索引右移`() {
+        val q = queue(size = 3, currentIndex = 1)
+        val restored = musicQueueInsertAt(q, 0, item(9))
+        assertEquals(4, restored.items.size)
+        assertEquals(2, restored.currentIndex)
+        assertEquals(item(1).itemId, restored.currentItem!!.itemId)
+        assertEquals(item(9).itemId, restored.items.first().itemId)
+    }
+
+    @Test
+    fun `插回下标越界时夹到队尾`() {
+        val restored = musicQueueInsertAt(queue(size = 3, currentIndex = 0), 99, item(9))
+        assertEquals(item(9).itemId, restored.items.last().itemId)
+        assertEquals(0, restored.currentIndex)
+    }
 }

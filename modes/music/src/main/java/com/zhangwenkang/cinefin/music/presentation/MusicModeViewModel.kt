@@ -56,6 +56,7 @@ import com.zhangwenkang.cinefin.music.data.lyrics.shiftLyricEditLines
 import com.zhangwenkang.cinefin.music.data.lyrics.shiftLyricWords
 import com.zhangwenkang.cinefin.music.data.musicPlayModeOf
 import com.zhangwenkang.cinefin.music.data.musicQueueFillBatches
+import com.zhangwenkang.cinefin.music.data.musicQueueInsertAt
 import com.zhangwenkang.cinefin.music.data.musicQueueRemoveAt
 import com.zhangwenkang.cinefin.music.data.next
 import com.zhangwenkang.cinefin.music.data.projectLocalPlaylistTrack
@@ -2461,6 +2462,26 @@ constructor(
     }
 
     /** W5 T5（MUSIC-11）：左滑 / ✕ 移除「接下来播放」第 [index] 条。 */
+    /**
+     * W5-T3（MUSIC-42）：队列左滑移除的「撤销」——原位插回。
+     *
+     * 恢复态直接改快照（[musicQueueInsertAt]）；实时态走既有用户级操作组合：先 `appendToQueue` 追加队尾（同步写回 `_queue.value`）， 再
+     * `move` 到原下标（`MusicQueueEditor` 没有 insert-at，`player/local` 属禁改边界）。
+     */
+    fun undoRemoveQueueItem(index: Int, item: PlayerItem) {
+        val restored = _restoredQueue.value
+        if (playbackController.queue.value == null && restored != null) {
+            val updated = musicQueueInsertAt(restored, index, item)
+            _restoredQueue.value = updated
+            persister.persistNow(updated)
+            return
+        }
+        val live = playbackController.queue.value ?: return
+        val target = index.coerceIn(0, live.items.size)
+        queueEditor.appendToQueue(listOf(item))
+        playbackController.move(live.items.size, target)
+    }
+
     fun removeUpNextItem(index: Int) {
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
