@@ -1,11 +1,12 @@
 package com.zhangwenkang.cinefin.database.music
 
+import androidx.room3.ColumnInfo
 import androidx.room3.Entity
 import androidx.room3.ForeignKey
 import androidx.room3.Index
 import androidx.room3.PrimaryKey
 
-/** 音乐队列条目（position = 队列内顺序，整表替换式保存）。 */
+/** 音乐队列条目（position = 队列内顺序，整表替换式保存；[kind] 区分主队列与接下来播放）。 */
 @Entity(tableName = "music_queue_items")
 data class MusicQueueItemEntity(
     @PrimaryKey val position: Int,
@@ -16,6 +17,8 @@ data class MusicQueueItemEntity(
     val mediaSourceUri: String,
     val thumbnailUri: String?,
     val indexNumber: Int?,
+    /** W5 T5：MAIN = 主队列，UP_NEXT = 接下来播放；v3 旧数据由迁移补默认值。 */
+    @ColumnInfo(defaultValue = "MAIN") val kind: String = StoredQueueKind.MAIN,
 )
 
 /** 队列状态（固定单行，id 恒为 [SINGLETON_ID]）。 */
@@ -33,6 +36,8 @@ data class MusicQueueStateEntity(
     val shuffleOrder: String? = null,
     /** 与 [shuffleOrder] 同代的恢复种子；无可恢复实际序时为 null。 */
     val shuffleSeed: Long? = null,
+    /** W5 T5（MUSIC-12）：随机并保持当前曲目居首；v3 旧数据由迁移补默认值 false。 */
+    @ColumnInfo(defaultValue = "0") val shuffleKeepCurrentFirst: Boolean = false,
 ) {
     companion object {
         const val SINGLETON_ID = 0

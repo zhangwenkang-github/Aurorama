@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.player.local.domain
 
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import com.zhangwenkang.cinefin.player.core.domain.models.ShuffleMode
 
 /**
  * 队列编辑的附加接口（W2 R2 新增）。
@@ -11,6 +12,9 @@ import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 interface MusicQueueEditor {
     /** 跳到队列中的第 [index] 首并立即播放；越界忽略。 */
     fun jumpTo(index: Int)
+
+    /** W5 T5：「接下来播放」第 [index] 条立即播放（中间未播的条目按「播完即出」出列）。 */
+    fun jumpToUpNext(index: Int)
 
     /** 从队列移除第 [index] 首；越界忽略。移除当前曲目时播放器自动接管下一首。 */
     fun removeAt(index: Int)
@@ -29,4 +33,20 @@ interface MusicQueueEditor {
      * 与 [appendToQueue] 配对：先补"当前之后"的曲目追加队尾、再补"当前之前"的曲目前插队首， 补完后的队列顺序 = 浏览列表顺序。
      */
     fun prependToQueue(items: List<PlayerItem>)
+
+    /**
+     * W5 T5（MUSIC-09）：加到「接下来播放」队尾（手动插入，优先于主队列消费，播完即出）。
+     *
+     * 与 [MusicPlaybackController.insertNext] 互补：那个插队首，这个排队尾。
+     */
+    fun addToUpNext(item: PlayerItem)
+
+    /** W5 T5（MUSIC-11）：移除「接下来播放」第 [index] 条；越界忽略。 */
+    fun removeUpNextAt(index: Int)
+
+    /** W5 T5（MUSIC-11）：清空「接下来播放」（不动主队列，也不打断正在播放的曲目）。 */
+    fun clearUpNext()
+
+    /** W5 T5（MUSIC-12）：关闭 / 随机整个队列 / 随机并保持当前曲目居首。 */
+    fun setShuffleMode(shuffleMode: ShuffleMode)
 }

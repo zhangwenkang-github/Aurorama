@@ -33,25 +33,38 @@ class MusicQueueFillTest {
     }
 
     @Test
-    fun `按补入次序补队列后顺序与浏览列表一致且当前曲目不变`() {
-        val items = (0 until 5).map(::item)
-        val playedIndex = 2
+    fun `按批次补队列后顺序与浏览列表一致且当前曲目不变`() {
+        val items = (0 until 7).map(::item)
+        val playedIndex = 3
+        val batches = musicQueueFillBatches(playedIndex, items.size, batchSize = 2)
 
-        // 模拟 ViewModel：起播时队列只有被点曲目（currentIndex = 0），随后按补入次序逐首补
-        var queue = MusicQueue(items = listOf(items[playedIndex]), source = QueueSource.MANUAL)
-        for (index in musicQueueFillOrder(playedIndex, items.size)) {
-            val insertedAt = queue.currentIndex + 1
-            queue = queue.insertNext(items[index])
-            if (index < playedIndex) {
-                queue = queue.move(insertedAt, 0)
-            } else {
-                queue = queue.move(insertedAt, queue.items.size - 1)
-            }
+        // 模拟 ViewModel：起播时队列只有被点曲目，随后「当前之后」逐批追加队尾、「当前之前」逐批前插队首
+        // （W5 T5 起「播放下一首」= 接下来播放入队，补队列只走批量追加 / 前插，与当前曲目索引无关）
+        var queue = mutableListOf(items[playedIndex])
+        batches.append.forEach { batch -> queue.addAll(batch.map { index -> items[index] }) }
+        batches.prepend.forEach { batch ->
+            queue = (batch.map { index -> items[index] } + queue).toMutableList()
         }
 
-        assertEquals(items, queue.items)
-        assertEquals(playedIndex, queue.currentIndex)
-        assertEquals(items[playedIndex], queue.currentItem)
+        assertEquals(items, queue)
+        val base =
+            MusicQueue(items = queue, currentIndex = playedIndex, source = QueueSource.MANUAL)
+        assertEquals(items[playedIndex], base.currentItem)
+    }
+
+    @Test
+    fun `播放下一首只进接下来播放 不动主队列`() {
+        val items = (0 until 4).map(::item)
+        val base = MusicQueue(items = items, currentIndex = 1, source = QueueSource.MANUAL)
+        val withNext = base.insertNext(item(99))
+
+        assertEquals(items, withNext.items)
+        assertEquals(1, withNext.currentIndex)
+        assertEquals(listOf("曲目99"), withNext.upNext.map { it.name })
+        assertEquals(
+            listOf("曲目0", "曲目1", "曲目99", "曲目2", "曲目3"),
+            withNext.playbackItems.map { it.name },
+        )
     }
 
     /**

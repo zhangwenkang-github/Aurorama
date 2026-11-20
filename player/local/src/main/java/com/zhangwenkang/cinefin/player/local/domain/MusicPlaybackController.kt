@@ -46,7 +46,7 @@ interface MusicPlaybackController {
     /** 队列内拖拽排序，语义见 [MusicQueue.move]。 */
     fun move(fromIndex: Int, toIndex: Int)
 
-    /** 下一首播放，语义见 [MusicQueue.insertNext]。 */
+    /** 下一首播放（手动插入优先于主队列消费，语义见 [MusicQueue.insertNext]）。 */
     fun insertNext(item: PlayerItem)
 
     /** 停止音乐并清空当前队列（视频起播前的互斥调用也用它）。 */

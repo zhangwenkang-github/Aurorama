@@ -9,8 +9,12 @@ import androidx.media3.exoplayer.source.ShuffleOrder
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
+import com.zhangwenkang.cinefin.player.core.domain.models.ShuffleMode
 import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
+import com.zhangwenkang.cinefin.player.core.domain.models.currentFirstShuffleOrder
+import com.zhangwenkang.cinefin.player.core.domain.models.fullShuffleOrder
 import com.zhangwenkang.cinefin.player.core.domain.models.isValidShuffleOrder
+import com.zhangwenkang.cinefin.player.core.domain.models.priorityShuffleOrder
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_DEFAULT_PLAYBACK_SPEED
 import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
 import com.zhangwenkang.cinefin.player.local.audio.MusicCrossfadeMath
@@ -102,23 +106,7 @@ constructor(
                 ) {
                     player.pause()
                 }
-                _queue.update { queue ->
-                    if (
-                        queue == null ||
-                            queue.items.isEmpty() ||
-                            queue.items.size != player.mediaItemCount
-                    ) {
-                        queue
-                    } else {
-                        queue.copy(
-                            currentIndex =
-                                normalizeStartIndex(
-                                    player.currentMediaItemIndex,
-                                    queue.items.size,
-                                )
-                        )
-                    }
-                }
+                syncQueueWithPlayer(player)
                 onTrackChanged(mediaItem?.mediaId.toItemId())
             }
 
@@ -150,7 +138,11 @@ constructor(
                 _queue.update { queue ->
                     queue?.let { current ->
                         player.captureShuffleSnapshot(
-                            current.copy(shuffleEnabled = shuffleModeEnabled)
+                            current.copy(
+                                shuffleEnabled = shuffleModeEnabled,
+                                shuffleKeepCurrentFirst =
+                                    shuffleModeEnabled && current.shuffleKeepCurrentFirst,
+                            )
                         )
                     }
                 }
@@ -189,25 +181,7 @@ constructor(
                     _durationMs.value = lastKnownDurationMs
                     _isPlaying.value = MusicPlaybackSurfaceState.from(player).isPlaybackActive
                     // 队列可能被移动 / 删除 / 自动切换，索引以播放器为准最可靠
-                    _queue.update { queue ->
-                        // 只在播放器条目数与队列一致时同步：换队列过渡窗口里播放器还停在旧队列，
-                        // 回写会把新队列索引写成越界值（见 setQueue 的注释）
-                        if (
-                            queue == null ||
-                                queue.items.isEmpty() ||
-                                queue.items.size != player.mediaItemCount
-                        ) {
-                            queue
-                        } else {
-                            queue.copy(
-                                currentIndex =
-                                    normalizeStartIndex(
-                                        player.currentMediaItemIndex,
-                                        queue.items.size,
-                                    )
-                            )
-                        }
-                    }
+                    syncQueueWithPlayer(player)
                     reportPeriodicProgressIfDue(player, position)
                 } else {
                     _positionMs.value = 0L
@@ -269,11 +243,11 @@ constructor(
                 // W23-MUSIC 真机缺陷修复：换队列的过渡窗口里 ticker 仍按**旧**播放器状态回写
                 // currentIndex（例如从 100 首随机队列切到 6 首最近播放时是 84），直接喂给
                 // setMediaItems 会抛 IllegalSeekPositionException → 起播失败。这里统一归一化。
-                val startIndex = normalizeStartIndex(latest.currentIndex, latest.items.size)
+                // W5 T5：时间线 = 主队列 + 接下来播放（见 MusicQueue.playbackItems），起播位取时间线下标。
+                val timeline = latest.playbackItems
+                val startIndex = latest.playbackIndex.coerceIn(timeline.indices)
                 player.setMediaItems(
-                    latest.items.map {
-                        it.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri)
-                    },
+                    timeline.map { it.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri) },
                     startIndex,
                     0L,
                 )
@@ -351,14 +325,30 @@ constructor(
     }
 
     override fun setShuffleEnabled(enabled: Boolean) {
-        val player = musicPlayer()
+        setShuffleMode(if (enabled) ShuffleMode.ALL else ShuffleMode.OFF)
+    }
+
+    /**
+     * W5 T5（MUSIC-12）：三种随机模式。
+     *
+     * 「全随机」与「居首随机」都安装一条显式随机序（纯函数可单测）；有「接下来播放」条目时， 随机序把当前曲与手动插入项钉在队首，保证手动插入优先于主队列消费。
+     */
+    override fun setShuffleMode(shuffleMode: ShuffleMode) {
         val current = _queue.value ?: return
-        val updated = current.copy(shuffleEnabled = enabled)
+        val updated =
+            current.copy(
+                shuffleEnabled = shuffleMode != ShuffleMode.OFF,
+                shuffleKeepCurrentFirst = shuffleMode == ShuffleMode.KEEP_CURRENT_FIRST,
+                shuffleOrder = null,
+                shuffleSeed = null,
+            )
+        val player = musicPlayer()
         if (player == null) {
             _queue.value = updated
             return
         }
-        player.shuffleModeEnabled = enabled
+        player.shuffleModeEnabled = updated.shuffleEnabled
+        if (updated.shuffleEnabled) player.installShuffleOrder(updated)
         _queue.value = player.captureShuffleSnapshot(updated)
     }
 
@@ -371,23 +361,28 @@ constructor(
             _queue.value = moved
             return
         }
-        player.moveMediaItem(fromIndex, toIndex)
+        if (player.mediaItemCount == current.playbackItems.size) {
+            val offset = current.upNextCount
+            val from = current.mainToTimelineIndex(fromIndex, offset)
+            val to =
+                current.mainToTimelineIndex(toIndex, offset).coerceAtMost(player.mediaItemCount - 1)
+            player.moveMediaItem(from, to)
+        }
         _queue.value = player.captureShuffleSnapshot(moved)
     }
 
+    /** W5 T5：播放下一首 → 「接下来播放」队首（播完即出，不再残留在主队列里）。 */
     override fun insertNext(item: PlayerItem) {
-        val current = _queue.value ?: return
-        val player = musicPlayer() ?: return
-        val insertAt = (current.currentIndex + 1).coerceIn(0, player.mediaItemCount)
-        player.addMediaItem(
-            insertAt,
-            item.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri),
-        )
-        _queue.value = player.captureShuffleSnapshot(current.insertNext(item))
+        insertUpNext(listOf(item), atHead = true)
+    }
+
+    /** W5 T5：加到「接下来播放」队尾。 */
+    override fun addToUpNext(item: PlayerItem) {
+        insertUpNext(listOf(item), atHead = false)
     }
 
     /**
-     * W78：批量追加到队尾（不依赖当前曲目索引）。
+     * 批量追加到队尾（不依赖当前曲目索引）。
      *
      * 补队列走这里而不是 `insertNext` + `move`：后者以当前曲目索引为锚点，播放器自动切歌时会把条目 摆到错误位置；批量追加只认队尾。随机模式下
      * `addMediaItems` 由内核自行把新条目插进 shuffle 顺序， 队列语义与随机语义都不受影响。
@@ -415,9 +410,40 @@ constructor(
     }
 
     override fun jumpTo(index: Int) {
+        val current = _queue.value ?: return
+        if (index !in current.items.indices) return
         val player = musicPlayer() ?: return
-        if (index !in 0 until player.mediaItemCount) return
-        player.seekTo(index, 0L)
+        val clean = current.copy(currentIndex = index, upNextPlaying = null)
+        if (current.upNextPlaying == null && current.upNext.isEmpty()) {
+            player.seekTo(index, 0L)
+            player.play()
+            return
+        }
+        // 有接下来播放条目时时间线与主队列下标不再一一对应：重建时间线（跳播本来就重启目标曲目）。
+        val target = clean.copy(shuffleOrder = null, shuffleSeed = null)
+        val timeline = target.playbackItems
+        val startIndex = target.playbackIndex.coerceIn(timeline.indices)
+        player.setMediaItems(
+            timeline.map { it.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri) },
+            startIndex,
+            0L,
+        )
+        val withOrder = player.installPersistedShuffleOrder(target)
+        player.repeatMode = withOrder.repeatMode.toPlayerRepeatMode()
+        player.shuffleModeEnabled = withOrder.shuffleEnabled
+        player.prepare()
+        player.play()
+        _queue.value = player.captureShuffleSnapshot(withOrder)
+    }
+
+    override fun jumpToUpNext(index: Int) {
+        val current = _queue.value ?: return
+        if (index !in current.upNext.indices) return
+        val player = musicPlayer() ?: return
+        if (player.mediaItemCount != current.playbackItems.size) return
+        val target = current.playbackIndex + 1 + index
+        if (target !in 0 until player.mediaItemCount) return
+        player.seekTo(target, 0L)
         player.play()
     }
 
@@ -425,7 +451,10 @@ constructor(
         val current = _queue.value ?: return
         if (index !in current.items.indices) return
         val player = musicPlayer() ?: return
-        player.removeMediaItem(index)
+        if (player.mediaItemCount == current.playbackItems.size) {
+            val offset = current.upNextCount
+            player.removeMediaItem(current.mainToTimelineIndex(index, offset))
+        }
         val removed =
             current.copy(
                 items = current.items.toMutableList().apply { removeAt(index) },
@@ -433,6 +462,51 @@ constructor(
                 shuffleSeed = null,
             )
         _queue.value = player.captureShuffleSnapshot(removed)
+    }
+
+    override fun removeUpNextAt(index: Int) {
+        val current = _queue.value ?: return
+        if (index !in current.upNext.indices) return
+        val player = musicPlayer() ?: return
+        if (player.mediaItemCount == current.playbackItems.size) {
+            // 待播段起点 = 当前时间线下标 + 1（正在播放的接下来播放条目排在它前面）
+            player.removeMediaItem(current.playbackIndex + 1 + index)
+        }
+        val updated = current.removeUpNextAt(index)
+        if (updated.shuffleEnabled) player.installShuffleOrder(updated)
+        _queue.value = player.captureShuffleSnapshot(updated)
+    }
+
+    override fun clearUpNext() {
+        val current = _queue.value ?: return
+        if (current.upNext.isEmpty()) return
+        val player = musicPlayer() ?: return
+        if (player.mediaItemCount == current.playbackItems.size) {
+            val from = current.playbackIndex + 1
+            player.removeMediaItems(from, from + current.upNext.size)
+        }
+        val updated = current.clearUpNext()
+        if (updated.shuffleEnabled) player.installShuffleOrder(updated)
+        _queue.value = player.captureShuffleSnapshot(updated)
+    }
+
+    /** 「接下来播放」入队：模型 + 播放器时间线同时插入（队首 = 手动优先）。 */
+    private fun insertUpNext(items: List<PlayerItem>, atHead: Boolean) {
+        if (items.isEmpty()) return
+        val current = _queue.value ?: return
+        val player = musicPlayer() ?: return
+        val insertAt =
+            if (atHead) current.playbackIndex + 1
+            else (current.playbackIndex + 1 + current.upNext.size)
+        if (player.mediaItemCount == current.playbackItems.size) {
+            player.addMediaItems(
+                insertAt.coerceIn(0, player.mediaItemCount),
+                items.map { it.toMusicMediaItem(playerHolder.musicPlaceholderArtworkUri) },
+            )
+        }
+        val updated = if (atHead) current.prependUpNext(items) else current.appendUpNext(items)
+        if (updated.shuffleEnabled) player.installShuffleOrder(updated)
+        _queue.value = player.captureShuffleSnapshot(updated)
     }
 
     override fun stop() {
@@ -479,6 +553,29 @@ constructor(
         }
 
     /**
+     * 用「当前曲目 + 接下来播放 + 其余洗牌」安装固定随机序（W5 T5，MUSIC-12）。
+     *
+     * 有手动插入项时优先序永远压过随机（[priorityShuffleOrder]）；否则按模式取整队随机 / 当前居首随机。 关闭随机或队列不足两首时不安装。
+     */
+    private fun Player.installShuffleOrder(queue: MusicQueue): MusicQueue {
+        val exo = this as? ExoPlayer ?: return queue
+        val itemCount = queue.playbackItems.size
+        if (itemCount <= 1) return queue
+        val seed = queue.shuffleSeed ?: nextShuffleSeed()
+        val priority = queue.upNextCount
+        val order =
+            when {
+                priority > 0 ->
+                    priorityShuffleOrder(itemCount, queue.playbackIndex, priority, Random(seed))
+                queue.shuffleMode == ShuffleMode.KEEP_CURRENT_FIRST ->
+                    currentFirstShuffleOrder(itemCount, queue.playbackIndex, Random(seed))
+                else -> fullShuffleOrder(itemCount, Random(seed))
+            }
+        exo.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(order.toIntArray(), seed))
+        return queue.copy(shuffleSeed = seed)
+    }
+
+    /**
      * 安装持久实际序。安装前要求完整置换；安装后不在这里宣称完成，调用方统一从 player 回读并发布。
      *
      * `setShuffleOrder` 是同步 API，没有异步 ack；回读实际序是唯一完成锚点。无持久序时保留内核为 `setMediaItems` 生成的新序，供旧 v2
@@ -487,46 +584,58 @@ constructor(
     private fun Player.installPersistedShuffleOrder(queue: MusicQueue): MusicQueue {
         val exo = this as? ExoPlayer ?: return queue.copy(shuffleOrder = null, shuffleSeed = null)
         val order = queue.shuffleOrder
-        if (!isValidShuffleOrder(order, queue.items.size) || order == null) return queue
+        if (!isValidShuffleOrder(order, queue.playbackItems.size) || order == null) return queue
         val seed = queue.shuffleSeed ?: nextShuffleSeed()
         exo.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(order.toIntArray(), seed))
         return queue.copy(shuffleSeed = seed)
     }
 
-    /** 从同一音频 player 回读顺序与当前索引，形成 Persister 可直接消费的单代快照。 */
+    /** 从同一音频 player 回读顺序，形成 Persister 可直接消费的单代快照（索引由 [syncQueueWithPlayer] 对齐）。 */
     private fun Player.captureShuffleSnapshot(queue: MusicQueue): MusicQueue {
+        val timeline = queue.playbackItems
         val timelineMatches =
-            mediaItemCount == queue.items.size &&
-                queue.items.indices.all { index ->
-                    getMediaItemAt(index).mediaId == queue.items[index].itemId.toString()
+            mediaItemCount == timeline.size &&
+                timeline.indices.all { index ->
+                    getMediaItemAt(index).mediaId == timeline[index].itemId.toString()
                 }
-        val currentIndex =
-            if (timelineMatches && queue.items.isNotEmpty()) {
-                normalizeStartIndex(currentMediaItemIndex, queue.items.size)
-            } else {
-                queue.currentIndex
-            }
         val exo = this as? ExoPlayer
         val order =
-            if (timelineMatches && exo != null) {
-                readShuffleOrder(exo.shuffleOrder, queue.items.size)
-            } else {
-                null
-            }
+            if (timelineMatches && exo != null) readShuffleOrder(exo.shuffleOrder, timeline.size)
+            else null
         return if (order == null) {
-            queue.copy(
-                currentIndex = currentIndex,
-                shuffleOrder = null,
-                shuffleSeed = null,
-            )
+            queue.copy(shuffleOrder = null, shuffleSeed = null)
         } else {
-            queue.copy(
-                currentIndex = currentIndex,
-                shuffleOrder = order,
-                shuffleSeed = queue.shuffleSeed ?: nextShuffleSeed(),
-            )
+            queue.copy(shuffleOrder = order, shuffleSeed = queue.shuffleSeed ?: nextShuffleSeed())
         }
     }
+
+    /**
+     * 播放器时间线 → 队列（W5 T5 双队列的唯一对齐入口）。
+     *
+     * 播完即出：离开「接下来播放」条目时把已播出 / 被跳过的条目从时间线摘掉，队列与时间线始终同构，索引不会漂移。
+     */
+    private fun syncQueueWithPlayer(player: Player) {
+        val previous = _queue.value ?: return
+        if (player.mediaItemCount != previous.playbackItems.size) return
+        if (player.currentMediaItemIndex !in 0 until player.mediaItemCount) return
+        val updated = previous.withTimelineIndex(player.currentMediaItemIndex)
+        if (updated == previous) return
+        if (previous.upNextCount > 0) {
+            val blockStart = previous.playbackIndex
+            val blockEnd = (blockStart + previous.upNextCount).coerceAtMost(player.mediaItemCount)
+            val newCurrent = player.currentMediaItemIndex
+            // 倒序删，保证前面下标不失效：正在播放的旧条目 + 被跨过的待播条目
+            for (index in blockEnd - 1 downTo blockStart) {
+                val stale = index != newCurrent && (index < newCurrent || index == blockStart)
+                if (stale && index < player.mediaItemCount) player.removeMediaItem(index)
+            }
+        }
+        _queue.value = player.captureShuffleSnapshot(updated)
+    }
+
+    /** 主队列下标 → 时间线下标（接下来播放段插在主队列当前曲之后，主队列后半段整体后移）。 */
+    private fun MusicQueue.mainToTimelineIndex(mainIndex: Int, offset: Int = upNextCount): Int =
+        if (mainIndex <= currentIndex) mainIndex else mainIndex + offset
 
     private fun nextShuffleSeed(): Long = Random.nextLong()
 
