@@ -317,7 +317,7 @@ private fun LyricsDisplayChip(label: String, selected: Boolean, onClick: () -> U
 }
 
 @Composable
-private fun LyricsLines(
+internal fun LyricsLines(
     state: MusicModeViewModel.LyricsUiState,
     followState: LyricsFollowUiState,
     onFollowStateChange: (LyricsFollowUiState) -> Unit,

@@ -2357,6 +2357,43 @@ constructor(
         playbackController.setQueue(queue, startIndex = index)
     }
 
+    /**
+     * W5 T1（MUSIC-47）：长按上下文菜单「加到队尾」——解析出可播放条目后追加到队列末尾。
+     *
+     * 与「下一首播放」（[playNext] / `insertNext`）互补：`appendToQueue` 只认队尾，不受播放器自动切歌影响。
+     */
+    fun enqueueSongAtEnd(song: MusicSong) {
+        viewModelScope.launch {
+            runCatching { trackResolver.toPlayerItem(song) }
+                .onSuccess { item -> queueEditor.appendToQueue(listOf(item)) }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            errorTitle = "添加到队列失败",
+                            errorMessage =
+                                error.message?.takeIf { message -> message.isNotBlank() }
+                                    ?: "无法解析「${song.name}」的播放地址",
+                        )
+                    }
+                }
+        }
+    }
+
+    /** W5 T1（MUSIC-47 配套）：工具栏「多选」入口——进入多选态（空选）；长按曲目改为上下文菜单，不再进多选。 */
+    fun enterBatchSelection() {
+        if (_batchSelectionState.value.selection.selectionMode) return
+        updateBatchSelectionByUser { selection -> selection.copy(selectionMode = true) }
+    }
+
+    /** W5 T1（MUSIC-19）：播放页点艺术家名 → 艺术家详情（按当前曲库聚合的艺人分组定位，找不到则忽略）。 */
+    fun openArtistByName(name: String) {
+        val state = _uiState.value
+        val artist =
+            state.artists.firstOrNull { it.name == name }
+                ?: groupArtists(state.songs.filter { song -> song.artist == name }).firstOrNull()
+        if (artist != null) openArtist(artist)
+    }
+
     fun moveQueueItem(fromIndex: Int, toIndex: Int) {
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
