@@ -14,9 +14,10 @@ import org.jellyfin.sdk.model.api.LyricLineCue
 /**
  * 歌词仓库（MU-5）。
  *
- * 来源优先级（W25 起：**本机覆盖 > 外挂 LRC > 服务端 > 本地缓存**）：
+ * 来源优先级（W25 起：**本机覆盖 > 外挂歌词 > 服务端 > 本地缓存**）：
  * 1. 本机覆盖——用户在 App 内编辑 / 导入的歌词（`<filesDir>/lyrics/override/<itemId>.lrc`，W25-MUSIC）；
- * 2. 外挂 `.lrc`——本地音频文件同目录同名文件（离线播放 / 下载后），或 `<filesDir>/lyrics/<itemId>.lrc`（手工投放）；
+ * 2. 外挂 `.elrc` / `.lrc`——本地音频文件同目录同名文件（离线播放 / 下载后），或 `<filesDir>/lyrics/<itemId>.elrc|.lrc`（手工投放）；
+ *    候选顺序与大小写规则见 [LyricsRepositoryImpl.externalLrc]（MUSIC-24）；
  * 3. 服务端 `GET /Audio/{itemId}/Lyrics`（Jellyfin SDK `LyricsApi.getLyrics`；实测服务器会把文件内嵌歌词提取为 metadata
  *    `.lrc` 后由此接口返回）；
  * 4. 本地缓存（上一次成功拉取的原文行）——断网时仍然可用。
@@ -139,24 +140,48 @@ constructor(
     override suspend fun hasLocalOverride(itemId: UUID): Boolean =
         withContext(Dispatchers.IO) { overrideStore.has(itemId) }
 
-    /** 外挂 LRC：本地媒体同目录 `<文件名>.lrc`，或应用歌词目录 `<itemId>.lrc`。 */
+    /**
+     * 外挂歌词候选（MUSIC-24）：本地媒体同目录 `<文件名>.elrc` → `<文件名>.lrc` → `<完整文件名含扩展>.elrc` →
+     * `<完整文件名含扩展>.lrc`，再到应用歌词目录 `<itemId>.elrc` → `<itemId>.lrc`。
+     *
+     * `.elrc`（增强 LRC，行内词级标签）优先于同名 `.lrc`；扩展名大小写不敏感（按目录列举 + `equalsIgnoreCase` 匹配，`listFiles` 为 null
+     * 时该目录整体跳过）。
+     */
     private fun externalLrc(itemId: UUID, localMediaPath: String?): List<LyricLine>? {
         val media = localMediaPath?.let(::File)
         val candidates = buildList {
             if (media != null) {
                 val name = media.name.substringBeforeLast('.', media.name)
-                add(File(media.parentFile, "$name.lrc"))
-                add(File("${media.path}.lrc"))
+                val parent = media.parentFile
+                add(parent to "$name.elrc")
+                add(parent to "$name.lrc")
+                add(parent to "${media.name}.elrc")
+                add(parent to "${media.name}.lrc")
             }
-            add(File(lyricsDir, "$itemId.lrc"))
+            add(lyricsDir to "$itemId.elrc")
+            add(lyricsDir to "$itemId.lrc")
         }
-        for (file in candidates) {
-            if (!file.isFile) continue
+        for ((directory, name) in candidates) {
+            val file = findIgnoreCase(directory, name) ?: continue
             val text = readText(file) ?: continue
             val lines = LrcParser.parse(text)
             if (lines.isNotEmpty()) return lines
         }
         return null
+    }
+
+    /**
+     * 在 [directory] 里找名字等于 [name]（忽略大小写）的普通文件。
+     *
+     * 多个大小写变体同时存在时取字典序最小者，保证候选顺序确定；目录不可列举（`listFiles` 返回 null）时返回 null。
+     */
+    private fun findIgnoreCase(directory: File?, name: String): File? {
+        // 相对路径（无 parentFile）沿用"直接按给定名字探测"的老语义
+        if (directory == null) return File(name).takeIf { it.isFile }
+        val entries = directory.listFiles() ?: return null
+        return entries
+            .filter { it.isFile && it.name.equals(name, ignoreCase = true) }
+            .minByOrNull { it.name }
     }
 
     /** 外挂 LRC 常见 GBK 编码：先按 UTF-8 读，出现替换字符再按 GBK 重读（与导入共用 [LyricTextCodec]）。 */

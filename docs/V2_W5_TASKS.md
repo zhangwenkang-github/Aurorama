@@ -135,6 +135,93 @@ T4（TrackSource 模型，player/core+modes/music data）先行解锁 T5/T6。
 - 49 ⚠️ 本地缺失/被移动：歌单投影层有「不可用」占位（`isPlaylistPlaceholder`）✅；播放队列中缺失文件无标记、无跳过语义（Exo 会抛错停播）；缓冲中指示依赖 Exo 默认（无轻量指示 UI）。
 - 50 ✅ 已修并钉死（`MusicSelectedPlaybackTest`：点歌只载该曲、随后点歌追加队尾不覆盖，含 pending/乱序/失败 12 例）。
 
+## T11 全量验收（2026-11-21）
+
+以本文件「T0 现状核对」50 条为清单，对照 **T1–T8 + T10 + T11 全部合入后的基线**（`899b1f60`，本卡再补 `.elrc` 与词级高亮对齐）逐条复核。
+
+图例：✅ 已具备（单测或代码位置可归证）/ ⚠️ 部分具备，或实现与单测齐但缺真机（K60）证据 / ❌ 未交付。
+
+汇总：**✅ 39 条 / ⚠️ 10 条 / ❌ 1 条**。K60 最小取证集见本节末。
+
+### §7.1 引擎与数据层（MUSIC-01~08）
+
+- 01 ✅ `TrackSource` + `TrackSourceType`（`player/core/.../domain/models/TrackSource.kt`）统一承载服务器 / 本机曲目，播放层不再区分来源；双路径解析仍走 `MusicTrackResolver`（`LocalPlaybackSourceTest`）。
+- 02 ✅ `TrackSource` 字段齐：sourceType / streamUrl / duration / bitrate / codec / container / sampleRate / bitDepth / channelCount / replayGainTrack / replayGainAlbum / coverArtUrl / lyricsRef / isTranscoded（同上文件 25–53 行）；`MusicSong` 经 T4 对齐。
+- 03 ✅ `/Audio/{itemId}/universal` 协商：`MusicAudioNegotiation`（设备能力 + 音质偏好 → 直连/转码）+ `DevicePlaybackCapabilities` 直连容器表 + `ServerAuthDataSourceFactory` 同源注入 `Authorization`；`isTranscoded` 驱动「转码中」标注。K60：128k 强制转码 PLAYING + 「转码中」上屏（会话2 返修取证）。
+- 04 ✅ 本地元数据首次入库缓存（`LocalLibraryEntry`，W37；T4 扩列 albumArtist/discNumber/genre/year/bitrate/sampleRate/bitDepth + Room 迁移）。
+- 05 ✅ gapless：音乐会话关 `pauseAtEndOfMediaItems`（`MusicPlaybackControllerImpl.kt:56`），Exo `setMediaItems` 预载下一首无间隙；`PlayerEndBehaviorTest` 守结束语义。
+- 06 ⚠️ 交叉淡化口径 T7 已落地（0–12s 连续可调、仅 `MEDIA_ITEM_TRANSITION_REASON_AUTO` 触发、短曲跳过 `max(20s, 3×fade)`；`MusicCrossfadeEligibilityTest` / `MusicCrossfadeMathTest` 钉触发矩阵）；**可闻淡接缺 K60 实证**（K60 待验）。
+- 07 ✅ ReplayGain 三态（off / track / album，初值取偏好键 `musicReplayGainMode`）+ 内嵌标签 Range 解析（FLAC VorbisComment / ID3v2 TXXX，`ReplayGainTagParserTest`）+ 本机覆盖 ±12dB + 专辑档缺标签回落曲目档。
+- 08 ✅ 单 MediaSession（`CinefinPlaybackService`）：通知 / 锁屏 / 线控 / 蓝牙，元数据含 artist；T10 后媒体键暂停同走 SyncPlay 组闸门。
+
+### §7.2 队列（MUSIC-09~14）
+
+- 09 ✅ 双队列：`MusicQueue` 增「接下来播放」FIFO，手动插入优先消费、播完即出（`MusicQueueTest`、`MusicQueueSnapshotUpNextTest`）。
+- 10 ✅ 队列 sheet 双分区（up-next 更轻权重）+ 长按拖拽排序 + 点击跳转 + ✕/左滑移除 + 撤销 snackbar（T5r 补主队列左滑；K60 347↔348 插回实证）。
+- 11 ✅ setQueue / append / prepend / insertNext / move / removeAt / jumpTo / 上下一首 / 随机 / 三重复模式 + `clearUpNext`（`MusicModeViewModel.kt:2517`）。
+- 12 ✅ 随机双子模式：`ShuffleMode.ALL`（整队随机）vs `ShuffleMode.KEEP_CURRENT_FIRST`（当前居首）（`MusicPlayModeTest`、`MusicShuffleOrderTest`）。
+- 13 ✅ 冷启动恢复（`MusicQueuePersister` + Room 快照 v4：曲目/索引/位置 5s 节流/repeat/shuffle/up-next 分区 + 偏好开关）（`MusicQueueStoreTest`、`MusicQueueSnapshotUpNextTest`）。
+- 14 ❌ Auto DJ 仍零实现：T9 纯调研卡未交付 go/no-go 报告、InstantMix 未接（SHOULD 项）。
+
+### §7.3 播放器 UI（MUSIC-15~23）
+
+- 15 ✅ 迷你条常驻 + 点击进全屏；全屏为音乐页内覆盖层（`BackHandler` 管理），关闭后底层列表状态保持。
+- 16 ✅ 平板双栏（`LibraryPane`/`DetailPane`）+ 底部播放条；手机底部导航 + 迷你条；整页跟随全局主题四变体（T1r）。
+- 17 ✅ 封面调色板（T2）：`palette-ktx` 提取 vibrant→muted→dominant、按 itemId `LruCache(32)`、可读性护栏（对比度 <3:1 提亮）、失败回落域色 `mediaColorsFor(Music)`；`LocalMediaColors` 局部覆盖迷你条与全屏页（`CoverMediaColors` / `MusicCoverPalette`）。
+- 18 ⚠️ 切歌封面 `AnimatedContent` 交叉淡化已有（T3/MUSIC-41）；**无模糊→清晰渐进加载**（Coil 侧无 placeholder/blur 渐进链）——差距保留。
+- 19 ✅ 全屏结构对齐定稿一：左「收起」+ 右 ⋮（队列/音效/睡眠定时三动作，`PlayerContextMenu`）+ 封面 + 可点歌手 + 进度 + 传输键 + 五键功能行（`MusicPrimaryToolbarLayoutTest`）。
+- 20 ✅ 封面 `nowPlayingCoverSize = min(宽×0.80, 360dp)`（`MusicNowPlayingScreen.kt:1415`）+ 点击封面切封面/歌词视图（`onOpenLyrics`）；宽屏 `WIDE_PLAYER_WIDTH=840dp` 左控制/右歌词·队列分栏。
+- 21 ✅ 波浪进度条（振幅 3dp / 波长 28dp / 1.5 周/s）+ 拖拽「正在跳转到 mm:ss」气泡 + `SpringSnap` 回弹 + 减少动态压平（`MusicMotionMathTest`；K60 播放中/暂停双态截图）。
+- 22 ✅ 传输键 48dp 触控壳（`MusicNowPlayingScreen.kt:1333`）+ `PrimaryPlayButton` 视觉权重；core `CinefinIconButton` 仍 44dp（遗留②，模块内壳兜底）。
+- 23 ✅ 玻璃迷你条（`colors.glass` + `glassBorder` + 顶部高光、64dp）+ marquee（首尾 1.2s、30dp/s）+ 2dp 进度线 + 左右滑切歌（56dp / 800dp/s，两侧 16dp 边缘安全区）+ 关闭 ×（`MusicMiniBarRulesTest`、`MusicSwipeGestureTest`；T2 K60 过）。
+
+### §7.4 歌词（MUSIC-24~29）
+
+- 24 ✅ 三来源 + 外挂 `.elrc`（T11）：候选 `<同名>.elrc` → `<同名>.lrc` → `<完整文件名含扩展>.elrc` → `.lrc` → `<itemId>.elrc` → `<itemId>.lrc`，扩展名大小写不敏感（目录列举 + `equalsIgnoreCase`，`listFiles` 为 null 跳过）；来源沿用 `LyricsSource.EXTERNAL_LRC`。`LyricsRepositoryTest` 新增 5 例（elrc 优先 / 大小写 / 应用目录优先 / 完整文件名兜底 / fixture 词标签）。
+- 25 ⚠️ `.elrc` 词级解析（`LrcParser.parseWords`）+ 词级高亮数据链单测齐（`ElrcFixtureTest` 5 例：words / offset / 0–50–100% 插值边界 / 文本一致性守卫 / 双语行），高亮色与 tween(200) 已按定稿对齐；**真机 `.elrc` 上屏待 K60**（服务端 Cues 本库实测全空，需外挂素材）（K60 待验）。
+- 26 ⚠️ 封面↔歌词转场已按定稿二 §6 落地（进：fadeOut(200) + fadeIn(280) + 内容 16dp 下滑；出：`tween(Player)`；减少动态走 150ms 淡变）（`MusicNowPlayingScreen.kt:186-211`）；**转场观感待 K60**（K60 待验）。
+- 27 ✅ 当前行高亮放大 + 上下文降透明 + `animateScrollToItem` lerp 跟随（`LyricsCenterScrollTest` 17 例）。
+- 28 ✅ 手动滚动暂停跟随（`followState.manualPause`）+ 停止 2s 后满足条件自动恢复 + 「回到当前行」按钮。
+- 29 ✅ 点击歌词行 seek（`onSeekLyricLine` / `onLineClick`），含点击后抑制旧行居中的 `lyricsLineClickFollowOutcome`。
+
+### §7.5 音频设置与增强（MUSIC-30~34）
+
+- 30 ✅ EQ 10 段（31.25 / 62.5 / 125 / 250 / 500 / 1k / 2k / 4k / 8k / 16k Hz）+ 8 预设（含新增 JAZZ / TREBLE_BOOST，旧 6 预设写死插值结果）+ 旧自定义 5 段幂等迁移（`MusicEqualizerTest`；K60 听感抽查，会话3）。
+- 31 ✅ 「非 bit-perfect 输出（Android 音频混音）」末行恒显（`MusicAudioInfo.MUSIC_BIT_PERFECT_NOTE`）；不做独占输出 = 已裁决的范围裁剪。
+- 32 ✅ 音乐倍速 0.5–2.0×（0.5/0.75/1.0/1.25/1.5/2.0，Sonic 保调，默认 1.0 进程级不落偏好，入口音效面板）（`MusicPlaybackSpeedTest`、`PlaybackSpeedSessionTest`；K60 保调取证）。
+- 33 ✅ 睡眠定时档位 15/30/45/60/90 + 自定义 1–240 + 「播完当前曲目停止」+ 结束前 5s 淡出（复用交叉淡化包络）（`SleepTimerController`；K60 logcat 音量包络 1.00→0.31/100ms、到点 PAUSED）。
+- 34 ✅ 音频输出信息面板（源格式/采样率/位深/声道 → 输出格式/是否转码/码率，末行 bit-perfect 声明）（`MusicAudioOutputInfoTest`、`MusicAudioInfoTest`；fixpack 补 mediaId 代际守卫）。
+
+### §7.6 本地媒体、动效、手势与容错（MUSIC-35~50）
+
+- 35 ⚠️ 本地元数据已扩 albumArtist / discNumber / genre / year / bitrate / sampleRate / bitDepth（T4 + Room 迁移）；**内嵌歌词入库与 ReplayGain 入库仍未做**（RG 播放时 Range 解析、歌词走来源链）→ 字段清单未全。
+- 36 ✅ MP3 / AAC / FLAC / ALAC(m4a) / WAV / OGG / Opus 识别；APE / DSD 显式识别并给「不支持」弱提示（`LocalMusicPlayer.kt:69`、`MusicRepository.kt:90`）。
+- 37 ✅ 混排融合：来源筛选 ALL/SERVER/LOCAL + K1 来源徽标（`MusicLibraryOptionsTest`、`MusicLibrarySourceLoaderTest`）。
+- 38 ✅ 动效三原则：全部走 `animate*AsState` / `AnimatedContent`（可中断、非阻塞）；K60 连点 6 次无跳变（会话4）。
+- 39 ✅ 容器变换：`SpringExpand`(0.86/300) / `SpringCollapse`(1/380)（`CinefinMotion.kt:88-93`）；**不做真共享元素**为 Kimi 定稿口径（全屏弹簧展开 + 迷你条 fadeOut 近似）。
+- 40 ✅ 播放/暂停 `SpringOvershoot` scale 脉冲、暂停波形压平、迷你条进度线暂停转静态 alpha 40%（K60 双态截图）。
+- 41 ⚠️ 切歌 `AnimatedContent`：封面 250ms 交叉淡化 + 反侧 14dp `SpringControlIn` 滑入 + 曲名/艺术家 stagger 40ms + thumb 回弹（`MusicNowPlayingScreen.kt:1029` 起）；**转场观感缺 K60 专项**（K60 待验）。
+- 42 ✅ 队列拖拽：scale 1.02 + 阴影 + 其余条目弹簧让位 + `SpringSnap` 落位（`MusicMotionMathTest`；K60 347↔348 插回）。
+- 43 ✅ 歌词跟随与词级高亮均用 lerp；播放位置每 500ms 采样，T11 在三处 `wordHighlightedText` 调用点补 `animateFloatAsState(tween(200))` 平滑，词内进度按时间插值（卡拉 OK 扫词）；高亮色 = `media.base`，已唱 100% / 未唱 55% alpha。
+- 44 ⚠️ `CinefinMotion.reduceMotion()` 已入 core（消费 `animatorDurationScale`），动效包全部走降级分支（`MusicMotionMathTest`）；**开关后整页走查缺 K60 专项**（K60 待验）。
+- 45 ⚠️ 优先级链在：系统返回（`BackHandler`）> 全屏下拉收起（18% 屏高 / 1200dp/s）> 左右切歌（56dp / 800dp/s，迷你条两侧留 16dp）> 进度拖拽；歌词页内下拉 = 回封面。**无系统化仲裁单测，边缘返回不误触待 K60**（K60 待验）。
+- 46 ✅ 下拉收起：拖幅 ≥18% 屏高或速度 ≥1200dp/s 关闭、封面 scale 1→0.96 + 圆角 Card→32 线性插值、未达阈值 `SpringSnap` 回位（`MusicPullDismissFraction`；K60 小拖回弹 / 快拖关闭双路径）。
+- 47 ✅ 长按曲目 = `ModalBottomSheet` 五动作（播放下一首 / 加队尾 / 加入播放列表 / 音频信息 / 下载·离线）（`MusicModeScreen.kt:2969`）；原多选批量模式保留为工具栏入口。
+- 48 ⚠️ `onPlayerError`：本地不可读直接标「不可用」跳过；其余错误延迟 1s 重试 1 次 → 仍失败非阻塞 snackbar + 自动跳下一首（队尾=停）（`MusicPlaybackFailureCopyTest`、`MusicPlaybackRecoveryTest`）；**K60 断网/坏源实测待验**。
+- 49 ⚠️ 本地缺失标「不可用」保留队列 + 播放跳过 + 可 ✕/左滑移除（`MusicQueueUnavailableSnapshotTest`；`MusicTrackResolver` 标灰）；缓冲中 `isBuffering` 驱动迷你条与全屏进度区轻量指示且可暂停；**K60 实测待验**。
+- 50 ✅ `MusicSelectedPlaybackTest`：点歌只载该曲、随后点歌追加队尾不覆盖，含 pending / 乱序 / 失败 12 例。
+
+### K60 最小取证集（交给主负责人）
+
+1. **MUSIC-06**：自然切歌可闻淡接 vs 手动切歌无淡入（0s 与 6s 档对比各一次）。
+2. **MUSIC-25 / 24**：设备侧投放一个 `.elrc`（`<filesDir>/lyrics/<itemId>.elrc` 或本地曲目同目录同名）→ 歌词页卡拉 OK 扫词上屏；logcat 看「逐字歌词：pos=… 第 n 行 第 m/k 词」。注意：需先确认该曲目 id 对应的 server/local 条目。
+3. **MUSIC-26**：封面 ↔ 歌词往返转场观感（280–350ms 窗口）。
+4. **MUSIC-41**：切歌转场观感（封面反侧滑入 + 文字 stagger）。
+5. **MUSIC-44**：系统「减少动态效果」开启后转场 / 弹簧降级、波形压平。
+6. **MUSIC-45**：迷你条边缘 16dp 拖动不触发系统返回；全屏下拉收起与歌词页左右滑互不抢占。
+7. **MUSIC-48**：断网 / 坏源 → 1s 后重试一次 → snackbar → 自动跳下一首；队尾时停播。
+8. **MUSIC-49**：本地文件移走后队列标「不可用」+ 自动跳过 + 手动移除；缓冲中指示出现时仍可暂停。
+
 ## W5 任务卡（定稿）
 
 每任务一个子代理一个 commit；门禁 = 相关模块单测 + `ktfmtCheck` + `assembleDebug --max-workers=2`；播放行为核心链路必须 K60 真机取证（jellyfin-test）。设计决策一律以本卡「设计定稿」四节为准，deepseek 零设计权。依赖：T4 解锁 T5/T6；T2/T3 依赖 T1 落成的布局骨架；T9 是纯调研卡随时可插。
