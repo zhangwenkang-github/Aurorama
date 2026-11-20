@@ -114,6 +114,92 @@ class LyricsRepositoryTest {
     }
 
     @Test
+    fun `media sibling elrc wins over lrc`() = runBlocking {
+        val directory = File(temporaryFolder.root, "lyrics")
+        val media = File(temporaryFolder.root, "song.flac")
+        media.writeText("", Charsets.UTF_8)
+        File(temporaryFolder.root, "song.lrc").writeText("[00:02.00]普通歌词\n", Charsets.UTF_8)
+        File(temporaryFolder.root, "song.elrc")
+            .writeText("[00:02.00]<00:02.00>词<00:02.50>级\n", Charsets.UTF_8)
+
+        val line =
+            repository(FakeRemote(lines = listOf(LyricLine(9_000, "服务端歌词"))), directory)
+                .getLyrics(itemId, localMediaPath = media.path)
+                ?.blocks
+                ?.single()
+                ?.primary
+
+        assertEquals("词级", line?.text)
+        assertEquals(listOf(LyricWord(2_000L, "词"), LyricWord(2_500L, "级")), line?.words)
+    }
+
+    @Test
+    fun `external lyrics extension match is case insensitive`() = runBlocking {
+        val directory = File(temporaryFolder.root, "lyrics")
+        val media = File(temporaryFolder.root, "Song.FLAC")
+        media.writeText("", Charsets.UTF_8)
+        // 媒体名 = Song，歌词文件写的是小写 + 大写扩展名：目录列举 + equalsIgnoreCase 才能命中
+        File(temporaryFolder.root, "song.ELRC")
+            .writeText("[00:03.00]<00:03.00>大<00:03.50>小写\n", Charsets.UTF_8)
+
+        val document =
+            repository(FakeRemote(lines = listOf(LyricLine(9_000, "服务端歌词"))), directory)
+                .getLyrics(itemId, localMediaPath = media.path)
+
+        assertEquals(LyricsSource.EXTERNAL_LRC, document?.source)
+        assertEquals("大小写", document?.blocks?.single()?.primary?.text)
+    }
+
+    @Test
+    fun `app lyrics dir elrc wins over lrc`() = runBlocking {
+        val directory = File(temporaryFolder.root, "lyrics")
+        directory.mkdirs()
+        File(directory, "$itemId.lrc").writeText("[00:01.00]普通歌词\n", Charsets.UTF_8)
+        File(directory, "$itemId.elrc")
+            .writeText("[00:04.00]<00:04.00>词<00:04.50>级\n", Charsets.UTF_8)
+
+        val document =
+            repository(FakeRemote(lines = listOf(LyricLine(9_000, "服务端歌词"))), directory)
+                .getLyrics(itemId)
+
+        assertEquals(LyricsSource.EXTERNAL_LRC, document?.source)
+        assertEquals("词级", document?.blocks?.single()?.primary?.text)
+    }
+
+    @Test
+    fun `full media file name lrc is a fallback candidate`() = runBlocking {
+        val directory = File(temporaryFolder.root, "lyrics")
+        val media = File(temporaryFolder.root, "song.flac")
+        media.writeText("", Charsets.UTF_8)
+        File(temporaryFolder.root, "song.flac.lrc").writeText("[00:02.00]完整文件名候选\n", Charsets.UTF_8)
+
+        val document =
+            repository(FakeRemote(lines = listOf(LyricLine(9_000, "服务端歌词"))), directory)
+                .getLyrics(itemId, localMediaPath = media.path)
+
+        assertEquals("完整文件名候选", document?.blocks?.single()?.primary?.text)
+    }
+
+    @Test
+    fun `elrc fixture from app lyrics dir keeps word tags`() = runBlocking {
+        val directory = File(temporaryFolder.root, "lyrics")
+        directory.mkdirs()
+        File(directory, "$itemId.elrc").writeText(elrcFixture("night-drive.elrc"), Charsets.UTF_8)
+        val remote = FakeRemote(lines = listOf(LyricLine(9_000, "服务端歌词")))
+
+        val document = repository(remote, directory).getLyrics(itemId)
+
+        assertEquals(LyricsSource.EXTERNAL_LRC, document?.source)
+        assertEquals(3, document?.blocks?.size)
+        assertEquals(0, remote.calls)
+        val first = document?.blocks?.first()
+        assertEquals(
+            listOf(800L, 1_200L, 1_600L, 2_000L),
+            first?.primary?.words?.map { it.startMs },
+        )
+    }
+
+    @Test
     fun `local override wins over external lrc and server`() = runBlocking {
         val directory = File(temporaryFolder.root, "lyrics")
         directory.mkdirs()

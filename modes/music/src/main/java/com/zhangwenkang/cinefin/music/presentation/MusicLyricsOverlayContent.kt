@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -141,7 +143,14 @@ fun MusicLyricsOverlayContent(
                     ),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // W28-MUSIC：有逐字数据时当前句按词递进高亮（未唱 45% → 已唱实色）；无数据仍是整行实色
+            // W28-MUSIC：有逐字数据时当前句按词递进高亮（未唱 55% → 已唱实色）；无数据仍是整行实色。
+            // MUSIC-25/43：悬浮窗沿用用户自选的 tint 作高亮色（本窗自有取色能力），位置按 tween(200) 平滑。
+            val wordPositionMs by
+                animateFloatAsState(
+                    targetValue = state.positionMs.toFloat(),
+                    animationSpec = tween(durationMillis = 200),
+                    label = "overlayWordPosition",
+                )
             val wordText =
                 state.current
                     ?.takeIf { it == lines.first }
@@ -149,9 +158,9 @@ fun MusicLyricsOverlayContent(
                         wordHighlightedText(
                             text = current,
                             words = state.currentWords,
-                            positionMs = state.positionMs,
+                            positionMs = wordPositionMs.toLong(),
                             lineEndMs = null,
-                            idleColor = tint.copy(alpha = 0.45f),
+                            idleColor = tint.copy(alpha = 0.55f),
                             highlightColor = tint,
                         )
                     }

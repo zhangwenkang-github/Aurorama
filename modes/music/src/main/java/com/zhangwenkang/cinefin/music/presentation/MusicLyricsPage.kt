@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -325,6 +327,14 @@ internal fun LyricsLines(
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
+    // MUSIC-43：播放位置每 POSITION_TICK_MS（500ms）采样一次，直接喂词级高亮会逐词跳变；
+    // 这里把位置按 tween(200) 平滑后再交给 LyricsPresenter.wordHighlights 做词内插值（卡拉 OK 扫词）。
+    val wordPositionMs by
+        animateFloatAsState(
+            targetValue = state.positionMs.toFloat(),
+            animationSpec = tween(durationMillis = 200),
+            label = "lyricsWordPosition",
+        )
     val listState = rememberLazyListState()
     val followStateSnapshot = rememberUpdatedState(followState)
     val followStateCallback = rememberUpdatedState(onFollowStateChange)
@@ -496,16 +506,17 @@ internal fun LyricsLines(
                             .onSizeChanged { size -> rowHeights[index] = size.height }
                             .padding(vertical = CinefinSpacing.Space1)
                 ) {
-                    // W28-MUSIC：有逐字数据时当前行按词递进高亮；无数据回落整行高亮（原行为）
+                    // W28-MUSIC：有逐字数据时当前行按词递进高亮；无数据回落整行高亮（原行为）。
+                    // MUSIC-25/43：高亮色 = media.base（调色板覆盖后随封面色），已唱 100% / 未唱 55% alpha。
                     val activeWordText =
                         if (active)
                             wordHighlightedText(
                                 text = row.mainText,
                                 words = row.words,
-                                positionMs = state.positionMs,
+                                positionMs = wordPositionMs.toLong(),
                                 lineEndMs = state.rows.getOrNull(index + 1)?.startMs,
-                                idleColor = colors.onSurfaceVariant.copy(alpha = 0.4f),
-                                highlightColor = media.bright,
+                                idleColor = media.base.copy(alpha = 0.55f),
+                                highlightColor = media.base,
                             )
                         else null
                     if (activeWordText != null) {

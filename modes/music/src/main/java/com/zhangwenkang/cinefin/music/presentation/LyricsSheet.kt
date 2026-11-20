@@ -1,5 +1,7 @@
 package com.zhangwenkang.cinefin.music.presentation
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
+import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsDisplayLanguage
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsFontScale
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsLineSpacing
@@ -173,6 +177,14 @@ private fun LyricsLines(
     onLineClick: (Long) -> Unit,
 ) {
     val listState = rememberLazyListState()
+    val media = LocalMediaColors.current
+    // MUSIC-43：位置每 500ms 采样一次，词级高亮前按 tween(200) 平滑（与歌词页同口径）。
+    val wordPositionMs by
+        animateFloatAsState(
+            targetValue = state.positionMs.toFloat(),
+            animationSpec = tween(durationMillis = 200),
+            label = "lyricsSheetWordPosition",
+        )
     // W24 · B6：上下留半个视口 + centerItem()，当前行进入时即居中
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val verticalPadding = maxHeight / 2
@@ -207,16 +219,17 @@ private fun LyricsLines(
                             .clickable(enabled = startMs != null) { startMs?.let(onLineClick) }
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    // W28-MUSIC：有逐字数据时当前行按词递进高亮；无数据回落整行高亮（原行为）
+                    // W28-MUSIC：有逐字数据时当前行按词递进高亮；无数据回落整行高亮（原行为）。
+                    // MUSIC-25/43：高亮色 = media.base，已唱 100% / 未唱 55% alpha；位置经 tween(200) 平滑。
                     val activeWordText =
                         if (active)
                             wordHighlightedText(
                                 text = row.mainText,
                                 words = row.words,
-                                positionMs = state.positionMs,
+                                positionMs = wordPositionMs.toLong(),
                                 lineEndMs = state.rows.getOrNull(index + 1)?.startMs,
-                                idleColor = MaterialTheme.colorScheme.onSurface,
-                                highlightColor = MaterialTheme.colorScheme.primary,
+                                idleColor = media.base.copy(alpha = 0.55f),
+                                highlightColor = media.base,
                             )
                         else null
                     if (activeWordText != null) {
