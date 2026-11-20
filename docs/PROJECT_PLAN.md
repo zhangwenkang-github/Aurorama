@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W5 音乐域实现中**（2026-11-21）：T1–T6 + T10 + T1r/T4r/T5r + fixpack 全部合入并 K60 验收通过；剩余 T7（交叉淡化）/T8（容错）/T9（Auto DJ 调研）/T11（歌词域+全量验收） | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W5_TASKS.md` · `V2_W4_TASKS.md` |
+| 2.0.0 | 🟡 **W5 音乐域近收官**（2026-11-21 会话5）：任务卡 T1–T11 + 全部返修/fixpack 合入并 K60 验收通过，50 条验收 ✅42/⚠️7/❌1；T9 Auto DJ 调研 GO → T12 实现卡待派；剩观感补验 4 项 + 全波收官判定 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W5_TASKS.md` · `V2_W4_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-20）
 
-1. **2.0.0 W5 音乐域实现中（2026-11-21，会话4 收官）**：T3 动效包（`ff5b4627`）与遗留修复包（`d2576f72`）合入，K60 动效走查全过（波浪进度条双态截图、下拉收起双路径、左滑撤销、连点无跳变）；遗留①睡眠淡出已补真机实证（logcat 音量包络）。**下批（新会话，开工提示词已备在 `V2_W5_TASKS.md` 状态块）= T7（交叉淡化口径）/T8（容错恢复）/T9（Auto DJ 纯调研）并行，T11（.elrc+全量验收）殿后**。
+1. **2.0.0 W5 音乐域近收官（2026-11-21，会话5 收官）**：T7（交叉淡化口径，merge `2dd4cd2b`）/ T8（容错恢复，merge `899b1f60`）/ T11（.elrc 词级歌词+全量验收，merge `59993927`）合入，集成门禁绿；K60 统一验证全过（自然/手动切歌淡化正反对照、断网重试跳曲+snackbar、.elrc 词级扫词上屏）。T9 调研 GO（InstantMix 现成、接缝可行、三风险已列）→ **下会话：T12 Auto DJ 实现卡 + K60 观感补验（MUSIC-26/41/44/45/49余）+ 全波收官判定**（开工提示词在 `V2_W5_TASKS.md` 状态块）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
