@@ -94,6 +94,74 @@ class MusicQueueMigrationTest {
     }
 
     @Test
+    fun `4 到 5 只追加不可用列并保留旧行`() {
+        val fixtureFile = Files.createTempFile("music-database-v4-", ".db").toFile()
+        try {
+            fixtureFile.delete()
+            connect(fixtureFile).use { connection ->
+                connection.createV3Tables()
+                connection.insertV3Rows()
+                migrationStatements(connection).forEach { connection.execute(it) }
+                connection.execute("PRAGMA user_version = 4")
+
+                val statements = connection.migration4To5Statements()
+                assertEquals("4→5 必须只发出一条 ADD COLUMN", 1, statements.size)
+                assertTrue(
+                    "4→5 只能 ALTER ADD COLUMN：${statements.single()}",
+                    statements.single().trimStart().startsWith("ALTER TABLE"),
+                )
+                assertTrue(
+                    "4→5 追加列必须带默认值：${statements.single()}",
+                    statements.single().contains("DEFAULT 0"),
+                )
+                statements.forEach { connection.execute(it) }
+                connection.execute("PRAGMA user_version = 5")
+
+                assertEquals(5, connection.userVersion)
+                assertTrue(
+                    "缺列 music_queue_items.unavailable",
+                    "unavailable" in connection.columns("music_queue_items"),
+                )
+                connection.query(
+                    "SELECT name, unavailable FROM music_queue_items ORDER BY position"
+                ) { result ->
+                    assertTrue(result.next())
+                    assertEquals("First", result.getString("name"))
+                    assertEquals("旧行默认可播", 0, result.getInt("unavailable"))
+                }
+                assertTrue("迁移必须幂等", connection.migration4To5Statements().isEmpty())
+            }
+        } finally {
+            fixtureFile.delete()
+        }
+    }
+
+    @Test
+    fun `导出的 5 版 schema 与迁移默认值一致`() {
+        val database =
+            Json.parseToJsonElement(File(locateSchemaDir(5), "5.json").readText())
+                .jsonObject
+                .getValue("database")
+                .jsonObject
+        val entity =
+            database
+                .getValue("entities")
+                .jsonArray
+                .map { it.jsonObject }
+                .first { it.getValue("tableName").jsonPrimitive.content == "music_queue_items" }
+        val field =
+            entity
+                .getValue("fields")
+                .jsonArray
+                .map { it.jsonObject }
+                .first { it.getValue("columnName").jsonPrimitive.content == "unavailable" }
+
+        assertEquals("0", field["defaultValue"]?.jsonPrimitive?.content)
+        assertEquals("INTEGER", field.getValue("affinity").jsonPrimitive.content)
+        assertEquals(true, field.getValue("notNull").jsonPrimitive.content.toBoolean())
+    }
+
+    @Test
     fun `导出的 4 版 schema 与迁移默认值一致`() {
         val database =
             Json.parseToJsonElement(File(locateSchemaDir(4), "4.json").readText())
@@ -116,6 +184,11 @@ class MusicQueueMigrationTest {
     private fun migrationStatements(connection: Connection): List<String> =
         musicQueueMigration3To4Statements { table ->
             connection.columns(table)
+        }
+
+    private fun Connection.migration4To5Statements(): List<String> =
+        musicQueueMigration4To5Statements { table ->
+            columns(table)
         }
 
     private fun connect(file: File): Connection =

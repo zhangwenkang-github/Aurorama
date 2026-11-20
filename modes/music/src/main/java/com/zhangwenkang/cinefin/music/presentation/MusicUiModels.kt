@@ -6,6 +6,7 @@ import com.zhangwenkang.cinefin.music.data.MusicPlaylist
 import com.zhangwenkang.cinefin.music.data.MusicSong
 import com.zhangwenkang.cinefin.music.data.TrackRef
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
+import com.zhangwenkang.cinefin.player.local.domain.MusicPlaybackFailure
 
 /** 曲库浏览的四个维度（MU-2）。 */
 enum class MusicTab {
@@ -24,6 +25,20 @@ fun MusicSong.playlistSelectionKey(): String =
             is TrackRef.Unresolved -> "unresolved:${ref.placeholderKey}"
             null -> itemId.toString()
         }
+
+/**
+ * W5-T8（MUSIC-48）：播放失败 snackbar 文案。
+ *
+ * 非阻塞：只告知「哪首失败 + 已跳下一首 / 已停止」，不提供重试按钮（重试由控制器自动做一次）。
+ */
+fun musicPlaybackFailureMessage(failure: MusicPlaybackFailure): String {
+    val title = failure.name.ifBlank { "当前曲目" }
+    return if (failure.skippedToNext) {
+        "「$title」播放失败，已跳到下一首"
+    } else {
+        "「$title」播放失败，已停止播放"
+    }
+}
 
 /** 本地 / 服务器歌单 id 可能同形，列表 key 必须带来源类别。 */
 fun MusicPlaylist.stableKey(): String = "${kind.name}:$id"

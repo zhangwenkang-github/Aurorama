@@ -20,7 +20,7 @@ import androidx.sqlite.execSQL
             LocalPlaylistEntity::class,
             LocalPlaylistEntryEntity::class,
         ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class MusicDatabase : RoomDatabase() {
@@ -98,6 +98,19 @@ abstract class MusicDatabase : RoomDatabase() {
                         .forEach { sql -> connection.execSQL(sql) }
                 }
             }
+
+        /**
+         * v4 → v5（W5 T8，MUSIC-49）：队列条目追加「不可用」标记列。
+         *
+         * 带默认值的单列追加，旧行自动视为可播；迁移幂等（列已存在则跳过），不重建表。
+         */
+        val MIGRATION_4_5 =
+            object : Migration(startVersion = 4, endVersion = 5) {
+                override suspend fun migrate(connection: SQLiteConnection) {
+                    musicQueueMigration4To5Statements { table -> connection.tableColumns(table) }
+                        .forEach { sql -> connection.execSQL(sql) }
+                }
+            }
     }
 }
 
@@ -117,6 +130,15 @@ internal fun musicQueueMigration3To4Statements(
             "ALTER TABLE `music_queue_state` ADD COLUMN " +
                 "`shuffleKeepCurrentFirst` INTEGER NOT NULL DEFAULT 0"
         )
+    }
+}
+
+/** v4 → v5 的追加列语句（纯函数，可 JVM 单测）：列已存在就跳过，迁移可安全重放。 */
+internal fun musicQueueMigration4To5Statements(
+    existingColumns: (String) -> Set<String>
+): List<String> = buildList {
+    if ("unavailable" !in existingColumns("music_queue_items")) {
+        add("ALTER TABLE `music_queue_items` ADD COLUMN `unavailable` INTEGER NOT NULL DEFAULT 0")
     }
 }
 

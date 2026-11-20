@@ -140,6 +140,7 @@ private fun PlayerItem.toStoredItem(position: Int, kind: String): StoredQueueIte
         thumbnailUri = thumbnailUri,
         indexNumber = indexNumber,
         kind = kind,
+        unavailable = unavailable,
     )
 }
 
@@ -155,6 +156,7 @@ private fun StoredQueueItem.toPlayerItemOrNull(): PlayerItem? {
         indexNumber = indexNumber,
         thumbnailUri = thumbnailUri,
         trackSource = restoredTrackSource(mediaSourceUri),
+        unavailable = unavailable,
     )
 }
 

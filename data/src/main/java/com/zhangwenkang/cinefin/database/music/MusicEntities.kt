@@ -19,6 +19,8 @@ data class MusicQueueItemEntity(
     val indexNumber: Int?,
     /** W5 T5：MAIN = 主队列，UP_NEXT = 接下来播放；v3 旧数据由迁移补默认值。 */
     @ColumnInfo(defaultValue = "MAIN") val kind: String = StoredQueueKind.MAIN,
+    /** W5-T8（MUSIC-49）：本地文件缺失 / 授权失效；v4 旧数据由迁移补默认值 0。 */
+    @ColumnInfo(defaultValue = "0") val unavailable: Boolean = false,
 )
 
 /** 队列状态（固定单行，id 恒为 [SINGLETON_ID]）。 */
