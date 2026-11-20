@@ -8,8 +8,22 @@
 - 分支：`codex/v2-integration`；W5 开工基线 = W4 收官 HEAD（T10 `47095ed7` 之后，以 git log 为准；会话2 实际基线 `4c69bf31`）。
 - **会话2 首批三卡已并入（2026-11-20）**：T1 `bdbaee9c`（merge `f4640eb1`）、T10 `dbd264f6`（merge `1c8c1c19`）、T4 `c98d0f7c`→rebase 后 `41b404cb`（merge `e50c293f`），全部入 `codex/v2-integration`；三卡子代理门禁各自绿，T1 合并后集成门禁绿，T1+T4+T10 全量集成门禁与 K60 统一验证（T4 转码中 + T1 四主题走查）在途。
 - **设计追认（Kimi，2026-11-20）**：定稿一「横屏手机（高 <411dp）保留紧凑」对 K60 横屏（恰 411dp）是边界空洞，T1 实现为**矮屏（高 <620dp）优先紧凑两栏**并钉单测——追认为定稿口径，定稿一 §1 已同步修订。
-- **会话2 返修×2（2026-11-20 晚，Kimi 验收发现）**：① T1r 音乐域主题跟随——`MusicModeScreen.kt:401` `CinefinTheme(domain=Music)` 不传 themeId 把音乐域钉死 aurora（amoled 下实测仍 #080D17；dynamic 呈 aurora 属 W1 架构预期），T1 子代理返修中（分支 `codex/v2-w5-t1r`）；② T4r J12 流鉴权——T4 `MusicStreamUrl` 用 `?api_key=` 拼鉴权，违仓库既有 `JellyfinAuth` 定论（2026-10-17 探针：J12 仅收 `Authorization: MediaBrowser Token="…"` 头，api_key/X-Emby/Bearer 一律 401），实测矩阵：universal 无鉴权 401、有效 api_key 也 401、头 200（真实转码 MP3 流）；视频流端点匿名可达（故视频链路一直"看起来正常"）。T4 子代理返修中（分支 `codex/v2-w5-t4r`），修法=删 api_key + 音乐流按主机注头 + 契约测试改钉无 api_key + 审计音乐域其它 api_key 残留。
+- **会话2 返修×2（2026-11-20 晚，Kimi 验收发现）**：① T1r 音乐域主题跟随——`MusicModeScreen.kt:401` `CinefinTheme(domain=Music)` 不传 themeId 把音乐域钉死 aurora（amoled 下实测仍 #080D17；dynamic 呈 aurora 属 W1 架构预期）——**已修复合入**（`57d3a0e6` → merge `3eeb0756`：`resolveAppThemePresentation` 纯函数从 MainActivity 抽取为唯一解析源，显式传参进 4 处 MusicModeScreen + 桌面歌词悬浮窗；K60 四主题采样 amoled(0,0,0)/aurora #080D17/light #FAFAFB 全过）；② T4r J12 流鉴权——T4 `MusicStreamUrl` 用 `?api_key=` 拼鉴权，违仓库既有 `JellyfinAuth` 定论（2026-10-17 探针：J12 仅收 `Authorization: MediaBrowser Token="…"` 头，api_key/X-Emby/Bearer 一律 401），实测矩阵：universal 无鉴权 401、有效 api_key 也 401、头 200（真实转码 MP3 流）；视频流端点匿名可达（故视频链路一直"看起来正常"）。T4 子代理返修中（分支 `codex/v2-w5-t4r`），修法=删 api_key + 音乐流按主机注头 + 契约测试改钉无 api_key + 审计音乐域其它 api_key 残留。
 - **服务端排查结论（用户线索命中）**：jellyfins 12.4.0 auth 健康——错密码 400 是 J12 对不完整 Authorization 头的端点前校验；新鲜 token + 新式头 `/Users/Me`=200、登录=200、转码流=200。设备登录态已由 Kimi 重新登录恢复。
+- **会话2 收尾待办（T4r 返回后按序执行）**：① 验收 T4r（重点：api_key 是否除净、注头是否按服务器主机限定且请求时动态取 token、契约测试是否改钉无 api_key、音乐域 api_key 残留审计结论）→ merge --no-ff 入 `codex/v2-integration`；② 全量集成门禁（5 模块单测 + ktfmtCheck + assembleDebug --max-workers=2）；③ K60 复验（128k 强制档：PLAYING + position 两次采样推进 + logcat `decision=Transcode(BITRATE_ABOVE_CEILING)` + 「转码中」上屏；AUTO 档 FLAC 直连回归；用后停播放 + force-stop）；④ 收口四件事（状态块/PROJECT_PLAN 回写、engramory checkpoint、`graphify update .`、最终报告）；⑤ 后续派卡 T2/T3/T5/T6（T4 接口约定见 T4 交接日志：TrackSource.isTranscoded 唯一来源、MusicStreamingQuality 档位、getMusicStreamUrl）。
+- **W5 会话3 开工提示词**（若本会话断档，新会话粘贴）：
+```
+继续 Aurorama 2.0.0 W5 音乐域实现会话。你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
+工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
+开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W5_TASKS.md 状态块
+（重点看「会话2 返修×2」与「会话2 收尾待办」两条）→ 记忆库 MEMORY.md。
+现状：T1/T4/T10 + T1r 已合入集成分支；T4r（J12 流鉴权修复，分支 codex/v2-w5-t4r）
+完成情况未知——先查 git log 与该分支状态，按状态块「会话2 收尾待办」①–⑤续做。
+设计决策一律以 V2_W5_TASKS.md「设计定稿」四节为准，deepseek 零设计权。
+纪律：每任务一个子代理一个 commit；门禁=相关模块单测+ktfmtCheck+构建（--max-workers=2）；
+核心链路 K60（8e875894）真机验证；设备用后必须停播放（media_session state=NONE + force-stop）。
+红线：生产 jellyfins 只读；只删自己创建的文件。
+```
 - **遗留观察项**：① SyncPlay unpause 回声时序（T10 发现：媒体键/UI 键 unpause 后本地一度仍暂停，疑组 pending 回声，非 L8 引入）——W6 或播放器线另立小卡评估；② core `CinefinIconButton` 可点区实为 44dp（T1 在音乐模块内补 48dp 触控壳），后续 core 侧把 clickable 提 48dp 后删壳；③ L7 mpv content:// 字幕修复未做 SAF 本地视频端到端（设备无素材），W4-T7 复验时补。
 - **T0 ✅（2026-11-20，Kimi 亲自）**：§7 全 50 条现状核对完成，结论见下文「T0 现状核对」。要点：播放层（单队列+随机/循环+冷启动恢复+MediaSession）、歌词全链路、ReplayGain、EQ 5 段、交叉淡化包络、睡眠定时已具备；缺口集中在 TrackSource 模型、/Audio/universal 协商、双队列、EQ 10 段、倍速、音频信息面板、波浪进度条、封面调色板、容器变换动效、失败恢复链。
 - **W4 残留并入 W5**：L3（播放页 themeId 跟随 aurora↔amoled，方向已拍板）、L7（mpv 内核 content:// 外挂字幕）、L8（媒体键暂停绕开 SyncPlay 组闸门，2026-11-20 W4 收官复验新立）、`app/phone` coroutines-test 硬编码收 catalog——四项合为 T10 收尾小项包（沿 W4 T9 先例，一卡一 commit）。W4 已正式收官（D12/B5 双账号复验双过）。
