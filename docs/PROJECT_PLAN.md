@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W5 音乐域规划完成、W4 待收官**（2026-11-20）：W5 会话1 收官（T0+设计定稿+T1–T11，下一步会话2 实现）；**W4 两项验收待用户配合：D12 web seek 双账号对照、B5 mpv PGS 视觉证据——完成才收官** | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W5_TASKS.md` · `V2_W4_TASKS.md` |
+| 2.0.0 | 🟢 **W4 视频域正式收官**（2026-11-20）：14 卡 + T7/T10 + D12/B5 双账号验收全过；新立 L8（媒体键绕组闸门）入 W5；**焦点 = W5 会话2 实现**（提示词在 `V2_W5_TASKS.md`） | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W5_TASKS.md` · `V2_W4_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,7 +41,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-20）
 
-1. **2.0.0 W4 待收官 + W5 规划完成（2026-11-20）**：W4 全 14 卡代码交付、T7 验收 8✅/4⚠️/1❌（T10 已修复缺口），**但两项验收待用户配合，完成才收官**（用户拍板：属 W4 范围不推 W5）：①D12 web 主动 seek→App 跟随（App 建组 → admin 账号 web 入组 → web 拖进度条 → App logcat 取证）；②B5 mpv PGS 渲染 1 张视觉截图。W5 会话1 已收官：T0 核对（§7 全 50 条）+ 设计四节定稿 + 任务卡 T1–T11（含 W4 残留 L3/L7/coroutines-test 收 T10），**下一步 = W5 会话2 实现**（提示词在 `docs/V2_W5_TASKS.md` 状态块）。
+1. **2.0.0 W4 视频域正式收官（2026-11-20）**：全 14 卡交付 + T7 验收 + T10 修复 + **D12/B5 收官验收双通过**（admin 双账号 web seek→App 误差 140ms；mpv PGS 上屏同帧差分已证）；新发现 L8（媒体键暂停绕开 SyncPlay 组闸门）列入 W5 小卡。W5 会话1 已收官（T0+设计四节+T1–T11），**焦点 = W5 会话2 实现**（开工提示词在 `docs/V2_W5_TASKS.md` 状态块；W4 残留 L3/L7/coroutines-test 已收进 W5 T10）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）

@@ -1,6 +1,6 @@
 # 2.0 W4 · 视频域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-20：全 14 卡代码交付 + T7 验收 8✅/4⚠️/1❌，缺口已由 T10 `47095ed7` 修复；**W4 未收官——两项验收待用户配合：D12 web 主动 seek→App 跟随双账号对照（admin 账号 web 端入组）、B5 mpv PGS 渲染视觉证据**。用户拍板：此两项属 W4 范围，不推给 W5。其余残留（L3/L7 等）见残留表）
+> 状态：`CLOSED`（2026-11-20 **W4 正式收官**：全 14 卡交付 + T7/T10 + **D12 ✅（admin 双账号对照：web seek→App 落点误差 140ms、双向播停均通、组销毁确认）+ B5 ✅（mpv `pgssub` 解码器加载、同帧开/关差分证 PGS 上屏）**；新发现 L8（媒体键暂停绕开组闸门）列入 W5 小卡；下一波 W5 音乐域会话2 实现）
 > 依据：`docs/V2_REQUIREMENTS.md` §9（V2-VIDEO）与 §15 波次（W4 ← W2）；架构 `docs/V2_ARCHITECTURE.md` §3；设计唯一权威 `docs/V2_DESIGN.md`。
 
 ## 状态块（新会话先读这里）
@@ -161,12 +161,12 @@ val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
 
 8 ✅ / 4 ⚠️ / 1 ❌。✅：SAF 同路径播放、双内核切换状态全量保留（倍速/字幕延迟/循环/比例/轨道五项实测）、字幕不漂移（seek×3+双档倍速+切换）、引擎切换提示、版本过低降级（契约测试）、trickplay 复验（14/17 部电影已产出，`trickplayIntervalMs=10000`，缩略图+时间戳气泡+章节名同框 `第 12 章 · Chapter 12（1:01:58）` 吸附误差 0）、控制层让位、图形字幕 Exo 提示。⚠️→已由 T10 修复：SAF 失效文案、解散组提示分支、L5 口径（裁决：自动回退仅 codec 能力错误，坏容器走错误卡——单测已钉）、本地进度回写 404。⚠️→残留（见下）。❌：D12 web 主动 seek→App 跟随（同账号双端不可靠）。
 
-### W4 未关闭验收项（用户 2026-11-20 拍板：属 W4 范围，不推 W5，完成前 W4 不收官）
+### W4 收官验收项（2026-11-20 全部 ✅，D12/B5 已关闭）
 
-| 项 | 需要什么 |
-|---|---|
-| **D12 web 主动 seek→App 跟随** | 双账号对照：App（zhangwenkang）建组 → **admin 账号** jellyfin-web 入组 → web 拖进度条 → App logcat 见 SEEK 命令 + `syncplay-command` 落点。同账号双端 `Participants` 不区分会话，上一轮已证不可靠 |
-| **B5 mpv PGS 渲染视觉证据** | mpv 内核选中 PGS 轨播放，1 张压缩截图证 PGS 上屏（上一轮截图预算耗尽，只验到可选中无报错） |
+- **D12 ✅**：admin 账号 web 入组（面板成员同时见两账号）→ web 键盘 seek（OSD 10:38）→ App `type=SEEK` + `syncplay-command` 落点 **638.221s vs 目标 638.081s，误差 140ms**；web→App 暂停/播放、App→web 反向（web 画面冻结佐证）均通；双方离组后两侧组列表均空（销毁确认；注意组按成员存在而非按创建者——创建者先离组组仍在）。
+- **B5 ✅**：现成片源（《告白实行委员会》PGSSUB/eng 内封）；mpv 日志 `Using subtitle decoder pgssub`；同帧开/关差分证 PGS 上屏（差分只落字幕带）；Exo 提示条复验一致。
+- **L8（新立，W5 小卡）**：**媒体键（KEYCODE_MEDIA_PAUSE/耳机/通知栏）暂停不走 SyncPlay 组闸门**——UI 键正常广播组命令，媒体键零广播、组状态失联。修法已记：MediaSession onPlay/onPause 回调接 `SyncPlayTransportGate` + 单测。
+- **取证坑入库**：①App 起播会恢复上次字幕选择，若上次是「关」则日志 `sid=no`，扫多久都看不到 PGS——必须把主字幕设为 PGS；②PGS 字幕稀疏，静止帧盲抓命中率低，**同帧开/关差分**是可靠判定法；③web SyncPlay 弹层有旧组本地缓存，入组前先整页刷新。
 
 ### W4 残留项（不影响 W4 收官判定）
 
@@ -326,6 +326,7 @@ fun setSubtitleStyle(style: SubtitleStyle)           // SubtitleStyle 已在 pla
 
 ## 日志（只留最近 ~5 条）
 
+- 2026-11-20（三）：**W4 正式收官**。D12 ✅（admin 双账号，web seek→App 误差 140ms，双向通）+ B5 ✅（mpv pgssub 上屏，同帧差分取证）。新立 L8（媒体键绕开组闸门，入 W5）。用户两次校准口径：验收项未完成不得标 CLOSED（已入记忆库）。
 - 2026-11-20（二）：**W4 收官**。T7 验收（零 commit，8✅/4⚠️/1❌）+ **T10 ✅ `47095ed7`**（SAF 同级字幕推断+DB v18 等五项缺口修复，K60 取证过）。残留项全部有归属（L3/L7/D12 等）。trickplay 服务器扫描产出中（14/17 部电影已有）。
 - 2026-11-20（一）：**T9 ✅ `f96b1313`**（收尾四小项，K60 三项取证过；profile=fast 覆写 hdr-compute-peak 的 post-init 补写裁决批准；app/phone coroutines-test 硬编码留小尾巴）。trickplay 用户已开服务器提取（扫描中），复验并入 T7。W4 只剩 T7 域验收。
 - 2026-11-19（十）：**T3b ✅ `96169328`**（能力探测+mpv tone-mapping 三档即时生效）+ **T4 核查（零 commit）**（Exo HDR10 直通已证、mpv 三档观感量化已证、trickplay 服务器未开提取 BLOCKED 待用户拍板）。新立 T9 收尾小项包（章节气泡时间戳/手机解码入口/mpv HDR 补偿/L4）。L6 关闭（双指缩放用户走查过）。
