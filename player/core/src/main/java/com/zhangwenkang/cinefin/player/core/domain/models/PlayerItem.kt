@@ -33,6 +33,12 @@ data class PlayerItem(
     val trickplayInfo: TrickplayInfo? = null,
     /** 播放信息面板用的媒体元数据（§1.8）；构建时取不到的字段留 null，UI 降级显示「—」 */
     val mediaInfo: PlayerMediaInfo? = null,
+    /**
+     * 音乐轨道来源描述（MUSIC-01/02）：服务器曲目 / 本地文件统一携带 codec、码率、封面、歌词引用与 是否转码。
+     *
+     * 视频条目为 null；音乐条目缺失时按「来源未知」处理，播放与 UI 都不得把它当作必需字段。
+     */
+    val trackSource: TrackSource? = null,
 ) : Parcelable
 
 /** MediaItem extras：季号（队列面板按季分组用） */

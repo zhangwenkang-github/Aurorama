@@ -8,6 +8,8 @@ import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
+import com.zhangwenkang.cinefin.player.core.domain.models.TrackSource
+import com.zhangwenkang.cinefin.player.core.domain.models.TrackSourceType
 import com.zhangwenkang.cinefin.player.core.domain.models.isValidShuffleOrder
 import java.util.UUID
 import javax.inject.Inject
@@ -128,8 +130,32 @@ private fun StoredQueueItem.toPlayerItemOrNull(): PlayerItem? {
         mediaSourceUri = mediaSourceUri,
         indexNumber = indexNumber,
         thumbnailUri = thumbnailUri,
+        trackSource = restoredTrackSource(mediaSourceUri),
     )
 }
+
+/**
+ * 冷启动恢复队列没有 [TrackSource] 快照，按地址回推最少语义（MUSIC-01/03）： 本地 `content://` =
+ * LOCAL；`/Audio/{id}/universal` 且带转码参数 = 仍在转码。
+ *
+ * 只回推「来源类型 + 是否转码」，codec / 码率等保持 null（未知 ≠ 直连证据），避免恢复后 UI 误标。
+ */
+internal fun restoredTrackSource(uri: String): TrackSource {
+    val local = uri.startsWith("content://", ignoreCase = true)
+    val universal = !local && uri.contains(UNIVERSAL_AUDIO_PATH, ignoreCase = true)
+    val transcoded =
+        universal &&
+            (uri.contains("AudioCodec=", ignoreCase = true) ||
+                uri.contains("AudioBitRate=", ignoreCase = true))
+    return TrackSource(
+        id = "",
+        sourceType = if (local) TrackSourceType.LOCAL else TrackSourceType.SERVER,
+        streamUrl = uri,
+        isTranscoded = transcoded,
+    )
+}
+
+private const val UNIVERSAL_AUDIO_PATH = "/universal"
 
 private fun parseRepeatMode(raw: String): RepeatMode = runCatching {
     RepeatMode.valueOf(raw)

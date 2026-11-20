@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.provider.DocumentsContract
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.models.FindroidImages
@@ -365,6 +366,13 @@ class LocalLibraryRepositoryImpl(
                     trackIndex = music?.trackIndex ?: 0,
                     durationMs = music?.durationMs ?: 0L,
                     coverUri = music?.coverUri ?: coverUri,
+                    albumArtist = music?.albumArtist,
+                    discNumber = music?.discNumber,
+                    genre = music?.genre,
+                    year = music?.year,
+                    bitrate = music?.bitrate,
+                    sampleRate = music?.sampleRate,
+                    bitDepth = music?.bitDepth,
                     subtitles = subtitles,
                     indexedAt = now,
                 )
@@ -435,10 +443,55 @@ class LocalLibraryRepositoryImpl(
                 trackIndex = track,
                 durationMs = duration,
                 coverUri = writeEmbeddedCover(itemId, retriever.embeddedPicture),
+                // MUSIC-35：首次入库补齐的标签 / 音频参数
+                albumArtist =
+                    retriever
+                        .extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
+                        ?.takeIf { it.isNotBlank() },
+                discNumber =
+                    retriever
+                        .extractMetadata(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER)
+                        ?.substringBefore('/')
+                        ?.trim()
+                        ?.toIntOrNull(),
+                genre =
+                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)?.takeIf {
+                        it.isNotBlank()
+                    },
+                year =
+                    retriever
+                        .extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
+                        ?.trim()
+                        ?.toIntOrNull(),
+                bitrate =
+                    retriever
+                        .extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
+                        ?.toIntOrNull()
+                        ?.takeIf { it > 0 },
+                sampleRate = sampleRateOf(retriever),
+                bitDepth = bitDepthOf(retriever),
             )
         }
             .getOrNull()
             .also { retriever.release() }
+    }
+
+    /** 采样率（API 31+ 才有 `METADATA_KEY_SAMPLERATE`）；旧系统返回 null，按「未知」入库。 */
+    private fun sampleRateOf(retriever: MediaMetadataRetriever): Int? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+        return retriever
+            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)
+            ?.toIntOrNull()
+            ?.takeIf { it > 0 }
+    }
+
+    /** 位深（API 31+ 才有 `METADATA_KEY_BITS_PER_SAMPLE`）；旧系统返回 null。 */
+    private fun bitDepthOf(retriever: MediaMetadataRetriever): Int? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+        return retriever
+            .extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)
+            ?.toIntOrNull()
+            ?.takeIf { it > 0 }
     }
 
     /** 内嵌封面落 `filesDir/local_covers/<itemId>.jpg`（索引只读源文件；封面是派生产物）。 */
@@ -497,6 +550,13 @@ class LocalLibraryRepositoryImpl(
             album = album,
             trackIndex = trackIndex,
             coverUri = coverUri,
+            albumArtist = albumArtist,
+            discNumber = discNumber,
+            genre = genre,
+            year = year,
+            bitrate = bitrate,
+            sampleRate = sampleRate,
+            bitDepth = bitDepth,
         )
 
     private fun LocalPlayableSource.toFindroidMovie(): FindroidMovie =
@@ -541,6 +601,13 @@ class LocalLibraryRepositoryImpl(
         val trackIndex: Int,
         val durationMs: Long,
         val coverUri: String?,
+        val albumArtist: String? = null,
+        val discNumber: Int? = null,
+        val genre: String? = null,
+        val year: Int? = null,
+        val bitrate: Int? = null,
+        val sampleRate: Int? = null,
+        val bitDepth: Int? = null,
     )
 
     private companion object {

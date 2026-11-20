@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.repository
 import android.content.Context
 import androidx.paging.PagingData
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.api.MusicStreamRequest
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
@@ -414,6 +415,9 @@ class JellyfinRepositoryOfflineImpl(
     override suspend fun getStreamUrl(itemId: UUID, mediaSourceId: String): String {
         TODO("Not yet implemented")
     }
+
+    /** MUSIC-03：离线实现没有服务器地址（[getBaseUrl] 为空），协商地址不可用，返回 null。 */
+    override fun getMusicStreamUrl(itemId: UUID, request: MusicStreamRequest): String? = null
 
     override suspend fun getSegments(itemId: UUID): List<FindroidSegment> =
         withContext(Dispatchers.IO) { database.getSegments(itemId).map { it.toFindroidSegment() } }

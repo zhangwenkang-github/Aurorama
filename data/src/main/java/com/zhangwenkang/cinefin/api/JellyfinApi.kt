@@ -89,6 +89,10 @@ class JellyfinApi(
         )
     var userId: UUID? = null
 
+    /** 当前 SDK 会话的稳定设备 id（`/Audio/{itemId}/universal` 需要透传给服务端）。 */
+    val deviceId: String?
+        get() = jellyfin.deviceInfo?.id
+
     val brandingApi = api.brandingApi
     val devicesApi = api.devicesApi
     val genresApi = api.genresApi

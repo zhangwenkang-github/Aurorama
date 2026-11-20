@@ -5,6 +5,8 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.zhangwenkang.cinefin.api.JellyfinApi
+import com.zhangwenkang.cinefin.api.MusicStreamRequest
+import com.zhangwenkang.cinefin.api.MusicStreamUrl
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
@@ -2060,6 +2062,17 @@ class JellyfinRepositoryImpl(
     override fun getBaseUrl() = jellyfinApi.api.baseUrl.orEmpty()
 
     override fun getAccessToken(): String? = jellyfinApi.api.accessToken
+
+    /** MUSIC-03：`/Audio/{itemId}/universal`（协议拼装集中在 [MusicStreamUrl]）。 */
+    override fun getMusicStreamUrl(itemId: UUID, request: MusicStreamRequest): String? =
+        MusicStreamUrl.build(
+            baseUrl = getBaseUrl(),
+            itemId = itemId,
+            userId = jellyfinApi.userId?.toString(),
+            deviceId = jellyfinApi.deviceId,
+            apiKey = getAccessToken(),
+            request = request,
+        )
 
     override suspend fun updateDeviceName(name: String) {
         withContext(Dispatchers.IO) {

@@ -48,7 +48,7 @@ fun LocalLibraryEntry.toLocalMusicSong(libraryId: Long? = null): MusicSong =
         itemId = itemId,
         name = displayName,
         albumName = album?.takeIf { it.isNotBlank() } ?: "本地文件",
-        artist = artist,
+        artist = artist ?: albumArtist,
         indexNumber = trackIndex.takeIf { it > 0 },
         runtimeTicks = durationMs * TICKS_PER_MS,
         imageUri = coverUri,
@@ -56,6 +56,18 @@ fun LocalLibraryEntry.toLocalMusicSong(libraryId: Long? = null): MusicSong =
         source = MusicItemSource.LOCAL,
         localUri = documentUri,
         localLibraryId = libraryId,
+        // MUSIC-35：首次入库缓存的内嵌标签直接进模型（缺失为 null，不伪造）
+        albumArtist = albumArtist,
+        discNumber = discNumber,
+        genre = genre,
+        year = year,
+        codec = musicCodec,
+        bitrate = bitrate,
+        sampleRate = sampleRate,
+        bitDepth = bitDepth,
+        container = musicCodec,
+        // MUSIC-36：APE / DSD 引擎解不了 → 曲目行弱提示「不支持」
+        formatUnsupported = !isEnginePlayable,
     )
 
 private const val TICKS_PER_MS = 10_000L

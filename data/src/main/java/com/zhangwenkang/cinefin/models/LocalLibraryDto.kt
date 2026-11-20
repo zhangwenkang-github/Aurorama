@@ -73,6 +73,21 @@ data class LocalMediaItemDto(
     @ColumnInfo(defaultValue = "0") val durationMs: Long = 0,
     /** 封面（内嵌标签落盘 / 同目录封面图）的本地路径或 URI。 */
     val coverUri: String? = null,
+    // MUSIC-35：首次入库补齐的标签 / 音频参数（可空，旧行升级后为 NULL 并按「未知」处理）
+    /** 专辑艺人（`METADATA_KEY_ALBUMARTIST`）。 */
+    val albumArtist: String? = null,
+    /** 碟号（`METADATA_KEY_DISC_NUMBER`，多碟专辑的第几张）。 */
+    val discNumber: Int? = null,
+    /** 流派（`METADATA_KEY_GENRE`）。 */
+    val genre: String? = null,
+    /** 发行年份（`METADATA_KEY_YEAR`）。 */
+    val year: Int? = null,
+    /** 源码率（bit/s，`METADATA_KEY_BITRATE`）。 */
+    val bitrate: Int? = null,
+    /** 采样率（Hz，API 31+ `METADATA_KEY_SAMPLERATE`）。 */
+    val sampleRate: Int? = null,
+    /** 位深（bit，API 31+ `METADATA_KEY_BITS_PER_SAMPLE`）。 */
+    val bitDepth: Int? = null,
     /** VIDEO-48：扫描期推断出的同目录外挂字幕（视频条目才有；其余为空）。 */
     @ColumnInfo(defaultValue = "[]") val subtitles: List<LocalSubtitleFile> = emptyList(),
     @ColumnInfo(defaultValue = "0") val indexedAt: Long = 0,

@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.repository
 
 import androidx.paging.PagingData
+import com.zhangwenkang.cinefin.api.MusicStreamRequest
 import com.zhangwenkang.cinefin.database.DownloadedEpisodeHierarchy
 import com.zhangwenkang.cinefin.models.FindroidCollection
 import com.zhangwenkang.cinefin.models.FindroidEpisode
@@ -148,6 +149,13 @@ interface JellyfinRepository {
     ): List<FindroidSource>
 
     suspend fun getStreamUrl(itemId: UUID, mediaSourceId: String): String
+
+    /**
+     * MUSIC-03：`/Audio/{itemId}/universal` 协商地址（Jellyfin 侧音乐流的唯一入口）。
+     *
+     * 直连 / 转码的决策由调用方（`MusicTrackResolver`）先算好，这里只按 [request] 拼地址； 服务器地址非法时返回 null。
+     */
+    fun getMusicStreamUrl(itemId: UUID, request: MusicStreamRequest): String?
 
     suspend fun getSegments(itemId: UUID): List<FindroidSegment>
 

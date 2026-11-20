@@ -6,6 +6,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
 import com.zhangwenkang.cinefin.player.core.domain.models.QueueSource
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
+import com.zhangwenkang.cinefin.player.core.domain.models.TrackSourceType
 import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -183,5 +184,31 @@ class MusicQueueStoreTest {
                 liveQueuePresent = false,
             ),
         )
+    }
+
+    @Test
+    fun `冷启动恢复按地址回推来源与转码状态`() {
+        val local =
+            restoredTrackSource("content://com.android.externalstorage.documents/tree/x/a.flac")
+        assertEquals(TrackSourceType.LOCAL, local.sourceType)
+        assertEquals(false, local.isTranscoded)
+
+        val direct =
+            restoredTrackSource(
+                "https://host.test/Audio/3f2504e0-4f89-11d3-9a0c-0305e82c3301/universal" +
+                    "?Container=flac&EnableRedirection=true"
+            )
+        assertEquals(TrackSourceType.SERVER, direct.sourceType)
+        assertEquals(false, direct.isTranscoded)
+
+        val transcoded =
+            restoredTrackSource(
+                "https://host.test/Audio/3f2504e0-4f89-11d3-9a0c-0305e82c3301/universal" +
+                    "?Container=mp3&AudioCodec=mp3&AudioBitRate=128000"
+            )
+        assertEquals(true, transcoded.isTranscoded)
+        // 未回推的字段保持未知（不得伪造直连证据）
+        assertEquals(null, transcoded.codec)
+        assertEquals(null, transcoded.bitrate)
     }
 }

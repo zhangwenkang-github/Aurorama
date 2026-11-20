@@ -948,6 +948,17 @@ private fun TrackTitles(
             }
         }
     }
+    // W5-T4 / MUSIC-03：非侵入式转码标注（曲目信息区一行小字，不占控件位）
+    if (item.trackSource?.isTranscoded == true) {
+        Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
+        Text(
+            text = "转码中",
+            style = CinefinType.MonoDataSmall,
+            color = colors.onSurfaceVariant,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 @Composable
