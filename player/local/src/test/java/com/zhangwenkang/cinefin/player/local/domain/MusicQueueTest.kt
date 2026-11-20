@@ -60,12 +60,15 @@ class MusicQueueTest {
     }
 
     @Test
-    fun `下一首播放插在当前曲目之后`() {
+    fun `下一首播放入接下来播放且在播放顺序上紧随当前曲目`() {
         val queue = queueOf("A", "B", "C", currentIndex = 0)
 
         val inserted = queue.insertNext(item("X"))
 
-        assertEquals(listOf("A", "X", "B", "C"), inserted.items.map { it.name })
+        // W5-T5：insertNext 语义改为入「接下来播放」队列（播完即出不残留主队列）
+        assertEquals(listOf("A", "B", "C"), inserted.items.map { it.name })
+        assertEquals(listOf("X"), inserted.upNext.map { it.name })
+        assertEquals(listOf("A", "X", "B", "C"), inserted.playbackItems.map { it.name })
         assertEquals(0, inserted.currentIndex)
         // 续播位置随插入不变
         assertEquals("A", inserted.currentItem?.name)
