@@ -1,6 +1,20 @@
 package com.zhangwenkang.cinefin.music.presentation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +41,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -34,22 +50,37 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -63,6 +94,7 @@ import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinProgressVisuals
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSegmentedControl
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
@@ -78,8 +110,12 @@ import com.zhangwenkang.cinefin.music.data.lyrics.LyricsPresenter
 import com.zhangwenkang.cinefin.music.data.lyrics.LyricsWindow
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.roundToLong
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * 全屏音乐播放界面（W23-MUSIC · B 组）。
@@ -116,6 +152,8 @@ fun MusicNowPlayingScreen(
     onJumpQueueItem: (Int) -> Unit,
     onMoveQueueItem: (Int, Int) -> Unit,
     onRemoveQueueItem: (Int) -> Unit,
+    /** W5-T3：宽屏「队列」Tab 左滑移除的撤销（与队列 sheet 同一份）。 */
+    onUndoQueueItem: (Int, PlayerItem) -> Unit = { _, _ -> },
     /** W5 T5：接下来播放分区的跳播 / 移除 / 清空（宽屏「队列」Tab 与队列 sheet 同一份）。 */
     onJumpUpNextItem: (Int) -> Unit = {},
     onRemoveUpNextItem: (Int) -> Unit = {},
@@ -144,66 +182,85 @@ fun MusicNowPlayingScreen(
         lyricsPage = true
     }
     BackHandler { if (lyricsPage) lyricsPage = false else onClose() }
+    // W5-T3（MUSIC-26）：进歌词 = 封面 fadeOut(200) + 歌词 fadeIn(280) + 内容下滑 16dp；出 = 反向 tween(Player)。
+    val reduceMotion = CinefinMotion.reduceMotion()
+    val lyricsSlidePx = with(LocalDensity.current) { 16.dp.roundToPx() }
 
     CompositionLocalProvider(
         LocalMediaColors provides (coverMediaColors ?: LocalMediaColors.current)
     ) {
         Box(modifier = Modifier.fillMaxSize().background(colors.surface)) {
-            if (lyricsPage) {
-                MusicLyricsPage(
-                    title = item.name,
-                    state = lyricsState,
-                    entryToken = lyricsEntryToken,
-                    onBack = { lyricsPage = false },
-                    onSelectLanguage = onSelectLyricsLanguage,
-                    onToggleBilingual = onToggleLyricsBilingual,
-                    onToggleFollow = onToggleLyricsFollow,
-                    onSelectFontScale = onSelectLyricsFontScale,
-                    onSelectLineSpacing = onSelectLyricsLineSpacing,
-                    onLineClick = onSeekLyricLine,
-                    modifier =
-                        Modifier.swipeGestures(
-                            onSwipeRight = { lyricsPage = false },
-                            onSwipeDown = { lyricsPage = false },
-                        ),
-                )
-            } else {
-                PlayerPage(
-                    queue = queue,
-                    lyricsState = lyricsState,
-                    isPlaying = isPlaying,
-                    isRestored = isRestored,
-                    positionMs = positionMs,
-                    durationMs = durationMs,
-                    meta = meta,
-                    playMode = playMode,
-                    lyricsOverlayEnabled = lyricsOverlayEnabled,
-                    onClose = onClose,
-                    onPlayPause = onPlayPause,
-                    onPrevious = onPrevious,
-                    onNext = onNext,
-                    onSeek = onSeek,
-                    onCyclePlayMode = onCyclePlayMode,
-                    onToggleLyricsOverlay = onToggleLyricsOverlay,
-                    onOpenEffects = onOpenEffects,
-                    onOpenLyrics = openLyrics,
-                    onOpenQueue = onOpenQueue,
-                    onOpenSleepTimer = onOpenSleepTimer,
-                    onOpenArtist = onOpenArtist,
-                    onJumpQueueItem = onJumpQueueItem,
-                    onMoveQueueItem = onMoveQueueItem,
-                    onRemoveQueueItem = onRemoveQueueItem,
-                    onJumpUpNextItem = onJumpUpNextItem,
-                    onRemoveUpNextItem = onRemoveUpNextItem,
-                    onClearUpNext = onClearUpNext,
-                    onSeekLyricLine = onSeekLyricLine,
-                    onToggleFavorite = onToggleFavorite,
-                    modifier =
-                        Modifier.swipeGestures(
-                            onSwipeLeft = openLyrics,
-                            onSwipeDown = onClose,
-                        ),
-                )
+            AnimatedContent(
+                targetState = lyricsPage,
+                transitionSpec = {
+                    when {
+                        reduceMotion ->
+                            fadeIn(tween(CinefinMotion.ReducedMotionMillis)) togetherWith
+                                fadeOut(tween(CinefinMotion.ReducedMotionMillis))
+                        targetState ->
+                            (fadeIn(tween(CinefinMotion.Player)) +
+                                slideInVertically(CinefinMotion.SpringControlInOffset) {
+                                    lyricsSlidePx
+                                }) togetherWith fadeOut(tween(CinefinMotion.Fast))
+                        else ->
+                            fadeIn(tween(CinefinMotion.Player)) togetherWith
+                                fadeOut(tween(CinefinMotion.Player))
+                    }
+                },
+                label = "musicLyricsTransition",
+            ) { showLyrics ->
+                if (showLyrics) {
+                    MusicLyricsPage(
+                        title = item.name,
+                        state = lyricsState,
+                        entryToken = lyricsEntryToken,
+                        onBack = { lyricsPage = false },
+                        onSelectLanguage = onSelectLyricsLanguage,
+                        onToggleBilingual = onToggleLyricsBilingual,
+                        onToggleFollow = onToggleLyricsFollow,
+                        onSelectFontScale = onSelectLyricsFontScale,
+                        onSelectLineSpacing = onSelectLyricsLineSpacing,
+                        onLineClick = onSeekLyricLine,
+                        modifier =
+                            Modifier.swipeGestures(
+                                onSwipeRight = { lyricsPage = false },
+                                onSwipeDown = { lyricsPage = false },
+                            ),
+                    )
+                } else {
+                    PlayerPage(
+                        queue = queue,
+                        lyricsState = lyricsState,
+                        isPlaying = isPlaying,
+                        isRestored = isRestored,
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                        meta = meta,
+                        playMode = playMode,
+                        lyricsOverlayEnabled = lyricsOverlayEnabled,
+                        onClose = onClose,
+                        onPlayPause = onPlayPause,
+                        onPrevious = onPrevious,
+                        onNext = onNext,
+                        onSeek = onSeek,
+                        onCyclePlayMode = onCyclePlayMode,
+                        onToggleLyricsOverlay = onToggleLyricsOverlay,
+                        onOpenEffects = onOpenEffects,
+                        onOpenLyrics = openLyrics,
+                        onOpenQueue = onOpenQueue,
+                        onOpenSleepTimer = onOpenSleepTimer,
+                        onOpenArtist = onOpenArtist,
+                        onJumpQueueItem = onJumpQueueItem,
+                        onMoveQueueItem = onMoveQueueItem,
+                        onRemoveQueueItem = onRemoveQueueItem,
+                        onUndoQueueItem = onUndoQueueItem,
+                        onJumpUpNextItem = onJumpUpNextItem,
+                        onRemoveUpNextItem = onRemoveUpNextItem,
+                        onClearUpNext = onClearUpNext,
+                        onSeekLyricLine = onSeekLyricLine,
+                        onToggleFavorite = onToggleFavorite,
+                    )
+                }
             }
         }
     }
@@ -236,6 +293,8 @@ private fun PlayerPage(
     onJumpQueueItem: (Int) -> Unit,
     onMoveQueueItem: (Int, Int) -> Unit,
     onRemoveQueueItem: (Int) -> Unit,
+    /** W5-T3：宽屏「队列」Tab 左滑移除的撤销（与队列 sheet 同一份）。 */
+    onUndoQueueItem: (Int, PlayerItem) -> Unit = { _, _ -> },
     /** W5 T5：接下来播放分区的跳播 / 移除 / 清空（宽屏「队列」Tab 与队列 sheet 同一份）。 */
     onJumpUpNextItem: (Int) -> Unit = {},
     onRemoveUpNextItem: (Int) -> Unit = {},
@@ -245,93 +304,184 @@ private fun PlayerPage(
 ) {
     if (queue.currentItem == null) return
     val colors = LocalCinefinColors.current
-    Box(modifier = modifier.fillMaxSize().background(colors.surface)) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
-            when (playerLayoutMode(maxWidth, maxHeight)) {
-                // W5 T1 · MUSIC-20：宽屏（≥840dp）左右分栏——左封面+信息+进度+传输，右「歌词 | 队列」Tab
-                PlayerLayoutMode.Wide ->
-                    WidePlayerLayout(
-                        queue = queue,
-                        lyricsState = lyricsState,
-                        isPlaying = isPlaying,
-                        isRestored = isRestored,
-                        positionMs = positionMs,
-                        durationMs = durationMs,
-                        meta = meta,
-                        playMode = playMode,
-                        lyricsOverlayEnabled = lyricsOverlayEnabled,
-                        onClose = onClose,
-                        onPlayPause = onPlayPause,
-                        onPrevious = onPrevious,
-                        onNext = onNext,
-                        onSeek = onSeek,
-                        onCyclePlayMode = onCyclePlayMode,
-                        onToggleLyricsOverlay = onToggleLyricsOverlay,
-                        onOpenEffects = onOpenEffects,
-                        onOpenQueue = onOpenQueue,
-                        onOpenSleepTimer = onOpenSleepTimer,
-                        onOpenArtist = onOpenArtist,
-                        onSeekLyricLine = onSeekLyricLine,
-                        onJumpQueueItem = onJumpQueueItem,
-                        onMoveQueueItem = onMoveQueueItem,
-                        onRemoveQueueItem = onRemoveQueueItem,
-                        onJumpUpNextItem = onJumpUpNextItem,
-                        onRemoveUpNextItem = onRemoveUpNextItem,
-                        onClearUpNext = onClearUpNext,
-                        onToggleFavorite = onToggleFavorite,
-                    )
-                // 横屏手机（K60 横屏 411dp 高）走两栏紧凑布局，避免 W23 单列在矮屏被裁切
-                PlayerLayoutMode.Compact ->
-                    CompactPlayerLayout(
-                        queue = queue,
-                        lyricsState = lyricsState,
-                        isPlaying = isPlaying,
-                        isRestored = isRestored,
-                        positionMs = positionMs,
-                        durationMs = durationMs,
-                        meta = meta,
-                        playMode = playMode,
-                        lyricsOverlayEnabled = lyricsOverlayEnabled,
-                        coverSize = minOf(maxWidth * 0.34f, maxHeight * 0.52f, 240.dp),
-                        onClose = onClose,
-                        onPlayPause = onPlayPause,
-                        onPrevious = onPrevious,
-                        onNext = onNext,
-                        onSeek = onSeek,
-                        onCyclePlayMode = onCyclePlayMode,
-                        onToggleLyricsOverlay = onToggleLyricsOverlay,
-                        onOpenEffects = onOpenEffects,
-                        onOpenLyrics = onOpenLyrics,
-                        onOpenQueue = onOpenQueue,
-                        onToggleFavorite = onToggleFavorite,
-                    )
-                else ->
-                    RegularPlayerLayout(
-                        queue = queue,
-                        lyricsState = lyricsState,
-                        isPlaying = isPlaying,
-                        isRestored = isRestored,
-                        positionMs = positionMs,
-                        durationMs = durationMs,
-                        meta = meta,
-                        playMode = playMode,
-                        lyricsOverlayEnabled = lyricsOverlayEnabled,
-                        // W5 T1：封面 min(宽 × 0.80, 360dp)（MUSIC-20 需求 78–82%）
-                        coverSize = nowPlayingCoverSize(maxWidth),
-                        onClose = onClose,
-                        onPlayPause = onPlayPause,
-                        onPrevious = onPrevious,
-                        onNext = onNext,
-                        onSeek = onSeek,
-                        onCyclePlayMode = onCyclePlayMode,
-                        onToggleLyricsOverlay = onToggleLyricsOverlay,
-                        onOpenEffects = onOpenEffects,
-                        onOpenLyrics = onOpenLyrics,
-                        onOpenQueue = onOpenQueue,
-                        onOpenSleepTimer = onOpenSleepTimer,
-                        onOpenArtist = onOpenArtist,
-                        onToggleFavorite = onToggleFavorite,
-                    )
+    // W5-T3（MUSIC-45/46）：全屏页垂直下拉实时位移；松手 ≥18% 屏高或下甩 ≥1200dp/s 飞出关闭，否则 SpringSnap 回位。
+    val reduceMotion = CinefinMotion.reduceMotion()
+    var pullY by remember { mutableFloatStateOf(0f) }
+    var screenHeightPx by remember { mutableIntStateOf(0) }
+    val settleScope = rememberCoroutineScope()
+    var settleJob by remember { mutableStateOf<Job?>(null) }
+    val pullProgress = { musicPullProgress(pullY, screenHeightPx.toFloat()) }
+    // pointerInput 的 key 不随回调重建（否则 500ms 位置 tick 会把进行中的下拉手势打断）
+    val currentOpenLyrics by rememberUpdatedState(onOpenLyrics)
+    val currentOnClose by rememberUpdatedState(onClose)
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .onSizeChanged { screenHeightPx = it.height }
+                .graphicsLayer { translationY = pullY }
+                .pointerInput(reduceMotion) {
+                    val densityScale = density
+                    val horizontalThresholdPx = 96.dp.toPx()
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val tracker = VelocityTracker()
+                        tracker.addPosition(down.uptimeMillis, down.position)
+                        var totalX = 0f
+                        var totalY = 0f
+                        var vertical = false
+                        var horizontal = false
+                        drag(down.id) { change ->
+                            if (!change.pressed) return@drag
+                            val delta = change.positionChange()
+                            totalX += delta.x
+                            totalY += delta.y
+                            tracker.addPosition(change.uptimeMillis, change.position)
+                            if (!vertical && !horizontal) {
+                                val slop = viewConfiguration.touchSlop
+                                if (abs(totalX) > slop || abs(totalY) > slop) {
+                                    if (abs(totalY) >= abs(totalX)) vertical = true
+                                    else horizontal = true
+                                }
+                            }
+                            if (vertical && totalY > 0f) {
+                                // 自消费：进度条 / 列表等子层已消费的拖动走不到这里（MUSIC-45 手势优先级）
+                                change.consume()
+                                settleJob?.cancel()
+                                pullY = totalY
+                            }
+                        }
+                        val velocity = tracker.calculateVelocity()
+                        settleJob?.cancel()
+                        settleJob = settleScope.launch {
+                            if (vertical && pullY > 0f) {
+                                val heightPx = screenHeightPx.toFloat()
+                                val dismiss =
+                                    musicPullDismissReached(
+                                        dragYPx = pullY,
+                                        screenHeightPx = heightPx,
+                                        velocityDpPerSec = velocity.y / densityScale,
+                                    )
+                                if (dismiss) {
+                                    animate(
+                                        initialValue = pullY,
+                                        targetValue = heightPx,
+                                        animationSpec = tween(CinefinMotion.Fast),
+                                    ) { value, _ ->
+                                        pullY = value
+                                    }
+                                    currentOnClose()
+                                } else {
+                                    animate(
+                                        initialValue = pullY,
+                                        targetValue = 0f,
+                                        animationSpec =
+                                            if (reduceMotion) {
+                                                tween(CinefinMotion.ReducedMotionMillis)
+                                            } else {
+                                                CinefinMotion.SpringSnap
+                                            },
+                                    ) { value, _ ->
+                                        pullY = value
+                                    }
+                                }
+                            } else if (horizontal && totalX <= -horizontalThresholdPx) {
+                                currentOpenLyrics()
+                            }
+                        }
+                    }
+                }
+                .background(colors.surface)
+    ) {
+        CompositionLocalProvider(LocalMusicPullProgress provides pullProgress) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+                when (playerLayoutMode(maxWidth, maxHeight)) {
+                    // W5 T1 · MUSIC-20：宽屏（≥840dp）左右分栏——左封面+信息+进度+传输，右「歌词 | 队列」Tab
+                    PlayerLayoutMode.Wide ->
+                        WidePlayerLayout(
+                            queue = queue,
+                            lyricsState = lyricsState,
+                            isPlaying = isPlaying,
+                            isRestored = isRestored,
+                            positionMs = positionMs,
+                            durationMs = durationMs,
+                            meta = meta,
+                            playMode = playMode,
+                            lyricsOverlayEnabled = lyricsOverlayEnabled,
+                            onClose = onClose,
+                            onPlayPause = onPlayPause,
+                            onPrevious = onPrevious,
+                            onNext = onNext,
+                            onSeek = onSeek,
+                            onCyclePlayMode = onCyclePlayMode,
+                            onToggleLyricsOverlay = onToggleLyricsOverlay,
+                            onOpenEffects = onOpenEffects,
+                            onOpenQueue = onOpenQueue,
+                            onOpenSleepTimer = onOpenSleepTimer,
+                            onOpenArtist = onOpenArtist,
+                            onSeekLyricLine = onSeekLyricLine,
+                            onJumpQueueItem = onJumpQueueItem,
+                            onMoveQueueItem = onMoveQueueItem,
+                            onRemoveQueueItem = onRemoveQueueItem,
+                            onUndoQueueItem = onUndoQueueItem,
+                            onJumpUpNextItem = onJumpUpNextItem,
+                            onRemoveUpNextItem = onRemoveUpNextItem,
+                            onClearUpNext = onClearUpNext,
+                            onToggleFavorite = onToggleFavorite,
+                        )
+                    // 横屏手机（K60 横屏 411dp 高）走两栏紧凑布局，避免 W23 单列在矮屏被裁切
+                    PlayerLayoutMode.Compact ->
+                        CompactPlayerLayout(
+                            queue = queue,
+                            lyricsState = lyricsState,
+                            isPlaying = isPlaying,
+                            isRestored = isRestored,
+                            positionMs = positionMs,
+                            durationMs = durationMs,
+                            meta = meta,
+                            playMode = playMode,
+                            lyricsOverlayEnabled = lyricsOverlayEnabled,
+                            coverSize = minOf(maxWidth * 0.34f, maxHeight * 0.52f, 240.dp),
+                            onClose = onClose,
+                            onPlayPause = onPlayPause,
+                            onPrevious = onPrevious,
+                            onNext = onNext,
+                            onSeek = onSeek,
+                            onCyclePlayMode = onCyclePlayMode,
+                            onToggleLyricsOverlay = onToggleLyricsOverlay,
+                            onOpenEffects = onOpenEffects,
+                            onOpenLyrics = onOpenLyrics,
+                            onOpenQueue = onOpenQueue,
+                            onToggleFavorite = onToggleFavorite,
+                        )
+                    else ->
+                        RegularPlayerLayout(
+                            queue = queue,
+                            lyricsState = lyricsState,
+                            isPlaying = isPlaying,
+                            isRestored = isRestored,
+                            positionMs = positionMs,
+                            durationMs = durationMs,
+                            meta = meta,
+                            playMode = playMode,
+                            lyricsOverlayEnabled = lyricsOverlayEnabled,
+                            // W5 T1：封面 min(宽 × 0.80, 360dp)（MUSIC-20 需求 78–82%）
+                            coverSize = nowPlayingCoverSize(maxWidth),
+                            onClose = onClose,
+                            onPlayPause = onPlayPause,
+                            onPrevious = onPrevious,
+                            onNext = onNext,
+                            onSeek = onSeek,
+                            onCyclePlayMode = onCyclePlayMode,
+                            onToggleLyricsOverlay = onToggleLyricsOverlay,
+                            onOpenEffects = onOpenEffects,
+                            onOpenLyrics = onOpenLyrics,
+                            onOpenQueue = onOpenQueue,
+                            onOpenSleepTimer = onOpenSleepTimer,
+                            onOpenArtist = onOpenArtist,
+                            onToggleFavorite = onToggleFavorite,
+                        )
+                }
             }
         }
     }
@@ -391,7 +541,12 @@ private fun RegularPlayerLayout(
             )
         }
         Spacer(modifier = Modifier.weight(1f))
-        TrackCover(item = item, size = coverSize, onClick = onOpenLyrics)
+        TrackCover(
+            item = item,
+            index = queue.currentIndex,
+            size = coverSize,
+            onClick = onOpenLyrics,
+        )
         Spacer(modifier = Modifier.height(CinefinSpacing.Space6))
         TrackTitles(item = item, meta = meta, compact = false, onOpenArtist = onOpenArtist)
         Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
@@ -402,8 +557,8 @@ private fun RegularPlayerLayout(
             onClick = onOpenLyrics,
         )
         Spacer(modifier = Modifier.weight(1f))
-        // W24 · C9：细轨道 + 圆形发光拖点（去掉 Material Slider 的竖线浮标）
-        MusicProgressBar(
+        // W5-T3 · MUSIC-21：波浪进度条
+        MusicWaveProgressBar(
             value = sliderValue,
             onValueChange = { value -> dragValue = value },
             onValueChangeFinished = {
@@ -412,6 +567,8 @@ private fun RegularPlayerLayout(
             },
             valueRange = 0f..totalMs.coerceAtLeast(1L).toFloat(),
             enabled = totalMs > 0L && !isRestored,
+            isPlaying = isPlaying,
+            resetKey = item.itemId,
             modifier = Modifier.fillMaxWidth(),
         )
         Row(
@@ -501,7 +658,7 @@ private fun CompactPlayerLayout(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                TrackCover(item = item, size = coverSize)
+                TrackCover(item = item, index = queue.currentIndex, size = coverSize)
                 Spacer(modifier = Modifier.height(CinefinSpacing.Space3))
                 TrackTitles(item = item, meta = meta, compact = true)
             }
@@ -517,7 +674,7 @@ private fun CompactPlayerLayout(
                     onClick = onOpenLyrics,
                 )
                 Spacer(modifier = Modifier.height(CinefinSpacing.Space2))
-                MusicProgressBar(
+                MusicWaveProgressBar(
                     value = sliderValue,
                     onValueChange = { value -> dragValue = value },
                     onValueChangeFinished = {
@@ -526,6 +683,8 @@ private fun CompactPlayerLayout(
                     },
                     valueRange = 0f..totalMs.coerceAtLeast(1L).toFloat(),
                     enabled = totalMs > 0L && !isRestored,
+                    isPlaying = isPlaying,
+                    resetKey = item.itemId,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(
@@ -612,6 +771,8 @@ private fun WidePlayerLayout(
     onJumpQueueItem: (Int) -> Unit,
     onMoveQueueItem: (Int, Int) -> Unit,
     onRemoveQueueItem: (Int) -> Unit,
+    /** W5-T3：宽屏「队列」Tab 左滑移除的撤销（与队列 sheet 同一份）。 */
+    onUndoQueueItem: (Int, PlayerItem) -> Unit = { _, _ -> },
     /** W5 T5：接下来播放分区的跳播 / 移除 / 清空（宽屏「队列」Tab 与队列 sheet 同一份）。 */
     onJumpUpNextItem: (Int) -> Unit = {},
     onRemoveUpNextItem: (Int) -> Unit = {},
@@ -657,6 +818,7 @@ private fun WidePlayerLayout(
                     // 封面点击 = 切到歌词视图（右栏 Tab，设计定稿一 §1）
                     TrackCover(
                         item = item,
+                        index = queue.currentIndex,
                         size = nowPlayingCoverSize(columnWidth),
                         onClick = { pane = WidePlayerPane.LYRICS },
                     )
@@ -668,7 +830,7 @@ private fun WidePlayerLayout(
                         onOpenArtist = onOpenArtist,
                     )
                     Spacer(modifier = Modifier.height(CinefinSpacing.Space5))
-                    MusicProgressBar(
+                    MusicWaveProgressBar(
                         value = sliderValue,
                         onValueChange = { value -> dragValue = value },
                         onValueChangeFinished = {
@@ -677,6 +839,8 @@ private fun WidePlayerLayout(
                         },
                         valueRange = 0f..totalMs.coerceAtLeast(1L).toFloat(),
                         enabled = totalMs > 0L && !isRestored,
+                        isPlaying = isPlaying,
+                        resetKey = item.itemId,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Row(
@@ -739,6 +903,7 @@ private fun WidePlayerLayout(
                             onJumpUpNext = onJumpUpNextItem,
                             onMove = onMoveQueueItem,
                             onRemove = onRemoveQueueItem,
+                            onUndoRemove = onUndoQueueItem,
                             onRemoveUpNext = onRemoveUpNextItem,
                             onClearUpNext = onClearUpNext,
                             modifier = Modifier.fillMaxSize(),
@@ -871,35 +1036,115 @@ private fun PlayerContextMenuItem(icon: Int, label: String, onClick: () -> Unit)
     )
 }
 
+/** 封面切歌转场键（MUSIC-41）：itemId 变化即一次 Crossfade，index 决定滑入方向。 */
+private data class MusicCoverKey(
+    val itemId: UUID,
+    val index: Int,
+    val thumbnailUri: String?,
+    val title: String,
+)
+
+/**
+ * 大封面（点击 = 切封面 / 歌词视图）。
+ *
+ * W5-T3（MUSIC-41）：封面交叉淡化 `Crossfade(250)` + 新封面从切歌反侧滑入 14dp（下一首从右、上一首从左，`SpringControlIn`）；
+ * W5-T3（MUSIC-46）：下拉收起时按拖幅 1 → 0.96 缩放、圆角 Card(20) → 32 线性插值——两者都在 `graphicsLayer`
+ * 的绘制块里读进度，拖动逐帧只触发绘制，不整页重组。
+ */
 @Composable
-private fun TrackCover(item: PlayerItem, size: Dp, onClick: (() -> Unit)? = null) {
+private fun TrackCover(
+    item: PlayerItem,
+    index: Int,
+    size: Dp,
+    onClick: (() -> Unit)? = null,
+) {
     val colors = LocalCinefinColors.current
+    val reduceMotion = CinefinMotion.reduceMotion()
+    val pullProgressProvider: () -> Float = LocalMusicPullProgress.current
+    val density = LocalDensity.current
+    val slidePx = with(density) { MusicCoverSlideDp.dp.roundToPx() }
+    val borderWidthPx = with(density) { 1.dp.toPx() }
+    val key =
+        remember(item.itemId, index, item.thumbnailUri, item.name) {
+            MusicCoverKey(item.itemId, index, item.thumbnailUri, item.name)
+        }
     Box(
         modifier =
             Modifier.size(size)
-                .clip(CinefinShapes.Card)
+                .graphicsLayer {
+                    val progress = pullProgressProvider()
+                    scaleX = musicPullCoverScale(progress)
+                    scaleY = scaleX
+                    shape = RoundedCornerShape(musicPullCoverCornerDp(progress).dp)
+                    clip = true
+                }
                 .background(colors.surfaceContainerHigh)
-                .border(1.dp, colors.glassBorder, CinefinShapes.Card)
+                .drawWithContent {
+                    drawContent()
+                    val radius = musicPullCoverCornerDp(pullProgressProvider()).dp.toPx()
+                    val borderSize =
+                        Size(this.size.width - borderWidthPx, this.size.height - borderWidthPx)
+                    drawRoundRect(
+                        color = colors.glassBorder,
+                        topLeft = Offset(borderWidthPx / 2f, borderWidthPx / 2f),
+                        size = borderSize,
+                        cornerRadius = CornerRadius(radius - borderWidthPx / 2f),
+                        style = Stroke(width = borderWidthPx),
+                    )
+                }
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        if (item.thumbnailUri == null) {
-            Text(
-                text = item.name.take(1),
-                style = CinefinType.DisplayMedium,
-                color = colors.onSurfaceVariant,
-            )
-        } else {
-            AsyncImage(
-                model = item.thumbnailUri,
-                contentDescription = item.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
+        AnimatedContent(
+            targetState = key,
+            transitionSpec = {
+                if (reduceMotion) {
+                    fadeIn(tween(CinefinMotion.ReducedMotionMillis)) togetherWith
+                        fadeOut(tween(CinefinMotion.ReducedMotionMillis))
+                } else {
+                    val direction = if (targetState.index >= initialState.index) 1 else -1
+                    (fadeIn(tween(MusicCoverCrossfadeMillis)) +
+                        slideInHorizontally(CinefinMotion.SpringControlInOffset) {
+                            direction * slidePx
+                        }) togetherWith fadeOut(tween(MusicCoverCrossfadeMillis))
+                }
+            },
+            label = "musicCoverCrossfade",
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) { cover ->
+            if (cover.thumbnailUri == null) {
+                Text(
+                    text = cover.title.take(1),
+                    style = CinefinType.DisplayMedium,
+                    color = colors.onSurfaceVariant,
+                )
+            } else {
+                AsyncImage(
+                    model = cover.thumbnailUri,
+                    contentDescription = cover.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
         }
     }
 }
 
+/** 曲名 / 艺术家切歌转场键（MUSIC-41）。 */
+private data class MusicTitleKey(
+    val itemId: UUID,
+    val title: String,
+    val artist: String?,
+    val album: String?,
+    val transcoded: Boolean,
+)
+
+/**
+ * 曲名 + 艺术家 / 专辑。
+ *
+ * W5-T3（MUSIC-41）：切歌时曲名 `fadeIn(150)` + 下滑 8dp 淡入，艺术家行再延迟 `Stagger`(40ms) 淡入。
+ */
 @Composable
 private fun TrackTitles(
     item: PlayerItem,
@@ -907,11 +1152,60 @@ private fun TrackTitles(
     compact: Boolean,
     onOpenArtist: ((String) -> Unit)? = null,
 ) {
+    val reduceMotion = CinefinMotion.reduceMotion()
+    val slidePx = with(LocalDensity.current) { MusicTitleSlideDp.dp.roundToPx() }
+    val key =
+        remember(item.itemId, item.name, meta?.artist, meta?.albumName, item.trackSource) {
+            MusicTitleKey(
+                itemId = item.itemId,
+                title = item.name,
+                artist = meta?.artist?.takeIf { it.isNotBlank() },
+                album = meta?.albumName?.takeIf { it.isNotBlank() },
+                transcoded = item.trackSource?.isTranscoded == true,
+            )
+        }
+    AnimatedContent(
+        targetState = key,
+        transitionSpec = {
+            if (reduceMotion) {
+                fadeIn(tween(CinefinMotion.ReducedMotionMillis)) togetherWith
+                    fadeOut(tween(CinefinMotion.ReducedMotionMillis))
+            } else {
+                (fadeIn(tween(MusicTitleFadeMillis)) +
+                    slideInVertically(CinefinMotion.SpringControlInOffset) { slidePx }) togetherWith
+                    fadeOut(tween(MusicTitleFadeMillis))
+            }
+        },
+        label = "musicTitleChange",
+    ) { title ->
+        TrackTitleText(key = title, compact = compact, onOpenArtist = onOpenArtist)
+    }
+}
+
+@Composable
+private fun TrackTitleText(
+    key: MusicTitleKey,
+    compact: Boolean,
+    onOpenArtist: ((String) -> Unit)?,
+) {
     val colors = LocalCinefinColors.current
-    val artist = meta?.artist?.takeIf { it.isNotBlank() }
-    val album = meta?.albumName?.takeIf { it.isNotBlank() }
+    val reduceMotion = CinefinMotion.reduceMotion()
+    // 艺术家 / 副标题比曲名再晚 Stagger(40ms) 淡入（定稿二 §5）
+    var subtitleShown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { subtitleShown = true }
+    val subtitleAlpha by
+        animateFloatAsState(
+            targetValue = if (subtitleShown) 1f else 0f,
+            animationSpec =
+                if (reduceMotion) {
+                    tween(CinefinMotion.ReducedMotionMillis)
+                } else {
+                    tween(MusicTitleFadeMillis, delayMillis = CinefinMotion.Stagger)
+                },
+            label = "musicArtistStagger",
+        )
     Text(
-        text = item.name,
+        text = key.title,
         // 设计定稿一 §1：曲名 18sp / 500（紧凑横屏沿用旧档）
         style =
             if (compact) CinefinType.TitleLarge else CinefinType.TitleMedium.copy(fontSize = 18.sp),
@@ -921,7 +1215,7 @@ private fun TrackTitles(
         textAlign = TextAlign.Center,
     )
     if (compact) {
-        val subtitle = listOfNotNull(artist, album).distinct().joinToString(" · ")
+        val subtitle = listOfNotNull(key.artist, key.album).distinct().joinToString(" · ")
         if (subtitle.isNotBlank()) {
             Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
             Text(
@@ -931,20 +1225,22 @@ private fun TrackTitles(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.graphicsLayer { alpha = subtitleAlpha },
             )
         }
         return
     }
-    if (artist != null || album != null) {
+    if (key.artist != null || key.album != null) {
         Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.graphicsLayer { alpha = subtitleAlpha },
         ) {
-            if (artist != null) {
+            if (key.artist != null) {
                 // 艺术家 15sp / 400，可点击跳艺术家详情（设计定稿一 §1）
                 Text(
-                    text = artist,
+                    text = key.artist,
                     style = CinefinType.BodyMedium,
                     color = colors.onSurfaceVariant,
                     maxLines = 1,
@@ -952,7 +1248,7 @@ private fun TrackTitles(
                     modifier =
                         if (onOpenArtist != null) {
                             Modifier.clip(CinefinShapes.Button)
-                                .clickable { onOpenArtist(artist) }
+                                .clickable { onOpenArtist(key.artist) }
                                 .padding(
                                     horizontal = CinefinSpacing.Space2,
                                     vertical = CinefinSpacing.Space1,
@@ -962,16 +1258,16 @@ private fun TrackTitles(
                         },
                 )
             }
-            if (artist != null && album != null) {
+            if (key.artist != null && key.album != null) {
                 Text(
                     text = "·",
                     style = CinefinType.BodyMedium,
                     color = colors.onSurfaceVariant,
                 )
             }
-            if (album != null) {
+            if (key.album != null) {
                 Text(
-                    text = album,
+                    text = key.album,
                     style = CinefinType.BodyMedium,
                     color = colors.onSurfaceVariant,
                     maxLines = 1,
@@ -981,7 +1277,7 @@ private fun TrackTitles(
         }
     }
     // W5-T4 / MUSIC-03：非侵入式转码标注（曲目信息区一行小字，不占控件位）
-    if (item.trackSource?.isTranscoded == true) {
+    if (key.transcoded) {
         Spacer(modifier = Modifier.height(CinefinSpacing.Space1))
         Text(
             text = "转码中",
@@ -989,6 +1285,7 @@ private fun TrackTitles(
             color = colors.onSurfaceVariant,
             maxLines = 1,
             textAlign = TextAlign.Center,
+            modifier = Modifier.graphicsLayer { alpha = subtitleAlpha },
         )
     }
 }
@@ -1227,94 +1524,265 @@ private fun LyricsPreview(window: LyricsWindow, message: String?, onClick: () ->
 }
 
 /**
- * 播放进度条（W24 · C9）：细轨道 + 圆形发光拖点，去掉 Material Slider 的竖线浮标。
+ * 波浪进度条（W5-T3 · MUSIC-21，替换 W24 的细轨道版）。
  *
- * 整条 36dp 触控带都响应按下与拖动（点按 = 跳到该位置，拖动 = 连续 seek）， 消费掉自己的手势所以不会误触发全屏页的左滑呼出队列。
+ * 形态（定稿二 §4）：Canvas 正弦波——播放中振幅 3dp、波长 28dp、相位 1.5 周/s 向右流动；暂停 `tween(Fast)` 压平为直线；拖拽中拇指弹性放大 1 →
+ * 1.35（`SpringOvershoot`）并在手指处按 48dp 半径的高斯权重局部隆起。拖拽气泡「正在跳转到 mm:ss」在拇指上方 12dp（玻璃 chip）。 松手 seek
+ * 生效，拇指停在落点等真实播放位置追平后用 `SpringSnap` 回实际位；非拖拽位置更新走 `tween(Fast)`；减少动态时振幅恒 0 且不做弹性放大（气泡保留）。
+ *
+ * 整条 [CinefinProgressVisuals.TouchHeight] 触控带自消费手势（且先于父层下拉收起拿到事件），因此拖进度不会误触发收起 / 翻歌词。
  */
 @Composable
-private fun MusicProgressBar(
+private fun MusicWaveProgressBar(
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     enabled: Boolean,
+    isPlaying: Boolean,
+    resetKey: Any,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
+    val reduceMotion = CinefinMotion.reduceMotion()
+    val density = LocalDensity.current
     val span = (valueRange.endInclusive - valueRange.start).takeIf { it > 0f } ?: 1f
-    val fraction = ((value - valueRange.start) / span).coerceIn(0f, 1f)
+    val targetFraction = ((value - valueRange.start) / span).coerceIn(0f, 1f)
+    // 显示位置：只在绘制块里读，逐帧变化不触发重组
+    var displayFraction by remember { mutableFloatStateOf(targetFraction) }
+    var lastResetKey by remember { mutableStateOf(resetKey) }
+    var dragging by remember { mutableStateOf(false) }
+    var settleTarget by remember { mutableStateOf<Float?>(null) }
+    var barWidthPx by remember { mutableIntStateOf(0) }
     val alpha = if (enabled) 1f else CinefinProgressVisuals.DisabledAlpha
-    Canvas(
-        modifier =
-            modifier.height(CinefinProgressVisuals.TouchHeight).pointerInput(enabled, valueRange) {
-                if (!enabled) return@pointerInput
-                val thumbRadiusPx = CinefinProgressVisuals.ThumbRadius.toPx()
-                fun valueAt(x: Float): Float {
-                    val startX = thumbRadiusPx
-                    val endX = size.width - thumbRadiusPx
-                    if (endX <= startX) return valueRange.start
-                    val ratio = ((x - startX) / (endX - startX)).coerceIn(0f, 1f)
-                    return valueRange.start + ratio * span
-                }
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    down.consume()
-                    onValueChange(valueAt(down.position.x))
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) {
-                            change.consume()
-                            onValueChangeFinished()
-                            break
-                        }
-                        onValueChange(valueAt(change.position.x))
-                        change.consume()
+
+    LaunchedEffect(targetFraction, resetKey, dragging, settleTarget, reduceMotion) {
+        if (dragging) return@LaunchedEffect
+        val settle = settleTarget
+        when {
+            settle != null -> {
+                // 拇指停在拖拽落点，等真实位置追平再 SpringSnap（定稿二 §4「松手 seek 生效」）
+                if (musicSeekSettleReached(settle, targetFraction)) {
+                    settleTarget = null
+                    animate(
+                        initialValue = displayFraction,
+                        targetValue = targetFraction,
+                        animationSpec = CinefinMotion.SpringSnap,
+                    ) { v, _ ->
+                        displayFraction = v
                     }
                 }
             }
-    ) {
-        val thumbRadius = CinefinProgressVisuals.ThumbRadius.toPx()
-        val trackHeight = CinefinProgressVisuals.TrackHeight.toPx()
-        val centerY = size.height / 2f
-        val startX = thumbRadius
-        val endX = size.width - thumbRadius
-        val thumbX = startX + (endX - startX) * fraction
-        // 发光拖点：以圆形浮标为中心的一圈同色柔光（App 主题 / 音乐皮肤）
-        drawCircle(
-            brush =
-                Brush.radialGradient(
-                    colors =
-                        listOf(
-                            media.base.copy(alpha = CinefinProgressVisuals.GlowAlpha * alpha),
-                            Color.Transparent,
-                        ),
-                    center = Offset(thumbX, centerY),
-                    radius = thumbRadius * CinefinProgressVisuals.GlowScale,
+            resetKey != lastResetKey -> {
+                // 切歌：thumb 归零后 SpringSnap 微过冲回实际位（定稿二 §5）
+                lastResetKey = resetKey
+                displayFraction = 0f
+                if (reduceMotion) {
+                    displayFraction = targetFraction
+                } else {
+                    animate(
+                        initialValue = 0f,
+                        targetValue = targetFraction,
+                        animationSpec = CinefinMotion.SpringSnap,
+                    ) { v, _ ->
+                        displayFraction = v
+                    }
+                }
+            }
+            else ->
+                animate(
+                    initialValue = displayFraction,
+                    targetValue = targetFraction,
+                    animationSpec = tween(CinefinMotion.Fast, easing = CinefinMotion.Standard),
+                ) { v, _ ->
+                    displayFraction = v
+                }
+        }
+    }
+    // 落点等待超时兜底：位置流异常时不至于永远停在拖拽点
+    LaunchedEffect(settleTarget) {
+        val settle = settleTarget ?: return@LaunchedEffect
+        delay(MusicSeekSettleTimeoutMillis)
+        if (settleTarget == settle) {
+            settleTarget = null
+            animate(
+                initialValue = displayFraction,
+                targetValue = targetFraction,
+                animationSpec = CinefinMotion.SpringSnap,
+            ) { v, _ ->
+                displayFraction = v
+            }
+        }
+    }
+    val amplitude by
+        animateFloatAsState(
+            targetValue = if (isPlaying && !reduceMotion) MusicWaveAmplitudeDp else 0f,
+            animationSpec = tween(CinefinMotion.Fast),
+            label = "musicWaveAmplitude",
+        )
+    val thumbScale by
+        animateFloatAsState(
+            targetValue = if (dragging && !reduceMotion) MusicWaveThumbDragScale else 1f,
+            animationSpec = CinefinMotion.SpringOvershoot,
+            label = "musicWaveThumb",
+        )
+    val infinitePhase = rememberInfiniteTransition(label = "musicWavePhase")
+    val phaseFraction by
+        infinitePhase.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(musicWavePeriodMillis(), easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart,
                 ),
-            radius = thumbRadius * CinefinProgressVisuals.GlowScale,
-            center = Offset(thumbX, centerY),
+            label = "musicWavePhaseValue",
         )
-        drawLine(
-            color = colors.onSurface.copy(alpha = 0.12f * alpha),
-            start = Offset(startX, centerY),
-            end = Offset(endX, centerY),
-            strokeWidth = trackHeight,
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = media.base.copy(alpha = alpha),
-            start = Offset(startX, centerY),
-            end = Offset(thumbX, centerY),
-            strokeWidth = trackHeight,
-            cap = StrokeCap.Round,
-        )
-        drawCircle(
-            color = Color.White.copy(alpha = alpha),
-            radius = thumbRadius,
-            center = Offset(thumbX, centerY),
-        )
+    val wavePhase = if (isPlaying && !reduceMotion) phaseFraction else 0f
+
+    Box(
+        modifier =
+            modifier.fillMaxWidth().height(CinefinProgressVisuals.TouchHeight).onSizeChanged {
+                barWidthPx = it.width
+            }
+    ) {
+        Canvas(
+            modifier =
+                Modifier.fillMaxSize().pointerInput(enabled, valueRange, resetKey) {
+                    if (!enabled) return@pointerInput
+                    val thumbRadiusPx = CinefinProgressVisuals.ThumbRadius.toPx()
+                    fun fractionAt(x: Float): Float =
+                        musicSeekFraction(x, thumbRadiusPx, size.width - thumbRadiusPx)
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
+                        down.consume()
+                        dragging = true
+                        settleTarget = null
+                        var released = fractionAt(down.position.x)
+                        displayFraction = released
+                        onValueChange(valueRange.start + released * span)
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                change.consume()
+                                break
+                            }
+                            change.consume()
+                            released = fractionAt(change.position.x)
+                            displayFraction = released
+                            onValueChange(valueRange.start + released * span)
+                        }
+                        dragging = false
+                        settleTarget = released
+                        onValueChangeFinished()
+                    }
+                }
+        ) {
+            val thumbRadiusPx = CinefinProgressVisuals.ThumbRadius.toPx()
+            val trackHeightPx = CinefinProgressVisuals.TrackHeight.toPx()
+            val centerY = size.height / 2f
+            val startX = thumbRadiusPx
+            val endX = size.width - thumbRadiusPx
+            val thumbX = musicThumbX(size.width, thumbRadiusPx, displayFraction)
+            if (endX <= startX) return@Canvas
+            // 未播放段：细直线
+            drawLine(
+                color = colors.onSurface.copy(alpha = 0.12f * alpha),
+                start = Offset(startX, centerY),
+                end = Offset(endX, centerY),
+                strokeWidth = trackHeightPx,
+                cap = StrokeCap.Round,
+            )
+            // 已播放段：正弦波（暂停 / 减少动态时振幅为 0，压平成直线）
+            if (thumbX > startX) {
+                val densityScale = density.density
+                val bulgeCenterDp = if (dragging) (thumbX - startX) / densityScale else null
+                val wave = Path()
+                wave.moveTo(
+                    startX,
+                    centerY +
+                        musicWaveOffsetDp(
+                                distanceDp = 0f,
+                                phaseCycles = wavePhase,
+                                amplitudeDp = amplitude,
+                                bulgeCenterDp = bulgeCenterDp,
+                            )
+                            .dp
+                            .toPx(),
+                )
+                val stepPx = 2.dp.toPx()
+                var x = startX
+                while (x < thumbX) {
+                    x = (x + stepPx).coerceAtMost(thumbX)
+                    val distanceDp = (x - startX) / densityScale
+                    wave.lineTo(
+                        x,
+                        centerY +
+                            musicWaveOffsetDp(
+                                    distanceDp = distanceDp,
+                                    phaseCycles = wavePhase,
+                                    amplitudeDp = amplitude,
+                                    bulgeCenterDp = bulgeCenterDp,
+                                )
+                                .dp
+                                .toPx(),
+                    )
+                }
+                drawPath(
+                    path = wave,
+                    color = media.base.copy(alpha = alpha),
+                    style = Stroke(width = trackHeightPx, cap = StrokeCap.Round),
+                )
+            }
+            // 发光拖点 + 拇指（拖拽弹性放大）
+            val glowRadius = thumbRadiusPx * CinefinProgressVisuals.GlowScale * thumbScale
+            drawCircle(
+                brush =
+                    Brush.radialGradient(
+                        colors =
+                            listOf(
+                                media.base.copy(alpha = CinefinProgressVisuals.GlowAlpha * alpha),
+                                Color.Transparent,
+                            ),
+                        center = Offset(thumbX, centerY),
+                        radius = glowRadius,
+                    ),
+                radius = glowRadius,
+                center = Offset(thumbX, centerY),
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = alpha),
+                radius = thumbRadiusPx * thumbScale,
+                center = Offset(thumbX, centerY),
+            )
+        }
+        if (dragging) {
+            // 拖拽气泡：拇指上方 12dp，玻璃 chip（colors.glass + glassBorder + Xs）
+            val bubbleGapPx = with(density) { MusicSeekBubbleGapDp.dp.toPx() }
+            val thumbRadiusPx = with(density) { CinefinProgressVisuals.ThumbRadius.toPx() }
+            Text(
+                text = musicSeekBubbleText(value.roundToLong()),
+                style = CinefinType.LabelMedium,
+                color = colors.onSurface,
+                maxLines = 1,
+                modifier =
+                    Modifier.graphicsLayer {
+                            val thumbX =
+                                musicThumbX(barWidthPx.toFloat(), thumbRadiusPx, displayFraction)
+                            translationX = thumbX - size.width / 2f
+                            translationY = -size.height - bubbleGapPx
+                        }
+                        .clip(CinefinShapes.Xs)
+                        .background(colors.glass)
+                        .border(1.dp, colors.glassBorder, CinefinShapes.Xs)
+                        .padding(
+                            horizontal = CinefinSpacing.Space2,
+                            vertical = CinefinSpacing.Space1,
+                        ),
+            )
+        }
     }
 }
 
@@ -1360,9 +1828,15 @@ private fun PrimaryPlayButton(isPlaying: Boolean, onClick: () -> Unit) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    // W5-T3（MUSIC-40）：播 / 停脉冲 1 → 0.92 → 1（SpringOvershoot，一次往返）
+    val pulse = rememberPlayPulseScale(isPlaying)
     Box(
         modifier =
             Modifier.size(70.dp)
+                .graphicsLayer {
+                    scaleX = pulse.value
+                    scaleY = pulse.value
+                }
                 .clip(CinefinShapes.Xl)
                 .background(
                     if (pressed) {

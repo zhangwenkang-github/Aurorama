@@ -1,10 +1,13 @@
 package com.zhangwenkang.cinefin.core.presentation.theme
 
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.IntOffset
 
 /**
@@ -78,4 +81,33 @@ object CinefinMotion {
 
     /** 进度条释放回弹与章节吸附落位。 */
     val SpringSnap = spring<Float>(dampingRatio = 0.75f, stiffness = 600f)
+
+    /**
+     * W5-T3（MUSIC-39）：迷你播放条 ↔ 全屏播放页的容器变换展开（约 350–400ms 档）。
+     *
+     * 与 [SpringCollapse] 成对存在：展开比收起松、收起更快回。
+     */
+    val SpringExpand = spring<Float>(dampingRatio = 0.86f, stiffness = 300f)
+
+    /** W5-T3（MUSIC-39）：容器变换收起（约 300ms，更快回）。 */
+    val SpringCollapse = spring<Float>(dampingRatio = 1f, stiffness = 380f)
+
+    /**
+     * W5-T3（MUSIC-44）：减少动态时的降级时长。
+     *
+     * 「减少动画」开启后转场一律降级 `Crossfade(tween(150))`、弹簧降级 `tween(150)`；音乐动效包全部经 [reduceMotion] 走这一档。
+     */
+    const val ReducedMotionMillis = 150
+
+    /**
+     * W5-T3（MUSIC-44）：系统「减少动画」是否开启（`ANIMATOR_DURATION_SCALE == 0`）。
+     *
+     * 读取 `LocalContext` 的系统设置并在 composition 内缓存；设置变化由 [rememberReduceMotionEnabled] 的
+     * ContentObserver 触发重组，无需重启。
+     */
+    @Composable fun reduceMotion(): Boolean = rememberReduceMotionEnabled()
+
+    /** 减少动态时把任意动画规格换成 [ReducedMotionMillis] 的短 tween（弹簧 / 位移统一下降级）。 */
+    fun <T> reducedMotionSpec(reduceMotion: Boolean, spec: AnimationSpec<T>): AnimationSpec<T> =
+        if (reduceMotion) tween(durationMillis = ReducedMotionMillis) else spec
 }

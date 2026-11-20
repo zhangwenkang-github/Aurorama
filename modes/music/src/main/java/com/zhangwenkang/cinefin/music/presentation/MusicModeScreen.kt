@@ -6,9 +6,15 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -48,6 +54,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
@@ -59,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -83,6 +91,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -152,6 +161,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 internal object MusicSongActionsAccessibility {
     val contentDescriptionRes: Int = CoreR.string.music_song_actions
@@ -639,29 +649,51 @@ fun MusicModeScreen(
                             itemId = displayCurrentItem?.itemId?.toString(),
                             imageUri = displayCurrentItem?.thumbnailUri,
                         )
+                    // W5-T3（MUSIC-39）：展开全屏时迷你条同时 fadeOut(150)；全屏收起后重现 scaleIn(0.96) + fadeIn(200)
+                    val reduceMotion = CinefinMotion.reduceMotion()
                     CompositionLocalProvider(
                         LocalMediaColors provides (barMediaColors ?: LocalMediaColors.current)
                     ) {
-                        NowPlayingBar(
-                            item = displayCurrentItem,
-                            isPlaying = isPlaying,
-                            isRestored = isRestored && optimisticCurrentItem == null,
-                            positionMs = if (optimisticCurrentItem == null) positionMs else 0L,
-                            durationMs = if (optimisticCurrentItem == null) durationMs else 0L,
-                            fallbackDurationMs =
-                                viewModel
-                                    .songMeta(displayCurrentItem?.itemId)
-                                    ?.runtimeTicks
-                                    ?.div(TICKS_PER_MS) ?: 0L,
-                            // W5-T2（MUSIC-23）：左右滑切歌的邻曲封面（探入动画只用封面，不读邻曲元数据）。
-                            previousArtworkUri = liveQueue?.previousArtworkUri(),
-                            nextArtworkUri = liveQueue?.nextArtworkUri(),
-                            onOpenNowPlaying = { nowPlayingOpen = true },
-                            onPlayPause = viewModel::togglePlayPause,
-                            onPrevious = viewModel::skipToPrevious,
-                            onNext = viewModel::skipToNext,
-                            onClose = viewModel::dismissNowPlayingBar,
-                        )
+                        AnimatedVisibility(
+                            visible = !nowPlayingOpen,
+                            enter =
+                                if (reduceMotion) {
+                                    fadeIn(tween(CinefinMotion.ReducedMotionMillis))
+                                } else {
+                                    scaleIn(
+                                        initialScale = MusicMiniBarReappearScale,
+                                        animationSpec = CinefinMotion.SpringCollapse,
+                                    ) + fadeIn(tween(CinefinMotion.Fast))
+                                },
+                            exit =
+                                fadeOut(
+                                    tween(
+                                        if (reduceMotion) CinefinMotion.ReducedMotionMillis
+                                        else MusicMiniBarExpandFadeOutMillis
+                                    )
+                                ),
+                        ) {
+                            NowPlayingBar(
+                                item = displayCurrentItem,
+                                isPlaying = isPlaying,
+                                isRestored = isRestored && optimisticCurrentItem == null,
+                                positionMs = if (optimisticCurrentItem == null) positionMs else 0L,
+                                durationMs = if (optimisticCurrentItem == null) durationMs else 0L,
+                                fallbackDurationMs =
+                                    viewModel
+                                        .songMeta(displayCurrentItem?.itemId)
+                                        ?.runtimeTicks
+                                        ?.div(TICKS_PER_MS) ?: 0L,
+                                // W5-T2（MUSIC-23）：左右滑切歌的邻曲封面（探入动画只用封面，不读邻曲元数据）。
+                                previousArtworkUri = liveQueue?.previousArtworkUri(),
+                                nextArtworkUri = liveQueue?.nextArtworkUri(),
+                                onOpenNowPlaying = { nowPlayingOpen = true },
+                                onPlayPause = viewModel::togglePlayPause,
+                                onPrevious = viewModel::skipToPrevious,
+                                onNext = viewModel::skipToNext,
+                                onClose = viewModel::dismissNowPlayingBar,
+                            )
+                        }
                     }
                 }
 
@@ -672,51 +704,78 @@ fun MusicModeScreen(
             }
 
             val currentQueue = queue
-            if (nowPlayingOpen && currentQueue != null) {
-                MusicNowPlayingScreen(
-                    queue = currentQueue,
-                    lyricsState = lyricsState,
-                    isPlaying = isPlaying,
-                    isRestored = isRestored,
-                    positionMs = positionMs,
-                    durationMs = durationMs,
-                    meta = viewModel.songMeta(currentQueue.currentItem?.itemId),
-                    playMode = playMode,
-                    lyricsOverlayEnabled = lyricsOverlayState.enabled,
-                    onClose = { nowPlayingOpen = false },
-                    onPlayPause = viewModel::togglePlayPause,
-                    onPrevious = viewModel::skipToPrevious,
-                    onNext = viewModel::skipToNext,
-                    onSeek = viewModel::seekTo,
-                    onCyclePlayMode = viewModel::cyclePlayMode,
-                    onToggleLyricsOverlay = {
-                        when {
-                            lyricsOverlayState.enabled -> viewModel.toggleLyricsOverlay()
-                            Settings.canDrawOverlays(context) -> viewModel.enableLyricsOverlay()
-                            else -> overlayGuideOpen = true
-                        }
+            // W5-T3（MUSIC-39）：容器变换——全屏页 scaleIn(0.94, SpringExpand) + fadeIn(280)，收起 SpringCollapse
+            // + fadeOut(200)。
+            // 不做真共享元素（Kimi 定稿二 §2：用「全屏整体弹簧展开 + 迷你条同时淡出」近似）。
+            val playerReduceMotion = CinefinMotion.reduceMotion()
+            AnimatedVisibility(
+                visible = nowPlayingOpen && currentQueue != null,
+                enter =
+                    if (playerReduceMotion) {
+                        fadeIn(tween(CinefinMotion.ReducedMotionMillis))
+                    } else {
+                        scaleIn(
+                            initialScale = MusicFullScreenExpandScale,
+                            animationSpec = CinefinMotion.SpringExpand,
+                        ) + fadeIn(tween(CinefinMotion.Player))
                     },
-                    onOpenEffects = { effectsSheetOpen = true },
-                    onOpenQueue = { queueSheetOpen = true },
-                    onOpenSleepTimer = { sleepSheetOpen = true },
-                    onOpenArtist = { artistName ->
-                        nowPlayingOpen = false
-                        viewModel.openArtistByName(artistName)
+                exit =
+                    if (playerReduceMotion) {
+                        fadeOut(tween(CinefinMotion.ReducedMotionMillis))
+                    } else {
+                        scaleOut(
+                            targetScale = MusicFullScreenExpandScale,
+                            animationSpec = CinefinMotion.SpringCollapse,
+                        ) + fadeOut(tween(CinefinMotion.Fast))
                     },
-                    onJumpQueueItem = viewModel::jumpToQueueItem,
-                    onJumpUpNextItem = viewModel::jumpToUpNextItem,
-                    onMoveQueueItem = viewModel::moveQueueItem,
-                    onRemoveQueueItem = viewModel::removeQueueItem,
-                    onRemoveUpNextItem = viewModel::removeUpNextItem,
-                    onClearUpNext = viewModel::clearUpNext,
-                    onToggleFavorite = viewModel::toggleFavorite,
-                    onSelectLyricsLanguage = viewModel::selectLyricsLanguage,
-                    onToggleLyricsBilingual = viewModel::toggleLyricsBilingual,
-                    onToggleLyricsFollow = viewModel::toggleLyricsFollow,
-                    onSelectLyricsFontScale = viewModel::selectLyricsFontScale,
-                    onSelectLyricsLineSpacing = viewModel::selectLyricsLineSpacing,
-                    onSeekLyricLine = viewModel::seekToLyricLine,
-                )
+            ) {
+                if (currentQueue != null) {
+                    MusicNowPlayingScreen(
+                        queue = currentQueue,
+                        lyricsState = lyricsState,
+                        isPlaying = isPlaying,
+                        isRestored = isRestored,
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                        meta = viewModel.songMeta(currentQueue.currentItem?.itemId),
+                        playMode = playMode,
+                        lyricsOverlayEnabled = lyricsOverlayState.enabled,
+                        onClose = { nowPlayingOpen = false },
+                        onPlayPause = viewModel::togglePlayPause,
+                        onPrevious = viewModel::skipToPrevious,
+                        onNext = viewModel::skipToNext,
+                        onSeek = viewModel::seekTo,
+                        onCyclePlayMode = viewModel::cyclePlayMode,
+                        onToggleLyricsOverlay = {
+                            when {
+                                lyricsOverlayState.enabled -> viewModel.toggleLyricsOverlay()
+                                Settings.canDrawOverlays(context) -> viewModel.enableLyricsOverlay()
+                                else -> overlayGuideOpen = true
+                            }
+                        },
+                        onOpenEffects = { effectsSheetOpen = true },
+                        onOpenQueue = { queueSheetOpen = true },
+                        onOpenSleepTimer = { sleepSheetOpen = true },
+                        onOpenArtist = { artistName ->
+                            nowPlayingOpen = false
+                            viewModel.openArtistByName(artistName)
+                        },
+                        onJumpQueueItem = viewModel::jumpToQueueItem,
+                        onJumpUpNextItem = viewModel::jumpToUpNextItem,
+                        onMoveQueueItem = viewModel::moveQueueItem,
+                        onRemoveQueueItem = viewModel::removeQueueItem,
+                        onUndoQueueItem = viewModel::undoRemoveQueueItem,
+                        onRemoveUpNextItem = viewModel::removeUpNextItem,
+                        onClearUpNext = viewModel::clearUpNext,
+                        onToggleFavorite = viewModel::toggleFavorite,
+                        onSelectLyricsLanguage = viewModel::selectLyricsLanguage,
+                        onToggleLyricsBilingual = viewModel::toggleLyricsBilingual,
+                        onToggleLyricsFollow = viewModel::toggleLyricsFollow,
+                        onSelectLyricsFontScale = viewModel::selectLyricsFontScale,
+                        onSelectLyricsLineSpacing = viewModel::selectLyricsLineSpacing,
+                        onSeekLyricLine = viewModel::seekToLyricLine,
+                    )
+                }
             }
         }
 
@@ -768,6 +827,7 @@ fun MusicModeScreen(
                 onRemove = viewModel::removeQueueItem,
                 onRemoveUpNext = viewModel::removeUpNextItem,
                 onClearUpNext = viewModel::clearUpNext,
+                onUndoRemove = viewModel::undoRemoveQueueItem,
             )
         }
 
@@ -2291,6 +2351,9 @@ private const val MusicMiniBarTopHighlightAlpha = 0.06f
 private const val MusicMiniBarMarqueeRepeatDelayMillis = 1_200
 private val MusicMiniBarMarqueeVelocity = 30.dp
 private val MusicMiniBarWideBreakpoint = 840.dp
+
+/** 暂停时迷你条进度线 alpha（定稿一 §2 / MUSIC-40 后半：40% 静态）。 */
+private const val MusicMiniBarPausedProgressAlpha = 0.4f
 private val MusicMiniBarArtistStyle =
     CinefinType.BodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp)
 
@@ -2517,16 +2580,27 @@ private fun NowPlayingBar(
                             }
                     }
                 }
-                CinefinIconButton(onClick = onPlayPause) { tint ->
-                    Icon(
-                        painter =
-                            painterResource(
-                                if (isPlaying) CoreR.drawable.ic_pause else CoreR.drawable.ic_play
-                            ),
-                        contentDescription = if (isPlaying) "暂停" else "播放",
-                        tint = tint,
-                        modifier = Modifier.size(20.dp),
-                    )
+                // W5-T3（MUSIC-40）：迷你条播放键与全屏大键同一脉冲规格（1 → 0.92 → 1）
+                val playPulse = rememberPlayPulseScale(isPlaying)
+                Box(
+                    modifier =
+                        Modifier.graphicsLayer {
+                            scaleX = playPulse.value
+                            scaleY = playPulse.value
+                        }
+                ) {
+                    CinefinIconButton(onClick = onPlayPause) { tint ->
+                        Icon(
+                            painter =
+                                painterResource(
+                                    if (isPlaying) CoreR.drawable.ic_pause
+                                    else CoreR.drawable.ic_play
+                                ),
+                            contentDescription = if (isPlaying) "暂停" else "播放",
+                            tint = tint,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
                 CinefinIconButton(onClick = onNext) { tint ->
                     Icon(
@@ -2546,7 +2620,14 @@ private fun NowPlayingBar(
                     )
                 }
             }
-            // 极细进度线：贴条上缘 2dp，media.base（调色板覆盖后随封面色），暂停时 40% alpha 静态
+            // 极细进度线：贴条上缘 2dp，media.base（调色板覆盖后随封面色），暂停时 alpha 降到 40%（tween(Fast) 过渡）
+            val pausedAlpha = if (isPlaying) 1f else MusicMiniBarPausedProgressAlpha
+            val progressAlpha =
+                animateFloatAsState(
+                    targetValue = pausedAlpha,
+                    animationSpec = tween(CinefinMotion.Fast),
+                    label = "musicMiniBarProgressAlpha",
+                )
             Box(
                 modifier =
                     Modifier.align(Alignment.TopStart)
@@ -2558,7 +2639,8 @@ private fun NowPlayingBar(
                     modifier =
                         Modifier.fillMaxHeight()
                             .fillMaxWidth(progress)
-                            .background(media.base.copy(alpha = if (isPlaying) 1f else 0.4f))
+                            .graphicsLayer { alpha = progressAlpha.value }
+                            .background(media.base)
                 )
             }
         }
@@ -2912,6 +2994,8 @@ internal fun QueueSheet(
     onRemove: (Int) -> Unit,
     onRemoveUpNext: (Int) -> Unit,
     onClearUpNext: () -> Unit,
+    /** W5-T3：左滑移除的撤销（原位插回）。 */
+    onUndoRemove: ((Int, PlayerItem) -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     ModalBottomSheet(
@@ -2955,6 +3039,7 @@ internal fun QueueSheet(
                 onRemove = onRemove,
                 onRemoveUpNext = onRemoveUpNext,
                 onClearUpNext = onClearUpNext,
+                onUndoRemove = onUndoRemove,
                 modifier = Modifier.fillMaxWidth().weight(1f),
             )
             Spacer(modifier = Modifier.height(CinefinSpacing.Space4))
@@ -2963,10 +3048,13 @@ internal fun QueueSheet(
 }
 
 /**
- * 队列编辑列表体（W5 T1；W5 T5 双分区）：队列 sheet 与宽屏播放页右栏「队列」Tab 共用，行为与视觉同一份。
+ * 队列编辑列表体（W5 T1；W5 T5 双分区；W5 T3 动效）：队列 sheet 与宽屏播放页右栏「队列」Tab 共用，行为与视觉同一份。
  *
- * 分区：「接下来播放」（手动插入、优先消费、播完即出）在上，主队列在下。 主队列：长按右侧「≡」拖拽排序、点行跳转、左滑或 ✕ 移除；接下来播放：更轻视觉权重 + 左滑移除（滑出动效 token
- * 归 T3，这里只有普通位移 + 删除）。两种行共用 72dp 阈值与「未过阈值回位」口径。
+ * 分区：「接下来播放」（手动插入、优先消费、播完即出）在上，主队列在下。 主队列：长按右侧「≡」拖拽排序、点行跳转、左滑或 ✕ 移除；接下来播放：更轻视觉权重 + 左滑移除。两种行共用 72dp
+ * 阈值与「未过阈值回位」口径。
+ *
+ * W5-T3（MUSIC-42）：拖起条目 scale 1.02（`SpringControlIn`）+ 6dp 等效阴影 + `zIndex` 1，其余条目让位由 `animateItem` 的
+ * `SpringControlInOffset` 落位弹簧承担；左滑越过阈值先滑出再删除，主队列行给 3s「撤销」（原位插回）。
  */
 @Composable
 internal fun QueueListBody(
@@ -2978,173 +3066,266 @@ internal fun QueueListBody(
     onJumpUpNext: ((Int) -> Unit)? = null,
     onRemoveUpNext: ((Int) -> Unit)? = null,
     onClearUpNext: (() -> Unit)? = null,
+    /** W5-T3：左滑移除的撤销（原位插回）；null = 不提供撤销（只滑出 + 删除）。 */
+    onUndoRemove: ((Int, PlayerItem) -> Unit)? = null,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
-    val rowHeightPx = with(LocalDensity.current) { QueueRowHeight.toPx() }
-    val swipeThresholdPx = with(LocalDensity.current) { QueueSwipeRemoveThreshold.toPx() }
+    val density = LocalDensity.current
+    val rowHeightPx = with(density) { QueueRowHeight.toPx() }
+    val swipeThresholdPx = with(density) { QueueSwipeRemoveThreshold.toPx() }
+    val liftElevationPx = with(density) { MusicQueueLiftElevationDp.dp.toPx() }
     var draggingIndex by remember(queue) { mutableStateOf<Int?>(null) }
     var dragOffset by remember(queue) { mutableFloatStateOf(0f) }
-    LazyColumn(modifier = modifier) {
-        if (queue.upNext.isNotEmpty() || queue.upNextPlaying != null) {
-            item(key = "up-next-header") {
-                UpNextSectionHeader(count = queue.upNext.size, onClear = onClearUpNext)
-            }
-            // 正在播放的「接下来播放」条目已出列，但仍在时间线上：按「正在播放」展示，避免用户在队列里找不到当前曲
-            val playing = queue.upNextPlaying
-            if (playing != null) {
-                item(key = "up-next-playing") {
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    fun removeWithUndo(index: Int, item: PlayerItem) {
+        onRemove(index)
+        if (onUndoRemove == null) return
+        scope.launch {
+            // 定稿二 §8：撤销窗口 3s（超时即消失，撤销 = 原位插回）
+            val result =
+                withTimeoutOrNull(MusicQueueSwipeUndoMillis) {
+                    snackbarHostState.showSnackbar(
+                        message = "已移除「${item.name}」",
+                        actionLabel = "撤销",
+                        duration = SnackbarDuration.Indefinite,
+                    )
+                }
+            if (result == SnackbarResult.ActionPerformed) onUndoRemove(index, item)
+        }
+    }
+
+    Box(modifier = modifier) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            if (queue.upNext.isNotEmpty() || queue.upNextPlaying != null) {
+                item(key = "up-next-header") {
+                    UpNextSectionHeader(count = queue.upNext.size, onClear = onClearUpNext)
+                }
+                // 正在播放的「接下来播放」条目已出列，但仍在时间线上：按「正在播放」展示，避免用户在队列里找不到当前曲
+                val playing = queue.upNextPlaying
+                if (playing != null) {
+                    item(key = "up-next-playing") {
+                        UpNextRow(
+                            title = playing.name,
+                            position = -1,
+                            showDivider = true,
+                            enabled = false,
+                            isCurrent = true,
+                            onJump = {},
+                            onRemove = {},
+                        )
+                    }
+                }
+                itemsIndexed(
+                    items = queue.upNext,
+                    key = { index, item -> "up-next-$index-${item.itemId}" },
+                ) { index, item ->
                     UpNextRow(
-                        title = playing.name,
-                        position = -1,
-                        showDivider = true,
-                        enabled = false,
-                        isCurrent = true,
-                        onJump = {},
-                        onRemove = {},
+                        title = item.name,
+                        position = index,
+                        showDivider = index != queue.upNext.lastIndex,
+                        enabled = onRemoveUpNext != null,
+                        onJump = { onJumpUpNext?.invoke(index) },
+                        onRemove = { onRemoveUpNext?.invoke(index) },
+                    )
+                }
+                item(key = "main-queue-header") {
+                    Text(
+                        text = "播放队列",
+                        style = CinefinType.LabelMedium,
+                        color = colors.onSurfaceVariant,
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .padding(
+                                    top = CinefinSpacing.Space4,
+                                    bottom = CinefinSpacing.Space1,
+                                ),
                     )
                 }
             }
             itemsIndexed(
-                items = queue.upNext,
-                key = { index, item -> "up-next-$index-${item.itemId}" },
+                items = queue.items,
+                key = { index, item -> "main-$index-${item.itemId}" },
             ) { index, item ->
-                UpNextRow(
+                val isDragging = draggingIndex == index
+                val isCurrent =
+                    (index == queue.currentIndex && queue.upNextPlaying == null) ||
+                        item.itemId == queue.upNextPlaying?.itemId
+                var swipeOffsetX by remember(item.itemId) { mutableFloatStateOf(0f) }
+                var rowWidthPx by remember(item.itemId) { mutableIntStateOf(0) }
+                // 定稿二 §8：抬升 SpringControlIn、落位 SpringSnap
+                val liftScale =
+                    animateFloatAsState(
+                        targetValue = if (isDragging) MusicQueueLiftScale else 1f,
+                        animationSpec =
+                            if (isDragging) CinefinMotion.SpringControlIn
+                            else CinefinMotion.SpringSnap,
+                        label = "queueLiftScale",
+                    )
+                CinefinListRow(
                     title = item.name,
-                    position = index,
-                    showDivider = index != queue.upNext.lastIndex,
-                    enabled = onRemoveUpNext != null,
-                    onJump = { onJumpUpNext?.invoke(index) },
-                    onRemove = { onRemoveUpNext?.invoke(index) },
-                )
-            }
-            item(key = "main-queue-header") {
-                Text(
-                    text = "播放队列",
-                    style = CinefinType.LabelMedium,
-                    color = colors.onSurfaceVariant,
+                    isCurrent = isCurrent,
+                    showDivider = index != queue.items.lastIndex,
+                    onClick = { onJump(index) },
                     modifier =
-                        Modifier.fillMaxWidth()
-                            .padding(
-                                top = CinefinSpacing.Space4,
-                                bottom = CinefinSpacing.Space1,
-                            ),
-                )
-            }
-        }
-        itemsIndexed(
-            items = queue.items,
-            key = { index, item -> "main-$index-${item.itemId}" },
-        ) { index, item ->
-            val isDragging = draggingIndex == index
-            val isCurrent =
-                (index == queue.currentIndex && queue.upNextPlaying == null) ||
-                    item.itemId == queue.upNextPlaying?.itemId
-            var swipeOffsetX by remember(item.itemId) { mutableFloatStateOf(0f) }
-            CinefinListRow(
-                title = item.name,
-                isCurrent = isCurrent,
-                showDivider = index != queue.items.lastIndex,
-                onClick = { onJump(index) },
-                modifier =
-                    Modifier.zIndex(if (isDragging) 1f else 0f)
-                        .graphicsLayer {
-                            translationY = if (isDragging) dragOffset else 0f
-                            translationX = swipeOffsetX
-                        }
-                        // W5 T5r：主队列行左滑移除，阈值 / 回位口径与「接下来播放」行一致。
-                        // 正在播放行同样可滑（与点「✕」等价：移除后播放推进到下一时间线条目）。
-                        .pointerInput(index, item.itemId, queue.items.size) {
-                            detectHorizontalDragGestures(
-                                onDragEnd = {
-                                    if (swipeOffsetX <= -swipeThresholdPx) onRemove(index)
-                                    swipeOffsetX = 0f
-                                },
-                                onDragCancel = { swipeOffsetX = 0f },
-                                onHorizontalDrag = { change, amount ->
-                                    change.consume()
-                                    swipeOffsetX =
-                                        (swipeOffsetX + amount).coerceIn(-swipeThresholdPx * 2, 0f)
-                                },
-                            )
-                        }
-                        .background(
-                            if (isDragging) colors.surfaceContainerHigh else Color.Transparent
-                        ),
-                leading = {
-                    Box(
-                        modifier = Modifier.width(28.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        Text(
-                            text = (index + 1).toString().padStart(2, '0'),
-                            style = CinefinType.MonoDataSmall,
-                            color = if (isCurrent) media.bright else colors.onSurfaceFaint,
-                        )
-                    }
-                },
-                trailing = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isCurrent) {
-                            Text(
-                                text = "正在播放",
-                                style = CinefinType.BodySmall,
-                                color = media.bright,
-                            )
-                            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-                        }
-                        CinefinIconButton(onClick = { onRemove(index) }) { tint ->
-                            Icon(
-                                painter = painterResource(CoreR.drawable.ic_close),
-                                contentDescription = "从队列移除",
-                                tint = tint,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
-                        Box(
-                            modifier =
-                                Modifier.size(48.dp).pointerInput(index, queue.items.size) {
-                                    detectDragGesturesAfterLongPress(
-                                        onDragStart = {
-                                            draggingIndex = index
-                                            dragOffset = 0f
-                                        },
-                                        onDrag = { change, amount ->
-                                            change.consume()
-                                            dragOffset += amount.y
-                                        },
-                                        onDragEnd = {
-                                            val from = draggingIndex
-                                            if (from != null) {
-                                                val delta = (dragOffset / rowHeightPx).roundToInt()
-                                                val to =
-                                                    (from + delta).coerceIn(
-                                                        0,
-                                                        queue.items.lastIndex,
-                                                    )
-                                                if (to != from) onMove(from, to)
+                        Modifier.animateItem(placementSpec = CinefinMotion.SpringControlInOffset)
+                            .zIndex(if (isDragging) 1f else 0f)
+                            .onSizeChanged { rowWidthPx = it.width }
+                            .graphicsLayer {
+                                translationY = if (isDragging) dragOffset else 0f
+                                translationX = swipeOffsetX
+                                scaleX = liftScale.value
+                                scaleY = liftScale.value
+                                if (isDragging) {
+                                    shape = RectangleShape
+                                    shadowElevation = liftElevationPx
+                                }
+                            }
+                            // W5 T5r：主队列行左滑移除，阈值 / 回位口径与「接下来播放」行一致。
+                            // 正在播放行同样可滑（与点「✕」等价：移除后播放推进到下一时间线条目）。
+                            // W5 T3：越过阈值先滑出再删除；未过阈值 SpringSnap 回位。
+                            .pointerInput(index, item.itemId, queue.items.size) {
+                                detectHorizontalDragGestures(
+                                    onDragEnd = {
+                                        if (
+                                            musicQueueSwipeRemoves(
+                                                offsetPx = swipeOffsetX,
+                                                thresholdPx = swipeThresholdPx,
+                                            )
+                                        ) {
+                                            scope.launch {
+                                                animate(
+                                                    initialValue = swipeOffsetX,
+                                                    targetValue = -rowWidthPx.toFloat(),
+                                                    animationSpec =
+                                                        tween(
+                                                            CinefinMotion.Fast,
+                                                            easing = CinefinMotion.Accelerate,
+                                                        ),
+                                                ) { value, _ ->
+                                                    swipeOffsetX = value
+                                                }
+                                                removeWithUndo(index, item)
                                             }
-                                            draggingIndex = null
-                                            dragOffset = 0f
-                                        },
-                                        onDragCancel = {
-                                            draggingIndex = null
-                                            dragOffset = 0f
-                                        },
-                                    )
-                                },
-                            contentAlignment = Alignment.Center,
+                                        } else {
+                                            scope.launch {
+                                                animate(
+                                                    initialValue = swipeOffsetX,
+                                                    targetValue = 0f,
+                                                    animationSpec = CinefinMotion.SpringSnap,
+                                                ) { value, _ ->
+                                                    swipeOffsetX = value
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        scope.launch {
+                                            animate(
+                                                initialValue = swipeOffsetX,
+                                                targetValue = 0f,
+                                                animationSpec = CinefinMotion.SpringSnap,
+                                            ) { value, _ ->
+                                                swipeOffsetX = value
+                                            }
+                                        }
+                                    },
+                                    onHorizontalDrag = { change, amount ->
+                                        change.consume()
+                                        swipeOffsetX =
+                                            (swipeOffsetX + amount).coerceIn(
+                                                -swipeThresholdPx * 2,
+                                                0f,
+                                            )
+                                    },
+                                )
+                            }
+                            .background(
+                                if (isDragging) colors.surfaceContainerHigh else Color.Transparent
+                            ),
+                    leading = {
+                        Box(
+                            modifier = Modifier.width(28.dp),
+                            contentAlignment = Alignment.CenterStart,
                         ) {
                             Text(
-                                text = "≡",
-                                style = CinefinType.TitleMedium,
-                                color = colors.onSurfaceVariant,
+                                text = (index + 1).toString().padStart(2, '0'),
+                                style = CinefinType.MonoDataSmall,
+                                color = if (isCurrent) media.bright else colors.onSurfaceFaint,
                             )
                         }
-                    }
-                },
-            )
+                    },
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isCurrent) {
+                                Text(
+                                    text = "正在播放",
+                                    style = CinefinType.BodySmall,
+                                    color = media.bright,
+                                )
+                                Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
+                            }
+                            CinefinIconButton(onClick = { onRemove(index) }) { tint ->
+                                Icon(
+                                    painter = painterResource(CoreR.drawable.ic_close),
+                                    contentDescription = "从队列移除",
+                                    tint = tint,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                            Box(
+                                modifier =
+                                    Modifier.size(48.dp).pointerInput(index, queue.items.size) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                draggingIndex = index
+                                                dragOffset = 0f
+                                            },
+                                            onDrag = { change, amount ->
+                                                change.consume()
+                                                dragOffset += amount.y
+                                            },
+                                            onDragEnd = {
+                                                val from = draggingIndex
+                                                if (from != null) {
+                                                    val to =
+                                                        musicQueueDropTarget(
+                                                            fromIndex = from,
+                                                            dragOffsetPx = dragOffset,
+                                                            rowHeightPx = rowHeightPx,
+                                                            lastIndex = queue.items.lastIndex,
+                                                        )
+                                                    if (to != from) onMove(from, to)
+                                                }
+                                                draggingIndex = null
+                                                dragOffset = 0f
+                                            },
+                                            onDragCancel = {
+                                                draggingIndex = null
+                                                dragOffset = 0f
+                                            },
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "≡",
+                                    style = CinefinType.TitleMedium,
+                                    color = colors.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    },
+                )
+            }
         }
+        CinefinSnackbarHost(
+            hostState = snackbarHostState,
+            modifier =
+                Modifier.align(Alignment.BottomCenter).padding(horizontal = CinefinSpacing.Space4),
+        )
     }
 }
 
@@ -3191,19 +3372,62 @@ private fun UpNextRow(
     val media = LocalMediaColors.current
     val thresholdPx = with(LocalDensity.current) { QueueSwipeRemoveThreshold.toPx() }
     var translationX by remember(title, position) { mutableFloatStateOf(0f) }
+    var rowWidthPx by remember(title, position) { mutableIntStateOf(0) }
+    val scope = rememberCoroutineScope()
     Column {
         Row(
             modifier =
                 Modifier.fillMaxWidth()
+                    .onSizeChanged { rowWidthPx = it.width }
                     .offset { IntOffset(translationX.roundToInt(), 0) }
                     .pointerInput(title, position, enabled) {
                         if (!enabled) return@pointerInput
                         detectHorizontalDragGestures(
                             onDragEnd = {
-                                if (translationX <= -thresholdPx) onRemove()
-                                translationX = 0f
+                                if (
+                                    musicQueueSwipeRemoves(
+                                        offsetPx = translationX,
+                                        thresholdPx = thresholdPx,
+                                    )
+                                ) {
+                                    // W5-T3（MUSIC-42）：越过阈值先滑出再删除
+                                    scope.launch {
+                                        animate(
+                                            initialValue = translationX,
+                                            targetValue = -rowWidthPx.toFloat(),
+                                            animationSpec =
+                                                tween(
+                                                    CinefinMotion.Fast,
+                                                    easing = CinefinMotion.Accelerate,
+                                                ),
+                                        ) { value, _ ->
+                                            translationX = value
+                                        }
+                                        onRemove()
+                                    }
+                                } else {
+                                    scope.launch {
+                                        animate(
+                                            initialValue = translationX,
+                                            targetValue = 0f,
+                                            animationSpec = CinefinMotion.SpringSnap,
+                                        ) { value, _ ->
+                                            translationX = value
+                                        }
+                                    }
+                                }
                             },
-                            onDragCancel = { translationX = 0f },
+                            onDragCancel = {
+                                scope.launch {
+                                    animate(
+                                        initialValue = translationX,
+                                        targetValue = 0f,
+                                        animationSpec = CinefinMotion.SpringSnap,
+                                    ) { value, _ ->
+                                        translationX = value
+                                    }
+                                }
+                            },
                             onHorizontalDrag = { change, amount ->
                                 change.consume()
                                 translationX =
