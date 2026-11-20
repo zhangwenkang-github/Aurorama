@@ -17,6 +17,7 @@ import com.zhangwenkang.cinefin.player.core.domain.models.isValidShuffleOrder
 import com.zhangwenkang.cinefin.player.core.domain.models.priorityShuffleOrder
 import com.zhangwenkang.cinefin.player.local.audio.MUSIC_DEFAULT_PLAYBACK_SPEED
 import com.zhangwenkang.cinefin.player.local.audio.MusicAudioEffectsController
+import com.zhangwenkang.cinefin.player.local.audio.MusicCrossfadeEligibility
 import com.zhangwenkang.cinefin.player.local.audio.MusicCrossfadeMath
 import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
 import com.zhangwenkang.cinefin.player.local.audio.ReplayGainReadResult
@@ -90,9 +91,15 @@ constructor(
     private var lastCrossfadeLogAtMs = 0L
     private var lastSleepFadeLogAtMs = 0L
 
+    /** W5-T7：本曲是否允许淡化（只有队列自然推进进入的曲目为 true）。 */
+    private val crossfadeEligibility = MusicCrossfadeEligibility()
+
     private val playerListener =
         object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                // W5-T7：先登记资格——AUTO 切歌可淡化，手动切歌（SEEK）/ 换队列（PLAYLIST_CHANGED）不可；
+                // 后面的早退分支不能漏掉这条状态。
+                crossfadeEligibility.onMediaItemTransition(reason)
                 if (!playerHolder.musicSessionActive) return
                 val player = playerHolder.existingPlayer ?: return
                 if (!player.isPlayingMusicItem()) return
@@ -129,6 +136,15 @@ constructor(
                     player.currentPosition.coerceAtLeast(0L),
                     isPaused = !playWhenReady,
                 )
+            }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int,
+            ) {
+                // W5-T7：用户拖进度 → 本曲资格清除（本次播放内不再淡化，含曲尾）
+                crossfadeEligibility.onPositionDiscontinuity(reason)
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
@@ -222,6 +238,8 @@ constructor(
         val normalized =
             queue.copy(currentIndex = normalizeStartIndex(startIndex, queue.items.size))
         _queue.value = normalized
+        // W5-T7：换队列重新开始 → 淡化资格复位（随后由 PLAYLIST_CHANGED 过渡保持"不可淡化"）
+        crossfadeEligibility.reset()
         playbackJob?.cancel()
         playbackJob = scope.launch {
             try {
@@ -516,6 +534,8 @@ constructor(
         _durationMs.value = 0L
         _isPlaying.value = false
         audioEffects.clearCurrentTrack()
+        // W5-T7：会话结束，淡化资格归零
+        crossfadeEligibility.reset()
         // W5-T6：音乐会话结束，清掉「播完当前曲目停止」的挂起状态
         sleepTimer.clearStopAfterCurrentTrack()
 
@@ -728,6 +748,7 @@ constructor(
      *
      * - 音乐会话结束 / 无任何淡出：复位为 1（不残留）；
      * - 交叉淡化：`Player.volume` = [MusicCrossfadeMath.crossfadeVolume]（等功率，与 gapless 不冲突），暂停中保持当前值；
+     *   W5-T7：只有队列自然推进进入的曲目（[MusicCrossfadeEligibility]）才淡化，手动切歌 / 拖进度 / 短曲恒 1；
      * - 睡眠定时：末 [SleepTimerSpec.FADE_OUT_MS] 秒叠乘 [SleepTimerSpec.fadeOutGain]（同一 `Player.volume`
      *   包络通路），到点暂停后由 [SleepTimerController] 复位为 1。
      */
@@ -738,10 +759,11 @@ constructor(
             return
         }
         val fadeMs = audioEffects.crossfadeSeconds.value * 1_000L
+        val eligible = crossfadeEligibility.eligible
         val sleepGain = sleepTimer.volumeGain()
         if (!player.isPlaying && sleepGain >= 0.999f) {
-            // 交叉淡化暂停中保持当前包络值（旧行为）；关闭淡化时复位 1
-            if (fadeMs <= 0L && player.volume != 1f) player.volume = 1f
+            // 交叉淡化暂停中保持当前包络值（旧行为）；关闭淡化 / 本曲无资格时复位 1
+            if ((fadeMs <= 0L || !eligible) && player.volume != 1f) player.volume = 1f
             return
         }
         val crossfadeGain =
@@ -754,6 +776,7 @@ constructor(
                         positionMs = player.currentPosition.coerceAtLeast(0L),
                         durationMs = duration,
                         fadeMs = fadeMs,
+                        eligible = eligible,
                     )
                 }
             } else {

@@ -38,10 +38,11 @@ import com.zhangwenkang.cinefin.player.local.audio.MusicEqualizerFrequencies
 import com.zhangwenkang.cinefin.player.local.audio.MusicEqualizerPreset
 import com.zhangwenkang.cinefin.player.local.audio.ReplayGainMode
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
- * 音效面板（W30-MUSIC-FX + W35；W5-T6 升 10 段并补倍速 / 输出信息入口）：EQ（预设 + 十段自定义）、ReplayGain 三态 + 本机增益覆盖、淡入淡出档位、
- * 播放速度、输出信息。
+ * 音效面板（W30-MUSIC-FX + W35；W5-T6 升 10 段并补倍速 / 输出信息入口）：EQ（预设 + 十段自定义）、ReplayGain 三态 + 本机增益覆盖、
+ * 淡化时长（W5-T7：0–12s 连续可调）、播放速度、输出信息。
  *
  * 入口 = 全屏播放页功能行「音效」；只作用于音乐会话（播放链按会话门控，视频不受影响）。
  */
@@ -202,24 +203,14 @@ fun MusicEffectsSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ---------- 淡入淡出 ----------
+            // ---------- 淡入淡出（W5-T7 · MUSIC-06：0–12s 连续可调） ----------
             SectionTitle("淡入淡出")
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(MusicCrossfadeMath.CROSSFADE_OPTIONS.size) { index ->
-                    val seconds = MusicCrossfadeMath.CROSSFADE_OPTIONS[index]
-                    FilterChip(
-                        selected = crossfadeSeconds == seconds,
-                        onClick = { onSelectCrossfade(seconds) },
-                        label = { Text(if (seconds == 0) "关闭" else "${seconds} 秒") },
-                    )
-                }
-            }
+            CrossfadeSecondsRow(
+                crossfadeSeconds = crossfadeSeconds,
+                onSelect = onSelectCrossfade,
+            )
             Text(
-                text = "曲尾淡出 + 曲首淡入（无重叠近似），内核仍无缝衔接下一首；默认关闭。",
+                text = "曲尾淡出 + 曲首淡入（无重叠近似），内核仍无缝衔接下一首；仅队列自然播放到下一首时生效，默认关闭。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
@@ -332,6 +323,35 @@ private fun EqualizerBandRow(
         )
     }
 }
+
+/** 交叉淡化时长（W5-T7 · MUSIC-06）：0 = 关闭，0–12 秒连续可调（1 秒步进）。 */
+@Composable
+private fun CrossfadeSecondsRow(
+    crossfadeSeconds: Int,
+    onSelect: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(text = "淡化时长", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = formatCrossfadeSeconds(crossfadeSeconds),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        CinefinSlider(
+            value = crossfadeSeconds.toFloat(),
+            onValueChange = { value -> onSelect(value.roundToInt()) },
+            valueRange = 0f..MusicCrossfadeMath.CROSSFADE_MAX_SECONDS.toFloat(),
+            steps = MusicCrossfadeMath.CROSSFADE_MAX_SECONDS - 1,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+private fun formatCrossfadeSeconds(seconds: Int): String =
+    if (seconds <= 0) "关闭" else "${seconds} 秒"
 
 /** 本机增益覆盖滑杆：未设置时显示"未设置"、滑杆停在 0；拖动实时生效，松手落盘。 */
 @Composable
