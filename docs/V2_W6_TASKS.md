@@ -1,12 +1,18 @@
 # 2.0 W6 · 阅读域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-21 **W6 会话1 开工**：T0 现状核对完成 = ✅9/⚠️17/❌22；设计定稿八节已落；任务卡 T1–T11 已定稿待派）
+> 状态：`ACTIVE`（2026-11-21 **W6 会话2**：T1、T7 已合入，T8-spike 完成→官方 Decoration API 可用（方案 A）；T2–T6 待派）
 > 依据：`docs/V2_REQUIREMENTS.md` §5（V2-READER 全 48 条）与 §15 波次（W6 ← W3）；设计唯一权威 `docs/V2_DESIGN.md` + 本文档「设计定稿」；token 与动效沿用 W1/W3/W4 落地件（`core/presentation/theme/`）。
 
 ## 状态块（新会话先读这里）
 
 - 分支：`codex/v2-integration`；W6 开工基线 = W5 收官 HEAD（`4219fe7e`，以 git log 为准）。
-- **会话1（2026-11-21）**：T0 现状核对完成（Kimi 亲自，对照 §5 全 48 条，逐条归证见下文「T0 现状核对」）；设计定稿八节定稿（Kimi，deepseek 零设计权）；任务卡 T1–T11 定稿待派。下一步 = 按依赖顺序派 T1。
+- **会话2（2026-11-21）**：首批三卡并行派出并收口——
+  - **T1 沉浸控制层与手势重排 ✅ 已合入** `436aaf07`（沉浸全屏、顶片/底片控制层覆盖叠加、单击三分区（反转/关闭两设置项）、双击书签回调占位、返回键先关控制层；204 单测绿）。上报偏差：glass 的 `blur 24` 未实现（Compose 无 backdrop blur，沿用工程既有「半透明无实时模糊」口径，待 Kimi 裁定）；双击中区=PDF 适宽快捷入口随手势重排移除（如需保留待设计补入口）。
+  - **T7 TXT 支持与导入 ✅ 已合入** `d238397d`（嗅探 UTF-8/GBK + 二进制防护、纯 JVM TXT→最小 EPUB3 转换器、可配置分章正则 `pref_reader_txt_chapter_regex`（仅模型无 UI）、书架导入 FAB→SAF 持久授权→直接进阅读器；16+8 单测绿）。遗留：导入书不进书架列表（data 层白名单/单文件登记，归 T10）；真机验证（Readium 打开缓存 EPUB、GBK 渲染、SAF 授权跨重启）待 K60。
+  - **T8-spike ✅ 完成**（结论见下「T8-spike 结论」）。
+  - T1/T7 真机取证（沉浸/控制层/三分区/TXT 导入链路）**未做**，归会话3 Kimi 在 K60 统一执行；T2–T6 待派。
+- **T8-spike 结论（2026-11-21，反编译 AAR + 官方 3.4.0 源码交叉核实）**：**方案 A 成立，走官方 Decoration API，不启用降级**。要点：① 选择回调无 `SelectionListener`，用 `Configuration.selectionActionModeCallback`（替换系统选择菜单）+ `currentSelection(): Selection(locator, rect)`（rect 为导航器 view 坐标，可直接锚浮动工具栏）；② Decoration 完整：`applyDecorations` 整组替换、`Style.Highlight(tint)` 支持 alpha（模板级 0.28）与**圆角**（`cornerRadius`，定稿五圆角观察项撤销）、`addDecorationListener` 点击回调带 rect、分页/滚动均支持、换页自动重放；③ Readium 3.x **无 CFI**：定位=整条 `Locator.toJSON()` 落盘（字段名 `locatorJson`），渲染靠 `Text` 文本引用 + `cssSelector`（后者走 `otherLocations` 往返无损）；④ 精确性风险：`currentSelection()` 的 locator 无选区级 `cssSelector`，短句重复文本可能错位 → T8 实现走「路径 2」：官方 `registerJavascriptInterface` + 注入 JS 在 selectionchange 时补算 cssSelector/progression，选区稳定时先捕获快照（`onActionItemClicked` 会先 clearFocus，不可点击时再取）；⑤ 待真机验证一项：`onCreateActionMode` 返回 false 抑制系统菜单后选区是否保留（保底：返回 true + 单条不可见项）。R1 风险降级为「已核实，剩 1 项真机待验」。定稿五两处口径修正：「cfi」→「Locator JSON」；圆角观察项删除。
+- **会话1（2026-11-21）**：T0 现状核对完成（Kimi 亲自，对照 §5 全 48 条，逐条归证见下文「T0 现状核对」）；设计定稿八节定稿（Kimi，deepseek 零设计权）；任务卡 T1–T11 定稿待派。
 - **现状基线（T0 要点）**：现有阅读器 = EPUB（Readium 3.4.0 Fragment 内核）+ PDF/CBZ（自研页源 `SimpleBookView`）双引擎；已具备：流式远程首开（EPUB/CBZ）、locator 进度持久化+30s 定时上报+离线暂存回传、书签（仅 EPUB）、PDF 全书搜索、PDF 矩形批注、亮度手势+HUD、滚动/分页/双栏三模式、RTL、五套阅读主题（纸色/护眼/深色/OLED/跟随）。缺口集中在：沉浸控制层、底部进度条+章节刻度、目录、翻页动画、音量键/键盘翻页、EPUB 划词高亮+笔记、TTS 全套、TXT 导入、Markdown 导出、书架语义（最近阅读/进度/移出）。
 - **两条已定稿的 ⚠️ 预案**（与 W5 三 ⚠️ 同流程，收官判定时按此口径）：
   1. **EPUB 仿真/覆盖翻页**：Readium 内核只支持滑动，容器快照方案伪影风险高。定稿 = 覆盖/仿真只在自研页引擎（PDF/CBZ）实现；EPUB 提供「滑动（默认）/ 无动画」两档。EPUB 仿真收官记 ⚠️ → backlog。
@@ -194,11 +200,11 @@ W5 参考口径（只读状态块，不通读）：docs/V2_W5_TASKS.md。
 ### 定稿五 · EPUB 划词高亮与笔记（READER-23–29，T8 依据）
 
 1. **数据模型**（新 `BookAnnotation`，与 PDF 矩形批注并存不合并）：
-   `id / bookId / chapterHref / cfi(range 定位，Readium Locator JSON 序列化) / highlightColor(具名枚举 yellow|blue|pink|green) / noteText / selectedText(≤200 字，列表展示与导出用) / createdAt / updatedAt`。
+   `id / bookId / chapterHref / locatorJson(range 定位，整条 Readium Locator JSON 序列化——3.x 无 CFI 概念) / highlightColor(具名枚举 yellow|blue|pink|green) / noteText / selectedText(≤200 字，列表展示与导出用) / createdAt / updatedAt`。
    持久化：`filesDir/reader/epub_annotations/{itemId}.json`（沿用 PDF 批注的文件制+版本号模式，version=1）。定位只存 CFI/locator，**禁止像素坐标**；章节树与元数据字段（`chapterTitle`、`spineIndex`）一并写入，供导出。
 2. **交互**：长按正文 → 系统选择手柄 + 自定义浮动工具栏（选区上方，贴边翻转下方）：`高亮(展开四色) | 想法 | 复制 | 搜索 | 词典`（词典=调系统 `ACTION_DEFINE`/网页搜索 Intent，失败降级复制链接，不内置在线服务）。点击已有高亮 → 底部小面板：改色（四色）/编辑笔记/删除/跳转。
-3. **渲染**：Readium `Decoration.Style.Highlight`（alpha 0.28、圆角 2dp——Readium 不支持圆角则记观察项），tint = 高亮枚举色；不遮字（底色混合）。
-4. **spike 前置**（≤半天）：验证 Readium 3.4.0 `EpubNavigatorFragment` 的选择回调与 `addDecoration` 可用性；不可用 → 降级方案 = JS 注入 `selectionchange`，`Range` → CFI 用 Readium JS 侧能力或自算（仍 locator 持久化）。spike 结论写回状态块再动实现。
+3. **渲染**：Readium `Decoration.Style.Highlight`（模板 alpha 0.28、`cornerRadius` 2dp——spike 已证实圆角原生支持），tint = 高亮枚举色；不遮字（底色混合，观感偏暗则开 `experimentalPositioning` 压到文字下）。
+4. **spike 前置**：✅ 已完成（2026-11-21 会话2），结论 = 官方 Decoration API 可用（方案 A），选择与精度细节见状态块「T8-spike 结论」；降级方案（JS 注入 selectionchange 自算）仅保留为历史备选，不启用。
 
 ### 定稿六 · TTS 听书（READER-32–36，T9 依据）
 
@@ -289,11 +295,13 @@ W5 参考口径（只读状态块，不通读）：docs/V2_W5_TASKS.md。
 - **验收要点**：fixture TXT（含 GBK）转换后 Readium 打开、分章目录正确、进度/设置/高亮链路继承；导入失败有用户可见错误；转换器与嗅探单测（含编码误判防护）。
 - **门禁**：modes/book + app/phone 相关单测 + ktfmt + assembleDebug。
 
-### T8 · EPUB 划词高亮与笔记（READER-23–29）— spike 前置
+### T8 · EPUB 划词高亮与笔记（READER-23–29）
 
-- **目标**：spike（≤半天）验证 Readium 3.4.0 选择回调 + `addDecoration`；然后按定稿五实现：长按选择 + 浮动工具栏（高亮四色/想法/复制/搜索/词典 Intent）、`BookAnnotation` 模型与文件持久化、Decoration 渲染、点高亮改色/编辑/删除。
+> **spike 已完成（2026-11-21）**：官方 Decoration API 可用，不降级。实现要点（详据见状态块「T8-spike 结论」）：`selectionActionModeCallback` 替换系统选择菜单（`onCreateActionMode` 返回 false 抑制菜单是否保留选区需真机首验，保底返回 true+单条不可见项）；选区快照在选区稳定时**先捕获**（点击回调里系统已 clearFocus）；locator 持久化 = 整条 `Locator.toJSON()`（无 CFI 概念），精确性用 `registerJavascriptInterface` 注入 JS 补算 `cssSelector`/`progression`（放 `otherLocations`）；渲染 `applyDecorations` 整组替换 + `Style.Highlight(tint)`（模板 `cornerRadius=2`、`alpha=0.28`，观感偏暗再开 `experimentalPositioning`）；点击高亮走 `addDecorationListener` 的 `onDecorationActivated`（`extras` 带 annotationId）。FXL 不支持（`supportsDecorationStyle` 判定）。
+
+- **目标**：按定稿五 + 上方 spike 结论实现：长按选择 + 浮动工具栏（高亮四色/想法/复制/搜索/词典 Intent）、`BookAnnotation` 模型与文件持久化、Decoration 渲染、点高亮改色/编辑/删除。
 - **文件边界**：新增 `reader/EpubAnnotation.kt`（模型+codec，纯 JVM）、`reader/EpubSelectionToolbar.kt`；`ReadiumEpubView.kt`、`ReaderViewModel.kt`、`ReaderScreen.kt`（标注列表面板并入「更多」）；spike 临时代码不入库。
-- **验收要点**：CFI/locator 持久化（禁像素坐标）；字号/布局变更后高亮还原；颜色具名枚举落盘；spike 结论与降级决策写回状态块；模型 codec/容错单测。
+- **验收要点**：locator JSON 持久化（禁像素坐标）；字号/布局变更后高亮还原（重复文本场景靠注入补算的 cssSelector 保证）；颜色具名枚举落盘；模型 codec/容错单测。
 - **门禁**：modes/book 单测 + ktfmt + assembleDebug。
 
 ### T9 · TTS 听书（READER-32–36）
