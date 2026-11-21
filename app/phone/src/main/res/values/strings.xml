@@ -59,4 +59,6 @@
     <string name="media_batch_episode_selection_all_skipped">%1$d selected episode(s) are already downloaded or queued.</string>
     <string name="media_batch_episode_downloaded">Downloaded</string>
     <string name="media_batch_episode_queued">In download queue</string>
+    <string name="bookshelf_import_book">Import books</string>
+    <string name="bookshelf_import_unsupported">Only EPUB / TXT can be imported (%1$s)</string>
 </resources>

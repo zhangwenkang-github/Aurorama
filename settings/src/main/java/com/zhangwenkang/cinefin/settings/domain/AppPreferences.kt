@@ -306,6 +306,14 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 漫画右起翻页（RTL）：只影响 PDF / CBZ 的分页 / 双栏方向；滚动模式保持纵向顺序。 */
     val readerRtl = Preference("pref_reader_rtl", false)
 
+    /**
+     * TXT 分章正则（W6-T7）：TXT 导入时按它切章；空串 / 非法正则回落 [TxtChapterRules.DEFAULT_CHAPTER_REGEX]。
+     *
+     * 本次只落模型与默认值，设置面板入口后续补（任务卡 T7 口径）。
+     */
+    val readerTxtChapterRegex =
+        Preference("pref_reader_txt_chapter_regex", TxtChapterRules.DEFAULT_CHAPTER_REGEX)
+
     // Migrations
     val mpvMigrated = Preference("mpv_migrated", false)
 

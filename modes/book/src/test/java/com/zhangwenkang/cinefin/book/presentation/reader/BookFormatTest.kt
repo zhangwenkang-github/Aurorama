@@ -1,6 +1,7 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
 import java.io.File
+import java.nio.charset.Charset
 import java.nio.file.Files
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -57,8 +58,23 @@ class BookFormatTest {
     @Test
     fun `未知内容不误判`() {
         val file = tempFile("unknown.book")
-        file.writeBytes("随便一段文本".toByteArray())
+        // 二进制（含 NUL 与控制字符）：既不是 ZIP / PDF，也过不了 TXT 的文本探测。
+        file.writeBytes(ByteArray(512) { ((it * 31 + 7) % 256).toByte() })
         assertEquals(BookFormat.Unknown, sniffBookFormat(file))
+    }
+
+    @Test
+    fun `UTF-8 纯文本识别为 TXT`() {
+        val file = tempFile("novel.book")
+        file.writeBytes("第一章 起风了\n夜里下雨了。\n".toByteArray(Charsets.UTF_8))
+        assertEquals(BookFormat.Txt, sniffBookFormat(file))
+    }
+
+    @Test
+    fun `GBK 纯文本识别为 TXT`() {
+        val file = tempFile("gbk-novel.book")
+        file.writeBytes("第一章 起风了\n夜里下雨了。\n".toByteArray(Charset.forName("GBK")))
+        assertEquals(BookFormat.Txt, sniffBookFormat(file))
     }
 
     private fun tempFile(name: String): File =

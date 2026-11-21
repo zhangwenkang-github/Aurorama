@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.SystemClock
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,6 +16,7 @@ import com.zhangwenkang.cinefin.repository.ReadingProgress
 import com.zhangwenkang.cinefin.repository.RemoteBookSource
 import com.zhangwenkang.cinefin.repository.progressionToTicks
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.TxtChapterRules
 import com.zhangwenkang.cinefin.utils.RemoteComicArchive
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -82,6 +84,9 @@ private const val REMOTE_OPEN_TIMEOUT_MS = 90_000L
  * EPUB（Readium）与 CBZ（远端页源），不必先读一遍中央目录。
  */
 private const val REMOTE_SNIFF_BYTES = 1024
+
+/** W6-T7：TXT 转出的缓存 EPUB 目录（应用缓存，系统可清；重建内容确定，locator 不受影响）。 */
+private const val TXT_EPUB_CACHE_DIR = "reader-txt"
 
 sealed interface ReaderUiState {
     data object Loading : ReaderUiState
@@ -1270,6 +1275,18 @@ constructor(
                 }
             }
 
+            BookFormat.Txt -> {
+                val id = localItemIdFor(file.absolutePath)
+                openTxt(
+                    readSource = { file.readBytes() },
+                    title = TxtToEpub.titleOf(file.name),
+                    bookId = id,
+                    cacheKey = id.toString(),
+                    stamp = "${file.length()}-${file.lastModified()}",
+                    progress = progress,
+                )
+            }
+
             BookFormat.Epub,
             BookFormat.Unknown -> openReadium(file, progress)
         }
@@ -1301,6 +1318,21 @@ constructor(
                     source.close()
                     openReadium(uri, progress)
                 }
+            }
+
+            BookFormat.Txt -> {
+                val id = localItemIdFor(uri.toString())
+                openTxt(
+                    readSource = {
+                        context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: throw IllegalStateException("无法读取 TXT 文件")
+                    },
+                    title = TxtToEpub.titleOf(localDisplayName(uri) ?: "未命名书籍"),
+                    bookId = id,
+                    cacheKey = id.toString(),
+                    stamp = localDocumentStamp(uri),
+                    progress = progress,
+                )
             }
 
             BookFormat.Epub,
@@ -1362,6 +1394,94 @@ constructor(
                     ?.takeIf { it.progression > 0.0 }
                     ?.let { locateByProgression(publication, it.progression) }
         return ReaderDocument.Rich(publication = publication, initialLocator = initialLocator)
+    }
+
+    /**
+     * W6-T7：TXT → 缓存 EPUB → Readium 全链路（翻页 / 排版 / 书签 / 批注 / TTS 都自动继承）。
+     *
+     * 缓存名 = 源 URI 派生 ID + `size-mtime`：源文件不变时直接复用，被系统清缓存或源文件变化时按同样内容重建 （EPUB 内部时间戳与章节 href 固定），进度
+     * locator 仍能对上。`itemId` / 进度由调用方用**源 URI**的 [localItemIdFor] 计算，与缓存路径无关。
+     */
+    private suspend fun openTxt(
+        readSource: () -> ByteArray,
+        title: String,
+        bookId: UUID,
+        cacheKey: String,
+        stamp: String,
+        progress: ReadingProgress?,
+    ): ReaderDocument.Rich {
+        val dir = File(context.cacheDir, TXT_EPUB_CACHE_DIR).apply { mkdirs() }
+        val safeStamp = stamp.filter { it.isLetterOrDigit() || it == '-' }
+        val cached = File(dir, "$cacheKey-$safeStamp.epub")
+        if (!cached.isFile || cached.length() == 0L) {
+            val startedAt = SystemClock.elapsedRealtime()
+            val bytes = readSource()
+            val chapterRegex =
+                TxtChapterRules.resolve(
+                    appPreferences.getValue(appPreferences.readerTxtChapterRegex)
+                )
+            val temp = File(dir, "${cached.name}.tmp")
+            try {
+                val encoding =
+                    temp.outputStream().use { out ->
+                        TxtToEpub.convert(bytes, title, bookId, out, chapterRegex)
+                    }
+                if (encoding == null) {
+                    throw IllegalStateException("无法识别 TXT 编码（仅支持 UTF-8 / GBK）")
+                }
+                // 目标文件可能已存在但长度为 0（写到一半被杀）：先删再改名，避免 renameTo 静默失败。
+                cached.delete()
+                if (!temp.renameTo(cached)) {
+                    temp.copyTo(cached, overwrite = true)
+                }
+                Timber.i(
+                    "TXT 转 EPUB：%s / %d 字节 / %d ms（%s）",
+                    encoding.label,
+                    cached.length(),
+                    SystemClock.elapsedRealtime() - startedAt,
+                    cacheKey,
+                )
+            } finally {
+                temp.delete()
+            }
+            // 同一本源文件的旧缓存（上一次 size/mtime）不再需要。
+            dir.listFiles { file -> file.name.startsWith("$cacheKey-") && file != cached }
+                ?.forEach { it.delete() }
+        }
+        return openReadium(cached, progress)
+    }
+
+    /** SAF 显示名（`OpenableColumns.DISPLAY_NAME`）；取不到回落 URI 末段。 */
+    private fun localDisplayName(uri: Uri): String? =
+        runCatching {
+            context.contentResolver
+                .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0)?.takeIf { it.isNotBlank() }
+                    else null
+                }
+        }
+            .getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+
+    /** TXT 缓存失效键：size + 文档 last_modified（提供方不支持该列时退化为 size）。 */
+    private fun localDocumentStamp(uri: Uri): String {
+        val size = contentSize(uri) ?: 0L
+        val modified =
+            runCatching {
+                context.contentResolver
+                    .query(
+                        uri,
+                        arrayOf(DocumentsContract.Document.COLUMN_LAST_MODIFIED),
+                        null,
+                        null,
+                        null,
+                    )
+                    ?.use { cursor ->
+                        if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null
+                    }
+            }
+                .getOrNull() ?: 0L
+        return "$size-$modified"
     }
 
     /**

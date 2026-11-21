@@ -18,6 +18,9 @@ enum class BookFormat(val label: String) {
     /** CBZ：ZipFile 随机读的图片包（EB-4）。 */
     ComicArchive("CBZ"),
 
+    /** TXT：非 ZIP / 非 PDF 且按 UTF-8 / GBK 可解码的纯文本（W6-T7）；打开时转缓存 EPUB 走 Readium。 */
+    Txt("TXT"),
+
     /** 未识别：仍交给 Readium 尝试，失败时按原样报错。 */
     Unknown("未知格式"),
 }
@@ -33,7 +36,8 @@ private const val FORMAT_PROBE_BYTES = 1024
  * 本地缓存统一命名为 `{itemId}.book`（D3 取书流程），扩展名不可用，只能嗅探内容：
  * - 前 1 KiB 含 `%PDF-` → PDF；
  * - ZIP 且含 `META-INF/container.xml`（OCF 容器，W3C EPUB 3.3）或 `mimetype` → EPUB；
- * - 其余 ZIP → CBZ（条目级图片过滤交给 [orderComicPageNames]）。
+ * - 其余 ZIP → CBZ（条目级图片过滤交给 [orderComicPageNames]）；
+ * - 以上都不是、且探针按 UTF-8 严格解码或按 GBK（GB18030）可解码、二进制/控制字符占比低 → TXT（W6-T7）。
  *
  * 之所以必须自己嗅探：Readium 的 `ArchiveSniffer` 只在「压缩包内所有条目扩展名都在白名单 内」或「文件带 .cbz 扩展名」时才认作漫画包，Anda's Game 含
  * `Fonts` 目录下的 ttf 等条目会被判成 普通 ZIP（见 READER_PLAN §8 踩坑 15）。
@@ -57,7 +61,8 @@ fun sniffBookFormat(file: File): BookFormat {
     if (read >= PDF_MAGIC.size && header.containsSequence(PDF_MAGIC, read)) {
         return BookFormat.Pdf
     }
-    return BookFormat.Unknown
+    return if (TxtToEpub.detectEncoding(header, read) != null) BookFormat.Txt
+    else BookFormat.Unknown
 }
 
 /**
@@ -76,7 +81,8 @@ fun sniffBookFormat(resolver: ContentResolver, uri: Uri): BookFormat {
     if (read >= PDF_MAGIC.size && header.containsSequence(PDF_MAGIC, read)) {
         return BookFormat.Pdf
     }
-    return BookFormat.Unknown
+    return if (TxtToEpub.detectEncoding(header, read) != null) BookFormat.Txt
+    else BookFormat.Unknown
 }
 
 private fun sniffZipKind(resolver: ContentResolver, uri: Uri): BookFormat {

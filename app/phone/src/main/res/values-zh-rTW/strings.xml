@@ -34,4 +34,6 @@
     <string name="media_batch_episode_selection_all_skipped">所選 %1$d 集均已下載或已在佇列中。</string>
     <string name="media_batch_episode_downloaded">已下載</string>
     <string name="media_batch_episode_queued">下載佇列中</string>
+    <string name="bookshelf_import_book">匯入書籍</string>
+    <string name="bookshelf_import_unsupported">只支援匯入 EPUB / TXT（%1$s）</string>
 </resources>

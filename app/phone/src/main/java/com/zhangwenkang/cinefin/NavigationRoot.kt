@@ -1376,6 +1376,10 @@ fun NavigationRoot(
                         navigateBack = { navController.safePopBackStack() },
                         onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                         onSearchClick = openBooksSearch,
+                        // W6-T7：导入 EPUB / TXT → 本地阅读器（不拷贝源文件）。
+                        onOpenLocalBook = { localUri, title ->
+                            openLocalReader(context, localUri, title)
+                        },
                     )
                 }
             }
@@ -1495,6 +1499,10 @@ fun NavigationRoot(
                             onExitTemporaryLibrary = { exitTemporaryLibrary(BookshelfRoute) },
                             onOpenDownloads = { navigateTopLevel(DownloadsRoute()) },
                             onSearchClick = openBooksSearch,
+                            // W6-T7：导入 EPUB / TXT → 本地阅读器（不拷贝源文件）。
+                            onOpenLocalBook = { localUri, title ->
+                                openLocalReader(context, localUri, title)
+                            },
                         )
                 }
             }
@@ -2298,6 +2306,20 @@ private fun openReader(
             putExtra(ReaderActivity.EXTRA_ITEM_ID, itemId)
             putExtra(ReaderActivity.EXTRA_TITLE, title)
             if (localUri != null) putExtra(ReaderActivity.EXTRA_LOCAL_URI, localUri)
+        }
+    )
+}
+
+/**
+ * W6-T7：书架「导入书籍」落点——只有 SAF 文档 URI，没有服务器 itemId。
+ *
+ * 阅读器侧 `EXTRA_LOCAL_URI` 优先于 itemId，进度 / 书签 / 批注按源 URI 的 `localItemIdFor` 绑定。
+ */
+private fun openLocalReader(context: Context, localUri: String, title: String) {
+    context.startActivity(
+        Intent(context, ReaderActivity::class.java).apply {
+            putExtra(ReaderActivity.EXTRA_TITLE, title)
+            putExtra(ReaderActivity.EXTRA_LOCAL_URI, localUri)
         }
     )
 }
