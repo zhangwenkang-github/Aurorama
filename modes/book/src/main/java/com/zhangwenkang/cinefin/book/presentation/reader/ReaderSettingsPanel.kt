@@ -75,6 +75,12 @@ internal fun ReaderSettingsPanel(
     /** W6 T3：翻页动画档位（默认绑定 [ReaderPageAnimationSetting]，测试 / 预览可注入）。 */
     pageAnimation: ReaderPageAnimation = rememberReaderPageAnimation(),
     onPageAnimationChange: (ReaderPageAnimation) -> Unit = { ReaderPageAnimationSetting.set(it) },
+    /** W6 T4：音量键翻页开关（默认绑定 [ReaderInputSetting]）。 */
+    volumeKeysPaging: Boolean = rememberReaderVolumeKeysPaging(),
+    onVolumeKeysPagingChange: (Boolean) -> Unit = ReaderInputSetting::updateVolumeKeysPaging,
+    /** W6 T4：方向锁定三档（默认绑定 [ReaderInputSetting]）。 */
+    orientation: ReaderOrientation = rememberReaderOrientation(),
+    onOrientationChange: (ReaderOrientation) -> Unit = ReaderInputSetting::updateOrientation,
     modifier: Modifier = Modifier,
 ) {
     val contentColor = settings.contentColor(systemDark)
@@ -199,6 +205,28 @@ internal fun ReaderSettingsPanel(
             accent = accent,
             onAccent = settings.onAccentColor(systemDark),
             onCheckedChange = { onSettingsChange(settings.copy(tapPagingEnabled = it)) },
+        )
+        // W6 T4（定稿三 §1 / §3）：音量键翻页与方向锁定。
+        SettingSwitchRow(
+            title = "音量键翻页",
+            description = "分页档上下键翻页，滚动档按行滚动；仅阅读页生效",
+            checked = volumeKeysPaging,
+            contentColor = contentColor,
+            accent = accent,
+            onAccent = settings.onAccentColor(systemDark),
+            onCheckedChange = onVolumeKeysPagingChange,
+        )
+        Text(text = "屏幕方向", style = CinefinType.BodyMedium, color = contentColor)
+        CinefinSegmentedControl(
+            items = ReaderOrientation.entries,
+            selected = orientation,
+            onSelect = onOrientationChange,
+            label = { value -> value.label },
+        )
+        Text(
+            text = "锁定只作用于阅读页；横屏分页档 EPUB 双栏、PDF / CBZ 双页拼版。",
+            style = CinefinType.LabelSmall,
+            color = contentColor.copy(alpha = 0.6f),
         )
         SliderRow(
             label = "边距",

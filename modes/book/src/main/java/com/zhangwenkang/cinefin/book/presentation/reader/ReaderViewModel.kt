@@ -703,6 +703,11 @@ constructor(
         if (currentLocator == null) currentLocator = locator
     }
 
+    /** W6 T4（T2 交接）：目录错误态重试 —— 重新解析目录与 positions。 */
+    fun reloadNavigation() {
+        loadNavigation()
+    }
+
     /** 退到后台 / 离开阅读页：立即落盘并尝试回传（ARCHITECTURE §3.6 上报时机）。 */
     fun onStopReading() {
         val itemId = openedItemId ?: return

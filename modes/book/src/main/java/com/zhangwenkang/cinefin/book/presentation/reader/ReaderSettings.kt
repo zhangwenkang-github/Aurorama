@@ -301,3 +301,29 @@ internal object ReaderPageAnimationPreferences {
     /** 存 [ReaderPageAnimation.storageValue]；默认 `slide`。 */
     val pageAnimation = Preference("pref_reader_page_animation", "slide")
 }
+
+/**
+ * 方向锁定三档（W6 T4 / READER-06，定稿三 §3）。
+ *
+ * `跟随系统` 交给系统旋转 / 用户旋转锁；锁定档在 `ReaderActivity` 里转成 `requestedOrientation`。
+ */
+enum class ReaderOrientation(val storageValue: String, val label: String) {
+    FollowSystem("follow", "跟随系统"),
+    Portrait("portrait", "锁定竖屏"),
+    Landscape("landscape", "锁定横屏");
+
+    companion object {
+        fun fromStorage(value: String?): ReaderOrientation =
+            entries.firstOrNull { it.storageValue == value } ?: FollowSystem
+    }
+}
+
+/** 阅读输入偏好（W6 T4）：音量键翻页开关 + 方向锁定，沿用 `pref_reader_*` 命名空间。 */
+internal object ReaderInputPreferences {
+    /** 「音量键翻页」：默认关，只在阅读页 Activity 内生效。 */
+    val volumeKeysPaging = Preference("pref_reader_volume_keys_paging", false)
+
+    /** 方向锁定：存 [ReaderOrientation.storageValue]，默认 `follow`。 */
+    val orientation =
+        Preference("pref_reader_orientation", ReaderOrientation.FollowSystem.storageValue)
+}

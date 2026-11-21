@@ -113,6 +113,10 @@ fun ReaderScreen(
     onBack: () -> Unit,
     /** W6 T1 起点 / T2 接线：双击正文 = 书签动作。具体「添加 / 取消」由阅读页内部完成，本钩子保留给外部（默认空）。 */
     onDoubleTapBookmark: () -> Unit = {},
+    /** W6 T4：音量键 / 键盘 Enter 的「控制层开合」信号（每次自增 = 一次开合）。 */
+    controlsToggleRequest: Int = 0,
+    /** W6 T4（T2 交接）：目录错误态重试 → 重新解析目录与 positions。 */
+    onReloadContents: () -> Unit = {},
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showBookmarks by remember { mutableStateOf(false) }
@@ -136,6 +140,10 @@ fun ReaderScreen(
     var controlsVisible by remember(bookKey) { mutableStateOf(false) }
     val bookReady = state is ReaderUiState.Ready
     LaunchedEffect(bookReady) { controlsVisible = !bookReady }
+    // W6 T4：音量键 / 键盘 Enter 唤出或关闭控制层（外部信号自增触发一次）。
+    LaunchedEffect(controlsToggleRequest) {
+        if (controlsToggleRequest > 0) controlsVisible = !controlsVisible
+    }
     BackHandler(enabled = controlsVisible) { controlsVisible = false }
     var annotating by remember { mutableStateOf(false) }
     var pendingAnnotation by remember { mutableStateOf<Pair<Int, PageRect>?>(null) }
@@ -575,6 +583,7 @@ fun ReaderScreen(
                         onShowReadMarksChange = { checked ->
                             onSettingsChange(settings.copy(tocShowRead = checked))
                         },
+                        onRetry = onReloadContents,
                     )
                 }
             }
