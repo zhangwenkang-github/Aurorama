@@ -293,4 +293,6 @@
     <string name="download_precheck_batch_total_partial">About %1$s in total (some sizes unknown)</string>
     <string name="download_precheck_batch_truncated">Only the first %1$d will be downloaded (about %2$s); %3$d more do not fit</string>
     <string name="download_precheck_book_offline">Downloaded books can be read offline from the shelf</string>
+    <string name="download_precheck_batch_items_count">Download %1$d items</string>
+    <string name="download_precheck_batch_items_truncated">Only the first %1$d items will be downloaded (about %2$s); %3$d more do not fit</string>
 </resources>

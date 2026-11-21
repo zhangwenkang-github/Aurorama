@@ -291,4 +291,6 @@
     <string name="download_precheck_batch_total_partial">共约 %1$s（部分大小未知）</string>
     <string name="download_precheck_batch_truncated">将下载前 %1$d 集（约 %2$s），剩余 %3$d 集空间不足</string>
     <string name="download_precheck_book_offline">下载后可在书架离线阅读</string>
+    <string name="download_precheck_batch_items_count">将下载 %1$d 项</string>
+    <string name="download_precheck_batch_items_truncated">将下载前 %1$d 项（约 %2$s），剩余 %3$d 项空间不足</string>
 </resources>

@@ -240,5 +240,22 @@ private fun precheckDetailLines(content: DownloadPrecheckContent): List<String> 
                     add(stringResource(R.string.download_precheck_duration, it))
                 }
             }
+        DownloadPrecheckKind.GENERIC_BATCH ->
+            buildList {
+                add(
+                    stringResource(
+                        R.string.download_precheck_batch_items_count,
+                        content.itemCount,
+                    )
+                )
+                add(
+                    when {
+                        size == null -> stringResource(R.string.download_precheck_size_unknown)
+                        content.unknownSizeCount > 0 ->
+                            stringResource(R.string.download_precheck_batch_total_partial, size)
+                        else -> stringResource(R.string.download_precheck_batch_total, size)
+                    }
+                )
+            }
     }
 }

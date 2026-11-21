@@ -65,6 +65,30 @@ data class BatchSpacePlan(
 }
 
 /**
+ * W7-T1b：媒体库多选「下载」入口的前置检查快照（收藏 / 库内容 / 视频聚合网格共用）。
+ *
+ * - [content] 的数量与合计大小 = **用户所选**（[DownloadPrecheckKind.GENERIC_BATCH] 明细行）；
+ * - [items] = 空间截断后可入队的子集（保持原选择顺序），确认时只把它交给 `downloadSelected`；
+ * - [space] 的「需要」= 子集所需，所以只有「一项都装不下」（[blocked]）才会判空间不足并禁用确认。
+ */
+data class MediaBatchPrecheck(
+    val content: DownloadPrecheckContent,
+    val items: List<FindroidItem>,
+    val space: DownloadSpaceStatus,
+    /** 因空间不足被延后的条目数（截断说明用）。 */
+    val deferredCount: Int,
+    /** 截断后子集的已知大小之和（截断说明里的「约 X」）。 */
+    val requiredBytes: Long,
+) {
+    /** 一项都装不下：确认键必须禁用，只给「去清理」。 */
+    val blocked: Boolean
+        get() = items.isEmpty()
+
+    val truncated: Boolean
+        get() = deferredCount > 0
+}
+
+/**
  * W51 下载粒度纯函数：状态判定 / 批量集选择 / 去重 / 上限。
  *
  * 入参只用 id 集合与顺序，便于 JVM 单测；调用方（Show / Season / Episode 详情页）负责把服务器条目映射成 id。
@@ -163,21 +187,24 @@ object DetailDownloadRules {
 
     // ── W7-T1：下载前置检查（空间 / 网络 / 媒体类型确认） ─────────────────────────
 
-    /** 单集已知大小（取首个 size > 0 的源；未知返回 null）。 */
-    fun episodeSizeBytes(episode: FindroidEpisode): Long? =
-        episode.sources.firstOrNull { source -> source.size > 0 }?.size
+    /** 任意条目已知大小（取首个 size > 0 的源；书籍 / 容器 / 缺 size 的条目返回 null）。 */
+    fun itemSizeBytes(item: FindroidItem): Long? =
+        item.sources.firstOrNull { source -> source.size > 0 }?.size
 
-    /** 批量大小聚合：入参是当前选中的集 id 集合，未知大小单独计数。 */
-    fun summarizeBatchBytes(
-        episodes: List<FindroidEpisode>,
-        selectedIds: Collection<UUID>,
-    ): BatchDownloadSize {
+    /** 单集已知大小（与 [itemSizeBytes] 同一口径；未知返回 null）。 */
+    fun episodeSizeBytes(episode: FindroidEpisode): Long? = itemSizeBytes(episode)
+
+    /**
+     * W7-T1b 批量大小聚合（媒体库多选）：[items] 即待入队条目，未知大小单独计数（不按 0 计入合计）。
+     *
+     * 书籍 / 缺 size 的条目按既有口径「可入队、不计空间」处理，落在 [BatchDownloadSize.unknownCount]。
+     */
+    fun summarizeItemsBytes(items: List<FindroidItem>): BatchDownloadSize {
         var knownBytes = 0L
         var knownCount = 0
         var unknownCount = 0
-        for (episode in episodes) {
-            if (episode.id !in selectedIds) continue
-            val size = episodeSizeBytes(episode)
+        for (item in items) {
+            val size = itemSizeBytes(item)
             if (size != null) {
                 knownBytes += size
                 knownCount++
@@ -191,6 +218,13 @@ object DetailDownloadRules {
             unknownCount = unknownCount,
         )
     }
+
+    /** 批量大小聚合：入参是当前选中的集 id 集合，未知大小单独计数。 */
+    fun summarizeBatchBytes(
+        episodes: List<FindroidEpisode>,
+        selectedIds: Collection<UUID>,
+    ): BatchDownloadSize =
+        summarizeItemsBytes(episodes.filter { episode -> episode.id in selectedIds })
 
     /**
      * 空间截断：按顺序装入已知大小的条目，装不下的第一个条目起全部延后（[BatchSpacePlan.deferred]）。
@@ -234,6 +268,53 @@ object DetailDownloadRules {
     /** 网络提示判定：移动数据 / 漫游且未获允许 → 需要用户确认（复用 W57 规则）。 */
     fun networkPrompt(decision: DownloadNetworkDecision): DownloadNetworkPrompt =
         DownloadPrecheckRules.networkPrompt(decision)
+
+    /**
+     * W7-T1b：媒体库多选批量的前置检查（纯函数，**零网络**）。
+     *
+     * [items] 必须是**待入队条目**（调用方已过滤已下载 / 在队列）；[availableBytes] 取下载目标位置（`storageIndex = 0`，与
+     * `MediaBatchViewModel.downloadSelected` 的入队位置一致）。空间不足时按原选择顺序只保留装得下的前 N 项，其余计入
+     * [MediaBatchPrecheck.deferredCount]。
+     */
+    fun mediaBatchPrecheck(
+        items: List<FindroidItem>,
+        availableBytes: Long,
+        title: String,
+    ): MediaBatchPrecheck {
+        val summary = summarizeItemsBytes(items)
+        val sizes = items.associate { item -> item.id to itemSizeBytes(item) }
+        val plan =
+            fitBatchToSpace(
+                orderedIds = items.map { item -> item.id },
+                sizeOf = { id -> sizes[id] },
+                availableBytes = availableBytes,
+            )
+        val itemsById = items.associateBy { item -> item.id }
+        val selected = plan.selected.mapNotNull(itemsById::get)
+        val selectedKnownCount = plan.selected.count { id -> sizes[id] != null }
+        val spaceRequired =
+            when {
+                // 一项都装不下：回落到整批所需，让「空间不足」成立（确认禁用 + 去清理）。
+                plan.selected.isEmpty() -> summary.sizeBytesOrNull
+                // 子集大小全未知：按「未知 / 可用」口径展示，不误判不足。
+                selectedKnownCount == 0 -> null
+                else -> plan.requiredBytes
+            }
+        return MediaBatchPrecheck(
+            content =
+                DownloadPrecheckContent(
+                    kind = DownloadPrecheckKind.GENERIC_BATCH,
+                    title = title,
+                    itemCount = items.size,
+                    sizeBytes = summary.sizeBytesOrNull,
+                    unknownSizeCount = summary.unknownCount,
+                ),
+            items = selected,
+            space = spaceStatus(spaceRequired, availableBytes),
+            deferredCount = plan.deferred,
+            requiredBytes = plan.requiredBytes,
+        )
+    }
 
     /** 源格式标签：优先服务器容器名，其次路径扩展名；都没有返回 null。 */
     fun formatLabelFor(source: FindroidSource): String? {

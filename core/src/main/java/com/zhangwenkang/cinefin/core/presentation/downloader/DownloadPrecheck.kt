@@ -27,6 +27,12 @@ enum class DownloadPrecheckKind {
     AUDIO_BATCH,
     /** 书籍：格式 +「下载后可在书架离线阅读」。 */
     BOOK,
+    /**
+     * 媒体库多选批量（W7-T1b：收藏 / 库内容 / 视频聚合网格）：将下载 N 项 + 合计大小。
+     *
+     * 与 [VIDEO_BATCH] / [AUDIO_BATCH] 的差别只在计数文案：所选条目可能跨媒体类型（电影 / 单集 / 书籍混合），不能用「集」或「首」。
+     */
+    GENERIC_BATCH,
 }
 
 /**

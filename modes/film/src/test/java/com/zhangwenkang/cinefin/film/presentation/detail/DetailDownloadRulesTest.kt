@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.film.presentation.detail
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadNetworkPrompt
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckKind
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
+import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovie
 import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.utils.DownloadNetworkDecision
 import java.util.UUID
@@ -316,5 +317,90 @@ class DetailDownloadRulesTest {
             null,
             DetailDownloadRules.formatLabelFor(source.copy(container = null, path = "no-ext")),
         )
+    }
+
+    // ── W7-T1b 媒体库多选批量前置检查 ─────────────────────────────────────────
+
+    private fun movieWithSize(id: UUID, size: Long) =
+        dummyMovie.copy(
+            id = id,
+            sources = dummyMovie.sources.map { source -> source.copy(size = size) },
+        )
+
+    /** 书籍 / 容器形态：没有任何媒体源（大小未知，按「可入队、不计空间」处理）。 */
+    private fun itemWithoutSource(id: UUID) = dummyMovie.copy(id = id, sources = emptyList())
+
+    @Test
+    fun `混选批量大小聚合_电影与单集累加_无媒体源条目计入未知`() {
+        val summary =
+            DetailDownloadRules.summarizeItemsBytes(
+                listOf(
+                    movieWithSize(episodeA, 2_000L),
+                    episodeWithSize(episodeB, 1_500L),
+                    itemWithoutSource(episodeC),
+                )
+            )
+
+        assertEquals(3_500L, summary.knownBytes)
+        assertEquals(2, summary.knownCount)
+        assertEquals(1, summary.unknownCount)
+        assertEquals(3_500L, summary.sizeBytesOrNull)
+        assertTrue(summary.hasUnknown)
+    }
+
+    @Test
+    fun `混选批量大小聚合_全部未知时合计返回空值而不是0B`() {
+        val summary =
+            DetailDownloadRules.summarizeItemsBytes(
+                listOf(
+                    itemWithoutSource(episodeA),
+                    dummyEpisode.copy(id = episodeB, sources = emptyList()),
+                )
+            )
+
+        assertEquals(null, summary.sizeBytesOrNull)
+        assertEquals(0, summary.knownCount)
+        assertEquals(2, summary.unknownCount)
+    }
+
+    @Test
+    fun `批量前置检查_空间不足时只保留装得下的前N项并保持原选择顺序`() {
+        val snapshot =
+            DetailDownloadRules.mediaBatchPrecheck(
+                items =
+                    listOf(
+                        movieWithSize(episodeA, 600L),
+                        episodeWithSize(episodeB, 600L),
+                        movieWithSize(episodeC, 600L),
+                    ),
+                availableBytes = 1_500L,
+                title = "Download",
+            )
+
+        assertEquals(listOf(episodeA, episodeB), snapshot.items.map { item -> item.id })
+        assertEquals(1, snapshot.deferredCount)
+        assertEquals(1_200L, snapshot.requiredBytes)
+        assertTrue(snapshot.truncated)
+        assertTrue(!snapshot.blocked)
+        assertTrue(!snapshot.space.insufficient)
+        assertEquals(DownloadPrecheckKind.GENERIC_BATCH, snapshot.content.kind)
+        // 明细行 = 用户所选（3 项 / 共约 1.8 KB）；截断说明另说子集。
+        assertEquals(3, snapshot.content.itemCount)
+        assertEquals(1_800L, snapshot.content.sizeBytes)
+    }
+
+    @Test
+    fun `批量前置检查_一项都装不下时判定阻塞并禁用确认`() {
+        val snapshot =
+            DetailDownloadRules.mediaBatchPrecheck(
+                items = listOf(movieWithSize(episodeA, 2_000L), movieWithSize(episodeB, 2_000L)),
+                availableBytes = 1_000L,
+                title = "Download",
+            )
+
+        assertTrue(snapshot.blocked)
+        assertTrue(snapshot.items.isEmpty())
+        assertEquals(2, snapshot.deferredCount)
+        assertTrue(snapshot.space.insufficient)
     }
 }

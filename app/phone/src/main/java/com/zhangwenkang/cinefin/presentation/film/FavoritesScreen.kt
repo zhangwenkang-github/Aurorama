@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,10 +45,15 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelectState
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
+import com.zhangwenkang.cinefin.film.presentation.detail.MediaBatchPrecheck
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.downloads.DownloadStatusViewModel
 import com.zhangwenkang.cinefin.presentation.film.components.Direction
@@ -60,9 +66,11 @@ import com.zhangwenkang.cinefin.presentation.selection.MediaBatchEvent
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchMode
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
+import com.zhangwenkang.cinefin.presentation.selection.batchDownloadTargets
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchActionEnabled
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchCaps
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchEventMessage
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchNeedsEpisodeSelection
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
 import com.zhangwenkang.cinefin.presentation.utils.rememberGridGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
@@ -91,7 +99,10 @@ fun FavoritesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val viewLabel = stringResource(CoreR.string.snackbar_view)
+    val downloadTitle = stringResource(CoreR.string.detail_action_download)
     var selection by rememberMultiSelectState()
+    /** W7-T1b：批量「下载」的前置检查快照（null = 不显示提示层）。 */
+    var precheck by remember { mutableStateOf<MediaBatchPrecheck?>(null) }
 
     LaunchedEffect(true) { viewModel.load() }
     // 详情页 / 其它入口的收藏变更：回到本页或停留在本页都补一次刷新。
@@ -325,7 +336,28 @@ fun FavoritesScreen(
                 onAction = { action ->
                     when (action) {
                         MediaBatchAction.FAVORITE -> batchViewModel.favoriteSelected(selectedItems)
-                        MediaBatchAction.DOWNLOAD -> batchViewModel.downloadSelected(selectedItems)
+                        MediaBatchAction.DOWNLOAD -> {
+                            val targets =
+                                batchDownloadTargets(
+                                    selectedItems,
+                                    batchViewModel.capsOf(selectedItems),
+                                )
+                            if (
+                                targets.isEmpty() || mediaBatchNeedsEpisodeSelection(selectedItems)
+                            ) {
+                                // 无可入队条目 / 需先选集（Show / Season）：保持既有反馈路径。
+                                batchViewModel.downloadSelected(selectedItems)
+                            } else {
+                                // W7-T1b：先弹前置检查，确认后才入队（只带空间装得下的子集）。
+                                precheck =
+                                    DetailDownloadRules.mediaBatchPrecheck(
+                                        items = targets,
+                                        availableBytes =
+                                            DownloadPrecheckEnvironment.availableBytes(context, 0),
+                                        title = downloadTitle,
+                                    )
+                            }
+                        }
                         MediaBatchAction.MARK_PLAYED ->
                             batchViewModel.markPlayedSelected(selectedItems)
                         else -> Unit
@@ -333,6 +365,35 @@ fun FavoritesScreen(
                 },
             )
         }
+    }
+
+    precheck?.let { snapshot ->
+        DownloadPrecheckDialog(
+            content = snapshot.content,
+            space = snapshot.space,
+            networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+            deferNote =
+                if (snapshot.truncated) {
+                    stringResource(
+                        CoreR.string.download_precheck_batch_items_truncated,
+                        snapshot.items.size,
+                        DownloadPrecheckRules.formatBytes(snapshot.requiredBytes),
+                        snapshot.deferredCount,
+                    )
+                } else {
+                    null
+                },
+            onConfirm = {
+                batchViewModel.downloadSelected(snapshot.items)
+                precheck = null
+            },
+            // 「仅 Wi-Fi 下载」= 同样入队，由 W57 网络策略等待 Wi-Fi / 以太网。
+            onWifiOnly = {
+                batchViewModel.downloadSelected(snapshot.items)
+                precheck = null
+            },
+            onDismiss = { precheck = null },
+        )
     }
 }
 

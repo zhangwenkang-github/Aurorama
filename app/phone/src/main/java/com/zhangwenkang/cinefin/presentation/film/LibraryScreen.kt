@@ -47,11 +47,16 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelectState
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyMovies
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
+import com.zhangwenkang.cinefin.film.presentation.detail.MediaBatchPrecheck
 import com.zhangwenkang.cinefin.film.presentation.library.LibraryAction
 import com.zhangwenkang.cinefin.film.presentation.library.LibraryState
 import com.zhangwenkang.cinefin.film.presentation.library.LibraryTab
@@ -91,10 +96,12 @@ import com.zhangwenkang.cinefin.presentation.selection.MediaBatchEvent
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchMode
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchTopBarActions
 import com.zhangwenkang.cinefin.presentation.selection.MediaBatchViewModel
+import com.zhangwenkang.cinefin.presentation.selection.batchDownloadTargets
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchActionEnabled
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchCaps
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchEventMessage
 import com.zhangwenkang.cinefin.presentation.selection.mediaBatchMode
+import com.zhangwenkang.cinefin.presentation.selection.mediaBatchNeedsEpisodeSelection
 import com.zhangwenkang.cinefin.presentation.selection.resolveMediaBatchSelection
 import com.zhangwenkang.cinefin.presentation.selection.startVideoQueuePlayback
 import com.zhangwenkang.cinefin.presentation.utils.GridCellsAdaptiveWithMinColumns
@@ -301,6 +308,8 @@ private fun LibraryScreenLayout(
     val viewLabel = stringResource(CoreR.string.snackbar_view)
     var batchSelection by rememberMultiSelectState()
     var showBatchDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    /** W7-T1b：批量「下载」的前置检查快照（null = 不显示提示层）。 */
+    var precheck by remember { mutableStateOf<MediaBatchPrecheck?>(null) }
     val selectionMode = batchMode != MediaBatchMode.NONE && batchSelection.selectionMode
     // 「已加载条目」快照：分页只取已加载部分（不拉全库），翻页 / 刷新后由 retain 求交集。
     val loadedItems = items.itemSnapshotList.items.filterNotNull()
@@ -808,7 +817,35 @@ private fun LibraryScreenLayout(
                         MediaBatchAction.PLAY -> batchViewModel.playSelected(selectedItems)
                         MediaBatchAction.DOWNLOAD ->
                             if (selectionResolution.isComplete) {
-                                batchViewModel.downloadSelected(selectedItems)
+                                if (mediaBatchNeedsEpisodeSelection(selectedItems)) {
+                                    // Show / Season：库网格没有剧集候选入口，保持既有提示路径。
+                                    batchViewModel.downloadSelected(selectedItems)
+                                } else {
+                                    val targets =
+                                        batchDownloadTargets(
+                                            selectedItems,
+                                            batchViewModel.capsOf(selectedItems),
+                                        )
+                                    if (targets.isEmpty()) {
+                                        // 无可入队条目：保持既有 DownloadSkipped 反馈。
+                                        batchViewModel.downloadSelected(selectedItems)
+                                    } else {
+                                        // W7-T1b：先弹前置检查，确认后才入队（只带装得下的子集）。
+                                        precheck =
+                                            DetailDownloadRules.mediaBatchPrecheck(
+                                                items = targets,
+                                                availableBytes =
+                                                    DownloadPrecheckEnvironment.availableBytes(
+                                                        context,
+                                                        0,
+                                                    ),
+                                                title =
+                                                    context.getString(
+                                                        CoreR.string.detail_action_download
+                                                    ),
+                                            )
+                                    }
+                                }
                             } else {
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
@@ -866,6 +903,35 @@ private fun LibraryScreenLayout(
                 showBatchDeleteDialog = false
             },
             onDismiss = { showBatchDeleteDialog = false },
+        )
+    }
+
+    precheck?.let { snapshot ->
+        DownloadPrecheckDialog(
+            content = snapshot.content,
+            space = snapshot.space,
+            networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+            deferNote =
+                if (snapshot.truncated) {
+                    stringResource(
+                        CoreR.string.download_precheck_batch_items_truncated,
+                        snapshot.items.size,
+                        DownloadPrecheckRules.formatBytes(snapshot.requiredBytes),
+                        snapshot.deferredCount,
+                    )
+                } else {
+                    null
+                },
+            onConfirm = {
+                batchViewModel.downloadSelected(snapshot.items)
+                precheck = null
+            },
+            // 「仅 Wi-Fi 下载」= 同样入队，由 W57 网络策略等待 Wi-Fi / 以太网。
+            onWifiOnly = {
+                batchViewModel.downloadSelected(snapshot.items)
+                precheck = null
+            },
+            onDismiss = { precheck = null },
         )
     }
 }
