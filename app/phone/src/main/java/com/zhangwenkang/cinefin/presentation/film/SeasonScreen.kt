@@ -44,6 +44,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.components.rememberMultiSelectState
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummySeason
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -211,6 +212,8 @@ fun SeasonScreen(
                 batchDialogVisible = false
             },
             onDismiss = { batchDialogVisible = false },
+            availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
+            networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
         )
     }
 }

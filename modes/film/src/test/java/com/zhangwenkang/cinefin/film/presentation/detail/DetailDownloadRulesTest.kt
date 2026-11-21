@@ -1,8 +1,13 @@
 package com.zhangwenkang.cinefin.film.presentation.detail
 
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadNetworkPrompt
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckKind
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
+import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.utils.DownloadNetworkDecision
 import java.util.UUID
 import org.jellyfin.sdk.model.api.ItemFields
+import org.jellyfin.sdk.model.api.MediaStreamType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -159,5 +164,157 @@ class DetailDownloadRulesTest {
     fun `取集字段_必须显式请求媒体源与下载权限`() {
         assertTrue(DetailDownloadRules.EPISODE_FETCH_FIELDS.contains(ItemFields.MEDIA_SOURCES))
         assertTrue(DetailDownloadRules.EPISODE_FETCH_FIELDS.contains(ItemFields.CAN_DOWNLOAD))
+    }
+
+    // ── W7-T1 下载前置检查 ─────────────────────────────────────────────────────
+
+    private fun episodeWithSize(id: UUID, size: Long): FindroidEpisode =
+        dummyEpisode.copy(
+            id = id,
+            sources = dummyEpisode.sources.map { source -> source.copy(size = size) },
+        )
+
+    @Test
+    fun `批量大小聚合_只累加已知大小并单独计数未知`() {
+        val sized = episodeWithSize(episodeA, 1_500L)
+        val unknown = dummyEpisode.copy(id = episodeB)
+        val excluded = episodeWithSize(episodeC, 9_000L)
+
+        val summary =
+            DetailDownloadRules.summarizeBatchBytes(
+                episodes = listOf(sized, unknown, excluded),
+                selectedIds = setOf(episodeA, episodeB),
+            )
+
+        assertEquals(1_500L, summary.knownBytes)
+        assertEquals(1, summary.knownCount)
+        assertEquals(1, summary.unknownCount)
+        assertEquals(1_500L, summary.sizeBytesOrNull)
+        assertTrue(summary.hasUnknown)
+    }
+
+    @Test
+    fun `批量大小聚合_全部未知时合计返回空值而不是0B`() {
+        val summary =
+            DetailDownloadRules.summarizeBatchBytes(
+                episodes = listOf(dummyEpisode.copy(id = episodeA)),
+                selectedIds = setOf(episodeA),
+            )
+
+        assertEquals(null, summary.sizeBytesOrNull)
+        assertEquals(1, summary.unknownCount)
+    }
+
+    @Test
+    fun `空间预检_需要大于可用时判定不足`() {
+        assertTrue(
+            DetailDownloadRules.spaceStatus(requiredBytes = 2_000L, availableBytes = 1_999L)
+                .insufficient
+        )
+        assertTrue(
+            !DetailDownloadRules.spaceStatus(requiredBytes = 2_000L, availableBytes = 2_000L)
+                .insufficient
+        )
+        assertTrue(
+            !DetailDownloadRules.spaceStatus(requiredBytes = null, availableBytes = 0L).insufficient
+        )
+    }
+
+    @Test
+    fun `空间截断_只选装得下的前N集并保留剩余计数`() {
+        val ordered = listOf(episodeA, episodeB, episodeC)
+        val sizes = mapOf(episodeA to 600L, episodeB to 600L, episodeC to 600L)
+
+        val plan =
+            DetailDownloadRules.fitBatchToSpace(
+                orderedIds = ordered,
+                sizeOf = { id -> sizes[id] },
+                availableBytes = 1_500L,
+            )
+
+        assertEquals(listOf(episodeA, episodeB), plan.selected)
+        assertEquals(1, plan.deferred)
+        assertEquals(1_200L, plan.requiredBytes)
+        assertTrue(plan.truncated)
+    }
+
+    @Test
+    fun `空间截断_未知大小的集不阻断后续已知大小条目`() {
+        val ordered = listOf(episodeA, episodeB)
+        val sizes = mapOf<UUID, Long?>(episodeA to null, episodeB to 400L)
+
+        val plan =
+            DetailDownloadRules.fitBatchToSpace(
+                orderedIds = ordered,
+                sizeOf = { id -> sizes[id] },
+                availableBytes = 500L,
+            )
+
+        assertEquals(listOf(episodeA, episodeB), plan.selected)
+        assertEquals(0, plan.deferred)
+        assertEquals(400L, plan.requiredBytes)
+    }
+
+    @Test
+    fun `移动数据提示_仅WiFi策略命中时要求确认`() {
+        assertEquals(
+            DownloadNetworkPrompt.NONE,
+            DetailDownloadRules.networkPrompt(DownloadNetworkDecision.ALLOW),
+        )
+        assertEquals(
+            DownloadNetworkPrompt.CONFIRM_MOBILE_DATA,
+            DetailDownloadRules.networkPrompt(DownloadNetworkDecision.WAIT_FOR_MOBILE_DATA),
+        )
+        assertEquals(
+            DownloadNetworkPrompt.CONFIRM_MOBILE_DATA,
+            DetailDownloadRules.networkPrompt(DownloadNetworkDecision.WAIT_FOR_ROAMING),
+        )
+    }
+
+    @Test
+    fun `视频前置内容_带原始文件标注与外部字幕提示`() {
+        val stream = dummyEpisode.sources.first().mediaStreams.first()
+        val episode =
+            dummyEpisode.copy(
+                sources =
+                    listOf(
+                        dummyEpisode.sources
+                            .first()
+                            .copy(
+                                size = 4_000L,
+                                container = "mkv",
+                                mediaStreams =
+                                    listOf(
+                                        stream.copy(
+                                            type = MediaStreamType.SUBTITLE,
+                                            isExternal = true,
+                                        )
+                                    ),
+                            )
+                    )
+            )
+
+        val content = DetailDownloadRules.videoPrecheckContent(episode)
+
+        assertEquals(DownloadPrecheckKind.VIDEO, content?.kind)
+        assertEquals(4_000L, content?.sizeBytes)
+        assertEquals("MKV", content?.formatLabel)
+        assertTrue(content?.hasSidecarFiles == true)
+    }
+
+    @Test
+    fun `源格式标签_容器优先_缺失时回退扩展名`() {
+        val source = dummyEpisode.sources.first()
+        assertEquals("FLAC", DetailDownloadRules.formatLabelFor(source.copy(container = "flac")))
+        assertEquals(
+            "MP4",
+            DetailDownloadRules.formatLabelFor(
+                source.copy(container = null, path = "/media/a/01.mp4")
+            ),
+        )
+        assertEquals(
+            null,
+            DetailDownloadRules.formatLabelFor(source.copy(container = null, path = "no-ext")),
+        )
     }
 }

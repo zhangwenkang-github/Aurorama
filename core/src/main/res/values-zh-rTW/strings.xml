@@ -258,4 +258,24 @@
     <string name="favorite_badge_description">已收藏</string>
     <!-- W60b 下載回饋統一：Snackbar「查看」動作（跳下載頁）。 -->
     <string name="snackbar_view">查看</string>
+    <!-- W7-T1 下載前置檢查提示層（影片 / 音樂 / 書籍共用）。 -->
+    <string name="download_precheck_continue">繼續下載</string>
+    <string name="download_precheck_wifi_only">僅 Wi-Fi 下載</string>
+    <string name="download_precheck_cleanup">去清理</string>
+    <string name="download_precheck_video_original">原始檔案下載</string>
+    <string name="download_precheck_format">格式：%1$s</string>
+    <string name="download_precheck_duration">時長：%1$s</string>
+    <string name="download_precheck_size">大小：%1$s</string>
+    <string name="download_precheck_size_unknown">大小：未知</string>
+    <string name="download_precheck_sidecar">將同時儲存附屬檔案</string>
+    <string name="download_precheck_space">需要 %1$s / 可用 %2$s</string>
+    <string name="download_precheck_space_unknown">需要大小未知 / 可用 %1$s</string>
+    <string name="download_precheck_space_insufficient">儲存空間不足，清理後可繼續</string>
+    <string name="download_precheck_mobile_data">目前為行動網路，將消耗流量</string>
+    <string name="download_precheck_batch_count">將下載 %1$d 集</string>
+    <string name="download_precheck_audio_batch_count">將下載 %1$d 首</string>
+    <string name="download_precheck_batch_total">共約 %1$s</string>
+    <string name="download_precheck_batch_total_partial">共約 %1$s（部分大小未知）</string>
+    <string name="download_precheck_batch_truncated">將下載前 %1$d 集（約 %2$s），剩餘 %3$d 集空間不足</string>
+    <string name="download_precheck_book_offline">下載後可在書架離線閱讀</string>
 </resources>

@@ -42,6 +42,9 @@ import androidx.window.core.layout.WindowSizeClass
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinIconButton
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
 import com.zhangwenkang.cinefin.core.presentation.downloader.DownloaderState
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyEpisode
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
@@ -50,7 +53,9 @@ import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
+import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadRules
 import com.zhangwenkang.cinefin.film.presentation.detail.DetailDownloadState
+import com.zhangwenkang.cinefin.models.FindroidEpisode
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.models.FindroidMovie
 import com.zhangwenkang.cinefin.models.FindroidShow
@@ -106,14 +111,25 @@ fun ItemButtonsBar(
     var storageSelectionDialogOpen by remember { mutableStateOf(false) }
     var cancelDownloadDialogOpen by remember { mutableStateOf(false) }
     var deleteDownloadDialogOpen by remember { mutableStateOf(false) }
+    /** W7-T1：视频单集 / 电影的前置检查提示层（整剧 / 全季走 BatchDownloadDialog 内联预检）。 */
+    var precheckOpen by remember { mutableStateOf(false) }
 
     var selectedStorageIndex by remember { mutableIntStateOf(0) }
     var storageLocations = remember { context.getExternalFilesDirs(null) }
 
-    /** 单集下载：多存储位置时先选位置，否则直接入队（批量为 false，走确认对话框）。 */
-    fun requestDownload() {
+    val precheckContent =
+        remember(item) {
+            if (item is FindroidEpisode || item is FindroidMovie) {
+                DetailDownloadRules.videoPrecheckContent(item)
+            } else {
+                null
+            }
+        }
+
+    /** 存储位置选择：多存储时弹选择，否则直接入队。 */
+    fun proceedToStorage() {
         if (!storageSelectionEnabled) {
-            onDownloadClick(0)
+            onDownloadClick(selectedStorageIndex)
             return
         }
         storageLocations = context.getExternalFilesDirs(null)
@@ -123,6 +139,15 @@ fun ItemButtonsBar(
             selectedStorageIndex = 0
             onDownloadClick(0)
         }
+    }
+
+    /** 单集 / 电影下载：先过前置检查提示层，确认后再选存储位置并入队。 */
+    fun requestDownload() {
+        if (precheckContent != null) {
+            precheckOpen = true
+            return
+        }
+        proceedToStorage()
     }
 
     val legacyDownloaded = item.isDownloaded()
@@ -258,6 +283,31 @@ fun ItemButtonsBar(
                     )
                 }
             }
+        }
+        if (precheckOpen && precheckContent != null) {
+            DownloadPrecheckDialog(
+                content = precheckContent,
+                space =
+                    DownloadPrecheckRules.spaceStatus(
+                        requiredBytes = precheckContent.sizeBytes,
+                        availableBytes =
+                            DownloadPrecheckEnvironment.availableBytes(
+                                context,
+                                selectedStorageIndex,
+                            ),
+                    ),
+                networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+                onConfirm = {
+                    precheckOpen = false
+                    proceedToStorage()
+                },
+                // 「仅 Wi-Fi 下载」= 正常入队，由 W57 网络策略等待 Wi-Fi / 以太网。
+                onWifiOnly = {
+                    precheckOpen = false
+                    onDownloadClick(selectedStorageIndex)
+                },
+                onDismiss = { precheckOpen = false },
+            )
         }
         if (storageSelectionDialogOpen) {
             val locations = remember {

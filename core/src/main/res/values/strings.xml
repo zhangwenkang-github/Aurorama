@@ -272,4 +272,24 @@
     <string name="favorite_badge_description">Favorite</string>
     <!-- W60b 下载反馈统一：Snackbar「查看」动作（跳下载页）。 -->
     <string name="snackbar_view">View</string>
+    <!-- W7-T1 下载前置检查提示层（视频 / 音乐 / 书籍共用）。 -->
+    <string name="download_precheck_continue">Continue download</string>
+    <string name="download_precheck_wifi_only">Wi-Fi only</string>
+    <string name="download_precheck_cleanup">Free up space</string>
+    <string name="download_precheck_video_original">Original file download</string>
+    <string name="download_precheck_format">Format: %1$s</string>
+    <string name="download_precheck_duration">Duration: %1$s</string>
+    <string name="download_precheck_size">Size: %1$s</string>
+    <string name="download_precheck_size_unknown">Size: unknown</string>
+    <string name="download_precheck_sidecar">External subtitle / artwork files will be saved too</string>
+    <string name="download_precheck_space">Needs %1$s / %2$s available</string>
+    <string name="download_precheck_space_unknown">Size unknown / %1$s available</string>
+    <string name="download_precheck_space_insufficient">Not enough storage. Free up space to continue.</string>
+    <string name="download_precheck_mobile_data">You are on mobile data — this will use your data plan</string>
+    <string name="download_precheck_batch_count">%1$d episodes will be added</string>
+    <string name="download_precheck_audio_batch_count">%1$d tracks will be added</string>
+    <string name="download_precheck_batch_total">About %1$s in total</string>
+    <string name="download_precheck_batch_total_partial">About %1$s in total (some sizes unknown)</string>
+    <string name="download_precheck_batch_truncated">Only the first %1$d will be downloaded (about %2$s); %3$d more do not fit</string>
+    <string name="download_precheck_book_offline">Downloaded books can be read offline from the shelf</string>
 </resources>

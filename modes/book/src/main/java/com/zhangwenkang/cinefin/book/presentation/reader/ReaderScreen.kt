@@ -91,6 +91,11 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinSlider
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSliderColors
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckContent
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckKind
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -179,6 +184,8 @@ fun ReaderScreen(
     var showSearch by remember { mutableStateOf(false) }
     var showAnnotations by remember { mutableStateOf(false) }
     var showMore by remember { mutableStateOf(false) }
+    // W7-T1：书籍下载前置检查（格式 + 离线阅读说明），确认后才开始整本下载。
+    var precheckOpen by remember { mutableStateOf(false) }
     // W6 T2：目录抽屉 / 「进度」入口聚焦 / 双击书签的 900ms 提示胶囊。
     var showContents by remember { mutableStateOf(false) }
     var progressFocusToken by remember { mutableIntStateOf(0) }
@@ -1315,7 +1322,7 @@ fun ReaderScreen(
                                 ReaderSettingsTools(
                                     downloadState = downloadState,
                                     streamState = streamState,
-                                    onDownload = onDownload,
+                                    onDownload = { precheckOpen = true },
                                     bookmarksEnabled = bookmarksAvailable,
                                     onOpenBookmarks = {
                                         showSettings = false
@@ -1338,6 +1345,38 @@ fun ReaderScreen(
                         )
                     }
                 }
+            }
+
+            if (precheckOpen) {
+                val formatLabel =
+                    when (val document = (state as? ReaderUiState.Ready)?.document) {
+                        is ReaderDocument.Rich -> "EPUB"
+                        is ReaderDocument.Simple -> document.format.label
+                        null -> null
+                    }
+                DownloadPrecheckDialog(
+                    content =
+                        DownloadPrecheckContent(
+                            kind = DownloadPrecheckKind.BOOK,
+                            title = title,
+                            formatLabel = formatLabel,
+                        ),
+                    space =
+                        DownloadPrecheckRules.spaceStatus(
+                            requiredBytes = null,
+                            availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
+                        ),
+                    networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+                    onConfirm = {
+                        precheckOpen = false
+                        onDownload()
+                    },
+                    onWifiOnly = {
+                        precheckOpen = false
+                        onDownload()
+                    },
+                    onDismiss = { precheckOpen = false },
+                )
             }
 
             if (showBookmarks) {
@@ -1661,7 +1700,7 @@ fun ReaderScreen(
                                 streamState = streamState,
                                 downloadState = downloadState,
                                 contentColor = contentColor,
-                                onDownload = onDownload,
+                                onDownload = { precheckOpen = true },
                             )
                         }
                         // W6 T9（READER-32）：听书入口（定稿一 §2「更多」末位）。EPUB 走 Readium 文本提取，

@@ -1,8 +1,18 @@
 package com.zhangwenkang.cinefin.film.presentation.detail
 
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadNetworkPrompt
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckContent
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckKind
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadSpaceStatus
 import com.zhangwenkang.cinefin.models.FindroidEpisode
+import com.zhangwenkang.cinefin.models.FindroidItem
+import com.zhangwenkang.cinefin.models.FindroidSource
+import com.zhangwenkang.cinefin.utils.DownloadNetworkDecision
+import java.util.Locale
 import java.util.UUID
 import org.jellyfin.sdk.model.api.ItemFields
+import org.jellyfin.sdk.model.api.MediaStreamType
 
 /** W51 详情页下载动作三态（单集与容器共用）。 */
 enum class DetailDownloadState {
@@ -25,6 +35,34 @@ data class BatchDownloadSelection(
     val skippedQueued: Int,
     val overflow: Int,
 )
+
+/** W7-T1 批量大小聚合：只统计已知大小，未知条目单独计数（不按 0 计入合计）。 */
+data class BatchDownloadSize(
+    val knownBytes: Long,
+    val knownCount: Int,
+    val unknownCount: Int,
+) {
+    /** 无任何已知大小时返回 null（面板显示「大小未知」而不是 0 B）。 */
+    val sizeBytesOrNull: Long?
+        get() = if (knownCount == 0) null else knownBytes
+
+    val hasUnknown: Boolean
+        get() = unknownCount > 0
+}
+
+/**
+ * W7-T1 空间截断计划（需求 50）：只入队能装下的前 N 个，剩下的不静默执行。
+ *
+ * [requiredBytes] = 已选中条目的已知大小之和；未知大小的条目按「可入队、不计入所需空间」处理。
+ */
+data class BatchSpacePlan(
+    val selected: List<UUID>,
+    val deferred: Int,
+    val requiredBytes: Long,
+) {
+    val truncated: Boolean
+        get() = deferred > 0
+}
 
 /**
  * W51 下载粒度纯函数：状态判定 / 批量集选择 / 去重 / 上限。
@@ -120,6 +158,105 @@ object DetailDownloadRules {
             skippedDownloaded = skippedDownloaded,
             skippedQueued = skippedQueued,
             overflow = overflow,
+        )
+    }
+
+    // ── W7-T1：下载前置检查（空间 / 网络 / 媒体类型确认） ─────────────────────────
+
+    /** 单集已知大小（取首个 size > 0 的源；未知返回 null）。 */
+    fun episodeSizeBytes(episode: FindroidEpisode): Long? =
+        episode.sources.firstOrNull { source -> source.size > 0 }?.size
+
+    /** 批量大小聚合：入参是当前选中的集 id 集合，未知大小单独计数。 */
+    fun summarizeBatchBytes(
+        episodes: List<FindroidEpisode>,
+        selectedIds: Collection<UUID>,
+    ): BatchDownloadSize {
+        var knownBytes = 0L
+        var knownCount = 0
+        var unknownCount = 0
+        for (episode in episodes) {
+            if (episode.id !in selectedIds) continue
+            val size = episodeSizeBytes(episode)
+            if (size != null) {
+                knownBytes += size
+                knownCount++
+            } else {
+                unknownCount++
+            }
+        }
+        return BatchDownloadSize(
+            knownBytes = knownBytes,
+            knownCount = knownCount,
+            unknownCount = unknownCount,
+        )
+    }
+
+    /**
+     * 空间截断：按顺序装入已知大小的条目，装不下的第一个条目起全部延后（[BatchSpacePlan.deferred]）。
+     *
+     * 未知大小的条目按「可装下」处理且不累加所需空间——与需求「未知不计并注明」一致，避免把可下载的内容误杀。
+     */
+    fun fitBatchToSpace(
+        orderedIds: List<UUID>,
+        sizeOf: (UUID) -> Long?,
+        availableBytes: Long,
+    ): BatchSpacePlan {
+        val selected = mutableListOf<UUID>()
+        var requiredBytes = 0L
+        var deferred = 0
+        var blocked = false
+        for (id in orderedIds) {
+            if (blocked) {
+                deferred++
+                continue
+            }
+            val size = sizeOf(id)
+            if (size != null && requiredBytes + size > availableBytes) {
+                blocked = true
+                deferred++
+                continue
+            }
+            selected += id
+            if (size != null) requiredBytes += size
+        }
+        return BatchSpacePlan(
+            selected = selected,
+            deferred = deferred,
+            requiredBytes = requiredBytes,
+        )
+    }
+
+    /** 空间预检（直接复用 core 口径，供面板与单测共用一条实现）。 */
+    fun spaceStatus(requiredBytes: Long?, availableBytes: Long): DownloadSpaceStatus =
+        DownloadPrecheckRules.spaceStatus(requiredBytes, availableBytes)
+
+    /** 网络提示判定：移动数据 / 漫游且未获允许 → 需要用户确认（复用 W57 规则）。 */
+    fun networkPrompt(decision: DownloadNetworkDecision): DownloadNetworkPrompt =
+        DownloadPrecheckRules.networkPrompt(decision)
+
+    /** 源格式标签：优先服务器容器名，其次路径扩展名；都没有返回 null。 */
+    fun formatLabelFor(source: FindroidSource): String? {
+        val container = source.container?.trim()?.takeIf { it.isNotEmpty() }
+        if (container != null) return container.uppercase(Locale.US)
+        val extension = source.path.substringAfterLast('.', "").trim()
+        return extension.takeIf { it.isNotEmpty() && it.length <= 5 }?.uppercase(Locale.US)
+    }
+
+    /** 视频单集 / 电影的前置确认内容：标注原始文件下载 + 容器格式 + 文件大小； 有外部字幕时补一行「将同时保存附属文件」。没有可用媒体源返回 null（保持既有失败路径）。 */
+    fun videoPrecheckContent(item: FindroidItem): DownloadPrecheckContent? {
+        val source = item.sources.firstOrNull() ?: return null
+        val hasExternalSubtitles =
+            source.mediaStreams.any { stream ->
+                stream.type == MediaStreamType.SUBTITLE && stream.isExternal
+            }
+        return DownloadPrecheckContent(
+            kind = DownloadPrecheckKind.VIDEO,
+            title = item.name,
+            itemCount = 1,
+            sizeBytes = source.size.takeIf { size -> size > 0 },
+            formatLabel = formatLabelFor(source),
+            hasSidecarFiles = hasExternalSubtitles,
         )
     }
 }

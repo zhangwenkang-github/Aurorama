@@ -39,6 +39,8 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonTone
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonVariant
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadNetworkPrompt
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTheme
@@ -71,6 +73,9 @@ fun BatchDownloadDialog(
     onConfirm: (List<FindroidItem>) -> Unit,
     onDismiss: () -> Unit,
     defaultLimit: Int = DetailDownloadRules.DEFAULT_BATCH_LIMIT,
+    /** W7-T1：空间预检与移动数据提示并入本确认框（需求 50；null = 不预检）。 */
+    availableBytes: Long? = null,
+    networkPrompt: DownloadNetworkPrompt = DownloadNetworkPrompt.NONE,
 ) {
     val colors = LocalCinefinColors.current
     val media = LocalMediaColors.current
@@ -86,6 +91,56 @@ fun BatchDownloadDialog(
                     limit = if (limitEnabled) defaultLimit else null,
                 )
             }
+        }
+
+    val sizeSummary =
+        remember(episodes, selection) {
+            episodes?.let { targets ->
+                DetailDownloadRules.summarizeBatchBytes(
+                    episodes = targets,
+                    selectedIds = selection?.selected.orEmpty().toSet(),
+                )
+            }
+        }
+
+    /** 需求 50：批次总大小超过可用空间时只入队前 N 集（未知大小不参与截断）。 */
+    val spacePlan =
+        remember(episodes, selection, availableBytes) {
+            val targets = episodes
+            val selected = selection?.selected
+            if (targets == null || selected == null || availableBytes == null) {
+                null
+            } else {
+                val sizes =
+                    targets
+                        .filter { episode -> episode.id in selected.toSet() }
+                        .associate { episode ->
+                            episode.id to DetailDownloadRules.episodeSizeBytes(episode)
+                        }
+                DetailDownloadRules.fitBatchToSpace(
+                    orderedIds = selected,
+                    sizeOf = { id -> sizes[id] },
+                    availableBytes = availableBytes,
+                )
+            }
+        }
+
+    val finalSelectedIds = spacePlan?.selected ?: selection?.selected.orEmpty()
+    val finalSizeBytes =
+        if (spacePlan != null) {
+            // 已知大小全为 0（全部未知）时不把「0 B」当合计。
+            spacePlan.requiredBytes.takeIf { spacePlan.selected.isNotEmpty() && it > 0 }
+        } else {
+            sizeSummary?.sizeBytesOrNull
+        }
+    val unknownInFinal =
+        if (spacePlan != null) {
+            val ids = finalSelectedIds.toSet()
+            episodes.orEmpty().count { episode ->
+                episode.id in ids && DetailDownloadRules.episodeSizeBytes(episode) == null
+            }
+        } else {
+            sizeSummary?.unknownCount ?: 0
         }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -136,11 +191,89 @@ fun BatchDownloadDialog(
                             text =
                                 stringResource(
                                     CoreR.string.detail_download_batch_count,
-                                    selection.selected.size,
+                                    finalSelectedIds.size,
                                 ),
                             style = CinefinType.TitleSmall,
                             color = colors.onSurface,
                         )
+                        Spacer(Modifier.height(CinefinSpacing.Space2))
+                        Text(
+                            text =
+                                if (finalSizeBytes != null) {
+                                    stringResource(
+                                        if (unknownInFinal > 0) {
+                                            CoreR.string.download_precheck_batch_total_partial
+                                        } else {
+                                            CoreR.string.download_precheck_batch_total
+                                        },
+                                        DownloadPrecheckRules.formatBytes(finalSizeBytes),
+                                    )
+                                } else {
+                                    stringResource(CoreR.string.download_precheck_size_unknown)
+                                },
+                            style = CinefinType.BodyMedium,
+                            color = colors.onSurfaceVariant,
+                        )
+                        if (availableBytes != null) {
+                            Spacer(Modifier.height(CinefinSpacing.Space1))
+                            val spaceInsufficient =
+                                finalSelectedIds.isEmpty() ||
+                                    (finalSizeBytes != null && finalSizeBytes > availableBytes)
+                            Text(
+                                text =
+                                    if (finalSizeBytes != null) {
+                                        stringResource(
+                                            CoreR.string.download_precheck_space,
+                                            DownloadPrecheckRules.formatBytes(finalSizeBytes),
+                                            DownloadPrecheckRules.formatBytes(availableBytes),
+                                        )
+                                    } else {
+                                        stringResource(
+                                            CoreR.string.download_precheck_space_unknown,
+                                            DownloadPrecheckRules.formatBytes(availableBytes),
+                                        )
+                                    },
+                                style = CinefinType.BodyMedium,
+                                color =
+                                    if (spaceInsufficient) colors.error
+                                    else colors.onSurfaceVariant,
+                            )
+                            if (spaceInsufficient) {
+                                Spacer(Modifier.height(CinefinSpacing.Space1))
+                                Text(
+                                    text =
+                                        stringResource(
+                                            CoreR.string.download_precheck_space_insufficient
+                                        ),
+                                    style = CinefinType.BodySmall,
+                                    color = colors.error,
+                                )
+                            }
+                        }
+                        spacePlan
+                            ?.takeIf { plan -> plan.truncated }
+                            ?.let { plan ->
+                                Spacer(Modifier.height(CinefinSpacing.Space2))
+                                Text(
+                                    text =
+                                        stringResource(
+                                            CoreR.string.download_precheck_batch_truncated,
+                                            plan.selected.size,
+                                            DownloadPrecheckRules.formatBytes(plan.requiredBytes),
+                                            plan.deferred,
+                                        ),
+                                    style = CinefinType.BodyMedium,
+                                    color = colors.onSurfaceVariant,
+                                )
+                            }
+                        if (networkPrompt == DownloadNetworkPrompt.CONFIRM_MOBILE_DATA) {
+                            Spacer(Modifier.height(CinefinSpacing.Space2))
+                            Text(
+                                text = stringResource(CoreR.string.download_precheck_mobile_data),
+                                style = CinefinType.BodyMedium,
+                                color = colors.onSurfaceVariant,
+                            )
+                        }
                         if (selection.skippedDownloaded > 0 || selection.skippedQueued > 0) {
                             Spacer(Modifier.height(CinefinSpacing.Space2))
                             Text(
@@ -206,13 +339,13 @@ fun BatchDownloadDialog(
                         text = stringResource(CoreR.string.detail_download_batch_confirm),
                         onClick = {
                             val targets = episodes ?: return@CinefinButton
-                            val selectedIds = selection?.selected.orEmpty().toSet()
+                            val selectedIds = finalSelectedIds.toSet()
                             onConfirm(targets.filter { it.id in selectedIds })
                         },
                         variant = CinefinButtonVariant.Filled,
                         tone = CinefinButtonTone.Media,
                         size = CinefinButtonSize.Medium,
-                        enabled = selection?.selected?.isNotEmpty() == true,
+                        enabled = finalSelectedIds.isNotEmpty(),
                     )
                 }
             }

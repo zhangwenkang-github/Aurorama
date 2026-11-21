@@ -48,6 +48,7 @@ import com.zhangwenkang.cinefin.PlayerActivity
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
 import com.zhangwenkang.cinefin.core.presentation.dummy.dummyShow
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -219,6 +220,8 @@ fun ShowScreen(
                 batchDialogVisible = false
             },
             onDismiss = { batchDialogVisible = false },
+            availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
+            networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
         )
     }
 }

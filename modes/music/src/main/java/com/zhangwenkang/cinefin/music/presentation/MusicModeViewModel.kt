@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckContent
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckKind
 import com.zhangwenkang.cinefin.core.selection.MultiSelectState
 import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.local.LocalMediaKind
@@ -1802,6 +1804,44 @@ constructor(
 
     private fun showBatchFailure(title: String, message: String) {
         _uiState.update { it.copy(errorTitle = title, errorMessage = message) }
+    }
+
+    /**
+     * W7-T1：单曲下载前置确认内容。
+     *
+     * 只用本地曲库快照（名称 / 艺人 / 容器），**不发网络请求**——提示层必须先于任何入队请求出现。 快照没有文件大小字段，大小显示为「未知」，真实大小由引擎入队时解析。
+     */
+    fun songPrecheckContent(song: MusicSong): DownloadPrecheckContent =
+        DownloadPrecheckContent(
+            kind = DownloadPrecheckKind.AUDIO,
+            title = song.name,
+            itemCount = 1,
+            formatLabel =
+                song.container?.takeIf { it.isNotBlank() }
+                    ?: song.codec?.takeIf { it.isNotBlank() },
+            secondaryLabel = song.artist?.takeIf { it.isNotBlank() },
+            durationLabel = musicRuntimeLabel(song.runtimeTicks),
+        )
+
+    /** W7-T1：专辑「下载专辑」前置确认内容；没有缺失曲目返回 null（按钮本身已置灰）。 */
+    fun albumPrecheckContent(): DownloadPrecheckContent? {
+        val album = (_uiState.value.detail as? MusicDetail.Album)?.album ?: return null
+        val plan = albumDownloadPlan(album)
+        if (plan.targets.isEmpty()) return null
+        return DownloadPrecheckContent(
+            kind = DownloadPrecheckKind.AUDIO_BATCH,
+            title = album.name,
+            itemCount = plan.targets.size,
+            secondaryLabel = album.artist?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    private fun musicRuntimeLabel(runtimeTicks: Long): String? {
+        val totalSeconds = runtimeTicks / 10_000_000
+        if (totalSeconds <= 0) return null
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format(java.util.Locale.US, "%d:%02d", minutes, seconds)
     }
 
     /** W34：下载 / 删除单曲（音乐侧入口；下载引擎仍走 DownloadManager + sources 表）。 */

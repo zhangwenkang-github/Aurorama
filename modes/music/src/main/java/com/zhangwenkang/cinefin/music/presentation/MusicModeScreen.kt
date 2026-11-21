@@ -135,6 +135,10 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinSnackbarHost
 import com.zhangwenkang.cinefin.core.presentation.components.DownloadSnackbarDuration
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorChip
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckContent
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckDialog
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckEnvironment
+import com.zhangwenkang.cinefin.core.presentation.downloader.DownloadPrecheckRules
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinMotion
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -269,6 +273,22 @@ fun MusicModeScreen(
     var contextSong by remember { mutableStateOf<MusicSong?>(null) }
     // W5 T6（MUSIC-34）：音频信息面板（长按菜单「音频信息」/ 音效面板「输出信息」共用）
     var audioInfo by remember { mutableStateOf<MusicAudioInfo?>(null) }
+    // W7-T1：下载前置检查提示层（单曲 / 专辑批量）；内容只用本地快照，先于任何网络请求出现。
+    var songPrecheck by remember { mutableStateOf<MusicSong?>(null) }
+    var albumPrecheckContent by remember { mutableStateOf<DownloadPrecheckContent?>(null) }
+
+    /** 单曲下载入口：已下载 / 队列中仍走原来的取消 / 删除语义，其余先过前置检查提示层。 */
+    val requestSongDownload: (MusicSong) -> Unit = { song ->
+        if (songDownloadState.isDownloaded(song) || songDownloadState.isActive(song)) {
+            viewModel.toggleSongDownload(song)
+        } else {
+            songPrecheck = song
+        }
+    }
+    val requestAlbumDownload: () -> Unit = {
+        val content = viewModel.albumPrecheckContent()
+        if (content == null) viewModel.downloadAlbum() else albumPrecheckContent = content
+    }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // W60b：下载反馈统一（歌曲 / 专辑 / 批量）——「已加入下载队列 · N 首」+「查看」跳下载页。
@@ -572,10 +592,10 @@ fun MusicModeScreen(
                                 onSongClick = viewModel::playSong,
                                 onPlayNext = viewModel::playNext,
                                 onToggleFavorite = viewModel::toggleFavorite,
-                                onToggleDownload = viewModel::toggleSongDownload,
+                                onToggleDownload = requestSongDownload,
                                 onSongLongPress = { song -> contextSong = song },
                                 onBatchToggle = viewModel::onBatchToggle,
-                                onDownloadAlbum = viewModel::downloadAlbum,
+                                onDownloadAlbum = requestAlbumDownload,
                                 albumMissingCount = viewModel::albumDownloadMissingCount,
                                 onAddToLocalPlaylist = { song ->
                                     pendingPlaylistSongs = listOf(song)
@@ -611,7 +631,7 @@ fun MusicModeScreen(
                                 onSongClick = viewModel::playSong,
                                 onPlayNext = viewModel::playNext,
                                 onToggleFavorite = viewModel::toggleFavorite,
-                                onToggleDownload = viewModel::toggleSongDownload,
+                                onToggleDownload = requestSongDownload,
                                 onSongLongPress = { song -> contextSong = song },
                                 onBatchToggle = viewModel::onBatchToggle,
                                 onAlbumBatchLongPress = viewModel::onAlbumBatchLongPress,
@@ -873,13 +893,56 @@ fun MusicModeScreen(
                 },
                 onDownload = {
                     contextSong = null
-                    viewModel.toggleSongDownload(contextSheetSong)
+                    requestSongDownload(contextSheetSong)
                 },
                 // 音频信息（MUSIC-34）：W5-T6 起启用（设计定稿一 §1）
                 onAudioInfo = {
                     contextSong = null
                     audioInfo = viewModel.audioInfoFor(contextSheetSong)
                 },
+            )
+        }
+
+        val precheckSong = songPrecheck
+        if (precheckSong != null) {
+            DownloadPrecheckDialog(
+                content = viewModel.songPrecheckContent(precheckSong),
+                space =
+                    DownloadPrecheckRules.spaceStatus(
+                        requiredBytes = null,
+                        availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
+                    ),
+                networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+                onConfirm = {
+                    songPrecheck = null
+                    viewModel.toggleSongDownload(precheckSong)
+                },
+                onWifiOnly = {
+                    songPrecheck = null
+                    viewModel.toggleSongDownload(precheckSong)
+                },
+                onDismiss = { songPrecheck = null },
+            )
+        }
+        val precheckAlbum = albumPrecheckContent
+        if (precheckAlbum != null) {
+            DownloadPrecheckDialog(
+                content = precheckAlbum,
+                space =
+                    DownloadPrecheckRules.spaceStatus(
+                        requiredBytes = null,
+                        availableBytes = DownloadPrecheckEnvironment.availableBytes(context, 0),
+                    ),
+                networkPrompt = DownloadPrecheckEnvironment.networkPrompt(context),
+                onConfirm = {
+                    albumPrecheckContent = null
+                    viewModel.downloadAlbum()
+                },
+                onWifiOnly = {
+                    albumPrecheckContent = null
+                    viewModel.downloadAlbum()
+                },
+                onDismiss = { albumPrecheckContent = null },
             )
         }
 
