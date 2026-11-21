@@ -1,11 +1,15 @@
 # 2.0 W6 · 阅读域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-21 **W6 会话2**：T1、T7 已合入，T8-spike 完成→官方 Decoration API 可用（方案 A）；T2–T6 待派）
+> 状态：`ACTIVE`（2026-11-21 **W6 会话3**：T2–T6/T8/T9/T10 全部合入并 K60 取证，修复卡 T4r/T6r/T9r/T9r2 已合入；剩 T6r2 未修、T9r2 未复验、T11 收官）
 > 依据：`docs/V2_REQUIREMENTS.md` §5（V2-READER 全 48 条）与 §15 波次（W6 ← W3）；设计唯一权威 `docs/V2_DESIGN.md` + 本文档「设计定稿」；token 与动效沿用 W1/W3/W4 落地件（`core/presentation/theme/`）。
 
 ## 状态块（新会话先读这里）
 
 - 分支：`codex/v2-integration`；W6 开工基线 = W5 收官 HEAD（`4219fe7e`，以 git log 为准）。
+- **会话3（2026-11-21）**：T2–T6/T8/T9/T10 全部合入（`b84c14be`/`baa306a2`/`6c80cd9d`/`773fe87c`/`9aecc478`/`22abb8a6`/`e27070ac`/`dab1ae32`），K60 大矩阵取证完成；真机抓出 5 个缺陷，4 张修复卡合入（T4r `ac2b2d2e`、T6r `bc331698`、T9r `feae0fd3`、T9r2 `99f460ac`）。**取证判定矩阵**（✅=真机实证）：
+  - T1 ✅ 全项（沉浸/唤出/关闭/下滑/返回两级/三分区/反转/关点按/双击占位）；T2 ✅（进度条拖跳 2→27 页、目录跳转+自动关闭、双击书签+列表）；T3 ✅ 冒烟（CBZ 覆盖/仿真翻页无崩、EPUB 面板只给滑动/无动画；动画曲线本身未逐帧验）；T4 ✅ 音量键+方向锁定，❌→✅ DPAD/Enter（T4r=dispatchKeyEvent 拦截，复验过）；T5 ✅ 面板新结构眼见（三组/字重/自定义色/亮度滑块，自定义色实际上屏未单独验）；T6 ✅ 分页自动翻页（跨章 30s 实跳）+暂停规则，❌→✅ EPUB 滚动档（T6r=JS scrollTop 通路+可见区选帧，日志实证滚动+跨章续接）；T7 复验 ✅（修复后 UTF-8/GBK 导入打开渲染全通）；T8 ✅ 全链（工具栏/四色/cssSelector 落盘/杀进程恢复/跳转复位渲染/标注列表）；T9 ✅ 主链（T9r 引擎回退 mibrain.speech 出声、控制条/通知/MediaSession；句高亮 T9r2 已修**未复验**）；T10 ✅（划词→搜索联动、章节名结果、跳转、导出 md 结构正确、本地书架登记、作者·进度/未读）。
+  - **新发现问题**：① T6r2（未修）：末章到底后 goForward 空转不停（书末判定失效）；实测滚速 ~150px/s vs 设定 60px/s（疑 CSS px/设备 px 换算 2.5×）；② T9r2（已修 `99f460ac`，**待 K60 复验**：句高亮无失败日志、跟随跳章、停止清空）；③ T9 句高亮根因=淡入 tint 每 50ms 重启 effect 取消在途 apply + liveLocator 滚动档陈旧（T9r2 已根治）；④ 观察项：T2 loadNavigation 主线程 2.5s 卡顿（MIUIScout，大书首开）；T9 定时/上下句/后台细项未逐条验；`pageIndicatorText` 死代码（T11 清）；T4 平板方向锁定可能被 Android 16 忽略（观察）。
+  - **设备环境记录**：K60/Pad 均无默认 TTS 引擎（HyperOS），mibrain.speech 可被显式绑定；mibrain 首次朗读弹录音权限（需手动允许一次）。
 - **会话2（2026-11-21）**：首批三卡并行派出并收口——
   - **T1 沉浸控制层与手势重排 ✅ 已合入** `436aaf07`（沉浸全屏、顶片/底片控制层覆盖叠加、单击三分区（反转/关闭两设置项）、双击书签回调占位、返回键先关控制层；204 单测绿）。上报偏差：glass 的 `blur 24` 未实现（Compose 无 backdrop blur，沿用工程既有「半透明无实时模糊」口径，待 Kimi 裁定）；双击中区=PDF 适宽快捷入口随手势重排移除（如需保留待设计补入口）。
   - **T7 TXT 支持与导入 ✅ 已合入** `d238397d`（嗅探 UTF-8/GBK + 二进制防护、纯 JVM TXT→最小 EPUB3 转换器、可配置分章正则 `pref_reader_txt_chapter_regex`（仅模型无 UI）、书架导入 FAB→SAF 持久授权→直接进阅读器；16+8 单测绿）。遗留：导入书不进书架列表（data 层白名单/单文件登记，归 T10）；真机验证（Readium 打开缓存 EPUB、GBK 渲染、SAF 授权跨重启）待 K60。
@@ -322,3 +326,10 @@ W5 参考口径（只读状态块，不通读）：docs/V2_W5_TASKS.md。
 
 - **目标**：对照 §5 逐条销号（✅/⚠️/❌ + 证据），K60 核心链路取证（打开/翻页/控制层/目录跳转/高亮笔记/TTS/TXT 导入）；⚠️ 项裁定去向（观察/backlog）；回写状态块与 `V2_REQUIREMENTS.md` 关联判定、PROJECT_PLAN 焦点移交 W7。
 - **负责人**：Kimi（不派子代理）。
+
+### T6r2 · 自动滚动残留两缺陷（K60 取证发现，T11 前必修）
+
+- **目标**：① 末章到底后 goForward 空转不停——书末判定不能只看 `totalProgression ≥0.995`（程序化滚动不刷 locator，book 停在章首 progression），改用「连续 N 次 goForward 后位置 key 无变化」判书末并 stop；② 实测滚速 ~150px/s vs 设定 60px/s（疑 JS `scrollTop += d` 的 CSS px 与引擎 px/s 设备 px 换算差一个 density 或 dt 口径），校准到 ±20%。
+- **文件边界**：`ReadiumEpubView.kt`、`AutoAdvance.kt`（+测试）。
+- **验收**：日志证实在末章到底后 ≤2 次空转内 stop 并提示；设定 60px/s 实测 48–72px/s。
+- **门禁**：modes/book 单测 + ktfmt + assembleDebug。
