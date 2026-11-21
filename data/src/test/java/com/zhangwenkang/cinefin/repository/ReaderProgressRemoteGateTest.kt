@@ -7,15 +7,19 @@ import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** W6-T13：本地书打开跳过远程进度拉取；服务器书路径回归原语义（无网不查、2s 超时、失败回退）。 */
 class ReaderProgressRemoteGateTest {
     private val localUri =
         "content://com.android.externalstorage.documents/tree/primary%3ABooks/document/w6-test-utf8.txt"
+    // 本地书：v3（nameUUIDFromBytes），与书架 FAB 导入 / SAF 扫描登记同源。
     private val localItemId = localItemIdFor(localUri)
-    private val serverItemId = UUID.fromString("8bb46d1a-2e5f-4d5f-9d19-8e4a2f4f0e1a")
+    // 服务器书：Jellyfin GUID 是 v4 随机值。
+    private val serverItemId = UUID.randomUUID()
 
     private val localProgress =
         ReadingProgress(
@@ -41,7 +45,7 @@ class ReaderProgressRemoteGateTest {
             resolveReadingProgressWithRemote(
                 itemId = localItemId,
                 local = localProgress,
-                isLocalItem = true,
+                isLocalItem = isLocallyGeneratedItemId(localItemId),
                 hasActiveNetwork = true,
                 fetchRemote = {
                     remoteCalls += 1
@@ -98,6 +102,16 @@ class ReaderProgressRemoteGateTest {
         assertEquals(0, remoteCalls)
         assertEquals(0.42, merged!!.progression, 0.0001)
         assertEquals(localProgress.locatorJson, merged.locatorJson)
+    }
+
+    @Test
+    fun `v3 UUID 视为本地书_v4 随机 UUID 不视为本地书`() {
+        // 书架 FAB 导入 / SAF 扫描登记的本地条目都是 v3。
+        assertEquals(3, localItemId.version())
+        assertTrue(isLocallyGeneratedItemId(localItemId))
+        // Jellyfin 服务器 GUID 为 v4 随机值，仍走远程路径。
+        assertEquals(4, serverItemId.version())
+        assertFalse(isLocallyGeneratedItemId(serverItemId))
     }
 
     @Test

@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.ConnectivityManager
 import com.zhangwenkang.cinefin.api.JellyfinApi
 import com.zhangwenkang.cinefin.database.ServerDatabaseDao
-import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.network.JellyfinAuth
 import com.zhangwenkang.cinefin.network.buildCertificateAwareOkHttpClient
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
@@ -49,7 +48,6 @@ class ReaderRepositoryImpl(
     context: Context,
     private val jellyfinApi: JellyfinApi,
     private val appPreferences: AppPreferences,
-    private val localLibrary: LocalLibraryRepository,
 ) : ReaderRepository {
     private val appContext = context.applicationContext
     private val progressStore =
@@ -232,7 +230,7 @@ class ReaderRepositoryImpl(
             resolveReadingProgressWithRemote(
                 itemId = itemId,
                 local = progressStore.load(itemId),
-                isLocalItem = localLibrary.isLocalItem(itemId),
+                isLocalItem = isLocallyGeneratedItemId(itemId),
                 hasActiveNetwork = hasActiveNetwork(),
                 fetchRemote = { fetchRemoteProgress(itemId) },
             )
@@ -403,15 +401,24 @@ class ReaderRepositoryImpl(
 /**
  * 打开书籍时远程进度查询的等待上限：超时回退本地进度（W64 打开耗时优化）。
  *
- * W6-T13：本地媒体库条目的 itemId 是本地 URI 推导出的 UUID，服务器不认识，这类条目直接跳过远程分支（零请求、零超时）。
+ * W6-T13：本地书目的 itemId 是本地生成的 v3 UUID，服务器不认识，这类条目直接跳过远程分支（零请求、零超时）。
  */
 internal const val REMOTE_PROGRESS_TIMEOUT_MS = 2_000L
 
 /**
+ * 本地生成 itemId 的判定。
+ *
+ * 所有本地条目 ID 都由 `UUID.nameUUIDFromBytes`（v3）生成——SAF 扫描入库（`localItemIdFor`）与书架
+ * FAB「导入书籍」（`LocalShelfRegistry` 登记）两条路径同用；Jellyfin 服务器 GUID 是 v4 随机值。 因此 `version() == 3`
+ * 等价于「本地生成，服务器不识别」。不能用 `LocalLibraryRepository.isLocalItem` 判定：它只查 SAF 扫描的 Room 索引，FAB 导入的书不在其中。
+ */
+internal fun isLocallyGeneratedItemId(itemId: UUID): Boolean = itemId.version() == 3
+
+/**
  * 合并本地与远程阅读进度前的远程查询门控。
  *
- * 本地书（[isLocalItem]）整段远程分支跳过：不发请求，也不记超时日志。服务器书保持原语义—— 飞行模式 / 无网络不请求，有网最多等
- * [timeoutMillis]，超时或失败按"没有远程进度"处理。
+ * 本地书（[isLocalItem]，由 [isLocallyGeneratedItemId] 判定）整段远程分支跳过：不发请求，也不记超时日志。 服务器书保持原语义——飞行模式 /
+ * 无网络不请求，有网最多等 [timeoutMillis]，超时或失败按"没有远程进度"处理。
  */
 internal suspend fun resolveReadingProgressWithRemote(
     itemId: UUID,

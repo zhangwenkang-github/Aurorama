@@ -2,7 +2,6 @@ package com.zhangwenkang.cinefin.repository
 
 import android.content.Context
 import com.zhangwenkang.cinefin.api.JellyfinApi
-import com.zhangwenkang.cinefin.local.LocalLibraryRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.Module
 import dagger.Provides
@@ -25,6 +24,5 @@ object ReaderRepositoryModule {
         @ApplicationContext context: Context,
         jellyfinApi: JellyfinApi,
         appPreferences: AppPreferences,
-        localLibrary: LocalLibraryRepository,
-    ): ReaderRepository = ReaderRepositoryImpl(context, jellyfinApi, appPreferences, localLibrary)
+    ): ReaderRepository = ReaderRepositoryImpl(context, jellyfinApi, appPreferences)
 }
