@@ -1,12 +1,23 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaBook
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
+import com.zhangwenkang.cinefin.settings.domain.AppPreferences
+import com.zhangwenkang.cinefin.settings.domain.ReaderThemeCustomColors
+import com.zhangwenkang.cinefin.settings.domain.ReaderThemeCustomJson
 import com.zhangwenkang.cinefin.settings.domain.models.Preference
+import dagger.hilt.android.EntryPointAccessors
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 import org.readium.r2.navigator.preferences.ColumnCount
@@ -14,6 +25,7 @@ import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.preferences.TextAlign
 import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.ExperimentalReadiumApi
+import timber.log.Timber
 
 /**
  * 阅读器排版设置模型（R1-W2，需求 EB-5 / EB-6 / EB-7）。
@@ -24,6 +36,12 @@ import org.readium.r2.shared.ExperimentalReadiumApi
 val ReaderFontSizeRange = 0.7f..2.5f
 val ReaderLineHeightRange = 1.0f..2.0f
 val ReaderPageMarginsRange = 0.0f..2.0f
+
+/** 段间距滑块区间（W6 T5，定稿四 §2：0–2em）。 */
+val ReaderParagraphSpacingRange = 0.0f..2.0f
+
+/** 首行缩进开启时的缩进量（em）。 */
+const val ReaderParagraphIndentEm = 2.0
 
 /** 阅读正文墨色（浅色家族）：阅读域自持，不随 App 主题色板变化。 */
 val ReaderInkLight = Color(0xFF1B212B)
@@ -125,6 +143,26 @@ enum class ReaderTextAlign(
     }
 }
 
+/**
+ * 正文字重三档（W6 T5 / READER-16，定稿四 §2）：400 / 500 / 700。
+ *
+ * Readium `EpubPreferences.fontWeight` 是 400 的倍数（0–2.5，400 → 1.0），故提交前换算为 [readiumScale]。
+ */
+enum class ReaderFontWeight(val storageValue: Int, val label: String) {
+    Normal(400, "常规"),
+    Medium(500, "中粗"),
+    Bold(700, "加粗");
+
+    /** 提交给 Readium 的倍数：400 → 1.0、500 → 1.25、700 → 1.75。 */
+    val readiumScale: Double
+        get() = storageValue / 400.0
+
+    companion object {
+        fun fromStorage(value: Int?): ReaderFontWeight =
+            entries.firstOrNull { it.storageValue == value } ?: Normal
+    }
+}
+
 /** 阅读器排版 + 主题设置的完整快照。 */
 data class ReaderSettings(
     val mode: ReaderMode = ReaderMode.Scroll,
@@ -142,6 +180,16 @@ data class ReaderSettings(
     val tapPagingEnabled: Boolean = true,
     /** W6 T2：「目录显示已读」——目录抽屉里给已读完的章节打 accent ✓。 */
     val tocShowRead: Boolean = true,
+    /** W6 T5：正文字重（400 / 500 / 700）。 */
+    val fontWeight: ReaderFontWeight = ReaderFontWeight.Normal,
+    /** W6 T5：段间距（em，0–2，映射 Readium `paragraphSpacing`）。 */
+    val paragraphSpacing: Float = 0f,
+    /** W6 T5：首行缩进（开 = [ReaderParagraphIndentEm] em）。 */
+    val paragraphIndent: Boolean = false,
+    /** W6 T5：连字符（默认关）。 */
+    val hyphens: Boolean = false,
+    /** W6 T5：各套具体主题的自定义色（跟随主题按解析后的具体主题取用，不单独存）。 */
+    val themeCustom: Map<ReaderTheme, ReaderThemeCustomColors> = emptyMap(),
 ) {
     /** 把外部（SharedPreferences）可能越界 / 非有限的值收进可用区间。 */
     fun sanitized(): ReaderSettings =
@@ -149,6 +197,7 @@ data class ReaderSettings(
             fontSize = fontSize.coerceFiniteIn(ReaderFontSizeRange, 1.0f),
             lineHeight = lineHeight.coerceFiniteIn(ReaderLineHeightRange, 1.2f),
             pageMargins = pageMargins.coerceFiniteIn(ReaderPageMarginsRange, 1.0f),
+            paragraphSpacing = paragraphSpacing.coerceFiniteIn(ReaderParagraphSpacingRange, 0f),
         )
 
     /** 当前设置 + 控制层可见性 → 三分区单击策略（纯函数，视图层只做分发）。 */
@@ -161,11 +210,19 @@ data class ReaderSettings(
 
     fun isDark(systemDark: Boolean): Boolean = theme.isDark(systemDark)
 
-    fun surfaceColor(systemDark: Boolean): Color = theme.surfaceColor(systemDark)
+    /** W6 T5：当前主题（跟随已解析）的自定义色；未自定义时为 null。 */
+    fun customColors(systemDark: Boolean): ReaderThemeCustomColors? =
+        themeCustom[theme.resolve(systemDark)]?.takeUnless { it.isDefault }
 
-    fun contentColor(systemDark: Boolean): Color = theme.contentColor(systemDark)
+    fun surfaceColor(systemDark: Boolean): Color =
+        customColors(systemDark)?.background?.let { Color(it) } ?: theme.surfaceColor(systemDark)
 
-    fun chromeColor(systemDark: Boolean): Color = theme.chromeColor(systemDark)
+    fun contentColor(systemDark: Boolean): Color =
+        customColors(systemDark)?.content?.let { Color(it) } ?: theme.contentColor(systemDark)
+
+    /** 深色家族仍是 §8.14 的阅读面板底色；浅色家族（含自定义背景）与内容同底。 */
+    fun chromeColor(systemDark: Boolean): Color =
+        if (theme.isDark(systemDark)) CinefinTokens.ReaderPanelDark else surfaceColor(systemDark)
 
     fun accentColor(systemDark: Boolean): Color = theme.accentColor(systemDark)
 
@@ -204,13 +261,17 @@ data class ReaderSettings(
             scroll = value.mode == ReaderMode.Scroll,
             twoColumn = value.mode == ReaderMode.TwoColumn,
             darkTheme = value.theme.isDark(systemDark),
-            backgroundColor = value.theme.surfaceColor(systemDark),
-            textColor = value.theme.contentColor(systemDark),
+            backgroundColor = value.surfaceColor(systemDark),
+            textColor = value.contentColor(systemDark),
             font = value.font,
             fontSize = value.fontSize.toDouble(),
             lineHeight = value.lineHeight.toDouble(),
             pageMargins = value.pageMargins.toDouble(),
             textAlign = value.textAlign,
+            fontWeight = value.fontWeight.readiumScale,
+            paragraphSpacing = value.paragraphSpacing.toDouble(),
+            paragraphIndent = if (value.paragraphIndent) ReaderParagraphIndentEm else 0.0,
+            hyphens = value.hyphens,
         )
     }
 
@@ -223,8 +284,12 @@ data class ReaderSettings(
             columnCount = if (spec.twoColumn) ColumnCount.TWO else ColumnCount.ONE,
             fontFamily = spec.font.fontFamily,
             fontSize = spec.fontSize,
+            fontWeight = spec.fontWeight,
+            hyphens = spec.hyphens,
             lineHeight = spec.lineHeight,
             pageMargins = spec.pageMargins,
+            paragraphIndent = spec.paragraphIndent,
+            paragraphSpacing = spec.paragraphSpacing,
             scroll = spec.scroll,
             textAlign = spec.textAlign.readiumValue,
             textColor = ReadiumColor(spec.textColor.toArgb()),
@@ -245,6 +310,10 @@ internal data class ReaderPreferenceSpec(
     val lineHeight: Double,
     val pageMargins: Double,
     val textAlign: ReaderTextAlign,
+    val fontWeight: Double,
+    val paragraphSpacing: Double,
+    val paragraphIndent: Double,
+    val hyphens: Boolean,
 )
 
 private fun Float.coerceFiniteIn(range: ClosedFloatingPointRange<Float>, fallback: Float): Float =
@@ -327,3 +396,185 @@ internal object ReaderInputPreferences {
     val orientation =
         Preference("pref_reader_orientation", ReaderOrientation.FollowSystem.storageValue)
 }
+
+/** 可各自存自定义色的四套具体主题（「跟随」按解析后的具体主题取用，不单独存）。 */
+val ReaderCustomizableThemes: List<ReaderTheme> =
+    listOf(ReaderTheme.Paper, ReaderTheme.EyeCare, ReaderTheme.Dark, ReaderTheme.Oled)
+
+/**
+ * 主题自定义背景色板（W6 T5，定稿四 §3）：6 档全部由该主题的底色 / 墨色 / accent 派生。
+ *
+ * 第一档 = 主题默认底色；其余 = 在底色上叠加 accent / ink 两轴（固定透明度），不引入任何新色值。
+ */
+internal fun readerThemeBackgroundSwatches(theme: ReaderTheme, systemDark: Boolean): List<Color> {
+    val resolved = theme.resolve(systemDark)
+    val surface = resolved.surfaceColor(systemDark)
+    val ink = resolved.contentColor(systemDark)
+    val accent = resolved.accentColor(systemDark)
+    return listOf(
+        surface,
+        accent.copy(alpha = 0.08f).compositeOver(surface),
+        accent.copy(alpha = 0.16f).compositeOver(surface),
+        ink.copy(alpha = 0.06f).compositeOver(surface),
+        ink.copy(alpha = 0.12f).compositeOver(surface),
+        ink.copy(alpha = 0.08f).compositeOver(accent.copy(alpha = 0.08f).compositeOver(surface)),
+    )
+}
+
+/** 主题自定义正文色板（W6 T5）：墨色 / 两档淡化 / accent / accent 淡化 / 墨色微偏 accent，与背景色板同源。 */
+internal fun readerThemeContentSwatches(theme: ReaderTheme, systemDark: Boolean): List<Color> {
+    val resolved = theme.resolve(systemDark)
+    val surface = resolved.surfaceColor(systemDark)
+    val ink = resolved.contentColor(systemDark)
+    val accent = resolved.accentColor(systemDark)
+    return listOf(
+        ink,
+        ink.copy(alpha = 0.86f).compositeOver(surface),
+        ink.copy(alpha = 0.72f).compositeOver(surface),
+        accent,
+        accent.copy(alpha = 0.86f).compositeOver(surface),
+        ink.copy(alpha = 0.9f).compositeOver(accent.copy(alpha = 0.12f).compositeOver(surface)),
+    )
+}
+
+/**
+ * 排版扩展 + 主题自定义色的单一真相源（W6 T5）。
+ *
+ * 与 T3 / T4 的翻页动画 / 输入偏好同一模式：键声明在 `AppPreferences`（`pref_reader_*`），读写直接落盘；
+ * 面板写、阅读视图读，`ReaderViewModel` 不参与（T6 并行中，共享文件只做追加）。
+ */
+internal object ReaderTypographySetting {
+    private var preferences: AppPreferences? = null
+
+    /** 正文字重；默认 400（常规）。 */
+    var fontWeight by mutableStateOf(ReaderFontWeight.Normal)
+        private set
+
+    /** 段间距（em）；默认 0。 */
+    var paragraphSpacing by mutableStateOf(0f)
+        private set
+
+    /** 首行缩进；默认关。 */
+    var paragraphIndent by mutableStateOf(false)
+        private set
+
+    /** 连字符；默认关。 */
+    var hyphens by mutableStateOf(false)
+        private set
+
+    /** 四套具体主题的自定义色（跟随主题按解析结果取用）。 */
+    var themeCustom by mutableStateOf<Map<ReaderTheme, ReaderThemeCustomColors>>(emptyMap())
+        private set
+
+    /** Compose 侧绑定（面板 / 阅读视图首次组合时调用）；重复调用无副作用。 */
+    fun bind(context: Context) {
+        if (preferences != null) return
+        val resolved =
+            runCatching {
+                EntryPointAccessors.fromApplication(
+                        context.applicationContext,
+                        ReaderPreferencesEntryPoint::class.java,
+                    )
+                    .appPreferences()
+            }
+                .onFailure { Timber.w(it, "阅读排版偏好不可用，沿用默认值") }
+                .getOrNull() ?: return
+        bind(resolved)
+    }
+
+    /** Activity 侧绑定（已由 Hilt 注入的实例）。 */
+    fun bind(appPreferences: AppPreferences) {
+        if (preferences === appPreferences) return
+        preferences = appPreferences
+        fontWeight =
+            ReaderFontWeight.fromStorage(appPreferences.getValue(appPreferences.readerFontWeight))
+        paragraphSpacing =
+            appPreferences
+                .getValue(appPreferences.readerParagraphSpacing)
+                .coerceFiniteIn(ReaderParagraphSpacingRange, 0f)
+        paragraphIndent = appPreferences.getValue(appPreferences.readerParagraphIndent)
+        hyphens = appPreferences.getValue(appPreferences.readerHyphens)
+        themeCustom = ReaderCustomizableThemes.associateWith { theme ->
+            ReaderThemeCustomJson.decode(
+                appPreferences.getValue(customPreference(theme, appPreferences))
+            )
+        }
+    }
+
+    fun updateFontWeight(next: ReaderFontWeight) {
+        fontWeight = next
+        write { it.setValue(it.readerFontWeight, next.storageValue) }
+    }
+
+    fun updateParagraphSpacing(next: Float) {
+        paragraphSpacing = next.coerceFiniteIn(ReaderParagraphSpacingRange, 0f)
+        write { it.setValue(it.readerParagraphSpacing, paragraphSpacing) }
+    }
+
+    fun updateParagraphIndent(next: Boolean) {
+        paragraphIndent = next
+        write { it.setValue(it.readerParagraphIndent, next) }
+    }
+
+    fun updateHyphens(next: Boolean) {
+        hyphens = next
+        write { it.setValue(it.readerHyphens, next) }
+    }
+
+    /** 写一套具体主题的自定义色；「跟随」按解析后的具体主题编辑，不接受 System。 */
+    fun updateCustomColors(theme: ReaderTheme, colors: ReaderThemeCustomColors) {
+        if (theme == ReaderTheme.System) return
+        themeCustom = themeCustom + (theme to colors)
+        write { it.setValue(customPreference(theme, it), ReaderThemeCustomJson.encode(colors)) }
+    }
+
+    /** 还原一套主题的自定义色（背景 / 正文两项都回到主题默认）。 */
+    fun resetCustomColors(theme: ReaderTheme) = updateCustomColors(theme, ReaderThemeCustomColors())
+
+    private fun write(block: (AppPreferences) -> Unit) {
+        preferences?.let(block)
+    }
+
+    private fun customPreference(theme: ReaderTheme, prefs: AppPreferences): Preference<String> =
+        when (theme) {
+            ReaderTheme.Paper -> prefs.readerThemeCustomPaper
+            ReaderTheme.EyeCare -> prefs.readerThemeCustomEyeCare
+            ReaderTheme.Dark -> prefs.readerThemeCustomDark
+            ReaderTheme.Oled -> prefs.readerThemeCustomOled
+            ReaderTheme.System -> error("跟随主题不单独存自定义色")
+        }
+}
+
+/** 排版扩展快照（字段即 [ReaderSettings] 里的同名字段）。 */
+internal data class ReaderTypographyState(
+    val fontWeight: ReaderFontWeight,
+    val paragraphSpacing: Float,
+    val paragraphIndent: Boolean,
+    val hyphens: Boolean,
+    val themeCustom: Map<ReaderTheme, ReaderThemeCustomColors>,
+)
+
+/** 首次组合时从偏好恢复；阅读页把它合并进 [ReaderSettings] 后再提交导航器。 */
+@Composable
+internal fun rememberReaderTypographyState(): ReaderTypographyState {
+    val context = LocalContext.current
+    LaunchedEffect(context) { ReaderTypographySetting.bind(context) }
+    return ReaderTypographyState(
+        fontWeight = ReaderTypographySetting.fontWeight,
+        paragraphSpacing = ReaderTypographySetting.paragraphSpacing,
+        paragraphIndent = ReaderTypographySetting.paragraphIndent,
+        hyphens = ReaderTypographySetting.hyphens,
+        themeCustom = ReaderTypographySetting.themeCustom,
+    )
+}
+
+/** 把偏好快照合并进设置模型（阅读页组合期调用；T6 并行期间不改 `ReaderViewModel`）。 */
+internal fun ReaderSettings.withTypography(state: ReaderTypographyState): ReaderSettings =
+    copy(
+            fontWeight = state.fontWeight,
+            paragraphSpacing = state.paragraphSpacing,
+            paragraphIndent = state.paragraphIndent,
+            hyphens = state.hyphens,
+            themeCustom = state.themeCustom,
+        )
+        .sanitized()

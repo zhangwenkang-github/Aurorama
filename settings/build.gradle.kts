@@ -34,4 +34,8 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.jellyfin.core)
+    // W6-T5：阅读主题自定义色的 JSON 编解码（ReaderThemeCustomJson）。
+    implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(libs.junit)
 }

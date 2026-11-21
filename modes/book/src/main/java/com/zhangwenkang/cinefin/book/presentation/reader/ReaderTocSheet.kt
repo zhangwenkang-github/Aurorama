@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
-import com.zhangwenkang.cinefin.core.presentation.components.CinefinSwitch
 import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
@@ -201,8 +200,8 @@ private fun navigableProgression(value: Double): Double =
 /**
  * 目录抽屉内容（底部半屏 `ModalBottomSheet` 的 body）。
  *
- * 顶部一行「目录」+「显示已读」开关（开关直接落在抽屉里，不改排版面板）；列表每行 = 缩进 + 标题 + 可选 accent ✓； 当前章行 accent 12% 底 + 左侧 3dp
- * 竖条。三态：加载 / 空（PDF / CBZ 无章节）/ 错误（可重试）。
+ * 顶部只留标题「目录」；「显示已读」开关（W6 T5）统一在排版面板的布局组里，抽屉不再重复。 列表每行 = 缩进 + 标题 + 可选 accent ✓；当前章行 accent 12% 底 +
+ * 左侧 3dp 竖条。三态：加载 / 空（PDF / CBZ 无章节）/ 错误（可重试）。
  */
 @Composable
 internal fun ReaderTocSheet(
@@ -212,7 +211,6 @@ internal fun ReaderTocSheet(
     accent: Color,
     contentColor: Color,
     onSelect: (ReaderTocEntry) -> Unit,
-    onShowReadMarksChange: (Boolean) -> Unit,
     /** 错误态的重试动作；null = 不显示重试（调用方没有重载通道时）。 */
     onRetry: (() -> Unit)? = null,
 ) {
@@ -225,17 +223,6 @@ internal fun ReaderTocSheet(
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(text = "目录", style = CinefinType.TitleMedium, color = contentColor)
-            Box(modifier = Modifier.weight(1f))
-            Text(
-                text = "显示已读",
-                style = CinefinType.LabelLarge,
-                color = contentColor.copy(alpha = 0.72f),
-            )
-            CinefinSwitch(
-                checked = showReadMarks,
-                onCheckedChange = onShowReadMarksChange,
-                modifier = Modifier.padding(start = CinefinSpacing.Space2),
-            )
         }
 
         when (state) {

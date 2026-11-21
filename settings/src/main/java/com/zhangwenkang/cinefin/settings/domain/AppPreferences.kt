@@ -306,6 +306,30 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 漫画右起翻页（RTL）：只影响 PDF / CBZ 的分页 / 双栏方向；滚动模式保持纵向顺序。 */
     val readerRtl = Preference("pref_reader_rtl", false)
 
+    /** 正文字重（W6-T5）：400 / 500 / 700，提交前换算为 Readium `fontWeight` 倍数。 */
+    val readerFontWeight = Preference("pref_reader_font_weight", 400)
+
+    /** 段间距（W6-T5）：0–2em，映射 Readium `paragraphSpacing`（rem）。 */
+    val readerParagraphSpacing = Preference("pref_reader_paragraph_spacing", 0f)
+
+    /** 首行缩进（W6-T5）：开 = 2em，映射 Readium `paragraphIndent`。 */
+    val readerParagraphIndent = Preference("pref_reader_paragraph_indent", false)
+
+    /** 连字符（W6-T5）：映射 Readium `hyphens`；默认关。 */
+    val readerHyphens = Preference("pref_reader_hyphens", false)
+
+    /** 纸色主题自定义色（W6-T5）：JSON，见 [ReaderThemeCustomJson]；空串 = 默认。 */
+    val readerThemeCustomPaper = Preference(ReaderThemeCustomJson.prefName("paper"), "")
+
+    /** 护眼主题自定义色（W6-T5）。 */
+    val readerThemeCustomEyeCare = Preference(ReaderThemeCustomJson.prefName("eyecare"), "")
+
+    /** 深色主题自定义色（W6-T5）；「跟随」在系统深色时沿用这条。 */
+    val readerThemeCustomDark = Preference(ReaderThemeCustomJson.prefName("dark"), "")
+
+    /** OLED 主题自定义色（W6-T5）。 */
+    val readerThemeCustomOled = Preference(ReaderThemeCustomJson.prefName("oled"), "")
+
     /**
      * TXT 分章正则（W6-T7）：TXT 导入时按它切章；空串 / 非法正则回落 [TxtChapterRules.DEFAULT_CHAPTER_REGEX]。
      *

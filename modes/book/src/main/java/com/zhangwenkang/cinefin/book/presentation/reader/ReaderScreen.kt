@@ -193,6 +193,10 @@ fun ReaderScreen(
         brightness = value
         brightnessHudToken++
     }
+    // W6 T5：排版扩展与主题自定义色由自持偏好提供（T6 并行期间不改 ReaderViewModel），
+    // 组合期合并进设置模型后，凡「读设置」的位置统一用 effectiveSettings。
+    val typography = rememberReaderTypographyState()
+    val effectiveSettings = settings.withTypography(typography)
     val ready = state as? ReaderUiState.Ready
     // W6 T2：书签对 EPUB / PDF / CBZ 全格式开放（PDF / CBZ 用页锚点）。
     val bookmarksAvailable = ready != null
@@ -357,15 +361,20 @@ fun ReaderScreen(
 
     CinefinTheme(
         domain = ContentDomain.Book,
-        darkTheme = settings.isDark(systemDark),
+        darkTheme = effectiveSettings.isDark(systemDark),
         surfaceBackground = false,
     ) {
-        val contentColor = settings.contentColor(systemDark)
-        val chromeColor = settings.chromeColor(systemDark)
-        val accent = settings.accentColor(systemDark)
+        val contentColor = effectiveSettings.contentColor(systemDark)
+        val chromeColor = effectiveSettings.chromeColor(systemDark)
+        val accent = effectiveSettings.accentColor(systemDark)
 
-        CompositionLocalProvider(LocalMediaColors provides settings.mediaColors(systemDark)) {
-            Surface(modifier = Modifier.fillMaxSize(), color = settings.surfaceColor(systemDark)) {
+        CompositionLocalProvider(
+            LocalMediaColors provides effectiveSettings.mediaColors(systemDark)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = effectiveSettings.surfaceColor(systemDark),
+            ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (state) {
                         ReaderUiState.Loading ->
@@ -405,7 +414,7 @@ fun ReaderScreen(
                                         ReadiumEpubView(
                                             publication = document.publication,
                                             initialLocator = document.initialLocator,
-                                            settings = settings,
+                                            settings = effectiveSettings,
                                             systemDark = systemDark,
                                             jumpTarget = jumpTarget,
                                             onLocationChanged = { locator ->
@@ -418,7 +427,8 @@ fun ReaderScreen(
                                             onNavigatorReady = onNavigatorReady,
                                             brightnessProvider = { brightness },
                                             onBrightness = onBrightnessChange,
-                                            tapPolicy = settings.tapPolicy(controlsVisible),
+                                            tapPolicy =
+                                                effectiveSettings.tapPolicy(controlsVisible),
                                             onToggleControls = {
                                                 controlsVisible = !controlsVisible
                                             },
@@ -520,7 +530,7 @@ fun ReaderScreen(
                                 is ReaderDocument.Simple ->
                                     SimpleBookView(
                                         document = document,
-                                        settings = settings,
+                                        settings = effectiveSettings,
                                         systemDark = systemDark,
                                         contentColor = contentColor,
                                         chromeColor = chromeColor,
@@ -544,7 +554,7 @@ fun ReaderScreen(
                                         },
                                         onZoomInteraction = { zoomBarToken++ },
                                         onBlankTap = { zoomBarToken++ },
-                                        tapPolicy = settings.tapPolicy(controlsVisible),
+                                        tapPolicy = effectiveSettings.tapPolicy(controlsVisible),
                                         onToggleControls = { controlsVisible = !controlsVisible },
                                         onDoubleTapBookmark = onDoubleTapToggleBookmark,
                                         modifier = Modifier.fillMaxSize(),
@@ -674,7 +684,7 @@ fun ReaderScreen(
                     ReaderControlLayer(
                         visible = controlsVisible,
                         title = title,
-                        darkChrome = settings.isDark(systemDark),
+                        darkChrome = effectiveSettings.isDark(systemDark),
                         chromeColor = chromeColor,
                         contentColor = contentColor,
                         progression = currentProgression.toFloat(),
@@ -725,7 +735,7 @@ fun ReaderScreen(
                         contentAlignment = Alignment.TopCenter,
                     ) {
                         ReaderSettingsPanel(
-                            settings = settings,
+                            settings = effectiveSettings,
                             systemDark = systemDark,
                             showRtl = pagingDirectionAvailable,
                             tools =
@@ -749,6 +759,9 @@ fun ReaderScreen(
                                     },
                                 ),
                             onSettingsChange = onSettingsChange,
+                            brightness = brightness,
+                            // 面板滑块与左缘手势同源，但不弹手势 HUD（面板内已有百分比）。
+                            onBrightnessChange = { brightness = it },
                         )
                     }
                 }
@@ -809,7 +822,7 @@ fun ReaderScreen(
                     ReaderTocSheet(
                         state = navigation.toc,
                         currentProgression = currentProgression,
-                        showReadMarks = settings.tocShowRead,
+                        showReadMarks = effectiveSettings.tocShowRead,
                         accent = accent,
                         contentColor = contentColor,
                         onSelect = { entry ->
@@ -818,9 +831,6 @@ fun ReaderScreen(
                                 entry.locatorJson,
                             )
                             showContents = false
-                        },
-                        onShowReadMarksChange = { checked ->
-                            onSettingsChange(settings.copy(tocShowRead = checked))
                         },
                         onRetry = onReloadContents,
                     )

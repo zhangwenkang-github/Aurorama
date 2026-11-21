@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
@@ -37,6 +38,7 @@ import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.settings.domain.ReaderThemeCustomColors
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -57,10 +59,10 @@ internal data class ReaderSettingsTools(
 )
 
 /**
- * 阅读器排版面板（UI_DESIGN_SYSTEM §8.14）。
+ * 阅读器排版面板（UI_DESIGN_SYSTEM §8.14；W6 T5 按定稿四重组为三组）。
  *
- * 宽 512dp、圆角 20dp（CinefinShapes.Card）、内边距 30/28dp；字号 / 行距 / 边距滑块，字体 / 对齐 chip 行， 主题缩略图 5 个（78dp 圆角
- * 14dp）。所有修改即时回调，由调用方提交导航器并持久化。
+ * 宽 512dp、圆角 20dp（CinefinShapes.Card）、内边距 30/28dp；三组 = 字体（字族 / 字号 / 字重）｜布局（行距 / 段距 / 边距 / 首行缩进 / 对齐
+ * / 连字符 / 翻页与交互开关）｜主题（五套缩略图 + 自定义色 + 亮度），工具区保持原位。 所有修改即时回调，由调用方提交导航器并持久化。
  *
  * 分段控件与 chip 使用 core 组件；纸色 / 护眼主题下媒体色已被 [ReaderSettings.mediaColors] 替换为纸页棕，组件自动取色，面板不再手工传强调色。
  */
@@ -81,10 +83,24 @@ internal fun ReaderSettingsPanel(
     /** W6 T4：方向锁定三档（默认绑定 [ReaderInputSetting]）。 */
     orientation: ReaderOrientation = rememberReaderOrientation(),
     onOrientationChange: (ReaderOrientation) -> Unit = ReaderInputSetting::updateOrientation,
+    /** W6 T5：排版扩展的写入通道（读值在 [settings] 上；默认绑定 [ReaderTypographySetting]）。 */
+    onFontWeightChange: (ReaderFontWeight) -> Unit = ReaderTypographySetting::updateFontWeight,
+    onParagraphSpacingChange: (Float) -> Unit = ReaderTypographySetting::updateParagraphSpacing,
+    onParagraphIndentChange: (Boolean) -> Unit = ReaderTypographySetting::updateParagraphIndent,
+    onHyphensChange: (Boolean) -> Unit = ReaderTypographySetting::updateHyphens,
+    onCustomColorsChange: (ReaderTheme, ReaderThemeCustomColors) -> Unit =
+        ReaderTypographySetting::updateCustomColors,
+    /** W6 T5：亮度滑块（与左缘手势同一窗口亮度源，不落偏好）。 */
+    brightness: Float = 1f,
+    onBrightnessChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val contentColor = settings.contentColor(systemDark)
     val accent = settings.accentColor(systemDark)
+    val onAccent = settings.onAccentColor(systemDark)
+    // W6 T5：自定义色区只对具体主题开放；「跟随」按解析结果沿用纸色 / 深色的自定义色。
+    val editableTheme =
+        settings.theme.resolve(systemDark).takeUnless { settings.theme == ReaderTheme.System }
 
     Column(
         modifier =
@@ -99,7 +115,14 @@ internal fun ReaderSettingsPanel(
     ) {
         Text(text = "阅读设置", style = CinefinType.TitleMedium, color = contentColor)
 
-        SectionLabel("显示", contentColor)
+        // ---- 字体（W6 T5 定稿四 §1）----
+        SectionLabel("字体", contentColor)
+        ChipRow(
+            options = ReaderFont.entries,
+            selected = settings.font,
+            label = { it.label },
+            onSelect = { onSettingsChange(settings.copy(font = it)) },
+        )
         SliderRow(
             label = "字号",
             valueText = "${(settings.fontSize * 100).roundToInt()}%",
@@ -109,6 +132,17 @@ internal fun ReaderSettingsPanel(
             accent = accent,
             onValueChange = { onSettingsChange(settings.copy(fontSize = it)) },
         )
+        Text(text = "字重", style = CinefinType.BodyMedium, color = contentColor)
+        CinefinSegmentedControl(
+            items = ReaderFontWeight.entries,
+            selected = settings.fontWeight,
+            onSelect = onFontWeightChange,
+            label = { weight -> weight.label },
+        )
+        Hint("2.0.0 不打包字体文件，字体族沿用系统四档；内置阅读字体记 backlog。", contentColor)
+
+        // ---- 布局（W6 T5 定稿四 §1）----
+        SectionLabel("布局", contentColor)
         SliderRow(
             label = "行距",
             valueText = String.format(Locale.US, "%.1f", settings.lineHeight),
@@ -118,23 +152,132 @@ internal fun ReaderSettingsPanel(
             accent = accent,
             onValueChange = { onSettingsChange(settings.copy(lineHeight = it)) },
         )
-
-        SectionLabel("字体", contentColor)
-        ChipRow(
-            options = ReaderFont.entries,
-            selected = settings.font,
-            label = { it.label },
-            onSelect = { onSettingsChange(settings.copy(font = it)) },
+        SliderRow(
+            label = "段距",
+            valueText = String.format(Locale.US, "%.1f", settings.paragraphSpacing),
+            value = settings.paragraphSpacing,
+            range = ReaderParagraphSpacingRange,
+            contentColor = contentColor,
+            accent = accent,
+            onValueChange = onParagraphSpacingChange,
         )
-
-        SectionLabel("对齐", contentColor)
+        SliderRow(
+            label = "边距",
+            valueText = String.format(Locale.US, "%.1f", settings.pageMargins),
+            value = settings.pageMargins,
+            range = ReaderPageMarginsRange,
+            contentColor = contentColor,
+            accent = accent,
+            onValueChange = { onSettingsChange(settings.copy(pageMargins = it)) },
+        )
+        SettingSwitchRow(
+            title = "首行缩进",
+            description = "每段首行缩进 2 字（2em）",
+            checked = settings.paragraphIndent,
+            contentColor = contentColor,
+            accent = accent,
+            onAccent = onAccent,
+            onCheckedChange = onParagraphIndentChange,
+        )
+        Text(text = "对齐", style = CinefinType.BodyMedium, color = contentColor)
         ChipRow(
             options = ReaderTextAlign.entries,
             selected = settings.textAlign,
             label = { it.label },
             onSelect = { onSettingsChange(settings.copy(textAlign = it)) },
         )
+        SettingSwitchRow(
+            title = "连字符",
+            description = "西文按语言自动断词；中文正文不受影响",
+            checked = settings.hyphens,
+            contentColor = contentColor,
+            accent = accent,
+            onAccent = onAccent,
+            onCheckedChange = onHyphensChange,
+        )
 
+        // 翻页方向 / 方式（T3 / T4 既有项收进布局组）。
+        Text(text = "翻页方向", style = CinefinType.BodyMedium, color = contentColor)
+        CinefinSegmentedControl(
+            items = ReaderMode.entries,
+            selected = settings.mode,
+            onSelect = { mode -> onSettingsChange(settings.copy(mode = mode)) },
+            label = { mode -> mode.label },
+        )
+        // W6 T3（定稿三 §2）：翻页动画。EPUB 走 Readium，只有滑动 / 无动画两档，
+        // 存的是覆盖 / 仿真时（在 PDF / CBZ 里选的）回落显示为滑动。
+        val pageAnimations = if (showRtl) ReaderSimplePageAnimations else ReaderEpubPageAnimations
+        val animationSelection =
+            if (pageAnimations.contains(pageAnimation)) pageAnimation else ReaderPageAnimation.Slide
+        CinefinSegmentedControl(
+            items = pageAnimations,
+            selected = animationSelection,
+            onSelect = onPageAnimationChange,
+            label = { animation -> animation.label },
+        )
+        if (!showRtl) {
+            Hint("覆盖 / 仿真仅支持 PDF / CBZ；EPUB 为滑动或无动画。", contentColor)
+        }
+        if (showRtl) {
+            SettingSwitchRow(
+                title = "右起翻页（漫画）",
+                description = "分页 / 双栏右到左；滚动模式仍自上而下",
+                checked = settings.rtl,
+                contentColor = contentColor,
+                accent = accent,
+                onAccent = onAccent,
+                onCheckedChange = { onSettingsChange(settings.copy(rtl = it)) },
+            )
+        }
+        Text(text = "屏幕方向", style = CinefinType.BodyMedium, color = contentColor)
+        CinefinSegmentedControl(
+            items = ReaderOrientation.entries,
+            selected = orientation,
+            onSelect = onOrientationChange,
+            label = { value -> value.label },
+        )
+        Hint("锁定只作用于阅读页；横屏分页档 EPUB 双栏、PDF / CBZ 双页拼版。", contentColor)
+        // W6 T1（定稿三 §1）：三分区单击的两个开关，全格式统一。
+        SettingSwitchRow(
+            title = "反转左右",
+            description = "交换单击左 / 右 1/3 的翻页方向",
+            checked = settings.invertTapZones,
+            contentColor = contentColor,
+            accent = accent,
+            onAccent = onAccent,
+            onCheckedChange = { onSettingsChange(settings.copy(invertTapZones = it)) },
+        )
+        SettingSwitchRow(
+            title = "点按翻页",
+            description = "关闭后单击正文任意处 = 控制层开关",
+            checked = settings.tapPagingEnabled,
+            contentColor = contentColor,
+            accent = accent,
+            onAccent = onAccent,
+            onCheckedChange = { onSettingsChange(settings.copy(tapPagingEnabled = it)) },
+        )
+        // W6 T4（定稿三 §1）：音量键翻页。
+        SettingSwitchRow(
+            title = "音量键翻页",
+            description = "分页档上下键翻页，滚动档按行滚动；仅阅读页生效",
+            checked = volumeKeysPaging,
+            contentColor = contentColor,
+            accent = accent,
+            onAccent = onAccent,
+            onCheckedChange = onVolumeKeysPagingChange,
+        )
+        // W6 T5（T2 交接）：「目录显示已读」从目录抽屉头部迁到面板。
+        SettingSwitchRow(
+            title = "目录显示已读",
+            description = "目录里给已读完的章节打 ✓",
+            checked = settings.tocShowRead,
+            contentColor = contentColor,
+            accent = accent,
+            onAccent = onAccent,
+            onCheckedChange = { onSettingsChange(settings.copy(tocShowRead = it)) },
+        )
+
+        // ---- 主题（W6 T5 定稿四 §3 / §4）----
         SectionLabel("主题", contentColor)
         Row(
             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -149,94 +292,42 @@ internal fun ReaderSettingsPanel(
                 )
             }
         }
-
-        SectionLabel("页面", contentColor)
-        CinefinSegmentedControl(
-            items = ReaderMode.entries,
-            selected = settings.mode,
-            onSelect = { mode -> onSettingsChange(settings.copy(mode = mode)) },
-            label = { mode -> mode.label },
-        )
-        // W6 T3（定稿三 §2）：翻页动画。EPUB 走 Readium，只有滑动 / 无动画两档，
-        // 存的是覆盖 / 仿真时（在 PDF / CBZ 里选的）回落显示为滑动。
-        val pageAnimations = if (showRtl) ReaderSimplePageAnimations else ReaderEpubPageAnimations
-        val animationSelection =
-            if (pageAnimations.contains(pageAnimation)) pageAnimation else ReaderPageAnimation.Slide
-        Text(text = "翻页动画", style = CinefinType.BodyMedium, color = contentColor)
-        CinefinSegmentedControl(
-            items = pageAnimations,
-            selected = animationSelection,
-            onSelect = onPageAnimationChange,
-            label = { animation -> animation.label },
-        )
-        if (!showRtl) {
-            Text(
-                text = "覆盖 / 仿真仅支持 PDF / CBZ；EPUB 为滑动或无动画。",
-                style = CinefinType.LabelSmall,
-                color = contentColor.copy(alpha = 0.6f),
-            )
-        }
-        if (showRtl) {
-            SettingSwitchRow(
-                title = "右起翻页（漫画）",
-                description = "分页 / 双栏右到左；滚动模式仍自上而下",
-                checked = settings.rtl,
-                contentColor = contentColor,
+        if (editableTheme != null) {
+            val custom = settings.themeCustom[editableTheme] ?: ReaderThemeCustomColors.Default
+            ColorSwatchRow(
+                label = "自定义背景色",
+                swatches = readerThemeBackgroundSwatches(editableTheme, systemDark),
+                current = custom.background,
                 accent = accent,
-                onAccent = settings.onAccentColor(systemDark),
-                onCheckedChange = { onSettingsChange(settings.copy(rtl = it)) },
+                contentColor = contentColor,
+                onPick = { color ->
+                    onCustomColorsChange(editableTheme, custom.copy(background = color?.toArgb()))
+                },
             )
+            ColorSwatchRow(
+                label = "自定义正文色",
+                swatches = readerThemeContentSwatches(editableTheme, systemDark),
+                current = custom.content,
+                accent = accent,
+                contentColor = contentColor,
+                onPick = { color ->
+                    onCustomColorsChange(editableTheme, custom.copy(content = color?.toArgb()))
+                },
+            )
+            Hint("链接与高亮不单独提供色板；自定义色只作用于「${editableTheme.label}」主题。", contentColor)
+        } else {
+            Hint("「跟随」沿用纸色 / 深色的自定义色；切到具体主题后可单独调整。", contentColor)
         }
-        // W6 T1（定稿三 §1）：三分区单击的两个开关，全格式统一。
-        SettingSwitchRow(
-            title = "反转左右",
-            description = "交换单击左 / 右 1/3 的翻页方向",
-            checked = settings.invertTapZones,
-            contentColor = contentColor,
-            accent = accent,
-            onAccent = settings.onAccentColor(systemDark),
-            onCheckedChange = { onSettingsChange(settings.copy(invertTapZones = it)) },
-        )
-        SettingSwitchRow(
-            title = "点按翻页",
-            description = "关闭后单击正文任意处 = 控制层开关",
-            checked = settings.tapPagingEnabled,
-            contentColor = contentColor,
-            accent = accent,
-            onAccent = settings.onAccentColor(systemDark),
-            onCheckedChange = { onSettingsChange(settings.copy(tapPagingEnabled = it)) },
-        )
-        // W6 T4（定稿三 §1 / §3）：音量键翻页与方向锁定。
-        SettingSwitchRow(
-            title = "音量键翻页",
-            description = "分页档上下键翻页，滚动档按行滚动；仅阅读页生效",
-            checked = volumeKeysPaging,
-            contentColor = contentColor,
-            accent = accent,
-            onAccent = settings.onAccentColor(systemDark),
-            onCheckedChange = onVolumeKeysPagingChange,
-        )
-        Text(text = "屏幕方向", style = CinefinType.BodyMedium, color = contentColor)
-        CinefinSegmentedControl(
-            items = ReaderOrientation.entries,
-            selected = orientation,
-            onSelect = onOrientationChange,
-            label = { value -> value.label },
-        )
-        Text(
-            text = "锁定只作用于阅读页；横屏分页档 EPUB 双栏、PDF / CBZ 双页拼版。",
-            style = CinefinType.LabelSmall,
-            color = contentColor.copy(alpha = 0.6f),
-        )
         SliderRow(
-            label = "边距",
-            valueText = String.format(Locale.US, "%.1f", settings.pageMargins),
-            value = settings.pageMargins,
-            range = ReaderPageMarginsRange,
+            label = "亮度",
+            valueText = "${(brightness * 100).roundToInt()}%",
+            value = brightness,
+            range = ReaderBrightnessRange,
             contentColor = contentColor,
             accent = accent,
-            onValueChange = { onSettingsChange(settings.copy(pageMargins = it)) },
+            onValueChange = onBrightnessChange,
         )
+        Hint("亮度只作用于阅读页窗口，离开即恢复系统亮度；左缘上下拖动手势同样可用。", contentColor)
 
         SectionLabel("工具", contentColor)
         Row(
@@ -497,5 +588,78 @@ private fun SwatchLine(color: Color, fraction: Float) {
                 .fillMaxWidth(fraction)
                 .clip(CinefinShapes.TwoXs)
                 .background(color.copy(alpha = 0.55f))
+    )
+}
+
+/** 面板内的二级说明（比正文低一档，0.6 透明度，沿用 W44 既有口径）。 */
+@Composable
+private fun Hint(text: String, contentColor: Color) {
+    Text(
+        text = text,
+        style = CinefinType.LabelSmall,
+        color = contentColor.copy(alpha = 0.6f),
+    )
+}
+
+/**
+ * 主题自定义色板一行（W6 T5）：6 个从主题 token 派生的预设 + 「默认」还原。
+ *
+ * [current] = 当前自定义 ARGB（null = 未自定义）；选中态用 accent 描边、未选中用正文色 24% 描边。
+ */
+@Composable
+private fun ColorSwatchRow(
+    label: String,
+    swatches: List<Color>,
+    current: Int?,
+    accent: Color,
+    contentColor: Color,
+    onPick: (Color?) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2)) {
+        Text(text = label, style = CinefinType.BodyMedium, color = contentColor)
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            swatches.forEach { color ->
+                ColorSwatch(
+                    color = color,
+                    selected = current == color.toArgb(),
+                    accent = accent,
+                    contentColor = contentColor,
+                    onClick = { onPick(color) },
+                )
+            }
+            CinefinFilterChip(
+                text = "默认",
+                selected = current == null,
+                onClick = { onPick(null) },
+                compact = true,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColorSwatch(
+    color: Color,
+    selected: Boolean,
+    accent: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Box(
+        modifier =
+            Modifier.size(36.dp)
+                .clip(shape)
+                .background(color)
+                .border(
+                    width = if (selected) 2.dp else 1.dp,
+                    color = if (selected) accent else contentColor.copy(alpha = 0.24f),
+                    shape = shape,
+                )
+                .cinefinClickable(onClick = onClick)
     )
 }
