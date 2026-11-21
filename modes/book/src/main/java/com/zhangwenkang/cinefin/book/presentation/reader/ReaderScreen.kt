@@ -1,6 +1,8 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.provider.Settings
@@ -12,12 +14,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,12 +43,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,7 +72,9 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.readium.r2.shared.ExperimentalReadiumApi
+import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Locator
 
 /**
@@ -238,6 +247,114 @@ fun ReaderScreen(
         bookmarkNoticeToken++
     }
 
+    // ---- W6 T8：EPUB 划词高亮与笔记（READER-23–29）----
+    // 状态与存储留在阅读页内：EPUB 标注只服务当前书，`ReaderActivity` 的接线（VM 调用点）因此不动。
+    val context = LocalContext.current
+    val epubScope = rememberCoroutineScope()
+    val epubStore =
+        remember(context) { EpubAnnotationStore(epubAnnotationStorageDir(context.filesDir)) }
+    val richDocument = ready?.document as? ReaderDocument.Rich
+    val epubBookId = richDocument?.let { ready.itemId.toString() }
+    /** FXL（固定版式）不支持 Decoration / 文本选择（spike：`supportsDecorationStyle` 判定）。 */
+    val epubAnnotationsAvailable =
+        richDocument != null && richDocument.publication.metadata.layout != Layout.FIXED
+    var epubAnnotations by remember(bookKey) { mutableStateOf<List<BookAnnotation>>(emptyList()) }
+    var epubSelection by remember(bookKey) { mutableStateOf<EpubSelectionSnapshot?>(null) }
+    var epubSelectionClearToken by remember(bookKey) { mutableIntStateOf(0) }
+    var epubActiveAnnotation by remember(bookKey) { mutableStateOf<BookAnnotation?>(null) }
+    var epubNoteTarget by remember(bookKey) { mutableStateOf<EpubNoteTarget?>(null) }
+    var showEpubAnnotations by remember(bookKey) { mutableStateOf(false) }
+    var epubNotice by remember(bookKey) { mutableStateOf<String?>(null) }
+    var epubNoticeToken by remember(bookKey) { mutableIntStateOf(0) }
+    LaunchedEffect(epubBookId) {
+        epubAnnotations =
+            epubBookId
+                ?.let { runCatching { epubStore.list(it) }.getOrDefault(emptyList()) }
+                .orEmpty()
+    }
+    LaunchedEffect(epubNoticeToken) {
+        if (epubNoticeToken == 0) return@LaunchedEffect
+        delay(EPUB_NOTICE_VISIBLE_MS)
+        epubNotice = null
+    }
+    /** 章节标题：TOC 里同 href 的条目；找不到就留空（导出时按 spine 序号兜底）。 */
+    val epubChapterTitleFor: (String) -> String = { href ->
+        val target = href.substringBefore('#')
+        tocEntries.firstOrNull { it.href?.substringBefore('#') == target }?.title.orEmpty()
+    }
+    val addEpubAnnotation: (EpubSelectionSnapshot, HighlightColor, String) -> Unit =
+        { selection, color, note ->
+            val bookId = epubBookId
+            if (bookId != null) {
+                val annotation =
+                    newBookAnnotation(
+                        bookId = bookId,
+                        chapterHref = selection.chapterHref,
+                        locatorJson = selection.locatorJson,
+                        highlightColor = color,
+                        noteText = note,
+                        selectedText = selection.text,
+                        chapterTitle =
+                            selection.chapterTitle.ifBlank {
+                                epubChapterTitleFor(selection.chapterHref)
+                            },
+                        spineIndex = selection.spineIndex,
+                    )
+                epubScope.launch {
+                    epubAnnotations =
+                        runCatching { epubStore.save(annotation) }.getOrElse { epubAnnotations }
+                }
+            }
+            epubSelection = null
+            epubSelectionClearToken++
+        }
+    val recolorEpubAnnotation: (BookAnnotation, HighlightColor) -> Unit = { annotation, color ->
+        val bookId = epubBookId
+        if (bookId != null) {
+            epubScope.launch {
+                runCatching { epubStore.recolor(bookId, annotation.id, color) }
+                    .onSuccess { epubAnnotations = it }
+            }
+        }
+    }
+    val updateEpubAnnotationNote: (BookAnnotation, String) -> Unit = { annotation, note ->
+        val bookId = epubBookId
+        if (bookId != null) {
+            epubScope.launch {
+                runCatching { epubStore.updateNote(bookId, annotation.id, note) }
+                    .onSuccess { epubAnnotations = it }
+            }
+        }
+    }
+    val removeEpubAnnotation: (BookAnnotation) -> Unit = { annotation ->
+        val bookId = epubBookId
+        if (bookId != null) {
+            epubScope.launch {
+                runCatching { epubStore.delete(bookId, annotation.id) }
+                    .onSuccess { epubAnnotations = it }
+            }
+        }
+        if (epubActiveAnnotation?.id == annotation.id) epubActiveAnnotation = null
+    }
+    /** 标注跳转：复用书签通道（locatorJson 非空 = 按整条 locator 定位）。 */
+    val jumpToEpubAnnotation: (BookAnnotation) -> Boolean = { annotation ->
+        val itemId = ready?.itemId
+        if (itemId == null) {
+            false
+        } else {
+            val progression =
+                epubAnnotationProgression(annotation.locatorJson) ?: currentProgression
+            onJumpToBookmark(
+                readerPositionBookmark(
+                    itemId = itemId,
+                    progression = progression,
+                    locatorJson = annotation.locatorJson,
+                )
+            )
+            true
+        }
+    }
+
     CinefinTheme(
         domain = ContentDomain.Book,
         darkTheme = settings.isDark(systemDark),
@@ -280,27 +397,125 @@ fun ReaderScreen(
                         is ReaderUiState.Ready ->
                             when (val document = state.document) {
                                 is ReaderDocument.Rich ->
-                                    ReadiumEpubView(
-                                        publication = document.publication,
-                                        initialLocator = document.initialLocator,
-                                        settings = settings,
-                                        systemDark = systemDark,
-                                        jumpTarget = jumpTarget,
-                                        onLocationChanged = { locator ->
-                                            locator.locations.totalProgression?.let {
-                                                liveProgression = it
+                                    // W6 T8：EPUB 正文 + 选区浮动工具栏（工具栏按选区矩形锚定，不参与正文布局）。
+                                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                                        val density = LocalDensity.current
+                                        val containerWidthDp = maxWidth.value
+                                        val containerHeightDp = maxHeight.value
+                                        ReadiumEpubView(
+                                            publication = document.publication,
+                                            initialLocator = document.initialLocator,
+                                            settings = settings,
+                                            systemDark = systemDark,
+                                            jumpTarget = jumpTarget,
+                                            onLocationChanged = { locator ->
+                                                locator.locations.totalProgression?.let {
+                                                    liveProgression = it
+                                                }
+                                                onLocationChanged(locator)
+                                            },
+                                            onJumpHandled = onJumpHandled,
+                                            onNavigatorReady = onNavigatorReady,
+                                            brightnessProvider = { brightness },
+                                            onBrightness = onBrightnessChange,
+                                            tapPolicy = settings.tapPolicy(controlsVisible),
+                                            onToggleControls = {
+                                                controlsVisible = !controlsVisible
+                                            },
+                                            onDoubleTapBookmark = onDoubleTapToggleBookmark,
+                                            epubAnnotations = epubAnnotations,
+                                            onSelectionChanged = { selection ->
+                                                epubSelection = selection
+                                            },
+                                            onAnnotationActivated = { id, _, _, _, _ ->
+                                                epubSelection = null
+                                                epubActiveAnnotation = epubAnnotations.firstOrNull {
+                                                    it.id == id
+                                                }
+                                            },
+                                            clearSelectionToken = epubSelectionClearToken,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                        epubSelection
+                                            ?.takeUnless { controlsVisible }
+                                            ?.let { selection ->
+                                                val placement =
+                                                    remember(
+                                                        selection,
+                                                        containerWidthDp,
+                                                        containerHeightDp,
+                                                    ) {
+                                                        with(density) {
+                                                            epubToolbarPlacement(
+                                                                selectionLeftDp =
+                                                                    selection.leftPx.toDp().value,
+                                                                selectionTopDp =
+                                                                    selection.topPx.toDp().value,
+                                                                selectionRightDp =
+                                                                    selection.rightPx.toDp().value,
+                                                                selectionBottomDp =
+                                                                    selection.bottomPx.toDp().value,
+                                                                containerWidthDp = containerWidthDp,
+                                                                containerHeightDp =
+                                                                    containerHeightDp,
+                                                            )
+                                                        }
+                                                    }
+                                                EpubSelectionToolbar(
+                                                    inBookSearchAvailable = false,
+                                                    containerColor = chromeColor,
+                                                    contentColor = contentColor,
+                                                    onAction = { action ->
+                                                        when (action) {
+                                                            EpubSelectionAction.Idea ->
+                                                                epubNoteTarget =
+                                                                    EpubNoteTarget.NewSelection(
+                                                                        selection = selection,
+                                                                        color =
+                                                                            HighlightColor.Yellow,
+                                                                    )
+                                                            EpubSelectionAction.Copy -> {
+                                                                copyEpubSelection(
+                                                                    context,
+                                                                    selection.text,
+                                                                )
+                                                                epubSelection = null
+                                                                epubSelectionClearToken++
+                                                                epubNotice = "已复制"
+                                                                epubNoticeToken++
+                                                            }
+                                                            EpubSelectionAction.Dictionary -> {
+                                                                val launched =
+                                                                    launchEpubDictionary(
+                                                                        context,
+                                                                        selection.text,
+                                                                    )
+                                                                if (!launched) {
+                                                                    copyEpubSelection(
+                                                                        context,
+                                                                        selection.text,
+                                                                    )
+                                                                    epubNotice = "已复制（未找到词典）"
+                                                                    epubNoticeToken++
+                                                                }
+                                                                epubSelection = null
+                                                                epubSelectionClearToken++
+                                                            }
+                                                            EpubSelectionAction.Highlight,
+                                                            EpubSelectionAction.Search -> Unit
+                                                        }
+                                                    },
+                                                    onPickColor = { color ->
+                                                        addEpubAnnotation(selection, color, "")
+                                                    },
+                                                    modifier =
+                                                        Modifier.offset(
+                                                            x = placement.xDp.dp,
+                                                            y = placement.yDp.dp,
+                                                        ),
+                                                )
                                             }
-                                            onLocationChanged(locator)
-                                        },
-                                        onJumpHandled = onJumpHandled,
-                                        onNavigatorReady = onNavigatorReady,
-                                        brightnessProvider = { brightness },
-                                        onBrightness = onBrightnessChange,
-                                        tapPolicy = settings.tapPolicy(controlsVisible),
-                                        onToggleControls = { controlsVisible = !controlsVisible },
-                                        onDoubleTapBookmark = onDoubleTapToggleBookmark,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
+                                    }
 
                                 is ReaderDocument.Simple ->
                                     SimpleBookView(
@@ -412,6 +627,30 @@ fun ReaderScreen(
                         ) {
                             Text(
                                 text = bookmarkNotice.orEmpty(),
+                                style = CinefinType.TitleMedium,
+                                modifier =
+                                    Modifier.padding(
+                                        horizontal = CinefinSpacing.Space5,
+                                        vertical = CinefinSpacing.Space3,
+                                    ),
+                            )
+                        }
+                    }
+
+                    // W6 T8：复制 / 词典降级的轻提示（与书签提示同一形态）。
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = epubNotice != null,
+                        enter = fadeIn(tween(BOOKMARK_NOTICE_FADE_MS)),
+                        exit = fadeOut(tween(BOOKMARK_NOTICE_FADE_MS)),
+                        modifier = Modifier.align(Alignment.Center),
+                    ) {
+                        Surface(
+                            shape = CinefinShapes.Button,
+                            color = chromeColor.copy(alpha = 0.92f),
+                            contentColor = contentColor,
+                        ) {
+                            Text(
+                                text = epubNotice.orEmpty(),
                                 style = CinefinType.TitleMedium,
                                 modifier =
                                     Modifier.padding(
@@ -714,12 +953,26 @@ fun ReaderScreen(
                                     showSearch = true
                                 },
                             )
+                        }
+                        // W6 T8：EPUB 标注列表并入「更多」（PDF 走矩形批注列表，EPUB 走划词高亮列表）；
+                        // FXL（固定版式）不支持 Decoration，入口保留但灰置。
+                        if (pdfToolsAvailable || richDocument != null) {
                             MoreActionRow(
-                                label = "标注列表",
+                                label =
+                                    if (richDocument != null && !epubAnnotationsAvailable) {
+                                        "标注列表（固定版式不支持）"
+                                    } else {
+                                        "标注列表"
+                                    },
                                 contentColor = contentColor,
+                                enabled = pdfToolsAvailable || epubAnnotationsAvailable,
                                 onClick = {
                                     showMore = false
-                                    showAnnotations = true
+                                    if (pdfToolsAvailable) {
+                                        showAnnotations = true
+                                    } else {
+                                        showEpubAnnotations = true
+                                    }
                                 },
                             )
                         }
@@ -775,6 +1028,103 @@ fun ReaderScreen(
                         editingAnnotation = null
                     },
                 )
+            }
+
+            // W6 T8：EPUB 标注列表（并入「更多」）。
+            if (showEpubAnnotations) {
+                ModalBottomSheet(
+                    onDismissRequest = { showEpubAnnotations = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = chromeColor,
+                    contentColor = contentColor,
+                    scrimColor = CinefinTokens.Scrim.copy(alpha = CinefinTokens.ScrimAlpha),
+                    dragHandle = {
+                        Box(
+                            modifier =
+                                Modifier.padding(top = CinefinSpacing.Space3)
+                                    .size(width = 32.dp, height = 4.dp)
+                                    .clip(CinefinShapes.TwoXs)
+                                    .background(contentColor.copy(alpha = 0.24f))
+                        )
+                    },
+                ) {
+                    EpubAnnotationListSheet(
+                        annotations = epubAnnotations,
+                        contentColor = contentColor,
+                        onJump = { annotation ->
+                            if (jumpToEpubAnnotation(annotation)) showEpubAnnotations = false
+                        },
+                        onRemove = { annotation -> removeEpubAnnotation(annotation) },
+                    )
+                }
+            }
+
+            // W6 T8：点已有高亮 → 底部小面板（改色 / 编辑笔记 / 删除 / 跳转）。
+            epubActiveAnnotation?.let { annotation ->
+                ModalBottomSheet(
+                    onDismissRequest = { epubActiveAnnotation = null },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = chromeColor,
+                    contentColor = contentColor,
+                    scrimColor = CinefinTokens.Scrim.copy(alpha = CinefinTokens.ScrimAlpha),
+                    dragHandle = {
+                        Box(
+                            modifier =
+                                Modifier.padding(top = CinefinSpacing.Space3)
+                                    .size(width = 32.dp, height = 4.dp)
+                                    .clip(CinefinShapes.TwoXs)
+                                    .background(contentColor.copy(alpha = 0.24f))
+                        )
+                    },
+                ) {
+                    EpubAnnotationActionsSheet(
+                        annotation = annotation,
+                        contentColor = contentColor,
+                        onPickColor = { color -> recolorEpubAnnotation(annotation, color) },
+                        onEditNote = {
+                            epubNoteTarget = EpubNoteTarget.Existing(annotation)
+                            epubActiveAnnotation = null
+                        },
+                        onJump = {
+                            if (jumpToEpubAnnotation(annotation)) epubActiveAnnotation = null
+                        },
+                        onDelete = {
+                            removeEpubAnnotation(annotation)
+                            epubActiveAnnotation = null
+                        },
+                    )
+                }
+            }
+
+            // W6 T8：新建 / 编辑 EPUB 笔记（想法）。新建时沿用工具栏选中的颜色。
+            epubNoteTarget?.let { target ->
+                when (target) {
+                    is EpubNoteTarget.NewSelection ->
+                        AnnotationNoteDialog(
+                            title = "想法",
+                            initialNote = "",
+                            canDelete = false,
+                            onDismiss = { epubNoteTarget = null },
+                            onConfirm = { note ->
+                                addEpubAnnotation(target.selection, target.color, note)
+                                epubNoteTarget = null
+                            },
+                            onDelete = {},
+                        )
+
+                    is EpubNoteTarget.Existing ->
+                        AnnotationNoteDialog(
+                            title = "编辑笔记",
+                            initialNote = target.annotation.noteText,
+                            canDelete = false,
+                            onDismiss = { epubNoteTarget = null },
+                            onConfirm = { note ->
+                                updateEpubAnnotationNote(target.annotation, note)
+                                epubNoteTarget = null
+                            },
+                            onDelete = {},
+                        )
+                }
             }
         }
     }
@@ -935,6 +1285,17 @@ private const val BOOKMARK_NOTICE_VISIBLE_MS = 900L
 /** 提示胶囊淡入淡出时长。 */
 private const val BOOKMARK_NOTICE_FADE_MS = 120
 
+/** W6 T8：复制 / 词典降级提示的停留时长（与书签提示同量级）。 */
+private const val EPUB_NOTICE_VISIBLE_MS = 900L
+
+/** W6 T8：复制选中文字到系统剪贴板（空文本不写）。 */
+private fun copyEpubSelection(context: Context, text: String) {
+    val value = epubCopyableText(text)
+    if (value.isEmpty()) return
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+    clipboard?.setPrimaryClip(ClipData.newPlainText("选中的文字", value))
+}
+
 /** 位置跳转载体的 id（只走跳转通道，不进书签列表）。 */
 private const val READER_POSITION_BOOKMARK_ID = "reader-position"
 
@@ -957,17 +1318,26 @@ private fun readerPositionBookmark(
         createdAt = Instant.EPOCH,
     )
 
-/** 「更多」抽屉的一行动作：文字 + ≥48dp 触控区。 */
+/** 「更多」抽屉的一行动作：文字 + ≥48dp 触控区；`enabled = false` 时灰置（FXL 等不支持场景）。 */
 @Composable
-private fun MoreActionRow(label: String, contentColor: Color, onClick: () -> Unit) {
+private fun MoreActionRow(
+    label: String,
+    contentColor: Color,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
     Row(
         modifier =
             Modifier.fillMaxWidth()
                 .heightIn(min = 48.dp)
-                .cinefinClickable(onClickLabel = label, onClick = onClick),
+                .cinefinClickable(onClickLabel = label, enabled = enabled, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(text = label, style = CinefinType.BodyMedium, color = contentColor)
+        Text(
+            text = label,
+            style = CinefinType.BodyMedium,
+            color = if (enabled) contentColor else contentColor.copy(alpha = 0.38f),
+        )
     }
 }
 
