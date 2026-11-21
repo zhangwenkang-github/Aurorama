@@ -35,6 +35,7 @@ import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsHighlightF
 import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsHighlightFadeSteps
 import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.abs
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
@@ -429,6 +430,12 @@ internal fun ReadiumEpubView(
             var lastForwardAtMs = 0L
             var lastStatusLogAtMs = 0L
             var lastMissingLogAtMs = 0L
+            // W6 T6r2：末章到底后 `totalProgression` 不刷新（程序化滚动不刷 locator），改看
+            // 「连续 goForward 后位置键未变」判书末。
+            val forwardStreak = AutoScrollForwardStreak()
+            var devicePixelRatio = 0.0
+            var statusSampleOffset = Double.NaN
+            var statusSampleAtMs = 0L
             try {
                 while (true) {
                     if (engine.state != AutoAdvanceState.Running) {
@@ -461,6 +468,12 @@ internal fun ReadiumEpubView(
                             dispatchedWithoutMovement = 0
                             useNativeScroll = false
                             scrollTracker.reset(now)
+                            // 换章 = 位置真的推进了：空转计数与测速采样都从头算。
+                            forwardStreak.reset()
+                            statusSampleOffset = Double.NaN
+                            statusSampleAtMs = 0L
+                            devicePixelRatio = 0.0
+
                             // 换章会换 WebView：监听与位移基线都要重挂。
                             webView.setOnScrollChangeListener { view, _, _, oldY, _ ->
                                 if (engine.state != AutoAdvanceState.Running) {
@@ -489,6 +502,18 @@ internal fun ReadiumEpubView(
                                 webView.height,
                                 webView.contentHeight,
                             )
+                            // W6 T6r2：JS 写 CSS px、原生 `scrollY` 读设备 px，换算比例只有渲染侧知道，
+                            // 探一次并落日志（K60 复验速度时与实测 dpr 对齐）。
+                            webView.evaluateJavascript(EPUB_DEVICE_PIXEL_RATIO_JS) { value ->
+                                val ratio = value?.trim()?.toDoubleOrNull()
+                                if (ratio != null && ratio > 0.0) {
+                                    devicePixelRatio = ratio
+                                    Timber.i(
+                                        "自动滚动：像素口径 devicePixelRatio=%.2f（设定 px/s = 设备 px/s）",
+                                        ratio,
+                                    )
+                                }
+                            }
                         }
                         if (tick is AutoAdvanceTick.Scroll) {
                             lastProgrammaticScrollAtMs = now
@@ -512,13 +537,26 @@ internal fun ReadiumEpubView(
                                 webView.canScrollHorizontally(-1)
                         val resourceProgression = liveLocator?.locations?.progression ?: 0.0
                         val bookProgression = liveLocator?.locations?.totalProgression
-                        if (now - lastStatusLogAtMs >= 1_000L) {
+                        if (now - lastStatusLogAtMs >= AUTO_SCROLL_STATUS_LOG_MS) {
+                            // W6 T6r2：实测速度 = 相邻两次状态日志的位移差 / 时间差（设备 px/s），
+                            // 用来核对「设定 px/s ±20%」这条验收口径。
+                            val speedPxPerSecond =
+                                if (!statusSampleOffset.isNaN() && now > statusSampleAtMs) {
+                                    abs(offset - statusSampleOffset) * 1_000.0 /
+                                        (now - statusSampleAtMs)
+                                } else {
+                                    Double.NaN
+                                }
                             lastStatusLogAtMs = now
+                            statusSampleOffset = offset
+                            statusSampleAtMs = now
                             Timber.d(
-                                "自动滚动：scrollY=%d scrollX=%d content=%d viewport=%dx%d " +
-                                    "resource=%.3f book=%s canDown=%s native=%s",
+                                "自动滚动：scrollY=%d scrollX=%d speed=%.0fpx/s content=%d " +
+                                    "viewport=%dx%d resource=%.3f book=%s canDown=%s native=%s " +
+                                    "dpr=%.2f",
                                 webView.scrollY,
                                 webView.scrollX,
+                                speedPxPerSecond,
                                 webView.contentHeight,
                                 webView.width,
                                 webView.height,
@@ -526,6 +564,7 @@ internal fun ReadiumEpubView(
                                 bookProgression,
                                 canScrollForward,
                                 useNativeScroll,
+                                devicePixelRatio,
                             )
                         }
                         // JS 派发持续无位移而内容仍可前滚：切原生 `scrollBy` 兜底一次（留证据）。
@@ -550,15 +589,47 @@ internal fun ReadiumEpubView(
                         ) {
                             AutoScrollOutcome.ChapterEnd -> {
                                 if (now - lastForwardAtMs >= AUTO_SCROLL_FORWARD_GUARD_MS) {
-                                    lastForwardAtMs = now
-                                    Timber.i(
-                                        "自动滚动：本章到底（resource=%.3f book=%s），goForward 续接",
-                                        resourceProgression,
-                                        bookProgression,
-                                    )
-                                    // 换章后 WebView 会换成新实例，下一帧重挂监听并重置基线；
-                                    // 若内核没换页（末章 / 不可前进），3s 无位移兜底会停止。
-                                    currentNavigator.goForward(animated = false)
+                                    // W6 T6r2：goForward 换页是异步的，判定放到上一次尝试之后的下一轮
+                                    // （间隔 = AUTO_SCROLL_FORWARD_GUARD_MS，换页足够落定）；位置键
+                                    // 没变 = 上一次空转，连续两次即书末。
+                                    // 位置键只取章节 href：滚动档 locator 的 progression 正是「程序化
+                                    // 滚动不刷新」的那个陈旧值，纳进 key 后任何一次局部刷新都会把空转
+                                    // 计数清零，重新回到空转不停。
+                                    val positionKey = liveLocator?.href?.toString()
+                                    val check = forwardStreak.onChapterEnd(positionKey)
+                                    if (check.bookEnd) {
+                                        Timber.i(
+                                            "自动滚动：第 %d 次空转（位置键未变 key=%s " +
+                                                "resource=%.3f book=%s）→ 判书末，停止",
+                                            check.misses,
+                                            positionKey,
+                                            resourceProgression,
+                                            bookProgression,
+                                        )
+                                        engine.stop()
+                                        currentOnAutoAdvanceEnd.value()
+                                    } else {
+                                        lastForwardAtMs = now
+                                        if (check.misses > 0) {
+                                            Timber.i(
+                                                "自动滚动：第 %d 次空转 goForward（位置键未变 key=%s " +
+                                                    "resource=%.3f book=%s）",
+                                                check.misses,
+                                                positionKey,
+                                                resourceProgression,
+                                                bookProgression,
+                                            )
+                                        } else {
+                                            Timber.i(
+                                                "自动滚动：本章到底（resource=%.3f book=%s），goForward 续接",
+                                                resourceProgression,
+                                                bookProgression,
+                                            )
+                                        }
+                                        // 换章后 WebView 会换成新实例，下一帧重挂监听并重置基线；
+                                        // 若内核没换页（末章 / 不可前进），上面的空转计数会停止。
+                                        currentNavigator.goForward(animated = false)
+                                    }
                                 }
                             }
 
@@ -903,17 +974,31 @@ private fun autoLocatorKey(locator: Locator): String {
     return "${locator.href}#${locator.locations.position ?: -1}@$progression"
 }
 
+/** 状态日志（含实测速度）的间隔。 */
+private const val AUTO_SCROLL_STATUS_LOG_MS = 1_000L
+
+/** 像素口径探针：JS 侧换算用的 `devicePixelRatio`（CSS px 与设备 px 的唯一可靠比例）。 */
+private const val EPUB_DEVICE_PIXEL_RATIO_JS = "(window.devicePixelRatio||1)"
+
 /**
  * 自动滚动的一帧脚本（W6 T6r）：直接在渲染侧写 `document.scrollingElement`。
  *
  * Readium 自己的位置控制同样走渲染侧脚本（`readium.scrollToPosition` 写 `scrollingElement.scrollTop/scrollLeft`）， 原生
  * `WebView.scrollBy` 在真机不会移动正文；竖向排版（vertical writing-mode）按 Readium 的口径滚动 `scrollLeft`。
+ *
+ * W6 T6r2 像素口径：节拍器给的是**设备 px**（`WebView.scrollY` 的度量单位），而 `scrollTop/scrollLeft` 是 **CSS px**，两者差
+ * `window.devicePixelRatio`（K60 实测约 2.5×）。这里除 dpr，并把不足 1 CSS px 的余量留在
+ * `window.__cinefinAutoScrollAcc`，避免 `scrollTop` 按整数截断时慢速（60px/s → 每帧 0.7 CSS px）被截成 0 而完全不滚。
  */
 private fun epubAutoScrollJs(deltaPx: Int): String =
     "(function(){var el=document.scrollingElement||document.documentElement;" +
-        "if(!el){return;}var wm=(window.getComputedStyle(document.documentElement)" +
+        "if(!el){return;}var dpr=window.devicePixelRatio||1;" +
+        "var acc=(window.__cinefinAutoScrollAcc||0)+D_/dpr;" +
+        "var step=acc>=0?Math.floor(acc):Math.ceil(acc);" +
+        "window.__cinefinAutoScrollAcc=acc-step;if(!step){return;}" +
+        "var wm=(window.getComputedStyle(document.documentElement)" +
         ".getPropertyValue('writing-mode')||'');" +
-        "if(wm.indexOf('vertical')===0){el.scrollLeft-=D_;}else{el.scrollTop+=D_;}})()"
+        "if(wm.indexOf('vertical')===0){el.scrollLeft-=step;}else{el.scrollTop+=step;}})()"
             .replace("D_", deltaPx.toString())
 
 /**

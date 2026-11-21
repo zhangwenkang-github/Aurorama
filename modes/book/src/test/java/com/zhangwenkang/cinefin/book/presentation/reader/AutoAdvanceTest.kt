@@ -2,6 +2,7 @@ package com.zhangwenkang.cinefin.book.presentation.reader
 
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -422,5 +423,83 @@ class AutoAdvanceTest {
                 canScrollForward = true,
             ),
         )
+    }
+
+    // ---- W6 T6r2：末章到底的 goForward 空转判定 ----
+
+    @Test
+    fun `空转判定 首次章末不算空转`() {
+        val streak = AutoScrollForwardStreak()
+        val check = streak.onChapterEnd("chapter-3.xhtml")
+        assertEquals(0, check.misses)
+        assertFalse(check.bookEnd)
+    }
+
+    @Test
+    fun `空转判定 位置键未变连续两次即书末`() {
+        val streak = AutoScrollForwardStreak()
+        // 正常跨章：位置键变了，不计空转。
+        streak.onChapterEnd("chapter-1.xhtml")
+        assertEquals(0, streak.onChapterEnd("chapter-2.xhtml").misses)
+        // 末章到底：goForward 不换章，位置键一直是同一个。
+        val first = streak.onChapterEnd("chapter-2.xhtml")
+        assertEquals(1, first.misses)
+        assertFalse(first.bookEnd)
+        val second = streak.onChapterEnd("chapter-2.xhtml")
+        assertEquals(AutoScrollForwardMissLimit, second.misses)
+        assertTrue(second.bookEnd)
+    }
+
+    @Test
+    fun `空转判定 中途位置键变化即清零`() {
+        val streak = AutoScrollForwardStreak()
+        streak.onChapterEnd("chapter-7.xhtml")
+        assertEquals(1, streak.onChapterEnd("chapter-7.xhtml").misses)
+        // 慢换页 / 用户跳转后位置终于变了：计数清零，不会误判书末。
+        val recovered = streak.onChapterEnd("chapter-8.xhtml")
+        assertEquals(0, recovered.misses)
+        assertFalse(recovered.bookEnd)
+        assertEquals(1, streak.onChapterEnd("chapter-8.xhtml").misses)
+    }
+
+    @Test
+    fun `空转判定 书末后复位可重新计数`() {
+        val streak = AutoScrollForwardStreak()
+        streak.onChapterEnd("last.xhtml")
+        streak.onChapterEnd("last.xhtml")
+        assertTrue(streak.onChapterEnd("last.xhtml").bookEnd)
+        // 重新开启自动滚动：同一位置从头计，而不是立刻再判书末。
+        val reopened = streak.onChapterEnd("last.xhtml")
+        assertEquals(0, reopened.misses)
+        assertFalse(reopened.bookEnd)
+    }
+
+    @Test
+    fun `空转判定 位置键未知按未变计数且不会无限空转`() {
+        val streak = AutoScrollForwardStreak()
+        assertEquals(0, streak.onChapterEnd(null).misses)
+        assertEquals(1, streak.onChapterEnd(null).misses)
+        val last = streak.onChapterEnd(null)
+        assertTrue(last.bookEnd)
+        assertEquals(AutoScrollForwardMissLimit, last.misses)
+    }
+
+    @Test
+    fun `空转判定 重置后不把旧基线算进空转`() {
+        val streak = AutoScrollForwardStreak()
+        streak.onChapterEnd("chapter-1.xhtml")
+        assertEquals(1, streak.onChapterEnd("chapter-1.xhtml").misses)
+        // 换 WebView = 位置推进，下一次章末从 0 开始。
+        streak.reset()
+        assertEquals(0, streak.onChapterEnd("chapter-1.xhtml").misses)
+    }
+
+    @Test
+    fun `空转判定 上限可配`() {
+        val streak = AutoScrollForwardStreak(maxMisses = 1)
+        streak.onChapterEnd("last.xhtml")
+        val check = streak.onChapterEnd("last.xhtml")
+        assertTrue(check.bookEnd)
+        assertEquals(1, check.misses)
     }
 }

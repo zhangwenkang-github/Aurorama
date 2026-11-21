@@ -25,6 +25,9 @@ internal const val AutoAdvancePagedTickMs = 250L
 internal const val AutoAdvanceEpubScrollFrameMs = 33L
 internal const val AutoAdvanceIdlePollMs = 250L
 
+/** 滚动档书末判定：连续 `goForward` 空转次数上限（W6 T6r2，任务卡口径 N≤2）。 */
+internal const val AutoScrollForwardMissLimit = 2
+
 /** 自动阅读运行态：关闭 / 运行 / 暂停（暂停可恢复，关闭不可）。 */
 enum class AutoAdvanceState {
     Off,
@@ -230,3 +233,49 @@ class AutoScrollTracker(
         return AutoScrollOutcome.Continue
     }
 }
+
+/** [AutoScrollForwardStreak.onChapterEnd] 的结果：本次之前已连续空转的次数 + 是否判书末。 */
+data class AutoScrollForwardCheck(val misses: Int = 0, val bookEnd: Boolean = false)
+
+/**
+ * 滚动档「goForward 空转」判定（W6 T6r2）。
+ *
+ * 末章到底无法靠整书进度判别：程序化 JS 滚动不刷新 locator，`totalProgression` 停在末章章首值， [AutoScrollTracker] 于是每帧都只给
+ * [AutoScrollOutcome.ChapterEnd]，`goForward` 空转不停。 这里改看执行层给的**位置键**（滚动档取章节 href：一章一个
+ * WebView，跨章必变）：一次 `goForward` 之后位置键没变 = 这次翻页空转，连续 [maxMisses] 次（默认
+ * [AutoScrollForwardMissLimit]）即判书末。 中间章 `goForward` 后 href 必变，所以正常跨章不会误判。
+ */
+class AutoScrollForwardStreak(private val maxMisses: Int = AutoScrollForwardMissLimit) {
+    private var pendingKey: String = AutoScrollPositionKeyUnknown
+    private var hasPending = false
+    private var misses = 0
+
+    /** 位置确实推进了（换章 / 换 WebView / 用户跳转）→ 清空基线。 */
+    fun reset() {
+        hasPending = false
+        pendingKey = AutoScrollPositionKeyUnknown
+        misses = 0
+    }
+
+    /**
+     * 章末一次决策。
+     *
+     * - 首次章末（无待核对）或位置键已变 → `misses = 0`，可正常 `goForward`；
+     * - 位置键与上次 `goForward` 时相同 → `misses + 1`（本次是第几次空转）；
+     * - 达到 [maxMisses] → 返回 `bookEnd = true` 并复位（重新开启自动滚动时从头计）。
+     */
+    fun onChapterEnd(positionKey: String?): AutoScrollForwardCheck {
+        val key = positionKey ?: AutoScrollPositionKeyUnknown
+        misses = if (hasPending && key == pendingKey) misses + 1 else 0
+        if (misses >= maxMisses) {
+            reset()
+            return AutoScrollForwardCheck(misses = maxMisses, bookEnd = true)
+        }
+        pendingKey = key
+        hasPending = true
+        return AutoScrollForwardCheck(misses = misses, bookEnd = false)
+    }
+}
+
+/** 位置键未知（locator 还没上报）时的占位：按「没变」计数，宁可停也不无限空转。 */
+private const val AutoScrollPositionKeyUnknown = "unknown"
