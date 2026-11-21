@@ -130,18 +130,32 @@ object TxtToEpub {
         require(chapters.isNotEmpty()) { "TXT 中没有可阅读的章节" }
         val lang = language ?: detectLanguage(chapters)
         ZipOutputStream(out).use { zip ->
-            zip.putStored("mimetype", "application/epub+zip".toByteArray(Charsets.US_ASCII))
-            zip.putStored("META-INF/container.xml", containerXml().toByteArray())
-            zip.putStored("OEBPS/style.css", STYLE_CSS.toByteArray())
+            // mimetype 必须 STORED（OCF 规范）；其余 DEFLATED 省缓存体积（真机复测 2026-11-21）。
+            zip.putEntry(
+                "mimetype",
+                "application/epub+zip".toByteArray(Charsets.US_ASCII),
+                stored = true,
+            )
+            zip.putEntry("META-INF/container.xml", containerXml().toByteArray(), stored = false)
+            zip.putEntry("OEBPS/style.css", STYLE_CSS.toByteArray(), stored = false)
             chapters.forEachIndexed { index, chapter ->
                 val href = chapterHref(index)
-                zip.putStored("OEBPS/$href", chapterXhtml(chapter, href, lang).toByteArray())
+                zip.putEntry(
+                    "OEBPS/$href",
+                    chapterXhtml(chapter, href, lang).toByteArray(),
+                    stored = false,
+                )
             }
-            zip.putStored("OEBPS/nav.xhtml", navXhtml(chapters, lang).toByteArray())
-            zip.putStored("OEBPS/toc.ncx", tocNcx(chapters, title, bookId, lang).toByteArray())
-            zip.putStored(
+            zip.putEntry("OEBPS/nav.xhtml", navXhtml(chapters, lang).toByteArray(), stored = false)
+            zip.putEntry(
+                "OEBPS/toc.ncx",
+                tocNcx(chapters, title, bookId, lang).toByteArray(),
+                stored = false,
+            )
+            zip.putEntry(
                 "OEBPS/content.opf",
                 contentOpf(chapters, title, bookId, lang).toByteArray(),
+                stored = false,
             )
         }
     }
@@ -234,16 +248,26 @@ object TxtToEpub {
     private fun chapterLabel(chapter: TxtChapter): String =
         chapter.title?.takeIf { it.isNotBlank() } ?: "正文"
 
+    /**
+     * XML 声明必须在字节 0。
+     *
+     * 模板正文单独 [String.trimIndent] 后拼在声明之后：模板里一旦有 `${...}` 插值（joinToString 等） 会引入 0 缩进行，
+     * `trimIndent()` 的最小缩进判定随即失效，声明前会残留模板缩进——真机 2026-11-21 就是因此 `PublicationOpener` 报
+     * `OpenError.Reading`。声明单独拼接后不再受插值影响。
+     */
+    private fun xmlDocument(body: String): String =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + body.trimIndent()
+
     private fun containerXml(): String =
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-          <rootfiles>
-            <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-          </rootfiles>
-        </container>
-        """
-            .trimIndent()
+        xmlDocument(
+            """
+            <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+              <rootfiles>
+                <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+              </rootfiles>
+            </container>
+            """
+        )
 
     private fun chapterXhtml(chapter: TxtChapter, href: String, lang: String): String {
         val heading =
@@ -252,8 +276,8 @@ object TxtToEpub {
                 ?.let { "<h1>${xmlEscape(it)}</h1>\n" }
                 .orEmpty()
         val paragraphs = paragraphsOf(chapter.body).joinToString("\n") { "<p>${xmlEscape(it)}</p>" }
-        return """
-            <?xml version="1.0" encoding="UTF-8"?>
+        return xmlDocument(
+            """
             <!DOCTYPE html>
             <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="$lang" lang="$lang">
             <head>
@@ -265,15 +289,15 @@ object TxtToEpub {
             </body>
             </html>
             """
-            .trimIndent()
+        )
     }
 
     private fun navXhtml(chapters: List<TxtChapter>, lang: String): String {
         val items = chapters.mapIndexed { index, chapter ->
             """<li><a href="${chapterHref(index)}">${xmlEscape(chapterLabel(chapter))}</a></li>"""
         }
-        return """
-            <?xml version="1.0" encoding="UTF-8"?>
+        return xmlDocument(
+            """
             <!DOCTYPE html>
             <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="$lang" lang="$lang">
             <head><title>目录</title></head>
@@ -287,7 +311,7 @@ object TxtToEpub {
             </body>
             </html>
             """
-            .trimIndent()
+        )
     }
 
     private fun tocNcx(
@@ -306,8 +330,8 @@ object TxtToEpub {
                 """
                 .trimIndent()
         }
-        return """
-            <?xml version="1.0" encoding="UTF-8"?>
+        return xmlDocument(
+            """
             <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="$lang">
             <head><meta name="dtb:uid" content="urn:uuid:$bookId"/></head>
             <docTitle><text>${xmlEscape(title)}</text></docTitle>
@@ -316,7 +340,7 @@ object TxtToEpub {
             </navMap>
             </ncx>
             """
-            .trimIndent()
+        )
     }
 
     private fun contentOpf(
@@ -331,8 +355,8 @@ object TxtToEpub {
                 """media-type="application/xhtml+xml"/>"""
         }
         val spine = chapters.indices.map { index -> """<itemref idref="chapter-${index + 1}"/>""" }
-        return """
-            <?xml version="1.0" encoding="UTF-8"?>
+        return xmlDocument(
+            """
             <package xmlns="http://www.idpf.org/2007/opf" xmlns:dc="http://purl.org/dc/elements/1.1/" version="3.0" unique-identifier="bookid" xml:lang="$lang">
             <metadata>
               <dc:identifier id="bookid">urn:uuid:$bookId</dc:identifier>
@@ -351,7 +375,7 @@ object TxtToEpub {
             </spine>
             </package>
             """
-            .trimIndent()
+        )
     }
 
     private fun detectLanguage(chapters: List<TxtChapter>): String {
@@ -407,10 +431,10 @@ object TxtToEpub {
             .replace("\"", "&quot;")
     }
 
-    private fun ZipOutputStream.putStored(name: String, bytes: ByteArray) {
+    private fun ZipOutputStream.putEntry(name: String, bytes: ByteArray, stored: Boolean) {
         val entry =
             ZipEntry(name).apply {
-                method = ZipEntry.STORED
+                method = if (stored) ZipEntry.STORED else ZipEntry.DEFLATED
                 size = bytes.size.toLong()
                 crc = CRC32().apply { update(bytes) }.value
                 time = ZIP_ENTRY_TIME_MS

@@ -1,12 +1,15 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
 import com.zhangwenkang.cinefin.settings.domain.TxtChapterRules
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.nio.charset.Charset
 import java.nio.file.Files
 import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -213,6 +216,77 @@ class TxtToEpubTest {
         assertEquals("雨夜", TxtToEpub.titleOf("雨夜.txt"))
         assertEquals("a.b", TxtToEpub.titleOf("a.b.txt"))
         assertEquals("无扩展名", TxtToEpub.titleOf("无扩展名"))
+    }
+
+    /**
+     * 真机回归（2026-11-21）：模板插值破坏 `trimIndent` 后，`<?xml` 前残留 12 个空格，Readium `PublicationOpener` 报
+     * `OpenError.Reading`。这里同时钉住「首字节 = `<`」和「XML 解析器能解析」。
+     */
+    @Test
+    fun `XML 条目首字节即小于号且良构`() {
+        val file = writeEpubTemp("第一章 起风了\n夜里下雨了。\n\n第二章 雨停\n天亮了。\n")
+        try {
+            ZipFile(file).use { zip ->
+                val xmlEntries =
+                    zip.entries().toList().filter { entry ->
+                        entry.name.endsWith(".opf") ||
+                            entry.name.endsWith(".xhtml") ||
+                            entry.name.endsWith(".ncx")
+                    }
+                assertTrue("XML 条目数量异常：$xmlEntries", xmlEntries.size >= 5)
+                val factory =
+                    DocumentBuilderFactory.newInstance().apply {
+                        isNamespaceAware = true
+                        isExpandEntityReferences = false
+                        runCatching {
+                            setFeature(
+                                "http://xml.org/sax/features/external-general-entities",
+                                false,
+                            )
+                            setFeature(
+                                "http://xml.org/sax/features/external-parameter-entities",
+                                false,
+                            )
+                        }
+                    }
+                xmlEntries.forEach { entry ->
+                    val bytes = zip.getInputStream(entry).use { it.readBytes() }
+                    assertEquals(
+                        "${entry.name} 必须以 <?xml 开头",
+                        '<'.code.toByte(),
+                        bytes.first(),
+                    )
+                    // 声明前有任何字符 → 「content is not allowed in prolog」，与真机失败形态一致。
+                    factory.newDocumentBuilder().parse(ByteArrayInputStream(bytes))
+                }
+            }
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun `mimetype 条目 STORED 其余条目 DEFLATED`() {
+        val file = writeEpubTemp("第一章 甲\n内容。\n")
+        try {
+            ZipFile(file).use { zip ->
+                assertEquals(ZipEntry.STORED, zip.getEntry("mimetype").method)
+                assertEquals(ZipEntry.DEFLATED, zip.getEntry("OEBPS/content.opf").method)
+                assertEquals(ZipEntry.DEFLATED, zip.getEntry("OEBPS/chapter-0001.xhtml").method)
+            }
+        } finally {
+            file.delete()
+        }
+    }
+
+    private fun writeEpubTemp(text: String): File {
+        val bytes =
+            ByteArrayOutputStream()
+                .also { out -> TxtToEpub.convert(text.toByteArray(), "雨夜", bookId, out) }
+                .toByteArray()
+        return Files.createTempFile("cinefin-txt-epub-xml", ".epub").toFile().apply {
+            writeBytes(bytes)
+        }
     }
 
     private fun ZipFile.readText(name: String): String =
