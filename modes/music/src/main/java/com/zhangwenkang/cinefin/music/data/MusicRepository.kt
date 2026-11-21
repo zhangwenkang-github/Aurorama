@@ -21,6 +21,7 @@ import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.MediaStreamType
 import org.jellyfin.sdk.model.api.SortOrder
+import org.jellyfin.sdk.model.api.request.GetInstantMixFromSongRequest
 
 /** W37 曲目来源（在线融合：全部 / 服务器 / 本地）。 */
 enum class MusicItemSource(val label: String) {
@@ -157,7 +158,33 @@ interface MusicRepository {
 
     /** W58：把曲目从服务器歌单移除（编辑歌单，非删除媒体；纯服务器写白名单）。 */
     suspend fun removeFromPlaylist(playlistId: UUID, itemId: UUID)
+
+    /**
+     * W5-T12（MUSIC-14 Auto DJ）：以 [seedItemId] 为种子的即时混排曲目（`GET /Audio/{itemId}/instant-mix`，只读）。
+     *
+     * [limit] 为期望条数；服务器可能返回更少。网络 / API 失败直接抛异常，由调用方决定静默跳过。
+     */
+    suspend fun getInstantMix(seedItemId: UUID, limit: Int): List<MusicSong>
 }
+
+/**
+ * InstantMix 请求形状（W5-T12）。
+ *
+ * 单测直接校验 itemId / userId / limit 的透传与映射所需字段（音频流 + 图片 + UserData）， 保证仓库层没有把种子或批次大小截断 / 改写。
+ */
+internal fun instantMixRequest(
+    itemId: UUID,
+    userId: UUID,
+    limit: Int,
+): GetInstantMixFromSongRequest =
+    GetInstantMixFromSongRequest(
+        itemId = itemId,
+        userId = userId,
+        limit = limit,
+        fields = listOf(ItemFields.MEDIA_STREAMS),
+        enableImages = true,
+        enableUserData = true,
+    )
 
 @Singleton
 class MusicRepositoryImpl
@@ -312,6 +339,18 @@ constructor(
                     enableUserData = true,
                     limit = SONG_LIMIT,
                 )
+                .content
+                .items
+                .mapNotNull { item -> item.toMusicSong(baseUrl, namespace) }
+        }
+
+    override suspend fun getInstantMix(seedItemId: UUID, limit: Int): List<MusicSong> =
+        withContext(Dispatchers.IO) {
+            val userId = jellyfinApi.userId ?: return@withContext emptyList()
+            val baseUrl = jellyfinRepository.getBaseUrl().trimEnd('/')
+            val namespace = currentNamespace()
+            jellyfinApi.instantMixApi
+                .getInstantMixFromSong(instantMixRequest(seedItemId, userId, limit))
                 .content
                 .items
                 .mapNotNull { item -> item.toMusicSong(baseUrl, namespace) }

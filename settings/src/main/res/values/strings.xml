@@ -156,6 +156,8 @@
     <string name="settings_music_lyrics_overlay_permission">Needs the “Display over other apps” permission; turning the switch on asks for it in system settings.</string>
     <string name="settings_music_resume_queue">Resume music queue</string>
     <string name="settings_music_resume_queue_summary">Restore the last queue and position after restart</string>
+    <string name="settings_music_auto_dj">Auto DJ</string>
+    <string name="settings_music_auto_dj_summary">Keep playing similar tracks when the queue ends</string>
     <string name="settings_bookshelf_library">Bookshelf library</string>
     <string name="settings_bookshelf_library_summary">Which library the bookshelf uses; Automatic picks the first non-empty books library</string>
     <string name="settings_local_library_visible">Local media</string>

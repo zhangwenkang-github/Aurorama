@@ -14,6 +14,7 @@ import com.zhangwenkang.cinefin.music.data.LocalPlaylistEntry
 import com.zhangwenkang.cinefin.music.data.LocalPlaylistRepositoryImpl
 import com.zhangwenkang.cinefin.music.data.MusicAlbum
 import com.zhangwenkang.cinefin.music.data.MusicArtist
+import com.zhangwenkang.cinefin.music.data.MusicAutoDjController
 import com.zhangwenkang.cinefin.music.data.MusicItemSourceFilter
 import com.zhangwenkang.cinefin.music.data.MusicLibrary
 import com.zhangwenkang.cinefin.music.data.MusicLyricsOverlayController
@@ -144,6 +145,8 @@ constructor(
     private val playbackStateSource: MusicPlaybackStateSource,
     private val appPreferences: AppPreferences,
     private val audioEffects: MusicAudioEffectsController,
+    /** W5-T12（MUSIC-14）：队列播完自动续播；刹车计数由页内传输 / 队列操作清零。 */
+    private val autoDjController: MusicAutoDjController,
     /** W5-T6：音频输出信息面板的 Exo `Format` 运行时读数入口。 */
     private val audioOutputInfo: MusicAudioOutputInfoSource,
     private val downloader: Downloader,
@@ -211,6 +214,10 @@ constructor(
     /** W5-T8（MUSIC-48）：播放失败（重试仍失败 / 本地文件不可用）→ 音乐页非阻塞 snackbar。 */
     private val playbackFailureChannel = Channel<MusicPlaybackFailure>(Channel.BUFFERED)
     val playbackFailures = playbackFailureChannel.receiveAsFlow()
+
+    /** W5-T12（MUSIC-14 Auto DJ）：连续续播达 3 批（刹车）→ 音乐页非阻塞 snackbar。 */
+    private val autoDjBatchLimitChannel = Channel<Unit>(Channel.CONFLATED)
+    val autoDjBatchLimit = autoDjBatchLimitChannel.receiveAsFlow()
 
     /** W58：长按多选状态（按曲目 itemId 选中；列表刷新后按 id 求交集）。 */
     private val _batchSelectionState = MutableStateFlow(MusicBatchSelectionState())
@@ -494,6 +501,8 @@ constructor(
         persister.start()
         historyTracker.start()
         lyricsOverlay.start()
+        // W5-T12：Auto DJ 进程级单例启动（幂等；离开音乐页后队列播完仍可续播）。
+        autoDjController.start()
         // W37：来源筛选 / 来源徽标从偏好恢复。
         _uiState.update {
             it.copy(
@@ -512,6 +521,7 @@ constructor(
         observeOverlayArtists()
         observeRestoredQueueCleanup()
         observePlaybackFailures()
+        observeAutoDjBatchLimit()
         viewModelScope.launch { downloader.queueChanges.collect { refreshDownloadState() } }
         // W36：进入页面后切离线 / 回在线也要立刻重载曲库（VM 复用同一实例）。
         appPreferences.sharedPreferences.registerOnSharedPreferenceChangeListener(
@@ -621,6 +631,13 @@ constructor(
             playbackStateSource.playbackFailures.collect { failure ->
                 playbackFailureChannel.send(failure)
             }
+        }
+    }
+
+    /** W5-T12（MUSIC-14）：Auto DJ 刹车提示转进页内 snackbar 通道（用户任一传输操作后计数清零、可继续续播）。 */
+    private fun observeAutoDjBatchLimit() {
+        viewModelScope.launch {
+            autoDjController.batchLimitReached.collect { autoDjBatchLimitChannel.trySend(Unit) }
         }
     }
 
@@ -779,7 +796,10 @@ constructor(
     }
 
     /** 点击歌词行：跳到该行时间戳（不改变播放 / 暂停状态）。 */
-    fun seekToLyricLine(startMs: Long) = playbackController.seekTo(startMs)
+    fun seekToLyricLine(startMs: Long) {
+        autoDjController.onUserTransportAction()
+        playbackController.seekTo(startMs)
+    }
 
     /** 打开歌词编辑器：预填当前歌词文档（无歌词则从空列表开始，可手工添加行）。 */
     fun openLyricsEditor() {
@@ -2243,6 +2263,8 @@ constructor(
         playMode: MusicPlayMode? = null,
         snapshotItems: Map<UUID, PlayerItem> = emptyMap(),
     ) {
+        // W5-T12：用户起播 = 传输操作，Auto DJ 刹车计数清零。
+        autoDjController.onUserTransportAction()
         playJob?.cancel()
         val requestId = ++nextPlayRequestId
         val pending =
@@ -2381,6 +2403,8 @@ constructor(
 
     /** 恢复态下点播放 / 切歌：把恢复快照交给播放器（按保存位置续播），随后进入正常播放语义。 */
     private fun resumeRestored(queue: MusicQueue, index: Int) {
+        // W5-T12：恢复态点播放 / 切歌 = 传输操作，Auto DJ 刹车计数清零。
+        autoDjController.onUserTransportAction()
         if (index !in queue.items.indices) return
         _restoredQueue.value = null
         playbackController.setQueue(queue, startIndex = index)
@@ -2392,6 +2416,7 @@ constructor(
      * 与「下一首播放」（[playNext] / `insertNext`）互补：一个插队首、一个排队尾，两者都优先于主队列消费、播完即出。
      */
     fun enqueueSongAtEnd(song: MusicSong) {
+        autoDjController.onUserTransportAction()
         viewModelScope.launch {
             runCatching { trackResolver.toPlayerItem(song) }
                 .onSuccess { item -> queueEditor.addToUpNext(item) }
@@ -2424,6 +2449,7 @@ constructor(
     }
 
     fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             val moved = restored.move(fromIndex, toIndex)
@@ -2437,6 +2463,7 @@ constructor(
     }
 
     fun jumpToQueueItem(index: Int) {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             resumeRestored(restored, index)
@@ -2447,6 +2474,7 @@ constructor(
 
     /** W5 T5：「接下来播放」第 [index] 条立即播放（中间的待播条目按「播完即出」出列）。 */
     fun jumpToUpNextItem(index: Int) {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             // 恢复态没有播放器：先把快照交给播放器，再跳到该条
@@ -2461,6 +2489,7 @@ constructor(
     }
 
     fun removeQueueItem(index: Int) {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             val updated = musicQueueRemoveAt(restored, index)
@@ -2487,6 +2516,7 @@ constructor(
      * `move` 到原下标（`MusicQueueEditor` 没有 insert-at，`player/local` 属禁改边界）。
      */
     fun undoRemoveQueueItem(index: Int, item: PlayerItem) {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             val updated = musicQueueInsertAt(restored, index, item)
@@ -2501,6 +2531,7 @@ constructor(
     }
 
     fun removeUpNextItem(index: Int) {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             val updated = restored.removeUpNextAt(index)
@@ -2515,6 +2546,7 @@ constructor(
 
     /** W5 T5（MUSIC-11）：清空「接下来播放」（不动主队列，也不打断正在播放的曲目）。 */
     fun clearUpNext() {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             val updated = restored.clearUpNext()
@@ -2528,6 +2560,7 @@ constructor(
     }
 
     fun togglePlayPause() {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             resumeRestored(restored, restored.currentIndex)
@@ -2543,6 +2576,7 @@ constructor(
      * 恢复态只丢本次进页面的展示快照，不动磁盘存档；收起后再次选择曲目走既有起播路径。
      */
     fun dismissNowPlayingBar() {
+        autoDjController.onUserTransportAction()
         when (
             musicMiniBarDismissTarget(
                 hasLiveQueue = playbackController.queue.value != null,
@@ -2556,6 +2590,7 @@ constructor(
     }
 
     fun skipToNext() {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             resumeRestored(
@@ -2575,6 +2610,7 @@ constructor(
     }
 
     fun skipToPrevious() {
+        autoDjController.onUserTransportAction()
         val restored = _restoredQueue.value
         if (playbackController.queue.value == null && restored != null) {
             resumeRestored(restored, (restored.currentIndex - 1).coerceAtLeast(0))
@@ -2644,6 +2680,7 @@ constructor(
 
     /** 拖动全屏进度条（B 组）：恢复态没有播放会话，忽略。 */
     fun seekTo(positionMs: Long) {
+        autoDjController.onUserTransportAction()
         if (playbackController.queue.value == null) return
         playbackController.seekTo(positionMs.coerceAtLeast(0L))
     }

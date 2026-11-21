@@ -453,6 +453,14 @@ constructor(
                             supportedDeviceTypes = listOf(DeviceType.PHONE),
                             backendPreference = appPreferences.musicResumeQueue,
                         ),
+                        // W5-T12（MUSIC-14）Auto DJ：队列自然播完时以最后一首服务器曲目为种子续播相似曲目，默认关。
+                        PreferenceSwitch(
+                            nameStringResource = R.string.settings_music_auto_dj,
+                            descriptionStringRes = R.string.settings_music_auto_dj_summary,
+                            iconDrawableId = R.drawable.ic_play,
+                            supportedDeviceTypes = listOf(DeviceType.PHONE),
+                            backendPreference = appPreferences.musicAutoDj,
+                        ),
                     )
             ),
             PreferenceGroup(

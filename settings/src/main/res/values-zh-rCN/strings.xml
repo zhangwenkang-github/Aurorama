@@ -150,6 +150,8 @@
     <string name="settings_music_lyrics_overlay_permission">需要「显示在其他应用上层」权限；打开开关时会引导到系统设置授权。</string>
     <string name="settings_music_resume_queue">恢复播放队列</string>
     <string name="settings_music_resume_queue_summary">重启后恢复上次队列与进度</string>
+    <string name="settings_music_auto_dj">Auto DJ</string>
+    <string name="settings_music_auto_dj_summary">队列播完后自动续播相似曲目</string>
     <string name="settings_bookshelf_library">书架媒体库</string>
     <string name="settings_bookshelf_library_summary">书架使用哪个书籍库；自动 = 第一个非空书籍库</string>
     <string name="settings_local_library_visible">本地媒体</string>

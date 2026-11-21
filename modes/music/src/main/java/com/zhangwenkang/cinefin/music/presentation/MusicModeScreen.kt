@@ -290,6 +290,13 @@ fun MusicModeScreen(
             snackbarHostState.showSnackbar(musicPlaybackFailureMessage(failure))
         }
     }
+
+    // W5-T12（MUSIC-14 Auto DJ）：连续自动续播 3 批后的刹车提示（非阻塞；用户任一传输操作后继续）。
+    LaunchedEffect(viewModel) {
+        viewModel.autoDjBatchLimit.collect {
+            snackbarHostState.showSnackbar("Auto DJ 已续播 3 批，点击播放可继续")
+        }
+    }
     val effectsEqualizerEnabled by viewModel.effectsEqualizerEnabled.collectAsState()
     val effectsEqualizerPreset by viewModel.effectsEqualizerPreset.collectAsState()
     val effectsEqualizerBands by viewModel.effectsEqualizerBands.collectAsState()
