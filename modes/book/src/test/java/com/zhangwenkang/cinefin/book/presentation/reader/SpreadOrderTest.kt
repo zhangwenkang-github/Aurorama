@@ -54,16 +54,4 @@ class SpreadOrderTest {
         assertFalse(isRtlPaging(ReaderMode.Scroll, rtl = true))
         assertFalse(isRtlPaging(ReaderMode.Paged, rtl = false))
     }
-
-    @Test
-    fun `页指示在 RTL 横向模式带右起后缀`() {
-        assertEquals("分页 · 1/24 · 右起", pageIndicatorText(ReaderMode.Paged, 0, 24, rtl = true))
-        assertEquals(
-            "双栏 · 1-2/24 · 右起",
-            pageIndicatorText(ReaderMode.TwoColumn, 0, 24, rtl = true),
-        )
-        assertEquals("滚动 · 1/24", pageIndicatorText(ReaderMode.Scroll, 0, 24, rtl = true))
-        assertEquals("分页 · 1/24", pageIndicatorText(ReaderMode.Paged, 0, 24, rtl = false))
-        assertEquals("分页 · 0/0 · 右起", pageIndicatorText(ReaderMode.Paged, 0, 0, rtl = true))
-    }
 }

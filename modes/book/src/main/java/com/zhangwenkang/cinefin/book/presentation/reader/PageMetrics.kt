@@ -172,36 +172,6 @@ internal fun pageIndexForProgression(progression: Double, pageCount: Int): Int {
 
 private const val PROGRESSION_EPSILON = 1e-6
 
-/**
- * 页指示文案：滚动 / 分页 / 双栏三档文字不同，既是阅读体验的一部分，也是真机验收时 `uiautomator dump` 判断"模式确实生效"的可见证据（READER_PLAN §7）。
- *
- * RTL 生效（分页 / 双栏 + 右起开关）时追加「右起」后缀：既是给用户的提示，也是真机验收 里判断开关状态与翻页方向的文本证据（READER_PLAN §7.7）。
- */
-internal fun pageIndicatorText(
-    mode: ReaderMode,
-    pageIndex: Int,
-    pageCount: Int,
-    rtl: Boolean = false,
-    lastPageIndex: Int = pageIndex + 1,
-): String {
-    val suffix = if (isRtlPaging(mode, rtl)) " · 右起" else ""
-    if (pageCount <= 0) return "${mode.label} · 0/0$suffix"
-    val first = (pageIndex + 1).coerceIn(1, pageCount)
-    val base =
-        when (mode) {
-            ReaderMode.TwoColumn -> {
-                // W26：双栏槽位可能是 1 页（横版整页独占 / 竖版单张）或 2 页，按实际页范围显示；
-                // lastPageIndex 与 pageIndex 同为 0-based 页索引。
-                val last = (lastPageIndex + 1).coerceIn(first, pageCount)
-                if (last > first) "${mode.label} · $first-$last/$pageCount"
-                else "${mode.label} · $first/$pageCount"
-            }
-
-            else -> "${mode.label} · $first/$pageCount"
-        }
-    return base + suffix
-}
-
 /** 缩放后的平移夹取：放大 [scale] 倍时，最多平移到放大出来的边缘（避免把页面拖出视野）。 缩放回到 1× 时平移自动归零。 */
 internal fun clampPageOffset(
     offset: Offset,
