@@ -239,6 +239,7 @@ T4（TrackSource 模型，player/core+modes/music data）先行解锁 T5/T6。
 | T9 | Auto DJ 评估（纯调研，SHOULD）：Jellyfin InstantMix API（SDK `instantMixApi`）现成度、队列播完追加的接缝（`STATE_ENDED` 钩子）、偏好开关位置；产出 go/no-go 报告，go 则立实现卡 | MUSIC-14 | 报告并入状态块；不派实现 |
 | T10 | W4 残留收尾小项包（一卡一 commit）：① L3 播放页 themeId 跟随（`PlayerActivity` 的 `CinefinTheme(themeId=DEFAULT)` 改读全局主题流，light/dynamic 映射 aurora dark，amoled 直通——W4 已拍板方向）；② `app/phone/build.gradle.kts:219` coroutines-test 收 catalog（`libs.kotlinx.coroutines.test`）；③ L7 mpv 内核 content:// 外挂字幕核查修复（`sub-add` 打不开 content:// 时经 fd/临时副本通路，先核后修）；④ L8 媒体键暂停绕开 SyncPlay 组闸门（`CinefinPlaybackService` MediaSession onPlay/onPause 回调接 `SyncPlayTransportGate`，与 UI 键同走「只发请求不写引擎」闸门，修法已记在 `V2_W4_TASKS.md` 收官节） | W4 残留表 L3/L7/L8/T9 遗留 | K60 播放页 aurora↔amoled 切换取证；构建绿；L7 有结论（修复或记录边界）；L8 单测 + K60 实组：耳机/通知栏暂停触发组广播 |
 | T11 | 歌词域核查补缺 + 域验收：`.elrc` 解析（词级时间戳并入 `LyricWord`）；词级高亮用 .elrc fixture 真机/单测验证；全量验收清单（50 条逐条 K60/单测归证） | MUSIC-24/25 + 全域 | .elrc fixture 词级高亮上屏；验收单逐条 ✅/⚠️/❌ 有归属 |
+| T12 | Auto DJ 实现（MUSIC-14）：偏好开关（默认关）+ 队列自然播完时以最后一首服务器曲目为种子调 InstantMix 追加一批续播；闸门矩阵与刹车见「设计定稿五」 | MUSIC-14 | 闸门纯函数单测全覆盖；仓库 InstantMix 调用形状单测；K60：开关默认关、开启后队尾自然播完自动续播、睡眠闸门/错误队尾/连续刹车三场景 no-op |
 
 ## 设计定稿一：K1 换肤与布局（Kimi，2026-11-20，deepseek 零裁量）
 
@@ -322,6 +323,40 @@ val SpringCollapse = spring<Float>(dampingRatio = 1f, stiffness = 380f)
 
 - **`.elrc` 支持**（MUSIC-24/25）：`LrcParser` 扩展解析增强 LRC 行内词级时间戳（`<mm:ss.xx>词` 序列），映射进既有 `LyricWord(startMs, text)`；`.elrc` 扩展名加入外挂候选清单（与 .lrc 同规则：同目录同名、大小写不敏感）。服务端 Cues 与 .elrc 词级数据统一走 `LyricsWordHighlight`，高亮色 = `media.base`（调色板覆盖后随封面色），已唱词 100% alpha / 未唱 55% alpha（现状参数保留，视觉抽查）。
 - **歌词转场**与当前行样式按设计定稿二 §6 与现状（当前行更亮更大字号 ✅）执行；本域唯一新视觉 = 词级高亮进度（词内按时间插值亮度——卡拉 OK 扫词），动画用 `animateFloatAsState(tween(200))`（MUSIC-43 口径）。
+
+## 设计定稿五：Auto DJ（Kimi，2026-11-21，deepseek 零裁量）
+
+依据 MUSIC-14 + T9 GO 报告（状态块会话5 条）。范围收窄：**仅服务器种子、仅队列自然播完触发、默认关**。
+
+### 1. 偏好与入口
+
+- `AppPreferences` 新增 `musicAutoDj = Preference("pref_music_auto_dj", false)`（默认关）。
+- 设置页开关放「音乐」分组 `musicResumeQueue` 旁（`SettingsViewModel.kt:454` 同法接入），文案「Auto DJ」+ 副标题「队列播完后自动续播相似曲目」。
+
+### 2. 接缝与数据流（写死）
+
+- **队尾结束事件**：`MusicPlaybackControllerImpl.onPlaybackStateChanged` 的 `STATE_ENDED` 分支（现 `:213` 收尾上报处）增发 `queueEnded: SharedFlow<QueueEndedEvent>`；`QueueEndedEvent(itemId: UUID, endedByError: Boolean)`。`endedByError` = T8 错误跳曲把队列耗到尾部导致的 ENDED（控制器内置标志：错误跳曲路径置位，自然 `MEDIA_ITEM_TRANSITION_REASON_AUTO` 推进复位）。接口方法加在 `MusicPlaybackController`，实现与 fake 同步。
+- **Auto DJ 控制器**：`modes/music/data/MusicAutoDjController`（新文件，@Singleton 或由 VM 持有作用域），collect `queueEnded` → 闸门判定（§3 纯函数）→ 放行则 `MusicRepository.getInstantMix(seedItemId, limit=10)` → 映射 `PlayerItem`（沿用 `MusicModeViewModel.kt:2499` 既有映射路径）→ `queueEditor.appendToQueue(...)` + 恢复播放（`play()`；`pauseAtEndOfMediaItems=false` 下同一 MediaSession 续播，T9 已实证接缝不断）。
+- **InstantMix 通路**：`JellyfinApi` 补 `val instantMixApi = api.instantMixApi`；`MusicRepository` 加 `suspend fun getInstantMix(seedItemId: UUID, limit: Int): List<MusicSong>`（映射沿用 `toMusicSong`）。GET 请求，生产只读红线不违。
+- **上报完整性（风险①）**：续播批次首曲的 `PlaybackStart` 上报不得被 `PLAYLIST_CHANGED` 早退吞掉——实现时先在报告链加日志，K60 取证确认每首续播曲都有 PlaybackStart。
+
+### 3. 闸门矩阵（纯函数 `autoDjGate(...)`: 决策枚举 APPEND / SKIP，单测逐格钉死）
+
+任一不满足即 SKIP（静默，不 snackbar）：
+1. `musicAutoDj == false` → SKIP；
+2. 种子曲非服务器来源（本地 SAF 曲目）→ SKIP；
+3. 睡眠定时挂起态：`sleepTimer.state.value.stopAfterCurrentTrack == true`（或倒计时已到期待停）→ **消费该标志并 SKIP**（风险② 防复活）；
+4. `endedByError == true` → SKIP（风险③，T8 已在队尾发过 snackbar，Auto DJ 不抢话）；
+5. 连续续播刹车：同一播放会话内连续自动追加达 **3 批**（≈30 首）且期间无任何用户传输操作（播放/暂停/切歌/seek/队列编辑任一）→ SKIP + 非阻塞 snackbar「Auto DJ 已续播 3 批，点击播放可继续」（用户任一传输操作即清零计数）；
+6. InstantMix 网络/API 失败或返回空 → SKIP（仅日志，不打扰）。
+
+### 4. 不做的事（范围裁剪记录）
+
+- 不做播放中「接近队尾提前预取」（只钩 STATE_ENDED）；不做本地种子 InstantMix；不做 UI 常驻标识（仅刹车 snackbar）；刹车计数进程级不落盘。
+
+### 5. 验收要点
+
+闸门矩阵单测（6 格 × 正反）+ `endedByError` 标志单测 + 仓库 getInstantMix 调用形状单测（itemId/limit 透传）；K60（Kimi 取证）：默认关→队尾播完停播不续；开→自然播完自动续播且逐曲 PlaybackStart 上报；睡眠「播完当前曲目停止」+ Auto DJ 同开 → 队尾停播不复活；断网队尾 → 静默不续。
 
 ## 日志（只留最近 ~5 条）
 
