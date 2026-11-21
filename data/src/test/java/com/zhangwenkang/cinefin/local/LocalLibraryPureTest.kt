@@ -16,7 +16,9 @@ class LocalLibraryPureTest {
         assertEquals(LocalMediaKind.VIDEO, LocalMediaExtensions.kindOf("a.m2ts"))
         assertEquals(LocalMediaKind.MUSIC, LocalMediaExtensions.kindOf("song.FLAC"))
         assertEquals(LocalMediaKind.BOOK, LocalMediaExtensions.kindOf("书.CBZ"))
-        assertNull(LocalMediaExtensions.kindOf("readme.txt"))
+        // W6-T7：TXT 已纳入书籍白名单（TXT→EPUB 导入链路）
+        assertEquals(LocalMediaKind.BOOK, LocalMediaExtensions.kindOf("readme.txt"))
+        assertNull(LocalMediaExtensions.kindOf("readme.xyz"))
         assertNull(LocalMediaExtensions.kindOf("无扩展名"))
         assertNull(LocalMediaExtensions.kindOf(""))
     }
