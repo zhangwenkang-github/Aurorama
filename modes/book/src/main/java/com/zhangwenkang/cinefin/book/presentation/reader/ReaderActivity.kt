@@ -143,7 +143,37 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     /**
-     * W6 T4（定稿三 §1）：音量键 / 键盘翻页。
+     * W6 T4r：EPUB 的键盘 / DPAD 必须在 **view 分发之前** 拦截。
+     *
+     * 顺序问题：`Activity.onKeyDown` 排在 `View.dispatchKeyEvent` 之后；EPUB 正文是持焦点的 Readium
+     * `R2BasicWebView`，方向键 / Enter 在 view 分发阶段就被 WebView 吃掉，到不了 [onKeyDown]（音量键 不带焦点语义，才碰巧还能用）。这里先于
+     * view 树消费阅读键：命中返回 true，未命中交回 `super.dispatchKeyEvent`，仍由 view 树 → [onKeyDown] 继续处理。
+     *
+     * PDF / CBZ（Compose 页）由 [readerKeyActionBeforeDispatch] 返回 null，顺序与改动前一致。 面板（目录 / 书签 / 设置 /
+     * 搜索等）是 `ModalBottomSheet` 的独立 Dialog 窗口，按键根本不进本 Activity；只有内联控制层可见时本层仍会拦下 DPAD /
+     * Enter（取舍见交付说明）。
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val action =
+            readerKeyActionBeforeDispatch(
+                document = keyDispatchDocument(),
+                keyCode = event.keyCode,
+                volumeKeysPaging = ReaderInputSetting.volumeKeysPaging,
+                scrollMode = isScrollMode(),
+            ) ?: return super.dispatchKeyEvent(event)
+        return when (event.action) {
+            KeyEvent.ACTION_DOWN -> {
+                handleReaderKey(action)
+                true
+            }
+            // 按下已消费，抬起同样吞掉，避免 WebView 把抬起当成一次点击。
+            KeyEvent.ACTION_UP -> true
+            else -> super.dispatchKeyEvent(event)
+        }
+    }
+
+    /**
+     * W6 T4（定稿三 §1）：音量键 / 键盘翻页（EPUB 已由 [dispatchKeyEvent] 抢先消费，这里负责 PDF / CBZ）。
      *
      * 映射见 [readerKeyAction]（纯函数）；未命中或音量键开关关闭时返回 false 交给系统（音量键继续调音量）。
      */
@@ -167,6 +197,13 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     private fun isScrollMode(): Boolean = viewModel.settings.value.mode == ReaderMode.Scroll
+
+    /** 当前正文的按键分发归属：EPUB 在 view 分发前拦截，PDF / CBZ 留在 Compose / `onKeyDown`。 */
+    private fun keyDispatchDocument(): ReaderKeyDocument =
+        when ((viewModel.state.value as? ReaderUiState.Ready)?.document) {
+            is ReaderDocument.Rich -> ReaderKeyDocument.Epub
+            else -> ReaderKeyDocument.Compose
+        }
 
     private fun handleReaderKey(action: ReaderKeyAction) {
         when (action) {

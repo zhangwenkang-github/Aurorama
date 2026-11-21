@@ -18,6 +18,15 @@ internal enum class ReaderKeyAction {
 /** 滚动档一次按键的滚动距离（dp，约一行正文）。 */
 internal const val READER_KEY_SCROLL_LINE_DP: Float = 24f
 
+/** 当前正文的按键分发归属（W6 T4r）：决定阅读键是在 view 分发前还是分发后处理。 */
+internal enum class ReaderKeyDocument {
+    /** EPUB：正文由持焦点的 Readium `R2BasicWebView` 承载，必须在 `Activity.dispatchKeyEvent` 抢先消费。 */
+    Epub,
+
+    /** PDF / CBZ：Compose 页，保持「view 树（Compose 焦点）先收键 → `onKeyDown` 兜底」的原有顺序。 */
+    Compose,
+}
+
 /**
  * 物理键 → 阅读动作（纯函数，null = 不消费、交给系统）。
  *
@@ -47,4 +56,28 @@ internal fun readerKeyAction(
         KeyEvent.KEYCODE_DPAD_CENTER -> ReaderKeyAction.ToggleControls
         else -> null
     }
+}
+
+/**
+ * view 分发前的抢占判定（W6 T4r，纯函数；null = 不拦截，交给 view 树 / `onKeyDown`）。
+ *
+ * 背景：`Activity.onKeyDown` 在 `View.dispatchKeyEvent` 之后才被调用。EPUB 正文由持焦点的 Readium `R2BasicWebView`
+ * 承载，DPAD / Enter 在 view 分发阶段就被 WebView 消费，永远到不了 `onKeyDown` ——音量键不带焦点语义，所以 T4 真机只暴露了方向键 / Enter
+ * 失效。故 EPUB 的阅读键必须在 `Activity.dispatchKeyEvent` 里先于 view 树消费。
+ *
+ * PDF / CBZ 是 Compose 页，返回 null：保持「Compose 焦点先收键 → 未消化才落到 `onKeyDown`」的原有顺序， 不抢面板 /
+ * 滑块的焦点导航。未命中或音量键开关关闭同样返回 null（放行系统音量）。
+ */
+internal fun readerKeyActionBeforeDispatch(
+    document: ReaderKeyDocument,
+    keyCode: Int,
+    volumeKeysPaging: Boolean,
+    scrollMode: Boolean,
+): ReaderKeyAction? {
+    if (document != ReaderKeyDocument.Epub) return null
+    return readerKeyAction(
+        keyCode = keyCode,
+        volumeKeysPaging = volumeKeysPaging,
+        scrollMode = scrollMode,
+    )
 }
