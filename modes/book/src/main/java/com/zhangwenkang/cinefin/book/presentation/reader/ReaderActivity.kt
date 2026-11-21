@@ -6,6 +6,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.getValue
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.UUID
@@ -22,6 +25,7 @@ class ReaderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enterImmersiveMode()
 
         val itemId = intent.getStringExtra(EXTRA_ITEM_ID)?.toItemIdOrNull()
         // W37：本地媒体库书籍（SAF content://）；与 itemId 二选一，本地优先。
@@ -88,6 +92,25 @@ class ReaderActivity : AppCompatActivity() {
     override fun onStop() {
         viewModel.onStopReading()
         super.onStop()
+    }
+
+    /** 窗口重新获得焦点（从系统栏手势 / 弹层返回）时回到沉浸态。 */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) enterImmersiveMode()
+    }
+
+    /**
+     * W6 T1 定稿一 §1：进入阅读页即沉浸 —— 隐藏状态栏与导航栏，正文占满全屏。
+     *
+     * 系统栏经手势滑动可短暂唤出（`BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`），松手后自动收回。
+     */
+    private fun enterImmersiveMode() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
     }
 
     companion object {

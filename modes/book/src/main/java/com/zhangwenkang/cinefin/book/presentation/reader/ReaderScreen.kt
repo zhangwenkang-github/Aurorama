@@ -4,22 +4,22 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -107,11 +108,19 @@ fun ReaderScreen(
     onUpdateAnnotationNote: (annotationId: String, note: String) -> Unit,
     onRemoveAnnotation: (annotationId: String) -> Unit,
     onBack: () -> Unit,
+    /** W6 T1：双击正文 = 书签动作（T2 接线，本卡只留回调）。 */
+    onDoubleTapBookmark: () -> Unit = {},
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showBookmarks by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var showAnnotations by remember { mutableStateOf(false) }
+    var showMore by remember { mutableStateOf(false) }
+    // W6 T1：沉浸态默认关闭控制层；书未就绪（加载 / 错误）时先显示，保证有返回入口。
+    var controlsVisible by remember(bookKey) { mutableStateOf(false) }
+    val bookReady = state is ReaderUiState.Ready
+    LaunchedEffect(bookReady) { controlsVisible = !bookReady }
+    BackHandler(enabled = controlsVisible) { controlsVisible = false }
     var annotating by remember { mutableStateOf(false) }
     var pendingAnnotation by remember { mutableStateOf<Pair<Int, PageRect>?>(null) }
     var editingAnnotation by remember { mutableStateOf<ReaderAnnotation?>(null) }
@@ -171,159 +180,172 @@ fun ReaderScreen(
 
         CompositionLocalProvider(LocalMediaColors provides settings.mediaColors(systemDark)) {
             Surface(modifier = Modifier.fillMaxSize(), color = settings.surfaceColor(systemDark)) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    ReaderTopBar(
-                        title = title,
-                        contentColor = contentColor,
-                        chromeColor = chromeColor,
-                        onBack = onBack,
-                        onOpenSettings = { showSettings = true },
-                    )
-
-                    if (annotating) {
-                        Surface(color = chromeColor, contentColor = contentColor) {
-                            AnnotateHintBar(
-                                contentColor = contentColor,
-                                accent = accent,
-                                onStop = { annotating = false },
-                            )
-                        }
-                    }
-
-                    if (pendingSyncCount > 0) {
-                        PendingSyncBanner(
-                            pendingSyncCount = pendingSyncCount,
-                            containerColor = chromeColor,
-                            contentColor = contentColor,
-                        )
-                    }
-
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        when (state) {
-                            ReaderUiState.Loading ->
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CircularProgressIndicator(color = accent)
-                                }
-
-                            is ReaderUiState.Error ->
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CinefinEmptyState(
-                                        title = "打不开这本书",
-                                        message = state.message,
-                                        action = {
-                                            CinefinButton(
-                                                text = "重试",
-                                                onClick = onRetry,
-                                                size = CinefinButtonSize.Medium,
-                                            )
-                                        },
-                                    )
-                                }
-
-                            is ReaderUiState.Ready ->
-                                when (val document = state.document) {
-                                    is ReaderDocument.Rich ->
-                                        ReadiumEpubView(
-                                            publication = document.publication,
-                                            initialLocator = document.initialLocator,
-                                            settings = settings,
-                                            systemDark = systemDark,
-                                            jumpTarget = jumpTarget,
-                                            onLocationChanged = onLocationChanged,
-                                            onJumpHandled = onJumpHandled,
-                                            onNavigatorReady = onNavigatorReady,
-                                            brightnessProvider = { brightness },
-                                            onBrightness = onBrightnessChange,
-                                            onToggleTwoColumn = {
-                                                onSettingsChange(
-                                                    settings.copy(
-                                                        mode =
-                                                            if (
-                                                                settings.mode ==
-                                                                    ReaderMode.TwoColumn
-                                                            )
-                                                                ReaderMode.Paged
-                                                            else ReaderMode.TwoColumn
-                                                    )
-                                                )
-                                            },
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
-
-                                    is ReaderDocument.Simple ->
-                                        SimpleBookView(
-                                            document = document,
-                                            settings = settings,
-                                            systemDark = systemDark,
-                                            contentColor = contentColor,
-                                            chromeColor = chromeColor,
-                                            bookZoom = bookZoom,
-                                            searchHits = searchState.hits,
-                                            annotations = annotations,
-                                            annotating = annotating,
-                                            jumpTargetPage = pageJumpTarget,
-                                            onPageChanged = onSimplePageChanged,
-                                            onJumpHandled = onPageJumpHandled,
-                                            brightnessProvider = { brightness },
-                                            onBrightness = onBrightnessChange,
-                                            onAnnotationRequested = { index, rect ->
-                                                pendingAnnotation = index to rect
-                                            },
-                                            onAnnotationTap = { annotation ->
-                                                editingAnnotation = annotation
-                                            },
-                                            onZoomInteraction = { zoomBarToken++ },
-                                            onBlankTap = { zoomBarToken++ },
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
-                                }
-                        }
-
-                        if (zoomBarAvailable) {
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = zoomBarVisible,
-                                enter = fadeIn(tween(160)),
-                                exit = fadeOut(tween(ZOOM_BAR_FADE_MS)),
-                                modifier =
-                                    Modifier.align(Alignment.BottomEnd)
-                                        .padding(
-                                            end = CinefinSpacing.Space4,
-                                            bottom = ZOOM_BAR_BOTTOM_PADDING,
-                                        ),
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (state) {
+                        ReaderUiState.Loading ->
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
                             ) {
-                                ReaderZoomBar(
-                                    percent = bookZoom.percent,
-                                    canZoomOut = bookZoom.canZoomOut,
-                                    canZoomIn = bookZoom.canZoomIn,
-                                    containerColor = chromeColor,
-                                    contentColor = contentColor,
-                                    onZoomOut = {
-                                        bookZoom.zoomOut()
-                                        zoomBarToken++
-                                    },
-                                    onZoomIn = {
-                                        bookZoom.zoomIn()
-                                        zoomBarToken++
+                                CircularProgressIndicator(color = accent)
+                            }
+
+                        is ReaderUiState.Error ->
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CinefinEmptyState(
+                                    title = "打不开这本书",
+                                    message = state.message,
+                                    action = {
+                                        CinefinButton(
+                                            text = "重试",
+                                            onClick = onRetry,
+                                            size = CinefinButtonSize.Medium,
+                                        )
                                     },
                                 )
                             }
-                        }
 
-                        if (brightnessHudVisible) {
-                            BrightnessHud(
-                                percent = (brightness * 100f).roundToInt(),
+                        is ReaderUiState.Ready ->
+                            when (val document = state.document) {
+                                is ReaderDocument.Rich ->
+                                    ReadiumEpubView(
+                                        publication = document.publication,
+                                        initialLocator = document.initialLocator,
+                                        settings = settings,
+                                        systemDark = systemDark,
+                                        jumpTarget = jumpTarget,
+                                        onLocationChanged = onLocationChanged,
+                                        onJumpHandled = onJumpHandled,
+                                        onNavigatorReady = onNavigatorReady,
+                                        brightnessProvider = { brightness },
+                                        onBrightness = onBrightnessChange,
+                                        tapPolicy = settings.tapPolicy(controlsVisible),
+                                        onToggleControls = { controlsVisible = !controlsVisible },
+                                        onDoubleTapBookmark = onDoubleTapBookmark,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+
+                                is ReaderDocument.Simple ->
+                                    SimpleBookView(
+                                        document = document,
+                                        settings = settings,
+                                        systemDark = systemDark,
+                                        contentColor = contentColor,
+                                        chromeColor = chromeColor,
+                                        bookZoom = bookZoom,
+                                        searchHits = searchState.hits,
+                                        annotations = annotations,
+                                        annotating = annotating,
+                                        jumpTargetPage = pageJumpTarget,
+                                        onPageChanged = onSimplePageChanged,
+                                        onJumpHandled = onPageJumpHandled,
+                                        brightnessProvider = { brightness },
+                                        onBrightness = onBrightnessChange,
+                                        onAnnotationRequested = { index, rect ->
+                                            pendingAnnotation = index to rect
+                                        },
+                                        onAnnotationTap = { annotation ->
+                                            editingAnnotation = annotation
+                                        },
+                                        onZoomInteraction = { zoomBarToken++ },
+                                        onBlankTap = { zoomBarToken++ },
+                                        tapPolicy = settings.tapPolicy(controlsVisible),
+                                        onToggleControls = { controlsVisible = !controlsVisible },
+                                        onDoubleTapBookmark = onDoubleTapBookmark,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                            }
+                    }
+
+                    if (pendingSyncCount > 0) {
+                        Box(modifier = Modifier.align(Alignment.TopCenter)) {
+                            PendingSyncBanner(
+                                pendingSyncCount = pendingSyncCount,
                                 containerColor = chromeColor,
                                 contentColor = contentColor,
-                                modifier = Modifier.align(Alignment.Center),
                             )
                         }
                     }
+
+                    if (annotating) {
+                        Box(modifier = Modifier.align(Alignment.TopCenter)) {
+                            Surface(color = chromeColor, contentColor = contentColor) {
+                                AnnotateHintBar(
+                                    contentColor = contentColor,
+                                    accent = accent,
+                                    onStop = { annotating = false },
+                                )
+                            }
+                        }
+                    }
+
+                    if (zoomBarAvailable) {
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = zoomBarVisible,
+                            enter = fadeIn(tween(160)),
+                            exit = fadeOut(tween(ZOOM_BAR_FADE_MS)),
+                            modifier =
+                                Modifier.align(Alignment.BottomEnd)
+                                    .padding(
+                                        end = CinefinSpacing.Space4,
+                                        bottom = ZOOM_BAR_BOTTOM_PADDING,
+                                    ),
+                        ) {
+                            ReaderZoomBar(
+                                percent = bookZoom.percent,
+                                canZoomOut = bookZoom.canZoomOut,
+                                canZoomIn = bookZoom.canZoomIn,
+                                containerColor = chromeColor,
+                                contentColor = contentColor,
+                                onZoomOut = {
+                                    bookZoom.zoomOut()
+                                    zoomBarToken++
+                                },
+                                onZoomIn = {
+                                    bookZoom.zoomIn()
+                                    zoomBarToken++
+                                },
+                            )
+                        }
+                    }
+
+                    if (brightnessHudVisible) {
+                        BrightnessHud(
+                            percent = (brightness * 100f).roundToInt(),
+                            containerColor = chromeColor,
+                            contentColor = contentColor,
+                            modifier = Modifier.align(Alignment.Center),
+                        )
+                    }
+
+                    // 控制层可见时正文区域整体只做「关闭」：透明 scrim 拦截正文点击（含链接 / 批注命中）。
+                    if (controlsVisible) {
+                        Box(
+                            modifier =
+                                Modifier.fillMaxSize().pointerInput(Unit) {
+                                    detectTapGestures { controlsVisible = false }
+                                }
+                        )
+                    }
+
+                    ReaderControlLayer(
+                        visible = controlsVisible,
+                        title = title,
+                        darkChrome = settings.isDark(systemDark),
+                        chromeColor = chromeColor,
+                        contentColor = contentColor,
+                        onBack = onBack,
+                        onMore = { showMore = true },
+                        // T2 接线：目录抽屉 / 书签列表 / 进度条拖动。
+                        onOpenContents = {},
+                        onOpenBookmarks = {},
+                        onOpenProgress = {},
+                        onOpenSettings = { showSettings = true },
+                        onDismissByDrag = { controlsVisible = false },
+                    )
                 }
             }
 
@@ -488,6 +510,41 @@ fun ReaderScreen(
                 }
             }
 
+            if (showMore) {
+                ModalBottomSheet(
+                    onDismissRequest = { showMore = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = chromeColor,
+                    contentColor = contentColor,
+                    scrimColor = CinefinTokens.Scrim.copy(alpha = CinefinTokens.ScrimAlpha),
+                    dragHandle = {
+                        Box(
+                            modifier =
+                                Modifier.padding(top = CinefinSpacing.Space3)
+                                    .size(width = 32.dp, height = 4.dp)
+                                    .clip(CinefinShapes.TwoXs)
+                                    .background(contentColor.copy(alpha = 0.24f))
+                        )
+                    },
+                ) {
+                    // T2 起补：目录、书签列表、书内搜索、标注列表、下载 / 流式状态、听书入口。
+                    Column(
+                        modifier =
+                            Modifier.fillMaxWidth()
+                                .padding(horizontal = CinefinSpacing.Space6)
+                                .padding(bottom = CinefinSpacing.Space6),
+                        verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space2),
+                    ) {
+                        Text(text = "更多", style = CinefinType.TitleMedium)
+                        Text(
+                            text = "目录、书内搜索、标注与听书入口将在后续任务补齐。",
+                            style = CinefinType.BodyMedium,
+                            color = contentColor.copy(alpha = 0.7f),
+                        )
+                    }
+                }
+            }
+
             pendingAnnotation?.let { (pageIndex, rect) ->
                 AnnotationNoteDialog(
                     title = "添加批注（第 ${pageIndex + 1} 页）",
@@ -519,58 +576,6 @@ fun ReaderScreen(
                 )
             }
         }
-    }
-}
-
-/**
- * 阅读页顶栏：只保留 **返回 + 书名 + 设置**（READER_PLAN §9 2026-10-18）。
- *
- * 下载、搜索、批注、书签、模式、翻页方向与显示设置全部收进「阅读设置」面板，顶栏不再承载工具入口。
- */
-@Composable
-private fun ReaderTopBar(
-    title: String,
-    contentColor: Color,
-    chromeColor: Color,
-    onBack: () -> Unit,
-    onOpenSettings: () -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth().background(chromeColor)) {
-        Row(
-            modifier =
-                Modifier.fillMaxWidth()
-                    .statusBarsPadding()
-                    .height(56.dp)
-                    .padding(horizontal = CinefinSpacing.Space4),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CinefinButton(
-                text = "返回",
-                onClick = onBack,
-                variant = CinefinButtonVariant.Text,
-                size = CinefinButtonSize.Small,
-            )
-            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                style = CinefinType.TitleMedium,
-                color = contentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.width(CinefinSpacing.Space2))
-            CinefinButton(
-                text = "设置",
-                onClick = onOpenSettings,
-                variant = CinefinButtonVariant.Text,
-                size = CinefinButtonSize.Small,
-            )
-        }
-        Box(
-            modifier =
-                Modifier.fillMaxWidth().height(1.dp).background(contentColor.copy(alpha = 0.12f))
-        )
     }
 }
 

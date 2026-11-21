@@ -47,8 +47,11 @@ internal fun ReadiumEpubView(
     /** W80（#32）：当前屏幕亮度（0–1），上下滑手势从这里起算。 */
     brightnessProvider: () -> Float = { 1f },
     onBrightness: (Float) -> Unit = {},
-    /** W80（#32）：双击中间 = 单 / 双栏切换。 */
-    onToggleTwoColumn: () -> Unit = {},
+    /** W6 T1：三分区单击策略（控制层可见性 / 反转左右 / 点按翻页开关）。 */
+    tapPolicy: ReaderTapPolicy = ReaderTapPolicy(),
+    onToggleControls: () -> Unit = {},
+    /** W6 T1：双击正文 = 书签动作（T2 接线，本卡只留回调）。 */
+    onDoubleTapBookmark: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -65,7 +68,9 @@ internal fun ReadiumEpubView(
     val currentOnNavigatorReady = rememberUpdatedState(onNavigatorReady)
     val currentBrightnessProvider = rememberUpdatedState(brightnessProvider)
     val currentOnBrightness = rememberUpdatedState(onBrightness)
-    val currentOnToggleTwoColumn = rememberUpdatedState(onToggleTwoColumn)
+    val currentTapPolicy = rememberUpdatedState(tapPolicy)
+    val currentOnToggleControls = rememberUpdatedState(onToggleControls)
+    val currentOnDoubleTapBookmark = rememberUpdatedState(onDoubleTapBookmark)
 
     // 最近一次上报的位置：切换「双栏兜底」需要重建导航器，用它把阅读位置接回去。
     var liveLocator by remember(publication) { mutableStateOf<Locator?>(null) }
@@ -115,16 +120,14 @@ internal fun ReadiumEpubView(
             scrollMode = currentSettings.value.mode == ReaderMode.Scroll,
             brightnessProvider = { currentBrightnessProvider.value() },
             onBrightness = { value -> currentOnBrightness.value(value) },
-            onDoubleTap = { x, width ->
-                val currentNavigator = navigator
-                if (currentNavigator != null) {
-                    when (readerTapTarget(x, width)) {
-                        ReaderTapTarget.Previous -> currentNavigator.goBackward(animated = true)
-                        ReaderTapTarget.Next -> currentNavigator.goForward(animated = true)
-                        ReaderTapTarget.ToggleFit -> currentOnToggleTwoColumn.value()
-                    }
+            onSingleTap = { x, _, width ->
+                when (readerTapAction(x, width, currentTapPolicy.value)) {
+                    ReaderTapAction.PreviousPage -> navigator?.goBackward(animated = true)
+                    ReaderTapAction.NextPage -> navigator?.goForward(animated = true)
+                    ReaderTapAction.ToggleControls -> currentOnToggleControls.value()
                 }
             },
+            onDoubleTap = { _, _, _ -> currentOnDoubleTapBookmark.value() },
             modifier = modifier,
         ) {
             AndroidView(

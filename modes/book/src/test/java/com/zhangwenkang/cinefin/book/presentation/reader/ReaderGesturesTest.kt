@@ -6,32 +6,175 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * W80（#32 / #24）阅读器手势与版式纯规则。
+ * W6 T1：阅读器手势与版式纯规则。
  *
- * 覆盖：双击三等分命中、上下滑亮度换算与生效区、适宽倍数、EPUB 双栏兜底阈值、滚动到资源末尾的章节衔接判据。
+ * 覆盖：单击三分区命中与策略（反转左右 / 关闭点按翻页 / 控制层可见）、单击与双击窗口仲裁、控制层下滑关闭阈值、上下滑亮度换算与生效区、适宽倍数、EPUB
+ * 双栏兜底阈值、滚动到资源末尾的章节衔接判据。
  */
 class ReaderGesturesTest {
 
     @Test
-    fun `双击三等分命中左中右`() {
-        assertEquals(ReaderTapTarget.Previous, readerTapTarget(100f, 1200f))
-        assertEquals(ReaderTapTarget.ToggleFit, readerTapTarget(600f, 1200f))
-        assertEquals(ReaderTapTarget.Next, readerTapTarget(1100f, 1200f))
+    fun `单击三等分命中左中右`() {
+        assertEquals(ReaderTapZone.LeftEdge, readerTapZone(100f, 1200f))
+        assertEquals(ReaderTapZone.Center, readerTapZone(600f, 1200f))
+        assertEquals(ReaderTapZone.RightEdge, readerTapZone(1100f, 1200f))
     }
 
     @Test
-    fun `双击边界落在分界线上进中间区`() {
-        // 400/1200 = 1/3：分界线本身属于中间（适宽），避免"差一像素翻页"。
-        assertEquals(ReaderTapTarget.ToggleFit, readerTapTarget(400f, 1200f))
-        assertEquals(ReaderTapTarget.ToggleFit, readerTapTarget(800f, 1200f))
-        assertEquals(ReaderTapTarget.Previous, readerTapTarget(399f, 1200f))
-        assertEquals(ReaderTapTarget.Next, readerTapTarget(801f, 1200f))
+    fun `落在分界线上进中间区`() {
+        // 400/1200 = 1/3：分界线本身属于中间（控制层），避免"差一像素翻页"。
+        assertEquals(ReaderTapZone.Center, readerTapZone(400f, 1200f))
+        assertEquals(ReaderTapZone.Center, readerTapZone(800f, 1200f))
+        assertEquals(ReaderTapZone.LeftEdge, readerTapZone(399f, 1200f))
+        assertEquals(ReaderTapZone.RightEdge, readerTapZone(801f, 1200f))
     }
 
     @Test
-    fun `宽度非法时退化为适宽而不是翻页`() {
-        assertEquals(ReaderTapTarget.ToggleFit, readerTapTarget(10f, 0f))
-        assertEquals(ReaderTapTarget.ToggleFit, readerTapTarget(Float.NaN, 1080f))
+    fun `宽度非法时退化为中间区而不是翻页`() {
+        assertEquals(ReaderTapZone.Center, readerTapZone(10f, 0f))
+        assertEquals(ReaderTapZone.Center, readerTapZone(Float.NaN, 1080f))
+    }
+
+    @Test
+    fun `默认策略左上一页中控制层右下一页`() {
+        val policy = ReaderTapPolicy()
+        assertEquals(ReaderTapAction.PreviousPage, readerTapAction(100f, 1200f, policy))
+        assertEquals(ReaderTapAction.ToggleControls, readerTapAction(600f, 1200f, policy))
+        assertEquals(ReaderTapAction.NextPage, readerTapAction(1100f, 1200f, policy))
+    }
+
+    @Test
+    fun `反转左右交换两侧翻页方向`() {
+        val policy = ReaderTapPolicy(invertZones = true)
+        assertEquals(ReaderTapAction.NextPage, readerTapAction(100f, 1200f, policy))
+        assertEquals(ReaderTapAction.PreviousPage, readerTapAction(1100f, 1200f, policy))
+        // 中间区不受反转影响。
+        assertEquals(ReaderTapAction.ToggleControls, readerTapAction(600f, 1200f, policy))
+    }
+
+    @Test
+    fun `关闭点按翻页后任意处都是控制层`() {
+        val policy = ReaderTapPolicy(tapPagingEnabled = false)
+        assertEquals(ReaderTapAction.ToggleControls, readerTapAction(100f, 1200f, policy))
+        assertEquals(ReaderTapAction.ToggleControls, readerTapAction(600f, 1200f, policy))
+        assertEquals(ReaderTapAction.ToggleControls, readerTapAction(1100f, 1200f, policy))
+    }
+
+    @Test
+    fun `控制层可见时单击任意处只关闭不翻页`() {
+        val policy = ReaderTapPolicy(controlsVisible = true)
+        listOf(100f, 600f, 1100f).forEach { x ->
+            assertEquals(ReaderTapAction.ToggleControls, readerTapAction(x, 1200f, policy))
+        }
+    }
+
+    @Test
+    fun `双击窗口内同位置算双击`() {
+        assertTrue(
+            readerTapIsDouble(
+                lastTapAt = 1_000L,
+                lastTapX = 500f,
+                lastTapY = 900f,
+                now = 1_200L,
+                x = 505f,
+                y = 905f,
+                doubleTapTimeoutMillis = 300L,
+                slopPx = 20f,
+            )
+        )
+    }
+
+    @Test
+    fun `超时或位移超限都算新的一次单击`() {
+        assertFalse(
+            readerTapIsDouble(
+                lastTapAt = 1_000L,
+                lastTapX = 500f,
+                lastTapY = 900f,
+                now = 1_301L,
+                x = 500f,
+                y = 900f,
+                doubleTapTimeoutMillis = 300L,
+                slopPx = 20f,
+            )
+        )
+        assertFalse(
+            readerTapIsDouble(
+                lastTapAt = 1_000L,
+                lastTapX = 500f,
+                lastTapY = 900f,
+                now = 1_100L,
+                x = 540f,
+                y = 900f,
+                doubleTapTimeoutMillis = 300L,
+                slopPx = 20f,
+            )
+        )
+    }
+
+    @Test
+    fun `没有上一次抬手或时间倒流不算双击`() {
+        assertFalse(
+            readerTapIsDouble(
+                lastTapAt = 0L,
+                lastTapX = 500f,
+                lastTapY = 900f,
+                now = 1_200L,
+                x = 500f,
+                y = 900f,
+                doubleTapTimeoutMillis = 300L,
+                slopPx = 20f,
+            )
+        )
+        assertFalse(
+            readerTapIsDouble(
+                lastTapAt = 1_400L,
+                lastTapX = 500f,
+                lastTapY = 900f,
+                now = 1_200L,
+                x = 500f,
+                y = 900f,
+                doubleTapTimeoutMillis = 300L,
+                slopPx = 20f,
+            )
+        )
+    }
+
+    @Test
+    fun `控制层下滑位移超过 48dp 即关闭`() {
+        // density = 3：48dp = 144px。
+        assertTrue(
+            readerControlsDismissedByDrag(dragDyPx = 144f, velocityYPxPerSec = 0f, density = 3f)
+        )
+        assertFalse(
+            readerControlsDismissedByDrag(dragDyPx = 143f, velocityYPxPerSec = 0f, density = 3f)
+        )
+    }
+
+    @Test
+    fun `控制层下滑速度超过 800dp每秒也关闭`() {
+        assertTrue(
+            readerControlsDismissedByDrag(
+                dragDyPx = 20f,
+                velocityYPxPerSec = 2_400f,
+                density = 3f,
+            )
+        )
+        assertFalse(
+            readerControlsDismissedByDrag(
+                dragDyPx = 20f,
+                velocityYPxPerSec = 2_399f,
+                density = 3f,
+            )
+        )
+    }
+
+    @Test
+    fun `上滑或非法输入不关闭控制层`() {
+        assertFalse(readerControlsDismissedByDrag(-200f, -3_000f, 3f))
+        assertFalse(readerControlsDismissedByDrag(Float.NaN, 0f, 3f))
+        assertFalse(readerControlsDismissedByDrag(200f, Float.NaN, 3f))
+        assertFalse(readerControlsDismissedByDrag(200f, 3_000f, 0f))
     }
 
     @Test

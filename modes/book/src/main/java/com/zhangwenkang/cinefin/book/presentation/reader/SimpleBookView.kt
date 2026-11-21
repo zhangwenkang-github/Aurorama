@@ -101,6 +101,11 @@ internal fun SimpleBookView(
     onZoomInteraction: () -> Unit = {},
     /** 单击正文空白：唤回悬浮缩放条（不消费事件，批注 / 搜索命中不受影响）。 */
     onBlankTap: () -> Unit = {},
+    /** W6 T1：三分区单击策略（控制层可见性 / 反转左右 / 点按翻页开关）。 */
+    tapPolicy: ReaderTapPolicy = ReaderTapPolicy(),
+    onToggleControls: () -> Unit = {},
+    /** W6 T1：双击正文 = 书签动作（T2 接线，本卡只留回调）。 */
+    onDoubleTapBookmark: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val pageCount = document.pageSource.pageCount
@@ -179,16 +184,7 @@ internal fun SimpleBookView(
         onZoomInteraction()
     }
 
-    /** 双击中间 = 适宽开关（W80 #32）：目标倍率由当前页槽上报；再双击回 100%。 宽高比 / 页槽尚未就绪时直接返回，绝不用 `snapTo(1)` 重置用户已有倍率。 */
-    fun toggleFitWidth() {
-        val currentTarget = fitWidthTarget ?: return
-        val targetScale = currentTarget.scaleForCurrentPage(currentPage) ?: return
-        val nextScale = fitWidthToggleScale(bookZoom.scale, targetScale) ?: return
-        bookZoom.snapTo(nextScale, currentTarget.slotKey)
-        onZoomInteraction()
-    }
-
-    /** 双击左 / 右的落点页：双栏按「槽位」（一屏两页）步进，其余按页步进；RTL 下左右语义镜像。 */
+    /** 单击左 / 右 1/3 的落点页：双栏按「槽位」（一屏两页）步进，其余按页步进；RTL 下左右语义镜像。 */
     fun gestureTargetPage(step: Int): Int? {
         if (pageCount <= 0) return null
         val forward = if (isRtlPaging(settings.mode, settings.rtl)) -step else step
@@ -209,14 +205,15 @@ internal fun SimpleBookView(
         scrollMode = settings.mode == ReaderMode.Scroll,
         brightnessProvider = brightnessProvider,
         onBrightness = onBrightness,
-        onDoubleTap = { x, width ->
-            when (readerTapTarget(x, width)) {
-                ReaderTapTarget.ToggleFit -> toggleFitWidth()
-                ReaderTapTarget.Next -> gestureTargetPage(1)?.let { gestureJumpPage = it }
-                ReaderTapTarget.Previous -> gestureTargetPage(-1)?.let { gestureJumpPage = it }
+        onSingleTap = { x, _, width ->
+            onBlankTap()
+            when (readerTapAction(x, width, tapPolicy)) {
+                ReaderTapAction.PreviousPage -> gestureTargetPage(-1)?.let { gestureJumpPage = it }
+                ReaderTapAction.NextPage -> gestureTargetPage(1)?.let { gestureJumpPage = it }
+                ReaderTapAction.ToggleControls -> onToggleControls()
             }
         },
-        onSingleTap = { _, _ -> onBlankTap() },
+        onDoubleTap = { _, _, _ -> onDoubleTapBookmark() },
         modifier = modifier.fillMaxSize(),
     ) {
         Box(modifier = Modifier.fillMaxSize().onSizeChanged { contentSize = it }) {

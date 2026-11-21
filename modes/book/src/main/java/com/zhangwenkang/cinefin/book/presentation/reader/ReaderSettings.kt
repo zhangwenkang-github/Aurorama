@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.toArgb
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinTokens
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaBook
 import com.zhangwenkang.cinefin.core.presentation.theme.MediaColors
+import com.zhangwenkang.cinefin.settings.domain.models.Preference
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.navigator.preferences.Color as ReadiumColor
 import org.readium.r2.navigator.preferences.ColumnCount
@@ -135,6 +136,10 @@ data class ReaderSettings(
     val textAlign: ReaderTextAlign = ReaderTextAlign.Justify,
     /** 漫画右起翻页（RTL，EB-4）：只作用于 PDF / CBZ 的分页 / 双栏，滚动模式不受影响。 */
     val rtl: Boolean = false,
+    /** W6 T1：「反转左右」——交换单击左 / 右 1/3 的翻页方向（全格式统一）。 */
+    val invertTapZones: Boolean = false,
+    /** W6 T1：「点按翻页」——关闭后单击任意处 = 控制层开关。 */
+    val tapPagingEnabled: Boolean = true,
 ) {
     /** 把外部（SharedPreferences）可能越界 / 非有限的值收进可用区间。 */
     fun sanitized(): ReaderSettings =
@@ -142,6 +147,14 @@ data class ReaderSettings(
             fontSize = fontSize.coerceFiniteIn(ReaderFontSizeRange, 1.0f),
             lineHeight = lineHeight.coerceFiniteIn(ReaderLineHeightRange, 1.2f),
             pageMargins = pageMargins.coerceFiniteIn(ReaderPageMarginsRange, 1.0f),
+        )
+
+    /** 当前设置 + 控制层可见性 → 三分区单击策略（纯函数，视图层只做分发）。 */
+    internal fun tapPolicy(controlsVisible: Boolean): ReaderTapPolicy =
+        ReaderTapPolicy(
+            controlsVisible = controlsVisible,
+            invertZones = invertTapZones,
+            tapPagingEnabled = tapPagingEnabled,
         )
 
     fun isDark(systemDark: Boolean): Boolean = theme.isDark(systemDark)
@@ -234,3 +247,16 @@ internal data class ReaderPreferenceSpec(
 
 private fun Float.coerceFiniteIn(range: ClosedFloatingPointRange<Float>, fallback: Float): Float =
     if (isFinite()) coerceIn(range) else fallback
+
+/**
+ * 阅读器三分区手势偏好（W6 T1）：沿用 `AppPreferences` 的具名 Preference + `pref_reader_*` 命名空间。
+ *
+ * 键声明留在 `modes/book`（本卡文件边界不含 `settings` 模块）；后续如需并入 `AppPreferences` 统一管理，迁移只需挪声明。
+ */
+internal object ReaderGesturePreferences {
+    /** 「反转左右」：交换单击左 / 右 1/3 的翻页方向。 */
+    val invertTapZones = Preference("pref_reader_invert_tap_zones", false)
+
+    /** 「点按翻页」：关闭后单击任意处 = 控制层开关。 */
+    val tapPagingEnabled = Preference("pref_reader_tap_paging", true)
+}

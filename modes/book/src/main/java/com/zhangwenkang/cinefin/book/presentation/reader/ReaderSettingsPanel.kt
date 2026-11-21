@@ -148,7 +148,9 @@ internal fun ReaderSettingsPanel(
             label = { mode -> mode.label },
         )
         if (showRtl) {
-            RtlSwitchRow(
+            SettingSwitchRow(
+                title = "右起翻页（漫画）",
+                description = "分页 / 双栏右到左；滚动模式仍自上而下",
                 checked = settings.rtl,
                 contentColor = contentColor,
                 accent = accent,
@@ -156,6 +158,25 @@ internal fun ReaderSettingsPanel(
                 onCheckedChange = { onSettingsChange(settings.copy(rtl = it)) },
             )
         }
+        // W6 T1（定稿三 §1）：三分区单击的两个开关，全格式统一。
+        SettingSwitchRow(
+            title = "反转左右",
+            description = "交换单击左 / 右 1/3 的翻页方向",
+            checked = settings.invertTapZones,
+            contentColor = contentColor,
+            accent = accent,
+            onAccent = settings.onAccentColor(systemDark),
+            onCheckedChange = { onSettingsChange(settings.copy(invertTapZones = it)) },
+        )
+        SettingSwitchRow(
+            title = "点按翻页",
+            description = "关闭后单击正文任意处 = 控制层开关",
+            checked = settings.tapPagingEnabled,
+            contentColor = contentColor,
+            accent = accent,
+            onAccent = settings.onAccentColor(systemDark),
+            onCheckedChange = { onSettingsChange(settings.copy(tapPagingEnabled = it)) },
+        )
         SliderRow(
             label = "边距",
             valueText = String.format(Locale.US, "%.1f", settings.pageMargins),
@@ -251,12 +272,14 @@ private fun ToolRow(
 }
 
 /**
- * 漫画右起翻页开关（EB-4 / W9-READER）。
+ * 设置页的开 / 关行（W6 T1 把原「右起翻页」专用行泛化，供三分区两个开关共用）。
  *
- * 只有页序列文档（PDF / CBZ）显示；三档模式行为写在说明行里——分页 / 双栏右到左，滚动模式 仍自上而下（滚动模式没有可翻转的横向轴，见 [isRtlPaging]）。
+ * 首行标题 + 次行说明，右侧统一 core `CinefinSwitch`；配色按 `ReaderSettings` 派生（纸色 / 护眼面板自带底色）。
  */
 @Composable
-private fun RtlSwitchRow(
+private fun SettingSwitchRow(
+    title: String,
+    description: String,
     checked: Boolean,
     contentColor: Color,
     accent: Color,
@@ -272,9 +295,9 @@ private fun RtlSwitchRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(text = "右起翻页（漫画）", style = CinefinType.BodyMedium, color = contentColor)
+            Text(text = title, style = CinefinType.BodyMedium, color = contentColor)
             Text(
-                text = "分页 / 双栏右到左；滚动模式仍自上而下",
+                text = description,
                 style = CinefinType.LabelSmall,
                 color = contentColor.copy(alpha = 0.72f),
             )

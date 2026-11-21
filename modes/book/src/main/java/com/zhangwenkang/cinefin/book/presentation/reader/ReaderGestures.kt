@@ -24,24 +24,45 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
- * W80（#32）阅读器手势的**纯规则层**（可单测，不含 Compose / Readium 依赖）。
+ * 阅读器手势的**纯规则层**（可单测，不含 Compose / Readium 依赖）。
  *
- * 三份格式共用同一套判定：
- * - 双击：屏幕三等分 —— 左 = 上一页、中 = 适宽切换、右 = 下一页；
+ * 三份格式共用同一套判定（W6 T1 定稿三 §1）：
+ * - 单击：屏幕三等分 —— 左 1/3 = 上一页、中 1/3 = 控制层开关、右 1/3 = 下一页（分区可反转 / 可关闭）；
+ * - 双击：书签动作（本卡只留回调，书签实现归 T2）；
  * - 纵向拖动：亮度（分页 / 双栏全屏可调；滚动档只在左侧窄带，避免与纵向滚动抢手势）。
  */
 
-/** 双击命中目标。 */
-internal enum class ReaderTapTarget {
-    Previous,
-    ToggleFit,
-    Next,
+/** 单击落在屏幕的哪一等分（与动作无关，动作由 [readerTapAction] 结合设置推导）。 */
+internal enum class ReaderTapZone {
+    LeftEdge,
+    Center,
+    RightEdge,
 }
 
-/** 左右双击区占屏宽比例（中间 = 1 − 2×本值）。 */
+/** 单击动作：翻页或控制层开关。 */
+internal enum class ReaderTapAction {
+    PreviousPage,
+    NextPage,
+    ToggleControls,
+}
+
+/**
+ * 三分区策略（设置项即时生效）：控制层可见时单击正文任意处 = 关闭；关闭点按翻页后任意处 = 控制层开关。
+ *
+ * @param controlsVisible 控制层当前是否唤出（唤出期间单击只用于关闭，不翻页）。
+ * @param invertZones 「反转左右」：交换左右 1/3 的翻页方向。
+ * @param tapPagingEnabled 「点按翻页」总开关；关闭后单击任意处 = 控制层开关。
+ */
+internal data class ReaderTapPolicy(
+    val controlsVisible: Boolean = false,
+    val invertZones: Boolean = false,
+    val tapPagingEnabled: Boolean = true,
+)
+
+/** 左右单击区占屏宽比例（中间 = 1 − 2×本值）。 */
 internal const val READER_TAP_EDGE_RATIO: Float = 1f / 3f
 
-/** 双击分界容差：正好落在 1/3、2/3 上时算「中间（适宽）」，避免浮点误差把分界线判成翻页。 */
+/** 分区容差：正好落在 1/3、2/3 上时算「中间（控制层）」，避免浮点误差把分界线判成翻页。 */
 private const val READER_TAP_EDGE_EPSILON: Float = 1e-4f
 
 /** 亮度可用区间（与播放器一致：不放到全黑，避免"看起来像黑屏"）。 */
@@ -50,15 +71,76 @@ internal val ReaderBrightnessRange: ClosedFloatingPointRange<Float> = 0.05f..1f
 /** 滚动档：亮度手势只认屏幕左侧这一比例内的纵向拖动（其余留给滚动）。 */
 internal const val READER_BRIGHTNESS_ZONE_RATIO: Float = 0.25f
 
-/** 双击位置 → 目标（宽度非法时退化为中间「适宽」）。 */
-internal fun readerTapTarget(x: Float, width: Float): ReaderTapTarget {
-    if (!width.isFinite() || width <= 0f || !x.isFinite()) return ReaderTapTarget.ToggleFit
+/** 单击位置 → 分区（宽度非法时退化为中间区，绝不误触翻页）。 */
+internal fun readerTapZone(x: Float, width: Float): ReaderTapZone {
+    if (!width.isFinite() || width <= 0f || !x.isFinite()) return ReaderTapZone.Center
     val ratio = (x / width).coerceIn(0f, 1f)
     return when {
-        ratio < READER_TAP_EDGE_RATIO - READER_TAP_EDGE_EPSILON -> ReaderTapTarget.Previous
-        ratio > 1f - READER_TAP_EDGE_RATIO + READER_TAP_EDGE_EPSILON -> ReaderTapTarget.Next
-        else -> ReaderTapTarget.ToggleFit
+        ratio < READER_TAP_EDGE_RATIO - READER_TAP_EDGE_EPSILON -> ReaderTapZone.LeftEdge
+        ratio > 1f - READER_TAP_EDGE_RATIO + READER_TAP_EDGE_EPSILON -> ReaderTapZone.RightEdge
+        else -> ReaderTapZone.Center
     }
+}
+
+/** 单击分区 + 设置策略 → 实际动作。 */
+internal fun readerTapAction(zone: ReaderTapZone, policy: ReaderTapPolicy): ReaderTapAction {
+    if (policy.controlsVisible || !policy.tapPagingEnabled) return ReaderTapAction.ToggleControls
+    return when (zone) {
+        ReaderTapZone.Center -> ReaderTapAction.ToggleControls
+        ReaderTapZone.LeftEdge ->
+            if (policy.invertZones) ReaderTapAction.NextPage else ReaderTapAction.PreviousPage
+        ReaderTapZone.RightEdge ->
+            if (policy.invertZones) ReaderTapAction.PreviousPage else ReaderTapAction.NextPage
+    }
+}
+
+/** 落点 + 策略 → 动作（视图侧只需这一层）。 */
+internal fun readerTapAction(
+    x: Float,
+    width: Float,
+    policy: ReaderTapPolicy,
+): ReaderTapAction = readerTapAction(readerTapZone(x, width), policy)
+
+/**
+ * 单击 / 双击窗口仲裁：与上一次抬手在同一位置（[slopPx] 内）且不超过 [doubleTapTimeoutMillis] 才算双击。
+ *
+ * 抽成纯函数是为了让「点两次只翻一页 / 点两次不翻页」这类边界可单测（Compose 里的 pendingTapJob 只做调度）。
+ */
+internal fun readerTapIsDouble(
+    lastTapAt: Long,
+    lastTapX: Float,
+    lastTapY: Float,
+    now: Long,
+    x: Float,
+    y: Float,
+    doubleTapTimeoutMillis: Long,
+    slopPx: Float,
+): Boolean {
+    if (lastTapAt <= 0L || now < lastTapAt) return false
+    if (now - lastTapAt > doubleTapTimeoutMillis) return false
+    if (!slopPx.isFinite() || slopPx < 0f) return false
+    val dx = x - lastTapX
+    val dy = y - lastTapY
+    if (!dx.isFinite() || !dy.isFinite()) return false
+    return dx * dx + dy * dy <= slopPx * slopPx
+}
+
+/** 控制层下滑关闭的位移阈值（定稿一 §3）。 */
+internal const val READER_CONTROLS_DISMISS_DRAG_DP: Float = 48f
+
+/** 控制层下滑关闭的速度阈值（定稿一 §3）。 */
+internal const val READER_CONTROLS_DISMISS_VELOCITY_DP_PER_SEC: Float = 800f
+
+/** 控制层下滑是否达到关闭阈值：位移 > 48dp 或速度 > 800dp/s（[density] = 每 dp 的像素数）。 */
+internal fun readerControlsDismissedByDrag(
+    dragDyPx: Float,
+    velocityYPxPerSec: Float,
+    density: Float,
+): Boolean {
+    if (!density.isFinite() || density <= 0f) return false
+    if (!dragDyPx.isFinite() || !velocityYPxPerSec.isFinite()) return false
+    return dragDyPx >= READER_CONTROLS_DISMISS_DRAG_DP * density ||
+        velocityYPxPerSec >= READER_CONTROLS_DISMISS_VELOCITY_DP_PER_SEC * density
 }
 
 /** 纵向拖动 → 新亮度。`dyRatio` = 拖动位移 / 屏高（向下为正）：向上拖变亮（与播放器同向）， 一次满屏拖动 = 全量程。 */
@@ -136,12 +218,12 @@ internal fun readerScrollChainStep(
 }
 
 /**
- * 阅读器手势层（PDF / CBZ / EPUB 共用同一套行为）：
+ * 阅读器手势层（PDF / CBZ / EPUB 共用同一套行为，W6 T1 定稿三 §1）：
  *
- * - **双击**：[onDoubleTap] 拿到落点（左 / 中 / 右由调用方用 [readerTapTarget] 判定）。
+ * - **单击**：等双击窗口过去后回调 [onSingleTap]（落点 + 宽度交给调用方按 [ReaderTapPolicy] 推导动作）。
+ * - **双击**：回调 [onDoubleTap]（书签动作，T2 接线）。
  * - **单指纵向拖动**：调亮度。滚动档只有左侧窄带（[readerBrightnessDragAllowed]）认，其余位移留给容器滚动； 分页 /
  *   双栏整屏可调。拖动态一旦成立就消费事件，避免同一次手势既调亮度又翻页 / 滚动。
- * - **单击**：等双击窗口过去后回调 [onSingleTap]（PDF / CBZ 用来唤回悬浮缩放条）；不改动子项的点击命中。
  * - 双指缩放与子项点击（批注）不受影响：双指 / 已被子项消费的事件直接放过。
  */
 @Composable
@@ -150,8 +232,8 @@ internal fun ReaderGestureArea(
     scrollMode: Boolean,
     brightnessProvider: () -> Float,
     onBrightness: (Float) -> Unit,
-    onDoubleTap: (x: Float, width: Float) -> Unit,
-    onSingleTap: ((x: Float, y: Float) -> Unit)? = null,
+    onSingleTap: (x: Float, y: Float, width: Float) -> Unit,
+    onDoubleTap: (x: Float, y: Float, width: Float) -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -243,33 +325,44 @@ internal fun ReaderGestureArea(
                             continue
                         }
 
-                        // 抬手：未拖动 → 双击候选（单击不消费，留给子项）。
+                        // 抬手：未拖动 → 单击 / 双击仲裁（单击不消费，留给子项）。
                         val upTime = SystemClock.uptimeMillis()
                         val isTap = !moved && (upTime - downUptime) <= touchSlopTapTimeoutMs
                         if (dragging) change.consume()
                         if (isTap) {
                             val isDouble =
-                                lastTapAt > 0L &&
-                                    (upTime - lastTapAt) <= doubleTapTimeout &&
-                                    (startPosition - lastTapPosition).getDistance() <=
-                                        touchSlop * 2f
+                                readerTapIsDouble(
+                                    lastTapAt = lastTapAt,
+                                    lastTapX = lastTapPosition.x,
+                                    lastTapY = lastTapPosition.y,
+                                    now = upTime,
+                                    x = startPosition.x,
+                                    y = startPosition.y,
+                                    doubleTapTimeoutMillis = doubleTapTimeout,
+                                    slopPx = touchSlop * 2f,
+                                )
                             if (isDouble) {
                                 lastTapAt = 0L
                                 pendingTapJob.value?.cancel()
                                 pendingTapJob.value = null
-                                currentOnDoubleTap.value(startPosition.x, startWidth)
+                                Timber.d("reader gesture double tap x=%.0f", startPosition.x)
+                                currentOnDoubleTap.value(
+                                    startPosition.x,
+                                    startPosition.y,
+                                    startWidth,
+                                )
                             } else {
                                 lastTapAt = upTime
                                 lastTapPosition = startPosition
-                                if (currentOnSingleTap.value != null) {
-                                    pendingTapJob.value?.cancel()
-                                    pendingTapJob.value = tapScope.launch {
-                                        delay(doubleTapTimeout + 80L)
-                                        currentOnSingleTap.value?.invoke(
-                                            startPosition.x,
-                                            startPosition.y,
-                                        )
-                                    }
+                                pendingTapJob.value?.cancel()
+                                pendingTapJob.value = tapScope.launch {
+                                    // 等双击窗口过去：窗口内的第二次抬手会取消本任务并走双击分支。
+                                    delay(doubleTapTimeout + READER_SINGLE_TAP_GRACE_MS)
+                                    currentOnSingleTap.value(
+                                        startPosition.x,
+                                        startPosition.y,
+                                        startWidth,
+                                    )
                                 }
                             }
                         }
@@ -284,3 +377,6 @@ internal fun ReaderGestureArea(
 
 /** 单击 / 双击判定用的最长按压时间（与系统 `DoubleTapTimeout` 同量级）。 */
 private const val touchSlopTapTimeoutMs = 400L
+
+/** 单击延后回调的余量：覆盖双击窗口边界上的抖动。 */
+private const val READER_SINGLE_TAP_GRACE_MS = 80L

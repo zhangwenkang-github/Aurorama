@@ -171,4 +171,63 @@ class ReaderSettingsTest {
         assertTrue(ReaderSettings(rtl = true).rtl)
         assertFalse(ReaderSettings().rtl)
     }
+
+    @Test
+    fun `三分区手势设置默认值`() {
+        val defaults = ReaderSettings()
+        assertFalse(defaults.invertTapZones)
+        assertTrue(defaults.tapPagingEnabled)
+    }
+
+    @Test
+    fun `三分区手势设置不被 sanitize 重置`() {
+        val sanitized =
+            ReaderSettings(
+                    invertTapZones = true,
+                    tapPagingEnabled = false,
+                    fontSize = 9f,
+                )
+                .sanitized()
+        assertTrue(sanitized.invertTapZones)
+        assertFalse(sanitized.tapPagingEnabled)
+        assertEquals(2.5f, sanitized.fontSize)
+    }
+
+    @Test
+    fun `三分区手势设置映射为点按策略`() {
+        val defaults = ReaderSettings().tapPolicy(controlsVisible = false)
+        assertEquals(ReaderTapPolicy(), defaults)
+        assertEquals(
+            ReaderTapPolicy(controlsVisible = false, invertZones = true, tapPagingEnabled = true),
+            ReaderSettings(invertTapZones = true).tapPolicy(controlsVisible = false),
+        )
+        assertEquals(
+            ReaderTapPolicy(controlsVisible = true, invertZones = false, tapPagingEnabled = false),
+            ReaderSettings(tapPagingEnabled = false).tapPolicy(controlsVisible = true),
+        )
+    }
+
+    @Test
+    fun `三分区手势设置不影响 EPUB 偏好快照`() {
+        val baseline = ReaderSettings().toPreferenceSpec(systemDark = false)
+        assertEquals(
+            baseline,
+            ReaderSettings(invertTapZones = true, tapPagingEnabled = false)
+                .toPreferenceSpec(systemDark = false),
+        )
+    }
+
+    @Test
+    fun `手势偏好键名带 pref_reader_前缀`() {
+        assertEquals(
+            "pref_reader_invert_tap_zones",
+            ReaderGesturePreferences.invertTapZones.backendName,
+        )
+        assertEquals(
+            "pref_reader_tap_paging",
+            ReaderGesturePreferences.tapPagingEnabled.backendName,
+        )
+        assertFalse(ReaderGesturePreferences.invertTapZones.defaultValue)
+        assertTrue(ReaderGesturePreferences.tapPagingEnabled.defaultValue)
+    }
 }

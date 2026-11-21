@@ -1410,6 +1410,10 @@ constructor(
                         appPreferences.getValue(appPreferences.readerTextAlign)
                     ),
                 rtl = appPreferences.getValue(appPreferences.readerRtl),
+                // W6 T1：三分区手势的两个开关（键自持在 modes/book，见 ReaderGesturePreferences）。
+                invertTapZones = appPreferences.getValue(ReaderGesturePreferences.invertTapZones),
+                tapPagingEnabled =
+                    appPreferences.getValue(ReaderGesturePreferences.tapPagingEnabled),
             )
             .sanitized()
 
@@ -1422,6 +1426,14 @@ constructor(
         appPreferences.setValue(appPreferences.readerTheme, settings.theme.storageValue)
         appPreferences.setValue(appPreferences.readerTextAlign, settings.textAlign.storageValue)
         appPreferences.setValue(appPreferences.readerRtl, settings.rtl)
+        appPreferences.setValue(
+            ReaderGesturePreferences.invertTapZones,
+            settings.invertTapZones,
+        )
+        appPreferences.setValue(
+            ReaderGesturePreferences.tapPagingEnabled,
+            settings.tapPagingEnabled,
+        )
     }
 }
 
