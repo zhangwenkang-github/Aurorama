@@ -20,6 +20,9 @@ internal const val AutoAdvanceDefaultSpeedPxPerSecond = 60f
 /** 执行层帧节拍：滚动档逐帧（约 60fps），分页档 / 空闲态轮询更慢即可。 */
 internal const val AutoAdvanceScrollFrameMs = 16L
 internal const val AutoAdvancePagedTickMs = 250L
+
+/** EPUB 滚动档的 JS 派发节拍（约 30fps）：`evaluateJavascript` 桥接成本与平滑度的折中（W6 T6r）。 */
+internal const val AutoAdvanceEpubScrollFrameMs = 33L
 internal const val AutoAdvanceIdlePollMs = 250L
 
 /** 自动阅读运行态：关闭 / 运行 / 暂停（暂停可恢复，关闭不可）。 */
@@ -168,5 +171,62 @@ class AutoAdvanceEngine(
         pageElapsedMs = 0L
         scrollResidualPx = 0f
         onStateChanged(next)
+    }
+}
+
+/** 滚动档一帧的判定结果（纯逻辑；视图只负责执行 goForward / 停止）。 */
+enum class AutoScrollOutcome {
+    Continue,
+    ChapterEnd,
+    BookEnd,
+    Stalled,
+}
+
+/**
+ * 滚动档进度追踪（W6 T6r）。
+ *
+ * Readium 的 EPUB 滚动档是「每章一个 WebView、章节内部滚动」，到章末**不会**自动续接下一资源 （`R2BasicWebView.onOverScrolled` →
+ * `onPageEnded` 在 `EpubNavigatorFragment` 里是空实现），所以由本类判定、 调用方执行 `goForward`：
+ * - offset 变化 = 有推进（重置无位移计时）；
+ * - 资源内进度到顶 / 已不能继续前滚 → [AutoScrollOutcome.ChapterEnd]（末章则 [AutoScrollOutcome.BookEnd]）；
+ * - 连续 [stallWindowMs] 无位移 → [AutoScrollOutcome.Stalled]（最后防线，正常路径不应触发）。
+ */
+class AutoScrollTracker(
+    private val stallWindowMs: Long = 3_000L,
+    private val chapterEndProgression: Double = 0.995,
+    private val bookEndProgression: Double = 0.995,
+) {
+    private var lastOffset: Double? = null
+    private var lastMovementAtMs: Long? = null
+
+    /** 换章 / 重新开始后清空基线：新 WebView 的 offset 与旧值不可比。 */
+    fun reset(nowMs: Long) {
+        lastOffset = null
+        lastMovementAtMs = nowMs
+    }
+
+    fun onFrame(
+        nowMs: Long,
+        offset: Double,
+        resourceProgression: Double,
+        bookProgression: Double?,
+        canScrollForward: Boolean,
+    ): AutoScrollOutcome {
+        val previous = lastOffset
+        lastOffset = offset
+        if (previous == null || offset != previous) lastMovementAtMs = nowMs
+        val atChapterEnd = resourceProgression >= chapterEndProgression || !canScrollForward
+        if (atChapterEnd) {
+            return if (bookProgression != null && bookProgression >= bookEndProgression) {
+                AutoScrollOutcome.BookEnd
+            } else {
+                AutoScrollOutcome.ChapterEnd
+            }
+        }
+        val lastMovement = lastMovementAtMs
+        if (lastMovement != null && nowMs - lastMovement >= stallWindowMs) {
+            return AutoScrollOutcome.Stalled
+        }
+        return AutoScrollOutcome.Continue
     }
 }

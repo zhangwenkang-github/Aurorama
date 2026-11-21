@@ -239,4 +239,188 @@ class AutoAdvanceTest {
             changes,
         )
     }
+
+    // ---- W6 T6r：滚动档进度追踪（章末续接 / 书末 / 停滞兜底）----
+
+    @Test
+    fun `滚动追踪器位移变化即视为推进`() {
+        val tracker = AutoScrollTracker()
+        tracker.reset(nowMs = 0L)
+        assertEquals(
+            AutoScrollOutcome.Continue,
+            tracker.onFrame(
+                1_000L,
+                offset = 100.0,
+                resourceProgression = 0.2,
+                bookProgression = 0.2,
+                canScrollForward = true,
+            ),
+        )
+        assertEquals(
+            AutoScrollOutcome.Continue,
+            tracker.onFrame(
+                2_000L,
+                offset = 160.0,
+                resourceProgression = 0.21,
+                bookProgression = 0.21,
+                canScrollForward = true,
+            ),
+        )
+        // 累计 2s 有位移，不应判停滞。
+        assertEquals(
+            AutoScrollOutcome.Continue,
+            tracker.onFrame(
+                3_500L,
+                offset = 220.0,
+                resourceProgression = 0.22,
+                bookProgression = 0.22,
+                canScrollForward = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `滚动追踪器资源内到底但未到书末判定章末`() {
+        val tracker = AutoScrollTracker()
+        tracker.reset(nowMs = 0L)
+        assertEquals(
+            AutoScrollOutcome.ChapterEnd,
+            tracker.onFrame(
+                1_000L,
+                offset = 800.0,
+                resourceProgression = 0.996,
+                bookProgression = 0.42,
+                canScrollForward = true,
+            ),
+        )
+        // 已不能继续前滚（短章一屏装下）同样视为章末。
+        val shortChapter = AutoScrollTracker()
+        shortChapter.reset(nowMs = 0L)
+        assertEquals(
+            AutoScrollOutcome.ChapterEnd,
+            shortChapter.onFrame(
+                1_000L,
+                offset = 0.0,
+                resourceProgression = 0.0,
+                bookProgression = 0.1,
+                canScrollForward = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `滚动追踪器整书到末判定书末`() {
+        val tracker = AutoScrollTracker()
+        tracker.reset(nowMs = 0L)
+        assertEquals(
+            AutoScrollOutcome.BookEnd,
+            tracker.onFrame(
+                1_000L,
+                offset = 900.0,
+                resourceProgression = 0.999,
+                bookProgression = 0.999,
+                canScrollForward = false,
+            ),
+        )
+        // 整书进度未知时退化为章末（调用方还会再 goForward 一次，下一章能判定书末）。
+        val unknownBook = AutoScrollTracker()
+        unknownBook.reset(nowMs = 0L)
+        assertEquals(
+            AutoScrollOutcome.ChapterEnd,
+            unknownBook.onFrame(
+                1_000L,
+                offset = 900.0,
+                resourceProgression = 1.0,
+                bookProgression = null,
+                canScrollForward = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `滚动追踪器连续三秒无位移判定停滞`() {
+        val tracker = AutoScrollTracker()
+        tracker.reset(nowMs = 0L)
+        assertEquals(
+            AutoScrollOutcome.Continue,
+            tracker.onFrame(
+                0L,
+                offset = 0.0,
+                resourceProgression = 0.1,
+                bookProgression = 0.1,
+                canScrollForward = true,
+            ),
+        )
+        assertEquals(
+            AutoScrollOutcome.Continue,
+            tracker.onFrame(
+                2_900L,
+                offset = 0.0,
+                resourceProgression = 0.1,
+                bookProgression = 0.1,
+                canScrollForward = true,
+            ),
+        )
+        assertEquals(
+            AutoScrollOutcome.Stalled,
+            tracker.onFrame(
+                3_000L,
+                offset = 0.0,
+                resourceProgression = 0.1,
+                bookProgression = 0.1,
+                canScrollForward = true,
+            ),
+        )
+        // 有位移就重置计时。
+        val moving = AutoScrollTracker()
+        moving.reset(nowMs = 0L)
+        moving.onFrame(0L, offset = 0.0, resourceProgression = 0.1, bookProgression = 0.1, true)
+        moving.onFrame(2_500L, offset = 0.0, resourceProgression = 0.1, bookProgression = 0.1, true)
+        moving.onFrame(
+            2_600L,
+            offset = 10.0,
+            resourceProgression = 0.1,
+            bookProgression = 0.1,
+            true,
+        )
+        assertEquals(
+            AutoScrollOutcome.Continue,
+            moving.onFrame(
+                4_000L,
+                offset = 10.0,
+                resourceProgression = 0.1,
+                bookProgression = 0.1,
+                true,
+            ),
+        )
+    }
+
+    @Test
+    fun `滚动追踪器重置后不把换章旧计时算进停滞`() {
+        val tracker = AutoScrollTracker()
+        tracker.reset(nowMs = 0L)
+        tracker.onFrame(0L, offset = 0.0, resourceProgression = 0.1, bookProgression = 0.1, true)
+        // 章末换 WebView：重置后 2.5s 内不得判停滞。
+        tracker.reset(nowMs = 10_000L)
+        assertEquals(
+            AutoScrollOutcome.Continue,
+            tracker.onFrame(
+                12_500L,
+                offset = 0.0,
+                resourceProgression = 0.0,
+                bookProgression = 0.5,
+                canScrollForward = true,
+            ),
+        )
+        assertEquals(
+            AutoScrollOutcome.Stalled,
+            tracker.onFrame(
+                15_500L,
+                offset = 0.0,
+                resourceProgression = 0.0,
+                bookProgression = 0.5,
+                canScrollForward = true,
+            ),
+        )
+    }
 }

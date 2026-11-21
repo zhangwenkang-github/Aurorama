@@ -1,8 +1,10 @@
 package com.zhangwenkang.cinefin.book.presentation.reader
 
+import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
@@ -354,16 +356,26 @@ internal fun ReadiumEpubView(
             if (clearSelectionToken > 0) currentNavigator.clearSelection()
         }
 
-        // W6 T6：自动阅读执行层——分页档按节拍器到点 `goForward`，滚动档逐帧 WebView `scrollBy`。
-        val autoScrollGuard = remember { AutoScrollGuard() }
+        // W6 T6 / T6r：自动阅读执行层。
+        // - 分页档：节拍到点 `goForward`（沿用「翻页后位置未变 = 书末」判定）；
+        // - 滚动档：逐帧在渲染侧写 `document.scrollingElement`（Readium 自己的位置控制也走 JS，
+        //   原生 `WebView.scrollBy` 在真机不上屏），章末由 [AutoScrollTracker] 判定后 `goForward` 续接。
         var lastIssuedLocatorKey by remember { mutableStateOf<String?>(null) }
         var pendingPageTurnVerify by remember { mutableStateOf(false) }
         LaunchedEffect(navigator, autoAdvance, settings.mode) {
             val engine = autoAdvance ?: return@LaunchedEffect
             val currentNavigator = navigator ?: return@LaunchedEffect
-            var lastScrollY = -1
-            var stalledTicks = 0
+            Timber.i("自动滚动：执行循环启动（mode=%s）", settings.mode)
+            val scrollTracker = AutoScrollTracker()
             var listenerWebView: WebView? = null
+            var lastProgrammaticScrollAtMs = 0L
+            var previousOffset = Double.NaN
+            var webViewAttachedAtMs = 0L
+            var dispatchedWithoutMovement = 0
+            var useNativeScroll = false
+            var lastForwardAtMs = 0L
+            var lastStatusLogAtMs = 0L
+            var lastMissingLogAtMs = 0L
             try {
                 while (true) {
                     if (engine.state != AutoAdvanceState.Running) {
@@ -371,37 +383,151 @@ internal fun ReadiumEpubView(
                         continue
                     }
                     if (settings.mode == ReaderMode.Scroll) {
+                        val now = SystemClock.elapsedRealtime()
                         val tick = engine.tick(paged = false)
-                        val webView = findAutoScrollWebView(currentNavigator.publicationView)
-                        // 用户拖动滚动 = 手动干预：程序化 scrollBy 会同步触发 onScrollChanged，
-                        // 用标志位排除；换章会换 WebView，所以每次循环核对一次监听对象。
-                        if (webView != null && webView !== listenerWebView) {
-                            webView.setOnScrollChangeListener { _, _, _, _, _ ->
-                                if (
-                                    !autoScrollGuard.programmatic &&
-                                        engine.state == AutoAdvanceState.Running
-                                ) {
+                        val webView =
+                            findAutoScrollWebView(currentNavigator.publicationView)?.takeIf {
+                                it.isAttachedToWindow
+                            }
+                        if (webView == null) {
+                            if (now - lastMissingLogAtMs >= 2_000L) {
+                                lastMissingLogAtMs = now
+                                Timber.w(
+                                    "自动滚动：未找到可见正文 WebView（publicationView=%s）",
+                                    currentNavigator.publicationView,
+                                )
+                            }
+                            delay(AutoAdvanceEpubScrollFrameMs)
+                            continue
+                        }
+                        if (webView !== listenerWebView) {
+                            listenerWebView = webView
+                            webViewAttachedAtMs = now
+                            lastProgrammaticScrollAtMs = now
+                            previousOffset = Double.NaN
+                            dispatchedWithoutMovement = 0
+                            useNativeScroll = false
+                            scrollTracker.reset(now)
+                            // 换章会换 WebView：监听与位移基线都要重挂。
+                            webView.setOnScrollChangeListener { view, _, _, oldY, _ ->
+                                if (engine.state != AutoAdvanceState.Running) {
+                                    return@setOnScrollChangeListener
+                                }
+                                val eventAt = SystemClock.elapsedRealtime()
+                                val withinProgrammatic =
+                                    eventAt - lastProgrammaticScrollAtMs <=
+                                        AUTO_SCROLL_PROGRAMMATIC_WINDOW_MS
+                                val pressed = view.isPressed
+                                val upward = view.scrollY < oldY
+                                if (pressed || (!withinProgrammatic && upward)) {
+                                    Timber.i(
+                                        "自动滚动：手动滚动干预（pressed=%s withinWindow=%s upward=%s）→ 暂停",
+                                        pressed,
+                                        withinProgrammatic,
+                                        upward,
+                                    )
                                     currentOnManualIntervention.value()
                                 }
                             }
-                            listenerWebView = webView
+                            Timber.i(
+                                "自动滚动：定位正文 WebView %s size=%dx%d content=%d",
+                                webView,
+                                webView.width,
+                                webView.height,
+                                webView.contentHeight,
+                            )
                         }
-                        if (webView != null && tick is AutoAdvanceTick.Scroll) {
-                            autoScrollGuard.programmatic = true
-                            webView.scrollBy(0, tick.deltaPx)
-                            autoScrollGuard.programmatic = false
-                            stalledTicks =
-                                if (webView.scrollY == lastScrollY) stalledTicks + 1 else 0
-                            lastScrollY = webView.scrollY
-                            if (
-                                autoScrollReachedEnd(webView, liveLocator) ||
-                                    stalledTicks >= AUTO_SCROLL_STALL_TICKS
-                            ) {
+                        if (tick is AutoAdvanceTick.Scroll) {
+                            lastProgrammaticScrollAtMs = now
+                            if (useNativeScroll) {
+                                webView.scrollBy(0, tick.deltaPx)
+                            } else {
+                                webView.evaluateJavascript(epubAutoScrollJs(tick.deltaPx), null)
+                            }
+                            dispatchedWithoutMovement++
+                        }
+                        val offset = (webView.scrollY + webView.scrollX).toDouble()
+                        if (!previousOffset.isNaN() && offset != previousOffset) {
+                            dispatchedWithoutMovement = 0
+                        }
+                        previousOffset = offset
+                        // WebView 刚创建 / 换章时高度与内容未稳定：先不做「到底」判定，避免误跳章。
+                        val settled = now - webViewAttachedAtMs >= AUTO_SCROLL_SETTLE_MS
+                        val canScrollForward =
+                            !settled ||
+                                webView.canScrollVertically(1) ||
+                                webView.canScrollHorizontally(-1)
+                        val resourceProgression = liveLocator?.locations?.progression ?: 0.0
+                        val bookProgression = liveLocator?.locations?.totalProgression
+                        if (now - lastStatusLogAtMs >= 1_000L) {
+                            lastStatusLogAtMs = now
+                            Timber.d(
+                                "自动滚动：scrollY=%d scrollX=%d content=%d viewport=%dx%d " +
+                                    "resource=%.3f book=%s canDown=%s native=%s",
+                                webView.scrollY,
+                                webView.scrollX,
+                                webView.contentHeight,
+                                webView.width,
+                                webView.height,
+                                resourceProgression,
+                                bookProgression,
+                                canScrollForward,
+                                useNativeScroll,
+                            )
+                        }
+                        // JS 派发持续无位移而内容仍可前滚：切原生 `scrollBy` 兜底一次（留证据）。
+                        if (
+                            !useNativeScroll &&
+                                canScrollForward &&
+                                resourceProgression < 0.99 &&
+                                dispatchedWithoutMovement >= AUTO_SCROLL_JS_FALLBACK_FRAMES
+                        ) {
+                            useNativeScroll = true
+                            dispatchedWithoutMovement = 0
+                            Timber.w("自动滚动：JS 派发无位移，切换原生 scrollBy 兜底")
+                        }
+                        when (
+                            scrollTracker.onFrame(
+                                nowMs = now,
+                                offset = offset,
+                                resourceProgression = resourceProgression,
+                                bookProgression = bookProgression,
+                                canScrollForward = canScrollForward,
+                            )
+                        ) {
+                            AutoScrollOutcome.ChapterEnd -> {
+                                if (now - lastForwardAtMs >= AUTO_SCROLL_FORWARD_GUARD_MS) {
+                                    lastForwardAtMs = now
+                                    Timber.i(
+                                        "自动滚动：本章到底（resource=%.3f book=%s），goForward 续接",
+                                        resourceProgression,
+                                        bookProgression,
+                                    )
+                                    // 换章后 WebView 会换成新实例，下一帧重挂监听并重置基线；
+                                    // 若内核没换页（末章 / 不可前进），3s 无位移兜底会停止。
+                                    currentNavigator.goForward(animated = false)
+                                }
+                            }
+
+                            AutoScrollOutcome.BookEnd -> {
+                                Timber.i("自动滚动：到书末（book=%s），停止", bookProgression)
                                 engine.stop()
                                 currentOnAutoAdvanceEnd.value()
                             }
+
+                            AutoScrollOutcome.Stalled -> {
+                                Timber.w(
+                                    "自动滚动：3s 无位移（offset=%.0f native=%s），停止",
+                                    offset,
+                                    useNativeScroll,
+                                )
+                                engine.stop()
+                                currentOnAutoAdvanceEnd.value()
+                            }
+
+                            AutoScrollOutcome.Continue -> Unit
                         }
-                        delay(AutoAdvanceScrollFrameMs)
+                        delay(AutoAdvanceEpubScrollFrameMs)
                     } else {
                         if (engine.tick(paged = true) == AutoAdvanceTick.PageForward) {
                             val currentKey = liveLocator?.let(::autoLocatorKey)
@@ -706,16 +832,17 @@ private const val EPUB_SELECTION_PROBE_JS =
   }
 })()"""
 
-/** 滚动档整书进度达到该值且已不能继续下滚 = 书末。 */
-private const val AUTO_SCROLL_END_PROGRESSION = 0.995
+/** 程序化滚动的静默窗口：窗口内的 `onScrollChanged` 归自动滚动；窗口外才可能是用户惯性。 */
+private const val AUTO_SCROLL_PROGRAMMATIC_WINDOW_MS = 250L
 
-/** 连续无位移的帧数上限（≈3 s）：内核未续接下一章时停止，避免静默空转。 */
-private const val AUTO_SCROLL_STALL_TICKS = 180
+/** JS 派发连续无位移的帧数上限：超过后切原生 `scrollBy` 兜底一次（留证据，不当作正常路径）。 */
+private const val AUTO_SCROLL_JS_FALLBACK_FRAMES = 15
 
-/** 程序化滚动标志：`scrollBy` 与用户拖动共用 `onScrollChanged`，只有后者算手动干预。 */
-private class AutoScrollGuard {
-    var programmatic: Boolean = false
-}
+/** 章末 `goForward` 的最小间隔：WebView 换页是异步的，避免连发跳章。 */
+private const val AUTO_SCROLL_FORWARD_GUARD_MS = 1_000L
+
+/** 新 WebView 的稳定期：布局 / 内容未就绪时不做「到底」判定（否则会误跳章）。 */
+private const val AUTO_SCROLL_SETTLE_MS = 1_000L
 
 /** 位置键：href + position + 整书进度，用于判断一次自动翻页是否真的推进了。 */
 private fun autoLocatorKey(locator: Locator): String {
@@ -723,21 +850,49 @@ private fun autoLocatorKey(locator: Locator): String {
     return "${locator.href}#${locator.locations.position ?: -1}@$progression"
 }
 
-/** 滚动档已到书末：整书进度接近 1 且 WebView 不能再向下滚。 */
-private fun autoScrollReachedEnd(webView: WebView, locator: Locator?): Boolean {
-    val progression = locator?.locations?.totalProgression ?: return false
-    return progression >= AUTO_SCROLL_END_PROGRESSION && !webView.canScrollVertically(1)
-}
+/**
+ * 自动滚动的一帧脚本（W6 T6r）：直接在渲染侧写 `document.scrollingElement`。
+ *
+ * Readium 自己的位置控制同样走渲染侧脚本（`readium.scrollToPosition` 写 `scrollingElement.scrollTop/scrollLeft`）， 原生
+ * `WebView.scrollBy` 在真机不会移动正文；竖向排版（vertical writing-mode）按 Readium 的口径滚动 `scrollLeft`。
+ */
+private fun epubAutoScrollJs(deltaPx: Int): String =
+    "(function(){var el=document.scrollingElement||document.documentElement;" +
+        "if(!el){return;}var wm=(window.getComputedStyle(document.documentElement)" +
+        ".getPropertyValue('writing-mode')||'');" +
+        "if(wm.indexOf('vertical')===0){el.scrollLeft-=D_;}else{el.scrollTop+=D_;}})()"
+            .replace("D_", deltaPx.toString())
 
-/** 取导航器里当前可见的正文 WebView（与 `ReaderActivity` 键盘滚动同一查找口径）。 */
-private fun findAutoScrollWebView(view: View?): WebView? =
-    when (view) {
-        null -> null
-        is WebView -> view.takeIf { it.isShown }
-        is ViewGroup ->
-            (0 until view.childCount).firstNotNullOfOrNull {
-                findAutoScrollWebView(view.getChildAt(it))
+/**
+ * 取导航器里**当前可见**的正文 WebView：按与导航器可见区的交集面积取最大者（W6 T6r）。
+ *
+ * 旧实现取「第一个 `isShown` 的 WebView」，但 EPUB 是 `ViewPager`（每章一页），屏外邻章页面的 `isShown` 同样为
+ * true，会滚到邻章而不是当前章——真机表现为「正文纹丝不动」。
+ */
+private fun findAutoScrollWebView(view: View?): WebView? {
+    val root = view ?: return null
+    val rootRect = Rect()
+    if (!root.getGlobalVisibleRect(rootRect)) return null
+    var best: WebView? = null
+    var bestArea = 0
+
+    fun visit(node: View) {
+        if (node is WebView) {
+            if (!node.isShown) return
+            val rect = Rect()
+            if (!node.getGlobalVisibleRect(rect)) return
+            val area = rect.width() * rect.height()
+            if (area > bestArea) {
+                bestArea = area
+                best = node
             }
-
-        else -> null
+            return
+        }
+        if (node is ViewGroup) {
+            for (index in 0 until node.childCount) visit(node.getChildAt(index))
+        }
     }
+
+    visit(root)
+    return best
+}
