@@ -32,16 +32,16 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W5 音乐域近收官**（2026-11-21 会话5）：任务卡 T1–T11 + 全部返修/fixpack 合入并 K60 验收通过，50 条验收 ✅42/⚠️7/❌1；T9 Auto DJ 调研 GO → T12 实现卡待派；剩观感补验 4 项 + 全波收官判定 | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W5_TASKS.md` · `V2_W4_TASKS.md` |
+| 2.0.0 | 🟡 **W5 音乐域已收官**（2026-11-21 会话6）：T1–T12 + 全部返修/fixpack 合入并 K60 验收通过，全波判定 ✅47/⚠️3/❌0（18 渐进加载→W7 观察、35 内嵌歌词/RG 入库→backlog、49 本地缺失标记观感→观察项）；**焦点移交 W6 阅读器增强** | `docs/V2_REQUIREMENTS.md` · `V2_ARCHITECTURE.md` · `V2_DESIGN.md` · `V2_W5_TASKS.md` · `V2_W4_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
 | 连接层 | 🟢 W31 完成；遗留 `fix/w31-trust-session-reuse` 分支待合并 | `docs/ARCHITECTURE.md` §5.4 |
 | 投屏/同步观看 | ⛔ 投屏未开始（LATER）；SyncPlay 为 SHOULD（W4 评估） | `docs/V2_REQUIREMENTS.md` §9.5 |
 
-## 4. 当前焦点（2026-11-20）
+## 4. 当前焦点（2026-11-21）
 
-1. **2.0.0 W5 音乐域近收官（2026-11-21，会话5 收官）**：T7（交叉淡化口径，merge `2dd4cd2b`）/ T8（容错恢复，merge `899b1f60`）/ T11（.elrc 词级歌词+全量验收，merge `59993927`）合入，集成门禁绿；K60 统一验证全过（自然/手动切歌淡化正反对照、断网重试跳曲+snackbar、.elrc 词级扫词上屏）。T9 调研 GO（InstantMix 现成、接缝可行、三风险已列）→ **下会话：T12 Auto DJ 实现卡 + K60 观感补验（MUSIC-26/41/44/45/49余）+ 全波收官判定**（开工提示词在 `V2_W5_TASKS.md` 状态块）。
+1. **2.0.0 W5 音乐域正式收官（2026-11-21，会话6）**：T12 Auto DJ（merge `eef7feba`，含真机返修：ENDED 接缝改 `playFromQueueIndex` 起播）合入，集成门禁绿；K60 四场景（默认关/续播+上报链/睡眠闸门/断网静默）与观感补验 5 项（MUSIC-26/41/44/45/49）全过；全波判定 50 条 = ✅47/⚠️3/❌0，残项已裁定去向。**下一焦点：W6 阅读器增强**（开工前读 `V2_REQUIREMENTS.md` 对应域与 `V2_DESIGN.md`，沿用波次制：T0 现状核对 → 设计定稿 → 任务卡）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
