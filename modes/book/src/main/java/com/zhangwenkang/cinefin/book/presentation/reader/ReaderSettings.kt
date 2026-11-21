@@ -260,3 +260,39 @@ internal object ReaderGesturePreferences {
     /** 「点按翻页」：关闭后单击任意处 = 控制层开关。 */
     val tapPagingEnabled = Preference("pref_reader_tap_paging", true)
 }
+
+/**
+ * 翻页动画档位（W6 T3 / READER-08，定稿三 §2）：滑动（默认）/ 覆盖 / 仿真。
+ *
+ * 覆盖 / 仿真只由自研页引擎（PDF / CBZ）实现；EPUB 走 Readium，只有「滑动 / 无动画」两档 （状态块预案 1）。`None` 是 EPUB 专用档，落在 PDF /
+ * CBZ 上时按滑动处理。
+ */
+enum class ReaderPageAnimation(val storageValue: String, val label: String) {
+    Slide("slide", "滑动"),
+    Cover("cover", "覆盖"),
+    Curl("curl", "仿真"),
+    None("none", "无动画");
+
+    companion object {
+        fun fromStorage(value: String?): ReaderPageAnimation =
+            entries.firstOrNull { it.storageValue == value } ?: Slide
+    }
+}
+
+/** 自研页引擎（PDF / CBZ）可选档；默认第一项 = 滑动。 */
+val ReaderSimplePageAnimations: List<ReaderPageAnimation> =
+    listOf(ReaderPageAnimation.Slide, ReaderPageAnimation.Cover, ReaderPageAnimation.Curl)
+
+/** EPUB 可选档：覆盖 / 仿真仅 PDF / CBZ。 */
+val ReaderEpubPageAnimations: List<ReaderPageAnimation> =
+    listOf(ReaderPageAnimation.Slide, ReaderPageAnimation.None)
+
+/**
+ * 翻页动画偏好（W6 T3）：沿用 `pref_reader_*` 命名空间，键声明自持在 `modes/book`。
+ *
+ * 读写走 [ReaderPageAnimationSetting]（本卡文件边界不含 `ReaderViewModel`，W6-T2 并行中）。
+ */
+internal object ReaderPageAnimationPreferences {
+    /** 存 [ReaderPageAnimation.storageValue]；默认 `slide`。 */
+    val pageAnimation = Preference("pref_reader_page_animation", "slide")
+}

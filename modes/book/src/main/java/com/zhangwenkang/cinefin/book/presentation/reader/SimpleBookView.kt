@@ -2,13 +2,16 @@ package com.zhangwenkang.cinefin.book.presentation.reader
 
 import android.graphics.Bitmap
 import android.os.SystemClock
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,19 +33,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
@@ -54,14 +64,16 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButton
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinButtonSize
-import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
+import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /** 双指缩放调试日志的最小步进：真机验收用 logcat 文本判断缩放生效，又不会每帧刷屏。 */
@@ -160,21 +172,37 @@ internal fun SimpleBookView(
     val twoColumnLayoutKey =
         remember(twoColumnLayout) { if (twoColumnLayout.any { it.fullscreen }) 1 else 0 }
     val pagedLayout = remember(pageCount) { pagedSlots(pageCount) }
-    // 手势翻页（双击左 / 右）与搜索 / 批注跳页共用同一条「跳页」通道。
+    // 单击三分区翻页：滚动档立即滚到目标页；分页 / 双栏交给 `PagedPages` 按当前动画档位播放。
     var gestureJumpPage by remember(document) { mutableStateOf<Int?>(null) }
-    val effectiveJumpPage = jumpTargetPage ?: gestureJumpPage
+    // W6 T3：翻页动画档位（设置面板写、这里读）+ 系统「减少动态效果」降级。
+    val pageAnimation = rememberReaderPageAnimation()
+    val reduceMotion = rememberReduceMotionEnabled()
+    val pageTurn = pageTurnEffect(pageAnimation, reduceMotion)
+    val pageSurfaceColor = settings.surfaceColor(systemDark)
     // 搜索命中 / 批注按页索引分组：叠加层只关心当前页（命中上限 400 条，过滤成本可忽略）。
     val hitsByPage = remember(searchHits) { searchHits.groupBy { it.pageIndex } }
     val annotationsByPage = remember(annotations) { annotations.groupBy { it.pageIndex } }
 
-    // 搜索命中 / 批注列表的跳页：更新当前页（Pager / 列表由各自的 LaunchedEffect 滚动到位）。
-    LaunchedEffect(effectiveJumpPage) {
-        val target = effectiveJumpPage ?: return@LaunchedEffect
+    // 搜索命中 / 批注列表的跳页：所有模式都立即落位（不做翻页动画）。
+    LaunchedEffect(jumpTargetPage) {
+        val target = jumpTargetPage ?: return@LaunchedEffect
         if (target in 0 until pageCount) {
             currentPage = target
             currentSlotEnd = target
         }
-        if (gestureJumpPage != null) gestureJumpPage = null else onJumpHandled()
+        onJumpHandled()
+    }
+
+    // 单击三分区翻页：滚动档立即滚到目标页；分页 / 双栏由 PagedPages 播放动画并回报页码。
+    LaunchedEffect(gestureJumpPage, settings.mode) {
+        val target = gestureJumpPage ?: return@LaunchedEffect
+        if (settings.mode == ReaderMode.Scroll) {
+            if (target in 0 until pageCount) {
+                currentPage = target
+                currentSlotEnd = target
+            }
+            gestureJumpPage = null
+        }
     }
 
     fun report(firstPage: Int, lastPage: Int) {
@@ -229,7 +257,7 @@ internal fun SimpleBookView(
                         hitsByPage = hitsByPage,
                         annotationsByPage = annotationsByPage,
                         annotating = annotating,
-                        jumpTargetPage = effectiveJumpPage,
+                        jumpTargetPage = jumpTargetPage,
                         onPageChanged = { page -> report(page, page) },
                         onFitWidthTargetChanged = { fitWidthTarget = it },
                         onZoomGesture = onZoomInteraction,
@@ -246,12 +274,16 @@ internal fun SimpleBookView(
                         slots = pagedLayout,
                         layoutKey = 0,
                         rtl = settings.rtl,
+                        effect = pageTurn,
                         viewportSize = contentSize,
                         contentColor = contentColor,
+                        pageSurfaceColor = pageSurfaceColor,
                         hitsByPage = hitsByPage,
                         annotationsByPage = annotationsByPage,
                         annotating = annotating,
-                        jumpTargetPage = effectiveJumpPage,
+                        jumpTargetPage = jumpTargetPage,
+                        turnRequest = gestureJumpPage,
+                        onTurnHandled = { gestureJumpPage = null },
                         onPageChanged = ::report,
                         onFitWidthTargetChanged = { fitWidthTarget = it },
                         onZoomGesture = onZoomInteraction,
@@ -268,12 +300,16 @@ internal fun SimpleBookView(
                         slots = twoColumnLayout,
                         layoutKey = twoColumnLayoutKey,
                         rtl = settings.rtl,
+                        effect = pageTurn,
                         viewportSize = contentSize,
                         contentColor = contentColor,
+                        pageSurfaceColor = pageSurfaceColor,
                         hitsByPage = hitsByPage,
                         annotationsByPage = annotationsByPage,
                         annotating = annotating,
-                        jumpTargetPage = effectiveJumpPage,
+                        jumpTargetPage = jumpTargetPage,
+                        turnRequest = gestureJumpPage,
+                        onTurnHandled = { gestureJumpPage = null },
                         onPageChanged = ::report,
                         onFitWidthTargetChanged = { fitWidthTarget = it },
                         onZoomGesture = onZoomInteraction,
@@ -281,20 +317,6 @@ internal fun SimpleBookView(
                         onAnnotationTap = onAnnotationTap,
                     )
             }
-
-            PageIndicator(
-                text =
-                    pageIndicatorText(
-                        mode = settings.mode,
-                        pageIndex = currentPage,
-                        pageCount = pageCount,
-                        rtl = settings.rtl,
-                        lastPageIndex = currentSlotEnd,
-                    ),
-                chromeColor = chromeColor,
-                contentColor = contentColor,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
         }
     }
 }
@@ -431,135 +453,660 @@ private fun PagedPages(
     slots: List<SpreadSlot>,
     layoutKey: Int,
     rtl: Boolean,
+    effect: PageTurnEffect,
     viewportSize: IntSize,
     contentColor: Color,
+    pageSurfaceColor: Color,
     hitsByPage: Map<Int, List<PdfSearchHit>>,
     annotationsByPage: Map<Int, List<ReaderAnnotation>>,
     annotating: Boolean,
     jumpTargetPage: Int?,
+    turnRequest: Int?,
+    onTurnHandled: () -> Unit,
     onPageChanged: (firstPage: Int, lastPage: Int) -> Unit,
     onFitWidthTargetChanged: (FitWidthTarget?) -> Unit,
     onZoomGesture: () -> Unit,
     onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
     onAnnotationTap: (ReaderAnnotation) -> Unit,
 ) {
-    key(rtl, layoutKey) {
+    // 档位切换时整块重建：滑动档交给 `HorizontalPager`，覆盖 / 仿真走自绘页层，翻页状态机不能混用。
+    key(rtl, layoutKey, effect) {
         // 空表只做保护（打开流程已拦截空文档）；不能写成 `return@key`：
         // Compose 编译器会为 inline `key` 里的标签返回生成 $$$$$NON_LOCAL_RETURN$$$$$ 合成类，D8 无法 dex。
         if (slots.isNotEmpty()) {
-            val pagerState =
-                rememberPagerState(initialPage = slotIndexForPage(slots, initialPage)) {
-                    slots.size
-                }
-            LaunchedEffect(pagerState, slots) {
-                snapshotFlow { pagerState.currentPage }
-                    .distinctUntilChanged()
-                    .collect { spread ->
-                        val slot = slots.getOrNull(spread)
-                        if (slot != null) {
-                            onPageChanged(slot.pages.first(), slot.pages.last())
-                        }
-                    }
-            }
-            // 搜索命中 / 批注跳页：直接滚到目标槽位（不做跨整本书的动画）。
-            LaunchedEffect(jumpTargetPage, slots) {
-                val target = jumpTargetPage ?: return@LaunchedEffect
-                if (target >= 0) {
-                    val slot = slotIndexForPage(slots, target)
-                    if (slot != pagerState.currentPage) pagerState.scrollToPage(slot)
-                }
-            }
-            // 停稳后再预取邻槽，避免抢可见页的解码带宽（窗口仍是 3 张）。
-            LaunchedEffect(pagerState, slots) {
-                snapshotFlow { pagerState.settledPage }
-                    .distinctUntilChanged()
-                    .collect { spread ->
-                        delay(150)
-                        slots.getOrNull(spread - 1)?.pages?.last()?.let { cache.prefetch(it) }
-                        slots.getOrNull(spread + 1)?.pages?.first()?.let { cache.prefetch(it) }
-                        // 对图合并：邻槽停稳后先做判定 / 合成，翻到下一屏时直接可用。
-                        if (mergeCache != null) {
-                            // 当前槽也一并复算：上一轮「未就绪」的判定在这里补上（W49，null 判定不缓存）。
-                            listOf(spread - 1, spread, spread + 1)
-                                .mapNotNull { slots.getOrNull(it) }
-                                .filter { it.pages.size == SPREAD_MERGE_PAGES_PER_SPREAD }
-                                .forEach { mergeCache.prefetch(it.pages.first()) }
-                        }
-                    }
-            }
+            when (effect) {
+                PageTurnEffect.Slide ->
+                    SlidePager(
+                        cache = cache,
+                        bookZoom = bookZoom,
+                        mergeCache = mergeCache,
+                        initialPage = initialPage,
+                        slots = slots,
+                        rtl = rtl,
+                        viewportSize = viewportSize,
+                        contentColor = contentColor,
+                        hitsByPage = hitsByPage,
+                        annotationsByPage = annotationsByPage,
+                        annotating = annotating,
+                        jumpTargetPage = jumpTargetPage,
+                        turnRequest = turnRequest,
+                        onTurnHandled = onTurnHandled,
+                        onPageChanged = onPageChanged,
+                        onFitWidthTargetChanged = onFitWidthTargetChanged,
+                        onZoomGesture = onZoomGesture,
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                    )
 
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                key = { it },
-                reverseLayout = rtl,
-            ) { spread ->
+                else ->
+                    PageTurnPager(
+                        cache = cache,
+                        bookZoom = bookZoom,
+                        mergeCache = mergeCache,
+                        initialPage = initialPage,
+                        slots = slots,
+                        rtl = rtl,
+                        effect = effect,
+                        viewportSize = viewportSize,
+                        contentColor = contentColor,
+                        pageSurfaceColor = pageSurfaceColor,
+                        hitsByPage = hitsByPage,
+                        annotationsByPage = annotationsByPage,
+                        annotating = annotating,
+                        jumpTargetPage = jumpTargetPage,
+                        turnRequest = turnRequest,
+                        onTurnHandled = onTurnHandled,
+                        onPageChanged = onPageChanged,
+                        onFitWidthTargetChanged = onFitWidthTargetChanged,
+                        onZoomGesture = onZoomGesture,
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                    )
+            }
+        }
+    }
+}
+
+/** 滑动档（默认）：现有 `HorizontalPager` 分页，行为与本卡之前完全一致。 */
+@Composable
+private fun SlidePager(
+    cache: PageImageCache,
+    bookZoom: BookZoomState,
+    mergeCache: SpreadImageCache?,
+    initialPage: Int,
+    slots: List<SpreadSlot>,
+    rtl: Boolean,
+    viewportSize: IntSize,
+    contentColor: Color,
+    hitsByPage: Map<Int, List<PdfSearchHit>>,
+    annotationsByPage: Map<Int, List<ReaderAnnotation>>,
+    annotating: Boolean,
+    jumpTargetPage: Int?,
+    turnRequest: Int?,
+    onTurnHandled: () -> Unit,
+    onPageChanged: (firstPage: Int, lastPage: Int) -> Unit,
+    onFitWidthTargetChanged: (FitWidthTarget?) -> Unit,
+    onZoomGesture: () -> Unit,
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
+    onAnnotationTap: (ReaderAnnotation) -> Unit,
+) {
+    val pagerState =
+        rememberPagerState(initialPage = slotIndexForPage(slots, initialPage)) { slots.size }
+    LaunchedEffect(pagerState, slots) {
+        snapshotFlow { pagerState.currentPage }
+            .distinctUntilChanged()
+            .collect { spread ->
                 val slot = slots.getOrNull(spread)
                 if (slot != null) {
-                    val active = spread == pagerState.currentPage
-                    when {
-                        // 横版整页（或分页的单页）：整屏居中，Fit 保持比例、不裁切。
-                        slot.fullscreen ->
-                            ZoomablePage(
-                                cache = cache,
-                                index = slot.pages.first(),
-                                bookZoom = bookZoom,
-                                isFitActive = active,
-                                fitSlotSize = viewportSize,
-                                activeViewportFocus = if (active) Offset.Zero else null,
-                                onFitWidthTargetChanged = onFitWidthTargetChanged,
-                                contentColor = contentColor,
-                                searchRects =
-                                    hitsByPage[slot.pages.first()].orEmpty().flatMap { it.rects },
-                                annotations = annotationsByPage[slot.pages.first()].orEmpty(),
-                                annotating = annotating,
-                                onZoomGesture = onZoomGesture,
-                                onAnnotationRequested = onAnnotationRequested,
-                                onAnnotationTap = onAnnotationTap,
-                                modifier = Modifier.fillMaxSize(),
-                            )
+                    onPageChanged(slot.pages.first(), slot.pages.last())
+                }
+            }
+    }
+    // 搜索命中 / 批注跳页与单击三分区翻页：直接滚到目标槽位（滑动档沿用本卡之前的落位行为）。
+    LaunchedEffect(jumpTargetPage, turnRequest, slots) {
+        val target = jumpTargetPage ?: turnRequest ?: return@LaunchedEffect
+        if (target >= 0) {
+            val slot = slotIndexForPage(slots, target)
+            if (slot != pagerState.currentPage) pagerState.scrollToPage(slot)
+        }
+        if (turnRequest != null) onTurnHandled()
+    }
+    // 停稳后再预取邻槽，避免抢可见页的解码带宽（窗口仍是 3 张）。
+    LaunchedEffect(pagerState, slots) {
+        snapshotFlow { pagerState.settledPage }
+            .distinctUntilChanged()
+            .collect { spread ->
+                delay(150)
+                prefetchNeighbourSlots(cache, mergeCache, slots, spread)
+            }
+    }
 
-                        slot.pages.size == SPREAD_MERGE_PAGES_PER_SPREAD && mergeCache != null ->
-                            MergedSpreadPage(
-                                cache = cache,
-                                mergeCache = mergeCache,
-                                slot = slot,
-                                rtl = rtl,
-                                bookZoom = bookZoom,
-                                active = active,
-                                viewportSize = viewportSize,
-                                onFitWidthTargetChanged = onFitWidthTargetChanged,
-                                contentColor = contentColor,
-                                annotating = annotating,
-                                hitsByPage = hitsByPage,
-                                annotationsByPage = annotationsByPage,
-                                onZoomGesture = onZoomGesture,
-                                onAnnotationRequested = onAnnotationRequested,
-                                onAnnotationTap = onAnnotationTap,
-                            )
+    HorizontalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize(),
+        key = { it },
+        reverseLayout = rtl,
+    ) { spread ->
+        val slot = slots.getOrNull(spread)
+        if (slot != null) {
+            SlotLayer(
+                slot = slot,
+                active = spread == pagerState.currentPage,
+                cache = cache,
+                bookZoom = bookZoom,
+                mergeCache = mergeCache,
+                rtl = rtl,
+                viewportSize = viewportSize,
+                contentColor = contentColor,
+                hitsByPage = hitsByPage,
+                annotationsByPage = annotationsByPage,
+                annotating = annotating,
+                onFitWidthTargetChanged = onFitWidthTargetChanged,
+                onZoomGesture = onZoomGesture,
+                onAnnotationRequested = onAnnotationRequested,
+                onAnnotationTap = onAnnotationTap,
+            )
+        }
+    }
+}
 
-                        else ->
-                            SpreadPages(
-                                cache = cache,
-                                visualPages = visualSlotPages(slot, rtl),
-                                bookZoom = bookZoom,
-                                activePage = if (active) slot.pages.first() else null,
-                                viewportSize = viewportSize,
-                                onFitWidthTargetChanged = onFitWidthTargetChanged,
-                                contentColor = contentColor,
-                                hitsByPage = hitsByPage,
-                                annotationsByPage = annotationsByPage,
-                                annotating = annotating,
-                                onZoomGesture = onZoomGesture,
-                                onAnnotationRequested = onAnnotationRequested,
-                                onAnnotationTap = onAnnotationTap,
-                            )
+/** 停稳后的邻槽预取（位图 + 对图合并判定）；滑动与自绘翻页共用。 */
+private suspend fun prefetchNeighbourSlots(
+    cache: PageImageCache,
+    mergeCache: SpreadImageCache?,
+    slots: List<SpreadSlot>,
+    spread: Int,
+) {
+    slots.getOrNull(spread - 1)?.pages?.last()?.let { cache.prefetch(it) }
+    slots.getOrNull(spread + 1)?.pages?.first()?.let { cache.prefetch(it) }
+    // 对图合并：邻槽停稳后先做判定 / 合成，翻到下一屏时直接可用。
+    if (mergeCache != null) {
+        // 当前槽也一并复算：上一轮「未就绪」的判定在这里补上（W49，null 判定不缓存）。
+        listOf(spread - 1, spread, spread + 1)
+            .mapNotNull { slots.getOrNull(it) }
+            .filter { it.pages.size == SPREAD_MERGE_PAGES_PER_SPREAD }
+            .forEach { mergeCache.prefetch(it.pages.first()) }
+    }
+}
+
+/** 一个槽位的视觉层：横版整页 / 对图合并 / 双页拼版三选一，滑动与自绘翻页共用。 */
+@Composable
+private fun SlotLayer(
+    slot: SpreadSlot,
+    active: Boolean,
+    cache: PageImageCache,
+    bookZoom: BookZoomState,
+    mergeCache: SpreadImageCache?,
+    rtl: Boolean,
+    viewportSize: IntSize,
+    contentColor: Color,
+    hitsByPage: Map<Int, List<PdfSearchHit>>,
+    annotationsByPage: Map<Int, List<ReaderAnnotation>>,
+    annotating: Boolean,
+    onFitWidthTargetChanged: (FitWidthTarget?) -> Unit,
+    onZoomGesture: () -> Unit,
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
+    onAnnotationTap: (ReaderAnnotation) -> Unit,
+    modifier: Modifier = Modifier,
+    /** 覆盖档：旧页在翻页过程中压暗的比例（定稿八 8%）。 */
+    overlayAlpha: Float = 0f,
+) {
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .then(
+                    if (overlayAlpha > 0f) {
+                        Modifier.drawWithContent {
+                            drawContent()
+                            drawRect(Color.Black.copy(alpha = overlayAlpha))
+                        }
+                    } else {
+                        Modifier
                     }
+                )
+    ) {
+        when {
+            // 横版整页（或分页的单页）：整屏居中，Fit 保持比例、不裁切。
+            slot.fullscreen ->
+                ZoomablePage(
+                    cache = cache,
+                    index = slot.pages.first(),
+                    bookZoom = bookZoom,
+                    isFitActive = active,
+                    fitSlotSize = viewportSize,
+                    activeViewportFocus = if (active) Offset.Zero else null,
+                    onFitWidthTargetChanged = onFitWidthTargetChanged,
+                    contentColor = contentColor,
+                    searchRects = hitsByPage[slot.pages.first()].orEmpty().flatMap { it.rects },
+                    annotations = annotationsByPage[slot.pages.first()].orEmpty(),
+                    annotating = annotating,
+                    onZoomGesture = onZoomGesture,
+                    onAnnotationRequested = onAnnotationRequested,
+                    onAnnotationTap = onAnnotationTap,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+            slot.pages.size == SPREAD_MERGE_PAGES_PER_SPREAD && mergeCache != null ->
+                MergedSpreadPage(
+                    cache = cache,
+                    mergeCache = mergeCache,
+                    slot = slot,
+                    rtl = rtl,
+                    bookZoom = bookZoom,
+                    active = active,
+                    viewportSize = viewportSize,
+                    onFitWidthTargetChanged = onFitWidthTargetChanged,
+                    contentColor = contentColor,
+                    annotating = annotating,
+                    hitsByPage = hitsByPage,
+                    annotationsByPage = annotationsByPage,
+                    onZoomGesture = onZoomGesture,
+                    onAnnotationRequested = onAnnotationRequested,
+                    onAnnotationTap = onAnnotationTap,
+                )
+
+            else ->
+                SpreadPages(
+                    cache = cache,
+                    visualPages = visualSlotPages(slot, rtl),
+                    bookZoom = bookZoom,
+                    activePage = if (active) slot.pages.first() else null,
+                    viewportSize = viewportSize,
+                    onFitWidthTargetChanged = onFitWidthTargetChanged,
+                    contentColor = contentColor,
+                    hitsByPage = hitsByPage,
+                    annotationsByPage = annotationsByPage,
+                    annotating = annotating,
+                    onZoomGesture = onZoomGesture,
+                    onAnnotationRequested = onAnnotationRequested,
+                    onAnnotationTap = onAnnotationTap,
+                )
+        }
+    }
+}
+
+/** 自绘翻页的一次进行中帧：旧槽 → 新槽 + 进度（0 = 旧页，1 = 新页完全盖住）。 */
+private data class PageTurnFrame(val from: Int, val to: Int, val progress: Float)
+
+/**
+ * 覆盖 / 仿真 / 淡入淡出（减少动态）三档自绘翻页（W6 T3 / READER-08，定稿三 §2）。
+ *
+ * 与 `HorizontalPager` 的分工：槽位内容仍由 [SlotLayer] 渲染（缩放、搜索命中、批注全继承），这里只负责 翻页的位移 / 卷角 /
+ * 淡出与手势。单击三分区（[turnRequest]）走当前档位的动画；搜索 / 批注跳页 （[jumpTargetPage]）立即落位，不播翻页动画。
+ */
+@Composable
+private fun PageTurnPager(
+    cache: PageImageCache,
+    bookZoom: BookZoomState,
+    mergeCache: SpreadImageCache?,
+    initialPage: Int,
+    slots: List<SpreadSlot>,
+    rtl: Boolean,
+    effect: PageTurnEffect,
+    viewportSize: IntSize,
+    contentColor: Color,
+    pageSurfaceColor: Color,
+    hitsByPage: Map<Int, List<PdfSearchHit>>,
+    annotationsByPage: Map<Int, List<ReaderAnnotation>>,
+    annotating: Boolean,
+    jumpTargetPage: Int?,
+    turnRequest: Int?,
+    onTurnHandled: () -> Unit,
+    onPageChanged: (firstPage: Int, lastPage: Int) -> Unit,
+    onFitWidthTargetChanged: (FitWidthTarget?) -> Unit,
+    onZoomGesture: () -> Unit,
+    onAnnotationRequested: (index: Int, rect: PageRect) -> Unit,
+    onAnnotationTap: (ReaderAnnotation) -> Unit,
+) {
+    var currentSlot by remember(slots) { mutableIntStateOf(slotIndexForPage(slots, initialPage)) }
+    var frame by remember { mutableStateOf<PageTurnFrame?>(null) }
+    val drag = remember { PageTurnDragState() }
+    val scope = rememberCoroutineScope()
+    var turnJob by remember { mutableStateOf<Job?>(null) }
+    val widthPx = viewportSize.width.coerceAtLeast(1).toFloat()
+
+    fun playTurn(from: Int, to: Int, startProgress: Float, release: PageTurnRelease) {
+        turnJob?.cancel()
+        val target = if (release == PageTurnRelease.Complete) 1f else 0f
+        val duration = pageTurnDurationMs(effect, release)
+        frame = PageTurnFrame(from = from, to = to, progress = startProgress)
+        turnJob = scope.launch {
+            if (duration <= 0) {
+                frame = null
+                if (release == PageTurnRelease.Complete) currentSlot = to
+                return@launch
+            }
+            Animatable(startProgress).animateTo(
+                target,
+                animationSpec = tween(duration, easing = FastOutSlowInEasing),
+            ) {
+                frame = frame?.copy(progress = value)
+            }
+            frame = null
+            if (release == PageTurnRelease.Complete) currentSlot = to
+        }
+    }
+
+    LaunchedEffect(currentSlot, slots) {
+        slots.getOrNull(currentSlot)?.let { onPageChanged(it.pages.first(), it.pages.last()) }
+    }
+    // 停稳后预取邻槽（与滑动档同一套窗口策略）。
+    LaunchedEffect(currentSlot, slots) {
+        delay(150)
+        prefetchNeighbourSlots(cache, mergeCache, slots, currentSlot)
+    }
+    // 搜索命中 / 批注跳页：立即落位，打断进行中的翻页。
+    LaunchedEffect(jumpTargetPage, slots) {
+        val target = jumpTargetPage ?: return@LaunchedEffect
+        turnJob?.cancel()
+        frame = null
+        currentSlot = slotIndexForPage(slots, target)
+    }
+    // 单击三分区：按当前档位播放翻页动画；目标与当前槽相同时只吞掉请求。
+    LaunchedEffect(turnRequest, slots) {
+        val target = turnRequest ?: return@LaunchedEffect
+        val to = slotIndexForPage(slots, target)
+        if (to != currentSlot) {
+            // 中断接管：上一段动画没播完时按它已到达的进度续上，不回到 0。
+            val carryOver = frame?.takeIf { it.to == to && it.progress.isFinite() }?.progress ?: 0f
+            playTurn(
+                from = currentSlot,
+                to = to,
+                startProgress = carryOver,
+                release = PageTurnRelease.Complete,
+            )
+        }
+        onTurnHandled()
+    }
+
+    Box(
+        modifier =
+            Modifier.fillMaxSize().pointerInput(effect, slots, rtl, widthPx) {
+                val slop = viewConfiguration.touchSlop
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        drag.reset()
+                        turnJob?.cancel()
+                    },
+                    onDragCancel = {
+                        val started = frame
+                        if (started != null) {
+                            playTurn(
+                                from = started.from,
+                                to = started.to,
+                                startProgress = drag.progress,
+                                release = PageTurnRelease.Cancel,
+                            )
+                        }
+                        drag.reset()
+                    },
+                    onDragEnd = {
+                        val release = drag.release()
+                        val started = frame
+                        if (release != null && started != null) {
+                            playTurn(
+                                from = started.from,
+                                to = started.to,
+                                startProgress = drag.progress,
+                                release = release,
+                            )
+                        }
+                        drag.reset()
+                    },
+                ) { change, dragAmount ->
+                    val direction =
+                        drag.direction
+                            ?: run {
+                                if (abs(dragAmount) < slop * 0.5f) {
+                                    return@detectHorizontalDragGestures
+                                }
+                                val next =
+                                    pageTurnDragDirection(dragAmount, rtl)
+                                        ?: return@detectHorizontalDragGestures
+                                val existing = frame
+                                // 中断接管：动画未播完时同向拖回，从已到达的进度续上。
+                                val takeOver =
+                                    existing != null &&
+                                        (existing.to > existing.from) ==
+                                            (next == PageTurnDirection.Forward)
+                                if (!takeOver && !pageTurnCanTurn(currentSlot, slots.size, next)) {
+                                    return@detectHorizontalDragGestures
+                                }
+                                drag.begin(
+                                    direction = next,
+                                    carryOverProgress = if (takeOver) existing.progress else 0f,
+                                )
+                                if (!takeOver) {
+                                    val to =
+                                        when (next) {
+                                            PageTurnDirection.Forward -> currentSlot + 1
+                                            PageTurnDirection.Backward -> currentSlot - 1
+                                        }
+                                    frame =
+                                        PageTurnFrame(from = currentSlot, to = to, progress = 0f)
+                                }
+                                next
+                            }
+                    val delta =
+                        pageTurnDragProgress(
+                            dxFraction = dragAmount / widthPx,
+                            direction = direction,
+                            rtl = rtl,
+                        )
+                    val progress = drag.drag(delta)
+                    frame = frame?.copy(progress = progress)
+                    if (change.positionChanged()) change.consume()
+                }
+            }
+    ) {
+        val turning = frame
+        val fromSlot = slots.getOrNull(currentSlot)
+        when {
+            turning == null -> {
+                if (fromSlot != null) {
+                    SlotLayer(
+                        slot = fromSlot,
+                        active = true,
+                        cache = cache,
+                        bookZoom = bookZoom,
+                        mergeCache = mergeCache,
+                        rtl = rtl,
+                        viewportSize = viewportSize,
+                        contentColor = contentColor,
+                        hitsByPage = hitsByPage,
+                        annotationsByPage = annotationsByPage,
+                        annotating = annotating,
+                        onFitWidthTargetChanged = onFitWidthTargetChanged,
+                        onZoomGesture = onZoomGesture,
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                    )
+                }
+            }
+
+            effect == PageTurnEffect.Curl -> {
+                val target = slots.getOrNull(turning.to)
+                if (target != null) {
+                    // 下层：正在露出的新页（静止）。
+                    SlotLayer(
+                        slot = target,
+                        active = false,
+                        cache = cache,
+                        bookZoom = bookZoom,
+                        mergeCache = mergeCache,
+                        rtl = rtl,
+                        viewportSize = viewportSize,
+                        contentColor = contentColor,
+                        hitsByPage = hitsByPage,
+                        annotationsByPage = annotationsByPage,
+                        annotating = annotating,
+                        onFitWidthTargetChanged = onFitWidthTargetChanged,
+                        onZoomGesture = onZoomGesture,
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                    )
+                }
+                CurlTurnLayer(
+                    progress = turning.progress,
+                    cornerFromRight =
+                        curlCornerFromRight(forward = turning.to > turning.from, rtl = rtl),
+                    pageColor = pageSurfaceColor,
+                ) {
+                    if (fromSlot != null) {
+                        SlotLayer(
+                            slot = fromSlot,
+                            active = false,
+                            cache = cache,
+                            bookZoom = bookZoom,
+                            mergeCache = mergeCache,
+                            rtl = rtl,
+                            viewportSize = viewportSize,
+                            contentColor = contentColor,
+                            hitsByPage = hitsByPage,
+                            annotationsByPage = annotationsByPage,
+                            annotating = annotating,
+                            onFitWidthTargetChanged = onFitWidthTargetChanged,
+                            onZoomGesture = onZoomGesture,
+                            onAnnotationRequested = onAnnotationRequested,
+                            onAnnotationTap = onAnnotationTap,
+                        )
+                    }
+                }
+            }
+
+            else -> {
+                // 覆盖：旧页静止 + 8% 压暗；淡入淡出：旧页不动，新页按进度提亮。
+                if (fromSlot != null) {
+                    SlotLayer(
+                        slot = fromSlot,
+                        active = false,
+                        cache = cache,
+                        bookZoom = bookZoom,
+                        mergeCache = mergeCache,
+                        rtl = rtl,
+                        viewportSize = viewportSize,
+                        contentColor = contentColor,
+                        hitsByPage = hitsByPage,
+                        annotationsByPage = annotationsByPage,
+                        annotating = annotating,
+                        onFitWidthTargetChanged = onFitWidthTargetChanged,
+                        onZoomGesture = onZoomGesture,
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                        overlayAlpha =
+                            if (effect == PageTurnEffect.Cover) {
+                                PAGE_TURN_OUTGOING_DIM_ALPHA
+                            } else {
+                                0f
+                            },
+                    )
+                }
+                val target = slots.getOrNull(turning.to)
+                if (target != null) {
+                    val fromRight =
+                        pageTurnEntryEdge(forward = turning.to > turning.from, rtl = rtl) ==
+                            PageTurnEdge.Right
+                    SlotLayer(
+                        slot = target,
+                        active = false,
+                        cache = cache,
+                        bookZoom = bookZoom,
+                        mergeCache = mergeCache,
+                        rtl = rtl,
+                        viewportSize = viewportSize,
+                        contentColor = contentColor,
+                        hitsByPage = hitsByPage,
+                        annotationsByPage = annotationsByPage,
+                        annotating = annotating,
+                        onFitWidthTargetChanged = onFitWidthTargetChanged,
+                        onZoomGesture = onZoomGesture,
+                        onAnnotationRequested = onAnnotationRequested,
+                        onAnnotationTap = onAnnotationTap,
+                        modifier =
+                            Modifier.graphicsLayer {
+                                if (effect == PageTurnEffect.Cover) {
+                                    translationX =
+                                        (if (fromRight) 1f else -1f) *
+                                            (1f - turning.progress) *
+                                            size.width
+                                } else {
+                                    alpha = turning.progress
+                                }
+                            },
+                    )
                 }
             }
         }
     }
 }
+
+/** 仿真卷页的绘制层（近似实现，非真曲面）：按 [curlGeometry] 把当前页裁成沿对角线推进的页身， 被卷起的一角用镜像三角面 + 渐变 + 折线阴影近似「页背面」。 */
+@Composable
+private fun CurlTurnLayer(
+    progress: Float,
+    cornerFromRight: Boolean,
+    pageColor: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val shade = curlFlapShade(progress)
+    val flapColor = lerp(pageColor, Color.Black, shade)
+    Box(
+        modifier =
+            modifier.fillMaxSize().drawWithContent {
+                val geometry =
+                    curlGeometry(
+                        width = size.width,
+                        height = size.height,
+                        progress = progress,
+                        cornerFromRight = cornerFromRight,
+                    )
+                if (geometry.page.isEmpty()) return@drawWithContent
+                clipPath(geometry.page.toPath()) { this@drawWithContent.drawContent() }
+                if (geometry.flap.size >= 3) {
+                    drawPath(
+                        path = geometry.flap.toPath(),
+                        brush =
+                            Brush.linearGradient(
+                                colors =
+                                    listOf(
+                                        flapColor,
+                                        lerp(flapColor, Color.Black, 0.12f),
+                                    ),
+                                start = geometry.foldStart?.toOffset() ?: Offset.Zero,
+                                end = geometry.foldEnd?.toOffset() ?: Offset.Zero,
+                            ),
+                    )
+                }
+                val foldStart = geometry.foldStart
+                val foldEnd = geometry.foldEnd
+                if (foldStart != null && foldEnd != null) {
+                    drawLine(
+                        color = Color.Black.copy(alpha = 0.16f),
+                        start = Offset(foldStart.x, foldStart.y),
+                        end = Offset(foldEnd.x, foldEnd.y),
+                        strokeWidth = 2.dp.toPx(),
+                    )
+                }
+            }
+    ) {
+        content()
+    }
+}
+
+/** 卷页多边形 → Compose `Path`。 */
+private fun List<PageTurnPoint>.toPath(): Path {
+    val path = Path()
+    forEachIndexed { index, point ->
+        if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y)
+    }
+    path.close()
+    return path
+}
+
+/** 卷页点 → Compose `Offset`（渐变与折线阴影用）。 */
+private fun PageTurnPoint.toOffset(): Offset = Offset(x, y)
 
 /** 一个槽位的视觉页（1–2 页，null = 空半格）各自渲染：W4 行为，合并未命中 / 未启用时使用。 */
 @Composable
@@ -996,26 +1543,6 @@ private fun PageContent(
                 )
         }
     }
-}
-
-/** 页指示（也是模式差异的可见证据：滚动 / 分页 / 双栏三档文字不同）。 */
-@Composable
-private fun PageIndicator(
-    text: String,
-    chromeColor: Color,
-    contentColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    Text(
-        text = text,
-        style = CinefinType.LabelLarge,
-        color = contentColor,
-        modifier =
-            modifier
-                .padding(CinefinSpacing.Space3)
-                .background(chromeColor.copy(alpha = 0.88f), CinefinShapes.Xs)
-                .padding(horizontal = CinefinSpacing.Space3, vertical = CinefinSpacing.Space1),
-    )
 }
 
 /**

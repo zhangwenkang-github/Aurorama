@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentContainerView
+import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
 import org.readium.r2.navigator.epub.EpubDefaults
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
@@ -61,6 +62,11 @@ internal fun ReadiumEpubView(
     // 双栏档会静默变单栏；这里在宽度够用的形态下直接压内部变量兜底（滚动档会被 `columns:auto auto` 覆盖，不受影响）。
     val forceTwoColumns =
         settings.mode == ReaderMode.TwoColumn && shouldForceEpubTwoColumns(screenWidthDp)
+    // W6 T3（READER-08）：EPUB 只有「滑动 / 无动画」两档，映射为 Readium 的 `animated` 参数；
+    // 系统「减少动态效果」时降级为无动画（Readium 内核没有淡入淡出档）。
+    val pageAnimation = rememberReaderPageAnimation()
+    val reduceMotion = rememberReduceMotionEnabled()
+    val animatedTurns = epubPageTurnAnimated(pageAnimation, reduceMotion)
     val currentSettings = rememberUpdatedState(settings)
     val currentSystemDark = rememberUpdatedState(systemDark)
     val currentOnLocationChanged = rememberUpdatedState(onLocationChanged)
@@ -122,8 +128,8 @@ internal fun ReadiumEpubView(
             onBrightness = { value -> currentOnBrightness.value(value) },
             onSingleTap = { x, _, width ->
                 when (readerTapAction(x, width, currentTapPolicy.value)) {
-                    ReaderTapAction.PreviousPage -> navigator?.goBackward(animated = true)
-                    ReaderTapAction.NextPage -> navigator?.goForward(animated = true)
+                    ReaderTapAction.PreviousPage -> navigator?.goBackward(animated = animatedTurns)
+                    ReaderTapAction.NextPage -> navigator?.goForward(animated = animatedTurns)
                     ReaderTapAction.ToggleControls -> currentOnToggleControls.value()
                 }
             },

@@ -68,9 +68,13 @@ internal data class ReaderSettingsTools(
 internal fun ReaderSettingsPanel(
     settings: ReaderSettings,
     systemDark: Boolean,
+    /** 页序列文档（PDF / CBZ）：右起翻页开关与覆盖 / 仿真档只对它开放。 */
     showRtl: Boolean,
     tools: ReaderSettingsTools,
     onSettingsChange: (ReaderSettings) -> Unit,
+    /** W6 T3：翻页动画档位（默认绑定 [ReaderPageAnimationSetting]，测试 / 预览可注入）。 */
+    pageAnimation: ReaderPageAnimation = rememberReaderPageAnimation(),
+    onPageAnimationChange: (ReaderPageAnimation) -> Unit = { ReaderPageAnimationSetting.set(it) },
     modifier: Modifier = Modifier,
 ) {
     val contentColor = settings.contentColor(systemDark)
@@ -147,6 +151,25 @@ internal fun ReaderSettingsPanel(
             onSelect = { mode -> onSettingsChange(settings.copy(mode = mode)) },
             label = { mode -> mode.label },
         )
+        // W6 T3（定稿三 §2）：翻页动画。EPUB 走 Readium，只有滑动 / 无动画两档，
+        // 存的是覆盖 / 仿真时（在 PDF / CBZ 里选的）回落显示为滑动。
+        val pageAnimations = if (showRtl) ReaderSimplePageAnimations else ReaderEpubPageAnimations
+        val animationSelection =
+            if (pageAnimations.contains(pageAnimation)) pageAnimation else ReaderPageAnimation.Slide
+        Text(text = "翻页动画", style = CinefinType.BodyMedium, color = contentColor)
+        CinefinSegmentedControl(
+            items = pageAnimations,
+            selected = animationSelection,
+            onSelect = onPageAnimationChange,
+            label = { animation -> animation.label },
+        )
+        if (!showRtl) {
+            Text(
+                text = "覆盖 / 仿真仅支持 PDF / CBZ；EPUB 为滑动或无动画。",
+                style = CinefinType.LabelSmall,
+                color = contentColor.copy(alpha = 0.6f),
+            )
+        }
         if (showRtl) {
             SettingSwitchRow(
                 title = "右起翻页（漫画）",
