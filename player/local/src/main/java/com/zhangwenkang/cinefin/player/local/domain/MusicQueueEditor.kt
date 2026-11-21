@@ -28,6 +28,17 @@ interface MusicQueueEditor {
     fun appendToQueue(items: List<PlayerItem>)
 
     /**
+     * W5-T12（MUSIC-14 Auto DJ）：从主队列第 [index] 首起播（播放器 seek 到该条 + play）。
+     *
+     * 为什么不能用 [MusicPlaybackController.play]：队列播完进入 `STATE_ENDED` 后，播放器当前项仍是已播完的队尾曲， `play()`
+     * 不会前进到刚追加的条目（实测媒体会话停在 STOPPED）。这里显式 seek 到目标条目再起播，等价于一次 正常切歌（会走 SEEK 过渡 → 上一首 Stop → 新曲 Start
+     * 上报）。
+     *
+     * 只在播放器时间线与队列同构时生效（与 [removeAt] 同一前置条件）；越界 / 无音乐会话时忽略。
+     */
+    fun playFromQueueIndex(index: Int)
+
+    /**
      * W78：把 [items] **按给定顺序**批量前插到队首，当前曲目索引整体后移 `items.size`。
      *
      * 与 [appendToQueue] 配对：先补"当前之后"的曲目追加队尾、再补"当前之前"的曲目前插队首， 补完后的队列顺序 = 浏览列表顺序。

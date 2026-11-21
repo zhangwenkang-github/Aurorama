@@ -9,6 +9,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ShuffleOrder
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import com.zhangwenkang.cinefin.player.core.domain.models.QueueEndedEvent
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
 import com.zhangwenkang.cinefin.player.core.domain.models.ShuffleMode
 import com.zhangwenkang.cinefin.player.core.domain.models.SleepTimerSpec
@@ -93,6 +94,13 @@ constructor(
     private val _isBuffering = MutableStateFlow(false)
     override val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
 
+    /** W5-T12（MUSIC-14 Auto DJ）：队列自然播完事件（STATE_ENDED 时发出一次）。 */
+    private val _queueEnded = MutableSharedFlow<QueueEndedEvent>(extraBufferCapacity = 4)
+    override val queueEnded: SharedFlow<QueueEndedEvent> = _queueEnded.asSharedFlow()
+
+    /** W5-T12：队尾成因标志（T8 错误跳曲置位，自然 AUTO 推进复位）。 */
+    private val queueEndFlag = MusicQueueEndFlag()
+
     /** W5-T8：同一曲目只重试一次的纯状态机（见 [MusicPlaybackRecovery]）。 */
     private val playbackRecovery = MusicPlaybackRecovery()
     private var errorRetryJob: Job? = null
@@ -117,12 +125,23 @@ constructor(
                 // W5-T7：先登记资格——AUTO 切歌可淡化，手动切歌（SEEK）/ 换队列（PLAYLIST_CHANGED）不可；
                 // 后面的早退分支不能漏掉这条状态。
                 crossfadeEligibility.onMediaItemTransition(reason)
+                // W5-T12：队尾成因只在自然推进（AUTO）时复位为"自然播完"。
+                queueEndFlag.onMediaItemTransition(reason)
                 if (!playerHolder.musicSessionActive) return
                 val player = playerHolder.existingPlayer ?: return
                 if (!player.isPlayingMusicItem()) return
                 // 自己 setMediaItems 造成的整体替换不是"切歌"，也不能用它的索引回写队列
                 // （过渡窗口里播放器还在旧队列，索引会越界；见 setQueue 的注释）
-                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) return
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
+                    // W5-T12 风险①取证：Auto DJ 追加后若以 PLAYLIST_CHANGED 过渡进入续播曲，这条日志会显示
+                    // "未上报"（active 为空），K60 据此判定 PlaybackStart 是否被早退吞掉。
+                    Timber.i(
+                        "音乐切歌过渡（PLAYLIST_CHANGED）：item=%s active=%s 未走上报",
+                        mediaItem?.mediaId,
+                        activeItemId,
+                    )
+                    return
+                }
                 // W5-T6：睡眠定时「播完当前曲目停止」= AUTO 切歌后暂停（只消费一次）
                 if (
                     reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO &&
@@ -213,9 +232,14 @@ constructor(
                 if (playbackState != Player.STATE_ENDED) return
                 if (!playerHolder.musicSessionActive) return
                 // 队列播完：按"播到结尾"收尾，避免服务器把最后位置当成未听完
-                val itemId = activeItemId ?: return
+                val itemId = activeItemId
+                // W5-T12：队尾成因只消费一次（错误跳曲置位 / 自然播完复位）
+                val endedByError = queueEndFlag.consume()
+                if (itemId == null) return
                 activeItemId = null
                 reportStop(itemId, lastKnownDurationMs, lastKnownDurationMs)
+                Timber.i("音乐队列播完：item=%s endedByError=%s", itemId, endedByError)
+                _queueEnded.tryEmit(QueueEndedEvent(itemId = itemId, endedByError = endedByError))
             }
         }
 
@@ -286,6 +310,8 @@ constructor(
         errorRetryJob?.cancel()
         errorRetryJob = null
         playbackRecovery.reset()
+        // W5-T12：换队列 = 新一轮队尾成因从"自然播完"起算
+        queueEndFlag.reset()
         playbackJob = scope.launch {
             try {
                 // 0) 换队列前先把旧曲目按 MU-9 收尾（Stop 之后才允许 Start 新曲目）
@@ -478,6 +504,24 @@ constructor(
         _queue.value = player.captureShuffleSnapshot(current.appendItems(items))
     }
 
+    /**
+     * W5-T12（MUSIC-14 Auto DJ）：从主队列第 [index] 首起播。
+     *
+     * 队列播完（`STATE_ENDED`）后 `play()` 只作用于当前项（已播完的队尾曲），不会前进到刚追加的条目； 这里显式 seek 到目标条目再起播，
+     * 让追加批次的第一首走正常切歌路径（SEEK 过渡 → Stop/Start 上报）。
+     */
+    override fun playFromQueueIndex(index: Int) {
+        val current = _queue.value ?: return
+        if (index !in current.items.indices) return
+        val player = musicPlayer() ?: return
+        if (player.mediaItemCount != current.playbackItems.size) return
+        val timelineIndex = current.mainToTimelineIndex(index)
+        // 从头播放新批次（追加的条目没有续播位置）
+        player.seekTo(timelineIndex, 0L)
+        player.play()
+        Timber.i("音乐从队列第 %d 首起播（时间线下标 %d）", index, timelineIndex)
+    }
+
     /** W78：批量前插到队首；当前曲目索引整体后移（内核会同步移动当前媒体项，位置轮询只做一致性回写）。 */
     override fun prependToQueue(items: List<PlayerItem>) {
         if (items.isEmpty()) return
@@ -594,6 +638,8 @@ constructor(
         errorRetryJob?.cancel()
         errorRetryJob = null
         playbackRecovery.reset()
+        // W5-T12：停止 = 队尾成因归零（下次起播从"自然播完"起算）
+        queueEndFlag.reset()
         val itemId = activeItemId
         val positionMs = lastKnownPositionMs
         val durationMs = lastKnownDurationMs
@@ -700,6 +746,8 @@ constructor(
 
     /** 跳过当前条目（重试仍失败 / 本地不可用）：保持播放意图，队尾无下一首时由调用方走 stop。 */
     private fun skipToNextMusicItem(player: Player) {
+        // W5-T12：错误跳曲置位——若这次跳曲之后队列走到结尾，Auto DJ 必须静默 no-op（风险③）。
+        queueEndFlag.onErrorSkip()
         val resume = player.playWhenReady
         errorRetryJob?.cancel()
         errorRetryJob = null
@@ -842,7 +890,7 @@ constructor(
 
     /** 主队列下标 → 时间线下标（接下来播放段插在主队列当前曲之后，主队列后半段整体后移）。 */
     private fun MusicQueue.mainToTimelineIndex(mainIndex: Int, offset: Int = upNextCount): Int =
-        if (mainIndex <= currentIndex) mainIndex else mainIndex + offset
+        musicQueueTimelineIndex(currentIndex, offset, mainIndex)
 
     private fun nextShuffleSeed(): Long = Random.nextLong()
 
@@ -865,6 +913,8 @@ constructor(
         val previousItemId = activeItemId
         val positionMs = lastKnownPositionMs
         val durationMs = lastKnownDurationMs
+        // W5-T12 风险①取证：每次切歌上报都留一行，K60 用来核对续播曲是否逐首 PlaybackStart。
+        Timber.i("音乐切歌上报：prev=%s next=%s", previousItemId, nextItemId)
         activeItemId = nextItemId
         lastKnownPositionMs = 0L
         lastKnownDurationMs = 0L
@@ -910,6 +960,8 @@ constructor(
     }
 
     private suspend fun reportStartNow(itemId: UUID) {
+        // W5-T12 风险①取证：PlaybackStart 的单一出口，K60 逐曲核对续播批次上报完整性。
+        Timber.i("音乐 PlaybackStart 上报：item=%s", itemId)
         runCatching { repository.postPlaybackStart(itemId) }.onFailure { Timber.w(it, "音乐起播上报失败") }
     }
 
@@ -1069,3 +1121,15 @@ constructor(
         const val MUSIC_ERROR_RETRY_DELAY_MS = 1_000L
     }
 }
+
+/**
+ * 主队列下标 → 播放器时间线下标（W5-T12 抽成纯函数，单测钉住"追加批次第一首"的定位）。
+ *
+ * 「接下来播放」段插在主队列当前曲之后：`mainIndex <= currentIndex` 原样返回（与既有 move / removeAt 的用法一致， 起播路径只用到
+ * `mainIndex > currentIndex` 的追加批次），其后的主队列条目整体后移 [upNextCount]。
+ */
+internal fun musicQueueTimelineIndex(
+    currentIndex: Int,
+    upNextCount: Int,
+    mainIndex: Int,
+): Int = if (mainIndex <= currentIndex) mainIndex else mainIndex + upNextCount

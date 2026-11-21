@@ -15,6 +15,7 @@ import org.jellyfin.sdk.api.client.HttpClientOptions
 import org.jellyfin.sdk.api.client.extensions.brandingApi
 import org.jellyfin.sdk.api.client.extensions.devicesApi
 import org.jellyfin.sdk.api.client.extensions.genresApi
+import org.jellyfin.sdk.api.client.extensions.instantMixApi
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.libraryApi
 import org.jellyfin.sdk.api.client.extensions.mediaInfoApi
@@ -96,6 +97,8 @@ class JellyfinApi(
     val brandingApi = api.brandingApi
     val devicesApi = api.devicesApi
     val genresApi = api.genresApi
+    /** W5-T12（MUSIC-14 Auto DJ）：以曲目 / 专辑等为种子的即时混排（GET，只读）。 */
+    val instantMixApi = api.instantMixApi
     val itemsApi = api.itemsApi
     val libraryApi = api.libraryApi
     val mediaInfoApi = api.mediaInfoApi

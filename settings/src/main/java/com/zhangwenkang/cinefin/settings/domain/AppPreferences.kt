@@ -384,6 +384,10 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     /** 应用重启后恢复上次音乐队列与播放位置（MU-3 队列保存）。默认开。 */
     val musicResumeQueue = Preference("pref_music_resume_queue", true)
 
+    // Music（W5-T12 Auto DJ；继续只追加 pref_music_* 前缀，不重排既有键）
+    /** 队列自然播完后自动续播相似曲目（Auto DJ，MUSIC-14）；默认关。 */
+    val musicAutoDj = Preference("pref_music_auto_dj", false)
+
     // Music（W23-MUSIC 桌面歌词；继续只追加 pref_music_* 前缀，不重排既有键）
     /** 桌面歌词悬浮窗开关（需要「显示在其他应用上层」权限，无权限时悬浮窗不显示）。 */
     val musicLyricsOverlay = Preference("pref_music_lyrics_overlay", false)

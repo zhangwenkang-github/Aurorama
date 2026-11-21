@@ -2,7 +2,9 @@ package com.zhangwenkang.cinefin.player.local.domain
 
 import com.zhangwenkang.cinefin.player.core.domain.models.MusicQueue
 import com.zhangwenkang.cinefin.player.core.domain.models.PlayerItem
+import com.zhangwenkang.cinefin.player.core.domain.models.QueueEndedEvent
 import com.zhangwenkang.cinefin.player.core.domain.models.RepeatMode
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -22,6 +24,13 @@ interface MusicPlaybackController {
 
     /** 当前播放位置（毫秒）；无会话时为 0。 */
     val positionMs: StateFlow<Long>
+
+    /**
+     * 队列自然播完事件（W5-T12 Auto DJ，MUSIC-14）。
+     *
+     * `Player.STATE_ENDED` 时发出一次，携带最后一首的 itemId 与「是否由播放错误导致」； 见 [QueueEndedEvent]。没有订阅者时丢弃，不阻塞播放线程。
+     */
+    val queueEnded: SharedFlow<QueueEndedEvent>
 
     /** 替换队列并从 [startIndex] 起播（换播放来源 = 替换队列 + 定位）。 */
     fun setQueue(queue: MusicQueue, startIndex: Int = queue.currentIndex)
