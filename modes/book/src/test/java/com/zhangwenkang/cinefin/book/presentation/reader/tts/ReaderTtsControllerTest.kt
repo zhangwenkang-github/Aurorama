@@ -321,6 +321,50 @@ class ReaderTtsControllerTest {
     }
 
     @Test
+    fun `引擎不可用进入错误态且不自动重试`() {
+        val engine = FakeEngine()
+        val harness = Harness(engine, VirtualClock())
+        harness.controller.addChapter(chapter(0, "一。"))
+        harness.controller.reportEngineUnavailable()
+
+        assertEquals(TtsPlayback.Idle, harness.state.playback)
+        assertNull(harness.state.active)
+        assertEquals(ReaderTtsNoEngineMessage, harness.state.engineError)
+        // 不自动重试：状态机不会因为出错就再次开口 / 请求章节。
+        assertEquals(emptyList<String>(), engine.spoken)
+        assertTrue(harness.requested.isEmpty())
+        // 重复上报保持同一条提示（防重试风暴）。
+        harness.controller.reportEngineUnavailable("自定义提示")
+        assertEquals("自定义提示", harness.state.engineError)
+    }
+
+    @Test
+    fun `用户重试成功后清除引擎错误态`() {
+        val engine = FakeEngine()
+        val harness = Harness(engine, VirtualClock())
+        harness.controller.addChapter(chapter(0, "一。"))
+        harness.controller.reportEngineUnavailable()
+        assertEquals(TtsPlayback.Idle, harness.state.playback)
+
+        // 模拟用户重新点「听书」：绑定成功 → 清错误 → 从章首开始。
+        harness.controller.clearEngineUnavailable()
+        harness.controller.startAt(0)
+        assertNull(harness.state.engineError)
+        assertEquals(TtsPlayback.Playing, harness.state.playback)
+        assertEquals(listOf("一。"), engine.spoken)
+    }
+
+    @Test
+    fun `引擎不可用态在成功起步时自动清空`() {
+        val engine = FakeEngine()
+        val harness = Harness(engine, VirtualClock())
+        harness.controller.addChapter(chapter(0, "一。"))
+        harness.controller.reportEngineUnavailable()
+        harness.controller.startAt(0)
+        assertNull(harness.state.engineError)
+    }
+
+    @Test
     fun `阅读位置换算朗读位置`() {
         val chapters =
             listOf(

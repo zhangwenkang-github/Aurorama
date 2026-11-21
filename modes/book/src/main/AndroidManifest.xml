@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- W6 T9r：Android 11+ 包可见性 —— 枚举已装 TTS 引擎（设备无默认引擎时逐个显式绑定）。 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application>
         <!-- W3 R3：入口已接入 NavigationRoot（书籍条目 → 显式 Intent），不再对 adb / 外部应用开放。 -->
         <activity

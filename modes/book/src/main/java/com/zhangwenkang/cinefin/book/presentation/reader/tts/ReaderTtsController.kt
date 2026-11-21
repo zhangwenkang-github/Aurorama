@@ -27,6 +27,7 @@ internal class ReaderTtsController(
     private var pendingStart: Pair<Int, Int>? = null
     private var consecutiveErrors = 0
     private var degradedSentences = 0
+    private var engineError: String? = null
     private var message: String? = null
 
     /** 已加载章节（按序号升序）。 */
@@ -94,6 +95,7 @@ internal class ReaderTtsController(
 
     /** 从指定章 / 句开始朗读（章未加载时先准备）。 */
     fun startAt(chapterIndex: Int, sentenceIndex: Int = 0) {
+        engineError = null
         val chapter = chapterAt(chapterIndex)
         if (chapter == null || chapter.sentences.isEmpty()) {
             pendingStart = chapterIndex to sentenceIndex
@@ -171,6 +173,36 @@ internal class ReaderTtsController(
 
     /** 停止并清空位置（关闭听书 / 离开阅读页 / 定时到点）。 */
     fun stop() = stopInternal(null)
+
+    /**
+     * 引擎不可用（设备没有任何可绑定的 TTS 引擎，W6 T9r）。
+     *
+     * 停止朗读并留下一条用户可读的 [engineError]，控制条 / 设置弹层据此给出明确提示。**不自动重试**： 只有用户再次主动点「听书」才会重新走引擎绑定（避免失败轮询）。
+     */
+    fun reportEngineUnavailable(message: String = ReaderTtsNoEngineMessage) {
+        engine.stop()
+        speaking = false
+        playback = TtsPlayback.Idle
+        chapterIndex = -1
+        sentenceIndex = -1
+        deadlineMs = null
+        timerRemainingMs = null
+        timer = TtsTimerOption.Off
+        stopAtChapterEnd = false
+        waitingChapter = null
+        pendingStart = null
+        consecutiveErrors = 0
+        this.message = null
+        engineError = message
+        emit()
+    }
+
+    /** 引擎已就绪（用户重试成功）：清掉不可用提示。 */
+    fun clearEngineUnavailable() {
+        if (engineError == null) return
+        engineError = null
+        emit()
+    }
 
     fun setRate(next: Float) {
         val value = if (next.isFinite()) next.coerceIn(ReaderTtsRateRange) else rate
@@ -370,6 +402,7 @@ internal class ReaderTtsController(
             sentenceCount = chapters.sumOf { it.sentences.size },
             loadingChapter = waitingChapter ?: pendingStart?.first,
             degradedSentences = degradedSentences,
+            engineError = engineError,
             message = message,
         )
 

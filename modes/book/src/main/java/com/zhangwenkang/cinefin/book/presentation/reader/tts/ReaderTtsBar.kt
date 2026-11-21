@@ -1,5 +1,9 @@
 package com.zhangwenkang.cinefin.book.presentation.reader.tts
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -22,6 +27,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -34,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -264,6 +271,15 @@ internal fun ReaderTtsSheets(
                 style = CinefinType.BodySmall,
                 color = contentColor.copy(alpha = 0.72f),
             )
+            // W6 T9r：上次绑定失败的提示留在入口里，用户装好引擎后可在这里直接重试。
+            state.engineError?.let { error ->
+                Text(
+                    text = error,
+                    style = CinefinType.BodySmall,
+                    color = accent,
+                    modifier = Modifier.padding(top = CinefinSpacing.Space1),
+                )
+            }
             HorizontalDivider(modifier = Modifier.padding(vertical = CinefinSpacing.Space2))
             ReaderTtsStartPoint.entries.forEach { point ->
                 TtsSheetRow(
@@ -347,6 +363,16 @@ internal fun ReaderTtsSheets(
                 contentColor = contentColor,
                 onCheckedChange = onPauseOnTapChange,
             )
+            // W6 T9r：无可用引擎时的明确提示（非阻塞；用户装好引擎后再点听书即可重试）。
+            state.engineError?.let { error ->
+                HorizontalDivider(modifier = Modifier.padding(vertical = CinefinSpacing.Space2))
+                Text(
+                    text = error,
+                    style = CinefinType.BodySmall,
+                    color = accent,
+                    modifier = Modifier.padding(bottom = CinefinSpacing.Space1),
+                )
+            }
         }
     }
 
@@ -481,3 +507,45 @@ internal fun readerTtsTimerLabel(state: ReaderTtsUiState): String {
 internal const val READER_TTS_BAR_ENTER_MS = 200
 
 internal const val READER_TTS_BAR_EXIT_MS = 160
+
+/** 无引擎提示的淡入淡出（与书签轻提示同一节奏，定稿八）。 */
+internal const val READER_TTS_NOTICE_FADE_MS = 160
+
+/**
+ * TTS 错误提示胶囊（W6 T9r）：设备无可用 TTS 引擎时给用户可见的一句话。
+ *
+ * 复用阅读页轻提示的形态（胶囊 / 外壳色 / TitleMedium），但独立成一块，避免和书签提示共用 900ms 的计时（引擎缺失需要更长的阅读时间，由调用方控制停留时长）。
+ */
+@Composable
+internal fun ReaderTtsErrorNotice(
+    text: String?,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = text != null,
+        enter = fadeIn(tween(READER_TTS_NOTICE_FADE_MS)),
+        exit = fadeOut(tween(READER_TTS_NOTICE_FADE_MS)),
+        modifier = modifier,
+    ) {
+        Surface(
+            shape = CinefinShapes.Button,
+            color = containerColor.copy(alpha = 0.94f),
+            contentColor = contentColor,
+        ) {
+            Text(
+                text = text.orEmpty(),
+                style = CinefinType.TitleMedium.copy(fontSize = 14.sp),
+                color = contentColor,
+                textAlign = TextAlign.Center,
+                modifier =
+                    Modifier.widthIn(max = 300.dp)
+                        .padding(
+                            horizontal = CinefinSpacing.Space5,
+                            vertical = CinefinSpacing.Space3,
+                        ),
+            )
+        }
+    }
+}

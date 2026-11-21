@@ -11,6 +11,12 @@ internal const val ReaderTtsDefaultRate = 1.0f
 /** 朗读位置推进后连续出错的上限：超过即停止，避免在坏书上空转。 */
 internal const val ReaderTtsMaxConsecutiveErrors = 3
 
+/** 无系统 TTS 引擎时给用户看的唯一文案（K60 实测：HyperOS 无默认引擎时会走到这条）。 */
+internal const val ReaderTtsNoEngineMessage = "设备无可用 TTS 引擎，请在系统设置中安装语音引擎"
+
+/** 单个 TTS 引擎的绑定等待上限（逐个引擎回退时，避免坏引擎拖住整条链路）。 */
+internal const val ReaderTtsPerEngineTimeoutMs = 3_000L
+
 /** 一句话（句切分后的一条）：定位信息用来下发给 Decoration 高亮与章节跳转。 */
 internal data class TtsSentence(
     val chapterIndex: Int,
@@ -96,6 +102,8 @@ internal data class ReaderTtsUiState(
     val loadingChapter: Int? = null,
     /** 映射失败（只读不高亮）的句子数：日志观察项 R5。 */
     val degradedSentences: Int = 0,
+    /** 引擎不可用（设备没有任何可绑定的 TTS 引擎）：非阻塞诊断，用户重试成功即清空。 */
+    val engineError: String? = null,
     /** 停止原因等一次性提示。 */
     val message: String? = null,
 ) {

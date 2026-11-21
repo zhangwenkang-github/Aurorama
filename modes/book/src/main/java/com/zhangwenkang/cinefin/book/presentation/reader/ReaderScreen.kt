@@ -70,7 +70,9 @@ import com.zhangwenkang.cinefin.book.presentation.reader.tts.READER_TTS_BAR_EXIT
 import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsBar
 import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsController
 import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsDecoration
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsErrorNotice
 import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsHighlight
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsNoEngineMessage
 import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsNotifier
 import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsSession
 import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsSheets
@@ -657,6 +659,15 @@ fun ReaderScreen(
     var ttsReanchorPending by remember(bookKey) { mutableStateOf(false) }
     var ttsFadeStep by remember(bookKey) { mutableIntStateOf(4) }
     var ttsServiceRunning by remember(bookKey) { mutableStateOf(false) }
+    // W6 T9r：无可用 TTS 引擎时的用户可见提示（非阻塞，阅读不受影响）。
+    var ttsEngineError by remember(bookKey) { mutableStateOf<String?>(null) }
+    var ttsEngineErrorToken by remember(bookKey) { mutableIntStateOf(0) }
+    LaunchedEffect(ttsEngineErrorToken) {
+        if (ttsEngineErrorToken == 0) return@LaunchedEffect
+        // 引擎缺失需要够读一句话的时间，比书签轻提示（900ms）留得久。
+        delay(4_000L)
+        ttsEngineError = null
+    }
     val ttsScope = rememberCoroutineScope()
     val ttsEngine = remember(bookKey) { AndroidTtsEngine(context) }
     val ttsTitleState = rememberUpdatedState(title)
@@ -845,12 +856,15 @@ fun ReaderScreen(
         } else {
             controlsVisible = false
             ttsScope.launch {
-                ttsEngine.initialize(ttsSelectedVoice)
-                if (!ttsEngine.awaitReady()) {
-                    bookmarkNotice = ttsEngine.initError ?: "系统 TTS 不可用"
-                    bookmarkNoticeToken++
+                if (!ttsEngine.ensureReady(ttsSelectedVoice)) {
+                    val message = ttsEngine.initError ?: ReaderTtsNoEngineMessage
+                    ttsEngineError = message
+                    ttsEngineErrorToken++
+                    ttsController.reportEngineUnavailable(message)
+                    Timber.w("听书不可用：$message")
                     return@launch
                 }
+                ttsController.clearEngineUnavailable()
                 ttsVoices = ttsEngine.voices()
                 val anchor = liveLocator ?: richDocument?.initialLocator
                 val href = anchor?.href?.toString()
@@ -1257,6 +1271,14 @@ fun ReaderScreen(
                         onBookmarkTap = { index ->
                             bookmarks.getOrNull(index)?.let(onJumpToBookmark)
                         },
+                    )
+
+                    // W6 T9r：无可用 TTS 引擎的用户可见提示（非阻塞；装好引擎后再点「听书」即可重试）。
+                    ReaderTtsErrorNotice(
+                        text = ttsEngineError,
+                        containerColor = chromeColor,
+                        contentColor = contentColor,
+                        modifier = Modifier.align(Alignment.Center),
                     )
 
                     // W6 T9（READER-32）：听书迷你控制条（高 56dp，容器同控制层底片）。
