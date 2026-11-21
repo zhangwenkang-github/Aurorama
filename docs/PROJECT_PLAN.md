@@ -32,7 +32,7 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 | 线 | 状态 | 文档 |
 |----|------|------|
 | 1.4.1 | 🟢 **已发布**（2026-11-18）：master=`76f5350b`、tag `v1.4.1`、GitHub Release 双 APK | 发布目录 `releases/1.4.1-signed-r34-2026-11-17/` |
-| 2.0.0 | 🟡 **W6 阅读域实现卡全部合入**（2026-11-21 会话3）：T1–T10 + 修复卡 T4r/T6r/T9r/T9r2 全绿，K60 大矩阵取证完成（矩阵见 `V2_W6_TASKS.md` 状态块）；剩 T6r2（空转/倍速）→ T9r2 复验 → T11 收官 | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · **`V2_W6_TASKS.md`** · `V2_W5_TASKS.md` |
+| 2.0.0 | 🟡 **W6 全部卡合入并 K60 取证全绿**（2026-11-22 会话4）：T1–T10 + 修复卡 T4r/T6r/T9r/T9r2/T6r2（`b2bb8b60`）全收口，T9r2/T6r2 复验通过（矩阵见 `V2_W6_TASKS.md` 状态块）；**只剩 T11 全量验收收官** | `docs/V2_REQUIREMENTS.md` · `V2_DESIGN.md` · **`V2_W6_TASKS.md`** · `V2_W5_TASKS.md` |
 | 播放器 | 🟢 W2 架构重构完成；W4 开工（2026-11-19）：T0 现状核对 + 任务卡定稿（T1–T7）；retrySeek 跨条目重建已修（`ccdafefa`）；生产 TLS `-0x7280` 复验通过（服务器侧修复生效，K60 mpv 正常播放） | `docs/V2_W4_TASKS.md` · `docs/V2_ARCHITECTURE.md` §3 |
 | 下载/离线 | 🟢 1.4.1 回归全 PASS；口径类遗留列入 W7 | `docs/DOWNLOAD_PLAN.md` |
 | 阅读器 / 音乐 / UI | 🟢 1.4.x 完成；2.0 增强分别列入 W6 / W5 / W1+W3 | `docs/V2_REQUIREMENTS.md` 各域 |
@@ -41,31 +41,27 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 
 ## 4. 当前焦点（2026-11-21）
 
-1. **2.0.0 W6 阅读域实现阶段完成（2026-11-21，会话3）**：T1–T10 全部合入（T1 `436aaf07`、T2 `b84c14be`、T3 `baa306a2`、T4 `6c80cd9d`、T5 `773fe87c`、T6 `9aecc478`、T7 `d238397d`+`9a794ae6`、T8 `22abb8a6`、T9 `e27070ac`、T10 `dab1ae32`）+ 真机缺陷修复卡 T4r `ac2b2d2e`/T6r `bc331698`/T9r `feae0fd3`/T9r2 `99f460ac`；K60 大矩阵取证完成（判定矩阵在 `V2_W6_TASKS.md` 状态块）。**下一步：会话4 = 派 T6r2（末章空转+滚速 2.5×），K60 复验 T9r2（句高亮）与 T6r2，然后 T11 全量验收收官。**
+1. **2.0.0 W6 会话4 完成（2026-11-22）**：T6r2 修复合入 `b2bb8b60` 并 K60 复验全绿（书末 ≤2 次空转停止、60px/s 实测 60.06），T9r2 复验全绿（句句下发/跨章跟随/停止清空 + T9 回归）；4 条观察项待 T11 裁定（详见 `V2_W6_TASKS.md` 状态块「会话4」）。**下一步：会话5 = T11 全量验收收官（Kimi 亲自）→ 焦点移交 W7。**
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
-### W6 会话4 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」，W6 原始开工提示词存档于 `V2_W6_TASKS.md` 状态块）
+### W6 会话5 开工提示词（新会话直接粘贴；格式遵循 AGENTS.md「开工提示词统一标准」，W6 原始开工提示词存档于 `V2_W6_TASKS.md` 状态块）
 
 ```
 你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
 工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
-开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W6_TASKS.md 状态块与任务卡
+开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_W6_TASKS.md 状态块
 → 记忆库 MEMORY.md（读序外文件按需，不通读）。
-现状：W6 实现卡 T1–T10 全部合入 + 修复卡 T4r/T6r/T9r/T9r2（HEAD 以 git log 为准，应含 99f460ac）；
-K60 取证判定矩阵在 V2_W6_TASKS.md 状态块「会话3」；T0=✅9/⚠️17/❌22。
-本会话任务（按序，1–2 件）：
-① 派 T6r2（卡面在 V2_W6_TASKS.md 任务卡末尾）：末章到底 goForward 空转不停 + 滚速 2.5× 偏差，
-   子代理修完门禁绿后由 Kimi 在 K60（8e875894）流式 logcat 复验（tag=ReadiumEpubViewKt 过滤
-   「自动滚动」：末章 ≤2 次空转内 stop；60px/s 实测 48–72）。
-② Kimi K60 复验 T9r2（99f460ac）：朗读中无「应用 TTS 句高亮失败」、每句有
-   「TTS 句高亮已下发」debug 行、跨章跟随跳章、停止后高亮清空；
-   顺带回归 T9 定时/上下句/后台通知。书架有本地书 w6-test-utf8 可直接开（若被清则重推 fixture 导入）。
-③ 全绿后进 T11（Kimi 亲自）：§5 全 48 条逐条销号、⚠️ 裁定、回写 V2_REQUIREMENTS.md、
-   清 pageIndicatorText 死代码、焦点移交 W7。
+现状：W6 全部卡（T1–T10 + T4r/T6r/T9r/T9r2/T6r2）合入并 K60 取证全绿（HEAD 以 git log 为准，
+应含 b2bb8b60）；取证判定与 4 条待裁定观察项在 V2_W6_TASKS.md 状态块「会话4」。
+本会话任务（1 件，Kimi 亲自不派子代理）：
+① T11 全量验收收官：对照 V2_REQUIREMENTS.md §5 全 48 条逐条销号（✅/⚠️/❌+证据），
+   裁定会话4 的 4 条观察项与既有 ⚠️ 去向（观察/backlog），回写 V2_REQUIREMENTS.md 关联判定、
+   清 pageIndicatorText 死代码（改后跑门禁）、PROJECT_PLAN 焦点移交 W7。
+   K60 复用机上 fixture /sdcard/Download/w6-test-utf8.txt（书架已在架）做核心链路抽查；
+   新取证日志落 F:\Develop\code_data\qa\w6-s5\（既有证据 w6-s4\app-p17125.log）。
 设计分权：以 V2_W6_TASKS.md「设计定稿」八节为准，deepseek 零设计权。
-门禁与纪律：见 AGENTS.md 质量门/红线（子代理禁 adb；K60 真机取证 Kimi 做，流式 logcat --pid 落盘；
-设备用后停播放 state=NONE + force-stop；生产 jellyfins 永久只读）。
-交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新。
+门禁与纪律：见 AGENTS.md 质量门/红线。
+交接：收口按 AGENTS.md 五件事，提示词按统一标准填槽更新（写 W7 开工提示词）。
 ```
 
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）

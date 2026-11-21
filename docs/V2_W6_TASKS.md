@@ -1,11 +1,19 @@
 # 2.0 W6 · 阅读域（任务卡）
 
-> 状态：`ACTIVE`（2026-11-21 **W6 会话3**：T2–T6/T8/T9/T10 全部合入并 K60 取证，修复卡 T4r/T6r/T9r/T9r2 已合入；剩 T6r2 未修、T9r2 未复验、T11 收官）
+> 状态：`ACTIVE`（2026-11-22 **W6 会话4**：T6r2 已修 `b2bb8b60` 并 K60 复验全绿，T9r2 复验全绿；W6 实现/修复卡全部收口，**只剩 T11 全量验收收官**）
 > 依据：`docs/V2_REQUIREMENTS.md` §5（V2-READER 全 48 条）与 §15 波次（W6 ← W3）；设计唯一权威 `docs/V2_DESIGN.md` + 本文档「设计定稿」；token 与动效沿用 W1/W3/W4 落地件（`core/presentation/theme/`）。
 
 ## 状态块（新会话先读这里）
 
 - 分支：`codex/v2-integration`；W6 开工基线 = W5 收官 HEAD（`4219fe7e`，以 git log 为准）。
+- **会话4（2026-11-22）**：T6r2 修复合入 `b2bb8b60`（子代理，门禁 378 单测 + ktfmt + assembleDebug 绿，Kimi 抽查 diff 通过）；K60（`8e875894`）流式 logcat 复验完成，证据 `F:\Develop\code_data\qa\w6-s4\app-p17125.log`（PID 17125，314 行自动滚动 + 58 行 TTS 高亮；首段 PID 8075 在 `app.log`，含误操作考古，仅参考）。**复验判定**（✅=真机实证）：
+  - T6r2① 书末停止 ✅：末章「本章到底→goForward 续接→第 1 次空转→第 2 次空转→判书末，停止」精确命中（00:07:15–00:07:18，key=`OEBPS/chapter-0012.xhtml`），停止后日志归零；中间章全程零空转；书末提示复用既有胶囊（`ReaderScreen.kt:624`「已到书末，自动阅读停止」）。
+  - T6r2② 速度 ✅：设定 60px/s 实测 60.06px/s（scrollY 1467→2077 ÷ 10.157s；探针 dpr=2.63）；速度实时调 300px/s 即改即生效。
+  - T9r2 ✅：「应用 TTS 句高亮失败」0 次；每句「TTS 句高亮已下发」debug 行连续（ch11 全 11 句 prog 0→0.909 + ch12 续流）；00:10:34「TTS 高亮跟随：视图 ch11→朗读 ch12」跨章跳章成功；停止（退出阅读页）后无重放/无泄漏、重开干净（清空路径 = 状态驱动 `applyTtsDecorations(navigator, emptyList())`，`ReadiumEpubView.kt:369`）。
+  - T9 顺带回归 ✅：上/下句跳句（prog 精确 ±1 句、当前句被截断即跳）；定时 15 分武装 + 倒计时标签 15→14→13 分；HOME 后 MediaSession `CinefinReaderTts` active + 前台通知（channel `reader_tts`，4 动作）+ 后台续读推进。
+  - 顺带再验：T7 导入链（旧 fixture 源文件被清 ENOENT → 重建 12 章 UTF-8 fixture 推 `/sdcard/Download/` 导入，分章 12 章正确、稳定 ID 恢复旧进度）；T10 移出书架语义。
+  - **观察项（T11 裁定）**：① 自动滚动 JS 通路每章挂载后 15 帧「JS 派发无位移」→ 切原生 `scrollBy` 兜底（T6r2 改后的 JS 真机疑似未生效；但原生实际**上屏正常**且速度精确，与 T6r「原生不上屏」旧结论相反，T11 裁定是否简化执行通路）；② 分页切滚动瞬间 chromium renderer 崩 1 次（code -1，未复现）；③ TTS 阅读页内控制条无停止按钮，唯一通知「停止」动作被 MIUI 媒体控件渲染成禁用（action4 `enabled=false`），`MEDIA_STOP` 键也未被消费 → 当前停止只能靠退出阅读页；④ MIUI 媒体控件 action0（上一句）同为禁用态（action1「上一首」可用）。
+  - **设备 fixture 记录**：`/sdcard/Download/w6-test-utf8.txt`（12 章 UTF-8，1–11 章各 10 句、末章 210 行）已留机且书架条目在架，T11 直接复用；取证后已停播放（Sessions Stack=0 + force-stop）。
 - **会话3（2026-11-21）**：T2–T6/T8/T9/T10 全部合入（`b84c14be`/`baa306a2`/`6c80cd9d`/`773fe87c`/`9aecc478`/`22abb8a6`/`e27070ac`/`dab1ae32`），K60 大矩阵取证完成；真机抓出 5 个缺陷，4 张修复卡合入（T4r `ac2b2d2e`、T6r `bc331698`、T9r `feae0fd3`、T9r2 `99f460ac`）。**取证判定矩阵**（✅=真机实证）：
   - T1 ✅ 全项（沉浸/唤出/关闭/下滑/返回两级/三分区/反转/关点按/双击占位）；T2 ✅（进度条拖跳 2→27 页、目录跳转+自动关闭、双击书签+列表）；T3 ✅ 冒烟（CBZ 覆盖/仿真翻页无崩、EPUB 面板只给滑动/无动画；动画曲线本身未逐帧验）；T4 ✅ 音量键+方向锁定，❌→✅ DPAD/Enter（T4r=dispatchKeyEvent 拦截，复验过）；T5 ✅ 面板新结构眼见（三组/字重/自定义色/亮度滑块，自定义色实际上屏未单独验）；T6 ✅ 分页自动翻页（跨章 30s 实跳）+暂停规则，❌→✅ EPUB 滚动档（T6r=JS scrollTop 通路+可见区选帧，日志实证滚动+跨章续接）；T7 复验 ✅（修复后 UTF-8/GBK 导入打开渲染全通）；T8 ✅ 全链（工具栏/四色/cssSelector 落盘/杀进程恢复/跳转复位渲染/标注列表）；T9 ✅ 主链（T9r 引擎回退 mibrain.speech 出声、控制条/通知/MediaSession；句高亮 T9r2 已修**未复验**）；T10 ✅（划词→搜索联动、章节名结果、跳转、导出 md 结构正确、本地书架登记、作者·进度/未读）。
   - **新发现问题**：① T6r2（未修）：末章到底后 goForward 空转不停（书末判定失效）；实测滚速 ~150px/s vs 设定 60px/s（疑 CSS px/设备 px 换算 2.5×）；② T9r2（已修 `99f460ac`，**待 K60 复验**：句高亮无失败日志、跟随跳章、停止清空）；③ T9 句高亮根因=淡入 tint 每 50ms 重启 effect 取消在途 apply + liveLocator 滚动档陈旧（T9r2 已根治）；④ 观察项：T2 loadNavigation 主线程 2.5s 卡顿（MIUIScout，大书首开）；T9 定时/上下句/后台细项未逐条验；`pageIndicatorText` 死代码（T11 清）；T4 平板方向锁定可能被 Android 16 忽略（观察）。
