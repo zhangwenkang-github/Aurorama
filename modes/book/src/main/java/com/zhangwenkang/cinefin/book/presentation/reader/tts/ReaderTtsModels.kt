@@ -79,11 +79,18 @@ internal enum class ReaderTtsStartPoint(val label: String) {
 internal data class TtsVoiceOption(val name: String, val label: String, val locale: String)
 
 /**
- * 下发给 Readium 的句高亮（W6 T9 / READER-33）：一条 Decoration 的定位 + 反解后的 tint。
+ * 下发给 Readium 的句高亮（W6 T9 / READER-33）：定位 + 淡入起止 tint。
  *
- * tint 随 200ms 淡入量化变化，因此整体作为状态对象比较（相等即不重下发）。
+ * W6 T9r2：200ms 淡入改由导航器侧在同一个 effect 内分档下发（[fadeFromTint] → [fadeToTint]）， 句高亮状态本身只随「句
+ * locator」变化——避免 tint 每 50ms 变化把在途下发取消掉。
  */
-internal data class ReaderTtsDecoration(val locator: Locator, val tintArgb: Int)
+internal data class ReaderTtsDecoration(
+    val locator: Locator,
+    /** 淡入起点：页面底色上的 tint（不可见）。 */
+    val fadeFromTint: Int,
+    /** 淡入终点：18% accent 反解后的 tint。 */
+    val fadeToTint: Int,
+)
 
 /** 朗读状态快照：Compose 控制条、前台通知与单元测试共用同一份结构。 */
 internal data class ReaderTtsUiState(

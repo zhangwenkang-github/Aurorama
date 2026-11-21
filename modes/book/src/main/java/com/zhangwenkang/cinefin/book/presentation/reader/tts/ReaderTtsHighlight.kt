@@ -8,6 +8,11 @@ internal const val ReaderTtsTemplateAlpha = 0.28f
 /** 朗读句底色 = 阅读域 accent 18%（定稿六 §3 / 定稿八「TTS 句高亮」）。 */
 internal const val ReaderTtsHighlightAlpha = 0.18f
 
+/** 200ms 底色淡入的量化档数与步长（定稿八）：4 档 × 50ms。 */
+internal const val ReaderTtsHighlightFadeSteps = 4
+
+internal const val ReaderTtsHighlightFadeStepMs = 50L
+
 /**
  * 朗读句高亮的 tint 反解（定稿六 §3：accent 18% 底色）。
  *
@@ -39,4 +44,19 @@ internal object ReaderTtsHighlight {
     /** 淡入进度（0–1）→ tint：0 = 页面底色（不可见），1 = 18% accent。 */
     fun fadeTint(accentArgb: Int, surfaceArgb: Int, progress: Float): Int =
         tint(accentArgb, surfaceArgb, ReaderTtsHighlightAlpha * progress.coerceIn(0f, 1f))
+
+    /**
+     * 两个 tint 之间按通道线性插值（W6 T9r2 的 200ms 淡入由导航器侧分档下发用）。
+     *
+     * 纯整数运算：`fraction = 0` 取 [from]，`fraction = 1` 取 [to]，越界自动收进区间。
+     */
+    fun lerpArgb(from: Int, to: Int, fraction: Float): Int {
+        val f = fraction.coerceIn(0f, 1f)
+        fun channel(shift: Int): Int {
+            val start = (from shr shift) and 0xFF
+            val end = (to shr shift) and 0xFF
+            return (start + (end - start) * f).roundToInt().coerceIn(0, 255)
+        }
+        return (0xFF shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
+    }
 }

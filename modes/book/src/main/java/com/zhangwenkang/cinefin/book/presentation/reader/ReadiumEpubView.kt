@@ -30,10 +30,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentContainerView
 import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsDecoration
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsHighlight
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsHighlightFadeStepMs
+import com.zhangwenkang.cinefin.book.presentation.reader.tts.ReaderTtsHighlightFadeSteps
 import com.zhangwenkang.cinefin.core.presentation.theme.rememberReduceMotionEnabled
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
@@ -60,6 +64,9 @@ private const val NAVIGATOR_TAG = "CinefinEpubNavigator"
 private const val EPUB_TTS_DECORATION_GROUP = "tts"
 
 private const val EPUB_TTS_DECORATION_ID = "tts-current-sentence"
+
+/** W6 T9r2：单次高亮下发的等待上限（跨资源 apply 卡住时不拖住淡入链路）。 */
+private const val TTS_DECORATION_APPLY_TIMEOUT_MS = 2_000L
 
 /** 选区稳定去抖（spike：selectionchange 约 120ms 去抖）。 */
 private const val EPUB_SELECTION_DEBOUNCE_MS = 120L
@@ -186,6 +193,8 @@ internal fun ReadiumEpubView(
         var selectionCaptureJob by remember { mutableStateOf<Job?>(null) }
         // 当前是否存在选区：让「有选区时的第一次单击」只用来取消选区，不误翻页。
         var selectionActive by remember { mutableStateOf(false) }
+        // W6 T9r2：最近一次上报的位置键——用来给「导航器权威位置」与 onPageChanged 去重。
+        var lastReportedLocatorKey by remember { mutableStateOf<String?>(null) }
 
         /**
          * 选区快照：ActionMode（选择手柄出现 / 菜单刷新）与注入 JS 的 selectionchange 都走这里。
@@ -255,6 +264,7 @@ internal fun ReadiumEpubView(
                     locator: Locator,
                 ) {
                     liveLocator = locator
+                    lastReportedLocatorKey = epubLocatorKey(locator)
                     currentOnLocationChanged.value(locator)
                     if (decorationsSupported) {
                         // selectionchange 监听是逐文档注册的：换页后补注一次（失败不影响阅读）。
@@ -284,6 +294,20 @@ internal fun ReadiumEpubView(
             val currentNavigator = navigator ?: return@LaunchedEffect
             currentNavigator.go(target, animated = true)
             currentOnJumpHandled.value()
+        }
+
+        // W6 T9r2：把导航器的权威位置持续上报（滚动档也更新）。
+        // 只靠 PaginationListener.onPageChanged 时，滚动档的 `liveLocator` 会停在进入时的位置——
+        // 真机症状：书停在第三章，TTS「从章首」却按第一章解析、跨章跟随也判成同章而不跳。
+        LaunchedEffect(navigator) {
+            val currentNavigator = navigator ?: return@LaunchedEffect
+            currentNavigator.currentLocator.collect { locator ->
+                val key = epubLocatorKey(locator)
+                if (key == lastReportedLocatorKey) return@collect
+                lastReportedLocatorKey = key
+                liveLocator = locator
+                currentOnLocationChanged.value(locator)
+            }
         }
 
         // 导航器就绪时上报当前位置：用户不翻页也能直接加书签（不触发进度写入）。
@@ -329,25 +353,54 @@ internal fun ReadiumEpubView(
             onDispose { currentNavigator?.removeDecorationListener(decorationListener) }
         }
 
-        // W6 T9（READER-33）：朗读句高亮——独立 group，整组替换；tint 已按模板 0.28 反解成 18% accent，
-        // 淡入由调用方量化 tint（本层只负责下发）。不可高亮（FXL）时直接跳过。
-        LaunchedEffect(navigator, ttsHighlight, decorationsSupported) {
+        // W6 T9r2（READER-33）：朗读句高亮 = 状态驱动 + 单协程。
+        //
+        // ① 只以「句 locator」为 key：200ms 淡入在同一个协程里顺序下发 tint，不再随 tint 变化重启
+        //    effect（真机曾因每 50ms 取消在途的 `applyDecorations`，每条都抛
+        //    LeftCompositionCancellationException，高亮从未上屏）；
+        // ② 句在别的资源里时先把导航器带过去（起点「从章首」/ 跨章续读），否则高亮落在不可见资源上；
+        // ③ 取消原样抛回（不算失败），真正的异常才记日志。
+        LaunchedEffect(navigator, ttsHighlight?.locator, decorationsSupported) {
             val currentNavigator = navigator ?: return@LaunchedEffect
             if (!decorationsSupported) return@LaunchedEffect
-            val decorations =
-                ttsHighlight?.let { highlight ->
+            val highlight = ttsHighlight
+            if (highlight == null) {
+                applyTtsDecorations(currentNavigator, emptyList())
+                return@LaunchedEffect
+            }
+            val targetHref = highlight.locator.href.toString().substringBefore('#')
+            val currentHref =
+                currentNavigator.currentLocator.value.href.toString().substringBefore('#')
+            if (targetHref != currentHref) {
+                Timber.i("TTS 高亮跟随：视图 $currentHref → 朗读 $targetHref")
+                try {
+                    currentNavigator.go(highlight.locator, animated = false)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Timber.w(error, "TTS 高亮跟随跳转失败")
+                }
+            }
+            for (step in 1..ReaderTtsHighlightFadeSteps) {
+                delay(ReaderTtsHighlightFadeStepMs)
+                val tint =
+                    ReaderTtsHighlight.lerpArgb(
+                        highlight.fadeFromTint,
+                        highlight.fadeToTint,
+                        step / ReaderTtsHighlightFadeSteps.toFloat(),
+                    )
+                applyTtsDecorations(
+                    currentNavigator,
                     listOf(
                         Decoration(
                             EPUB_TTS_DECORATION_ID,
                             highlight.locator,
-                            Decoration.Style.Highlight(highlight.tintArgb, true),
+                            Decoration.Style.Highlight(tint, true),
                         )
-                    )
-                } ?: emptyList()
-            runCatching {
-                currentNavigator.applyDecorations(decorations, EPUB_TTS_DECORATION_GROUP)
+                    ),
+                )
             }
-                .onFailure { Timber.w(it, "应用 TTS 句高亮失败") }
+            Timber.d("TTS 句高亮已下发：$targetHref prog=${highlight.locator.locations.progression}")
         }
 
         // 创建 / 取消后收起原生选择手柄（工具栏自己的状态由调用方清）。
@@ -896,3 +949,30 @@ private fun findAutoScrollWebView(view: View?): WebView? {
     visit(root)
     return best
 }
+
+/** W6 T9r2：导航器位置键（href + position + 进度）——位置上报去重用。 */
+private fun epubLocatorKey(locator: Locator): String {
+    val progression = locator.locations.totalProgression ?: locator.locations.progression ?: 0.0
+    return "${locator.href}#${locator.locations.position ?: -1}@$progression"
+}
+
+/**
+ * W6 T9r2：TTS 句高亮的整组下发。
+ *
+ * 取消（切句 / 离开页面）原样抛回，不当失败；导航器 apply 卡住时 [TTS_DECORATION_APPLY_TIMEOUT_MS] 超时放弃——真机曾因跨资源 apply
+ * 长期不返回，被下一次切句取消后记成「应用 TTS 句高亮失败」。
+ */
+private suspend fun applyTtsDecorations(
+    navigator: EpubNavigatorFragment,
+    decorations: List<Decoration>,
+): Boolean =
+    try {
+        withTimeoutOrNull(TTS_DECORATION_APPLY_TIMEOUT_MS) {
+            navigator.applyDecorations(decorations, EPUB_TTS_DECORATION_GROUP)
+        } != null
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        Timber.w(error, "应用 TTS 句高亮失败")
+        false
+    }

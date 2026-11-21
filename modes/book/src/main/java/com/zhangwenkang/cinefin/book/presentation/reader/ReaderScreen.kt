@@ -124,11 +124,6 @@ import org.readium.r2.shared.publication.services.search.SearchService
 import org.readium.r2.shared.publication.services.search.search
 import timber.log.Timber
 
-/** W6 T9：句高亮的 200ms 淡入量化档数（每档 50ms 重下发一次 Decoration，定稿八）。 */
-private const val TTS_HIGHLIGHT_FADE_STEPS = 4
-
-private const val TTS_HIGHLIGHT_FADE_STEP_MS = 50L
-
 /**
  * 阅读页（§9 Compose 落地）：外壳（顶栏 / 加载 / 错误态 / 设置面板）全部走 core 组件。
  *
@@ -657,7 +652,6 @@ fun ReaderScreen(
     // 最近一次上报位置：TTS 起点与「点按正文跳转朗读位置」都以可见位置为准。
     var liveLocator by remember(bookKey) { mutableStateOf<Locator?>(null) }
     var ttsReanchorPending by remember(bookKey) { mutableStateOf(false) }
-    var ttsFadeStep by remember(bookKey) { mutableIntStateOf(4) }
     var ttsServiceRunning by remember(bookKey) { mutableStateOf(false) }
     // W6 T9r：无可用 TTS 引擎时的用户可见提示（非阻塞，阅读不受影响）。
     var ttsEngineError by remember(bookKey) { mutableStateOf<String?>(null) }
@@ -807,15 +801,8 @@ fun ReaderScreen(
         ttsReanchorPending = false
         reanchorTtsToViewport()
     }
-    // 跨章自动衔接：当前朗读句换了资源就把视图跟过去（同章内不打扰用户翻页）。
-    LaunchedEffect(ttsState.active?.chapterIndex) {
-        val sentence = ttsState.active ?: return@LaunchedEffect
-        val currentHref =
-            liveLocator?.href?.toString()?.substringBefore('#') ?: return@LaunchedEffect
-        if (currentHref == sentence.href.substringBefore('#')) return@LaunchedEffect
-        jumpToPosition(sentence.progression ?: 0.0, sentence.locatorJson)
-    }
-    // 句高亮：真正开口后才显示；200ms 底色淡入按 4 档量化重下发（WebView 内无补间，定稿八）。
+    // 句高亮：真正开口后才显示。W6 T9r2：200ms 淡入改由导航器侧分档下发（同一个 effect 内），
+    // 这里只提供「起点 tint → 终点 tint」，句高亮状态仅随句 locator 变化。
     val ttsHighlightLocator =
         remember(ttsState.active?.locatorJson, ttsState.highlightVisible) {
             if (!ttsState.highlightVisible) null
@@ -824,25 +811,15 @@ fun ReaderScreen(
                     runCatching { Locator.fromJSON(JSONObject(json)) }.getOrNull()
                 }
         }
-    LaunchedEffect(ttsHighlightLocator) {
-        ttsFadeStep = 0
-        if (ttsHighlightLocator == null) return@LaunchedEffect
-        repeat(TTS_HIGHLIGHT_FADE_STEPS) { step ->
-            delay(TTS_HIGHLIGHT_FADE_STEP_MS)
-            ttsFadeStep = step + 1
-        }
-    }
     val ttsDecoration =
-        remember(ttsHighlightLocator, ttsFadeStep, effectiveSettings, systemDark) {
+        remember(ttsHighlightLocator, effectiveSettings, systemDark) {
             ttsHighlightLocator?.let { locator ->
+                val accentArgb = effectiveSettings.accentColor(systemDark).toArgb()
+                val surfaceArgb = effectiveSettings.surfaceColor(systemDark).toArgb()
                 ReaderTtsDecoration(
                     locator = locator,
-                    tintArgb =
-                        ReaderTtsHighlight.fadeTint(
-                            effectiveSettings.accentColor(systemDark).toArgb(),
-                            effectiveSettings.surfaceColor(systemDark).toArgb(),
-                            ttsFadeStep / TTS_HIGHLIGHT_FADE_STEPS.toFloat(),
-                        ),
+                    fadeFromTint = ReaderTtsHighlight.fadeTint(accentArgb, surfaceArgb, 0f),
+                    fadeToTint = ReaderTtsHighlight.fadeTint(accentArgb, surfaceArgb, 1f),
                 )
             }
         }

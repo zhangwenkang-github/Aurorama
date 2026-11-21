@@ -45,4 +45,23 @@ class ReaderTtsHighlightTest {
             ReaderTtsHighlight.fadeTint(accent, surface, 1f),
         )
     }
+
+    @Test
+    fun `tint 线性插值端点与中点`() {
+        val from = ReaderTtsHighlight.fadeTint(accent, surface, 0f)
+        val to = ReaderTtsHighlight.fadeTint(accent, surface, 1f)
+        assertEquals(from, ReaderTtsHighlight.lerpArgb(from, to, 0f))
+        assertEquals(to, ReaderTtsHighlight.lerpArgb(from, to, 1f))
+        // 越界自动收进 [0,1]，不会溢出通道。
+        assertEquals(from, ReaderTtsHighlight.lerpArgb(from, to, -1f))
+        assertEquals(to, ReaderTtsHighlight.lerpArgb(from, to, 2f))
+        val middle = ReaderTtsHighlight.lerpArgb(from, to, 0.5f)
+        for (shift in intArrayOf(16, 8, 0)) {
+            val f = (from shr shift) and 0xFF
+            val t = (to shr shift) and 0xFF
+            val m = (middle shr shift) and 0xFF
+            assertEquals((f + t) / 2.0, m.toDouble(), 1.0)
+        }
+        assertEquals(0xFF, (middle shr 24) and 0xFF)
+    }
 }
