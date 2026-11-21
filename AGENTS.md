@@ -47,12 +47,13 @@
 - 不新建零散 .md；新需求进 `V2_REQUIREMENTS.md`，新进度进对应波次文档。
 - 备份：文档大改后或每周 `pwsh tools/backup-docs.ps1`。
 
-## 收口（每次任务结束做四件事）
+## 收口（每次任务结束做五件事）
 
 1. 回写波次/线文档状态块 + `PROJECT_PLAN.md` 对应行。
 2. engramory checkpoint：有持久价值才写记忆，并报告 added/updated/archived/skipped。
 3. 改过代码就跑 `graphify update .`。
 4. 最终回复说清：结论、commit/SHA、验证过什么、未完成/BLOCKED、下一步入口。不要只说"完成"。
+5. **交接提示词（2026-11-21 用户拍板，此后每次交接必做）**：为下一任务/下一波次写一段可直接粘贴的开工提示词，放在 `PROJECT_PLAN.md` 当前焦点节（波次文档已建则放其状态块）。必备要素：角色与工作区/分支、开工读序、现状（HEAD 以 git log 为准 + 上波判定）、本任务范围与执行顺序、设计分权口径、门禁与真机纪律、红线。
 
 ## graphify
 

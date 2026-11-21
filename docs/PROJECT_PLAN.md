@@ -44,6 +44,30 @@ Cinefin = 基于 **Findroid**（GPL-3.0）改造的**自用 Jellyfin 客户端**
 1. **2.0.0 W5 音乐域正式收官（2026-11-21，会话6）**：T12 Auto DJ（merge `eef7feba`，含真机返修：ENDED 接缝改 `playFromQueueIndex` 起播）合入，集成门禁绿；K60 四场景（默认关/续播+上报链/睡眠闸门/断网静默）与观感补验 5 项（MUSIC-26/41/44/45/49）全过；全波判定 50 条 = ✅47/⚠️3/❌0，残项已裁定去向。**下一焦点：W6 阅读器增强**（开工前读 `V2_REQUIREMENTS.md` 对应域与 `V2_DESIGN.md`，沿用波次制：T0 现状核对 → 设计定稿 → 任务卡）。
 2. **主仓工作区卫生已清（2026-11-18）**：v1.4.0 实际已于 2026-11-02 发布（tag + GitHub Release 均在）；master 已推送至 `d7c309f0`（发布材料入库 + docs 精简线 rebase 到 1.4.1，1.4.1 过程日志归档 `docs/archive/2026-11/PLAYER_PLAN.full-20261118-141.md`）。
 
+### W6 开工提示词（新会话直接粘贴）
+
+```
+继续 Aurorama 2.0.0 W6 阅读域开工会话。你是主负责人/技术总监 Kimi，实现派 deepseek 子代理。
+工作区：F:\Develop\code_data\work_tree\Aurorama\v2-merge-141（分支 codex/v2-integration）。
+开工读序：AGENTS.md → docs/PROJECT_PLAN.md 焦点节 → docs/V2_REQUIREMENTS.md §5（V2-READER
+全 48 条）与 §15 波次表（W6 阅读域 ← W3）→ docs/V2_DESIGN.md → 记忆库 MEMORY.md。
+W5 参考口径（只读状态块，不通读）：docs/V2_W5_TASKS.md。
+现状：W5 音乐域已正式收官（2026-11-21，HEAD 以 git log 为准），全波判定 50 条 = ✅47/⚠️3/❌0；
+三条 ⚠️ 已有去向（18 渐进加载→W7 观察、35 内嵌歌词/RG 入库→backlog、49 本地缺失标记观感→观察项）。
+本会话任务（沿用波次制，一天做不完的回写状态后交接）：
+① W6-T0 现状核对：§5 全 48 条逐条核对 modes/book 现状（✅/⚠️/❌+代码位置归证），
+   阅读器模块在 modes/book，设计 token 与动效沿用 W3/W4 落地件；
+② 设计定稿：视觉/动效/布局/交互规格由 Kimi 亲自定稿（可借助设计类 skill），deepseek 零设计权；
+③ 任务卡定稿：每卡自包含（目标/文件边界/验收要点/门禁/红线），新建 docs/V2_W6_TASKS.md
+   （状态块在顶部），本提示词移入其状态块存档。
+纪律：每任务一子代理一 commit；子代理禁 adb，只模块单测+ktfmtCheck+构建（--max-workers=2）；
+核心链路 K60（8e875894）真机取证由 Kimi 做——行为日志一律流式 adb logcat --pid=<pid> 落盘
+（dump 会被 MediaCodec 刷屏冲掉；Timber tag=调用类名；PID 随重装变更需重开流）；
+装机前核对 APK mtime 晚于目标合并；设备用后停播放（state=NONE + force-stop）。
+红线：生产 jellyfins.zhangwenkang.com 永久只读；只删自己创建的文件。
+交接：收口按 AGENTS.md 五件事，含为下一任务写开工提示词（放 PROJECT_PLAN 焦点节）。
+```
+
 ## 5. 文档治理与备份（细则见 `AGENTS.md`）
 
 - 三层：常驻（本文件 ≤150 行）/ 波次与线文档（状态块在顶部，超 ~1500 行拆历史到 archive）/ 存档 `docs/archive/YYYY-MM/`。
