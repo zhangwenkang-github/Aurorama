@@ -68,6 +68,8 @@ fun ItemCard(
     onServerImageFailed: (() -> Unit)? = null,
     /** W83 #36：家庭视频库显式开启续播进度线；默认 false = 横版卡仍沿用既有原始进度口径。 */
     showResumeProgress: Boolean = false,
+    /** W6-T10 书架增强：标题下的附加信息行（`作者 · 42%` / `未读`）；null = 不显示额外行（既有调用零改动）。 */
+    extraMetaLine: String? = null,
 ) {
     val colors = LocalCinefinColors.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -162,6 +164,15 @@ fun ItemCard(
                         item.indexNumber,
                         item.name,
                     ),
+                style = CinefinType.BodySmall,
+                color = colors.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else if (!extraMetaLine.isNullOrBlank()) {
+            // W6-T10：书架条目补作者与阅读进度（定稿七 §3）。
+            Text(
+                text = extraMetaLine,
                 style = CinefinType.BodySmall,
                 color = colors.onSurfaceVariant,
                 maxLines = 1,

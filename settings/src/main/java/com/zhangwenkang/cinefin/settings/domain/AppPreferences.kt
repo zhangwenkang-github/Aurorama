@@ -338,6 +338,20 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val readerTxtChapterRegex =
         Preference("pref_reader_txt_chapter_regex", TxtChapterRules.DEFAULT_CHAPTER_REGEX)
 
+    /**
+     * 书架「移出」的服务器条目（W6-T10，READER-39）：**纯本地隐藏标记**，不写 / 不删服务器数据（红线）。
+     *
+     * 值 = Jellyfin itemId 字符串集合；「加入书架」= 从集合移除。
+     */
+    val readerShelfHiddenIds = Preference<Set<String>>("pref_reader_shelf_hidden", emptySet())
+
+    /**
+     * 本地书架登记（W6-T10，READER-39）：SAF 导入的单文件书籍（`uri` + `name` + 加入时间 JSON 数组）。
+     *
+     * 只存索引，**不拷贝源文件**；读取失败回落空列表。格式见 `LocalShelfRegistry`。
+     */
+    val readerLocalShelf = Preference("pref_reader_local_shelf", "")
+
     // Migrations
     val mpvMigrated = Preference("mpv_migrated", false)
 

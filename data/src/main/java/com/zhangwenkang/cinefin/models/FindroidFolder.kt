@@ -3,6 +3,7 @@ package com.zhangwenkang.cinefin.models
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
 import java.util.UUID
 import org.jellyfin.sdk.model.api.BaseItemDto
+import org.jellyfin.sdk.model.api.PersonKind
 
 data class FindroidFolder(
     override val id: UUID,
@@ -17,6 +18,8 @@ data class FindroidFolder(
     override val runtimeTicks: Long = 0L,
     override val playbackPositionTicks: Long = 0L,
     override val playedPercentage: Double? = null,
+    /** W6-T10：书籍作者（`PersonKind.AUTHOR`）；非书籍条目为空列表。 */
+    override val authors: List<String> = emptyList(),
     override val unplayedItemCount: Int?,
     override val images: FindroidImages,
     override val chapters: List<FindroidChapter> = emptyList(),
@@ -42,6 +45,11 @@ fun BaseItemDto.toFindroidFolder(jellyfinRepository: JellyfinRepository): Findro
         playedPercentage = userData?.playedPercentage,
         unplayedItemCount = userData?.unplayedItemCount,
         images = toFindroidImages(jellyfinRepository),
+        authors =
+            people
+                ?.filter { it.type == PersonKind.AUTHOR }
+                ?.mapNotNull { it.name?.takeIf(String::isNotBlank) }
+                .orEmpty(),
         kind = type?.name,
         sourcePath = path,
     )

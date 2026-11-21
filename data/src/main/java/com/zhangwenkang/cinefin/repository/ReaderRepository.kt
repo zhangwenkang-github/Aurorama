@@ -92,6 +92,14 @@ interface ReaderRepository {
 
     suspend fun getReadingProgress(itemId: UUID): ReadingProgress?
 
+    /**
+     * W6-T10（READER-39）：本机全部阅读进度的快照，按 `updatedAt` 倒序（书架「最近阅读」行）。
+     *
+     * 只读本地 `reader/progress.json`（不逐本查服务器）：最近阅读是「你在这台设备上读到哪」， 离线与本地导入书同样适用。默认空列表 = 既有实现 / 测试 fake
+     * 零改动。
+     */
+    suspend fun listReadingProgress(limit: Int = 50): List<ReadingProgress> = emptyList()
+
     suspend fun saveReadingProgress(itemId: UUID, progress: ReadingProgress)
 
     /** 联网回传待同步进度，返回成功条数（EB-9）。 */

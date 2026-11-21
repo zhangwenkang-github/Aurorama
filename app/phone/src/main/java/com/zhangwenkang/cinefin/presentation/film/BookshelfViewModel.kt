@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.zhangwenkang.cinefin.models.CollectionType
 import com.zhangwenkang.cinefin.models.FindroidCollection
+import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.utils.parseStoredLibraryId
 import com.zhangwenkang.cinefin.presentation.utils.storedLibraryIdValue
 import com.zhangwenkang.cinefin.repository.JellyfinRepository
+import com.zhangwenkang.cinefin.repository.ReaderRepository
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
@@ -46,15 +48,53 @@ internal data class BookshelfLibrarySelection(
     val libraries: List<FindroidCollection> = emptyList(),
 )
 
+/** 书架增强数据（W6-T10）：最近阅读、本地书架、移出标记与卡片附加信息行。 */
+internal data class BookshelfExtras(
+    val recent: List<BookshelfRecentEntry> = emptyList(),
+    val localBooks: List<BookshelfLocalBook> = emptyList(),
+    /** `pref_reader_shelf_hidden`：服务器书目的本地隐藏标记（移出书架）。 */
+    val hiddenIds: Set<String> = emptySet(),
+    /** 条目附加信息行（`作者 · 42%` / `未读`），键 = 服务器 itemId。 */
+    val metaLineById: Map<UUID, String> = emptyMap(),
+    /** 阅读进度百分比缓存（本地书架卡片用）。 */
+    val progressPercentByItemId: Map<UUID, Int> = emptyMap(),
+    /** 服务器书目本体（最近阅读卡片点击 → 详情 / 阅读器）。 */
+    val itemsById: Map<UUID, FindroidItem> = emptyMap(),
+)
+
+/** 书架一次加载的服务器书目上限（最近阅读归因 + 作者/进度映射的取样窗口）。 */
+internal const val BOOKSHELF_SERVER_BOOK_LIMIT: Int = 200
+
+/** 最近阅读取的本机进度条数上限（再按 [BOOKSHELF_RECENT_LIMIT] 截显示数）。 */
+internal const val BOOKSHELF_PROGRESS_LIMIT: Int = 80
+
+/** 书架卡片投影：书名 / 封面 URL / 作者（`FindroidFolder.authors`，非书籍为空）。 */
+private fun FindroidItem.toShelfServerBook(): BookshelfServerBook =
+    BookshelfServerBook(
+        itemId = id,
+        title = name,
+        coverUrl = images.primary?.toString(),
+        authors = authors,
+    )
+
 @HiltViewModel
 class BookshelfViewModel
 @Inject
 constructor(
     private val repository: JellyfinRepository,
     private val appPreferences: AppPreferences,
+    private val readerRepository: ReaderRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow<BookshelfState>(BookshelfState.Loading)
     val state = _state.asStateFlow()
+
+    /**
+     * 书架增强（W6-T10，READER-39）：最近阅读 / 本地书架 / 移出标记 / 条目附加信息。
+     *
+     * 与 [BookshelfState] 分开：库解析失败时增强数据仍可显示（本地书不依赖服务器），也避免状态机多一层壳。
+     */
+    private val _extras = MutableStateFlow(BookshelfExtras())
+    internal val extras = _extras.asStateFlow()
 
     /** 顶栏「库选择」的候选项 + 落到实处的选择（临时库视图只显示路由指定的库，仍照常解析偏好）。 */
     private val _librarySelection = MutableStateFlow(BookshelfLibrarySelection(selectedId = null))
@@ -90,29 +130,140 @@ constructor(
         loadedLibraryKey = libraryId
         viewModelScope.launch {
             _state.value = BookshelfState.Loading
-            _state.value =
-                runCatching {
-                        val libraries = repository.getLibraries()
-                        val selection =
-                            resolveBookshelfLibrarySelection(
-                                libraries = libraries,
-                                storedId =
-                                    appPreferences.getValue(appPreferences.uiBookshelfLibraryId),
-                            )
-                        _librarySelection.value = selection
-                        resolveBooksLibrary(
-                            libraries = libraries,
-                            temporaryLibraryId = libraryId,
-                            preferredLibraryId = selection.selectedId,
-                        )
-                    }
-                    .fold(
-                        onSuccess = { library ->
-                            library?.let { BookshelfState.Ready(it) } ?: BookshelfState.Empty
-                        },
-                        onFailure = { BookshelfState.Failed(it) },
+            val resolved = runCatching {
+                val libraries = repository.getLibraries()
+                val selection =
+                    resolveBookshelfLibrarySelection(
+                        libraries = libraries,
+                        storedId = appPreferences.getValue(appPreferences.uiBookshelfLibraryId),
                     )
+                _librarySelection.value = selection
+                resolveBooksLibrary(
+                    libraries = libraries,
+                    temporaryLibraryId = libraryId,
+                    preferredLibraryId = selection.selectedId,
+                )
+            }
+            _state.value =
+                resolved.fold(
+                    onSuccess = { library ->
+                        library?.let { BookshelfState.Ready(it) } ?: BookshelfState.Empty
+                    },
+                    onFailure = { BookshelfState.Failed(it) },
+                )
+            // 增强数据不阻塞主状态：解析失败也照常刷新（本地书架 + 最近阅读与服务器无关的部分仍可用）。
+            loadShelfExtras(resolved.getOrNull())
         }
+    }
+
+    /**
+     * 刷新书架增强数据（W6-T10）：最近阅读行 + 条目作者/进度 + 移出标记 + 本地书架。
+     *
+     * [library] 为空（无书籍库）时仍读取本地书架与最近阅读（本地书不依赖服务器）。
+     */
+    private suspend fun loadShelfExtras(library: FindroidCollection?) {
+        val hiddenIds = appPreferences.getValue(appPreferences.readerShelfHiddenIds)
+        val localBooks =
+            LocalShelfRegistry.decode(appPreferences.getValue(appPreferences.readerLocalShelf))
+        val progress = runCatching {
+            readerRepository.listReadingProgress(limit = BOOKSHELF_PROGRESS_LIMIT)
+        }
+            .getOrDefault(emptyList())
+        val serverItems =
+            library
+                ?.let { books ->
+                    runCatching {
+                            repository.getItems(
+                                parentId = books.id,
+                                includeTypes = listOf(BaseItemKind.BOOK),
+                                recursive = true,
+                                limit = BOOKSHELF_SERVER_BOOK_LIMIT,
+                            )
+                        }
+                        .getOrDefault(emptyList())
+                }
+                .orEmpty()
+        val serverBooks = serverItems.map { it.toShelfServerBook() }
+        val percentById =
+            progress
+                .mapNotNull { item ->
+                    bookshelfProgressPercent(item.progression)?.let { item.itemId to it }
+                }
+                .toMap()
+        _extras.value =
+            BookshelfExtras(
+                recent =
+                    bookshelfRecentEntries(
+                        progress = progress,
+                        serverBooks = bookshelfServerBooks(serverBooks),
+                        localBooks = localBooks,
+                    ),
+                localBooks = localBooks,
+                hiddenIds = hiddenIds,
+                metaLineById =
+                    serverBooks.associate {
+                        it.itemId to bookshelfMetaLine(it.authors, percentById[it.itemId])
+                    },
+                progressPercentByItemId = percentById,
+                itemsById = serverItems.associateBy { it.id },
+            )
+    }
+
+    /** 手动刷新增强数据（导入成功后 / 从阅读器返回）。 */
+    fun refreshExtras() {
+        viewModelScope.launch { loadShelfExtras((state.value as? BookshelfState.Ready)?.library) }
+    }
+
+    /** 「移出书架」= 本地隐藏标记（服务器数据不动，红线）。 */
+    fun hideFromShelf(itemId: UUID) {
+        appPreferences.setValue(
+            appPreferences.readerShelfHiddenIds,
+            bookshelfToggleHidden(
+                hiddenIds = appPreferences.getValue(appPreferences.readerShelfHiddenIds),
+                itemId = itemId,
+                hidden = true,
+            ),
+        )
+        refreshExtras()
+    }
+
+    /** 「加入书架」= 清掉本地隐藏标记。 */
+    fun addToShelf(itemId: UUID) {
+        appPreferences.setValue(
+            appPreferences.readerShelfHiddenIds,
+            bookshelfToggleHidden(
+                hiddenIds = appPreferences.getValue(appPreferences.readerShelfHiddenIds),
+                itemId = itemId,
+                hidden = false,
+            ),
+        )
+        refreshExtras()
+    }
+
+    /** 导入书籍登记进本地书架（只存 URI / 显示名，不拷贝源文件）。 */
+    fun addLocalBook(uri: String, name: String) {
+        val book =
+            BookshelfLocalBook(uri = uri, name = name, addedAtMs = System.currentTimeMillis())
+        appPreferences.setValue(
+            appPreferences.readerLocalShelf,
+            LocalShelfRegistry.withBook(
+                raw = appPreferences.getValue(appPreferences.readerLocalShelf),
+                book = book,
+            ),
+        )
+        refreshExtras()
+    }
+
+    /** 本地书「移出书架」= 删登记，不删源文件。 */
+    fun removeLocalBook(uri: String) {
+        appPreferences.setValue(
+            appPreferences.readerLocalShelf,
+            LocalShelfRegistry.withoutUri(
+                raw = appPreferences.getValue(appPreferences.readerLocalShelf),
+                uri = uri,
+            ),
+        )
+        refreshExtras()
     }
 
     /** 顶栏「库选择」（W54-C）：null = 自动。写偏好触发监听器即时重解析（与视频页同一机制）。 */

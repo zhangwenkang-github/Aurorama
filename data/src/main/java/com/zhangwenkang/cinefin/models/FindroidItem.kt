@@ -27,6 +27,15 @@ interface FindroidItem {
     val playedPercentage: Double?
         get() = null
 
+    /**
+     * W6-T10（READER-39）：作者 / 创作者名（书籍条目才可能有）。
+     *
+     * 来源 = Jellyfin `People` 里 `PersonKind.AUTHOR` 的条目；只有书籍查询会请求该字段（见 `getItems` 的 fields），
+     * 其余类型保持空列表，既有卡片不吃额外网络开销。
+     */
+    val authors: List<String>
+        get() = emptyList()
+
     val unplayedItemCount: Int?
     val images: FindroidImages
     val chapters: List<FindroidChapter>

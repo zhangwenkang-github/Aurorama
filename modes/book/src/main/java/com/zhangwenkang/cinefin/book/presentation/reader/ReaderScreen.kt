@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
@@ -80,14 +81,25 @@ import com.zhangwenkang.cinefin.core.presentation.theme.LocalMediaColors
 import com.zhangwenkang.cinefin.repository.ReaderBookmark
 import com.zhangwenkang.cinefin.settings.domain.AppPreferences
 import dagger.hilt.android.EntryPointAccessors
+import java.io.File
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Layout
 import org.readium.r2.shared.publication.Locator
+import org.readium.r2.shared.publication.services.search.SearchService
+import org.readium.r2.shared.publication.services.search.search
 import timber.log.Timber
 
 /**
@@ -372,6 +384,157 @@ fun ReaderScreen(
         }
     }
 
+    // ---- W6 T10：EPUB 书内搜索（READER-31）----
+    // 执行层 = Readium 自带 `publication.search()`（按资源顺序流式返回 LocatorCollection）；
+    // 状态与生命周期留在阅读页内（与 T8 标注同一策略，不动 ReaderViewModel）。
+    val epubSearchChapters =
+        remember(tocEntries) { tocEntries.map { EpubSearchChapter(it.title, it.href) } }
+    val epubSpineHrefs =
+        remember(richDocument) {
+            epubSpineHrefs(
+                richDocument?.publication?.readingOrder?.map { it.href.toString() }.orEmpty()
+            )
+        }
+    var epubSearchState by remember(bookKey) { mutableStateOf(EpubSearchUiState()) }
+    var showEpubSearch by remember(bookKey) { mutableStateOf(false) }
+    var epubSearchJob by remember(bookKey) { mutableStateOf<Job?>(null) }
+    // 命中临时高亮：一次只保留一条，3s 后撤除（定稿八「搜索命中高亮」）。
+    var epubSearchHighlight by remember(bookKey) { mutableStateOf<BookAnnotation?>(null) }
+    var epubSearchHighlightToken by remember(bookKey) { mutableIntStateOf(0) }
+    DisposableEffect(bookKey) { onDispose { epubSearchJob?.cancel() } }
+    LaunchedEffect(epubSearchHighlightToken) {
+        if (epubSearchHighlightToken == 0) return@LaunchedEffect
+        delay(EPUB_SEARCH_HIGHLIGHT_VISIBLE_MS)
+        epubSearchHighlight = null
+    }
+    val runEpubSearch: (String) -> Unit = { raw ->
+        val query = normalizeSearchQuery(raw)
+        epubSearchJob?.cancel()
+        epubSearchJob = null
+        val publication = richDocument?.publication
+        if (query.isEmpty() || publication == null) {
+            epubSearchState = EpubSearchUiState(query = query)
+        } else {
+            epubSearchState = EpubSearchUiState(query = query, running = true)
+            epubSearchJob = epubScope.launch {
+                val iterator = runCatching {
+                    publication.search(query, SearchService.Options())
+                }
+                    .getOrElse { error ->
+                        if (error is CancellationException) throw error
+                        epubSearchState =
+                            EpubSearchUiState(
+                                query = query,
+                                error = error.message ?: "搜索不可用",
+                            )
+                        return@launch
+                    }
+                if (iterator == null) {
+                    epubSearchState = EpubSearchUiState(query = query, error = "这本书暂不支持搜索")
+                    return@launch
+                }
+                var hits = emptyList<EpubSearchHit>()
+                try {
+                    while (currentCoroutineContext().isActive) {
+                        val batch = iterator.next().getOrNull()
+                        if (batch == null) {
+                            epubSearchState =
+                                epubSearchState.copy(running = false, error = "搜索中断，请重试")
+                            return@launch
+                        }
+                        val locators = batch.locators.mapNotNull { it.toEpubSearchLocator() }
+                        // 空集合 = 扫描结束（Readium 迭代器约定）。
+                        if (locators.isEmpty()) break
+                        val remaining = EPUB_SEARCH_MAX_HITS - hits.size
+                        if (remaining <= 0) break
+                        hits =
+                            hits +
+                                epubSearchHits(
+                                    locators = locators,
+                                    chapters = epubSearchChapters,
+                                    spineHrefs = epubSpineHrefs,
+                                    maxHits = remaining,
+                                )
+                        val truncated = hits.size >= EPUB_SEARCH_MAX_HITS
+                        epubSearchState =
+                            epubSearchState.copy(
+                                hits = hits,
+                                truncated = truncated,
+                                running = !truncated,
+                            )
+                        if (truncated) break
+                    }
+                    epubSearchState = epubSearchState.copy(running = false, finished = true)
+                } finally {
+                    runCatching { iterator.close() }
+                }
+            }
+        }
+    }
+    /** 命中跳转 = 书签通道 + 一次性临时高亮（Decoration 与 T8 同一组，3s 后自动撤除）。 */
+    val jumpToEpubSearchHit: (EpubSearchHit) -> Unit = { hit ->
+        jumpToPosition(
+            epubSearchJumpProgression(hit, currentProgression),
+            hit.locatorJson,
+        )
+        epubSearchHighlight =
+            BookAnnotation(
+                id = EPUB_SEARCH_HIGHLIGHT_ID,
+                bookId = epubBookId.orEmpty(),
+                chapterHref = hit.chapterHref,
+                locatorJson = hit.locatorJson,
+                highlightColor = HighlightColor.Yellow,
+                noteText = "",
+                selectedText = hit.snippet,
+                createdAtMs = 0L,
+                updatedAtMs = 0L,
+                chapterTitle = hit.chapterTitle,
+                spineIndex = hit.spineIndex,
+            )
+        epubSearchHighlightToken++
+    }
+    /** 从选区工具栏「搜索」进入：关键词 = 选中文本（≤60 字），直接开跑。 */
+    val searchEpubSelection: (String) -> Unit = { text ->
+        val keyword = text.trim().take(EPUB_SEARCH_MAX_QUERY_CHARS)
+        epubSelection = null
+        epubSelectionClearToken++
+        showEpubSearch = true
+        runEpubSearch(keyword)
+    }
+    /** Markdown 导出（READER-30）：整书标注 → `.md` 文本 + 分享 Intent（不碰服务器）。 */
+    val exportEpubAnnotations: () -> Unit = {
+        val publication = richDocument?.publication
+        if (publication != null && epubAnnotations.isNotEmpty()) {
+            val document =
+                AnnotationExportDocument(
+                    bookTitle = title,
+                    bookAuthor =
+                        publication.metadata.authors.mapNotNull { it.name }.joinToString("、"),
+                    progressPercent = annotationExportProgressPercent(currentProgression),
+                    exportedAtText = EPUB_EXPORT_TIME_FORMAT.format(LocalDateTime.now()),
+                    annotations = epubAnnotations,
+                )
+            val markdown = buildAnnotationMarkdown(document)
+            val fileName = annotationExportFileName(title)
+            epubScope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        writeAnnotationExport(context, fileName, markdown)
+                    }
+                }
+                    .onSuccess { file ->
+                        shareAnnotationExport(context, document, markdown, file)
+                        epubNotice = "已导出 ${file.name}"
+                    }
+                    .onFailure { error ->
+                        Timber.w(error, "导出标注失败")
+                        epubNotice = "导出失败：${error.message ?: "写入文件出错"}"
+                    }
+                epubNoticeToken++
+            }
+        }
+    }
+
     // ---- W6 T6：自动阅读（READER-12）----
     // 节拍器是纯逻辑（AutoAdvanceEngine）；执行层（翻页 / 滚动帧循环）在 ReadiumEpubView / SimpleBookView 内，
     // 这里只负责参数、暂停规则与「更多」面板入口。
@@ -517,7 +680,10 @@ fun ReaderScreen(
                                                 controlsVisible = !controlsVisible
                                             },
                                             onDoubleTapBookmark = onDoubleTapToggleBookmark,
-                                            epubAnnotations = epubAnnotations,
+                                            // W6 T10：临时命中高亮复用标注 Decoration 组（3s 后随状态撤除）。
+                                            epubAnnotations =
+                                                epubSearchHighlight?.let { epubAnnotations + it }
+                                                    ?: epubAnnotations,
                                             onSelectionChanged = { selection ->
                                                 epubSelection = selection
                                             },
@@ -561,7 +727,7 @@ fun ReaderScreen(
                                                         }
                                                     }
                                                 EpubSelectionToolbar(
-                                                    inBookSearchAvailable = false,
+                                                    inBookSearchAvailable = richDocument != null,
                                                     containerColor = chromeColor,
                                                     contentColor = contentColor,
                                                     onAction = { action ->
@@ -600,8 +766,9 @@ fun ReaderScreen(
                                                                 epubSelection = null
                                                                 epubSelectionClearToken++
                                                             }
-                                                            EpubSelectionAction.Highlight,
-                                                            EpubSelectionAction.Search -> Unit
+                                                            EpubSelectionAction.Highlight -> Unit
+                                                            EpubSelectionAction.Search ->
+                                                                searchEpubSelection(selection.text)
                                                         }
                                                     },
                                                     onPickColor = { color ->
@@ -968,6 +1135,37 @@ fun ReaderScreen(
                 }
             }
 
+            // W6 T10：EPUB 书内搜索（READER-31）。关面板不取消扫描，重开仍能看到结果。
+            if (showEpubSearch) {
+                ModalBottomSheet(
+                    onDismissRequest = { showEpubSearch = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = chromeColor,
+                    contentColor = contentColor,
+                    scrimColor = CinefinTokens.Scrim.copy(alpha = CinefinTokens.ScrimAlpha),
+                    dragHandle = {
+                        Box(
+                            modifier =
+                                Modifier.padding(top = CinefinSpacing.Space3)
+                                    .size(width = 32.dp, height = 4.dp)
+                                    .clip(CinefinShapes.TwoXs)
+                                    .background(contentColor.copy(alpha = 0.24f))
+                        )
+                    },
+                ) {
+                    EpubSearchSheet(
+                        state = epubSearchState,
+                        accent = accent,
+                        contentColor = contentColor,
+                        onQueryChange = runEpubSearch,
+                        onJumpToHit = { hit ->
+                            jumpToEpubSearchHit(hit)
+                            showEpubSearch = false
+                        },
+                    )
+                }
+            }
+
             if (showAnnotations) {
                 ModalBottomSheet(
                     onDismissRequest = { showAnnotations = false },
@@ -1051,13 +1249,14 @@ fun ReaderScreen(
                                 showBookmarks = true
                             },
                         )
-                        if (pdfToolsAvailable) {
+                        if (pdfToolsAvailable || richDocument != null) {
                             MoreActionRow(
                                 label = "书内搜索",
                                 contentColor = contentColor,
                                 onClick = {
                                     showMore = false
-                                    showSearch = true
+                                    if (pdfToolsAvailable) showSearch = true
+                                    else showEpubSearch = true
                                 },
                             )
                         }
@@ -1080,6 +1279,23 @@ fun ReaderScreen(
                                     } else {
                                         showEpubAnnotations = true
                                     }
+                                },
+                            )
+                        }
+                        // W6 T10（READER-30）：整书标注导出 Markdown（入口按定稿七 §5 放「更多」）。
+                        if (richDocument != null) {
+                            MoreActionRow(
+                                label =
+                                    if (epubAnnotations.isEmpty()) {
+                                        "导出标注（Markdown）· 暂无标注"
+                                    } else {
+                                        "导出标注（Markdown）· ${epubAnnotations.size} 条"
+                                    },
+                                contentColor = contentColor,
+                                enabled = epubAnnotations.isNotEmpty(),
+                                onClick = {
+                                    showMore = false
+                                    exportEpubAnnotations()
                                 },
                             )
                         }
@@ -1431,6 +1647,60 @@ private const val BOOKMARK_NOTICE_FADE_MS = 120
 
 /** W6 T8：复制 / 词典降级提示的停留时长（与书签提示同量级）。 */
 private const val EPUB_NOTICE_VISIBLE_MS = 900L
+
+/** W6 T10：搜索命中临时高亮的停留时长（定稿八：3s 后撤除）。 */
+private const val EPUB_SEARCH_HIGHLIGHT_VISIBLE_MS = 3_000L
+
+/** W6 T10：选区「搜索」预填关键词的最大长度。 */
+private const val EPUB_SEARCH_MAX_QUERY_CHARS = 60
+
+/** W6 T10：临时命中高亮的 Decoration id（不落盘、不进标注列表）。 */
+private const val EPUB_SEARCH_HIGHLIGHT_ID = "reader-search-hit"
+
+/** W6 T10：导出时间文案格式（本地时区）。 */
+private val EPUB_EXPORT_TIME_FORMAT: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+
+/** Readium 搜索定位 → 纯数据（片段 / 章节归因 / 跳转 JSON）。 */
+private fun Locator.toEpubSearchLocator(): EpubSearchLocator? {
+    val target = href.toString().takeIf { it.isNotBlank() } ?: return null
+    return EpubSearchLocator(
+        href = target,
+        locatorJson = runCatching { toJSON().toString() }.getOrNull() ?: return null,
+        before = text?.before.orEmpty(),
+        highlight = text?.highlight.orEmpty(),
+        after = text?.after.orEmpty(),
+        progression = locations.totalProgression,
+    )
+}
+
+/** 导出的 `.md` 落在 `filesDir/reader/exports/`（App 私有；不写服务器、不碰源文件）。 */
+private fun writeAnnotationExport(context: Context, fileName: String, markdown: String): File {
+    val dir = File(File(context.filesDir, "reader"), "exports")
+    if (!dir.isDirectory && !dir.mkdirs()) error("导出目录不可写")
+    val file = File(dir, fileName)
+    file.writeText(markdown)
+    return file
+}
+
+/** 分享导出内容：接收方直接拿到完整 Markdown 文本（文件保留在 exports 目录供回看）。 */
+private fun shareAnnotationExport(
+    context: Context,
+    document: AnnotationExportDocument,
+    markdown: String,
+    file: File,
+) {
+    val send =
+        Intent(Intent.ACTION_SEND).apply {
+            type = "text/markdown"
+            putExtra(Intent.EXTRA_SUBJECT, annotationExportShareSubject(document.bookTitle))
+            putExtra(Intent.EXTRA_TEXT, markdown)
+            putExtra(Intent.EXTRA_TITLE, file.name)
+        }
+    val chooser = Intent.createChooser(send, "导出标注")
+    if (context !is Activity) chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    context.startActivity(chooser)
+}
 
 /** W6 T8：复制选中文字到系统剪贴板（空文本不写）。 */
 private fun copyEpubSelection(context: Context, text: String) {

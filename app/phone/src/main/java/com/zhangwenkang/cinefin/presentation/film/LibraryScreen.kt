@@ -39,6 +39,7 @@ import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import androidx.paging.filter
 import com.zhangwenkang.cinefin.core.R as CoreR
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinBackToDefaultChip
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
@@ -106,6 +107,7 @@ import com.zhangwenkang.cinefin.utils.BookCoverRules
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /** W69b：进入页面时预取详情的卡片数（只取前几张可见卡，避免放大请求量）。 */
@@ -138,6 +140,14 @@ fun LibraryScreen(
     initialSortOrder: SortOrder? = null,
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
     onOpenDownloads: () -> Unit = {},
+    /** W6-T10 书架增强：条目附加信息行（`作者 · 42%` / `未读`）；null = 沿用原有元信息。 */
+    shelfMetaLine: (FindroidItem) -> String? = { null },
+    /** W6-T10 书架增强：从书架页隐藏的服务器条目（本地标记，不动服务器数据）。 */
+    hiddenItemIds: Set<UUID> = emptySet(),
+    /** W6-T10 书架增强：列表头部插槽（最近阅读 / 本地书籍行）；null = 无。 */
+    headerContent: (@Composable () -> Unit)? = null,
+    /** W6-T10 书架增强：长按条目（书架页 = 移出书架 / 详情）；null = 沿用多选长按。 */
+    onItemLongPress: ((FindroidItem) -> Unit)? = null,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     // W59：书籍封面自动生成结果（itemId → 本地绝对路径）。
@@ -168,6 +178,10 @@ fun LibraryScreen(
         onRequestBookCoverFallback = viewModel::requestBookCoverFallback,
         onPrefetchItem = viewModel::prefetchItemDetail,
         onOpenDownloads = onOpenDownloads,
+        shelfMetaLine = shelfMetaLine,
+        hiddenItemIds = hiddenItemIds,
+        headerContent = headerContent,
+        onItemLongPress = onItemLongPress,
         onAction = { action ->
             when (action) {
                 is LibraryAction.OnItemClick -> onItemClick(action.item)
@@ -205,6 +219,14 @@ private fun LibraryScreenLayout(
     onPrefetchItem: (FindroidItem) -> Unit = {},
     /** W60b：下载反馈 Snackbar「查看」→ 下载页。 */
     onOpenDownloads: () -> Unit = {},
+    /** W6-T10 书架增强：条目附加信息行（见 [LibraryScreen]）。 */
+    shelfMetaLine: (FindroidItem) -> String? = { null },
+    /** W6-T10 书架增强：书架页隐藏的服务器条目（见 [LibraryScreen]）。 */
+    hiddenItemIds: Set<UUID> = emptySet(),
+    /** W6-T10 书架增强：列表头部插槽（见 [LibraryScreen]）。 */
+    headerContent: (@Composable () -> Unit)? = null,
+    /** W6-T10 书架增强：长按条目覆盖（见 [LibraryScreen]）。 */
+    onItemLongPress: ((FindroidItem) -> Unit)? = null,
     onAction: (LibraryAction) -> Unit,
 ) {
     val safePadding = rememberSafePadding()
@@ -250,7 +272,13 @@ private fun LibraryScreenLayout(
             else -> if (widthDp >= 1600) 6 else 5
         }
 
-    val items = state.items.collectAsLazyPagingItems()
+    // W6-T10：书架页「移出」= 本地隐藏标记——在分页流上直接过滤，库计数与服务器数据都不动。
+    val pagedItems =
+        remember(state.items, hiddenItemIds) {
+            if (hiddenItemIds.isEmpty()) state.items
+            else state.items.map { paging -> paging.filter { item -> item.id !in hiddenItemIds } }
+        }
+    val items = pagedItems.collectAsLazyPagingItems()
     // W69：TTL 外重进页面时 ViewModel 只发静默重取信号——刷新保留已上屏的条目与海报，不闪空。
     LaunchedEffect(state.refreshSignal) { if (state.refreshSignal > 0) items.refresh() }
     // W69b：服务器图 404 / 取图失败 → 书籍卡回落本地生成（同一 BookCoverProvider 链路）。
@@ -439,6 +467,9 @@ private fun LibraryScreenLayout(
             Spacer(Modifier.height(CinefinSpacing.Space1))
         }
 
+        // W6-T10：书架增强头部插槽（最近阅读 / 本地书籍）。头部是页面级固定区，不随网格滚动。
+        headerContent?.invoke()
+
         // W54-B：库内容页统一下拉刷新——分页列表走 LazyPagingItems.refresh()（真实重发请求），
         // 计数与当前 tab 由 ViewModel 重取。
         PullToRefreshBox(
@@ -512,8 +543,12 @@ private fun LibraryScreenLayout(
                                             coverFallback(loadedItem)
                                         }
                                     },
+                                    // W6-T10：书架条目附加信息（作者 · 进度）。
+                                    metaLineOverride = shelfMetaLine(loadedItem),
                                     onLongClick =
-                                        if (batchMode != MediaBatchMode.NONE) {
+                                        if (onItemLongPress != null) {
+                                            { onItemLongPress(loadedItem) }
+                                        } else if (batchMode != MediaBatchMode.NONE) {
                                             {
                                                 batchSelection =
                                                     batchSelection
@@ -585,8 +620,12 @@ private fun LibraryScreenLayout(
                                             coverFallback(loadedItem)
                                         }
                                     },
+                                    // W6-T10：书架条目附加信息（作者 · 进度）。
+                                    extraMetaLine = shelfMetaLine(loadedItem),
                                     onLongClick =
-                                        if (batchMode != MediaBatchMode.NONE) {
+                                        if (onItemLongPress != null) {
+                                            { onItemLongPress(loadedItem) }
+                                        } else if (batchMode != MediaBatchMode.NONE) {
                                             {
                                                 batchSelection =
                                                     batchSelection
@@ -644,6 +683,8 @@ private fun LibraryScreenLayout(
                                 onServerImageFailed = {
                                     if (libraryType == CollectionType.Books) coverFallback(item)
                                 },
+                                // W6-T10：书架条目附加信息（作者 · 进度）。
+                                metaLineOverride = shelfMetaLine(item),
                                 downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                             )
                         }
@@ -679,6 +720,8 @@ private fun LibraryScreenLayout(
                                 onServerImageFailed = {
                                     if (libraryType == CollectionType.Books) coverFallback(item)
                                 },
+                                // W6-T10：书架条目附加信息（作者 · 进度）。
+                                extraMetaLine = shelfMetaLine(item),
                                 downloadBadge = downloadBadges[item.id] ?: DownloadBadgeInfo(),
                             )
                         }

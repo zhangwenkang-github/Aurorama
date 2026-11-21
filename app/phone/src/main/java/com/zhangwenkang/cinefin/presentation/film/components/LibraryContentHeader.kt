@@ -301,6 +301,8 @@ fun LibraryListRow(
     downloadBadge: DownloadBadgeInfo = DownloadBadgeInfo(),
     /** W69b：服务器图加载失败回调（书籍库 / 书架据此触发本地生成回落）。 */
     onServerImageFailed: (() -> Unit)? = null,
+    /** W6-T10 书架增强：元信息行覆盖（`作者 · 42%` / `未读`）；null = 沿用 [metaLine]。 */
+    metaLineOverride: String? = null,
 ) {
     val colors = LocalCinefinColors.current
     Row(
@@ -350,7 +352,7 @@ fun LibraryListRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            item.metaLine()?.let { meta ->
+            (metaLineOverride ?: item.metaLine())?.let { meta ->
                 Text(
                     text = meta,
                     style = CinefinType.BodySmall,

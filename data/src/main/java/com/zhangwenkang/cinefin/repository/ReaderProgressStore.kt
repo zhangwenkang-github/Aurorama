@@ -92,6 +92,18 @@ class ReaderProgressStore(
         }
     }
 
+    /** W6-T10：全部进度按 `updatedAt` 倒序（书架「最近阅读」）；[limit] ≤ 0 表示不限。 */
+    suspend fun list(limit: Int): List<ReadingProgress> =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                readFile()
+                    .items
+                    .sortedByDescending { it.updatedAtEpochMillis }
+                    .let { items -> if (limit > 0) items.take(limit) else items }
+                    .map { it.toProgress() }
+            }
+        }
+
     suspend fun pending(): List<ReadingProgress> =
         withContext(Dispatchers.IO) {
             mutex.withLock { readFile().items.filter { it.pendingSync }.map { it.toProgress() } }

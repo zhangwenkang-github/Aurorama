@@ -7,17 +7,30 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,9 +40,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,13 +60,20 @@ import com.zhangwenkang.cinefin.core.presentation.components.CinefinEmptyState
 import com.zhangwenkang.cinefin.core.presentation.components.CinefinPageTopBar
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorChip
 import com.zhangwenkang.cinefin.core.presentation.components.LibrarySelectorOption
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinClickable
+import com.zhangwenkang.cinefin.core.presentation.components.cinefinSelectable
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinShapes
 import com.zhangwenkang.cinefin.core.presentation.theme.CinefinSpacing
+import com.zhangwenkang.cinefin.core.presentation.theme.CinefinType
 import com.zhangwenkang.cinefin.core.presentation.theme.LocalCinefinColors
 import com.zhangwenkang.cinefin.film.R as FilmR
+import com.zhangwenkang.cinefin.local.localItemIdFor
 import com.zhangwenkang.cinefin.models.FindroidItem
 import com.zhangwenkang.cinefin.presentation.components.ErrorDialog
 import com.zhangwenkang.cinefin.presentation.components.SearchTopBarAction
 import com.zhangwenkang.cinefin.presentation.film.components.ErrorCard
+import com.zhangwenkang.cinefin.presentation.film.components.LumenCardFrame
+import com.zhangwenkang.cinefin.presentation.film.components.RetainedAsyncImage
 import com.zhangwenkang.cinefin.presentation.utils.rememberPageGutter
 import com.zhangwenkang.cinefin.presentation.utils.rememberSafePadding
 import java.util.UUID
@@ -85,8 +109,11 @@ fun BookshelfScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val librarySelection by viewModel.librarySelection.collectAsStateWithLifecycle()
+    // W6-T10：最近阅读 / 本地书架 / 移出标记 / 条目附加信息。
+    val extras by viewModel.extras.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var importError by remember { mutableStateOf<Throwable?>(null) }
+    var shelfActionTarget by remember { mutableStateOf<BookshelfShelfTarget?>(null) }
 
     // 「导入书籍」= 系统文件选择器（EPUB / TXT）→ 持久授权 → 阅读器。不拷贝源文件（W6-T7 定稿七 §2）。
     val pickBook =
@@ -108,10 +135,51 @@ fun BookshelfScreen(
                 )
             }
                 .onFailure { Timber.w(it, "导入书籍：持久授权失败（%s）", uri) }
+            // W6-T10：登记进本地书架（只存 URI / 显示名，不拷贝源文件）。
+            viewModel.addLocalBook(uri.toString(), displayName.substringBeforeLast('.'))
             onOpenLocalBook(uri.toString(), displayName.substringBeforeLast('.'))
         }
 
     LaunchedEffect(temporaryLibraryId) { viewModel.load(libraryId = temporaryLibraryId) }
+
+    // W6-T10：书架增强头部（最近阅读 / 本地书籍）。Ready 与占位态共用同一份。
+    val shelfHeader: (@Composable () -> Unit)? =
+        if (extras.recent.isEmpty() && extras.localBooks.isEmpty()) {
+            null
+        } else {
+            {
+                BookshelfShelfHeader(
+                    recent = extras.recent,
+                    localBooks = extras.localBooks,
+                    progressPercentByItemId = extras.progressPercentByItemId,
+                    onOpenRecent = { entry ->
+                        val uri = entry.localUri
+                        if (uri != null) {
+                            onOpenLocalBook(uri, entry.title)
+                        } else {
+                            extras.itemsById[entry.itemId]?.let(onItemClick)
+                        }
+                    },
+                    onOpenLocalBook = { book -> onOpenLocalBook(book.uri, book.name) },
+                    onRecentLongPress = { entry ->
+                        val uri = entry.localUri
+                        if (uri != null) {
+                            shelfActionTarget =
+                                BookshelfShelfTarget.Local(
+                                    BookshelfLocalBook(uri = uri, name = entry.title)
+                                )
+                        } else {
+                            extras.itemsById[entry.itemId]?.let { item ->
+                                shelfActionTarget = BookshelfShelfTarget.Server(item)
+                            }
+                        }
+                    },
+                    onLocalLongPress = { book ->
+                        shelfActionTarget = BookshelfShelfTarget.Local(book)
+                    },
+                )
+            }
+        }
 
     // 临时库视图：返回键先退出临时库（回默认书架），再按一次才离开（用户 2026-10-03 口径）。
     BackHandler(
@@ -134,7 +202,13 @@ fun BookshelfScreen(
                     onOpenDrawer = onOpenDrawer,
                     onBackToDefault = onExitTemporaryLibrary,
                     onOpenDownloads = onOpenDownloads,
-                    // 顶栏「库选择」+「收藏」（W54-C）：与视频页同一套动作，落点由库内容页头部注入。
+                    // W6-T10：书架增强（作者 / 进度 / 最近阅读 / 移出标记）。
+                    shelfMetaLine = { item -> extras.metaLineById[item.id] },
+                    hiddenItemIds = extras.hiddenIds.toItemIdSet(),
+                    headerContent = shelfHeader,
+                    onItemLongPress = { item ->
+                        shelfActionTarget = BookshelfShelfTarget.Server(item)
+                    },
                     topBarActions = {
                         BookshelfTopBarActions(
                             selection = librarySelection,
@@ -150,6 +224,7 @@ fun BookshelfScreen(
                     onOpenDrawer = onOpenDrawer,
                     onRetry = { viewModel.load(force = true, libraryId = temporaryLibraryId) },
                     onExitTemporaryLibrary = onExitTemporaryLibrary,
+                    headerContent = shelfHeader,
                     topBarActions = {
                         BookshelfTopBarActions(
                             selection = librarySelection,
@@ -170,7 +245,35 @@ fun BookshelfScreen(
     importError?.let { error ->
         ErrorDialog(exception = error, onDismissRequest = { importError = null })
     }
+
+    // W6-T10：长按条目 = 移出书架（本地书）/ 详情；服务器书的「移出」只写本地隐藏标记。
+    shelfActionTarget?.let { target ->
+        BookshelfShelfActionSheet(
+            target = target,
+            onDismiss = { shelfActionTarget = null },
+            onRemoveLocal = { book ->
+                viewModel.removeLocalBook(book.uri)
+                shelfActionTarget = null
+            },
+            onRemoveServer = { item ->
+                viewModel.hideFromShelf(item.id)
+                shelfActionTarget = null
+            },
+            onOpen = { target ->
+                shelfActionTarget = null
+                when (target) {
+                    is BookshelfShelfTarget.Server -> onItemClick(target.item)
+                    is BookshelfShelfTarget.Local ->
+                        onOpenLocalBook(target.book.uri, target.book.name)
+                }
+            },
+        )
+    }
 }
+
+/** 书架增强的隐藏集合：偏好里存字符串，这里转回 UUID（脏值直接忽略）。 */
+private fun Set<String>.toItemIdSet(): Set<UUID> =
+    mapNotNullTo(mutableSetOf()) { raw -> runCatching { UUID.fromString(raw) }.getOrNull() }
 
 /** 导入允许的扩展名（与任务卡 READER-37 一致：EPUB / TXT）。 */
 private val SUPPORTED_IMPORT_EXTENSIONS = setOf("epub", "txt")
@@ -262,6 +365,8 @@ private fun BookshelfPlaceholder(
     onOpenDrawer: (() -> Unit)?,
     onRetry: () -> Unit,
     onExitTemporaryLibrary: (() -> Unit)? = null,
+    /** W6-T10：无服务器书籍库时也要能看到最近阅读 / 本地书籍。 */
+    headerContent: (@Composable () -> Unit)? = null,
     topBarActions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = LocalCinefinColors.current
@@ -287,6 +392,9 @@ private fun BookshelfPlaceholder(
         )
         Spacer(Modifier.height(CinefinSpacing.Space6))
 
+        // W6-T10：占位态也显示书架增强头部（本地书 / 最近阅读不依赖服务器书籍库）。
+        headerContent?.invoke()
+
         Box(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = paddingStart),
             contentAlignment = Alignment.Center,
@@ -294,18 +402,28 @@ private fun BookshelfPlaceholder(
             when (state) {
                 BookshelfState.Loading -> CircularProgressIndicator(color = colors.onSurfaceVariant)
                 BookshelfState.Empty ->
-                    CinefinEmptyState(
-                        title = stringResource(FilmR.string.bookshelf_empty_title),
-                        message = stringResource(FilmR.string.bookshelf_empty_message),
-                        icon = { tint ->
-                            Icon(
-                                painter = painterResource(CoreR.drawable.ic_book),
-                                contentDescription = null,
-                                tint = tint,
-                                modifier = Modifier.size(44.dp),
-                            )
-                        },
-                    )
+                    if (headerContent != null) {
+                        // 本地书架已有内容：只提示服务器书籍库为空，不盖掉上半屏的本地书 / 最近阅读。
+                        Text(
+                            text = "服务器书籍库为空 · 可用右下角「导入书籍」添加本地书",
+                            style = CinefinType.LabelMedium,
+                            color = colors.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    } else {
+                        CinefinEmptyState(
+                            title = stringResource(FilmR.string.bookshelf_empty_title),
+                            message = stringResource(FilmR.string.bookshelf_empty_message),
+                            icon = { tint ->
+                                Icon(
+                                    painter = painterResource(CoreR.drawable.ic_book),
+                                    contentDescription = null,
+                                    tint = tint,
+                                    modifier = Modifier.size(44.dp),
+                                )
+                            },
+                        )
+                    }
                 is BookshelfState.Failed -> {
                     ErrorCard(
                         onShowStacktrace = { showErrorDialog = true },
@@ -323,3 +441,204 @@ private fun BookshelfPlaceholder(
         }
     }
 }
+
+/** 书架长按目标：服务器书（详情 / 移出）或本地书（打开 / 移出登记）。 */
+private sealed interface BookshelfShelfTarget {
+    data class Server(val item: FindroidItem) : BookshelfShelfTarget
+
+    data class Local(val book: BookshelfLocalBook) : BookshelfShelfTarget
+}
+
+/** 书架增强头部（W6-T10，定稿七 §3）：最近阅读行 + 本地书籍行，横滑卡片。 */
+@Composable
+private fun BookshelfShelfHeader(
+    recent: List<BookshelfRecentEntry>,
+    localBooks: List<BookshelfLocalBook>,
+    progressPercentByItemId: Map<UUID, Int>,
+    onOpenRecent: (BookshelfRecentEntry) -> Unit,
+    onOpenLocalBook: (BookshelfLocalBook) -> Unit,
+    onRecentLongPress: (BookshelfRecentEntry) -> Unit,
+    onLocalLongPress: (BookshelfLocalBook) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val safePadding = rememberSafePadding(handleStartInsets = false)
+    val pageGutter = rememberPageGutter()
+    val startPadding = safePadding.start + pageGutter
+    val endPadding = safePadding.end + pageGutter
+    val horizontal = PaddingValues(start = startPadding, end = endPadding)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (recent.isNotEmpty()) {
+            Text(
+                text = "最近阅读",
+                style = CinefinType.LabelMedium,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = startPadding),
+            )
+            Spacer(Modifier.height(CinefinSpacing.Space2))
+            LazyRow(
+                contentPadding = horizontal,
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+            ) {
+                items(items = recent, key = { entry -> "recent-${entry.itemId}" }) { entry ->
+                    BookshelfShelfCard(
+                        title = entry.title,
+                        coverUrl = entry.coverUrl,
+                        progressPercent = entry.progressPercent,
+                        onClick = { onOpenRecent(entry) },
+                        onLongClick = { onRecentLongPress(entry) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(CinefinSpacing.Space4))
+        }
+        if (localBooks.isNotEmpty()) {
+            Text(
+                text = "本地书籍",
+                style = CinefinType.LabelMedium,
+                color = colors.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = startPadding),
+            )
+            Spacer(Modifier.height(CinefinSpacing.Space2))
+            LazyRow(
+                contentPadding = horizontal,
+                horizontalArrangement = Arrangement.spacedBy(CinefinSpacing.Space4),
+            ) {
+                items(items = localBooks, key = { book -> "local-${book.uri}" }) { book ->
+                    BookshelfShelfCard(
+                        title = book.name,
+                        coverUrl = null,
+                        progressPercent = progressPercentByItemId[localItemIdFor(book.uri)],
+                        onClick = { onOpenLocalBook(book) },
+                        onLongClick = { onLocalLongPress(book) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(CinefinSpacing.Space4))
+        }
+    }
+}
+
+/** 书架横滑卡片：封面（无封面用书籍占位图标）+ 书名 + 进度百分比。 */
+@Composable
+private fun BookshelfShelfCard(
+    title: String,
+    coverUrl: String?,
+    progressPercent: Int?,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    Column(
+        modifier =
+            Modifier.width(BOOKSHELF_SHELF_CARD_WIDTH)
+                .cinefinSelectable(
+                    selected = false,
+                    onClick = onClick,
+                    onLongPress = onLongClick,
+                )
+    ) {
+        LumenCardFrame(
+            modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f),
+            shape = CinefinShapes.Poster,
+            container = colors.surfaceContainerHigh,
+        ) {
+            if (coverUrl.isNullOrBlank()) {
+                Icon(
+                    painter = painterResource(CoreR.drawable.ic_book),
+                    contentDescription = null,
+                    tint = colors.onSurfaceVariant.copy(alpha = 0.64f),
+                    modifier = Modifier.align(Alignment.Center).size(32.dp),
+                )
+            } else {
+                RetainedAsyncImage(
+                    model = coverUrl,
+                    retainKey = coverUrl,
+                    placeholderPainter = ColorPainter(colors.surfaceContainerHigh),
+                    errorPainter = ColorPainter(colors.surfaceContainerHigh),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
+        }
+        Spacer(Modifier.height(CinefinSpacing.Space2))
+        Text(
+            text = title,
+            style = CinefinType.BodySmall,
+            color = colors.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = bookshelfProgressText(progressPercent),
+            style = CinefinType.LabelMedium,
+            color = colors.onSurfaceVariant,
+        )
+    }
+}
+
+/** 长按面板：服务器书 = 打开 / 移出书架（本地隐藏）；本地书 = 打开 / 移出登记（不删文件）。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BookshelfShelfActionSheet(
+    target: BookshelfShelfTarget,
+    onDismiss: () -> Unit,
+    onRemoveLocal: (BookshelfLocalBook) -> Unit,
+    onRemoveServer: (FindroidItem) -> Unit,
+    onOpen: (BookshelfShelfTarget) -> Unit,
+) {
+    val colors = LocalCinefinColors.current
+    val title =
+        when (target) {
+            is BookshelfShelfTarget.Server -> target.item.name
+            is BookshelfShelfTarget.Local -> target.book.name
+        }
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.surfaceContainerHigh,
+        contentColor = colors.onSurface,
+    ) {
+        Column(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(horizontal = CinefinSpacing.Space6)
+                    .padding(bottom = CinefinSpacing.Space6),
+            verticalArrangement = Arrangement.spacedBy(CinefinSpacing.Space1),
+        ) {
+            Text(text = title, style = CinefinType.TitleMedium, color = colors.onSurface)
+            HorizontalDivider(modifier = Modifier.padding(vertical = CinefinSpacing.Space2))
+            BookshelfActionRow(label = "打开", onClick = { onOpen(target) })
+            when (target) {
+                is BookshelfShelfTarget.Server ->
+                    BookshelfActionRow(
+                        label = "移出书架（只在本机隐藏，不修改服务器）",
+                        onClick = { onRemoveServer(target.item) },
+                    )
+                is BookshelfShelfTarget.Local ->
+                    BookshelfActionRow(
+                        label = "移出书架（不删除本地文件）",
+                        onClick = { onRemoveLocal(target.book) },
+                    )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BookshelfActionRow(label: String, onClick: () -> Unit) {
+    val colors = LocalCinefinColors.current
+    Row(
+        modifier =
+            Modifier.fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .cinefinClickable(onClickLabel = label, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = label, style = CinefinType.BodyMedium, color = colors.onSurface)
+    }
+}
+
+/** 书架横滑卡片宽度（与「最近阅读」行一屏约 3 张的节奏）。 */
+private val BOOKSHELF_SHELF_CARD_WIDTH = 104.dp

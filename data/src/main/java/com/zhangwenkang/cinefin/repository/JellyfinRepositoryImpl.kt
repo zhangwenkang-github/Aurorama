@@ -756,7 +756,14 @@ class JellyfinRepositoryImpl(
                             genres = genres,
                             studios = studios,
                             // W77-5：书架书籍卡零请求判断远端 PDF（`BookCoverRules.isPdfPath`）用；默认字段不含 Path。
-                            fields = listOf(ItemFields.PATH),
+                            // W6-T10：书籍查询补 `People`，书架条目显示作者（READER-39）；其他类型不请求，避免额外载荷。
+                            fields =
+                                buildList {
+                                    add(ItemFields.PATH)
+                                    if (includeTypes?.contains(BaseItemKind.BOOK) == true) {
+                                        add(ItemFields.PEOPLE)
+                                    }
+                                },
                         )
                         .content
                         .items

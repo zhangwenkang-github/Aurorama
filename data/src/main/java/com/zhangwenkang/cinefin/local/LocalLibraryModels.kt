@@ -52,7 +52,7 @@ object LocalMediaExtensions {
      */
     val MUSIC = setOf("mp3", "flac", "m4a", "aac", "opus", "ogg", "wav", "ape", "dsf", "dff")
 
-    val BOOK = setOf("pdf", "epub", "cbz")
+    val BOOK = setOf("pdf", "epub", "cbz", "txt")
 
     /**
      * 引擎解不了的音乐扩展名（MUSIC-36）。

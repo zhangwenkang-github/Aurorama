@@ -252,6 +252,9 @@ class ReaderRepositoryImpl(
             resolveReadingProgress(itemId, local, remote)
         }
 
+    override suspend fun listReadingProgress(limit: Int): List<ReadingProgress> =
+        progressStore.list(limit)
+
     override suspend fun saveReadingProgress(itemId: UUID, progress: ReadingProgress) {
         withContext(Dispatchers.IO) {
             // W37：本地媒体库书籍（pendingSync=false）= 只落本机进度，不查服务器 RunTimeTicks、不回传。
